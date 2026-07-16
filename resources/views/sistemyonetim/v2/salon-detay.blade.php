@@ -29,18 +29,19 @@
             @endif
         </h2>
         @php
-            $telHam  = $salon->telefon_1 ?: ($salon->yetkili_telefon ?: '');
-            $telLink = preg_replace('/[^0-9+]/', '', (string) $telHam);
+            $telLink = preg_replace('/[^0-9+]/', '', (string) ($iletisimTel ?? ''));
         @endphp
-        @if($telHam)
-        <div style="margin-top:6px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-            <a href="tel:{{ $telLink }}" style="font-size:20px;font-weight:700;color:var(--sy-primary);text-decoration:none;display:inline-flex;align-items:center;gap:6px">
-                <span class="mdi mdi-phone"></span>{{ $telHam }}
-            </a>
-            @if($salon->yetkili_adi)
-                <span class="sy-text-muted" style="font-size:14px;display:inline-flex;align-items:center;gap:4px">
-                    <span class="mdi mdi-account"></span>{{ $salon->yetkili_adi }}
+        @if(!empty($iletisimAd) || !empty($iletisimTel))
+        <div style="margin-top:6px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            @if(!empty($iletisimAd))
+                <span style="font-size:16px;font-weight:600;display:inline-flex;align-items:center;gap:6px">
+                    <span class="mdi mdi-account"></span>{{ $iletisimAd }}
                 </span>
+            @endif
+            @if(!empty($iletisimTel))
+                <a href="tel:{{ $telLink }}" style="font-size:20px;font-weight:700;color:var(--sy-primary);text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+                    <span class="mdi mdi-phone"></span>{{ $iletisimTel }}
+                </a>
             @endif
         </div>
         @endif

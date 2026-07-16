@@ -230,6 +230,22 @@ class PanelController extends Controller
             abort(403, 'Bu salonu görme yetkiniz yok.');
         }
 
+        // Iletisim (yetkili) adi + telefonu — salon listesiyle AYNI fallback:
+        // salon.yetkili_adi/telefon bos ise hesap sahibine (salon_personelleri role_id=1) dus.
+        $iletisimAd  = trim((string) $salon->yetkili_adi);
+        $iletisimTel = trim((string) $salon->yetkili_telefon);
+        if ($iletisimAd === '' && $iletisimTel === '') {
+            $hs = DB::table('salon_personelleri')
+                ->where('role_id', 1)
+                ->where('salon_id', $id)
+                ->orderBy('id', 'asc')
+                ->first(['personel_adi', 'cep_telefon']);
+            if ($hs) {
+                $iletisimAd  = trim((string) $hs->personel_adi);
+                $iletisimTel = trim((string) $hs->cep_telefon);
+            }
+        }
+
         // Yetkililer: kanonik olarak personeller.yetkili_id uzerinden
         $personeller = Personeller::where('salon_id', $id)->get();
         // NOT: Collection::whereNotNull() Laravel 5.6'da yok (5.7+); pluck->filter ile null/bos elenir
@@ -280,6 +296,8 @@ class PanelController extends Controller
             'title' => $salon->salon_adi,
             'aktifMenu' => 'salonlar',
             'salon' => $salon,
+            'iletisimAd' => $iletisimAd,
+            'iletisimTel' => $iletisimTel,
             'yetkililer' => $yetkililer,
             'personeller' => $personeller,
             'notlar' => $notlar,
