@@ -148,8 +148,14 @@
         }).then(function (o) {
             var d = o.j || {};
             var qr = d && d.body && d.body.qr ? d.body.qr : null;
-            if (qr) { qrImg.src = qr; qrKutu.style.display = 'block'; teshis('QR alındı ✓ — okut.'); }
-            else { teshis('QR yok · /qr → http ' + o.st + ' · ' + JSON.stringify(d.body || d).slice(0, 140)); }
+            if (qr) {
+                // whatsmeow HAM QR metni doner; Baileys data-URL. Ham metni resme cevir
+                // (mevcut whatsmeow pilot sayfasiyla ayni: api.qrserver.com).
+                if (String(qr).indexOf('data:') === 0) { qrImg.src = qr; }
+                else { qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=' + encodeURIComponent(qr); }
+                qrKutu.style.display = 'block';
+                teshis('QR alındı ✓ — okut.');
+            } else { teshis('QR yok · /qr → http ' + o.st + ' · ' + JSON.stringify(d.body || d).slice(0, 140)); }
         }).catch(function () { teshis('QR isteği başarısız (ağ/servis).'); });
     }
     baglanBtn.addEventListener('click', function () {
