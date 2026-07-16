@@ -48,6 +48,18 @@ Route::get('/_rcdbg/{k}', function ($k) {
         . 'HTTP_HOST=' . ($_SERVER['HTTP_HOST'] ?? '?') . "\n"
         . "kardes dizinler:\n  - " . implode("\n  - ", $dirs) . "\n";
 
+    // Canli (randevumcepte) git bilgisi — reset'ten once dogrulama (salt-okunur)
+    $prod = $parent . '/randevumcepte';
+    if (is_dir($prod . '/.git')) {
+        $cfg = @file_get_contents($prod . '/.git/config');
+        if ($cfg && preg_match('/url\s*=\s*(.+)/', $cfg, $m)) $srv .= "\nprod remote=" . trim($m[1]);
+        $srv .= "\nprod HEAD=" . trim((string) @file_get_contents($prod . '/.git/HEAD'));
+        $lh = @file($prod . '/.git/logs/HEAD');
+        if ($lh) $srv .= "\nprod son commit: " . trim((string) end($lh));
+        $srv .= "\nprod .env: " . (is_file($prod . '/.env') ? 'VAR' : 'YOK!');
+        $srv .= "\n";
+    }
+
     return response('<pre>opcache.validate_timestamps=' . $vt . "\n\n"
         . htmlspecialchars($srv) . "\n" . htmlspecialchars($body) . '</pre>');
 })->where('k', '.*');
