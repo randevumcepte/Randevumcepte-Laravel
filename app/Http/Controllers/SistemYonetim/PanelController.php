@@ -165,24 +165,50 @@ class PanelController extends Controller
         $q = trim($request->get('q', ''));
         $durum = $request->get('durum', 'hepsi'); // hepsi | aktif | askida
         $musteriYetkiliId = $request->get('mt');
+        $tip = $request->get('tip', 'tumu'); // tumu | demo | aktif (hizli filtre butonlari)
 
-        // Il/Ilce eager-load — N+1 query patlamasini onler
-        $query = Salonlar::with(['il', 'ilce']);
+        // Demo/Aktif ayrimi listedeki rozetle AYNI: demo = uyelik_turu=3 VE lisans <=90 gun.
+        $esik  = date('Y-m-d', strtotime('+90 days'));
+        $bugun = date('Y-m-d');
+        $demoScope = function ($qq) use ($esik) {
+            $qq->where('uyelik_turu', 3)->where(function ($w) use ($esik) {
+                $w->whereNull('uyelik_bitis_tarihi')->orWhere('uyelik_bitis_tarihi', '<=', $esik);
+            });
+        };
+        $aktifScope = function ($qq) use ($bugun, $esik) {
+            $qq->where('askiya_alindi', 0)
+               ->where('uyelik_bitis_tarihi', '>=', $bugun)
+               ->where(function ($w) use ($esik) {
+                   $w->where('uyelik_turu', '!=', 3)->orWhere('uyelik_bitis_tarihi', '>', $esik);
+               });
+        };
+
+        // Ortak kapsam (arama + MT + destek rolu) — sayilar ve liste bunu paylasir
+        $base = Salonlar::query();
         if ($q !== '') {
-            $query->where(function ($w) use ($q) {
+            $base->where(function ($w) use ($q) {
                 $w->where('salon_adi', 'like', "%$q%")
                   ->orWhere('telefon_1', 'like', "%$q%")
                   ->orWhere('yetkili_telefon', 'like', "%$q%")
                   ->orWhere('yetkili_adi', 'like', "%$q%");
             });
         }
+        if ($musteriYetkiliId) $base->where('musteri_yetkili_id', $musteriYetkiliId);
+        if ($this->rol() === 'destek') $base->where('musteri_yetkili_id', $this->user()->id);
+
+        // Hizli filtre sayilari (tip filtresinden bagimsiz)
+        $sayilar = [
+            'tumu'  => (clone $base)->count(),
+            'demo'  => (clone $base)->where($demoScope)->count(),
+            'aktif' => (clone $base)->where($aktifScope)->count(),
+        ];
+
+        // Listeleme sorgusu (Il/Ilce eager-load — N+1 onler)
+        $query = (clone $base)->with(['il', 'ilce']);
         if ($durum === 'aktif') $query->where('askiya_alindi', 0);
         if ($durum === 'askida') $query->where('askiya_alindi', 1);
-        if ($musteriYetkiliId) $query->where('musteri_yetkili_id', $musteriYetkiliId);
-
-        if ($this->rol() === 'destek') {
-            $query->where('musteri_yetkili_id', $this->user()->id);
-        }
+        if ($tip === 'demo')  $query->where($demoScope);
+        if ($tip === 'aktif') $query->where($aktifScope);
 
         $perPage = (int) $request->get('per_page', 100);
         if (!in_array($perPage, [50, 100, 200, 500], true)) $perPage = 100;
@@ -220,6 +246,8 @@ class PanelController extends Controller
             'q' => $q,
             'durum' => $durum,
             'mt' => $musteriYetkiliId,
+            'tip' => $tip,
+            'sayilar' => $sayilar,
         ]);
     }
 
@@ -1535,6 +1563,30 @@ class PanelController extends Controller
             ]);
             Audit::log('toplu_aktif_et', 'salon', null, "$sayi salon", null, ['ids' => $ids]);
             return redirect()->back()->with('basari', "$sayi salon aktif edildi.");
+        }
+
+        // ============================================================
+        // GECICI: TEST SALONU SILME (temizlik icin). Isin bitince bu blok
+        // + bulk dropdown'daki 'sil' secenegi kaldirilacak. Sadece super_admin.
+        // ============================================================
+        if ($islem === 'sil') {
+            if ($this->rol() !== 'super_admin') {
+                return redirect()->back()->with('hata', 'Silme yetkisi yalnızca süper adminde.');
+            }
+            DB::beginTransaction();
+            try {
+                DB::table('salon_personelleri')->whereIn('salon_id', $ids)->delete();
+                DB::table('salon_calisma_saatleri')->whereIn('salon_id', $ids)->delete();
+                DB::table('salon_mola_saatleri')->whereIn('salon_id', $ids)->delete();
+                DB::table('model_has_roles')->whereIn('salon_id', $ids)->delete();
+                $sayi = Salonlar::whereIn('id', $ids)->delete();
+                DB::commit();
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                return redirect()->back()->with('hata', 'Silme başarısız: ' . $e->getMessage());
+            }
+            Audit::log('toplu_salon_sil', 'salon', null, "$sayi salon SILINDI (test)", null, ['ids' => $ids]);
+            return redirect()->back()->with('basari', "$sayi salon silindi (test temizliği).");
         }
 
         return redirect()->back()->with('hata', 'Geçersiz işlem.');

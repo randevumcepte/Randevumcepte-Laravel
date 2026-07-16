@@ -90,7 +90,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap">
             <div style="min-width:200px">
                 <div class="sy-text-muted sy-fs-12" style="text-transform:uppercase;letter-spacing:.5px">
-                    <span class="mdi mdi-clock-outline"></span> Demo / Üyelik Bitişi
+                    <span class="mdi mdi-clock-outline"></span> {{ $demo ? 'Demo / Üyelik Bitişi' : 'Lisans / Üyelik Bitişi' }}
                 </div>
                 <div style="display:flex;align-items:baseline;gap:10px;margin-top:2px">
                     <span style="font-size:26px;font-weight:800;color:var(--sy-{{ $ubRenk }})">
@@ -106,7 +106,13 @@
                 </div>
             </div>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                @foreach([['gun'=>7,'etiket'=>'+7 gün','stil'=>'soft'], ['gun'=>15,'etiket'=>'+15 gün','stil'=>'soft'], ['gun'=>30,'etiket'=>'+30 gün','stil'=>'primary'], ['gun'=>90,'etiket'=>'+90 gün','stil'=>'soft'], ['gun'=>365,'etiket'=>'+1 yıl','stil'=>'soft']] as $qs)
+                @php
+                    // Demo'da kisa deneme butonlari; lisansli/aktif salonda sadece yillik yenileme.
+                    $hizliBtnlar = $demo
+                        ? [['gun'=>7,'etiket'=>'+7 gün','stil'=>'soft'], ['gun'=>15,'etiket'=>'+15 gün','stil'=>'soft'], ['gun'=>30,'etiket'=>'+30 gün','stil'=>'primary'], ['gun'=>90,'etiket'=>'+90 gün','stil'=>'soft'], ['gun'=>365,'etiket'=>'+1 yıl','stil'=>'soft']]
+                        : [['gun'=>365,'etiket'=>'+1 yıl','stil'=>'primary'], ['gun'=>730,'etiket'=>'+2 yıl','stil'=>'soft']];
+                @endphp
+                @foreach($hizliBtnlar as $qs)
                     <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/sure-uzat" style="display:inline">
                         @csrf
                         <input type="hidden" name="gun" value="{{ $qs['gun'] }}">

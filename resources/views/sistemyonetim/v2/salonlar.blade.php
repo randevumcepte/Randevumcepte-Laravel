@@ -73,6 +73,7 @@
             <option value="mt_ata">Müşteri Temsilcisi Ata</option>
             <option value="askiya_al">Askıya Al</option>
             <option value="aktif_et">Aktif Et</option>
+            <option value="sil">🗑️ Sil (test temizliği)</option>
         </select>
         <select name="mt_id" id="bulkMt" class="sy-select" style="max-width:220px;display:none">
             <option value="">Atama yok</option>
@@ -86,6 +87,17 @@
     </div>
 </form>
 @endif
+
+@php $tabQ = collect(request()->except(['tip', 'page']))->toArray(); @endphp
+<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    @foreach([['k'=>'tumu','ad'=>'Tümü','s'=>$sayilar['tumu']], ['k'=>'demo','ad'=>'Demo','s'=>$sayilar['demo']], ['k'=>'aktif','ad'=>'Aktif','s'=>$sayilar['aktif']]] as $tb)
+        <a href="?{{ http_build_query(array_merge($tabQ, ['tip'=>$tb['k']])) }}"
+           class="sy-btn {{ $tip===$tb['k'] ? 'sy-btn-primary' : 'sy-btn-soft' }}">
+            {{ $tb['ad'] }}
+            <span style="margin-left:6px;background:rgba(0,0,0,.14);border-radius:10px;padding:1px 9px;font-weight:700;font-size:13px">{{ $tb['s'] }}</span>
+        </a>
+    @endforeach
+</div>
 
 <div class="sy-card">
     <div class="sy-card-body tight">
@@ -233,6 +245,9 @@ function bulkSubmit() {
     const n = document.querySelectorAll('.bulkChk:checked').length;
     const islem = document.getElementById('bulkIslem').value;
     if (!n || !islem) { alert('Önce salon ve işlem seçin.'); return false; }
+    if (islem === 'sil') {
+        return confirm('DİKKAT: ' + n + ' salon KALICI olarak SİLİNECEK (geri alınamaz). Test temizliği için onaylıyor musunuz?');
+    }
     const labels = { mt_ata: 'müşteri temsilcisi atanacak', askiya_al: 'askıya alınacak', aktif_et: 'aktif edilecek' };
     return confirm(n + ' salon ' + labels[islem] + '. Onaylıyor musunuz?');
 }
