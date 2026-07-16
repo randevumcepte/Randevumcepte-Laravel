@@ -3079,18 +3079,24 @@ class SalonappyImport extends Command
 
         $eslesen = 0; $eksik = [];
         $dbKullanildi = []; // ayni DB satirini iki kez saymamak icin
-        foreach ($excelRows as $ex) {
-            $k = $ex['tarih'] . '|' . number_format($ex['tutar'], 2, '.', '');
-            $bulundu = false;
-            if (isset($dbIndex[$k])) {
-                foreach ($dbIndex[$k] as $dbId) {
-                    if (!isset($dbKullanildi[$dbId])) {
-                        $dbKullanildi[$dbId] = true;
-                        $bulundu = true; break;
+        // Tarih ±1 gun toleransi (timezone / visit-vs-payment tarih farki olabilir)
+        $findMatch = function ($tarih, $tutar) use ($dbIndex, &$dbKullanildi) {
+            $tt = number_format($tutar, 2, '.', '');
+            foreach ([$tarih, date('Y-m-d', strtotime($tarih . ' -1 day')), date('Y-m-d', strtotime($tarih . ' +1 day'))] as $t) {
+                $k = $t . '|' . $tt;
+                if (isset($dbIndex[$k])) {
+                    foreach ($dbIndex[$k] as $dbId) {
+                        if (!isset($dbKullanildi[$dbId])) {
+                            $dbKullanildi[$dbId] = true;
+                            return true;
+                        }
                     }
                 }
             }
-            if ($bulundu) { $eslesen++; }
+            return false;
+        };
+        foreach ($excelRows as $ex) {
+            if ($findMatch($ex['tarih'], $ex['tutar'])) { $eslesen++; }
             else { $eksik[] = $ex; }
         }
 
