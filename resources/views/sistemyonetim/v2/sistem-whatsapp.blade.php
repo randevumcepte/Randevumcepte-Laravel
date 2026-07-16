@@ -134,7 +134,14 @@
             }
         }).catch(function () { setDurum('Servise ulaşılamadı', 'danger'); });
     }
-    function teshis(t) { var el = document.getElementById('wa-teshis'); if (el) el.textContent = t; }
+    var teshisLog = [];
+    function teshis(t) {
+        var el = document.getElementById('wa-teshis');
+        if (!el) return;
+        teshisLog.push(t);
+        if (teshisLog.length > 5) teshisLog.shift();
+        el.innerHTML = teshisLog.join('<br>');
+    }
     function qrCek() {
         fetch('/sistemyonetim/v2/sistem-whatsapp/qr').then(function (r) {
             return r.json().then(function (j) { return { st: r.status, j: j }; });

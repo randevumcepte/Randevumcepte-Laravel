@@ -1656,7 +1656,9 @@ class PanelController extends Controller
      * ============================================================ */
     private function waService()
     {
-        return app(\App\Services\WhatsAppService::class);
+        // Aktif bridge whatsmeow (3002). Baileys (3001) artik yeni oturum acmiyor
+        // (whatsmeow gecisi) -> 'sistem' oturumunu whatsmeow uzerinden yonet.
+        return app(\App\Services\WhatsmeowService::class);
     }
 
     public function sistemWhatsapp()

@@ -125,7 +125,8 @@ class SistemBildirim
         // AYRI bir numara QR ile baglanir; alici (senin numaran) gonderenden FARKLI oldugu
         // icin "kendine gonderme" sorunu olmaz. Baglı degilse WA atlanir, SMS yine gider.
         try {
-            $detay['wa'] = app(WhatsAppService::class)->sendRaw(self::sessionId(), $numara, $mesaj);
+            // Aktif bridge whatsmeow (3002) — 'sistem' oturumu onun uzerinden.
+            $detay['wa'] = app(WhatsmeowService::class)->sendTest(self::sessionId(), $numara, $mesaj);
         } catch (\Throwable $e) {
             $detay['wa'] = ['ok' => false, 'error' => $e->getMessage()];
             Log::warning('[SistemBildirim] WA hata', ['e' => $e->getMessage()]);
