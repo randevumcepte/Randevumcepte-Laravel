@@ -37,6 +37,9 @@ class SalonappyImport extends Command
         {--musteri-id= : --inspect-musteri icin DB user_id direkt}
         {--reconcile-tahsilat : Salonappy tahsilat xlsx export (Musteri/Tarih/Odeme/Tutar/Kaynak/Urun) ile DB tahsilatlari karsilastir. Eksik olanlar CSV\'ye yazilir. --file --salon zorunlu, --from/--to opsiyonel.}
         {--file= : --reconcile-tahsilat icin xlsx dosya yolu}
+        {--inspect-tahsilat-detay : Belli tarih+tutar aralığindaki tum DB tahsilatlarini listele. --tarih --tutar --salon zorunlu.}
+        {--tarih= : --inspect-tahsilat-detay icin merkez tarih YYYY-MM-DD}
+        {--tutar= : --inspect-tahsilat-detay icin merkez tutar}
         {--dry-run : Reset/import oncesi sadece sayim}
         {--proxy= : http://user:pass@host:port residential proxy (CF/IP block icin)}';
 
@@ -61,8 +64,9 @@ class SalonappyImport extends Command
         $fixRhSaat = (bool) $this->option('fix-rh-saat');
         $inspectMus = (bool) $this->option('inspect-musteri');
         $reconcileT = (bool) $this->option('reconcile-tahsilat');
-        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && (!$username || !$password)) {
-            $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri / --reconcile-tahsilat verin).');
+        $inspectTD = (bool) $this->option('inspect-tahsilat-detay');
+        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && (!$username || !$password)) {
+            $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri / --reconcile-tahsilat / --inspect-tahsilat-detay verin).');
             return 1;
         }
         if (!$probe && !$analyze && !$salonId) {
@@ -125,6 +129,12 @@ class SalonappyImport extends Command
                 (int) $salonId, $file,
                 $this->option('from'), $this->option('to')
             );
+        }
+        if ((bool) $this->option('inspect-tahsilat-detay')) {
+            if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
+            $t = $this->option('tarih'); $tu = $this->option('tutar');
+            if (!$t || !$tu) { $this->error('--tarih ve --tutar zorunlu.'); return 1; }
+            return $this->inspectTahsilatDetay((int) $salonId, $t, (float) $tu);
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
@@ -3133,6 +3143,36 @@ class SalonappyImport extends Command
                 $this->line(sprintf('  %s | %s | %s TL | %s | %s',
                     $ex['tarih'], $ex['user_ad'], $ex['tutar'], $ex['kaynak'], $ex['hizmet']));
             }
+        }
+        return 0;
+    }
+
+    /**
+     * Belli tarih (±3 gun) + tutar (±100) araligindaki DB tahsilatlarini listele.
+     * Reconcile'da "sistemde var ama eksik" gozuken tahsilati bulmak icin.
+     */
+    private function inspectTahsilatDetay($salonId, $tarih, $tutar)
+    {
+        $tFrom = date('Y-m-d', strtotime($tarih . ' -3 day'));
+        $tTo   = date('Y-m-d', strtotime($tarih . ' +3 day'));
+        $tuMin = max(0, $tutar - 100);
+        $tuMax = $tutar + 100;
+        $this->info("Salon $salonId | tarih $tFrom..$tTo | tutar $tuMin..$tuMax");
+        $rows = \DB::table('tahsilatlar as t')
+            ->join('users as u', 't.user_id', '=', 'u.id')
+            ->where('t.salon_id', $salonId)
+            ->whereBetween('t.odeme_tarihi', [$tFrom, $tTo])
+            ->whereBetween('t.tutar', [$tuMin, $tuMax])
+            ->select('t.id', 't.odeme_tarihi', 't.tutar', 't.odeme_yontemi_id', 't.notlar', 'u.id as uid', 'u.name', 'u.cep_telefon')
+            ->orderBy('t.odeme_tarihi')->orderBy('t.id')
+            ->get();
+        $this->line("Bulunan tahsilat sayisi: " . $rows->count());
+        foreach ($rows as $r) {
+            $marker = '';
+            if (preg_match('~\[salonappy[^\]]*\]~', (string) $r->notlar, $mm)) $marker = $mm[0];
+            $this->line(sprintf('  t.id=%d | %s | %.2f TL | oy=%d | user#%d %s (tel:%s) | %s',
+                $r->id, $r->odeme_tarihi, (float) $r->tutar, (int) $r->odeme_yontemi_id,
+                $r->uid, $r->name, $r->cep_telefon, $marker));
         }
         return 0;
     }
