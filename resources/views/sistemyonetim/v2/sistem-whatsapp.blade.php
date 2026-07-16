@@ -77,6 +77,7 @@
                 @endif
             </p>
             <button id="wa-baglan-btn" type="button" class="sy-btn sy-btn-primary"><span class="mdi mdi-whatsapp"></span> Bağlan / QR Göster</button>
+            <div id="wa-teshis" class="sy-text-muted sy-fs-12" style="margin-top:8px;font-family:monospace"></div>
             <div id="wa-qr-kutu" style="display:none;margin-top:16px;text-align:center">
                 <img id="wa-qr" src="" alt="QR" style="width:300px;height:300px;max-width:100%;border:1px solid #eee;padding:8px;background:#fff;border-radius:8px">
                 <div class="sy-text-muted sy-fs-12" style="margin-top:8px">QR 30-60 sn geçerli, otomatik yenilenir. Okuttuktan sonra "Bağlı" olur.</div>
@@ -133,17 +134,30 @@
             }
         }).catch(function () { setDurum('Servise ulaşılamadı', 'danger'); });
     }
+    function teshis(t) { var el = document.getElementById('wa-teshis'); if (el) el.textContent = t; }
     function qrCek() {
-        fetch('/sistemyonetim/v2/sistem-whatsapp/qr').then(function (r) { return r.json(); }).then(function (d) {
+        fetch('/sistemyonetim/v2/sistem-whatsapp/qr').then(function (r) {
+            return r.json().then(function (j) { return { st: r.status, j: j }; });
+        }).then(function (o) {
+            var d = o.j || {};
             var qr = d && d.body && d.body.qr ? d.body.qr : null;
-            if (qr) { qrImg.src = qr; qrKutu.style.display = 'block'; }
-        }).catch(function () {});
+            if (qr) { qrImg.src = qr; qrKutu.style.display = 'block'; teshis('QR alındı ✓ — okut.'); }
+            else { teshis('QR yok · /qr → http ' + o.st + ' · ' + JSON.stringify(d.body || d).slice(0, 140)); }
+        }).catch(function () { teshis('QR isteği başarısız (ağ/servis).'); });
     }
     baglanBtn.addEventListener('click', function () {
         baglanBtn.disabled = true; baglanBtn.textContent = 'Başlatılıyor…';
+        teshis('Başlatılıyor…');
         fetch('/sistemyonetim/v2/sistem-whatsapp/baglat', { method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } })
-            .then(function () { setDurum('QR hazırlanıyor…', 'info'); if (pollTimer) clearInterval(pollTimer); pollTimer = setInterval(statusCek, 2000); setTimeout(statusCek, 600); setTimeout(qrCek, 900); })
-            .catch(function () { setDurum('Servise ulaşılamadı', 'danger'); })
+            .then(function (r) { return r.json().then(function (j) { return { st: r.status, j: j }; }); })
+            .then(function (o) {
+                teshis('baglat → http ' + o.st + ' · ' + JSON.stringify(o.j).slice(0, 140));
+                setDurum('QR hazırlanıyor…', 'info');
+                if (pollTimer) clearInterval(pollTimer);
+                pollTimer = setInterval(function () { statusCek(); qrCek(); }, 2000);
+                setTimeout(qrCek, 800); setTimeout(qrCek, 2000); setTimeout(qrCek, 4000);
+            })
+            .catch(function () { setDurum('Servise ulaşılamadı', 'danger'); teshis('baglat isteği başarısız.'); })
             .finally(function () { baglanBtn.disabled = false; baglanBtn.innerHTML = '<span class="mdi mdi-whatsapp"></span> Bağlan / QR Göster'; });
     });
 
