@@ -626,6 +626,15 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     // Toplu islem
     Route::post('/salon/toplu-islem', 'PanelController@topluIslem');
 
+    // Sistem WhatsApp (salon-bagimsiz bildirim oturumu)
+    Route::get('/sistem-whatsapp', 'PanelController@sistemWhatsapp')->name('sistemyonetim.v2.sistem-whatsapp');
+    Route::post('/sistem-whatsapp/baglat', 'PanelController@sistemWhatsappBaglat');
+    Route::get('/sistem-whatsapp/qr', 'PanelController@sistemWhatsappQr');
+    Route::get('/sistem-whatsapp/status', 'PanelController@sistemWhatsappStatus');
+    Route::post('/sistem-whatsapp/cikis', 'PanelController@sistemWhatsappCikis');
+    Route::post('/sistem-whatsapp/ayar', 'PanelController@sistemWhatsappAyar');
+    Route::post('/sistem-whatsapp/test', 'PanelController@sistemWhatsappTest');
+
     // API: arama + bildirim
     Route::get('/api/global-arama', 'PanelController@globalArama');
     Route::get('/api/salon-ara', 'PanelController@salonAraJson');

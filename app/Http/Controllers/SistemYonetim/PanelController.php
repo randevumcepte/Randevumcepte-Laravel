@@ -1610,6 +1610,66 @@ class PanelController extends Controller
     }
 
     /* ============================================================
+     * SISTEM WHATSAPP (salon-bagimsiz bildirim oturumu)
+     * ============================================================ */
+    private function waService()
+    {
+        return app(\App\Services\WhatsAppService::class);
+    }
+
+    public function sistemWhatsapp()
+    {
+        $this->gerektir(['super_admin']);
+        return view('sistemyonetim.v2.sistem-whatsapp', [
+            'title'     => 'Sistem WhatsApp',
+            'aktifMenu' => 'sistem-whatsapp',
+            'ayar'      => \App\Services\SistemBildirim::ayarOku(),
+        ]);
+    }
+
+    public function sistemWhatsappBaglat()
+    {
+        $this->gerektir(['super_admin']);
+        return response()->json($this->waService()->startSession(\App\Services\SistemBildirim::SESSION));
+    }
+
+    public function sistemWhatsappQr()
+    {
+        $this->gerektir(['super_admin']);
+        return response()->json($this->waService()->qr(\App\Services\SistemBildirim::SESSION));
+    }
+
+    public function sistemWhatsappStatus()
+    {
+        $this->gerektir(['super_admin']);
+        return response()->json($this->waService()->status(\App\Services\SistemBildirim::SESSION));
+    }
+
+    public function sistemWhatsappCikis()
+    {
+        $this->gerektir(['super_admin']);
+        $this->waService()->logout(\App\Services\SistemBildirim::SESSION);
+        return redirect()->back()->with('basari', 'Sistem WhatsApp oturumu kapatıldı.');
+    }
+
+    public function sistemWhatsappAyar(Request $request)
+    {
+        $this->gerektir(['super_admin']);
+        \App\Services\SistemBildirim::ayarYaz($request->get('numara'), $request->get('aktif') ? 1 : 0);
+        return redirect()->back()->with('basari', 'Bildirim ayarı kaydedildi.');
+    }
+
+    public function sistemWhatsappTest()
+    {
+        $this->gerektir(['super_admin']);
+        $r = \App\Services\SistemBildirim::gonder('✅ Test: Sistem bildirimi çalışıyor. (' . date('d.m.Y H:i') . ')');
+        if (empty($r['ok'])) {
+            return redirect()->back()->with('hata', 'Gönderilemedi — numara girip "aktif" işaretleyin ve kaydedin.');
+        }
+        return redirect()->back()->with('basari', 'Test mesajı gönderildi (WhatsApp + SMS).');
+    }
+
+    /* ============================================================
      * PROFIL & SIFRE DEGISTIR
      * ============================================================ */
     public function profil()

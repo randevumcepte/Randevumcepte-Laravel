@@ -41,6 +41,22 @@ class WhatsAppService
     }
 
     /**
+     * Salon nesnesi OLMADAN, dogrudan bir oturum id'sinden mesaj gonderir.
+     * Sistem bildirimleri (salon-bagimsiz "sistem" oturumu) icin kullanilir.
+     */
+    public function sendRaw($sessionId, $to, $message)
+    {
+        $to = preg_replace('/[^0-9]/', '', (string) $to);
+        return $this->request('POST', "/session/{$sessionId}/send", [
+            'to' => $to,
+            'message' => $message,
+            'warmupStart' => null,
+            'dailyLimit' => 9999,
+            'urgent' => true,
+        ]);
+    }
+
+    /**
      * Hatırlatma gönderir. Salon `whatsapp_saglayici`'ya göre Baileys veya Cloud API.
      *
      * @param array|null $templateCtx Cloud API kullanırken: ['key' => '1gun|yaklasan|iptal|guncelleme', 'params' => [...]]

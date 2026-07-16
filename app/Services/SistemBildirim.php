@@ -1,0 +1,107 @@
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Facades\Log;
+
+/**
+ * Sistem yonetimi bildirimleri — salon-BAGIMSIZ "sistem" WhatsApp oturumu + SMS.
+ *
+ * Amac: musteri demo acinca sistem sahibine (Ferdi) WhatsApp + SMS mesaji gitsin.
+ * WhatsApp, sidecar'da 'sistem' oturum id'siyle (salon_sistem klasoru) calisir; hicbir
+ * salona bagli degildir — QR sistem yonetimi ekranindan taranir.
+ *
+ * Ayar (numara + aktiflik) storage/app/sistem_wa.json'da tutulur (migration gerekmez;
+ * storage git-reset'te silinmez).
+ */
+class SistemBildirim
+{
+    /** Sidecar oturum id'si — salonlardan tamamen bagimsiz */
+    const SESSION = 'sistem';
+
+    public static function ayarDosyasi()
+    {
+        return storage_path('app/sistem_wa.json');
+    }
+
+    public static function ayarOku()
+    {
+        $f = self::ayarDosyasi();
+        if (is_file($f)) {
+            $d = json_decode((string) file_get_contents($f), true);
+            if (is_array($d)) {
+                return ['numara' => $d['numara'] ?? '', 'aktif' => !empty($d['aktif'])];
+            }
+        }
+        return ['numara' => '', 'aktif' => false];
+    }
+
+    public static function ayarYaz($numara, $aktif)
+    {
+        $data = ['numara' => self::normalizeTel($numara), 'aktif' => (bool) $aktif];
+        @file_put_contents(self::ayarDosyasi(), json_encode($data));
+        return $data;
+    }
+
+    /** 05xx / 5xx / +90... -> 90xxxxxxxxxx (WhatsApp/SMS icin) */
+    public static function normalizeTel($tel)
+    {
+        $t = preg_replace('/[^0-9]/', '', (string) $tel);
+        if ($t === '') return '';
+        if (strlen($t) === 10 && $t[0] === '5') $t = '90' . $t;
+        elseif (strlen($t) === 11 && $t[0] === '0') $t = '90' . substr($t, 1);
+        return $t;
+    }
+
+    /** Yapilandirilmis numaraya WhatsApp (sistem oturumu) + SMS gonderir. */
+    public static function gonder($mesaj)
+    {
+        $ayar = self::ayarOku();
+        if (empty($ayar['aktif']) || empty($ayar['numara'])) {
+            return ['ok' => false, 'reason' => 'kapali-veya-numara-yok'];
+        }
+        $numara = $ayar['numara'];
+        $detay = ['wa' => null, 'sms' => null];
+
+        try {
+            $wa = app(WhatsAppService::class);
+            $detay['wa'] = $wa->sendRaw(self::SESSION, $numara, $mesaj);
+        } catch (\Throwable $e) {
+            $detay['wa'] = ['ok' => false, 'error' => $e->getMessage()];
+            Log::warning('[SistemBildirim] WA hata', ['e' => $e->getMessage()]);
+        }
+
+        try {
+            $detay['sms'] = self::smsGonder($numara, $mesaj);
+        } catch (\Throwable $e) {
+            $detay['sms'] = ['ok' => false, 'error' => $e->getMessage()];
+            Log::warning('[SistemBildirim] SMS hata', ['e' => $e->getMessage()]);
+        }
+
+        return ['ok' => true, 'detay' => $detay];
+    }
+
+    /** Yeni demo acildiginda cagrilir (kayit akisini asla bozmasin diye try/catch'li kullan). */
+    public static function demoAcildi($salon)
+    {
+        $ad  = $salon->salon_adi ?? 'Salon';
+        $tel = $salon->yetkili_telefon ?? '';
+        $mesaj = "🆕 Yeni DEMO açıldı\nSalon: {$ad}"
+            . ($tel ? "\nTel: {$tel}" : '')
+            . "\nID: " . ($salon->id ?? '-')
+            . "\n" . date('d.m.Y H:i');
+        return self::gonder($mesaj);
+    }
+
+    /**
+     * SMS — mevcut global gonderim altyapisini kullanir (salonid='' => global baslik).
+     * API anahtari burada TUTULMAZ; Controller::sms_gonder icindeki mevcut mekanizma calisir.
+     */
+    protected static function smsGonder($numara, $mesaj)
+    {
+        (new \App\Http\Controllers\Controller())->sms_gonder('', [
+            ['to' => $numara, 'message' => $mesaj],
+        ]);
+        return ['ok' => true];
+    }
+}

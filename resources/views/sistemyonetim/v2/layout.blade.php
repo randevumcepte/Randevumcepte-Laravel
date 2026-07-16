@@ -61,6 +61,10 @@
                 <span class="icon mdi mdi-whatsapp"></span>
                 WhatsApp Yönetim
             </a>
+            <a href="/sistemyonetim/v2/sistem-whatsapp" class="sy-nav-item {{ $aktifMenu === 'sistem-whatsapp' ? 'active' : '' }}">
+                <span class="icon mdi mdi-bell-ring"></span>
+                Sistem WhatsApp
+            </a>
             <a href="/sistemyonetim/v2/duyuru" class="sy-nav-item {{ $aktifMenu === 'duyuru' ? 'active' : '' }}">
                 <span class="icon mdi mdi-bullhorn"></span>
                 Duyurular
