@@ -2,6 +2,16 @@
 
 @section('content')
 
+{{-- Salon listesi: tablo yazilari cok kucuktu, okunabilirlik icin bu sayfaya ozel buyutuldu --}}
+<style>
+    .sy-table { font-size: 15px; }
+    .sy-table tbody td { padding: 15px 16px; }
+    .sy-table thead th { font-size: 12.5px; }
+    .sy-table .sy-fw-600 { font-size: 16px; }
+    .sy-table .sy-fs-13 { font-size: 14.5px; }
+    .sy-table .sy-fs-12 { font-size: 14px; }
+</style>
+
 @php
     $rolMevcut = Auth::guard('sistemyonetim')->user()->rol ?? (Auth::guard('sistemyonetim')->user()->admin == 1 ? 'super_admin' : 'destek');
 @endphp
