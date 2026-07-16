@@ -471,9 +471,9 @@
       <div class="rmc-card-head">
         <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-wallet2"></i></span> Kasa İstatistikleri</div>
         <div class="rmc-period" data-target="kasa">
-          <button data-period="daily" class="is-active">Günlük</button>
+          <button data-period="daily">Günlük</button>
           <button data-period="7d">Son 7 gün</button>
-          <button data-period="30d">Son 30 gün</button>
+          <button data-period="30d" class="is-active">Son 30 gün</button>
         </div>
       </div>
       <div class="rmc-kasa-body">
@@ -1032,7 +1032,12 @@ function rmcDashInit(){
 
   // ===== İlk yükleme — paralel (sadece yetkili bilesenler icin) =====
   @yetki('rapor.kasa')
-  renderKasa('daily');
+  renderKasa('30d');
+  // Kart 30 gunluk acilsa da hero "Bugun Gelir" bugunku toplami gostersin
+  api('/kasa','period=daily').then(function(d){
+    var hg = document.getElementById('rmc-hero-gelir');
+    if(hg) animateCount(hg, Number(d.toplam)||0);
+  }).catch(function(){});
   @endyetki
   @yetki('randevu.takvim_gor')
   renderRandevu('daily');
