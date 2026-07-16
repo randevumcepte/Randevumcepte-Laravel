@@ -442,6 +442,9 @@
                                     @else
                                         <span class="sy-badge sy-badge-muted">Personel</span>
                                     @endif
+                                    @if(($yetkiliAktif[$y->id] ?? 1) == 0)
+                                        <span class="sy-badge sy-badge-danger">İşten Ayrılmış</span>
+                                    @endif
                                 </div>
                                 <div class="sy-text-muted sy-fs-12">{{ $y->email ?: '—' }}</div>
                                 @php $tel = $y->gsm1 ?: ($y->gsm2 ?: $y->telefon); @endphp
@@ -450,15 +453,33 @@
                                     @if($tel)<a href="tel:{{ preg_replace('/[^0-9+]/', '', $tel) }}" style="color:inherit">{{ $tel }}</a>@else — @endif
                                 </div>
                             </div>
-                            <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesabina-gir" style="margin:0;flex-shrink:0"
-                                  onsubmit="return confirm('Bu {{ $y->is_admin ? 'sahip' : 'personel' }} hesabına geçiş yapılacak. Tüm hareketleriniz loglanacaktır. Devam edilsin mi?');">
-                                @csrf
-                                <input type="hidden" name="yetkili_id" value="{{ $y->id }}">
-                                <input type="hidden" name="sebep" value="{{ $y->is_admin ? 'Sahip hesabı girişi' : 'Personel hesabı girişi' }}">
-                                <button type="submit" class="sy-btn sy-btn-sm sy-btn-soft" {{ $salon->askiya_alindi ? 'disabled title=\'Salon askıda\'' : '' }}>
-                                    <span class="mdi mdi-login"></span> Bu hesapla gir
-                                </button>
-                            </form>
+                            <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
+                                <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesabina-gir" style="margin:0"
+                                      onsubmit="return confirm('Bu {{ $y->is_admin ? 'sahip' : 'personel' }} hesabına geçiş yapılacak. Tüm hareketleriniz loglanacaktır. Devam edilsin mi?');">
+                                    @csrf
+                                    <input type="hidden" name="yetkili_id" value="{{ $y->id }}">
+                                    <input type="hidden" name="sebep" value="{{ $y->is_admin ? 'Sahip hesabı girişi' : 'Personel hesabı girişi' }}">
+                                    <button type="submit" class="sy-btn sy-btn-sm sy-btn-soft" {{ $salon->askiya_alindi ? 'disabled title=\'Salon askıda\'' : '' }}>
+                                        <span class="mdi mdi-login"></span> Bu hesapla gir
+                                    </button>
+                                </form>
+                                @if(($yetkiliAktif[$y->id] ?? 1) == 0)
+                                    <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesap-pasif" style="margin:0">
+                                        @csrf
+                                        <input type="hidden" name="yetkili_id" value="{{ $y->id }}">
+                                        <input type="hidden" name="aktif" value="1">
+                                        <button type="submit" class="sy-btn sy-btn-sm sy-btn-success" title="Tekrar aktif et"><span class="mdi mdi-account-check"></span> Geri Al</button>
+                                    </form>
+                                @else
+                                    <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesap-pasif" style="margin:0"
+                                          onsubmit="return confirm('{{ $y->name }} işten çıkarılacak (pasif). Giriş varsayılanı artık bu hesabı atlar. Devam?');">
+                                        @csrf
+                                        <input type="hidden" name="yetkili_id" value="{{ $y->id }}">
+                                        <input type="hidden" name="aktif" value="0">
+                                        <button type="submit" class="sy-btn sy-btn-sm" title="İşten çıkar (pasif yap)"><span class="mdi mdi-account-off"></span> İşten Çıkar</button>
+                                    </form>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 @empty

@@ -285,6 +285,14 @@ class PanelController extends Controller
         $yetkililer = $tumYetkiliIds->isNotEmpty()
             ? IsletmeYetkilileri::whereIn('id', $tumYetkiliIds)->get()
             : collect();
+
+        // yetkili_id -> aktif mi (isten cikarilmis personel pasif gorunur). Ayni yetkili
+        // birden cok personel kaydina baglanabilir; herhangi biri aktifse aktif say.
+        $yetkiliAktif = [];
+        foreach ($personeller as $p) {
+            if (!$p->yetkili_id) continue;
+            $yetkiliAktif[$p->yetkili_id] = max($yetkiliAktif[$p->yetkili_id] ?? 0, (int) $p->aktif);
+        }
         $notlar = SalonNotu::where('salon_id', $id)->orderByDesc('pinned')->orderByDesc('id')->get();
         $impersonationGecmisi = ImpersonationLog::where('salon_id', $id)->orderByDesc('id')->limit(20)->get();
         $ticketlar = DestekTalebi::where('salon_id', $id)->orderByDesc('id')->limit(20)->get();
@@ -327,6 +335,7 @@ class PanelController extends Controller
             'iletisimAd' => $iletisimAd,
             'iletisimTel' => $iletisimTel,
             'yetkililer' => $yetkililer,
+            'yetkiliAktif' => $yetkiliAktif,
             'personeller' => $personeller,
             'notlar' => $notlar,
             'impersonationGecmisi' => $impersonationGecmisi,
@@ -649,6 +658,30 @@ class PanelController extends Controller
             'Lisans aktif edildi ✓  Bitiş tarihi: ' . date('d.m.Y', strtotime($salon->uyelik_bitis_tarihi)));
     }
 
+    /**
+     * Personeli işten çıkar (pasif) / geri al. İşten çıkan hesap impersonation
+     * varsayilaninda atlanir ve salon personel listesinde pasif gorunur.
+     */
+    public function salonHesapPasif(Request $request, $id)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+        $salon = Salonlar::findOrFail($id);
+        $yetkiliId = (int) $request->get('yetkili_id');
+        $aktif = (int) $request->get('aktif', 0); // 0 = isten cikar, 1 = geri al
+        if (!$yetkiliId) return redirect()->back()->with('hata', 'Hesap seçilmedi.');
+
+        $etkilenen = Personeller::where('salon_id', $id)->where('yetkili_id', $yetkiliId)->update(['aktif' => $aktif]);
+        $yetkili = IsletmeYetkilileri::find($yetkiliId);
+        $ad = $yetkili->name ?? ('#' . $yetkiliId);
+
+        Audit::log($aktif ? 'salon_hesap_geri_al' : 'salon_hesap_pasif', 'salon', $salon->id, $salon->salon_adi,
+            $ad . ($aktif ? ' tekrar aktif edildi' : ' işten çıkarıldı (pasif)'),
+            ['yetkili_id' => $yetkiliId, 'etkilenen' => $etkilenen]);
+
+        return redirect()->back()->with('basari',
+            $ad . ($aktif ? ' tekrar aktif edildi.' : ' işten çıkarıldı — giriş varsayılanı artık bu hesabı atlar.'));
+    }
+
     /* ============================================================
      * SALON HESABINA GIRIS (IMPERSONATION)
      * ============================================================ */
@@ -681,12 +714,21 @@ class PanelController extends Controller
             }
         }
 
-        // Hesap secilmediyse: kanonik olarak salonun ilk yetkili hesabina gir
+        // Hesap secilmediyse: salonun ilk AKTIF yetkili hesabina gir (isten cikarilan
+        // = pasif personel atlanir; boylece ayrilan kisi varsayilan olmaz).
         if (!$yetkili) {
             $personel = Personeller::where('salon_id', $salonId)
                 ->whereNotNull('yetkili_id')
+                ->where('aktif', 1)
                 ->orderBy('id', 'asc')
                 ->first();
+            // Hic aktif yoksa (edge) eski davranisa dus
+            if (!$personel) {
+                $personel = Personeller::where('salon_id', $salonId)
+                    ->whereNotNull('yetkili_id')
+                    ->orderBy('id', 'asc')
+                    ->first();
+            }
             if ($personel) {
                 $yetkili = IsletmeYetkilileri::find($personel->yetkili_id);
             }
