@@ -39,6 +39,7 @@ class Kernel extends ConsoleKernel
         Commands\OlcumHatirlatmalari::class,
         Commands\SeansHatirlatma::class,
         Commands\FormVarsayilanYay::class,
+        Commands\SiriusFormKur::class,
         Commands\HizmetVarsayilanYay::class,
         Commands\GuzellikSablonKur::class,
         Commands\EasistanIndexEnsure::class,

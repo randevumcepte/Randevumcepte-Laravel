@@ -160,8 +160,17 @@
                   <button type="button" class="btn btn-outline-primary btn-sm mb-1" onclick="soruEkle('evet_hayir')">
                      <i class="fa fa-check-square-o"></i> Evet/Hayır Sorusu
                   </button>
+                  <button type="button" class="btn btn-outline-primary btn-sm mb-1" onclick="soruEkle('checkbox_grup')">
+                     <i class="fa fa-check-square"></i> Seçmeli Kutucuklar
+                  </button>
+                  <button type="button" class="btn btn-outline-primary btn-sm mb-1" onclick="soruEkle('onay_kutusu')">
+                     <i class="fa fa-check"></i> Onay Kutusu
+                  </button>
                   <button type="button" class="btn btn-outline-success btn-sm mb-1" onclick="soruEkle('metin')">
                      <i class="fa fa-minus"></i> Kısa Metin Girişi
+                  </button>
+                  <button type="button" class="btn btn-outline-success btn-sm mb-1" onclick="soruEkle('metin_ops')">
+                     <i class="fa fa-minus"></i> Kısa Metin (Opsiyonel)
                   </button>
                   <button type="button" class="btn btn-outline-warning btn-sm mb-1" onclick="soruEkle('uzun_metin')">
                      <i class="fa fa-align-left"></i> Uzun Metin Girişi
@@ -210,7 +219,10 @@ var TIP_RENK = {
    madde_listesi: { renk: '#6c757d', etiket: 'Madde Listesi', badge: 'badge-secondary' },
    not_kutusu:    { renk: '#17a2b8', etiket: 'Not Kutusu',    badge: 'badge-info' },
    evet_hayir:    { renk: '#5C008E', etiket: 'Evet/Hayır',    badge: 'badge-primary' },
+   checkbox_grup: { renk: '#5C008E', etiket: 'Seçmeli Kutucuklar', badge: 'badge-primary' },
+   onay_kutusu:   { renk: '#5C008E', etiket: 'Onay Kutusu',   badge: 'badge-primary' },
    metin:         { renk: '#28a745', etiket: 'Kısa Metin',    badge: 'badge-success' },
+   metin_ops:     { renk: '#28a745', etiket: 'Kısa Metin (Ops.)', badge: 'badge-success' },
    uzun_metin:    { renk: '#ffc107', etiket: 'Uzun Metin',    badge: 'badge-warning' },
    bilgi_metni:   { renk: '#17a2b8', etiket: 'Bilgi Metni',   badge: 'badge-info' },
    musteri_bilgi_tablosu: { renk: '#0dcaf0', etiket: 'Müşteri Bilgileri (oto)', badge: 'badge-info' },
@@ -225,16 +237,20 @@ var OTOMATIK_TIPLER = ['musteri_bilgi_tablosu','hizmet_paket_bilgisi','ucret_bil
 function soruEkle(tip, mevcutSoru) {
    soruSayaci++;
    var idx = soruSayaci;
-   // Cevap tipli alanlar her zaman zorunlu — tasarimda secenek yok.
-   var cevapTipi = tip === 'evet_hayir' || tip === 'metin' || tip === 'uzun_metin';
-   var soru = mevcutSoru || { soru: '', tip: tip, zorunlu: cevapTipi };
-   if (cevapTipi) soru.zorunlu = true;
+   // Zorunlu cevap tipleri: evet/hayir, kisa/uzun metin ve onay kutusu (isaretlenmeden gonderilemez).
+   var zorunluCevapTipi = tip === 'evet_hayir' || tip === 'metin' || tip === 'uzun_metin' || tip === 'onay_kutusu';
+   // Opsiyonel cevap alanlari: secmeli kutucuklar ve opsiyonel kisa metin.
+   var opsiyonelTipi = tip === 'checkbox_grup' || tip === 'metin_ops';
+   var soru = mevcutSoru || { soru: '', tip: tip, zorunlu: zorunluCevapTipi };
+   if (zorunluCevapTipi) soru.zorunlu = true;
    var meta = TIP_RENK[tip] || { renk: '#999', etiket: tip, badge: 'badge-secondary' };
 
    var aksiyon = '';
-   var zorunluKutucuk = cevapTipi
-      ? `<span style="font-size:11px;color:#dc3545;font-weight:700;" title="Tüm cevaplı alanlar zorunludur">● Zorunlu</span><input type="hidden" class="soru-zorunlu" value="1">`
-      : `<input type="hidden" class="soru-zorunlu" value="0">`;
+   var zorunluKutucuk = zorunluCevapTipi
+      ? `<span style="font-size:11px;color:#dc3545;font-weight:700;" title="Bu alan zorunludur">● Zorunlu</span><input type="hidden" class="soru-zorunlu" value="1">`
+      : opsiyonelTipi
+         ? `<span style="font-size:11px;color:#6c757d;">Opsiyonel</span><input type="hidden" class="soru-zorunlu" value="0">`
+         : `<input type="hidden" class="soru-zorunlu" value="0">`;
 
    var girdi = '';
    if (OTOMATIK_TIPLER.indexOf(tip) !== -1) {
@@ -260,6 +276,15 @@ function soruEkle(tip, mevcutSoru) {
       girdi = `<textarea class="form-control soru-metni" rows="2" placeholder="Not kutusu metni (kenarlıklı gri kutuda gösterilir)..." style="font-size:13px;">${escapeHtml(soru.soru || '')}</textarea>`;
    } else if (tip === 'bilgi_metni') {
       girdi = `<textarea class="form-control soru-metni" rows="2" placeholder="Bilgi/açıklama metni..." style="font-size:13px;">${escapeHtml(soru.soru || '')}</textarea>`;
+   } else if (tip === 'checkbox_grup') {
+      girdi = `<textarea class="form-control soru-metni" rows="4" placeholder="Her satıra bir seçenek yazın:\nHamilelik\nEmzirme\nKalp pili..." style="font-size:13px;">${escapeHtml(soru.soru || '')}</textarea>
+               <small class="text-muted">Her satır ayrı bir işaretlenebilir kutucuk olur — müşteri birden fazla seçebilir</small>`;
+   } else if (tip === 'onay_kutusu') {
+      girdi = `<input type="text" class="form-control soru-metni" placeholder="Onay metni (örn: Tüm maddeleri okudum ve kabul ediyorum)..." value="${escapeHtml(soru.soru || '')}" style="font-size:13px;">
+               <small class="text-muted">Tek zorunlu onay kutucuğu — müşteri işaretlemeden formu gönderemez</small>`;
+   } else if (tip === 'metin_ops') {
+      girdi = `<input type="text" class="form-control soru-metni" placeholder="Alan etiketi (örn: Kullandığınız ilaçlar)..." value="${escapeHtml(soru.soru || '')}" style="font-size:13px;">
+               <small class="text-muted">Doldurulması zorunlu olmayan kısa metin alanı</small>`;
    } else {
       girdi = `<input type="text" class="form-control soru-metni" placeholder="Soru metni..." value="${escapeHtml(soru.soru || '')}" style="font-size:13px;">`;
    }
@@ -362,9 +387,10 @@ function formKaydet() {
    $('#sorular_konteyneri .soru-satiri').each(function() {
       var tip = $(this).find('.soru-tip').val();
       var metin = $(this).find('.soru-metni').val().trim();
-      // Cevap tipli alanlar her zaman zorunlu kaydedilir.
-      var cevapTipi = tip === 'evet_hayir' || tip === 'metin' || tip === 'uzun_metin';
-      sorular.push({ tip: tip, soru: metin, zorunlu: cevapTipi });
+      // Zorunlu cevap tipleri: evet/hayir, kisa/uzun metin, onay kutusu.
+      // checkbox_grup ve metin_ops opsiyoneldir.
+      var zorunlu = tip === 'evet_hayir' || tip === 'metin' || tip === 'uzun_metin' || tip === 'onay_kutusu';
+      sorular.push({ tip: tip, soru: metin, zorunlu: zorunlu });
    });
 
    if (sorular.length === 0) {

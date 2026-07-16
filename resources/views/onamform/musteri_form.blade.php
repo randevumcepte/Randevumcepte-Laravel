@@ -191,6 +191,33 @@
                   <div class="hata-mesaji" id="hata_{{ $idx }}">Bu alan zorunludur.</div>
                </div>
 
+            @elseif($tip === 'metin_ops')
+               <div class="soru-satiri">
+                  <label class="soru-etiketi">{{ $soru['soru'] }}</label>
+                  <input type="text" class="form-control" id="cevap_{{ $idx }}" placeholder="(isteğe bağlı)" data-tip="metin_ops" data-zorunlu="0">
+               </div>
+
+            @elseif($tip === 'checkbox_grup')
+               <div class="soru-satiri">
+                  @foreach(array_filter(array_map('trim', explode("\n", $soru['soru']))) as $secenek)
+                     <label style="display:flex; align-items:center; gap:10px; margin-bottom:8px; cursor:pointer; font-size:14px;">
+                        <input type="checkbox" class="cb_grup_{{ $idx }}" value="{{ $secenek }}" onclick="cbGrupGuncelle({{ $idx }})" style="transform:scale(1.3);">
+                        <span>{{ $secenek }}</span>
+                     </label>
+                  @endforeach
+                  <input type="hidden" id="cevap_{{ $idx }}" value="" data-tip="checkbox_grup" data-zorunlu="0">
+               </div>
+
+            @elseif($tip === 'onay_kutusu')
+               <div class="soru-satiri">
+                  <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:14px; margin:0;">
+                     <input type="checkbox" id="chk_{{ $idx }}" onclick="onayGuncelle({{ $idx }})" style="transform:scale(1.3); margin-top:3px;">
+                     <span>{{ $soru['soru'] }} <span class="zorunlu">*</span></span>
+                  </label>
+                  <input type="hidden" id="cevap_{{ $idx }}" value="" data-tip="onay_kutusu" data-zorunlu="1">
+                  <div class="hata-mesaji" id="hata_{{ $idx }}">Bu onayı işaretlemeniz zorunludur.</div>
+               </div>
+
             @endif
          @endforeach
       </div>
@@ -326,6 +353,15 @@ $(function() {
             var tip = el.data('tip');
             if (tip === 'evet_hayir') {
                evHayirSec(c.indeks, c.cevap);
+            } else if (tip === 'onay_kutusu') {
+               el.val(c.cevap);
+               if (c.cevap) $('#chk_' + c.indeks).prop('checked', true);
+            } else if (tip === 'checkbox_grup') {
+               el.val(c.cevap);
+               var parcalar = String(c.cevap || '').split(' | ');
+               $('.cb_grup_' + c.indeks).each(function() {
+                  if (parcalar.indexOf($(this).val()) >= 0) $(this).prop('checked', true);
+               });
             } else {
                el.val(c.cevap);
             }
@@ -348,6 +384,20 @@ function evHayirSec(idx, deger) {
    }
    $('#cevap_' + idx).val(deger);
    $('#hata_' + idx).hide();
+}
+
+// Secmeli kutucuklar (checkbox_grup): isaretli secenekleri " | " ile birlestirip gizli inputa yaz.
+function cbGrupGuncelle(idx) {
+   var secili = [];
+   $('.cb_grup_' + idx + ':checked').each(function() { secili.push($(this).val()); });
+   $('#cevap_' + idx).val(secili.join(' | '));
+}
+
+// Onay kutusu (onay_kutusu): isaretliyse 'onaylandi' yaz, degilse bosalt.
+function onayGuncelle(idx) {
+   var isaretli = $('#chk_' + idx).is(':checked');
+   $('#cevap_' + idx).val(isaretli ? 'onaylandi' : '');
+   if (isaretli) $('#hata_' + idx).hide();
 }
 
 function formuGonder() {
@@ -447,6 +497,15 @@ $(function(){
                   var tip = $el.data('tip');
                   if(tip === 'evet_hayir'){
                      if(c.cevap === 'evet' || c.cevap === 'hayir') evHayirSec(c.indeks, c.cevap);
+                  } else if(tip === 'onay_kutusu'){
+                     $el.val(c.cevap);
+                     if(c.cevap) $('#chk_' + c.indeks).prop('checked', true);
+                  } else if(tip === 'checkbox_grup'){
+                     $el.val(c.cevap);
+                     var parcalar2 = String(c.cevap || '').split(' | ');
+                     $('.cb_grup_' + c.indeks).each(function(){
+                        if(parcalar2.indexOf($(this).val()) >= 0) $(this).prop('checked', true);
+                     });
                   } else {
                      $el.val(c.cevap);
                   }

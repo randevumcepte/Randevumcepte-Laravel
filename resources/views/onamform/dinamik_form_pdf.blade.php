@@ -168,7 +168,22 @@
    @endwhile
    </table>
 
-@elseif($tip === 'metin' || $tip === 'uzun_metin')
+@elseif($tip === 'checkbox_grup')
+   @php $secilenler = isset($cevaplar[$idx]) ? array_map('trim', explode('|', $cevaplar[$idx])) : []; @endphp
+   @foreach(array_filter(array_map('trim', explode("\n", $soru['soru']))) as $secenek)
+      <div style="font-size:10.5px; margin:2px 0;">
+         @if(in_array($secenek, $secilenler))<b style="color:#27ae60;">&#9745;</b>@else &#9744; @endif {{ $secenek }}
+      </div>
+   @endforeach
+   @php $i++; @endphp
+
+@elseif($tip === 'onay_kutusu')
+   <div style="font-size:10.5px; margin:6px 0; font-weight:bold;">
+      @if(!empty($cevaplar[$idx]))<b style="color:#27ae60;">&#9745;</b>@else &#9744; @endif {{ $soru['soru'] }}
+   </div>
+   @php $i++; @endphp
+
+@elseif($tip === 'metin' || $tip === 'uzun_metin' || $tip === 'metin_ops')
    <div class="metin-soru-blok">
       <div class="metin-soru-metin">{{ $soru['soru'] }}</div>
       <div class="metin-soru-cevap">{{ isset($cevaplar[$idx]) ? $cevaplar[$idx] : '-' }}</div>

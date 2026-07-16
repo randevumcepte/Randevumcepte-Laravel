@@ -110,7 +110,17 @@
    @endwhile
    </table>
 
-@elseif($tip === 'metin')
+@elseif($tip === 'checkbox_grup')
+   @foreach(array_filter(array_map('trim', explode("\n", $soru['soru']))) as $secenek)
+      <div style="font-size:10.5px; margin:2px 0;">&#9744; {{ $secenek }}</div>
+   @endforeach
+   @php $i++; @endphp
+
+@elseif($tip === 'onay_kutusu')
+   <div style="font-size:10.5px; margin:6px 0; font-weight:bold;">&#9744; {{ $soru['soru'] }}</div>
+   @php $i++; @endphp
+
+@elseif($tip === 'metin' || $tip === 'metin_ops')
    <div class="metin-soru-blok">
       <div class="metin-soru-metin">{{ $soru['soru'] }}</div>
       <div class="metin-soru-cizgi"></div>
