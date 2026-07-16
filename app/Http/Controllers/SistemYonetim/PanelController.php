@@ -1701,7 +1701,7 @@ class PanelController extends Controller
         \App\Services\SistemBildirim::ayarYaz(
             $request->get('numara'),
             $request->get('aktif') ? 1 : 0,
-            $request->get('gonderen_salon_id')
+            $request->get('gonderen_numara')
         );
         return redirect()->back()->with('basari', 'Bildirim ayarı kaydedildi.');
     }

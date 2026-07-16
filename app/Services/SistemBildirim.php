@@ -31,21 +31,21 @@ class SistemBildirim
             $d = json_decode((string) file_get_contents($f), true);
             if (is_array($d)) {
                 return [
-                    'numara' => $d['numara'] ?? '',
+                    'numara' => $d['numara'] ?? '',                   // ALICI (bildirim gelecek)
+                    'gonderen_numara' => $d['gonderen_numara'] ?? '', // GONDEREN (QR ile baglanan)
                     'aktif' => !empty($d['aktif']),
-                    'gonderen_salon_id' => $d['gonderen_salon_id'] ?? null,
                 ];
             }
         }
-        return ['numara' => '', 'aktif' => false, 'gonderen_salon_id' => null];
+        return ['numara' => '', 'gonderen_numara' => '', 'aktif' => false];
     }
 
-    public static function ayarYaz($numara, $aktif, $gonderenSalonId = null)
+    public static function ayarYaz($numara, $aktif, $gonderenNumara = null)
     {
         $data = [
             'numara' => self::normalizeTel($numara),
+            'gonderen_numara' => self::normalizeTel($gonderenNumara),
             'aktif' => (bool) $aktif,
-            'gonderen_salon_id' => $gonderenSalonId ? (int) $gonderenSalonId : null,
         ];
         @file_put_contents(self::ayarDosyasi(), json_encode($data));
         return $data;

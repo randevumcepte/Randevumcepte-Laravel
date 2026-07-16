@@ -20,9 +20,13 @@
     <div class="sy-card-body">
         <form method="post" action="/sistemyonetim/v2/sistem-whatsapp/ayar" style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
             @csrf
-            <div class="sy-form-group" style="margin:0;min-width:240px">
-                <label>Bildirim Numarası — <b>ALICI</b> (mesajın geleceği numara)</label>
-                <input type="text" name="numara" class="sy-input" value="{{ $ayar['numara'] }}" placeholder="05xx xxx xx xx">
+            <div class="sy-form-group" style="margin:0;min-width:230px">
+                <label><b>ALICI</b> — mesajın geleceği numara (senin numaran)</label>
+                <input type="text" name="numara" class="sy-input" value="{{ $ayar['numara'] }}" placeholder="0541 xxx xx xx">
+            </div>
+            <div class="sy-form-group" style="margin:0;min-width:230px">
+                <label><b>GÖNDEREN</b> — QR ile bağlayacağın numara</label>
+                <input type="text" name="gonderen_numara" class="sy-input" value="{{ $ayar['gonderen_numara'] }}" placeholder="0531 xxx xx xx">
             </div>
             <div class="sy-form-group" style="margin:0">
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
@@ -60,7 +64,15 @@
         </div>
 
         <div id="wa-baglan-kutu">
-            <p class="sy-text-muted">Bağlamak istediğin <b>gönderen numaranın</b> (örn. 0531…) telefonundan <b>WhatsApp &gt; Ayarlar &gt; Bağlı Cihazlar &gt; Cihaz Bağla</b> ile aşağıdaki QR'ı okut.</p>
+            <p class="sy-text-muted">
+                @if(!empty($ayar['gonderen_numara']))
+                    QR'ı <b style="color:var(--sy-primary)">{{ $ayar['gonderen_numara'] }}</b> numaralı telefonun WhatsApp'ından okut:
+                    <b>WhatsApp &gt; Ayarlar &gt; Bağlı Cihazlar &gt; Cihaz Bağla</b>.
+                @else
+                    Önce yukarıya <b>GÖNDEREN</b> numarayı yazıp Kaydet, sonra o telefonun WhatsApp'ından
+                    <b>Bağlı Cihazlar &gt; Cihaz Bağla</b> ile QR'ı okut.
+                @endif
+            </p>
             <button id="wa-baglan-btn" type="button" class="sy-btn sy-btn-primary"><span class="mdi mdi-whatsapp"></span> Bağlan / QR Göster</button>
             <div id="wa-qr-kutu" style="display:none;margin-top:16px;text-align:center">
                 <img id="wa-qr" src="" alt="QR" style="width:300px;height:300px;max-width:100%;border:1px solid #eee;padding:8px;background:#fff;border-radius:8px">
@@ -81,6 +93,7 @@
     var telEl = document.getElementById('wa-telefon');
     var baglanBtn = document.getElementById('wa-baglan-btn');
     var AYAR_NUMARA = '{{ preg_replace('/[^0-9]/', '', $ayar['numara']) }}';
+    var AYAR_GONDEREN = '{{ preg_replace('/[^0-9]/', '', $ayar['gonderen_numara']) }}';
     var pollTimer = null;
 
     function setDurum(text, renk) { durumEl.textContent = text; durumEl.className = 'sy-badge sy-badge-' + renk; }
@@ -91,7 +104,17 @@
         bagliKutu.style.display = 'block';
         baglanKutu.style.display = 'none';
         var self = document.getElementById('wa-self-uyari');
-        if (self) self.style.display = (phone && AYAR_NUMARA && String(phone) === String(AYAR_NUMARA)) ? 'block' : 'none';
+        if (!self) return;
+        var p = String(phone || '');
+        if (p && AYAR_NUMARA && p === String(AYAR_NUMARA)) {
+            self.innerHTML = '<span class="mdi mdi-alert"></span> <b>Dikkat:</b> Bağlanan (gönderen) numara ile ALICI numaran <b>aynı</b>. WhatsApp kendine mesaj göndermez — farklı bir numara bağla.';
+            self.style.display = 'block';
+        } else if (p && AYAR_GONDEREN && p !== String(AYAR_GONDEREN)) {
+            self.innerHTML = '<span class="mdi mdi-alert"></span> <b>Uyarı:</b> Bağlanan numara (' + p + ') yazdığın GÖNDEREN numaradan (' + AYAR_GONDEREN + ') farklı. Doğru telefonla bağla, ya da GÖNDEREN alanını güncelle.';
+            self.style.display = 'block';
+        } else {
+            self.style.display = 'none';
+        }
     }
     function bagliDegil() { bagliKutu.style.display = 'none'; baglanKutu.style.display = 'block'; }
 
