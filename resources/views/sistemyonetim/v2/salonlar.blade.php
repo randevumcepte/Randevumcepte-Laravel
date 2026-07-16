@@ -90,7 +90,7 @@
 
 @php $tabQ = collect(request()->except(['tip', 'page']))->toArray(); @endphp
 <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-    @foreach([['k'=>'tumu','ad'=>'Tümü','s'=>$sayilar['tumu']], ['k'=>'demo','ad'=>'Demo','s'=>$sayilar['demo']], ['k'=>'aktif','ad'=>'Aktif','s'=>$sayilar['aktif']]] as $tb)
+    @foreach([['k'=>'tumu','ad'=>'Tümü','s'=>$sayilar['tumu']], ['k'=>'aktif','ad'=>'Aktif','s'=>$sayilar['aktif']], ['k'=>'demo','ad'=>'Demo','s'=>$sayilar['demo']]] as $tb)
         <a href="?{{ http_build_query(array_merge($tabQ, ['tip'=>$tb['k']])) }}"
            class="sy-btn {{ $tip===$tb['k'] ? 'sy-btn-primary' : 'sy-btn-soft' }}">
             {{ $tb['ad'] }}
