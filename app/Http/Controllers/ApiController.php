@@ -3395,8 +3395,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             Audit::logApi($salon->id, $request, 'isletme_kayit', 'isletme', $salon->id, $request->isletmeadi, 'Siteden yeni isletme kaydi olusturuldu.');
 
-            // Sistem sahibine bildirim (WhatsApp + SMS) — musteri demo acti. Kayit akisini bozmasin.
-            try { \App\Services\SistemBildirim::demoAcildi($salon); } catch (\Throwable $e) { \Log::warning('[SistemBildirim] demoAcildi hata: ' . $e->getMessage()); }
+            // Sistem sahibine bildirim (SMS + varsa WhatsApp) — musteri demo acti; salon adi +
+            // yetkili adi + telefon ile hemen aranabilsin. Kayit akisini asla bozmasin.
+            try { \App\Services\SistemBildirim::demoAcildi($salon, $yetkili->name ?? $request->adsoyad, $yetkili->gsm1 ?? $request->ceptelefon); } catch (\Throwable $e) { \Log::warning('[SistemBildirim] demoAcildi hata: ' . $e->getMessage()); }
 
             // Varsayilan form sablonlarini (Semall Beauty - id 370) ayni sektordeki yeni salona kopyala
             self::varsayilanFormlariKopyala($salon->id);

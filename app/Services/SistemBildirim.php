@@ -57,13 +57,13 @@ class SistemBildirim
      */
     public static function gonderenSalon($tercihId = null)
     {
-        if ($tercihId) {
-            $s = \App\Salonlar::find($tercihId);
-            if ($s && $s->whatsapp_aktif && $s->whatsapp_durum === 'connected') return $s;
-        }
-        return \App\Salonlar::where('whatsapp_aktif', 1)
-            ->where('whatsapp_durum', 'connected')
-            ->orderBy('id')->first();
+        // SADECE acikca secilen salon (kendi hattin) kullanilir. Rastgele bir MUSTERI
+        // salonunun WhatsApp'i kullanilmasin diye otomatik secim YOK. Seçilmezse WA atlanir,
+        // SMS zaten gider (asil/garanti kanal).
+        if (!$tercihId) return null;
+        $s = \App\Salonlar::find($tercihId);
+        if ($s && $s->whatsapp_aktif && $s->whatsapp_durum === 'connected') return $s;
+        return null;
     }
 
     /** Panel dropdown'u icin: WhatsApp'i bagli salonlar. */
@@ -121,13 +121,18 @@ class SistemBildirim
         return ['ok' => true, 'detay' => $detay];
     }
 
-    /** Yeni demo acildiginda cagrilir (kayit akisini asla bozmasin diye try/catch'li kullan). */
-    public static function demoAcildi($salon)
+    /**
+     * Yeni demo acildiginda cagrilir (kayit akisini asla bozmasin diye try/catch'li kullan).
+     * Satis takibi icin: salon adi + yetkili adi + telefon -> hemen aranabilsin.
+     */
+    public static function demoAcildi($salon, $yetkiliAd = null, $yetkiliTel = null)
     {
-        $ad  = $salon->salon_adi ?? 'Salon';
-        $tel = $salon->yetkili_telefon ?? '';
-        $mesaj = "🆕 Yeni DEMO açıldı\nSalon: {$ad}"
-            . ($tel ? "\nTel: {$tel}" : '')
+        $ad   = $salon->salon_adi ?? 'Salon';
+        $yad  = $yetkiliAd ?: ($salon->yetkili_adi ?? '');
+        $ytel = $yetkiliTel ?: ($salon->yetkili_telefon ?? '');
+        $mesaj = "🆕 YENİ DEMO KAYDI\nSalon: {$ad}"
+            . ($yad ? "\nYetkili: {$yad}" : '')
+            . ($ytel ? "\nTel: {$ytel}" : '')
             . "\nID: " . ($salon->id ?? '-')
             . "\n" . date('d.m.Y H:i');
         return self::gonder($mesaj);

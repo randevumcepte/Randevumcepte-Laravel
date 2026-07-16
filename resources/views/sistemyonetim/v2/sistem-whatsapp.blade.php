@@ -5,7 +5,7 @@
 <div class="sy-page-head">
     <div>
         <h2 style="font-size:24px;font-weight:800"><span class="mdi mdi-whatsapp" style="color:#25d366"></span> Sistem WhatsApp</h2>
-        <div class="subtitle">Müşteri demo açınca sana WhatsApp + SMS gelsin. WhatsApp, hatırlatmalarla <b>aynı yöntemle</b> — bağlı bir salonun hattından gönderilir.</div>
+        <div class="subtitle">Müşteri yeni demo açınca sana <b>SMS</b> gelir (salon adı + yetkili + telefon → hemen ararsın). İstersen ek olarak WhatsApp: kendi bağlı salon hattından.</div>
     </div>
 </div>
 
@@ -22,9 +22,9 @@
             </div>
 
             <div class="sy-form-group" style="margin:0;min-width:260px">
-                <label>Gönderen Salon (WhatsApp hattı)</label>
+                <label>WhatsApp Gönderen Salon <span class="sy-text-muted sy-fs-12">(opsiyonel)</span></label>
                 <select name="gonderen_salon_id" class="sy-select">
-                    <option value="">Otomatik (ilk bağlı salon)</option>
+                    <option value="">Sadece SMS (WhatsApp gönderme)</option>
                     @foreach($bagliSalonlar as $bs)
                         <option value="{{ $bs->id }}" {{ (int)($ayar['gonderen_salon_id'] ?? 0) === (int)$bs->id ? 'selected' : '' }}>
                             {{ $bs->salon_adi }}{{ $bs->whatsapp_numara ? ' ('.$bs->whatsapp_numara.')' : '' }}
