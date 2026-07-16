@@ -3089,10 +3089,25 @@ class SalonappyImport extends Command
 
         $eslesen = 0; $eksik = [];
         $dbKullanildi = []; // ayni DB satirini iki kez saymamak icin
-        // Tarih ±1 gun toleransi (timezone / visit-vs-payment tarih farki olabilir)
-        $findMatch = function ($tarih, $tutar) use ($dbIndex, &$dbKullanildi) {
+        // 2-PASS matching: once EXACT tarih match'i tuket, sonra kalan Excel satirlari
+        // icin ±1 gun tolerance. Bu sayede shift'e giden Excel satirlari, tam eslesecek
+        // olan bir DB kaydini erken tuketmez.
+        $tryMatch = function ($tarih, $tutar) use ($dbIndex, &$dbKullanildi) {
             $tt = number_format($tutar, 2, '.', '');
-            foreach ([$tarih, date('Y-m-d', strtotime($tarih . ' -1 day')), date('Y-m-d', strtotime($tarih . ' +1 day'))] as $t) {
+            $k = $tarih . '|' . $tt;
+            if (isset($dbIndex[$k])) {
+                foreach ($dbIndex[$k] as $dbId) {
+                    if (!isset($dbKullanildi[$dbId])) {
+                        $dbKullanildi[$dbId] = true;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+        $tryMatchShift = function ($tarih, $tutar) use ($dbIndex, &$dbKullanildi) {
+            $tt = number_format($tutar, 2, '.', '');
+            foreach ([date('Y-m-d', strtotime($tarih . ' -1 day')), date('Y-m-d', strtotime($tarih . ' +1 day'))] as $t) {
                 $k = $t . '|' . $tt;
                 if (isset($dbIndex[$k])) {
                     foreach ($dbIndex[$k] as $dbId) {
@@ -3105,8 +3120,15 @@ class SalonappyImport extends Command
             }
             return false;
         };
+        // Pass 1: exact tarih
+        $kalan = [];
         foreach ($excelRows as $ex) {
-            if ($findMatch($ex['tarih'], $ex['tutar'])) { $eslesen++; }
+            if ($tryMatch($ex['tarih'], $ex['tutar'])) { $eslesen++; }
+            else { $kalan[] = $ex; }
+        }
+        // Pass 2: ±1 gun shift (sadece kalan Excel satirlari icin)
+        foreach ($kalan as $ex) {
+            if ($tryMatchShift($ex['tarih'], $ex['tutar'])) { $eslesen++; }
             else { $eksik[] = $ex; }
         }
 
