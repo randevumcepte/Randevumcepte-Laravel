@@ -1410,6 +1410,23 @@ class PanelController extends Controller
             ];
         }
 
+        // Yeni demo kayitlari (son 3 gun) — musteri kendi demosunu acinca burada gorunur
+        $yeniDemolar = Salonlar::where('uyelik_turu', 3)
+            ->where('created_at', '>=', date('Y-m-d H:i:s', strtotime('-3 days')))
+            ->orderBy('id', 'desc')->limit(10)
+            ->get(['id', 'salon_adi', 'created_at', 'yetkili_adi', 'yetkili_telefon']);
+        foreach ($yeniDemolar as $d) {
+            $bildirimler[] = [
+                'tip'   => 'demo',
+                'ikon'  => 'mdi-store-plus',
+                'renk'  => 'warning',
+                'baslik'=> 'Yeni Demo: ' . mb_substr((string) $d->salon_adi, 0, 40),
+                'aciklama' => 'Demo hesap açıldı' . ($d->yetkili_telefon ? ' · ' . $d->yetkili_telefon : ''),
+                'link'  => '/sistemyonetim/v2/salon/' . $d->id,
+                'zaman' => \Carbon\Carbon::parse($d->created_at)->diffForHumans(),
+            ];
+        }
+
         return response()->json([
             'sayi' => count($bildirimler),
             'liste' => $bildirimler,
