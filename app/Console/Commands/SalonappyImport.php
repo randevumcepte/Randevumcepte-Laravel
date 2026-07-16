@@ -3088,9 +3088,7 @@ class SalonappyImport extends Command
         $dbRows = $dbQuery->select('t.id', 't.odeme_tarihi', 't.tutar', 't.odeme_yontemi_id', 'u.name', 't.notlar')->get();
         $this->line("DB salon $salonId tahsilat sayisi (tum kaynaklar): " . $dbRows->count());
 
-        // 3) Karsilastirma: DB'yi trKey(isim) + tarih + tutar + odeme_yontemi_id bazli index'e al
-        // (satis icerigini karistirmamak icin ödeme yontemini de key'e ekliyoruz;
-        // ayni gun ayni tutar ayni yontem = ayni tahsilat kabul)
+        // 3) Karsilastirma: 4-lu key = trKey(isim) + tarih + tutar + odeme_yontemi_id
         $dbIndex = []; // key => [tahsilat_id, ...]
         foreach ($dbRows as $r) {
             $k = $trKey($r->name)
