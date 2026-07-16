@@ -910,7 +910,7 @@ class Controller extends BaseController
             }
         }
 
-
+        return isset($decoded) ? $decoded : null;
     }
     public function sms_rapor_getir($raporid,$isletme)
     {

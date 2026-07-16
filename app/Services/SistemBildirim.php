@@ -95,17 +95,11 @@ class SistemBildirim
         $numara = $ayar['numara'];
         $detay = ['wa' => null, 'sms' => null];
 
-        // WhatsApp: hatirlatmalarin kullandigi PROVEN yol — bagli bir salonun hattindan
-        // sendUrgent ile gonder. (Ayri 'sistem' oturumu kendine gonderemiyordu; bu yol
-        // farkli bir salondan gonderdigi icin o sorun da yok.)
+        // WhatsApp: ayri (salon-bagimsiz) 'sistem' oturumundan gonderilir. Bu oturuma
+        // AYRI bir numara QR ile baglanir; alici (senin numaran) gonderenden FARKLI oldugu
+        // icin "kendine gonderme" sorunu olmaz. Baglı degilse WA atlanir, SMS yine gider.
         try {
-            $salon = self::gonderenSalon($ayar['gonderen_salon_id'] ?? null);
-            if ($salon) {
-                $detay['wa'] = app(WhatsAppService::class)
-                    ->sendUrgent($salon, $numara, $mesaj, null, 'sistem_bildirim');
-            } else {
-                $detay['wa'] = ['ok' => false, 'error' => 'bagli-salon-yok'];
-            }
+            $detay['wa'] = app(WhatsAppService::class)->sendRaw(self::SESSION, $numara, $mesaj);
         } catch (\Throwable $e) {
             $detay['wa'] = ['ok' => false, 'error' => $e->getMessage()];
             Log::warning('[SistemBildirim] WA hata', ['e' => $e->getMessage()]);
@@ -147,9 +141,13 @@ class SistemBildirim
         // efetech YEREL format bekler (5xxxxxxxxx) — WA icin 90'li tutulan numaradan
         // ulke kodunu soy. (WhatsApp 90..., SMS 5... — farkli format.)
         $yerel = preg_replace('/^90/', '', (string) $numara);
-        (new \App\Http\Controllers\Controller())->sms_gonder('', [
+        $resp = (new \App\Http\Controllers\Controller())->sms_gonder('', [
             ['to' => $yerel, 'message' => $mesaj],
         ]);
-        return ['ok' => true];
+        $ok = is_array($resp) && (($resp['status'] ?? '') === 'success' || isset($resp['response']));
+        $durum = is_array($resp)
+            ? ($resp['status'] ?? ($resp['error'] ?? (isset($resp['errors']) ? json_encode($resp['errors']) : 'bilinmiyor')))
+            : 'yanit-yok';
+        return ['ok' => $ok, 'to' => $yerel, 'durum' => $durum];
     }
 }

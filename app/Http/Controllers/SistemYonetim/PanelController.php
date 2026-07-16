@@ -1709,11 +1709,21 @@ class PanelController extends Controller
     public function sistemWhatsappTest()
     {
         $this->gerektir(['super_admin']);
-        $r = \App\Services\SistemBildirim::gonder('✅ Test: Sistem bildirimi çalışıyor. (' . date('d.m.Y H:i') . ')');
+        $r = \App\Services\SistemBildirim::gonder('✅ Test: Sistem bildirimi. ' . date('d.m.Y H:i'));
         if (empty($r['ok'])) {
-            return redirect()->back()->with('hata', 'Gönderilemedi — numara girip "aktif" işaretleyin ve kaydedin.');
+            return redirect()->back()->with('hata', 'Gönderilmedi — önce numara girip "Bildirimler açık" işaretleyip Kaydet.');
         }
-        return redirect()->back()->with('basari', 'Test mesajı gönderildi (WhatsApp + SMS).');
+        // Gercek sonuclari goster (teshis icin)
+        $wa  = $r['detay']['wa'] ?? [];
+        $sms = $r['detay']['sms'] ?? [];
+        $waMsg  = ($wa['ok'] ?? false)
+            ? 'WA kuyruğa alındı ✓'
+            : 'WA gitmedi (' . ($wa['error'] ?? ('http ' . ($wa['status'] ?? '?'))) . ')';
+        $smsMsg = ($sms['ok'] ?? false)
+            ? 'SMS gönderildi ✓'
+            : 'SMS gitmedi (' . ($sms['durum'] ?? 'hata') . ')';
+        return redirect()->back()->with('basari',
+            'Test denendi → ' . $waMsg . '  |  ' . $smsMsg . '  · alıcı: ' . ($sms['to'] ?? '?'));
     }
 
     /* ============================================================
