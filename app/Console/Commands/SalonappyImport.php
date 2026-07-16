@@ -3121,10 +3121,11 @@ class SalonappyImport extends Command
         ksort($aylikEksik);
         foreach ($aylikEksik as $ay => $n) $this->line(sprintf('  %s  %d', $ay, $n));
 
-        // Eksik ilk 20 satir onizleme
+        // Eksik full liste (tarih azalan)
         if (!empty($eksik)) {
-            $this->line("\n=== Ilk 20 eksik ===");
-            foreach (array_slice($eksik, 0, 20) as $ex) {
+            usort($eksik, function ($a, $b) { return strcmp($b['tarih'], $a['tarih']); });
+            $this->line("\n=== EKSIK FULL LISTE (" . count($eksik) . ") ===");
+            foreach ($eksik as $ex) {
                 $this->line(sprintf('  %s | %s | %s TL | %s | %s',
                     $ex['tarih'], $ex['user_ad'], $ex['tutar'], $ex['kaynak'], $ex['hizmet']));
             }
