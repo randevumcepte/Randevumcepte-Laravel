@@ -44,15 +44,9 @@ class WhatsAppRouterService extends WhatsAppService
      */
     protected function tipFor($salonId)
     {
-        // CUTOVER (whatsmeow-only): artik VARSAYILAN whatsmeow. Sadece acikca 'baileys'
-        // olarak isaretli salonlar Baileys'e gider; NULL / bos / 'whatsmeow' hepsi whatsmeow (3002).
-        if (!$salonId) return 'whatsmeow';
-        try {
-            $t = DB::table('salonlar')->where('id', $salonId)->value('whatsapp_bridge_tipi');
-            return $t === 'baileys' ? 'baileys' : 'whatsmeow';
-        } catch (\Throwable $e) {
-            return 'whatsmeow';
-        }
+        // Baileys tamamen kaldirildi: TUM salonlar whatsmeow (port 3002).
+        // 'whatsapp_bridge_tipi' degeri artik yok sayilir; her zaman whatsmeow'a yonlenir.
+        return 'whatsmeow';
     }
 
     /**
