@@ -333,7 +333,9 @@
             var yonetBtn = '<a class="wa-btn-mini wa-btn-mini-primary" href="' + yonetUrl + '" target="_blank">🔧 Yönet</a>';
             var saglayiciBadge = r.saglayici === 'cloud_api'
                 ? '<span class="wa-badge" style="background:#1877F2;color:#fff;">☁️ Cloud API</span>'
-                : '<span class="wa-badge gri">📱 Baileys</span>';
+                : (r.bridge === 'whatsmeow'
+                    ? '<span class="wa-badge" style="background:#e2f6ec;color:#1f7a4f;">🟢 whatsmeow</span>'
+                    : '<span class="wa-badge" style="background:#fdf2d8;color:#9a6a00;">🟡 Baileys</span>');
             var paketBtn = '<button class="wa-btn-mini" data-salon-id="' + r.id + '" data-salon-adi="' + escHtml(r.salon_adi) + '" data-action="paket" style="background:#fff7e6;color:#b67a00;border-color:#ffe4a3;">🎁 Paket</button>';
             return '<tr>'
                 + '<td>' + r.id + '</td>'

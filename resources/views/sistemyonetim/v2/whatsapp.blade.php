@@ -104,6 +104,10 @@
     color: #1877F2;
 }
 .wa-saglayici-baileys {
+    background: #fdf2d8;
+    color: #9a6a00;
+}
+.wa-saglayici-whatsmeow {
     background: #e2f6ec;
     color: #1f7a4f;
 }
@@ -392,8 +396,10 @@
         tbody.innerHTML = rows.map(function(r){
             var durumClass = DURUM_ETIKETI[r.durum] || 'sy-badge-muted';
             var saglayiciBadge = r.saglayici === 'cloud_api'
-                ? '<span class="sy-badge wa-saglayici-cloud">Cloud API</span>'
-                : '<span class="sy-badge wa-saglayici-baileys">Baileys</span>';
+                ? '<span class="sy-badge wa-saglayici-cloud">☁️ Cloud API</span>'
+                : (r.bridge === 'whatsmeow'
+                    ? '<span class="sy-badge wa-saglayici-whatsmeow">🟢 whatsmeow</span>'
+                    : '<span class="sy-badge wa-saglayici-baileys">🟡 Baileys</span>');
             var yonetUrl = '/isletmeyonetim/whatsapp?sube=' + r.id;
             return '<tr>'
                 + '<td>' + r.id + '</td>'
