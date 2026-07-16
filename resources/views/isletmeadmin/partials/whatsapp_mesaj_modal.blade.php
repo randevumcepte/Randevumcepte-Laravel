@@ -1,7 +1,18 @@
 <style>
 /* Takvim detay modali z-index 100001 — compose modal onun da ustunde kalsin */
-#whatsapp-mesaj-modal { z-index:100060 !important; }
-#whatsapp-mesaj-modal .modal-dialog { max-width:600px; }
+/* Tam viewport ortasi: Bootstrap'in scrollbar telafisi (body/modal padding-right) ortalamayi
+   bozar; padding'i sifirlayip .modal-dialog'u flex ile kesin ortala. */
+#whatsapp-mesaj-modal {
+   z-index:100060 !important;
+   position:fixed !important; inset:0; padding:0 !important;
+}
+#whatsapp-mesaj-modal .modal-dialog {
+   max-width:720px; width:calc(100% - 32px);
+   margin:auto !important;
+   display:flex; align-items:center; justify-content:center;
+   min-height:100%; pointer-events:none;
+}
+#whatsapp-mesaj-modal .modal-content.wam-modal { pointer-events:auto; width:100%; }
 #whatsapp-mesaj-modal .wam-modal * { box-sizing:border-box; }
 .wam-modal {
    border-radius:20px; border:0; overflow:hidden;
