@@ -3,6 +3,10 @@
 # Yeni commit varsa repo'yu remote main ile zorla senkronize eder ve
 # Laravel view cache'ini temizler. Eski "flag dosyasi" sartl(SI ELLE
 # build) artik secimlidir; flag yoksa da yeni commit varsa calisir.
+#
+# NOT: apptest (test) deploy edilir; ardindan CANLI (app.randevumcepte.com.tr,
+# ayni sunucuda /var/www/.../randevumcepte) de otomatik senkron edilir (bkz. 4c).
+# Canlida OTOMATIK MIGRATE YOKTUR — sema degisikligi elle calistirilir.
 
 PROJECT_DIR="/var/www/www-root/data/www/randevumceptetest"
 FLAG_FILE="$PROJECT_DIR/storage/.deploy-flag"
