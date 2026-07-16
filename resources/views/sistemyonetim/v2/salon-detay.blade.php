@@ -21,14 +21,30 @@
 
 <div class="sy-page-head">
     <div>
-        <h2>{{ $salon->salon_adi }}
+        <h2 style="font-size:28px;font-weight:800;line-height:1.15;margin-bottom:2px">{{ $salon->salon_adi }}
             @if($salon->askiya_alindi)
                 <span class="sy-badge sy-badge-danger">Askıda</span>
             @else
                 <span class="sy-badge sy-badge-success">Aktif</span>
             @endif
         </h2>
-        <div class="subtitle">
+        @php
+            $telHam  = $salon->telefon_1 ?: ($salon->yetkili_telefon ?: '');
+            $telLink = preg_replace('/[^0-9+]/', '', (string) $telHam);
+        @endphp
+        @if($telHam)
+        <div style="margin-top:6px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <a href="tel:{{ $telLink }}" style="font-size:20px;font-weight:700;color:var(--sy-primary);text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+                <span class="mdi mdi-phone"></span>{{ $telHam }}
+            </a>
+            @if($salon->yetkili_adi)
+                <span class="sy-text-muted" style="font-size:14px;display:inline-flex;align-items:center;gap:4px">
+                    <span class="mdi mdi-account"></span>{{ $salon->yetkili_adi }}
+                </span>
+            @endif
+        </div>
+        @endif
+        <div class="subtitle" style="margin-top:6px">
             {{ optional($salon->il)->il_adi }} / {{ optional($salon->ilce)->ilce_adi }} ·
             ID: {{ $salon->id }} ·
             Kayıt: {{ $fmtTarih($salon->created_at, 'd.m.Y') }}
@@ -36,9 +52,6 @@
     </div>
     <div class="sy-flex-row">
         <a href="/sistemyonetim/v2/salonlar" class="sy-btn"><span class="mdi mdi-arrow-left"></span> Liste</a>
-        <a href="/sistemyonetim/isletmedetay/{{ $salon->id }}" class="sy-btn sy-btn-soft" target="_blank">
-            <span class="mdi mdi-cog"></span> Klasik Düzenle
-        </a>
         <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesabina-gir" style="display:inline">
             @csrf
             <input type="hidden" name="sebep" value="Destek girişi">
@@ -60,6 +73,53 @@
             </form>
         @endif
     </div>
+@endif
+
+@if($duzenleyebilir)
+@php
+    $ub = $salon->uyelik_bitis_tarihi;
+    $ubGecerli = $ub && substr((string) $ub, 0, 4) !== '0000';
+    $kalanGun = $ubGecerli ? (int) floor((strtotime($ub . ' 23:59:59') - time()) / 86400) : null;
+    $ubRenk = !$ubGecerli ? 'muted' : ($kalanGun < 0 ? 'danger' : ($kalanGun <= 7 ? 'warning' : 'success'));
+@endphp
+<div class="sy-card sy-mt-12" style="border-left:4px solid var(--sy-{{ $ubRenk }})">
+    <div class="sy-card-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap">
+            <div style="min-width:200px">
+                <div class="sy-text-muted sy-fs-12" style="text-transform:uppercase;letter-spacing:.5px">
+                    <span class="mdi mdi-clock-outline"></span> Demo / Üyelik Bitişi
+                </div>
+                <div style="display:flex;align-items:baseline;gap:10px;margin-top:2px">
+                    <span style="font-size:26px;font-weight:800;color:var(--sy-{{ $ubRenk }})">
+                        {{ $ubGecerli ? \Carbon\Carbon::parse($ub)->format('d.m.Y') : '— tanımsız' }}
+                    </span>
+                    @if($ubGecerli)
+                        <span class="sy-badge sy-badge-{{ $ubRenk }}">
+                            @if($kalanGun < 0) {{ abs($kalanGun) }} gün önce doldu
+                            @elseif($kalanGun === 0) bugün doluyor
+                            @else {{ $kalanGun }} gün kaldı @endif
+                        </span>
+                    @endif
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                @foreach([['gun'=>7,'etiket'=>'+7 gün','stil'=>'soft'], ['gun'=>15,'etiket'=>'+15 gün','stil'=>'soft'], ['gun'=>30,'etiket'=>'+30 gün','stil'=>'primary'], ['gun'=>90,'etiket'=>'+90 gün','stil'=>'soft'], ['gun'=>365,'etiket'=>'+1 yıl','stil'=>'soft']] as $qs)
+                    <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/sure-uzat" style="display:inline">
+                        @csrf
+                        <input type="hidden" name="gun" value="{{ $qs['gun'] }}">
+                        <button type="submit" class="sy-btn sy-btn-sm sy-btn-{{ $qs['stil'] }}">{{ $qs['etiket'] }}</button>
+                    </form>
+                @endforeach
+                <span class="sy-text-muted" style="opacity:.4">|</span>
+                <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/sure-uzat" style="display:flex;gap:6px;align-items:center">
+                    @csrf
+                    <input type="date" name="tarih" class="sy-input" style="width:150px" value="{{ $ubGecerli ? \Carbon\Carbon::parse($ub)->format('Y-m-d') : '' }}">
+                    <button type="submit" class="sy-btn sy-btn-sm sy-btn-success">Ayarla</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 @endif
 
 @php
@@ -93,59 +153,6 @@
         </div>
     </div>
 </div>
-
-@if($duzenleyebilir)
-@php
-    $ub = $salon->uyelik_bitis_tarihi;
-    $ubGecerli = $ub && substr((string) $ub, 0, 4) !== '0000';
-    $kalanGun = $ubGecerli ? (int) floor((strtotime($ub . ' 23:59:59') - time()) / 86400) : null;
-    $ubRenk = !$ubGecerli ? 'muted' : ($kalanGun < 0 ? 'danger' : ($kalanGun <= 7 ? 'warning' : 'success'));
-@endphp
-<div class="sy-card sy-mt-12">
-    <div class="sy-card-head">
-        <h3><span class="mdi mdi-clock-outline"></span> Demo / Üyelik Süresi</h3>
-        <span class="sy-text-muted sy-fs-12">Demo veya üyelik bitiş tarihini uzatın</span>
-    </div>
-    <div class="sy-card-body">
-        <div>
-            <div class="sy-text-muted sy-fs-12" style="text-transform:uppercase;letter-spacing:.5px">Mevcut Bitiş Tarihi</div>
-            <div style="display:flex;align-items:baseline;gap:10px;margin-top:2px">
-                <span style="font-size:24px;font-weight:700;color:var(--sy-{{ $ubRenk }})">
-                    {{ $ubGecerli ? \Carbon\Carbon::parse($ub)->format('d.m.Y') : '— tanımsız' }}
-                </span>
-                @if($ubGecerli)
-                    <span class="sy-badge sy-badge-{{ $ubRenk }}">
-                        @if($kalanGun < 0) {{ abs($kalanGun) }} gün önce doldu
-                        @elseif($kalanGun === 0) bugün doluyor
-                        @else {{ $kalanGun }} gün kaldı @endif
-                    </span>
-                @endif
-            </div>
-        </div>
-
-        <div class="sy-text-muted sy-fs-12" style="margin:14px 0 6px">Hızlı uzat:</div>
-        <div class="sy-flex-row" style="gap:8px;flex-wrap:wrap">
-            @foreach([['gun'=>7,'etiket'=>'+7 gün','stil'=>'soft'], ['gun'=>15,'etiket'=>'+15 gün','stil'=>'soft'], ['gun'=>30,'etiket'=>'+30 gün','stil'=>'primary'], ['gun'=>90,'etiket'=>'+90 gün','stil'=>'soft'], ['gun'=>365,'etiket'=>'+1 yıl','stil'=>'soft']] as $qs)
-                <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/sure-uzat" style="display:inline">
-                    @csrf
-                    <input type="hidden" name="gun" value="{{ $qs['gun'] }}">
-                    <button type="submit" class="sy-btn sy-btn-sm sy-btn-{{ $qs['stil'] }}">{{ $qs['etiket'] }}</button>
-                </form>
-            @endforeach
-        </div>
-
-        <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/sure-uzat"
-              style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:16px">
-            @csrf
-            <div class="sy-form-group" style="margin:0">
-                <label class="sy-fs-12">Belirli tarihe ayarla</label>
-                <input type="date" name="tarih" class="sy-input" value="{{ $ubGecerli ? \Carbon\Carbon::parse($ub)->format('Y-m-d') : '' }}">
-            </div>
-            <button type="submit" class="sy-btn sy-btn-sm sy-btn-success">Tarihe Ayarla</button>
-        </form>
-    </div>
-</div>
-@endif
 
 <div class="sy-metric-grid sy-mt-12">
     <div class="sy-metric"><div class="icon-bg mdi mdi-calendar-multiple"></div><div class="label">Toplam Randevu</div><div class="value">{{ $istatistik['toplam_randevu'] }}</div></div>
