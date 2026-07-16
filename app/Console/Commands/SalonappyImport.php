@@ -3068,10 +3068,11 @@ class SalonappyImport extends Command
         $dbRows = $dbQuery->select('t.id', 't.odeme_tarihi', 't.tutar', 'u.name', 't.notlar')->get();
         $this->line("DB salon $salonId tahsilat sayisi (tum kaynaklar): " . $dbRows->count());
 
-        // 3) Karsilastirma: DB'yi user_key + tarih + tutar bazli index'e al
+        // 3) Karsilastirma: DB'yi SADECE tarih + tutar bazli index'e al
+        // (musteri adi kontrolu yapmayiz — ayni user farkli DB kayitlarinda olabilir)
         $dbIndex = []; // key => [tahsilat_id, ...]
         foreach ($dbRows as $r) {
-            $k = $trKey($r->name) . '|' . substr((string) $r->odeme_tarihi, 0, 10) . '|' . number_format((float) $r->tutar, 2, '.', '');
+            $k = substr((string) $r->odeme_tarihi, 0, 10) . '|' . number_format((float) $r->tutar, 2, '.', '');
             if (!isset($dbIndex[$k])) $dbIndex[$k] = [];
             $dbIndex[$k][] = $r->id;
         }
@@ -3079,7 +3080,7 @@ class SalonappyImport extends Command
         $eslesen = 0; $eksik = [];
         $dbKullanildi = []; // ayni DB satirini iki kez saymamak icin
         foreach ($excelRows as $ex) {
-            $k = $ex['user_key'] . '|' . $ex['tarih'] . '|' . number_format($ex['tutar'], 2, '.', '');
+            $k = $ex['tarih'] . '|' . number_format($ex['tutar'], 2, '.', '');
             $bulundu = false;
             if (isset($dbIndex[$k])) {
                 foreach ($dbIndex[$k] as $dbId) {
