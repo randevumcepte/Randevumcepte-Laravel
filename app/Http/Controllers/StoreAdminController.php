@@ -31891,8 +31891,12 @@ DB::raw('
         $adSoyad = $musteri->name ?? '';
         $ilkAd = $adSoyad ? trim(explode(' ', $adSoyad)[0]) : '';
         $salonAd = $salon->salon_adi ?? '';
-        // Uber/Amazon tarzi kisa istek — GSM-7 uyumlu (Turkce char yok), tek SMS'e sigar.
-        $mesaj = 'Sn. '.$ilkAd.', '.$salonAd.' deneyiminiz nasildi? Geri bildiriminiz bizim icin onemli: '.$link;
+        // Nazik/kurumsal anket daveti — musteri adi + salon adi + dinamik anket linki.
+        // Not: Turkce karakter icerir; WhatsApp'ta sorunsuz, SMS fallback'te UCS-2 (cok parcali) gonderilir.
+        $mesaj = "Merhaba Sn. ".$ilkAd.","."\n\n"
+            .$salonAd."'da yaşadığınız deneyim bizim için çok değerli. Hizmet kalitemizi geliştirebilmemiz adına görüşlerinizi birkaç dakikanızı ayırarak bizimle paylaşabilir misiniz?"."\n\n"
+            ."Anketi doldurmak için:"."\n".$link."\n\n"
+            ."Değerli geri bildiriminiz için şimdiden teşekkür eder, sizi yeniden ağırlamaktan mutluluk duyarız.";
 
         // 1) WhatsApp-first — salon WA aktif+connected ise once WA dene
         $waKanaliAcik = $salon
