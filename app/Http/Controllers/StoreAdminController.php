@@ -3477,6 +3477,12 @@ public function carkverilerigetir(Request $request)
         ? (!empty($_waSalon->cloud_api_token) && !empty($_waSalon->cloud_api_phone_number_id))
         : (($_waSalon->whatsapp_aktif ?? 0) && ($_waSalon->whatsapp_durum ?? '') === 'connected');
 
+    // Randevu detay kartinda "Memnuniyet Anketi Gonder" butonu icin yetki (musteri kartindaki ile ayni: pazarlama.anket_yonet)
+    $_anketAu = Auth::guard('isletmeyonetim')->user();
+    $_anketYetki = (!$_anketAu || !$isletmeId)
+        ? true
+        : \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_anketAu->id, $isletmeId, 'pazarlama.anket_yonet');
+
     // Renk haritalarini bir kez yukle, id->renk dictionary olarak tut (per-row N+1 yerine)
     $kategoriRenkMap = [];
     $cihazRenkMap    = [];
@@ -3555,7 +3561,7 @@ public function carkverilerigetir(Request $request)
         : collect();
 
     $randevu_hizmetler = $randevu_hizmetler_raw
-    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet) {
+    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$_anketYetki,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet) {
 
         $start = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat)->toIso8601String();
 
@@ -3682,6 +3688,13 @@ public function carkverilerigetir(Request $request)
                     .' data-ad="'.htmlspecialchars($rh->randevu->users->name ?? '', ENT_QUOTES).'"'
                     .' data-onay="'.(int)($rh->randevu->users->whatsapp_onay ?? 0).'"'
                     .' data-bagli="'.($_waBagli ? 1 : 0).'"><i class="fa fa-whatsapp"></i> WhatsApp</a>';
+            }
+
+            // Memnuniyet Anketi Gonder butonu — musteri kartindakinin ayni (on gorusme haric)
+            if($_anketYetki && $rh->randevu->on_gorusme_id === null && !empty($rh->randevu->user_id)){
+                $duzenleButon .= '<a href="#" class="btn btn-sm anket-hizli-gonder-btn" style="background:#17a589;color:#fff;"'
+                    .' data-userid="'.($rh->randevu->user_id ?? '').'"'
+                    .' data-sube="'.($rh->randevu->salon_id ?? '').'"><i class="fa fa-comments"></i> Memnuniyet Anketi Gönder</a>';
             }
 
             if($seansVar->count() > 0){

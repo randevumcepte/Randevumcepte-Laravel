@@ -101,4 +101,46 @@
          document.body.appendChild(this);
       }
    });
+
+   // Tek-tik memnuniyet anketi gonderim (musteri kartindaki anketHizliGonder ile ayni akis).
+   // Randevu detay kartinin header'indaki "Memnuniyet Anketi Gönder" butonu.
+   $(document).on('click', '.anket-hizli-gonder-btn', function (e) {
+      e.preventDefault();
+      var userId = $(this).data('userid');
+      var sube   = $(this).data('sube') || (new URLSearchParams(location.search)).get('sube') || '';
+      if (!userId) { swal('Hata', 'Müşteri bulunamadı.', 'error'); return; }
+      swal({
+         title: 'Memnuniyet anketi gönderilsin mi?',
+         text: 'Müşteriye anket linki WhatsApp veya SMS ile gönderilecek.',
+         type: 'question',
+         showCancelButton: true,
+         confirmButtonText: 'Evet, gönder',
+         cancelButtonText: 'Vazgeç',
+         confirmButtonColor: '#25D366',
+      }).then(function (r) {
+         if (!r || !r.value) return;
+         $('#preloader').show();
+         $.ajax({
+            url: '/isletmeyonetim/anket-hizli-gonder',
+            method: 'POST',
+            timeout: 20000,
+            data: { user_id: userId, sube: sube },
+            dataType: 'json',
+            headers: { 'X-CSRF-TOKEN': ($('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val()) },
+         }).done(function (res) {
+            if (res && res.basarili) {
+               var kanal = res.kanal === 'whatsapp' ? 'WhatsApp' : 'SMS';
+               swal('Gönderildi', 'Anket ' + kanal + ' ile iletildi.', 'success');
+            } else {
+               swal('Gönderilemedi', (res && res.mesaj) || 'Bilinmeyen hata.', 'error');
+            }
+         }).fail(function (xhr, status) {
+            var msg = 'İstek başarısız.';
+            if (xhr && xhr.responseText) { try { var j = JSON.parse(xhr.responseText); if (j && j.mesaj) msg = j.mesaj; } catch (e) {} }
+            if (xhr && xhr.status) msg += ' (HTTP ' + xhr.status + ')';
+            if (status === 'timeout') msg = 'Sunucu 20 saniye içinde cevap vermedi.';
+            swal('Hata', msg, 'error');
+         }).always(function () { $('#preloader').hide(); });
+      });
+   });
 </script>
