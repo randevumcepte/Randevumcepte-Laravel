@@ -1670,6 +1670,17 @@ class PanelController extends Controller
         ]);
     }
 
+    public function sistemWhatsappHealth()
+    {
+        $this->gerektir(['super_admin']);
+        $baileys = app(\App\Services\WhatsAppService::class)->health();
+        $wmw     = app(\App\Services\WhatsmeowService::class)->health();
+        return response()->json([
+            'baileys_3001'   => (bool) ($baileys['ok'] ?? false),
+            'whatsmeow_3002' => (bool) ($wmw['ok'] ?? false),
+        ]);
+    }
+
     public function sistemWhatsappBaglat()
     {
         $this->gerektir(['super_admin']);

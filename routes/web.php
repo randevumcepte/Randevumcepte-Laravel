@@ -632,6 +632,7 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::post('/sistem-whatsapp/baglat', 'PanelController@sistemWhatsappBaglat');
     Route::get('/sistem-whatsapp/qr', 'PanelController@sistemWhatsappQr');
     Route::get('/sistem-whatsapp/status', 'PanelController@sistemWhatsappStatus');
+    Route::get('/sistem-whatsapp/health', 'PanelController@sistemWhatsappHealth');
     Route::post('/sistem-whatsapp/cikis', 'PanelController@sistemWhatsappCikis');
     Route::post('/sistem-whatsapp/ayar', 'PanelController@sistemWhatsappAyar');
     Route::post('/sistem-whatsapp/test', 'PanelController@sistemWhatsappTest');

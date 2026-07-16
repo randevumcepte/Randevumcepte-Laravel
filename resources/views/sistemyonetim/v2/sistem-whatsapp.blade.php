@@ -50,6 +50,9 @@
         <span id="wa-durum" class="sy-badge sy-badge-muted">Durum kontrol ediliyor…</span>
     </div>
     <div class="sy-card-body">
+        <div id="wa-servis" class="sy-alert" style="background:#f3f4f6;color:#555;margin-bottom:12px">
+            <span class="mdi mdi-server-network"></span> Servis durumu kontrol ediliyor…
+        </div>
         <div id="wa-bagli-kutu" style="display:none">
             <div class="sy-alert sy-alert-success">
                 <span class="mdi mdi-check-circle"></span> Gönderen WhatsApp bağlı: <b id="wa-telefon">—</b>
@@ -144,6 +147,18 @@
             .finally(function () { baglanBtn.disabled = false; baglanBtn.innerHTML = '<span class="mdi mdi-whatsapp"></span> Bağlan / QR Göster'; });
     });
 
+    function healthCek() {
+        var el = document.getElementById('wa-servis');
+        if (!el) return;
+        fetch('/sistemyonetim/v2/sistem-whatsapp/health').then(function (r) { return r.json(); }).then(function (d) {
+            var b = d.baileys_3001, w = d.whatsmeow_3002;
+            var iyi = function (x) { return x ? '<b style="color:#16a34a">AÇIK ✓</b>' : '<b style="color:#dc2626">KAPALI ✗</b>'; };
+            el.innerHTML = '<span class="mdi mdi-server-network"></span> WhatsApp servisleri → Baileys(3001): ' + iyi(b) + ' · whatsmeow(3002): ' + iyi(w)
+                + (!b && !w ? '  <b style="color:#dc2626">— İkisi de kapalı, WhatsApp bağlanamaz!</b>' : '');
+        }).catch(function () { el.innerHTML = '<span class="mdi mdi-alert"></span> Servis durumu alınamadı.'; });
+    }
+
+    healthCek();
     statusCek();
     pollTimer = setInterval(statusCek, 5000);
 })();

@@ -40,6 +40,12 @@ class WhatsAppService
         return $this->request('POST', "/session/{$salonId}/logout");
     }
 
+    /** Bridge saglik kontrolu (servis ayakta mi). */
+    public function health()
+    {
+        return $this->request('GET', '/health');
+    }
+
     /**
      * Salon nesnesi OLMADAN, dogrudan bir oturum id'sinden mesaj gonderir.
      * Sistem bildirimleri (salon-bagimsiz "sistem" oturumu) icin kullanilir.
