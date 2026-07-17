@@ -9160,14 +9160,24 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     public function seansEkle(Request $request)
     {
+        // Seans tarihi disaridan gelebilir (gecmise donuk kayit icin);
+        // bos/gecersiz ise bugune duser (eski surum mobil uygulamalar tarih gondermiyor).
+        $seansTarih = date('Y-m-d');
+        if (!empty($request->seansTarihi)) {
+            $gelen = \DateTime::createFromFormat('Y-m-d', $request->seansTarihi);
+            if ($gelen && $gelen->format('Y-m-d') === $request->seansTarihi) {
+                $seansTarih = $request->seansTarihi;
+            }
+        }
+
         $seans = new AdisyonPaketSeanslar();
         if ($request->paket == 1) {
-            $seans->seans_tarih = date('Y-m-d');
+            $seans->seans_tarih = $seansTarih;
             $seans->adisyon_paket_id = $request->paketId;
             $seans->hizmet_id = $request->hizmetId;
         }
         if ($request->paket == 0) {
-            $seans->seans_tarih = date('Y-m-d');
+            $seans->seans_tarih = $seansTarih;
             $seans->adisyon_hizmet_id = $request->paketId;
             $seans->hizmet_id = $request->hizmetId;
         }
