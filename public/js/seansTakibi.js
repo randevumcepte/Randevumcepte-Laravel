@@ -2,6 +2,22 @@
 // global değişken
 var seansTablo;
 
+// air-datepicker icin Turkce dil tanimi. Kutuphanede 'tr' dosyasi yok ve varsayilan
+// dil 'ru'; bu obje sadece seans tarihi secicisine verilir, global kayit yapilmaz
+// (baska sayfalardaki datepicker'lar etkilenmesin).
+var seansTarihLocale = {
+    days: ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'],
+    daysShort: ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'],
+    daysMin: ['Pz','Pt','Sa','Ça','Pe','Cu','Ct'],
+    months: ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'],
+    monthsShort: ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'],
+    today: 'Bugün',
+    clear: 'Temizle',
+    dateFormat: 'yyyy-mm-dd',
+    timeFormat: 'hh:ii',
+    firstDay: 1
+};
+
 function seanslariGetir(rowId) {
     if (rowId === undefined || rowId === null || rowId === '') {
 
@@ -279,18 +295,37 @@ $(document).on('click','i[name="yeniSeansEkle"]',function(e)
               "</div>" +
               "<div style='background:#f5f7fa; padding:12px; border-radius:10px; margin-bottom:12px; text-align:left;'>" +
               "<label for='seansTarihiYeni' style='color:#718096; font-size:12px; display:block; margin-bottom:6px; font-weight:600;'><i class='fa fa-calendar' style='color:#667eea; width:20px;'></i> Seans Tarihi</label>" +
-              "<input type='date' id='seansTarihiYeni' value='" + bugunStr + "' style='width:100%; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:15px; color:#2d3748; background:#fff;'>" +
+              "<input type='text' id='seansTarihiYeni' class='form-control date-picker' value='" + bugunStr + "' autocomplete='off' readonly style='background:#fff; cursor:pointer;'>" +
               "</div>" +
 
               "<div style='display:flex; gap:6px; justify-content:center;'>" +
               "<button type='button' class='btn btn-sm btn-success' id='seansKullanildiYeni' data-index-number='"+hizmetId+"' data-paket='"+paket+"' data-value='"+paketId+"' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-check'></i> Kullanıldı</button>" +
 
               "<button type='button' class='btn btn-sm btn-danger' id='seansKullanilmadiYeni'  data-index-number='"+hizmetId+"' data-paket='"+paket+"' data-value='"+paketId+"' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-times'></i> Kullanılmadı</button>" +
-            
+
               "</div>" +
               "</div>",
         showCancelButton: false,
-        showConfirmButton: false
+        showConfirmButton: false,
+        // Popup sonradan olustugu icin sayfa yuklenirken calisan global .date-picker
+        // init'i bu input'u yakalamaz; burada elle baslatiyoruz.
+        // Kutuphane air-datepicker (core.js icinde): varsayilani ru + dd.mm.yyyy,
+        // 'tr' dil dosyasi yok. Dil objesini inline veriyoruz ki backend'in bekledigi
+        // yyyy-mm-dd bicimi ve Turkce takvim garanti olsun.
+        onOpen: function(){
+            $('#seansTarihiYeni').datepicker({
+                language: seansTarihLocale,
+                dateFormat: 'yyyy-mm-dd',
+                autoClose: true,
+                todayButton: new Date()
+            });
+        },
+        // Popup her acilista yeni input uretiyor; kapanista instance'i yok et ki
+        // body'deki takvim div'leri birikmesin.
+        onClose: function(){
+            var dp = $('#seansTarihiYeni').data('datepicker');
+            if (dp) dp.destroy();
+        }
     });
 });
 
