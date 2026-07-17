@@ -1102,7 +1102,16 @@ class ApiController extends Controller
     })
     ->when($adisyonturu == 1, fn($q) => $q->whereHas('hizmetler'))
     ->when($adisyonturu == 3, fn($q) => $q->whereHas('urunler'))
-    ->when($adisyonturu == 2, fn($q) => $q->whereHas('paketler'))
+    // Paket filtresi: gercek paket satislari VEYA seansli hizmet satislari.
+    // Seansli = seans_sayisi kayitli (NOT NULL) VEYA adisyon_paket_seanslar'da
+    // bagli seans kaydi var.
+    ->when($adisyonturu == 2, fn($q) => $q->where(function($q2) {
+        $q2->whereHas('paketler')
+           ->orWhereHas('hizmetler', fn($q3) => $q3->where(function($q4) {
+               $q4->whereNotNull('seans_sayisi')
+                  ->orWhereHas('seanslar');
+           }));
+    }))
     ->when(
         $_faturasizGizleAktif,
         fn($q) => $q->where('fatura_kesildi', 1)
@@ -1192,7 +1201,9 @@ class ApiController extends Controller
     // ayni filtreyi uygulamali ki rozet sayilari filtreyle birlikte degissin.
     $turFiltreSayim = '';
     if ((int)$adisyonturu === 1)      $turFiltreSayim = " AND EXISTS (SELECT 1 FROM adisyon_hizmetler ahx WHERE ahx.adisyon_id = a.id)";
-    elseif ((int)$adisyonturu === 2)  $turFiltreSayim = " AND EXISTS (SELECT 1 FROM adisyon_paketler apx WHERE apx.adisyon_id = a.id)";
+    // Paket sayimi: gercek paket satislari VEYA seansli hizmet satislari
+    // (liste filtresiyle ayni kural; rozet sayisi listeyle tutarli kalsin).
+    elseif ((int)$adisyonturu === 2)  $turFiltreSayim = " AND (EXISTS (SELECT 1 FROM adisyon_paketler apx WHERE apx.adisyon_id = a.id) OR EXISTS (SELECT 1 FROM adisyon_hizmetler ahp WHERE ahp.adisyon_id = a.id AND (ahp.seans_sayisi IS NOT NULL OR EXISTS (SELECT 1 FROM adisyon_paket_seanslar apsx WHERE apsx.adisyon_hizmet_id = ahp.id))))";
     elseif ((int)$adisyonturu === 3)  $turFiltreSayim = " AND EXISTS (SELECT 1 FROM adisyon_urunler aux WHERE aux.adisyon_id = a.id)";
 
     // Musteri filtresi
