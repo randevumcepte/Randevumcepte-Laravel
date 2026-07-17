@@ -31718,11 +31718,8 @@ DB::raw('
                 return response()->json(['basarili'=>false,'mesaj'=>'Musterinin telefon numarasi kayitli degil.']);
             }
 
-            // Salonun ilk aktif anket sablonu
-            $sablon = AnketSablon::where('salon_id',$sube)->where('aktif',1)->orderBy('id')->first();
-            if(!$sablon){
-                return response()->json(['basarili'=>false,'mesaj'=>'Bu isletme icin aktif anket sablonu tanimlanmamis. Anket sablonlari sayfasindan olusturun.']);
-            }
+            // Salonun ilk aktif anket sablonu — yoksa otomatik olusturur
+            $sablon = self::varsayilanAnketSablonuGetirYaOlustur($sube);
 
             $gonderim = self::anketGonderimOlustur($sube, $sablon, $musteri, $musteri->cep_telefon, [
                 'kanal' => 'manuel',
@@ -31876,6 +31873,33 @@ DB::raw('
     /**
      * Yardımcı: yeni anket gönderim kaydı oluşturur (token + son gecerlilik dahil).
      */
+    /**
+     * Salonun aktif anket sablonunu doner; yoksa varsayilan bir tane olusturur.
+     * Boylece manuel hizli gonderimde kullanicidan sablon secmesi/olusturmasi
+     * beklenmez, uygulama arka planda otomatik yapilandirir.
+     */
+    public static function varsayilanAnketSablonuGetirYaOlustur($salonId)
+    {
+        $sablon = AnketSablon::where('salon_id', $salonId)->where('aktif', 1)->orderBy('id')->first();
+        if ($sablon) return $sablon;
+
+        $sablon = new AnketSablon();
+        $sablon->salon_id = $salonId;
+        $sablon->ad = 'Varsayilan Memnuniyet Anketi';
+        $sablon->aciklama = 'Sistem tarafindan ilk manuel gonderim sirasinda otomatik olusturuldu.';
+        $sablon->sorular_json = json_encode([
+            ['tip' => 'nps',  'soru' => 'Bizi bir arkadasiniza tavsiye eder misiniz? (0-10)'],
+            ['tip' => 'csat', 'soru' => 'Hizmetimizden ne kadar memnun kaldiniz? (1-5)'],
+            ['tip' => 'metin','soru' => 'Bize onerileriniz veya yorumlariniz nelerdir?'],
+        ], JSON_UNESCAPED_UNICODE);
+        $sablon->otomatik_gonder = 0;
+        $sablon->gonder_saat_sonra = 24;
+        $sablon->aktif = 1;
+        $sablon->varsayilan = 1;
+        $sablon->save();
+        return $sablon;
+    }
+
     public static function anketGonderimOlustur($salonId, $sablon, $musteri, $telefon, $opts = []){
         $token = self::anketKisaToken(8);
         $g = new AnketGonderim();

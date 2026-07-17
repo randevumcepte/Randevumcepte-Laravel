@@ -27404,10 +27404,8 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 return response()->json(['basarili' => false, 'mesaj' => 'Musterinin telefon numarasi kayitli degil.']);
             }
 
-            $sablon = \App\AnketSablon::where('salon_id', $salonId)->where('aktif', 1)->orderBy('id')->first();
-            if (!$sablon) {
-                return response()->json(['basarili' => false, 'mesaj' => 'Bu isletme icin aktif anket sablonu tanimlanmamis.']);
-            }
+            // Salonun aktif sablonunu getir; yoksa varsayilan olusturur
+            $sablon = \App\Http\Controllers\StoreAdminController::varsayilanAnketSablonuGetirYaOlustur($salonId);
 
             $gonderim = \App\Http\Controllers\StoreAdminController::anketGonderimOlustur(
                 $salonId, $sablon, $musteri, $musteri->cep_telefon, ['kanal' => 'manuel']
