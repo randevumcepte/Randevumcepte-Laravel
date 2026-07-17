@@ -261,7 +261,13 @@ $(document).on('click','i[name="yeniSeansEkle"]',function(e)
     var paketId = $(this).attr('data-value');
     var hizmetId = $(this).attr('data-index-number');
     var paket = $(this).attr('data-paket');
-    
+
+    // Varsayilan seans tarihi = bugun (yerel saat, YYYY-MM-DD)
+    var bugun = new Date();
+    var bugunStr = bugun.getFullYear() + '-' +
+                   ('0' + (bugun.getMonth() + 1)).slice(-2) + '-' +
+                   ('0' + bugun.getDate()).slice(-2);
+
     swal({
         title: "Yeni Seans Kullanımı",
         html: "<div style='padding:5px;'>" +
@@ -271,7 +277,11 @@ $(document).on('click','i[name="yeniSeansEkle"]',function(e)
               "<div style='background:#f5f7fa; padding:12px; border-radius:10px; margin-bottom:12px;'>" +
               "<div style='color:#2d3748; font-size:15px;'><i class='fa fa-tag' style='color:#667eea; width:20px;'></i> " + hizmetAdi + "</div>" +
               "</div>" +
-               
+              "<div style='background:#f5f7fa; padding:12px; border-radius:10px; margin-bottom:12px; text-align:left;'>" +
+              "<label for='seansTarihiYeni' style='color:#718096; font-size:12px; display:block; margin-bottom:6px; font-weight:600;'><i class='fa fa-calendar' style='color:#667eea; width:20px;'></i> Seans Tarihi</label>" +
+              "<input type='date' id='seansTarihiYeni' value='" + bugunStr + "' style='width:100%; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-size:15px; color:#2d3748; background:#fff;'>" +
+              "</div>" +
+
               "<div style='display:flex; gap:6px; justify-content:center;'>" +
               "<button type='button' class='btn btn-sm btn-success' id='seansKullanildiYeni' data-index-number='"+hizmetId+"' data-paket='"+paket+"' data-value='"+paketId+"' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-check'></i> Kullanıldı</button>" +
 
@@ -296,11 +306,12 @@ $(document).on('click','#seansKullanildiYeni',function(e){
     var paketId = $(this).attr('data-value');
     var hizmetId = $(this).attr('data-index-number');
     var musteriId = $('#musteriKarti').length ? $('#musteriKarti').val() : '';
+    var seansTarihi = $('#seansTarihiYeni').val();
     e.preventDefault();
      $.ajax({
                 type: "POST",
                 url: '/isletmeyonetim/seansEkle',
-                data:  {hizmetId:hizmetId,paketId:paketId,_token:$('input[name="_token"]').val(),sube:$('input[name="sube"]').val(),musteriId:musteriId,geldi:1,paket:paket} ,
+                data:  {hizmetId:hizmetId,paketId:paketId,_token:$('input[name="_token"]').val(),sube:$('input[name="sube"]').val(),musteriId:musteriId,geldi:1,paket:paket,seansTarihi:seansTarihi} ,
                 dataType: "text",
                 
                 beforeSend: function(){
@@ -336,11 +347,12 @@ $(document).on('click','#seansKullanilmadiYeni',function(e){
     var paketId = $(this).attr('data-value');
     var hizmetId = $(this).attr('data-index-number');
     var musteriId = $('#musteriKarti').length ? $('#musteriKarti').val() : '';
+    var seansTarihi = $('#seansTarihiYeni').val();
     e.preventDefault();
      $.ajax({
                 type: "POST",
                 url: '/isletmeyonetim/seansEkle',
-                data:  {hizmetId:hizmetId,paketId:paketId,_token:$('input[name="_token"]').val(),sube:$('input[name="sube"]').val(),musteriId:musteriId,geldi:0,paket:paket} ,
+                data:  {hizmetId:hizmetId,paketId:paketId,_token:$('input[name="_token"]').val(),sube:$('input[name="sube"]').val(),musteriId:musteriId,geldi:0,paket:paket,seansTarihi:seansTarihi} ,
                 dataType: "text",
                 
                 beforeSend: function(){
