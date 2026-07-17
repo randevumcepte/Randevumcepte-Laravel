@@ -5,6 +5,36 @@ var seansTablo;
 // air-datepicker icin Turkce dil tanimi. Kutuphanede 'tr' dosyasi yok ve varsayilan
 // dil 'ru'; bu obje sadece seans tarihi secicisine verilir, global kayit yapilmaz
 // (baska sayfalardaki datepicker'lar etkilenmesin).
+// Popup'taki seans tarihini oku. Alan elle yazilabildigi icin bicimi dogrula:
+// gecerli YYYY-MM-DD degilse null don (cagiran uyarir), bos ise '' don
+// (backend bos tarihte bugune duser).
+function seansTarihiOku() {
+    var deger = $.trim($('#seansTarihiYeni').val() || '');
+    if (deger === '') return '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(deger)) return null;
+    var p = deger.split('-');
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    // Takvimde olmayan tarihleri ele (orn. 2026-02-31 -> 3 Mart'a kayar)
+    if (d.getFullYear() !== +p[0] || d.getMonth() !== +p[1] - 1 || d.getDate() !== +p[2]) return null;
+    return deger;
+}
+
+// Gecersiz tarihte kullaniciyi popup'i kapatmadan uyar (yeni bir swal acmak
+// mevcut popup'in yerine gecer ve secim kaybolurdu).
+function seansTarihUyar() {
+    var $inp = $('#seansTarihiYeni');
+    $inp.css({'border':'1px solid #e53e3e','background':'#fff5f5'});
+    if (!$inp.next('.seans-tarih-hata').length) {
+        $inp.after("<div class='seans-tarih-hata' style='color:#e53e3e; font-size:12px; margin-top:6px;'>Geçerli bir tarih girin (YYYY-AA-GG) veya takvimden seçin.</div>");
+    }
+    $inp.focus();
+}
+
+function seansTarihUyariTemizle() {
+    $('#seansTarihiYeni').css({'border':'','background':'#fff'});
+    $('.seans-tarih-hata').remove();
+}
+
 var seansTarihLocale = {
     days: ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'],
     daysShort: ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'],
@@ -295,7 +325,7 @@ $(document).on('click','i[name="yeniSeansEkle"]',function(e)
               "</div>" +
               "<div style='background:#f5f7fa; padding:12px; border-radius:10px; margin-bottom:12px; text-align:left;'>" +
               "<label for='seansTarihiYeni' style='color:#718096; font-size:12px; display:block; margin-bottom:6px; font-weight:600;'><i class='fa fa-calendar' style='color:#667eea; width:20px;'></i> Seans Tarihi</label>" +
-              "<input type='text' id='seansTarihiYeni' class='form-control date-picker' value='" + bugunStr + "' autocomplete='off' readonly style='background:#fff; cursor:pointer;'>" +
+              "<input type='text' id='seansTarihiYeni' class='form-control date-picker' value='" + bugunStr + "' autocomplete='off' placeholder='YYYY-AA-GG' style='background:#fff; cursor:pointer;'>" +
               "</div>" +
 
               "<div style='display:flex; gap:6px; justify-content:center;'>" +
@@ -317,8 +347,15 @@ $(document).on('click','i[name="yeniSeansEkle"]',function(e)
                 language: seansTarihLocale,
                 dateFormat: 'yyyy-mm-dd',
                 autoClose: true,
-                todayButton: new Date()
+                todayButton: new Date(),
+                // Varsayilan showEvent 'focus'. Tarih secildikten sonra kutuphane
+                // odagi input'ta birakiyor; input zaten odakliyken tekrar tiklayinca
+                // tarayici yeni focus olayi uretmedigi icin takvim bir daha acilmiyordu.
+                // 'click' ile her tiklamada guvenilir acilir.
+                showEvent: 'click',
+                onSelect: function(){ seansTarihUyariTemizle(); }
             });
+            $('#seansTarihiYeni').on('input', seansTarihUyariTemizle);
         },
         // Popup her acilista yeni input uretiyor; kapanista instance'i yok et ki
         // body'deki takvim div'leri birikmesin.
@@ -341,8 +378,12 @@ $(document).on('click','#seansKullanildiYeni',function(e){
     var paketId = $(this).attr('data-value');
     var hizmetId = $(this).attr('data-index-number');
     var musteriId = $('#musteriKarti').length ? $('#musteriKarti').val() : '';
-    var seansTarihi = $('#seansTarihiYeni').val();
+    var seansTarihi = seansTarihiOku();
     e.preventDefault();
+    if (seansTarihi === null) {
+        seansTarihUyar();
+        return;
+    }
      $.ajax({
                 type: "POST",
                 url: '/isletmeyonetim/seansEkle',
@@ -382,8 +423,12 @@ $(document).on('click','#seansKullanilmadiYeni',function(e){
     var paketId = $(this).attr('data-value');
     var hizmetId = $(this).attr('data-index-number');
     var musteriId = $('#musteriKarti').length ? $('#musteriKarti').val() : '';
-    var seansTarihi = $('#seansTarihiYeni').val();
+    var seansTarihi = seansTarihiOku();
     e.preventDefault();
+    if (seansTarihi === null) {
+        seansTarihUyar();
+        return;
+    }
      $.ajax({
                 type: "POST",
                 url: '/isletmeyonetim/seansEkle',
