@@ -52,6 +52,7 @@ Route::post('/saatBosluguKampanyaBildirimGonder/{salonId}','ApiController@saatBo
 
 // Anket / Reputation Booster — ozet ve gonderim listesi (mobile uygulama icin)
 // trigger4 (route cache temizleme tetikleyici)
+Route::post('/anket-hizli-gonder','ApiController@anketHizliGonder');
 Route::post('/anketOzet/{salonId}','ApiController@anketOzet');
 Route::get('/anketOzet/{salonId}','ApiController@anketOzet');
 Route::post('/anketGonderimleri/{salonId}','ApiController@anketGonderimleri');

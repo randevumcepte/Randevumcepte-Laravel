@@ -27382,6 +27382,54 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     // ANKET YONETIMI API (mobil)
     // ============================================================
 
+    /**
+     * Mobile - musteri kartindan/listesinden/randevu detaydan hizli anket
+     * gonderim. Web tarafindaki anketHizliGonder ile ayni akis (WA-first + SMS
+     * fallback) — sadece guard/istek formati farkli.
+     *
+     * Params:
+     *   salon_id (int, gerekli)
+     *   user_id  (int, gerekli)
+     *
+     * Response: { basarili: bool, mesaj?: string, gonderim_id?: int, kanal?: 'whatsapp'|'sms' }
+     */
+    public function anketHizliGonder(Request $request)
+    {
+        try {
+            $salonId = (int) $request->input('salon_id');
+            $userId  = (int) $request->input('user_id');
+            if (!$salonId || !$userId) {
+                return response()->json(['basarili' => false, 'mesaj' => 'salon_id ve user_id zorunlu.']);
+            }
+
+            $musteri = \App\User::where('id', $userId)->first();
+            if (!$musteri) return response()->json(['basarili' => false, 'mesaj' => 'Musteri bulunamadi.']);
+            if (empty($musteri->cep_telefon)) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Musterinin telefon numarasi kayitli degil.']);
+            }
+
+            $sablon = \App\AnketSablon::where('salon_id', $salonId)->where('aktif', 1)->orderBy('id')->first();
+            if (!$sablon) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Bu isletme icin aktif anket sablonu tanimlanmamis.']);
+            }
+
+            $gonderim = \App\Http\Controllers\StoreAdminController::anketGonderimOlustur(
+                $salonId, $sablon, $musteri, $musteri->cep_telefon, ['kanal' => 'manuel']
+            );
+            \App\Http\Controllers\StoreAdminController::anketSmsGonder($request, $gonderim, $sablon, $musteri);
+
+            return response()->json([
+                'basarili' => true,
+                'mesaj' => 'Anket gonderildi.',
+                'gonderim_id' => $gonderim->id,
+                'kanal' => $gonderim->gonderim_kanali ?: 'sms',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('api.anketHizliGonder hata: '.$e->getMessage());
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
+        }
+    }
+
     public function anketSablonListesi(Request $request, $salonId)
     {
         $sablonlar = AnketSablon::where('salon_id', $salonId)
