@@ -9901,6 +9901,44 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     }
 
+    public function masrafsil(Request $request, $salonid)
+
+    {
+        // Beyaz etiket izolasyonu: masraf yalnizca kendi salonuna aitse silinebilir.
+        $masraf = Masraflar::where("id", $request->masraf_id)
+            ->where("salon_id", $salonid)
+            ->first();
+
+        if (!$masraf) {
+            return response()->json([
+                'basarili' => false,
+                'mesaj' => 'Masraf kaydı bulunamadı.',
+            ], 404);
+        }
+
+        // Bagli personel odemesi (maas/prim/avans) olarak yaratildiysa, ona bagli
+        // kaydi da geri al — prim hakedis sayfasindaki "odendi" durumu duzelsin.
+        if ($masraf->personel_maas_odemesi_id) {
+            try {
+                \App\PersonelMaasOdemesi::where("id", $masraf->personel_maas_odemesi_id)->delete();
+            } catch (\Throwable $e) {}
+        }
+
+        $masrafId = $masraf->id;
+        $masrafOzet = ($masraf->aciklama ?: 'Masraf') . ' — ' . number_format((float) $masraf->tutar, 2, ',', '.') . ' ₺';
+
+        $masraf->delete();
+
+        try {
+            Audit::logApi($salonid, $request, 'masraf_sil', 'masraf', $masrafId, $masrafOzet, 'Masraf silindi');
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'basarili' => true,
+            'mesaj' => 'Masraf kaydı başarıyla kaldırıldı',
+        ]);
+    }
+
     public function personeller(Request $request, $salonid)
 
     {

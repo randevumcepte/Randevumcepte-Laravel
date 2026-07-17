@@ -144,6 +144,7 @@ Route::post('/masrafraporu/{salonid}','ApiController@masrafraporu');
 Route::post('/kasaraporu/{salonid}','ApiController@kasaraporu');
 Route::get('/paketget/{salonid}','ApiController@paketget');
 Route::post('/masrafekleduzenle/{salonid}','ApiController@masrafekleduzenle');
+Route::post('/masrafsil/{salonid}','ApiController@masrafsil');
 Route::get('/personeller/{salonid}','ApiController@personeller');
 Route::get('/masrafkategorileri','ApiController@masrafkategorileri');
 Route::get('/hizmetler/{salonid}','ApiController@hizmetler');
