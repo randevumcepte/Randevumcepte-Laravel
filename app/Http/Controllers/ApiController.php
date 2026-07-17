@@ -25061,26 +25061,20 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
         {
 
             $formlar = FormTaslaklari::where('salon_id',$request->salonid)->orWhereNull('salon_id')->get();
-                 // Hizmetler — aktif=1 olanlar + bu salondaki randevu_hizmetler'de
-                 // KULLANILMIS aktif=0 hizmetler de listelenir. Boylece silinmis
-                 // hizmetli eski randevular duzenleme ekraninda crash atmaz.
-                 // Frontend'in randevu_id gondermesine veya farklı bir bayrağa
-                 // ihtiyaç kalmaz (mobil rebuild gerekmez).
+                 // Hizmetler — normalde sadece aktif=1. Duzenleme ekrani
+                 // 'randevu_id' gonderirse o randevunun kullandigi aktif=0
+                 // (silinmis/arsivli) hizmetler de dahil edilir; yeni randevu
+                 // ekleme akisi randevu_id gondermez => sadece aktif hizmetler.
+            $rndId = (int) ($request->input('randevu_id') ?? 0);
+            $rndCond = $rndId > 0
+                ? ' OR hizmet_id IN (SELECT hizmet_id FROM randevu_hizmetler WHERE randevu_id = '.$rndId.' AND hizmet_id IS NOT NULL)'
+                : '';
             $hizmetler  =  SalonHizmetler::join(
                 DB::raw('(SELECT MAX(id) as id
                           FROM salon_sunulan_hizmetler
                           WHERE salon_id = '.$request->salonid.'
                             AND (santral_hizmeti != 1 OR santral_hizmeti IS NULL)
-                            AND (
-                              aktif = 1
-                              OR hizmet_id IN (
-                                SELECT DISTINCT rh.hizmet_id
-                                FROM randevu_hizmetler rh
-                                INNER JOIN randevular r ON r.id = rh.randevu_id
-                                WHERE r.salon_id = '.$request->salonid.'
-                                  AND rh.hizmet_id IS NOT NULL
-                              )
-                            )
+                            AND (aktif = 1'.$rndCond.')
                           GROUP BY hizmet_id) as latest'),
                 'salon_sunulan_hizmetler.id',
                 '=',
