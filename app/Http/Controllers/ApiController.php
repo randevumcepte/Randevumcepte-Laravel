@@ -233,6 +233,7 @@ class ApiController extends Controller
                 'musteri_online_randevu_aktif' => 0,
                 'lisans_aktif' => 0,
                 'uyelik_bitis_tarihi' => null,
+                'salon_adi' => null,
                 'debug' => array(
                     'gelen_bundle'  => $gelenBundle,
                     'eslesen_salon' => null,
@@ -258,6 +259,7 @@ class ApiController extends Controller
             'musteri_online_randevu_aktif' => $herhangiAktif ? 1 : 0,
             'lisans_aktif' => $lisansliSube ? 1 : 0,
             'uyelik_bitis_tarihi' => $enGecBitis,
+            'salon_adi' => optional($subeler->first())->salon_adi,
             'debug' => array(
                 'gelen_bundle'     => $gelenBundle,
                 'sube_sayisi'      => $subeler->count(),
