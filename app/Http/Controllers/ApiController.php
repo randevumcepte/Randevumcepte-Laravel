@@ -22762,12 +22762,11 @@ return date('Y')."-$ayNumara-$gun";
             $paketler = '';
             $paketPersonelleri = '';
             $randevuOlusturulmamisPaketAdisyonuVarmi = '';
-            if($salonid==278 || $salonid==309 || $salonid==168)
-                $anaMenu = '';
-            else
-            {
+            // Menu KAPALI: DTMF menusu okunmayacak (ana_menu asagida bosaltilir). ANCAK musteri
+            // hitabeti, enYakinRandevu ve paket bilgisi HER ZAMAN hesaplanmali (kayitli musteride
+            // "Sayin X hosgeldiniz" ve AI icin randevu/paket verisi gerekir) -> gate kaldirildi.
             $anaMenu = "Randevu almak için biri, ";
-           
+
             if ($musteri && $musteri->users) {
 
                 $musterihitap = 'Sayın '.$musteri->users->name.' .';
@@ -22897,8 +22896,8 @@ return date('Y')."-$ayNumara-$gun";
                     
             }
 
-            $anaMenu .= ", yol tarifi almak için dördü, menüyü tekrar dinlemek için sıfırı tuşlayınız. Operatöre bağlanmak için lütfen bekleyiniz."; 
-            }
+            // Menu KAPALI — DTMF menusu okunmayacak; sadece "Sayin X hosgeldiniz" karsilamasi calacak.
+            $anaMenu = '';
             Log::info('dönen json '. response()->json([
 
                 'success' => true,
