@@ -10383,6 +10383,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 // --- Yeni randevu hizmetlerini ekle
                 $yenisaatbaslangic = $request->randevu_saati;
                 $hizmet_sureleri_okunan = [];
+
+                // MEVCUT APS HAVUZU: guncellemede bu randevunun eski APS kayitlari
+                // hizmet_id bazinda gruplanir. Foreach'ta her satir icin havuzdan
+                // bir kayit TUKETIP guncelleriz; havuz bitince yeni APS aramaya baslariz.
+                $_mevcutSeansHavuzu = AdisyonPaketSeanslar::where('randevu_id', $yenirandevu->id)
+                    ->get()->groupBy('hizmet_id');
+                $_tuketilenSeans = [];
+
                 if (isset($request->hizmetler) && is_array($request->hizmetler)) {
                     foreach ($request->hizmetler as $key2 => $value) {
                         array_push($hizmet_sureleri_okunan, $value["sure_dk"]);
@@ -10440,70 +10448,121 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         }
 
                         // Adisyon - paket seans işlemleri
-                        $randevuOlusturulmamisHizmetAdisyonuVarmi = Adisyonlar::whereHas('hizmetler', function ($q) use ($value) {
-                            $q->where('hizmet_id', $value["hizmet_id"])->where('otomatik_randevu_olusturuldu', '!=', 1)->where('bekleyen_seans', '>', 0);
-                        })->where('user_id', $request->user_id)->where('salon_id', $yenirandevu->salon_id)->first();
+                        // Web ile ayni mantik (StoreAdminController@yenirandevuekle / randevuguncelle):
+                        // 1) Havuzda mevcut APS varsa: yeni saat/personel ile guncelle
+                        // 2) Yoksa: adisyon_hizmetler / adisyon_paketler'de seans_sayisi > 0 olan
+                        //    (gercek paket satisi) adaylardan kalan > 0 olan ilkini sec, APS yaz
+                        // 3) Aday yoksa: paket randevusu degil, APS yazma
+                        try {
+                            $_hzId = (int) $value["hizmet_id"];
+                            $_tuk = $_tuketilenSeans[$_hzId] ?? 0;
+                            $_pool = $_mevcutSeansHavuzu->get($_hzId) ?: collect();
+                            $_zatenVar = $_pool->count() > $_tuk;
+                            $_tuketilenSeans[$_hzId] = $_tuk + 1;
 
-                        $randevuOlusturulmamisPaketAdisyonuVarmi = Adisyonlar::whereHas('paketler', function ($q) use ($value) {
-                            $q->whereHas('paket', function ($q2) use ($value) {
-                                $q2->whereHas('hizmetler', function ($q3) use ($value) {
-                                    $q3->where('hizmet_id', $value['hizmet_id']);
-                                });
-                            })->where('otomatik_randevu_olusturuldu', '!=', 1)->where('bekleyen_seans', '>', 0);
-                        })->where('user_id', $request->user_id)->where('salon_id', $yenirandevu->salon_id)->first();
-
-                        $hizmetAdisyonundanIsle = false;
-                        $paketAdisyonundanIsle = false;
-                        if ($randevuOlusturulmamisHizmetAdisyonuVarmi && $randevuOlusturulmamisPaketAdisyonuVarmi) {
-                            if (date('Y-m-d', strtotime($randevuOlusturulmamisHizmetAdisyonuVarmi->tarih)) < date('Y-m-d', strtotime($randevuOlusturulmamisPaketAdisyonuVarmi->tarih))) {
-                                $hizmetAdisyonundanIsle = true;
+                            if ($_zatenVar) {
+                                $_aps = $_pool->values()[$_tuk] ?? null;
+                                if ($_aps) {
+                                    $_apsModel = AdisyonPaketSeanslar::find($_aps->id);
+                                    if ($_apsModel) {
+                                        $_apsModel->seans_tarih = date('Y-m-d', strtotime($tarihler));
+                                        $_apsModel->seans_saat  = $yenirandevuhizmetpersonel->saat;
+                                        $_apsModel->personel_id = $yenirandevuhizmetpersonel->personel_id;
+                                        $_apsModel->cihaz_id    = $yenirandevuhizmetpersonel->cihaz_id;
+                                        $_apsModel->oda_id      = $yenirandevuhizmetpersonel->oda_id;
+                                        $_apsModel->save();
+                                    }
+                                }
                             } else {
-                                $paketAdisyonundanIsle = true;
-                            }
-                        } else {
-                            if ($randevuOlusturulmamisHizmetAdisyonuVarmi) $hizmetAdisyonundanIsle = true;
-                            if ($randevuOlusturulmamisPaketAdisyonuVarmi) $paketAdisyonundanIsle = true;
-                        }
+                                // Yeni APS icin aday sec
+                                $_hizmetSecili = null;
+                                foreach (\DB::table('adisyon_hizmetler')
+                                    ->join('adisyonlar', 'adisyon_hizmetler.adisyon_id', '=', 'adisyonlar.id')
+                                    ->where('adisyon_hizmetler.hizmet_id', $_hzId)
+                                    ->where('adisyonlar.user_id', $request->user_id)
+                                    ->where('adisyonlar.salon_id', $yenirandevu->salon_id)
+                                    ->where('adisyon_hizmetler.seans_sayisi', '>', 0)
+                                    ->where(function($q){
+                                        $q->whereNull('adisyon_hizmetler.otomatik_randevu_olusturuldu')
+                                          ->orWhere('adisyon_hizmetler.otomatik_randevu_olusturuldu', '!=', 1);
+                                    })
+                                    ->orderBy('adisyonlar.tarih', 'asc')
+                                    ->select('adisyon_hizmetler.id', 'adisyon_hizmetler.seans_sayisi',
+                                             'adisyon_hizmetler.kullanilan_seans', 'adisyon_hizmetler.kullanilmayan_seans',
+                                             'adisyonlar.tarih as adisyon_tarih')
+                                    ->get() as $__h) {
+                                    $__kul = (int) \DB::table('adisyon_paket_seanslar')
+                                        ->where('adisyon_hizmet_id', $__h->id)->count();
+                                    if ($__kul < (int) $__h->seans_sayisi) { $_hizmetSecili = $__h; break; }
+                                }
 
-                        if ($hizmetAdisyonundanIsle) {
-                            foreach ($randevuOlusturulmamisHizmetAdisyonuVarmi->hizmetler as $hizmetA) {
-                                if ($hizmetA->hizmet_id == $value["hizmet_id"]) {
-                                    $seansKaydi = AdisyonPaketSeanslar::where('randevu_id', $yenirandevu->id)->first();
-                                    if (!$seansKaydi) $seansKaydi = new AdisyonPaketSeanslar();
+                                $_paketSecili = null;
+                                foreach (\DB::table('adisyon_paketler')
+                                    ->join('adisyonlar', 'adisyon_paketler.adisyon_id', '=', 'adisyonlar.id')
+                                    ->join('paket_hizmetler', 'paket_hizmetler.paket_id', '=', 'adisyon_paketler.paket_id')
+                                    ->where('paket_hizmetler.hizmet_id', $_hzId)
+                                    ->where('adisyonlar.user_id', $request->user_id)
+                                    ->where('adisyonlar.salon_id', $yenirandevu->salon_id)
+                                    ->where('adisyon_paketler.seans_sayisi', '>', 0)
+                                    ->where(function($q){
+                                        $q->whereNull('adisyon_paketler.otomatik_randevu_olusturuldu')
+                                          ->orWhere('adisyon_paketler.otomatik_randevu_olusturuldu', '!=', 1);
+                                    })
+                                    ->orderBy('adisyonlar.tarih', 'asc')
+                                    ->select('adisyon_paketler.id', 'adisyon_paketler.seans_sayisi',
+                                             'adisyon_paketler.kullanilan_seans', 'adisyon_paketler.kullanilmayan_seans',
+                                             'adisyonlar.tarih as adisyon_tarih')
+                                    ->distinct()
+                                    ->get() as $__p) {
+                                    $__kul = (int) \DB::table('adisyon_paket_seanslar')
+                                        ->where('adisyon_paket_id', $__p->id)
+                                        ->where('hizmet_id', $_hzId)->count();
+                                    if ($__kul < (int) $__p->seans_sayisi) { $_paketSecili = $__p; break; }
+                                }
+
+                                $_hizmetIsle = false; $_paketIsle = false;
+                                if ($_hizmetSecili && $_paketSecili) {
+                                    if (date('Y-m-d', strtotime($_hizmetSecili->adisyon_tarih)) < date('Y-m-d', strtotime($_paketSecili->adisyon_tarih))) {
+                                        $_hizmetIsle = true;
+                                    } else {
+                                        $_paketIsle = true;
+                                    }
+                                } else {
+                                    if ($_hizmetSecili) $_hizmetIsle = true;
+                                    if ($_paketSecili)  $_paketIsle  = true;
+                                }
+
+                                if ($_hizmetIsle) {
+                                    $seansKaydi = new AdisyonPaketSeanslar();
                                     $seansKaydi->seans_tarih = date('Y-m-d', strtotime($tarihler));
-                                    $seansKaydi->seans_saat = $yenisaatbaslangic;
-                                    $seansKaydi->personel_id = $value["personel_id"] == "null" ? null : $value["personel_id"];
-                                    $seansKaydi->cihaz_id = $value["cihaz_id"] == "null" ? null : $value["cihaz_id"];
-                                    $seansKaydi->oda_id = $value["oda_id"] == "null" ? null : $value["oda_id"];
-                                    $seansKaydi->randevu_id = $yenirandevu->id;
-                                    $seansKaydi->seans_no = $hizmetA->kullanilan_seans + $hizmetA->kullanilmayan_seans + 1;
-                                    $seansKaydi->adisyon_hizmet_id = $hizmetA->id;
-                                    $seansKaydi->hizmet_id = $value["hizmet_id"];
+                                    $seansKaydi->seans_saat  = $yenirandevuhizmetpersonel->saat;
+                                    $seansKaydi->personel_id = $yenirandevuhizmetpersonel->personel_id;
+                                    $seansKaydi->cihaz_id    = $yenirandevuhizmetpersonel->cihaz_id;
+                                    $seansKaydi->oda_id      = $yenirandevuhizmetpersonel->oda_id;
+                                    $seansKaydi->randevu_id  = $yenirandevu->id;
+                                    $seansKaydi->seans_no    = ((int)($_hizmetSecili->kullanilan_seans ?? 0)) + ((int)($_hizmetSecili->kullanilmayan_seans ?? 0)) + 1;
+                                    $seansKaydi->adisyon_hizmet_id = $_hizmetSecili->id;
+                                    $seansKaydi->hizmet_id   = $_hzId;
+                                    $seansKaydi->save();
+                                } elseif ($_paketIsle) {
+                                    $seansKaydi = new AdisyonPaketSeanslar();
+                                    $seansKaydi->seans_tarih = date('Y-m-d', strtotime($tarihler));
+                                    $seansKaydi->seans_saat  = $yenirandevuhizmetpersonel->saat;
+                                    $seansKaydi->personel_id = $yenirandevuhizmetpersonel->personel_id;
+                                    $seansKaydi->cihaz_id    = $yenirandevuhizmetpersonel->cihaz_id;
+                                    $seansKaydi->oda_id      = $yenirandevuhizmetpersonel->oda_id;
+                                    $seansKaydi->randevu_id  = $yenirandevu->id;
+                                    $seansKaydi->seans_no    = ((int)($_paketSecili->kullanilan_seans ?? 0)) + ((int)($_paketSecili->kullanilmayan_seans ?? 0)) + 1;
+                                    $seansKaydi->adisyon_paket_id = $_paketSecili->id;
+                                    $seansKaydi->hizmet_id   = $_hzId;
                                     $seansKaydi->save();
                                 }
                             }
-                        }
-
-                        if ($paketAdisyonundanIsle) {
-                            foreach ($randevuOlusturulmamisPaketAdisyonuVarmi->paketler as $paketA) {
-                                foreach ($paketA->paket->hizmetler as $hizmetP) {
-                                    if ($hizmetP->hizmet_id == $value['hizmet_id']) {
-                                        $seansKaydi = AdisyonPaketSeanslar::where('randevu_id', $yenirandevu->id)->first();
-                                        if (!$seansKaydi) $seansKaydi = new AdisyonPaketSeanslar();
-                                        $seansKaydi = new AdisyonPaketSeanslar();
-                                        $seansKaydi->seans_tarih = date('Y-m-d', strtotime($tarihler));
-                                        $seansKaydi->seans_saat = $yenisaatbaslangic;
-                                        $seansKaydi->personel_id = $value["personel_id"] == "null" ? null : $value["personel_id"];
-                                        $seansKaydi->cihaz_id = $value["cihaz_id"] == "null" ? null : $value["cihaz_id"];
-                                        $seansKaydi->oda_id = $value["oda_id"] == "null" ? null : $value["oda_id"];
-                                        $seansKaydi->randevu_id = $yenirandevu->id;
-                                        $seansKaydi->seans_no = $paketA->kullanilan_seans + $paketA->kullanilmayan_seans + 1;
-                                        $seansKaydi->adisyon_paket_id = $paketA->id;
-                                        $seansKaydi->hizmet_id = $value['hizmet_id'];
-                                        $seansKaydi->save();
-                                    }
-                                }
-                            }
+                        } catch (\Throwable $e) {
+                            \Log::warning('mobil randevuekleguncelle APS insert hata: '.$e->getMessage(), [
+                                'randevu_id' => $yenirandevu->id ?? null,
+                                'hizmet_id' => $value["hizmet_id"] ?? null,
+                            ]);
                         }
                     }
                 }
