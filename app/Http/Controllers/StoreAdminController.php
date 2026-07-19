@@ -5804,9 +5804,16 @@ private function ayAdiCevir($ingilizceAy)
                                     if ($_paketAdis)  $_paketIsle  = true;
                                 }
 
+                                // KALAN SEANS KONTROLU: tukenmis adisyon/pakete APS yazma.
+                                // (yenirandevuekle ile ayni mantik.)
                                 if ($_hizmetIsle) {
                                     foreach ($_hizmetAdis->hizmetler as $_hizmetA) {
                                         if ($_hizmetA->hizmet_id == $_hzmtId) {
+                                            $__toplam = (int) ($_hizmetA->seans_sayisi ?? $_hizmetA->bekleyen_seans ?? 0);
+                                            $__kullanilan = (int) DB::table('adisyon_paket_seanslar')
+                                                ->where('adisyon_hizmet_id', $_hizmetA->id)
+                                                ->count();
+                                            if ($__toplam > 0 && $__kullanilan >= $__toplam) continue;
                                             $_seansKaydi = new AdisyonPaketSeanslar();
                                             $_seansKaydi->seans_tarih = $yeniRandevuBilgileri['tarih'];
                                             $_seansKaydi->seans_saat  = $yenirandevuhizmetpersonel->saat;
@@ -5826,6 +5833,12 @@ private function ayAdiCevir($ingilizceAy)
                                     foreach ($_paketAdis->paketler as $_paketA) {
                                         foreach ($_paketA->paket->hizmetler as $_hizmetP) {
                                             if ($_hizmetP->hizmet_id == $_hzmtId) {
+                                                $__toplam = (int) ($_paketA->seans_sayisi ?? $_paketA->bekleyen_seans ?? 0);
+                                                $__kullanilan = (int) DB::table('adisyon_paket_seanslar')
+                                                    ->where('adisyon_paket_id', $_paketA->id)
+                                                    ->where('hizmet_id', $_hzmtId)
+                                                    ->count();
+                                                if ($__toplam > 0 && $__kullanilan >= $__toplam) continue;
                                                 $_seansKaydi = new AdisyonPaketSeanslar();
                                                 $_seansKaydi->seans_tarih = $yeniRandevuBilgileri['tarih'];
                                                 $_seansKaydi->seans_saat  = $yenirandevuhizmetpersonel->saat;
@@ -7075,9 +7088,19 @@ private function ayAdiCevir($ingilizceAy)
                                 $paketAdisyonundanIsle = true;
                         }
                         
+                        // KALAN SEANS KONTROLU: paketVarmiKontrolu popup'i kalan=0 olan
+                        // adisyonlari GOSTERMIYORDU ama yenirandevuekle burada tukenmis
+                        // adisyona da yeni APS yaziyordu. Kullanici "hizmetten paket
+                        // randevusu vermeye devam ediyor" diye rapor etti. Ayni formul
+                        // (kalan = kapasite - COUNT(APS)) buraya da eklendi.
                         if($hizmetAdisyonundanIsle){
                             foreach($randevuOlusturulmamisHizmetAdisyonuVarmi->hizmetler as $hizmetA) {
                                 if($hizmetA->hizmet_id == $rHizmet) {
+                                    $_toplam = (int) ($hizmetA->seans_sayisi ?? $hizmetA->bekleyen_seans ?? 0);
+                                    $_kullanilan = (int) DB::table('adisyon_paket_seanslar')
+                                        ->where('adisyon_hizmet_id', $hizmetA->id)
+                                        ->count();
+                                    if($_toplam > 0 && $_kullanilan >= $_toplam) continue; // Tukenmis, APS yazma
                                     $seansKaydi = new AdisyonPaketSeanslar();
                                     $seansKaydi->seans_tarih = $tarihler;
                                     $seansKaydi->seans_saat = $yenisaatbaslangic;
@@ -7089,14 +7112,23 @@ private function ayAdiCevir($ingilizceAy)
                                     $seansKaydi->adisyon_hizmet_id = $hizmetA->id;
                                     $seansKaydi->hizmet_id = $rHizmet;
                                     $seansKaydi->save();
+                                    break; // Bir kayit yazildiktan sonra ayni hizmet icin baska adisyon_hizmet aramaya devam etme
                                 }
                             }
                         }
-                        
+
                         if($paketAdisyonundanIsle){
                             foreach($randevuOlusturulmamisPaketAdisyonuVarmi->paketler as $paketA) {
+                                $_seansYazildi = false;
                                 foreach($paketA->paket->hizmetler as $hizmetP){
                                     if($hizmetP->hizmet_id == $rHizmet) {
+                                        // Bolge basina kalan kontrolu (paketVarmiKontrolu ile ayni)
+                                        $_toplam = (int) ($paketA->seans_sayisi ?? $paketA->bekleyen_seans ?? 0);
+                                        $_kullanilan = (int) DB::table('adisyon_paket_seanslar')
+                                            ->where('adisyon_paket_id', $paketA->id)
+                                            ->where('hizmet_id', $rHizmet)
+                                            ->count();
+                                        if($_toplam > 0 && $_kullanilan >= $_toplam) continue; // Bu bolge tukenmis, atla
                                         $seansKaydi = new AdisyonPaketSeanslar();
                                         $seansKaydi->seans_tarih = $tarihler;
                                         $seansKaydi->seans_saat = $yenisaatbaslangic;
@@ -7108,8 +7140,11 @@ private function ayAdiCevir($ingilizceAy)
                                         $seansKaydi->adisyon_paket_id = $paketA->id;
                                         $seansKaydi->hizmet_id = $rHizmet;
                                         $seansKaydi->save();
+                                        $_seansYazildi = true;
+                                        break;
                                     }
                                 }
+                                if($_seansYazildi) break; // Bir paketten yazdik, digerlerine gecme
                             }
                         }
                     }
