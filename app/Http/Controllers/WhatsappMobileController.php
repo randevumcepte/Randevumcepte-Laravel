@@ -29,6 +29,8 @@ class WhatsappMobileController extends Controller
                 \App\Salonlar::where('id', $salonId)->update([
                     'whatsapp_aktif' => 1,
                     'whatsapp_durum' => $res['body']['status'] ?? 'connecting',
+                    // Web whatsappBaslat ile AYNI: yeni QR baglantilari whatsmeow (Go) koprusunden.
+                    'whatsapp_bridge_tipi' => 'whatsmeow',
                 ]);
             }
             return response()->json($res['body'] ?? ['error' => 'servis-erisilemiyor'], $res['status'] ?: 502);
