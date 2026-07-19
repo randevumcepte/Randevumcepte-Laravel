@@ -2937,7 +2937,8 @@ $salon = Salonlar::where('domain', $domain)->first();
         $personel = Personeller::where('id', $personel_id)->where('salon_id', $salon->id)->where('aktif', 1)->where('takvimde_gorunsun', true)->first();
         if (!$personel) abort(404);
 
-        $yetkili = \App\IsletmeYetkilileri::where('personel_id', $personel->id)->first();
+        $yetkili = !empty($personel->yetkili_id) ? \App\IsletmeYetkilileri::where('id', $personel->yetkili_id)->first() : null;
+        if (!$yetkili) $yetkili = \App\IsletmeYetkilileri::where('personel_id', $personel->id)->first();
         $profilResim = $yetkili ? $yetkili->profil_resim : null;
         if (empty($profilResim)) {
             $profilResim = $personel->cinsiyet == 0 ? 'public/img/author0.jpg' : 'public/img/author1.jpg';

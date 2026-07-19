@@ -105,7 +105,8 @@
       <div class="perdet-digerleri">
         @foreach($digerPersoneller as $dp)
           @php
-            $dpYetkili = \App\IsletmeYetkilileri::where('personel_id',$dp->id)->first();
+            $dpYetkili = !empty($dp->yetkili_id) ? \App\IsletmeYetkilileri::where('id',$dp->yetkili_id)->first() : null;
+            if (!$dpYetkili) $dpYetkili = \App\IsletmeYetkilileri::where('personel_id',$dp->id)->first();
             $dpResim = $dpYetkili ? $dpYetkili->profil_resim : null;
             if(empty($dpResim)) $dpResim = $dp->cinsiyet==0 ? 'public/img/author0.jpg' : 'public/img/author1.jpg';
             $dpAd = $dpYetkili && $dpYetkili->name ? $dpYetkili->name : $dp->personel_adi;

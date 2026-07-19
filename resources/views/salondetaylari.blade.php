@@ -1299,12 +1299,15 @@
                @foreach($personeller as $per)
                   @if($per->salon_id == $salon->id)
                      @php
-                        $_perResim = \App\IsletmeYetkilileri::where('personel_id',$per->id)->value('profil_resim');
+                        // Personel<->yetkili baglantisi personel.yetkili_id uzerindendir (uygulama avatari da boyle cekiyor).
+                        // isletmeyetkilileri.personel_id ters yon ve cogu personelde bos oldugundan resim bulunamiyordu.
+                        $_perYetkili = !empty($per->yetkili_id) ? \App\IsletmeYetkilileri::where('id',$per->yetkili_id)->first() : null;
+                        if (!$_perYetkili) $_perYetkili = \App\IsletmeYetkilileri::where('personel_id',$per->id)->first();
+                        $_perResim = $_perYetkili ? $_perYetkili->profil_resim : null;
                         if (empty($_perResim)) {
                             $_perResim = $per->cinsiyet==0 ? 'public/img/author0.jpg' : 'public/img/author1.jpg';
                         }
-                        $_perName = \App\IsletmeYetkilileri::where('personel_id',$per->id)->value('name');
-                        if (empty($_perName)) $_perName = $per->personel_adi;
+                        $_perName = $_perYetkili && $_perYetkili->name ? $_perYetkili->name : $per->personel_adi;
                         $_perSpecialty = !empty($per->uzmanlik) ? $per->uzmanlik : ($per->unvan ?? '');
                      @endphp
                      <div class="slp-team-card" role="button" tabindex="0"
