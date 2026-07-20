@@ -401,6 +401,8 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::post('/seansCihazVeriGetir','ApiController@seansCihazVeriGetir');
     Route::get('/seansCihazVeriGetir','ApiController@seansCihazVeriGetir');
     Route::post('/seansCihazVeriKaydet','ApiController@seansCihazVeriKaydet');
+    // Seans dökümü / cihaz bilgileri PDF (mobil) — web ile birebir ayni blade
+    Route::get('/seansDokumuPdf','StoreAdminController@seansDokumuPdf');
 
     /* ───────── Çarkıfelek (müşteri uygulaması) ───────── */
     Route::get ('/cark/durum',          'CarkifelekApiController@durum');
