@@ -8417,6 +8417,11 @@ private function ayAdiCevir($ingilizceAy)
          $musteri->cinsiyet = $request->cinsiyet;
          $musteri->email = $request->email;
          $musteri->adres = $request->adres;
+         // TC Kimlik No: duzenleme formundan gelirse kaydet (bos gelirse mevcut degeri koru)
+         if ($request->has('tc_kimlik_no')) {
+             $_tc = trim((string) $request->tc_kimlik_no);
+             $musteri->tc_kimlik_no = $_tc !== '' ? $_tc : null;
+         }
          $musteri->save();
          // Audit
          SalonAudit::log(self::mevcutsube($request), 'musteri_bilgi_guncelle', 'musteri', $musteri->id,
