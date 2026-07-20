@@ -27647,6 +27647,18 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 'bagli' => $bagli,
                 'saglayici' => $saglayici,
                 'durum' => $isletme->whatsapp_durum ?? '',
+                // Hazir link chip'leri icin (web whatsapp_mesaj_modal ile ayni)
+                'konum_linki'     => $isletme->konum_linki ?? '',
+                'instagram_linki' => $isletme->instagram_linki ?? '',
+                'web_linki'       => $isletme->web_linki ?? '',
+                // Musterinin whatsapp_onay bilgisi ayri sorgu ile alinir (userId lazim);
+                // istekte user_id varsa ayrica kontrol et
+                'musteri_onay' => (function() use ($request){
+                    $uid = (int)$request->input('user_id');
+                    if(!$uid) return null;
+                    $m = \App\User::where('id',$uid)->first(['whatsapp_onay']);
+                    return $m ? (int)($m->whatsapp_onay ?? 0) : null;
+                })(),
             ]);
         } catch (\Throwable $e) {
             \Log::warning('api.musteriWhatsappDurum hata: '.$e->getMessage());
