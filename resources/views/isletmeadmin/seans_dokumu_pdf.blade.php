@@ -43,6 +43,17 @@
     .bilgi .lbl { color: #6b7280; font-weight: bold; width: 90px; font-size: 9.5px; text-transform: uppercase; letter-spacing: .3px; }
     .bilgi .val { color: #1f2937; font-weight: bold; }
 
+    .bolge-baslik {
+        margin: 14px 0 0;
+        padding: 7px 12px;
+        background: #ead4ff;
+        color: #4a0072;
+        font-size: 12px;
+        font-weight: bold;
+        border-radius: 6px 6px 0 0;
+        border: 1px solid #d9b8f5;
+        border-bottom: none;
+    }
     table.veri { width: 100%; border-collapse: collapse; }
     table.veri thead th {
         background: #5C008E;
@@ -51,7 +62,7 @@
         font-weight: bold;
         text-transform: uppercase;
         letter-spacing: .3px;
-        padding: 8px 6px;
+        padding: 7px 6px;
         text-align: center;
         border: 1px solid #4a0072;
     }
@@ -62,11 +73,9 @@
         font-size: 11px;
     }
     table.veri tbody tr:nth-child(even) td { background: #fbfaff; }
-    table.veri .c-no { font-weight: bold; color: #5C008E; width: 34px; }
-    table.veri .c-tarih { width: 78px; }
-    table.veri .c-bolge { text-align: left; padding-left: 9px; }
+    table.veri .c-no { font-weight: bold; color: #5C008E; width: 40px; }
+    table.veri .c-tarih { width: 90px; }
     table.veri .c-yapan { text-align: left; padding-left: 9px; }
-    .grup-ust td { border-top: 2px solid #cbb3e0 !important; }
 
     .ozet {
         margin-top: 14px;
@@ -127,45 +136,44 @@
         </tr>
     </table>
 
-    @if(count($satirlar) === 0)
-        <div class="bos">Bu pakete ait cihaz seans verisi bulunmuyor.</div>
+    @if(count($bolgeler) === 0)
+        <div class="bos">Bu pakete ait girilmiş cihaz seans verisi bulunmuyor.</div>
     @else
-    <table class="veri">
-        <thead>
-            <tr>
-                <th class="c-no">#</th>
-                <th class="c-tarih">Tarih</th>
-                <th>Uygulama Bölgesi</th>
-                <th>Enerji (Jül)</th>
-                <th>Hız</th>
-                <th>MS</th>
-                <th>Atış Sayısı</th>
-                <th>Uygulama Yapan</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($satirlar as $s)
-            <tr class="{{ $s['ilk_bolge'] ? 'grup-ust' : '' }}">
-                @if($s['ilk_bolge'])
-                <td class="c-no" rowspan="{{ $s['bolge_adet'] }}">{{ $s['seans_no'] }}</td>
-                <td class="c-tarih" rowspan="{{ $s['bolge_adet'] }}">{{ $s['tarih'] }}</td>
-                @endif
-                <td class="c-bolge">{{ $s['bolge'] }}</td>
-                <td>{{ $s['enerji'] }}</td>
-                <td>{{ $s['hiz'] }}</td>
-                <td>{{ $s['ms'] }}</td>
-                <td>{{ $s['atis'] }}</td>
-                <td class="c-yapan">{{ $s['personel'] }}</td>
-            </tr>
-            @endforeach
-        </tbody>
-    </table>
+        @foreach($bolgeler as $bolge)
+        <div class="bolge-baslik">{{ $bolge['ad'] }}</div>
+        <table class="veri">
+            <thead>
+                <tr>
+                    <th class="c-no">Seans</th>
+                    <th class="c-tarih">Tarih</th>
+                    <th>Enerji (Jül)</th>
+                    <th>Hız</th>
+                    <th>MS</th>
+                    <th>Atış Sayısı</th>
+                    <th>Uygulama Yapan</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($bolge['satirlar'] as $s)
+                <tr>
+                    <td class="c-no">{{ $s['no'] }}</td>
+                    <td class="c-tarih">{{ $s['tarih'] }}</td>
+                    <td>{{ $s['enerji'] }}</td>
+                    <td>{{ $s['hiz'] }}</td>
+                    <td>{{ $s['ms'] }}</td>
+                    <td>{{ $s['atis'] }}</td>
+                    <td class="c-yapan">{{ $s['personel'] }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+        @endforeach
 
-    <div class="ozet">
-        <span class="k">Toplam Seans: <b>{{ $seansAdedi !== null ? $seansAdedi : '-' }}</b></span>
-        <span class="k">Kullanılan: <b>{{ $kullanilan }}</b></span>
-        <span class="k">Kalan: <b>{{ $seansAdedi !== null ? max(0, $seansAdedi - $kullanilan) : '-' }}</b></span>
-    </div>
+        <div class="ozet">
+            <span class="k">Toplam Seans: <b>{{ $toplam !== null ? $toplam : '-' }}</b></span>
+            <span class="k">Kullanılan: <b>{{ $kullanilan }}</b></span>
+            <span class="k">Kalan: <b>{{ $toplam !== null ? max(0, $toplam - $kullanilan) : '-' }}</b></span>
+        </div>
     @endif
 
     <div class="footer">

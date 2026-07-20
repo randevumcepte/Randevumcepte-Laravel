@@ -206,12 +206,8 @@ function formatHizmetDetaylari(hizmetler) {
             seansDetaylari = [];
         }
 
-        // Lazer epilasyon mu? (backend isimden hesaplar) -> cihaz takibi butonlari
+        // Lazer epilasyon mu? (backend isimden hesaplar) -> seans ikonuna tiklayinca cihaz formu
         var lazer = hizmet.lazer ? 1 : 0;
-        var pdfUrl = '/isletmeyonetim/seansDokumuPdf?' +
-                     (hizmet.seansTuru === 'PAKET' ? 'adisyonpaketid=' : 'adisyonhizmetid=') + hizmet.id;
-        var _sube = $('input[name="sube"]').val();
-        if (_sube) pdfUrl += '&sube=' + _sube;
 
         var ikonlar = '';
         var gosterilecekIkon = seansDetaylari.length;
@@ -254,8 +250,7 @@ function formatHizmetDetaylari(hizmetler) {
                 '<div class="col-4 text-center"><small class="text-muted d-block">Kullanılmadı</small><strong class="text-danger">'+gelmedi+'</strong></div>' +
                 '</div>' +
                 (lazer ? '<div class="mt-2 pt-2" style="border-top:1px dashed #e5e7eb;text-align:center;">' +
-                         '<span style="display:block;font-size:10px;color:#7c3aed;margin-bottom:6px;font-weight:600;"><i class="fa fa-bolt"></i> Lazer cihaz takibi — seans ikonuna tıklayıp bilgileri girin</span>' +
-                         '<a href="'+pdfUrl+'" target="_blank" class="btn btn-sm" style="background:#5C008E;color:#fff;border-radius:8px;font-size:11px;padding:5px 12px;"><i class="fa fa-file-pdf-o"></i> Seans Dökümü (PDF)</a>' +
+                         '<span style="display:block;font-size:10px;color:#7c3aed;font-weight:600;"><i class="fa fa-bolt"></i> Lazer cihaz takibi — seans ikonuna tıklayıp bilgileri girin</span>' +
                          '</div>' : '') +
                 '</div></div></div>';
     });
@@ -326,21 +321,35 @@ function cihazEsc(s){
         .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+var cihazBolgeAdi = '';
+
 function cihazModalOlustur(){
     if ($('#cihazModalOverlay').length) return;
+    var inp = "width:100%; padding:9px 11px; border:1px solid #cbd5e1; border-radius:9px; font-size:14px; background:#fff; box-sizing:border-box;";
+    var lbl = "display:block; font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.03em; margin-bottom:5px;";
     var html =
       "<div id='cihazModalOverlay' style='display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,.55); overflow:auto; padding:24px;'>" +
-        "<div id='cihazModalBox' style='max-width:760px; margin:24px auto; background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(15,23,42,.35); overflow:hidden;'>" +
+        "<div id='cihazModalBox' style='max-width:620px; margin:24px auto; background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(15,23,42,.35); overflow:hidden;'>" +
           "<div style='display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 20px; background:#4f46e5; color:#fff;'>" +
             "<div style='font-size:16px; font-weight:700;'><i class='fa fa-bolt'></i> Cihaz / Seans Bilgileri</div>" +
             "<span id='cihazModalKapat' style='cursor:pointer; font-size:22px; line-height:1; opacity:.9;'>&times;</span>" +
           "</div>" +
-          "<div style='padding:16px 20px; background:#f8fafc; border-bottom:1px solid #eef2f7;'>" +
+          "<div style='padding:14px 20px; background:#f8fafc; border-bottom:1px solid #eef2f7;'>" +
             "<div id='cihazSeansBilgi' style='font-size:13px; color:#334155;'></div>" +
           "</div>" +
-          "<div style='padding:16px 20px; max-height:56vh; overflow:auto;'>" +
-            "<div id='cihazBolgeler'></div>" +
-            "<button type='button' id='cihazBolgeEkle' style='margin-top:6px; background:#eef2ff; color:#4f46e5; border:1px dashed #a5b4fc; border-radius:10px; padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer;'><i class='fa fa-plus'></i> Bölge Ekle</button>" +
+          "<div style='padding:18px 20px; max-height:60vh; overflow:auto;'>" +
+            "<div style='background:#eef2ff; border:1px solid #c7d2fe; border-radius:10px; padding:10px 14px; margin-bottom:16px;'>" +
+              "<span style='font-size:10.5px; font-weight:700; color:#4f46e5; text-transform:uppercase; letter-spacing:.03em;'>Uygulama Bölgesi</span>" +
+              "<div id='cihazBolgeAdi' style='font-size:15px; font-weight:700; color:#312e81; margin-top:2px;'></div>" +
+            "</div>" +
+            "<div style='display:flex; flex-wrap:wrap; gap:12px;'>" +
+              "<div style='flex:1 1 22%; min-width:110px;'><label style='"+lbl+"'>Enerji (Jül)</label><input type='text' id='cf-enerji' style='"+inp+"'></div>" +
+              "<div style='flex:1 1 22%; min-width:100px;'><label style='"+lbl+"'>Hız</label><input type='text' id='cf-hiz' style='"+inp+"'></div>" +
+              "<div style='flex:1 1 22%; min-width:100px;'><label style='"+lbl+"'>MS</label><input type='text' id='cf-ms' style='"+inp+"'></div>" +
+              "<div style='flex:1 1 22%; min-width:110px;'><label style='"+lbl+"'>Atış Sayısı</label><input type='text' id='cf-atis' style='"+inp+"'></div>" +
+              "<div style='flex:1 1 48%; min-width:180px;'><label style='"+lbl+"'>Uygulamayı Yapan</label><select id='cf-personel' style='"+inp+"'></select></div>" +
+              "<div style='flex:1 1 48%; min-width:180px;'><label style='"+lbl+"'>Not (opsiyonel)</label><input type='text' id='cf-not' style='"+inp+"'></div>" +
+            "</div>" +
           "</div>" +
           "<div style='display:flex; justify-content:flex-end; gap:10px; padding:14px 20px; background:#f8fafc; border-top:1px solid #eef2f7;'>" +
             "<button type='button' id='cihazModalIptal' style='background:#e2e8f0; color:#334155; border:none; border-radius:10px; padding:10px 18px; font-weight:600; cursor:pointer;'>İptal</button>" +
@@ -361,37 +370,12 @@ function cihazPersonelSelect(seciliId){
     return opt;
 }
 
-function cihazBolgeSatiri(data){
-    data = data || {};
-    var inp = "width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; background:#fff;";
-    var lbl = "display:block; font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px;";
-    var $row = $(
-      "<div class='cihaz-bolge' style='position:relative; border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:12px; background:#fff;'>" +
-        "<span class='cihazBolgeSil' title='Bölgeyi kaldır' style='position:absolute; top:8px; right:10px; cursor:pointer; color:#cbd5e1; font-size:18px;'>&times;</span>" +
-        "<div style='display:flex; flex-wrap:wrap; gap:10px;'>" +
-          "<div style='flex:1 1 100%;'><label style='"+lbl+"'>Uygulama Bölgesi</label><input type='text' class='c-bolge' placeholder='Örn. Bacak, Koltuk Altı' style='"+inp+"'></div>" +
-          "<div style='flex:1 1 20%; min-width:90px;'><label style='"+lbl+"'>Enerji (Jül)</label><input type='text' class='c-enerji' style='"+inp+"'></div>" +
-          "<div style='flex:1 1 20%; min-width:80px;'><label style='"+lbl+"'>Hız</label><input type='text' class='c-hiz' style='"+inp+"'></div>" +
-          "<div style='flex:1 1 20%; min-width:80px;'><label style='"+lbl+"'>MS</label><input type='text' class='c-ms' style='"+inp+"'></div>" +
-          "<div style='flex:1 1 20%; min-width:90px;'><label style='"+lbl+"'>Atış Sayısı</label><input type='text' class='c-atis' style='"+inp+"'></div>" +
-          "<div style='flex:1 1 45%; min-width:160px;'><label style='"+lbl+"'>Uygulamayı Yapan</label><select class='c-personel' style='"+inp+"'>"+cihazPersonelSelect(data.personel_id)+"</select></div>" +
-          "<div style='flex:1 1 45%; min-width:160px;'><label style='"+lbl+"'>Not (opsiyonel)</label><input type='text' class='c-not' style='"+inp+"'></div>" +
-        "</div>" +
-      "</div>"
-    );
-    $row.find('.c-bolge').val(data.uygulama_bolgesi || '');
-    $row.find('.c-enerji').val(data.enerji || '');
-    $row.find('.c-hiz').val(data.hiz || '');
-    $row.find('.c-ms').val(data.ms || '');
-    $row.find('.c-atis').val(data.atis_sayisi || '');
-    $row.find('.c-not').val(data.notlar || '');
-    $('#cihazBolgeler').append($row);
-}
-
 function cihazModalAc(seansId){
     cihazModalOlustur();
-    $('#cihazBolgeler').html('');
     $('#cihazSeansBilgi').html('Yükleniyor...');
+    $('#cihazBolgeAdi').text('');
+    $('#cf-enerji, #cf-hiz, #cf-ms, #cf-atis, #cf-not').val('');
+    $('#cf-personel').html('');
     $('#cihazModalKaydet').data('seans-id', seansId);
     $('#cihazModalOverlay').show();
 
@@ -408,18 +392,23 @@ function cihazModalAc(seansId){
             cihazVarsayilanPersonel = res.seans ? res.seans.varsayilan_personel_id : null;
             var s = res.seans || {};
             var tarih = s.seans_tarih ? s.seans_tarih : '';
+            cihazBolgeAdi = s.hizmet_adi || '';
+
             $('#cihazSeansBilgi').html(
                 "<b style='color:#0f172a;'>"+cihazEsc(s.musteri_adi||'')+"</b>" +
-                " &middot; " + cihazEsc(s.hizmet_adi||'') +
                 (s.seans_no ? " &middot; "+cihazEsc(s.seans_no)+". Seans" : "") +
                 (tarih ? " &middot; "+cihazEsc(tarih) : "")
             );
-            $('#cihazBolgeler').html('');
-            if (res.bolgeler && res.bolgeler.length){
-                for (var i=0; i<res.bolgeler.length; i++) cihazBolgeSatiri(res.bolgeler[i]);
-            } else {
-                cihazBolgeSatiri({}); // en az bir bos satir
-            }
+            $('#cihazBolgeAdi').text(cihazBolgeAdi || '-');
+
+            // Tek bolge: varsa mevcut kaydi doldur (ilk satir), yoksa bos
+            var d = (res.bolgeler && res.bolgeler.length) ? res.bolgeler[0] : {};
+            $('#cf-enerji').val(d.enerji || '');
+            $('#cf-hiz').val(d.hiz || '');
+            $('#cf-ms').val(d.ms || '');
+            $('#cf-atis').val(d.atis_sayisi || '');
+            $('#cf-not').val(d.notlar || '');
+            $('#cf-personel').html(cihazPersonelSelect(d.personel_id));
         },
         error: function(){
             $('#cihazSeansBilgi').html("<span style='color:#dc2626;'>Veri alınamadı.</span>");
@@ -435,29 +424,21 @@ $(document).on('click', '#seansCihazBilgileri', function(e){
     try { if (typeof swal !== 'undefined' && swal.close) swal.close(); } catch(_){}
     cihazModalAc(seansId);
 });
-$(document).on('click', '#cihazBolgeEkle', function(){ cihazBolgeSatiri({}); });
-$(document).on('click', '.cihazBolgeSil', function(){
-    if ($('#cihazBolgeler .cihaz-bolge').length > 1) $(this).closest('.cihaz-bolge').remove();
-    else { $(this).closest('.cihaz-bolge').find('input').val(''); $(this).closest('.cihaz-bolge').find('select').prop('selectedIndex',0); }
-});
 $(document).on('click', '#cihazModalKapat, #cihazModalIptal', cihazModalKapat);
 $(document).on('click', '#cihazModalOverlay', function(e){ if (e.target && e.target.id === 'cihazModalOverlay') cihazModalKapat(); });
 
 $(document).on('click', '#cihazModalKaydet', function(e){
     e.preventDefault();
     var seansId = $(this).data('seans-id');
-    var bolgeler = [];
-    $('#cihazBolgeler .cihaz-bolge').each(function(){
-        bolgeler.push({
-            uygulama_bolgesi: $(this).find('.c-bolge').val(),
-            enerji:  $(this).find('.c-enerji').val(),
-            hiz:     $(this).find('.c-hiz').val(),
-            ms:      $(this).find('.c-ms').val(),
-            atis_sayisi: $(this).find('.c-atis').val(),
-            personel_id: $(this).find('.c-personel').val(),
-            notlar:  $(this).find('.c-not').val()
-        });
-    });
+    var bolgeler = [{
+        uygulama_bolgesi: cihazBolgeAdi,          // otomatik: kartin (bolge) adi
+        enerji:  $('#cf-enerji').val(),
+        hiz:     $('#cf-hiz').val(),
+        ms:      $('#cf-ms').val(),
+        atis_sayisi: $('#cf-atis').val(),
+        personel_id: $('#cf-personel').val(),
+        notlar:  $('#cf-not').val()
+    }];
     $.ajax({
         type: 'POST',
         url: '/isletmeyonetim/seansCihazVeriKaydet',

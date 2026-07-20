@@ -12707,11 +12707,31 @@ private function createDurumButonlari($id, $tip)
     }
     
     $bekleyen = $toplam - $kullanilan - $kullanilmayan;
-    
+
+    // Lazer epilasyon paketi/hizmeti ise: rozetlerin yanina "Seans Dökümü PDF" ikonu
+    if ($tip == 'paket') {
+        $ad = DB::table('adisyon_paketler')
+            ->join('paketler', 'adisyon_paketler.paket_id', '=', 'paketler.id')
+            ->where('adisyon_paketler.id', $id)
+            ->value('paketler.paket_adi');
+    } else {
+        $ad = DB::table('adisyon_hizmetler')
+            ->join('hizmetler', 'adisyon_hizmetler.hizmet_id', '=', 'hizmetler.id')
+            ->where('adisyon_hizmetler.id', $id)
+            ->value('hizmetler.hizmet_adi');
+    }
+    $pdfBtn = '';
+    if (self::isimdeLazerVar($ad)) {
+        $sube = request()->get('sube');
+        $url  = '/isletmeyonetim/seansDokumuPdf?' . ($tip == 'paket' ? 'adisyonpaketid=' : 'adisyonhizmetid=') . $id . ($sube ? ('&sube=' . $sube) : '');
+        $pdfBtn = ' &nbsp;<a href="' . $url . '" target="_blank" title="Seans Dökümü (PDF)" style="display:inline-block;width:34px;height:34px;line-height:34px;text-align:center;border-radius:50%;background:#5C008E;color:#fff;font-size:13px;text-decoration:none;vertical-align:middle;box-shadow:0 2px 6px rgba(92,0,142,.25);"><i class="fa fa-file-pdf-o"></i></a>';
+    }
+
     return '<button name="paketteki_seanslar" data-value="'.$id.'" type="button" style="width:70px;font-size:10px" class="btn btn-primary">'.$toplam.' <i class="fa fa-plus"></i></button> &nbsp;' .
            '<button name="bekleyen_seanslar" data-value="'.$id.'" type="button" style="width:50px;font-size:10px" class="btn btn-warning">'.$bekleyen.' <i class="fa fa-calendar"></i></button> ' .
            '<button type="button" name="kullanilan_seanslar" data-value="'.$id.'" style="width:50px;font-size:10px" class="btn btn-success">'.$kullanilan.' <i class="fa fa-check"></i></button> ' .
-           '<button type="button" name="kullanilmayan_seanslar" data-value="'.$id.'" style="width:50px;font-size:10px" class="btn btn-danger">'.$kullanilmayan.' <i class="fa fa-times"></i></button>';
+           '<button type="button" name="kullanilmayan_seanslar" data-value="'.$id.'" style="width:50px;font-size:10px" class="btn btn-danger">'.$kullanilmayan.' <i class="fa fa-times"></i></button>' .
+           $pdfBtn;
 }
 
 private function getPaketDetaylari($paketId)
@@ -31383,18 +31403,22 @@ DB::raw('
             $bolgeler = [];
         }
 
-        // Tam yenile: mevcut satirlari sil, gelenleri yeniden yaz (bolge ekle/cikar destegi)
+        // Bolge = kartin (hizmetin) adi; her seans tek bolgeye aittir, otomatik gelir
+        $bolgeAdi = optional($seans->hizmet)->hizmet_adi;
+
+        // Tam yenile: mevcut satirlari sil, gelenleri yeniden yaz
         SeansCihazVerileri::where('seans_id', $seans->id)->delete();
 
         foreach ($bolgeler as $b) {
             $bolge  = trim((string) ($b['uygulama_bolgesi'] ?? ''));
+            if ($bolge === '') { $bolge = (string) $bolgeAdi; } // otomatik bolge adi
             $enerji = trim((string) ($b['enerji'] ?? ''));
             $hiz    = trim((string) ($b['hiz'] ?? ''));
             $ms     = trim((string) ($b['ms'] ?? ''));
             $atis   = trim((string) ($b['atis_sayisi'] ?? ''));
             $not    = trim((string) ($b['notlar'] ?? ''));
-            // Tumu bossa satir yazma
-            if ($bolge === '' && $enerji === '' && $hiz === '' && $ms === '' && $atis === '' && $not === '') {
+            // Parametrelerin tamami bossa satir yazma (bolge adi otomatik oldugu icin ona bakma)
+            if ($enerji === '' && $hiz === '' && $ms === '' && $atis === '' && $not === '') {
                 continue;
             }
             SeansCihazVerileri::create([
@@ -31441,41 +31465,58 @@ DB::raw('
         $musteri  = $adisyon ? DB::table('users')->where('id', $adisyon->user_id)->first() : null;
         $isletme  = Salonlar::where('id', $salonId)->first();
 
-        // Seanslari cihaz verileriyle satir listesine cevir
-        $satirlar = [];
-        $seansNo  = 0;
+        // Her kart (hizmet) = bir bolge. Seanslari bolgeye gore grupla; her bolgenin
+        // cihaz verisi girilmis seanslarini listele.
+        $gruplar = [];
         foreach ($seanslar as $seans) {
-            $seansNo++;
-            $no       = $seans->seans_no ?: $seansNo;
-            $tarih    = $seans->seans_tarih ? date('d.m.Y', strtotime($seans->seans_tarih)) : '-';
-            $veriler  = SeansCihazVerileri::where('seans_id', $seans->id)->orderBy('id')->get();
-            if ($veriler->isEmpty()) {
-                $satirlar[] = [
-                    'seans_no' => $no, 'tarih' => $tarih, 'bolge' => '-',
-                    'enerji' => '-', 'hiz' => '-', 'ms' => '-', 'atis' => '-', 'personel' => '-',
-                    'ilk_bolge' => true, 'bolge_adet' => 1,
-                ];
-            } else {
-                $ilk = true;
+            $hid = $seans->hizmet_id;
+            if (!isset($gruplar[$hid])) {
+                $gruplar[$hid] = ['ad' => optional($seans->hizmet)->hizmet_adi ?: '-', 'seanslar' => []];
+            }
+            $gruplar[$hid]['seanslar'][] = $seans;
+        }
+
+        $bolgeler = [];
+        foreach ($gruplar as $g) {
+            $sirali = collect($g['seanslar'])->sortBy('seans_tarih')->values();
+            $rows = [];
+            $no = 0;
+            foreach ($sirali as $seans) {
+                $no++;
+                $veriler = SeansCihazVerileri::where('seans_id', $seans->id)->orderBy('id')->get();
+                if ($veriler->isEmpty()) { continue; }
                 foreach ($veriler as $v) {
-                    $satirlar[] = [
-                        'seans_no'   => $no,
-                        'tarih'      => $tarih,
-                        'bolge'      => $v->uygulama_bolgesi ?: '-',
-                        'enerji'     => $v->enerji ?: '-',
-                        'hiz'        => $v->hiz ?: '-',
-                        'ms'         => $v->ms ?: '-',
-                        'atis'       => $v->atis_sayisi ?: '-',
-                        'personel'   => optional($v->personel)->personel_adi ?: '-',
-                        'ilk_bolge'  => $ilk,
-                        'bolge_adet' => $veriler->count(),
+                    $rows[] = [
+                        'no'       => $seans->seans_no ?: $no,
+                        'tarih'    => $seans->seans_tarih ? date('d.m.Y', strtotime($seans->seans_tarih)) : '-',
+                        'enerji'   => $v->enerji ?: '-',
+                        'hiz'      => $v->hiz ?: '-',
+                        'ms'       => $v->ms ?: '-',
+                        'atis'     => $v->atis_sayisi ?: '-',
+                        'personel' => optional($v->personel)->personel_adi ?: '-',
                     ];
-                    $ilk = false;
                 }
+            }
+            if (count($rows)) {
+                $bolgeler[] = ['ad' => $g['ad'], 'satirlar' => $rows];
             }
         }
 
+        // Toplam seans: paket ise (seans_sayisi x hizmet adedi), degilse seans_sayisi
+        if ($paketMi && $ap) {
+            $hizmetSayisi = DB::table('paket_hizmetler')->where('paket_id', $ap->paket_id)->count();
+            $toplam = $hizmetSayisi > 0 ? ($seansAdedi * $hizmetSayisi) : $seansAdedi;
+        } else {
+            $toplam = $seansAdedi;
+        }
         $kullanilan = $seanslar->where('geldi', 1)->count();
+
+        // Baslangic tarihi bozuksa (0000-00-00 vb.) '-' goster
+        $baslangicStr = '-';
+        if ($baslangic && substr($baslangic, 0, 4) !== '0000' && substr($baslangic, 0, 1) !== '-') {
+            $ts = strtotime($baslangic);
+            if ($ts && $ts > 0) { $baslangicStr = date('d.m.Y', $ts); }
+        }
 
         $logoDataUri = self::seansDokumuLogo($isletme);
 
@@ -31484,10 +31525,10 @@ DB::raw('
             'logo'       => $logoDataUri,
             'musteri'    => $musteri,
             'baslik'     => $baslik,
-            'seansAdedi' => $seansAdedi,
+            'toplam'     => $toplam,
             'kullanilan' => $kullanilan,
-            'baslangic'  => $baslangic ? date('d.m.Y', strtotime($baslangic)) : '-',
-            'satirlar'   => $satirlar,
+            'baslangic'  => $baslangicStr,
+            'bolgeler'   => $bolgeler,
         ]);
         $pdf->setPaper('a4', 'portrait');
         $ad = preg_replace('/[^A-Za-z0-9_-]+/', '-', self::trSlug(($musteri->name ?? 'musteri') . '-' . $baslik));

@@ -9325,16 +9325,20 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $bolgeler = [];
         }
 
+        // Bolge = kartin (hizmetin) adi; her seans tek bolgeye aittir, otomatik gelir
+        $bolgeAdi = optional($seans->hizmet)->hizmet_adi;
+
         SeansCihazVerileri::where('seans_id', $seans->id)->delete();
 
         foreach ($bolgeler as $b) {
             $bolge  = trim((string) ($b['uygulama_bolgesi'] ?? ''));
+            if ($bolge === '') { $bolge = (string) $bolgeAdi; }
             $enerji = trim((string) ($b['enerji'] ?? ''));
             $hiz    = trim((string) ($b['hiz'] ?? ''));
             $ms     = trim((string) ($b['ms'] ?? ''));
             $atis   = trim((string) ($b['atis_sayisi'] ?? ''));
             $not    = trim((string) ($b['notlar'] ?? ''));
-            if ($bolge === '' && $enerji === '' && $hiz === '' && $ms === '' && $atis === '' && $not === '') {
+            if ($enerji === '' && $hiz === '' && $ms === '' && $atis === '' && $not === '') {
                 continue;
             }
             SeansCihazVerileri::create([
