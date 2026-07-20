@@ -31466,6 +31466,7 @@ DB::raw('
         $paketMi = isset($request->adisyonpaketid) && $request->adisyonpaketid != '';
         if ($paketMi) {
             $seanslar = AdisyonPaketSeanslar::where('adisyon_paket_id', $request->adisyonpaketid)
+                ->with('hizmet')
                 ->orderBy('seans_tarih')->orderBy('seans_no')->get();
             $ap = DB::table('adisyon_paketler')->where('id', $request->adisyonpaketid)->first();
             $baslik      = $ap ? DB::table('paketler')->where('id', $ap->paket_id)->value('paket_adi') : '';
@@ -31474,6 +31475,7 @@ DB::raw('
             $adisyonId   = $ap->adisyon_id ?? null;
         } else {
             $seanslar = AdisyonPaketSeanslar::where('adisyon_hizmet_id', $request->adisyonhizmetid)
+                ->with('hizmet')
                 ->orderBy('seans_tarih')->orderBy('seans_no')->get();
             $ah = DB::table('adisyon_hizmetler')->where('id', $request->adisyonhizmetid)->first();
             $baslik      = $ah ? DB::table('hizmetler')->where('id', $ah->hizmet_id)->value('hizmet_adi') : '';
@@ -31498,6 +31500,14 @@ DB::raw('
             $gruplar[$hid]['seanslar'][] = $seans;
         }
 
+        // Performans: her seans icin ayri sorgu (N+1) yerine tum cihaz verilerini
+        // TEK sorguda cek + personel'i eager-load et, seans_id'ye gore grupla.
+        $verilerBySeans = SeansCihazVerileri::whereIn('seans_id', $seanslar->pluck('id'))
+            ->with('personel')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('seans_id');
+
         $bolgeler = [];
         foreach ($gruplar as $g) {
             $sirali = collect($g['seanslar'])->sortBy('seans_tarih')->values();
@@ -31505,7 +31515,7 @@ DB::raw('
             $no = 0;
             foreach ($sirali as $seans) {
                 $no++;
-                $veriler = SeansCihazVerileri::where('seans_id', $seans->id)->orderBy('id')->get();
+                $veriler = $verilerBySeans[$seans->id] ?? collect();
                 if ($veriler->isEmpty()) { continue; }
                 foreach ($veriler as $v) {
                     $rows[] = [
