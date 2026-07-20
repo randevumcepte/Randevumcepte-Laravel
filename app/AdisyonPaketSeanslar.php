@@ -36,4 +36,8 @@ class AdisyonPaketSeanslar extends Model
     {
         return $this->belongsTo(Randevular::class,'randevu_id');
     }
+    public function cihazVerileri()
+    {
+        return $this->hasMany(SeansCihazVerileri::class,'seans_id');
+    }
 }

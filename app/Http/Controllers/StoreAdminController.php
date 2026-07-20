@@ -78,6 +78,7 @@ use App\AdisyonHizmetler;
 use App\AdisyonUrunler;
 use App\AdisyonPaketler;
 use App\AdisyonPaketSeanslar;
+use App\SeansCihazVerileri;
 use App\Senetler;
 use App\SenetVadeleri;
 use App\SalonCihazRenkleri;
@@ -12732,7 +12733,14 @@ private function getPaketDetaylari($paketId)
     $seansSayisi = DB::table('adisyon_paketler')
         ->where('id', $paketId)
         ->value('seans_sayisi');
-    
+
+    // Lazer epilasyon paketi mi? (paket adi ya da hizmet adi "lazer" iceriyorsa)
+    $paketAdi = DB::table('adisyon_paketler')
+        ->join('paketler', 'adisyon_paketler.paket_id', '=', 'paketler.id')
+        ->where('adisyon_paketler.id', $paketId)
+        ->value('paketler.paket_adi');
+    $paketLazer = self::isimdeLazerVar($paketAdi);
+
     $detaylar = [];
     foreach ($hizmetler as $h) {
         $seanslar = DB::table('adisyon_paket_seanslar')
@@ -12741,7 +12749,7 @@ private function getPaketDetaylari($paketId)
             ->orderBy('seans_tarih')
             ->orderBy('seans_saat')
             ->get(['id', 'seans_tarih', 'seans_saat', 'geldi']);
-        
+
         $detaylar[] = [
             'musteriAdi' => $musteriAdi,
             'id' => $paketId,
@@ -12749,10 +12757,11 @@ private function getPaketDetaylari($paketId)
             'hizmet_adi' => $h->hizmet_adi,
             'seansTuru' => 'PAKET',
             'toplam_seans' => $seansSayisi,
+            'lazer' => ($paketLazer || self::isimdeLazerVar($h->hizmet_adi)) ? 1 : 0,
             'seans_detaylari' => $seanslar->toJson()
         ];
     }
-    
+
     return json_encode($detaylar);
 }
 
@@ -12781,9 +12790,10 @@ private function getHizmetDetaylari($hizmetId)
         'hizmet_adi' => $hizmet->hizmet_adi,
         'seansTuru' => 'HIZMET',
         'toplam_seans' => $hizmet->toplam_seans,
+        'lazer' => self::isimdeLazerVar($hizmet->hizmet_adi) ? 1 : 0,
         'seans_detaylari' => $seanslar->toJson()
     ];
-    
+
     return json_encode([$detay]);
 }
 
@@ -31262,6 +31272,246 @@ DB::raw('
        
         return 'Başarılı';//self::seans_getir($request,0,$request->musteriId);
     }
+
+    // ================= SEANS CİHAZ VERİLERİ (lazer parametreleri) =================
+    // Bir seansta uygulanan cihaz parametreleri (Enerji/Jül, Hız, MS, Atış sayısı)
+    // bolge bazinda tutulur: bir seansta N bolge -> N satir (hasMany).
+
+    // Seansin musteri/hizmet/salon/varsayilan personel bilgisini cozer.
+    private function seansCihazMeta($seans, $request)
+    {
+        $adisyonId = null;
+        $hizmetAdi = optional($seans->hizmet)->hizmet_adi;
+        if ($seans->adisyon_paket_id) {
+            $ap = DB::table('adisyon_paketler')->where('id', $seans->adisyon_paket_id)->first();
+            $adisyonId = $ap->adisyon_id ?? null;
+        } elseif ($seans->adisyon_hizmet_id) {
+            $ah = DB::table('adisyon_hizmetler')->where('id', $seans->adisyon_hizmet_id)->first();
+            $adisyonId = $ah->adisyon_id ?? null;
+        }
+        $adisyon    = $adisyonId ? DB::table('adisyonlar')->where('id', $adisyonId)->first() : null;
+        $salonId    = $adisyon->salon_id ?? self::mevcutsube($request);
+        $musteriAdi = $adisyon ? DB::table('users')->where('id', $adisyon->user_id)->value('name') : '';
+
+        // Varsayilan "uygulamayi yapan": once seansin personeli, yoksa randevunun personeli
+        $varsayilanPersonel = $seans->personel_id;
+        if (!$varsayilanPersonel && $seans->randevu_id) {
+            $varsayilanPersonel = DB::table('randevu_hizmetler')
+                ->where('randevu_id', $seans->randevu_id)
+                ->where('hizmet_id', $seans->hizmet_id)
+                ->value('personel_id');
+        }
+        return [$salonId, $musteriAdi, $hizmetAdi, $varsayilanPersonel];
+    }
+
+    // Cihaz takibi SADECE lazer epilasyon icin: paket/hizmet adinda "lazer"
+    // (veya "laser") geciyorsa true. Lazer paketleri adinda daima lazer gecer.
+    public static function isimdeLazerVar($ad)
+    {
+        $ad = (string) $ad;
+        return $ad !== '' && (stripos($ad, 'lazer') !== false || stripos($ad, 'laser') !== false);
+    }
+
+    private function seansLazerMi($seans)
+    {
+        if (self::isimdeLazerVar(optional($seans->hizmet)->hizmet_adi)) {
+            return true;
+        }
+        if ($seans->adisyon_paket_id) {
+            $paketAdi = DB::table('adisyon_paketler')
+                ->join('paketler', 'adisyon_paketler.paket_id', '=', 'paketler.id')
+                ->where('adisyon_paketler.id', $seans->adisyon_paket_id)
+                ->value('paketler.paket_adi');
+            if (self::isimdeLazerVar($paketAdi)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function seansCihazVeriGetir(Request $request)
+    {
+        $seans = AdisyonPaketSeanslar::where('id', $request->seansId)->first();
+        if (!$seans) {
+            return response()->json(['hatali' => 1, 'mesaj' => 'Seans bulunamadı']);
+        }
+        if (!self::seansLazerMi($seans)) {
+            return response()->json(['hatali' => 1, 'lazer' => false, 'mesaj' => 'Bu hizmet lazer epilasyon değil; cihaz takibi yapılmaz.']);
+        }
+        list($salonId, $musteriAdi, $hizmetAdi, $varsayilanPersonel) = self::seansCihazMeta($seans, $request);
+
+        $personeller = Personeller::where('salon_id', $salonId)
+            ->whereRaw('COALESCE(arsivli,0) = 0')
+            ->orderBy('personel_adi')
+            ->get(['id', 'personel_adi']);
+
+        $bolgeler = SeansCihazVerileri::where('seans_id', $seans->id)
+            ->orderBy('id')
+            ->get(['id', 'uygulama_bolgesi', 'enerji', 'hiz', 'ms', 'atis_sayisi', 'personel_id', 'notlar']);
+
+        return response()->json([
+            'hatali' => 0,
+            'seans'  => [
+                'id'          => $seans->id,
+                'seans_no'    => $seans->seans_no,
+                'seans_tarih' => $seans->seans_tarih,
+                'hizmet_adi'  => $hizmetAdi,
+                'musteri_adi' => $musteriAdi,
+                'varsayilan_personel_id' => $varsayilanPersonel,
+            ],
+            'personeller' => $personeller,
+            'bolgeler'    => $bolgeler,
+        ]);
+    }
+
+    public function seansCihazVeriKaydet(Request $request)
+    {
+        $seans = AdisyonPaketSeanslar::where('id', $request->seansId)->first();
+        if (!$seans) {
+            return response()->json(['hatali' => 1, 'mesaj' => 'Seans bulunamadı']);
+        }
+        if (!self::seansLazerMi($seans)) {
+            return response()->json(['hatali' => 1, 'mesaj' => 'Bu hizmet lazer epilasyon değil; cihaz takibi yapılmaz.']);
+        }
+        list($salonId) = self::seansCihazMeta($seans, $request);
+
+        $bolgeler = $request->bolgeler;
+        if (is_string($bolgeler)) {
+            $bolgeler = json_decode($bolgeler, true);
+        }
+        if (!is_array($bolgeler)) {
+            $bolgeler = [];
+        }
+
+        // Tam yenile: mevcut satirlari sil, gelenleri yeniden yaz (bolge ekle/cikar destegi)
+        SeansCihazVerileri::where('seans_id', $seans->id)->delete();
+
+        foreach ($bolgeler as $b) {
+            $bolge  = trim((string) ($b['uygulama_bolgesi'] ?? ''));
+            $enerji = trim((string) ($b['enerji'] ?? ''));
+            $hiz    = trim((string) ($b['hiz'] ?? ''));
+            $ms     = trim((string) ($b['ms'] ?? ''));
+            $atis   = trim((string) ($b['atis_sayisi'] ?? ''));
+            $not    = trim((string) ($b['notlar'] ?? ''));
+            // Tumu bossa satir yazma
+            if ($bolge === '' && $enerji === '' && $hiz === '' && $ms === '' && $atis === '' && $not === '') {
+                continue;
+            }
+            SeansCihazVerileri::create([
+                'seans_id'         => $seans->id,
+                'salon_id'         => $salonId,
+                'personel_id'      => !empty($b['personel_id']) ? $b['personel_id'] : null,
+                'uygulama_bolgesi' => $bolge !== '' ? $bolge : null,
+                'enerji'           => $enerji !== '' ? $enerji : null,
+                'hiz'              => $hiz !== '' ? $hiz : null,
+                'ms'               => $ms !== '' ? $ms : null,
+                'atis_sayisi'      => $atis !== '' ? $atis : null,
+                'tarih'            => $seans->seans_tarih,
+                'notlar'           => $not !== '' ? $not : null,
+            ]);
+        }
+
+        return response()->json(['hatali' => 0, 'mesaj' => 'Cihaz bilgileri kaydedildi']);
+    }
+
+    // A4 "Seans Dökümü" PDF — paket/hizmet bazinda tum seanslar + cihaz verileri
+    public function seansDokumuPdf(Request $request)
+    {
+        $paketMi = isset($request->adisyonpaketid) && $request->adisyonpaketid != '';
+        if ($paketMi) {
+            $seanslar = AdisyonPaketSeanslar::where('adisyon_paket_id', $request->adisyonpaketid)
+                ->orderBy('seans_tarih')->orderBy('seans_no')->get();
+            $ap = DB::table('adisyon_paketler')->where('id', $request->adisyonpaketid)->first();
+            $baslik      = $ap ? DB::table('paketler')->where('id', $ap->paket_id)->value('paket_adi') : '';
+            $seansAdedi  = $ap->seans_sayisi ?? null;
+            $baslangic   = $ap->baslangic_tarihi ?? null;
+            $adisyonId   = $ap->adisyon_id ?? null;
+        } else {
+            $seanslar = AdisyonPaketSeanslar::where('adisyon_hizmet_id', $request->adisyonhizmetid)
+                ->orderBy('seans_tarih')->orderBy('seans_no')->get();
+            $ah = DB::table('adisyon_hizmetler')->where('id', $request->adisyonhizmetid)->first();
+            $baslik      = $ah ? DB::table('hizmetler')->where('id', $ah->hizmet_id)->value('hizmet_adi') : '';
+            $seansAdedi  = $ah->seans_sayisi ?? null;
+            $baslangic   = $ah->islem_tarihi ?? null;
+            $adisyonId   = $ah->adisyon_id ?? null;
+        }
+
+        $adisyon  = $adisyonId ? DB::table('adisyonlar')->where('id', $adisyonId)->first() : null;
+        $salonId  = $adisyon->salon_id ?? self::mevcutsube($request);
+        $musteri  = $adisyon ? DB::table('users')->where('id', $adisyon->user_id)->first() : null;
+        $isletme  = Salonlar::where('id', $salonId)->first();
+
+        // Seanslari cihaz verileriyle satir listesine cevir
+        $satirlar = [];
+        $seansNo  = 0;
+        foreach ($seanslar as $seans) {
+            $seansNo++;
+            $no       = $seans->seans_no ?: $seansNo;
+            $tarih    = $seans->seans_tarih ? date('d.m.Y', strtotime($seans->seans_tarih)) : '-';
+            $veriler  = SeansCihazVerileri::where('seans_id', $seans->id)->orderBy('id')->get();
+            if ($veriler->isEmpty()) {
+                $satirlar[] = [
+                    'seans_no' => $no, 'tarih' => $tarih, 'bolge' => '-',
+                    'enerji' => '-', 'hiz' => '-', 'ms' => '-', 'atis' => '-', 'personel' => '-',
+                    'ilk_bolge' => true, 'bolge_adet' => 1,
+                ];
+            } else {
+                $ilk = true;
+                foreach ($veriler as $v) {
+                    $satirlar[] = [
+                        'seans_no'   => $no,
+                        'tarih'      => $tarih,
+                        'bolge'      => $v->uygulama_bolgesi ?: '-',
+                        'enerji'     => $v->enerji ?: '-',
+                        'hiz'        => $v->hiz ?: '-',
+                        'ms'         => $v->ms ?: '-',
+                        'atis'       => $v->atis_sayisi ?: '-',
+                        'personel'   => optional($v->personel)->personel_adi ?: '-',
+                        'ilk_bolge'  => $ilk,
+                        'bolge_adet' => $veriler->count(),
+                    ];
+                    $ilk = false;
+                }
+            }
+        }
+
+        $kullanilan = $seanslar->where('geldi', 1)->count();
+
+        $logoDataUri = self::seansDokumuLogo($isletme);
+
+        $pdf = PDF::loadView('isletmeadmin.seans_dokumu_pdf', [
+            'isletme'    => $isletme,
+            'logo'       => $logoDataUri,
+            'musteri'    => $musteri,
+            'baslik'     => $baslik,
+            'seansAdedi' => $seansAdedi,
+            'kullanilan' => $kullanilan,
+            'baslangic'  => $baslangic ? date('d.m.Y', strtotime($baslangic)) : '-',
+            'satirlar'   => $satirlar,
+        ]);
+        $pdf->setPaper('a4', 'portrait');
+        $ad = preg_replace('/[^A-Za-z0-9_-]+/', '-', self::trSlug(($musteri->name ?? 'musteri') . '-' . $baslik));
+        return $pdf->stream('seans-dokumu-' . trim($ad, '-') . '.pdf');
+    }
+
+    // Salon logosunu PDF icin base64 data-uri'ye cevir (yoksa null)
+    private static function seansDokumuLogo($isletme)
+    {
+        $logo = trim((string) optional($isletme)->logo);
+        if ($logo === '') return null;
+        $cands = [base_path($logo), public_path($logo), public_path(ltrim($logo, '/')), public_path(preg_replace('#^public/#', '', $logo))];
+        foreach ($cands as $cand) {
+            if (is_file($cand)) {
+                $bin = @file_get_contents($cand);
+                if ($bin !== false) {
+                    $mime = @getimagesize($cand)['mime'] ?? 'image/png';
+                    return 'data:' . $mime . ';base64,' . base64_encode($bin);
+                }
+            }
+        }
+        return null;
+    }
+
     public function randevuGeldiGelmediIsaretiKaldir(Request $request)
     {
         $randevu = Randevular::where('id',$request->randevuid)->first();

@@ -123,6 +123,7 @@ use App\Ajanda;
 use App\Arsiv;
 
 use App\AdisyonPaketSeanslar;
+use App\SeansCihazVerileri;
 
 use App\SabitNumaralar;
 
@@ -9222,6 +9223,139 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             Audit::logApi($request->salonid ?? $request->sube ?? $request->salonId, $request, $_seansSilindi ? 'seans_sil' : 'seans_guncelle', 'seans', $request->seansId, null, $_seansSilindi ? 'Seans silindi' : 'Seans güncellendi');
         } catch (\Throwable $e) {}
         return response()->json(['hatali' => '0', 'mesaj' => 'Başarılı']);
+    }
+
+    // ================= SEANS CİHAZ VERİLERİ (mobil — lazer epilasyon) =================
+    // Cihaz takibi SADECE lazer epilasyon: paket/hizmet adinda "lazer"/"laser" gecmeli.
+    private function apiSeansLazerMi($seans)
+    {
+        $lazerVar = function ($ad) {
+            $ad = (string) $ad;
+            return $ad !== '' && (stripos($ad, 'lazer') !== false || stripos($ad, 'laser') !== false);
+        };
+        if ($lazerVar(optional($seans->hizmet)->hizmet_adi)) {
+            return true;
+        }
+        if ($seans->adisyon_paket_id) {
+            $paketAdi = DB::table('adisyon_paketler')
+                ->join('paketler', 'adisyon_paketler.paket_id', '=', 'paketler.id')
+                ->where('adisyon_paketler.id', $seans->adisyon_paket_id)
+                ->value('paketler.paket_adi');
+            if ($lazerVar($paketAdi)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function apiSeansMeta($seans, $request)
+    {
+        $adisyonId = null;
+        if ($seans->adisyon_paket_id) {
+            $adisyonId = DB::table('adisyon_paketler')->where('id', $seans->adisyon_paket_id)->value('adisyon_id');
+        } elseif ($seans->adisyon_hizmet_id) {
+            $adisyonId = DB::table('adisyon_hizmetler')->where('id', $seans->adisyon_hizmet_id)->value('adisyon_id');
+        }
+        $adisyon    = $adisyonId ? DB::table('adisyonlar')->where('id', $adisyonId)->first() : null;
+        $salonId    = $adisyon->salon_id ?? ($request->salonid ?? $request->sube ?? $request->salonId);
+        $musteriAdi = $adisyon ? DB::table('users')->where('id', $adisyon->user_id)->value('name') : '';
+
+        $varsayilanPersonel = $seans->personel_id;
+        if (!$varsayilanPersonel && $seans->randevu_id) {
+            $varsayilanPersonel = DB::table('randevu_hizmetler')
+                ->where('randevu_id', $seans->randevu_id)
+                ->where('hizmet_id', $seans->hizmet_id)
+                ->value('personel_id');
+        }
+        return [$salonId, $musteriAdi, optional($seans->hizmet)->hizmet_adi, $varsayilanPersonel];
+    }
+
+    public function seansCihazVeriGetir(Request $request)
+    {
+        $seans = AdisyonPaketSeanslar::where('id', $request->seansId)->first();
+        if (!$seans) {
+            return response()->json(['hatali' => '1', 'mesaj' => 'Seans bulunamadı']);
+        }
+        if (!self::apiSeansLazerMi($seans)) {
+            return response()->json(['hatali' => '1', 'lazer' => false, 'mesaj' => 'Bu hizmet lazer epilasyon değil; cihaz takibi yapılmaz.']);
+        }
+        list($salonId, $musteriAdi, $hizmetAdi, $varsayilanPersonel) = self::apiSeansMeta($seans, $request);
+
+        $personeller = Personeller::where('salon_id', $salonId)
+            ->whereRaw('COALESCE(arsivli,0) = 0')
+            ->orderBy('personel_adi')
+            ->get(['id', 'personel_adi']);
+
+        $bolgeler = SeansCihazVerileri::where('seans_id', $seans->id)
+            ->orderBy('id')
+            ->get(['id', 'uygulama_bolgesi', 'enerji', 'hiz', 'ms', 'atis_sayisi', 'personel_id', 'notlar']);
+
+        return response()->json([
+            'hatali'      => '0',
+            'lazer'       => true,
+            'seans'       => [
+                'id'                     => $seans->id,
+                'seans_no'               => $seans->seans_no,
+                'seans_tarih'            => $seans->seans_tarih,
+                'hizmet_adi'             => $hizmetAdi,
+                'musteri_adi'            => $musteriAdi,
+                'varsayilan_personel_id' => $varsayilanPersonel,
+            ],
+            'personeller' => $personeller,
+            'bolgeler'    => $bolgeler,
+        ]);
+    }
+
+    public function seansCihazVeriKaydet(Request $request)
+    {
+        $seans = AdisyonPaketSeanslar::where('id', $request->seansId)->first();
+        if (!$seans) {
+            return response()->json(['hatali' => '1', 'mesaj' => 'Seans bulunamadı']);
+        }
+        if (!self::apiSeansLazerMi($seans)) {
+            return response()->json(['hatali' => '1', 'mesaj' => 'Bu hizmet lazer epilasyon değil; cihaz takibi yapılmaz.']);
+        }
+        list($salonId) = self::apiSeansMeta($seans, $request);
+
+        $bolgeler = $request->bolgeler;
+        if (is_string($bolgeler)) {
+            $bolgeler = json_decode($bolgeler, true);
+        }
+        if (!is_array($bolgeler)) {
+            $bolgeler = [];
+        }
+
+        SeansCihazVerileri::where('seans_id', $seans->id)->delete();
+
+        foreach ($bolgeler as $b) {
+            $bolge  = trim((string) ($b['uygulama_bolgesi'] ?? ''));
+            $enerji = trim((string) ($b['enerji'] ?? ''));
+            $hiz    = trim((string) ($b['hiz'] ?? ''));
+            $ms     = trim((string) ($b['ms'] ?? ''));
+            $atis   = trim((string) ($b['atis_sayisi'] ?? ''));
+            $not    = trim((string) ($b['notlar'] ?? ''));
+            if ($bolge === '' && $enerji === '' && $hiz === '' && $ms === '' && $atis === '' && $not === '') {
+                continue;
+            }
+            SeansCihazVerileri::create([
+                'seans_id'         => $seans->id,
+                'salon_id'         => $salonId,
+                'personel_id'      => !empty($b['personel_id']) ? $b['personel_id'] : null,
+                'uygulama_bolgesi' => $bolge !== '' ? $bolge : null,
+                'enerji'           => $enerji !== '' ? $enerji : null,
+                'hiz'              => $hiz !== '' ? $hiz : null,
+                'ms'               => $ms !== '' ? $ms : null,
+                'atis_sayisi'      => $atis !== '' ? $atis : null,
+                'tarih'            => $seans->seans_tarih,
+                'notlar'           => $not !== '' ? $not : null,
+            ]);
+        }
+
+        try {
+            Audit::logApi($salonId, $request, 'seans_cihaz_kaydet', 'seans', $seans->id, null, 'Cihaz bilgileri kaydedildi');
+        } catch (\Throwable $e) {}
+
+        return response()->json(['hatali' => '0', 'mesaj' => 'Cihaz bilgileri kaydedildi']);
     }
 
     public function senetler(Request $request, $salonid)

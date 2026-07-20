@@ -1433,6 +1433,9 @@ Route::get('/paketVarmiKontrolu','StoreAdminController@paketVarmiKontrolu');
 Route::post('/seansEkle','StoreAdminController@seansEkle');
 Route::post('/seansGuncelle','StoreAdminController@seansGuncelle');
 	Route::get('/seansGetir','StoreAdminController@seans_getir');
+	Route::get('/seansCihazVeriGetir','StoreAdminController@seansCihazVeriGetir');
+	Route::post('/seansCihazVeriKaydet','StoreAdminController@seansCihazVeriKaydet');
+	Route::get('/seansDokumuPdf','StoreAdminController@seansDokumuPdf');
 	Route::post('/randevuGeldiGelmediIsaretiKaldir','StoreAdminController@randevuGeldiGelmediIsaretiKaldir');
 });
 Route::get('/run-schedule', function () {

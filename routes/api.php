@@ -395,6 +395,9 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::post('/randevuGeldiGelmediIsaretiKaldir','ApiController@randevuGeldiGelmediIsaretiKaldir');
     Route::post('/seansEkle','ApiController@seansEkle');
     Route::post('/seansGuncelle','ApiController@seansGuncelle');
+    Route::post('/seansCihazVeriGetir','ApiController@seansCihazVeriGetir');
+    Route::get('/seansCihazVeriGetir','ApiController@seansCihazVeriGetir');
+    Route::post('/seansCihazVeriKaydet','ApiController@seansCihazVeriKaydet');
 
     /* ───────── Çarkıfelek (müşteri uygulaması) ───────── */
     Route::get ('/cark/durum',          'CarkifelekApiController@durum');

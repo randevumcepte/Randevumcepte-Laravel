@@ -206,6 +206,13 @@ function formatHizmetDetaylari(hizmetler) {
             seansDetaylari = [];
         }
 
+        // Lazer epilasyon mu? (backend isimden hesaplar) -> cihaz takibi butonlari
+        var lazer = hizmet.lazer ? 1 : 0;
+        var pdfUrl = '/isletmeyonetim/seansDokumuPdf?' +
+                     (hizmet.seansTuru === 'PAKET' ? 'adisyonpaketid=' : 'adisyonhizmetid=') + hizmet.id;
+        var _sube = $('input[name="sube"]').val();
+        if (_sube) pdfUrl += '&sube=' + _sube;
+
         var ikonlar = '';
         var gosterilecekIkon = seansDetaylari.length;
         var kalanSeans = Math.max(0, (parseInt(hizmet.toplam_seans) || 0) - gosterilecekIkon);
@@ -215,12 +222,12 @@ function formatHizmetDetaylari(hizmetler) {
             var ikonClass = 'fa-circle-o';
             var ikonColor = '#adb5bd';
             var title = seans.seans_tarih + ' ' + (seans.seans_saat || '');
-            
+
             if (seans.geldi === 1) { ikonClass = 'fa-check-circle'; ikonColor = '#28a745'; title += ' - Geldi'; }
             else if (seans.geldi === 0) { ikonClass = 'fa-times-circle'; ikonColor = '#dc3545'; title += ' - Gelmedi'; }
             else { title += ' - Beklemede'; }
 
-            ikonlar += '<i data-index-number="'+hizmet.hizmetId+'" data-tarih="'+seans.seans_tarih+'" data-saat="'+seans.seans_saat+'" data-value="'+hizmet.id+'" name="seansDetay" class="fa ' + ikonClass + '" style="font-size:20px;color:' + ikonColor + ';margin:0 2px;cursor:pointer;" title="' + title + '" data-seans-id="' + seans.id + '"></i>';
+            ikonlar += '<i data-index-number="'+hizmet.hizmetId+'" data-tarih="'+seans.seans_tarih+'" data-saat="'+seans.seans_saat+'" data-value="'+hizmet.id+'" data-lazer="'+lazer+'" name="seansDetay" class="fa ' + ikonClass + '" style="font-size:20px;color:' + ikonColor + ';margin:0 2px;cursor:pointer;" title="' + title + '" data-seans-id="' + seans.id + '"></i>';
         }
 
         for (var j = 0; j < kalanSeans; j++) {
@@ -245,7 +252,12 @@ function formatHizmetDetaylari(hizmetler) {
                 '<div class="col-4 text-center"><small class="text-muted d-block">Kullanıldı</small><strong class="text-success">'+kullanilan+'</strong></div>' +
                 '<div class="col-4 text-center"><small class="text-muted d-block">Kalan</small><strong class="text-warning">'+kalanS+'</strong></div>' +
                 '<div class="col-4 text-center"><small class="text-muted d-block">Kullanılmadı</small><strong class="text-danger">'+gelmedi+'</strong></div>' +
-                '</div></div></div></div>';
+                '</div>' +
+                (lazer ? '<div class="mt-2 pt-2" style="border-top:1px dashed #e5e7eb;text-align:center;">' +
+                         '<span style="display:block;font-size:10px;color:#7c3aed;margin-bottom:6px;font-weight:600;"><i class="fa fa-bolt"></i> Lazer cihaz takibi — seans ikonuna tıklayıp bilgileri girin</span>' +
+                         '<a href="'+pdfUrl+'" target="_blank" class="btn btn-sm" style="background:#5C008E;color:#fff;border-radius:8px;font-size:11px;padding:5px 12px;"><i class="fa fa-file-pdf-o"></i> Seans Dökümü (PDF)</a>' +
+                         '</div>' : '') +
+                '</div></div></div>';
     });
 
     html += '</div></div></div>';
@@ -272,7 +284,8 @@ $(document).on('click','i[name="seansDetay"]',function(e)
     var hizmetAdi = $('h6[name="paketHizmetAdi"][data-index-number="'+$(this).attr('data-index-number')+'"][data-value="'+$(this).attr('data-value')+'"]').text();
     var paketId = $(this).attr('data-value');
     var seansId = $(this).attr('data-seans-id');
-    
+    var lazer = $(this).attr('data-lazer');
+
     swal({
         title: "Seans Düzenle",
         html: "<div style='padding:5px;'>" +
@@ -291,9 +304,185 @@ $(document).on('click','i[name="seansDetay"]',function(e)
               "<button type='button' class='btn btn-sm btn-danger' id='seansKullanilmadi' data-value='"+paketId+"' data-seans-id='" + seansId + "' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-times'></i> Kullanılmadı</button>" +
                             "<button type='button' class='btn btn-sm btn-warning' id='seansBeklemede' data-value='"+paketId+"' data-seans-id='" + seansId + "' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-clock-o'></i> Beklemede</button>" +
               "</div>" +
+              (lazer === '1'
+                ? "<div style='margin-top:14px; padding-top:12px; border-top:1px dashed #e2e8f0;'>" +
+                  "<button type='button' class='btn btn-sm' id='seansCihazBilgileri' data-seans-id='" + seansId + "' style='background:#4f46e5; color:#fff; border-radius:20px; padding:8px 18px; font-weight:600;'><i class='fa fa-bolt'></i> Cihaz Bilgileri (Lazer)</button>" +
+                  "</div>"
+                : "") +
               "</div>",
         showCancelButton: false,
         showConfirmButton: false
+    });
+});
+
+// ================= CİHAZ BİLGİLERİ MODALI (lazer epilasyon seans parametreleri) =================
+// Modal design: tam viewport ortasi, body'ye eklenir, soft slate/indigo palet.
+var cihazPersoneller = [];
+var cihazVarsayilanPersonel = null;
+
+function cihazEsc(s){
+    return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function cihazModalOlustur(){
+    if ($('#cihazModalOverlay').length) return;
+    var html =
+      "<div id='cihazModalOverlay' style='display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,.55); overflow:auto; padding:24px;'>" +
+        "<div id='cihazModalBox' style='max-width:760px; margin:24px auto; background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(15,23,42,.35); overflow:hidden;'>" +
+          "<div style='display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 20px; background:#4f46e5; color:#fff;'>" +
+            "<div style='font-size:16px; font-weight:700;'><i class='fa fa-bolt'></i> Cihaz / Seans Bilgileri</div>" +
+            "<span id='cihazModalKapat' style='cursor:pointer; font-size:22px; line-height:1; opacity:.9;'>&times;</span>" +
+          "</div>" +
+          "<div style='padding:16px 20px; background:#f8fafc; border-bottom:1px solid #eef2f7;'>" +
+            "<div id='cihazSeansBilgi' style='font-size:13px; color:#334155;'></div>" +
+          "</div>" +
+          "<div style='padding:16px 20px; max-height:56vh; overflow:auto;'>" +
+            "<div id='cihazBolgeler'></div>" +
+            "<button type='button' id='cihazBolgeEkle' style='margin-top:6px; background:#eef2ff; color:#4f46e5; border:1px dashed #a5b4fc; border-radius:10px; padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer;'><i class='fa fa-plus'></i> Bölge Ekle</button>" +
+          "</div>" +
+          "<div style='display:flex; justify-content:flex-end; gap:10px; padding:14px 20px; background:#f8fafc; border-top:1px solid #eef2f7;'>" +
+            "<button type='button' id='cihazModalIptal' style='background:#e2e8f0; color:#334155; border:none; border-radius:10px; padding:10px 18px; font-weight:600; cursor:pointer;'>İptal</button>" +
+            "<button type='button' id='cihazModalKaydet' style='background:#4f46e5; color:#fff; border:none; border-radius:10px; padding:10px 22px; font-weight:700; cursor:pointer;'><i class='fa fa-check'></i> Kaydet</button>" +
+          "</div>" +
+        "</div>" +
+      "</div>";
+    $('body').append(html);
+}
+
+function cihazPersonelSelect(seciliId){
+    var opt = "<option value=''>— Seçiniz —</option>";
+    var sec = (seciliId != null && seciliId !== '') ? String(seciliId) : String(cihazVarsayilanPersonel || '');
+    for (var i=0; i<cihazPersoneller.length; i++){
+        var p = cihazPersoneller[i];
+        opt += "<option value='"+p.id+"'"+(String(p.id)===sec?" selected":"")+">"+cihazEsc(p.personel_adi)+"</option>";
+    }
+    return opt;
+}
+
+function cihazBolgeSatiri(data){
+    data = data || {};
+    var inp = "width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; background:#fff;";
+    var lbl = "display:block; font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px;";
+    var $row = $(
+      "<div class='cihaz-bolge' style='position:relative; border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:12px; background:#fff;'>" +
+        "<span class='cihazBolgeSil' title='Bölgeyi kaldır' style='position:absolute; top:8px; right:10px; cursor:pointer; color:#cbd5e1; font-size:18px;'>&times;</span>" +
+        "<div style='display:flex; flex-wrap:wrap; gap:10px;'>" +
+          "<div style='flex:1 1 100%;'><label style='"+lbl+"'>Uygulama Bölgesi</label><input type='text' class='c-bolge' placeholder='Örn. Bacak, Koltuk Altı' style='"+inp+"'></div>" +
+          "<div style='flex:1 1 20%; min-width:90px;'><label style='"+lbl+"'>Enerji (Jül)</label><input type='text' class='c-enerji' style='"+inp+"'></div>" +
+          "<div style='flex:1 1 20%; min-width:80px;'><label style='"+lbl+"'>Hız</label><input type='text' class='c-hiz' style='"+inp+"'></div>" +
+          "<div style='flex:1 1 20%; min-width:80px;'><label style='"+lbl+"'>MS</label><input type='text' class='c-ms' style='"+inp+"'></div>" +
+          "<div style='flex:1 1 20%; min-width:90px;'><label style='"+lbl+"'>Atış Sayısı</label><input type='text' class='c-atis' style='"+inp+"'></div>" +
+          "<div style='flex:1 1 45%; min-width:160px;'><label style='"+lbl+"'>Uygulamayı Yapan</label><select class='c-personel' style='"+inp+"'>"+cihazPersonelSelect(data.personel_id)+"</select></div>" +
+          "<div style='flex:1 1 45%; min-width:160px;'><label style='"+lbl+"'>Not (opsiyonel)</label><input type='text' class='c-not' style='"+inp+"'></div>" +
+        "</div>" +
+      "</div>"
+    );
+    $row.find('.c-bolge').val(data.uygulama_bolgesi || '');
+    $row.find('.c-enerji').val(data.enerji || '');
+    $row.find('.c-hiz').val(data.hiz || '');
+    $row.find('.c-ms').val(data.ms || '');
+    $row.find('.c-atis').val(data.atis_sayisi || '');
+    $row.find('.c-not').val(data.notlar || '');
+    $('#cihazBolgeler').append($row);
+}
+
+function cihazModalAc(seansId){
+    cihazModalOlustur();
+    $('#cihazBolgeler').html('');
+    $('#cihazSeansBilgi').html('Yükleniyor...');
+    $('#cihazModalKaydet').data('seans-id', seansId);
+    $('#cihazModalOverlay').show();
+
+    $.ajax({
+        url: '/isletmeyonetim/seansCihazVeriGetir',
+        data: { seansId: seansId },
+        dataType: 'json',
+        success: function(res){
+            if (!res || res.hatali == 1){
+                $('#cihazSeansBilgi').html("<span style='color:#dc2626;'>"+cihazEsc(res && res.mesaj ? res.mesaj : 'Kayıt bulunamadı')+"</span>");
+                return;
+            }
+            cihazPersoneller = res.personeller || [];
+            cihazVarsayilanPersonel = res.seans ? res.seans.varsayilan_personel_id : null;
+            var s = res.seans || {};
+            var tarih = s.seans_tarih ? s.seans_tarih : '';
+            $('#cihazSeansBilgi').html(
+                "<b style='color:#0f172a;'>"+cihazEsc(s.musteri_adi||'')+"</b>" +
+                " &middot; " + cihazEsc(s.hizmet_adi||'') +
+                (s.seans_no ? " &middot; "+cihazEsc(s.seans_no)+". Seans" : "") +
+                (tarih ? " &middot; "+cihazEsc(tarih) : "")
+            );
+            $('#cihazBolgeler').html('');
+            if (res.bolgeler && res.bolgeler.length){
+                for (var i=0; i<res.bolgeler.length; i++) cihazBolgeSatiri(res.bolgeler[i]);
+            } else {
+                cihazBolgeSatiri({}); // en az bir bos satir
+            }
+        },
+        error: function(){
+            $('#cihazSeansBilgi').html("<span style='color:#dc2626;'>Veri alınamadı.</span>");
+        }
+    });
+}
+
+function cihazModalKapat(){ $('#cihazModalOverlay').hide(); }
+
+$(document).on('click', '#seansCihazBilgileri', function(e){
+    e.preventDefault();
+    var seansId = $(this).attr('data-seans-id');
+    try { if (typeof swal !== 'undefined' && swal.close) swal.close(); } catch(_){}
+    cihazModalAc(seansId);
+});
+$(document).on('click', '#cihazBolgeEkle', function(){ cihazBolgeSatiri({}); });
+$(document).on('click', '.cihazBolgeSil', function(){
+    if ($('#cihazBolgeler .cihaz-bolge').length > 1) $(this).closest('.cihaz-bolge').remove();
+    else { $(this).closest('.cihaz-bolge').find('input').val(''); $(this).closest('.cihaz-bolge').find('select').prop('selectedIndex',0); }
+});
+$(document).on('click', '#cihazModalKapat, #cihazModalIptal', cihazModalKapat);
+$(document).on('click', '#cihazModalOverlay', function(e){ if (e.target && e.target.id === 'cihazModalOverlay') cihazModalKapat(); });
+
+$(document).on('click', '#cihazModalKaydet', function(e){
+    e.preventDefault();
+    var seansId = $(this).data('seans-id');
+    var bolgeler = [];
+    $('#cihazBolgeler .cihaz-bolge').each(function(){
+        bolgeler.push({
+            uygulama_bolgesi: $(this).find('.c-bolge').val(),
+            enerji:  $(this).find('.c-enerji').val(),
+            hiz:     $(this).find('.c-hiz').val(),
+            ms:      $(this).find('.c-ms').val(),
+            atis_sayisi: $(this).find('.c-atis').val(),
+            personel_id: $(this).find('.c-personel').val(),
+            notlar:  $(this).find('.c-not').val()
+        });
+    });
+    $.ajax({
+        type: 'POST',
+        url: '/isletmeyonetim/seansCihazVeriKaydet',
+        data: {
+            seansId: seansId,
+            bolgeler: JSON.stringify(bolgeler),
+            sube: $('input[name="sube"]').val(),
+            _token: $('input[name="_token"]').val()
+        },
+        dataType: 'json',
+        beforeSend: function(){ $('#preloader').show(); },
+        success: function(res){
+            $('#preloader').hide();
+            cihazModalKapat();
+            swal({
+                type: (res && res.hatali == 0) ? "success" : "error",
+                title: (res && res.hatali == 0) ? "Kaydedildi" : "Hata",
+                text: res && res.mesaj ? res.mesaj : "",
+                showConfirmButton: false, timer: 2500
+            });
+        },
+        error: function(){
+            $('#preloader').hide();
+            swal({ type:"error", title:"Hata", text:"Cihaz bilgileri kaydedilemedi.", showConfirmButton:false, timer:2500 });
+        }
     });
 });
 
