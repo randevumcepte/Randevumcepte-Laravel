@@ -27623,6 +27623,102 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
      *
      * Response: { basarili: bool, mesaj?: string, gonderim_id?: int, kanal?: 'whatsapp'|'sms' }
      */
+    /**
+     * Salonun WhatsApp durumunu doner (mobil uygulamadan buton gostermek/gizlemek icin).
+     * GET /api/v1/musteri-whatsapp-durum?salon_id=X
+     */
+    public function musteriWhatsappDurum(Request $request)
+    {
+        try {
+            $salonId = (int) $request->input('salon_id');
+            if (!$salonId) {
+                return response()->json(['ok' => false, 'mesaj' => 'salon_id zorunlu.']);
+            }
+            $isletme = Salonlar::where('id', $salonId)->first();
+            if (!$isletme) {
+                return response()->json(['ok' => false, 'mesaj' => 'Salon bulunamadi.']);
+            }
+            $saglayici = $isletme->whatsapp_saglayici ?? 'baileys';
+            $bagli = $saglayici === 'cloud_api'
+                ? (!empty($isletme->cloud_api_token) && !empty($isletme->cloud_api_phone_number_id))
+                : ((int)($isletme->whatsapp_aktif ?? 0) === 1 && ($isletme->whatsapp_durum ?? '') === 'connected');
+            return response()->json([
+                'ok'    => true,
+                'bagli' => $bagli,
+                'saglayici' => $saglayici,
+                'durum' => $isletme->whatsapp_durum ?? '',
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('api.musteriWhatsappDurum hata: '.$e->getMessage());
+            return response()->json(['ok' => false, 'mesaj' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Musteriye manuel WhatsApp mesaji gonderir (web musterimanuelwhatsappgonder ile ayni).
+     * POST /api/v1/musteri-manuel-whatsapp
+     * body: salon_id, user_id, mesaj
+     */
+    public function musteriManuelWhatsapp(Request $request)
+    {
+        try {
+            $salonId = (int) $request->input('salon_id');
+            $userId  = (int) $request->input('user_id');
+            $mesaj   = trim((string) $request->input('mesaj', ''));
+
+            if (!$salonId || !$userId) {
+                return response()->json(['ok' => false, 'mesaj' => 'salon_id ve user_id zorunlu.']);
+            }
+            if ($mesaj === '') {
+                return response()->json(['ok' => false, 'mesaj' => 'Mesaj bos olamaz.']);
+            }
+            if (mb_strlen($mesaj) > 1000) {
+                return response()->json(['ok' => false, 'mesaj' => 'Mesaj en fazla 1000 karakter olabilir.']);
+            }
+
+            $isletme = Salonlar::where('id', $salonId)->first();
+            if (!$isletme) {
+                return response()->json(['ok' => false, 'mesaj' => 'Salon bulunamadi.']);
+            }
+
+            // Yetki: musteri bu salonun portfoyunde olmali
+            $portfoy = MusteriPortfoy::where('user_id', $userId)->where('salon_id', $salonId)->first();
+            if (!$portfoy) {
+                return response()->json(['ok' => false, 'mesaj' => 'Bu musteri salonunuza ait degil.']);
+            }
+
+            $musteri = \App\User::where('id', $userId)->first();
+            if (!$musteri || !$musteri->cep_telefon) {
+                return response()->json(['ok' => false, 'mesaj' => 'Musteri telefon numarasi bulunamadi.']);
+            }
+
+            $saglayici = $isletme->whatsapp_saglayici ?? 'baileys';
+            if ($saglayici === 'baileys' && (!$isletme->whatsapp_aktif || $isletme->whatsapp_durum !== 'connected')) {
+                return response()->json(['ok' => false, 'mesaj' => 'WhatsApp bagli degil. Once WhatsApp ayarlarindan QR okutun.']);
+            }
+
+            $wa = app(\App\Services\WhatsAppService::class);
+            $sonuc = $wa->sendReminder($isletme, $musteri->cep_telefon, $mesaj, null, $musteri->id, null, false, 'manuel_musteri');
+
+            if (!empty($sonuc['ok'])) {
+                return response()->json(['ok' => true, 'mesaj' => 'Mesaj gonderim kuyruguna alindi.']);
+            }
+
+            $hataKodu = $sonuc['error'] ?? 'unknown';
+            $hataMetin = [
+                'invalid-phone'          => 'Musteri telefon numarasi gecersiz.',
+                'daily-cap-reached'      => 'Gunluk WhatsApp mesaj limitiniz doldu.',
+                'outside-business-hours' => 'Su an calisma saatleri disinda, mesaj gonderilemedi.',
+                'service-unreachable'    => 'WhatsApp servisine ulasilamadi, lutfen tekrar deneyin.',
+            ][$hataKodu] ?? 'Mesaj gonderilemedi. Lutfen tekrar deneyin.';
+
+            return response()->json(['ok' => false, 'mesaj' => $hataMetin]);
+        } catch (\Throwable $e) {
+            \Log::warning('api.musteriManuelWhatsapp hata: '.$e->getMessage());
+            return response()->json(['ok' => false, 'mesaj' => 'Sunucu hatasi: '.$e->getMessage()]);
+        }
+    }
+
     public function anketHizliGonder(Request $request)
     {
         try {

@@ -53,6 +53,9 @@ Route::post('/saatBosluguKampanyaBildirimGonder/{salonId}','ApiController@saatBo
 // Anket / Reputation Booster — ozet ve gonderim listesi (mobile uygulama icin)
 // trigger4 (route cache temizleme tetikleyici)
 Route::post('/anket-hizli-gonder','ApiController@anketHizliGonder');
+// Musteriye manuel WhatsApp mesaji (yonetici panelinden, salon WhatsApp bagli ise)
+Route::post('/musteri-manuel-whatsapp','ApiController@musteriManuelWhatsapp');
+Route::get('/musteri-whatsapp-durum','ApiController@musteriWhatsappDurum');
 Route::post('/anketOzet/{salonId}','ApiController@anketOzet');
 Route::get('/anketOzet/{salonId}','ApiController@anketOzet');
 Route::post('/anketGonderimleri/{salonId}','ApiController@anketGonderimleri');
