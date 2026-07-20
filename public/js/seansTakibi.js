@@ -251,7 +251,7 @@ function formatHizmetDetaylari(hizmetler) {
                 '<div class="col-4 text-center"><small class="text-muted d-block">Kalan</small><strong class="text-warning">'+kalanS+'</strong></div>' +
                 '<div class="col-4 text-center"><small class="text-muted d-block">Kullanılmadı</small><strong class="text-danger">'+gelmedi+'</strong></div>' +
                 '</div>' +
-                (lazer ? "<div class='mt-2'><button type='button' name='cihazBilgileriKart' data-key='"+kartKey+"' class='btn btn-sm btn-block' style='background:#4f46e5;color:#fff;border-radius:8px;font-size:12px;font-weight:600;padding:7px;'><i class='fa fa-bolt'></i> Cihaz Bilgileri</button></div>" : '') +
+                (lazer ? "<div class='mt-2'><button type='button' name='cihazBilgileriKart' data-key='"+kartKey+"' style='display:block; width:100%; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:600; padding:9px 8px; cursor:pointer; text-align:center; white-space:normal; line-height:1.2;'><i class='fa fa-bolt'></i> Cihaz Bilgileri</button></div>" : '') +
                 '</div></div></div>';
     });
 
