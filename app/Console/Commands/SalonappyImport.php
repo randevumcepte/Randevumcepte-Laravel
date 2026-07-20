@@ -26,10 +26,10 @@ class SalonappyImport extends Command
         {--only-visits : Dump visit/bookingDetails -> randevu+adisyon+AH+tahsilat+TH/TU+alacak+paket usage isaretle. --from/--to araligi sart. Marker [salonappy-visit:<session>].}
         {--only-expenses : Dump expenses[] -> masraflar tablosuna idempotent insert. UPSERT marker [salonappy-expense:id]. masraf_kategorisi auto-create.}
         {--only-setup : Kurulum dump (salonappy_setup_*.json) — tum aşamalari sirayla yaz (musteri+personel+urun+hizmet+pivot). Visit/paket/tahsilat YOK.}
-        {--only-setup-musteri : Sadece musterileri yaz (aktarimMusteriKontrol; telefon dedup).}
-        {--only-setup-personel : Sadece personel+cihazlari yaz (staff.type ayrimi; aktif=1, role_id, calisma saatleri).}
-        {--only-setup-urun : Sadece urunleri yaz (ensureUrun; aktif=1).}
-        {--only-setup-hizmet : Sadece hizmetleri yaz (sure, kategori bagla, providing_staff pivot). Fiyat 0 kalir (Salonappy /service/salon endpoint\'inde fiyat yok — visit aktariminda zenginlesir).}
+        {--only-setup-musteri : Adim 1 — Musterileri yaz (aktarimMusteriKontrol; telefon dedup).}
+        {--only-setup-personel : Adim 2 — Personel+Cihazlari yaz (staff.type ayrimi; aktif=1, role_id, calisma saatleri).}
+        {--only-setup-urun : Adim 3 — Urunleri yaz (ensureUrun; aktif=1).}
+        {--only-setup-hizmet : Adim 4 — Hizmetleri yaz (sure + kategori + providing_staff pivot). Fiyat 0 kalir (visit aktariminda zenginlesir).}
         {--with-products : --only-visits filtresine ek: sadece product_sales[] dolu visitleri isle (urun tasima testi icin).}
         {--reset-visits : Tarih araligindaki [salonappy-visit:%] markerli randevu+adisyon+tahsilat+taksit+alacak sil. --from/--to sart.}
         {--from= : Visit aktarim/reset baslangic tarihi YYYY-MM-DD}

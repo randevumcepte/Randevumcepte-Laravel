@@ -313,32 +313,53 @@ DB::table('hizmetler')->whereIn('id',\$hids)->delete();
 
 Tek seferde full dump v7 + import yerine her veri tipini ayrı bir dump + ayrı bir komutla işleme akışı. Hata izolasyonu ve aşamalı onay için tercih edilir.
 
-#### Kurulum (`--only-setup`) — hizmet/personel/ürün/müşteri/cihaz
+#### Kurulum — 4 aşama (`--only-setup-*`)
 
 Sadece master listeleri aktarır; visit/paket/tahsilat **dokunmaz**. Boş bir salon kurarken ilk adım olmaya uygun.
 
-**Dump**: [scripts/salonappy_dump_setup.js](../scripts/salonappy_dump_setup.js) — `/service/salon` + `/staff/list` + `/product/list` + `/client/list` + cihazlar için 5 endpoint dener (`/device/list`, `/devices`, `/salon/device`, `/salon/devices`, `/equipment/list`). ~10 sn, <1MB JSON.
+**Dump**: [scripts/salonappy_dump_setup.js](../scripts/salonappy_dump_setup.js) — `/service/salon` + `/staff/list` + `/product/list` + `/client/list`. ~10 sn, <1MB JSON. **Cihaz** ayrı entity değil; Salonappy `staff.type` alanı ile `personel`/`yonetici`/`cihaz` ayrımı yapar — importer otomatik doğru tabloya yazar.
+
+**5 flag var** (aşama aşama veya hepsi):
+
+| Flag | Adım | Ne yapar |
+|---|---|---|
+| `--only-setup-musteri` | 1 | `clients[]` → `users` + `musteri_portfoy` (`aktarimMusteriKontrol` telefon dedup) |
+| `--only-setup-personel` | 2 | `staffs[]` → `Personeller` + cihaz (staff.type ayrımı, aktif=1, role_id, `PersonelCalismaSaatleri` 7 gün default) |
+| `--only-setup-urun` | 3 | `products[]` → `Urunler` (aktif=1) |
+| `--only-setup-hizmet` | 4 | `services[]` → `Hizmetler` + `SalonHizmetler` (sure_dk min 15, kategori `service_group_title` firstOrCreate, `providing_staff[]` → `personel_sunulan_hizmetler` pivot). **Fiyat 0** — Salonappy `/service/salon` endpoint'inde fiyat yok, visit aktarımıyla zenginleşir. |
+| `--only-setup` | Hepsi | 1→2→3→4 sırayla çalıştırır (backward compat) |
 
 ```bash
 # 1) Tarayıcıda scripts/salonappy_dump_setup.js çalıştır → salonappy_setup_<ts>.json indir
 # 2) scp ile sunucuya
 scp salonappy_setup_*.json root@<server>:/tmp/
 
-# 3) Import
+# 3) AŞAMA AŞAMA (her adımda kontrol et):
+/opt/php74/bin/php artisan salonappy:import \
+    --dump-file=/tmp/salonappy_setup_<ts>.json --salon=368 --only-setup-musteri
+# UI'da müşteri panelini kontrol et → OK ise:
+
+/opt/php74/bin/php artisan salonappy:import \
+    --dump-file=/tmp/salonappy_setup_<ts>.json --salon=368 --only-setup-personel
+# UI'da personel + cihaz listesini kontrol et → OK ise:
+
+/opt/php74/bin/php artisan salonappy:import \
+    --dump-file=/tmp/salonappy_setup_<ts>.json --salon=368 --only-setup-urun
+
+/opt/php74/bin/php artisan salonappy:import \
+    --dump-file=/tmp/salonappy_setup_<ts>.json --salon=368 --only-setup-hizmet
+# UI'da hizmet kategorileri + personel-hizmet pivot doğrula
+
+# VEYA HEPSİ BİR ARADA:
 /opt/php74/bin/php artisan salonappy:import \
     --dump-file=/tmp/salonappy_setup_<ts>.json --salon=368 --only-setup
 ```
 
-**`--only-setup`** ne yapar:
-- `services[]` → `Hizmetler` + `SalonHizmetler` (`ensureSalonHizmet`, `sure_dk < 15` ise 15)
-- `staffs[]` → `Personeller` + `SalonPersonelleri` (`ensurePersonel`)
-- `products[]` → `Urunler` (`ensureUrun`)
-- `clients[]` → `users` + `musteri_portfoy` (`aktarimMusteriKontrol` — telefon dedup)
-- `devices[]` → `cihazlar` + `salon_cihaz_renkleri` (isim dedup; sema `salon_id, cihaz_adi, aktifmi=1, durum=1` StoreAdminController:16403'ten)
+**Sıra önemli**: `--only-setup-hizmet` çalışırken `providing_staff` pivot için DB'de personelleri arar — önce `--only-setup-personel` çalıştırılmış olmalı. Aksi halde pivot 0 kayıt yazar.
 
-Tüm yardımcılar **idempotent** — tekrar çalıştırmak güvenli.
+Tüm helper'lar **idempotent** — tekrar çalıştırmak güvenli. Personel telefon dedup ile 2. çalıştırmada duplicate yaratmaz; hizmet ensureSalonHizmet ile mevcut kaydı bulur.
 
-**Cihaz endpoint'i bulunamazsa** dump'ta `devices: []` boş olur — UI'dan manuel ekle.
+**Hizmet fiyatı sonradan** için `--fix-hizmet-fiyat-from-visits` flag'i eklenebilir (visit içindeki `services[i].price` ortalamasından `SalonHizmetler.baslangic_fiyat`/`son_fiyat`'a yaz). İhtiyaç olursa ekleyelim.
 
 #### Paket satışları (Aşama A + B)
 
