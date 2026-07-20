@@ -128,6 +128,12 @@
             <td class="lbl">Telefon</td>
             <td class="val">{{ optional($musteri)->cep_telefon ?: '-' }}</td>
         </tr>
+        @if(optional($musteri)->tc_kimlik_no)
+        <tr>
+            <td class="lbl">TC Kimlik No</td>
+            <td class="val" colspan="3">{{ $musteri->tc_kimlik_no }}</td>
+        </tr>
+        @endif
         <tr>
             <td class="lbl">Paket / Hizmet</td>
             <td class="val">{{ $baslik ?: '-' }}</td>
