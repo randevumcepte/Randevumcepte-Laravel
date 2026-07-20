@@ -178,7 +178,7 @@ class StoreAdminController extends Controller
             }
 
             return $next($request);
-        })->except(['uygulamaIndir']); // /indir/{salon} public olmali (musteri QR okutur)
+        })->except(['uygulamaIndir', 'seansDokumuPdf']); // uygulamaIndir: QR public; seansDokumuPdf: mobil API (oturumsuz) erisir
 
     }
     /**
