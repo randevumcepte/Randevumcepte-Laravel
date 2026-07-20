@@ -45,6 +45,7 @@ class SalonappyImport extends Command
         {--inspect-dupe-musteri : Salon icin duplicate name+cep_telefon ciftlerini listele (aktarim sonrasi dedup dogrulama). --salon zorunlu.}
         {--merge-dupe-musteri : Salon icin duplicate name+cep_telefon ciftlerini merge. Keeper=min(user_id); digerlerin randevu/adisyon/tahsilat/portfoy vs keeper\'a taşinir, sonra silinir. --salon zorunlu, --dry-run destekli.}
         {--reset-urunler : Salon icin tum urunleri sil (adisyon_urunler bagli varsa reddet). --salon zorunlu, --dry-run destekli.}
+        {--inspect-hizmet-eksik : Salon icin sure_dk=NULL/0 veya baslangic_fiyat=NULL/0 olan salon_sunulan_hizmetler kayitlarini listele. --salon zorunlu.}
         {--tarih= : --inspect-tahsilat-detay icin merkez tarih YYYY-MM-DD}
         {--tutar= : --inspect-tahsilat-detay icin merkez tutar}
         {--dry-run : Reset/import oncesi sadece sayim}
@@ -75,7 +76,8 @@ class SalonappyImport extends Command
         $inspectDupe = (bool) $this->option('inspect-dupe-musteri');
         $mergeDupe = (bool) $this->option('merge-dupe-musteri');
         $resetUrun = (bool) $this->option('reset-urunler');
-        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && !$mergeDupe && !$resetUrun && (!$username || !$password)) {
+        $inspectHE = (bool) $this->option('inspect-hizmet-eksik');
+        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && !$mergeDupe && !$resetUrun && !$inspectHE && (!$username || !$password)) {
             $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri / --reconcile-tahsilat / --inspect-tahsilat-detay / --inspect-dupe-musteri verin).');
             return 1;
         }
@@ -157,6 +159,10 @@ class SalonappyImport extends Command
         if ((bool) $this->option('reset-urunler')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
             return $this->resetUrunler((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('inspect-hizmet-eksik')) {
+            if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
+            return $this->inspectHizmetEksik((int) $salonId);
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
@@ -3705,6 +3711,37 @@ class SalonappyImport extends Command
         }
         $this->warn("Toplam duplicate satir (unique cifte fazla): $toplam");
         $this->line('Duplicate temizligi icin: --merge-dupe-musteri --salon=' . $salonId);
+        return 0;
+    }
+
+    /**
+     * Salon icin sure_dk veya baslangic_fiyat eksik salon_sunulan_hizmetler kayitlari.
+     */
+    private function inspectHizmetEksik($salonId)
+    {
+        $this->info("Salon $salonId — sure_dk/fiyat eksik hizmetler:");
+        $rows = \DB::table('salon_sunulan_hizmetler as sh')
+            ->join('hizmetler as h', 'sh.hizmet_id', '=', 'h.id')
+            ->where('sh.salon_id', $salonId)
+            ->where(function ($q) {
+                $q->whereNull('sh.sure_dk')->orWhere('sh.sure_dk', 0)
+                  ->orWhereNull('sh.baslangic_fiyat')->orWhere('sh.baslangic_fiyat', 0);
+            })
+            ->select('sh.id', 'h.hizmet_adi', 'sh.sure_dk', 'sh.baslangic_fiyat', 'sh.son_fiyat', 'sh.aktif', 'sh.hizmet_kategori_id')
+            ->orderBy('h.hizmet_adi')
+            ->get();
+        $this->line("Bulunan eksik hizmet: " . $rows->count());
+        foreach ($rows as $r) {
+            $this->line(sprintf('  sh#%d %-40s | sure=%s | baslangic=%s | son=%s | aktif=%s | kat=%s',
+                $r->id, mb_substr((string) $r->hizmet_adi, 0, 40),
+                (string) ($r->sure_dk ?? 'NULL'),
+                (string) ($r->baslangic_fiyat ?? 'NULL'),
+                (string) ($r->son_fiyat ?? 'NULL'),
+                (string) $r->aktif,
+                (string) ($r->hizmet_kategori_id ?? 'NULL')));
+        }
+        $toplam = \DB::table('salon_sunulan_hizmetler')->where('salon_id', $salonId)->count();
+        $this->line("\nSalon toplam hizmet: $toplam");
         return 0;
     }
 
