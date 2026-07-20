@@ -31531,6 +31531,17 @@ DB::raw('
             $ts = strtotime($baslangic);
             if ($ts && $ts > 0) { $baslangicStr = date('d.m.Y', $ts); }
         }
+        // Paket baslangic tarihi yoksa: ilk (en erken) seans tarihini kullan
+        if ($baslangicStr === '-') {
+            $ilkTarih = null;
+            foreach ($seanslar as $s) {
+                $t = $s->seans_tarih;
+                if ($t && substr($t, 0, 4) !== '0000' && strtotime($t) > 0) {
+                    if ($ilkTarih === null || $t < $ilkTarih) { $ilkTarih = $t; }
+                }
+            }
+            if ($ilkTarih) { $baslangicStr = date('d.m.Y', strtotime($ilkTarih)); }
+        }
 
         $logoDataUri = self::seansDokumuLogo($isletme);
 
