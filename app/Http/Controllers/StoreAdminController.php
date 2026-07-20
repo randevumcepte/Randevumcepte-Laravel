@@ -12738,12 +12738,15 @@ private function createDurumButonlari($id, $tip)
         $pdfBtn = '<a href="' . $url . '" target="_blank" title="Seans Dökümü (PDF)" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:#5C008E;color:#fff;font-size:15px;text-decoration:none;box-shadow:0 2px 6px rgba(92,0,142,.25);flex:0 0 auto;"><i class="fa fa-file-pdf-o"></i></a>';
     }
 
-    // Rozetler + PDF ikonu tek flex satirda, dikey ortali ve esit aralikli hizalanir
-    return '<span style="display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;vertical-align:middle;">' .
-           '<button name="paketteki_seanslar" data-value="'.$id.'" type="button" style="width:70px;font-size:10px;margin:0" class="btn btn-primary">'.$toplam.' <i class="fa fa-plus"></i></button>' .
-           '<button name="bekleyen_seanslar" data-value="'.$id.'" type="button" style="width:50px;font-size:10px;margin:0" class="btn btn-warning">'.$bekleyen.' <i class="fa fa-calendar"></i></button>' .
-           '<button type="button" name="kullanilan_seanslar" data-value="'.$id.'" style="width:50px;font-size:10px;margin:0" class="btn btn-success">'.$kullanilan.' <i class="fa fa-check"></i></button>' .
-           '<button type="button" name="kullanilmayan_seanslar" data-value="'.$id.'" style="width:50px;font-size:10px;margin:0" class="btn btn-danger">'.$kullanilmayan.' <i class="fa fa-times"></i></button>' .
+    // Rozetler + PDF ikonu tek flex satirda; her rozet SABIT genislik (flex-basis)
+    // -> sayi kac haneli olursa olsun (4 / 120) sutunlar satirdan satira ayni hizada.
+    // (rc-st CSS 'width:auto !important' veriyor; flex-basis width'i ezmeden sabitler.)
+    $btnStil = 'flex:0 0 58px;font-size:10px;margin:0;padding:6px 4px';
+    return '<span style="display:inline-flex;align-items:center;flex-wrap:nowrap;gap:6px;vertical-align:middle;">' .
+           '<button name="paketteki_seanslar" data-value="'.$id.'" type="button" style="'.$btnStil.'" class="btn btn-primary">'.$toplam.' <i class="fa fa-plus"></i></button>' .
+           '<button name="bekleyen_seanslar" data-value="'.$id.'" type="button" style="'.$btnStil.'" class="btn btn-warning">'.$bekleyen.' <i class="fa fa-calendar"></i></button>' .
+           '<button type="button" name="kullanilan_seanslar" data-value="'.$id.'" style="'.$btnStil.'" class="btn btn-success">'.$kullanilan.' <i class="fa fa-check"></i></button>' .
+           '<button type="button" name="kullanilmayan_seanslar" data-value="'.$id.'" style="'.$btnStil.'" class="btn btn-danger">'.$kullanilmayan.' <i class="fa fa-times"></i></button>' .
            $pdfBtn .
            '</span>';
 }
