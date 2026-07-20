@@ -42,6 +42,7 @@ class SalonappyImport extends Command
         {--reconcile-tahsilat : Salonappy tahsilat xlsx export (Musteri/Tarih/Odeme/Tutar/Kaynak/Urun) ile DB tahsilatlari karsilastir. Eksik olanlar CSV\'ye yazilir. --file --salon zorunlu, --from/--to opsiyonel.}
         {--file= : --reconcile-tahsilat icin xlsx dosya yolu}
         {--inspect-tahsilat-detay : Belli tarih+tutar aralığindaki tum DB tahsilatlarini listele. --tarih --tutar --salon zorunlu.}
+        {--inspect-dupe-musteri : Salon icin duplicate name+cep_telefon ciftlerini listele (aktarim sonrasi dedup dogrulama). --salon zorunlu.}
         {--tarih= : --inspect-tahsilat-detay icin merkez tarih YYYY-MM-DD}
         {--tutar= : --inspect-tahsilat-detay icin merkez tutar}
         {--dry-run : Reset/import oncesi sadece sayim}
@@ -69,8 +70,9 @@ class SalonappyImport extends Command
         $inspectMus = (bool) $this->option('inspect-musteri');
         $reconcileT = (bool) $this->option('reconcile-tahsilat');
         $inspectTD = (bool) $this->option('inspect-tahsilat-detay');
-        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && (!$username || !$password)) {
-            $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri / --reconcile-tahsilat / --inspect-tahsilat-detay verin).');
+        $inspectDupe = (bool) $this->option('inspect-dupe-musteri');
+        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && (!$username || !$password)) {
+            $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri / --reconcile-tahsilat / --inspect-tahsilat-detay / --inspect-dupe-musteri verin).');
             return 1;
         }
         if (!$probe && !$analyze && !$salonId) {
@@ -139,6 +141,10 @@ class SalonappyImport extends Command
             $t = $this->option('tarih'); $tu = $this->option('tutar');
             if (!$t || !$tu) { $this->error('--tarih ve --tutar zorunlu.'); return 1; }
             return $this->inspectTahsilatDetay((int) $salonId, $t, (float) $tu);
+        }
+        if ((bool) $this->option('inspect-dupe-musteri')) {
+            if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
+            return $this->inspectDupeMusteri((int) $salonId);
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
@@ -3613,6 +3619,43 @@ class SalonappyImport extends Command
                 $r->id, $r->odeme_tarihi, (float) $r->tutar, (int) $r->odeme_yontemi_id,
                 $r->uid, $r->name, $r->cep_telefon, $marker));
         }
+        return 0;
+    }
+
+    /**
+     * Salon icin duplicate name+cep_telefon ciftlerini listele.
+     * Musteri aktarim sonrasi dedup dogrulama.
+     */
+    private function inspectDupeMusteri($salonId)
+    {
+        $this->info("Salon $salonId — duplicate name+cep_telefon aranıyor...");
+        // Salon portfoyundaki tum kullanicilar
+        $userIds = \DB::table('musteri_portfoy')->where('salon_id', $salonId)->pluck('user_id')->all();
+        $this->line("Salon portfoy user sayisi: " . count($userIds));
+        if (empty($userIds)) return 0;
+
+        $dupes = \DB::table('users')
+            ->whereIn('id', $userIds)
+            ->select('name', 'cep_telefon', \DB::raw('COUNT(*) as cnt'), \DB::raw('GROUP_CONCAT(id) as ids'))
+            ->groupBy('name', 'cep_telefon')
+            ->having('cnt', '>', 1)
+            ->orderByDesc('cnt')
+            ->get();
+
+        $this->line("Duplicate (ayni name+cep_telefon) sayisi: " . $dupes->count());
+        if ($dupes->isEmpty()) {
+            $this->info('Duplicate yok.');
+            return 0;
+        }
+        $toplam = 0;
+        foreach ($dupes as $d) {
+            $toplam += $d->cnt - 1;
+            $this->line(sprintf('  %s | tel=%s | x%d | user_ids=%s',
+                mb_substr((string) $d->name, 0, 40), $d->cep_telefon, $d->cnt, $d->ids));
+        }
+        $this->warn("Toplam duplicate satir (unique cifte fazla): $toplam");
+        $this->line('Duplicate temizligi icin --merge-dupe-musteri (yakinda) veya manuel SQL:');
+        $this->line("  Ornek: keeperId = min(ids); digerleri sil, tahsilat/randevu vs keeper'a tasi.");
         return 0;
     }
 
