@@ -44,6 +44,7 @@ class SalonappyImport extends Command
         {--inspect-tahsilat-detay : Belli tarih+tutar aralığindaki tum DB tahsilatlarini listele. --tarih --tutar --salon zorunlu.}
         {--inspect-dupe-musteri : Salon icin duplicate name+cep_telefon ciftlerini listele (aktarim sonrasi dedup dogrulama). --salon zorunlu.}
         {--merge-dupe-musteri : Salon icin duplicate name+cep_telefon ciftlerini merge. Keeper=min(user_id); digerlerin randevu/adisyon/tahsilat/portfoy vs keeper\'a taşinir, sonra silinir. --salon zorunlu, --dry-run destekli.}
+        {--reset-urunler : Salon icin tum urunleri sil (adisyon_urunler bagli varsa reddet). --salon zorunlu, --dry-run destekli.}
         {--tarih= : --inspect-tahsilat-detay icin merkez tarih YYYY-MM-DD}
         {--tutar= : --inspect-tahsilat-detay icin merkez tutar}
         {--dry-run : Reset/import oncesi sadece sayim}
@@ -73,7 +74,8 @@ class SalonappyImport extends Command
         $inspectTD = (bool) $this->option('inspect-tahsilat-detay');
         $inspectDupe = (bool) $this->option('inspect-dupe-musteri');
         $mergeDupe = (bool) $this->option('merge-dupe-musteri');
-        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && !$mergeDupe && (!$username || !$password)) {
+        $resetUrun = (bool) $this->option('reset-urunler');
+        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && !$mergeDupe && !$resetUrun && (!$username || !$password)) {
             $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri / --reconcile-tahsilat / --inspect-tahsilat-detay / --inspect-dupe-musteri verin).');
             return 1;
         }
@@ -151,6 +153,10 @@ class SalonappyImport extends Command
         if ((bool) $this->option('merge-dupe-musteri')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
             return $this->mergeDupeMusteri((int) $salonId, (bool) $this->option('dry-run'));
+        }
+        if ((bool) $this->option('reset-urunler')) {
+            if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
+            return $this->resetUrunler((int) $salonId, (bool) $this->option('dry-run'));
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
@@ -3699,6 +3705,40 @@ class SalonappyImport extends Command
         }
         $this->warn("Toplam duplicate satir (unique cifte fazla): $toplam");
         $this->line('Duplicate temizligi icin: --merge-dupe-musteri --salon=' . $salonId);
+        return 0;
+    }
+
+    /**
+     * Salon icin tum urunleri sil (kurulum sifirlama).
+     * adisyon_urunler bagli varsa reddet (veri kaybi engellenir).
+     */
+    private function resetUrunler($salonId, $dryRun)
+    {
+        $this->info("Salon $salonId — urunler resetleniyor" . ($dryRun ? ' (DRY-RUN)' : ''));
+        $urunIds = \DB::table('urunler')->where('salon_id', $salonId)->pluck('id')->all();
+        $this->line("Salon urun sayisi: " . count($urunIds));
+        if (empty($urunIds)) { $this->info('Zaten bos.'); return 0; }
+
+        // Bagli adisyon_urunler var mi?
+        $bagliAu = \DB::table('adisyon_urunler')->whereIn('urun_id', $urunIds)->count();
+        if ($bagliAu > 0) {
+            $this->error("!!! $bagliAu adet adisyon_urunler kaydi bu urunlere bagli. Reset REDDEDILDI.");
+            $this->error("    Once adisyon_urunler'i temizleyin veya urun bazli merge yapin.");
+            return 1;
+        }
+
+        if ($dryRun) {
+            $this->info("DRY-RUN: " . count($urunIds) . " urun silinecek.");
+            return 0;
+        }
+
+        try {
+            \DB::table('urunler')->whereIn('id', $urunIds)->delete();
+            $this->info("Silinen urun: " . count($urunIds));
+        } catch (\Throwable $e) {
+            $this->error("HATA: " . $e->getMessage());
+            return 1;
+        }
         return 0;
     }
 
