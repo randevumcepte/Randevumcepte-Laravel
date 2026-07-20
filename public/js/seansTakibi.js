@@ -264,6 +264,19 @@ function formatHizmetDetaylari(hizmetler) {
                 .child-row-wrapper .card { transition: all 0.2s ease; border: 1px solid rgba(0,0,0,0.05) !important; }
                 .child-row-wrapper .card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.05) !important; }
                 table.dataTable tbody tr.child { background-color: #f8f9fa !important; }
+                /* Seans daireleri: hover'da yumusakca buyusun -> daha kolay tiklanir */
+                .seans-ikonlari { line-height: 1.9; }
+                .seans-ikonlari i.fa {
+                    display: inline-block;
+                    transition: transform .15s ease, color .15s ease;
+                    transform-origin: center center;
+                    padding: 2px;
+                }
+                .seans-ikonlari i.fa:hover {
+                    transform: scale(1.7);
+                    position: relative;
+                    z-index: 2;
+                }
             </style>
         `);
     }
