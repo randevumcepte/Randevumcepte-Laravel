@@ -2866,9 +2866,21 @@ class SalonappyImport extends Command
         $services = $j['services'];
         $staffs   = $j['staffs'];
         $this->line("=== Adim 4: HIZMETLER + PIVOT (" . count($services) . " kayit) ===");
+        // On kosul: personel yazilmis olmali (providing_staff pivot icin)
+        $personelSayisi = \DB::table('salon_personelleri')->where('salon_id', $salonId)->count();
+        if ($personelSayisi === 0) {
+            $this->warn("!!! Salon $salonId'de hic personel yok.");
+            $this->warn("    Once --only-setup-personel calistir, yoksa providing_staff pivot BOS kalir.");
+            if (!$this->confirm('Yine de devam edilsin mi? (pivot yazilmadan sadece hizmet+kategori)', false)) {
+                return 1;
+            }
+        }
         // Personel map (providing_staff eslesirmesi icin — DB'den yeniden kur)
         $saStaffIdToPersonelId = $this->buildSaStaffMap($salonId, $staffs);
-        $this->line("  saStaff -> personel_id map: " . count($saStaffIdToPersonelId));
+        $this->line("  saStaff -> personel_id map: " . count($saStaffIdToPersonelId) . " / " . count($staffs));
+        if (count($saStaffIdToPersonelId) < count($staffs) && $personelSayisi > 0) {
+            $this->warn("  Uyari: dump'ta " . count($staffs) . " staff var, DB'de sadece " . count($saStaffIdToPersonelId) . " eslesme bulundu.");
+        }
 
         $hizmetEklenen = 0; $kategoriBaglanan = 0; $personelHizmetEklenen = 0;
         foreach ($services as $s) {
