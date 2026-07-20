@@ -299,11 +299,6 @@ $(document).on('click','i[name="seansDetay"]',function(e)
               "<button type='button' class='btn btn-sm btn-danger' id='seansKullanilmadi' data-value='"+paketId+"' data-seans-id='" + seansId + "' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-times'></i> Kullanılmadı</button>" +
                             "<button type='button' class='btn btn-sm btn-warning' id='seansBeklemede' data-value='"+paketId+"' data-seans-id='" + seansId + "' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-clock-o'></i> Beklemede</button>" +
               "</div>" +
-              (lazer === '1'
-                ? "<div style='margin-top:14px; padding-top:12px; border-top:1px dashed #e2e8f0;'>" +
-                  "<button type='button' class='btn btn-sm' id='seansCihazBilgileri' data-seans-id='" + seansId + "' style='background:#4f46e5; color:#fff; border-radius:20px; padding:8px 18px; font-weight:600;'><i class='fa fa-bolt'></i> Cihaz Bilgileri (Lazer)</button>" +
-                  "</div>"
-                : "") +
               "</div>",
         showCancelButton: false,
         showConfirmButton: false
@@ -440,13 +435,6 @@ function cihazVeriYukle(seansId){
 
 function cihazModalKapat(){ $('#cihazModalOverlay').hide(); }
 
-// Seans ikonu popup'indan (tek seans)
-$(document).on('click', '#seansCihazBilgileri', function(e){
-    e.preventDefault();
-    var seansId = $(this).attr('data-seans-id');
-    try { if (typeof swal !== 'undefined' && swal.close) swal.close(); } catch(_){}
-    cihazModalAc(seansId);
-});
 // Kart altindaki kalici "Cihaz Bilgileri" butonu (o bolgenin seanslari seciciyle)
 $(document).on('click', 'button[name="cihazBilgileriKart"]', function(e){
     e.preventDefault();
