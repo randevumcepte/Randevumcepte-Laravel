@@ -206,8 +206,10 @@ function formatHizmetDetaylari(hizmetler) {
             seansDetaylari = [];
         }
 
-        // Lazer epilasyon mu? (backend isimden hesaplar) -> seans ikonuna tiklayinca cihaz formu
+        // Lazer epilasyon mu? (backend isimden hesaplar) -> kart altinda "Cihaz Bilgileri" butonu
         var lazer = hizmet.lazer ? 1 : 0;
+        var kartKey = hizmet.id + '_' + hizmet.hizmetId;
+        if (lazer) { cihazKartSeanslari[kartKey] = { seanslar: seansDetaylari, bolge: (hizmet.hizmet_adi || '') }; }
 
         var ikonlar = '';
         var gosterilecekIkon = seansDetaylari.length;
@@ -249,6 +251,7 @@ function formatHizmetDetaylari(hizmetler) {
                 '<div class="col-4 text-center"><small class="text-muted d-block">Kalan</small><strong class="text-warning">'+kalanS+'</strong></div>' +
                 '<div class="col-4 text-center"><small class="text-muted d-block">Kullanılmadı</small><strong class="text-danger">'+gelmedi+'</strong></div>' +
                 '</div>' +
+                (lazer ? "<div class='mt-2'><button type='button' name='cihazBilgileriKart' data-key='"+kartKey+"' class='btn btn-sm btn-block' style='background:#4f46e5;color:#fff;border-radius:8px;font-size:12px;font-weight:600;padding:7px;'><i class='fa fa-bolt'></i> Cihaz Bilgileri</button></div>" : '') +
                 '</div></div></div>';
     });
 
@@ -311,6 +314,7 @@ $(document).on('click','i[name="seansDetay"]',function(e)
 // Modal design: tam viewport ortasi, body'ye eklenir, soft slate/indigo palet.
 var cihazPersoneller = [];
 var cihazVarsayilanPersonel = null;
+var cihazKartSeanslari = {}; // kartKey -> {seanslar:[...], bolge:''} (kart altindaki buton icin)
 
 function cihazEsc(s){
     return String(s == null ? '' : s)
@@ -335,6 +339,10 @@ function cihazModalOlustur(){
             "<div id='cihazSeansBilgi' style='font-size:13px; color:#334155;'></div>" +
           "</div>" +
           "<div style='padding:18px 20px; max-height:60vh; overflow:auto;'>" +
+            "<div id='cihazSeansSecKutu' style='display:none; margin-bottom:14px;'>" +
+              "<label style='"+lbl+"'>Seans Seç</label>" +
+              "<select id='cihazSeansSec' style='"+inp+"'></select>" +
+            "</div>" +
             "<div style='background:#eef2ff; border:1px solid #c7d2fe; border-radius:10px; padding:10px 14px; margin-bottom:16px;'>" +
               "<span style='font-size:10.5px; font-weight:700; color:#4f46e5; text-transform:uppercase; letter-spacing:.03em;'>Uygulama Bölgesi</span>" +
               "<div id='cihazBolgeAdi' style='font-size:15px; font-weight:700; color:#312e81; margin-top:2px;'></div>" +
@@ -367,14 +375,31 @@ function cihazPersonelSelect(seciliId){
     return opt;
 }
 
-function cihazModalAc(seansId){
+function cihazModalAc(seansId, list){
     cihazModalOlustur();
+    // Seans secici: kart butonundan gelince o bolgenin tum seanslari listelenir
+    if (list && list.length > 1){
+        var opts = '';
+        for (var i=0; i<list.length; i++){
+            var it = list[i];
+            var durum = it.geldi===1 ? '✓' : (it.geldi===0 ? '✗' : '•');
+            opts += "<option value='"+it.id+"'"+(String(it.id)===String(seansId)?' selected':'')+">"+it.no+". Seans"+(it.tarih?(' — '+cihazEsc(it.tarih)):'')+" "+durum+"</option>";
+        }
+        $('#cihazSeansSec').html(opts);
+        $('#cihazSeansSecKutu').show();
+    } else {
+        $('#cihazSeansSecKutu').hide();
+    }
+    $('#cihazModalOverlay').show();
+    cihazVeriYukle(seansId);
+}
+
+function cihazVeriYukle(seansId){
     $('#cihazSeansBilgi').html('Yükleniyor...');
     $('#cihazBolgeAdi').text('');
     $('#cf-enerji, #cf-hiz, #cf-ms, #cf-atis, #cf-not').val('');
     $('#cf-personel').html('');
     $('#cihazModalKaydet').data('seans-id', seansId);
-    $('#cihazModalOverlay').show();
 
     $.ajax({
         url: '/isletmeyonetim/seansCihazVeriGetir',
@@ -415,12 +440,32 @@ function cihazModalAc(seansId){
 
 function cihazModalKapat(){ $('#cihazModalOverlay').hide(); }
 
+// Seans ikonu popup'indan (tek seans)
 $(document).on('click', '#seansCihazBilgileri', function(e){
     e.preventDefault();
     var seansId = $(this).attr('data-seans-id');
     try { if (typeof swal !== 'undefined' && swal.close) swal.close(); } catch(_){}
     cihazModalAc(seansId);
 });
+// Kart altindaki kalici "Cihaz Bilgileri" butonu (o bolgenin seanslari seciciyle)
+$(document).on('click', 'button[name="cihazBilgileriKart"]', function(e){
+    e.preventDefault();
+    var key = $(this).attr('data-key');
+    var kart = cihazKartSeanslari[key];
+    var seanslar = (kart && kart.seanslar) ? kart.seanslar : [];
+    if (!seanslar.length){
+        swal({ type:'info', title:'Henüz seans yok', text:'Bu bölgede oluşmuş seans yok. Randevu "geldi" işaretlenince veya daireye tıklayıp "Kullanıldı" deyince seans oluşur; sonra cihaz bilgisi girilebilir.', showConfirmButton:true });
+        return;
+    }
+    var norm = [];
+    for (var i=0; i<seanslar.length; i++){
+        norm.push({ id: seanslar[i].id, no: i+1, tarih: seanslar[i].seans_tarih, geldi: seanslar[i].geldi });
+    }
+    var def = norm[norm.length-1].id; // varsayilan: en son seans
+    cihazModalAc(def, norm);
+});
+// Modal icinde seans degistir
+$(document).on('change', '#cihazSeansSec', function(){ cihazVeriYukle($(this).val()); });
 $(document).on('click', '#cihazModalKapat, #cihazModalIptal', cihazModalKapat);
 $(document).on('click', '#cihazModalOverlay', function(e){ if (e.target && e.target.id === 'cihazModalOverlay') cihazModalKapat(); });
 
