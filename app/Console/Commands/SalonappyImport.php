@@ -2876,21 +2876,55 @@ class SalonappyImport extends Command
         $j = $this->loadSetupDump($file); if (!$j) return 1;
         $products = $j['products'];
         $this->line("=== Adim 3: URUNLER (" . count($products) . " kayit) ===");
-        $eklenen = 0;
+        // Salonappy'de ayni isim ama farkli case = farkli urun olabilir
+        // (ornek: 'Genosis maske' 350 TL vs 'genosis maske' 200 TL — farkli stok/parti).
+        // Bu yüzden case-SENSITIVE dedup yapiyoruz: sadece birebir ad esleşme.
+        $eklenen = 0; $yeni = 0;
         $eklenenIds = [];
         foreach ($products as $u) {
             $ad = trim((string) ($u['name'] ?? $u['product_name'] ?? $u['title'] ?? ''));
             if ($ad === '') continue;
             $fiyat = (float) ($u['price'] ?? $u['amount'] ?? $u['sale_price'] ?? 0);
-            $canon = $ad;
-            $uid = $this->ensureUrun($salonId, $ad, $fiyat, $canon);
-            if ($uid) { $eklenen++; $eklenenIds[] = $uid; }
+            $barkod = trim((string) ($u['barcode'] ?? ''));
+            // Case-sensitive match (BINARY): 'Genosis maske' vs 'genosis maske' farkli sayilir
+            $existing = \DB::table('urunler')
+                ->where('salon_id', $salonId)
+                ->whereRaw('BINARY urun_adi = ?', [$ad])
+                ->first();
+            if ($existing) {
+                $eklenenIds[] = $existing->id;
+                $eklenen++;
+                // Fiyat/barkod update (re-import guvenli)
+                $upd = [];
+                if ($fiyat > 0 && \Schema::hasColumn('urunler', 'satis_fiyati')) $upd['satis_fiyati'] = $fiyat;
+                if ($fiyat > 0 && \Schema::hasColumn('urunler', 'fiyat')) $upd['fiyat'] = $fiyat;
+                if ($barkod !== '' && \Schema::hasColumn('urunler', 'barkod')) $upd['barkod'] = $barkod;
+                if (\Schema::hasColumn('urunler', 'aktif')) $upd['aktif'] = 1;
+                if (!empty($upd)) {
+                    \DB::table('urunler')->where('id', $existing->id)->update($upd);
+                }
+                continue;
+            }
+            // Yeni urun
+            try {
+                $insert = [
+                    'salon_id' => $salonId,
+                    'urun_adi' => $ad,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ];
+                if (\Schema::hasColumn('urunler', 'aktif')) $insert['aktif'] = 1;
+                if ($fiyat > 0 && \Schema::hasColumn('urunler', 'satis_fiyati')) $insert['satis_fiyati'] = $fiyat;
+                if ($fiyat > 0 && \Schema::hasColumn('urunler', 'fiyat')) $insert['fiyat'] = $fiyat;
+                if ($barkod !== '' && \Schema::hasColumn('urunler', 'barkod')) $insert['barkod'] = $barkod;
+                $uid = \DB::table('urunler')->insertGetId($insert);
+                $eklenenIds[] = $uid;
+                $eklenen++; $yeni++;
+            } catch (\Throwable $e) {
+                \Log::warning('[Salonappy setup] urun', ['ad' => $ad, 'err' => $e->getMessage()]);
+            }
         }
-        // Master: aktif=1
-        if (!empty($eklenenIds) && \Schema::hasColumn('urunler', 'aktif')) {
-            \DB::table('urunler')->whereIn('id', $eklenenIds)->update(['aktif' => 1]);
-        }
-        $this->info("Urun: eklendi/eslesti=$eklenen / " . count($products));
+        $this->info("Urun: eklendi/eslesti=$eklenen (yeni=$yeni) / " . count($products));
         return 0;
     }
 
