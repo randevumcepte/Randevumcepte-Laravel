@@ -2660,11 +2660,20 @@ class SalonappyImport extends Command
         $clients = $j['clients'];
         $this->line("=== Adim 1: MUSTERILER (" . count($clients) . " kayit) ===");
         $apiController = app(\App\Http\Controllers\ApiController::class);
-        $eklenen = 0; $hata = 0;
+        $eklenen = 0; $hata = 0; $adsizAtlanan = 0;
+        $hataDetay = []; // ilk 30 hata orneği
         foreach ($clients as $c) {
+            $ad = trim((string) ($c['name'] ?? ''));
+            $tel = trim((string) ($c['phone_number_local'] ?? $c['phone_number'] ?? ''));
+            // Adsiz + telsiz: reddet
+            if ($ad === '' && $tel === '') {
+                $adsizAtlanan++;
+                if (count($hataDetay) < 30) $hataDetay[] = "  cid={$c['id']}: adsiz+telsiz";
+                continue;
+            }
             $payload = [
-                'musteriAdi'   => $c['name'] ?? '',
-                'telefon'      => $c['phone_number_local'] ?? $c['phone_number'] ?? '',
+                'musteriAdi'   => $ad,
+                'telefon'      => $tel,
                 'ePosta'       => $c['email'] ?? '',
                 'dogumTarihi'  => $c['birthdate'] ?? '',
                 'cinsiyet'     => $c['gender_text'] ?? '',
@@ -2678,14 +2687,24 @@ class SalonappyImport extends Command
                 $req = new \Illuminate\Http\Request($payload);
                 $resp = $apiController->aktarimMusteriKontrol($req);
                 $uid = trim(is_object($resp) && method_exists($resp, 'getContent') ? $resp->getContent() : (string) $resp);
-                if ($uid && ctype_digit($uid)) $eklenen++;
-                else $hata++;
+                if ($uid && ctype_digit($uid)) {
+                    $eklenen++;
+                } else {
+                    $hata++;
+                    if (count($hataDetay) < 30) $hataDetay[] = "  cid={$c['id']} name=" . mb_substr($ad, 0, 30) . " tel=$tel: yanit=" . mb_substr((string) $uid, 0, 50);
+                }
             } catch (\Throwable $e) {
                 $hata++;
-                \Log::warning('[Salonappy setup] musteri', ['cid' => $c['id'] ?? '?', 'err' => $e->getMessage()]);
+                $msg = mb_substr($e->getMessage(), 0, 150);
+                if (count($hataDetay) < 30) $hataDetay[] = "  cid={$c['id']} name=" . mb_substr($ad, 0, 30) . " tel=$tel: exception=$msg";
+                \Log::warning('[Salonappy setup] musteri', ['cid' => $c['id'] ?? '?', 'name' => $ad, 'tel' => $tel, 'err' => $e->getMessage()]);
             }
         }
-        $this->info("Musteri: eklendi/eslesti=$eklenen, hata=$hata / " . count($clients));
+        $this->info("Musteri: eklendi/eslesti=$eklenen, hata=$hata, adsiz-telsiz atlanan=$adsizAtlanan / " . count($clients));
+        if (!empty($hataDetay)) {
+            $this->line("\n=== Sorunlu kayit ornekleri (ilk 30) ===");
+            foreach ($hataDetay as $ln) $this->line($ln);
+        }
         return 0;
     }
 
@@ -2697,7 +2716,10 @@ class SalonappyImport extends Command
         $j = $this->loadSetupDump($file); if (!$j) return 1;
         $staffs = $j['staffs'];
         $this->line("=== Adim 2: PERSONEL + CIHAZ (" . count($staffs) . " kayit) ===");
-        $personelTipleri = ['personel', 'yonetici', 'manager', 'employee', 'staff', 'owner', 'admin'];
+        // BLACKLIST mantigi: sadece 'cihaz'/'device'/'equipment' cihaz sayilir.
+        // 'personel', 'yonetici', 'sekreter', 'manager', 'staff', 'owner', 'admin',
+        // 'employee', ve bilinmeyen tum type'lar PERSONEL sayilir.
+        $cihazTipleri = ['cihaz', 'device', 'equipment', 'machine'];
         $personelEklenen = 0; $personelGuncel = 0; $cihazStaffEklenen = 0;
 
         $roleResolve = function ($p) {
@@ -2720,8 +2742,8 @@ class SalonappyImport extends Command
             if ($ad === '') continue;
             $tip = strtolower(trim((string) ($p['type'] ?? '')));
 
-            // CIHAZ
-            if ($tip !== '' && !in_array($tip, $personelTipleri, true)) {
+            // CIHAZ (sadece explicit cihaz/device/equipment/machine)
+            if (in_array($tip, $cihazTipleri, true)) {
                 $exists = \DB::table('cihazlar')->where('salon_id', $salonId)
                     ->where('cihaz_adi', $ad)->exists();
                 if (!$exists) {
@@ -2740,7 +2762,7 @@ class SalonappyImport extends Command
                 continue;
             }
 
-            // PERSONEL (canonical detayli)
+            // PERSONEL (canonical detayli) — cihaz olmayan tum type'lar personel
             $tel = preg_replace('~\D~', '', (string) ($p['phone_number'] ?? $p['phone_number_full'] ?? ''));
             $email = trim((string) ($p['email_address'] ?? $p['email'] ?? ''));
             $unvan = trim((string) ($p['type_text'] ?? ''));
