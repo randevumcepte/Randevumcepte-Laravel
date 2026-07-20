@@ -5379,8 +5379,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             "whatsapp_numara" => $waSalon->whatsapp_numara ?? null,
 
             "gelen_arama" => $gelen_arama,
-            "cevapsiz_arama" => $giden_arama,
-            "giden_arama" => $cevapsiz_arama,
+            "giden_arama" => $giden_arama,
+            "cevapsiz_arama" => $cevapsiz_arama,
             "isletme_adi" => $salon,
             "puan" => round($puan, 1),
             "okunmamisbildirimler" => $okunmamisbildirimler,
