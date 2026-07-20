@@ -43,6 +43,7 @@ class SalonappyImport extends Command
         {--file= : --reconcile-tahsilat icin xlsx dosya yolu}
         {--inspect-tahsilat-detay : Belli tarih+tutar aralığindaki tum DB tahsilatlarini listele. --tarih --tutar --salon zorunlu.}
         {--inspect-dupe-musteri : Salon icin duplicate name+cep_telefon ciftlerini listele (aktarim sonrasi dedup dogrulama). --salon zorunlu.}
+        {--merge-dupe-musteri : Salon icin duplicate name+cep_telefon ciftlerini merge. Keeper=min(user_id); digerlerin randevu/adisyon/tahsilat/portfoy vs keeper\'a taşinir, sonra silinir. --salon zorunlu, --dry-run destekli.}
         {--tarih= : --inspect-tahsilat-detay icin merkez tarih YYYY-MM-DD}
         {--tutar= : --inspect-tahsilat-detay icin merkez tutar}
         {--dry-run : Reset/import oncesi sadece sayim}
@@ -71,7 +72,8 @@ class SalonappyImport extends Command
         $reconcileT = (bool) $this->option('reconcile-tahsilat');
         $inspectTD = (bool) $this->option('inspect-tahsilat-detay');
         $inspectDupe = (bool) $this->option('inspect-dupe-musteri');
-        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && (!$username || !$password)) {
+        $mergeDupe = (bool) $this->option('merge-dupe-musteri');
+        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && !$mergeDupe && (!$username || !$password)) {
             $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri / --reconcile-tahsilat / --inspect-tahsilat-detay / --inspect-dupe-musteri verin).');
             return 1;
         }
@@ -145,6 +147,10 @@ class SalonappyImport extends Command
         if ((bool) $this->option('inspect-dupe-musteri')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
             return $this->inspectDupeMusteri((int) $salonId);
+        }
+        if ((bool) $this->option('merge-dupe-musteri')) {
+            if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
+            return $this->mergeDupeMusteri((int) $salonId, (bool) $this->option('dry-run'));
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
@@ -2669,7 +2675,11 @@ class SalonappyImport extends Command
         $eklenen = 0; $hata = 0; $adsizAtlanan = 0;
         $hataDetay = []; // ilk 30 hata orneği
         foreach ($clients as $c) {
-            $ad = trim((string) ($c['name'] ?? ''));
+            // DB'deki User::setNameAttribute basHarfBuyut uyguluyor — biz de payload'da
+            // ayni donusumu yaparsak controller WHERE name=? clause'u match eder,
+            // yoksa lowercase-vs-titlecase yuzunden duplicate yaratir.
+            $adRaw = trim((string) ($c['name'] ?? ''));
+            $ad = $adRaw !== '' ? \App\Helpers\Metin::basHarfBuyut($adRaw) : '';
             $tel = trim((string) ($c['phone_number_local'] ?? $c['phone_number'] ?? ''));
             // Adsiz + telsiz: reddet
             if ($ad === '' && $tel === '') {
@@ -3654,8 +3664,69 @@ class SalonappyImport extends Command
                 mb_substr((string) $d->name, 0, 40), $d->cep_telefon, $d->cnt, $d->ids));
         }
         $this->warn("Toplam duplicate satir (unique cifte fazla): $toplam");
-        $this->line('Duplicate temizligi icin --merge-dupe-musteri (yakinda) veya manuel SQL:');
-        $this->line("  Ornek: keeperId = min(ids); digerleri sil, tahsilat/randevu vs keeper'a tasi.");
+        $this->line('Duplicate temizligi icin: --merge-dupe-musteri --salon=' . $salonId);
+        return 0;
+    }
+
+    /**
+     * Salon icin duplicate name+cep_telefon ciftlerini merge et.
+     * Keeper = min(user_id) kalanlarin randevu/adisyon/tahsilat/portfoy vs keeper'a taşinir.
+     */
+    private function mergeDupeMusteri($salonId, $dryRun)
+    {
+        $this->info("Salon $salonId — duplicate merge" . ($dryRun ? ' (DRY-RUN)' : ''));
+        $userIds = \DB::table('musteri_portfoy')->where('salon_id', $salonId)->pluck('user_id')->all();
+        if (empty($userIds)) { $this->info('Portfoyde user yok.'); return 0; }
+
+        $dupes = \DB::table('users')
+            ->whereIn('id', $userIds)
+            ->select('name', 'cep_telefon', \DB::raw('GROUP_CONCAT(id ORDER BY id ASC) as ids'), \DB::raw('COUNT(*) as cnt'))
+            ->groupBy('name', 'cep_telefon')
+            ->having('cnt', '>', 1)
+            ->get();
+
+        $this->line("Merge edilecek duplicate cift: " . $dupes->count());
+        $toplamMerge = 0; $toplamSil = 0;
+        foreach ($dupes as $d) {
+            $ids = array_map('intval', explode(',', $d->ids));
+            sort($ids);
+            $keeper = $ids[0];
+            $sil = array_slice($ids, 1);
+            $this->line("  {$d->name} | tel={$d->cep_telefon} | keeper=$keeper | sil=" . implode(',', $sil));
+            if ($dryRun) { $toplamSil += count($sil); continue; }
+
+            try {
+                // Bagli tablolarda user_id degistir (varsa)
+                $tabloKolonlari = [
+                    'randevular'         => 'user_id',
+                    'adisyonlar'         => 'user_id',
+                    'tahsilatlar'        => 'user_id',
+                    'musteri_portfoy'    => 'user_id',
+                    'musteri_notlari'    => 'user_id',
+                    'kampanya_musterileri' => 'user_id',
+                    'sms_gonderim_listesi' => 'user_id',
+                ];
+                foreach ($tabloKolonlari as $tbl => $col) {
+                    if (!\Schema::hasTable($tbl) || !\Schema::hasColumn($tbl, $col)) continue;
+                    \DB::table($tbl)->whereIn($col, $sil)->update([$col => $keeper]);
+                }
+                // musteri_portfoy'da keeper icin duplicate olabilir (silinen kayitlarin portfoyleri)
+                // salon bazli tekilesir: keeper icin ayni salonda birden cok portfoy varsa fazlasini sil
+                $portfoyIds = \DB::table('musteri_portfoy')->where('user_id', $keeper)
+                    ->where('salon_id', $salonId)->orderBy('id')->pluck('id')->all();
+                if (count($portfoyIds) > 1) {
+                    $keepPortfoyId = array_shift($portfoyIds);
+                    \DB::table('musteri_portfoy')->whereIn('id', $portfoyIds)->delete();
+                }
+                // Sil eski user'lari
+                \DB::table('users')->whereIn('id', $sil)->delete();
+                $toplamMerge++;
+                $toplamSil += count($sil);
+            } catch (\Throwable $e) {
+                $this->warn("  HATA: " . $e->getMessage());
+            }
+        }
+        $this->info(($dryRun ? 'DRY-RUN' : 'Merge tamam') . ": $toplamMerge cift, $toplamSil user silindi.");
         return 0;
     }
 
