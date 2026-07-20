@@ -12708,23 +12708,34 @@ private function createDurumButonlari($id, $tip)
     
     $bekleyen = $toplam - $kullanilan - $kullanilmayan;
 
-    // Lazer epilasyon paketi/hizmeti ise: rozetlerin yanina "Seans Dökümü PDF" ikonu
+    // Lazer epilasyon paketi/hizmeti mi? Paket adi VEYA icindeki hizmet adlarindan
+    // biri "lazer" iceriyorsa (kart bazli lazer tespitiyle ayni mantik).
+    $lazer = false;
     if ($tip == 'paket') {
-        $ad = DB::table('adisyon_paketler')
-            ->join('paketler', 'adisyon_paketler.paket_id', '=', 'paketler.id')
-            ->where('adisyon_paketler.id', $id)
-            ->value('paketler.paket_adi');
+        $paketId = DB::table('adisyon_paketler')->where('id', $id)->value('paket_id');
+        $ad = $paketId ? DB::table('paketler')->where('id', $paketId)->value('paket_adi') : '';
+        $lazer = self::isimdeLazerVar($ad);
+        if (!$lazer && $paketId) {
+            $adlar = DB::table('paket_hizmetler')
+                ->join('hizmetler', 'paket_hizmetler.hizmet_id', '=', 'hizmetler.id')
+                ->where('paket_hizmetler.paket_id', $paketId)
+                ->pluck('hizmetler.hizmet_adi');
+            foreach ($adlar as $ha) {
+                if (self::isimdeLazerVar($ha)) { $lazer = true; break; }
+            }
+        }
     } else {
         $ad = DB::table('adisyon_hizmetler')
             ->join('hizmetler', 'adisyon_hizmetler.hizmet_id', '=', 'hizmetler.id')
             ->where('adisyon_hizmetler.id', $id)
             ->value('hizmetler.hizmet_adi');
+        $lazer = self::isimdeLazerVar($ad);
     }
     $pdfBtn = '';
-    if (self::isimdeLazerVar($ad)) {
+    if ($lazer) {
         $sube = request()->get('sube');
         $url  = '/isletmeyonetim/seansDokumuPdf?' . ($tip == 'paket' ? 'adisyonpaketid=' : 'adisyonhizmetid=') . $id . ($sube ? ('&sube=' . $sube) : '');
-        $pdfBtn = ' &nbsp;<a href="' . $url . '" target="_blank" title="Seans Dökümü (PDF)" style="display:inline-block;width:34px;height:34px;line-height:34px;text-align:center;border-radius:50%;background:#5C008E;color:#fff;font-size:13px;text-decoration:none;vertical-align:middle;box-shadow:0 2px 6px rgba(92,0,142,.25);"><i class="fa fa-file-pdf-o"></i></a>';
+        $pdfBtn = ' &nbsp;<a href="' . $url . '" target="_blank" title="Seans Dökümü (PDF)" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:#5C008E;color:#fff;font-size:15px;text-decoration:none;vertical-align:middle;box-shadow:0 2px 6px rgba(92,0,142,.25);"><i class="fa fa-file-pdf-o"></i></a>';
     }
 
     return '<button name="paketteki_seanslar" data-value="'.$id.'" type="button" style="width:70px;font-size:10px" class="btn btn-primary">'.$toplam.' <i class="fa fa-plus"></i></button> &nbsp;' .
