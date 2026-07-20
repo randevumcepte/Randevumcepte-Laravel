@@ -25,7 +25,11 @@ class SalonappyImport extends Command
         {--only-product-payments : Daha onceden --only-product-sales ile yazilmis urun adisyonlarina dump payments[] eslestir; source_text="Urun satisi" olanlar tahsilat olarak baglanir.}
         {--only-visits : Dump visit/bookingDetails -> randevu+adisyon+AH+tahsilat+TH/TU+alacak+paket usage isaretle. --from/--to araligi sart. Marker [salonappy-visit:<session>].}
         {--only-expenses : Dump expenses[] -> masraflar tablosuna idempotent insert. UPSERT marker [salonappy-expense:id]. masraf_kategorisi auto-create.}
-        {--only-setup : Kurulum dump (salonappy_setup_*.json) icindeki master kayitlari (services+staffs+products+clients+devices) idempotent yaz. Visit/paket/tahsilat YOK.}
+        {--only-setup : Kurulum dump (salonappy_setup_*.json) — tum aşamalari sirayla yaz (musteri+personel+urun+hizmet+pivot). Visit/paket/tahsilat YOK.}
+        {--only-setup-musteri : Sadece musterileri yaz (aktarimMusteriKontrol; telefon dedup).}
+        {--only-setup-personel : Sadece personel+cihazlari yaz (staff.type ayrimi; aktif=1, role_id, calisma saatleri).}
+        {--only-setup-urun : Sadece urunleri yaz (ensureUrun; aktif=1).}
+        {--only-setup-hizmet : Sadece hizmetleri yaz (sure, kategori bagla, providing_staff pivot). Fiyat 0 kalir (Salonappy /service/salon endpoint\'inde fiyat yok — visit aktariminda zenginlesir).}
         {--with-products : --only-visits filtresine ek: sadece product_sales[] dolu visitleri isle (urun tasima testi icin).}
         {--reset-visits : Tarih araligindaki [salonappy-visit:%] markerli randevu+adisyon+tahsilat+taksit+alacak sil. --from/--to sart.}
         {--from= : Visit aktarim/reset baslangic tarihi YYYY-MM-DD}
@@ -158,9 +162,22 @@ class SalonappyImport extends Command
             if ((bool) $this->option('only-expenses')) {
                 return $this->importExpensesOnly($dumpFile, (int) $salonId);
             }
-            // --only-setup: kurulum dump'tan master kayitlari (services+staffs+products+clients+devices)
+            // --only-setup: tum kurulum aşamalari sirayla
             if ((bool) $this->option('only-setup')) {
                 return $this->importSetupOnly($dumpFile, (int) $salonId);
+            }
+            // Adim adim kurulum: sirali cagirim
+            if ((bool) $this->option('only-setup-musteri')) {
+                return $this->importSetupMusteriler($dumpFile, (int) $salonId);
+            }
+            if ((bool) $this->option('only-setup-personel')) {
+                return $this->importSetupPersoneller($dumpFile, (int) $salonId);
+            }
+            if ((bool) $this->option('only-setup-urun')) {
+                return $this->importSetupUrunler($dumpFile, (int) $salonId);
+            }
+            if ((bool) $this->option('only-setup-hizmet')) {
+                return $this->importSetupHizmetler($dumpFile, (int) $salonId);
             }
             // --only-visits: tarih araliginda visit detail -> randevu+adisyon+...
             if ((bool) $this->option('only-visits')) {
@@ -2590,7 +2607,360 @@ class SalonappyImport extends Command
      * Mevcut helper'lar idempotent (ensureSalonHizmet, ensurePersonel, ensureUrun,
      * aktarimMusteriKontrol), tekrar calistirma guvenli.
      */
+    /**
+     * Setup dump JSON dosyasini oku, key'lerini normalize et.
+     */
+    private function loadSetupDump($file)
+    {
+        if (!file_exists($file)) { $this->error("Dosya yok: {$file}"); return null; }
+        $j = json_decode(file_get_contents($file), true);
+        if (!is_array($j)) { $this->error('Gecersiz JSON.'); return null; }
+        return [
+            'services' => $j['services'] ?? [],
+            'staffs'   => $j['staffs']   ?? ($j['staff'] ?? []),
+            'products' => $j['products'] ?? [],
+            'clients'  => $j['clients']  ?? [],
+            'devices'  => $j['devices']  ?? [],
+        ];
+    }
+
+    /**
+     * Dump'taki staff isimlerinden DB'deki personel_id'lere map kur.
+     * (Hizmet iterasyonunda providing_staff -> personel_sunulan_hizmetler icin gerek.)
+     */
+    private function buildSaStaffMap($salonId, array $staffs)
+    {
+        $map = [];
+        foreach ($staffs as $p) {
+            $ad = trim((string) ($p['name'] ?? $p['full_name'] ?? $p['staff_name'] ?? ''));
+            if ($ad === '') continue;
+            $saStaffId = (string) ($p['id'] ?? '');
+            if ($saStaffId === '') continue;
+            // Once exact, sonra trKey match
+            $pid = \DB::table('salon_personelleri')->where('salon_id', $salonId)
+                ->where('personel_adi', $ad)->value('id');
+            if (!$pid) {
+                $needle = $this->saTrKey($ad);
+                foreach (\DB::table('salon_personelleri')->where('salon_id', $salonId)
+                    ->select('id', 'personel_adi')->get() as $row) {
+                    if ($this->saTrKey($row->personel_adi) === $needle) { $pid = $row->id; break; }
+                }
+            }
+            if ($pid) $map[$saStaffId] = $pid;
+        }
+        return $map;
+    }
+
+    /**
+     * Adim 1 — Musteriler (aktarimMusteriKontrol; telefon dedup ApiController tarafinda).
+     */
+    private function importSetupMusteriler($file, $salonId)
+    {
+        $j = $this->loadSetupDump($file); if (!$j) return 1;
+        $clients = $j['clients'];
+        $this->line("=== Adim 1: MUSTERILER (" . count($clients) . " kayit) ===");
+        $apiController = app(\App\Http\Controllers\ApiController::class);
+        $eklenen = 0; $hata = 0;
+        foreach ($clients as $c) {
+            $payload = [
+                'musteriAdi'   => $c['name'] ?? '',
+                'telefon'      => $c['phone_number_local'] ?? $c['phone_number'] ?? '',
+                'ePosta'       => $c['email'] ?? '',
+                'dogumTarihi'  => $c['birthdate'] ?? '',
+                'cinsiyet'     => $c['gender_text'] ?? '',
+                'notlar'       => $c['notes'] ?? '',
+                'medeniDurum'  => '', 'meslek' => '', 'adres' => '',
+                'kayitTarihi'  => $c['created_at'] ?? '',
+                'salonId'      => $salonId,
+                'salonAppyId'  => $c['id'] ?? null,
+            ];
+            try {
+                $req = new \Illuminate\Http\Request($payload);
+                $resp = $apiController->aktarimMusteriKontrol($req);
+                $uid = trim(is_object($resp) && method_exists($resp, 'getContent') ? $resp->getContent() : (string) $resp);
+                if ($uid && ctype_digit($uid)) $eklenen++;
+                else $hata++;
+            } catch (\Throwable $e) {
+                $hata++;
+                \Log::warning('[Salonappy setup] musteri', ['cid' => $c['id'] ?? '?', 'err' => $e->getMessage()]);
+            }
+        }
+        $this->info("Musteri: eklendi/eslesti=$eklenen, hata=$hata / " . count($clients));
+        return 0;
+    }
+
+    /**
+     * Adim 2 — Personel + Cihaz (staff.type ayrimi).
+     */
+    private function importSetupPersoneller($file, $salonId)
+    {
+        $j = $this->loadSetupDump($file); if (!$j) return 1;
+        $staffs = $j['staffs'];
+        $this->line("=== Adim 2: PERSONEL + CIHAZ (" . count($staffs) . " kayit) ===");
+        $personelTipleri = ['personel', 'yonetici', 'manager', 'employee', 'staff', 'owner', 'admin'];
+        $personelEklenen = 0; $personelGuncel = 0; $cihazStaffEklenen = 0;
+
+        $roleResolve = function ($p) {
+            $tt = trim((string) ($p['type_text'] ?? ''));
+            $t  = strtolower(trim((string) ($p['type'] ?? '')));
+            $candidates = [];
+            if ($tt !== '') $candidates[] = $tt;
+            if ($t === 'yonetici') { $candidates[] = 'Hesap Sahibi'; $candidates[] = 'Yönetici'; }
+            elseif ($t === 'personel') $candidates[] = 'Personel';
+            $candidates[] = 'Hesap Sahibi';
+            foreach ($candidates as $name) {
+                $id = \DB::table('roles')->where('name', $name)->value('id');
+                if ($id) return $id;
+            }
+            return \DB::table('roles')->orderBy('id')->value('id');
+        };
+
+        foreach ($staffs as $p) {
+            $ad = trim((string) ($p['name'] ?? $p['full_name'] ?? $p['staff_name'] ?? ''));
+            if ($ad === '') continue;
+            $tip = strtolower(trim((string) ($p['type'] ?? '')));
+
+            // CIHAZ
+            if ($tip !== '' && !in_array($tip, $personelTipleri, true)) {
+                $exists = \DB::table('cihazlar')->where('salon_id', $salonId)
+                    ->where('cihaz_adi', $ad)->exists();
+                if (!$exists) {
+                    try {
+                        \DB::table('cihazlar')->insert([
+                            'salon_id' => $salonId, 'cihaz_adi' => $ad,
+                            'aktifmi' => 1, 'durum' => 1,
+                            'created_at' => date('Y-m-d H:i:s'),
+                            'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                        $cihazStaffEklenen++;
+                    } catch (\Throwable $e) {
+                        \Log::warning('[Salonappy setup] cihaz', ['ad' => $ad, 'err' => $e->getMessage()]);
+                    }
+                }
+                continue;
+            }
+
+            // PERSONEL (canonical detayli)
+            $tel = preg_replace('~\D~', '', (string) ($p['phone_number'] ?? $p['phone_number_full'] ?? ''));
+            $email = trim((string) ($p['email_address'] ?? $p['email'] ?? ''));
+            $unvan = trim((string) ($p['type_text'] ?? ''));
+            $roleId = $roleResolve($p);
+
+            $existPers = null;
+            if ($tel) {
+                $existPers = \App\Personeller::where('salon_id', $salonId)
+                    ->where('cep_telefon', $tel)->first();
+            }
+            if (!$existPers) {
+                $existPers = \App\Personeller::where('salon_id', $salonId)
+                    ->where('personel_adi', $ad)->first();
+            }
+
+            try {
+                $yetkili = null;
+                if ($tel) {
+                    $yetkili = \App\IsletmeYetkilileri::where('gsm1', $tel)->first();
+                }
+                $isYeniYetkili = false;
+                if (!$yetkili) {
+                    $yetkili = new \App\IsletmeYetkilileri();
+                    $isYeniYetkili = true;
+                }
+                $yetkili->name = $ad;
+                if ($tel) $yetkili->gsm1 = $tel;
+                if ($email && \Schema::hasColumn('isletmeyetkilileri', 'email')) $yetkili->email = $email;
+                if ($unvan && \Schema::hasColumn('isletmeyetkilileri', 'unvan')) $yetkili->unvan = $unvan;
+                $yetkili->aktif = true;
+                if ($isYeniYetkili) {
+                    $random = str_shuffle('abcdefghjklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ1234567890');
+                    $yetkili->password = \Hash::make(substr($random, 0, 8));
+                }
+                $yetkili->save();
+
+                if (!$existPers) {
+                    $personel = new \App\Personeller();
+                    $personel->salon_id = $salonId;
+                    $personel->aktif = true;
+                    $personel->takvimde_gorunsun = 1;
+                    $sonSira = \App\Personeller::where('salon_id', $salonId)
+                        ->orderBy('takvim_sirasi', 'desc')->value('takvim_sirasi');
+                    $personel->takvim_sirasi = ($sonSira ? $sonSira : 0) + 1;
+                    $sonRenk = \App\Personeller::where('salon_id', $salonId)
+                        ->orderBy('id', 'desc')->value('renk');
+                    $personel->renk = (!$sonRenk || $sonRenk == 10) ? 1 : ($sonRenk + 1);
+                    $personelEklenen++;
+                } else {
+                    $personel = $existPers;
+                    $personel->aktif = true;
+                    if (!$personel->takvimde_gorunsun) $personel->takvimde_gorunsun = 1;
+                    $personelGuncel++;
+                }
+                $personel->personel_adi = $ad;
+                if ($tel) $personel->cep_telefon = $tel;
+                if ($unvan) $personel->unvan = $unvan;
+                $personel->yetkili_id = $yetkili->id;
+                if ($roleId) $personel->role_id = $roleId;
+                if (\Schema::hasColumn('salon_personelleri', 'hizmet_prim_yuzde')) $personel->hizmet_prim_yuzde = 0;
+                if (\Schema::hasColumn('salon_personelleri', 'urun_prim_yuzde'))   $personel->urun_prim_yuzde = 0;
+                if (\Schema::hasColumn('salon_personelleri', 'paket_prim_yuzde')) $personel->paket_prim_yuzde = 0;
+                $personel->save();
+
+                $varOlanGunSayisi = \DB::table('personel_calisma_saatleri')
+                    ->where('personel_id', $personel->id)->count();
+                if ($varOlanGunSayisi === 0) {
+                    for ($i = 1; $i <= 7; $i++) {
+                        \DB::table('personel_calisma_saatleri')->insert([
+                            'personel_id'     => $personel->id,
+                            'haftanin_gunu'   => $i,
+                            'calisiyor'       => ($i === 7) ? 0 : 1,
+                            'baslangic_saati' => '09:00:00',
+                            'bitis_saati'     => '18:00:00',
+                            'created_at'      => date('Y-m-d H:i:s'),
+                            'updated_at'      => date('Y-m-d H:i:s'),
+                        ]);
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('[Salonappy setup] personel', [
+                    'ad' => $ad, 'tel' => $tel, 'err' => $e->getMessage(),
+                ]);
+            }
+        }
+        $this->info("Personel: yeni=$personelEklenen guncel=$personelGuncel, cihaz=$cihazStaffEklenen / " . count($staffs));
+        return 0;
+    }
+
+    /**
+     * Adim 3 — Urunler.
+     */
+    private function importSetupUrunler($file, $salonId)
+    {
+        $j = $this->loadSetupDump($file); if (!$j) return 1;
+        $products = $j['products'];
+        $this->line("=== Adim 3: URUNLER (" . count($products) . " kayit) ===");
+        $eklenen = 0;
+        $eklenenIds = [];
+        foreach ($products as $u) {
+            $ad = trim((string) ($u['name'] ?? $u['product_name'] ?? $u['title'] ?? ''));
+            if ($ad === '') continue;
+            $fiyat = (float) ($u['price'] ?? $u['amount'] ?? $u['sale_price'] ?? 0);
+            $canon = $ad;
+            $uid = $this->ensureUrun($salonId, $ad, $fiyat, $canon);
+            if ($uid) { $eklenen++; $eklenenIds[] = $uid; }
+        }
+        // Master: aktif=1
+        if (!empty($eklenenIds) && \Schema::hasColumn('urunler', 'aktif')) {
+            \DB::table('urunler')->whereIn('id', $eklenenIds)->update(['aktif' => 1]);
+        }
+        $this->info("Urun: eklendi/eslesti=$eklenen / " . count($products));
+        return 0;
+    }
+
+    /**
+     * Adim 4 — Hizmetler (sure + kategori + providing_staff pivot).
+     * NOT: Salonappy /service/salon endpoint'inde FIYAT YOK — visit aktarimiyla zenginlesir.
+     */
+    private function importSetupHizmetler($file, $salonId)
+    {
+        $j = $this->loadSetupDump($file); if (!$j) return 1;
+        $services = $j['services'];
+        $staffs   = $j['staffs'];
+        $this->line("=== Adim 4: HIZMETLER + PIVOT (" . count($services) . " kayit) ===");
+        // Personel map (providing_staff eslesirmesi icin — DB'den yeniden kur)
+        $saStaffIdToPersonelId = $this->buildSaStaffMap($salonId, $staffs);
+        $this->line("  saStaff -> personel_id map: " . count($saStaffIdToPersonelId));
+
+        $hizmetEklenen = 0; $kategoriBaglanan = 0; $personelHizmetEklenen = 0;
+        foreach ($services as $s) {
+            $ad = trim((string) ($s['name'] ?? $s['service_name'] ?? $s['title'] ?? ''));
+            if ($ad === '') continue;
+            $sure = (int) ($s['duration'] ?? $s['duration_default'] ?? $s['process_time'] ?? 30);
+            if ($sure < 15) $sure = 15;
+            $fiyat = (float) ($s['price'] ?? $s['amount'] ?? $s['service_price'] ?? 0);
+            $canon = $ad;
+            $hid = $this->ensureSalonHizmet($salonId, $ad, $sure, $fiyat, $canon);
+            if (!$hid) continue;
+            $hizmetEklenen++;
+
+            // Sure update (re-import guvenli) + aktif=1
+            \DB::table('salon_sunulan_hizmetler')
+                ->where('salon_id', $salonId)->where('hizmet_id', $hid)
+                ->update([
+                    'sure_dk' => $sure,
+                    'aktif'   => 1,
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+
+            // Kategori bagla
+            $catTitle = trim((string) ($s['service_group_title'] ?? ''));
+            if ($catTitle !== '') {
+                $catId = \DB::table('hizmet_kategorisi')
+                    ->where('hizmet_kategorisi_adi', $catTitle)
+                    ->where(function ($q) use ($salonId) {
+                        $q->whereNull('salon_id')->orWhere('salon_id', $salonId);
+                    })
+                    ->value('id');
+                if (!$catId) {
+                    $insert = [
+                        'hizmet_kategorisi_adi' => $catTitle,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ];
+                    if (\Schema::hasColumn('hizmet_kategorisi', 'salon_id')) $insert['salon_id'] = $salonId;
+                    if (\Schema::hasColumn('hizmet_kategorisi', 'ozel_kategori')) $insert['ozel_kategori'] = 1;
+                    $catId = \DB::table('hizmet_kategorisi')->insertGetId($insert);
+                }
+                if ($catId) {
+                    \DB::table('salon_sunulan_hizmetler')
+                        ->where('salon_id', $salonId)->where('hizmet_id', $hid)
+                        ->update(['hizmet_kategori_id' => $catId]);
+                    $kategoriBaglanan++;
+                }
+            }
+
+            // providing_staff pivot -> personel_sunulan_hizmetler
+            foreach (($s['providing_staff'] ?? []) as $ps) {
+                $saStaffId = (string) ($ps['id'] ?? '');
+                if ($saStaffId === '') continue;
+                $persId = $saStaffIdToPersonelId[$saStaffId] ?? null;
+                if (!$persId) continue;
+                $exists = \DB::table('personel_sunulan_hizmetler')
+                    ->where('personel_id', $persId)
+                    ->where('hizmet_id', $hid)->exists();
+                if ($exists) continue;
+                try {
+                    \DB::table('personel_sunulan_hizmetler')->insert([
+                        'personel_id' => $persId,
+                        'hizmet_id'   => $hid,
+                        'bolum'       => 2,
+                        'created_at'  => date('Y-m-d H:i:s'),
+                        'updated_at'  => date('Y-m-d H:i:s'),
+                    ]);
+                    $personelHizmetEklenen++;
+                } catch (\Throwable $e) {
+                    \Log::warning('[Salonappy setup] personel-hizmet', [
+                        'pers' => $persId, 'hizmet' => $hid, 'err' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+        $this->info("Hizmet: eklendi/eslesti=$hizmetEklenen / " . count($services));
+        $this->info("Kategori baglanan: $kategoriBaglanan, personel-hizmet pivot: $personelHizmetEklenen");
+        return 0;
+    }
+
     private function importSetupOnly($file, $salonId)
+    {
+        $this->info(">>> Salonappy KURULUM: musteri -> personel -> urun -> hizmet+pivot");
+        $r = $this->importSetupMusteriler($file, $salonId); if ($r !== 0) return $r;
+        $r = $this->importSetupPersoneller($file, $salonId); if ($r !== 0) return $r;
+        $r = $this->importSetupUrunler($file, $salonId); if ($r !== 0) return $r;
+        $r = $this->importSetupHizmetler($file, $salonId); if ($r !== 0) return $r;
+        $this->info('>>> Kurulum aktarimi tamam.');
+        return 0;
+    }
+
+    private function importSetupOnlyLegacy($file, $salonId)
     {
         if (!file_exists($file)) { $this->error("Dosya yok: {$file}"); return 1; }
         $j = json_decode(file_get_contents($file), true);
