@@ -249,9 +249,6 @@ function formatHizmetDetaylari(hizmetler) {
                 '<div class="col-4 text-center"><small class="text-muted d-block">Kalan</small><strong class="text-warning">'+kalanS+'</strong></div>' +
                 '<div class="col-4 text-center"><small class="text-muted d-block">Kullanılmadı</small><strong class="text-danger">'+gelmedi+'</strong></div>' +
                 '</div>' +
-                (lazer ? '<div class="mt-2 pt-2" style="border-top:1px dashed #e5e7eb;text-align:center;">' +
-                         '<span style="display:block;font-size:10px;color:#7c3aed;font-weight:600;"><i class="fa fa-bolt"></i> Lazer cihaz takibi — seans ikonuna tıklayıp bilgileri girin</span>' +
-                         '</div>' : '') +
                 '</div></div></div>';
     });
 
