@@ -12735,14 +12735,17 @@ private function createDurumButonlari($id, $tip)
     if ($lazer) {
         $sube = request()->get('sube');
         $url  = '/isletmeyonetim/seansDokumuPdf?' . ($tip == 'paket' ? 'adisyonpaketid=' : 'adisyonhizmetid=') . $id . ($sube ? ('&sube=' . $sube) : '');
-        $pdfBtn = ' &nbsp;<a href="' . $url . '" target="_blank" title="Seans Dökümü (PDF)" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:#5C008E;color:#fff;font-size:15px;text-decoration:none;vertical-align:middle;box-shadow:0 2px 6px rgba(92,0,142,.25);"><i class="fa fa-file-pdf-o"></i></a>';
+        $pdfBtn = '<a href="' . $url . '" target="_blank" title="Seans Dökümü (PDF)" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:#5C008E;color:#fff;font-size:15px;text-decoration:none;box-shadow:0 2px 6px rgba(92,0,142,.25);flex:0 0 auto;"><i class="fa fa-file-pdf-o"></i></a>';
     }
 
-    return '<button name="paketteki_seanslar" data-value="'.$id.'" type="button" style="width:70px;font-size:10px" class="btn btn-primary">'.$toplam.' <i class="fa fa-plus"></i></button> &nbsp;' .
-           '<button name="bekleyen_seanslar" data-value="'.$id.'" type="button" style="width:50px;font-size:10px" class="btn btn-warning">'.$bekleyen.' <i class="fa fa-calendar"></i></button> ' .
-           '<button type="button" name="kullanilan_seanslar" data-value="'.$id.'" style="width:50px;font-size:10px" class="btn btn-success">'.$kullanilan.' <i class="fa fa-check"></i></button> ' .
-           '<button type="button" name="kullanilmayan_seanslar" data-value="'.$id.'" style="width:50px;font-size:10px" class="btn btn-danger">'.$kullanilmayan.' <i class="fa fa-times"></i></button>' .
-           $pdfBtn;
+    // Rozetler + PDF ikonu tek flex satirda, dikey ortali ve esit aralikli hizalanir
+    return '<span style="display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;vertical-align:middle;">' .
+           '<button name="paketteki_seanslar" data-value="'.$id.'" type="button" style="width:70px;font-size:10px;margin:0" class="btn btn-primary">'.$toplam.' <i class="fa fa-plus"></i></button>' .
+           '<button name="bekleyen_seanslar" data-value="'.$id.'" type="button" style="width:50px;font-size:10px;margin:0" class="btn btn-warning">'.$bekleyen.' <i class="fa fa-calendar"></i></button>' .
+           '<button type="button" name="kullanilan_seanslar" data-value="'.$id.'" style="width:50px;font-size:10px;margin:0" class="btn btn-success">'.$kullanilan.' <i class="fa fa-check"></i></button>' .
+           '<button type="button" name="kullanilmayan_seanslar" data-value="'.$id.'" style="width:50px;font-size:10px;margin:0" class="btn btn-danger">'.$kullanilmayan.' <i class="fa fa-times"></i></button>' .
+           $pdfBtn .
+           '</span>';
 }
 
 private function getPaketDetaylari($paketId)
