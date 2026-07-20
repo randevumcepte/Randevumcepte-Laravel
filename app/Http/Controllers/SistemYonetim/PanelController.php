@@ -554,7 +554,7 @@ class PanelController extends Controller
             $salon->salon_turu_id       = $request->get('salon_turu_id');
             $salon->il_id               = $request->get('il_id') ?: null;
             $salon->ilce_id             = $request->get('ilce_id') ?: null;
-            $salon->adres               = $request->get('adres') ?: null;
+            $salon->adres               = (string) $request->get('adres'); // NOT NULL kolon — bosken '' yaz
             $salon->yetkili_adi         = $request->get('yetkili_ad');
             $salon->yetkili_telefon     = $telefon;
             $salon->randevu_saat_araligi = 15;
