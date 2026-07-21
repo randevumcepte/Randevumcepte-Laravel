@@ -1662,18 +1662,58 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // VEYA bagli adisyon_hizmetler kaydinda seans sayisinin KAYITLI olmasi (seans_sayisi > 0).
         // Seans sayisi kayitli olmayan (NULL/bos/0) hizmet satislari da seans kaydi
         // olusturuyor; bunlar paket sayilmaz.
+        //
+        // KARMA randevu (bazi hizmetler paketli, bazilari degil) icin ayri etiket:
+        //   'tumu' => "(PAKET)"  — tum hizmetler paketten dusuluyor
+        //   'karma' => "(KARMA)" — en az bir hizmet paketsiz, tahsilat gerekli
+        //   yoksa etiket yok. Mobil takvim.dart tahsilat butonunu 'contains(PAKET)'
+        //   ile gizler; "KARMA" icinde PAKET substring'i olmadigi icin karma
+        //   randevularda tahsilat butonu dogru sekilde gorunur (geriye uyumlu).
         $seansKayitlari = AdisyonPaketSeanslar::whereIn('randevu_id', $randevuIds)
-            ->get(['randevu_id','adisyon_paket_id','adisyon_hizmet_id']);
+            ->get(['randevu_id','adisyon_paket_id','adisyon_hizmet_id','hizmet_id']);
         $seansSayisiKayitliHizmetIds = AdisyonHizmetler::whereIn('id', $seansKayitlari->pluck('adisyon_hizmet_id')->filter()->unique()->values())
             ->where('seans_sayisi','>',0)
             ->pluck('id')
             ->flip();
-        $paketRandevuIds = collect();
+        // Randevu basina paketten dusulen hizmet_id'ler (unique)
+        $paketHizmetIdsByRandevu = [];
         foreach($seansKayitlari as $_sk){
-            if($_sk->adisyon_paket_id || ($_sk->adisyon_hizmet_id && isset($seansSayisiKayitliHizmetIds[$_sk->adisyon_hizmet_id]))){
-                $paketRandevuIds[$_sk->randevu_id] = true;
+            $paketBirlesmesi = $_sk->adisyon_paket_id
+                || ($_sk->adisyon_hizmet_id && isset($seansSayisiKayitliHizmetIds[$_sk->adisyon_hizmet_id]));
+            if(!$paketBirlesmesi) continue;
+            if(!isset($paketHizmetIdsByRandevu[$_sk->randevu_id])) {
+                $paketHizmetIdsByRandevu[$_sk->randevu_id] = [];
+            }
+            if($_sk->hizmet_id) {
+                $paketHizmetIdsByRandevu[$_sk->randevu_id][(int)$_sk->hizmet_id] = true;
             }
         }
+        // Randevu basina toplam hizmet_id sayisi (ana ve yardimci ayrimi yardimci_personel'e gore)
+        $randevuHizmetTotalById = [];
+        foreach($randevuHizmetler as $_rh) {
+            if($_rh->yardimci_personel) continue; // yardimci personel satirlarini sayma
+            if(!isset($randevuHizmetTotalById[$_rh->randevu_id])) {
+                $randevuHizmetTotalById[$_rh->randevu_id] = [];
+            }
+            if($_rh->hizmet_id) {
+                $randevuHizmetTotalById[$_rh->randevu_id][(int)$_rh->hizmet_id] = true;
+            }
+        }
+        // Etiket haritasi: 'tumu' | 'karma' (hicbiri paketli degilse anahtar yok)
+        $paketDurumuByRandevu = [];
+        foreach($paketHizmetIdsByRandevu as $rid => $paketSet) {
+            $paketAdet = count($paketSet);
+            $toplam = isset($randevuHizmetTotalById[$rid]) ? count($randevuHizmetTotalById[$rid]) : 0;
+            if($paketAdet <= 0) continue;
+            if($toplam > 0 && $paketAdet >= $toplam) {
+                $paketDurumuByRandevu[$rid] = 'tumu';
+            } else {
+                $paketDurumuByRandevu[$rid] = 'karma';
+            }
+        }
+        // Geriye donuk: eski isim ile boolean varlik map'i tut (aynen kullanilan
+        // yerlerde bozulmasin, degeri 'tumu'/'karma' oldugunda true).
+        $paketRandevuIds = collect($paketDurumuByRandevu)->map(function($v){ return true; });
 
         $kategoriRenkleri = SalonHizmetKategoriRenkleri::with('renkduzeni')
             ->where('salon_id',$isletmeId)->get()->keyBy('hizmet_kategori_id');
@@ -1684,7 +1724,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         $randevu_hizmetler = $randevuHizmetler->map(function ($rh) use(
             $takvim_turu,$isletmeId,$personelRolu,
-            $adisyonHizmetlerByRandevu,$tahsilatToplamlari,$seansSayilariByRandevu,$paketRandevuIds,
+            $adisyonHizmetlerByRandevu,$tahsilatToplamlari,$seansSayilariByRandevu,$paketRandevuIds,$paketDurumuByRandevu,
             $kategoriRenkleri,$cihazRenkleri,$odaRenkleri
         ) {
             $satisOlustu = 0;
@@ -1799,11 +1839,20 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $title = $rh->randevu->users->name;
                 $modalTitle = $rh->randevu->users->name;
                 $seansVar = $seansSayilariByRandevu[$rh->randevu_id] ?? 0;
-                if(isset($paketRandevuIds[$rh->randevu_id])){
+                $paketDurumu = $paketDurumuByRandevu[$rh->randevu_id] ?? null;
+                if($paketDurumu === 'tumu'){
+                    // Tum hizmetler paketten dusuluyor
                     $title .= " (PAKET)";
                     $modalTitle .= " Paket Randevusu ";
-                     $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"> Düzenle</a>';
-
+                    $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"> Düzenle</a>';
+                }
+                elseif($paketDurumu === 'karma'){
+                    // En az bir hizmet paketli, en az biri paketsiz => tahsilat gorunmeli
+                    // Etiket "PAKET" substring'i icermez => mobil takvim.dart tahsilat
+                    // butonunu dogru sekilde gosterir.
+                    $title .= " (KARMA)";
+                    $modalTitle .= " Karma Randevu ";
+                    $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"> Düzenle</a>';
                 }
                
                 elseif($rh->randevu->on_gorusme_id  !== null){

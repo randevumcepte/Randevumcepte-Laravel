@@ -3561,8 +3561,43 @@ public function carkverilerigetir(Request $request)
         ? AdisyonHizmetler::whereIn('randevu_id', $randevuIds)->pluck('randevu_id')->unique()->flip()
         : collect();
 
+    // KARMA randevu tespiti (mobil ApiController ile ayni mantik):
+    //   'tumu'  => "(PAKET)"  — tum hizmetler paketten dusuluyor
+    //   'karma' => "(KARMA)"  — en az bir hizmet paketsiz
+    //   yoksa etiket yok. Web tarafinda takvim UI'sinin karma randevularda
+    //   tahsilat butonunu dogru gostermesi icin.
+    $paketHizmetIdsByRandevu = [];
+    foreach($seanslarByRandevu as $rid => $seansList) {
+        foreach($seansList as $sv) {
+            $paketBirlesmesi = false;
+            if($sv->adisyon_paket_id) $paketBirlesmesi = true;
+            elseif($sv->adisyon_hizmet_id) {
+                $ah = $adisyonHizmetMap->get($sv->adisyon_hizmet_id);
+                if($ah && (int)$ah->seans_sayisi > 0) $paketBirlesmesi = true;
+            }
+            if(!$paketBirlesmesi) continue;
+            if(!isset($paketHizmetIdsByRandevu[$rid])) $paketHizmetIdsByRandevu[$rid] = [];
+            if($sv->hizmet_id) $paketHizmetIdsByRandevu[$rid][(int)$sv->hizmet_id] = true;
+        }
+    }
+    $randevuHizmetTotalById = [];
+    foreach($randevu_hizmetler_raw as $rh) {
+        if($rh->yardimci_personel) continue;
+        if(!isset($randevuHizmetTotalById[$rh->randevu_id])) {
+            $randevuHizmetTotalById[$rh->randevu_id] = [];
+        }
+        if($rh->hizmet_id) $randevuHizmetTotalById[$rh->randevu_id][(int)$rh->hizmet_id] = true;
+    }
+    $paketDurumuByRandevu = [];
+    foreach($paketHizmetIdsByRandevu as $rid => $paketSet) {
+        $paketAdet = count($paketSet);
+        $toplam = isset($randevuHizmetTotalById[$rid]) ? count($randevuHizmetTotalById[$rid]) : 0;
+        if($paketAdet <= 0) continue;
+        $paketDurumuByRandevu[$rid] = ($toplam > 0 && $paketAdet >= $toplam) ? 'tumu' : 'karma';
+    }
+
     $randevu_hizmetler = $randevu_hizmetler_raw
-    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$_anketYetki,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet) {
+    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$_anketYetki,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet,$paketDurumuByRandevu) {
 
         $start = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat)->toIso8601String();
 
@@ -3645,19 +3680,20 @@ public function carkverilerigetir(Request $request)
             // hizmet satislari icin gosterilir. Seans sayisi kayitli olmayan
             // (NULL / bos / 0) hizmet satislari da seans kaydi olusturuyor; bunlari
             // paket saymak yanlis "(PAKET)" etiketine yol aciyordu (issue: salon 204 / user 53153).
-            $paketRandevusu = false;
-            foreach($seansVar as $_sv){
-                if($_sv->adisyon_paket_id){ $paketRandevusu = true; break; }
-                if($_sv->adisyon_hizmet_id){
-                    $_ah = $adisyonHizmetMap->get($_sv->adisyon_hizmet_id);
-                    if($_ah && (int)$_ah->seans_sayisi > 0){ $paketRandevusu = true; break; }
-                }
-            }
-            if($paketRandevusu){
+            // KARMA randevu (bazi hizmetler paketli, bazilari degil) icin ayri etiket.
+            // Etiket "PAKET" substring'i icermez => tahsilat butonunu gizleyen
+            // client kontrolleri (mobil takvim.dart 'contains("PAKET")') KARMA
+            // randevularda tahsilat butonunu dogru sekilde acar.
+            $paketDurumu = $paketDurumuByRandevu[$rh->randevu_id] ?? null;
+            if($paketDurumu === 'tumu'){
                 $title .= " (PAKET)";
                 $_modalSubtitle = 'Paket Randevusu';
-                 $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"><i class="fa fa-edit"></i> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn">Müşteri Detay</a>';
-
+                $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"><i class="fa fa-edit"></i> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn">Müşteri Detay</a>';
+            }
+            elseif($paketDurumu === 'karma'){
+                $title .= " (KARMA)";
+                $_modalSubtitle = 'Karma Randevu';
+                $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"><i class="fa fa-edit"></i> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn">Müşteri Detay</a>';
             }
 
             elseif($rh->randevu->on_gorusme_id  !== null){
