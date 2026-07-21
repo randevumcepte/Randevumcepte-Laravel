@@ -22336,10 +22336,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 return response()->json(['ok'=>false,'mesaj'=>'Salon bulunamadi (sube: '.$subeId.').'],404);
             }
 
-            // Konum + Instagram + Web linkleri — hepsi ayni mantik, kismi kayit desteklenir
-            $alanlar = ['konum_linki', 'instagram_linki', 'web_linki'];
             $guncelle = [];
-            foreach($alanlar as $kolon){
+
+            // Link alanlari (URL) — https:// zorunlu, max 500
+            $urlAlanlar = ['konum_linki', 'instagram_linki', 'web_linki'];
+            foreach($urlAlanlar as $kolon){
                 if(!$request->has($kolon)) continue;
                 $link = trim((string)$request->input($kolon, ''));
                 if($link !== '' && !preg_match('~^https?://~i', $link)){
@@ -22348,11 +22349,24 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 if(mb_strlen($link) > 500){
                     return response()->json(['ok'=>false,'mesaj'=>'Bağlantı çok uzun (en fazla 500 karakter).'],422);
                 }
-                // self-heal: kolon yoksa ekle (migrate calismamis sunucular icin)
                 if(!\Schema::hasColumn('salonlar', $kolon)){
                     try { DB::statement("ALTER TABLE salonlar ADD COLUMN {$kolon} VARCHAR(500) NULL"); } catch(\Throwable $e){}
                 }
                 $guncelle[$kolon] = ($link !== '' ? $link : null);
+            }
+
+            // Baslik alanlari (salon kendi yaziyor) — URL degil, sadece uzunluk (max 60)
+            $baslikAlanlar = ['instagram_baslik', 'web_baslik'];
+            foreach($baslikAlanlar as $kolon){
+                if(!$request->has($kolon)) continue;
+                $val = trim((string)$request->input($kolon, ''));
+                if(mb_strlen($val) > 60){
+                    return response()->json(['ok'=>false,'mesaj'=>'Başlık çok uzun (en fazla 60 karakter).'],422);
+                }
+                if(!\Schema::hasColumn('salonlar', $kolon)){
+                    try { DB::statement("ALTER TABLE salonlar ADD COLUMN {$kolon} VARCHAR(60) NULL"); } catch(\Throwable $e){}
+                }
+                $guncelle[$kolon] = ($val !== '' ? $val : null);
             }
 
             // Eloquent save() yerine direkt UPDATE — model event/cast/timestamps risklerini bypass eder

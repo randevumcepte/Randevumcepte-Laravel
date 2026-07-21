@@ -181,21 +181,23 @@
 
             @php
                $_wamLinkVar = !empty($isletme->konum_linki) || !empty($isletme->instagram_linki) || !empty($isletme->web_linki);
+               $_igBaslik  = trim($isletme->instagram_baslik ?? '') ?: 'Instagram';
+               $_webBaslik = trim($isletme->web_baslik ?? '') ?: 'Web Sitesi';
             @endphp
             @if($_wamLinkVar)
             <div class="wam-hizli-baslik">Hızlı ekle</div>
             <div class="wam-linkler">
                @if(!empty($isletme->konum_linki))
                <input type="hidden" id="wam_konum_link" value="{{ $isletme->konum_linki }}">
-               <button type="button" class="wam-link-chip konum" data-link="#wam_konum_link" data-emoji="📍" data-etiket="Konumumuz">📍 Konum Ekle</button>
+               <button type="button" class="wam-link-chip konum" data-link="#wam_konum_link" data-emoji="📍" data-etiket="Konumumuz">📍 Konum</button>
                @endif
                @if(!empty($isletme->instagram_linki))
                <input type="hidden" id="wam_instagram_link" value="{{ $isletme->instagram_linki }}">
-               <button type="button" class="wam-link-chip insta" data-link="#wam_instagram_link" data-emoji="📷" data-etiket="Instagram">📷 Instagram Ekle</button>
+               <button type="button" class="wam-link-chip insta" data-link="#wam_instagram_link" data-emoji="🔗" data-etiket="{{ $_igBaslik }}">🔗 {{ $_igBaslik }}</button>
                @endif
                @if(!empty($isletme->web_linki))
                <input type="hidden" id="wam_web_link" value="{{ $isletme->web_linki }}">
-               <button type="button" class="wam-link-chip web" data-link="#wam_web_link" data-emoji="🌐" data-etiket="Web">🌐 Web Ekle</button>
+               <button type="button" class="wam-link-chip web" data-link="#wam_web_link" data-emoji="🔗" data-etiket="{{ $_webBaslik }}">🔗 {{ $_webBaslik }}</button>
                @endif
             </div>
             @endif
