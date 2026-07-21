@@ -1609,7 +1609,7 @@
          @endif
 
          {{-- =========== Direkt randevu onay formu (sifresiz / smssiz) =========== --}}
-         <script src="{{ secure_asset('public/js/telefon-ulke.js') }}?v=1.0"></script>
+         <script src="{{ secure_asset('public/js/telefon-ulke.js') }}?v=2.0"></script>
          <script>
          (function(){
              // Form acildigi an kaydet (bot tespiti icin)
