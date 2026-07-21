@@ -31578,7 +31578,9 @@ DB::raw('
         return $pdf->stream('seans-dokumu-' . trim($ad, '-') . '.pdf');
     }
 
-    // Salon logosunu PDF icin base64 data-uri'ye cevir (yoksa null)
+    // Salon logosunu PDF icin base64 data-uri'ye cevir (yoksa null).
+    // ONEMLI: logo once KUCULTULUR. Aksi halde tam cozunurluklu (birkac MB) logo
+    // PDF'e gomulunce dompdf render'i ~20 sn suruyor + PDF ~3 MB oluyordu.
     private static function seansDokumuLogo($isletme)
     {
         $logo = trim((string) optional($isletme)->logo);
@@ -31586,6 +31588,9 @@ DB::raw('
         $cands = [base_path($logo), public_path($logo), public_path(ltrim($logo, '/')), public_path(preg_replace('#^public/#', '', $logo))];
         foreach ($cands as $cand) {
             if (is_file($cand)) {
+                // Once kucultulmus surumu dene (GD varsa), olmazsa ham dosyaya dus.
+                $kucuk = self::gorseliKucultDataUri($cand, 160);
+                if ($kucuk !== null) return $kucuk;
                 $bin = @file_get_contents($cand);
                 if ($bin !== false) {
                     $mime = @getimagesize($cand)['mime'] ?? 'image/png';
@@ -31594,6 +31599,41 @@ DB::raw('
             }
         }
         return null;
+    }
+
+    // Bir gorsel dosyasini en fazla $maxBoyut px'e kucultup PNG data-uri dondurur.
+    // GD yoksa veya cozulemezse null (cagiran ham dosyaya duser).
+    private static function gorseliKucultDataUri($path, $maxBoyut)
+    {
+        if (!function_exists('imagecreatetruecolor')) return null;
+        $info = @getimagesize($path);
+        if (!$info || empty($info[0]) || empty($info[1])) return null;
+        [$w, $h] = $info;
+        $mime = $info['mime'] ?? '';
+        switch ($mime) {
+            case 'image/jpeg': $src = @imagecreatefromjpeg($path); break;
+            case 'image/png':  $src = @imagecreatefrompng($path); break;
+            case 'image/gif':  $src = @imagecreatefromgif($path); break;
+            case 'image/webp': $src = function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($path) : false; break;
+            default: return null;
+        }
+        if (!$src) return null;
+        $olcek = min(1, $maxBoyut / max($w, $h));
+        $nw = max(1, (int) round($w * $olcek));
+        $nh = max(1, (int) round($h * $olcek));
+        $dst = imagecreatetruecolor($nw, $nh);
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+        $seffaf = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+        imagefilledrectangle($dst, 0, 0, $nw, $nh, $seffaf);
+        imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
+        ob_start();
+        imagepng($dst, null, 6);
+        $bin = ob_get_clean();
+        imagedestroy($src);
+        imagedestroy($dst);
+        if (!$bin) return null;
+        return 'data:image/png;base64,' . base64_encode($bin);
     }
 
     public function randevuGeldiGelmediIsaretiKaldir(Request $request)
