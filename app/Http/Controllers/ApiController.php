@@ -25815,13 +25815,20 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
     public function hizmetRaporlari(Request $request)
     {
         // 1. Adisyonları çek
+        // Hizmet satislarinin bazi adisyonlarinda `tarih` bos/gecersiz kaliyordu
+        // (urun/pakette dolu). Web raporu created_at kullaniyor. Burada `tarih`
+        // varsa onu, yoksa created_at'i baz al (COALESCE) — hem bos-tarih hizmet
+        // satislari gelir hem gecmise donuk (harici) satislar dogru donemde kalir.
         $adisyonlar = Adisyonlar::with(['hizmetler.hizmet'])
             ->where('salon_id', $request->salonId)->where(function($q) use($request){
                 if($request->personel != '')
                     $q->whereHas('hizmetler',function($q2) use($request){
                         $q2->where('personel_id',$request->personel);
                     });
-            })->whereBetween('tarih',[$request->tarih1,$request->tarih2])->get();
+            })->whereBetween(
+                \DB::raw("COALESCE(NULLIF(tarih, '0000-00-00'), DATE(created_at))"),
+                [$request->tarih1, $request->tarih2]
+            )->get();
 
         $personel = $request->personel;
         // 2. Tüm hizmetleri tek koleksiyonda birleştir (personel filtresi varsa kalem seviyesinde de uygula)
