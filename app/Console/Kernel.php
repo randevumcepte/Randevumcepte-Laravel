@@ -42,6 +42,7 @@ class Kernel extends ConsoleKernel
         Commands\FormVarsayilanYay::class,
         Commands\SiriusFormKur::class,
         Commands\DermatouchFormKur::class,
+        Commands\CerenCevizFormKur::class,
         Commands\HizmetVarsayilanYay::class,
         Commands\GuzellikSablonKur::class,
         Commands\EasistanIndexEnsure::class,
