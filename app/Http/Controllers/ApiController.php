@@ -20263,39 +20263,37 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         //$randevu->save();
 
+        // FIX (karisik paket + paketsiz): eskiden !$adisyonvar tum loop'u
+        // atliyor, paket seansli randevuda paketsiz hizmetler icin
+        // adisyon_hizmet acilmayip tahsilat gorulmuyordu. Per-hizmet kontrol:
+        //   - yardimci personel satiri => atla
+        //   - AdisyonPaketSeanslar'da bu hizmet varsa (paketten) => atla
+        //   - Ayni hizmet icin zaten adisyon_hizmet varsa => atla (idempotency)
+        //   - Aksi halde paketsiz hizmet olarak adisyona ekle
         foreach ($randevu->hizmetler as $hizmet) {
-
-            if (!$adisyonvar) {
-
-                self::adisyon_hizmet_ekle(
-
-                    $adisyon_id,
-
-                    $hizmet->hizmet_id,
-
-                    $randevu->tarih,
-
-                    $hizmet->saat,
-
-                    $hizmet->sure_dk,
-
-                    $hizmet->fiyat,
-
-                    true,
-
-                    $hizmet->personel_id,
-
-                    $hizmet->cihaz_id,
-
-                    null,
-
-                    null,
-                    $randevu->id
-
-                );
-
-            }
-
+            if ($hizmet->yardimci_personel) continue;
+            $paketSeansiVar = AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
+                ->where('hizmet_id', $hizmet->hizmet_id)
+                ->exists();
+            if ($paketSeansiVar) continue;
+            $adisyonHizmetiVar = AdisyonHizmetler::where('randevu_id', $randevu->id)
+                ->where('hizmet_id', $hizmet->hizmet_id)
+                ->exists();
+            if ($adisyonHizmetiVar) continue;
+            self::adisyon_hizmet_ekle(
+                $adisyon_id,
+                $hizmet->hizmet_id,
+                $randevu->tarih,
+                $hizmet->saat,
+                $hizmet->sure_dk,
+                $hizmet->fiyat,
+                true,
+                $hizmet->personel_id,
+                $hizmet->cihaz_id,
+                null,
+                null,
+                $randevu->id
+            );
         }
 
         Audit::logApi(optional($randevu)->salon_id, $request, 'randevu_tahsilat', 'randevu', $request->randevuid, null, 'Randevu tahsilati eklendi (adisyona islendi)');

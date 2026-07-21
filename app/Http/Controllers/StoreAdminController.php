@@ -19171,24 +19171,42 @@ DB::raw('
             else
                 $adisyon_id=$adisyon->id;
             //$randevu->save();
-            foreach($randevu->hizmetler as $hizmet)
-                if(!$adisyonvar && !$hizmet->yardimci_personel){
-                    self::adisyon_hizmet_ekle(
-                        $adisyon_id,
-                        $hizmet->hizmet_id,
-                        $randevu->tarih,
-                        $hizmet->saat,
-                        $hizmet->sure_dk,
-                        $hizmet->fiyat,
-                        true,
-                        $hizmet->personel_id,
-                        $hizmet->cihaz_id,
-                        null,
-                        null,
-                        $randevu->id
-                    );
-
-                }
+            // FIX (karisik paket + paketsiz): eskiden !$adisyonvar tum hizmet
+            // loop'unu atliyor, paket seansi olan bir randevuda paketsiz
+            // hizmetler icin adisyon_hizmet acilmayip tahsilat gorulmuyordu.
+            // Yeni davranis: her hizmet icin ayri kontrol —
+            //   * yardimci personel satiri => atla (eskisi gibi)
+            //   * bu randevu icin AdisyonPaketSeanslar'da hizmet_id eslesmesi
+            //     varsa (paketten dusuluyor) => atla
+            //   * bu randevu icin bu hizmet_id'de zaten adisyon_hizmet varsa
+            //     => atla (idempotency)
+            //   * degilse adisyon_id'ye (paketin adisyonu veya yeni acilan)
+            //     paketsiz hizmet olarak ekle
+            foreach($randevu->hizmetler as $hizmet) {
+                if($hizmet->yardimci_personel) continue;
+                $paketSeansiVar = AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
+                    ->where('hizmet_id', $hizmet->hizmet_id)
+                    ->exists();
+                if($paketSeansiVar) continue;
+                $adisyonHizmetiVar = AdisyonHizmetler::where('randevu_id', $randevu->id)
+                    ->where('hizmet_id', $hizmet->hizmet_id)
+                    ->exists();
+                if($adisyonHizmetiVar) continue;
+                self::adisyon_hizmet_ekle(
+                    $adisyon_id,
+                    $hizmet->hizmet_id,
+                    $randevu->tarih,
+                    $hizmet->saat,
+                    $hizmet->sure_dk,
+                    $hizmet->fiyat,
+                    true,
+                    $hizmet->personel_id,
+                    $hizmet->cihaz_id,
+                    null,
+                    null,
+                    $randevu->id
+                );
+            }
             return $randevu->user_id."/".$adisyon_id;
             exit;
         /*}
