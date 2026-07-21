@@ -27740,6 +27740,10 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 'konum_linki'     => $isletme->konum_linki ?? '',
                 'instagram_linki' => $isletme->instagram_linki ?? '',
                 'web_linki'       => $isletme->web_linki ?? '',
+                // Ozel basliklar — salon web'den degistirebiliyor (web modal ile ayni varsayilanlar)
+                'konum_baslik'     => 'Konumumuz',
+                'instagram_baslik' => trim($isletme->instagram_baslik ?? '') ?: 'Instagram',
+                'web_baslik'       => trim($isletme->web_baslik ?? '') ?: 'Web Sitesi',
                 // Musterinin whatsapp_onay bilgisi ayri sorgu ile alinir (userId lazim);
                 // istekte user_id varsa ayrica kontrol et
                 'musteri_onay' => (function() use ($request){
