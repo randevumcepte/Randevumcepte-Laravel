@@ -27760,6 +27760,73 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     }
 
     /**
+     * Salonun WhatsApp hazir link ayarlarini (link + baslik) kaydeder (MOBIL).
+     * Web whatsappKonumKaydet ile ayni alanlar/dogrulama; salon_id ile calisir.
+     * Web ve uygulama ayni salonlar kolonlarini kullandigindan degisiklik iki tarafta senkrondur.
+     * POST /api/v1/whatsapp-ayar-kaydet
+     * body: salon_id, konum_linki?, instagram_linki?, instagram_baslik?, web_linki?, web_baslik?
+     */
+    public function whatsappAyarKaydet(Request $request)
+    {
+        try {
+            $salonId = (int) $request->input('salon_id');
+            $isletme = Salonlar::where('id', $salonId)->first();
+            if (!$isletme) {
+                return response()->json(['ok' => false, 'mesaj' => 'Salon bulunamadi.'], 404);
+            }
+
+            $guncelle = [];
+
+            // Link alanlari (URL) — https:// zorunlu, max 500
+            foreach (['konum_linki', 'instagram_linki', 'web_linki'] as $kolon) {
+                if (!$request->has($kolon)) continue;
+                $link = trim((string) $request->input($kolon, ''));
+                if ($link !== '' && !preg_match('~^https?://~i', $link)) {
+                    return response()->json(['ok' => false, 'mesaj' => 'Gecerli bir baglanti girin (https:// ile baslamali).'], 422);
+                }
+                if (mb_strlen($link) > 500) {
+                    return response()->json(['ok' => false, 'mesaj' => 'Baglanti cok uzun (en fazla 500 karakter).'], 422);
+                }
+                if (!\Schema::hasColumn('salonlar', $kolon)) {
+                    try { DB::statement("ALTER TABLE salonlar ADD COLUMN {$kolon} VARCHAR(500) NULL"); } catch (\Throwable $e) {}
+                }
+                $guncelle[$kolon] = ($link !== '' ? $link : null);
+            }
+
+            // Baslik alanlari — max 60
+            foreach (['instagram_baslik', 'web_baslik'] as $kolon) {
+                if (!$request->has($kolon)) continue;
+                $val = trim((string) $request->input($kolon, ''));
+                if (mb_strlen($val) > 60) {
+                    return response()->json(['ok' => false, 'mesaj' => 'Baslik cok uzun (en fazla 60 karakter).'], 422);
+                }
+                if (!\Schema::hasColumn('salonlar', $kolon)) {
+                    try { DB::statement("ALTER TABLE salonlar ADD COLUMN {$kolon} VARCHAR(60) NULL"); } catch (\Throwable $e) {}
+                }
+                $guncelle[$kolon] = ($val !== '' ? $val : null);
+            }
+
+            if (!empty($guncelle)) {
+                DB::table('salonlar')->where('id', $isletme->id)->update($guncelle);
+            }
+
+            // Guncel degerleri geri don (mobil ekran hemen tazelesin)
+            $g = Salonlar::where('id', $isletme->id)->first();
+            return response()->json([
+                'ok' => true,
+                'konum_linki'      => $g->konum_linki ?? '',
+                'instagram_linki'  => $g->instagram_linki ?? '',
+                'web_linki'        => $g->web_linki ?? '',
+                'instagram_baslik' => trim($g->instagram_baslik ?? '') ?: 'Instagram',
+                'web_baslik'       => trim($g->web_baslik ?? '') ?: 'Web Sitesi',
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('api.whatsappAyarKaydet hata: '.$e->getMessage());
+            return response()->json(['ok' => false, 'mesaj' => 'Kaydedilemedi: '.$e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Musteriye manuel WhatsApp mesaji gonderir (web musterimanuelwhatsappgonder ile ayni).
      * POST /api/v1/musteri-manuel-whatsapp
      * body: salon_id, user_id, mesaj

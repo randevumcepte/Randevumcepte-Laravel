@@ -56,6 +56,8 @@ Route::post('/anket-hizli-gonder','ApiController@anketHizliGonder');
 // Musteriye manuel WhatsApp mesaji (yonetici panelinden, salon WhatsApp bagli ise)
 Route::post('/musteri-manuel-whatsapp','ApiController@musteriManuelWhatsapp');
 Route::get('/musteri-whatsapp-durum','ApiController@musteriWhatsappDurum');
+// Salon WhatsApp hazir link ayarlarini uygulamadan kaydet (web ile senkron)
+Route::post('/whatsapp-ayar-kaydet','ApiController@whatsappAyarKaydet');
 Route::post('/anketOzet/{salonId}','ApiController@anketOzet');
 Route::get('/anketOzet/{salonId}','ApiController@anketOzet');
 Route::post('/anketGonderimleri/{salonId}','ApiController@anketGonderimleri');
