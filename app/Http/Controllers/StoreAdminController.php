@@ -31636,13 +31636,21 @@ DB::raw('
         $cands = [base_path($logo), public_path($logo), public_path(ltrim($logo, '/')), public_path(preg_replace('#^public/#', '', $logo))];
         foreach ($cands as $cand) {
             if (is_file($cand)) {
+                // PERFORMANS: GD ile kucultme her PDF isteginde tekrarlanmasin.
+                // Anahtar dosya yolu + son degistirme zamani + boyut → logo
+                // degisirse onbellek kendiliginden gecersizlesir.
+                $ck = 'seansdokumu_logo_' . md5($cand . '|' . @filemtime($cand) . '|' . @filesize($cand));
+                $onbellek = Cache::get($ck);
+                if (is_string($onbellek) && $onbellek !== '') return $onbellek;
                 // Once kucultulmus surumu dene (GD varsa), olmazsa ham dosyaya dus.
                 $kucuk = self::gorseliKucultDataUri($cand, 160);
-                if ($kucuk !== null) return $kucuk;
+                if ($kucuk !== null) { Cache::put($ck, $kucuk, 60 * 24 * 7); return $kucuk; }
                 $bin = @file_get_contents($cand);
                 if ($bin !== false) {
                     $mime = @getimagesize($cand)['mime'] ?? 'image/png';
-                    return 'data:' . $mime . ';base64,' . base64_encode($bin);
+                    $uri  = 'data:' . $mime . ';base64,' . base64_encode($bin);
+                    Cache::put($ck, $uri, 60 * 24 * 7);
+                    return $uri;
                 }
             }
         }
