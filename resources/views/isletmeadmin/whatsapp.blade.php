@@ -343,17 +343,21 @@
     }
 
     function loadQr(){
-        fetchJson('/isletmeyonetim/whatsapp/qr' + qs).then(function(res){
-            if(res.status === 200 && res.body.qr){
+        return fetchJson('/isletmeyonetim/whatsapp/qr' + qs).then(function(res){
+            if(res.status === 200 && res.body && res.body.qr){
                 var q = res.body.qr;
-                // Baileys hazir resim (data:) veya URL -> dogrudan; whatsmeow ham QR metni -> resme cevir
-                if(/^data:image\//.test(q) || /^https?:\/\//.test(q)){
+                // SADECE data:image URI'sini direkt kullan. Diger her sey (wa.me URL,
+                // whatsmeow ham string vs.) QR verisi olarak api.qrserver.com'a gonderilir.
+                // whatsmeow QR ornek: "https://wa.me/settings/linked_devices#2@..."
+                if(/^data:image\//.test(q)){
                     qrImg.src = q;
                 } else {
                     qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=1&data=' + encodeURIComponent(q);
                 }
+                return true;
             }
-        });
+            return false;
+        }).catch(function(){ return false; });
     }
 
     function tick(){
@@ -365,15 +369,21 @@
             if(b.lastError){ lastErrorEl.textContent = b.lastError; lastErrorWrap.style.display='block'; }
             else { lastErrorWrap.style.display='none'; }
 
-            if(s === 'connected'){
+            // Gercekten bagli: status=connected VE telefon numarasi var.
+            if(s === 'connected' && b.phone){
                 showOnly('ok');
-                phoneEl.textContent = b.phone || '-';
+                phoneEl.textContent = b.phone;
                 connectedAt.textContent = b.connectedAt ? new Date(b.connectedAt).toLocaleString('tr-TR') : '-';
-            } else if(s === 'qr-pending' || b.hasQr){
-                showOnly('qr');
-                loadQr();
             } else {
-                showOnly('off');
+                // Her diger durumda QR olabilir (bridge disconnected/qr-timeout dese bile
+                // yeni QR uretilmis olabilir). Once QR'i dene; gelirse goster.
+                loadQr().then(function(gotQr){
+                    if(gotQr){
+                        showOnly('qr');
+                    } else {
+                        showOnly('off');
+                    }
+                });
             }
         }).catch(function(){
             setStatus('servis-kapali');
