@@ -307,7 +307,8 @@ function soruEkle(tip, mevcutSoru) {
                <button type="button" class="btn btn-sm btn-outline-secondary btn-block" onclick="soruAsagiTasi(${idx})" title="Aşağı">↓</button>
             </div>
             <div class="col-md-1 text-center pt-1">
-               <button type="button" class="btn btn-sm btn-danger" onclick="soruSil(${idx})" title="Sil"><i class="fa fa-trash"></i></button>
+               <button type="button" class="btn btn-sm btn-outline-primary btn-block mb-1" onclick="soruKopyala(${idx})" title="Kopyala (altına ekle)"><i class="fa fa-copy"></i></button>
+               <button type="button" class="btn btn-sm btn-danger btn-block" onclick="soruSil(${idx})" title="Sil"><i class="fa fa-trash"></i></button>
             </div>
          </div>
          <input type="hidden" class="soru-tip" value="${tip}">
@@ -319,6 +320,18 @@ function soruEkle(tip, mevcutSoru) {
 
 function soruSil(idx) {
    $('#soru_' + idx).remove();
+}
+
+// Soruyu (mevcut degeriyle birlikte) kopyalar ve kaynagin HEMEN ALTINA ekler.
+function soruKopyala(idx) {
+   var $src = $('#soru_' + idx);
+   if (!$src.length) return;
+   var tip = $src.find('.soru-tip').val();
+   var metin = $src.find('.soru-metni').val();
+   var zorunlu = $src.find('.soru-zorunlu').val() === '1';
+   soruEkle(tip, { tip: tip, soru: metin, zorunlu: zorunlu });
+   // soruEkle en alta ekler; yeni satiri kaynagin hemen altina tasi
+   $('#soru_' + soruSayaci).insertAfter($src);
 }
 
 function soruYukariTasi(idx) {
@@ -428,10 +441,51 @@ function formKaydet() {
    });
 }
 
+function formSilIstek(formId) {
+   var token = $('meta[name=csrf-token]').attr('content') || $('input[name=_token]').first().val();
+   $.ajax({
+      url: '/isletmeyonetim/form-sablonlari-sil',
+      type: 'POST',
+      dataType: 'json',
+      data: { _token: token, sube: '{{$isletme->id}}', form_id: formId },
+      success: function(resp) {
+         if (resp && resp.basarili) {
+            if (window.Swal) {
+               Swal.fire({ icon: 'success', title: 'Silindi', timer: 1100, showConfirmButton: false });
+            }
+            setTimeout(function(){ location.reload(); }, 900);
+         } else {
+            var mesaj = (resp && resp.mesaj) ? resp.mesaj : 'Bir hata oluştu.';
+            if (window.Swal) Swal.fire('Silinemedi', mesaj, 'info'); else alert(mesaj);
+         }
+      },
+      error: function(xhr) {
+         var mesaj = 'Sunucu hatası: ' + xhr.status + (xhr.status === 419 ? ' (oturum süresi doldu, sayfayı yenileyip tekrar deneyin).' : '.');
+         if (window.Swal) Swal.fire('Hata', mesaj, 'error'); else alert(mesaj);
+      }
+   });
+}
+
 function formSil(formId, formAdi) {
    silinecekFormId = formId;
-   $('#silMesaji').text('"' + formAdi + '" form şablonunu silmek istediğinize emin misiniz?');
-   $('#silOnayModal').modal('show');
+   if (window.Swal) {
+      Swal.fire({
+         title: 'Formu Sil',
+         html: '<b>"' + escapeHtml(formAdi) + '"</b> form şablonunu silmek istediğinize emin misiniz?<br><small style="color:#c0392b;">Bu işlem geri alınamaz.</small>',
+         icon: 'warning',
+         showCancelButton: true,
+         confirmButtonText: 'Evet, Sil',
+         cancelButtonText: 'Vazgeç',
+         confirmButtonColor: '#dc3545',
+         reverseButtons: true
+      }).then(function(sonuc) {
+         if (sonuc && (sonuc.isConfirmed || sonuc.value)) formSilIstek(formId);
+      });
+   } else {
+      // Swal yoksa: eski onay modalina dus
+      $('#silMesaji').text('"' + formAdi + '" form şablonunu silmek istediğinize emin misiniz?');
+      $('#silOnayModal').modal('show');
+   }
 }
 
 function formSiraDegistir(formId, yon) {
@@ -457,29 +511,11 @@ function formSiraDegistir(formId, yon) {
    });
 }
 
+// Eski Bootstrap onay modali fallback'i (Swal yoksa devreye girer)
 $(document).on('click', '#silOnayBtn', function() {
    if (!silinecekFormId) return;
-   $.ajax({
-      url: '/isletmeyonetim/form-sablonlari-sil',
-      type: 'POST',
-      dataType: 'json',
-      data: {
-         _token: $('meta[name=csrf-token]').attr('content') || $('input[name=_token]').first().val(),
-         sube: '{{$isletme->id}}',
-         form_id: silinecekFormId
-      },
-      success: function(resp) {
-         $('#silOnayModal').modal('hide');
-         if (resp && resp.basarili) {
-            setTimeout(function(){ location.reload(); }, 200);
-         } else {
-            alert(resp.mesaj || 'Bir hata oluştu.');
-         }
-      },
-      error: function(xhr) {
-         alert('Sunucu hatası: ' + xhr.status);
-      }
-   });
+   $('#silOnayModal').modal('hide');
+   formSilIstek(silinecekFormId);
 });
 </script>
 @endsection
