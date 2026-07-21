@@ -45,6 +45,20 @@ class WhatsmeowPanelController extends Controller
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
         $svc = app(WhatsmeowService::class);
+
+        // AKILLI BASLAT: eger zaten connected ise dokunma; degilse eski cached
+        // credentials'i (varsa) sil ve fresh QR uret. Boylece kullanici "Baglan"
+        // basinca ya oldugu gibi kalir ya da temiz bir QR gorur, "bos baglama"
+        // yani cached-with-stale-session durumuna dusmez.
+        $statusRes = $svc->status($salonId);
+        $curStatus = $statusRes['body']['status'] ?? '';
+        if ($curStatus !== 'connected') {
+            // Cached session temizle (varsa) — sonra fresh start
+            $svc->logout($salonId);
+            // Bridge'in state temizlemesi icin kucuk buffer
+            usleep(400 * 1000); // 0.4sn
+        }
+
         $res = $svc->startSession($salonId);
 
         // Production form/randevu yollari $isletme->whatsapp_aktif + durum='connected'
