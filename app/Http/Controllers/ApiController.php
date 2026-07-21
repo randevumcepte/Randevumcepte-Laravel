@@ -20300,9 +20300,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         Audit::logApi(optional($randevu)->salon_id, $request, 'randevu_tahsilat', 'randevu', $request->randevuid, null, 'Randevu tahsilati eklendi (adisyona islendi)');
 
-        return $randevu->user_id;
-
-        exit();
+        // Mobil, olusan/bulunan adisyonu tahsilat ekraninda acabilsin diye adisyon_id'yi
+        // de dondur (eskiden sadece user_id donuyordu; ekran adisyonId="" ile bos aciliyordu).
+        return response()->json([
+            'adisyon_id' => (string) $adisyon_id,
+            'user_id'    => (string) $randevu->user_id,
+        ]);
 
         /*}
 
