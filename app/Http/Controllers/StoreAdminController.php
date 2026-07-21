@@ -3597,7 +3597,7 @@ public function carkverilerigetir(Request $request)
     }
 
     $randevu_hizmetler = $randevu_hizmetler_raw
-    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$_anketYetki,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet,$paketDurumuByRandevu) {
+    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$_anketYetki,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet,$paketDurumuByRandevu,$paketHizmetIdsByRandevu) {
 
         $start = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat)->toIso8601String();
 
@@ -3680,19 +3680,13 @@ public function carkverilerigetir(Request $request)
             // hizmet satislari icin gosterilir. Seans sayisi kayitli olmayan
             // (NULL / bos / 0) hizmet satislari da seans kaydi olusturuyor; bunlari
             // paket saymak yanlis "(PAKET)" etiketine yol aciyordu (issue: salon 204 / user 53153).
-            // KARMA randevu (bazi hizmetler paketli, bazilari degil) icin ayri etiket.
-            // Etiket "PAKET" substring'i icermez => tahsilat butonunu gizleyen
-            // client kontrolleri (mobil takvim.dart 'contains("PAKET")') KARMA
-            // randevularda tahsilat butonunu dogru sekilde acar.
-            $paketDurumu = $paketDurumuByRandevu[$rh->randevu_id] ?? null;
-            if($paketDurumu === 'tumu'){
+            // Per-hizmet paket etiketi: sadece BU spesifik hizmet paketten
+            // dusuluyorsa "(PAKET)" ekle. Karma randevuda paketsiz hizmet
+            // kartlarina etiket eklenmez, tahsilat butonu dogru gorunur.
+            $buHizmetPaketli = isset($paketHizmetIdsByRandevu[$rh->randevu_id][(int)$rh->hizmet_id]);
+            if($buHizmetPaketli){
                 $title .= " (PAKET)";
                 $_modalSubtitle = 'Paket Randevusu';
-                $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"><i class="fa fa-edit"></i> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn">Müşteri Detay</a>';
-            }
-            elseif($paketDurumu === 'karma'){
-                $title .= " (KARMA)";
-                $_modalSubtitle = 'Karma Randevu';
                 $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"><i class="fa fa-edit"></i> Düzenle</a><a href="/isletmeyonetim/musteridetay/'.$rh->randevu->user_id.'?sube='.$rh->randevu->salon_id.'" class="btn btn-info btn-sm musteri-detay-btn">Müşteri Detay</a>';
             }
 

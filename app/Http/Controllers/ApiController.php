@@ -1724,7 +1724,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         $randevu_hizmetler = $randevuHizmetler->map(function ($rh) use(
             $takvim_turu,$isletmeId,$personelRolu,
-            $adisyonHizmetlerByRandevu,$tahsilatToplamlari,$seansSayilariByRandevu,$paketRandevuIds,$paketDurumuByRandevu,
+            $adisyonHizmetlerByRandevu,$tahsilatToplamlari,$seansSayilariByRandevu,$paketRandevuIds,$paketDurumuByRandevu,$paketHizmetIdsByRandevu,
             $kategoriRenkleri,$cihazRenkleri,$odaRenkleri
         ) {
             $satisOlustu = 0;
@@ -1839,19 +1839,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $title = $rh->randevu->users->name;
                 $modalTitle = $rh->randevu->users->name;
                 $seansVar = $seansSayilariByRandevu[$rh->randevu_id] ?? 0;
-                $paketDurumu = $paketDurumuByRandevu[$rh->randevu_id] ?? null;
-                if($paketDurumu === 'tumu'){
-                    // Tum hizmetler paketten dusuluyor
+                // Per-hizmet paket etiketi: sadece BU spesifik hizmet paketten
+                // dusuluyorsa "(PAKET)" ekle. Ayni randevuda paketsiz hizmet
+                // varsa onun kartinda etiket olmaz => mobil takvim.dart tahsilat
+                // butonu (paketsiz) hizmet detayinda dogru sekilde gorunur.
+                $buHizmetPaketli = isset($paketHizmetIdsByRandevu[$rh->randevu_id][(int)$rh->hizmet_id]);
+                if($buHizmetPaketli){
                     $title .= " (PAKET)";
                     $modalTitle .= " Paket Randevusu ";
-                    $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"> Düzenle</a>';
-                }
-                elseif($paketDurumu === 'karma'){
-                    // En az bir hizmet paketli, en az biri paketsiz => tahsilat gorunmeli
-                    // Etiket "PAKET" substring'i icermez => mobil takvim.dart tahsilat
-                    // butonunu dogru sekilde gosterir.
-                    $title .= " (KARMA)";
-                    $modalTitle .= " Karma Randevu ";
                     $duzenleButon .= '<a data-toggle="modal" data-target="#randevu-duzenle-modal" name="randevu_duzenle" href="#" class="btn btn-primary" data-value="'.$rh->randevu_id.'" data-index-number="'.$rh->hizmet_id.'"> Düzenle</a>';
                 }
                
