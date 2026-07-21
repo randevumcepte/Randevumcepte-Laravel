@@ -20105,6 +20105,35 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     return $hizmet_liste;
 }
 
+    // Adisyon tamamen odenmis (kapali) mi? Satis takibindeki acik/kapali
+    // filtresiyle AYNI mantik: kalem toplami <= tahsilat toplami.
+    // Kapali adisyona yeni kalem yazilmasini engellemek icin kullanilir.
+    private function adisyonTamamenOdenmisMi($adisyonId)
+    {
+        if (!$adisyonId) {
+            return false;
+        }
+
+        $hizmetIdler = AdisyonHizmetler::where('adisyon_id', $adisyonId)->pluck('id');
+        $urunIdler   = AdisyonUrunler::where('adisyon_id', $adisyonId)->pluck('id');
+        $paketIdler  = AdisyonPaketler::where('adisyon_id', $adisyonId)->pluck('id');
+
+        $toplam = AdisyonHizmetler::whereIn('id', $hizmetIdler)->sum('fiyat')
+                + AdisyonUrunler::whereIn('id', $urunIdler)->sum('fiyat')
+                + AdisyonPaketler::whereIn('id', $paketIdler)->sum('fiyat');
+
+        // Bos adisyon (kalem yok) "odenmis" sayilmaz
+        if ($toplam <= 0) {
+            return false;
+        }
+
+        $tahsilat = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $hizmetIdler)->sum('tutar')
+                  + TahsilatUrunler::whereIn('adisyon_urun_id', $urunIdler)->sum('tutar')
+                  + TahsilatPaketler::whereIn('adisyon_paket_id', $paketIdler)->sum('tutar');
+
+        return $tahsilat >= $toplam;
+    }
+
     public function randevutahsilet(Request $request)
 
     {
@@ -20280,6 +20309,14 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         {*/
 
         $adisyon_id = "";
+
+        // Paket seansi / paket hizmeti nedeniyle bulunan adisyon KAPALI ise
+        // (kalemleri tamamen tahsil edilmis) uzerine YAZMA. Randevuya eklenen
+        // paket disi ekstra hizmetler icin yeni adisyon acilir; aksi halde
+        // kapanmis paket adisyonu yeniden aciliyor ve muhasebe karisiyor.
+        if ($adisyonvar && $adisyon && self::adisyonTamamenOdenmisMi($adisyon->id)) {
+            $adisyonvar = false;
+        }
 
         if (!$adisyonvar) {
 
