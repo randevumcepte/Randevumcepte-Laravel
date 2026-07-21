@@ -31,7 +31,28 @@
    <tr><td class="etiket">Kapora / On Odeme</td><td>{{ number_format($arsiv->kapora, 2, ',', '.') }} TL</td></tr>
    <tr><td class="etiket">Kalan Bakiye</td><td><b>{{ number_format(($arsiv->toplam_ucret - $arsiv->kapora), 2, ',', '.') }} TL</b></td></tr>
    @endif
+   @php $odemeSekliEtiket = ['pesin'=>'Pesin','taksit'=>'Taksitli','kredi_karti'=>'Kredi Karti']; @endphp
+   @if(!empty($arsiv->odeme_sekli))<tr><td class="etiket">Odeme Sekli</td><td>{{ $odemeSekliEtiket[$arsiv->odeme_sekli] ?? $arsiv->odeme_sekli }}</td></tr>@endif
+   @if(!empty($arsiv->gecerlilik_tarihi))<tr><td class="etiket">Gecerlilik Tarihi</td><td>{{ date('d.m.Y', strtotime($arsiv->gecerlilik_tarihi)) }}</td></tr>@endif
 </table>
+
+@php
+   $odemePlani = [];
+   if(!empty($arsiv->odeme_plani_json)){ try { $odemePlani = json_decode($arsiv->odeme_plani_json, true) ?: []; } catch(\Exception $e){ $odemePlani = []; } }
+@endphp
+@if(count($odemePlani) > 0)
+<div style="font-size:12px; font-weight:bold; margin:6px 0 4px;">ODEME PLANI ({{ $arsiv->taksit_sayisi }} Taksit)</div>
+<table class="bilgi-tablo" style="margin-bottom:14px;">
+   <tr style="background:#f5f5f5;"><td class="etiket" style="width:15%;">#</td><td class="etiket">Vade Tarihi</td><td class="etiket" style="text-align:right;">Tutar</td></tr>
+   @foreach($odemePlani as $t)
+   <tr>
+      <td>{{ $t['sira'] ?? '-' }}</td>
+      <td>{{ !empty($t['tarih']) ? date('d.m.Y', strtotime($t['tarih'])) : '-' }}</td>
+      <td style="text-align:right;"><b>{{ number_format($t['tutar'] ?? 0, 2, ',', '.') }} TL</b></td>
+   </tr>
+   @endforeach
+</table>
+@endif
 
 <div class="sozlesme-metni">
 <b>SOZLESME SARTLARI:</b><br>

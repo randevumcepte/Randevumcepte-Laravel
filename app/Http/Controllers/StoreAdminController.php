@@ -31892,6 +31892,14 @@ DB::raw('
                 \DB::statement("ALTER TABLE arsiv ADD COLUMN salon_imza_ip VARCHAR(45) NULL");
                 \DB::statement("ALTER TABLE arsiv ADD COLUMN salon_imza_zaman DATETIME NULL");
             }
+            if(!in_array('odeme_sekli',$arsivCols)){
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN odeme_sekli VARCHAR(20) NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN taksit_sayisi INT NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN taksit_tutari DECIMAL(12,2) NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN ilk_taksit_tarihi DATE NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN odeme_plani_json TEXT NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN gecerlilik_tarihi DATE NULL");
+            }
             $salonCols = array_column(\DB::select("SHOW COLUMNS FROM salonlar"), 'Field');
             if(!in_array('sozlesme_varsayilan_metin',$salonCols)){
                 \DB::statement("ALTER TABLE salonlar ADD COLUMN sozlesme_varsayilan_metin TEXT NULL");
@@ -32696,6 +32704,25 @@ DB::raw('
             $arsiv->sozlesme_notu  = $request->sozlesme_notu ?: null;
             $arsiv->sozlesme_metni = $request->sozlesme_metni ?: null;
             $arsiv->cevapladi      = false;
+            // Odeme sekli / taksit plani (opsiyonel)
+            $odemeSekli  = in_array($request->odeme_sekli, ['pesin','taksit','kredi_karti']) ? $request->odeme_sekli : 'pesin';
+            $taksitSayisi = (int) $request->taksit_sayisi;
+            $ilkTaksit   = $request->ilk_taksit_tarihi ?: null;
+            $taksitTutari = $request->taksit_tutari !== null ? (float) str_replace(',', '.', $request->taksit_tutari) : null;
+            $arsiv->odeme_sekli       = $odemeSekli;
+            $arsiv->gecerlilik_tarihi = $request->gecerlilik_tarihi ?: null;
+            if($odemeSekli === 'taksit' && $taksitSayisi >= 1){
+                $plan = self::sozlesmeOdemePlaniUret((float)($request->toplam_ucret ?: 0), (float)($request->kapora ?: 0), $taksitSayisi, $taksitTutari, $ilkTaksit);
+                $arsiv->taksit_sayisi     = $taksitSayisi;
+                $arsiv->taksit_tutari     = $plan['taksit_tutari'];
+                $arsiv->ilk_taksit_tarihi = $ilkTaksit;
+                $arsiv->odeme_plani_json  = json_encode($plan['plan'], JSON_UNESCAPED_UNICODE);
+            } else {
+                $arsiv->taksit_sayisi     = null;
+                $arsiv->taksit_tutari     = null;
+                $arsiv->ilk_taksit_tarihi = null;
+                $arsiv->odeme_plani_json  = null;
+            }
             // Salon yetkilisi sozlesmeyi olusturma aninda panel uzerinden imzalar (cift tarafli imza)
             $arsiv->salon_imza            = $salonImza;
             $arsiv->salon_yetkili_ad      = trim((string)$request->salon_yetkili_ad) ?: null;
@@ -32720,6 +32747,32 @@ DB::raw('
             \Log::error('sozlesmeOlustur hata: '.$e->getMessage());
             return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
         }
+    }
+
+    // Sozlesme taksit odeme plani uretir (kapora dusulmus kalan bakiyeyi taksitlere boler).
+    // Yuvarlamadan kaynakli fark son taksite eklenir. Tarih verilmediyse tarihsiz plan doner.
+    // Donus: ['taksit_tutari'=>float, 'plan'=>[['sira','tarih','tutar'], ...]]
+    public static function sozlesmeOdemePlaniUret($toplam, $kapora, $taksitSayisi, $taksitTutari = null, $ilkTarih = null){
+        $taksitSayisi = max(1, (int)$taksitSayisi);
+        $kalan = round(max(0, (float)$toplam - (float)$kapora), 2);
+        // Taksit tutari verilmediyse (ya da 0 ise) esit bol.
+        $birim = ($taksitTutari && $taksitTutari > 0) ? round((float)$taksitTutari, 2) : round($kalan / $taksitSayisi, 2);
+        $plan = [];
+        $tarih = null;
+        try { $tarih = $ilkTarih ? \Carbon\Carbon::parse($ilkTarih) : null; } catch(\Exception $e){ $tarih = null; }
+        $toplananOncekiler = 0;
+        for($i = 1; $i <= $taksitSayisi; $i++){
+            // Son taksit: yuvarlama farkini kapatir (kalan - onceki taksitler toplami).
+            $tutar = ($i === $taksitSayisi) ? round($kalan - $toplananOncekiler, 2) : $birim;
+            if($tutar < 0) $tutar = 0;
+            $toplananOncekiler = round($toplananOncekiler + $tutar, 2);
+            $plan[] = [
+                'sira'  => $i,
+                'tarih' => $tarih ? $tarih->copy()->addMonths($i - 1)->format('Y-m-d') : null,
+                'tutar' => $tutar,
+            ];
+        }
+        return ['taksit_tutari' => $birim, 'plan' => $plan];
     }
 
     // Salon icin varsayilan sozlesme sartlari metnini kaydeder; bir defa girilir,

@@ -59,7 +59,32 @@
          <tr><td class="etiket">Kapora / Ön Ödeme</td><td>{{ number_format($arsiv->kapora, 2, ',', '.') }} ₺</td></tr>
          <tr><td class="etiket">Kalan Bakiye</td><td><b>{{ number_format(($arsiv->toplam_ucret - $arsiv->kapora), 2, ',', '.') }} ₺</b></td></tr>
          @endif
+         @php $odemeSekliEtiket = ['pesin'=>'Peşin','taksit'=>'Taksitli','kredi_karti'=>'Kredi Kartı']; @endphp
+         @if(!empty($arsiv->odeme_sekli))<tr><td class="etiket">Ödeme Şekli</td><td>{{ $odemeSekliEtiket[$arsiv->odeme_sekli] ?? $arsiv->odeme_sekli }}</td></tr>@endif
+         @if(!empty($arsiv->gecerlilik_tarihi))<tr><td class="etiket">Geçerlilik Tarihi</td><td>{{ date('d.m.Y', strtotime($arsiv->gecerlilik_tarihi)) }}</td></tr>@endif
       </table>
+
+      @php
+         $odemePlani = [];
+         if(!empty($arsiv->odeme_plani_json)){ try { $odemePlani = json_decode($arsiv->odeme_plani_json, true) ?: []; } catch(\Exception $e){ $odemePlani = []; } }
+      @endphp
+      @if(count($odemePlani) > 0)
+      <div style="border:1px solid #e3dcf2; border-radius:8px; overflow:hidden; margin-bottom:20px;">
+         <div style="background:#5C008E; color:#fff; padding:10px 14px; font-weight:600; font-size:14px;">Ödeme Planı ({{ $arsiv->taksit_sayisi }} Taksit)</div>
+         <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead><tr style="background:#faf8ff;"><th style="padding:8px 12px; text-align:left; width:60px;">#</th><th style="padding:8px 12px; text-align:left;">Vade Tarihi</th><th style="padding:8px 12px; text-align:right;">Tutar</th></tr></thead>
+            <tbody>
+               @foreach($odemePlani as $t)
+               <tr style="border-top:1px solid #eee;">
+                  <td style="padding:8px 12px;">{{ $t['sira'] ?? '-' }}</td>
+                  <td style="padding:8px 12px;">{{ !empty($t['tarih']) ? date('d.m.Y', strtotime($t['tarih'])) : '—' }}</td>
+                  <td style="padding:8px 12px; text-align:right;"><b>{{ number_format($t['tutar'] ?? 0, 2, ',', '.') }} ₺</b></td>
+               </tr>
+               @endforeach
+            </tbody>
+         </table>
+      </div>
+      @endif
 
       <div class="sozlesme-metni">
          <b>SÖZLEŞME ŞARTLARI:</b><br>

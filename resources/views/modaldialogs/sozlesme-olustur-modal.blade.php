@@ -72,6 +72,52 @@
                         <input type="hidden" name="kapora" id="sozlesme_kapora" value="0">
                      </div>
                   </div>
+
+                  <!-- ÖDEME ŞEKLİ / TAKSİT (opsiyonel) -->
+                  <div class="col-md-4 form-group">
+                     <label><b>Ödeme Şekli</b></label>
+                     <select name="odeme_sekli" id="sozlesme_odeme_sekli" class="form-control">
+                        <option value="pesin" selected>Peşin</option>
+                        <option value="taksit">Taksitli</option>
+                        <option value="kredi_karti">Kredi Kartı</option>
+                     </select>
+                  </div>
+                  <div class="col-md-8 form-group">
+                     <label><b>Hizmet/Paket Geçerlilik Tarihi</b> <small class="text-muted">(opsiyonel — son kullanım)</small></label>
+                     <input type="date" name="gecerlilik_tarihi" id="sozlesme_gecerlilik" class="form-control">
+                  </div>
+
+                  <div class="col-md-12" id="sozlesme_taksit_bolumu" style="display:none;">
+                     <div style="background:#f5f3fb; border:1px solid #e3dcf2; border-radius:8px; padding:14px 16px; margin-bottom:14px;">
+                        <p style="font-weight:700; margin:0 0 10px; color:#5C008E;"><i class="fa fa-credit-card"></i> Taksit Planı</p>
+                        <div class="row">
+                           <div class="col-md-4 form-group">
+                              <label><b>Taksit Sayısı</b></label>
+                              <input type="number" name="taksit_sayisi" id="sozlesme_taksit_sayisi" class="form-control" min="1" max="60" placeholder="Örn: 6">
+                           </div>
+                           <div class="col-md-4 form-group">
+                              <label><b>Taksit Tutarı (₺)</b> <small class="text-muted">(oto)</small></label>
+                              <div style="position:relative;">
+                                 <input type="text" id="sozlesme_taksit_tutari_display" class="form-control tl-input" inputmode="decimal" placeholder="0,00" style="padding-right:30px;">
+                                 <span style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#666; font-weight:600;">₺</span>
+                                 <input type="hidden" name="taksit_tutari" id="sozlesme_taksit_tutari">
+                              </div>
+                           </div>
+                           <div class="col-md-4 form-group">
+                              <label><b>İlk Taksit Tarihi</b></label>
+                              <input type="date" name="ilk_taksit_tarihi" id="sozlesme_ilk_taksit" class="form-control">
+                           </div>
+                        </div>
+                        <div id="sozlesme_taksit_ozet" style="font-size:12px; color:#555; margin-bottom:8px;"></div>
+                        <div style="max-height:180px; overflow:auto; border:1px solid #e3dcf2; border-radius:6px; background:#fff;">
+                           <table class="table table-sm" style="margin:0; font-size:12px;">
+                              <thead><tr style="background:#faf8ff;"><th style="width:60px;">#</th><th>Vade Tarihi</th><th style="text-align:right;">Tutar</th></tr></thead>
+                              <tbody id="sozlesme_taksit_tablo"><tr><td colspan="3" class="text-muted" style="text-align:center;">Taksit sayısı girin…</td></tr></tbody>
+                           </table>
+                        </div>
+                     </div>
+                  </div>
+
                   <div class="col-md-12 form-group">
                      <label><b>Sözleşme Şartları *</b> <small class="text-muted">(müşteriye gösterilecek metin — düzenleyebilirsiniz)</small></label>
                      <textarea name="sozlesme_metni" id="sozlesme_metni" class="form-control" rows="10" required style="font-size:13px;font-family:monospace;"></textarea>
@@ -227,7 +273,62 @@ function sozlesmeSalonImzaKur(){
    c.addEventListener('touchstart', start); c.addEventListener('touchmove', draw); c.addEventListener('touchend', end);
 }
 
+// --- Taksit plani canli hesaplama/onizleme ---
+function sozlesmeTarihEkleAy(baseStr, ay){
+   if(!baseStr) return null;
+   var p = baseStr.split('-'); if(p.length !== 3) return null;
+   var d = new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10));
+   if(isNaN(d.getTime())) return null;
+   var gun = d.getDate();
+   d.setMonth(d.getMonth()+ay);
+   if(d.getDate() < gun) d.setDate(0); // ay tasmasi (31 -> ayin son gunu)
+   var yy = d.getFullYear(), mm = ('0'+(d.getMonth()+1)).slice(-2), dd = ('0'+d.getDate()).slice(-2);
+   return yy+'-'+mm+'-'+dd;
+}
+function sozlesmeTarihGoster(iso){
+   if(!iso) return '-';
+   var p = iso.split('-'); return p.length===3 ? (p[2]+'.'+p[1]+'.'+p[0]) : iso;
+}
+function sozlesmeTaksitGuncelle(){
+   var sekli = $('#sozlesme_odeme_sekli').val();
+   if(sekli !== 'taksit'){ $('#sozlesme_taksit_bolumu').hide(); return; }
+   $('#sozlesme_taksit_bolumu').show();
+   var toplam = sozlesmeTlParse($('#sozlesme_toplam_display').val()) || sozlesmeTlParse($('#sozlesme_toplam').val());
+   var kapora = sozlesmeTlParse($('#sozlesme_kapora_display').val()) || sozlesmeTlParse($('#sozlesme_kapora').val());
+   var kalan = Math.max(0, toplam - kapora);
+   var sayi = parseInt($('#sozlesme_taksit_sayisi').val(),10) || 0;
+   var elleTutar = sozlesmeTlParse($('#sozlesme_taksit_tutari').val());
+   var $tb = $('#sozlesme_taksit_tablo');
+   if(sayi < 1){
+      $tb.html('<tr><td colspan="3" class="text-muted" style="text-align:center;">Taksit sayısı girin…</td></tr>');
+      $('#sozlesme_taksit_ozet').text('');
+      return;
+   }
+   var birim = (elleTutar && elleTutar > 0) ? elleTutar : Math.round((kalan / sayi) * 100) / 100;
+   // Ozet + tablo
+   var ilk = $('#sozlesme_ilk_taksit').val();
+   var rows = '', toplandi = 0;
+   for(var i=1;i<=sayi;i++){
+      var tutar = (i===sayi) ? Math.round((kalan - toplandi) * 100)/100 : birim;
+      if(tutar < 0) tutar = 0;
+      toplandi = Math.round((toplandi + tutar)*100)/100;
+      var tarih = ilk ? sozlesmeTarihEkleAy(ilk, i-1) : null;
+      rows += '<tr><td>'+i+'</td><td>'+(tarih ? sozlesmeTarihGoster(tarih) : '<span class="text-muted">—</span>')+'</td><td style="text-align:right;">'+sozlesmeTlFormat(tutar)+' ₺</td></tr>';
+   }
+   $tb.html(rows);
+   // taksit_tutari hidden alanini oto doldur (elle girilmediyse)
+   if(!(elleTutar && elleTutar > 0)){
+      $('#sozlesme_taksit_tutari').val(birim);
+      $('#sozlesme_taksit_tutari_display').val(sozlesmeTlFormat(birim));
+   }
+   $('#sozlesme_taksit_ozet').html('Kalan bakiye <b>'+sozlesmeTlFormat(kalan)+' ₺</b> — <b>'+sayi+'</b> taksit x ~<b>'+sozlesmeTlFormat(birim)+' ₺</b>');
+}
+
 $(document).ready(function(){
+   $(document).on('change', '#sozlesme_odeme_sekli', function(){ sozlesmeTaksitGuncelle(); });
+   $(document).on('input change', '#sozlesme_taksit_sayisi, #sozlesme_ilk_taksit', function(){ sozlesmeTaksitGuncelle(); });
+   $(document).on('input', '#sozlesme_taksit_tutari_display', function(){ $('#sozlesme_taksit_tutari').val(sozlesmeTlParse($(this).val())); sozlesmeTaksitGuncelle(); });
+   $(document).on('input', '#sozlesme_toplam_display, #sozlesme_kapora_display', function(){ sozlesmeTaksitGuncelle(); });
    $(document).on('click', '#sozlesmeSalonImzaTemizle', function(){
       var c = document.getElementById('sozlesme_salon_imza_canvas');
       if(c){ c.getContext('2d').clearRect(0,0,c.width,c.height); sozlesmeSalonImzaCizildi = false; $('#sozlesme_salon_imza').val(''); }

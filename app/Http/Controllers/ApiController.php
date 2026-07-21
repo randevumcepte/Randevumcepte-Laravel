@@ -28141,9 +28141,41 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             if(!in_array('is_sozlesme_tipi',$cols)){
                 \DB::statement("ALTER TABLE formtaslaklari ADD COLUMN is_sozlesme_tipi TINYINT(1) NOT NULL DEFAULT 0");
             }
+            // Sozlesme taksit/odeme kolonlari (web ile ayni; mobil de olusturabilsin)
+            $arsivCols = array_column(\DB::select("SHOW COLUMNS FROM arsiv"), 'Field');
+            if(!in_array('odeme_sekli',$arsivCols)){
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN odeme_sekli VARCHAR(20) NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN taksit_sayisi INT NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN taksit_tutari DECIMAL(12,2) NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN ilk_taksit_tarihi DATE NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN odeme_plani_json TEXT NULL");
+                \DB::statement("ALTER TABLE arsiv ADD COLUMN gecerlilik_tarihi DATE NULL");
+            }
         } catch(\Exception $e){
             \Log::warning('formtaslaklari kolon kontrol: '.$e->getMessage());
         }
+    }
+
+    // Sozlesme taksit odeme plani uretir (web'deki StoreAdminController mantiginin aynisi).
+    private function _sozlesmeOdemePlaniUretAPI($toplam, $kapora, $taksitSayisi, $taksitTutari = null, $ilkTarih = null){
+        $taksitSayisi = max(1, (int)$taksitSayisi);
+        $kalan = round(max(0, (float)$toplam - (float)$kapora), 2);
+        $birim = ($taksitTutari && $taksitTutari > 0) ? round((float)$taksitTutari, 2) : round($kalan / $taksitSayisi, 2);
+        $plan = [];
+        $tarih = null;
+        try { $tarih = $ilkTarih ? \Carbon\Carbon::parse($ilkTarih) : null; } catch(\Exception $e){ $tarih = null; }
+        $toplananOncekiler = 0;
+        for($i = 1; $i <= $taksitSayisi; $i++){
+            $tutar = ($i === $taksitSayisi) ? round($kalan - $toplananOncekiler, 2) : $birim;
+            if($tutar < 0) $tutar = 0;
+            $toplananOncekiler = round($toplananOncekiler + $tutar, 2);
+            $plan[] = [
+                'sira'  => $i,
+                'tarih' => $tarih ? $tarih->copy()->addMonths($i - 1)->format('Y-m-d') : null,
+                'tutar' => $tutar,
+            ];
+        }
+        return ['taksit_tutari' => $birim, 'plan' => $plan];
     }
 
     public function formSablonlariListe(Request $request){
@@ -28292,6 +28324,20 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 $arsiv->salon_yetkili_telefon = trim((string)$request->salon_yetkili_telefon) ?: null;
                 $arsiv->salon_imza_ip         = $request->ip();
                 $arsiv->salon_imza_zaman      = now();
+            }
+            // Odeme sekli / taksit plani (opsiyonel)
+            $odemeSekli   = in_array($request->odeme_sekli, ['pesin','taksit','kredi_karti']) ? $request->odeme_sekli : 'pesin';
+            $taksitSayisi = (int) $request->taksit_sayisi;
+            $ilkTaksit    = $request->ilk_taksit_tarihi ?: null;
+            $taksitTutari = $request->taksit_tutari !== null ? (float) str_replace(',', '.', $request->taksit_tutari) : null;
+            $arsiv->odeme_sekli       = $odemeSekli;
+            $arsiv->gecerlilik_tarihi = $request->gecerlilik_tarihi ?: null;
+            if($odemeSekli === 'taksit' && $taksitSayisi >= 1){
+                $plan = $this->_sozlesmeOdemePlaniUretAPI((float)($request->toplam_ucret ?: 0), (float)($request->kapora ?: 0), $taksitSayisi, $taksitTutari, $ilkTaksit);
+                $arsiv->taksit_sayisi     = $taksitSayisi;
+                $arsiv->taksit_tutari     = $plan['taksit_tutari'];
+                $arsiv->ilk_taksit_tarihi = $ilkTaksit;
+                $arsiv->odeme_plani_json  = json_encode($plan['plan'], JSON_UNESCAPED_UNICODE);
             }
             $arsiv->save();
 
