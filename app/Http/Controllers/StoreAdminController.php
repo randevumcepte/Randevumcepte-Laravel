@@ -24373,6 +24373,19 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
         $svc = app(\App\Services\WhatsAppService::class);
+
+        // AKILLI BASLAT: gercekten connected degilse eski cached credentials'i
+        // sil, fresh QR uret. Aksi halde "Bagli" gozukup numara bos kaliyordu
+        // (bridge cached'e reconnect deneyip fail oluyor, QR uretmiyordu).
+        $statusRes = $svc->status($salonId);
+        $curStatus = $statusRes['body']['status'] ?? '';
+        $curPhone  = $statusRes['body']['phone'] ?? null;
+        // Gercekten bagliysa (status=connected VE numara var) dokunma
+        if ($curStatus !== 'connected' || empty($curPhone)) {
+            $svc->logout($salonId);
+            usleep(400 * 1000); // 0.4sn bridge'in state temizlemesi icin
+        }
+
         $res = $svc->startSession($salonId);
 
         if ($res['ok'] ?? false) {
