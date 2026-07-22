@@ -12806,9 +12806,25 @@ private function createDurumButonlari($id, $tip)
     }
     $pdfBtn = '';
     if ($lazer) {
-        $sube = request()->get('sube');
-        $url  = '/isletmeyonetim/seansDokumuPdf?' . ($tip == 'paket' ? 'adisyonpaketid=' : 'adisyonhizmetid=') . $id . ($sube ? ('&sube=' . $sube) : '');
-        $pdfBtn = '<a href="' . $url . '" target="_blank" title="Seans Dökümü (PDF)" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:#5C008E;color:#fff;font-size:15px;text-decoration:none;box-shadow:0 2px 6px rgba(92,0,142,.25);flex:0 0 auto;"><i class="fa fa-file-pdf-o"></i></a>';
+        // PDF ikonu SADECE cihaz bilgisi girilmis lazer paket/hizmette gorunur.
+        // (Tablo yoksa - canlida migrate edilmemisse - hata vermesin diye try/catch.)
+        $veriVar = false;
+        try {
+            $seansIds = DB::table('adisyon_paket_seanslar')
+                ->where($tip == 'paket' ? 'adisyon_paket_id' : 'adisyon_hizmet_id', $id)
+                ->pluck('id');
+            if ($seansIds->isNotEmpty()) {
+                $veriVar = DB::table('seans_cihaz_verileri')
+                    ->whereIn('seans_id', $seansIds)->exists();
+            }
+        } catch (\Throwable $e) {
+            $veriVar = false;
+        }
+        if ($veriVar) {
+            $sube = request()->get('sube');
+            $url  = '/isletmeyonetim/seansDokumuPdf?' . ($tip == 'paket' ? 'adisyonpaketid=' : 'adisyonhizmetid=') . $id . ($sube ? ('&sube=' . $sube) : '');
+            $pdfBtn = '<a href="' . $url . '" target="_blank" title="Seans Dökümü (PDF)" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:#5C008E;color:#fff;font-size:15px;text-decoration:none;box-shadow:0 2px 6px rgba(92,0,142,.25);flex:0 0 auto;"><i class="fa fa-file-pdf-o"></i></a>';
+        }
     }
 
     // Rozetler + PDF ikonu tek flex satirda; her rozet SABIT genislik (flex-basis)
