@@ -462,7 +462,11 @@ $(document).on('click', 'button[name="cihazBilgileriKart"]', function(e){
     for (var i=0; i<seanslar.length; i++){
         norm.push({ id: seanslar[i].id, no: i+1, tarih: seanslar[i].seans_tarih, geldi: seanslar[i].geldi });
     }
-    var def = norm[norm.length-1].id; // varsayilan: en son seans
+    // Varsayilan secili: en son "geldi" (kullanilmis ✓) seans; hicbiri gelmediyse en son seans.
+    var def = norm[norm.length-1].id;
+    for (var j=norm.length-1; j>=0; j--){
+        if (Number(norm[j].geldi) === 1){ def = norm[j].id; break; }
+    }
     cihazModalAc(def, norm);
 });
 // Modal icinde seans degistir
