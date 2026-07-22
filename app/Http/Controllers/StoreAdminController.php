@@ -3514,11 +3514,14 @@ public function carkverilerigetir(Request $request)
             ->value('id');
     }
 
-    // "Günü geçen randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri):
-    // takvimin istedigi tarih araliginin alt sinirini bugune cekiyoruz.
-    // Aralik tamamen gecmiste kalirsa $tarih1 > $tarih2 olur ve sorgu dogal olarak
-    // bos doner; takvimin geri kalan yapisi (resource/calisma saatleri) bozulmaz.
-    if (self::gecmisRandevuGizlensinMi($isletmeId) && $tarih1 < date('Y-m-d')) {
+    // "Saati geçen randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri).
+    // Tarih alt sinirini bugune cekiyoruz (indeks kullanimi icin) + bugunun saati gecmis
+    // randevulari asagida whereHas icinde eliyoruz. Aralik tamamen gecmiste kalirsa
+    // $tarih1 > $tarih2 olur ve sorgu dogal olarak bos doner; takvimin geri kalan yapisi
+    // (resource/calisma saatleri) bozulmaz.
+    $_gecmisGizle = self::gecmisRandevuGizlensinMi($isletmeId);
+    $_simdi = date('Y-m-d H:i:s');
+    if ($_gecmisGizle && $tarih1 < date('Y-m-d')) {
         $tarih1 = date('Y-m-d');
     }
 
@@ -3535,11 +3538,19 @@ public function carkverilerigetir(Request $request)
         'randevu.ongorusme.personel',
         'randevu.hizmetler', // partial icindeki yardimci personel taramasi N+1'ini engellemek icin
     ])->where('sure_dk','>',0)
-    ->whereHas('randevu', function ($q)  use($isletmeId,$tarih1,$tarih2){
+    ->whereHas('randevu', function ($q)  use($isletmeId,$tarih1,$tarih2,$_gecmisGizle,$_simdi){
         $q->where('durum', '<', 2);
         $q->where('tarih','>=',$tarih1);
         $q->where('tarih','<=',$tarih2);
         $q->where('salon_id',$isletmeId);
+        if ($_gecmisGizle) {
+            // Korelasyonlu alt sorgu — randevu_hizmetler kolonlari burada erisilebilir.
+            // Kalem saati NULL ise randevunun kendi saatine dus (ApiController ile ayni mantik).
+            $q->whereRaw(
+                "CONCAT(randevular.tarih,' ',COALESCE(randevu_hizmetler.saat, randevular.saat)) >= ?",
+                [$_simdi]
+            );
+        }
     })
     ->when($kendiPersonelIdFiltre, function ($q) use ($kendiPersonelIdFiltre) {
         $q->where('personel_id', $kendiPersonelIdFiltre);
@@ -16139,13 +16150,18 @@ DB::raw('
     $baseQuery = DB::table('randevular')
         ->where('randevular.salon_id', $salon_id);
 
-    // "Günü geçen randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri):
-    // genel randevu listesinde araligin alt sinirini bugune cek. Musteri kartindaki
-    // "Randevular" sekmesi ($userid dolu) haric tutulur — orada gecmis kayit tarihcesi
-    // gorunmeye devam etmeli.
-    if ($userid == '' && self::gecmisRandevuGizlensinMi($salon_id)
-        && ($tarih1 == '' || $tarih1 < date('Y-m-d'))) {
-        $tarih1 = date('Y-m-d');
+    // "Saati geçen randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri):
+    // alt siniri bugune cek (indeks) + bugunun saati gecmis randevularini ele.
+    // Musteri kartindaki "Randevular" sekmesi ($userid dolu) haric tutulur — orada
+    // gecmis randevu tarihcesi gorunmeye devam etmeli.
+    if ($userid == '' && self::gecmisRandevuGizlensinMi($salon_id)) {
+        if ($tarih1 == '' || $tarih1 < date('Y-m-d')) {
+            $tarih1 = date('Y-m-d');
+        }
+        $baseQuery->whereRaw(
+            "CONCAT(randevular.tarih,' ',randevular.saat) >= ?",
+            [date('Y-m-d H:i:s')]
+        );
     }
 
     // Apply filters early to reduce the dataset before joins
@@ -17548,12 +17564,12 @@ DB::raw('
     protected static $_gecmisGizleCache = [];
 
     /**
-     * "Günü geçen randevular görünmesin" (salonlar.gecmis_randevulari_gizle) akisi
+     * "Saati geçen randevular görünmesin" (salonlar.gecmis_randevulari_gizle) akisi
      * bu istek icin gecerli mi?
      *
      * Ayar salon bazlidir; AMA akis SADECE randevu.randevumcepte.com.tr uzerinden
-     * yapilan panel girislerinde uygulanir. Diger hostlarda (app./demoapp./mobil API)
-     * randevular her zamanki gibi tam listelenir.
+     * yapilan web panel girislerinde uygulanir (domain flag). Diger hostlarda
+     * (app./demoapp./mobil API) randevular her zamanki gibi tam listelenir.
      */
     public static function gecmisRandevuGizlensinMi($salon_id)
     {
@@ -18041,7 +18057,8 @@ DB::raw('
 
         // randevuyukle ile AYNI clamp: gecmis gizliyse imza da sadece bugun ve sonrasini kapsasin,
         // aksi halde gorunmeyen bir gecmis randevu degistiginde bosuna takvim yenilenir.
-        if (self::gecmisRandevuGizlensinMi($salonId) && $tarih1 < date('Y-m-d')) {
+        $_gecmisGizle = self::gecmisRandevuGizlensinMi($salonId);
+        if ($_gecmisGizle && $tarih1 < date('Y-m-d')) {
             $tarih1 = date('Y-m-d');
         }
 
@@ -18056,9 +18073,16 @@ DB::raw('
             ->selectRaw('COUNT(*) c, COALESCE(MAX(rh.id),0) hmx, COALESCE(MAX(rh.updated_at),0) hmu, COALESCE(MAX(r.id),0) rmx, COALESCE(MAX(r.updated_at),0) rmu')
             ->first();
 
-        return response()->json([
-            'v' => $s->c.'|'.$s->hmx.'|'.$s->hmu.'|'.$s->rmx.'|'.$s->rmu,
-        ]);
+        $v = $s->c.'|'.$s->hmx.'|'.$s->hmu.'|'.$s->rmx.'|'.$s->rmu;
+
+        // Saati gecen randevu gizlenirken takvimin SADECE zaman ilerledigi icin de
+        // tazelenmesi gerekir (hicbir kayit degismese bile). Imzaya 5 dakikalik zaman
+        // kovasi ekle: en gec 5 dk icinde saati gecen randevu takvimden dusor.
+        if ($_gecmisGizle) {
+            $v .= '|t'.floor(time() / 300);
+        }
+
+        return response()->json(['v' => $v]);
     }
     public function sistemeyenihizmetkategorisiekle(Request $request)
     {
