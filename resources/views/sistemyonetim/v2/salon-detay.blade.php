@@ -463,6 +463,16 @@
                                         <span class="mdi mdi-login"></span> Bu hesapla gir
                                     </button>
                                 </form>
+                                @if($rol === 'super_admin')
+                                    <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/sahip-yap" style="margin:0"
+                                          onsubmit="return confirm('{{ $y->name }} bu salonda Hesap Sahibi (rol 1) yapılacak. Devam?');">
+                                        @csrf
+                                        <input type="hidden" name="yetkili_id" value="{{ $y->id }}">
+                                        <button type="submit" class="sy-btn sy-btn-sm sy-btn-warning" title="Bu hesabı Hesap Sahibi (rol 1) yap — yanlışlıkla personele düşen sahibi kurtarır">
+                                            <span class="mdi mdi-crown"></span> Hesap Sahibi Yap
+                                        </button>
+                                    </form>
+                                @endif
                                 @if(($yetkiliAktif[$y->id] ?? 1) == 0)
                                     <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesap-pasif" style="margin:0">
                                         @csrf

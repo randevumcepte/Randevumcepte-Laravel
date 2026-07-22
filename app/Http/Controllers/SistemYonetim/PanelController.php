@@ -683,6 +683,47 @@ class PanelController extends Controller
     }
 
     /* ============================================================
+     * SEÇILEN HESABI "HESAP SAHIBI" (rol 1) YAP
+     * Yanlislikla personele (rol 5) dusurulup 403 yiyen sahibi geri alir.
+     * Hem personeller.role_id hem model_has_roles guncellenir + is_admin=1.
+     * ============================================================ */
+    public function salonSahibiYap(Request $request, $id)
+    {
+        $this->gerektir(['super_admin']);
+        $salon = Salonlar::findOrFail($id);
+        $yetkiliId = (int) $request->get('yetkili_id');
+        if (!$yetkiliId) return redirect()->back()->with('hata', 'Hesap seçilmedi.');
+
+        // Guvenlik: secilen yetkili gercekten bu salona bagli olmali
+        $bagli = Personeller::where('salon_id', $id)->where('yetkili_id', $yetkiliId)->exists()
+            || IsletmeYetkilileri::where('id', $yetkiliId)->where('salon_id', $id)->exists();
+        if (!$bagli) return redirect()->back()->with('hata', 'Seçilen hesap bu salona bağlı değil.');
+
+        $yetkili = IsletmeYetkilileri::find($yetkiliId);
+        $ad = $yetkili->name ?? ('#' . $yetkiliId);
+
+        // 1) personeller.role_id = 1
+        Personeller::where('salon_id', $id)->where('yetkili_id', $yetkiliId)->update(['role_id' => 1]);
+
+        // 2) is_admin bayragi (sahip rozeti)
+        if ($yetkili) { $yetkili->is_admin = 1; $yetkili->save(); }
+
+        // 3) model_has_roles: bu salon icin rolu 1 olarak yeniden yaz
+        DB::table('model_has_roles')->where('model_id', $yetkiliId)->where('salon_id', $id)->delete();
+        DB::insert(
+            'insert into model_has_roles (role_id, model_type, model_id, salon_id) values (?, ?, ?, ?)',
+            [1, 'App\\IsletmeYetkilileri', $yetkiliId, $id]
+        );
+
+        Audit::log('salon_sahip_yap', 'salon', $salon->id, $salon->salon_adi,
+            $ad . ' Hesap Sahibi (rol 1) yapıldı',
+            ['yetkili_id' => $yetkiliId]);
+
+        return redirect()->back()->with('basari',
+            $ad . ' artık Hesap Sahibi (rol 1). Kullanıcı çıkış yapıp tekrar girsin.');
+    }
+
+    /* ============================================================
      * SALON HESABINA GIRIS (IMPERSONATION)
      * ============================================================ */
     public function salonHesabinaGir(Request $request, $salonId)

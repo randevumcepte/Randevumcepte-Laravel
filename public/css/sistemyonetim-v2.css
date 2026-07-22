@@ -436,6 +436,9 @@ a:hover { color: var(--sy-primary-deep); }
 .sy-btn-danger { background: var(--sy-danger); color: #fff; border-color: transparent; }
 .sy-btn-danger:hover { background: #b03f4e; color: #fff; }
 
+.sy-btn-warning { background: #e0a800; color: #fff; border-color: transparent; }
+.sy-btn-warning:hover { background: #c69500; color: #fff; }
+
 .sy-btn-soft {
     background: var(--sy-primary-soft);
     color: var(--sy-primary);
