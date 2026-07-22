@@ -78,7 +78,7 @@
 </div>
 
 {{-- Form Oluştur/Düzenle Modal --}}
-<div id="formSablonModal" class="modal modal-top fade calendar-modal">
+<div id="formSablonModal" class="modal modal-top fade calendar-modal" data-backdrop="static" data-keyboard="false">
    <div class="modal-dialog" style="max-width: 950px">
       <div class="modal-content">
          <div class="modal-header">

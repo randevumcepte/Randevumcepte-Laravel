@@ -1,4 +1,4 @@
-<div id="sozlesmeOlusturModal" class="modal modal-top fade calendar-modal">
+<div id="sozlesmeOlusturModal" class="modal modal-top fade calendar-modal" data-backdrop="static" data-keyboard="false">
    <div class="modal-dialog" style="max-width: 700px">
       <form id="sozlesmeOlusturForm">
          {{ csrf_field() }}
