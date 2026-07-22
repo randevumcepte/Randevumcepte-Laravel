@@ -732,6 +732,7 @@ class SalonappyImport extends Command
                     \DB::table('adisyon_urunler')->insert([
                         'adisyon_id' => $adId, 'urun_id' => $urunId,
                         'fiyat' => $fiyat, 'adet' => $adet,
+                        'personel_id' => $defaultPersId,
                         'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                     ]);
                     $psEklenen++;
@@ -873,6 +874,9 @@ class SalonappyImport extends Command
                             'adisyon_id' => $adId, 'hizmet_id' => $hid,
                             'geldi' => $ahGeldi, 'islem_tarihi' => ($usageDate ?: $tarih), 'islem_saati' => '00:00:00',
                             'sure' => 30, 'fiyat' => $tutar, 'seans_sayisi' => $period,
+                            // personel_id ZORUNLU: Prim & Hak Edis raporu personel_id'si bos
+                            // kalemleri komple atliyor (gelir de prim de 0 gorunur).
+                            'personel_id' => $this->satisPersonelId($salonId, $r, $first),
                             'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                         ]);
                         // N adet APS: ilk $kullanilan tanesi geldi=1 (usage_date), kalani geldi=0 placeholder
@@ -1323,6 +1327,8 @@ class SalonappyImport extends Command
                             'adisyon_id' => $adId, 'hizmet_id' => $hid,
                             'geldi' => 0, 'islem_tarihi' => $tarih, 'islem_saati' => '00:00:00',
                             'sure' => 30, 'fiyat' => $tutar,
+                            // personel_id ZORUNLU: prim raporu personelsiz kalemi atliyor.
+                            'personel_id' => $this->satisPersonelId($salonId, $it, $r),
                             'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                         ];
                         if ($period !== null) $ahRow['seans_sayisi'] = $period;
@@ -2850,9 +2856,14 @@ class SalonappyImport extends Command
                 if ($unvan) $personel->unvan = $unvan;
                 $personel->yetkili_id = $yetkili->id;
                 if ($roleId) $personel->role_id = $roleId;
-                if (\Schema::hasColumn('salon_personelleri', 'hizmet_prim_yuzde')) $personel->hizmet_prim_yuzde = 0;
-                if (\Schema::hasColumn('salon_personelleri', 'urun_prim_yuzde'))   $personel->urun_prim_yuzde = 0;
-                if (\Schema::hasColumn('salon_personelleri', 'paket_prim_yuzde')) $personel->paket_prim_yuzde = 0;
+                // Prim yuzdeleri SADECE yeni personelde 0'lanir. Mevcut personelde
+                // dokunulmaz — aksi halde salon yuzdeleri girdikten sonra her import
+                // tekrarinda sifirlaniyor ve Prim & Hak Edis raporu bos cikiyordu.
+                if (!$existPers) {
+                    if (\Schema::hasColumn('salon_personelleri', 'hizmet_prim_yuzde')) $personel->hizmet_prim_yuzde = 0;
+                    if (\Schema::hasColumn('salon_personelleri', 'urun_prim_yuzde'))   $personel->urun_prim_yuzde = 0;
+                    if (\Schema::hasColumn('salon_personelleri', 'paket_prim_yuzde')) $personel->paket_prim_yuzde = 0;
+                }
                 $personel->save();
 
                 $varOlanGunSayisi = \DB::table('personel_calisma_saatleri')
@@ -3183,9 +3194,14 @@ class SalonappyImport extends Command
                 if ($unvan) $personel->unvan = $unvan;
                 $personel->yetkili_id = $yetkili->id;
                 if ($roleId) $personel->role_id = $roleId;
-                if (\Schema::hasColumn('salon_personelleri', 'hizmet_prim_yuzde')) $personel->hizmet_prim_yuzde = 0;
-                if (\Schema::hasColumn('salon_personelleri', 'urun_prim_yuzde'))   $personel->urun_prim_yuzde = 0;
-                if (\Schema::hasColumn('salon_personelleri', 'paket_prim_yuzde')) $personel->paket_prim_yuzde = 0;
+                // Prim yuzdeleri SADECE yeni personelde 0'lanir. Mevcut personelde
+                // dokunulmaz — aksi halde salon yuzdeleri girdikten sonra her import
+                // tekrarinda sifirlaniyor ve Prim & Hak Edis raporu bos cikiyordu.
+                if (!$existPers) {
+                    if (\Schema::hasColumn('salon_personelleri', 'hizmet_prim_yuzde')) $personel->hizmet_prim_yuzde = 0;
+                    if (\Schema::hasColumn('salon_personelleri', 'urun_prim_yuzde'))   $personel->urun_prim_yuzde = 0;
+                    if (\Schema::hasColumn('salon_personelleri', 'paket_prim_yuzde')) $personel->paket_prim_yuzde = 0;
+                }
                 $personel->save();
 
                 // Calisma saatleri (yoksa 7 gun default ekle, varsa dokunma)
@@ -4300,6 +4316,25 @@ class SalonappyImport extends Command
         $canonCache[$cacheKey] = $p->personel_adi;
         $canonicalAd = $p->personel_adi;
         return $p->id;
+    }
+
+    /**
+     * Paket/hizmet satis satirindaki satici-personel adini cozup personel_id dondurur.
+     * Salonappy payload'unda alan adi surume gore degisiyor; yaygin isimler denenir.
+     * Bulunamazsa null (kalem personelsiz kalir — prim raporu bu kalemi atlar).
+     */
+    private function satisPersonelId($salonId, $satir, $ustSatir = null)
+    {
+        $keys = ['seller_text', 'seller_name', 'staff_name', 'staff_text',
+                 'employee_name', 'personel_adi', 'created_by'];
+        $ad = trim((string) ($this->pickFirst(is_array($satir) ? $satir : [], $keys) ?: ''));
+        if ($ad === '' && is_array($ustSatir)) {
+            $ad = trim((string) ($this->pickFirst($ustSatir, $keys) ?: ''));
+        }
+        if ($ad === '') return null;
+        // ensurePersonel zaten trKey eslesmesi yapip id donuyor — ham isim
+        // lookup'i canonical ad farkinda (Ayse/AYŞE) isabetsiz kaliyordu.
+        return $this->ensurePersonel($salonId, $ad);
     }
 
     private function pickFirst($obj, $keys)

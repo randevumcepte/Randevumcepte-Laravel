@@ -29,6 +29,7 @@ class Kernel extends ConsoleKernel
         Commands\DrklinikImport::class,
         Commands\SalonappyImport::class,
         Commands\SalonrandevuImport::class,
+        Commands\PrimTeshis::class,
         Commands\CarkHatirlatmaGonder::class,
         Commands\AnketOtomatikGonder::class,
         Commands\WhatsappStuckKurtar::class,

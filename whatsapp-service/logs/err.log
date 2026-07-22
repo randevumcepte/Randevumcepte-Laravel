@@ -1,0 +1,556 @@
+2026-04-24T23:38:29: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:29: Require stack:
+2026-04-24T23:38:29: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:29: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:29:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:29:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:29:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:29:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:29:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:29:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:29:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:29:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:29:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:29:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:29:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:29:   requireStack: [
+2026-04-24T23:38:29:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:29:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:29:   ]
+2026-04-24T23:38:29: }
+2026-04-24T23:38:29: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:29: Require stack:
+2026-04-24T23:38:29: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:29: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:29:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:29:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:29:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:29:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:29:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:29:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:29:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:29:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:29:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:29:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:29:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:29:   requireStack: [
+2026-04-24T23:38:29:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:29:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:29:   ]
+2026-04-24T23:38:29: }
+2026-04-24T23:38:30: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:30: Require stack:
+2026-04-24T23:38:30: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:30: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:30:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:30:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:30:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:30:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:30:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:30:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:30:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:30:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:30:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:30:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:30:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:30:   requireStack: [
+2026-04-24T23:38:30:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:30:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:30:   ]
+2026-04-24T23:38:30: }
+2026-04-24T23:38:30: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:30: Require stack:
+2026-04-24T23:38:30: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:30: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:30:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:30:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:30:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:30:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:30:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:30:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:30:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:30:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:30:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:30:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:30:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:30:   requireStack: [
+2026-04-24T23:38:30:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:30:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:30:   ]
+2026-04-24T23:38:30: }
+2026-04-24T23:38:30: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:30: Require stack:
+2026-04-24T23:38:30: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:30: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:30:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:30:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:30:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:30:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:30:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:30:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:30:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:30:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:30:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:30:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:30:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:30:   requireStack: [
+2026-04-24T23:38:30:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:30:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:30:   ]
+2026-04-24T23:38:30: }
+2026-04-24T23:38:30: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:30: Require stack:
+2026-04-24T23:38:30: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:30: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:30:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:30:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:30:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:30:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:30:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:30:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:30:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:30:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:30:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:30:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:30:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:30:   requireStack: [
+2026-04-24T23:38:30:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:30:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:30:   ]
+2026-04-24T23:38:30: }
+2026-04-24T23:38:31: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:31: Require stack:
+2026-04-24T23:38:31: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:31: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:31:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:31:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:31:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:31:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:31:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:31:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:31:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:31:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:31:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:31:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:31:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:31:   requireStack: [
+2026-04-24T23:38:31:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:31:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:31:   ]
+2026-04-24T23:38:31: }
+2026-04-24T23:38:31: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:31: Require stack:
+2026-04-24T23:38:31: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:31: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:31:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:31:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:31:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:31:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:31:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:31:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:31:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:31:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:31:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:31:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:31:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:31:   requireStack: [
+2026-04-24T23:38:31:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:31:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:31:   ]
+2026-04-24T23:38:31: }
+2026-04-24T23:38:31: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:31: Require stack:
+2026-04-24T23:38:31: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:31: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:31:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:31:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:31:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:31:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:31:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:31:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:31:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:31:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:31:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:31:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:31:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:31:   requireStack: [
+2026-04-24T23:38:31:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:31:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:31:   ]
+2026-04-24T23:38:31: }
+2026-04-24T23:38:31: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:31: Require stack:
+2026-04-24T23:38:31: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:31: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:31:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:31:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:31:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:31:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:31:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:31:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:31:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:31:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:31:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:31:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:31:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:31:   requireStack: [
+2026-04-24T23:38:31:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:31:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:31:   ]
+2026-04-24T23:38:31: }
+2026-04-24T23:38:32: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:32: Require stack:
+2026-04-24T23:38:32: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:32: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:32:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:32:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:32:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:32:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:32:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:32:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:32:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:32:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:32:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:32:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:32:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:32:   requireStack: [
+2026-04-24T23:38:32:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:32:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:32:   ]
+2026-04-24T23:38:32: }
+2026-04-24T23:38:32: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:32: Require stack:
+2026-04-24T23:38:32: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:32: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:32:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:32:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:32:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:32:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:32:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:32:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:32:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:32:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:32:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:32:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:32:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:32:   requireStack: [
+2026-04-24T23:38:32:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:32:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:32:   ]
+2026-04-24T23:38:32: }
+2026-04-24T23:38:32: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:32: Require stack:
+2026-04-24T23:38:32: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:32: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:32:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:32:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:32:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:32:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:32:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:32:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:32:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:32:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:32:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:32:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:32:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:32:   requireStack: [
+2026-04-24T23:38:32:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:32:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:32:   ]
+2026-04-24T23:38:32: }
+2026-04-24T23:38:32: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:32: Require stack:
+2026-04-24T23:38:32: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:32: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:32:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:32:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:32:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:32:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:32:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:32:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:32:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:32:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:32:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:32:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:32:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:32:   requireStack: [
+2026-04-24T23:38:32:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:32:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:32:   ]
+2026-04-24T23:38:32: }
+2026-04-24T23:38:32: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:32: Require stack:
+2026-04-24T23:38:32: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:32: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:32:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:32:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:32:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:32:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:32:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:32:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:32:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:32:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:32:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:32:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:32:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:32:   requireStack: [
+2026-04-24T23:38:32:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:32:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:32:   ]
+2026-04-24T23:38:32: }
+2026-04-24T23:38:33: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:33: Require stack:
+2026-04-24T23:38:33: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:33: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:33:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:33:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:33:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:33:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:33:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:33:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:33:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:33:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:33:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:33:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:33:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:33:   requireStack: [
+2026-04-24T23:38:33:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:33:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:33:   ]
+2026-04-24T23:38:33: }
+2026-04-24T23:38:33: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:33: Require stack:
+2026-04-24T23:38:33: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:33: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:33:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:33:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:33:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:33:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:33:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:33:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:33:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:33:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:33:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:33:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:33:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:33:   requireStack: [
+2026-04-24T23:38:33:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:33:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:33:   ]
+2026-04-24T23:38:33: }
+2026-04-24T23:38:33: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:33: Require stack:
+2026-04-24T23:38:33: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:33: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:33:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:33:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:33:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:33:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:33:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:33:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:33:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:33:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:33:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:33:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:33:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:33:   requireStack: [
+2026-04-24T23:38:33:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:33:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:33:   ]
+2026-04-24T23:38:33: }
+2026-04-24T23:38:33: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:33: Require stack:
+2026-04-24T23:38:33: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:33: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:33:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:33:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:33:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:33:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:33:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:33:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:33:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:33:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:33:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:33:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:33:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:33:   requireStack: [
+2026-04-24T23:38:33:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:33:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:33:   ]
+2026-04-24T23:38:33: }
+2026-04-24T23:38:34: Error: Cannot find module 'dotenv'
+2026-04-24T23:38:34: Require stack:
+2026-04-24T23:38:34: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js
+2026-04-24T23:38:34: - /var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js
+2026-04-24T23:38:34:     at Module._resolveFilename (node:internal/modules/cjs/loader:1225:15)
+2026-04-24T23:38:34:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-04-24T23:38:34:     at require (node:internal/modules/helpers:179:18)
+2026-04-24T23:38:34:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js:3:1)
+2026-04-24T23:38:34:     at Module._compile (node:internal/modules/cjs/loader:1469:14)
+2026-04-24T23:38:34:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2026-04-24T23:38:34:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2026-04-24T23:38:34:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2026-04-24T23:38:34:     at Module.require (node:internal/modules/cjs/loader:1311:19)
+2026-04-24T23:38:34:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39) {
+2026-04-24T23:38:34:   code: 'MODULE_NOT_FOUND',
+2026-04-24T23:38:34:   requireStack: [
+2026-04-24T23:38:34:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/config.js',
+2026-04-24T23:38:34:     '/var/www/www-root/data/www/randevumceptetest/whatsapp-service/server.js'
+2026-04-24T23:38:34:   ]
+2026-04-24T23:38:34: }
+2026-04-24T23:43:51: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:51: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:51:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:51:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:51:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:51: }
+2026-04-24T23:43:52: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:52: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:52:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:52:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:52:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:52: }
+2026-04-24T23:43:52: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:52: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:52:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:52:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:52:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:52: }
+2026-04-24T23:43:52: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:52: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:52:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:52:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:52:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:52: }
+2026-04-24T23:43:53: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:53: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:53:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:53:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:53:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:53: }
+2026-04-24T23:43:53: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:53: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:53:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:53:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:53:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:53: }
+2026-04-24T23:43:53: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:53: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:53:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:53:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:53:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:53: }
+2026-04-24T23:43:54: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:54: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:54:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:54:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:54:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:54: }
+2026-04-24T23:43:54: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:54: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:54:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:54:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:54:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:54: }
+2026-04-24T23:43:54: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:54: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:54:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:54:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:54:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:54: }
+2026-04-24T23:43:55: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:55: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:55:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:55:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:55:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:55: }
+2026-04-24T23:43:55: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:55: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:55:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:55:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:55:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:55: }
+2026-04-24T23:43:55: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:55: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:55:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:55:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:55:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:55: }
+2026-04-24T23:43:56: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:56: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:56:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:56:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:56:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:56: }
+2026-04-24T23:43:56: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:56: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:56:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:56:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:56:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:56: }
+2026-04-24T23:43:56: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:56: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:56:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:56:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:56:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:56: }
+2026-04-24T23:43:56: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:56: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:56:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:56:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:56:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:56: }
+2026-04-24T23:43:57: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:57: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:57:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:57:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:57:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:57: }
+2026-04-24T23:43:57: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:57: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:57:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:57:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:57:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:57: }
+2026-04-24T23:43:57: Error [ERR_REQUIRE_ESM]: require() of ES Module /var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/@whiskeysockets/baileys/lib/index.js from /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js not supported.
+2026-04-24T23:43:57: Instead change the require of index.js in /var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js to a dynamic import() which is available in all CommonJS modules.
+2026-04-24T23:43:57:     at Hook._require.Module.require (/root/.nvm/versions/node/v20.18.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-24T23:43:57:     at Object.<anonymous> (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/src/sessionManager.js:13:5) {
+2026-04-24T23:43:57:   code: 'ERR_REQUIRE_ESM'
+2026-04-24T23:43:57: }
+2026-04-25T00:02:18: (node:11149) ExperimentalWarning: Importing JSON modules is an experimental feature and might change at any time
+2026-04-25T00:02:18: (Use `node --trace-warnings ...` to show where the warning was created)
+2026-04-25T00:42:27: (node:16889) ExperimentalWarning: Importing JSON modules is an experimental feature and might change at any time
+2026-04-25T00:42:27: (Use `node --trace-warnings ...` to show where the warning was created)
+2026-04-25T01:01:39: (node:20413) ExperimentalWarning: Importing JSON modules is an experimental feature and might change at any time
+2026-04-25T01:01:39: (Use `node --trace-warnings ...` to show where the warning was created)
+2026-04-25T16:25:16: Failed to decrypt message with any known session...
+2026-04-25T16:25:16: Session error:Error: Bad MAC Error: Bad MAC
+2026-04-25T16:25:16:     at Object.verifyMAC (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/crypto.js:87:15)
+2026-04-25T16:25:16:     at SessionCipher.doDecryptWhisperMessage (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/session_cipher.js:250:16)
+2026-04-25T16:25:16:     at async SessionCipher.decryptWithSessions (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/session_cipher.js:147:29)
+2026-04-25T16:25:16:     at async 78378891800803.0 [as awaitable] (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/session_cipher.js:171:28)
+2026-04-25T16:25:16:     at async _asyncQueueExecutor (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/queue_job.js:20:29)
+2026-04-25T16:25:22: Failed to decrypt message with any known session...
+2026-04-25T16:25:22: Session error:Error: Bad MAC Error: Bad MAC
+2026-04-25T16:25:22:     at Object.verifyMAC (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/crypto.js:87:15)
+2026-04-25T16:25:22:     at SessionCipher.doDecryptWhisperMessage (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/session_cipher.js:250:16)
+2026-04-25T16:25:22:     at async SessionCipher.decryptWithSessions (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/session_cipher.js:147:29)
+2026-04-25T16:25:22:     at async 78378891800803.0 [as awaitable] (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/session_cipher.js:171:28)
+2026-04-25T16:25:22:     at async _asyncQueueExecutor (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/queue_job.js:20:29)
+2026-04-25T16:25:22: Closing open session in favor of incoming prekey bundle
+2026-04-25T16:35:37: Failed to decrypt message with any known session...
+2026-04-25T16:35:37: Session error:Error: Bad MAC Error: Bad MAC
+2026-04-25T16:35:37:     at Object.verifyMAC (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/crypto.js:87:15)
+2026-04-25T16:35:37:     at SessionCipher.doDecryptWhisperMessage (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/session_cipher.js:250:16)
+2026-04-25T16:35:37:     at async SessionCipher.decryptWithSessions (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/session_cipher.js:147:29)
+2026-04-25T16:35:37:     at async 98350506442756.0 [as awaitable] (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/session_cipher.js:171:28)
+2026-04-25T16:35:37:     at async _asyncQueueExecutor (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/queue_job.js:20:29)
+2026-04-25T16:35:43: Failed to decrypt message with any known session...
+2026-04-25T16:35:43: Session error:Error: Bad MAC Error: Bad MAC
+2026-04-25T16:35:43:     at Object.verifyMAC (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/crypto.js:87:15)
+2026-04-25T16:35:43:     at SessionCipher.doDecryptWhisperMessage (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/session_cipher.js:250:16)
+2026-04-25T16:35:43:     at async SessionCipher.decryptWithSessions (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/session_cipher.js:147:29)
+2026-04-25T16:35:43:     at async 98350506442756.0 [as awaitable] (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/session_cipher.js:171:28)
+2026-04-25T16:35:43:     at async _asyncQueueExecutor (/var/www/www-root/data/www/randevumceptetest/whatsapp-service/node_modules/libsignal/src/queue_job.js:20:29)
+2026-04-25T16:35:44: Closing open session in favor of incoming prekey bundle

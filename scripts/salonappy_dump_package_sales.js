@@ -5,8 +5,8 @@
 (async () => {
   const BASE = 'https://web-api.salonappy.com/api';
 
-  let TOKEN = '288401&Oc1lPAy62641ff1camqsiK7919e9107f826b22f39ede49c6ff4eaa';
-  let X_DEVICE = '1tevuO7938R1ggFPtQZVerlqY2GfIBJK';
+  let TOKEN = '75501&zCVxnWZ8d77af53a846JNoDidc6909016d90b700365d69665815a9';
+  let X_DEVICE = 'M3B3Ii2nwZrroB1nyWvOA81pWVKQmeTE';
   let X_VERSION = '2026.05.07.1';
   TOKEN = prompt('Bearer token', TOKEN) || TOKEN;
   X_DEVICE = prompt('x-device', X_DEVICE) || X_DEVICE;
