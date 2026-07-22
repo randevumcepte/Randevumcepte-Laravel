@@ -4319,22 +4319,58 @@ class SalonappyImport extends Command
     }
 
     /**
-     * Paket/hizmet satis satirindaki satici-personel adini cozup personel_id dondurur.
-     * Salonappy payload'unda alan adi surume gore degisiyor; yaygin isimler denenir.
-     * Bulunamazsa null (kalem personelsiz kalir — prim raporu bu kalemi atlar).
+     * Paket satis satirindaki SATICIYI personel_id'ye cevirir.
+     *
+     * Kaynak: package_sale/list_v2 -> seller_id + seller_text (her satirda dolu).
+     * group_items alt kalemlerinde seller alani YOK, ust satirdan miras alinir.
+     *
+     * Kurallar:
+     *  - seller_id = 0 / seller_text = "Kasa" => GERCEK SATICI YOK, null doner.
+     *    (Salon 368 dump'inda 464 satirin 220'si boyle.)
+     *  - Yalnizca MEVCUT personelle eslesir; yeni personel OLUSTURMAZ.
+     *    Eslesmeyen (isten ayrilmis vb.) satici => null.
      */
     private function satisPersonelId($salonId, $satir, $ustSatir = null)
     {
-        $keys = ['seller_text', 'seller_name', 'staff_name', 'staff_text',
-                 'employee_name', 'personel_adi', 'created_by'];
-        $ad = trim((string) ($this->pickFirst(is_array($satir) ? $satir : [], $keys) ?: ''));
-        if ($ad === '' && is_array($ustSatir)) {
-            $ad = trim((string) ($this->pickFirst($ustSatir, $keys) ?: ''));
+        $sellerId = null; $ad = '';
+        foreach ([$satir, $ustSatir] as $kaynak) {
+            if (!is_array($kaynak)) continue;
+            if ($ad === '' && isset($kaynak['seller_text'])) {
+                $ad = trim((string) $kaynak['seller_text']);
+                $sellerId = isset($kaynak['seller_id']) ? (int) $kaynak['seller_id'] : null;
+            }
+            if ($ad !== '') break;
         }
         if ($ad === '') return null;
-        // ensurePersonel zaten trKey eslesmesi yapip id donuyor — ham isim
-        // lookup'i canonical ad farkinda (Ayse/AYŞE) isabetsiz kaliyordu.
-        return $this->ensurePersonel($salonId, $ad);
+        // Salonappy'de saticisiz satislar seller_id=0 / "Kasa" olarak isaretli.
+        if ($sellerId === 0 || $this->saTrKey($ad) === 'kasa') return null;
+
+        return $this->mevcutPersonelId($salonId, $ad);
+    }
+
+    /**
+     * Ada gore MEVCUT personeli bulur (trKey ile buyuk/kucuk ve Turkce karakter
+     * duyarsiz). ensurePersonel'in aksine kayit OLUSTURMAZ — aktarim sirasinda
+     * "Kasa" gibi sahte isimlerden personel turemesini onler.
+     */
+    private function mevcutPersonelId($salonId, $ad)
+    {
+        $ad = trim((string) $ad);
+        if ($ad === '') return null;
+        static $cache = [];
+        $ck = $salonId . '|' . mb_strtolower($ad, 'UTF-8');
+        if (array_key_exists($ck, $cache)) return $cache[$ck];
+
+        $id = \DB::table('salon_personelleri')->where('salon_id', $salonId)
+            ->where('personel_adi', $ad)->value('id');
+        if (!$id) {
+            $needle = $this->saTrKey($ad);
+            foreach (\DB::table('salon_personelleri')->where('salon_id', $salonId)
+                        ->get(['id', 'personel_adi']) as $row) {
+                if ($this->saTrKey($row->personel_adi) === $needle) { $id = $row->id; break; }
+            }
+        }
+        return $cache[$ck] = ($id ? (int) $id : null);
     }
 
     private function pickFirst($obj, $keys)
