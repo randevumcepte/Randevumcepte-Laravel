@@ -304,7 +304,7 @@ $(document).on('click','i[name="seansDetay"]',function(e)
               "<div style='color:#2d3748; font-size:15px;'><i class='fa fa-tag' style='color:#667eea; width:20px;'></i> " + hizmetAdi + "</div>" +
               "</div>" +
               "<div style='background:#f5f7fa; padding:12px; border-radius:10px; margin-bottom:20px;'>" +
-              "<div style='color:#2d3748; font-size:15px;'><i class='fa fa-calendar' style='color:#667eea; width:20px;'></i> " + tarih + " | " + (saat || '--:--') + "</div>" +
+              "<div style='color:#2d3748; font-size:15px;'><i class='fa fa-calendar' style='color:#667eea; width:20px;'></i> " + tarih + " | " + ((saat && saat !== 'null') ? saat : '--:--') + "</div>" +
               "</div>" +
               "<div style='display:flex; gap:6px; justify-content:center;'>" +
               "<button type='button' class='btn btn-sm btn-success' id='seansKullanildi' data-value='"+paketId+"' data-seans-id='" + seansId + "' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-check'></i> Kullanıldı</button>" +
@@ -312,10 +312,24 @@ $(document).on('click','i[name="seansDetay"]',function(e)
               "<button type='button' class='btn btn-sm btn-danger' id='seansKullanilmadi' data-value='"+paketId+"' data-seans-id='" + seansId + "' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-times'></i> Kullanılmadı</button>" +
                             "<button type='button' class='btn btn-sm btn-warning' id='seansBeklemede' data-value='"+paketId+"' data-seans-id='" + seansId + "' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-clock-o'></i> Beklemede</button>" +
               "</div>" +
+              (lazer === '1'
+                ? "<div style='margin-top:14px; padding-top:12px; border-top:1px dashed #e2e8f0; text-align:center;'>" +
+                  "<button type='button' class='btn btn-sm' id='seansCihazBilgileri' data-seans-id='" + seansId + "' style='background:#4f46e5; color:#fff; border-radius:20px; padding:8px 18px; font-weight:600;'><i class='fa fa-bolt'></i> Cihaz Bilgileri (Bu Seans)</button>" +
+                  "</div>"
+                : "") +
               "</div>",
         showCancelButton: false,
         showConfirmButton: false
     });
+});
+
+// Seans Düzenle popup'indan: tiklanan SEANSIN cihaz bilgileri (o seans direkt secili,
+// dropdown yok). Her seansa ayri veri girmek icin en pratik yol.
+$(document).on('click', '#seansCihazBilgileri', function(e){
+    e.preventDefault();
+    var seansId = $(this).attr('data-seans-id');
+    try { if (typeof swal !== 'undefined' && swal.close) swal.close(); } catch(_){}
+    cihazModalAc(seansId);
 });
 
 // ================= CİHAZ BİLGİLERİ MODALI (lazer epilasyon seans parametreleri) =================
