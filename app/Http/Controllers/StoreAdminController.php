@@ -3627,6 +3627,8 @@ public function carkverilerigetir(Request $request)
         $duzenleButon= "";
         $gelecek = false;
         $paketAdi = '';
+        // Kapali Saat dahil tum kollarda ihtiyac duyulan bilgi (paket kaynagi hesabi):
+        $seansVar = $seanslarByRandevu->get($rh->randevu_id, collect());
         if($rh->randevu->user_id == 2012)
         {
             $title = "Kapalı Saat";
