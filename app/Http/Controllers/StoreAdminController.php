@@ -3514,6 +3514,14 @@ public function carkverilerigetir(Request $request)
             ->value('id');
     }
 
+    // "Günü geçen randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri):
+    // takvimin istedigi tarih araliginin alt sinirini bugune cekiyoruz.
+    // Aralik tamamen gecmiste kalirsa $tarih1 > $tarih2 olur ve sorgu dogal olarak
+    // bos doner; takvimin geri kalan yapisi (resource/calisma saatleri) bozulmaz.
+    if (self::gecmisRandevuGizlensinMi($isletmeId) && $tarih1 < date('Y-m-d')) {
+        $tarih1 = date('Y-m-d');
+    }
+
     $randevu_hizmetler_raw = RandevuHizmetler::with([
         'hizmetler',
         'personeller.trenk',
@@ -16087,6 +16095,15 @@ DB::raw('
     $baseQuery = DB::table('randevular')
         ->where('randevular.salon_id', $salon_id);
 
+    // "Günü geçen randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri):
+    // genel randevu listesinde araligin alt sinirini bugune cek. Musteri kartindaki
+    // "Randevular" sekmesi ($userid dolu) haric tutulur — orada gecmis kayit tarihcesi
+    // gorunmeye devam etmeli.
+    if ($userid == '' && self::gecmisRandevuGizlensinMi($salon_id)
+        && ($tarih1 == '' || $tarih1 < date('Y-m-d'))) {
+        $tarih1 = date('Y-m-d');
+    }
+
     // Apply filters early to reduce the dataset before joins
     if ($tarih1 != '') {
         $baseQuery->where('randevular.tarih', '>=', $tarih1);
@@ -17483,6 +17500,32 @@ DB::raw('
             'uyelik'=>$uyelik,
             'personel_drop'=>self::personeldropliste($request,array()),'yetkiliolunanisletmeler'=>$isletmeler]);
     }
+    /** gecmisRandevuGizlensinMi() icin istek basina salon_id => bool onbellegi */
+    protected static $_gecmisGizleCache = [];
+
+    /**
+     * "Günü geçen randevular görünmesin" (salonlar.gecmis_randevulari_gizle) akisi
+     * bu istek icin gecerli mi?
+     *
+     * Ayar salon bazlidir; AMA akis SADECE randevu.randevumcepte.com.tr uzerinden
+     * yapilan panel girislerinde uygulanir. Diger hostlarda (app./demoapp./mobil API)
+     * randevular her zamanki gibi tam listelenir.
+     */
+    public static function gecmisRandevuGizlensinMi($salon_id)
+    {
+        $host = strtolower($_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? ''));
+        if (strpos($host, ':') !== false) $host = explode(':', $host)[0];
+        if ($host !== 'randevu.randevumcepte.com.tr') return false;
+
+        $salon_id = (int) $salon_id;
+        if ($salon_id <= 0) return false;
+        if (array_key_exists($salon_id, self::$_gecmisGizleCache)) {
+            return self::$_gecmisGizleCache[$salon_id];
+        }
+        return self::$_gecmisGizleCache[$salon_id] =
+            (bool) Salonlar::where('id', $salon_id)->value('gecmis_randevulari_gizle');
+    }
+
     public function randevuayarguncelle(Request $request)
     {
         if($r = self::yetkiYoksa403($request, 'randevu.online_ayar')) return $r;
@@ -17490,7 +17533,10 @@ DB::raw('
         $isletme->randevu_saat_araligi=$request->randevu_saat_araligi;
         $isletme->randevu_takvim_turu = $request->randevu_takvim_turu;
         $isletme->musteri_online_randevu_aktif = $request->has('musteri_online_randevu_aktif') ? 1 : 0;
+        $isletme->gecmis_randevulari_gizle = $request->has('gecmis_randevulari_gizle') ? 1 : 0;
         $isletme->save();
+        // Ayar degistiginde host bazli cache'i dusur (ayni istek icinde tekrar okunursa taze olsun)
+        self::$_gecmisGizleCache = [];
         return 'Randevu ayarları başarıyla kaydedildi';
     }
    public function etkinlikekleduzenle(Request $request)
@@ -17947,6 +17993,12 @@ DB::raw('
         } elseif ($request->takvimgorunum == 'month') {
             $tarih1 = $tarihObj->format('Y-m-01');
             $tarih2 = $tarihObj->format('Y-m-t');
+        }
+
+        // randevuyukle ile AYNI clamp: gecmis gizliyse imza da sadece bugun ve sonrasini kapsasin,
+        // aksi halde gorunmeyen bir gecmis randevu degistiginde bosuna takvim yenilenir.
+        if (self::gecmisRandevuGizlensinMi($salonId) && $tarih1 < date('Y-m-d')) {
+            $tarih1 = date('Y-m-d');
         }
 
         // randevuyukle ile AYNI filtre: randevu_hizmetler -> randevu (salon + tarih).

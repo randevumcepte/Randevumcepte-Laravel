@@ -1039,6 +1039,15 @@
                            </div>
                         </div>
                         <div class="col-md-12">
+                           <div class="form-group">
+                              <div class="custom-control custom-checkbox mb-5">
+                                 <input type="checkbox" class="custom-control-input" name="gecmis_randevulari_gizle" id="gecmis_randevulari_gizle" value="1" {{(!empty($isletme->gecmis_randevulari_gizle)) ? 'checked' : ''}}>
+                                 <label class="custom-control-label" for="gecmis_randevulari_gizle">Günü geçen randevular görünmesin</label>
+                              </div>
+                              <small class="text-muted">Bu seçenek açıkken randevu takviminde ve randevu listesinde bugünden önceki randevular gösterilmez.</small>
+                           </div>
+                        </div>
+                        <div class="col-md-12">
                            <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i> Kaydet</button>
                         </div>
                      </div>
