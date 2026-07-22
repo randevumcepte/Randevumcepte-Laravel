@@ -17891,7 +17891,17 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             // yolu. Set edilirse takvimde gizlenmis personel, herhangi bir
             // duzenlemede sessizce tekrar gorunur olur. Varsayilan sadece yeni
             // kayitta atanir (yukaridaki 'new Personeller()' dali).
-            $personel->role_id = $request->sistem_yetki;
+            // Hesap Sahibi (rol 1) rolu degistirilemez — yanlislikla sahibi personele
+            // dusurup hesabi kilitlemeyi onler. Mevcut rolu 1 ise 1 olarak kalir.
+            $hedefSistemYetki = $request->sistem_yetki;
+            $mevcutRolId = (int) DB::table('model_has_roles')
+                ->where('model_id', $yetkili->id)
+                ->where('salon_id', $request->salon_id)
+                ->value('role_id');
+            if ($mevcutRolId === 1 && (int) $hedefSistemYetki !== 1) {
+                $hedefSistemYetki = 1;
+            }
+            $personel->role_id = $hedefSistemYetki;
             $personel->save();
 
             // Detayli (kalem bazli) prim oranlarini kaydet — web personelBilgiKaydet ile ayni mantik.
@@ -18204,11 +18214,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             $yetkili->roles()->detach();
 
-            if (!empty($request->sistem_yetki) && is_numeric($request->sistem_yetki)) {
+            // Hesap sahibi korumasi uygulanmis $hedefSistemYetki ile yaz (owner -> 1 kalir).
+            if (!empty($hedefSistemYetki) && is_numeric($hedefSistemYetki)) {
                 DB::insert(
                     'insert into model_has_roles (role_id, model_type, model_id, salon_id) values (?, ?, ?, ?)',
                     [
-                        (int) $request->sistem_yetki,
+                        (int) $hedefSistemYetki,
                         'App\\IsletmeYetkilileri',
                         $yetkili->id,
                         $request->salon_id,
