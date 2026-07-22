@@ -813,18 +813,30 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
                                 ts.addItem(String(h.hizmet_id), false); // false=event fire et -> onChange -> detay render
                                 // Belt-and-suspenders: render sonrasi input'larida overwrite et.
                                 // (Tom Select option store cache'lemesi durumunda fallback)
-                                setTimeout(function(){
+                                // 3 kat guvenlik: 50ms, 200ms, 500ms — filter re-run'larin
+                                // override etme ihtimaline karsi.
+                                var _overwriteRow = function(tag){
                                     var $sureInputs = $row.find('input.hizmet-suresi');
                                     var $fiyatInputs = $row.find('input.hizmet-fiyati');
+                                    var $miktarInputs = $row.find('input.hizmet-miktari');
                                     var $lastSure = $sureInputs.last();
                                     var $lastFiyat = $fiyatInputs.last();
-                                    // 0 da gecerli deger — sadece undefined/null'da atla
+                                    var $lastMiktar = $miktarInputs.last();
+                                    var oncekiSure = $lastSure.length ? $lastSure.val() : null;
+                                    var oncekiFiyat = $lastFiyat.length ? $lastFiyat.val() : null;
+                                    // 0 da gecerli deger — sadece undefined/null/bos'ta atla
                                     if($lastSure.length && h.sure_dk !== undefined && h.sure_dk !== null && h.sure_dk !== '') $lastSure.val(h.sure_dk);
                                     if($lastFiyat.length && h.fiyat !== undefined && h.fiyat !== null && h.fiyat !== '') $lastFiyat.val(h.fiyat);
-                                    var $miktarInputs = $row.find('input.hizmet-miktari');
-                                    var $lastMiktar = $miktarInputs.last();
                                     if($lastMiktar.length && h.dusum_miktari) $lastMiktar.val(h.dusum_miktari);
-                                }, 50);
+                                    console.log('[DUZENLE sure/fiyat override '+tag+']', {
+                                        hizmet_id: h.hizmet_id, h_sure_dk: h.sure_dk, h_fiyat: h.fiyat,
+                                        oncekiSure: oncekiSure, sonrakiSure: $lastSure.length ? $lastSure.val() : null,
+                                        oncekiFiyat: oncekiFiyat, sonrakiFiyat: $lastFiyat.length ? $lastFiyat.val() : null,
+                                    });
+                                };
+                                setTimeout(function(){ _overwriteRow('50ms'); }, 50);
+                                setTimeout(function(){ _overwriteRow('200ms'); }, 200);
+                                setTimeout(function(){ _overwriteRow('500ms'); }, 500);
                             }
                         }, 100);
                     });
