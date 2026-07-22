@@ -3789,45 +3789,18 @@ public function carkverilerigetir(Request $request)
     });
 
     // ============================================================
-    // RANDEVU MERGE: Bir Randevular kaydina ait tum RandevuHizmetler'i
-    // TEK event'e birlestir (kullanici takvimde her randevu icin tek
-    // blok gormek istiyor; ic hizmetler/seanslar ayri popup'tan
-    // (detay/duzenle/geldi/tahsilat) erisilebiliyor).
+    // MERGE KALDIRILDI (2026-07-21) — Flutter mobil uygulama akisiyla
+    // hizalanmasi icin: her RandevuHizmetler satiri takvimde ayri bir
+    // event olarak gosterilir. Paket randevulari zaten baslikta 'PAKET'
+    // ibaresi ile isaretleniyor (bkz. $paketRandevusu blogu).
     //
-    // - randevuId bazinda grupla
-    // - Bir grup birden fazla event iceriyorsa: ilk event temel alinir,
-    //   end = max end (gercek randevu bitisi), digerleri atilir
-    // - Paket flag bagimsiz: AdisyonPaketSeanslar kayitlari "Geldi"
-    //   isaretlenirken silinse bile (selective seans modu), v2 multi-POST
-    //   her paket icin ayri Randevular yarattigi icin grupping yine
-    //   paket sinirlariyla ortusur.
+    // Onceki mantik (a66f9bc3 / 8bf8dc7c): paket randevusu 1 blok
+    // gorunsun diye randevuId + resourceId bazinda birlestirme yapiyordu.
+    // Ancak ayni personelin ayni randevuda art arda 2 hizmeti oldugunda
+    // bunlar tek bara birlesiyor, kullanici ayri bara istiyor. Mobil
+    // uygulama zaten boyle calisiyor (her hizmet ayri event) — web'i de
+    // ayni hizaya cektik.
     // ============================================================
-    // Merge sadece AYNI resourceId (ayni kolon/personel/oda/cihaz) icindeki
-    // hizmetleri tek event yapar. Farkli personel/oda/cihaz'a atanan satirlar
-    // ayri kolonlarda gozukmesi gerektigi icin ayri event olarak kalir.
-    // (Onceki versiyon randevuId tek key idi -> farkli personele atanan 2. hizmet
-    // merge sirasinda atiliyordu, kullanici "ikinci hizmet takvimde gozukmuyor"
-    // diye rapor ediyordu.)
-    if($randevu_hizmetler instanceof \Illuminate\Support\Collection && $randevu_hizmetler->count() > 0){
-        $grouped = $randevu_hizmetler->groupBy(function($e){
-            $rid = $e['randevuId'] ?? null;
-            $res = $e['resourceId'] ?? '';
-            return $rid . '|' . $res;
-        });
-        $merged = collect();
-        foreach($grouped as $key => $events){
-            if($events->count() > 1){
-                $sorted = $events->sortBy('start')->values();
-                $first = $sorted->first();
-                $maxEnd = $sorted->max('end');
-                $first['end'] = $maxEnd;
-                $merged->push($first);
-            } else {
-                foreach($events as $e){ $merged->push($e); }
-            }
-        }
-        $randevu_hizmetler = $merged;
-    }
 
     $emptySlots = [];
     $startDate = Carbon::parse($tarih1 . " 07:00:00");
