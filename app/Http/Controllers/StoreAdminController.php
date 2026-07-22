@@ -3771,6 +3771,17 @@ public function carkverilerigetir(Request $request)
         }
         // $rol disaridan dondurulen closure scope degiskeni; her satir icin tekrar sorguya gerek yok
         $hasPaketTahsilat = isset($randevuIdsHasSeans[$rh->randevu_id]) || isset($randevuIdsHasAdisyonHizmet[$rh->randevu_id]);
+
+        // MERGE icin "paket kaynagi": bu RandevuHizmetler (hizmet_id ozelinde)
+        // hangi adisyon_paket / adisyon_hizmet'e bagli? Ayni kaynak + ayni resource
+        // olan hizmetler tek bara birlestirilir. Bagli olmayanlar 'single-'+id (asla merge).
+        $_paketSource = 'single-'.$rh->id;
+        foreach($seansVar as $__sv){
+            if((int)$__sv->hizmet_id !== (int)$rh->hizmet_id) continue;
+            if($__sv->adisyon_paket_id){ $_paketSource = 'AP:'.$__sv->adisyon_paket_id; break; }
+            if($__sv->adisyon_hizmet_id){ $_paketSource = 'AH:'.$__sv->adisyon_hizmet_id; break; }
+        }
+
         return [
             'id' => $rh->id,
             'title' => $title,
@@ -3793,22 +3804,55 @@ public function carkverilerigetir(Request $request)
             "textColor"=> "",
             'modal_title' => $modalTitle,
             'duzenle_buton'=>$duzenleButon,
+            '_paketSource' => $_paketSource, // merge icin
         ];
     });
 
     // ============================================================
-    // MERGE KALDIRILDI (2026-07-21) — Flutter mobil uygulama akisiyla
-    // hizalanmasi icin: her RandevuHizmetler satiri takvimde ayri bir
-    // event olarak gosterilir. Paket randevulari zaten baslikta 'PAKET'
-    // ibaresi ile isaretleniyor (bkz. $paketRandevusu blogu).
+    // MERGE: Ayni paket kaynagi (adisyon_paket_id / adisyon_hizmet_id) +
+    // ayni resource (personel/oda/cihaz kolonu) icindeki hizmetler tek bara
+    // birlestirilir. Paket randevusu tek blok gorunsun diye.
     //
-    // Onceki mantik (a66f9bc3 / 8bf8dc7c): paket randevusu 1 blok
-    // gorunsun diye randevuId + resourceId bazinda birlestirme yapiyordu.
-    // Ancak ayni personelin ayni randevuda art arda 2 hizmeti oldugunda
-    // bunlar tek bara birlesiyor, kullanici ayri bara istiyor. Mobil
-    // uygulama zaten boyle calisiyor (her hizmet ayri event) — web'i de
-    // ayni hizaya cektik.
+    // - APS'siz hizmetler (paket randevusu degil) HER ZAMAN ayri bar
+    //   ('single-'+rh_id key ile unique kalir)
+    // - Farkli paket kaynaklari (farkli AP/AH id) ayri bar
+    // - Ayni paket + farkli resource kolonu (or. paket icinde farkli personel)
+    //   ayri bar
+    // - Ayni paket + ayni resource: birlestirilir. start = min, end = max.
+    //
+    // Onceki tarihce:
+    // - a66f9bc3 (05-Haz): randevu_id bazli merge (paket 1 blok, ama farkli
+    //   personel ikinci event kayboluyor)
+    // - 8bf8dc7c (24-Haz): randevu_id + resource bazli (paket 1 blok +
+    //   farkli personel ayri; AMA APS'siz sirali 2 hizmet de birlesiyor)
+    // - b8c29898 (21-Tem): merge tamamen kaldirildi (mobil ile ayni akis,
+    //   paket bile satirlara bolundu)
+    // - Simdi: paket kaynagi + resource bazli (paket 1 blok, digerleri
+    //   ayri) — kullanicinin istedigi.
     // ============================================================
+    if($randevu_hizmetler instanceof \Illuminate\Support\Collection && $randevu_hizmetler->count() > 0){
+        $grouped = $randevu_hizmetler->groupBy(function($e){
+            $src = $e['_paketSource'] ?? ('single-'.($e['id'] ?? uniqid()));
+            $res = $e['resourceId'] ?? '';
+            return $src.'|'.$res;
+        });
+        $merged = collect();
+        foreach($grouped as $key => $events){
+            if($events->count() > 1){
+                $sorted = $events->sortBy('start')->values();
+                $first  = $sorted->first();
+                $first['end'] = $sorted->max('end');
+                unset($first['_paketSource']);
+                $merged->push($first);
+            } else {
+                foreach($events as $e){
+                    unset($e['_paketSource']);
+                    $merged->push($e);
+                }
+            }
+        }
+        $randevu_hizmetler = $merged;
+    }
 
     $emptySlots = [];
     $startDate = Carbon::parse($tarih1 . " 07:00:00");
