@@ -1241,8 +1241,11 @@ class ApiController extends Controller
         $personelid ?: '', $musteriid ?: '', $_faturasizGizleAktif ? '1' : '0',
     ]));
     // Kisa TTL: badge'ler neredeyse anlik kalsin, sadece hizli sayfa/sekme
-    // gecislerindeki tekrar hesabi emsin. Tam anlik istenirse 0 yapilabilir.
-    $acikKapaliSayim = \Cache::remember($sayimCacheKey, 15, function () use (
+    // gecislerindeki tekrar hesabi emsin.
+    // DIKKAT: Laravel 5.6'da Cache::remember ikinci parametresi DAKIKA'dir.
+    // Onceden 15 yaziyordu => 15 DAKIKA cache => tahsilat yapildiktan sonra
+    // "Acik 33" gibi bayat rozet sayilari gorunuyordu. 15 saniye = 0.25 dakika.
+    $acikKapaliSayim = \Cache::remember($sayimCacheKey, 15 / 60, function () use (
         $personelid, $faturaFiltreSayim, $personelFiltre, $turFiltreSayim,
         $musteriFiltreSayim, $salonScopeSql, $salonScopeBind, $tarih1, $tarih2, $personelBind, $musteriBindSayim
     ) {

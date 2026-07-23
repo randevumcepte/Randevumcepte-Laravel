@@ -71,7 +71,10 @@ class Kernel extends HttpKernel
 
         ],
         'api' => [
-            'throttle:60,1',
+            // Limit IP basinadir (mobil istekler auth'suz gelir). Salonda birden
+            // fazla cihaz ayni internet hattini paylastigi icin 60/dk cok dusuktu:
+            // arka arkaya tahsilat yapilinca 429 doner, mobil liste yenilenemez.
+            'throttle:300,1',
             'bindings',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],

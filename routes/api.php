@@ -103,9 +103,10 @@ Route::get('/whatsapp/paket-durum/{salonId}','WhatsappMobileController@paketDuru
 Route::post('/whatsapp/paket-talep/{salonId}','WhatsappMobileController@paketTalep');
 
 Route::get('/isletmepuani/{salonid}','ApiController@isletmepuani');
-Route::middleware('throttle:60,1')->group(function () {
-    Route::post('/ajandaget/{salonid}/{olusturan}','ApiController@ajandagetir');
-});
+// NOT: 'api' middleware grubunda zaten throttle var. Buraya ikinci bir throttle
+// eklemek AYNI sayaci istek basina 2 kez artiriyordu (ajanda cagrilari limiti
+// iki kat hizli tuketiyordu). Ikinci throttle kaldirildi.
+Route::post('/ajandaget/{salonid}/{olusturan}','ApiController@ajandagetir');
 //Route::post('/ajandaget/{salonid}/{olusturan}','ApiController@ajandagetir');
 Route::post('/paketler/{salonid}','ApiController@paketler');
 Route::post('/paketler','ApiController@paketler_liste');
