@@ -12982,7 +12982,9 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         'hizmetler' => function ($q) use ($personel_id) {
             $q->select('id', 'adisyon_id', 'hizmet_id', "fiyat", "personel_id")
               ->with(['hizmet:id,hizmet_adi'])
-              ->with('tahsilatlar:id,adisyon_hizmet_id,tutar');
+              ->with('tahsilatlar:id,adisyon_hizmet_id,tutar')
+              // Seansli (APS'li) hizmetleri PAKET saymak icin seans kayitlari
+              ->with('seanslar:id,adisyon_hizmet_id');
             if ($personel_id) {
                 $q->where('personel_id', $personel_id);
             }
@@ -13037,11 +13039,16 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     
     // Adisyon türüne göre filtreleme
     if ($adisyonturu == '1') {
-        $adisyonlar->whereHas('hizmetler');
+        // Hizmet sekmesi: seansli (APS'li) hizmetler PAKET sayilir, hizmet kabul edilmez.
+        $adisyonlar->whereHas('hizmetler', function($q){ $q->whereDoesntHave('seanslar'); });
     } elseif ($adisyonturu == '3') {
         $adisyonlar->whereHas('urunler');
     } elseif ($adisyonturu == '2') {
-        $adisyonlar->whereHas('paketler');
+        // Paket sekmesi: gercek paketler VEYA seansli (APS'li) hizmet satislari.
+        $adisyonlar->where(function($q){
+            $q->whereHas('paketler')
+              ->orWhereHas('hizmetler', function($q2){ $q2->whereHas('seanslar'); });
+        });
     }
     
     $adisyonlar->orderBy('tarih', 'desc');
@@ -13226,14 +13233,38 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             $hizmetler = $hizmetler->where('personel_id', $personel_id);
         }
         foreach ($hizmetler as $hizmet) {
+            $hizmetNetTutar = ($hizmet->fiyat ?? 0) - ($hizmet->indirim_tutari ?? 0);
+
+            // Seansli (APS kaydi olan) hizmet = PAKET satisi: (P) etiketi, paket kovasi,
+            // prim duz paket_prim_yuzde.
+            if ($hizmet->seanslar->isNotEmpty()) {
+                $paketHakedis = 0;
+                if ($hizmet->personel_id !== null && isset($hizmet->personel->paket_prim_yuzde)) {
+                    $paketHakedis = $hizmet->tahsilatlar->sum('tutar') * ($hizmet->personel->paket_prim_yuzde / 100);
+                }
+                $satilanlarStr .= $hizmet->hizmet_id ? $hizmet->hizmet->hizmet_adi." (P) " : "";
+                $satilanlar[] = [
+                    'tip' => 'paket',
+                    'ad' => $hizmet->hizmet_id ? $hizmet->hizmet->hizmet_adi : "",
+                    'tutar' => $hizmetNetTutar,
+                    'hizmetTutar' => 0,
+                    'urunTutar' => 0,
+                    'paketTutar' => $hizmetNetTutar,
+                    'hakedisTutar' => $paketHakedis,
+                    'hizmetHakedisTutar' => 0,
+                    'urunHakedisTutar' => 0,
+                    'paketHakedisTutar' => $paketHakedis,
+                ];
+                continue;
+            }
+
             $hizmetHakedis = 0;
             if ($hizmet->personel_id !== null) {
                 if (isset($hizmet->personel->hizmet_prim_yuzde)) {
                     $hizmetHakedis = $hizmet->tahsilatlar->sum('tutar') * ($hizmet->personel->hizmet_prim_yuzde / 100);
                 }
             }
-            
-            $hizmetNetTutar = ($hizmet->fiyat ?? 0) - ($hizmet->indirim_tutari ?? 0);
+
             $satilanlarStr .= $hizmet->hizmet_id ? $hizmet->hizmet->hizmet_adi." (H) " : "";
             $satilanlar[] = [
                 'tip' => 'hizmet',
