@@ -1660,6 +1660,7 @@
             <div class="sidebar-menu">
                <ul>
                   {{-- Ozet (yeni dashboard, hizli paralel-yukleme) --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if(!in_array(5, $_layoutRoller))
                   <li>
                      @if(($pageindex ?? -1) === 0)
@@ -1672,8 +1673,10 @@
                      </a>
                   </li>
                   @endif
+                  @endif
 
                   {{-- 1) Asistanım --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu > 2)
                   @if(!in_array(5, $_layoutRoller))
                   <li>
@@ -1688,8 +1691,10 @@
                   </li>
                   @endif
                   @endif
+                  @endif
 
                   {{-- 2) Santral --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if(($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
                   <li>
                      @if($pageindex==43)
@@ -1701,6 +1706,7 @@
                      <span class="mtext"> Santral </span>
                      </a>
                   </li>
+                  @endif
                   @endif
 
                   {{-- "Çağrı Merkezi Ayarları" menü öğesi kaldırıldı (istek üzerine). Sayfa/route duruyor. --}}
@@ -1807,6 +1813,7 @@
                   @endif
 
                   {{-- 9) Seans Takibi --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu>1)
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'paket.seans_takip'))
                   <li>
@@ -1821,8 +1828,10 @@
                   </li>
                   @endif
                   @endif
+                  @endif
 
                   {{-- 10) Çarkıfelek (sadece uyelik_turu == 3) --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu == 3)
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.cark_yonet'))
                   <li>
@@ -1837,9 +1846,11 @@
                   </li>
                   @endif
                   @endif
+                  @endif
                   {{-- Çark Kazananlar ve Puan Ödülleri linkleri Çarkıfelek sayfasına tab olarak entegre edildi --}}
 
                   {{-- Uygulama İndirme Afişi (sadece uyelik_turu == 3) --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu == 3)
                   <li>
                      @if(($pageindex ?? 0) == 80)
@@ -1851,6 +1862,7 @@
                         ><span class="mtext">Uygulama Afişi</span>
                      </a>
                   </li>
+                  @endif
                   @endif
 
                   {{-- 11) Müşteriler/Danışanlar --}}
@@ -1868,6 +1880,7 @@
                   @endif
 
                   {{-- 12) Personeller --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'personel.liste_gor'))
                   <li>
                      @if($pageindex==401)
@@ -1879,6 +1892,7 @@
                      <span class="mtext">Personeller</span>
                      </a>
                   </li>
+                  @endif
                   @endif
 
                   {{-- 13) Paket Yönetimi --}}
@@ -2055,6 +2069,7 @@
                   @endif
 
                   {{-- 2b) Cagri Merkezi Dashboard (yonetici) — sadece uyelik_turu == 3 --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu == 3 && ($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
                   <li>
                      @if($pageindex==45)
@@ -2067,8 +2082,10 @@
                      </a>
                   </li>
                   @endif
+                  @endif
 
                   {{-- 2c) Cagri Merkezi: Arama Ekrani (yonetici de gorur/test edebilir) — sadece uyelik_turu == 3 --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu == 3 && ($isletme->santral_aktif) && !in_array(5, $_layoutRoller))
                   <li>
                      @if($pageindex==44)
@@ -2080,6 +2097,7 @@
                      <span class="mtext"> Arama Ekranı </span>
                      </a>
                   </li>
+                  @endif
                   @endif
 
                   {{-- 19) WhatsApp Yönetimi (sadece uyelik_turu == 3) — Baileys+whatsmeow tek sayfada birleşti --}}
@@ -2101,6 +2119,7 @@
                   @endif
 
                   {{-- 20) SMS Yönetimi --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if(
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.sms_gonder') ||
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.toplu_sms')
@@ -2115,6 +2134,7 @@
                      <span class="mtext">SMS Yönetimi</span>
                      </a>
                   </li>
+                  @endif
                   @endif
 
                   {{-- 21) Ayarlar --}}
