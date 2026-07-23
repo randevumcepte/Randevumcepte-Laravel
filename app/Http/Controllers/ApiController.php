@@ -1236,8 +1236,12 @@ class ApiController extends Controller
         $salonScopeSig  = 'salon:' . $isletmeId;
     }
 
+    // Sayim cache'i yazma islemlerinde (tahsilat/adisyon sil vb.) surum
+    // artirilarak ANINDA gecersiz kilinir; boylece tahsilat sonrasi badge
+    // 15 sn beklemeden taze olur. Surum anahtar icine girer.
+    $sayimSurum = (int) \Cache::get('adisyon_sayim_ver_' . $salonScopeSig, 0);
     $sayimCacheKey = 'adisyon_sayim_' . md5(implode('|', [
-        $salonScopeSig, $tarih1, $tarih2, (int)$adisyonturu,
+        $salonScopeSig, $sayimSurum, $tarih1, $tarih2, (int)$adisyonturu,
         $personelid ?: '', $musteriid ?: '', $_faturasizGizleAktif ? '1' : '0',
     ]));
     // Kisa TTL: badge'ler neredeyse anlik kalsin, sadece hizli sayfa/sekme
@@ -1324,6 +1328,29 @@ class ApiController extends Controller
     }
 
     return response()->json($response);
+}
+
+// Adisyon acik/kapali sayim cache'ini gecersiz kilar. Tahsilat, taksit/senet
+// odemesi ve adisyon silme gibi acik/kapali durumunu degistiren islemlerden
+// sonra cagrilir. Hem salon kapsamini (yonetici paneli) hem markanin
+// app_bundle kapsamini (musteri paneli tum subeler) surumler.
+public static function adisyonSayimCacheTemizle($salonId)
+{
+    if (empty($salonId)) return;
+    self::_sayimSurumuArtir('salon:' . $salonId);
+    try {
+        $bundle = Salonlar::where('id', $salonId)->value('app_bundle');
+        if (!empty($bundle)) {
+            self::_sayimSurumuArtir('bundle:' . $bundle);
+        }
+    } catch (\Throwable $e) {}
+}
+
+private static function _sayimSurumuArtir($sig)
+{
+    $key = 'adisyon_sayim_ver_' . $sig;
+    $cur = (int) \Cache::get($key, 0);
+    \Cache::put($key, $cur + 1, 1440); // 1 gun (dakika cinsinden — Laravel 5.6)
 }
 
 // Kalem bazli prim oranlari haritasi: personel_prim_oranlari tablosunu
@@ -14956,6 +14983,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 ['adisyon_id' => $request->adisyon_id]
             );
         } catch (\Throwable $e) {}
+        // Tahsilat acik/kapali durumunu degistirir → badge sayim cache'ini tazele
+        self::adisyonSayimCacheTemizle($request->sube ?? Adisyonlar::where('id', $request->adisyon_id)->value('salon_id'));
         return "Başarılı";
     }
 
@@ -15161,6 +15190,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         try {
             Audit::logApi($request->sube, $request, is_numeric($request->taksitli_tahsilat_id) ? 'taksit_guncelle' : 'taksit_ekle', 'taksitli_tahsilat', optional($taksitlitahsilat)->id, 'Vade: ' . ($request->vade ?? '') . ' - Tutar: ' . ($request->taksit_tutar ?? ''), is_numeric($request->taksitli_tahsilat_id) ? 'Taksitli tahsilat güncellendi' : 'Taksitli tahsilat oluşturuldu', ['adisyon_id' => $request->adisyon_id]);
         } catch (\Throwable $e) {}
+
+        // Taksit/senet plani acik/kapali durumunu etkiler → badge sayimini tazele
+        self::adisyonSayimCacheTemizle($request->sube ?? Adisyonlar::where('id', $request->adisyon_id)->value('salon_id'));
 
         return "başarılı";
 
@@ -26425,6 +26457,8 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             // Adisyon silinmeden once salon_id'yi yakala (log icin)
             $_adisyonSalonId = $request->salonId
                 ?? Adisyonlar::where('id', $request->adisyon_id)->value('salon_id');
+            // Silme acik/kapali sayilarini degistirir → badge sayim cache'ini tazele
+            self::adisyonSayimCacheTemizle($_adisyonSalonId);
             $adisyonhizmetler = AdisyonHizmetler::where('adisyon_id',$request->adisyon_id)->get();
             $adisyonurunler = AdisyonUrunler::where('adisyon_id',$request->adisyon_id)->get();
             $adisyonpaketler = AdisyonPaketler::where('adisyon_id',$request->adisyon_id)->get();
