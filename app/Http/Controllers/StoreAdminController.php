@@ -20402,16 +20402,14 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     // (mevcut kampanya_yonetimi'nden AYRI). SADECE hesap sahibi (role_id=1).
     // ======================================================================
 
-    /** Giris yapan yetkili bu salonda hesap sahibi (role_id=1) mi? */
+    /**
+     * Bildirim Reklamlari erisim kontrolu.
+     * TEST ASAMASI: panele giris yapmis herkese acik. Ileride owner/yetki
+     * kisiti gerekince burada role_id=1 veya PersonelYetkiServisi kontrolu ekle.
+     */
     private function bildirimReklamSahipMi(Request $request)
     {
-        $authUser = Auth::guard('isletmeyonetim')->user();
-        if (!$authUser) return false;
-        return \DB::table('model_has_roles')
-            ->where('model_id', $authUser->id)
-            ->where('salon_id', self::mevcutsube($request))
-            ->where('role_id', 1)
-            ->exists();
+        return Auth::guard('isletmeyonetim')->check();
     }
 
     public function bildirim_reklam_liste(Request $request)

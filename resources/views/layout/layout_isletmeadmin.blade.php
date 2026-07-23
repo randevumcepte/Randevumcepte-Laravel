@@ -1784,9 +1784,7 @@
                   @endif
                   @endif
 
-                  {{-- 8a) Bildirim Reklamlari (resimli/tiklanabilir, sade modul - SADECE hesap sahibi) --}}
-                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if(in_array(1, $_layoutRoller))
+                  {{-- 8a) Bildirim Reklamlari (resimli/tiklanabilir, sade modul - panele giren herkes) --}}
                   <li>
                      @if($pageindex==122)
                      <a href="/isletmeyonetim/bildirim-reklamlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1797,8 +1795,6 @@
                      ><span class="mtext">Bildirim Reklamları</span>
                      </a>
                   </li>
-                  @endif
-                  @endif
 
                   {{-- 8) Reklam Yönetimi (simdilik gizli - uzerinde calisiliyor) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
