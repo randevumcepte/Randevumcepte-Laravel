@@ -3,7 +3,10 @@
      CSS  : public/isletmeyonetim_assets/css/salon_hatirlatma.css
      JS   : public/isletmeyonetim_assets/js/salon_hatirlatma.js
      Asset versiyonu icin asagidaki ?v=X.Y degerini guncelle.
+     NOT: randevu.randevumcepte.com.tr domaininde hatirlatma kartlari cikmaz.
      ============================================================= --}}
+
+@if(($_SERVER['HTTP_HOST'] ?? '') != 'randevu.randevumcepte.com.tr')
 
 @php $shtVer = '2.1'; @endphp
 
@@ -28,3 +31,5 @@
 </div>
 
 <script src="{{ secure_asset('public/isletmeyonetim_assets/js/salon_hatirlatma.js') }}?v={{ $shtVer }}"></script>
+
+@endif
