@@ -456,36 +456,58 @@
             phoneResult.style.display='none';
             phoneSubmit.disabled = true;
             phoneSubmit.textContent = 'Üretiliyor…';
-            fetch('/isletmeyonetim/whatsapp/pair-phone' + qs, {
-                method: 'POST',
-                headers: {'Content-Type':'application/json','X-CSRF-TOKEN': $('meta[name=csrf-token]').attr('content')},
-                credentials: 'same-origin',
-                body: JSON.stringify({phone: phone}),
-            }).then(function(r){ return r.json().then(function(b){ return {ok:r.ok, body:b}; }); }).then(function(res){
-                if (res.ok && res.body.code) {
-                    // Kodu 4-4 formatinda goster
-                    var c = res.body.code.toString();
-                    if (c.length === 8) c = c.substring(0,4) + '-' + c.substring(4);
-                    phoneCode.textContent = c;
-                    phoneResult.style.display = 'block';
-                } else {
-                    var msg = 'Kod üretilemedi.';
-                    if (res.body && res.body.error) {
-                        if (res.body.error === 'already-paired') msg = 'Bu salon zaten bağlı görünüyor. Önce "Oturumu Kapat" yapın.';
-                        else if (res.body.error === 'invalid-phone') msg = 'Numara formatı geçersiz. 905XXXXXXXXX şeklinde girin.';
-                        else if (res.body.error === 'pairing-not-ready') msg = 'WhatsApp bağlantısı henüz hazır değil. Birkaç saniye bekleyip tekrar deneyin.';
-                        else msg = 'Hata: ' + res.body.error;
+
+            // Bridge'de oturum acik degilken pair kodu uretilemez (409
+            // pairing-not-ready). Salon "Bağlantı Başlat"a basmadan dogrudan
+            // kod uretmeye kalkabilir; o yuzden once baslat, sonra kod iste.
+            // WhatsApp el sikismasi ilk saniyelerde bitmemis olabilir diye
+            // 409 gelirse bir kez daha denenir.
+            function pairIstegi(){
+                return fetch('/isletmeyonetim/whatsapp/pair-phone' + qs, {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json','X-CSRF-TOKEN': $('meta[name=csrf-token]').attr('content')},
+                    credentials: 'same-origin',
+                    body: JSON.stringify({phone: phone}),
+                }).then(function(r){ return r.json().then(function(b){ return {ok:r.ok, body:b}; }); });
+            }
+
+            fetchJson('/isletmeyonetim/whatsapp/baslat' + qs, { method:'POST' })
+                .catch(function(){ /* oturum zaten acikssa hatasi onemsiz */ })
+                .then(pairIstegi)
+                .then(function(res){
+                    if (!res.ok && res.body && res.body.error === 'pairing-not-ready') {
+                        phoneSubmit.textContent = 'Bağlantı bekleniyor…';
+                        return new Promise(function(devam){ setTimeout(devam, 4000); }).then(pairIstegi);
                     }
-                    phoneError.textContent = msg;
+                    return res;
+                })
+                .then(function(res){
+                    if (res.ok && res.body.code) {
+                        // Kodu 4-4 formatinda goster
+                        var c = res.body.code.toString();
+                        if (c.length === 8) c = c.substring(0,4) + '-' + c.substring(4);
+                        phoneCode.textContent = c;
+                        phoneResult.style.display = 'block';
+                    } else {
+                        var msg = 'Kod üretilemedi.';
+                        if (res.body && res.body.error) {
+                            if (res.body.error === 'already-paired') msg = 'Bu salon zaten bağlı görünüyor. Önce "Oturumu Kapat" yapın.';
+                            else if (res.body.error === 'invalid-phone') msg = 'Numara formatı geçersiz. 905XXXXXXXXX şeklinde girin.';
+                            else if (res.body.error === 'pairing-not-ready') msg = 'WhatsApp bağlantısı henüz hazır değil. Birkaç saniye bekleyip tekrar deneyin.';
+                            else msg = 'Hata: ' + res.body.error;
+                        }
+                        phoneError.textContent = msg;
+                        phoneError.style.display = 'block';
+                    }
+                })
+                .catch(function(){
+                    phoneError.textContent = 'İstek başarısız. Sunucuya ulaşılamadı.';
                     phoneError.style.display = 'block';
-                }
-            }).catch(function(){
-                phoneError.textContent = 'İstek başarısız. Sunucuya ulaşılamadı.';
-                phoneError.style.display = 'block';
-            }).finally(function(){
-                phoneSubmit.disabled = false;
-                phoneSubmit.textContent = 'Kod Üret';
-            });
+                })
+                .finally(function(){
+                    phoneSubmit.disabled = false;
+                    phoneSubmit.textContent = 'Kod Üret';
+                });
         });
     }
 
