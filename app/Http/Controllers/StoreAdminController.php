@@ -33022,27 +33022,53 @@ DB::raw('
         $detayHarita = $this->detayliPrimHaritasi($salonId);
 
         $hizmetItems = $adisyonlar->flatMap(fn($a)=>$a->hizmetler)->filter(fn($i)=>$i->personel_id);
+
+        // Seansli hizmet kalemleri (adisyon_paket_seanslar kaydi OLAN) sistemde PAKET
+        // sayilir: gelir de prim de paket kovasina gider, duz paket_prim_yuzde ile
+        // hesaplanir. Bunlarin id'lerini tek sorguda cikar (set olarak).
+        $seansliSet = [];
+        if($hizmetItems->isNotEmpty()){
+            $seansliSet = \DB::table('adisyon_paket_seanslar')
+                ->whereIn('adisyon_hizmet_id', $hizmetItems->pluck('id')->unique()->values())
+                ->distinct()->pluck('adisyon_hizmet_id')->flip()->all();
+        }
+
         foreach($hizmetItems->groupBy('personel_id') as $pid => $items){
             if(!isset($primMap[$pid]) || !isset($persById[$pid])) continue;
-            // ID'leri tekrarsiz al (defensive)
-            $ids = $items->pluck('id')->unique()->values();
-            $kazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $ids)->sum('tutar');
-            $primMap[$pid]['hizmet_geliri'] = (float)$kazanc;
+            // Seansli (paket) ve normal hizmet kalemlerini ayir
+            $normal  = $items->reject(fn($i)=>isset($seansliSet[$i->id]))->values();
+            $seansli = $items->filter(fn($i)=>isset($seansliSet[$i->id]))->values();
 
-            if(!empty($persById[$pid]->hizmet_prim_detayli)){
-                // Detayli: her hizmet_id grubu icin kendi orani
-                $oranlar = $detayHarita[$pid]['hizmet'] ?? [];
-                $prim = 0;
-                foreach($items->groupBy('hizmet_id') as $hizmetId => $grup){
-                    $gIds = $grup->pluck('id')->unique()->values();
-                    $gKazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $gIds)->sum('tutar');
-                    $gYuzde = (float)($oranlar[$hizmetId] ?? 0);
-                    $prim += (float)$gKazanc * $gYuzde/100;
+            // --- Normal hizmet satislari ---
+            if($normal->isNotEmpty()){
+                $ids = $normal->pluck('id')->unique()->values();
+                $kazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $ids)->sum('tutar');
+                $primMap[$pid]['hizmet_geliri'] += (float)$kazanc;
+
+                if(!empty($persById[$pid]->hizmet_prim_detayli)){
+                    // Detayli: her hizmet_id grubu icin kendi orani
+                    $oranlar = $detayHarita[$pid]['hizmet'] ?? [];
+                    $prim = 0;
+                    foreach($normal->groupBy('hizmet_id') as $hizmetId => $grup){
+                        $gIds = $grup->pluck('id')->unique()->values();
+                        $gKazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $gIds)->sum('tutar');
+                        $gYuzde = (float)($oranlar[$hizmetId] ?? 0);
+                        $prim += (float)$gKazanc * $gYuzde/100;
+                    }
+                    $primMap[$pid]['hizmet_primi'] += round($prim, 2);
+                } else {
+                    $yuzde = (float)($persById[$pid]->hizmet_prim_yuzde ?? 0);
+                    $primMap[$pid]['hizmet_primi']  += round((float)$kazanc * $yuzde/100, 2);
                 }
-                $primMap[$pid]['hizmet_primi'] = round($prim, 2);
-            } else {
-                $yuzde = (float)($persById[$pid]->hizmet_prim_yuzde ?? 0);
-                $primMap[$pid]['hizmet_primi']  = round((float)$kazanc * $yuzde/100, 2);
+            }
+
+            // --- Seansli hizmet satislari => PAKET (duz paket_prim_yuzde) ---
+            if($seansli->isNotEmpty()){
+                $ids = $seansli->pluck('id')->unique()->values();
+                $kazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $ids)->sum('tutar');
+                $primMap[$pid]['paket_geliri'] += (float)$kazanc;
+                $yuzde = (float)($persById[$pid]->paket_prim_yuzde ?? 0);
+                $primMap[$pid]['paket_primi']  += round((float)$kazanc * $yuzde/100, 2);
             }
         }
 
@@ -33074,7 +33100,8 @@ DB::raw('
             if(!isset($primMap[$pid]) || !isset($persById[$pid])) continue;
             $ids = $items->pluck('id')->unique()->values();
             $kazanc = TahsilatPaketler::whereIn('adisyon_paket_id', $ids)->sum('tutar');
-            $primMap[$pid]['paket_geliri'] = (float)$kazanc;
+            // += : seansli hizmetler yukarida paket kovasina eklenmis olabilir, uzerine yazma
+            $primMap[$pid]['paket_geliri'] += (float)$kazanc;
 
             if(!empty($persById[$pid]->paket_prim_detayli)){
                 $oranlar = $detayHarita[$pid]['paket'] ?? [];
@@ -33085,10 +33112,10 @@ DB::raw('
                     $gYuzde = (float)($oranlar[$paketId] ?? 0);
                     $prim += (float)$gKazanc * $gYuzde/100;
                 }
-                $primMap[$pid]['paket_primi'] = round($prim, 2);
+                $primMap[$pid]['paket_primi'] += round($prim, 2);
             } else {
                 $yuzde = (float)($persById[$pid]->paket_prim_yuzde ?? 0);
-                $primMap[$pid]['paket_primi']  = round((float)$kazanc * $yuzde/100, 2);
+                $primMap[$pid]['paket_primi']  += round((float)$kazanc * $yuzde/100, 2);
             }
         }
 

@@ -1068,7 +1068,9 @@ class ApiController extends Controller
         'hizmetler' => function ($q) use ($personelid) {
             $q->select('id', 'adisyon_id', 'hizmet_id', 'fiyat', 'personel_id')
               ->with(['hizmet:id,hizmet_adi'])
-              ->with('tahsilatlar:id,adisyon_hizmet_id,tutar');
+              ->with('tahsilatlar:id,adisyon_hizmet_id,tutar')
+              // Seansli (APS kaydi olan) hizmetleri PAKET saymak icin sayaci getir
+              ->withCount('seanslar');
             if ($personelid) $q->where('personel_id', $personelid);
         },
         'urunler' => function ($q) use ($personelid) {
@@ -1372,15 +1374,24 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $tahsilatToplam = $hizmet->tahsilatlar->sum('tutar');
         $toplamTutar += $hizmet->fiyat;
         $odenen += $tahsilatToplam;
-        
+
+        // Seansli hizmet (APS kaydi olan) = PAKET satisi: prim duz paket_prim_yuzde,
+        // gosterimde "(P)" etiketi. seanslar_count eager-load ile geldi.
+        $isSeansli = (int)($hizmet->seanslar_count ?? 0) > 0;
+
         if($hizmet->personel_id && $hizmet->personel) {
-            $hizmetHakedis += $tahsilatToplam * ($this->primOrani($hizmet->personel, 'hizmet', $hizmet->hizmet_id, $primHarita) / 100);
+            if($isSeansli) {
+                $paketHakedis += $tahsilatToplam * ((float)($hizmet->personel->paket_prim_yuzde ?? 0) / 100);
+            } else {
+                $hizmetHakedis += $tahsilatToplam * ($this->primOrani($hizmet->personel, 'hizmet', $hizmet->hizmet_id, $primHarita) / 100);
+            }
         }
-        
-        $satilanlarStr .= ($hizmet->hizmet->hizmet_adi ?? '') . " (H)  " . 
-                          ($hizmet->personel->personel_adi ?? '') . "  " . 
+
+        $etiket = $isSeansli ? " (P)  " : " (H)  ";
+        $satilanlarStr .= ($hizmet->hizmet->hizmet_adi ?? '') . $etiket .
+                          ($hizmet->personel->personel_adi ?? '') . "  " .
                           number_format($hizmet->fiyat, 2, ',', '.') . " ₺\r\n";
-        $satilanlarStrKisaIcerik .= ($hizmet->hizmet->hizmet_adi ?? '') . ($hizmet->personel_id ? ' ('.trim($hizmet->personel->personel_adi ?? '').')' : '') . " (H)  " .
+        $satilanlarStrKisaIcerik .= ($hizmet->hizmet->hizmet_adi ?? '') . ($hizmet->personel_id ? ' ('.trim($hizmet->personel->personel_adi ?? '').')' : '') . $etiket .
                                      ($hizmet->personel->personel_adi ?? '') . "  " .
                                      number_format($hizmet->fiyat, 2, ',', '.') . " ₺\r\n";
         $personellerStr .= ($hizmet->personel->personel_adi ?? '') . ' ';
@@ -25932,6 +25943,11 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             return $adisyon->hizmetler;
         });
 
+        // Seansli hizmet kalemleri (APS kaydi olan) PAKET raporuna gider — Hizmet
+        // raporundan cikar. Boylece seansli satis paket sekmesinde gorunur.
+        $seansliSet = $this->seansliHizmetIdSeti($tumHizmetler->pluck('id'));
+        $tumHizmetler = $tumHizmetler->reject(fn($i)=>isset($seansliSet[$i->id]))->values();
+
         // 3. Hizmet_id üzerinden grupla
         $raporlar = $tumHizmetler->groupBy('hizmet_id')->map(function ($items) {
             $adisyonHizmetIds = $items->pluck('id');
@@ -26049,7 +26065,57 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             ];
         })->values();
 
-        return $raporlar;
+        // 4. Seansli hizmet satislari (APS kaydi olan) = sozde-PAKET. Hizmet_id
+        //    bazinda gruplanip paket raporuna eklenir. Drill-down (paketi_alan_musteriler)
+        //    paketMusteriListesiGetir icinde hizmet_id ile de eslesir.
+        $adisyonlarH = Adisyonlar::with(['hizmetler.hizmet'])
+            ->where('salon_id', $request->salonId)->where(function($q) use($request){
+                if($request->personel != '')
+                    $q->whereHas('hizmetler',function($q2) use($request){ $q2->where('personel_id',$request->personel); });
+            })->whereBetween(
+                \DB::raw("COALESCE(NULLIF(tarih, '0000-00-00'), DATE(created_at))"),
+                [$request->tarih1, $request->tarih2]
+            )->get();
+        $tumHizmetlerP = $adisyonlarH->flatMap(function ($adisyon) use ($personel) {
+            if ($personel != '') return $adisyon->hizmetler->where('personel_id', $personel);
+            return $adisyon->hizmetler;
+        });
+        $seansliSetP = $this->seansliHizmetIdSeti($tumHizmetlerP->pluck('id'));
+        $seansliHizmetler = $tumHizmetlerP->filter(fn($i)=>isset($seansliSetP[$i->id]))->values();
+
+        $seansliRaporlar = $seansliHizmetler->groupBy('hizmet_id')->map(function ($items) {
+            $ahIds = $items->pluck('id');
+            $toplamKazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $ahIds)->sum('tutar');
+            return (object)[
+                'id'=>$items->first()->hizmet_id,
+                'adet' => $items->count(),
+                'toplam_tutar' => number_format($items->sum('fiyat'),'2',',','.'),
+                'paket_adi' => ($items->first()->hizmet->hizmet_adi ?? '') . ' (Seansli)',
+                'toplamKazanc' => number_format($toplamKazanc,'2',',','.'),
+                'borc' => number_format($items->sum('fiyat') - $toplamKazanc,'2',',','.'),
+                'islemler'=> ' <a title="Detaylı Bilgi" name="paketi_alan_musteriler" data-value""  href="" class="btn btn-info"><i class="dw dw-eye"></i> </a>',
+                'toplamTutarNumeric'=>$items->sum('fiyat'),
+                'toplamKazancNumeric'=>$toplamKazanc,
+                'borcNumeric'=>$items->sum('fiyat') - $toplamKazanc,
+                'paket_id'=>$items->first()->hizmet_id, // drill-down hizmet_id ile eslesir
+            ];
+        })->values();
+
+        return $raporlar->concat($seansliRaporlar)->values();
+    }
+
+    /**
+     * Verilen adisyon_hizmet id'leri icinde adisyon_paket_seanslar (APS) kaydi
+     * OLANLARI set olarak dondurur: [adisyon_hizmet_id => true].
+     * Seansli hizmet = sistemde PAKET sayilan satis (prim + gosterim + rapor).
+     */
+    private function seansliHizmetIdSeti($hizmetIds)
+    {
+        $ids = collect($hizmetIds)->filter()->unique()->values();
+        if ($ids->isEmpty()) return [];
+        return \DB::table('adisyon_paket_seanslar')
+            ->whereIn('adisyon_hizmet_id', $ids)
+            ->distinct()->pluck('adisyon_hizmet_id')->flip()->all();
     }
 
 
@@ -26068,9 +26134,13 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             ->where('salon_id', $request->salonId)->whereBetween('tarih',[$request->tarih1,$request->tarih2])
             ->get();
 
-        // 1. Hizmet gelir ve prim
-        $hizmetPersonel = $adisyonlar->flatMap(fn($adisyon) => $adisyon->hizmetler)
-            ->filter(fn($item) => $item->personel && $item->personel->aktif == 1)
+        // Seansli hizmetler (APS kaydi olan) PAKET sayilir — hizmetten cikar, pakete ekle.
+        $tumHizmetItems = $adisyonlar->flatMap(fn($adisyon) => $adisyon->hizmetler)
+            ->filter(fn($item) => $item->personel && $item->personel->aktif == 1);
+        $seansliSetPR = $this->seansliHizmetIdSeti($tumHizmetItems->pluck('id'));
+
+        // 1. Hizmet gelir ve prim (SADECE seanssiz hizmetler)
+        $hizmetPersonel = $tumHizmetItems->reject(fn($i)=>isset($seansliSetPR[$i->id]))
             ->groupBy('personel_id')
             ->mapWithKeys(function($items, $personel_id) {
                 $personel = $items->first()->personel;
@@ -26095,18 +26165,29 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 ]];
             })->toArray();
 
-        // 3. Paket gelir ve prim
-        $paketPersonel = $adisyonlar->flatMap(fn($adisyon) => $adisyon->paketler)
-            ->filter(fn($item) => $item->personel && $item->personel->aktif == 1)
-            ->groupBy('personel_id')
-            ->mapWithKeys(function($items, $personel_id) {
-                $personel = $items->first()->personel;
-                $toplamKazanc = TahsilatPaketler::whereIn('adisyon_paket_id', $items->pluck('id'))->sum('tutar');
-                return [$personel_id => [
-                    'paket_geliri' => $toplamKazanc,
-                    'paket_primi' => $toplamKazanc * ($personel->paket_prim_yuzde ?? 0)/100
-                ]];
-            })->toArray();
+        // 3. Paket gelir ve prim (gercek paketler + seansli hizmetler, duz paket_prim_yuzde)
+        $paketPersonel = [];
+        foreach($adisyonlar->flatMap(fn($adisyon) => $adisyon->paketler)
+                ->filter(fn($item) => $item->personel && $item->personel->aktif == 1)
+                ->groupBy('personel_id') as $personel_id => $items) {
+            $personel = $items->first()->personel;
+            $kazanc = TahsilatPaketler::whereIn('adisyon_paket_id', $items->pluck('id'))->sum('tutar');
+            $paketPersonel[$personel_id] = [
+                'personel_adi' => $personel->personel_adi ?? null,
+                'paket_geliri' => $kazanc,
+                'paket_primi'  => $kazanc * ($personel->paket_prim_yuzde ?? 0)/100,
+            ];
+        }
+        foreach($tumHizmetItems->filter(fn($i)=>isset($seansliSetPR[$i->id]))
+                ->groupBy('personel_id') as $personel_id => $items) {
+            $personel = $items->first()->personel;
+            $kazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $items->pluck('id'))->sum('tutar');
+            if(!isset($paketPersonel[$personel_id])){
+                $paketPersonel[$personel_id] = ['personel_adi'=>$personel->personel_adi ?? null,'paket_geliri'=>0,'paket_primi'=>0];
+            }
+            $paketPersonel[$personel_id]['paket_geliri'] += $kazanc;
+            $paketPersonel[$personel_id]['paket_primi']  += $kazanc * ($personel->paket_prim_yuzde ?? 0)/100;
+        }
 
         // 4. Hepsini birleştir
         $personelRaporu = [];
@@ -26136,10 +26217,13 @@ public function hizmetMusteriListesiGetir(Request $request)
 {
     Log::info('salon id '.$request->salonId.' hizmet id '.$request->hizmetId);
 
+    // Seansli (APS'li) hizmetler PAKET raporuna tasindi; Hizmet drill-down'inda
+    // yalnizca seanssiz (normal) hizmet satislari gosterilir.
     $query = Adisyonlar::with(['musteri'])
         ->where('salon_id', $request->salonId)
         ->whereHas('hizmetler', function($q) use($request) {
-            $q->where('hizmet_id', $request->hizmetId);
+            $q->where('hizmet_id', $request->hizmetId)
+              ->whereDoesntHave('seanslar');
         })
         ->whereBetween('tarih', [$request->tarih1, $request->tarih2]);
 
@@ -26190,10 +26274,17 @@ public function urunMusteriListesiGetir(Request $request)
 
 public function paketMusteriListesiGetir(Request $request)
 {
+    // Gercek paket satislari VEYA seansli (APS'li) hizmet satislari (sozde-paket).
+    // paketRaporlari seansli hizmetleri hizmet_id ile paket satiri olarak dondugu
+    // icin, drill-down id'si hem paket_id hem de seansli hizmet_id olabilir.
     $query = Adisyonlar::with(['musteri'])
         ->where('salon_id', $request->salonId)
-        ->whereHas('paketler', function($q) use($request) {
-            $q->where('paket_id', $request->paketId);
+        ->where(function($q) use($request) {
+            $q->whereHas('paketler', function($q2) use($request) {
+                $q2->where('paket_id', $request->paketId);
+            })->orWhereHas('hizmetler', function($q2) use($request) {
+                $q2->where('hizmet_id', $request->paketId)->whereHas('seanslar');
+            });
         })
         ->whereBetween('tarih', [$request->tarih1, $request->tarih2]);
 
