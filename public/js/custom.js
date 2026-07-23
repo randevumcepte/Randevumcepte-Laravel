@@ -10161,6 +10161,40 @@ $('#randevu_ayarina_gore').change(function(e){
     e.preventDefault();
     takvimyukle(true,true);
 });
+// Takvim baslik tarihine (23 Temmuz 2026 Persembe) tiklayinca tarih secici acilsin.
+// Belirgin olmasi icin basliga takvim ikonu eklenir. FullCalendar basligi her
+// render'da yeniden urettigi icin ikon MutationObserver + gecikmeli denemelerle
+// tekrar eklenir; tiklama document uzerinden delege edilir (kaybolmaz).
+function rcTakvimBaslikIkonEkle(){
+    var $t = jQuery('#calendar .fc-center h2');
+    if($t.length && !$t.find('.rc-cal-title-ico').length){
+        $t.prepend('<i class="fa fa-calendar rc-cal-title-ico" aria-hidden="true"></i>');
+        $t.addClass('rc-cal-title-clickable').attr('title','Tarih seç');
+    }
+}
+function rcTakvimBaslikTarihSeciciKur(){
+    rcTakvimBaslikIkonEkle();
+    setTimeout(rcTakvimBaslikIkonEkle, 300);
+    setTimeout(rcTakvimBaslikIkonEkle, 1200);
+}
+if($('#calendar').length){
+    // Baslik degistikce ikonu tekrar ekle
+    (function(){
+        rcTakvimBaslikTarihSeciciKur();
+        var host = document.getElementById('calendar');
+        if(host && window.MutationObserver){
+            var mo = new MutationObserver(function(){ rcTakvimBaslikIkonEkle(); });
+            mo.observe(host, {childList:true, subtree:true});
+        }
+        // Tarih basligina/ikona tiklayinca tarih seciciyi ac (delege — her render'da calisir)
+        jQuery(document).off('click.rccaltitle').on('click.rccaltitle', '#calendar .fc-center h2', function(){
+            var $inp = jQuery('#takvim_tarihe_gore');
+            var dp = $inp.data('datepicker');
+            if(dp && typeof dp.show === 'function'){ dp.show(); }
+            else { $inp.trigger('focus').trigger('click'); }
+        });
+    })();
+}
 if($('#calendar').length){
     // KOSULLU POLLING: agir randevuyukle'yi her seferinde calistirmak yerine once
     // COK UCUZ bir imza (randevuversiyon) kontrol edilir. Imza degismediyse hicbir
@@ -10573,26 +10607,7 @@ if (preload && !turdegisti) {
             });
            
             $('.fc-axis.fc-widget-header').attr('style','width:43px');
-
-            // Takvim basligindaki tarihe tiklayinca tarih secici acilsin.
-            // Belirgin olmasi icin basliga bir takvim ikonu eklenir. FC her
-            // (yeniden) render'da basligi sifirdan urettigi icin ikon ve click
-            // burada tekrar baglanir (prev/next/today/tur degisimi hepsi buradan gecer).
-            (function(){
-               var $t = $('#calendar .fc-center h2');
-               if(!$t.length) return;
-               if(!$t.find('.rc-cal-title-ico').length){
-                  $t.prepend('<i class="fa fa-calendar rc-cal-title-ico" aria-hidden="true"></i>');
-               }
-               $t.addClass('rc-cal-title-clickable')
-                 .attr('title','Tarih seç')
-                 .off('click.rccal').on('click.rccal', function(){
-                    var $inp = $('#takvim_tarihe_gore');
-                    var dp = $inp.data('datepicker');
-                    if(dp && typeof dp.show === 'function'){ dp.show(); }
-                    else { $inp.trigger('focus').trigger('click'); }
-                 });
-            })();
+            rcTakvimBaslikTarihSeciciKur();
             }
             else{
                 console.log("takvim türü değişmedi sadece güncel veriler geliyor");
