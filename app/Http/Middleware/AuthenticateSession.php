@@ -80,14 +80,17 @@ class AuthenticateSession
     }
 
     /**
-     * Kullaniciyi cikar (aktif guard) ve oturumu temizle.
+     * DEVRE DISI (kullanici talebi: "hicbir kosulda disari atmasin").
+     *
+     * Eskiden parola-hash uyusmazliginda oturumu FLUSH edip kullaniciyi atiyordu.
+     * Cok-guard + impersonation + tarayici cok-sekme senaryolarinda bu, sistem
+     * yonetiminden "sacma sapan" atilmalara sebep oluyordu. Artik flush/logout YOK:
+     * uyusmazlik algilansa bile kullanici oturumda kalir. Guvenlik etkisi: parola
+     * degisince diger oturumlar otomatik gecersiz KILINMAZ (kabul edilen tavizat).
      */
     protected function logout($request)
     {
-        $this->auth->logout();
-
-        $request->session()->flush();
-
-        throw new AuthenticationException;
+        try { \Log::info('[AuthSession] flush ATLANDI (auto-logout kapali)'); } catch (\Throwable $e) {}
+        // Bilerek: logout/flush/exception YOK.
     }
 }
