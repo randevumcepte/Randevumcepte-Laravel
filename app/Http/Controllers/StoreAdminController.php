@@ -25153,6 +25153,47 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
         $paket = $request->input('paket');
+
+        // ── KONTÖR talebi (yeni model) — 'kontor_XXXX' ise sistem sahibine WA+SMS bildirim gönder.
+        // Yeni rota eklemeyip bu MEVCUT (route-cache'te kayıtlı) endpoint'e bindiriyoruz.
+        if (is_string($paket) && strpos($paket, 'kontor_') === 0) {
+            $paketler = [
+                'kontor_10000'  => ['ad'=>'10.000 Kontör',  'fiyat'=>'2.850 TL'],
+                'kontor_20000'  => ['ad'=>'20.000 Kontör',  'fiyat'=>'5.300 TL'],
+                'kontor_40000'  => ['ad'=>'40.000 Kontör',  'fiyat'=>'9.800 TL'],
+                'kontor_60000'  => ['ad'=>'60.000 Kontör',  'fiyat'=>'13.800 TL'],
+                'kontor_80000'  => ['ad'=>'80.000 Kontör',  'fiyat'=>'17.000 TL'],
+                'kontor_100000' => ['ad'=>'100.000 Kontör', 'fiyat'=>'20.000 TL'],
+            ];
+            if (!isset($paketler[$paket])) {
+                return response()->json(['ok'=>false,'mesaj'=>'Geçersiz paket.'],422);
+            }
+            $salonK    = Salonlar::find($salonId);
+            $p         = $paketler[$paket];
+            $iletisimK = trim((string) $request->input('iletisim', ''));
+            $telK      = $salonK ? ($salonK->yetkili_telefon ?: ($salonK->telefon_1 ?: '')) : '';
+            $mesajK = "💰 KONTÖR TALEBİ\n"
+                . "Salon: " . ($salonK->salon_adi ?? '-') . "\n"
+                . "Paket: " . $p['ad'] . " (" . $p['fiyat'] . ")\n"
+                . ($salonK && $salonK->yetkili_adi ? ("Yetkili: " . $salonK->yetkili_adi . "\n") : '')
+                . ($telK ? ("Tel: " . $telK . "\n") : '')
+                . ($iletisimK !== '' ? ("İletişim/Not: " . mb_substr($iletisimK, 0, 120) . "\n") : '')
+                . "ID: " . $salonId . "\n"
+                . date('d.m.Y H:i');
+
+            $rK = \App\Services\SistemBildirim::gonder($mesajK);
+            if (empty($rK['ok'])) {
+                $teshisK = 'Bildirim kanalı kapalı/numara yok — Sistem WhatsApp ayarını kontrol et.';
+            } else {
+                $waK  = $rK['detay']['wa'] ?? [];
+                $smsK = $rK['detay']['sms'] ?? [];
+                $teshisK = (!empty($waK['ok']) ? 'WA kuyruğa alındı ✓' : ('WA gitmedi (' . ($waK['error'] ?? ('http ' . ($waK['status'] ?? '?'))) . ')'))
+                    . ' | ' . (!empty($smsK['ok']) ? 'SMS gönderildi ✓' : ('SMS gitmedi (' . ($smsK['durum'] ?? 'hata') . ')'));
+            }
+            \Log::info('[KONTOR-TALEP]', ['salon_id'=>$salonId, 'paket'=>$paket, 'bildirim_ok'=>$rK['ok'] ?? false, 'teshis'=>$teshisK]);
+            return response()->json(['ok'=>true, 'mesaj'=>'Talebiniz alındı. En kısa sürede sizinle iletişime geçeceğiz. 🙌', 'teshis'=>$teshisK]);
+        }
+
         $periyot = $request->input('periyot');
         $iletisim = trim((string) $request->input('iletisim', ''));
 

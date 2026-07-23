@@ -967,7 +967,7 @@
         fd.append('paket', wpktSecilenPaket);
         fd.append('iletisim', iletisim);
         fd.append('_token', csrf);
-        fetch('/isletmeyonetim/whatsapp/kontor-talep' + qs2, {
+        fetch('/isletmeyonetim/whatsapp/paket-talep' + qs2, {
             method:'POST', credentials:'same-origin',
             headers:{'X-CSRF-TOKEN':csrf, 'Accept':'application/json'}, body:fd
         }).then(function(r){
