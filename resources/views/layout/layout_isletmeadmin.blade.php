@@ -194,6 +194,52 @@
          />
       @endif
       <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_panel/vendors/styles/style.css?v=22.0')}}" />
+
+      {{-- Mini (ikon) sol menu: masaustunde daralt, uzerine gelince genislet (Salonappy tarzi) --}}
+      <style>
+      @media (min-width:1301px){
+         /* --- Daraltilmis (sadece ikon) durum --- */
+         .left-side-bar{ width:74px; overflow:visible; }
+         .left-side-bar .brand-logo{ width:74px; overflow:hidden; }
+         .left-side-bar .brand-logo a{ padding:0 14px; }
+         .left-side-bar .brand-logo a img{ max-width:46px; }
+
+         .sidebar-menu .dropdown-toggle{
+            padding-left:15px;
+            white-space:nowrap;
+            overflow:hidden;
+         }
+         .sidebar-menu .dropdown-toggle .micon{ left:50%; transform:translate(-50%,-50%); }
+         .sidebar-menu .dropdown-toggle .mtext{
+            opacity:0; visibility:hidden;
+            transition:opacity .2s ease-in-out;
+         }
+         .sidebar-menu .dropdown-toggle.no-arrow:after,
+         .sidebar-menu .dropdown-toggle:after{ opacity:0; }
+
+         /* Daralt durumundayken acik alt menuleri gizle */
+         .left-side-bar:not(:hover) .sidebar-menu .submenu{ display:none !important; }
+
+         /* Icerik + header dar menuye gore kaysin */
+         .header{ width:calc(100% - 74px); }
+         .main-container{ padding-left:94px; }
+
+         /* --- Uzerine gelince genislet --- */
+         .left-side-bar:hover{
+            width:250px;
+            z-index:1050;
+            box-shadow:0 0 30px rgba(0,0,0,.15);
+         }
+         .left-side-bar:hover .brand-logo{ width:250px; }
+         .left-side-bar:hover .brand-logo a{ padding:0 20px; }
+         .left-side-bar:hover .brand-logo a img{ max-width:180px; }
+         .left-side-bar:hover .sidebar-menu .dropdown-toggle{ padding-left:67px; }
+         .left-side-bar:hover .sidebar-menu .dropdown-toggle .micon{ left:10px; transform:translate(0,-50%); }
+         .left-side-bar:hover .sidebar-menu .dropdown-toggle .mtext{ opacity:1; visibility:visible; }
+         .left-side-bar:hover .sidebar-menu .dropdown-toggle:after{ opacity:1; }
+      }
+      </style>
+
       <script src="{{secure_asset('public/js/OneSignalSDKWorker.js')}}"></script>
       <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
       <script>
