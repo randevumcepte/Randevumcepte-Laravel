@@ -618,6 +618,10 @@ class PanelController extends Controller
         Audit::log('salon_demo_olustur', 'salon', $salon->id, $salon->salon_adi,
             'Demo salon oluşturuldu (' . $demoGun . ' gün)', ['yetkili_email' => $yetkili->email]);
 
+        // Sistem sahibine bildirim — sistem yönetiminden demo açıldı (her yoldan haber gelsin)
+        try { \App\Services\SistemBildirim::demoAcildi($salon, $salon->yetkili_adi, $telefon); }
+        catch (\Throwable $e) { \Log::warning('[SistemBildirim] salonEkleKaydet demoAcildi hata: ' . $e->getMessage()); }
+
         return redirect('/sistemyonetim/v2/salon/' . $salon->id)->with('basari',
             'Demo salon oluşturuldu ✓  Giriş e-postası: ' . $yetkili->email
             . '  ·  Şifre: ' . $sifre

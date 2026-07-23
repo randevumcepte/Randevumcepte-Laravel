@@ -431,6 +431,10 @@ class SatisOrtakligiController extends Controller
                 $salon->hesap_acildi = true;
                 $salon->save();
 
+                // Sistem sahibine bildirim — satis ortagi demo acti (kayit akisini bozmasin)
+                try { \App\Services\SistemBildirim::demoAcildi($salon, $salon->yetkili_adi ?? ($yetkili->name ?? null), $salon->yetkili_telefon ?? ($yetkili->gsm1 ?? null)); }
+                catch (\Throwable $e) { \Log::warning('[SistemBildirim] satisOrtagi demoAcildi hata: ' . $e->getMessage()); }
+
                 $santral_ayari = new SalonSantralAyarlari();
             $santral_ayari->ayar_id = 1;
             $santral_ayari->salon_id = $salon->id;
