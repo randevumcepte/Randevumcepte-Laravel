@@ -1066,7 +1066,7 @@ class ApiController extends Controller
     $query = Adisyonlar::with([
         'musteri:id,name',
         'hizmetler' => function ($q) use ($personelid) {
-            $q->select('id', 'adisyon_id', 'hizmet_id', 'fiyat', 'personel_id')
+            $q->select('id', 'adisyon_id', 'hizmet_id', 'fiyat', 'personel_id', 'seans_sayisi')
               ->with(['hizmet:id,hizmet_adi'])
               ->with('tahsilatlar:id,adisyon_hizmet_id,tutar')
               // Seansli (APS kaydi olan) hizmetleri PAKET saymak icin sayaci getir
@@ -1387,7 +1387,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         }
 
-        $etiket = $isSeansli ? " (P)  " : " (H)  ";
+        // Seansli ise "(P) (X Seans)" — seans adedi seans_sayisi (yoksa APS sayaci)
+        if ($isSeansli) {
+            $seansAdet = (int)($hizmet->seans_sayisi ?? 0);
+            if ($seansAdet <= 0) $seansAdet = (int)($hizmet->seanslar_count ?? 0);
+            $etiket = $seansAdet > 0 ? " (P) ({$seansAdet} Seans)  " : " (P)  ";
+        } else {
+            $etiket = " (H)  ";
+        }
         $satilanlarStr .= ($hizmet->hizmet->hizmet_adi ?? '') . $etiket .
                           ($hizmet->personel->personel_adi ?? '') . "  " .
                           number_format($hizmet->fiyat, 2, ',', '.') . " ₺\r\n";

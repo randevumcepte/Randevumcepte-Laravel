@@ -12980,7 +12980,7 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     $adisyonlar = Adisyonlar::with([
         'musteri:id,name',
         'hizmetler' => function ($q) use ($personel_id) {
-            $q->select('id', 'adisyon_id', 'hizmet_id', "fiyat", "personel_id")
+            $q->select('id', 'adisyon_id', 'hizmet_id', "fiyat", "personel_id", "seans_sayisi")
               ->with(['hizmet:id,hizmet_adi'])
               ->with('tahsilatlar:id,adisyon_hizmet_id,tutar')
               // Seansli (APS'li) hizmetleri PAKET saymak icin seans kayitlari
@@ -13170,9 +13170,11 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     $paketSayisi = 0;
     
     foreach ($filtrelenmisAdisyonlar as $adisyon) {
-        $islemSayisi += $adisyon->hizmetler->count();
+        // Seansli (APS'li) hizmetler PAKET sayilir; hizmet adedinden dusulup paket adedine eklenir.
+        $seansliSayisi = $adisyon->hizmetler->filter(fn($h)=>$h->seanslar->isNotEmpty())->count();
+        $islemSayisi += $adisyon->hizmetler->count() - $seansliSayisi;
         $urunSayisi += $adisyon->urunler->count();
-        $paketSayisi += $adisyon->paketler->count();
+        $paketSayisi += $adisyon->paketler->count() + $seansliSayisi;
     }
     
     // Toplam tutarları hesapla
@@ -13236,16 +13238,21 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             $hizmetNetTutar = ($hizmet->fiyat ?? 0) - ($hizmet->indirim_tutari ?? 0);
 
             // Seansli (APS kaydi olan) hizmet = PAKET satisi: (P) etiketi, paket kovasi,
-            // prim duz paket_prim_yuzde.
+            // prim duz paket_prim_yuzde. Yaninda seans adedi (seans_sayisi, yoksa APS adedi).
             if ($hizmet->seanslar->isNotEmpty()) {
                 $paketHakedis = 0;
                 if ($hizmet->personel_id !== null && isset($hizmet->personel->paket_prim_yuzde)) {
                     $paketHakedis = $hizmet->tahsilatlar->sum('tutar') * ($hizmet->personel->paket_prim_yuzde / 100);
                 }
-                $satilanlarStr .= $hizmet->hizmet_id ? $hizmet->hizmet->hizmet_adi." (P) " : "";
+                $seansAdet = (int)($hizmet->seans_sayisi ?? 0);
+                if ($seansAdet <= 0) $seansAdet = $hizmet->seanslar->count();
+                $seansEtiket = $seansAdet > 0 ? " ({$seansAdet} Seans)" : "";
+                $paketAd = ($hizmet->hizmet_id ? $hizmet->hizmet->hizmet_adi : "") . $seansEtiket;
+                $satilanlarStr .= $hizmet->hizmet_id ? $hizmet->hizmet->hizmet_adi." (P)".$seansEtiket." " : "";
                 $satilanlar[] = [
                     'tip' => 'paket',
-                    'ad' => $hizmet->hizmet_id ? $hizmet->hizmet->hizmet_adi : "",
+                    'ad' => $paketAd,
+                    'seans_sayisi' => $seansAdet,
                     'tutar' => $hizmetNetTutar,
                     'hizmetTutar' => 0,
                     'urunTutar' => 0,
