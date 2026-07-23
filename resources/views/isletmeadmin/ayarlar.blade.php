@@ -1044,7 +1044,7 @@
                                  <input type="checkbox" class="custom-control-input" name="gecmis_randevulari_gizle" id="gecmis_randevulari_gizle" value="1" {{(!empty($isletme->gecmis_randevulari_gizle)) ? 'checked' : ''}}>
                                  <label class="custom-control-label" for="gecmis_randevulari_gizle">Saati geçen randevular görünmesin</label>
                               </div>
-                              <small class="text-muted">Bu seçenek açıkken randevu takviminde ve randevu listesinde saati geçmiş randevular gösterilmez. Müşteri kartındaki randevu geçmişi etkilenmez.</small>
+                              <small class="text-muted">Bu seçenek açıkken randevu takviminde, randevu listesinde ve müşteri kartındaki randevular sekmesinde saati geçmiş randevular gösterilmez.</small>
                            </div>
                         </div>
                         <div class="col-md-12">

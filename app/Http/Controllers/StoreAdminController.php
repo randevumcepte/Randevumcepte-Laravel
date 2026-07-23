@@ -16208,9 +16208,9 @@ DB::raw('
 
     // "Saati geçen randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri):
     // alt siniri bugune cek (indeks) + bugunun saati gecmis randevularini ele.
-    // Musteri kartindaki "Randevular" sekmesi ($userid dolu) haric tutulur — orada
-    // gecmis randevu tarihcesi gorunmeye devam etmeli.
-    if ($userid == '' && self::gecmisRandevuGizlensinMi($salon_id)) {
+    // Musteri kartindaki "Randevular" sekmesine ($userid dolu) de uygulanir — istege gore
+    // orada da saati gecmis randevular gizlenir.
+    if (self::gecmisRandevuGizlensinMi($salon_id)) {
         if ($tarih1 == '' || $tarih1 < date('Y-m-d')) {
             $tarih1 = date('Y-m-d');
         }
