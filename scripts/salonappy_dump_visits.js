@@ -9,8 +9,8 @@
   const BASE = 'https://web-api.salonappy.com/api';
   const DB_NAME = prompt('IndexedDB cache adi', 'sa_visits_resume') || 'sa_visits_resume';
 
-  let TOKEN = '288401&Oc1lPAy62641ff1camqsiK7919e9107f826b22f39ede49c6ff4eaa';
-  let X_DEVICE = '1tevuO7938R1ggFPtQZVerlqY2GfIBJK';
+  let TOKEN = '288401&9yAvrci39d5fed92flFCih3N117ce6681ae8a0d86f84b036db6d6c';
+  let X_DEVICE = 'M3B3Ii2nwZrroB1nyWvOA81pWVKQmeTE';
   let X_VERSION = '2026.05.07.1';
   TOKEN = prompt('Bearer token', TOKEN) || TOKEN;
   X_DEVICE = prompt('x-device', X_DEVICE) || X_DEVICE;
