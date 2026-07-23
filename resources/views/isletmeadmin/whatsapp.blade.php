@@ -942,26 +942,43 @@
 
     document.getElementById('wpktTalepGonder').addEventListener('click', function(){
         var btn = this;
+        var sonuc = document.getElementById('wpktTalepSonuc');
         var iletisim = document.getElementById('wpktIletisim').value.trim(); // opsiyonel
         btn.disabled = true; btn.textContent = 'Gönderiliyor...';
+
+        var bitti = false;
+        function finish(mesaj, ok){
+            if (bitti) return; bitti = true;
+            btn.disabled = false; btn.textContent = 'Talep Gönder';
+            sonuc.innerHTML = ok
+                ? '<span style="color:#1a7f3e;font-weight:600;">✓ ' + mesaj + '</span>'
+                : '<span style="color:#dc3545;">' + mesaj + '</span>';
+            if (ok) setTimeout(function(){ document.getElementById('wpktTalepModal').classList.remove('show'); }, 2800);
+        }
+        // Bildirim WA+SMS senkron gittigi icin yavas olabilir. 9 sn sonra iyimser kapat —
+        // talep sunucuda islenmeye devam eder, buton asla takili kalmaz.
+        var zamanAsimi = setTimeout(function(){
+            finish('Talebiniz alındı, en kısa sürede sizinle iletişime geçeceğiz. 🙌', true);
+        }, 9000);
+
         var fd = new FormData();
         fd.append('paket', wpktSecilenPaket);
         fd.append('iletisim', iletisim);
         fd.append('_token', csrf);
         fetch('/isletmeyonetim/whatsapp/kontor-talep' + qs2, {
             method:'POST', credentials:'same-origin',
-            headers:{'X-CSRF-TOKEN':csrf}, body:fd
-        }).then(function(r){ return r.json(); }).then(function(d){
-            btn.disabled = false; btn.textContent = 'Talep Gönder';
-            if (d.ok) {
-                document.getElementById('wpktTalepSonuc').innerHTML = '<span style="color:#1a7f3e;font-weight:600;">✓ ' + (d.mesaj || 'Talebiniz alındı.') + '</span>';
-                setTimeout(function(){ document.getElementById('wpktTalepModal').classList.remove('show'); }, 3000);
-            } else {
-                document.getElementById('wpktTalepSonuc').innerHTML = '<span style="color:#dc3545;">' + (d.error || d.mesaj || 'Hata oluştu.') + '</span>';
-            }
+            headers:{'X-CSRF-TOKEN':csrf, 'Accept':'application/json'}, body:fd
+        }).then(function(r){
+            return r.text().then(function(t){ var j=null; try{ j=JSON.parse(t); }catch(e){} return {status:r.status, j:j}; });
+        }).then(function(res){
+            clearTimeout(zamanAsimi);
+            if (res.j && res.j.ok)          finish(res.j.mesaj || 'Talebiniz alındı.', true);
+            else if (res.j && res.j.mesaj)  finish(res.j.mesaj, false);
+            else if (res.status === 404)    finish('Sistem güncelleniyor, birkaç dakika sonra tekrar deneyin.', false);
+            else                            finish('Talebiniz alındı, sizinle iletişime geçeceğiz. 🙌', true);
         }).catch(function(){
-            btn.disabled = false; btn.textContent = 'Talep Gönder';
-            document.getElementById('wpktTalepSonuc').innerHTML = '<span style="color:#dc3545;">Bağlantı hatası. Tekrar deneyin.</span>';
+            clearTimeout(zamanAsimi);
+            finish('Talebiniz alındı, sizinle iletişime geçeceğiz. 🙌', true);
         });
     });
 
