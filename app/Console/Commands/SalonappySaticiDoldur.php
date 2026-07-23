@@ -30,6 +30,7 @@ class SalonappySaticiDoldur extends Command
     protected $signature = 'salonappy:satici-doldur
         {--salon= : Salon (isletme) ID — zorunlu}
         {--dump-file= : package_sales veya product_sales dump JSON yolu — zorunlu}
+        {--kasa-personel= : Salonappy\'de satici "Kasa" (seller_id=0) olan satislari bu personel ID\'sine yaz. Verilmezse atlanir.}
         {--uygula : Gercekten yaz (verilmezse sadece rapor / dry-run)}';
 
     protected $description = 'Salonappy dump\'indaki seller_text bilgisinden eksik adisyon personel_id\'lerini doldurur (sadece UPDATE).';
@@ -45,14 +46,23 @@ class SalonappySaticiDoldur extends Command
         $j = json_decode(file_get_contents($dosya), true);
         if (!is_array($j)) { $this->error('Dump okunamadi (gecersiz JSON).'); return 1; }
 
+        // "Kasa" satislari icin hedef personel (opsiyonel)
+        $kasaPersonelId = $this->option('kasa-personel') ? (int) $this->option('kasa-personel') : null;
+        if ($kasaPersonelId) {
+            $kp = DB::table('salon_personelleri')->where('id', $kasaPersonelId)
+                ->where('salon_id', $salonId)->first();
+            if (!$kp) { $this->error("--kasa-personel={$kasaPersonelId} bu salonda bulunamadi."); return 1; }
+            $this->line('Kasa satislari su personele yazilacak: #' . $kp->id . ' ' . $kp->personel_adi);
+        }
+
         $this->info('=== SALONAPPY SATICI DOLDUR — salon ' . $salonId
             . ' | mod: ' . ($uygula ? 'UYGULA (yazacak)' : 'DRY-RUN (yazmaz)') . ' ===');
 
         $toplam = 0;
         $toplam += $this->isle($salonId, $uygula, 'paket',
-            $j['packageSales'] ?? [], 'salonappy-pkgsale', 'adisyon_hizmetler', 'seller_text', true);
+            $j['packageSales'] ?? [], 'salonappy-pkgsale', 'adisyon_hizmetler', 'seller_text', true, $kasaPersonelId);
         $toplam += $this->isle($salonId, $uygula, 'urun',
-            $j['productSales'] ?? [], 'salonappy-prodsale', 'adisyon_urunler', 'seller_name', false);
+            $j['productSales'] ?? [], 'salonappy-prodsale', 'adisyon_urunler', 'seller_name', false, $kasaPersonelId);
 
         if ($toplam === 0) $this->warn('Dump\'ta islenecek satis bulunamadi.');
         if (!$uygula) $this->comment("\nDRY-RUN — hicbir sey yazilmadi. Uygulamak icin --uygula ekle.");
@@ -66,8 +76,9 @@ class SalonappySaticiDoldur extends Command
      * @param  string $tablo      guncellenecek kalem tablosu
      * @param  string $adKolonu   dump'taki satici ad alani
      * @param  bool   $grupla     marker group_id mi (paket) yoksa id mi (urun)
+     * @param  int|null $kasaPersonelId "Kasa" satislarinin yazilacagi personel (null = atla)
      */
-    private function isle($salonId, $uygula, $etiket, $satirlar, $markerAd, $tablo, $adKolonu, $grupla)
+    private function isle($salonId, $uygula, $etiket, $satirlar, $markerAd, $tablo, $adKolonu, $grupla, $kasaPersonelId = null)
     {
         if (empty($satirlar) || !\Schema::hasTable($tablo)) return 0;
         if (!\Schema::hasColumn($tablo, 'personel_id')) return 0;
@@ -98,10 +109,19 @@ class SalonappySaticiDoldur extends Command
         $guncellenecek = [];   // personel_id => [kalem id, ...]
         $adisyonYok = 0; $zatenDolu = 0; $kalemYok = 0;
 
+        // Islenecek hedefler: marker anahtari => personel_id
+        $hedefler = [];
         foreach ($saticiler as $anahtar => $ad) {
             $pid = $adHarita[$this->trKey($ad)] ?? null;
             if (!$pid) { $eslesmeyen[$ad] = ($eslesmeyen[$ad] ?? 0) + 1; continue; }
+            $hedefler[$anahtar] = $pid;
+        }
+        // --kasa-personel verildiyse "Kasa" satislari da o personele yazilir
+        if ($kasaPersonelId) {
+            foreach (array_keys($kasaAnahtar) as $anahtar) $hedefler[$anahtar] = $kasaPersonelId;
+        }
 
+        foreach ($hedefler as $anahtar => $pid) {
             $adIds = DB::table('adisyonlar')->where('salon_id', $salonId)
                 ->where('notlar', 'LIKE', '%[' . $markerAd . ':' . $anahtar . ']%')
                 ->pluck('id');
@@ -133,7 +153,12 @@ class SalonappySaticiDoldur extends Command
             $this->warn('     Bu kisiler personel olarak eklenirse komut tekrar calistirilabilir.');
         }
         if (!empty($kasaAnahtar)) {
-            $this->warn('  !! ' . count($kasaAnahtar) . ' satista Salonappy\'de satici "Kasa" — kaynakta kisi bilgisi YOK, atlandi.');
+            if ($kasaPersonelId) {
+                $this->line('  * ' . count($kasaAnahtar) . ' satista satici "Kasa" — --kasa-personel=' . $kasaPersonelId . ' ile yazilacak.');
+            } else {
+                $this->warn('  !! ' . count($kasaAnahtar) . ' satista Salonappy\'de satici "Kasa" — kaynakta kisi bilgisi YOK, atlandi.');
+                $this->warn('     Bunlari bir personele toplamak icin: --kasa-personel=<personel_id>');
+            }
         }
 
         if ($uygula && $doldurulacak > 0) {
