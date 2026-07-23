@@ -22828,13 +22828,29 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 . date('d.m.Y H:i');
 
             $r = \App\Services\SistemBildirim::gonder($mesaj);
+
+            // Teşhis: bildirimin GERÇEK sonucu (Test butonuyla ayni mantik)
+            if (empty($r['ok'])) {
+                $teshis = 'Bildirim kanalı kapalı veya numara yok — Sistem Yönetimi → Sistem WhatsApp\'tan ayarla.';
+            } else {
+                $wa  = $r['detay']['wa'] ?? [];
+                $sms = $r['detay']['sms'] ?? [];
+                $waMsg  = !empty($wa['ok'])  ? 'WA kuyruğa alındı ✓' : ('WA gitmedi (' . ($wa['error'] ?? ('http ' . ($wa['status'] ?? '?'))) . ')');
+                $smsMsg = !empty($sms['ok']) ? 'SMS gönderildi ✓'     : ('SMS gitmedi (' . ($sms['durum'] ?? 'hata') . ')');
+                $teshis = $waMsg . ' | ' . $smsMsg;
+            }
+
             \Log::info('[KONTOR-TALEP]', [
                 'salon_id' => $isletme->id, 'paket' => $key,
-                'bildirim_ok' => $r['ok'] ?? false,
+                'bildirim_ok' => $r['ok'] ?? false, 'teshis' => $teshis,
             ]);
 
             // Bildirim kanali kapali olsa bile talep loglandi — salona her halukarda 'alindi' de.
-            return response()->json(['ok'=>true,'mesaj'=>'Talebiniz alındı. En kısa sürede sizinle iletişime geçeceğiz. 🙌']);
+            return response()->json([
+                'ok' => true,
+                'mesaj' => 'Talebiniz alındı. En kısa sürede sizinle iletişime geçeceğiz. 🙌',
+                'teshis' => $teshis,
+            ]);
         } catch(\Throwable $e){
             \Log::error('whatsappKontorTalep hata: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
             return response()->json(['ok'=>false,'mesaj'=>'Talep gönderilemedi, lütfen tekrar deneyin.'],500);

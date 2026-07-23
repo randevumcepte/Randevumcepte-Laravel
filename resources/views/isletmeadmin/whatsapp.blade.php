@@ -947,19 +947,21 @@
         btn.disabled = true; btn.textContent = 'Gönderiliyor...';
 
         var bitti = false;
-        function finish(mesaj, ok){
+        function finish(mesaj, ok, teshis){
             if (bitti) return; bitti = true;
             btn.disabled = false; btn.textContent = 'Talep Gönder';
-            sonuc.innerHTML = ok
+            var t = teshis ? '<div style="color:#94a3b8;font-size:11px;margin-top:6px;">Teşhis: ' + teshis + '</div>' : '';
+            sonuc.innerHTML = (ok
                 ? '<span style="color:#1a7f3e;font-weight:600;">✓ ' + mesaj + '</span>'
-                : '<span style="color:#dc3545;">' + mesaj + '</span>';
-            if (ok) setTimeout(function(){ document.getElementById('wpktTalepModal').classList.remove('show'); }, 2800);
+                : '<span style="color:#dc3545;">' + mesaj + '</span>') + t;
+            // Teşhis varsa modal açık kalsın (okuyabilelim), yoksa otomatik kapat
+            if (ok && !teshis) setTimeout(function(){ document.getElementById('wpktTalepModal').classList.remove('show'); }, 2800);
         }
         // Bildirim WA+SMS senkron gittigi icin yavas olabilir. 9 sn sonra iyimser kapat —
         // talep sunucuda islenmeye devam eder, buton asla takili kalmaz.
         var zamanAsimi = setTimeout(function(){
             finish('Talebiniz alındı, en kısa sürede sizinle iletişime geçeceğiz. 🙌', true);
-        }, 9000);
+        }, 18000);
 
         var fd = new FormData();
         fd.append('paket', wpktSecilenPaket);
@@ -972,8 +974,8 @@
             return r.text().then(function(t){ var j=null; try{ j=JSON.parse(t); }catch(e){} return {status:r.status, j:j}; });
         }).then(function(res){
             clearTimeout(zamanAsimi);
-            if (res.j && res.j.ok)          finish(res.j.mesaj || 'Talebiniz alındı.', true);
-            else if (res.j && res.j.mesaj)  finish(res.j.mesaj, false);
+            if (res.j && res.j.ok)          finish(res.j.mesaj || 'Talebiniz alındı.', true, res.j.teshis);
+            else if (res.j && res.j.mesaj)  finish(res.j.mesaj, false, res.j.teshis);
             else if (res.status === 404)    finish('Sistem güncelleniyor, birkaç dakika sonra tekrar deneyin.', false);
             else                            finish('Talebiniz alındı, sizinle iletişime geçeceğiz. 🙌', true);
         }).catch(function(){
