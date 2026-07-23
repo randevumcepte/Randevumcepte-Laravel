@@ -10573,6 +10573,26 @@ if (preload && !turdegisti) {
             });
            
             $('.fc-axis.fc-widget-header').attr('style','width:43px');
+
+            // Takvim basligindaki tarihe tiklayinca tarih secici acilsin.
+            // Belirgin olmasi icin basliga bir takvim ikonu eklenir. FC her
+            // (yeniden) render'da basligi sifirdan urettigi icin ikon ve click
+            // burada tekrar baglanir (prev/next/today/tur degisimi hepsi buradan gecer).
+            (function(){
+               var $t = $('#calendar .fc-center h2');
+               if(!$t.length) return;
+               if(!$t.find('.rc-cal-title-ico').length){
+                  $t.prepend('<i class="fa fa-calendar rc-cal-title-ico" aria-hidden="true"></i>');
+               }
+               $t.addClass('rc-cal-title-clickable')
+                 .attr('title','Tarih seç')
+                 .off('click.rccal').on('click.rccal', function(){
+                    var $inp = $('#takvim_tarihe_gore');
+                    var dp = $inp.data('datepicker');
+                    if(dp && typeof dp.show === 'function'){ dp.show(); }
+                    else { $inp.trigger('focus').trigger('click'); }
+                 });
+            })();
             }
             else{
                 console.log("takvim türü değişmedi sadece güncel veriler geliyor");

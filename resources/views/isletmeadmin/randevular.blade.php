@@ -51,6 +51,12 @@
    .sweet-overlay { z-index: 100029 !important; }
    .sweet-alert   { z-index: 100030 !important; }
    .swal2-container { z-index: 100030 !important; }
+
+   /* Takvim baslik tarihi (23 Temmuz 2026 Perşembe) tiklanabilir — basinda belirgin takvim ikonu */
+   #calendar .fc-center h2.rc-cal-title-clickable { cursor: pointer; }
+   #calendar .fc-center h2 .rc-cal-title-ico { margin-right: 9px; color: #5C008E; font-size: .88em; vertical-align: baseline; transition: color .15s ease; }
+   #calendar .fc-center h2.rc-cal-title-clickable:hover { color: #5C008E; }
+   #calendar .fc-center h2.rc-cal-title-clickable:hover .rc-cal-title-ico { color: #7B2FB8; }
 </style>
 <div class="rc-rt-page">
 
