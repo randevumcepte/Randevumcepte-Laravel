@@ -118,10 +118,32 @@ class LoginController extends Controller
              if(BildirimKimlikleri::where('isletme_yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('bildirim_id',$request->bildirimid)->where('cihaz',$request->header('User-Agent'))->count()>0)
                 BildirimKimlikleri::where('isletme_yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->where('bildirim_id',$request->bildirimid)->where('cihaz',$request->header('User-Agent'))->delete();
 
+            // Web /isletmeyonetim panel login: AuthController mobil patternine denk gelen
+            // brand-aware alanlarla kaydet. app_bundle atanmadigi icin
+            // NotificationService::findTokens brand filtresi bu satiri MOBIL push havuzuna
+            // almaz -> mobil brand build cihazlarina siziz olmaz. platform='web' + salon_id
+            // ile inbox tarafi dogru salona baglanir.
+            $yetkiliUserId = Auth::guard('isletmeyonetim')->user()->id;
             $bildirimkimligi = new BildirimKimlikleri();
-            $bildirimkimligi->isletme_yetkili_id = Auth::guard('isletmeyonetim')->user()->id;
+            $bildirimkimligi->isletme_yetkili_id = $yetkiliUserId;
             $bildirimkimligi->bildirim_id = $request->bildirimid;
             $bildirimkimligi->cihaz = $request->header('User-Agent');
+            if (\Schema::hasColumn('bildirim_kimlikleri', 'kullanici_tipi'))    $bildirimkimligi->kullanici_tipi = 'yetkili';
+            if (\Schema::hasColumn('bildirim_kimlikleri', 'platform'))          $bildirimkimligi->platform = 'web';
+            if (\Schema::hasColumn('bildirim_kimlikleri', 'aktif'))             $bildirimkimligi->aktif = 1;
+            if (\Schema::hasColumn('bildirim_kimlikleri', 'gonderim_hatalari')) $bildirimkimligi->gonderim_hatalari = 0;
+            if (\Schema::hasColumn('bildirim_kimlikleri', 'salon_id')) {
+                // Yetkilinin bagli oldugu ilk salonu isaretle. Sube seciminden sonra
+                // ilgili salon_id session tarafinda taszinacak; login aninda default
+                // olarak ilk salon tercih edilir (audit blogundaki $salonIds mantigi ile ayni).
+                try {
+                    $firstSalonId = \App\Personeller::where('yetkili_id', $yetkiliUserId)
+                        ->whereNotNull('salon_id')
+                        ->orderBy('id')
+                        ->value('salon_id');
+                    if ($firstSalonId) $bildirimkimligi->salon_id = $firstSalonId;
+                } catch (\Throwable $e) {}
+            }
             $bildirimkimligi->save();
 
             // Audit — login (yetkilinin baglandigi her aktif salon icin tek kayit)

@@ -176,7 +176,12 @@ class NotificationApiController extends Controller
 
     /**
      * GET /api/v1/bildirim/liste
-     * Query: kullanici_tipi, user_id|personel_id|yetkili_id, salon_id (opsiyonel)
+     * Query: kullanici_tipi, user_id|personel_id|yetkili_id, salon_id (ops), appBundle (ops)
+     *
+     * Brand izolasyonu: musteri user'i birden fazla salonun musterisi olabilir.
+     * Ceren Ceviz app'inde Vionna'nin inbox mesajlari gorunmesin diye
+     * salon_id verilmezse appBundle uzerinden salonlar sinirlanir.
+     * Master app (com.randevumcepte.randevumcepte) icin filtre atlanir.
      */
     public function liste(Request $request)
     {
@@ -191,13 +196,33 @@ class NotificationApiController extends Controller
             $q->where('salon_id', $request->input('salon_id'));
         }
 
+        $this->applyBrandInboxFilter($q, $request);
+
+        return response()->json($q->limit(200)->get());
+    }
+
+    /**
+     * salon_id > appBundle > filtre yok (master) sirasiyla inbox brand filtresi.
+     * orWhereNull('salon_id') tutulur: eski (salon_id NULL) legacy kayitlar
+     * gecis surecinde silinmeden kutuya dusmeye devam etsin.
+     */
+    private function applyBrandInboxFilter($q, Request $request): void
+    {
         if ($salonId = $request->input('salon_id')) {
             $q->where(function ($w) use ($salonId) {
                 $w->where('salon_id', $salonId)->orWhereNull('salon_id');
             });
+            return;
         }
-
-        return response()->json($q->limit(200)->get());
+        $appBundle = $request->input('appBundle');
+        if (!empty($appBundle) && $appBundle !== 'com.randevumcepte.randevumcepte') {
+            $salonIds = \App\Salonlar::where('app_bundle', $appBundle)->pluck('id')->toArray();
+            if (!empty($salonIds)) {
+                $q->where(function ($w) use ($salonIds) {
+                    $w->whereIn('salon_id', $salonIds)->orWhereNull('salon_id');
+                });
+            }
+        }
     }
 
     /**
@@ -216,6 +241,8 @@ class NotificationApiController extends Controller
 
     /**
      * GET /api/v1/bildirim/okunmamis-sayi
+     * Query: kullanici_tipi, user_id|personel_id|yetkili_id, salon_id (ops), appBundle (ops)
+     * Brand izolasyonu liste() ile ayni mantik (applyBrandInboxFilter).
      */
     public function okunmamisSayi(Request $request)
     {
@@ -229,6 +256,8 @@ class NotificationApiController extends Controller
         } elseif ($tip === 'yetkili') {
             $q->where('salon_id', $request->input('salon_id'));
         }
+
+        $this->applyBrandInboxFilter($q, $request);
 
         return response()->json(['sayi' => $q->count()]);
     }
