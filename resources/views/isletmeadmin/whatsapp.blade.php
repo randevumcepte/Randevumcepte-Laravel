@@ -142,6 +142,30 @@
                 <p style="color:#555;margin-bottom:12px">Telefonunuzdan <b>WhatsApp &gt; Ayarlar &gt; Bağlı Cihazlar &gt; Cihaz Bağla</b> menüsünden aşağıdaki QR kodu okutun.</p>
                 <img id="wa-qr-img" src="" alt="QR Kod">
                 <p class="wa-meta">QR 30-60 saniye geçerlidir, otomatik yenilenir.</p>
+
+                <!-- Telefon numarasi ile bagla — QR taratmakta sorun yasayanlar icin (ozellikle iPhone) -->
+                <div style="margin-top:18px; padding-top:16px; border-top:1px dashed #cfd6de;">
+                    <button type="button" id="wa-phone-toggle" class="btn-wa" style="background:#4b5563;">
+                        📞 QR taratamıyor musunuz? Telefon numarasıyla bağlanın
+                    </button>
+                    <div id="wa-phone-box" style="display:none; margin-top:14px; padding:14px; background:#f7f9fc; border-radius:8px; text-align:left;">
+                        <p style="margin:0 0 10px; color:#333; font-size:13px;">
+                            <b>1.</b> Salonun WhatsApp Business numarasını başında <b>90</b> ile girin (örn: <code>905321234567</code>)<br>
+                            <b>2.</b> "Kod Üret" butonuna basın<br>
+                            <b>3.</b> Salonun telefonunda: <b>WA Business → Bağlı Cihazlar → Cihaz Bağla → Telefon numarasıyla bağla</b> → çıkan kodu girin
+                        </p>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <input type="tel" id="wa-phone-input" placeholder="905321234567" style="flex:1; min-width:180px; padding:8px 11px; border:1px solid #ced4da; border-radius:5px; font-size:13px;">
+                            <button type="button" id="wa-phone-submit" class="btn-wa">Kod Üret</button>
+                        </div>
+                        <div id="wa-phone-result" style="margin-top:12px; display:none; padding:14px; background:#e8f5e9; border-radius:6px; text-align:center;">
+                            <div style="font-size:13px; color:#555; margin-bottom:6px;">Telefonda girilecek kod:</div>
+                            <div id="wa-phone-code" style="font-size:24px; font-weight:700; letter-spacing:3px; color:#1a7f3e; font-family:ui-monospace, monospace;">—</div>
+                            <div style="font-size:12px; color:#666; margin-top:6px;">Bu kod 60 saniye geçerlidir</div>
+                        </div>
+                        <div id="wa-phone-error" style="display:none; margin-top:10px; padding:10px; background:#fce4e4; color:#c62828; border-radius:6px; font-size:13px;"></div>
+                    </div>
+                </div>
             </div>
             <div id="wa-connected-wrapper" style="display:none">
                 <div style="font-size:48px;margin:20px 0;">✅</div>
@@ -407,6 +431,60 @@
         }).catch(function(){
             setStatus('servis-kapali');
             showOnly('off');
+        });
+    }
+
+    // ── Telefon numarasi ile bagla (QR alternatifi) ─────────────────────────
+    var phoneToggleBtn = document.getElementById('wa-phone-toggle');
+    var phoneBox       = document.getElementById('wa-phone-box');
+    var phoneInput     = document.getElementById('wa-phone-input');
+    var phoneSubmit    = document.getElementById('wa-phone-submit');
+    var phoneResult    = document.getElementById('wa-phone-result');
+    var phoneCode      = document.getElementById('wa-phone-code');
+    var phoneError     = document.getElementById('wa-phone-error');
+
+    if (phoneToggleBtn) {
+        phoneToggleBtn.addEventListener('click', function(){
+            phoneBox.style.display = (phoneBox.style.display === 'none') ? 'block' : 'none';
+        });
+    }
+    if (phoneSubmit) {
+        phoneSubmit.addEventListener('click', function(){
+            var phone = (phoneInput.value || '').replace(/\D/g,'');
+            if (phone.length < 11) { phoneError.style.display='block'; phoneError.textContent='Numarayı başında 90 olacak şekilde girin (ör: 905321234567).'; return; }
+            phoneError.style.display='none';
+            phoneResult.style.display='none';
+            phoneSubmit.disabled = true;
+            phoneSubmit.textContent = 'Üretiliyor…';
+            fetch('/isletmeyonetim/whatsapp/pair-phone' + qs, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json','X-CSRF-TOKEN': $('meta[name=csrf-token]').attr('content')},
+                credentials: 'same-origin',
+                body: JSON.stringify({phone: phone}),
+            }).then(function(r){ return r.json().then(function(b){ return {ok:r.ok, body:b}; }); }).then(function(res){
+                if (res.ok && res.body.code) {
+                    // Kodu 4-4 formatinda goster
+                    var c = res.body.code.toString();
+                    if (c.length === 8) c = c.substring(0,4) + '-' + c.substring(4);
+                    phoneCode.textContent = c;
+                    phoneResult.style.display = 'block';
+                } else {
+                    var msg = 'Kod üretilemedi.';
+                    if (res.body && res.body.error) {
+                        if (res.body.error === 'already-paired') msg = 'Bu salon zaten bağlı görünüyor. Önce "Oturumu Kapat" yapın.';
+                        else if (res.body.error === 'invalid-phone') msg = 'Numara formatı geçersiz. 905XXXXXXXXX şeklinde girin.';
+                        else msg = 'Hata: ' + res.body.error;
+                    }
+                    phoneError.textContent = msg;
+                    phoneError.style.display = 'block';
+                }
+            }).catch(function(){
+                phoneError.textContent = 'İstek başarısız. Sunucuya ulaşılamadı.';
+                phoneError.style.display = 'block';
+            }).finally(function(){
+                phoneSubmit.disabled = false;
+                phoneSubmit.textContent = 'Kod Üret';
+            });
         });
     }
 

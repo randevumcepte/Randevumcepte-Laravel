@@ -54,6 +54,18 @@ class WhatsmeowService
     }
 
     /**
+     * Telefon numarasi ile pair kodu urettirir (QR alternatifi).
+     * iPhone pair sorunlarina karsi. Bridge 8 haneli kod doner,
+     * salon telefonda "Telefon numarasiyla baglan" akisiyla girer.
+     */
+    public function pairPhone($salonId, $phone)
+    {
+        return $this->request('POST', "/session/{$salonId}/pair-phone", [
+            'phone' => $phone,
+        ]);
+    }
+
+    /**
      * Test mesaji gonderir. Pilot panelden manuel test icin.
      */
     public function sendTest($salonId, $to, $message)

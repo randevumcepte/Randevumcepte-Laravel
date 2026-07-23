@@ -784,6 +784,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/whatsapp/baslat','StoreAdminController@whatsappBaslat')->name('whatsapp.baslat');
 	Route::get('/whatsapp/durum','StoreAdminController@whatsappDurum')->name('whatsapp.durum');
 	Route::get('/whatsapp/qr','StoreAdminController@whatsappQR')->name('whatsapp.qr');
+	Route::post('/whatsapp/pair-phone','StoreAdminController@whatsappPairPhone')->name('whatsapp.pair.phone');
 	Route::post('/whatsapp/cikis','StoreAdminController@whatsappCikis')->name('whatsapp.cikis');
 
 	// whatsmeow pilot panel — production Baileys panelinden bagimsiz paralel

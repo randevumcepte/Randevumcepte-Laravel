@@ -24575,6 +24575,25 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         return response()->json($res['body'] ?? ['error' => 'servis-erisilemiyor'], $res['status'] ?: 502);
     }
 
+    /**
+     * QR alternatifi — telefon numarasi ile pair kodu urettir. iPhone bagli
+     * cihaz "baglantiyi kontrol edip tekrar deneyin" sorunlarini bypass eder.
+     * Kullanici bridge'ten donen 8 haneli kodu telefonun WA Business
+     * "Telefon numarasiyla baglan" ekranina girer.
+     */
+    public function whatsappPairPhone(Request $request)
+    {
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        $phone = trim((string) $request->input('phone', ''));
+        if ($phone === '') return response()->json(['error' => 'phone-required'], 422);
+
+        $svc = app(\App\Services\WhatsmeowService::class);
+        $res = $svc->pairPhone($salonId, $phone);
+        return response()->json($res['body'] ?? ['error' => 'servis-erisilemiyor'], $res['status'] ?: 502);
+    }
+
     public function whatsappDurum(Request $request)
     {
         $salonId = $this->whatsappYetkiliSalon($request);
