@@ -202,6 +202,41 @@
                   <small class="br-ipucu">Aynı müşteri kuponu yalnızca <b>1 kez</b> kapabilir. Toplam adet dolunca kampanya otomatik biter.</small>
                </div>
 
+               <label class="br-lbl" style="margin-top:14px">Hedef Kitle (Push kime gitsin?)</label>
+               <select class="form-control" name="hedef_kitle" id="br_hedef">
+                  <option value="tumu">Tüm müşteriler</option>
+                  <option value="segment">Belirli segment</option>
+               </select>
+
+               <div id="br_segment_kutu" class="br-segment-kutu" style="display:none">
+                  <select class="form-control" name="segment_tip" id="br_seg_tip">
+                     <option value="gelmeyen">Uzun süredir gelmeyenler</option>
+                     <option value="dogum_gunu">Doğum günü bu ay olanlar</option>
+                     <option value="hizmet">Belirli hizmeti alanlar</option>
+                     <option value="cinsiyet">Cinsiyete göre</option>
+                  </select>
+
+                  <div id="seg_gelmeyen" class="br-seg-alan" style="margin-top:10px">
+                     <label class="br-lbl">Kaç gündür gelmeyenler?</label>
+                     <input type="number" class="form-control" name="segment_gun" id="br_seg_gun" min="1" value="60" placeholder="60">
+                  </div>
+                  <div id="seg_hizmet" class="br-seg-alan" style="margin-top:10px;display:none">
+                     <label class="br-lbl">Hangi hizmeti alanlar?</label>
+                     <select class="form-control" name="segment_hizmet_id" id="br_seg_hizmet">
+                        @foreach($hizmetler as $h)
+                           <option value="{{$h->hizmet_id}}">{{ optional($h->hizmetler)->hizmet_adi }}</option>
+                        @endforeach
+                     </select>
+                  </div>
+                  <div id="seg_cinsiyet" class="br-seg-alan" style="margin-top:10px;display:none">
+                     <label class="br-lbl">Cinsiyet</label>
+                     <select class="form-control" name="segment_cinsiyet" id="br_seg_cinsiyet">
+                        <option value="0">Kadın</option>
+                        <option value="1">Erkek</option>
+                     </select>
+                  </div>
+               </div>
+
                <label class="br-lbl" style="margin-top:14px">Durum</label>
                <select class="form-control" name="durum" id="br_durum">
                   <option value="taslak">Taslak (yayında değil)</option>
@@ -247,6 +282,7 @@
 .br-kanallar{display:flex;gap:18px;flex-wrap:wrap}
 .br-check{font-weight:500;color:#475569;cursor:pointer}
 .br-check i{color:#7c3aed}
+.br-segment-kutu{margin-top:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px}
 .br-kupon-kutu{margin-top:14px;background:#faf5ff;border:1px solid #ede9fe;border-radius:12px;padding:14px 16px}
 .br-kupon-baslik{font-weight:700;color:#7c3aed;margin-bottom:10px}
 .br-ipucu{display:block;margin-top:10px;color:#7c3aed;font-size:12px}
@@ -266,14 +302,28 @@
    }
    $('#br_aksiyon').on('change', kuponGoster);
 
+   // Segment kutusu + alt alanlar
+   function segmentGoster(){
+      $('#br_segment_kutu').toggle($('#br_hedef').val()==='segment');
+   }
+   function segAlanGoster(){
+      var t = $('#br_seg_tip').val();
+      $('#seg_gelmeyen').toggle(t==='gelmeyen');
+      $('#seg_hizmet').toggle(t==='hizmet');
+      $('#seg_cinsiyet').toggle(t==='cinsiyet');
+   }
+   $('#br_hedef').on('change', segmentGoster);
+   $('#br_seg_tip').on('change', segAlanGoster);
+
    // ---- Yeni ----
    $('#brYeniBtn').on('click', function(){
       $('#brForm')[0].reset();
       $('#br_id').val(''); $('#br_gorsel').val('');
       $('#br_onizleme').hide().attr('src',''); $('#br_upload_ph').show();
       $('#br_push,#br_inapp').prop('checked',true);
+      $('#br_hedef').val('tumu');
       $('#brModalBaslik').text('Yeni Bildirim Reklamı');
-      kuponGoster();
+      kuponGoster(); segmentGoster(); segAlanGoster();
       $('#brModal').modal('show');
    });
 
@@ -297,9 +347,19 @@
       $('#br_kupon_gun').val(r.kupon_gecerlilik_gun||'');
       $('#br_kupon_adet').val(r.kupon_toplam_adet||'');
       $('#br_kupon_limit').val(r.kupon_kisi_limit||1);
+      // Hedef kitle / segment
+      $('#br_hedef').val(r.hedef_kitle||'tumu');
+      var kosul = {};
+      try { kosul = r.hedef_kosul ? (typeof r.hedef_kosul==='string' ? JSON.parse(r.hedef_kosul) : r.hedef_kosul) : {}; } catch(e){ kosul = {}; }
+      if(kosul && kosul.tip){
+         $('#br_seg_tip').val(kosul.tip);
+         if(kosul.gun) $('#br_seg_gun').val(kosul.gun);
+         if(kosul.hizmet_id) $('#br_seg_hizmet').val(String(kosul.hizmet_id));
+         if(kosul.cinsiyet!==undefined && kosul.cinsiyet!==null) $('#br_seg_cinsiyet').val(String(kosul.cinsiyet));
+      }
       $('#br_durum').val(r.durum||'taslak');
       $('#brModalBaslik').text('Reklamı Düzenle');
-      kuponGoster();
+      kuponGoster(); segmentGoster(); segAlanGoster();
       $('#brModal').modal('show');
    });
 

@@ -126,6 +126,8 @@ class BildirimReklamApiController extends Controller
                 'kod'               => strtoupper(Str::random(8)),
                 'tip'               => 'hizmet_indirimi',
                 'deger'             => $reklam->kupon_deger,
+                'indirim_tipi'      => $reklam->kupon_indirim_tipi === 'tutar' ? 'tutar' : 'yuzde',
+                'hizmet_id'         => $reklam->kupon_hizmet_id, // null = tum hizmetler
                 'baslik'            => $baslik,
                 'gecerlilik_tarihi' => $gecerlilik,
             ]);

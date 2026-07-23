@@ -20495,7 +20495,20 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $reklam->kupon_toplam_adet    = ($request->kupon_toplam_adet !== null && $request->kupon_toplam_adet !== '') ? (int)$request->kupon_toplam_adet : null;
         }
 
-        $reklam->hedef_kitle = $request->hedef_kitle ?: 'tumu';
+        // Hedef kitle: tumu | segment (+ segment kosulu JSON)
+        if ($request->hedef_kitle === 'segment') {
+            $reklam->hedef_kitle = 'segment';
+            $segTip = in_array($request->segment_tip, ['gelmeyen', 'dogum_gunu', 'hizmet', 'cinsiyet'])
+                ? $request->segment_tip : 'gelmeyen';
+            $kosul = ['tip' => $segTip];
+            if ($segTip === 'gelmeyen')  $kosul['gun'] = (int)($request->segment_gun ?: 60);
+            if ($segTip === 'hizmet')    $kosul['hizmet_id'] = (int)($request->segment_hizmet_id ?: 0);
+            if ($segTip === 'cinsiyet')  $kosul['cinsiyet'] = ($request->segment_cinsiyet === '1' ? '1' : '0');
+            $reklam->hedef_kosul = json_encode($kosul);
+        } else {
+            $reklam->hedef_kitle = 'tumu';
+            $reklam->hedef_kosul = null;
+        }
 
         $reklam->durum = $request->durum ?: 'taslak';
         $reklam->yayin_baslangic = !empty($request->yayin_baslangic) ? $request->yayin_baslangic : null;
@@ -20575,38 +20588,20 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if (!$reklam->kanal_push)
             return response()->json(['durum' => 'hata', 'mesaj' => 'Bu reklamda Push kanali kapali.'], 422);
 
-        // Yayina al
+        // Yayina al + gonderim isaretle
         if ($reklam->durum !== 'aktif') $reklam->durum = 'aktif';
-
-        $userIds = \DB::table('musteri_portfoy')
-            ->where('salon_id', $salonId)
-            ->where('aktif', 1)
-            ->pluck('user_id')->unique()->values()->all();
-
-        $imageUrl = $reklam->gorsel ? url($reklam->gorsel) : null;
-        $gonderilen = 0;
-        foreach ($userIds as $uid) {
-            try {
-                $n = \App\Services\NotificationService::toCustomer((int)$uid, (int)$salonId)
-                    ->type(\App\Services\NotificationTypes::DISCOUNT)
-                    ->title($reklam->baslik)
-                    ->body((string)($reklam->mesaj ?: ''))
-                    ->deepLink('reklam_detay', ['reklam_id' => $reklam->id]);
-                if ($imageUrl) $n->image($imageUrl);
-                $n->send();
-                $gonderilen++;
-            } catch (\Exception $e) {
-                // Tek musteri hatasi tum gonderimi bozmasin
-            }
-        }
-
         $reklam->push_gonderildi = true;
         $reklam->save();
 
-        SalonAudit::log($salonId, 'bildirim_reklam_gonder', 'bildirim_reklam', $reklam->id,
-            $reklam->baslik, $gonderilen . ' musteriye push gonderildi');
+        // Gonderim arka planda: buyuk salonlarda binlerce push senkron istek yerine
+        // 'notifications' kuyruguna gider (prod worker isler; lokal sync ise inline).
+        // Hedef kitle (segment) job icinde cozulur.
+        \App\Jobs\BildirimReklamGonderJob::dispatch($reklam->id);
 
-        return response()->json(['durum' => 'basarili', 'mesaj' => $gonderilen . ' müşteriye gönderildi.', 'gonderilen' => $gonderilen]);
+        SalonAudit::log($salonId, 'bildirim_reklam_gonder', 'bildirim_reklam', $reklam->id,
+            $reklam->baslik, 'Push gonderimi baslatildi (hedef: ' . ($reklam->hedef_kitle === 'segment' ? 'segment' : 'tum musteriler') . ')');
+
+        return response()->json(['durum' => 'basarili', 'mesaj' => 'Gönderim başlatıldı. Müşterilere arka planda iletiliyor.']);
     }
 
     public function kampanyakatilimcisil(Request $request){
@@ -31487,27 +31482,49 @@ DB::raw('
         if(!$adisyon)
             return response()->json(['durum'=>'hata','mesaj'=>'Önce sepete bir hizmet/ürün/paket ekleyin.'], 422);
 
-        $oran   = ((float) $kupon->deger) / 100.0;
+        // Indirim tipi: 'tutar' -> sabit ₺ (kalemlere dagitilir), aksi halde 'yuzde' (% oran).
+        $tutarMi = (isset($kupon->indirim_tipi) && $kupon->indirim_tipi === 'tutar');
+        $oran    = ((float) $kupon->deger) / 100.0;
+        $kalanTutar = (float) $kupon->deger; // tutar modunda kalemlere dagitilacak bakiye
+        // Kupon belirli bir hizmete kisitli mi? (sadece hizmet_indirimi'nde anlamli)
+        $hizmetFiltre = ($kupon->tip == 'hizmet_indirimi' && !empty($kupon->hizmet_id)) ? (int) $kupon->hizmet_id : null;
         $uygula = 0;
-        \DB::transaction(function() use($kupon, $adisyon, $oran, &$uygula){
+        \DB::transaction(function() use($kupon, $adisyon, $oran, $tutarMi, &$kalanTutar, $hizmetFiltre, &$uygula){
+            // Bir kaleme uygulanacak indirimi hesaplar (₺ modunda bakiyeden duser).
+            $indirimHesapla = function($fiyat) use($tutarMi, $oran, &$kalanTutar){
+                if($tutarMi){
+                    if($kalanTutar <= 0) return null; // bakiye bitti
+                    $ind = min($kalanTutar, (float)$fiyat);
+                    $kalanTutar -= $ind;
+                    return round($ind, 2);
+                }
+                return round(((float)$fiyat) * $oran, 2);
+            };
             if($kupon->tip == 'hizmet_indirimi'){
                 foreach($adisyon->hizmetler as $h){
                     if($h->senet_id !== null || $h->taksitli_tahsilat_id !== null) continue;
-                    $h->indirim_tutari = round(((float)$h->fiyat) * $oran, 2);
+                    if($hizmetFiltre !== null && (int)$h->hizmet_id !== $hizmetFiltre) continue;
+                    $ind = $indirimHesapla($h->fiyat);
+                    if($ind === null) break;
+                    $h->indirim_tutari = $ind;
                     $h->save();
                     $uygula++;
                 }
             } elseif($kupon->tip == 'urun_indirimi'){
                 foreach($adisyon->urunler as $u){
                     if($u->senet_id !== null || $u->taksitli_tahsilat_id !== null) continue;
-                    $u->indirim_tutari = round(((float)$u->fiyat) * $oran, 2);
+                    $ind = $indirimHesapla($u->fiyat);
+                    if($ind === null) break;
+                    $u->indirim_tutari = $ind;
                     $u->save();
                     $uygula++;
                 }
             } elseif($kupon->tip == 'paket_indirimi'){
                 foreach($adisyon->paketler as $p){
                     if($p->senet_id !== null || $p->taksitli_tahsilat_id !== null) continue;
-                    $p->indirim_tutari = round(((float)$p->fiyat) * $oran, 2);
+                    $ind = $indirimHesapla($p->fiyat);
+                    if($ind === null) break;
+                    $p->indirim_tutari = $ind;
                     $p->save();
                     $uygula++;
                 }
@@ -31522,12 +31539,16 @@ DB::raw('
         });
         if($uygula == 0){
             $tipAd = $kupon->tip == 'hizmet_indirimi' ? 'hizmet' : ($kupon->tip == 'urun_indirimi' ? 'ürün' : 'paket');
-            return response()->json(['durum'=>'hata','mesaj'=>"Sepette {$tipAd} bulunmadığı için kupon uygulanamadı."], 422);
+            $ek = $hizmetFiltre !== null ? ' (bu kupon yalnizca belirli bir hizmette gecerli)' : '';
+            return response()->json(['durum'=>'hata','mesaj'=>"Sepette uygun {$tipAd} bulunmadığı için kupon uygulanamadı.".$ek], 422);
         }
+        $indirimMetni = $tutarMi
+            ? (rtrim(rtrim(number_format((float)$kupon->deger, 2, ',', '.'), '0'), ',').' ₺')
+            : '%'.((int)$kupon->deger);
         $tahsilatData = self::musteri_tahsilatlari($request, $request->musteri_id, $request->adisyon_id, $request->satisDuzenle);
         return response()->json([
             'durum'        => 'ok',
-            'mesaj'        => '%'.((int)$kupon->deger).' indirim ' . $uygula . ' kaleme uygulandı.',
+            'mesaj'        => $indirimMetni.' indirim ' . $uygula . ' kaleme uygulandı.',
             'baslik'       => $kupon->baslik,
             'tahsilatData' => $tahsilatData,
         ]);
