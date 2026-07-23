@@ -12980,11 +12980,10 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     $adisyonlar = Adisyonlar::with([
         'musteri:id,name',
         'hizmetler' => function ($q) use ($personel_id) {
+            // seans_sayisi > 0 olan hizmet = PAKET satisi (siniflandirma kriteri)
             $q->select('id', 'adisyon_id', 'hizmet_id', "fiyat", "personel_id", "seans_sayisi")
               ->with(['hizmet:id,hizmet_adi'])
-              ->with('tahsilatlar:id,adisyon_hizmet_id,tutar')
-              // Seansli (APS'li) hizmetleri PAKET saymak icin seans kayitlari
-              ->with('seanslar:id,adisyon_hizmet_id');
+              ->with('tahsilatlar:id,adisyon_hizmet_id,tutar');
             if ($personel_id) {
                 $q->where('personel_id', $personel_id);
             }
@@ -13039,15 +13038,17 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     
     // Adisyon türüne göre filtreleme
     if ($adisyonturu == '1') {
-        // Hizmet sekmesi: seansli (APS'li) hizmetler PAKET sayilir, hizmet kabul edilmez.
-        $adisyonlar->whereHas('hizmetler', function($q){ $q->whereDoesntHave('seanslar'); });
+        // Hizmet sekmesi: seansli (seans_sayisi > 0) hizmetler PAKET sayilir, hizmet degil.
+        $adisyonlar->whereHas('hizmetler', function($q){
+            $q->where(function($qq){ $qq->whereNull('seans_sayisi')->orWhere('seans_sayisi','<=',0); });
+        });
     } elseif ($adisyonturu == '3') {
         $adisyonlar->whereHas('urunler');
     } elseif ($adisyonturu == '2') {
-        // Paket sekmesi: gercek paketler VEYA seansli (APS'li) hizmet satislari.
+        // Paket sekmesi: gercek paketler VEYA seansli (seans_sayisi > 0) hizmet satislari.
         $adisyonlar->where(function($q){
             $q->whereHas('paketler')
-              ->orWhereHas('hizmetler', function($q2){ $q2->whereHas('seanslar'); });
+              ->orWhereHas('hizmetler', function($q2){ $q2->where('seans_sayisi','>',0); });
         });
     }
     
@@ -13105,7 +13106,7 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             if($paketler->isEmpty())
             {
                 $seansVarMi = $hizmetler->contains(function($h) {
-                    return $h->seanslar->isNotEmpty();
+                    return (int)$h->seans_sayisi > 0;
                 });
 
                 if (!$seansVarMi) {
@@ -13170,8 +13171,8 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     $paketSayisi = 0;
     
     foreach ($filtrelenmisAdisyonlar as $adisyon) {
-        // Seansli (APS'li) hizmetler PAKET sayilir; hizmet adedinden dusulup paket adedine eklenir.
-        $seansliSayisi = $adisyon->hizmetler->filter(fn($h)=>$h->seanslar->isNotEmpty())->count();
+        // Seansli (seans_sayisi > 0) hizmetler PAKET sayilir; hizmet adedinden dusulup paket adedine eklenir.
+        $seansliSayisi = $adisyon->hizmetler->filter(fn($h)=>(int)$h->seans_sayisi > 0)->count();
         $islemSayisi += $adisyon->hizmetler->count() - $seansliSayisi;
         $urunSayisi += $adisyon->urunler->count();
         $paketSayisi += $adisyon->paketler->count() + $seansliSayisi;
@@ -13237,16 +13238,15 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         foreach ($hizmetler as $hizmet) {
             $hizmetNetTutar = ($hizmet->fiyat ?? 0) - ($hizmet->indirim_tutari ?? 0);
 
-            // Seansli (APS kaydi olan) hizmet = PAKET satisi: (P) etiketi, paket kovasi,
-            // prim duz paket_prim_yuzde. Yaninda seans adedi (seans_sayisi, yoksa APS adedi).
-            if ($hizmet->seanslar->isNotEmpty()) {
+            // Seansli (seans_sayisi > 0) hizmet = PAKET satisi: (P) etiketi, paket kovasi,
+            // prim duz paket_prim_yuzde. Yaninda seans adedi (seans_sayisi).
+            if ((int)$hizmet->seans_sayisi > 0) {
                 $paketHakedis = 0;
                 if ($hizmet->personel_id !== null && isset($hizmet->personel->paket_prim_yuzde)) {
                     $paketHakedis = $hizmet->tahsilatlar->sum('tutar') * ($hizmet->personel->paket_prim_yuzde / 100);
                 }
-                $seansAdet = (int)($hizmet->seans_sayisi ?? 0);
-                if ($seansAdet <= 0) $seansAdet = $hizmet->seanslar->count();
-                $seansEtiket = $seansAdet > 0 ? " ({$seansAdet} Seans)" : "";
+                $seansAdet = (int)$hizmet->seans_sayisi;
+                $seansEtiket = " ({$seansAdet} Seans)";
                 $paketAd = ($hizmet->hizmet_id ? $hizmet->hizmet->hizmet_adi : "") . $seansEtiket;
                 $satilanlarStr .= $hizmet->hizmet_id ? $hizmet->hizmet->hizmet_adi." (P)".$seansEtiket." " : "";
                 $satilanlar[] = [
@@ -33061,21 +33061,13 @@ DB::raw('
 
         $hizmetItems = $adisyonlar->flatMap(fn($a)=>$a->hizmetler)->filter(fn($i)=>$i->personel_id);
 
-        // Seansli hizmet kalemleri (adisyon_paket_seanslar kaydi OLAN) sistemde PAKET
-        // sayilir: gelir de prim de paket kovasina gider, duz paket_prim_yuzde ile
-        // hesaplanir. Bunlarin id'lerini tek sorguda cikar (set olarak).
-        $seansliSet = [];
-        if($hizmetItems->isNotEmpty()){
-            $seansliSet = \DB::table('adisyon_paket_seanslar')
-                ->whereIn('adisyon_hizmet_id', $hizmetItems->pluck('id')->unique()->values())
-                ->distinct()->pluck('adisyon_hizmet_id')->flip()->all();
-        }
-
+        // Seansli hizmet kalemleri (seans_sayisi > 0) sistemde PAKET sayilir: gelir de
+        // prim de paket kovasina gider, duz paket_prim_yuzde ile hesaplanir.
         foreach($hizmetItems->groupBy('personel_id') as $pid => $items){
             if(!isset($primMap[$pid]) || !isset($persById[$pid])) continue;
             // Seansli (paket) ve normal hizmet kalemlerini ayir
-            $normal  = $items->reject(fn($i)=>isset($seansliSet[$i->id]))->values();
-            $seansli = $items->filter(fn($i)=>isset($seansliSet[$i->id]))->values();
+            $normal  = $items->reject(fn($i)=>(int)$i->seans_sayisi > 0)->values();
+            $seansli = $items->filter(fn($i)=>(int)$i->seans_sayisi > 0)->values();
 
             // --- Normal hizmet satislari ---
             if($normal->isNotEmpty()){
