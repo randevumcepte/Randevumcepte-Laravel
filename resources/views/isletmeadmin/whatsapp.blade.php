@@ -473,6 +473,7 @@
                     if (res.body && res.body.error) {
                         if (res.body.error === 'already-paired') msg = 'Bu salon zaten bağlı görünüyor. Önce "Oturumu Kapat" yapın.';
                         else if (res.body.error === 'invalid-phone') msg = 'Numara formatı geçersiz. 905XXXXXXXXX şeklinde girin.';
+                        else if (res.body.error === 'pairing-not-ready') msg = 'WhatsApp bağlantısı henüz hazır değil. Birkaç saniye bekleyip tekrar deneyin.';
                         else msg = 'Hata: ' + res.body.error;
                     }
                     phoneError.textContent = msg;
