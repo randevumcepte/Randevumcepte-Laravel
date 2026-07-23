@@ -31,6 +31,7 @@ class SalonappySaticiDoldur extends Command
         {--salon= : Salon (isletme) ID — zorunlu}
         {--dump-file= : package_sales veya product_sales dump JSON yolu — zorunlu}
         {--kasa-personel= : Salonappy\'de satici "Kasa" (seller_id=0) olan satislari bu personel ID\'sine yaz. Verilmezse atlanir.}
+        {--yedek-esle : Adisyonda import marker\'i yoksa musteri+tarih+hizmet+seans+tutar ile esle (sadece TEK aday varsa yazar).}
         {--uygula : Gercekten yaz (verilmezse sadece rapor / dry-run)}';
 
     protected $description = 'Salonappy dump\'indaki seller_text bilgisinden eksik adisyon personel_id\'lerini doldurur (sadece UPDATE).';
@@ -58,11 +59,14 @@ class SalonappySaticiDoldur extends Command
         $this->info('=== SALONAPPY SATICI DOLDUR — salon ' . $salonId
             . ' | mod: ' . ($uygula ? 'UYGULA (yazacak)' : 'DRY-RUN (yazmaz)') . ' ===');
 
+        $yedek = (bool) $this->option('yedek-esle');
+        if ($yedek) $this->line('Yedek eslesme AKTIF: marker\'i olmayan adisyonlarda musteri+tarih+hizmet+seans+tutar ile eslenecek.');
+
         $toplam = 0;
         $toplam += $this->isle($salonId, $uygula, 'paket',
-            $j['packageSales'] ?? [], 'salonappy-pkgsale', 'adisyon_hizmetler', 'seller_text', true, $kasaPersonelId);
+            $j['packageSales'] ?? [], 'salonappy-pkgsale', 'adisyon_hizmetler', 'seller_text', true, $kasaPersonelId, $yedek);
         $toplam += $this->isle($salonId, $uygula, 'urun',
-            $j['productSales'] ?? [], 'salonappy-prodsale', 'adisyon_urunler', 'seller_name', false, $kasaPersonelId);
+            $j['productSales'] ?? [], 'salonappy-prodsale', 'adisyon_urunler', 'seller_name', false, $kasaPersonelId, $yedek);
 
         if ($toplam === 0) $this->warn('Dump\'ta islenecek satis bulunamadi.');
         if (!$uygula) $this->comment("\nDRY-RUN — hicbir sey yazilmadi. Uygulamak icin --uygula ekle.");
@@ -77,8 +81,9 @@ class SalonappySaticiDoldur extends Command
      * @param  string $adKolonu   dump'taki satici ad alani
      * @param  bool   $grupla     marker group_id mi (paket) yoksa id mi (urun)
      * @param  int|null $kasaPersonelId "Kasa" satislarinin yazilacagi personel (null = atla)
+     * @param  bool   $yedek       marker yoksa musteri+tarih+hizmet ile esle
      */
-    private function isle($salonId, $uygula, $etiket, $satirlar, $markerAd, $tablo, $adKolonu, $grupla, $kasaPersonelId = null)
+    private function isle($salonId, $uygula, $etiket, $satirlar, $markerAd, $tablo, $adKolonu, $grupla, $kasaPersonelId = null, $yedek = false)
     {
         if (empty($satirlar) || !\Schema::hasTable($tablo)) return 0;
         if (!\Schema::hasColumn($tablo, 'personel_id')) return 0;
@@ -86,10 +91,12 @@ class SalonappySaticiDoldur extends Command
         $this->line("\n[{$etiket}] dump satiri: " . count($satirlar));
 
         // marker anahtari -> satici adi (Kasa/bos olanlar ayri sayilir)
-        $saticiler = []; $kasaAnahtar = [];
+        // $satirHarita: marker anahtari -> dump satirlari (marker yoksa yedek eslesme icin)
+        $saticiler = []; $kasaAnahtar = []; $satirHarita = [];
         foreach ($satirlar as $r) {
             $anahtar = (string) ($grupla ? ($r['group_id'] ?? $r['id'] ?? '') : ($r['id'] ?? ''));
             if ($anahtar === '') continue;
+            $satirHarita[$anahtar][] = $r;
             $ad = trim((string) ($r[$adKolonu] ?? ''));
             $sellerId = trim((string) ($r['seller_id'] ?? ''));
             if ($ad === '' || $sellerId === '0' || $this->trKey($ad) === 'kasa') {
@@ -121,17 +128,37 @@ class SalonappySaticiDoldur extends Command
             foreach (array_keys($kasaAnahtar) as $anahtar) $hedefler[$anahtar] = $kasaPersonelId;
         }
 
+        $yedekEslesen = 0;
+        $sahiplenilen = [];   // ayni kalem iki satisa yazilmasin
         foreach ($hedefler as $anahtar => $pid) {
             $adIds = DB::table('adisyonlar')->where('salon_id', $salonId)
                 ->where('notlar', 'LIKE', '%[' . $markerAd . ':' . $anahtar . ']%')
                 ->pluck('id');
-            if ($adIds->isEmpty()) { $adisyonYok++; continue; }
+
+            if ($adIds->isEmpty()) {
+                // Marker YOK (adisyon baska akistan girmis; notlar NULL olabilir).
+                // Yedek eslesme: musteri + tarih + hizmet + seans + tutar ile bul.
+                if ($yedek && $tablo === 'adisyon_hizmetler') {
+                    foreach (($satirHarita[$anahtar] ?? []) as $r) {
+                        $kid = $this->yedekKalemBul($salonId, $r);
+                        if ($kid && !isset($sahiplenilen[$kid])) {
+                            $sahiplenilen[$kid] = true;
+                            $guncellenecek[$pid][] = $kid;
+                            $yedekEslesen++;
+                        }
+                    }
+                }
+                $adisyonYok++;
+                continue;
+            }
 
             $kalemler = DB::table($tablo)->whereIn('adisyon_id', $adIds)->get(['id', 'personel_id']);
             if ($kalemler->isEmpty()) { $kalemYok++; continue; }
 
             foreach ($kalemler as $k) {
                 if ($k->personel_id) { $zatenDolu++; continue; }
+                if (isset($sahiplenilen[$k->id])) continue;
+                $sahiplenilen[$k->id] = true;
                 $guncellenecek[$pid][] = $k->id;
             }
         }
@@ -140,7 +167,13 @@ class SalonappySaticiDoldur extends Command
         foreach ($guncellenecek as $ids) $doldurulacak += count($ids);
 
         $this->line("  {$tablo}: doldurulacak {$doldurulacak} kalem"
-            . " | zaten dolu {$zatenDolu} | adisyon bulunamadi {$adisyonYok} | kalem yok {$kalemYok}");
+            . " | zaten dolu {$zatenDolu} | marker'li adisyon bulunamadi {$adisyonYok} | kalem yok {$kalemYok}");
+        if ($yedek) {
+            $this->line("  yedek eslesme ile bulunan: {$yedekEslesen} kalem"
+                . ($adisyonYok > $yedekEslesen ? "  (kalan " . ($adisyonYok - $yedekEslesen) . " satis eslenemedi/belirsiz)" : ""));
+        } elseif ($adisyonYok > 0 && $tablo === 'adisyon_hizmetler') {
+            $this->warn("  !! {$adisyonYok} satista adisyonda import marker'i YOK — --yedek-esle ile musteri+tarih+hizmet uzerinden denenebilir.");
+        }
 
         foreach ($guncellenecek as $pid => $ids) {
             $ad = DB::table('salon_personelleri')->where('id', $pid)->value('personel_adi');
@@ -172,6 +205,60 @@ class SalonappySaticiDoldur extends Command
         }
 
         return count($satirlar);
+    }
+
+    /**
+     * YEDEK ESLESME — adisyonda import marker'i yoksa (notlar NULL) kullanilir.
+     * Dump satirini musteri + tarih + hizmet adi + seans sayisi + tutar ile
+     * adisyon_hizmetler'de arar.
+     *
+     * GUVENLIK: yalnizca TEK aday kaldiginda id doner; belirsizlikte null doner
+     * (yanlis kisiye prim yazmamak icin). Zaten personelli kalemler haric tutulur.
+     */
+    private function yedekKalemBul($salonId, $r)
+    {
+        $tarih = substr(trim((string) ($r['date'] ?? '')), 0, 10);
+        $svc   = trim((string) ($r['service_text'] ?? ''));
+        if ($tarih === '' || $svc === '') return null;
+
+        $qty   = (int) ($r['quantity'] ?? 0);
+        $tutar = (float) ($r['total_amount'] ?? 0);
+
+        // Musteri: once telefon, sonra tam ad
+        $userId = null;
+        $tel = preg_replace('~\D~', '', (string) ($r['client_phone_number_local'] ?? $r['client_phone_number'] ?? ''));
+        if ($tel !== '') $userId = DB::table('users')->where('cep_telefon', $tel)->value('id');
+        if (!$userId) {
+            $mad = trim((string) ($r['client_name'] ?? ''));
+            if ($mad === '') return null;
+            $userId = DB::table('users')->where('name', $mad)->value('id');
+        }
+        if (!$userId) return null;
+
+        $q = DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->leftJoin('hizmetler as h', 'h.id', '=', 'ah.hizmet_id')
+            ->where('a.salon_id', $salonId)
+            ->where('a.user_id', $userId)
+            ->whereNull('ah.personel_id')
+            ->whereDate('a.tarih', $tarih);
+        if ($qty > 0) $q->where('ah.seans_sayisi', $qty);
+        else          $q->where('ah.seans_sayisi', '>', 0);
+
+        $adaylar = $q->get(['ah.id', 'ah.fiyat', 'h.hizmet_adi']);
+        if ($adaylar->isEmpty()) return null;
+
+        // Hizmet adi ZORUNLU eslesir (Turkce duyarsiz) — tutmuyorsa eslesme yok.
+        $svcKey  = $this->trKey($svc);
+        $adaylar = $adaylar->filter(fn($x) => $this->trKey($x->hizmet_adi) === $svcKey)->values();
+        if ($adaylar->isEmpty()) return null;
+
+        // Birden fazla aday varsa tutar ile daralt
+        if ($adaylar->count() > 1 && $tutar > 0) {
+            $adaylar = $adaylar->filter(fn($x) => abs((float) $x->fiyat - $tutar) < 1)->values();
+        }
+
+        return $adaylar->count() === 1 ? (int) $adaylar->first()->id : null;
     }
 
     /** Turkce karakter / buyuk-kucuk duyarsiz karsilastirma anahtari. */
