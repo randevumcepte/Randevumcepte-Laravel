@@ -279,12 +279,15 @@ class CustomerController extends Controller
             }
 
             // 3) Push — BildirimKimlikleri.isletme_yetkili_id = Personeller.id, sadece aktif satirlar
+            // Brand izolasyonu: sadece randevunun ait oldugu salon'un app_bundle'ini
+            // yuklu cihazlara gonder (public randevu formu farkli brand'lere sizmasin).
             $bildirimkimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$isletmeyetkilileri->pluck('id')->toArray())
+                ->forBrand($request->salonno)
                 ->whereNotNull('bildirim_id')
                 ->when(\Schema::hasColumn('bildirim_kimlikleri', 'aktif'), function($q){ $q->where('aktif', 1); })
                 ->pluck('bildirim_id')->toArray();
 
-            self::bildirimgonder($bildirimkimlikleri,$mesaj_isletme,"Yeni Randevu");
+            self::bildirimgonder($bildirimkimlikleri,$mesaj_isletme,"Yeni Randevu",$request->salonno);
             
 
 
@@ -320,11 +323,13 @@ class CustomerController extends Controller
         $bildirim->randevu_id = $randevuid;
         $bildirim->save();
     }
-    public function bildirimgonder($bildirimkimlikleri, $mesaj, $baslik)
+    public function bildirimgonder($bildirimkimlikleri, $mesaj, $baslik, $salonId = null)
     {
         if (empty($bildirimkimlikleri)) return null;
         try {
-            return \App\Services\NotificationService::forTokens((array) $bildirimkimlikleri)
+            // $salonId gecince NotificationService findTokens raw mod'unda
+            // app_bundle filtresi devreye girer -> brand izolasyonu tam saglanir.
+            return \App\Services\NotificationService::forTokens((array) $bildirimkimlikleri, $salonId !== null ? (int) $salonId : null)
                 ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
                 ->title((string) $baslik)
                 ->body((string) $mesaj)

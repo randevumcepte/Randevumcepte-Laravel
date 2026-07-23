@@ -39,8 +39,10 @@ class AdetBildirimJob implements ShouldQueue
             $adetDuzeni = $this->adetDuzeni->fresh();
             $mesaj = $this->mesaj;
 
-            // Sadece bildirim_id null olmayan ve boş olmayanları al
+            // Sadece bildirim_id null olmayan ve boş olmayanları al — brand izolasyonu:
+            // sadece adetDuzeni->salon_id'in app_bundle'ini yuklu cihazlara git.
             $bildirimkimlikleri = BildirimKimlikleri::where('user_id', $adetDuzeni->user_id)
+                ->forBrand($adetDuzeni->salon_id)
                 ->whereNotNull('bildirim_id')
                 ->where('bildirim_id', '<>', '')
                 ->pluck('bildirim_id')

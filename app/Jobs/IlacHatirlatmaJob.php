@@ -30,8 +30,11 @@ class IlacHatirlatmaJob implements ShouldQueue
 
             Log::info("💊 İlaç Hatırlatma Çalıştı → {$ilac->adi}");
 
-            // Kullanıcı tokenlarını al
+            // Kullanıcı tokenlarını al — brand izolasyonu: sadece ilac->salon_id'in
+            // app_bundle'ini yuklu cihazlara git. Ayni user'in baska brand build'indeki
+            // tokenina ilac hatirlatmasi sizmasin.
             $tokens = BildirimKimlikleri::where('user_id', $ilac->user_id)
+                ->forBrand($ilac->salon_id)
                 ->whereNotNull('bildirim_id')
                 ->pluck('bildirim_id')
                 ->filter()

@@ -43,7 +43,10 @@ class SendCompletionNotification implements ShouldQueue
         }
 
         $personelIdler = Personeller::where('salon_id', $this->salonId)->pluck('id')->toArray();
+        // Brand izolasyonu: aynı personel farklı brand build'inde de kayıtlıysa
+        // sadece $this->salonId'in app_bundle'ini yuklu cihazlarina gonder.
         $tokenlar = BildirimKimlikleri::whereIn('isletme_yetkili_id', $personelIdler)
+            ->forBrand($this->salonId)
             ->whereNotNull('bildirim_id')
             ->get();
 

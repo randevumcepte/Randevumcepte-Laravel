@@ -31,8 +31,10 @@ class OlcumHatirlatmaJob implements ShouldQueue
 
             $hatirlatma = $this->hatirlatma->fresh();
 
-            // Sadece bildirim_id null olmayan ve boş olmayanları al
+            // Sadece bildirim_id null olmayan ve boş olmayanları al — brand izolasyonu:
+            // sadece hatirlatma->salon_id'in app_bundle'ini yuklu cihazlara git.
             $bildirimkimlikleri = BildirimKimlikleri::where('user_id', $hatirlatma->user_id)
+                ->forBrand($hatirlatma->salon_id)
                 ->whereNotNull('bildirim_id')
                 ->where('bildirim_id', '<>', '')
                 ->pluck('bildirim_id')
