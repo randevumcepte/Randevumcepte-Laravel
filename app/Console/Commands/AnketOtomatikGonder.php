@@ -81,11 +81,14 @@ class AnketOtomatikGonder extends Command
                     ->whereIn('randevu_id', $randevuIds)
                     ->pluck('randevu_id')->all()
             );
-            $maxBitisMap = DB::table('randevu_hizmetler')
+            // Randevu suresini hesaplamak icin hem bitis (MAX saat_bitis) hem baslangic (MIN saat) cekilir.
+            $sureRows = DB::table('randevu_hizmetler')
                 ->whereIn('randevu_id', $randevuIds)
                 ->groupBy('randevu_id')
-                ->selectRaw('randevu_id, MAX(saat_bitis) as max_bitis')
-                ->pluck('max_bitis', 'randevu_id')->all();
+                ->selectRaw('randevu_id, MAX(saat_bitis) as max_bitis, MIN(saat) as min_baslangic')
+                ->get();
+            $maxBitisMap     = $sureRows->pluck('max_bitis', 'randevu_id')->all();
+            $minBaslangicMap = $sureRows->pluck('min_baslangic', 'randevu_id')->all();
             $userMap = User::whereIn('id', array_values(array_unique($randevular->pluck('user_id')->all())))
                 ->get()->keyBy('id');
 
@@ -103,9 +106,36 @@ class AnketOtomatikGonder extends Command
                     continue;
                 }
 
-                // 3) STAGGER: bitişten sonra randevu id'sine göre 0..STAGGER-1 dk geciktir.
-                //    Hedef an gelmediyse atla (aynı anda biten randevular dakikalara yayılır).
-                $hedefAn = $bitis->copy()->addMinutes(((int) $rnd->id) % $STAGGER_MINUTES);
+                // 2b) Randevu suresi (dk) = MAX(saat_bitis) - MIN(saat)
+                $baslangic = null;
+                $sureDk    = null;
+                $minBaslangic = $minBaslangicMap[$rnd->id] ?? null;
+                if ($minBaslangic) {
+                    try {
+                        $baslangic = Carbon::parse($rnd->tarih . ' ' . $minBaslangic);
+                        $sureDk    = $baslangic->diffInMinutes($bitis);
+                    } catch (\Exception $e) { $baslangic = null; }
+                }
+
+                // 3) GONDERIM ANI:
+                //    - Suresi 10 dk'dan UZUN randevular: bitisten 15 dk ONCE gonder.
+                //      (Musteri hala salonda olur; calisan "size anket yolladik" diye sozlu hatirlatabilir.)
+                //    - 10 dk ve alti (veya sure hesaplanamayan) randevular: bitisten SONRA gonder (eski davranis).
+                $ONCEDEN_DK = 15;   // uzun randevularda bitisten kac dk once gonderilecek
+                $SURE_ESIGI = 10;   // bu dk'nin uzerindeki randevular "erken gonderim" grubuna girer
+                if ($sureDk !== null && $sureDk > $SURE_ESIGI) {
+                    $gonderimAni = $bitis->copy()->subMinutes($ONCEDEN_DK);
+                    // Randevu baslamadan anket gitmesin (deneyim henuz yasanmadan): en erken baslangic ani.
+                    if ($baslangic && $gonderimAni->lt($baslangic)) {
+                        $gonderimAni = $baslangic->copy();
+                    }
+                } else {
+                    $gonderimAni = $bitis->copy();
+                }
+
+                // STAGGER: gonderim anindan sonra randevu id'sine gore 0..STAGGER-1 dk geciktir.
+                // Hedef an gelmediyse atla (ayni anda tetiklenen randevular dakikalara yayilir).
+                $hedefAn = $gonderimAni->copy()->addMinutes(((int) $rnd->id) % $STAGGER_MINUTES);
                 if ($now->lt($hedefAn)) continue;
                 // 4) 26 saatten eski randevuya da gönderme (geç kalmış cron için makul üst sınır)
                 if ($bitis->diffInHours($now, false) > 26) continue;
@@ -141,6 +171,9 @@ class AnketOtomatikGonder extends Command
                         'sablon_id'   => $sablon->id,
                         'gonderim_id' => $gonderim->id,
                         'bitis'       => $bitis->toDateTimeString(),
+                        'sure_dk'     => $sureDk,
+                        'gonderim_ani'=> $gonderimAni->toDateTimeString(),
+                        'erken'       => ($sureDk !== null && $sureDk > $SURE_ESIGI) ? 1 : 0,
                         'tel'         => $tel,
                     ]);
                 } catch (\Exception $e) {
