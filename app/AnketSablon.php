@@ -12,6 +12,9 @@ class AnketSablon extends Model
         'salon_id', 'ad', 'aciklama', 'sorular_json',
         'otomatik_gonder', 'gonder_saat_sonra',
         'aktif', 'varsayilan', 'sira',
+        // Anket tamamlama odulu
+        'odul_tipi', 'odul_kupon_indirim_tipi', 'odul_kupon_deger',
+        'odul_kupon_gecerlilik_gun', 'odul_kupon_hizmet_id', 'odul_puan', 'odul_baslik',
     ];
 
     public function salon()

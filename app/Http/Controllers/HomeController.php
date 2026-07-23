@@ -3158,6 +3158,68 @@ $salon = Salonlar::where('domain', $domain)->first();
         $gonderim->kvkk_onay     = $request->kvkk_onay ? 1 : 0;
         $gonderim->save();
 
+        // ── Anket tamamlama ODULU (kupon veya puan) ─────────────────────────────────
+        // Anketi tamamlayan HERKESE verilir (skora bagli degil). Kayitli musteri (user_id)
+        // ve daha once odul verilmemis olmasi sarti. Tek sefer garantisi: odul_verildi flag.
+        $odulBilgi = null;
+        try {
+            if ($sablon
+                && in_array($sablon->odul_tipi, ['kupon','puan'])
+                && !empty($gonderim->user_id)
+                && empty($gonderim->odul_verildi)) {
+
+                if ($sablon->odul_tipi === 'kupon' && (float) $sablon->odul_kupon_deger > 0) {
+                    $indirimTipi = $sablon->odul_kupon_indirim_tipi === 'tutar' ? 'tutar' : 'yuzde';
+                    $deger = (float) $sablon->odul_kupon_deger;
+                    $baslik = trim((string) $sablon->odul_baslik);
+                    if ($baslik === '') {
+                        $baslik = $indirimTipi === 'tutar'
+                            ? (rtrim(rtrim(number_format($deger, 2, ',', '.'), '0'), ',') . ' ₺ İndirim')
+                            : (intval($deger) . '% İndirim');
+                    }
+                    $gecerlilik = $sablon->odul_kupon_gecerlilik_gun
+                        ? \Carbon\Carbon::now()->addDays((int) $sablon->odul_kupon_gecerlilik_gun)->toDateString()
+                        : null;
+                    $kupon = \App\CarkifelekOdulleri::create([
+                        'salon_id'          => $gonderim->salon_id,
+                        'user_id'           => $gonderim->user_id,
+                        'kod'               => strtoupper(\Illuminate\Support\Str::random(8)),
+                        'tip'               => 'hizmet_indirimi',
+                        'deger'             => $deger,
+                        'indirim_tipi'      => $indirimTipi,
+                        'hizmet_id'         => $sablon->odul_kupon_hizmet_id, // null = tum hizmetler
+                        'baslik'            => $baslik,
+                        'gecerlilik_tarihi' => $gecerlilik,
+                    ]);
+                    $gonderim->odul_verildi = 1;
+                    $gonderim->odul_kupon_id = $kupon->id;
+                    $gonderim->save();
+                    $odulBilgi = [
+                        'tip'         => 'kupon',
+                        'baslik'      => $baslik,
+                        'kod'         => $kupon->kod,
+                        'gecerlilik'  => $gecerlilik ? \Carbon\Carbon::parse($gecerlilik)->format('d.m.Y') : null,
+                    ];
+                } elseif ($sablon->odul_tipi === 'puan' && (float) $sablon->odul_puan > 0) {
+                    $puanDeger = (float) $sablon->odul_puan;
+                    $puanKaydi = \App\SalonSadakatPuanlari::firstOrNew([
+                        'salon_id' => $gonderim->salon_id,
+                        'user_id'  => $gonderim->user_id,
+                    ]);
+                    $puanKaydi->puan = ((float) $puanKaydi->puan) + $puanDeger;
+                    $puanKaydi->save();
+                    $gonderim->odul_verildi = 1;
+                    $gonderim->save();
+                    $odulBilgi = [
+                        'tip'   => 'puan',
+                        'puan'  => rtrim(rtrim(number_format($puanDeger, 2, ',', '.'), '0'), ','),
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('[ANKET-ODUL] hata: '.$e->getMessage(), ['gonderim_id' => $gonderim->id ?? null]);
+        }
+
         // Premium "Reputation Booster" mantığı
         $salon = Salonlar::where('id', $gonderim->salon_id)->first();
         $googleUrl = null;
@@ -3223,6 +3285,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         return response()->json([
             'basarili' => true,
             'google_review_url' => $googleUrl,  // null veya URL — frontend buton göstermeyi karar verir
+            'odul' => $odulBilgi,               // null veya {tip:kupon/puan, ...} — tesekkur ekraninda gosterilir
         ]);
     }
 

@@ -15,6 +15,7 @@ class AnketGonderim extends Model
         'cevaplandi', 'cevap_zamani', 'cevaplar_json',
         'nps_skoru', 'csat_skoru', 'genel_yorum',
         'ip', 'user_agent', 'kvkk_onay',
+        'odul_verildi', 'odul_kupon_id',
     ];
 
     protected $dates = ['gonderim_zamani', 'son_gecerlilik', 'cevap_zamani'];

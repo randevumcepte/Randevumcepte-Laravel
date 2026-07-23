@@ -32518,6 +32518,36 @@ DB::raw('
         return response()->json($sablon);
     }
 
+    /**
+     * Anket sablonu odul ayarlarini request'ten okuyup sablona uygular (kaydet+guncelle ortak).
+     *  odul_tipi: yok | kupon | puan
+     *  kupon -> indirim_tipi (yuzde|tutar), deger, gecerlilik_gun, hizmet_id (null=tum), baslik
+     *  puan  -> odul_puan
+     */
+    private static function anketOdulAyarlariUygula($sablon, Request $request){
+        $tip = in_array($request->odul_tipi, ['kupon','puan']) ? $request->odul_tipi : 'yok';
+        $sablon->odul_tipi = $tip;
+        // Once hepsini temizle; sadece secili tipe ait alanlari doldur.
+        $sablon->odul_kupon_indirim_tipi   = null;
+        $sablon->odul_kupon_deger          = null;
+        $sablon->odul_kupon_gecerlilik_gun = null;
+        $sablon->odul_kupon_hizmet_id      = null;
+        $sablon->odul_puan                 = null;
+        $sablon->odul_baslik               = null;
+        if ($tip === 'kupon') {
+            $sablon->odul_kupon_indirim_tipi   = $request->odul_kupon_indirim_tipi === 'tutar' ? 'tutar' : 'yuzde';
+            $sablon->odul_kupon_deger          = max(0, (float) ($request->odul_kupon_deger ?? 0));
+            $g = (int) ($request->odul_kupon_gecerlilik_gun ?? 0);
+            $sablon->odul_kupon_gecerlilik_gun = $g > 0 ? $g : null; // 0/bos = suresiz
+            $h = (int) ($request->odul_kupon_hizmet_id ?? 0);
+            $sablon->odul_kupon_hizmet_id      = $h > 0 ? $h : null; // null = tum hizmetler
+            $sablon->odul_baslik               = trim($request->odul_baslik ?? '') ?: null;
+        } elseif ($tip === 'puan') {
+            $sablon->odul_puan   = max(0, (float) ($request->odul_puan ?? 0));
+            $sablon->odul_baslik = trim($request->odul_baslik ?? '') ?: null;
+        }
+    }
+
     public function anketSablonKaydet(Request $request){
         if($r = self::yetkiYoksa403($request, 'pazarlama.anket_yonet')) return $r;
         try {
@@ -32529,6 +32559,7 @@ DB::raw('
             $sablon->sorular_json      = $request->sorular_json;
             $sablon->otomatik_gonder   = $request->otomatik_gonder ? 1 : 0;
             $sablon->gonder_saat_sonra = max(0, (int) ($request->gonder_saat_sonra ?? 0));
+            self::anketOdulAyarlariUygula($sablon, $request);
             $sablon->aktif             = 1;
             $sablon->varsayilan        = $request->varsayilan ? 1 : 0;
             if($sablon->varsayilan){
@@ -32558,6 +32589,7 @@ DB::raw('
             $sablon->sorular_json      = $request->sorular_json;
             $sablon->otomatik_gonder   = $request->otomatik_gonder ? 1 : 0;
             $sablon->gonder_saat_sonra = max(0, (int) ($request->gonder_saat_sonra ?? 0));
+            self::anketOdulAyarlariUygula($sablon, $request);
             if($request->has('aktif')) $sablon->aktif = $request->aktif ? 1 : 0;
             if($request->has('varsayilan')){
                 $sablon->varsayilan = $request->varsayilan ? 1 : 0;

@@ -250,6 +250,15 @@
       <h2>{{ $isletme->salon_adi ?? '' }}</h2>
    </div>
    <div class="anket-kart">
+      {{-- Anket tamamlama odulu (kupon/puan) — varsa gosterilir --}}
+      <div id="basarili_odul" style="display:none; margin:14px 0 4px;">
+         <div style="background:linear-gradient(135deg,#fff8e6 0%,#fff0f6 100%); border:1.5px dashed #e0aa3e; border-radius:14px; padding:18px 16px; text-align:center;">
+            <div style="font-size:40px; line-height:1; margin-bottom:6px;">🎁</div>
+            <div id="odul_baslik_txt" style="font-weight:800; color:#8a5a00; font-size:16px; margin-bottom:4px;"></div>
+            <div id="odul_detay_txt" style="color:#6b4e12; font-size:13px;"></div>
+         </div>
+      </div>
+
       {{-- Yüksek puan: Google Review CTA --}}
       <div id="basarili_google" style="display:none; text-align:center; padding:40px 20px;">
          <div style="font-size:54px; margin-bottom:8px;">🌟</div>
@@ -377,6 +386,22 @@
             if(resp && resp.basarili){
                document.getElementById('form_bolumu').style.display = 'none';
                document.getElementById('basarili_bolumu').style.display = 'block';
+               // Anket tamamlama odulu — kupon/puan varsa goster
+               if (resp.odul) {
+                  var oBaslik = document.getElementById('odul_baslik_txt');
+                  var oDetay  = document.getElementById('odul_detay_txt');
+                  if (resp.odul.tip === 'kupon') {
+                     oBaslik.textContent = '🎉 ' + (resp.odul.baslik || 'İndirim kuponu') + ' kazandınız!';
+                     var d = 'Kupon kodunuz: <b style="letter-spacing:1px;">' + (resp.odul.kod || '') + '</b>';
+                     if (resp.odul.gecerlilik) d += '<br>Son kullanım: ' + resp.odul.gecerlilik;
+                     d += '<br><span style="font-size:12px;">Bir sonraki ziyaretinizde kullanabilirsiniz.</span>';
+                     oDetay.innerHTML = d;
+                  } else if (resp.odul.tip === 'puan') {
+                     oBaslik.textContent = '🎉 ' + resp.odul.puan + ' puan kazandınız!';
+                     oDetay.innerHTML = 'Puanlarınız hesabınıza tanımlandı. Ödüllerim bölümünden değerlendirebilirsiniz.';
+                  }
+                  document.getElementById('basarili_odul').style.display = 'block';
+               }
                // Premium: yüksek puan ise Google Review CTA göster, değilse standart teşekkür
                if (resp.google_review_url) {
                   var link = document.getElementById('google_review_link');
