@@ -20396,6 +20396,219 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'Kampanya pasif yapıldı');
         return self::paket_kampanyalar($request);
     }
+
+    // ======================================================================
+    // BILDIRIM REKLAMLARI — resimli/tiklanabilir, sade reklam modulu
+    // (mevcut kampanya_yonetimi'nden AYRI). SADECE hesap sahibi (role_id=1).
+    // ======================================================================
+
+    /** Giris yapan yetkili bu salonda hesap sahibi (role_id=1) mi? */
+    private function bildirimReklamSahipMi(Request $request)
+    {
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if (!$authUser) return false;
+        return \DB::table('model_has_roles')
+            ->where('model_id', $authUser->id)
+            ->where('salon_id', self::mevcutsube($request))
+            ->where('role_id', 1)
+            ->exists();
+    }
+
+    public function bildirim_reklam_liste(Request $request)
+    {
+        if (!Auth::guard('isletmeyonetim')->check())
+            return redirect('/isletmeyonetim/girisyap');
+
+        $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray();
+        $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+
+        if (!in_array(self::mevcutsube($request), $isletmeler))
+            return view('isletmeadmin.yetkisizerisim');
+
+        // SADECE hesap sahibi gorebilir
+        if (!self::bildirimReklamSahipMi($request))
+            return view('isletmeadmin.yetkisizerisim');
+
+        if (str_contains(self::lisans_sure_kontrol($request), '-'))
+            return view('isletmeadmin.lisanssurebitti', ['isletme' => $isletme]);
+
+        if (count($isletmeler) > 1 && !isset($_GET['sube']))
+            return view('isletmeadmin.isletmesec', ['isletmeler' => $isletmeler, 'isletme' => $isletme]);
+
+        $reklamlar = \App\BildirimReklamlari::where('salon_id', self::mevcutsube($request))
+            ->orderBy('id', 'desc')->get();
+
+        $hizmetler = \App\SalonHizmetler::where('salon_id', self::mevcutsube($request))->where('aktif', true)->get();
+
+        return view('isletmeadmin.bildirim_reklamlari', [
+            'pageindex'    => 122,
+            'sayfa_baslik' => 'Bildirim Reklamları',
+            'isletme'      => $isletme,
+            'reklamlar'    => $reklamlar,
+            'hizmetler'    => $hizmetler,
+        ]);
+    }
+
+    public function bildirim_reklam_kaydet(Request $request)
+    {
+        if (!self::bildirimReklamSahipMi($request))
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Bu islem icin yetkiniz yok.'], 403);
+
+        $salonId = self::mevcutsube($request);
+
+        if (!empty($request->id))
+            $reklam = \App\BildirimReklamlari::where('salon_id', $salonId)->where('id', $request->id)->first();
+        else
+            $reklam = new \App\BildirimReklamlari();
+
+        if (!$reklam)
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Reklam bulunamadi.'], 404);
+
+        if (trim((string)$request->baslik) === '')
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Baslik zorunlu.'], 422);
+
+        $reklam->salon_id     = $salonId;
+        $reklam->baslik       = trim($request->baslik);
+        $reklam->mesaj        = $request->mesaj;
+        $reklam->tur          = $request->tur ?: 'kampanya';
+        $reklam->kanal_push   = filter_var($request->input('kanal_push'), FILTER_VALIDATE_BOOLEAN);
+        $reklam->kanal_inapp  = filter_var($request->input('kanal_inapp'), FILTER_VALIDATE_BOOLEAN);
+        $reklam->aksiyon_tipi = $request->aksiyon_tipi ?: 'kupon';
+        $reklam->aksiyon_hedef = $request->aksiyon_hedef;
+
+        // En az bir kanal secili olmali
+        if (!$reklam->kanal_push && !$reklam->kanal_inapp)
+            return response()->json(['durum' => 'hata', 'mesaj' => 'En az bir kanal (Push / Uygulama-ici) secili olmali.'], 422);
+
+        // Gorsel: ayri base64 endpoint'inden gelen /public/... yolunu formdan al
+        if (!empty($request->gorsel))
+            $reklam->gorsel = $request->gorsel;
+
+        // Kupon ayarlari (yalniz aksiyon_tipi = kupon)
+        if ($reklam->aksiyon_tipi === 'kupon') {
+            $reklam->kupon_indirim_tipi   = $request->kupon_indirim_tipi ?: 'yuzde';
+            $reklam->kupon_deger          = $request->kupon_deger ?: 0;
+            $reklam->kupon_hizmet_id      = $request->kupon_hizmet_id ?: null;
+            $reklam->kupon_baslik         = $request->kupon_baslik ?: null;
+            $reklam->kupon_gecerlilik_gun = ($request->kupon_gecerlilik_gun !== null && $request->kupon_gecerlilik_gun !== '') ? (int)$request->kupon_gecerlilik_gun : null;
+            $reklam->kupon_kisi_limit     = $request->kupon_kisi_limit ?: 1;
+            $reklam->kupon_toplam_adet    = ($request->kupon_toplam_adet !== null && $request->kupon_toplam_adet !== '') ? (int)$request->kupon_toplam_adet : null;
+        }
+
+        $reklam->hedef_kitle = $request->hedef_kitle ?: 'tumu';
+
+        $reklam->durum = $request->durum ?: 'taslak';
+        $reklam->yayin_baslangic = !empty($request->yayin_baslangic) ? $request->yayin_baslangic : null;
+        $reklam->yayin_bitis     = !empty($request->yayin_bitis) ? $request->yayin_bitis : null;
+
+        $reklam->save();
+
+        SalonAudit::log($salonId, !empty($request->id) ? 'bildirim_reklam_guncelle' : 'bildirim_reklam_olustur', 'bildirim_reklam', $reklam->id,
+            $reklam->baslik, !empty($request->id) ? 'Bildirim reklami guncellendi' : 'Bildirim reklami olusturuldu');
+
+        return response()->json(['durum' => 'basarili', 'mesaj' => 'Reklam kaydedildi.', 'id' => $reklam->id]);
+    }
+
+    /** Base64 gorsel yukle -> /public/reklam_gorselleri/ altina kaydet, yolu don. */
+    public function bildirim_reklam_gorsel(Request $request)
+    {
+        if (!self::bildirimReklamSahipMi($request))
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Yetkiniz yok.'], 403);
+
+        $data = $request->input('gorsel');
+        if (!$data)
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Gorsel yok.'], 422);
+
+        $folderPath = public_path('reklam_gorselleri') . '/';
+        if (!is_dir($folderPath)) @mkdir($folderPath, 0755, true);
+
+        $ext = 'jpg';
+        if (preg_match('/^data:image\/(\w+);base64,/', $data, $m)) {
+            $ext = strtolower($m[1]) === 'jpeg' ? 'jpg' : strtolower($m[1]);
+            if (!in_array($ext, ['jpg', 'png', 'webp'])) $ext = 'jpg';
+            $data = substr($data, strpos($data, ',') + 1);
+        }
+        $binary = base64_decode($data);
+        if ($binary === false)
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Gorsel cozulemedi.'], 422);
+
+        $filename = 'reklam_' . self::mevcutsube($request) . '_' . uniqid() . '.' . $ext;
+        file_put_contents($folderPath . $filename, $binary);
+
+        return response()->json(['durum' => 'basarili', 'yol' => '/public/reklam_gorselleri/' . $filename]);
+    }
+
+    public function bildirim_reklam_durum(Request $request)
+    {
+        if (!self::bildirimReklamSahipMi($request))
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Yetkiniz yok.'], 403);
+        $reklam = \App\BildirimReklamlari::where('salon_id', self::mevcutsube($request))->where('id', $request->id)->first();
+        if (!$reklam) return response()->json(['durum' => 'hata', 'mesaj' => 'Bulunamadi.'], 404);
+        $yeni = in_array($request->durum, ['aktif', 'pasif', 'taslak', 'bitti']) ? $request->durum : 'pasif';
+        $reklam->durum = $yeni;
+        $reklam->save();
+        return response()->json(['durum' => 'basarili', 'yeni_durum' => $reklam->durum]);
+    }
+
+    public function bildirim_reklam_sil(Request $request)
+    {
+        if (!self::bildirimReklamSahipMi($request))
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Yetkiniz yok.'], 403);
+        $reklam = \App\BildirimReklamlari::where('salon_id', self::mevcutsube($request))->where('id', $request->id)->first();
+        if (!$reklam) return response()->json(['durum' => 'hata', 'mesaj' => 'Bulunamadi.'], 404);
+        $baslik = $reklam->baslik;
+        $reklam->delete();
+        SalonAudit::log(self::mevcutsube($request), 'bildirim_reklam_sil', 'bildirim_reklam', $request->id, $baslik, 'Bildirim reklami silindi');
+        return response()->json(['durum' => 'basarili']);
+    }
+
+    /** Reklami aktif et + salonun musterilerine push gonder (v1: hedef = tum aktif musteriler). */
+    public function bildirim_reklam_gonder(Request $request)
+    {
+        if (!self::bildirimReklamSahipMi($request))
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Yetkiniz yok.'], 403);
+
+        $salonId = self::mevcutsube($request);
+        $reklam = \App\BildirimReklamlari::where('salon_id', $salonId)->where('id', $request->id)->first();
+        if (!$reklam) return response()->json(['durum' => 'hata', 'mesaj' => 'Bulunamadi.'], 404);
+
+        if (!$reklam->kanal_push)
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Bu reklamda Push kanali kapali.'], 422);
+
+        // Yayina al
+        if ($reklam->durum !== 'aktif') $reklam->durum = 'aktif';
+
+        $userIds = \DB::table('musteri_portfoy')
+            ->where('salon_id', $salonId)
+            ->where('aktif', 1)
+            ->pluck('user_id')->unique()->values()->all();
+
+        $imageUrl = $reklam->gorsel ? url($reklam->gorsel) : null;
+        $gonderilen = 0;
+        foreach ($userIds as $uid) {
+            try {
+                $n = \App\Services\NotificationService::toCustomer((int)$uid, (int)$salonId)
+                    ->type(\App\Services\NotificationTypes::DISCOUNT)
+                    ->title($reklam->baslik)
+                    ->body((string)($reklam->mesaj ?: ''))
+                    ->deepLink('reklam_detay', ['reklam_id' => $reklam->id]);
+                if ($imageUrl) $n->image($imageUrl);
+                $n->send();
+                $gonderilen++;
+            } catch (\Exception $e) {
+                // Tek musteri hatasi tum gonderimi bozmasin
+            }
+        }
+
+        $reklam->push_gonderildi = true;
+        $reklam->save();
+
+        SalonAudit::log($salonId, 'bildirim_reklam_gonder', 'bildirim_reklam', $reklam->id,
+            $reklam->baslik, $gonderilen . ' musteriye push gonderildi');
+
+        return response()->json(['durum' => 'basarili', 'mesaj' => $gonderilen . ' müşteriye gönderildi.', 'gonderilen' => $gonderilen]);
+    }
+
     public function kampanyakatilimcisil(Request $request){
         try {
             $katilimci = KampanyaKatilimcilari::where('id', $request->id)->first();

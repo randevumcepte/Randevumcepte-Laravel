@@ -1784,6 +1784,22 @@
                   @endif
                   @endif
 
+                  {{-- 8a) Bildirim Reklamlari (resimli/tiklanabilir, sade modul - SADECE hesap sahibi) --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
+                  @if(in_array(1, $_layoutRoller))
+                  <li>
+                     @if($pageindex==122)
+                     <a href="/isletmeyonetim/bildirim-reklamlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/bildirim-reklamlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow ">
+                     @endif
+                     <span class="micon icon-copy bi bi-megaphone"></span
+                     ><span class="mtext">Bildirim Reklamları</span>
+                     </a>
+                  </li>
+                  @endif
+                  @endif
+
                   {{-- 8) Reklam Yönetimi (simdilik gizli - uzerinde calisiliyor) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu>2)

@@ -989,6 +989,14 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/senetvadegetir-tahsilat','StoreAdminController@senetvadegetir_tahsilat');
 	Route::get('/taksitvadegetir-tahsilat','StoreAdminController@taksitvadegetir_tahsilat');
 
+	// Bildirim Reklamlari (resimli/tiklanabilir, sade modul — sadece hesap sahibi)
+	Route::get('/bildirim-reklamlari','StoreAdminController@bildirim_reklam_liste');
+	Route::post('/bildirim-reklam-kaydet','StoreAdminController@bildirim_reklam_kaydet');
+	Route::post('/bildirim-reklam-gorsel','StoreAdminController@bildirim_reklam_gorsel');
+	Route::post('/bildirim-reklam-durum','StoreAdminController@bildirim_reklam_durum');
+	Route::post('/bildirim-reklam-sil','StoreAdminController@bildirim_reklam_sil');
+	Route::post('/bildirim-reklam-gonder','StoreAdminController@bildirim_reklam_gonder');
+
 	Route::get('/kampanya_yonetimi','StoreAdminController@kampanya_yonetimi_liste');
 	Route::get('/kampanyadetay','StoreAdminController@kampanyadetay');
 	Route::post('/kampanyasil','StoreAdminController@kampanya_sil');

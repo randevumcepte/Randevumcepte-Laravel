@@ -417,6 +417,11 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::post('/cark/puanodullerim',  'CarkifelekApiController@puanOdullerim');
     Route::post('/cark/puanodultalep',  'CarkifelekApiController@puanOdulTalep');
 
+    /* ───────── Bildirim Reklamlari (müşteri uygulaması) ───────── */
+    Route::get ('/reklam/liste',        'BildirimReklamApiController@liste');
+    Route::post('/reklam/liste',        'BildirimReklamApiController@liste');
+    Route::post('/reklam/kupon-kap',    'BildirimReklamApiController@kuponKap');
+
     /* ───────── SMS Yönetimi (uygulama içi) ───────── */
     Route::get ('/sms-yonetim/init/{salonid}',                'ApiController@smsYonetimInit');
     Route::post('/sms-yonetim/musteri-listele/{salonid}',     'ApiController@smsYonetimMusteriListele');
