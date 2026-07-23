@@ -5,7 +5,7 @@
 (async () => {
   const BASE = 'https://web-api.salonappy.com/api';
 
-  let TOKEN = '75501&zCVxnWZ8d77af53a846JNoDidc6909016d90b700365d69665815a9';
+  let TOKEN = '288401&9yAvrci39d5fed92flFCih3N117ce6681ae8a0d86f84b036db6d6c';
   let X_DEVICE = 'M3B3Ii2nwZrroB1nyWvOA81pWVKQmeTE';
   let X_VERSION = '2026.05.07.1';
   TOKEN = prompt('Bearer token', TOKEN) || TOKEN;

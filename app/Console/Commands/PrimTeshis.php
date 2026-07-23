@@ -133,6 +133,49 @@ class PrimTeshis extends Command
             $this->warn('  -> Rapor 0 gosterecek. Yukaridaki [1] ve [2] uyarilarina bak.');
         }
 
+        // 4) Kisi bazinda ciro (kazanc) dagilimi — yuzde ne olursa olsun.
+        //    "Para kimin uzerinde, o kisinin yuzdesi kac?" sorusunu net gosterir.
+        //    kazanc>0 ama yuzde=0 olan satirlar KAYIP PRIM'dir (yuzde girilmeli).
+        $this->line("\n[4] KISI BAZINDA CIRO ve YUZDE (kayip prim teshisi)");
+        $this->line(sprintf('  %-28s %14s %5s %14s %5s %14s %5s',
+            'PERSONEL', 'HIZMET_CIRO', 'yzd', 'URUN_CIRO', 'yzd', 'PAKET_CIRO', 'yzd'));
+        $kayipVar = false;
+        foreach ($personeller as $p) {
+            $ciro = ['hizmet' => 0, 'urun' => 0, 'paket' => 0];
+            foreach ([
+                ['adisyon_hizmetler', 'tahsilat_hizmetler', 'adisyon_hizmet_id', 'hizmet'],
+                ['adisyon_urunler',   'tahsilat_urunler',   'adisyon_urun_id',   'urun'],
+                ['adisyon_paketler',  'tahsilat_paketler',  'adisyon_paket_id',  'paket'],
+            ] as $x) {
+                list($kt, $tt, $tk, $tur) = $x;
+                if (!\Schema::hasTable($kt) || $adIds->isEmpty()) continue;
+                $ids = DB::table($kt)->whereIn('adisyon_id', $adIds)->where('personel_id', $p->id)->pluck('id');
+                if ($ids->isEmpty()) continue;
+                $ciro[$tur] = (float) DB::table($tt)->whereIn($tk, $ids)->sum('tutar');
+            }
+            if ($ciro['hizmet'] == 0 && $ciro['urun'] == 0 && $ciro['paket'] == 0) continue;
+
+            $hy = (float) ($p->hizmet_prim_yuzde ?? 0);
+            $uy = (float) ($p->urun_prim_yuzde ?? 0);
+            $py = (float) ($p->paket_prim_yuzde ?? 0);
+            $isaret = '';
+            if (($ciro['hizmet'] > 0 && $hy == 0 && empty($p->hizmet_prim_detayli))
+             || ($ciro['urun']   > 0 && $uy == 0 && empty($p->urun_prim_detayli))
+             || ($ciro['paket']  > 0 && $py == 0 && empty($p->paket_prim_detayli))) {
+                $isaret = '  <- CIRO VAR AMA YUZDE 0 = KAYIP PRIM';
+                $kayipVar = true;
+            }
+            $this->line(sprintf('  #%-4d %-22s %14s %5s %14s %5s %14s %5s%s',
+                $p->id, mb_substr($p->personel_adi, 0, 22),
+                number_format($ciro['hizmet'], 0), $hy,
+                number_format($ciro['urun'], 0), $uy,
+                number_format($ciro['paket'], 0), $py, $isaret));
+        }
+        if ($kayipVar) {
+            $this->warn("\n  !! CIRO VAR AMA YUZDE 0 olan personeller var — prim raporunda gorunmemelerinin");
+            $this->warn("     asil sebebi budur. Ilgili personelin prim yuzdesini girmen gerekiyor.");
+        }
+
         return 0;
     }
 }
