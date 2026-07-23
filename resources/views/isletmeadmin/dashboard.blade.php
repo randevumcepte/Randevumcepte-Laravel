@@ -465,8 +465,12 @@
   {{-- ÜST GRID: Kasa / Takvim / Randevu Ayrıntıları --}}
   <div class="rmc-grid-top">
 
-    {{-- KASA İSTATISTIKLERI --}}
-    @yetki('rapor.kasa')
+    {{-- KASA İSTATISTIKLERI — rapor.kasa VEYA personel.kendi_ciro_gor açıksa görünür.
+         Personel rolünde kendi_ciro_gor açıksa dashboardKasa endpoint'i personel_id ile filtreler. --}}
+    @if(
+        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.kasa') ||
+        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'personel.kendi_ciro_gor')
+    )
     <div class="rmc-card tone-green delay-1" id="rmc-kasa-card">
       <div class="rmc-card-head">
         <div class="rmc-card-title"><span class="rmc-title-icon"><i class="bi bi-wallet2"></i></span> Kasa İstatistikleri</div>
@@ -492,7 +496,7 @@
       </div>
     </div>
 
-    @endyetki
+    @endif
 
     {{-- MEMNUNIYET ANKETI --}}
     @yetki('pazarlama.anket_yonet')

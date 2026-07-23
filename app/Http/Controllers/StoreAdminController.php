@@ -1216,7 +1216,19 @@ public function carkverilerigetir(Request $request)
     {
         $salonId = $this->dashSalonId($request);
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
-        if($r = self::dashYetkiYoksa403($salonId, 'rapor.kasa')) return $r;
+        // Yetki: rapor.kasa VEYA personel.kendi_ciro_gor.
+        if($r = self::dashYetkiYoksa403($salonId, ['rapor.kasa', 'personel.kendi_ciro_gor'])) return $r;
+
+        // Personel rolunde ve rapor.kasa yoksa personel_id filtresi uygulanir
+        // (yalniz kendi adisyon kalemlerinden gelen tahsilatlar).
+        $_authUid = Auth::guard('isletmeyonetim')->user()->id;
+        $personelFiltre = null;
+        if (!\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUid, $salonId, 'rapor.kasa')
+            && \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUid, $salonId, 'personel.kendi_ciro_gor')) {
+            $personelFiltre = Personeller::where('salon_id', $salonId)
+                ->where('yetkili_id', $_authUid)->value('id') ?: -1;
+        }
+
         $period = $request->input('period','daily');
         list($t1, $t2) = $this->dashPeriodDates($period);
 
@@ -1231,11 +1243,39 @@ public function carkverilerigetir(Request $request)
             ->first();
         $sig = $fp->c.'-'.$fp->u.'-'.$fp->m;
 
-        return \Cache::remember($this->dashCacheKey($salonId, 'kasa:'.$period.':'.$sig), now()->addSeconds(60), function() use ($salonId, $t1, $t2, $period) {
-            $rows = DB::table('tahsilatlar')
+        $cacheKey = 'kasa:'.$period.':'.$sig.($personelFiltre ? (':p'.$personelFiltre) : '');
+        return \Cache::remember($this->dashCacheKey($salonId, $cacheKey), now()->addSeconds(60), function() use ($salonId, $t1, $t2, $period, $personelFiltre) {
+            // Ortak tahsilat_id secici — personel filtresi varsa sadece o
+            // personelin adisyon kalemlerinden gelen tahsilat id'leri.
+            $tahsilatIdCallback = null;
+            if ($personelFiltre) {
+                $tahsilatIdCallback = function ($sub) use ($personelFiltre) {
+                    $sub->select('tahsilat_hizmetler.tahsilat_id')->from('tahsilat_hizmetler')
+                        ->join('adisyon_hizmetler', 'adisyon_hizmetler.id', '=', 'tahsilat_hizmetler.adisyon_hizmet_id')
+                        ->where('adisyon_hizmetler.personel_id', $personelFiltre)
+                        ->union(
+                            DB::table('tahsilat_urunler')
+                                ->select('tahsilat_urunler.tahsilat_id')
+                                ->join('adisyon_urunler', 'adisyon_urunler.id', '=', 'tahsilat_urunler.adisyon_urun_id')
+                                ->where('adisyon_urunler.personel_id', $personelFiltre)
+                        )
+                        ->union(
+                            DB::table('tahsilat_paketler')
+                                ->select('tahsilat_paketler.tahsilat_id')
+                                ->join('adisyon_paketler', 'adisyon_paketler.id', '=', 'tahsilat_paketler.adisyon_paket_id')
+                                ->where('adisyon_paketler.personel_id', $personelFiltre)
+                        );
+                };
+            }
+
+            $rowsQ = DB::table('tahsilatlar')
                 ->leftJoin('odeme_yontemleri','tahsilatlar.odeme_yontemi_id','=','odeme_yontemleri.id')
                 ->where('tahsilatlar.salon_id', $salonId)
-                ->whereBetween('tahsilatlar.odeme_tarihi', [$t1.' 00:00:00', $t2.' 23:59:59'])
+                ->whereBetween('tahsilatlar.odeme_tarihi', [$t1.' 00:00:00', $t2.' 23:59:59']);
+            if ($tahsilatIdCallback) {
+                $rowsQ->whereIn('tahsilatlar.id', $tahsilatIdCallback);
+            }
+            $rows = $rowsQ
                 ->select('odeme_yontemleri.odeme_yontemi as yontem', DB::raw('SUM(tahsilatlar.tutar) as toplam'))
                 ->groupBy('odeme_yontemleri.odeme_yontemi')
                 ->get();
@@ -1257,9 +1297,13 @@ public function carkverilerigetir(Request $request)
             }
 
             $sparkline = [];
-            $sparkRows = DB::table('tahsilatlar')
+            $sparkQ = DB::table('tahsilatlar')
                 ->where('salon_id', $salonId)
-                ->where('odeme_tarihi','>=', date('Y-m-d 00:00:00', strtotime('-6 days')))
+                ->where('odeme_tarihi','>=', date('Y-m-d 00:00:00', strtotime('-6 days')));
+            if ($tahsilatIdCallback) {
+                $sparkQ->whereIn('id', $tahsilatIdCallback);
+            }
+            $sparkRows = $sparkQ
                 ->select(DB::raw('DATE(odeme_tarihi) as gun'), DB::raw('SUM(tutar) as toplam'))
                 ->groupBy('gun')
                 ->get()
