@@ -19492,6 +19492,15 @@ DB::raw('
         $adisyon_hizmet->senet_id = $senet_id;
         $adisyon_hizmet->randevu_id = $randevuId;
         $adisyon_hizmet->taksitli_tahsilat_id = $taksitli_tahsilat_id;
+        // NULL seans alanlari: randevu tahsilatinda acilan adisyon_hizmet paket
+        // satisi DEGIL (tek seferlik hizmet). paketVarmiKontrolu ve APS insert
+        // mantigimiz seans_sayisi > 0 sartina bakiyor; NULL/0 olan satirlar
+        // 'paket satisi degil' olarak dogru sekilde islenir. DB kolon default'u
+        // 0 olabilir, EXPLICIT NULL ile netlestiriyoruz.
+        $adisyon_hizmet->seans_sayisi = null;
+        $adisyon_hizmet->bekleyen_seans = null;
+        $adisyon_hizmet->kullanilan_seans = null;
+        $adisyon_hizmet->kullanilmayan_seans = null;
         $adisyon_hizmet->save();
 
         // Sarf recetesi varsa otomatik dus (internal helper)
