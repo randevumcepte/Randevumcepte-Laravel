@@ -19,6 +19,34 @@
 return [
     // Eski "uygulamala" projesi (5ff4d) - cogu marka burada
     'default'      => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+    'eymlife'      => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+    'cerenceviz'      => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+    'gulayersoy'      => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+    'escaladeink'      => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+    'realform'      => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+    'senail'      => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+    'esemavci'      => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+    'vionna'      => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+    'shemall'      => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+
+
     // Salooncadde markasi - randevumcepte-uygulamalar projesinde
-    'salooncadde'  => 'app/firebase/salooncadde.json',
+    'salooncadde'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+    'dermatouch'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+    'naturelkuafor'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+    'kessplus'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+    'bercislina'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+    'busrayilmaz'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+    'edasavut'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+
+
+    'aydangurece'  => 'app/firebase/egekobi-893bd4d005ff.json',
+    'sirius'  => 'app/firebase/egekobi-893bd4d005ff.json',
+    'successo'  => 'app/firebase/egekobi-893bd4d005ff.json',
+    'moncher'  => 'app/firebase/egekobi-893bd4d005ff.json',
+    'dilarasenses'  => 'app/firebase/egekobi-893bd4d005ff.json',
+    'essa'  => 'app/firebase/egekobi-893bd4d005ff.json',
+    'faya'  => 'app/firebase/egekobi-893bd4d005ff.json',
+    'fulyakandemir'  => 'app/firebase/egekobi-893bd4d005ff.json',
+
 ];
