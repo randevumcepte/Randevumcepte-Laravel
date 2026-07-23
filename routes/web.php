@@ -806,6 +806,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/whatsapp/alici/{telefon}/gecmis','StoreAdminController@whatsappAliciGecmisData')->name('whatsapp.alici.gecmis');
 	Route::get('/whatsapp/paket-durum','StoreAdminController@whatsappPaketDurum')->name('whatsapp.paket.durum');
 	Route::post('/whatsapp/paket-talep','StoreAdminController@whatsappPaketTalep')->name('whatsapp.paket.talep');
+	Route::post('/whatsapp/kontor-talep','StoreAdminController@whatsappKontorTalep')->name('whatsapp.kontor.talep');
 	Route::get('/hizmet-yonetimi', function(){ return redirect('/isletmeyonetim/ayarlar?p=hizmetler'); });
 	Route::post('/hizmet-yonetimi/guncelle','StoreAdminController@hizmetYonetimiGuncelle');
 	Route::post('/hizmet-yonetimi/kategori-ekle','StoreAdminController@hizmetKategoriEkle');

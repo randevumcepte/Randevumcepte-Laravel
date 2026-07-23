@@ -585,55 +585,101 @@
 })();
 </script>
 
-<div class="wpkt-wrapper">
-    <div class="wpkt-header">
-        <h2>WhatsApp Randevu Hatırlatma Paketi</h2>
-        <p>WhatsApp üzerinden otomatik randevu hatırlatması gönderin, randevuya gelmeyen müşteri sayısını azaltın, memnuniyeti artırın.</p>
-        <div id="wpktCurrentBadge" class="wpkt-current" style="display:none;">Mevcut paket: <b id="wpktCurrentName">—</b></div>
-    </div>
+<style>
+.wkp-wrap { margin:30px 0 10px; }
+.wkp-free-banner { display:flex; align-items:center; gap:16px; background:linear-gradient(135deg,#e7f8ef 0%,#d6f3e3 100%); border:1.5px solid #b8ebcf; border-radius:18px; padding:18px 22px; margin-bottom:26px; box-shadow:0 6px 20px rgba(37,211,102,.10); }
+.wkp-free-ic { font-size:34px; line-height:1; flex-shrink:0; }
+.wkp-free-t1 { font-size:17px; font-weight:800; color:#12805a; letter-spacing:-.2px; }
+.wkp-free-t2 { font-size:13.5px; color:#3f6b57; margin-top:3px; line-height:1.45; }
+.wkp-free-pill { margin-left:auto; flex-shrink:0; align-self:center; background:#12805a; color:#fff; font-weight:700; font-size:12px; padding:7px 14px; border-radius:20px; white-space:nowrap; }
+.wkp-header { text-align:center; margin-bottom:22px; }
+.wkp-header h2 { font-size:26px; font-weight:800; color:#1f2937; margin:0 0 8px; letter-spacing:-.4px; }
+.wkp-header p { color:#6b7280; font-size:14.5px; max-width:620px; margin:0 auto; line-height:1.5; }
+.wkp-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+@media (max-width:900px){ .wkp-grid{ grid-template-columns:repeat(2,1fr);} }
+@media (max-width:560px){ .wkp-grid{ grid-template-columns:1fr;} }
+.wkp-card { position:relative; background:#fff; border:1.5px solid #eceff3; border-radius:18px; padding:24px 20px 20px; text-align:center; transition:all .18s; display:flex; flex-direction:column; }
+.wkp-card:hover { transform:translateY(-4px); box-shadow:0 16px 34px rgba(17,24,39,.10); border-color:#c9efd9; }
+.wkp-card.best { border-color:#25D366; box-shadow:0 10px 30px rgba(37,211,102,.18); }
+.wkp-tag { position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:linear-gradient(135deg,#25D366,#12b455); color:#fff; font-size:11px; font-weight:800; letter-spacing:.4px; padding:5px 14px; border-radius:20px; white-space:nowrap; box-shadow:0 4px 12px rgba(37,211,102,.4); }
+.wkp-adet { font-size:26px; font-weight:800; color:#111827; letter-spacing:-.5px; }
+.wkp-adet span { font-size:14px; font-weight:600; color:#8a94a6; }
+.wkp-birim { font-size:12.5px; color:#8a94a6; margin-top:2px; }
+.wkp-fiyat { font-size:34px; font-weight:800; color:#12805a; margin:16px 0 2px; line-height:1; letter-spacing:-1px; }
+.wkp-fiyat small { font-size:16px; font-weight:600; color:#8a94a6; }
+.wkp-tasarruf { display:inline-block; margin:8px auto 0; min-height:24px; font-size:12.5px; font-weight:700; color:#12805a; background:#e7f8ef; border-radius:20px; padding:4px 12px; }
+.wkp-tasarruf.bos { background:transparent; color:transparent; }
+.wkp-btn2 { margin-top:18px; width:100%; padding:12px; border:0; border-radius:12px; font-weight:700; font-size:14px; cursor:pointer; transition:all .15s; background:#f3f4f6; color:#374151; }
+.wkp-btn2:hover { background:#e5e7eb; }
+.wkp-card.best .wkp-btn2 { background:linear-gradient(135deg,#25D366,#12b455); color:#fff; box-shadow:0 8px 18px rgba(37,211,102,.32); }
+.wkp-card.best .wkp-btn2:hover { transform:translateY(-1px); box-shadow:0 10px 22px rgba(37,211,102,.42); }
+@media (max-width:600px){ .wkp-free-banner{ flex-wrap:wrap; padding:16px; } .wkp-free-pill{ margin-left:0; } }
+</style>
 
-    <div class="wpkt-toggle">
-        <button id="wpktAylik" class="active" onclick="wpktSetPeriyot('aylik')">Aylık</button>
-        <button id="wpktYillik" onclick="wpktSetPeriyot('yillik')">Yıllık <span class="wpkt-discount">2 AY BEDAVA</span></button>
-    </div>
-
-    <div class="wpkt-grid wpkt-grid-2">
-        <div class="wpkt-card" id="wpktCardBaslangic">
-            <div class="wpkt-tier-name">Başlangıç</div>
-            <div class="wpkt-tier-desc">Sadece SMS hatırlatma kullanmak isteyen küçük işletmeler için</div>
-            <div class="wpkt-price-block">
-                <div class="wpkt-price">Ücretsiz</div>
-                <div class="wpkt-price-aylik">Ek ücret yok</div>
-            </div>
-            <ul class="wpkt-features">
-                <li>SMS ile randevu hatırlatma</li>
-                <li>Mevcut SMS bakiyenizden düşülür</li>
-                <li>Temel raporlama</li>
-                <li class="no">WhatsApp gönderimi</li>
-                <li class="no">Detaylı istatistik</li>
-            </ul>
-            <button class="wpkt-btn wpkt-btn-current" id="wpktBtnBaslangic">Mevcut Paket</button>
+<div class="wkp-wrap">
+    <div class="wkp-free-banner">
+        <div class="wkp-free-ic">🎉</div>
+        <div>
+            <div class="wkp-free-t1">31 Ağustos'a kadar WhatsApp tamamen ÜCRETSİZ</div>
+            <div class="wkp-free-t2"><b>1 Eylül 2026</b>'dan itibaren kontörlü sisteme geçilecek — <b>1 mesaj = 1 kontör</b>. Şimdiden paketleri inceleyip hazırlanabilirsiniz.</div>
         </div>
+        <div class="wkp-free-pill">ŞU AN ÜCRETSİZ</div>
+    </div>
 
-        <div class="wpkt-card popular" id="wpktCardPro">
-            <div class="wpkt-popular-tag">⭐ ÖNERİLEN</div>
-            <div class="wpkt-tier-name">WhatsApp Randevu Hatırlatma</div>
-            <div class="wpkt-tier-desc">WhatsApp ile profesyonel hatırlatma — randevuya gelmeyenleri azaltın</div>
-            <div class="wpkt-price-block">
-                <div class="wpkt-price" id="wpktProFiyat">499 <small>TL/ay</small></div>
-                <div class="wpkt-price-aylik" id="wpktProAylikInfo"></div>
-            </div>
-            <ul class="wpkt-features">
-                <li><b>Başlangıç paketinin tüm özellikleri</b></li>
-                <li>WhatsApp ile randevu hatırlatma (1 gün önce + yaklaşan)</li>
-                <li>Randevu iptali / güncelleme bildirimi</li>
-                <li>Otomatik SMS yedek</li>
-                <li>Mesaj geçmişi ve alıcı listesi</li>
-                <li>Detaylı istatistik paneli</li>
-            </ul>
-            <button class="wpkt-btn wpkt-btn-primary" onclick="wpktTalepAc('pro')">Hemen Başla</button>
+    <div class="wkp-header">
+        <h2>WhatsApp Kontör Paketleri</h2>
+        <p>1 mesaj = 1 kontör. Randevu hatırlatma, iptal/güncelleme bildirimi ve manuel mesajlar kontörden düşer. Çok alırsanız tanesi daha ucuza gelir.</p>
+    </div>
+
+    <div class="wkp-grid">
+        <div class="wkp-card">
+            <div class="wkp-adet">10.000 <span>kontör</span></div>
+            <div class="wkp-birim">tanesi 0,285 TL</div>
+            <div class="wkp-fiyat">2.850 <small>TL</small></div>
+            <div class="wkp-tasarruf bos">—</div>
+            <button class="wkp-btn2" onclick="wpktTalepAc('kontor_10000')">Kontör Al</button>
+        </div>
+        <div class="wkp-card">
+            <div class="wkp-adet">20.000 <span>kontör</span></div>
+            <div class="wkp-birim">tanesi 0,265 TL</div>
+            <div class="wkp-fiyat">5.300 <small>TL</small></div>
+            <div class="wkp-tasarruf">400 TL avantaj</div>
+            <button class="wkp-btn2" onclick="wpktTalepAc('kontor_20000')">Kontör Al</button>
+        </div>
+        <div class="wkp-card">
+            <div class="wkp-adet">40.000 <span>kontör</span></div>
+            <div class="wkp-birim">tanesi 0,245 TL</div>
+            <div class="wkp-fiyat">9.800 <small>TL</small></div>
+            <div class="wkp-tasarruf">1.600 TL avantaj</div>
+            <button class="wkp-btn2" onclick="wpktTalepAc('kontor_40000')">Kontör Al</button>
+        </div>
+        <div class="wkp-card">
+            <div class="wkp-adet">60.000 <span>kontör</span></div>
+            <div class="wkp-birim">tanesi 0,230 TL</div>
+            <div class="wkp-fiyat">13.800 <small>TL</small></div>
+            <div class="wkp-tasarruf">3.300 TL avantaj</div>
+            <button class="wkp-btn2" onclick="wpktTalepAc('kontor_60000')">Kontör Al</button>
+        </div>
+        <div class="wkp-card">
+            <div class="wkp-adet">80.000 <span>kontör</span></div>
+            <div class="wkp-birim">tanesi 0,213 TL</div>
+            <div class="wkp-fiyat">17.000 <small>TL</small></div>
+            <div class="wkp-tasarruf">5.800 TL avantaj</div>
+            <button class="wkp-btn2" onclick="wpktTalepAc('kontor_80000')">Kontör Al</button>
+        </div>
+        <div class="wkp-card best">
+            <div class="wkp-tag">⭐ EN AVANTAJLI · %30</div>
+            <div class="wkp-adet">100.000 <span>kontör</span></div>
+            <div class="wkp-birim">tanesi 0,200 TL</div>
+            <div class="wkp-fiyat">20.000 <small>TL</small></div>
+            <div class="wkp-tasarruf">8.500 TL avantaj</div>
+            <button class="wkp-btn2" onclick="wpktTalepAc('kontor_100000')">Kontör Al</button>
         </div>
     </div>
+
+    <p style="text-align:center;color:#9ca3af;font-size:12.5px;margin-top:18px;">
+        Ödeme sonrası kontörünüz manuel olarak yüklenir. "Kontör Al" ile talebinizi bırakın, en kısa sürede sizinle iletişime geçelim.
+    </p>
 </div>
 
 <div class="wsi-modal" id="wpktTalepModal">
@@ -643,10 +689,10 @@
             <span class="wsi-modal-close" onclick="document.getElementById('wpktTalepModal').classList.remove('show')">×</span>
         </div>
         <div id="wpktTalepBody">
-            <p style="color:#6c757d;font-size:14px;line-height:1.5;">Müşteri temsilcimiz sizinle iletişime geçerek ödeme ve aktivasyon süreci hakkında bilgi verecektir.</p>
-            <label style="font-size:13px;color:#444;font-weight:600;margin-top:14px;display:block;">İletişim Bilgisi (telefon veya email)</label>
-            <input type="text" id="wpktIletisim" style="width:100%;padding:10px;border:1px solid #ced4da;border-radius:6px;margin-top:6px;font-size:14px;" placeholder="örn. 0555 123 45 67">
-            <button id="wpktTalepGonder" class="wpkt-btn wpkt-btn-primary" style="margin-top:16px;">Talebi Gönder</button>
+            <p style="color:#6c757d;font-size:14px;line-height:1.5;">Bu paket için talebinizi bırakıyorsunuz. Onaylarsanız yetkilimize bildirim gider ve ödeme + kontör yükleme için sizinle iletişime geçilir.</p>
+            <label style="font-size:13px;color:#444;font-weight:600;margin-top:14px;display:block;">İletişim / Not <span style="color:#94a3b8;font-weight:500;">(opsiyonel)</span></label>
+            <input type="text" id="wpktIletisim" style="width:100%;padding:10px;border:1px solid #ced4da;border-radius:6px;margin-top:6px;font-size:14px;" placeholder="örn. bugün ödemek istiyorum / 0555 123 45 67">
+            <button id="wpktTalepGonder" class="wpkt-btn2" style="margin-top:16px;background:linear-gradient(135deg,#25D366,#12b455);color:#fff;">Talep Gönder</button>
             <div id="wpktTalepSonuc" style="margin-top:12px;font-size:13px;"></div>
         </div>
     </div>
@@ -874,41 +920,21 @@
 
     yukleOzet();
 
-    // ───────── PAKET BÖLÜMÜ ─────────
+    // ───────── KONTÖR PAKET BÖLÜMÜ ─────────
     var wpktSecilenPaket = null;
-    var wpktPeriyot = 'aylik';
-    var WPKT_FIYAT = {
-        pro: { aylik: 499, yillik: 4990 }
+    var WKP_PAKETLER = {
+        kontor_10000:  { ad:'10.000 Kontör',  fiyat:'2.850 TL' },
+        kontor_20000:  { ad:'20.000 Kontör',  fiyat:'5.300 TL' },
+        kontor_40000:  { ad:'40.000 Kontör',  fiyat:'9.800 TL' },
+        kontor_60000:  { ad:'60.000 Kontör',  fiyat:'13.800 TL' },
+        kontor_80000:  { ad:'80.000 Kontör',  fiyat:'17.000 TL' },
+        kontor_100000: { ad:'100.000 Kontör', fiyat:'20.000 TL' }
     };
 
-    window.wpktSetPeriyot = function(p){
-        wpktPeriyot = p;
-        document.getElementById('wpktAylik').classList.toggle('active', p === 'aylik');
-        document.getElementById('wpktYillik').classList.toggle('active', p === 'yillik');
-        guncelleFiyatlar();
-    };
-
-    function guncelleFiyatlar(){
-        var p = wpktPeriyot;
-        var proEl = document.getElementById('wpktProFiyat');
-        var proInfo = document.getElementById('wpktProAylikInfo');
-        if (!proEl) return;
-        if (p === 'aylik') {
-            proEl.innerHTML = WPKT_FIYAT.pro.aylik + ' <small>TL/ay</small>';
-            proInfo.textContent = '';
-        } else {
-            var proAylikEsdeger = (WPKT_FIYAT.pro.yillik / 12).toFixed(0);
-            proEl.innerHTML = WPKT_FIYAT.pro.yillik + ' <small>TL/yıl</small>';
-            proInfo.innerHTML = '≈ ' + proAylikEsdeger + ' TL/ay <span style="color:#25D366;font-weight:600;">— 2 ay bedava</span>';
-        }
-    }
-
-    window.wpktTalepAc = function(paket){
-        wpktSecilenPaket = paket;
-        var paketAd = 'WhatsApp Randevu Hatırlatma';
-        var fiyat = WPKT_FIYAT[paket][wpktPeriyot];
-        var birim = wpktPeriyot === 'aylik' ? 'TL/ay' : 'TL/yıl';
-        document.getElementById('wpktTalepBaslik').textContent = paketAd + ' Paket — ' + fiyat + ' ' + birim;
+    window.wpktTalepAc = function(key){
+        wpktSecilenPaket = key;
+        var p = WKP_PAKETLER[key] || { ad:key, fiyat:'' };
+        document.getElementById('wpktTalepBaslik').textContent = p.ad + ' — ' + p.fiyat;
         document.getElementById('wpktTalepSonuc').innerHTML = '';
         document.getElementById('wpktIletisim').value = '';
         document.getElementById('wpktTalepModal').classList.add('show');
@@ -916,30 +942,25 @@
 
     document.getElementById('wpktTalepGonder').addEventListener('click', function(){
         var btn = this;
-        var iletisim = document.getElementById('wpktIletisim').value.trim();
-        if (!iletisim) {
-            document.getElementById('wpktTalepSonuc').innerHTML = '<span style="color:#dc3545;">Lütfen iletişim bilgisi girin.</span>';
-            return;
-        }
+        var iletisim = document.getElementById('wpktIletisim').value.trim(); // opsiyonel
         btn.disabled = true; btn.textContent = 'Gönderiliyor...';
         var fd = new FormData();
         fd.append('paket', wpktSecilenPaket);
-        fd.append('periyot', wpktPeriyot);
         fd.append('iletisim', iletisim);
         fd.append('_token', csrf);
-        fetch('/isletmeyonetim/whatsapp/paket-talep' + qs2, {
+        fetch('/isletmeyonetim/whatsapp/kontor-talep' + qs2, {
             method:'POST', credentials:'same-origin',
             headers:{'X-CSRF-TOKEN':csrf}, body:fd
         }).then(function(r){ return r.json(); }).then(function(d){
-            btn.disabled = false; btn.textContent = 'Talebi Gönder';
+            btn.disabled = false; btn.textContent = 'Talep Gönder';
             if (d.ok) {
                 document.getElementById('wpktTalepSonuc').innerHTML = '<span style="color:#1a7f3e;font-weight:600;">✓ ' + (d.mesaj || 'Talebiniz alındı.') + '</span>';
-                setTimeout(function(){ document.getElementById('wpktTalepModal').classList.remove('show'); }, 2500);
+                setTimeout(function(){ document.getElementById('wpktTalepModal').classList.remove('show'); }, 3000);
             } else {
                 document.getElementById('wpktTalepSonuc').innerHTML = '<span style="color:#dc3545;">' + (d.error || d.mesaj || 'Hata oluştu.') + '</span>';
             }
         }).catch(function(){
-            btn.disabled = false; btn.textContent = 'Talebi Gönder';
+            btn.disabled = false; btn.textContent = 'Talep Gönder';
             document.getElementById('wpktTalepSonuc').innerHTML = '<span style="color:#dc3545;">Bağlantı hatası. Tekrar deneyin.</span>';
         });
     });
@@ -999,8 +1020,7 @@
             });
     }
 
-    guncelleFiyatlar();
-    yuklePaketDurum();
+    // Kontör modeli: eski abonelik durum/fiyat JS'i (yuklePaketDurum/guncelleFiyatlar) artık çağrılmıyor.
 })();
 </script>
 @endsection

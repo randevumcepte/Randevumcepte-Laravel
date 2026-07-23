@@ -22789,6 +22789,58 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         }
     }
 
+    /**
+     * Salon "Kontör Al"a basinca sistem sahibine (Ferdi) WhatsApp + SMS talep bildirimi gonderir.
+     * Kanal: SistemBildirim (sistem WhatsApp oturumu + SMS yedek) — demo bildirimiyle ayni PROVEN yol.
+     */
+    public function whatsappKontorTalep(Request $request)
+    {
+        try {
+            $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+            if(!$isletme){
+                return response()->json(['ok'=>false,'mesaj'=>'Salon bulunamadi.'],404);
+            }
+
+            // Fiyatlar sunucuda otoriter — frontend spoof edemez
+            $paketler = [
+                'kontor_10000'  => ['ad'=>'10.000 Kontör',  'fiyat'=>'2.850 TL'],
+                'kontor_20000'  => ['ad'=>'20.000 Kontör',  'fiyat'=>'5.300 TL'],
+                'kontor_40000'  => ['ad'=>'40.000 Kontör',  'fiyat'=>'9.800 TL'],
+                'kontor_60000'  => ['ad'=>'60.000 Kontör',  'fiyat'=>'13.800 TL'],
+                'kontor_80000'  => ['ad'=>'80.000 Kontör',  'fiyat'=>'17.000 TL'],
+                'kontor_100000' => ['ad'=>'100.000 Kontör', 'fiyat'=>'20.000 TL'],
+            ];
+            $key = (string) $request->input('paket', '');
+            if(!isset($paketler[$key])){
+                return response()->json(['ok'=>false,'mesaj'=>'Geçersiz paket.'],422);
+            }
+            $p = $paketler[$key];
+            $iletisim = trim((string) $request->input('iletisim', ''));
+            $tel = $isletme->yetkili_telefon ?: ($isletme->telefon_1 ?: '');
+
+            $mesaj = "💰 KONTÖR TALEBİ\n"
+                . "Salon: " . ($isletme->salon_adi ?? '-') . "\n"
+                . "Paket: " . $p['ad'] . " (" . $p['fiyat'] . ")\n"
+                . ($isletme->yetkili_adi ? ("Yetkili: " . $isletme->yetkili_adi . "\n") : '')
+                . ($tel ? ("Tel: " . $tel . "\n") : '')
+                . ($iletisim !== '' ? ("İletişim/Not: " . mb_substr($iletisim, 0, 120) . "\n") : '')
+                . "ID: " . $isletme->id . "\n"
+                . date('d.m.Y H:i');
+
+            $r = \App\Services\SistemBildirim::gonder($mesaj);
+            \Log::info('[KONTOR-TALEP]', [
+                'salon_id' => $isletme->id, 'paket' => $key,
+                'bildirim_ok' => $r['ok'] ?? false,
+            ]);
+
+            // Bildirim kanali kapali olsa bile talep loglandi — salona her halukarda 'alindi' de.
+            return response()->json(['ok'=>true,'mesaj'=>'Talebiniz alındı. En kısa sürede sizinle iletişime geçeceğiz. 🙌']);
+        } catch(\Throwable $e){
+            \Log::error('whatsappKontorTalep hata: '.$e->getMessage().' @ '.$e->getFile().':'.$e->getLine());
+            return response()->json(['ok'=>false,'mesaj'=>'Talep gönderilemedi, lütfen tekrar deneyin.'],500);
+        }
+    }
+
     public function sms_raporlari(Request $request)
     {
 
