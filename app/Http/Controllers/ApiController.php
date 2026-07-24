@@ -25905,6 +25905,38 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
         }
 
 
+        // ── Salon sahibi kürasyonu: online'a AÇIK saatler ──────────────────────
+        // izinliAraliklar: null=kısıtlama yok, []=o gün kapalı, [{bas,bit}...]=açık pencereler.
+        // İzin dışında kalan boşluklar müşteriye DOLU gösterilir (salon dolu görünsün,
+        // müşteri seçemesin). Ardından günlük limit varsa kalan boşluklar seyreltilir.
+        $izinliAraliklar = \App\SalonOnlineRandevuSaatleri::izinliAraliklar($salonId, $tarih);
+        if ($izinliAraliklar !== null) {
+            $yeniBos = array();
+            foreach ($bosSaatler as $bs) {
+                if (\App\SalonOnlineRandevuSaatleri::slotIzinliMi($izinliAraliklar, $bs['saat'], $toplamSure)) {
+                    $yeniBos[] = $bs;
+                } else {
+                    $dolusaatler[] = array('dolu' => '1', 'saat' => $bs['saat']);
+                }
+            }
+            $bosSaatler = $yeniBos;
+
+            // Günlük online slot limiti (seyreltme)
+            $limit = (int) (Salonlar::find($salonId)->online_gunluk_slot_limiti ?? 0);
+            if ($limit > 0 && count($bosSaatler) > $limit) {
+                usort($bosSaatler, function ($a, $b) {
+                    return strtotime($a['saat']) - strtotime($b['saat']);
+                });
+                $bolunmus = \App\SalonOnlineRandevuSaatleri::seyrelt($bosSaatler, $limit);
+                foreach ($bolunmus['elenmis'] as $bs) {
+                    $dolusaatler[] = array('dolu' => '1', 'saat' => $bs['saat']);
+                }
+                $bosSaatler = $bolunmus['secili'];
+            }
+
+            $saatindex = count($bosSaatler);
+        }
+
         if ($saatindex == 0) {
              return array(
                 'status'=>'empty',

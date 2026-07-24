@@ -187,6 +187,20 @@ class AiAsistanController extends Controller
             $musait[] = $hhmm;
         }
 
+        // Salon sahibi kürasyonu: online'a AÇIK saatler (haftalık pencere/istisna).
+        // null=kısıtlama yok. İzin dışı slotlar sesli asistanda da önerilmez.
+        $izinliAraliklar = \App\SalonOnlineRandevuSaatleri::izinliAraliklar($salonId, $tarih);
+        if ($izinliAraliklar !== null) {
+            $musait = array_values(array_filter($musait, function ($hhmm) use ($izinliAraliklar) {
+                return \App\SalonOnlineRandevuSaatleri::slotIzinliMi($izinliAraliklar, $hhmm, 0);
+            }));
+            $limit = (int) ($salon->online_gunluk_slot_limiti ?? 0);
+            if ($limit > 0 && count($musait) > $limit) {
+                $bolunmus = \App\SalonOnlineRandevuSaatleri::seyrelt($musait, $limit);
+                $musait = $bolunmus['secili'];
+            }
+        }
+
         // ONEMLI: eskiden array_slice(0,12) vardi; bu "ogleden sonra" slotlarini
         // kesip atiyordu (09:00-14:30 gosterip 15:00+ hic donmuyordu). Artik tum
         // gunu donuyoruz; sesli asistan zaten 2 tane onerecek. Cok uzun listeyi

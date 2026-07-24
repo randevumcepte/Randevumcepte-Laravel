@@ -17748,6 +17748,10 @@ DB::raw('
     {
         if($r = self::yetkiYoksa403($request, 'randevu.online_ayar')) return $r;
 
+        if (!\Illuminate\Support\Facades\Schema::hasTable('salon_online_randevu_saatleri')) {
+            return response('Veritabanı güncellemesi uygulanmamış (php artisan migrate).', 422);
+        }
+
         $salonId = (int) $request->salon_id;
         $isletme = Salonlar::where('id', $salonId)->first();
         if (!$isletme) return response('Salon bulunamadı', 422);

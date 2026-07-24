@@ -107,6 +107,17 @@
                            >Randevu Ayarları</a>
                      </li>
                      @endyetki
+                     @yetki('randevu.online_ayar')
+                     <li class="nav-item">
+                        <a
+                           class="nav-link {{($_GET['p']=='onlinerandevusaatleri') ? 'active' : ''}}"
+                           data-toggle="tab"
+                           href="#online-randevu-saatleri"
+                           role="tab"
+                           aria-selected="{{($_GET['p']=='onlinerandevusaatleri') ? 'true':'false'}}"
+                           >Online Randevu Saatleri</a>
+                     </li>
+                     @endyetki
                      @yetki('satis.indirim_uygula')
                        <li class="nav-item">
                         <a
@@ -1053,6 +1064,141 @@
                      </div>
                   </form>
                </div>
+            </div>
+            <div
+               class="tab-pane fade {{($_GET['p']=='onlinerandevusaatleri') ? 'active show' : ''}}"
+               id="online-randevu-saatleri"
+               role="tabpanel"
+               >
+               <div class="pd-20">
+                  @php
+                     $gunAdlari = [1=>'Pazartesi',2=>'Salı',3=>'Çarşamba',4=>'Perşembe',5=>'Cuma',6=>'Cumartesi',7=>'Pazar'];
+                     // Migration henüz çalışmadıysa (auto-deploy sırası) sayfa patlamasın
+                     $onlineTablolarHazir = \Illuminate\Support\Facades\Schema::hasTable('salon_online_randevu_saatleri');
+                     $onlinePencereler = $onlineTablolarHazir
+                         ? \App\SalonOnlineRandevuSaatleri::where('salon_id',$isletme->id)
+                             ->orderBy('haftanin_gunu')->orderBy('baslangic_saati')->get()->groupBy('haftanin_gunu')
+                         : collect();
+                     $onlineIstisnalar = $onlineTablolarHazir
+                         ? \App\SalonOnlineRandevuIstisnasi::where('salon_id',$isletme->id)
+                             ->where('tarih','>=',date('Y-m-d'))->orderBy('tarih')->get()
+                         : collect();
+                  @endphp
+                  @if(!$onlineTablolarHazir)
+                     <div class="alert alert-warning">Bu özellik için veritabanı güncellemesi henüz uygulanmamış. Lütfen sunucuda <code>php artisan migrate</code> çalıştırın.</div>
+                  @endif
+                  <form id="online_randevu_saatleri" method="POST">
+                     {!!csrf_field()!!}
+                     <input type="hidden" name="salon_id" value="{{$isletme->id}}">
+
+                     <div class="custom-control custom-checkbox mb-2">
+                        <input type="checkbox" class="custom-control-input" name="online_saat_kisitlama_aktif" id="online_saat_kisitlama_aktif" value="1" {{(!empty($isletme->online_saat_kisitlama_aktif)) ? 'checked' : ''}}>
+                        <label class="custom-control-label" for="online_saat_kisitlama_aktif"><strong>Online açık saatleri ben belirleyeyim</strong></label>
+                     </div>
+                     <small class="text-muted d-block mb-3">Kapalıyken çalışma saatindeki tüm boşluklar online görünür (mevcut davranış). Açtığınızda müşteriye yalnız aşağıda belirlediğiniz saatler "boş" gösterilir; kalan boşluklar dolu görünür.</small>
+
+                     <div id="online_kisit_govde" style="{{empty($isletme->online_saat_kisitlama_aktif) ? 'opacity:.5;pointer-events:none' : ''}}">
+                        <div class="form-group">
+                           <label>Günlük en fazla online slot</label>
+                           <input type="number" min="0" class="form-control" name="online_gunluk_slot_limiti" value="{{$isletme->online_gunluk_slot_limiti}}" placeholder="Boş bırakın = limitsiz" style="max-width:220px">
+                           <small class="text-muted">Örn. 3 yazarsanız açık saatler içinde müşteriye günde en fazla 3 boşluk gösterilir (eşit aralıklarla seçilir). Boş = sınırsız.</small>
+                        </div>
+
+                        <h6 class="mt-4">Haftalık Açık Saatler</h6>
+                        <small class="text-muted d-block mb-2">Her güne bir ya da birden çok aralık ekleyin. Hiç aralık eklemediğiniz gün online <b>kapalıdır</b>.</small>
+                        @foreach($gunAdlari as $gunNo=>$gunAd)
+                           <div class="card-box pd-10 mb-2">
+                              <div class="d-flex justify-content-between align-items-center mb-1">
+                                 <strong>{{$gunAd}}</strong>
+                                 <button type="button" class="btn btn-sm btn-outline-primary online-aralik-ekle" data-gun="{{$gunNo}}"><i class="fa fa-plus"></i> Aralık</button>
+                              </div>
+                              <div class="online-aralik-liste" data-gun="{{$gunNo}}">
+                                 @foreach(($onlinePencereler[$gunNo] ?? []) as $p)
+                                    <div class="d-flex align-items-center mb-1 online-aralik-satir">
+                                       <input type="hidden" name="pencere_gun[]" value="{{$gunNo}}">
+                                       <input type="time" class="form-control mr-1" name="pencere_bas[]" value="{{substr($p->baslangic_saati,0,5)}}" style="max-width:130px">
+                                       <span class="mr-1">–</span>
+                                       <input type="time" class="form-control mr-1" name="pencere_bit[]" value="{{substr($p->bitis_saati,0,5)}}" style="max-width:130px">
+                                       <button type="button" class="btn btn-sm btn-outline-danger online-aralik-sil"><i class="fa fa-times"></i></button>
+                                    </div>
+                                 @endforeach
+                              </div>
+                           </div>
+                        @endforeach
+
+                        <h6 class="mt-4">Tarihe Özel İstisnalar</h6>
+                        <small class="text-muted d-block mb-2">Belirli bir günü tamamen kapatın ya da o güne özel bir aralık açın. Haftalık kuralı ezer.</small>
+                        <div id="online_istisna_liste">
+                           @foreach($onlineIstisnalar as $is)
+                              <div class="d-flex align-items-center mb-1 online-istisna-satir flex-wrap">
+                                 <input type="date" class="form-control mr-1 mb-1" name="istisna_tarih[]" value="{{substr((string)$is->tarih,0,10)}}" style="max-width:160px">
+                                 <select class="form-control mr-1 mb-1 online-istisna-tip" name="istisna_tip[]" style="max-width:150px">
+                                    <option value="kapali" {{$is->tip=='kapali'?'selected':''}}>Kapalı</option>
+                                    <option value="ozel" {{$is->tip=='ozel'?'selected':''}}>Özel aralık</option>
+                                 </select>
+                                 <input type="time" class="form-control mr-1 mb-1 online-istisna-bas" name="istisna_bas[]" value="{{$is->baslangic_saati?substr($is->baslangic_saati,0,5):''}}" style="max-width:130px;{{$is->tip=='ozel'?'':'display:none'}}">
+                                 <input type="time" class="form-control mr-1 mb-1 online-istisna-bit" name="istisna_bit[]" value="{{$is->bitis_saati?substr($is->bitis_saati,0,5):''}}" style="max-width:130px;{{$is->tip=='ozel'?'':'display:none'}}">
+                                 <button type="button" class="btn btn-sm btn-outline-danger mb-1 online-istisna-sil"><i class="fa fa-times"></i></button>
+                              </div>
+                           @endforeach
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-1" id="online_istisna_ekle"><i class="fa fa-plus"></i> İstisna ekle</button>
+                     </div>
+
+                     <div class="mt-4">
+                        <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i> Kaydet</button>
+                     </div>
+                  </form>
+               </div>
+               <script>
+                  $(function(){
+                     $('#online_saat_kisitlama_aktif').on('change', function(){
+                        var on = this.checked;
+                        $('#online_kisit_govde').css({'opacity': on?'1':'.5','pointer-events': on?'auto':'none'});
+                     });
+                     $(document).on('click', '.online-aralik-ekle', function(){
+                        var gun = $(this).data('gun');
+                        var html = '<div class="d-flex align-items-center mb-1 online-aralik-satir">'
+                           + '<input type="hidden" name="pencere_gun[]" value="'+gun+'">'
+                           + '<input type="time" class="form-control mr-1" name="pencere_bas[]" value="09:00" style="max-width:130px">'
+                           + '<span class="mr-1">–</span>'
+                           + '<input type="time" class="form-control mr-1" name="pencere_bit[]" value="18:00" style="max-width:130px">'
+                           + '<button type="button" class="btn btn-sm btn-outline-danger online-aralik-sil"><i class="fa fa-times"></i></button>'
+                           + '</div>';
+                        $('.online-aralik-liste[data-gun="'+gun+'"]').append(html);
+                     });
+                     $(document).on('click', '.online-aralik-sil', function(){ $(this).closest('.online-aralik-satir').remove(); });
+
+                     $('#online_istisna_ekle').on('click', function(){
+                        var html = '<div class="d-flex align-items-center mb-1 online-istisna-satir flex-wrap">'
+                           + '<input type="date" class="form-control mr-1 mb-1" name="istisna_tarih[]" style="max-width:160px">'
+                           + '<select class="form-control mr-1 mb-1 online-istisna-tip" name="istisna_tip[]" style="max-width:150px"><option value="kapali">Kapalı</option><option value="ozel">Özel aralık</option></select>'
+                           + '<input type="time" class="form-control mr-1 mb-1 online-istisna-bas" name="istisna_bas[]" style="max-width:130px;display:none">'
+                           + '<input type="time" class="form-control mr-1 mb-1 online-istisna-bit" name="istisna_bit[]" style="max-width:130px;display:none">'
+                           + '<button type="button" class="btn btn-sm btn-outline-danger mb-1 online-istisna-sil"><i class="fa fa-times"></i></button>'
+                           + '</div>';
+                        $('#online_istisna_liste').append(html);
+                     });
+                     $(document).on('click', '.online-istisna-sil', function(){ $(this).closest('.online-istisna-satir').remove(); });
+                     $(document).on('change', '.online-istisna-tip', function(){
+                        var ozel = $(this).val()==='ozel';
+                        $(this).closest('.online-istisna-satir').find('.online-istisna-bas, .online-istisna-bit').toggle(ozel);
+                     });
+
+                     $('#online_randevu_saatleri').on('submit', function(e){
+                        e.preventDefault();
+                        $.ajax({
+                           type:'POST',
+                           url:'/isletmeyonetim/onlinerandevusaatguncelle',
+                           dataType:'text',
+                           data: $('#online_randevu_saatleri').serialize(),
+                           beforeSend: function(){ $("#preloader").show(); },
+                           success: function(result){ $("#preloader").hide(); swal('Başarılı!', result, 'success'); },
+                           error: function(req){ $("#preloader").hide(); swal('Hata', (req && req.responseText) ? req.responseText : 'Kaydedilemedi', 'error'); }
+                        });
+                     });
+                  });
+               </script>
             </div>
                <div
                class="tab-pane fade {{($_GET['p']=='musteri_indirimleri') ? 'active show' : ''}}"
@@ -2412,6 +2558,7 @@ $(document).ready(function(){
       'hizmetler': 'hizmetler',
       'odalar': 'odalar',
       'randevu-ayarlari': 'randevuayarlari',
+      'online-randevu-saatleri': 'onlinerandevusaatleri',
       'musteri_indirimleri': 'musteri_indirimleri',
       'form_taslaklari': 'form_taslaklari',
       'urunler': 'urunler',

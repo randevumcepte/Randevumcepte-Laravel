@@ -967,6 +967,7 @@ Route::prefix('isletmeyonetim')->group(function() {
    Route::get('/hizmetpersoneldeneme','StoreAdminController@denemesql');
    Route::post('/yeniisletmeekle','StoreAdminController@yeniisletmeekle');
    Route::post('/randevuayarguncelle','StoreAdminController@randevuayarguncelle');
+   Route::post('/onlinerandevusaatguncelle','StoreAdminController@onlineRandevuSaatGuncelle');
    Route::get('/rolata','StoreAdminController@assing_roles');
    Route::get('/odeme','StoreAdminController@odeme_sayfasi');
    Route::middleware('auth')->group(function() {
