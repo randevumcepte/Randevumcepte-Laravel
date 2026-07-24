@@ -264,12 +264,16 @@
 
                   <div id="seg_kisi" class="br-seg-alan" style="margin-top:10px">
                      <label class="br-lbl">Kişi seç (Push yalnızca bu kişiye gider)</label>
-                     <select class="form-control" name="segment_user_id" id="br_seg_kisi">
-                        @foreach($musteriler as $m)
-                           <option value="{{$m->id}}">{{ $m->name }} — {{ $m->cep_telefon }}</option>
-                        @endforeach
-                     </select>
-                     <small class="br-ipucu" style="color:#64748b">Test için kendini seç; “Push Gönder” bildirimini yalnızca sana yollar.</small>
+                     <div class="br-ss-wrap" id="br_kisi_wrap">
+                        <input type="text" class="form-control" id="br_kisi_ara" placeholder="İsim veya telefon yazın…" autocomplete="off">
+                        <input type="hidden" name="segment_user_id" id="br_seg_kisi">
+                        <div class="br-ss-list" id="br_kisi_liste" style="display:none">
+                           @foreach($musteriler as $m)
+                              <div class="br-ss-item" data-id="{{$m->id}}" data-text="{{ $m->name }} {{ $m->cep_telefon }}">{{ $m->name }} — {{ $m->cep_telefon }}</div>
+                           @endforeach
+                        </div>
+                     </div>
+                     <small class="br-ipucu" style="color:#64748b">Test için kendini bul-seç; “Push Gönder” bildirimini yalnızca ona yollar.</small>
                   </div>
 
                   <div id="seg_gelmeyen" class="br-seg-alan" style="margin-top:10px">
@@ -375,6 +379,13 @@
 .br-btn-ghost:hover{background:#e2e8f0}
 .br-btn-primary{border:0;background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;border-radius:11px;padding:10px 26px;font-size:13.5px;font-weight:700;cursor:pointer;box-shadow:0 8px 20px rgba(124,58,237,.35);transition:.15s}
 .br-btn-primary:hover{filter:brightness(1.07)}
+/* aranabilir kişi seçici */
+.br-ss-wrap{position:relative}
+.br-ss-list{position:absolute;left:0;right:0;top:100%;margin-top:5px;max-height:240px;overflow-y:auto;background:#fff;border:1.5px solid #e5e7eb;border-radius:12px;box-shadow:0 14px 34px rgba(15,23,42,.16);z-index:30}
+.br-ss-item{padding:9px 13px;font-size:13px;color:#334155;cursor:pointer;border-bottom:1px solid #f4f4f7}
+.br-ss-item:last-child{border-bottom:0}
+.br-ss-item:hover{background:#f5f3ff;color:#7c3aed}
+.br-ss-bos{padding:12px 13px;font-size:12.5px;color:#94a3b8;text-align:center}
 @media(max-width:575px){.br-chips{grid-template-columns:1fr}}
 </style>
 
@@ -407,6 +418,30 @@
    $('#br_hedef').on('change', segmentGoster);
    $('#br_seg_tip').on('change', segAlanGoster);
 
+   // Aranabilir kişi seçici (isim/telefon yazarak filtrele)
+   function kisiFiltrele(){
+      var q = ($('#br_kisi_ara').val()||'').toLocaleLowerCase('tr').trim();
+      var gorunen = 0;
+      $('#br_kisi_liste .br-ss-item').each(function(){
+         var t = ($(this).attr('data-text')||'').toLocaleLowerCase('tr');
+         var ok = q==='' || t.indexOf(q) >= 0;
+         $(this).toggle(ok);
+         if(ok) gorunen++;
+      });
+      $('#br_kisi_liste .br-ss-bos').remove();
+      if(gorunen===0) $('#br_kisi_liste').append('<div class="br-ss-bos">Kişi bulunamadı</div>');
+      $('#br_kisi_liste').show();
+   }
+   $('#br_kisi_ara').on('focus input', kisiFiltrele);
+   $(document).on('click','#br_kisi_liste .br-ss-item', function(){
+      $('#br_seg_kisi').val($(this).attr('data-id'));
+      $('#br_kisi_ara').val($(this).text());
+      $('#br_kisi_liste').hide();
+   });
+   $(document).on('click', function(e){
+      if(!$(e.target).closest('#br_kisi_wrap').length) $('#br_kisi_liste').hide();
+   });
+
    // ---- Yeni ----
    $('#brYeniBtn').on('click', function(){
       $('#brForm')[0].reset();
@@ -414,6 +449,7 @@
       $('#br_onizleme').hide().attr('src',''); $('#br_upload_ph').show();
       $('#br_push,#br_inapp').prop('checked',true);
       $('#br_tamekran').prop('checked',false);
+      $('#br_kisi_ara').val(''); $('#br_seg_kisi').val(''); $('#br_kisi_liste').hide();
       $('#br_hedef').val('tumu');
       $('#brModalBaslik').text('Yeni Bildirim Reklamı');
       aksiyonGoster(); segmentGoster(); segAlanGoster();
@@ -454,7 +490,11 @@
          $('#br_seg_tip').val(kosul.tip);
          if(kosul.gun) $('#br_seg_gun').val(kosul.gun);
          if(kosul.hizmet_id) $('#br_seg_hizmet').val(String(kosul.hizmet_id));
-         if(kosul.user_id) $('#br_seg_kisi').val(String(kosul.user_id));
+         if(kosul.user_id){
+            $('#br_seg_kisi').val(String(kosul.user_id));
+            var _it = $('#br_kisi_liste .br-ss-item[data-id="'+kosul.user_id+'"]');
+            if(_it.length) $('#br_kisi_ara').val(_it.text());
+         }
          if(kosul.cinsiyet!==undefined && kosul.cinsiyet!==null) $('#br_seg_cinsiyet').val(String(kosul.cinsiyet));
       }
       $('#br_durum').val(r.durum||'taslak');
