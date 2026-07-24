@@ -816,8 +816,15 @@ class PanelController extends Controller
             'ticket_id'     => $ticketId,
         ]);
 
-        // simdi isletmeyonetim guard'ina giris yap
-        Auth::guard('isletmeyonetim')->login($yetkili);
+        // isletmeyonetim guard'ina giris — SESSION ID'yi MIGRATE ETMEDEN.
+        // KESIN SEBEP (imptest.log ile bulundu): login() oturumu migrate ediyor (yeni ID +
+        // yeni cookie). Ayni tarayicida acik salon-paneli sekmesi / arka-plan poll'u eski
+        // ID ile devam edince yeni oturumda isletmeyonetim login'i olmuyor -> "Oturumunuz
+        // sonlanmistir" atmasi. Migrate etmeyince impersonation MEVCUT oturuma eklenir,
+        // tum sekmeler ayni oturumu paylasir, kimse atilmaz.
+        $iyGuard = Auth::guard('isletmeyonetim');
+        session()->put($iyGuard->getName(), $yetkili->getAuthIdentifier());
+        $iyGuard->setUser($yetkili);
 
         // ONEMLI: AuthenticateSession middleware'i oturumda 'password_hash_isletmeyonetim'
         // tutar ve her istekte mevcut kullanicinin parola hash'iyle karsilastirir; uymazsa
@@ -854,7 +861,10 @@ class PanelController extends Controller
             }
         }
         session()->forget(['sysadmin_impersonation_id', 'sysadmin_impersonation_uid']);
-        Auth::guard('isletmeyonetim')->logout();
+        // isletmeyonetim cikisi — MIGRATE ETMEDEN (login gibi; oturum ID sabit kalsin,
+        // sekmeler arasi kopma olmasin). logout() migrate edebiliyor; onun yerine sadece
+        // guard oturum anahtarini + hash'i sil.
+        session()->forget(Auth::guard('isletmeyonetim')->getName());
         // AuthenticateSession hash anahtarini da temizle ki bir sonraki impersonation'da
         // bu salonun eski hash'i kalip yeni salona girerken oturumu flush etmesin.
         session()->forget('password_hash_isletmeyonetim');
