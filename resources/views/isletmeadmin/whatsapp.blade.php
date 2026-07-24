@@ -963,13 +963,16 @@
             finish('Talebiniz alındı, en kısa sürede sizinle iletişime geçeceğiz. 🙌', true);
         }, 18000);
 
+        // csrf/qs2 bu kapsamda tanimsiz olabiliyor (ReferenceError) — token'i Blade'den, sube'yi URL'den al.
+        var _tkn = '{{ csrf_token() }}';
+        var _qs  = location.search || '';
         var fd = new FormData();
         fd.append('paket', wpktSecilenPaket);
         fd.append('iletisim', iletisim);
-        fd.append('_token', csrf);
-        fetch('/isletmeyonetim/whatsapp/paket-talep' + qs2, {
+        fd.append('_token', _tkn);
+        fetch('/isletmeyonetim/whatsapp/paket-talep' + _qs, {
             method:'POST', credentials:'same-origin',
-            headers:{'X-CSRF-TOKEN':csrf, 'Accept':'application/json'}, body:fd
+            headers:{'X-CSRF-TOKEN':_tkn, 'Accept':'application/json'}, body:fd
         }).then(function(r){
             return r.text().then(function(t){ var j=null; try{ j=JSON.parse(t); }catch(e){} return {status:r.status, j:j}; });
         }).then(function(res){
