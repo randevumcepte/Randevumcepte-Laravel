@@ -144,6 +144,7 @@
                      </div>
                      <input type="file" id="br_dosya" accept="image/*" style="display:none">
                      <button type="button" class="btn btn-sm btn-light" id="br_gorsel_sec" style="width:100%;margin-top:6px">Görsel Seç</button>
+                     <small style="display:block;margin-top:6px;color:#64748b;font-size:11.5px">Açılış tam ekran (popup) için <b>dikey Instagram Story</b> görseli önerilir: <b>9:16 (1080×1920)</b>. Bu oranda görsel tam ekran bozulmadan gösterilir.</small>
                   </div>
                </div>
 
