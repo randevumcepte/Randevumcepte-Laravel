@@ -7,23 +7,26 @@
 // Visit'ler full cekilir; importer tarih araligini filtreyle uygular.
 (async () => {
   const BASE = 'https://web-api.salonappy.com/api';
-  const DB_NAME = prompt('IndexedDB cache adi', 'sa_visits_resume4') || 'sa_visits_resume4';
+  const DB_NAME = prompt('IndexedDB cache adi', 'sa_visits_resume5') || 'sa_visits_resume5';
 
   let TOKEN = '75501&xllbghIbb43162455EtvHvW88780133d539433fef4c03826541471';
   let X_DEVICE = 'M3B3Ii2nwZrroB1nyWvOA81pWVKQmeTE';
-  let X_VERSION = '2026.05.07.1';
+  let X_VERSION = '2026.06.22.1';
   TOKEN = prompt('Bearer token', TOKEN) || TOKEN;
   X_DEVICE = prompt('x-device', X_DEVICE) || X_DEVICE;
   if (!TOKEN || !X_DEVICE) { console.error('Token/device gerekli'); return; }
 
   const RATE_DELAY_MS = parseInt(prompt('Istek arasi gecikme (ms)', '250'), 10) || 250;
 
+  // KRITIK: x-product: "sappy" header'i olmadan Salonappy API sadece ~30 kayit
+  // donderiyor. Bu header ile total_records=34126 gibi gercek toplama ulasilir.
   const H = () => ({
     'Authorization': 'Bearer ' + TOKEN,
     'Accept': 'application/json, text/plain, */*',
     'x-device': X_DEVICE,
     'x-language': 'tr',
     'x-platform': 'web',
+    'x-product': 'sappy',
     'x-version': X_VERSION
   });
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));

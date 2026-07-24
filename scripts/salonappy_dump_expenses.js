@@ -5,9 +5,9 @@
 (async () => {
   const BASE = 'https://web-api.salonappy.com/api';
 
-  let TOKEN = '288401&Oc1lPAy62641ff1camqsiK7919e9107f826b22f39ede49c6ff4eaa';
-  let X_DEVICE = '1tevuO7938R1ggFPtQZVerlqY2GfIBJK';
-  let X_VERSION = '2026.05.07.1';
+  let TOKEN = '75501&xllbghIbb43162455EtvHvW88780133d539433fef4c03826541471';
+  let X_DEVICE = 'M3B3Ii2nwZrroB1nyWvOA81pWVKQmeTE';
+  let X_VERSION = '2026.06.22.1';
   TOKEN = prompt('Bearer token', TOKEN) || TOKEN;
   X_DEVICE = prompt('x-device', X_DEVICE) || X_DEVICE;
   if (!TOKEN || !X_DEVICE) { console.error('Token/device gerekli'); return; }
@@ -19,6 +19,7 @@
     'x-device': X_DEVICE,
     'x-language': 'tr',
     'x-platform': 'web',
+    'x-product': 'sappy',
     'x-version': X_VERSION
   });
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));

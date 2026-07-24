@@ -11,7 +11,7 @@
   let TOKEN = prompt('Bearer token (Authorization header)') || '';
   let X_DEVICE = prompt('x-device header') || '';
   if (!TOKEN || !X_DEVICE) { console.error('Token/x-device zorunlu.'); return; }
-  const X_VERSION = '2026.05.07.1';
+  const X_VERSION = '2026.06.22.1';
 
   const H = () => ({
     'Authorization': 'Bearer ' + TOKEN,
@@ -19,6 +19,7 @@
     'x-device': X_DEVICE,
     'x-language': 'tr',
     'x-platform': 'web',
+    'x-product': 'sappy',
     'x-version': X_VERSION,
   });
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));

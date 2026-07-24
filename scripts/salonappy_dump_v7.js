@@ -7,7 +7,7 @@
   // Auth (Network tabindan)
   let TOKEN = '288401&Oc1lPAy62641ff1camqsiK7919e9107f826b22f39ede49c6ff4eaa';
   let X_DEVICE = '1tevuO7938R1ggFPtQZVerlqY2GfIBJK';
-  let X_VERSION = '2026.05.07.1';
+  let X_VERSION = '2026.06.22.1';
   TOKEN = prompt('Bearer token', TOKEN) || TOKEN;
   X_DEVICE = prompt('x-device', X_DEVICE) || X_DEVICE;
 
@@ -20,6 +20,7 @@
     'x-device': X_DEVICE,
     'x-language': 'tr',
     'x-platform': 'web',
+    'x-product': 'sappy',
     'x-version': X_VERSION
   });
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
