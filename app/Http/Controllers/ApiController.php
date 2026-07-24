@@ -28277,6 +28277,33 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         return response()->json(['sablon' => $sablon]);
     }
 
+    /**
+     * Anket sablonu odul ayarlarini request'ten okuyup sablona uygular (mobil API create+update ortak).
+     * Web'deki StoreAdminController::anketOdulAyarlariUygula ile ayni mantik.
+     *  odul_tipi: yok | kupon | puan
+     */
+    private function anketSablonOdulUygula($sablon, Request $request)
+    {
+        $tip = in_array($request->input('odul_tipi'), ['kupon','puan']) ? $request->input('odul_tipi') : 'yok';
+        $sablon->odul_tipi = $tip;
+        $sablon->odul_kupon_indirim_tipi   = null;
+        $sablon->odul_kupon_deger          = null;
+        $sablon->odul_kupon_gecerlilik_gun = null;
+        $sablon->odul_kupon_hizmet_id      = null;
+        $sablon->odul_puan                 = null;
+        $sablon->odul_baslik               = null;
+        if ($tip === 'kupon') {
+            $sablon->odul_kupon_indirim_tipi   = $request->input('odul_kupon_indirim_tipi') === 'tutar' ? 'tutar' : 'yuzde';
+            $sablon->odul_kupon_deger          = max(0, (float) $request->input('odul_kupon_deger', 0));
+            $g = (int) $request->input('odul_kupon_gecerlilik_gun', 0);
+            $sablon->odul_kupon_gecerlilik_gun = $g > 0 ? $g : null;
+            $sablon->odul_baslik               = trim((string) $request->input('odul_baslik')) ?: null;
+        } elseif ($tip === 'puan') {
+            $sablon->odul_puan   = max(0, (float) $request->input('odul_puan', 0));
+            $sablon->odul_baslik = trim((string) $request->input('odul_baslik')) ?: null;
+        }
+    }
+
     public function anketSablonOlustur(Request $request, $salonId)
     {
         try {
@@ -28287,6 +28314,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             $sablon->sorular_json      = $request->input('sorular_json');
             $sablon->otomatik_gonder   = $request->input('otomatik_gonder') ? 1 : 0;
             $sablon->gonder_saat_sonra = max(0, (int) $request->input('gonder_saat_sonra', 0));
+            $this->anketSablonOdulUygula($sablon, $request);
             $sablon->aktif             = 1;
             $sablon->varsayilan        = $request->input('varsayilan') ? 1 : 0;
             if ($sablon->varsayilan) {
@@ -28311,6 +28339,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             if ($request->has('sorular_json')) $sablon->sorular_json = $request->input('sorular_json');
             if ($request->has('otomatik_gonder')) $sablon->otomatik_gonder = $request->input('otomatik_gonder') ? 1 : 0;
             if ($request->has('gonder_saat_sonra')) $sablon->gonder_saat_sonra = max(0, (int) $request->input('gonder_saat_sonra'));
+            if ($request->has('odul_tipi')) $this->anketSablonOdulUygula($sablon, $request);
             if ($request->has('aktif')) $sablon->aktif = $request->input('aktif') ? 1 : 0;
             if ($request->has('varsayilan')) {
                 $sablon->varsayilan = $request->input('varsayilan') ? 1 : 0;
