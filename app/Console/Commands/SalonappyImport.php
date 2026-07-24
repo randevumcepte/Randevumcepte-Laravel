@@ -435,6 +435,8 @@ class SalonappyImport extends Command
                             \DB::table('adisyon_urunler')->insert([
                                 'adisyon_id' => $existAdId, 'urun_id' => $urunId,
                                 'fiyat' => $fiyat, 'adet' => $adet,
+                                // Satici: visit product_sales'ta staff_id + staff[] label eslesmesi
+                                'personel_id' => $this->visitUrunPersonelId($salonId, $p),
                                 'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                             ]);
                         } catch (\Throwable $e) {}
@@ -2458,6 +2460,8 @@ class SalonappyImport extends Command
                     \DB::table('adisyon_urunler')->insert([
                         'adisyon_id' => $adId, 'urun_id' => $urunId,
                         'fiyat' => $pFiyat, 'adet' => $pAdet,
+                        // Satici: visit product_sales'ta staff_id + staff[] label eslesmesi
+                        'personel_id' => $this->visitUrunPersonelId($salonId, $ps),
                         'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                     ]);
                     $gAU++;
@@ -4353,6 +4357,35 @@ class SalonappyImport extends Command
      * duyarsiz). ensurePersonel'in aksine kayit OLUSTURMAZ — aktarim sirasinda
      * "Kasa" gibi sahte isimlerden personel turemesini onler.
      */
+    /**
+     * Ziyaret (visit) icindeki product_sales kaleminin saticisini cozer.
+     *
+     * Bu payload'da seller_name/staff_name BOSTUR; satici sayisal `staff_id`
+     * alanindadir ve ayni satirdaki `staff` dizisi [{label,value}] eslesmesini
+     * tasir (value = staff_id, label = personel adi).
+     * staff_id = 0 ("Kasa") => gercek satici yok, null doner.
+     * Yeni personel OLUSTURMAZ; yalnizca mevcut kaydi eslestirir.
+     */
+    private function visitUrunPersonelId($salonId, $ps)
+    {
+        if (!is_array($ps)) return null;
+        $sid = trim((string) ($ps['staff_id'] ?? ''));
+        if ($sid === '' || $sid === '0') return null;
+
+        $ad = '';
+        foreach (($ps['staff'] ?? []) as $st) {
+            if (!is_array($st)) continue;
+            if ((string) ($st['value'] ?? '') === $sid) {
+                $ad = trim((string) ($st['label'] ?? ''));
+                break;
+            }
+        }
+        if ($ad === '') $ad = trim((string) ($ps['staff_name'] ?? $ps['seller_name'] ?? ''));
+        if ($ad === '' || $this->saTrKey($ad) === 'kasa') return null;
+
+        return $this->mevcutPersonelId($salonId, $ad);
+    }
+
     private function mevcutPersonelId($salonId, $ad)
     {
         $ad = trim((string) $ad);
