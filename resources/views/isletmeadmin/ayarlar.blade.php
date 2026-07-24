@@ -1284,7 +1284,7 @@
                         e.preventDefault();
                         var $form = $(this);
                         $form.find('.ors-gen').remove();
-                        $form.find('#online-randevu-saatleri .ors-day').each(function(){
+                        $form.find('.ors-day').each(function(){
                            var gun = $(this).data('gun');
                            var opens = [];
                            $(this).find('.ors-slot.is-open').each(function(){ opens.push(orsMin($(this).data('saat'))); });
