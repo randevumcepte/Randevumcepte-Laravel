@@ -19,6 +19,9 @@ Route::post('register', 'AuthController@register');
 Route::get('loggedin','AuthController@loggedin');
 Route::get('subeler/{salonid}','ApiController@subeler');
 Route::post('/logout', 'AuthController@logout')->middleware('auth:isletmeyonetim-api');
+// Mobil WebView koprusu: uygulama Bearer token'iyla cagirir, 2 dk gecerli
+// tek kullanimlik imzali giris linki doner (WhatsApp kontor ekrani icin).
+Route::get('/mobil/webview-token', 'MobilWebViewController@token')->middleware('auth:isletmeyonetim-api');
 Route::post('/randevular/{salonid}/{returnres}','ApiController@randevular');
 Route::get('/randevular/{salonid}/{returnres}','ApiController@randevular');
 Route::get('/musteriler/{salonid}','ApiController@musteriler');

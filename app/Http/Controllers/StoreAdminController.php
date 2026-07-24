@@ -24825,6 +24825,29 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         return view('isletmeadmin.ajanda',['bildirimler'=>self::bildirimgetir($request),'ajanda'=>$ajanda_liste, 'paketler'=>$paketler,'sayfa_baslik'=>'Ajanda','pageindex' => 40,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'urun_drop'=>self::urundropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler]);
     }
+    /**
+     * Mobil uygulama WebView'i icin SADE kontor ekrani.
+     * Admin layout/sidebar YOK; sadece kontor bandi + paketler + "Kontor Al".
+     * Otomatik-giris koprusu (MobilWebViewController) buraya yonlendirir.
+     */
+    public function whatsappKontorMobil(Request $request)
+    {
+        if (Auth::guard('satisortakligi')->check()) {
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id', 15)->first();
+        } else {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
+        }
+
+        if (!in_array(self::mevcutsube($request), $isletmeler)) {
+            return response('Yetkisiz erisim.', 403);
+        }
+
+        return view('isletmeadmin.whatsapp_kontor_mobil', [
+            'isletme' => $isletme,
+        ]);
+    }
     public function whatsapp(Request $request)
     {
         $isletmeler = '';

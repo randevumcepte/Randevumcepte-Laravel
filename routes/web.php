@@ -681,6 +681,11 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::post('/duyuru-paketi-siparisleri/{id}/yuklendi', 'DuyuruSiparisController@yuklendi')->where('id', '[0-9]+');
 });
 
+// Mobil uygulama WebView koprusu: uygulama (Passport Bearer) -> tek kullanimlik
+// imzali link -> web oturumu. Auth YOK (henuz giris yapilmiyor), 'web' middleware'i
+// (session) ust seviye web.php grubundan otomatik gelir.
+Route::get('/mobil/webview-giris', 'MobilWebViewController@giris')->name('mobil.webview.giris');
+
 // Salon paneli — destek + duyuru okundu
 Route::prefix('isletmeyonetim')->middleware('auth:isletmeyonetim')->group(function() {
     Route::post('/duyuru/{id}/okundu', 'SalonDestekController@duyuruOkundu');
@@ -781,6 +786,9 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/ayarlar','StoreAdminController@ayarlar');
 	Route::get('/log-hareketleri','StoreAdminController@logHareketleri')->name('isletmeadmin.log');
 	Route::get('/whatsapp','StoreAdminController@whatsapp')->name('whatsapp.sayfa');
+	// Mobil uygulama WebView'i icin sade kontor ekrani (layout/sidebar yok).
+	// Uygulamadaki "Paket" sekmesi bunu otomatik-giris koprusuyle acar.
+	Route::get('/whatsapp-kontor-mobil','StoreAdminController@whatsappKontorMobil')->middleware('auth:isletmeyonetim')->name('whatsapp.kontor.mobil');
 	Route::post('/whatsapp/baslat','StoreAdminController@whatsappBaslat')->name('whatsapp.baslat');
 	Route::get('/whatsapp/durum','StoreAdminController@whatsappDurum')->name('whatsapp.durum');
 	Route::get('/whatsapp/qr','StoreAdminController@whatsappQR')->name('whatsapp.qr');
