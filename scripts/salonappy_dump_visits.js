@@ -115,35 +115,57 @@
     await sleep(RATE_DELAY_MS);
   } else console.log(`  resume: visits (${visits.length})`);
 
-  // 2b) Gelecek randevular (visit/list bunlari icermez) — /booking/list status=1,2
-  let upcoming = await dbGet('upcomingVisits');
-  if (!upcoming) {
-    upcoming = [];
-    const today = new Date(); const toDt = new Date(); toDt.setFullYear(toDt.getFullYear() + 1);
-    const fmt = d => d.toISOString().slice(0,10);
-    const ds = fmt(today), de = fmt(toDt);
-    for (const st of [1, 2]) {
-      let offset = 0; const limit = 100;
-      while (true) {
-        const j = await get(`/booking/list?offset=${offset}&limit=${limit}&date_start=${ds}&date_end=${de}&status=${st}`);
-        const arr = j?.data?.bookings || j?.data?.visits || [];
-        if (!arr.length) break;
-        for (const b of arr) { if (!b.session && b.id) b.session = b.id; upcoming.push(b); }
-        offset += arr.length;
-        await sleep(RATE_DELAY_MS);
-        if (arr.length < limit) break;
+  // 2b) /booking/list — YIL BAZLI + TUM STATUS (1..5) + OFFSET/LIMIT PAGINATED
+  // /visit/list default olarak iptal/no-show/silinmis kayitlari verebilir.
+  // /booking/list tum status'leri (1=Bekleyen, 2=Onayli, 3=Iptal, 4=No-show, 5=Kapatildi)
+  // paginated cekerek eksik kalanlari toplariz. session dedup ile visits ile birlesir.
+  let bookingsAll = await dbGet('bookingsAll');
+  if (!bookingsAll) {
+    console.log('🔹 /booking/list yil+status bazli paginated cekiliyor...');
+    bookingsAll = [];
+    const seenB = new Set();
+    const yEnd = new Date().getFullYear() + 1; // gelecek yil dahil (upcoming)
+    const limit = 100;
+    const statuses = [1, 2, 3, 4, 5];
+    for (let yr = 2018; yr <= yEnd; yr++) {
+      const ds = `${yr}-01-01`;
+      const de = `${yr}-12-31`;
+      let yrCount = 0;
+      for (const st of statuses) {
+        let offset = 0;
+        while (true) {
+          const j = await get(`/booking/list?offset=${offset}&limit=${limit}&date_start=${ds}&date_end=${de}&status=${st}`);
+          const arr = j?.data?.bookings || j?.data?.visits || [];
+          if (!arr.length) break;
+          for (const b of arr) {
+            if (!b.session && b.id) b.session = b.id;
+            const sid = String(b.session ?? '');
+            if (sid && !seenB.has(sid)) { seenB.add(sid); bookingsAll.push(b); }
+          }
+          offset += arr.length;
+          yrCount += arr.length;
+          await sleep(RATE_DELAY_MS);
+          if (arr.length < limit) break;
+        }
       }
-      console.log(`  upcoming status=${st}: kumule=${upcoming.length}`);
+      console.log(`  yil ${yr} bookings: +${yrCount} (kumule unique=${bookingsAll.length})`);
+      await dbPut('bookingsAll', bookingsAll);
     }
-    await dbPut('upcomingVisits', upcoming);
-  } else console.log(`  resume: upcomingVisits (${upcoming.length})`);
+    console.log(`✓ Bookings toplam (unique): ${bookingsAll.length}`);
+  } else console.log(`  resume: bookingsAll (${bookingsAll.length})`);
 
-  // Birlestir (session bazli dedup)
+  // Birlestir: visits (/visit/list) + bookingsAll (/booking/list) — session bazli dedup
   const visitsBySess = {};
   for (const v of visits) if (v?.session) visitsBySess[v.session] = v;
-  for (const v of upcoming) if (v?.session && !visitsBySess[v.session]) visitsBySess[v.session] = v;
+  let newFromBookings = 0;
+  for (const b of bookingsAll) {
+    if (b?.session && !visitsBySess[b.session]) {
+      visitsBySess[b.session] = b;
+      newFromBookings++;
+    }
+  }
   visits = Object.values(visitsBySess);
-  console.log(`✓ Toplam (visit+upcoming dedup): ${visits.length}`);
+  console.log(`✓ Toplam session (visit+booking dedup): ${visits.length} (booking'ten ek: ${newFromBookings})`);
 
   // 3) Her visit icin booking detail (resume — cached olan atlanir)
   let bookingDetails = (await dbGet('bookingDetails')) || {};
