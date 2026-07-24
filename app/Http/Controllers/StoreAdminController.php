@@ -17735,6 +17735,84 @@ DB::raw('
         self::$_gecmisGizleCache = [];
         return 'Randevu ayarları başarıyla kaydedildi';
     }
+
+    /**
+     * Online randevu AÇIK saatleri (salon sahibi kürasyonu):
+     *   - online_saat_kisitlama_aktif : ana anahtar
+     *   - online_gunluk_slot_limiti   : günde en fazla N online slot (0/bos = limitsiz)
+     *   - haftalık pencereler          : pencere_gun[]/pencere_bas[]/pencere_bit[] paralel diziler
+     *   - tarihe özel istisnalar       : istisna_tarih[]/istisna_tip[]/istisna_bas[]/istisna_bit[]
+     * Kayıt "tümünü sil + yeniden yaz" mantığıyla yapılır.
+     */
+    public function onlineRandevuSaatGuncelle(Request $request)
+    {
+        if($r = self::yetkiYoksa403($request, 'randevu.online_ayar')) return $r;
+
+        $salonId = (int) $request->salon_id;
+        $isletme = Salonlar::where('id', $salonId)->first();
+        if (!$isletme) return response('Salon bulunamadı', 422);
+
+        $hhmm = function ($v) {
+            $v = trim((string) $v);
+            return preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $v) ? $v : null;
+        };
+
+        $isletme->online_saat_kisitlama_aktif = $request->has('online_saat_kisitlama_aktif') ? 1 : 0;
+        $limit = (int) $request->online_gunluk_slot_limiti;
+        $isletme->online_gunluk_slot_limiti = $limit > 0 ? $limit : null;
+        $isletme->save();
+
+        // ── Haftalık pencereler ────────────────────────────────────────────────
+        \App\SalonOnlineRandevuSaatleri::where('salon_id', $salonId)->delete();
+        $gunler = (array) $request->input('pencere_gun', []);
+        $baslar = (array) $request->input('pencere_bas', []);
+        $bitler = (array) $request->input('pencere_bit', []);
+        foreach ($gunler as $i => $g) {
+            $g = (int) $g;
+            $bas = $hhmm($baslar[$i] ?? '');
+            $bit = $hhmm($bitler[$i] ?? '');
+            if ($g < 1 || $g > 7 || !$bas || !$bit) continue;
+            if (strtotime($bit) <= strtotime($bas)) continue; // bitiş başlangıçtan sonra olmalı
+            \App\SalonOnlineRandevuSaatleri::create([
+                'salon_id' => $salonId,
+                'haftanin_gunu' => $g,
+                'baslangic_saati' => $bas,
+                'bitis_saati' => $bit,
+            ]);
+        }
+
+        // ── Tarihe özel istisnalar ─────────────────────────────────────────────
+        \App\SalonOnlineRandevuIstisnasi::where('salon_id', $salonId)->delete();
+        $tarihler = (array) $request->input('istisna_tarih', []);
+        $tipler = (array) $request->input('istisna_tip', []);
+        $isBas = (array) $request->input('istisna_bas', []);
+        $isBit = (array) $request->input('istisna_bit', []);
+        foreach ($tarihler as $i => $t) {
+            $t = trim((string) $t);
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $t)) continue;
+            $tip = (($tipler[$i] ?? 'kapali') === 'ozel') ? 'ozel' : 'kapali';
+            $bas = null; $bit = null;
+            if ($tip === 'ozel') {
+                $bas = $hhmm($isBas[$i] ?? '');
+                $bit = $hhmm($isBit[$i] ?? '');
+                if (!$bas || !$bit || strtotime($bit) <= strtotime($bas)) continue; // geçersiz özel aralık atlanır
+            }
+            \App\SalonOnlineRandevuIstisnasi::create([
+                'salon_id' => $salonId,
+                'tarih' => $t,
+                'tip' => $tip,
+                'baslangic_saati' => $bas,
+                'bitis_saati' => $bit,
+            ]);
+        }
+
+        SalonAudit::log($salonId, 'online_saat_guncelle', 'salon', $salonId,
+            'Online randevu saatleri güncellendi',
+            $isletme->online_saat_kisitlama_aktif ? 'Kısıtlama aktif' : 'Kısıtlama kapalı',
+            ['limit' => $isletme->online_gunluk_slot_limiti]);
+
+        return 'Online randevu saatleri başarıyla kaydedildi';
+    }
    public function etkinlikekleduzenle(Request $request)
     {
         $etkinlik = "";
@@ -20548,13 +20626,15 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $reklam->kupon_toplam_adet    = ($request->kupon_toplam_adet !== null && $request->kupon_toplam_adet !== '') ? (int)$request->kupon_toplam_adet : null;
         }
 
-        // Randevu (bos slot) penceresi: aksiyon 'randevu' ise tarih + saat araligi
+        // Randevu (bos slot) penceresi: aksiyon 'randevu' ise tarih ARALIGI + saat araligi
         if ($reklam->aksiyon_tipi === 'randevu') {
-            $reklam->randevu_tarih    = !empty($request->randevu_tarih) ? $request->randevu_tarih : null;
-            $reklam->randevu_saat_bas = !empty($request->randevu_saat_bas) ? $request->randevu_saat_bas : null;
-            $reklam->randevu_saat_bit = !empty($request->randevu_saat_bit) ? $request->randevu_saat_bit : null;
+            $reklam->randevu_tarih     = !empty($request->randevu_tarih) ? $request->randevu_tarih : null;         // baslangic
+            $reklam->randevu_tarih_bit = !empty($request->randevu_tarih_bit) ? $request->randevu_tarih_bit : null; // bitis
+            $reklam->randevu_saat_bas  = !empty($request->randevu_saat_bas) ? $request->randevu_saat_bas : null;
+            $reklam->randevu_saat_bit  = !empty($request->randevu_saat_bit) ? $request->randevu_saat_bit : null;
         } else {
             $reklam->randevu_tarih = null;
+            $reklam->randevu_tarih_bit = null;
             $reklam->randevu_saat_bas = null;
             $reklam->randevu_saat_bit = null;
         }

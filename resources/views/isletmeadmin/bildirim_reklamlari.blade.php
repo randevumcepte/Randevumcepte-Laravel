@@ -207,17 +207,23 @@
 
                <!-- RANDEVU (BOŞ SLOT) PENCERESİ -->
                <div id="br_randevu_kutu" class="br-randevu-kutu" style="display:none">
-                  <div class="br-kupon-baslik" style="color:#0ea5e9"><i class="fa fa-calendar"></i> Randevu Saat Aralığı (boş slot)</div>
+                  <div class="br-kupon-baslik" style="color:#0ea5e9"><i class="fa fa-calendar"></i> Randevu Tarih & Saat Aralığı (boş slot)</div>
                   <div class="row">
-                     <div class="col-md-4">
-                        <label class="br-lbl">Tarih</label>
+                     <div class="col-md-6">
+                        <label class="br-lbl">Başlangıç Tarihi</label>
                         <input type="date" class="form-control" name="randevu_tarih" id="br_rnd_tarih">
                      </div>
-                     <div class="col-md-4">
+                     <div class="col-md-6">
+                        <label class="br-lbl">Bitiş Tarihi</label>
+                        <input type="date" class="form-control" name="randevu_tarih_bit" id="br_rnd_tarih_bit">
+                     </div>
+                  </div>
+                  <div class="row" style="margin-top:10px">
+                     <div class="col-md-6">
                         <label class="br-lbl">Başlangıç Saati</label>
                         <input type="time" class="form-control" name="randevu_saat_bas" id="br_rnd_bas">
                      </div>
-                     <div class="col-md-4">
+                     <div class="col-md-6">
                         <label class="br-lbl">Bitiş Saati</label>
                         <input type="time" class="form-control" name="randevu_saat_bit" id="br_rnd_bit">
                      </div>
@@ -390,6 +396,7 @@
       $('#br_kupon_limit').val(r.kupon_kisi_limit||1);
       // Randevu (boş slot) penceresi
       $('#br_rnd_tarih').val(r.randevu_tarih||'');
+      $('#br_rnd_tarih_bit').val(r.randevu_tarih_bit||'');
       $('#br_rnd_bas').val(r.randevu_saat_bas||'');
       $('#br_rnd_bit').val(r.randevu_saat_bit||'');
       // Hedef kitle / segment

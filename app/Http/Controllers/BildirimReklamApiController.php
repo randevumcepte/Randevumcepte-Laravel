@@ -51,8 +51,11 @@ class BildirimReklamApiController extends Controller
                 if ($r->yayin_baslangic && $r->yayin_baslangic->isFuture()) return false;
                 if ($r->yayin_bitis && $r->yayin_bitis->isPast()) return false;
                 if ($r->kupon_toplam_adet !== null && $r->kupon_dagitilan >= $r->kupon_toplam_adet) return false;
-                // Bos slot (randevu) kampanyasinin tarihi gectiyse gizle
-                if ($r->aksiyon_tipi === 'randevu' && $r->randevu_tarih && $r->randevu_tarih < date('Y-m-d')) return false;
+                // Bos slot (randevu) kampanyasinin bitis tarihi gectiyse gizle
+                if ($r->aksiyon_tipi === 'randevu') {
+                    $sonTarih = $r->randevu_tarih_bit ?: $r->randevu_tarih;
+                    if ($sonTarih && $sonTarih < date('Y-m-d')) return false;
+                }
                 // Kullanici bu SALT-kupon reklamini zaten kaptiysa (kisi limiti doldu) ona artik gosterme.
                 // ('randevu' reklami kupon verse de kampanya tarihine kadar gorunsun; kupon 1 kez kapilir.)
                 if ($userId > 0 && $r->aksiyon_tipi === 'kupon') {
@@ -81,11 +84,12 @@ class BildirimReklamApiController extends Controller
                         'deger'        => (float) $r->kupon_deger,
                         'hizmet_id'    => $r->kupon_hizmet_id,
                     ] : null,
-                    // Bos slot randevu penceresi (aksiyon randevu ise)
+                    // Bos slot randevu penceresi (aksiyon randevu ise): tarih ARALIGI + saat araligi
                     'randevu'      => $r->aksiyon_tipi === 'randevu' ? [
-                        'tarih'    => $r->randevu_tarih,        // "yyyy-MM-dd" veya null
-                        'saat_bas' => $r->randevu_saat_bas,     // "10:00" veya null
-                        'saat_bit' => $r->randevu_saat_bit,     // "12:00" veya null
+                        'tarih_bas' => $r->randevu_tarih,        // baslangic "yyyy-MM-dd" veya null
+                        'tarih_bit' => $r->randevu_tarih_bit,    // bitis "yyyy-MM-dd" veya null
+                        'saat_bas'  => $r->randevu_saat_bas,     // "10:00" veya null
+                        'saat_bit'  => $r->randevu_saat_bit,     // "12:00" veya null
                     ] : null,
                 ];
             })
