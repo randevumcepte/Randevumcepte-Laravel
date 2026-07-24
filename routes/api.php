@@ -426,6 +426,15 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::get ('/reklam/liste',        'BildirimReklamApiController@liste');
     Route::post('/reklam/liste',        'BildirimReklamApiController@liste');
     Route::post('/reklam/kupon-kap',    'BildirimReklamApiController@kuponKap');
+    /* ── Bildirim Reklamlari YÖNETİM (Flutter admin, web ile eş zamanlı) ── */
+    Route::post('/reklam/admin/liste/{salonId}',      'BildirimReklamApiController@adminListe');
+    Route::post('/reklam/admin/kaydet/{salonId}',     'BildirimReklamApiController@adminKaydet');
+    Route::post('/reklam/admin/durum/{salonId}',      'BildirimReklamApiController@adminDurum');
+    Route::post('/reklam/admin/sil/{salonId}',        'BildirimReklamApiController@adminSil');
+    Route::post('/reklam/admin/gorsel/{salonId}',     'BildirimReklamApiController@adminGorsel');
+    Route::post('/reklam/admin/gonder/{salonId}',     'BildirimReklamApiController@adminGonder');
+    Route::post('/reklam/admin/musteriler/{salonId}', 'BildirimReklamApiController@adminMusteriler');
+    Route::post('/reklam/admin/hizmetler/{salonId}',  'BildirimReklamApiController@adminHizmetler');
 
     /* ───────── SMS Yönetimi (uygulama içi) ───────── */
     Route::get ('/sms-yonetim/init/{salonid}',                'ApiController@smsYonetimInit');
