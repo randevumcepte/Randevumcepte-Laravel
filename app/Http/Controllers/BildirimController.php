@@ -6,6 +6,7 @@ use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Bildirimler;
+use App\BildirimKimlikleri;
 
 
 class BildirimController extends Controller
@@ -159,6 +160,34 @@ class BildirimController extends Controller
                 return json_decode($response->getBody()->getContents(), true);
             } catch (\Throwable $e) {
                 Log::error('bildirimGonder hata: ' . $e->getMessage() . ' in ' . $e->getFile() . ' line ' . $e->getLine());
+                // FCM "token gecersiz" hatalari: uygulama silinmis / yeniden yuklenmis /
+                // farkli Firebase projesine ait bir token olabilir. HEMEN sil ki bir dahaki
+                // Job/cron tetiklenmesinde ayni 404 tekrarlanmasin, log yigilmasin.
+                // NotificationService::send()'deki ayni pattern seti.
+                $msg = $e->getMessage();
+                $invalidPatterns = [
+                    'UNREGISTERED',
+                    'NOT_FOUND',
+                    'INVALID_ARGUMENT',
+                    'registration-token-not-registered',
+                    'invalid-registration-token',
+                    'SENDER_ID_MISMATCH',
+                ];
+                foreach ($invalidPatterns as $p) {
+                    if (stripos($msg, $p) !== false) {
+                        try {
+                            $silinen = BildirimKimlikleri::where('bildirim_id', $deviceToken)->delete();
+                            Log::info('bildirimGonder gecersiz token silindi', [
+                                'pattern' => $p,
+                                'token_prefix' => substr((string)$deviceToken, 0, 20),
+                                'silinen' => $silinen,
+                            ]);
+                        } catch (\Throwable $delErr) {
+                            Log::warning('bildirimGonder token silme hatasi: ' . $delErr->getMessage());
+                        }
+                        return null; // Job zincirini kirmadan sessizce cik
+                    }
+                }
                 throw $e;
             }
         }
