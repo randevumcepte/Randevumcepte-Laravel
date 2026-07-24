@@ -809,6 +809,10 @@ class PanelController extends Controller
             'sysadmin_impersonation_uid'  => $this->user()->id,
         ]);
 
+        // DAYANIKLI impersonation cookie'si (yetkili|log). Oturum-race iy login'i silerse
+        // salon paneli middleware'i bundan ANINDA geri kurar. 600 dk. (Sifreli — EncryptCookies.)
+        \Cookie::queue('imp_iy', $yetkili->id . '|' . $log->id, 600);
+
         Audit::log('salon_hesabina_gir', 'salon', $salon->id, $salon->salon_adi, $sebep, [
             'yetkili_id'    => $yetkili->id,
             'yetkili_email' => $yetkili->email,
@@ -887,6 +891,8 @@ class PanelController extends Controller
         // AuthenticateSession hash anahtarini da temizle ki bir sonraki impersonation'da
         // bu salonun eski hash'i kalip yeni salona girerken oturumu flush etmesin.
         session()->forget('password_hash_isletmeyonetim');
+        // Dayanikli impersonation cookie'sini de sil ki self-heal tekrar kurmasin.
+        \Cookie::queue(\Cookie::forget('imp_iy'));
         return redirect('/sistemyonetim/v2/dashboard')->with('basari', 'Salon hesabından çıkıldı.');
     }
 
