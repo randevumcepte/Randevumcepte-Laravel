@@ -827,6 +827,15 @@ class PanelController extends Controller
         // senkronla ki middleware oturumu gecersiz saymasin.
         session()->put('password_hash_isletmeyonetim', $yetkili->getAuthPassword());
 
+        // GECICI TESHIS: impersonation login sonrasi durum
+        try {
+            @file_put_contents(storage_path('logs/imptest.log'),
+                date('H:i:s') . ' [LOGIN] salon=' . $salon->id . ' yetkili=' . $yetkili->id
+                . ' check=' . (Auth::guard('isletmeyonetim')->check() ? 1 : 0)
+                . ' sid=' . substr((string) session()->getId(), 0, 10)
+                . ' sistem=' . (Auth::guard('sistemyonetim')->id() ?: '-') . "\n", FILE_APPEND);
+        } catch (\Throwable $e) {}
+
         // ?sube= ile panelin DOGRU salon baglaminda acilmasini garantiye al.
         // Yetki kontrolu (PersonelYetkiServisi) $isletme->id'ye gore personel
         // kaydini bulur; salon yanlissa personel bulunamaz ve fail-open ile

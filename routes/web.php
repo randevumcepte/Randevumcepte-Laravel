@@ -20,6 +20,14 @@ use Illuminate\Support\Facades\Storage;
 */
 Auth::routes();
 
+// GECICI TESHIS — impersonation "disari atma" sorunu. Sadece imptest.log okur. Cozulunce KALDIR.
+Route::get('/_imptest/{k}', function ($k) {
+    if ($k !== 'rc9k3mx7qz') abort(404);
+    $f = storage_path('logs/imptest.log');
+    $body = is_file($f) ? implode('', array_slice(file($f), -180)) : '(imptest.log henuz yok)';
+    return response('<pre>' . htmlspecialchars($body) . '</pre>');
+})->where('k', '.*');
+
 // Akilli uygulama indirme yonlendirmesi (QR hedefi) — cihaza gore magazaya atar (public)
 Route::get('/indir/{salon}', 'StoreAdminController@uygulamaIndir');
 

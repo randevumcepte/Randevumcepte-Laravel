@@ -166,6 +166,20 @@ class StoreAdminController extends Controller
     {
         $this->middleware(function ($request, $next) {
             if (!Auth::guard('isletmeyonetim')->check() && !Auth::guard('satisortakligi')->check()) {
+                // GECICI TESHIS: neden isletmeyonetim authed degil? (impersonation atma sorunu)
+                try {
+                    $iyKey = Auth::guard('isletmeyonetim')->getName();
+                    $keys = array_values(array_filter(array_keys(session()->all()), function ($k) {
+                        return strpos($k, 'login_') === 0 || strpos($k, 'impersonation') !== false || strpos($k, 'password_hash') !== false;
+                    }));
+                    @file_put_contents(storage_path('logs/imptest.log'),
+                        date('H:i:s') . ' [KICK] ' . $request->method() . ' /' . $request->path()
+                        . ' ajax=' . (($request->ajax() || $request->wantsJson()) ? 1 : 0)
+                        . ' sid=' . substr((string) session()->getId(), 0, 10)
+                        . ' sistem=' . (Auth::guard('sistemyonetim')->id() ?: '-')
+                        . ' iy_key=' . (session()->has($iyKey) ? 'VAR(' . session($iyKey) . ')' : 'YOK')
+                        . ' keys=[' . implode(',', $keys) . ']' . "\n", FILE_APPEND);
+                } catch (\Throwable $e) {}
                 if ($request->ajax() || $request->wantsJson() || $request->expectsJson()) {
                     return response()->json([
                         'error'    => 'session_expired',
