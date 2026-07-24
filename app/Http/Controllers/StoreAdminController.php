@@ -25149,14 +25149,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
     public function whatsappPaketTalep(Request $request)
     {
-        $salonId = $this->whatsappYetkiliSalon($request);
-        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
-
         $paket = $request->input('paket');
 
         // ── KONTÖR talebi (yeni model) — 'kontor_XXXX' ise sistem sahibine WA+SMS bildirim gönder.
-        // Yeni rota eklemeyip bu MEVCUT (route-cache'te kayıtlı) endpoint'e bindiriyoruz.
+        // YETKİ KONTROLÜNDEN ÖNCE + esnek salon çözümü (mevcutsube) — impersonation/test'te de çalışsın.
+        // Mevcut (route-cache'te kayıtlı) endpoint'e bindirildi, yeni rota yok.
         if (is_string($paket) && strpos($paket, 'kontor_') === 0) {
+            $salonId = (int) self::mevcutsube($request);
             $paketler = [
                 'kontor_10000'  => ['ad'=>'10.000 Kontör',  'fiyat'=>'2.850 TL'],
                 'kontor_20000'  => ['ad'=>'20.000 Kontör',  'fiyat'=>'5.300 TL'],
@@ -25193,6 +25192,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             \Log::info('[KONTOR-TALEP]', ['salon_id'=>$salonId, 'paket'=>$paket, 'bildirim_ok'=>$rK['ok'] ?? false, 'teshis'=>$teshisK]);
             return response()->json(['ok'=>true, 'mesaj'=>'Talebiniz alındı. En kısa sürede sizinle iletişime geçeceğiz. 🙌', 'teshis'=>$teshisK]);
         }
+
+        // Abonelik talebi (eski model) — strict yetki kontrolü
+        $salonId = $this->whatsappYetkiliSalon($request);
+        if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
         $periyot = $request->input('periyot');
         $iletisim = trim((string) $request->input('iletisim', ''));
