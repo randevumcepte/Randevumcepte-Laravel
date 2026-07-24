@@ -483,7 +483,8 @@ Route::prefix('/satisortakligi')->group(function(){
 });
 
 Route::prefix('sistemyonetim')->group(function() {
-	Route::get('/','AdminController@index')->name('superadmin.dashboard');
+	// ESKI avantajbu paneli ana sayfasi -> her zaman yeni (v2) sistem yonetimine gonder.
+	Route::get('/', function () { return redirect('/sistemyonetim/v2/dashboard'); })->name('superadmin.dashboard');
 	Route::get('/girisyap', 'AuthSuperAdmin\LoginController@showSuperAdminLoginForm')->name('superadmin.login');
 
 	Route::post('/girisyap','AuthSuperAdmin\LoginController@login')->name('superadmin.login.submit')->middleware('throttle:5,1');;
