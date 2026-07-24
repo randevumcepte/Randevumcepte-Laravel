@@ -7,7 +7,7 @@
 // Visit'ler full cekilir; importer tarih araligini filtreyle uygular.
 (async () => {
   const BASE = 'https://web-api.salonappy.com/api';
-  const DB_NAME = prompt('IndexedDB cache adi', 'sa_visits_resume3') || 'sa_visits_resume3';
+  const DB_NAME = prompt('IndexedDB cache adi', 'sa_visits_resume4') || 'sa_visits_resume4';
 
   let TOKEN = '75501&xllbghIbb43162455EtvHvW88780133d539433fef4c03826541471';
   let X_DEVICE = 'M3B3Ii2nwZrroB1nyWvOA81pWVKQmeTE';
@@ -79,23 +79,28 @@
   } else console.log(`  resume: clients (${clients.length})`);
   await sleep(RATE_DELAY_MS);
 
-  // 2) Visit listesi — YIL BAZLI + OFFSET/LIMIT PAGINATED
-  // /visit/list parametresiz cagrilirsa Salonappy default limit uyguluyor (~8800).
-  // 34K+ visit'li hesaplar icin yil bazli aralik + offset/limit ile paginate lazim.
+  // 2) Visit listesi — TEK GENIS ARALIK + STATUS + OFFSET/LIMIT PAGINATED
+  // Salonappy API bug'i: yil bazli (date_start=2023-01-01) verilirse 2023+'da
+  // sadece ~30 sonuc doner. GENIS ARALIK (2018..bugun) verilirse tum kayitlar
+  // doner (UI'da da 6 yil birden filtrelenerek 34K+ scroll ediliyor).
+  // Ayrica status'e gore ayri paginate: 1=Bekleyen, 2=Onayli, 3=Iptal, 4=NoShow, 5=Kapatildi
   let visits = await dbGet('visits');
   if (!visits) {
-    console.log('🔹 Visit listesi cekiliyor (/visit/list — yil bazli + offset paginated)...');
+    console.log('🔹 Visit listesi cekiliyor (/visit/list — TEK ARALIK + status paginated)...');
     visits = [];
     const seenSess = new Set();
-    const yEnd = new Date().getFullYear();
-    const limit = 100;
-    for (let yr = 2018; yr <= yEnd; yr++) {
-      const ds = `${yr}-01-01`;
-      const de = `${yr}-12-31`;
+    const dStart = '2018-01-01';
+    const today = new Date();
+    const dEnd = today.toISOString().slice(0, 10);
+    const limit = 100; // UI 25 ama biz 100 hizli
+    const statuses = [1, 2, 3, 4, 5];
+    for (const st of statuses) {
       let offset = 0;
-      let yearCount = 0;
+      let stCount = 0;
+      let pageNo = 0;
       while (true) {
-        const j = await get(`/visit/list?offset=${offset}&limit=${limit}&date_start=${ds}&date_end=${de}`);
+        pageNo++;
+        const j = await get(`/visit/list?offset=${offset}&limit=${limit}&date_start=${dStart}&date_end=${dEnd}&status=${st}`);
         const arr = j?.data?.visits || [];
         if (!arr.length) break;
         for (const v of arr) {
@@ -103,15 +108,18 @@
           if (sid && !seenSess.has(sid)) { seenSess.add(sid); visits.push(v); }
         }
         offset += arr.length;
-        yearCount += arr.length;
+        stCount += arr.length;
+        if (pageNo % 20 === 0) {
+          console.log(`  status=${st} sayfa ${pageNo}: kumule=${stCount} (toplam unique=${visits.length})`);
+          await dbPut('visits', visits); // ara-kaydet
+        }
         await sleep(RATE_DELAY_MS);
         if (arr.length < limit) break;
       }
-      console.log(`  yil ${yr}: +${yearCount} (kumule=${visits.length})`);
-      // Ara-kaydet — yarim kalirsa devam
+      console.log(`✓ status=${st}: +${stCount} (toplam unique=${visits.length})`);
       await dbPut('visits', visits);
     }
-    console.log(`✓ Visit toplam (unique): ${visits.length}`);
+    console.log(`✓✓ Visit toplam (unique tum status): ${visits.length}`);
     await sleep(RATE_DELAY_MS);
   } else console.log(`  resume: visits (${visits.length})`);
 
