@@ -441,6 +441,11 @@
                      <td>
                         <b>{{$s->ad}}</b>
                         @if($s->varsayilan)<span class="badge-vars">Varsayılan</span>@endif
+                        @if(($s->odul_tipi ?? 'yok') === 'kupon')
+                           <span class="badge-vars" style="background:#fff3d6; color:#8a5a00;"><i class="fa fa-gift"></i> {{ ($s->odul_kupon_indirim_tipi === 'tutar') ? (rtrim(rtrim(number_format((float)$s->odul_kupon_deger,2,',','.'),'0'),',').' ₺') : (intval($s->odul_kupon_deger).'%') }} Kupon</span>
+                        @elseif(($s->odul_tipi ?? 'yok') === 'puan')
+                           <span class="badge-vars" style="background:#e6f0ff; color:#1a4b8a;"><i class="fa fa-star"></i> {{ rtrim(rtrim(number_format((float)$s->odul_puan,2,',','.'),'0'),',') }} Puan</span>
+                        @endif
                         @if($s->aciklama)<div style="font-size:12px; color:#8a8295; margin-top:3px;">{{ mb_substr($s->aciklama, 0, 90) }}@if(mb_strlen($s->aciklama) > 90)…@endif</div>@endif
                      </td>
                      <td style="text-align:center;">
@@ -555,6 +560,52 @@
                         <input type="checkbox" id="anket_varsayilan" style="transform:scale(1.1); margin-right:7px; accent-color:#5C008E;">
                         Varsayılan
                      </label>
+                  </div>
+               </div>
+            </div>
+
+            <hr style="margin:14px 0;">
+            {{-- ── Anket tamamlama ödülü ─────────────────────────────── --}}
+            <label style="display:flex; align-items:center; gap:7px;"><i class="fa fa-gift" style="color:#e0aa3e;"></i> Anketi Tamamlayana Ödül</label>
+            <p style="color:#8a8295; font-size:12px; margin:0 0 10px;">Anketi dolduran müşteriye otomatik kupon veya puan verin. Tamamlama oranını ciddi artırır; davet mesajında da otomatik vurgulanır. (Yalnızca kayıtlı müşteriye verilir, herkese; puanına bakılmaz.)</p>
+            <div style="background:#fbfafd; border:1px solid #dfd6ea; border-radius:9px; padding:12px 13px;">
+               <div class="row">
+                  <div class="col-md-4 form-group" style="margin-bottom:8px;">
+                     <label>Ödül Tipi</label>
+                     <select id="anket_odul_tipi" class="form-control" onchange="anketOdulTipiDegisti()">
+                        <option value="yok">Ödül yok</option>
+                        <option value="kupon">İndirim Kuponu</option>
+                        <option value="puan">Sadakat Puanı</option>
+                     </select>
+                  </div>
+                  {{-- Kupon alanları --}}
+                  <div class="col-md-4 form-group anket-odul-kupon" style="margin-bottom:8px; display:none;">
+                     <label>İndirim Tipi</label>
+                     <select id="anket_odul_kupon_indirim_tipi" class="form-control" onchange="anketOdulBirimGuncelle()">
+                        <option value="yuzde">Yüzde (%)</option>
+                        <option value="tutar">Tutar (₺)</option>
+                     </select>
+                  </div>
+                  <div class="col-md-4 form-group anket-odul-kupon" style="margin-bottom:8px; display:none;">
+                     <label>İndirim Değeri</label>
+                     <div style="position:relative;">
+                        <input type="number" id="anket_odul_kupon_deger" class="form-control" min="0" step="0.01" placeholder="Örn: 10">
+                        <span id="anket_odul_birim" style="position:absolute; right:12px; top:8px; color:#8a8295; font-weight:600;">%</span>
+                     </div>
+                  </div>
+                  <div class="col-md-4 form-group anket-odul-kupon" style="margin-bottom:8px; display:none;">
+                     <label>Geçerlilik (gün)</label>
+                     <input type="number" id="anket_odul_kupon_gecerlilik_gun" class="form-control" min="0" max="3650" value="30" placeholder="Boş = süresiz">
+                  </div>
+                  {{-- Puan alanı --}}
+                  <div class="col-md-4 form-group anket-odul-puan" style="margin-bottom:8px; display:none;">
+                     <label>Verilecek Puan</label>
+                     <input type="number" id="anket_odul_puan" class="form-control" min="0" step="0.01" placeholder="Örn: 50">
+                  </div>
+                  {{-- Başlık (kupon/puan ortak) --}}
+                  <div class="col-md-8 form-group anket-odul-baslik" style="margin-bottom:8px; display:none;">
+                     <label>Ödül Başlığı <span style="color:#8a8295; font-weight:400;">(opsiyonel)</span></label>
+                     <input type="text" id="anket_odul_baslik" class="form-control" maxlength="200" placeholder="Boş bırakırsan otomatik oluşturulur (örn: %10 İndirim)">
                   </div>
                </div>
             </div>
@@ -764,6 +815,28 @@ function sorulariTopla(){
    return sorular;
 }
 
+// Ödül tipi değişince ilgili alanları göster/gizle
+function anketOdulTipiDegisti(){
+   var tip = document.getElementById('anket_odul_tipi').value;
+   document.querySelectorAll('.anket-odul-kupon').forEach(function(el){ el.style.display = (tip==='kupon')?'':'none'; });
+   document.querySelectorAll('.anket-odul-puan').forEach(function(el){ el.style.display = (tip==='puan')?'':'none'; });
+   document.querySelectorAll('.anket-odul-baslik').forEach(function(el){ el.style.display = (tip==='yok')?'none':''; });
+}
+function anketOdulBirimGuncelle(){
+   var t = document.getElementById('anket_odul_kupon_indirim_tipi').value;
+   document.getElementById('anket_odul_birim').textContent = (t==='tutar')?'₺':'%';
+}
+function anketOdulSifirla(){
+   document.getElementById('anket_odul_tipi').value = 'yok';
+   document.getElementById('anket_odul_kupon_indirim_tipi').value = 'yuzde';
+   document.getElementById('anket_odul_kupon_deger').value = '';
+   document.getElementById('anket_odul_kupon_gecerlilik_gun').value = 30;
+   document.getElementById('anket_odul_puan').value = '';
+   document.getElementById('anket_odul_baslik').value = '';
+   anketOdulBirimGuncelle();
+   anketOdulTipiDegisti();
+}
+
 function yeniSablonAc(){
    document.getElementById('sablon_id_gizli').value = '';
    document.getElementById('anket_ad_input').value = '';
@@ -771,6 +844,7 @@ function yeniSablonAc(){
    document.getElementById('anket_otomatik').checked = true;
    document.getElementById('anket_saat').value = 24;
    document.getElementById('anket_varsayilan').checked = false;
+   anketOdulSifirla();
    document.getElementById('sorular_konteyneri').innerHTML = '';
    soruSayaci = 0;
    document.getElementById('anketModalBaslik').textContent = 'Yeni Anket Şablonu';
@@ -798,6 +872,15 @@ function sablonDuzenle(id){
       document.getElementById('anket_otomatik').checked = !!parseInt(resp.otomatik_gonder);
       document.getElementById('anket_saat').value = resp.gonder_saat_sonra ?? 0;
       document.getElementById('anket_varsayilan').checked = !!parseInt(resp.varsayilan);
+      // Ödül ayarları
+      document.getElementById('anket_odul_tipi').value = resp.odul_tipi || 'yok';
+      document.getElementById('anket_odul_kupon_indirim_tipi').value = resp.odul_kupon_indirim_tipi || 'yuzde';
+      document.getElementById('anket_odul_kupon_deger').value = (resp.odul_kupon_deger != null ? resp.odul_kupon_deger : '');
+      document.getElementById('anket_odul_kupon_gecerlilik_gun').value = (resp.odul_kupon_gecerlilik_gun != null ? resp.odul_kupon_gecerlilik_gun : '');
+      document.getElementById('anket_odul_puan').value = (resp.odul_puan != null ? resp.odul_puan : '');
+      document.getElementById('anket_odul_baslik').value = resp.odul_baslik || '';
+      anketOdulBirimGuncelle();
+      anketOdulTipiDegisti();
       document.getElementById('sorular_konteyneri').innerHTML = '';
       soruSayaci = 0;
       var sorular = [];
@@ -817,6 +900,14 @@ function sablonKaydet(){
    for(var i=0; i<sorular.length; i++){
       if(!sorular[i].soru || !sorular[i].soru.trim()){ alert((i+1)+'. soru metni boş.'); return; }
    }
+   // Ödül doğrulama: tip seçiliyse değeri girilmiş olmalı
+   var odulTipi = document.getElementById('anket_odul_tipi').value;
+   if(odulTipi === 'kupon' && !(parseFloat(document.getElementById('anket_odul_kupon_deger').value) > 0)){
+      alert('Kupon ödülü için geçerli bir indirim değeri girin.'); return;
+   }
+   if(odulTipi === 'puan' && !(parseFloat(document.getElementById('anket_odul_puan').value) > 0)){
+      alert('Puan ödülü için geçerli bir puan değeri girin.'); return;
+   }
 
    var sablonId = document.getElementById('sablon_id_gizli').value;
    var url = sablonId ? '/isletmeyonetim/anket-sablon-guncelle' : '/isletmeyonetim/anket-sablon-kaydet';
@@ -828,7 +919,13 @@ function sablonKaydet(){
       sorular_json: JSON.stringify(sorular),
       otomatik_gonder: document.getElementById('anket_otomatik').checked ? 1 : 0,
       gonder_saat_sonra: document.getElementById('anket_saat').value,
-      varsayilan: document.getElementById('anket_varsayilan').checked ? 1 : 0
+      varsayilan: document.getElementById('anket_varsayilan').checked ? 1 : 0,
+      odul_tipi: document.getElementById('anket_odul_tipi').value,
+      odul_kupon_indirim_tipi: document.getElementById('anket_odul_kupon_indirim_tipi').value,
+      odul_kupon_deger: document.getElementById('anket_odul_kupon_deger').value,
+      odul_kupon_gecerlilik_gun: document.getElementById('anket_odul_kupon_gecerlilik_gun').value,
+      odul_puan: document.getElementById('anket_odul_puan').value,
+      odul_baslik: document.getElementById('anket_odul_baslik').value
    };
    if(sablonId) data.sablon_id = sablonId;
 
