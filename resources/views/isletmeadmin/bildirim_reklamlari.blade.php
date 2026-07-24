@@ -112,9 +112,13 @@
 <div class="modal fade" id="brModal" tabindex="-1" role="dialog">
    <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
-         <div class="modal-header" style="background:#7c3aed;color:#fff">
-            <h5 class="modal-title" id="brModalBaslik">Yeni Bildirim Reklamı</h5>
-            <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9">&times;</button>
+         <div class="br-mhead">
+            <div class="br-mhead-ic"><i class="fa fa-bullhorn"></i></div>
+            <div class="br-mhead-tx">
+               <h5 id="brModalBaslik">Yeni Bildirim Reklamı</h5>
+               <span>Görsel + mesaj hazırla, kanalı ve aksiyonu seç</span>
+            </div>
+            <button type="button" class="br-mclose" data-dismiss="modal" aria-label="Kapat">&times;</button>
          </div>
          <div class="modal-body">
             <form id="brForm">
@@ -148,11 +152,23 @@
                   </div>
                </div>
 
-               <label class="br-lbl" style="margin-top:14px">Kanallar</label>
-               <div class="br-kanallar">
-                  <label class="br-check"><input type="checkbox" name="kanal_push" id="br_push" checked> <i class="fa fa-bell"></i> Push (anlık bildirim)</label>
-                  <label class="br-check"><input type="checkbox" name="kanal_inapp" id="br_inapp" checked> <i class="fa fa-mobile"></i> Uygulama içi kart</label>
-                  <label class="br-check"><input type="checkbox" name="tam_ekran" id="br_tamekran"> <i class="fa fa-window-maximize"></i> Açılışta tam ekran (popup)</label>
+               <label class="br-lbl" style="margin-top:16px">Kanallar — nasıl gösterilsin?</label>
+               <div class="br-chips">
+                  <label class="br-chip">
+                     <input type="checkbox" name="kanal_push" id="br_push" checked>
+                     <i class="fa fa-bell"></i><b>Push</b><small>anlık bildirim</small>
+                     <span class="br-chip-tick"><i class="fa fa-check"></i></span>
+                  </label>
+                  <label class="br-chip">
+                     <input type="checkbox" name="kanal_inapp" id="br_inapp" checked>
+                     <i class="fa fa-mobile"></i><b>Uygulama içi</b><small>ana ekran kartı</small>
+                     <span class="br-chip-tick"><i class="fa fa-check"></i></span>
+                  </label>
+                  <label class="br-chip">
+                     <input type="checkbox" name="tam_ekran" id="br_tamekran">
+                     <i class="fa fa-window-maximize"></i><b>Tam ekran</b><small>açılış popup</small>
+                     <span class="br-chip-tick"><i class="fa fa-check"></i></span>
+                  </label>
                </div>
 
                <label class="br-lbl" style="margin-top:14px">Görsele dokununca ne olsun?</label>
@@ -285,11 +301,9 @@
                </select>
             </form>
          </div>
-         <div class="modal-footer">
-            <button type="button" class="btn btn-light" data-dismiss="modal">Vazgeç</button>
-            <button type="button" class="btn btn-primary" id="brKaydet" style="background:#7c3aed;border-color:#7c3aed">
-               <i class="fa fa-save"></i> Kaydet
-            </button>
+         <div class="br-mfoot">
+            <button type="button" class="br-btn-ghost" data-dismiss="modal">Vazgeç</button>
+            <button type="button" class="br-btn-primary" id="brKaydet"><i class="fa fa-check"></i> Kaydet</button>
          </div>
       </div>
    </div>
@@ -318,17 +332,50 @@
 .br-a{flex:1;border:0;background:#fff;padding:10px 0;color:#64748b;cursor:pointer;transition:.15s}
 .br-a:hover{background:#f8fafc;color:#7c3aed}
 .br-del:hover{color:#dc2626}
-.br-lbl{font-size:13px;font-weight:600;color:#334155;margin-bottom:5px;display:block}
-.br-kanallar{display:flex;gap:18px;flex-wrap:wrap}
-.br-check{font-weight:500;color:#475569;cursor:pointer}
-.br-check i{color:#7c3aed}
-.br-segment-kutu{margin-top:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px}
-.br-kupon-kutu{margin-top:14px;background:#faf5ff;border:1px solid #ede9fe;border-radius:12px;padding:14px 16px}
-.br-randevu-kutu{margin-top:14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:14px 16px}
-.br-kupon-baslik{font-weight:700;color:#7c3aed;margin-bottom:10px}
-.br-ipucu{display:block;margin-top:10px;color:#7c3aed;font-size:12px}
-.br-upload{height:110px;border:2px dashed #cbd5e1;border-radius:12px;display:flex;align-items:center;justify-content:center;text-align:center;color:#94a3b8;overflow:hidden;background:#f8fafc}
+/* ---- Modern modal ---- */
+#brModal .modal-dialog{max-width:820px}
+#brModal .modal-content{border:0;border-radius:20px;overflow:hidden;box-shadow:0 30px 70px rgba(15,23,42,.35)}
+.br-mhead{display:flex;align-items:center;gap:14px;padding:18px 22px;background:linear-gradient(135deg,#6d28d9,#9d5dc8);color:#fff}
+.br-mhead-ic{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto}
+.br-mhead-tx h5{margin:0;font-size:18px;font-weight:800;color:#fff}
+.br-mhead-tx span{font-size:12.5px;opacity:.92}
+.br-mclose{margin-left:auto;background:rgba(255,255,255,.15);border:0;color:#fff;width:34px;height:34px;border-radius:10px;font-size:22px;line-height:1;cursor:pointer;transition:.15s}
+.br-mclose:hover{background:rgba(255,255,255,.32)}
+#brModal .modal-body{padding:20px 22px;background:#fbfbfe}
+.br-lbl{font-size:12.5px;font-weight:600;color:#475569;margin-bottom:6px;display:block}
+#brModal .form-control{border:1.5px solid #e5e7eb;border-radius:11px;padding:10px 13px;font-size:13.5px;color:#1e293b;height:auto;box-shadow:none;transition:.15s}
+#brModal .form-control:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.15)}
+#brModal textarea.form-control{resize:vertical}
+/* kanal chip'leri */
+.br-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.br-chip{position:relative;display:flex;flex-direction:column;align-items:flex-start;padding:14px;border:1.5px solid #e5e7eb;border-radius:14px;cursor:pointer;background:#fff;margin:0;transition:.15s}
+.br-chip:hover{border-color:#c4b5fd}
+.br-chip input{position:absolute;opacity:0;pointer-events:none}
+.br-chip i{font-size:18px;color:#94a3b8;margin-bottom:5px;transition:.15s}
+.br-chip b{font-size:13px;color:#334155;font-weight:700}
+.br-chip small{font-size:11px;color:#94a3b8}
+.br-chip-tick{position:absolute;top:10px;right:10px;width:20px;height:20px;border-radius:50%;background:#e5e7eb;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;transition:.15s}
+.br-chip:has(input:checked){border-color:#7c3aed;background:#f5f3ff;box-shadow:0 4px 12px rgba(124,58,237,.12)}
+.br-chip:has(input:checked) i{color:#7c3aed}
+.br-chip:has(input:checked) .br-chip-tick{background:#7c3aed}
+/* ayar kutuları */
+.br-segment-kutu{margin-top:12px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:14px;padding:15px 16px}
+.br-kupon-kutu{margin-top:14px;background:#faf5ff;border:1.5px solid #ede9fe;border-radius:14px;padding:15px 16px}
+.br-randevu-kutu{margin-top:14px;background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:14px;padding:15px 16px}
+.br-kupon-baslik{font-weight:800;color:#7c3aed;margin-bottom:12px;font-size:13.5px}
+.br-ipucu{display:block;margin-top:10px;color:#7c3aed;font-size:11.5px;line-height:1.45}
+.br-upload{height:120px;border:2px dashed #cbd5e1;border-radius:14px;display:flex;align-items:center;justify-content:center;text-align:center;color:#94a3b8;overflow:hidden;background:#f8fafc;cursor:pointer;transition:.15s}
+.br-upload:hover{border-color:#a78bfa;background:#faf7ff}
 .br-upload img{width:100%;height:100%;object-fit:cover}
+/* butonlar + footer */
+#br_gorsel_sec{width:100%;margin-top:8px;border:1.5px solid #e5e7eb;background:#fff;color:#475569;border-radius:11px;padding:9px;font-size:13px;font-weight:600;transition:.15s}
+#br_gorsel_sec:hover{border-color:#a78bfa;color:#7c3aed}
+.br-mfoot{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;background:#fff;border-top:1px solid #eef0f6}
+.br-btn-ghost{border:0;background:#f1f5f9;color:#475569;border-radius:11px;padding:10px 20px;font-size:13.5px;font-weight:600;cursor:pointer;transition:.15s}
+.br-btn-ghost:hover{background:#e2e8f0}
+.br-btn-primary{border:0;background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;border-radius:11px;padding:10px 26px;font-size:13.5px;font-weight:700;cursor:pointer;box-shadow:0 8px 20px rgba(124,58,237,.35);transition:.15s}
+.br-btn-primary:hover{filter:brightness(1.07)}
+@media(max-width:575px){.br-chips{grid-template-columns:1fr}}
 </style>
 
 <script>
