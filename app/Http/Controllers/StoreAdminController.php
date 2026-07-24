@@ -24870,9 +24870,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if (!in_array(self::mevcutsube($request), $isletmeler)) {
             return view('isletmeadmin.yetkisizerisim');
         }
-        if ((int) optional($isletme)->uyelik_turu !== 3) {
-            abort(403);
-        }
+        // WhatsApp yonetimi tum uyelik turlerine acik (uyelik_turu kisitlamasi kaldirildi)
         // WhatsApp ekrani: pazarlama.whatsapp_gonder zorunlu
         $_waAu = Auth::guard('isletmeyonetim')->user();
         if($_waAu && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_waAu->id, self::mevcutsube($request), 'pazarlama.whatsapp_gonder')){
