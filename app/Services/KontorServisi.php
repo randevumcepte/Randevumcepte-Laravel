@@ -1,0 +1,139 @@
+<?php
+
+namespace App\Services;
+
+use App\Salonlar;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * WhatsApp kontör (kredi) yönetimi. 1 mesaj = 1 kontör.
+ *
+ * - 31 Ağustos 2026'ya kadar ÜCRETSİZ dönem: kontör düşmez, engel yok.
+ * - 1 Eylül 2026'dan itibaren: her WhatsApp mesajı 1 kontör düşer; bakiye yoksa gönderilmez
+ *   (arayan taraf SMS'e düşürür).
+ *
+ * Bakiye salonlar.whatsapp_kontor'da; her hareket whatsapp_kontor_hareketleri'nde loglanır.
+ * Kolon/tablo yoksa self-heal ile oluşturulur (migrate koşmamış sunucular için).
+ */
+class KontorServisi
+{
+    /** Kontörlü dönemin başladığı tarih (bu tarihten önce ücretsiz). */
+    const BASLANGIC = '2026-09-01';
+
+    /** Kontörlü dönem başladı mı? (öncesi ücretsiz) */
+    public static function kontorlusDonemMi()
+    {
+        return date('Y-m-d') >= self::BASLANGIC;
+    }
+
+    protected static function kolonVar()
+    {
+        try { return Schema::hasColumn('salonlar', 'whatsapp_kontor'); }
+        catch (\Throwable $e) { return false; }
+    }
+
+    protected static function selfHeal()
+    {
+        try {
+            if (!Schema::hasColumn('salonlar', 'whatsapp_kontor')) {
+                DB::statement('ALTER TABLE salonlar ADD COLUMN whatsapp_kontor INT NOT NULL DEFAULT 0');
+            }
+            if (!Schema::hasTable('whatsapp_kontor_hareketleri')) {
+                DB::statement('CREATE TABLE whatsapp_kontor_hareketleri (
+                    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    salon_id BIGINT UNSIGNED,
+                    tip VARCHAR(20),
+                    adet INT,
+                    bakiye_sonrasi INT NULL,
+                    aciklama VARCHAR(160) NULL,
+                    created_at TIMESTAMP NULL,
+                    updated_at TIMESTAMP NULL,
+                    INDEX (salon_id, created_at)
+                )');
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    /** Salonun güncel kontör bakiyesi. */
+    public static function bakiye($salon)
+    {
+        $id = is_object($salon) ? ($salon->id ?? null) : $salon;
+        if (!$id) return 0;
+        try {
+            return (int) DB::table('salonlar')->where('id', $id)->value('whatsapp_kontor');
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Gönderim için kontör yeterli mi? Ücretsiz dönemde HER ZAMAN true (engel yok).
+     * Kolon yoksa da true (sistem yeni kurulmuş, engelleme).
+     */
+    public static function yeterliMi($salon, $adet = 1)
+    {
+        if (!self::kontorlusDonemMi()) return true;
+        if (!self::kolonVar()) return true;
+        return self::bakiye($salon) >= $adet;
+    }
+
+    /**
+     * Kontör düşer (gönderim başarılı olunca). Ücretsiz dönemde hiçbir şey yapmaz.
+     * Atomik: negatife düşürmez.
+     */
+    public static function dus($salon, $adet = 1, $aciklama = 'whatsapp-mesaj')
+    {
+        if (!self::kontorlusDonemMi()) return true;
+        $id = is_object($salon) ? ($salon->id ?? null) : $salon;
+        if (!$id || $adet < 1) return false;
+        self::selfHeal();
+        try {
+            // Atomik dus — sadece yeterli bakiye varsa
+            $etkilenen = DB::table('salonlar')
+                ->where('id', $id)
+                ->where('whatsapp_kontor', '>=', $adet)
+                ->update(['whatsapp_kontor' => DB::raw('whatsapp_kontor - ' . (int) $adet)]);
+            if (!$etkilenen) return false;
+            $kalan = self::bakiye($id);
+            self::hareket($id, 'harcama', -abs((int) $adet), $kalan, $aciklama);
+            return true;
+        } catch (\Throwable $e) {
+            \Log::warning('[KONTOR] dus hata: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /** Kontör yükler (manuel). Bakiyeyi artırır + hareket loglar. */
+    public static function yukle($salonId, $adet, $aciklama = 'manuel-yukleme')
+    {
+        $adet = (int) $adet;
+        if (!$salonId || $adet == 0) return ['ok' => false, 'mesaj' => 'Geçersiz miktar.'];
+        self::selfHeal();
+        try {
+            DB::table('salonlar')->where('id', $salonId)
+                ->update(['whatsapp_kontor' => DB::raw('whatsapp_kontor + ' . $adet)]);
+            $kalan = self::bakiye($salonId);
+            self::hareket($salonId, $adet > 0 ? 'yukleme' : 'harcama', $adet, $kalan, $aciklama);
+            return ['ok' => true, 'bakiye' => $kalan];
+        } catch (\Throwable $e) {
+            \Log::error('[KONTOR] yukle hata: ' . $e->getMessage());
+            return ['ok' => false, 'mesaj' => $e->getMessage()];
+        }
+    }
+
+    protected static function hareket($salonId, $tip, $adet, $bakiyeSonrasi, $aciklama)
+    {
+        try {
+            DB::table('whatsapp_kontor_hareketleri')->insert([
+                'salon_id' => $salonId,
+                'tip' => $tip,
+                'adet' => (int) $adet,
+                'bakiye_sonrasi' => (int) $bakiyeSonrasi,
+                'aciklama' => mb_substr((string) $aciklama, 0, 160),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } catch (\Throwable $e) {}
+    }
+}

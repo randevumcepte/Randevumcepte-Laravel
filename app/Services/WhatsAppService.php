@@ -87,6 +87,12 @@ class WhatsAppService
             return ['ok' => false, 'error' => 'outside-business-hours'];
         }
 
+        // KONTÖR kapısı — 1 Eylül 2026'dan itibaren her WhatsApp mesajı 1 kontör düşer.
+        // Bakiye yoksa WA atlanır; arayan taraf SMS'e düşürür. Ücretsiz dönemde bu kapı hiç çalışmaz.
+        if (\App\Services\KontorServisi::kontorlusDonemMi() && !\App\Services\KontorServisi::yeterliMi($salon, 1)) {
+            return ['ok' => false, 'error' => 'kontor-yetersiz'];
+        }
+
         $saglayici = $salon->whatsapp_saglayici ?? 'baileys';
 
         if ($saglayici === 'cloud_api') {
@@ -122,6 +128,8 @@ class WhatsAppService
 
         // 202 Accepted = kuyruğa alındı, webhook ile sent/failed bildirecek
         if (($response['status'] ?? 0) === 202) {
+            // Kontör düş (ücretsiz dönemde no-op). Kuyruğa girdiğinde düşülür.
+            \App\Services\KontorServisi::dus($salon, 1, 'whatsapp:' . ($gonderimTipi ?: 'mesaj'));
             return ['ok' => true, 'queued' => true, 'logId' => $logId, 'provider' => 'baileys'];
         }
 
@@ -193,6 +201,7 @@ class WhatsAppService
 
         if ($resp['ok']) {
             $this->markSent($logId, $resp['messageId'] ?? null);
+            \App\Services\KontorServisi::dus($salon, 1, 'whatsapp:' . ($gonderimTipi ?: 'mesaj'));
             return ['ok' => true, 'queued' => false, 'logId' => $logId, 'messageId' => $resp['messageId'], 'provider' => 'cloud_api'];
         }
 

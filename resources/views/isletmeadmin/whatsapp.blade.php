@@ -617,6 +617,11 @@
 </style>
 
 <div class="wkp-wrap">
+    @php
+        $_kBakiye = (int) ($isletme->whatsapp_kontor ?? 0);
+        $_kDonem  = \App\Services\KontorServisi::kontorlusDonemMi();
+    @endphp
+    @if(!$_kDonem)
     <div class="wkp-free-banner">
         <div class="wkp-free-ic">🎉</div>
         <div>
@@ -625,6 +630,24 @@
         </div>
         <div class="wkp-free-pill">ŞU AN ÜCRETSİZ</div>
     </div>
+    @else
+    <div class="wkp-free-banner" style="{{ $_kBakiye <= 500 ? 'background:linear-gradient(135deg,#fdeaea,#fbdada);border-color:#f5b5b5;' : ($_kBakiye <= 1000 ? 'background:linear-gradient(135deg,#fff4e0,#ffe9c7);border-color:#f5d59a;' : '') }}">
+        <div class="wkp-free-ic">{{ $_kBakiye <= 0 ? '⛔' : ($_kBakiye <= 500 ? '⚠️' : '💰') }}</div>
+        <div>
+            <div class="wkp-free-t1" style="{{ $_kBakiye <= 500 ? 'color:#b91c1c;' : ($_kBakiye <= 1000 ? 'color:#9a6a00;' : '') }}">Kontör bakiyeniz: {{ number_format($_kBakiye,0,',','.') }}</div>
+            <div class="wkp-free-t2">
+                @if($_kBakiye <= 0)
+                    Kontörünüz bitti — hatırlatma ve mesajlar müşteri/danışanlarınıza <b>gitmiyor</b>. Hemen kontör alın.
+                @elseif($_kBakiye <= 500)
+                    Kontörünüz azaldı, çok yakında bitecek. Mesajlarınız durmadan kontör alın.
+                @else
+                    1 mesaj = 1 kontör. Bittiğinde WhatsApp mesajları durur.
+                @endif
+            </div>
+        </div>
+        <div class="wkp-free-pill" style="{{ $_kBakiye <= 500 ? 'background:#b91c1c;' : ($_kBakiye <= 1000 ? 'background:#9a6a00;' : '') }}">{{ number_format($_kBakiye,0,',','.') }} KONTÖR</div>
+    </div>
+    @endif
 
     <div class="wkp-header">
         <h2>WhatsApp Kontör Paketleri</h2>
@@ -1043,4 +1066,33 @@
     // Kontör modeli: eski abonelik durum/fiyat JS'i (yuklePaketDurum/guncelleFiyatlar) artık çağrılmıyor.
 })();
 </script>
+
+@if($_kDonem && $_kBakiye <= 1000)
+{{-- Agresif kontör uyarısı — SADECE kontörlü dönemde (1 Eylül+). 1000→günde1, 500→günde3, 0→her seferinde --}}
+<script>
+(function(){
+    var bakiye = {{ $_kBakiye }};
+    var seviye = bakiye <= 0 ? 'bitti' : (bakiye <= 500 ? 'kritik' : 'dusuk');
+    var limit  = seviye === 'bitti' ? 99 : (seviye === 'kritik' ? 3 : 1);
+    var bugun = new Date().toISOString().slice(0,10);
+    var key = 'wa_kontor_uyari_{{ $isletme->id }}';
+    var kayit = {}; try { kayit = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e){}
+    if (kayit.tarih !== bugun) kayit = { tarih: bugun, sayi: 0 };
+    if (kayit.sayi >= limit) return;
+    function goster(){
+        if (typeof swal !== 'function') return false;
+        kayit.sayi++; try { localStorage.setItem(key, JSON.stringify(kayit)); } catch(e){}
+        var tip, baslik, metin;
+        if (seviye === 'bitti')       { tip='error';   baslik='⛔ WhatsApp Kontörünüz Bitti!'; metin='Hatırlatma ve mesajlar müşteri/danışanlarınıza GİTMİYOR. Hemen kontör satın alın, yoksa randevu hatırlatmaları çalışmaz.'; }
+        else if (seviye === 'kritik') { tip='warning'; baslik='⚠️ Kontörünüz Kritik! (' + bakiye + ' kaldı)'; metin='Çok yakında bitecek ve mesajlarınız duracak. Şimdi kontör yükleyin.'; }
+        else                          { tip='warning'; baslik='Kontörünüz Azalıyor (' + bakiye + ')'; metin='Kesinti yaşamamak için kontör almayı düşünün.'; }
+        swal({ type:tip, title:baslik, text:metin, showCancelButton:true, confirmButtonText:'Kontör Al ⬇', cancelButtonText:'Daha Sonra', confirmButtonColor:'#25D366', confirmButtonClass:'btn btn-success', cancelButtonClass:'btn btn-secondary' })
+        .then(function(r){ if (r && r.value) { var g=document.querySelector('.wkp-grid'); if(g) g.scrollIntoView({behavior:'smooth'}); } });
+        return true;
+    }
+    var t = setInterval(function(){ if (goster()) clearInterval(t); }, 400);
+    setTimeout(function(){ clearInterval(t); }, 8000);
+})();
+</script>
+@endif
 @endsection

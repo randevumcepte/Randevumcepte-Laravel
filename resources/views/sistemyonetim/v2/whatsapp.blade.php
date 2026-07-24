@@ -415,6 +415,7 @@
                 + '<td class="nowrap sy-text-right">'
                 + '<a class="sy-btn sy-btn-sm sy-btn-primary" href="' + yonetUrl + '" target="_blank" title="Yönet"><span class="mdi mdi-cog"></span></a> '
                 + '<button class="sy-btn sy-btn-sm sy-btn-soft" data-salon-id="' + r.id + '" data-salon-adi="' + escHtml(r.salon_adi) + '" data-action="paket" title="Paket / Deneme" style="background:#fff7e6;color:#b67a00"><span class="mdi mdi-gift"></span></button> '
+                + '<button class="sy-btn sy-btn-sm sy-btn-soft" data-salon-id="' + r.id + '" data-salon-adi="' + escHtml(r.salon_adi) + '" data-kontor="' + (r.kontor||0) + '" data-action="kontor" title="Kontör bakiyesi: ' + (r.kontor||0) + ' — Yükle" style="background:#eafaf1;color:#12805a"><span class="mdi mdi-wallet"></span> ' + (r.kontor||0) + '</button> '
                 + '<button class="sy-btn sy-btn-sm sy-btn-soft" data-salon-id="' + r.id + '" data-salon-adi="' + escHtml(r.salon_adi) + '" data-action="aliciler" title="Alıcılar"><span class="mdi mdi-account-multiple"></span></button> '
                 + '<button class="sy-btn sy-btn-sm" data-salon-id="' + r.id + '" data-action="loglar" title="Logları gör"><span class="mdi mdi-message"></span></button>'
                 + '</td>'
@@ -435,6 +436,24 @@
         document.querySelectorAll('#salonTable button[data-action="paket"]').forEach(function(b){
             b.addEventListener('click', function(){ aciPaketModal(b.dataset.salonId, b.dataset.salonAdi); });
         });
+        document.querySelectorAll('#salonTable button[data-action="kontor"]').forEach(function(b){
+            b.addEventListener('click', function(){ kontorYukleAc(b.dataset.salonId, b.dataset.salonAdi, b.dataset.kontor); });
+        });
+    }
+    function kontorYukleAc(salonId, salonAdi, mevcut){
+        var girdi = prompt('“' + salonAdi + '” için yüklenecek kontör:\n(Mevcut bakiye: ' + (mevcut||0) + ')\n\nÖrn: 40000   ·   Düşmek için negatif: -1000', '');
+        if (girdi === null) return;
+        var adet = parseInt(String(girdi).replace(/[^0-9\-]/g,''), 10);
+        if (!adet) { alert('Geçersiz miktar.'); return; }
+        var body = 'kontor_yukle=' + encodeURIComponent(adet) + '&aciklama=' + encodeURIComponent('panel manuel');
+        fetch('/sistemyonetim/whatsapp-panel/salon/' + salonId + '/paket-set', {
+            method:'POST', credentials:'same-origin',
+            headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}', 'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json'},
+            body: body
+        }).then(function(r){ return r.json(); }).then(function(d){
+            if (d && d.ok) { alert(d.mesaj || 'Kontör işlendi.'); yukleSalonlar(); }
+            else { alert((d && d.mesaj) || 'İşlenemedi.'); }
+        }).catch(function(){ alert('Bağlantı hatası, tekrar deneyin.'); });
     }
     document.getElementById('filterSalonDurum').addEventListener('change', renderSalonlar);
     document.getElementById('filterSalonArama').addEventListener('input', renderSalonlar);

@@ -83,6 +83,8 @@ class WhatsAppPanelController extends Controller
             'whatsapp_baglanti_tarihi', 'whatsapp_warmup_baslangic', 'whatsapp_son_hata',
             'whatsapp_gunluk_limit', 'whatsapp_saglayici'];
         if ($bridgeVar) $cols[] = 'whatsapp_bridge_tipi';
+        $kontorVar = \Illuminate\Support\Facades\Schema::hasColumn('salonlar', 'whatsapp_kontor');
+        if ($kontorVar) $cols[] = 'whatsapp_kontor';
 
         // Tüm WhatsApp aktif olmuş salonları ve son 30 gün log'u olanları getir
         $salonlar = Salonlar::query()
@@ -139,6 +141,7 @@ class WhatsAppPanelController extends Controller
                 'durum' => $s->whatsapp_durum,
                 'saglayici' => $s->whatsapp_saglayici ?: 'baileys',
                 'bridge' => ($bridgeVar && $s->whatsapp_bridge_tipi === 'baileys') ? 'baileys' : 'whatsmeow',
+                'kontor' => $kontorVar ? (int) $s->whatsapp_kontor : 0,
                 'numara' => $s->whatsapp_numara,
                 'baglanti_tarihi' => optional($s->whatsapp_baglanti_tarihi)->format('Y-m-d H:i'),
                 'warmup_baslangic' => optional($s->whatsapp_warmup_baslangic)->format('Y-m-d'),
@@ -492,6 +495,25 @@ class WhatsAppPanelController extends Controller
     {
         $salon = Salonlar::find($salonId);
         if (!$salon) return response()->json(['error' => 'salon-bulunamadi'], 404);
+
+        // ── MANUEL KONTÖR yükleme — 'kontor_yukle' parametresi varsa bakiyeye ekle (+ / -).
+        // Yeni rota eklemeyip bu MEVCUT (route-cache'te kayıtlı) endpoint'e bindiriyoruz.
+        if ($request->has('kontor_yukle')) {
+            $adet = (int) $request->input('kontor_yukle');
+            if ($adet === 0) {
+                return response()->json(['ok'=>false,'mesaj'=>'Geçersiz kontör miktarı.'],422);
+            }
+            $aciklama = trim((string) $request->input('aciklama', '')) ?: ('manuel-yukleme (panel)');
+            $r = \App\Services\KontorServisi::yukle($salonId, $adet, $aciklama);
+            if (empty($r['ok'])) {
+                return response()->json(['ok'=>false,'mesaj'=>$r['mesaj'] ?? 'Yüklenemedi'],500);
+            }
+            return response()->json([
+                'ok' => true,
+                'bakiye' => $r['bakiye'],
+                'mesaj' => number_format($adet, 0, ',', '.') . ' kontör işlendi. Yeni bakiye: ' . number_format($r['bakiye'], 0, ',', '.'),
+            ]);
+        }
 
         $paket = $request->input('paket'); // baslangic | pro | premium
         $periyot = $request->input('periyot'); // aylik | yillik
