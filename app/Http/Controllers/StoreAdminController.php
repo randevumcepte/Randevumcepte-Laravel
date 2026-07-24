@@ -20438,6 +20438,15 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
         $hizmetler = \App\SalonHizmetler::where('salon_id', self::mevcutsube($request))->where('aktif', true)->get();
 
+        // "Belirli kişi" hedeflemesi icin salonun musterileri (isim + telefon)
+        $musteriler = \DB::table('musteri_portfoy')
+            ->join('users', 'users.id', '=', 'musteri_portfoy.user_id')
+            ->where('musteri_portfoy.salon_id', self::mevcutsube($request))
+            ->where('musteri_portfoy.aktif', 1)
+            ->select('users.id', 'users.name', 'users.cep_telefon')
+            ->orderBy('users.name')
+            ->get();
+
         return view('isletmeadmin.bildirim_reklamlari', [
             'pageindex'    => 122,
             'sayfa_baslik' => 'Bildirim Reklamları',
@@ -20452,6 +20461,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'portfoy_drop'            => self::musteriportfoydropliste($request),
             'urun_drop'               => self::urundropliste($request),
             'hizmet_drop'             => self::hizmetdropliste($request),
+            'musteriler'              => $musteriler,
         ]);
     }
 
@@ -20504,12 +20514,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         // Hedef kitle: tumu | segment (+ segment kosulu JSON)
         if ($request->hedef_kitle === 'segment') {
             $reklam->hedef_kitle = 'segment';
-            $segTip = in_array($request->segment_tip, ['gelmeyen', 'dogum_gunu', 'hizmet', 'cinsiyet'])
+            $segTip = in_array($request->segment_tip, ['gelmeyen', 'dogum_gunu', 'hizmet', 'cinsiyet', 'kisi'])
                 ? $request->segment_tip : 'gelmeyen';
             $kosul = ['tip' => $segTip];
             if ($segTip === 'gelmeyen')  $kosul['gun'] = (int)($request->segment_gun ?: 60);
             if ($segTip === 'hizmet')    $kosul['hizmet_id'] = (int)($request->segment_hizmet_id ?: 0);
             if ($segTip === 'cinsiyet')  $kosul['cinsiyet'] = ($request->segment_cinsiyet === '1' ? '1' : '0');
+            if ($segTip === 'kisi')      $kosul['user_id'] = (int)($request->segment_user_id ?: 0);
             $reklam->hedef_kosul = json_encode($kosul);
         } else {
             $reklam->hedef_kitle = 'tumu';

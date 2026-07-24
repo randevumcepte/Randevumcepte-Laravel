@@ -93,6 +93,11 @@ class BildirimReklamGonderJob implements ShouldQueue
         if (!is_array($kosul) || empty($kosul['tip'])) return $portfoy;
 
         switch ($kosul['tip']) {
+            case 'kisi':
+                // Test/tekil gonderim: sadece secilen musteriye
+                $uid = (int) ($kosul['user_id'] ?? 0);
+                return $uid > 0 ? [$uid] : [];
+
             case 'cinsiyet':
                 $c = $kosul['cinsiyet'] ?? null;
                 if ($c === null || $c === '') return $portfoy;

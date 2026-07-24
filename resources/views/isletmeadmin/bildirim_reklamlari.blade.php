@@ -210,11 +210,22 @@
 
                <div id="br_segment_kutu" class="br-segment-kutu" style="display:none">
                   <select class="form-control" name="segment_tip" id="br_seg_tip">
+                     <option value="kisi">👤 Belirli kişi (test için)</option>
                      <option value="gelmeyen">Uzun süredir gelmeyenler</option>
                      <option value="dogum_gunu">Doğum günü bu ay olanlar</option>
                      <option value="hizmet">Belirli hizmeti alanlar</option>
                      <option value="cinsiyet">Cinsiyete göre</option>
                   </select>
+
+                  <div id="seg_kisi" class="br-seg-alan" style="margin-top:10px">
+                     <label class="br-lbl">Kişi seç (Push yalnızca bu kişiye gider)</label>
+                     <select class="form-control" name="segment_user_id" id="br_seg_kisi">
+                        @foreach($musteriler as $m)
+                           <option value="{{$m->id}}">{{ $m->name }} — {{ $m->cep_telefon }}</option>
+                        @endforeach
+                     </select>
+                     <small class="br-ipucu" style="color:#64748b">Test için kendini seç; “Push Gönder” bildirimini yalnızca sana yollar.</small>
+                  </div>
 
                   <div id="seg_gelmeyen" class="br-seg-alan" style="margin-top:10px">
                      <label class="br-lbl">Kaç gündür gelmeyenler?</label>
@@ -308,6 +319,7 @@
    }
    function segAlanGoster(){
       var t = $('#br_seg_tip').val();
+      $('#seg_kisi').toggle(t==='kisi');
       $('#seg_gelmeyen').toggle(t==='gelmeyen');
       $('#seg_hizmet').toggle(t==='hizmet');
       $('#seg_cinsiyet').toggle(t==='cinsiyet');
@@ -355,6 +367,7 @@
          $('#br_seg_tip').val(kosul.tip);
          if(kosul.gun) $('#br_seg_gun').val(kosul.gun);
          if(kosul.hizmet_id) $('#br_seg_hizmet').val(String(kosul.hizmet_id));
+         if(kosul.user_id) $('#br_seg_kisi').val(String(kosul.user_id));
          if(kosul.cinsiyet!==undefined && kosul.cinsiyet!==null) $('#br_seg_cinsiyet').val(String(kosul.cinsiyet));
       }
       $('#br_durum').val(r.durum||'taslak');
