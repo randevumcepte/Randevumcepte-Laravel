@@ -41,12 +41,12 @@ class BildirimReklamGonderJob implements ShouldQueue
     public function handle()
     {
         $reklam = BildirimReklamlari::find($this->reklamId);
-        if (!$reklam || !$reklam->kanal_push) return;
+        if (!$reklam || !$reklam->kanal_push) return 0;
 
         $userIds = $this->hedefKullanicilar($reklam);
         if (empty($userIds)) {
             Log::info('[REKLAM-PUSH] hedef bos', ['reklam_id' => $this->reklamId]);
-            return;
+            return 0;
         }
 
         $imageUrl = $reklam->gorsel ? url($reklam->gorsel) : null;
@@ -71,6 +71,8 @@ class BildirimReklamGonderJob implements ShouldQueue
             'hedef'      => count($userIds),
             'gonderilen' => $gonderilen,
         ]);
+
+        return $gonderilen;
     }
 
     /**

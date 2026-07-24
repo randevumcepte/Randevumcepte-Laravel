@@ -20610,15 +20610,21 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $reklam->push_gonderildi = true;
         $reklam->save();
 
-        // Gonderim arka planda: buyuk salonlarda binlerce push senkron istek yerine
-        // 'notifications' kuyruguna gider (prod worker isler; lokal sync ise inline).
-        // Hedef kitle (segment) job icinde cozulur.
-        \App\Jobs\BildirimReklamGonderJob::dispatch($reklam->id);
+        // TEST ASAMASI: push'u ANINDA (senkron) gonder — kuyruk worker'ina bagimli
+        // kalma, sonucu (kac kisiye gitti) hemen dondur. Buyuk "tumu" gonderimlerinde
+        // istegi bloklar; olceklenince ::dispatch (kuyruk) + worker'a geri don.
+        $gonderilen = (int) \App\Jobs\BildirimReklamGonderJob::dispatchNow($reklam->id);
 
         SalonAudit::log($salonId, 'bildirim_reklam_gonder', 'bildirim_reklam', $reklam->id,
-            $reklam->baslik, 'Push gonderimi baslatildi (hedef: ' . ($reklam->hedef_kitle === 'segment' ? 'segment' : 'tum musteriler') . ')');
+            $reklam->baslik, $gonderilen . ' kisiye push gonderildi (hedef: ' . ($reklam->hedef_kitle === 'segment' ? 'segment' : 'tum musteriler') . ')');
 
-        return response()->json(['durum' => 'basarili', 'mesaj' => 'Gönderim başlatıldı. Müşterilere arka planda iletiliyor.']);
+        return response()->json([
+            'durum' => 'basarili',
+            'gonderilen' => $gonderilen,
+            'mesaj' => $gonderilen > 0
+                ? ($gonderilen . ' kişiye push gönderildi.')
+                : 'Gönderildi ama alıcı bulunamadı. Seçtiğin kişi uygulamaya giriş yapmış ve bildirime izin vermiş olmalı (FCM token yoksa push gidemez).',
+        ]);
     }
 
     public function kampanyakatilimcisil(Request $request){
