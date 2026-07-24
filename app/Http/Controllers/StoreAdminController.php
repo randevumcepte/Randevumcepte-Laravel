@@ -20657,8 +20657,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             }
 
             // Kucuk gonderim: aninda gonder, sonucu hemen dondur.
+            // dispatchNow() DEGIL, dogrudan handle(): boylece Bus dispatcher
+            // baglantisina hic ihtiyac duymadan calisir (bkz. config/app.php'de
+            // BusServiceProvider notu — kapali kaldiginda dispatchNow patliyordu).
             @set_time_limit(0);
-            $gonderilen = (int) \App\Jobs\BildirimReklamGonderJob::dispatchNow($reklam->id);
+            $gonderilen = (int) (new \App\Jobs\BildirimReklamGonderJob($reklam->id))->handle();
 
             SalonAudit::log($salonId, 'bildirim_reklam_gonder', 'bildirim_reklam', $reklam->id,
                 $reklam->baslik, $gonderilen . ' kisiye push gonderildi (hedef: ' . $hedefMetin . ')');

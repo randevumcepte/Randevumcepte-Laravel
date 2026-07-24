@@ -143,7 +143,12 @@ return [
          */
         Illuminate\Auth\AuthServiceProvider::class,
         Illuminate\Broadcasting\BroadcastServiceProvider::class,
-        //Illuminate\Bus\BusServiceProvider::class,
+        // KAPATMA! Bu provider Illuminate\Contracts\Bus\Dispatcher baglantisini
+        // kaydeder. Kapaliyken dispatch()/dispatchNow()/Job::dispatch() ve queue
+        // worker'inin CallQueuedHandler'i "Target [Illuminate\Contracts\Bus\
+        // Dispatcher] is not instantiable" ile patlar -> tum job sistemi olu.
+        // Deferred provider'dir (defer=true); acik olmasi ekstra yuk getirmez.
+        Illuminate\Bus\BusServiceProvider::class,
         Illuminate\Cache\CacheServiceProvider::class,
         Illuminate\Foundation\Providers\ConsoleSupportServiceProvider::class,
         Illuminate\Cookie\CookieServiceProvider::class,
