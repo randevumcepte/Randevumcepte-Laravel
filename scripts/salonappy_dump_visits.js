@@ -7,7 +7,7 @@
 // Visit'ler full cekilir; importer tarih araligini filtreyle uygular.
 (async () => {
   const BASE = 'https://web-api.salonappy.com/api';
-  const DB_NAME = prompt('IndexedDB cache adi', 'sa_visits_resume5') || 'sa_visits_resume5';
+  const DB_NAME = prompt('IndexedDB cache adi', 'sa_visits_resume6') || 'sa_visits_resume6';
 
   let TOKEN = '75501&xllbghIbb43162455EtvHvW88780133d539433fef4c03826541471';
   let X_DEVICE = 'M3B3Ii2nwZrroB1nyWvOA81pWVKQmeTE';
@@ -101,25 +101,38 @@
       let offset = 0;
       let stCount = 0;
       let pageNo = 0;
+      let totalRecords = null;
+      let ardisikBos = 0;
       while (true) {
         pageNo++;
         const j = await get(`/visit/list?offset=${offset}&limit=${limit}&date_start=${dStart}&date_end=${dEnd}&status=${st}`);
         const arr = j?.data?.visits || [];
-        if (!arr.length) break;
+        // total_records = API'nin gercek toplam sayaci (Salonappy pagination bug'i icin sart)
+        if (totalRecords === null) {
+          totalRecords = parseInt(j?.data?.total_records || '0', 10);
+        }
         for (const v of arr) {
           const sid = String(v?.session ?? v?.id ?? '');
           if (sid && !seenSess.has(sid)) { seenSess.add(sid); visits.push(v); }
         }
-        offset += arr.length;
         stCount += arr.length;
-        if (pageNo % 20 === 0) {
-          console.log(`  status=${st} sayfa ${pageNo}: kumule=${stCount} (toplam unique=${visits.length})`);
-          await dbPut('visits', visits); // ara-kaydet
+        // KRITIK: arr.length'e degil offset'e gore ilerle (Salonappy ilk 1000 offset'te
+        // tutarsiz kayit doner: 4, 6, 3, 9, sonra 25 tutarli). arr.length < limit
+        // gorunce break yaparsak %90 kayip. total_records'a ulasana kadar devam.
+        offset += limit;
+        if (arr.length === 0) ardisikBos++; else ardisikBos = 0;
+        if (pageNo % 40 === 0) {
+          console.log(`  status=${st} offset=${offset}/${totalRecords} (dolu=${stCount}, unique=${visits.length})`);
+          await dbPut('visits', visits);
         }
         await sleep(RATE_DELAY_MS);
-        if (arr.length < limit) break;
+        // Bitis kosullari:
+        //  1) total_records'a ulastik (temel)
+        //  2) 30 ardisik bos sayfa (safety, total_records yanlissa da durdur)
+        if (totalRecords > 0 && offset >= totalRecords) break;
+        if (ardisikBos >= 30) break;
       }
-      console.log(`✓ status=${st}: +${stCount} (toplam unique=${visits.length})`);
+      console.log(`✓ status=${st}: +${stCount} dolu / offset=${offset} / total_records=${totalRecords} (unique=${visits.length})`);
       await dbPut('visits', visits);
     }
     console.log(`✓✓ Visit toplam (unique tum status): ${visits.length}`);
