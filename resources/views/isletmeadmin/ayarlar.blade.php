@@ -1083,62 +1083,148 @@
                          ? \App\SalonOnlineRandevuIstisnasi::where('salon_id',$isletme->id)
                              ->where('tarih','>=',date('Y-m-d'))->orderBy('tarih')->get()
                          : collect();
+                     // Randevu slot aralığı (booking akışıyla aynı) ve salon çalışma saatleri
+                     $orsAralik = (int)($isletme->randevu_saat_araligi ?: 30);
+                     if($orsAralik < 5) $orsAralik = 30;
+                     $orsCalisma = $onlineTablolarHazir
+                         ? \App\SalonCalismaSaatleri::where('salon_id',$isletme->id)->get()->keyBy('haftanin_gunu')
+                         : collect();
+                     // Kayıtlı aralıkları açık-slot kümesine genişlet (gün => ['09:00'=>true,...])
+                     $orsAcik = [];
+                     foreach($onlinePencereler as $g=>$rows){
+                         $set = [];
+                         foreach($rows as $r){
+                             $b = strtotime(substr($r->baslangic_saati,0,5));
+                             $e = strtotime(substr($r->bitis_saati,0,5));
+                             for($t=$b; $t<$e; $t+=$orsAralik*60){ $set[date('H:i',$t)] = true; }
+                         }
+                         $orsAcik[$g] = $set;
+                     }
                   @endphp
                   @if(!$onlineTablolarHazir)
                      <div class="alert alert-warning">Bu özellik için veritabanı güncellemesi henüz uygulanmamış. Lütfen sunucuda <code>php artisan migrate</code> çalıştırın.</div>
                   @endif
-                  <form id="online_randevu_saatleri" method="POST">
+
+                  <style>
+                     #online-randevu-saatleri .ors-wrap{max-width:940px}
+                     #online-randevu-saatleri .ors-switch{display:flex;align-items:flex-start;gap:14px;padding:16px 18px;background:linear-gradient(135deg,#faf5ff,#f2e9fb);border:1px solid #ecdcf7;border-radius:16px;margin-bottom:18px}
+                     #online-randevu-saatleri .ors-toggle{position:relative;display:inline-block;width:52px;height:30px;flex:0 0 auto;margin:0;cursor:pointer}
+                     #online-randevu-saatleri .ors-toggle input{opacity:0;width:0;height:0;position:absolute}
+                     #online-randevu-saatleri .ors-track{position:absolute;inset:0;background:#cfd3dc;border-radius:30px;transition:.25s}
+                     #online-randevu-saatleri .ors-thumb{position:absolute;top:3px;left:3px;width:24px;height:24px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+                     #online-randevu-saatleri .ors-toggle input:checked + .ors-track{background:linear-gradient(135deg,#5C008E,#7B2FB8)}
+                     #online-randevu-saatleri .ors-toggle input:checked + .ors-track .ors-thumb{transform:translateX(22px)}
+                     #online-randevu-saatleri .ors-switch-text strong{font-size:15px;color:#2b2740}
+                     #online-randevu-saatleri .ors-switch-text small{color:#7a7f8c;display:block;margin-top:2px;line-height:1.4}
+                     #online-randevu-saatleri .ors-limit{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+                     #online-randevu-saatleri .ors-limit input{max-width:110px;border-radius:10px}
+                     #online-randevu-saatleri .ors-section-title{font-weight:700;color:#2b2740;font-size:15px;margin:6px 0 2px}
+                     #online-randevu-saatleri .ors-hint{color:#8a8f9c;font-size:12.5px;margin-bottom:12px}
+                     #online-randevu-saatleri .ors-day{background:#fff;border:1px solid #eef0f4;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(16,24,40,.04);transition:box-shadow .2s}
+                     #online-randevu-saatleri .ors-day:hover{box-shadow:0 6px 18px rgba(92,0,142,.08)}
+                     #online-randevu-saatleri .ors-day-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+                     #online-randevu-saatleri .ors-day-name{font-weight:700;font-size:15px;color:#2b2740}
+                     #online-randevu-saatleri .ors-day-tools{display:flex;align-items:center;gap:8px}
+                     #online-randevu-saatleri .ors-count{font-size:12px;color:#8a8f9c}
+                     #online-randevu-saatleri .ors-count-num{color:#5C008E;font-weight:700}
+                     #online-randevu-saatleri .ors-mini{border:1px solid #e3d4f2;background:#fff;color:#7B2FB8;border-radius:8px;padding:3px 12px;font-size:12px;cursor:pointer;transition:.15s}
+                     #online-randevu-saatleri .ors-mini:hover{background:#7B2FB8;color:#fff;border-color:#7B2FB8}
+                     #online-randevu-saatleri .ors-slots{display:flex;flex-wrap:wrap;gap:8px}
+                     #online-randevu-saatleri .ors-slot{min-width:62px;padding:8px 6px;border-radius:10px;border:1px solid #e6e8ee;background:#f4f5f8;color:#aeb2bd;font-size:13px;font-weight:600;cursor:pointer;text-decoration:line-through;transition:transform .12s,box-shadow .12s,background .12s}
+                     #online-randevu-saatleri .ors-slot:hover{transform:translateY(-1px)}
+                     #online-randevu-saatleri .ors-slot.is-open{background:linear-gradient(135deg,#5C008E,#7B2FB8);color:#fff;border-color:transparent;text-decoration:none;box-shadow:0 2px 8px rgba(92,0,142,.25)}
+                     #online-randevu-saatleri .ors-closed{color:#9aa0ac;font-size:13px;font-style:italic;padding:4px 0}
+                     #online-randevu-saatleri .ors-legend{display:flex;gap:16px;align-items:center;margin:2px 0 14px;font-size:12.5px;color:#7a7f8c}
+                     #online-randevu-saatleri .ors-dot{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:6px;vertical-align:-1px}
+                     #online-randevu-saatleri .ors-dot.open{background:linear-gradient(135deg,#5C008E,#7B2FB8)}
+                     #online-randevu-saatleri .ors-dot.close{background:#e6e8ee}
+                     #online-randevu-saatleri .ors-istisna{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fafbfc;border:1px solid #eef0f4;border-radius:12px;padding:10px 12px;margin-bottom:8px}
+                     #online-randevu-saatleri .ors-istisna input,#online-randevu-saatleri .ors-istisna select{border-radius:9px}
+                     #online-randevu-saatleri .ors-save{background:linear-gradient(135deg,#5C008E,#7B2FB8);border:none;border-radius:12px;padding:14px;font-weight:700;box-shadow:0 4px 14px rgba(92,0,142,.28)}
+                     #online-randevu-saatleri .ors-save:hover{filter:brightness(1.05)}
+                  </style>
+
+                  <form id="online_randevu_saatleri" method="POST" class="ors-wrap">
                      {!!csrf_field()!!}
                      <input type="hidden" name="salon_id" value="{{$isletme->id}}">
 
-                     <div class="custom-control custom-checkbox mb-2">
-                        <input type="checkbox" class="custom-control-input" name="online_saat_kisitlama_aktif" id="online_saat_kisitlama_aktif" value="1" {{(!empty($isletme->online_saat_kisitlama_aktif)) ? 'checked' : ''}}>
-                        <label class="custom-control-label" for="online_saat_kisitlama_aktif"><strong>Online açık saatleri ben belirleyeyim</strong></label>
+                     <div class="ors-switch">
+                        <label class="ors-toggle">
+                           <input type="checkbox" name="online_saat_kisitlama_aktif" id="online_saat_kisitlama_aktif" value="1" {{(!empty($isletme->online_saat_kisitlama_aktif)) ? 'checked' : ''}}>
+                           <span class="ors-track"><span class="ors-thumb"></span></span>
+                        </label>
+                        <div class="ors-switch-text">
+                           <strong>Online açık saatleri ben belirleyeyim</strong>
+                           <small>Kapalıyken çalışma saatindeki tüm boşluklar online görünür (mevcut davranış). Açtığınızda müşteriye yalnız <b>açık (mor)</b> işaretlediğiniz saatler boş gösterilir; kalanlar dolu görünür. Salon takvimden o slota randevu verirse, açık olsa bile müşteriye otomatik dolu görünür.</small>
+                        </div>
                      </div>
-                     <small class="text-muted d-block mb-3">Kapalıyken çalışma saatindeki tüm boşluklar online görünür (mevcut davranış). Açtığınızda müşteriye yalnız aşağıda belirlediğiniz saatler "boş" gösterilir; kalan boşluklar dolu görünür.</small>
 
                      <div id="online_kisit_govde" style="{{empty($isletme->online_saat_kisitlama_aktif) ? 'opacity:.5;pointer-events:none' : ''}}">
-                        <div class="form-group">
-                           <label>Günlük en fazla online slot</label>
-                           <input type="number" min="0" class="form-control" name="online_gunluk_slot_limiti" value="{{$isletme->online_gunluk_slot_limiti}}" placeholder="Boş bırakın = limitsiz" style="max-width:220px">
-                           <small class="text-muted">Örn. 3 yazarsanız açık saatler içinde müşteriye günde en fazla 3 boşluk gösterilir (eşit aralıklarla seçilir). Boş = sınırsız.</small>
+                        <div class="ors-limit">
+                           <label class="mb-0"><strong>Günlük en fazla online slot</strong></label>
+                           <input type="number" min="0" class="form-control" name="online_gunluk_slot_limiti" value="{{$isletme->online_gunluk_slot_limiti}}" placeholder="Sınırsız">
+                           <small class="text-muted">Örn. 3 → açık saatler içinde müşteriye günde en çok 3 boşluk gösterilir (eşit aralıkla seçilir). Boş = sınırsız.</small>
                         </div>
 
-                        <h6 class="mt-4">Haftalık Açık Saatler</h6>
-                        <small class="text-muted d-block mb-2">Her güne bir ya da birden çok aralık ekleyin. Hiç aralık eklemediğiniz gün online <b>kapalıdır</b>.</small>
+                        <div class="ors-section-title">Haftalık Açık Saatler</div>
+                        <div class="ors-hint">Her günün çalışma saatleri slot slot listelenir. Müşteriye açık tutmak istediklerinize tıklayın (mor = açık, gri = kapalı).</div>
+                        <div class="ors-legend">
+                           <span><span class="ors-dot open"></span>Açık (müşteri seçebilir)</span>
+                           <span><span class="ors-dot close"></span>Kapalı (dolu görünür)</span>
+                        </div>
+
                         @foreach($gunAdlari as $gunNo=>$gunAd)
-                           <div class="card-box pd-10 mb-2">
-                              <div class="d-flex justify-content-between align-items-center mb-1">
-                                 <strong>{{$gunAd}}</strong>
-                                 <button type="button" class="btn btn-sm btn-outline-primary online-aralik-ekle" data-gun="{{$gunNo}}"><i class="fa fa-plus"></i> Aralık</button>
-                              </div>
-                              <div class="online-aralik-liste" data-gun="{{$gunNo}}">
-                                 @foreach(($onlinePencereler[$gunNo] ?? []) as $p)
-                                    <div class="d-flex align-items-center mb-1 online-aralik-satir">
-                                       <input type="hidden" name="pencere_gun[]" value="{{$gunNo}}">
-                                       <input type="time" class="form-control mr-1" name="pencere_bas[]" value="{{substr($p->baslangic_saati,0,5)}}" style="max-width:130px">
-                                       <span class="mr-1">–</span>
-                                       <input type="time" class="form-control mr-1" name="pencere_bit[]" value="{{substr($p->bitis_saati,0,5)}}" style="max-width:130px">
-                                       <button type="button" class="btn btn-sm btn-outline-danger online-aralik-sil"><i class="fa fa-times"></i></button>
+                           @php
+                              $cal = $orsCalisma[$gunNo] ?? null;
+                              $acik = array_key_exists($gunNo,$orsAcik) ? $orsAcik[$gunNo] : null; // null = hiç kayıt yok (yeni gün)
+                              $slots = [];
+                              if($cal && $cal->calisiyor){
+                                  $b = strtotime(substr($cal->baslangic_saati,0,5));
+                                  $e = strtotime(substr($cal->bitis_saati,0,5));
+                                  for($t=$b; $t<$e; $t+=$orsAralik*60){ $slots[] = date('H:i',$t); }
+                              }
+                              $acikSayisi = 0;
+                              foreach($slots as $s){ if($acik===null || isset($acik[$s])) $acikSayisi++; }
+                           @endphp
+                           <div class="ors-day" data-gun="{{$gunNo}}">
+                              <div class="ors-day-head">
+                                 <div class="ors-day-name">{{$gunAd}}</div>
+                                 @if($cal && $cal->calisiyor && count($slots))
+                                    <div class="ors-day-tools">
+                                       <span class="ors-count"><span class="ors-count-num">{{$acikSayisi}}</span>/{{count($slots)}} açık</span>
+                                       <button type="button" class="ors-mini ors-all">Tümü</button>
+                                       <button type="button" class="ors-mini ors-none">Hiçbiri</button>
                                     </div>
-                                 @endforeach
+                                 @endif
                               </div>
+                              @if(!$cal || !$cal->calisiyor)
+                                 <div class="ors-closed">Bu gün salon kapalı — "Çalışma Saatleri" sekmesinden ayarlanır.</div>
+                              @elseif(!count($slots))
+                                 <div class="ors-closed">Çalışma saati aralığı geçersiz.</div>
+                              @else
+                                 <div class="ors-slots">
+                                    @foreach($slots as $s)
+                                       @php $sOpen = ($acik===null || isset($acik[$s])); @endphp
+                                       <button type="button" class="ors-slot {{$sOpen?'is-open':''}}" data-saat="{{$s}}">{{$s}}</button>
+                                    @endforeach
+                                 </div>
+                              @endif
                            </div>
                         @endforeach
 
-                        <h6 class="mt-4">Tarihe Özel İstisnalar</h6>
-                        <small class="text-muted d-block mb-2">Belirli bir günü tamamen kapatın ya da o güne özel bir aralık açın. Haftalık kuralı ezer.</small>
+                        <div class="ors-section-title mt-4">Tarihe Özel İstisnalar</div>
+                        <div class="ors-hint">Belirli bir günü tamamen kapatın ya da o güne özel bir aralık açın. Haftalık kuralı ezer.</div>
                         <div id="online_istisna_liste">
                            @foreach($onlineIstisnalar as $is)
-                              <div class="d-flex align-items-center mb-1 online-istisna-satir flex-wrap">
-                                 <input type="date" class="form-control mr-1 mb-1" name="istisna_tarih[]" value="{{substr((string)$is->tarih,0,10)}}" style="max-width:160px">
-                                 <select class="form-control mr-1 mb-1 online-istisna-tip" name="istisna_tip[]" style="max-width:150px">
+                              <div class="ors-istisna online-istisna-satir">
+                                 <input type="date" class="form-control" name="istisna_tarih[]" value="{{substr((string)$is->tarih,0,10)}}" style="max-width:160px">
+                                 <select class="form-control online-istisna-tip" name="istisna_tip[]" style="max-width:150px">
                                     <option value="kapali" {{$is->tip=='kapali'?'selected':''}}>Kapalı</option>
                                     <option value="ozel" {{$is->tip=='ozel'?'selected':''}}>Özel aralık</option>
                                  </select>
-                                 <input type="time" class="form-control mr-1 mb-1 online-istisna-bas" name="istisna_bas[]" value="{{$is->baslangic_saati?substr($is->baslangic_saati,0,5):''}}" style="max-width:130px;{{$is->tip=='ozel'?'':'display:none'}}">
-                                 <input type="time" class="form-control mr-1 mb-1 online-istisna-bit" name="istisna_bit[]" value="{{$is->bitis_saati?substr($is->bitis_saati,0,5):''}}" style="max-width:130px;{{$is->tip=='ozel'?'':'display:none'}}">
-                                 <button type="button" class="btn btn-sm btn-outline-danger mb-1 online-istisna-sil"><i class="fa fa-times"></i></button>
+                                 <input type="time" class="form-control online-istisna-bas" name="istisna_bas[]" value="{{$is->baslangic_saati?substr($is->baslangic_saati,0,5):''}}" style="max-width:130px;{{$is->tip=='ozel'?'':'display:none'}}">
+                                 <input type="time" class="form-control online-istisna-bit" name="istisna_bit[]" value="{{$is->bitis_saati?substr($is->bitis_saati,0,5):''}}" style="max-width:130px;{{$is->tip=='ozel'?'':'display:none'}}">
+                                 <button type="button" class="btn btn-sm btn-outline-danger online-istisna-sil"><i class="fa fa-times"></i></button>
                               </div>
                            @endforeach
                         </div>
@@ -1146,36 +1232,44 @@
                      </div>
 
                      <div class="mt-4">
-                        <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i> Kaydet</button>
+                        <button type="submit" class="btn btn-success btn-lg btn-block ors-save"><i class="fa fa-save"></i> Kaydet</button>
                      </div>
                   </form>
                </div>
                <script>
                   $(function(){
+                     var orsAralik = {{ $orsAralik }};
+                     function orsMin(h){ var p=h.split(':'); return (+p[0])*60+(+p[1]); }
+                     function orsHHMM(m){ var h=Math.floor(m/60), mm=m%60; return (h<10?'0':'')+h+':'+(mm<10?'0':'')+mm; }
+                     function orsCount($day){
+                        $day.find('.ors-count-num').text($day.find('.ors-slot.is-open').length);
+                     }
+
                      $('#online_saat_kisitlama_aktif').on('change', function(){
                         var on = this.checked;
                         $('#online_kisit_govde').css({'opacity': on?'1':'.5','pointer-events': on?'auto':'none'});
                      });
-                     $(document).on('click', '.online-aralik-ekle', function(){
-                        var gun = $(this).data('gun');
-                        var html = '<div class="d-flex align-items-center mb-1 online-aralik-satir">'
-                           + '<input type="hidden" name="pencere_gun[]" value="'+gun+'">'
-                           + '<input type="time" class="form-control mr-1" name="pencere_bas[]" value="09:00" style="max-width:130px">'
-                           + '<span class="mr-1">–</span>'
-                           + '<input type="time" class="form-control mr-1" name="pencere_bit[]" value="18:00" style="max-width:130px">'
-                           + '<button type="button" class="btn btn-sm btn-outline-danger online-aralik-sil"><i class="fa fa-times"></i></button>'
-                           + '</div>';
-                        $('.online-aralik-liste[data-gun="'+gun+'"]').append(html);
-                     });
-                     $(document).on('click', '.online-aralik-sil', function(){ $(this).closest('.online-aralik-satir').remove(); });
 
+                     // Slot aç/kapa
+                     $(document).on('click', '#online-randevu-saatleri .ors-slot', function(){
+                        $(this).toggleClass('is-open');
+                        orsCount($(this).closest('.ors-day'));
+                     });
+                     $(document).on('click', '#online-randevu-saatleri .ors-all', function(){
+                        var $d=$(this).closest('.ors-day'); $d.find('.ors-slot').addClass('is-open'); orsCount($d);
+                     });
+                     $(document).on('click', '#online-randevu-saatleri .ors-none', function(){
+                        var $d=$(this).closest('.ors-day'); $d.find('.ors-slot').removeClass('is-open'); orsCount($d);
+                     });
+
+                     // İstisnalar
                      $('#online_istisna_ekle').on('click', function(){
-                        var html = '<div class="d-flex align-items-center mb-1 online-istisna-satir flex-wrap">'
-                           + '<input type="date" class="form-control mr-1 mb-1" name="istisna_tarih[]" style="max-width:160px">'
-                           + '<select class="form-control mr-1 mb-1 online-istisna-tip" name="istisna_tip[]" style="max-width:150px"><option value="kapali">Kapalı</option><option value="ozel">Özel aralık</option></select>'
-                           + '<input type="time" class="form-control mr-1 mb-1 online-istisna-bas" name="istisna_bas[]" style="max-width:130px;display:none">'
-                           + '<input type="time" class="form-control mr-1 mb-1 online-istisna-bit" name="istisna_bit[]" style="max-width:130px;display:none">'
-                           + '<button type="button" class="btn btn-sm btn-outline-danger mb-1 online-istisna-sil"><i class="fa fa-times"></i></button>'
+                        var html = '<div class="ors-istisna online-istisna-satir">'
+                           + '<input type="date" class="form-control" name="istisna_tarih[]" style="max-width:160px">'
+                           + '<select class="form-control online-istisna-tip" name="istisna_tip[]" style="max-width:150px"><option value="kapali">Kapalı</option><option value="ozel">Özel aralık</option></select>'
+                           + '<input type="time" class="form-control online-istisna-bas" name="istisna_bas[]" style="max-width:130px;display:none">'
+                           + '<input type="time" class="form-control online-istisna-bit" name="istisna_bit[]" style="max-width:130px;display:none">'
+                           + '<button type="button" class="btn btn-sm btn-outline-danger online-istisna-sil"><i class="fa fa-times"></i></button>'
                            + '</div>';
                         $('#online_istisna_liste').append(html);
                      });
@@ -1185,13 +1279,30 @@
                         $(this).closest('.online-istisna-satir').find('.online-istisna-bas, .online-istisna-bit').toggle(ozel);
                      });
 
+                     // Kaydet: açık slotları bitişik aralıklara birleştirip pencere_* alanları üret
                      $('#online_randevu_saatleri').on('submit', function(e){
                         e.preventDefault();
+                        var $form = $(this);
+                        $form.find('.ors-gen').remove();
+                        $form.find('#online-randevu-saatleri .ors-day').each(function(){
+                           var gun = $(this).data('gun');
+                           var opens = [];
+                           $(this).find('.ors-slot.is-open').each(function(){ opens.push(orsMin($(this).data('saat'))); });
+                           if(!opens.length) return;
+                           opens.sort(function(a,b){return a-b;});
+                           var start = opens[0], prev = opens[0];
+                           for(var i=1;i<opens.length;i++){
+                              if(opens[i] === prev + orsAralik){ prev = opens[i]; continue; }
+                              $form.append('<input type="hidden" class="ors-gen" name="pencere_gun[]" value="'+gun+'"><input type="hidden" class="ors-gen" name="pencere_bas[]" value="'+orsHHMM(start)+'"><input type="hidden" class="ors-gen" name="pencere_bit[]" value="'+orsHHMM(prev+orsAralik)+'">');
+                              start = opens[i]; prev = opens[i];
+                           }
+                           $form.append('<input type="hidden" class="ors-gen" name="pencere_gun[]" value="'+gun+'"><input type="hidden" class="ors-gen" name="pencere_bas[]" value="'+orsHHMM(start)+'"><input type="hidden" class="ors-gen" name="pencere_bit[]" value="'+orsHHMM(prev+orsAralik)+'">');
+                        });
                         $.ajax({
                            type:'POST',
                            url:'/isletmeyonetim/onlinerandevusaatguncelle',
                            dataType:'text',
-                           data: $('#online_randevu_saatleri').serialize(),
+                           data: $form.serialize(),
                            beforeSend: function(){ $("#preloader").show(); },
                            success: function(result){ $("#preloader").hide(); swal('Başarılı!', result, 'success'); },
                            error: function(req){ $("#preloader").hide(); swal('Hata', (req && req.responseText) ? req.responseText : 'Kaydedilemedi', 'error'); }
