@@ -20444,6 +20444,14 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'isletme'      => $isletme,
             'reklamlar'    => $reklamlar,
             'hizmetler'    => $hizmetler,
+            // layout_isletmeadmin'in bekledigi ortak degiskenler
+            'kalan_uyelik_suresi'     => self::lisans_sure_kontrol($request),
+            'bildirimler'             => self::bildirimgetir($request),
+            'yetkiliolunanisletmeler' => $isletmeler,
+            'paketler'                => self::paket_liste_getir('', true, $request),
+            'portfoy_drop'            => self::musteriportfoydropliste($request),
+            'urun_drop'               => self::urundropliste($request),
+            'hizmet_drop'             => self::hizmetdropliste($request),
         ]);
     }
 
