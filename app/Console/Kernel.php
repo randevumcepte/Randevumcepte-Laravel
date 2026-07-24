@@ -31,6 +31,7 @@ class Kernel extends ConsoleKernel
         Commands\SalonrandevuImport::class,
         Commands\PrimTeshis::class,
         Commands\SalonappySaticiDoldur::class,
+        Commands\SalonappyDusumGuncelle::class,
         Commands\CarkHatirlatmaGonder::class,
         Commands\AnketOtomatikGonder::class,
         Commands\WhatsappStuckKurtar::class,
