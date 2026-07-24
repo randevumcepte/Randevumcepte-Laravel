@@ -28,6 +28,7 @@ class BildirimReklamApiController extends Controller
     {
         $salonId = (int) $request->input('salon_id');
         $appBundle = $request->input('appBundle');
+        $userId = (int) $request->input('user_id'); // 0 ise kisi-bazli gizleme yapilmaz
 
         $q = BildirimReklamlari::where('durum', 'aktif')
             ->where(function ($w) {
@@ -46,10 +47,17 @@ class BildirimReklamApiController extends Controller
 
         $now = Carbon::now();
         $reklamlar = $q->orderBy('id', 'desc')->get()
-            ->filter(function ($r) use ($now) {
+            ->filter(function ($r) use ($now, $userId) {
                 if ($r->yayin_baslangic && $r->yayin_baslangic->isFuture()) return false;
                 if ($r->yayin_bitis && $r->yayin_bitis->isPast()) return false;
                 if ($r->kupon_toplam_adet !== null && $r->kupon_dagitilan >= $r->kupon_toplam_adet) return false;
+                // Kullanici bu kupon reklamini zaten kaptiysa (kisi limiti doldu) ona artik gosterme
+                if ($userId > 0 && $r->aksiyon_tipi === 'kupon') {
+                    $limit = max(1, (int) $r->kupon_kisi_limit);
+                    $kaptigi = CarkifelekOdulleri::where('kaynak_reklam_id', $r->id)
+                        ->where('user_id', $userId)->count();
+                    if ($kaptigi >= $limit) return false;
+                }
                 return true;
             })
             ->map(function ($r) {
