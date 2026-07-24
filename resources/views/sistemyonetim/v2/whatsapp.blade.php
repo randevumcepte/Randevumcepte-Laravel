@@ -444,16 +444,16 @@
         var girdi = prompt('“' + salonAdi + '” için yüklenecek kontör:\n(Mevcut bakiye: ' + (mevcut||0) + ')\n\nÖrn: 40000   ·   Düşmek için negatif: -1000', '');
         if (girdi === null) return;
         var adet = parseInt(String(girdi).replace(/[^0-9\-]/g,''), 10);
-        if (!adet) { alert('Geçersiz miktar.'); return; }
+        if (!adet) { (window.syAlert||alert)('Geçersiz miktar.'); return; }
         var body = 'kontor_yukle=' + encodeURIComponent(adet) + '&aciklama=' + encodeURIComponent('panel manuel');
         fetch('/sistemyonetim/whatsapp-panel/salon/' + salonId + '/paket-set', {
             method:'POST', credentials:'same-origin',
             headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}', 'Content-Type':'application/x-www-form-urlencoded', 'Accept':'application/json'},
             body: body
         }).then(function(r){ return r.json(); }).then(function(d){
-            if (d && d.ok) { alert(d.mesaj || 'Kontör işlendi.'); yukleSalonlar(); }
-            else { alert((d && d.mesaj) || 'İşlenemedi.'); }
-        }).catch(function(){ alert('Bağlantı hatası, tekrar deneyin.'); });
+            if (d && d.ok) { (window.syAlert||alert)(d.mesaj || 'Kontör işlendi.'); yukleSalonlar(); }
+            else { (window.syAlert||alert)((d && d.mesaj) || 'İşlenemedi.'); }
+        }).catch(function(){ (window.syAlert||alert)('Bağlantı hatası, tekrar deneyin.'); });
     }
     document.getElementById('filterSalonDurum').addEventListener('change', renderSalonlar);
     document.getElementById('filterSalonArama').addEventListener('input', renderSalonlar);
@@ -706,8 +706,9 @@
 
         var diBtn = document.getElementById('paketDenemeIptalBtn');
         if (diBtn) diBtn.addEventListener('click', function(){
-            if (!confirm('Denemeyi iptal et — salon Başlangıç paketine düşürülecek. Emin misin?')) return;
-            denemeIptalIstek(salonId);
+            var msg = 'Denemeyi iptal et — salon Başlangıç paketine düşürülecek. Emin misin?';
+            (window.syConfirm ? window.syConfirm(msg, { tehlike: true }) : Promise.resolve(confirm(msg)))
+                .then(function(ok){ if (ok) denemeIptalIstek(salonId); });
         });
 
         document.getElementById('paketSetBtn').addEventListener('click', function(){ paketSetIstek(salonId); });

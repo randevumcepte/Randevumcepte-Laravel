@@ -60,7 +60,7 @@
             <div id="wa-self-uyari" class="sy-alert sy-alert-danger" style="display:none">
                 <span class="mdi mdi-alert"></span> <b>Dikkat:</b> Gönderen numara ile bildirim (alıcı) numarası <b>aynı</b>. WhatsApp kendine mesaj göndermez. Gönderen için <b>farklı</b> bir numara bağla.
             </div>
-            <form method="post" action="/sistemyonetim/v2/sistem-whatsapp/cikis" onsubmit="return confirm('Gönderen WhatsApp oturumu kapatılsın mı?')">
+            <form method="post" action="/sistemyonetim/v2/sistem-whatsapp/cikis" data-confirm="Gönderen WhatsApp oturumu kapatılsın mı?">
                 @csrf
                 <button type="submit" class="sy-btn sy-btn-sm"><span class="mdi mdi-logout"></span> Oturumu Kapat</button>
             </form>

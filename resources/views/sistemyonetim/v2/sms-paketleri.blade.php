@@ -47,7 +47,7 @@
                         <td><span class="sy-badge sy-badge-info">{{ $p->class ?: 'primary' }}</span></td>
                         <td class="sy-text-right nowrap">
                             <a href="/sistemyonetim/v2/sms-paket/{{ $p->id }}/duzenle" class="sy-btn sy-btn-sm sy-btn-soft"><span class="mdi mdi-pencil"></span></a>
-                            <form method="post" action="/sistemyonetim/v2/sms-paket/{{ $p->id }}" style="display:inline" onsubmit="return confirm('Bu paket silinsin mi?')">
+                            <form method="post" action="/sistemyonetim/v2/sms-paket/{{ $p->id }}" style="display:inline" data-confirm="Bu paket silinsin mi?" data-confirm-danger>
                                 @csrf
                                 <input type="hidden" name="_method" value="DELETE">
                                 <button class="sy-btn sy-btn-sm sy-btn-danger"><span class="mdi mdi-delete"></span></button>

@@ -132,7 +132,7 @@
             @if($demo)
                 <span class="sy-badge sy-badge-warning">DEMO HESAP</span>
                 <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/lisans-aktif" style="display:flex;gap:6px;align-items:center;margin:0"
-                      onsubmit="return confirm('Bu demo salonun lisansı aktif edilecek (Lisanslı olacak). Devam?');">
+                      data-confirm="Bu demo salonun lisansı aktif edilecek (Lisanslı olacak). Devam?">
                     @csrf
                     <span class="sy-text-muted sy-fs-12">Lisans süresi:</span>
                     <select name="gun" class="sy-select" style="width:auto">
@@ -375,7 +375,7 @@
                             <div class="sy-flex-row sy-mt-12" style="justify-content:flex-end">
                                 <a href="/sistemyonetim/v2/not/{{ $n->id }}/pin" class="sy-btn sy-btn-sm">{{ $n->pinned ? 'Sabitten Kaldır' : 'Sabitle' }}</a>
                                 @if($rol === 'super_admin' || $n->user_id == Auth::guard('sistemyonetim')->user()->id)
-                                    <form method="post" action="/sistemyonetim/v2/not/{{ $n->id }}" onsubmit="return confirm('Not silinsin mi?')">
+                                    <form method="post" action="/sistemyonetim/v2/not/{{ $n->id }}" data-confirm="Bu not silinsin mi?" data-confirm-danger>
                                         @csrf
                                         <input type="hidden" name="_method" value="DELETE">
                                         <button class="sy-btn sy-btn-sm sy-btn-danger"><span class="mdi mdi-delete"></span></button>
@@ -455,7 +455,7 @@
                             </div>
                             <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
                                 <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesabina-gir" style="margin:0"
-                                      onsubmit="return confirm('Bu {{ $y->is_admin ? 'sahip' : 'personel' }} hesabına geçiş yapılacak. Tüm hareketleriniz loglanacaktır. Devam edilsin mi?');">
+                                      data-confirm="Bu {{ $y->is_admin ? 'sahip' : 'personel' }} hesabına geçiş yapılacak. Tüm hareketleriniz loglanacaktır. Devam edilsin mi?">
                                     @csrf
                                     <input type="hidden" name="yetkili_id" value="{{ $y->id }}">
                                     <input type="hidden" name="sebep" value="{{ $y->is_admin ? 'Sahip hesabı girişi' : 'Personel hesabı girişi' }}">
@@ -465,7 +465,7 @@
                                 </form>
                                 @if($rol === 'super_admin')
                                     <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/sahip-yap" style="margin:0"
-                                          onsubmit="return confirm('{{ $y->name }} bu salonda Hesap Sahibi (rol 1) yapılacak. Devam?');">
+                                          data-confirm="{{ $y->name }} bu salonda Hesap Sahibi (rol 1) yapılacak. Devam?">
                                         @csrf
                                         <input type="hidden" name="yetkili_id" value="{{ $y->id }}">
                                         <button type="submit" class="sy-btn sy-btn-sm sy-btn-warning" title="Bu hesabı Hesap Sahibi (rol 1) yap — yanlışlıkla personele düşen sahibi kurtarır">
@@ -482,7 +482,7 @@
                                     </form>
                                 @else
                                     <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesap-pasif" style="margin:0"
-                                          onsubmit="return confirm('{{ $y->name }} işten çıkarılacak (pasif). Giriş varsayılanı artık bu hesabı atlar. Devam?');">
+                                          data-confirm="{{ $y->name }} işten çıkarılacak (pasif). Giriş varsayılanı artık bu hesabı atlar. Devam?" data-confirm-danger>
                                         @csrf
                                         <input type="hidden" name="yetkili_id" value="{{ $y->id }}">
                                         <input type="hidden" name="aktif" value="0">
@@ -523,7 +523,7 @@
         <div class="sy-card">
             <div class="sy-card-head"><h3 style="color:var(--sy-danger)"><span class="mdi mdi-cancel"></span> Salonu Askıya Al</h3></div>
             <div class="sy-card-body">
-                <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/askiya-al" onsubmit="return confirm('Salon askıya alınacak. Hesaba giriş engellenecek. Devam?')">
+                <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/askiya-al" data-confirm="Salon askıya alınacak. Hesaba giriş engellenecek. Devam?" data-confirm-danger>
                     @csrf
                     <textarea name="sebep" class="sy-textarea" rows="2" placeholder="Sebep" required></textarea>
                     <button class="sy-btn sy-btn-danger sy-mt-12 sy-btn-sm">Askıya Al</button>

@@ -244,12 +244,21 @@ function bulkTemizle() {
 function bulkSubmit() {
     const n = document.querySelectorAll('.bulkChk:checked').length;
     const islem = document.getElementById('bulkIslem').value;
-    if (!n || !islem) { alert('Önce salon ve işlem seçin.'); return false; }
+    if (!n || !islem) { (window.syAlert || alert)('Önce salon ve işlem seçin.'); return false; }
+    var msg, tehlike = false;
     if (islem === 'sil') {
-        return confirm('DİKKAT: ' + n + ' salon KALICI olarak SİLİNECEK (geri alınamaz). Test temizliği için onaylıyor musunuz?');
+        msg = 'DİKKAT: ' + n + ' salon KALICI olarak SİLİNECEK (geri alınamaz). Test temizliği için onaylıyor musunuz?';
+        tehlike = true;
+    } else {
+        const labels = { mt_ata: 'müşteri temsilcisi atanacak', askiya_al: 'askıya alınacak', aktif_et: 'aktif edilecek' };
+        msg = n + ' salon ' + labels[islem] + '. Onaylıyor musunuz?';
     }
-    const labels = { mt_ata: 'müşteri temsilcisi atanacak', askiya_al: 'askıya alınacak', aktif_et: 'aktif edilecek' };
-    return confirm(n + ' salon ' + labels[islem] + '. Onaylıyor musunuz?');
+    // In-app modal (async): her zaman engelle, onay gelince formu native submit et.
+    if (window.syConfirm) {
+        window.syConfirm(msg, { tehlike: tehlike }).then(function(ok){ if (ok) document.getElementById('bulkForm').submit(); });
+        return false;
+    }
+    return confirm(msg); // fallback
 }
 </script>
 @endpush

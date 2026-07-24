@@ -69,7 +69,7 @@
                             @if($rolMevcut === 'super_admin')
                                 <a href="/sistemyonetim/v2/ekip/{{ $u->id }}/duzenle" class="sy-btn sy-btn-sm sy-btn-soft"><span class="mdi mdi-pencil"></span></a>
                                 @if($u->aktif && $u->id != Auth::guard('sistemyonetim')->user()->id)
-                                <form method="post" action="/sistemyonetim/v2/ekip/{{ $u->id }}/pasif" style="display:inline" onsubmit="return confirm('Pasif edilsin mi?')">
+                                <form method="post" action="/sistemyonetim/v2/ekip/{{ $u->id }}/pasif" style="display:inline" data-confirm="Bu ekip üyesi pasif edilsin mi?" data-confirm-danger>
                                     @csrf
                                     <button class="sy-btn sy-btn-sm sy-btn-danger"><span class="mdi mdi-cancel"></span></button>
                                 </form>

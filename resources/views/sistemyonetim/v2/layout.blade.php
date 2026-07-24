@@ -329,5 +329,91 @@ function escapeHtml(t) {
 </script>
 
 @stack('scripts')
+
+{{-- ============================================================
+     GLOBAL ONAY MODALI — cirkin tarayici confirm()/alert() yerine.
+     Kullanim: <form data-confirm="Emin misiniz?"> (tehlikeli icin data-confirm-danger)
+     JS: syConfirm(msg).then(ok=>{}) · syAlert(msg)
+     ============================================================ --}}
+<div id="syConfirmOverlay" style="display:none;position:fixed;inset:0;z-index:10050;background:rgba(30,27,46,.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;padding:20px">
+    <div style="background:#fff;width:100%;max-width:430px;border-radius:16px;box-shadow:0 24px 60px rgba(20,20,40,.35);overflow:hidden">
+        <div style="padding:24px 24px 6px;display:flex;gap:14px;align-items:flex-start">
+            <div id="syConfirmIcon" style="width:44px;height:44px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;background:#eef2ff;color:#4f46e5">
+                <span class="mdi mdi-help-circle-outline"></span>
+            </div>
+            <div style="min-width:0;flex:1">
+                <div id="syConfirmTitle" style="font-size:16px;font-weight:700;color:#1e1b2e;margin-bottom:4px">Onay</div>
+                <div id="syConfirmMsg" style="font-size:14px;color:#555;line-height:1.5"></div>
+            </div>
+        </div>
+        <div style="padding:16px 24px 20px;display:flex;gap:10px;justify-content:flex-end">
+            <button type="button" id="syConfirmCancel" class="sy-btn">Vazgeç</button>
+            <button type="button" id="syConfirmOk" class="sy-btn sy-btn-primary">Onayla</button>
+        </div>
+    </div>
+</div>
+<script>
+(function(){
+    var overlay = document.getElementById('syConfirmOverlay');
+    var msgEl = document.getElementById('syConfirmMsg');
+    var titleEl = document.getElementById('syConfirmTitle');
+    var iconEl = document.getElementById('syConfirmIcon');
+    var okBtn = document.getElementById('syConfirmOk');
+    var cancelBtn = document.getElementById('syConfirmCancel');
+    var _resolve = null;
+
+    function kapat(sonuc){ overlay.style.display='none'; if(_resolve){ var r=_resolve; _resolve=null; r(sonuc); } }
+    okBtn.addEventListener('click', function(){ kapat(true); });
+    cancelBtn.addEventListener('click', function(){ kapat(false); });
+    overlay.addEventListener('click', function(e){ if(e.target===overlay) kapat(false); });
+    document.addEventListener('keydown', function(e){ if(overlay.style.display!=='none' && e.key==='Escape') kapat(false); });
+
+    window.syConfirm = function(mesaj, opts){
+        opts = opts || {};
+        cancelBtn.style.display = '';
+        titleEl.textContent = opts.baslik || 'Onay';
+        msgEl.textContent = mesaj || 'Emin misiniz?';
+        okBtn.textContent = opts.onayEtiket || 'Onayla';
+        if (opts.tehlike) {
+            iconEl.style.background='#fee2e2'; iconEl.style.color='#dc2626';
+            iconEl.innerHTML='<span class="mdi mdi-alert-outline"></span>';
+            okBtn.className='sy-btn sy-btn-danger';
+        } else {
+            iconEl.style.background='#eef2ff'; iconEl.style.color='#4f46e5';
+            iconEl.innerHTML='<span class="mdi mdi-help-circle-outline"></span>';
+            okBtn.className='sy-btn sy-btn-primary';
+        }
+        overlay.style.display='flex';
+        setTimeout(function(){ okBtn.focus(); }, 30);
+        return new Promise(function(res){ _resolve = res; });
+    };
+    window.syAlert = function(mesaj, opts){
+        opts = opts || {}; opts.onayEtiket = opts.onayEtiket || 'Tamam';
+        var p = window.syConfirm(mesaj, opts);
+        cancelBtn.style.display = 'none'; // uyari: sadece "Tamam"
+        return p;
+    };
+
+    // data-confirm olan formlari otomatik yakala (form.submit() submit event'ini tetiklemez)
+    document.addEventListener('submit', function(e){
+        var form = e.target;
+        if (!form || !form.getAttribute) return;
+        var msg = form.getAttribute('data-confirm');
+        if (!msg) return;
+        e.preventDefault();
+        var tehlike = form.hasAttribute('data-confirm-danger');
+        window.syConfirm(msg, { tehlike: tehlike }).then(function(ok){ if (ok) form.submit(); });
+    }, false);
+
+    // data-confirm olan linkler (a[href]) icin de
+    document.addEventListener('click', function(e){
+        var a = e.target.closest && e.target.closest('a[data-confirm]');
+        if (!a) return;
+        e.preventDefault();
+        var tehlike = a.hasAttribute('data-confirm-danger');
+        window.syConfirm(a.getAttribute('data-confirm'), { tehlike: tehlike }).then(function(ok){ if (ok) window.location.href = a.href; });
+    }, false);
+})();
+</script>
 </body>
 </html>

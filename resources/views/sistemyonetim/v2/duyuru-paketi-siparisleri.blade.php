@@ -59,7 +59,7 @@
                         <td><span class="sy-badge sy-badge-{{ $f[1] }}">{{ $f[0] }}</span></td>
                         <td class="sy-text-right nowrap">
                             @if($s->durum == 1 && $s->yukleme_durumu == 0)
-                                <form method="post" action="/sistemyonetim/v2/duyuru-paketi-siparisleri/{{ $s->id }}/yuklendi" style="display:inline" onsubmit="return confirm('VoiceTelekom panelinden SMS yüklemesini yaptınız mı?')">
+                                <form method="post" action="/sistemyonetim/v2/duyuru-paketi-siparisleri/{{ $s->id }}/yuklendi" style="display:inline" data-confirm="VoiceTelekom panelinden SMS yüklemesini yaptınız mı?">
                                     @csrf
                                     <button class="sy-btn sy-btn-sm sy-btn-primary"><span class="mdi mdi-check"></span> Yüklendi</button>
                                 </form>
