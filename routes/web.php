@@ -584,7 +584,11 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::post('/salon/{id}/hesabina-gir', 'PanelController@salonHesabinaGir');
     Route::post('/salon/{id}/hesap-pasif', 'PanelController@salonHesapPasif');
     Route::post('/salon/{id}/sahip-yap', 'PanelController@salonSahibiYap');
-    Route::get('/impersonation-bitir', 'PanelController@impersonationBitir')->name('sistemyonetim.v2.impersonation.bitir');
+    // GET = ZARARSIZ (sadece dashboard'a yonlendir). Chrome prefetch/GET onceden bu GET'i
+    // tetikleyip impersonation'i bitiriyordu -> kullanici salonda calisirken PAT diye
+    // atiliyordu. Gercek "Yonetim Paneline Don" islemi artik yalniz POST ile yapilir.
+    Route::get('/impersonation-bitir', function () { return redirect('/sistemyonetim/v2/dashboard'); });
+    Route::post('/impersonation-bitir', 'PanelController@impersonationBitir')->name('sistemyonetim.v2.impersonation.bitir');
 
     // Notlar
     Route::post('/salon/{id}/not', 'PanelController@notEkle');
