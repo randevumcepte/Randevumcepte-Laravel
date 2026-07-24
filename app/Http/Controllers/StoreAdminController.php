@@ -20489,12 +20489,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $reklam->tur          = $request->tur ?: 'kampanya';
         $reklam->kanal_push   = filter_var($request->input('kanal_push'), FILTER_VALIDATE_BOOLEAN);
         $reklam->kanal_inapp  = filter_var($request->input('kanal_inapp'), FILTER_VALIDATE_BOOLEAN);
+        $reklam->tam_ekran    = filter_var($request->input('tam_ekran'), FILTER_VALIDATE_BOOLEAN);
         $reklam->aksiyon_tipi = $request->aksiyon_tipi ?: 'kupon';
         $reklam->aksiyon_hedef = $request->aksiyon_hedef;
 
-        // En az bir kanal secili olmali
-        if (!$reklam->kanal_push && !$reklam->kanal_inapp)
-            return response()->json(['durum' => 'hata', 'mesaj' => 'En az bir kanal (Push / Uygulama-ici) secili olmali.'], 422);
+        // En az bir kanal/gosterim secili olmali
+        if (!$reklam->kanal_push && !$reklam->kanal_inapp && !$reklam->tam_ekran)
+            return response()->json(['durum' => 'hata', 'mesaj' => 'En az bir kanal (Push / Uygulama-ici / Tam ekran) secili olmali.'], 422);
 
         // Gorsel: ayri base64 endpoint'inden gelen /public/... yolunu formdan al
         if (!empty($request->gorsel))

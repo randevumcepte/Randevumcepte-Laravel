@@ -151,6 +151,7 @@
                <div class="br-kanallar">
                   <label class="br-check"><input type="checkbox" name="kanal_push" id="br_push" checked> <i class="fa fa-bell"></i> Push (anlık bildirim)</label>
                   <label class="br-check"><input type="checkbox" name="kanal_inapp" id="br_inapp" checked> <i class="fa fa-mobile"></i> Uygulama içi kart</label>
+                  <label class="br-check"><input type="checkbox" name="tam_ekran" id="br_tamekran"> <i class="fa fa-window-maximize"></i> Açılışta tam ekran (popup)</label>
                </div>
 
                <label class="br-lbl" style="margin-top:14px">Görsele dokununca ne olsun?</label>
@@ -333,6 +334,7 @@
       $('#br_id').val(''); $('#br_gorsel').val('');
       $('#br_onizleme').hide().attr('src',''); $('#br_upload_ph').show();
       $('#br_push,#br_inapp').prop('checked',true);
+      $('#br_tamekran').prop('checked',false);
       $('#br_hedef').val('tumu');
       $('#brModalBaslik').text('Yeni Bildirim Reklamı');
       kuponGoster(); segmentGoster(); segAlanGoster();
@@ -352,6 +354,7 @@
       else { $('#br_onizleme').hide().attr('src',''); $('#br_upload_ph').show(); }
       $('#br_push').prop('checked', r.kanal_push==1||r.kanal_push===true);
       $('#br_inapp').prop('checked', r.kanal_inapp==1||r.kanal_inapp===true);
+      $('#br_tamekran').prop('checked', r.tam_ekran==1||r.tam_ekran===true);
       $('#br_aksiyon').val(r.aksiyon_tipi||'kupon');
       $('#br_kupon_tip').val(r.kupon_indirim_tipi||'yuzde');
       $('#br_kupon_deger').val(r.kupon_deger>0?parseFloat(r.kupon_deger):'');
@@ -402,6 +405,7 @@
       data.push({name:'sube',value:SUBE});
       data.push({name:'kanal_push',value:$('#br_push').is(':checked')?1:0});
       data.push({name:'kanal_inapp',value:$('#br_inapp').is(':checked')?1:0});
+      data.push({name:'tam_ekran',value:$('#br_tamekran').is(':checked')?1:0});
       $.ajax({ url:url('bildirim-reklam-kaydet'), method:'POST', data:data,
          success:function(res){ if(res.durum==='basarili'){ location.reload(); }
             else{ alert(res.mesaj||'Kaydedilemedi'); btn.prop('disabled',false); } },

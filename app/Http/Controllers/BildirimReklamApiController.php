@@ -30,7 +30,10 @@ class BildirimReklamApiController extends Controller
         $appBundle = $request->input('appBundle');
 
         $q = BildirimReklamlari::where('durum', 'aktif')
-            ->where('kanal_inapp', true);
+            ->where(function ($w) {
+                // Uygulama-ici kart VEYA acilis tam ekran popup olanlar
+                $w->where('kanal_inapp', true)->orWhere('tam_ekran', true);
+            });
 
         if ($salonId > 0) {
             $q->where('salon_id', $salonId);
@@ -57,6 +60,7 @@ class BildirimReklamApiController extends Controller
                     'baslik'       => $r->baslik,
                     'mesaj'        => $r->mesaj,
                     'gorsel'       => $r->gorsel ? url($r->gorsel) : null,
+                    'tam_ekran'    => (bool) $r->tam_ekran,
                     'aksiyon_tipi' => $r->aksiyon_tipi,
                     'aksiyon_hedef' => $r->aksiyon_hedef,
                     'kupon'        => $r->aksiyon_tipi === 'kupon' ? [

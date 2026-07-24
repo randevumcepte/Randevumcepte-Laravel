@@ -15,7 +15,7 @@ class BildirimReklamlari extends Model
 
     protected $fillable = [
         'salon_id', 'baslik', 'mesaj', 'gorsel', 'tur',
-        'kanal_push', 'kanal_inapp',
+        'kanal_push', 'kanal_inapp', 'tam_ekran',
         'aksiyon_tipi', 'aksiyon_hedef',
         'kupon_indirim_tipi', 'kupon_deger', 'kupon_hizmet_id', 'kupon_baslik',
         'kupon_gecerlilik_gun', 'kupon_kisi_limit', 'kupon_toplam_adet', 'kupon_dagitilan',
@@ -26,6 +26,7 @@ class BildirimReklamlari extends Model
     protected $casts = [
         'kanal_push'       => 'boolean',
         'kanal_inapp'      => 'boolean',
+        'tam_ekran'        => 'boolean',
         'kupon_deger'      => 'float',
         'kupon_kisi_limit' => 'integer',
         'kupon_dagitilan'  => 'integer',
