@@ -71,6 +71,11 @@ class SalonappySaticiDoldur extends Command
         $toplam += $this->isle($salonId, $uygula, 'urun',
             $j['productSales'] ?? [], 'salonappy-prodsale', 'adisyon_urunler', 'seller_name', false, $kasaPersonelId, $yedek, $eksikEkle);
 
+        // Ziyaret (visits) dump'i verildiyse: ziyaret ici urun satislarinin saticisi
+        if (!empty($j['bookingDetails'])) {
+            $toplam += $this->isleZiyaretUrun($salonId, $uygula, $j['bookingDetails'], $kasaPersonelId, $yedek, $eksikEkle);
+        }
+
         if ($toplam === 0) $this->warn('Dump\'ta islenecek satis bulunamadi.');
         if (!$uygula) $this->comment("\nDRY-RUN — hicbir sey yazilmadi. Uygulamak icin --uygula ekle.");
         $this->line('Kontrol: php artisan prim:teshis --salon=' . $salonId);
@@ -282,6 +287,158 @@ class SalonappySaticiDoldur extends Command
         }
 
         return $adaylar->count() === 1 ? (int) $adaylar->first()->id : null;
+    }
+
+    /**
+     * ZIYARET ICI URUN SATISLARI — adisyon_urunler.personel_id doldurur.
+     *
+     * Bu payload'da seller_name/staff_name BOSTUR; satici sayisal `staff_id`
+     * alanindadir, adi ayni satirdaki `staff` dizisinden ({label,value}) cozulur.
+     * Ziyaret adisyonu notlar = [salonappy-visit:<session>] ile isaretlidir.
+     * Marker yoksa --yedek-esle ile musteri + tarih + urun uzerinden eslenir.
+     */
+    private function isleZiyaretUrun($salonId, $uygula, $bookingDetails, $kasaPersonelId, $yedek, $eksikEkle)
+    {
+        if (!\Schema::hasColumn('adisyon_urunler', 'personel_id')) return 0;
+
+        // Ad -> personel_id
+        $adHarita = [];
+        foreach (DB::table('salon_personelleri')->where('salon_id', $salonId)->get(['id','personel_adi']) as $p) {
+            $adHarita[$this->trKey($p->personel_adi)] = (int) $p->id;
+        }
+        // Urun adi -> urun_id (salon bazli, YENI URUN OLUSTURULMAZ)
+        $urunHarita = [];
+        foreach (DB::table('urunler')->where('salon_id', $salonId)->get(['id','urun_adi']) as $u) {
+            $urunHarita[$this->trKey($u->urun_adi)] = (int) $u->id;
+        }
+
+        $satirSayisi = 0; $doldurulacak = [];  // personel_id => [au id]
+        $sahiplenilen = []; $kasaSayisi = 0; $urunYok = 0; $adisyonYok = 0;
+        $zatenDolu = 0; $kalemYok = 0; $eslesmeyen = []; $acilan = [];
+        $yedekEslesen = 0;
+
+        foreach ($bookingDetails as $sid => $obj) {
+            $urunler = $obj['product_sales'] ?? [];
+            if (empty($urunler)) continue;
+            $det = $obj['details'] ?? [];
+
+            foreach ($urunler as $ps) {
+                $satirSayisi++;
+                $urunAd = trim((string) ($ps['product_text'] ?? ''));
+                if ($urunAd === '') continue;
+                $uid = $urunHarita[$this->trKey($urunAd)] ?? null;
+                if (!$uid) { $urunYok++; continue; }
+
+                // Satici: staff_id -> staff[] label
+                $staffId = trim((string) ($ps['staff_id'] ?? ''));
+                $satAd = '';
+                foreach (($ps['staff'] ?? []) as $st) {
+                    if (is_array($st) && (string) ($st['value'] ?? '') === $staffId) {
+                        $satAd = trim((string) ($st['label'] ?? '')); break;
+                    }
+                }
+                $pid = null;
+                if ($staffId === '0' || $this->trKey($satAd) === 'kasa' || $satAd === '') {
+                    $kasaSayisi++;
+                    if (!$kasaPersonelId) continue;
+                    $pid = $kasaPersonelId;
+                } else {
+                    $pid = $adHarita[$this->trKey($satAd)] ?? null;
+                    if (!$pid && $eksikEkle) {
+                        if ($uygula) {
+                            $pid = $this->arsivliPersonelAc($salonId, $satAd);
+                            if ($pid) { $adHarita[$this->trKey($satAd)] = $pid; $acilan[$satAd] = $pid; }
+                        } else { $acilan[$satAd] = null; }
+                    }
+                    if (!$pid) { $eslesmeyen[$satAd] = ($eslesmeyen[$satAd] ?? 0) + 1; continue; }
+                }
+
+                // Ziyaret adisyonunu marker ile bul
+                $adIds = DB::table('adisyonlar')->where('salon_id', $salonId)
+                    ->where('notlar', 'LIKE', '%[salonappy-visit:' . $sid . ']%')
+                    ->pluck('id');
+
+                $yedekMi = false;
+                if ($adIds->isEmpty()) {
+                    if (!$yedek) { $adisyonYok++; continue; }
+                    // Yedek: musteri + ziyaret tarihi
+                    $userId = $this->ziyaretMusteriBul($det);
+                    $tarih  = substr(trim((string) ($det['date'] ?? '')), 0, 10);
+                    if (!$userId || $tarih === '') { $adisyonYok++; continue; }
+                    $adIds = DB::table('adisyonlar')->where('salon_id', $salonId)
+                        ->where('user_id', $userId)->whereDate('tarih', $tarih)->pluck('id');
+                    if ($adIds->isEmpty()) { $adisyonYok++; continue; }
+                    $yedekMi = true;
+                }
+
+                $kalemler = DB::table('adisyon_urunler')
+                    ->whereIn('adisyon_id', $adIds)->where('urun_id', $uid)
+                    ->orderBy('id')->get(['id','personel_id']);
+                if ($kalemler->isEmpty()) { $kalemYok++; continue; }
+
+                $yazildi = false;
+                foreach ($kalemler as $k) {
+                    if ($k->personel_id) { continue; }
+                    if (isset($sahiplenilen[$k->id])) continue;
+                    $sahiplenilen[$k->id] = true;
+                    $doldurulacak[$pid][] = $k->id;
+                    if ($yedekMi) $yedekEslesen++;
+                    $yazildi = true;
+                    break;   // bu dump satiri icin tek kalem
+                }
+                if (!$yazildi) $zatenDolu++;
+            }
+        }
+
+        $this->line("\n[ziyaret urunu] dump satiri: {$satirSayisi}");
+        if (!empty($acilan)) {
+            $this->line('  ' . ($uygula ? 'Arsivli personel ACILDI' : 'Arsivli personel ACILACAK (dry-run)') . ': ' . count($acilan));
+            foreach ($acilan as $ad => $pid) $this->line('    ' . $ad . ($pid ? '  -> #' . $pid : ''));
+        }
+
+        $adet = 0;
+        foreach ($doldurulacak as $ids) $adet += count($ids);
+        $this->line("  adisyon_urunler: doldurulacak {$adet} kalem"
+            . " | zaten dolu {$zatenDolu} | adisyon bulunamadi {$adisyonYok} | kalem yok {$kalemYok}"
+            . " | urun sistemde yok {$urunYok}");
+        if ($yedek) $this->line("  yedek eslesme ile bulunan: {$yedekEslesen} kalem");
+        foreach ($doldurulacak as $pid => $ids) {
+            $ad = DB::table('salon_personelleri')->where('id', $pid)->value('personel_adi');
+            $this->line(sprintf('    #%-6d %-28s -> %d kalem', $pid, mb_substr($ad, 0, 28), count($ids)));
+        }
+        if (!empty($eslesmeyen)) {
+            $this->warn('  !! Sistemde karsiligi olmayan satici adlari (atlandi):');
+            foreach ($eslesmeyen as $ad => $n) $this->warn("       {$ad}  ({$n} satis)");
+            $this->warn('     Bunlari arsivli personel olarak acmak icin: --eksik-personel-ekle');
+        }
+        if ($kasaSayisi) {
+            $this->line('  * ' . $kasaSayisi . ' satista satici "Kasa"/bos'
+                . ($kasaPersonelId ? ' — --kasa-personel ile yazilacak.' : ' — atlandi (--kasa-personel ile toplanabilir).'));
+        }
+
+        if ($uygula && $adet > 0) {
+            foreach ($doldurulacak as $pid => $ids) {
+                foreach (array_chunk($ids, 500) as $parca) {
+                    DB::table('adisyon_urunler')->whereIn('id', $parca)->whereNull('personel_id')
+                        ->update(['personel_id' => $pid, 'updated_at' => date('Y-m-d H:i:s')]);
+                }
+            }
+            $this->info("  -> {$adet} kalem guncellendi.");
+        }
+
+        return $satirSayisi;
+    }
+
+    /** Ziyaret details'inden musteri (users.id) — once telefon, sonra ad. */
+    private function ziyaretMusteriBul($det)
+    {
+        if (!is_array($det)) return null;
+        $tel = preg_replace('~\D~', '', (string) ($det['client_phone_number'] ?? ''));
+        $ad  = trim((string) ($det['client_name'] ?? ''));
+        $id = null;
+        if ($tel !== '') $id = DB::table('users')->where('cep_telefon', $tel)->value('id');
+        if (!$id && $ad !== '') $id = DB::table('users')->where('name', $ad)->value('id');
+        return $id ? (int) $id : null;
     }
 
     /**
