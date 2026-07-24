@@ -7,9 +7,9 @@
 // Visit'ler full cekilir; importer tarih araligini filtreyle uygular.
 (async () => {
   const BASE = 'https://web-api.salonappy.com/api';
-  const DB_NAME = prompt('IndexedDB cache adi', 'sa_visits_resume') || 'sa_visits_resume';
+  const DB_NAME = prompt('IndexedDB cache adi', 'sa_visits_resume3') || 'sa_visits_resume3';
 
-  let TOKEN = '288401&9yAvrci39d5fed92flFCih3N117ce6681ae8a0d86f84b036db6d6c';
+  let TOKEN = '75501&xllbghIbb43162455EtvHvW88780133d539433fef4c03826541471';
   let X_DEVICE = 'M3B3Ii2nwZrroB1nyWvOA81pWVKQmeTE';
   let X_VERSION = '2026.05.07.1';
   TOKEN = prompt('Bearer token', TOKEN) || TOKEN;
@@ -79,14 +79,39 @@
   } else console.log(`  resume: clients (${clients.length})`);
   await sleep(RATE_DELAY_MS);
 
-  // 2) Visit listesi (full — /visit/list parametresiz tek seferde tum gecmis visit'leri doner)
+  // 2) Visit listesi — YIL BAZLI + OFFSET/LIMIT PAGINATED
+  // /visit/list parametresiz cagrilirsa Salonappy default limit uyguluyor (~8800).
+  // 34K+ visit'li hesaplar icin yil bazli aralik + offset/limit ile paginate lazim.
   let visits = await dbGet('visits');
   if (!visits) {
-    console.log('🔹 Visit listesi cekiliyor (/visit/list — parametresiz, tek istek)...');
-    const j = await get('/visit/list');
-    visits = j?.data?.visits || [];
-    await dbPut('visits', visits);
-    console.log(`✓ Visit toplam: ${visits.length}`);
+    console.log('🔹 Visit listesi cekiliyor (/visit/list — yil bazli + offset paginated)...');
+    visits = [];
+    const seenSess = new Set();
+    const yEnd = new Date().getFullYear();
+    const limit = 100;
+    for (let yr = 2018; yr <= yEnd; yr++) {
+      const ds = `${yr}-01-01`;
+      const de = `${yr}-12-31`;
+      let offset = 0;
+      let yearCount = 0;
+      while (true) {
+        const j = await get(`/visit/list?offset=${offset}&limit=${limit}&date_start=${ds}&date_end=${de}`);
+        const arr = j?.data?.visits || [];
+        if (!arr.length) break;
+        for (const v of arr) {
+          const sid = String(v?.session ?? v?.id ?? '');
+          if (sid && !seenSess.has(sid)) { seenSess.add(sid); visits.push(v); }
+        }
+        offset += arr.length;
+        yearCount += arr.length;
+        await sleep(RATE_DELAY_MS);
+        if (arr.length < limit) break;
+      }
+      console.log(`  yil ${yr}: +${yearCount} (kumule=${visits.length})`);
+      // Ara-kaydet — yarim kalirsa devam
+      await dbPut('visits', visits);
+    }
+    console.log(`✓ Visit toplam (unique): ${visits.length}`);
     await sleep(RATE_DELAY_MS);
   } else console.log(`  resume: visits (${visits.length})`);
 
