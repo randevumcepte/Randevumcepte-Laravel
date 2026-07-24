@@ -30,7 +30,11 @@ class HatirlatmaAramaJob implements ShouldQueue
     // `queue:work --queue=hatirlatmalar`) default connection'i (prod .env
     // QUEUE_DRIVER=database) kullanir. Ilac/adet joblari gibi default'a birakiyoruz
     // ki ayni worker bu joblari da islesin. (Lokalde QUEUE_DRIVER=sync → inline.)
-    public $queue = 'hatirlatmalar';
+    // Kuyruk adi constructor'da onQueue() ile veriliyor.
+    // DIKKAT: `public $queue = '...'` YAZMA. Queueable trait'i zaten `public $queue;`
+    // (varsayilan null) tanimliyor; sinifta farkli bir varsayilanla yeniden tanimlamak
+    // PHP 7.4'te FATAL verir ("define the same property ($queue) ... incompatible")
+    // ve sinif hic yuklenemez.
 
     // $tries=1 KRITIK: worker CLI'da --tries=3 olsa da job-level deger onu ezer.
     // Bir job 50 kisiyi arar; retry = mukerrer arama. Asla retry etme.
@@ -43,6 +47,7 @@ class HatirlatmaAramaJob implements ShouldQueue
 
     public function __construct(array $aramaListesi, $salonId = null, $kaynakId = null)
     {
+        $this->onQueue('hatirlatmalar');
         $this->aramaListesi = $aramaListesi;
         $this->salonId = $salonId;
         $this->kaynakId = $kaynakId;

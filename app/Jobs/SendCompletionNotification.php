@@ -22,7 +22,9 @@ class SendCompletionNotification implements ShouldQueue
 
     // Mevcut worker yalnizca `hatirlatmalar` kuyrugunu izledigi icin bu bildirim
     // de ayni kuyruga konur (default connection — bkz. HatirlatmaAramaJob notu).
-    public $queue = 'hatirlatmalar';
+    // Kuyruk adi constructor'da onQueue() ile. DIKKAT: `public $queue = '...'` YAZMA;
+    // Queueable trait'i `public $queue;` tanimladigi icin PHP 7.4'te FATAL verir
+    // ("define the same property ($queue) ... incompatible") ve sinif yuklenemez.
     public $tries = 2;
 
     protected $toplamArama;
@@ -31,6 +33,7 @@ class SendCompletionNotification implements ShouldQueue
 
     public function __construct($toplamArama, $salonId = null, $kampanyaId = null)
     {
+        $this->onQueue('hatirlatmalar');
         $this->toplamArama = $toplamArama;
         $this->salonId = $salonId;
         $this->kampanyaId = $kampanyaId;

@@ -17,10 +17,10 @@ use App\Services\NotificationTypes;
  * Bir bildirim reklamini HEDEF musterilere PUSH olarak gonderir.
  *
  * Tasarim (HatirlatmaAramaJob ile ayni felsefe):
- * - $queue='hatirlatmalar': prod'da SADECE bu kuyrugu dinleyen tek bir supervisor
- *   worker var (bkz. docs/SANTRAL_ARAMALARI.md). Eskiden 'notifications' yaziyordu;
- *   o kuyrugu KIMSE tuketmiyordu, job sonsuza kadar jobs tablosunda bekliyordu.
- *   Lokalde QUEUE_DRIVER=sync -> inline calisir.
+ * - Kuyruk 'hatirlatmalar' (constructor'da onQueue ile): prod'da SADECE bu kuyrugu
+ *   dinleyen tek bir supervisor worker var (bkz. docs/SANTRAL_ARAMALARI.md).
+ *   Eskiden 'notifications' yaziyordu; o kuyrugu KIMSE tuketmiyordu, job sonsuza
+ *   kadar jobs tablosunda bekliyordu. Lokalde QUEUE_DRIVER=sync -> inline calisir.
  * - $tries=1: retry = MUKERRER push. Asla retry etme; hatalari handle() icinde yut.
  * - Hedef kitle (segment) job icinde cozulur; boylece buyuk salonlarda binlerce
  *   push senkron istek yerine arka planda gonderilir.
@@ -29,7 +29,10 @@ class BildirimReklamGonderJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $queue = 'hatirlatmalar';
+    // DIKKAT: `public $queue = '...'` YAZMA. Queueable trait'i zaten `public $queue;`
+    // (varsayilan null) tanimliyor; sinifta farkli bir varsayilanla yeniden tanimlamak
+    // PHP 7.4'te FATAL verir ("define the same property ($queue) ... incompatible")
+    // ve sinif hic yuklenemez -> her istek 500. Kuyruk adi constructor'da onQueue() ile.
     public $timeout = 1700;
     public $tries = 1;
 
@@ -38,6 +41,7 @@ class BildirimReklamGonderJob implements ShouldQueue
     public function __construct($reklamId)
     {
         $this->reklamId = $reklamId;
+        $this->onQueue('hatirlatmalar');
     }
 
     public function handle()
