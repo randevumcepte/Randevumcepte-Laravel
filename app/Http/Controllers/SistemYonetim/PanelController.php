@@ -850,8 +850,27 @@ class PanelController extends Controller
         return redirect('/isletmeyonetim?sube=' . $salon->id);
     }
 
-    public function impersonationBitir()
+    public function impersonationBitir(Request $request)
     {
+        // KURSUN GECIRMEZ: tarayici PREFETCH/PRERENDER'i (kullanici TIKLAMADAN arka planda
+        // bu URL'yi cagirma) impersonation'i BITIRMESIN. Salonda calisirken "pat diye"
+        // atilmanin kok nedeni buydu (Chrome, banner GET link'ini onden yukluyordu).
+        $purpose = strtolower(
+            (string) $request->header('Sec-Purpose') . '|' . (string) $request->header('Purpose')
+            . '|' . (string) $request->header('X-Purpose') . '|' . (string) $request->header('X-Moz')
+        );
+        @file_put_contents(storage_path('logs/imptest.log'),
+            date('H:i:s') . ' [BITIR-CAGRILDI] method=' . $request->method()
+            . ' purpose="' . trim($purpose, '|') . '"' . "\n", FILE_APPEND);
+        if (strpos($purpose, 'prefetch') !== false || strpos($purpose, 'prerender') !== false) {
+            return response('', 204); // prefetch -> HICBIR SEY YAPMA (oturum bozulmaz)
+        }
+        // Sadece GERCEK POST (banner butonu) impersonation'i bitirir. GET (prefetch/eski
+        // link/route deploy gecikmesi) zararsizdir -> panele don, oturuma dokunma.
+        if ($request->method() !== 'POST') {
+            return redirect('/sistemyonetim/v2/dashboard');
+        }
+
         $logId = session('sysadmin_impersonation_id');
         if ($logId) {
             $log = ImpersonationLog::find($logId);
