@@ -20620,26 +20620,70 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if (!$reklam->kanal_push)
             return response()->json(['durum' => 'hata', 'mesaj' => 'Bu reklamda Push kanali kapali.'], 422);
 
-        // Yayina al + gonderim isaretle
-        if ($reklam->durum !== 'aktif') $reklam->durum = 'aktif';
-        $reklam->push_gonderildi = true;
-        $reklam->save();
+        try {
+            // Yayina al + gonderim isaretle
+            if ($reklam->durum !== 'aktif') $reklam->durum = 'aktif';
+            $reklam->push_gonderildi = true;
+            $reklam->save();
 
-        // TEST ASAMASI: push'u ANINDA (senkron) gonder — kuyruk worker'ina bagimli
-        // kalma, sonucu (kac kisiye gitti) hemen dondur. Buyuk "tumu" gonderimlerinde
-        // istegi bloklar; olceklenince ::dispatch (kuyruk) + worker'a geri don.
-        $gonderilen = (int) \App\Jobs\BildirimReklamGonderJob::dispatchNow($reklam->id);
+            // Gercek alici sayisi = hedef kitle ∩ aktif FCM token'i olanlar.
+            $alicilar = \App\Jobs\BildirimReklamGonderJob::alicilar($reklam);
+            $hedefMetin = $reklam->hedef_kitle === 'segment' ? 'segment' : 'tum musteriler';
 
-        SalonAudit::log($salonId, 'bildirim_reklam_gonder', 'bildirim_reklam', $reklam->id,
-            $reklam->baslik, $gonderilen . ' kisiye push gonderildi (hedef: ' . ($reklam->hedef_kitle === 'segment' ? 'segment' : 'tum musteriler') . ')');
+            if (empty($alicilar)) {
+                SalonAudit::log($salonId, 'bildirim_reklam_gonder', 'bildirim_reklam', $reklam->id,
+                    $reklam->baslik, 'Alici bulunamadi (hedef: ' . $hedefMetin . ')');
+                return response()->json([
+                    'durum' => 'basarili',
+                    'gonderilen' => 0,
+                    'mesaj' => 'Gönderildi ama alıcı bulunamadı. Seçtiğin kişi uygulamaya giriş yapmış ve bildirime izin vermiş olmalı (FCM token yoksa push gidemez).',
+                ]);
+            }
 
-        return response()->json([
-            'durum' => 'basarili',
-            'gonderilen' => $gonderilen,
-            'mesaj' => $gonderilen > 0
-                ? ($gonderilen . ' kişiye push gönderildi.')
-                : 'Gönderildi ama alıcı bulunamadı. Seçtiğin kişi uygulamaya giriş yapmış ve bildirime izin vermiş olmalı (FCM token yoksa push gidemez).',
-        ]);
+            // Her alici icin FCM'e ayri HTTP istegi gidiyor (~0.3-1 sn). Kalabalik
+            // gonderimi web istegi icinde yaparsak PHP-FPM/nginx zaman asimina
+            // ugrar ve kullaniciya 500 doner. Bu yuzden esik ustunde KUYRUGA
+            // atiyoruz (prod worker 'hatirlatmalar' kuyrugunu dinliyor).
+            if (count($alicilar) > 100 && config('queue.default') !== 'sync') {
+                \App\Jobs\BildirimReklamGonderJob::dispatch($reklam->id);
+                SalonAudit::log($salonId, 'bildirim_reklam_gonder', 'bildirim_reklam', $reklam->id,
+                    $reklam->baslik, count($alicilar) . ' kisiye push kuyruga alindi (hedef: ' . $hedefMetin . ')');
+                return response()->json([
+                    'durum' => 'basarili',
+                    'gonderilen' => count($alicilar),
+                    'kuyruk' => true,
+                    'mesaj' => count($alicilar) . ' kişiye gönderim arka planda başlatıldı. Birkaç dakika içinde tamamlanır.',
+                ]);
+            }
+
+            // Kucuk gonderim: aninda gonder, sonucu hemen dondur.
+            @set_time_limit(0);
+            $gonderilen = (int) \App\Jobs\BildirimReklamGonderJob::dispatchNow($reklam->id);
+
+            SalonAudit::log($salonId, 'bildirim_reklam_gonder', 'bildirim_reklam', $reklam->id,
+                $reklam->baslik, $gonderilen . ' kisiye push gonderildi (hedef: ' . $hedefMetin . ')');
+
+            return response()->json([
+                'durum' => 'basarili',
+                'gonderilen' => $gonderilen,
+                'mesaj' => $gonderilen > 0
+                    ? ($gonderilen . ' kişiye push gönderildi.')
+                    : 'Gönderildi ama alıcı bulunamadı. Seçtiğin kişi uygulamaya giriş yapmış ve bildirime izin vermiş olmalı (FCM token yoksa push gidemez).',
+            ]);
+        } catch (\Throwable $e) {
+            // Ciplak 500 yerine sebebi panelde goster (APP_DEBUG=false oldugu icin
+            // aksi halde kullaniciya hicbir ipucu ulasmiyordu).
+            \Log::error('[REKLAM-PUSH] gonderim hatasi', [
+                'reklam_id' => $reklam->id,
+                'salon_id'  => $salonId,
+                'err'       => $e->getMessage(),
+                'yer'       => $e->getFile() . ':' . $e->getLine(),
+            ]);
+            return response()->json([
+                'durum' => 'hata',
+                'mesaj' => 'Gönderim hatası: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function kampanyakatilimcisil(Request $request){

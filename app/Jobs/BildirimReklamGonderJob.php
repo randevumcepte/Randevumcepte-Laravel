@@ -17,8 +17,10 @@ use App\Services\NotificationTypes;
  * Bir bildirim reklamini HEDEF musterilere PUSH olarak gonderir.
  *
  * Tasarim (HatirlatmaAramaJob ile ayni felsefe):
- * - $queue='notifications': prod worker (queue:work database --queue=hatirlatmalar,notifications)
- *   bu joblari isler. Lokalde QUEUE_DRIVER=sync -> inline calisir.
+ * - $queue='hatirlatmalar': prod'da SADECE bu kuyrugu dinleyen tek bir supervisor
+ *   worker var (bkz. docs/SANTRAL_ARAMALARI.md). Eskiden 'notifications' yaziyordu;
+ *   o kuyrugu KIMSE tuketmiyordu, job sonsuza kadar jobs tablosunda bekliyordu.
+ *   Lokalde QUEUE_DRIVER=sync -> inline calisir.
  * - $tries=1: retry = MUKERRER push. Asla retry etme; hatalari handle() icinde yut.
  * - Hedef kitle (segment) job icinde cozulur; boylece buyuk salonlarda binlerce
  *   push senkron istek yerine arka planda gonderilir.
@@ -27,7 +29,7 @@ class BildirimReklamGonderJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $queue = 'notifications';
+    public $queue = 'hatirlatmalar';
     public $timeout = 1700;
     public $tries = 1;
 
@@ -40,10 +42,15 @@ class BildirimReklamGonderJob implements ShouldQueue
 
     public function handle()
     {
+        @set_time_limit(0);
+
         $reklam = BildirimReklamlari::find($this->reklamId);
         if (!$reklam || !$reklam->kanal_push) return 0;
 
-        $userIds = $this->hedefKullanicilar($reklam);
+        // SADECE push alabilecek (aktif FCM token'i olan) kullanicilar.
+        // Portfoydeki 5000 kisinin tamamini dolasmak yerine once suzuyoruz;
+        // aksi halde her kisi icin bosuna 3-4 sorgu + log kaydi atiliyordu.
+        $userIds = self::alicilar($reklam);
         if (empty($userIds)) {
             Log::info('[REKLAM-PUSH] hedef bos', ['reklam_id' => $this->reklamId]);
             return 0;
@@ -76,10 +83,39 @@ class BildirimReklamGonderJob implements ShouldQueue
     }
 
     /**
+     * Hedef kitle ∩ push alabilen kullanicilar (aktif FCM token'i olanlar).
+     *
+     * Controller gonderim oncesi "kac kisiye gidecek" bilgisini buradan alir ve
+     * senkron mu kuyruk mu karar verir. Portfoyun tamami degil, GERCEK alici sayisi.
+     */
+    public static function alicilar(BildirimReklamlari $reklam)
+    {
+        $hedef = self::hedefKullanicilar($reklam);
+        if (empty($hedef)) return [];
+
+        // Brand izolasyonu: salonun app_bundle'i varsa sadece o uygulamanin cihazlari
+        // (NotificationService::findTokens ile ayni mantik).
+        $bundle = DB::table('salonlar')->where('id', (int) $reklam->salon_id)->value('app_bundle');
+
+        $out = [];
+        foreach (array_chunk($hedef, 2000) as $parca) {
+            $q = DB::table('bildirim_kimlikleri')
+                ->whereIn('user_id', $parca)
+                ->where('aktif', 1)
+                ->whereNotNull('bildirim_id')
+                ->where('bildirim_id', '!=', '');
+            if (!empty($bundle)) $q->where('app_bundle', $bundle);
+            $out = array_merge($out, $q->distinct()->pluck('user_id')->all());
+        }
+
+        return array_values(array_unique(array_map('intval', $out)));
+    }
+
+    /**
      * Reklamin hedef kitlesine gore user_id listesi.
      * Taban: salonun aktif musterileri (musteri_portfoy). Segment ise daraltilir.
      */
-    protected function hedefKullanicilar(BildirimReklamlari $reklam)
+    public static function hedefKullanicilar(BildirimReklamlari $reklam)
     {
         $salonId = (int) $reklam->salon_id;
         $portfoy = DB::table('musteri_portfoy')
