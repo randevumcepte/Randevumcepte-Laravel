@@ -165,6 +165,28 @@ class StoreAdminController extends Controller
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
+            // SELF-HEAL (impersonation kopma fix): cok-sekme/oturum-race isletmeyonetim
+            // login'ini silmis olabilir. Dayanikli 'imp_iy' cookie'sinden ANINDA geri kur
+            // (cookie oturum-race'e tabi degil). Hangi sekme ne yazarsa yazsin salon
+            // oturumu kendini onarir, kullanici atilmaz.
+            if (!Auth::guard('isletmeyonetim')->check() && !Auth::guard('satisortakligi')->check()) {
+                $imp = $request->cookie('imp_iy');
+                if ($imp && strpos($imp, '|') !== false) {
+                    try {
+                        list($yid, $lid) = explode('|', $imp, 2);
+                        $y = \App\IsletmeYetkilileri::find($yid);
+                        if ($y) {
+                            $g = Auth::guard('isletmeyonetim');
+                            session()->put($g->getName(), $y->getAuthIdentifier());
+                            $g->setUser($y);
+                            session()->put('sysadmin_impersonation_id', $lid);
+                            session()->put('password_hash_isletmeyonetim', $y->getAuthPassword());
+                            @file_put_contents(storage_path('logs/imptest.log'),
+                                date('H:i:s') . ' [HEAL] iy geri kuruldu yetkili=' . $yid . ' /' . $request->path() . "\n", FILE_APPEND);
+                        }
+                    } catch (\Throwable $e) {}
+                }
+            }
             if (!Auth::guard('isletmeyonetim')->check() && !Auth::guard('satisortakligi')->check()) {
                 // GECICI TESHIS: neden isletmeyonetim authed degil? (impersonation atma sorunu)
                 try {
@@ -20515,8 +20537,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if (!empty($request->gorsel))
             $reklam->gorsel = $request->gorsel;
 
-        // Kupon ayarlari (yalniz aksiyon_tipi = kupon)
-        if ($reklam->aksiyon_tipi === 'kupon') {
+        // Kupon ayarlari: aksiyon 'kupon' VEYA 'randevu' (bos slot indirimi opsiyonel kupon)
+        if ($reklam->aksiyon_tipi === 'kupon' || $reklam->aksiyon_tipi === 'randevu') {
             $reklam->kupon_indirim_tipi   = $request->kupon_indirim_tipi ?: 'yuzde';
             $reklam->kupon_deger          = $request->kupon_deger ?: 0;
             $reklam->kupon_hizmet_id      = $request->kupon_hizmet_id ?: null;
@@ -20524,6 +20546,17 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $reklam->kupon_gecerlilik_gun = ($request->kupon_gecerlilik_gun !== null && $request->kupon_gecerlilik_gun !== '') ? (int)$request->kupon_gecerlilik_gun : null;
             $reklam->kupon_kisi_limit     = $request->kupon_kisi_limit ?: 1;
             $reklam->kupon_toplam_adet    = ($request->kupon_toplam_adet !== null && $request->kupon_toplam_adet !== '') ? (int)$request->kupon_toplam_adet : null;
+        }
+
+        // Randevu (bos slot) penceresi: aksiyon 'randevu' ise tarih + saat araligi
+        if ($reklam->aksiyon_tipi === 'randevu') {
+            $reklam->randevu_tarih    = !empty($request->randevu_tarih) ? $request->randevu_tarih : null;
+            $reklam->randevu_saat_bas = !empty($request->randevu_saat_bas) ? $request->randevu_saat_bas : null;
+            $reklam->randevu_saat_bit = !empty($request->randevu_saat_bit) ? $request->randevu_saat_bit : null;
+        } else {
+            $reklam->randevu_tarih = null;
+            $reklam->randevu_saat_bas = null;
+            $reklam->randevu_saat_bit = null;
         }
 
         // Hedef kitle: tumu | segment (+ segment kosulu JSON)

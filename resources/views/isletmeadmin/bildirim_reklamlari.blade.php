@@ -158,7 +158,7 @@
                <label class="br-lbl" style="margin-top:14px">Görsele dokununca ne olsun?</label>
                <select class="form-control" name="aksiyon_tipi" id="br_aksiyon">
                   <option value="kupon">🎟️ İndirim kuponu tanımlansın (tek dokunuş)</option>
-                  <option value="randevu">📅 Randevu ekranı açılsın</option>
+                  <option value="randevu">📅 Boş slot: indirimli saatte randevu (kupon + randevu)</option>
                   <option value="yok">ℹ️ Sadece görsel (aksiyon yok)</option>
                </select>
 
@@ -202,6 +202,27 @@
                      </div>
                   </div>
                   <small class="br-ipucu">Aynı müşteri kuponu yalnızca <b>1 kez</b> kapabilir. Toplam adet dolunca kampanya otomatik biter.</small>
+                  <small id="br_kupon_randevu_not" class="br-ipucu" style="display:none;color:#0ea5e9">Boş slot reklamında kupon <b>opsiyoneldir</b>: Değer girersen müşteri dokununca kuponu alır (ödemede uygulanır). İndirim istemiyorsan Değer'i boş bırak.</small>
+               </div>
+
+               <!-- RANDEVU (BOŞ SLOT) PENCERESİ -->
+               <div id="br_randevu_kutu" class="br-randevu-kutu" style="display:none">
+                  <div class="br-kupon-baslik" style="color:#0ea5e9"><i class="fa fa-calendar"></i> Randevu Saat Aralığı (boş slot)</div>
+                  <div class="row">
+                     <div class="col-md-4">
+                        <label class="br-lbl">Tarih</label>
+                        <input type="date" class="form-control" name="randevu_tarih" id="br_rnd_tarih">
+                     </div>
+                     <div class="col-md-4">
+                        <label class="br-lbl">Başlangıç Saati</label>
+                        <input type="time" class="form-control" name="randevu_saat_bas" id="br_rnd_bas">
+                     </div>
+                     <div class="col-md-4">
+                        <label class="br-lbl">Bitiş Saati</label>
+                        <input type="time" class="form-control" name="randevu_saat_bit" id="br_rnd_bit">
+                     </div>
+                  </div>
+                  <small class="br-ipucu" style="color:#0ea5e9">Müşteri dokununca randevu ekranı <b>bu tarih ve saat aralığına</b> kısıtlı açılır — yalnızca bu saatlerden randevu alabilir. Boş bırakırsan tüm gün açık gelir.</small>
                </div>
 
                <label class="br-lbl" style="margin-top:14px">Hedef Kitle (Push kime gitsin?)</label>
@@ -297,6 +318,7 @@
 .br-check i{color:#7c3aed}
 .br-segment-kutu{margin-top:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px}
 .br-kupon-kutu{margin-top:14px;background:#faf5ff;border:1px solid #ede9fe;border-radius:12px;padding:14px 16px}
+.br-randevu-kutu{margin-top:14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:14px 16px}
 .br-kupon-baslik{font-weight:700;color:#7c3aed;margin-bottom:10px}
 .br-ipucu{display:block;margin-top:10px;color:#7c3aed;font-size:12px}
 .br-upload{height:110px;border:2px dashed #cbd5e1;border-radius:12px;display:flex;align-items:center;justify-content:center;text-align:center;color:#94a3b8;overflow:hidden;background:#f8fafc}
@@ -309,11 +331,14 @@
    var SUBE = {{ $isletme->id }};
    function url(p){ return '/isletmeyonetim/'+p+'?sube='+SUBE; }
 
-   // Kupon kutusu aksiyon tipine gore goster/gizle
-   function kuponGoster(){
-      $('#br_kupon_kutu').toggle($('#br_aksiyon').val()==='kupon');
+   // Aksiyon tipine gore kupon + randevu kutularini goster/gizle
+   function aksiyonGoster(){
+      var a = $('#br_aksiyon').val();
+      $('#br_kupon_kutu').toggle(a==='kupon' || a==='randevu');   // kupon ayarlari (randevu'da opsiyonel)
+      $('#br_kupon_randevu_not').toggle(a==='randevu');
+      $('#br_randevu_kutu').toggle(a==='randevu');                // tarih + saat araligi
    }
-   $('#br_aksiyon').on('change', kuponGoster);
+   $('#br_aksiyon').on('change', aksiyonGoster);
 
    // Segment kutusu + alt alanlar
    function segmentGoster(){
@@ -338,7 +363,7 @@
       $('#br_tamekran').prop('checked',false);
       $('#br_hedef').val('tumu');
       $('#brModalBaslik').text('Yeni Bildirim Reklamı');
-      kuponGoster(); segmentGoster(); segAlanGoster();
+      aksiyonGoster(); segmentGoster(); segAlanGoster();
       $('#brModal').modal('show');
    });
 
@@ -363,6 +388,10 @@
       $('#br_kupon_gun').val(r.kupon_gecerlilik_gun||'');
       $('#br_kupon_adet').val(r.kupon_toplam_adet||'');
       $('#br_kupon_limit').val(r.kupon_kisi_limit||1);
+      // Randevu (boş slot) penceresi
+      $('#br_rnd_tarih').val(r.randevu_tarih||'');
+      $('#br_rnd_bas').val(r.randevu_saat_bas||'');
+      $('#br_rnd_bit').val(r.randevu_saat_bit||'');
       // Hedef kitle / segment
       $('#br_hedef').val(r.hedef_kitle||'tumu');
       var kosul = {};
@@ -376,7 +405,7 @@
       }
       $('#br_durum').val(r.durum||'taslak');
       $('#brModalBaslik').text('Reklamı Düzenle');
-      kuponGoster(); segmentGoster(); segAlanGoster();
+      aksiyonGoster(); segmentGoster(); segAlanGoster();
       $('#brModal').modal('show');
    });
 

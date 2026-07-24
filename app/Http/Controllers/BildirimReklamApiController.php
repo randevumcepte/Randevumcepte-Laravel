@@ -51,7 +51,10 @@ class BildirimReklamApiController extends Controller
                 if ($r->yayin_baslangic && $r->yayin_baslangic->isFuture()) return false;
                 if ($r->yayin_bitis && $r->yayin_bitis->isPast()) return false;
                 if ($r->kupon_toplam_adet !== null && $r->kupon_dagitilan >= $r->kupon_toplam_adet) return false;
-                // Kullanici bu kupon reklamini zaten kaptiysa (kisi limiti doldu) ona artik gosterme
+                // Bos slot (randevu) kampanyasinin tarihi gectiyse gizle
+                if ($r->aksiyon_tipi === 'randevu' && $r->randevu_tarih && $r->randevu_tarih < date('Y-m-d')) return false;
+                // Kullanici bu SALT-kupon reklamini zaten kaptiysa (kisi limiti doldu) ona artik gosterme.
+                // ('randevu' reklami kupon verse de kampanya tarihine kadar gorunsun; kupon 1 kez kapilir.)
                 if ($userId > 0 && $r->aksiyon_tipi === 'kupon') {
                     $limit = max(1, (int) $r->kupon_kisi_limit);
                     $kaptigi = CarkifelekOdulleri::where('kaynak_reklam_id', $r->id)
@@ -61,6 +64,8 @@ class BildirimReklamApiController extends Controller
                 return true;
             })
             ->map(function ($r) {
+                $kuponVar = ($r->aksiyon_tipi === 'kupon' || $r->aksiyon_tipi === 'randevu')
+                    && $r->kupon_deger !== null && (float) $r->kupon_deger > 0;
                 return [
                     'id'           => $r->id,
                     'salon_id'     => $r->salon_id,
@@ -71,10 +76,16 @@ class BildirimReklamApiController extends Controller
                     'tam_ekran'    => (bool) $r->tam_ekran,
                     'aksiyon_tipi' => $r->aksiyon_tipi,
                     'aksiyon_hedef' => $r->aksiyon_hedef,
-                    'kupon'        => $r->aksiyon_tipi === 'kupon' ? [
+                    'kupon'        => $kuponVar ? [
                         'indirim_tipi' => $r->kupon_indirim_tipi,
-                        'deger'        => $r->kupon_deger !== null ? (float) $r->kupon_deger : null,
+                        'deger'        => (float) $r->kupon_deger,
                         'hizmet_id'    => $r->kupon_hizmet_id,
+                    ] : null,
+                    // Bos slot randevu penceresi (aksiyon randevu ise)
+                    'randevu'      => $r->aksiyon_tipi === 'randevu' ? [
+                        'tarih'    => $r->randevu_tarih,        // "yyyy-MM-dd" veya null
+                        'saat_bas' => $r->randevu_saat_bas,     // "10:00" veya null
+                        'saat_bit' => $r->randevu_saat_bit,     // "12:00" veya null
                     ] : null,
                 ];
             })
@@ -100,7 +111,10 @@ class BildirimReklamApiController extends Controller
         if (!$reklam) {
             return response()->json(['success' => false, 'message' => 'Reklam bulunamadı.']);
         }
-        if ($reklam->aksiyon_tipi !== 'kupon') {
+        // aksiyon 'kupon' veya 'randevu' (bos slot indirimli) + gecerli kupon degeri olmali
+        $kuponVerir = in_array($reklam->aksiyon_tipi, ['kupon', 'randevu'])
+            && $reklam->kupon_deger !== null && (float) $reklam->kupon_deger > 0;
+        if (!$kuponVerir) {
             return response()->json(['success' => false, 'message' => 'Bu reklamda kupon yok.']);
         }
         if (!$reklam->yayindaMi()) {
