@@ -25977,6 +25977,170 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             'saatler'=>$saatler,
         );
     }
+
+    /**
+     * Uygulama (Flutter) için: Online randevu saat yönetimi mevcut ayarları.
+     * Web'deki "Online Randevu Saatleri" sekmesinin API karşılığı. Her gün için
+     * çalışma saatlerinden üretilmiş slot listesi + kayıtlı açık slotlar döner.
+     */
+    public function onlineRandevuSaatConfig($salonid)
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('salon_online_randevu_saatleri')) {
+            return response()->json(['ok' => false, 'mesaj' => 'Veritabanı güncellemesi uygulanmamış (migrate).'], 422);
+        }
+        $salon = Salonlar::find($salonid);
+        if (!$salon) return response()->json(['ok' => false, 'mesaj' => 'Salon bulunamadı'], 404);
+
+        $aralik = (int) ($salon->randevu_saat_araligi ?: 30);
+        if ($aralik < 5) $aralik = 30;
+
+        $calisma = SalonCalismaSaatleri::where('salon_id', $salonid)->get()->keyBy('haftanin_gunu');
+        $pencereler = \App\SalonOnlineRandevuSaatleri::where('salon_id', $salonid)->get()->groupBy('haftanin_gunu');
+
+        $gunAdlari = [1 => 'Pazartesi', 2 => 'Salı', 3 => 'Çarşamba', 4 => 'Perşembe', 5 => 'Cuma', 6 => 'Cumartesi', 7 => 'Pazar'];
+        $gunler = array();
+        foreach ($gunAdlari as $g => $ad) {
+            $cal = $calisma->get($g);
+            $slots = array();
+            $calisiyor = false;
+            if ($cal && (int) $cal->calisiyor === 1) {
+                $calisiyor = true;
+                $b = strtotime(substr($cal->baslangic_saati, 0, 5));
+                $e = strtotime(substr($cal->bitis_saati, 0, 5));
+                for ($t = $b; $t < $e; $t += $aralik * 60) $slots[] = date('H:i', $t);
+            }
+            $yapilandirildi = $pencereler->has($g);
+            $acik = array();
+            if ($yapilandirildi) {
+                foreach ($pencereler->get($g) as $r) {
+                    $rb = strtotime(substr($r->baslangic_saati, 0, 5));
+                    $re = strtotime(substr($r->bitis_saati, 0, 5));
+                    for ($t = $rb; $t < $re; $t += $aralik * 60) $acik[] = date('H:i', $t);
+                }
+            }
+            $gunler[] = array(
+                'gun' => $g,
+                'gun_adi' => $ad,
+                'calisiyor' => $calisiyor,
+                'slots' => $slots,
+                'yapilandirildi' => $yapilandirildi, // false = bu gün hiç kaydedilmemiş -> varsayılan hepsi açık
+                'acik' => array_values(array_unique($acik)),
+            );
+        }
+
+        $istisnalar = array();
+        $isRows = \App\SalonOnlineRandevuIstisnasi::where('salon_id', $salonid)
+            ->where('tarih', '>=', date('Y-m-d'))->orderBy('tarih')->get();
+        foreach ($isRows as $i) {
+            $istisnalar[] = array(
+                'tarih' => substr((string) $i->tarih, 0, 10),
+                'tip' => $i->tip,
+                'bas' => $i->baslangic_saati ? substr($i->baslangic_saati, 0, 5) : null,
+                'bit' => $i->bitis_saati ? substr($i->bitis_saati, 0, 5) : null,
+            );
+        }
+
+        return response()->json(array(
+            'ok' => true,
+            'kisitlama_aktif' => (int) ($salon->online_saat_kisitlama_aktif ?? 0),
+            'gunluk_limit' => $salon->online_gunluk_slot_limiti,
+            'aralik_dk' => $aralik,
+            'gunler' => $gunler,
+            'istisnalar' => $istisnalar,
+        ));
+    }
+
+    /**
+     * Uygulama (Flutter) için: Online randevu saat ayarlarını kaydet.
+     * Body (JSON): salon_id, kisitlama_aktif, gunluk_limit,
+     *   gunler = {"1":["10:15","10:30",...], ...} (açık slotlar; sunucu bitişik
+     *   olanları aralığa birleştirir), istisnalar = [{tarih,tip,bas,bit}, ...].
+     */
+    public function onlineRandevuSaatKaydet(Request $request)
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('salon_online_randevu_saatleri')) {
+            return response()->json(['ok' => false, 'mesaj' => 'Veritabanı güncellemesi uygulanmamış (migrate).'], 422);
+        }
+        $salonId = (int) $request->input('salon_id');
+        $salon = Salonlar::find($salonId);
+        if (!$salon) return response()->json(['ok' => false, 'mesaj' => 'Salon bulunamadı'], 404);
+
+        $aralik = (int) ($salon->randevu_saat_araligi ?: 30);
+        if ($aralik < 5) $aralik = 30;
+
+        $hhmm = function ($v) {
+            $v = trim((string) $v);
+            return preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $v) ? $v : null;
+        };
+
+        $salon->online_saat_kisitlama_aktif = ((int) $request->input('kisitlama_aktif') === 1) ? 1 : 0;
+        $limit = (int) $request->input('gunluk_limit');
+        $salon->online_gunluk_slot_limiti = $limit > 0 ? $limit : null;
+        $salon->save();
+
+        // Günler: açık slot listelerini bitişik aralıklara birleştirip yaz
+        \App\SalonOnlineRandevuSaatleri::where('salon_id', $salonId)->delete();
+        $gunler = $request->input('gunler', array());
+        if (is_string($gunler)) $gunler = json_decode($gunler, true) ?: array();
+        foreach ((array) $gunler as $g => $slotlar) {
+            $g = (int) $g;
+            if ($g < 1 || $g > 7) continue;
+            $temiz = array();
+            foreach ((array) $slotlar as $s) {
+                $s = $hhmm($s);
+                if ($s) $temiz[] = strtotime($s);
+            }
+            if (empty($temiz)) continue;
+            $temiz = array_values(array_unique($temiz));
+            sort($temiz);
+            $bas = $temiz[0];
+            $prev = $temiz[0];
+            $ekle = function ($b, $e) use ($salonId, $g) {
+                \App\SalonOnlineRandevuSaatleri::create(array(
+                    'salon_id' => $salonId, 'haftanin_gunu' => $g,
+                    'baslangic_saati' => date('H:i', $b), 'bitis_saati' => date('H:i', $e),
+                ));
+            };
+            for ($i = 1; $i < count($temiz); $i++) {
+                if ($temiz[$i] === $prev + $aralik * 60) { $prev = $temiz[$i]; continue; }
+                $ekle($bas, $prev + $aralik * 60);
+                $bas = $temiz[$i];
+                $prev = $temiz[$i];
+            }
+            $ekle($bas, $prev + $aralik * 60);
+        }
+
+        // İstisnalar
+        \App\SalonOnlineRandevuIstisnasi::where('salon_id', $salonId)->delete();
+        $istisnalar = $request->input('istisnalar', array());
+        if (is_string($istisnalar)) $istisnalar = json_decode($istisnalar, true) ?: array();
+        foreach ((array) $istisnalar as $i) {
+            $i = (array) $i;
+            $tarih = isset($i['tarih']) ? trim((string) $i['tarih']) : '';
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tarih)) continue;
+            $tip = (isset($i['tip']) && $i['tip'] === 'ozel') ? 'ozel' : 'kapali';
+            $b = null; $e = null;
+            if ($tip === 'ozel') {
+                $b = $hhmm($i['bas'] ?? '');
+                $e = $hhmm($i['bit'] ?? '');
+                if (!$b || !$e || strtotime($e) <= strtotime($b)) continue;
+            }
+            \App\SalonOnlineRandevuIstisnasi::create(array(
+                'salon_id' => $salonId, 'tarih' => $tarih, 'tip' => $tip,
+                'baslangic_saati' => $b, 'bitis_saati' => $e,
+            ));
+        }
+
+        if (class_exists('\App\SalonAudit')) {
+            \App\SalonAudit::log($salonId, 'online_saat_guncelle', 'salon', $salonId,
+                'Online randevu saatleri güncellendi (uygulama)',
+                $salon->online_saat_kisitlama_aktif ? 'Kısıtlama aktif' : 'Kısıtlama kapalı',
+                ['limit' => $salon->online_gunluk_slot_limiti]);
+        }
+
+        return response()->json(['ok' => true, 'mesaj' => 'Online randevu saatleri kaydedildi']);
+    }
+
     public function personelAdiminaGec(Request $request)
     {
         $salonlar = Salonlar::where('app_bundle',$request->appBundle)->get();

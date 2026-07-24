@@ -234,6 +234,8 @@ Route::post('check_phone', 'ApiController@checkPhone');
 Route::post('/musterisil','ApiController@musteri_sil');
 Route::post('/saglikbilgilerigir','ApiController@saglikbilgilerigir');
 Route::post('/randevuayarguncelle','ApiController@randevuayarguncelle');
+Route::get('/online_randevu_saatleri/{salonid}','ApiController@onlineRandevuSaatConfig');
+Route::post('/online_randevu_saatleri_guncelle','ApiController@onlineRandevuSaatKaydet');
 Route::post('/salonlar','ApiController@salonlar');
 Route::get('/salonturleri','ApiController@salonturleri');
 Route::post('/isletmebilgiguncelle','ApiController@isletmebilgiguncelle');
