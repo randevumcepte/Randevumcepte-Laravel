@@ -25909,11 +25909,18 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
         // izinliAraliklar: null=kısıtlama yok, []=o gün kapalı, [{bas,bit}...]=açık pencereler.
         // İzin dışında kalan boşluklar müşteriye DOLU gösterilir (salon dolu görünsün,
         // müşteri seçemesin). Ardından günlük limit varsa kalan boşluklar seyreltilir.
+        //
+        // ÖNEMLİ: Kürasyon yalnız BAŞLANGIÇ saatinin açık olmasına bakar (süre 0).
+        // Hizmetin [saat, saat+süre) penceresinin gerçekten sığması (mesai + dolu
+        // randevu) zaten YUKARIDA $bosSaatler hesaplanırken kontrol edildi. Salonun
+        // bir dilimi "kapalı" işaretlemesi "başlangıç olarak önerme" demektir; o
+        // dilimi boş tutma zorunluluğu değil. Böylece 15dk aralıkta açılan tek bir
+        // 10:15 slotu, 45dk hizmette de başlangıç olarak sunulabilir (web ile birebir).
         $izinliAraliklar = \App\SalonOnlineRandevuSaatleri::izinliAraliklar($salonId, $tarih);
         if ($izinliAraliklar !== null) {
             $yeniBos = array();
             foreach ($bosSaatler as $bs) {
-                if (\App\SalonOnlineRandevuSaatleri::slotIzinliMi($izinliAraliklar, $bs['saat'], $toplamSure)) {
+                if (\App\SalonOnlineRandevuSaatleri::slotIzinliMi($izinliAraliklar, $bs['saat'], 0)) {
                     $yeniBos[] = $bs;
                 } else {
                     $dolusaatler[] = array('dolu' => '1', 'saat' => $bs['saat']);
