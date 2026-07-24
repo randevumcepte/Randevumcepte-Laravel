@@ -4331,7 +4331,7 @@ class SalonappyImport extends Command
      * Kurallar:
      *  - seller_id = 0 / seller_text = "Kasa" => GERCEK SATICI YOK, null doner.
      *    (Salon 368 dump'inda 464 satirin 220'si boyle.)
-     *  - Yalnizca MEVCUT personelle eslesir; yeni personel OLUSTURMAZ.
+     *  - Mevcut personelle eslesir; sistemde yoksa ARSIVLI personel olarak acar.
      *    Eslesmeyen (isten ayrilmis vb.) satici => null.
      */
     private function satisPersonelId($salonId, $satir, $ustSatir = null)
@@ -4349,7 +4349,8 @@ class SalonappyImport extends Command
         // Salonappy'de saticisiz satislar seller_id=0 / "Kasa" olarak isaretli.
         if ($sellerId === 0 || $this->saTrKey($ad) === 'kasa') return null;
 
-        return $this->mevcutPersonelId($salonId, $ad);
+        // Sistemde yoksa ARSIVLI personel olarak acilir (satici bos kalmasin).
+        return $this->ensureArsivliPersonel($salonId, $ad);
     }
 
     /**
@@ -4364,7 +4365,7 @@ class SalonappyImport extends Command
      * alanindadir ve ayni satirdaki `staff` dizisi [{label,value}] eslesmesini
      * tasir (value = staff_id, label = personel adi).
      * staff_id = 0 ("Kasa") => gercek satici yok, null doner.
-     * Yeni personel OLUSTURMAZ; yalnizca mevcut kaydi eslestirir.
+     * Personel sistemde yoksa ARSIVLI olarak acilir.
      */
     private function visitUrunPersonelId($salonId, $ps)
     {
@@ -4383,16 +4384,19 @@ class SalonappyImport extends Command
         if ($ad === '') $ad = trim((string) ($ps['staff_name'] ?? $ps['seller_name'] ?? ''));
         if ($ad === '' || $this->saTrKey($ad) === 'kasa') return null;
 
-        return $this->mevcutPersonelId($salonId, $ad);
+        // Sistemde yoksa ARSIVLI personel olarak acilir (satici bos kalmasin).
+        return $this->ensureArsivliPersonel($salonId, $ad);
     }
+
+    /** mevcutPersonelId / ensureArsivliPersonel ortak ad->id onbellegi. */
+    private $personelAdCache = [];
 
     private function mevcutPersonelId($salonId, $ad)
     {
         $ad = trim((string) $ad);
         if ($ad === '') return null;
-        static $cache = [];
-        $ck = $salonId . '|' . mb_strtolower($ad, 'UTF-8');
-        if (array_key_exists($ck, $cache)) return $cache[$ck];
+        $ck = $salonId . '|' . $this->saTrKey($ad);
+        if (array_key_exists($ck, $this->personelAdCache)) return $this->personelAdCache[$ck];
 
         $id = \DB::table('salon_personelleri')->where('salon_id', $salonId)
             ->where('personel_adi', $ad)->value('id');
@@ -4403,7 +4407,48 @@ class SalonappyImport extends Command
                 if ($this->saTrKey($row->personel_adi) === $needle) { $id = $row->id; break; }
             }
         }
-        return $cache[$ck] = ($id ? (int) $id : null);
+        return $this->personelAdCache[$ck] = ($id ? (int) $id : null);
+    }
+
+    /**
+     * Saticiyi personel olarak cozer; sistemde YOKSA ARSIVLI olarak acar.
+     *
+     * Isten ayrilmis/silinmis saticilarin satislari "satici bos" kalmasin diye.
+     * Acilan kayit: aktif=0, arsivli=1, takvimde_gorunsun=0 — yani takvimde ve
+     * aktif personel listelerinde gorunmez, prim raporuna girmez; sadece satisin
+     * kime ait oldugu kaybolmaz.
+     *
+     * "Kasa" gibi kisi olmayan degerler icin null doner (kayit ACMAZ).
+     */
+    private function ensureArsivliPersonel($salonId, $ad)
+    {
+        $ad = trim((string) $ad);
+        if ($ad === '' || $this->saTrKey($ad) === 'kasa') return null;
+
+        $id = $this->mevcutPersonelId($salonId, $ad);
+        if ($id) return $id;
+
+        try {
+            $yetkili = new \App\IsletmeYetkilileri();
+            $yetkili->name = $ad;
+            $yetkili->save();
+
+            $p = new \App\Personeller();
+            $p->personel_adi = $ad;
+            $p->salon_id     = $salonId;
+            $p->aktif        = false;
+            $p->yetkili_id   = $yetkili->id;
+            if (\Schema::hasColumn('salon_personelleri', 'arsivli'))            $p->arsivli = 1;
+            if (\Schema::hasColumn('salon_personelleri', 'takvimde_gorunsun'))  $p->takvimde_gorunsun = 0;
+            $p->save();
+
+            $this->personelAdCache[$salonId . '|' . $this->saTrKey($ad)] = (int) $p->id;
+            \Log::info('[Salonappy] arsivli personel acildi', ['salon' => $salonId, 'ad' => $ad, 'id' => $p->id]);
+            return (int) $p->id;
+        } catch (\Throwable $e) {
+            \Log::warning('[Salonappy] arsivli personel acilamadi', ['ad' => $ad, 'err' => $e->getMessage()]);
+            return null;
+        }
     }
 
     private function pickFirst($obj, $keys)

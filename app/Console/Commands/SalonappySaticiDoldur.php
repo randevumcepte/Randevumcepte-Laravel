@@ -32,6 +32,7 @@ class SalonappySaticiDoldur extends Command
         {--dump-file= : package_sales veya product_sales dump JSON yolu — zorunlu}
         {--kasa-personel= : Salonappy\'de satici "Kasa" (seller_id=0) olan satislari bu personel ID\'sine yaz. Verilmezse atlanir.}
         {--yedek-esle : Adisyonda import marker\'i yoksa musteri+tarih+hizmet+seans+tutar ile esle (sadece TEK aday varsa yazar).}
+        {--eksik-personel-ekle : Sistemde bulunmayan satici adlarini ARSIVLI personel olarak ac (aktif=0, arsivli=1).}
         {--uygula : Gercekten yaz (verilmezse sadece rapor / dry-run)}';
 
     protected $description = 'Salonappy dump\'indaki seller_text bilgisinden eksik adisyon personel_id\'lerini doldurur (sadece UPDATE).';
@@ -61,12 +62,14 @@ class SalonappySaticiDoldur extends Command
 
         $yedek = (bool) $this->option('yedek-esle');
         if ($yedek) $this->line('Yedek eslesme AKTIF: marker\'i olmayan adisyonlarda musteri+tarih+hizmet+seans+tutar ile eslenecek.');
+        $eksikEkle = (bool) $this->option('eksik-personel-ekle');
+        if ($eksikEkle) $this->line('Eksik personel ekleme AKTIF: bulunamayan saticilar ARSIVLI personel olarak acilacak.');
 
         $toplam = 0;
         $toplam += $this->isle($salonId, $uygula, 'paket',
-            $j['packageSales'] ?? [], 'salonappy-pkgsale', 'adisyon_hizmetler', 'seller_text', true, $kasaPersonelId, $yedek);
+            $j['packageSales'] ?? [], 'salonappy-pkgsale', 'adisyon_hizmetler', 'seller_text', true, $kasaPersonelId, $yedek, $eksikEkle);
         $toplam += $this->isle($salonId, $uygula, 'urun',
-            $j['productSales'] ?? [], 'salonappy-prodsale', 'adisyon_urunler', 'seller_name', false, $kasaPersonelId, $yedek);
+            $j['productSales'] ?? [], 'salonappy-prodsale', 'adisyon_urunler', 'seller_name', false, $kasaPersonelId, $yedek, $eksikEkle);
 
         if ($toplam === 0) $this->warn('Dump\'ta islenecek satis bulunamadi.');
         if (!$uygula) $this->comment("\nDRY-RUN — hicbir sey yazilmadi. Uygulamak icin --uygula ekle.");
@@ -82,8 +85,9 @@ class SalonappySaticiDoldur extends Command
      * @param  bool   $grupla     marker group_id mi (paket) yoksa id mi (urun)
      * @param  int|null $kasaPersonelId "Kasa" satislarinin yazilacagi personel (null = atla)
      * @param  bool   $yedek       marker yoksa musteri+tarih+hizmet ile esle
+     * @param  bool   $eksikEkle   bulunamayan saticiyi arsivli personel olarak ac
      */
-    private function isle($salonId, $uygula, $etiket, $satirlar, $markerAd, $tablo, $adKolonu, $grupla, $kasaPersonelId = null, $yedek = false)
+    private function isle($salonId, $uygula, $etiket, $satirlar, $markerAd, $tablo, $adKolonu, $grupla, $kasaPersonelId = null, $yedek = false, $eksikEkle = false)
     {
         if (empty($satirlar) || !\Schema::hasTable($tablo)) return 0;
         if (!\Schema::hasColumn($tablo, 'personel_id')) return 0;
@@ -118,10 +122,29 @@ class SalonappySaticiDoldur extends Command
 
         // Islenecek hedefler: marker anahtari => personel_id
         $hedefler = [];
+        $acilanPersonel = [];
         foreach ($saticiler as $anahtar => $ad) {
             $pid = $adHarita[$this->trKey($ad)] ?? null;
+            if (!$pid && $eksikEkle) {
+                if ($uygula) {
+                    $pid = $this->arsivliPersonelAc($salonId, $ad);
+                    if ($pid) {
+                        $adHarita[$this->trKey($ad)] = $pid;
+                        $acilanPersonel[$ad] = $pid;
+                    }
+                } else {
+                    // DRY-RUN: kayit acilmaz, sadece raporlanir
+                    $acilanPersonel[$ad] = null;
+                }
+            }
             if (!$pid) { $eslesmeyen[$ad] = ($eslesmeyen[$ad] ?? 0) + 1; continue; }
             $hedefler[$anahtar] = $pid;
+        }
+        if (!empty($acilanPersonel)) {
+            $this->line('  ' . ($uygula ? 'Arsivli personel ACILDI' : 'Arsivli personel ACILACAK (dry-run)') . ': ' . count($acilanPersonel));
+            foreach ($acilanPersonel as $ad => $pid) {
+                $this->line('    ' . $ad . ($pid ? '  -> #' . $pid : ''));
+            }
         }
         // --kasa-personel verildiyse "Kasa" satislari da o personele yazilir
         if ($kasaPersonelId) {
@@ -183,7 +206,7 @@ class SalonappySaticiDoldur extends Command
         if (!empty($eslesmeyen)) {
             $this->warn('  !! Sistemde karsiligi olmayan satici adlari (atlandi):');
             foreach ($eslesmeyen as $ad => $n) $this->warn("       {$ad}  ({$n} satis)");
-            $this->warn('     Bu kisiler personel olarak eklenirse komut tekrar calistirilabilir.');
+            $this->warn('     Bunlari arsivli personel olarak acmak icin: --eksik-personel-ekle');
         }
         if (!empty($kasaAnahtar)) {
             if ($kasaPersonelId) {
@@ -259,6 +282,36 @@ class SalonappySaticiDoldur extends Command
         }
 
         return $adaylar->count() === 1 ? (int) $adaylar->first()->id : null;
+    }
+
+    /**
+     * Sistemde olmayan saticiyi ARSIVLI personel olarak acar.
+     * aktif=0, arsivli=1, takvimde_gorunsun=0 — takvimde/aktif listelerde
+     * gorunmez ve prim raporuna girmez; sadece satisin sahibi kaybolmaz.
+     * "Kasa" gibi kisi olmayan degerlerde kayit ACMAZ.
+     */
+    private function arsivliPersonelAc($salonId, $ad)
+    {
+        $ad = trim((string) $ad);
+        if ($ad === '' || $this->trKey($ad) === 'kasa') return null;
+        try {
+            $yetkili = new \App\IsletmeYetkilileri();
+            $yetkili->name = $ad;
+            $yetkili->save();
+
+            $p = new \App\Personeller();
+            $p->personel_adi = $ad;
+            $p->salon_id     = $salonId;
+            $p->aktif        = false;
+            $p->yetkili_id   = $yetkili->id;
+            if (\Schema::hasColumn('salon_personelleri', 'arsivli'))           $p->arsivli = 1;
+            if (\Schema::hasColumn('salon_personelleri', 'takvimde_gorunsun')) $p->takvimde_gorunsun = 0;
+            $p->save();
+            return (int) $p->id;
+        } catch (\Throwable $e) {
+            $this->warn('    Personel acilamadi: ' . $ad . ' — ' . $e->getMessage());
+            return null;
+        }
     }
 
     /** Turkce karakter / buyuk-kucuk duyarsiz karsilastirma anahtari. */
