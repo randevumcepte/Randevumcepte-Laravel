@@ -15,6 +15,7 @@
   $toplamPrim = array_sum(array_column($rapor,'prim_toplam'));
   $toplamBonus = array_sum(array_column($rapor,'bonus'));
   $toplamKesinti = array_sum(array_column($rapor,'kesinti'));
+  $toplamMasraf = array_sum(array_column($rapor,'masraf'));
   $toplamNet = array_sum(array_column($rapor,'net_hakedis'));
   $toplamOdenen = array_sum(array_column($rapor,'odenen_toplam'));
   $toplamBekleyen = array_sum(array_column($rapor,'kalan'));
@@ -181,6 +182,8 @@
   .pr-stat--bonus .pr-stat__val{ color:#059669; }
   .pr-stat--kesinti .pr-stat__icon{ background: linear-gradient(135deg,#ef4444,#f87171); }
   .pr-stat--kesinti .pr-stat__val{ color:#dc2626; }
+  .pr-stat--masraf .pr-stat__icon{ background: linear-gradient(135deg,#f59e0b,#fbbf24); }
+  .pr-stat--masraf .pr-stat__val{ color:#d97706; }
   .pr-stat--net{
     background: var(--rmc-grad); color:#fff; border:0; position:relative; padding:18px 22px;
   }
@@ -253,6 +256,7 @@
   }
   .pr-cell-bonus{ color:#059669; font-weight:600; }
   .pr-cell-kesinti{ color:#dc2626; font-weight:600; }
+  .pr-cell-masraf{ color:#d97706; font-weight:700; background: rgba(245,158,11,.07); }
   .pr-cell-net{
     background: linear-gradient(90deg, rgba(123,47,184,.06), rgba(157,93,200,.04));
   }
@@ -810,11 +814,11 @@
     <div class="pr-stat__val">{{$_fmt($toplamBonus)}} <small>₺</small></div>
     <div class="pr-stat__brut" style="opacity:.65">Net hak edişe ekleniyor</div>
   </div>
-  <div class="pr-stat pr-stat--kesinti">
-    <div class="pr-stat__icon">−</div>
-    <div class="pr-stat__lbl">Toplam Kesinti</div>
-    <div class="pr-stat__val">{{$_fmt($toplamKesinti)}} <small>₺</small></div>
-    <div class="pr-stat__brut" style="opacity:.65">Net hak edişten düşülüyor</div>
+  <div class="pr-stat pr-stat--masraf">
+    <div class="pr-stat__icon"><i class="fa fa-shopping-cart"></i></div>
+    <div class="pr-stat__lbl">Toplam Masraf</div>
+    <div class="pr-stat__val">{{$_fmt($toplamMasraf)}} <small>₺</small></div>
+    <div class="pr-stat__brut" style="opacity:.65">Personelin salon için yaptığı harcama (net'e dahil değil)</div>
   </div>
   <div class="pr-stat pr-stat--net">
     <div class="pr-stat__icon"><i class="fa fa-credit-card"></i></div>
@@ -853,7 +857,7 @@
           <th>Paket Primi</th>
           <th>Prim Toplam</th>
           <th>Bonus</th>
-          <th>Kesinti</th>
+          <th>Masraf</th>
           <th>@if($isGunluk)Günün Primi @else NET Ödenecek @endif</th>
           <th>Durum</th>
           <th class="datatable-nosort">İşlemler</th>
@@ -880,7 +884,7 @@
             <td>{{$_fmt($r['paket_primi'])}} ₺</td>
             <td><strong>{{$_fmt($r['prim_toplam'])}} ₺</strong></td>
             <td class="pr-cell-bonus">+{{$_fmt($r['bonus'])}}@if($r['hareket_sayisi']>0) <small style="color:var(--rmc-muted); font-weight:500">({{$r['hareket_sayisi']}})</small>@endif</td>
-            <td class="pr-cell-kesinti">−{{$_fmt($r['kesinti'])}}</td>
+            <td class="pr-cell-masraf" title="Bu personelin dönem içi masraf toplamı — net hak edişe dahil değildir">{{$_fmt($r['masraf'])}} ₺</td>
             <td class="pr-cell-net"><strong>{{$_fmt($isGunluk ? $gPrim : $r['net_hakedis'])}} ₺</strong></td>
             <td>
               @if($isGunluk)

@@ -56,7 +56,7 @@
                               </select>
                            </div>
                            <div class="col-md-6">
-                              <label>Harcayan</label>
+                              <label>Harcayan Personel <span style="color:#dc2626">*</span></label>
                               <select name="harcayan" id='harcayan' class="form-control  opsiyonelSelect personel_secimi" style="width: 100%;">
                                  <option></option>
                            

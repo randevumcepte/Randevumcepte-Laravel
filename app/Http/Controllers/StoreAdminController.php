@@ -33850,6 +33850,19 @@ DB::raw('
             ->get()
             ->groupBy('personel_id');
 
+        // Personel bazli masraf toplami (masraflar.harcayan_id) — BILGI AMACLI:
+        // net hak edise ETKI ETMEZ, salon sahibi personelin ne harcadigini gorsun diye
+        // ayri bir sutun/kart olarak gosterilir. Tarih araligi gun-kapsamli.
+        $masrafBas = substr($tarih1, 0, 10) . ' 00:00:00';
+        $masrafBit = substr($tarih2, 0, 10) . ' 23:59:59';
+        $masrafToplamlari = \DB::table('masraflar')
+            ->where('salon_id',$salonId)
+            ->whereNotNull('harcayan_id')
+            ->whereBetween('tarih',[$masrafBas,$masrafBit])
+            ->groupBy('harcayan_id')
+            ->select('harcayan_id', \DB::raw('SUM(tutar) as toplam'))
+            ->pluck('toplam','harcayan_id');
+
         $donem = substr($tarih1, 0, 7);
         $odemelerGruplu = PersonelMaasOdemesi::where('salon_id',$salonId)
             ->where('donem',$donem)
@@ -33879,6 +33892,9 @@ DB::raw('
                 if($h->tip === 'bonus') $bonus += (float)$h->tutar;
                 else $kesinti += (float)$h->tutar;
             }
+
+            // Personelin donem ici masraf toplami (bilgi amacli, net'e dahil DEGIL)
+            $masraf = (float)($masrafToplamlari[$p->id] ?? 0);
 
             $maas = (float)($p->maas ?? 0);
             $toplam = $maas + $primToplam + $bonus - $kesinti;
@@ -33929,6 +33945,7 @@ DB::raw('
                 'prim_toplam'   => (float)$primToplam,
                 'bonus'         => (float)$bonus,
                 'kesinti'       => (float)$kesinti,
+                'masraf'        => (float)$masraf,
                 'net_hakedis'   => (float)$toplam,
                 'hizmet_geliri' => (float)$primRow['hizmet_geliri'],
                 'urun_geliri'   => (float)$primRow['urun_geliri'],
