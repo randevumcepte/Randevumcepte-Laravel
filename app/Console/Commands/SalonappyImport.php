@@ -46,6 +46,7 @@ class SalonappyImport extends Command
         {--merge-dupe-musteri : Salon icin duplicate name+cep_telefon ciftlerini merge. Keeper=min(user_id); digerlerin randevu/adisyon/tahsilat/portfoy vs keeper\'a taşinir, sonra silinir. --salon zorunlu, --dry-run destekli.}
         {--reset-urunler : Salon icin tum urunleri sil (adisyon_urunler bagli varsa reddet). --salon zorunlu, --dry-run destekli.}
         {--inspect-hizmet-eksik : Salon icin sure_dk=NULL/0 veya baslangic_fiyat=NULL/0 olan salon_sunulan_hizmetler kayitlarini listele. --salon zorunlu.}
+        {--report-payments-from-dump : Dump JSON\'daki tüm payment\'lari DB tahsilatlariyla eşleştir + eksik listesi. --dump-file --salon zorunlu, --from/--to opsiyonel.}
         {--tarih= : --inspect-tahsilat-detay icin merkez tarih YYYY-MM-DD}
         {--tutar= : --inspect-tahsilat-detay icin merkez tutar}
         {--dry-run : Reset/import oncesi sadece sayim}
@@ -77,7 +78,8 @@ class SalonappyImport extends Command
         $mergeDupe = (bool) $this->option('merge-dupe-musteri');
         $resetUrun = (bool) $this->option('reset-urunler');
         $inspectHE = (bool) $this->option('inspect-hizmet-eksik');
-        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && !$mergeDupe && !$resetUrun && !$inspectHE && (!$username || !$password)) {
+        $reportPayDump = (bool) $this->option('report-payments-from-dump');
+        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && !$mergeDupe && !$resetUrun && !$inspectHE && !$reportPayDump && (!$username || !$password)) {
             $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri / --reconcile-tahsilat / --inspect-tahsilat-detay / --inspect-dupe-musteri verin).');
             return 1;
         }
@@ -163,6 +165,12 @@ class SalonappyImport extends Command
         if ((bool) $this->option('inspect-hizmet-eksik')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
             return $this->inspectHizmetEksik((int) $salonId);
+        }
+        if ((bool) $this->option('report-payments-from-dump')) {
+            if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
+            $f = $this->option('dump-file');
+            if (!$f) { $this->error('--dump-file zorunlu.'); return 1; }
+            return $this->reportPaymentsFromDump($f, (int) $salonId, $this->option('from'), $this->option('to'));
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
@@ -3737,6 +3745,176 @@ class SalonappyImport extends Command
     /**
      * Salon icin sure_dk veya baslangic_fiyat eksik salon_sunulan_hizmetler kayitlari.
      */
+    /**
+     * Dump JSON'daki tum payment'lari DB tahsilatlariyla esleştir + eksik listesi.
+     * Dump kaynaklari:
+     *  1) top-level payments[] (global odeme listesi)
+     *  2) bookingDetails[sid].payments[] (visit ici odemeler)
+     *  3) packageSales dump'i varsa (paket satis odemeleri)
+     *
+     * DB tahsilat markerleri:
+     *  - [salonappy-visit-pay:<pid>]     (--only-visits akisi)
+     *  - [salonappy-pay:<pid>]           (--only-package-payments)
+     *  - [salonappy-prod-pay:<pid>]      (--only-product-payments)
+     *  - [salonappy-pkgsale-pay:<sid>]   (--only-package-sales inline)
+     */
+    private function reportPaymentsFromDump($file, $salonId, $from = null, $to = null)
+    {
+        if (!file_exists($file)) { $this->error("Dosya yok: {$file}"); return 1; }
+        $j = json_decode(file_get_contents($file), true);
+        if (!is_array($j)) { $this->error('Gecersiz JSON.'); return 1; }
+
+        // 1) Dump'tan tum payment'lari topla (id -> {source, client, date, amount})
+        $dumpPayments = []; // pid => info
+        $srcCount = ['top_level' => 0, 'booking' => 0, 'pkgsale' => 0];
+        // Top-level payments[]
+        foreach (($j['payments'] ?? []) as $p) {
+            $pid = (string) ($p['id'] ?? '');
+            if (!$pid) continue;
+            $dumpPayments[$pid] = [
+                'id' => $pid,
+                'source' => 'top',
+                'source_text' => trim((string) ($p['source_text'] ?? '')),
+                'client' => trim((string) ($p['client_name'] ?? '')),
+                'date' => trim((string) ($p['date'] ?? '')),
+                'amount' => (float) ($p['amount'] ?? 0),
+                'method' => trim((string) ($p['payment_method_text'] ?? '')),
+                'deleted' => !empty($p['deleted_at']),
+            ];
+            $srcCount['top_level']++;
+        }
+        // bookingDetails[sid].payments[]
+        foreach (($j['bookingDetails'] ?? []) as $sid => $bd) {
+            foreach (($bd['payments'] ?? []) as $p) {
+                $pid = (string) ($p['id'] ?? '');
+                if (!$pid) continue;
+                if (isset($dumpPayments[$pid])) continue; // top-level'de zaten var
+                $dumpPayments[$pid] = [
+                    'id' => $pid,
+                    'source' => 'booking:' . $sid,
+                    'source_text' => 'Adisyon',
+                    'client' => trim((string) ($bd['details']['client_name'] ?? '')),
+                    'date' => trim((string) ($p['date'] ?? $bd['details']['date'] ?? '')),
+                    'amount' => (float) ($p['amount'] ?? 0),
+                    'method' => trim((string) ($p['payment_method_text'] ?? '')),
+                    'deleted' => !empty($p['deleted_at']),
+                ];
+                $srcCount['booking']++;
+            }
+        }
+        // packageSales varsa (paid_amount > 0 olanlar)
+        foreach (($j['packageSales'] ?? []) as $ps) {
+            $psId = (string) ($ps['id'] ?? '');
+            $paid = (float) ($ps['paid_amount'] ?? 0);
+            if (!$psId || $paid <= 0) continue;
+            // paket satis payment id'si sales id ile ayni (marker: pkgsale-pay:sid)
+            $key = 'pkgsale:' . $psId;
+            $dumpPayments[$key] = [
+                'id' => $psId,
+                'source' => 'pkgsale',
+                'source_text' => 'Paket satisi (inline)',
+                'client' => trim((string) ($ps['client_name'] ?? '')),
+                'date' => trim((string) ($ps['payment_date'] ?? $ps['date'] ?? '')),
+                'amount' => $paid,
+                'method' => '',
+                'deleted' => !empty($ps['deleted_at']),
+            ];
+            $srcCount['pkgsale']++;
+        }
+
+        $totalDump = count($dumpPayments);
+        $this->line("Dump payment kaynaklari: top_level=" . $srcCount['top_level']
+            . " booking=" . $srcCount['booking'] . " pkgsale=" . $srcCount['pkgsale']
+            . " | UNIQUE=$totalDump");
+
+        // Tarih filtresi
+        if ($from || $to) {
+            $before = count($dumpPayments);
+            foreach ($dumpPayments as $k => $p) {
+                $d = substr($p['date'], 0, 10);
+                if (!$d) { unset($dumpPayments[$k]); continue; }
+                if ($from && $d < $from) unset($dumpPayments[$k]);
+                if ($to && $d > $to) unset($dumpPayments[$k]);
+            }
+            $this->line("Tarih filtresinden sonra dump payment: " . count($dumpPayments) . " (once $before)");
+        }
+        // Silinmisleri atla
+        $silinmisSayi = 0;
+        foreach ($dumpPayments as $k => $p) {
+            if ($p['deleted']) { unset($dumpPayments[$k]); $silinmisSayi++; }
+        }
+        if ($silinmisSayi) $this->line("Silinmis payments atlandi: $silinmisSayi");
+        $totalNet = count($dumpPayments);
+
+        // 2) DB'den Salonappy markerli tahsilat marker'larini cek
+        $dbQuery = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+            ->where(function ($q) {
+                $q->where('notlar', 'LIKE', '%[salonappy-visit-pay:%')
+                  ->orWhere('notlar', 'LIKE', '%[salonappy-pay:%')
+                  ->orWhere('notlar', 'LIKE', '%[salonappy-prod-pay:%')
+                  ->orWhere('notlar', 'LIKE', '%[salonappy-pkgsale-pay:%');
+            });
+        if ($from) $dbQuery->where('odeme_tarihi', '>=', $from);
+        if ($to)   $dbQuery->where('odeme_tarihi', '<=', $to);
+        $dbTahs = $dbQuery->select('id', 'odeme_tarihi', 'tutar', 'notlar')->get();
+        // marker -> pid extract
+        $dbPids = []; // pid => tahsilat_id
+        foreach ($dbTahs as $t) {
+            if (preg_match_all('~\[salonappy-(?:visit-pay|pay|prod-pay|pkgsale-pay):(\d+)\]~', (string) $t->notlar, $mm)) {
+                foreach ($mm[1] as $pid) $dbPids[$pid] = $t->id;
+            }
+        }
+        $this->line("DB Salonappy markerli tahsilat: " . $dbTahs->count() . ", unique payment_id: " . count($dbPids));
+
+        // 3) Eksikler
+        $eksik = [];
+        foreach ($dumpPayments as $key => $p) {
+            if (!isset($dbPids[$p['id']])) $eksik[] = $p;
+        }
+        usort($eksik, function ($a, $b) { return strcmp($b['date'], $a['date']); });
+
+        // Aylik dagilim
+        $aylik = [];
+        $eksikToplam = 0;
+        foreach ($eksik as $e) {
+            $ay = substr($e['date'], 0, 7);
+            if (!isset($aylik[$ay])) $aylik[$ay] = ['count' => 0, 'tutar' => 0];
+            $aylik[$ay]['count']++;
+            $aylik[$ay]['tutar'] += $e['amount'];
+            $eksikToplam += $e['amount'];
+        }
+        ksort($aylik);
+
+        $this->line("\n=== EKSIK PAYMENT AYLIK DAGILIM ===");
+        foreach ($aylik as $ay => $d) {
+            $this->line(sprintf('  %s | %4d adet | %10.2f TL', $ay, $d['count'], $d['tutar']));
+        }
+
+        $this->info("\nOZET: Dump payment (net)=$totalNet, DB yazili=" . count($dbPids)
+            . ", EKSIK=" . count($eksik) . " (toplam $eksikToplam TL)");
+
+        // CSV yaz
+        $csvPath = storage_path("app/reconcile_payments_{$salonId}_" . date('Ymd_His') . '.csv');
+        $fp = fopen($csvPath, 'w');
+        fputcsv($fp, ['pid', 'source', 'source_text', 'date', 'client', 'amount', 'method']);
+        foreach ($eksik as $e) {
+            fputcsv($fp, [$e['id'], $e['source'], $e['source_text'], $e['date'], $e['client'], $e['amount'], $e['method']]);
+        }
+        fclose($fp);
+        $this->info("CSV: $csvPath (" . count($eksik) . ' satir)');
+
+        // Ilk 30 eksigin detay
+        if (!empty($eksik)) {
+            $this->line("\n=== EKSIK ORNEK (ilk 30) ===");
+            foreach (array_slice($eksik, 0, 30) as $e) {
+                $this->line(sprintf('  pid=%-10s %s | %s | %.2f TL | %s | %s',
+                    $e['id'], $e['date'], mb_substr($e['client'], 0, 25), $e['amount'],
+                    $e['method'], $e['source_text']));
+            }
+        }
+        return 0;
+    }
+
     private function inspectHizmetEksik($salonId)
     {
         $this->info("Salon $salonId — sure_dk/fiyat eksik hizmetler:");
