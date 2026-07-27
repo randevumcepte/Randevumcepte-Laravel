@@ -13,7 +13,7 @@
       box-shadow:0 24px 60px -12px rgba(30,41,59,.35);
     }
     #personel_gideri_modal .pg-head{
-      padding:20px 24px; background:linear-gradient(135deg,#4f46e5,#6366f1);
+      padding:20px 24px; background:linear-gradient(135deg,#5C008E,#7B2FB8 55%,#9D5DC8);
       color:#fff; display:flex; align-items:center; gap:14px;
     }
     #personel_gideri_modal .pg-head__icon{
@@ -31,7 +31,7 @@
     #personel_gideri_modal .pg-body{ padding:22px 24px; }
     #personel_gideri_modal .pg-note{
       display:flex; gap:10px; align-items:flex-start; padding:12px 14px; margin-bottom:18px;
-      background:#eef2ff; border:1px solid #c7d2fe; border-radius:12px; color:#3730a3; font-size:13px; line-height:1.45;
+      background:#f7f0fb; border:1px solid #e2cdf0; border-radius:12px; color:#5C008E; font-size:13px; line-height:1.45;
     }
     #personel_gideri_modal .pg-note i{ margin-top:2px; }
     #personel_gideri_modal .pg-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px 16px; }
@@ -46,7 +46,7 @@
     }
     #personel_gideri_modal .pg-body textarea.form-control{ height:auto; min-height:60px; padding-top:10px; }
     #personel_gideri_modal .pg-body .form-control:focus{
-      border-color:#6366f1; background:#fff; box-shadow:0 0 0 3px rgba(99,102,241,.12); outline:0;
+      border-color:#7B2FB8; background:#fff; box-shadow:0 0 0 3px rgba(123,47,184,.14); outline:0;
     }
     #personel_gideri_modal .pg-foot{
       padding:16px 24px 22px; display:flex; gap:12px;
@@ -55,7 +55,7 @@
       flex:1; height:48px; border:0; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer;
       display:flex; align-items:center; justify-content:center; gap:8px;
     }
-    #personel_gideri_modal .pg-btn--save{ background:linear-gradient(135deg,#4f46e5,#6366f1); color:#fff; }
+    #personel_gideri_modal .pg-btn--save{ background:linear-gradient(135deg,#5C008E,#7B2FB8); color:#fff; }
     #personel_gideri_modal .pg-btn--save:hover{ filter:brightness(1.05); }
     #personel_gideri_modal .pg-btn--cancel{ background:#f1f5f9; color:#475569; }
     #personel_gideri_modal .pg-btn--cancel:hover{ background:#e2e8f0; }

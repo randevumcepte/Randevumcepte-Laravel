@@ -20,7 +20,7 @@
       </div>
       <div class="col-md-6 col-sm-12 text-right">
             <a onclick="modalbaslikata('Yeni Masraf','musteri_bilgi_formu');$('#masraf_pg_badge').hide();$('#masraf_personel_gideri').val('0');" href="#" data-toggle="modal" data-target="#yeni_masraf_modal" class="btn btn-success btn-lg"><i class="fa fa-plus"></i> Masraf Ekle </a>
-            <a onclick="personelGideriModalAc();" href="#" class="btn btn-lg" style="background:#4f46e5;border-color:#4f46e5;color:#fff"><i class="fa fa-user"></i> Personel Gideri Ekle </a>
+            <a onclick="personelGideriModalAc();" href="#" class="btn btn-lg" style="background:linear-gradient(135deg,#5C008E,#7B2FB8);border:0;color:#fff"><i class="fa fa-user"></i> Personel Gideri Ekle </a>
       </div>
    </div>
 </div>
