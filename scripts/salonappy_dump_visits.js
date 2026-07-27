@@ -202,8 +202,8 @@
     const sid = String(v.session ?? v.id ?? v.booking_id ?? '');
     if (sid && !bookingDetails[sid]) kalanlar.push(sid);
   }
-  console.log(`🔹 Booking details: ${already}/${visits.length} hazir, ${kalanlar.length} kalan (paralel 8'li batch)...`);
-  const CONCURRENCY = 8;
+  const CONCURRENCY = parseInt(prompt('Booking detail concurrency (default 3; 8 429 veriyor)', '3'), 10) || 3;
+  console.log(`🔹 Booking details: ${already}/${visits.length} hazir, ${kalanlar.length} kalan (paralel ${CONCURRENCY}'lu batch)...`);
   let saved = 0;
   const tStart = Date.now();
   for (let i = 0; i < kalanlar.length; i += CONCURRENCY) {
@@ -223,7 +223,7 @@
       const eta = Math.round(remaining / Math.max(rate, 0.1));
       console.log(`  detail ${i + batch.length}/${kalanlar.length} | yeni=${saved} gecen=${elapsed}s hiz=${rate.toFixed(1)}/sn ETA=${eta}s`);
     }
-    await sleep(50); // hafif cooldown
+    await sleep(RATE_DELAY_MS); // batch arasi RATE_DELAY_MS (default 250; 429 alirsan 500+ dene)
   }
   await dbPut('bookingDetails', bookingDetails);
   console.log(`✓ Booking details toplam: ${Object.keys(bookingDetails).length}`);
