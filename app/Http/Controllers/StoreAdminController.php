@@ -4566,42 +4566,47 @@ public function gun_sonu_raporu(Request $request)
     $musteri_say = count($musteriler);
     $ort_sepet   = $islem_say > 0 ? ($gercek_gelir / $islem_say) : 0;
 
-    // ---- Personel bazli ciro (adisyon bazli, mevcut rapor mantigiyla ayni) ----
-    $personelRows = DB::table('adisyon_hizmetler as ah')
-        ->join('adisyonlar as a','a.id','=','ah.adisyon_id')
+    // ---- Personel bazli ciro (TAHSILAT bazli: donemde tahsil edilen hizmet parasi,
+    //      personelin yaptigi hizmete gore). Kasa geliriyle ayni temele (odeme_tarihi) oturur;
+    //      odemesi bugun olan ama baska gun acilan adisyonlar da yakalanir. ----
+    $personelRows = DB::table('tahsilat_hizmetler as th')
+        ->join('tahsilatlar as t','t.id','=','th.tahsilat_id')
+        ->join('adisyon_hizmetler as ah','ah.id','=','th.adisyon_hizmet_id')
         ->join('salon_personelleri as p','p.id','=','ah.personel_id')
-        ->where('a.salon_id', $salon_id)
-        ->whereBetween('a.created_at', [$b.' 00:00:00', $bit.' 23:59:59'])
+        ->where('t.salon_id', $salon_id)
+        ->whereBetween('t.odeme_tarihi', [$b.' 00:00:00', $bit.' 23:59:59'])
         ->whereNotNull('ah.personel_id')
         ->select('p.personel_adi',
-            DB::raw('COUNT(*) as adet'),
-            DB::raw('SUM(ah.fiyat - COALESCE(ah.indirim_tutari,0)) as ciro'))
+            DB::raw('COUNT(DISTINCT th.id) as adet'),
+            DB::raw('SUM(th.tutar) as ciro'))
         ->groupBy('p.id','p.personel_adi')
         ->orderByDesc('ciro')
         ->limit(15)->get();
 
-    // ---- En cok satan hizmet (ilk 5) ----
-    $topHizmet = DB::table('adisyon_hizmetler as ah')
-        ->join('adisyonlar as a','a.id','=','ah.adisyon_id')
+    // ---- En cok satan hizmet (ilk 5) — tahsilat bazli ----
+    $topHizmet = DB::table('tahsilat_hizmetler as th')
+        ->join('tahsilatlar as t','t.id','=','th.tahsilat_id')
+        ->join('adisyon_hizmetler as ah','ah.id','=','th.adisyon_hizmet_id')
         ->join('hizmetler as h','h.id','=','ah.hizmet_id')
-        ->where('a.salon_id', $salon_id)
-        ->whereBetween('a.created_at', [$b.' 00:00:00', $bit.' 23:59:59'])
+        ->where('t.salon_id', $salon_id)
+        ->whereBetween('t.odeme_tarihi', [$b.' 00:00:00', $bit.' 23:59:59'])
         ->select('h.hizmet_adi',
-            DB::raw('COUNT(*) as adet'),
-            DB::raw('SUM(ah.fiyat - COALESCE(ah.indirim_tutari,0)) as ciro'))
+            DB::raw('COUNT(DISTINCT th.id) as adet'),
+            DB::raw('SUM(th.tutar) as ciro'))
         ->groupBy('h.id','h.hizmet_adi')
         ->orderByDesc('ciro')
         ->limit(5)->get();
 
-    // ---- En cok satan urun (ilk 5) ----
-    $topUrun = DB::table('adisyon_urunler as au')
-        ->join('adisyonlar as a','a.id','=','au.adisyon_id')
+    // ---- En cok satan urun (ilk 5) — tahsilat bazli ----
+    $topUrun = DB::table('tahsilat_urunler as tu')
+        ->join('tahsilatlar as t','t.id','=','tu.tahsilat_id')
+        ->join('adisyon_urunler as au','au.id','=','tu.adisyon_urun_id')
         ->leftJoin('urunler as u','u.id','=','au.urun_id')
-        ->where('a.salon_id', $salon_id)
-        ->whereBetween('a.created_at', [$b.' 00:00:00', $bit.' 23:59:59'])
+        ->where('t.salon_id', $salon_id)
+        ->whereBetween('t.odeme_tarihi', [$b.' 00:00:00', $bit.' 23:59:59'])
         ->select(DB::raw("COALESCE(u.urun_adi,'Silinmiş Ürün') as urun_adi"),
-            DB::raw('SUM(COALESCE(au.adet,1)) as adet'),
-            DB::raw('SUM(au.fiyat - COALESCE(au.indirim_tutari,0)) as ciro'))
+            DB::raw('COUNT(DISTINCT tu.id) as adet'),
+            DB::raw('SUM(tu.tutar) as ciro'))
         ->groupBy('u.id','u.urun_adi')
         ->orderByDesc('ciro')
         ->limit(5)->get();
