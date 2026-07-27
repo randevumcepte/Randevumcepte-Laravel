@@ -295,7 +295,7 @@ DB::table('hizmetler')->whereIn('id',\$hids)->delete();
 # Import:
 /opt/php74/bin/php artisan salonappy:import   --dump-file=/tmp/salonappy_v7_1780435641843.json --salon=368
 ```
-
+/opt/php74/bin/php artisan salonappy:import   --dump-file=/tmp/salonappy_package_sales_gulay_ersoy_1784901301423.json --salon=368 --only-package-payments
 ### Parametreler
 
 - `--dump-file`: v7 dump dosyası (zorunlu)
@@ -484,6 +484,8 @@ Geçmiş visit (`is_past=true`):
     --dump-file=/tmp/salonappy_expenses_<ts>.json \
     --salon=368 --only-expenses
 ```
+
+/opt/php74/bin/php artisan salonappy:import  --dump-file=/tmp/salonappy_expenses_gulay_ersoy_1784902164668.json --salon=395 --only-expenses
 
 UPSERT: önce salondaki `[salonappy-expense:%]` markerlı tüm masraflar silinir, sonra dump'tan yeniden yazılır. `masraf_kategorisi` auto-create (`category_text` → `masraf_kategorisi_adi`). `harcayan_id` salon_personelleri.personel_adi LIKE match. İdempotent.
 

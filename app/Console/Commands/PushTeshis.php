@@ -87,12 +87,23 @@ class PushTeshis extends Command
         }
         $this->line('');
 
-        // 5) Firebase JSON dosyaları mevcut mu?
-        $this->info('--- Firebase service account JSON kontrolü ---');
+        // 5) Firebase JSON dosyaları mevcut mu + OAuth kimlik testi (401'in kök nedeni burada)
+        $this->info('--- Firebase kimlik (OAuth token) testi ---');
+        $goruldu = [];
         foreach ((array) config('firebase_projects') as $profile => $rel) {
+            if (isset($goruldu[$rel])) continue; // ayni JSON'u bir kez test et
+            $goruldu[$rel] = true;
             $abs = storage_path($rel);
-            $ok = is_file($abs);
-            $this->line(sprintf('  %-16s %s %s', $profile, $ok ? '[OK]' : '[YOK]', $rel));
+            if (!is_file($abs)) {
+                $this->error(sprintf('  [YOK] %s (%s)', $rel, $profile));
+                continue;
+            }
+            [$ok, $detay] = $this->oauthTokenDene($abs);
+            if ($ok) {
+                $this->info(sprintf('  [OK]  %s -> access_token alindi (%s)', basename($rel), $detay));
+            } else {
+                $this->error(sprintf('  [401/HATA] %s -> %s', basename($rel), $detay));
+            }
         }
         $this->line('');
 
@@ -162,5 +173,57 @@ class PushTeshis extends Command
         }
 
         return 0;
+    }
+
+    /**
+     * NotificationService::getFcmAccessToken() ile birebir ayni JWT->access_token
+     * akisini calistirir; basarili mi, degilse Google'in tam cevabi neyse onu doner.
+     * 401'in kok nedeni (kimlik gecersiz / API kapali / SA silinmis) burada gorunur.
+     *
+     * @return array{0:bool,1:string}
+     */
+    private function oauthTokenDene(string $jsonAbsPath): array
+    {
+        try {
+            $json = json_decode(file_get_contents($jsonAbsPath), true);
+            if (empty($json['client_email']) || empty($json['private_key']) || empty($json['token_uri'])) {
+                return [false, 'JSON eksik alan (client_email/private_key/token_uri)'];
+            }
+            $now = time();
+            $b64 = function ($d) { return rtrim(strtr(base64_encode($d), '+/', '-_'), '='); };
+            $header = ['alg' => 'RS256', 'typ' => 'JWT'];
+            $claim = [
+                'iss'   => $json['client_email'],
+                'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
+                'aud'   => $json['token_uri'],
+                'iat'   => $now,
+                'exp'   => $now + 3600,
+            ];
+            $data = $b64(json_encode($header)) . '.' . $b64(json_encode($claim));
+            $sigOk = openssl_sign($data, $signature, $json['private_key'], OPENSSL_ALGO_SHA256);
+            if (!$sigOk) {
+                return [false, 'openssl_sign BASARISIZ (private_key bozuk?) - ' . (openssl_error_string() ?: 'sebep yok')];
+            }
+            $jwt = $data . '.' . $b64($signature);
+
+            $client = new \GuzzleHttp\Client(['timeout' => 15]);
+            $resp = $client->post($json['token_uri'], [
+                'form_params' => [
+                    'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                    'assertion'  => $jwt,
+                ],
+                'http_errors' => false, // hata cevabini da okuyabilmek icin
+            ]);
+            $code = $resp->getStatusCode();
+            $body = json_decode($resp->getBody()->getContents(), true);
+            if ($code === 200 && !empty($body['access_token'])) {
+                return [true, 'HTTP 200, token uzunluk=' . strlen($body['access_token']) . ', client_email=' . $json['client_email']];
+            }
+            $err = isset($body['error']) ? (is_array($body['error']) ? json_encode($body['error']) : $body['error']) : 'bilinmeyen';
+            $desc = $body['error_description'] ?? '';
+            return [false, "HTTP {$code} | error={$err} | {$desc} | SA={$json['client_email']}"];
+        } catch (\Throwable $e) {
+            return [false, 'ISTISNA: ' . $e->getMessage()];
+        }
     }
 }
