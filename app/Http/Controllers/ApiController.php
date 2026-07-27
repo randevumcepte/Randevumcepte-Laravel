@@ -1487,6 +1487,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     return [
         'id' => $adisyon->id,
         'acilis_tarihi' => date('d.m.Y', strtotime($adisyon->tarih)),
+        // Satis saati: tarih alani saatsiz (date) kaydediliyor; gercek olusturma
+        // saati created_at'te (app timezone = Europe/Istanbul). Flutter tarihin yanina yazar.
+        'acilis_saati' => $adisyon->created_at ? date('H:i', strtotime($adisyon->created_at)) : '',
         'son_tahsilat_tarihi' => $sonTahsilatTarihi ? date('d.m.Y', strtotime($sonTahsilatTarihi)) : '',
         'musteri' => $adisyon->musteri->name ?? '-',
         'planlanan_alacak_tarihi' => $planlananTarih,
