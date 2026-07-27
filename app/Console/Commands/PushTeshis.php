@@ -146,30 +146,66 @@ class PushTeshis extends Command
         }
         $hedefAdet = $q->count();
         $this->line("Bu salonun app_bundle'ına ait gönderilebilir cihaz: {$hedefAdet}");
-        if ($hedefAdet === 0) {
-            $this->error('  [X] Hedef cihaz YOK. Push gitmez. (Uygulama token kaydetmiyor ya da app_bundle uyuşmuyor.)');
+
+        // Test edilecek token: once salon-eslesen, yoksa app_bundle filtresi OLMADAN herhangi biri
+        $ornek = $q->select('bildirim_id', 'platform', 'app_bundle')->first();
+        if (!$ornek) {
+            $this->warn('  [!] Bu salonun app_bundle filtresine uyan token YOK. FCM auth yolunu yine de test etmek icin');
+            $this->warn('      app_bundle filtresi OLMADAN herhangi bir aktif token secilecek (brand izolasyonu bypass, sadece test).');
+            $ornek = DB::table('bildirim_kimlikleri')
+                ->where('aktif', 1)->whereNotNull('bildirim_id')->where('bildirim_id', '!=', '')
+                ->select('bildirim_id', 'platform', 'app_bundle')->first();
+        }
+        if (!$ornek) {
+            $this->error('  [X] Sistemde HIC aktif token yok. Uygulama token kaydetmiyor.');
             return 0;
         }
-        $ornek = $q->select('bildirim_id', 'platform', 'app_bundle')->first();
-        $this->line("  Örnek token app_bundle: " . ($ornek->app_bundle ?? 'NULL') . " / platform: " . ($ornek->platform ?? 'NULL'));
+        $this->line("  Test token app_bundle: " . ($ornek->app_bundle ?? 'NULL') . " / platform: " . ($ornek->platform ?? 'NULL'));
         $this->line('');
 
-        // Gerçek gönderim — yetkili (salon sahibi) hedefli değil, raw token ile tek cihaza test
-        $this->info("--- Tek cihaza gerçek FCM gönderimi deneniyor ---");
+        // DOGRUDAN messages:send testi — NotificationService hatayi yutuyor, biz ham istekle
+        // Google'in TAM cevabini (401 ise gerekcesiyle) ekrana basiyoruz.
+        $this->info("--- DOGRUDAN FCM messages:send testi (tam cevap) ---");
+        // Hangi JSON? Salon profili varsa o, yoksa default.
+        $rel = config("firebase_projects." . ($salon->firebase_profile ?: 'default'))
+             ?: config('firebase_projects.default');
+        $jsonAbs = storage_path($rel);
+        $this->line("  Kullanilan JSON: {$rel}");
+        [$tokOk, $tokDetay, $accessToken] = $this->oauthTokenAl($jsonAbs);
+        if (!$tokOk) {
+            $this->error("  [X] Access token alinamadi: {$tokDetay}");
+            return 0;
+        }
+        $projectId = json_decode(file_get_contents($jsonAbs), true)['project_id'] ?? null;
+        $url = "https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send";
         try {
-            $svc = NotificationService::forTokens([$ornek->bildirim_id], $salonId)
-                ->type('test')
-                ->title('Push Test')
-                ->body('Bu bir teshis test bildirimidir.');
-            $sonuc = $svc->send();
-            $this->info("  SONUÇ: sent={$sonuc['sent']} failed={$sonuc['failed']} total={$sonuc['total']}");
-            if ($sonuc['sent'] > 0) {
-                $this->info('  [OK] FCM kabul etti. Cihaz bildirimi almalı.');
+            $client = new \GuzzleHttp\Client(['timeout' => 15]);
+            $resp = $client->post($url, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $accessToken,
+                    'Content-Type'  => 'application/json',
+                ],
+                'json' => ['message' => [
+                    'token' => $ornek->bildirim_id,
+                    'notification' => ['title' => 'Push Test', 'body' => 'Teshis testi'],
+                ]],
+                'http_errors' => false,
+            ]);
+            $code = $resp->getStatusCode();
+            $body = $resp->getBody()->getContents();
+            $this->line("  HTTP {$code}");
+            $this->line("  Cevap: " . $body);
+            if ($code === 200) {
+                $this->info('  [OK] FCM KABUL ETTI. Kimlik + gonderim yolu saglam. Sorun app_bundle eslesmesinde.');
+            } elseif ($code === 401) {
+                $this->error('  [401] Kimlik reddedildi — messages:send yetkisi/API sorunu.');
+            } elseif ($code === 404 || stripos($body, 'UNREGISTERED') !== false) {
+                $this->warn('  [404/UNREGISTERED] Bu token artik gecersiz ama KIMLIK CALISIYOR (auth 200). Yeni token gerek.');
             } else {
-                $this->error('  [X] Gönderilemedi. Üstteki "send fail" loguna / laravel.log\'a bak.');
+                $this->warn("  [{$code}] Yukaridaki cevaba bak.");
             }
         } catch (\Throwable $e) {
-            $this->error('  [X] İSTİSNA: ' . $e->getMessage());
+            $this->error('  [X] ISTISNA: ' . $e->getMessage());
         }
 
         return 0;
@@ -184,10 +220,20 @@ class PushTeshis extends Command
      */
     private function oauthTokenDene(string $jsonAbsPath): array
     {
+        [$ok, $detay] = $this->oauthTokenAl($jsonAbsPath);
+        return [$ok, $detay];
+    }
+
+    /**
+     * OAuth token akisi; basari halinde access_token'i da doner.
+     * @return array{0:bool,1:string,2:?string}
+     */
+    private function oauthTokenAl(string $jsonAbsPath): array
+    {
         try {
             $json = json_decode(file_get_contents($jsonAbsPath), true);
             if (empty($json['client_email']) || empty($json['private_key']) || empty($json['token_uri'])) {
-                return [false, 'JSON eksik alan (client_email/private_key/token_uri)'];
+                return [false, 'JSON eksik alan (client_email/private_key/token_uri)', null];
             }
             $now = time();
             $b64 = function ($d) { return rtrim(strtr(base64_encode($d), '+/', '-_'), '='); };
@@ -202,7 +248,7 @@ class PushTeshis extends Command
             $data = $b64(json_encode($header)) . '.' . $b64(json_encode($claim));
             $sigOk = openssl_sign($data, $signature, $json['private_key'], OPENSSL_ALGO_SHA256);
             if (!$sigOk) {
-                return [false, 'openssl_sign BASARISIZ (private_key bozuk?) - ' . (openssl_error_string() ?: 'sebep yok')];
+                return [false, 'openssl_sign BASARISIZ (private_key bozuk?) - ' . (openssl_error_string() ?: 'sebep yok'), null];
             }
             $jwt = $data . '.' . $b64($signature);
 
@@ -217,13 +263,13 @@ class PushTeshis extends Command
             $code = $resp->getStatusCode();
             $body = json_decode($resp->getBody()->getContents(), true);
             if ($code === 200 && !empty($body['access_token'])) {
-                return [true, 'HTTP 200, token uzunluk=' . strlen($body['access_token']) . ', client_email=' . $json['client_email']];
+                return [true, 'HTTP 200, token uzunluk=' . strlen($body['access_token']) . ', client_email=' . $json['client_email'], $body['access_token']];
             }
             $err = isset($body['error']) ? (is_array($body['error']) ? json_encode($body['error']) : $body['error']) : 'bilinmeyen';
             $desc = $body['error_description'] ?? '';
-            return [false, "HTTP {$code} | error={$err} | {$desc} | SA={$json['client_email']}"];
+            return [false, "HTTP {$code} | error={$err} | {$desc} | SA={$json['client_email']}", null];
         } catch (\Throwable $e) {
-            return [false, 'ISTISNA: ' . $e->getMessage()];
+            return [false, 'ISTISNA: ' . $e->getMessage(), null];
         }
     }
 }
