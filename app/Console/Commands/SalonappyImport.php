@@ -2229,10 +2229,25 @@ class SalonappyImport extends Command
             $this->line("Paket APS reset: aralik={$silinen1} eski-placeholder={$silinen2}");
         }
 
+        $toplamVisit = count($kapsamSession);
+        $t0 = microtime(true);
+        $lastLog = $t0;
+        $idx = 0;
         foreach ($kapsamSession as $sid) {
+            $idx++;
             $bd = $bdMap[$sid];
             $d  = $bd['details'] ?? [];
             $marker = '[salonappy-visit:' . $sid . ']';
+
+            // Ilerleme log: her 100 visit'te bir + 10s bekle
+            if ($idx === 1 || $idx % 100 === 0 || microtime(true) - $lastLog > 10) {
+                $elapsed = round(microtime(true) - $t0);
+                $eta = $idx > 10 ? round(($elapsed / $idx) * ($toplamVisit - $idx)) : 0;
+                $this->line(sprintf('  visit %5d/%5d (%d%%) | gecen=%ds ETA=%ds | randevu=%d adisyon=%d AH=%d AU=%d tahsilat=%d paket-usage=%d hata=%d',
+                    $idx, $toplamVisit, round(($idx * 100) / max(1, $toplamVisit)),
+                    $elapsed, $eta, $gRand, $gAdisyon, $gAH, $gAU, $gTah, $gPaketUsage, $gHata));
+                $lastLog = microtime(true);
+            }
 
             try {
                 // UPSERT — bu session'in mevcut markerli randevu+adisyon silinir (resetVisits ile ayni mantik)
