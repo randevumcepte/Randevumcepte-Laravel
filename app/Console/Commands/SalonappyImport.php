@@ -2983,6 +2983,9 @@ class SalonappyImport extends Command
             if ($ad === '') continue;
             $fiyat = (float) ($u['price'] ?? $u['amount'] ?? $u['sale_price'] ?? 0);
             $barkod = trim((string) ($u['barcode'] ?? ''));
+            // deleted_at dolu ise Salonappy'de silinmis — sisteme ekle ama aktif=0
+            $silinmis = !empty($u['deleted_at']);
+            $aktifFlag = $silinmis ? 0 : 1;
             // Case-sensitive match (BINARY): 'Genosis maske' vs 'genosis maske' farkli sayilir
             $existing = \DB::table('urunler')
                 ->where('salon_id', $salonId)
@@ -2996,7 +2999,7 @@ class SalonappyImport extends Command
                 if ($fiyat > 0 && \Schema::hasColumn('urunler', 'satis_fiyati')) $upd['satis_fiyati'] = $fiyat;
                 if ($fiyat > 0 && \Schema::hasColumn('urunler', 'fiyat')) $upd['fiyat'] = $fiyat;
                 if ($barkod !== '' && \Schema::hasColumn('urunler', 'barkod')) $upd['barkod'] = $barkod;
-                if (\Schema::hasColumn('urunler', 'aktif')) $upd['aktif'] = 1;
+                if (\Schema::hasColumn('urunler', 'aktif')) $upd['aktif'] = $aktifFlag;
                 if (!empty($upd)) {
                     \DB::table('urunler')->where('id', $existing->id)->update($upd);
                 }
@@ -3010,7 +3013,7 @@ class SalonappyImport extends Command
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ];
-                if (\Schema::hasColumn('urunler', 'aktif')) $insert['aktif'] = 1;
+                if (\Schema::hasColumn('urunler', 'aktif')) $insert['aktif'] = $aktifFlag;
                 if ($fiyat > 0 && \Schema::hasColumn('urunler', 'satis_fiyati')) $insert['satis_fiyati'] = $fiyat;
                 if ($fiyat > 0 && \Schema::hasColumn('urunler', 'fiyat')) $insert['fiyat'] = $fiyat;
                 if ($barkod !== '' && \Schema::hasColumn('urunler', 'barkod')) $insert['barkod'] = $barkod;
@@ -3063,12 +3066,14 @@ class SalonappyImport extends Command
             if (!$hid) continue;
             $hizmetEklenen++;
 
-            // Sure update (re-import guvenli) + aktif=1
+            // visibility=false ise Salonappy'de silinmis/pasif — sisteme ekle ama aktif=0
+            // (gecmis visit'lerde referansi kaybolmasin ama takvimde/listede gorunmesin)
+            $aktifFlag = (isset($s['visibility']) && $s['visibility'] === false) ? 0 : 1;
             \DB::table('salon_sunulan_hizmetler')
                 ->where('salon_id', $salonId)->where('hizmet_id', $hid)
                 ->update([
                     'sure_dk' => $sure,
-                    'aktif'   => 1,
+                    'aktif'   => $aktifFlag,
                     'updated_at' => date('Y-m-d H:i:s'),
                 ]);
 

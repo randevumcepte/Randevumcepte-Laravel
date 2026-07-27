@@ -53,10 +53,26 @@
   console.log('     ', staffs.length, 'personel');
   await sleep(RATE);
 
-  console.log('  3/4 products...');
+  console.log('  3/4 products (aktif + silinmiş)...');
   const pj = await get('/product/list');
-  const products = pj?.data?.products || pj?.data?.list || pj?.data || [];
-  console.log('     ', products.length, 'ürün');
+  let products = pj?.data?.products || pj?.data?.list || pj?.data || [];
+  console.log('      aktif:', products.length);
+  await sleep(RATE);
+  // Silinmis urunler (is_deleted=1). Endpoint destekliyorsa gelir; degilse bos.
+  const pjDel = await get('/product/list?is_deleted=1');
+  const productsDel = pjDel?.data?.products || pjDel?.data?.list || [];
+  if (productsDel.length) {
+    console.log('      silinmiş:', productsDel.length);
+    // Merge — silinmis olanlari isaretle (deleted_at yoksa manuel isaretle)
+    const seen = new Set(products.map(x => String(x.id)));
+    for (const p of productsDel) {
+      if (!seen.has(String(p.id))) {
+        if (!p.deleted_at) p.deleted_at = 'unknown'; // sadece isaretleme, tarih yoksa
+        products.push(p);
+      }
+    }
+  }
+  console.log('      toplam:', products.length);
   await sleep(RATE);
 
   console.log('  4/4 clients...');
