@@ -524,7 +524,7 @@
                         ><i class="icon-copy fa fa-shopping-cart" aria-hidden="true"></i> Yeni Satış & Tahsilat</a
                         >
                      @if(!Auth::guard('satisortakligi')->user()->hasRole('Personel')&& !Auth::guard('satisortakligi')->user()->hasRole('Sosyal Medya Uzmanı'))
-                     <a onclick="modalbaslikata('Yeni Masraf','masraf_formu')" class="dropdown-item" href="#"  data-toggle="modal" data-target="#yeni_masraf_modal"
+                     <a onclick="masrafModalAc('masraf')" class="dropdown-item" href="#"
                         ><i class="fa fa-upload"></i> Yeni Masraf</a
                         >
                      @endif
@@ -935,8 +935,7 @@
          @include('modaldialogs_satisortagi.randevu-ekle-modal')
          @include('modaldialogs_satisortagi.ongorusme-modal')
          @include('modaldialogs_satisortagi.musteri-ekle-modal')
-         @include('modaldialogs_satisortagi.masraf-ekle-modal')
-         @include('modaldialogs.personel-gideri-ekle-modal')
+         @include('modaldialogs.masraf-ekle-modal')
          @include('modaldialogs_satisortagi.santral-web-telefon-ustune-al-modal')
         
          @if($pageindex==11111 || $pageindex==1111)

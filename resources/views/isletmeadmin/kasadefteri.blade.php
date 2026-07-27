@@ -19,7 +19,7 @@
       </div>
       <div class="rc-kd-header-right">
          @yetki('finans.masraf_ekle')
-         <a onclick="modalbaslikata('Yeni Masraf','musteri_bilgi_formu');" href="#" data-toggle="modal" data-target="#yeni_masraf_modal" class="rc-kd-btn rc-kd-btn-danger yenieklebuton331"><i class="fa fa-plus"></i><span>Yeni Masraf</span></a>
+         <a onclick="masrafModalAc('masraf')" href="#" class="rc-kd-btn rc-kd-btn-danger yenieklebuton331"><i class="fa fa-plus"></i><span>Yeni Masraf</span></a>
          @endyetki
          @yetki('finans.kasa_giris_cikis')
          <a href="#" data-toggle="modal" data-target="#kasaya_para_koy" class="rc-kd-btn rc-kd-btn-primary yenieklebuton332"><i class="fa fa-arrow-down"></i><span>Para Ekle</span></a>

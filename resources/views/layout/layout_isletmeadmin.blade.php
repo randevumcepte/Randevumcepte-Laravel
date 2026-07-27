@@ -1593,7 +1593,7 @@
                      @endyetki
                      @endif
                      @yetki('finans.masraf_ekle')
-                     <a onclick="modalbaslikata('Yeni Masraf','masraf_formu')" class="dropdown-item" href="#"  data-toggle="modal" data-target="#yeni_masraf_modal"
+                     <a onclick="masrafModalAc('masraf')" class="dropdown-item" href="#"
                         ><i class="fa fa-upload"></i> Yeni Masraf</a
                         >
                      @endyetki
@@ -2512,7 +2512,6 @@
       @include('modaldialogs.ongorusme-modal')
       @include('modaldialogs.musteri-ekle-modal')
       @include('modaldialogs.masraf-ekle-modal')
-      @include('modaldialogs.personel-gideri-ekle-modal')
       @include('modaldialogs.arsiv-form-ekle-modal')
       @include('modaldialogs.santral-web-telefon-ustune-al-modal')
       @include('modaldialogs.odeme-detay-modal')
