@@ -1086,6 +1086,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/masrafgetir','StoreAdminController@masrafgetir');
 	Route::get('/kasaraporugetir','StoreAdminController@kasa_raporu_getir');
 	Route::get('/kasaraporufiltre','StoreAdminController@kasa_raporu_filtre');
+	Route::get('/gunsonuraporu','StoreAdminController@gun_sonu_raporu');
 	Route::get('/kampanyapaketfiyatgetir','StoreAdminController@kampanyapaketfiyatgetir');
 	Route::post('/musterikaralisteayari','StoreAdminController@musterikaralisteayari');
 	Route::get('/musteridetaybilgi','StoreAdminController@musteridetaybilgi');

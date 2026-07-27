@@ -18,6 +18,9 @@
          </div>
       </div>
       <div class="rc-kd-header-right">
+         @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.kasa'))
+         <a onclick="gunSonuAc()" href="#" class="rc-kd-btn rc-kd-btn-info yenieklebuton330"><i class="fa fa-calendar-check-o"></i><span>Gün Sonu</span></a>
+         @endif
          @yetki('finans.masraf_ekle')
          <a onclick="masrafModalAc('masraf')" href="#" class="rc-kd-btn rc-kd-btn-danger yenieklebuton331"><i class="fa fa-plus"></i><span>Yeni Masraf</span></a>
          @endyetki
@@ -236,6 +239,7 @@
 .rc-kd-btn-primary { background: linear-gradient(135deg, var(--rc-purple-dark) 0%, var(--rc-purple) 100%); box-shadow: 0 6px 16px rgba(92,0,142,.28); }
 .rc-kd-btn-success { background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); box-shadow: 0 6px 16px rgba(22,163,74,.28); }
 .rc-kd-btn-warning { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); box-shadow: 0 6px 16px rgba(245,158,11,.26); }
+.rc-kd-btn-info    { background: linear-gradient(135deg, #0ea5b7 0%, #22c1d6 100%); box-shadow: 0 6px 16px rgba(14,165,183,.28); }
 
 /* === FİLTRE KARTI === */
 .rc-kd-filter-card {
@@ -1069,4 +1073,334 @@ $(document).ready(function() {
     });
 });
 </script>
+<!-- ============ GÜN SONU RAPORU MODAL ============ -->
+<div id="gs-overlay" class="gs-overlay">
+   <div class="gs-modal" role="dialog" aria-modal="true">
+      <div class="gs-head">
+         <div class="gs-head-left">
+            <div class="gs-head-icon"><i class="fa fa-calendar-check-o"></i></div>
+            <div>
+               <h3 class="gs-title">Gün Sonu Raporu</h3>
+               <div class="gs-subtitle" id="gs-tarih-etiket">Bugün</div>
+            </div>
+         </div>
+         <div class="gs-head-right">
+            <select id="gs-period" class="gs-period">
+               <option value="bugun">Bugün</option>
+               <option value="dun">Dün</option>
+               <option value="buay">Bu ay</option>
+               <option value="gecenay">Geçen ay</option>
+               <option value="ozel">Özel tarih</option>
+            </select>
+            <div id="gs-ozel-wrap" class="gs-ozel-wrap" style="display:none">
+               <input type="date" id="gs-b" class="gs-date">
+               <span class="gs-date-sep">→</span>
+               <input type="date" id="gs-bit" class="gs-date">
+            </div>
+            <button type="button" class="gs-print-btn" id="gs-print" title="Yazdır / PDF"><i class="fa fa-print"></i><span>Yazdır</span></button>
+            <button type="button" class="gs-close" id="gs-close" aria-label="Kapat">&times;</button>
+         </div>
+      </div>
+      <div class="gs-body" id="gs-body">
+         <div class="gs-loading"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>
+      </div>
+   </div>
+</div>
+
+<style>
+.gs-overlay {
+   display:none; position:fixed; inset:0; z-index:100000;
+   background:rgba(15,23,42,.55); backdrop-filter:blur(2px);
+   align-items:flex-start; justify-content:center; padding:24px 16px; overflow-y:auto;
+}
+.gs-overlay.show { display:flex; }
+.gs-modal {
+   background:#f6f7fb; width:100%; max-width:840px; border-radius:18px; overflow:hidden;
+   box-shadow:0 24px 60px rgba(15,23,42,.35); display:flex; flex-direction:column;
+   animation:gsIn .18s ease-out; margin:auto;
+}
+@keyframes gsIn { from{opacity:0; transform:translateY(14px) scale(.98);} to{opacity:1; transform:none;} }
+.gs-head {
+   display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+   padding:16px 20px; background:linear-gradient(135deg,#5C008E 0%,#9D5DC8 100%);
+}
+.gs-head-left { display:flex; align-items:center; gap:12px; min-width:0; }
+.gs-head-icon {
+   width:42px; height:42px; border-radius:11px; background:rgba(255,255,255,.16);
+   display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:18px; flex-shrink:0;
+}
+.gs-title { margin:0; font-size:17px; font-weight:700; color:#fff; }
+.gs-subtitle { font-size:12.5px; color:#e9d6ff; margin-top:2px; }
+.gs-head-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.gs-period, .gs-date {
+   height:36px; border:none; border-radius:9px; padding:0 12px; font-size:13px; font-weight:600;
+   color:#3b0764; background:#fff; cursor:pointer; outline:none;
+}
+.gs-ozel-wrap { display:flex; align-items:center; gap:6px; }
+.gs-date { padding:0 8px; font-weight:500; }
+.gs-date-sep { color:#fff; font-size:13px; }
+.gs-print-btn {
+   height:36px; padding:0 14px; border:none; border-radius:9px; cursor:pointer;
+   background:rgba(255,255,255,.16); color:#fff; font-size:13px; font-weight:600;
+   display:inline-flex; align-items:center; gap:7px; transition:background .15s;
+}
+.gs-print-btn:hover { background:rgba(255,255,255,.28); }
+.gs-close {
+   background:rgba(255,255,255,.16); border:none; color:#fff; width:36px; height:36px;
+   border-radius:9px; font-size:22px; line-height:1; cursor:pointer; transition:background .15s;
+}
+.gs-close:hover { background:rgba(255,255,255,.3); }
+.gs-body { padding:18px 20px 22px; overflow-y:auto; max-height:calc(100vh - 140px); }
+.gs-loading { text-align:center; color:#64748b; padding:50px 0; font-size:14px; }
+
+/* Ust ozet kartlari */
+.gs-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:14px; }
+.gs-card { background:#fff; border:1px solid #eceef4; border-radius:14px; padding:16px 18px; position:relative; overflow:hidden; }
+.gs-card::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; }
+.gs-card.net::before    { background:linear-gradient(180deg,#1d4ed8,#3b82f6); }
+.gs-card.gelir::before  { background:linear-gradient(180deg,#0ea5b7,#22c1d6); }
+.gs-card.masraf::before { background:linear-gradient(180deg,#dc2626,#ef4444); }
+.gs-card .lbl { font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:#94a3b8; }
+.gs-card .val { font-size:22px; font-weight:800; letter-spacing:-.5px; margin-top:4px; color:#1e293b; }
+.gs-card.net .val.neg { color:#dc2626; }
+.gs-card.net .val.pos { color:#15803d; }
+
+/* Mini istatistik seridi */
+.gs-mini { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:14px; }
+.gs-mini-item { background:#fff; border:1px solid #eceef4; border-radius:12px; padding:12px 14px; text-align:center; }
+.gs-mini-item .n { font-size:19px; font-weight:800; color:#3b0764; }
+.gs-mini-item .t { font-size:11.5px; font-weight:600; color:#64748b; margin-top:2px; }
+
+/* Nakit kasa akisi */
+.gs-nakit { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+   background:#fff; border:1px solid #eceef4; border-radius:12px; padding:12px 16px; margin-bottom:16px; }
+.gs-nakit .step { text-align:center; flex:1; min-width:90px; }
+.gs-nakit .step .k { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:#94a3b8; }
+.gs-nakit .step .v { font-size:15px; font-weight:800; color:#1e293b; margin-top:2px; }
+.gs-nakit .step .v.neg { color:#dc2626; }
+.gs-nakit .arrow { color:#cbd5e1; font-size:16px; flex:0 0 auto; }
+
+/* Bolum basligi */
+.gs-section { font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+   color:#475569; margin:18px 0 10px; display:flex; align-items:center; gap:8px; }
+.gs-section i { color:#9D5DC8; }
+
+/* Odeme yontemi tablosu */
+.gs-tablewrap { background:#fff; border:1px solid #eceef4; border-radius:14px; overflow:hidden; }
+.gs-ptable { width:100%; border-collapse:collapse; }
+.gs-ptable th, .gs-ptable td { padding:10px 14px; font-size:13px; text-align:right; }
+.gs-ptable th { background:#f5eefe; color:#5C008E; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
+.gs-ptable th:first-child, .gs-ptable td:first-child { text-align:left; font-weight:600; color:#1e293b; }
+.gs-ptable tbody td { border-top:1px solid #f1f0f6; color:#334155; }
+.gs-ptable tbody tr:hover { background:#faf7ff; }
+.gs-ptable .pos { color:#15803d; font-weight:700; }
+.gs-ptable .neg { color:#dc2626; font-weight:700; }
+.gs-ptable tfoot td { border-top:2px solid #ead4ff; font-weight:800; color:#1e293b; background:#fcfaff; }
+
+/* Ikili liste (personel + urun/hizmet) */
+.gs-list { background:#fff; border:1px solid #eceef4; border-radius:14px; overflow:hidden; }
+.gs-list table { width:100%; border-collapse:collapse; }
+.gs-list th, .gs-list td { padding:9px 14px; font-size:12.5px; }
+.gs-list th { background:#f8fafc; color:#64748b; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; text-align:left; }
+.gs-list th.r, .gs-list td.r { text-align:right; }
+.gs-list td { border-top:1px solid #f1f0f6; color:#334155; }
+.gs-list td.ad { font-weight:600; color:#1e293b; }
+.gs-list td.ciro { font-weight:700; color:#5C008E; }
+.gs-two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.gs-empty { text-align:center; color:#94a3b8; font-size:12.5px; padding:16px 0; }
+
+@media (max-width:640px){
+   .gs-head-right { width:100%; }
+   .gs-cards { grid-template-columns:1fr; }
+   .gs-mini { grid-template-columns:repeat(3,1fr); }
+   .gs-two { grid-template-columns:1fr; }
+   .gs-card .val { font-size:20px; }
+}
+</style>
+
+<script>
+(function(){
+   var GS_BUGUN = '{{date("Y-m-d")}}';
+   var $ov = $('#gs-overlay');
+   $ov.appendTo('body');
+   var gsData = null;
+
+   function esc(s){ return $('<div>').text(s==null?'':s).html(); }
+   function gsFmt(n){ n = Number(n)||0; return n.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+   function pad(n){ return (n<10?'0':'')+n; }
+   function iso(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+   function trTarih(s){ if(!s) return ''; var p=s.split('-'); return p[2]+'.'+p[1]+'.'+p[0]; }
+
+   // Secili donemden [baslangic, bitis] uret
+   function gsAralik(){
+      var p = $('#gs-period').val();
+      var t = new Date(GS_BUGUN+'T00:00:00');
+      if(p==='bugun') return [iso(t), iso(t)];
+      if(p==='dun'){ var y=new Date(t); y.setDate(y.getDate()-1); return [iso(y), iso(y)]; }
+      if(p==='buay'){ var b=new Date(t.getFullYear(),t.getMonth(),1); return [iso(b), iso(t)]; }
+      if(p==='gecenay'){ var b=new Date(t.getFullYear(),t.getMonth()-1,1); var e=new Date(t.getFullYear(),t.getMonth(),0); return [iso(b), iso(e)]; }
+      // ozel
+      return [$('#gs-b').val()||iso(t), $('#gs-bit').val()||iso(t)];
+   }
+
+   function gsEtiket(b,bit){
+      if(b===bit) return trTarih(b);
+      return trTarih(b)+' → '+trTarih(bit);
+   }
+
+   window.gunSonuAc = function(){
+      $('#gs-period').val('bugun');
+      $('#gs-ozel-wrap').hide();
+      $('#gs-b').val(GS_BUGUN); $('#gs-bit').val(GS_BUGUN);
+      $ov.addClass('show');
+      gsYukle();
+   };
+   function gsKapat(){ $ov.removeClass('show'); }
+   $('#gs-close').on('click', gsKapat);
+   $ov.on('click', function(e){ if(e.target===this) gsKapat(); });
+   $(document).on('keydown', function(e){ if(e.key==='Escape' && $ov.hasClass('show')) gsKapat(); });
+
+   $('#gs-period').on('change', function(){
+      if($(this).val()==='ozel'){ $('#gs-ozel-wrap').css('display','flex'); }
+      else { $('#gs-ozel-wrap').hide(); gsYukle(); }
+   });
+   $('#gs-b, #gs-bit').on('change', function(){ if($('#gs-period').val()==='ozel') gsYukle(); });
+
+   function gsYukle(){
+      var a = gsAralik();
+      $('#gs-tarih-etiket').text(gsEtiket(a[0],a[1]));
+      $('#gs-body').html('<div class="gs-loading"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>');
+      $.ajax({
+         url:'/isletmeyonetim/gunsonuraporu', type:'GET', dataType:'json',
+         data:{ baslangic:a[0], bitis:a[1], sube:$('input[name="sube"]').val() },
+         success:function(d){
+            if(!d || d.durum!=='ok'){ $('#gs-body').html('<div class="gs-empty">Rapor yüklenemedi.</div>'); return; }
+            gsData = d; $('#gs-body').html(gsRender(d));
+         },
+         error:function(){ $('#gs-body').html('<div class="gs-empty">Rapor yüklenirken bir hata oluştu.</div>'); }
+      });
+   }
+
+   var YONTEMLER = [['nakit','Nakit'],['kredikarti','Kredi Kartı'],['havale','Havale'],['online','Online'],['diger','Diğer']];
+
+   function gsRender(d){
+      var netCls = d.net_toplam < 0 ? 'neg' : 'pos';
+      var h = '';
+
+      // Ust kartlar
+      h += '<div class="gs-cards">';
+      h += '<div class="gs-card net"><div class="lbl">Net (Toplam)</div><div class="val '+netCls+'">'+gsFmt(d.net_toplam)+' ₺</div></div>';
+      h += '<div class="gs-card gelir"><div class="lbl">Gelirler Toplamı</div><div class="val">'+gsFmt(d.gelir_toplam)+' ₺</div></div>';
+      h += '<div class="gs-card masraf"><div class="lbl">Masraflar Toplamı</div><div class="val">'+gsFmt(d.masraf_toplam)+' ₺</div></div>';
+      h += '</div>';
+
+      // Mini istatistikler
+      h += '<div class="gs-mini">';
+      h += '<div class="gs-mini-item"><div class="n">'+d.islem_say+'</div><div class="t">İşlem Sayısı</div></div>';
+      h += '<div class="gs-mini-item"><div class="n">'+d.musteri_say+'</div><div class="t">Müşteri Sayısı</div></div>';
+      h += '<div class="gs-mini-item"><div class="n">'+gsFmt(d.ort_sepet)+' ₺</div><div class="t">Ortalama Sepet</div></div>';
+      h += '</div>';
+
+      // Nakit kasa akisi
+      var acCls = d.nakit_acilis<0?'neg':''; var kpCls = d.nakit_kapanis<0?'neg':'';
+      h += '<div class="gs-nakit">';
+      h += '<div class="step"><div class="k">Nakit Açılış</div><div class="v '+acCls+'">'+gsFmt(d.nakit_acilis)+' ₺</div></div>';
+      h += '<div class="arrow"><i class="fa fa-arrow-right"></i></div>';
+      h += '<div class="step"><div class="k">Gün İçi Nakit</div><div class="v '+(d.net.nakit<0?'neg':'')+'">'+(d.net.nakit>=0?'+':'')+gsFmt(d.net.nakit)+' ₺</div></div>';
+      h += '<div class="arrow"><i class="fa fa-arrow-right"></i></div>';
+      h += '<div class="step"><div class="k">Nakit Kapanış (Kasada)</div><div class="v '+kpCls+'">'+gsFmt(d.nakit_kapanis)+' ₺</div></div>';
+      h += '</div>';
+
+      // Odeme yontemi kirilimi tablosu
+      h += '<div class="gs-section"><i class="fa fa-credit-card"></i> Ödeme Yöntemine Göre</div>';
+      h += '<div class="gs-tablewrap"><table class="gs-ptable"><thead><tr><th>Yöntem</th><th>Gelir</th><th>Masraf</th><th>Net</th></tr></thead><tbody>';
+      YONTEMLER.forEach(function(y){
+         var k=y[0], nv=d.net[k];
+         h += '<tr><td>'+y[1]+'</td><td>'+gsFmt(d.gelir[k])+'</td><td>'+gsFmt(d.masraf[k])+'</td>'+
+              '<td class="'+(nv<0?'neg':'pos')+'">'+gsFmt(nv)+'</td></tr>';
+      });
+      h += '</tbody><tfoot><tr><td>Toplam</td><td>'+gsFmt(d.gelir_toplam)+'</td><td>'+gsFmt(d.masraf_toplam)+
+           '</td><td class="'+(d.net_toplam<0?'neg':'pos')+'">'+gsFmt(d.net_toplam)+'</td></tr></tfoot></table></div>';
+
+      // Personel cirosu
+      h += '<div class="gs-section"><i class="fa fa-users"></i> Personel Bazlı Ciro</div>';
+      h += '<div class="gs-list"><table><thead><tr><th>Personel</th><th class="r">İşlem</th><th class="r">Ciro</th></tr></thead><tbody>';
+      if(d.personeller && d.personeller.length){
+         d.personeller.forEach(function(p){
+            h += '<tr><td class="ad">'+esc(p.personel_adi)+'</td><td class="r">'+p.adet+'</td><td class="r ciro">'+gsFmt(p.ciro)+' ₺</td></tr>';
+         });
+      } else { h += '<tr><td colspan="3"><div class="gs-empty">Bu dönemde personel işlemi bulunamadı.</div></td></tr>'; }
+      h += '</tbody></table></div>';
+
+      // En cok satan hizmet / urun
+      h += '<div class="gs-two">';
+      h += '<div><div class="gs-section"><i class="fa fa-scissors"></i> En Çok Satan Hizmet</div>'+gsMiniList(d.top_hizmet,'hizmet_adi')+'</div>';
+      h += '<div><div class="gs-section"><i class="fa fa-shopping-bag"></i> En Çok Satan Ürün</div>'+gsMiniList(d.top_urun,'urun_adi')+'</div>';
+      h += '</div>';
+
+      return h;
+   }
+
+   function gsMiniList(rows, adKey){
+      var h = '<div class="gs-list"><table><thead><tr><th>Ad</th><th class="r">Adet</th><th class="r">Ciro</th></tr></thead><tbody>';
+      if(rows && rows.length){
+         rows.forEach(function(r){
+            h += '<tr><td class="ad">'+esc(r[adKey])+'</td><td class="r">'+r.adet+'</td><td class="r ciro">'+gsFmt(r.ciro)+' ₺</td></tr>';
+         });
+      } else { h += '<tr><td colspan="3"><div class="gs-empty">Kayıt yok.</div></td></tr>'; }
+      h += '</tbody></table></div>';
+      return h;
+   }
+
+   // Yazdir / PDF
+   $('#gs-print').on('click', function(){
+      if(!gsData) return;
+      var d = gsData;
+      var salon = @json($isletme->salon_adi);
+      var don = gsEtiket(d.baslangic, d.bitis);
+      var pm = '';
+      YONTEMLER.forEach(function(y){ var k=y[0];
+         pm += '<tr><td>'+y[1]+'</td><td class="r">'+gsFmt(d.gelir[k])+'</td><td class="r">'+gsFmt(d.masraf[k])+'</td><td class="r">'+gsFmt(d.net[k])+'</td></tr>';
+      });
+      var per = '';
+      (d.personeller||[]).forEach(function(p){ per += '<tr><td>'+esc(p.personel_adi)+'</td><td class="r">'+p.adet+'</td><td class="r">'+gsFmt(p.ciro)+' TL</td></tr>'; });
+      if(!per) per = '<tr><td colspan="3" style="text-align:center;color:#888">Kayıt yok</td></tr>';
+      var hz = ''; (d.top_hizmet||[]).forEach(function(r){ hz += '<tr><td>'+esc(r.hizmet_adi)+'</td><td class="r">'+r.adet+'</td><td class="r">'+gsFmt(r.ciro)+' TL</td></tr>'; });
+      if(!hz) hz='<tr><td colspan="3" style="text-align:center;color:#888">Kayıt yok</td></tr>';
+      var ur = ''; (d.top_urun||[]).forEach(function(r){ ur += '<tr><td>'+esc(r.urun_adi)+'</td><td class="r">'+r.adet+'</td><td class="r">'+gsFmt(r.ciro)+' TL</td></tr>'; });
+      if(!ur) ur='<tr><td colspan="3" style="text-align:center;color:#888">Kayıt yok</td></tr>';
+
+      var w = window.open('', '_blank');
+      var html = '<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Gün Sonu Raporu</title>'+
+         '<style>'+
+         'body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;margin:28px;font-size:13px}'+
+         'h1{font-size:20px;margin:0;color:#5C008E}.sub{color:#6b7280;font-size:13px;margin:2px 0 18px}'+
+         '.cards{display:flex;gap:12px;margin-bottom:18px}.c{flex:1;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px}'+
+         '.c .l{font-size:11px;text-transform:uppercase;color:#9ca3af;font-weight:bold}.c .v{font-size:18px;font-weight:bold;margin-top:3px}'+
+         '.mini{color:#6b7280;margin-bottom:16px}.mini b{color:#3b0764}'+
+         'table{width:100%;border-collapse:collapse;margin-bottom:16px}'+
+         'th,td{padding:7px 10px;font-size:12.5px;border-bottom:1px solid #eee;text-align:left}'+
+         'th{background:#f5eefe;color:#5C008E;text-transform:uppercase;font-size:10.5px}'+
+         '.r{text-align:right}h3{font-size:13px;color:#374151;margin:16px 0 6px;border-bottom:2px solid #ead4ff;padding-bottom:4px}'+
+         'tfoot td{font-weight:bold;background:#faf7ff}'+
+         '.two{display:flex;gap:18px}.two>div{flex:1}'+
+         '@media print{.noprint{display:none}}'+
+         '</style></head><body>'+
+         '<h1>Gün Sonu Raporu</h1><div class="sub">'+esc(salon)+' · '+don+'</div>'+
+         '<div class="cards"><div class="c"><div class="l">Net (Toplam)</div><div class="v">'+gsFmt(d.net_toplam)+' TL</div></div>'+
+         '<div class="c"><div class="l">Gelirler</div><div class="v">'+gsFmt(d.gelir_toplam)+' TL</div></div>'+
+         '<div class="c"><div class="l">Masraflar</div><div class="v">'+gsFmt(d.masraf_toplam)+' TL</div></div></div>'+
+         '<div class="mini">İşlem: <b>'+d.islem_say+'</b> &nbsp;·&nbsp; Müşteri: <b>'+d.musteri_say+'</b> &nbsp;·&nbsp; Ort. Sepet: <b>'+gsFmt(d.ort_sepet)+' TL</b> &nbsp;·&nbsp; Nakit Kapanış: <b>'+gsFmt(d.nakit_kapanis)+' TL</b></div>'+
+         '<h3>Ödeme Yöntemine Göre</h3><table><thead><tr><th>Yöntem</th><th class="r">Gelir</th><th class="r">Masraf</th><th class="r">Net</th></tr></thead>'+
+         '<tbody>'+pm+'</tbody><tfoot><tr><td>Toplam</td><td class="r">'+gsFmt(d.gelir_toplam)+'</td><td class="r">'+gsFmt(d.masraf_toplam)+'</td><td class="r">'+gsFmt(d.net_toplam)+'</td></tr></tfoot></table>'+
+         '<h3>Personel Bazlı Ciro</h3><table><thead><tr><th>Personel</th><th class="r">İşlem</th><th class="r">Ciro</th></tr></thead><tbody>'+per+'</tbody></table>'+
+         '<div class="two"><div><h3>En Çok Satan Hizmet</h3><table><thead><tr><th>Ad</th><th class="r">Adet</th><th class="r">Ciro</th></tr></thead><tbody>'+hz+'</tbody></table></div>'+
+         '<div><h3>En Çok Satan Ürün</h3><table><thead><tr><th>Ad</th><th class="r">Adet</th><th class="r">Ciro</th></tr></thead><tbody>'+ur+'</tbody></table></div></div>'+
+         '<script>window.onload=function(){window.print();}<\/script>'+
+         '</body></html>';
+      w.document.write(html); w.document.close();
+   });
+})();
+</script>
+
 @endsection
