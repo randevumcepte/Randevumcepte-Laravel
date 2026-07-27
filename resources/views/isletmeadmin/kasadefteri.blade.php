@@ -868,8 +868,11 @@
             } else {
                $harcayan.val('').trigger('change');
             }
-            $('#masraf_notlari').val(result.notlar || '');
             $('#masraf_id').val(result.id);
+            // Kayit tipine gore modu ayarla (masraf / personel gideri) — birlesik modal
+            if(typeof masrafModalMod === 'function'){
+               masrafModalMod(parseInt(result.personel_gideri)===1 ? 'gideri' : 'masraf');
+            }
          },
          error: function(request){
             $('#preloader').hide();
