@@ -5,9 +5,10 @@
 @endphp
 <div id="yeni_masraf_modal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
   <style>
-    #yeni_masraf_modal .modal-dialog{ max-width:580px; margin:1.75rem auto; }
+    /* Genislik iki modda da SABIT: width + max-width birlikte, icerik ne olursa olsun 580px */
+    #yeni_masraf_modal .modal-dialog{ width:580px; max-width:calc(100vw - 24px); margin:1.75rem auto; }
     #yeni_masraf_modal .mx-content{
-      border:0; border-radius:18px; overflow:hidden; background:#fff;
+      width:100%; border:0; border-radius:18px; overflow:hidden; background:#fff;
       box-shadow:0 24px 60px -12px rgba(30,41,59,.35);
     }
     #yeni_masraf_modal .mx-head{
@@ -28,7 +29,7 @@
     /* Iki mod (Masraf / Personel Gideri) ayni yukseklikte kalsin: kategori satiri
        ile bilgi kutusu yer degistirse de govde sabit min-height ile boyut degismez.
        box-sizing:content-box -> min-height dogrudan icerik alanina uygulanir. */
-    #yeni_masraf_modal .mx-body{ padding:20px 24px; min-height:432px; box-sizing:content-box; }
+    #yeni_masraf_modal .mx-body{ padding:20px 24px; min-height:500px; box-sizing:content-box; }
     /* Segment gecis */
     #yeni_masraf_modal .mx-seg{
       display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:5px; margin-bottom:18px;
