@@ -5329,6 +5329,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $kalan_tutar = number_format($alacaklar, 2, ",", ".");
             $prim = number_format($toplamPrim,2,",",".");
 
+            // rapor.kasa (Kasa raporu / gunluk kapanis) yetkisi kapali ise
+            // dashboard uzerinde "Bugunku Kasa" tutari maskelenir (***).
+            // Not: Rol 5 (Personel) icin bu tur maskeleme uygulanmaz — kendi
+            // cirosunu personel.kendi_ciro_gor yetkisiyle zaten yonetiyoruz.
+            if ($personel->role_id != 5 &&
+                !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                    $request->user_id, $request->sube, 'rapor.kasa'
+                )
+            ) {
+                $toplam_kasa = '***';
+            }
+
 
             
 
