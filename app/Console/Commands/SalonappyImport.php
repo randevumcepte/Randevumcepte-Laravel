@@ -48,7 +48,7 @@ class SalonappyImport extends Command
         {--inspect-hizmet-eksik : Salon icin sure_dk=NULL/0 veya baslangic_fiyat=NULL/0 olan salon_sunulan_hizmetler kayitlarini listele. --salon zorunlu.}
         {--report-payments-from-dump : Dump JSON\'daki tüm payment\'lari DB tahsilatlariyla eşleştir + eksik listesi. --dump-file --salon zorunlu, --from/--to opsiyonel.}
         {--fix-orphan-urun-payments : Dump top-level payments source_text="Ürün satışı" olanlari, client+date match ile mevcut visit adisyonlarina Tahsilat+TU olarak ekle (visit re-import gerekmez). --dump-file --salon zorunlu, --from/--to opsiyonel.}
-        {--fix-orphan-payments : TUM source_text (Adisyon+Ürün satışı+Cari) icin dump top-level payments'i client+date match ile mevcut visit adisyonlarina Tahsilat+TH/TU olarak ekle. Sadece [salonappy-visit-pay:pid] markeri OLMAYAN payment id'ler eklenir. --dump-file --salon zorunlu, --from/--to opsiyonel.}
+        {--fix-orphan-payments : TUM source_text (Adisyon+Urun satisi+Cari) icin dump top-level payments client+date match ile mevcut visit adisyonlarina Tahsilat+TH/TU eklenir. Sadece [salonappy-visit-pay:pid] markeri OLMAYAN payment id degerleri eklenir. --dump-file --salon zorunlu, --from/--to opsiyonel.}
         {--tarih= : --inspect-tahsilat-detay icin merkez tarih YYYY-MM-DD}
         {--tutar= : --inspect-tahsilat-detay icin merkez tutar}
         {--dry-run : Reset/import oncesi sadece sayim}
