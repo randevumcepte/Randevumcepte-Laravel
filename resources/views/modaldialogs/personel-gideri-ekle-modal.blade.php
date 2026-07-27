@@ -21,8 +21,8 @@
       background:rgba(255,255,255,.18); display:flex; align-items:center; justify-content:center;
       font-size:20px;
     }
-    #personel_gideri_modal .pg-head h4{ margin:0; font-size:19px; font-weight:800; letter-spacing:.2px; }
-    #personel_gideri_modal .pg-head p{ margin:2px 0 0; font-size:12.5px; opacity:.85; }
+    #personel_gideri_modal .pg-head h4{ margin:0; font-size:19px; font-weight:800; letter-spacing:.2px; color:#fff !important; }
+    #personel_gideri_modal .pg-head p{ margin:2px 0 0; font-size:12.5px; opacity:.85; color:#fff !important; }
     #personel_gideri_modal .pg-close{
       margin-left:auto; background:rgba(255,255,255,.15); border:0; color:#fff; width:34px; height:34px;
       border-radius:9px; font-size:18px; cursor:pointer; line-height:1;
