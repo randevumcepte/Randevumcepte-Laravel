@@ -4424,10 +4424,18 @@ public function kasa_raporu_getir(Request $request,$returntext)
         ->sum('tutar');
     
     $masraf_liste = '';
-    foreach($masraflar as $masraf)
+    foreach($masraflar as $masraf){
+        // Gider turu rozeti: personel gideri (turuncu) / maas-prim odemesi (indigo) /
+        // digerleri normal isletme masrafi (kirmizi).
+        if($masraf->personel_gideri)
+            $_giderRozet = ' <span style="background:#f59e0b;color:#fff;border-radius:6px;padding:1px 7px;font-size:11px;white-space:nowrap">Personel Gideri</span>';
+        elseif($masraf->personel_maas_odemesi_id)
+            $_giderRozet = ' <span style="background:#6366f1;color:#fff;border-radius:6px;padding:1px 7px;font-size:11px;white-space:nowrap">Personel Ödemesi</span>';
+        else
+            $_giderRozet = ' <span style="background:#dc2626;color:#fff;border-radius:6px;padding:1px 7px;font-size:11px;white-space:nowrap">İşletme Masrafı</span>';
         $masraf_liste .= '<tr>
                         <td>'.date('d.m.Y',strtotime($masraf->tarih)).'</td>
-                        <td>'.($masraf->harcayan_id ? $masraf->harcayan->personel_adi : 'Kasa').($masraf->personel_gideri ? ' <span style="background:#f59e0b;color:#fff;border-radius:6px;padding:1px 7px;font-size:11px;white-space:nowrap">Personel Gideri</span>' : '').'</td>
+                        <td>'.($masraf->harcayan_id ? $masraf->harcayan->personel_adi : 'Kasa').$_giderRozet.'</td>
                         <td>'.$masraf->aciklama.'</td>
                         <td>'.$masraf->odeme_yontemi->odeme_yontemi.'</td>
                         <td>'.number_format($masraf->tutar,2,',','.').'</td>
@@ -4436,7 +4444,8 @@ public function kasa_raporu_getir(Request $request,$returntext)
                       <button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Masrafı Sil"  name="masraf_sil" data-value="'.$masraf->id.'"><i class="fa fa-times"></i></button>
 </td>
                         ';
-    
+    }
+
     // TOPLAM CİRO HESAPLAMA (Filtrelerden bağımsız - tüm zamanların net karı)
     $toplam_ciro = $tum_tahsilatlar_toplam - $tum_masraflar_toplam;
 
