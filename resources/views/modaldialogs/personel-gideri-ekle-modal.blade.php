@@ -110,15 +110,6 @@
               </select>
             </div>
             <div class="pg-col-full">
-              <label class="pg-lbl">Gider Türü / Kategori</label>
-              <select name="masraf_kategorisi" id="pg_kategori" class="form-control">
-                <option value="">Otomatik: Personel Gideri</option>
-                @foreach(\App\MasrafKategorisi::all() as $cat)
-                  <option value="{{$cat->id}}">{{$cat->kategori}}</option>
-                @endforeach
-              </select>
-            </div>
-            <div class="pg-col-full">
               <label class="pg-lbl">Açıklama</label>
               <input type="text" name="masraf_aciklama" id="pg_aciklama" class="form-control" placeholder="Ör: Öğle yemeği, sigara...">
             </div>
