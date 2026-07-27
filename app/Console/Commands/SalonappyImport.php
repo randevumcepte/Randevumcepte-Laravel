@@ -4099,9 +4099,13 @@ class SalonappyImport extends Command
 
     /**
      * GENERIC orphan payment fix — TUM source_text (Adisyon, Ürün satışı, Cari) icin.
-     * Dump top-level payments'i client+date match ile mevcut visit adisyonlarina Tahsilat
-     * olarak ekle. Sadece [salonappy-visit-pay:pid] markerli DB'de OLMAYAN pid'ler eklenir.
-     * TH (hizmet) ve TU (urun) icin fiyat-orantili dagitim yapilir.
+     * Dump top-level payments'i session bazli match ile mevcut visit adisyonlarina Tahsilat ekle.
+     *
+     * Match sirasi (ilk basarili ile durur):
+     *   1) payment_id -> bd.payments[].id direct link -> sid  (en guvenilir)
+     *   2) client_name + date EXACT -> bd.details -> sid
+     *   3) client_name + ±7 gun tarih toleransi -> bd.details -> sid (payment tarihi visit'ten sonra olabilir)
+     * Sonra DB'de [salonappy-visit:<sid>] markerli adisyon aranir, uzerine Tahsilat+TH/TU eklenir.
      */
     private function fixOrphanPayments($file, $salonId, $from = null, $to = null)
     {
@@ -4144,15 +4148,44 @@ class SalonappyImport extends Command
         $this->line('Dump orphan payment (DB\'de yok): ' . count($orphans));
         if (empty($orphans)) return 0;
 
-        // 3) Salon user cache (trKey -> [user_id...])
-        $this->line('User cache olusturuluyor...');
-        $userMap = [];
-        foreach (\DB::table('users')->select('id', 'name')->get() as $u) {
-            $k = $this->saTrKey($u->name);
-            if (!isset($userMap[$k])) $userMap[$k] = [];
-            $userMap[$k][] = $u->id;
+        // 3) Dump'tan bd bazli indeksler kur (session=sid link)
+        $this->line('Dump bd indeksleri kuruluyor...');
+        $bdPayToSid = [];          // payment_id -> sid (bd.payments'ta bulunanlar)
+        $bdByClientDate = [];      // trKey(client) . '|' . date -> [sid...]
+        $bdByClient = [];          // trKey(client) -> [(date, sid)...]
+        foreach (($j['bookingDetails'] ?? []) as $sid => $bd) {
+            $sidStr = (string) $sid;
+            foreach ((array) ($bd['payments'] ?? []) as $bp) {
+                $bpid = (string) ($bp['id'] ?? '');
+                if ($bpid) $bdPayToSid[$bpid] = $sidStr;
+            }
+            $d = $bd['details'] ?? [];
+            $cn = trim((string) ($d['client_name'] ?? ''));
+            $dt = substr((string) ($d['date'] ?? ''), 0, 10);
+            if ($cn && $dt) {
+                $k = $this->saTrKey($cn);
+                $bdByClientDate[$k . '|' . $dt][] = $sidStr;
+                $bdByClient[$k][] = ['date' => $dt, 'sid' => $sidStr];
+            }
         }
-        $this->line('User cache: ' . count($userMap) . ' unique trKey');
+        $this->line(sprintf('  bd payment link: %d | bd client+date: %d | bd client: %d',
+            count($bdPayToSid), count($bdByClientDate), count($bdByClient)));
+
+        // 4) DB'de salon icin [salonappy-visit:<sid>] markerli adisyonlari cache'le (sid -> adisyon)
+        $this->line('DB visit adisyon cache olusturuluyor...');
+        $sidToAdisyon = [];
+        foreach (\DB::table('adisyonlar')->where('salon_id', $salonId)
+            ->where('notlar', 'LIKE', '%[salonappy-visit:%')
+            ->select('id', 'user_id', 'notlar')->get() as $a) {
+            if (preg_match('~\[salonappy-visit:([^\]]+)\]~', (string) $a->notlar, $mm)) {
+                $sid = trim($mm[1]);
+                // Aynı sid'e birden fazla adisyon varsa ilkini tut (visit importer tek adisyon yaziyor)
+                if (!isset($sidToAdisyon[$sid])) {
+                    $sidToAdisyon[$sid] = ['id' => (int) $a->id, 'user_id' => (int) $a->user_id];
+                }
+            }
+        }
+        $this->line('  DB visit adisyon (sid indeksli): ' . count($sidToAdisyon));
 
         // Yontem map
         $yontemMap = function ($txt) {
@@ -4164,23 +4197,50 @@ class SalonappyImport extends Command
             return 4;
         };
 
-        $eklenen = 0; $noUser = 0; $noAdisyon = 0; $noItem = 0; $hata = 0;
+        // Helper: orphan icin sid bul
+        $findSid = function ($orph) use (&$bdPayToSid, &$bdByClientDate, &$bdByClient, &$sidToAdisyon) {
+            // 1) direct link
+            if (isset($bdPayToSid[$orph['pid']])) return [$bdPayToSid[$orph['pid']], 'direct'];
+            $k = $this->saTrKey($orph['client']);
+            // 2) exact date
+            if (!empty($bdByClientDate[$k . '|' . $orph['date']])) {
+                foreach ($bdByClientDate[$k . '|' . $orph['date']] as $sid) {
+                    if (isset($sidToAdisyon[$sid])) return [$sid, 'exact'];
+                }
+            }
+            // 3) ±7 gun tolerans (payment tarihi visit'ten sonra olabilir; en yakini sec)
+            if (!empty($bdByClient[$k])) {
+                $best = null; $bestDiff = 8;
+                $pDate = strtotime($orph['date']);
+                foreach ($bdByClient[$k] as $rec) {
+                    if (!isset($sidToAdisyon[$rec['sid']])) continue;
+                    $diff = abs(($pDate - strtotime($rec['date'])) / 86400);
+                    if ($diff < $bestDiff) { $bestDiff = $diff; $best = $rec['sid']; }
+                }
+                if ($best !== null) return [$best, 'fuzzy±' . (int) $bestDiff . 'g'];
+            }
+            return [null, null];
+        };
+
+        $eklenen = 0; $noSid = 0; $noAdisyon = 0; $noItem = 0; $hata = 0;
         $bySource = ['Adisyon' => 0, 'Ürün satışı' => 0, 'Cari' => 0];
+        $byMatch = ['direct' => 0, 'exact' => 0];
         $t0 = microtime(true); $lastLog = $t0;
 
         foreach ($orphans as $idx => $orph) {
             try {
-                $nameKey = $this->saTrKey($orph['client']);
-                $userIds = $userMap[$nameKey] ?? [];
-                if (empty($userIds)) { $noUser++; continue; }
-
-                // Bu user'lardan hangisinin salon'da $tarih tarihli visit adisyonu var
-                $adisyon = \DB::table('adisyonlar')->where('salon_id', $salonId)
-                    ->whereIn('user_id', $userIds)
-                    ->where('tarih', $orph['date'])
-                    ->where('notlar', 'LIKE', '%[salonappy-visit:%')
-                    ->orderBy('id')->first();
-                if (!$adisyon) { $noAdisyon++; continue; }
+                list($sid, $matchKind) = $findSid($orph);
+                if ($sid === null) { $noSid++; continue; }
+                $adInfo = $sidToAdisyon[$sid] ?? null;
+                if (!$adInfo) { $noAdisyon++; continue; }
+                $adisyon = (object) [
+                    'id' => $adInfo['id'], 'user_id' => $adInfo['user_id'],
+                ];
+                if ($matchKind === 'direct' || $matchKind === 'exact') {
+                    $byMatch[$matchKind] = ($byMatch[$matchKind] ?? 0) + 1;
+                } else {
+                    $byMatch[$matchKind] = ($byMatch[$matchKind] ?? 0) + 1;
+                }
 
                 $ahs = \DB::table('adisyon_hizmetler')->where('adisyon_id', $adisyon->id)->get(['id', 'fiyat']);
                 $aus = \DB::table('adisyon_urunler')->where('adisyon_id', $adisyon->id)->get(['id', 'fiyat', 'adet']);
@@ -4249,11 +4309,13 @@ class SalonappyImport extends Command
             if (($idx + 1) % 200 === 0 || microtime(true) - $lastLog > 10) {
                 $lastLog = microtime(true);
                 $elapsed = round($lastLog - $t0);
-                $this->line(sprintf('  %d/%d | ekle=%d noUser=%d noAdisyon=%d noItem=%d hata=%d gecen=%ds',
-                    $idx + 1, count($orphans), $eklenen, $noUser, $noAdisyon, $noItem, $hata, $elapsed));
+                $this->line(sprintf('  %d/%d | ekle=%d noSid=%d noAdisyon=%d noItem=%d hata=%d gecen=%ds',
+                    $idx + 1, count($orphans), $eklenen, $noSid, $noAdisyon, $noItem, $hata, $elapsed));
             }
         }
-        $this->info("Fix tamam: eklenen=$eklenen (Adisyon={$bySource['Adisyon']}, Ürün satışı={$bySource['Ürün satışı']}, Cari={$bySource['Cari']}) | noUser=$noUser noAdisyon=$noAdisyon noItem=$noItem hata=$hata / toplam=" . count($orphans));
+        $matchStr = '';
+        foreach ($byMatch as $k => $v) $matchStr .= "$k=$v ";
+        $this->info("Fix tamam: eklenen=$eklenen (Adisyon={$bySource['Adisyon']}, Ürün satışı={$bySource['Ürün satışı']}, Cari={$bySource['Cari']}) | match: {$matchStr}| noSid=$noSid noAdisyon=$noAdisyon noItem=$noItem hata=$hata / toplam=" . count($orphans));
         return 0;
     }
 
