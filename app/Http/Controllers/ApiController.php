@@ -27823,7 +27823,9 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         } elseif ($filtre === 'sure_doldu') {
             $q->where('kullanildi', 0)->whereNotNull('gecerlilik_tarihi')->where('gecerlilik_tarihi', '<', now()->toDateString());
         }
-        $odulluler = $q->orderByDesc('created_at')->limit(500)->get();
+        // En son islem goreni (dogrulanan/kullanilan) uste al: kullanildiginda kullanim_tarihi,
+        // aksi halde olusturma tarihi baz alinir.
+        $odulluler = $q->orderByRaw('COALESCE(kullanim_tarihi, created_at) DESC')->limit(500)->get();
 
         $userIds = $loglar->pluck('user_id')->merge($odulluler->pluck('user_id'))->unique()->filter();
         $users = User::whereIn('id', $userIds)->get()->keyBy('id')->map(function ($u) {
