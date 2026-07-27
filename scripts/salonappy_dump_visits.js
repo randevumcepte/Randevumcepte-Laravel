@@ -9,7 +9,7 @@
   const BASE = 'https://web-api.salonappy.com/api';
   const DB_NAME = prompt('IndexedDB cache adi', 'sa_visits_monthly_v1') || 'sa_visits_monthly_v1';
 
-  let TOKEN = '75501&xllbghIbb43162455EtvHvW88780133d539433fef4c03826541471';
+  let TOKEN = '75501&nnFltNE201e7c624c7qCrVC032551e7cb98409cd57ae5f3b1e47e9';
   let X_DEVICE = 'M3B3Ii2nwZrroB1nyWvOA81pWVKQmeTE';
   let X_VERSION = '2026.06.22.1';
   TOKEN = prompt('Bearer token', TOKEN) || TOKEN;
@@ -94,12 +94,15 @@
     visits = [];
     const seenSess = new Set();
     const today = new Date();
-    const yEnd = today.getFullYear() + 1; // gelecek yil dahil (upcoming randevular)
+    // Bugunun ayindan +2 ay tampon (yakin gelecek upcoming randevular icin); ilerisi bos, atlanir
+    const cutoff = new Date(today.getFullYear(), today.getMonth() + 2, 1);
+    const yEnd = cutoff.getFullYear();
     const limit = 100;
     const statuses = [1, 2, 3, 4, 5];
     let toplamSayfa = 0, toplamCagri = 0;
     for (let yr = Y_START; yr <= yEnd; yr++) {
-      for (let mo = 1; mo <= 12; mo++) {
+      const moMax = (yr < yEnd) ? 12 : (cutoff.getMonth() + 1);
+      for (let mo = 1; mo <= moMax; mo++) {
         const dStart = `${yr}-${String(mo).padStart(2, '0')}-01`;
         const lastDay = new Date(yr, mo, 0).getDate();
         const dEnd = `${yr}-${String(mo).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
