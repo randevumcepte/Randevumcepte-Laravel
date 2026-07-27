@@ -7,7 +7,7 @@
 // Visit'ler full cekilir; importer tarih araligini filtreyle uygular.
 (async () => {
   const BASE = 'https://web-api.salonappy.com/api';
-  const DB_NAME = prompt('IndexedDB cache adi', 'sa_visits_resume6') || 'sa_visits_resume6';
+  const DB_NAME = prompt('IndexedDB cache adi', 'sa_visits_monthly_v1') || 'sa_visits_monthly_v1';
 
   let TOKEN = '75501&xllbghIbb43162455EtvHvW88780133d539433fef4c03826541471';
   let X_DEVICE = 'M3B3Ii2nwZrroB1nyWvOA81pWVKQmeTE';
@@ -82,60 +82,57 @@
   } else console.log(`  resume: clients (${clients.length})`);
   await sleep(RATE_DELAY_MS);
 
-  // 2) Visit listesi — TEK GENIS ARALIK + STATUS + OFFSET/LIMIT PAGINATED
-  // Salonappy API bug'i: yil bazli (date_start=2023-01-01) verilirse 2023+'da
-  // sadece ~30 sonuc doner. GENIS ARALIK (2018..bugun) verilirse tum kayitlar
-  // doner (UI'da da 6 yil birden filtrelenerek 34K+ scroll ediliyor).
-  // Ayrica status'e gore ayri paginate: 1=Bekleyen, 2=Onayli, 3=Iptal, 4=NoShow, 5=Kapatildi
+  // 2) Visit listesi — AYLIK CHUNK + STATUS + OFFSET/LIMIT PAGINATED
+  // Onceki "TEK GENIS ARALIK" stratejisi Salonappy'de erken kesiliyordu
+  // (34K visit iddiasi, dump 15K getiriyor). AYLIK chunk garantili kapsama saglar.
+  // Her ay × her status icin ayri /visit/list cagirisi.
+  // Y_START degistirilebilir; en eski payment 2020-05'te (salon 395 icin).
+  const Y_START = parseInt(prompt('Baslangic yili (default 2018)', '2018'), 10) || 2018;
   let visits = await dbGet('visits');
   if (!visits) {
-    console.log('🔹 Visit listesi cekiliyor (/visit/list — TEK ARALIK + status paginated)...');
+    console.log(`🔹 Visit listesi cekiliyor AYLIK+STATUS (${Y_START}..bugun)...`);
     visits = [];
     const seenSess = new Set();
-    const dStart = '2018-01-01';
     const today = new Date();
-    const dEnd = today.toISOString().slice(0, 10);
-    const limit = 100; // UI 25 ama biz 100 hizli
+    const yEnd = today.getFullYear() + 1; // gelecek yil dahil (upcoming randevular)
+    const limit = 100;
     const statuses = [1, 2, 3, 4, 5];
-    for (const st of statuses) {
-      let offset = 0;
-      let stCount = 0;
-      let pageNo = 0;
-      let totalRecords = null;
-      let ardisikBos = 0;
-      while (true) {
-        pageNo++;
-        const j = await get(`/visit/list?offset=${offset}&limit=${limit}&date_start=${dStart}&date_end=${dEnd}&status=${st}`);
-        const arr = j?.data?.visits || [];
-        // total_records = API'nin gercek toplam sayaci (Salonappy pagination bug'i icin sart)
-        if (totalRecords === null) {
-          totalRecords = parseInt(j?.data?.total_records || '0', 10);
+    let toplamSayfa = 0, toplamCagri = 0;
+    for (let yr = Y_START; yr <= yEnd; yr++) {
+      for (let mo = 1; mo <= 12; mo++) {
+        const dStart = `${yr}-${String(mo).padStart(2, '0')}-01`;
+        const lastDay = new Date(yr, mo, 0).getDate();
+        const dEnd = `${yr}-${String(mo).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        let ayCount = 0;
+        for (const st of statuses) {
+          let offset = 0;
+          let totalRecords = null;
+          let ardisikBos = 0;
+          while (true) {
+            const j = await get(`/visit/list?offset=${offset}&limit=${limit}&date_start=${dStart}&date_end=${dEnd}&status=${st}`);
+            toplamCagri++;
+            const arr = j?.data?.visits || [];
+            if (totalRecords === null) totalRecords = parseInt(j?.data?.total_records || '0', 10);
+            for (const v of arr) {
+              const sid = String(v?.session ?? v?.id ?? '');
+              if (sid && !seenSess.has(sid)) { seenSess.add(sid); visits.push(v); ayCount++; }
+            }
+            offset += limit;
+            if (arr.length === 0) ardisikBos++; else ardisikBos = 0;
+            await sleep(RATE_DELAY_MS);
+            if (totalRecords > 0 && offset >= totalRecords) break;
+            if (ardisikBos >= 3) break; // aylik dar aralikta 3 bos sayfa yeter
+            if (offset >= 5000) break;  // safety cap (bir ayda 5000 visit anormal)
+          }
         }
-        for (const v of arr) {
-          const sid = String(v?.session ?? v?.id ?? '');
-          if (sid && !seenSess.has(sid)) { seenSess.add(sid); visits.push(v); }
-        }
-        stCount += arr.length;
-        // KRITIK: arr.length'e degil offset'e gore ilerle (Salonappy ilk 1000 offset'te
-        // tutarsiz kayit doner: 4, 6, 3, 9, sonra 25 tutarli). arr.length < limit
-        // gorunce break yaparsak %90 kayip. total_records'a ulasana kadar devam.
-        offset += limit;
-        if (arr.length === 0) ardisikBos++; else ardisikBos = 0;
-        if (pageNo % 40 === 0) {
-          console.log(`  status=${st} offset=${offset}/${totalRecords} (dolu=${stCount}, unique=${visits.length})`);
+        toplamSayfa++;
+        if (ayCount > 0 || mo % 3 === 0) {
+          console.log(`  ${yr}-${String(mo).padStart(2,'0')}: +${ayCount} (kumule unique=${visits.length}, cagri=${toplamCagri})`);
           await dbPut('visits', visits);
         }
-        await sleep(RATE_DELAY_MS);
-        // Bitis kosullari:
-        //  1) total_records'a ulastik (temel)
-        //  2) 30 ardisik bos sayfa (safety, total_records yanlissa da durdur)
-        if (totalRecords > 0 && offset >= totalRecords) break;
-        if (ardisikBos >= 30) break;
       }
-      console.log(`✓ status=${st}: +${stCount} dolu / offset=${offset} / total_records=${totalRecords} (unique=${visits.length})`);
-      await dbPut('visits', visits);
     }
-    console.log(`✓✓ Visit toplam (unique tum status): ${visits.length}`);
+    console.log(`✓✓ Visit toplam (unique tum ay×status): ${visits.length} / ${toplamCagri} istek`);
     await sleep(RATE_DELAY_MS);
   } else console.log(`  resume: visits (${visits.length})`);
 
