@@ -41,6 +41,7 @@ return [
 
 
     'aydangurece'  => 'app/firebase/egekobi-893bd4d005ff.json',
+    'aydangurecce'  => 'app/firebase/egekobi-893bd4d005ff.json', // DB'de firebase_profile bu yazimla (cift c) kayitli
     'sirius'  => 'app/firebase/egekobi-893bd4d005ff.json',
     'successo'  => 'app/firebase/egekobi-893bd4d005ff.json',
     'moncher'  => 'app/firebase/egekobi-893bd4d005ff.json',
