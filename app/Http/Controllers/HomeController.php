@@ -3254,30 +3254,81 @@ $salon = Salonlar::where('domain', $domain)->first();
                 'uyari_yapilmis_mi' => (bool) $gonderim->kotu_puan_uyari_gonderildi,
             ]);
             if (($dusukNps || $dusukCsat) && !$gonderim->kotu_puan_uyari_gonderildi) {
-                $uyariTel = trim($salon->kotu_puan_uyari_telefon ?? '');
-                if (!$uyariTel) {
-                    \Log::warning('[ANKET-PREMIUM] uyari telefonu bos — SMS atilmadi', ['salon_id' => $salon->id]);
+                $uyariTel   = trim($salon->kotu_puan_uyari_telefon ?? '');
+                $musteriAd  = $gonderim->ad_soyad ?: 'Müşteri';
+                $skor       = $npsSkoru !== null ? ('NPS '.$npsSkoru.'/10') : ('Puan '.$csatSkoru.'/5');
+                $yorumOzet  = $genelYorum ? (' Yorum: ' . mb_substr($genelYorum, 0, 80)) : '';
+
+                $pushOk = false;
+                $waOk   = false;
+
+                // ── 1) UYGULAMA PUSH (birincil) — salon sahibi/yoneticilerine (role_id < 5; normal personel haric)
+                //     Push telefon numarasina bagli DEGILDIR: uyari telefonu bos olsa bile sahibe gider.
+                try {
+                    $yoneticiIdleri = \App\Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
+                        ->where('salon_personelleri.salon_id', $salon->id)
+                        ->where('model_has_roles.role_id', '<', 5)
+                        ->distinct()
+                        ->pluck('salon_personelleri.id')->toArray();
+                    $yoneticiIdleri = array_values(array_unique($yoneticiIdleri));
+                    $pushBody = $musteriAd.' düşük puan verdi ('.$skor.').'.$yorumOzet.' Hemen iletişime geçin.';
+                    foreach ($yoneticiIdleri as $yId) {
+                        try {
+                            $sonuc = \App\Services\NotificationService::toStaff((int) $yId, (int) $salon->id)
+                                ->type(\App\Services\NotificationTypes::SURVEY)
+                                ->title('⚠️ Düşük Puan Uyarısı')
+                                ->body($pushBody)
+                                ->deepLink('survey', ['salon_id' => $salon->id])
+                                ->popup(true)
+                                ->send();
+                            if (!empty($sonuc['sent'])) $pushOk = true;
+                        } catch (\Throwable $e) {
+                            \Log::warning('[ANKET-PREMIUM] push uyari fail', ['salon_id' => $salon->id, 'yonetici_id' => $yId, 'err' => $e->getMessage()]);
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('[ANKET-PREMIUM] push uyari hedef sorgu hata: '.$e->getMessage(), ['salon_id' => $salon->id]);
                 }
-                if ($uyariTel) {
-                    $musteriAd = $gonderim->ad_soyad ?: 'Müşteri';
-                    $skor = $npsSkoru !== null ? ('NPS '.$npsSkoru.'/10') : ('Puan '.$csatSkoru.'/5');
-                    $yorumOzet = $genelYorum ? (' Yorum: ' . mb_substr($genelYorum, 0, 80)) : '';
+
+                // ── 2) WHATSAPP (birincil) — alarm numarasina (salon WA bagliysa)
+                if ($uyariTel && !empty($salon->whatsapp_aktif) && ($salon->whatsapp_durum ?? null) === 'connected') {
+                    try {
+                        $waMesaj = "⚠️ DÜŞÜK PUAN UYARISI\n".$skor."\nMüşteri: ".$musteriAd." (".$gonderim->telefon.")"
+                            .($genelYorum ? "\nYorum: ".mb_substr($genelYorum, 0, 120) : '')
+                            ."\nHemen iletişime geçin.";
+                        $wa = app(\App\Services\WhatsAppService::class);
+                        // urgent=true: is-saati kisitini bypass et (kritik uyari); gonderimTipi log etiketi
+                        $sonuc = $wa->sendReminder($salon, $uyariTel, $waMesaj, null, null, null, true, 'anket');
+                        if (!empty($sonuc['ok'])) $waOk = true;
+                    } catch (\Throwable $e) {
+                        \Log::warning('[ANKET-PREMIUM] WA uyari hata: '.$e->getMessage(), ['salon_id' => $salon->id]);
+                    }
+                }
+
+                // ── 3) SMS (son care, ucretli) — SADECE push VE WhatsApp'in ikisi de ulasmadiysa
+                if (!$pushOk && !$waOk && $uyariTel) {
                     // Emoji yerine duz metin (GSM-7 uyumlu, Unicode SMS'e dusurmemek icin)
                     $mesaj = 'DUSUK PUAN UYARISI - '.$skor.' | '.$musteriAd.' ('.$gonderim->telefon.') anket doldurdu.'.$yorumOzet.' Hemen iletisime gecin.';
-                    \Log::info('[ANKET-PREMIUM] dusuk puan SMS atiliyor', [
-                        'gonderim_id' => $gonderim->id,
-                        'uyari_tel'   => $uyariTel,
-                        'mesaj_uzunluk' => strlen($mesaj),
-                    ]);
                     try {
                         $ctrl = app()->make(\App\Http\Controllers\Controller::class);
                         $ctrl->sms_gonder($salon->id, [['to' => $uyariTel, 'message' => $mesaj]]);
-                        \Log::info('[ANKET-PREMIUM] dusuk puan SMS gonderildi', ['gonderim_id' => $gonderim->id]);
-                        $gonderim->kotu_puan_uyari_gonderildi = true;
-                        $gonderim->save();
                     } catch(\Exception $e) {
                         \Log::error('Kötü puan SMS uyarısı hata: '.$e->getMessage());
                     }
+                }
+
+                \Log::info('[ANKET-PREMIUM] dusuk puan uyari kanallari', [
+                    'gonderim_id'  => $gonderim->id,
+                    'push'         => $pushOk ? 1 : 0,
+                    'whatsapp'     => $waOk ? 1 : 0,
+                    'sms_fallback' => (!$pushOk && !$waOk && $uyariTel) ? 1 : 0,
+                    'uyari_tel_var'=> $uyariTel ? 1 : 0,
+                ]);
+
+                // En az bir kanal denendiyse tekrar uyarmayi engelle
+                if ($pushOk || $waOk || $uyariTel) {
+                    $gonderim->kotu_puan_uyari_gonderildi = true;
+                    $gonderim->save();
                 }
             }
         }
