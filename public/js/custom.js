@@ -8988,6 +8988,7 @@ function masrafModalMod(mod){
         : 'Harcayan Personel <span class="req">*</span>');
     $('#masraf_kategori_wrap').toggle(!gideri);
     $('#masraf_pg_info').toggle(gideri);
+    $('#masraf_aciklama').attr('placeholder', gideri ? 'Ör: Öğle yemeği, sigara...' : 'Ör: ...');
     // Gideri modunda odeme yontemi bos ise Nakit sec
     if(gideri && $('#masraf_odeme_yontemi').val()===''){
         $('#masraf_odeme_yontemi option').each(function(){

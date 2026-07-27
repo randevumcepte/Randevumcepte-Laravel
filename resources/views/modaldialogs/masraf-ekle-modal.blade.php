@@ -29,7 +29,7 @@
     /* Iki mod (Masraf / Personel Gideri) ayni yukseklikte kalsin: kategori satiri
        ile bilgi kutusu yer degistirse de govde sabit min-height ile boyut degismez.
        box-sizing:content-box -> min-height dogrudan icerik alanina uygulanir. */
-    #yeni_masraf_modal .mx-body{ padding:20px 24px; min-height:500px; box-sizing:content-box; }
+    #yeni_masraf_modal .mx-body{ padding:20px 24px; min-height:380px; box-sizing:content-box; }
     /* Segment gecis */
     #yeni_masraf_modal .mx-seg{
       display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:5px; margin-bottom:18px;
@@ -139,11 +139,7 @@
             </div>
             <div class="mx-col-full">
               <label class="mx-lbl">Açıklama</label>
-              <input type="text" name="masraf_aciklama" id="masraf_aciklama" class="form-control" placeholder="Ör: Öğle yemeği, sigara...">
-            </div>
-            <div class="mx-col-full">
-              <label class="mx-lbl">Notlar</label>
-              <textarea name="masraf_notlari" id="masraf_notlari" class="form-control" rows="2"></textarea>
+              <input type="text" name="masraf_aciklama" id="masraf_aciklama" class="form-control" placeholder="Ör: ...">
             </div>
           </div>
         </div>

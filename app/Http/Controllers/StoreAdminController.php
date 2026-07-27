@@ -15999,7 +15999,8 @@ DB::raw('
             $masraf->personel_gideri = $personelGideri;
         $masraf->tutar= str_replace(['.',','],['','.'],$request->masraf_tutari);
         $masraf->aciklama = $request->masraf_aciklama;
-        $masraf->notlar = $request->masraf_notlari;
+        // Notlar alani formdan kaldirildi; sadece gonderildiyse guncelle (edit'te mevcut notu silme)
+        if($request->has('masraf_notlari')) $masraf->notlar = $request->masraf_notlari;
         $masraf->save();
         $returntext = '';
         $butontext = '';
