@@ -663,6 +663,27 @@ class PanelController extends Controller
     }
 
     /**
+     * Lisansı HEMEN kapat/kısıtla: uyelik_bitis_tarihi'ni düne çeker. lisans_sure_kontrol
+     * negatif olur -> salon "lisans süreniz bitmiştir" (isletmeadmin.lisanssurebitti) kilit
+     * ekranını görür ve panele giremez. Tekrar açmak için yukarıdan süre uzatılır.
+     */
+    public function salonLisansKapat(Request $request, $id)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+        $salon = Salonlar::findOrFail($id);
+        $eski = $salon->uyelik_bitis_tarihi;
+
+        $salon->uyelik_bitis_tarihi = date('Y-m-d', strtotime('-1 day')); // dün = süre bitti
+        $salon->save();
+
+        Audit::log('salon_lisans_kapat', 'salon', $salon->id, $salon->salon_adi,
+            'Lisans kapatıldı/kısıtlandı', ['eski_bitis' => $eski, 'yeni_bitis' => $salon->uyelik_bitis_tarihi]);
+
+        return redirect()->back()->with('basari',
+            'Lisans kapatıldı — salon artık "lisans süreniz bitmiştir" ekranını görecek. Tekrar açmak için süreyi uzatın.');
+    }
+
+    /**
      * Personeli işten çıkar (pasif) / geri al. İşten çıkan hesap impersonation
      * varsayilaninda atlanir ve salon personel listesinde pasif gorunur.
      */

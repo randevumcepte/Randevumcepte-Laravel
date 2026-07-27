@@ -147,6 +147,13 @@
                 <span class="sy-badge sy-badge-success">AKTİF</span>
                 <span class="sy-text-muted sy-fs-12">Bu salon aktif/lisanslı — süreyi yukarıdan uzatabilirsiniz.</span>
             @endif
+
+            {{-- Lisansi hemen kapat: salon "lisans süresi bitmiştir" kilit ekranini gorur --}}
+            <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/lisans-kapat" style="margin:0 0 0 auto"
+                  data-confirm="Bu salonun lisansı KAPATILACAK. Salon hemen 'lisans süreniz bitmiştir' ekranını görecek ve panele giremeyecek. Devam?" data-confirm-danger>
+                @csrf
+                <button type="submit" class="sy-btn sy-btn-sm sy-btn-danger"><span class="mdi mdi-lock"></span> Lisansı Kapat / Kısıtla</button>
+            </form>
         </div>
     </div>
 </div>
