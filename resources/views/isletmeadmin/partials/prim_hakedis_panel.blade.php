@@ -1114,6 +1114,10 @@
             </div>
           </div>
 
+          <div id="primOde_masrafInfo" style="display:none; margin-top:10px; padding:10px 14px; border-radius:10px; background:#fff7ed; border:1px solid #fed7aa; color:#b45309; font-size:13px; font-weight:600; line-height:1.4">
+            <i class="fa fa-shopping-basket"></i> Personel gideri (kasadan alınan): <b>−<span id="primOde_masrafTutar">0,00</span> ₺</b> — hak edişten düşüldü, yukarıdaki kalan tutarlar buna göre hesaplandı.
+          </div>
+
           <div class="row">
             <div class="col-md-6">
               <div class="pm-form-group">
@@ -1555,10 +1559,24 @@ $(function(){
     var odenenMaas = r ? (parseFloat(r.odenen_maas)||0) : 0;
     var odenenPrim = r ? (parseFloat(r.odenen_prim)||0) : 0;
     var odenenDiger = r ? (parseFloat(r.odenen_diger)||0) : 0;
+    var masraf = r ? (parseFloat(r.masraf)||0) : 0; // personel gideri (kasadan alinan)
 
     var kalanMaas = Math.max(0, maas - odenenMaas);
     var kalanPrim = Math.max(0, primToplam - odenenPrim);
     var kalanDiger = bonusKesintiNet - odenenDiger; // negatif olabilir
+    // Personel gideri zaten kasadan nakit alinmis; kalanlardan sirayla dusulur
+    // (maas -> prim -> diger) ki tum kalanlarin toplami NET hak edise esit olsun.
+    var _mk = masraf;
+    var _d = Math.min(_mk, kalanMaas); kalanMaas -= _d; _mk -= _d;
+    _d = Math.min(_mk, kalanPrim); kalanPrim -= _d; _mk -= _d;
+    kalanDiger -= _mk;
+
+    if(masraf > 0){
+      $('#primOde_masrafTutar').text(_formatTL(masraf));
+      $('#primOde_masrafInfo').show();
+    } else {
+      $('#primOde_masrafInfo').hide();
+    }
 
     var $m = $('#primOdeModal');
     if($m.parent()[0] !== document.body) $m.appendTo('body');
