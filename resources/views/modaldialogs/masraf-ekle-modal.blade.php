@@ -25,7 +25,10 @@
       border-radius:9px; font-size:18px; cursor:pointer; line-height:1;
     }
     #yeni_masraf_modal .mx-close:hover{ background:rgba(255,255,255,.28); }
-    #yeni_masraf_modal .mx-body{ padding:20px 24px; }
+    /* Iki mod (Masraf / Personel Gideri) ayni yukseklikte kalsin: kategori satiri
+       ile bilgi kutusu yer degistirse de govde sabit min-height ile boyut degismez.
+       box-sizing:content-box -> min-height dogrudan icerik alanina uygulanir. */
+    #yeni_masraf_modal .mx-body{ padding:20px 24px; min-height:432px; box-sizing:content-box; }
     /* Segment gecis */
     #yeni_masraf_modal .mx-seg{
       display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:5px; margin-bottom:18px;
