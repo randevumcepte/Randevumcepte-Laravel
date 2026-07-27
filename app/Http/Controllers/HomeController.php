@@ -3293,9 +3293,22 @@ $salon = Salonlar::where('domain', $domain)->first();
                 // ── 2) WHATSAPP (birincil) — alarm numarasina (salon WA bagliysa)
                 if ($uyariTel && !empty($salon->whatsapp_aktif) && ($salon->whatsapp_durum ?? null) === 'connected') {
                     try {
-                        $waMesaj = "⚠️ DÜŞÜK PUAN UYARISI\n".$skor."\nMüşteri: ".$musteriAd." (".$gonderim->telefon.")"
-                            .($genelYorum ? "\nYorum: ".mb_substr($genelYorum, 0, 120) : '')
-                            ."\nHemen iletişime geçin.";
+                        // Telefonu okunakli bicimle: 0541 294 8144
+                        $telHam = preg_replace('/\D/', '', (string) $gonderim->telefon);
+                        if (strlen($telHam) === 10) $telHam = '0'.$telHam;
+                        $telGosterim = (strlen($telHam) === 11)
+                            ? substr($telHam, 0, 4).' '.substr($telHam, 4, 3).' '.substr($telHam, 7, 4)
+                            : (string) $gonderim->telefon;
+                        // Skor satiri: NPS (x/10) veya yildiz (x/5)
+                        $skorSatiri = $npsSkoru !== null
+                            ? '⭐ NPS Puanı: '.$npsSkoru.'/10 (Kritik)'
+                            : '⭐ Memnuniyet Puanı: '.$csatSkoru.'/5 (Kritik)';
+                        $waMesaj = "🚨 ACİL MÜŞTERİ MEMNUNİYETSİZLİĞİ UYARISI\n\n"
+                            .$skorSatiri."\n\n"
+                            ."👤 Müşteri: ".$musteriAd."\n"
+                            ."📞 Telefon: ".$telGosterim."\n\n"
+                            .($genelYorum ? "💬 Yorum: ".mb_substr($genelYorum, 0, 160)."\n\n" : '')
+                            ."❗ Müşteri memnuniyetsiz görünüyor. Kaybı önlemek için lütfen en kısa sürede iletişime geçin.";
                         $wa = app(\App\Services\WhatsAppService::class);
                         // urgent=true: is-saati kisitini bypass et (kritik uyari); gonderimTipi log etiketi
                         $sonuc = $wa->sendReminder($salon, $uyariTel, $waMesaj, null, null, null, true, 'anket');
