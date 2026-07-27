@@ -191,25 +191,39 @@
   visits = Object.values(visitsBySess);
   console.log(`✓ Toplam session (visit+booking dedup): ${visits.length} (booking'ten ek: ${newFromBookings})`);
 
-  // 3) Her visit icin booking detail (resume — cached olan atlanir)
+  // 3) Her visit icin booking detail (PARALEL BATCH — 8'li)
+  //    Onceki seri+250ms yaklasimi 16K visit icin 3+ saat aliyordu.
+  //    8 concurrent + 50ms per-batch cooldown ile ~5x hizli. 429 gelirse get() zaten backoff yapiyor.
   let bookingDetails = (await dbGet('bookingDetails')) || {};
   let already = Object.keys(bookingDetails).length;
-  console.log(`🔹 Booking details: ${already}/${visits.length} hazir, kalanlari cekiliyor...`);
-  let saved = 0;
+  const kalanlar = [];
   for (let i = 0; i < visits.length; i++) {
     const v = visits[i];
     const sid = String(v.session ?? v.id ?? v.booking_id ?? '');
-    if (!sid || bookingDetails[sid]) continue;
-    const j = await get(`/booking/detail?session=${sid}`);
-    if (j?.data?.booking) {
-      bookingDetails[sid] = j.data.booking;
-      saved++;
-      if (saved % 50 === 0) {
-        await dbPut('bookingDetails', bookingDetails);
-        console.log(`  detail ${i+1}/${visits.length} (yeni ${saved})`);
+    if (sid && !bookingDetails[sid]) kalanlar.push(sid);
+  }
+  console.log(`🔹 Booking details: ${already}/${visits.length} hazir, ${kalanlar.length} kalan (paralel 8'li batch)...`);
+  const CONCURRENCY = 8;
+  let saved = 0;
+  const tStart = Date.now();
+  for (let i = 0; i < kalanlar.length; i += CONCURRENCY) {
+    const batch = kalanlar.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(batch.map(sid => get(`/booking/detail?session=${sid}`).then(j => [sid, j])));
+    for (const [sid, j] of results) {
+      if (j?.data?.booking) {
+        bookingDetails[sid] = j.data.booking;
+        saved++;
       }
     }
-    await sleep(RATE_DELAY_MS);
+    if (saved % 200 < CONCURRENCY) {
+      await dbPut('bookingDetails', bookingDetails);
+      const elapsed = Math.round((Date.now() - tStart) / 1000);
+      const remaining = kalanlar.length - (i + batch.length);
+      const rate = saved / Math.max(elapsed, 1);
+      const eta = Math.round(remaining / Math.max(rate, 0.1));
+      console.log(`  detail ${i + batch.length}/${kalanlar.length} | yeni=${saved} gecen=${elapsed}s hiz=${rate.toFixed(1)}/sn ETA=${eta}s`);
+    }
+    await sleep(50); // hafif cooldown
   }
   await dbPut('bookingDetails', bookingDetails);
   console.log(`✓ Booking details toplam: ${Object.keys(bookingDetails).length}`);
