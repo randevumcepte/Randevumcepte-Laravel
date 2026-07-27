@@ -47,6 +47,7 @@ class SalonappyImport extends Command
         {--reset-urunler : Salon icin tum urunleri sil (adisyon_urunler bagli varsa reddet). --salon zorunlu, --dry-run destekli.}
         {--inspect-hizmet-eksik : Salon icin sure_dk=NULL/0 veya baslangic_fiyat=NULL/0 olan salon_sunulan_hizmetler kayitlarini listele. --salon zorunlu.}
         {--report-payments-from-dump : Dump JSON\'daki tüm payment\'lari DB tahsilatlariyla eşleştir + eksik listesi. --dump-file --salon zorunlu, --from/--to opsiyonel.}
+        {--fix-orphan-urun-payments : Dump top-level payments source_text="Ürün satışı" olanlari, client+date match ile mevcut visit adisyonlarina Tahsilat+TU olarak ekle (visit re-import gerekmez). --dump-file --salon zorunlu, --from/--to opsiyonel.}
         {--tarih= : --inspect-tahsilat-detay icin merkez tarih YYYY-MM-DD}
         {--tutar= : --inspect-tahsilat-detay icin merkez tutar}
         {--dry-run : Reset/import oncesi sadece sayim}
@@ -79,7 +80,8 @@ class SalonappyImport extends Command
         $resetUrun = (bool) $this->option('reset-urunler');
         $inspectHE = (bool) $this->option('inspect-hizmet-eksik');
         $reportPayDump = (bool) $this->option('report-payments-from-dump');
-        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && !$mergeDupe && !$resetUrun && !$inspectHE && !$reportPayDump && (!$username || !$password)) {
+        $fixOrphanUP = (bool) $this->option('fix-orphan-urun-payments');
+        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && !$mergeDupe && !$resetUrun && !$inspectHE && !$reportPayDump && !$fixOrphanUP && (!$username || !$password)) {
             $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri / --reconcile-tahsilat / --inspect-tahsilat-detay / --inspect-dupe-musteri verin).');
             return 1;
         }
@@ -171,6 +173,12 @@ class SalonappyImport extends Command
             $f = $this->option('dump-file');
             if (!$f) { $this->error('--dump-file zorunlu.'); return 1; }
             return $this->reportPaymentsFromDump($f, (int) $salonId, $this->option('from'), $this->option('to'));
+        }
+        if ((bool) $this->option('fix-orphan-urun-payments')) {
+            if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
+            $f = $this->option('dump-file');
+            if (!$f) { $this->error('--dump-file zorunlu.'); return 1; }
+            return $this->fixOrphanUrunPayments($f, (int) $salonId, $this->option('from'), $this->option('to'));
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
@@ -2140,6 +2148,22 @@ class SalonappyImport extends Command
         $bdMap = $j['bookingDetails'] ?? [];
         if (empty($bdMap)) { $this->warn('bookingDetails[] bos.'); return 0; }
 
+        // TOP-LEVEL "Ürün satışı" payments — Salonappy API bug'i: urun payment'lari
+        // bd.payments'a dahil edilmiyor, sadece top-level payments[]'da geliyor.
+        // Bu payment'lari visit'lere client_name+date match ile bagliyoruz.
+        $orphanUrunPayments = []; // trKey(client)|date -> [payment...]
+        foreach (($j['payments'] ?? []) as $p) {
+            if (trim((string) ($p['source_text'] ?? '')) !== 'Ürün satışı') continue;
+            if (!empty($p['deleted_at'])) continue;
+            $client = trim((string) ($p['client_name'] ?? ''));
+            $date = substr((string) ($p['date'] ?? ''), 0, 10);
+            if (!$client || !$date) continue;
+            $key = $this->saTrKey($client) . '|' . $date;
+            $orphanUrunPayments[$key][] = $p;
+        }
+        $urunPayToplam = 0; foreach ($orphanUrunPayments as $arr) $urunPayToplam += count($arr);
+        $this->line("Top-level 'Ürün satışı' orphan payment: $urunPayToplam (visit'lere client+date ile eslenecek)");
+
         // idMap (clients phone -> users.id)
         $idMap = [];
         foreach (($j['clients'] ?? []) as $c) {
@@ -2540,9 +2564,24 @@ class SalonappyImport extends Command
                     }
                 }
 
-                // Tahsilat: payments[]
+                // Tahsilat: bd.payments[] + orphan "Ürün satışı" payments (client+date match)
                 $payAcc = 0.0;
-                foreach (($bd['payments'] ?? []) as $p) {
+                $allPays = $bd['payments'] ?? [];
+                // Orphan ürün payments'i visit'e ekle (client_name + date match)
+                $clientAd = trim((string) ($d['client_name'] ?? ''));
+                $orphanKey = $this->saTrKey($clientAd) . '|' . $tarih;
+                if (!empty($orphanUrunPayments[$orphanKey])) {
+                    $seenPids = [];
+                    foreach ($allPays as $pp) if (!empty($pp['id'])) $seenPids[(string) $pp['id']] = true;
+                    foreach ($orphanUrunPayments[$orphanKey] as $orphP) {
+                        $orphPid = (string) ($orphP['id'] ?? '');
+                        if ($orphPid && isset($seenPids[$orphPid])) continue; // duplicate
+                        $allPays[] = $orphP;
+                    }
+                    // Bu orphan set'i tuket: baska visit'e verilmesin
+                    unset($orphanUrunPayments[$orphanKey]);
+                }
+                foreach ($allPays as $p) {
                     $amount = (float) ($p['amount'] ?? 0);
                     if ($amount <= 0) continue;
                     $pid = (string) ($p['id'] ?? '');
@@ -3912,6 +3951,126 @@ class SalonappyImport extends Command
                     $e['method'], $e['source_text']));
             }
         }
+        return 0;
+    }
+
+    /**
+     * Dump top-level payments source_text="Ürün satışı" olanlari, client+date match
+     * ile MEVCUT visit adisyonlarina Tahsilat+TahsilatUrunler olarak ekle.
+     * Visit re-import gerekmez — sadece eksik urun payments'i doldurur.
+     */
+    private function fixOrphanUrunPayments($file, $salonId, $from = null, $to = null)
+    {
+        if (!file_exists($file)) { $this->error("Dosya yok: {$file}"); return 1; }
+        $j = json_decode(file_get_contents($file), true);
+        if (!is_array($j)) { $this->error('Gecersiz JSON.'); return 1; }
+
+        // 1) Dump'tan orphan Urun satisi payments topla
+        $orphans = [];
+        foreach (($j['payments'] ?? []) as $p) {
+            if (trim((string) ($p['source_text'] ?? '')) !== 'Ürün satışı') continue;
+            if (!empty($p['deleted_at'])) continue;
+            $pid = (string) ($p['id'] ?? '');
+            if (!$pid) continue;
+            $client = trim((string) ($p['client_name'] ?? ''));
+            $date = substr((string) ($p['date'] ?? ''), 0, 10);
+            $amount = (float) ($p['amount'] ?? 0);
+            if (!$client || !$date || $amount <= 0) continue;
+            if ($from && $date < $from) continue;
+            if ($to && $date > $to) continue;
+            $orphans[] = [
+                'pid' => $pid, 'client' => $client, 'date' => $date,
+                'amount' => $amount,
+                'method' => trim((string) ($p['payment_method_text'] ?? '')),
+            ];
+        }
+        $this->line("Dump orphan 'Ürün satışı' payment: " . count($orphans));
+        if (empty($orphans)) return 0;
+
+        // 2) DB'de bu marker'larla mevcut tahsilat var mi (skip)
+        $mevcutPids = [];
+        foreach (\DB::table('tahsilatlar')->where('salon_id', $salonId)
+            ->where('notlar', 'LIKE', '%[salonappy-visit-pay:%')
+            ->select('notlar')->get() as $t) {
+            if (preg_match_all('~\[salonappy-visit-pay:(\d+)\]~', (string) $t->notlar, $mm)) {
+                foreach ($mm[1] as $pid) $mevcutPids[$pid] = true;
+            }
+        }
+
+        // Yontem map (visit importer'daki ile ayni)
+        $yontemMap = function ($txt) {
+            $t = mb_strtolower(trim((string)$txt), 'UTF-8');
+            if ($t === '') return 1;
+            if (strpos($t, 'kredi') !== false || strpos($t, 'kart') !== false || strpos($t, 'pos') !== false) return 2;
+            if (strpos($t, 'havale') !== false || strpos($t, 'eft') !== false || strpos($t, 'banka') !== false) return 3;
+            if (strpos($t, 'nakit') !== false) return 1;
+            return 4;
+        };
+
+        $eklenen = 0; $skip = 0; $noMatch = 0;
+        foreach ($orphans as $orph) {
+            if (isset($mevcutPids[$orph['pid']])) { $skip++; continue; }
+            // Client name + date -> visit adisyonu ara
+            // User: cep_telefon YOK, sadece name (aktarimMusteriKontrol title case yazdi).
+            // trKey ile eslesme yap.
+            $nameKey = $this->saTrKey($orph['client']);
+            $userIds = [];
+            foreach (\DB::table('users')->select('id', 'name')->get() as $u) {
+                if ($this->saTrKey($u->name) === $nameKey) $userIds[] = $u->id;
+            }
+            if (empty($userIds)) { $noMatch++; continue; }
+            // Bu user'lardan hangisinin salon 395'te $tarih tarihli, [salonappy-visit:] markerli adisyonu var
+            $adisyon = \DB::table('adisyonlar')->where('salon_id', $salonId)
+                ->whereIn('user_id', $userIds)
+                ->where('tarih', $orph['date'])
+                ->where('notlar', 'LIKE', '%[salonappy-visit:%')
+                ->orderBy('id')->first();
+            if (!$adisyon) { $noMatch++; continue; }
+
+            // Adisyondaki AdisyonUrunler
+            $aus = \DB::table('adisyon_urunler')->where('adisyon_id', $adisyon->id)
+                ->select('id', 'fiyat', 'adet')->get();
+            if ($aus->isEmpty()) { $noMatch++; continue; }
+
+            // Tahsilat insert
+            $pMarker = '[salonappy-visit:' . $orph['pid'] . '][salonappy-visit-pay:' . $orph['pid'] . ']';
+            $tahId = \DB::table('tahsilatlar')->insertGetId([
+                'salon_id' => $salonId, 'user_id' => $adisyon->user_id, 'adisyon_id' => $adisyon->id,
+                'odeme_tarihi' => $orph['date'], 'tutar' => $orph['amount'],
+                'odeme_yontemi_id' => $yontemMap($orph['method']),
+                'notlar' => $pMarker,
+                'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            // TU dagit (fiyat*adet orantili)
+            $tFiyat = 0.0;
+            foreach ($aus as $a) $tFiyat += (float) $a->fiyat * max(1, (int) $a->adet);
+            $tuPay = []; $payToplam = 0;
+            if ($tFiyat > 0) {
+                $oran = $orph['amount'] / $tFiyat;
+                foreach ($aus as $a) {
+                    $py = round((float) $a->fiyat * max(1, (int) $a->adet) * $oran, 2);
+                    $tuPay[(int) $a->id] = $py; $payToplam += $py;
+                }
+            } else {
+                $per = round($orph['amount'] / $aus->count(), 2);
+                foreach ($aus as $a) { $tuPay[(int) $a->id] = $per; $payToplam += $per; }
+            }
+            $fark = round($orph['amount'] - $payToplam, 2);
+            if (abs($fark) > 0.001 && !empty($tuPay)) {
+                end($tuPay); $sk = key($tuPay);
+                $tuPay[$sk] = round($tuPay[$sk] + $fark, 2);
+            }
+            foreach ($tuPay as $auId => $py) {
+                if ($py <= 0) continue;
+                \DB::table('tahsilat_urunler')->insert([
+                    'tahsilat_id' => $tahId, 'adisyon_urun_id' => $auId, 'tutar' => $py,
+                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+            }
+            $eklenen++;
+        }
+        $this->info("Fix tamam: eklenen=$eklenen, atlanan_zaten_var=$skip, no-match=$noMatch / toplam=" . count($orphans));
         return 0;
     }
 
