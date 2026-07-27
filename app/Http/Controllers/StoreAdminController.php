@@ -3985,8 +3985,11 @@ public function carkverilerigetir(Request $request)
                             $q->whereIn('salon_personelleri.id',$personel_idler);
                         }
                         else{
+                            // Sadece bu salonun kendi personelleri kolon olarak gorunsun.
+                            // (Eskiden sabit 'orWhere id=183' vardi; bu, 183 no'lu personeli
+                            //  HER salonun takvimine sizdiriyordu — personel listesinde olmayan
+                            //  bir isim takvimde kolon olarak cikiyordu. Kaldirildi.)
                             $q->where('salon_personelleri.salon_id', $isletmeId);
-                            $q->orWhere('salon_personelleri.id',183);
                         }
                     })->where('salon_personelleri.aktif',true)
                     ->where('salon_personelleri.takvimde_gorunsun',true)->orderBy('salon_personelleri.takvim_sirasi','asc')
@@ -4424,7 +4427,7 @@ public function kasa_raporu_getir(Request $request,$returntext)
     foreach($masraflar as $masraf)
         $masraf_liste .= '<tr>
                         <td>'.date('d.m.Y',strtotime($masraf->tarih)).'</td>
-                        <td>'.($masraf->harcayan_id ? $masraf->harcayan->personel_adi : 'Kasa').'</td>
+                        <td>'.($masraf->harcayan_id ? $masraf->harcayan->personel_adi : 'Kasa').($masraf->personel_gideri ? ' <span style="background:#f59e0b;color:#fff;border-radius:6px;padding:1px 7px;font-size:11px;white-space:nowrap">Personel Gideri</span>' : '').'</td>
                         <td>'.$masraf->aciklama.'</td>
                         <td>'.$masraf->odeme_yontemi->odeme_yontemi.'</td>
                         <td>'.number_format($masraf->tutar,2,',','.').'</td>
@@ -12200,8 +12203,8 @@ private function ayAdiCevir($ingilizceAy)
                                 $q->whereIn('salon_personelleri.id',$personel_idler);
                             }
                             else{
+                                // Bkz. randevuyukle: sabit 183 sizintisi kaldirildi.
                                 $q->where('salon_personelleri.salon_id', $isletmeId);
-                                $q->orWhere('salon_personelleri.id',183);
                             }
                         })->where('salon_personelleri.aktif',true)
                         ->where('salon_personelleri.takvimde_gorunsun',true)->orderBy('salon_personelleri.takvim_sirasi','asc')
@@ -15768,13 +15771,18 @@ DB::raw('
     }
     public function masrafgetir(Request $request)
     {
+        // personel_gideri kolonu henuz eklenmediyse (migrate bekleniyorsa) rozet gosterme
+        $pgVar = \Schema::hasColumn('masraflar','personel_gideri');
+        $kategoriSelect = $pgVar
+            ? DB::raw('CONCAT(masraf_kategorileri.kategori, IF(masraflar.personel_gideri=1," <span style=\"background:#f59e0b;color:#fff;border-radius:6px;padding:1px 7px;font-size:11px;white-space:nowrap\">Personel Gideri</span>","")) as kategori')
+            : 'masraf_kategorileri.kategori as kategori';
         $masraflar = DB::table('masraflar')
         ->join('masraf_kategorileri','masraflar.masraf_kategori_id','=','masraf_kategorileri.id')
         ->join('salon_personelleri','masraflar.harcayan_id','=','salon_personelleri.id')
         ->join('odeme_yontemleri','masraflar.odeme_yontemi_id','=','odeme_yontemleri.id')
         ->join('salonlar','masraflar.salon_id','=','salonlar.id')
         ->select(
-            'masraf_kategorileri.kategori as kategori',
+            $kategoriSelect,
             'masraflar.notlar as aciklama',
             DB::raw('FORMAT(masraflar.tutar,2,"tr_TR") as tutar'),
             'salon_personelleri.personel_adi as masraf_sahibi',
@@ -15958,11 +15966,37 @@ DB::raw('
         }
         else
             $masraf = new Masraflar();
+        // Personel gideri mi? (personel kasadan para aldi -> hakedisten dusulur)
+        $personelGideri = !empty($request->personel_gideri) ? 1 : 0;
+
+        // Personel giderinde kategori/odeme yontemi bos gelebilir; masraf listesi bu
+        // ikisini INNER JOIN ettiginden bos kalirsa satir listede gorunmez. Bu yuzden
+        // makul varsayilanlara dusuruyoruz: kategori -> "Personel Gideri", odeme -> Nakit.
+        $kategoriId = $request->masraf_kategorisi;
+        $odemeId = $request->masraf_odeme_yontemi;
+        if($personelGideri){
+            if(empty($kategoriId)){
+                $kat = MasrafKategorisi::where('kategori','Personel Gideri')->first();
+                if(!$kat){
+                    $kat = new MasrafKategorisi();
+                    $kat->kategori = 'Personel Gideri';
+                    $kat->save();
+                }
+                $kategoriId = $kat->id;
+            }
+            if(empty($odemeId)){
+                $nakit = \App\OdemeYontemleri::where('odeme_yontemi','like','%Nakit%')->first();
+                $odemeId = $nakit ? $nakit->id : optional(\App\OdemeYontemleri::first())->id;
+            }
+        }
+
         $masraf->salon_id = $request->sube;
-        $masraf->masraf_kategori_id = $request->masraf_kategorisi;
+        $masraf->masraf_kategori_id = $kategoriId;
         $masraf->tarih = $request->tarih;
-        $masraf->odeme_yontemi_id = $request->masraf_odeme_yontemi;
+        $masraf->odeme_yontemi_id = $odemeId;
         $masraf->harcayan_id = $request->harcayan;
+        if(\Schema::hasColumn('masraflar','personel_gideri'))
+            $masraf->personel_gideri = $personelGideri;
         $masraf->tutar= str_replace(['.',','],['','.'],$request->masraf_tutari);
         $masraf->aciklama = $request->masraf_aciklama;
         $masraf->notlar = $request->masraf_notlari;
@@ -15971,10 +16005,11 @@ DB::raw('
         $butontext = '';
         if(!isset($request->masraf_sayfasi))
             $butontext = "<p><a href='/isletmeyonetim/masraflar?sube='".$request->sube." class='btn btn-primary btn-lg btn-block'>Masraf Listeme Git</a></p>";
+        $kayitAdi = $personelGideri ? 'Personel gideri' : 'Masraf';
         if($guncelleme)
-            $returntext = 'Masraf başarıyla güncellendi';
+            $returntext = $kayitAdi.' başarıyla güncellendi';
         else
-            $returntext = 'Masraf başarıyla kaydedildi';
+            $returntext = $kayitAdi.' başarıyla kaydedildi';
         // Audit
         SalonAudit::log($masraf->salon_id, $guncelleme ? 'masraf_guncelle' : 'masraf_ekle', 'masraf', $masraf->id,
             ($masraf->aciklama ?: 'Masraf').' — '.number_format((float)$masraf->tutar,2,',','.').' ₺',
@@ -16054,6 +16089,7 @@ DB::raw('
             'notlar'=>$masraf->notlar,
             'odeme_yontemi_id'=>$masraf->odeme_yontemi_id,
             'salon_id'=>$masraf->salon_id,
+            'personel_gideri'=>(int)$masraf->personel_gideri,
         );
     }
     public function alacakekleduzenle(Request $request)
@@ -33850,18 +33886,23 @@ DB::raw('
             ->get()
             ->groupBy('personel_id');
 
-        // Personel bazli masraf toplami (masraflar.harcayan_id) — BILGI AMACLI:
-        // net hak edise ETKI ETMEZ, salon sahibi personelin ne harcadigini gorsun diye
-        // ayri bir sutun/kart olarak gosterilir. Tarih araligi gun-kapsamli.
+        // Personel bazli PERSONEL GIDERI toplami (masraflar.personel_gideri=1):
+        // personel kasadan aldigi tutar. Net hak edisten DUSULUR ve "Masraf" sutununda
+        // gosterilir. Normal salon masraflari (personel_gideri=0) buraya girmez.
+        // Tarih araligi gun-kapsamli.
         $masrafBas = substr($tarih1, 0, 10) . ' 00:00:00';
         $masrafBit = substr($tarih2, 0, 10) . ' 23:59:59';
-        $masrafToplamlari = \DB::table('masraflar')
-            ->where('salon_id',$salonId)
-            ->whereNotNull('harcayan_id')
-            ->whereBetween('tarih',[$masrafBas,$masrafBit])
-            ->groupBy('harcayan_id')
-            ->select('harcayan_id', \DB::raw('SUM(tutar) as toplam'))
-            ->pluck('toplam','harcayan_id');
+        $masrafToplamlari = collect();
+        if(\Schema::hasColumn('masraflar','personel_gideri')){
+            $masrafToplamlari = \DB::table('masraflar')
+                ->where('salon_id',$salonId)
+                ->where('personel_gideri',1)
+                ->whereNotNull('harcayan_id')
+                ->whereBetween('tarih',[$masrafBas,$masrafBit])
+                ->groupBy('harcayan_id')
+                ->select('harcayan_id', \DB::raw('SUM(tutar) as toplam'))
+                ->pluck('toplam','harcayan_id');
+        }
 
         $donem = substr($tarih1, 0, 7);
         $odemelerGruplu = PersonelMaasOdemesi::where('salon_id',$salonId)
@@ -33893,11 +33934,13 @@ DB::raw('
                 else $kesinti += (float)$h->tutar;
             }
 
-            // Personelin donem ici masraf toplami (bilgi amacli, net'e dahil DEGIL)
+            // Personelin donem ici personel gideri toplami — NET'ten DUSULUR
             $masraf = (float)($masrafToplamlari[$p->id] ?? 0);
 
             $maas = (float)($p->maas ?? 0);
-            $toplam = $maas + $primToplam + $bonus - $kesinti;
+            $toplam = $maas + $primToplam + $bonus - $kesinti - $masraf;
+            // Net eksiye duserse personel salona borclu demektir
+            $borclu = $toplam < 0;
 
             $persOdemeler = $odemelerGruplu->get($p->id, collect());
             $odenenToplam = (float)$persOdemeler->sum('tutar');
@@ -33919,7 +33962,8 @@ DB::raw('
 
             $sonOdeme = $persOdemeler->first();
 
-            if($odenenToplam <= 0)             $durum = 'bekliyor';
+            if($toplam <= 0)                   $durum = 'tam'; // odenecek yok (0 ya da borclu)
+            elseif($odenenToplam <= 0)         $durum = 'bekliyor';
             elseif($odenenToplam < $toplam)    $durum = 'kismi';
             elseif($odenenToplam == $toplam)   $durum = 'tam';
             else                               $durum = 'fazla';
@@ -33946,6 +33990,7 @@ DB::raw('
                 'bonus'         => (float)$bonus,
                 'kesinti'       => (float)$kesinti,
                 'masraf'        => (float)$masraf,
+                'borclu'        => $borclu,
                 'net_hakedis'   => (float)$toplam,
                 'hizmet_geliri' => (float)$primRow['hizmet_geliri'],
                 'urun_geliri'   => (float)$primRow['urun_geliri'],

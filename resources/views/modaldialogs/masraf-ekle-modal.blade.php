@@ -14,6 +14,10 @@
                         {!!csrf_field()!!}
                         <input type="hidden" name="sube" value="{{$isletme->id}}">
                         <input type="hidden" name="masraf_id" id='masraf_id' value="">
+                        <input type="hidden" name="personel_gideri" id='masraf_personel_gideri' value="0">
+                        <div id="masraf_pg_badge" style="display:none; margin-bottom:12px; padding:9px 14px; border-radius:10px; background:#fff7ed; border:1px solid #fed7aa; color:#b45309; font-weight:600; font-size:13px">
+                           <i class="fa fa-user"></i> Bu bir <b>personel gideri</b> — tutar personelin hak edişinden düşülür.
+                        </div>
                         @if($pageindex==15)
                         <input type="hidden" name="masraf_sayfasi" value="1">
                         @endif

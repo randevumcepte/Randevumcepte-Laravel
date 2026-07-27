@@ -257,6 +257,8 @@
   .pr-cell-bonus{ color:#059669; font-weight:600; }
   .pr-cell-kesinti{ color:#dc2626; font-weight:600; }
   .pr-cell-masraf{ color:#d97706; font-weight:700; background: rgba(245,158,11,.07); }
+  .pr-borclu-badge{ display:inline-block; margin-top:3px; padding:1px 8px; border-radius:10px;
+    background:#fee2e2; color:#b91c1c; font-size:11px; font-weight:700; }
   .pr-cell-net{
     background: linear-gradient(90deg, rgba(123,47,184,.06), rgba(157,93,200,.04));
   }
@@ -818,7 +820,7 @@
     <div class="pr-stat__icon"><i class="fa fa-shopping-cart"></i></div>
     <div class="pr-stat__lbl">Toplam Masraf</div>
     <div class="pr-stat__val">{{$_fmt($toplamMasraf)}} <small>₺</small></div>
-    <div class="pr-stat__brut" style="opacity:.65">Personelin salon için yaptığı harcama (net'e dahil değil)</div>
+    <div class="pr-stat__brut" style="opacity:.65">Personel giderleri (kasadan alınan) — net hak edişten düşülür</div>
   </div>
   <div class="pr-stat pr-stat--net">
     <div class="pr-stat__icon"><i class="fa fa-credit-card"></i></div>
@@ -884,8 +886,11 @@
             <td>{{$_fmt($r['paket_primi'])}} ₺</td>
             <td><strong>{{$_fmt($r['prim_toplam'])}} ₺</strong></td>
             <td class="pr-cell-bonus">+{{$_fmt($r['bonus'])}}@if($r['hareket_sayisi']>0) <small style="color:var(--rmc-muted); font-weight:500">({{$r['hareket_sayisi']}})</small>@endif</td>
-            <td class="pr-cell-masraf" title="Bu personelin dönem içi masraf toplamı — net hak edişe dahil değildir">{{$_fmt($r['masraf'])}} ₺</td>
-            <td class="pr-cell-net"><strong>{{$_fmt($isGunluk ? $gPrim : $r['net_hakedis'])}} ₺</strong></td>
+            <td class="pr-cell-masraf" title="Personelin kasadan aldığı/harcadığı tutar — net hak edişten düşülür">@if($r['masraf']>0)−@endif{{$_fmt($r['masraf'])}} ₺</td>
+            <td class="pr-cell-net">
+              <strong>{{$_fmt($isGunluk ? $gPrim : $r['net_hakedis'])}} ₺</strong>
+              @if(!$isGunluk && !empty($r['borclu']))<br><span class="pr-borclu-badge">Borçlu</span>@endif
+            </td>
             <td>
               @if($isGunluk)
                 @if($satirDurum==='bekliyor')

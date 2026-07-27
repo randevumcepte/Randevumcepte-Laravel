@@ -8599,6 +8599,13 @@ $('#masraf_tablo').on('click','*[name="masraf_duzenle"]',function(){
                     $('#masraf_notlari').val(result.notlar);
                     $('#masraf_id').val(result.id);
                     $('input[name="sube"]').val(result.salon_id);
+                    // Personel gideri bayragini koru + bilgi rozetini goster/gizle
+                    $('#masraf_personel_gideri').val(result.personel_gideri || 0);
+                    if(parseInt(result.personel_gideri) === 1){
+                        $('#masraf_pg_badge').show();
+                    } else {
+                        $('#masraf_pg_badge').hide();
+                    }
                 },
                 error: function (request, status, error) {
                     $('#preloader').hide();
@@ -8961,6 +8968,90 @@ $('#masraf_formu').on('submit',function(e){
                 }
         });
     }
+});
+
+// ===== Personel Gideri modali =====
+// modalbaslikata tum hidden inputlari temizledigi icin, modal her acildiginda
+// personel_gideri bayragini 1'e sabitliyoruz.
+function personelGideriModalAc(){
+    var f = document.getElementById('personel_gideri_formu');
+    if(f) f.reset();
+    $('#pg_masraf_id').val('');
+    $('#pg_flag').val('1');
+    $('#pg_tarih').val(new Date().toISOString().slice(0,10));
+    $('#personel_gideri_modal').modal('show');
+}
+
+$(document).on('submit','#personel_gideri_formu',function(e){
+    e.preventDefault();
+    var warningtext = "";
+    if($('#pg_harcayan').val()=="") warningtext += "- Personel seçiniz.<br>";
+    if($('#pg_tutar').val()=="")    warningtext += "- Tutar giriniz.<br>";
+    if(warningtext!=""){
+        swal({ type:"warning", title:"Uyarı", html:'Devam etmek için;<br><br>'+warningtext,
+               showConfirmButton:false, timer:3000 });
+        return;
+    }
+    $('#pg_flag').val('1'); // her ihtimale karsi
+    var formData = new FormData();
+    if($('#kasa_sayfasi').length!== 0){
+        formData.append('baslangic_bitis_tarihi',$('#zamana_gore_filtre_kasa').val());
+        formData.append('odeme_yontemi',$('#odeme_yontemine_gore_filtre').val());
+        if($('#zamana_gore_filtre_kasa').val()=='ozel'){
+            formData.append('kasa_baslangic_tarihi',$('#kasa_baslangic_tarihi').val());
+            formData.append('kasa_bitis_tarihi',$('#kasa_bitis').val());
+        } else {
+            formData.append('kasa_baslangic_tarihi','');
+            formData.append('kasa_bitis_tarihi','');
+        }
+    }
+    $.each($('#personel_gideri_formu').serializeArray(),function(key,input){
+        formData.append(input.name,input.value);
+    });
+    $.ajax({
+        type:"POST", url:'/isletmeyonetim/masrafekleduzenle', dataType:"json",
+        data:formData, processData:false, contentType:false,
+        beforeSend:function(){ $('#preloader').show(); },
+        success:function(result){
+            $('#preloader').hide();
+            $('#personel_gideri_modal').modal('hide');
+            document.getElementById('personel_gideri_formu').reset();
+            $('#pg_masraf_id').val('');
+            $('#pg_flag').val('1');
+            $('#pg_tarih').val(new Date().toISOString().slice(0,10));
+            setTimeout(function(){
+                swal({ type:"success", title:"Başarılı", html:result.mesaj,
+                       showConfirmButton:false, timer:2500 });
+            },350);
+            if($('#kasa_sayfasi').length){
+                $('#kasa_gelir_tutari').empty().append(result.kasa_raporu.gelir);
+                $('#kasa_gider_tutari').empty().append(result.kasa_raporu.gider);
+                $('#kasa_toplam_tutar').empty().append(result.kasa_raporu.toplam);
+                $('#toplam_ciro_tutari').empty().append(result.kasa_raporu.toplam_ciro);
+                $('#tahsilatlar_listesi').empty().append(result.kasa_raporu.tahsilatlar);
+                $('#masraflar_listesi').empty().append(result.kasa_raporu.masraflar);
+            }
+            if($('#masraf_tablo').length){
+                $('#masraf_tablo').DataTable().destroy();
+                $('#masraf_tablo').DataTable({
+                    autoWidth:false, responsive:true,
+                    columns:[
+                        { data:'tarih' }, { data:'kategori' }, { data:'aciklama' },
+                        { data:'tutar' }, { data:'masraf_sahibi' }, { data:'odeme_yontemi' },
+                        { data:'islemler' }
+                    ],
+                    data:result.masraflar, "order":[[0,"desc"]],
+                    "language":{ "url":"//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
+                        searchPlaceholder:"Ara",
+                        paginate:{ next:'<i class="ion-chevron-right"></i>', previous:'<i class="ion-chevron-left"></i>' } }
+                });
+            }
+        },
+        error:function(request){
+            $('#preloader').hide();
+            if(document.getElementById('hata')) document.getElementById('hata').innerHTML = request.responseText;
+        }
+    });
 });
 $('#alacak_formu').on('submit',function(e){
     e.preventDefault();

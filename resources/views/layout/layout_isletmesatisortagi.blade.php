@@ -936,6 +936,7 @@
          @include('modaldialogs_satisortagi.ongorusme-modal')
          @include('modaldialogs_satisortagi.musteri-ekle-modal')
          @include('modaldialogs_satisortagi.masraf-ekle-modal')
+         @include('modaldialogs.personel-gideri-ekle-modal')
          @include('modaldialogs_satisortagi.santral-web-telefon-ustune-al-modal')
         
          @if($pageindex==11111 || $pageindex==1111)

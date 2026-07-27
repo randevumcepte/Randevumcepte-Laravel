@@ -2512,6 +2512,7 @@
       @include('modaldialogs.ongorusme-modal')
       @include('modaldialogs.musteri-ekle-modal')
       @include('modaldialogs.masraf-ekle-modal')
+      @include('modaldialogs.personel-gideri-ekle-modal')
       @include('modaldialogs.arsiv-form-ekle-modal')
       @include('modaldialogs.santral-web-telefon-ustune-al-modal')
       @include('modaldialogs.odeme-detay-modal')
