@@ -2051,6 +2051,34 @@
             </div>
          </div>
 
+         {{-- ================= SEO ANAHTAR KELIMELER / HIZMET ALANLARI ================= --}}
+         @if(!empty($aramaterimlerihepsi) && is_array($aramaterimlerihepsi) && count(array_filter($aramaterimlerihepsi, function($k){ return trim($k) !== ''; })))
+         <section class="slp-section slp-keywords">
+            <div class="slp-section__head">
+               <span class="slp-eyebrow">Hizmet Alanlarımız</span>
+               <h2 class="slp-section__title">{{$salon->salon_adi}} ile Aradığınız Her Şey</h2>
+               <p class="slp-section__sub">Bölgemizde sunduğumuz öne çıkan hizmetler.</p>
+            </div>
+            <div class="slp-keywords__grid">
+               @foreach($aramaterimlerihepsi as $kelime)
+                  @if(trim($kelime) !== '')
+                  <div class="slp-keyword-chip">
+                     <i class="fa fa-check-circle" aria-hidden="true"></i>
+                     <h3>{{ucwords($kelime)}}</h3>
+                  </div>
+                  @endif
+               @endforeach
+            </div>
+         </section>
+         <style>
+            .slp-keywords__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;max-width:1000px;margin:0 auto;padding:0 12px}
+            .slp-keyword-chip{display:flex;align-items:center;gap:12px;padding:16px 18px;background:#fff;border:1px solid rgba(92,0,142,.10);border-radius:14px;box-shadow:0 4px 16px rgba(92,0,142,.05);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+            .slp-keyword-chip:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(92,0,142,.12);border-color:rgba(123,47,184,.35)}
+            .slp-keyword-chip i{color:#7B2FB8;font-size:18px;flex:0 0 auto}
+            .slp-keyword-chip h3{margin:0;font-size:15px;font-weight:600;color:#2a2340;line-height:1.35;text-transform:capitalize}
+         </style>
+         @endif
+
          {{-- ================= ILETISIM ================= --}}
          <section class="slp-section slp-section--tight">
             <div class="slp-section__head">
