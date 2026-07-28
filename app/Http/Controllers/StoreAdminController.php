@@ -33277,6 +33277,20 @@ DB::raw('
         }
     }
 
+    public function anketWebGizleToggle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'pazarlama.anket_yonet')) return $r;
+        try {
+            $sube = self::mevcutsube($request);
+            $g = AnketGonderim::where('id', (int) $request->gonderim_id)->where('salon_id', $sube)->first();
+            if(!$g) return response()->json(['basarili'=>false,'mesaj'=>'Kayıt bulunamadı.']);
+            $g->web_gizle = $request->gizle ? 1 : 0;
+            $g->save();
+            return response()->json(['basarili'=>true, 'web_gizle'=>(int)$g->web_gizle]);
+        } catch(\Exception $e){
+            return response()->json(['basarili'=>false,'mesaj'=>$e->getMessage()]);
+        }
+    }
+
     public function anketManuelGonder(Request $request){
         if($r = self::yetkiYoksa403($request, 'pazarlama.anket_yonet')) return $r;
         try {
@@ -33793,6 +33807,25 @@ DB::raw('
             $salon->kotu_puan_uyari_telefon  = trim($request->kotu_puan_uyari_telefon ?: '') ?: null;
             $salon->kotu_puan_uyari_esik_nps = max(0, min(10, (int) ($request->kotu_puan_uyari_esik_nps ?? 6)));
             $salon->kotu_puan_uyari_esik_csat= max(1, min(5, (float) ($request->kotu_puan_uyari_esik_csat ?? 2.5)));
+
+            // Google yorumu ödülü (tıklayana kupon/puan)
+            $gTip = in_array($request->google_odul_tipi, ['kupon','puan']) ? $request->google_odul_tipi : 'yok';
+            $salon->google_odul_tipi                = $gTip;
+            $salon->google_odul_kupon_indirim_tipi  = null;
+            $salon->google_odul_kupon_deger         = null;
+            $salon->google_odul_kupon_gecerlilik_gun= null;
+            $salon->google_odul_puan                = null;
+            $salon->google_odul_baslik              = null;
+            if ($gTip === 'kupon') {
+                $salon->google_odul_kupon_indirim_tipi   = $request->google_odul_kupon_indirim_tipi === 'tutar' ? 'tutar' : 'yuzde';
+                $salon->google_odul_kupon_deger          = max(0, (float) ($request->google_odul_kupon_deger ?? 0));
+                $gg = (int) ($request->google_odul_kupon_gecerlilik_gun ?? 0);
+                $salon->google_odul_kupon_gecerlilik_gun = $gg > 0 ? $gg : null;
+                $salon->google_odul_baslik               = trim((string) $request->google_odul_baslik) ?: null;
+            } elseif ($gTip === 'puan') {
+                $salon->google_odul_puan   = max(0, (float) ($request->google_odul_puan ?? 0));
+                $salon->google_odul_baslik = trim((string) $request->google_odul_baslik) ?: null;
+            }
             $salon->save();
 
             return response()->json([

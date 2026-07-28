@@ -1181,6 +1181,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/anket-gonderim-detay','StoreAdminController@anketGonderimDetay');
 	Route::post('/google-review-kaydet','StoreAdminController@googleReviewKaydet');
 	Route::post('/reputation-premium-ac','StoreAdminController@reputationPremiumAc');
+	Route::post('/anket-web-gizle-toggle','StoreAdminController@anketWebGizleToggle');
 
 	Route::post('/sozlesme-olustur','StoreAdminController@sozlesmeOlustur');
 	Route::post('/sozlesme-varsayilan-kaydet','StoreAdminController@sozlesmeVarsayilanKaydet');

@@ -232,6 +232,47 @@
                </div>
             </div>
 
+            <hr style="margin:14px 0; border-top:1px solid #ece6f3;">
+            <div style="margin-bottom:8px; font-size:13px; font-weight:700; color:#e0aa3e;">🎁 Google Yorumu Ödülü (tıklayana kupon/puan)</div>
+            <div style="background:#fffaf0; border:1px solid #f0e2c0; border-radius:8px; padding:10px 12px; margin-bottom:12px;">
+               <div style="font-size:11px; color:#8a6d1f; margin-bottom:8px; line-height:1.5;">Müşteri <b>"Google'da Yorum Yaz"a tıklayınca</b> otomatik ödül tanımlanır ve "olumlu yorum yap" uyarısı gösterilir. ⚠️ Google, yorum karşılığı ödülü politikalarına aykırı bulabilir; dikkatli kullanın.</div>
+               <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px;">
+                  <div>
+                     <div style="font-size:11px; color:#5b6770; font-weight:600; margin-bottom:3px;">Ödül Tipi</div>
+                     <select id="googleOdulTipi" class="form-control" onchange="googleOdulTipiDegisti()" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13px; padding:6px 9px; min-height:32px;">
+                        <option value="yok" {{ ($salon->google_odul_tipi ?? 'yok') === 'yok' ? 'selected' : '' }}>Ödül yok</option>
+                        <option value="kupon" {{ ($salon->google_odul_tipi ?? '') === 'kupon' ? 'selected' : '' }}>İndirim Kuponu</option>
+                        <option value="puan" {{ ($salon->google_odul_tipi ?? '') === 'puan' ? 'selected' : '' }}>Sadakat Puanı</option>
+                     </select>
+                  </div>
+                  <div class="google-odul-kupon">
+                     <div style="font-size:11px; color:#5b6770; font-weight:600; margin-bottom:3px;">İndirim Tipi</div>
+                     <select id="googleOdulIndirimTipi" class="form-control" onchange="googleOdulBirimGuncelle()" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13px; padding:6px 9px; min-height:32px;">
+                        <option value="yuzde" {{ ($salon->google_odul_kupon_indirim_tipi ?? 'yuzde') !== 'tutar' ? 'selected' : '' }}>Yüzde (%)</option>
+                        <option value="tutar" {{ ($salon->google_odul_kupon_indirim_tipi ?? '') === 'tutar' ? 'selected' : '' }}>Tutar (₺)</option>
+                     </select>
+                  </div>
+               </div>
+               <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                  <div class="google-odul-kupon">
+                     <div style="font-size:11px; color:#5b6770; font-weight:600; margin-bottom:3px;">İndirim Değeri (<span id="googleOdulBirim">%</span>)</div>
+                     <input type="number" id="googleOdulDeger" class="form-control" min="0" step="0.01" value="{{ $salon->google_odul_kupon_deger ?? '' }}" placeholder="Örn: 10" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13px; padding:6px 9px; min-height:32px;">
+                  </div>
+                  <div class="google-odul-kupon">
+                     <div style="font-size:11px; color:#5b6770; font-weight:600; margin-bottom:3px;">Geçerlilik (gün)</div>
+                     <input type="number" id="googleOdulGecerlilik" class="form-control" min="0" max="3650" value="{{ $salon->google_odul_kupon_gecerlilik_gun ?? 30 }}" placeholder="Boş = süresiz" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13px; padding:6px 9px; min-height:32px;">
+                  </div>
+                  <div class="google-odul-puan">
+                     <div style="font-size:11px; color:#5b6770; font-weight:600; margin-bottom:3px;">Verilecek Puan</div>
+                     <input type="number" id="googleOdulPuan" class="form-control" min="0" step="0.01" value="{{ $salon->google_odul_puan ?? '' }}" placeholder="Örn: 50" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13px; padding:6px 9px; min-height:32px;">
+                  </div>
+               </div>
+               <div class="google-odul-baslik" style="margin-top:8px;">
+                  <div style="font-size:11px; color:#5b6770; font-weight:600; margin-bottom:3px;">Ödül Başlığı (opsiyonel)</div>
+                  <input type="text" id="googleOdulBaslik" class="form-control" maxlength="200" value="{{ $salon->google_odul_baslik ?? '' }}" placeholder="Boş = otomatik (örn: %10 İndirim)" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13px; padding:6px 9px; min-height:32px;">
+               </div>
+            </div>
+
             <div style="margin:14px 0 8px; font-size:13px; font-weight:700; color:#ef4444;">🚨 Düşük Puan → Anlık SMS Uyarısı</div>
             <div style="margin-bottom:5px; font-size:11px; color:#5b6770; font-weight:600;">Uyarı SMS'i gidecek telefon (10 hane, salon yetkilisi)</div>
             <input type="text" id="uyariTel" class="form-control" placeholder="5XXXXXXXXX" maxlength="10" value="{{ $salon->kotu_puan_uyari_telefon ?? '' }}" style="border:1.5px solid #dfd6ea; border-radius:7px; font-size:13px; padding:6px 9px; min-height:32px; margin-bottom:10px;">
@@ -393,6 +434,18 @@
                         @endif
                      </td>
                      <td style="text-align:right;">
+                        @php
+                           $_webUygun = $g->cevaplandi && !empty($g->genel_yorum)
+                              && (($g->nps_skoru !== null && $g->nps_skoru >= 9) || ($g->csat_skoru !== null && $g->csat_skoru >= 4.5));
+                           $_gizli = (int) ($g->web_gizle ?? 0);
+                        @endphp
+                        @if($_webUygun)
+                           <button class="btn-mor-out web-gizle-btn" data-id="{{$g->id}}" data-gizli="{{ $_gizli }}" onclick="webGizleToggle(this)"
+                              title="Bu olumlu yorumu salon web sitesinde göster/gizle"
+                              style="border-color:{{ $_gizli ? '#94a3b8' : '#10b981' }}; color:{{ $_gizli ? '#94a3b8' : '#10b981' }};">
+                              <i class="fa fa-{{ $_gizli ? 'eye-slash' : 'globe' }}"></i> {{ $_gizli ? 'Sitede Gizli' : 'Sitede' }}
+                           </button>
+                        @endif
                         @if($g->cevaplandi)
                            <button class="btn-mor-out" onclick="detayGoster({{$g->id}})"><i class="fa fa-eye"></i> Detay</button>
                         @endif
@@ -1040,6 +1093,41 @@ function reputationPremiumAc(){
    }
 }
 
+// Google ödülü tipi değişince alanları göster/gizle
+function googleOdulTipiDegisti(){
+   var tip = document.getElementById('googleOdulTipi').value;
+   document.querySelectorAll('.google-odul-kupon').forEach(function(el){ el.style.display = (tip==='kupon')?'':'none'; });
+   document.querySelectorAll('.google-odul-puan').forEach(function(el){ el.style.display = (tip==='puan')?'':'none'; });
+   document.querySelectorAll('.google-odul-baslik').forEach(function(el){ el.style.display = (tip==='yok')?'none':''; });
+}
+function googleOdulBirimGuncelle(){
+   var t = document.getElementById('googleOdulIndirimTipi').value;
+   var b = document.getElementById('googleOdulBirim'); if(b) b.textContent = (t==='tutar')?'₺':'%';
+}
+document.addEventListener('DOMContentLoaded', function(){
+   if(document.getElementById('googleOdulTipi')){ googleOdulBirimGuncelle(); googleOdulTipiDegisti(); }
+});
+
+// Olumlu yorumu salon web sitesinde göster/gizle
+function webGizleToggle(btn){
+   var id = btn.getAttribute('data-id');
+   var gizli = btn.getAttribute('data-gizli') === '1';
+   var yeni = gizli ? 0 : 1;
+   btn.disabled = true;
+   $.post('/isletmeyonetim/anket-web-gizle-toggle', {
+      _token: '{{csrf_token()}}', sube: {{$isletme->id}}, gonderim_id: id, gizle: yeni
+   }, function(resp){
+      btn.disabled = false;
+      if(resp && resp.basarili){
+         var g = resp.web_gizle === 1;
+         btn.setAttribute('data-gizli', g ? '1' : '0');
+         btn.style.borderColor = g ? '#94a3b8' : '#10b981';
+         btn.style.color = g ? '#94a3b8' : '#10b981';
+         btn.innerHTML = '<i class="fa fa-' + (g ? 'eye-slash' : 'globe') + '"></i> ' + (g ? 'Sitede Gizli' : 'Sitede');
+      } else alert('Hata: ' + ((resp && resp.mesaj) || ''));
+   }).fail(function(){ btn.disabled = false; alert('Sunucu hatası.'); });
+}
+
 function googleAyarKaydet(){
    var btn = document.getElementById('googleKaydetBtn');
    btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Kaydediliyor...';
@@ -1051,7 +1139,13 @@ function googleAyarKaydet(){
       google_review_esik_csat: document.getElementById('esikCsat').value,
       kotu_puan_uyari_telefon: document.getElementById('uyariTel').value,
       kotu_puan_uyari_esik_nps: document.getElementById('uyariEsikNps').value,
-      kotu_puan_uyari_esik_csat: document.getElementById('uyariEsikCsat').value
+      kotu_puan_uyari_esik_csat: document.getElementById('uyariEsikCsat').value,
+      google_odul_tipi: document.getElementById('googleOdulTipi').value,
+      google_odul_kupon_indirim_tipi: document.getElementById('googleOdulIndirimTipi').value,
+      google_odul_kupon_deger: document.getElementById('googleOdulDeger').value,
+      google_odul_kupon_gecerlilik_gun: document.getElementById('googleOdulGecerlilik').value,
+      google_odul_puan: document.getElementById('googleOdulPuan').value,
+      google_odul_baslik: document.getElementById('googleOdulBaslik').value
    }, function(resp){
       btn.disabled = false; btn.innerHTML = '<i class="fa fa-save"></i> Kaydet';
       if(resp.basarili){

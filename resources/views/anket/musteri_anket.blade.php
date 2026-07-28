@@ -268,6 +268,13 @@
             Mahallendeki diğer kişilere de bu deneyimini anlatır mısın?<br>
             <b>Tek tıkla Google'da yorum bırakabilirsin.</b>
          </p>
+         @if(!empty($googleOdulLabel))
+         <div id="google_odul_vaat" style="background:linear-gradient(135deg,#fff8e6 0%,#fff0f6 100%); border:1.5px dashed #e0aa3e; border-radius:14px; padding:14px 16px; max-width:420px; margin:0 auto 16px;">
+            <div style="font-size:30px; line-height:1; margin-bottom:4px;">🎁</div>
+            <div style="font-weight:800; color:#8a5a00; font-size:15px;">Google'da olumlu yorum yap, {{ $googleOdulLabel }} kazan!</div>
+            <div style="color:#6b4e12; font-size:12px; margin-top:3px;">Butona bastığında kuponun tanımlanır; yorumunu tamamlamayı unutma.</div>
+         </div>
+         @endif
          <a id="google_review_link" href="#" target="_blank" rel="noopener" onclick="googleTiklamaTrack()"
             style="display:inline-flex; align-items:center; gap:10px; background:linear-gradient(135deg,#4285F4 0%,#1A73E8 100%); color:#fff; padding:14px 26px; border-radius:30px; text-decoration:none; font-weight:700; font-size:15px; box-shadow:0 8px 22px rgba(26,115,232,.32); transition:transform .15s;">
             <span style="background:#fff; color:#4285F4; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:900; font-size:14px;">G</span>
@@ -275,6 +282,13 @@
             <i class="fa fa-external-link" style="font-size:13px; opacity:.85;"></i>
          </a>
          <p style="color:#94a3b8; font-size:11.5px; margin:18px 0 0;">⏱️ Yaklaşık 30 saniye sürer · Yardımcı olacak</p>
+
+         {{-- Google'a tıklayınca kazanılan ödül burada gösterilir --}}
+         <div id="google_odul_sonuc" style="display:none; background:linear-gradient(135deg,#fff8e6 0%,#fff0f6 100%); border:1.5px dashed #e0aa3e; border-radius:14px; padding:16px; max-width:420px; margin:18px auto 0;">
+            <div style="font-size:34px; line-height:1; margin-bottom:4px;">🎉</div>
+            <div id="google_odul_baslik_txt" style="font-weight:800; color:#8a5a00; font-size:16px; margin-bottom:4px;"></div>
+            <div id="google_odul_detay_txt" style="color:#6b4e12; font-size:13px;"></div>
+         </div>
       </div>
 
       {{-- Standart başarı mesajı --}}
@@ -427,7 +441,8 @@
    };
 
    window.googleTiklamaTrack = function(){
-      // Tracking — beklemeden tıklama analitiği gönder, link normal akıyor
+      // Tracking + ödül — Google yeni sekmede açılır (target=_blank), bu sekme açık kalır;
+      // yanıt gelince kazanılan kupon burada gösterilir.
       try {
          var fd = new FormData();
          fd.append('_token', '{{ csrf_token() }}');
@@ -435,9 +450,28 @@
          fetch('/anket-google-tiklandi', {
             method: 'POST',
             body: fd,
-            credentials: 'same-origin',
-            keepalive: true
-         }).catch(function(){});
+            credentials: 'same-origin'
+         })
+         .then(function(r){ return r.json(); })
+         .then(function(resp){
+            if (resp && resp.odul) {
+               var kutu = document.getElementById('google_odul_sonuc');
+               var vaat = document.getElementById('google_odul_vaat');
+               if (vaat) vaat.style.display = 'none';
+               if (resp.odul.tip === 'kupon') {
+                  document.getElementById('google_odul_baslik_txt').textContent = '🎉 ' + (resp.odul.baslik || 'İndirim kuponu') + ' kazandınız!';
+                  var d = 'Kupon kodunuz: <b style="letter-spacing:1px;">' + (resp.odul.kod || '') + '</b>';
+                  if (resp.odul.gecerlilik) d += '<br>Son kullanım: ' + resp.odul.gecerlilik;
+                  d += '<br><span style="font-size:12px;">Google\'da olumlu yorumunuzu tamamlamayı unutmayın 🙏</span>';
+                  document.getElementById('google_odul_detay_txt').innerHTML = d;
+               } else if (resp.odul.tip === 'puan') {
+                  document.getElementById('google_odul_baslik_txt').textContent = '🎉 ' + resp.odul.puan + ' puan kazandınız!';
+                  document.getElementById('google_odul_detay_txt').innerHTML = 'Puanlarınız hesabınıza tanımlandı. Google\'da olumlu yorumunuzu tamamlamayı unutmayın 🙏';
+               }
+               if (kutu) kutu.style.display = 'block';
+            }
+         })
+         .catch(function(){});
       } catch(e){}
    };
 })();

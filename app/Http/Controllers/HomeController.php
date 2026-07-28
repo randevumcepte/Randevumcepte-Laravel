@@ -3083,6 +3083,18 @@ $salon = Salonlar::where('domain', $domain)->first();
             $suresiBitti = true;
         }
 
+        // Google yorumu ödülü etiketi (teşekkür ekranında "olumlu yorum yap → X kazan" için)
+        $googleOdulLabel = null;
+        if ($isletme) {
+            if (($isletme->google_odul_tipi ?? 'yok') === 'kupon' && (float) $isletme->google_odul_kupon_deger > 0) {
+                $googleOdulLabel = ($isletme->google_odul_kupon_indirim_tipi === 'tutar')
+                    ? (rtrim(rtrim(number_format((float) $isletme->google_odul_kupon_deger, 2, ',', '.'), '0'), ',') . ' ₺ indirim kuponu')
+                    : (intval($isletme->google_odul_kupon_deger) . '% indirim kuponu');
+            } elseif (($isletme->google_odul_tipi ?? 'yok') === 'puan' && (float) $isletme->google_odul_puan > 0) {
+                $googleOdulLabel = rtrim(rtrim(number_format((float) $isletme->google_odul_puan, 2, ',', '.'), '0'), ',') . ' puan';
+            }
+        }
+
         return view('anket.musteri_anket', [
             'gonderim'        => $gonderim,
             'sablon'          => $sablon,
@@ -3090,6 +3102,7 @@ $salon = Salonlar::where('domain', $domain)->first();
             'sorular'         => $sorular,
             'zaten_dolduruldu'=> (bool) $gonderim->cevaplandi,
             'suresi_bitti'    => $suresiBitti,
+            'googleOdulLabel' => $googleOdulLabel,
         ]);
     }
 
@@ -3355,15 +3368,79 @@ $salon = Salonlar::where('domain', $domain)->first();
 
     public function anketGoogleTiklandi(Request $request)
     {
-        // Public endpoint — anket teşekkür sayfasından "Google'da Yorum Yaz" tıklanınca tracking
+        // Public endpoint — anket teşekkür sayfasından "Google'da Yorum Yaz" tıklanınca tracking + ödül
         try {
             $token = $request->token;
             $g = AnketGonderim::where('token', $token)->first();
-            if ($g && !$g->google_yonlendirildi) {
+            if (!$g) return response()->json(['basarili' => false]);
+
+            if (!$g->google_yonlendirildi) {
                 $g->google_yonlendirildi = true;
                 $g->save();
             }
-            return response()->json(['basarili' => true]);
+
+            // Google yorumu ödülü (tıklayana kupon/puan) — salon ayarına göre, tek sefer, kayıtlı müşteriye
+            $odulBilgi = null;
+            try {
+                $salon = Salonlar::where('id', $g->salon_id)->first();
+                if ($salon
+                    && in_array($salon->google_odul_tipi, ['kupon','puan'])
+                    && !empty($g->user_id)
+                    && empty($g->google_odul_verildi)) {
+
+                    if ($salon->google_odul_tipi === 'kupon' && (float) $salon->google_odul_kupon_deger > 0) {
+                        $indirimTipi = $salon->google_odul_kupon_indirim_tipi === 'tutar' ? 'tutar' : 'yuzde';
+                        $deger = (float) $salon->google_odul_kupon_deger;
+                        $baslik = trim((string) $salon->google_odul_baslik);
+                        if ($baslik === '') {
+                            $baslik = $indirimTipi === 'tutar'
+                                ? (rtrim(rtrim(number_format($deger, 2, ',', '.'), '0'), ',') . ' ₺ İndirim')
+                                : (intval($deger) . '% İndirim');
+                        }
+                        $gecerlilik = $salon->google_odul_kupon_gecerlilik_gun
+                            ? \Carbon\Carbon::now()->addDays((int) $salon->google_odul_kupon_gecerlilik_gun)->toDateString()
+                            : null;
+                        $kupon = \App\CarkifelekOdulleri::create([
+                            'salon_id'          => $g->salon_id,
+                            'user_id'           => $g->user_id,
+                            'kod'               => strtoupper(\Illuminate\Support\Str::random(8)),
+                            'tip'               => 'hizmet_indirimi',
+                            'deger'             => $deger,
+                            'indirim_tipi'      => $indirimTipi,
+                            'hizmet_id'         => null,
+                            'baslik'            => $baslik,
+                            'gecerlilik_tarihi' => $gecerlilik,
+                        ]);
+                        $g->google_odul_verildi = 1;
+                        $g->google_odul_kupon_id = $kupon->id;
+                        $g->save();
+                        $odulBilgi = [
+                            'tip'        => 'kupon',
+                            'baslik'     => $baslik,
+                            'kod'        => $kupon->kod,
+                            'gecerlilik' => $gecerlilik ? \Carbon\Carbon::parse($gecerlilik)->format('d.m.Y') : null,
+                        ];
+                    } elseif ($salon->google_odul_tipi === 'puan' && (float) $salon->google_odul_puan > 0) {
+                        $puanDeger = (float) $salon->google_odul_puan;
+                        $puanKaydi = \App\SalonSadakatPuanlari::firstOrNew([
+                            'salon_id' => $g->salon_id,
+                            'user_id'  => $g->user_id,
+                        ]);
+                        $puanKaydi->puan = ((float) $puanKaydi->puan) + $puanDeger;
+                        $puanKaydi->save();
+                        $g->google_odul_verildi = 1;
+                        $g->save();
+                        $odulBilgi = [
+                            'tip'  => 'puan',
+                            'puan' => rtrim(rtrim(number_format($puanDeger, 2, ',', '.'), '0'), ','),
+                        ];
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('[ANKET-GOOGLE-ODUL] hata: '.$e->getMessage(), ['gonderim_id' => $g->id ?? null]);
+            }
+
+            return response()->json(['basarili' => true, 'odul' => $odulBilgi]);
         } catch (\Exception $e) {
             return response()->json(['basarili' => false]);
         }
