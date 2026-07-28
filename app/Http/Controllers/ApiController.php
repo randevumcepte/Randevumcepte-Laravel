@@ -28692,6 +28692,26 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 if ($request->has('kotu_puan_uyari_esik_csat') && Schema::hasColumn('salonlar', 'kotu_puan_uyari_esik_csat')) {
                     $salon->kotu_puan_uyari_esik_csat = max(1, min(5, (float) $request->input('kotu_puan_uyari_esik_csat')));
                 }
+                // Google yorumu odulu (tiklayana kupon/puan)
+                if ($request->has('google_odul_tipi') && Schema::hasColumn('salonlar', 'google_odul_tipi')) {
+                    $gTip = in_array($request->input('google_odul_tipi'), ['kupon','puan']) ? $request->input('google_odul_tipi') : 'yok';
+                    $salon->google_odul_tipi                 = $gTip;
+                    $salon->google_odul_kupon_indirim_tipi   = null;
+                    $salon->google_odul_kupon_deger          = null;
+                    $salon->google_odul_kupon_gecerlilik_gun = null;
+                    $salon->google_odul_puan                 = null;
+                    $salon->google_odul_baslik               = null;
+                    if ($gTip === 'kupon') {
+                        $salon->google_odul_kupon_indirim_tipi   = $request->input('google_odul_kupon_indirim_tipi') === 'tutar' ? 'tutar' : 'yuzde';
+                        $salon->google_odul_kupon_deger          = max(0, (float) $request->input('google_odul_kupon_deger', 0));
+                        $gg = (int) $request->input('google_odul_kupon_gecerlilik_gun', 0);
+                        $salon->google_odul_kupon_gecerlilik_gun = $gg > 0 ? $gg : null;
+                        $salon->google_odul_baslik               = trim((string) $request->input('google_odul_baslik')) ?: null;
+                    } elseif ($gTip === 'puan') {
+                        $salon->google_odul_puan   = max(0, (float) $request->input('google_odul_puan', 0));
+                        $salon->google_odul_baslik = trim((string) $request->input('google_odul_baslik')) ?: null;
+                    }
+                }
                 $salon->save();
                 Audit::logApi($salonId, $request, 'anket_ayar', 'anket_ayar', null, null, 'Anket/Google degerlendirme ayarlari kaydedildi');
                 return response()->json(['basarili' => true]);
@@ -28707,6 +28727,12 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             'google_review_esik_csat' => $salon->google_review_esik_csat ?? 4.5,
             'kotu_puan_uyari_esik_nps' => $salon->kotu_puan_uyari_esik_nps ?? 6,
             'kotu_puan_uyari_esik_csat' => $salon->kotu_puan_uyari_esik_csat ?? 2.5,
+            'google_odul_tipi' => $salon->google_odul_tipi ?? 'yok',
+            'google_odul_kupon_indirim_tipi' => $salon->google_odul_kupon_indirim_tipi ?? 'yuzde',
+            'google_odul_kupon_deger' => $salon->google_odul_kupon_deger,
+            'google_odul_kupon_gecerlilik_gun' => $salon->google_odul_kupon_gecerlilik_gun,
+            'google_odul_puan' => $salon->google_odul_puan,
+            'google_odul_baslik' => $salon->google_odul_baslik ?? '',
         ]);
     }
 
