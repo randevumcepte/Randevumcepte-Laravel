@@ -30906,7 +30906,7 @@ DB::raw('
         //return self::hizmetRaporlari2(self::mevcutsube($request));
 
 
-        return view('isletmeadmin.raporlar',['isletme'=>$isletme,'bildirimler'=>self::bildirimgetir($request),'pageindex'=>400  ,'sayfa_baslik'=>'Raporlar', 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'hizmetRaporlari'=>self::hizmetRaporlari2($isletme->id,date('Y-m-01'),date('Y-m-d'),''),'urunRaporlari'=>self::urunRaporlari($isletme->id,date('Y-m-01'),date('Y-m-d'),''),'paketRaporlari'=>self::paketRaporlari($isletme->id,date('Y-m-01'),date('Y-m-d'),''),'personelRaporlari'=>self::personelRaporlari($isletme->id,date('Y-m-01'),date('Y-m-d'))]);
+        return view('isletmeadmin.raporlar',['isletme'=>$isletme,'bildirimler'=>self::bildirimgetir($request),'pageindex'=>400  ,'sayfa_baslik'=>'Raporlar', 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'hizmetRaporlari'=>self::hizmetRaporlari2($isletme->id,date('Y-m-01'),date('Y-m-d'),''),'urunRaporlari'=>self::urunRaporlari($isletme->id,date('Y-m-01'),date('Y-m-d'),''),'paketRaporlari'=>self::paketRaporlari($isletme->id,date('Y-m-01'),date('Y-m-d'),''),'tumRaporlari'=>self::tumRaporlari($isletme->id,date('Y-m-01'),date('Y-m-d'),''),'personelRaporlari'=>self::personelRaporlari($isletme->id,date('Y-m-01'),date('Y-m-d'))]);
     }
     public function hizmetRaporlari($salonId)
     {
@@ -31078,13 +31078,31 @@ DB::raw('
         }
         else{
             $tariharaligi = $request->zaman;
-          
+
             $tarih = explode(' / ',$tariharaligi);
             $tarih1 = $tarih[0];
             $tarih2 = $tarih[1];
-         
+
         }
         return self::personelRaporlari($request->salonId,$tarih1,$tarih2);
+    }
+    public function tumRaporFiltre(Request $request)
+    {
+        $tarih1 = date('Y-m-01');
+        $tarih2 = date('Y-m-d');
+        if($request->zaman == 'ozel')
+        {
+            if($request->baslangicTarihi != '')
+                $tarih1 = $request->baslangicTarihi;
+            if($request->bitisTarihi != '')
+                $tarih2 = $request->bitisTarihi;
+        }
+        else{
+            $tarih = explode(' / ',$request->zaman);
+            $tarih1 = $tarih[0];
+            $tarih2 = $tarih[1];
+        }
+        return self::tumRaporlari($request->salonId,$tarih1,$tarih2,$request->personel);
     }
     public function hizmetRaporlari2($salonId,$tarih1,$tarih2,$personel)
     {
@@ -31302,6 +31320,31 @@ DB::raw('
         })->values();
 
         return $raporlar;
+    }
+    // Hizmet + Urun + Paket satislarini tek listede birlestirir (Tumu sekmesi)
+    public function tumRaporlari($salonId,$tarih1,$tarih2,$personel='')
+    {
+        $birlestir = function($koleksiyon,$tur,$adAnahtar){
+            return $koleksiyon->map(function($r) use($tur,$adAnahtar){
+                return (object)[
+                    'tur'                => $tur,
+                    'ad'                 => $r->{$adAnahtar} ?? '-',
+                    'adet'               => $r->adet,
+                    'toplam_tutar'       => $r->toplam_tutar,
+                    'toplamKazanc'       => $r->toplamKazanc,
+                    'borc'               => $r->borc,
+                    'toplamTutarNumeric' => $r->toplamTutarNumeric,
+                    'toplamKazancNumeric'=> $r->toplamKazancNumeric,
+                    'borcNumeric'        => $r->borcNumeric,
+                ];
+            });
+        };
+
+        $hizmet = $birlestir(self::hizmetRaporlari2($salonId,$tarih1,$tarih2,$personel),'Hizmet','hizmet_adi');
+        $urun   = $birlestir(self::urunRaporlari($salonId,$tarih1,$tarih2,$personel),'Ürün','urun_adi');
+        $paket  = $birlestir(self::paketRaporlari($salonId,$tarih1,$tarih2,$personel),'Paket','paket_adi');
+
+        return $hizmet->concat($urun)->concat($paket)->values();
     }
     public function personelRaporlari($salonId,$tarih1,$tarih2)
     {

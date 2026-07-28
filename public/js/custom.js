@@ -9344,6 +9344,21 @@ $('#personel_rapor_zamana_gore_filtre').change(function(e){
         personelRaporFiltre('','');
     }
 });
+$('#tum_rapor_zamana_gore_filtre').change(function(e){
+    e.preventDefault();
+    if($('#tum_rapor_zamana_gore_filtre').val()=="ozel"){
+        $('#tum_rapor_ozel_tarih_filtresi_1').attr('style','display:block');
+        $('#tum_rapor_ozel_tarih_filtresi_2').attr('style','display:block');
+    }
+    else
+    {
+        $('#tum_rapor_baslangic_tarihi').val('');
+        $('#tum_rapor_bitis_tarihi').val('');
+        $('#tum_rapor_ozel_tarih_filtresi_1').attr('style','display:none');
+        $('#tum_rapor_ozel_tarih_filtresi_2').attr('style','display:none');
+        tumRaporFiltre('','');
+    }
+});
 
 $('#hizmet_rapor_baslangic_tarihi,#hizmet_rapor_bitis_tarihi').on('paste keyup keydown change',function(e){
     e.preventDefault();
@@ -9360,6 +9375,10 @@ $('#paket_rapor_baslangic_tarihi,#paket_rapor_bitis_tarihi').on('paste keyup key
 $('#personel_rapor_baslangic_tarihi,#personel_rapor_bitis_tarihi').on('paste keyup keydown change',function(e){
     e.preventDefault();
     personelRaporFiltre('','');
+});
+$('#tum_rapor_baslangic_tarihi,#tum_rapor_bitis_tarihi').on('paste keyup keydown change',function(e){
+    e.preventDefault();
+    tumRaporFiltre('','');
 });
 
 
@@ -9471,6 +9490,70 @@ $('#urunRaporPersonelFiltre').change(function(e){
 $('#paketRaporPersonelFiltre').change(function(e){
     paketRaporFiltre($('#paket_rapor_baslangic_tarihi').val(),$('#paket_rapor_bitis_tarihi').val());
 });
+$('#tumRaporPersonelFiltre').change(function(e){
+    tumRaporFiltre($('#tum_rapor_baslangic_tarihi').val(),$('#tum_rapor_bitis_tarihi').val());
+});
+function tumRaporFiltre(baslangic_tarihi,bitis_tarihi)
+{
+    $.ajax({
+                type: "GET",
+                url: '/isletmeyonetim/tumRaporFiltre',
+                dataType: "json",
+                data : {salonId : $('input[name="sube"]').val(),baslangicTarihi : baslangic_tarihi,bitisTarihi: bitis_tarihi,zaman:$('#tum_rapor_zamana_gore_filtre').val(),personel:$('#tumRaporPersonelFiltre').val()},
+                beforeSend:function(){
+                    $('#preloader').show();
+                },
+                success: function(result)  {
+                    $('#preloader').hide();
+                    var toplamTutar = 0;
+                    var toplamKAzanc = 0;
+                    var toplamBorc = 0;
+
+                    result.forEach(function(item){
+                        toplamTutar += item.toplamTutarNumeric;
+                        toplamKAzanc += item.toplamKazancNumeric;
+                        toplamBorc  += item.borcNumeric;
+                    });
+                    $('#tumGeliri').empty();
+                    $('#tumKazanci').empty();
+                    $('#tumBorc').empty();
+
+                    $('#tumGeliri').append(turkLiraFormat(toplamTutar));
+                    $('#tumKazanci').append(turkLiraFormat(toplamKAzanc));
+                    $('#tumBorc').append(turkLiraFormat(toplamBorc));
+
+                    $('#tum_rapor_tablo').DataTable().destroy();
+                    $('#tum_rapor_tablo').DataTable({
+                        autoWidth: false,
+                        responsive: true,
+                        pageLength: 100,
+                        "order": [[ 0, "asc" ]],
+                        columns:[
+                           { data: 'tur' },
+                           { data: 'ad' },
+                           { data: 'adet' },
+                           { data: 'toplam_tutar' },
+                           { data: 'toplamKazanc' },
+                           { data: 'borc' },
+                        ],
+                        data: result,
+                        "language" : {
+                            "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
+                            searchPlaceholder: "Ara",
+                            paginate: {
+                                next: '<i class="ion-chevron-right"></i>',
+                                previous: '<i class="ion-chevron-left"></i>'
+                        }
+                     },
+               });
+                },
+                error: function (request, status, error) {
+                     $('#preloader').hide();
+                     document.getElementById('hata').innerHTML = request.responseText;
+                }
+    });
+}
+
 function hizmetRaporFiltre(baslangic_tarihi,bitis_tarihi)
 {
     $.ajax({
@@ -17031,6 +17114,23 @@ $('.tab-pane,.tab-content, button[data-toggle="tab"],a[data-toggle="tab"]').on('
                        },
             }).columns.adjust().responsive.recalc();
         });
+          if($('#tum_rapor_tablo').length){
+                $('#tum_rapor_tablo').DataTable().destroy()
+                var tumRaporTablo = $('#tum_rapor_tablo').DataTable({
+                      ordering: false,
+                      autoWidth: false,
+                      pageLength: 100,
+                      "language" : {
+                          "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
+                          searchPlaceholder: "Ara",
+                          paginate: {
+                              next: '<i class="ion-chevron-right"></i>',
+                              previous: '<i class="ion-chevron-left"></i>'
+                       }
+                    }
+                });
+                tumRaporTablo.columns.adjust().responsive.recalc();
+            }
           if($('#hizmet_rapor_tablo').length){
                 $('#hizmet_rapor_tablo').DataTable().destroy()
                 var himzetRaporTablo = $('#hizmet_rapor_tablo').DataTable({

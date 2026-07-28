@@ -1310,6 +1310,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/urunRaporFiltre','StoreAdminController@urunRaporFiltre');
 	Route::get('/paketRaporFiltre','StoreAdminController@paketRaporFiltre');
 	Route::get('/personelRaporFiltre','StoreAdminController@personelRaporFiltre');
+	Route::get('/tumRaporFiltre','StoreAdminController@tumRaporFiltre');
 	Route::get('/personel-yonetimi','StoreAdminController@personelYonetimi');
 	// Personel yetki yonetimi popup endpoints (web guard, isletmeyonetim middleware)
 	Route::get('/personel-yetki-sema','StoreAdminController@personelYetkiSemaWeb');

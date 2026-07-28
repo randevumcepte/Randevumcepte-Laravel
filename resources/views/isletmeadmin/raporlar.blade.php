@@ -242,7 +242,13 @@
       <ul class="rpr-tabs nav nav-tabs element" role="tablist">
          <li class="nav-item">
             <button type="button" class="rpr-tab-btn nav-link active"
-               data-toggle="tab" href="#hizmet_raporlari" role="tab" aria-selected="true">
+               data-toggle="tab" href="#tum_raporlari" role="tab" aria-selected="true">
+               <i class="dw dw-layers"></i> Tümü
+            </button>
+         </li>
+         <li class="nav-item">
+            <button type="button" class="rpr-tab-btn nav-link"
+               data-toggle="tab" href="#hizmet_raporlari" role="tab" aria-selected="false">
                <i class="dw dw-list"></i> Hizmet Raporları
             </button>
          </li>
@@ -268,8 +274,92 @@
 
       <div class="tab-content rpr-tab-body">
 
+         {{-- ============ TÜMÜ (HİZMET + ÜRÜN + PAKET) ============ --}}
+         <div class="tab-pane fade show active" id="tum_raporlari" role="tab-panel">
+
+            <div class="rpr-filter">
+               <div class="rpr-filter-grid">
+                  <div>
+                     <label>Zaman Aralığı</label>
+                     <select class="form-control" id="tum_rapor_zamana_gore_filtre">
+                        <option value="{{date('Y-m-d')}} / {{date('Y-m-d')}}">Bugün</option>
+                        <option value="{{date('Y-m-d', strtotime('-1 days',strtotime(date('Y-m-d'))))}} / {{date('Y-m-d', strtotime('-1 days',strtotime(date('Y-m-d'))))}}">Dün</option>
+                        <option selected value="<?php  echo date('Y-m-01') . " / ". date('Y-m-t'); ?>">Bu ay</option>
+                        <option value="<?php  echo date('Y-m-01',strtotime('-1 months')) . " / ". date('Y-m-t',strtotime('-1 months')); ?>">Geçen ay</option>
+                        <option value="<?php echo date('Y-01-01') . " / ". date('Y-12-31'); ?>">Bu yıl</option>
+                        <option value="<?php echo date(date('Y',strtotime('-1 year')).'-01-01') . " / ". date(date('Y',strtotime('-1 year')).'-12-31'); ?>">Geçen yıl</option>
+                        <option value="ozel">Özel</option>
+                     </select>
+                  </div>
+                  <div id="tum_rapor_ozel_tarih_filtresi_1" style="display:none;">
+                     <label>Başlangıç Tarihi</label>
+                     <input class="form-control" placeholder="Başlangıç Tarihini seçiniz.." type="text" id="tum_rapor_baslangic_tarihi" />
+                  </div>
+                  <div id="tum_rapor_ozel_tarih_filtresi_2" style="display:none;">
+                     <label>Bitiş Tarihi</label>
+                     <input class="form-control" placeholder="Bitiş tarihini seçiniz.." type="text" id="tum_rapor_bitis_tarihi" />
+                  </div>
+                  <div>
+                     <label>Personele Göre Filtrele</label>
+                     <select class="form-control personel_secimi" id="tumRaporPersonelFiltre" style="width:100%">
+                        <option></option>
+                     </select>
+                  </div>
+               </div>
+            </div>
+
+            <div class="rpr-kpis">
+               <div class="rpr-kpi rpr-kpi--gelir">
+                  <div class="rpr-kpi-icon">₺</div>
+                  <div class="rpr-kpi-data">
+                     <div class="rpr-kpi-label">Toplam Gelir</div>
+                     <div class="rpr-kpi-value" id="tumGeliri">{{number_format($tumRaporlari->sum('toplamTutarNumeric'),2,',','.')}}</div>
+                  </div>
+               </div>
+               <div class="rpr-kpi rpr-kpi--kazanc">
+                  <div class="rpr-kpi-icon">₺</div>
+                  <div class="rpr-kpi-data">
+                     <div class="rpr-kpi-label">Toplam Kazanç</div>
+                     <div class="rpr-kpi-value" id="tumKazanci">{{$_fmtCK($tumRaporlari->sum('toplamKazancNumeric'))}}</div>
+                  </div>
+               </div>
+               <div class="rpr-kpi rpr-kpi--alacak">
+                  <div class="rpr-kpi-icon">₺</div>
+                  <div class="rpr-kpi-data">
+                     <div class="rpr-kpi-label">Kalan Alacak</div>
+                     <div class="rpr-kpi-value" id="tumBorc">{{number_format($tumRaporlari->sum('borcNumeric'),2,',','.')}}</div>
+                  </div>
+               </div>
+            </div>
+
+            <div class="rpr-table-card">
+               <table class="data-table table stripe hover nowrap" id="tum_rapor_tablo">
+                  <thead>
+                     <th>Tür</th>
+                     <th>Ad</th>
+                     <th>Adet</th>
+                     <th>Gelir ₺</th>
+                     <th>Toplam Kazanç ₺</th>
+                     <th>Kalan Alacak ₺</th>
+                  </thead>
+                  <tbody>
+                  @foreach($tumRaporlari as $rapor)
+                     <tr>
+                        <td>{{ $rapor->tur }}</td>
+                        <td>{{ $rapor->ad }}</td>
+                        <td>{{ $rapor->adet }}</td>
+                        <td>{{ $rapor->toplam_tutar }}</td>
+                        <td>{{ $rapor->toplamKazanc }}</td>
+                        <td>{{ $rapor->borc }}</td>
+                     </tr>
+                  @endforeach
+                  </tbody>
+               </table>
+            </div>
+         </div>
+
          {{-- ============ HİZMET RAPORLARI ============ --}}
-         <div class="tab-pane fade show active" id="hizmet_raporlari" role="tab-panel">
+         <div class="tab-pane fade show" id="hizmet_raporlari" role="tab-panel">
 
             <div class="rpr-filter">
                <div class="rpr-filter-grid">
