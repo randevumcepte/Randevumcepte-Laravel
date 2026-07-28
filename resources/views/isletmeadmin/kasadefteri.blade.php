@@ -1097,6 +1097,7 @@ $(document).ready(function() {
                <span class="gs-date-sep">→</span>
                <input type="date" id="gs-bit" class="gs-date">
             </div>
+            <button type="button" class="gs-print-btn" id="gs-detay-btn" title="Tam Detay / Sağlama"><i class="fa fa-list-ul"></i><span>Tam Detay</span></button>
             <button type="button" class="gs-print-btn" id="gs-print" title="Yazdır / PDF"><i class="fa fa-print"></i><span>Yazdır</span></button>
             <button type="button" class="gs-close" id="gs-close" aria-label="Kapat">&times;</button>
          </div>
@@ -1200,6 +1201,19 @@ $(document).ready(function() {
 .gs-two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 .gs-empty { text-align:center; color:#94a3b8; font-size:12.5px; padding:16px 0; }
 
+/* Tam Detay: liste alt toplam + rozetler + saglama */
+.gs-list tfoot td { border-top:2px solid #ead4ff; background:#fcfaff; font-weight:800; color:#1e293b; font-size:12.5px; padding:9px 14px; }
+.gs-tag { display:inline-block; font-size:10px; font-weight:700; border-radius:6px; padding:1px 7px; color:#fff; white-space:nowrap; }
+.gs-tag.in { background:#0ea5b7; }   /* Para Girisi */
+.gs-tag.pg { background:#f59e0b; }   /* Personel Gideri */
+.gs-tag.po { background:#6366f1; }   /* Personel Odemesi */
+.gs-saglama { background:#fff; border:1px solid #eceef4; border-radius:14px; padding:14px 18px; margin-top:16px; }
+.gs-saglama .sg-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; font-size:13.5px; color:#475569; }
+.gs-saglama .sg-row b { color:#1e293b; font-weight:700; }
+.gs-saglama .sg-row.total { border-top:2px dashed #ead4ff; margin-top:6px; padding-top:12px; font-size:16px; font-weight:800; color:#1e293b; }
+.gs-saglama .sg-row.total b.pos { color:#15803d; }
+.gs-saglama .sg-row.total b.neg { color:#dc2626; }
+
 @media (max-width:640px){
    .gs-head-right { width:100%; }
    .gs-cards { grid-template-columns:1fr; }
@@ -1215,6 +1229,7 @@ $(document).ready(function() {
    var $ov = $('#gs-overlay');
    $ov.appendTo('body');
    var gsData = null;
+   var gsDetay = false; // false=Özet, true=Tam Detay (sağlama)
 
    function esc(s){ return $('<div>').text(s==null?'':s).html(); }
    function gsFmt(n){ n = Number(n)||0; return n.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -1239,10 +1254,15 @@ $(document).ready(function() {
       return trTarih(b)+' → '+trTarih(bit);
    }
 
+   function gsDetayBtnGuncelle(){
+      $('#gs-detay-btn span').text(gsDetay ? 'Özet' : 'Tam Detay');
+      $('#gs-detay-btn i').attr('class', gsDetay ? 'fa fa-th-large' : 'fa fa-list-ul');
+   }
    window.gunSonuAc = function(){
       $('#gs-period').val('bugun');
       $('#gs-ozel-wrap').hide();
       $('#gs-b').val(GS_BUGUN); $('#gs-bit').val(GS_BUGUN);
+      gsDetay = false; gsDetayBtnGuncelle();
       $ov.addClass('show');
       gsYukle();
    };
@@ -1250,6 +1270,13 @@ $(document).ready(function() {
    $('#gs-close').on('click', gsKapat);
    $ov.on('click', function(e){ if(e.target===this) gsKapat(); });
    $(document).on('keydown', function(e){ if(e.key==='Escape' && $ov.hasClass('show')) gsKapat(); });
+
+   // Özet <-> Tam Detay gecisi (yeni AJAX yok, mevcut veriyi yeniden cizer)
+   $('#gs-detay-btn').on('click', function(){
+      gsDetay = !gsDetay; gsDetayBtnGuncelle();
+      if(gsData) $('#gs-body').html(gsRender(gsData));
+      $('#gs-body').scrollTop(0);
+   });
 
    $('#gs-period').on('change', function(){
       if($(this).val()==='ozel'){ $('#gs-ozel-wrap').css('display','flex'); }
@@ -1275,6 +1302,7 @@ $(document).ready(function() {
    var YONTEMLER = [['nakit','Nakit'],['kredikarti','Kredi Kartı'],['havale','Havale'],['online','Online'],['diger','Diğer']];
 
    function gsRender(d){
+      if(gsDetay) return gsRenderDetay(d);
       var netCls = d.net_toplam < 0 ? 'neg' : 'pos';
       var h = '';
 
@@ -1319,6 +1347,55 @@ $(document).ready(function() {
       h += '<div><div class="gs-section"><i class="fa fa-shopping-bag"></i> En Çok Satan Ürün</div>'+gsMiniList(d.top_urun,'urun_adi')+'</div>';
       h += '</div>';
 
+      return h;
+   }
+
+   // ---- TAM DETAY (SAĞLAMA) GÖRÜNÜMÜ ----
+   function gsRenderDetay(d){
+      var h = '';
+
+      // 1) Satislar (Gelirler)
+      h += '<div class="gs-section"><i class="fa fa-shopping-cart"></i> Satışlar (Gelirler)</div>';
+      h += '<div class="gs-list"><table><thead><tr><th>Saat</th><th>Müşteri</th><th>Tahsil Eden</th><th>Yöntem</th><th class="r">Tutar</th></tr></thead><tbody>';
+      if(d.satislar && d.satislar.length){
+         d.satislar.forEach(function(s){
+            h += '<tr><td>'+esc(s.saat)+'</td>'+
+                 '<td class="ad">'+esc(s.musteri)+(s.para_girisi?' <span class="gs-tag in">Para Girişi</span>':'')+'</td>'+
+                 '<td>'+esc(s.tahsil_eden)+'</td><td>'+esc(s.yontem)+'</td>'+
+                 '<td class="r ciro">'+gsFmt(s.tutar)+' ₺</td></tr>';
+         });
+      } else { h += '<tr><td colspan="5"><div class="gs-empty">Bu dönemde satış yok.</div></td></tr>'; }
+      h += '</tbody><tfoot><tr><td colspan="4">Satışlar Toplamı</td><td class="r">'+gsFmt(d.gelir_toplam)+' ₺</td></tr></tfoot></table></div>';
+
+      // 2) Isletme Masraflari
+      h += '<div class="gs-section"><i class="fa fa-arrow-down"></i> İşletme Masrafları</div>';
+      h += '<div class="gs-list"><table><thead><tr><th>Harcayan</th><th>Açıklama</th><th>Yöntem</th><th class="r">Tutar</th></tr></thead><tbody>';
+      if(d.isletme_masraflari && d.isletme_masraflari.length){
+         d.isletme_masraflari.forEach(function(m){
+            h += '<tr><td class="ad">'+esc(m.harcayan)+'</td><td>'+esc(m.aciklama||'-')+'</td><td>'+esc(m.yontem)+'</td><td class="r ciro">'+gsFmt(m.tutar)+' ₺</td></tr>';
+         });
+      } else { h += '<tr><td colspan="4"><div class="gs-empty">İşletme masrafı yok.</div></td></tr>'; }
+      h += '</tbody><tfoot><tr><td colspan="3">İşletme Masrafları Toplamı</td><td class="r">'+gsFmt(d.isletme_masraf_toplam)+' ₺</td></tr></tfoot></table></div>';
+
+      // 3) Personel Giderleri & Odemeleri
+      h += '<div class="gs-section"><i class="fa fa-user"></i> Personel Giderleri &amp; Ödemeleri</div>';
+      h += '<div class="gs-list"><table><thead><tr><th>Personel</th><th>Tür</th><th>Açıklama</th><th class="r">Tutar</th></tr></thead><tbody>';
+      if(d.personel_giderleri && d.personel_giderleri.length){
+         d.personel_giderleri.forEach(function(m){
+            var tagCls = m.tip==='Personel Gideri' ? 'pg' : 'po';
+            h += '<tr><td class="ad">'+esc(m.harcayan)+'</td><td><span class="gs-tag '+tagCls+'">'+esc(m.tip)+'</span></td><td>'+esc(m.aciklama||'-')+'</td><td class="r ciro">'+gsFmt(m.tutar)+' ₺</td></tr>';
+         });
+      } else { h += '<tr><td colspan="4"><div class="gs-empty">Personel gideri/ödemesi yok.</div></td></tr>'; }
+      h += '</tbody><tfoot><tr><td colspan="3">Personel Giderleri Toplamı</td><td class="r">'+gsFmt(d.personel_gider_toplam)+' ₺</td></tr></tfoot></table></div>';
+
+      // 4) Saglama
+      var netCls = d.net_toplam<0?'neg':'pos';
+      h += '<div class="gs-saglama">'+
+           '<div class="sg-row"><span>Satışlar</span><b>'+gsFmt(d.gelir_toplam)+' ₺</b></div>'+
+           '<div class="sg-row"><span>− İşletme Masrafları</span><b>'+gsFmt(d.isletme_masraf_toplam)+' ₺</b></div>'+
+           '<div class="sg-row"><span>− Personel Giderleri</span><b>'+gsFmt(d.personel_gider_toplam)+' ₺</b></div>'+
+           '<div class="sg-row total"><span>= NET (Kasa)</span><b class="'+netCls+'">'+gsFmt(d.net_toplam)+' ₺</b></div>'+
+           '</div>';
       return h;
    }
 

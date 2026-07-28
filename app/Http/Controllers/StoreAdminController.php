@@ -4509,10 +4509,13 @@ public function gun_sonu_raporu(Request $request)
     $tahsilatlar = Tahsilatlar::where('salon_id', $salon_id)
         ->where('odeme_tarihi','>=',$b.' 00:00:00')->where('odeme_tarihi','<=',$bit.' 23:59:59')
         ->when($_faturasizGizle, function($q) use($_faturaliTahsilatIds){ return $q->whereIn('id', $_faturaliTahsilatIds); })
+        ->with(['musteri','olusturan','odeme_yontemi'])
+        ->orderBy('odeme_tarihi','asc')
         ->get();
 
     $gelir = ['nakit'=>0,'kredikarti'=>0,'havale'=>0,'online'=>0,'diger'=>0];
     $islem_say = 0; $gercek_gelir = 0; $musteriler = [];
+    $satislar = []; // Tam Detay (saglama) icin kalem kalem satis listesi
     foreach ($tahsilatlar as $t) {
         $tutar = $_faturasizGizle ? (float)($_faturaliKisimMap[$t->id] ?? 0) : (float)$t->tutar;
         switch ((int)$t->odeme_yontemi_id) {
@@ -4528,13 +4531,26 @@ public function gun_sonu_raporu(Request $request)
             $gercek_gelir += $tutar;
             if ($t->user_id) $musteriler[$t->user_id] = true;
         }
+        $satislar[] = [
+            'saat'        => date('H:i', strtotime($t->odeme_tarihi)),
+            'musteri'     => $t->para_girisi ? 'Kasa Girişi' : ($t->musteri ? $t->musteri->name : '-'),
+            'tahsil_eden' => $t->olusturan ? $t->olusturan->personel_adi : '',
+            'yontem'      => $t->odeme_yontemi ? $t->odeme_yontemi->odeme_yontemi : '',
+            'para_girisi' => (bool)$t->para_girisi,
+            'tutar'       => $tutar,
+        ];
     }
     $gelir_toplam = array_sum($gelir);
 
     // ---- MASRAF: odeme yontemine gore (kasadan para alma da masraf olarak kayitli) ----
     $masraflar = Masraflar::where('salon_id', $salon_id)
-        ->where('tarih','>=',$b.' 00:00:00')->where('tarih','<=',$bit.' 23:59:59')->get();
+        ->where('tarih','>=',$b.' 00:00:00')->where('tarih','<=',$bit.' 23:59:59')
+        ->with(['harcayan','odeme_yontemi'])
+        ->orderBy('tarih','asc')->orderBy('id','asc')->get();
     $masraf = ['nakit'=>0,'kredikarti'=>0,'havale'=>0,'online'=>0,'diger'=>0];
+    // Tam Detay (saglama): isletme masraflari vs personel gider/odemeleri ayri listelenir
+    $isletme_masraflari = []; $personel_giderleri = [];
+    $isletme_masraf_toplam = 0; $personel_gider_toplam = 0;
     foreach ($masraflar as $m) {
         $mt = (float)$m->tutar;
         switch ((int)$m->odeme_yontemi_id) {
@@ -4543,6 +4559,20 @@ public function gun_sonu_raporu(Request $request)
             case 3: $masraf['havale']     += $mt; break;
             case 4: $masraf['online']     += $mt; break;
             default: $masraf['diger']     += $mt; break;
+        }
+        $_row = [
+            'harcayan' => $m->harcayan_id ? ($m->harcayan ? $m->harcayan->personel_adi : '') : 'Kasa',
+            'aciklama' => $m->aciklama,
+            'yontem'   => $m->odeme_yontemi ? $m->odeme_yontemi->odeme_yontemi : '',
+            'tutar'    => $mt,
+        ];
+        if ($m->personel_gideri || $m->personel_maas_odemesi_id) {
+            $_row['tip'] = $m->personel_gideri ? 'Personel Gideri' : 'Personel Ödemesi';
+            $personel_giderleri[] = $_row;
+            $personel_gider_toplam += $mt;
+        } else {
+            $isletme_masraflari[] = $_row;
+            $isletme_masraf_toplam += $mt;
         }
     }
     $masraf_toplam = array_sum($masraf);
@@ -4620,6 +4650,12 @@ public function gun_sonu_raporu(Request $request)
         'personeller'    => $personelRows,
         'top_hizmet'     => $topHizmet,
         'top_urun'       => $topUrun,
+        // Tam Detay (saglama)
+        'satislar'                => $satislar,
+        'isletme_masraflari'      => $isletme_masraflari,
+        'personel_giderleri'      => $personel_giderleri,
+        'isletme_masraf_toplam'   => $isletme_masraf_toplam,
+        'personel_gider_toplam'   => $personel_gider_toplam,
     ]);
 }
 public function devredenAylar(Request $request)
