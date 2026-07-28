@@ -10057,6 +10057,128 @@ private function ayAdiCevir($ingilizceAy)
         ]);
     }
 
+    // Bir salonun TUM musterilerini (musteri_portfoy) ve TUM hizmetlerini
+    // (salon_sunulan_hizmetler) baska bir salona oldugu gibi kopyalar.
+    // Ornek: GET /isletmeyonetim/musterihizmetkopyala/246/416
+    public function musteri_hizmet_kopyala_salonlar_arasi($kaynak_salon_id, $hedef_salon_id)
+    {
+        $kaynak_salon_id = (int) $kaynak_salon_id;
+        $hedef_salon_id  = (int) $hedef_salon_id;
+        if ($kaynak_salon_id <= 0 || $hedef_salon_id <= 0 || $kaynak_salon_id === $hedef_salon_id) {
+            return response()->json(['hata' => 'Gecersiz salon id'], 400);
+        }
+        if (Salonlar::where('id', $hedef_salon_id)->count() === 0) {
+            return response()->json(['hata' => "Hedef salon ($hedef_salon_id) bulunamadi"], 404);
+        }
+
+        $sonuc = [
+            'musteri' => ['toplam' => 0, 'eklenen' => 0, 'zaten_var' => 0],
+            'hizmet'  => ['toplam' => 0, 'eklenen' => 0, 'zaten_var' => 0, 'ozel_klonlandi' => 0],
+        ];
+
+        DB::beginTransaction();
+        try {
+            // 1) HIZMETLER: kaynak salonun sunulan hizmetlerini hedefe kopyala
+            $kaynak_hizmetler = SalonHizmetler::where('salon_id', $kaynak_salon_id)->get();
+            $sonuc['hizmet']['toplam'] = $kaynak_hizmetler->count();
+
+            foreach ($kaynak_hizmetler as $kaynak_kayit) {
+                $hedef_hizmet_id = $kaynak_kayit->hizmet_id;
+
+                // Salona ozel hizmet ise katalog satirini da hedef icin klonla
+                $katalog = Hizmetler::where('id', $kaynak_kayit->hizmet_id)->first();
+                if ($katalog && $katalog->ozel_hizmet && (int) $katalog->salon_id === $kaynak_salon_id) {
+                    $klon = Hizmetler::where('salon_id', $hedef_salon_id)
+                        ->where('ozel_hizmet', true)
+                        ->where('hizmet_adi', $katalog->hizmet_adi)
+                        ->first();
+                    if (!$klon) {
+                        $klon = new Hizmetler();
+                        $klon->hizmet_kategori_id = $katalog->hizmet_kategori_id;
+                        $klon->hizmet_adi         = $katalog->hizmet_adi;
+                        $klon->fiyat              = $katalog->fiyat;
+                        $klon->ozel_hizmet        = true;
+                        $klon->salon_id           = $hedef_salon_id;
+                        $klon->cinsiyet           = $katalog->cinsiyet;
+                        $klon->sure_dk            = $katalog->sure_dk;
+                        $klon->save();
+                        $sonuc['hizmet']['ozel_klonlandi']++;
+                    }
+                    $hedef_hizmet_id = $klon->id;
+                }
+
+                if (SalonHizmetler::where('salon_id', $hedef_salon_id)->where('hizmet_id', $hedef_hizmet_id)->count() > 0) {
+                    $sonuc['hizmet']['zaten_var']++;
+                    continue;
+                }
+
+                $yeni = new SalonHizmetler();
+                $yeni->salon_id          = $hedef_salon_id;
+                $yeni->hizmet_id         = $hedef_hizmet_id;
+                $yeni->hizmet_kategori_id= $kaynak_kayit->hizmet_kategori_id;
+                $yeni->baslangic_fiyat   = $kaynak_kayit->baslangic_fiyat;
+                $yeni->son_fiyat         = $kaynak_kayit->son_fiyat;
+                $yeni->bolum             = $kaynak_kayit->bolum;
+                $yeni->aktif             = $kaynak_kayit->aktif;
+                $yeni->sure_dk           = $kaynak_kayit->sure_dk;
+                $yeni->save();
+                $sonuc['hizmet']['eklenen']++;
+
+                // Kategori rengi hedefte yoksa olustur (mevcut ekleme akisiyla ayni mantik)
+                if ($kaynak_kayit->hizmet_kategori_id &&
+                    SalonHizmetKategoriRenkleri::where('hizmet_kategori_id', $kaynak_kayit->hizmet_kategori_id)->where('salon_id', $hedef_salon_id)->count() == 0) {
+                    $son_renk = SalonHizmetKategoriRenkleri::where('salon_id', $hedef_salon_id)->orderBy('renk_id', 'desc')->first();
+                    if ($son_renk === null)          $yeni_renk_id = 1;
+                    elseif ($son_renk->renk_id == 10) $yeni_renk_id = 1;
+                    else                              $yeni_renk_id = $son_renk->renk_id + 1;
+                    $yeni_renk = new SalonHizmetKategoriRenkleri();
+                    $yeni_renk->salon_id          = $hedef_salon_id;
+                    $yeni_renk->renk_id           = $yeni_renk_id;
+                    $yeni_renk->hizmet_kategori_id = $kaynak_kayit->hizmet_kategori_id;
+                    $yeni_renk->save();
+                }
+            }
+
+            // 2) MUSTERILER: kaynak salonun aktif portfoy musterilerini hedefe bagla
+            $kaynak_portfoyler = MusteriPortfoy::where('salon_id', $kaynak_salon_id)->where('aktif', 1)->get();
+            $sonuc['musteri']['toplam'] = $kaynak_portfoyler->count();
+
+            foreach ($kaynak_portfoyler as $kaynak_portfoy) {
+                // Hedefte bu musterinin herhangi bir portfoy kaydi varsa atla (users satiri paylasimli)
+                if (MusteriPortfoy::where('salon_id', $hedef_salon_id)->where('user_id', $kaynak_portfoy->user_id)->count() > 0) {
+                    $sonuc['musteri']['zaten_var']++;
+                    continue;
+                }
+                $portfoy = new MusteriPortfoy();
+                $portfoy->user_id               = $kaynak_portfoy->user_id;
+                $portfoy->salon_id              = $hedef_salon_id;
+                $portfoy->musteri_tipi          = $kaynak_portfoy->musteri_tipi;
+                $portfoy->ozel_notlar           = $kaynak_portfoy->ozel_notlar;
+                $portfoy->aktif                 = true;
+                $portfoy->kvkk_onay_alindi      = $kaynak_portfoy->kvkk_onay_alindi;
+                $portfoy->onay_kodu             = $kaynak_portfoy->onay_kodu;
+                $portfoy->olusturan_personel_id = $kaynak_portfoy->olusturan_personel_id;
+                $portfoy->save();
+                $sonuc['musteri']['eklenen']++;
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['hata' => 'Kopyalama basarisiz: ' . $e->getMessage()], 500);
+        }
+
+        SalonAudit::log($hedef_salon_id, 'musteri_hizmet_kopyala', 'salon', $kaynak_salon_id,
+            "Salon $kaynak_salon_id -> $hedef_salon_id",
+            'Musteri ve hizmetler salonlar arasi kopyalandi', $sonuc);
+
+        return response()->json(array_merge([
+            'durum'           => 'basarili',
+            'kaynak_salon_id' => $kaynak_salon_id,
+            'hedef_salon_id'  => $hedef_salon_id,
+        ], $sonuc));
+    }
+
     public function salon_sunulan_hizmetleri_kopyala($kaynak_salon_id, $hedef_salon_id)
     {
         $kaynak_salon_id = (int) $kaynak_salon_id;

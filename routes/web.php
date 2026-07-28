@@ -847,6 +847,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/urunekleguncelle','StoreAdminController@urun_ekle_guncelle');
 	Route::post('/paketekleguncelle','StoreAdminController@paket_ekle_guncelle');
 	Route::get('/paketkopyala/{kaynak}/{hedef}','StoreAdminController@paket_kopyala_salonlar_arasi');
+	Route::get('/musterihizmetkopyala/{kaynak}/{hedef}','StoreAdminController@musteri_hizmet_kopyala_salonlar_arasi');
 	Route::get('/pakethizmetlerinisalonakopyala/{kaynak}/{hedef}','StoreAdminController@paket_hizmetlerini_salona_kopyala');
 	Route::get('/salonhizmetlerinikopyala/{kaynak}/{hedef}','StoreAdminController@salon_sunulan_hizmetleri_kopyala');
 	Route::get('/paketdetayigetir','StoreAdminController@paketdetayigetir');
