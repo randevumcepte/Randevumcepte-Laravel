@@ -49,6 +49,7 @@ class SalonappyImport extends Command
         {--report-payments-from-dump : Dump JSON\'daki tüm payment\'lari DB tahsilatlariyla eşleştir + eksik listesi. --dump-file --salon zorunlu, --from/--to opsiyonel.}
         {--fix-orphan-urun-payments : Dump top-level payments source_text="Ürün satışı" olanlari, client+date match ile mevcut visit adisyonlarina Tahsilat+TU olarak ekle (visit re-import gerekmez). --dump-file --salon zorunlu, --from/--to opsiyonel.}
         {--fix-orphan-payments : TUM source_text (Adisyon+Urun satisi+Cari) icin dump top-level payments client+date match ile mevcut visit adisyonlarina Tahsilat+TH/TU eklenir. Sadece [salonappy-visit-pay:pid] markeri OLMAYAN payment id degerleri eklenir. --dump-file --salon zorunlu, --from/--to opsiyonel.}
+        {--fix-nonvisit-payments : Salonappy visit-siz payment (silinen/silinmis client kasa hareketleri) icin adisyon_id=NULL ile sade Tahsilat ekle. Sadece client name match yapilir; adisyon aranmaz. Marker [salonappy-visit-pay:pid]. --dump-file --salon zorunlu.}
         {--tarih= : --inspect-tahsilat-detay icin merkez tarih YYYY-MM-DD}
         {--tutar= : --inspect-tahsilat-detay icin merkez tutar}
         {--dry-run : Reset/import oncesi sadece sayim}
@@ -83,7 +84,8 @@ class SalonappyImport extends Command
         $reportPayDump = (bool) $this->option('report-payments-from-dump');
         $fixOrphanUP = (bool) $this->option('fix-orphan-urun-payments');
         $fixOrphanAll = (bool) $this->option('fix-orphan-payments');
-        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && !$mergeDupe && !$resetUrun && !$inspectHE && !$reportPayDump && !$fixOrphanUP && !$fixOrphanAll && (!$username || !$password)) {
+        $fixNonvisit = (bool) $this->option('fix-nonvisit-payments');
+        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && !$mergeDupe && !$resetUrun && !$inspectHE && !$reportPayDump && !$fixOrphanUP && !$fixOrphanAll && !$fixNonvisit && (!$username || !$password)) {
             $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri / --reconcile-tahsilat / --inspect-tahsilat-detay / --inspect-dupe-musteri verin).');
             return 1;
         }
@@ -187,6 +189,12 @@ class SalonappyImport extends Command
             $f = $this->option('dump-file');
             if (!$f) { $this->error('--dump-file zorunlu.'); return 1; }
             return $this->fixOrphanPayments($f, (int) $salonId, $this->option('from'), $this->option('to'));
+        }
+        if ((bool) $this->option('fix-nonvisit-payments')) {
+            if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
+            $f = $this->option('dump-file');
+            if (!$f) { $this->error('--dump-file zorunlu.'); return 1; }
+            return $this->fixNonvisitPayments($f, (int) $salonId, $this->option('from'), $this->option('to'));
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
@@ -2308,6 +2316,9 @@ class SalonappyImport extends Command
                 $saat  = trim((string) ($d['time_text_24'] ?? $d['time_text'] ?? '00:00')) . ':00';
                 [$rDurum, $rGeldi] = $showupMap($d['showup_text'] ?? '', !empty($d['is_cancelled']));
                 $isPast = !empty($d['is_past']);
+                // Salonappy'de randevu notu (bd.details.notes) — kullanicilarin visit basina yazdiklari
+                $dNotes = trim((string) ($d['notes'] ?? ''));
+                $notlarFinal = $dNotes ? ($dNotes . ' ' . $marker) : $marker;
 
                 // Upcoming (is_past=false) -> sadece randevu yaz, adisyon ve sonrakileri atla.
                 if (!$isPast) {
@@ -2315,7 +2326,7 @@ class SalonappyImport extends Command
                         'salon_id' => $salonId, 'user_id' => $userId,
                         'tarih' => $tarih, 'saat' => $saat,
                         'durum' => $rDurum,
-                        'personel_notu' => $marker,
+                        'personel_notu' => $notlarFinal,
                         'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                     ];
                     if ($rGeldi !== null) $randevuRow['randevuya_geldi'] = $rGeldi;
@@ -2353,7 +2364,7 @@ class SalonappyImport extends Command
                 // Adisyon (is_past=true)
                 $adId = \DB::table('adisyonlar')->insertGetId([
                     'salon_id' => $salonId, 'user_id' => $userId, 'tarih' => $tarih,
-                    'notlar' => $marker,
+                    'notlar' => $notlarFinal,
                     'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                 ]);
                 $gAdisyon++;
@@ -2416,7 +2427,7 @@ class SalonappyImport extends Command
                     'tarih' => $tarih, 'saat' => $saat,
                     'durum' => $rDurum,
                     'adisyon_id' => $adId,
-                    'personel_notu' => $marker,
+                    'personel_notu' => $notlarFinal,
                     'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                 ];
                 if ($rGeldi !== null) $randevuRow['randevuya_geldi'] = $rGeldi;
@@ -4321,6 +4332,97 @@ class SalonappyImport extends Command
         $matchStr = '';
         foreach ($byMatch as $k => $v) $matchStr .= "$k=$v ";
         $this->info("Fix tamam: eklenen=$eklenen (Adisyon={$bySource['Adisyon']}, Ürün satışı={$bySource['Ürün satışı']}, Cari={$bySource['Cari']}) | match: {$matchStr}| noSid=$noSid noAdisyon=$noAdisyon noItem=$noItem hata=$hata / toplam=" . count($orphans));
+        return 0;
+    }
+
+    /**
+     * Visit-siz payment fix — Salonappy'de silinmis client'lar veya kasa hareketleri
+     * icin adisyon_id=NULL ile Tahsilat ekle. Adisyon aranmaz; sadece client name match yapilir.
+     * fixOrphanPayments'ten SONRA calistir (o visit-linked olanlari halleder, bu kalani toplar).
+     */
+    private function fixNonvisitPayments($file, $salonId, $from = null, $to = null)
+    {
+        if (!file_exists($file)) { $this->error("Dosya yok: {$file}"); return 1; }
+        $j = json_decode(file_get_contents($file), true);
+        if (!is_array($j)) { $this->error('Gecersiz JSON.'); return 1; }
+
+        // 1) Mevcut visit-pay marker'lari (skip dedup)
+        $mevcutPids = [];
+        foreach (\DB::table('tahsilatlar')->where('salon_id', $salonId)
+            ->where('notlar', 'LIKE', '%[salonappy-visit-pay:%')
+            ->select('notlar')->get() as $t) {
+            if (preg_match_all('~\[salonappy-visit-pay:(\d+)\]~', (string) $t->notlar, $mm)) {
+                foreach ($mm[1] as $pid) $mevcutPids[$pid] = true;
+            }
+        }
+
+        // 2) Orphan payment topla (Adisyon+Cari; Urun satisi zaten kendi akisinda)
+        $kabul = ['Adisyon', 'Cari', 'Ürün satışı'];
+        $orphans = [];
+        foreach (($j['payments'] ?? []) as $p) {
+            $src = trim((string) ($p['source_text'] ?? ''));
+            if (!in_array($src, $kabul, true)) continue;
+            if (!empty($p['deleted_at'])) continue;
+            $pid = (string) ($p['id'] ?? '');
+            if (!$pid || isset($mevcutPids[$pid])) continue;
+            $client = trim((string) ($p['client_name'] ?? ''));
+            $date = substr((string) ($p['date'] ?? ''), 0, 10);
+            $amount = (float) ($p['amount'] ?? 0);
+            if (!$client || !$date || $amount <= 0) continue;
+            if ($from && $date < $from) continue;
+            if ($to && $date > $to) continue;
+            $orphans[] = [
+                'pid' => $pid, 'client' => $client, 'date' => $date,
+                'amount' => $amount, 'source' => $src,
+                'method' => trim((string) ($p['payment_method_text'] ?? '')),
+            ];
+        }
+        $this->line("Nonvisit orphan payment: " . count($orphans));
+        if (empty($orphans)) return 0;
+
+        // 3) User cache (name trKey -> [user_id...])
+        $userMap = [];
+        foreach (\DB::table('users')->select('id', 'name')->get() as $u) {
+            $k = $this->saTrKey($u->name);
+            if (!isset($userMap[$k])) $userMap[$k] = [];
+            $userMap[$k][] = $u->id;
+        }
+
+        $yontemMap = function ($txt) {
+            $t = mb_strtolower(trim((string)$txt), 'UTF-8');
+            if ($t === '') return 1;
+            if (strpos($t, 'kredi') !== false || strpos($t, 'kart') !== false || strpos($t, 'pos') !== false) return 2;
+            if (strpos($t, 'havale') !== false || strpos($t, 'eft') !== false || strpos($t, 'banka') !== false) return 3;
+            if (strpos($t, 'nakit') !== false) return 1;
+            return 4;
+        };
+
+        $eklenen = 0; $noUser = 0; $hata = 0;
+        $bySource = ['Adisyon' => 0, 'Ürün satışı' => 0, 'Cari' => 0];
+        foreach ($orphans as $orph) {
+            try {
+                $nameKey = $this->saTrKey($orph['client']);
+                $userIds = $userMap[$nameKey] ?? [];
+                if (empty($userIds)) { $noUser++; continue; }
+                $userId = $userIds[0]; // ilk match (dedup edilmis DB'de tek olmali)
+
+                $pMarker = '[salonappy-nonvisit:' . $orph['pid'] . '][salonappy-visit-pay:' . $orph['pid'] . ']';
+                \DB::table('tahsilatlar')->insert([
+                    'salon_id' => $salonId, 'user_id' => $userId,
+                    'adisyon_id' => null, // KRITIK: visit-siz kasa hareketi
+                    'odeme_tarihi' => $orph['date'], 'tutar' => $orph['amount'],
+                    'odeme_yontemi_id' => $yontemMap($orph['method']),
+                    'notlar' => $pMarker,
+                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+                $eklenen++;
+                $bySource[$orph['source']] = ($bySource[$orph['source']] ?? 0) + 1;
+            } catch (\Throwable $e) {
+                $hata++;
+                \Log::warning('[Salonappy nonvisit fix] hata', ['pid' => $orph['pid'], 'err' => $e->getMessage()]);
+            }
+        }
+        $this->info("Nonvisit fix tamam: eklenen=$eklenen (Adisyon={$bySource['Adisyon']}, Ürün satışı={$bySource['Ürün satışı']}, Cari={$bySource['Cari']}) | noUser=$noUser hata=$hata / toplam=" . count($orphans));
         return 0;
     }
 
