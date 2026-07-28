@@ -16,6 +16,7 @@ class AnketGonderim extends Model
         'nps_skoru', 'csat_skoru', 'genel_yorum',
         'ip', 'user_agent', 'kvkk_onay',
         'odul_verildi', 'odul_kupon_id',
+        'google_odul_verildi', 'google_odul_kupon_id', 'web_gizle',
     ];
 
     protected $dates = ['gonderim_zamani', 'son_gecerlilik', 'cevap_zamani'];

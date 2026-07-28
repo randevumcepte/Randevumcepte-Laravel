@@ -1904,11 +1904,27 @@
          @endif
          {{-- ================= MUSTERI YORUMLARI ================= --}}
          <section class="slp-section">
+            @php
+               // Olumlu anket yorumlari (yuksek puan + yorumu olan, sahibin gizlemedigi) — web sitesinde yayinlanir.
+               // Isim maskeli gosterilir (ad + soyad bas harfi), telefon gosterilmez (KVKK).
+               $_anketYorumlari = collect();
+               try {
+                  $_anketYorumlari = \App\AnketGonderim::where('salon_id', $salon->id)
+                     ->where('cevaplandi', 1)
+                     ->where('web_gizle', 0)
+                     ->whereNotNull('genel_yorum')->where('genel_yorum', '!=', '')
+                     ->where(function($q){ $q->where('nps_skoru', '>=', 9)->orWhere('csat_skoru', '>=', 4.5); })
+                     ->orderByDesc('cevap_zamani')
+                     ->limit(30)->get();
+               } catch (\Throwable $e) { $_anketYorumlari = collect(); }
+               $_salonYorumSayi  = $salonyorumlar ? $salonyorumlar->count() : 0;
+               $_toplamYorumSayi = $_salonYorumSayi + $_anketYorumlari->count();
+            @endphp
             <div class="slp-section__head">
                <span class="slp-eyebrow">Müşteri Yorumları</span>
                <h2 class="slp-section__title">
                   @if($_ortPuan)
-                     {{$_ortPuan}}/5 · {{$salonyorumlar->count()}} Yorum
+                     {{$_ortPuan}}/5 · {{$_toplamYorumSayi}} Yorum
                   @else
                      Müşteri Deneyimleri
                   @endif
@@ -1938,9 +1954,9 @@
                </div>
             @endif
 
-            @if($salonyorumlar && $salonyorumlar->count())
+            @if($_toplamYorumSayi > 0)
                <div class="slp-reviews-grid">
-                  @foreach($salonyorumlar as $_yorum)
+                  @foreach(($salonyorumlar ?? collect()) as $_yorum)
                      @php
                         $_yUser = \App\User::where('id', $_yorum->user_id)->first();
                         $_yName = $_yUser->name ?? 'Müşteri';
@@ -1972,6 +1988,39 @@
                            </div>
                         </div>
                         <p class="slp-review__text">{{$_yorum->yorum}}</p>
+                     </div>
+                  @endforeach
+
+                  {{-- Olumlu anket yorumlari (dogrulanmis musteri) --}}
+                  @foreach($_anketYorumlari as $_ay)
+                     @php
+                        $_ad = trim($_ay->ad_soyad ?? '');
+                        $_parts = $_ad !== '' ? preg_split('/\s+/', $_ad) : [];
+                        $_maskName = count($_parts) ? $_parts[0] : 'Müşteri';
+                        if (count($_parts) > 1) {
+                           $_son = $_parts[count($_parts) - 1];
+                           if (mb_strlen($_son) > 0) $_maskName .= ' ' . mb_strtoupper(mb_substr($_son, 0, 1)) . '.';
+                        }
+                        $_ayStar = $_ay->csat_skoru ? (int) round($_ay->csat_skoru) : 5;
+                        if ($_ayStar < 1 || $_ayStar > 5) $_ayStar = 5;
+                        $_ayTarih = $_ay->cevap_zamani ?: $_ay->updated_at;
+                     @endphp
+                     <div class="slp-review">
+                        <div class="slp-review__head">
+                           <div class="slp-review__avatar">
+                              <img src="{{secure_asset('public/img/author1.jpg')}}" alt="{{$_maskName}}" loading="lazy">
+                           </div>
+                           <div style="flex:1; min-width:0;">
+                              <p class="slp-review__name">{{$_maskName}}
+                                 <span style="display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:600; color:#10b981; background:#e8f9f1; padding:1px 7px; border-radius:20px; margin-left:4px; vertical-align:middle;"><i class="fa fa-check-circle"></i> Doğrulanmış</span>
+                              </p>
+                              <div class="slp-review__date">{{ $_ayTarih ? date('d.m.Y', strtotime($_ayTarih)) : '' }}</div>
+                           </div>
+                           <div class="slp-review__stars">
+                              @for($_i=1; $_i<=5; $_i++)<i class="fa fa-star" style="opacity:{{$_i <= $_ayStar ? 1 : 0.22}}"></i>@endfor
+                           </div>
+                        </div>
+                        <p class="slp-review__text">{{$_ay->genel_yorum}}</p>
                      </div>
                   @endforeach
                </div>
