@@ -102,14 +102,16 @@ class CarkifelekApiController extends Controller
         $kullanilabilir = $userId > 0 ? $this->kalanHak($salonId, $userId) : [];
         $bugunCevirdi   = $userId > 0 ? $this->bugunCevirdi($salonId, $userId) : false;
 
-        $dilimlerJson = $dilimler->map(function ($d) {
+        $hasIndirimTipi = \Schema::hasColumn('carkifelek_dilimleri', 'indirim_tipi');
+        $dilimlerJson = $dilimler->map(function ($d) use ($hasIndirimTipi) {
             return [
-                'id'    => $d->id,
-                'ismi'  => $d->dilim_ismi,
-                'renk'  => $d->renk_kodu,
-                'tip'   => $d->tip ?? 'bos',
-                'deger' => $d->deger !== null ? (float) $d->deger : null,
-                'sira'  => (int) $d->sira,
+                'id'           => $d->id,
+                'ismi'         => $d->dilim_ismi,
+                'renk'         => $d->renk_kodu,
+                'tip'          => $d->tip ?? 'bos',
+                'deger'        => $d->deger !== null ? (float) $d->deger : null,
+                'indirim_tipi' => $hasIndirimTipi ? ($d->indirim_tipi ?? 'yuzde') : 'yuzde',
+                'sira'         => (int) $d->sira,
             ];
         })->values()->toArray();
 
