@@ -50,6 +50,7 @@ class SalonappyImport extends Command
         {--fix-orphan-urun-payments : Dump top-level payments source_text="Ürün satışı" olanlari, client+date match ile mevcut visit adisyonlarina Tahsilat+TU olarak ekle (visit re-import gerekmez). --dump-file --salon zorunlu, --from/--to opsiyonel.}
         {--fix-orphan-payments : TUM source_text (Adisyon+Urun satisi+Cari) icin dump top-level payments client+date match ile mevcut visit adisyonlarina Tahsilat+TH/TU eklenir. Sadece [salonappy-visit-pay:pid] markeri OLMAYAN payment id degerleri eklenir. --dump-file --salon zorunlu, --from/--to opsiyonel.}
         {--fix-nonvisit-payments : Salonappy visit-siz payment (silinen/silinmis client kasa hareketleri) icin adisyon_id=NULL ile sade Tahsilat ekle. Sadece client name match yapilir; adisyon aranmaz. Marker [salonappy-visit-pay:pid]. --dump-file --salon zorunlu.}
+        {--dedup-visit-payments : Ayni [salonappy-visit-pay:pid] markerli birden fazla tahsilat varsa en yenisini tut, digerlerini TH/TU ile birlikte sil. Kasa mukerrer sayimini kaldirir. --salon zorunlu, --dry-run destekli.}
         {--tarih= : --inspect-tahsilat-detay icin merkez tarih YYYY-MM-DD}
         {--tutar= : --inspect-tahsilat-detay icin merkez tutar}
         {--dry-run : Reset/import oncesi sadece sayim}
@@ -85,7 +86,8 @@ class SalonappyImport extends Command
         $fixOrphanUP = (bool) $this->option('fix-orphan-urun-payments');
         $fixOrphanAll = (bool) $this->option('fix-orphan-payments');
         $fixNonvisit = (bool) $this->option('fix-nonvisit-payments');
-        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && !$mergeDupe && !$resetUrun && !$inspectHE && !$reportPayDump && !$fixOrphanUP && !$fixOrphanAll && !$fixNonvisit && (!$username || !$password)) {
+        $dedupVP = (bool) $this->option('dedup-visit-payments');
+        if (!$analyze && !$token && !$dumpFile && !$fromFile && !$resetMode && !$fixRhSaat && !$inspectMus && !$reconcileT && !$inspectTD && !$inspectDupe && !$mergeDupe && !$resetUrun && !$inspectHE && !$reportPayDump && !$fixOrphanUP && !$fixOrphanAll && !$fixNonvisit && !$dedupVP && (!$username || !$password)) {
             $this->error('--username ve --password zorunlu (veya --token / --dump-file / --from-file / --reset-salonappy / --fix-rh-saat / --inspect-musteri / --reconcile-tahsilat / --inspect-tahsilat-detay / --inspect-dupe-musteri verin).');
             return 1;
         }
@@ -195,6 +197,10 @@ class SalonappyImport extends Command
             $f = $this->option('dump-file');
             if (!$f) { $this->error('--dump-file zorunlu.'); return 1; }
             return $this->fixNonvisitPayments($f, (int) $salonId, $this->option('from'), $this->option('to'));
+        }
+        if ((bool) $this->option('dedup-visit-payments')) {
+            if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
+            return $this->dedupVisitPayments((int) $salonId, (bool) $this->option('dry-run'));
         }
         if ($dumpFile = $this->option('dump-file')) {
             if (!$salonId) { $this->error('--salon zorunlu.'); return 1; }
@@ -4423,6 +4429,59 @@ class SalonappyImport extends Command
             }
         }
         $this->info("Nonvisit fix tamam: eklenen=$eklenen (Adisyon={$bySource['Adisyon']}, Ürün satışı={$bySource['Ürün satışı']}, Cari={$bySource['Cari']}) | noUser=$noUser hata=$hata / toplam=" . count($orphans));
+        return 0;
+    }
+
+    /**
+     * Ayni [salonappy-visit-pay:pid] markerli birden fazla tahsilat varsa en yenisini tut,
+     * digerlerini TH/TU ile birlikte sil. UPSERT'lerin biraktigi mukerrer kayitlari temizler.
+     */
+    private function dedupVisitPayments($salonId, $dryRun = false)
+    {
+        $rows = \DB::table('tahsilatlar')->where('salon_id', $salonId)
+            ->where('notlar', 'LIKE', '%[salonappy-visit-pay:%')
+            ->select('id', 'adisyon_id', 'tutar', 'notlar')->orderBy('id')->get();
+
+        // pid -> [tahsilat_id...]
+        $pidToTahs = [];
+        foreach ($rows as $t) {
+            if (preg_match_all('~\[salonappy-visit-pay:(\d+)\]~', (string) $t->notlar, $mm)) {
+                foreach ($mm[1] as $pid) {
+                    $pidToTahs[$pid][] = ['id' => (int) $t->id, 'adisyon_id' => $t->adisyon_id, 'tutar' => (float) $t->tutar];
+                }
+            }
+        }
+
+        $duplicatePids = 0; $silinecekIds = []; $silinecekTutar = 0.0;
+        foreach ($pidToTahs as $pid => $arr) {
+            if (count($arr) < 2) continue;
+            $duplicatePids++;
+            // Onceligi: adisyon_id NULL OLMAYAN + en yeni id'yi tut. NULL'lar duplicate ise
+            // en yenisini tut (nonvisit fix ile eklenmis olabilir + baska bir markerlı tahsilat da eklenmis).
+            usort($arr, function ($a, $b) {
+                $anull = $a['adisyon_id'] === null ? 1 : 0;
+                $bnull = $b['adisyon_id'] === null ? 1 : 0;
+                if ($anull !== $bnull) return $anull - $bnull; // NULL en sona (silinme adayı)
+                return $b['id'] - $a['id']; // yeni id oncelik (keep)
+            });
+            $keep = array_shift($arr); // ilk sirada olan = tutulan
+            foreach ($arr as $victim) {
+                $silinecekIds[] = $victim['id'];
+                $silinecekTutar += $victim['tutar'];
+            }
+        }
+
+        $this->line("Toplam tahsilat: " . count($rows));
+        $this->line("Duplicate pid grup: $duplicatePids");
+        $this->line("Silinecek tahsilat: " . count($silinecekIds) . " (tutar=" . number_format($silinecekTutar, 2) . " TL)");
+
+        if (empty($silinecekIds)) return 0;
+        if ($dryRun) { $this->info('DRY-RUN: sadece rapor.'); return 0; }
+
+        \DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id', $silinecekIds)->delete();
+        \DB::table('tahsilat_urunler')->whereIn('tahsilat_id', $silinecekIds)->delete();
+        $silinen = \DB::table('tahsilatlar')->whereIn('id', $silinecekIds)->delete();
+        $this->info("Dedup tamam: $silinen tahsilat silindi, TH/TU temizlendi.");
         return 0;
     }
 
