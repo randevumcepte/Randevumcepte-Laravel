@@ -5071,7 +5071,11 @@ class SalonappyImport extends Command
         }
         if (!$p) {
             try {
-                // Canonical pattern: yeniPersonelKaydi (ApiController)
+                // Canonical pattern: yeniPersonelKaydi (ApiController) + model_has_roles
+                // (StoreAdminController line 5464-5465): panel'den personel ekleyince
+                // rolls()->detach() + model_has_roles INSERT yapiliyor. Import'ta da
+                // ayni akisi uygulamak sart, aksi halde IsletmeYetkilileri rolsuz kalir
+                // -> panel'de personel yetki listesi bozulur, girisleri kirar.
                 $yetkili = new \App\IsletmeYetkilileri();
                 $yetkili->name = $ad;
                 $yetkili->save();
@@ -5081,15 +5085,50 @@ class SalonappyImport extends Command
                 $p->aktif = false;
                 $p->yetkili_id = $yetkili->id;
                 $p->save();
+                $this->assignPersonelRole($yetkili->id, $salonId);
             } catch (\Throwable $e) {
                 \Log::warning('[Salonappy] personel eklenemedi', ['ad' => $ad, 'err' => $e->getMessage()]);
                 return null;
+            }
+        } else {
+            // Mevcut personelin yetkili_id'si model_has_roles'ta yok ise ekle (self-heal)
+            if ($p->yetkili_id) {
+                $has = \DB::table('model_has_roles')
+                    ->where('model_id', $p->yetkili_id)
+                    ->where('salon_id', $salonId)
+                    ->exists();
+                if (!$has) $this->assignPersonelRole($p->yetkili_id, $salonId);
             }
         }
         $cache[$cacheKey] = $p->id;
         $canonCache[$cacheKey] = $p->personel_adi;
         $canonicalAd = $p->personel_adi;
         return $p->id;
+    }
+
+    /**
+     * IsletmeYetkilileri'ye salon bazli "Personel" rolu ata (Spatie-benzeri model_has_roles).
+     * Canonical: StoreAdminController line 5464-5465. rol_id 'Personel' role'unden lookup.
+     * Fallback: 'Personel' rolu yoksa 5 (memory'deki personel rol id).
+     */
+    private function assignPersonelRole($yetkiliId, $salonId)
+    {
+        static $rolId = null;
+        if ($rolId === null) {
+            $rolId = (int) (\DB::table('roles')->where('name', 'Personel')->value('id') ?: 5);
+        }
+        // Ayni salon+model icin mevcut rol varsa temizle (detach benzeri) — pattern'e uy
+        \DB::table('model_has_roles')
+            ->where('model_id', $yetkiliId)
+            ->where('salon_id', $salonId)
+            ->where('model_type', 'App\\IsletmeYetkilileri')
+            ->delete();
+        \DB::table('model_has_roles')->insert([
+            'role_id' => $rolId,
+            'model_type' => 'App\\IsletmeYetkilileri',
+            'model_id' => $yetkiliId,
+            'salon_id' => $salonId,
+        ]);
     }
 
     /**
