@@ -10273,15 +10273,34 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         }
 
+        // Personel gideri mi? (web ile ayni mantik: personel kasadan para aldi -> hakedisten dusulur)
+        $personelGideri = !empty($request->personel_gideri) ? 1 : 0;
+        $kategoriId = $request->masraf_kategorisi;
+        $odemeId = $request->masraf_odeme_yontemi;
+        if ($personelGideri) {
+            if (empty($kategoriId)) {
+                $kat = \App\MasrafKategorisi::where('kategori', 'Personel Gideri')->first();
+                if (!$kat) { $kat = new \App\MasrafKategorisi(); $kat->kategori = 'Personel Gideri'; $kat->save(); }
+                $kategoriId = $kat->id;
+            }
+            if (empty($odemeId)) {
+                $nakit = \App\OdemeYontemleri::where('odeme_yontemi', 'like', '%Nakit%')->first();
+                $odemeId = $nakit ? $nakit->id : optional(\App\OdemeYontemleri::first())->id;
+            }
+        }
+
         $masraf->salon_id = $salonid;
 
-        $masraf->masraf_kategori_id = $request->masraf_kategorisi;
+        $masraf->masraf_kategori_id = $kategoriId;
 
         $masraf->tarih = $request->tarih;
 
-        $masraf->odeme_yontemi_id = $request->masraf_odeme_yontemi;
+        $masraf->odeme_yontemi_id = $odemeId;
 
         $masraf->harcayan_id = $request->harcayan;
+
+        if (\Schema::hasColumn('masraflar', 'personel_gideri'))
+            $masraf->personel_gideri = $personelGideri;
 
         $masraf->tutar = str_replace(
 
@@ -10295,7 +10314,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         $masraf->aciklama = $request->masraf_aciklama;
 
-        $masraf->notlar = $request->masraf_notlari;
+        // Notlar sadece gonderildiyse guncelle (mobilde alan kaldirilirsa mevcut not silinmesin)
+        if ($request->has('masraf_notlari')) $masraf->notlar = $request->masraf_notlari;
 
         $masraf->save();
 
@@ -19787,6 +19807,20 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             ->get()
             ->groupBy('personel_id');
 
+        // Personel gideri toplamlari (masraflar.personel_gideri=1) — personel bazli,
+        // net hak edisten DUSULUR (web primHakedisVerisi ile ayni mantik). Tek sorgu.
+        $masrafGideri = collect();
+        if (\Schema::hasColumn('masraflar', 'personel_gideri')) {
+            $masrafGideri = \DB::table('masraflar')
+                ->where('salon_id', $salonid)
+                ->where('personel_gideri', 1)
+                ->whereNotNull('harcayan_id')
+                ->whereBetween('tarih', [substr($baslangic, 0, 10) . ' 00:00:00', substr($bitis, 0, 10) . ' 23:59:59'])
+                ->groupBy('harcayan_id')
+                ->select('harcayan_id', \DB::raw('SUM(tutar) as toplam'))
+                ->pluck('toplam', 'harcayan_id');
+        }
+
         $sumKey = function ($coll, $key) {
             return $coll->sum(function ($a) use ($key) {
                 if (is_array($a)) return (float)($a[$key] ?? 0);
@@ -19829,6 +19863,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $bonus = (float)$hareketler->where('tip', 'bonus')->sum('tutar');
             $kesinti = (float)$hareketler->where('tip', 'kesinti')->sum('tutar');
 
+            // Personel gideri (kasadan alinan) — net hak edisten dusulur
+            $masraf = (float)($masrafGideri[$p->id] ?? 0);
+            $netHakedis = (float)$p->maas + $hizmetHakedis + $urunHakedis + $paketHakedis + $bonus - $kesinti - $masraf;
+
             $row = [
                 'personel_id'        => (string)$p->id,
                 'personel_adi'       => (string)$p->personel_adi,
@@ -19860,6 +19898,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 'odenen_diger'       => $odenenDiger,
                 'bonus'              => $bonus,
                 'kesinti'            => $kesinti,
+                // Personel gideri (personel_gideri=1 masraf toplami) — net'ten dusulur
+                'masraf'             => $masraf,
+                'borclu'             => $netHakedis < 0,
             ];
 
             // Gunluk mod: o gunun primi / odeneni / kalani / durumu (web ile ayni)
@@ -27718,22 +27759,24 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 ]);
             }
 
-            $hasTip   = Schema::hasColumn('carkifelek_dilimleri', 'tip');
-            $hasDeger = Schema::hasColumn('carkifelek_dilimleri', 'deger');
+            $hasTip         = Schema::hasColumn('carkifelek_dilimleri', 'tip');
+            $hasDeger       = Schema::hasColumn('carkifelek_dilimleri', 'deger');
+            $hasIndirimTipi = Schema::hasColumn('carkifelek_dilimleri', 'indirim_tipi');
 
             $dilimler = CarkifelekDilimleri::where('cark_id', $cark->id)
                 ->orderBy('sira', 'asc')
                 ->get()
-                ->map(function ($d) use ($hasTip, $hasDeger) {
+                ->map(function ($d) use ($hasTip, $hasDeger, $hasIndirimTipi) {
                     return [
-                        'id'          => $d->id,
-                        'name'        => $d->dilim_ismi,
-                        'probability' => (int) $d->dilim_olasilik,
-                        'color'       => $d->renk_kodu,
-                        'tip'         => $hasTip ? ($d->tip ?? 'bos') : 'bos',
-                        'deger'       => $hasDeger && $d->deger !== null ? (float) $d->deger : null,
-                        'kupon_mu'    => (int) $d->kupon_mu,
-                        'sira'        => (int) $d->sira,
+                        'id'           => $d->id,
+                        'name'         => $d->dilim_ismi,
+                        'probability'  => (int) $d->dilim_olasilik,
+                        'color'        => $d->renk_kodu,
+                        'tip'          => $hasTip ? ($d->tip ?? 'bos') : 'bos',
+                        'deger'        => $hasDeger && $d->deger !== null ? (float) $d->deger : null,
+                        'indirim_tipi' => $hasIndirimTipi ? ($d->indirim_tipi ?? 'yuzde') : 'yuzde',
+                        'kupon_mu'     => (int) $d->kupon_mu,
+                        'sira'         => (int) $d->sira,
                     ];
                 })
                 ->values();
@@ -27782,12 +27825,15 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                     ? (isset($d['deger']) && $d['deger'] !== null ? (float) $d['deger'] : null)
                     : null;
                 $kupon = in_array($tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi']) ? 1 : 0;
+                // indirim_tipi: sadece indirim dilimlerinde anlamli (% = yuzde, sabit ₺ = tutar)
+                $indirimTipi = ($kupon && isset($d['indirim_tipi']) && $d['indirim_tipi'] === 'tutar') ? 'tutar' : 'yuzde';
                 $cleaned[] = [
                     'name' => $d['name'] ?? ('Odul ' . ($i + 1)),
                     'color' => $d['color'] ?? '#6c5ce7',
                     'probability' => $prob,
                     'tip' => $tip,
                     'deger' => $deger,
+                    'indirim_tipi' => $indirimTipi,
                     'kupon_mu' => $kupon,
                 ];
             }
@@ -27820,8 +27866,9 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 $cark->save();
             }
 
-            $hasTip   = Schema::hasColumn('carkifelek_dilimleri', 'tip');
-            $hasDeger = Schema::hasColumn('carkifelek_dilimleri', 'deger');
+            $hasTip         = Schema::hasColumn('carkifelek_dilimleri', 'tip');
+            $hasDeger       = Schema::hasColumn('carkifelek_dilimleri', 'deger');
+            $hasIndirimTipi = Schema::hasColumn('carkifelek_dilimleri', 'indirim_tipi');
 
             CarkifelekDilimleri::where('cark_id', $cark->id)->delete();
             foreach ($cleaned as $i => $d) {
@@ -27833,8 +27880,9 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                     'kupon_mu'       => $d['kupon_mu'],
                     'sira'           => $i + 1,
                 ];
-                if ($hasTip)   $row['tip']   = $d['tip'];
-                if ($hasDeger) $row['deger'] = $d['deger'];
+                if ($hasTip)         $row['tip']          = $d['tip'];
+                if ($hasDeger)       $row['deger']        = $d['deger'];
+                if ($hasIndirimTipi) $row['indirim_tipi'] = $d['indirim_tipi'];
                 CarkifelekDilimleri::create($row);
             }
 
