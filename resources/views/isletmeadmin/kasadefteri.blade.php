@@ -1098,7 +1098,7 @@ $(document).ready(function() {
                <input type="date" id="gs-bit" class="gs-date">
             </div>
             <button type="button" class="gs-print-btn" id="gs-detay-btn" title="Tam Detay / Sağlama"><i class="fa fa-list-ul"></i><span>Tam Detay</span></button>
-            <button type="button" class="gs-print-btn" id="gs-print" title="Excel indir"><i class="fa fa-download"></i><span>İndir</span></button>
+            <button type="button" class="gs-print-btn" id="gs-print" title="PDF indir"><i class="fa fa-file-pdf-o"></i><span>PDF İndir</span></button>
             <button type="button" class="gs-close" id="gs-close" aria-label="Kapat">&times;</button>
          </div>
       </div>
@@ -1410,100 +1410,135 @@ $(document).ready(function() {
       return h;
    }
 
-   // Excel indir — mevcut goruntuye gore (Özet / Tam Detay saglama)
-   $('#gs-print').on('click', function(){
-      if(!gsData) return;
+   // pdfmake dinamik yukleyici (sadece Indir'e ilk basildiginda ~ agirligi ceker,
+   // 401/402 disi sayfalarda layout'ta yuklenmiyor)
+   function gsPdfHazir(cb){
+      if(window.pdfMake && window.pdfMake.createPdf){ cb(); return; }
+      var s1 = document.createElement('script');
+      s1.src = "{{secure_asset('public/yeni_panel/src/plugins/datatables/js/pdfmake.min.js')}}";
+      s1.onload = function(){
+         var s2 = document.createElement('script');
+         s2.src = "{{secure_asset('public/yeni_panel/src/plugins/datatables/js/vfs_fonts.js')}}";
+         s2.onload = function(){ cb(); };
+         s2.onerror = function(){ alert('PDF kütüphanesi yüklenemedi (font).'); };
+         document.body.appendChild(s2);
+      };
+      s1.onerror = function(){ alert('PDF kütüphanesi yüklenemedi.'); };
+      document.body.appendChild(s1);
+   }
+
+   function gsPdfOlustur(){
       var d = gsData;
       var salon = @json($isletme->salon_adi);
       var don = gsEtiket(d.baslangic, d.bitis);
-      var TL = ' TL';
-      var rows = '';
-      function hc(v){ return '<td style="text-align:right">'+v+'</td>'; }             // saga yasli hucre
-      function sec(t){ rows += '<tr><td colspan="5" style="background:#5C008E;color:#fff;font-weight:bold">'+t+'</td></tr>'; }
-      function bos(){ rows += '<tr><td colspan="5"></td></tr>'; }
+      var MOR = '#5C008E';
+      // Hucre yardimcilari (L=sol, R=sag; b=kalin)
+      function L(v,b){ return {text:String(v), bold:!!b}; }
+      function R(v,b){ return {text:String(v), alignment:'right', bold:!!b}; }
+      function head(arr){ return arr.map(function(h,i){ return {text:h, style:'th', alignment:(i===0?'left':'right')}; }); }
+      function sec(t){ return {table:{widths:['*'], body:[[{text:t, color:'#fff', fillColor:MOR, bold:true, fontSize:10, margin:[5,3,5,3]}]]}, layout:'noBorders', margin:[0,9,0,3]}; }
+      function tbl(widths, body){ return {table:{widths:widths, body:body}, layout:'lightHorizontalLines', margin:[0,0,0,3]}; }
+      function tblH(widths, headArr, body){ return {table:{headerRows:1, widths:widths, body:[head(headArr)].concat(body)}, layout:'lightHorizontalLines', margin:[0,0,0,3]}; }
+      function bosSat(n, txt){ var r=[]; for(var i=0;i<n;i++) r.push({}); r[0]={text:txt, colSpan:n, alignment:'center', color:'#999', italics:true}; return r; }
 
-      rows += '<tr><td colspan="5" style="font-size:15px;font-weight:bold;color:#5C008E">Gün Sonu Raporu</td></tr>';
-      rows += '<tr><td colspan="5">'+esc(salon)+' — '+don+'</td></tr>';
-      bos();
+      var c = [];
+      c.push({text:'Gün Sonu Raporu', style:'h1'});
+      c.push({text: salon+'   -   '+don, style:'sub', margin:[0,2,0,6]});
 
-      // Ozet (her iki modda)
-      sec('ÖZET');
-      rows += '<tr><td>Gelirler Toplamı</td>'+hc(gsFmt(d.gelir_toplam)+TL)+'</tr>';
-      rows += '<tr><td>Masraflar Toplamı</td>'+hc(gsFmt(d.masraf_toplam)+TL)+'</tr>';
-      rows += '<tr><td><b>Net (Gelir − Masraf)</b></td>'+hc('<b>'+gsFmt(d.net_toplam)+TL+'</b>')+'</tr>';
-      rows += '<tr><td>İşlem Sayısı</td>'+hc(d.islem_say)+'</tr>';
-      rows += '<tr><td>Müşteri Sayısı</td>'+hc(d.musteri_say)+'</tr>';
-      rows += '<tr><td>Ortalama Sepet</td>'+hc(gsFmt(d.ort_sepet)+TL)+'</tr>';
-      bos();
+      // Ozet
+      c.push(sec('ÖZET'));
+      c.push(tbl(['*','auto'], [
+         [L('Gelirler Toplamı'), R(gsFmt(d.gelir_toplam)+' TL')],
+         [L('Masraflar Toplamı'), R(gsFmt(d.masraf_toplam)+' TL')],
+         [L('Net (Gelir - Masraf)',true), R(gsFmt(d.net_toplam)+' TL',true)],
+         [L('İşlem Sayısı'), R(d.islem_say)],
+         [L('Müşteri Sayısı'), R(d.musteri_say)],
+         [L('Ortalama Sepet'), R(gsFmt(d.ort_sepet)+' TL')]
+      ]));
 
       // Odeme yontemine gore
-      sec('ÖDEME YÖNTEMİNE GÖRE');
-      rows += '<tr><th>Yöntem</th><th>Gelir</th><th>Masraf</th><th>Net</th></tr>';
-      YONTEMLER.forEach(function(y){ var k=y[0];
-         rows += '<tr><td>'+y[1]+'</td>'+hc(gsFmt(d.gelir[k]))+hc(gsFmt(d.masraf[k]))+hc(gsFmt(d.net[k]))+'</tr>';
-      });
-      rows += '<tr><td><b>Toplam</b></td>'+hc('<b>'+gsFmt(d.gelir_toplam)+'</b>')+hc('<b>'+gsFmt(d.masraf_toplam)+'</b>')+hc('<b>'+gsFmt(d.net_toplam)+'</b>')+'</tr>';
-      bos();
+      c.push(sec('ÖDEME YÖNTEMİNE GÖRE'));
+      var pmB = [];
+      YONTEMLER.forEach(function(y){ var k=y[0]; pmB.push([L(y[1]), R(gsFmt(d.gelir[k])), R(gsFmt(d.masraf[k])), R(gsFmt(d.net[k]))]); });
+      pmB.push([L('Toplam',true), R(gsFmt(d.gelir_toplam),true), R(gsFmt(d.masraf_toplam),true), R(gsFmt(d.net_toplam),true)]);
+      c.push(tblH(['*','auto','auto','auto'], ['Yöntem','Gelir','Masraf','Net'], pmB));
 
       if(gsDetay){
          // Satislar
-         sec('SATIŞLAR (GELİRLER)');
-         rows += '<tr><th>Saat</th><th>Müşteri</th><th>Tahsil Eden</th><th>Yöntem</th><th>Tutar</th></tr>';
-         (d.satislar||[]).forEach(function(s){
-            rows += '<tr><td>'+esc(s.saat)+'</td><td>'+esc(s.musteri)+(s.para_girisi?' (Para Girişi)':'')+'</td><td>'+esc(s.tahsil_eden)+'</td><td>'+esc(s.yontem)+'</td>'+hc(gsFmt(s.tutar))+'</tr>';
-         });
-         rows += '<tr><td colspan="4"><b>Satışlar Toplamı</b></td>'+hc('<b>'+gsFmt(d.gelir_toplam)+'</b>')+'</tr>';
-         bos();
+         c.push(sec('SATIŞLAR (GELİRLER)'));
+         var sB = [];
+         (d.satislar||[]).forEach(function(s){ sB.push([L(s.saat), L((s.musteri||'')+(s.para_girisi?' (Para Girişi)':'')), L(s.tahsil_eden||''), L(s.yontem||''), R(gsFmt(s.tutar))]); });
+         if(!sB.length) sB.push(bosSat(5,'Satış yok'));
+         sB.push([{text:'Satışlar Toplamı', colSpan:4, bold:true},{},{},{}, R(gsFmt(d.gelir_toplam),true)]);
+         c.push(tblH(['auto','*','auto','auto','auto'], ['Saat','Müşteri','Tahsil Eden','Yöntem','Tutar'], sB));
          // Isletme masraflari
-         sec('İŞLETME MASRAFLARI');
-         rows += '<tr><th>Harcayan</th><th>Açıklama</th><th>Yöntem</th><th></th><th>Tutar</th></tr>';
-         (d.isletme_masraflari||[]).forEach(function(m){
-            rows += '<tr><td>'+esc(m.harcayan)+'</td><td>'+esc(m.aciklama||'-')+'</td><td>'+esc(m.yontem)+'</td><td></td>'+hc(gsFmt(m.tutar))+'</tr>';
-         });
-         rows += '<tr><td colspan="4"><b>İşletme Masrafları Toplamı</b></td>'+hc('<b>'+gsFmt(d.isletme_masraf_toplam)+'</b>')+'</tr>';
-         bos();
+         c.push(sec('İŞLETME MASRAFLARI'));
+         var iB = [];
+         (d.isletme_masraflari||[]).forEach(function(m){ iB.push([L(m.harcayan||''), L(m.aciklama||'-'), L(m.yontem||''), R(gsFmt(m.tutar))]); });
+         if(!iB.length) iB.push(bosSat(4,'İşletme masrafı yok'));
+         iB.push([{text:'İşletme Masrafları Toplamı', colSpan:3, bold:true},{},{}, R(gsFmt(d.isletme_masraf_toplam),true)]);
+         c.push(tblH(['*','*','auto','auto'], ['Harcayan','Açıklama','Yöntem','Tutar'], iB));
          // Personel giderleri
-         sec('PERSONEL GİDERLERİ & ÖDEMELERİ');
-         rows += '<tr><th>Personel</th><th>Tür</th><th>Açıklama</th><th></th><th>Tutar</th></tr>';
-         (d.personel_giderleri||[]).forEach(function(m){
-            rows += '<tr><td>'+esc(m.harcayan)+'</td><td>'+esc(m.tip)+'</td><td>'+esc(m.aciklama||'-')+'</td><td></td>'+hc(gsFmt(m.tutar))+'</tr>';
-         });
-         rows += '<tr><td colspan="4"><b>Personel Giderleri Toplamı</b></td>'+hc('<b>'+gsFmt(d.personel_gider_toplam)+'</b>')+'</tr>';
-         bos();
+         c.push(sec('PERSONEL GİDERLERİ & ÖDEMELERİ'));
+         var pB = [];
+         (d.personel_giderleri||[]).forEach(function(m){ pB.push([L(m.harcayan||''), L(m.tip||''), L(m.aciklama||'-'), R(gsFmt(m.tutar))]); });
+         if(!pB.length) pB.push(bosSat(4,'Personel gideri/ödemesi yok'));
+         pB.push([{text:'Personel Giderleri Toplamı', colSpan:3, bold:true},{},{}, R(gsFmt(d.personel_gider_toplam),true)]);
+         c.push(tblH(['*','auto','*','auto'], ['Personel','Tür','Açıklama','Tutar'], pB));
          // Saglama
-         sec('SAĞLAMA');
-         rows += '<tr><td>Satışlar</td>'+hc(gsFmt(d.gelir_toplam)+TL)+'</tr>';
-         rows += '<tr><td>− İşletme Masrafları</td>'+hc(gsFmt(d.isletme_masraf_toplam)+TL)+'</tr>';
-         rows += '<tr><td>− Personel Giderleri</td>'+hc(gsFmt(d.personel_gider_toplam)+TL)+'</tr>';
-         rows += '<tr><td><b>= NET (Kasa)</b></td>'+hc('<b>'+gsFmt(d.net_toplam)+TL+'</b>')+'</tr>';
+         c.push(sec('SAĞLAMA'));
+         c.push(tbl(['*','auto'], [
+            [L('Satışlar'), R(gsFmt(d.gelir_toplam)+' TL')],
+            [L('(-) İşletme Masrafları'), R(gsFmt(d.isletme_masraf_toplam)+' TL')],
+            [L('(-) Personel Giderleri'), R(gsFmt(d.personel_gider_toplam)+' TL')],
+            [L('= NET (Kasa)',true), R(gsFmt(d.net_toplam)+' TL',true)]
+         ]));
       } else {
-         // Personel ciro + en cok satanlar
-         sec('PERSONEL BAZLI CİRO');
-         rows += '<tr><th>Personel</th><th>İşlem</th><th>Ciro</th></tr>';
-         (d.personeller||[]).forEach(function(p){ rows += '<tr><td>'+esc(p.personel_adi)+'</td>'+hc(p.adet)+hc(gsFmt(p.ciro))+'</tr>'; });
-         bos();
-         sec('EN ÇOK SATAN HİZMET');
-         rows += '<tr><th>Ad</th><th>Adet</th><th>Ciro</th></tr>';
-         (d.top_hizmet||[]).forEach(function(r){ rows += '<tr><td>'+esc(r.hizmet_adi)+'</td>'+hc(r.adet)+hc(gsFmt(r.ciro))+'</tr>'; });
-         bos();
-         sec('EN ÇOK SATAN ÜRÜN');
-         rows += '<tr><th>Ad</th><th>Adet</th><th>Ciro</th></tr>';
-         (d.top_urun||[]).forEach(function(r){ rows += '<tr><td>'+esc(r.urun_adi)+'</td>'+hc(r.adet)+hc(gsFmt(r.ciro))+'</tr>'; });
+         // Personel ciro
+         c.push(sec('PERSONEL BAZLI CİRO'));
+         var perB = [];
+         (d.personeller||[]).forEach(function(p){ perB.push([L(p.personel_adi||''), R(p.adet), R(gsFmt(p.ciro))]); });
+         if(!perB.length) perB.push(bosSat(3,'Kayıt yok'));
+         c.push(tblH(['*','auto','auto'], ['Personel','İşlem','Ciro'], perB));
+         // En cok satan hizmet
+         c.push(sec('EN ÇOK SATAN HİZMET'));
+         var hB = [];
+         (d.top_hizmet||[]).forEach(function(r){ hB.push([L(r.hizmet_adi||''), R(r.adet), R(gsFmt(r.ciro))]); });
+         if(!hB.length) hB.push(bosSat(3,'Kayıt yok'));
+         c.push(tblH(['*','auto','auto'], ['Ad','Adet','Ciro'], hB));
+         // En cok satan urun
+         c.push(sec('EN ÇOK SATAN ÜRÜN'));
+         var uB = [];
+         (d.top_urun||[]).forEach(function(r){ uB.push([L(r.urun_adi||''), R(r.adet), R(gsFmt(r.ciro))]); });
+         if(!uB.length) uB.push(bosSat(3,'Kayıt yok'));
+         c.push(tblH(['*','auto','auto'], ['Ad','Adet','Ciro'], uB));
       }
 
-      var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'+
-         '<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'+
-         '<x:Name>Gün Sonu</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet>'+
-         '</x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'+
-         '<style>td,th{border:1px solid #ddd;padding:4px 8px;font-family:Arial;font-size:12px;mso-number-format:"\\@"} th{background:#f5eefe;color:#5C008E;font-weight:bold}</style></head>'+
-         '<body><table>'+rows+'</table></body></html>';
-      var blob = new Blob(['﻿'+html], {type:'application/vnd.ms-excel;charset=utf-8'});
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = 'gun-sonu-'+d.baslangic+(d.baslangic!==d.bitis?'_'+d.bitis:'')+(gsDetay?'-detay':'')+'.xls';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+      var docDef = {
+         pageMargins:[26,26,26,34],
+         content: c,
+         defaultStyle:{ fontSize:9, color:'#333' },
+         styles:{
+            h1:{ fontSize:16, bold:true, color:MOR },
+            sub:{ fontSize:9, color:'#666' },
+            th:{ bold:true, fontSize:8.5, color:MOR, fillColor:'#f5eefe' }
+         },
+         footer: function(cur, tot){ return {text: cur+' / '+tot, alignment:'center', fontSize:7.5, color:'#999', margin:[0,6,0,0]}; }
+      };
+      var fn = 'gun-sonu-'+d.baslangic+(d.baslangic!==d.bitis?'_'+d.bitis:'')+(gsDetay?'-detay':'')+'.pdf';
+      pdfMake.createPdf(docDef).download(fn);
+   }
+
+   // Indir (PDF) — mevcut goruntuye gore (Özet / Tam Detay saglama)
+   $('#gs-print').on('click', function(){
+      if(!gsData) return;
+      var $btn = $(this); var eski = $btn.find('span').text();
+      $btn.prop('disabled', true).find('span').text('Hazırlanıyor...');
+      gsPdfHazir(function(){
+         try { gsPdfOlustur(); }
+         catch(e){ alert('PDF oluşturulamadı: '+(e && e.message ? e.message : e)); }
+         $btn.prop('disabled', false).find('span').text(eski);
+      });
    });
 })();
 </script>
