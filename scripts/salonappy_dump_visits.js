@@ -86,26 +86,44 @@
   // Onceki "TEK GENIS ARALIK" stratejisi Salonappy'de erken kesiliyordu
   // (34K visit iddiasi, dump 15K getiriyor). AYLIK chunk garantili kapsama saglar.
   // Her ay × her status icin ayri /visit/list cagirisi.
-  // Y_START degistirilebilir; en eski payment 2020-05'te (salon 395 icin).
-  const Y_START = parseInt(prompt('Baslangic yili (default 2018)', '2018'), 10) || 2018;
+  // Tarih araligi opsiyonel: gun bazli (YYYY-MM-DD) veya sadece yil verilebilir.
+  const today = new Date();
+  const defaultCutoff = new Date(today.getFullYear(), today.getMonth() + 2, 1);
+  const defaultEnd = defaultCutoff.toISOString().slice(0,10);
+  const startInput = prompt('Baslangic tarih (YYYY-MM-DD) veya yil', '2018-01-01') || '2018-01-01';
+  const endInput = prompt('Bitis tarih (YYYY-MM-DD) veya yil', defaultEnd) || defaultEnd;
+  const parseDate = (s) => {
+    s = String(s).trim();
+    if (/^\d{4}$/.test(s)) return new Date(parseInt(s,10), 0, 1);       // sadece yil -> Ocak 1
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(s + 'T00:00:00');
+    if (/^\d{4}-\d{2}$/.test(s)) return new Date(s + '-01T00:00:00');
+    return null;
+  };
+  const startDate = parseDate(startInput);
+  const endDate = parseDate(endInput);
+  if (!startDate || !endDate) { console.error('Tarih formati gecersiz'); return; }
+  console.log(`🔹 Visit cekim araligi: ${startDate.toISOString().slice(0,10)} .. ${endDate.toISOString().slice(0,10)}`);
   let visits = await dbGet('visits');
   if (!visits) {
-    console.log(`🔹 Visit listesi cekiliyor AYLIK+STATUS (${Y_START}..bugun)...`);
+    console.log('🔹 Visit listesi cekiliyor AYLIK+STATUS...');
     visits = [];
     const seenSess = new Set();
-    const today = new Date();
-    // Bugunun ayindan +2 ay tampon (yakin gelecek upcoming randevular icin); ilerisi bos, atlanir
-    const cutoff = new Date(today.getFullYear(), today.getMonth() + 2, 1);
-    const yEnd = cutoff.getFullYear();
     const limit = 100;
     const statuses = [1, 2, 3, 4, 5];
-    let toplamSayfa = 0, toplamCagri = 0;
-    for (let yr = Y_START; yr <= yEnd; yr++) {
-      const moMax = (yr < yEnd) ? 12 : (cutoff.getMonth() + 1);
-      for (let mo = 1; mo <= moMax; mo++) {
-        const dStart = `${yr}-${String(mo).padStart(2, '0')}-01`;
-        const lastDay = new Date(yr, mo, 0).getDate();
-        const dEnd = `${yr}-${String(mo).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    let toplamCagri = 0;
+    // Aylik iterate — hem yil hem gun bazli calisir (start ayindan end ayina kadar)
+    const iter = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    const stop = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    while (iter <= stop) {
+      const yr = iter.getFullYear(), mo = iter.getMonth() + 1;
+      const monthFirst = new Date(yr, mo - 1, 1);
+      const monthLast = new Date(yr, mo, 0);
+      // Baslangic ayi ise startDate'e clamp; bitis ayi ise endDate'e clamp — dar aralik desteklenir
+      const rangeStart = (monthFirst < startDate) ? startDate : monthFirst;
+      const rangeEnd = (monthLast > endDate) ? endDate : monthLast;
+      const dStart = rangeStart.toISOString().slice(0,10);
+      const dEnd = rangeEnd.toISOString().slice(0,10);
+      {
         let ayCount = 0;
         for (const st of statuses) {
           let offset = 0;
@@ -128,12 +146,12 @@
             if (offset >= 5000) break;  // safety cap (bir ayda 5000 visit anormal)
           }
         }
-        toplamSayfa++;
         if (ayCount > 0 || mo % 3 === 0) {
           console.log(`  ${yr}-${String(mo).padStart(2,'0')}: +${ayCount} (kumule unique=${visits.length}, cagri=${toplamCagri})`);
           await dbPut('visits', visits);
         }
       }
+      iter.setMonth(iter.getMonth() + 1);
     }
     console.log(`✓✓ Visit toplam (unique tum ay×status): ${visits.length} / ${toplamCagri} istek`);
     await sleep(RATE_DELAY_MS);
