@@ -4433,21 +4433,45 @@ class SalonappyImport extends Command
     }
 
     /**
-     * Ayni [salonappy-visit-pay:pid] markerli birden fazla tahsilat varsa en yenisini tut,
-     * digerlerini TH/TU ile birlikte sil. UPSERT'lerin biraktigi mukerrer kayitlari temizler.
+     * Ayni Salonappy payment_id'ye sahip birden fazla tahsilat varsa en oncelikliyi tut,
+     * digerlerini TH/TU ile birlikte sil. TUM marker turlerini birlikte tarar
+     * (visit-pay + pay + prod-pay + pkgsale-pay + nonvisit) — cross-marker duplicate'i yakalar.
+     * Oncelik (keep): prod-pay > pkgsale-pay > visit-pay (adisyon_id dolu) > nonvisit (adisyon_id NULL)
      */
     private function dedupVisitPayments($salonId, $dryRun = false)
     {
         $rows = \DB::table('tahsilatlar')->where('salon_id', $salonId)
-            ->where('notlar', 'LIKE', '%[salonappy-visit-pay:%')
+            ->where(function ($q) {
+                $q->where('notlar', 'LIKE', '%[salonappy-visit-pay:%')
+                  ->orWhere('notlar', 'LIKE', '%[salonappy-pay:%')
+                  ->orWhere('notlar', 'LIKE', '%[salonappy-prod-pay:%')
+                  ->orWhere('notlar', 'LIKE', '%[salonappy-pkgsale-pay:%');
+            })
             ->select('id', 'adisyon_id', 'tutar', 'notlar')->orderBy('id')->get();
 
-        // pid -> [tahsilat_id...]
+        // Oncelik puanı hesapla (yuksek = tut)
+        $puan = function ($notlar, $adisyonId) {
+            $n = (string) $notlar;
+            if (strpos($n, '[salonappy-prod-pay:') !== false) return 40;    // urun satisi — ozel akis, DOĞRU marker
+            if (strpos($n, '[salonappy-pkgsale-pay:') !== false) return 30; // paket satisi — DOĞRU marker
+            if (strpos($n, '[salonappy-nonvisit:') !== false) return 10;    // adisyon_id NULL, en dusuk
+            // visit-pay:
+            if ($adisyonId !== null) return 20; // visit-linked, orta
+            return 5; // orphan visit-pay (adisyon_id NULL ama nonvisit marker'i yok)
+        };
+
+        // pid -> [tahsilat...]
         $pidToTahs = [];
         foreach ($rows as $t) {
-            if (preg_match_all('~\[salonappy-visit-pay:(\d+)\]~', (string) $t->notlar, $mm)) {
+            if (preg_match_all('~\[salonappy-(?:visit-pay|pay|prod-pay|pkgsale-pay):(\d+)\]~', (string) $t->notlar, $mm)) {
+                $seen = [];
                 foreach ($mm[1] as $pid) {
-                    $pidToTahs[$pid][] = ['id' => (int) $t->id, 'adisyon_id' => $t->adisyon_id, 'tutar' => (float) $t->tutar];
+                    if (isset($seen[$pid])) continue; // aynı tahsilat notlar'ında aynı pid iki kez varsa tek say
+                    $seen[$pid] = true;
+                    $pidToTahs[$pid][] = [
+                        'id' => (int) $t->id, 'adisyon_id' => $t->adisyon_id,
+                        'tutar' => (float) $t->tutar, 'puan' => $puan($t->notlar, $t->adisyon_id),
+                    ];
                 }
             }
         }
@@ -4456,15 +4480,12 @@ class SalonappyImport extends Command
         foreach ($pidToTahs as $pid => $arr) {
             if (count($arr) < 2) continue;
             $duplicatePids++;
-            // Onceligi: adisyon_id NULL OLMAYAN + en yeni id'yi tut. NULL'lar duplicate ise
-            // en yenisini tut (nonvisit fix ile eklenmis olabilir + baska bir markerlı tahsilat da eklenmis).
+            // Puana gore siralama (yuksek puan = tut). Esitse en yeni id kalır.
             usort($arr, function ($a, $b) {
-                $anull = $a['adisyon_id'] === null ? 1 : 0;
-                $bnull = $b['adisyon_id'] === null ? 1 : 0;
-                if ($anull !== $bnull) return $anull - $bnull; // NULL en sona (silinme adayı)
-                return $b['id'] - $a['id']; // yeni id oncelik (keep)
+                if ($a['puan'] !== $b['puan']) return $b['puan'] - $a['puan'];
+                return $b['id'] - $a['id']; // yeni id oncelik
             });
-            $keep = array_shift($arr); // ilk sirada olan = tutulan
+            $keep = array_shift($arr); // en yuksek puanli = tutulan
             foreach ($arr as $victim) {
                 $silinecekIds[] = $victim['id'];
                 $silinecekTutar += $victim['tutar'];
@@ -4472,6 +4493,7 @@ class SalonappyImport extends Command
         }
 
         $this->line("Toplam tahsilat: " . count($rows));
+        $this->line("Unique payment_id: " . count($pidToTahs));
         $this->line("Duplicate pid grup: $duplicatePids");
         $this->line("Silinecek tahsilat: " . count($silinecekIds) . " (tutar=" . number_format($silinecekTutar, 2) . " TL)");
 
