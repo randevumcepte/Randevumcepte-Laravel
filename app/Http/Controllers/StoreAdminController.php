@@ -4554,14 +4554,6 @@ public function gun_sonu_raporu(Request $request)
     }
     $net_toplam = $gelir_toplam - $masraf_toplam;
 
-    // ---- Nakit kasa akisi: acilis (onceki gunlerin nakit devri) -> kapanis ----
-    $nakit_devir_gelir = (float) Tahsilatlar::where('salon_id',$salon_id)->where('odeme_yontemi_id',1)
-        ->where('odeme_tarihi','<',$b)->sum('tutar');
-    $nakit_devir_masraf = (float) Masraflar::where('salon_id',$salon_id)->where('odeme_yontemi_id',1)
-        ->where('tarih','<',$b)->sum('tutar');
-    $nakit_acilis  = $nakit_devir_gelir - $nakit_devir_masraf;
-    $nakit_kapanis = $nakit_acilis + $net['nakit'];
-
     // ---- Ekstra metrikler ----
     $musteri_say = count($musteriler);
     $ort_sepet   = $islem_say > 0 ? ($gercek_gelir / $islem_say) : 0;
@@ -4622,8 +4614,6 @@ public function gun_sonu_raporu(Request $request)
         'masraf_toplam'  => $masraf_toplam,
         'net'            => $net,
         'net_toplam'     => $net_toplam,
-        'nakit_acilis'   => $nakit_acilis,
-        'nakit_kapanis'  => $nakit_kapanis,
         'islem_say'      => $islem_say,
         'musteri_say'    => $musteri_say,
         'ort_sepet'      => $ort_sepet,

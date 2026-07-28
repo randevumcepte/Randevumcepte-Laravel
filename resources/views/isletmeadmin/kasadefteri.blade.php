@@ -1171,15 +1171,6 @@ $(document).ready(function() {
 .gs-mini-item .n { font-size:19px; font-weight:800; color:#3b0764; }
 .gs-mini-item .t { font-size:11.5px; font-weight:600; color:#64748b; margin-top:2px; }
 
-/* Nakit kasa akisi */
-.gs-nakit { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
-   background:#fff; border:1px solid #eceef4; border-radius:12px; padding:12px 16px; margin-bottom:16px; }
-.gs-nakit .step { text-align:center; flex:1; min-width:90px; }
-.gs-nakit .step .k { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:#94a3b8; }
-.gs-nakit .step .v { font-size:15px; font-weight:800; color:#1e293b; margin-top:2px; }
-.gs-nakit .step .v.neg { color:#dc2626; }
-.gs-nakit .arrow { color:#cbd5e1; font-size:16px; flex:0 0 auto; }
-
 /* Bolum basligi */
 .gs-section { font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
    color:#475569; margin:18px 0 10px; display:flex; align-items:center; gap:8px; }
@@ -1287,11 +1278,11 @@ $(document).ready(function() {
       var netCls = d.net_toplam < 0 ? 'neg' : 'pos';
       var h = '';
 
-      // Ust kartlar
+      // Ust kartlar (soldan saga: Gelir - Masraf = Net; Net en sagda)
       h += '<div class="gs-cards">';
-      h += '<div class="gs-card net"><div class="lbl">Net (Toplam)</div><div class="val '+netCls+'">'+gsFmt(d.net_toplam)+' ₺</div></div>';
       h += '<div class="gs-card gelir"><div class="lbl">Gelirler Toplamı</div><div class="val">'+gsFmt(d.gelir_toplam)+' ₺</div></div>';
       h += '<div class="gs-card masraf"><div class="lbl">Masraflar Toplamı</div><div class="val">'+gsFmt(d.masraf_toplam)+' ₺</div></div>';
+      h += '<div class="gs-card net"><div class="lbl">Net (Gelir − Masraf)</div><div class="val '+netCls+'">'+gsFmt(d.net_toplam)+' ₺</div></div>';
       h += '</div>';
 
       // Mini istatistikler
@@ -1299,16 +1290,6 @@ $(document).ready(function() {
       h += '<div class="gs-mini-item"><div class="n">'+d.islem_say+'</div><div class="t">İşlem Sayısı</div></div>';
       h += '<div class="gs-mini-item"><div class="n">'+d.musteri_say+'</div><div class="t">Müşteri Sayısı</div></div>';
       h += '<div class="gs-mini-item"><div class="n">'+gsFmt(d.ort_sepet)+' ₺</div><div class="t">Ortalama Sepet</div></div>';
-      h += '</div>';
-
-      // Nakit kasa akisi
-      var acCls = d.nakit_acilis<0?'neg':''; var kpCls = d.nakit_kapanis<0?'neg':'';
-      h += '<div class="gs-nakit">';
-      h += '<div class="step"><div class="k">Nakit Açılış</div><div class="v '+acCls+'">'+gsFmt(d.nakit_acilis)+' ₺</div></div>';
-      h += '<div class="arrow"><i class="fa fa-arrow-right"></i></div>';
-      h += '<div class="step"><div class="k">Gün İçi Nakit</div><div class="v '+(d.net.nakit<0?'neg':'')+'">'+(d.net.nakit>=0?'+':'')+gsFmt(d.net.nakit)+' ₺</div></div>';
-      h += '<div class="arrow"><i class="fa fa-arrow-right"></i></div>';
-      h += '<div class="step"><div class="k">Nakit Kapanış (Kasada)</div><div class="v '+kpCls+'">'+gsFmt(d.nakit_kapanis)+' ₺</div></div>';
       h += '</div>';
 
       // Odeme yontemi kirilimi tablosu
@@ -1387,10 +1368,10 @@ $(document).ready(function() {
          '@media print{.noprint{display:none}}'+
          '</style></head><body>'+
          '<h1>Gün Sonu Raporu</h1><div class="sub">'+esc(salon)+' · '+don+'</div>'+
-         '<div class="cards"><div class="c"><div class="l">Net (Toplam)</div><div class="v">'+gsFmt(d.net_toplam)+' TL</div></div>'+
-         '<div class="c"><div class="l">Gelirler</div><div class="v">'+gsFmt(d.gelir_toplam)+' TL</div></div>'+
-         '<div class="c"><div class="l">Masraflar</div><div class="v">'+gsFmt(d.masraf_toplam)+' TL</div></div></div>'+
-         '<div class="mini">İşlem: <b>'+d.islem_say+'</b> &nbsp;·&nbsp; Müşteri: <b>'+d.musteri_say+'</b> &nbsp;·&nbsp; Ort. Sepet: <b>'+gsFmt(d.ort_sepet)+' TL</b> &nbsp;·&nbsp; Nakit Kapanış: <b>'+gsFmt(d.nakit_kapanis)+' TL</b></div>'+
+         '<div class="cards"><div class="c"><div class="l">Gelirler</div><div class="v">'+gsFmt(d.gelir_toplam)+' TL</div></div>'+
+         '<div class="c"><div class="l">Masraflar</div><div class="v">'+gsFmt(d.masraf_toplam)+' TL</div></div>'+
+         '<div class="c"><div class="l">Net (Gelir − Masraf)</div><div class="v">'+gsFmt(d.net_toplam)+' TL</div></div></div>'+
+         '<div class="mini">İşlem: <b>'+d.islem_say+'</b> &nbsp;·&nbsp; Müşteri: <b>'+d.musteri_say+'</b> &nbsp;·&nbsp; Ort. Sepet: <b>'+gsFmt(d.ort_sepet)+' TL</b></div>'+
          '<h3>Ödeme Yöntemine Göre</h3><table><thead><tr><th>Yöntem</th><th class="r">Gelir</th><th class="r">Masraf</th><th class="r">Net</th></tr></thead>'+
          '<tbody>'+pm+'</tbody><tfoot><tr><td>Toplam</td><td class="r">'+gsFmt(d.gelir_toplam)+'</td><td class="r">'+gsFmt(d.masraf_toplam)+'</td><td class="r">'+gsFmt(d.net_toplam)+'</td></tr></tfoot></table>'+
          '<h3>Personel Bazlı Ciro</h3><table><thead><tr><th>Personel</th><th class="r">İşlem</th><th class="r">Ciro</th></tr></thead><tbody>'+per+'</tbody></table>'+
