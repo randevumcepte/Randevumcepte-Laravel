@@ -453,13 +453,13 @@
                   html = `
                      <span class="cark-popup__eyebrow">🎁 Hediyeniz Hazır!</span>
                      <h2 class="cark-popup__title" style="font-size:24px;">Hediyeniz: <em>${buildFullLabel(d)}</em></h2>
-                     <p class="cark-popup__sub" style="margin-bottom:14px;">Kodunu almak için 10 saniyelik kayıt — telefonuna SMS gönderilecek.</p>
+                     <p class="cark-popup__sub" style="margin-bottom:14px;">Kodunu almak için 10 saniyelik kayıt — telefonuna kod gönderilecek.</p>
                      <div style="display:flex; gap:8px; margin-bottom:10px;">
                         <input type="text" id="ky-ad" placeholder="Ad" style="flex:1; padding:11px 12px; border:2px solid rgba(255,255,255,.4); border-radius:10px; background:rgba(255,255,255,.95); font-size:14px;">
                         <input type="text" id="ky-soyad" placeholder="Soyad" style="flex:1; padding:11px 12px; border:2px solid rgba(255,255,255,.4); border-radius:10px; background:rgba(255,255,255,.95); font-size:14px;">
                      </div>
                      <input type="tel" id="ky-tel" placeholder="5XX XXX XX XX" maxlength="11" style="width:100%; padding:11px 12px; border:2px solid rgba(255,255,255,.4); border-radius:10px; margin-bottom:10px; background:rgba(255,255,255,.95); font-size:15px; letter-spacing:1px;">
-                     <button type="button" class="cark-popup__cta" id="btn-smskod" onclick="window.carkSmsKod()">📨 SMS Gönder</button>
+                     <button type="button" class="cark-popup__cta" id="btn-smskod" onclick="window.carkSmsKod()">📨 Kod Gönder</button>
                   `;
                } else if (kod){
                   // Üye + kupon
@@ -502,18 +502,18 @@
                      body: JSON.stringify({ad, soyad, telefon: tel})
                   });
                   const data = await r.json();
-                  if (!data.success){ showToast(data.message || 'Hata'); btn.disabled = false; btn.innerHTML = '📨 SMS Gönder'; return; }
+                  if (!data.success){ showToast(data.message || 'Hata'); btn.disabled = false; btn.innerHTML = '📨 Kod Gönder'; return; }
                   if (data.dev_kod) showToast('Test kodu: ' + data.dev_kod);
-                  // SMS adımı
+                  // Kod giriş adımı
                   content.innerHTML = `
                      <span class="cark-popup__eyebrow">📱 Kod Bekleniyor</span>
-                     <h2 class="cark-popup__title" style="font-size:22px;">SMS Kodunu Gir</h2>
+                     <h2 class="cark-popup__title" style="font-size:22px;">Kodunu Gir</h2>
                      <p class="cark-popup__sub">0${tel} numarasına gelen 4 haneli kodu girin.</p>
                      <input type="text" id="kd-kod" maxlength="4" placeholder="• • • •" style="width:100%; padding:14px; border:2px solid rgba(255,255,255,.4); border-radius:10px; background:rgba(255,255,255,.95); font-size:28px; font-weight:800; letter-spacing:14px; text-align:center; font-family:monospace; margin-bottom:10px;">
                      <button type="button" class="cark-popup__cta" id="btn-dogrula" onclick="window.carkSmsDogrula()">✓ Doğrula ve Kodu Al</button>
                   `;
                   setTimeout(() => document.getElementById('kd-kod').focus(), 100);
-               } catch(e){ showToast('Bağlantı hatası'); btn.disabled = false; btn.innerHTML = '📨 SMS Gönder'; }
+               } catch(e){ showToast('Bağlantı hatası'); btn.disabled = false; btn.innerHTML = '📨 Kod Gönder'; }
             };
 
             window.carkSmsDogrula = async function(){

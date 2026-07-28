@@ -450,33 +450,60 @@ class CarkifelekMusteriController extends Controller
         // Kayıt sırasında kullanılacak isim bilgisini session'a yaz
         $request->session()->put('cark_kayit_bilgi', compact('ad', 'soyad', 'telefon'));
 
-        // Gerçek SMS gönderimi — Salon SMS ayarları tanımlıysa
+        // Kod gönderimi: ÖNCE WHATSAPP (salon WA aktif + bağlıysa anlık), bildirim
+        // gitmezse SMS'e düş. Böylece kod teslimi garanti edilir.
         $pending = $request->session()->get('cark_pending_odul');
         $salonId = $pending['salon_id'] ?? null;
         $gonderildi = false;
+        $kanal = null;
         if ($salonId) {
-            try {
-                $salon = Salonlar::find($salonId);
-                if ($salon && $salon->sms_user_name && $salon->sms_secret) {
-                    require_once app_path('VoiceTelekom/Sms/SmsApi.php');
-                    require_once app_path('VoiceTelekom/Sms/SendMultiSms.php');
-                    require_once app_path('VoiceTelekom/Sms/PeriodicSettings.php');
-                    $smsApi = new \SmsApi('smsvt.voicetelekom.com', $salon->sms_user_name, $salon->sms_secret);
-                    $req = new \SendSingleSms();
-                    $req->title   = 'Doğrulama';
-                    $req->content = $salon->salon_adi . ' çarkıfelek doğrulama kodunuz: ' . $kod;
-                    $req->number  = '90' . $telefon;
-                    $req->encoding = 0;
-                    $req->customID = 'cark_' . date('Ymd_His') . '_' . substr(md5(microtime()), 0, 8);
-                    $req->sender   = $salon->sms_baslik ?: 'RANDEVUMCEPTE';
-                    $req->skipAhsQuery = true;
-                    $smsApi->sendSingleSms($req);
-                    $gonderildi = true;
+            $salon = Salonlar::find($salonId);
+            if ($salon) {
+                $mesajMetni = $salon->salon_adi . ' çarkıfelek doğrulama kodunuz: ' . $kod;
+
+                // 1) WhatsApp — sadece salon WA aktif ve "connected" ise dene
+                if (!empty($salon->whatsapp_aktif) && ($salon->whatsapp_durum ?? null) === 'connected') {
+                    try {
+                        $wa = app(\App\Services\WhatsAppService::class);
+                        $sonuc = $wa->sendUrgent($salon, $telefon, $mesajMetni, null, 'cark_kodu');
+                        if ($sonuc['ok'] ?? false) {
+                            $gonderildi = true;
+                            $kanal = 'whatsapp';
+                        } else {
+                            Log::warning('Cark WA kod gönderilemedi -> SMS fallback', [
+                                'salon_id' => $salon->id, 'err' => $sonuc['error'] ?? 'unknown',
+                            ]);
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('Cark WA kod istisnası -> SMS fallback: ' . $e->getMessage());
+                    }
                 }
-            } catch (\Exception $e) {
-                Log::warning('Cark SMS gönderilemedi: ' . $e->getMessage());
+
+                // 2) WhatsApp gitmediyse SMS — Salon SMS ayarları tanımlıysa
+                if (!$gonderildi && $salon->sms_user_name && $salon->sms_secret) {
+                    try {
+                        require_once app_path('VoiceTelekom/Sms/SmsApi.php');
+                        require_once app_path('VoiceTelekom/Sms/SendMultiSms.php');
+                        require_once app_path('VoiceTelekom/Sms/PeriodicSettings.php');
+                        $smsApi = new \SmsApi('smsvt.voicetelekom.com', $salon->sms_user_name, $salon->sms_secret);
+                        $req = new \SendSingleSms();
+                        $req->title   = 'Doğrulama';
+                        $req->content = $mesajMetni;
+                        $req->number  = '90' . $telefon;
+                        $req->encoding = 0;
+                        $req->customID = 'cark_' . date('Ymd_His') . '_' . substr(md5(microtime()), 0, 8);
+                        $req->sender   = $salon->sms_baslik ?: 'RANDEVUMCEPTE';
+                        $req->skipAhsQuery = true;
+                        $smsApi->sendSingleSms($req);
+                        $gonderildi = true;
+                        $kanal = 'sms';
+                    } catch (\Exception $e) {
+                        Log::warning('Cark SMS gönderilemedi: ' . $e->getMessage());
+                    }
+                }
             }
         }
+        Log::info('Cark kod gönderimi', ['telefon' => $telefon, 'kanal' => $kanal, 'gonderildi' => $gonderildi]);
 
         return response()->json([
             'success' => true,

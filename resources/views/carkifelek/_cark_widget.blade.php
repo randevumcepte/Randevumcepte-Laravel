@@ -238,7 +238,7 @@
         <div id="kayit-form" style="display:none;">
             <div style="background:#fef3c7;border:1.5px dashed #f59e0b;border-radius:12px;padding:12px 14px;margin-bottom:14px;">
                 <b style="color:#92400e;font-size:14px;">🔒 Hediyenizi almak için hızlı kayıt</b>
-                <p style="font-size:12px;color:#78350f;margin:4px 0 0;">Telefonunuza SMS ile 4 haneli kod gönderilecek.</p>
+                <p style="font-size:12px;color:#78350f;margin:4px 0 0;">Telefonunuza 4 haneli kod gönderilecek.</p>
             </div>
             <div style="display:flex;gap:8px;margin-bottom:10px;">
                 <input type="text" id="ky-ad"    placeholder="Ad"    style="flex:1;padding:11px 12px;border:2px solid #e5e7eb;border-radius:9px;font-size:14px;">
@@ -247,13 +247,13 @@
             <div style="margin-bottom:10px;">
                 <input type="tel" id="ky-tel" placeholder="5XX XXX XX XX" maxlength="13" style="width:100%;padding:11px 12px;border:2px solid #e5e7eb;border-radius:9px;font-size:15px;letter-spacing:1px;">
             </div>
-            <button class="modal-close" id="btn-smskod" onclick="smsKodGonder()" style="width:100%;">📨 SMS Gönder</button>
+            <button class="modal-close" id="btn-smskod" onclick="smsKodGonder()" style="width:100%;">📨 Kod Gönder</button>
         </div>
 
         {{-- MİSAFİR — kod giriş adımı --}}
         <div id="kod-dogrula" style="display:none;">
             <div style="background:#dbeafe;border:1.5px dashed #3b82f6;border-radius:12px;padding:12px 14px;margin-bottom:14px;">
-                <b style="color:#1e40af;font-size:14px;">✓ SMS Gönderildi</b>
+                <b style="color:#1e40af;font-size:14px;">✓ Kod Gönderildi</b>
                 <p style="font-size:12px;color:#1e3a8a;margin:4px 0 0;"><span id="gonderilen-tel"></span> numarasına gelen 4 haneli kodu girin.</p>
             </div>
             <input type="text" id="kd-kod" maxlength="4" placeholder="• • • •" style="width:100%;padding:14px;border:2px solid #3b82f6;border-radius:10px;font-size:28px;font-weight:800;letter-spacing:14px;text-align:center;font-family:monospace;margin-bottom:10px;">
@@ -624,19 +624,19 @@
                 body: JSON.stringify({ ad: ad, soyad: soyad, telefon: tel }),
             });
             const data = await resp.json();
-            btn.disabled = false; btn.textContent = '📨 SMS Gönder';
+            btn.disabled = false; btn.textContent = '📨 Kod Gönder';
             if (!data.success) { showToast(data.message || 'Hata'); return; }
 
             document.getElementById('gonderilen-tel').textContent = '0' + tel;
             if (data.dev_kod) {
-                showToast('SMS sağlayıcı yok — kod: ' + data.dev_kod);
+                showToast('Sağlayıcı yok — kod: ' + data.dev_kod);
             } else {
                 showToast('Kod gönderildi!');
             }
             setStep('dogrula');
             setTimeout(() => document.getElementById('kd-kod').focus(), 100);
         } catch (e) {
-            btn.disabled = false; btn.textContent = '📨 SMS Gönder';
+            btn.disabled = false; btn.textContent = '📨 Kod Gönder';
             showToast('Bağlantı hatası');
         }
     };
