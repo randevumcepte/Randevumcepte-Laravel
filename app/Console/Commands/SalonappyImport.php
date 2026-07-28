@@ -2316,6 +2316,9 @@ class SalonappyImport extends Command
                 $saat  = trim((string) ($d['time_text_24'] ?? $d['time_text'] ?? '00:00')) . ':00';
                 [$rDurum, $rGeldi] = $showupMap($d['showup_text'] ?? '', !empty($d['is_cancelled']));
                 $isPast = !empty($d['is_past']);
+                // Salonappy'de randevu notu (bd.details.notes) — kullanicilarin visit basina yazdiklari
+                $dNotes = trim((string) ($d['notes'] ?? ''));
+                $notlarFinal = $dNotes ? ($dNotes . ' ' . $marker) : $marker;
 
                 // Upcoming (is_past=false) -> sadece randevu yaz, adisyon ve sonrakileri atla.
                 if (!$isPast) {
@@ -2323,7 +2326,7 @@ class SalonappyImport extends Command
                         'salon_id' => $salonId, 'user_id' => $userId,
                         'tarih' => $tarih, 'saat' => $saat,
                         'durum' => $rDurum,
-                        'personel_notu' => $marker,
+                        'personel_notu' => $notlarFinal,
                         'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                     ];
                     if ($rGeldi !== null) $randevuRow['randevuya_geldi'] = $rGeldi;
@@ -2361,7 +2364,7 @@ class SalonappyImport extends Command
                 // Adisyon (is_past=true)
                 $adId = \DB::table('adisyonlar')->insertGetId([
                     'salon_id' => $salonId, 'user_id' => $userId, 'tarih' => $tarih,
-                    'notlar' => $marker,
+                    'notlar' => $notlarFinal,
                     'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                 ]);
                 $gAdisyon++;
@@ -2424,7 +2427,7 @@ class SalonappyImport extends Command
                     'tarih' => $tarih, 'saat' => $saat,
                     'durum' => $rDurum,
                     'adisyon_id' => $adId,
-                    'personel_notu' => $marker,
+                    'personel_notu' => $notlarFinal,
                     'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
                 ];
                 if ($rGeldi !== null) $randevuRow['randevuya_geldi'] = $rGeldi;
