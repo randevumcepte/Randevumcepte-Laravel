@@ -15,6 +15,7 @@ class CarkifelekDilimleri extends Model
         'renk_kodu',
         'tip',
         'deger',
+        'indirim_tipi',
         'kupon_mu',
         'sira',
         'created_at',

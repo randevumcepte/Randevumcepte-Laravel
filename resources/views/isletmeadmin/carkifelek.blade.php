@@ -292,6 +292,17 @@
 }
 .s-deger:focus { outline: none; border-color: var(--purple); }
 .deger-unit { font-size: 12px; font-weight: 700; color: var(--mid); }
+/* % / ₺ birim seçimi (indirim dilimlerinde) */
+.unit-toggle { display: inline-flex; border: 1.5px solid #e0e0e0; border-radius: 8px; overflow: hidden; }
+.unit-toggle button {
+    padding: 5px 10px; border: none; background: white; color: var(--mid);
+    font-size: 13px; font-weight: 800; cursor: pointer; transition: all .15s; line-height: 1;
+}
+.unit-toggle button:hover { color: var(--purple); }
+.unit-toggle button.active {
+    background: linear-gradient(135deg, var(--purple), var(--purple-l)); color: white;
+}
+.unit-toggle button + button { border-left: 1.5px solid #e0e0e0; }
 
 .s-num {
     width: 24px; height: 24px;
@@ -699,13 +710,24 @@
         '#E64980','#7950F2','#4C6EF5','#228BE6','#099268'
     ];
     const TIPS = [
-        { id: 'puan',            label: '💰 Puan',     hasDeger: true,  unit: 'puan' },
-        { id: 'hizmet_indirimi', label: '✂️ Hizmet %', hasDeger: true,  unit: '%'    },
-        { id: 'urun_indirimi',   label: '📦 Ürün %',   hasDeger: true,  unit: '%'    },
-        { id: 'paket_indirimi',  label: '🎁 Paket %',  hasDeger: true,  unit: '%'    },
-        { id: 'tekrar_dene',     label: '🔄 Tekrar',   hasDeger: false, unit: ''     },
-        { id: 'bos',             label: '— Boş',        hasDeger: false, unit: ''     },
+        { id: 'puan',            label: '💰 Puan',    hasDeger: true,  unit: 'puan' },
+        { id: 'hizmet_indirimi', label: '✂️ Hizmet',  hasDeger: true,  unit: '%'    },
+        { id: 'urun_indirimi',   label: '📦 Ürün',    hasDeger: true,  unit: '%'    },
+        { id: 'paket_indirimi',  label: '🎁 Paket',   hasDeger: true,  unit: '%'    },
+        { id: 'tekrar_dene',     label: '🔄 Tekrar',  hasDeger: false, unit: ''     },
+        { id: 'bos',             label: '— Boş',       hasDeger: false, unit: ''     },
     ];
+
+    /* İndirim dilimi mi? (değeri % oran veya sabit ₺ tutar olabilir) */
+    function isIndirim(tip) {
+        return tip === 'hizmet_indirimi' || tip === 'urun_indirimi' || tip === 'paket_indirimi';
+    }
+    /* Bir dilimin değer birimi: puan / % / ₺ (salon sahibinin seçimi) */
+    function sliceUnit(sl) {
+        if (sl.tip === 'puan')   return 'puan';
+        if (isIndirim(sl.tip))   return (sl.indirim_tipi === 'tutar') ? '₺' : '%';
+        return '';
+    }
 
     const HEADERS = {
         'Content-Type': 'application/json',
@@ -716,8 +738,8 @@
     /* ── State ── */
     let slices = [
         { name: '100 Puan',    color: COLORS[0], tip: 'puan',           deger: 100  },
-        { name: '%20 Hizmet',  color: COLORS[1], tip: 'hizmet_indirimi',deger: 20   },
-        { name: '%10 Ürün',    color: COLORS[2], tip: 'urun_indirimi',  deger: 10   },
+        { name: '%20 Hizmet',  color: COLORS[1], tip: 'hizmet_indirimi',deger: 20, indirim_tipi: 'yuzde' },
+        { name: '%10 Ürün',    color: COLORS[2], tip: 'urun_indirimi',  deger: 10, indirim_tipi: 'yuzde' },
         { name: '50 Puan',     color: COLORS[3], tip: 'puan',           deger: 50   },
         { name: 'Tekrar Dene', color: COLORS[4], tip: 'tekrar_dene',    deger: null },
         { name: 'Boş',         color: COLORS[5], tip: 'bos',            deger: null }
@@ -814,6 +836,7 @@
                         probability: parseInt(d.probability) || 0,
                         tip:         d.tip   || 'bos',
                         deger:       d.deger != null ? parseFloat(d.deger) : null,
+                        indirim_tipi: d.indirim_tipi === 'tutar' ? 'tutar' : 'yuzde',
                     }));
                     const found = slices.findIndex(s => s.probability === 100);
                     selectedIdx = found >= 0 ? found : 0;
@@ -885,7 +908,9 @@
                    Rakam: dilime teğet (tangential) yatay
                    Yazı (Puan/Hizmet/Ürün): radyal dikey — eski gibi */
 
-                const numStr = sl.tip.includes('indirimi') ? '%' + sl.deger : String(sl.deger);
+                const numStr = isIndirim(sl.tip)
+                             ? (sl.indirim_tipi === 'tutar' ? sl.deger + '₺' : '%' + sl.deger)
+                             : String(sl.deger);
                 const catStr = sl.tip === 'puan' ? 'Puan'
                              : sl.tip === 'hizmet_indirimi' ? 'Hizmet'
                              : sl.tip === 'paket_indirimi' ? 'Paket'
@@ -999,7 +1024,15 @@
             const isWinner = i === selectedIdx;
             const tipObj   = TIPS.find(t => t.id === (sl.tip || 'bos')) || TIPS[4];
             const degerVal = sl.deger != null ? sl.deger : '';
-            const placeholder = tipObj.id === 'puan' ? 'Puan miktarı' : 'Yüzde (%)';
+            const placeholder = sl.tip === 'puan' ? 'Puan miktarı'
+                              : (sl.indirim_tipi === 'tutar' ? 'Tutar (₺)' : 'Yüzde (%)');
+            // İndirim dilimlerinde salon sahibi birimi (% / ₺) kendisi seçer; puanda sabit "puan"
+            const unitCell = isIndirim(sl.tip)
+                ? `<div class="unit-toggle" title="İndirim birimi">
+                       <button class="${sl.indirim_tipi !== 'tutar' ? 'active' : ''}" onclick="window.CK.setBirim(${i},'yuzde')" title="Yüzde indirim">%</button>
+                       <button class="${sl.indirim_tipi === 'tutar' ? 'active' : ''}" onclick="window.CK.setBirim(${i},'tutar')" title="Sabit ₺ tutar">₺</button>
+                   </div>`
+                : `<span class="deger-unit">${sliceUnit(sl)}</span>`;
 
             const div = document.createElement('div');
             div.className = 'slice-item' + (isWinner ? ' winner-row' : '');
@@ -1025,7 +1058,7 @@
                         <input type="number" class="s-deger" data-i="${i}" min="0" step="any"
                                value="${degerVal}" placeholder="${placeholder}"
                                oninput="window.CK.setDeger(this)">
-                        <span class="deger-unit">${tipObj.unit}</span>
+                        ${unitCell}
                     </div>
                 </div>
             `;
@@ -1051,7 +1084,9 @@
     function buildFullName(sl) {
         const tipObj = TIPS.find(t => t.id === (sl.tip || 'bos')) || TIPS[4];
         if (tipObj.hasDeger && sl.deger != null) {
-            const numStr = sl.tip.includes('indirimi') ? '%' + sl.deger : sl.deger;
+            const numStr = isIndirim(sl.tip)
+                         ? (sl.indirim_tipi === 'tutar' ? sl.deger + '₺' : '%' + sl.deger)
+                         : sl.deger;
             return numStr + ' ' + (sl.name || buildAutoName(sl));
         }
         return sl.name || buildAutoName(sl);
@@ -1096,8 +1131,16 @@
             slices[i].tip = tip;
             const tipObj = TIPS.find(t => t.id === tip) || TIPS[4];
             if (!tipObj.hasDeger) slices[i].deger = null;
+            // İndirim tipine geçince birim varsayılanı % olsun (salon sahibi değiştirebilir)
+            if (isIndirim(tip) && slices[i].indirim_tipi !== 'tutar') slices[i].indirim_tipi = 'yuzde';
             // İsim alanını otomatik güncelle
             slices[i].name = buildAutoName(slices[i]);
+            renderList();
+            renderWheel();
+            updateWinnerUI();
+        },
+        setBirim(i, birim) {
+            slices[i].indirim_tipi = (birim === 'tutar') ? 'tutar' : 'yuzde';
             renderList();
             renderWheel();
             updateWinnerUI();
@@ -1454,6 +1497,7 @@
             probability: i === selectedIdx ? 100 : 0,
             tip:         sl.tip   || 'bos',
             deger:       sl.deger != null ? sl.deger : null,
+            indirim_tipi: isIndirim(sl.tip) && sl.indirim_tipi === 'tutar' ? 'tutar' : 'yuzde',
         }));
 
         if (rulesText) {

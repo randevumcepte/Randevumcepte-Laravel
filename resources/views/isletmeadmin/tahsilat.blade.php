@@ -51,9 +51,12 @@
                   @if($_kullanilan_kupon)
                      @php
                         $_tipAd = $_kullanilan_kupon->tip == 'hizmet_indirimi' ? 'Hizmet' : ($_kullanilan_kupon->tip == 'urun_indirimi' ? 'Ürün' : 'Paket');
+                        $_indMetni = (isset($_kullanilan_kupon->indirim_tipi) && $_kullanilan_kupon->indirim_tipi === 'tutar')
+                           ? ((int)$_kullanilan_kupon->deger).' ₺'
+                           : '%'.((int)$_kullanilan_kupon->deger);
                      @endphp
                      <div style="margin-left:auto;background:#fff3cd;color:#856404;border:1px solid #ffeeba;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:bold;">
-                        🎁 Çark kuponu kullanıldı: {{ $_kullanilan_kupon->kod }} — %{{ (int)$_kullanilan_kupon->deger }} {{ $_tipAd }} İndirimi
+                        🎁 Çark kuponu kullanıldı: {{ $_kullanilan_kupon->kod }} — {{ $_indMetni }} {{ $_tipAd }} İndirimi
                         @if($_kullanilan_kupon->kullanim_tarihi)
                            <span style="font-weight:normal;color:#7a6010;font-size:11px;">({{ date('d.m.Y', strtotime($_kullanilan_kupon->kullanim_tarihi)) }})</span>
                         @endif

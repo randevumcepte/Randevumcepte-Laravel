@@ -391,13 +391,18 @@ public function carkdilimekle(Request $request)
             // kupon_mu: indirim tiplerinde otomatik 1
             $kupon_mu = in_array($tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi']) ? 1 : 0;
 
+            // indirim_tipi: sadece indirim dilimlerinde anlamli. Salon sahibi % (yuzde) veya sabit ₺ (tutar) secer.
+            $indirim_tipi = ($kupon_mu && isset($dilim['indirim_tipi']) && $dilim['indirim_tipi'] === 'tutar')
+                            ? 'tutar' : 'yuzde';
+
             $cleanedDilimler[] = [
-                'name'        => $dilim['name'] ?? 'Ödül ' . ($index + 1),
-                'color'       => $dilim['color'] ?? $this->getRandomColor($index),
-                'probability' => $probability,
-                'tip'         => $tip,
-                'deger'       => $deger,
-                'kupon_mu'    => $kupon_mu,
+                'name'         => $dilim['name'] ?? 'Ödül ' . ($index + 1),
+                'color'        => $dilim['color'] ?? $this->getRandomColor($index),
+                'probability'  => $probability,
+                'tip'          => $tip,
+                'deger'        => $deger,
+                'indirim_tipi' => $indirim_tipi,
+                'kupon_mu'     => $kupon_mu,
             ];
         }
         
@@ -465,8 +470,9 @@ public function carkdilimekle(Request $request)
         }
         
         // tip/deger kolonlarının tabloda var mı kontrol et (migration yoksa skip)
-        $hasTip   = \Schema::hasColumn('carkifelek_dilimleri', 'tip');
-        $hasDeger = \Schema::hasColumn('carkifelek_dilimleri', 'deger');
+        $hasTip         = \Schema::hasColumn('carkifelek_dilimleri', 'tip');
+        $hasDeger       = \Schema::hasColumn('carkifelek_dilimleri', 'deger');
+        $hasIndirimTipi = \Schema::hasColumn('carkifelek_dilimleri', 'indirim_tipi');
 
         // Önce mevcut dilimleri sil
         $deletedCount = CarkifelekDilimleri::where('cark_id', $carkifelek->id)->delete();
@@ -485,8 +491,9 @@ public function carkdilimekle(Request $request)
                 'created_at'     => now(),
                 'updated_at'     => now(),
             ];
-            if ($hasTip)   $row['tip']   = $dilim['tip'];
-            if ($hasDeger) $row['deger'] = $dilim['deger'];
+            if ($hasTip)         $row['tip']          = $dilim['tip'];
+            if ($hasDeger)       $row['deger']        = $dilim['deger'];
+            if ($hasIndirimTipi) $row['indirim_tipi'] = $dilim['indirim_tipi'];
 
             $slice = CarkifelekDilimleri::create($row);
 
@@ -497,6 +504,7 @@ public function carkdilimekle(Request $request)
                 'renk_kodu'      => $slice->renk_kodu,
                 'tip'            => $hasTip   ? $slice->tip   : 'bos',
                 'deger'          => $hasDeger ? $slice->deger : null,
+                'indirim_tipi'   => $hasIndirimTipi ? ($slice->indirim_tipi ?? 'yuzde') : 'yuzde',
                 'kupon_mu'       => (int)$slice->kupon_mu,
                 'sira'           => $slice->sira,
             ];
@@ -560,21 +568,23 @@ public function carkverilerigetir(Request $request)
             ]);
         }
         
-        $hasTip   = \Schema::hasColumn('carkifelek_dilimleri', 'tip');
-        $hasDeger = \Schema::hasColumn('carkifelek_dilimleri', 'deger');
+        $hasTip         = \Schema::hasColumn('carkifelek_dilimleri', 'tip');
+        $hasDeger       = \Schema::hasColumn('carkifelek_dilimleri', 'deger');
+        $hasIndirimTipi = \Schema::hasColumn('carkifelek_dilimleri', 'indirim_tipi');
 
         $dilimler = CarkifelekDilimleri::where('cark_id', $carkifelek->id)
             ->orderBy('sira', 'asc')
             ->get()
-            ->map(function ($dilim) use ($hasTip, $hasDeger) {
+            ->map(function ($dilim) use ($hasTip, $hasDeger, $hasIndirimTipi) {
                 return [
-                    'name'        => $dilim->dilim_ismi,
-                    'probability' => (int)$dilim->dilim_olasilik,
-                    'color'       => $dilim->renk_kodu,
-                    'tip'         => $hasTip   ? ($dilim->tip ?? 'bos') : 'bos',
-                    'deger'       => $hasDeger && $dilim->deger !== null ? (float)$dilim->deger : null,
-                    'kupon_mu'    => (int)$dilim->kupon_mu,
-                    'sira'        => $dilim->sira
+                    'name'         => $dilim->dilim_ismi,
+                    'probability'  => (int)$dilim->dilim_olasilik,
+                    'color'        => $dilim->renk_kodu,
+                    'tip'          => $hasTip   ? ($dilim->tip ?? 'bos') : 'bos',
+                    'deger'        => $hasDeger && $dilim->deger !== null ? (float)$dilim->deger : null,
+                    'indirim_tipi' => $hasIndirimTipi ? ($dilim->indirim_tipi ?? 'yuzde') : 'yuzde',
+                    'kupon_mu'     => (int)$dilim->kupon_mu,
+                    'sira'         => $dilim->sira
                 ];
             })
             ->values();

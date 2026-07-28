@@ -192,7 +192,9 @@ class CarkifelekApiController extends Controller
                 $puanKaydi->puan = ((float) $puanKaydi->puan) + (float) $secilen->deger;
                 $puanKaydi->save();
             } elseif (in_array($secilen->tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi']) && $secilen->deger) {
-                $odul = CarkifelekOdulleri::create([
+                // Dilimin indirim tipi (yuzde|tutar) kupona tasinir; checkout'ta kuponUygula bunu okur.
+                $indirimTipi = (isset($secilen->indirim_tipi) && $secilen->indirim_tipi === 'tutar') ? 'tutar' : 'yuzde';
+                $odulData = [
                     'log_id'            => $log->id,
                     'salon_id'          => $salonId,
                     'user_id'           => $userId,
@@ -201,7 +203,11 @@ class CarkifelekApiController extends Controller
                     'deger'             => $secilen->deger,
                     'baslik'            => $this->baslikUret($secilen),
                     'gecerlilik_tarihi' => $this->kuponBitisTarihi($salonId, 'cark'),
-                ]);
+                ];
+                if (\Schema::hasColumn('carkifelek_odulleri', 'indirim_tipi')) {
+                    $odulData['indirim_tipi'] = $indirimTipi;
+                }
+                $odul = CarkifelekOdulleri::create($odulData);
             }
 
             return compact('log', 'odul');
@@ -438,11 +444,19 @@ class CarkifelekApiController extends Controller
 
     private function baslikUret($d)
     {
+        // Indirim degeri "tutar" ise "50 ₺", degilse "%50" olarak yazilir.
+        $tutar = (isset($d->indirim_tipi) && $d->indirim_tipi === 'tutar');
+        $ind = function ($ad) use ($d, $tutar) {
+            if (!$d->deger) return $ad;
+            return $tutar
+                ? ((int) $d->deger) . ' ₺ ' . $ad
+                : '%' . ((int) $d->deger) . ' ' . $ad;
+        };
         switch ($d->tip) {
             case 'puan':            return $d->deger ? ((int) $d->deger) . ' Puan' : 'Puan';
-            case 'hizmet_indirimi': return $d->deger ? '%' . ((int) $d->deger) . ' Hizmet İndirimi' : 'Hizmet İndirimi';
-            case 'urun_indirimi':   return $d->deger ? '%' . ((int) $d->deger) . ' Ürün İndirimi'   : 'Ürün İndirimi';
-            case 'paket_indirimi':  return $d->deger ? '%' . ((int) $d->deger) . ' Paket İndirimi'  : 'Paket İndirimi';
+            case 'hizmet_indirimi': return $ind('Hizmet İndirimi');
+            case 'urun_indirimi':   return $ind('Ürün İndirimi');
+            case 'paket_indirimi':  return $ind('Paket İndirimi');
             case 'tekrar_dene':     return 'Tekrar Dene';
             case 'bos':             return 'Boş';
             default:                return $d->dilim_ismi ?: 'Ödül';
