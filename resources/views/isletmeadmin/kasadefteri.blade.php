@@ -1098,7 +1098,7 @@ $(document).ready(function() {
                <input type="date" id="gs-bit" class="gs-date">
             </div>
             <button type="button" class="gs-print-btn" id="gs-detay-btn" title="Tam Detay / Sağlama"><i class="fa fa-list-ul"></i><span>Tam Detay</span></button>
-            <button type="button" class="gs-print-btn" id="gs-print" title="Yazdır / PDF"><i class="fa fa-print"></i><span>Yazdır</span></button>
+            <button type="button" class="gs-print-btn" id="gs-print" title="Excel indir"><i class="fa fa-download"></i><span>İndir</span></button>
             <button type="button" class="gs-close" id="gs-close" aria-label="Kapat">&times;</button>
          </div>
       </div>
@@ -1410,53 +1410,100 @@ $(document).ready(function() {
       return h;
    }
 
-   // Yazdir / PDF
+   // Excel indir — mevcut goruntuye gore (Özet / Tam Detay saglama)
    $('#gs-print').on('click', function(){
       if(!gsData) return;
       var d = gsData;
       var salon = @json($isletme->salon_adi);
       var don = gsEtiket(d.baslangic, d.bitis);
-      var pm = '';
-      YONTEMLER.forEach(function(y){ var k=y[0];
-         pm += '<tr><td>'+y[1]+'</td><td class="r">'+gsFmt(d.gelir[k])+'</td><td class="r">'+gsFmt(d.masraf[k])+'</td><td class="r">'+gsFmt(d.net[k])+'</td></tr>';
-      });
-      var per = '';
-      (d.personeller||[]).forEach(function(p){ per += '<tr><td>'+esc(p.personel_adi)+'</td><td class="r">'+p.adet+'</td><td class="r">'+gsFmt(p.ciro)+' TL</td></tr>'; });
-      if(!per) per = '<tr><td colspan="3" style="text-align:center;color:#888">Kayıt yok</td></tr>';
-      var hz = ''; (d.top_hizmet||[]).forEach(function(r){ hz += '<tr><td>'+esc(r.hizmet_adi)+'</td><td class="r">'+r.adet+'</td><td class="r">'+gsFmt(r.ciro)+' TL</td></tr>'; });
-      if(!hz) hz='<tr><td colspan="3" style="text-align:center;color:#888">Kayıt yok</td></tr>';
-      var ur = ''; (d.top_urun||[]).forEach(function(r){ ur += '<tr><td>'+esc(r.urun_adi)+'</td><td class="r">'+r.adet+'</td><td class="r">'+gsFmt(r.ciro)+' TL</td></tr>'; });
-      if(!ur) ur='<tr><td colspan="3" style="text-align:center;color:#888">Kayıt yok</td></tr>';
+      var TL = ' TL';
+      var rows = '';
+      function hc(v){ return '<td style="text-align:right">'+v+'</td>'; }             // saga yasli hucre
+      function sec(t){ rows += '<tr><td colspan="5" style="background:#5C008E;color:#fff;font-weight:bold">'+t+'</td></tr>'; }
+      function bos(){ rows += '<tr><td colspan="5"></td></tr>'; }
 
-      var w = window.open('', '_blank');
-      var html = '<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Gün Sonu Raporu</title>'+
-         '<style>'+
-         'body{font-family:Arial,Helvetica,sans-serif;color:#1f2937;margin:28px;font-size:13px}'+
-         'h1{font-size:20px;margin:0;color:#5C008E}.sub{color:#6b7280;font-size:13px;margin:2px 0 18px}'+
-         '.cards{display:flex;gap:12px;margin-bottom:18px}.c{flex:1;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px}'+
-         '.c .l{font-size:11px;text-transform:uppercase;color:#9ca3af;font-weight:bold}.c .v{font-size:18px;font-weight:bold;margin-top:3px}'+
-         '.mini{color:#6b7280;margin-bottom:16px}.mini b{color:#3b0764}'+
-         'table{width:100%;border-collapse:collapse;margin-bottom:16px}'+
-         'th,td{padding:7px 10px;font-size:12.5px;border-bottom:1px solid #eee;text-align:left}'+
-         'th{background:#f5eefe;color:#5C008E;text-transform:uppercase;font-size:10.5px}'+
-         '.r{text-align:right}h3{font-size:13px;color:#374151;margin:16px 0 6px;border-bottom:2px solid #ead4ff;padding-bottom:4px}'+
-         'tfoot td{font-weight:bold;background:#faf7ff}'+
-         '.two{display:flex;gap:18px}.two>div{flex:1}'+
-         '@media print{.noprint{display:none}}'+
-         '</style></head><body>'+
-         '<h1>Gün Sonu Raporu</h1><div class="sub">'+esc(salon)+' · '+don+'</div>'+
-         '<div class="cards"><div class="c"><div class="l">Gelirler</div><div class="v">'+gsFmt(d.gelir_toplam)+' TL</div></div>'+
-         '<div class="c"><div class="l">Masraflar</div><div class="v">'+gsFmt(d.masraf_toplam)+' TL</div></div>'+
-         '<div class="c"><div class="l">Net (Gelir − Masraf)</div><div class="v">'+gsFmt(d.net_toplam)+' TL</div></div></div>'+
-         '<div class="mini">İşlem: <b>'+d.islem_say+'</b> &nbsp;·&nbsp; Müşteri: <b>'+d.musteri_say+'</b> &nbsp;·&nbsp; Ort. Sepet: <b>'+gsFmt(d.ort_sepet)+' TL</b></div>'+
-         '<h3>Ödeme Yöntemine Göre</h3><table><thead><tr><th>Yöntem</th><th class="r">Gelir</th><th class="r">Masraf</th><th class="r">Net</th></tr></thead>'+
-         '<tbody>'+pm+'</tbody><tfoot><tr><td>Toplam</td><td class="r">'+gsFmt(d.gelir_toplam)+'</td><td class="r">'+gsFmt(d.masraf_toplam)+'</td><td class="r">'+gsFmt(d.net_toplam)+'</td></tr></tfoot></table>'+
-         '<h3>Personel Bazlı Ciro</h3><table><thead><tr><th>Personel</th><th class="r">İşlem</th><th class="r">Ciro</th></tr></thead><tbody>'+per+'</tbody></table>'+
-         '<div class="two"><div><h3>En Çok Satan Hizmet</h3><table><thead><tr><th>Ad</th><th class="r">Adet</th><th class="r">Ciro</th></tr></thead><tbody>'+hz+'</tbody></table></div>'+
-         '<div><h3>En Çok Satan Ürün</h3><table><thead><tr><th>Ad</th><th class="r">Adet</th><th class="r">Ciro</th></tr></thead><tbody>'+ur+'</tbody></table></div></div>'+
-         '<script>window.onload=function(){window.print();}<\/script>'+
-         '</body></html>';
-      w.document.write(html); w.document.close();
+      rows += '<tr><td colspan="5" style="font-size:15px;font-weight:bold;color:#5C008E">Gün Sonu Raporu</td></tr>';
+      rows += '<tr><td colspan="5">'+esc(salon)+' — '+don+'</td></tr>';
+      bos();
+
+      // Ozet (her iki modda)
+      sec('ÖZET');
+      rows += '<tr><td>Gelirler Toplamı</td>'+hc(gsFmt(d.gelir_toplam)+TL)+'</tr>';
+      rows += '<tr><td>Masraflar Toplamı</td>'+hc(gsFmt(d.masraf_toplam)+TL)+'</tr>';
+      rows += '<tr><td><b>Net (Gelir − Masraf)</b></td>'+hc('<b>'+gsFmt(d.net_toplam)+TL+'</b>')+'</tr>';
+      rows += '<tr><td>İşlem Sayısı</td>'+hc(d.islem_say)+'</tr>';
+      rows += '<tr><td>Müşteri Sayısı</td>'+hc(d.musteri_say)+'</tr>';
+      rows += '<tr><td>Ortalama Sepet</td>'+hc(gsFmt(d.ort_sepet)+TL)+'</tr>';
+      bos();
+
+      // Odeme yontemine gore
+      sec('ÖDEME YÖNTEMİNE GÖRE');
+      rows += '<tr><th>Yöntem</th><th>Gelir</th><th>Masraf</th><th>Net</th></tr>';
+      YONTEMLER.forEach(function(y){ var k=y[0];
+         rows += '<tr><td>'+y[1]+'</td>'+hc(gsFmt(d.gelir[k]))+hc(gsFmt(d.masraf[k]))+hc(gsFmt(d.net[k]))+'</tr>';
+      });
+      rows += '<tr><td><b>Toplam</b></td>'+hc('<b>'+gsFmt(d.gelir_toplam)+'</b>')+hc('<b>'+gsFmt(d.masraf_toplam)+'</b>')+hc('<b>'+gsFmt(d.net_toplam)+'</b>')+'</tr>';
+      bos();
+
+      if(gsDetay){
+         // Satislar
+         sec('SATIŞLAR (GELİRLER)');
+         rows += '<tr><th>Saat</th><th>Müşteri</th><th>Tahsil Eden</th><th>Yöntem</th><th>Tutar</th></tr>';
+         (d.satislar||[]).forEach(function(s){
+            rows += '<tr><td>'+esc(s.saat)+'</td><td>'+esc(s.musteri)+(s.para_girisi?' (Para Girişi)':'')+'</td><td>'+esc(s.tahsil_eden)+'</td><td>'+esc(s.yontem)+'</td>'+hc(gsFmt(s.tutar))+'</tr>';
+         });
+         rows += '<tr><td colspan="4"><b>Satışlar Toplamı</b></td>'+hc('<b>'+gsFmt(d.gelir_toplam)+'</b>')+'</tr>';
+         bos();
+         // Isletme masraflari
+         sec('İŞLETME MASRAFLARI');
+         rows += '<tr><th>Harcayan</th><th>Açıklama</th><th>Yöntem</th><th></th><th>Tutar</th></tr>';
+         (d.isletme_masraflari||[]).forEach(function(m){
+            rows += '<tr><td>'+esc(m.harcayan)+'</td><td>'+esc(m.aciklama||'-')+'</td><td>'+esc(m.yontem)+'</td><td></td>'+hc(gsFmt(m.tutar))+'</tr>';
+         });
+         rows += '<tr><td colspan="4"><b>İşletme Masrafları Toplamı</b></td>'+hc('<b>'+gsFmt(d.isletme_masraf_toplam)+'</b>')+'</tr>';
+         bos();
+         // Personel giderleri
+         sec('PERSONEL GİDERLERİ & ÖDEMELERİ');
+         rows += '<tr><th>Personel</th><th>Tür</th><th>Açıklama</th><th></th><th>Tutar</th></tr>';
+         (d.personel_giderleri||[]).forEach(function(m){
+            rows += '<tr><td>'+esc(m.harcayan)+'</td><td>'+esc(m.tip)+'</td><td>'+esc(m.aciklama||'-')+'</td><td></td>'+hc(gsFmt(m.tutar))+'</tr>';
+         });
+         rows += '<tr><td colspan="4"><b>Personel Giderleri Toplamı</b></td>'+hc('<b>'+gsFmt(d.personel_gider_toplam)+'</b>')+'</tr>';
+         bos();
+         // Saglama
+         sec('SAĞLAMA');
+         rows += '<tr><td>Satışlar</td>'+hc(gsFmt(d.gelir_toplam)+TL)+'</tr>';
+         rows += '<tr><td>− İşletme Masrafları</td>'+hc(gsFmt(d.isletme_masraf_toplam)+TL)+'</tr>';
+         rows += '<tr><td>− Personel Giderleri</td>'+hc(gsFmt(d.personel_gider_toplam)+TL)+'</tr>';
+         rows += '<tr><td><b>= NET (Kasa)</b></td>'+hc('<b>'+gsFmt(d.net_toplam)+TL+'</b>')+'</tr>';
+      } else {
+         // Personel ciro + en cok satanlar
+         sec('PERSONEL BAZLI CİRO');
+         rows += '<tr><th>Personel</th><th>İşlem</th><th>Ciro</th></tr>';
+         (d.personeller||[]).forEach(function(p){ rows += '<tr><td>'+esc(p.personel_adi)+'</td>'+hc(p.adet)+hc(gsFmt(p.ciro))+'</tr>'; });
+         bos();
+         sec('EN ÇOK SATAN HİZMET');
+         rows += '<tr><th>Ad</th><th>Adet</th><th>Ciro</th></tr>';
+         (d.top_hizmet||[]).forEach(function(r){ rows += '<tr><td>'+esc(r.hizmet_adi)+'</td>'+hc(r.adet)+hc(gsFmt(r.ciro))+'</tr>'; });
+         bos();
+         sec('EN ÇOK SATAN ÜRÜN');
+         rows += '<tr><th>Ad</th><th>Adet</th><th>Ciro</th></tr>';
+         (d.top_urun||[]).forEach(function(r){ rows += '<tr><td>'+esc(r.urun_adi)+'</td>'+hc(r.adet)+hc(gsFmt(r.ciro))+'</tr>'; });
+      }
+
+      var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'+
+         '<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>'+
+         '<x:Name>Gün Sonu</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet>'+
+         '</x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'+
+         '<style>td,th{border:1px solid #ddd;padding:4px 8px;font-family:Arial;font-size:12px;mso-number-format:"\\@"} th{background:#f5eefe;color:#5C008E;font-weight:bold}</style></head>'+
+         '<body><table>'+rows+'</table></body></html>';
+      var blob = new Blob(['﻿'+html], {type:'application/vnd.ms-excel;charset=utf-8'});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'gun-sonu-'+d.baslangic+(d.baslangic!==d.bitis?'_'+d.bitis:'')+(gsDetay?'-detay':'')+'.xls';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
    });
 })();
 </script>

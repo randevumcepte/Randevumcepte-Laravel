@@ -4433,10 +4433,14 @@ public function kasa_raporu_getir(Request $request,$returntext)
             $_giderRozet = ' <span style="background:#6366f1;color:#fff;border-radius:6px;padding:1px 7px;font-size:11px;white-space:nowrap">Personel Ödemesi</span>';
         else
             $_giderRozet = ' <span style="background:#dc2626;color:#fff;border-radius:6px;padding:1px 7px;font-size:11px;white-space:nowrap">İşletme Masrafı</span>';
+        // Aciklama bos ise kategori adini goster (isletme masraflarinda cogu zaman aciklama girilmez)
+        $_masrafAciklama = $masraf->aciklama;
+        if(trim((string)$_masrafAciklama) === '' && $masraf->masraf_kategorisi)
+            $_masrafAciklama = $masraf->masraf_kategorisi->kategori;
         $masraf_liste .= '<tr>
                         <td>'.date('d.m.Y',strtotime($masraf->tarih)).'</td>
                         <td>'.($masraf->harcayan_id ? $masraf->harcayan->personel_adi : 'Kasa').$_giderRozet.'</td>
-                        <td>'.$masraf->aciklama.'</td>
+                        <td>'.$_masrafAciklama.'</td>
                         <td>'.$masraf->odeme_yontemi->odeme_yontemi.'</td>
                         <td>'.number_format($masraf->tutar,2,',','.').'</td>
                         <td><button style="line-height:5px;padding:5px" title="Düzenle"   name="masraf_duzenle" type="button" data-toggle="modal" data-target="#yeni_masraf_modal" onclick="modalbaslikata(\'Masraf Düzenleme\',\'\')" data-value="'.$masraf->id.'"  class="btn btn-primary"><i class="fa fa-edit"></i>
@@ -4560,9 +4564,12 @@ public function gun_sonu_raporu(Request $request)
             case 4: $masraf['online']     += $mt; break;
             default: $masraf['diger']     += $mt; break;
         }
+        $_mAciklama = $m->aciklama;
+        if(trim((string)$_mAciklama) === '' && $m->masraf_kategorisi)
+            $_mAciklama = $m->masraf_kategorisi->kategori;
         $_row = [
             'harcayan' => $m->harcayan_id ? ($m->harcayan ? $m->harcayan->personel_adi : '') : 'Kasa',
-            'aciklama' => $m->aciklama,
+            'aciklama' => $_mAciklama,
             'yontem'   => $m->odeme_yontemi ? $m->odeme_yontemi->odeme_yontemi : '',
             'tutar'    => $mt,
         ];
