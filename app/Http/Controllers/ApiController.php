@@ -10094,6 +10094,169 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     }
 
+    /**
+     * GÜN SONU RAPORU (mobil) — web'deki gun_sonu_raporu ile ayni cikti.
+     * Odeme yontemine gore gelir/masraf/net + islem-musteri sayisi, ort sepet,
+     * personel ciro, en cok satan hizmet/urun, ve Tam Detay (saglama) kalemleri.
+     * POST /api/v1/gunsonuraporu/{salonid}  body: tarih1, tarih2 (Y-m-d)
+     */
+    public function gunSonuRaporu(Request $request, $salonid)
+    {
+        $t1 = ($request->tarih1 !== null && $request->tarih1 !== '') ? $request->tarih1 : date('Y-m-d');
+        $t2 = ($request->tarih2 !== null && $request->tarih2 !== '') ? $request->tarih2 : $t1;
+
+        // ---- faturasiz_gizle: aktifse gelirde sadece faturali kisim sayilir ----
+        $_faturasizGizle = (bool) Salonlar::where('id', $salonid)->value('faturasiz_gizle');
+        $_faturaliKisimMap = [];
+        $_faturaliTahsilatIds = [0];
+        if ($_faturasizGizle) {
+            $_faturaliAdisyonIds = Adisyonlar::where('salon_id', $salonid)->where('fatura_kesildi', 1)->pluck('id');
+            $_dHizmet = \DB::table('tahsilat_hizmetler')->whereIn('adisyon_hizmet_id', function($q) use($_faturaliAdisyonIds){
+                $q->select('id')->from('adisyon_hizmetler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
+            })->select('tahsilat_id','tutar')->get();
+            $_dUrun = \DB::table('tahsilat_urunler')->whereIn('adisyon_urun_id', function($q) use($_faturaliAdisyonIds){
+                $q->select('id')->from('adisyon_urunler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
+            })->select('tahsilat_id','tutar')->get();
+            $_dPaket = \DB::table('tahsilat_paketler')->whereIn('adisyon_paket_id', function($q) use($_faturaliAdisyonIds){
+                $q->select('id')->from('adisyon_paketler')->whereIn('adisyon_id', $_faturaliAdisyonIds);
+            })->select('tahsilat_id','tutar')->get();
+            foreach ([$_dHizmet, $_dUrun, $_dPaket] as $_set) {
+                foreach ($_set as $_r) {
+                    $_faturaliKisimMap[$_r->tahsilat_id] = ($_faturaliKisimMap[$_r->tahsilat_id] ?? 0) + (float) $_r->tutar;
+                }
+            }
+            $_faturaliTahsilatIds = array_keys($_faturaliKisimMap);
+            if (empty($_faturaliTahsilatIds)) $_faturaliTahsilatIds = [0];
+        }
+
+        // ---- GELIR: odeme yontemine gore + satis kalemleri ----
+        $tahsilatlar = Tahsilatlar::where('salon_id', $salonid)
+            ->whereDate('odeme_tarihi','>=',$t1)->whereDate('odeme_tarihi','<=',$t2)
+            ->when($_faturasizGizle, function($q) use($_faturaliTahsilatIds){ return $q->whereIn('id', $_faturaliTahsilatIds); })
+            ->with(['musteri','olusturan','odeme_yontemi'])
+            ->orderBy('odeme_tarihi','asc')->get();
+
+        $gelir = ['nakit'=>0,'kredikarti'=>0,'havale'=>0,'online'=>0,'diger'=>0];
+        $islem_say = 0; $gercek_gelir = 0; $musteriler = []; $satislar = [];
+        foreach ($tahsilatlar as $t) {
+            $tutar = $_faturasizGizle ? (float)($_faturaliKisimMap[$t->id] ?? 0) : (float)$t->tutar;
+            switch ((int)$t->odeme_yontemi_id) {
+                case 1: $gelir['nakit'] += $tutar; break;
+                case 2: $gelir['kredikarti'] += $tutar; break;
+                case 3: $gelir['havale'] += $tutar; break;
+                case 4: $gelir['online'] += $tutar; break;
+                default: $gelir['diger'] += $tutar; break;
+            }
+            if (!$t->para_girisi) {
+                $islem_say++; $gercek_gelir += $tutar;
+                if ($t->user_id) $musteriler[$t->user_id] = true;
+            }
+            $satislar[] = [
+                'saat'        => date('H:i', strtotime($t->odeme_tarihi)),
+                'musteri'     => $t->para_girisi ? 'Kasa Girişi' : ($t->musteri ? $t->musteri->name : '-'),
+                'tahsil_eden' => $t->olusturan ? $t->olusturan->personel_adi : '',
+                'yontem'      => $t->odeme_yontemi ? $t->odeme_yontemi->odeme_yontemi : '',
+                'para_girisi' => (bool)$t->para_girisi,
+                'tutar'       => $tutar,
+            ];
+        }
+        $gelir_toplam = array_sum($gelir);
+
+        // ---- MASRAF: odeme yontemine gore + isletme/personel ayrimi ----
+        $masraflar = Masraflar::where('salon_id', $salonid)
+            ->whereDate('tarih','>=',$t1)->whereDate('tarih','<=',$t2)
+            ->orderBy('tarih','asc')->orderBy('id','asc')->get();
+        $masraf = ['nakit'=>0,'kredikarti'=>0,'havale'=>0,'online'=>0,'diger'=>0];
+        $isletme_masraflari = []; $personel_giderleri = [];
+        $isletme_masraf_toplam = 0; $personel_gider_toplam = 0;
+        foreach ($masraflar as $m) {
+            $mt = (float)$m->tutar;
+            switch ((int)$m->odeme_yontemi_id) {
+                case 1: $masraf['nakit'] += $mt; break;
+                case 2: $masraf['kredikarti'] += $mt; break;
+                case 3: $masraf['havale'] += $mt; break;
+                case 4: $masraf['online'] += $mt; break;
+                default: $masraf['diger'] += $mt; break;
+            }
+            $_ac = $m->aciklama;
+            if (trim((string)$_ac) === '' && $m->masraf_kategorisi) $_ac = $m->masraf_kategorisi->kategori;
+            $_row = [
+                'harcayan' => $m->harcayan_id ? ($m->harcayan ? $m->harcayan->personel_adi : '') : 'Kasa',
+                'aciklama' => $_ac,
+                'yontem'   => $m->odeme_yontemi ? $m->odeme_yontemi->odeme_yontemi : '',
+                'tutar'    => $mt,
+            ];
+            if ($m->personel_gideri || $m->personel_maas_odemesi_id) {
+                $_row['tip'] = $m->personel_gideri ? 'Personel Gideri' : 'Personel Ödemesi';
+                $personel_giderleri[] = $_row; $personel_gider_toplam += $mt;
+            } else {
+                $isletme_masraflari[] = $_row; $isletme_masraf_toplam += $mt;
+            }
+        }
+        $masraf_toplam = array_sum($masraf);
+
+        $net = [];
+        foreach (['nakit','kredikarti','havale','online','diger'] as $k) { $net[$k] = $gelir[$k] - $masraf[$k]; }
+        $net_toplam = $gelir_toplam - $masraf_toplam;
+
+        $musteri_say = count($musteriler);
+        $ort_sepet = $islem_say > 0 ? ($gercek_gelir / $islem_say) : 0;
+
+        // ---- Personel ciro (tahsilat bazli) ----
+        $personelRows = \DB::table('tahsilat_hizmetler as th')
+            ->join('tahsilatlar as t','t.id','=','th.tahsilat_id')
+            ->join('adisyon_hizmetler as ah','ah.id','=','th.adisyon_hizmet_id')
+            ->join('salon_personelleri as p','p.id','=','ah.personel_id')
+            ->where('t.salon_id', $salonid)
+            ->whereDate('t.odeme_tarihi','>=',$t1)->whereDate('t.odeme_tarihi','<=',$t2)
+            ->whereNotNull('ah.personel_id')
+            ->select('p.personel_adi', \DB::raw('COUNT(DISTINCT th.id) as adet'), \DB::raw('SUM(th.tutar) as ciro'))
+            ->groupBy('p.id','p.personel_adi')->orderByDesc('ciro')->limit(15)->get();
+
+        // ---- En cok satan hizmet (ilk 5, tahsilat bazli) ----
+        $topHizmet = \DB::table('tahsilat_hizmetler as th')
+            ->join('tahsilatlar as t','t.id','=','th.tahsilat_id')
+            ->join('adisyon_hizmetler as ah','ah.id','=','th.adisyon_hizmet_id')
+            ->join('hizmetler as h','h.id','=','ah.hizmet_id')
+            ->where('t.salon_id', $salonid)
+            ->whereDate('t.odeme_tarihi','>=',$t1)->whereDate('t.odeme_tarihi','<=',$t2)
+            ->select('h.hizmet_adi', \DB::raw('COUNT(DISTINCT th.id) as adet'), \DB::raw('SUM(th.tutar) as ciro'))
+            ->groupBy('h.id','h.hizmet_adi')->orderByDesc('ciro')->limit(5)->get();
+
+        // ---- En cok satan urun (ilk 5, tahsilat bazli) ----
+        $topUrun = \DB::table('tahsilat_urunler as tu')
+            ->join('tahsilatlar as t','t.id','=','tu.tahsilat_id')
+            ->join('adisyon_urunler as au','au.id','=','tu.adisyon_urun_id')
+            ->leftJoin('urunler as u','u.id','=','au.urun_id')
+            ->where('t.salon_id', $salonid)
+            ->whereDate('t.odeme_tarihi','>=',$t1)->whereDate('t.odeme_tarihi','<=',$t2)
+            ->select(\DB::raw("COALESCE(u.urun_adi,'Silinmiş Ürün') as urun_adi"), \DB::raw('COUNT(DISTINCT tu.id) as adet'), \DB::raw('SUM(tu.tutar) as ciro'))
+            ->groupBy('u.id','u.urun_adi')->orderByDesc('ciro')->limit(5)->get();
+
+        return [
+            'durum'                 => 'ok',
+            'baslangic'             => $t1,
+            'bitis'                 => $t2,
+            'gelir'                 => $gelir,
+            'gelir_toplam'          => $gelir_toplam,
+            'masraf'                => $masraf,
+            'masraf_toplam'         => $masraf_toplam,
+            'net'                   => $net,
+            'net_toplam'            => $net_toplam,
+            'islem_say'             => $islem_say,
+            'musteri_say'           => $musteri_say,
+            'ort_sepet'             => $ort_sepet,
+            'personeller'           => $personelRows,
+            'top_hizmet'            => $topHizmet,
+            'top_urun'              => $topUrun,
+            'satislar'              => $satislar,
+            'isletme_masraflari'    => $isletme_masraflari,
+            'personel_giderleri'    => $personel_giderleri,
+            'isletme_masraf_toplam' => $isletme_masraf_toplam,
+            'personel_gider_toplam' => $personel_gider_toplam,
+        ];
+    }
+
     public function masrafekleduzenle(Request $request, $salonid)
 
     {

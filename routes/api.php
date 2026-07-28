@@ -151,6 +151,7 @@ Route::post('/dogrulamakontrol','ApiController@senetode');
 Route::post('/tahsilatraporu/{salonid}','ApiController@tahsilatraporu');
 Route::post('/masrafraporu/{salonid}','ApiController@masrafraporu');
 Route::post('/kasaraporu/{salonid}','ApiController@kasaraporu');
+Route::post('/gunsonuraporu/{salonid}','ApiController@gunSonuRaporu');
 Route::get('/paketget/{salonid}','ApiController@paketget');
 Route::post('/masrafekleduzenle/{salonid}','ApiController@masrafekleduzenle');
 Route::post('/masrafsil/{salonid}','ApiController@masrafsil');
