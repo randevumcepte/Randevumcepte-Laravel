@@ -284,7 +284,7 @@ class NotificationApiController extends Controller
                  . 'kayit gerekebilir.';
         } else {
             $not = 'Test basarili. Push cihaza ulasmadiysa: (a) sistem bildirim izni kapali, '
-                 . '(b) iOS ise arka planda restart gerekebilir, (c) foreground'"'"'da suppress edilmis olabilir.';
+                 . '(b) iOS ise arka planda restart gerekebilir, (c) foreground da suppress edilmis olabilir.';
         }
 
         return response()->json([
