@@ -285,6 +285,21 @@ class ApiController extends Controller
 
         }
 
+        // Beyaz etiket: musteri markanin app_bundle'ina ait TUM subelerine kaydolsun.
+        // Boylece her subede kendi portfoy satiri + isletmeye ozel sifresi olusur ve
+        // musteri tum subelerin randevu/sozlesme/form/gorsellerine erisebilir. Master/
+        // aggregator app (com.randevumcepte.randevumcepte) haric; o tek salonla calisir.
+        if ($request->filled('appBundle') && $request->appBundle != 'com.randevumcepte.randevumcepte') {
+            $bundleIds = Salonlar::where('app_bundle', $request->appBundle)
+                ->pluck('id')->map(function ($v) { return (string) $v; })->toArray();
+            if (!empty($bundleIds)) {
+                $salonidler = array_values(array_filter(array_unique(array_merge(
+                    array_map(function ($v) { return trim((string) $v); }, $salonidler),
+                    $bundleIds
+                )), function ($v) { return $v !== ''; }));
+            }
+        }
+
         // Telefon DB'de normalize formatta (5316237563), request'ten formatli gelebilir
         // (0531 623 75 63) — eslesme icin once duzenle, sonra ara
         $telefonNorm = self::telefon_no_format_duzenle($request->cep_telefon);
@@ -8764,6 +8779,16 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     {
 
+        // Beyaz etiket musteri paneli: markanin app_bundle'ina ait TUM subelerin
+        // sozlesme/form/belge kayitlari gelsin (musteri tum subelerini gorur).
+        // Yonetici/diger cagrilarda (musteriMi yok) davranis degismez: tek salon.
+        $salonScope = [$salonid];
+        if ($request->musteriMi && $request->filled('appBundle')
+            && $request->appBundle != 'com.randevumcepte.randevumcepte') {
+            $bundleIds = Salonlar::where('app_bundle', $request->appBundle)->pluck('id')->toArray();
+            if (!empty($bundleIds)) $salonScope = $bundleIds;
+        }
+
         $cevapladi = null;
 
         $cevapladi2 = null;
@@ -8850,7 +8875,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             })
 
-                ->where("salon_id", $salonid)
+                ->whereIn("salon_id", $salonScope)
 
                 ->when(!empty($request->musteri_id), function ($q) use (
 
@@ -8903,7 +8928,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             })
 
-                ->where("salon_id", $salonid)
+                ->whereIn("salon_id", $salonScope)
 
                 ->when(!empty($request->musteri_id), function ($q) use (
 
@@ -8943,7 +8968,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             })
 
-                ->where("salon_id", $salonid)
+                ->whereIn("salon_id", $salonScope)
 
                 ->when(!empty($request->musteri_id), function ($q) use (
 
@@ -8983,7 +9008,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             })
 
-                ->where("salon_id", $salonid)
+                ->whereIn("salon_id", $salonScope)
 
                 ->where(function ($q) use ($durum) {
 
