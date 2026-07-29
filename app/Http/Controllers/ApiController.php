@@ -261,6 +261,13 @@ class ApiController extends Controller
             'lisans_aktif' => $lisansliSube ? 1 : 0,
             'uyelik_bitis_tarihi' => $enGecBitis,
             'salon_adi' => optional($subeler->first())->salon_adi,
+            // Coklu subeli markada musteri panelinde tek sube adi yerine gosterilecek baslik.
+            // Migration henuz calismadiysa (tablo yok) guvenli sekilde null doner.
+            'bundle_baslik' => (Schema::hasTable('app_bundle_ayarlari')
+                ? \App\AppBundleAyarlari::where('app_bundle', $gelenBundle)->value('bundle_baslik')
+                : null),
+            'sube_sayisi' => $subeler->count(),
+            'online_aktif_sube_sayisi' => $subeler->where('musteri_online_randevu_aktif', 1)->count(),
             'debug' => array(
                 'gelen_bundle'     => $gelenBundle,
                 'sube_sayisi'      => $subeler->count(),
