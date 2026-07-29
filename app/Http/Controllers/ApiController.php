@@ -22604,25 +22604,53 @@ if (is_array($request->cihaz_id)) {
     }
 
     public function bildirimgetirmusteri(Request $request)
-
     {
+        // Musteri bildirim listesi. Onceden salt 'sube' (tek salon_id) ile
+        // filtreleniyordu -> ayni brand altinda birden fazla subenin musterisi
+        // olan kullanici sadece son secili subenin bildirimlerini goruyordu.
+        // Yeni: 'appBundle' verilirse brand'in TUM subeleri kapsanir, boylece
+        // tek "Bildirimler" ekraninda brand'in tum subelerinin bildirimleri
+        // gorulur. Master build (com.randevumcepte.randevumcepte) icin brand
+        // filtre atlanir; sube gonderilirse eski davranis surer (geriye uyum).
+        $q = Bildirimler::where('user_id', $request->user_id)
+            ->orderBy('tarih_saat', 'desc');
 
-        $bildirimler = Bildirimler::where("user_id", $request->user_id)
+        $appBundle = $request->input('appBundle');
+        if (!empty($appBundle) && $appBundle !== 'com.randevumcepte.randevumcepte') {
+            $salonIds = Salonlar::where('app_bundle', $appBundle)->pluck('id')->toArray();
+            if (!empty($salonIds)) {
+                $q->where(function ($w) use ($salonIds) {
+                    $w->whereIn('salon_id', $salonIds)->orWhereNull('salon_id');
+                });
+            }
+        } elseif (!empty($request->sube)) {
+            $q->where('salon_id', $request->sube);
+        }
 
-            ->where("salon_id", $request->sube)->orderBy('tarih_saat','desc')
-
-            ->get();
-
-        return $bildirimler;
-
+        return $q->get();
     }
 
     public function tumBildirimleriOkuMusteri(Request $request, $isletme_id, $user_id)
     {
-        $count = Bildirimler::where('user_id', $user_id)
-            ->where('salon_id', $isletme_id)
-            ->where('okundu', 0)
-            ->update(['okundu' => 1]);
+        // Tumu okundu isaretle. Onceden sadece $isletme_id (tek salon) satirlarini
+        // isaretliyordu; brand altindaki diger sube bildirimleri okunmamis kaliyordu.
+        // Route hala {isletme_id} aliyor -> geriye uyum icin appBundle yoksa eski
+        // davranis calisir; appBundle varsa brand'in tum subeleri kapsanir.
+        $q = Bildirimler::where('user_id', $user_id)->where('okundu', 0);
+
+        $appBundle = $request->input('appBundle');
+        if (!empty($appBundle) && $appBundle !== 'com.randevumcepte.randevumcepte') {
+            $salonIds = Salonlar::where('app_bundle', $appBundle)->pluck('id')->toArray();
+            if (!empty($salonIds)) {
+                $q->where(function ($w) use ($salonIds) {
+                    $w->whereIn('salon_id', $salonIds)->orWhereNull('salon_id');
+                });
+            }
+        } else {
+            $q->where('salon_id', $isletme_id);
+        }
+
+        $count = $q->update(['okundu' => 1]);
 
         Audit::logApi($isletme_id, $request, 'bildirim_tumunu_oku', 'bildirim', null, null, 'Musteri tum bildirimleri okundu isaretledi', ['guncellenen' => $count, 'user_id' => $user_id]);
 
