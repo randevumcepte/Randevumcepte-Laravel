@@ -175,6 +175,140 @@ class NotificationApiController extends Controller
     }
 
     /**
+     * POST /api/v1/bildirim/test-cihaz
+     *
+     * Teshis endpointi: bir kullaniciya + app_bundle esitiligine gore
+     * bildirim_kimlikleri kayitlarini listeler VE test push'u atar.
+     * "Bildirimler calismiyor" seklindeki sikayetlerde ilk basvurulacak uc.
+     *
+     * Body:
+     *  - user_id    : (int) hedef kullanici (musteri user_id ya da yetkili yetkili_id)
+     *  - app_bundle : (string) hangi brand build (ornek: com.randevumcepte.salooncadde)
+     *  - baslik     : (ops) push basligi (default: "Test Bildirimi")
+     *  - mesaj      : (ops) push body (default: "Bu bir test bildirimidir")
+     *
+     * Response ornegi:
+     *  {
+     *    "success": true,
+     *    "arama": { "user_id": 46120, "app_bundle": "com.randevumcepte.salooncadde", ... },
+     *    "cihaz_sayisi": 2,
+     *    "cihazlar": [ { id, kullanici_tipi, salon_id, app_bundle, platform, aktif,
+     *                    son_kullanim_tarihi, gonderim_hatalari, token_kisa,
+     *                    created_at, updated_at } ],
+     *    "salon_esleme": { "app_bundle": "...", "salon_id_listesi": [391,392] },
+     *    "push_sonuc": { "sent": 1, "failed": 1, "total": 2 },
+     *    "not": "cihaz yoksa Flutter cihaz-kaydet cagrilmamis demektir"
+     *  }
+     */
+    public function testCihaz(Request $request)
+    {
+        $request->validate([
+            'user_id'    => 'required|integer',
+            'app_bundle' => 'required|string',
+        ]);
+
+        $userId    = (int) $request->input('user_id');
+        $appBundle = trim((string) $request->input('app_bundle'));
+        $baslik    = (string) $request->input('baslik', 'Test Bildirimi');
+        $mesaj     = (string) $request->input('mesaj', 'Bu bir test bildirimidir');
+
+        // 1) app_bundle'a hangi salonlar bagli?
+        $salonIdListesi = \App\Salonlar::where('app_bundle', $appBundle)->pluck('id')->toArray();
+        $salonIdIcinPush = !empty($salonIdListesi) ? (int) $salonIdListesi[0] : null;
+
+        // 2) Cihaz kayitlarini cek — hem musteri (user_id) hem yetkili (isletme_yetkili_id)
+        //    Ayni kisi hem musteri hem personel olabilir; ayni user_id degeri iki farkli
+        //    role'de kayit olabilir. Ikisini de listeleyelim ki eksiksiz teshis olsun.
+        $q = BildirimKimlikleri::query()
+            ->where('app_bundle', $appBundle)
+            ->where(function ($w) use ($userId) {
+                $w->where('user_id', $userId)
+                  ->orWhere('isletme_yetkili_id', $userId);
+            })
+            ->orderBy('id', 'desc');
+
+        $cihazlar = $q->get()->map(function ($r) {
+            return [
+                'id'                => $r->id,
+                'kullanici_tipi'    => $r->kullanici_tipi,
+                'user_id'           => $r->user_id,
+                'isletme_yetkili_id'=> $r->isletme_yetkili_id,
+                'salon_id'          => $r->salon_id,
+                'app_bundle'        => $r->app_bundle,
+                'platform'          => $r->platform,
+                'aktif'             => (bool) $r->aktif,
+                'son_kullanim_tarihi' => $r->son_kullanim_tarihi,
+                'gonderim_hatalari' => $r->gonderim_hatalari,
+                'token_kisa'        => $r->bildirim_id ? substr($r->bildirim_id, 0, 24) . '...' : null,
+                'created_at'        => (string) $r->created_at,
+                'updated_at'        => (string) $r->updated_at,
+            ];
+        })->values();
+
+        // 3) Test push at (varsa)
+        $aktifTokenlar = $q->where('aktif', true)
+            ->whereNotNull('bildirim_id')
+            ->where('bildirim_id', '!=', '')
+            ->pluck('bildirim_id')->toArray();
+
+        $pushSonuc = null;
+        if (!empty($aktifTokenlar)) {
+            try {
+                $pushSonuc = NotificationService::forTokens($aktifTokenlar, $salonIdIcinPush)
+                    ->type(NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                    ->title($baslik)
+                    ->body($mesaj)
+                    ->send();
+            } catch (\Throwable $e) {
+                $pushSonuc = ['hata' => $e->getMessage()];
+            }
+        }
+
+        // 4) Teshis notu
+        $not = null;
+        if ($cihazlar->isEmpty()) {
+            $not = 'Bu user_id + app_bundle ile hicbir cihaz kaydi yok. '
+                 . 'Muhtemel sebep: mobil app henuz /api/v1/bildirim/cihaz-kaydet cagirmadi '
+                 . '(izin verilmedi, FCM token gelmedi, veya login sonrasi registerForUser tetiklenmedi).';
+        } elseif (empty($aktifTokenlar)) {
+            $not = 'Cihaz kaydi var ama hicbiri aktif degil (5+ hata sonrasi pasiflesmis olabilir) '
+                 . 'veya bildirim_id bos. Token yenilenmesi icin uygulamada yeniden login gerekebilir.';
+        } elseif (empty($salonIdListesi)) {
+            $not = 'app_bundle salonlar tablosunda hicbir salon ile eslesmiyor. '
+                 . 'Salon.app_bundle kolonu bos veya farkli yazilmis olabilir. '
+                 . 'Brand izolasyon filtresi bu durumda uygulanmaz, push cikar; ama salon_id bagi kurulamaz.';
+        } elseif ($pushSonuc && isset($pushSonuc['sent']) && (int) $pushSonuc['sent'] === 0) {
+            $not = 'Cihaz bulundu, push atildi ama hicbiri basarili degil. FCM token gecersiz olabilir '
+                 . '(uygulama silinip yeniden yuklendi mi?). BildirimController::bildirimGonder ve '
+                 . 'NotificationService::send invalid-token temizligi calisir; sonraki denemede yeniden '
+                 . 'kayit gerekebilir.';
+        } else {
+            $not = 'Test basarili. Push cihaza ulasmadiysa: (a) sistem bildirim izni kapali, '
+                 . '(b) iOS ise arka planda restart gerekebilir, (c) foreground'"'"'da suppress edilmis olabilir.';
+        }
+
+        return response()->json([
+            'success'      => true,
+            'arama'        => [
+                'user_id'    => $userId,
+                'app_bundle' => $appBundle,
+                'baslik'     => $baslik,
+                'mesaj'      => $mesaj,
+            ],
+            'salon_esleme' => [
+                'app_bundle'      => $appBundle,
+                'salon_id_listesi'=> $salonIdListesi,
+                'push_icin_kullanilan_salon_id' => $salonIdIcinPush,
+            ],
+            'cihaz_sayisi' => $cihazlar->count(),
+            'cihazlar'     => $cihazlar,
+            'aktif_token_sayisi' => count($aktifTokenlar),
+            'push_sonuc'   => $pushSonuc,
+            'not'          => $not,
+        ]);
+    }
+
+    /**
      * GET /api/v1/bildirim/liste
      * Query: kullanici_tipi, user_id|personel_id|yetkili_id, salon_id (ops), appBundle (ops)
      *

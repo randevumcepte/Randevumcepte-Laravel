@@ -252,6 +252,7 @@ Route::post('/bildirimkimligiekleguncelle','ApiController@bildirimkimligieklegun
 Route::post('/bildirim/cihaz-kaydet',     'NotificationApiController@cihazKaydet');
 Route::post('/bildirim/cihaz-sil',        'NotificationApiController@cihazSil');
 Route::post('/bildirim/test',             'NotificationApiController@test');
+Route::post('/bildirim/test-cihaz',        'NotificationApiController@testCihaz');
 Route::get ('/bildirim/liste',            'NotificationApiController@liste');
 Route::post('/bildirim/okundu',           'NotificationApiController@okundu');
 Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSayi');
