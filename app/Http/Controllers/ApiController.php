@@ -6591,7 +6591,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         'users',
         'olusturan_personel',
         'olusturan_musteri',
-        'hizmetler.hizmetler'
+        'hizmetler.hizmetler',
+        // Bundle/paket birden fazla subede olabilir; musteri panelinde randevunun
+        // hangi salondan alindigini gostermek icin salon adini da yukle (hafif secim).
+        'salonlar' => function($q) { $q->select('id', 'salon_adi'); }
     ])
     // Saat kapama kayitlari (user_id=2012) randevu listelerinden haric tutulur
     ->where('user_id', '!=', 2012)
