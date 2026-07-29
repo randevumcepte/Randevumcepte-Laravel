@@ -186,6 +186,9 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
 .ag-kaydet{ width:100%; margin-top:14px; background:linear-gradient(120deg,#6d28d9,#7c3aed); color:#fff; border:none; border-radius:12px; padding:13px; font-weight:800; font-size:14.5px; cursor:pointer; transition:opacity .12s ease, transform .12s ease; box-shadow:0 8px 20px -10px rgba(109,40,217,.6); }
 .ag-kaydet:hover{ opacity:.95; transform:translateY(-1px); }
 .ag-kaydet:disabled{ opacity:.55; cursor:not-allowed; }
+.ag-anket-btn{ width:100%; margin-top:9px; background:linear-gradient(120deg,#16a34a,#25D366); color:#fff; border:none; border-radius:12px; padding:12px; font-weight:800; font-size:13.5px; cursor:pointer; transition:opacity .12s ease, transform .12s ease; box-shadow:0 8px 20px -10px rgba(22,163,74,.6); display:flex; align-items:center; justify-content:center; gap:7px; }
+.ag-anket-btn:hover{ opacity:.95; transform:translateY(-1px); }
+.ag-anket-btn:disabled{ opacity:.55; cursor:not-allowed; }
 
 /* Çağrı geçmişi */
 .ag-gecmis-item{ border:1px solid #efeaf6; border-left:4px solid #cfc7df; border-radius:12px; padding:11px 13px; margin-bottom:10px; background:#fff; }
@@ -247,6 +250,9 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
 <a id="aktif_arama_liste_link" name="arama_liste_detaylari" data-value="" href="#" style="display:none;"></a>
 
 <input type="hidden" name="sube" value="{{ $isletme->id }}">
+
+{{-- Memnuniyet anketi gönderim yetkisi (görüşme sonucu penceresindeki buton bu bayrağa bakar) --}}
+<script>window.agAnketYetki = @yetki('pazarlama.anket_yonet') true @else false @endyetki;</script>
 
 {{-- Telefonda Satış: sade Hızlı Satış popup (gerçek satış kaydı oluşturur -> kasa/satış takibi) --}}
 <div id="ag_satis_modal" class="modal fade" role="dialog">
@@ -589,6 +595,8 @@ function agDetayCiz(m){
             '<input type="time" id="ag_sonra_saat">'+
          '</div>'+
          '<button class="ag-kaydet" id="ag_kaydet"><i class="fa fa-save"></i> Sonucu Kaydet</button>'+
+         // Memnuniyet anketi — arama şartına bağlı değil; yetkiliyse görünür (kilitli grileşmeden bağımsız)
+         (window.agAnketYetki ? '<button type="button" class="ag-anket-btn" id="ag_anket_gonder"><i class="fa fa-star"></i> Memnuniyet Anketi Gönder</button>' : '')+
       '</div>'+
 
       // Çağrı geçmişi (ses kayıtları)
@@ -680,6 +688,56 @@ function agOnGorusmeAc(){
       }
    ).fail(function(){ swal({ type:'error', title:'Hata', text:'Ön görüşme ekranı açılamadı.' }); });
 }
+
+// ---- Memnuniyet anketi gönder (görüşme sonucu penceresinden) ----
+$(document).on('click', '#ag_anket_gonder', function(){
+   if (!agSecili) return;
+   var $btn = $(this);
+   swal({
+      title: 'Memnuniyet anketi gönderilsin mi?',
+      text: 'Müşteriye anket linki WhatsApp veya SMS ile gönderilecek.',
+      type: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Evet, gönder',
+      cancelButtonText: 'Vazgeç',
+      confirmButtonColor: '#25D366',
+   }).then(function(r){
+      if (!r || !r.value) return;
+      $btn.prop('disabled', true);
+      // aranacak_musteri_id -> gerçek müşteri user_id çöz (satış/ön görüşme ile aynı uç)
+      $.post('/isletmeyonetim/cagri-musteri-ongorusme-bilgi',
+         { aranacak_musteri_id: agSecili.aranacak_musteri_id, _token: $('input[name="_token"]').val() },
+         function(res){
+            if (!(res && res.success && res.user_id)){
+               $btn.prop('disabled', false);
+               swal({ type:'warning', title:'Gönderilemedi', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
+               return;
+            }
+            $.ajax({
+               url: '/isletmeyonetim/anket-hizli-gonder',
+               method: 'POST',
+               timeout: 20000,
+               data: { user_id: res.user_id, sube: $('input[name="sube"]').val() || '' },
+               dataType: 'json',
+               headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            }).done(function(a){
+               if (a && a.basarili){
+                  var kanal = a.kanal === 'whatsapp' ? 'WhatsApp' : 'SMS';
+                  swal('Gönderildi', 'Anket ' + kanal + ' ile iletildi.', 'success');
+               } else {
+                  swal('Gönderilemedi', (a && a.mesaj) || 'Bilinmeyen hata.', 'error');
+               }
+            }).fail(function(xhr, status){
+               var msg = 'İstek başarısız.';
+               if (xhr && xhr.responseText){ try { var j = JSON.parse(xhr.responseText); if (j && j.mesaj) msg = j.mesaj; } catch(e){} }
+               if (xhr && xhr.status) msg += ' (HTTP ' + xhr.status + ')';
+               if (status === 'timeout') msg = 'Sunucu 20 saniye içinde cevap vermedi.';
+               swal('Hata', msg, 'error');
+            }).always(function(){ $btn.prop('disabled', false); });
+         }
+      ).fail(function(){ $btn.prop('disabled', false); swal({ type:'error', title:'Hata', text:'İstek başarısız.' }); });
+   });
+});
 
 // Telefonda Satış: sade satış popup'ını müşteri + tutar prefill'li açar
 $(document).on('click', '#ag_satis_kasa', function(){
