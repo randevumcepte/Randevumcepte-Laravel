@@ -233,7 +233,7 @@ class CarkifelekApiController extends Controller
             ],
             'odulKodu'   => $sonuc['odul']->kod ?? null,
             'kalanHak'   => max(0, count($kullanilabilir) - 1),
-        ]);
+        ] + $this->gecerliSubePayload($sonuc['odul'] ?? null, $salonId));
     }
 
     /**
@@ -259,18 +259,22 @@ class CarkifelekApiController extends Controller
             ->get()
             ->map(function ($o) {
                 $salon = Salonlar::find($o->salon_id);
+                $gs = $this->gecerliSubeGosterim($o, $o->salon_id);
                 return [
-                    'id'                => $o->id,
-                    'salon_id'          => $o->salon_id,
-                    'salon_adi'         => $salon ? $salon->salon_adi : 'Salon',
-                    'kod'               => $o->kod,
-                    'tip'               => $o->tip,
-                    'deger'             => $o->deger !== null ? (float) $o->deger : null,
-                    'baslik'            => $o->baslik,
-                    'kullanildi'        => (int) $o->kullanildi,
-                    'kullanim_tarihi'   => $o->kullanim_tarihi ? $o->kullanim_tarihi->format('Y-m-d H:i:s') : null,
-                    'gecerlilik_tarihi' => $o->gecerlilik_tarihi ? $o->gecerlilik_tarihi->format('Y-m-d') : null,
-                    'created_at'        => $o->created_at ? $o->created_at->format('Y-m-d H:i:s') : null,
+                    'id'                   => $o->id,
+                    'salon_id'             => $o->salon_id,
+                    'salon_adi'            => $salon ? $salon->salon_adi : 'Salon',
+                    'kod'                  => $o->kod,
+                    'tip'                  => $o->tip,
+                    'deger'                => $o->deger !== null ? (float) $o->deger : null,
+                    'baslik'               => $o->baslik,
+                    'kullanildi'           => (int) $o->kullanildi,
+                    'kullanim_tarihi'      => $o->kullanim_tarihi ? $o->kullanim_tarihi->format('Y-m-d H:i:s') : null,
+                    'gecerlilik_tarihi'    => $o->gecerlilik_tarihi ? $o->gecerlilik_tarihi->format('Y-m-d') : null,
+                    'created_at'           => $o->created_at ? $o->created_at->format('Y-m-d H:i:s') : null,
+                    'gecerli_coklu'        => $gs['coklu'],
+                    'gecerli_tumu'         => $gs['tumu'],
+                    'gecerli_salon_adlari' => $gs['adlar'],
                 ];
             });
 
@@ -438,10 +442,47 @@ class CarkifelekApiController extends Controller
             'kod'       => $kupon->kod,
             'baslik'    => $kupon->baslik,
             'kalanPuan' => (int) ($puanKaydi->puan),
-        ]);
+        ] + $this->gecerliSubePayload($kupon, $salonId));
     }
 
     /* ───────── yardımcılar ───────── */
+
+    /**
+     * Bir kuponun geçerli olduğu şubeleri müşteriye gösterim için çözer.
+     * Dönüş: ['coklu'=>bool, 'tumu'=>bool, 'adlar'=>string[]].
+     *  - coklu=false: marka tek şubeli → Flutter hiç göstermez.
+     *  - tumu=true: grup markanın TÜM şubelerini kapsıyor → "Tüm şubelerde geçerli".
+     *  - aksi halde adlar: kuponun geçerli olduğu şube adları.
+     */
+    private function gecerliSubeGosterim($odul, $salonId)
+    {
+        $ids = array_map('intval', $odul->gecerliSubeler());
+        $bundle = Salonlar::where('id', $salonId)->value('app_bundle');
+        $bundleIds = $bundle
+            ? Salonlar::where('app_bundle', $bundle)->pluck('id')->map(function ($v) { return (int) $v; })->toArray()
+            : [];
+        if (count($bundleIds) <= 1) {
+            return ['coklu' => false, 'tumu' => false, 'adlar' => []];
+        }
+        $tumu = count(array_diff($bundleIds, $ids)) === 0;
+        $adlar = Salonlar::whereIn('id', $ids)->orderBy('salon_adi')
+            ->pluck('salon_adi')->map(function ($v) { return (string) $v; })->values()->toArray();
+        return ['coklu' => true, 'tumu' => $tumu, 'adlar' => $adlar];
+    }
+
+    /** Response'a eklenecek gecerli-sube alanlari (kupon yoksa = puan kazanimi: bos). */
+    private function gecerliSubePayload($odul, $salonId)
+    {
+        if (!$odul) {
+            return ['gecerli_coklu' => false, 'gecerli_tumu' => false, 'gecerli_salon_adlari' => []];
+        }
+        $gs = $this->gecerliSubeGosterim($odul, $salonId);
+        return [
+            'gecerli_coklu'        => $gs['coklu'],
+            'gecerli_tumu'         => $gs['tumu'],
+            'gecerli_salon_adlari' => $gs['adlar'],
+        ];
+    }
 
     private function olasilikIleSec($dilimler)
     {
