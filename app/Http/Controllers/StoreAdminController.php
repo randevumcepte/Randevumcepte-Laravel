@@ -318,6 +318,27 @@ class StoreAdminController extends Controller
             'yetkiliolunanisletmeler'=>$isletmeler]);
     }
 
+    /**
+     * Giriş yapan yetkilinin uygulama yapabileceği (yetkili olduğu) AKTİF şube id'leri.
+     * Çoklu şube "şube seçimi"nde owner grubu yerine bu küme kullanılır: kullanıcı
+     * yalnızca yetkisi olan şubelere çark/ödül/reklam uygulayabilir. Boşsa çağıran
+     * taraf kardeş-şube grubuna düşer (güvenli varsayılan).
+     */
+    private function yetkiliSubeIdler()
+    {
+        try {
+            $u = Auth::guard('isletmeyonetim')->user();
+            if ($u) {
+                return $u->yetkili_olunan_isletmeler->where('aktif', 1)
+                    ->pluck('salon_id')
+                    ->map(function ($v) { return (int) $v; })
+                    ->filter(function ($v) { return $v > 0; })
+                    ->unique()->values()->toArray();
+            }
+        } catch (\Exception $e) {}
+        return [];
+    }
+
     // Çarkıfelek dilim ekleme/güncelleme fonksiyonu
 public function carkdilimekle(Request $request)
 {
@@ -451,9 +472,10 @@ public function carkdilimekle(Request $request)
         // şubelere yazılır (owner'ın kardeş şube grubuyla sınırlı — güvenlik).
         // Gönderilmezse eski davranış: yalnız bu şube. Seçilen grup her satırın
         // gecerli_salonlar'ına yazılır; kazanılan kupon bu grubu miras alır.
-        $kardesler = \App\Personeller::kardesSalonIdler($salon_id);
+        // Yetki: yalnızca giriş yapanın yetkili olduğu şubelere uygulanır (yoksa owner grubu).
+        $yetkili = $this->yetkiliSubeIdler() ?: \App\Personeller::kardesSalonIdler($salon_id);
         $secili = \App\Personeller::salonIdListesiCoz($request->input('salon_ids'));
-        $hedefSubeler = !empty($secili) ? array_values(array_intersect($secili, $kardesler)) : [(int) $salon_id];
+        $hedefSubeler = !empty($secili) ? array_values(array_intersect($secili, $yetkili)) : [(int) $salon_id];
         if (empty($hedefSubeler)) $hedefSubeler = [(int) $salon_id];
         $gecerliJson = json_encode($hedefSubeler);
         $anaHedef = in_array((int) $salon_id, $hedefSubeler, true) ? (int) $salon_id : (int) $hedefSubeler[0];
@@ -923,16 +945,16 @@ public function carkverilerigetir(Request $request)
             return response()->json(['success' => false, 'message' => 'Başlık ve puan eşiği zorunlu.']);
         }
 
-        // Çoklu şube "şube seçimi": salon_ids ile seçilen şubelere (owner kardeş grubu
-        // sınırlı) uygulanır; grup gecerli_salonlar'a yazılır, kupon miras alır.
+        // Çoklu şube "şube seçimi": yalnızca giriş yapanın yetkili olduğu şubelere
+        // uygulanır (yoksa owner grubu); grup gecerli_salonlar'a yazılır, kupon miras alır.
         $hasGecerli = \Schema::hasColumn('salon_puan_odulleri', 'gecerli_salonlar');
-        $kardesler  = \App\Personeller::kardesSalonIdler($salon_id);
+        $yetkili    = $this->yetkiliSubeIdler() ?: \App\Personeller::kardesSalonIdler($salon_id);
         $secili     = \App\Personeller::salonIdListesiCoz($request->input('salon_ids'));
-        $hedefSubeler = !empty($secili) ? array_values(array_intersect($secili, $kardesler)) : [(int) $salon_id];
+        $hedefSubeler = !empty($secili) ? array_values(array_intersect($secili, $yetkili)) : [(int) $salon_id];
         if (empty($hedefSubeler)) $hedefSubeler = [(int) $salon_id];
 
         if ($id > 0) {
-            $m = SalonPuanOdulleri::where('id', $id)->whereIn('salon_id', $kardesler)->first();
+            $m = SalonPuanOdulleri::where('id', $id)->whereIn('salon_id', $yetkili)->first();
             if (!$m) return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı.']);
             // gecerli_salonlar YALNIZCA açık seçim varsa güncellenir (mevcut grup korunur).
             if ($hasGecerli && !empty($secili)) $data['gecerli_salonlar'] = json_encode($hedefSubeler);
@@ -21078,8 +21100,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $secili = \App\Personeller::salonIdListesiCoz($request->input('salon_ids'));
             $yeniMi = empty($request->id);
             if (!empty($secili) || $yeniMi) {
-                $kardesler = \App\Personeller::kardesSalonIdler($salonId);
-                $hedef = !empty($secili) ? array_values(array_intersect($secili, $kardesler)) : [(int) $salonId];
+                // Yetki: yalnızca giriş yapanın yetkili olduğu şubeler (yoksa owner grubu).
+                $yetkili = $this->yetkiliSubeIdler() ?: \App\Personeller::kardesSalonIdler($salonId);
+                $hedef = !empty($secili) ? array_values(array_intersect($secili, $yetkili)) : [(int) $salonId];
                 if (empty($hedef)) $hedef = [(int) $salonId];
                 $reklam->gecerli_salonlar = json_encode($hedef);
             }
