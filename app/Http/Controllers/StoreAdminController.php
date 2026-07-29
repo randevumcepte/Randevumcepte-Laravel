@@ -30080,6 +30080,113 @@ DB::raw('
     }
 
     /**
+     * Cagri Merkezi — musteriye manuel WhatsApp mesaji.
+     * Web'deki musterimanuelwhatsappgonder ile AYNI davranis; tek fark: musteri
+     * aranacak_musteri_id ile cozulur, boylece personel ham numarayi GORMEDEN
+     * (KVKK) backend mesaji gonderir. sendReminder -> WhatsAppRouterService (salon
+     * basina Baileys/whatsmeow). gonderim tipi 'manuel_musteri'.
+     */
+    public function cagri_whatsapp_gonder(Request $request)
+    {
+        $kayit = AranacakMusteriler::where('id', $request->aranacak_musteri_id)->first();
+        if (!$kayit) {
+            return response()->json(['ok' => false, 'mesaj' => 'Kayıt bulunamadı.'], 404);
+        }
+
+        $liste = AramaListesi::where('id', $kayit->arama_id)->first();
+        $salonId = $liste ? $liste->salon_id : self::mevcutsube($request);
+        $isletme = Salonlar::where('id', $salonId)->first();
+        if (!$isletme) {
+            return response()->json(['ok' => false, 'mesaj' => 'Salon bulunamadı.'], 404);
+        }
+
+        $mesaj = trim((string) $request->input('mesaj', ''));
+        if ($mesaj === '') {
+            return response()->json(['ok' => false, 'mesaj' => 'Mesaj boş olamaz.'], 422);
+        }
+        if (mb_strlen($mesaj) > 1000) {
+            return response()->json(['ok' => false, 'mesaj' => 'Mesaj en fazla 1000 karakter olabilir.'], 422);
+        }
+
+        $musteri = User::where('id', $kayit->user_id)->first();
+        if (!$musteri || !$musteri->cep_telefon) {
+            return response()->json(['ok' => false, 'mesaj' => 'Müşteri telefon numarası bulunamadı.'], 422);
+        }
+
+        // Baileys ise bagli olmali (net hata mesaji icin on-kontrol)
+        $saglayici = $isletme->whatsapp_saglayici ?? 'baileys';
+        if ($saglayici === 'baileys' && (!$isletme->whatsapp_aktif || $isletme->whatsapp_durum !== 'connected')) {
+            return response()->json(['ok' => false, 'mesaj' => 'WhatsApp bağlı değil. Önce WhatsApp ayarlarından QR okutun.'], 409);
+        }
+
+        $wa = app(\App\Services\WhatsAppService::class);
+        $sonuc = $wa->sendReminder($isletme, $musteri->cep_telefon, $mesaj, null, $musteri->id, null, false, 'manuel_musteri');
+
+        if (!empty($sonuc['ok'])) {
+            return response()->json(['ok' => true, 'mesaj' => 'Mesaj gönderim kuyruğuna alındı. Birazdan müşteriye ulaşacak.']);
+        }
+
+        $hataKodu = $sonuc['error'] ?? 'unknown';
+        $hataMetin = [
+            'invalid-phone'          => 'Müşteri telefon numarası geçersiz.',
+            'daily-cap-reached'      => 'Günlük WhatsApp mesaj limitiniz doldu.',
+            'outside-business-hours' => 'Şu an çalışma saatleri dışında, mesaj gönderilemedi.',
+            'service-unreachable'    => 'WhatsApp servisine ulaşılamadı, lütfen tekrar deneyin.',
+        ][$hataKodu] ?? 'Mesaj gönderilemedi. Lütfen tekrar deneyin.';
+
+        return response()->json(['ok' => false, 'mesaj' => $hataMetin], 422);
+    }
+
+    /**
+     * Cagri Merkezi — musteriye memnuniyet anketi (tek tik).
+     * Web'deki anketHizliGonder ile AYNI; tek fark: musteri aranacak_musteri_id ile
+     * cozulur. Sablon secimi YOK — salonun aktif/varsayilan sablonu kullanilir (yoksa
+     * otomatik olusturulur). Link WhatsApp-first + SMS fallback ile gonderilir.
+     */
+    public function cagri_anket_gonder(Request $request)
+    {
+        try {
+            $kayit = AranacakMusteriler::where('id', $request->aranacak_musteri_id)->first();
+            if (!$kayit) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Kayıt bulunamadı.']);
+            }
+
+            $liste = AramaListesi::where('id', $kayit->arama_id)->first();
+            $sube = $liste ? $liste->salon_id : self::mevcutsube($request);
+
+            $musteri = User::where('id', $kayit->user_id)->first();
+            if (!$musteri) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Müşteri bulunamadı.']);
+            }
+            if (empty($musteri->cep_telefon)) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Müşterinin telefon numarası kayıtlı değil.']);
+            }
+
+            $sablon = self::varsayilanAnketSablonuGetirYaOlustur($sube);
+            $gonderim = self::anketGonderimOlustur($sube, $sablon, $musteri, $musteri->cep_telefon, [
+                'kanal'       => 'manuel',
+                'personel_id' => $this->aktifPersonelId($sube),
+            ]);
+            self::anketSmsGonder($request, $gonderim, $sablon, $musteri);
+
+            SalonAudit::log($sube, 'anket_hizli_gonder', 'anket_gonderim', $gonderim->id,
+                ($musteri->name ?: 'Müşteri') . ' — ' . $musteri->cep_telefon,
+                'Çağrı merkezinden hızlı anket gönderimi',
+                ['sablon_id' => $sablon->id, 'sablon_adi' => $sablon->ad, 'user_id' => $musteri->id]);
+
+            return response()->json([
+                'basarili'    => true,
+                'mesaj'       => 'Anket gönderildi.',
+                'gonderim_id' => $gonderim->id,
+                'kanal'       => $gonderim->gonderim_kanali ?: 'sms',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('cagri_anket_gonder hata: ' . $e->getMessage());
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
+        }
+    }
+
+    /**
      * KVKK uyumlu arama baslatma: personel ham numarayi GORMEZ; sadece bu uc-nokta
      * aranacak_musteri_id ile gercek numarayi doner, JS dogrudan arar (ekrana yazmadan).
      */

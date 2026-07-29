@@ -540,6 +540,8 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::get ('/yaklasan-randevular',      'CagriMerkeziApiController@cagri_yaklasan_randevular');
         Route::post('/ongorusme-bilgi',          'CagriMerkeziApiController@cagri_musteri_ongorusme_bilgi');
         Route::post('/hizli-satis',              'CagriMerkeziApiController@cagri_hizli_satis');
+        Route::post('/whatsapp-gonder',          'CagriMerkeziApiController@cagri_whatsapp_gonder');
+        Route::post('/anket-gonder',             'CagriMerkeziApiController@cagri_anket_gonder');
 
         // Cagri merkezi dashboard — yonetici
         Route::get ('/dashboard-verileri',       'CagriMerkeziApiController@arama_dashboard_verileri');
