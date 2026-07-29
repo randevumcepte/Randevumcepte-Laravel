@@ -28315,18 +28315,20 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             'aktif'      => (int) $request->input('aktif', 1),
             'sira'       => (int) $request->input('sira', 0),
         ];
-        if ($hasGecerli) $data['gecerli_salonlar'] = $gecerliJson;
 
         if ($id > 0) {
             // Mevcut tek ödül satırını (bulunduğu şube) güncelle — owner'ın kardeş grubuyla sınırlı.
             $m = SalonPuanOdulleri::where('id', $id)->whereIn('salon_id', $kardesler)->first();
             if (!$m) return response()->json(['basarili' => false, 'mesaj' => 'Kayit bulunamadi'], 404);
+            // gecerli_salonlar YALNIZCA acik secim varsa guncellenir (aksi halde mevcut grup korunur).
+            if ($hasGecerli && !empty($secili)) $data['gecerli_salonlar'] = $gecerliJson;
             $m->update($data);
             Audit::logApi($salonId, $request, 'cark_puan_odul_kaydet', 'cark_puan_odul', $m->id, $baslik, 'Cark puan odulu guncellendi');
             return response()->json(['basarili' => true, 'id' => $m->id]);
         }
 
-        // Yeni ödül: seçilen her şubeye aynı basamağı oluştur.
+        // Yeni ödül: seçilen her şubeye aynı basamağı oluştur (grup gecerli_salonlar'a yazılır).
+        if ($hasGecerli) $data['gecerli_salonlar'] = $gecerliJson;
         $anaId = null;
         foreach ($hedefSubeler as $hedefSalon) {
             $yeni = SalonPuanOdulleri::create(array_merge($data, ['salon_id' => (int) $hedefSalon]));

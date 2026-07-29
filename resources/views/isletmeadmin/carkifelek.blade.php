@@ -652,6 +652,8 @@
                 </div>
             </div>
 
+            @include('isletmeadmin.partials.sube_secici')
+
             <div class="mgmt-foot">
                 <div class="winner-info" id="winner-info">
                     <span class="winner-icon">🏆</span>
@@ -1522,7 +1524,9 @@
                     aktifmi: isActive ? 1 : 0,
                     kurallar: kurallar,
                     kupon_cark_gecerlilik_gun: _carkGunVal,
-                    kupon_puan_gecerlilik_gun: _puanGunVal
+                    kupon_puan_gecerlilik_gun: _puanGunVal,
+                    // Çoklu şube: seçili şubeler (boş → yalnız bu şube)
+                    salon_ids: (window.ssSeciliIdler ? window.ssSeciliIdler() : [])
                 })
             });
             const data = await res.json();

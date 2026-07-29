@@ -181,6 +181,7 @@
                     Aktif (müşteriler görebilsin)
                 </label>
             </div>
+            @include('isletmeadmin.partials.sube_secici')
             <div class="pm-act">
                 <button type="button" class="pm-btn pm-vaz" onclick="modalKapat()">Vazgeç</button>
                 <button type="submit" class="pm-btn pm-kaydet" id="pm-btn-kaydet">💾 Kaydet</button>
@@ -241,6 +242,7 @@ function modalAc() {
     document.getElementById('pm-deger').value    = '';
     document.getElementById('pm-aktif').checked  = true;
     tipDegisti();
+    var _ss = document.querySelector('.sube-secici'); if (_ss) _ss.style.display = '';
     document.getElementById('pm-modal').classList.add('show');
 }
 
@@ -255,6 +257,7 @@ function duzenle(o) {
     document.getElementById('pm-deger').value    = o.deger != null ? o.deger : '';
     document.getElementById('pm-aktif').checked  = !!parseInt(o.aktif);
     tipDegisti();
+    var _ss = document.querySelector('.sube-secici'); if (_ss) _ss.style.display = 'none';
     document.getElementById('pm-modal').classList.add('show');
 }
 
@@ -276,6 +279,8 @@ async function kaydet() {
         deger:      document.getElementById('pm-deger').value !== '' ? parseFloat(document.getElementById('pm-deger').value) : null,
         aktif:      document.getElementById('pm-aktif').checked ? 1 : 0,
     };
+    // Çoklu şube: yeni ödül seçili şubelere eklenir (düzenlemede grup korunur).
+    if (!veri.id && window.ssSeciliIdler) veri.salon_ids = window.ssSeciliIdler();
 
     try {
         const resp = await fetch(KAYDET_URL, {

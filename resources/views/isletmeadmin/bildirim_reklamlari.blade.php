@@ -303,6 +303,8 @@
                   <option value="aktif">Aktif (yayında)</option>
                   <option value="pasif">Pasif</option>
                </select>
+
+               @include('isletmeadmin.partials.sube_secici')
             </form>
          </div>
          <div class="br-mfoot">
@@ -452,6 +454,8 @@
       $('#br_kisi_ara').val(''); $('#br_seg_kisi').val(''); $('#br_kisi_liste').hide();
       $('#br_hedef').val('tumu');
       $('#brModalBaslik').text('Yeni Bildirim Reklamı');
+      // Çoklu şube: yeni reklamda seçici aktif (checkbox'lar serialize edilir)
+      $('.sube-secici').show().find('.ss-sube,.ss-tumu').prop('disabled', false);
       aksiyonGoster(); segmentGoster(); segAlanGoster();
       $('#brModal').modal('show');
    });
@@ -461,6 +465,8 @@
       var r = $(this).closest('.br-card-col').data('reklam');
       $('#brForm')[0].reset();
       $('#br_id').val(r.id);
+      // Çoklu şube: düzenlemede seçici gizli ve pasif (grup korunur, salon_ids gönderilmez)
+      $('.sube-secici').hide().find('.ss-sube,.ss-tumu').prop('disabled', true);
       $('#br_tur').val(r.tur);
       $('#br_baslik').val(r.baslik);
       $('#br_mesaj').val(r.mesaj||'');

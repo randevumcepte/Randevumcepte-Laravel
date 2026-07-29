@@ -330,11 +330,15 @@ class BildirimReklamApiController extends Controller
         // sınırlı) uygulanır. Push bu gruptaki tüm şubelerin müşterilerine gider,
         // üretilen kupon bu grupta geçerli olur. Gönderilmezse yalnız bu şube.
         if (\Schema::hasColumn('bildirim_reklamlari', 'gecerli_salonlar')) {
-            $kardesler = \App\Personeller::kardesSalonIdler($salonId);
-            $secili    = \App\Personeller::salonIdListesiCoz($request->input('salon_ids'));
-            $hedef     = !empty($secili) ? array_values(array_intersect($secili, $kardesler)) : [(int) $salonId];
-            if (empty($hedef)) $hedef = [(int) $salonId];
-            $reklam->gecerli_salonlar = json_encode($hedef);
+            $secili = \App\Personeller::salonIdListesiCoz($request->input('salon_ids'));
+            $yeniMi = empty($request->id);
+            // Grup YALNIZCA açık seçim varsa veya yeni reklamda yazılır (düzenlemede korunur).
+            if (!empty($secili) || $yeniMi) {
+                $kardesler = \App\Personeller::kardesSalonIdler($salonId);
+                $hedef = !empty($secili) ? array_values(array_intersect($secili, $kardesler)) : [(int) $salonId];
+                if (empty($hedef)) $hedef = [(int) $salonId];
+                $reklam->gecerli_salonlar = json_encode($hedef);
+            }
         }
 
         $reklam->save();

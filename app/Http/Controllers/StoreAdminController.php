@@ -930,11 +930,12 @@ public function carkverilerigetir(Request $request)
         $secili     = \App\Personeller::salonIdListesiCoz($request->input('salon_ids'));
         $hedefSubeler = !empty($secili) ? array_values(array_intersect($secili, $kardesler)) : [(int) $salon_id];
         if (empty($hedefSubeler)) $hedefSubeler = [(int) $salon_id];
-        if ($hasGecerli) $data['gecerli_salonlar'] = json_encode($hedefSubeler);
 
         if ($id > 0) {
             $m = SalonPuanOdulleri::where('id', $id)->whereIn('salon_id', $kardesler)->first();
             if (!$m) return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı.']);
+            // gecerli_salonlar YALNIZCA açık seçim varsa güncellenir (mevcut grup korunur).
+            if ($hasGecerli && !empty($secili)) $data['gecerli_salonlar'] = json_encode($hedefSubeler);
             $m->update($data);
             // Audit
             SalonAudit::log($salon_id, 'cark_puan_odulu_guncelle', 'cark_puan_odulu', $m->id,
@@ -942,6 +943,7 @@ public function carkverilerigetir(Request $request)
                 'Puan merdiveni ödülü güncellendi',
                 $data);
         } else {
+            if ($hasGecerli) $data['gecerli_salonlar'] = json_encode($hedefSubeler);
             $anaId = null;
             foreach ($hedefSubeler as $hedefSalon) {
                 $_new = SalonPuanOdulleri::create(array_merge($data, ['salon_id' => (int) $hedefSalon]));
@@ -21069,6 +21071,19 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $reklam->durum = $request->durum ?: 'taslak';
         $reklam->yayin_baslangic = !empty($request->yayin_baslangic) ? $request->yayin_baslangic : null;
         $reklam->yayin_bitis     = !empty($request->yayin_bitis) ? $request->yayin_bitis : null;
+
+        // Çoklu şube: reklam seçilen şube grubuna uygulanır (push o gruba gider, kupon
+        // grubu miras alır). Grup YALNIZCA açık seçim varsa veya yeni reklamda yazılır.
+        if (\Schema::hasColumn('bildirim_reklamlari', 'gecerli_salonlar')) {
+            $secili = \App\Personeller::salonIdListesiCoz($request->input('salon_ids'));
+            $yeniMi = empty($request->id);
+            if (!empty($secili) || $yeniMi) {
+                $kardesler = \App\Personeller::kardesSalonIdler($salonId);
+                $hedef = !empty($secili) ? array_values(array_intersect($secili, $kardesler)) : [(int) $salonId];
+                if (empty($hedef)) $hedef = [(int) $salonId];
+                $reklam->gecerli_salonlar = json_encode($hedef);
+            }
+        }
 
         $reklam->save();
 
