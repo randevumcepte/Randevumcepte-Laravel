@@ -41,6 +41,9 @@ class CarkHatirlatmaGonder extends Command
         }
 
         $toplamGonderim = 0;
+        // Çoklu şube: bir müşteriye bu çalıştırmada birden fazla push atılmasın
+        // (aynı grup birden çok şube ayarından işlenirse mükerrer engellenir).
+        $gonderilenlerBuRun = [];
 
         foreach ($aktifAyarlar as $ayar) {
             // Bu salon için bu hafta günü gönderim yapma listesinde mi?
@@ -50,6 +53,11 @@ class CarkHatirlatmaGonder extends Command
             // Çarkıfelek aktif mi?
             $cark = CarkifelekSistemi::where('salon_id', $ayar->salon_id)->first();
             if (!$cark || !$cark->aktifmi) continue;
+
+            // Çoklu şube: çarkın uygulandığı grup (gecerli_salonlar). Hak/çevirme/log
+            // kontrolleri grup geneli yapılır; grup yoksa yalnız bu şube.
+            $grup = \App\Personeller::salonIdListesiCoz($cark->gecerli_salonlar ?? null);
+            if (empty($grup)) $grup = [(int) $ayar->salon_id];
 
             // Hangi aşama? Şu an saatlerin ±5dk içinde miyiz?
             // Maks 3 hatırlatma; her aşamanın kendi aktif flag'i var (default 1).
@@ -72,15 +80,16 @@ class CarkHatirlatmaGonder extends Command
             }
             if (!$asama) continue;
 
-            // Hak sahibi müşteriler: onaylanmış randevusu olan + bugün çevirmemiş + bu aşama push almamış
-            $onayliRandevuKullanicilari = Randevular::where('salon_id', $ayar->salon_id)
+            // Hak sahibi müşteriler: grup genelinde onaylanmış randevusu olan +
+            // grup genelinde bugün çevirmemiş + bu aşamayı grupta bugün almamış
+            $onayliRandevuKullanicilari = Randevular::whereIn('salon_id', $grup)
                 ->where('durum', 1)
                 ->pluck('user_id')->unique()->filter();
 
             if ($onayliRandevuKullanicilari->isEmpty()) continue;
 
-            // Bugün çarkı çevirmemiş kullanıcılar
-            $bugunCevirenler = CarkifelekCevirmeLoglari::where('salon_id', $ayar->salon_id)
+            // Grubun herhangi bir şubesinde bugün çarkı çevirmiş kullanıcılar (hak grup geneli tükenir)
+            $bugunCevirenler = CarkifelekCevirmeLoglari::whereIn('salon_id', $grup)
                 ->where('tip', '!=', 'tekrar_dene')
                 ->whereDate('created_at', $bugun)
                 ->pluck('user_id')->unique();
@@ -88,8 +97,8 @@ class CarkHatirlatmaGonder extends Command
             $hedefUserlar = $onayliRandevuKullanicilari->diff($bugunCevirenler);
             if ($hedefUserlar->isEmpty()) continue;
 
-            // Bu aşamayı bugün almış olanları çıkar
-            $bugunAlmisKullanicilar = CarkHatirlatmaLoglari::where('salon_id', $ayar->salon_id)
+            // Bu aşamayı bugün (grup genelinde) almış olanları çıkar
+            $bugunAlmisKullanicilar = CarkHatirlatmaLoglari::whereIn('salon_id', $grup)
                 ->where('asama', $asama)
                 ->whereDate('tarih', $bugun)
                 ->pluck('user_id')->unique();
@@ -113,8 +122,11 @@ class CarkHatirlatmaGonder extends Command
             }
 
             foreach ($hedefUserlar as $userId) {
+                // Aynı çalıştırmada bu müşteriye zaten push atıldıysa atla (grup mükerrer engeli).
+                if (in_array((int) $userId, $gonderilenlerBuRun, true)) continue;
                 $user = User::find($userId);
                 if (!$user) continue;
+                $gonderilenlerBuRun[] = (int) $userId;
 
                 // Mesaj kişiselleştirme
                 $body = strtr($mesaj, [

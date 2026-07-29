@@ -28004,8 +28004,14 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             }
             if ($mesaj === '')  $mesaj  = 'Çark-ı Felek\'i çevir, sürpriz ödülü kap! Bugün şansını dene 🎁';
 
-            // Bu salonun müşterileri (randevu sahibi olanlar)
-            $musteriIdleri = Randevular::where('salon_id', $salonId)
+            // Çoklu şube: çark bir grup (gecerli_salonlar) için tanımlıysa duyuru o
+            // gruptaki TÜM şubelerin randevulu müşterilerine gider (tekilleştirilmiş).
+            // Grup yoksa yalnız bu şube (tek şubeli işletme davranışı değişmez).
+            $grup = \App\Personeller::salonIdListesiCoz($cark->gecerli_salonlar ?? null);
+            if (empty($grup)) $grup = [(int) $salonId];
+
+            // Bu grubun müşterileri (randevu sahibi olanlar)
+            $musteriIdleri = Randevular::whereIn('salon_id', $grup)
                 ->whereNotNull('user_id')
                 ->pluck('user_id')
                 ->unique()
