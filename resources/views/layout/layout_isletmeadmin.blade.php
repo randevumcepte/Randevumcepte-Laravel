@@ -127,9 +127,9 @@
 
 #adisyon_yeni_hizmet_modal .modal-dialog {
     width: 100%;
-    max-width: 600px;
+    max-width: 820px;
     margin: 0;
-   
+
 }
       </style>
       <!-- Site favicon -->
@@ -2608,7 +2608,7 @@
                      <h2 class="text-blue h2 mb-10" id="adisyon_hizmet_modal_baslik">Yeni Hizmet Satışı</h2>
                      <div class="hizmetler_bolumu_adisyon">
                         <div class="row" data-value="0" style="padding:2px; background-color:#e2e2e2;">
-                           <div class="col-md-5 col-6 col-sm-6 col-xs-6">
+                           <div class="col-md-4 col-12 col-sm-12 col-xs-12">
                               <div class="form-group">
                                  <label>Hizmet</label>
                                  <select name="adisyonhizmetleriyeni[]" class="form-control custom-select2 hizmet_secimi" style="width: 100%;">
@@ -2623,20 +2623,20 @@
                                  <input type="tel" class="form-control" name="adisyonhizmetsuresi[]" value="">
                               </div>
                            </div>
-                           <div class="col-md-3 col-6 col-sm-6 col-xs-6">
+                           <div class="col-md-2 col-6 col-sm-6 col-xs-6">
                               <div class="form-group">
                                  <label>Fiyat ₺</label>
                                  <input type="tel" class="form-control" required name="adisyonhizmetfiyati[]" value="" placeholder="0">
                               </div>
                            </div>
-                           <div class="col-md-3 col-6 col-sm-6 col-xs-6">
+                           <div class="col-md-2 col-6 col-sm-6 col-xs-6">
                               <div class="form-group">
-                                 <label>Seans Sayısı</label>
-                                 <input type="tel" class="form-control" name="hizmetseanssayisi[]" value="" placeholder="boş=tekil hizmet, ≥2=paket" title="Boş bırakırsan tekil hizmet olarak kaydedilir; 2 ve üstü yazarsan paket satışı olarak görünür.">
+                                 <label title="Boş bırakırsan tekil hizmet; 2 ve üstü paket satışı olarak görünür">Seans <small style="color:#888">(boş=tekil)</small></label>
+                                 <input type="tel" class="form-control" name="hizmetseanssayisi[]" value="" placeholder="1" title="Boş bırakırsan tekil hizmet olarak kaydedilir; 2 ve üstü yazarsan paket satışı olarak görünür.">
                               </div>
                            </div>
 
-                           <div class="col-md-3 col-6 col-sm-6 col-xs-6">
+                           <div class="col-md-3 col-12 col-sm-12 col-xs-12">
                               <div class="form-group">
                                  <label>Personel</label>
                                  <select name="adisyonhizmetpersonelleriyeni[]" class="form-control custom-select2 personel_secimi" style="width: 100%;">
