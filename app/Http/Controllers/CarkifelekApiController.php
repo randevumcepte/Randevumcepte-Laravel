@@ -209,6 +209,12 @@ class CarkifelekApiController extends Controller
                 if (\Schema::hasColumn('carkifelek_odulleri', 'indirim_tipi')) {
                     $odulData['indirim_tipi'] = $indirimTipi;
                 }
+                // Coklu sube: kupon, carkin uygulandigi sube grubunu (gecerli_salonlar)
+                // miras alir; yalnizca o subelerde kullanilabilir.
+                if (\Schema::hasColumn('carkifelek_odulleri', 'gecerli_salonlar')) {
+                    $odulData['gecerli_salonlar'] = $cark->gecerli_salonlar
+                        ?: json_encode([(int) $salonId]);
+                }
                 $odul = CarkifelekOdulleri::create($odulData);
             }
 
@@ -408,7 +414,7 @@ class CarkifelekApiController extends Controller
                 ? $odul->tip
                 : 'hizmet_indirimi';
 
-            return CarkifelekOdulleri::create([
+            $kuponData = [
                 'log_id'            => null,
                 'salon_id'          => $salonId,
                 'user_id'           => $userId,
@@ -417,7 +423,14 @@ class CarkifelekApiController extends Controller
                 'deger'             => $odul->deger ?: 0,
                 'baslik'            => $odul->baslik,
                 'gecerlilik_tarihi' => $this->kuponBitisTarihi($salonId, 'puan'),
-            ]);
+            ];
+            // Coklu sube: kupon, puan odulunun uygulandigi sube grubunu miras alir.
+            if (\Schema::hasColumn('carkifelek_odulleri', 'gecerli_salonlar')) {
+                $kuponData['gecerli_salonlar'] = ($odul->gecerli_salonlar ?? null)
+                    ?: json_encode([(int) $salonId]);
+            }
+
+            return CarkifelekOdulleri::create($kuponData);
         });
 
         return response()->json([

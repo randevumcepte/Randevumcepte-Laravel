@@ -37,7 +37,9 @@ class BildirimReklamApiController extends Controller
             });
 
         if ($salonId > 0) {
-            $q->where('salon_id', $salonId);
+            // Ön-filtre: müşteri salonu + aynı sahibin kardeş şubeleri (grup reklamları
+            // başka şubede oluşturulmuş olabilir). Kesin grup kontrolü aşağıda PHP'de.
+            $q->whereIn('salon_id', \App\Personeller::kardesSalonIdler($salonId));
         } elseif (!empty($appBundle)) {
             $ids = Salonlar::where('app_bundle', $appBundle)->pluck('id')->toArray();
             $q->whereIn('salon_id', $ids);
@@ -47,7 +49,16 @@ class BildirimReklamApiController extends Controller
 
         $now = Carbon::now();
         $reklamlar = $q->orderBy('id', 'desc')->get()
-            ->filter(function ($r) use ($now, $userId) {
+            ->filter(function ($r) use ($now, $userId, $salonId) {
+                // Çoklu şube: reklam bir gruba uygulandıysa müşterinin salonu o grupta olmalı.
+                if ($salonId > 0) {
+                    $grup = \App\Personeller::salonIdListesiCoz($r->gecerli_salonlar ?? null);
+                    if (!empty($grup)) {
+                        if (!in_array($salonId, $grup, true)) return false;
+                    } elseif ((int) $r->salon_id !== $salonId) {
+                        return false;
+                    }
+                }
                 if ($r->yayin_baslangic && $r->yayin_baslangic->isFuture()) return false;
                 if ($r->yayin_bitis && $r->yayin_bitis->isPast()) return false;
                 if ($r->kupon_toplam_adet !== null && $r->kupon_dagitilan >= $r->kupon_toplam_adet) return false;
@@ -149,7 +160,7 @@ class BildirimReklamApiController extends Controller
                 ? Carbon::now()->addDays((int) $reklam->kupon_gecerlilik_gun)->toDateString()
                 : null;
 
-            $odul = CarkifelekOdulleri::create([
+            $odulData = [
                 'salon_id'          => $reklam->salon_id,
                 'user_id'           => $userId,
                 'kaynak_reklam_id'  => $reklam->id,
@@ -160,7 +171,14 @@ class BildirimReklamApiController extends Controller
                 'hizmet_id'         => $reklam->kupon_hizmet_id, // null = tum hizmetler
                 'baslik'            => $baslik,
                 'gecerlilik_tarihi' => $gecerlilik,
-            ]);
+            ];
+            // Coklu sube: kupon, reklamin uygulandigi sube grubunu miras alir.
+            if (\Schema::hasColumn('carkifelek_odulleri', 'gecerli_salonlar')) {
+                $odulData['gecerli_salonlar'] = (isset($reklam->gecerli_salonlar) && $reklam->gecerli_salonlar)
+                    ? $reklam->gecerli_salonlar
+                    : json_encode([(int) $reklam->salon_id]);
+            }
+            $odul = CarkifelekOdulleri::create($odulData);
 
             $taze->kupon_dagitilan = (int) $taze->kupon_dagitilan + 1;
             $taze->save();
@@ -307,6 +325,18 @@ class BildirimReklamApiController extends Controller
         }
 
         $reklam->durum = $request->durum ?: 'taslak';
+
+        // Çoklu şube "şube seçimi": salon_ids ile seçilen şubelere (owner kardeş grubu
+        // sınırlı) uygulanır. Push bu gruptaki tüm şubelerin müşterilerine gider,
+        // üretilen kupon bu grupta geçerli olur. Gönderilmezse yalnız bu şube.
+        if (\Schema::hasColumn('bildirim_reklamlari', 'gecerli_salonlar')) {
+            $kardesler = \App\Personeller::kardesSalonIdler($salonId);
+            $secili    = \App\Personeller::salonIdListesiCoz($request->input('salon_ids'));
+            $hedef     = !empty($secili) ? array_values(array_intersect($secili, $kardesler)) : [(int) $salonId];
+            if (empty($hedef)) $hedef = [(int) $salonId];
+            $reklam->gecerli_salonlar = json_encode($hedef);
+        }
+
         $reklam->save();
 
         return response()->json(['success' => true, 'id' => $reklam->id, 'reklam' => $this->adminReklamArray($reklam)]);

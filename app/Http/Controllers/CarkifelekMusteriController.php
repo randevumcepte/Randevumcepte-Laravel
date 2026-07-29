@@ -287,7 +287,7 @@ class CarkifelekMusteriController extends Controller
                     $puanKaydi->puan = ((float) $puanKaydi->puan) + (float) $secilen->deger;
                     $puanKaydi->save();
                 } elseif (in_array($secilen->tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi']) && $secilen->deger) {
-                    $odul = CarkifelekOdulleri::create([
+                    $odulData = [
                         'log_id'            => $log->id,
                         'salon_id'          => $salonId,
                         'user_id'           => $userId,
@@ -296,7 +296,12 @@ class CarkifelekMusteriController extends Controller
                         'deger'             => $secilen->deger,
                         'baslik'            => $this->baslikUret($secilen),
                         'gecerlilik_tarihi' => $this->kuponBitisTarihi($salonId, 'cark'),
-                    ]);
+                    ];
+                    if (\Schema::hasColumn('carkifelek_odulleri', 'gecerli_salonlar')) {
+                        $odulData['gecerli_salonlar'] = ($cark->gecerli_salonlar ?? null)
+                            ?: json_encode([(int) $salonId]);
+                    }
+                    $odul = CarkifelekOdulleri::create($odulData);
                 }
                 return compact('log', 'odul');
             });
@@ -589,7 +594,7 @@ class CarkifelekMusteriController extends Controller
                 $puanKaydi->puan = ((float) $puanKaydi->puan) + (float) $pending['deger'];
                 $puanKaydi->save();
             } elseif (in_array($pending['tip'], ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi'])) {
-                $kupon = CarkifelekOdulleri::create([
+                $kuponData = [
                     'log_id'            => null,
                     'salon_id'          => $pending['salon_id'],
                     'user_id'           => $user->id,
@@ -598,7 +603,12 @@ class CarkifelekMusteriController extends Controller
                     'deger'             => $pending['deger'],
                     'baslik'            => $pending['baslik'],
                     'gecerlilik_tarihi' => $this->kuponBitisTarihi($pending['salon_id'], 'cark'),
-                ]);
+                ];
+                if (\Schema::hasColumn('carkifelek_odulleri', 'gecerli_salonlar')) {
+                    $grup = CarkifelekSistemi::where('salon_id', $pending['salon_id'])->value('gecerli_salonlar');
+                    $kuponData['gecerli_salonlar'] = $grup ?: json_encode([(int) $pending['salon_id']]);
+                }
+                $kupon = CarkifelekOdulleri::create($kuponData);
                 $odulKodu = $kupon->kod;
             }
 
@@ -736,7 +746,7 @@ class CarkifelekMusteriController extends Controller
             // Kupon tipi: hizmet/ürün/paket indirimi veya "hediye" (de hizmet_indirimi gibi davranır ama başlık farklı)
             $kuponTip = in_array($odul->tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi']) ? $odul->tip : 'hizmet_indirimi';
 
-            $kupon = CarkifelekOdulleri::create([
+            $kuponData = [
                 'log_id'            => null,
                 'salon_id'          => $salonId,
                 'user_id'           => $userId,
@@ -745,7 +755,12 @@ class CarkifelekMusteriController extends Controller
                 'deger'             => $odul->deger ?: 0,
                 'baslik'            => $odul->baslik,
                 'gecerlilik_tarihi' => $this->kuponBitisTarihi($salonId, 'puan'),
-            ]);
+            ];
+            if (\Schema::hasColumn('carkifelek_odulleri', 'gecerli_salonlar')) {
+                $kuponData['gecerli_salonlar'] = ($odul->gecerli_salonlar ?? null)
+                    ?: json_encode([(int) $salonId]);
+            }
+            $kupon = CarkifelekOdulleri::create($kuponData);
 
             return $kupon;
         });

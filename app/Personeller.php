@@ -66,6 +66,27 @@ class Personeller extends Model
      *   - Sahip çözülemezse / tek şube ise YALNIZCA verilen salon döner (fail-closed).
      *   - salonId geçersizse boş döner → whereIn hiçbir kayda eşleşmez (fail-closed).
      */
+    /**
+     * gecerli_salonlar alanini (JSON string / dizi / virgullu string) normalize eder:
+     * benzersiz, pozitif int salon_id listesi doner. Bos/gecersiz -> [].
+     */
+    public static function salonIdListesiCoz($val)
+    {
+        if (empty($val)) return [];
+        $arr = $val;
+        if (is_string($val)) {
+            $decoded = json_decode($val, true);
+            $arr = is_array($decoded) ? $decoded : explode(',', $val);
+        }
+        if (!is_array($arr)) return [];
+        $ids = [];
+        foreach ($arr as $v) {
+            $n = (int) trim((string) $v);
+            if ($n > 0) $ids[] = $n;
+        }
+        return array_values(array_unique($ids));
+    }
+
     public static function kardesSalonIdler($salonId)
     {
         $salonId = (int) $salonId;

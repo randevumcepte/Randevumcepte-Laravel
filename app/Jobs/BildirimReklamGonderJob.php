@@ -122,8 +122,12 @@ class BildirimReklamGonderJob implements ShouldQueue
     public static function hedefKullanicilar(BildirimReklamlari $reklam)
     {
         $salonId = (int) $reklam->salon_id;
+        // Coklu sube: reklam bir sube grubuna (gecerli_salonlar) uygulanmissa push
+        // o gruptaki tum subelerin musterilerine gider. Grup yoksa yalniz bu sube.
+        $grup = \App\Personeller::salonIdListesiCoz($reklam->gecerli_salonlar ?? null);
+        if (empty($grup)) $grup = [$salonId];
         $portfoy = DB::table('musteri_portfoy')
-            ->where('salon_id', $salonId)
+            ->whereIn('salon_id', $grup)
             ->where('aktif', 1)
             ->pluck('user_id')->unique()->values()->all();
 
