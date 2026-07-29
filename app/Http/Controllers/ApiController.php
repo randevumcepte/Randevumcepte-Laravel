@@ -1065,6 +1065,9 @@ class ApiController extends Controller
     // ÖNCE FİLTRELERİ UYGULA
     $query = Adisyonlar::with([
         'musteri:id,name',
+        // Musteri panelinde bundle'a ait birden cok sube gelebilir; kartta hangi
+        // subeden alindigini gostermek icin salon adi tasinir (tek subede gizlenir).
+        'salon:id,salon_adi',
         'hizmetler' => function ($q) use ($personelid) {
             // seans_sayisi > 0 olan hizmet = PAKET satisi (siniflandirma kriteri)
             $q->select('id', 'adisyon_id', 'hizmet_id', 'fiyat', 'personel_id', 'seans_sayisi')
@@ -1492,6 +1495,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         'acilis_saati' => $adisyon->created_at ? date('H:i', strtotime($adisyon->created_at)) : '',
         'son_tahsilat_tarihi' => $sonTahsilatTarihi ? date('d.m.Y', strtotime($sonTahsilatTarihi)) : '',
         'musteri' => $adisyon->musteri->name ?? '-',
+        'salon_adi' => $adisyon->salon->salon_adi ?? '',
         'planlanan_alacak_tarihi' => $planlananTarih,
         'satis_turu' => '',
         'satisSayisi' => $toplamSatisSayisi,
@@ -27889,6 +27893,41 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 CarkifelekDilimleri::create($row);
             }
 
+            // Coklu sube: ayni hesap sahibinin (yetkili_id) diger subelerine de ayni carki yaz.
+            // Boylece cark bir kez kaydedilince tum subelerde ayni olur; kazanilan kuponlar
+            // tum kardes subelerde gecerli olur. Super admin (yetkili_id=3) haric; tek subeli
+            // isletmelerde kardesler = [salonId] oldugundan dongu bostur.
+            foreach (\App\Personeller::kardesSalonIdler($salonId) as $kardesSalonId) {
+                if ((int) $kardesSalonId === (int) $salonId) continue;
+                $kCark = CarkifelekSistemi::where('salon_id', $kardesSalonId)->first();
+                if (!$kCark) {
+                    $kPayload = ['salon_id' => $kardesSalonId, 'aktifmi' => (int) $cark->aktifmi];
+                    if ($hasCarkGun && $carkGun !== null) $kPayload['kupon_cark_gecerlilik_gun'] = $carkGun ?: null;
+                    if ($hasPuanGun && $puanGun !== null) $kPayload['kupon_puan_gecerlilik_gun'] = $puanGun ?: null;
+                    $kCark = CarkifelekSistemi::create($kPayload);
+                } else {
+                    $kCark->aktifmi = (int) $cark->aktifmi;
+                    if ($hasCarkGun && $carkGun !== null) $kCark->kupon_cark_gecerlilik_gun = $carkGun ?: null;
+                    if ($hasPuanGun && $puanGun !== null) $kCark->kupon_puan_gecerlilik_gun = $puanGun ?: null;
+                    $kCark->save();
+                }
+                CarkifelekDilimleri::where('cark_id', $kCark->id)->delete();
+                foreach ($cleaned as $ki => $kd) {
+                    $kRow = [
+                        'cark_id'        => $kCark->id,
+                        'dilim_ismi'     => $kd['name'],
+                        'dilim_olasilik' => $kd['probability'],
+                        'renk_kodu'      => $kd['color'],
+                        'kupon_mu'       => $kd['kupon_mu'],
+                        'sira'           => $ki + 1,
+                    ];
+                    if ($hasTip)         $kRow['tip']          = $kd['tip'];
+                    if ($hasDeger)       $kRow['deger']        = $kd['deger'];
+                    if ($hasIndirimTipi) $kRow['indirim_tipi'] = $kd['indirim_tipi'];
+                    CarkifelekDilimleri::create($kRow);
+                }
+            }
+
             Audit::logApi($salonId, $request, 'cark_dilim_kaydet', 'cark', $cark->id, null, 'Cark dilimleri kaydedildi');
             return response()->json(['basarili' => true]);
         } catch (\Exception $e) {
@@ -27901,8 +27940,14 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     {
         $cark = CarkifelekSistemi::where('salon_id', $salonId)->first();
         if (!$cark) return response()->json(['basarili' => false, 'mesaj' => 'Cark sistemi bulunamadi'], 404);
-        $cark->aktifmi = $request->input('aktifmi') ? 1 : 0;
+        $yeniDurum = $request->input('aktifmi') ? 1 : 0;
+        $cark->aktifmi = $yeniDurum;
         $cark->save();
+        // Coklu sube: aktiflik durumunu kardes subelerin carkina da uygula (varsa).
+        foreach (\App\Personeller::kardesSalonIdler($salonId) as $kardesSalonId) {
+            if ((int) $kardesSalonId === (int) $salonId) continue;
+            CarkifelekSistemi::where('salon_id', $kardesSalonId)->update(['aktifmi' => $yeniDurum]);
+        }
         Audit::logApi($salonId, $request, 'cark_aktif_toggle', 'cark', $cark->id, null, 'Cark aktiflik durumu degistirildi');
         return response()->json(['basarili' => true, 'aktifmi' => (int) $cark->aktifmi]);
     }
@@ -28073,7 +28118,9 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
 
         $odul = CarkifelekOdulleri::where('kod', $kod)->first();
         if (!$odul) return response()->json(['basarili' => false, 'mesaj' => 'Bu kod sisteme kayitli degil'], 404);
-        if ((int) $odul->salon_id !== (int) $salonId) {
+        // Coklu sube: kupon ayni hesap sahibinin herhangi bir subesinde kazanildiysa gecerli.
+        $kardesler = \App\Personeller::kardesSalonIdler($salonId);
+        if (!in_array((int) $odul->salon_id, $kardesler, true)) {
             return response()->json(['basarili' => false, 'mesaj' => 'Bu kupon baska bir salona ait'], 403);
         }
 
@@ -28104,7 +28151,9 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     {
         $odulId = (int) $request->input('odul_id');
         $aksiyon = $request->input('aksiyon', 'kullan');
-        $odul = CarkifelekOdulleri::where('id', $odulId)->where('salon_id', $salonId)->first();
+        // Coklu sube: kardes subelerde kazanilan kupon da isaretlenebilir.
+        $kardesler = \App\Personeller::kardesSalonIdler($salonId);
+        $odul = CarkifelekOdulleri::where('id', $odulId)->whereIn('salon_id', $kardesler)->first();
         if (!$odul) return response()->json(['basarili' => false, 'mesaj' => 'Odul bulunamadi'], 404);
 
         if ($aksiyon === 'geri_al') {

@@ -512,6 +512,59 @@ public function carkdilimekle(Request $request)
             Log::info('Dilim kaydedildi: ' . $slice->dilim_ismi . ' - Olasılık: ' . $slice->dilim_olasilik);
         }
 
+        // ── Çoklu şube: aynı hesap sahibinin (yetkili_id) diğer şubelerine de aynı çarkı yaz.
+        // Owner çarkı bir kez kaydedince tüm şubelerde aynı çark aktif olur; kazanılan
+        // kuponlar tüm kardeş şubelerde geçerli olur. Süper admin (yetkili_id=3) hariç,
+        // tek şubeli işletmelerde bu döngü boştur (kardesler = [salon_id]).
+        $kardesler = \App\Personeller::kardesSalonIdler($salon_id);
+        $kopyalananSubeler = [];
+        foreach ($kardesler as $kardesSalonId) {
+            if ((int) $kardesSalonId === (int) $salon_id) continue;
+
+            $kCark = CarkifelekSistemi::where('salon_id', $kardesSalonId)->first();
+            if (!$kCark) {
+                $kPayload = [
+                    'aktifmi'    => $carkifelek->aktifmi,
+                    'salon_id'   => $kardesSalonId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+                if ($hasKurallar) $kPayload['kullanim_kurallari']        = $carkifelek->kullanim_kurallari;
+                if ($hasCarkGun)  $kPayload['kupon_cark_gecerlilik_gun'] = $carkifelek->kupon_cark_gecerlilik_gun;
+                if ($hasPuanGun)  $kPayload['kupon_puan_gecerlilik_gun'] = $carkifelek->kupon_puan_gecerlilik_gun;
+                $kCark = CarkifelekSistemi::create($kPayload);
+            } else {
+                $kCark->aktifmi = $carkifelek->aktifmi;
+                if ($hasKurallar) $kCark->kullanim_kurallari        = $carkifelek->kullanim_kurallari;
+                if ($hasCarkGun)  $kCark->kupon_cark_gecerlilik_gun = $carkifelek->kupon_cark_gecerlilik_gun;
+                if ($hasPuanGun)  $kCark->kupon_puan_gecerlilik_gun = $carkifelek->kupon_puan_gecerlilik_gun;
+                $kCark->updated_at = now();
+                $kCark->save();
+            }
+
+            CarkifelekDilimleri::where('cark_id', $kCark->id)->delete();
+            foreach ($cleanedDilimler as $kIndex => $kDilim) {
+                $kRow = [
+                    'cark_id'        => $kCark->id,
+                    'dilim_ismi'     => $kDilim['name'],
+                    'dilim_olasilik' => $kDilim['probability'],
+                    'renk_kodu'      => $kDilim['color'],
+                    'kupon_mu'       => $kDilim['kupon_mu'],
+                    'sira'           => $kIndex + 1,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                ];
+                if ($hasTip)         $kRow['tip']          = $kDilim['tip'];
+                if ($hasDeger)       $kRow['deger']        = $kDilim['deger'];
+                if ($hasIndirimTipi) $kRow['indirim_tipi'] = $kDilim['indirim_tipi'];
+                CarkifelekDilimleri::create($kRow);
+            }
+            $kopyalananSubeler[] = $kardesSalonId;
+        }
+        if (!empty($kopyalananSubeler)) {
+            Log::info('Çark kardeş şubelere kopyalandı: ' . implode(',', $kopyalananSubeler));
+        }
+
         // Audit
         SalonAudit::log($salon_id, 'cark_dilim_kaydet', 'cark', $carkifelek->id,
             count($savedSlices).' dilim',
@@ -1021,7 +1074,9 @@ public function carkverilerigetir(Request $request)
             return response()->json(['success' => false, 'message' => 'Bu kod sisteme kayıtlı değil.']);
         }
 
-        if ((int) $odul->salon_id !== (int) $salon_id) {
+        // Çoklu şube: kupon, aynı hesap sahibinin herhangi bir şubesinde kazanıldıysa geçerli.
+        $kardesler = \App\Personeller::kardesSalonIdler($salon_id);
+        if (!in_array((int) $odul->salon_id, $kardesler, true)) {
             return response()->json(['success' => false, 'message' => 'Bu kupon başka bir salona ait.']);
         }
 
@@ -1060,7 +1115,9 @@ public function carkverilerigetir(Request $request)
         $odul_id  = (int) $request->input('odul_id');
         $aksiyon  = $request->input('aksiyon', 'kullan'); // kullan | geri_al
 
-        $odul = CarkifelekOdulleri::where('id', $odul_id)->where('salon_id', $salon_id)->first();
+        // Çoklu şube: aynı hesap sahibinin kardeş şubelerinde kazanılan kupon da işaretlenebilir.
+        $kardesler = \App\Personeller::kardesSalonIdler($salon_id);
+        $odul = CarkifelekOdulleri::where('id', $odul_id)->whereIn('salon_id', $kardesler)->first();
         if (!$odul) {
             return response()->json(['success' => false, 'message' => 'Ödül bulunamadı.']);
         }
@@ -32213,8 +32270,10 @@ DB::raw('
     public function kullaniciKuponlari(Request $request)
     {
         $bugun = date('Y-m-d');
+        // Çoklu şube: aynı hesap sahibinin herhangi bir şubesinde kazanılan kuponlar listelenir.
+        $kardesler = \App\Personeller::kardesSalonIdler($request->sube);
         $kuponlar = CarkifelekOdulleri::where('user_id', $request->user_id)
-            ->where('salon_id', $request->sube)
+            ->whereIn('salon_id', $kardesler)
             ->where('kullanildi', 0)
             ->whereIn('tip', ['hizmet_indirimi','urun_indirimi','paket_indirimi'])
             ->where(function($q) use($bugun){
@@ -32226,9 +32285,11 @@ DB::raw('
     }
     public function kuponUygula(Request $request)
     {
+        // Çoklu şube: kupon aynı hesap sahibinin herhangi bir şubesinde kazanıldıysa uygulanır.
+        $kardesler = \App\Personeller::kardesSalonIdler($request->sube);
         $kupon = CarkifelekOdulleri::where('kod', strtoupper(trim($request->kod)))
             ->where('user_id', $request->musteri_id)
-            ->where('salon_id', $request->sube)
+            ->whereIn('salon_id', $kardesler)
             ->where('kullanildi', 0)
             ->whereIn('tip', ['hizmet_indirimi','urun_indirimi','paket_indirimi'])
             ->first();
