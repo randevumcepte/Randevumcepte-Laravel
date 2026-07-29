@@ -246,7 +246,24 @@ public $successStatus = 200;
                     },
                     'yetkili_olunan_isletmeler.salonlar',
                 ]) : '';
-                $message['musteri'] = $usertype == '0' ? $user->load('salonlar.salonlar') : '';
+                if ($usertype == '0') {
+                    $appBundleReq = $request->appBundle;
+                    if (!empty($appBundleReq) && $appBundleReq != 'com.randevumcepte.randevumcepte') {
+                        // Beyaz etiket: müşteri YALNIZCA bu markanın (app_bundle) şubelerini
+                        // görsün; farklı işletmelerdeki portföy kayıtları (ör. başka salonlar)
+                        // musteri_olunan_salonlar'a KARIŞMASIN.
+                        $user->load(['salonlar' => function ($q) use ($appBundleReq) {
+                            $q->whereHas('salonlar', function ($q2) use ($appBundleReq) {
+                                $q2->where('app_bundle', $appBundleReq);
+                            })->with('salonlar');
+                        }]);
+                    } else {
+                        $user->load('salonlar.salonlar');
+                    }
+                    $message['musteri'] = $user;
+                } else {
+                    $message['musteri'] = '';
+                }
                 $message['user_type'] = $usertype;
                       
                 return response()->json(['message' => $message], $this->successStatus);
