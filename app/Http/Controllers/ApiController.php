@@ -15507,6 +15507,14 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $adisyon_hizmet->geldi = true;
 
+        // Seans sayisi: bos ya da 1 -> tekil hizmet, 2+ -> paket satisi gibi davranir
+        $_seansGirilen = trim((string) $request->input('hizmetseanssayisi', ''));
+        $_seansSayisi = ($_seansGirilen === '' || (int) $_seansGirilen < 1) ? 1 : (int) $_seansGirilen;
+        $adisyon_hizmet->seans_sayisi = $_seansSayisi;
+        if (empty($request->adisyon_hizmet_id)) {
+            $adisyon_hizmet->bekleyen_seans = $_seansSayisi;
+        }
+
         $adisyon_hizmet->save();
 
         // Sarf recetesi varsa otomatik dus — recete tabani hatasi hizmet satisini engellemesin

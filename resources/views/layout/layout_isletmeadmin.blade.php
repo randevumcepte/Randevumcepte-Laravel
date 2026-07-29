@@ -2629,11 +2629,10 @@
                                  <input type="tel" class="form-control" required name="adisyonhizmetfiyati[]" value="" placeholder="0">
                               </div>
                            </div>
-                           <div class="col-md-3 col-xs-6 col-sm-6 col-6" style="display:none">
+                           <div class="col-md-3 col-6 col-sm-6 col-xs-6">
                               <div class="form-group">
                                  <label>Seans Sayısı</label>
-                                 <input type="tel" class="form-control" name="hizmetseanssayisi[]" value="1">
-
+                                 <input type="tel" class="form-control" name="hizmetseanssayisi[]" value="" placeholder="boş=tekil hizmet, ≥2=paket" title="Boş bırakırsan tekil hizmet olarak kaydedilir; 2 ve üstü yazarsan paket satışı olarak görünür.">
                               </div>
                            </div>
 

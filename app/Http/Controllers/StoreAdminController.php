@@ -11321,8 +11321,10 @@ private function ayAdiCevir($ingilizceAy)
                 $adisyon_hizmet->sure = $request->adisyonhizmetsuresi[$key];
                 $adisyon_hizmet->fiyat = $request->adisyonhizmetfiyati[$key];
                 $adisyon_hizmet->personel_id = $request->adisyonhizmetpersonelleriyeni[$key];
-                $adisyon_hizmet->seans_sayisi = $request->hizmetseanssayisi[$key];
-                $adisyon_hizmet->bekleyen_seans = $request->hizmetseanssayisi[$key];
+                $_seansGirilen = isset($request->hizmetseanssayisi[$key]) ? trim((string)$request->hizmetseanssayisi[$key]) : '';
+                $_seansSayisi = ($_seansGirilen === '' || (int)$_seansGirilen < 1) ? 1 : (int)$_seansGirilen;
+                $adisyon_hizmet->seans_sayisi = $_seansSayisi;
+                $adisyon_hizmet->bekleyen_seans = $_seansSayisi;
                 if(isset($request->hizmetRandevuOlustur))
                         $adisyon_hizmet->otomatik_randevu_olusturuldu=true;
                     else
