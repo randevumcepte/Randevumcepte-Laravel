@@ -7,7 +7,8 @@
        <meta name="googlebot" content="Index, Follow">
        <title>{{ucwords($aramaterimisayfa)}} | {{$salon->salon_adi}} </title>
        <meta name="description" content="{{$salon->meta_description}}">
-       
+       @if(!empty($aramaterimimeta))<meta name="keywords" content="{{$aramaterimimeta}}">@endif
+
        <link rel="canonical" href="https://{{$_SERVER['HTTP_HOST']}}">
        <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
        <meta property="og:locale" content="tr_TR">
