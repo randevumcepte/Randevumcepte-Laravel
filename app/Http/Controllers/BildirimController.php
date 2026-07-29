@@ -171,6 +171,8 @@ class BildirimController extends Controller
                     'INVALID_ARGUMENT',
                     'registration-token-not-registered',
                     'invalid-registration-token',
+                    'not a valid FCM registration token',
+                    'not a valid registration token',
                     'SENDER_ID_MISMATCH',
                 ];
                 foreach ($invalidPatterns as $p) {

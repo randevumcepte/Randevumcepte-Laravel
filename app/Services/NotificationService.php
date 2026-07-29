@@ -158,12 +158,18 @@ class NotificationService
                     'err'      => $msg,
                 ]);
                 // FCM "token gecersiz" hatalari: kademeli yerine HEMEN sil
+                // FCM v1 HTTP API 400 Bad Request govdesinde "not a valid FCM
+                // registration token" mesajini donuyor (INVALID_ARGUMENT olmadan).
+                // Bu mesaji da patterns'a ekledik yoksa satir silinmez, her push
+                // ayni 400'i tekrarlar (2026-07-29 salooncadde salon 246 sorunu).
                 $invalidPatterns = [
                     'UNREGISTERED',
                     'NOT_FOUND',
                     'INVALID_ARGUMENT',
                     'registration-token-not-registered',
                     'invalid-registration-token',
+                    'not a valid FCM registration token',
+                    'not a valid registration token',
                     'SENDER_ID_MISMATCH',
                 ];
                 $invalid = false;
