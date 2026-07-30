@@ -15546,9 +15546,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $adisyon_hizmet->geldi = true;
 
-        // Seans sayisi: bos ya da 1 -> tekil hizmet, 2+ -> paket satisi gibi davranir
+        // Seans sayisi: bos ya da <=1 -> NULL (tekil hizmet, paket sayilmaz),
+        // 2+ -> paket satisi gibi davranir. Eski uygulama versiyonlari default '1'
+        // gonderiyordu; bu da adisyonlari yanlislikla paket olarak isaretliyordu.
         $_seansGirilen = trim((string) $request->input('hizmetseanssayisi', ''));
-        $_seansSayisi = ($_seansGirilen === '' || (int) $_seansGirilen < 1) ? 1 : (int) $_seansGirilen;
+        $_seansSayisi = ($_seansGirilen === '' || (int) $_seansGirilen <= 1) ? null : (int) $_seansGirilen;
         $adisyon_hizmet->seans_sayisi = $_seansSayisi;
         if (empty($request->adisyon_hizmet_id)) {
             $adisyon_hizmet->bekleyen_seans = $_seansSayisi;

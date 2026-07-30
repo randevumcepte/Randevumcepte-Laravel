@@ -11345,8 +11345,9 @@ private function ayAdiCevir($ingilizceAy)
                 $adisyon_hizmet->sure = $request->adisyonhizmetsuresi[$key];
                 $adisyon_hizmet->fiyat = $request->adisyonhizmetfiyati[$key];
                 $adisyon_hizmet->personel_id = $request->adisyonhizmetpersonelleriyeni[$key];
+                // Bos ya da <=1 -> NULL (tekil hizmet); 2+ -> paket satisi sayilir
                 $_seansGirilen = isset($request->hizmetseanssayisi[$key]) ? trim((string)$request->hizmetseanssayisi[$key]) : '';
-                $_seansSayisi = ($_seansGirilen === '' || (int)$_seansGirilen < 1) ? 1 : (int)$_seansGirilen;
+                $_seansSayisi = ($_seansGirilen === '' || (int)$_seansGirilen <= 1) ? null : (int)$_seansGirilen;
                 $adisyon_hizmet->seans_sayisi = $_seansSayisi;
                 $adisyon_hizmet->bekleyen_seans = $_seansSayisi;
                 if(isset($request->hizmetRandevuOlustur))
@@ -11372,7 +11373,9 @@ private function ayAdiCevir($ingilizceAy)
                 if(isset($request->hizmetRandevuOlustur))
                 {
                      $randevuSMSigitti = false;
-                     for($i=1;$i<=$request->hizmetseanssayisi[$key];$i++){
+                     // Auto-randevu icin: seans_sayisi NULL ise 1 randevu, aksi halde N randevu
+                     $_seansForRandevu = $_seansSayisi ?: 1;
+                     for($i=1;$i<=$_seansForRandevu;$i++){
 
                     $request->user_id = $request->musteri_id;
                     
