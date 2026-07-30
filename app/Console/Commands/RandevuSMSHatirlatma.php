@@ -65,6 +65,12 @@ class RandevuSMSHatirlatma extends Command
             $simdi = date('d.m.Y H:i');
             $tetikSalonSaat = date('d.m.Y H:i', strtotime('-' . $value->salonlar->randevu_sms_hatirlatma . ' hours', strtotime($randevutarihsaat)));
             $tetik24Saat = date('d.m.Y H:i', strtotime('-24 hours', strtotime($randevutarihsaat)));
+            // PUSH icin sabit tetik: SMS/WA salon ayarindan (X saat once) bagimsiz,
+            // her randevu icin 3 saat once musteri + personel + yonetici push atilir.
+            $tetik3SaatPush = date('d.m.Y H:i', strtotime('-3 hours', strtotime($randevutarihsaat)));
+            if ($simdi == $tetik3SaatPush) {
+                $this->pushHatirlatmaGonder($value, '3saat');
+            }
 
             // PER-ROW DEBUG LOG DEVRE DISI (2026-06-26): her aday icin her dakika
             // yaziliyordu (~288K satir/gun, disk I/O). Sadece TETIK aninda loglama
@@ -155,7 +161,9 @@ class RandevuSMSHatirlatma extends Command
                 $personelHizmetMap[$pid][] = $row['satir'];
             }
 
-            // Hizmeti atanmış personele (her personel kendi hizmet listesiyle)
+            // Hizmeti atanmış personele SMS/WA (her personel kendi hizmet listesiyle)
+            // PUSH: burada YOK. Push, 3 saat once sabit tetikte pushHatirlatmaGonder()
+            // uzerinden gonderiliyor (SMS/WA zamanlamasindan bagimsiz).
             foreach ($personelHizmetMap as $pid => $satirlar) {
                 $mesaj = $value->users->name . ' isimli müşterinin bugün ' . implode(', ', $satirlar) . ' randevu' . (count($satirlar) > 1 ? 'larını' : 'sunu') . ' hatırlatmak isteriz.';
 
@@ -164,29 +172,17 @@ class RandevuSMSHatirlatma extends Command
                     $this->personeleGonder($wa, $controller, $value->salonlar, $personelTelefon, $mesaj, $personelAyari, $value->id);
                 }
 
-                try {
-                    \App\Services\NotificationService::toStaff((int) $pid, (int) $value->salon_id)
-                        ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
-                        ->title('Randevu Hatırlatma')
-                        ->body($mesaj)
-                        ->randevu((int) $value->id)
-                        ->deepLink('appointment_detail', ['randevu_id' => $value->id])
-                        ->send();
-                } catch (\Throwable $e) {
-                    Log::warning('[RND-SMS] personel push fail', ['randevu_id' => $value->id, 'personel_id' => $pid, 'err' => $e->getMessage()]);
-                }
-
                 self::bildirimekle($value->salon_id, $mesaj, '#', $pid, $value->user_id, $value->users->profil_resim, $value->id, null);
             }
 
-            // Yöneticilere TEK push: randevudaki TÜM tetiklenen hizmetler birlikte
+            // Yönetici SMS/WA - Yönetici için SMS/WA kanali kod olarak bugun sadece
+            // atanmis personel tarafinda calisiyor (personelAyari->personel togglei).
+            // Yonetici PUSH ise pushHatirlatmaGonder icinde (3 saat once) atiliyor.
+            // Yönetici inbox kaydini (bildirimler tablosu) uyumlu tutmak icin listeye ekle:
             $tumSatirlar = array_column($tetiklenenHizmetler, 'satir');
             $yoneticiMesaji = $value->users->name . ' isimli müşterinin bugün ' . implode(', ', $tumSatirlar) . ' randevu' . (count($tumSatirlar) > 1 ? 'larını' : 'sunu') . ' hatırlatmak isteriz.';
 
             $atanmisPersonelIdleri = array_keys($personelHizmetMap);
-            // DISTINCT + array_unique: bir yoneticinin role_id<5 olan birden fazla
-            // rolu varsa JOIN ayni salon_personelleri.id'yi tekrar dondurup ayni kisiye
-            // mukerrer bildirim/push gonderiyordu. Tekillestir.
             $yoneticiIdleri = Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
                 ->where('salon_personelleri.salon_id', $value->salon_id)
                 ->where('model_has_roles.role_id', '<', 5)
@@ -195,17 +191,6 @@ class RandevuSMSHatirlatma extends Command
                 ->pluck('salon_personelleri.id')->toArray();
             $yoneticiIdleri = array_values(array_unique($yoneticiIdleri));
             foreach ($yoneticiIdleri as $yId) {
-                try {
-                    \App\Services\NotificationService::toStaff((int) $yId, (int) $value->salon_id)
-                        ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
-                        ->title('Randevu Hatırlatma')
-                        ->body($yoneticiMesaji)
-                        ->randevu((int) $value->id)
-                        ->deepLink('appointment_detail', ['randevu_id' => $value->id])
-                        ->send();
-                } catch (\Throwable $e) {
-                    Log::warning('[RND-SMS] yonetici push fail', ['randevu_id' => $value->id, 'yonetici_id' => $yId, 'err' => $e->getMessage()]);
-                }
                 self::bildirimekle($value->salon_id, $yoneticiMesaji, '#', $yId, $value->user_id, $value->users->profil_resim, $value->id, null);
             }
         }
@@ -344,25 +329,114 @@ class RandevuSMSHatirlatma extends Command
                 'message' => $smsMesaj,
             ]]);
         } elseif (!$smsWaAcik) {
-            Log::info('[RND-SMS] müşteri SMS/WA toggle kapali — sadece push atilir', [
+            Log::info('[RND-SMS] müşteri SMS/WA toggle kapali — atlandi', [
                 'salon_id' => $salon->id, 'randevu_id' => $randevu->id,
             ]);
         }
+        // NOT: Push burada YOK. Push tetigi (3 saat once sabit + 1 gun once) ayri
+        // yerlerde: ana loop'ta pushHatirlatmaGonder() ve birGunOnceGrupluGonder().
+        // Amac: push'u SMS/WA zamanlamasindan tamamen ayirmak, salon ayarindan bagimsiz.
+    }
 
-        // Musteri push: WA/SMS'ten BAGIMSIZ, her zaman gonderilir (SMS metniyle birebir)
-        if ($musteri->id) {
+    /**
+     * Randevu push hatirlatmasini herkese gonderir: musteri + atanan personeller +
+     * salon yoneticileri (role<5). SMS/WA'dan tamamen bagimsiz.
+     *
+     * @param  \App\Randevular  $value
+     * @param  string  $etiket  '3saat' veya '1gun' — sadece log/mesaj ayrimi icin
+     */
+    protected function pushHatirlatmaGonder($value, string $etiket = '3saat')
+    {
+        $salonId = (int) $value->salon_id;
+        $randevuId = (int) $value->id;
+        $musteriAdi = optional($value->users)->name ?? 'Müşteri';
+        $tarihStr = date('d.m.Y', strtotime($value->tarih));
+        $saatStr = date('H:i', strtotime($value->saat));
+        $salonAdi = optional($value->salonlar)->salon_adi ?? 'Salon';
+
+        // Hizmet listesi (tekil satirlarda "10:00 Sac Kesimi" formati)
+        $hizmetSatirlari = [];
+        foreach ($value->hizmetler ?? [] as $h) {
+            $hAdi = optional($h->hizmetler)->hizmet_adi;
+            if (!$hAdi) continue;
+            $hizmetSatirlari[] = date('H:i', strtotime($h->saat)) . ' ' . $hAdi;
+        }
+        $hizmetListesi = implode(', ', $hizmetSatirlari);
+
+        $on = $etiket === '1gun' ? '1 gün' : '3 saat';
+
+        $musteriBody = 'Sayın ' . $musteriAdi . '; ' . $tarihStr . ' saat ' . $saatStr
+            . ' ' . ($hizmetListesi ? $hizmetListesi . ' ' : '')
+            . 'randevunuza ' . $on . ' kaldı, hatırlatmak isteriz ✨';
+
+        $personelBody = $musteriAdi . ' isimli müşterinin ' . $tarihStr . ' '
+            . ($hizmetListesi ?: $saatStr) . ' randevusuna ' . $on . ' kaldı.';
+
+        // 1) Musteri push
+        if (!empty($value->user_id)) {
             try {
-                \App\Services\NotificationService::toCustomer((int) $musteri->id, (int) $salon->id)
+                \App\Services\NotificationService::toCustomer((int) $value->user_id, $salonId)
                     ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
                     ->title('Randevu Hatırlatma')
-                    ->body($mesajBase)
-                    ->randevu((int) $randevu->id)
-                    ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                    ->body($musteriBody)
+                    ->randevu($randevuId)
+                    ->deepLink('appointment_detail', ['randevu_id' => $randevuId])
                     ->send();
             } catch (\Throwable $e) {
-                Log::warning('[RND-SMS] musteri push fail', ['randevu_id' => $randevu->id, 'err' => $e->getMessage()]);
+                Log::warning('[RND-PUSH] musteri push fail', ['etiket' => $etiket, 'randevu_id' => $randevuId, 'err' => $e->getMessage()]);
             }
         }
+
+        // 2) Atanan hizmet personellerine push (kisi basi tek push, hizmetler gruplu)
+        $atanmisPersonelIdleri = [];
+        foreach ($value->hizmetler ?? [] as $h) {
+            if ($h->personel_id) $atanmisPersonelIdleri[] = (int) $h->personel_id;
+        }
+        $atanmisPersonelIdleri = array_values(array_unique($atanmisPersonelIdleri));
+        foreach ($atanmisPersonelIdleri as $pid) {
+            try {
+                \App\Services\NotificationService::toStaff($pid, $salonId)
+                    ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
+                    ->title('Randevu Hatırlatma')
+                    ->body($personelBody)
+                    ->randevu($randevuId)
+                    ->deepLink('appointment_detail', ['randevu_id' => $randevuId])
+                    ->send();
+            } catch (\Throwable $e) {
+                Log::warning('[RND-PUSH] personel push fail', ['etiket' => $etiket, 'randevu_id' => $randevuId, 'personel_id' => $pid, 'err' => $e->getMessage()]);
+            }
+        }
+
+        // 3) Salon yoneticilerine push (role_id<5, atanmislari haric)
+        try {
+            $yoneticiIdleri = Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
+                ->where('salon_personelleri.salon_id', $salonId)
+                ->where('model_has_roles.role_id', '<', 5)
+                ->whereNotIn('salon_personelleri.id', $atanmisPersonelIdleri)
+                ->distinct()
+                ->pluck('salon_personelleri.id')->toArray();
+            $yoneticiIdleri = array_values(array_unique($yoneticiIdleri));
+            foreach ($yoneticiIdleri as $yid) {
+                try {
+                    \App\Services\NotificationService::toStaff((int) $yid, $salonId)
+                        ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
+                        ->title('Randevu Hatırlatma')
+                        ->body($personelBody)
+                        ->randevu($randevuId)
+                        ->deepLink('appointment_detail', ['randevu_id' => $randevuId])
+                        ->send();
+                } catch (\Throwable $e) {
+                    Log::warning('[RND-PUSH] yonetici push fail', ['etiket' => $etiket, 'randevu_id' => $randevuId, 'yonetici_id' => $yid, 'err' => $e->getMessage()]);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[RND-PUSH] yonetici listesi fail', ['etiket' => $etiket, 'randevu_id' => $randevuId, 'err' => $e->getMessage()]);
+        }
+
+        Log::info('[RND-PUSH] hatirlatma push atildi', [
+            'etiket' => $etiket, 'randevu_id' => $randevuId,
+            'salon_id' => $salonId, 'user_id' => $value->user_id,
+        ]);
     }
 
     /**
@@ -510,7 +584,15 @@ class RandevuSMSHatirlatma extends Command
             ]);
 
             // musteriyeGonder ilk randevu uzerinden cagrilir (telefon, salon, vs ondan alinir)
+            // Bu cagri sadece SMS/WA gonderir (push kismi musteriyeGonder icinden cikarildi).
             $this->musteriyeGonder($wa, $controller, $ilk, $ayar, $mesajWA, $templateCtx, $mesajSMS);
+
+            // 1 gun once push: gruptaki HER randevu icin ayri push at
+            // (musteri + atanan personel + role<5 yonetici). SMS/WA'dan bagimsiz.
+            foreach ($sortedGrup as $r) {
+                try { $this->pushHatirlatmaGonder($r, '1gun'); }
+                catch (\Throwable $e) { Log::warning('[RND-PUSH] 1gun push fail', ['randevu_id' => $r->id, 'err' => $e->getMessage()]); }
+            }
         }
     }
 

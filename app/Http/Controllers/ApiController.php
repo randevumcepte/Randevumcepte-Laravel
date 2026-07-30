@@ -11202,29 +11202,55 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         $tarihSaatTxt = date('d.m.Y H:i', strtotime($finalRandevu->tarih . ' ' . $finalRandevu->saat));
                         $musteriEkledi = in_array($_randevuKaynak, ['uygulama', 'web']);
 
-                        if ($guncelleme && $zamanDegisti) {
-                            // Zaman değişti → her iki tarafa bildir
-                            NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
-                                ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
-                                ->title('Randevunuzun zamanı değişti')
-                                ->body($salonAdi . ' • Yeni: ' . $tarihSaatTxt)
-                                ->randevu((int)$finalRandevu->id)
-                                ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
-                                ->send();
-
-                            foreach ($finalRandevu->hizmetler as $h) {
-                                if (!$h->personel_id) continue;
-                                NotificationService::toStaff((int)$h->personel_id, (int)$salonId)
-                                    ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
-                                    ->title('Randevu zamanı değişti')
-                                    ->body(($finalRandevu->users->name ?? 'Müşteri') . ' • Yeni: ' . $tarihSaatTxt)
+                        if ($guncelleme) {
+                            // Guncelleme: her durumda musteriye push (zaman degisti veya
+                            // sadece hizmet/detay). Onceden sadece $zamanDegisti dalinda
+                            // musteriye push atiliyordu -> hizmet/detay guncellemesinde
+                            // sessizce guncelleniyordu. Musteri bilgi almali. Personele
+                            // sadece zaman degistiginde push atiyoruz (mevcut politika).
+                            $baslikM = $zamanDegisti ? 'Randevunuzun zamanı değişti' : 'Randevunuz güncellendi';
+                            $bodyM   = $zamanDegisti
+                                ? $salonAdi . ' • Yeni: ' . $tarihSaatTxt
+                                : $salonAdi . ' • ' . $tarihSaatTxt;
+                            try {
+                                NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
+                                    ->type($zamanDegisti ? NotificationTypes::APPOINTMENT_TIME_CHANGED : NotificationTypes::APPOINTMENT_CREATED)
+                                    ->title($baslikM)
+                                    ->body($bodyM)
                                     ->randevu((int)$finalRandevu->id)
                                     ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
                                     ->send();
+                            } catch (\Throwable $e) { \Log::warning('musteri guncelleme push fail: '.$e->getMessage()); }
+
+                            if ($zamanDegisti) {
+                                foreach ($finalRandevu->hizmetler as $h) {
+                                    if (!$h->personel_id) continue;
+                                    try {
+                                        NotificationService::toStaff((int)$h->personel_id, (int)$salonId)
+                                            ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
+                                            ->title('Randevu zamanı değişti')
+                                            ->body(($finalRandevu->users->name ?? 'Müşteri') . ' • Yeni: ' . $tarihSaatTxt)
+                                            ->randevu((int)$finalRandevu->id)
+                                            ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                            ->send();
+                                    } catch (\Throwable $e) { \Log::warning('personel zaman degisti push fail: '.$e->getMessage()); }
+                                }
                             }
                         } elseif (!$guncelleme) {
                             if ($musteriEkledi) {
-                                // Müşteri kendi oluşturdu → atanan personel + salon yöneticileri
+                                // Musteri kendi olusturdu:
+                                // (1) Musteriye "Talebiniz alindi" push (onceden yoktu)
+                                // (2) Atanan personel + salon yoneticilerine (role<5) toStaff
+                                try {
+                                    NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
+                                        ->type(NotificationTypes::APPOINTMENT_CREATED)
+                                        ->title('Randevu Talebiniz Alındı')
+                                        ->body($salonAdi . ' • ' . $tarihSaatTxt . ' • Onay bekleniyor')
+                                        ->randevu((int)$finalRandevu->id)
+                                        ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                        ->send();
+                                } catch (\Throwable $e) { \Log::warning('musteri talep push fail: '.$e->getMessage()); }
+
                                 $bildirilecekPersonelIdler = [];
                                 foreach ($finalRandevu->hizmetler as $h) {
                                     if ($h->personel_id) $bildirilecekPersonelIdler[] = (int)$h->personel_id;
@@ -11239,22 +11265,26 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                                 $musteriAdi = $finalRandevu->users->name ?? 'Müşteri';
                                 foreach ($bildirilecekPersonelIdler as $pid) {
-                                    NotificationService::toStaff($pid, (int)$salonId)
+                                    try {
+                                        NotificationService::toStaff($pid, (int)$salonId)
+                                            ->type(NotificationTypes::APPOINTMENT_CREATED)
+                                            ->title('Yeni randevu talebi')
+                                            ->body($musteriAdi . ' • ' . $tarihSaatTxt)
+                                            ->randevu((int)$finalRandevu->id)
+                                            ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                            ->send();
+                                    } catch (\Throwable $e) { \Log::warning('personel talep push fail: '.$e->getMessage()); }
+                                }
+                            } else {
+                                try {
+                                    NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
                                         ->type(NotificationTypes::APPOINTMENT_CREATED)
-                                        ->title('Yeni randevu talebi')
-                                        ->body($musteriAdi . ' • ' . $tarihSaatTxt)
+                                        ->title('Sizin için randevu oluşturuldu')
+                                        ->body($salonAdi . ' • ' . $tarihSaatTxt)
                                         ->randevu((int)$finalRandevu->id)
                                         ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
                                         ->send();
-                                }
-                            } else {
-                                NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
-                                    ->type(NotificationTypes::APPOINTMENT_CREATED)
-                                    ->title('Sizin için randevu oluşturuldu')
-                                    ->body($salonAdi . ' • ' . $tarihSaatTxt)
-                                    ->randevu((int)$finalRandevu->id)
-                                    ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
-                                    ->send();
+                                } catch (\Throwable $e) { \Log::warning('musteri olusturuldu push fail: '.$e->getMessage()); }
                             }
                         }
                     }
