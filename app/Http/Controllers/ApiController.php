@@ -3454,6 +3454,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         if ($count >= 1) {
 
+            \Log::info('[siteden_kayit] ZATEN UYE — demoAcildi calismadi', ['ceptelefon' => $request->ceptelefon]);
+
             return "Girdiğiniz telefon numarası ile daha önceden açılmış bir üyelik bulunmaktadır. Farklı bir telefon numarası veya email adresi ile tekrar deneyiniz.";
 
             exit();
@@ -3528,7 +3530,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             // Sistem sahibine bildirim (SMS + varsa WhatsApp) — musteri demo acti; salon adi +
             // yetkili adi + telefon ile hemen aranabilsin. Kayit akisini asla bozmasin.
-            try { \App\Services\SistemBildirim::demoAcildi($salon, $yetkili->name ?? $request->adsoyad, $yetkili->gsm1 ?? $request->ceptelefon); } catch (\Throwable $e) { \Log::warning('[SistemBildirim] demoAcildi hata: ' . $e->getMessage()); }
+            try { $sbSonuc = \App\Services\SistemBildirim::demoAcildi($salon, $yetkili->name ?? $request->adsoyad, $yetkili->gsm1 ?? $request->ceptelefon); \Log::info('[siteden_kayit] demoAcildi sonuc', ['salon_id' => $salon->id, 'sonuc' => $sbSonuc]); } catch (\Throwable $e) { \Log::warning('[SistemBildirim] demoAcildi hata: ' . $e->getMessage()); }
 
             // Varsayilan form sablonlarini (Semall Beauty - id 370) ayni sektordeki yeni salona kopyala
             self::varsayilanFormlariKopyala($salon->id);

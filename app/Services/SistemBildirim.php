@@ -116,6 +116,10 @@ class SistemBildirim
     {
         $ayar = self::ayarOku();
         if (empty($ayar['aktif']) || empty($ayar['numara'])) {
+            Log::warning('[SistemBildirim] gonder ATLANDI — kapali veya alici numara yok', [
+                'aktif' => !empty($ayar['aktif']),
+                'numara_var' => !empty($ayar['numara']),
+            ]);
             return ['ok' => false, 'reason' => 'kapali-veya-numara-yok'];
         }
         $numara = $ayar['numara'];
@@ -139,6 +143,13 @@ class SistemBildirim
             Log::warning('[SistemBildirim] SMS hata', ['e' => $e->getMessage()]);
         }
 
+        Log::info('[SistemBildirim] gonder tamam', [
+            'alici' => $numara,
+            'wa_ok' => $detay['wa']['ok'] ?? null,
+            'wa_status' => $detay['wa']['status'] ?? null,
+            'sms_ok' => $detay['sms']['ok'] ?? null,
+        ]);
+
         return ['ok' => true, 'detay' => $detay];
     }
 
@@ -156,6 +167,11 @@ class SistemBildirim
             . ($ytel ? "\nTel: {$ytel}" : '')
             . "\nID: " . ($salon->id ?? '-')
             . "\n" . date('d.m.Y H:i');
+        Log::info('[SistemBildirim] demoAcildi cagrildi', [
+            'salon_id' => $salon->id ?? null,
+            'yetkili' => $yad,
+            'tel' => $ytel,
+        ]);
         return self::gonder($mesaj);
     }
 
