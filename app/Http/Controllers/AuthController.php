@@ -233,19 +233,33 @@ public $successStatus = 200;
                 $message['token_type'] = 'Bearer';
                 $message['experies_at'] = Carbon::parse(Carbon::now()->addYears(1))->toDateTimeString();
                 $message['success'] = true;
-                $message['user'] = $usertype == '1' ? $user->load([
-                    'yetkili_olunan_isletmeler' => function ($query) use ($salonlar,$request) {
-                        if($request->appBundle  != 'com.randevumcepte.randevumcepte')
-                            $query->whereIn('salon_id', $salonlar);
-                        else
-                            // Master uygulamada sadece uyelik_turu 3 DISI salonlar gosterilir;
-                            // birden fazla ise app icinde sube olarak listelenir.
-                            $query->whereHas('salonlar', function($q){
-                                $q->where('uyelik_turu', '!=', 3);
-                            });
-                    },
-                    'yetkili_olunan_isletmeler.salonlar',
-                ]) : '';
+                if ($usertype == '1') {
+                    $user->load([
+                        'yetkili_olunan_isletmeler' => function ($query) use ($salonlar,$request) {
+                            if($request->appBundle  != 'com.randevumcepte.randevumcepte')
+                                $query->whereIn('salon_id', $salonlar);
+                            else
+                                // Master uygulamada sadece uyelik_turu 3 DISI salonlar gosterilir;
+                                // birden fazla ise app icinde sube olarak listelenir.
+                                $query->whereHas('salonlar', function($q){
+                                    $q->where('uyelik_turu', '!=', 3);
+                                });
+                        },
+                        'yetkili_olunan_isletmeler.salonlar',
+                    ]);
+                    // Coklu sube: yetkili_olunan_isletmeler = hasMany(personel), ayni salonda
+                    // BIRDEN FAZLA personel satiri olabilir. Sube secimi ekrani ve login'deki
+                    // length>1 kontrolu SUBE bazinda calismali; salon_id'ye gore tekillestir.
+                    // (Tek sube ama cok personel -> tek kayit -> dogrudan acilir, 'isletme
+                    // seciniz' ekrani cikmaz.)
+                    $user->setRelation(
+                        'yetkili_olunan_isletmeler',
+                        $user->yetkili_olunan_isletmeler->unique('salon_id')->values()
+                    );
+                    $message['user'] = $user;
+                } else {
+                    $message['user'] = '';
+                }
                 if ($usertype == '0') {
                     $appBundleReq = $request->appBundle;
                     if (!empty($appBundleReq) && $appBundleReq != 'com.randevumcepte.randevumcepte') {
