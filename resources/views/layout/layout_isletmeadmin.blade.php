@@ -2765,7 +2765,7 @@
                $first.find('input[name="islemtarihiyeni[]"]').val(bugun);
                $first.find('input[name="adisyonhizmetsuresi[]"]').val('');
                $first.find('input[name="adisyonhizmetfiyati[]"]').val('');
-               $first.find('input[name="hizmetseanssayisi[]"]').val(1);
+               $first.find('input[name="hizmetseanssayisi[]"]').val('');
                $first.find('input[name="hizmetseansperiyodu[]"]').val(1);
                $first.find('button[name="hizmet_formdan_sil_adisyon"]').prop('disabled',true).attr('data-value','0');
             }
