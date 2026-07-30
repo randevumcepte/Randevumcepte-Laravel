@@ -236,6 +236,9 @@ public $successStatus = 200;
                 if ($usertype == '1') {
                     $user->load([
                         'yetkili_olunan_isletmeler' => function ($query) use ($salonlar,$request) {
+                            // Yalnizca AKTIF personel/sube satirlari; pasif (aktif=0) kayitlar
+                            // sube secimini sisirmesin (guard'daki $yetkiler de aktif=1 kullaniyor).
+                            $query->where('aktif', 1);
                             if($request->appBundle  != 'com.randevumcepte.randevumcepte')
                                 $query->whereIn('salon_id', $salonlar);
                             else
