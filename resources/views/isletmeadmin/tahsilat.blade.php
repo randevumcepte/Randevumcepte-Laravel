@@ -41,7 +41,7 @@
             </select>
             <input type="hidden" name="tahsilat_tutari" id='toplam_tahsilat_tutari' >
             <input type="hidden" name="sube"  value="{{$isletme->id}}">
-            <input type="hidden" name="adisyon_id" value="{{$adisyon_id}}">
+            <input type="hidden" name="adisyon_id" id="session_adisyon_id" value="{{$adisyon_id}}">
             <div class="modal-header">
                <h2>Satış & Tahsilat Düzenleme</h2>
                @if(\Schema::hasColumn('carkifelek_odulleri','adisyon_id'))
