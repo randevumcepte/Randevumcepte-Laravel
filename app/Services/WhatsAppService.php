@@ -70,8 +70,29 @@ class WhatsAppService
      *        'personel_hatirlatma', 'sifre_kodu', 'anket', 'iptal_bildirim', 'guncelleme_bildirim',
      *        'manuel', 'kampanya' vb. Bos birakilirsa null kaydedilir.
      */
+    /**
+     * WhatsApp oturumu paylasimi: salon whatsapp_paylasilan_salon_id doluysa,
+     * mesaj bu salonun kendi session'i yerine "ust salon"un session'indan gider.
+     * Ornek: 416 -> 246. Boylece tek numara + tek Baileys/whatsmeow oturumu birden
+     * fazla salonda paylasilir. Ust salon yoksa/erisilemezse orijinal salon donulur.
+     */
+    public static function resolveWaSalon(Salonlar $salon): Salonlar
+    {
+        $paylasilanId = $salon->whatsapp_paylasilan_salon_id ?? null;
+        if (!empty($paylasilanId) && (int) $paylasilanId !== (int) $salon->id) {
+            $ustSalon = Salonlar::find($paylasilanId);
+            if ($ustSalon) return $ustSalon;
+        }
+        return $salon;
+    }
+
     public function sendReminder(Salonlar $salon, $to, $message, $randevuId = null, $userId = null, $templateCtx = null, $urgent = false, $gonderimTipi = null)
     {
+        // Paylasilan oturum: 416 icin 246'nin session'ina yonlendir.
+        // Tum salon check'leri (aktif, durum, cap, saglayici) ve HTTP endpoint'i
+        // (POST /session/{id}/send) resolve edilen salon uzerinden yapilir.
+        $salon = self::resolveWaSalon($salon);
+
         $normalized = $this->normalizePhone($to);
         if (!$normalized) {
             Log::warning('[WA] invalid-phone', ['salon_id' => $salon->id, 'telefon' => $to]);

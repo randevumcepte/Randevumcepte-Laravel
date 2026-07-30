@@ -473,19 +473,23 @@ class ApiController extends Controller
             }
 
             $salon = $salonId ? Salonlar::where('id', $salonId)->first() : null;
+            // Paylasilan oturum: 416 icin 246'nin WA durumu kontrol edilir; sendUrgent'a
+            // orijinal salon gecilir, WhatsAppService icinde otomatik resolve olur.
+            $waSalon = $salon ? \App\Services\WhatsAppService::resolveWaSalon($salon) : null;
             Log::info('[Sifre WA] kanal karari', [
                 'appBundle' => $request->appBundle ?? null,
                 'salonidler_input' => $request->salonidler ?? null,
                 'belirlenen_salon_id' => $salonId,
+                'wa_session_salon_id' => $waSalon->id ?? null,
                 'salon_var_mi' => (bool) $salon,
-                'wa_aktif' => $salon ? (int) ($salon->whatsapp_aktif ?? 0) : null,
-                'wa_durum' => $salon->whatsapp_durum ?? null,
+                'wa_aktif' => $waSalon ? (int) ($waSalon->whatsapp_aktif ?? 0) : null,
+                'wa_durum' => $waSalon->whatsapp_durum ?? null,
             ]);
 
             if (!$salonId) return false;
-            if (!$salon) return false;
-            if (empty($salon->whatsapp_aktif)) return false;
-            if (($salon->whatsapp_durum ?? null) !== 'connected') return false;
+            if (!$salon || !$waSalon) return false;
+            if (empty($waSalon->whatsapp_aktif)) return false;
+            if (($waSalon->whatsapp_durum ?? null) !== 'connected') return false;
 
             $wa = app(\App\Services\WhatsAppService::class);
             $hepsiBasarili = true;

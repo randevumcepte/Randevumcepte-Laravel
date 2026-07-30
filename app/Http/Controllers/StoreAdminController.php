@@ -3610,11 +3610,13 @@ public function carkverilerigetir(Request $request)
         ->value('role_id');
 
     // WhatsApp bagli mi? Bir kez hesapla, randevu detay modalindaki WhatsApp butonu icin kullan (per-row N+1 yok)
-    $_waSalon = Salonlar::find($isletmeId);
+    // Paylasilan oturum: 416 icin 246'nin salonunu kontrol et.
+    $_waSalonRaw = Salonlar::find($isletmeId);
+    $_waSalon = $_waSalonRaw ? \App\Services\WhatsAppService::resolveWaSalon($_waSalonRaw) : null;
     $_waSaglayici = $_waSalon->whatsapp_saglayici ?? 'baileys';
-    $_waBagli = $_waSaglayici === 'cloud_api'
+    $_waBagli = $_waSalon && ($_waSaglayici === 'cloud_api'
         ? (!empty($_waSalon->cloud_api_token) && !empty($_waSalon->cloud_api_phone_number_id))
-        : (($_waSalon->whatsapp_aktif ?? 0) && ($_waSalon->whatsapp_durum ?? '') === 'connected');
+        : (($_waSalon->whatsapp_aktif ?? 0) && ($_waSalon->whatsapp_durum ?? '') === 'connected'));
 
     // Randevu detay kartinda "Memnuniyet Anketi Gonder" butonu icin yetki (musteri kartindaki ile ayni: pazarlama.anket_yonet)
     $_anketAu = Auth::guard('isletmeyonetim')->user();
@@ -11675,7 +11677,9 @@ private function ayAdiCevir($ingilizceAy)
             'user_id' => $musteri->id,
         ]];
 
-        $waKanaliAcik = $salon && !empty($salon->whatsapp_aktif) && ($salon->whatsapp_durum ?? null) === 'connected';
+        // Paylasilan oturum: 416 icin 246'nin WA durumunu kontrol et
+        $waSalon = $salon ? \App\Services\WhatsAppService::resolveWaSalon($salon) : null;
+        $waKanaliAcik = $waSalon && !empty($waSalon->whatsapp_aktif) && ($waSalon->whatsapp_durum ?? null) === 'connected';
         $kanal = 'sms';
         $kanalDetay = '';
 
@@ -15334,13 +15338,16 @@ DB::raw('
         // kuyruga girer. Hemen basarisiz olanlar (4xx/5xx/timeout) SMS yoluyla devam eder;
         // 202 (queued) donen mesajlar listeden cikarilir, webhook fail bildirirse Laravel
         // o noktada SMS fallback'i tetikler (WhatsAppWebhookController::onMessageFailed).
-        $waKanaliAcik = $isletme && !empty($isletme->whatsapp_aktif) && ($isletme->whatsapp_durum ?? null) === 'connected';
+        // Paylasilan oturum: 416 icin 246'nin whatsapp durumuna bakilir.
+        $waIsletme = $isletme ? \App\Services\WhatsAppService::resolveWaSalon($isletme) : null;
+        $waKanaliAcik = $waIsletme && !empty($waIsletme->whatsapp_aktif) && ($waIsletme->whatsapp_durum ?? null) === 'connected';
         $mesajVarMi = is_array($mesajlar) && count($mesajlar) > 0;
         Log::info('[Transactional WA] pre-filter durumu', [
             'salon_id' => $isletme->id ?? null,
+            'wa_session_salon_id' => $waIsletme->id ?? null,
             'salon_var_mi' => (bool) $isletme,
-            'wa_aktif' => $isletme ? (int) ($isletme->whatsapp_aktif ?? 0) : null,
-            'wa_durum' => $isletme->whatsapp_durum ?? null,
+            'wa_aktif' => $waIsletme ? (int) ($waIsletme->whatsapp_aktif ?? 0) : null,
+            'wa_durum' => $waIsletme->whatsapp_durum ?? null,
             'wa_kanali_acik' => $waKanaliAcik,
             'mesaj_sayisi' => is_array($mesajlar) ? count($mesajlar) : -1,
             'mesaj_var_mi' => $mesajVarMi,
@@ -23361,8 +23368,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         }
 
         // Baileys ise bagli olmali (net hata mesaji icin on-kontrol)
-        $saglayici = $isletme->whatsapp_saglayici ?? 'baileys';
-        if($saglayici === 'baileys' && (!$isletme->whatsapp_aktif || $isletme->whatsapp_durum !== 'connected')){
+        // Paylasilan oturum: 416 icin 246'nin durumu kontrol edilir.
+        $waIsletme = \App\Services\WhatsAppService::resolveWaSalon($isletme);
+        $saglayici = $waIsletme->whatsapp_saglayici ?? 'baileys';
+        if($saglayici === 'baileys' && (!$waIsletme->whatsapp_aktif || $waIsletme->whatsapp_durum !== 'connected')){
             return response()->json(['ok'=>false,'mesaj'=>'WhatsApp bagli degil. Once WhatsApp ayarlarindan QR okutun.'],409);
         }
 
@@ -30124,8 +30133,10 @@ DB::raw('
         }
 
         // Baileys ise bagli olmali (net hata mesaji icin on-kontrol)
-        $saglayici = $isletme->whatsapp_saglayici ?? 'baileys';
-        if ($saglayici === 'baileys' && (!$isletme->whatsapp_aktif || $isletme->whatsapp_durum !== 'connected')) {
+        // Paylasilan oturum: 416 icin 246'nin durumu kontrol edilir.
+        $waIsletme = \App\Services\WhatsAppService::resolveWaSalon($isletme);
+        $saglayici = $waIsletme->whatsapp_saglayici ?? 'baileys';
+        if ($saglayici === 'baileys' && (!$waIsletme->whatsapp_aktif || $waIsletme->whatsapp_durum !== 'connected')) {
             return response()->json(['ok' => false, 'mesaj' => 'WhatsApp bağlı değil. Önce WhatsApp ayarlarından QR okutun.'], 409);
         }
 
@@ -33914,9 +33925,11 @@ DB::raw('
         }
 
         // 1) WhatsApp-first — salon WA aktif+connected ise once WA dene
-        $waKanaliAcik = $salon
-            && !empty($salon->whatsapp_aktif)
-            && ($salon->whatsapp_durum ?? null) === 'connected';
+        // Paylasilan oturum: 416 icin 246'nin durumu kontrol edilir.
+        $waSalonKontrol = $salon ? \App\Services\WhatsAppService::resolveWaSalon($salon) : null;
+        $waKanaliAcik = $waSalonKontrol
+            && !empty($waSalonKontrol->whatsapp_aktif)
+            && ($waSalonKontrol->whatsapp_durum ?? null) === 'connected';
 
         if ($waKanaliAcik) {
             try {

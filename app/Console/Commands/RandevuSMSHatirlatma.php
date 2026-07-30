@@ -203,15 +203,18 @@ class RandevuSMSHatirlatma extends Command
             return;
         }
 
-        $whatsappKanaliAcik = !empty($salon->whatsapp_aktif)
-            && $salon->whatsapp_durum === 'connected';
+        // Paylasilan oturum: 416 icin 246'nin durumu kontrol edilir.
+        $waSalon = \App\Services\WhatsAppService::resolveWaSalon($salon);
+        $whatsappKanaliAcik = !empty($waSalon->whatsapp_aktif)
+            && $waSalon->whatsapp_durum === 'connected';
 
         Log::info('[RND-SMS] personel kanal karar', [
             'salon_id' => $salon->id,
+            'wa_session_salon_id' => $waSalon->id,
             'randevu_id' => $randevuId,
             'telefon' => $telefon,
-            'wa_aktif' => (int) ($salon->whatsapp_aktif ?? 0),
-            'wa_durum' => $salon->whatsapp_durum,
+            'wa_aktif' => (int) ($waSalon->whatsapp_aktif ?? 0),
+            'wa_durum' => $waSalon->whatsapp_durum,
             'wa_kanali_acik' => $whatsappKanaliAcik,
         ]);
 
@@ -257,29 +260,32 @@ class RandevuSMSHatirlatma extends Command
         $whatsappDenendi = false;
         $whatsappBasarili = false;
 
-        $saglayici = $salon->whatsapp_saglayici ?? 'baileys';
+        // Paylasilan oturum: 416 icin 246'nin WA durumu/token'i kontrol edilir.
+        $waSalon = \App\Services\WhatsAppService::resolveWaSalon($salon);
+        $saglayici = $waSalon->whatsapp_saglayici ?? 'baileys';
         if ($saglayici === 'cloud_api') {
             // Cloud API: token + phone_number_id + ilgili template adı varsa kanal açık
             $templateField = isset($templateCtx['key']) ? 'cloud_api_template_' . $templateCtx['key'] : null;
-            $whatsappKanaliAcik = !empty($salon->cloud_api_token)
-                && !empty($salon->cloud_api_phone_number_id)
-                && ($templateField ? !empty($salon->{$templateField}) : false);
+            $whatsappKanaliAcik = !empty($waSalon->cloud_api_token)
+                && !empty($waSalon->cloud_api_phone_number_id)
+                && ($templateField ? !empty($waSalon->{$templateField}) : false);
         } else {
             // Baileys: aktif + connected (ayar kolonu kontrolu kaldirildi - salon WA acikken her zaman WA dene)
-            $whatsappKanaliAcik = !empty($salon->whatsapp_aktif)
-                && $salon->whatsapp_durum === 'connected';
+            $whatsappKanaliAcik = !empty($waSalon->whatsapp_aktif)
+                && $waSalon->whatsapp_durum === 'connected';
         }
 
         $musteriOnayli = !Schema::hasColumn('users', 'whatsapp_onay') || (int) ($musteri->whatsapp_onay ?? 1) === 1;
 
         Log::info('[RND-SMS] müşteri kanal karar', [
             'salon_id' => $salon->id,
+            'wa_session_salon_id' => $waSalon->id,
             'randevu_id' => $randevu->id,
             'musteri_id' => $musteri->id,
             'telefon' => $musteri->cep_telefon,
             'saglayici' => $saglayici,
-            'wa_aktif' => (int) ($salon->whatsapp_aktif ?? 0),
-            'wa_durum' => $salon->whatsapp_durum,
+            'wa_aktif' => (int) ($waSalon->whatsapp_aktif ?? 0),
+            'wa_durum' => $waSalon->whatsapp_durum,
             'wa_kanali_acik' => $whatsappKanaliAcik,
             'musteri_onayli' => $musteriOnayli,
         ]);
