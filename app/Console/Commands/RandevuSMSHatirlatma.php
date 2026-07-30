@@ -85,7 +85,10 @@ class RandevuSMSHatirlatma extends Command
             ]);
             */
 
-            // Müşteriye hatırlatma (salon kendi belirlediği X saat önce) — WhatsApp + SMS fallback
+            // Müşteriye hatırlatma (salon kendi belirlediği X saat önce)
+            // NOT: Push, SMS/WA toggle'dan BAGIMSIZ. musteriyeGonder icinde ayar
+            // kontrolu WA/SMS blogunu koruyor; push blogu her zaman calisir.
+            // Personel/yonetici tarafi ile ayni pattern (bkz. 167-177, 197-208).
             if ($simdi == $tetikSalonSaat) {
                 $ayar = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 1)->first();
                 Log::info('[RND-SMS] müşteri salon-saati tetiklendi', [
@@ -94,20 +97,17 @@ class RandevuSMSHatirlatma extends Command
                     'ayar_musteri' => $ayar ? (int) $ayar->musteri : null,
                     'ayar_wa_musteri' => $ayar ? (int) ($ayar->whatsapp_musteri ?? 0) : null,
                 ]);
-                if ($ayar && $ayar->musteri) {
-                    $saat = date('H:i', strtotime($value->saat));
-                    $tarihStr = date('d.m.Y', strtotime($value->tarih));
-                    $hizmetMetni = $this->hizmetMetniOlustur($value);
-                    // SMS icin: eski kisa format (karakter tasarrufu)
-                    $mesajSMS = 'Sayın ' . optional($value->users)->name . '; ' . $tarihStr . ' tarihinde saat ' . $saat . ' ' . $hizmetMetni . 'randevunuzu hatırlatmak isteriz görüşmek üzere ✨';
-                    // WA icin: zenginlestirilmis format (konum + telefon + emoji + hizmet)
-                    $hizmetlerRich = trim($this->hizmetMetniOlustur($value), ' ,');
-                    $mesajWA = $this->whatsAppRichMetin($value->salonlar, $value->users, $tarihStr, $saat, 'randevunuzu', $hizmetlerRich);
-                    $templateCtx = ['key' => 'yaklasan', 'params' => [$saat, $value->salonlar->salon_adi]];
-                    $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesajWA, $templateCtx, $mesajSMS);
-                } elseif ($ayar) {
-                    Log::info('[RND-SMS] müşteri SMS toggle kapali — atlandi', ['randevu_id' => $value->id]);
-                }
+                $saat = date('H:i', strtotime($value->saat));
+                $tarihStr = date('d.m.Y', strtotime($value->tarih));
+                $hizmetMetni = $this->hizmetMetniOlustur($value);
+                // SMS icin: eski kisa format (karakter tasarrufu)
+                $mesajSMS = 'Sayın ' . optional($value->users)->name . '; ' . $tarihStr . ' tarihinde saat ' . $saat . ' ' . $hizmetMetni . 'randevunuzu hatırlatmak isteriz görüşmek üzere ✨';
+                // WA icin: zenginlestirilmis format (konum + telefon + emoji + hizmet)
+                $hizmetlerRich = trim($this->hizmetMetniOlustur($value), ' ,');
+                $mesajWA = $this->whatsAppRichMetin($value->salonlar, $value->users, $tarihStr, $saat, 'randevunuzu', $hizmetlerRich);
+                $templateCtx = ['key' => 'yaklasan', 'params' => [$saat, $value->salonlar->salon_adi]];
+                // musteriyeGonder her cagride push atar; WA/SMS blogunu ic gate kontrol eder.
+                $this->musteriyeGonder($wa, $controller, $value, $ayar, $mesajWA, $templateCtx, $mesajSMS);
             }
 
             // (1-gun-once musteri hatirlatmasi artik birGunOnceGrupluGonder()
@@ -299,7 +299,13 @@ class RandevuSMSHatirlatma extends Command
             'musteri_onayli' => $musteriOnayli,
         ]);
 
-        if ($whatsappKanaliAcik && $musteriOnayli) {
+        // SMS/WA gate: $ayar->musteri = 0 ise SMS ve WA gonderme; push asagida
+        // her zaman calisir. Onceden bu gate cagirandaki if bloguydu; push da
+        // atlaniyordu. Push'un SMS/WA'dan bagimsiz kalmasi icin gate'i buraya
+        // tasidik. Personel/yonetici tarafiyla ayni pattern.
+        $smsWaAcik = $ayar && $ayar->musteri;
+
+        if ($smsWaAcik && $whatsappKanaliAcik && $musteriOnayli) {
             $whatsappDenendi = true;
             // WA metni SMS ile birebir aynı olsun (Cloud API kendi template'ini kullanır).
             $personalized = $mesajBase;
@@ -318,7 +324,7 @@ class RandevuSMSHatirlatma extends Command
             }
         }
 
-        if (!$whatsappBasarili) {
+        if ($smsWaAcik && !$whatsappBasarili) {
             // SMS'te gönderici kimliği görünmediği için işletme adını başa ekle.
             // (WhatsApp'ta mesaj salonun kendi numarasından gittiği için eklenmez.)
             // WA icin zenginlestirilmis format kullanildiginda $mesajSMS verilir;
@@ -337,9 +343,13 @@ class RandevuSMSHatirlatma extends Command
                 'to' => $musteri->cep_telefon,
                 'message' => $smsMesaj,
             ]]);
+        } elseif (!$smsWaAcik) {
+            Log::info('[RND-SMS] müşteri SMS/WA toggle kapali — sadece push atilir', [
+                'salon_id' => $salon->id, 'randevu_id' => $randevu->id,
+            ]);
         }
 
-        // Musteri push: WA/SMS'ten bagimsiz, her zaman gonderilir (SMS metniyle birebir)
+        // Musteri push: WA/SMS'ten BAGIMSIZ, her zaman gonderilir (SMS metniyle birebir)
         if ($musteri->id) {
             try {
                 \App\Services\NotificationService::toCustomer((int) $musteri->id, (int) $salon->id)
@@ -415,19 +425,10 @@ class RandevuSMSHatirlatma extends Command
             }
 
             // SMS ayari kontrolu (1gun = ayar_id=6)
+            // NOT: Ayar kapali olsa dahi PUSH atilir (musteriyeGonder icinde SMS/WA
+            // toggle'a bagli, push bagimsiz). Flag'i her durumda claim edelim ki
+            // musteriye ayni push tekrar tekrar yagmasın.
             $ayar = SalonSMSAyarlari::where('salon_id', $salon->id)->where('ayar_id', 6)->first();
-            if (!$ayar || !$ayar->musteri) {
-                // Toggle kapali — tekrar tekrar denenmesin diye flag set
-                \Illuminate\Support\Facades\DB::table('randevular')
-                    ->whereIn('id', $randevuIdler)
-                    ->whereNull('hatirlatma_gunonce_gonderildi')
-                    ->update(['hatirlatma_gunonce_gonderildi' => now()]);
-                Log::info('[RND-SMS] 1 gun once GRUP atlandi (ayar kapali)', [
-                    'salon_id' => $salon->id, 'user_id' => $musteri->id,
-                    'randevu_idler' => $randevuIdler,
-                ]);
-                continue;
-            }
 
             // Atomik grup claim: bu (salon, musteri) icin flag null olan
             // tum randevulari bir kerede claim et. Sayi = bu cron'un kazandigi.
@@ -439,6 +440,13 @@ class RandevuSMSHatirlatma extends Command
             if ($claimed === 0) {
                 // Baska bir cron tick'i bu arada claim etmis — atla
                 continue;
+            }
+
+            if (!$ayar || !$ayar->musteri) {
+                Log::info('[RND-SMS] 1 gun once GRUP: SMS/WA toggle kapali — sadece push', [
+                    'salon_id' => $salon->id, 'user_id' => $musteri->id,
+                    'randevu_idler' => $randevuIdler,
+                ]);
             }
 
             // Hizmet + saat satirlarini topla (tum randevulardaki tum hizmetler)
