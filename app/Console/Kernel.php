@@ -53,6 +53,7 @@ class Kernel extends ConsoleKernel
         Commands\WhatsappPromoKontrol::class,
         Commands\CagriMerkeziSchemaEnsure::class,
         Commands\AiCagriLoglari::class,
+        Commands\MusteriKlonla::class,
     ];
 
     public function __construct(\Illuminate\Contracts\Foundation\Application $app, \Illuminate\Contracts\Events\Dispatcher $events)
