@@ -149,16 +149,16 @@ public $successStatus = 200;
                     $yetkiler = $user->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->flatten()->unique()->toArray();
                     if($request->appBundle != 'com.randevumcepte.randevumcepte')
                     {
-                        foreach($salonlar as $salon)
-                        {
-                            if (!in_array($salon, $yetkiler)) {
-
-                                $message['message'] = 'Bu işletme için yetkiniz bulunmamaktadır.';
-                                $message['success'] = false;
-                                return response()->json(['error'=>'Unauthorised','message'=> $message], 401);
-                            }
+                        // Coklu sube: personel markanin (app_bundle) HERHANGI BIR subesinde
+                        // yetkiliyse girise izin ver. (Eskiden foreach ile TUM marka subelerinde
+                        // yetki sart kosuluyordu; cok subeli markada yalnizca bazi subelerde
+                        // yetkili personel hatali sekilde reddediliyordu.) yetkili_olunan_isletmeler
+                        // yaniti zaten yalnizca bu markanin subelerini icerir (asagida whereIn filtresi).
+                        if (empty(array_intersect($salonlar, $yetkiler))) {
+                            $message['message'] = 'Bu işletme için yetkiniz bulunmamaktadır.';
+                            $message['success'] = false;
+                            return response()->json(['error'=>'Unauthorised','message'=> $message], 401);
                         }
-
                     }
                     else
                     {
