@@ -1095,8 +1095,8 @@ class ApiController extends Controller
         // subeden alindigini gostermek icin salon adi tasinir (tek subede gizlenir).
         'salon:id,salon_adi',
         'hizmetler' => function ($q) use ($personelid) {
-            // seans_sayisi > 0 olan hizmet = PAKET satisi (siniflandirma kriteri)
-            $q->select('id', 'adisyon_id', 'hizmet_id', 'fiyat', 'personel_id', 'seans_sayisi')
+            // PAKET satisi kriteri: randevu_id NULL (randevusuz) VE seans_sayisi > 0
+            $q->select('id', 'adisyon_id', 'hizmet_id', 'fiyat', 'personel_id', 'seans_sayisi', 'randevu_id')
               ->with(['hizmet:id,hizmet_adi'])
               ->with('tahsilatlar:id,adisyon_hizmet_id,tutar');
             if ($personelid) $q->where('personel_id', $personelid);
@@ -1133,15 +1133,15 @@ class ApiController extends Controller
               ->orWhereHas('paketler', fn($q2) => $q2->where('personel_id', $personelid));
         });
     })
-    // Hizmet sekmesi: seansli (seans_sayisi > 0) hizmetler PAKET sayilir, hizmet degil.
+    // Hizmet sekmesi: PAKET (randevu_id NULL VE seans_sayisi>0) olanlar haric hizmet.
     ->when($adisyonturu == 1, fn($q) => $q->whereHas('hizmetler', fn($q3) => $q3->where(function($q4) {
-        $q4->whereNull('seans_sayisi')->orWhere('seans_sayisi','<=',0);
+        $q4->whereNotNull('randevu_id')->orWhereNull('seans_sayisi')->orWhere('seans_sayisi','<=',0);
     })))
     ->when($adisyonturu == 3, fn($q) => $q->whereHas('urunler'))
-    // Paket filtresi: gercek paket satislari VEYA seansli (seans_sayisi > 0) hizmet satislari.
+    // Paket filtresi: gercek paket VEYA seansli hizmet (randevu_id NULL VE seans_sayisi>0).
     ->when($adisyonturu == 2, fn($q) => $q->where(function($q2) {
         $q2->whereHas('paketler')
-           ->orWhereHas('hizmetler', fn($q3) => $q3->where('seans_sayisi','>',0));
+           ->orWhereHas('hizmetler', fn($q3) => $q3->whereNull('randevu_id')->where('seans_sayisi','>',0));
     }))
     ->when(
         $_faturasizGizleAktif,
@@ -1231,11 +1231,11 @@ class ApiController extends Controller
     // Satis turu filtresi (1 Hizmet, 2 Paket, 3 Urun) — sayim da liste ile
     // ayni filtreyi uygulamali ki rozet sayilari filtreyle birlikte degissin.
     $turFiltreSayim = '';
-    // Hizmet sayimi: seansli (seans_sayisi > 0) hizmetler PAKET sayilir, hizmet degil.
-    if ((int)$adisyonturu === 1)      $turFiltreSayim = " AND EXISTS (SELECT 1 FROM adisyon_hizmetler ahx WHERE ahx.adisyon_id = a.id AND (ahx.seans_sayisi IS NULL OR ahx.seans_sayisi <= 0))";
-    // Paket sayimi: gercek paket satislari VEYA seansli (seans_sayisi > 0) hizmet satislari
+    // Hizmet sayimi: PAKET (randevu_id NULL VE seans_sayisi>0) olanlar haric.
+    if ((int)$adisyonturu === 1)      $turFiltreSayim = " AND EXISTS (SELECT 1 FROM adisyon_hizmetler ahx WHERE ahx.adisyon_id = a.id AND (ahx.randevu_id IS NOT NULL OR ahx.seans_sayisi IS NULL OR ahx.seans_sayisi <= 0))";
+    // Paket sayimi: gercek paket VEYA seansli hizmet (randevu_id NULL VE seans_sayisi>0)
     // (liste filtresiyle ayni kural; rozet sayisi listeyle tutarli kalsin).
-    elseif ((int)$adisyonturu === 2)  $turFiltreSayim = " AND (EXISTS (SELECT 1 FROM adisyon_paketler apx WHERE apx.adisyon_id = a.id) OR EXISTS (SELECT 1 FROM adisyon_hizmetler ahp WHERE ahp.adisyon_id = a.id AND ahp.seans_sayisi > 0))";
+    elseif ((int)$adisyonturu === 2)  $turFiltreSayim = " AND (EXISTS (SELECT 1 FROM adisyon_paketler apx WHERE apx.adisyon_id = a.id) OR EXISTS (SELECT 1 FROM adisyon_hizmetler ahp WHERE ahp.adisyon_id = a.id AND ahp.randevu_id IS NULL AND ahp.seans_sayisi > 0))";
     elseif ((int)$adisyonturu === 3)  $turFiltreSayim = " AND EXISTS (SELECT 1 FROM adisyon_urunler aux WHERE aux.adisyon_id = a.id)";
 
     // Musteri filtresi
@@ -1432,9 +1432,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $toplamTutar += $hizmet->fiyat;
         $odenen += $tahsilatToplam;
 
-        // Seansli hizmet (seans_sayisi > 0) = PAKET satisi: prim duz paket_prim_yuzde,
-        // gosterimde "(P) (X Seans)" etiketi.
-        $isSeansli = (int)($hizmet->seans_sayisi ?? 0) > 0;
+        // PAKET satisi (randevu_id NULL VE seans_sayisi>0): prim duz paket_prim_yuzde,
+        // gosterimde "(P) (X Seans)" etiketi. Randevudan gelen seans kullanimi normal hizmet.
+        $isSeansli = is_null($hizmet->randevu_id) && (int)($hizmet->seans_sayisi ?? 0) > 0;
 
         if($hizmet->personel_id && $hizmet->personel) {
             if($isSeansli) {
@@ -26578,9 +26578,9 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             return $adisyon->hizmetler;
         });
 
-        // Seansli hizmet kalemleri (seans_sayisi > 0) PAKET raporuna gider — Hizmet
+        // PAKET (randevu_id NULL VE seans_sayisi>0) PAKET raporuna gider — Hizmet
         // raporundan cikar. Boylece seansli satis paket sekmesinde gorunur.
-        $tumHizmetler = $tumHizmetler->reject(fn($i)=>(int)$i->seans_sayisi > 0)->values();
+        $tumHizmetler = $tumHizmetler->reject(fn($i)=>is_null($i->randevu_id) && (int)$i->seans_sayisi > 0)->values();
 
         // 3. Hizmet_id üzerinden grupla
         $raporlar = $tumHizmetler->groupBy('hizmet_id')->map(function ($items) {
@@ -26714,7 +26714,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             if ($personel != '') return $adisyon->hizmetler->where('personel_id', $personel);
             return $adisyon->hizmetler;
         });
-        $seansliHizmetler = $tumHizmetlerP->filter(fn($i)=>(int)$i->seans_sayisi > 0)->values();
+        $seansliHizmetler = $tumHizmetlerP->filter(fn($i)=>is_null($i->randevu_id) && (int)$i->seans_sayisi > 0)->values();
 
         $seansliRaporlar = $seansliHizmetler->groupBy('hizmet_id')->map(function ($items) {
             $ahIds = $items->pluck('id');
@@ -26753,12 +26753,12 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             ->where('salon_id', $request->salonId)->whereBetween('tarih',[$request->tarih1,$request->tarih2])
             ->get();
 
-        // Seansli hizmetler (seans_sayisi > 0) PAKET sayilir — hizmetten cikar, pakete ekle.
+        // PAKET (randevu_id NULL VE seans_sayisi>0) sayilir — hizmetten cikar, pakete ekle.
         $tumHizmetItems = $adisyonlar->flatMap(fn($adisyon) => $adisyon->hizmetler)
             ->filter(fn($item) => $item->personel && $item->personel->aktif == 1);
 
         // 1. Hizmet gelir ve prim (SADECE seanssiz hizmetler)
-        $hizmetPersonel = $tumHizmetItems->reject(fn($i)=>(int)$i->seans_sayisi > 0)
+        $hizmetPersonel = $tumHizmetItems->reject(fn($i)=>is_null($i->randevu_id) && (int)$i->seans_sayisi > 0)
             ->groupBy('personel_id')
             ->mapWithKeys(function($items, $personel_id) {
                 $personel = $items->first()->personel;
@@ -26796,7 +26796,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 'paket_primi'  => $kazanc * ($personel->paket_prim_yuzde ?? 0)/100,
             ];
         }
-        foreach($tumHizmetItems->filter(fn($i)=>(int)$i->seans_sayisi > 0)
+        foreach($tumHizmetItems->filter(fn($i)=>is_null($i->randevu_id) && (int)$i->seans_sayisi > 0)
                 ->groupBy('personel_id') as $personel_id => $items) {
             $personel = $items->first()->personel;
             $kazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $items->pluck('id'))->sum('tutar');
@@ -26835,13 +26835,13 @@ public function hizmetMusteriListesiGetir(Request $request)
 {
     Log::info('salon id '.$request->salonId.' hizmet id '.$request->hizmetId);
 
-    // Seansli (seans_sayisi > 0) hizmetler PAKET raporuna tasindi; Hizmet drill-down'inda
+    // PAKET (randevu_id NULL VE seans_sayisi>0) PAKET raporuna tasindi; Hizmet drill-down'inda
     // yalnizca seanssiz (normal) hizmet satislari gosterilir.
     $query = Adisyonlar::with(['musteri'])
         ->where('salon_id', $request->salonId)
         ->whereHas('hizmetler', function($q) use($request) {
             $q->where('hizmet_id', $request->hizmetId)
-              ->where(function($qq){ $qq->whereNull('seans_sayisi')->orWhere('seans_sayisi','<=',0); });
+              ->where(function($qq){ $qq->whereNotNull('randevu_id')->orWhereNull('seans_sayisi')->orWhere('seans_sayisi','<=',0); });
         })
         ->whereBetween('tarih', [$request->tarih1, $request->tarih2]);
 
@@ -26892,7 +26892,7 @@ public function urunMusteriListesiGetir(Request $request)
 
 public function paketMusteriListesiGetir(Request $request)
 {
-    // Gercek paket satislari VEYA seansli (seans_sayisi > 0) hizmet satislari (sozde-paket).
+    // Gercek paket VEYA seansli hizmet (randevu_id NULL VE seans_sayisi>0) (sozde-paket).
     // paketRaporlari seansli hizmetleri hizmet_id ile paket satiri olarak dondugu
     // icin, drill-down id'si hem paket_id hem de seansli hizmet_id olabilir.
     $query = Adisyonlar::with(['musteri'])
@@ -26901,7 +26901,7 @@ public function paketMusteriListesiGetir(Request $request)
             $q->whereHas('paketler', function($q2) use($request) {
                 $q2->where('paket_id', $request->paketId);
             })->orWhereHas('hizmetler', function($q2) use($request) {
-                $q2->where('hizmet_id', $request->paketId)->where('seans_sayisi','>',0);
+                $q2->where('hizmet_id', $request->paketId)->whereNull('randevu_id')->where('seans_sayisi','>',0);
             });
         })
         ->whereBetween('tarih', [$request->tarih1, $request->tarih2]);

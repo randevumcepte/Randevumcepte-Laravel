@@ -13475,8 +13475,8 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     $adisyonlar = Adisyonlar::with([
         'musteri:id,name',
         'hizmetler' => function ($q) use ($personel_id) {
-            // seans_sayisi > 0 olan hizmet = PAKET satisi (siniflandirma kriteri)
-            $q->select('id', 'adisyon_id', 'hizmet_id', "fiyat", "personel_id", "seans_sayisi")
+            // PAKET satisi kriteri: randevu_id NULL (randevusuz) VE seans_sayisi > 0
+            $q->select('id', 'adisyon_id', 'hizmet_id', "fiyat", "personel_id", "seans_sayisi", "randevu_id")
               ->with(['hizmet:id,hizmet_adi'])
               ->with('tahsilatlar:id,adisyon_hizmet_id,tutar');
             if ($personel_id) {
@@ -13533,17 +13533,23 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     
     // Adisyon türüne göre filtreleme
     if ($adisyonturu == '1') {
-        // Hizmet sekmesi: seansli (seans_sayisi > 0) hizmetler PAKET sayilir, hizmet degil.
+        // Hizmet sekmesi: PAKET (randevu_id NULL VE seans_sayisi>0) olanlar haric hizmet.
         $adisyonlar->whereHas('hizmetler', function($q){
-            $q->where(function($qq){ $qq->whereNull('seans_sayisi')->orWhere('seans_sayisi','<=',0); });
+            $q->where(function($qq){
+                $qq->whereNotNull('randevu_id')
+                   ->orWhereNull('seans_sayisi')
+                   ->orWhere('seans_sayisi','<=',0);
+            });
         });
     } elseif ($adisyonturu == '3') {
         $adisyonlar->whereHas('urunler');
     } elseif ($adisyonturu == '2') {
-        // Paket sekmesi: gercek paketler VEYA seansli (seans_sayisi > 0) hizmet satislari.
+        // Paket sekmesi: gercek paketler VEYA seansli hizmet (randevu_id NULL VE seans_sayisi>0).
         $adisyonlar->where(function($q){
             $q->whereHas('paketler')
-              ->orWhereHas('hizmetler', function($q2){ $q2->where('seans_sayisi','>',0); });
+              ->orWhereHas('hizmetler', function($q2){
+                  $q2->whereNull('randevu_id')->where('seans_sayisi','>',0);
+              });
         });
     }
     
@@ -13601,7 +13607,7 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             if($paketler->isEmpty())
             {
                 $seansVarMi = $hizmetler->contains(function($h) {
-                    return (int)$h->seans_sayisi > 0;
+                    return is_null($h->randevu_id) && (int)$h->seans_sayisi > 0;
                 });
 
                 if (!$seansVarMi) {
@@ -13666,8 +13672,8 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     $paketSayisi = 0;
     
     foreach ($filtrelenmisAdisyonlar as $adisyon) {
-        // Seansli (seans_sayisi > 0) hizmetler PAKET sayilir; hizmet adedinden dusulup paket adedine eklenir.
-        $seansliSayisi = $adisyon->hizmetler->filter(fn($h)=>(int)$h->seans_sayisi > 0)->count();
+        // PAKET (randevu_id NULL VE seans_sayisi>0) sayilir; hizmet adedinden dusulup paket adedine eklenir.
+        $seansliSayisi = $adisyon->hizmetler->filter(fn($h)=>is_null($h->randevu_id) && (int)$h->seans_sayisi > 0)->count();
         $islemSayisi += $adisyon->hizmetler->count() - $seansliSayisi;
         $urunSayisi += $adisyon->urunler->count();
         $paketSayisi += $adisyon->paketler->count() + $seansliSayisi;
@@ -13733,9 +13739,10 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         foreach ($hizmetler as $hizmet) {
             $hizmetNetTutar = ($hizmet->fiyat ?? 0) - ($hizmet->indirim_tutari ?? 0);
 
-            // Seansli (seans_sayisi > 0) hizmet = PAKET satisi: (P) etiketi, paket kovasi,
+            // PAKET satisi (randevu_id NULL VE seans_sayisi>0): (P) etiketi, paket kovasi,
             // prim duz paket_prim_yuzde. Yaninda seans adedi (seans_sayisi).
-            if ((int)$hizmet->seans_sayisi > 0) {
+            // Randevudan gelen seans kullanimi (randevu_id dolu) NORMAL hizmet sayilir.
+            if (is_null($hizmet->randevu_id) && (int)$hizmet->seans_sayisi > 0) {
                 $paketHakedis = 0;
                 if ($hizmet->personel_id !== null && isset($hizmet->personel->paket_prim_yuzde)) {
                     $paketHakedis = $hizmet->tahsilatlar->sum('tutar') * ($hizmet->personel->paket_prim_yuzde / 100);
@@ -34432,13 +34439,15 @@ DB::raw('
 
         $hizmetItems = $adisyonlar->flatMap(fn($a)=>$a->hizmetler)->filter(fn($i)=>$i->personel_id);
 
-        // Seansli hizmet kalemleri (seans_sayisi > 0) sistemde PAKET sayilir: gelir de
-        // prim de paket kovasina gider, duz paket_prim_yuzde ile hesaplanir.
+        // PAKET satisi = randevu_id NULL (randevusuz) VE seans_sayisi > 0. Gelir de prim de
+        // paket kovasina gider, duz paket_prim_yuzde ile. Randevudan gelen seans kullanimi
+        // (randevu_id dolu) NORMAL hizmet sayilir.
+        $paketMi = fn($i) => is_null($i->randevu_id) && (int)$i->seans_sayisi > 0;
         foreach($hizmetItems->groupBy('personel_id') as $pid => $items){
             if(!isset($primMap[$pid]) || !isset($persById[$pid])) continue;
             // Seansli (paket) ve normal hizmet kalemlerini ayir
-            $normal  = $items->reject(fn($i)=>(int)$i->seans_sayisi > 0)->values();
-            $seansli = $items->filter(fn($i)=>(int)$i->seans_sayisi > 0)->values();
+            $normal  = $items->reject($paketMi)->values();
+            $seansli = $items->filter($paketMi)->values();
 
             // --- Normal hizmet satislari ---
             if($normal->isNotEmpty()){
@@ -34907,10 +34916,10 @@ DB::raw('
                     if(!$h->personel || $h->personel->id != $personelId) continue;
                     $tahsilEdilen = (float)TahsilatHizmetler::where('adisyon_hizmet_id',$h->id)->sum('tutar');
 
-                    // Seansli hizmet (seans_sayisi > 0) = PAKET satisi: ana rapor ile ayni
+                    // PAKET satisi (randevu_id NULL VE seans_sayisi>0) = ana rapor ile ayni
                     // sekilde duz paket_prim_yuzde uygulanir ve PAKET listesine yazilir.
-                    // (Aksi halde detay bu satislari %hizmet ile sayip fazla gosteriyordu.)
-                    if((int)$h->seans_sayisi > 0){
+                    // Randevudan gelen seans kullanimi (randevu_id dolu) NORMAL hizmettir.
+                    if(is_null($h->randevu_id) && (int)$h->seans_sayisi > 0){
                         $primTutar = $tahsilEdilen * $paketYuzde / 100;
                         $paketSatislari[] = [
                             'tarih'        => $tarih,
