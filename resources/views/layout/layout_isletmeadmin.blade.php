@@ -2631,8 +2631,8 @@
                            </div>
                            <div class="col-md-2 col-6 col-sm-6 col-xs-6">
                               <div class="form-group">
-                                 <label title="Boş bırakırsan tekil hizmet; 2 ve üstü paket satışı olarak görünür">Seans <small style="color:#888">(boş=tekil)</small></label>
-                                 <input type="tel" class="form-control" name="hizmetseanssayisi[]" value="" placeholder="1" title="Boş bırakırsan tekil hizmet olarak kaydedilir; 2 ve üstü yazarsan paket satışı olarak görünür.">
+                                 <label>Seans</label>
+                                 <input type="tel" class="form-control" name="hizmetseanssayisi[]" value="">
                               </div>
                            </div>
 
