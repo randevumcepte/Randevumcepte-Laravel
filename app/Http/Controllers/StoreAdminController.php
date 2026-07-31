@@ -34872,7 +34872,9 @@ DB::raw('
                     'musteri',
                 ])
                 ->where('salon_id', $salonId)
-                ->whereBetween('tarih',[$tarih1,$tarih2])
+                // Ana rapor (primHakedisVerisi) ile ayni gun-kapsamli aralik:
+                // adisyonlar.tarih datetime olabilir; ay sonu kayiplarini onler.
+                ->whereBetween('tarih',[substr($tarih1,0,10).' 00:00:00', substr($tarih2,0,10).' 23:59:59'])
                 ->get();
 
             $hizmetSatislari = [];
@@ -34904,6 +34906,25 @@ DB::raw('
                 foreach(($a->hizmetler ?? []) as $h){
                     if(!$h->personel || $h->personel->id != $personelId) continue;
                     $tahsilEdilen = (float)TahsilatHizmetler::where('adisyon_hizmet_id',$h->id)->sum('tutar');
+
+                    // Seansli hizmet (seans_sayisi > 0) = PAKET satisi: ana rapor ile ayni
+                    // sekilde duz paket_prim_yuzde uygulanir ve PAKET listesine yazilir.
+                    // (Aksi halde detay bu satislari %hizmet ile sayip fazla gosteriyordu.)
+                    if((int)$h->seans_sayisi > 0){
+                        $primTutar = $tahsilEdilen * $paketYuzde / 100;
+                        $paketSatislari[] = [
+                            'tarih'        => $tarih,
+                            'musteri_adi'  => $musteriAdi,
+                            'urun'         => optional($h->hizmet)->hizmet_adi ?? '—',
+                            'fiyat'        => (float)$h->fiyat,
+                            'tahsil_edilen'=> $tahsilEdilen,
+                            'prim_yuzdesi' => $paketYuzde,
+                            'prim_tutari'  => $primTutar,
+                        ];
+                        $musteriEkle($musteriId, $musteriAdi, $tahsilEdilen, $primTutar);
+                        continue;
+                    }
+
                     $satirYuzde   = $hizmetDetayli ? (float)($detayOranlar['hizmet'][$h->hizmet_id] ?? 0) : $hizmetYuzde;
                     $primTutar    = $tahsilEdilen * $satirYuzde / 100;
                     $hizmetSatislari[] = [
