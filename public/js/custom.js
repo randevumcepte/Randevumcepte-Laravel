@@ -10741,9 +10741,15 @@ if (preload && !turdegisti) {
                 // Otomatik yenilemede DOM tazelenince yatay kaydirma sola atmasin:
                 // mevcut scrollLeft'i sakla, asagida geri yukle.
                 var _hScroll = $('.fc-view-container').scrollLeft() || 0;
-                $('#calendar').fullCalendar('removeEvents');
+                // ONEMLI: Eskiden removeEvents + addEventSource + refetchEvents kullaniliyordu.
+                // removeEventSources HIC cagrilmadigi icin her (15sn'lik) yenilemede yeni bir
+                // event-source ekleniyor, eskiler birikiyordu; refetchEvents biriken TUM
+                // kaynaklari tekrar basiyordu. Yeterince cok yenileme sonrasi bu birikim
+                // scheduler (oda-kolonlu) gorunumde render'i bozup slotlari BOSALTIYORDU
+                // (F5 = temiz init ile tek kaynak -> geri geliyordu). Cozum: once biriken
+                // tum kaynaklari sil, sonra yalnizca taze kaynagi ekle (refetch gereksiz).
+                $('#calendar').fullCalendar('removeEventSources');
                 $('#calendar').fullCalendar('addEventSource', result.randevu);
-                $('#calendar').fullCalendar('refetchEvents');
             }
             // Yenileme sonrasi yatay kaydirma konumunu koru (kolon genisligi artik
             // FC'nin kendi otomatik dagitimina birakildi; sabit genislik/scroll yok).
