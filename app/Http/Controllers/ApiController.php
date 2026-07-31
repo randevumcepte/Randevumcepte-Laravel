@@ -1674,25 +1674,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         } 
         $tarih1 = !empty($request->tarih1) ? $request->tarih1 : date('Y-m-d');
         $tarih2 = !empty($request->tarih2) ? $request->tarih2 : date('Y-m-d');
-
-        // Personel_id'yi SUNUCUDA auth kullanicisindan coz (web StoreAdmin::randevuyukle
-        // ile ayni: yetkili_id + salon_id). Client (Flutter) bazen bayat/yanlis
-        // personel_id gonderiyor -> coklu sube gecisi, mukerrer salon_personelleri
-        // kaydi ya da login yanitindaki aktif=1 filtresi yuzunden dogru satiri
-        // cozemiyor -> mobil takvim BOS donuyordu (web calisiyor cunku personel_id'yi
-        // sunucuda buluyor). Kendi kaydini bulursak filtreyi ona sabitle; bulamazsak
-        // (auth yok / eski token) client degerine dus -> tam geri uyum.
-        $authUser = \Auth::guard('isletmeyonetim-api')->user();
-        $kendiPersonelId = $authUser
-            ? Personeller::where('yetkili_id',$authUser->id)->where('salon_id',$isletmeId)->value('id')
-            : null;
-        $etkinPersonelId = $kendiPersonelId ?: $request->personel_id;
-        $personelRolu = Personeller::where('id',$etkinPersonelId)->value('role_id');
+        $personelRolu = Personeller::where('id',$request->personel_id)->value('role_id');
         // === YETKI BYPASS ===
         // Personel rolundeyse VE 'randevu.tum_personel_gor' yetkisi VARSA,
         // personelRolu'yu 0'a indir → asagidaki tum (personelRolu == 5) kontrolleri
         // bypass edilir → tum randevulari gorur.
         if ($personelRolu == 5) {
+            $authUser = \Auth::guard('isletmeyonetim-api')->user();
             if ($authUser && \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
                 $authUser->id, $isletmeId, 'randevu.tum_personel_gor'
             )) {
@@ -1724,9 +1712,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // paketleri disliyor. Ekstra iptal filtresi, eski yanlis set edilmis
         // 'randevu_hizmetler.iptal=1' kayitlari yuzunden onay bekleyen /
         // aktif randevulari da yanlislikla gizliyor olabilir.
-        ->where(function($q) use($personelRolu,$etkinPersonelId){
+        ->where(function($q) use($personelRolu,$request){
                 if($personelRolu == 5)
-                    $q->where('personel_id',$etkinPersonelId);
+                    $q->where('personel_id',$request->personel_id);
         })->get();
 
         // Loop öncesi toplu prefetch — her satırda DB sorgusu atılmasını önler (N+1 fix)
@@ -2041,6 +2029,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
            
 
+            // Personel kendi takvimini gorurken (role 5) resources PERSONEL-bazli
+            // kuruluyor (asagida ~2071: tek kaynak, id = personel_id). Ama event
+            // resourceId'si yukarida takvim_turu'ya gore atandi (oda/cihaz modunda
+            // oda_id/cihaz_id). Bu durumda event hicbir kaynaga oturmuyor ve mobil
+            // (resource-tabanli) takvim BOS geliyordu. resourceId'yi personel_id'ye
+            // sabitle -> personel kaynagi ile eslesir, randevular gorunur.
+            if($personelRolu == 5)
+                $resourceId = $rh->personel_id ?? 0;
             $rol = $personelRolu;
             return [
                 'id' => $rh->randevu_id,
