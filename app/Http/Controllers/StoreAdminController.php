@@ -2261,7 +2261,9 @@ public function carkverilerigetir(Request $request)
                     ->where('randevular.salon_id', $salonId)
                     ->where('randevular.tarih', $bugun)
                     ->where('randevu_hizmetler.personel_id', $p->id)
-                    ->where('randevu_hizmetler.yardimci_personel','!=', true)
+                    // yardimci_personel NULL tuzagi: asil kalemlerde bu kolon set edilmez,
+                    // "!= true" NULL satirlari da eleyip doluluk'u dusuk/0 gosteriyordu.
+                    ->whereRaw('COALESCE(randevu_hizmetler.yardimci_personel,0) != 1')
                     ->count();
                 $kapasite = 16;
                 $doluluk = $kapasite > 0 ? min(100, round(($bugunRandevu / $kapasite) * 100)) : 0;
@@ -16790,7 +16792,13 @@ DB::raw('
             ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)
             ->value('id');
             
-        $query->where('randevu_hizmetler.yardimci_personel', '!=', true)
+        // yardimci_personel NULL tuzagi: normal (asil) randevu kalemlerinde bu kolon
+        // hic set edilmez (yalniz yardimci personel satirlarinda true). Eski kosul
+        // "!= true" (yani != 1) MySQL'de NULL satirlar icin de NULL (=false) dondugu
+        // icin personelin KENDI asil randevulari da listeden dusuyor ve liste komple
+        // bos gorunuyordu (takvim sorgusunda bu kosul yok, o yuzden takvim doluyordu).
+        // NULL/0 = asil kalem, yalniz 1/true = yardimci -> COALESCE ile NULL'i 0 say.
+        $query->whereRaw('COALESCE(randevu_hizmetler.yardimci_personel,0) != 1')
               ->where('randevu_hizmetler.personel_id', $personelId);
     }
 
