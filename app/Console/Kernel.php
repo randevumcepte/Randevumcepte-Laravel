@@ -54,6 +54,9 @@ class Kernel extends ConsoleKernel
         Commands\CagriMerkeziSchemaEnsure::class,
         Commands\AiCagriLoglari::class,
         Commands\MusteriKlonla::class,
+        Commands\YetkiliGirisTeshis::class,
+        Commands\TakvimKaybolmaTeshis::class,
+        Commands\FlutterRandevuTeshis::class,
     ];
 
     public function __construct(\Illuminate\Contracts\Foundation\Application $app, \Illuminate\Contracts\Events\Dispatcher $events)
