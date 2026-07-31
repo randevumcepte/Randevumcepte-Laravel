@@ -3656,6 +3656,15 @@ public function carkverilerigetir(Request $request)
             ->value('id');
     }
 
+    // Yetkisiz personel (sadece KENDI randevularini gorur) icin: salon oda/cihaz/
+    // kategori modunda bile takvimi ODA/CIHAZ kolonlarina dokme — kendi randevularini
+    // gordugu icin bu kolonlara gerek yok. Efektif takvim turunu PERSONEL (1) yap:
+    // boylece resourceId, resources, renk ve bos-slot mantigi tek personel kolonu
+    // uzerinden tutarli calisir (mobil ApiController@randevular ile ayni yaklasim).
+    if ($kendiPersonelIdFiltre && $takvim_turu != 1) {
+        $takvim_turu = 1;
+    }
+
     // "Saati geçen randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri).
     // Tarih alt sinirini bugune cekiyoruz (indeks kullanimi icin) + bugunun saati gecmis
     // randevulari asagida whereHas icinde eliyoruz. Aralik tamamen gecmiste kalirsa
