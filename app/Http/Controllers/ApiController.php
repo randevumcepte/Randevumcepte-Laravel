@@ -1748,6 +1748,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         //   randevularda tahsilat butonu dogru sekilde gorunur (geriye uyumlu).
         $seansKayitlari = AdisyonPaketSeanslar::whereIn('randevu_id', $randevuIds)
             ->get(['randevu_id','adisyon_paket_id','adisyon_hizmet_id','hizmet_id']);
+        // Paket merge icin: seans kayitlarini randevu_id'ye gore grupla (web ile ayni).
+        $seanslarByRandevuMobil = $seansKayitlari->groupBy('randevu_id');
         $seansSayisiKayitliHizmetIds = AdisyonHizmetler::whereIn('id', $seansKayitlari->pluck('adisyon_hizmet_id')->filter()->unique()->values())
             ->where('seans_sayisi','>',0)
             ->pluck('id')
@@ -1802,7 +1804,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $randevu_hizmetler = $randevuHizmetler->map(function ($rh) use(
             $takvim_turu,$isletmeId,$personelRolu,
             $adisyonHizmetlerByRandevu,$tahsilatToplamlari,$seansSayilariByRandevu,$paketRandevuIds,$paketDurumuByRandevu,$paketHizmetIdsByRandevu,
-            $kategoriRenkleri,$cihazRenkleri,$odaRenkleri
+            $kategoriRenkleri,$cihazRenkleri,$odaRenkleri,$seanslarByRandevuMobil
         ) {
             $satisOlustu = 0;
             $odemeYapildi = 0;
@@ -2037,9 +2039,22 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             // sabitle -> personel kaynagi ile eslesir, randevular gorunur.
             if($personelRolu == 5)
                 $resourceId = $rh->personel_id ?? 0;
+
+            // MERGE icin "paket kaynagi" (web StoreAdmin::randevuyukle ile ayni mantik):
+            // bu hizmet_id hangi adisyon_paket / adisyon_hizmet'e bagli? Ayni kaynak +
+            // ayni resource + ayni personel olan paket hizmetleri tek bara birlestirilir
+            // (asagida). Bagli olmayanlar 'single-'+id -> asla merge.
+            $seansVar = $seanslarByRandevuMobil->get($rh->randevu_id, collect());
+            $_paketSource = 'single-'.$rh->id;
+            foreach($seansVar as $__sv){
+                if((int)$__sv->hizmet_id !== (int)$rh->hizmet_id) continue;
+                if($__sv->adisyon_paket_id){ $_paketSource = 'AP:'.$__sv->adisyon_paket_id; break; }
+                if($__sv->adisyon_hizmet_id){ $_paketSource = 'AH:'.$__sv->adisyon_hizmet_id; break; }
+            }
             $rol = $personelRolu;
             return [
                 'id' => $rh->randevu_id,
+                '_paketSource' => $_paketSource,
                 'randevu_id'=>$rh->randevu_id,
                 'userid'=>$rh->randevu->user_id,
                 'borderColor' => '#ffffff',
@@ -2061,7 +2076,40 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 'satis_olustu'=>$satisOlustu,
                 'durum'=>($rh->randevu->durum !==null ? $rh->randevu->durum : "na") ."-".($rh->randevu->randevuya_geldi !== null ? $rh->randevu->randevuya_geldi : "na").'-'.$satisOlustu.'-'.$odemeYapildi.'-'.$rh->id,
             ];
-        }); 
+        });
+
+        // ============================================================
+        // MERGE (web StoreAdmin::randevuyukle ile ayni): ayni paket kaynagi
+        // (_paketSource: AP:/AH:) + ayni resource + ayni PERSONEL olan hizmetler
+        // tek bara birlestirilir (start=min, end=max). Boylece paket randevusu
+        // tek blok gorunur, hizmetler ayri ayri dokulmez. Paketsiz hizmetler
+        // ('single-'+rh_id) her zaman ayri kalir. Kullanicinin istegi: tek
+        // resource VE tek personel -> anahtara personelId de eklendi.
+        // ============================================================
+        if($randevu_hizmetler instanceof \Illuminate\Support\Collection && $randevu_hizmetler->count() > 0){
+            $grouped = $randevu_hizmetler->groupBy(function($e){
+                $src = $e['_paketSource'] ?? ('single-'.($e['id'] ?? uniqid()));
+                $res = $e['resourceId'] ?? '';
+                $per = $e['personelId'] ?? '';
+                return $src.'|'.$res.'|'.$per;
+            });
+            $merged = collect();
+            foreach($grouped as $events){
+                if($events->count() > 1){
+                    $sorted = $events->sortBy('start')->values();
+                    $first  = $sorted->first();
+                    $first['end'] = $sorted->max('end');
+                    unset($first['_paketSource']);
+                    $merged->push($first);
+                } else {
+                    foreach($events as $e){
+                        unset($e['_paketSource']);
+                        $merged->push($e);
+                    }
+                }
+            }
+            $randevu_hizmetler = $merged;
+        }
 
         $resources = "";
         if($takvim_turu == 1 || $personelRolu == 5 )
