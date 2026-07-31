@@ -37,52 +37,35 @@ class WhatsappPromoKontrol extends Command
             return 0;
         }
 
-        $bugun = date('Y-m-d');
+        // === YENİ MODEL (2026-07) — salon-başı 2 ay promo KALDIRILDI ===
+        // Herkes 31.08.2026'ya kadar ücretsiz (global); 1 Eylül'de kontörlü
+        // sisteme geçiş. Bu komut artık:
+        //   1) Salon-başı promo BAŞLATMAZ (dates artık kullanılmıyor).
+        //   2) Süre dolumuyla WhatsApp KAPATMAZ (eski whatsapp_aktif=0 dalı silindi;
+        //      yoksa salonlar 31 Ağustos'tan önce erkenden kesilirdi).
+        //   3) Eski promo yüzünden yanlışlıkla kapatılmış (whatsapp_promo_kapatildi=1
+        //      + whatsapp_aktif=0) salonların WhatsApp'ını GERİ AÇAR. Idempotent —
+        //      her gün çalışsa da zararsız; kalan yanlış kapatmaları temizler.
 
-        // 1) BAŞLATMA — ücretli olmayan ve promo başlatılmamış salonlar
-        $baslatilan = DB::table('salonlar')
-            ->whereNull('whatsapp_promo_baslangic')
+        $geriAcilan = DB::table('salonlar')
+            ->where('whatsapp_promo_kapatildi', 1)
+            ->where('whatsapp_aktif', 0)
+            // Ücretli pakete geçenlere dokunma
             ->where(function ($q) {
                 $q->whereNull('whatsapp_paket')
                   ->orWhereNotIn('whatsapp_paket', ['pro', 'premium']);
             })
             ->update([
-                'whatsapp_promo_baslangic' => $bugun,
-                'whatsapp_promo_bitis'     => date('Y-m-d', strtotime('+2 months')),
+                'whatsapp_aktif'           => 1,
                 'whatsapp_promo_aktif'     => 1,
                 'whatsapp_promo_kapatildi' => 0,
             ]);
 
-        // 2) SÜRE DOLUMU — promosu aktif ama bitiş tarihi geçmiş salonlar
-        $sonlananlar = DB::table('salonlar')
-            ->where('whatsapp_promo_aktif', 1)
-            ->whereNotNull('whatsapp_promo_bitis')
-            ->whereDate('whatsapp_promo_bitis', '<', $bugun)
-            // Ücretli pakete geçenler etkilenmesin
-            ->where(function ($q) {
-                $q->whereNull('whatsapp_paket')
-                  ->orWhereNotIn('whatsapp_paket', ['pro', 'premium']);
-            })
-            ->pluck('id');
-
-        $kapatilan = 0;
-        if ($sonlananlar->count() > 0) {
-            $kapatilan = DB::table('salonlar')
-                ->whereIn('id', $sonlananlar)
-                ->update([
-                    'whatsapp_promo_aktif'     => 0,
-                    'whatsapp_promo_kapatildi' => 1,
-                    'whatsapp_aktif'           => 0, // ödeme yoksa WhatsApp otomatik kapanır
-                ]);
-        }
-
-        Log::info('[WA-PROMO] kontrol', [
-            'baslatilan' => $baslatilan,
-            'kapatilan'  => $kapatilan,
-            'salon_ids'  => $sonlananlar->toArray(),
+        Log::info('[WA-PROMO] yeni model (global 31 Agustos)', [
+            'geri_acilan' => $geriAcilan,
         ]);
 
-        $this->info("Promo baslatilan: {$baslatilan} | suresi dolup kapatilan: {$kapatilan}");
+        $this->info("Eski 2 ay promo kaldirildi. Yanlis kapatilip geri acilan WhatsApp: {$geriAcilan}");
         return 0;
     }
 

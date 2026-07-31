@@ -44,52 +44,32 @@ class Salonlar extends Model
         $iletisimTel = '05412948144';
 
         try {
-            // Ücretli paketler promo dışında — onların kendi kartı/akışı var
+            // === YENİ MODEL (2026-07) — salon-başı 2 ay promo KALDIRILDI ===
+            // Herkes 31.08.2026'ya kadar ücretsiz (global tek tarih); 1 Eylül'de
+            // kontörlü sisteme geçiş (bkz. KontorServisi + whatsapp.blade kontör
+            // uyarıları). Bu metod artık SADECE "Hesabım > Aldığım Hizmetler"
+            // kartını besler; ESKİ "son 5 gün ara/öde" popup'ı ÜRETMEZ
+            // ('uyari' her zaman false). whatsapp_promo_* kolonları kullanılmıyor.
+
+            // Ücretli paketler zaten promo dışında — kendi kartı/akışı var
             $paket = $isletme->whatsapp_paket ?: 'baslangic';
             if (in_array($paket, ['pro', 'premium'])) {
                 return ['promo' => false, 'iletisim' => $iletisimTel];
             }
 
-            // Kolon yoksa (migration çalışmamışsa) sessizce çık (request içi tek kontrol)
-            static $kolonVar = null;
-            if ($kolonVar === null) {
-                $kolonVar = \Schema::hasColumn('salonlar', 'whatsapp_promo_baslangic');
-            }
-            if (!$kolonVar) {
-                return ['promo' => false, 'iletisim' => $iletisimTel];
-            }
-
-            // Lazy init — promo henüz başlatılmamışsa bugünden başlat
-            if (empty($isletme->whatsapp_promo_baslangic)) {
-                $bas = \Carbon\Carbon::now()->startOfDay();
-                $bit = (clone $bas)->addMonths(2);
-                \DB::table('salonlar')->where('id', $isletme->id)->update([
-                    'whatsapp_promo_baslangic' => $bas->toDateString(),
-                    'whatsapp_promo_bitis'     => $bit->toDateString(),
-                    'whatsapp_promo_aktif'     => 1,
-                    'whatsapp_promo_kapatildi' => 0,
-                ]);
-                $isletme->whatsapp_promo_baslangic = $bas->toDateString();
-                $isletme->whatsapp_promo_bitis     = $bit->toDateString();
-                $isletme->whatsapp_promo_aktif     = 1;
-                $isletme->whatsapp_promo_kapatildi = 0;
-            }
-
-            $bitis = \Carbon\Carbon::parse($isletme->whatsapp_promo_bitis)->startOfDay();
+            $bitis = \Carbon\Carbon::parse('2026-08-31')->startOfDay();
             $kalan = (int) \Carbon\Carbon::now()->startOfDay()->diffInDays($bitis, false);
-            $suresiDoldu = $kalan < 0 || (int) ($isletme->whatsapp_promo_kapatildi ?? 0) === 1;
-            $aktif = !$suresiDoldu && (int) ($isletme->whatsapp_promo_aktif ?? 1) === 1;
+            $suresiDoldu = $kalan < 0; // 1 Eylül+ => kontörlü dönem başladı
 
             return [
-                'promo'       => true,
-                'baslangic'   => $isletme->whatsapp_promo_baslangic,
-                'bitis'       => $isletme->whatsapp_promo_bitis,
-                'kalan_gun'   => max(0, $kalan),
-                'suresi_doldu'=> $suresiDoldu,
-                'aktif'       => $aktif,
-                // Son 5 gün uyarısı (süre dolmadan)
-                'uyari'       => $aktif && $kalan >= 0 && $kalan <= 5,
-                'iletisim'    => $iletisimTel,
+                'promo'        => true,
+                'baslangic'    => null,
+                'bitis'        => '2026-08-31',
+                'kalan_gun'    => max(0, $kalan),
+                'suresi_doldu' => $suresiDoldu,
+                'aktif'        => !$suresiDoldu,
+                'uyari'        => false, // ESKİ 5-gün ara/öde popup'ı KAPALI
+                'iletisim'     => $iletisimTel,
             ];
         } catch (\Exception $e) {
             return ['promo' => false, 'iletisim' => $iletisimTel];
