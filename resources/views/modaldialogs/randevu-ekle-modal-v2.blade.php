@@ -1637,11 +1637,12 @@
             }
         });
 
-        // Ilk paket eklenirken bos manuel satiri kaldir (kullanici hicbir hizmet
-        // secmemis ise) — temiz gorunum icin.
-        // ÖNCE: silinecek satırlardan personel/cihaz/oda seçimlerini yakala (paket karta miras için)
+        // Paket VEYA standalone (tek hizmet paketi/hizmeti) eklenirken bos manuel
+        // satiri kaldir. Aksi halde tek-hizmet paket ekleyince: bos satir + yeni
+        // standalone satir = alta 2. satir gozukuyordu. (Kullanici raporu.)
         var inheritedFromRemoved = { personel:'', cihaz:'', oda:'' };
-        if(paketOrderFiltered.length){
+        var yeniIcerikVar = (paketOrderFiltered.length > 0 || standalone.length > 0);
+        if(yeniIcerikVar){
             var existingPaketCount = $services.find('.v2-paket-card').length;
             if(existingPaketCount === 0){
                 // Hicbir paket yokken: bos manuel satirlari sil (hizmet seçimi yoksa)

@@ -19972,10 +19972,29 @@ DB::raw('
         if(($dogrulama_kodu_ayari && $randevu->dogrulama == $request->dogrulama_kodu) || !$dogrulama_kodu_ayari)
         {*/
             $adisyon_id = '';
-            if(!$adisyonvar)
-                $adisyon_id = self::yeni_adisyon_olustur($randevu->user_id,$randevu->salon_id,date('d.m.Y',strtotime($randevu->tarih)).' tarihli randevuda alınan hizmetlerin ödemesi',date('Y-m-d'));
-            else
+            if(!$adisyonvar) {
+                // AYNI GUN + AYNI MUSTERI ADISYON BIRLESTIRMESI (kullanici geri
+                // bildirimi): ayni gunde ayni musteride ONCEDEN acilmis randevu-tahsilat
+                // adisyonu varsa, YENI adisyon acmak yerine oraya ekle. Ornek: kadin
+                // 2 farkli saatte randevu aldi (paket disi), her ikisi de tahsilat butonu
+                // ile ayri adisyona giriyordu -> tek adisyonda birleser.
+                $ayniGunAdisyonId = DB::table('adisyonlar')
+                    ->join('adisyon_hizmetler', 'adisyon_hizmetler.adisyon_id', '=', 'adisyonlar.id')
+                    ->join('randevular', 'randevular.id', '=', 'adisyon_hizmetler.randevu_id')
+                    ->where('adisyonlar.user_id', $randevu->user_id)
+                    ->where('adisyonlar.salon_id', $randevu->salon_id)
+                    ->where('randevular.tarih', $randevu->tarih)
+                    ->where('randevular.id', '!=', $randevu->id) // kendisi degil
+                    ->whereNotNull('adisyon_hizmetler.randevu_id')
+                    ->value('adisyonlar.id');
+                if ($ayniGunAdisyonId) {
+                    $adisyon_id = $ayniGunAdisyonId;
+                } else {
+                    $adisyon_id = self::yeni_adisyon_olustur($randevu->user_id,$randevu->salon_id,date('d.m.Y',strtotime($randevu->tarih)).' tarihli randevuda alınan hizmetlerin ödemesi',date('Y-m-d'));
+                }
+            } else {
                 $adisyon_id=$adisyon->id;
+            }
             //$randevu->save();
             // FIX (karisik paket + paketsiz): eskiden !$adisyonvar tum hizmet
             // loop'unu atliyor, paket seansi olan bir randevuda paketsiz
@@ -21746,9 +21765,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     public function randevuyagelmedi(Request $request)
     {
 
-        $randevu = Randevular::where('id',$request->randevuid)->first(); 
+        $randevu = Randevular::where('id',$request->randevuid)->first();
         $seansVar = AdisyonPaketSeanslar::where('randevu_id',$randevu->id)->get();
-        if($seansVar)
+        // NOT: $seansVar Collection'dir; bos olsa bile 'if($seansVar)' TRUE donerdi
+        // -> APS'siz randevularda da 'seansdan dusulsun mu?' popup gosteriliyordu.
+        // Fix: count > 0 kontrolu (yani gercek paket randevusu ise).
+        if($seansVar->count() > 0)
         {
 
 
