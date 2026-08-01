@@ -20032,6 +20032,53 @@ DB::raw('
                     $randevu->id
                 );
             }
+
+            // AYNI GUN AYNI MUSTERI DIGER RANDEVULARINI DA BIRLESTIR (paketsiz olanlar).
+            // Kullanici geri bildirimi: 'ayni gunde 2 ayri randevu var, birinin
+            // tahsilat butonuna basinca hepsi tek adisyonda birlessin (paket olmayanlar)'.
+            // Ayni akis: paket seansi olan hizmet satirlarini atla, mevcut adisyon_hizmet
+            // varsa idempotency icin skip.
+            try {
+                $digerRandevular = Randevular::where('user_id', $randevu->user_id)
+                    ->where('salon_id', $randevu->salon_id)
+                    ->where('tarih', $randevu->tarih)
+                    ->where('id', '!=', $randevu->id)
+                    ->where('durum', '<', 2) // iptal olmayan
+                    ->with('hizmetler')
+                    ->get();
+                foreach ($digerRandevular as $dr) {
+                    foreach ($dr->hizmetler as $dh) {
+                        if ($dh->yardimci_personel) continue;
+                        $_paketSeansiVar = AdisyonPaketSeanslar::where('randevu_id', $dr->id)
+                            ->where('hizmet_id', $dh->hizmet_id)
+                            ->exists();
+                        if ($_paketSeansiVar) continue; // paket hizmeti — atla
+                        $_adisyonHizmetiVar = AdisyonHizmetler::where('randevu_id', $dr->id)
+                            ->where('hizmet_id', $dh->hizmet_id)
+                            ->exists();
+                        if ($_adisyonHizmetiVar) continue; // zaten ekli
+                        self::adisyon_hizmet_ekle(
+                            $adisyon_id,
+                            $dh->hizmet_id,
+                            $dr->tarih,
+                            $dh->saat,
+                            $dh->sure_dk,
+                            $dh->fiyat,
+                            true,
+                            $dh->personel_id,
+                            $dh->cihaz_id,
+                            null,
+                            null,
+                            $dr->id
+                        );
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('randevutahsilet ayni gun birlestirme hata: '.$e->getMessage(), [
+                    'randevu_id' => $randevu->id ?? null,
+                ]);
+            }
+
             return $randevu->user_id."/".$adisyon_id;
             exit;
         /*}
