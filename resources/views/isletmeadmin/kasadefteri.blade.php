@@ -1059,9 +1059,30 @@ $(document).ready(function() {
         }
     });
 
-    // Özel tarih değiştiğinde
+    // Özel tarih inputlarina takvim + secilince sorguyu tetikle.
+    // Onceden "Özel" secilince tarih girilse bile hicbir yerde kasaraporu()
+    // cagrilmiyordu; bu yuzden gecmis aylar/ozel aralik hic gelmiyordu.
+    function kasaOzelSorgula() {
+        var b = $('#kasa_baslangic_tarihi').val();
+        var bit = $('#kasa_bitis_tarihi').val();
+        if ($('#zamana_gore_filtre_kasa').val() === 'ozel' && b && bit) {
+            kasaraporu(b, bit);
+        }
+    }
+    $('#kasa_baslangic_tarihi, #kasa_bitis_tarihi').datepicker({
+        language: "tr",
+        autoClose: true,
+        dateFormat: "yyyy-mm-dd",
+        onSelect: function() {
+            updateKasaPeriodLabel();
+            kasaOzelSorgula();
+        }
+    });
+
+    // Özel tarih değiştiğinde (elle yazma dahil)
     $('#kasa_baslangic_tarihi, #kasa_bitis_tarihi').change(function() {
         updateKasaPeriodLabel();
+        kasaOzelSorgula();
     });
 
     // AJAX ile filtreleme yapıldığında da etiketi güncelle

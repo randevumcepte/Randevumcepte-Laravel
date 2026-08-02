@@ -4429,9 +4429,11 @@ public function kasa_raporu_getir(Request $request,$returntext)
     }
 
     // Filtrelenmiş tahsilatlar (seçilen tarih aralığı için)
+    // odeme_tarihi bir DATETIME oldugu icin gun sinirlari 00:00:00 / 23:59:59
+    // olmali; aksi halde aralik bitis gununun saatli kayitlari dusuyordu.
     $tahsilatlar = Tahsilatlar::where('salon_id', $salon_id)
-        ->where('odeme_tarihi','>=',$tarih_baslangic)
-        ->where('odeme_tarihi','<=',$tarih_bitis)
+        ->where('odeme_tarihi','>=',$tarih_baslangic.' 00:00:00')
+        ->where('odeme_tarihi','<=',$tarih_bitis.' 23:59:59')
         ->where(function($q) use($odeme_yontemi){
             if($odeme_yontemi != '') $q->where('odeme_yontemi_id',$odeme_yontemi);
         })
@@ -4482,8 +4484,8 @@ public function kasa_raporu_getir(Request $request,$returntext)
     
     // Filtrelenmiş masraflar (seçilen tarih aralığı için)
     $masraflar = Masraflar::where('salon_id', $salon_id)
-        ->where('tarih','>=',$tarih_baslangic)
-        ->where('tarih','<=',$tarih_bitis)
+        ->where('tarih','>=',$tarih_baslangic.' 00:00:00')
+        ->where('tarih','<=',$tarih_bitis.' 23:59:59')
         ->where(function($q) use($odeme_yontemi){
             if($odeme_yontemi != '') $q->where('odeme_yontemi_id',$odeme_yontemi);
         })
@@ -4750,14 +4752,14 @@ public function devredenAylar(Request $request)
         
         // Aylık tahsilatlar
         $tahsilatlar = Tahsilatlar::where('salon_id', $salon_id)
-            ->where('odeme_tarihi', '>=', $tarih_baslangic)
-            ->where('odeme_tarihi', '<=', $tarih_bitis)
+            ->where('odeme_tarihi', '>=', $tarih_baslangic.' 00:00:00')
+            ->where('odeme_tarihi', '<=', $tarih_bitis.' 23:59:59')
             ->sum('tutar');
-        
+
         // Aylık masraflar
         $masraflar = Masraflar::where('salon_id', $salon_id)
-            ->where('tarih', '>=', $tarih_baslangic)
-            ->where('tarih', '<=', $tarih_bitis)
+            ->where('tarih', '>=', $tarih_baslangic.' 00:00:00')
+            ->where('tarih', '<=', $tarih_bitis.' 23:59:59')
             ->sum('tutar');
         
         // Dönem net karı
