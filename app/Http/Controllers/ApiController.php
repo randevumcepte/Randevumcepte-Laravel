@@ -20740,21 +20740,31 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         if (!$adisyonvar) {
 
-            $adisyon_id = self::yeni_adisyon_olustur(
+            // AYNI GUN AYNI MUSTERI ADISYON BIRLESTIRMESI (web ile ayni mantik):
+            // ayni gun ayni musteride ONCEDEN acilmis randevu-tahsilat adisyonu
+            // varsa yeni adisyon acmak yerine oraya ekle.
+            $ayniGunAdisyonId = DB::table('adisyonlar')
+                ->join('adisyon_hizmetler', 'adisyon_hizmetler.adisyon_id', '=', 'adisyonlar.id')
+                ->join('randevular', 'randevular.id', '=', 'adisyon_hizmetler.randevu_id')
+                ->where('adisyonlar.user_id', $randevu->user_id)
+                ->where('adisyonlar.salon_id', $randevu->salon_id)
+                ->where('randevular.tarih', $randevu->tarih)
+                ->where('randevular.id', '!=', $randevu->id)
+                ->whereNotNull('adisyon_hizmetler.randevu_id')
+                ->value('adisyonlar.id');
 
-                $randevu->user_id,
-
-                $randevu->salon_id,
-
-                date("d.m.Y", strtotime($randevu->tarih)) .
-
-                    " tarihli randevuda alınan hizmetlerin ödemesi",
-
-                date("Y-m-d"),
-
-                IsletmeYetkilileri::where("id", $request->olusturan)->first()
-
-            );
+            if ($ayniGunAdisyonId) {
+                $adisyon_id = $ayniGunAdisyonId;
+            } else {
+                $adisyon_id = self::yeni_adisyon_olustur(
+                    $randevu->user_id,
+                    $randevu->salon_id,
+                    date("d.m.Y", strtotime($randevu->tarih)) .
+                        " tarihli randevuda alınan hizmetlerin ödemesi",
+                    date("Y-m-d"),
+                    IsletmeYetkilileri::where("id", $request->olusturan)->first()
+                );
+            }
 
         } else {
 
@@ -20795,6 +20805,51 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 null,
                 $randevu->id
             );
+        }
+
+        // AYNI GUN AYNI MUSTERI DIGER RANDEVULARINI DA BIRLESTIR (paketsiz olanlar).
+        // Web randevutahsilet ile birebir ayni mantik. Kullanici geri bildirimi:
+        // 'ayni gunde 2 ayri randevu (paket disi) var, birinin tahsilatina
+        // basinca digerini de tek adisyona koysun'.
+        try {
+            $digerRandevular = Randevular::where('user_id', $randevu->user_id)
+                ->where('salon_id', $randevu->salon_id)
+                ->where('tarih', $randevu->tarih)
+                ->where('id', '!=', $randevu->id)
+                ->where('durum', '<', 2)
+                ->with('hizmetler')
+                ->get();
+            foreach ($digerRandevular as $dr) {
+                foreach ($dr->hizmetler as $dh) {
+                    if ($dh->yardimci_personel) continue;
+                    $_paketSeansiVar = AdisyonPaketSeanslar::where('randevu_id', $dr->id)
+                        ->where('hizmet_id', $dh->hizmet_id)
+                        ->exists();
+                    if ($_paketSeansiVar) continue;
+                    $_adisyonHizmetiVar = AdisyonHizmetler::where('randevu_id', $dr->id)
+                        ->where('hizmet_id', $dh->hizmet_id)
+                        ->exists();
+                    if ($_adisyonHizmetiVar) continue;
+                    self::adisyon_hizmet_ekle(
+                        $adisyon_id,
+                        $dh->hizmet_id,
+                        $dr->tarih,
+                        $dh->saat,
+                        $dh->sure_dk,
+                        $dh->fiyat,
+                        true,
+                        $dh->personel_id,
+                        $dh->cihaz_id,
+                        null,
+                        null,
+                        $dr->id
+                    );
+                }
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('api.randevutahsilet ayni gun birlestirme hata: '.$e->getMessage(), [
+                'randevu_id' => $randevu->id ?? null,
+            ]);
         }
 
         Audit::logApi(optional($randevu)->salon_id, $request, 'randevu_tahsilat', 'randevu', $request->randevuid, null, 'Randevu tahsilati eklendi (adisyona islendi)');
@@ -29167,7 +29222,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 $arsiv->salon_imza_zaman      = now();
             }
             // Odeme sekli / taksit plani (opsiyonel)
-            $odemeSekli   = in_array($request->odeme_sekli, ['pesin','taksit','kredi_karti']) ? $request->odeme_sekli : 'pesin';
+            $odemeSekli   = in_array($request->odeme_sekli, ['pesin','taksit','kredi_karti','nakit','havale']) ? $request->odeme_sekli : 'pesin';
             $taksitSayisi = (int) $request->taksit_sayisi;
             $ilkTaksit    = $request->ilk_taksit_tarihi ?: null;
             $taksitTutari = $request->taksit_tutari !== null ? (float) str_replace(',', '.', $request->taksit_tutari) : null;
