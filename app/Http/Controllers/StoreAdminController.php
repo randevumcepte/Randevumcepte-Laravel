@@ -344,8 +344,13 @@ public function carkdilimekle(Request $request)
 {
     if($r = self::yetkiYoksa403($request, 'pazarlama.cark_yonet')) return $r;
     try {
-        $salon_id = $request->input('sube', self::mevcutsube($request));
-        
+        // NOT: input('sube', default) — anahtar var ama null ise default DONMEZ, null doner.
+        // Subesiz isletmede JS `sube: null` yolluyor; bu durumda mevcutsube fallback'ine dus.
+        $salon_id = $request->input('sube');
+        if (empty($salon_id)) {
+            $salon_id = self::mevcutsube($request);
+        }
+
         Log::info('Çark dilim ekleme - Salon ID: ' . $salon_id);
         Log::info('Tüm request verisi:', $request->all());
         
