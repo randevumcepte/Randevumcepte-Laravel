@@ -2,92 +2,76 @@
 
 namespace App\Services;
 
-use App\AdisyonHizmetler;
-use App\AdisyonPaketler;
 use App\AdisyonPaketSeanslar;
 use App\Randevular;
 use App\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Bir randevu "geldi" olarak isaretlenip seanslar geldi=true yapildiktan
- * sonra musteriye paket/hizmet bazinda seans kullanim ozeti push'u yollar.
+ * Bir randevu "geldi" olarak isaretlenip seanslar geldi=true yapildiktan sonra
+ * musteriye ISLEM (hizmet) bazinda -detayli- seans kullanim ozeti push'u yollar.
  *
- * Hem ApiController (mobil API) hem StoreAdminController (web admin) aynisini
- * cagirir; mantik tek bir yerde merkezi tutulur — boylece bir taraf
- * degisirse digeri otomatik senkron kalir.
+ * ONEMLI - DOGRULUK: Buradaki tum sayilar salon panelindeki "Seans Takibi"
+ * ekraniyla BIREBIR ayni mantikla hesaplanir (StoreAdminController::getPaketDetaylari
+ * + public/js/seansTakibi.js). Boylece musteriye giden mesaj, salonun gordugu
+ * panelle ASLA celismez:
+ *   - toplam (hizmet basi) = adisyon_paketler.seans_sayisi
+ *   - tamamlanan           = o hizmetin geldi=1 satir sayisi
+ *   - gelmedi              = o hizmetin geldi=0 satir sayisi
+ *   - kalan                = toplam - tamamlanan - gelmedi
+ *   - bu randevuda         = bu randevuya ait, o hizmetin geldi=1 satir sayisi
  *
- * Kullanim:
- *   app(SeansBildirimService::class)->bilgilendir($randevu);
+ * Sadece UYGULAMA BILDIRIMI (push) gonderir. SMS/WhatsApp GONDERMEZ.
+ *
+ * Hem ApiController (mobil) hem StoreAdminController (web) ayni servisi cagirir.
+ *
+ * Kullanim:  app(SeansBildirimService::class)->bilgilendir($randevu);
  */
 class SeansBildirimService
 {
-    /**
-     * Randevu kapsamindaki seanslari ozetleyip musteriye push gonderir.
-     * Push fail olsa bile cagiran taraftaki ana akis etkilenmez — yine de
-     * cagiran taraf da try/catch ile sarmalamali (savunma katmanli).
-     */
     public function bilgilendir(Randevular $randevu): void
     {
         $musteri = $randevu->users ?? User::find($randevu->user_id);
         if (!$musteri || !$musteri->id) {
-            Log::info('[SEANS-KULLANIM] musteri bulunamadi, atlandi', [
-                'randevu_id' => $randevu->id,
-            ]);
+            Log::info('[SEANS-KULLANIM] musteri bulunamadi, atlandi', ['randevu_id' => $randevu->id]);
             return;
         }
-        $musteriIsmi = $musteri->name ?? 'Müşterimiz';
+        $musteriIsmi = trim($musteri->name ?? '') ?: 'Müşterimiz';
 
-        // Bu randevu kapsamindaki seans satirlarini cek
+        // Bu randevu kapsamindaki seans satirlari (isaretlenmeyenler zaten silinmis;
+        // kalanlar bu randevuda kullanilan/gelinen seanslar)
         $seanslar = AdisyonPaketSeanslar::where('randevu_id', $randevu->id)->get();
         if ($seanslar->isEmpty()) {
-            Log::info('[SEANS-KULLANIM] randevuya bagli seans yok, atlandi', [
-                'randevu_id' => $randevu->id,
-            ]);
+            Log::info('[SEANS-KULLANIM] randevuya bagli seans yok, atlandi', ['randevu_id' => $randevu->id]);
             return;
         }
 
-        // Gruplama: paket (adisyon_paket_id) ve hizmet (adisyon_hizmet_id)
-        $paketIdleri = $seanslar->pluck('adisyon_paket_id')->filter()->unique();
-        $hizmetIdleri = $seanslar->pluck('adisyon_hizmet_id')->filter()->unique();
+        $paketIdleri  = $seanslar->pluck('adisyon_paket_id')->filter()->unique()->values();
+        $hizmetIdleri = $seanslar->pluck('adisyon_hizmet_id')->filter()->unique()->values();
 
-        $bilgilendirmeler = [];
+        // Her paket/hizmet icin blok uret
+        $bloklar = [];
         foreach ($paketIdleri as $apId) {
-            $bilgi = $this->paketSeansOzeti((int) $apId);
-            if ($bilgi) $bilgilendirmeler[] = $bilgi;
+            $b = $this->paketBloku((int) $apId, (int) $randevu->id);
+            if ($b !== null) $bloklar[] = $b;
         }
         foreach ($hizmetIdleri as $ahId) {
-            $bilgi = $this->hizmetSeansOzeti((int) $ahId);
-            if ($bilgi) $bilgilendirmeler[] = $bilgi;
+            $b = $this->hizmetBloku((int) $ahId, (int) $randevu->id);
+            if ($b !== null) $bloklar[] = $b;
         }
 
-        if (empty($bilgilendirmeler)) {
-            Log::info('[SEANS-KULLANIM] ozet uretemedi, atlandi', [
-                'randevu_id' => $randevu->id,
-            ]);
+        if (empty($bloklar)) {
+            Log::info('[SEANS-KULLANIM] ozet uretilemedi, atlandi', ['randevu_id' => $randevu->id]);
             return;
         }
 
-        // Tek paket/hizmet => sade tek cumle
-        // Birden fazla => maddeli liste
-        if (count($bilgilendirmeler) === 1) {
-            $b = $bilgilendirmeler[0];
-            $body = "Sayın {$musteriIsmi}, almış olduğunuz {$b['toplam']} seanslık {$b['ad']} {$b['tipEk']} bugün {$b['kullanilan']}. seansını kullandınız, geri kalan {$b['kalan']} seansınız bulunmaktadır.";
-        } else {
-            $body = "Sayın {$musteriIsmi}, bugünkü randevunuzda kullanılan seanslar:\n";
-            foreach ($bilgilendirmeler as $b) {
-                $body .= "• {$b['ad']} {$b['tipEk']} {$b['toplam']} seanslık, {$b['kullanilan']}. seansı kullanıldı, kalan {$b['kalan']}.\n";
-            }
-            $body = rtrim($body);
-        }
+        $body = $this->mesajOlustur($musteriIsmi, $bloklar);
 
         try {
-            $sonuc = NotificationService::toCustomer(
-                (int) $musteri->id,
-                (int) $randevu->salon_id
-            )
+            $sonuc = NotificationService::toCustomer((int) $musteri->id, (int) $randevu->salon_id)
                 ->type(NotificationTypes::SESSION_USED)
-                ->title('Seans Kullanımı')
+                ->title('Seans Bilgilendirmesi ✨')
                 ->body($body)
                 ->randevu((int) $randevu->id)
                 ->deepLink('sessions')
@@ -97,7 +81,7 @@ class SeansBildirimService
                 'randevu_id' => $randevu->id,
                 'user_id'    => $musteri->id,
                 'salon_id'   => $randevu->salon_id,
-                'paket_adet' => count($bilgilendirmeler),
+                'blok_adet'  => count($bloklar),
                 'sonuc'      => $sonuc,
             ]);
         } catch (\Throwable $e) {
@@ -109,51 +93,145 @@ class SeansBildirimService
     }
 
     /**
-     * adisyon_paket_id icin seans ozeti: paket adi, toplam, kullanilan, kalan.
+     * Bir paket (adisyon_paket_id) icin hizmet-bazinda detay blok.
+     * Donen yapi: ['ad'=>paketAdi, 'seansSayisi'=>int, 'kullanilan'=>[...], 'kullanilmayan'=>[...]]
      */
-    private function paketSeansOzeti(int $adisyonPaketId): ?array
+    private function paketBloku(int $adisyonPaketId, int $randevuId): ?array
     {
-        $paket = AdisyonPaketler::with('paket')->find($adisyonPaketId);
-        if (!$paket || !$paket->paket) return null;
+        $ap = DB::table('adisyon_paketler')->where('id', $adisyonPaketId)->first();
+        if (!$ap) return null;
 
-        $seanslar = AdisyonPaketSeanslar::where('adisyon_paket_id', $adisyonPaketId)->get();
-        $toplam = (int) ($paket->seans_sayisi ?? $seanslar->count());
-        // dusulen_miktar destegi: bir satir N seans/dakika dusebilir
-        $kullanilan = (int) $seanslar->where('geldi', 1)->sum('dusulen_miktar');
-        $kalan = $seanslar->filter(function ($s) {
-            return $s->geldi === null && !$s->iptal;
-        })->count();
+        $paketAdi = DB::table('paketler')->where('id', $ap->paket_id)->value('paket_adi') ?: 'Paketiniz';
+        $seansSayisi = (int) ($ap->seans_sayisi ?? 0);
+
+        // Paketin hizmetleri (panel "Seans Takibi" ile ayni kaynak: paket_hizmetler)
+        $hizmetler = DB::table('paket_hizmetler')
+            ->join('hizmetler', 'paket_hizmetler.hizmet_id', '=', 'hizmetler.id')
+            ->where('paket_hizmetler.paket_id', $ap->paket_id)
+            ->select('hizmetler.id as hid', 'hizmetler.hizmet_adi as ad')
+            ->get();
+
+        // Paket tanimindan hizmet gelmezse (veri farki), seans satirlarindaki
+        // distinct hizmet_id'lerden turet — yine de dogru calissin.
+        if ($hizmetler->isEmpty()) {
+            $hizmetler = DB::table('adisyon_paket_seanslar')
+                ->join('hizmetler', 'adisyon_paket_seanslar.hizmet_id', '=', 'hizmetler.id')
+                ->where('adisyon_paket_seanslar.adisyon_paket_id', $adisyonPaketId)
+                ->select('hizmetler.id as hid', 'hizmetler.hizmet_adi as ad')
+                ->distinct()->get();
+        }
+
+        $kullanilan = [];
+        $kullanilmayan = [];
+        foreach ($hizmetler as $h) {
+            $tamamlanan = (int) DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_paket_id', $adisyonPaketId)->where('hizmet_id', $h->hid)
+                ->where('geldi', 1)->count();
+            $gelmedi = (int) DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_paket_id', $adisyonPaketId)->where('hizmet_id', $h->hid)
+                ->where('geldi', 0)->count();
+            $pending = (int) DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_paket_id', $adisyonPaketId)->where('hizmet_id', $h->hid)
+                ->whereNull('geldi')->count();
+
+            // toplam: seans_sayisi (panelle ayni). Yoksa satirlardan turet (savunma).
+            $toplam = $seansSayisi > 0 ? $seansSayisi : ($tamamlanan + $gelmedi + $pending);
+            $kalan  = max(0, $toplam - $tamamlanan - $gelmedi);
+
+            // Bu randevuda (bugun) o hizmetten kullanilan
+            $bugun = (int) DB::table('adisyon_paket_seanslar')
+                ->where('adisyon_paket_id', $adisyonPaketId)->where('hizmet_id', $h->hid)
+                ->where('randevu_id', $randevuId)->where('geldi', 1)->count();
+
+            $satir = [
+                'ad' => $h->ad, 'toplam' => $toplam, 'tamamlanan' => $tamamlanan,
+                'kalan' => $kalan, 'bugun' => $bugun,
+            ];
+            if ($bugun > 0) $kullanilan[] = $satir;
+            else            $kullanilmayan[] = $satir;
+        }
+
+        if (empty($kullanilan) && empty($kullanilmayan)) return null;
 
         return [
-            'ad'         => $paket->paket->paket_adi,
-            'tipEk'      => 'paketinizin',
-            'toplam'     => $toplam,
-            'kullanilan' => $kullanilan,
-            'kalan'      => $kalan,
+            'tur' => 'paket', 'ad' => $paketAdi, 'seansSayisi' => $seansSayisi,
+            'kullanilan' => $kullanilan, 'kullanilmayan' => $kullanilmayan,
         ];
     }
 
     /**
-     * Standalone adisyon_hizmet seans ozeti (paket disi, seans_sayisi atanmis hizmet).
+     * Paket disi tekil hizmet seansi (adisyon_hizmet_id) icin blok.
      */
-    private function hizmetSeansOzeti(int $adisyonHizmetId): ?array
+    private function hizmetBloku(int $adisyonHizmetId, int $randevuId): ?array
     {
-        $hizmet = AdisyonHizmetler::with('hizmet')->find($adisyonHizmetId);
-        if (!$hizmet || !$hizmet->hizmet) return null;
+        $ah = DB::table('adisyon_hizmetler')->where('id', $adisyonHizmetId)->first();
+        if (!$ah) return null;
 
-        $seanslar = AdisyonPaketSeanslar::where('adisyon_hizmet_id', $adisyonHizmetId)->get();
-        $toplam = (int) ($hizmet->seans_sayisi ?? $seanslar->count());
-        $kullanilan = (int) $seanslar->where('geldi', 1)->sum('dusulen_miktar');
-        $kalan = $seanslar->filter(function ($s) {
-            return $s->geldi === null && !$s->iptal;
-        })->count();
+        $hizmetAdi = DB::table('hizmetler')->where('id', $ah->hizmet_id)->value('hizmet_adi') ?: 'Hizmetiniz';
+        $seansSayisi = (int) ($ah->seans_sayisi ?? 0);
+
+        $tamamlanan = (int) DB::table('adisyon_paket_seanslar')
+            ->where('adisyon_hizmet_id', $adisyonHizmetId)->where('geldi', 1)->count();
+        $gelmedi = (int) DB::table('adisyon_paket_seanslar')
+            ->where('adisyon_hizmet_id', $adisyonHizmetId)->where('geldi', 0)->count();
+        $pending = (int) DB::table('adisyon_paket_seanslar')
+            ->where('adisyon_hizmet_id', $adisyonHizmetId)->whereNull('geldi')->count();
+
+        $toplam = $seansSayisi > 0 ? $seansSayisi : ($tamamlanan + $gelmedi + $pending);
+        $kalan  = max(0, $toplam - $tamamlanan - $gelmedi);
+
+        $bugun = (int) DB::table('adisyon_paket_seanslar')
+            ->where('adisyon_hizmet_id', $adisyonHizmetId)
+            ->where('randevu_id', $randevuId)->where('geldi', 1)->count();
+
+        if ($bugun < 1 && $tamamlanan < 1) return null;
 
         return [
-            'ad'         => $hizmet->hizmet->hizmet_adi,
-            'tipEk'      => 'hizmetinizin',
-            'toplam'     => $toplam,
-            'kullanilan' => $kullanilan,
-            'kalan'      => $kalan,
+            'tur' => 'hizmet', 'ad' => $hizmetAdi, 'seansSayisi' => $toplam,
+            'kullanilan' => [[
+                'ad' => $hizmetAdi, 'toplam' => $toplam, 'tamamlanan' => $tamamlanan,
+                'kalan' => $kalan, 'bugun' => max(1, $bugun),
+            ]],
+            'kullanilmayan' => [],
         ];
+    }
+
+    /**
+     * Kullanicinin verdigi sablona BIREBIR uygun mesaj metni.
+     */
+    private function mesajOlustur(string $musteriIsmi, array $bloklar): string
+    {
+        $s  = "✨ **SEANS TAKİP BİLGİLENDİRMESİ** ✨\n\n";
+        $s .= "Merhaba **Sayın {$musteriIsmi}**, 🌸\n\n";
+        $s .= "Bugünkü randevunuz başarıyla tamamlanmıştır. Aşağıda paketinizin güncel seans durumunu inceleyebilirsiniz.\n";
+
+        foreach ($bloklar as $blok) {
+            $etiket = $blok['tur'] === 'hizmet' ? 'Hizmetiniz' : 'Paketiniz';
+            $seansEk = $blok['seansSayisi'] > 0 ? " (**{$blok['seansSayisi']} Seans**)" : '';
+            $s .= "\n📦 **{$etiket}:** {$blok['ad']}{$seansEk}\n";
+
+            if (!empty($blok['kullanilan'])) {
+                $baslik = count($blok['kullanilan']) > 1 ? 'Bugün Kullanılan İşlemler' : 'Bugün Kullanılan İşlem';
+                $s .= "\n✅ **{$baslik}**\n";
+                foreach ($blok['kullanilan'] as $k) {
+                    $s .= "**{$k['ad']}**\n";
+                    $s .= "• Bu randevuda kullanılan: **{$k['bugun']} Seans**\n";
+                    $s .= "• Tamamlanan: **{$k['tamamlanan']} / {$k['toplam']} Seans**\n";
+                    $s .= "• Kalan: **{$k['kalan']} Seans**\n";
+                }
+            }
+
+            if (!empty($blok['kullanilmayan'])) {
+                $s .= "\n⏳ **Bugün Kullanılmayan İşlemler**\n";
+                foreach ($blok['kullanilmayan'] as $k) {
+                    $s .= "• **{$k['ad']}:** Kalan **{$k['kalan']} Seans**\n";
+                }
+            }
+        }
+
+        $s .= "\n📌 Seans bilgileriniz sistemimizde güncellenmiştir. Bir sonraki randevunuzda kalan haklarınızı dilediğiniz gibi kullanabilirsiniz.\n\n";
+        $s .= "💚 Bizi tercih ettiğiniz için teşekkür eder, sağlıklı ve güzel günlerde yeniden görüşmeyi dileriz.";
+
+        return $s;
     }
 }
