@@ -35,6 +35,13 @@ LOAD_FACTOR=4                       # load1 > çekirdek*LOAD_FACTOR = yük uyar�
 BAN_TIMEOUT=86400                   # otomatik ban süresi (sn) = 24 saat
 LOAD_ALERT_COOLDOWN=900             # yük uyarısı en fazla 15 dk'da bir
 
+CPU_THRESHOLD=90                    # anlık CPU kullanımı % >= bu → "CPU tavan" uyarısı
+CPU_ALERT_COOLDOWN=900             # CPU uyarısı en fazla 15 dk'da bir
+
+HTTP_CHECK=1                        # 1=site sağlık probu açık (502/503/504 yakala)
+HTTP_CHECK_HOST="randevumcepte.com.tr"   # prob için Host başlığı (gerçek bir vhost)
+HTTP_ALERT_COOLDOWN=600            # 502 uyarısı en fazla 10 dk'da bir
+
 WEB_PORTS_REGEX=':(80|443)$'        # inbound flood sayılan yerel portlar
 
 STATE_DIR="/var/lib/guvenlik-duvari"
@@ -193,6 +200,53 @@ if [ -n "$LOAD1" ] && awk -v l="$LOAD1" -v m="$LOAD_LIMIT" 'BEGIN{exit !(l>m)}';
         ALERT_LINES+=("⚠️ Yüksek yük: load ${LOAD1} (limit ${LOAD_LIMIT})")
         log "YUK UYARISI load1=$LOAD1"
     fi
+fi
+
+# --- 4) CPU TAVAN (gerçek CPU% — /proc/stat, 1 sn örnekleme) ---
+cpu_kullanim() {
+    local a u1 n1 s1 i1 w1 x1 y1 z1
+    read -r a u1 n1 s1 i1 w1 x1 y1 z1 _ < /proc/stat
+    local idle1=$((i1 + w1)) tot1=$((u1 + n1 + s1 + i1 + w1 + x1 + y1 + z1))
+    sleep 1
+    read -r a u2 n2 s2 i2 w2 x2 y2 z2 _ < /proc/stat
+    local idle2=$((i2 + w2)) tot2=$((u2 + n2 + s2 + i2 + w2 + x2 + y2 + z2))
+    local dt=$((tot2 - tot1)) di=$((idle2 - idle1))
+    [ "$dt" -le 0 ] && { echo 0; return; }
+    echo $(( (100 * (dt - di)) / dt ))
+}
+CPU="$(cpu_kullanim)"
+if [ "${CPU:-0}" -ge "$CPU_THRESHOLD" ]; then
+    F="$STATE_DIR/cpu.last"; now="$(date +%s)"; last="$(cat "$F" 2>/dev/null || echo 0)"
+    if [ $((now - last)) -ge "$CPU_ALERT_COOLDOWN" ]; then
+        echo "$now" > "$F"
+        # en çok CPU yiyen 3 process — teşhis için
+        TOPCPU="$(ps -eo pcpu,comm --sort=-pcpu 2>/dev/null | awk 'NR>1 && NR<=4{printf "%s(%s%%) ", $2, $1}')"
+        db_olay "cpu_yuksek" "" "$CPU" "$CPU_THRESHOLD" "uyari" "CPU %${CPU} · en çok: ${TOPCPU}" 0
+        ALERT_LINES+=("🔥 CPU tavan: %${CPU} (limit %${CPU_THRESHOLD}) · ${TOPCPU}")
+        log "CPU UYARISI %${CPU} top=${TOPCPU}"
+    fi
+fi
+
+# --- 5) 502/503/504 BAD GATEWAY (siteyi canlı prob'la) ---
+if [ "$HTTP_CHECK" -eq 1 ] && command -v curl >/dev/null 2>&1; then
+    http_prob() { curl -o /dev/null -sk -w '%{http_code}' --max-time 8 -H "Host: $HTTP_CHECK_HOST" "https://127.0.0.1/" 2>/dev/null; }
+    CODE="$(http_prob)"
+    case "$CODE" in
+        502|503|504)
+            sleep 2; CODE2="$(http_prob)"    # geçici pik değil, sürekli mi? teyit et
+            case "$CODE2" in
+                502|503|504)
+                    F="$STATE_DIR/http502.last"; now="$(date +%s)"; last="$(cat "$F" 2>/dev/null || echo 0)"
+                    if [ $((now - last)) -ge "$HTTP_ALERT_COOLDOWN" ]; then
+                        echo "$now" > "$F"
+                        db_olay "http_502" "" "$CODE2" "" "uyari" "Site HTTP $CODE2 döndürüyor (php-fpm/upstream sorunu olabilir)" 0
+                        ALERT_LINES+=("🚨 Site HATASI: HTTP $CODE2 (Bad Gateway) — ${HTTP_CHECK_HOST}")
+                        log "HTTP $CODE2 UYARISI"
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
 fi
 
 # ============================================================================

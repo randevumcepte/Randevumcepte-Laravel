@@ -177,10 +177,17 @@
                             @if($o->tur === 'flood')Flood
                             @elseif($o->tur === 'ssh_brute')SSH Brute
                             @elseif($o->tur === 'load_yuksek')Yüksek Yük
+                            @elseif($o->tur === 'cpu_yuksek')CPU Tavan
+                            @elseif($o->tur === 'http_502')Site Hatası (502)
                             @else{{ $o->tur }}@endif
                         </td>
                         <td class="sy-fs-13">{{ $o->ip ?: '—' }}</td>
-                        <td class="sy-fs-13">{{ $o->tur === 'load_yuksek' && $o->deger !== null ? number_format($o->deger/100, 1) : ($o->deger !== null ? $o->deger : '—') }}</td>
+                        <td class="sy-fs-13">
+                            @if($o->tur === 'load_yuksek' && $o->deger !== null){{ number_format($o->deger/100, 1) }}
+                            @elseif($o->tur === 'cpu_yuksek' && $o->deger !== null)%{{ $o->deger }}
+                            @elseif($o->tur === 'http_502' && $o->deger !== null)HTTP {{ $o->deger }}
+                            @else{{ $o->deger !== null ? $o->deger : '—' }}@endif
+                        </td>
                         <td>
                             @if($o->aksiyon === 'engellendi')<span class="sy-badge sy-badge-danger">Engellendi</span>
                             @elseif($o->aksiyon === 'uyari')<span class="sy-badge sy-badge-warning">Uyarı</span>

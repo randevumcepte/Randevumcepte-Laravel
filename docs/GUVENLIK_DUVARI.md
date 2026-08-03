@@ -69,8 +69,16 @@ journalctl -t guvenlik-watchdog -n 20 --no-pager
 | `CONN_THRESHOLD` | 60 | Tek IP'den 80/443'e eşzamanlı bağlantı ≥ bu → flood, engelle |
 | `SSH_THRESHOLD` | 15 | Tek IP'den 1 dk içinde başarısız SSH ≥ bu → engelle |
 | `LOAD_FACTOR` | 4 | `load1 > çekirdek×4` → yük uyarısı (engelleme yok) |
+| `CPU_THRESHOLD` | 90 | Anlık CPU kullanımı % ≥ bu → "CPU tavan" uyarısı (+ en çok yiyen 3 process) |
+| `HTTP_CHECK` | 1 | Site sağlık probu — HTTPS'i içeriden çağırır, **502/503/504** dönerse uyarır (2 kez teyitli) |
+| `HTTP_CHECK_HOST` | randevumcepte.com.tr | Prob için Host başlığı (gerçek bir vhost olmalı) |
 | `BAN_TIMEOUT` | 86400 | Otomatik ban süresi (sn) = 24 saat (sonra otomatik düşer) |
-| `LOAD_ALERT_COOLDOWN` | 900 | Yük uyarısı en fazla 15 dk'da bir |
+| `LOAD_ALERT_COOLDOWN` / `CPU_ALERT_COOLDOWN` | 900 | Yük / CPU uyarısı en fazla 15 dk'da bir |
+| `HTTP_ALERT_COOLDOWN` | 600 | 502 uyarısı en fazla 10 dk'da bir |
+
+**Uyarı tipleri (engelleme + izleme):**
+- `flood`, `ssh_brute` → IP **engellenir** + mesaj
+- `load_yuksek`, `cpu_yuksek`, `http_502` → **engelleme yok**, sadece **uyarı mesajı** (bunlar IP değil, sistem sağlığı sinyali). CPU uyarısında en çok CPU yiyen 3 process de mesaja eklenir (hızlı teşhis).
 
 Eşiği değiştirdiysen dosyayı düzenle; cron sonraki turda yeni değerle çalışır.
 
