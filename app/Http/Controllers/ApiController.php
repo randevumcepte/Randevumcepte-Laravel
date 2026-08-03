@@ -19724,6 +19724,60 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     // ====================================================================
 
     // Soft delete (arsivle): listeden gizle, gecmis veri korunur.
+    /**
+     * Arsivlenecek personelin, arsivleme tarihinden itibaren gelecek randevularindaki
+     * kendisine ait hizmet kalemlerini ve bu kalemleri devralabilecek diger aktif
+     * personelleri dondurur. Uygulama, kalem varsa zorunlu aktarim ekranini bununla acar.
+     */
+    public function personelGelecekHizmetler(Request $request)
+    {
+        try {
+            $this->_yetkiYoksaRed($request, $request->sube, 'personel.sil');
+            $personel = Personeller::where('id', $request->personelid)
+                ->where('salon_id', $request->sube)
+                ->first();
+            if (!$personel) return ['sonuc' => 'notfound'];
+
+            $bugun = date('Y-m-d');
+            $hizmetler = DB::table('randevu_hizmetler')
+                ->join('randevular', 'randevu_hizmetler.randevu_id', '=', 'randevular.id')
+                ->leftJoin('users', 'randevular.user_id', '=', 'users.id')
+                ->leftJoin('hizmetler', 'randevu_hizmetler.hizmet_id', '=', 'hizmetler.id')
+                ->where('randevu_hizmetler.personel_id', $request->personelid)
+                ->where('randevular.salon_id', $request->sube)
+                ->whereIn('randevular.durum', [0, 1])
+                ->where('randevular.tarih', '>=', $bugun)
+                ->select(
+                    'randevu_hizmetler.id as rh_id',
+                    'randevular.id as randevu_id',
+                    'randevular.tarih',
+                    DB::raw('COALESCE(randevu_hizmetler.saat, randevular.saat) as saat'),
+                    'users.name as musteri',
+                    'hizmetler.hizmet_adi as hizmet'
+                )
+                ->orderBy('randevular.tarih')
+                ->orderBy('saat')
+                ->get();
+
+            $personeller = Personeller::where('salon_id', $request->sube)
+                ->where('id', '!=', $request->personelid)
+                ->where('aktif', 1)
+                ->orderBy('personel_adi')
+                ->get(['id', 'personel_adi']);
+
+            return [
+                'sonuc'       => 'ok',
+                'count'       => $hizmetler->count(),
+                'personel_ad' => $personel->personel_adi,
+                'hizmetler'   => $hizmetler,
+                'personeller' => $personeller,
+            ];
+        } catch (\Exception $e) {
+            \Log::warning('Api personelGelecekHizmetler: ' . $e->getMessage());
+            return ['sonuc' => 'error', 'mesaj' => $e->getMessage()];
+        }
+    }
+
     public function personelArsivle(Request $request)
     {
         try {
@@ -19731,17 +19785,59 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $personel = Personeller::where('id', $request->personelid)
                 ->where('salon_id', $request->sube)
                 ->first();
-            if ($personel) {
-                $personel->arsivli = true;
-                $personel->aktif = false;
-                $personel->takvimde_gorunsun = false;
-                $personel->save();
-                try {
-                    Audit::logApi($request->sube, $request, 'personel_arsiv', 'personel', $request->personelid, optional($personel)->personel_adi, 'Personel arşivlendi');
-                } catch (\Throwable $e) {}
-                return ['sonuc' => 'ok', 'personel' => $personel];
+            if (!$personel) return ['sonuc' => 'notfound'];
+
+            $bugun = date('Y-m-d');
+            // Arsivleme tarihinden itibaren gelecek randevulardaki, bu personele ait hizmet kalemleri
+            $gelecekHizmetIdler = DB::table('randevu_hizmetler')
+                ->join('randevular', 'randevu_hizmetler.randevu_id', '=', 'randevular.id')
+                ->where('randevu_hizmetler.personel_id', $request->personelid)
+                ->where('randevular.salon_id', $request->sube)
+                ->whereIn('randevular.durum', [0, 1])
+                ->where('randevular.tarih', '>=', $bugun)
+                ->pluck('randevu_hizmetler.id')
+                ->toArray();
+
+            $aktarilanSayi = 0;
+            if (count($gelecekHizmetIdler) > 0) {
+                // Aktarim ZORUNLU: her gelecek kalem baska bir aktif personele devredilmeli
+                $transferler = $request->transferler;
+                if (is_string($transferler)) $transferler = json_decode($transferler, true);
+                if (!is_array($transferler)) $transferler = [];
+
+                $gecerliHedefler = Personeller::where('salon_id', $request->sube)
+                    ->where('id', '!=', $request->personelid)
+                    ->where('aktif', 1)
+                    ->pluck('id')
+                    ->map(function ($v) { return (int)$v; })
+                    ->toArray();
+
+                foreach ($gelecekHizmetIdler as $rhId) {
+                    $hedef = isset($transferler[$rhId]) ? (int)$transferler[$rhId] : 0;
+                    if ($hedef <= 0 || !in_array($hedef, $gecerliHedefler, true)) {
+                        return [
+                            'sonuc'           => 'aktarim_gerekli',
+                            'count'           => count($gelecekHizmetIdler),
+                            'mesaj'           => 'Bu personelin gelecek randevularındaki tüm hizmetler için geçerli bir başka personel seçilmelidir.',
+                        ];
+                    }
+                }
+
+                foreach ($gelecekHizmetIdler as $rhId) {
+                    RandevuHizmetler::where('id', $rhId)->update(['personel_id' => (int)$transferler[$rhId]]);
+                    $aktarilanSayi++;
+                }
             }
-            return ['sonuc' => 'notfound'];
+
+            $personel->arsivli = true;
+            $personel->aktif = false;
+            $personel->takvimde_gorunsun = false;
+            $personel->save();
+            try {
+                Audit::logApi($request->sube, $request, 'personel_arsiv', 'personel', $request->personelid, optional($personel)->personel_adi,
+                    $aktarilanSayi > 0 ? ($aktarilanSayi . ' gelecek hizmet başka personele aktarıldı, personel arşivlendi') : 'Personel arşivlendi');
+            } catch (\Throwable $e) {}
+            return ['sonuc' => 'ok', 'aktarilan' => $aktarilanSayi, 'personel' => $personel];
         } catch (\Exception $e) {
             \Log::warning('Api personelArsivle: ' . $e->getMessage());
             return ['sonuc' => 'error', 'mesaj' => $e->getMessage()];
