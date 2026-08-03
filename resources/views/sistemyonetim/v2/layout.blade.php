@@ -108,6 +108,10 @@
                     <span class="icon mdi mdi-shield-account"></span>
                     Güvenlik
                 </a>
+                <a href="/sistemyonetim/v2/guvenlik-duvari" class="sy-nav-item {{ $aktifMenu === 'guvenlik-duvari' ? 'active' : '' }}">
+                    <span class="icon mdi mdi-shield-lock"></span>
+                    Güvenlik Duvarı
+                </a>
                 <a href="/sistemyonetim/v2/sistem-saglik" class="sy-nav-item {{ $aktifMenu === 'saglik' ? 'active' : '' }}">
                     <span class="icon mdi mdi-pulse"></span>
                     Sistem Sağlık

@@ -1390,6 +1390,122 @@ class PanelController extends Controller
     }
 
     /* ============================================================
+     * GUVENLIK DUVARI (flood / SSH brute-force otomatik engelleme)
+     *
+     * Tespit + engelleme ROOT watchdog'ta (scripts/guvenlik-watchdog.sh, cron/dk):
+     * saldirgan IP'yi ipset+iptables ile aninda DROP eder, olayi guvenlik_olaylari'na
+     * yazar ve guvenlik:bildir ile WhatsApp/SMS alarm gonderir. Bu panel:
+     *   - engellenen IP'leri + son olaylari GOSTERIR,
+     *   - whitelist/blacklist kurallarini YONETIR (watchdog bir sonraki turda uygular).
+     * PHP-FPM (www-root) iptables calistiramaz; panel deklaratiftir, watchdog uygular.
+     * ============================================================ */
+    public function guvenlikDuvari()
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+
+        $son24 = date('Y-m-d H:i:s', strtotime('-24 hours'));
+
+        $whitelistIps = DB::table('guvenlik_ip_kurallari')->where('tip', 'whitelist')->pluck('ip')->all();
+
+        // Aktif engelli IP'ler: son 24 saatte 'engellendi', whitelist DISI, her IP icin en son olay.
+        $engelliRaw = DB::table('guvenlik_olaylari')
+            ->where('aksiyon', 'engellendi')
+            ->whereNotNull('ip')
+            ->where('created_at', '>=', $son24)
+            ->orderBy('id', 'desc')
+            ->get();
+        $engelli = [];
+        foreach ($engelliRaw as $o) {
+            if (isset($engelli[$o->ip]) || in_array($o->ip, $whitelistIps, true)) continue;
+            $engelli[$o->ip] = $o;
+        }
+
+        $ozet = [
+            'engelli_aktif' => count($engelli),
+            'son24_engel'   => DB::table('guvenlik_olaylari')->where('aksiyon', 'engellendi')->where('created_at', '>=', $son24)->count(),
+            'son_load'      => DB::table('guvenlik_olaylari')->where('tur', 'load_yuksek')->orderBy('id', 'desc')->first(),
+            'son_olay'      => DB::table('guvenlik_olaylari')->orderBy('id', 'desc')->first(),
+        ];
+
+        return view('sistemyonetim.v2.guvenlik-duvari', [
+            'title'       => 'Güvenlik Duvarı',
+            'aktifMenu'   => 'guvenlik-duvari',
+            'ozet'        => $ozet,
+            'engelli'     => array_values($engelli),
+            'whitelist'   => DB::table('guvenlik_ip_kurallari')->where('tip', 'whitelist')->orderBy('id', 'desc')->get(),
+            'blacklist'   => DB::table('guvenlik_ip_kurallari')->where('tip', 'blacklist')->orderBy('id', 'desc')->get(),
+            'sonOlaylar'  => DB::table('guvenlik_olaylari')->orderBy('id', 'desc')->limit(100)->get(),
+        ]);
+    }
+
+    /** Engeli kaldir = IP'yi whitelist'e ekle (watchdog bir sonraki turda ipset'ten siler). */
+    public function guvenlikDuvariUnban(Request $request)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+        $ip = $this->guvenlikIpDogrula($request->get('ip'));
+        if (!$ip) return redirect()->back()->with('hata', 'Geçersiz IP.');
+
+        DB::table('guvenlik_ip_kurallari')->updateOrInsert(
+            ['ip' => $ip],
+            ['tip' => 'whitelist', 'aciklama' => 'Panelden engel kaldırıldı', 'ekleyen' => $this->guvenlikAdmin(), 'created_at' => date('Y-m-d H:i:s')]
+        );
+        DB::table('guvenlik_olaylari')->insert([
+            'tur' => 'flood', 'ip' => $ip, 'aksiyon' => 'izlendi',
+            'detay' => 'Panelden engel kaldırıldı (whitelist)', 'bildirildi' => 1, 'created_at' => date('Y-m-d H:i:s'),
+        ]);
+        return redirect()->back()->with('basari', $ip . ' engeli kaldırıldı — en geç 1 dk içinde erişebilecek.');
+    }
+
+    /** Manuel whitelist ekle (kendi/ekip IP'lerin asla engellenmesin). */
+    public function guvenlikDuvariWhitelistEkle(Request $request)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+        $ip = $this->guvenlikIpDogrula($request->get('ip'));
+        if (!$ip) return redirect()->back()->with('hata', 'Geçersiz IP.');
+
+        DB::table('guvenlik_ip_kurallari')->updateOrInsert(
+            ['ip' => $ip],
+            ['tip' => 'whitelist', 'aciklama' => trim((string) $request->get('aciklama')) ?: 'Manuel whitelist', 'ekleyen' => $this->guvenlikAdmin(), 'created_at' => date('Y-m-d H:i:s')]
+        );
+        return redirect()->back()->with('basari', $ip . ' whitelist’e eklendi.');
+    }
+
+    /** Manuel kalici engelle (blacklist) — watchdog bir sonraki turda ipset'e ekler. */
+    public function guvenlikDuvariBlacklistEkle(Request $request)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+        $ip = $this->guvenlikIpDogrula($request->get('ip'));
+        if (!$ip) return redirect()->back()->with('hata', 'Geçersiz IP.');
+
+        DB::table('guvenlik_ip_kurallari')->updateOrInsert(
+            ['ip' => $ip],
+            ['tip' => 'blacklist', 'aciklama' => trim((string) $request->get('aciklama')) ?: 'Manuel blacklist', 'ekleyen' => $this->guvenlikAdmin(), 'created_at' => date('Y-m-d H:i:s')]
+        );
+        return redirect()->back()->with('basari', $ip . ' kalıcı engellendi (blacklist).');
+    }
+
+    /** Whitelist/blacklist kuralini sil. */
+    public function guvenlikDuvariWhitelistSil(Request $request)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+        $id = (int) $request->get('id');
+        if ($id) DB::table('guvenlik_ip_kurallari')->where('id', $id)->delete();
+        return redirect()->back()->with('basari', 'Kural silindi.');
+    }
+
+    private function guvenlikIpDogrula($ip)
+    {
+        $ip = trim((string) $ip);
+        return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : null;
+    }
+
+    private function guvenlikAdmin()
+    {
+        $u = Auth::guard('sistemyonetim')->user();
+        return $u->ad_soyad ?? $u->isim ?? $u->ad ?? $u->email ?? 'admin';
+    }
+
+    /* ============================================================
      * WHATSAPP YONETIM (eski panel v2 layout'ta)
      * ============================================================ */
     public function whatsappPanel()

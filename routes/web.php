@@ -622,6 +622,13 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::get('/guvenlik/girisler', 'PanelController@girisLoglari');
     Route::get('/guvenlik/impersonation', 'PanelController@impersonationLoglari');
 
+    // Guvenlik Duvari (flood/brute-force otomatik engelleme + izleme)
+    Route::get('/guvenlik-duvari', 'PanelController@guvenlikDuvari')->name('sistemyonetim.v2.guvenlik-duvari');
+    Route::post('/guvenlik-duvari/unban', 'PanelController@guvenlikDuvariUnban');
+    Route::post('/guvenlik-duvari/whitelist', 'PanelController@guvenlikDuvariWhitelistEkle');
+    Route::post('/guvenlik-duvari/whitelist-sil', 'PanelController@guvenlikDuvariWhitelistSil');
+    Route::post('/guvenlik-duvari/blacklist', 'PanelController@guvenlikDuvariBlacklistEkle');
+
     // WhatsApp panel (v2 layout, AJAX endpoint'leri eski controllerda kalir)
     Route::get('/whatsapp', 'PanelController@whatsappPanel');
 
