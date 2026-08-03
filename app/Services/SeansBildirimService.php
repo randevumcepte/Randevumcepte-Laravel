@@ -66,8 +66,12 @@ class SeansBildirimService
             return;
         }
 
-        $body = $this->mesajOlustur($musteriIsmi, $bloklar);
+        $body  = $this->mesajOlustur($musteriIsmi, $bloklar);
+        $salon = \App\Salonlar::find($randevu->salon_id);
+        $tel   = trim((string) ($musteri->cep_telefon ?? ''));
 
+        // 1) UYGULAMA BILDIRIMI (push) — DETAYLI
+        $pushUlasti = false;
         try {
             $sonuc = NotificationService::toCustomer((int) $musteri->id, (int) $randevu->salon_id)
                 ->type(NotificationTypes::SESSION_USED)
@@ -76,20 +80,53 @@ class SeansBildirimService
                 ->randevu((int) $randevu->id)
                 ->deepLink('sessions')
                 ->send();
-
-            Log::info('[SEANS-KULLANIM] push gonderildi', [
-                'randevu_id' => $randevu->id,
-                'user_id'    => $musteri->id,
-                'salon_id'   => $randevu->salon_id,
-                'blok_adet'  => count($bloklar),
-                'sonuc'      => $sonuc,
-            ]);
+            $pushUlasti = (int) ($sonuc['sent'] ?? 0) > 0;
+            Log::info('[SEANS-KULLANIM] push', ['randevu_id' => $randevu->id, 'ulasti' => $pushUlasti, 'sonuc' => $sonuc]);
         } catch (\Throwable $e) {
-            Log::warning('[SEANS-KULLANIM] push fail', [
-                'randevu_id' => $randevu->id,
-                'err'        => $e->getMessage(),
-            ]);
+            Log::warning('[SEANS-KULLANIM] push fail', ['randevu_id' => $randevu->id, 'err' => $e->getMessage()]);
         }
+
+        // 2) WHATSAPP — DETAYLI (salon hatti). sendReminder baglanti/calisma-saati/
+        //    gunluk-limit/kontor kontrollerini yapar ve otomatik SMS ATMAZ (SMS'i
+        //    asagida biz yonetiriz -> cift/detayli SMS gitmez). WhatsApp kalin
+        //    bicimi tek yildiz oldugu icin ** -> * cevrilir.
+        $waUlasti = false;
+        if ($salon && $tel !== '') {
+            try {
+                $waBody  = str_replace('**', '*', $body);
+                $wa      = app(\App\Services\WhatsAppService::class);
+                $waSonuc = $wa->sendReminder($salon, $tel, $waBody, (int) $randevu->id, (int) $musteri->id, null, false, 'seans_bildirim');
+                $waUlasti = !empty($waSonuc['ok']);
+                Log::info('[SEANS-KULLANIM] whatsapp', ['randevu_id' => $randevu->id, 'ulasti' => $waUlasti, 'sonuc' => $waSonuc]);
+            } catch (\Throwable $e) {
+                Log::warning('[SEANS-KULLANIM] whatsapp fail', ['randevu_id' => $randevu->id, 'err' => $e->getMessage()]);
+            }
+        }
+
+        // 3) SMS FALLBACK — SADECE push VE whatsapp ikisi de ulasmadiysa.
+        //    DETAYSIZ, TEK kisa SMS.
+        if (!$pushUlasti && !$waUlasti && $salon && $tel !== '') {
+            try {
+                $kisa  = "Sayın {$musteriIsmi}, seans bilgileriniz güncellendi. Sağlıklı günler dileriz.";
+                $yerel = $this->telYerel($tel);
+                if ($yerel !== '') {
+                    (new \App\Http\Controllers\Controller())->sms_gonder((string) $salon->id, [
+                        ['to' => $yerel, 'message' => $kisa],
+                    ]);
+                    Log::info('[SEANS-KULLANIM] sms fallback', ['randevu_id' => $randevu->id, 'to' => $yerel]);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('[SEANS-KULLANIM] sms fail', ['randevu_id' => $randevu->id, 'err' => $e->getMessage()]);
+            }
+        }
+    }
+
+    /** Telefonu SMS icin yerel formata cevirir: +90/90/0 kirpilir -> 5xxxxxxxxx */
+    private function telYerel(string $tel): string
+    {
+        $d = preg_replace('/\D/', '', $tel);
+        $d = preg_replace('/^90/', '', $d);
+        return ltrim($d, '0');
     }
 
     /**
