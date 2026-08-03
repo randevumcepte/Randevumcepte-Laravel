@@ -554,40 +554,137 @@ $(document).ready(function(){
             e.stopPropagation();
             var pid = silBtn.getAttribute('data-value');
             var adi = silBtn.getAttribute('data-adi') || 'Bu personel';
-            swal({
-               title: adi+' silinsin mi?',
-               html: '<div style="text-align:left; line-height:1.6"><b>Personel kalıcı olarak listeden gizlenecek.</b><br>'+
-                     '✓ Geçmiş randevu, satış, prim ve hak ediş kayıtları korunacak<br>'+
-                     '✓ Raporlar ve istatistikler etkilenmeyecek<br>'+
-                     '✓ Listeden, takvimden ve online randevudan kalkacak</div>',
-               type: 'warning',
-               showCancelButton: true,
-               confirmButtonText: 'Evet, sil',
-               cancelButtonText: 'Vazgeç',
-               confirmButtonColor: '#dc2626',
-               cancelButtonClass: 'btn btn-secondary'
-            }).then(function(r){
-               if(!r.value) return;
+
+            // Silinen personeli tablodan tazeleyen ortak fn
+            var _tabloTazele = function(result){
+               try{
+                  var dt = $('#personel_tablo').DataTable();
+                  dt.clear(); dt.rows.add(result); dt.draw(false);
+               }catch(e){ location.reload(); }
+            };
+            // Arsivle POST (transferler opsiyonel)
+            var _arsivleGonder = function(transferler){
+               var data = { personelid: pid, sube: '{{$isletme->id}}', _token: $('input[name="_token"]').val() };
+               if(transferler) data.transferler = JSON.stringify(transferler);
                $.ajax({
                   type:'POST',
                   url:'/isletmeyonetim/personelArsivle',
-                  data:{ personelid: pid, sube: '{{$isletme->id}}', _token: $('input[name="_token"]').val() },
+                  data:data,
                   headers:{ 'X-CSRF-TOKEN': $('input[name="_token"]').val() },
                   dataType:'json',
                   beforeSend:function(){ $('#preloader').show(); },
                   success:function(result){
                      $('#preloader').hide();
-                     try{
-                        var dt = $('#personel_tablo').DataTable();
-                        dt.clear(); dt.rows.add(result); dt.draw(false);
-                     }catch(e){ location.reload(); }
+                     _tabloTazele(result);
                      swal({title:'Silindi', type:'success', timer:1200, showConfirmButton:false});
                   },
                   error:function(xhr){
                      $('#preloader').hide();
-                     swal({title:'Hata', text:'Silinemedi (HTTP '+xhr.status+')', type:'error'});
+                     var m = 'Silinemedi (HTTP '+xhr.status+')';
+                     try{ if(xhr.responseJSON && xhr.responseJSON.mesaj) m = xhr.responseJSON.mesaj; }catch(e){}
+                     swal({title:'Hata', text:m, type:'error'});
                   }
                });
+            };
+
+            // Once bu personelin silme tarihinden itibaren gelecek randevu hizmetlerini kontrol et
+            $('#preloader').show();
+            $.ajax({
+               type:'GET',
+               url:'/isletmeyonetim/personel-gelecek-hizmetler',
+               data:{ personelid: pid },
+               dataType:'json',
+               headers:{ 'X-CSRF-TOKEN': $('input[name="_token"]').val() }
+            }).done(function(res){
+               $('#preloader').hide();
+               if(!res || !res.ok){
+                  swal({title:'Hata', text:(res && res.mesaj) ? res.mesaj : 'Personel bilgisi alınamadı.', type:'error'});
+                  return;
+               }
+               // Gelecek hizmet YOK: normal onay + sil
+               if(res.count === 0){
+                  swal({
+                     title: adi+' silinsin mi?',
+                     html: '<div style="text-align:left; line-height:1.6"><b>Personel kalıcı olarak listeden gizlenecek.</b><br>'+
+                           '✓ Geçmiş randevu, satış, prim ve hak ediş kayıtları korunacak<br>'+
+                           '✓ Raporlar ve istatistikler etkilenmeyecek<br>'+
+                           '✓ Listeden, takvimden ve online randevudan kalkacak</div>',
+                     type: 'warning',
+                     showCancelButton: true,
+                     confirmButtonText: 'Evet, sil',
+                     cancelButtonText: 'Vazgeç',
+                     confirmButtonColor: '#dc2626',
+                     cancelButtonClass: 'btn btn-secondary'
+                  }).then(function(r){
+                     if(!r.value) return;
+                     _arsivleGonder(null);
+                  });
+                  return;
+               }
+
+               // Gelecek hizmet VAR: zorunlu aktarim popup'i
+               if(!res.personeller || res.personeller.length === 0){
+                  swal({title:'Aktarım yapılamıyor', text:'Bu personelin '+res.count+' gelecek randevu hizmeti var ancak devredilebilecek başka aktif personel yok. Önce yeni personel ekleyin.', type:'error'});
+                  return;
+               }
+
+               var _esc = function(s){ return $('<div>').text(s == null ? '' : s).html(); };
+               var optionsHtml = '<option value="">Seçiniz...</option>';
+               res.personeller.forEach(function(p){ optionsHtml += '<option value="'+p.id+'">'+_esc(p.personel_adi)+'</option>'; });
+
+               var satirlar = '';
+               res.hizmetler.forEach(function(h){
+                  var tarih = h.tarih ? String(h.tarih).split('-').reverse().join('.') : '';
+                  var saat  = h.saat ? String(h.saat).substring(0,5) : '';
+                  satirlar += '<tr>'+
+                     '<td style="text-align:left;white-space:nowrap">'+tarih+' '+saat+'</td>'+
+                     '<td style="text-align:left">'+_esc(h.musteri || '-')+'</td>'+
+                     '<td style="text-align:left">'+_esc(h.hizmet || '-')+'</td>'+
+                     '<td><select class="form-control input-sm pyoaktar-hedef" data-rh="'+h.rh_id+'" style="min-width:150px">'+optionsHtml+'</select></td>'+
+                     '</tr>';
+               });
+
+               window.pyoAktarTumu = function(sel){
+                  var v = sel.value;
+                  if(v){ document.querySelectorAll('.pyoaktar-hedef').forEach(function(s){ s.value = v; }); }
+               };
+
+               var html =
+                  '<p style="margin-bottom:10px;text-align:left">Bu personelin <b>'+res.count+'</b> gelecek randevu hizmeti var. Silmeden önce her hizmetin devredileceği personeli seçin.</p>'+
+                  '<div style="margin-bottom:10px;text-align:left">Tümünü şu personele aktar: '+
+                  '<select onchange="pyoAktarTumu(this)" class="form-control input-sm" style="display:inline-block;width:auto;min-width:160px">'+optionsHtml+'</select></div>'+
+                  '<div style="max-height:320px;overflow:auto">'+
+                  '<table class="table table-bordered table-condensed" style="font-size:12px;margin:0">'+
+                  '<thead><tr><th>Tarih/Saat</th><th>Müşteri</th><th>Hizmet</th><th>Devredilecek Personel</th></tr></thead>'+
+                  '<tbody>'+satirlar+'</tbody></table></div>';
+
+               swal({
+                  title: 'Hizmetleri Aktar ve Sil',
+                  html: html,
+                  type: 'warning',
+                  width: '760px',
+                  focusConfirm: false,
+                  showCancelButton: true,
+                  confirmButtonText: 'Aktar ve Sil',
+                  cancelButtonText: 'Vazgeç',
+                  confirmButtonColor: '#dc2626',
+                  preConfirm: function(){
+                     var transferler = {};
+                     var eksik = false;
+                     document.querySelectorAll('.pyoaktar-hedef').forEach(function(s){
+                        if(!s.value){ eksik = true; }
+                        else { transferler[s.getAttribute('data-rh')] = s.value; }
+                     });
+                     if(eksik){ swal.showValidationMessage('Lütfen tüm hizmetler için bir personel seçin.'); return false; }
+                     return transferler;
+                  }
+               }).then(function(r){
+                  if(!r.value) return;
+                  _arsivleGonder(r.value);
+               });
+            }).fail(function(){
+               $('#preloader').hide();
+               swal({title:'Hata', text:'Personel bilgisi alınamadı.', type:'error'});
             });
             return;
          }

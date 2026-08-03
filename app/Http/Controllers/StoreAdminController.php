@@ -5897,7 +5897,8 @@ private function ayAdiCevir($ingilizceAy)
      * Frontend, kalem varsa zorunlu aktarim popup'ini bu veriyle acar.
      */
     public function personelGelecekHizmetler(Request $request){
-        $personel = Personeller::where('id',$request->personelno)->first();
+        $personelno = $request->personelno ?: $request->personelid;
+        $personel = Personeller::where('id',$personelno)->first();
         if(!$personel){
             return response()->json(['ok'=>false,'mesaj'=>'Personel bulunamadı.'],404);
         }
@@ -5908,7 +5909,7 @@ private function ayAdiCevir($ingilizceAy)
             ->join('randevular','randevu_hizmetler.randevu_id','=','randevular.id')
             ->leftJoin('users','randevular.user_id','=','users.id')
             ->leftJoin('hizmetler','randevu_hizmetler.hizmet_id','=','hizmetler.id')
-            ->where('randevu_hizmetler.personel_id',$request->personelno)
+            ->where('randevu_hizmetler.personel_id',$personelno)
             ->where('randevular.salon_id',$salonId)
             ->whereIn('randevular.durum',[0,1])
             ->where('randevular.tarih','>=',$bugun)
@@ -5925,7 +5926,7 @@ private function ayAdiCevir($ingilizceAy)
             ->get();
 
         $personeller = Personeller::where('salon_id',$salonId)
-            ->where('id','!=',$request->personelno)
+            ->where('id','!=',$personelno)
             ->where('aktif',1)
             ->orderBy('personel_adi')
             ->get(['id','personel_adi']);
@@ -29497,6 +29498,46 @@ DB::raw('
             $personel = Personeller::where('id',$request->personelid)
                 ->where('salon_id',$request->sube)->first();
             if($personel){
+                $bugun = date('Y-m-d');
+                // Arsivleme tarihinden itibaren gelecek randevulardaki, bu personele ait hizmet kalemleri
+                $gelecekHizmetIdler = DB::table('randevu_hizmetler')
+                    ->join('randevular','randevu_hizmetler.randevu_id','=','randevular.id')
+                    ->where('randevu_hizmetler.personel_id',$request->personelid)
+                    ->where('randevular.salon_id',$request->sube)
+                    ->whereIn('randevular.durum',[0,1])
+                    ->where('randevular.tarih','>=',$bugun)
+                    ->pluck('randevu_hizmetler.id')
+                    ->toArray();
+
+                if(count($gelecekHizmetIdler) > 0){
+                    // Aktarim ZORUNLU: her gelecek kalem baska bir aktif personele devredilmeli
+                    $transferler = $request->transferler;
+                    if(is_string($transferler)) $transferler = json_decode($transferler,true);
+                    if(!is_array($transferler)) $transferler = [];
+
+                    $gecerliHedefler = Personeller::where('salon_id',$request->sube)
+                        ->where('id','!=',$request->personelid)
+                        ->where('aktif',1)
+                        ->pluck('id')
+                        ->map(function($v){ return (int)$v; })
+                        ->toArray();
+
+                    foreach($gelecekHizmetIdler as $rhId){
+                        $hedef = isset($transferler[$rhId]) ? (int)$transferler[$rhId] : 0;
+                        if($hedef <= 0 || !in_array($hedef,$gecerliHedefler,true)){
+                            return response()->json([
+                                'sonuc'          => 'aktarim_gerekli',
+                                'count'          => count($gelecekHizmetIdler),
+                                'mesaj'          => 'Bu personelin gelecek randevularındaki tüm hizmetler için geçerli bir başka personel seçilmelidir.',
+                            ],422);
+                        }
+                    }
+
+                    foreach($gelecekHizmetIdler as $rhId){
+                        RandevuHizmetler::where('id',$rhId)->update(['personel_id'=>(int)$transferler[$rhId]]);
+                    }
+                }
+
                 $personel->arsivli = true;
                 $personel->aktif = false; // randevuda gozukmesin
                 $personel->takvimde_gorunsun = false; // her yerden gizle
