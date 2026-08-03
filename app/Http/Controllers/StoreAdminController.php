@@ -5890,16 +5890,117 @@ private function ayAdiCevir($ingilizceAy)
             $personel->personel_adi, 'Yeni personel eklendi');
         return redirect('/isletmeyonetim/isletmem');
     }
+    /**
+     * Arsivlenecek (silinecek) personelin, silme tarihinden itibaren gelecekteki
+     * randevularinda yer alan ve KENDISINE ait olan hizmet kalemlerini ve
+     * bu hizmetleri devralabilecek diger aktif personelleri dondurur.
+     * Frontend, kalem varsa zorunlu aktarim popup'ini bu veriyle acar.
+     */
+    public function personelGelecekHizmetler(Request $request){
+        $personel = Personeller::where('id',$request->personelno)->first();
+        if(!$personel){
+            return response()->json(['ok'=>false,'mesaj'=>'Personel bulunamadı.'],404);
+        }
+        $salonId = $personel->salon_id;
+        $bugun   = date('Y-m-d');
+
+        $hizmetler = DB::table('randevu_hizmetler')
+            ->join('randevular','randevu_hizmetler.randevu_id','=','randevular.id')
+            ->leftJoin('users','randevular.user_id','=','users.id')
+            ->leftJoin('hizmetler','randevu_hizmetler.hizmet_id','=','hizmetler.id')
+            ->where('randevu_hizmetler.personel_id',$request->personelno)
+            ->where('randevular.salon_id',$salonId)
+            ->whereIn('randevular.durum',[0,1])
+            ->where('randevular.tarih','>=',$bugun)
+            ->select(
+                'randevu_hizmetler.id as rh_id',
+                'randevular.id as randevu_id',
+                'randevular.tarih',
+                DB::raw('COALESCE(randevu_hizmetler.saat, randevular.saat) as saat'),
+                'users.name as musteri',
+                'hizmetler.hizmet_adi as hizmet'
+            )
+            ->orderBy('randevular.tarih')
+            ->orderBy('saat')
+            ->get();
+
+        $personeller = Personeller::where('salon_id',$salonId)
+            ->where('id','!=',$request->personelno)
+            ->where('aktif',1)
+            ->orderBy('personel_adi')
+            ->get(['id','personel_adi']);
+
+        return response()->json([
+            'ok'          => true,
+            'count'       => $hizmetler->count(),
+            'personel_ad' => $personel->personel_adi,
+            'hizmetler'   => $hizmetler,
+            'personeller' => $personeller,
+        ]);
+    }
+
     public function personelsil(Request $request){
         $personel = Personeller::where('id',$request->personelno)->first();
-        // Audit (silmeden once)
-        if ($personel) {
-            SalonAudit::log($personel->salon_id, 'personel_sil', 'personel', $personel->id,
-                $personel->personel_adi ?: ('Personel #'.$personel->id),
-                'Personel silindi');
+        if(!$personel){
+            if($request->ajax() || $request->wantsJson())
+                return response()->json(['ok'=>false,'mesaj'=>'Personel bulunamadı.'],404);
+            return redirect('/isletmeyonetim/isletmem');
         }
+        $salonId = $personel->salon_id;
+        $bugun   = date('Y-m-d');
+
+        // Silme (arsivleme) tarihinden itibaren gelecek randevulardaki, bu personele ait hizmet kalemleri
+        $gelecekHizmetIdler = DB::table('randevu_hizmetler')
+            ->join('randevular','randevu_hizmetler.randevu_id','=','randevular.id')
+            ->where('randevu_hizmetler.personel_id',$request->personelno)
+            ->where('randevular.salon_id',$salonId)
+            ->whereIn('randevular.durum',[0,1])
+            ->where('randevular.tarih','>=',$bugun)
+            ->pluck('randevu_hizmetler.id')
+            ->toArray();
+
+        $aktarilanSayi = 0;
+        if(count($gelecekHizmetIdler) > 0){
+            // Aktarim ZORUNLU: her gelecek hizmet kalemi baska bir aktif personele devredilmeli
+            $transferler = $request->transferler;
+            if(is_string($transferler)) $transferler = json_decode($transferler,true);
+            if(!is_array($transferler)) $transferler = [];
+
+            $gecerliHedefler = Personeller::where('salon_id',$salonId)
+                ->where('id','!=',$request->personelno)
+                ->where('aktif',1)
+                ->pluck('id')
+                ->map(function($v){ return (int)$v; })
+                ->toArray();
+
+            foreach($gelecekHizmetIdler as $rhId){
+                $hedef = isset($transferler[$rhId]) ? (int)$transferler[$rhId] : 0;
+                if($hedef <= 0 || !in_array($hedef,$gecerliHedefler,true)){
+                    return response()->json([
+                        'ok'             => false,
+                        'aktarim_gerekli'=> true,
+                        'mesaj'          => 'Bu personelin gelecek randevularındaki tüm hizmetler için geçerli bir başka personel seçilmelidir.',
+                    ],422);
+                }
+            }
+
+            // Uygula: kalemleri secilen personele devret
+            foreach($gelecekHizmetIdler as $rhId){
+                RandevuHizmetler::where('id',$rhId)->update(['personel_id'=>(int)$transferler[$rhId]]);
+                $aktarilanSayi++;
+            }
+        }
+
+        // Audit (silmeden once)
+        SalonAudit::log($personel->salon_id, 'personel_sil', 'personel', $personel->id,
+            $personel->personel_adi ?: ('Personel #'.$personel->id),
+            $aktarilanSayi > 0 ? ($aktarilanSayi.' gelecek hizmet başka personele aktarıldı, personel silindi') : 'Personel silindi');
+
         $personel->delete();
-         return redirect('/isletmeyonetim/isletmem');
+
+        if($request->ajax() || $request->wantsJson())
+            return response()->json(['ok'=>true,'mesaj'=>'Personel silindi.','aktarilan'=>$aktarilanSayi]);
+        return redirect('/isletmeyonetim/isletmem');
     }
     public function randevuguncelle(Request $request)
     {

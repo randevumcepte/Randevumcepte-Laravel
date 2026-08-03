@@ -794,6 +794,8 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/personelhizmetsil/{id}','StoreAdminController@personelhizmetsil');
 	Route::post('/profilresimyukle','StoreAdminController@profilresimyukle');
 	Route::get('/personelekle','StoreAdminController@personelekle');
+	Route::get('/personel-gelecek-hizmetler','StoreAdminController@personelGelecekHizmetler');
+	Route::post('/personelsil','StoreAdminController@personelsil');
 	Route::get('/personelsil','StoreAdminController@personelsil');
 	Route::get('/randevuyukle','StoreAdminController@takvim_degistir');
 	Route::get('/randevuversiyon','StoreAdminController@randevuversiyon');
