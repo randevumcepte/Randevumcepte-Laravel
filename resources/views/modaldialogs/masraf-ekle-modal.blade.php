@@ -1,6 +1,7 @@
 @isset($isletme)
 @php
   $personelListesi = \App\Personeller::where('salon_id',$isletme->id)
+      ->where('aktif',1)
       ->orderBy('takvim_sirasi','asc')->get();
 @endphp
 <div id="yeni_masraf_modal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">

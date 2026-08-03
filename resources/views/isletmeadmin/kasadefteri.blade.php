@@ -884,6 +884,20 @@
          }
       });
    });
+
+   // Harcayan personel select2 — modal icinde, id korunarak (global .custom-select2
+   // init'i id'yi siliyor, o yuzden ayrı init). dropdownParent modal olmali ki arama
+   // kutusu focuslanabilsin.
+   $(document).on('shown.bs.modal', '#yeni_masraf_modal', function(){
+      var $h = $('#harcayan');
+      if($h.length && !$h.hasClass('select2-hidden-accessible')){
+         $h.select2({
+            width: '100%',
+            dropdownParent: $('#yeni_masraf_modal'),
+            placeholder: 'Personel seçin'
+         });
+      }
+   });
 })();
 </script>
 
