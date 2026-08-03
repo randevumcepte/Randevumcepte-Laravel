@@ -122,12 +122,20 @@
     }
     function bagliDegil() { bagliKutu.style.display = 'none'; baglanKutu.style.display = 'block'; }
 
+    // Poll isteklerinde tarayici cache'i KAPALI olmali — yoksa telefon baglaninca /status
+    // "connected" donse bile tarayici eski "connecting" cevabini verir, ekran guncellenmez
+    // (hard refresh gerekirdi). no-store + cache-bust param ikisi birden.
+    function noCache(url) { return fetch(url + (url.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now(), { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }); }
+
     function statusCek() {
-        fetch('/sistemyonetim/v2/sistem-whatsapp/status').then(function (r) { return r.json(); }).then(function (d) {
+        noCache('/sistemyonetim/v2/sistem-whatsapp/status').then(function (r) { return r.json(); }).then(function (d) {
             var b = (d && d.body) ? d.body : {};
             var s = b.status || 'unknown';
-            if (s === 'connected') { bagli(b.phone); qrKutu.style.display = 'none'; }
-            else {
+            if (s === 'connected') {
+                bagli(b.phone); qrKutu.style.display = 'none';
+                // Baglandi — hizli QR/status poll'unu durdur, yavas nabza gec (kopmayi yakala)
+                if (pollTimer) { clearInterval(pollTimer); pollTimer = setInterval(statusCek, 8000); }
+            } else {
                 bagliDegil();
                 setDurum(s === 'connecting' ? 'Bağlanıyor / QR bekleniyor…' : (b.hasQr || s === 'qr' ? 'QR hazır — okut' : 'Bağlı değil'), 'warning');
                 qrCek(); // status ne olursa olsun QR'i dene (connecting sirasinda da QR gelebilir)
@@ -143,7 +151,7 @@
         el.innerHTML = teshisLog.join('<br>');
     }
     function qrCek() {
-        fetch('/sistemyonetim/v2/sistem-whatsapp/qr').then(function (r) {
+        noCache('/sistemyonetim/v2/sistem-whatsapp/qr').then(function (r) {
             return r.json().then(function (j) { return { st: r.status, j: j }; });
         }).then(function (o) {
             var d = o.j || {};
@@ -177,7 +185,7 @@
     function healthCek() {
         var el = document.getElementById('wa-servis');
         if (!el) return;
-        fetch('/sistemyonetim/v2/sistem-whatsapp/health').then(function (r) { return r.json(); }).then(function (d) {
+        noCache('/sistemyonetim/v2/sistem-whatsapp/health').then(function (r) { return r.json(); }).then(function (d) {
             var b = d.baileys_3001, w = d.whatsmeow_3002;
             var iyi = function (x) { return x ? '<b style="color:#16a34a">AÇIK ✓</b>' : '<b style="color:#dc2626">KAPALI ✗</b>'; };
             el.innerHTML = '<span class="mdi mdi-server-network"></span> WhatsApp servisleri → Baileys(3001): ' + iyi(b) + ' · whatsmeow(3002): ' + iyi(w)
