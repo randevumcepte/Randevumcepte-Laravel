@@ -20,9 +20,9 @@
     <div class="sy-card-body">
         <form method="post" action="/sistemyonetim/v2/sistem-whatsapp/ayar" style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
             @csrf
-            <div class="sy-form-group" style="margin:0;min-width:230px">
-                <label><b>ALICI</b> — mesajın geleceği numara (senin numaran)</label>
-                <input type="text" name="numara" class="sy-input" value="{{ $ayar['numara'] }}" placeholder="0541 xxx xx xx">
+            <div class="sy-form-group" style="margin:0;min-width:280px">
+                <label><b>ALICI</b> — mesajın geleceği numara(lar). Birden fazlaysa <b>virgülle</b> ayır.</label>
+                <input type="text" name="numara" class="sy-input" value="{{ str_replace(',', ', ', $ayar['numara']) }}" placeholder="0541 xxx xx xx, 0531 xxx xx xx">
             </div>
             <div class="sy-form-group" style="margin:0;min-width:230px">
                 <label><b>GÖNDEREN</b> — QR ile bağlayacağın numara</label>
@@ -96,7 +96,7 @@
     var qrImg = document.getElementById('wa-qr');
     var telEl = document.getElementById('wa-telefon');
     var baglanBtn = document.getElementById('wa-baglan-btn');
-    var AYAR_NUMARA = '{{ preg_replace('/[^0-9]/', '', $ayar['numara']) }}';
+    var AYAR_NUMARALAR = {!! json_encode(\App\Services\SistemBildirim::alicilar()) !!};
     var AYAR_GONDEREN = '{{ preg_replace('/[^0-9]/', '', $ayar['gonderen_numara']) }}';
     var pollTimer = null;
 
@@ -110,7 +110,7 @@
         var self = document.getElementById('wa-self-uyari');
         if (!self) return;
         var p = String(phone || '');
-        if (p && AYAR_NUMARA && p === String(AYAR_NUMARA)) {
+        if (p && AYAR_NUMARALAR && AYAR_NUMARALAR.indexOf(String(p)) !== -1) {
             self.innerHTML = '<span class="mdi mdi-alert"></span> <b>Dikkat:</b> Bağlanan (gönderen) numara ile ALICI numaran <b>aynı</b>. WhatsApp kendine mesaj göndermez — farklı bir numara bağla.';
             self.style.display = 'block';
         } else if (p && AYAR_GONDEREN && p !== String(AYAR_GONDEREN)) {

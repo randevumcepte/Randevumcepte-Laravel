@@ -1957,30 +1957,30 @@ class PanelController extends Controller
         $st = $this->waService()->status(\App\Services\SistemBildirim::sessionId());
         $gPhone = $st['body']['phone'] ?? null;
         $gDurum = $st['body']['status'] ?? ($st['ok'] ? 'bilinmiyor' : 'servise-ulasilamiyor');
-        $aliciYerel = preg_replace('/^90/', '', (string) $ayar['numara']);
+        $alicilar = \App\Services\SistemBildirim::alicilar();
+        $aliciYerel = implode(', ', array_map(function ($n) { return preg_replace('/^90/', '', (string) $n); }, $alicilar));
 
-        // Gonderen == alici ise WA kendine gonderemez — net uyari
-        if ($gPhone && preg_replace('/[^0-9]/', '', (string) $gPhone) === preg_replace('/[^0-9]/', '', (string) $ayar['numara'])) {
+        // Gonderen ALICILARDAN biriyle ayni ise WA kendine gonderemez — net uyari
+        $gNorm = preg_replace('/[^0-9]/', '', (string) $gPhone);
+        if ($gPhone && in_array($gNorm, $alicilar, true)) {
             return redirect()->back()->with('hata',
-                'Bağlı GÖNDEREN (' . $gPhone . ') ile ALICI aynı! WhatsApp kendine mesaj göndermez. '
-                . '"Oturumu Kapat" → farklı bir numarayla (gönderen) QR okut.');
+                'Bağlı GÖNDEREN (' . $gPhone . ') ile ALICI numaralarından biri aynı! WhatsApp kendine mesaj göndermez. '
+                . 'Gönderen için ALICI listesinde OLMAYAN farklı bir numara bağla.');
         }
 
         $r = \App\Services\SistemBildirim::gonder('✅ Test: Sistem bildirimi. ' . date('d.m.Y H:i'));
         if (empty($r['ok'])) {
             return redirect()->back()->with('hata', 'Gönderilmedi — önce numara girip "Bildirimler açık" işaretleyip Kaydet.');
         }
-        $wa  = $r['detay']['wa'] ?? [];
-        $sms = $r['detay']['sms'] ?? [];
-        $waMsg  = ($wa['ok'] ?? false)
-            ? 'WA kuyruğa alındı ✓'
-            : 'WA gitmedi (' . ($wa['error'] ?? ('http ' . ($wa['status'] ?? '?'))) . ')';
-        $smsMsg = ($sms['ok'] ?? false)
-            ? 'SMS gönderildi ✓'
-            : 'SMS gitmedi (' . ($sms['durum'] ?? 'hata') . ')';
+        // Her alici icin WA/SMS ozeti
+        $satirlar = [];
+        foreach (($r['ozet'] ?? []) as $num => $o) {
+            $yerel = preg_replace('/^90/', '', (string) $num);
+            $satirlar[] = $yerel . ': WA ' . (($o['wa'] ?? false) ? '✓' : '✗') . ' | SMS ' . (($o['sms'] ?? false) ? '✓' : '✗');
+        }
         $gonderenBilgi = 'Gönderen oturum: ' . $gDurum . ($gPhone ? ' (' . $gPhone . ')' : ' — NUMARA YOK/bağlı değil');
         return redirect()->back()->with('basari',
-            $gonderenBilgi . ' → ' . $waMsg . ' | ' . $smsMsg . ' · alıcı: ' . $aliciYerel);
+            $gonderenBilgi . ' → ' . implode('  ·  ', $satirlar));
     }
 
     /* ============================================================

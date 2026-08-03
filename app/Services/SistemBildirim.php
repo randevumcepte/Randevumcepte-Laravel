@@ -52,10 +52,39 @@ class SistemBildirim
     public static function ayarYaz($numara, $aktif, $gonderenNumara = null)
     {
         return self::ayarGuncelle([
-            'numara' => self::normalizeTel($numara),
+            // ALICI: birden fazla numara desteklenir (virgül/boşluk/noktalı virgülle ayrılır).
+            'numara' => self::normalizeAlicilar($numara),
             'gonderen_numara' => self::normalizeTel($gonderenNumara),
             'aktif' => (bool) $aktif,
         ]);
+    }
+
+    /**
+     * ALICI listesi — 'numara' alanı bir veya BİRDEN FAZLA numara tutabilir
+     * (virgül/boşluk/;/satır ile ayrılmış). Normalize edilmiş (90...) benzersiz dizi döner.
+     */
+    public static function alicilar()
+    {
+        $a = self::ayarOku();
+        return self::parcalaNormalize($a['numara'] ?? '');
+    }
+
+    /** Girdiyi (string|array) normalize edip virgülle ayrılmış tek string olarak döndürür (saklama için). */
+    public static function normalizeAlicilar($numaralar)
+    {
+        if (is_array($numaralar)) $numaralar = implode(',', $numaralar);
+        return implode(',', self::parcalaNormalize($numaralar));
+    }
+
+    private static function parcalaNormalize($raw)
+    {
+        $parts = preg_split('/[\s,;]+/', (string) $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $out = [];
+        foreach ($parts as $p) {
+            $n = self::normalizeTel($p);
+            if ($n !== '' && !in_array($n, $out, true)) $out[] = $n;
+        }
+        return $out;
     }
 
     /** Aktif WhatsApp oturum id'si (taze baglanti icin degistirilebilir). */
@@ -115,42 +144,40 @@ class SistemBildirim
     public static function gonder($mesaj)
     {
         $ayar = self::ayarOku();
-        if (empty($ayar['aktif']) || empty($ayar['numara'])) {
+        $alicilar = self::alicilar();
+        if (empty($ayar['aktif']) || empty($alicilar)) {
             Log::warning('[SistemBildirim] gonder ATLANDI — kapali veya alici numara yok', [
                 'aktif' => !empty($ayar['aktif']),
-                'numara_var' => !empty($ayar['numara']),
+                'alici_sayisi' => count($alicilar),
             ]);
             return ['ok' => false, 'reason' => 'kapali-veya-numara-yok'];
         }
-        $numara = $ayar['numara'];
-        $detay = ['wa' => null, 'sms' => null];
 
-        // WhatsApp: ayri (salon-bagimsiz) 'sistem' oturumundan gonderilir. Bu oturuma
-        // AYRI bir numara QR ile baglanir; alici (senin numaran) gonderenden FARKLI oldugu
-        // icin "kendine gonderme" sorunu olmaz. Baglı degilse WA atlanir, SMS yine gider.
-        try {
-            // Aktif bridge whatsmeow (3002) — 'sistem' oturumu onun uzerinden.
-            $detay['wa'] = app(WhatsmeowService::class)->sendTest(self::sessionId(), $numara, $mesaj);
-        } catch (\Throwable $e) {
-            $detay['wa'] = ['ok' => false, 'error' => $e->getMessage()];
-            Log::warning('[SistemBildirim] WA hata', ['e' => $e->getMessage()]);
+        // Her ALICIYA ayri ayri WhatsApp + SMS. WA: salon-bagimsiz 'sistem' oturumundan
+        // (QR ile baglanan GONDEREN numara) gonderilir. Baglı degilse WA atlanir, SMS gider.
+        $ilkDetay = null;
+        $ozet = [];
+        foreach ($alicilar as $numara) {
+            $detay = ['wa' => null, 'sms' => null];
+            try {
+                $detay['wa'] = app(WhatsmeowService::class)->sendTest(self::sessionId(), $numara, $mesaj);
+            } catch (\Throwable $e) {
+                $detay['wa'] = ['ok' => false, 'error' => $e->getMessage()];
+                Log::warning('[SistemBildirim] WA hata', ['numara' => $numara, 'e' => $e->getMessage()]);
+            }
+            try {
+                $detay['sms'] = self::smsGonder($numara, $mesaj);
+            } catch (\Throwable $e) {
+                $detay['sms'] = ['ok' => false, 'error' => $e->getMessage()];
+                Log::warning('[SistemBildirim] SMS hata', ['numara' => $numara, 'e' => $e->getMessage()]);
+            }
+            if ($ilkDetay === null) $ilkDetay = $detay;   // test ekrani geriye-uyumlu gostersin
+            $ozet[$numara] = ['wa' => $detay['wa']['ok'] ?? null, 'sms' => $detay['sms']['ok'] ?? null];
         }
 
-        try {
-            $detay['sms'] = self::smsGonder($numara, $mesaj);
-        } catch (\Throwable $e) {
-            $detay['sms'] = ['ok' => false, 'error' => $e->getMessage()];
-            Log::warning('[SistemBildirim] SMS hata', ['e' => $e->getMessage()]);
-        }
+        Log::info('[SistemBildirim] gonder tamam', ['alicilar' => $alicilar, 'ozet' => $ozet]);
 
-        Log::info('[SistemBildirim] gonder tamam', [
-            'alici' => $numara,
-            'wa_ok' => $detay['wa']['ok'] ?? null,
-            'wa_status' => $detay['wa']['status'] ?? null,
-            'sms_ok' => $detay['sms']['ok'] ?? null,
-        ]);
-
-        return ['ok' => true, 'detay' => $detay];
+        return ['ok' => true, 'detay' => $ilkDetay, 'alicilar' => $alicilar, 'ozet' => $ozet];
     }
 
     /**
