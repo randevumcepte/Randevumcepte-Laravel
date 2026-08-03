@@ -61,15 +61,22 @@ class Salonlar extends Model
             $kalan = (int) \Carbon\Carbon::now()->startOfDay()->diffInDays($bitis, false);
             $suresiDoldu = $kalan < 0; // 1 Eylül+ => kontörlü dönem başladı
 
+            // Ağustos "kontör al" heads-up popup'ı: 1–31 Ağustos arası günde 1 kez
+            // gösterilir (layout). bitis=31 Ağustos → Ağustos 1'de kalan=30.
+            // 1 Eylül+ olunca (suresiDoldu) kapanır; yerini kontör bakiyesi
+            // popup'ları alır (whatsapp.blade). Ücretli paketler zaten yukarıda elendi.
+            $agustosUyari = !$suresiDoldu && $kalan <= 30;
+
             return [
-                'promo'        => true,
-                'baslangic'    => null,
-                'bitis'        => '2026-08-31',
-                'kalan_gun'    => max(0, $kalan),
-                'suresi_doldu' => $suresiDoldu,
-                'aktif'        => !$suresiDoldu,
-                'uyari'        => false, // ESKİ 5-gün ara/öde popup'ı KAPALI
-                'iletisim'     => $iletisimTel,
+                'promo'         => true,
+                'baslangic'     => null,
+                'bitis'         => '2026-08-31',
+                'kalan_gun'     => max(0, $kalan),
+                'suresi_doldu'  => $suresiDoldu,
+                'aktif'         => !$suresiDoldu,
+                'uyari'         => false, // ESKİ 5-gün ara/öde popup'ı KAPALI
+                'agustos_uyari' => $agustosUyari,
+                'iletisim'      => $iletisimTel,
             ];
         } catch (\Exception $e) {
             return ['promo' => false, 'iletisim' => $iletisimTel];

@@ -2249,59 +2249,70 @@
       </div>
       <!-- welcome modal end -->
 
-      {{-- WhatsApp 2 Ay Ücretsiz — son 5 gün ödeme uyarısı popup --}}
+      {{-- WhatsApp Ağustos "Kontör Al" heads-up popup (1–31 Ağustos, günde 1 kez) --}}
       @php $rcWaUyari = isset($isletme) ? \App\Salonlar::whatsappPromoBilgisi($isletme) : ['promo'=>false]; @endphp
-      @if(!empty($rcWaUyari['uyari']))
-      <div id="waPromoUyariOverlay" class="wa-promo-overlay" data-kalan="{{ (int) $rcWaUyari['kalan_gun'] }}" data-bitis="{{ \Carbon\Carbon::parse($rcWaUyari['bitis'])->format('d.m.Y') }}">
+      @if(!empty($rcWaUyari['agustos_uyari']))
+      <div id="waPromoUyariOverlay" class="wa-promo-overlay" data-kalan="{{ (int) $rcWaUyari['kalan_gun'] }}">
          <div class="wa-promo-card" role="dialog" aria-modal="true" aria-labelledby="waPromoBaslik">
-            <button type="button" class="wa-promo-close" aria-label="Kapat" onclick="rcWaPromoKapat()">&times;</button>
-            <div class="wa-promo-ikon"><i class="fa fa-whatsapp"></i></div>
-            <h3 id="waPromoBaslik" class="wa-promo-baslik">WhatsApp Ücretsiz Süreniz Bitiyor</h3>
-            <p class="wa-promo-metin">
-               WhatsApp hatırlatma hizmetinizin <strong>2 aylık ücretsiz</strong> kullanım süresi
-               @if((int)$rcWaUyari['kalan_gun'] <= 0)
-                  <strong style="color:#dc2626;">bugün</strong> doluyor.
-               @else
-                  <strong style="color:#dc2626;">{{ (int) $rcWaUyari['kalan_gun'] }} gün</strong> içinde ({{ \Carbon\Carbon::parse($rcWaUyari['bitis'])->format('d.m.Y') }}) doluyor.
-               @endif
-               Hizmetin kesintisiz devam etmesi için lütfen ödeme amacıyla bizimle iletişime geçin. Aksi halde süre dolduğunda WhatsApp hatırlatmaları otomatik olarak devre dışı kalacaktır.
-            </p>
-            <div class="wa-promo-iletisim">
-               <i class="fa fa-phone"></i>
-               <a href="tel:{{ preg_replace('/\D/','',$rcWaUyari['iletisim']) }}">0 541 294 81 44</a>
+            <div class="wa-promo-head">
+               <button type="button" class="wa-promo-close" aria-label="Kapat" onclick="rcWaPromoKapat()">&times;</button>
+               <div class="wa-promo-ikon">
+                  <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+                     <path fill="#25D366" d="M16 3C9.4 3 4 8.4 4 15c0 2.1.6 4.2 1.6 6L4 29l8.2-1.6c1.7.9 3.6 1.4 5.6 1.4h.2c6.6 0 12-5.4 12-12S22.6 3 16 3z"/>
+                     <path fill="#fff" d="M12.3 9.5c-.3-.6-.5-.6-.8-.6h-.7c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.3 1.4 3.5c.2.2 2.4 3.8 6 5.2 3 1.2 3.6 1 4.2.9.6-.1 2-.8 2.3-1.6.3-.8.3-1.4.2-1.6-.1-.2-.3-.2-.7-.4-.4-.2-2-1-2.3-1.1-.3-.1-.5-.2-.8.2-.2.3-.9 1.1-1.1 1.3-.2.2-.4.3-.7.1-.4-.2-1.5-.6-2.9-1.8-1.1-.9-1.8-2.1-2-2.5-.2-.3 0-.5.1-.7.2-.2.4-.4.5-.6.2-.2.2-.3.4-.6.1-.2.1-.4 0-.6-.1-.2-.8-2-1.1-2.5z"/>
+                  </svg>
+               </div>
+               <h3 id="waPromoBaslik" class="wa-promo-baslik">WhatsApp Ücretsiz Kullanım Bitiyor</h3>
+               <div class="wa-promo-pill">📅 Son tarih <b>31.08.2026</b>
+                  @if((int)$rcWaUyari['kalan_gun'] > 0) · <b>{{ (int) $rcWaUyari['kalan_gun'] }} gün</b> kaldı @else · <b>bugün</b> son gün @endif
+               </div>
+            </div>
+            <div class="wa-promo-body">
+               <p>
+                  Ücretsiz WhatsApp hatırlatma kullanımınız <b>31 Ağustos 2026</b>'da sona eriyor.
+                  <b>1 Eylül</b>'den itibaren mesajlar kontörden düşecek.
+               </p>
+               <div class="wa-promo-kbox">💬 1 mesaj = 1 kontör</div>
+               <p style="margin-bottom:2px;">
+                  Müşteri ve danışanlarınızla <b>iletişiminiz kesilmesin</b> diye şimdiden kontör satın alın.
+                  Randevu hatırlatmaları ve bildirimleriniz kesintisiz devam etsin.
+               </p>
             </div>
             <div class="wa-promo-aksiyon">
-               <a class="wa-promo-btn ara" href="tel:{{ preg_replace('/\D/','',$rcWaUyari['iletisim']) }}"><i class="fa fa-phone"></i> Hemen Ara</a>
+               <a class="wa-promo-btn al" href="/isletmeyonetim/whatsapp">💚 Kontör Al</a>
                <button type="button" class="wa-promo-btn kapat" onclick="rcWaPromoKapat()">Daha Sonra</button>
             </div>
+            <div class="wa-promo-footns">Bu uyarı, hizmetiniz kesintiye uğramasın diye günde bir kez gösterilir.</div>
          </div>
       </div>
       <style>
-         .wa-promo-overlay{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
-            background:rgba(15,23,42,.55);backdrop-filter:blur(3px);padding:16px;}
-         .wa-promo-card{background:#fff;border-radius:18px;max-width:430px;width:100%;padding:30px 26px 24px;
-            box-shadow:0 24px 60px rgba(15,23,42,.30);text-align:center;position:relative;
-            animation:waPromoUp .28s cubic-bezier(.2,.8,.2,1);}
-         @keyframes waPromoUp{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
-         .wa-promo-close{position:absolute;top:12px;right:14px;border:0;background:transparent;font-size:26px;line-height:1;
-            color:#94a3b8;cursor:pointer;}
-         .wa-promo-close:hover{color:#475569;}
-         .wa-promo-ikon{width:66px;height:66px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;
-            background:linear-gradient(135deg,#16a34a 0%,#22c55e 100%);color:#fff;font-size:32px;
-            box-shadow:0 10px 24px rgba(34,197,94,.40);}
-         .wa-promo-baslik{font-size:19px;font-weight:800;color:#0f172a;margin:0 0 10px;}
-         .wa-promo-metin{font-size:14px;line-height:1.6;color:#475569;margin:0 0 18px;}
-         .wa-promo-iletisim{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:18px;
-            font-size:20px;font-weight:800;color:#16a34a;}
-         .wa-promo-iletisim i{font-size:17px;}
-         .wa-promo-iletisim a{color:#16a34a;text-decoration:none;}
-         .wa-promo-aksiyon{display:flex;gap:10px;}
-         .wa-promo-btn{flex:1;border:0;border-radius:12px;padding:12px 14px;font-size:14px;font-weight:700;cursor:pointer;
-            text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;}
-         .wa-promo-btn.ara{background:linear-gradient(135deg,#16a34a 0%,#22c55e 100%);color:#fff;
-            box-shadow:0 8px 18px rgba(34,197,94,.35);}
+         .wa-promo-overlay{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;
+            background:rgba(15,23,42,.55);backdrop-filter:blur(4px);padding:16px;}
+         .wa-promo-card{background:#fff;border-radius:22px;max-width:452px;width:100%;padding:0 0 22px;position:relative;
+            box-shadow:0 30px 70px rgba(15,23,42,.35);overflow:hidden;animation:waPromoUp .3s cubic-bezier(.2,.8,.2,1);}
+         @keyframes waPromoUp{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+         .wa-promo-head{background:linear-gradient(135deg,#12b455 0%,#25D366 100%);padding:26px 24px 44px;text-align:center;position:relative;}
+         .wa-promo-close{position:absolute;top:12px;right:14px;width:30px;height:30px;border:0;border-radius:50%;
+            background:rgba(255,255,255,.22);color:#fff;font-size:20px;line-height:1;cursor:pointer;}
+         .wa-promo-ikon{width:64px;height:64px;border-radius:50%;margin:2px auto 0;background:#fff;
+            display:flex;align-items:center;justify-content:center;box-shadow:0 10px 26px rgba(0,0,0,.18);}
+         .wa-promo-baslik{color:#fff;font-size:19px;font-weight:800;margin:13px 0 0;letter-spacing:-.2px;}
+         .wa-promo-pill{position:absolute;left:50%;bottom:-15px;transform:translateX(-50%);background:#fff;border-radius:30px;
+            padding:8px 18px;box-shadow:0 8px 22px rgba(15,23,42,.16);font-size:12.5px;font-weight:800;color:#b45309;
+            white-space:nowrap;border:1.5px solid #fde9c7;}
+         .wa-promo-pill b{color:#dc2626;}
+         .wa-promo-body{padding:28px 26px 0;text-align:center;}
+         .wa-promo-body p{font-size:14.5px;line-height:1.62;color:#475569;margin:0 0 13px;}
+         .wa-promo-kbox{display:inline-flex;align-items:center;gap:8px;background:#e7f8ef;color:#12805a;
+            font-weight:800;font-size:13px;padding:8px 14px;border-radius:12px;margin:2px 0 16px;}
+         .wa-promo-aksiyon{display:flex;gap:10px;padding:4px 26px 0;}
+         .wa-promo-btn{flex:1;border:0;border-radius:14px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;
+            text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;}
+         .wa-promo-btn.al{background:linear-gradient(135deg,#12b455,#25D366);color:#fff;box-shadow:0 10px 22px rgba(37,211,102,.38);}
+         .wa-promo-btn.al:hover{transform:translateY(-1px);}
          .wa-promo-btn.kapat{background:#f1f5f9;color:#475569;}
-         .wa-promo-btn.kapat:hover{background:#e2e8f0;}
+         .wa-promo-btn.kapat:hover{background:#e6ebf1;}
+         .wa-promo-footns{text-align:center;font-size:12px;color:#94a3b8;margin:15px 26px 0;line-height:1.5;}
       </style>
       <script>
          (function(){
@@ -2310,7 +2321,7 @@
                if(!ov) return;
                // Günde bir kez göster (Daha Sonra denirse o gün tekrar açılmaz)
                var bugun = new Date().toISOString().slice(0,10);
-               if(localStorage.getItem('rcWaPromoUyari') === bugun){
+               if(localStorage.getItem('rcWaAgustosUyari') === bugun){
                   if(ov.parentNode) ov.parentNode.removeChild(ov);
                   return;
                }
@@ -2320,7 +2331,7 @@
          function rcWaPromoKapat(){
             try{
                var bugun = new Date().toISOString().slice(0,10);
-               localStorage.setItem('rcWaPromoUyari', bugun);
+               localStorage.setItem('rcWaAgustosUyari', bugun);
             }catch(e){}
             var ov = document.getElementById('waPromoUyariOverlay');
             if(ov) ov.style.display = 'none';
