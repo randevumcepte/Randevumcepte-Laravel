@@ -20650,6 +20650,30 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         return $tahsilat >= $toplam;
     }
 
+    /**
+     * Bir adisyona ait hizmet/paket/urun kalemlerine HERHANGI bir tahsilat girilmis mi?
+     * randevutahsilet birlestirme mantiginda kullanilir: kismi odemeli adisyona
+     * daha fazla hizmet eklenmez, yeni adisyon acilir.
+     */
+    private function _adisyonKismiOdenmisMi($adisyonId)
+    {
+        if (!$adisyonId) return false;
+        $hz = DB::table('tahsilat_hizmetler')
+            ->join('adisyon_hizmetler', 'adisyon_hizmetler.id', '=', 'tahsilat_hizmetler.adisyon_hizmet_id')
+            ->where('adisyon_hizmetler.adisyon_id', $adisyonId)
+            ->exists();
+        if ($hz) return true;
+        $pk = DB::table('tahsilat_paketler')
+            ->join('adisyon_paketler', 'adisyon_paketler.id', '=', 'tahsilat_paketler.adisyon_paket_id')
+            ->where('adisyon_paketler.adisyon_id', $adisyonId)
+            ->exists();
+        if ($pk) return true;
+        return DB::table('tahsilat_urunler')
+            ->join('adisyon_urunler', 'adisyon_urunler.id', '=', 'tahsilat_urunler.adisyon_urun_id')
+            ->where('adisyon_urunler.adisyon_id', $adisyonId)
+            ->exists();
+    }
+
     public function randevutahsilet(Request $request)
 
     {
@@ -20836,17 +20860,33 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         if (!$adisyonvar) {
 
-            // AYNI GUN AYNI MUSTERI ADISYON BIRLESTIRMESI (web ile ayni mantik):
-            // ayni gun ayni musteride ONCEDEN acilmis randevu-tahsilat adisyonu
-            // varsa yeni adisyon acmak yerine oraya ekle.
+            // AYNI GUN AYNI MUSTERI ADISYON BIRLESTIRMESI (web ile ayni mantik).
+            // Sartlar:
+            //   1) randevunun tarihi = mevcut adisyondaki randevunun tarihi
+            //   2) adisyon.tarih = bugun (gecmis acik kalmis adisyonlar dahil olmaz)
+            //   3) adisyon HIC tahsilat almamis olmali (kismi odeme varsa yeni ac)
+            $bugun = date('Y-m-d');
             $ayniGunAdisyonId = DB::table('adisyonlar')
                 ->join('adisyon_hizmetler', 'adisyon_hizmetler.adisyon_id', '=', 'adisyonlar.id')
                 ->join('randevular', 'randevular.id', '=', 'adisyon_hizmetler.randevu_id')
                 ->where('adisyonlar.user_id', $randevu->user_id)
                 ->where('adisyonlar.salon_id', $randevu->salon_id)
+                ->whereDate('adisyonlar.tarih', $bugun)
                 ->where('randevular.tarih', $randevu->tarih)
                 ->where('randevular.id', '!=', $randevu->id)
                 ->whereNotNull('adisyon_hizmetler.randevu_id')
+                ->whereNotExists(function($q){
+                    $q->select(DB::raw(1))
+                      ->from('tahsilat_hizmetler')
+                      ->join('adisyon_hizmetler as ah2', 'ah2.id', '=', 'tahsilat_hizmetler.adisyon_hizmet_id')
+                      ->whereColumn('ah2.adisyon_id', 'adisyonlar.id');
+                })
+                ->whereNotExists(function($q){
+                    $q->select(DB::raw(1))
+                      ->from('tahsilat_paketler')
+                      ->join('adisyon_paketler as ap2', 'ap2.id', '=', 'tahsilat_paketler.adisyon_paket_id')
+                      ->whereColumn('ap2.adisyon_id', 'adisyonlar.id');
+                })
                 ->value('adisyonlar.id');
 
             if ($ayniGunAdisyonId) {
@@ -20864,7 +20904,21 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         } else {
 
-            $adisyon_id = $adisyon->id;
+            // Paket adisyonu bulundu — kismi odeme YAPILMISSA yeni adisyon ac.
+            // (Web ile ayni mantik.)
+            if ($this->_adisyonKismiOdenmisMi($adisyon->id)) {
+                $adisyon_id = self::yeni_adisyon_olustur(
+                    $randevu->user_id,
+                    $randevu->salon_id,
+                    date("d.m.Y", strtotime($randevu->tarih)) .
+                        " tarihli randevuda alınan hizmetlerin ödemesi",
+                    date("Y-m-d"),
+                    IsletmeYetkilileri::where("id", $request->olusturan)->first()
+                );
+                $adisyonvar = false;
+            } else {
+                $adisyon_id = $adisyon->id;
+            }
 
         }
 

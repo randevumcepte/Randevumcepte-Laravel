@@ -20040,6 +20040,25 @@ DB::raw('
             'kalanVar' => $kalanVar
         ]);
     }*/
+    /**
+     * Bir adisyonun herhangi bir hizmet veya paket kalemine odeme (kismi/tam) girilmis mi?
+     * randevutahsilet birlestirme mantiginda kullanilir: kismi odemeli adisyona daha
+     * fazla kalem eklenmemeli (yeni adisyon acilmali).
+     */
+    private function _adisyonKismiOdenmisMi($adisyonId)
+    {
+        if (!$adisyonId) return false;
+        $hz = DB::table('tahsilat_hizmetler')
+            ->join('adisyon_hizmetler', 'adisyon_hizmetler.id', '=', 'tahsilat_hizmetler.adisyon_hizmet_id')
+            ->where('adisyon_hizmetler.adisyon_id', $adisyonId)
+            ->exists();
+        if ($hz) return true;
+        return DB::table('tahsilat_paketler')
+            ->join('adisyon_paketler', 'adisyon_paketler.id', '=', 'tahsilat_paketler.adisyon_paket_id')
+            ->where('adisyon_paketler.adisyon_id', $adisyonId)
+            ->exists();
+    }
+
     public function randevutahsilet(Request $request)
     {
         $randevu = Randevular::where('id',$request->randevuid)->first();
@@ -20083,18 +20102,33 @@ DB::raw('
             $adisyon_id = '';
             if(!$adisyonvar) {
                 // AYNI GUN + AYNI MUSTERI ADISYON BIRLESTIRMESI (kullanici geri
-                // bildirimi): ayni gunde ayni musteride ONCEDEN acilmis randevu-tahsilat
-                // adisyonu varsa, YENI adisyon acmak yerine oraya ekle. Ornek: kadin
-                // 2 farkli saatte randevu aldi (paket disi), her ikisi de tahsilat butonu
-                // ile ayri adisyona giriyordu -> tek adisyonda birleser.
+                // bildirimi). Sartlar:
+                //   1) randevunun tarihi = mevcut adisyondaki randevunun tarihi (ayni gun)
+                //   2) adisyon.tarih = bugun (gecmiste acik kalmis adisyonlar dahil olmaz)
+                //   3) adisyon HIC tahsilat almamis olmali (kismi odeme varsa yeni adisyon ac)
+                $bugun = date('Y-m-d');
                 $ayniGunAdisyonId = DB::table('adisyonlar')
                     ->join('adisyon_hizmetler', 'adisyon_hizmetler.adisyon_id', '=', 'adisyonlar.id')
                     ->join('randevular', 'randevular.id', '=', 'adisyon_hizmetler.randevu_id')
                     ->where('adisyonlar.user_id', $randevu->user_id)
                     ->where('adisyonlar.salon_id', $randevu->salon_id)
+                    ->whereDate('adisyonlar.tarih', $bugun) // adisyon bugun acilmis olmali
                     ->where('randevular.tarih', $randevu->tarih)
-                    ->where('randevular.id', '!=', $randevu->id) // kendisi degil
+                    ->where('randevular.id', '!=', $randevu->id)
                     ->whereNotNull('adisyon_hizmetler.randevu_id')
+                    // Adisyonun hicbir hizmet/paket kalemine tahsilat girisi yok (kismi odeme yok)
+                    ->whereNotExists(function($q){
+                        $q->select(DB::raw(1))
+                          ->from('tahsilat_hizmetler')
+                          ->join('adisyon_hizmetler as ah2', 'ah2.id', '=', 'tahsilat_hizmetler.adisyon_hizmet_id')
+                          ->whereColumn('ah2.adisyon_id', 'adisyonlar.id');
+                    })
+                    ->whereNotExists(function($q){
+                        $q->select(DB::raw(1))
+                          ->from('tahsilat_paketler')
+                          ->join('adisyon_paketler as ap2', 'ap2.id', '=', 'tahsilat_paketler.adisyon_paket_id')
+                          ->whereColumn('ap2.adisyon_id', 'adisyonlar.id');
+                    })
                     ->value('adisyonlar.id');
                 if ($ayniGunAdisyonId) {
                     $adisyon_id = $ayniGunAdisyonId;
@@ -20102,7 +20136,15 @@ DB::raw('
                     $adisyon_id = self::yeni_adisyon_olustur($randevu->user_id,$randevu->salon_id,date('d.m.Y',strtotime($randevu->tarih)).' tarihli randevuda alınan hizmetlerin ödemesi',date('Y-m-d'));
                 }
             } else {
-                $adisyon_id=$adisyon->id;
+                // Paket adisyonu bulundu — kismi odeme YAPILMISSA uzerine daha fazla
+                // hizmet eklemeyelim (kullanici geri bildirimi: 'kismi odeme varsa
+                // yeni adisyon ac'). Aksi halde paket adisyonuna paketsiz hizmet eklenir.
+                if ($this->_adisyonKismiOdenmisMi($adisyon->id)) {
+                    $adisyon_id = self::yeni_adisyon_olustur($randevu->user_id,$randevu->salon_id,date('d.m.Y',strtotime($randevu->tarih)).' tarihli randevuda alınan hizmetlerin ödemesi',date('Y-m-d'));
+                    $adisyonvar = false; // birlesme sartlari yenilendi
+                } else {
+                    $adisyon_id=$adisyon->id;
+                }
             }
             //$randevu->save();
             // FIX (karisik paket + paketsiz): eskiden !$adisyonvar tum hizmet
