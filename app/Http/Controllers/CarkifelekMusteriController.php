@@ -117,7 +117,6 @@ class CarkifelekMusteriController extends Controller
 
         // Misafir veya üye — durumu ayır
         $isMisafir    = !Auth::check();
-        $kullanilabilir = [];
         $bugunCevirdi   = false;
         $sessionKey = "cark_bugun_{$salonId}";
         $sessionBugunMarker = $request->session()->get($sessionKey) === Carbon::today()->toDateString();
@@ -125,8 +124,8 @@ class CarkifelekMusteriController extends Controller
         if ($isMisafir) {
             $bugunCevirdi = $sessionBugunMarker;
         } else {
-            $kullanilabilir = $this->kalanHak($salonId, Auth::id());
-            $bugunCevirdi   = $this->bugunCevirdi($salonId, Auth::id());
+            // Onaylı randevu şartı kaldırıldı: üyeye de günde 1 çevirme hakkı.
+            $bugunCevirdi = $this->bugunCevirdi($salonId, Auth::id());
             if (!$bugunCevirdi && $sessionBugunMarker) {
                 $bugunCevirdi = true;
             }
@@ -157,8 +156,8 @@ class CarkifelekMusteriController extends Controller
             'cark'            => $cark,
             'dilimler'        => $dilimler,
             'dilimlerJson'    => $dilimlerJson,
-            'kalanHak'        => $isMisafir ? 1 : count($kullanilabilir),
-            'randevuIdleri'   => $kullanilabilir,
+            'kalanHak'        => $bugunCevirdi ? 0 : 1,
+            'randevuIdleri'   => [],
             'bugunCevirdi'    => $bugunCevirdi,
             'yarinSaat'       => $yarin,
             'isMisafir'       => $isMisafir,
@@ -194,18 +193,14 @@ class CarkifelekMusteriController extends Controller
                 ]);
             }
         } else {
-            $kullanilabilir = $this->kalanHak($salonId, $userId);
-            if (empty($kullanilabilir)) {
-                return response()->json(['success' => false, 'message' => 'Çevirme hakkınız bulunmuyor. Onaylanmış randevunuz olmalı.']);
-            }
+            // Onaylı randevu şartı kaldırıldı: üyeye de günde 1 çevirme hakkı.
             if ($this->bugunCevirdi($salonId, $userId)) {
                 $yarin = Carbon::tomorrow()->format('d.m.Y H:i');
                 return response()->json([
                     'success' => false,
-                    'message' => 'Bugün çarkı çevirdiniz. Bir sonraki çevirme: ' . $yarin . ' veya yeni onaylı randevunuzdan sonra.',
+                    'message' => 'Bugün çarkı çevirdiniz. Bir sonraki çevirme: ' . $yarin . '.',
                 ]);
             }
-            $randevuId = $kullanilabilir[0];
         }
 
         $dilimler = CarkifelekDilimleri::where('cark_id', $cark->id)->orderBy('sira')->get();
@@ -321,7 +316,7 @@ class CarkifelekMusteriController extends Controller
             'odulKodu'     => $odulKodu,
             'kayitGerekli' => $kayitGerekli,
             'isMisafir'    => $isMisafir,
-            'kalanHak'     => $isMisafir ? 0 : max(0, count($kullanilabilir) - 1),
+            'kalanHak'     => 0, // günde 1 hak; çevirdikten sonra bugünlük biter
         ]);
     }
 

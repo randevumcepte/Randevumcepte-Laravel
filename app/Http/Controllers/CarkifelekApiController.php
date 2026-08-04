@@ -99,8 +99,9 @@ class CarkifelekApiController extends Controller
             ]);
         }
 
-        $kullanilabilir = $userId > 0 ? $this->kalanHak($salonId, $userId) : [];
         $bugunCevirdi   = $userId > 0 ? $this->bugunCevirdi($salonId, $userId) : false;
+        // Onaylı randevu şartı kaldırıldı: giriş yapan herkese günde 1 çevirme hakkı.
+        $hakSayisi      = ($userId > 0 && !$bugunCevirdi) ? 1 : 0;
 
         $hasIndirimTipi = \Schema::hasColumn('carkifelek_dilimleri', 'indirim_tipi');
         $dilimlerJson = $dilimler->map(function ($d) use ($hasIndirimTipi) {
@@ -121,8 +122,8 @@ class CarkifelekApiController extends Controller
             'salon'        => ['id' => $salon->id, 'salon_adi' => $salon->salon_adi],
             'cark_id'      => $cark->id,
             'dilimler'     => $dilimlerJson,
-            'kalanHak'     => count($kullanilabilir),
-            'randevuIdleri'=> $kullanilabilir,
+            'kalanHak'     => $hakSayisi,
+            'randevuIdleri'=> [],
             'bugunCevirdi' => $bugunCevirdi,
             'yarinSaat'    => Carbon::tomorrow()->format('d.m.Y H:i'),
         ]);
@@ -145,14 +146,7 @@ class CarkifelekApiController extends Controller
             return response()->json(['success' => false, 'message' => 'Çarkıfelek şu an aktif değil.']);
         }
 
-        $kullanilabilir = $this->kalanHak($salonId, $userId);
-        if (empty($kullanilabilir)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Çevirme hakkınız bulunmuyor. Onaylanmış randevunuz olmalı.',
-            ]);
-        }
-
+        // Onaylı randevu şartı kaldırıldı: giriş yapan herkese günde 1 çevirme.
         if ($this->bugunCevirdi($salonId, $userId)) {
             return response()->json([
                 'success' => false,
@@ -160,7 +154,7 @@ class CarkifelekApiController extends Controller
             ]);
         }
 
-        $randevuId = $kullanilabilir[0];
+        $randevuId = null;
 
         $dilimler = CarkifelekDilimleri::where('cark_id', $cark->id)->orderBy('sira')->get();
         if ($dilimler->count() < 2) {
@@ -232,7 +226,7 @@ class CarkifelekApiController extends Controller
                 'baslik' => $this->baslikUret($secilen),
             ],
             'odulKodu'   => $sonuc['odul']->kod ?? null,
-            'kalanHak'   => max(0, count($kullanilabilir) - 1),
+            'kalanHak'   => 0, // günde 1 hak; çevirdikten sonra bugünlük biter
         ] + $this->gecerliSubePayload($sonuc['odul'] ?? null, $salonId));
     }
 

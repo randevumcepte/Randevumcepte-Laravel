@@ -66,7 +66,7 @@
     @if($odullerim->isEmpty())
         <div class="od-empty">
             <div class="od-empty-icon">🎡</div>
-            <p>Henüz kazanılmış bir ödülünüz yok.<br>Onaylanmış randevularınız üzerinden çarkı çevirebilirsiniz.</p>
+            <p>Henüz kazanılmış bir ödülünüz yok.<br>Günde 1 kez çarkı çevirerek ödül kazanabilirsiniz.</p>
         </div>
     @else
         <div class="od-list">

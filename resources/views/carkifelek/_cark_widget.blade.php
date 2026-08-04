@@ -199,11 +199,9 @@
         <div class="hak-info">
             @if($bugunCevirdi)
                 Bugün çarkıfeleği çevirdiniz.<br>
-                Bir sonraki çevirme: <b>yarın {{ $yarinSaat }}</b> veya yeni onaylı randevunuzdan sonra.
-            @elseif($kalanHak > 0)
-                <b>{{ $kalanHak }}</b> çevirme hakkınız var. Günde 1 kez çevirebilirsiniz; yeni onaylı randevularınız yeni hak sağlar.
+                Bir sonraki çevirme: <b>yarın {{ $yarinSaat }}</b>.
             @else
-                Çevirme hakkınız bulunmuyor. Salonumuzda randevu alıp onaylatırsanız çevirme hakkı elde edersiniz.
+                Günde 1 kez çarkı çevirebilirsiniz. Hemen deneyin!
             @endif
             <br>
             <a href="{{ route('cark.sadakat') }}" class="odullerim-link">⭐ Sadakat Programım — Puanlarım & Kuponlarım</a>

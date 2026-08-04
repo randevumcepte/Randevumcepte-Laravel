@@ -24,7 +24,7 @@ class CarkifelekSistemi extends Model
         "• Bu uygulama bir piyango, çekiliş veya şans oyunu DEĞİLDİR; salonumuzun müşterilerine yönelik bir sadakat ve hediye kampanyasıdır. Katılım ücretsizdir ve isteğe bağlıdır.\n" .
         "• Verilen hediye (puan, indirim veya armağan) şans/talih unsuruna dayanmaz; kampanya koşullarını sağlayan müşterilerimize sunulan bir teşekkür hediyesidir.\n" .
         "• Hediyeler yalnızca salonumuzun kendi hizmet/ürünlerinde geçerlidir; nakit değildir, nakde çevrilemez, başkasına devredilemez ve satılamaz.\n" .
-        "• Hediyeden yararlanma hakkı onaylı randevuya bağlıdır ve her müşteri günde en fazla 1 kez yararlanabilir.\n" .
+        "• Her müşteri çarkı günde en fazla 1 kez çevirebilir; kazanılan hediye yalnızca salonumuzdan alınan hizmet/ürün sırasında kullanılabilir.\n" .
         "• Hediye/indirimler yalnızca belirtilen geçerlilik süresi içinde ve tek seferde kullanılır; süresi geçenler geçersiz olur.\n" .
         "• Hediye/indirimler başka kampanya, indirim veya promosyonlarla birleştirilemez.\n" .
         "• Yararlanma, randevu/hizmet sırasında ilgili hediye kodunun salonumuza iletilmesiyle yapılır.\n" .
