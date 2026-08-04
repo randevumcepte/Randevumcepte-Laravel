@@ -166,6 +166,17 @@ class BildirimReklamGonderJob implements ShouldQueue
                     ->where('adisyon_hizmetler.hizmet_id', $hizmetId)
                     ->distinct()->pluck('adisyonlar.user_id')->all();
 
+            case 'urun':
+                // Belirli urunu satin alan musteriler: adisyon_urunler -> adisyon -> user_id
+                $urunId = (int) ($kosul['urun_id'] ?? 0);
+                if ($urunId <= 0) return $portfoy;
+                return DB::table('adisyonlar')
+                    ->join('adisyon_urunler', 'adisyonlar.id', '=', 'adisyon_urunler.adisyon_id')
+                    ->where('adisyonlar.salon_id', $salonId)
+                    ->whereIn('adisyonlar.user_id', $portfoy)
+                    ->where('adisyon_urunler.urun_id', $urunId)
+                    ->distinct()->pluck('adisyonlar.user_id')->all();
+
             case 'gelmeyen':
                 $gun = (int) ($kosul['gun'] ?? 60);
                 if ($gun <= 0) $gun = 60;

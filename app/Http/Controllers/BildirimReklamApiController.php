@@ -94,6 +94,7 @@ class BildirimReklamApiController extends Controller
                         'indirim_tipi' => $r->kupon_indirim_tipi,
                         'deger'        => (float) $r->kupon_deger,
                         'hizmet_id'    => $r->kupon_hizmet_id,
+                        'urun_id'      => \Schema::hasColumn('bildirim_reklamlari', 'kupon_urun_id') ? $r->kupon_urun_id : null,
                     ] : null,
                     // Bos slot randevu penceresi (aksiyon randevu ise): tarih ARALIGI + saat araligi
                     'randevu'      => $r->aksiyon_tipi === 'randevu' ? [
@@ -160,18 +161,24 @@ class BildirimReklamApiController extends Controller
                 ? Carbon::now()->addDays((int) $reklam->kupon_gecerlilik_gun)->toDateString()
                 : null;
 
+            // Kupon urun mu hizmet mi: hangisi doluysa 'tip' + ilgili id ona gore.
+            $urunKuponMu = \Schema::hasColumn('bildirim_reklamlari', 'kupon_urun_id')
+                && !empty($reklam->kupon_urun_id);
             $odulData = [
                 'salon_id'          => $reklam->salon_id,
                 'user_id'           => $userId,
                 'kaynak_reklam_id'  => $reklam->id,
                 'kod'               => strtoupper(Str::random(8)),
-                'tip'               => 'hizmet_indirimi',
+                'tip'               => $urunKuponMu ? 'urun_indirimi' : 'hizmet_indirimi',
                 'deger'             => $reklam->kupon_deger,
                 'indirim_tipi'      => $reklam->kupon_indirim_tipi === 'tutar' ? 'tutar' : 'yuzde',
-                'hizmet_id'         => $reklam->kupon_hizmet_id, // null = tum hizmetler
+                'hizmet_id'         => $urunKuponMu ? null : $reklam->kupon_hizmet_id, // null = tum hizmetler
                 'baslik'            => $baslik,
                 'gecerlilik_tarihi' => $gecerlilik,
             ];
+            if ($urunKuponMu && \Schema::hasColumn('carkifelek_odulleri', 'urun_id')) {
+                $odulData['urun_id'] = $reklam->kupon_urun_id;
+            }
             // Coklu sube: kupon, reklamin uygulandigi sube grubunu miras alir.
             if (\Schema::hasColumn('carkifelek_odulleri', 'gecerli_salonlar')) {
                 $odulData['gecerli_salonlar'] = (isset($reklam->gecerli_salonlar) && $reklam->gecerli_salonlar)
@@ -235,6 +242,7 @@ class BildirimReklamApiController extends Controller
             'kupon_indirim_tipi'   => $r->kupon_indirim_tipi,
             'kupon_deger'          => $r->kupon_deger !== null ? (float) $r->kupon_deger : null,
             'kupon_hizmet_id'      => $r->kupon_hizmet_id,
+            'kupon_urun_id'        => \Schema::hasColumn('bildirim_reklamlari', 'kupon_urun_id') ? $r->kupon_urun_id : null,
             'kupon_gecerlilik_gun' => $r->kupon_gecerlilik_gun,
             'kupon_kisi_limit'     => $r->kupon_kisi_limit,
             'kupon_toplam_adet'    => $r->kupon_toplam_adet,
@@ -293,11 +301,25 @@ class BildirimReklamApiController extends Controller
         if ($reklam->aksiyon_tipi === 'kupon' || $reklam->aksiyon_tipi === 'randevu') {
             $reklam->kupon_indirim_tipi   = $request->kupon_indirim_tipi ?: 'yuzde';
             $reklam->kupon_deger          = $request->kupon_deger ?: 0;
-            $reklam->kupon_hizmet_id      = $request->kupon_hizmet_id ?: null;
             $reklam->kupon_baslik         = $request->kupon_baslik ?: null;
             $reklam->kupon_gecerlilik_gun = ($request->kupon_gecerlilik_gun !== null && $request->kupon_gecerlilik_gun !== '') ? (int) $request->kupon_gecerlilik_gun : null;
             $reklam->kupon_kisi_limit     = $request->kupon_kisi_limit ?: 1;
             $reklam->kupon_toplam_adet    = ($request->kupon_toplam_adet !== null && $request->kupon_toplam_adet !== '') ? (int) $request->kupon_toplam_adet : null;
+            // Kupon 'hizmet' mi 'urun' mu 'tumu' mu (StoreAdmin web patterniyle ayni)
+            $kuponGecerli = $request->input('kupon_gecerli_tip');
+            if ($kuponGecerli === 'urun') {
+                $reklam->kupon_hizmet_id = null;
+                if (\Schema::hasColumn('bildirim_reklamlari', 'kupon_urun_id'))
+                    $reklam->kupon_urun_id = $request->kupon_urun_id ?: null;
+            } elseif ($kuponGecerli === 'hizmet') {
+                $reklam->kupon_hizmet_id = $request->kupon_hizmet_id ?: null;
+                if (\Schema::hasColumn('bildirim_reklamlari', 'kupon_urun_id'))
+                    $reklam->kupon_urun_id = null;
+            } else {
+                $reklam->kupon_hizmet_id = $request->kupon_hizmet_id ?: null;
+                if (\Schema::hasColumn('bildirim_reklamlari', 'kupon_urun_id'))
+                    $reklam->kupon_urun_id = $request->kupon_urun_id ?: null;
+            }
         }
 
         if ($reklam->aksiyon_tipi === 'randevu') {
@@ -312,10 +334,11 @@ class BildirimReklamApiController extends Controller
 
         if ($request->hedef_kitle === 'segment') {
             $reklam->hedef_kitle = 'segment';
-            $segTip = in_array($request->segment_tip, ['gelmeyen', 'dogum_gunu', 'hizmet', 'cinsiyet', 'kisi']) ? $request->segment_tip : 'gelmeyen';
+            $segTip = in_array($request->segment_tip, ['gelmeyen', 'dogum_gunu', 'hizmet', 'urun', 'cinsiyet', 'kisi']) ? $request->segment_tip : 'gelmeyen';
             $kosul = ['tip' => $segTip];
             if ($segTip === 'gelmeyen') $kosul['gun'] = (int) ($request->segment_gun ?: 60);
             if ($segTip === 'hizmet')   $kosul['hizmet_id'] = (int) ($request->segment_hizmet_id ?: 0);
+            if ($segTip === 'urun')     $kosul['urun_id']   = (int) ($request->segment_urun_id ?: 0);
             if ($segTip === 'cinsiyet') $kosul['cinsiyet'] = ($request->segment_cinsiyet === '1' ? '1' : '0');
             if ($segTip === 'kisi')     $kosul['user_id'] = (int) ($request->segment_user_id ?: 0);
             $reklam->hedef_kosul = json_encode($kosul);
@@ -428,5 +451,21 @@ class BildirimReklamApiController extends Controller
             ->map(function ($h) { return ['id' => $h->hizmet_id, 'ad' => optional($h->hizmetler)->hizmet_adi]; })
             ->filter(function ($x) { return !empty($x['ad']); })->values();
         return response()->json(['success' => true, 'data' => $hizmetler]);
+    }
+
+    /**
+     * GET /api/v1/reklam/admin/urunler/{salonId}
+     * Kupon urun kisitlamasi + segment 'urun' dropdown'lari icin.
+     */
+    public function adminUrunler(Request $request, $salonId)
+    {
+        if (!$this->adminYetkiVar($request, $salonId))
+            return response()->json(['success' => false, 'message' => 'Yetkiniz yok.'], 403);
+        $urunler = DB::table('urunler')
+            ->where('salon_id', $salonId)
+            ->where('aktif', 1)
+            ->select('id', 'urun_adi as ad')
+            ->orderBy('urun_adi')->get();
+        return response()->json(['success' => true, 'data' => $urunler]);
     }
 }

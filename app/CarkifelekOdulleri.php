@@ -10,7 +10,7 @@ class CarkifelekOdulleri extends Model
 
     protected $fillable = [
         'log_id', 'kaynak_reklam_id', 'salon_id', 'user_id', 'kod', 'tip',
-        'deger', 'indirim_tipi', 'hizmet_id', 'baslik', 'kullanildi', 'kullanim_tarihi',
+        'deger', 'indirim_tipi', 'hizmet_id', 'urun_id', 'baslik', 'kullanildi', 'kullanim_tarihi',
         'gecerlilik_tarihi', 'gecerli_salonlar',
     ];
 

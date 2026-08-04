@@ -21238,6 +21238,14 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
         $hizmetler = \App\SalonHizmetler::where('salon_id', self::mevcutsube($request))->where('aktif', true)->get();
 
+        // Kupon icin urun secimi + segment 'urun' (belirli urunu alanlar) icin urun listesi
+        $urunler = \DB::table('urunler')
+            ->where('salon_id', self::mevcutsube($request))
+            ->where('aktif', 1)
+            ->select('id', 'urun_adi')
+            ->orderBy('urun_adi')
+            ->get();
+
         // "Belirli kişi" hedeflemesi icin salonun musterileri (isim + telefon)
         $musteriler = \DB::table('musteri_portfoy')
             ->join('users', 'users.id', '=', 'musteri_portfoy.user_id')
@@ -21253,6 +21261,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'isletme'      => $isletme,
             'reklamlar'    => $reklamlar,
             'hizmetler'    => $hizmetler,
+            'urunler'      => $urunler,
             // layout_isletmeadmin'in bekledigi ortak degiskenler
             'kalan_uyelik_suresi'     => self::lisans_sure_kontrol($request),
             'bildirimler'             => self::bildirimgetir($request),
@@ -21305,7 +21314,22 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if ($reklam->aksiyon_tipi === 'kupon' || $reklam->aksiyon_tipi === 'randevu') {
             $reklam->kupon_indirim_tipi   = $request->kupon_indirim_tipi ?: 'yuzde';
             $reklam->kupon_deger          = $request->kupon_deger ?: 0;
-            $reklam->kupon_hizmet_id      = $request->kupon_hizmet_id ?: null;
+            // Kupon 'gecerli olan' ya hizmet ya urun (ya da null=hepsi). Ikisi ayni
+            // anda dolu olmasin: kupon_gecerli_tip flag'i ile UI'da radio switch.
+            $kuponGecerli = $request->input('kupon_gecerli_tip');
+            if ($kuponGecerli === 'urun') {
+                $reklam->kupon_urun_id    = $request->kupon_urun_id ?: null;
+                $reklam->kupon_hizmet_id  = null;
+            } elseif ($kuponGecerli === 'hizmet') {
+                $reklam->kupon_hizmet_id  = $request->kupon_hizmet_id ?: null;
+                $reklam->kupon_urun_id    = null;
+            } else {
+                // Eski akis / 'tumu': her ikisi de null (tum hizmet/urunlerde gecerli)
+                $reklam->kupon_hizmet_id  = $request->kupon_hizmet_id ?: null;
+                if (\Schema::hasColumn('bildirim_reklamlari', 'kupon_urun_id')) {
+                    $reklam->kupon_urun_id = $request->kupon_urun_id ?: null;
+                }
+            }
             $reklam->kupon_baslik         = $request->kupon_baslik ?: null;
             $reklam->kupon_gecerlilik_gun = ($request->kupon_gecerlilik_gun !== null && $request->kupon_gecerlilik_gun !== '') ? (int)$request->kupon_gecerlilik_gun : null;
             $reklam->kupon_kisi_limit     = $request->kupon_kisi_limit ?: 1;
@@ -21328,11 +21352,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         // Hedef kitle: tumu | segment (+ segment kosulu JSON)
         if ($request->hedef_kitle === 'segment') {
             $reklam->hedef_kitle = 'segment';
-            $segTip = in_array($request->segment_tip, ['gelmeyen', 'dogum_gunu', 'hizmet', 'cinsiyet', 'kisi'])
+            $segTip = in_array($request->segment_tip, ['gelmeyen', 'dogum_gunu', 'hizmet', 'urun', 'cinsiyet', 'kisi'])
                 ? $request->segment_tip : 'gelmeyen';
             $kosul = ['tip' => $segTip];
             if ($segTip === 'gelmeyen')  $kosul['gun'] = (int)($request->segment_gun ?: 60);
             if ($segTip === 'hizmet')    $kosul['hizmet_id'] = (int)($request->segment_hizmet_id ?: 0);
+            if ($segTip === 'urun')      $kosul['urun_id'] = (int)($request->segment_urun_id ?: 0);
             if ($segTip === 'cinsiyet')  $kosul['cinsiyet'] = ($request->segment_cinsiyet === '1' ? '1' : '0');
             if ($segTip === 'kisi')      $kosul['user_id'] = (int)($request->segment_user_id ?: 0);
             $reklam->hedef_kosul = json_encode($kosul);

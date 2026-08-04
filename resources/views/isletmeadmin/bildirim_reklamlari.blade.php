@@ -194,12 +194,33 @@
                         <input type="number" class="form-control" name="kupon_deger" id="br_kupon_deger" min="0" step="1" placeholder="20">
                      </div>
                      <div class="col-md-4">
+                        <label class="br-lbl">Kupon Ne İçin?</label>
+                        <select class="form-control" name="kupon_gecerli_tip" id="br_kupon_gecerli_tip">
+                           <option value="hizmet">Hizmet</option>
+                           <option value="urun">Ürün</option>
+                           <option value="tumu">Tümü (kısıtlama yok)</option>
+                        </select>
+                     </div>
+                  </div>
+                  <div class="row" style="margin-top:10px">
+                     <div class="col-md-6" id="br_kupon_hizmet_wrap">
                         <label class="br-lbl">Geçerli Hizmet</label>
-                        <select class="form-control" name="kupon_hizmet_id" id="br_kupon_hizmet">
+                        <select class="form-control custom-select2" name="kupon_hizmet_id" id="br_kupon_hizmet" style="width:100%">
                            <option value="">Tüm hizmetler</option>
                            @foreach($hizmetler as $h)
                               <option value="{{$h->hizmet_id}}">{{ optional($h->hizmetler)->hizmet_adi }}</option>
                            @endforeach
+                        </select>
+                     </div>
+                     <div class="col-md-6" id="br_kupon_urun_wrap" style="display:none">
+                        <label class="br-lbl">Geçerli Ürün</label>
+                        <select class="form-control custom-select2" name="kupon_urun_id" id="br_kupon_urun" style="width:100%">
+                           <option value="">Tüm ürünler</option>
+                           @if(isset($urunler))
+                              @foreach($urunler as $u)
+                                 <option value="{{ $u->id }}">{{ $u->urun_adi }}</option>
+                              @endforeach
+                           @endif
                         </select>
                      </div>
                   </div>
@@ -259,6 +280,7 @@
                      <option value="gelmeyen">Uzun süredir gelmeyenler</option>
                      <option value="dogum_gunu">Doğum günü bu ay olanlar</option>
                      <option value="hizmet">Belirli hizmeti alanlar</option>
+                     <option value="urun">Belirli ürünü alanlar</option>
                      <option value="cinsiyet">Cinsiyete göre</option>
                   </select>
 
@@ -282,10 +304,20 @@
                   </div>
                   <div id="seg_hizmet" class="br-seg-alan" style="margin-top:10px;display:none">
                      <label class="br-lbl">Hangi hizmeti alanlar?</label>
-                     <select class="form-control" name="segment_hizmet_id" id="br_seg_hizmet">
+                     <select class="form-control custom-select2" name="segment_hizmet_id" id="br_seg_hizmet" style="width:100%">
                         @foreach($hizmetler as $h)
                            <option value="{{$h->hizmet_id}}">{{ optional($h->hizmetler)->hizmet_adi }}</option>
                         @endforeach
+                     </select>
+                  </div>
+                  <div id="seg_urun" class="br-seg-alan" style="margin-top:10px;display:none">
+                     <label class="br-lbl">Hangi ürünü alanlar?</label>
+                     <select class="form-control custom-select2" name="segment_urun_id" id="br_seg_urun" style="width:100%">
+                        @if(isset($urunler))
+                           @foreach($urunler as $u)
+                              <option value="{{ $u->id }}">{{ $u->urun_adi }}</option>
+                           @endforeach
+                        @endif
                      </select>
                   </div>
                   <div id="seg_cinsiyet" class="br-seg-alan" style="margin-top:10px;display:none">
@@ -415,10 +447,21 @@
       $('#seg_kisi').toggle(t==='kisi');
       $('#seg_gelmeyen').toggle(t==='gelmeyen');
       $('#seg_hizmet').toggle(t==='hizmet');
+      $('#seg_urun').toggle(t==='urun');
       $('#seg_cinsiyet').toggle(t==='cinsiyet');
    }
    $('#br_hedef').on('change', segmentGoster);
    $('#br_seg_tip').on('change', segAlanGoster);
+
+   // Kupon 'gecerli tip': hizmet / urun / tumu -> ilgili dropdown'u ac
+   function kuponGecerliGoster(){
+      var t = $('#br_kupon_gecerli_tip').val();
+      $('#br_kupon_hizmet_wrap').toggle(t==='hizmet' || t==='tumu');
+      $('#br_kupon_urun_wrap').toggle(t==='urun');
+      if (t === 'urun') $('#br_kupon_hizmet').val('');
+      if (t === 'hizmet') $('#br_kupon_urun').val('');
+   }
+   $('#br_kupon_gecerli_tip').on('change', kuponGecerliGoster);
 
    // Aranabilir kişi seçici (isim/telefon yazarak filtrele)
    function kisiFiltrele(){
@@ -457,7 +500,24 @@
       // Çoklu şube: yeni reklamda seçici aktif (checkbox'lar serialize edilir)
       $('.sube-secici').show().find('.ss-sube,.ss-tumu').prop('disabled', false);
       aksiyonGoster(); segmentGoster(); segAlanGoster();
+      $('#br_kupon_gecerli_tip').val('tumu');
+      kuponGecerliGoster();
       $('#brModal').modal('show');
+   });
+
+   // Modal ilk kez acildiginda select2 init (form-control custom-select2 class'li
+   // dropdown'lar arama kutusuyla gelsin). Bootstrap 4 modal + select2 uyumlu.
+   $('#brModal').on('shown.bs.modal', function(){
+      $(this).find('.custom-select2').each(function(){
+         if (!$(this).hasClass('select2-hidden-accessible')) {
+            $(this).select2({
+               dropdownParent: $('#brModal'),
+               placeholder: 'Ara ve seç…',
+               allowClear: true,
+               width: '100%',
+            });
+         }
+      });
    });
 
    // ---- Duzenle ----
@@ -479,7 +539,13 @@
       $('#br_aksiyon').val(r.aksiyon_tipi||'kupon');
       $('#br_kupon_tip').val(r.kupon_indirim_tipi||'yuzde');
       $('#br_kupon_deger').val(r.kupon_deger>0?parseFloat(r.kupon_deger):'');
-      $('#br_kupon_hizmet').val(r.kupon_hizmet_id||'');
+      $('#br_kupon_hizmet').val(r.kupon_hizmet_id||'').trigger('change');
+      $('#br_kupon_urun').val(r.kupon_urun_id||'').trigger('change');
+      // Kupon 'gecerli tip' senkron: verilere gore radio konumla
+      if (r.kupon_urun_id) $('#br_kupon_gecerli_tip').val('urun');
+      else if (r.kupon_hizmet_id) $('#br_kupon_gecerli_tip').val('hizmet');
+      else $('#br_kupon_gecerli_tip').val('tumu');
+      kuponGecerliGoster();
       $('#br_kupon_gun').val(r.kupon_gecerlilik_gun||'');
       $('#br_kupon_adet').val(r.kupon_toplam_adet||'');
       $('#br_kupon_limit').val(r.kupon_kisi_limit||1);
@@ -495,7 +561,8 @@
       if(kosul && kosul.tip){
          $('#br_seg_tip').val(kosul.tip);
          if(kosul.gun) $('#br_seg_gun').val(kosul.gun);
-         if(kosul.hizmet_id) $('#br_seg_hizmet').val(String(kosul.hizmet_id));
+         if(kosul.hizmet_id) $('#br_seg_hizmet').val(String(kosul.hizmet_id)).trigger('change');
+         if(kosul.urun_id)   $('#br_seg_urun').val(String(kosul.urun_id)).trigger('change');
          if(kosul.user_id){
             $('#br_seg_kisi').val(String(kosul.user_id));
             var _it = $('#br_kisi_liste .br-ss-item[data-id="'+kosul.user_id+'"]');

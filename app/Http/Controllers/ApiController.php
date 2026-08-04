@@ -24505,6 +24505,18 @@ return date('Y')."-$ayNumara-$gun";
 
 
 
+            DB::raw("'randevu' as tur"),
+
+            DB::raw("CASE
+                        WHEN (randevular.hatirlatma_gorevi_iptal != 1 OR randevular.hatirlatma_gorevi_iptal IS NULL)
+                             AND (
+                                (randevular.hatirlatma_aramasi_yapildi = 1 AND randevular.hatirlatma_ulasilamadi = 1)
+                                OR (randevular.hatirlatma_aramasi_yapildi IS NULL OR randevular.hatirlatma_aramasi_yapildi != 1)
+                             )
+                             AND (randevular.tekrar_arandi != 1 OR randevular.tekrar_arandi IS NULL)
+                        THEN 1 ELSE 0
+                     END as iptal_edilebilir"),
+
             DB::raw('randevular.id as randevu_id')
 
         ])
@@ -24525,7 +24537,9 @@ return date('Y')."-$ayNumara-$gun";
                     DB::raw("CONCAT(users.name, ' isimli müşteriyi ekledim.') as sonuc"),
                     DB::raw("CONCAT('Müşteri işletmeye eklendi') as durum"),
                     DB::raw('CONCAT(users.name) as baslik'),
-                    DB::raw('DATE_FORMAT(musteri_portfoy.created_at, "%H:%i") as saat'), 
+                    DB::raw('DATE_FORMAT(musteri_portfoy.created_at, "%H:%i") as saat'),
+                    DB::raw("'musteri' as tur"),
+                    DB::raw("0 as iptal_edilebilir"),
                     DB::raw('musteri_portfoy.id as musteri_id')
 
             ])
@@ -24579,7 +24593,19 @@ return date('Y')."-$ayNumara-$gun";
 
        DB::raw('CONCAT(users.name) as baslik'),
 
-      DB::raw('DATE_FORMAT(alacaklar.arama_saat, "%H:%i") as saat'), 
+      DB::raw('DATE_FORMAT(alacaklar.arama_saat, "%H:%i") as saat'),
+
+                DB::raw("'alacak' as tur"),
+
+                DB::raw("CASE
+                            WHEN (alacaklar.hatirlatma_gorevi_iptal != 1 OR alacaklar.hatirlatma_gorevi_iptal IS NULL)
+                                 AND (
+                                    (alacaklar.hatirlatma_aramasi_yapildi = 1 AND alacaklar.hatirlatma_ulasilamadi = 1)
+                                    OR (alacaklar.hatirlatma_aramasi_yapildi IS NULL OR alacaklar.hatirlatma_aramasi_yapildi != 1)
+                                 )
+                                 AND (alacaklar.tekrar_arandi != 1 OR alacaklar.tekrar_arandi IS NULL)
+                            THEN 1 ELSE 0
+                         END as iptal_edilebilir"),
 
                 DB::raw('alacaklar.id as alacak_id')
 
@@ -24616,6 +24642,14 @@ return date('Y')."-$ayNumara-$gun";
       DB::raw('DATE_FORMAT(kampanya_yonetimi.asistan_tarih_saat, "%H:%i") as saat'),
 
 
+
+                DB::raw("'kampanya' as tur"),
+
+                DB::raw("CASE
+                            WHEN (kampanya_yonetimi.arama_yapildi = 0 OR kampanya_yonetimi.arama_yapildi IS NULL)
+                                 AND (kampanya_yonetimi.tanitim_gorev_iptal = 0 OR kampanya_yonetimi.tanitim_gorev_iptal IS NULL)
+                            THEN 1 ELSE 0
+                         END as iptal_edilebilir"),
 
                 DB::raw('kampanya_yonetimi.id as kampanya_id')
 

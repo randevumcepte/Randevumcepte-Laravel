@@ -438,6 +438,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::post('/reklam/admin/gonder/{salonId}',     'BildirimReklamApiController@adminGonder');
     Route::post('/reklam/admin/musteriler/{salonId}', 'BildirimReklamApiController@adminMusteriler');
     Route::post('/reklam/admin/hizmetler/{salonId}',  'BildirimReklamApiController@adminHizmetler');
+    Route::post('/reklam/admin/urunler/{salonId}',    'BildirimReklamApiController@adminUrunler');
 
     /* ───────── SMS Yönetimi (uygulama içi) ───────── */
     Route::get ('/sms-yonetim/init/{salonid}',                'ApiController@smsYonetimInit');

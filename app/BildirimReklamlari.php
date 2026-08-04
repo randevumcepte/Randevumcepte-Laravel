@@ -18,7 +18,7 @@ class BildirimReklamlari extends Model
         'kanal_push', 'kanal_inapp', 'tam_ekran',
         'aksiyon_tipi', 'aksiyon_hedef',
         'randevu_tarih', 'randevu_tarih_bit', 'randevu_saat_bas', 'randevu_saat_bit',
-        'kupon_indirim_tipi', 'kupon_deger', 'kupon_hizmet_id', 'kupon_baslik',
+        'kupon_indirim_tipi', 'kupon_deger', 'kupon_hizmet_id', 'kupon_urun_id', 'kupon_baslik',
         'kupon_gecerlilik_gun', 'kupon_kisi_limit', 'kupon_toplam_adet', 'kupon_dagitilan',
         'hedef_kitle', 'hedef_kosul',
         'durum', 'yayin_baslangic', 'yayin_bitis', 'push_gonderildi',
