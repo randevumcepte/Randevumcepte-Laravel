@@ -70,6 +70,7 @@ class PersonelYetkiSabitleri
             ['key' => 'personel.odeme_yap',          'kategori' => 'personel', 'label' => 'Ödeme / bonus / kesinti yap',   'aciklama' => 'Maaş/prim ödemesi ve hareket girebilir'],
             ['key' => 'personel.yetki_yonet',        'kategori' => 'personel', 'label' => 'Yetki yönetimi',                'aciklama' => 'Diğer personellerin yetkilerini ayarlayabilir'],
             ['key' => 'personel.kendi_ciro_gor',     'kategori' => 'personel', 'label' => 'Personel kendi cirosunu gör',   'aciklama' => 'Kapalıysa personel dashboardunda günlük/haftalık/aylık/yıllık ciro (karşılaştırma) bölümü gizlenir'],
+            ['key' => 'personel.kapali_adisyon_gizle', 'kategori' => 'personel', 'label' => 'Personelin kapalı adisyonlarını gizle', 'aciklama' => 'Açıksa personel kapatılmış (ödemesi tamamlanmış) satış adisyonlarını göremez, sadece açık adisyonlar listelenir'],
 
             // === RAPORLAR ===
             ['key' => 'rapor.satis',                 'kategori' => 'rapor', 'label' => 'Satış raporları',                 'aciklama' => 'Hizmet/ürün/paket satış raporları'],
@@ -162,6 +163,7 @@ class PersonelYetkiSabitleri
                     'personel.maas_tutar_gor' => true, 'personel.odeme_yap' => true,
                     'personel.yetki_yonet' => false,
                     'personel.kendi_ciro_gor' => true,
+                    'personel.kapali_adisyon_gizle' => false,
                     // Raporlar — hepsi açık
                     'rapor.satis' => true, 'rapor.kasa' => true, 'rapor.tahsilat' => true,
                     'rapor.personel_performans' => true, 'rapor.musteri' => true,
@@ -211,6 +213,7 @@ class PersonelYetkiSabitleri
                     'personel.maas_tutar_gor' => false, 'personel.odeme_yap' => false,
                     'personel.yetki_yonet' => false,
                     'personel.kendi_ciro_gor' => true,
+                    'personel.kapali_adisyon_gizle' => false,
                     // Rapor — kasa & tahsilat & satış açık
                     'rapor.satis' => true, 'rapor.kasa' => true, 'rapor.tahsilat' => true,
                     'rapor.personel_performans' => false, 'rapor.musteri' => true,
@@ -255,6 +258,7 @@ class PersonelYetkiSabitleri
                     'personel.maas_tutar_gor' => false, 'personel.odeme_yap' => false,
                     'personel.yetki_yonet' => false,
                     'personel.kendi_ciro_gor' => false,
+                    'personel.kapali_adisyon_gizle' => false,
                     'rapor.satis' => false, 'rapor.kasa' => false, 'rapor.tahsilat' => false,
                     'rapor.personel_performans' => false, 'rapor.musteri' => false,
                     'rapor.ciro_kar_gor' => false,

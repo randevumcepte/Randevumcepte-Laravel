@@ -1151,6 +1151,20 @@ class ApiController extends Controller
 
     $faturaFiltreSayim = $_faturasizGizleAktif ? " AND a.fatura_kesildi = 1" : "";
 
+    // Yetki: personel.kapali_adisyon_gizle acikken personel kapali (odenmis)
+    // adisyonlari goremez -> acikKapali'yi 1'e sabitle (sadece acik).
+    try {
+        $_authUid = $request->user_id ?? null;
+        if ($_authUid && $isletmeId) {
+            $_gizle = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                $_authUid, $isletmeId, 'personel.kapali_adisyon_gizle'
+            );
+            if ($_gizle) {
+                $acikKapali = 1; // sadece acik adisyonlar
+            }
+        }
+    } catch (\Throwable $e) {}
+
     // AÇIK/KAPALI FİLTRELEME (SQL ile)
     if($acikKapali != -1) {
         $operator = $acikKapali == 1 ? '>' : '=';
