@@ -19646,8 +19646,24 @@ DB::raw('
         ->where('salon_id', $randevu->salon_id)
         ->first();
 
+    // KVKK onay kodu bir defaya mahsus olusturulur. Eski musterilerin
+    // onay_kodu NULL kalabildigi icin (kayit sirasinda uretilmemis) burada
+    // ilk KVKK isteminde 4 haneli kod uretip portfoya kaydediyoruz. Sonraki
+    // istekler ayni kodu kullanir.
+    if ($portfoy && empty($portfoy->onay_kodu)) {
+        try {
+            $portfoy->onay_kodu = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+            $portfoy->save();
+        } catch (\Throwable $e) {
+            \Log::warning('KVKK onay_kodu olusturma hata: '.$e->getMessage(), [
+                'user_id' => $randevu->user_id ?? null,
+                'salon_id' => $randevu->salon_id ?? null,
+            ]);
+        }
+    }
+
     $olusturulanOnayKodu = $portfoy->onay_kodu;
-    
+
     // KVKK kontrolü - sadece ilk defa geliyorsa
     if ($kvkkOnayiAktif && !$portfoy->kvkk_onay_alindi) {
         // Eğer doğrulama kodu henüz girilmemişse
