@@ -17141,6 +17141,16 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $isletme->randevu_takvim_turu = $request->randevu_takvim_turu;
 
+        // Musteri online randevu alabilsin (sadece gonderildiginde guncelle)
+        if ($request->has('musteri_online_randevu_aktif')) {
+            $isletme->musteri_online_randevu_aktif = (int) $request->musteri_online_randevu_aktif === 1 ? 1 : 0;
+        }
+
+        // Saati gecen randevular gorunmesin (sadece web randevu modulunde gecerli - randevu.randevumcepte.com.tr)
+        if ($request->has('gecmis_randevulari_gizle')) {
+            $isletme->gecmis_randevulari_gizle = (int) $request->gecmis_randevulari_gizle === 1 ? 1 : 0;
+        }
+
         $isletme->save();
 
         Audit::logApi($request->salon_id, $request, 'randevu_ayar_guncelle', 'salon', optional($isletme)->id, optional($isletme)->salon_adi, 'Randevu ayarlari guncellendi');
@@ -19414,6 +19424,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         if ($ongorusme->paket_id != null) {
 
+            // Popup'taki "Satış Tarihi" (baslangic_tarihi) adisyon tarihi olarak kullanilir;
+            // bos gelirse bugune duser.
+            $paketSatisTarihi = $request->filled('baslangic_tarihi')
+                ? $request->baslangic_tarihi
+                : date("Y-m-d");
+
             $adisyon_id = self::yeni_adisyon_olustur(
 
                 $user->id,
@@ -19424,7 +19440,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                     " paketinin öngörüşme sonrası satışı",
 
-                date("Y-m-d"),
+                $paketSatisTarihi,
 
                 IsletmeYetkilileri::where("id", $request->olusturan)->first()
 
@@ -24517,6 +24533,8 @@ return date('Y')."-$ayNumara-$gun";
                         THEN 1 ELSE 0
                      END as iptal_edilebilir"),
 
+            DB::raw("CASE WHEN randevular.hatirlatma_gorevi_iptal = 1 THEN 1 ELSE 0 END as iptal_edildi"),
+
             DB::raw('randevular.id as randevu_id')
 
         ])
@@ -24540,6 +24558,7 @@ return date('Y')."-$ayNumara-$gun";
                     DB::raw('DATE_FORMAT(musteri_portfoy.created_at, "%H:%i") as saat'),
                     DB::raw("'musteri' as tur"),
                     DB::raw("0 as iptal_edilebilir"),
+                    DB::raw("0 as iptal_edildi"),
                     DB::raw('musteri_portfoy.id as musteri_id')
 
             ])
@@ -24607,6 +24626,8 @@ return date('Y')."-$ayNumara-$gun";
                             THEN 1 ELSE 0
                          END as iptal_edilebilir"),
 
+                DB::raw("CASE WHEN alacaklar.hatirlatma_gorevi_iptal = 1 THEN 1 ELSE 0 END as iptal_edildi"),
+
                 DB::raw('alacaklar.id as alacak_id')
 
             ])
@@ -24650,6 +24671,8 @@ return date('Y')."-$ayNumara-$gun";
                                  AND (kampanya_yonetimi.tanitim_gorev_iptal = 0 OR kampanya_yonetimi.tanitim_gorev_iptal IS NULL)
                             THEN 1 ELSE 0
                          END as iptal_edilebilir"),
+
+                DB::raw("CASE WHEN kampanya_yonetimi.tanitim_gorev_iptal = 1 THEN 1 ELSE 0 END as iptal_edildi"),
 
                 DB::raw('kampanya_yonetimi.id as kampanya_id')
 
