@@ -1153,18 +1153,16 @@ class ApiController extends Controller
 
     // Yetki: personel.kapali_adisyon_gizle acikken personel kapali (odenmis)
     // adisyonlari goremez -> acikKapali'yi 1'e sabitle (sadece acik).
-    // NOT: Sadece role_id=5 (Personel) icin gecerli. Diger roller (Hesap
-    // Sahibi/Yonetici/Sekreter/Supervisor) yetki key'inden bagimsiz her seyi
-    // gorur — cunku yetkiliYetkiVar personel kaydi bulunmayanlara true doner.
+    // NOT: Bu salonda Personeller kaydi olmayan (Hesap Sahibi vb.) her zaman
+    // her seyi gorur. Coklu salon hukmeden personel icin ilgili salonun
+    // yetki ayari kullanilir.
     try {
         $_authUid = $request->user_id ?? null;
         if ($_authUid && $isletmeId) {
-            $_personelRolunde = \DB::table('model_has_roles')
-                ->where('role_id', 5)
-                ->where('model_id', $_authUid)
-                ->where('salon_id', $isletmeId)
-                ->exists();
-            if ($_personelRolunde) {
+            $_personelId = \App\Personeller::where('salon_id', $isletmeId)
+                ->where('yetkili_id', $_authUid)
+                ->value('id');
+            if ($_personelId) {
                 $_gizle = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
                     $_authUid, $isletmeId, 'personel.kapali_adisyon_gizle'
                 );
