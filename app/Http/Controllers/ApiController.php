@@ -1156,6 +1156,7 @@ class ApiController extends Controller
     // NOT: Bu salonda Personeller kaydi olmayan (Hesap Sahibi vb.) her zaman
     // her seyi gorur. Coklu salon hukmeden personel icin ilgili salonun
     // yetki ayari kullanilir.
+    $_kapaliAdisyonGizle = false;
     try {
         $_authUid = $request->user_id ?? null;
         if ($_authUid && $isletmeId) {
@@ -1163,10 +1164,10 @@ class ApiController extends Controller
                 ->where('yetkili_id', $_authUid)
                 ->value('id');
             if ($_personelId) {
-                $_gizle = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                $_kapaliAdisyonGizle = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
                     $_authUid, $isletmeId, 'personel.kapali_adisyon_gizle'
                 );
-                if ($_gizle) {
+                if ($_kapaliAdisyonGizle) {
                     $acikKapali = 1; // sadece acik adisyonlar
                 }
             }
@@ -1341,6 +1342,11 @@ class ApiController extends Controller
     });
     $acikSayisi = (int)($acikKapaliSayim->acik ?? 0);
     $kapaliSayisi = (int)($acikKapaliSayim->kapali ?? 0);
+    // Yetki: kapali_adisyon_gizle acikken kapali sayisi da sifir donsun
+    // (aksi halde mobil sekme rozeti "Kapali 1424" gostermeye devam eder).
+    if ($_kapaliAdisyonGizle) {
+        $kapaliSayisi = 0;
+    }
 
     // Toplam adet: paginate count(*) yerine sayimdan al (acik/kapali sekmesine gore).
     if ($sayfala) {
