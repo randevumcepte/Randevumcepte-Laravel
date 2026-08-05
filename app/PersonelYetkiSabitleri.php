@@ -70,7 +70,7 @@ class PersonelYetkiSabitleri
             ['key' => 'personel.odeme_yap',          'kategori' => 'personel', 'label' => 'Ödeme / bonus / kesinti yap',   'aciklama' => 'Maaş/prim ödemesi ve hareket girebilir'],
             ['key' => 'personel.yetki_yonet',        'kategori' => 'personel', 'label' => 'Yetki yönetimi',                'aciklama' => 'Diğer personellerin yetkilerini ayarlayabilir'],
             ['key' => 'personel.kendi_ciro_gor',     'kategori' => 'personel', 'label' => 'Personel kendi cirosunu gör',   'aciklama' => 'Kapalıysa personel dashboardunda günlük/haftalık/aylık/yıllık ciro (karşılaştırma) bölümü gizlenir'],
-            ['key' => 'personel.kapali_adisyon_gizle', 'kategori' => 'personel', 'label' => 'Kapalı adisyonları gizle', 'aciklama' => 'Kapalı adisyonları gizle'],
+            ['key' => 'personel.kapali_adisyon_gizle', 'kategori' => 'satis', 'label' => 'Kapalı adisyonları gizle', 'aciklama' => 'Kapalı adisyonları gizle'],
 
             // === RAPORLAR ===
             ['key' => 'rapor.satis',                 'kategori' => 'rapor', 'label' => 'Satış raporları',                 'aciklama' => 'Hizmet/ürün/paket satış raporları'],
