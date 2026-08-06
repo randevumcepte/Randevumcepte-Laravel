@@ -33490,9 +33490,45 @@ DB::raw('
         if(!$sh) return response()->json(['status'=>'error','message'=>'Hizmet bulunamadı']);
 
         $hizmet = Hizmetler::where('id',$sh->hizmet_id)->first();
-        // Havuz hizmeti (ozel_hizmet=false veya baska salona ait) ise ad ve kategori degisemez;
-        // cinsiyet, sure, fiyat ve personel atamasi her hizmet icin degistirilebilir.
+        // Salon'a ozel mi (bu salonun kendi olusturdugu hizmet)?
         $is_ozel_duzenlenebilir = $hizmet && ($hizmet->ozel_hizmet == 1 || $hizmet->ozel_hizmet === true) && $hizmet->salon_id == $isletmeid;
+
+        // Havuz hizmeti + kullanici ad veya kategori degistiriyorsa:
+        // salon'a ozel KOPYA olustur (havuz kaydini bozma). SalonHizmetler.hizmet_id'yi
+        // kopyaya yonlendir; personel/cihaz atamalarini da kopya ile devrede tut.
+        $adDegisti = $hizmet && $request->has('hizmet_adi') && trim((string)$request->hizmet_adi) !== '' && trim((string)$request->hizmet_adi) !== $hizmet->hizmet_adi;
+        $katDegisti = $hizmet && $request->has('kategori_id') && (int)$request->kategori_id !== (int)$sh->hizmet_kategori_id;
+        if ($hizmet && !$is_ozel_duzenlenebilir && ($adDegisti || $katDegisti)) {
+            try {
+                DB::transaction(function() use (&$hizmet, &$sh, $isletmeid, $request) {
+                    $eskiHizmetId = $hizmet->id;
+                    $kopya = $hizmet->replicate();
+                    $kopya->ozel_hizmet = 1;
+                    $kopya->salon_id = $isletmeid;
+                    if ($request->has('hizmet_adi') && trim((string)$request->hizmet_adi) !== '') {
+                        $kopya->hizmet_adi = trim((string)$request->hizmet_adi);
+                    }
+                    $kopya->save();
+                    // SalonHizmetler yeni kopyaya bagli
+                    $sh->hizmet_id = $kopya->id;
+                    // Bu salondaki mevcut personel/cihaz atamalarini yeni hizmet_id'ye yansit
+                    PersonelHizmetler::where('hizmet_id', $eskiHizmetId)
+                        ->whereHas('personeller', function($q) use($isletmeid){ $q->where('salon_id',$isletmeid); })
+                        ->update(['hizmet_id' => $kopya->id]);
+                    CihazHizmetler::where('hizmet_id', $eskiHizmetId)
+                        ->whereHas('cihaz', function($q) use($isletmeid){ $q->where('salon_id',$isletmeid); })
+                        ->update(['hizmet_id' => $kopya->id]);
+                    // $hizmet artik yeni kopya — sonraki save'lerde bu guncellenir
+                    $hizmet = $kopya;
+                });
+                $is_ozel_duzenlenebilir = true; // artik salona ozel
+            } catch (\Throwable $e) {
+                \Log::warning('hizmet salon kopya olusturma hata: '.$e->getMessage(), [
+                    'hizmet_id' => $sh->hizmet_id ?? null,
+                    'salon_id'  => $isletmeid,
+                ]);
+            }
+        }
 
         // Cinsiyet her zaman guncellenebilir
         if($hizmet && $request->has('cinsiyet')){

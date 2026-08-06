@@ -416,10 +416,9 @@
                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
             </div>
             <div class="modal-body hy-modal-body">
-               <div id="hy_edit_locked_info" class="hy-locked-banner" style="display:none;">
-                  <i class="fa fa-lock"></i>
-                  <span>Bu hizmet sistem havuzundan eklenmiştir. <strong>Hizmet adı</strong> ve <strong>kategori</strong> değiştirilemez; süre, fiyat, cinsiyet ve personel ataması güncellenebilir.</span>
-               </div>
+               {{-- Kilit bilgi bandi kaldirildi: her hizmet artik tam duzenlenebilir.
+                    Havuz hizmeti guncellenirken backend salon'a ozel kopya olusturur;
+                    diger salonlarin havuz kaydi etkilenmez. --}}
                <div class="row">
                   <div class="col-md-6">
                      <div class="form-group">
@@ -572,15 +571,11 @@ window.hyDuzenleClick = function(btn){
       var c = row.data('cinsiyet');
       $('#hy_edit_cinsiyet').val(c !== undefined && c !== null ? c : '').trigger('change');
 
-      if(isOzel){
-         $('#hy_edit_hizmet_adi').prop('readonly', false).removeClass('hy-locked');
-         $('#hy_edit_kategori_id').prop('disabled', false).removeClass('hy-locked');
-         $('#hy_edit_locked_info').hide();
-      } else {
-         $('#hy_edit_hizmet_adi').prop('readonly', true).addClass('hy-locked');
-         $('#hy_edit_kategori_id').prop('disabled', true).addClass('hy-locked');
-         $('#hy_edit_locked_info').show();
-      }
+      // Havuz hizmeti olsun ozel olsun -> her ikisi de duzenlenebilir. Backend
+      // havuz kaydini bozmamak icin salon'a ozel kopya olusturur.
+      $('#hy_edit_hizmet_adi').prop('readonly', false).removeClass('hy-locked');
+      $('#hy_edit_kategori_id').prop('disabled', false).removeClass('hy-locked');
+      $('#hy_edit_locked_info').hide();
 
       var $sel = $('#hy_edit_personeller');
       if($sel.hasClass('select2-hidden-accessible')){
