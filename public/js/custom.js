@@ -5948,12 +5948,9 @@ $(document).on('submit','#paket_formu,#paket_formu_duzenleme',function(e){
                     };
                     var option = new Option(data.text, data.id, false, false);
                     $(this).append(option);
-                    $(this).val(data.id);
+                    $(this).val(data.id).trigger('change');
                 });
                 $('input[name="paketfiyatadisyon[]"]').each(function () {
-                    $(this).val(result.toplam_tutar);
-                });
-                 $('input[name="paketfiyat[]"]').each(function () {
                     $(this).val(result.toplam_tutar);
                 });
                 
