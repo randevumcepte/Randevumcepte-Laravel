@@ -1246,6 +1246,11 @@ public function carkverilerigetir(Request $request)
                 return redirect()->route('isletmeadmin.randevular');
             }
         }
+        // randevu.randevumcepte.com.tr: Ozet sayfasi gizli — dogrudan Randevu Takvimi'ne yonlendir (sube parametresi korunur)
+        if($request->getHost() == 'randevu.randevumcepte.com.tr')
+        {
+            return redirect()->route('isletmeadmin.randevular', isset($_GET['sube']) ? ['sube'=>$_GET['sube']] : []);
+        }
         if(count($isletmeler)>1 && !isset($_GET['sube']))
         {
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
