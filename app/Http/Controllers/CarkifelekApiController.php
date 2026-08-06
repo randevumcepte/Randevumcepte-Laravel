@@ -494,22 +494,28 @@ class CarkifelekApiController extends Controller
 
     private function baslikUret($d)
     {
-        // Indirim degeri "tutar" ise "50 ₺", degilse "%50" olarak yazilir.
-        $tutar = (isset($d->indirim_tipi) && $d->indirim_tipi === 'tutar');
-        $ind = function ($ad) use ($d, $tutar) {
-            if (!$d->deger) return $ad;
+        // Once admin'in girdigi "Odul Adi" kullanilir; bossa otomatik metin uretilir.
+        $ad = trim((string) ($d->dilim_ismi ?? ''));
+        if ($ad !== '') return $ad;
+
+        // Indirim degeri "tutar" ise "50 ₺", degilse "%50". %100 yuzde = Bedava.
+        $tutar  = (isset($d->indirim_tipi) && $d->indirim_tipi === 'tutar');
+        $bedava = !$tutar && (int) $d->deger >= 100;
+        $ind = function ($tam, $kisa) use ($d, $tutar, $bedava) {
+            if (!$d->deger) return $tam;
+            if ($bedava) return 'Bedava ' . $kisa;
             return $tutar
-                ? ((int) $d->deger) . ' ₺ ' . $ad
-                : '%' . ((int) $d->deger) . ' ' . $ad;
+                ? ((int) $d->deger) . ' ₺ ' . $tam
+                : '%' . ((int) $d->deger) . ' ' . $tam;
         };
         switch ($d->tip) {
             case 'puan':            return $d->deger ? ((int) $d->deger) . ' Puan' : 'Puan';
-            case 'hizmet_indirimi': return $ind('Hizmet İndirimi');
-            case 'urun_indirimi':   return $ind('Ürün İndirimi');
-            case 'paket_indirimi':  return $ind('Paket İndirimi');
+            case 'hizmet_indirimi': return $ind('Hizmet İndirimi', 'Hizmet');
+            case 'urun_indirimi':   return $ind('Ürün İndirimi', 'Ürün');
+            case 'paket_indirimi':  return $ind('Paket İndirimi', 'Paket');
             case 'tekrar_dene':     return 'Tekrar Dene';
             case 'bos':             return 'Boş';
-            default:                return $d->dilim_ismi ?: 'Ödül';
+            default:                return 'Ödül';
         }
     }
 }

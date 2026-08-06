@@ -893,14 +893,19 @@ class CarkifelekMusteriController extends Controller
 
     private function baslikUret($d)
     {
+        // Once admin'in girdigi "Odul Adi" kullanilir; bossa otomatik metin uretilir.
+        $ad = trim((string) ($d->dilim_ismi ?? ''));
+        if ($ad !== '') return $ad;
+
+        $bedava = (int) $d->deger >= 100; // %100 = Bedava
         switch ($d->tip) {
             case 'puan':            return $d->deger ? ((int) $d->deger) . ' Puan' : 'Puan';
-            case 'hizmet_indirimi': return $d->deger ? '%' . ((int) $d->deger) . ' Hizmet İndirimi' : 'Hizmet İndirimi';
-            case 'urun_indirimi':   return $d->deger ? '%' . ((int) $d->deger) . ' Ürün İndirimi'   : 'Ürün İndirimi';
-            case 'paket_indirimi':  return $d->deger ? '%' . ((int) $d->deger) . ' Paket İndirimi'  : 'Paket İndirimi';
+            case 'hizmet_indirimi': return $d->deger ? ($bedava ? 'Bedava Hizmet' : '%' . ((int) $d->deger) . ' Hizmet İndirimi') : 'Hizmet İndirimi';
+            case 'urun_indirimi':   return $d->deger ? ($bedava ? 'Bedava Ürün'   : '%' . ((int) $d->deger) . ' Ürün İndirimi')   : 'Ürün İndirimi';
+            case 'paket_indirimi':  return $d->deger ? ($bedava ? 'Bedava Paket'  : '%' . ((int) $d->deger) . ' Paket İndirimi')  : 'Paket İndirimi';
             case 'tekrar_dene':     return 'Tekrar Dene';
             case 'bos':             return 'Boş';
-            default:                return $d->dilim_ismi ?: 'Ödül';
+            default:                return 'Ödül';
         }
     }
 }
