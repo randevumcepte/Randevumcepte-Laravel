@@ -19675,6 +19675,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $adisyon_hizmet->fiyat = ($request->filled('fiyat') && is_numeric($request->fiyat))
                 ? (float) $request->fiyat
                 : (optional($hizmet)->fiyat ?? 0);
+            // Seans sayisi (Yeni Satis hizmet ile ayni): bos/<=1 -> null (tekil),
+            // 2+ -> paket gibi. bekleyen_seans yeni kayitta seans sayisina esitlenir.
+            $_hizmetSeans = trim((string) $request->input('seans_sayisi', ''));
+            $_hizmetSeansSayisi = ($_hizmetSeans === '' || (int) $_hizmetSeans <= 1) ? null : (int) $_hizmetSeans;
+            $adisyon_hizmet->seans_sayisi = $_hizmetSeansSayisi;
+            $adisyon_hizmet->bekleyen_seans = $_hizmetSeansSayisi;
             $adisyon_hizmet->save();
 
         }
