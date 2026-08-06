@@ -28631,6 +28631,8 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 'baslik'          => $odul->baslik,
                 'tip'             => $odul->tip,
                 'deger'           => $odul->deger,
+                // Indirim birimi: 'tutar' (sabit ₺) veya 'yuzde' (%). App bu ayrimi okur.
+                'indirim_tipi'    => (\Schema::hasColumn('carkifelek_odulleri', 'indirim_tipi') && $odul->indirim_tipi === 'tutar') ? 'tutar' : 'yuzde',
                 'musteri_adi'     => $user->name ?? ('#' . $odul->user_id),
                 'musteri_tel'     => $user->cep_telefon ?? ($user->telefon ?? null),
                 'kazanma_tarihi'  => $odul->created_at ? $odul->created_at->format('d.m.Y H:i') : null,
