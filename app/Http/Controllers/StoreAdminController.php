@@ -10589,7 +10589,22 @@ private function ayAdiCevir($ingilizceAy)
         return $urun->fiyat;
     }
     public function paketfiyatgetir(Request $request){
-        return PaketHizmetler::where('paket_id',$request->paket_id)->sum('fiyat');
+        $paketHizmetler = PaketHizmetler::where('paket_id',$request->paket_id)->get();
+        $fiyat = (float) $paketHizmetler->sum('fiyat');
+        $seans = (int) $paketHizmetler->sum('seans');
+        // Paket hizmet kayitlari bos ise paketin kendi miktar/fiyat degerine dus
+        if($fiyat <= 0 || $seans <= 0){
+            $paket = \App\Paketler::where('id',$request->paket_id)->first();
+            if($paket){
+                if($fiyat <= 0) $fiyat = (float) $paket->fiyat;
+                if($seans <= 0) $seans = (int) $paket->miktar;
+            }
+        }
+        // Backwards-compat: eger 'json' param'i istenmisse JSON don, aksi halde eski davranis (sum fiyat)
+        if($request->input('json') == '1' || $request->wantsJson()){
+            return response()->json(['fiyat'=>$fiyat, 'seans'=>$seans]);
+        }
+        return (string) $fiyat;
     }
     public function urunsatisiekle(Request $request){
         if($r = self::satisYetkiYoksa403($request, 'urun.sat')) return $r;

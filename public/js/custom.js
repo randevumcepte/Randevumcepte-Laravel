@@ -13821,20 +13821,28 @@ $('#grup_sms_tablo').on('click','a[name="grup_sil"]',function(e){
 $('#grup_olustur_buton').click(function(){
     $('#grup_duzenle_grup_id').val('');
 });
-$('select[name="paketadi[]"]').change(function(e){
-    var fiyat_text = $(this).closest('div .row').find('input[name="paketfiyat[]"]');
-    paketid = $(this).val();
+$(document).on('change', 'select[name="paketadi[]"]', function(e){
+    var $row = $(this).closest('div.row');
+    var fiyat_text = $row.find('input[name="paketfiyat[]"]');
+    var seans_text = $row.find('input[name="paketseans[]"]');
+    var paketid = $(this).val();
+    if(!paketid) return;
     $.ajax({
                     type: "GET",
                     url: '/isletmeyonetim/paketfiyatgetir',
-                    dataType: "text",
-                    data : {paket_id:paketid,sube:$('input[name="sube"]').val()},
+                    dataType: "json",
+                    data : {paket_id:paketid,sube:$('input[name="sube"]').val(),json:1},
                     beforeSend: function() {
                         $("#preloader").show();
                     },
                     success: function(result)  {
                         $("#preloader").hide();
-                        fiyat_text.val(result);
+                        if(result && typeof result === 'object'){
+                            fiyat_text.val(result.fiyat != null ? result.fiyat : '');
+                            if(seans_text.length) seans_text.val(result.seans != null && result.seans > 0 ? result.seans : '');
+                        } else {
+                            fiyat_text.val(result || '');
+                        }
                     },
                     error: function (request, status, error) {
                         $("#preloader").hide();
