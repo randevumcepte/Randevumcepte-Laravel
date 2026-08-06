@@ -10944,6 +10944,21 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     ->get()->groupBy('hizmet_id');
                 $_tuketilenSeans = [];
 
+                // MEVCUT ADISYON HIZMET HAVUZU: guncellemede bu randevuya bagli
+                // adisyon_hizmetler kalemleri hizmet_id bazinda gruplanir.
+                // Foreach'ta her randevu_hizmet satiri icin havuzdan bir AH kaydi
+                // TUKETIP fiyatini yeni degere gunceller (ayni hizmetten birden
+                // fazla varsa sirali eslesir — 1. satir 1. AH kaydi, ...).
+                // Yeni eklenen satirlar icin havuzda karsilik yoksa atlanir; onlar
+                // icin adisyon_hizmet sonradan (tahsilat vs.) olusturulacaktir.
+                $_mevcutAdisyonHizmetHavuzu = null;
+                if ($guncelleme) {
+                    $_mevcutAdisyonHizmetHavuzu = AdisyonHizmetler::where('randevu_id', $yenirandevu->id)
+                        ->orderBy('id')
+                        ->get()
+                        ->groupBy('hizmet_id');
+                }
+
                 if (isset($request->hizmetler) && is_array($request->hizmetler)) {
                     foreach ($request->hizmetler as $key2 => $value) {
                         array_push($hizmet_sureleri_okunan, $value["sure_dk"]);
@@ -10979,6 +10994,26 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         }
 
                         $yenirandevuhizmetpersonel->save();
+
+                        // Guncellemede: bu hizmete karsilik gelen adisyon_hizmetler
+                        // kaleminin fiyatini yeni fiyatla senkronize et. Ayni
+                        // hizmetten birden fazla varsa havuzdan sirayla tuketilir.
+                        if ($_mevcutAdisyonHizmetHavuzu !== null) {
+                            $_hzId = $value["hizmet_id"];
+                            if ($_mevcutAdisyonHizmetHavuzu->has($_hzId) && $_mevcutAdisyonHizmetHavuzu[$_hzId]->count() > 0) {
+                                $_ah = $_mevcutAdisyonHizmetHavuzu[$_hzId]->shift();
+                                if ($_ah) {
+                                    $_ah->fiyat = $value["fiyat"];
+                                    $_ah->save();
+                                    \Log::info('[AH-FIYAT-SYNC] randevuekleguncelle', [
+                                        'randevu_id'       => $yenirandevu->id,
+                                        'hizmet_id'        => $_hzId,
+                                        'adisyon_hizmet_id'=> $_ah->id,
+                                        'yeni_fiyat'       => $value["fiyat"],
+                                    ]);
+                                }
+                            }
+                        }
 
                         // yardimci personeller
                         if (isset($request->yardimcipersoneller) && is_array($request->yardimcipersoneller)) {
