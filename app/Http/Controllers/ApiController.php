@@ -19485,6 +19485,17 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $adisyon_id = "";
 
+        // Popup'taki "Satici" (personel_id) gonderildiyse satisi ona ata; yoksa
+        // on gorusme personeline duser (geriye donuk uyum).
+        $satisPersonelId = $request->filled('personel_id')
+            ? $request->personel_id
+            : $ongorusme->personel_id;
+
+        // Popup'taki satis/islem tarihi (baslangic_tarihi); bos ise bugun.
+        $satisTarihi = $request->filled('baslangic_tarihi')
+            ? $request->baslangic_tarihi
+            : date("Y-m-d");
+
         if ($ongorusme->paket_id != null) {
 
             // Popup'taki "Satış Tarihi" (baslangic_tarihi) adisyon tarihi olarak kullanilir;
@@ -19534,7 +19545,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                 $paketSeansAraligi,
 
-                $ongorusme->personel_id,
+                $satisPersonelId,
 
                 null,
 
@@ -19598,7 +19609,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                     " ürününün öngörüşme sonrası satışı",
 
-                date("Y-m-d"),
+                $satisTarihi,
 
                 IsletmeYetkilileri::where("id", $request->olusturan)->first()
 
@@ -19606,13 +19617,13 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             $adisyon_urun = new AdisyonUrunler();
 
-            $adisyon_urun->islem_tarihi = date("Y-m-d");
+            $adisyon_urun->islem_tarihi = $satisTarihi;
 
             $adisyon_urun->adisyon_id = $adisyon_id;
 
             $adisyon_urun->urun_id = $ongorusme->urun_id;
 
-            $adisyon_urun->personel_id = $ongorusme->personel_id;
+            $adisyon_urun->personel_id = $satisPersonelId;
 
             $adisyon_urun->adet = $request->urun_adedi;
 
@@ -19649,15 +19660,15 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $ongorusme->salon_id,
                 (optional($ongorusme->hizmet)->hizmet_adi ?? 'Hizmet') .
                     " hizmetinin öngörüşme sonrası satışı",
-                date("Y-m-d"),
+                $satisTarihi,
                 IsletmeYetkilileri::where("id", $request->olusturan)->first()
             );
 
             $adisyon_hizmet = new AdisyonHizmetler();
             $adisyon_hizmet->adisyon_id = $adisyon_id;
             $adisyon_hizmet->hizmet_id = $ongorusme->hizmet_id;
-            $adisyon_hizmet->personel_id = $ongorusme->personel_id;
-            $adisyon_hizmet->islem_tarihi = date("Y-m-d");
+            $adisyon_hizmet->personel_id = $satisPersonelId;
+            $adisyon_hizmet->islem_tarihi = $satisTarihi;
             $adisyon_hizmet->islem_saati = date("H:i:s");
             $adisyon_hizmet->sure = optional($hizmet)->sure ?? 60;
             // Hizmette sadece fiyat girilir; girilen fiyat satir fiyatidir
