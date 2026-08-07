@@ -11882,8 +11882,14 @@ private function ayAdiCevir($ingilizceAy)
         $_komisyon = (float) str_replace(['.',','],['','.'], (string)($request->komisyon_tutari ?? '0'));
         $_indirimliToplam = (float) str_replace(['.',','],['','.'], (string)($request->indirimli_toplam_tahsilat_tutari ?? '0'));
         $_adisyonPayment = max(0, $_indirimliToplam - $_komisyon);
-        // Kalem dagitim formulunde kullanilmak uzere request'e geri yazilir (asagidaki foreach'ler bu degeri okuyor).
-        $request->merge(['indirimli_toplam_tahsilat_tutari' => number_format($_adisyonPayment, 2, ',', '.')]);
+        // Kalem dagitim formulunde: hizmet_tutar / tahsilat_tutari * indirimli_toplam
+        // HER IKI degerin de komisyondan arinmis olmasi gerek, aksi halde kalem odemesi bozulur
+        // (ornek: 1300 / 1430 * 1300 = 1181.82 -> yanlis).
+        $_adisyonPaymentStr = number_format($_adisyonPayment, 2, ',', '.');
+        $request->merge([
+            'indirimli_toplam_tahsilat_tutari' => $_adisyonPaymentStr,
+            'tahsilat_tutari'                  => $_adisyonPaymentStr,
+        ]);
 
         $tahsilat = new Tahsilatlar();
         $tahsilat->adisyon_id = $request->adisyon_id;

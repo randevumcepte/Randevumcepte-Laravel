@@ -7620,6 +7620,11 @@ $(document).on('submit','#adisyon_tahsilat',function(e){
                     $('input[name="senetvadeler[]"]:checked').each(function(){
                         $(this).prop('checked',false);
                     });
+                    // Bir sonraki tahsilat icin form alanlarini sifirla — komisyon/harici indirim
+                    // takili kalirsa recalculate 0 kalemli sepette bile odenecek=komisyon gosteriyor
+                    $('#komisyon_tutari').val('0');
+                    $('#harici_indirim_tutari').val('');
+                    $('#uygulanan_komisyon_tutari').text('0,00');
                     tahsilatyenidenhesapla();
                     if($('input[name="adisyon_id"]').val()=='')
                         $('select[name="tahsilat_musteri_id"]').trigger('change');
