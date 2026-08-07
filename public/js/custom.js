@@ -21032,6 +21032,10 @@ $('select[name="tahsilat_musteri_id"]').change(function(){
                  $('#musteri_indirimi').val(0);
                  $('#tum_tahsilatlar').empty();
                  $('#tahsilat_listesi').empty();
+                 // Bir sonraki tahsilat baslangici — komisyon/harici indirim de sifirlansin
+                 $('#komisyon_tutari').val('0');
+                 $('#harici_indirim_tutari').val('');
+                 $('#uygulanan_komisyon_tutari').text('0,00');
                  if($('#session_adisyon_id').length)
                     $('#session_adisyon_id').val('');
                  $('#cark_kupon_bolumu').hide();
