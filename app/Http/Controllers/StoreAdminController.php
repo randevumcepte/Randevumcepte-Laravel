@@ -11876,14 +11876,26 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function tahsilatekle(Request $request){
         if($r = self::satisYetkiYoksa403($request, 'satis.tahsilat_al')) return $r;
+        // Komisyon tutari: adisyona yansitilmaz; ayri hem tahsilat.komisyon_tutari kolonuna
+        // hem de Masraflar (Banka Odemeleri) kaydina yazilir. Tahsilat.tutar SADECE adisyon
+        // odeme kismidir (indirimli toplam - komisyon) -> boylece 'Kalan' negatife dusmez.
+        $_komisyon = (float) str_replace(['.',','],['','.'], (string)($request->komisyon_tutari ?? '0'));
+        $_indirimliToplam = (float) str_replace(['.',','],['','.'], (string)($request->indirimli_toplam_tahsilat_tutari ?? '0'));
+        $_adisyonPayment = max(0, $_indirimliToplam - $_komisyon);
+        // Kalem dagitim formulunde kullanilmak uzere request'e geri yazilir (asagidaki foreach'ler bu degeri okuyor).
+        $request->merge(['indirimli_toplam_tahsilat_tutari' => number_format($_adisyonPayment, 2, ',', '.')]);
+
         $tahsilat = new Tahsilatlar();
         $tahsilat->adisyon_id = $request->adisyon_id;
-        $tahsilat->tutar = str_replace('.','',$request->indirimli_toplam_tahsilat_tutari);
+        $tahsilat->tutar = $_adisyonPayment;
+        if (\Schema::hasColumn('tahsilatlar', 'komisyon_tutari')) {
+            $tahsilat->komisyon_tutari = $_komisyon;
+        }
         $tahsilat->user_id = $request->tahsilat_musteri_id;
         $tahsilat->odeme_tarihi = $request->tahsilat_tarihi;
         $tahsilat->olusturan_id = Personeller::where('salon_id',$request->sube)->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id');
         $tahsilat->salon_id = $request->sube;
-        $tahsilat->yapilan_odeme = str_replace('.','',$request->indirimli_toplam_tahsilat_tutari);
+        $tahsilat->yapilan_odeme = $_adisyonPayment;
         $tahsilat->odeme_yontemi_id = $request->odeme_yontemi;
         $tahsilat->notlar = $request->tahsilat_notlari;
         if($request->banka != '')
@@ -14800,16 +14812,25 @@ DB::raw('
         })
         ->where('user_id',$musteriid)->where('salon_id',$request->sube)->orderBy('odeme_tarihi','desc')->get();
         $odenenTutar = 0;
+        $komisyonToplam = 0;
+        $_hasKomisyonCol = \Schema::hasColumn('tahsilatlar','komisyon_tutari');
 
         foreach($tahsilatlar as $key=>$tahsilat)
         {
-            $odenenTutar += (float)$tahsilat->tutar;
+            $_adisyonOdeme = (float)$tahsilat->tutar;
+            $_kom = $_hasKomisyonCol ? (float)($tahsilat->komisyon_tutari ?? 0) : 0;
+            $odenenTutar += $_adisyonOdeme + $_kom;
+            $komisyonToplam += $_kom;
+            $_tutarGosterim = number_format($_adisyonOdeme,2,',','.');
+            if ($_kom > 0) {
+                $_tutarGosterim .= ' <small style="color:#7a6010;font-weight:600">(+'.number_format($_kom,2,',','.').' komisyon)</small>';
+            }
             $html_tahsilat  .= '<tr>
                               <td>'.date('d.m.Y',strtotime($tahsilat->odeme_tarihi)).'</td>
-                              <td>'.number_format($tahsilat->tutar,2,',','.').'</td>
+                              <td>'.$_tutarGosterim.'</td>
                               <td>
                                  '.$tahsilat->odeme_yontemi->odeme_yontemi.'
-                              </td> 
+                              </td>
                               <td>
                                  <button type="button" style="padding:1px; border-radius: 0; line-height: 1px ; font-size:12px;background-color: transparent; border-color: transparent;color:#dc3545" name="tahsilat_adisyondan_sil" data-value="'.$tahsilat->id.'" class="btn btn-danger"><i class="icon-copy fa fa-remove"></i></button>
                               </td>
@@ -14837,11 +14858,14 @@ DB::raw('
             $html_tahsilat = self::buildModernTahsilatlarHtml($tahsilatlar);
         }
 
+        // odenenTutar = tahsilat.tutar (adisyon odeme) + komisyon toplami; adisyon Kalan = Toplam - AdisyonOdeme
+        $_adisyonOdenen = $odenenTutar - $komisyonToplam;
         return array(
             'kalemler'=>$html,
             'odenenTutar'=> number_format($odenenTutar,2,',','.'),
+            'komisyonTutar'=> number_format($komisyonToplam,2,',','.'),
             'toplamTutar'=> number_format($toplamTutar,2,',','.'),
-            'kalanTutar'=> number_format($toplamTutar-$odenenTutar,2,',','.'),
+            'kalanTutar'=> number_format($toplamTutar - $_adisyonOdenen,2,',','.'),
             'tahsilatlar' => $html_tahsilat,
             'musteribilgi'=> User::where('id',$musteriid)->first() ?? '',
             'adisyonId'=>$adisyon_id,

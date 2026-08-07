@@ -71,6 +71,10 @@
                                  <div class="sd-amount-label"><i class="fa fa-receipt"></i> Toplam</div>
                                  <div class="sd-amount-val total"><span id="adisyon_toplam_tutar"></span><span class="sd-tl"> ₺</span></div>
                               </div>
+                              <div class="sd-amount-block komisyon" id="sd_komisyon_block" style="display:none;">
+                                 <div class="sd-amount-label"><i class="fa fa-university"></i> Komisyon</div>
+                                 <div class="sd-amount-val komisyon" style="color:#7a6010"><span id="adisyon_komisyon_tutar"></span><span class="sd-tl"> ₺</span></div>
+                              </div>
                               <div class="sd-amount-block paid">
                                  <div class="sd-amount-label"><i class="fa fa-check-circle"></i> Ödenen</div>
                                  <div class="sd-amount-val paid"><span id="adisyon_odenen_tutar"></span><span class="sd-tl"> ₺</span></div>

@@ -19054,6 +19054,8 @@ function tahsilatyenidenhesapla()
     var komisyon_tutari = ($('#komisyon_tutari').val() || '0').replace(".", "").replace(',','.');
     komisyon_tutari = parseFloat(komisyon_tutari);
     if(!$.isNumeric(komisyon_tutari)) komisyon_tutari = 0;
+    $('#uygulanan_komisyon_tutari').empty();
+    $('#uygulanan_komisyon_tutari').append(accounting.formatMoney(komisyon_tutari,'',2,'.',','));
     var musteri_indirimi = $('#musteri_indirim').val().replace(".", "");
     musteri_indirimi = musteri_indirimi.replace(',','.');
     musteri_indirimi = parseFloat(musteri_indirimi);
@@ -22854,6 +22856,16 @@ $(document).on('click','button[name="satisDuzenle"]',function(e){
                 $('#tahsil_edilecek_kalan_tutar').append(result.kalanTutar);
                 $('#adisyon_odenen_tutar').append(result.odenenTutar);
                 $('#adisyon_toplam_tutar').append(result.toplamTutar);
+                // Komisyon blok: sadece komisyon toplami > 0 ise gorunur
+                var _kom = (result.komisyonTutar || '0,00').toString();
+                var _komFloat = parseFloat(_kom.replace(/\./g,'').replace(',','.')) || 0;
+                if (_komFloat > 0) {
+                    $('#adisyon_komisyon_tutar').text(_kom);
+                    $('#sd_komisyon_block').show();
+                } else {
+                    $('#adisyon_komisyon_tutar').empty();
+                    $('#sd_komisyon_block').hide();
+                }
                 $('#satisKalemleri').modal('show');
         },
         

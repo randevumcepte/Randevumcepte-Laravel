@@ -203,9 +203,13 @@
                            <td colspan="3">Harici İndirim (₺)</td>
                            <td id='uygulanan_harici_indirim_tutari' style="text-align:right;"> </td>
                         </tr>
+                        <tr style="color:#7a6010; font-weight:600;">
+                           <td colspan="3">+ Komisyon (₺)</td>
+                           <td id='uygulanan_komisyon_tutari' style="text-align:right;">0,00</td>
+                        </tr>
                         <tr style="font-weight: bold; color: green;display: none;">
                            <td colspan="3">
-                              Ödenen Tutar (₺): 
+                              Ödenen Tutar (₺):
                            </td>
                            <td id="tahsil_edilen_tutar" style="text-align:right;">
                               {{number_format(0,2,',','.')}}
