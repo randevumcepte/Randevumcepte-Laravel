@@ -12,7 +12,8 @@ class Salonlar extends Model
         'whatsapp_aktif','whatsapp_durum','whatsapp_numara','whatsapp_baglanti_tarihi','whatsapp_gunluk_limit','whatsapp_warmup_baslangic','whatsapp_son_hata',
         'whatsapp_saglayici','cloud_api_phone_number_id','cloud_api_token',
         'cloud_api_template_1gun','cloud_api_template_yaklasan','cloud_api_template_iptal','cloud_api_template_guncelleme','cloud_api_template_dil','faturasiz_gizle',
-        'whatsapp_promo_baslangic','whatsapp_promo_bitis','whatsapp_promo_aktif','whatsapp_promo_kapatildi' ];
+        'whatsapp_promo_baslangic','whatsapp_promo_bitis','whatsapp_promo_aktif','whatsapp_promo_kapatildi',
+        'cakisma_uyarisi_aktif' ];
 
     protected $casts = [
         'whatsapp_aktif' => 'boolean',
@@ -21,6 +22,7 @@ class Salonlar extends Model
         'faturasiz_gizle' => 'boolean',
         'whatsapp_promo_aktif' => 'boolean',
         'whatsapp_promo_kapatildi' => 'boolean',
+        'cakisma_uyarisi_aktif' => 'boolean',
     ];
 
     public function setSalonAdiAttribute($value)

@@ -1059,6 +1059,15 @@
                            </div>
                         </div>
                         <div class="col-md-12">
+                           <div class="form-group">
+                              <div class="custom-control custom-checkbox mb-5">
+                                 <input type="checkbox" class="custom-control-input" name="cakisma_uyarisi_aktif" id="cakisma_uyarisi_aktif" value="1" {{(!empty($isletme->cakisma_uyarisi_aktif)) ? 'checked' : ''}}>
+                                 <label class="custom-control-label" for="cakisma_uyarisi_aktif">Aynı saatte dolu personel/cihaz/oda için uyar</label>
+                              </div>
+                              <small class="text-muted">Açıkken; takvim türünüze göre (personele, cihaza veya odaya göre) seçtiğiniz kaynak o saatte doluysa randevuyu oluşturmadan önce uyarı gösterilir. "Evet" derseniz randevu yine oluşturulur, "Hayır" derseniz o saatte müsait olanlar listelenir. Kapalıyken hiçbir kısıtlama uygulanmaz.</small>
+                           </div>
+                        </div>
+                        <div class="col-md-12">
                            <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i> Kaydet</button>
                         </div>
                      </div>

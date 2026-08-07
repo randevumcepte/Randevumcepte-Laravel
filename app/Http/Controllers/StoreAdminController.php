@@ -7416,6 +7416,16 @@ private function ayAdiCevir($ingilizceAy)
         }
     }
     
+    // --- KAYNAK CAKISMA UYARISI (moda gore: personel/cihaz/oda) ---
+    // Salon ayari acik VE kullanici "yine de olustur" onayi vermemisse kontrol et.
+    // Onay verildiyse (kaynak_cakisma_onay=1) kontrol atlanir ve randevu olusturulur.
+    if(!isset($request->kaynak_cakisma_onay)){
+        $kaynakCakismasi = self::kaynak_cakisma_kontrol($request,$randevu_tarihleri);
+        if($kaynakCakismasi){
+            return $kaynakCakismasi; // ['kaynak_cakismasi'=>1, 'mesaj'=>.., 'tip'=>.., 'satir'=>.., 'musait'=>[..]]
+        }
+    }
+
     $cakisma_varmi = '';
     if(!isset($request->cakisanrandevuekle))
         $cakisma_varmi = self::cakisan_randevu_kontrol($request,$randevu_tarihleri);
@@ -18378,6 +18388,10 @@ DB::raw('
         $isletme->randevu_takvim_turu = $request->randevu_takvim_turu;
         $isletme->musteri_online_randevu_aktif = $request->has('musteri_online_randevu_aktif') ? 1 : 0;
         $isletme->gecmis_randevulari_gizle = $request->has('gecmis_randevulari_gizle') ? 1 : 0;
+        // Migration henuz calismadiysa (auto-deploy sirasi) kaydetme patlamasin
+        if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar', 'cakisma_uyarisi_aktif')) {
+            $isletme->cakisma_uyarisi_aktif = $request->has('cakisma_uyarisi_aktif') ? 1 : 0;
+        }
         $isletme->save();
         // Ayar degistiginde host bazli cache'i dusur (ayni istek icinde tekrar okunursa taze olsun)
         self::$_gecmisGizleCache = [];
@@ -24673,6 +24687,212 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             }
             return false;
         }
+
+    /**
+     * KAYNAK CAKISMA KONTROLU (moda gore: personel / cihaz / oda).
+     *
+     * Salon ayari "cakisma_uyarisi_aktif" ACIK ise; randevu olusturulmadan once,
+     * salonun takvim turune gore secilen kaynak (personel/cihaz/oda) o saat
+     * araliginda baska bir ONAYLI (durum=1) randevuda dolu mu diye bakar.
+     *
+     * ONEMLI: Bu yontem, eski (kapatilmis) cakisan_randevu_kontrol'den TAMAMEN
+     * bagimsizdir. Ayar kapaliyken null doner => mevcut davranis birebir korunur.
+     *
+     * Doner:
+     *   null            -> ayar kapali VEYA cakisma yok (randevu olusturmaya devam)
+     *   array(...)      -> cakisma var; frontend'e popup icin yapisal veri
+     *
+     * @return array|null
+     */
+    public function kaynak_cakisma_kontrol(Request $request, $randevu_tarihleri)
+    {
+        $salon = Salonlar::find($request->sube);
+        if (!$salon || empty($salon->cakisma_uyarisi_aktif)) {
+            return null; // ayar kapali => hicbir kisitlama uygulama
+        }
+
+        $turu = (int) $salon->randevu_takvim_turu; // 1=personel, 2=cihaz, 3=oda, 0=hizmet
+
+        // Takvim turune gore hangi kaynak kolonu kontrol edilecek
+        if ($turu == 2) {
+            $kolon = 'cihaz_id';   $istekDizisi = $request->randevucihazlariyeni;   $tip = 'cihaz';
+        } elseif ($turu == 3) {
+            $kolon = 'oda_id';     $istekDizisi = $request->randevuodalariyeni;      $tip = 'oda';
+        } else {
+            $kolon = 'personel_id'; $istekDizisi = $request->randevupersonelleriyeni; $tip = 'personel';
+        }
+
+        if (!is_array($istekDizisi)) {
+            return null; // bu modda secilebilir kaynak yok
+        }
+
+        $current_randevu_id = $request->randevu_id ?? null;
+
+        foreach ($randevu_tarihleri as $tarih) {
+
+            $yenisaatbaslangic = $request->saat;
+
+            foreach ($istekDizisi as $key => $deger) {
+
+                // Bu satirdaki kaynak id (moda gore)
+                $kaynak_id = ($deger !== '' && $deger !== null) ? $deger : null;
+
+                // Bu satirin sure/saat penceresi
+                $sure = 0;
+                if (isset($request->hizmet_suresi[$key]) && $request->hizmet_suresi[$key] !== '') {
+                    $sure = (int) $request->hizmet_suresi[$key];
+                } elseif ($key == 0) {
+                    $sure = (int) ($request->randevusuz_sure ?? 0); // hizmetsiz randevu
+                }
+
+                if ($key == 0) {
+                    $saat_baslangic = $request->saat;
+                } else {
+                    $saat_baslangic = $yenisaatbaslangic;
+                }
+                $saat_bitis = date('H:i', strtotime('+' . $sure . ' minutes', strtotime($saat_baslangic)));
+
+                // "Ustekiyle birlestir" (paralel) degilse sonraki satir bu bitiste baslar
+                if (!isset($request->{'birlestir' . ($key + 1)})) {
+                    $yenisaatbaslangic = $saat_bitis;
+                }
+
+                if (!$kaynak_id) {
+                    continue; // bu satirda kaynak secilmemis => cakisma kontrol edilemez
+                }
+
+                // Ayni kaynagin ayni gun ONAYLI randevu-hizmetleri
+                $onaylilar = DB::table('randevular')
+                    ->join('randevu_hizmetler', 'randevular.id', '=', 'randevu_hizmetler.randevu_id')
+                    ->where('randevular.tarih', $tarih)
+                    ->where('randevular.durum', 1)
+                    ->where('randevular.salon_id', $request->sube)
+                    ->where('randevu_hizmetler.' . $kolon, $kaynak_id)
+                    ->when($current_randevu_id, function ($q) use ($current_randevu_id) {
+                        $q->where('randevular.id', '!=', $current_randevu_id);
+                    })
+                    ->select('randevu_hizmetler.saat', 'randevu_hizmetler.saat_bitis', 'randevu_hizmetler.hizmet_id', 'randevu_hizmetler.personel_id')
+                    ->get();
+
+                foreach ($onaylilar as $rh) {
+                    $cakisma =
+                        strtotime($saat_baslangic) < strtotime($rh->saat_bitis) &&
+                        strtotime($saat_bitis) > strtotime($rh->saat);
+
+                    if (!$cakisma) {
+                        continue;
+                    }
+
+                    // Cakisma bulundu => ilk cakismayi raporla (kullanici cozunce tekrar kontrol edilir)
+                    $kaynak_adi   = self::kaynak_adi_getir($tip, $kaynak_id);
+                    $dolu_hizmet  = $rh->hizmet_id
+                        ? (DB::table('hizmetler')->where('id', $rh->hizmet_id)->value('hizmet_adi') ?: 'işlem')
+                        : 'işlem';
+                    $dolu_saat    = date('H:i', strtotime($rh->saat));
+
+                    // Cihaz/oda modunda da o kaynagi KULLANAN personeli bul ki
+                    // "<personel> personel ... isleminde" seklinde kim mesgul soylenebilsin.
+                    $dolu_personel = $rh->personel_id
+                        ? self::kaynak_adi_getir('personel', $rh->personel_id)
+                        : null;
+
+                    if ($tip == 'personel') {
+                        $mesaj = 'Şu an <b>' . e($kaynak_adi) . '</b> personel <b>' . e($dolu_hizmet) . '</b> işleminde (' . $dolu_saat . '). Yine de bu personele randevu vermek istiyor musunuz?';
+                    } elseif ($tip == 'cihaz') {
+                        $kim = $dolu_personel ? '<b>' . e($dolu_personel) . '</b> personel ' : '';
+                        $mesaj = '<b>' . e($kaynak_adi) . '</b> cihazı şu an dolu — ' . $kim . '<b>' . e($dolu_hizmet) . '</b> işleminde (' . $dolu_saat . '). Yine de bu cihaza randevu vermek istiyor musunuz?';
+                    } else {
+                        $kim = $dolu_personel ? '<b>' . e($dolu_personel) . '</b> personel ' : '';
+                        $mesaj = '<b>' . e($kaynak_adi) . '</b> odası şu an dolu — ' . $kim . '<b>' . e($dolu_hizmet) . '</b> işleminde (' . $dolu_saat . '). Yine de bu odaya randevu vermek istiyor musunuz?';
+                    }
+
+                    return [
+                        'kaynak_cakismasi' => 1,
+                        'tip'              => $tip,          // personel|cihaz|oda
+                        'satir'            => $key,          // hangi hizmet satiri (0-bazli)
+                        'kaynak_adi'       => $kaynak_adi,
+                        'mesaj'            => $mesaj,
+                        'musait'           => self::musait_kaynaklar($tip, $request->sube, $tarih, $saat_baslangic, $saat_bitis, $kaynak_id),
+                    ];
+                }
+            }
+        }
+
+        return null; // cakisma yok
+    }
+
+    /** Kaynak (personel/cihaz/oda) adini getir. */
+    private function kaynak_adi_getir($tip, $id)
+    {
+        if ($tip == 'cihaz') {
+            return DB::table('cihazlar')->where('id', $id)->value('cihaz_adi') ?: 'Cihaz';
+        }
+        if ($tip == 'oda') {
+            return DB::table('odalar')->where('id', $id)->value('oda_adi') ?: 'Oda';
+        }
+        return DB::table('salon_personelleri')->where('id', $id)->value('personel_adi') ?: 'Personel';
+    }
+
+    /**
+     * Verilen zaman araliginda MUSAIT (o pencerede onayli randevusu olmayan)
+     * aktif kaynaklari (personel/cihaz/oda) dondurur. Cakisan kaynak listeden cikarilir.
+     *
+     * @return array [ ['id'=>.., 'ad'=>..], ... ]
+     */
+    private function musait_kaynaklar($tip, $salon_id, $tarih, $start, $end, $haric_id = null)
+    {
+        // 1) Salondaki aktif kaynaklar
+        if ($tip == 'cihaz') {
+            $kolon = 'cihaz_id';
+            $hepsi = DB::table('cihazlar')
+                ->where('salon_id', $salon_id)->where('aktifmi', 1)
+                ->select('id', 'cihaz_adi as ad')->get();
+        } elseif ($tip == 'oda') {
+            $kolon = 'oda_id';
+            $hepsi = DB::table('odalar')
+                ->where('salon_id', $salon_id)->where('aktifmi', 1)
+                ->select('id', 'oda_adi as ad')->get();
+        } else {
+            $kolon = 'personel_id';
+            $hepsi = DB::table('salon_personelleri')
+                ->where('salon_id', $salon_id)
+                ->where('aktif', 1)
+                ->where(function ($q) { $q->where('arsivli', 0)->orWhereNull('arsivli'); })
+                ->select('id', 'personel_adi as ad')->get();
+        }
+
+        // 2) O gun bu tip icin ONAYLI randevu-hizmetleri (saat pencereleriyle)
+        $mesguller = DB::table('randevular')
+            ->join('randevu_hizmetler', 'randevular.id', '=', 'randevu_hizmetler.randevu_id')
+            ->where('randevular.tarih', $tarih)
+            ->where('randevular.durum', 1)
+            ->where('randevular.salon_id', $salon_id)
+            ->whereNotNull('randevu_hizmetler.' . $kolon)
+            ->select('randevu_hizmetler.' . $kolon . ' as kaynak_id', 'randevu_hizmetler.saat', 'randevu_hizmetler.saat_bitis')
+            ->get();
+
+        // 3) Verilen pencerede dolu olan kaynak id'leri
+        $doluIdler = [];
+        foreach ($mesguller as $m) {
+            $cakisma =
+                strtotime($start) < strtotime($m->saat_bitis) &&
+                strtotime($end) > strtotime($m->saat);
+            if ($cakisma) {
+                $doluIdler[$m->kaynak_id] = true;
+            }
+        }
+
+        // 4) Musait olanlari topla (cakisan kaynak da haric)
+        $musait = [];
+        foreach ($hepsi as $k) {
+            if (isset($doluIdler[$k->id])) continue;
+            if ($haric_id !== null && (string) $k->id === (string) $haric_id) continue;
+            $musait[] = ['id' => $k->id, 'ad' => $k->ad];
+        }
+
+        return $musait;
+    }
+
     public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     {
         $cakisan_unsurlar = '';

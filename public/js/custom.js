@@ -3534,6 +3534,71 @@ $('#hizmetpersonelgetir').click(function(e){
     });
     });
 });
+// ===== Kaynak (personel/cihaz/oda) çakışma uyarısı yardımcıları =====
+// Salon "cakisma_uyarisi_aktif" ayarı açıkken, takvim türüne göre seçilen kaynak
+// o saatte doluysa backend {kaynak_cakismasi:1,...} döner; aşağıdaki akış devreye girer.
+function _kaynakSelectAdi(tip){
+    if(tip === 'cihaz') return 'randevucihazlariyeni[]';
+    if(tip === 'oda')   return 'randevuodalariyeni[]';
+    return 'randevupersonelleriyeni[]';
+}
+// EVET: onay bayrağıyla randevuyu kesin oluştur
+function kaynakOnayliGonder(formData){
+    formData.append('kaynak_cakisma_onay',1);
+    $.ajax({
+        type:'POST', url:'/isletmeyonetim/yenirandevuekle', dataType:'json',
+        data:formData, processData:false, contentType:false,
+        beforeSend:function(){ $('#preloader').show(); },
+        success:function(r){
+            $('#preloader').hide();
+            $('#yenirandevuekleform').trigger('reset');
+            $('#modal-view-event-add').modal('hide');
+            swal({type:'success',title:'Başarılı',html:r.success,showCloseButton:false,showCancelButton:false,showConfirmButton:false,timer:r.timer});
+            if($('#calendar').length) takvimyukle(false,false);
+            if(typeof resetForm==='function') resetForm();
+        },
+        error:function(req){ $('#preloader').hide(); document.getElementById('hata').innerHTML=req.responseText; }
+    });
+}
+// HAYIR: o saatte müsait kaynakları göster; seçilince ilgili satırı değiştirip tekrar gönder
+function kaynakMusaitSecici(res){
+    var tipAd = (res.tip==='cihaz') ? 'cihaz' : (res.tip==='oda' ? 'oda' : 'personel');
+    if(!res.musait || res.musait.length === 0){
+        swal({type:'info',title:'Müsait yok',html:"<p style='font-size:14px;color:#4b5563'>Bu saat aralığında müsait "+tipAd+" bulunmuyor. Lütfen saati ya da "+tipAd+"i elle değiştirip tekrar deneyin.</p>"});
+        return;
+    }
+    var opts = '';
+    for(var i=0;i<res.musait.length;i++){
+        opts += '<option value="'+res.musait[i].id+'">'+res.musait[i].ad+'</option>';
+    }
+    swal({
+        title:'Müsait '+tipAd+' seç',
+        html:"<p style='font-size:13.5px;color:#6b7280;margin:2px 0 10px'>Bu saatte boş olan "+tipAd+" listesi:</p>"+
+             "<select id='musaitKaynakSecim' class='form-control' style='width:100%'>"+opts+"</select>",
+        showCancelButton:true,
+        confirmButtonText:'<i class="fa fa-check"></i> Seç ve devam et',
+        cancelButtonText:'Vazgeç',
+        confirmButtonColor:'#7c3aed',
+        cancelButtonColor:'#9ca3af',
+        reverseButtons:true,
+        preConfirm:function(){ return document.getElementById('musaitKaynakSecim').value; }
+    }).then(function(secim){
+        if(!secim.value) return;
+        var yeniId = secim.value;
+        var selName = _kaynakSelectAdi(res.tip);
+        var $sel = $('#yenirandevuekleform select[name="'+selName+'"]').eq(res.satir);
+        if($sel.length){
+            if($sel.find('option[value="'+yeniId+'"]').length === 0){
+                var ad = '';
+                for(var j=0;j<res.musait.length;j++){ if(String(res.musait[j].id)===String(yeniId)) ad=res.musait[j].ad; }
+                $sel.append('<option value="'+yeniId+'">'+ad+'</option>');
+            }
+            $sel.val(yeniId).trigger('change');
+        }
+        // İlgili satırı değiştirdik; formu yeniden gönder (tekrar çakışma kontrolü yapılır, temizse oluşur)
+        $('#yenirandevuekleform').submit();
+    });
+}
 $(document).on('submit','#yenirandevuekleform',function(e){
     e.preventDefault();
     var personelveyacihasecili = true;
@@ -3655,6 +3720,25 @@ $(document).on('submit','#yenirandevuekleform',function(e){
             },
             success: function(result)  {
                 $('#preloader').hide();
+                if(result.kaynak_cakismasi)
+                {
+                    swal({
+                        type:'warning',
+                        title:'Çakışma Uyarısı',
+                        html:"<p style='font-size:14.5px;color:#4b5563;margin:6px 0 12px;line-height:1.5;'>"+result.mesaj+"</p>",
+                        showCancelButton:true,
+                        confirmButtonText:'<i class="fa fa-check"></i> Evet',
+                        cancelButtonText:'<i class="fa fa-times"></i> Hayır',
+                        confirmButtonColor:'#7c3aed',
+                        cancelButtonColor:'#9ca3af',
+                        reverseButtons:true,
+                        focusCancel:true,
+                    }).then(function(r2){
+                        if(r2.value){ kaynakOnayliGonder(formData); }
+                        else if(r2.dismiss === 'cancel'){ kaynakMusaitSecici(result); }
+                    });
+                    return;
+                }
                 if(result.cakismavar)
                 {
                     swal(
