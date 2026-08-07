@@ -15025,13 +15025,19 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     public function tahsilatekle(Request $request)
     {
+        // Komisyon tutari: adisyona yansitilmaz; tahsilat.komisyon_tutari kolonuna ve
+        // ayri Masraflar (Banka Odemeleri) kaydina yazilir. tahsilat.tutar SADECE adisyon
+        // odeme kismidir (indirimli toplam - komisyon) -> boylece Kalan negatife dusmez.
+        $_komisyon = (float) str_replace(['.',','],['','.'], (string)($request->komisyon_tutari ?? '0'));
+        $_indirimliToplam = (float) str_replace(['.',','],['','.'], (string)($request->indirimli_toplam_tahsilat_tutari ?? '0'));
+        $_adisyonPayment = max(0, $_indirimliToplam - $_komisyon);
+
         $tahsilat = new Tahsilatlar();
         $tahsilat->adisyon_id = $request->adisyon_id;
-        $tahsilat->tutar = str_replace(
-            ".",
-            "",
-            $request->indirimli_toplam_tahsilat_tutari
-        );
+        $tahsilat->tutar = $_adisyonPayment;
+        if (\Schema::hasColumn('tahsilatlar', 'komisyon_tutari')) {
+            $tahsilat->komisyon_tutari = $_komisyon;
+        }
 
         $tahsilat->user_id = $request->ad_soyad;
         $tahsilat->odeme_tarihi = $request->tahsilat_tarihi;
@@ -15039,21 +15045,38 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             ->where("yetkili_id", $request->olusturan)
             ->value("id");
         $tahsilat->salon_id = $request->sube;
-        $tahsilat->yapilan_odeme = str_replace(
-            ".",
-            "",
-            $request->indirimli_toplam_tahsilat_tutari
-        );
+        $tahsilat->yapilan_odeme = $_adisyonPayment;
         $tahsilat->odeme_yontemi_id = $request->odeme_yontemi;
         $tahsilat->notlar = $request->tahsilat_notlari;
         $tahsilat->save();
+
+        // Komisyon > 0 ise otomatik Masraf kaydi (Kategori: Banka Odemeleri)
+        if ($_komisyon > 0) {
+            try {
+                $_bankaKat = MasrafKategorisi::firstOrCreate(['kategori' => 'Banka Ödemeleri']);
+                $_masraf = new Masraflar();
+                $_masraf->salon_id           = $request->sube;
+                $_masraf->harcayan_id        = Personeller::where("salon_id", $request->sube)
+                    ->where("yetkili_id", $request->olusturan)->value("id");
+                $_masraf->masraf_kategori_id = $_bankaKat->id;
+                $_masraf->tarih              = $request->tahsilat_tarihi;
+                $_masraf->tutar              = $_komisyon;
+                $_masraf->odeme_yontemi_id   = $request->odeme_yontemi;
+                $_masraf->aciklama           = 'Komisyon Tutarı';
+                $_masraf->save();
+            } catch (\Throwable $e) {
+                \Log::error('komisyon masrafi (mobil) kaydedilemedi', ['err' => $e->getMessage(), 'tahsilat_id' => $tahsilat->id]);
+            }
+        }
+
         // Yeni satis ekranindan secilen satis tarihini adisyona uygula
         self::adisyonSatisTarihiniGuncelle($request);
         $toplam_adisyon = AdisyonHizmetler::whereIn('id',$request->adisyon_hizmet_id)->sum('fiyat')
                  + AdisyonUrunler::whereIn('id',$request->adisyon_urun_id)->sum('fiyat')
                  + AdisyonPaketler::whereIn('id',$request->adisyon_paket_id)->sum('fiyat');
-   
-        $yapilan_odeme = str_replace(['.',','],['','.'],$request->indirimli_toplam_tahsilat_tutari);
+
+        // Kalem dagitimi: komisyondan arinmis adisyon odemesi uzerinden yapilir
+        $yapilan_odeme = $_adisyonPayment;
         Log::info('toplam adiyon '.$toplam_adisyon." ödenen ".$yapilan_odeme);
         if (isset($request->adisyon_hizmet_id)) {
             foreach ($request->adisyon_hizmet_id as $key => $hizmet_id) {
