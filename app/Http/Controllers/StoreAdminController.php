@@ -11896,6 +11896,30 @@ private function ayAdiCevir($ingilizceAy)
             $_audit_musteriAdi.' — '.$_audit_tutar.' ₺',
             'Tahsilat alındı',
             ['adisyon_id' => $request->adisyon_id, 'odeme_yontemi_id' => $request->odeme_yontemi]);
+
+        // Komisyon tutari > 0 ise otomatik Masraf kaydi (Kategori: Banka Odemeleri)
+        $_komisyon = (float) str_replace(['.',','],['','.'], (string)($request->komisyon_tutari ?? '0'));
+        if ($_komisyon > 0) {
+            try {
+                $_bankaKat = MasrafKategorisi::firstOrCreate(['kategori' => 'Banka Ödemeleri']);
+                $_masraf = new Masraflar();
+                $_masraf->salon_id           = $request->sube;
+                $_masraf->harcayan_id        = Personeller::where('salon_id', $request->sube)
+                    ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)->value('id');
+                $_masraf->masraf_kategori_id = $_bankaKat->id;
+                $_masraf->tarih              = $request->tahsilat_tarihi;
+                $_masraf->tutar              = $_komisyon;
+                $_masraf->odeme_yontemi_id   = $request->odeme_yontemi;
+                $_masraf->aciklama           = 'Komisyon Tutarı';
+                $_masraf->save();
+                SalonAudit::log($request->sube, 'masraf_ekle', 'masraf', $_masraf->id,
+                    'Komisyon Tutarı — '.number_format($_komisyon,2,',','.').' ₺',
+                    'Tahsilat komisyonu otomatik gider olarak kaydedildi',
+                    ['tahsilat_id' => $tahsilat->id, 'kategori' => 'Banka Ödemeleri']);
+            } catch (\Throwable $e) {
+                \Log::error('komisyon masrafi kaydedilemedi', ['err' => $e->getMessage(), 'tahsilat_id' => $tahsilat->id]);
+            }
+        }
         if(isset($request->adisyon_hizmet_id) && isset($request->adisyon_hizmet_senet_id) && isset($request->adisyon_hizmet_taksitli_tahsilat_id))
         {
             foreach($request->adisyon_hizmet_id as $key=>$hizmet_id)

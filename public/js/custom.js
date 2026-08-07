@@ -16874,6 +16874,9 @@ $('#indirim_tutari').on('keyup paste', function(){
 $('#harici_indirim_tutari').on('keyup paste', function(){
     tahsilatyenidenhesapla();
 });
+$(document).on('keyup paste change', '#komisyon_tutari', function(){
+    tahsilatyenidenhesapla();
+});
 function adisyonyenidenhesapla()
 {
     var total  = 0;
@@ -19047,6 +19050,10 @@ function tahsilatyenidenhesapla()
         harici_indirim = 0;
     $('#uygulanan_harici_indirim_tutari').empty();
     $('#uygulanan_harici_indirim_tutari').append(accounting.formatMoney(harici_indirim,'',2,'.',','))
+    // Komisyon tutari: tahsilat toplamina eklenir (Alacak Tutarina yansir), tahsil et anında ayrıca masraf olarak kaydedilir
+    var komisyon_tutari = ($('#komisyon_tutari').val() || '0').replace(".", "").replace(',','.');
+    komisyon_tutari = parseFloat(komisyon_tutari);
+    if(!$.isNumeric(komisyon_tutari)) komisyon_tutari = 0;
     var musteri_indirimi = $('#musteri_indirim').val().replace(".", "");
     musteri_indirimi = musteri_indirimi.replace(',','.');
     musteri_indirimi = parseFloat(musteri_indirimi);
@@ -19074,8 +19081,8 @@ function tahsilatyenidenhesapla()
     //var indirim_tutari = birim_tutar*(musteri_indirimi/100);
     var indirimli_tutar = indirim_tutari - harici_indirim;
     senetli_taksitli_birim_tutar = senetli_taksitli_birim_tutar.toFixed(2);
-    var toplam = birim_tutar - indirim_tutari - harici_indirim;
-    var odenecek_tutar = birim_tutar - indirim_tutari - harici_indirim /*- senetli_taksitli_toplam_tutar()*/;
+    var toplam = birim_tutar - indirim_tutari - harici_indirim + komisyon_tutari;
+    var odenecek_tutar = birim_tutar - indirim_tutari - harici_indirim + komisyon_tutari /*- senetli_taksitli_toplam_tutar()*/;
     indirimli_tutar = indirimli_tutar.toFixed(2);
     toplam = toplam.toFixed(2);
     $('#ara_toplam').empty();

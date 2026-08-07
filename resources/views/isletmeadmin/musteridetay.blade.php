@@ -997,13 +997,19 @@
                         <input type="hidden" id='musteri_indirimi' name="musteri_indirimi">
                      </div>
                   </div>
-                  <div class="col-md-3 col-sm-6 col-xs-6 col-6 ">
+                  <div class="col-md-2 col-sm-6 col-xs-6 col-6 ">
                      <div class="form-group">
                         <label>İndirim (₺)</label>
                         <input  type="tel" name="indirim_tutari" id='harici_indirim_tutari' class="form-control try-currency">
                      </div>
                   </div>
-                  <div class="col-md-3 col-sm-6 col-xs-6 col-6 ">
+                  <div class="col-md-2 col-sm-6 col-xs-6 col-6 ">
+                     <div class="form-group">
+                        <label>Komisyon (₺)</label>
+                        <input type="tel" name="komisyon_tutari" id="komisyon_tutari" class="form-control try-currency" value="0">
+                     </div>
+                  </div>
+                  <div class="col-md-2 col-sm-6 col-xs-6 col-6 ">
                      <div class="form-group">
                         <label>Ödenecek Tutar (₺)</label>
                         <input type="tel" style="font-size: 20px; background-color: #d4edda; border-color: #c3e6cb;" class="form-control try-currency"  name="indirimli_toplam_tahsilat_tutari" id="indirimli_toplam_tahsilat_tutari" value="0">
