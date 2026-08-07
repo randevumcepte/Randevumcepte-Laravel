@@ -24775,9 +24775,14 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                     ->get();
 
                 foreach ($onaylilar as $rh) {
-                    $cakisma =
-                        strtotime($saat_baslangic) < strtotime($rh->saat_bitis) &&
-                        strtotime($saat_bitis) > strtotime($rh->saat);
+                    $ns = strtotime($saat_baslangic);
+                    $ne = strtotime($saat_bitis);
+                    $es = strtotime($rh->saat);
+                    $ee = strtotime($rh->saat_bitis);
+                    // Normal aralik cakismasi VEYA yeni randevu mevcut aralikte basliyor.
+                    // Ikinci kosul, yeni randevu suresi 0/bilinmiyor (paket vb.) oldugunda bile
+                    // AYNI ANDA baslama durumunu yakalar (klasik formul bunu kacirir).
+                    $cakisma = ($ns < $ee && $ne > $es) || ($ns >= $es && $ns < $ee);
 
                     if (!$cakisma) {
                         continue;
@@ -24874,9 +24879,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         // 3) Verilen pencerede dolu olan kaynak id'leri
         $doluIdler = [];
         foreach ($mesguller as $m) {
-            $cakisma =
-                strtotime($start) < strtotime($m->saat_bitis) &&
-                strtotime($end) > strtotime($m->saat);
+            $ns = strtotime($start);
+            $ne = strtotime($end);
+            $es = strtotime($m->saat);
+            $ee = strtotime($m->saat_bitis);
+            $cakisma = ($ns < $ee && $ne > $es) || ($ns >= $es && $ns < $ee);
             if ($cakisma) {
                 $doluIdler[$m->kaynak_id] = true;
             }
