@@ -24707,7 +24707,16 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     public function kaynak_cakisma_kontrol(Request $request, $randevu_tarihleri)
     {
         $salon = Salonlar::find($request->sube);
+        \Log::info('[kaynak_cakisma] giris', [
+            'sube' => $request->sube,
+            'salon_bulundu' => $salon ? 1 : 0,
+            'ayar' => $salon ? ($salon->cakisma_uyarisi_aktif ?? 'null') : 'salon-yok',
+            'takvim_turu' => $salon ? ($salon->randevu_takvim_turu ?? 'null') : null,
+            'saat' => $request->saat,
+            'randevu_id' => $request->randevu_id ?? null,
+        ]);
         if (!$salon || empty($salon->cakisma_uyarisi_aktif)) {
+            \Log::info('[kaynak_cakisma] cikis: ayar kapali veya salon yok');
             return null; // ayar kapali => hicbir kisitlama uygulama
         }
 
@@ -24722,7 +24731,17 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $kolon = 'personel_id'; $istekDizisi = $request->randevupersonelleriyeni; $tip = 'personel';
         }
 
+        \Log::info('[kaynak_cakisma] mod', [
+            'turu' => $turu,
+            'tip' => $tip,
+            'kolon' => $kolon,
+            'istekDizisi' => $istekDizisi,
+            'istekDizisi_tip' => gettype($istekDizisi),
+            'hizmet_suresi' => $request->hizmet_suresi ?? null,
+        ]);
+
         if (!is_array($istekDizisi)) {
+            \Log::info('[kaynak_cakisma] cikis: istekDizisi dizi degil');
             return null; // bu modda secilebilir kaynak yok
         }
 
@@ -24773,6 +24792,15 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                     })
                     ->select('randevu_hizmetler.saat', 'randevu_hizmetler.saat_bitis', 'randevu_hizmetler.hizmet_id', 'randevu_hizmetler.personel_id')
                     ->get();
+
+                \Log::info('[kaynak_cakisma] satir', [
+                    'key' => $key,
+                    'kaynak_id' => $kaynak_id,
+                    'kolon' => $kolon,
+                    'pencere' => $saat_baslangic . '-' . $saat_bitis,
+                    'bulunan_kayit' => count($onaylilar),
+                    'kayitlar' => $onaylilar->map(function ($x) { return $x->saat . '-' . $x->saat_bitis; })->toArray(),
+                ]);
 
                 foreach ($onaylilar as $rh) {
                     $ns = strtotime($saat_baslangic);
