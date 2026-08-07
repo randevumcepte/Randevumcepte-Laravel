@@ -22,7 +22,11 @@ use Illuminate\Support\Facades\Log;
  *   - kalan                = toplam - tamamlanan - gelmedi
  *   - bu randevuda         = bu randevuya ait, o hizmetin geldi=1 satir sayisi
  *
- * Sadece UYGULAMA BILDIRIMI (push) gonderir. SMS/WhatsApp GONDERMEZ.
+ * Uc kanaldan gonderir: push (detayli) -> WhatsApp (detayli) -> SMS (kisa fallback,
+ * sadece push VE WhatsApp ikisi de ulasmadiysa).
+ *
+ * KAPI: "Seans Bilgisi Bildirimi" toggle'i (salon_sms_ayarlari.ayar_id=20 / musteri).
+ * Kapali (varsayilan 0) ise hicbir kanaldan mesaj gitmez.
  *
  * Hem ApiController (mobil) hem StoreAdminController (web) ayni servisi cagirir.
  *
@@ -32,6 +36,20 @@ class SeansBildirimService
 {
     public function bilgilendir(Randevular $randevu): void
     {
+        // KAPI: "Seans Bilgisi Bildirimi" ayari (SMS Yonetimi ekrani).
+        // salon_sms_ayarlari.ayar_id=20 / musteri kolonu. Toggle KAPALI (0/null) ise
+        // musteriye seans bildirimi HICBIR kanaldan (push/WhatsApp/SMS) gitmez.
+        // Not: varsayilan 0'dir; her salon panelden acmalidir (DB'ye dokunulmadi).
+        $seansBildirimiAcik = \App\SalonSMSAyarlari::where('salon_id', $randevu->salon_id)
+            ->where('ayar_id', 20)
+            ->value('musteri');
+        if ((int) $seansBildirimiAcik !== 1) {
+            Log::info('[SEANS-KULLANIM] Seans Bilgisi Bildirimi kapali, atlandi', [
+                'randevu_id' => $randevu->id, 'salon_id' => $randevu->salon_id,
+            ]);
+            return;
+        }
+
         $musteri = $randevu->users ?? User::find($randevu->user_id);
         if (!$musteri || !$musteri->id) {
             Log::info('[SEANS-KULLANIM] musteri bulunamadi, atlandi', ['randevu_id' => $randevu->id]);
