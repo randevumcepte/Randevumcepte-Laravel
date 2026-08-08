@@ -11892,13 +11892,17 @@ private function ayAdiCevir($ingilizceAy)
         $_komisyon = (float) str_replace(['.',','],['','.'], (string)($request->komisyon_tutari ?? '0'));
         $_indirimliToplam = (float) str_replace(['.',','],['','.'], (string)($request->indirimli_toplam_tahsilat_tutari ?? '0'));
         $_adisyonPayment = max(0, $_indirimliToplam - $_komisyon);
-        // Kalem dagitim formulunde: hizmet_tutar / tahsilat_tutari * indirimli_toplam
-        // HER IKI degerin de komisyondan arinmis olmasi gerek, aksi halde kalem odemesi bozulur
-        // (ornek: 1300 / 1430 * 1300 = 1181.82 -> yanlis).
-        $_adisyonPaymentStr = number_format($_adisyonPayment, 2, ',', '.');
+        // Kalem dagitim formulu: kalem_pay / tahsilat_tutari * indirimli_toplam
+        //   * tahsilat_tutari = JS'nin sagladigi "kalem paylari toplami" (odenecek_tutar) — komisyondan arindirilir
+        //   * indirimli_toplam = fiili adisyon odemesi (=indirimli_toplam - komisyon)
+        // Partial odemede tahsilat_tutari != indirimli_toplam olabilir (kalemler 5000, kismi 2500 gibi),
+        // bu yuzden ikisi ayri hesaplanir. Hepsini tek degere merge etmek partial odemede kalem tahsilatini
+        // yanlislikla kalem_toplama esitler (bug #629040 nedenidir).
+        $_jsTahsilatTutari = (float) str_replace(['.',','],['','.'], (string)($request->tahsilat_tutari ?? '0'));
+        $_adjustedTahsilatTutari = max(0, $_jsTahsilatTutari - $_komisyon);
         $request->merge([
-            'indirimli_toplam_tahsilat_tutari' => $_adisyonPaymentStr,
-            'tahsilat_tutari'                  => $_adisyonPaymentStr,
+            'indirimli_toplam_tahsilat_tutari' => number_format($_adisyonPayment, 2, ',', '.'),
+            'tahsilat_tutari'                  => number_format($_adjustedTahsilatTutari, 2, ',', '.'),
         ]);
 
         $tahsilat = new Tahsilatlar();
