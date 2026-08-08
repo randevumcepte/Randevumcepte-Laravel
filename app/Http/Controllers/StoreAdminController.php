@@ -11948,6 +11948,40 @@ private function ayAdiCevir($ingilizceAy)
                 \Log::error('komisyon masrafi kaydedilemedi', ['err' => $e->getMessage(), 'tahsilat_id' => $tahsilat->id]);
             }
         }
+
+        // Harici indirim (request->indirim_tutari) > 0 ise kalemlere ORANSAL dagit
+        // ve mevcut indirim_tutari uzerine EKLE. Boylece Adisyon Kalani dogru hesaplanir.
+        $_hariciIndirim = (float) str_replace(['.',','],['','.'], (string)($request->indirim_tutari ?? '0'));
+        if ($_hariciIndirim > 0) {
+            try {
+                $_hIds = $request->adisyon_hizmet_id ?? [];
+                $_uIds = $request->adisyon_urun_id ?? [];
+                $_pIds = $request->adisyon_paket_id ?? [];
+                $_hizmetler = AdisyonHizmetler::whereIn('id', $_hIds)->whereNull('senet_id')->whereNull('taksitli_tahsilat_id')->get();
+                $_urunler   = AdisyonUrunler::whereIn('id', $_uIds)->whereNull('senet_id')->whereNull('taksitli_tahsilat_id')->get();
+                $_paketler  = AdisyonPaketler::whereIn('id', $_pIds)->whereNull('senet_id')->whereNull('taksitli_tahsilat_id')->get();
+                $_toplamKalemFiyat = $_hizmetler->sum('fiyat') + $_urunler->sum('fiyat') + $_paketler->sum('fiyat');
+                if ($_toplamKalemFiyat > 0) {
+                    foreach ($_hizmetler as $_h) {
+                        $_pay = round(((float)$_h->fiyat / $_toplamKalemFiyat) * $_hariciIndirim, 2);
+                        $_h->indirim_tutari = (float)($_h->indirim_tutari ?? 0) + $_pay;
+                        $_h->save();
+                    }
+                    foreach ($_urunler as $_u) {
+                        $_pay = round(((float)$_u->fiyat / $_toplamKalemFiyat) * $_hariciIndirim, 2);
+                        $_u->indirim_tutari = (float)($_u->indirim_tutari ?? 0) + $_pay;
+                        $_u->save();
+                    }
+                    foreach ($_paketler as $_p) {
+                        $_pay = round(((float)$_p->fiyat / $_toplamKalemFiyat) * $_hariciIndirim, 2);
+                        $_p->indirim_tutari = (float)($_p->indirim_tutari ?? 0) + $_pay;
+                        $_p->save();
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::error('harici indirim kaleme yazilamadi', ['err' => $e->getMessage(), 'tahsilat_id' => $tahsilat->id]);
+            }
+        }
         if(isset($request->adisyon_hizmet_id) && isset($request->adisyon_hizmet_senet_id) && isset($request->adisyon_hizmet_taksitli_tahsilat_id))
         {
             foreach($request->adisyon_hizmet_id as $key=>$hizmet_id)
