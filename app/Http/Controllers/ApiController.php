@@ -15070,7 +15070,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         }
 
         // Harici indirim (request->indirim_tutari) > 0 ise kalemlere ORANSAL dagit
-        // ve mevcut indirim_tutari uzerine EKLE. Boylece Adisyon Kalani dogru hesaplanir.
+        // ve mevcut indirim_tutari uzerine EKLE. Kismi tahsilatta indirim, kalan borctan
+        // fazla uygulanmaz — boylece adisyon yanlislikla 'tam kapali' gorunmez.
         $_hariciIndirim = (float) str_replace(['.',','],['','.'], (string)($request->indirim_tutari ?? '0'));
         if ($_hariciIndirim > 0) {
             try {
@@ -15080,22 +15081,34 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $_hizmetler = AdisyonHizmetler::whereIn('id', $_hIds)->whereNull('senet_id')->whereNull('taksitli_tahsilat_id')->get();
                 $_urunler   = AdisyonUrunler::whereIn('id', $_uIds)->whereNull('senet_id')->whereNull('taksitli_tahsilat_id')->get();
                 $_paketler  = AdisyonPaketler::whereIn('id', $_pIds)->whereNull('senet_id')->whereNull('taksitli_tahsilat_id')->get();
-                $_toplamKalemFiyat = $_hizmetler->sum('fiyat') + $_urunler->sum('fiyat') + $_paketler->sum('fiyat');
+                $_toplamKalemFiyat = (float)($_hizmetler->sum('fiyat') + $_urunler->sum('fiyat') + $_paketler->sum('fiyat'));
                 if ($_toplamKalemFiyat > 0) {
-                    foreach ($_hizmetler as $_h) {
-                        $_pay = round(((float)$_h->fiyat / $_toplamKalemFiyat) * $_hariciIndirim, 2);
-                        $_h->indirim_tutari = (float)($_h->indirim_tutari ?? 0) + $_pay;
-                        $_h->save();
-                    }
-                    foreach ($_urunler as $_u) {
-                        $_pay = round(((float)$_u->fiyat / $_toplamKalemFiyat) * $_hariciIndirim, 2);
-                        $_u->indirim_tutari = (float)($_u->indirim_tutari ?? 0) + $_pay;
-                        $_u->save();
-                    }
-                    foreach ($_paketler as $_p) {
-                        $_pay = round(((float)$_p->fiyat / $_toplamKalemFiyat) * $_hariciIndirim, 2);
-                        $_p->indirim_tutari = (float)($_p->indirim_tutari ?? 0) + $_pay;
-                        $_p->save();
+                    $_mevcutIndirim = (float)($_hizmetler->sum('indirim_tutari') + $_urunler->sum('indirim_tutari') + $_paketler->sum('indirim_tutari'));
+                    $_hizmetIdler = $_hizmetler->pluck('id')->all();
+                    $_urunIdler   = $_urunler->pluck('id')->all();
+                    $_paketIdler  = $_paketler->pluck('id')->all();
+                    $_oncekiTahsilat = 0.0;
+                    if (!empty($_hizmetIdler)) $_oncekiTahsilat += (float) TahsilatHizmetler::whereIn('adisyon_hizmet_id', $_hizmetIdler)->sum('tutar');
+                    if (!empty($_urunIdler))   $_oncekiTahsilat += (float) TahsilatUrunler::whereIn('adisyon_urun_id', $_urunIdler)->sum('tutar');
+                    if (!empty($_paketIdler))  $_oncekiTahsilat += (float) TahsilatPaketler::whereIn('adisyon_paket_id', $_paketIdler)->sum('tutar');
+                    $_kalanBorcSonrasi = $_toplamKalemFiyat - $_mevcutIndirim - $_oncekiTahsilat - $_adisyonPayment;
+                    $_uygulanacakIndirim = max(0, min($_hariciIndirim, $_kalanBorcSonrasi));
+                    if ($_uygulanacakIndirim > 0) {
+                        foreach ($_hizmetler as $_h) {
+                            $_pay = round(((float)$_h->fiyat / $_toplamKalemFiyat) * $_uygulanacakIndirim, 2);
+                            $_h->indirim_tutari = (float)($_h->indirim_tutari ?? 0) + $_pay;
+                            $_h->save();
+                        }
+                        foreach ($_urunler as $_u) {
+                            $_pay = round(((float)$_u->fiyat / $_toplamKalemFiyat) * $_uygulanacakIndirim, 2);
+                            $_u->indirim_tutari = (float)($_u->indirim_tutari ?? 0) + $_pay;
+                            $_u->save();
+                        }
+                        foreach ($_paketler as $_p) {
+                            $_pay = round(((float)$_p->fiyat / $_toplamKalemFiyat) * $_uygulanacakIndirim, 2);
+                            $_p->indirim_tutari = (float)($_p->indirim_tutari ?? 0) + $_pay;
+                            $_p->save();
+                        }
                     }
                 }
             } catch (\Throwable $e) {
