@@ -15563,18 +15563,62 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         }
         if(isset($request->indirimli_toplam_tahsilat_tutari)&&$request->indirimli_toplam_tahsilat_tutari > 0)
         {
+            // Komisyon flow: adisyonPayment = indirimli_toplam - komisyon; komisyon ayri Tahsilat+Masraf
+            $_komisyon = (float) str_replace(['.',','],['','.'], (string)($request->komisyon_tutari ?? '0'));
+            $_indirimliToplam = (float) str_replace(['.',','],['','.'], (string)$request->indirimli_toplam_tahsilat_tutari);
+            $_adisyonPayment = max(0, $_indirimliToplam - $_komisyon);
+            // Kalem dagitim formulunun komisyondan arinmis calismasi icin merge et
+            $request->merge(['indirimli_toplam_tahsilat_tutari' => number_format($_adisyonPayment, 2, ',', '.')]);
+
             $tahsilat = new Tahsilatlar();
             if(isset($request->adisyon_id))
                 $tahsilat->adisyon_id = $request->adisyon_id;
             $tahsilat->user_id = $request->tahsilat_musteri_id;
-            $tahsilat->tutar = str_replace(['.',','],['','.'],$request->indirimli_toplam_tahsilat_tutari);
+            $tahsilat->tutar = $_adisyonPayment;
+            if (\Schema::hasColumn('tahsilatlar', 'komisyon_tutari')) {
+                $tahsilat->komisyon_tutari = $_komisyon;
+            }
             $tahsilat->odeme_tarihi = $request->tahsilat_tarihi;
             $tahsilat->olusturan_id = Personeller::where('salon_id',$request->sube)->where('yetkili_id',$request->olusturan)->value('id');
             $tahsilat->salon_id = $request->sube;
-            $tahsilat->yapilan_odeme = str_replace(['.',','],['','.'],$request->indirimli_toplam_tahsilat_tutari);
+            $tahsilat->yapilan_odeme = $_adisyonPayment;
             $tahsilat->odeme_yontemi_id = $request->odeme_yontemi;
             $tahsilat->notlar = $request->tahsilat_notlari;
             $tahsilat->save();
+
+            // Komisyon > 0 ise ek Tahsilat (gelir) + Masraf (gider) kayitlari
+            if ($_komisyon > 0) {
+                try {
+                    $_komTahsilat = new Tahsilatlar();
+                    $_komTahsilat->adisyon_id      = $request->adisyon_id ?? null;
+                    $_komTahsilat->tutar           = $_komisyon;
+                    $_komTahsilat->user_id         = $request->tahsilat_musteri_id;
+                    $_komTahsilat->odeme_tarihi    = $request->tahsilat_tarihi;
+                    $_komTahsilat->olusturan_id    = Personeller::where('salon_id',$request->sube)->where('yetkili_id',$request->olusturan)->value('id');
+                    $_komTahsilat->salon_id        = $request->sube;
+                    $_komTahsilat->yapilan_odeme   = $_komisyon;
+                    $_komTahsilat->odeme_yontemi_id= $request->odeme_yontemi;
+                    $_komTahsilat->para_girisi     = 1;
+                    $_komTahsilat->notlar          = 'Komisyon Geliri (tahsilat #'.$tahsilat->id.')';
+                    $_komTahsilat->save();
+
+                    $_bankaKat = MasrafKategorisi::firstOrCreate(['kategori' => 'Banka Ödemeleri']);
+                    $_masraf = new Masraflar();
+                    $_masraf->salon_id           = $request->sube;
+                    if (\Schema::hasColumn('masraflar', 'adisyon_id')) {
+                        $_masraf->adisyon_id     = $request->adisyon_id ?? null;
+                    }
+                    $_masraf->harcayan_id        = Personeller::where('salon_id',$request->sube)->where('yetkili_id',$request->olusturan)->value('id');
+                    $_masraf->masraf_kategori_id = $_bankaKat->id;
+                    $_masraf->tarih              = $request->tahsilat_tarihi;
+                    $_masraf->tutar              = $_komisyon;
+                    $_masraf->odeme_yontemi_id   = $request->odeme_yontemi;
+                    $_masraf->aciklama           = 'Komisyon Tutarı';
+                    $_masraf->save();
+                } catch (\Throwable $e) {
+                    \Log::error('taksitli komisyon kayitlari (mobil) yazilamadi', ['err' => $e->getMessage(), 'tahsilat_id' => $tahsilat->id]);
+                }
+            }
             if(isset($request->adisyon_hizmetleri) )
             {
                // 1️⃣ Toplam net hizmet fiyatını hesapla
