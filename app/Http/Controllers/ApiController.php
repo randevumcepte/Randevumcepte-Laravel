@@ -20737,8 +20737,14 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $personelRolunde = \App\Services\PersonelYetkiServisi::personelRolundeMi($personelId, $salonId);
 
-        // Personel rolunde DEGILSE → tam yetki (defansif: mevcut roller bozulmaz)
-        if (!$personelRolunde) {
+        // Ozel yetki kaydi var mi? Sekreter/Yonetici icin bile kaydedilmis olabilir.
+        // Kayit varsa rolden bagimsiz uygulanir (backend yetkiVar mantigi ile ayni).
+        $ozelKayitVar = \App\PersonelYetkiAyari::where('personel_id', $personelId)
+            ->where('salon_id', $salonId)
+            ->exists();
+
+        if (!$personelRolunde && !$ozelKayitVar) {
+            // Ne personel rolu ne ozel kayit -> tam yetki (Yonetici/Sekreter default)
             $tum = [];
             foreach (\App\PersonelYetkiSabitleri::tumAnahtarlar() as $k) {
                 $tum[$k] = true;
@@ -20752,10 +20758,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             ]);
         }
 
-        // Personel rolunde → kayitli ayarlar (yoksa personel_sade)
+        // Personel rolunde YA DA ozel yetki kaydi var -> gercek ayarlar
         $ayarlar = \App\Services\PersonelYetkiServisi::ayarlariGetir($personelId, $salonId);
         return response()->json([
             'basarili'         => true,
+            // Not: personel_rolunde=true doner ki Flutter Yetki.varMi() gercek
+            // ayarlara baksin (ozel kayit varsa Sekreter/Yonetici icin de kisit).
             'personel_rolunde' => true,
             'salon_sahibi'     => false,
             'sablon'           => $ayarlar['sablon'],
