@@ -2159,6 +2159,15 @@
         }
     });
 
+    // Datepicker locale/format ne olursa olsun input degisince YYYY-MM-DD'ye
+    // normalize et (kullanici gorsel olarak da YMD gorsun, submit'te de temiz gitsin).
+    $modal.on('change blur', '#v2_tarih, #v2_kapama_tarih', function(){
+        var norm = _normalizeTarihYMD($(this).val());
+        if (norm && norm !== $(this).val()) {
+            $(this).val(norm);
+        }
+    });
+
     $modal.on('hidden.bs.modal', function(){
         // Form'u tamamen sifirla: musteri, hizmet, personel, oda, not, tekrar, summary
         resetV2Form();
@@ -2403,9 +2412,38 @@
     // ============================================================
     $modal.on('click', '#v2_submit_btn', function(){ v2SubmitAll(); });
 
+    // Tarih normalize: kullanicinin datepicker'i / tarayici locale'i gibi
+    // sebeplerle '16.08.2026', '16/08/2026', '2026-08-16', '2026/08/16'
+    // gibi degerlerde gelebilir. Backend 'Y-m-d' bekliyor — donduremezsek
+    // 0000-00-00 kaydediliyor.
+    function _normalizeTarihYMD(v){
+        if (!v) return '';
+        var s = String(v).trim();
+        // Zaten YYYY-MM-DD ise dokunma
+        var m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (m) return m[1] + '-' + ('0'+m[2]).slice(-2) + '-' + ('0'+m[3]).slice(-2);
+        // YYYY/MM/DD
+        m = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+        if (m) return m[1] + '-' + ('0'+m[2]).slice(-2) + '-' + ('0'+m[3]).slice(-2);
+        // DD.MM.YYYY veya D.M.YYYY
+        m = s.match(/^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{4})$/);
+        if (m) return m[3] + '-' + ('0'+m[2]).slice(-2) + '-' + ('0'+m[1]).slice(-2);
+        // Son care: Date parse (locale'ye bagimli)
+        try {
+            var d = new Date(s);
+            if (!isNaN(d.getTime())) {
+                var yy = d.getFullYear();
+                var mm = ('0'+(d.getMonth()+1)).slice(-2);
+                var dd = ('0'+d.getDate()).slice(-2);
+                return yy + '-' + mm + '-' + dd;
+            }
+        } catch(e){}
+        return s; // parse edilemedi -> orjinali gonder (backend hata verecek)
+    }
+
     function v2SubmitAll(){
         var musteriId = $musteri.val();
-        var tarih = $tarih.val();
+        var tarih = _normalizeTarihYMD($tarih.val());
         var saat = $saat.val();
 
         var paketCards = $services.find('.v2-paket-card').toArray();
@@ -2671,7 +2709,7 @@
     // oldugundan options yuklenmemis — proxy patliyor.)
     $modal.on('click', '#v2_submit_kapama_btn', function(){
         var personelId = $('#v2_kapama_personel').val();
-        var tarih      = $('#v2_kapama_tarih').val();
+        var tarih      = _normalizeTarihYMD($('#v2_kapama_tarih').val());
         var $saat      = $('#saatkapamaform_v2 input[name="saat"]');
         var $saatBitis = $('#saatkapamaform_v2 input[name="saat_bitis"]');
         var tumGun     = $('#v2_kapama_tumgun').is(':checked');
