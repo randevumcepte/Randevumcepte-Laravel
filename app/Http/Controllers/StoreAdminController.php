@@ -2153,7 +2153,7 @@ public function carkverilerigetir(Request $request)
                             DB::raw('((SELECT COALESCE(SUM(fiyat-COALESCE(indirim_tutari,0)),0) FROM adisyon_hizmetler WHERE adisyon_id=adisyonlar.id)
                                     + (SELECT COALESCE(SUM(fiyat-COALESCE(indirim_tutari,0)),0) FROM adisyon_urunler WHERE adisyon_id=adisyonlar.id)
                                     + (SELECT COALESCE(SUM(fiyat-COALESCE(indirim_tutari,0)),0) FROM adisyon_paketler WHERE adisyon_id=adisyonlar.id)) as toplam_tutar'),
-                            DB::raw('(SELECT COALESCE(SUM(tutar),0) FROM tahsilatlar WHERE adisyon_id=adisyonlar.id) as odenen_tutar')
+                            DB::raw('(SELECT COALESCE(SUM(tutar),0) FROM tahsilatlar WHERE adisyon_id=adisyonlar.id AND (para_girisi=0 OR para_girisi IS NULL)) as odenen_tutar')
                         )
                         ->havingRaw('toplam_tutar > odenen_tutar AND toplam_tutar > 0')
                         ->orderByDesc('adisyonlar.created_at')
@@ -10669,7 +10669,7 @@ private function ayAdiCevir($ingilizceAy)
         }
         //$indirim = (Adisyonlar::where('id',$adisyon_id)->value('indirim_tutari')) ? Adisyonlar::where('id',$adisyon_id)->value('indirim_tutari') : 0;
         //$adisyon_toplam_tutar = AdisyonHizmetler::where('adisyon_id',$adisyon_id)->sum('fiyat')+AdisyonUrunler::where('adisyon_id',$adisyon_id)->sum('fiyat')+AdisyonPaketler::where('adisyon_id',$adisyon_id)->sum('fiyat') - $indirim;
-          //  $tahsil_edilen_tutar = Tahsilatlar::where('adisyon_id',$adisyon_id)->sum('tutar');
+          //  $tahsil_edilen_tutar = Tahsilatlar::where('adisyon_id',$adisyon_id)->where(function($q){ $q->where('para_girisi',0)->orWhereNull('para_girisi'); })->sum('tutar');
            // $kalan_tutar = $adisyon_toplam_tutar - $tahsil_edilen_tutar;
         //$adisyon_html =  self::adsiyon_urun_liste_getir($request,$adisyon_id);
 
@@ -10804,7 +10804,7 @@ private function ayAdiCevir($ingilizceAy)
             }
             $indirim = (Adisyonlar::where('id',$adisyon_id)->value('indirim_tutari')) ? Adisyonlar::where('id',$adisyon->id)->value('indirim_tutari') : 0;
             $adisyon_toplam_tutar = AdisyonHizmetler::where('adisyon_id',$adisyon_id)->sum('fiyat')+AdisyonUrunler::where('adisyon_id',$adisyon_id)->sum('fiyat')+AdisyonPaketler::where('adisyon_id',$adisyon_id)->sum('fiyat')-$indirim;
-                $tahsil_edilen_tutar = Tahsilatlar::where('adisyon_id',$adisyon_id)->sum('tutar');
+                $tahsil_edilen_tutar = Tahsilatlar::where('adisyon_id',$adisyon_id)->where(function($q){ $q->where('para_girisi',0)->orWhereNull('para_girisi'); })->sum('tutar');
                 $kalan_tutar = $adisyon_toplam_tutar - $tahsil_edilen_tutar;
             $adisyon_urun = self::adsiyon_urun_liste_getir($request,$adisyon_id);
             return array(
@@ -10910,7 +10910,7 @@ private function ayAdiCevir($ingilizceAy)
             {
                 $indirim = (Adisyonlar::where('id',$adisyon_id)->value('indirim_tutari')) ? Adisyonlar::where('id',$adisyon->id)->value('indirim_tutari') : 0;
                 $adisyon_toplam_tutar = AdisyonHizmetler::where('adisyon_id',$adisyon_id)->sum('fiyat')+AdisyonUrunler::where('adisyon_id',$adisyon_id)->sum('fiyat')+AdisyonPaketler::where('adisyon_id',$adisyon_id)->sum('fiyat')-$indirim;
-                    $tahsil_edilen_tutar = Tahsilatlar::where('adisyon_id',$adisyon_id)->sum('tutar');
+                    $tahsil_edilen_tutar = Tahsilatlar::where('adisyon_id',$adisyon_id)->where(function($q){ $q->where('para_girisi',0)->orWhereNull('para_girisi'); })->sum('tutar');
                     $kalan_tutar = $adisyon_toplam_tutar - $tahsil_edilen_tutar;
                 $adisyon_paket_liste = self::adisyon_paket_satis_getir($adisyon_id,false,'');
                 return array(
@@ -11709,7 +11709,7 @@ private function ayAdiCevir($ingilizceAy)
         }
         $indirim = (Adisyonlar::where('id',$adisyon->id)->value('indirim_tutari')) ? Adisyonlar::where('id',$adisyon->id)->value('indirim_tutari') : 0;
         $adisyon_toplam_tutar = AdisyonHizmetler::where('adisyon_id',$adisyon->id)->sum('fiyat')+AdisyonUrunler::where('adisyon_id',$adisyon->id)->sum('fiyat')+AdisyonPaketler::where('adisyon_id',$adisyon->id)->sum('fiyat')-$indirim;
-        $tahsil_edilen_tutar = Tahsilatlar::where('adisyon_id',$adisyon->id)->sum('tutar');
+        $tahsil_edilen_tutar = Tahsilatlar::where('adisyon_id',$adisyon->id)->where(function($q){ $q->where('para_girisi',0)->orWhereNull('para_girisi'); })->sum('tutar');
         $kalan_tutar = $adisyon_toplam_tutar - $tahsil_edilen_tutar;
         return array(
                 'html'=>$html,
@@ -11930,16 +11930,16 @@ private function ayAdiCevir($ingilizceAy)
             ['adisyon_id' => $request->adisyon_id, 'odeme_yontemi_id' => $request->odeme_yontemi]);
 
         // Komisyon tutari > 0 ise iki kayit birden:
-        //   1) EK TAHSILAT (para_girisi=1, adisyon_id=null) — kasaya GELIR olarak yansir
-        //   2) MASRAF (Banka Odemeleri) — kasadan GIDER olarak cikar
-        // Boylece net kasa etkisi 0 ama gerçek para akışı iz birakmis olur (müşteri komisyonu
-        // ödedi -> banka onu kesti). Kalemlere dagitilmaz (adisyon_id=null).
+        //   1) EK TAHSILAT (para_girisi=1, adisyon_id=ADISYON) — kasaya GELIR olarak yansir
+        //   2) MASRAF (Banka Odemeleri, adisyon_id=ADISYON) — kasadan GIDER olarak cikar
+        // Ikisi de adisyon_id ile bagli -> adisyon silinince otomatik silinir.
+        // Kalemlere dagitilmaz (TahsilatHizmet/Urun/Paket kaydi yok).
         $_komisyon = (float) str_replace(['.',','],['','.'], (string)($request->komisyon_tutari ?? '0'));
         if ($_komisyon > 0) {
             try {
                 // 1) Gelir kaydi (Tahsilatlar, para_girisi=1)
                 $_komTahsilat = new Tahsilatlar();
-                $_komTahsilat->adisyon_id      = null;
+                $_komTahsilat->adisyon_id      = $request->adisyon_id;
                 $_komTahsilat->tutar           = $_komisyon;
                 $_komTahsilat->user_id         = $request->tahsilat_musteri_id;
                 $_komTahsilat->odeme_tarihi    = $request->tahsilat_tarihi;
@@ -11956,6 +11956,9 @@ private function ayAdiCevir($ingilizceAy)
                 $_bankaKat = MasrafKategorisi::firstOrCreate(['kategori' => 'Banka Ödemeleri']);
                 $_masraf = new Masraflar();
                 $_masraf->salon_id           = $request->sube;
+                if (\Schema::hasColumn('masraflar', 'adisyon_id')) {
+                    $_masraf->adisyon_id     = $request->adisyon_id;
+                }
                 $_masraf->harcayan_id        = Personeller::where('salon_id', $request->sube)
                     ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)->value('id');
                 $_masraf->masraf_kategori_id = $_bankaKat->id;
@@ -16234,7 +16237,7 @@ DB::raw('
     $adisyon_toplam_tutar = AdisyonHizmetler::where('adisyon_id', $adisyon_id)->sum('fiyat')
         + AdisyonUrunler::where('adisyon_id', $adisyon_id)->sum('fiyat')
         + AdisyonPaketler::where('adisyon_id', $adisyon_id)->sum('fiyat') - $indirim;
-    $tahsil_edilen_tutar = Tahsilatlar::where('adisyon_id', $adisyon_id)->sum('tutar');
+    $tahsil_edilen_tutar = Tahsilatlar::where('adisyon_id', $adisyon_id)->where(function($q){ $q->where('para_girisi',0)->orWhereNull('para_girisi'); })->sum('tutar');
     $kalan_tutar = $adisyon_toplam_tutar - $tahsil_edilen_tutar;
 
         return [
@@ -25402,6 +25405,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             // "hayalet borc" olarak kaliyordu. Diger silme yollariyla ayni sekilde
             // adisyon_id uzerinden temizleniyor (her Alacaklar kaydinda adisyon_id dolu).
             Alacaklar::where('adisyon_id',$request->adisyon_id)->delete();
+            // Komisyon kayitlari (adisyon silinince otomatik temizlenir)
+            if (\Schema::hasColumn('masraflar', 'adisyon_id')) {
+                Masraflar::where('adisyon_id', $request->adisyon_id)->delete();
+            }
             Adisyonlar::where('id',$request->adisyon_id)->delete();
             $musteriid = '';
             if($request->musteri_id!='')

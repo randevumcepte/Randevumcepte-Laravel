@@ -15050,13 +15050,14 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $tahsilat->notlar = $request->tahsilat_notlari;
         $tahsilat->save();
 
-        // Komisyon > 0 ise iki kayit: (1) ek Tahsilat (para_girisi=1, adisyon_id=null) — GELIR;
-        // (2) Masraf (Banka Odemeleri) — GIDER. Net kasa etkisi 0 ama iz kaliyor.
+        // Komisyon > 0 ise iki kayit: (1) ek Tahsilat (para_girisi=1) — GELIR;
+        // (2) Masraf (Banka Odemeleri) — GIDER. Ikisi de adisyon_id ile bagli -> adisyon
+        // silinince otomatik silinir. Net kasa etkisi 0.
         if ($_komisyon > 0) {
             try {
                 // 1) Gelir kaydi
                 $_komTahsilat = new Tahsilatlar();
-                $_komTahsilat->adisyon_id      = null;
+                $_komTahsilat->adisyon_id      = $request->adisyon_id;
                 $_komTahsilat->tutar           = $_komisyon;
                 $_komTahsilat->user_id         = $request->ad_soyad;
                 $_komTahsilat->odeme_tarihi    = $request->tahsilat_tarihi;
@@ -15073,6 +15074,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $_bankaKat = MasrafKategorisi::firstOrCreate(['kategori' => 'Banka Ödemeleri']);
                 $_masraf = new Masraflar();
                 $_masraf->salon_id           = $request->sube;
+                if (\Schema::hasColumn('masraflar', 'adisyon_id')) {
+                    $_masraf->adisyon_id     = $request->adisyon_id;
+                }
                 $_masraf->harcayan_id        = Personeller::where("salon_id", $request->sube)
                     ->where("yetkili_id", $request->olusturan)->value("id");
                 $_masraf->masraf_kategori_id = $_bankaKat->id;
@@ -27551,6 +27555,10 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             }
             // Taksit/senet alacak kalintilarini temizle (vadeler yukarida silindi).
             Alacaklar::where('adisyon_id',$request->adisyon_id)->delete();
+            // Komisyon masraf kayitlari (Tahsilatlar zaten yukarida temizlendi)
+            if (\Schema::hasColumn('masraflar', 'adisyon_id')) {
+                Masraflar::where('adisyon_id', $request->adisyon_id)->delete();
+            }
             Adisyonlar::where('id',$request->adisyon_id)->delete();
             $musteriid = '';
             if($request->musteri_id!='')
