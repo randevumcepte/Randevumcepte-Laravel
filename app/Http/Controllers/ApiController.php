@@ -14972,32 +14972,51 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         }
 
+        // Her taksitli tahsilat / senet icin kaleme baglilik ozeti hazirla:
+        // "Sac Bakimi (H), Manikur (Ü), Full Bakim (P)"
+        $_kalemOzeti = function($hizmetler, $urunler, $paketler) {
+            $parts = [];
+            foreach ($hizmetler as $h) {
+                $ad = optional($h->hizmet)->hizmet_adi;
+                if ($ad) $parts[] = $ad.' (H)';
+            }
+            foreach ($urunler as $u) {
+                $ad = optional($u->urun)->urun_adi;
+                if ($ad) $parts[] = $ad.' (Ü)';
+            }
+            foreach ($paketler as $p) {
+                $ad = optional($p->paket)->paket_adi;
+                if ($ad) $parts[] = $ad.' (P)';
+            }
+            return implode(', ', $parts);
+        };
+
+        $taksitler = TaksitliTahsilatlar::where("taksitli_tahsilatlar.salon_id", $request->salon_id)
+            ->where("taksitli_tahsilatlar.user_id", $request->musteri_id)
+            ->with(['hizmetler.hizmet','urunler.urun','paketler.paket','vadeler'])
+            ->get()
+            ->map(function($t) use($_kalemOzeti){
+                $arr = $t->toArray();
+                $arr['kalem_ozeti'] = $_kalemOzeti($t->hizmetler, $t->urunler, $t->paketler);
+                return $arr;
+            });
+
+        $senetler = Senetler::where("senetler.salon_id", $request->salon_id)
+            ->where("senetler.user_id", $request->musteri_id)
+            ->with(['hizmetler.hizmet','urunler.urun','paketler.paket','vadeler'])
+            ->get()
+            ->map(function($s) use($_kalemOzeti){
+                $arr = $s->toArray();
+                $arr['kalem_ozeti'] = $_kalemOzeti($s->hizmetler, $s->urunler, $s->paketler);
+                return $arr;
+            });
+
         return [
-
-            "senet" => Senetler::where("senetler.salon_id", $request->salon_id)
-
-                ->where("senetler.user_id", $request->musteri_id)
-
-                ->get(),
-
-            "taksit" => TaksitliTahsilatlar::where(
-
-                "taksitli_tahsilatlar.salon_id",
-
-                $request->salon_id
-
-            )
-
-                ->where("taksitli_tahsilatlar.user_id", $request->musteri_id)
-
-                ->get(),
-
+            "senet" => $senetler,
+            "taksit" => $taksitler,
             "adisyon_hizmet" => $adisyon_hizmetler,
-
             "adisyon_urun" => $adisyon_urunler,
-
             "adisyon_paket" => $adisyon_paketler,
-
         ];
 
     }
