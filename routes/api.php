@@ -96,6 +96,7 @@ Route::post('/whatsapp/baslat/{salonId}','WhatsappMobileController@baslat');
 Route::get('/whatsapp/durum/{salonId}','WhatsappMobileController@durum');
 Route::get('/whatsapp/qr/{salonId}','WhatsappMobileController@qr');
 Route::post('/whatsapp/cikis/{salonId}','WhatsappMobileController@cikis');
+Route::post('/whatsapp/pair-phone/{salonId}','WhatsappMobileController@pairPhone');
 Route::get('/whatsapp/ozet/{salonId}','WhatsappMobileController@ozet');
 Route::get('/whatsapp/loglar/{salonId}','WhatsappMobileController@loglar');
 Route::get('/whatsapp/aliciler/{salonId}','WhatsappMobileController@aliciler');

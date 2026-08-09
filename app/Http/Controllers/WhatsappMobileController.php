@@ -107,6 +107,30 @@ class WhatsappMobileController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Telefon numarasi ile 8 haneli pair-code uretir (QR alternatifi).
+     * Kullanici bu kodu telefondaki WhatsApp Business "Baglı Cihazlar" -> "Cihaz Bagla"
+     * -> "Telefon numarasiyla baglan" ekranina el ile girer.
+     * Web tarafindaki whatsappPairPhone ile ayni davranis, sadece mobil rota.
+     */
+    public function pairPhone(Request $request, $salonId)
+    {
+        try {
+            $phone = trim((string) $request->input('phone', ''));
+            if ($phone === '') return response()->json(['error' => 'phone-required'], 422);
+
+            if (!class_exists(\App\Services\WhatsmeowService::class)) {
+                return response()->json(['error' => 'whatsmeow-servis-yok'], 200);
+            }
+            $svc = app(\App\Services\WhatsmeowService::class);
+            $res = $svc->pairPhone($salonId, $phone);
+            return response()->json($res['body'] ?? ['error' => 'servis-erisilemiyor'], $res['status'] ?: 502);
+        } catch (\Throwable $e) {
+            Log::warning('WP pairPhone: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 200);
+        }
+    }
+
     // ============ Data ============
 
     public function ozet(Request $request, $salonId)
