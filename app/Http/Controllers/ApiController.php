@@ -15050,9 +15050,26 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $tahsilat->notlar = $request->tahsilat_notlari;
         $tahsilat->save();
 
-        // Komisyon > 0 ise otomatik Masraf kaydi (Kategori: Banka Odemeleri)
+        // Komisyon > 0 ise iki kayit: (1) ek Tahsilat (para_girisi=1, adisyon_id=null) — GELIR;
+        // (2) Masraf (Banka Odemeleri) — GIDER. Net kasa etkisi 0 ama iz kaliyor.
         if ($_komisyon > 0) {
             try {
+                // 1) Gelir kaydi
+                $_komTahsilat = new Tahsilatlar();
+                $_komTahsilat->adisyon_id      = null;
+                $_komTahsilat->tutar           = $_komisyon;
+                $_komTahsilat->user_id         = $request->ad_soyad;
+                $_komTahsilat->odeme_tarihi    = $request->tahsilat_tarihi;
+                $_komTahsilat->olusturan_id    = Personeller::where("salon_id", $request->sube)
+                    ->where("yetkili_id", $request->olusturan)->value("id");
+                $_komTahsilat->salon_id        = $request->sube;
+                $_komTahsilat->yapilan_odeme   = $_komisyon;
+                $_komTahsilat->odeme_yontemi_id= $request->odeme_yontemi;
+                $_komTahsilat->para_girisi     = 1;
+                $_komTahsilat->notlar          = 'Komisyon Geliri (tahsilat #'.$tahsilat->id.')';
+                $_komTahsilat->save();
+
+                // 2) Gider kaydi
                 $_bankaKat = MasrafKategorisi::firstOrCreate(['kategori' => 'Banka Ödemeleri']);
                 $_masraf = new Masraflar();
                 $_masraf->salon_id           = $request->sube;
@@ -15065,7 +15082,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $_masraf->aciklama           = 'Komisyon Tutarı';
                 $_masraf->save();
             } catch (\Throwable $e) {
-                \Log::error('komisyon masrafi (mobil) kaydedilemedi', ['err' => $e->getMessage(), 'tahsilat_id' => $tahsilat->id]);
+                \Log::error('komisyon kayitlari (mobil) yazilamadi', ['err' => $e->getMessage(), 'tahsilat_id' => $tahsilat->id]);
             }
         }
 
