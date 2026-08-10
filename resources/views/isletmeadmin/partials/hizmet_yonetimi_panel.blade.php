@@ -592,9 +592,16 @@ window.hyDuzenleClick = function(btn){
          data: { 'salon_hizmetleri[]': [hizmetId], sube: {{$isletme->id}} },
          dataType: 'text',
          success: function(html){
+            // Endpoint HTML'i <select><option selected>...</option></select>
+            // seklinde donuyor (checkbox degil). Bug fix: input[checkbox]
+            // seciyoduk hicbir zaman eslesmiyordu -> atanmis personeller
+            // duzenle formunda secili gelmiyordu.
             var $tmp = $('<div>').html(html);
             var checkedIds = [];
-            $tmp.find('input[type=checkbox]:checked').each(function(){ checkedIds.push($(this).val()); });
+            $tmp.find('option[selected]').each(function(){
+               var v = $(this).attr('value');
+               if (v !== undefined && v !== null && v !== '') checkedIds.push(v);
+            });
             if(checkedIds.length > 0) $sel.val(checkedIds);
             if(typeof window.hyInitSelect2 === 'function') window.hyInitSelect2();
             $sel.trigger('change');
