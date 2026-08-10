@@ -1,6 +1,6 @@
 # Demo Kaydı — SMS Doğrulama (2 Adım)
 
-`POST /api/siteden-yeni-kullanici-kaydi` endpoint'i artık **iki adımlı** çalışır.
+`POST /api/v1/siteden-yeni-kullanici-kaydi` endpoint'i artık **iki adımlı** çalışır.
 Amaç: yanlış/sahte telefon numaralarıyla anında hesap açılmasını önlemek.
 
 - **Adım 1** (`dogrulama_kodu` boş gönderilir): Numaraya 4 haneli kod SMS ile gider,
@@ -64,7 +64,7 @@ Her yanıtta gösterilebilir bir `mesaj` alanı bulunur.
 ```javascript
 (function () {
   // ==== AYARLAR — kendi değerlerinle değiştir ====
-  var API_URL = 'https://app.randevumcepte.com.tr/api/siteden-yeni-kullanici-kaydi';
+  var API_URL = 'https://app.randevumcepte.com.tr/api/v1/siteden-yeni-kullanici-kaydi';
   var form    = document.querySelector('#uyeOlForm');      // <-- formun selector'ı
   var btn     = form.querySelector('button[type="submit"], .uye-ol-btn'); // <-- gönder butonu
   var kutu    = document.getElementById('dogrulamaKutu');

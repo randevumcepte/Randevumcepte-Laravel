@@ -140,7 +140,7 @@
 
     <script>
     (function () {
-        var API_URL = '/api/siteden-yeni-kullanici-kaydi';
+        var API_URL = '/api/v1/siteden-yeni-kullanici-kaydi';
         var form   = document.getElementById('uyeOlForm');
         var btn    = document.getElementById('uyeOlBtn');
         var kutu   = document.getElementById('dogrulamaKutu');
