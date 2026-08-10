@@ -7733,6 +7733,8 @@ private function ayAdiCevir($ingilizceAy)
                 $request->saat,
                 $_hizmetAdlari->unique()->values()->implode(', ')
             );
+            // Uygulaması olmayana WA'da indirme daveti + link ekle
+            $musteriYeniRandevuMesajiWA = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($musteriYeniRandevuMesajiWA, $isletme, $musteribilgi->id ?? null);
 
             $musteriToggle = SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$yenirandevu->salon_id)->value('musteri') == 1;
 

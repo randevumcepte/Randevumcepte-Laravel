@@ -305,20 +305,8 @@ class RandevuSMSHatirlatma extends Command
             // Aktif push token'ı varsa = uygulaması var -> eklenmez. Cloud API
             // salonlarda template kullanıldığından bu ek metin görünmez; yalnızca
             // whatsmeow serbest-metin gönderiminde alta eklenir.
-            $appLink = trim((string) ($salon->uygulamalar_kisa_link ?? ''));
-            if ($appLink !== '') {
-                try {
-                    $appVar = \App\BildirimKimlikleri::where('user_id', $musteri->id)
-                        ->where('aktif', true)->forBrand($salon->id)->exists();
-                } catch (\Throwable $e) {
-                    $appVar = false;
-                }
-                if (!$appVar) {
-                    $personalized .= "\n\n📲 *Uygulamamızı İndirin!*\n"
-                        . "Randevularınızı takip edin, otomatik hatırlatma alın ve size özel "
-                        . "fırsatlardan ilk siz haberdar olun 👉 " . $appLink;
-                }
-            }
+            // Uygulaması olmayana WA'da indirme daveti + link ekle (merkezî yardımcı)
+            $personalized = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($personalized, $salon, $musteri->id);
             $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $personalized, $randevu->id, $musteri->id, $templateCtx, false, 'randevu_hatirlatma');
             Log::info('[RND-SMS] müşteri WA sonuc', [
                 'salon_id' => $salon->id, 'randevu_id' => $randevu->id, 'sonuc' => $sonuc,

@@ -14,6 +14,32 @@ namespace App\Services;
 class WhatsAppMesajFormat
 {
     /**
+     * Müşteri WA mesajının altına "Uygulamamızı İndirin" daveti + link ekler.
+     * SADECE müşterinin AKTİF push token'ı YOKSA (=uygulaması yok) eklenir.
+     * Link: salonun uygulamalar_kisa_link'i, yoksa cihaz-duyarlı /indir/{salon}.
+     * Uygulaması olana / hata / eksik veri durumunda mesaj AYNEN döner.
+     * Tüm müşteri randevu mesajlarında (oluşturma/hatırlatma/güncelleme/iptal)
+     * tek noktadan kullanılsın diye burada.
+     */
+    public static function uygulamaDavetiEk($mesaj, $salon, $userId)
+    {
+        try {
+            if (!$salon || !$userId) return $mesaj;
+            $appVar = \App\BildirimKimlikleri::where('user_id', $userId)
+                ->where('aktif', true)->forBrand($salon->id)->exists();
+            if ($appVar) return $mesaj; // uygulaması var -> ekleme yok
+            $link = trim((string) ($salon->uygulamalar_kisa_link ?? ''));
+            if ($link === '') $link = url('/indir/' . $salon->id);
+            if ($link === '') return $mesaj;
+            return $mesaj . "\n\n📲 *Uygulamamızı İndirin!*\n"
+                . "Randevularınızı takip edin, otomatik hatırlatma alın ve size özel "
+                . "fırsatlardan ilk siz haberdar olun 👉 " . $link;
+        } catch (\Throwable $e) {
+            return $mesaj;
+        }
+    }
+
+    /**
      * Randevu olusturuldu bildirimi (WA).
      *
      * @param \App\Salonlar|object $salon salon_adi + konum_linki + telefon_1 alanlari kullanilir

@@ -11230,6 +11230,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                                 $request->randevu_saati,
                                 $_hizmetAdlari->unique()->values()->implode(', ')
                             );
+                            // Uygulaması olmayana WA'da indirme daveti + link ekle
+                            $_waMesaj = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($_waMesaj, $isletme, $musteribilgi->id ?? null);
                         }
                         array_push($mesajlar, [
                             "to" => $gsm,
@@ -27874,10 +27876,12 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 // Musteriye
                 if ($musteriSmsAcik && $randevu->users && !empty($randevu->users->cep_telefon)) {
                     $musteriMesaj = ($randevu->salonlar->salon_adi ?? 'Salon') . ' tarafından randevunuz ' . $tarihSaatTxt . ' olarak güncellendi.';
+                    // WA metnine uygulama daveti ekle; SMS ($musteriMesaj) sade kalır
+                    $musteriMesajWA = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($musteriMesaj, $randevu->salonlar, $randevu->user_id);
                     $gonderildi = false;
                     if ($waAcik) {
                         try {
-                            $r = $waService->sendReminder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaj, $randevu->id, $randevu->user_id, null, false, 'guncelleme_bildirim');
+                            $r = $waService->sendReminder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesajWA, $randevu->id, $randevu->user_id, null, false, 'guncelleme_bildirim');
                             $gonderildi = ($r['ok'] ?? false) === true;
                         } catch (\Throwable $e) { Log::warning('suruklebirak musteri WA fail: ' . $e->getMessage()); }
                     }
