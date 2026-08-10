@@ -17660,11 +17660,11 @@ DB::raw('
             return view('isletmeadmin.isletmesec', ['isletmeler' => $isletmeler, 'isletme' => Salonlar::where('id', self::mevcutsube($request))->first()]);
         }
         $isletme      = Salonlar::where('id', self::mevcutsube($request))->first();
-        // Afis, aktif/lisansli TUM salonlara acik. Lisans suresi zaten yukarida kontrol
-        // ediliyor; burada sadece tanimsiz/pasif uyelik (0) engellenir. NOT: "Lisansi Aktif Et"
-        // akisi uyelik_turu=1 set ettiginden eski katı "===3" sarti lisansli salonlari kilitliyordu.
-        if ((int) optional($isletme)->uyelik_turu < 1) {
-            abort(403);
+        // Afis, aktif TUM salonlara acik. Lisans suresi zaten yukarida (lisanssurebitti)
+        // kontrol ediliyor, ayrica uyelik_turu kapisina gerek yok. NOT: eski katı "===3"
+        // sarti "Lisansi Aktif Et" (uyelik_turu=1) ile acilan salonlari kilitliyordu.
+        if (!$isletme) {
+            abort(404);
         }
         $linklerHazir = (trim((string) $isletme->android_uygulama) !== '' && trim((string) $isletme->ios_uygulama) !== '');
         $herhangiLink = (trim((string) $isletme->android_uygulama) !== '' || trim((string) $isletme->ios_uygulama) !== '');
@@ -17695,8 +17695,8 @@ DB::raw('
             return view('isletmeadmin.yetkisizerisim');
         }
         $isletme = Salonlar::where('id', self::mevcutsube($request))->first();
-        if ((int) optional($isletme)->uyelik_turu < 1) {
-            abort(403);
+        if (!$isletme) {
+            abort(404);
         }
         $android = trim((string) $isletme->android_uygulama);
         $ios     = trim((string) $isletme->ios_uygulama);
