@@ -11095,6 +11095,44 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                                 ->where('aktifmi', true)
                                 ->value('id');
                         }
+                        // Fallback: oda personele degil HIZMETE bagliysa
+                        // (oda_sunulan_hizmetler) o hizmeti sunan odalardan bu saatte
+                        // BOS olani ata. Eslesme YOKSA dokunma (oda_id null kalir).
+                        if ($_odaId === null) {
+                            $_odaAdaylari = \App\OdaHizmetler::where('salon_id', $salonId)
+                                ->where('hizmet_id', $value["hizmet_id"])
+                                ->pluck('oda_id')->toArray();
+                            if (count($_odaAdaylari) > 0) {
+                                // yalniz aktif odalar, takvim sirasina gore
+                                $_odaAdaylari = \App\Odalar::whereIn('id', $_odaAdaylari)
+                                    ->where('salon_id', $salonId)
+                                    ->where('aktifmi', true)
+                                    ->orderBy('takvim_sirasi', 'asc')
+                                    ->pluck('id')->toArray();
+                                if (count($_odaAdaylari) > 0) {
+                                    $_rowSaat  = ($key2 == 0) ? $request->randevu_saati : $yenisaatbaslangic;
+                                    $_rowBitis = date("H:i", strtotime("+" . $value["sure_dk"] . " minutes", strtotime($_rowSaat)));
+                                    $_rowTarih = date('Y-m-d', strtotime($tarihler));
+                                    $_secilenOda = null;
+                                    foreach ($_odaAdaylari as $_aday) {
+                                        $_dolu = RandevuHizmetler::join('randevular', 'randevu_hizmetler.randevu_id', '=', 'randevular.id')
+                                            ->where('randevu_hizmetler.oda_id', $_aday)
+                                            ->where('randevular.tarih', $_rowTarih)
+                                            ->where('randevular.durum', '<', 2)
+                                            ->when($guncelleme, function ($q) use ($yenirandevu) {
+                                                $q->where('randevular.id', '!=', $yenirandevu->id);
+                                            })
+                                            ->where('randevu_hizmetler.saat', '<', $_rowBitis)
+                                            ->where('randevu_hizmetler.saat_bitis', '>', $_rowSaat)
+                                            ->exists();
+                                        if (!$_dolu) { $_secilenOda = $_aday; break; }
+                                    }
+                                    // Hepsi doluysa yine de ilk adayi ata (mapping VAR;
+                                    // randevu odasiz kalmasin) — sadece eslesme varken.
+                                    $_odaId = $_secilenOda ?? $_odaAdaylari[0];
+                                }
+                            }
+                        }
                         $yenirandevuhizmetpersonel->oda_id = $_odaId;
                         $yenirandevuhizmetpersonel->sure_dk = ($value["sure_dk"] != '' ? $value['sure_dk'] : '30');
                         $yenirandevuhizmetpersonel->fiyat = $value["fiyat"];
