@@ -3532,6 +3532,117 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     {
 
+        // ============================================================
+        // SMS DOGRULAMALI DEMO KAYDI (2 adim)
+        //  Adim 1 (dogrulama_kodu BOS): 4 haneli kod SMS ile gonderilir,
+        //          form verisi 10 dk cache'te bekletilir; HESAP ACILMAZ.
+        //  Adim 2 (dogrulama_kodu DOLU): kod dogruysa asagidaki mevcut
+        //          hesap-olusturma akisi calisir.
+        //  Amac: yanlis/sahte numaralarla aninda hesap acilmasini onlemek.
+        // ============================================================
+        $telefonHam        = $request->ceptelefon;
+        $telefonNorm       = self::telefon_no_format_duzenle($telefonHam);
+        $girilenKod        = trim((string) $request->dogrulama_kodu);
+        $dogrulamaCacheKey = 'demo_kayit_dogrulama_' . preg_replace('/\D/', '', (string) $telefonNorm);
+
+        if ($girilenKod === '') {
+            // --- Adim 1: dogrulama kodu uret + SMS gonder ---
+            $zatenVar = IsletmeYetkilileri::where('gsm1', $telefonNorm)->count();
+            if ($zatenVar >= 1) {
+                return response()->json([
+                    'durum' => 'zaten_uye',
+                    'mesaj' => 'Girdiğiniz telefon numarası ile daha önceden açılmış bir üyelik bulunmaktadır. Farklı bir telefon numarası ile tekrar deneyiniz.'
+                ]);
+            }
+            if (strlen(preg_replace('/\D/', '', (string) $telefonNorm)) < 10) {
+                return response()->json([
+                    'durum' => 'hata',
+                    'mesaj' => 'Lütfen geçerli bir cep telefonu numarası giriniz.'
+                ]);
+            }
+            if (trim((string) $request->isletmeadi) === '' || trim((string) $request->adsoyad) === '') {
+                return response()->json([
+                    'durum' => 'hata',
+                    'mesaj' => 'Lütfen işletme adı ve yetkili adı soyadını giriniz.'
+                ]);
+            }
+
+            $dogrulamaKodu = str_pad((string) mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
+            \Cache::put($dogrulamaCacheKey, [
+                'kod'           => $dogrulamaKodu,
+                'deneme'        => 0,
+                'isletmeadi'    => $request->isletmeadi,
+                'isletmeadresi' => $request->isletmeadresi,
+                'isletmeturu'   => $request->isletmeturu,
+                'adsoyad'       => $request->adsoyad,
+                'email'         => $request->email,
+                'ceptelefon'    => $telefonHam,
+            ], 10); // 10 dakika gecerli
+
+            try {
+                require_once app_path('VoiceTelekom/Sms/SmsApi.php');
+                require_once app_path('VoiceTelekom/Sms/SendMultiSms.php');
+                require_once app_path('VoiceTelekom/Sms/PeriodicSettings.php');
+                $smsApi = new \SmsApi("smsvt.voicetelekom.com", "webfirmam", "nBJeB5xb*4");
+                $smsReq = new \SendMultiSms();
+                $smsReq->content      = "Randevumcepte uyelik dogrulama kodunuz: " . $dogrulamaKodu . " . Kod 10 dakika gecerlidir.";
+                $smsReq->title        = 'Uyelik Dogrulama';
+                $smsReq->numbers      = [$telefonNorm];
+                $smsReq->encoding     = 0;
+                $smsReq->sender       = "RANDVMCEPTE";
+                $smsReq->skipAhsQuery = true;
+                $smsApi->sendMultiSms($smsReq);
+            } catch (\Throwable $e) {
+                \Log::error('[siteden_kayit] dogrulama SMS gonderilemedi: ' . $e->getMessage());
+                return response()->json([
+                    'durum' => 'hata',
+                    'mesaj' => 'Doğrulama SMS\'i gönderilemedi. Lütfen numaranızı kontrol edip tekrar deneyiniz.'
+                ]);
+            }
+
+            \Log::info('[siteden_kayit] dogrulama kodu gonderildi', ['telefon' => $telefonNorm]);
+            return response()->json([
+                'durum' => 'kod_gonderildi',
+                'mesaj' => 'Telefonunuza gönderilen 4 haneli doğrulama kodunu giriniz.'
+            ]);
+        }
+
+        // --- Adim 2: girilen kodu dogrula ---
+        $bekleyen = \Cache::get($dogrulamaCacheKey);
+        if (!$bekleyen || empty($bekleyen['kod'])) {
+            return response()->json([
+                'durum' => 'suresi_doldu',
+                'mesaj' => 'Doğrulama süresi doldu. Lütfen kaydı yeniden başlatınız.'
+            ]);
+        }
+        if ((int) ($bekleyen['deneme'] ?? 0) >= 5) {
+            \Cache::forget($dogrulamaCacheKey);
+            return response()->json([
+                'durum' => 'cok_deneme',
+                'mesaj' => 'Çok fazla hatalı deneme yapıldı. Lütfen kaydı yeniden başlatınız.'
+            ]);
+        }
+        if ((string) $girilenKod !== (string) $bekleyen['kod']) {
+            $bekleyen['deneme'] = (int) ($bekleyen['deneme'] ?? 0) + 1;
+            \Cache::put($dogrulamaCacheKey, $bekleyen, 10);
+            return response()->json([
+                'durum' => 'kod_hatali',
+                'mesaj' => 'Doğrulama kodu hatalı. Lütfen tekrar giriniz.'
+            ]);
+        }
+
+        // Kod dogru -> guvenilir form verisini cache'ten al, request'e yaz, cache'i temizle.
+        // Bundan sonra asagidaki mevcut hesap-olusturma akisi calisir.
+        \Cache::forget($dogrulamaCacheKey);
+        $request->merge([
+            'isletmeadi'    => $bekleyen['isletmeadi'],
+            'isletmeadresi' => $bekleyen['isletmeadresi'],
+            'isletmeturu'   => $bekleyen['isletmeturu'],
+            'adsoyad'       => $bekleyen['adsoyad'],
+            'email'         => $bekleyen['email'],
+            'ceptelefon'    => $bekleyen['ceptelefon'],
+        ]);
+
         $count = IsletmeYetkilileri::where(function ($q) use ($request) {
 
             $q->where("gsm1", self::telefon_no_format_duzenle($request->ceptelefon));
@@ -5063,7 +5174,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 Log::info("Code: ".$response->err->code."\n");
                 Log::info("Message: ".$response->err->message."\n");
             }
-            return "Hesabınız başarıyla oluşturulmuştur. Telefonunuza gönderilen şifreniz ile sisteme giriş yapabilirsiniz. Yönlendiriliyorsunuz...";
+            return response()->json([
+                'durum'     => 'tamam',
+                'mesaj'     => 'Hesabınız başarıyla oluşturulmuştur. Telefonunuza gönderilen şifreniz ile sisteme giriş yapabilirsiniz. Yönlendiriliyorsunuz...',
+                'yonlendir' => 'https://app.randevumcepte.com.tr/isletmeyonetim'
+            ]);
 
 
             
