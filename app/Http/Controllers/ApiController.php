@@ -26429,6 +26429,36 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 if (!isset($pm[$r->personel_id])) $pm[$r->personel_id] = [];
                 $pm[$r->personel_id][] = (int)$r->hizmet_id;
             }
+
+            // KURAL: SISTEMDE hicbir personele atanmamis hizmetler, TUM
+            // personellerin izinli listesine eklenir. Boylece mobil filter
+            // 'atama yoksa herkeste gorunur' kuralini otomatik uygular
+            // (personel secili + hizmete personel atanmamis => gorunur).
+            $atanmisHizmetIds = collect($pmRows)->pluck('hizmet_id')->map(function($v){ return (int)$v; })->unique()->all();
+            $tumHizmetIds = DB::table('salon_sunulan_hizmetler')
+                ->where('salon_id', $request->salonid)
+                ->where('aktif', 1)
+                ->pluck('hizmet_id')
+                ->map(function($v){ return (int)$v; })
+                ->unique()
+                ->all();
+            $atanmamisHizmetIds = array_values(array_diff($tumHizmetIds, $atanmisHizmetIds));
+            if (count($atanmamisHizmetIds) > 0) {
+                // Aktif personel id listesi — hicbir hizmete atanmamis personeller
+                // de bu 'atanmamis' hizmetleri gorebilmeli, onlari da ekle.
+                $tumPersonelIds = DB::table('salon_personelleri')
+                    ->where('salon_id', $request->salonid)
+                    ->where('aktif', true)
+                    ->pluck('id')
+                    ->all();
+                foreach ($tumPersonelIds as $pid) {
+                    if (!isset($pm[$pid])) $pm[$pid] = [];
+                    foreach ($atanmamisHizmetIds as $hid) {
+                        $pm[$pid][] = (int) $hid;
+                    }
+                }
+            }
+
             $personel_hizmet_map = (object) $pm;
 
             $cmRows = DB::table('cihaz_sunulan_hizmetler')
