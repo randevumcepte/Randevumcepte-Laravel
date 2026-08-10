@@ -1865,9 +1865,9 @@
                   @endif
                   {{-- Çark Kazananlar ve Puan Ödülleri linkleri Çarkıfelek sayfasına tab olarak entegre edildi --}}
 
-                  {{-- Uygulama İndirme Afişi (sadece uyelik_turu == 3) --}}
+                  {{-- Uygulama İndirme Afişi (aktif/lisansli tum salonlar; uyelik_turu>=1) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if($isletme->uyelik_turu == 3)
+                  @if(($isletme->uyelik_turu ?? 0) >= 1)
                   <li>
                      @if(($pageindex ?? 0) == 80)
                      <a href="/isletmeyonetim/uygulama-afisi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
