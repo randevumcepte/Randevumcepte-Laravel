@@ -410,6 +410,10 @@ Route::get('/save-excel', function () {
    Route::post('/salonlar','HomeController@salonara')->name('salonara');
 	Route::get('/sitemap.xml', 'HomeController@sitemap');
 	Route::get('/robots.txt', 'HomeController@robots');
+	// Ucretsiz demo kayit sayfasi (WordPress'ten tasindi) — 2 adimli SMS dogrulamali
+	// Form POST -> /api/siteden-yeni-kullanici-kaydi (ApiController@siteden_yeni_kayit_kullanici)
+	Route::get('/ucretsiz-denemenizi-baslatin', function () { return view('ucretsizdeneme'); });
+	Route::get('/ucretsiz-deneme', function () { return view('ucretsizdeneme'); });
 	Route::get('/{isletme_adi}-{isletme_id}/personel/{personel_id}', 'HomeController@personelDetayPublic')->where('personel_id','[0-9]+')->name('personeldetay_public');
 	Route::get('/{isletme_adi}-{isletme_id}', 'HomeController@salonDetay_anasayfa')->name('salondetaylari');
 	Route::get('/', 'HomeController@salonDetay');
