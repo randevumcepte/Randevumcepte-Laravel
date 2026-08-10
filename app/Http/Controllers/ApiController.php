@@ -21200,7 +21200,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         // adisyon_hizmet acilmayip tahsilat gorulmuyordu. Per-hizmet kontrol:
         //   - yardimci personel satiri => atla
         //   - AdisyonPaketSeanslar'da bu hizmet varsa (paketten) => atla
-        //   - Ayni hizmet icin zaten adisyon_hizmet varsa => atla (idempotency)
+        //   - Idempotency: (randevu_id, hizmet_id, personel_id) uclusune gore
+        //     COUNT karsilastirmasi. Sadece hizmet_id ile exists() bakan eski
+        //     kod, ayni randevuda 'ayni hizmet + farkli personel' senaryosunda
+        //     ilk iterasyondan sonra digerleri skip ediyordu (bug: 421 id
+        //     isletmede 1868048 randevusu — 2 personel + ayni hizmet + farkli
+        //     fiyat, tahsilata sadece biri geliyordu).
         //   - Aksi halde paketsiz hizmet olarak adisyona ekle
         foreach ($randevu->hizmetler as $hizmet) {
             if ($hizmet->yardimci_personel) continue;
@@ -21208,10 +21213,16 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 ->where('hizmet_id', $hizmet->hizmet_id)
                 ->exists();
             if ($paketSeansiVar) continue;
-            $adisyonHizmetiVar = AdisyonHizmetler::where('randevu_id', $randevu->id)
+            $mevcutSayi = AdisyonHizmetler::where('randevu_id', $randevu->id)
                 ->where('hizmet_id', $hizmet->hizmet_id)
-                ->exists();
-            if ($adisyonHizmetiVar) continue;
+                ->where('personel_id', $hizmet->personel_id)
+                ->count();
+            $gerekliSayi = $randevu->hizmetler
+                ->where('hizmet_id', $hizmet->hizmet_id)
+                ->where('personel_id', $hizmet->personel_id)
+                ->filter(function($_h){ return !$_h->yardimci_personel; })
+                ->count();
+            if ($mevcutSayi >= $gerekliSayi) continue;
             self::adisyon_hizmet_ekle(
                 $adisyon_id,
                 $hizmet->hizmet_id,
@@ -21247,10 +21258,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                         ->where('hizmet_id', $dh->hizmet_id)
                         ->exists();
                     if ($_paketSeansiVar) continue;
-                    $_adisyonHizmetiVar = AdisyonHizmetler::where('randevu_id', $dr->id)
+                    // (randevu_id, hizmet_id, personel_id) uclusune gore count
+                    // karsilastirmasi — 'ayni hizmet + farkli personel' bug fix.
+                    $_mevcutSayi = AdisyonHizmetler::where('randevu_id', $dr->id)
                         ->where('hizmet_id', $dh->hizmet_id)
-                        ->exists();
-                    if ($_adisyonHizmetiVar) continue;
+                        ->where('personel_id', $dh->personel_id)
+                        ->count();
+                    $_gerekliSayi = $dr->hizmetler
+                        ->where('hizmet_id', $dh->hizmet_id)
+                        ->where('personel_id', $dh->personel_id)
+                        ->filter(function($_h){ return !$_h->yardimci_personel; })
+                        ->count();
+                    if ($_mevcutSayi >= $_gerekliSayi) continue;
                     self::adisyon_hizmet_ekle(
                         $adisyon_id,
                         $dh->hizmet_id,
