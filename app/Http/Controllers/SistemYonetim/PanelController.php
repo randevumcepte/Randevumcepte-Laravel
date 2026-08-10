@@ -780,18 +780,21 @@ class PanelController extends Controller
             }
         }
 
-        // Hesap secilmediyse: salonun ilk AKTIF yetkili hesabina gir (isten cikarilan
-        // = pasif personel atlanir; boylece ayrilan kisi varsayilan olmaz).
+        // Hesap secilmediyse: ONCE salon SAHIBI (role_id=1) hesabina gir; yoksa ilk AKTIF
+        // yetkili hesap. (Isten cikarilan = pasif personel atlanir.) Boylece kisitli bir
+        // personele dusup her sayfanin randevu takvimine yonlenmesi onlenir.
         if (!$yetkili) {
             $personel = Personeller::where('salon_id', $salonId)
                 ->whereNotNull('yetkili_id')
                 ->where('aktif', 1)
+                ->orderByRaw('(role_id = 1) desc')
                 ->orderBy('id', 'asc')
                 ->first();
             // Hic aktif yoksa (edge) eski davranisa dus
             if (!$personel) {
                 $personel = Personeller::where('salon_id', $salonId)
                     ->whereNotNull('yetkili_id')
+                    ->orderByRaw('(role_id = 1) desc')
                     ->orderBy('id', 'asc')
                     ->first();
             }

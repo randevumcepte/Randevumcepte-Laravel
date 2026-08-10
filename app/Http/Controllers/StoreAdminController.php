@@ -17653,9 +17653,10 @@ DB::raw('
         if (strpos(self::lisans_sure_kontrol($request), '-') !== false) {
             return view('isletmeadmin.lisanssurebitti', ['isletme' => Salonlar::where('id', self::mevcutsube($request))->first()]);
         }
-        if (!Auth::guard('satisortakligi')->check() && self::personelmi($request)) {
-            return redirect()->route('isletmeadmin.randevular');
-        }
+        // NOT: Afis, herkese acik /indir QR'ini gosteren zararsiz bir pazarlama sayfasi;
+        // personel kisiti kaldirildi. (Sahibin hesabi role_id=5 ise kendisi de goremiyordu;
+        // ayrica sistem yonetimi "Hesabina Gir" ilk aktif personel hesabina dustugu icin
+        // afis randevu takvimine yonleniyordu.)
         if (count($isletmeler) > 1 && !isset($_GET['sube'])) {
             return view('isletmeadmin.isletmesec', ['isletmeler' => $isletmeler, 'isletme' => Salonlar::where('id', self::mevcutsube($request))->first()]);
         }
