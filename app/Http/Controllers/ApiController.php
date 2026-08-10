@@ -10967,7 +10967,20 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         $yenirandevuhizmetpersonel->hizmet_id = $value["hizmet_id"];
                         $yenirandevuhizmetpersonel->cihaz_id = $value["cihaz_id"] == "null" ? null : $value["cihaz_id"];
                         $yenirandevuhizmetpersonel->personel_id = $value["personel_id"] == "null" ? null : $value["personel_id"];
-                        $yenirandevuhizmetpersonel->oda_id = $value["oda_id"] == "null" ? null : $value["oda_id"];
+                        $_odaId = ($value["oda_id"] === "null" || $value["oda_id"] === "" || $value["oda_id"] === null) ? null : $value["oda_id"];
+                        // Oda bazli takvim (takvim_turu=3): oda her personele baglidir
+                        // (odalar.personel_id). Musteri uygulamasi oda secmedigi icin
+                        // oda_id bos gelir; bos ise personelin odasini otomatik ata ki
+                        // randevu oda takviminde "odasiz" kalmasin. Oda kullanmayan
+                        // isletmelerde eslesme olmaz, null kalir (davranis degismez).
+                        // Web StoreAdminController@... satir 6582-6583 ile ayni mantik.
+                        if ($_odaId === null && $yenirandevuhizmetpersonel->personel_id) {
+                            $_odaId = \App\Odalar::where('salon_id', $salonId)
+                                ->where('personel_id', $yenirandevuhizmetpersonel->personel_id)
+                                ->where('aktifmi', true)
+                                ->value('id');
+                        }
+                        $yenirandevuhizmetpersonel->oda_id = $_odaId;
                         $yenirandevuhizmetpersonel->sure_dk = ($value["sure_dk"] != '' ? $value['sure_dk'] : '30');
                         $yenirandevuhizmetpersonel->fiyat = $value["fiyat"];
 
