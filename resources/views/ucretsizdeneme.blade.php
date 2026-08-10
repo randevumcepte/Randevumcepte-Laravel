@@ -118,8 +118,8 @@
                 <button type="submit" class="btn" id="uyeOlBtn">ÜYE OL</button>
 
                 <div class="kvkk">
-                    Üye olarak <a href="/kullanicisozlesmesi" target="_blank">Kullanıcı Sözleşmesi</a> ve
-                    <a href="/gizlilik-politikasi" target="_blank">Gizlilik Politikası</a>'nı kabul etmiş olursunuz.
+                    Üye olarak <a href="https://randevumcepte.com.tr/mesafeli-satis-sozlesmesi" target="_blank" rel="noopener">Kullanıcı Sözleşmesi</a> ve
+                    <a href="https://randevumcepte.com.tr/gizlilik-politikasi-ve-guvenlik/" target="_blank" rel="noopener">Gizlilik Politikası ve Güvenlik</a>'i kabul etmiş olursunuz.
                 </div>
             </form>
         </div>
