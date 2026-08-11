@@ -11134,6 +11134,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                             }
                         }
                         $yenirandevuhizmetpersonel->oda_id = $_odaId;
+                        // TANI: oda otomatik atama neden gerceklesmiyor? Deploy sonrasi
+                        // 1 test + laravel.log ile netlesir. Sorun cozulunce silinecek.
+                        \Log::info('[ODA-ATAMA]', [
+                            'kaynak'      => $request->randevuKaynak,
+                            'salon_id'    => $salonId,
+                            'hizmet_id'   => $value["hizmet_id"],
+                            'personel_id' => $yenirandevuhizmetpersonel->personel_id,
+                            'gelen_oda'   => $value["oda_id"] ?? '(anahtar yok)',
+                            'hizmet_eslesme_sayisi' => \App\OdaHizmetler::where('salon_id', $salonId)->where('hizmet_id', $value["hizmet_id"])->count(),
+                            'aktif_oda_adayi'       => \App\Odalar::where('salon_id', $salonId)->where('aktifmi', true)->count(),
+                            'atanan_oda'  => $_odaId,
+                        ]);
                         $yenirandevuhizmetpersonel->sure_dk = ($value["sure_dk"] != '' ? $value['sure_dk'] : '30');
                         $yenirandevuhizmetpersonel->fiyat = $value["fiyat"];
 
