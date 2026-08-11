@@ -34676,7 +34676,7 @@ DB::raw('
      */
     public static function anketSmsGonder($request, $gonderim, $sablon, $musteri){
         $salon = Salonlar::where('id',$gonderim->salon_id)->first();
-        $host = ($_SERVER['HTTP_HOST'] ?? null) ?: ($salon->domain ?? 'apptest.randevumcepte.com.tr');
+        $host = ($_SERVER['HTTP_HOST'] ?? null) ?: ($salon->domain ?? 'app.randevumcepte.com.tr');
         $link = 'https://'.$host.'/anket/'.$gonderim->token;
         // Sadece ilk ad — soyad SMS karakter tasarrufu için atlanir
         $adSoyad = $musteri->name ?? '';

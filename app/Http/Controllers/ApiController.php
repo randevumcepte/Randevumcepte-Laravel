@@ -12055,7 +12055,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         }
 
-        $linkHost = $_SERVER['HTTP_HOST'] ?? 'apptest.randevumcepte.com.tr';
+        $linkHost = $_SERVER['HTTP_HOST'] ?? 'app.randevumcepte.com.tr';
         $musteriTel = self::telefon_no_format_duzenle($request->cep_telefon);
         $isDinamik = FormTaslaklari::where('id', $request->form_id)->value('is_dinamik');
 
@@ -17019,7 +17019,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         if ($form->user_id) {
 
-            $linkHost = $_SERVER['HTTP_HOST'] ?? 'apptest.randevumcepte.com.tr';
+            $linkHost = $_SERVER['HTTP_HOST'] ?? 'app.randevumcepte.com.tr';
 
             if ($form->is_sozlesme) {
                 $katilim_link = ' Hizmet Sözleşmenizi imzalamak için: https://'.$linkHost.'/sozlesme/'.$form->id.'/'.$form->user_id.' | Onay Kodu: '.$kod;
@@ -30035,8 +30035,8 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             // arsive kaydedebilir ama musteriye SMS atilmaz).
             $sadeceKaydet = filter_var($request->sadece_kaydet, FILTER_VALIDATE_BOOLEAN);
             if (!$sadeceKaydet) {
-                // Test ortaminda apptest, canli yayina gecince apptest -> app donusumu eklenecek.
-                $host = $_SERVER['HTTP_HOST'] ?? 'apptest.randevumcepte.com.tr';
+                // Canli fallback: cron/CLI cagrilarinda HTTP_HOST bos oldugu icin default app.randevumcepte.com.tr
+                $host = $_SERVER['HTTP_HOST'] ?? 'app.randevumcepte.com.tr';
                 $link = 'https://'.$host.'/sozlesme/'.$arsiv->id.'/'.$arsiv->user_id;
                 $mesaj = ' Hizmet Sözleşmenizi imzalamak için: '.$link.' | Onay Kodu: '.$kod;
                 try {
