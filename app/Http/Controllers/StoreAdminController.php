@@ -5882,6 +5882,9 @@ private function ayAdiCevir($ingilizceAy)
                         }
               $salon->logo = $hedef;
               $salon->save();
+              try {
+                  SalonAudit::log($salon->id, 'isletme_logo_guncelle', 'salon', $salon->id, $salon->salon_adi, 'İşletme logosu güncellendi');
+              } catch (\Throwable $e) {}
         }
         echo "Başarılı";
     }
@@ -18173,6 +18176,10 @@ DB::raw('
         }
         $isletme->save();
 
+        try {
+            SalonAudit::log($isletme->id, 'fatura_bilgi_guncelle', 'salon', $isletme->id, $isletme->salon_adi, 'Fatura bilgileri güncellendi');
+        } catch (\Throwable $e) {}
+
         return response()->json(['success'=>true, 'message'=>'Fatura bilgileri güncellendi']);
     }
 
@@ -18485,6 +18492,9 @@ DB::raw('
         $isletme->save();
         // Ayar degistiginde host bazli cache'i dusur (ayni istek icinde tekrar okunursa taze olsun)
         self::$_gecmisGizleCache = [];
+        try {
+            SalonAudit::log($isletme->id, 'randevu_ayar_guncelle', 'salon', $isletme->id, $isletme->salon_adi, 'Randevu ayarları güncellendi', ['saat_araligi' => $request->randevu_saat_araligi, 'takvim_turu' => $request->randevu_takvim_turu, 'online_randevu' => $request->has('musteri_online_randevu_aktif') ? 1 : 0, 'gecmis_gizle' => $request->has('gecmis_randevulari_gizle') ? 1 : 0]);
+        } catch (\Throwable $e) {}
         return 'Randevu ayarları başarıyla kaydedildi';
     }
 
@@ -23763,6 +23773,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $portfoy = MusteriPortfoy::where('user_id',$request->user_id)->where('salon_id',$request->sube)->first();
         $portfoy->kara_liste = $request->karaliste;
         $portfoy->save();
+        try {
+            SalonAudit::log($portfoy->salon_id, 'musteri_karaliste_ayar', 'musteri', $request->user_id, optional($portfoy->users)->name, $request->karaliste==1 ? 'Müşteri kara listeye alındı' : 'Müşteri kara listeden çıkarıldı');
+        } catch (\Throwable $e) {}
         if(SalonSMSAyarlari::where('ayar_id',15)->where('salon_id',$portfoy->salon_id)->value('musteri')==1 && $request->karaliste==1)
         {
                 $mesaj = array(
@@ -29080,6 +29093,9 @@ public function musteriportfoydropliste(Request $request)
         $isletme->vergi_no = $request->vergi_no;
         $isletme->kdv_orani = $request->kdv_orani;
         $isletme->save();
+        try {
+            SalonAudit::log($isletme->id, 'uyelik_iletisim_fatura_guncelle', 'salon', $isletme->id, $isletme->salon_adi, 'Üyelik iletişim/fatura bilgileri güncellendi');
+        } catch (\Throwable $e) {}
         return 'Başarılı';
     }
 
