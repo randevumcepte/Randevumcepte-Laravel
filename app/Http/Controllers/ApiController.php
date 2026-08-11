@@ -21650,6 +21650,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 ->first();
         }
 
+        // Hareket kaydi icin: bu kayit yeni mi guncelleme mi?
+        $_yeniHizmet = !$mevcutKayit;
+
         Log::info('Mevcut kayit sorgusu calisti. Sonuc: ' . ($mevcutKayit ? 'VAR' : 'YOK'));
 
         if ($mevcutKayit) {
@@ -21761,13 +21764,42 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             Log::info('Gelen cihaz verisi yok');
         }
 
+        // ── Hareket kaydi: bu hizmet + tum iliskilendirmeleri (personel/cihaz/kategori/fiyat/sure) ──
+        try {
+            $_hizmetAdi = isset($request->hizmetAdlari[$key]) && $request->hizmetAdlari[$key] !== ''
+                ? $request->hizmetAdlari[$key]
+                : Hizmetler::where('id', $hizmet_id)->value('hizmet_adi');
+            $_persIdler = isset($request->secilipersoneller[$key]) && is_array($request->secilipersoneller[$key])
+                ? $request->secilipersoneller[$key] : [];
+            $_cihazIdler = isset($request->secilicihazlar[$key]) && is_array($request->secilicihazlar[$key])
+                ? $request->secilicihazlar[$key] : [];
+            $_persAdlar = !empty($_persIdler)
+                ? \App\Personeller::whereIn('id', $_persIdler)->pluck('personel_adi')->toArray() : [];
+            $_cihazAdlar = !empty($_cihazIdler)
+                ? Cihazlar::whereIn('id', $_cihazIdler)->pluck('cihaz_adi')->toArray() : [];
+            $_katAdi = Hizmet_Kategorisi::where('id', $salon_hizmet->hizmet_kategori_id)->value('hizmet_kategorisi_adi');
+            Audit::logApi(
+                $request->sube, $request,
+                $_yeniHizmet ? 'hizmet_ekle' : 'hizmet_guncelle',
+                'hizmet', $hizmet_id, $_hizmetAdi,
+                $_yeniHizmet ? 'Hizmet eklendi' : 'Hizmet güncellendi',
+                [
+                    'fiyat'        => $request->fiyatlar[$key] ?? null,
+                    'sure_dk'      => $request->sureler[$key] ?? null,
+                    'kategori_id'  => $salon_hizmet->hizmet_kategori_id,
+                    'kategori_adi' => $_katAdi,
+                    'personeller'  => $_persAdlar,
+                    'cihazlar'     => $_cihazAdlar,
+                    'personel_idler' => $_persIdler,
+                    'cihaz_idler'    => $_cihazIdler,
+                ]
+            );
+        } catch (\Throwable $e) { \Log::warning('hizmet audit log hata: '.$e->getMessage()); }
+
         Log::info('------------ DONGU SONU - Hizmet ID: ' . $hizmet_id . ' ------------');
     }
 
     Log::info('========== FONKSIYON SONU - BASARILI ==========');
-    try {
-        Audit::logApi($request->sube, $request, 'hizmet_ekle_guncelle', 'hizmet', null, 'Hizmet sayısı: ' . count($request->hizmetler ?? []), 'Salon hizmetleri eklendi/güncellendi');
-    } catch (\Throwable $e) {}
     return "Başarılı";
 }
 

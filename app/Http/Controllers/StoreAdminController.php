@@ -18741,9 +18741,10 @@ DB::raw('
                 $hizmet->hizmet_adi = $request->ozel_hizmet_adi;
                 $hizmet->save();
             }
-            if(SalonHizmetler::where('hizmet_id',$hizmet_id)->where('salon_id',$request->sube)->count()>0)
+            $_yeniHizmet = SalonHizmetler::where('hizmet_id',$hizmet_id)->where('salon_id',$request->sube)->count() == 0;
+            if(!$_yeniHizmet)
             {
-                
+
                 $salon_hizmet = SalonHizmetler::where('hizmet_id',$hizmet_id)->first();
             }
             else
@@ -18778,26 +18779,38 @@ DB::raw('
                 $yeni_renk->hizmet_kategori_id = Hizmetler::where('id',$hizmet_id)->value('hizmet_kategori_id');
                 $yeni_renk->save();
             }
+            $_persIdler = is_array($request->{"hizmet_personelleri_{$hizmet_id}"} ?? null)
+                ? $request->{"hizmet_personelleri_{$hizmet_id}"} : [];
             PersonelHizmetler::where('hizmet_id',$hizmet_id)->delete();
-            foreach($request->{"hizmet_personelleri_{$hizmet_id}"} as $personel_id){
+            foreach($_persIdler as $personel_id){
                 $personelhizmet = new PersonelHizmetler();
                 $personelhizmet->personel_id = $personel_id;
                 $personelhizmet->hizmet_id = $hizmet_id;
                 $personelhizmet->save();
             }
+
+            // ── Hareket kaydi: bu hizmet + iliskilendirmeleri (fiyat/sure/kategori/personel) ──
+            try {
+                $_persAdlar = !empty($_persIdler)
+                    ? Personeller::whereIn('id',$_persIdler)->pluck('personel_adi')->toArray() : [];
+                $_katAdi = Hizmet_Kategorisi::where('id',$salon_hizmet->hizmet_kategori_id)->value('hizmet_kategorisi_adi');
+                $_hizmetAdi = isset($request->ozel_hizmet_adi) && $request->ozel_hizmet_adi !== ''
+                    ? $request->ozel_hizmet_adi
+                    : Hizmetler::where('id',$hizmet_id)->value('hizmet_adi');
+                SalonAudit::log($request->sube, $_yeniHizmet ? 'hizmet_ekle' : 'hizmet_guncelle', 'hizmet', $hizmet_id,
+                    $_hizmetAdi,
+                    $_yeniHizmet ? 'Hizmet eklendi' : 'Hizmet güncellendi',
+                    [
+                        'fiyat'        => $request->{"hizmet_fiyat_{$hizmet_id}"} ?? null,
+                        'sure_dk'      => $request->{"hizmet_sure_{$hizmet_id}"} ?? null,
+                        'kategori_id'  => $salon_hizmet->hizmet_kategori_id,
+                        'kategori_adi' => $_katAdi,
+                        'personeller'  => $_persAdlar,
+                        'personel_idler' => $_persIdler,
+                    ]);
+            } catch (\Throwable $e) {}
         }
         $secilmeyenhizmetler = self::secilmeyen_hizmet_liste_getir($request);
-
-        // Audit
-        $_audit_hizmet_adlari = [];
-        foreach ($request->hizmet_idler as $_hid) {
-            $_h = Hizmetler::where('id',$_hid)->value('hizmet_adi');
-            if ($_h) $_audit_hizmet_adlari[] = $_h;
-        }
-        SalonAudit::log($request->sube, 'hizmet_ekle_guncelle', 'salon_hizmet', null,
-            count($_audit_hizmet_adlari).' hizmet',
-            'Hizmet katalogu güncellendi (fiyat / süre / personel)',
-            ['hizmet_adlari'=>$_audit_hizmet_adlari, 'hizmet_idler'=>$request->hizmet_idler]);
 
         return self::hizmet_liste_getir($request,"Hizmet(-ler) başarıyla eklendi",$secilmeyenhizmetler);
     }
