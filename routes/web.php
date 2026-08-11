@@ -595,6 +595,10 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::get('/impersonation-bitir', function () { return redirect('/sistemyonetim/v2/dashboard'); });
     Route::post('/impersonation-bitir', 'PanelController@impersonationBitir')->name('sistemyonetim.v2.impersonation.bitir');
 
+    // Dakika Yonetimi (e-santral giden konusma dakikasi takibi)
+    Route::get('/dakika', 'PanelController@dakika')->name('sistemyonetim.v2.dakika');
+    Route::post('/salon/{id}/dakika', 'PanelController@dakikaKaydet');
+
     // Notlar
     Route::post('/salon/{id}/not', 'PanelController@notEkle');
     Route::delete('/not/{id}', 'PanelController@notSil');
@@ -1499,3 +1503,37 @@ Route::get('/check-memory', function () {
     return 'Memory Limit: ' . ini_get('memory_limit');
 });
 
+
+/*
+ * Marka bazlı gizlilik politikası sayfası.
+ * Her white-label uygulama için ayrı URL: /gizlilik/{marka-slug}
+ * Google Play "policy this app'e özel değil" reddini önler.
+ * Yeni marka eklerken $markaIsimleri dizisine slug => "İşletme Adı" ekle.
+ */
+Route::get('/gizlilik/{marka}', function ($marka) {
+    $markaIsimleri = [
+        'randevumcepte'       => 'Randevumcepte',
+        'aydan-gurece'        => 'Aydan Gürece',
+        'ola-nail'            => 'Ola Nail',
+        'sirius'              => 'Sirius Luxe Beauty Saloon',
+        'escalade'            => 'Escalade Ink Tattoo & Piercing Studio',
+        'eym'                 => 'Eym Life Güzellik Merkezi',
+        'esem-avci'           => 'Eşem Avcı Güzellik Salonu',
+        'shemall'             => 'She Mall Beauty',
+        'realform'            => 'Realform Beauty',
+        'senail'              => 'Senail Beauty',
+        'salooncadde'         => 'Saloon Cadde',
+        'ceren-ceviz'         => 'Ceren Ceviz',
+        'ezgi-takmaz'         => 'Ezgi Takmaz',
+        'vionna'              => 'Vionna Güzellik',
+        'successo'            => 'Successo',
+        'yasemin-tuzun'       => 'Yasemin Tüzün',
+        'gamze-akkaya'        => 'Gamze Akkaya',
+        'kessplus'            => 'Kess Plus',
+        'esra-kocak'          => 'Esra Koçak',
+        'drmet'               => 'DrMet Estetik',
+    ];
+    $slug = strtolower($marka);
+    $markaAdi = $markaIsimleri[$slug] ?? ucwords(str_replace('-', ' ', $slug));
+    return view('gizlilik-marka', compact('markaAdi', 'slug'));
+})->name('gizlilik.marka');
