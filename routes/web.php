@@ -1514,39 +1514,58 @@ Route::get('/check-memory', function () {
  * beyaz etiket markalar için sayfa üretir.
  */
 Route::get('/gizlilik/{marka}', function ($marka) {
-    $slug = strtolower(trim($marka));
-    if ($slug === '') abort(404);
+    // Slug normalizasyonu: boşluk/CR/LF/tire/nokta temizliği, lowercase
+    $ham = strtolower(trim($marka));
+    if ($ham === '') abort(404);
+    // "aydan-gurece" veya "com.randevumcepte.aydangurece" iki formu da destekle
+    $short = str_replace(['-', '.', ' '], '', $ham); // "aydangurece"
 
-    // 1) app_bundle_ayarlari — marka başlığı burada tutulur
     $markaAdi = null;
+
+    // 1) app_bundle_ayarlari — hem exact match hem suffix match
     if (\Schema::hasTable('app_bundle_ayarlari')) {
+        // Trim + \r\n temizliği için REPLACE
         $row = \DB::table('app_bundle_ayarlari')
-            ->whereRaw('LOWER(app_bundle) = ?', [$slug])
+            ->whereRaw("REPLACE(REPLACE(TRIM(app_bundle), CHAR(13), ''), CHAR(10), '') = ?", [$ham])
             ->first();
-        if ($row && !empty($row->bundle_baslik)) {
-            $markaAdi = $row->bundle_baslik;
+
+        if (!$row) {
+            // Suffix match: "aydan-gurece" → "com.randevumcepte.aydangurece"
+            $row = \DB::table('app_bundle_ayarlari')
+                ->whereRaw(
+                    "REPLACE(REPLACE(REPLACE(REPLACE(LOWER(TRIM(app_bundle)), CHAR(13), ''), CHAR(10), ''), '-', ''), '.', '') LIKE ?",
+                    ['%' . $short]
+                )
+                ->first();
+        }
+
+        if ($row && !empty(trim($row->bundle_baslik ?? ''))) {
+            $markaAdi = trim($row->bundle_baslik);
         }
     }
 
-    // 2) Fallback: salonlar tablosunda app_bundle var mı — varsa salon_adi'ni kullan
+    // 2) Fallback: salonlar.app_bundle (varsa)
     if (!$markaAdi && \Schema::hasColumn('salonlar', 'app_bundle')) {
         $salon = \DB::table('salonlar')
-            ->whereRaw('LOWER(app_bundle) = ?', [$slug])
+            ->whereRaw(
+                "REPLACE(REPLACE(REPLACE(REPLACE(LOWER(TRIM(app_bundle)), CHAR(13), ''), CHAR(10), ''), '-', ''), '.', '') LIKE ?",
+                ['%' . $short]
+            )
             ->orderBy('id')
             ->first();
-        if ($salon) {
-            $markaAdi = $salon->salon_adi ?? null;
+        if ($salon && !empty($salon->salon_adi)) {
+            $markaAdi = $salon->salon_adi;
         }
     }
 
-    // 3) Master marka istisnası (randevumcepte kendi ana uygulama)
-    if (!$markaAdi && $slug === 'randevumcepte') {
+    // 3) Master marka
+    if (!$markaAdi && ($ham === 'randevumcepte' || $short === 'randevumcepte')) {
         $markaAdi = 'Randevumcepte';
     }
 
     if (!$markaAdi) {
-        abort(404); // Sistemde kayıtlı olmayan slug → sayfa basma
+        abort(404);
     }
 
-    return view('gizlilik-marka', compact('markaAdi', 'slug'));
+    return view('gizlilik-marka', ['markaAdi' => $markaAdi, 'slug' => $ham]);
 })->name('gizlilik.marka');
