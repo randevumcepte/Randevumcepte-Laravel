@@ -1506,34 +1506,47 @@ Route::get('/check-memory', function () {
 
 /*
  * Marka bazlı gizlilik politikası sayfası.
- * Her white-label uygulama için ayrı URL: /gizlilik/{marka-slug}
- * Google Play "policy this app'e özel değil" reddini önler.
- * Yeni marka eklerken $markaIsimleri dizisine slug => "İşletme Adı" ekle.
+ * URL: /gizlilik/{marka}
+ *   - {marka} önce app_bundle_ayarlari tablosunda app_bundle olarak aranır
+ *   - bulunamazsa salonlar tablosunda app_bundle olarak aranır
+ *   - hiçbirinde yoksa 404 döner (spam/uydurma slug'lara sayfa basılmaz)
+ * Google Play "policy this app'e özel değil" reddini önler; sadece gerçek
+ * beyaz etiket markalar için sayfa üretir.
  */
 Route::get('/gizlilik/{marka}', function ($marka) {
-    $markaIsimleri = [
-        'randevumcepte'       => 'Randevumcepte',
-        'aydan-gurece'        => 'Aydan Gürece',
-        'ola-nail'            => 'Ola Nail',
-        'sirius'              => 'Sirius Luxe Beauty Saloon',
-        'escalade'            => 'Escalade Ink Tattoo & Piercing Studio',
-        'eym'                 => 'Eym Life Güzellik Merkezi',
-        'esem-avci'           => 'Eşem Avcı Güzellik Salonu',
-        'shemall'             => 'She Mall Beauty',
-        'realform'            => 'Realform Beauty',
-        'senail'              => 'Senail Beauty',
-        'salooncadde'         => 'Saloon Cadde',
-        'ceren-ceviz'         => 'Ceren Ceviz',
-        'ezgi-takmaz'         => 'Ezgi Takmaz',
-        'vionna'              => 'Vionna Güzellik',
-        'successo'            => 'Successo',
-        'yasemin-tuzun'       => 'Yasemin Tüzün',
-        'gamze-akkaya'        => 'Gamze Akkaya',
-        'kessplus'            => 'Kess Plus',
-        'esra-kocak'          => 'Esra Koçak',
-        'drmet'               => 'DrMet Estetik',
-    ];
-    $slug = strtolower($marka);
-    $markaAdi = $markaIsimleri[$slug] ?? ucwords(str_replace('-', ' ', $slug));
+    $slug = strtolower(trim($marka));
+    if ($slug === '') abort(404);
+
+    // 1) app_bundle_ayarlari — marka başlığı burada tutulur
+    $markaAdi = null;
+    if (\Schema::hasTable('app_bundle_ayarlari')) {
+        $row = \DB::table('app_bundle_ayarlari')
+            ->whereRaw('LOWER(app_bundle) = ?', [$slug])
+            ->first();
+        if ($row && !empty($row->bundle_baslik)) {
+            $markaAdi = $row->bundle_baslik;
+        }
+    }
+
+    // 2) Fallback: salonlar tablosunda app_bundle var mı — varsa salon_adi'ni kullan
+    if (!$markaAdi && \Schema::hasColumn('salonlar', 'app_bundle')) {
+        $salon = \DB::table('salonlar')
+            ->whereRaw('LOWER(app_bundle) = ?', [$slug])
+            ->orderBy('id')
+            ->first();
+        if ($salon) {
+            $markaAdi = $salon->salon_adi ?? null;
+        }
+    }
+
+    // 3) Master marka istisnası (randevumcepte kendi ana uygulama)
+    if (!$markaAdi && $slug === 'randevumcepte') {
+        $markaAdi = 'Randevumcepte';
+    }
+
+    if (!$markaAdi) {
+        abort(404); // Sistemde kayıtlı olmayan slug → sayfa basma
+    }
+
     return view('gizlilik-marka', compact('markaAdi', 'slug'));
 })->name('gizlilik.marka');
