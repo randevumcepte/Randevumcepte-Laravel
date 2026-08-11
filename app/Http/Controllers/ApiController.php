@@ -10981,6 +10981,25 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         }
 
+        // ── ODA ÇAKIŞMASI (SERT ENGEL) ──────────────────────────────────────────
+        // Oda bazlı takvimde müşteri oda seçmez; oda personel/hizmetten OTOMATİK
+        // atanır. O atanacak oda seçilen saatte DOLUYSA randevu oluşmamalı. Bu
+        // kontrol TÜM kaynaklar/durum için ve "yine de oluştur"dan (cakisanrandevuekle=1)
+        // BAĞIMSIZ çalışır — oda fiziksel olarak boş olmadığından override edilemez.
+        // Hizmete birden fazla oda atanmışsa en az biri boşsa çakışma sayılmaz
+        // (randevuekleguncelle o boş odaya atar); hiç boş oda kalmadıysa engellenir.
+        // Yalnızca oda_id BOŞ (otomatik atama) senaryosunu ele alır; yönetici açıkça
+        // oda seçtiyse mevcut cakisan_randevu_kontrol devreye girer (override edilebilir).
+        $odaCakismasi = self::odaMusaitlikCakismasi(
+            $request,
+            $randevu_tarihleri,
+            $salonId,
+            $guncelleme ? $request->randevu_id : null
+        );
+        if ($odaCakismasi != "") {
+            return ["cakismavar" => "1", "cakisanunsurlar" => $odaCakismasi];
+        }
+
         // Eğer çakışma varsa VE kullanıcı "yine de oluştur" demediyse uyarı döndür
         if ($cakisma_varmi != "" && $request->cakisanrandevuekle != "1") {
             return ["cakismavar" => "1", "cakisanunsurlar" => $cakisma_varmi];
@@ -13349,6 +13368,94 @@ public function cdrRaporLatest(Request $request)
             'error' => 'Bir hata oluştu: ' . $e->getMessage()
         ], 500);
     }
+}
+/**
+ * Oda bazlı takvim çakışma kontrolü (SERT ENGEL).
+ * Yalnızca oda OTOMATİK atanacak (request'te oda_id boş) hizmet satırları için
+ * çalışır. Her satırın odasını çözer:
+ *   1) personele bağlı oda  (odalar.personel_id)
+ *   2) yoksa hizmete atanmış aktif odalar (oda_sunulan_hizmetler)
+ * Sonra o odanın randevu penceresinde ([saat, saat_bitis)) boş olup olmadığına
+ * bakar. Personele bağlı TEK oda doluysa → çakışma. Hizmete atanmış birden fazla
+ * oda varsa en az biri boşsa çakışma YOK; hepsi doluysa → çakışma.
+ * Oda kavramı yoksa (aday yok) → çakışma YOK (oda kullanmayan işletmeler etkilenmez).
+ * Doluluk durum<2 (bekleyen+onaylı) ile ölçülür — randevuTarihSaatAdimi müsaitlik
+ * semantiği ile aynı. Doner: çakışma mesajı ('' ise çakışma yok).
+ */
+public function odaMusaitlikCakismasi(Request $request, $randevu_tarihleri, $salonId, $haricRandevuId = null)
+{
+    $hizmetler = $request->hizmetler;
+    if (is_string($hizmetler)) $hizmetler = json_decode($hizmetler, true);
+    if (!is_array($hizmetler) || empty($hizmetler)) return "";
+
+    $mesaj = "";
+    foreach ($randevu_tarihleri as $tarihler) {
+        $rowTarih = date('Y-m-d', strtotime($tarihler));
+        $yenisaatbaslangic = $request->randevu_saati ?? '00:00';
+
+        foreach ($hizmetler as $key2 => $value) {
+            $sure_dk     = $value["sure_dk"] ?? 60;
+            $personel_id = (($value["personel_id"] ?? '') === "null") ? '' : ($value["personel_id"] ?? '');
+            $oda_id      = (($value["oda_id"] ?? '') === "null") ? '' : ($value["oda_id"] ?? '');
+            $birlestir   = $value["birlestir"] ?? false;
+
+            // Randevu saat penceresi — randevuekleguncelle kayıt döngüsü ile birebir
+            $rowSaat  = ($key2 == 0) ? ($request->randevu_saati ?? '00:00') : $yenisaatbaslangic;
+            $rowBitis = date("H:i", strtotime("+" . $sure_dk . " minutes", strtotime($rowSaat)));
+            if (empty($birlestir) || $birlestir != "1") {
+                $yenisaatbaslangic = $rowBitis;
+            }
+
+            // Yönetici açıkça oda seçtiyse burada ele alma (mevcut kontrol yönetir)
+            if (!empty($oda_id)) continue;
+
+            // --- Oda adaylarını çöz (kayıt döngüsündeki mantığın aynısı)
+            $adaylar = [];
+            if (!empty($personel_id)) {
+                $pOda = \App\Odalar::where('salon_id', $salonId)
+                    ->where('personel_id', $personel_id)
+                    ->where('aktifmi', true)
+                    ->value('id');
+                if ($pOda) $adaylar = [$pOda];
+            }
+            if (empty($adaylar)) {
+                $svc = \App\OdaHizmetler::where('salon_id', $salonId)
+                    ->where('hizmet_id', $value["hizmet_id"] ?? 0)
+                    ->pluck('oda_id')->toArray();
+                if (count($svc) > 0) {
+                    $adaylar = \App\Odalar::whereIn('id', $svc)
+                        ->where('salon_id', $salonId)
+                        ->where('aktifmi', true)
+                        ->pluck('id')->toArray();
+                }
+            }
+            if (empty($adaylar)) continue; // oda kavramı yok → çakışma yok
+
+            // --- En az bir boş oda var mı?
+            $bosVar = false;
+            foreach ($adaylar as $aday) {
+                $dolu = DB::table('randevu_hizmetler')
+                    ->join('randevular', 'randevu_hizmetler.randevu_id', '=', 'randevular.id')
+                    ->where('randevu_hizmetler.oda_id', $aday)
+                    ->where('randevular.tarih', $rowTarih)
+                    ->where('randevular.durum', '<', 2)
+                    ->when($haricRandevuId, function ($q) use ($haricRandevuId) {
+                        $q->where('randevular.id', '!=', $haricRandevuId);
+                    })
+                    ->where('randevu_hizmetler.saat', '<', $rowBitis)
+                    ->where('randevu_hizmetler.saat_bitis', '>', $rowSaat)
+                    ->exists();
+                if (!$dolu) { $bosVar = true; break; }
+            }
+
+            if (!$bosVar) {
+                $odaAdi = \App\Odalar::whereIn('id', $adaylar)->pluck('oda_adi')->implode(', ');
+                $mesaj .= '\n' . date("d.m.Y", strtotime($tarihler)) . ' ' . $rowSaat .
+                    ' : "' . $odaAdi . '" odası bu saatte dolu.';
+            }
+        }
+    }
+    return $mesaj;
 }
 public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 {
