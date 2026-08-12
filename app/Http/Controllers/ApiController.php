@@ -11117,6 +11117,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // mantik. Geriye uyumluluk icin mevcut cakismavar/cakisanunsurlar kanalindan
         // doner => eski mobil surumler de mevcut dialog ile isler. "Yine de olustur"
         // (cakisanrandevuekle=1) ile atlanabilir (soft uyari).
+        //
+        // Sadece salon ayarina bagli (web ile ayni). Ayar KAPALI ise (varsayilan)
+        // kontrol hic calismaz => hicbir surum (eski/yeni) etkilenmez. Ayar ACIK
+        // salonda hem web hem mobil (eski app'ler dahil, mevcut cakismavar dialog'u
+        // ile) uyari gosterir.
         if ($request->cakisanrandevuekle != "1" && $request->durum != 0) {
             $kaynakMesaj = self::kaynak_cakisma_kontrol_api($request, $randevu_tarihleri, $salonId);
             if ($kaynakMesaj !== "") {
