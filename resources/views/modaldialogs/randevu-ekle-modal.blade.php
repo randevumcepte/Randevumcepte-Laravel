@@ -1925,7 +1925,7 @@ function _hizliRandevuOlustur(hizmetData, onBitti){
     if(!musteriId){ swal({type:'warning',title:'Uyarı',text:'Lütfen önce müşteri seçin.'}); if(onBitti) onBitti(false); return; }
     if(!tarih || !saat){ swal({type:'warning',title:'Uyarı',text:'Tarih ve saat zorunludur.'}); if(onBitti) onBitti(false); return; }
 
-    function _build(cakismaOnayli){
+    function _build(cakismaOnayli, kaynakOnayli){
         var fd = new FormData();
         fd.append('_token', token);
         fd.append('sube', sube);
@@ -1935,6 +1935,7 @@ function _hizliRandevuOlustur(hizmetData, onBitti){
         fd.append('saat', saat);
         fd.append('personel_notu', personelNotu);
         if(cakismaOnayli) fd.append('cakisanrandevuekle', 1);
+        if(kaynakOnayli) fd.append('kaynak_cakisma_onay', 1);
         @if(($pageindex ?? 0) == 2)
         fd.append('takvim_sayfasi', 1);
         @endif
@@ -1968,8 +1969,8 @@ function _hizliRandevuOlustur(hizmetData, onBitti){
         return fd;
     }
 
-    function _post(cakismaOnayli){
-        var fd = _build(cakismaOnayli);
+    function _post(cakismaOnayli, kaynakOnayli){
+        var fd = _build(cakismaOnayli, kaynakOnayli);
         // Debug: gonderilen tum FormData icerigini console'a yaz
         try {
             var dbg = {};
@@ -1987,6 +1988,24 @@ function _hizliRandevuOlustur(hizmetData, onBitti){
             success: function(result){
                 $('#preloader').hide();
                 console.log('[PAKET-HIZLI] response:', result);
+                if(result.kaynak_cakismasi){
+                    swal({
+                        type:'warning',
+                        title:'Çakışma Uyarısı',
+                        html:"<p style='font-size:14.5px;color:#4b5563;margin:6px 0 12px;line-height:1.5;'>"+result.mesaj+"</p>",
+                        showCancelButton:true,
+                        confirmButtonText:'<i class=\"fa fa-check\"></i> Evet, oluştur',
+                        cancelButtonText:'<i class=\"fa fa-times\"></i> Vazgeç',
+                        confirmButtonColor:'#7c3aed',
+                        cancelButtonColor:'#9ca3af',
+                        reverseButtons:true,
+                        focusCancel:true,
+                    }).then(function(r2){
+                        if(r2.value){ _post(cakismaOnayli, true); }
+                        else if(onBitti) onBitti(false);
+                    });
+                    return;
+                }
                 if(result.cakismavar){
                     swal({
                         type:'warning', title:"<h2 style='font-size:24px;color:#fff'>Çakışma Var</h2>",
@@ -2382,7 +2401,7 @@ function _odaModaliOlustur(hizmetData, odaAtama, onBitti){
     }
 
     // 3) FormData insa et (backend yenirandevuekle action'inin bekledigi sema)
-    function _buildFormData(cakismaOnayli){
+    function _buildFormData(cakismaOnayli, kaynakOnayli){
         var fd = new FormData();
         fd.append('_token', token);
         fd.append('sube', sube);
@@ -2392,6 +2411,7 @@ function _odaModaliOlustur(hizmetData, odaAtama, onBitti){
         fd.append('saat', saat);
         fd.append('personel_notu', personelNotu);
         if(cakismaOnayli) fd.append('cakisanrandevuekle', 1);
+        if(kaynakOnayli) fd.append('kaynak_cakisma_onay', 1);
         @if(($pageindex ?? 0) == 2)
         fd.append('takvim_sayfasi', 1);
         @endif
@@ -2422,17 +2442,36 @@ function _odaModaliOlustur(hizmetData, odaAtama, onBitti){
         return fd;
     }
 
-    function _post(cakismaOnayli, basariCb){
+    function _post(cakismaOnayli, basariCb, kaynakOnayli){
         $.ajax({
             type:'POST',
             url:'/isletmeyonetim/yenirandevuekle',
             dataType:'json',
-            data: _buildFormData(cakismaOnayli),
+            data: _buildFormData(cakismaOnayli, kaynakOnayli),
             processData:false,
             contentType:false,
             beforeSend: function(){ $('#preloader').show(); },
             success: function(result){
                 $('#preloader').hide();
+                if(result.kaynak_cakismasi){
+                    // Moda gore secilen kaynak (personel/oda/cihaz) o saatte dolu.
+                    swal({
+                        type:'warning',
+                        title:'Çakışma Uyarısı',
+                        html:"<p style='font-size:14.5px;color:#4b5563;margin:6px 0 12px;line-height:1.5;'>"+result.mesaj+"</p>",
+                        showCancelButton:true,
+                        confirmButtonText:'<i class=\"fa fa-check\"></i> Evet, oluştur',
+                        cancelButtonText:'<i class=\"fa fa-times\"></i> Vazgeç',
+                        confirmButtonColor:'#7c3aed',
+                        cancelButtonColor:'#9ca3af',
+                        reverseButtons:true,
+                        focusCancel:true,
+                    }).then(function(r2){
+                        if(r2.value){ _post(cakismaOnayli, basariCb, true); } // onayla -> tekrar gonder
+                        else if(onBitti) onBitti();
+                    });
+                    return;
+                }
                 if(result.cakismavar){
                     swal({
                         type:'warning',
