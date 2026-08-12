@@ -1195,13 +1195,16 @@
             }
         }
 
-        console.log('[V2 FILTRE]', {personelId, cihazId, odaId,
+        console.log('[V2 FILTRE]', {
+            personelId: personelId, cihazId: cihazId, odaId: odaId,
             hp_count: hp ? hp.length : 0,
             hc_count: hc ? hc.length : 0,
             ho_count: ho ? ho.length : 0,
             tum_count: tum.length,
             kesisim: intersect ? intersect.length : null,
-            verisi_oda_var: !!(verisi.oda && Object.keys(verisi.oda).length)
+            verisi_oda_map_keys: verisi.oda ? Object.keys(verisi.oda) : null,
+            verisi_oda_bu_id_var: !!(verisi.oda && verisi.oda[odaId]),
+            fallback_odaObj_bulundu: !!(window.randevuModalData && Array.isArray(window.randevuModalData.odalar) && window.randevuModalData.odalar.find(function(o){return String(o.id)===String(odaId);})),
         });
 
         if(intersect && intersect.length){
