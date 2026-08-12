@@ -2365,12 +2365,29 @@
                         $vc.val(v1CihazOpt.val());
                     }
                 }
-                // Programmatik .val() change event tetiklemiyor — filtreyi elden zorla
-                try {
-                    if(typeof v2RefreshHizmetTS === 'function'){
-                        v2RefreshHizmetTS($firstRow);
-                    }
-                } catch(e){ console.warn('[V2 slot fill filter] hata:', e); }
+                // Programmatik .val() change event tetiklemiyor — filtreyi elden zorla.
+                // TomSelect init'inin async tamamlanma ihtimaline karsi 4 zamanda dene:
+                // hemen, 100ms, 300ms, 800ms. Filtre en gec 800ms'de uygulanir.
+                var _slotFilter = function(tag){
+                    try {
+                        if(typeof v2RefreshHizmetTS === 'function'){
+                            var $hz = $firstRow.find('.v2-hizmet');
+                            var el = $hz[0];
+                            var haz = el && el.tomselect;
+                            console.log('[V2 slot filter '+tag+']', {
+                                tsHazir: !!haz,
+                                odaVal: $firstRow.find('.v2-oda').val() || null,
+                                persVal: $firstRow.find('.v2-personel').val() || null,
+                                cihazVal: $firstRow.find('.v2-cihaz').val() || null,
+                            });
+                            v2RefreshHizmetTS($firstRow);
+                        }
+                    } catch(e){ console.warn('[V2 slot fill filter '+tag+'] hata:', e); }
+                };
+                _slotFilter('sync');
+                setTimeout(function(){ _slotFilter('100ms'); }, 100);
+                setTimeout(function(){ _slotFilter('300ms'); }, 300);
+                setTimeout(function(){ _slotFilter('800ms'); }, 800);
                 $modal.off('shown.bs.modal.slotfill').on('shown.bs.modal.slotfill', function(){
                     $modal.off('shown.bs.modal.slotfill');
                 });
