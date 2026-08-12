@@ -2539,6 +2539,44 @@
         }
         var group = groups[idx];
         postOneGroup(group, common, false, function(result){
+            if(result.kaynak_cakismasi){
+                var kc = result.kaynak_cakismasi || {};
+                if(typeof swal !== 'undefined'){
+                    swal({
+                        type: 'warning',
+                        title: 'Çakışma Uyarısı',
+                        html: '<p style="font-size:14.5px;color:#4b5563;margin:6px 0 12px;line-height:1.5;">'+(kc.mesaj || 'Seçilen kaynak bu saatte dolu.')+'</p>',
+                        showCancelButton: true,
+                        confirmButtonText: '<i class="fa fa-check"></i> Evet, oluştur',
+                        cancelButtonText: '<i class="fa fa-times"></i> Vazgeç',
+                        confirmButtonColor: '#7c3aed',
+                        cancelButtonColor: '#9ca3af',
+                        reverseButtons: true,
+                        focusCancel: true
+                    }).then(function(confirm){
+                        if(confirm.value){
+                            postOneGroup(group, common, false, function(r2){
+                                results.push(r2.success ? {success:true} : {error:true});
+                                submitGroupsSeq(groups, idx+1, common, results);
+                            }, true); // forceKaynak=1 -> backend kaynak kontrolunu atlar
+                        } else {
+                            results.push({skipped:true});
+                            submitGroupsSeq(groups, idx+1, common, results);
+                        }
+                    });
+                } else {
+                    if(confirm((kc.mesaj || 'Seçilen kaynak bu saatte dolu.').replace(/<[^>]*>/g,''))){
+                        postOneGroup(group, common, false, function(r2){
+                            results.push(r2.success ? {success:true} : {error:true});
+                            submitGroupsSeq(groups, idx+1, common, results);
+                        }, true);
+                    } else {
+                        results.push({skipped:true});
+                        submitGroupsSeq(groups, idx+1, common, results);
+                    }
+                }
+                return;
+            }
             if(result.cakismavar){
                 if(typeof swal !== 'undefined'){
                     swal({
@@ -2587,7 +2625,7 @@
         });
     }
 
-    function postOneGroup(group, common, forceCakisma, cb){
+    function postOneGroup(group, common, forceCakisma, cb, forceKaynak){
         var formData = new FormData();
         var csrf = $('input[name="_token"]').first().val() || $('meta[name="csrf-token"]').attr('content') || '';
         formData.append('_token', csrf);
@@ -2597,6 +2635,7 @@
         formData.append('saat', common.saat);
         formData.append('personel_notu', common.not);
         if(forceCakisma) formData.append('cakisanrandevuekle', '1');
+        if(forceKaynak) formData.append('kaynak_cakisma_onay', '1');
         if(common.tek){
             formData.append('tekrarlayan', 'on');
             formData.append('tekrar_sikligi', common.tekSiklik);
@@ -2710,6 +2749,7 @@
             dataType: 'json',
             success: function(res){
                 if(res && res.cakismavar){ cb({cakismavar: res.cakismavar}); }
+                else if(res && res.kaynak_cakismasi){ cb({kaynak_cakismasi: res}); }
                 else { cb({success:true, response: res}); }
             },
             error: function(req){
