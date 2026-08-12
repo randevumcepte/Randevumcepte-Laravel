@@ -2548,6 +2548,11 @@
                 $modal.modal('hide');
                 if(typeof takvimyukle === 'function') takvimyukle(true, true);
             }
+            // Hicbir sey olusmadi VE hata yok (kullanici cakismada 'Vazgec' dedi) =>
+            // gereksiz "0 olusturuldu, N atlandi" ozetini gosterme, sessizce cik.
+            if(ok === 0 && fail === 0){
+                return;
+            }
             var summary = ok + ' randevu oluşturuldu';
             if(skipped) summary += ', ' + skipped + ' atlandı';
             if(fail) summary += ', ' + fail + ' hata';
