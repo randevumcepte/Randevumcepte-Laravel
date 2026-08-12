@@ -11076,13 +11076,20 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         }
 
+        // Salon "cakisma_uyarisi_aktif" ayari: mobilde TUM cakisma kontrolleri
+        // (eski cakisan_randevu_kontrol + oda sert engeli + yeni kaynak kontrolu)
+        // bu ayara baglidir. Ayar KAPALI (varsayilan) ise mobil HICBIR cakisma
+        // uyarisi/engeli gostermez (kullanici talebi). Ayar ACIK ise hepsi calisir.
+        $cakismaAyariAcik = !empty(Salonlar::where('id', $salonId)->value('cakisma_uyarisi_aktif'));
+
         // --- Çakışma kontrolü: sadece yeni randevu veya zamanı değiştiyse çalışsın
         // EĞER cakisanrandevuekle = "1" ise (yani kullanıcı "Yine de oluştur" dediyse) çakışma kontrolü YAPMA!
         $cakisma_varmi = "";
         Log::info('Çakışan randevu ekleme '.$request->cakisanrandevuekle);
         Log::info('Güncelleme mi? '.$guncelleme);
         Log::info('Zaman değişti mi '.$zamanDegisti);
-        if ($request->cakisanrandevuekle != "1" && $request->durum != 0) {
+        Log::info('Cakisma ayari acik mi '.($cakismaAyariAcik ? '1' : '0'));
+        if ($cakismaAyariAcik && $request->cakisanrandevuekle != "1" && $request->durum != 0) {
             if ((!$guncelleme) || ($guncelleme && $zamanDegisti)) {
                 $cakisma_varmi = self::cakisan_randevu_kontrol(
                     $request,
@@ -11093,19 +11100,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         // ── ODA ÇAKIŞMASI (SERT ENGEL) ──────────────────────────────────────────
         // Oda bazlı takvimde müşteri oda seçmez; oda personel/hizmetten OTOMATİK
-        // atanır. O atanacak oda seçilen saatte DOLUYSA randevu oluşmamalı. Bu
-        // kontrol TÜM kaynaklar/durum için ve "yine de oluştur"dan (cakisanrandevuekle=1)
-        // BAĞIMSIZ çalışır — oda fiziksel olarak boş olmadığından override edilemez.
-        // Hizmete birden fazla oda atanmışsa en az biri boşsa çakışma sayılmaz
-        // (randevuekleguncelle o boş odaya atar); hiç boş oda kalmadıysa engellenir.
-        // Yalnızca oda_id BOŞ (otomatik atama) senaryosunu ele alır; yönetici açıkça
-        // oda seçtiyse mevcut cakisan_randevu_kontrol devreye girer (override edilebilir).
-        $odaCakismasi = self::odaMusaitlikCakismasi(
-            $request,
-            $randevu_tarihleri,
-            $salonId,
-            $guncelleme ? $request->randevu_id : null
-        );
+        // atanır. O atanacak oda seçilen saatte DOLUYSA randevu oluşmamalı.
+        // NOT: Kullanici talebiyle bu engel de salon ayarina baglandi — ayar KAPALI
+        // ise oda doluluk engeli UYGULANMAZ (ayni odaya cift randevu verilebilir).
+        $odaCakismasi = "";
+        if ($cakismaAyariAcik) {
+            $odaCakismasi = self::odaMusaitlikCakismasi(
+                $request,
+                $randevu_tarihleri,
+                $salonId,
+                $guncelleme ? $request->randevu_id : null
+            );
+        }
         if ($odaCakismasi != "") {
             return ["cakismavar" => "1", "cakisanunsurlar" => $odaCakismasi];
         }
