@@ -1160,7 +1160,6 @@
     function v2FilterHizmetler(personelId, cihazId, odaId){
         var verisi = window.randevuHizmetVerisi || {};
         var tum = (verisi.tum || []).slice();
-        var izinli = null;
         var hp = (personelId && verisi.personel) ? (verisi.personel[personelId] || null) : null;
         var hc = (cihazId    && verisi.cihaz)    ? (verisi.cihaz[cihazId]       || null) : null;
         // ODA: oncelikle endpoint'ten gelen taze map, yoksa blade randevuModalData fallback
@@ -1177,22 +1176,39 @@
                 }
             }
         }
-        if(hp && hp.length) izinli = hp.slice();
-        if(hc && hc.length) izinli = (izinli ? izinli : []).concat(hc);
-        if(ho && ho.length) izinli = (izinli ? izinli : []).concat(ho);
+        // KESISIM (INTERSECTION) mantigi: her aktif kisit ayri liste doner,
+        // sadece hepsinde ORTAK olan hizmet_id'ler kalir. Kullanici bildirimi:
+        // 'oda lazer, personel bu odada calisiyor -> sadece hem personelin yaptigi
+        // hem odadaki hizmetler gorunsun'. Eski union (concat) yaklasimi personel
+        // + oda birlestiriyordu, tum hizmetleri gosteriyordu.
+        var kisitlar = [];
+        if(hp && hp.length) kisitlar.push(hp.map(String));
+        if(hc && hc.length) kisitlar.push(hc.map(String));
+        if(ho && ho.length) kisitlar.push(ho.map(String));
+
+        var intersect = null;
+        if(kisitlar.length){
+            intersect = kisitlar[0].slice();
+            for(var i = 1; i < kisitlar.length; i++){
+                var next = kisitlar[i];
+                intersect = intersect.filter(function(x){ return next.indexOf(x) > -1; });
+            }
+        }
+
         console.log('[V2 FILTRE]', {personelId, cihazId, odaId,
             hp_count: hp ? hp.length : 0,
             hc_count: hc ? hc.length : 0,
             ho_count: ho ? ho.length : 0,
             tum_count: tum.length,
-            izinli: izinli ? izinli.length : 0,
+            kesisim: intersect ? intersect.length : null,
             verisi_oda_var: !!(verisi.oda && Object.keys(verisi.oda).length)
         });
-        if(izinli && izinli.length){
-            izinli = Array.from(new Set(izinli.map(String)));
-            return tum.filter(function(h){ return izinli.indexOf(String(h.id)) > -1; });
+
+        if(intersect && intersect.length){
+            return tum.filter(function(h){ return intersect.indexOf(String(h.id)) > -1; });
         }
-        // Hicbir secime tanimli hizmet yoksa: filtrelemez (tum hizmetler)
+        // Kisit yok VEYA kesisim bos -> tum hizmetler (fallback; boş listeyle
+        // kullaniciyi kilitlemeyelim, veri eksigi olabilir).
         return tum;
     }
 
@@ -2540,6 +2556,7 @@
         var group = groups[idx];
         postOneGroup(group, common, false, function(result){
             if(result.kaynak_cakismasi){
+                $('#preloader').hide(); // popup arkasinda spinner takili kalmasin
                 var kc = result.kaynak_cakismasi || {};
                 if(typeof swal !== 'undefined'){
                     swal({
@@ -2555,6 +2572,7 @@
                         focusCancel: true
                     }).then(function(confirm){
                         if(confirm.value){
+                            $('#preloader').show(); // onayladi -> tekrar gonderiliyor
                             postOneGroup(group, common, false, function(r2){
                                 results.push(r2.success ? {success:true} : {error:true});
                                 submitGroupsSeq(groups, idx+1, common, results);
@@ -2578,6 +2596,7 @@
                 return;
             }
             if(result.cakismavar){
+                $('#preloader').hide(); // popup arkasinda spinner takili kalmasin
                 if(typeof swal !== 'undefined'){
                     swal({
                         type: 'warning',
