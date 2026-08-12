@@ -10889,6 +10889,116 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         return Cihazlar::where("salon_id", $salonid)->where('aktifmi',1)->get();
 
     }
+    /**
+     * KAYNAK ÇAKIŞMA KONTROLÜ (API / mobil) — personel + oda + cihaz.
+     *
+     * Web'deki StoreAdminController@kaynak_cakisma_kontrol ile ayni mantik; fark
+     * sadece istek sekli: mobil, form dizileri yerine yapisal $request->hizmetler
+     * ([{hizmet_id, personel_id, oda_id, cihaz_id, sure_dk, birlestir}]) gonderir.
+     *
+     * Doner: '' (ayar kapali VEYA cakisma yok) | duz metin mesaj (ilk cakisma).
+     * Mesaj DUZ METIN (HTML yok) — mobil AlertDialog'da dogru gorunsun diye.
+     */
+    private function kaynak_cakisma_kontrol_api($request, $randevu_tarihleri, $salonId)
+    {
+        $salon = Salonlar::find($salonId);
+        if (!$salon || empty($salon->cakisma_uyarisi_aktif)) {
+            return ''; // ayar kapali => kisitlama yok
+        }
+        if (!isset($request->hizmetler) || !is_array($request->hizmetler)) {
+            return '';
+        }
+
+        $current_randevu_id = ($request->randevu_id !== null && $request->randevu_id !== '') ? $request->randevu_id : null;
+
+        foreach ($randevu_tarihleri as $tarih) {
+            $yenisaatbaslangic = $request->randevu_saati;
+            foreach ($request->hizmetler as $key => $value) {
+                $saat_baslangic = ($key == 0) ? $request->randevu_saati : $yenisaatbaslangic;
+                $sure = (int) (isset($value['sure_dk']) && $value['sure_dk'] !== '' ? $value['sure_dk'] : 0);
+                $saat_bitis = date('H:i', strtotime('+' . $sure . ' minutes', strtotime($saat_baslangic)));
+                // "birlestir" (paralel) degilse sonraki satir bu bitiste baslar (insert ile ayni)
+                if (!isset($value['birlestir']) || $value['birlestir'] != '1') {
+                    $yenisaatbaslangic = $saat_bitis;
+                }
+
+                // Bu satirda atanmis her kaynak (personel/oda/cihaz) ayri kontrol
+                $kaynaklar = [
+                    ['tip' => 'personel', 'kolon' => 'personel_id', 'id' => $value['personel_id'] ?? null],
+                    ['tip' => 'oda',      'kolon' => 'oda_id',      'id' => $value['oda_id'] ?? null],
+                    ['tip' => 'cihaz',    'kolon' => 'cihaz_id',    'id' => $value['cihaz_id'] ?? null],
+                ];
+                foreach ($kaynaklar as $k) {
+                    $kid = $k['id'];
+                    if ($kid === null || $kid === '' || $kid === 'null') {
+                        continue; // bu satirda bu tip kaynak yok (oda bos ise otomatik atanir; odaMusaitlikCakismasi zaten korur)
+                    }
+                    $mesaj = self::_kaynak_cakisma_tekil_api($k['tip'], $k['kolon'], $kid, $tarih, $saat_baslangic, $saat_bitis, $salonId, $current_randevu_id);
+                    if ($mesaj !== '') {
+                        return $mesaj;
+                    }
+                }
+            }
+        }
+        return '';
+    }
+
+    /** Tek kaynak icin verilen pencerede ONAYLI cakisma var mi? Varsa duz metin mesaj, yoksa ''. */
+    private function _kaynak_cakisma_tekil_api($tip, $kolon, $kaynak_id, $tarih, $saat_baslangic, $saat_bitis, $salonId, $current_randevu_id)
+    {
+        $onaylilar = DB::table('randevular')
+            ->join('randevu_hizmetler', 'randevular.id', '=', 'randevu_hizmetler.randevu_id')
+            ->where('randevular.tarih', $tarih)
+            ->where('randevular.durum', 1)
+            ->where('randevular.salon_id', $salonId)
+            ->where('randevu_hizmetler.' . $kolon, $kaynak_id)
+            ->when($current_randevu_id, function ($q) use ($current_randevu_id) {
+                $q->where('randevular.id', '!=', $current_randevu_id);
+            })
+            ->select('randevu_hizmetler.saat', 'randevu_hizmetler.saat_bitis', 'randevu_hizmetler.hizmet_id', 'randevu_hizmetler.personel_id')
+            ->get();
+
+        foreach ($onaylilar as $rh) {
+            $ns = strtotime($saat_baslangic);
+            $ne = strtotime($saat_bitis);
+            $es = strtotime($rh->saat);
+            $ee = strtotime($rh->saat_bitis);
+            $cakisma = ($ns < $ee && $ne > $es) || ($ns >= $es && $ns < $ee);
+            if (!$cakisma) {
+                continue;
+            }
+            $kaynak_adi    = self::_kaynak_adi_api($tip, $kaynak_id);
+            $dolu_hizmet   = $rh->hizmet_id
+                ? (DB::table('hizmetler')->where('id', $rh->hizmet_id)->value('hizmet_adi') ?: 'işlem')
+                : 'işlem';
+            $dolu_saat     = date('H:i', strtotime($rh->saat));
+            $dolu_personel = $rh->personel_id ? self::_kaynak_adi_api('personel', $rh->personel_id) : null;
+
+            if ($tip == 'personel') {
+                return $kaynak_adi . ' personel ' . $dolu_hizmet . ' işleminde (' . $dolu_saat . ') — dolu.';
+            } elseif ($tip == 'cihaz') {
+                $kim = $dolu_personel ? $dolu_personel . ' personel ' : '';
+                return $kaynak_adi . ' cihazı dolu — ' . $kim . $dolu_hizmet . ' işleminde (' . $dolu_saat . ').';
+            } else {
+                $kim = $dolu_personel ? $dolu_personel . ' personel ' : '';
+                return $kaynak_adi . ' odası dolu — ' . $kim . $dolu_hizmet . ' işleminde (' . $dolu_saat . ').';
+            }
+        }
+        return '';
+    }
+
+    /** Kaynak (personel/cihaz/oda) adini getir. */
+    private function _kaynak_adi_api($tip, $id)
+    {
+        if ($tip == 'cihaz') {
+            return DB::table('cihazlar')->where('id', $id)->value('cihaz_adi') ?: 'Cihaz';
+        }
+        if ($tip == 'oda') {
+            return DB::table('odalar')->where('id', $id)->value('oda_adi') ?: 'Oda';
+        }
+        return DB::table('salon_personelleri')->where('id', $id)->value('personel_adi') ?: 'Personel';
+    }
+
     public function randevuekleguncelle(Request $request)
     {
         $salonId = '';
@@ -10998,6 +11108,20 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         );
         if ($odaCakismasi != "") {
             return ["cakismavar" => "1", "cakisanunsurlar" => $odaCakismasi];
+        }
+
+        // ── KAYNAK ÇAKIŞMA UYARISI (personel/oda/cihaz DOLU) ────────────────────
+        // Salon ayari "cakisma_uyarisi_aktif" ACIK ise; secilen kaynak (personel/
+        // oda/cihaz) o saat araliginda baska ONAYLI (durum=1) randevuda doluysa
+        // uyari doner. Web (StoreAdminController@kaynak_cakisma_kontrol) ile AYNI
+        // mantik. Geriye uyumluluk icin mevcut cakismavar/cakisanunsurlar kanalindan
+        // doner => eski mobil surumler de mevcut dialog ile isler. "Yine de olustur"
+        // (cakisanrandevuekle=1) ile atlanabilir (soft uyari).
+        if ($request->cakisanrandevuekle != "1" && $request->durum != 0) {
+            $kaynakMesaj = self::kaynak_cakisma_kontrol_api($request, $randevu_tarihleri, $salonId);
+            if ($kaynakMesaj !== "") {
+                return ["cakismavar" => "1", "cakisanunsurlar" => $kaynakMesaj];
+            }
         }
 
         // Eğer çakışma varsa VE kullanıcı "yine de oluştur" demediyse uyarı döndür
