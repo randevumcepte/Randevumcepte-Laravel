@@ -1,3 +1,4 @@
+// custom.js v262.6 — kaynak cakisma coklu kontrol (personel+oda+cihaz) + yaniltici basari koruma
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // jQuery
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3814,7 +3815,7 @@ $(document).on('submit','#yenirandevuekleform',function(e){
                         }
                     );
                 }
-                else
+                else if(result && result.success)
                 {
                     /*$('.hizmetler_bolumu div.row').each(function(e){
                         if($(this).attr('data-value')!="0")
@@ -3839,6 +3840,17 @@ $(document).on('submit','#yenirandevuekleform',function(e){
                     if($('#calendar').length)
                         takvimyukle(false,false);
                     resetForm();
+                }
+                else
+                {
+                    // Beklenmedik yanit (ne cakisma ne basari) -> SAHTE "Basarili" gosterme.
+                    // Eski surumlerde cakisma yaniti burada yaniltici basari uretiyordu.
+                    console.warn('yenirandevuekle: beklenmedik yanit', result);
+                    swal({
+                        type:'warning',
+                        title:'İşlem tamamlanamadı',
+                        html:"<p style='font-size:14px;color:#4b5563;'>Randevu oluşturulamadı. Lütfen bilgileri kontrol edip tekrar deneyin. Sorun sürerse sayfayı <b>Ctrl+Shift+R</b> ile yenileyin.</p>",
+                    });
                 }
             },
             error: function (request, status, error) {
