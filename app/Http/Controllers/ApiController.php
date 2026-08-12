@@ -17790,6 +17790,14 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $isletme->gecmis_randevulari_gizle = (int) $request->gecmis_randevulari_gizle === 1 ? 1 : 0;
         }
 
+        // Ayni saatte dolu personel/cihaz/oda icin uyar (kaynak cakisma uyarisi).
+        // Web'deki ayarin ayni; mobil yonetici panelinden de acilip kapanabilsin.
+        // Migration henuz calismadiysa (auto-deploy sirasi) patlamasin diye kolon guard.
+        if ($request->has('cakisma_uyarisi_aktif')
+            && \Illuminate\Support\Facades\Schema::hasColumn('salonlar', 'cakisma_uyarisi_aktif')) {
+            $isletme->cakisma_uyarisi_aktif = (int) $request->cakisma_uyarisi_aktif === 1 ? 1 : 0;
+        }
+
         $isletme->save();
 
         Audit::logApi($request->salon_id, $request, 'randevu_ayar_guncelle', 'salon', optional($isletme)->id, optional($isletme)->salon_adi, 'Randevu ayarlari guncellendi');
