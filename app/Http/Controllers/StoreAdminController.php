@@ -19847,26 +19847,39 @@ DB::raw('
         ->where('salon_id', $randevu->salon_id)
         ->first();
 
-    // KVKK onay kodu bir defaya mahsus olusturulur. Eski musterilerin
-    // onay_kodu NULL kalabildigi icin (kayit sirasinda uretilmemis) burada
-    // ilk KVKK isteminde 4 haneli kod uretip portfoya kaydediyoruz. Sonraki
-    // istekler ayni kodu kullanir.
-    if ($portfoy && empty($portfoy->onay_kodu)) {
-        try {
-            $portfoy->onay_kodu = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-            $portfoy->save();
-        } catch (\Throwable $e) {
-            \Log::warning('KVKK onay_kodu olusturma hata: '.$e->getMessage(), [
-                'user_id' => $randevu->user_id ?? null,
-                'salon_id' => $randevu->salon_id ?? null,
-            ]);
+    // NULL guvenligi: bazi eski / silinmis musterilerde portfoy kaydi olmayabilir
+    // (rehberden import + portfoy silinme senaryolari). Bu durumda KVKK dalini
+    // komple atla; aksi halde 'Trying to get property onay_kodu of non-object'
+    // 500 hatasi (bkz. laravel.log 2026-08-12 randevugeldiisaretle).
+    if (!$portfoy) {
+        \Log::warning('randevugeldiisaretle: musteri_portfoy yok — KVKK dalisi atlaniyor', [
+            'randevu_id' => $randevu->id ?? null,
+            'user_id'    => $randevu->user_id ?? null,
+            'salon_id'   => $randevu->salon_id ?? null,
+        ]);
+        $kvkkOnayiAktif = false;
+        $olusturulanOnayKodu = '';
+    } else {
+        // KVKK onay kodu bir defaya mahsus olusturulur. Eski musterilerin
+        // onay_kodu NULL kalabildigi icin (kayit sirasinda uretilmemis) burada
+        // ilk KVKK isteminde 4 haneli kod uretip portfoya kaydediyoruz. Sonraki
+        // istekler ayni kodu kullanir.
+        if (empty($portfoy->onay_kodu)) {
+            try {
+                $portfoy->onay_kodu = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+                $portfoy->save();
+            } catch (\Throwable $e) {
+                \Log::warning('KVKK onay_kodu olusturma hata: '.$e->getMessage(), [
+                    'user_id' => $randevu->user_id ?? null,
+                    'salon_id' => $randevu->salon_id ?? null,
+                ]);
+            }
         }
+        $olusturulanOnayKodu = $portfoy->onay_kodu;
     }
 
-    $olusturulanOnayKodu = $portfoy->onay_kodu;
-
-    // KVKK kontrolü - sadece ilk defa geliyorsa
-    if ($kvkkOnayiAktif && !$portfoy->kvkk_onay_alindi) {
+    // KVKK kontrolü - sadece ilk defa geliyorsa (portfoy varsa)
+    if ($portfoy && $kvkkOnayiAktif && !$portfoy->kvkk_onay_alindi) {
         // Eğer doğrulama kodu henüz girilmemişse
         if (!$request->isKvkkProcess && $request->dogrulama_kodu == '' && $request->kvkkOnayKodu == '') {
             // Önce doğrulama kodunu iste
