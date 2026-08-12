@@ -25703,20 +25703,27 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $cihaz_hizmet_map = (object) $cm;
         }
 
-        // Oda -> hizmet eslesmesi (v2 modal filtresi icin gerekli; blade'den de aliniyordu ama
-        // ensureHizmetVerisi cagrilarinda dinamik yenilenebilsin diye burada da donduruyoruz).
+        // Oda -> hizmet eslesmesi (v2 modal filtresi icin gerekli).
+        // NOT: oda_personelleri gibi burada da salon_id kolonu bazi eski
+        // kayitlarda NULL olabilir. Bu durumda 'where salon_id' filtresi
+        // esleme dondurmezdi -> v2 modalinde 'tum hizmetler' geliyordu.
+        // Cozum: salonun oda_id listesini whereIn ile sinir olarak kullan.
         $oda_hizmet_map = new \stdClass();
         if (\Schema::hasTable('oda_sunulan_hizmetler')) {
-            $om = [];
-            $rows = \DB::table('oda_sunulan_hizmetler')
-                ->where('salon_id', $isletmeid)
-                ->select('oda_id','hizmet_id')
-                ->get();
-            foreach($rows as $r){
-                if(!isset($om[$r->oda_id])) $om[$r->oda_id] = [];
-                $om[$r->oda_id][] = (int)$r->hizmet_id;
+            $salonOdaIdsForHizmet = \DB::table('odalar')->where('salon_id', $isletmeid)->pluck('id')->toArray();
+            if (count($salonOdaIdsForHizmet) > 0) {
+                $om = [];
+                $rows = \DB::table('oda_sunulan_hizmetler')
+                    ->whereIn('oda_id', $salonOdaIdsForHizmet)
+                    ->select('oda_id','hizmet_id')
+                    ->get();
+                foreach($rows as $r){
+                    if(!isset($om[$r->oda_id])) $om[$r->oda_id] = [];
+                    $om[$r->oda_id][] = (int)$r->hizmet_id;
+                }
+                $oda_hizmet_map = (object) $om;
+                \Log::info('[v2 oda_hizmet_map]', ['salon_id'=>$isletmeid, 'oda_count'=>count($salonOdaIdsForHizmet), 'row_count'=>count($rows), 'map_keys'=>array_keys($om)]);
             }
-            $oda_hizmet_map = (object) $om;
         }
 
         // Oda -> personel eslesmesi (Odaya gore takvimde oda secince personel filtresi)
