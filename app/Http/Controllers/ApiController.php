@@ -2007,14 +2007,24 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             }
             // Telefon: musteri.telefon_gor yetkisi kapaliysa maskeli goster.
+            // Route auth'lu olmadigi icin cagiran kullaniciyi $request->personel_id
+            // (salon_personelleri.id) uzerinden yetkili_id'ye cozeriz.
             $__telRaw = (string)($rh->randevu->users->cep_telefon ?? '');
             $__telGor = true;
             try {
-                $__authU = \Auth::guard('isletmeyonetim-api')->user()
-                    ?: \Auth::guard('isletmeyonetim')->user();
-                if ($__authU) {
+                $__callerYetkiliId = null;
+                if ($request->personel_id) {
+                    $__callerYetkiliId = Personeller::where('id', $request->personel_id)
+                        ->value('yetkili_id');
+                }
+                if (!$__callerYetkiliId) {
+                    $__authU = \Auth::guard('isletmeyonetim-api')->user()
+                        ?: \Auth::guard('isletmeyonetim')->user();
+                    $__callerYetkiliId = $__authU ? $__authU->id : null;
+                }
+                if ($__callerYetkiliId) {
                     $__telGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
-                        $__authU->id, $isletmeId, 'musteri.telefon_gor'
+                        $__callerYetkiliId, $isletmeId, 'musteri.telefon_gor'
                     );
                 }
             } catch (\Throwable $e) {}
