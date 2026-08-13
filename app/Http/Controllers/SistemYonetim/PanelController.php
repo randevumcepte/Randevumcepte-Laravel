@@ -8,6 +8,8 @@ use App\IsletmeYetkilileri;
 use App\SistemYoneticileri;
 use App\Personeller;
 use App\Randevular;
+use App\SabitNumaralar;
+use App\SistemYonetim\SalonDakikaPaketi;
 use App\SistemYonetim\Audit;
 use App\SistemYonetim\AuditLog;
 use App\SistemYonetim\LoginLog;
@@ -2032,5 +2034,194 @@ class PanelController extends Controller
         $u->save();
         Audit::log('sifre_degistir', 'sistem_yoneticisi', $u->id, $u->name);
         return redirect('/sistemyonetim/v2/profil')->with('basari', 'Şifre güncellendi.');
+    }
+
+    /* ============================================================
+     * DAKIKA YONETIMI — e-santral musterileri icin giden konusma
+     * dakikasi takibi (tanimli havuz vs. harcanan).
+     * ============================================================ */
+
+    /**
+     * FreePBX CDR'dan bir salonun GIDEN (dis hat) konusma dakikasini ceker.
+     * Kaynak: santral.randevumcepte.com.tr/monitor/api/dakikaOzet.php
+     * Olcum: outbound_cnum = trunk olan ANSWERED cagrilarin SUM(billsec)/60.
+     *
+     * @return array{dakika: float, adet: int, hata: bool}
+     */
+    private function dakikaKullanimHesapla($trunk, $tarih1 = null, $tarih2 = null)
+    {
+        if (empty($trunk) || !preg_match('/^\d+$/', (string) $trunk)) {
+            return ['dakika' => 0.0, 'adet' => 0, 'hata' => false];
+        }
+
+        $qs = 'did=' . urlencode($trunk);
+        if ($tarih1) $qs .= '&tarih1=' . urlencode($tarih1);
+        if ($tarih2) $qs .= '&tarih2=' . urlencode($tarih2);
+
+        // Liste her salon icin ayri CDR sorgusu yapar; 5 dk cache ile santral
+        // API'si cok musteride her yenilemede yeniden yuklenmez.
+        $cacheKey = 'sy.dakika.' . md5($qs);
+        $cached = \Cache::get($cacheKey);
+        if (is_array($cached)) return $cached;
+
+        $endpoint = 'https://santral.randevumcepte.com.tr/monitor/api/dakikaOzet.php?' . $qs;
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $endpoint);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        $raw = curl_exec($ch);
+        if (curl_errno($ch)) {
+            \Log::error('dakikaKullanimHesapla curl: ' . curl_error($ch));
+            curl_close($ch);
+            return ['dakika' => 0.0, 'adet' => 0, 'hata' => true];
+        }
+        curl_close($ch);
+
+        $d = json_decode($raw, true);
+        if (!is_array($d) || isset($d['error'])) {
+            return ['dakika' => 0.0, 'adet' => 0, 'hata' => true];
+        }
+
+        $sonuc = [
+            'dakika' => (float) ($d['toplam_dakika'] ?? 0),
+            'adet'   => (int) ($d['giden_cevaplanan_adet'] ?? 0),
+            'hata'   => false,
+        ];
+        \Cache::put($cacheKey, $sonuc, 300);
+        return $sonuc;
+    }
+
+    /**
+     * Bir salon icin sayim baslangic tarihi: paket kaydinda ozel bir tarih
+     * varsa o, yoksa salonun olusturma tarihi (secim: "salon olusturma tarihi").
+     */
+    private function dakikaSayimBaslangic($salon, $paket = null)
+    {
+        if ($paket && !empty($paket->sayim_baslangic)) {
+            return date('Y-m-d', strtotime($paket->sayim_baslangic));
+        }
+        if (!empty($salon->created_at)) {
+            return date('Y-m-d', strtotime((string) $salon->created_at));
+        }
+        return '2020-01-01';
+    }
+
+    /**
+     * Dakika Yonetimi listesi — tum salonlar: tanimli / kullanilan / kalan.
+     */
+    public function dakika(Request $request)
+    {
+        $q = trim($request->get('q', ''));
+
+        // Sadece santral (trunk) tanimli salonlar anlamli — SabitNumaralar'da
+        // kaydi olan salonlari al. Cok fazla salonda CDR sorgusu maliyetli
+        // oldugundan liste bu kumeyle sinirli.
+        $trunkler = SabitNumaralar::whereNotNull('numara')
+            ->where('numara', '!=', '')
+            ->pluck('numara', 'salon_id'); // [salon_id => numara]
+
+        $salonIdler = $trunkler->keys()->all();
+
+        $salonQ = Salonlar::whereIn('id', $salonIdler);
+        if ($this->rol() === 'destek') {
+            $salonQ->where('musteri_yetkili_id', $this->user()->id);
+        }
+        if ($q !== '') {
+            $salonQ->where(function ($w) use ($q) {
+                $w->where('salon_adi', 'like', "%$q%")
+                  ->orWhere('yetkili_adi', 'like', "%$q%")
+                  ->orWhere('yetkili_telefon', 'like', "%$q%");
+            });
+        }
+        $salonlar = $salonQ->orderBy('salon_adi')->get();
+
+        // Paket tanimlarini tek sorguda al
+        $paketler = SalonDakikaPaketi::whereIn('salon_id', $salonlar->pluck('id'))
+            ->get()->keyBy('salon_id');
+
+        $satirlar = [];
+        $toplamTanimli = 0;
+        $toplamKullanilan = 0.0;
+
+        foreach ($salonlar as $salon) {
+            $paket  = $paketler->get($salon->id);
+            $trunk  = $trunkler->get($salon->id);
+            $bas    = $this->dakikaSayimBaslangic($salon, $paket);
+
+            $kullanim  = $this->dakikaKullanimHesapla($trunk, $bas, date('Y-m-d'));
+            $tanimli   = (int) ($paket->tanimli_dakika ?? 0);
+            $kullanilan = $kullanim['dakika'];
+            $kalan     = round($tanimli - $kullanilan, 1);
+            $yuzde     = $tanimli > 0 ? min(100, round($kullanilan / $tanimli * 100)) : 0;
+
+            $toplamTanimli    += $tanimli;
+            $toplamKullanilan += $kullanilan;
+
+            $satirlar[] = [
+                'salon_id'        => $salon->id,
+                'salon_adi'       => $salon->salon_adi,
+                'trunk'           => $trunk,
+                'sayim_baslangic' => $bas,
+                'tanimli'         => $tanimli,
+                'kullanilan'      => $kullanilan,
+                'kalan'           => $kalan,
+                'yuzde'           => $yuzde,
+                'adet'            => $kullanim['adet'],
+                'hata'            => $kullanim['hata'],
+            ];
+        }
+
+        // Cok az kalan / asilanlar uste
+        usort($satirlar, function ($a, $b) {
+            return $b['yuzde'] <=> $a['yuzde'];
+        });
+
+        return view('sistemyonetim.v2.dakika', [
+            'title'            => 'Dakika Yönetimi',
+            'aktifMenu'        => 'dakika',
+            'satirlar'         => $satirlar,
+            'q'                => $q,
+            'toplamTanimli'    => $toplamTanimli,
+            'toplamKullanilan' => round($toplamKullanilan, 1),
+        ]);
+    }
+
+    /**
+     * Bir salonun tanimli dakikasini (ve opsiyonel sayim baslangicini) kaydet.
+     */
+    public function dakikaKaydet(Request $request, $id)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+
+        $salon = Salonlar::findOrFail($id);
+
+        $tanimli = (int) $request->get('tanimli_dakika', 0);
+        if ($tanimli < 0) $tanimli = 0;
+
+        $sayimBaslangic = trim((string) $request->get('sayim_baslangic', ''));
+        $sayimBaslangicDb = null;
+        if ($sayimBaslangic !== '') {
+            $ts = strtotime($sayimBaslangic);
+            if ($ts === false) {
+                return redirect()->back()->with('hata', 'Geçersiz sayım başlangıç tarihi.');
+            }
+            $sayimBaslangicDb = date('Y-m-d', $ts);
+        }
+
+        $paket = SalonDakikaPaketi::firstOrNew(['salon_id' => $salon->id]);
+        $eski  = ['tanimli' => $paket->tanimli_dakika, 'sayim' => $paket->sayim_baslangic];
+
+        $paket->tanimli_dakika  = $tanimli;
+        $paket->sayim_baslangic = $sayimBaslangicDb;
+        $paket->guncelleyen     = $this->user()->name ?? null;
+        $paket->save();
+
+        Audit::log('salon_dakika_kaydet', 'salon', $salon->id, $salon->salon_adi,
+            'Tanımlı dakika: ' . $tanimli,
+            ['eski' => $eski, 'yeni' => ['tanimli' => $tanimli, 'sayim' => $sayimBaslangicDb]]);
+
+        return redirect()->back()->with('basari',
+            $salon->salon_adi . ' için tanımlı dakika güncellendi: ' . $tanimli . ' dk');
     }
 }

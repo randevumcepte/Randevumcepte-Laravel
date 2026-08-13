@@ -2534,11 +2534,25 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
     public function musteritahsilat(Request $request)
     {
-
-        
-        return User::where('id',$request->userId)->first();
-      
-
+        $u = User::where('id',$request->userId)->first();
+        if ($u) {
+            $_salonId = $request->sube ?? $request->salon_id;
+            $_callerYetkiliId = $request->user_id ?? null;
+            $_telGor = true;
+            try {
+                if ($_callerYetkiliId && $_salonId) {
+                    $_telGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                        $_callerYetkiliId, $_salonId, 'musteri.telefon_gor'
+                    );
+                }
+            } catch (\Throwable $e) {}
+            if (!$_telGor) {
+                if (isset($u->cep_telefon)) $u->cep_telefon = \App\PersonelYetkiSabitleri::telefonMaskele($u->cep_telefon);
+                if (isset($u->gsm1))        $u->gsm1        = \App\PersonelYetkiSabitleri::telefonMaskele($u->gsm1);
+                if (isset($u->gsm2))        $u->gsm2        = \App\PersonelYetkiSabitleri::telefonMaskele($u->gsm2);
+            }
+        }
+        return $u;
     }
 
     public function paketget(Request $request, $salonid)
@@ -10763,11 +10777,25 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 ->get()
                 ->keyBy('user_id');
     
+            // Yetki: musteri.telefon_gor kapaliysa cep_telefon maskeli.
+            $_callerYetkiliId = $request->user_id ?? null;
+            $_telGor = true;
+            try {
+                if ($_callerYetkiliId && $salonId) {
+                    $_telGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                        $_callerYetkiliId, $salonId, 'musteri.telefon_gor'
+                    );
+                }
+            } catch (\Throwable $e) {}
+
             // Verileri birleştir
-            $musteriler->getCollection()->transform(function ($item) use ($randevuBilgileri, $odemeBilgileri,$salonId) {
+            $musteriler->getCollection()->transform(function ($item) use ($randevuBilgileri, $odemeBilgileri,$salonId,$_telGor) {
+                if (!$_telGor && isset($item->cep_telefon)) {
+                    $item->cep_telefon = \App\PersonelYetkiSabitleri::telefonMaskele($item->cep_telefon);
+                }
                 $randevu = $randevuBilgileri[$item->id] ?? null;
                 $odeme = $odemeBilgileri[$item->id] ?? null;
-                
+
                 $item->randevu_sayisi = $randevu ? $randevu->randevu_sayisi : 0;
                 $item->son_randevu_tarihi = $randevu && $randevu->son_randevu_tarihi ? 
                     date('d.m.Y', strtotime($randevu->son_randevu_tarihi)) : '-';

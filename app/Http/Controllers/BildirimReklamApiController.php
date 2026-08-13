@@ -440,6 +440,24 @@ class BildirimReklamApiController extends Controller
             ->where('musteri_portfoy.aktif', 1)
             ->select('users.id', 'users.name', 'users.cep_telefon')
             ->orderBy('users.name')->get();
+
+        // Yetki: musteri.telefon_gor kapaliysa cep_telefon maskeli.
+        $_callerYetkiliId = $request->user_id ?? null;
+        $_telGor = true;
+        try {
+            if ($_callerYetkiliId && $salonId) {
+                $_telGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                    $_callerYetkiliId, $salonId, 'musteri.telefon_gor'
+                );
+            }
+        } catch (\Throwable $e) {}
+        if (!$_telGor) {
+            $musteriler = $musteriler->map(function ($m) {
+                $m->cep_telefon = \App\PersonelYetkiSabitleri::telefonMaskele($m->cep_telefon ?? '');
+                return $m;
+            });
+        }
+
         return response()->json(['success' => true, 'data' => $musteriler]);
     }
 

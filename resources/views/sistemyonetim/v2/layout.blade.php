@@ -49,6 +49,10 @@
                 <span class="icon mdi mdi-store"></span>
                 Salonlar
             </a>
+            <a href="/sistemyonetim/v2/dakika" class="sy-nav-item {{ $aktifMenu === 'dakika' ? 'active' : '' }}">
+                <span class="icon mdi mdi-phone-clock"></span>
+                Dakika Yönetimi
+            </a>
             <a href="/sistemyonetim/v2/ticket" class="sy-nav-item {{ $aktifMenu === 'ticket' ? 'active' : '' }}">
                 <span class="icon mdi mdi-lifebuoy"></span>
                 Destek Talepleri

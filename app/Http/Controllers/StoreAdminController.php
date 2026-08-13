@@ -1093,7 +1093,7 @@ public function carkverilerigetir(Request $request)
                 'deger'             => $odul->deger,
                 'musteri_adi'       => $user->name ?? ('#'.$odul->user_id),
                 'musteri_email'     => $user->email ?? null,
-                'musteri_tel'       => $user->cep_telefon ?? ($user->telefon ?? null),
+                'musteri_tel'       => \App\PersonelYetkiSabitleri::telefonGoster($user->cep_telefon ?? ($user->telefon ?? null), $odul->salon_id ?? null),
                 'kazanma_tarihi'    => $odul->created_at ? $odul->created_at->format('d.m.Y H:i') : null,
                 'gecerlilik'        => $odul->gecerlilik_tarihi ? \Carbon\Carbon::parse($odul->gecerlilik_tarihi)->format('d.m.Y') : 'Süresiz',
                 'kullanildi'        => (int) $odul->kullanildi,
@@ -1866,7 +1866,7 @@ public function carkverilerigetir(Request $request)
         list($t1, $t2, $periodKey) = $this->raporPeriodDates($request);
         $cacheKey = 'rapor:musteri:'.$periodKey.':'.$t1.':'.$t2;
 
-        return \Cache::remember($this->dashCacheKey($salonId, $cacheKey), 60, function() use ($salonId, $t1, $t2) {
+        $result = \Cache::remember($this->dashCacheKey($salonId, $cacheKey), 60, function() use ($salonId, $t1, $t2) {
             $aktifMusteriler = DB::table('randevular')
                 ->where('salon_id', $salonId)
                 ->whereBetween('tarih', [$t1, $t2])
@@ -1912,14 +1912,34 @@ public function carkverilerigetir(Request $request)
                 ->limit(10)
                 ->get();
 
-            return response()->json([
+            return [
                 'toplam_aktif' => $toplamAktif,
                 'yeni_musteri' => $yeniMusteri,
                 'tekrar_gelen' => $tekrarGelen,
                 'cinsiyet' => $cinsiyet,
                 'top_musteriler' => $topMusteriler,
-            ]);
+            ];
         });
+        // Cache DISINDA telefon maskele
+        if (isset($result['top_musteriler'])) {
+            try {
+                $user = \Auth::guard('isletmeyonetim')->user()
+                    ?: \Auth::guard('isletmeyonetim-api')->user();
+                if ($user) {
+                    $gor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                        $user->id, $salonId, 'musteri.telefon_gor'
+                    );
+                    if (!$gor) {
+                        foreach ($result['top_musteriler'] as $r) {
+                            if (isset($r->cep_telefon)) {
+                                $r->cep_telefon = \App\PersonelYetkiSabitleri::telefonMaskele($r->cep_telefon);
+                            }
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {}
+        }
+        return response()->json($result);
     }
 
     public function isletmeRaporlariRandevu(Request $request)
@@ -2077,8 +2097,8 @@ public function carkverilerigetir(Request $request)
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
         if($r = self::dashYetkiYoksa403($salonId, 'randevu.takvim_gor')) return $r;
 
-        return \Cache::remember($this->dashCacheKey($salonId, 'bugun'), 30, function() use ($salonId) {
-            $rows = DB::table('randevular')
+        $rows = \Cache::remember($this->dashCacheKey($salonId, 'bugun'), 30, function() use ($salonId) {
+            return DB::table('randevular')
                 ->leftJoin('users','randevular.user_id','=','users.id')
                 ->leftJoin('randevu_hizmetler','randevu_hizmetler.randevu_id','=','randevular.id')
                 ->leftJoin('hizmetler','randevu_hizmetler.hizmet_id','=','hizmetler.id')
@@ -2097,8 +2117,33 @@ public function carkverilerigetir(Request $request)
                 ->orderBy('randevular.saat')
                 ->limit(50)
                 ->get();
-            return response()->json(['liste' => $rows]);
         });
+        // Cache DISINDA maskele: farkli yetkili farkli maskeleme goreobilsin.
+        $rows = self::_maskeleTelefonKolonu($rows, $salonId);
+        return response()->json(['liste' => $rows]);
+    }
+
+    /**
+     * Verilen collection/array icindeki 'telefon' kolonunu, cagiran kullanicinin
+     * musteri.telefon_gor yetkisi kapaliysa maskeler. Cache disinda cagirilmali.
+     */
+    private static function _maskeleTelefonKolonu($rows, $salonId)
+    {
+        try {
+            $user = \Auth::guard('isletmeyonetim')->user()
+                ?: \Auth::guard('isletmeyonetim-api')->user();
+            if (!$user) return $rows;
+            $gor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                $user->id, $salonId, 'musteri.telefon_gor'
+            );
+            if ($gor) return $rows;
+            foreach ($rows as $r) {
+                if (isset($r->telefon)) {
+                    $r->telefon = \App\PersonelYetkiSabitleri::telefonMaskele($r->telefon);
+                }
+            }
+        } catch (\Throwable $e) {}
+        return $rows;
     }
 
     public function dashboardSekme(Request $request)
@@ -2119,7 +2164,7 @@ public function carkverilerigetir(Request $request)
             return $r;
         }
 
-        return \Cache::remember($this->dashCacheKey($salonId, 'sekme:'.$tab), 30, function() use ($salonId, $tab) {
+        $data = \Cache::remember($this->dashCacheKey($salonId, 'sekme:'.$tab), 30, function() use ($salonId, $tab) {
             $data = [];
             switch($tab){
                 case 'online-talep':
@@ -2201,8 +2246,11 @@ public function carkverilerigetir(Request $request)
                         ->get();
                     break;
             }
-            return response()->json(['tab' => $tab, 'liste' => $data]);
+            return $data;
         });
+        // Cache DISINDA telefon maskele (kullanici bazli yetki).
+        $data = self::_maskeleTelefonKolonu($data, $salonId);
+        return response()->json(['tab' => $tab, 'liste' => $data]);
     }
 
     public function dashboardTimeline(Request $request)
@@ -6995,8 +7043,8 @@ private function ayAdiCevir($ingilizceAy)
                 else if($randevueklenen->durum ==0 || $randevueklenen->durum=='' ||$randevueklenen->durum == null)
                    $randevuguncel['newevent']['color'] = "#FF4E00";
                $randevuguncel['newevent']['eposta'] = User::where('id',$musteriid)->value('email');
-               $randevuguncel['newevent']['telefoncep'] = User::where('id',$musteriid)->value('cep_telefon');
-               $randevuguncel['newevent']['telefonev'] = User::where('id',$musteriid)->value('ev_telefon');
+               $randevuguncel['newevent']['telefoncep'] = \App\PersonelYetkiSabitleri::telefonGoster(User::where('id',$musteriid)->value('cep_telefon'), $randevueklenen->salon_id ?? null);
+               $randevuguncel['newevent']['telefonev'] = \App\PersonelYetkiSabitleri::telefonGoster(User::where('id',$musteriid)->value('ev_telefon'), $randevueklenen->salon_id ?? null);
                 $randevuhizmetler = RandevuHizmetler::where('randevu_id',$randevueklenen->id)->get();
                foreach ($randevuhizmetler as $key2 => $value2) {
                     $randevuguncel['newevent']['hizmet'][$key2] = Hizmetler::where('id',$value2->hizmet_id)->value('hizmet_adi');
@@ -9270,7 +9318,7 @@ private function ayAdiCevir($ingilizceAy)
         ]);
     }
 
-    public function musteriexceleaktar(){
+    public function musteriexceleaktar(Request $request){
         $musteriler = MusteriPortfoy::where('salon_id',self::mevcutsube($request))->get();
         $musteri_array[] = array('Ad Soyad','Cinsiyet','Tür','E-posta','Cep Telefon','Randevu Sayısı','Puanlama');
         foreach ($musteriler as $key => $value) {
@@ -9290,7 +9338,7 @@ private function ayAdiCevir($ingilizceAy)
                 'Cinsiyet' => $cinsiyet,
                 'Tür' => $tur,
                 'E-posta' => $user->email,
-                'Cep Telefon' => $user->cep_telefon,
+                'Cep Telefon' => \App\PersonelYetkiSabitleri::telefonGoster($user->cep_telefon, self::mevcutsube($request)),
                 'Randevu Sayısı' => Randevular::where('user_id',$user->id)->count(),
                 'Puanlama' => SalonPuanlar::where('user_id',$user->id)->value('puan'),
             );
@@ -11787,7 +11835,33 @@ private function ayAdiCevir($ingilizceAy)
             return $r;
         });
 
+        // Yetki: musteri.telefon_gor kapaliysa cep_telefon maskeli.
+        $liste = self::_maskeleCepTelefonKolonu($liste, $salonId);
+
         return response()->json(['liste' => $liste, 'tarih' => date('Y-m-d')]);
+    }
+
+    /**
+     * Verilen collection icindeki 'cep_telefon' kolonunu, cagiran kullanicinin
+     * musteri.telefon_gor yetkisi kapaliysa maskeler.
+     */
+    private static function _maskeleCepTelefonKolonu($rows, $salonId)
+    {
+        try {
+            $user = \Auth::guard('isletmeyonetim')->user()
+                ?: \Auth::guard('isletmeyonetim-api')->user();
+            if (!$user) return $rows;
+            $gor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                $user->id, $salonId, 'musteri.telefon_gor'
+            );
+            if ($gor) return $rows;
+            foreach ($rows as $r) {
+                if (isset($r->cep_telefon)) {
+                    $r->cep_telefon = \App\PersonelYetkiSabitleri::telefonMaskele($r->cep_telefon);
+                }
+            }
+        } catch (\Throwable $e) {}
+        return $rows;
     }
 
     public function dogumGunuMesajGonder(Request $request)
