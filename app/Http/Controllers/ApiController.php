@@ -16878,6 +16878,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     public function tahsilat_urun_sil(Request $request)
 
     {
+        // Yetki: satis.tahsilat_sil
+        if (!$this->_yetkiVar($request, $request->sube ?? $request->salonid, 'satis.tahsilat_sil')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
 
         $adisyonurun = AdisyonUrunler::where(
 
@@ -16976,6 +16980,14 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     }
 
     public function tahsilat_paket_sil(Request $request)
+    {
+        // Yetki: satis.tahsilat_sil
+        if (!$this->_yetkiVar($request, $request->sube ?? $request->salonid, 'satis.tahsilat_sil')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
+        return $this->_tahsilat_paket_silImpl($request);
+    }
+    private function _tahsilat_paket_silImpl(Request $request)
 
     {
 
@@ -17132,6 +17144,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     public function tahsilat_hizmet_sil(Request $request)
 
     {
+        // Yetki: satis.tahsilat_sil
+        if (!$this->_yetkiVar($request, $request->sube ?? $request->salonid, 'satis.tahsilat_sil')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
 
         $hizmet = AdisyonHizmetler::where("id", $request->hizmet_id)->first();
 
@@ -18051,6 +18067,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     public function musteriindirim_kaydet(Request $request)
 
     {
+        // Yetki: satis.indirim_uygula — geriye uyumlu (eski build user_id yok
+        // → bypass, yeni build user_id gonderirse gercek kontrol)
+        if (!$this->_yetkiVar($request, $request->sube, 'satis.indirim_uygula')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
 
         $isletme = Salonlar::where("id", $request->sube)->first();
 
@@ -22750,6 +22771,14 @@ if (is_array($request->cihaz_id)) {
     }
 
     public function senetekleguncelle(Request $request)
+    {
+        // Yetki: satis.senet_olustur
+        if (!$this->_yetkiVar($request, $request->sube ?? $request->salonid, 'satis.senet_olustur')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
+        return $this->_senetekleguncelleImpl($request);
+    }
+    private function _senetekleguncelleImpl(Request $request)
 
     {
 
