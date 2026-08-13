@@ -2397,10 +2397,22 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
      */
     private function _yetkiVar(Request $request, $salonId, string $key): bool
     {
+        if (!$salonId) return true;
         $u = \Auth::guard('isletmeyonetim-api')->user();
-        if (!$u || !$salonId) return true;
+        $callerId = $u ? $u->id : null;
+        // Geriye uyumluluk: bazi eski akislar route auth'suz calisir
+        // (personelYetkiKaydet vb.). Bu durumda body'de user_id gonderilirse
+        // onunla kontrol et; hic bir sey yoksa eski davranis (true) — eski
+        // Flutter build'lerini kirmamak icin. Yeni Flutter build'ler user_id
+        // gonderdiginde gercek yetki kontrolu devreye girer.
+        if (!$callerId) {
+            $callerId = $request->input('user_id');
+        }
+        if (!$callerId) {
+            return true; // eski davranis
+        }
         return \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
-            $u->id, $salonId, $key
+            (int)$callerId, $salonId, $key
         );
     }
 
