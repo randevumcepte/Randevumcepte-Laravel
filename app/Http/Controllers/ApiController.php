@@ -2007,13 +2007,20 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             }
             // Telefon: musteri.telefon_gor yetkisi kapaliysa maskeli goster.
-            // Route auth'lu olmadigi icin cagiran kullaniciyi $request->personel_id
-            // (salon_personelleri.id) uzerinden yetkili_id'ye cozeriz.
+            // Route auth'lu olmadigi icin caller yetkili_id'yi 3 fallback ile bul:
+            //   1) $request->user_id (Flutter'dan direkt gonderilir — Sekreter dahil)
+            //   2) $request->personel_id -> Personeller.yetkili_id
+            //   3) Auth::guard() (varsa)
+            // Boylece rol farketmeksizin dogru caller icin yetkiliYetkiVar cagrilir;
+            // ozel yetki kaydi varsa rolden bagimsiz uygulanir.
             $__telRaw = (string)($rh->randevu->users->cep_telefon ?? '');
             $__telGor = true;
             try {
                 $__callerYetkiliId = null;
-                if ($request->personel_id) {
+                if ($request->user_id) {
+                    $__callerYetkiliId = $request->user_id;
+                }
+                if (!$__callerYetkiliId && $request->personel_id) {
                     $__callerYetkiliId = Personeller::where('id', $request->personel_id)
                         ->value('yetkili_id');
                 }
