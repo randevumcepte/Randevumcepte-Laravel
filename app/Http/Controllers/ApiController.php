@@ -16252,19 +16252,54 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         } else {
 
-            $adisyon_id = self::yeni_adisyon_olustur(
+            // AYNI GUN AYNI MUSTERI ADISYON BIRLESTIRMESI (randevutahsilet ile ayni mantik)
+            // Yeni satis akisi (adisyon_id gelmedi) — ayni gun bu musteri icin
+            // acilmis, HIC tahsilat almamis adisyon varsa onun uzerine ekle.
+            // Bu sayede 'yaprak' satis + 8 sn sonra 'aysegul' satis ayni
+            // adisyonda toplanir (kullanicinin 246 id isletme, Piril Surmen
+            // raporunda oldugu gibi ayri ayri adisyon acilmasin).
+            $bugun = date('Y-m-d');
+            $ayniGunAdisyonId = DB::table('adisyonlar')
+                ->where('user_id', $request->musteri_id)
+                ->where('salon_id', $request->sube)
+                ->whereDate('tarih', $bugun)
+                ->whereNotExists(function($q){
+                    $q->select(DB::raw(1))
+                      ->from('tahsilat_hizmetler')
+                      ->join('adisyon_hizmetler as ah2', 'ah2.id', '=', 'tahsilat_hizmetler.adisyon_hizmet_id')
+                      ->whereColumn('ah2.adisyon_id', 'adisyonlar.id');
+                })
+                ->whereNotExists(function($q){
+                    $q->select(DB::raw(1))
+                      ->from('tahsilat_paketler')
+                      ->join('adisyon_paketler as ap2', 'ap2.id', '=', 'tahsilat_paketler.adisyon_paket_id')
+                      ->whereColumn('ap2.adisyon_id', 'adisyonlar.id');
+                })
+                ->whereNotExists(function($q){
+                    $q->select(DB::raw(1))
+                      ->from('tahsilat_urunler')
+                      ->join('adisyon_urunler as au2', 'au2.id', '=', 'tahsilat_urunler.adisyon_urun_id')
+                      ->whereColumn('au2.adisyon_id', 'adisyonlar.id');
+                })
+                ->orderByDesc('id')
+                ->value('id');
 
-                $request->musteri_id,
-
-                $request->sube,
-
-                "Hizmet Satışı",
-
-                date("Y-m-d"),
-
-                IsletmeYetkilileri::where("id", $request->olusturan)->first()
-
-            );
+            if ($ayniGunAdisyonId) {
+                $adisyon_id = $ayniGunAdisyonId;
+                \Log::info('[SATIS-BIRLESTIR] adisyonhizmetekle mevcut adisyon uzerine eklendi', [
+                    'musteri_id' => $request->musteri_id,
+                    'salon_id'   => $request->sube,
+                    'adisyon_id' => $adisyon_id,
+                ]);
+            } else {
+                $adisyon_id = self::yeni_adisyon_olustur(
+                    $request->musteri_id,
+                    $request->sube,
+                    "Hizmet Satışı",
+                    date("Y-m-d"),
+                    IsletmeYetkilileri::where("id", $request->olusturan)->first()
+                );
+            }
 
         }
 
