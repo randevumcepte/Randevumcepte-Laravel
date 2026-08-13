@@ -2006,7 +2006,21 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
 
             }
-            $detaylar .= "Telefon : ".$rh->randevu->users->cep_telefon;
+            // Telefon: musteri.telefon_gor yetkisi kapaliysa maskeli goster.
+            $__telRaw = (string)($rh->randevu->users->cep_telefon ?? '');
+            $__telGor = true;
+            try {
+                $__authU = \Auth::guard('isletmeyonetim-api')->user()
+                    ?: \Auth::guard('isletmeyonetim')->user();
+                if ($__authU) {
+                    $__telGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                        $__authU->id, $isletmeId, 'musteri.telefon_gor'
+                    );
+                }
+            } catch (\Throwable $e) {}
+            $detaylar .= "Telefon : ".($__telGor
+                ? $__telRaw
+                : \App\PersonelYetkiSabitleri::telefonMaskele($__telRaw));
             if($rh->randevu->on_gorusme_id !== null){
                 
                 $onGorusmeNedeni = "";
