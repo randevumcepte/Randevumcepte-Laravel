@@ -8604,6 +8604,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     public function urunekleduzenle(Request $request, $salonid)
     {
+        // Yetki: urun.tanim_olustur
+        if (!$this->_yetkiVar($request, $salonid, 'urun.tanim_olustur')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
         $yeni = false;
         if ($request->urun_id == 0) {
             $urun = new Urunler();
@@ -21945,6 +21949,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     public function hizmetekleduzenle(Request $request)
 {
+    // Yetki: hizmet.tanim_olustur
+    if (!$this->_yetkiVar($request, $request->sube ?? $request->salonid, 'hizmet.tanim_olustur')) {
+        abort(403, 'Bu işlem için yetkiniz yok.');
+    }
     Log::info('========== FONKSİYON BAŞLADI ==========');
     Log::info('TOPLAM HIZMET SAYISI: ' . count($request->hizmetler));
     Log::info('GELEN TUM HIZMETLER: ' . json_encode($request->hizmetler, JSON_UNESCAPED_UNICODE));
@@ -22263,6 +22271,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     public function sistemeyenihizmetekle(Request $request)
 
     {
+        // Yetki: hizmet.tanim_olustur
+        if (!$this->_yetkiVar($request, $request->sube ?? $request->salonid, 'hizmet.tanim_olustur')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
 
         $yenihizmet = new Hizmetler();
 
@@ -22398,6 +22410,10 @@ if (is_array($request->cihaz_id)) {
     public function paket_ekle_guncelle(Request $request, $isletme_id)
 
     {
+        // Yetki: paket.tanim_olustur
+        if (!$this->_yetkiVar($request, $isletme_id, 'paket.tanim_olustur')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
 
         // Eski mobil uygulamalar 'Accept: application/json' header'i gondermedigi icin
         // $request->validate() basarisiz olunca 422 yerine 302 redirect donuyordu

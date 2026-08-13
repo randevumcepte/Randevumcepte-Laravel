@@ -194,8 +194,27 @@ class StokController extends Controller
         return $this->urunFormat($u);
     }
 
+    /**
+     * Yetki kontrolu — geriye uyumlu: caller user_id yoksa bypass
+     * (eski Flutter build'ler icin), var ise gercek kontrol.
+     */
+    private function _yetkiVar(Request $request, $salonId, string $key): bool
+    {
+        if (!$salonId) return true;
+        $u = \Auth::guard('isletmeyonetim-api')->user();
+        $callerId = $u ? $u->id : ($request->input('user_id') ?: null);
+        if (!$callerId) return true;
+        return \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+            (int)$callerId, $salonId, $key
+        );
+    }
+
     public function urunKaydet(Request $request, $salonid)
     {
+        // Yetki: urun.tanim_olustur
+        if (!$this->_yetkiVar($request, $salonid, 'urun.tanim_olustur')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
         $data = $request->all();
 
         $urun = !empty($data['id']) && $data['id'] != '0'
@@ -277,6 +296,10 @@ class StokController extends Controller
         if (!$u) {
             return response()->json(['status' => 'error', 'mesaj' => 'Urun bulunamadi'], 404);
         }
+        // Yetki: urun.tanim_olustur (silme de tanım yönetimi altında)
+        if (!$this->_yetkiVar($request, $u->salon_id, 'urun.tanim_olustur')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
         $u->aktif = false;
         $u->save();
 
@@ -298,6 +321,10 @@ class StokController extends Controller
 
     public function kategoriKaydet(Request $request, $salonid)
     {
+        // Yetki: urun.tanim_olustur (ürün kategorisi tanım yönetimi)
+        if (!$this->_yetkiVar($request, $salonid, 'urun.tanim_olustur')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
         $k = !empty($request->id) ? UrunKategorisi::find($request->id) : new UrunKategorisi();
         if (!$k) {
             return response()->json(['status' => 'error', 'mesaj' => 'Kategori yok'], 404);
@@ -420,6 +447,10 @@ class StokController extends Controller
 
     public function tedarikciKaydet(Request $request, $salonid)
     {
+        // Yetki: urun.tedarikci_yonet
+        if (!$this->_yetkiVar($request, $salonid, 'urun.tedarikci_yonet')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
         $t = !empty($request->id) ? Tedarikci::find($request->id) : new Tedarikci();
         if (!$t) {
             return response()->json(['status' => 'error'], 404);
@@ -441,6 +472,10 @@ class StokController extends Controller
     {
         $t = Tedarikci::find($request->id);
         if ($t) {
+            // Yetki: urun.tedarikci_yonet
+            if (!$this->_yetkiVar($request, $t->salon_id, 'urun.tedarikci_yonet')) {
+                abort(403, 'Bu işlem için yetkiniz yok.');
+            }
             $t->aktif = false;
             $t->save();
         }
@@ -536,6 +571,10 @@ class StokController extends Controller
 
     public function alisGirisi(Request $request, $salonid)
     {
+        // Yetki: urun.stok_giris
+        if (!$this->_yetkiVar($request, $salonid, 'urun.stok_giris')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
         $kalemler = self::dizi($request->kalemler);
         if (count($kalemler) === 0) {
             return response()->json(['status' => 'error', 'mesaj' => 'Kalem yok'], 422);
@@ -648,6 +687,10 @@ class StokController extends Controller
      */
     public function sayimUygula(Request $request, $salonid)
     {
+        // Yetki: urun.stok_sayim
+        if (!$this->_yetkiVar($request, $salonid, 'urun.stok_sayim')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
         $kalemler = self::dizi($request->kalemler);
         if (count($kalemler) === 0) {
             return response()->json(['status' => 'error', 'mesaj' => 'Kalem yok'], 422);
