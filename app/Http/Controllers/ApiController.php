@@ -14570,6 +14570,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
          Log::info('randevu geldi işaretlenecek');
         $randevu = Randevular::where("id", $request->randevuid)->first();
 
+        // Yetki: randevu.duzenle_iptal
+        if ($randevu && !$this->_yetkiVar($request, $randevu->salon_id, 'randevu.duzenle_iptal')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
+
         // YETIM/HAYALET SEANS TEMIZLIGI (web ile ayni mantik): paket randevusu olmadigi
         // halde kazara olusmus, ne gecerli bir adisyon_paket'e ne de gecerli bir
         // adisyon_hizmet'e bagli olmayan seanslar 'paketten dus / seans secim' akisini
@@ -14882,7 +14887,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     {
 
         $randevu = Randevular::where("id", $request->randevuid)->first();
-
+        // Yetki: randevu.duzenle_iptal — geriye uyumlu, sadece caller
+        // user_id gonderirse gercek kontrol devreye girer.
+        if ($randevu && !$this->_yetkiVar($request, $randevu->salon_id, 'randevu.duzenle_iptal')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
 
         $red = false;
         if ($randevu->durum == 0 && $request->durum != 3) {
@@ -19948,6 +19957,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     {
 
         $randevu = Randevular::where("id", $request->randevuid)->first();
+
+        // Yetki: randevu.duzenle_iptal
+        if ($randevu && !$this->_yetkiVar($request, $randevu->salon_id, 'randevu.duzenle_iptal')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
 
         $randevu->durum = 1;
 
@@ -28574,6 +28588,10 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     public function randevuGeldiGelmediIsaretiKaldir(Request $request)
     {
         $randevu = Randevular::where('id',$request->randevuid)->first();
+        // Yetki: randevu.duzenle_iptal
+        if ($randevu && !$this->_yetkiVar($request, $randevu->salon_id, 'randevu.duzenle_iptal')) {
+            abort(403, 'Bu işlem için yetkiniz yok.');
+        }
         $randevu->randevuya_geldi = null;
         $randevu->save();
         foreach($randevu->hizmetler as $hizmet)
