@@ -173,7 +173,7 @@ Route::post('/musterilistegetir/{salonid}','ApiController@musteri_liste_getir');
 Route::get('/odalar/{salonid}','ApiController@odalar');
 Route::get('/cihazlar/{salonid}','ApiController@cihazlar');
 Route::post('/randevuekleguncelle','ApiController@randevuekleguncelle');
-Route::post('/sesli-randevu-coz','SesliRandevuController@coz');
+Route::match(['GET','POST'], '/sesli-randevu-coz', 'SesliRandevuController@coz'); // salt-okunur cozumleme; tarayicidan da test edilebilsin diye GET de acik
 Route::post('/saatkapamaekle','ApiController@saatkapamaekle');
 Route::post('/kapalisaatsil','ApiController@kapalisaatsil');
 Route::post('/paketVarmiKontrolu','ApiController@paketVarmiKontroluApi');
