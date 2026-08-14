@@ -24,6 +24,9 @@ class SesliRandevuCozService
     /** @var int */
     protected $salonId;
 
+    /** Gecici teshis bilgisi */
+    protected $dbg = [];
+
     /** Turkce gun adlari => Carbon dayOfWeek (0=pazar ... 6=cumartesi) */
     protected $gunler = [
         'pazartesi' => Carbon::MONDAY,
@@ -92,6 +95,8 @@ class SesliRandevuCozService
             'saat'          => $saat,       // H:i   | null
             'eksik_alanlar' => $eksik,      // ['musteri','hizmet','tarih','saat','personel'] alt kumesi
             'guven'         => $guven,      // yuksek | orta | dusuk
+            '_ver'          => 'dbg-1',     // GECICI: dagitim/opcache teshisi
+            '_debug'        => array_merge(['fold' => $fold], $this->dbg),
         ];
     }
 
@@ -337,6 +342,7 @@ class SesliRandevuCozService
                 && !array_key_exists($t, $this->aylar);
         });
         $tokenlar = array_values($tokenlar);
+        $this->dbg = ['temiz' => $temiz, 'tokenlar' => $tokenlar]; // GECICI teshis
 
         if (empty($tokenlar)) {
             return [
