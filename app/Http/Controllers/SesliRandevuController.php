@@ -41,7 +41,28 @@ class SesliRandevuController extends Controller
         $sonuc = $servis->coz($metin, $salonId);
         $sonuc['salon_id'] = $salonId;
 
-        return response()->json($sonuc);
+        // Eski kayitlarda utf8 kolon icinde latin5 bayt olabiliyor -> json_encode patlar.
+        // Gecersiz UTF-8 string'leri Windows-1254'ten cevir (Turkce legacy).
+        $sonuc = $this->utf8Duzelt($sonuc);
+
+        return response()->json($sonuc, 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Diziyi/degeri ozyinelemeli dolasip gecersiz UTF-8 string'leri onarir.
+     */
+    protected function utf8Duzelt($deger)
+    {
+        if (is_array($deger)) {
+            foreach ($deger as $k => $v) {
+                $deger[$k] = $this->utf8Duzelt($v);
+            }
+            return $deger;
+        }
+        if (is_string($deger) && !mb_check_encoding($deger, 'UTF-8')) {
+            return mb_convert_encoding($deger, 'UTF-8', 'Windows-1254');
+        }
+        return $deger;
     }
 
     protected function salonIdCoz(Request $request)
