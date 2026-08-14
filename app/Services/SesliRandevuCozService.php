@@ -284,7 +284,19 @@ class SesliRandevuCozService
             return $b['skor'] <=> $a['skor'];
         });
 
-        return [$eslesen, $metinler];
+        // Ayni adli hizmet birden fazla kayitliysa tekille (en yuksek skorlusu kalir)
+        $gorulen = [];
+        $tekil = [];
+        foreach ($eslesen as $h) {
+            $anahtar = $this->fold($h['hizmet_adi']);
+            if (isset($gorulen[$anahtar])) {
+                continue;
+            }
+            $gorulen[$anahtar] = true;
+            $tekil[] = $h;
+        }
+
+        return [$tekil, $metinler];
     }
 
     /* ------------------------------------------------------------------ */
@@ -405,13 +417,18 @@ class SesliRandevuCozService
         });
         $adaylar = array_slice($adaylar, 0, 5);
 
-        // Tek net aday varsa otomatik sec
+        // Yeterince net aday varsa otomatik sec (aksi halde onay ekraninda secilir)
         $userId = null;
-        if (count($adaylar) === 1 && $adaylar[0]['skor'] >= 0.6) {
-            $userId = $adaylar[0]['user_id'];
-        } elseif (count($adaylar) > 1 && $adaylar[0]['skor'] >= 0.85
-                  && $adaylar[0]['skor'] - $adaylar[1]['skor'] >= 0.2) {
-            $userId = $adaylar[0]['user_id'];
+        $en     = isset($adaylar[0]) ? $adaylar[0] : null;
+        $ikinci = isset($adaylar[1]) ? $adaylar[1] : null;
+        if ($en) {
+            if (!$ikinci && $en['skor'] >= 0.6) {
+                $userId = $en['user_id'];                                   // tek aday
+            } elseif ($en['skor'] >= 0.95 && (!$ikinci || $en['skor'] - $ikinci['skor'] >= 0.1)) {
+                $userId = $en['user_id'];                                   // net/tam eslesme
+            } elseif ($en['skor'] >= 0.85 && $ikinci && $en['skor'] - $ikinci['skor'] >= 0.25) {
+                $userId = $en['user_id'];                                   // digerlerinden acik ara onde
+            }
         }
 
         return [

@@ -41,6 +41,11 @@ class SesliRandevuController extends Controller
         $sonuc = $servis->coz($metin, $salonId);
         $sonuc['salon_id'] = $salonId;
 
+        // Debug alanlari yalnizca ?debug=1 ile don (app'e temiz JSON gitsin)
+        if (!$request->has('debug')) {
+            unset($sonuc['_ver'], $sonuc['_debug']);
+        }
+
         // Eski kayitlarda utf8 kolon icinde latin5 bayt olabiliyor -> json_encode patlar.
         // Gecersiz UTF-8 string'leri Windows-1254'ten cevir (Turkce legacy).
         $sonuc = $this->utf8Duzelt($sonuc);
