@@ -2026,26 +2026,43 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             // ozel yetki kaydi varsa rolden bagimsiz uygulanir.
             $__telRaw = (string)($rh->randevu->users->cep_telefon ?? '');
             $__telGor = true;
+            $__debugSrc = 'default';
+            $__debugErr = '';
             try {
                 $__callerYetkiliId = null;
                 if ($request->user_id) {
                     $__callerYetkiliId = $request->user_id;
+                    $__debugSrc = 'req.user_id';
                 }
                 if (!$__callerYetkiliId && $request->personel_id) {
                     $__callerYetkiliId = Personeller::where('id', $request->personel_id)
                         ->value('yetkili_id');
+                    $__debugSrc = 'personel_id->yetkili';
                 }
                 if (!$__callerYetkiliId) {
                     $__authU = \Auth::guard('isletmeyonetim-api')->user()
                         ?: \Auth::guard('isletmeyonetim')->user();
                     $__callerYetkiliId = $__authU ? $__authU->id : null;
+                    $__debugSrc = 'auth.guard';
                 }
                 if ($__callerYetkiliId) {
                     $__telGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
                         $__callerYetkiliId, $isletmeId, 'musteri.telefon_gor'
                     );
                 }
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+                $__debugErr = $e->getMessage();
+            }
+            \Log::info('[TEL-MASK-DEBUG]', [
+                'salonId' => $isletmeId,
+                'callerYetkiliId' => $__callerYetkiliId ?? null,
+                'src' => $__debugSrc,
+                'telGor' => $__telGor,
+                'reqUserId' => $request->user_id,
+                'reqPersonelId' => $request->personel_id,
+                'err' => $__debugErr,
+                'telRaw' => $__telRaw,
+            ]);
             $detaylar .= "Telefon : ".($__telGor
                 ? $__telRaw
                 : \App\PersonelYetkiSabitleri::telefonMaskele($__telRaw));
