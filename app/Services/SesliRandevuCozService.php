@@ -86,12 +86,16 @@ class SesliRandevuCozService
         $tarih = $this->tarihCoz($fold);
         $saat  = $this->saatCoz($fold);
 
+        // Datif ekli isim (Ferdi Korkmaz'A) MUSTERI'dir — bu ipucu, ayni adli bir
+        // personelin musteri adini kapmasini onler ("Ferdi" personel degil, musteri).
+        $musteriIpucu = $this->datifMusteriBul($fold);
+
         // Hizmet ve personel, salonun kendi listesine gore eslestirilir
         list($hizmetler, $hizmetMetinleri) = $this->hizmetEslestir($fold);
-        list($personel, $personelMetni)    = $this->personelEslestir($fold, $hizmetler);
+        list($personel, $personelMetni)    = $this->personelEslestir($fold, $hizmetler, $musteriIpucu);
 
-        // Musteri: kalan kelimelerden ad tahmini + salon portfoyunde bulanik arama
-        $musteri = $this->musteriEslestir($ham, $fold, $hizmetMetinleri, $personelMetni);
+        // Musteri: datif ipucu varsa onu kullan, yoksa kalan kelimelerden ad tahmini
+        $musteri = $this->musteriEslestir($ham, $fold, $hizmetMetinleri, $personelMetni, $musteriIpucu);
 
         $eksik = $this->eksikAlanlar($musteri, $hizmetler, $tarih, $saat);
         $guven = $this->guvenHesapla($intent, $musteri, $hizmetler, $tarih, $saat);
@@ -108,7 +112,7 @@ class SesliRandevuCozService
             'saat'          => $saat,       // H:i   | null
             'eksik_alanlar' => $eksik,      // ['musteri','hizmet','tarih','saat','personel'] alt kumesi
             'guven'         => $guven,      // yuksek | orta | dusuk
-            '_ver'          => 'dbg-3',     // GECICI: dagitim/opcache teshisi
+            '_ver'          => 'dbg-4',     // GECICI: dagitim/opcache teshisi
             '_debug'        => array_merge(['fold' => $fold], $this->dbg),
         ];
     }
@@ -128,6 +132,27 @@ class SesliRandevuCozService
             return 'personel_izin';
         }
         return 'randevu_olustur';
+    }
+
+    /**
+     * Datif ekli ismi (musteri) bulur: "Ferdi Korkmaz'a", "Ayse'ye".
+     * Apostrof + a/e/ya/ye eki guclu musteri sinyalidir. Ekten onceki 1-3 kelimeyi
+     * (dolgu/tarih/saat kelimelerini eleyerek) musteri adi olarak doner.
+     */
+    protected function datifMusteriBul($fold)
+    {
+        if (!preg_match('/([a-z]+(?:\s+[a-z]+){0,2})[\x{2019}\x{27}](?:a|e|ya|ye|na|ne)\b/u', $fold, $m)) {
+            return null;
+        }
+        $kelimeler = array_values(array_filter(preg_split('/\s+/u', trim($m[1])), function ($w) {
+            return mb_strlen($w) >= 2 && !in_array($w, $this->stopKelimeler, true)
+                && !array_key_exists($w, $this->gunler)
+                && !array_key_exists($w, $this->aylar);
+        }));
+        if (empty($kelimeler)) {
+            return null;
+        }
+        return implode(' ', array_slice($kelimeler, -3)); // en fazla ad + soyad (+1)
     }
 
     /* ------------------------------------------------------------------ */
@@ -303,8 +328,11 @@ class SesliRandevuCozService
     /* PERSONEL                                                           */
     /* ------------------------------------------------------------------ */
 
-    protected function personelEslestir($fold, $hizmetler)
+    protected function personelEslestir($fold, $hizmetler, $musteriIpucu = null)
     {
+        // Datif ipucundaki kelimeler MUSTERI adidir; personel eslestirmesinden haric tut
+        $haric = $musteriIpucu ? preg_split('/\s+/u', $musteriIpucu) : [];
+
         $liste = Personeller::where('salon_id', $this->salonId)
             ->where(function ($q) {
                 $q->whereNull('arsivli')->orWhere('arsivli', '!=', 1);
@@ -320,8 +348,12 @@ class SesliRandevuCozService
                 continue;
             }
             $adFold = $this->fold($ad);
-            // Ad ya da adin ilk kelimesi cumlede geciyor mu?
             $ilk = explode(' ', $adFold)[0];
+            // Personel adi/ilk kelimesi musteri ipucundaysa personel sayma
+            if (in_array($adFold, $haric, true) || in_array($ilk, $haric, true)) {
+                continue;
+            }
+            // Ad ya da adin ilk kelimesi cumlede geciyor mu?
             $gecti = mb_strpos($fold, $adFold) !== false
                 || (mb_strlen($ilk) >= 3 && preg_match('/\b' . preg_quote($ilk, '/') . '\b/u', $fold));
             if ($gecti && mb_strlen($adFold) > $enIyiSkor) {
@@ -345,28 +377,36 @@ class SesliRandevuCozService
     /* MUSTERI                                                            */
     /* ------------------------------------------------------------------ */
 
-    protected function musteriEslestir($ham, $fold, $hizmetMetinleri, $personelMetni)
+    protected function musteriEslestir($ham, $fold, $hizmetMetinleri, $personelMetni, $musteriIpucu = null)
     {
-        // Cumleden tarih/saat/hizmet/personel ve dolgu kelimeleri cikar -> geriye ad kalir
-        $temiz = $fold;
-        foreach (array_merge($hizmetMetinleri, [$personelMetni]) as $cikar) {
-            if ($cikar) {
-                $temiz = str_replace($cikar, ' ', $temiz);
+        if ($musteriIpucu) {
+            // Datif ipucu (Ferdi Korkmaz'a) -> dogrudan musteri adi; kalan kelime tahminine gerek yok
+            $temiz = $musteriIpucu;
+            $tokenlar = array_values(array_filter(preg_split('/\s+/u', $musteriIpucu), function ($t) {
+                return mb_strlen(trim($t)) >= 2;
+            }));
+        } else {
+            // Cumleden tarih/saat/hizmet/personel ve dolgu kelimeleri cikar -> geriye ad kalir
+            $temiz = $fold;
+            foreach (array_merge($hizmetMetinleri, [$personelMetni]) as $cikar) {
+                if ($cikar) {
+                    $temiz = str_replace($cikar, ' ', $temiz);
+                }
             }
-        }
-        // saat/tarih iz birakan rakam ve kaliplari sil
-        $temiz = preg_replace('/\b\d{1,2}[:.]\d{2}\b/u', ' ', $temiz);
-        $temiz = preg_replace('/\b\d{1,4}[.\/]\d{1,2}([.\/]\d{2,4})?\b/u', ' ', $temiz);
-        $temiz = preg_replace('/\b\d+\b/u', ' ', $temiz);
-        $temiz = preg_replace('/[\'’]\S*/u', ' ', $temiz);
+            // saat/tarih iz birakan rakam ve kaliplari sil
+            $temiz = preg_replace('/\b\d{1,2}[:.]\d{2}\b/u', ' ', $temiz);
+            $temiz = preg_replace('/\b\d{1,4}[.\/]\d{1,2}([.\/]\d{2,4})?\b/u', ' ', $temiz);
+            $temiz = preg_replace('/\b\d+\b/u', ' ', $temiz);
+            $temiz = preg_replace('/[\'’]\S*/u', ' ', $temiz);
 
-        $tokenlar = array_filter(preg_split('/\s+/u', $temiz), function ($t) {
-            $t = trim($t);
-            return mb_strlen($t) >= 2 && !in_array($t, $this->stopKelimeler, true)
-                && !array_key_exists($t, $this->gunler)
-                && !array_key_exists($t, $this->aylar);
-        });
-        $tokenlar = array_values($tokenlar);
+            $tokenlar = array_filter(preg_split('/\s+/u', $temiz), function ($t) {
+                $t = trim($t);
+                return mb_strlen($t) >= 2 && !in_array($t, $this->stopKelimeler, true)
+                    && !array_key_exists($t, $this->gunler)
+                    && !array_key_exists($t, $this->aylar);
+            });
+            $tokenlar = array_values($tokenlar);
+        }
         $this->dbg = ['temiz' => $temiz, 'tokenlar' => $tokenlar]; // GECICI teshis
 
         if (empty($tokenlar)) {
