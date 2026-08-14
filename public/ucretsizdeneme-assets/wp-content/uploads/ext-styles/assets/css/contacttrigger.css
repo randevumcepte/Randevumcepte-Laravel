@@ -1,0 +1,133 @@
+.triggerButton { display: none; }
+
+.triggerButton + label {
+  cursor: pointer;
+  position: fixed;
+  
+  background-color: #7800B3;
+ 
+  border-radius: 50%;
+  z-index: 999;
+}
+@media(min-width:992px)
+{
+    .triggerButton + label {
+     height: var(--l);
+    width: var(--l);
+    right: 2em;
+    bottom: 3em;
+    }
+    .triggerButton:checked ~ .triggerone {
+        background-color: #25D366;
+        transform: translateX(-5.5em);
+    }
+    
+    .triggerButton:checked ~ .triggertwo {
+        background-color: #0088cc;
+        transform: translateX(-4.0em) translateY(-4.0em);
+    }
+    
+    .triggerButton:checked ~ .triggerthree {
+        background-color: #7800B3;
+        transform: translateY(-5.5em);
+    }
+    .triggerone, .triggertwo, .triggerthree {
+     width: 60px;
+    height: 60px;
+    }
+    .fab{
+        font-size:30px !important;
+    }
+}
+@media(max-width:991px)
+{
+    .triggerButton + label {
+     height: 70px;
+    width: 70px;
+    right: 1em;
+    bottom: 1em;
+    }
+    .triggerone, .triggertwo, .triggerthree {
+     width: 50px;
+    height: 50px;
+    }
+     .triggerButton:checked ~ .triggerone {
+        background-color: #25D366;
+        transform: translateX(-3.5em) translateY(2em);
+    }
+    
+    .triggerButton:checked ~ .triggertwo {
+        background-color: #0088cc;
+               transform: translateX(-2.2em) translateY(-1.0em);
+    }
+    
+    .triggerButton:checked ~ .triggerthree {
+        background-color: #7800B3;
+        transform: translateX(1em) translateY(-2.2em);
+    }
+    .fab{
+        font-size:30px !important;
+    }
+    
+}
+
+.triggerButton + label:before, .triggerButton + label:after {
+  position: absolute;
+  content: '';
+  height: calc(var(--l) / 2 );
+  width: .25em;
+  background-color: #fff;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: auto;
+  border-radius: .5em;
+  transition: all .25s;
+}
+
+.triggerButton + label:before {
+  height: calc(var(--l) / 2 );
+  width: 0px;
+}
+
+.triggerButton + label:after {
+  width: calc(var(--l) / 2 );
+  height: 0px;
+}
+
+.triggerButton:checked + label:before { transform: rotatez(-45deg); }
+
+.triggerButton:checked + label:after { transform: rotatez(-45deg); }
+
+.triggerone, .triggertwo, .triggerthree {
+ cursor: pointer;
+    position: fixed;
+    right: 2em;
+    bottom: 3.5em;
+    padding: 0em;
+   
+  border-radius: 50%;
+  opacity: 0;
+  z-index: 999999;
+  transform: rotateZ(90deg);
+  font-size: 1em;
+  color: #fff;
+  transition-property: all;
+  transition-duration: .35s;
+  transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.triggerButton:checked ~ .triggerone,
+.triggerButton:checked ~ .triggertwo,
+.triggerButton:checked ~ .triggerthree {
+    opacity: 1;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+ 
+
+.triggerButton:checked ~ .triggerone:hover,
+.triggerButton:checked ~ .triggertwo:hover,
+.triggerButton:checked ~ .triggerthree:hover {
+    opacity: 0.9;
+}
