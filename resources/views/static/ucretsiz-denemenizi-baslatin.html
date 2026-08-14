@@ -1637,15 +1637,14 @@ var elementorFrontendConfig = {"environmentMode":{"edit":false,"wpPreview":false
         // Adim 1: form gonder -> numaraya dogrulama kodu SMS
         jQuery('#yeni_kullanici_kaydi_form_gonder').click(function(e){
             e.preventDefault();
-            var bosvar = false;
-            jQuery('#ucretsiz_uyelik_formu :input:text,#ucretsiz_uyelik_formu :input[name="telefon"],#ucretsiz_uyelik_formu :input.wpcf7-email').each(function(){
-                if (jQuery(this).val().trim() == '') bosvar = true;
-            });
+            var veri = formVeri();
+            var bosvar = !String(veri.adsoyad).trim() || !String(veri.ceptelefon).trim()
+                || !String(veri.isletmeturu).trim() || !String(veri.email).trim()
+                || !String(veri.isletmeadresi).trim() || !String(veri.isletmeadi).trim();
             if (bosvar) {
                 swal({ type:'warning', title:'Uyarı', text:'Lütfen tüm alanları eksiksiz doldurunuz!', showConfirmButton:false, timer:3000 });
                 return;
             }
-            var veri = formVeri();
             veri.dogrulama_kodu = '';
             jQuery.ajax({
                 type: 'POST', url: API_URL, dataType: 'json', data: veri, cache: false,
