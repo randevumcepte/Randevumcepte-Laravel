@@ -839,6 +839,8 @@
                         tip:         d.tip   || 'bos',
                         deger:       d.deger != null ? parseFloat(d.deger) : null,
                         indirim_tipi: d.indirim_tipi === 'tutar' ? 'tutar' : 'yuzde',
+                        // Kayıtlı ad varsa özel kabul et; tip değişince otomatik ad ezmesin.
+                        _named:      !!(d.name && String(d.name).trim().length > 0),
                     }));
                     const found = slices.findIndex(s => s.probability === 100);
                     selectedIdx = found >= 0 ? found : 0;
@@ -1121,7 +1123,10 @@
         },
         name(input) {
             const i = +input.dataset.i;
-            slices[i].name = input.value || `Ödül ${i + 1}`;
+            const v = (input.value || '').trim();
+            slices[i].name = v || `Ödül ${i + 1}`;
+            // Kullanıcı bir şey yazdıysa işaretle; tip değişince otomatik ad ezmesin.
+            slices[i]._named = v.length > 0;
             renderWheel();
             updateWinnerUI();
         },
@@ -1135,8 +1140,8 @@
             if (!tipObj.hasDeger) slices[i].deger = null;
             // İndirim tipine geçince birim varsayılanı % olsun (salon sahibi değiştirebilir)
             if (isIndirim(tip) && slices[i].indirim_tipi !== 'tutar') slices[i].indirim_tipi = 'yuzde';
-            // İsim alanını otomatik güncelle
-            slices[i].name = buildAutoName(slices[i]);
+            // İsmi sadece kullanıcı özel ad girmediyse otomatik güncelle (girilen adı ezme).
+            if (!slices[i]._named) slices[i].name = buildAutoName(slices[i]);
             renderList();
             renderWheel();
             updateWinnerUI();
@@ -1494,7 +1499,8 @@
         if (!statusOnly) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Kaydediliyor...'; }
 
         const payload = slices.map((sl, i) => ({
-            name:        buildAutoName(sl),   // her zaman tip+deger'den üretilen isim
+            // Kullanıcının girdiği adı gönder; boşsa otomatik tip+deger adına düş.
+            name:        (sl.name && String(sl.name).trim()) ? String(sl.name).trim() : buildAutoName(sl),
             color:       sl.color,
             probability: i === selectedIdx ? 100 : 0,
             tip:         sl.tip   || 'bos',
