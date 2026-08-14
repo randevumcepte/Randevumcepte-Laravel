@@ -47,11 +47,19 @@ class SesliRandevuCozService
 
     /** Musteri adini bulurken atilacak dolgu kelimeleri */
     protected $stopKelimeler = [
-        'randevu', 'randevusu', 'ver', 'versene', 'yaz', 'ekle', 'olustur',
-        'olusturur', 'musun', 'lutfen', 'icin', 'ile', 've', 'bir', 'bugun',
-        'yarin', 'obur', 'ertesi', 'haftaya', 'gun', 'gune', 'saat', 'saatte',
-        'sabah', 'ogleden', 'once', 'sonra', 'aksam', 'gece', 'ogle', 'bucuk',
-        'ceyrek', 'gece', 'bey', 'beye', 'hanim', 'hanima', 'hn', 'by',
+        'randevu', 'randevusu', 'randevuyu', 'ver', 'versene', 'yaz', 'ekle', 'olustur',
+        'olusturur', 'musun', 'lutfen', 'icin', 'ile', 've', 'bir',
+        // tarih ekli/yalin
+        'bugun', 'bugune', 'yarin', 'yarina', 'obur', 'ertesi', 'haftaya',
+        'gun', 'gune', 'gunu', 'gunku',
+        // saat ekli/yalin
+        'saat', 'saatte', 'saatinde', 'sabah', 'sabaha', 'ogleden', 'once', 'sonra',
+        'aksam', 'aksama', 'gece', 'geceye', 'ogle', 'ogleye', 'bucuk', 'bucukta',
+        'bucugu', 'ceyrek', 'ceyrekte',
+        // lokatif/ekler tek basina kalinca
+        'te', 'de', 'da', 'ta',
+        // hitap
+        'bey', 'beye', 'beyi', 'hanim', 'hanima', 'hanimi', 'hn', 'by',
         'kardes', 'abi', 'abla', 'usta',
     ];
 
@@ -100,7 +108,7 @@ class SesliRandevuCozService
             'saat'          => $saat,       // H:i   | null
             'eksik_alanlar' => $eksik,      // ['musteri','hizmet','tarih','saat','personel'] alt kumesi
             'guven'         => $guven,      // yuksek | orta | dusuk
-            '_ver'          => 'dbg-2',     // GECICI: dagitim/opcache teshisi
+            '_ver'          => 'dbg-3',     // GECICI: dagitim/opcache teshisi
             '_debug'        => array_merge(['fold' => $fold], $this->dbg),
         ];
     }
@@ -188,8 +196,8 @@ class SesliRandevuCozService
             return $this->saatFormat((int) $m[1], (int) $m[2], $ogledenSonra, $sabah, true);
         }
 
-        // 2) "2 bucuk" / "saat 3 bucuk"  -> :30
-        if (preg_match('/\b(\d{1,2})\s*bucuk\b/u', $fold, $m)) {
+        // 2) "2 bucuk" / "3 bucukta" (ekli hali de) -> :30
+        if (preg_match('/\b(\d{1,2})\s*bucuk/u', $fold, $m)) {
             return $this->saatFormat((int) $m[1], 30, $ogledenSonra, $sabah, false);
         }
 
@@ -374,12 +382,22 @@ class SesliRandevuCozService
         $adTahmini = implode(' ', $tokenlar);
         $adaylar = [];
         foreach ($sorgu as $u) {
-            $skor = $this->benzerlik($this->fold($u->name), $this->fold($adTahmini));
+            $nameFold = $this->fold($u->name);
+            $skor = $this->benzerlik($nameFold, $this->fold($adTahmini));
+            // Bir token, adin icinde TAM KELIME olarak geciyorsa skoru yukselt
+            foreach ($tokenlar as $t) {
+                if (mb_strlen($t) >= 3 && preg_match('/\b' . preg_quote($t, '/') . '\b/u', $nameFold)) {
+                    $skor = max($skor, 0.85);
+                }
+            }
+            if ($skor < 0.5) {
+                continue; // zayif eslesme = gurultu, aday sayma
+            }
             $adaylar[] = [
-                'user_id'      => $u->id,
-                'name'         => $u->name,
-                'telefon_maske'=> $this->telMaskele($u->cep_telefon),
-                'skor'         => round($skor, 2),
+                'user_id'       => $u->id,
+                'name'          => $u->name,
+                'telefon_maske' => $this->telMaskele($u->cep_telefon),
+                'skor'          => round($skor, 2),
             ];
         }
         usort($adaylar, function ($a, $b) {
