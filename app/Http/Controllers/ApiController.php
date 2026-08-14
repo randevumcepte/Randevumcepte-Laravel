@@ -2028,8 +2028,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $__telGor = true;
             $__debugSrc = 'default';
             $__debugErr = '';
+            $__callerYetkiliId = null;
             try {
-                $__callerYetkiliId = null;
                 if ($request->user_id) {
                     $__callerYetkiliId = $request->user_id;
                     $__debugSrc = 'req.user_id';
@@ -2053,16 +2053,15 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             } catch (\Throwable $e) {
                 $__debugErr = $e->getMessage();
             }
-            \Log::info('[TEL-MASK-DEBUG]', [
-                'salonId' => $isletmeId,
-                'callerYetkiliId' => $__callerYetkiliId ?? null,
-                'src' => $__debugSrc,
-                'telGor' => $__telGor,
-                'reqUserId' => $request->user_id,
-                'reqPersonelId' => $request->personel_id,
-                'err' => $__debugErr,
-                'telRaw' => $__telRaw,
-            ]);
+            try {
+                \Log::info('[TEL-MASK-DEBUG] salonId='.$isletmeId
+                    .' callerYetkiliId='.($__callerYetkiliId ?? 'NULL')
+                    .' src='.$__debugSrc
+                    .' telGor='.($__telGor ? '1' : '0')
+                    .' reqUserId='.($request->user_id ?? 'NULL')
+                    .' reqPersonelId='.($request->personel_id ?? 'NULL')
+                    .' err='.$__debugErr);
+            } catch (\Throwable $e) {}
             $detaylar .= "Telefon : ".($__telGor
                 ? $__telRaw
                 : \App\PersonelYetkiSabitleri::telefonMaskele($__telRaw));
