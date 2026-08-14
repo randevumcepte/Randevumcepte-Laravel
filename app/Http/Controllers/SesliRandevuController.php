@@ -53,6 +53,11 @@ class SesliRandevuController extends Controller
             $salon = Salonlar::where('app_bundle', $request->input('appBundle'))->first();
             return $salon ? (int) $salon->id : null;
         }
+        // Test kolayligi: salon adiyla da cozulebilsin (uygulama salonid/appBundle gonderecek)
+        if ($request->filled('salonAdi')) {
+            $salon = Salonlar::where('salon_adi', 'like', '%' . $request->input('salonAdi') . '%')->first();
+            return $salon ? (int) $salon->id : null;
+        }
         return null;
     }
 }
