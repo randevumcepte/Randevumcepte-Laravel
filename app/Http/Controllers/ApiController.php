@@ -1707,10 +1707,21 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // Personel rolundeyse VE 'randevu.tum_personel_gor' yetkisi VARSA,
         // personelRolu'yu 0'a indir → asagidaki tum (personelRolu == 5) kontrolleri
         // bypass edilir → tum randevulari gorur.
+        // NOT: Route auth-less oldugundan Auth::guard NULL doner. Caller
+        // kimligini once $request->user_id (yeni Flutter build) sonra
+        // Personeller->yetkili_id (eski build, personel_id gonderiyor) ile bul.
         if ($personelRolu == 5) {
-            $authUser = \Auth::guard('isletmeyonetim-api')->user();
-            if ($authUser && \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
-                $authUser->id, $isletmeId, 'randevu.tum_personel_gor'
+            $__callerYetkiliId = $request->user_id ?? null;
+            if (!$__callerYetkiliId && $request->personel_id) {
+                $__callerYetkiliId = Personeller::where('id', $request->personel_id)->value('yetkili_id');
+            }
+            if (!$__callerYetkiliId) {
+                $authUser = \Auth::guard('isletmeyonetim-api')->user()
+                    ?: \Auth::guard('isletmeyonetim')->user();
+                $__callerYetkiliId = $authUser ? $authUser->id : null;
+            }
+            if ($__callerYetkiliId && \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                $__callerYetkiliId, $isletmeId, 'randevu.tum_personel_gor'
             )) {
                 $personelRolu = 0; // yetki var → kisitlama uygulanmasin
             }
