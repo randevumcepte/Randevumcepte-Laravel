@@ -66,7 +66,12 @@ class SesliRandevuCozService
     {
         $this->salonId = (int) $salonId;
 
-        $ham    = trim((string) $metin);
+        $ham = trim((string) $metin);
+        // Girdi UTF-8 degilse (latin5/Windows-1254 tek baytlar) once cevir; yoksa Turkce
+        // harfler foldlanamaz ve silinir ("yarin"->"yar n", "sac"->"sa").
+        if (!mb_check_encoding($ham, 'UTF-8')) {
+            $ham = mb_convert_encoding($ham, 'UTF-8', 'Windows-1254');
+        }
         $fold   = $this->fold($ham);           // karsilastirma icin sadelestirilmis metin
         $intent = $this->intentBul($fold);
 
@@ -95,7 +100,7 @@ class SesliRandevuCozService
             'saat'          => $saat,       // H:i   | null
             'eksik_alanlar' => $eksik,      // ['musteri','hizmet','tarih','saat','personel'] alt kumesi
             'guven'         => $guven,      // yuksek | orta | dusuk
-            '_ver'          => 'dbg-1',     // GECICI: dagitim/opcache teshisi
+            '_ver'          => 'dbg-2',     // GECICI: dagitim/opcache teshisi
             '_debug'        => array_merge(['fold' => $fold], $this->dbg),
         ];
     }
@@ -433,19 +438,27 @@ class SesliRandevuCozService
     /* YARDIMCILAR                                                        */
     /* ------------------------------------------------------------------ */
 
-    /** Turkce dogru kucuk harf */
-    protected function trLower($s)
-    {
-        $s = str_replace(['I', 'İ', 'Ş', 'Ğ', 'Ü', 'Ö', 'Ç'], ['ı', 'i', 'ş', 'ğ', 'ü', 'ö', 'ç'], $s);
-        return mb_strtolower($s, 'UTF-8');
-    }
-
-    /** Karsilastirma icin: kucuk harf + Turkce karakterleri sadelestir + noktalama temizle */
+    /**
+     * Karsilastirma icin sadelestir: UTF-8'e cevir + Turkce harfleri (buyuk/kucuk)
+     * ASCII'ye indir + kucuk harf + ASCII disi temizle.
+     * Turkce eslemesi \u{} kacislariyla yapilir -> kaynak dosya encoding'inden bagimsiz.
+     */
     protected function fold($s)
     {
-        $s = $this->trLower((string) $s);
-        $s = strtr($s, ['ı' => 'i', 'ş' => 's', 'ğ' => 'g', 'ü' => 'u', 'ö' => 'o', 'ç' => 'c']);
-        $s = preg_replace('/[^\p{L}\p{N}:.\/\'’\s]/u', ' ', $s);
+        $s = (string) $s;
+        if (!mb_check_encoding($s, 'UTF-8')) {
+            $s = mb_convert_encoding($s, 'UTF-8', 'Windows-1254');
+        }
+        $s = strtr($s, [
+            "\u{00C7}" => 'c', "\u{00E7}" => 'c', // Ç ç
+            "\u{011E}" => 'g', "\u{011F}" => 'g', // Ğ ğ
+            "\u{0130}" => 'i', "\u{0131}" => 'i', // İ ı
+            "\u{00D6}" => 'o', "\u{00F6}" => 'o', // Ö ö
+            "\u{015E}" => 's', "\u{015F}" => 's', // Ş ş
+            "\u{00DC}" => 'u', "\u{00FC}" => 'u', // Ü ü
+        ]);
+        $s = mb_strtolower($s, 'UTF-8');                              // kalan ASCII buyuk harfler
+        $s = preg_replace('/[^a-z0-9:.\/\x{2019}\x{27}\s]/u', ' ', $s); // artik sadece ASCII bekliyoruz
         $s = preg_replace('/\s+/u', ' ', $s);
         return trim($s);
     }
