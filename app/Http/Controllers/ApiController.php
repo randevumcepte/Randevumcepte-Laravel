@@ -12505,16 +12505,14 @@ public function cdrRaporLatest(Request $request)
         }
     }
 
-    if ($kendiDahili !== '') {
-        // Personel: yalnizca kendi dahilisi
-        $dahililer = [$kendiDahili];
-    } else {
-        // Yonetici/Salon Sahibi: tum salon dahilileri
-        $dahililer = Personeller::where('salon_id', $request->salonId)
-            ->whereNotNull('dahili_no')
-            ->pluck('dahili_no')
-            ->toArray();
-    }
+    // Personel + sonucsuz aramalari da gorebilsin diye FreePBX'e HER ZAMAN
+    // tum salon dahilileri gonderilir. Personel filtresi asagida response
+    // iteration'inda uygulanir: (a) kendi dahilisine ait kayit VEYA
+    // (b) sonucsuz arama (ana-menu vb. hicbir dahili ile eslesmeyen).
+    $dahililer = Personeller::where('salon_id', $request->salonId)
+        ->whereNotNull('dahili_no')
+        ->pluck('dahili_no')
+        ->toArray();
  
     $trunk = SabitNumaralar::where('salon_id', $request->salonId)->value('numara');
  
@@ -12718,6 +12716,20 @@ public function cdrRaporLatest(Request $request)
             }
         }
  
+        // Personel filtresi: caller Personel rolunde ise yalnizca
+        //   (a) kendi dahilisine gelen/giden aramalar veya
+        //   (b) sonucsuz aramalar (ana-menu, hicbir dahili ile eslesmeyen)
+        // gosterilir. Diger personellere gelen/giden kayitlar atlanir.
+        if ($raporaEkle && $kendiDahili !== '') {
+            $src = (string)($result['src'] ?? '');
+            $dst = (string)($result['dst'] ?? '');
+            $sonucsuzMu = ($dcontext === 'ana-menu'); // menude takilan cagri
+            $benimAramam = ($src === $kendiDahili) || ($dst === $kendiDahili);
+            if (!$benimAramam && !$sonucsuzMu) {
+                $raporaEkle = false;
+            }
+        }
+
         if ($raporaEkle) {
             $rapor[] = [
                 'tarih'           => date('d.m.Y', strtotime($calldate)),
