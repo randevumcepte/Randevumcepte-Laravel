@@ -12484,10 +12484,37 @@ public function cdrRaporLatest(Request $request)
     // -------------------------------------------------------
     // Dahililer ve trunk
     // -------------------------------------------------------
-    $dahililer = Personeller::where('salon_id', $request->salonId)
-        ->whereNotNull('dahili_no')
-        ->pluck('dahili_no')
-        ->toArray();
+    // Yetki: caller Personel rolunde ve dahili_no'su varsa yalnizca
+    // kendi dahilisine ait CDR gorunur. Diger rollerde tum salon
+    // dahilileri sorgulanir. user_id token/spoofing'e karsi guvenlik
+    // icin backend'de dogrudan Personeller tablosundan cozulur.
+    $callerYetkiliId = $request->user_id ?? null;
+    if (!$callerYetkiliId) {
+        $__u = \Auth::guard('isletmeyonetim-api')->user()
+            ?: \Auth::guard('isletmeyonetim')->user();
+        $callerYetkiliId = $__u ? $__u->id : null;
+    }
+    $kendiDahili = '';
+    if ($callerYetkiliId) {
+        $callerPersonel = Personeller::where('yetkili_id', $callerYetkiliId)
+            ->where('salon_id', $request->salonId)->first();
+        if ($callerPersonel && $callerPersonel->role_id == 5
+            && !empty($callerPersonel->dahili_no)
+            && $callerPersonel->dahili_no !== 'null') {
+            $kendiDahili = (string)$callerPersonel->dahili_no;
+        }
+    }
+
+    if ($kendiDahili !== '') {
+        // Personel: yalnizca kendi dahilisi
+        $dahililer = [$kendiDahili];
+    } else {
+        // Yonetici/Salon Sahibi: tum salon dahilileri
+        $dahililer = Personeller::where('salon_id', $request->salonId)
+            ->whereNotNull('dahili_no')
+            ->pluck('dahili_no')
+            ->toArray();
+    }
  
     $trunk = SabitNumaralar::where('salon_id', $request->salonId)->value('numara');
  
