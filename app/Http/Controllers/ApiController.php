@@ -27548,47 +27548,68 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
         }
         else
         {
-             // Randevu ve hizmet bilgilerini al
+            // ── Yalnizca SECILI personel(ler)in randevulari bu personelin
+            // musaitligini etkiler.
+            // ONCEKI HATA: orWhereIn('hizmet_id', secilenhizmetler) ile AYNI hizmeti
+            // veren TUM personellerin randevulari da "dolu" sayiliyordu; bu yuzden
+            // secili personel icin neredeyse butun saatler dolu goruyordu. Ayrica
+            // eslesen randevunun BASKA personele ait hizmet satirlari da blokleniyordu.
             $randevular = Randevular::where('tarih', $tarih)->where('durum','<',2)
-                ->whereHas('hizmetler', function($query) use ($request,$personelListe) {
-                    $query->whereIn('personel_id', $personelListe)
-                          ->orWhereIn('hizmet_id', $request->secilenhizmetler);
+                ->whereHas('hizmetler', function($query) use ($personelListe) {
+                    $query->whereIn('personel_id', $personelListe);
                 })
-                ->with(['hizmetler' => function($query) {
-                    $query->select('randevu_id', 'sure_dk', 'saat','saat_bitis','personel_id');
+                ->with(['hizmetler' => function($query) use ($personelListe) {
+                    $query->select('randevu_id', 'sure_dk', 'saat','saat_bitis','personel_id')
+                          ->whereIn('personel_id', $personelListe);
                 }])
                 ->get();
+
+            // Secili personelin dolu araliklari [bas, bit) — timestamp cifti.
+            $doluAraliklar = array();
             foreach ($randevular as $randevu) {
-
-                foreach($randevu->hizmetler as $rH)
-                {
-
-                    $baslangic = strtotime($rH->saat);
-                    $bitis = strtotime($rH->saat_bitis);
-
-                    // Tüm zaman aralığını blokla
-                    for ($t = $baslangic; $t < $bitis; $t += ($randevusaataraligi * 60)) {
-                        array_push($dolusaatler,array('dolu'=>'1','saat'=>date('H:i', $t)));
-                    }
+                foreach ($randevu->hizmetler as $rH) {
+                    if (!in_array($rH->personel_id, $personelListe)) continue; // guvenlik
+                    $doluAraliklar[] = array(strtotime($rH->saat), strtotime($rH->saat_bitis));
                 }
             }
 
+            // Secili personel(ler)in mola araliklari da bloklanir (or. 16:30-20:00 kapali).
+            $molalar = PersonelMolaSaatleri::whereIn('personel_id', array_unique($personelListe))
+                ->where('mola_var', 1)
+                ->where('haftanin_gunu', $day)
+                ->get();
+            foreach ($molalar as $mola) {
+                if ($mola->baslangic_saati && $mola->bitis_saati) {
+                    $doluAraliklar[] = array(strtotime($mola->baslangic_saati), strtotime($mola->bitis_saati));
+                }
+            }
 
+            // Bir baslangic saati; [saat, saat+toplamSure) araligi hicbir dolu/mola
+            // araligiyla CAKISMIYORSA ve calisma bitisini asmiyorsa musaittir.
+            // (Grid uyeligi degil GERCEK zaman ortusmesi: 09:55 / 12:40 gibi grid'e
+            //  denk gelmeyen randevular da dogru bloklanir.)
             $bosSaatler = array();
             $saatindex = 0;
-            // Mevcut dolu dilimler (hizmet süresi penceresi bununla kontrol edilir).
-            $doluSet = array_column($dolusaatler, 'saat');
-
             for ($j = strtotime($ortakBaslangic); $j < strtotime($ortakBitis); $j += ($randevusaataraligi * 60)) {
                 $saat = date('H:i', $j);
                 if ($saat < $simdikiZaman) continue;
 
-                if ($slotUygunMu($saat, $doluSet)) {
-                    array_push($bosSaatler,array('dolu'=>'0','saat'=>$saat));
-                    $saatindex++;
+                $bit = $j + ($toplamSure * 60);
+                if ($bit > strtotime($ortakBitis)) { // hizmet suresi kapanisi asiyor
+                    array_push($dolusaatler, array('dolu'=>'1','saat'=>$saat));
+                    continue;
+                }
+
+                $cakisti = false;
+                foreach ($doluAraliklar as $ar) {
+                    if ($j < $ar[1] && $bit > $ar[0]) { $cakisti = true; break; } // ortusme
+                }
+
+                if ($cakisti) {
+                    array_push($dolusaatler, array('dolu'=>'1','saat'=>$saat));
                 } else {
-                    // Süre sığmıyor/aralık dolu → bu başlangıç saati dolu olarak gösterilsin
-                    array_push($dolusaatler,array('dolu'=>'1','saat'=>$saat));
+                    array_push($bosSaatler, array('dolu'=>'0','saat'=>$saat));
+                    $saatindex++;
                 }
             }
         }
