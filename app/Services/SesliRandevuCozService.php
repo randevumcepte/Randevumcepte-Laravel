@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\SalonHizmetler;
 use App\Personeller;
+use App\SalonCalismaSaatleri;
+use App\PersonelCalismaSaatleri;
 
 /**
  * Sesli / yazili komuttan randevu bilgisi cozumleyen KURAL MOTORU.
@@ -90,6 +92,7 @@ class SesliRandevuCozService
 
         $tarih = $this->tarihCoz($fold);
         $saat  = $this->saatCoz($fold);
+        $vakit = $this->vakitBul($fold); // sabah | ogleden_sonra | aksam | null
 
         // Datif ekli isim (Ferdi Korkmaz'A) MUSTERI'dir — bu ipucu, ayni adli bir
         // personelin musteri adini kapmasini onler ("Ferdi" personel degil, musteri).
@@ -123,9 +126,10 @@ class SesliRandevuCozService
             'personel'      => $personel,
             'tarih'         => $tarih,      // Y-m-d | null
             'saat'          => $saat,       // H:i   | null
+            'vakit'         => $vakit,      // sabah | ogleden_sonra | aksam | null
             'eksik_alanlar' => $eksik,      // ['musteri','hizmet','tarih','saat','personel'] alt kumesi
             'guven'         => $guven,      // yuksek | orta | dusuk
-            '_ver'          => 'dbg-6',     // GECICI: dagitim/opcache teshisi
+            '_ver'          => 'dbg-7',     // GECICI: dagitim/opcache teshisi
             '_debug'        => array_merge(['fold' => $fold], $this->dbg),
         ];
     }
@@ -276,6 +280,189 @@ class SesliRandevuCozService
     }
 
     /* ------------------------------------------------------------------ */
+    /* MUSAITLIK (bos slot bulma)                                         */
+    /* ------------------------------------------------------------------ */
+
+    /** Cumleden vakit ifadesi: sabah | ogleden_sonra | aksam | null */
+    protected function vakitBul($fold)
+    {
+        if (preg_match('/\baksam\b|\bgece\b/u', $fold)) {
+            return 'aksam';
+        }
+        if (preg_match('/\bogleden sonra\b/u', $fold)) {
+            return 'ogleden_sonra';
+        }
+        if (preg_match('/\bsabah\b|\bogleden once\b/u', $fold)) {
+            return 'sabah';
+        }
+        return null;
+    }
+
+    /**
+     * Personel/salon calisma saatleri + mevcut randevulara gore ILK BOS slotu bulur.
+     * Tercih saati doluysa ayni gun ileri, sonra sonraki gunlere (ufuk gun) bakar.
+     *
+     * @return array ['bulundu'=>bool, 'tarih','saat','sure_dk','tam_istek'?]
+     */
+    public function musaitlikBul($salonId, $personelId, $hizmetId, $tercihTarih, $tercihSaat, $vakit = null, $ufukGun = 14)
+    {
+        $salonId = (int) $salonId;
+        $personelId = $personelId ? (int) $personelId : null;
+        $sureDk = $this->hizmetSuresi($salonId, (int) $hizmetId);
+        $adim = max(15, $sureDk);
+
+        $bugun = Carbon::today();
+        try {
+            $baslangicGun = $tercihTarih ? Carbon::parse($tercihTarih) : $bugun->copy();
+        } catch (\Exception $e) {
+            $baslangicGun = $bugun->copy();
+        }
+        if ($baslangicGun->lt($bugun)) {
+            $baslangicGun = $bugun->copy();
+        }
+        $tercihDk = $tercihSaat ? $this->hiToDk($tercihSaat) : null;
+        $simdiDk = (int) Carbon::now()->format('H') * 60 + (int) Carbon::now()->format('i');
+
+        for ($g = 0; $g < $ufukGun; $g++) {
+            $gun = $baslangicGun->copy()->addDays($g);
+            $tarihStr = $gun->toDateString();
+            $ch = $this->calismaSaatleriGetir($personelId, $salonId, $tarihStr);
+            if (!$ch || !$ch['calisiyor']) {
+                continue;
+            }
+            $basDk = $ch['baslangic'];
+            $bitDk = $ch['bitis'];
+            if ($basDk === null || $bitDk === null || $bitDk <= $basDk) {
+                continue;
+            }
+
+            // Bu gun icin arama baslangici
+            $aramaBas = $basDk;
+            if ($tercihDk !== null && $g === 0) {
+                $aramaBas = max($aramaBas, $tercihDk);
+            } elseif ($vakit) {
+                $aramaBas = max($aramaBas, $this->vakitBaslangicDk($vakit, $basDk));
+            }
+            if ($tarihStr === $bugun->toDateString()) {
+                $aramaBas = max($aramaBas, $simdiDk); // gecmis saatleri atla
+            }
+
+            $dolu = $this->personelDoluAraliklar($personelId, $tarihStr);
+            for ($slot = $basDk; $slot + $sureDk <= $bitDk; $slot += $adim) {
+                if ($slot < $aramaBas) {
+                    continue;
+                }
+                if ($this->slotBos($slot, $slot + $sureDk, $dolu)) {
+                    return [
+                        'bulundu'   => true,
+                        'tarih'     => $tarihStr,
+                        'saat'      => $this->dkToHi($slot),
+                        'sure_dk'   => $sureDk,
+                        'tam_istek' => ($tercihTarih && $tarihStr === $tercihTarih
+                                        && $tercihDk !== null && $slot === $tercihDk),
+                    ];
+                }
+            }
+        }
+        return ['bulundu' => false];
+    }
+
+    protected function vakitBaslangicDk($vakit, $basDk)
+    {
+        if ($vakit === 'ogleden_sonra') return 12 * 60;
+        if ($vakit === 'aksam')        return 17 * 60;
+        return $basDk; // sabah = acilis
+    }
+
+    /** @return array|null ['calisiyor'=>bool,'baslangic'=>dk,'bitis'=>dk] */
+    protected function calismaSaatleriGetir($personelId, $salonId, $tarih)
+    {
+        try {
+            $dow = Carbon::parse($tarih)->dayOfWeek; // Carbon: 0=Pazar..6=Cmt
+        } catch (\Exception $e) {
+            return null;
+        }
+        if ($dow == 0) $dow = 7; // Pazar -> 7 (haftanin_gunu: 1=Pzt..7=Paz)
+
+        $ch = null;
+        if ($personelId) {
+            $ch = PersonelCalismaSaatleri::where('personel_id', $personelId)
+                ->where('haftanin_gunu', $dow)->first();
+        }
+        if (!$ch) {
+            $ch = SalonCalismaSaatleri::where('salon_id', $salonId)
+                ->where('haftanin_gunu', $dow)->first();
+        }
+        if (!$ch) {
+            return null;
+        }
+        return [
+            'calisiyor' => ((int) $ch->calisiyor === 1),
+            'baslangic' => $this->hiToDk($ch->baslangic_saati),
+            'bitis'     => $this->hiToDk($ch->bitis_saati),
+        ];
+    }
+
+    /** O personelin o gunku (iptal olmayan) randevu araliklari (dk) */
+    protected function personelDoluAraliklar($personelId, $tarih)
+    {
+        if (!$personelId) {
+            return [];
+        }
+        $rows = DB::table('randevu_hizmetler as rh')
+            ->join('randevular as r', 'rh.randevu_id', '=', 'r.id')
+            ->where('rh.personel_id', $personelId)
+            ->where('r.tarih', $tarih)
+            ->where('r.durum', '!=', 2) // 2 = iptal
+            ->select('r.saat', 'r.saat_bitis', 'rh.sure_dk')
+            ->get();
+
+        $araliklar = [];
+        foreach ($rows as $row) {
+            $bas = $this->hiToDk($row->saat);
+            if ($bas === null) {
+                continue;
+            }
+            $bit = $this->hiToDk($row->saat_bitis);
+            if ($bit === null) {
+                $bit = $bas + ((int) $row->sure_dk ?: 30);
+            }
+            $araliklar[] = [$bas, $bit];
+        }
+        return $araliklar;
+    }
+
+    protected function slotBos($bas, $bit, $dolu)
+    {
+        foreach ($dolu as $ar) {
+            if ($bas < $ar[1] && $bit > $ar[0]) {
+                return false; // cakisma
+            }
+        }
+        return true;
+    }
+
+    protected function hizmetSuresi($salonId, $hizmetId)
+    {
+        $sh = SalonHizmetler::where('salon_id', $salonId)
+            ->where('hizmet_id', $hizmetId)->first();
+        return ($sh && (int) $sh->sure_dk > 0) ? (int) $sh->sure_dk : 30;
+    }
+
+    protected function hiToDk($hi)
+    {
+        if (!preg_match('/(\d{1,2}):(\d{2})/', (string) $hi, $m)) {
+            return null;
+        }
+        return (int) $m[1] * 60 + (int) $m[2];
+    }
+
+    protected function dkToHi($dk)
+    {
+        return sprintf('%02d:%02d', intdiv($dk, 60), $dk % 60);
+    }
+
+    /* ------------------------------------------------------------------ */
     /* HIZMET                                                             */
     /* ------------------------------------------------------------------ */
 
@@ -345,7 +532,7 @@ class SesliRandevuCozService
                     'hizmet_id'      => $sh->hizmet_id,
                     'salon_hizmet_id'=> $sh->id,
                     'hizmet_adi'     => $ad,
-                    'sure_dk'        => 30, // hizmetler tablosunda sure yok; onay ekraninda ayarlanabilir
+                    'sure_dk'        => ((int) $sh->sure_dk > 0 ? (int) $sh->sure_dk : 30),
                     'fiyat'          => $sh->son_fiyat ?: $sh->baslangic_fiyat,
                     'skor'           => round($skor, 2),
                 ];

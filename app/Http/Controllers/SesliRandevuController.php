@@ -73,6 +73,27 @@ class SesliRandevuController extends Controller
         return $deger;
     }
 
+    /**
+     * En yakin BOS slotu bulur (calisma saati + mevcut randevulara gore).
+     * Girdi: salonid|appBundle, personel_id, hizmet_id, (ops) tarih, saat, vakit.
+     */
+    public function musaitlik(Request $request, SesliRandevuCozService $servis)
+    {
+        $salonId = $this->salonIdCoz($request);
+        if (!$salonId) {
+            return response()->json(['bulundu' => false, 'hata' => 'Salon bulunamadi.'], 422);
+        }
+        $personelId  = $request->filled('personel_id') ? (int) $request->input('personel_id') : null;
+        $hizmetId    = (int) $request->input('hizmet_id');
+        $tercihTarih = $request->filled('tarih') ? $request->input('tarih') : null;
+        $tercihSaat  = $request->filled('saat') ? $request->input('saat') : null;
+        $vakit       = $request->filled('vakit') ? $request->input('vakit') : null;
+
+        $sonuc = $servis->musaitlikBul($salonId, $personelId, $hizmetId, $tercihTarih, $tercihSaat, $vakit);
+
+        return response()->json($sonuc);
+    }
+
     protected function salonIdCoz(Request $request)
     {
         if ($request->filled('salonid')) {
