@@ -125,7 +125,7 @@ class SesliRandevuCozService
             'saat'          => $saat,       // H:i   | null
             'eksik_alanlar' => $eksik,      // ['musteri','hizmet','tarih','saat','personel'] alt kumesi
             'guven'         => $guven,      // yuksek | orta | dusuk
-            '_ver'          => 'dbg-5',     // GECICI: dagitim/opcache teshisi
+            '_ver'          => 'dbg-6',     // GECICI: dagitim/opcache teshisi
             '_debug'        => array_merge(['fold' => $fold], $this->dbg),
         ];
     }
@@ -295,6 +295,12 @@ class SesliRandevuCozService
 
         $liste = $query->get();
 
+        // Metnin kelimeleri (kelime-bazli eslestirme icin)
+        $metinKelimeleri = array_values(array_filter(
+            preg_split('/\s+/u', $fold),
+            function ($w) { return mb_strlen($w) >= 2; }
+        ));
+
         $eslesen = [];
         $metinler = [];
         foreach ($liste as $sh) {
@@ -307,13 +313,34 @@ class SesliRandevuCozService
                 continue;
             }
 
-            // Tam / kismi gecis: hizmet adi cumlede geciyor mu?
-            $skor = $this->benzerlik($fold, $adFold);
+            // KELIME-BAZLI eslestirme: hizmetin TUM kelimeleri (ayirt edici olan
+            // dahil, or. "cilt"/"sac") metinde gecmeli. Boylece "cilt bakimi" yalnizca
+            // "Cilt Bakimi" ile eslesir; ortak "bakimi" yuzunden "Sac Bakimi"ye kaymaz.
+            $skor = 0.0;
             if (mb_strpos($fold, $adFold) !== false) {
-                $skor = 1.0;
+                $skor = 1.0; // tam hizmet adi cumlede geciyor
+            } else {
+                $adKelimeleri = array_values(array_filter(
+                    preg_split('/\s+/u', $adFold),
+                    function ($w) { return mb_strlen($w) >= 2; }
+                ));
+                if (!empty($adKelimeleri)) {
+                    $eslesenKelime = 0;
+                    foreach ($adKelimeleri as $ak) {
+                        foreach ($metinKelimeleri as $mk) {
+                            if ($ak === $mk || $this->benzerlik($ak, $mk) >= 0.85) {
+                                $eslesenKelime++;
+                                break;
+                            }
+                        }
+                    }
+                    if ($eslesenKelime === count($adKelimeleri)) {
+                        $skor = 0.9; // hizmetin tum kelimeleri metinde var
+                    }
+                }
             }
 
-            if ($skor >= 0.6) {
+            if ($skor >= 0.9) {
                 $eslesen[] = [
                     'hizmet_id'      => $sh->hizmet_id,
                     'salon_hizmet_id'=> $sh->id,
