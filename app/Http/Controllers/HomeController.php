@@ -2849,6 +2849,9 @@ $salon = Salonlar::where('domain', $domain)->first();
     {
         $salonlar = Salonlar::whereNotNull('domain')
             ->where('domain', '!=', '')
+            ->whereNotNull('uyelik_bitis_tarihi')
+            ->where('uyelik_bitis_tarihi', '!=', '')
+            ->whereDate('uyelik_bitis_tarihi', '>=', date('Y-m-d')) // uyeligi biten salonlar haric
             ->select('domain', 'updated_at')
             ->get();
 
@@ -2879,6 +2882,9 @@ $salon = Salonlar::where('domain', $domain)->first();
     {
         $salonlar = Salonlar::whereNotNull('domain')
             ->where('domain', '!=', '')
+            ->whereNotNull('uyelik_bitis_tarihi')
+            ->where('uyelik_bitis_tarihi', '!=', '')
+            ->whereDate('uyelik_bitis_tarihi', '>=', date('Y-m-d')) // uyeligi biten salonlar haric
             ->with(['il', 'ilce'])
             ->orderBy('salon_adi', 'asc')
             ->get();
