@@ -311,9 +311,9 @@ class SesliRandevuCozService
         $sureDk = $this->hizmetSuresi($salonId, (int) $hizmetId);
         $adim = max(15, $sureDk);
 
-        // Personel verildiyse ama HIC calisma saati tanimli degilse -> takvimi kapali,
-        // ona randevu verilmez.
-        if ($personelId && !PersonelCalismaSaatleri::where('personel_id', $personelId)->exists()) {
+        // Personel verildiyse ama calisilan (calisiyor=1) HIC gunu yoksa -> takvimi
+        // kapali, ona randevu verilmez.
+        if (!$this->takvimAcikMi($personelId)) {
             return ['bulundu' => false, 'calisma_yok' => true];
         }
 
@@ -378,6 +378,16 @@ class SesliRandevuCozService
         if ($vakit === 'ogleden_sonra') return 12 * 60;
         if ($vakit === 'aksam')        return 17 * 60;
         return $basDk; // sabah = acilis
+    }
+
+    /** Personelin randevu takvimi acik mi? (calisilan en az 1 gunu var mi) */
+    public function takvimAcikMi($personelId)
+    {
+        if (!$personelId) {
+            return false; // personel degilse / cozulmediyse randevu verilmez
+        }
+        return PersonelCalismaSaatleri::where('personel_id', (int) $personelId)
+            ->where('calisiyor', 1)->exists();
     }
 
     /** @return array|null ['calisiyor'=>bool,'baslangic'=>dk,'bitis'=>dk] */

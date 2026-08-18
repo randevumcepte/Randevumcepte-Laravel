@@ -94,6 +94,13 @@ class SesliRandevuController extends Controller
         return response()->json($sonuc);
     }
 
+    /** Personelin randevu takvimi acik mi? (mikrofona basar basmaz kontrol icin) */
+    public function takvimDurumu(Request $request, SesliRandevuCozService $servis)
+    {
+        $personelId = $request->filled('personel_id') ? (int) $request->input('personel_id') : null;
+        return response()->json(['acik' => $servis->takvimAcikMi($personelId)]);
+    }
+
     protected function salonIdCoz(Request $request)
     {
         if ($request->filled('salonid')) {
