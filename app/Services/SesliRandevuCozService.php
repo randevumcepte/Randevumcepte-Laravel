@@ -380,14 +380,17 @@ class SesliRandevuCozService
         return $basDk; // sabah = acilis
     }
 
-    /** Personelin randevu takvimi acik mi? (calisilan en az 1 gunu var mi) */
+    /**
+     * Personelin randevu takvimi acik mi? = takvimde_gorunsun (salon_personelleri).
+     * Bu, web/app'teki "Gizli/Gorunur" ile ayni sinyaldir (personelTakvimdeGorunsunToggle).
+     */
     public function takvimAcikMi($personelId)
     {
         if (!$personelId) {
             return false; // personel degilse / cozulmediyse randevu verilmez
         }
-        return PersonelCalismaSaatleri::where('personel_id', (int) $personelId)
-            ->where('calisiyor', 1)->exists();
+        $p = Personeller::find((int) $personelId);
+        return $p && (int) $p->takvimde_gorunsun === 1;
     }
 
     /** @return array|null ['calisiyor'=>bool,'baslangic'=>dk,'bitis'=>dk] */
@@ -400,12 +403,14 @@ class SesliRandevuCozService
         }
         if ($dow == 0) $dow = 7; // Pazar -> 7 (haftanin_gunu: 1=Pzt..7=Paz)
 
-        // Personel verildiyse SADECE onun takvimi (salon saatine DUSME — kendi
-        // takvimi yoksa ona randevu verilmez). Personel yoksa salon saati.
+        // Gorunurluk kapisi takvimAcikMi'de kontrol edildi. Burada saat: once personelin
+        // kendi calisma saati, yoksa salonun saati (gorunur personel icin makul varsayilan).
+        $ch = null;
         if ($personelId) {
             $ch = PersonelCalismaSaatleri::where('personel_id', $personelId)
                 ->where('haftanin_gunu', $dow)->first();
-        } else {
+        }
+        if (!$ch) {
             $ch = SalonCalismaSaatleri::where('salon_id', $salonId)
                 ->where('haftanin_gunu', $dow)->first();
         }
