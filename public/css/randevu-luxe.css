@@ -253,7 +253,7 @@ body {
 .lx-progress__label.is-done { color: rgba(123, 47, 184, 0.9); }
 
 @media (max-width: 991px) {
-    .lx-hero { padding: 28px 24px; border-radius: var(--lx-radius); }
+    .lx-hero { position: static; top: auto; padding: 28px 24px; border-radius: var(--lx-radius); }
     .lx-hero__grid { grid-template-columns: 1fr; gap: 22px; }
     .lx-hero__title { font-size: 28px; }
     .lx-progress { padding: 20px 16px 14px; }

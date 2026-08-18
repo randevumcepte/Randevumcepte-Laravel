@@ -409,6 +409,14 @@ Route::get('/save-excel', function () {
    Route::get('/sifregonder2','HomeController@sifregonder2');
    Route::post('/salonlar','HomeController@salonara')->name('salonara');
 	Route::get('/sitemap.xml', 'HomeController@sitemap');
+	// Merkezi sitemap index: TUM salon subdomain'lerinin kendi /sitemap.xml'ini listeler.
+	// Google Search Console'da randevumcepte.com.tr "Domain property" olarak dogrulaninca
+	// (tek DNS TXT), bu tek index tum subdomain'leri kapsar; yeni salon otomatik eklenir.
+	Route::get('/salonlar-sitemap.xml', 'HomeController@salonlarSitemapIndex');
+	// Herkese acik salon dizini: tum salon subdomain'lerine ic link verir.
+	// WordPress ana siteden (yuksek otorite) buraya TEK link verilir; Googlebot
+	// buradan tum subdomain'lere iner. Yeni salon otomatik listeye girer.
+	Route::get('/salonlar-dizini', 'HomeController@salonlarDizini');
 	Route::get('/robots.txt', 'HomeController@robots');
 	// Ucretsiz demo kayit sayfasi (WordPress'ten birebir tasindi — Elementor HTML).
 	// Ham HTML olarak servis edilir (Blade parse etmesin: Elementor {{ }}/@media icerikleri).
