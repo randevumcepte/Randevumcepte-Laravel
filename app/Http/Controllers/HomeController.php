@@ -2840,6 +2840,39 @@ $salon = Salonlar::where('domain', $domain)->first();
         return response($xml, 200)->header('Content-Type', 'application/xml');
     }
 
+    // Merkezi sitemap index: her aktif salon subdomain'inin kendi /sitemap.xml'ini listeler.
+    // Ana domainde (randevumcepte.com.tr) servis edilir ve Google Search Console'a TEK SEFER
+    // "Domain property" altinda gonderilir. Domain property tum subdomain'leri dogruladigi icin
+    // bu index farkli subdomain'lere referans verebilir. Yeni salon eklenince otomatik girer.
+    // XML, short_open_tag tuzagindan bagimsiz olsun diye controller'da duz string uretilir.
+    public function salonlarSitemapIndex(Request $request)
+    {
+        $salonlar = Salonlar::whereNotNull('domain')
+            ->where('domain', '!=', '')
+            ->select('domain', 'updated_at')
+            ->get();
+
+        $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+
+        foreach ($salonlar as $s) {
+            $host = trim(str_replace(['http://', 'https://'], '', $s->domain), '/');
+            if ($host === '') { continue; }
+            $lastmod = date('Y-m-d');
+            if (!empty($s->updated_at)) {
+                try { $lastmod = \Carbon\Carbon::parse($s->updated_at)->format('Y-m-d'); } catch (\Throwable $e) {}
+            }
+            $xml .= '  <sitemap>' . "\n";
+            $xml .= '    <loc>https://' . htmlspecialchars($host, ENT_XML1) . '/sitemap.xml</loc>' . "\n";
+            $xml .= '    <lastmod>' . $lastmod . '</lastmod>' . "\n";
+            $xml .= '  </sitemap>' . "\n";
+        }
+
+        $xml .= '</sitemapindex>';
+
+        return response($xml, 200)->header('Content-Type', 'application/xml');
+    }
+
     public function robots(Request $request)
     {
         $host = 'https://' . $_SERVER['HTTP_HOST'];
