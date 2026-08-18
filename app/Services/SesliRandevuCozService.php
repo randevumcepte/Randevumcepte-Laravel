@@ -311,6 +311,12 @@ class SesliRandevuCozService
         $sureDk = $this->hizmetSuresi($salonId, (int) $hizmetId);
         $adim = max(15, $sureDk);
 
+        // Personel verildiyse ama HIC calisma saati tanimli degilse -> takvimi kapali,
+        // ona randevu verilmez.
+        if ($personelId && !PersonelCalismaSaatleri::where('personel_id', $personelId)->exists()) {
+            return ['bulundu' => false, 'calisma_yok' => true];
+        }
+
         $bugun = Carbon::today();
         try {
             $baslangicGun = $tercihTarih ? Carbon::parse($tercihTarih) : $bugun->copy();
@@ -384,12 +390,12 @@ class SesliRandevuCozService
         }
         if ($dow == 0) $dow = 7; // Pazar -> 7 (haftanin_gunu: 1=Pzt..7=Paz)
 
-        $ch = null;
+        // Personel verildiyse SADECE onun takvimi (salon saatine DUSME — kendi
+        // takvimi yoksa ona randevu verilmez). Personel yoksa salon saati.
         if ($personelId) {
             $ch = PersonelCalismaSaatleri::where('personel_id', $personelId)
                 ->where('haftanin_gunu', $dow)->first();
-        }
-        if (!$ch) {
+        } else {
             $ch = SalonCalismaSaatleri::where('salon_id', $salonId)
                 ->where('haftanin_gunu', $dow)->first();
         }
