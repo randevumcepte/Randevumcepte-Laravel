@@ -393,6 +393,15 @@ class SesliRandevuCozService
         return $p && (int) $p->takvimde_gorunsun === 1;
     }
 
+    /** Personele tanimli en az 1 hizmet var mi? (personel_sunulan_hizmetler) */
+    public function personelHizmetiVarMi($personelId)
+    {
+        if (!$personelId) {
+            return false;
+        }
+        return \App\PersonelHizmetler::where('personel_id', (int) $personelId)->exists();
+    }
+
     /** @return array|null ['calisiyor'=>bool,'baslangic'=>dk,'bitis'=>dk] */
     protected function calismaSaatleriGetir($personelId, $salonId, $tarih)
     {
