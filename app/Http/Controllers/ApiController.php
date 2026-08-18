@@ -11227,6 +11227,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             return ["cakismavar" => "1", "cakisanunsurlar" => $cakisma_varmi];
             exit();
         } else {
+            // SADECE KONTROL modu (sesli asistan): buraya geldiysek cakisma YOK demektir.
+            // Randevuyu OLUSTURMA, sadece "cakisma yok" bilgisini don. (Ustteki cakisma
+            // return'leri zaten cakisma varsa "1" donuyor; bu yuzden burasi guvenli.)
+            if ($request->sadece_kontrol == "1") {
+                return ["cakismavar" => "0", "cakisanunsurlar" => "Başarılı"];
+            }
+
             // Çakışma yoksa veya kullanıcı "yine de oluştur" dediyse işleme devam et
             $mesajlar = [];
 
