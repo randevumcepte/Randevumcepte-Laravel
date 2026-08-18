@@ -18487,7 +18487,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                 "salon_personelleri.cinsiyet as cinsiyet",
 
-                "salon_personelleri.aktif as aktif"
+                "salon_personelleri.aktif as aktif",
+
+                "salon_personelleri.takvimde_gorunsun as takvimde_gorunsun"
 
             )
 
