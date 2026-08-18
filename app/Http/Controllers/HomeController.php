@@ -2873,6 +2873,19 @@ $salon = Salonlar::where('domain', $domain)->first();
         return response($xml, 200)->header('Content-Type', 'application/xml');
     }
 
+    // Herkese acik salon dizini sayfasi: tum aktif salon subdomain'lerine ic link verir.
+    // WordPress ana siteden buraya tek link verilir; Googlebot buradan subdomain'lere iner.
+    public function salonlarDizini(Request $request)
+    {
+        $salonlar = Salonlar::whereNotNull('domain')
+            ->where('domain', '!=', '')
+            ->with(['il', 'ilce'])
+            ->orderBy('salon_adi', 'asc')
+            ->get();
+
+        return view('salonlar-dizini', ['salonlar' => $salonlar]);
+    }
+
     public function robots(Request $request)
     {
         $host = 'https://' . $_SERVER['HTTP_HOST'];
