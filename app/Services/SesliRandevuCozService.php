@@ -329,10 +329,22 @@ class SesliRandevuCozService
         $tercihDk = $tercihSaat ? $this->hiToDk($tercihSaat) : null;
         $simdiDk = (int) Carbon::now()->format('H') * 60 + (int) Carbon::now()->format('i');
 
+        $dbg = [ // GECICI teshis
+            'personel_id' => $personelId, 'sure_dk' => $sureDk, 'adim' => $adim,
+            'tercih_tarih' => $tercihTarih, 'tercih_saat' => $tercihSaat, 'vakit' => $vakit,
+            'gunler' => [],
+        ];
+
         for ($g = 0; $g < $ufukGun; $g++) {
             $gun = $baslangicGun->copy()->addDays($g);
             $tarihStr = $gun->toDateString();
             $ch = $this->calismaSaatleriGetir($personelId, $salonId, $tarihStr);
+            if (count($dbg['gunler']) < 4) {
+                $dbg['gunler'][] = [
+                    'tarih' => $tarihStr,
+                    'calisma' => $ch ? [$ch['calisiyor'], $this->dkToHi($ch['baslangic']), $this->dkToHi($ch['bitis'])] : 'yok',
+                ];
+            }
             if (!$ch || !$ch['calisiyor']) {
                 continue;
             }
@@ -354,10 +366,16 @@ class SesliRandevuCozService
             }
 
             $dolu = $this->personelDoluAraliklar($personelId, $tarihStr);
-            for ($slot = $basDk; $slot + $sureDk <= $bitDk; $slot += $adim) {
-                if ($slot < $aramaBas) {
-                    continue;
-                }
+            $sonIdx = count($dbg['gunler']) - 1;
+            if ($sonIdx >= 0 && $dbg['gunler'][$sonIdx]['tarih'] === $tarihStr) {
+                $dbg['gunler'][$sonIdx]['aramaBas'] = $this->dkToHi($aramaBas);
+                $dbg['gunler'][$sonIdx]['dolu'] = array_map(function ($a) {
+                    return $this->dkToHi($a[0]) . '-' . $this->dkToHi($a[1]);
+                }, $dolu);
+            }
+            // Izgara aramaBas'tan baslar: istenen saat (14:00) ya da vakit basi ilk
+            // adaydir; boylece hizmet suresi 60 dk degilse bile istenen saat atlanmaz.
+            for ($slot = $aramaBas; $slot + $sureDk <= $bitDk; $slot += $adim) {
                 if ($this->slotBos($slot, $slot + $sureDk, $dolu)) {
                     return [
                         'bulundu'   => true,
@@ -366,11 +384,12 @@ class SesliRandevuCozService
                         'sure_dk'   => $sureDk,
                         'tam_istek' => ($tercihTarih && $tarihStr === $tercihTarih
                                         && $tercihDk !== null && $slot === $tercihDk),
+                        '_debug'    => $dbg,
                     ];
                 }
             }
         }
-        return ['bulundu' => false];
+        return ['bulundu' => false, '_debug' => $dbg];
     }
 
     protected function vakitBaslangicDk($vakit, $basDk)

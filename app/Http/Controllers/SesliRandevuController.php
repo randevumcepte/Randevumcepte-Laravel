@@ -91,6 +91,10 @@ class SesliRandevuController extends Controller
 
         $sonuc = $servis->musaitlikBul($salonId, $personelId, $hizmetId, $tercihTarih, $tercihSaat, $vakit);
 
+        if (!$request->has('debug')) {
+            unset($sonuc['_debug']);
+        }
+
         return response()->json($sonuc);
     }
 
