@@ -38,7 +38,10 @@ class SesliRandevuController extends Controller
             ], 422);
         }
 
-        $sonuc = $servis->coz($metin, $salonId);
+        // Randevu DAIMA giris yapan personel adina; hizmetler o personelinkiyle sinirli
+        $personelId = $request->filled('personel_id') ? (int) $request->input('personel_id') : null;
+
+        $sonuc = $servis->coz($metin, $salonId, $personelId);
         $sonuc['salon_id'] = $salonId;
 
         // Debug alanlari yalnizca ?debug=1 ile don (app'e temiz JSON gitsin)

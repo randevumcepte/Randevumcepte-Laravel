@@ -24,6 +24,9 @@ class SesliRandevuCozService
     /** @var int */
     protected $salonId;
 
+    /** @var int|null Giris yapan personel (randevu onun adina; hizmetler onunkiyle sinirli) */
+    protected $personelId;
+
     /** Gecici teshis bilgisi */
     protected $dbg = [];
 
@@ -66,13 +69,15 @@ class SesliRandevuCozService
     /**
      * Ana giris noktasi.
      *
-     * @param  string $metin    Kullanicinin soyledigi / yazdigi cumle
-     * @param  int    $salonId  Salon id
+     * @param  string   $metin       Kullanicinin soyledigi / yazdigi cumle
+     * @param  int      $salonId     Salon id
+     * @param  int|null $personelId  Varsa: randevu bu personel adina; hizmetler onunkiyle sinirli
      * @return array
      */
-    public function coz($metin, $salonId)
+    public function coz($metin, $salonId, $personelId = null)
     {
         $this->salonId = (int) $salonId;
+        $this->personelId = $personelId ? (int) $personelId : null;
 
         $ham = trim((string) $metin);
         // Girdi UTF-8 degilse (latin5/Windows-1254 tek baytlar) once cevir; yoksa Turkce
@@ -90,9 +95,17 @@ class SesliRandevuCozService
         // personelin musteri adini kapmasini onler ("Ferdi" personel degil, musteri).
         $musteriIpucu = $this->datifMusteriBul($fold);
 
-        // Hizmet ve personel, salonun kendi listesine gore eslestirilir
+        // Hizmet: personel verildiyse SADECE o personelin sundugu hizmetlerle sinirli
         list($hizmetler, $hizmetMetinleri) = $this->hizmetEslestir($fold);
-        list($personel, $personelMetni)    = $this->personelEslestir($fold, $hizmetler, $musteriIpucu);
+
+        // Personel: giris yapan personel SABIT (cumleden cozumlenmez). Yoksa cumleden.
+        if ($this->personelId) {
+            $p = Personeller::find($this->personelId);
+            $personel = $p ? ['personel_id' => (int) $p->id, 'personel_adi' => $p->personel_adi, 'sabit' => true] : null;
+            $personelMetni = null;
+        } else {
+            list($personel, $personelMetni) = $this->personelEslestir($fold, $hizmetler, $musteriIpucu);
+        }
 
         // Musteri: datif ipucu varsa onu kullan, yoksa kalan kelimelerden ad tahmini
         $musteri = $this->musteriEslestir($ham, $fold, $hizmetMetinleri, $personelMetni, $musteriIpucu);
@@ -112,7 +125,7 @@ class SesliRandevuCozService
             'saat'          => $saat,       // H:i   | null
             'eksik_alanlar' => $eksik,      // ['musteri','hizmet','tarih','saat','personel'] alt kumesi
             'guven'         => $guven,      // yuksek | orta | dusuk
-            '_ver'          => 'dbg-4',     // GECICI: dagitim/opcache teshisi
+            '_ver'          => 'dbg-5',     // GECICI: dagitim/opcache teshisi
             '_debug'        => array_merge(['fold' => $fold], $this->dbg),
         ];
     }
@@ -271,7 +284,16 @@ class SesliRandevuCozService
      */
     protected function hizmetEslestir($fold)
     {
-        $liste = SalonHizmetler::where('salon_id', $this->salonId)->get();
+        $query = SalonHizmetler::where('salon_id', $this->salonId);
+
+        // Personel verildiyse SADECE onun sundugu hizmetler (personel_sunulan_hizmetler)
+        if ($this->personelId) {
+            $hizmetIdleri = \App\PersonelHizmetler::where('personel_id', $this->personelId)
+                ->pluck('hizmet_id')->all();
+            $query->whereIn('hizmet_id', $hizmetIdleri ?: [0]); // bos ise hicbir hizmet eslesmez
+        }
+
+        $liste = $query->get();
 
         $eslesen = [];
         $metinler = [];
