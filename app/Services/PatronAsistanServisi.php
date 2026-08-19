@@ -22,32 +22,33 @@ class PatronAsistanServisi
     /** Desteklenen niyetler icin anahtar kelimeler (ASCII-normalize edilmis metinde aranir) */
     protected $niyetAnahtarlari = [
         'kasa' => [
-            'kasa', 'ciro', 'hasilat', 'kazanc', 'kazandik', 'para', 'gelir',
-            'ne kadar', 'tahsilat', 'nakit', 'kart', 'satis',
+            'kasa', 'ciro', 'hasilat', 'kazanc', 'kazandik', 'kazandim', 'kazanmis',
+            'ne kadar kazan', 'kac para', 'para girdi', 'ne kadar para', 'ne kadar oldu',
+            'tahsilat', 'nakit', 'gelir',
         ],
         'personel' => [
-            'personel', 'eleman', 'calisan', 'kim sattı', 'kim satti', 'en cok kim',
-            'performans', 'hakedis', 'kim ne', 'basarili',
+            'personel', 'eleman', 'calisan', 'kim satti', 'en cok kim', 'en iyi personel',
+            'hangi personel', 'performans', 'hakedis', 'kim ne kadar', 'kim ne satti',
+            'kim calisti', 'basarili',
         ],
         'hizmet' => [
-            'hizmet', 'islem', 'en cok hangi', 'hangi hizmet', 'populer hizmet',
-            'cok yapilan', 'hizmetler',
+            'hizmet', 'islem', 'hangi hizmet', 'populer hizmet', 'en cok yapilan',
+            'cok yapilan', 'hizmet raporu', 'hangi islem',
         ],
         'urun' => [
-            'urun', 'urunler', 'hangi urun', 'en cok satan urun', 'stok satis',
-            'mamul', 'kozmetik',
+            'urun', 'hangi urun', 'satan urun', 'urun satis', 'mamul', 'kozmetik',
         ],
         'musteri' => [
-            'musteri', 'musteriler', 'yeni musteri', 'kac kisi geldi', 'kim geldi',
-            'sadik musteri', 'en iyi musteri', 'kadin erkek',
+            'musteri', 'kac kisi', 'kac musteri', 'yeni musteri', 'kim geldi',
+            'kisi geldi', 'sadik musteri', 'en iyi musteri', 'kadin erkek', 'musteri sayisi',
         ],
         'ozet' => [
-            'ozet', 'genel durum', 'gun sonu', 'nasil gidiyor', 'rapor',
-            'genel', 'toplam durum', 'ne durumdayiz',
+            'ozet', 'genel durum', 'gun sonu', 'nasil gidiyor', 'nasil gecti',
+            'isler nasil', 'toplam durum', 'bugun nasil',
         ],
         'bugun' => [
-            'bugun', 'gundem', 'randevu', 'takvim', 'kimler var', 'kimler gelecek',
-            'durum ne', 'ne var ne yok', 'gunluk',
+            'randevu', 'takvim', 'gundem', 'kimler var', 'kimler gelecek', 'kim gelecek',
+            'kac randevu', 'randevu var', 'gunluk program',
         ],
     ];
 
@@ -71,9 +72,16 @@ class PatronAsistanServisi
                 }
             }
         }
-        arsort($skor);
-        $enIyi   = array_key_first($skor);
-        $intent  = $skor[$enIyi] > 0 ? $enIyi : 'bilinmiyor';
+        // En yuksek skorlu niyet; esitlikte oncelik sirasina gore (deterministik).
+        $oncelik = ['kasa', 'personel', 'hizmet', 'urun', 'musteri', 'bugun', 'ozet'];
+        $enIyi = 'bilinmiyor'; $enYuksek = 0;
+        foreach ($oncelik as $n) {
+            if (($skor[$n] ?? 0) > $enYuksek) {
+                $enYuksek = $skor[$n];
+                $enIyi = $n;
+            }
+        }
+        $intent = $enYuksek > 0 ? $enIyi : 'bilinmiyor';
 
         // "kim ne sattı" + isim gecerse personel niyeti one cikar
         $personelIpucu = $this->personelIpucuCoz($norm, $ham);
