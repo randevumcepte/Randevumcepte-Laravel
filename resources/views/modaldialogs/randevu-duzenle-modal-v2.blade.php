@@ -2172,14 +2172,8 @@ window._v2DuzenleModalAktif = true;
         // init edilmiyor cunku format/locale konfliktleri val'i bosaltiyordu.
     });
 
-    // Datepicker locale/format ne olursa olsun input degisince YYYY-MM-DD'ye
-    // normalize et (kullanici gorsel olarak da YMD gorsun, submit'te de temiz gitsin).
-    $modal.on('change blur', '#v2d_tarih, #v2d_kapama_tarih', function(){
-        var norm = _normalizeTarihYMD($(this).val());
-        if (norm && norm !== $(this).val()) {
-            $(this).val(norm);
-        }
-    });
+    // NOT: type="date" native input zaten YYYY-MM-DD garanti ediyor;
+    // change/blur normalize handler'i kaldirildi (val'i bosaltma riski vardi).
 
     $modal.on('hidden.bs.modal', function(){
         // Form'u tamamen sifirla: musteri, hizmet, personel, oda, not, tekrar, summary
@@ -2437,14 +2431,11 @@ window._v2DuzenleModalAktif = true;
     window._v2DuzenleAc = function(randevuId){
         try {
             $('#v2d_duzenlenecek_randevu_id').val(randevuId);
-            window._v2DuzenleYuklendi = false; // her acilista sifirla
+            window._v2DuzenleYuklendi = false;
             $modal.one('shown.bs.modal', function(){
                 setTimeout(function(){ _v2DuzenleYukle(randevuId); }, 150);
             });
             $modal.modal('show');
-            // Fallback: shown fire etmezse (baska modal ustune vs.) 600ms sonra
-            // dogrudan cagir. _v2DuzenleYukle icindeki guard cift yuklemeyi engeller.
-            setTimeout(function(){ _v2DuzenleYukle(randevuId); }, 600);
         } catch(e){ console.error('_v2DuzenleAc hata:', e); }
     };
 
@@ -2465,19 +2456,10 @@ window._v2DuzenleModalAktif = true;
                 // Tarih — datepicker init edildiyse internal state'ini de guncelle
                 // (yoksa kullanici datepicker'dan yeni tarih secse bile input'a yazilmayabilir).
                 if(data.tarih){
-                    // Normalize: backend '2026-08-19 00:00:00' gonderirse date kismini al
                     var _t = String(data.tarih).substring(0, 10);
+                    // type="date" input: hem .val hem native property set
                     $tarih.val(_t);
-                    try { $tarih.datepicker('update', _t); } catch(e){}
-                    // Belt-and-suspenders: 100ms sonra tekrar (change/blur normalize'ini
-                    // ezme ihtimaline karsi)
-                    setTimeout(function(){
-                        if($tarih.val() !== _t){
-                            $tarih.val(_t);
-                            try { $tarih.datepicker('update', _t); } catch(e){}
-                        }
-                        console.log('[V2 DUZENLE tarih son]', {input: $tarih.val(), beklenen: _t});
-                    }, 100);
+                    if($tarih[0]) $tarih[0].value = _t;
                 }
                 // Saat — v2 saat dropdown option'lari ayrik yaziliyor; option yoksa
                 // append ederek set et. Format HH:MM ile setleyelim (backend HH:MM:SS
