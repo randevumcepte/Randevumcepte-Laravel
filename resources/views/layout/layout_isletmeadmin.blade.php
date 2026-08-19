@@ -2114,8 +2114,7 @@
                   @endif
                   @endif
 
-                  {{-- 19) WhatsApp Yönetimi (sadece uyelik_turu == 3) — Baileys+whatsmeow tek sayfada birleşti --}}
-                  @if($isletme->uyelik_turu == 3)
+                  {{-- 19) WhatsApp Yönetimi — tüm üyelik türlerine açık (uyelik_turu kısıtı kaldırıldı) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.whatsapp_gonder'))
                   <li>
@@ -2128,7 +2127,6 @@
                      <span class="mtext">WhatsApp Yönetimi</span>
                      </a>
                   </li>
-                  @endif
                   @endif
                   @endif
 
