@@ -456,11 +456,15 @@ class PatronAsistanServisi
      *
      * @return array|null niyetCoz() ile ayni yapida (intent/donem/donemAdi/personelIpucu/ham) veya null
      */
+    /** Son AI cagrisinin teshisi (debug): anahtar_yok | http_XXX | curl_HATA | yanit_bos | tool_yok | ok */
+    public $aiTeshis = null;
+
     public function niyetCozAI($metin)
     {
         // config once (config:cache'liyse de calisir), yoksa env fallback.
         $apiKey = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
         if (!$apiKey) {
+            $this->aiTeshis = 'anahtar_yok';
             return null; // Anahtar yok -> sessizce kural motoruna dus
         }
 
@@ -514,13 +518,18 @@ class PatronAsistanServisi
             ]);
             $yanit = curl_exec($ch);
             $kod   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlHata = curl_error($ch);
             curl_close($ch);
 
             if ($yanit === false || $kod !== 200) {
+                $this->aiTeshis = ($yanit === false)
+                    ? ('curl_HATA: ' . $curlHata)
+                    : ('http_' . $kod . ': ' . mb_substr((string) $yanit, 0, 300));
                 return null;
             }
             $data = json_decode($yanit, true);
             if (!is_array($data) || empty($data['content'])) {
+                $this->aiTeshis = 'yanit_bos';
                 return null;
             }
             // tool_use blogunu bul
@@ -532,12 +541,14 @@ class PatronAsistanServisi
                 }
             }
             if (!is_array($tool) || empty($tool['intent'])) {
+                $this->aiTeshis = 'tool_yok';
                 return null;
             }
 
             $donem = in_array($tool['donem'] ?? '', ['gun','hafta','ay'], true) ? $tool['donem'] : 'gun';
-            $donemAdi = ['gun' => 'bugun', 'hafta' => 'bu hafta', 'ay' => 'bu ay'][$donem];
+            $donemAdi = ['gun' => 'bugün', 'hafta' => 'bu hafta', 'ay' => 'bu ay'][$donem];
             $personel = trim((string) ($tool['personel_adi'] ?? '')) ?: null;
+            $this->aiTeshis = 'ok';
 
             return [
                 'intent'        => $tool['intent'],
@@ -548,6 +559,7 @@ class PatronAsistanServisi
                 '_kaynak'       => 'ai',
             ];
         } catch (\Throwable $e) {
+            $this->aiTeshis = 'exception: ' . $e->getMessage();
             return null; // Her turlu hatada kural motoruna dus
         }
     }

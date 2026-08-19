@@ -2492,6 +2492,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $sonuc = $asistan->yardimCevabi($niyet); break;
         }
 
+        // ?debug=1 -> AI teshisi (neden kurala dustu): apptest'te sorun bulmak icin.
+        if ($request->has('debug')) {
+            $sonuc['_debug'] = [
+                'intent'      => $niyet['intent'] ?? null,
+                'donem'       => $niyet['donem'] ?? null,
+                'kaynak'      => $niyet['_kaynak'] ?? 'kural',
+                'ai_teshis'   => $asistan->aiTeshis,
+                'anahtar_var' => (bool) (config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY')),
+                'model'       => config('services.anthropic.model') ?: 'claude-haiku-4-5',
+            ];
+        }
+
         return response()->json($sonuc, 200, [], JSON_UNESCAPED_UNICODE);
     }
 
