@@ -2437,9 +2437,17 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // (sorularin buyuk cogunlugu Haiku'ya hic gitmez). Anahtar yoksa zaten kural kalir.
         $niyet = $asistan->niyetCoz($metin);
         if (($niyet['intent'] ?? 'bilinmiyor') === 'bilinmiyor') {
-            $aiNiyet = $asistan->niyetCozAI($metin);
-            if ($aiNiyet) {
-                $niyet = $aiNiyet;
+            // 1) Ogrenen onbellek: bu soru daha once AI ile cozulduyse BEDAVA getir.
+            $ogr = $asistan->ogrenilenNiyet($metin);
+            if ($ogr) {
+                $niyet = $ogr;
+            } else {
+                // 2) Haiku fallback (anahtar varsa). Cozerse OGREN -> sonraki sefer bedava.
+                $aiNiyet = $asistan->niyetCozAI($metin);
+                if ($aiNiyet) {
+                    $niyet = $aiNiyet;
+                    $asistan->ogren($metin, $aiNiyet);
+                }
             }
         }
 

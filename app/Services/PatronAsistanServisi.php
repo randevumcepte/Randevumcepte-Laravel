@@ -406,6 +406,46 @@ class PatronAsistanServisi
     }
 
     // ------------------------------------------------------------------
+    // OGRENEN ONBELLEK: AI ile bir kez cozuleni sakla -> sonraki sefer bedava
+    // ------------------------------------------------------------------
+
+    /**
+     * Daha once (AI ile) cozulmus bir sorunun niyetini dondurur; yoksa null.
+     * Ayni/normalize-esit soru tekrar gelince AI'ya GITMEDEN bedava cevaplanir.
+     * Niyet salon-bagimsiz (sadece cumle -> intent/donem) oldugu icin tum salonlar paylasir.
+     */
+    public function ogrenilenNiyet($metin)
+    {
+        try {
+            $v = \Cache::get($this->ogrenAnahtar($metin));
+            if (is_array($v) && !empty($v['intent'])) {
+                $v['ham'] = trim((string) $metin);
+                return $v;
+            }
+        } catch (\Throwable $e) {}
+        return null;
+    }
+
+    /** AI bir soruyu basariyla cozunce eslesmeyi kalici sakla (sonraki sefer bedava). */
+    public function ogren($metin, array $niyet)
+    {
+        if (($niyet['intent'] ?? 'bilinmiyor') === 'bilinmiyor') return;
+        try {
+            \Cache::forever($this->ogrenAnahtar($metin), [
+                'intent'        => $niyet['intent'],
+                'donem'         => $niyet['donem'] ?? 'gun',
+                'donemAdi'      => $niyet['donemAdi'] ?? 'bugün',
+                'personelIpucu' => $niyet['personelIpucu'] ?? null,
+            ]);
+        } catch (\Throwable $e) {}
+    }
+
+    protected function ogrenAnahtar($metin)
+    {
+        return 'patron_asistan_ogr:' . md5($this->normalize($metin));
+    }
+
+    // ------------------------------------------------------------------
     // OPSIYONEL: Haiku ile niyet cozumu (TAM SERBEST DIYALOG)
     // ------------------------------------------------------------------
 
@@ -418,7 +458,8 @@ class PatronAsistanServisi
      */
     public function niyetCozAI($metin)
     {
-        $apiKey = env('ANTHROPIC_API_KEY');
+        // config once (config:cache'liyse de calisir), yoksa env fallback.
+        $apiKey = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
         if (!$apiKey) {
             return null; // Anahtar yok -> sessizce kural motoruna dus
         }
@@ -450,7 +491,7 @@ class PatronAsistanServisi
         ]];
 
         $govde = [
-            'model'      => 'claude-haiku-4-5',
+            'model'      => config('services.anthropic.model') ?: 'claude-haiku-4-5',
             'max_tokens' => 256,
             'tool_choice'=> ['type' => 'tool', 'name' => 'rapor_sec'],
             'tools'      => $araclar,
