@@ -2442,9 +2442,16 @@ window._v2DuzenleModalAktif = true;
     window._v2DuzenleAc = function(randevuId){
         try {
             $('#v2d_duzenlenecek_randevu_id').val(randevuId);
+            // KRITIK: shown.bs.modal event'i modal.show()'dan ONCE registered
+            // olmali; aksi halde bazi tarayicilarda geç register edilip fire edilmez.
+            // Ekstra guvenlik: setTimeout ile bagimsiz olarak da cagir (shown fire
+            // etmese bile yukleme calisir).
+            $modal.one('shown.bs.modal', function(){
+                setTimeout(function(){ _v2DuzenleYukle(randevuId); }, 150);
+            });
             $modal.modal('show');
-            // Modal 'shown' event'i initV2 tetikliyor; sonra veri yukle
-            $modal.one('shown.bs.modal', function(){ setTimeout(function(){ _v2DuzenleYukle(randevuId); }, 150); });
+            // Fallback: shown event fire etmezse (zaten aciksa vs.) 400ms sonra dogrudan
+            setTimeout(function(){ _v2DuzenleYukle(randevuId); }, 400);
         } catch(e){ console.error('_v2DuzenleAc hata:', e); }
     };
 
@@ -2458,12 +2465,24 @@ window._v2DuzenleModalAktif = true;
             type: 'GET', dataType: 'json',
             data: { randevu_id: randevuId, sube: subeVal },
             success: function(data){
+                console.log('[V2 DUZENLE YUKLE] fetch OK', {tarih: data && data.tarih, saat: data && data.saat, musteri_id: data && data.musteri_id, hizmet_sayisi: data && Array.isArray(data.hizmetler) ? data.hizmetler.length : 0});
                 if(!data || data.error){ console.warn('[V2 DUZENLE] fetch:', data); return; }
                 // Tarih — datepicker init edildiyse internal state'ini de guncelle
                 // (yoksa kullanici datepicker'dan yeni tarih secse bile input'a yazilmayabilir).
                 if(data.tarih){
-                    $tarih.val(data.tarih).trigger('change');
-                    try { $tarih.datepicker('update', data.tarih); } catch(e){}
+                    // Normalize: backend '2026-08-19 00:00:00' gonderirse date kismini al
+                    var _t = String(data.tarih).substring(0, 10);
+                    $tarih.val(_t);
+                    try { $tarih.datepicker('update', _t); } catch(e){}
+                    // Belt-and-suspenders: 100ms sonra tekrar (change/blur normalize'ini
+                    // ezme ihtimaline karsi)
+                    setTimeout(function(){
+                        if($tarih.val() !== _t){
+                            $tarih.val(_t);
+                            try { $tarih.datepicker('update', _t); } catch(e){}
+                        }
+                        console.log('[V2 DUZENLE tarih son]', {input: $tarih.val(), beklenen: _t});
+                    }, 100);
                 }
                 // Saat — v2 saat dropdown option'lari ayrik yaziliyor; option yoksa
                 // append ederek set et. Format HH:MM ile setleyelim (backend HH:MM:SS
