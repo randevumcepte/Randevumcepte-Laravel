@@ -129,13 +129,32 @@
     var d=document.createElement('div'); d.className='pa-mesaj pa-cevap'; d.innerHTML=h; govde().appendChild(d); kaydir();
   }
 
-  // ---- TTS (cevabi sesli oku) ----
+  // ---- TTS (cevabi sesli oku) — uygulamadaki gibi DOGAL Turkce ses secilir ----
+  var paSes = null;
+  function paSesYukle(){
+    if(!('speechSynthesis' in window)) return;
+    var list = window.speechSynthesis.getVoices() || [];
+    if(!list.length) return;
+    // Oncelik: Google Turkce (dogal/asistan sesi) > Microsoft Turkce > herhangi tr sesi
+    paSes = list.filter(function(v){ return /tr/i.test(v.lang) && /google/i.test(v.name); })[0]
+         || list.filter(function(v){ return /tr/i.test(v.lang) && /microsoft|emel|tolga/i.test(v.name); })[0]
+         || list.filter(function(v){ return /tr[-_]?TR/i.test(v.lang); })[0]
+         || list.filter(function(v){ return /^tr/i.test(v.lang); })[0]
+         || null;
+  }
+  if('speechSynthesis' in window){
+    paSesYukle();
+    window.speechSynthesis.onvoiceschanged = paSesYukle; // sesler gec yuklenirse tekrar sec
+  }
   function paDurdurSes(){ try{ window.speechSynthesis.cancel(); }catch(e){} }
   function seslendir(t){
     if(!document.getElementById('pa-ses').checked) return;
     if(!('speechSynthesis' in window)) return;
+    if(!paSes) paSesYukle();
     paDurdurSes();
-    var u=new SpeechSynthesisUtterance(t); u.lang='tr-TR'; u.rate=1.05;
+    var u=new SpeechSynthesisUtterance(t);
+    u.lang='tr-TR'; u.rate=1.0; u.pitch=1.0; // dogal tempo (robotik degil)
+    if(paSes) u.voice=paSes;
     try{ window.speechSynthesis.speak(u); }catch(e){}
   }
 
