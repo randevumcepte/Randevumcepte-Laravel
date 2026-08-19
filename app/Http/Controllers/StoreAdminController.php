@@ -30793,13 +30793,28 @@ DB::raw('
         // Rol bir kez hesaplanir (map icinde her satirda DB sorgusu yapmamak icin).
         $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
         $personelMi = ($rol == 5);
+        // Yetki: musteri.telefon_gor acik ise personel de ham numarayi gorur.
+        // Panelden bu yetki personele acildiginda arama ekraninda maskeleme
+        // uygulanmaz (yonetici tercihine gore).
+        $telefonGorYetkisi = false;
+        try {
+            $callerYetkiliId = $this->cmAuthId();
+            if ($callerYetkiliId) {
+                $telefonGorYetkisi = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
+                    $callerYetkiliId, $salonId, 'musteri.telefon_gor'
+                );
+            }
+        } catch (\Throwable $e) {}
+        $telefonMaskele = $personelMi && !$telefonGorYetkisi;
 
-        $data = $aranacaklar->map(function ($item) use ($aramaDetayId, $personelMi) {
+        $data = $aranacaklar->map(function ($item) use ($aramaDetayId, $telefonMaskele) {
             $telefon = $item->musteri->cep_telefon ?? '';
             $ad = $item->musteri->name ?? '';
 
-            // KVKK: personel (rol 5) ham numarayi ve tam soyadi GORMEZ.
-            if ($personelMi) {
+            // KVKK: personel (rol 5) + yetki kapali ise ham numarayi ve tam
+            // soyadi GORMEZ. Yetki acikken (musteri.telefon_gor=true) personel
+            // de tam bilgiyi gorur (yonetici acikca izin vermis olur).
+            if ($telefonMaskele) {
                 $ad = self::adSoyadMaskele($ad);
                 $telefonCikti = $telefon !== '' ? self::telefonGizle($telefon) : '';
                 $telefonHam = null; // ham numara personel frontend'ine ASLA gonderilmez
