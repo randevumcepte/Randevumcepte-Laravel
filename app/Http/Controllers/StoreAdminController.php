@@ -2124,6 +2124,65 @@ public function carkverilerigetir(Request $request)
     }
 
     /**
+     * PATRON ASISTANI — sesli/yazili SERBEST soru -> dogal dil cevap.
+     * (Niyet cozumleme + cevap yazimi: App\Services\PatronAsistanServisi)
+     *
+     * Akis: metin -> niyet coz (servis) -> MEVCUT rapor fonksiyonunu cagir (yetki ve
+     * rakam ORADAN gelir; rakam UYDURULMAZ) -> gelen gercek veriyi servis dogal Turkce
+     * cevaba cevirir. Salt-okunur; hicbir sey degistirmez. Ayri route/servis oldugu icin
+     * mevcut dashboard akisina dokunmaz (additive).
+     */
+    public function patronAsistanSor(Request $request, \App\Services\PatronAsistanServisi $asistan)
+    {
+        $metin = trim((string) $request->input('metin', ''));
+        if ($metin === '') {
+            return response()->json([
+                'basarili' => false,
+                'cevap'    => 'Bir sey sormadınız. Ornek: "bugun kasa ne durumda?"',
+            ], 422, [], JSON_UNESCAPED_UNICODE);
+        }
+
+        $niyet = $asistan->niyetCoz($metin);
+
+        switch ($niyet['intent']) {
+            case 'kasa':
+                $request->merge(['period' => $asistan->periodDashboard($niyet['donem'])]);
+                $resp = $this->dashboardKasa($request);
+                if ($yetki = $this->patronAsistanYetkiKontrol($resp)) return $yetki;
+                return response()->json($asistan->cevapKasa($resp->getData(true), $niyet), 200, [], JSON_UNESCAPED_UNICODE);
+
+            case 'personel':
+                $request->merge(['period' => $asistan->periodRapor($niyet['donem'])]);
+                $resp = $this->isletmeRaporlariPersonel($request);
+                if ($yetki = $this->patronAsistanYetkiKontrol($resp)) return $yetki;
+                return response()->json($asistan->cevapPersonel($resp->getData(true), $niyet), 200, [], JSON_UNESCAPED_UNICODE);
+
+            case 'bugun':
+                $resp = $this->dashboardBugun($request);
+                if ($yetki = $this->patronAsistanYetkiKontrol($resp)) return $yetki;
+                return response()->json($asistan->cevapBugun($resp->getData(true), $niyet), 200, [], JSON_UNESCAPED_UNICODE);
+
+            default:
+                return response()->json($asistan->yardimCevabi($niyet), 200, [], JSON_UNESCAPED_UNICODE);
+        }
+    }
+
+    /** Delege edilen rapor fonksiyonu 401/403 dondurduyse kullaniciya nazik cevap uret. */
+    private function patronAsistanYetkiKontrol($resp)
+    {
+        $kod = (is_object($resp) && method_exists($resp, 'getStatusCode')) ? $resp->getStatusCode() : 200;
+        if ($kod === 403 || $kod === 401) {
+            return response()->json([
+                'basarili'  => false,
+                'intent'    => 'yetki_yok',
+                'seslendir' => true,
+                'cevap'     => 'Bu bilgiyi gormek icin yetkiniz yok gorunuyor.',
+            ], 200, [], JSON_UNESCAPED_UNICODE);
+        }
+        return null;
+    }
+
+    /**
      * Verilen collection/array icindeki 'telefon' kolonunu, cagiran kullanicinin
      * musteri.telefon_gor yetkisi kapaliysa maskeler. Cache disinda cagirilmali.
      */
