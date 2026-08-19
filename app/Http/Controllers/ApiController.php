@@ -2395,6 +2395,81 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         );
     }
 
+    /**
+     * PATRON ASISTANI (MOBIL) — sesli/yazili SERBEST soru -> dogal dil cevap.
+     * Auth: isletmeyonetim-api (Bearer). Sadece Hesap Sahibi + 'rapor.ciro_kar_gor'
+     * izni olanlar (Yonetici/Supervizor) kullanir; Sekreter/Personel 403.
+     * Salt-okunur. Niyet+cevap beyni PatronAsistanServisi (web ile ORTAK),
+     * veri PatronAsistanRaporServisi (mobil, cozulmus salonId ile).
+     */
+    public function patronAsistanSorApi(Request $request)
+    {
+        $u = \Auth::guard('isletmeyonetim-api')->user();
+        if (!$u) {
+            return response()->json(['basarili' => false, 'cevap' => 'Oturum bulunamadı.'], 401, [], JSON_UNESCAPED_UNICODE);
+        }
+
+        $salonId = $this->_patronAsistanSalonId($request);
+        if (!$salonId) {
+            return response()->json(['basarili' => false, 'cevap' => 'Salon bulunamadı (sube/salonid/appBundle gönderin).'], 422, [], JSON_UNESCAPED_UNICODE);
+        }
+
+        // GATE: sadece Hesap Sahibi + Yonetici(Supervizor). Sahipte yetkiliYetkiVar zaten true doner.
+        if (!\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($u->id, $salonId, 'rapor.ciro_kar_gor')) {
+            return response()->json([
+                'basarili'  => false,
+                'intent'    => 'yetki_yok',
+                'seslendir' => true,
+                'cevap'     => 'Bu özellik yalnızca hesap sahibi ve yöneticiler içindir.',
+            ], 403, [], JSON_UNESCAPED_UNICODE);
+        }
+
+        $metin = trim((string) $request->input('metin', ''));
+        if ($metin === '') {
+            return response()->json(['basarili' => false, 'cevap' => 'Bir şey sormadınız. Örn: "bugün kasa ne durumda?"'], 422, [], JSON_UNESCAPED_UNICODE);
+        }
+
+        $asistan = new \App\Services\PatronAsistanServisi();
+        $veriSrv = new \App\Services\PatronAsistanRaporServisi();
+
+        // Once TAM SERBEST diyalog (Haiku) dene; yoksa/hata olursa sifir-maliyet kural motoru.
+        $niyet = $asistan->niyetCozAI($metin) ?: $asistan->niyetCoz($metin);
+        list($t1, $t2) = $veriSrv->donemTarih($niyet['donem']);
+
+        switch ($niyet['intent']) {
+            case 'kasa':
+                $sonuc = $asistan->cevapKasa($veriSrv->kasa($salonId, $t1, $t2), $niyet); break;
+            case 'personel':
+                $sonuc = $asistan->cevapPersonel($veriSrv->personel($salonId, $t1, $t2), $niyet); break;
+            case 'hizmet':
+                $sonuc = $asistan->cevapHizmet($veriSrv->hizmet($salonId, $t1, $t2), $niyet); break;
+            case 'urun':
+                $sonuc = $asistan->cevapUrun($veriSrv->urun($salonId, $t1, $t2), $niyet); break;
+            case 'musteri':
+                $sonuc = $asistan->cevapMusteri($veriSrv->musteri($salonId, $t1, $t2), $niyet); break;
+            case 'ozet':
+                $sonuc = $asistan->cevapOzet($veriSrv->ozet($salonId, $t1, $t2), $niyet); break;
+            case 'bugun':
+                $sonuc = $asistan->cevapBugun($veriSrv->bugun($salonId), $niyet); break;
+            default:
+                $sonuc = $asistan->yardimCevabi($niyet); break;
+        }
+
+        return response()->json($sonuc, 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
+    /** Mobil salon cozumleme: salonid | sube | appBundle. */
+    private function _patronAsistanSalonId(Request $request)
+    {
+        if ($request->filled('salonid')) return (int) $request->input('salonid');
+        if ($request->filled('sube'))    return (int) $request->input('sube');
+        if ($request->filled('appBundle')) {
+            $s = \App\Salonlar::where('app_bundle', $request->input('appBundle'))->first();
+            return $s ? (int) $s->id : null;
+        }
+        return null;
+    }
+
     /** Telefonu (gerekirse) maskele. */
     private function _telGorunum($tel, bool $gorebilir): string
     {

@@ -785,8 +785,6 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/api/dashboard/timeline','StoreAdminController@dashboardTimeline')->name('isletmeadmin.dashboard.timeline');
 	Route::get('/api/dashboard/personel-durum','StoreAdminController@dashboardPersonelDurum')->name('isletmeadmin.dashboard.personeldurum');
 	Route::get('/api/dashboard/bugun-dogum-gunu','StoreAdminController@dashboardBugunDogumGunu')->name('isletmeadmin.dashboard.bugundogumgunu');
-	// PATRON ASISTANI — sesli/yazili serbest soru -> dogal dil cevap (salt-okunur; mevcut rapor fonksiyonlarina delege eder)
-	Route::match(['GET','POST'], '/patron-asistan-sor','StoreAdminController@patronAsistanSor')->name('isletmeadmin.patronasistansor');
 	Route::post('/dogum-gunu-mesaj-gonder','StoreAdminController@dogumGunuMesajGonder')->name('isletmeadmin.dogumgunumesajgonder');
 	Route::get('/cache-temizle','StoreAdminController@cacheTemizle')->name('isletmeadmin.cachetemizle');
 	Route::get('/randevular','StoreAdminController@randevular')->name('isletmeadmin.randevular');

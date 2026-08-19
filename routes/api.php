@@ -316,6 +316,8 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::post('/personelYetkiGetir','ApiController@personelYetkiGetirApi');
     Route::post('/personelYetkiKaydet','ApiController@personelYetkiKaydetApi');
     Route::post('/benimYetkilerim','ApiController@benimYetkilerimApi')->middleware('auth:isletmeyonetim-api');
+    // Patron Asistani (mobil): sesli/yazili serbest soru -> dogal cevap. Sadece Sahip + Yonetici (rapor.ciro_kar_gor).
+    Route::match(['GET','POST'],'/patron-asistan-sor','ApiController@patronAsistanSorApi')->middleware('auth:isletmeyonetim-api');
         Route::post('/cihaz_sil','ApiController@cihaz_sil');
          Route::post('/oda_sil','ApiController@oda_sil');
     Route::post('/arayanmusteribilgi','ApiController@arayanmusteribilgi');
