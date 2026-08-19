@@ -2142,7 +2142,12 @@ public function carkverilerigetir(Request $request)
             ], 422, [], JSON_UNESCAPED_UNICODE);
         }
 
-        $niyet = $asistan->niyetCoz($metin);
+        // Once TAM SERBEST DIYALOG icin Haiku dene (ANTHROPIC_API_KEY varsa);
+        // yoksa/hata olursa sifir-maliyet kural motoruna dus.
+        $niyet = $asistan->niyetCozAI($metin);
+        if (!$niyet) {
+            $niyet = $asistan->niyetCoz($metin);
+        }
 
         switch ($niyet['intent']) {
             case 'kasa':
@@ -2156,6 +2161,30 @@ public function carkverilerigetir(Request $request)
                 $resp = $this->isletmeRaporlariPersonel($request);
                 if ($yetki = $this->patronAsistanYetkiKontrol($resp)) return $yetki;
                 return response()->json($asistan->cevapPersonel($resp->getData(true), $niyet), 200, [], JSON_UNESCAPED_UNICODE);
+
+            case 'hizmet':
+                $request->merge(['period' => $asistan->periodRapor($niyet['donem'])]);
+                $resp = $this->isletmeRaporlariHizmet($request);
+                if ($yetki = $this->patronAsistanYetkiKontrol($resp)) return $yetki;
+                return response()->json($asistan->cevapHizmet($resp->getData(true), $niyet), 200, [], JSON_UNESCAPED_UNICODE);
+
+            case 'urun':
+                $request->merge(['period' => $asistan->periodRapor($niyet['donem'])]);
+                $resp = $this->isletmeRaporlariUrun($request);
+                if ($yetki = $this->patronAsistanYetkiKontrol($resp)) return $yetki;
+                return response()->json($asistan->cevapUrun($resp->getData(true), $niyet), 200, [], JSON_UNESCAPED_UNICODE);
+
+            case 'musteri':
+                $request->merge(['period' => $asistan->periodRapor($niyet['donem'])]);
+                $resp = $this->isletmeRaporlariMusteri($request);
+                if ($yetki = $this->patronAsistanYetkiKontrol($resp)) return $yetki;
+                return response()->json($asistan->cevapMusteri($resp->getData(true), $niyet), 200, [], JSON_UNESCAPED_UNICODE);
+
+            case 'ozet':
+                $request->merge(['period' => $asistan->periodRapor($niyet['donem'])]);
+                $resp = $this->isletmeRaporlariOzet($request);
+                if ($yetki = $this->patronAsistanYetkiKontrol($resp)) return $yetki;
+                return response()->json($asistan->cevapOzet($resp->getData(true), $niyet), 200, [], JSON_UNESCAPED_UNICODE);
 
             case 'bugun':
                 $resp = $this->dashboardBugun($request);

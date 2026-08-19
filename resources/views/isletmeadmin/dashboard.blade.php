@@ -1216,4 +1216,6 @@ function rmcDashInit(){
 </script>
 @endif
 
+@include('isletmeadmin.partials.patron_asistan')
+
 @endsection
