@@ -2437,16 +2437,14 @@ window._v2DuzenleModalAktif = true;
     window._v2DuzenleAc = function(randevuId){
         try {
             $('#v2d_duzenlenecek_randevu_id').val(randevuId);
-            // KRITIK: shown.bs.modal event'i modal.show()'dan ONCE registered
-            // olmali; aksi halde bazi tarayicilarda geç register edilip fire edilmez.
-            // Ekstra guvenlik: setTimeout ile bagimsiz olarak da cagir (shown fire
-            // etmese bile yukleme calisir).
+            window._v2DuzenleYuklendi = false; // her acilista sifirla
             $modal.one('shown.bs.modal', function(){
                 setTimeout(function(){ _v2DuzenleYukle(randevuId); }, 150);
             });
             $modal.modal('show');
-            // Fallback: shown event fire etmezse (zaten aciksa vs.) 400ms sonra dogrudan
-            setTimeout(function(){ _v2DuzenleYukle(randevuId); }, 400);
+            // Fallback: shown fire etmezse (baska modal ustune vs.) 600ms sonra
+            // dogrudan cagir. _v2DuzenleYukle icindeki guard cift yuklemeyi engeller.
+            setTimeout(function(){ _v2DuzenleYukle(randevuId); }, 600);
         } catch(e){ console.error('_v2DuzenleAc hata:', e); }
     };
 
@@ -2454,6 +2452,8 @@ window._v2DuzenleModalAktif = true;
     // load mantiginin sadelestirilmis versiyonu).
     function _v2DuzenleYukle(randevuId){
         if(!randevuId) return;
+        if(window._v2DuzenleYuklendi) return; // guard: cift yuklemeyi engelle
+        window._v2DuzenleYuklendi = true;
         var subeVal = $('input[name="sube"]').val() || '{{ $isletme->id }}';
         $.ajax({
             url: '/isletmeyonetim/randevu-duzenle-json',
