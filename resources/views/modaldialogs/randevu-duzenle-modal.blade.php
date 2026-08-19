@@ -344,6 +344,11 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
 
     // Eski custom.js handler'i capture phase ile bypass et (jQuery bubble handler'lardan once calisir)
     document.addEventListener('click', function(e){
+        // V2 DUZENLE MODAL DEVREDE ISE bu eski handler'i atla — v2 kendi
+        // capture handler'ini calistiracak. Bayrak randevu-duzenle-modal-v2
+        // blade'inde set edilir; rollback icin bayrak false yapilabilir
+        // ya da v2 modal include'u kaldirilabilir.
+        if (window._v2DuzenleModalAktif === true) return;
         var target = e.target.closest && e.target.closest('[name="randevu_duzenle"]');
         if(!target) return;
         e.preventDefault();

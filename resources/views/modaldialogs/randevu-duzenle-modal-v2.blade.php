@@ -951,6 +951,11 @@
 </style>
 
 <script>
+// V2 DUZENLE MODAL AKTIVASYON BAYRAGI: eski randevu-duzenle-modal.blade.php
+// icindeki capture handler bu bayragi gorunce erken cikar, yeni v2 modal
+// devrale alir. Rollback icin bu bayragi false yapmak yeterli
+// (ya da bu dosyanin include'unu layout'tan kaldir).
+window._v2DuzenleModalAktif = true;
 (function(){
     var $modal = $('#modal-view-event-duzenle-v2');
     if(!$modal.length) return;
