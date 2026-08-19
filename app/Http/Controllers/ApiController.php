@@ -2450,7 +2450,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             case 'ozet':
                 $sonuc = $asistan->cevapOzet($veriSrv->ozet($salonId, $t1, $t2), $niyet); break;
             case 'bugun':
-                $sonuc = $asistan->cevapBugun($veriSrv->bugun($salonId), $niyet); break;
+                // "bugün" -> bugunku liste; "bu hafta"/"bu ay" -> o donemin randevu SAYISI.
+                if ($niyet['donem'] === 'gun') {
+                    $sonuc = $asistan->cevapBugun($veriSrv->bugun($salonId), $niyet);
+                } else {
+                    $sonuc = $asistan->cevapRandevuDonem($veriSrv->ozet($salonId, $t1, $t2), $niyet);
+                }
+                break;
             default:
                 $sonuc = $asistan->yardimCevabi($niyet); break;
         }

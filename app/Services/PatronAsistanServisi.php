@@ -270,6 +270,33 @@ class PatronAsistanServisi
         ];
     }
 
+    /**
+     * Belirli DONEM icin randevu SAYISI cevabi ("bu hafta/bu ay kaç randevu").
+     * $veri = ozet JSON (toplam_randevu vb.). "bugun" disindaki donemlerde kullanilir.
+     */
+    public function cevapRandevuDonem(array $veri, array $niyet)
+    {
+        $donemAdi = $niyet['donemAdi'];
+        $adet = (int) ($veri['toplam_randevu'] ?? 0);
+        $cevap = $adet > 0
+            ? ucfirst($donemAdi) . " toplam " . $adet . " randevu var."
+            : ucfirst($donemAdi) . " için randevu görünmüyor.";
+
+        return [
+            'basarili' => true, 'intent' => 'bugun', 'cevap' => $cevap, 'seslendir' => true,
+            'kart' => [
+                'tip' => 'ozet',
+                'baslik' => 'Randevular · ' . ucfirst($donemAdi),
+                'toplam_randevu' => $adet,
+                'toplam_adisyon' => (int) ($veri['toplam_adisyon'] ?? 0),
+                'toplam_gelir' => (float) ($veri['toplam_gelir'] ?? 0),
+                'nakit' => (float) ($veri['nakit'] ?? 0),
+                'kart' => (float) ($veri['kart'] ?? 0),
+            ],
+            'niyet' => $niyet,
+        ];
+    }
+
     /** Hizmet karlilik cevabi. $veri = isletmeRaporlariHizmet JSON. */
     public function cevapHizmet(array $veri, array $niyet)
     {
