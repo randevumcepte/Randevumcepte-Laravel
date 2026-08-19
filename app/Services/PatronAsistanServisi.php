@@ -101,7 +101,7 @@ class PatronAsistanServisi
         }
         if (preg_match('/\b(dun)\b/', $norm)) {
             // Kasa/personel raporlari "dun"u ayri tutmuyor; en yakin bugun'e duser.
-            return ['anahtar' => 'gun', 'ad' => 'bugun'];
+            return ['anahtar' => 'gun', 'ad' => 'bugün'];
         }
         return ['anahtar' => 'gun', 'ad' => 'bugun'];
     }
@@ -147,7 +147,7 @@ class PatronAsistanServisi
         $donemAdi = $niyet['donemAdi'];
 
         if ($toplam <= 0) {
-            $cevap = ucfirst($donemAdi) . " icin henuz tahsilat gorunmuyor.";
+            $cevap = ucfirst($donemAdi) . " için henüz tahsilat görünmüyor.";
         } else {
             $cevap = ucfirst($donemAdi) . " toplam tahsilat " . $this->tl($toplam) . ". "
                    . "Nakit " . $this->tl($nakit) . ", kart " . $this->tl($kart);
@@ -194,8 +194,8 @@ class PatronAsistanServisi
             if ($bulunan) {
                 $cevap = $bulunan['personel_adi'] . " " . $donemAdi . " "
                        . $this->tl((float) $bulunan['ciro']) . " ciro yaptı, "
-                       . (int) $bulunan['hizmet_say'] . " islem. "
-                       . "Siralamada " . $sira . ". sirada.";
+                       . (int) $bulunan['hizmet_say'] . " işlem. "
+                       . "Sıralamada " . $sira . ". sırada.";
                 return [
                     'basarili' => true, 'intent' => 'personel', 'cevap' => $cevap,
                     'seslendir' => true,
@@ -215,7 +215,7 @@ class PatronAsistanServisi
         if (empty($liste)) {
             return [
                 'basarili' => true, 'intent' => 'personel', 'seslendir' => true,
-                'cevap' => ucfirst($donemAdi) . " icin personel satis verisi bulunamadı.",
+                'cevap' => ucfirst($donemAdi) . " için personel satış verisi bulunamadı.",
                 'kart' => null, 'niyet' => $niyet,
             ];
         }
@@ -225,7 +225,7 @@ class PatronAsistanServisi
         foreach ($ilk3 as $i => $p) {
             $parcalar[] = ($i + 1) . ") " . $p['personel_adi'] . " " . $this->tl((float) $p['ciro']);
         }
-        $cevap = ucfirst($donemAdi) . " en cok satan: " . implode(", ", $parcalar) . ".";
+        $cevap = ucfirst($donemAdi) . " en çok satan: " . implode(", ", $parcalar) . ".";
 
         return [
             'basarili' => true, 'intent' => 'personel', 'cevap' => $cevap, 'seslendir' => true,
@@ -251,10 +251,10 @@ class PatronAsistanServisi
         $adet = count($liste);
 
         if ($adet === 0) {
-            $cevap = "Bugun icin planlanmis randevu gorunmuyor.";
+            $cevap = "Bugün için planlanmış randevu görünmüyor.";
         } else {
             $ilk = $liste[0];
-            $cevap = "Bugun " . $adet . " randevu var. Siradaki: "
+            $cevap = "Bugün " . $adet . " randevu var. Sıradaki: "
                    . ($ilk['saat'] ?? '') . " " . ($ilk['musteri'] ?? '')
                    . (isset($ilk['hizmet']) ? " (" . $ilk['hizmet'] . ")" : "") . ".";
         }
@@ -263,7 +263,7 @@ class PatronAsistanServisi
             'basarili' => true, 'intent' => 'bugun', 'cevap' => $cevap, 'seslendir' => true,
             'kart' => [
                 'tip'    => 'bugun',
-                'baslik' => 'Bugun · ' . $adet . ' randevu',
+                'baslik' => 'Bugün · ' . $adet . ' randevu',
                 'liste'  => $liste,
             ],
             'niyet' => $niyet,
@@ -276,7 +276,7 @@ class PatronAsistanServisi
         $liste = $veri['hizmetler'] ?? [];
         $donemAdi = $niyet['donemAdi'];
         if (empty($liste)) {
-            return $this->basitCevap('hizmet', ucfirst($donemAdi) . " icin hizmet satis verisi yok.", $niyet);
+            return $this->basitCevap('hizmet', ucfirst($donemAdi) . " için hizmet satış verisi yok.", $niyet);
         }
         $ilk3 = array_slice($liste, 0, 3);
         $parcalar = [];
@@ -285,7 +285,7 @@ class PatronAsistanServisi
             $ciro = is_array($h) ? ($h['ciro'] ?? 0) : ($h->ciro ?? 0);
             $parcalar[] = ($i + 1) . ") " . $ad . " " . $this->tl((float) $ciro);
         }
-        $cevap = ucfirst($donemAdi) . " en cok kazandiran hizmet: " . implode(", ", $parcalar) . ".";
+        $cevap = ucfirst($donemAdi) . " en çok kazandıran hizmet: " . implode(", ", $parcalar) . ".";
         return [
             'basarili' => true, 'intent' => 'hizmet', 'cevap' => $cevap, 'seslendir' => true,
             'kart' => ['tip' => 'hizmet', 'baslik' => 'Hizmet · ' . ucfirst($donemAdi), 'satirlar' => $liste],
@@ -299,7 +299,7 @@ class PatronAsistanServisi
         $liste = $veri['urunler'] ?? [];
         $donemAdi = $niyet['donemAdi'];
         if (empty($liste)) {
-            return $this->basitCevap('urun', ucfirst($donemAdi) . " icin urun satis verisi yok.", $niyet);
+            return $this->basitCevap('urun', ucfirst($donemAdi) . " için ürün satış verisi yok.", $niyet);
         }
         $ilk3 = array_slice($liste, 0, 3);
         $parcalar = [];
@@ -308,10 +308,10 @@ class PatronAsistanServisi
             $ciro = is_array($u) ? ($u['ciro'] ?? 0) : ($u->ciro ?? 0);
             $parcalar[] = ($i + 1) . ") " . $ad . " " . $this->tl((float) $ciro);
         }
-        $cevap = ucfirst($donemAdi) . " en cok satan urun: " . implode(", ", $parcalar) . ".";
+        $cevap = ucfirst($donemAdi) . " en çok satan ürün: " . implode(", ", $parcalar) . ".";
         return [
             'basarili' => true, 'intent' => 'urun', 'cevap' => $cevap, 'seslendir' => true,
-            'kart' => ['tip' => 'urun', 'baslik' => 'Urun · ' . ucfirst($donemAdi), 'satirlar' => $liste],
+            'kart' => ['tip' => 'urun', 'baslik' => 'Ürün · ' . ucfirst($donemAdi), 'satirlar' => $liste],
             'niyet' => $niyet,
         ];
     }
@@ -324,13 +324,13 @@ class PatronAsistanServisi
         $yeni  = (int) ($veri['yeni_musteri'] ?? 0);
         $tekrar = (int) ($veri['tekrar_gelen'] ?? 0);
         if ($aktif === 0) {
-            return $this->basitCevap('musteri', ucfirst($donemAdi) . " icin musteri hareketi gorunmuyor.", $niyet);
+            return $this->basitCevap('musteri', ucfirst($donemAdi) . " için müşteri hareketi görünmüyor.", $niyet);
         }
-        $cevap = ucfirst($donemAdi) . " " . $aktif . " aktif musteri (" . $yeni . " yeni, " . $tekrar . " tekrar gelen).";
+        $cevap = ucfirst($donemAdi) . " " . $aktif . " aktif müşteri (" . $yeni . " yeni, " . $tekrar . " tekrar gelen).";
         return [
             'basarili' => true, 'intent' => 'musteri', 'cevap' => $cevap, 'seslendir' => true,
             'kart' => [
-                'tip' => 'musteri', 'baslik' => 'Musteri · ' . ucfirst($donemAdi),
+                'tip' => 'musteri', 'baslik' => 'Müşteri · ' . ucfirst($donemAdi),
                 'toplam_aktif' => $aktif, 'yeni' => $yeni, 'tekrar' => $tekrar,
                 'cinsiyet' => $veri['cinsiyet'] ?? null,
             ],
@@ -345,12 +345,12 @@ class PatronAsistanServisi
         $gelir = (float) ($veri['toplam_gelir'] ?? 0);
         $randevu = (int) ($veri['toplam_randevu'] ?? 0);
         $adisyon = (int) ($veri['toplam_adisyon'] ?? 0);
-        $cevap = ucfirst($donemAdi) . " ozeti: toplam tahsilat " . $this->tl($gelir)
+        $cevap = ucfirst($donemAdi) . " özeti: toplam tahsilat " . $this->tl($gelir)
                . ", " . $randevu . " randevu, " . $adisyon . " adisyon.";
         return [
             'basarili' => true, 'intent' => 'ozet', 'cevap' => $cevap, 'seslendir' => true,
             'kart' => [
-                'tip' => 'ozet', 'baslik' => 'Genel Ozet · ' . ucfirst($donemAdi),
+                'tip' => 'ozet', 'baslik' => 'Genel Özet · ' . ucfirst($donemAdi),
                 'toplam_gelir' => $gelir, 'toplam_randevu' => $randevu, 'toplam_adisyon' => $adisyon,
                 'satilan_urun' => (int) ($veri['satilan_urun'] ?? 0),
                 'uygulanan_hizmet' => (int) ($veri['uygulanan_hizmet'] ?? 0),
@@ -483,14 +483,14 @@ class PatronAsistanServisi
             'basarili' => true,
             'intent'   => 'bilinmiyor',
             'seslendir'=> true,
-            'cevap'    => "Tam anlayamadım. Sunlari sorabilirsin: "
-                        . "\"bugun kasa ne durumda\", \"bu ay ciro ne kadar\", "
-                        . "\"en cok kim sattı\", \"bugun kac randevu var\".",
+            'cevap'    => "Tam anlayamadım. Şunları sorabilirsin: "
+                        . "\"bugün kasa ne durumda\", \"bu ay ciro ne kadar\", "
+                        . "\"en çok kim sattı\", \"bugün kaç randevu var\".",
             'ornekler' => [
-                'Bugun kasa ne durumda?',
+                'Bugün kasa ne durumda?',
                 'Bu ay ciro ne kadar?',
-                'Bu hafta en cok kim sattı?',
-                'Bugun kac randevu var?',
+                'Bu hafta en çok kim sattı?',
+                'Bugün kaç randevu var?',
             ],
             'kart'  => null,
             'niyet' => $niyet,
