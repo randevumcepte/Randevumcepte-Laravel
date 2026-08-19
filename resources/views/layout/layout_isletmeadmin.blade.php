@@ -5775,9 +5775,6 @@ document.addEventListener('DOMContentLoaded', function() {
     listAudioOutputDevices();
     @endif
   </script>
-      <div style="display: none;">
-     <?php dd($isletme); ?>
-</div>
 
    </body>
   
