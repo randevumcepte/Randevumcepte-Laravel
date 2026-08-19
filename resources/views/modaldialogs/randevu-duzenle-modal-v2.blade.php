@@ -29,17 +29,9 @@
                 </div>
             </div>
 
-            @if (\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.kapanis_blok_ekle'))
-            {{-- ============ MODE TABS (Randevu / Saat Kapama) ============ --}}
-            <div class="v2-tabs">
-                <button type="button" class="v2-tab active" data-mode="randevu">
-                    <i class="fa fa-calendar-plus-o"></i> Randevu
-                </button>
-                <button type="button" class="v2-tab" data-mode="kapama">
-                    <i class="fa fa-ban"></i> Saat Kapama
-                </button>
-            </div>
-            @endif
+            {{-- DUZENLE V2: 'Saat Kapama' tab'i KALDIRILDI (kullanici istegi).
+                 Duzenlemede sadece randevu duzenlenir. Rollback icin bu yorum
+                 bloguna eski tab HTML'ini geri koy. --}}
 
             {{-- ============ BODY ============ --}}
             <div class="v2-body">
@@ -2467,8 +2459,12 @@ window._v2DuzenleModalAktif = true;
             data: { randevu_id: randevuId, sube: subeVal },
             success: function(data){
                 if(!data || data.error){ console.warn('[V2 DUZENLE] fetch:', data); return; }
-                // Tarih
-                if(data.tarih) $tarih.val(data.tarih);
+                // Tarih — datepicker init edildiyse internal state'ini de guncelle
+                // (yoksa kullanici datepicker'dan yeni tarih secse bile input'a yazilmayabilir).
+                if(data.tarih){
+                    $tarih.val(data.tarih).trigger('change');
+                    try { $tarih.datepicker('update', data.tarih); } catch(e){}
+                }
                 // Saat — v2 saat dropdown option'lari ayrik yaziliyor; option yoksa
                 // append ederek set et. Format HH:MM ile setleyelim (backend HH:MM:SS
                 // gonderiyor olabilir).
@@ -2597,7 +2593,21 @@ window._v2DuzenleModalAktif = true;
 
     function v2SubmitAll(){
         var musteriId = $musteri.val();
-        var tarih = _normalizeTarihYMD($tarih.val());
+        // Tarih: datepicker'dan (varsa) taze veri cek, sonra normalize et.
+        // Bazi tarayicilarda 'change' input'a yazilmadan submit tetiklenebiliyor.
+        var _rawTarih = $tarih.val();
+        try {
+            var _dp = $tarih.data('datepicker');
+            var _dpDate = _dp && typeof _dp.getDate === 'function' ? _dp.getDate() : null;
+            if (_dpDate) {
+                var _yy = _dpDate.getFullYear();
+                var _mm = ('0'+(_dpDate.getMonth()+1)).slice(-2);
+                var _dd = ('0'+_dpDate.getDate()).slice(-2);
+                _rawTarih = _yy + '-' + _mm + '-' + _dd;
+            }
+        } catch(e){}
+        var tarih = _normalizeTarihYMD(_rawTarih);
+        console.log('[V2 DUZENLE SUBMIT] tarih:', {raw_input:$tarih.val(), datepicker_yerli:_rawTarih, normalize:tarih});
         var saat = $saat.val();
 
         var paketCards = $services.find('.v2-paket-card').toArray();
