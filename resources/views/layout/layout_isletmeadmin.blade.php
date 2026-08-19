@@ -2506,6 +2506,11 @@
       @endif
       @if($pageindex==1 || $pageindex==2 || $pageindex==3 || $pageindex==14|| $pageindex==41)
       @include('modaldialogs.randevu-duzenle-modal')
+      {{-- V2 duzenle modal — YENI TASARIM. Aktivasyon: randevudetayigetir
+           buton data-target'i #modal-view-event-duzenle-v2'ye yonlendirildi.
+           Rollback: bu include satirini yorumla + data-target'i geri
+           #randevu-duzenle-modal yap. --}}
+      @include('modaldialogs.randevu-duzenle-modal-v2')
       @endif
       @if($pageindex==11)
       @include('modaldialogs.senet-detay-modal')
