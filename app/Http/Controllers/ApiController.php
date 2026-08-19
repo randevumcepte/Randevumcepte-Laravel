@@ -2432,8 +2432,16 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $asistan = new \App\Services\PatronAsistanServisi();
         $veriSrv = new \App\Services\PatronAsistanRaporServisi();
 
-        // Once TAM SERBEST diyalog (Haiku) dene; yoksa/hata olursa sifir-maliyet kural motoru.
-        $niyet = $asistan->niyetCozAI($metin) ?: $asistan->niyetCoz($metin);
+        // ONCE bedava kural motoru (yaygin sorular). SADECE anlasilamayanda (bilinmiyor)
+        // opsiyonel Haiku'ya dus -> boylece AI acik olsa bile maliyet neredeyse sifir
+        // (sorularin buyuk cogunlugu Haiku'ya hic gitmez). Anahtar yoksa zaten kural kalir.
+        $niyet = $asistan->niyetCoz($metin);
+        if (($niyet['intent'] ?? 'bilinmiyor') === 'bilinmiyor') {
+            $aiNiyet = $asistan->niyetCozAI($metin);
+            if ($aiNiyet) {
+                $niyet = $aiNiyet;
+            }
+        }
         list($t1, $t2) = $veriSrv->donemTarih($niyet['donem']);
 
         switch ($niyet['intent']) {
