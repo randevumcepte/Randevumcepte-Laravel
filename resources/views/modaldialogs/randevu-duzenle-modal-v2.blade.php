@@ -2467,11 +2467,21 @@ window._v2DuzenleModalAktif = true;
             data: { randevu_id: randevuId, sube: subeVal },
             success: function(data){
                 if(!data || data.error){ console.warn('[V2 DUZENLE] fetch:', data); return; }
-                // Tarih + saat
+                // Tarih
                 if(data.tarih) $tarih.val(data.tarih);
-                if(data.saat)  $saat.val(String(data.saat).substring(0,5));
+                // Saat — v2 saat dropdown option'lari ayrik yaziliyor; option yoksa
+                // append ederek set et. Format HH:MM ile setleyelim (backend HH:MM:SS
+                // gonderiyor olabilir).
+                if(data.saat){
+                    var saatStr = String(data.saat).substring(0,5);
+                    if($saat.find('option[value="'+saatStr+'"]').length === 0){
+                        $saat.append(new Option(saatStr, saatStr));
+                    }
+                    $saat.val(saatStr).trigger('change');
+                }
 
-                // Musteri
+                // Musteri — Select2 programatik trigger('change') select2:select fire
+                // etmez, o yuzden info + paket butonu aktifligini manuel set ediyoruz.
                 if(data.musteri_id){
                     if(!$musteri.find('option[value="'+data.musteri_id+'"]').length){
                         $musteri.append(new Option(data.musteri_adi || ('#'+data.musteri_id), data.musteri_id, true, true));
@@ -2481,6 +2491,20 @@ window._v2DuzenleModalAktif = true;
                     } else {
                         $musteri.val(data.musteri_id);
                     }
+                    // Paket butonu + info bant manuel (select2:select fire etmediginden)
+                    $('#v2d_musteri_info').text('✓ '+(data.musteri_adi || ('#'+data.musteri_id))).show();
+                    $('#v2d_paket_aç').prop('disabled', false);
+                    $('#v2d_subtitle_text').text('Hizmet ve personel seç');
+                    // V1 musteri field'ini da senkronla (paketKontrolü v1 fieldlarini okur)
+                    try {
+                        var $v1M = $('#randevuekle_musteri_id');
+                        if($v1M.length){
+                            if($v1M.find('option[value="'+data.musteri_id+'"]').length === 0){
+                                $v1M.append(new Option(data.musteri_adi || ('#'+data.musteri_id), data.musteri_id, true, true));
+                            }
+                            $v1M.val(data.musteri_id).trigger('change');
+                        }
+                    } catch(e){}
                 }
 
                 // Notlar
