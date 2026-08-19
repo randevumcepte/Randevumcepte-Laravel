@@ -62,7 +62,7 @@
                     <div class="v2-row-2">
                         <div class="v2-field">
                             <label class="v2-label"><i class="fa fa-calendar"></i> Tarih</label>
-                            <input type="text" id="v2d_tarih" class="form-control v2-input" autocomplete="off" value="{{ date('Y-m-d') }}">
+                            <input type="date" id="v2d_tarih" class="form-control v2-input" autocomplete="off" value="{{ date('Y-m-d') }}">
                         </div>
                         <div class="v2-field">
                             <label class="v2-label"><i class="fa fa-clock-o"></i> Saat</label>
@@ -2168,13 +2168,8 @@ window._v2DuzenleModalAktif = true;
     // -------- EVENTS --------
     $modal.on('shown.bs.modal', function(){
         initV2();
-        // Date picker init (eski v1 modaldaki helper varsa kullan)
-        if($.fn.datepicker && !$tarih.data('datepicker-init')){
-            try {
-                $tarih.datepicker({ format: 'yyyy-mm-dd', autoclose: true, language: 'tr', todayHighlight: true });
-                $tarih.data('datepicker-init', true);
-            } catch(e){}
-        }
+        // NOT: v2d_tarih artik type="date" (native HTML5); bootstrap-datepicker
+        // init edilmiyor cunku format/locale konfliktleri val'i bosaltiyordu.
     });
 
     // Datepicker locale/format ne olursa olsun input degisince YYYY-MM-DD'ye
