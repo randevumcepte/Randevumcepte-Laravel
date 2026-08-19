@@ -2442,6 +2442,21 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $niyet = $aiNiyet;
             }
         }
+
+        // GELISIM DONGUSU: hala anlasilmadiysa soruyu kaydet. Gercek patron
+        // sorularini periyodik gozden gecirip yeni kalip ekleyecegiz (bedava).
+        // Log basarisiz olsa bile ana akis bozulmasin.
+        if (($niyet['intent'] ?? 'bilinmiyor') === 'bilinmiyor') {
+            try {
+                @file_put_contents(
+                    storage_path('logs/patron-asistan-anlasilmayan.log'),
+                    date('Y-m-d H:i:s') . " | salon=" . $salonId . " | "
+                        . str_replace(["\n", "\r"], ' ', $metin) . "\n",
+                    FILE_APPEND
+                );
+            } catch (\Throwable $e) {}
+        }
+
         list($t1, $t2) = $veriSrv->donemTarih($niyet['donem']);
 
         switch ($niyet['intent']) {
