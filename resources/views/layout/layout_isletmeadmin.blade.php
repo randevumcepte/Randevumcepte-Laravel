@@ -2510,7 +2510,9 @@
            buton data-target'i #modal-view-event-duzenle-v2'ye yonlendirildi.
            Rollback: bu include satirini yorumla + data-target'i geri
            #randevu-duzenle-modal yap. --}}
-      @include('modaldialogs.randevu-duzenle-modal-v2')
+      {{-- V2 duzenle modal gecici olarak devre disi (tarih inputu sorunu cozulene kadar).
+           Eski modal (randevu-duzenle-modal) aktif. --}}
+      {{-- @include('modaldialogs.randevu-duzenle-modal-v2') --}}
       @endif
       @if($pageindex==11)
       @include('modaldialogs.senet-detay-modal')
