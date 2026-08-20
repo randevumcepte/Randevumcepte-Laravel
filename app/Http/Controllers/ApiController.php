@@ -2475,6 +2475,32 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             return $cevapla($kampCevap);
         }
 
+        // YENI PERSONEL DETAYLI DEGERLENDIRME: "Ahmet'i son 7 gun degerlendir" ->
+        // zengin veri + AI detayli karne. (Kayit yok; istenince calisir.)
+        if ($asistan->degerlendirmeTetik($metin)) {
+            $plist = $veriSrv->personelListesi($salonId);
+            $kisi = $asistan->personelMesajdanBul($plist, $metin);
+            if (is_object($kisi)) {
+                $gun = $asistan->degerlendirmeGun($metin);
+                $t2d = date('Y-m-d');
+                $t1d = date('Y-m-d', strtotime('-' . ($gun - 1) . ' days'));
+                $detay = $veriSrv->personelDetay($salonId, $kisi->id, $t1d, $t2d);
+                return $cevapla($asistan->cevapPersonelDegerlendirme($detay, $kisi->personel_adi, $gun));
+            }
+            if (is_array($kisi) && isset($kisi['coklu'])) {
+                return $cevapla([
+                    'basarili' => true, 'intent' => 'personel', 'seslendir' => true, 'kart' => null,
+                    'cevap' => 'Birden fazla personel eşleşti: ' . implode(', ', array_slice($kisi['adlar'], 0, 5))
+                             . '. Hangisini değerlendireyim?',
+                ]);
+            }
+            return $cevapla([
+                'basarili' => true, 'intent' => 'personel', 'seslendir' => true, 'kart' => null,
+                'cevap' => 'Hangi personeli değerlendireyim? Adını söyleyip süreyi ekleyebilirsiniz, '
+                         . 'örneğin Ahmet son yedi gün.',
+            ]);
+        }
+
         // ONCE bedava kural motoru (yaygin sorular). SADECE anlasilamayanda (bilinmiyor)
         // opsiyonel Haiku'ya dus -> boylece AI acik olsa bile maliyet neredeyse sifir
         // (sorularin buyuk cogunlugu Haiku'ya hic gitmez). Anahtar yoksa zaten kural kalir.

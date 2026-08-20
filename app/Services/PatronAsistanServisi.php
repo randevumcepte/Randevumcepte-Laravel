@@ -1001,6 +1001,154 @@ class PatronAsistanServisi
         }
     }
 
+    // ------------------------------------------------------------------
+    // YENI PERSONEL DETAYLI DEGERLENDIRME (istenince) — kayit/migration yok.
+    // "Ahmet'i son 7 gun degerlendir" -> zengin veri + AI detayli karne.
+    // ------------------------------------------------------------------
+
+    /** Mesaj bir personel DEGERLENDIRME/karne istegi mi? */
+    public function degerlendirmeTetik($metin)
+    {
+        $n = ' ' . $this->normalize($metin) . ' ';
+        foreach (['degerlendir', 'degerlendirme', 'karne', 'detayli rapor', 'detay rapor',
+                  'performans raporu', 'ise yeni', 'yeni personel', 'takip raporu',
+                  'detayli degerlendir', 'personeli degerlendir'] as $k) {
+            if (strpos($n, $k) !== false) return true;
+        }
+        return false;
+    }
+
+    /** Degerlendirme penceresi (gun). "son N gun", "bir hafta", "aylik"... Varsayilan 7. */
+    public function degerlendirmeGun($metin)
+    {
+        $n = $this->normalize($metin);
+        if (preg_match('/son\s*(\d{1,3})\s*gun/', $n, $mm)) {
+            $g = (int) $mm[1]; return ($g >= 1 && $g <= 180) ? $g : 7;
+        }
+        if (preg_match('/(\d{1,3})\s*gun/', $n, $mm)) {
+            $g = (int) $mm[1]; return ($g >= 1 && $g <= 180) ? $g : 7;
+        }
+        if (strpos($n, 'iki hafta') !== false || strpos($n, '2 hafta') !== false) return 14;
+        if (strpos($n, 'bir hafta') !== false || strpos($n, 'haftalik') !== false || strpos($n, '1 hafta') !== false) return 7;
+        if (strpos($n, 'yarim ay') !== false || strpos($n, '15 gun') !== false) return 15;
+        if (strpos($n, 'bir ay') !== false || strpos($n, 'aylik') !== false || strpos($n, 'bu ay') !== false) return 30;
+        return 7; // varsayilan bir hafta
+    }
+
+    /**
+     * Mesajda gecen personeli bulur (adin TUM kelimeleri mesajda; guclu eslesme).
+     * @return object|array|null tek=object{id,personel_adi}, coklu=['coklu','adlar'], yok=null
+     */
+    public function personelMesajdanBul($liste, $metin)
+    {
+        $mesajKel = array_values(array_filter(
+            preg_split('/\s+/', trim($this->normalize($metin))),
+            function ($w) { return mb_strlen($w) >= 3; }
+        ));
+        if (empty($mesajKel)) return null;
+
+        $es = [];
+        foreach ($liste as $p) {
+            $adKel = array_values(array_filter(
+                preg_split('/\s+/', $this->normalize($p->personel_adi ?? '')),
+                function ($w) { return mb_strlen($w) >= 2; }
+            ));
+            if (empty($adKel)) continue;
+            $tumu = true;
+            foreach ($adKel as $aw) {
+                $bulundu = false;
+                foreach ($mesajKel as $mw) {
+                    if ($aw === $mw) { $bulundu = true; break; }
+                    $kisa = mb_strlen($mw) <= mb_strlen($aw) ? $mw : $aw;
+                    $uzun = ($kisa === $mw) ? $aw : $mw;
+                    if (mb_strlen($kisa) >= 3 && strpos($uzun, $kisa) === 0) { $bulundu = true; break; }
+                }
+                if (!$bulundu) { $tumu = false; break; }
+            }
+            if ($tumu && (count($adKel) >= 2 || mb_strlen($adKel[0]) >= 4)) {
+                $es[] = $p;
+                if (count($es) > 5) break;
+            }
+        }
+        if (empty($es)) return null;
+        if (count($es) === 1) return $es[0];
+        return ['coklu' => true, 'adlar' => array_map(function ($p) { return $p->personel_adi; }, $es)];
+    }
+
+    /** Detayli degerlendirme cevabi: faktuel ozet (duz) + AI detayli karne. */
+    public function cevapPersonelDegerlendirme(array $d, $ad, $gun)
+    {
+        $ciro     = (float) ($d['ciro'] ?? 0);
+        $islem    = (int) ($d['islem'] ?? 0);
+        $musteri  = (int) ($d['musteri'] ?? 0);
+        $aktifGun = (int) ($d['aktif_gun'] ?? 0);
+        $iptal    = (int) ($d['iptal'] ?? 0);
+        $gelmedi  = (int) ($d['gelmedi'] ?? 0);
+        $ort      = (float) ($d['salon_ortalama'] ?? 0);
+        $hizmetler = $d['hizmetler'] ?? [];
+
+        $ozet = $ad . ' için son ' . $gun . ' günlük değerlendirme. ';
+        if ($islem <= 0 && $ciro <= 0) {
+            $ozet .= 'Bu sürede kayıtlı bir işlem görünmüyor, henüz veriye dayalı bir sonuç çıkarmak zor. ';
+        } else {
+            $ozet .= 'Toplam ' . $this->tl($ciro) . ' ciro, ' . $islem . ' işlem, ' . $musteri
+                   . ' farklı müşteri ve ' . $aktifGun . ' aktif çalışma günü. ';
+            if (!empty($hizmetler)) {
+                $hAd = [];
+                foreach (array_slice($hizmetler, 0, 3) as $h) {
+                    $hAd[] = ($h['hizmet_adi'] ?? '') . ' ' . (int) ($h['adet'] ?? 0) . ' kez';
+                }
+                $ozet .= 'En çok yaptığı işlemler: ' . implode(', ', $hAd) . '. ';
+            }
+            if ($iptal > 0 || $gelmedi > 0) {
+                $ozet .= 'Randevularında ' . $iptal . ' iptal ve ' . $gelmedi . ' gelmeyen kayıtlı. ';
+            }
+            if ($ort > 0) {
+                $ozet .= 'Aynı dönemde salon kişi başı ortalama ciro ' . $this->tl($ort) . '. ';
+            }
+        }
+
+        $yorum = $this->personelDegerlendirmeAI($ad, $gun, $d);
+        $cevap = trim($ozet) . ($yorum ? ' ' . $yorum : '');
+
+        return [
+            'basarili' => true, 'intent' => 'personel', 'seslendir' => true, 'kart' => null,
+            'cevap' => $cevap,
+        ];
+    }
+
+    /** Haiku ile DETAYLI personel degerlendirmesi (guclu/gelisim/kiyas/oneri/uygunluk). */
+    public function personelDegerlendirmeAI($ad, $gun, array $d)
+    {
+        $sistem = 'Sen deneyimli bir salon isletme ve insan kaynaklari danismanisin. Verilen YENI '
+            . 'personelin surecteki performans verisine bakip PATRONA hitaben DETAYLI ama derli toplu '
+            . 'bir degerlendirme yaz. Su noktalari akici cumlelerle isle: guclu yonleri, gelisim '
+            . 'alanlari, salon ortalamasina gore durumu, ilk ve ikinci yari trendi, somut egitim ya da '
+            . 'yonlendirme onerisi, ve ise uygunluk yonunde genel bir kanaat. Verilen rakamlarin '
+            . 'DISINDA sayi UYDURMA. Adil, cozum odakli ve saygili ol. TTS icin DUZ yaz: emoji, tirnak, '
+            . 'madde isareti, yildiz YOK. Sadece Turkce yaz.';
+
+        $u = "Yeni personel: {$ad}. Takip suresi: {$gun} gun. "
+           . "Ciro: " . number_format((float) ($d['ciro'] ?? 0), 0, ',', '.') . " TL. "
+           . "Islem sayisi: " . (int) ($d['islem'] ?? 0) . ". "
+           . "Farkli musteri: " . (int) ($d['musteri'] ?? 0) . ". "
+           . "Aktif calisma gunu: " . (int) ($d['aktif_gun'] ?? 0) . " / {$gun}. "
+           . "Iptal: " . (int) ($d['iptal'] ?? 0) . ". Gelmeyen: " . (int) ($d['gelmedi'] ?? 0) . ". "
+           . "Salon kisi basi ortalama ciro: " . number_format((float) ($d['salon_ortalama'] ?? 0), 0, ',', '.') . " TL. "
+           . "Ilk yari ciro: " . number_format((float) ($d['ilk_yari'] ?? 0), 0, ',', '.') . " TL, "
+           . "ikinci yari ciro: " . number_format((float) ($d['ikinci_yari'] ?? 0), 0, ',', '.') . " TL. ";
+        $hizmetler = $d['hizmetler'] ?? [];
+        if (!empty($hizmetler)) {
+            $hs = [];
+            foreach (array_slice($hizmetler, 0, 3) as $h) {
+                $hs[] = ($h['hizmet_adi'] ?? '') . ' ' . (int) ($h['adet'] ?? 0) . ' kez';
+            }
+            $u .= "En cok yaptigi islemler: " . implode(', ', $hs) . ". ";
+        }
+
+        return $this->haikuText($sistem, $u, 500);
+    }
+
     /**
      * SALON BUYUTME / IS ARTIRMA DANISMANLIGI. "Nasil daha cok musteri cekerim,
      * isleri nasil artiririm, ne yapmaliyim" gibi sorularda pratik oneriler sunar.

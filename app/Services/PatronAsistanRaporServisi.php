@@ -228,6 +228,93 @@ class PatronAsistanRaporServisi
         return ['liste' => $this->objToArr($rows)];
     }
 
+    /** Aktif salon personelleri (id + ad) — degerlendirme icin isim eslestirme. */
+    public function personelListesi($salonId)
+    {
+        return DB::table('salon_personelleri')->where('salon_id', $salonId)->where('aktif', 1)
+            ->select('id', 'personel_adi')->get();
+    }
+
+    /**
+     * Bir personelin belirli araliktaki DETAYLI performans verisi (yeni personel
+     * degerlendirmesi icin). ciro/islem/musteri/aktif gun, en cok hizmetler, iptal/
+     * gelmedi, salon kisi-basi ortalama ve ilk/ikinci yari trendi.
+     */
+    public function personelDetay($salonId, $personelId, $t1, $t2)
+    {
+        $ozet = DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)
+            ->where('ah.personel_id', $personelId)
+            ->whereBetween('a.created_at', [$t1 . ' 00:00:00', $t2 . ' 23:59:59'])
+            ->select(
+                DB::raw('COUNT(*) as islem'),
+                DB::raw('SUM(ah.fiyat - COALESCE(ah.indirim_tutari,0)) as ciro'),
+                DB::raw('COUNT(DISTINCT a.user_id) as musteri'),
+                DB::raw('COUNT(DISTINCT DATE(a.created_at)) as aktif_gun')
+            )->first();
+
+        $hizmetler = DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->join('hizmetler as h', 'h.id', '=', 'ah.hizmet_id')
+            ->where('a.salon_id', $salonId)->where('ah.personel_id', $personelId)
+            ->whereBetween('a.created_at', [$t1 . ' 00:00:00', $t2 . ' 23:59:59'])
+            ->select('h.hizmet_adi', DB::raw('COUNT(*) as adet'))
+            ->groupBy('h.hizmet_adi')->orderByDesc('adet')->limit(3)->get();
+
+        $iptal = (int) DB::table('randevu_hizmetler as rh')
+            ->join('randevular as r', 'r.id', '=', 'rh.randevu_id')
+            ->where('r.salon_id', $salonId)->where('rh.personel_id', $personelId)
+            ->whereBetween('r.tarih', [$t1, $t2])->where('r.durum', '>=', 2)
+            ->distinct()->count('r.id');
+        $gelmedi = (int) DB::table('randevu_hizmetler as rh')
+            ->join('randevular as r', 'r.id', '=', 'rh.randevu_id')
+            ->where('r.salon_id', $salonId)->where('rh.personel_id', $personelId)
+            ->whereBetween('r.tarih', [$t1, $t2])->where('r.randevuya_geldi', 0)
+            ->distinct()->count('r.id');
+
+        // Salon kisi-basi ortalama ciro (ayni donem, hizmeti olan personel sayisina bolunur).
+        $salonCiro = (float) DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)->whereNotNull('ah.personel_id')
+            ->whereBetween('a.created_at', [$t1 . ' 00:00:00', $t2 . ' 23:59:59'])
+            ->sum(DB::raw('ah.fiyat - COALESCE(ah.indirim_tutari,0)'));
+        $persSay = (int) DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)->whereNotNull('ah.personel_id')
+            ->whereBetween('a.created_at', [$t1 . ' 00:00:00', $t2 . ' 23:59:59'])
+            ->distinct()->count('ah.personel_id');
+        $ortalama = $persSay > 0 ? $salonCiro / $persSay : 0;
+
+        // Trend: araligi ikiye bol, ilk yari vs ikinci yari ciro.
+        $gunSay = max(1, (int) round((strtotime($t2) - strtotime($t1)) / 86400) + 1);
+        $mid = date('Y-m-d', strtotime($t1) + (int) floor($gunSay / 2) * 86400);
+        $midOnce = date('Y-m-d', strtotime($mid) - 86400);
+        $ilkYari = (float) DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)->where('ah.personel_id', $personelId)
+            ->whereBetween('a.created_at', [$t1 . ' 00:00:00', $midOnce . ' 23:59:59'])
+            ->sum(DB::raw('ah.fiyat - COALESCE(ah.indirim_tutari,0)'));
+        $ikinciYari = (float) DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)->where('ah.personel_id', $personelId)
+            ->whereBetween('a.created_at', [$mid . ' 00:00:00', $t2 . ' 23:59:59'])
+            ->sum(DB::raw('ah.fiyat - COALESCE(ah.indirim_tutari,0)'));
+
+        return [
+            'ciro'           => (float) ($ozet->ciro ?? 0),
+            'islem'          => (int) ($ozet->islem ?? 0),
+            'musteri'        => (int) ($ozet->musteri ?? 0),
+            'aktif_gun'      => (int) ($ozet->aktif_gun ?? 0),
+            'hizmetler'      => $this->objToArr($hizmetler),
+            'iptal'          => $iptal,
+            'gelmedi'        => $gelmedi,
+            'salon_ortalama' => (float) $ortalama,
+            'ilk_yari'       => $ilkYari,
+            'ikinci_yari'    => $ikinciYari,
+        ];
+    }
+
     /**
      * Randevu durum ozeti: iptal + gelmeyen (no-show) sayilari ve en cok iptal/gelmedigi
      * olan personel. randevular.durum>=2 -> iptal (2=salon,3=musteri); randevuya_geldi=0
