@@ -30,6 +30,9 @@ class PatronAsistanServisi
             'personel', 'eleman', 'calisan', 'kim satti', 'en cok kim', 'en iyi personel',
             'hangi personel', 'performans', 'hakedis', 'kim ne kadar', 'kim ne satti',
             'kim calisti', 'basarili',
+            // En DUSUK performans sorgulari da personel niyetine gitsin.
+            'en dusuk', 'en az', 'en kotu', 'en zayif', 'dusuk performans', 'az satan',
+            'az calisan', 'en dip', 'en kotu personel',
         ],
         'hizmet' => [
             'hizmet', 'islem', 'hangi hizmet', 'populer hizmet', 'en cok yapilan',
@@ -79,7 +82,9 @@ class PatronAsistanServisi
             }
         }
         // En yuksek skorlu niyet; esitlikte oncelik sirasina gore (deterministik).
-        $oncelik = ['kasa', 'iptal', 'personel', 'hizmet', 'urun', 'musteri', 'bugun', 'ozet'];
+        // NOT: personel, kasa'dan ONCE -> "en dusuk CIRO yapan PERSONEL" gibi cumlelerde
+        // 'ciro'(kasa) ile 'personel' esit skorlanir; personel kazanmali.
+        $oncelik = ['iptal', 'personel', 'kasa', 'hizmet', 'urun', 'musteri', 'bugun', 'ozet'];
         $enIyi = 'bilinmiyor'; $enYuksek = 0;
         foreach ($oncelik as $n) {
             if (($skor[$n] ?? 0) > $enYuksek) {
@@ -220,6 +225,13 @@ class PatronAsistanServisi
         $liste = $veri['personeller'] ?? [];
         $donemAdi = $niyet['donemAdi'];
 
+        // "en dusuk / en az / en kotu ..." -> en dusuk performansli personel istenmis.
+        $ham = $this->normalize($niyet['ham'] ?? '');
+        $dusuk = (strpos($ham, 'en dusuk') !== false || strpos($ham, 'en az') !== false
+            || strpos($ham, 'en kotu') !== false || strpos($ham, 'en zayif') !== false
+            || strpos($ham, 'dusuk performans') !== false || strpos($ham, 'az satan') !== false
+            || strpos($ham, 'az calisan') !== false || strpos($ham, 'en dip') !== false);
+
         // Belirli personel soruldu mu?
         if (!empty($niyet['personelIpucu'])) {
             $aday = $this->normalize($niyet['personelIpucu']);
@@ -234,6 +246,8 @@ class PatronAsistanServisi
                        . $this->tl((float) $bulunan['ciro']) . " ciro yapmış ve "
                        . (int) $bulunan['hizmet_say'] . " işlem gerçekleştirmiş. "
                        . "Genel sıralamada " . $sira . ". sırada yer alıyor.";
+                $yorum = $this->personelYorumAI($bulunan, $donemAdi, count($liste), $sira, false);
+                if ($yorum) $cevap .= ' ' . $yorum;
                 return [
                     'basarili' => true, 'intent' => 'personel', 'cevap' => $cevap,
                     'seslendir' => true,
@@ -249,12 +263,39 @@ class PatronAsistanServisi
             }
         }
 
-        // Genel: ilk 3 personel
         if (empty($liste)) {
             return [
                 'basarili' => true, 'intent' => 'personel', 'seslendir' => true,
                 'cevap' => ucfirst($donemAdi) . " için henüz bir personel satışı görünmüyor.",
                 'kart' => null, 'niyet' => $niyet,
+            ];
+        }
+
+        // EN DUSUK performans: liste ciroya gore AZALAN sirali -> son eleman en dusuk.
+        if ($dusuk) {
+            $enDusuk = $liste[count($liste) - 1];
+            $sira    = count($liste);
+            $ciro    = (float) ($enDusuk['ciro'] ?? 0);
+            $islem   = (int) ($enDusuk['hizmet_say'] ?? 0);
+
+            if ($ciro <= 0 && $islem <= 0) {
+                $cevap = ucfirst($donemAdi) . " en düşük performans " . $enDusuk['personel_adi']
+                       . " tarafında; bu dönem hiç işlem yapmamış görünüyor.";
+            } else {
+                $cevap = ucfirst($donemAdi) . " en düşük performansı " . $enDusuk['personel_adi']
+                       . " gösteriyor; toplam " . $this->tl($ciro) . " ciro ve " . $islem . " işlem.";
+            }
+            $yorum = $this->personelYorumAI($enDusuk, $donemAdi, count($liste), $sira, true);
+            if ($yorum) $cevap .= ' ' . $yorum;
+
+            return [
+                'basarili' => true, 'intent' => 'personel', 'cevap' => $cevap, 'seslendir' => true,
+                'kart' => [
+                    'tip' => 'personel_tek',
+                    'baslik' => $enDusuk['personel_adi'] . ' · ' . ucfirst($donemAdi),
+                    'ciro' => $ciro, 'islem' => $islem, 'sira' => $sira,
+                ],
+                'niyet' => $niyet,
             ];
         }
 
@@ -889,6 +930,75 @@ class PatronAsistanServisi
             'basarili' => true, 'intent' => 'iptal', 'seslendir' => true,
             'cevap' => $cevap, 'kart' => null, 'niyet' => $niyet,
         ];
+    }
+
+    /**
+     * Bir personelin performans verisine bakip Haiku ile KISA yapici yorum + oneri uretir.
+     * Rakam UYDURMAZ (verilen ciro/islem'i kullanir). Key yoksa/hata olursa null.
+     * @return string|null
+     */
+    public function personelYorumAI($personel, $donemAdi, $toplam = 0, $sira = 0, $dusuk = false)
+    {
+        $ad    = (string) ($personel['personel_adi'] ?? 'Personel');
+        $ciro  = (float) ($personel['ciro'] ?? 0);
+        $islem = (int) ($personel['hizmet_say'] ?? 0);
+
+        $sistem = 'Sen bir salon isletme danismani asistanisin. Verilen TEK personelin performans '
+            . 'verisine bakip PATRONA hitaben KISA (en fazla iki cumle), yapici ve NET bir yorum ve '
+            . 'somut bir oneri ver. Personeli suclama; motivasyon, egitim ya da musteri dagilimi '
+            . 'odakli konus. TTS icin DUZ yaz: emoji, tirnak, madde isareti, yildiz YOK. Sadece '
+            . 'Turkce ve yalniz yorumu yaz, baska bir sey ekleme.';
+        $kullanici = "Donem: {$donemAdi}. Personel: {$ad}. Ciro: " . number_format($ciro, 0, ',', '.')
+            . " TL. Islem sayisi: {$islem}. Toplam personel: {$toplam}. Siralamasi: {$sira}."
+            . ($dusuk ? ' Bu personel donemin EN DUSUK performanslisi.' : '');
+
+        return $this->haikuText($sistem, $kullanici, 160);
+    }
+
+    /**
+     * Genel amacli tek seferlik Haiku metin cagrisi (arac yok, gecmis yok).
+     * @return string|null
+     */
+    protected function haikuText($sistem, $userContent, $maxTokens = 160)
+    {
+        $apiKey = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
+        if (!$apiKey) return null;
+
+        $govde = [
+            'model'      => config('services.anthropic.model') ?: 'claude-haiku-4-5',
+            'max_tokens' => $maxTokens,
+            'system'     => $sistem,
+            'messages'   => [['role' => 'user', 'content' => (string) $userContent]],
+        ];
+        try {
+            $ch = curl_init('https://api.anthropic.com/v1/messages');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST           => true,
+                CURLOPT_TIMEOUT        => 12,
+                CURLOPT_HTTPHEADER     => [
+                    'content-type: application/json',
+                    'x-api-key: ' . $apiKey,
+                    'anthropic-version: 2023-06-01',
+                ],
+                CURLOPT_POSTFIELDS     => json_encode($govde, JSON_UNESCAPED_UNICODE),
+            ]);
+            $yanit = curl_exec($ch);
+            $kod   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($yanit === false || $kod !== 200) return null;
+            $data = json_decode($yanit, true);
+            if (!is_array($data) || empty($data['content'])) return null;
+            $out = '';
+            foreach ($data['content'] as $blok) {
+                if (($blok['type'] ?? '') === 'text') { $out .= $blok['text'] ?? ''; }
+            }
+            $out = trim($out);
+            return $out !== '' ? $out : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /**
