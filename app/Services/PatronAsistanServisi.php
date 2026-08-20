@@ -657,6 +657,81 @@ class PatronAsistanServisi
     }
 
     /**
+     * SALON BUYUTME / IS ARTIRMA DANISMANLIGI. "Nasil daha cok musteri cekerim,
+     * isleri nasil artiririm, ne yapmaliyim" gibi sorularda pratik oneriler sunar.
+     * Rapor niyetinden ONCE cagirilir (yoksa "musteri artir" -> musteri istatistigi olur).
+     * Her seferinde RASTGELE 3 farkli oneri -> ezbere durmaz, bedava.
+     */
+    public function salonOnerisi($metin)
+    {
+        $norm = ' ' . $this->normalize($metin) . ' ';
+        $tetik = [
+            'nasil artir', 'nasil buyut', 'nasil buyur', 'buyutmek', 'buyumek',
+            'musteri cek', 'musteri kazan', 'nasil musteri', 'musteri sayisini artir',
+            'ne yapmaliyim', 'ne yapmali', 'ne yapabilirim', 'ne onerirsin', 'ne tavsiye',
+            'tavsiye ver', 'oneri ver', 'onerir misin', 'onerin var', 'fikrin var',
+            'gelistir', 'gelismek', 'daha iyi hale', 'daha basarili', 'daha cok kazan',
+            'isleri artir', 'is artir', 'islerimi artir', 'ciro artir', 'ciromu artir',
+            'kazanc artir', 'satis artir', 'satislari artir', 'isleri canlandir',
+            'islerim durgun', 'islerim kotu', 'isler durgun', 'isler kotu', 'isler acilmiyor',
+            'salonumu buyut', 'isimi buyut', 'daha cok is', 'nasil kazan', 'buyumek istiyorum',
+        ];
+        $eslesti = false;
+        foreach ($tetik as $t) {
+            if (strpos($norm, $t) !== false) { $eslesti = true; break; }
+        }
+        if (!$eslesti) {
+            return null;
+        }
+
+        $ipuclari = [
+            'Sadakat programı kurun: her ziyarette puan verin, belli puanda ücretsiz hizmet ya da indirim tanımlayın. Müşteri geri gelmek için sebep bulur.',
+            'Boş ve sakin saatlere özel indirim yapın; örneğin öğle saatleri için indirim kampanyasıyla ölü saatleri doldurabilirsiniz.',
+            'Google işletme profilinizi güncel tutun ve memnun müşterilerden yorum isteyin. Yüksek puan yeni müşteri getirir.',
+            'Sosyal medyada öncesi ve sonrası fotoğraflarını düzenli paylaşın. Görsel sonuçlar en güçlü reklamdır.',
+            'Randevu hatırlatması gönderin; gelmeyen müşteri oranı ciddi şekilde düşer.',
+            'Uzun süredir gelmeyen müşterilere sizi özledik mesajı ve küçük bir indirimle geri dönüş sağlayın.',
+            'Paket ve abonelik satışına ağırlık verin; tek seferlik hizmet yerine seans paketleri hem cironuzu hem bağlılığı artırır.',
+            'Personelinize ek hizmet önerme alışkanlığı kazandırın. Bugün bakım da yapalım mı cümlesi ciroyu yükseltir.',
+            'Doğum günü kutlaması ve küçük bir hediye gönderin; müşteri kendini özel hisseder.',
+            'Arkadaşını getir kampanyası yapın: getiren de gelen de indirim kazansın. En ucuz yeni müşteri, mevcut müşterinin tavsiyesidir.',
+            'Bakım ürünleri satışına ağırlık verin. Hizmete ek ürün, ekstra gelir demektir.',
+            'Özel gün kampanyaları kurun; sevgililer günü, anneler günü, yılbaşı gibi dönemlerde özel paketler hazırlayın.',
+            'Online randevuyu kolaylaştırın. Müşteri telefon açmadan, gece bile randevu alabilmeli.',
+            'Memnuniyet anketi gönderin; hem müşteriyi önemsediğinizi gösterir hem eksikleri erken yakalarsınız.',
+            'Bekleme alanı deneyimini iyileştirin. İkram, temizlik ve güzel bir ortam sadakati artırır.',
+            'En kârlı hizmetlerinizi öne çıkarın; menüde ve personel önerisinde onları vurgulayın.',
+            'Fiyatlarınızı ve maliyetlerinizi düzenli gözden geçirin. Kârı düşük hizmetleri iyileştirin.',
+            'İlk kez gelen müşteriye küçük bir jest yapın. İyi bir ilk izlenim, tekrar gelmesini sağlar.',
+            'Çok satan ve müşteri memnuniyeti yüksek personeli ödüllendirin; motivasyon doğrudan ciroya yansır.',
+            'Kombine paketler oluşturun, örneğin saç ve bakımı birlikte sunun. Avantajlı fiyat sepet tutarını büyütür.',
+            'Düzenli gelen sadık müşterilere ayrıcalıklar tanıyın; öncelikli randevu ya da sürpriz indirim gibi.',
+            'Kampanyalarınızı mevcut müşterilere düzenli duyurun. Onları bilgilendirmek, yeni müşteri aramaktan daha ucuz ve etkilidir.',
+        ];
+
+        $idx = (array) array_rand($ipuclari, min(3, count($ipuclari)));
+        $secili = [];
+        foreach ($idx as $i) {
+            $secili[] = $ipuclari[$i];
+        }
+
+        $girisler = [
+            'İşletmenizi büyütmek için birkaç fikrim var.',
+            'İşleri artırmak için şunları deneyebilirsiniz.',
+            'Salonunuzu daha ileri taşımak için birkaç önerim var.',
+            'Cironuzu ve müşteri sayınızı artırmak için şu adımlar işe yarar.',
+        ];
+        $cevap = $girisler[array_rand($girisler)] . ' '
+               . implode(' ', $secili)
+               . ' Dilerseniz bu konularda daha fazla fikir verebilirim.';
+
+        return [
+            'basarili' => true, 'intent' => 'oneri', 'seslendir' => true,
+            'cevap' => $cevap, 'kart' => null,
+        ];
+    }
+
+    /**
      * GENEL SOHBET (selam/hal hatir/tesekkur/kimsin/veda...). Eslesirse sicak bir
      * cevap dondurur, degilse null. Rapor niyeti BULUNAMAYINCA cagirilir; boylece
      * "merhaba bugun kasa" gibi cumlelerde once RAPOR cevabi verilir, salt "merhaba"da sohbet.

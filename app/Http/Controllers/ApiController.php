@@ -2437,6 +2437,12 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             return response()->json($asistan->kufurCevabi(), 200, [], JSON_UNESCAPED_UNICODE);
         }
 
+        // Salon buyutme / is artirma danismanligi -> rapor niyetinden ONCE
+        // ("musteri cek / ciro artir" gibi ifadeler yanlislikla istatistige gitmesin).
+        if ($oneri = $asistan->salonOnerisi($metin)) {
+            return response()->json($oneri, 200, [], JSON_UNESCAPED_UNICODE);
+        }
+
         // ONCE bedava kural motoru (yaygin sorular). SADECE anlasilamayanda (bilinmiyor)
         // opsiyonel Haiku'ya dus -> boylece AI acik olsa bile maliyet neredeyse sifir
         // (sorularin buyuk cogunlugu Haiku'ya hic gitmez). Anahtar yoksa zaten kural kalir.
