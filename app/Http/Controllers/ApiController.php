@@ -2598,6 +2598,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     $sonuc = $asistan->cevapRandevuDonem($veriSrv->ozet($salonId, $t1, $t2), $niyet);
                 }
                 break;
+            case 'iptal':
+                // Iptal + gelmeyen (no-show) randevu sayilari + en cok iptal/gelmedigi personel.
+                $sonuc = $asistan->cevapRandevuDurum($veriSrv->randevuDurum($salonId, $t1, $t2), $niyet);
+                break;
             case 'oneri':
                 // AI danisma niyeti dedi (kural tetigi kacirdi) -> veriye dayali oneri.
                 list($ot1, $ot2) = $veriSrv->donemTarih('ay');

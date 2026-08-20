@@ -228,6 +228,53 @@ class PatronAsistanRaporServisi
         return ['liste' => $this->objToArr($rows)];
     }
 
+    /**
+     * Randevu durum ozeti: iptal + gelmeyen (no-show) sayilari ve en cok iptal/gelmedigi
+     * olan personel. randevular.durum>=2 -> iptal (2=salon,3=musteri); randevuya_geldi=0
+     * -> gelmedi (NULL=isaretlenmemis, 1=geldi). Personel kirilimi randevu_hizmetler ile.
+     */
+    public function randevuDurum($salonId, $t1, $t2)
+    {
+        $iptal = DB::table('randevular')->where('salon_id', $salonId)
+            ->whereBetween('tarih', [$t1, $t2])->where('durum', '>=', 2)->count();
+
+        $gelmedi = DB::table('randevular')->where('salon_id', $salonId)
+            ->whereBetween('tarih', [$t1, $t2])->where('randevuya_geldi', 0)->count();
+
+        $toplam = DB::table('randevular')->where('salon_id', $salonId)
+            ->whereBetween('tarih', [$t1, $t2])->count();
+
+        return [
+            'iptal'            => $iptal,
+            'gelmedi'          => $gelmedi,
+            'toplam'           => $toplam,
+            'iptal_personel'   => $this->durumPersonelEnCok($salonId, $t1, $t2, 'iptal'),
+            'gelmedi_personel' => $this->durumPersonelEnCok($salonId, $t1, $t2, 'gelmedi'),
+        ];
+    }
+
+    /** Belirtilen durumda (iptal|gelmedi) en cok randevusu olan personel; yoksa null. */
+    protected function durumPersonelEnCok($salonId, $t1, $t2, $tur)
+    {
+        $q = DB::table('randevu_hizmetler as rh')
+            ->join('randevular as r', 'r.id', '=', 'rh.randevu_id')
+            ->join('salon_personelleri as sp', 'sp.id', '=', 'rh.personel_id')
+            ->where('r.salon_id', $salonId)
+            ->whereBetween('r.tarih', [$t1, $t2])
+            ->whereNotNull('rh.personel_id');
+        if ($tur === 'iptal') {
+            $q->where('r.durum', '>=', 2);
+        } else {
+            $q->where('r.randevuya_geldi', 0);
+        }
+        $row = $q->select('sp.personel_adi', DB::raw('COUNT(DISTINCT r.id) as adet'))
+            ->groupBy('rh.personel_id', 'sp.personel_adi')
+            ->orderByDesc('adet')->limit(1)->first();
+
+        if (!$row || (int) $row->adet <= 0) return null;
+        return ['personel_adi' => $row->personel_adi, 'adet' => (int) $row->adet];
+    }
+
     // ---- yardimcilar ----
 
     /** Tahsilat satirlarini nakit/kart/havale/diger/toplam kirilimina cevir (dashboardKasa mantigi). */

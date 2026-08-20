@@ -47,6 +47,11 @@ class PatronAsistanServisi
             'isler nasil', 'toplam durum', 'bugun nasil', 'yolunda', 'bereket',
             'ne alemde', 'gunumuz nasil', 'nasil bir gun',
         ],
+        'iptal' => [
+            'iptal', 'iptaller', 'iptal olan', 'iptal edilen', 'iptal randevu', 'kac iptal',
+            'iptal edilmis', 'gelmedi', 'gelmeyen', 'gelmeyenler', 'gelinmeyen', 'kim gelmedi',
+            'no show', 'gelmeyen randevu', 'gelmeyen musteri', 'kacan randevu',
+        ],
         'bugun' => [
             'randevu', 'takvim', 'gundem', 'kimler var', 'kimler gelecek', 'kim gelecek',
             'kac randevu', 'randevu var', 'gunluk program',
@@ -74,7 +79,7 @@ class PatronAsistanServisi
             }
         }
         // En yuksek skorlu niyet; esitlikte oncelik sirasina gore (deterministik).
-        $oncelik = ['kasa', 'personel', 'hizmet', 'urun', 'musteri', 'bugun', 'ozet'];
+        $oncelik = ['kasa', 'iptal', 'personel', 'hizmet', 'urun', 'musteri', 'bugun', 'ozet'];
         $enIyi = 'bilinmiyor'; $enYuksek = 0;
         foreach ($oncelik as $n) {
             if (($skor[$n] ?? 0) > $enYuksek) {
@@ -600,8 +605,8 @@ class PatronAsistanServisi
                 'properties' => [
                     'intent' => [
                         'type' => 'string',
-                        'enum' => ['kasa','personel','hizmet','urun','musteri','ozet','bugun','oneri','bilinmiyor'],
-                        'description' => 'kasa=ciro/tahsilat, personel=kim ne sattı, hizmet=hizmet karlilik, urun=urun satis, musteri=musteri ozeti, ozet=genel/gun sonu, bugun=bugunku randevular, oneri=isletmeyi buyutme/gelistirme/daha cok musteri/ne yapmaliyim gibi TAVSIYE istegi, bilinmiyor=anlasilamadi',
+                        'enum' => ['kasa','personel','hizmet','urun','musteri','ozet','bugun','iptal','oneri','bilinmiyor'],
+                        'description' => 'kasa=ciro/tahsilat, personel=kim ne sattı, hizmet=hizmet karlilik, urun=urun satis, musteri=musteri ozeti, ozet=genel/gun sonu, bugun=bugunku/donem randevu SAYISI, iptal=IPTAL edilen ya da GELMEYEN (no-show) randevu sayisi / en cok iptal-gelmeyen personel, oneri=isletmeyi buyutme/gelistirme/tavsiye istegi, bilinmiyor=anlasilamadi',
                     ],
                     'donem' => [
                         'type' => 'string',
@@ -845,6 +850,45 @@ class PatronAsistanServisi
             $this->aiTeshis = 'exception: ' . $e->getMessage();
             return null;
         }
+    }
+
+    /**
+     * IPTAL + GELMEYEN (no-show) randevu cevabi. $veri = randevuDurum JSON
+     * (iptal, gelmedi, iptal_personel, gelmedi_personel). Ikisini de soyler +
+     * varsa en cok iptal/gelmedigi olan personeli ekler.
+     */
+    public function cevapRandevuDurum(array $veri, array $niyet)
+    {
+        $donemAdi = $niyet['donemAdi'];
+        $iptal    = (int) ($veri['iptal'] ?? 0);
+        $gelmedi  = (int) ($veri['gelmedi'] ?? 0);
+        $ip       = $veri['iptal_personel'] ?? null;
+        $gp       = $veri['gelmedi_personel'] ?? null;
+
+        if ($iptal <= 0 && $gelmedi <= 0) {
+            $cevap = ucfirst($donemAdi) . ' iptal edilen ya da gelinmeyen randevu görünmüyor, tablo tertemiz.';
+            return [
+                'basarili' => true, 'intent' => 'iptal', 'seslendir' => true,
+                'cevap' => $cevap, 'kart' => null, 'niyet' => $niyet,
+            ];
+        }
+
+        $cevap = ucfirst($donemAdi) . ' ' . $iptal . ' randevu iptal edilmiş, '
+               . $gelmedi . ' randevuya da gelinmemiş.';
+
+        if ($ip && $iptal > 0) {
+            $cevap .= ' En çok iptal ' . $ip['personel_adi'] . ' tarafında, '
+                    . $ip['adet'] . ' randevu.';
+        }
+        if ($gp && $gelmedi > 0) {
+            $cevap .= ' Gelinmeyen randevularda ise en çok ' . $gp['personel_adi']
+                    . ' öne çıkıyor, ' . $gp['adet'] . ' randevu.';
+        }
+
+        return [
+            'basarili' => true, 'intent' => 'iptal', 'seslendir' => true,
+            'cevap' => $cevap, 'kart' => null, 'niyet' => $niyet,
+        ];
     }
 
     /**
