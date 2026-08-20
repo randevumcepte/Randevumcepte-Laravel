@@ -100,18 +100,28 @@ class PatronAsistanKampanyaServisi
     public function coz($metin, $salonId)
     {
         $n = ' ' . $this->normalize($metin) . ' ';
-        if (!$this->kampanyaBaglamiMi($n)) {
+        $bekleAnahtar = 'patron_asistan_kamp_bekle:' . $salonId;
+        $bekliyor = false;
+        try { $bekliyor = (bool) \Cache::get($bekleAnahtar); } catch (\Throwable $e) {}
+
+        // Kampanya baglami yok VE onceki turda "kime gonderelim?" de sormadiysak -> bizim
+        // isimiz degil (controller devam etsin). Bekleme varsa bu mesaji cevap say.
+        $baglam = $this->kampanyaBaglamiMi($n);
+        if (!$baglam && !$bekliyor) {
             return null;
         }
+
         $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi');
         $tip = $this->kampanyaTuru($n); // null olabilir
 
         // 1) Mesajda bir musteri adi geciyorsa -> SADECE o kisiye.
         $kisi = $this->mesajdanMusteri($n, $salonId);
         if (is_object($kisi)) {
+            $this->beklemeTemizle($bekleAnahtar);
             return $this->kisiyeTeklif($tip ?: 'genel', $kisi, $salonAdi);
         }
         if (is_array($kisi) && isset($kisi['coklu'])) {
+            $this->beklemeKur($bekleAnahtar); // hala kisi bekliyoruz
             $adlar = implode(', ', array_slice($kisi['adlar'], 0, 5));
             return [
                 'basarili' => true, 'intent' => 'kampanya_soru', 'seslendir' => true, 'kart' => null,
@@ -122,16 +132,37 @@ class PatronAsistanKampanyaServisi
 
         // 2) Tur belliyse segment/genel kampanya teklifi.
         if ($tip !== null) {
+            $this->beklemeTemizle($bekleAnahtar);
             return $this->teklif($tip, $salonId, $salonAdi);
         }
 
-        // 3) Ne kisi ne tur belli -> NETLESTIR (guvenlik: herkese kazara gitmesin).
-        return [
-            'basarili' => true, 'intent' => 'kampanya_soru', 'seslendir' => true, 'kart' => null,
-            'cevap' => 'Kampanyayı kime göndereyim? Örneğin kayıp müşterilere kampanya gönder, '
-                     . 'boş saatler için kampanya gönder, doğum günü olanlara gönder, tüm müşterilere '
-                     . 'gönder ya da bir müşterinin adını söyleyerek sadece ona gönder diyebilirsiniz.',
-        ];
+        // 3) Ne kisi ne tur belli.
+        if ($baglam) {
+            // Ilk kez soruyoruz: "kime?" -> bekleme kur (sonraki mesaj cevap say).
+            $this->beklemeKur($bekleAnahtar);
+            return [
+                'basarili' => true, 'intent' => 'kampanya_soru', 'seslendir' => true, 'kart' => null,
+                'cevap' => 'Kampanyayı kime göndereyim? Örneğin kayıp müşterilere kampanya gönder, '
+                         . 'boş saatler için kampanya gönder, doğum günü olanlara gönder, tüm müşterilere '
+                         . 'gönder ya da bir müşterinin adını söyleyerek sadece ona gönder diyebilirsiniz.',
+            ];
+        }
+
+        // Bekliyorduk ama bu mesaj kampanya cozmedi -> birak, normal akis islesin.
+        $this->beklemeTemizle($bekleAnahtar);
+        return null;
+    }
+
+    /** "Kampanya hedefi bekleniyor" durumunu kur (kisa omurlu: 3 dakika). */
+    protected function beklemeKur($anahtar)
+    {
+        try { \Cache::put($anahtar, 1, 3); } catch (\Throwable $e) {} // L5.6: 3 = dakika
+    }
+
+    /** Bekleme durumunu temizle. */
+    protected function beklemeTemizle($anahtar)
+    {
+        try { \Cache::forget($anahtar); } catch (\Throwable $e) {}
     }
 
     /** Mesaj bir kampanya/reklam OLUSTURMA-GONDERME baglami tasiyor mu? */
