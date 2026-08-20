@@ -91,6 +91,164 @@ class PatronAsistanKampanyaServisi
     }
 
     /**
+     * TEK GIRIS: mesaj bir kampanya/reklam istegi mi? Ise uygun TEKLIFI dondurur:
+     *   - Mesajda bir MUSTERI ADI geciyorsa  -> SADECE o kisiye (kisi segmenti).
+     *   - Tur belliyse (kayip/bossaat/dogumgunu/genel) -> segment/genel kampanya.
+     *   - Ne kisi ne tur belliyse -> "kime gonderelim?" diye NETLESTIR (yanlislikla
+     *     herkese gitmesin). Kampanya baglami yoksa null (controller devam eder).
+     */
+    public function coz($metin, $salonId)
+    {
+        $n = ' ' . $this->normalize($metin) . ' ';
+        if (!$this->kampanyaBaglamiMi($n)) {
+            return null;
+        }
+        $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi');
+        $tip = $this->kampanyaTuru($n); // null olabilir
+
+        // 1) Mesajda bir musteri adi geciyorsa -> SADECE o kisiye.
+        $kisi = $this->mesajdanMusteri($n, $salonId);
+        if (is_object($kisi)) {
+            return $this->kisiyeTeklif($tip ?: 'genel', $kisi, $salonAdi);
+        }
+        if (is_array($kisi) && isset($kisi['coklu'])) {
+            $adlar = implode(', ', array_slice($kisi['adlar'], 0, 5));
+            return [
+                'basarili' => true, 'intent' => 'kampanya_soru', 'seslendir' => true, 'kart' => null,
+                'cevap' => 'Birden fazla müşteri eşleşti: ' . $adlar
+                         . '. Hangisine göndereyim, tam adıyla söyler misiniz?',
+            ];
+        }
+
+        // 2) Tur belliyse segment/genel kampanya teklifi.
+        if ($tip !== null) {
+            return $this->teklif($tip, $salonId, $salonAdi);
+        }
+
+        // 3) Ne kisi ne tur belli -> NETLESTIR (guvenlik: herkese kazara gitmesin).
+        return [
+            'basarili' => true, 'intent' => 'kampanya_soru', 'seslendir' => true, 'kart' => null,
+            'cevap' => 'Kampanyayı kime göndereyim? Örneğin kayıp müşterilere kampanya gönder, '
+                     . 'boş saatler için kampanya gönder, doğum günü olanlara gönder, tüm müşterilere '
+                     . 'gönder ya da bir müşterinin adını söyleyerek sadece ona gönder diyebilirsiniz.',
+        ];
+    }
+
+    /** Mesaj bir kampanya/reklam OLUSTURMA-GONDERME baglami tasiyor mu? */
+    protected function kampanyaBaglamiMi($n)
+    {
+        $noun = strpos($n, 'reklam') !== false || strpos($n, 'kampanya') !== false
+             || strpos($n, 'indirim') !== false || strpos($n, 'duyuru') !== false;
+        $eylem = false;
+        foreach (['gonder', 'yolla', 'olustur', 'hazirla', 'baslat', 'yap', 'duzenle'] as $a) {
+            if (strpos($n, $a) !== false) { $eylem = true; break; }
+        }
+        $test = strpos($n, 'test') !== false || strpos($n, 'deneme') !== false;
+        // Kampanya/reklam ismi var; ya da "test ... gonder" gibi eylemli test ifadesi.
+        return $noun || ($test && $eylem);
+    }
+
+    /** Kampanya turunu belirler; hicbir tur anahtari yoksa null (varsayilan YOK). */
+    protected function kampanyaTuru($n)
+    {
+        if (strpos($n, 'kayip') !== false || strpos($n, 'gelmeyen') !== false
+            || strpos($n, 'geri kazan') !== false || strpos($n, 'ozledik') !== false
+            || strpos($n, 'uzun sure gelmeyen') !== false) {
+            return 'kayip';
+        }
+        if (strpos($n, 'bos saat') !== false || strpos($n, 'olu saat') !== false
+            || strpos($n, 'sakin saat') !== false || strpos($n, 'saat doldur') !== false
+            || strpos($n, 'bossaat') !== false) {
+            return 'bossaat';
+        }
+        if (strpos($n, 'dogum gun') !== false || strpos($n, 'dogumgun') !== false) {
+            return 'dogumgunu';
+        }
+        if (strpos($n, 'genel') !== false || strpos($n, 'herkese') !== false
+            || strpos($n, 'tum musteri') !== false || strpos($n, 'butun musteri') !== false) {
+            return 'genel';
+        }
+        return null;
+    }
+
+    /**
+     * Mesajda gecen bir portfoy musterisini bulur (adin TUM kelimeleri mesajda gecmeli;
+     * guclu eslesme: 2 kelimeli ad ya da tek kelime >=4 harf). Junk kelimelerden etkilenmez.
+     * @return object|array|null tek=object, coklu=['coklu'=>true,'adlar'=>[]], yok=null
+     */
+    protected function mesajdanMusteri($n, $salonId)
+    {
+        $mesajKel = [];
+        foreach (preg_split('/\s+/', trim($n)) as $k) {
+            $k = $this->kelimeTemizle($k);
+            if ($k !== '' && mb_strlen($k) >= 3) $mesajKel[] = $k;
+        }
+        if (empty($mesajKel)) return null;
+
+        $rows = DB::table('musteri_portfoy as mp')
+            ->join('users as u', 'u.id', '=', 'mp.user_id')
+            ->where('mp.salon_id', $salonId)
+            ->where('mp.aktif', 1)
+            ->select('u.id', 'u.name', 'u.cep_telefon')
+            ->limit(5000)->get();
+
+        $eslesme = [];
+        foreach ($rows as $r) {
+            $adKel = array_values(array_filter(
+                preg_split('/\s+/', $this->normalize((string) $r->name)),
+                function ($w) { return mb_strlen($w) >= 2; }
+            ));
+            if (empty($adKel)) continue;
+
+            $tumu = true; $eslesenAd = 0;
+            foreach ($adKel as $aw) {
+                $bulundu = false;
+                foreach ($mesajKel as $mw) {
+                    if ($aw === $mw) { $bulundu = true; break; }
+                    $kisa = mb_strlen($mw) <= mb_strlen($aw) ? $mw : $aw;
+                    $uzun = ($kisa === $mw) ? $aw : $mw;
+                    if (mb_strlen($kisa) >= 3 && strpos($uzun, $kisa) === 0) { $bulundu = true; break; }
+                }
+                if ($bulundu) $eslesenAd++; else { $tumu = false; break; }
+            }
+            // Guclu eslesme: adin butun kelimeleri gecmis + (>=2 kelime ya da tek kelime >=4).
+            if ($tumu && (count($adKel) >= 2 || ($eslesenAd === 1 && mb_strlen($adKel[0]) >= 4))) {
+                $eslesme[] = $r;
+                if (count($eslesme) > 6) break;
+            }
+        }
+
+        if (empty($eslesme)) return null;
+        if (count($eslesme) === 1) return $eslesme[0];
+        return ['coklu' => true, 'adlar' => array_map(function ($r) { return $r->name; }, $eslesme)];
+    }
+
+    /** Tek kisiye ozel gonderim teklifi (kisi segmenti; onay -> test|tip|id kodlamasi). */
+    protected function kisiyeTeklif($tip, $kisi, $salonAdi)
+    {
+        $turler = $this->turler();
+        if (!isset($turler[$tip])) $tip = 'genel';
+        $t = $turler[$tip];
+        $oran = $t['oran'];
+
+        $cevap = 'Hazırım. Bu kampanyayı SADECE ' . $kisi->name . ' adlı müşteriye yüzde ' . $oran
+               . ' indirim bildirimi olarak göndereceğim. Diğer hiçbir müşteriye gitmeyecek. Onaylıyor musunuz?';
+
+        return [
+            'basarili'  => true, 'intent' => 'kampanya_teklif', 'seslendir' => true, 'kart' => null,
+            'cevap'     => $cevap,
+            'aksiyon'   => [
+                'tur'        => 'kampanya',
+                'tip'        => 'test|' . $tip . '|' . (int) $kisi->id, // uygula -> kisi segmenti
+                'oran'       => $oran,
+                'baslik'     => 'Kişiye Özel · ' . $t['ad'],
+                'hedef_sayi' => 1,
+                'onay_metni' => 'Sadece ' . $kisi->name . ' kişisine gönder',
+            ],
+        ];
+    }
+
+    /**
      * GUVENLI TEST istegi mi? "test icin Ahmet'e kampanya gonder" gibi.
      * @return array|null ['tip' => <kampanya turu>, 'isim' => <cikarilan kisi adi>]
      */

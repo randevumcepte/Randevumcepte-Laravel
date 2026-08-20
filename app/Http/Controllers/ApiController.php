@@ -2455,19 +2455,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // Otomatik kampanya TEKLIFI (kayip musteri / bos saat / dogum gunu / genel).
         // GUVENLIK: burada yalniz TEKLIF doner (salt-okunur, sayi+onizleme). Gercek
         // gonderim ONAY sonrasi ayri 'patron-asistan-uygula' ucundan yapilir.
+        // TEK GIRIS: "reklam/kampanya olustur/gonder" (+ kisi adi / tur). coz() uygun
+        // teklifi doner: kisi adi varsa SADECE o kisiye, tur belliyse segment, hicbiri
+        // yoksa "kime gonderelim?" diye sorar. Boylece "Anil'a reklam olustur" personel
+        // raporuna KACMAZ; kampanya akisina girer.
         $kampSrv = new \App\Services\PatronAsistanKampanyaServisi();
-        // GUVENLI TEST: "test icin Ahmet'e gonder" -> kampanyayi SADECE tek kisiye gonderir
-        // (kisi segmenti). Diger musterilere ASLA gitmez. kampanyaTetik'ten ONCE bakilir.
-        if ($testBilgi = $kampSrv->testTetik($metin)) {
-            $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi');
-            return response()->json(
-                $kampSrv->testTeklif($testBilgi['tip'], $testBilgi['isim'], $salonId, $salonAdi),
-                200, [], JSON_UNESCAPED_UNICODE
-            );
-        }
-        if ($kampTip = $kampSrv->kampanyaTetik($metin)) {
-            $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi');
-            return response()->json($kampSrv->teklif($kampTip, $salonId, $salonAdi), 200, [], JSON_UNESCAPED_UNICODE);
+        if ($kampCevap = $kampSrv->coz($metin, $salonId)) {
+            return response()->json($kampCevap, 200, [], JSON_UNESCAPED_UNICODE);
         }
 
         // ONCE bedava kural motoru (yaygin sorular). SADECE anlasilamayanda (bilinmiyor)
