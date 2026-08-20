@@ -198,7 +198,7 @@
                right: 'month,agendaWeek,agendaDay'
              },
              minTime:<?php echo json_encode($randevular["baslangic"]); ?>,
-             maxTime: '23:45:00',
+             maxTime: '24:00:00',
              //// uncomment this line to hide the all-day slot
              allDaySlot: false,
              slotDuration: '00:15:00',
