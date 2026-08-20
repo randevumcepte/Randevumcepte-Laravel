@@ -237,6 +237,40 @@ class StoreAdminController extends Controller
         return (float) $s;
     }
 
+    /**
+     * Tahsilat kalemlerine orantisal dagitim + KURUS RECONCILE.
+     * Yuvarlanmis paylarin toplami, fiilen tahsil edilen tutara (hedef) BIREBIR esitlenir;
+     * kalan artik en buyuk agirlikli kaleme yazilir (gorunmez kalir). Boylece kismi/taksitli
+     * tahsilatta bile "kalan alacak" tam kapanir, float sizintisi olmaz.
+     *
+     * @param array $dagitim  her eleman: ['raw'=>agirlik(float), 'taban'=>payda(float)]
+     * @param float $hedef    dagitilacak toplam (indirimli tahsilat / vade tutari / on odeme)
+     * @return array          [ayni index => round(pay,2) ]; toplami = round($hedef,2)
+     */
+    public static function tahsilatPaylariReconcile(array $dagitim, $hedef)
+    {
+        $paylar = [];
+        $hedef = round((float) $hedef, 2);
+        if(count($dagitim) == 0) return $paylar;
+        $toplamAtanan = 0.0;
+        $enBuyukIdx = null;
+        $enBuyukRaw = null;
+        foreach($dagitim as $i => $k){
+            $taban = (float) ($k['taban'] ?? 0);
+            $raw   = (float) ($k['raw'] ?? 0);
+            $pay   = $taban > 0 ? round(($raw / $taban) * $hedef, 2) : 0.0;
+            $paylar[$i] = $pay;
+            $toplamAtanan += $pay;
+            if($enBuyukIdx === null || $raw > $enBuyukRaw){ $enBuyukRaw = $raw; $enBuyukIdx = $i; }
+        }
+        // Yuvarlama artigi (kurus): en buyuk agirlikli kaleme ekle -> toplam = hedef
+        $artik = round($hedef - $toplamAtanan, 2);
+        if($enBuyukIdx !== null && abs($artik) >= 0.005){
+            $paylar[$enBuyukIdx] = round($paylar[$enBuyukIdx] + $artik, 2);
+        }
+        return $paylar;
+    }
+
     // Performans: e_asistan gibi sayfalarda 5-6 kez cagriliyor. Her cagri
     // user relation + (eskiden) loop icinde Salonlar query atiyordu. Cache.
     private static $_mevcutsubeCache = [];
@@ -12111,75 +12145,60 @@ private function ayAdiCevir($ingilizceAy)
                 \Log::error('harici indirim kaleme yazilamadi', ['err' => $e->getMessage(), 'tahsilat_id' => $tahsilat->id]);
             }
         }
-        if(isset($request->adisyon_hizmet_id) && isset($request->adisyon_hizmet_senet_id) && isset($request->adisyon_hizmet_taksitli_tahsilat_id))
+        // --- Orantisal tahsilat dagitimi + KURUS RECONCILE (kismi/coklu odemede toplam birebir tutar) ---
+        $_taban = (float) str_replace(['.',','],['','.'],$request->tahsilat_tutari ?? '0');
+        $_hedef = (float) str_replace(['.',','],['','.'],$request->indirimli_toplam_tahsilat_tutari ?? '0');
+        if($_taban > 0)
         {
-            foreach($request->adisyon_hizmet_id as $key=>$hizmet_id)
+            $_dagitim = []; // ['tip','id','raw','taban']
+            if(isset($request->adisyon_hizmet_id) && isset($request->adisyon_hizmet_senet_id) && isset($request->adisyon_hizmet_taksitli_tahsilat_id))
             {
-                $_senet_v = $request->adisyon_hizmet_senet_id[$key] ?? '';
-                $_taksit_v = $request->adisyon_hizmet_taksitli_tahsilat_id[$key] ?? '';
-                if($_senet_v == '' && $_taksit_v == '')
+                foreach($request->adisyon_hizmet_id as $key=>$hizmet_id)
                 {
+                    $_senet_v = $request->adisyon_hizmet_senet_id[$key] ?? '';
+                    $_taksit_v = $request->adisyon_hizmet_taksitli_tahsilat_id[$key] ?? '';
+                    if($_senet_v != '' || $_taksit_v != '') continue;
                     $hizmet_tahsilat_tutar = $request->himzet_tahsilat_tutari_girilen[$key]
-                        ?? $request->adisyon_hizmet_tahsilat_tutari[$key]
-                        ?? null;
-                    if($hizmet_tahsilat_tutar === null || $hizmet_tahsilat_tutar === '')
-                        continue;
-                    $_tahsilat_tutari = (float) str_replace(['.',','],['','.'],$request->tahsilat_tutari ?? '0');
-                    if($_tahsilat_tutari == 0)
-                        continue;
-                    $odeme = new TahsilatHizmetler();
-                    $odeme->adisyon_hizmet_id = $hizmet_id;
-                    $odeme->tahsilat_id = $tahsilat->id;
-                    $odeme->tutar = (str_replace(['.',','],['','.'],$hizmet_tahsilat_tutar)/$_tahsilat_tutari)*str_replace(['.',','],['','.'],$request->indirimli_toplam_tahsilat_tutari);
-                    $odeme->save();
+                        ?? $request->adisyon_hizmet_tahsilat_tutari[$key] ?? null;
+                    if($hizmet_tahsilat_tutar === null || $hizmet_tahsilat_tutar === '') continue;
+                    $_dagitim[] = ['tip'=>'hizmet','id'=>$hizmet_id,'raw'=>(float) str_replace(['.',','],['','.'],$hizmet_tahsilat_tutar),'taban'=>$_taban];
                 }
             }
-        }
-        if(isset($request->adisyon_urun_id) && isset($request->adisyon_urun_senet_id) && isset($request->adisyon_urun_taksitli_tahsilat_id))
-        {
-            foreach($request->adisyon_urun_id as $key2=>$urun_id)
+            if(isset($request->adisyon_urun_id) && isset($request->adisyon_urun_senet_id) && isset($request->adisyon_urun_taksitli_tahsilat_id))
             {
-                $_senet_v2 = $request->adisyon_urun_senet_id[$key2] ?? '';
-                $_taksit_v2 = $request->adisyon_urun_taksitli_tahsilat_id[$key2] ?? '';
-                if($_senet_v2 == '' && $_taksit_v2 == '')
+                foreach($request->adisyon_urun_id as $key2=>$urun_id)
                 {
+                    $_senet_v2 = $request->adisyon_urun_senet_id[$key2] ?? '';
+                    $_taksit_v2 = $request->adisyon_urun_taksitli_tahsilat_id[$key2] ?? '';
+                    if($_senet_v2 != '' || $_taksit_v2 != '') continue;
                     $urun_tahsilat_tutar = $request->urun_tahsilat_tutari_girilen[$key2]
-                        ?? $request->adisyon_urun_tahsilat_tutari[$key2]
-                        ?? null;
-                    if($urun_tahsilat_tutar === null || $urun_tahsilat_tutar === '')
-                        continue;
-                    $_tahsilat_tutari2 = (float) str_replace(['.',','],['','.'],$request->tahsilat_tutari ?? '0');
-                    if($_tahsilat_tutari2 == 0)
-                        continue;
-                    $odeme = new TahsilatUrunler();
-                    $odeme->adisyon_urun_id = $urun_id;
-                    $odeme->tahsilat_id = $tahsilat->id;
-                    $odeme->tutar = (str_replace(['.',','],['','.'],$urun_tahsilat_tutar)/$_tahsilat_tutari2)*str_replace(['.',','],['','.'],$request->indirimli_toplam_tahsilat_tutari);
-                    $odeme->save();
+                        ?? $request->adisyon_urun_tahsilat_tutari[$key2] ?? null;
+                    if($urun_tahsilat_tutar === null || $urun_tahsilat_tutar === '') continue;
+                    $_dagitim[] = ['tip'=>'urun','id'=>$urun_id,'raw'=>(float) str_replace(['.',','],['','.'],$urun_tahsilat_tutar),'taban'=>$_taban];
                 }
             }
-        }
-        if(isset($request->adisyon_paket_id)&& isset($request->adisyon_paket_senet_id) && isset($request->adisyon_paket_taksitli_tahsilat_id))
-        {
-            foreach($request->adisyon_paket_id as $key3=>$paket_id)
+            if(isset($request->adisyon_paket_id) && isset($request->adisyon_paket_senet_id) && isset($request->adisyon_paket_taksitli_tahsilat_id))
             {
-                $_senet_v3 = $request->adisyon_paket_senet_id[$key3] ?? '';
-                $_taksit_v3 = $request->adisyon_paket_taksitli_tahsilat_id[$key3] ?? '';
-                if($_senet_v3 == '' && $_taksit_v3 == ''){
+                foreach($request->adisyon_paket_id as $key3=>$paket_id)
+                {
+                    $_senet_v3 = $request->adisyon_paket_senet_id[$key3] ?? '';
+                    $_taksit_v3 = $request->adisyon_paket_taksitli_tahsilat_id[$key3] ?? '';
+                    if($_senet_v3 != '' || $_taksit_v3 != '') continue;
                     $paket_tahsilat_tutar = $request->paket_tahsilat_tutari_girilen[$key3]
-                        ?? $request->adisyon_paket_tahsilat_tutari[$key3]
-                        ?? null;
-                    if($paket_tahsilat_tutar === null || $paket_tahsilat_tutar === '')
-                        continue;
-                    $_tahsilat_tutari3 = (float) str_replace(['.',','],['','.'],$request->tahsilat_tutari ?? '0');
-                    if($_tahsilat_tutari3 == 0)
-                        continue;
-                    $odeme = new TahsilatPaketler();
-                    $odeme->adisyon_paket_id = $paket_id;
-                    $odeme->tahsilat_id = $tahsilat->id;
-                    $odeme->tutar = (str_replace(['.',','],['','.'],$paket_tahsilat_tutar)/$_tahsilat_tutari3)*str_replace(['.',','],['','.'],$request->indirimli_toplam_tahsilat_tutari);
-                    $odeme->save();
+                        ?? $request->adisyon_paket_tahsilat_tutari[$key3] ?? null;
+                    if($paket_tahsilat_tutar === null || $paket_tahsilat_tutar === '') continue;
+                    $_dagitim[] = ['tip'=>'paket','id'=>$paket_id,'raw'=>(float) str_replace(['.',','],['','.'],$paket_tahsilat_tutar),'taban'=>$_taban];
                 }
+            }
+            $_paylar = self::tahsilatPaylariReconcile($_dagitim, $_hedef);
+            foreach($_dagitim as $_i=>$_kalem)
+            {
+                if($_kalem['tip'] == 'hizmet'){ $odeme = new TahsilatHizmetler(); $odeme->adisyon_hizmet_id = $_kalem['id']; }
+                elseif($_kalem['tip'] == 'urun'){ $odeme = new TahsilatUrunler(); $odeme->adisyon_urun_id = $_kalem['id']; }
+                else { $odeme = new TahsilatPaketler(); $odeme->adisyon_paket_id = $_kalem['id']; }
+                $odeme->tahsilat_id = $tahsilat->id;
+                $odeme->tutar = $_paylar[$_i] ?? 0;
+                $odeme->save();
             }
         }
         if(isset($request->taksit_vade_id))
@@ -21033,55 +21052,46 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $tahsilat->notlar = $request->tahsilat_notlari;
             $tahsilat->save();
             
+            // --- On odeme dagitimi + KURUS RECONCILE (on odeme kalemlere birebir dagilir) ---
+            $_oDagitim = []; // ['tip','id','raw','taban']
             if(isset($request->adisyon_hizmet_id) && isset($request->adisyon_hizmet_senet_id) && isset($request->adisyon_hizmet_taksitli_tahsilat_id))
             {
                 foreach($request->adisyon_hizmet_id as $key=>$hizmet_id)
                 {
-                    if($request->adisyon_hizmet_senet_id[$key] == '' && $request->adisyon_hizmet_taksitli_tahsilat_id[$key] == '')
-                    {
-                        $kalemNetTutar = str_replace(['.',','],['','.'], $request->himzet_tahsilat_tutari_girilen[$key] ?? '0') - $kalem_basina_indirim_tutari;
-                        $odeme = new TahsilatHizmetler();
-                        $odeme->adisyon_hizmet_id = $hizmet_id;
-                        $odeme->tahsilat_id = $tahsilat->id;
-                        $odeme->tutar = ($kalemNetTutar / $toplamTahsilat) * $onOdemeTutari;
-                        $odeme->aciklama = null;
-                        $odeme->save();
-                    }
+                    if($request->adisyon_hizmet_senet_id[$key] != '' || $request->adisyon_hizmet_taksitli_tahsilat_id[$key] != '') continue;
+                    $kalemNetTutar = str_replace(['.',','],['','.'], $request->himzet_tahsilat_tutari_girilen[$key] ?? '0') - $kalem_basina_indirim_tutari;
+                    $_oDagitim[] = ['tip'=>'hizmet','id'=>$hizmet_id,'raw'=>(float)$kalemNetTutar,'taban'=>(float)$toplamTahsilat];
                 }
             }
-            
             // Ürünler ve paketler için de aynı mantık uygulanmalı
             if(isset($request->adisyon_urun_id) && isset($request->adisyon_urun_senet_id) && isset($request->adisyon_urun_taksitli_tahsilat_id))
             {
                 foreach($request->adisyon_urun_id as $key2=>$urun_id)
                 {
-                    if($request->adisyon_urun_senet_id[$key2] == '' && $request->adisyon_urun_taksitli_tahsilat_id[$key2] == '')
-                    {
-                        $kalemNetTutar = str_replace(['.',','],['','.'], $request->urun_tahsilat_tutari_girilen[$key2] ?? '0') - $kalem_basina_indirim_tutari;
-                        $odeme = new TahsilatUrunler();
-                        $odeme->adisyon_urun_id = $urun_id;
-                        $odeme->tahsilat_id = $tahsilat->id;
-                        $odeme->tutar = ($kalemNetTutar / $toplamTahsilat) * $onOdemeTutari;
-                        $odeme->aciklama = null;
-                        $odeme->save();
-                    }
+                    if($request->adisyon_urun_senet_id[$key2] != '' || $request->adisyon_urun_taksitli_tahsilat_id[$key2] != '') continue;
+                    $kalemNetTutar = str_replace(['.',','],['','.'], $request->urun_tahsilat_tutari_girilen[$key2] ?? '0') - $kalem_basina_indirim_tutari;
+                    $_oDagitim[] = ['tip'=>'urun','id'=>$urun_id,'raw'=>(float)$kalemNetTutar,'taban'=>(float)$toplamTahsilat];
                 }
             }
-             if(isset($request->adisyon_paket_id) && isset($request->adisyon_paket_senet_id) && isset($request->adisyon_paket_taksitli_tahsilat_id))
+            if(isset($request->adisyon_paket_id) && isset($request->adisyon_paket_senet_id) && isset($request->adisyon_paket_taksitli_tahsilat_id))
             {
                 foreach($request->adisyon_paket_id as $key2=>$paket_id)
                 {
-                    if($request->adisyon_paket_senet_id[$key2] == '' && $request->adisyon_paket_taksitli_tahsilat_id[$key2] == '')
-                    {
-                        $kalemNetTutar = str_replace(['.',','],['','.'], $request->paket_tahsilat_tutari_girilen[$key2] ?? '0') - $kalem_basina_indirim_tutari;
-                        $odeme = new TahsilatPaketler();
-                        $odeme->adisyon_paket_id = $paket_id;
-                        $odeme->tahsilat_id = $tahsilat->id;
-                        $odeme->tutar = ($kalemNetTutar / $toplamTahsilat) * $onOdemeTutari;
-                        $odeme->aciklama = null;
-                        $odeme->save();
-                    }
+                    if($request->adisyon_paket_senet_id[$key2] != '' || $request->adisyon_paket_taksitli_tahsilat_id[$key2] != '') continue;
+                    $kalemNetTutar = str_replace(['.',','],['','.'], $request->paket_tahsilat_tutari_girilen[$key2] ?? '0') - $kalem_basina_indirim_tutari;
+                    $_oDagitim[] = ['tip'=>'paket','id'=>$paket_id,'raw'=>(float)$kalemNetTutar,'taban'=>(float)$toplamTahsilat];
                 }
+            }
+            $_oPaylar = self::tahsilatPaylariReconcile($_oDagitim, (float)$onOdemeTutari);
+            foreach($_oDagitim as $_oi=>$_ok)
+            {
+                if($_ok['tip'] == 'hizmet'){ $odeme = new TahsilatHizmetler(); $odeme->adisyon_hizmet_id = $_ok['id']; }
+                elseif($_ok['tip'] == 'urun'){ $odeme = new TahsilatUrunler(); $odeme->adisyon_urun_id = $_ok['id']; }
+                else { $odeme = new TahsilatPaketler(); $odeme->adisyon_paket_id = $_ok['id']; }
+                $odeme->tahsilat_id = $tahsilat->id;
+                $odeme->tutar = $_oPaylar[$_oi] ?? 0;
+                $odeme->aciklama = null;
+                $odeme->save();
             }
             
             
@@ -23734,65 +23744,50 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 $tahsilat->odeme_yontemi_id = $request->odeme_yontemi;
                 $tahsilat->notlar = $tahsilat->adisyon_id.' nolu adisyonun '.date('d.m.Y', strtotime($vade->vade_tarih)).' tarihli vadesinin ödemesi';
                 $tahsilat->save();
-                if(isset($request->adisyon_hizmet_id)  &&isset($request->adisyon_hizmet_taksitli_tahsilat_id))
+                // --- Taksit vade dagitimi + KURUS RECONCILE (vade tutari kalemlere birebir dagilir) ---
+                $_tDagitim = []; // ['tip','id','raw','taban']
+                if(isset($request->adisyon_hizmet_id) && isset($request->adisyon_hizmet_taksitli_tahsilat_id))
                 {
                     foreach($request->adisyon_hizmet_id as $key=>$hizmet_id)
                     {
-                        if($request->adisyon_hizmet_taksitli_tahsilat_id[$key] != '')
-                        {
-                            $taksit_toplami = TaksitVadeleri::where('taksitli_tahsilat_id',$request->adisyon_hizmet_taksitli_tahsilat_id[$key])->sum('tutar');
-                            $odeme = new TahsilatHizmetler();
-                            $odeme->adisyon_hizmet_id = $hizmet_id;
-                            $odeme->tahsilat_id = $tahsilat->id;
-                            $hizmet_tahsilat_tutar = 0;
-                            if(isset($request->himzet_tahsilat_tutari_girilen))
-                                $hizmet_tahsilat_tutar = $request->himzet_tahsilat_tutari_girilen[$key];
-                            else
-                                $hizmet_tahsilat_tutar = $request->adisyon_hizmet_tahsilat_tutari[$key];
-                            $odeme->tutar = (str_replace(['.',','],['','.'],$hizmet_tahsilat_tutar)/str_replace(['.',','],['','.'],$taksit_toplami))*str_replace(['.',','],['','.'],$vade->tutar);
-                            $odeme->save();
-                        }
+                        if($request->adisyon_hizmet_taksitli_tahsilat_id[$key] == '') continue;
+                        $taksit_toplami = TaksitVadeleri::where('taksitli_tahsilat_id',$request->adisyon_hizmet_taksitli_tahsilat_id[$key])->sum('tutar');
+                        $hizmet_tahsilat_tutar = isset($request->himzet_tahsilat_tutari_girilen)
+                            ? $request->himzet_tahsilat_tutari_girilen[$key] : $request->adisyon_hizmet_tahsilat_tutari[$key];
+                        $_tDagitim[] = ['tip'=>'hizmet','id'=>$hizmet_id,'raw'=>(float) str_replace(['.',','],['','.'],$hizmet_tahsilat_tutar),'taban'=>(float) str_replace(['.',','],['','.'],$taksit_toplami)];
                     }
                 }
-                if(isset($request->adisyon_urun_id) &&  isset($request->adisyon_urun_taksitli_tahsilat_id))
+                if(isset($request->adisyon_urun_id) && isset($request->adisyon_urun_taksitli_tahsilat_id))
                 {
                     foreach($request->adisyon_urun_id as $key2=>$urun_id)
                     {
-                        if($request->adisyon_urun_taksitli_tahsilat_id[$key2] != '')
-                        {
-                            $taksit_toplami = TaksitVadeleri::where('taksitli_tahsilat_id',$request->adisyon_urun_taksitli_tahsilat_id[$key2])->sum('tutar');
-                            $odeme = new TahsilatUrunler();
-                            $odeme->adisyon_urun_id = $urun_id;
-                            $odeme->tahsilat_id = $tahsilat->id;
-                            $urun_tahsilat_tutar = 0;
-                            if(isset($request->urun_tahsilat_tutari_girilen))
-                                $urun_tahsilat_tutar = $request->urun_tahsilat_tutari_girilen[$key2];
-                             else
-                                $urun_tahsilat_tutar = $request->adisyon_urun_tahsilat_tutari[$key2];
-                            $odeme->tutar = (str_replace(['.',','],['','.'],$urun_tahsilat_tutar)/str_replace(['.',','],['','.'],$taksit_toplami))*str_replace(['.',','],['','.'],$vade->tutar);
-                            $odeme->save();
-                        }
+                        if($request->adisyon_urun_taksitli_tahsilat_id[$key2] == '') continue;
+                        $taksit_toplami = TaksitVadeleri::where('taksitli_tahsilat_id',$request->adisyon_urun_taksitli_tahsilat_id[$key2])->sum('tutar');
+                        $urun_tahsilat_tutar = isset($request->urun_tahsilat_tutari_girilen)
+                            ? $request->urun_tahsilat_tutari_girilen[$key2] : $request->adisyon_urun_tahsilat_tutari[$key2];
+                        $_tDagitim[] = ['tip'=>'urun','id'=>$urun_id,'raw'=>(float) str_replace(['.',','],['','.'],$urun_tahsilat_tutar),'taban'=>(float) str_replace(['.',','],['','.'],$taksit_toplami)];
                     }
                 }
-                if(isset($request->adisyon_paket_id) &&  isset($request->adisyon_paket_taksitli_tahsilat_id))
+                if(isset($request->adisyon_paket_id) && isset($request->adisyon_paket_taksitli_tahsilat_id))
                 {
                     foreach($request->adisyon_paket_id as $key3=>$paket_id)
                     {
-                        if($request->adisyon_paket_taksitli_tahsilat_id[$key3] != '')
-                        {
-                            $taksit_toplami = TaksitVadeleri::where('taksitli_tahsilat_id',$request->adisyon_paket_taksitli_tahsilat_id[$key3])->sum('tutar');
-                            $odeme = new TahsilatPaketler();
-                            $odeme->adisyon_paket_id = $paket_id;
-                            $odeme->tahsilat_id = $tahsilat->id;
-                            $paket_tahsilat_tutar = 0;
-                            if(isset($request->paket_tahsilat_tutari_girilen))
-                                 $paket_tahsilat_tutar= $request->paket_tahsilat_tutari_girilen[$key3];
-                             else
-                                $paket_tahsilat_tutar =$request->adisyon_paket_tahsilat_tutari[$key3];
-                            $odeme->tutar = (str_replace(['.',','],['','.'],$paket_tahsilat_tutar)/str_replace(['.',','],['','.'],$taksit_toplami))*str_replace(['.',','],['','.'],$vade->tutar);
-                            $odeme->save();
-                        }
+                        if($request->adisyon_paket_taksitli_tahsilat_id[$key3] == '') continue;
+                        $taksit_toplami = TaksitVadeleri::where('taksitli_tahsilat_id',$request->adisyon_paket_taksitli_tahsilat_id[$key3])->sum('tutar');
+                        $paket_tahsilat_tutar = isset($request->paket_tahsilat_tutari_girilen)
+                            ? $request->paket_tahsilat_tutari_girilen[$key3] : $request->adisyon_paket_tahsilat_tutari[$key3];
+                        $_tDagitim[] = ['tip'=>'paket','id'=>$paket_id,'raw'=>(float) str_replace(['.',','],['','.'],$paket_tahsilat_tutar),'taban'=>(float) str_replace(['.',','],['','.'],$taksit_toplami)];
                     }
+                }
+                $_tPaylar = self::tahsilatPaylariReconcile($_tDagitim, (float) str_replace(['.',','],['','.'],$vade->tutar));
+                foreach($_tDagitim as $_ti=>$_tk)
+                {
+                    if($_tk['tip'] == 'hizmet'){ $odeme = new TahsilatHizmetler(); $odeme->adisyon_hizmet_id = $_tk['id']; }
+                    elseif($_tk['tip'] == 'urun'){ $odeme = new TahsilatUrunler(); $odeme->adisyon_urun_id = $_tk['id']; }
+                    else { $odeme = new TahsilatPaketler(); $odeme->adisyon_paket_id = $_tk['id']; }
+                    $odeme->tahsilat_id = $tahsilat->id;
+                    $odeme->tutar = $_tPaylar[$_ti] ?? 0;
+                    $odeme->save();
                 }
             }
             /*self::sms_gonder_bildirimli($request,array(array("to"=>$senet->musteri->cep_telefon,"message"=>date('d.m.Y',strtotime($vade->vade_tarih))." vade tarihli ".number_format($vade->tutar,2,',','.')." TL tutarlı senedinizin ödemesi ".OdemeYontemleri::where('id',$request->odeme_yontemi_id)->value('odeme_yontemi')." ödeme olarak gerçekleştirilmiştir." )),false,1,false);
@@ -26135,7 +26130,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
          $adisyon_hizmet = AdisyonHizmetler::where('id',$request->adisyonhizmetid)->first();
          $_eskifiyat = $adisyon_hizmet->fiyat;
          $tahsilEdilen = TahsilatHizmetler::where('adisyon_hizmet_id',$adisyon_hizmet->id)->sum('tutar');
-         $adisyon_hizmet->fiyat = str_replace(['.',','],['','.'],$request->tutar)+ $tahsilEdilen;
+         $adisyon_hizmet->fiyat = round((float) str_replace(['.',','],['','.'],$request->tutar) + (float)$tahsilEdilen, 2);
 
          $adisyon_hizmet->save();
          // Audit
@@ -26151,7 +26146,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
          $adisyon_urun = AdisyonUrunler::where('id',$request->adisyonurunid)->first();
          $_eskifiyat = $adisyon_urun->fiyat;
          $tahsilEdilen = TahsilatUrunler::where('adisyon_urun_id',$adisyon_urun->id)->sum('tutar');
-         $adisyon_urun->fiyat = str_replace(['.',','],['','.'],$request->tutar)+ $tahsilEdilen;
+         $adisyon_urun->fiyat = round((float) str_replace(['.',','],['','.'],$request->tutar) + (float)$tahsilEdilen, 2);
          $adisyon_urun->save();
          // Audit
          $_audit_urunAdi = optional($adisyon_urun->urun)->urun_adi ?? 'Ürün #'.$adisyon_urun->urun_id;
@@ -26193,7 +26188,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $adisyon_paket = AdisyonPaketler::where('id',$request->adisyonpaketid)->first();
         $_eskifiyat = $adisyon_paket->fiyat;
         $tahsilEdilen = TahsilatPaketler::where('adisyon_paket_id',$adisyon_paket->id)->sum('tutar');
-        $adisyon_paket->fiyat = str_replace(['.',','],['','.'],$request->tutar) + $tahsilEdilen;
+        $adisyon_paket->fiyat = round((float) str_replace(['.',','],['','.'],$request->tutar) + (float)$tahsilEdilen, 2);
         $adisyon_paket->save();
         // Audit
         $_audit_paketAdi = optional($adisyon_paket->paket)->paket_adi ?? 'Paket #'.$adisyon_paket->paket_id;
