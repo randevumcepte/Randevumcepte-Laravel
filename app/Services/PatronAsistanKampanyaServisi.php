@@ -136,6 +136,38 @@ class PatronAsistanKampanyaServisi
             return $this->teklif($tip, $salonId, $salonAdi);
         }
 
+        // 2.5) AI YARDIMI: kural cozemedi -> Haiku hedefi cikarsin (kisi adi / segment),
+        // sonra DB'den dogrula. Gonderim yok; teklif yine ONAY ister (guvenli).
+        $ai = $this->kampanyaCozAI($metin);
+        if (is_array($ai)) {
+            $ht = $ai['hedef_tur'];
+            if ($ht === 'kisi' && $ai['kisi_adi'] !== '') {
+                $kisiAI = $this->isimdenMusteri($ai['kisi_adi'], $salonId);
+                if (is_object($kisiAI)) {
+                    $this->beklemeTemizle($bekleAnahtar);
+                    return $this->kisiyeTeklif('genel', $kisiAI, $salonAdi);
+                }
+                if (is_array($kisiAI) && isset($kisiAI['coklu'])) {
+                    $this->beklemeKur($bekleAnahtar);
+                    $adlar = implode(', ', array_slice($kisiAI['adlar'], 0, 5));
+                    return [
+                        'basarili' => true, 'intent' => 'kampanya_soru', 'seslendir' => true, 'kart' => null,
+                        'cevap' => 'Birden fazla müşteri eşleşti: ' . $adlar . '. Hangisine göndereyim?',
+                    ];
+                }
+                // AI isim verdi ama portfoyde yok -> tam adini iste.
+                $this->beklemeKur($bekleAnahtar);
+                return [
+                    'basarili' => true, 'intent' => 'kampanya_soru', 'seslendir' => true, 'kart' => null,
+                    'cevap' => $ai['kisi_adi'] . ' adında bir müşteri bulamadım. Adını tam söyler misiniz?',
+                ];
+            }
+            if (in_array($ht, ['kayip', 'bossaat', 'dogumgunu', 'genel'], true)) {
+                $this->beklemeTemizle($bekleAnahtar);
+                return $this->teklif($ht, $salonId, $salonAdi);
+            }
+        }
+
         // 3) Ne kisi ne tur belli.
         if ($baglam) {
             // Ilk kez soruyoruz: "kime?" -> bekleme kur (sonraki mesaj cevap say).
@@ -277,6 +309,92 @@ class PatronAsistanKampanyaServisi
                 'onay_metni' => 'Sadece ' . $kisi->name . ' kişisine gönder',
             ],
         ];
+    }
+
+    /** Son AI kampanya cozumunun teshisi (debug). */
+    public $kampAiTeshis = null;
+
+    /**
+     * AI YARDIMI (Haiku): kural cozemeyince kampanya hedefini yapilandirir.
+     * SADECE hedefi belirler (kisi adi / segment); GONDERIM YAPMAZ, teklif yine
+     * onay ister. Key yoksa/hata olursa null -> cagiran taraf netlestirme sorar.
+     * @return array|null ['hedef_tur'=>'kisi|kayip|bossaat|dogumgunu|genel|belirsiz','kisi_adi'=>string]
+     */
+    protected function kampanyaCozAI($metin)
+    {
+        $apiKey = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
+        if (!$apiKey) { $this->kampAiTeshis = 'anahtar_yok'; return null; }
+
+        $araclar = [[
+            'name'         => 'kampanya_sec',
+            'description'  => 'Patronun kampanya/reklam/indirim gonderme isteginin hedefini belirler.',
+            'input_schema' => [
+                'type' => 'object',
+                'properties' => [
+                    'hedef_tur' => [
+                        'type' => 'string',
+                        'enum' => ['kisi', 'kayip', 'bossaat', 'dogumgunu', 'genel', 'belirsiz'],
+                        'description' => 'kisi=belirli bir musteriye, kayip=gelmeyen musteriler, bossaat=bos/sakin saatler, dogumgunu=bu ay dogum gunu olanlar, genel=tum musteriler, belirsiz=hedef anlasilamadi',
+                    ],
+                    'kisi_adi' => [
+                        'type' => 'string',
+                        'description' => 'hedef_tur kisi ise o musterinin adi (ornek: Anil Orbey), degilse bos birak',
+                    ],
+                ],
+                'required' => ['hedef_tur'],
+            ],
+        ]];
+
+        $govde = [
+            'model'       => config('services.anthropic.model') ?: 'claude-haiku-4-5',
+            'max_tokens'  => 150,
+            'tool_choice' => ['type' => 'tool', 'name' => 'kampanya_sec'],
+            'tools'       => $araclar,
+            'system'      => 'Sen bir salon isletme asistanisin. Patronun Turkce (argo/yarim cumle olabilir) '
+                . 'kampanya, reklam ya da indirim gonderme istegini oku ve kampanya_sec aracini cagirarak '
+                . 'hedefini belirt. Belirli bir kisi adi acikca geciyorsa hedef_tur kisi ve kisi_adi doldur; '
+                . 'aksi halde uygun segmenti sec. Hicbir hedef anlasilmiyorsa belirsiz de. Yorum yapma, sadece araci cagir.',
+            'messages'    => [['role' => 'user', 'content' => trim((string) $metin)]],
+        ];
+
+        try {
+            $ch = curl_init('https://api.anthropic.com/v1/messages');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST           => true,
+                CURLOPT_TIMEOUT        => 12,
+                CURLOPT_HTTPHEADER     => [
+                    'content-type: application/json',
+                    'x-api-key: ' . $apiKey,
+                    'anthropic-version: 2023-06-01',
+                ],
+                CURLOPT_POSTFIELDS     => json_encode($govde, JSON_UNESCAPED_UNICODE),
+            ]);
+            $yanit = curl_exec($ch);
+            $kod   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($yanit === false || $kod !== 200) { $this->kampAiTeshis = 'http_' . $kod; return null; }
+            $data = json_decode($yanit, true);
+            if (!is_array($data) || empty($data['content'])) { $this->kampAiTeshis = 'yanit_bos'; return null; }
+
+            foreach ($data['content'] as $blok) {
+                if (($blok['type'] ?? '') === 'tool_use' && ($blok['name'] ?? '') === 'kampanya_sec') {
+                    $in = $blok['input'] ?? [];
+                    $ht = $in['hedef_tur'] ?? 'belirsiz';
+                    if (!in_array($ht, ['kisi', 'kayip', 'bossaat', 'dogumgunu', 'genel', 'belirsiz'], true)) {
+                        $ht = 'belirsiz';
+                    }
+                    $this->kampAiTeshis = 'ok:' . $ht;
+                    return ['hedef_tur' => $ht, 'kisi_adi' => trim((string) ($in['kisi_adi'] ?? ''))];
+                }
+            }
+            $this->kampAiTeshis = 'tool_yok';
+            return null;
+        } catch (\Throwable $e) {
+            $this->kampAiTeshis = 'exception';
+            return null;
+        }
     }
 
     /**
