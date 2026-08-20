@@ -459,6 +459,62 @@ class PatronAsistanRaporServisi
             ->groupBy('ah.personel_id')->get()->keyBy('personel_id');
     }
 
+    /** URUN iki-donem karsilastirmasi: her urunun bu vs onceki ciro/adet. */
+    public function urunKarsilastir($salonId, $buT1, $buT2, $onT1, $onT2)
+    {
+        return $this->kalemBirlestir($this->urunDonem($salonId, $buT1, $buT2), $this->urunDonem($salonId, $onT1, $onT2));
+    }
+
+    protected function urunDonem($salonId, $t1, $t2)
+    {
+        return DB::table('adisyon_urunler as au')
+            ->join('adisyonlar as a', 'a.id', '=', 'au.adisyon_id')
+            ->leftJoin('urunler as u', 'u.id', '=', 'au.urun_id')
+            ->where('a.salon_id', $salonId)
+            ->whereBetween('a.created_at', [$t1 . ' 00:00:00', $t2 . ' 23:59:59'])
+            ->select(DB::raw("COALESCE(u.urun_adi,'Silinmiş Ürün') as ad"),
+                DB::raw('SUM(au.fiyat - COALESCE(au.indirim_tutari,0)) as ciro'),
+                DB::raw('SUM(COALESCE(au.adet,1)) as adet'))
+            ->groupBy('u.urun_adi')->get()->keyBy('ad');
+    }
+
+    /** HIZMET iki-donem karsilastirmasi: her hizmetin bu vs onceki ciro/adet. */
+    public function hizmetKarsilastir($salonId, $buT1, $buT2, $onT1, $onT2)
+    {
+        return $this->kalemBirlestir($this->hizmetDonem($salonId, $buT1, $buT2), $this->hizmetDonem($salonId, $onT1, $onT2));
+    }
+
+    protected function hizmetDonem($salonId, $t1, $t2)
+    {
+        return DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->join('hizmetler as h', 'h.id', '=', 'ah.hizmet_id')
+            ->where('a.salon_id', $salonId)
+            ->whereBetween('a.created_at', [$t1 . ' 00:00:00', $t2 . ' 23:59:59'])
+            ->select('h.hizmet_adi as ad',
+                DB::raw('SUM(ah.fiyat - COALESCE(ah.indirim_tutari,0)) as ciro'),
+                DB::raw('COUNT(*) as adet'))
+            ->groupBy('h.hizmet_adi')->get()->keyBy('ad');
+    }
+
+    /** Iki donem kalem koleksiyonunu birlestir: [ad,bu_ciro,on_ciro,bu_adet,on_adet], sirali, ilk 15. */
+    protected function kalemBirlestir($bu, $on)
+    {
+        $adlar = collect($bu->keys())->merge($on->keys())->unique();
+        $out = [];
+        foreach ($adlar as $ad) {
+            $b = $bu[$ad] ?? null; $o = $on[$ad] ?? null;
+            $bc = $b ? (float) $b->ciro : 0; $oc = $o ? (float) $o->ciro : 0;
+            if ($bc <= 0 && $oc <= 0) continue;
+            $out[] = [
+                'ad' => $ad, 'bu_ciro' => $bc, 'on_ciro' => $oc,
+                'bu_adet' => $b ? (int) $b->adet : 0, 'on_adet' => $o ? (int) $o->adet : 0,
+            ];
+        }
+        usort($out, function ($a, $b) { return $b['bu_ciro'] <=> $a['bu_ciro']; });
+        return array_slice($out, 0, 15);
+    }
+
     // ---- yardimcilar ----
 
     /** Tahsilat satirlarini nakit/kart/havale/diger/toplam kirilimina cevir (dashboardKasa mantigi). */

@@ -2478,15 +2478,34 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // KARSILASTIRMA: "gecen ayla bu ayi karsilastir" -> veriye dayali kiyas (AI YOK).
         // Cok sayida kalip; degerlendirme/niyet'ten ONCE bakilir.
         if ($asistan->karsilastirmaTetik($metin)) {
-            $kd  = $asistan->karsilastirmaDonem($metin);
-            // "personelleri kiyasla" -> her personelin BU vs ONCEKI donem cirosu (kasa gibi).
+            $kd = $asistan->karsilastirmaDonem($metin);
+            // "personelleri kiyasla" -> her personelin BU vs ONCEKI donem cirosu.
             if ($asistan->personelSozuVarMi($metin)) {
                 $pk = $veriSrv->personelKarsilastir($salonId, $kd['buT1'], $kd['buT2'], $kd['onT1'], $kd['onT2']);
                 return $cevapla($asistan->cevapPersonelKarsilastirma($pk, $kd['buAd'], $kd['onAd']));
             }
+            $odak = $asistan->karsilastirmaOdak($metin);
+            // "urunleri kiyasla" -> URUN URUN detay.
+            if ($odak === 'urun') {
+                $uk = $veriSrv->urunKarsilastir($salonId, $kd['buT1'], $kd['buT2'], $kd['onT1'], $kd['onT2']);
+                return $cevapla($asistan->cevapKalemKarsilastirma($uk, 'Ürün', $kd['buAd'], $kd['onAd'],
+                    'Bu iki dönemde karşılaştırılacak ürün satışı bulunamadı.'));
+            }
+            // "hizmetleri kiyasla" -> HIZMET HIZMET detay.
+            if ($odak === 'hizmet') {
+                $hk = $veriSrv->hizmetKarsilastir($salonId, $kd['buT1'], $kd['buT2'], $kd['onT1'], $kd['onT2']);
+                return $cevapla($asistan->cevapKalemKarsilastirma($hk, 'Hizmet', $kd['buAd'], $kd['onAd'],
+                    'Bu iki dönemde karşılaştırılacak hizmet bulunamadı.'));
+            }
+            // "randevulari kiyasla" -> Randevu / Iptal / Gelmeyen odakli.
+            if ($odak === 'randevu') {
+                $buR = $veriSrv->karsilastirmaVeri($salonId, $kd['buT1'], $kd['buT2']);
+                $onR = $veriSrv->karsilastirmaVeri($salonId, $kd['onT1'], $kd['onT2']);
+                return $cevapla($asistan->cevapRandevuKarsilastirma($buR, $onR, $kd['buAd'], $kd['onAd']));
+            }
+            // ciro / musteri / belirtilmemis -> genel ozet tablosu.
             $buV = $veriSrv->karsilastirmaVeri($salonId, $kd['buT1'], $kd['buT2']);
             $onV = $veriSrv->karsilastirmaVeri($salonId, $kd['onT1'], $kd['onT2']);
-            $odak = $asistan->karsilastirmaOdak($metin);
             return $cevapla($asistan->cevapKarsilastirma($buV, $onV, $kd['buAd'], $kd['onAd'], $odak));
         }
 

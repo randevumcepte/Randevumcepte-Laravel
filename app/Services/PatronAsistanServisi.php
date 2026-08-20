@@ -1589,6 +1589,82 @@ class PatronAsistanServisi
         ];
     }
 
+    /** Genel KALEM (urun/hizmet) iki-donem karsilastirma cevabi: her kalem bu vs onceki + %. */
+    public function cevapKalemKarsilastirma(array $liste, $baslikOn, $buAd, $onAd, $bosMesaj)
+    {
+        if (empty($liste)) {
+            return [
+                'basarili' => true, 'intent' => 'karsilastirma', 'seslendir' => true, 'kart' => null,
+                'cevap' => $bosMesaj,
+            ];
+        }
+        $satirlar = [];
+        $enArtan = null; $enDusen = null;
+        foreach ($liste as $p) {
+            $b = (float) $p['bu_ciro']; $o = (float) $p['on_ciro'];
+            $fark  = $b - $o;
+            $yuzde = $o > 0 ? (int) round(($fark / $o) * 100) : ($b > 0 ? 100 : 0);
+            $yon   = ($fark > 0) ? 'up' : (($fark < 0) ? 'down' : 'flat');
+            $satirlar[] = [
+                'etiket' => $p['ad'], 'bu' => $this->tl($b), 'onceki' => $this->tl($o),
+                'yuzde' => abs($yuzde), 'yon' => $yon, 'iyi' => ($fark >= 0),
+            ];
+            if ($enArtan === null || $fark > $enArtan['d']) $enArtan = ['ad' => $p['ad'], 'd' => $fark];
+            if ($enDusen === null || $fark < $enDusen['d']) $enDusen = ['ad' => $p['ad'], 'd' => $fark];
+        }
+        $ozet = $baslikOn . ' karşılaştırması, ' . $buAd . ' ile ' . $onAd . '. ';
+        if ($enArtan && $enArtan['d'] > 0) $ozet .= 'En çok artan ' . $enArtan['ad'] . '. ';
+        if ($enDusen && $enDusen['d'] < 0) $ozet .= 'En çok düşen ' . $enDusen['ad'] . '. ';
+        $ozet .= 'Kalem kalem detay listede.';
+
+        return [
+            'basarili' => true, 'intent' => 'karsilastirma', 'seslendir' => true,
+            'cevap'    => $ozet,
+            'kart'     => [
+                'tip' => 'karsilastirma', 'baslik' => $baslikOn . ' · ' . ucfirst($buAd) . ' — ' . ucfirst($onAd),
+                'bu_ad' => $buAd, 'onceki_ad' => $onAd, 'satirlar' => $satirlar,
+            ],
+        ];
+    }
+
+    /** RANDEVU odakli iki-donem karsilastirma: Randevu / Iptal / Gelmeyen bu vs onceki. */
+    public function cevapRandevuKarsilastirma(array $bu, array $on, $buAd, $onAd)
+    {
+        $metrik = [
+            ['etiket' => 'Randevu',  'bu' => (int) $bu['randevu'], 'on' => (int) $on['randevu'], 'artiIyi' => true],
+            ['etiket' => 'İptal',    'bu' => (int) $bu['iptal'],   'on' => (int) $on['iptal'],   'artiIyi' => false],
+            ['etiket' => 'Gelmeyen', 'bu' => (int) $bu['gelmedi'], 'on' => (int) $on['gelmedi'], 'artiIyi' => false],
+        ];
+        $satirlar = [];
+        foreach ($metrik as $m) {
+            $b = (float) $m['bu']; $o = (float) $m['on'];
+            $fark  = $b - $o;
+            $yuzde = $o > 0 ? (int) round(($fark / $o) * 100) : ($b > 0 ? 100 : 0);
+            $yon   = ($fark > 0) ? 'up' : (($fark < 0) ? 'down' : 'flat');
+            $iyi   = ($fark == 0) ? true : ((($fark > 0) && $m['artiIyi']) || (($fark < 0) && !$m['artiIyi']));
+            $satirlar[] = [
+                'etiket' => $m['etiket'], 'bu' => (string) (int) $b, 'onceki' => (string) (int) $o,
+                'yuzde' => abs($yuzde), 'yon' => $yon, 'iyi' => $iyi,
+            ];
+        }
+        $rFark = (int) $bu['randevu'] - (int) $on['randevu'];
+        $rY = (int) $on['randevu'] > 0 ? (int) round(($rFark / (int) $on['randevu']) * 100) : 0;
+        $ozet = ucfirst($buAd) . ', ' . $onAd . 'a göre randevu '
+              . ($rFark >= 0 ? 'yüzde ' . abs($rY) . ' artmış' : 'yüzde ' . abs($rY) . ' azalmış')
+              . '; ' . (int) $on['randevu'] . 'ten ' . (int) $bu['randevu'] . 'e. '
+              . 'İptal ' . (int) $on['iptal'] . 'ten ' . (int) $bu['iptal'] . 'e, gelmeyen '
+              . (int) $on['gelmedi'] . 'ten ' . (int) $bu['gelmedi'] . 'e. Detaylar listede.';
+
+        return [
+            'basarili' => true, 'intent' => 'karsilastirma', 'seslendir' => true,
+            'cevap'    => $ozet,
+            'kart'     => [
+                'tip' => 'karsilastirma', 'baslik' => 'Randevu · ' . ucfirst($buAd) . ' — ' . ucfirst($onAd),
+                'bu_ad' => $buAd, 'onceki_ad' => $onAd, 'satirlar' => $satirlar,
+            ],
+        ];
+    }
+
     /**
      * Net KAPANIS/TESEKKUR/VEDA mesaji mi? ("tesekkurler kapat", "tamam yeter",
      * "sag ol gorusuruz"...). Boyleyse AI'ya GITMEDEN sohbete dusurulur; yoksa
