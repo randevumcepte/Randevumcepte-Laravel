@@ -112,7 +112,7 @@ class PatronAsistanServisi
             // Kasa/personel raporlari "dun"u ayri tutmuyor; en yakin bugun'e duser.
             return ['anahtar' => 'gun', 'ad' => 'bugün'];
         }
-        return ['anahtar' => 'gun', 'ad' => 'bugun'];
+        return ['anahtar' => 'gun', 'ad' => 'bugün'];
     }
 
     /**
@@ -678,7 +678,8 @@ class PatronAsistanServisi
     /** Turkce para bicimi: 12.500 ₺ */
     protected function tl($tutar)
     {
-        return number_format((float) $tutar, 0, ',', '.') . ' ₺';
+        // Sonuna "TL" (₺ sembolunu TTS okuyamiyordu). Binlik ayraci nokta kalir.
+        return number_format((float) $tutar, 0, ',', '.') . ' TL';
     }
 
     /** Turkce metni kucuk harfe + ASCII-benzeri hale getirir (aksan/karakter toleransi). */
