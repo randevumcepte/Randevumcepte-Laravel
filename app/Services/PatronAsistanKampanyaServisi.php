@@ -124,10 +124,29 @@ class PatronAsistanKampanyaServisi
             ];
         }
 
-        $ornek = $this->mesajUret($t['sablon'], $salonAdi, $t['oran'], 'ORNEK123');
-        $cevap = $t['ad'] . ' hazır. Toplam ' . $sayi . ' müşteriye yüzde ' . $t['oran']
-               . ' indirim göndereceğim. Örnek mesaj: ' . $ornek
-               . ' Tahmini ' . $sayi . ' kontör harcanır. Onaylıyor musunuz?';
+        // GERCEK erisim: kampanya UCRETSIZ bildirim reklami olarak gider; alici sayisi
+        // uygulamasi olan (aktif push token'i olan) musterilerdir. SMS/kontor YOK.
+        $reklam = $this->reklamNesnesi($tip, $salonId);
+        $pushSayi = count(\App\Jobs\BildirimReklamGonderJob::alicilar($reklam));
+
+        if ($pushSayi === 0) {
+            return [
+                'basarili'  => true, 'intent' => 'kampanya_teklif', 'seslendir' => true,
+                'cevap'     => $t['ad'] . ' için uygun müşteri var ancak şu an uygulamayı kullanan '
+                             . '(anlık bildirim alabilen) kimse yok. İsterseniz kampanyayı yine de '
+                             . 'oluşturayım, uygulama içinde görünsün.',
+                'kart'      => null,
+                'aksiyon'   => [
+                    'tur' => 'kampanya', 'tip' => $tip, 'oran' => $t['oran'],
+                    'baslik' => $t['ad'], 'hedef_sayi' => 0,
+                    'onay_metni' => 'Kampanyayı yine de oluştur',
+                ],
+            ];
+        }
+
+        $cevap = $t['ad'] . ' hazır. Uygulamayı kullanan ' . $pushSayi . ' müşterinize yüzde '
+               . $t['oran'] . ' indirimi ücretsiz bildirim olarak göndereceğim. Bildirime dokunan '
+               . 'müşteriye kupon anında tanımlanır. Kontör harcanmaz. Onaylıyor musunuz?';
 
         return [
             'basarili'  => true,
@@ -141,8 +160,8 @@ class PatronAsistanKampanyaServisi
                 'tip'       => $tip,
                 'oran'      => $t['oran'],
                 'baslik'    => $t['ad'],
-                'hedef_sayi'=> $sayi,
-                'onay_metni'=> $sayi . ' müşteriye %' . $t['oran'] . ' indirim gönder',
+                'hedef_sayi'=> $pushSayi,
+                'onay_metni'=> $pushSayi . ' müşteriye %' . $t['oran'] . ' indirim bildirimi gönder',
             ],
         ];
     }
@@ -193,6 +212,132 @@ class PatronAsistanKampanyaServisi
             'mesajlar' => $mesajlar,
             'baslik'   => $t['ad'],
             'oran'     => $oran,
+        ];
+    }
+
+    // ─────────────── UCRETSIZ BILDIRIM REKLAMI yolu ───────────────
+
+    /**
+     * Kampanya turu -> BildirimReklamlari tur + segment eslemesi.
+     * (Job::hedefKullanicilar bu 'hedef_kosul' JSON'ini bekler.)
+     */
+    protected function reklamAyar($tip)
+    {
+        switch ($tip) {
+            case 'kayip':
+                return ['tur' => 'geri_kazanim', 'hedef_kitle' => 'segment',
+                        'hedef_kosul' => json_encode(['tip' => 'gelmeyen', 'gun' => 30])];
+            case 'dogumgunu':
+                return ['tur' => 'ozel_gun', 'hedef_kitle' => 'segment',
+                        'hedef_kosul' => json_encode(['tip' => 'dogum_gunu'])];
+            case 'bossaat':
+                return ['tur' => 'bos_slot', 'hedef_kitle' => 'tumu', 'hedef_kosul' => null];
+            case 'genel':
+            default:
+                return ['tur' => 'kampanya', 'hedef_kitle' => 'tumu', 'hedef_kosul' => null];
+        }
+    }
+
+    /**
+     * Kaydedilmemis bir BildirimReklamlari nesnesi (yalniz segment/reach hesabi icin).
+     * Job::alicilar() bu nesneyi okur; DB'ye YAZILMAZ.
+     */
+    protected function reklamNesnesi($tip, $salonId)
+    {
+        $ayar = $this->reklamAyar($tip);
+        return new \App\BildirimReklamlari([
+            'salon_id'    => $salonId,
+            'hedef_kitle' => $ayar['hedef_kitle'],
+            'hedef_kosul' => $ayar['hedef_kosul'],
+            'kanal_push'  => 1,
+        ]);
+    }
+
+    /** Push gövdesi (kupon kodu YOK; müşteri dokununca kupon-kap ile tanımlanır). */
+    protected function pushMesaj($tip, $salonAdi, $oran)
+    {
+        $salon = $salonAdi ?: 'Salonumuz';
+        switch ($tip) {
+            case 'kayip':
+                return 'Sizi özledik! Size özel yüzde ' . $oran . ' indirim hazırladık. '
+                     . 'Dokunun, kupon anında hesabınıza tanımlansın.';
+            case 'bossaat':
+                return 'Sakin saatlerimize özel yüzde ' . $oran . ' indirim! '
+                     . 'Dokunun, kuponunuzu hemen alın.';
+            case 'dogumgunu':
+                return 'İyi ki doğdunuz! Doğum gününüze özel yüzde ' . $oran . ' indirim hediyemiz. '
+                     . 'Dokunun, kuponunuz tanımlansın.';
+            case 'genel':
+            default:
+                return $salon . '\'dan size özel yüzde ' . $oran . ' indirim! '
+                     . 'Dokunun, kuponunuzu alın.';
+        }
+    }
+
+    /**
+     * UYGULA (BILDIRIM REKLAMI - UCRETSIZ): kampanyayi bir BildirimReklamlari kaydina
+     * cevirir (kupon reklam altyapisinda tanimlanir -> musteri dokununca kupon-kap),
+     * ve push job'ini tetikler. SMS/kontor HARCANMAZ.
+     *
+     * @return array ['sayi', 'baslik', 'oran', 'reklam_id'] veya ['hata'=>...]
+     */
+    public function uygulaReklam($tip, $salonId, $salonAdi, $oran = 0)
+    {
+        $turler = $this->turler();
+        if (!isset($turler[$tip])) {
+            return ['sayi' => 0, 'baslik' => '', 'hata' => 'Bilinmeyen tür'];
+        }
+        $t = $turler[$tip];
+        $oran = ($oran >= 5 && $oran <= 70) ? (int) $oran : $t['oran'];
+        $ayar = $this->reklamAyar($tip);
+
+        try {
+            $reklam = \App\BildirimReklamlari::create([
+                'salon_id'             => $salonId,
+                'baslik'               => $t['baslik'] . ' %' . $oran,
+                'mesaj'                => $this->pushMesaj($tip, $salonAdi, $oran),
+                'tur'                  => $ayar['tur'],
+                'kanal_push'           => 1,
+                'kanal_inapp'          => 1,
+                'tam_ekran'            => 0,
+                'aksiyon_tipi'         => 'kupon',
+                'kupon_indirim_tipi'   => 'yuzde',
+                'kupon_deger'          => $oran,
+                'kupon_baslik'         => '%' . $oran . ' İndirim',
+                'kupon_gecerlilik_gun' => 15,
+                'kupon_kisi_limit'     => 1,
+                'kupon_dagitilan'      => 0,
+                'hedef_kitle'          => $ayar['hedef_kitle'],
+                'hedef_kosul'          => $ayar['hedef_kosul'],
+                'durum'                => 'aktif',
+                'yayin_baslangic'      => date('Y-m-d H:i:s'),
+                'yayin_bitis'          => date('Y-m-d H:i:s', strtotime('+15 days')),
+                'push_gonderildi'      => 0,
+            ]);
+        } catch (\Throwable $e) {
+            return ['sayi' => 0, 'baslik' => $t['ad'], 'hata' => 'Reklam oluşturulamadı'];
+        }
+
+        // Gercek push alici sayisi (aktif FCM token'i olanlar).
+        $sayi = count(\App\Jobs\BildirimReklamGonderJob::alicilar($reklam));
+
+        // Gonderim: cok aliciysa kuyruk, azsa senkron (mevcut reklam modulu mantigi).
+        try {
+            if ($sayi > 100) {
+                \App\Jobs\BildirimReklamGonderJob::dispatch($reklam->id);
+            } elseif ($sayi > 0) {
+                (new \App\Jobs\BildirimReklamGonderJob($reklam->id))->handle();
+            }
+            $reklam->update(['push_gonderildi' => 1]);
+        } catch (\Throwable $e) {
+            // Push tetiklenemese bile reklam 'aktif' -> uygulama icinde gorunur.
+        }
+
+        return [
+            'sayi'      => $sayi,
+            'baslik'    => $t['ad'],
+            'oran'      => $oran,
+            'reklam_id' => $reklam->id,
         ];
     }
 

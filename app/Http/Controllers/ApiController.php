@@ -2602,28 +2602,31 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi');
 
         $kampSrv = new \App\Services\PatronAsistanKampanyaServisi();
-        $sonuc = $kampSrv->uygula($tip, $salonId, $salonAdi, $oran);
+        // UCRETSIZ BILDIRIM REKLAMI olarak gonder (SMS/kontor degil): mevcut reklam
+        // altyapisiyla push + in-app, musteri dokununca kupon aninda tanimlanir.
+        $sonuc = $kampSrv->uygulaReklam($tip, $salonId, $salonAdi, $oran);
 
-        if (empty($sonuc['mesajlar'])) {
+        if (!empty($sonuc['hata'])) {
             return response()->json([
-                'basarili' => true, 'seslendir' => true, 'kart' => null,
-                'cevap' => 'Gönderilecek uygun müşteri bulunamadı.',
+                'basarili' => false, 'seslendir' => true, 'kart' => null,
+                'cevap' => 'Kampanya oluşturulurken bir sorun oluştu, gönderim yapılmadı.',
             ], 200, [], JSON_UNESCAPED_UNICODE);
         }
 
-        try {
-            $this->sms_gonder($salonId, $sonuc['mesajlar']); // mevcut SMS altyapisi
-        } catch (\Throwable $e) {
+        if ((int) $sonuc['sayi'] === 0) {
             return response()->json([
-                'basarili' => false, 'seslendir' => true, 'kart' => null,
-                'cevap' => 'Kuponlar oluşturuldu ancak mesaj gönderiminde bir sorun oluştu.',
+                'basarili' => true, 'intent' => 'kampanya_sonuc', 'seslendir' => true, 'kart' => null,
+                'cevap' => $sonuc['baslik'] . ' oluşturuldu. Şu an anlık bildirim alabilecek '
+                         . '(uygulamayı kullanan) müşteri bulunamadı ama kampanya uygulama içinde '
+                         . 'aktif; müşterileriniz uygulamayı açınca görecek.',
             ], 200, [], JSON_UNESCAPED_UNICODE);
         }
 
         return response()->json([
             'basarili'  => true, 'intent' => 'kampanya_sonuc', 'seslendir' => true, 'kart' => null,
-            'cevap'     => $sonuc['baslik'] . ' tamamlandı. ' . $sonuc['sayi']
-                         . ' müşteriye yüzde ' . $sonuc['oran'] . ' indirim kuponu ve mesajı gönderildi.',
+            'cevap'     => $sonuc['baslik'] . ' tamamlandı. Uygulamayı kullanan ' . $sonuc['sayi']
+                         . ' müşterinize yüzde ' . $sonuc['oran'] . ' indirim bildirimi ücretsiz '
+                         . 'gönderildi. Bildirime dokunan müşteriye kupon anında tanımlanacak.',
         ], 200, [], JSON_UNESCAPED_UNICODE);
     }
 
