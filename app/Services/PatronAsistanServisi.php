@@ -166,21 +166,14 @@ class PatronAsistanServisi
             $cevap .= ".";
         }
 
+        // Kart KALDIRILDI: rakamlar zaten cevap metninde (okunuyor) — kart ayni veriyi
+        // tekrarlayip "iki kere" gostermesin diye tek kaynak: metin.
         return [
             'basarili' => true,
             'intent'   => 'kasa',
             'cevap'    => $cevap,
             'seslendir'=> true,
-            'kart'     => [
-                'tip'     => 'kasa',
-                'baslik'  => 'Kasa · ' . ucfirst($donemAdi),
-                'toplam'  => $toplam,
-                'satirlar'=> [
-                    ['etiket' => 'Nakit',  'tutar' => $nakit],
-                    ['etiket' => 'Kart',   'tutar' => $kart],
-                    ['etiket' => 'Havale', 'tutar' => $havale],
-                ],
-            ],
+            'kart'     => null,
             'niyet'    => $niyet,
         ];
     }
