@@ -657,6 +657,72 @@ class PatronAsistanServisi
     }
 
     /**
+     * GENEL SOHBET (selam/hal hatir/tesekkur/kimsin/veda...). Eslesirse sicak bir
+     * cevap dondurur, degilse null. Rapor niyeti BULUNAMAYINCA cagirilir; boylece
+     * "merhaba bugun kasa" gibi cumlelerde once RAPOR cevabi verilir, salt "merhaba"da sohbet.
+     * Bedava (kural motoru); cevaplar rastgele -> ezbere durmaz.
+     */
+    public function sohbetCevabi($metin)
+    {
+        $norm = ' ' . $this->normalize($metin) . ' ';
+        $gruplar = [
+            [ // selamlama
+                'kelimeler' => ['merhaba','selam','gunaydin','iyi gunler','iyi aksamlar','iyi sabahlar','selamun aleykum','hey','alo'],
+                'cevaplar'  => [
+                    'Merhaba, size nasıl yardımcı olabilirim?',
+                    'Merhaba, hoş geldiniz. İşletmeniz hakkında ne öğrenmek istersiniz?',
+                    'Selam, bugün size nasıl yardımcı olayım?',
+                ],
+            ],
+            [ // hal hatir
+                'kelimeler' => ['nasilsin','naber','ne haber','iyi misin','nasilsiniz'],
+                'cevaplar'  => [
+                    'İyiyim, teşekkür ederim. Siz nasılsınız, işletmeniz hakkında merak ettiğiniz bir şey var mı?',
+                    'Gayet iyiyim, sağ olun. Size nasıl yardımcı olabilirim?',
+                ],
+            ],
+            [ // tesekkur
+                'kelimeler' => ['tesekkur','tesekkurler','sagol','sag ol','saol','eyvallah'],
+                'cevaplar'  => [
+                    'Rica ederim, başka bir konuda yardımcı olabilir miyim?',
+                    'Ne demek, her zaman buradayım.',
+                    'Rica ederim efendim.',
+                ],
+            ],
+            [ // kimsin / ne yaparsin
+                'kelimeler' => ['kimsin','sen kimsin','adin ne','sen nesin','ne yapabilirsin','neler yapabilirsin','ne is yaparsin','ne ise yararsin','ne yaparsin'],
+                'cevaplar'  => [
+                    'Ben salonunuzun asistanıyım. Kasa, ciro, en çok satılan hizmet, personel performansı ve randevular gibi konularda size anında bilgi verebilirim.',
+                ],
+            ],
+            [ // veda
+                'kelimeler' => ['gorusuruz','hosca kal','hoscakal','bay bay','baybay','gorusmek uzere'],
+                'cevaplar'  => [
+                    'Görüşmek üzere, iyi çalışmalar dilerim.',
+                    'Hoşça kalın, bereketli işler.',
+                ],
+            ],
+            [ // takdir
+                'kelimeler' => ['harikasin','bravo','aferin','cok iyisin','supersin','mukemmelsin'],
+                'cevaplar'  => [
+                    'Teşekkür ederim, elimden geleni yapıyorum. Başka nasıl yardımcı olabilirim?',
+                ],
+            ],
+        ];
+        foreach ($gruplar as $g) {
+            foreach ($g['kelimeler'] as $k) {
+                if (strpos($norm, ' ' . $this->normalize($k) . ' ') !== false) {
+                    return [
+                        'basarili' => true, 'intent' => 'sohbet', 'seslendir' => true,
+                        'cevap' => $g['cevaplar'][array_rand($g['cevaplar'])], 'kart' => null,
+                    ];
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Terbiyesiz / kufur / hakaret iceriyor mu? Kelime siniriyla aranir (yanlis
      * pozitif azaltmak icin; is terimleriyle cakisan kelimeler listede YOK).
      */

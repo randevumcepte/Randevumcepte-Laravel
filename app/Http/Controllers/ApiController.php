@@ -2456,6 +2456,16 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         }
 
+        // Rapor niyeti bulunamadiysa: once GENEL SOHBET (selam/tesekkur/kimsin/veda...).
+        // "merhaba bugun kasa" gibi cumlelerde rapor zaten yukarida cozuldugu icin
+        // buraya sadece salt sohbet ifadeleri duser.
+        if (($niyet['intent'] ?? 'bilinmiyor') === 'bilinmiyor') {
+            $sohbet = $asistan->sohbetCevabi($metin);
+            if ($sohbet) {
+                return response()->json($sohbet, 200, [], JSON_UNESCAPED_UNICODE);
+            }
+        }
+
         // GELISIM DONGUSU: hala anlasilmadiysa soruyu kaydet. Gercek patron
         // sorularini periyodik gozden gecirip yeni kalip ekleyecegiz (bedava).
         // Log basarisiz olsa bile ana akis bozulmasin.
