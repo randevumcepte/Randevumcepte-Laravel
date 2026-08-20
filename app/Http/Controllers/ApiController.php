@@ -2479,7 +2479,36 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             case 'musteri':
                 $sonuc = $asistan->cevapMusteri($veriSrv->musteri($salonId, $t1, $t2), $niyet); break;
             case 'ozet':
-                $sonuc = $asistan->cevapOzet($veriSrv->ozet($salonId, $t1, $t2), $niyet); break;
+                // ZENGIN gun ozeti: kasa + en cok satilan hizmet + (varsa) urun + en cok islem personel.
+                $kasaV   = $veriSrv->kasa($salonId, $t1, $t2);
+                $hizmetV = $veriSrv->hizmet($salonId, $t1, $t2)['hizmetler'] ?? [];
+                $urunV   = $veriSrv->urun($salonId, $t1, $t2)['urunler'] ?? [];
+                $persV   = $veriSrv->personel($salonId, $t1, $t2)['personeller'] ?? [];
+                // en cok SATILAN hizmet (adet)
+                $enHizmet = null; $mxH = 0;
+                foreach ($hizmetV as $h) {
+                    $a = (int) ($h['adet'] ?? 0);
+                    if ($a > $mxH) { $mxH = $a; $enHizmet = ['ad' => $h['hizmet_adi'] ?? '', 'adet' => $a, 'ciro' => (float) ($h['ciro'] ?? 0)]; }
+                }
+                // en cok satan urun (SADECE ciro>0 varsa; yoksa null -> soylenmez)
+                $enUrun = null; $mxU = 0;
+                foreach ($urunV as $u) {
+                    $c = (float) ($u['ciro'] ?? 0);
+                    if ($c > $mxU) { $mxU = $c; $enUrun = ['ad' => $u['urun_adi'] ?? '', 'ciro' => $c]; }
+                }
+                // en cok ISLEM yapan personel (hizmet_say)
+                $enPers = null; $mxP = 0;
+                foreach ($persV as $p) {
+                    $i = (int) ($p['hizmet_say'] ?? 0);
+                    if ($i > $mxP) { $mxP = $i; $enPers = ['ad' => $p['personel_adi'] ?? '', 'islem' => $i]; }
+                }
+                $sonuc = $asistan->cevapGunOzeti([
+                    'kasa'       => $kasaV,
+                    'enHizmet'   => $enHizmet,
+                    'enUrun'     => $enUrun,
+                    'enPersonel' => $enPers,
+                ], $niyet);
+                break;
             case 'bugun':
                 // "bugün" -> bugunku liste; "bu hafta"/"bu ay" -> o donemin randevu SAYISI.
                 if ($niyet['donem'] === 'gun') {

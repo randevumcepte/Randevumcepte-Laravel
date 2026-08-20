@@ -24,7 +24,7 @@ class PatronAsistanServisi
         'kasa' => [
             'kasa', 'ciro', 'hasilat', 'kazanc', 'kazandik', 'kazandim', 'kazanmis',
             'ne kadar kazan', 'kac para', 'para girdi', 'ne kadar para', 'ne kadar oldu',
-            'tahsilat', 'nakit', 'gelir',
+            'tahsilat', 'nakit', 'gelir', 'topladik', 'kac lira', 'lira topla',
         ],
         'personel' => [
             'personel', 'eleman', 'calisan', 'kim satti', 'en cok kim', 'en iyi personel',
@@ -44,7 +44,8 @@ class PatronAsistanServisi
         ],
         'ozet' => [
             'ozet', 'genel durum', 'gun sonu', 'nasil gidiyor', 'nasil gecti',
-            'isler nasil', 'toplam durum', 'bugun nasil',
+            'isler nasil', 'toplam durum', 'bugun nasil', 'yolunda', 'bereket',
+            'ne alemde', 'gunumuz nasil', 'nasil bir gun',
         ],
         'bugun' => [
             'randevu', 'takvim', 'gundem', 'kimler var', 'kimler gelecek', 'kim gelecek',
@@ -394,6 +395,76 @@ class PatronAsistanServisi
             ],
             'niyet' => $niyet,
         ];
+    }
+
+    /**
+     * ZENGIN GUN OZETI: kasa + en cok satilan hizmet + (varsa) urun + en cok islem
+     * yapan personel + samimi yorum. Hepsi tek cevapta. $veri controller'da toplanir:
+     *   ['kasa'=>[toplam,nakit,kart], 'enHizmet'=>[ad,adet,ciro]|null,
+     *    'enUrun'=>[ad,ciro]|null, 'enPersonel'=>[ad,islem]|null]
+     */
+    public function cevapGunOzeti(array $veri, array $niyet)
+    {
+        $donemAdi = $niyet['donemAdi'];
+        $kasa = $veri['kasa'] ?? [];
+        $toplam = (float) ($kasa['toplam'] ?? 0);
+
+        $parcalar = [];
+        if ($toplam > 0) {
+            $parcalar[] = ucfirst($donemAdi) . " kasada " . $this->tl($toplam) . " var"
+                        . " (nakit " . $this->tl($kasa['nakit'] ?? 0) . ", kart " . $this->tl($kasa['kart'] ?? 0) . ")";
+        } else {
+            $parcalar[] = ucfirst($donemAdi) . " kasada henüz hareket yok";
+        }
+        if (!empty($veri['enHizmet']['ad'])) {
+            $parcalar[] = "en çok satılan hizmet " . $veri['enHizmet']['ad']
+                        . " (" . (int) $veri['enHizmet']['adet'] . " kez)";
+        }
+        // Urun SADECE varsa soylenir (yoksa hic bahsedilmez).
+        if (!empty($veri['enUrun']['ad'])) {
+            $parcalar[] = "en çok satan ürün " . $veri['enUrun']['ad']
+                        . " (" . $this->tl($veri['enUrun']['ciro']) . ")";
+        }
+        if (!empty($veri['enPersonel']['ad'])) {
+            $parcalar[] = "en çok işlem yapan " . $veri['enPersonel']['ad']
+                        . " (" . (int) $veri['enPersonel']['islem'] . " işlem)";
+        }
+
+        $cevap = implode(", ", $parcalar) . ". " . $this->gunYorum($toplam, $veri);
+
+        return [
+            'basarili' => true, 'intent' => 'ozet', 'cevap' => $cevap, 'seslendir' => true,
+            'kart' => [
+                'tip'        => 'gun_ozeti',
+                'baslik'     => 'Günün Özeti · ' . ucfirst($donemAdi),
+                'kasa'       => $toplam,
+                'nakit'      => (float) ($kasa['nakit'] ?? 0),
+                'kart'       => (float) ($kasa['kart'] ?? 0),
+                'enHizmet'   => $veri['enHizmet'] ?? null,
+                'enUrun'     => $veri['enUrun'] ?? null,
+                'enPersonel' => $veri['enPersonel'] ?? null,
+            ],
+            'niyet' => $niyet,
+        ];
+    }
+
+    /** Samimi, degisken yorum (rakama gore). AI'a gerek yok — bedava ve her zaman calisir. */
+    protected function gunYorum($toplam, array $veri)
+    {
+        if ($toplam <= 0) {
+            return "Gün daha yeni, bol bereketli olsun! 🍀";
+        }
+        $secenekler = [
+            "Gün güzel gidiyor, eline sağlık! 👏",
+            "Bugün bereketli görünüyor, aynen devam! 💪",
+            "İşler yolunda, tebrikler! 🎉",
+            "Güzel bir gün, böyle devam! ✨",
+        ];
+        $yorum = $secenekler[((int) $toplam) % count($secenekler)];
+        if (!empty($veri['enPersonel']['ad'])) {
+            $yorum .= " " . $veri['enPersonel']['ad'] . " bugün elini taşın altına koymuş.";
+        }
+        return $yorum;
     }
 
     /** Kisa/veri-yok cevaplari icin ortak sarmalayici. */
