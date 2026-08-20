@@ -1176,15 +1176,32 @@
                 }
             }
         }
-        // KESISIM (INTERSECTION) mantigi: her aktif kisit ayri liste doner,
-        // sadece hepsinde ORTAK olan hizmet_id'ler kalir. Kullanici bildirimi:
-        // 'oda lazer, personel bu odada calisiyor -> sadece hem personelin yaptigi
-        // hem odadaki hizmetler gorunsun'. Eski union (concat) yaklasimi personel
-        // + oda birlestiriyordu, tum hizmetleri gosteriyordu.
+
+        // ATANMAMIS HIZMETLER: hicbir personele/odaya/cihaza atanmamis hizmetler
+        // ilgili kisita takilmadan gecmeli (tum personel+oda secimlerinde gorunsun).
+        // Ornek: yeni eklenmis, henuz personele bagli olmayan hizmet.
+        function unionAllValues(mapObj){
+            var s = {};
+            if(mapObj){
+                Object.keys(mapObj).forEach(function(k){
+                    (mapObj[k] || []).forEach(function(v){ s[String(v)] = 1; });
+                });
+            }
+            return s;
+        }
+        var atanmisPersonel = unionAllValues(verisi.personel);
+        var atanmisOda      = unionAllValues(verisi.oda);
+        var atanmisCihaz    = unionAllValues(verisi.cihaz);
+        // atanmamisXxx: tum hizmetler icinde ilgili kaynaga hic atanmamis olanlar
+        var atanmamisPersonelIds = tum.filter(function(h){ return !atanmisPersonel[String(h.id)]; }).map(function(h){ return String(h.id); });
+        var atanmamisOdaIds      = tum.filter(function(h){ return !atanmisOda[String(h.id)]; }).map(function(h){ return String(h.id); });
+        var atanmamisCihazIds    = tum.filter(function(h){ return !atanmisCihaz[String(h.id)]; }).map(function(h){ return String(h.id); });
+
+        // Her aktif kisit icin, o kisitin izinli listesi + o tipe HIC atanmamis olan hizmetler
         var kisitlar = [];
-        if(hp && hp.length) kisitlar.push(hp.map(String));
-        if(hc && hc.length) kisitlar.push(hc.map(String));
-        if(ho && ho.length) kisitlar.push(ho.map(String));
+        if(hp && hp.length) kisitlar.push(hp.map(String).concat(atanmamisPersonelIds));
+        if(hc && hc.length) kisitlar.push(hc.map(String).concat(atanmamisCihazIds));
+        if(ho && ho.length) kisitlar.push(ho.map(String).concat(atanmamisOdaIds));
 
         var intersect = null;
         if(kisitlar.length){
