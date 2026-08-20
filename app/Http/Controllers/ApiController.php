@@ -2478,10 +2478,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // KARSILASTIRMA: "gecen ayla bu ayi karsilastir" -> veriye dayali kiyas (AI YOK).
         // Cok sayida kalip; degerlendirme/niyet'ten ONCE bakilir.
         if ($asistan->karsilastirmaTetik($metin)) {
-            $kd = $asistan->karsilastirmaDonem($metin);
+            // "personelleri kiyasla" -> DONEM degil, PERSONEL siralamasi (bu ay).
+            if ($asistan->personelSozuVarMi($metin)) {
+                list($pt1, $pt2) = $veriSrv->donemTarih('ay');
+                $niyetP = ['intent' => 'personel', 'donem' => 'ay', 'donemAdi' => 'bu ay',
+                           'personelIpucu' => null, 'ham' => $metin];
+                return $cevapla($asistan->cevapPersonel($veriSrv->personel($salonId, $pt1, $pt2), $niyetP));
+            }
+            $kd  = $asistan->karsilastirmaDonem($metin);
             $buV = $veriSrv->karsilastirmaVeri($salonId, $kd['buT1'], $kd['buT2']);
             $onV = $veriSrv->karsilastirmaVeri($salonId, $kd['onT1'], $kd['onT2']);
-            return $cevapla($asistan->cevapKarsilastirma($buV, $onV, $kd['buAd'], $kd['onAd']));
+            $odak = $asistan->karsilastirmaOdak($metin);
+            return $cevapla($asistan->cevapKarsilastirma($buV, $onV, $kd['buAd'], $kd['onAd'], $odak));
         }
 
         // PERSONEL DETAYLI DEGERLENDIRME: "Ahmet'i son 7 gun degerlendir / rapor cikar /

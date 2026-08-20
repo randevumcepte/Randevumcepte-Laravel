@@ -1410,6 +1410,16 @@ class PatronAsistanServisi
         return false;
     }
 
+    /** Mesajda personel/eleman sozu var mi? ("personelleri kiyasla" -> DONEM degil, personel siralamasi). */
+    public function personelSozuVarMi($metin)
+    {
+        $n = ' ' . $this->normalize($metin) . ' ';
+        foreach (['personel', 'eleman', 'calisan', 'ekip', 'kadro'] as $k) {
+            if (strpos($n, $k) !== false) return true;
+        }
+        return false;
+    }
+
     /** Karsilastirma donemi: bu vs onceki tarih araliklari + adlar. Varsayilan AY. */
     public function karsilastirmaDonem($metin)
     {
@@ -1447,8 +1457,20 @@ class PatronAsistanServisi
         ];
     }
 
-    /** Karsilastirma cevabi: kisa sozlu ozet + tam liste kart. AI YOK (veriye dayali). */
-    public function cevapKarsilastirma(array $bu, array $on, $buAd, $onAd)
+    /** Kullanici neyi kiyasla dediyse ("randevu/urun/hizmet/musteri" ya da ciro). */
+    public function karsilastirmaOdak($metin)
+    {
+        $n = ' ' . $this->normalize($metin) . ' ';
+        if (strpos($n, 'randevu') !== false || strpos($n, 'takvim') !== false
+            || strpos($n, 'iptal') !== false || strpos($n, 'gelmeyen') !== false) return 'randevu';
+        if (strpos($n, 'urun') !== false) return 'urun';
+        if (strpos($n, 'hizmet') !== false || strpos($n, 'islem') !== false) return 'hizmet';
+        if (strpos($n, 'musteri') !== false || strpos($n, 'yeni musteri') !== false) return 'musteri';
+        return 'ciro';
+    }
+
+    /** Karsilastirma cevabi: odakli sozlu ozet + tam liste kart. AI YOK (veriye dayali). */
+    public function cevapKarsilastirma(array $bu, array $on, $buAd, $onAd, $odak = 'ciro')
     {
         $metrikler = [
             ['etiket' => 'Ciro',            'bu' => $bu['gelir'],        'on' => $on['gelir'],        'tip' => 'tl',   'artiIyi' => true],
@@ -1478,18 +1500,34 @@ class PatronAsistanServisi
             ];
         }
 
-        $ciroFark = (float) $bu['gelir'] - (float) $on['gelir'];
-        $ciroYuzde = (float) $on['gelir'] > 0 ? (int) round(($ciroFark / (float) $on['gelir']) * 100) : 0;
-        if ($ciroFark > 0) {
-            $ozet = ucfirst($buAd) . ', ' . $onAd . 'a göre ciro yüzde ' . abs($ciroYuzde) . ' artmış; '
-                  . $this->tl((float) $on['gelir']) . 'dan ' . $this->tl((float) $bu['gelir']) . 'a yükselmiş.';
-        } elseif ($ciroFark < 0) {
-            $ozet = ucfirst($buAd) . ', ' . $onAd . 'a göre ciro yüzde ' . abs($ciroYuzde) . ' azalmış; '
-                  . $this->tl((float) $on['gelir']) . 'dan ' . $this->tl((float) $bu['gelir']) . 'a inmiş.';
+        // ODAK metrige gore sozlu ozet (kullanici NEYI sorduysa onunla basla).
+        $harita = [
+            'ciro'    => ['ad' => 'ciro',           'bu' => (float) $bu['gelir'],       'on' => (float) $on['gelir'],       'tl' => true],
+            'randevu' => ['ad' => 'randevu sayısı', 'bu' => (float) $bu['randevu'],      'on' => (float) $on['randevu'],      'tl' => false],
+            'urun'    => ['ad' => 'ürün cirosu',    'bu' => (float) $bu['urun_ciro'],    'on' => (float) $on['urun_ciro'],    'tl' => true],
+            'hizmet'  => ['ad' => 'hizmet cirosu',  'bu' => (float) $bu['hizmet_ciro'],  'on' => (float) $on['hizmet_ciro'],  'tl' => true],
+            'musteri' => ['ad' => 'yeni müşteri',   'bu' => (float) $bu['yeni_musteri'], 'on' => (float) $on['yeni_musteri'], 'tl' => false],
+        ];
+        $f = $harita[$odak] ?? $harita['ciro'];
+        $fFark  = $f['bu'] - $f['on'];
+        $fYuzde = $f['on'] > 0 ? (int) round(($fFark / $f['on']) * 100) : ($f['bu'] > 0 ? 100 : 0);
+        $buStr  = $f['tl'] ? $this->tl($f['bu']) : (string) (int) $f['bu'];
+        $onStr  = $f['tl'] ? $this->tl($f['on']) : (string) (int) $f['on'];
+        if ($fFark > 0) {
+            $ozet = ucfirst($buAd) . ', ' . $onAd . 'a göre ' . $f['ad'] . ' yüzde ' . abs($fYuzde)
+                  . ' artmış; ' . $onStr . 'dan ' . $buStr . 'a yükselmiş.';
+        } elseif ($fFark < 0) {
+            $ozet = ucfirst($buAd) . ', ' . $onAd . 'a göre ' . $f['ad'] . ' yüzde ' . abs($fYuzde)
+                  . ' azalmış; ' . $onStr . 'dan ' . $buStr . 'a inmiş.';
         } else {
-            $ozet = ucfirst($buAd) . ' ile ' . $onAd . ' ciro açısından hemen hemen aynı.';
+            $ozet = ucfirst($buAd) . ' ile ' . $onAd . ', ' . $f['ad'] . ' açısından hemen hemen aynı.';
         }
-        $ozet .= ' Kalemlerin detaylı karşılaştırması listede.';
+        // Randevu odaginda kaliteyi de ekle (iptal/gelmeyen).
+        if ($odak === 'randevu') {
+            $ozet .= ' İptal ' . (int) $on['iptal'] . 'ten ' . (int) $bu['iptal'] . 'e, gelmeyen '
+                   . (int) $on['gelmedi'] . 'ten ' . (int) $bu['gelmedi'] . 'e geldi.';
+        }
+        $ozet .= ' Detaylı karşılaştırma listede.';
 
         return [
             'basarili' => true, 'intent' => 'karsilastirma', 'seslendir' => true,
