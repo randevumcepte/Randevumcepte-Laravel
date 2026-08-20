@@ -665,61 +665,144 @@ class PatronAsistanServisi
     public function sohbetCevabi($metin)
     {
         $norm = ' ' . $this->normalize($metin) . ' ';
+
+        // --- Hesaplanan cevaplar: saat / gun / tarih ---
+        if (strpos($norm, ' saat kac ') !== false || strpos($norm, ' saati soyler ') !== false) {
+            return $this->sohbetDon('Şu an saat ' . date('H:i') . '.');
+        }
+        if (strpos($norm, ' gunlerden ne ') !== false || strpos($norm, ' bugun ne gunu ') !== false
+            || strpos($norm, ' hangi gundeyiz ') !== false || strpos($norm, ' bugun gunlerden ') !== false) {
+            return $this->sohbetDon('Bugün ' . $this->gunAdi() . '.');
+        }
+        if (strpos($norm, ' tarih ne ') !== false || strpos($norm, ' bugunun tarihi ') !== false
+            || strpos($norm, ' ayin kaci ') !== false || strpos($norm, ' bugun ayin ') !== false) {
+            return $this->sohbetDon('Bugün ' . (int) date('d') . ' ' . $this->ayAdi() . ' ' . date('Y') . ', ' . $this->gunAdi() . '.');
+        }
+
         $gruplar = [
             [ // selamlama
-                'kelimeler' => ['merhaba','selam','gunaydin','iyi gunler','iyi aksamlar','iyi sabahlar','selamun aleykum','hey','alo'],
+                'kelimeler' => ['merhaba','merhabalar','selam','selamlar','gunaydin','iyi gunler','iyi sabahlar','selamun aleykum','hey','alo','hosgeldin','hos geldin'],
                 'cevaplar'  => [
                     'Merhaba, size nasıl yardımcı olabilirim?',
                     'Merhaba, hoş geldiniz. İşletmeniz hakkında ne öğrenmek istersiniz?',
                     'Selam, bugün size nasıl yardımcı olayım?',
+                    'Merhaba efendim, buyurun, sizi dinliyorum.',
                 ],
             ],
             [ // hal hatir
-                'kelimeler' => ['nasilsin','naber','ne haber','iyi misin','nasilsiniz'],
+                'kelimeler' => ['nasilsin','naber','ne haber','iyi misin','nasilsiniz','ne yapiyorsun','keyifler nasil'],
                 'cevaplar'  => [
-                    'İyiyim, teşekkür ederim. Siz nasılsınız, işletmeniz hakkında merak ettiğiniz bir şey var mı?',
+                    'İyiyim, teşekkür ederim. Siz nasılsınız, merak ettiğiniz bir şey var mı?',
                     'Gayet iyiyim, sağ olun. Size nasıl yardımcı olabilirim?',
+                    'Turp gibiyim diyebilirim, hep hazırım. Buyurun, ne öğrenmek istersiniz?',
                 ],
             ],
             [ // tesekkur
-                'kelimeler' => ['tesekkur','tesekkurler','sagol','sag ol','saol','eyvallah'],
+                'kelimeler' => ['tesekkur','tesekkurler','sagol','sag ol','saol','eyvallah','ellerine saglik','minnettarim'],
                 'cevaplar'  => [
                     'Rica ederim, başka bir konuda yardımcı olabilir miyim?',
                     'Ne demek, her zaman buradayım.',
                     'Rica ederim efendim.',
+                    'Görev bizim, iyi çalışmalar dilerim.',
                 ],
             ],
             [ // kimsin / ne yaparsin
-                'kelimeler' => ['kimsin','sen kimsin','adin ne','sen nesin','ne yapabilirsin','neler yapabilirsin','ne is yaparsin','ne ise yararsin','ne yaparsin'],
+                'kelimeler' => ['kimsin','sen kimsin','adin ne','ismin ne','sen nesin','ne yapabilirsin','neler yapabilirsin','ne is yaparsin','ne ise yararsin','ne yaparsin','gorevin ne'],
                 'cevaplar'  => [
                     'Ben salonunuzun asistanıyım. Kasa, ciro, en çok satılan hizmet, personel performansı ve randevular gibi konularda size anında bilgi verebilirim.',
+                    'Salonunuzun dijital asistanıyım. İşletmenizle ilgili günlük özet, kasa, personel ve randevu bilgilerini sorabilirsiniz.',
+                ],
+            ],
+            [ // kisisel merak (oyunbaz)
+                'kelimeler' => ['kac yasindasin','nerelisin','evli misin','robot musun','insan misin','gercek misin','cinsiyetin ne'],
+                'cevaplar'  => [
+                    'Ben dijital bir asistanım; yaşım yok ama işletmeniz için her zaman hazırım. Bir bilgi ister misiniz?',
+                    'Sizin salon asistanınızım, gece gündüz buradayım. Ne öğrenmek istersiniz?',
+                ],
+            ],
+            [ // dinliyor mu
+                'kelimeler' => ['dinliyor musun','orada misin','beni duyuyor musun','uyuyor musun','mesgul musun'],
+                'cevaplar'  => [
+                    'Evet, buradayım ve sizi dinliyorum. Buyurun.',
+                    'Buradayım efendim, sizi dinliyorum.',
+                ],
+            ],
+            [ // ozur
+                'kelimeler' => ['ozur dilerim','ozur','pardon','kusura bakma','affet','affedersin'],
+                'cevaplar'  => [
+                    'Rica ederim, önemli değil. Size nasıl yardımcı olabilirim?',
+                    'Estağfurullah, hiç sorun değil.',
+                ],
+            ],
+            [ // moral / empati
+                'kelimeler' => ['moralim bozuk','yoruldum','yorgunum','sinirliyim','stresliyim','kotu hissediyorum','canim sikkin','bunaldim'],
+                'cevaplar'  => [
+                    'Anlıyorum, yoğun bir gün olabilir. İsterseniz bugünün özetine bakıp biraz rahatlayalım mı?',
+                    'Geçer efendim, siz merak etmeyin. Dilerseniz işletmenizin durumuna göz atalım.',
+                ],
+            ],
+            [ // onay / ack
+                'kelimeler' => ['tamam','tamamdir','peki','anladim','oldu','olur','anlasildi'],
+                'cevaplar'  => [
+                    'Ne zaman isterseniz buradayım.',
+                    'Emrinizdeyim efendim.',
+                    'Başka bir şey öğrenmek isterseniz buyurun.',
+                ],
+            ],
+            [ // yardim iste
+                'kelimeler' => ['yardim et','yardimci ol','bana yardim','yardim eder misin','yardimini istiyorum'],
+                'cevaplar'  => [
+                    'Tabii ki. Kasa, ciro, hizmet, personel ya da randevular hakkında sorabilirsiniz. Örneğin "bugün nasıl" diyerek başlayabilirsiniz.',
                 ],
             ],
             [ // veda
-                'kelimeler' => ['gorusuruz','hosca kal','hoscakal','bay bay','baybay','gorusmek uzere'],
+                'kelimeler' => ['gorusuruz','hosca kal','hoscakal','bay bay','baybay','gorusmek uzere','iyi geceler','kendine iyi bak'],
                 'cevaplar'  => [
                     'Görüşmek üzere, iyi çalışmalar dilerim.',
                     'Hoşça kalın, bereketli işler.',
+                    'İyi günler efendim, ihtiyaç olursa buradayım.',
                 ],
             ],
             [ // takdir
-                'kelimeler' => ['harikasin','bravo','aferin','cok iyisin','supersin','mukemmelsin'],
+                'kelimeler' => ['harikasin','bravo','aferin','cok iyisin','supersin','mukemmelsin','helal','tam isabet','cok tatlisin'],
                 'cevaplar'  => [
                     'Teşekkür ederim, elimden geleni yapıyorum. Başka nasıl yardımcı olabilirim?',
+                    'Çok naziksiniz, sağ olun. Emrinizdeyim.',
                 ],
             ],
         ];
         foreach ($gruplar as $g) {
             foreach ($g['kelimeler'] as $k) {
                 if (strpos($norm, ' ' . $this->normalize($k) . ' ') !== false) {
-                    return [
-                        'basarili' => true, 'intent' => 'sohbet', 'seslendir' => true,
-                        'cevap' => $g['cevaplar'][array_rand($g['cevaplar'])], 'kart' => null,
-                    ];
+                    return $this->sohbetDon($g['cevaplar'][array_rand($g['cevaplar'])]);
                 }
             }
         }
         return null;
+    }
+
+    /** Sohbet cevabi icin ortak sarmalayici. */
+    protected function sohbetDon($cevap)
+    {
+        return [
+            'basarili' => true, 'intent' => 'sohbet', 'seslendir' => true,
+            'cevap' => $cevap, 'kart' => null,
+        ];
+    }
+
+    /** Turkce gun adi (bugun). */
+    protected function gunAdi()
+    {
+        $g = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+        return $g[(int) date('w')];
+    }
+
+    /** Turkce ay adi (bu ay). */
+    protected function ayAdi()
+    {
+        $a = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz',
+              'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+        return $a[(int) date('n')];
     }
 
     /**
