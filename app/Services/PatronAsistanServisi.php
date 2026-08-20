@@ -1126,7 +1126,8 @@ class PatronAsistanServisi
             . 'alanlari, salon ortalamasina gore durumu, ilk ve ikinci yari trendi, somut egitim ya da '
             . 'yonlendirme onerisi, ve ise uygunluk yonunde genel bir kanaat. Verilen rakamlarin '
             . 'DISINDA sayi UYDURMA. Adil, cozum odakli ve saygili ol. TTS icin DUZ yaz: emoji, tirnak, '
-            . 'madde isareti, yildiz YOK. Sadece Turkce yaz.';
+            . 'madde isareti, yildiz YOK. EN FAZLA 6 cumle yaz ve cumleni MUTLAKA tamamla (yarim '
+            . 'birakma). Sadece Turkce yaz.';
 
         $u = "Yeni personel: {$ad}. Takip suresi: {$gun} gun. "
            . "Ciro: " . number_format((float) ($d['ciro'] ?? 0), 0, ',', '.') . " TL. "
@@ -1146,7 +1147,7 @@ class PatronAsistanServisi
             $u .= "En cok yaptigi islemler: " . implode(', ', $hs) . ". ";
         }
 
-        return $this->haikuText($sistem, $u, 500);
+        return $this->haikuText($sistem, $u, 900);
     }
 
     /**
