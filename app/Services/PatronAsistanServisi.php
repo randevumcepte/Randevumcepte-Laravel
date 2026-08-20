@@ -1690,7 +1690,7 @@ class PatronAsistanServisi
     }
 
     /** Bilanco cevabi: kisa sozlu ozet + ay ay liste kart. AI YOK. */
-    public function cevapBilanco(array $b)
+    public function cevapBilanco(array $b, $salonAdi = '')
     {
         $aylar = $b['aylar'] ?? [];
         if (empty($aylar)) {
@@ -1724,9 +1724,10 @@ class PatronAsistanServisi
             'basarili' => true, 'intent' => 'bilanco', 'seslendir' => true,
             'cevap'    => $ozet,
             'kart'     => [
-                'tip'      => 'bilanco',
-                'baslik'   => 'Bilanço · son ' . $b['ay_sayisi'] . ' ay',
-                'satirlar' => $satirlar,
+                'tip'       => 'bilanco',
+                'baslik'    => 'Bilanço · son ' . $b['ay_sayisi'] . ' ay',
+                'salon_adi' => (string) $salonAdi,
+                'satirlar'  => $satirlar,
                 'toplam'   => [
                     'ay'    => 'TOPLAM',
                     'gelir' => $this->tl((float) $b['toplam_gelir']),
