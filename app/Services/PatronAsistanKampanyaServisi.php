@@ -90,6 +90,171 @@ class PatronAsistanKampanyaServisi
         return null;
     }
 
+    /**
+     * GUVENLI TEST istegi mi? "test icin Ahmet'e kampanya gonder" gibi.
+     * @return array|null ['tip' => <kampanya turu>, 'isim' => <cikarilan kisi adi>]
+     */
+    public function testTetik($metin)
+    {
+        $n = ' ' . $this->normalize($metin) . ' ';
+        // "test" / "deneme" gecmezse test degil.
+        if (strpos($n, 'test') === false && strpos($n, 'deneme') === false) {
+            return null;
+        }
+        // Kampanya/gonderim baglami olmali (yoksa "kac test yapildi" gibi alakasiz olabilir).
+        $baglam = false;
+        foreach (['kampanya', 'indirim', 'bildirim', 'gonder', 'yolla'] as $k) {
+            if (strpos($n, $k) !== false) { $baglam = true; break; }
+        }
+        if (!$baglam) {
+            return null;
+        }
+        // Kampanya turu (varsa anahtar kelimeden, yoksa genel). Test'te segment zaten
+        // 'kisi'ye zorlanir; tur yalniz mesaj sablonu/oranini belirler.
+        $tip = $this->kampanyaTetik($metin);
+        if (!$tip) $tip = 'genel';
+
+        return ['tip' => $tip, 'isim' => $this->isimAyikla($n)];
+    }
+
+    /** Mesajdan komut kelimelerini atip geriye kalan (muhtemel kisi adi) metni doner. */
+    protected function isimAyikla($n)
+    {
+        $stop = [
+            'test', 'deneme', 'icin', 'kampanya', 'kampanyayi', 'kampanyasi', 'kampanyasini',
+            'indirim', 'indirimi', 'bildirim', 'bildirimi', 'reklam', 'reklami',
+            'gonder', 'gonderelim', 'gonderin', 'gondersene', 'yolla', 'yollayalim',
+            'sadece', 'yalniz', 'yalnizca', 'kisiye', 'kisi', 'musteri', 'musteriye',
+            'musteriler', 'musterilere', 'patron', 'asistan', 'olustur', 'hazirla', 'yap',
+            'bir', 'bu', 'su', 've', 'ile', 'lutfen', 'nin', 'nun', 'adli', 'adinda', 'isimli',
+        ];
+        $out = [];
+        foreach (preg_split('/\s+/', trim($n)) as $kel) {
+            $kel = $this->kelimeTemizle($kel); // kesme/ek ve noktalama temizligi
+            if ($kel === '' || mb_strlen($kel) < 2) continue;
+            if (in_array($kel, $stop, true)) continue;
+            $out[] = $kel;
+        }
+        return trim(implode(' ', $out));
+    }
+
+    /** Bir kelimeden kesme isareti+sonrasini ve harf/rakam disi karakterleri atar. */
+    protected function kelimeTemizle($kel)
+    {
+        $kel = trim((string) $kel);
+        // "orbey'e" -> "orbey" (kesme ve sonrasi at)
+        $kel = preg_replace("/['’`].*$/u", '', $kel);
+        // normalize sonrasi ascii bekleniyor; kalan noktalama vs. at
+        $kel = preg_replace('/[^a-z0-9]/u', '', $kel);
+        return (string) $kel;
+    }
+
+    /**
+     * TEST TEKLIFI: adi verilen tek musteriyi bulur, SADECE ona gidecek gonderimi teklif eder.
+     * Onay aksiyonunda tip = "test|<tur>|<user_id>" -> uygula ucu kisi segmentine zorlar.
+     */
+    public function testTeklif($tip, $isim, $salonId, $salonAdi)
+    {
+        $turler = $this->turler();
+        if (!isset($turler[$tip])) $tip = 'genel';
+        $t = $turler[$tip];
+
+        if ($isim === '') {
+            return [
+                'basarili' => true, 'intent' => 'kampanya_test_soru', 'seslendir' => true, 'kart' => null,
+                'cevap' => 'Testi hangi müşteriye göndereyim? Lütfen müşterinin adını söyleyin.',
+            ];
+        }
+
+        $kisi = $this->isimdenMusteri($isim, $salonId);
+        if ($kisi === null) {
+            return [
+                'basarili' => true, 'intent' => 'kampanya_test_soru', 'seslendir' => true, 'kart' => null,
+                'cevap' => $isim . ' adında bir müşteri bulamadım. Adını tam ve doğru söyleyebilir misiniz?',
+            ];
+        }
+        if (is_array($kisi) && isset($kisi['coklu'])) {
+            $adlar = implode(', ', array_slice($kisi['adlar'], 0, 5));
+            return [
+                'basarili' => true, 'intent' => 'kampanya_test_soru', 'seslendir' => true, 'kart' => null,
+                'cevap' => 'Birden fazla müşteri eşleşti: ' . $adlar
+                         . '. Hangisi olduğunu tam adıyla belirtir misiniz?',
+            ];
+        }
+
+        $oran = $t['oran'];
+        $cevap = 'Test göndermeye hazırım. Bu kampanyayı SADECE ' . $kisi->name
+               . ' adlı müşteriye yüzde ' . $oran . ' indirim bildirimi olarak göndereceğim. '
+               . 'Diğer hiçbir müşteriye gitmeyecek. Onaylıyor musunuz?';
+
+        return [
+            'basarili'  => true,
+            'intent'    => 'kampanya_teklif',
+            'seslendir' => true,
+            'cevap'     => $cevap,
+            'kart'      => null,
+            'aksiyon'   => [
+                'tur'        => 'kampanya',
+                'tip'        => 'test|' . $tip . '|' . (int) $kisi->id, // uygula bunu cozer
+                'oran'       => $oran,
+                'baslik'     => 'Test: ' . $t['ad'],
+                'hedef_sayi' => 1,
+                'onay_metni' => 'Sadece ' . $kisi->name . ' kişisine test gönder',
+            ],
+        ];
+    }
+
+    /**
+     * Ada gore portfoy musterisi bul (Turkce karakter/collation guvenli: PHP tarafinda normalize).
+     * @return object|array|null tek eslesme=object, coklu=['coklu'=>true,'adlar'=>[]], yok=null
+     */
+    protected function isimdenMusteri($isim, $salonId)
+    {
+        $kelimeler = array_values(array_filter(preg_split('/\s+/', trim($this->normalize($isim)))));
+        if (empty($kelimeler)) return null;
+
+        $rows = DB::table('musteri_portfoy as mp')
+            ->join('users as u', 'u.id', '=', 'mp.user_id')
+            ->where('mp.salon_id', $salonId)
+            ->where('mp.aktif', 1)
+            ->select('u.id', 'u.name', 'u.cep_telefon')
+            ->limit(5000)->get();
+
+        $eslesme = [];
+        foreach ($rows as $r) {
+            if ($this->adEslesir((string) $r->name, $kelimeler)) {
+                $eslesme[] = $r;
+                if (count($eslesme) > 6) break;
+            }
+        }
+
+        if (empty($eslesme)) return null;
+        if (count($eslesme) === 1) return $eslesme[0];
+        return ['coklu' => true, 'adlar' => array_map(function ($r) { return $r->name; }, $eslesme)];
+    }
+
+    /**
+     * Verilen aranan kelimelerin HEPSI, musteri adindaki bir kelimeyle onek-eslesir mi?
+     * Onek/iki yonlu prefix: "orbeye"/"orbey" ve "orbey"/"orbey" eslesir (ek toleransi).
+     */
+    protected function adEslesir($ad, array $kelimeler)
+    {
+        $adKelime = array_values(array_filter(preg_split('/\s+/', $this->normalize($ad))));
+        foreach ($kelimeler as $kel) {
+            $kel = $this->kelimeTemizle($kel);
+            if ($kel === '') continue;
+            $bulundu = false;
+            foreach ($adKelime as $aw) {
+                if ($aw === $kel) { $bulundu = true; break; }
+                $kisa = mb_strlen($kel) <= mb_strlen($aw) ? $kel : $aw;
+                $uzun = ($kisa === $kel) ? $aw : $kel;
+                if (mb_strlen($kisa) >= 3 && strpos($uzun, $kisa) === 0) { $bulundu = true; break; }
+            }
+            if (!$bulundu) return false;
+        }
+        return true;
+    }
+
     /** Belirtilen turun hedef musteri kitlesi (salt-okunur sorgu). */
     public function hedefKitle($tip, $salonId)
     {
@@ -281,7 +446,7 @@ class PatronAsistanKampanyaServisi
      *
      * @return array ['sayi', 'baslik', 'oran', 'reklam_id'] veya ['hata'=>...]
      */
-    public function uygulaReklam($tip, $salonId, $salonAdi, $oran = 0)
+    public function uygulaReklam($tip, $salonId, $salonAdi, $oran = 0, $testUserId = 0)
     {
         $turler = $this->turler();
         if (!isset($turler[$tip])) {
@@ -290,6 +455,13 @@ class PatronAsistanKampanyaServisi
         $t = $turler[$tip];
         $oran = ($oran >= 5 && $oran <= 70) ? (int) $oran : $t['oran'];
         $ayar = $this->reklamAyar($tip);
+
+        // GUVENLI TEST: yalniz secilen tek kisiye gonder (kisi segmenti). Job::hedefKullanicilar
+        // 'kisi' tipinde SADECE bu user_id'yi doner -> baska hicbir musteriye gitmez.
+        if ((int) $testUserId > 0) {
+            $ayar['hedef_kitle'] = 'segment';
+            $ayar['hedef_kosul'] = json_encode(['tip' => 'kisi', 'user_id' => (int) $testUserId]);
+        }
 
         try {
             $reklam = \App\BildirimReklamlari::create([

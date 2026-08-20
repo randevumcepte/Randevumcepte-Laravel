@@ -59,6 +59,12 @@ class BildirimReklamApiController extends Controller
                         return false;
                     }
                 }
+                // KISI-hedefli (tekil/test/özel) reklam: SADECE o kişiye in-app görünür.
+                // Push zaten kisi segmentiyle tek kişiye gider; in-app kartı da sızmasın.
+                $kosul = json_decode($r->hedef_kosul, true);
+                if (is_array($kosul) && isset($kosul['tip']) && $kosul['tip'] === 'kisi') {
+                    if ($userId <= 0 || (int) ($kosul['user_id'] ?? 0) !== $userId) return false;
+                }
                 if ($r->yayin_baslangic && $r->yayin_baslangic->isFuture()) return false;
                 if ($r->yayin_bitis && $r->yayin_bitis->isPast()) return false;
                 if ($r->kupon_toplam_adet !== null && $r->kupon_dagitilan >= $r->kupon_toplam_adet) return false;

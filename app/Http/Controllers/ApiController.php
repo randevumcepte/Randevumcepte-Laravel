@@ -2456,6 +2456,15 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // GUVENLIK: burada yalniz TEKLIF doner (salt-okunur, sayi+onizleme). Gercek
         // gonderim ONAY sonrasi ayri 'patron-asistan-uygula' ucundan yapilir.
         $kampSrv = new \App\Services\PatronAsistanKampanyaServisi();
+        // GUVENLI TEST: "test icin Ahmet'e gonder" -> kampanyayi SADECE tek kisiye gonderir
+        // (kisi segmenti). Diger musterilere ASLA gitmez. kampanyaTetik'ten ONCE bakilir.
+        if ($testBilgi = $kampSrv->testTetik($metin)) {
+            $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi');
+            return response()->json(
+                $kampSrv->testTeklif($testBilgi['tip'], $testBilgi['isim'], $salonId, $salonAdi),
+                200, [], JSON_UNESCAPED_UNICODE
+            );
+        }
         if ($kampTip = $kampSrv->kampanyaTetik($metin)) {
             $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi');
             return response()->json($kampSrv->teklif($kampTip, $salonId, $salonAdi), 200, [], JSON_UNESCAPED_UNICODE);
@@ -2601,15 +2610,39 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $oran = (int) $request->input('oran', 0);
         $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi');
 
+        // GUVENLI TEST kodlamasi: tip = "test|<gercek_tur>|<user_id>" ise kampanya
+        // SADECE o tek kisiye gider (kisi segmenti). Flutter tip'i oldugu gibi tasidigi
+        // icin ekstra alan/rebuild gerekmez.
+        $testUserId = 0;
+        if (strpos($tip, 'test|') === 0) {
+            $parca = explode('|', $tip);
+            $tip = $parca[1] ?? 'genel';
+            $testUserId = isset($parca[2]) ? (int) $parca[2] : 0;
+        }
+
         $kampSrv = new \App\Services\PatronAsistanKampanyaServisi();
         // UCRETSIZ BILDIRIM REKLAMI olarak gonder (SMS/kontor degil): mevcut reklam
         // altyapisiyla push + in-app, musteri dokununca kupon aninda tanimlanir.
-        $sonuc = $kampSrv->uygulaReklam($tip, $salonId, $salonAdi, $oran);
+        $sonuc = $kampSrv->uygulaReklam($tip, $salonId, $salonAdi, $oran, $testUserId);
 
         if (!empty($sonuc['hata'])) {
             return response()->json([
                 'basarili' => false, 'seslendir' => true, 'kart' => null,
                 'cevap' => 'Kampanya oluşturulurken bir sorun oluştu, gönderim yapılmadı.',
+            ], 200, [], JSON_UNESCAPED_UNICODE);
+        }
+
+        // TEST gonderimi: sadece secilen tek kisiye gitti, guven verici ayri metin.
+        if ($testUserId > 0) {
+            $cevap = ((int) $sonuc['sayi'] > 0)
+                ? 'Test tamamlandı. Kampanya YALNIZCA seçtiğiniz müşteriye ücretsiz bildirim '
+                  . 'olarak gönderildi. Başka hiçbir müşteriye gitmedi.'
+                : 'Test kampanyası oluşturuldu ve YALNIZCA seçtiğiniz müşteriye tanımlandı. '
+                  . 'O müşteri şu an anlık bildirim alamıyor olabilir ama uygulamayı açınca görecek. '
+                  . 'Başka hiçbir müşteriye gitmedi.';
+            return response()->json([
+                'basarili' => true, 'intent' => 'kampanya_sonuc', 'seslendir' => true, 'kart' => null,
+                'cevap' => $cevap,
             ], 200, [], JSON_UNESCAPED_UNICODE);
         }
 
