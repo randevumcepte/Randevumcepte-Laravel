@@ -1334,6 +1334,34 @@ class PatronAsistanServisi
     }
 
     /**
+     * Net KAPANIS/TESEKKUR/VEDA mesaji mi? ("tesekkurler kapat", "tamam yeter",
+     * "sag ol gorusuruz"...). Boyleyse AI'ya GITMEDEN sohbete dusurulur; yoksa
+     * konusma bellegi yuzunden onceki konu ("oneri ver") devam ediyor saniliyor.
+     * Rapor/donem/soru baglami varsa (karisik mesaj) kapanis SAYILMAZ.
+     */
+    public function kapanisMi($metin)
+    {
+        $n = ' ' . $this->normalize($metin) . ' ';
+        $kapanis = ['tesekkur', 'sagol', 'sag ol', 'saol', 'eyvallah', 'tamam', 'tamamdir',
+            'kapat', 'yeter', 'bu kadar', 'gerek yok', 'bitti', 'anladim', 'peki tamam',
+            'gorusuruz', 'hosca kal', 'hoscakal', 'iyi gunler', 'iyi aksamlar', 'iyi geceler',
+            'kendine iyi bak', 'kapatabilirsin', 'yeterli', 'oldu bu kadar'];
+        $var = false;
+        foreach ($kapanis as $k) {
+            if (strpos($n, ' ' . $k . ' ') !== false || strpos($n, ' ' . $k) !== false) { $var = true; break; }
+        }
+        if (!$var) return false;
+
+        // Rapor/donem/soru baglami varsa kapanis sayma ("tesekkurler bu hafta ne durumda").
+        foreach (['kasa', 'ciro', 'randevu', 'personel', 'hizmet', 'urun', 'musteri', 'iptal',
+                  'oneri', 'oner', 'kampanya', 'ne kadar', 'hafta', 'aylik', 'bugun', 'nasil',
+                  'degerlendir', 'satis', 'buyut'] as $r) {
+            if (strpos($n, $r) !== false) return false;
+        }
+        return true;
+    }
+
+    /**
      * GENEL SOHBET (selam/hal hatir/tesekkur/kimsin/veda...). Eslesirse sicak bir
      * cevap dondurur, degilse null. Rapor niyeti BULUNAMAYINCA cagirilir; boylece
      * "merhaba bugun kasa" gibi cumlelerde once RAPOR cevabi verilir, salt "merhaba"da sohbet.

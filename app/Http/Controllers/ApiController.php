@@ -2506,6 +2506,16 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // (sorularin buyuk cogunlugu Haiku'ya hic gitmez). Anahtar yoksa zaten kural kalir.
         $niyet = $asistan->niyetCoz($metin);
         if (($niyet['intent'] ?? 'bilinmiyor') === 'bilinmiyor') {
+            // Net KAPANIS/TESEKKUR ("tesekkurler kapat", "tamam yeter") -> AI'ya GITMEDEN
+            // sohbet. Yoksa konusma bellegi yuzunden onceki konu (oneri) devam ediyor sanilir.
+            if ($asistan->kapanisMi($metin)) {
+                $sk = $asistan->sohbetCevabi($metin);
+                return $cevapla($sk ?: [
+                    'basarili' => true, 'intent' => 'sohbet', 'seslendir' => true, 'kart' => null,
+                    'cevap' => 'Rica ederim, ne zaman isterseniz buradayım.',
+                ]);
+            }
+
             // 1) Ogrenen onbellek: bu soru daha once AI ile cozulduyse BEDAVA getir.
             // YALNIZ baglamsiz (ilk) turda: "peki bu hafta" gibi takip sorulari baglama
             // baglidir, sabit ogrenilmis niyete duserse yanlis olur -> gecmis varsa atla.
