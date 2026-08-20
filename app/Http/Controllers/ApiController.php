@@ -28794,6 +28794,16 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                     $vade->delete();
                 $senet->delete();
             }
+            // YETIM ALACAK FIX (web StoreAdminController ile ayni): taksit/senet uzerinden
+            // bagli Alacaklar kayitlarinda adisyon_id NULL olabiliyor -> asagidaki adisyon_id
+            // bazli silme bunlari yakalamaz, silinmis vadeye isaret eden hayalet alacak kalir.
+            // Kalemlerden toplanan taksitli_tahsilat_id ve senet_id uzerinden de temizle.
+            $_temizTaksitIdler = array_values(array_filter($taksitlitahsilat_idler));
+            if(count($_temizTaksitIdler) > 0)
+                Alacaklar::whereIn('taksitli_tahsilat_id',$_temizTaksitIdler)->delete();
+            $_temizSenetIdler = array_values(array_filter($senet_idler));
+            if(count($_temizSenetIdler) > 0)
+                Alacaklar::whereIn('senet_id',$_temizSenetIdler)->delete();
             Tahsilatlar::whereIn('id',$tahsilat_idler)->delete();
             // Guvenlik agi: breakdown (tahsilat_hizmetler/urunler/paketler) satiri
             // olmayan tahsilatlar yukaridaki whereIn ile yakalanmaz; adisyon_id ile
