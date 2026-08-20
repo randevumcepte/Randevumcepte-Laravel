@@ -322,11 +322,18 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::post('/patron-asistan-uygula','ApiController@patronAsistanUygulaApi')->middleware('auth:isletmeyonetim-api');
     // ACIK kontrol ucu (auth yok, gizli bilgi yok): canliya hangi kodun indigini dogrulamak icin.
     Route::get('/patron-asistan-ping', function () {
+        // Canli AI teshisi: bakiye/anahtar/zaman asimi ayrimi (tarayicidan acilabilir).
+        $asistan = new \App\Services\PatronAsistanServisi();
+        $ornek = $asistan->sohbetAI('Tek kelimeyle selam ver.');
         return response()->json([
             'ok'            => true,
-            'surum'         => 'gun-ozeti-2026-08-20-b069',
-            'gun_ozeti_var' => method_exists(\App\Services\PatronAsistanServisi::class, 'cevapGunOzeti'),
-        ]);
+            'surum'         => 'ai-teshis-2026-08-21',
+            'anahtar_var'   => (bool) (config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY')),
+            'ai_calisiyor'  => $ornek !== null,
+            // ok_sohbet=AI calisiyor | http_400/401/402/429=bakiye/limit/anahtar | curl_HATA=zaman asimi/ag | anahtar_yok=env eksik
+            'ai_teshis'     => $asistan->aiTeshis,
+            'ai_ornek'      => $ornek,
+        ], 200, [], JSON_UNESCAPED_UNICODE);
     });
         Route::post('/cihaz_sil','ApiController@cihaz_sil');
          Route::post('/oda_sil','ApiController@oda_sil');
