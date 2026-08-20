@@ -2452,6 +2452,15 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             return response()->json($asistan->veriliOneri($oneriVeri), 200, [], JSON_UNESCAPED_UNICODE);
         }
 
+        // Otomatik kampanya TEKLIFI (kayip musteri / bos saat / dogum gunu / genel).
+        // GUVENLIK: burada yalniz TEKLIF doner (salt-okunur, sayi+onizleme). Gercek
+        // gonderim ONAY sonrasi ayri 'patron-asistan-uygula' ucundan yapilir.
+        $kampSrv = new \App\Services\PatronAsistanKampanyaServisi();
+        if ($kampTip = $kampSrv->kampanyaTetik($metin)) {
+            $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi');
+            return response()->json($kampSrv->teklif($kampTip, $salonId, $salonAdi), 200, [], JSON_UNESCAPED_UNICODE);
+        }
+
         // ONCE bedava kural motoru (yaygin sorular). SADECE anlasilamayanda (bilinmiyor)
         // opsiyonel Haiku'ya dus -> boylece AI acik olsa bile maliyet neredeyse sifir
         // (sorularin buyuk cogunlugu Haiku'ya hic gitmez). Anahtar yoksa zaten kural kalir.
@@ -2564,6 +2573,58 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         }
 
         return response()->json($sonuc, 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * PATRON ASISTANI — ONAYLANMIS kampanyayi UYGULA (kupon olustur + SMS gonder).
+     * Yalniz patron uygulamada ONAYLA'ya basinca cagirilir. Auth + gate + tur dogrulama.
+     */
+    public function patronAsistanUygulaApi(Request $request)
+    {
+        $u = \Auth::guard('isletmeyonetim-api')->user();
+        if (!$u) {
+            return response()->json(['basarili' => false, 'cevap' => 'Oturum bulunamadı.'], 401, [], JSON_UNESCAPED_UNICODE);
+        }
+        $salonId = $this->_patronAsistanSalonId($request);
+        if (!$salonId) {
+            return response()->json(['basarili' => false, 'cevap' => 'Salon bulunamadı.'], 422, [], JSON_UNESCAPED_UNICODE);
+        }
+        // GATE: sadece Hesap Sahibi + Yonetici (rapor.ciro_kar_gor).
+        if (!\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($u->id, $salonId, 'rapor.ciro_kar_gor')) {
+            return response()->json(['basarili' => false, 'cevap' => 'Bu işlem için yetkiniz yok.'], 403, [], JSON_UNESCAPED_UNICODE);
+        }
+
+        if ($request->input('tur') !== 'kampanya') {
+            return response()->json(['basarili' => false, 'cevap' => 'Bilinmeyen işlem.'], 422, [], JSON_UNESCAPED_UNICODE);
+        }
+        $tip  = (string) $request->input('tip', '');
+        $oran = (int) $request->input('oran', 0);
+        $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi');
+
+        $kampSrv = new \App\Services\PatronAsistanKampanyaServisi();
+        $sonuc = $kampSrv->uygula($tip, $salonId, $salonAdi, $oran);
+
+        if (empty($sonuc['mesajlar'])) {
+            return response()->json([
+                'basarili' => true, 'seslendir' => true, 'kart' => null,
+                'cevap' => 'Gönderilecek uygun müşteri bulunamadı.',
+            ], 200, [], JSON_UNESCAPED_UNICODE);
+        }
+
+        try {
+            $this->sms_gonder($salonId, $sonuc['mesajlar']); // mevcut SMS altyapisi
+        } catch (\Throwable $e) {
+            return response()->json([
+                'basarili' => false, 'seslendir' => true, 'kart' => null,
+                'cevap' => 'Kuponlar oluşturuldu ancak mesaj gönderiminde bir sorun oluştu.',
+            ], 200, [], JSON_UNESCAPED_UNICODE);
+        }
+
+        return response()->json([
+            'basarili'  => true, 'intent' => 'kampanya_sonuc', 'seslendir' => true, 'kart' => null,
+            'cevap'     => $sonuc['baslik'] . ' tamamlandı. ' . $sonuc['sayi']
+                         . ' müşteriye yüzde ' . $sonuc['oran'] . ' indirim kuponu ve mesajı gönderildi.',
+        ], 200, [], JSON_UNESCAPED_UNICODE);
     }
 
     /** Mobil salon cozumleme: salonid | sube | appBundle. */
