@@ -962,7 +962,7 @@ class PatronAsistanServisi
     protected function haikuText($sistem, $userContent, $maxTokens = 160)
     {
         $apiKey = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
-        if (!$apiKey) return null;
+        if (!$apiKey) { $this->aiTeshis = 'anahtar_yok'; return null; }
 
         $govde = [
             'model'      => config('services.anthropic.model') ?: 'claude-haiku-4-5',
@@ -975,7 +975,7 @@ class PatronAsistanServisi
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_POST           => true,
-                CURLOPT_TIMEOUT        => 12,
+                CURLOPT_TIMEOUT        => 30, // uzun yorum icin (900 token 12 sn'ye takiliyordu)
                 CURLOPT_HTTPHEADER     => [
                     'content-type: application/json',
                     'x-api-key: ' . $apiKey,
@@ -985,18 +985,27 @@ class PatronAsistanServisi
             ]);
             $yanit = curl_exec($ch);
             $kod   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $hata  = curl_error($ch);
             curl_close($ch);
 
-            if ($yanit === false || $kod !== 200) return null;
+            if ($yanit === false || $kod !== 200) {
+                // Teshis: bakiye/anahtar -> genelde http_400/401/402/429; zaman asimi -> curl_HATA.
+                $this->aiTeshis = ($yanit === false)
+                    ? ('curl_HATA: ' . $hata)
+                    : ('http_' . $kod . ': ' . mb_substr((string) $yanit, 0, 200));
+                return null;
+            }
             $data = json_decode($yanit, true);
-            if (!is_array($data) || empty($data['content'])) return null;
+            if (!is_array($data) || empty($data['content'])) { $this->aiTeshis = 'yanit_bos'; return null; }
             $out = '';
             foreach ($data['content'] as $blok) {
                 if (($blok['type'] ?? '') === 'text') { $out .= $blok['text'] ?? ''; }
             }
             $out = trim($out);
+            $this->aiTeshis = ($out !== '') ? 'ok_metin' : 'metin_bos';
             return $out !== '' ? $out : null;
         } catch (\Throwable $e) {
+            $this->aiTeshis = 'exception: ' . $e->getMessage();
             return null;
         }
     }
@@ -1164,7 +1173,7 @@ class PatronAsistanServisi
             $u .= "En cok yaptigi islemler: " . implode(', ', $hs) . ". ";
         }
 
-        return $this->haikuText($sistem, $u, 900);
+        return $this->haikuText($sistem, $u, 600);
     }
 
     /**
