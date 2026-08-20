@@ -25506,6 +25506,18 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                     $vade->delete();
                 $senet->delete();
             }
+            // YETIM ALACAK FIX: taksit/senet uzerinden bagli Alacaklar kayitlarinda
+            // adisyon_id NULL olabiliyor (taksitekleguncelle adisyon_id gelmeden de
+            // alacak olusturabiliyor). Bu durumda asagidaki adisyon_id bazli silme
+            // bunlari yakalamaz -> silinmis vadeye isaret eden 18 "hayalet alacak" +
+            // taksit kaydi kalir. Burada taksitli_tahsilat_id ve senet_id uzerinden de
+            // temizliyoruz.
+            $_temizTaksitIdler = array_values(array_filter($taksitlitahsilat_idler));
+            if(count($_temizTaksitIdler) > 0)
+                Alacaklar::whereIn('taksitli_tahsilat_id',$_temizTaksitIdler)->delete();
+            $_temizSenetIdler = array_values(array_filter($senet_idler));
+            if(count($_temizSenetIdler) > 0)
+                Alacaklar::whereIn('senet_id',$_temizSenetIdler)->delete();
             Tahsilatlar::whereIn('id',$tahsilat_idler)->delete();
             // Guvenlik agi: adisyon_id ile bagli ama breakdown (tahsilat_hizmetler/
             // urunler/paketler) satiri olmayan tahsilatlar yukaridaki whereIn ile
