@@ -413,6 +413,52 @@ class PatronAsistanRaporServisi
         ];
     }
 
+    /**
+     * PERSONEL iki-donem karsilastirmasi: her aktif personelin bu vs onceki donem
+     * cirosu/islemi. bu ciroya gore sirali; iki donemde de hareketsiz olan atlanir.
+     */
+    public function personelKarsilastir($salonId, $buT1, $buT2, $onT1, $onT2)
+    {
+        $bu = $this->personelDonemCiro($salonId, $buT1, $buT2);
+        $on = $this->personelDonemCiro($salonId, $onT1, $onT2);
+
+        $personeller = DB::table('salon_personelleri')
+            ->where('salon_id', $salonId)->where('aktif', 1)
+            ->select('id', 'personel_adi')->get();
+
+        $out = [];
+        foreach ($personeller as $p) {
+            $b = $bu[$p->id] ?? null;
+            $o = $on[$p->id] ?? null;
+            $bc = $b ? (float) $b->ciro : 0;
+            $oc = $o ? (float) $o->ciro : 0;
+            if ($bc <= 0 && $oc <= 0) continue; // iki donemde de hareket yoksa gosterme
+            $out[] = [
+                'id'       => $p->id,
+                'ad'       => $p->personel_adi,
+                'bu_ciro'  => $bc,
+                'on_ciro'  => $oc,
+                'bu_islem' => $b ? (int) $b->islem : 0,
+                'on_islem' => $o ? (int) $o->islem : 0,
+            ];
+        }
+        usort($out, function ($a, $b) { return $b['bu_ciro'] <=> $a['bu_ciro']; });
+        return $out;
+    }
+
+    /** Bir donemde personel_id -> {ciro, islem} (adisyon_hizmetler). */
+    protected function personelDonemCiro($salonId, $t1, $t2)
+    {
+        return DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)->whereNotNull('ah.personel_id')
+            ->whereBetween('a.created_at', [$t1 . ' 00:00:00', $t2 . ' 23:59:59'])
+            ->select('ah.personel_id',
+                DB::raw('COUNT(*) as islem'),
+                DB::raw('SUM(ah.fiyat - COALESCE(ah.indirim_tutari,0)) as ciro'))
+            ->groupBy('ah.personel_id')->get()->keyBy('personel_id');
+    }
+
     // ---- yardimcilar ----
 
     /** Tahsilat satirlarini nakit/kart/havale/diger/toplam kirilimina cevir (dashboardKasa mantigi). */
