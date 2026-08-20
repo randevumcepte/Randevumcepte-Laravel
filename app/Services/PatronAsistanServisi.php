@@ -409,20 +409,22 @@ class PatronAsistanServisi
             $parcalar[] = ucfirst($donemAdi) . " kasada henüz hareket yok";
         }
         if (!empty($veri['enHizmet']['ad'])) {
-            $parcalar[] = "en çok satılan hizmet " . $veri['enHizmet']['ad']
-                        . " (" . (int) $veri['enHizmet']['adet'] . " kez)";
+            $parcalar[] = "En çok satılan hizmet " . $veri['enHizmet']['ad']
+                        . ", " . (int) $veri['enHizmet']['adet'] . " kez yapılmış";
         }
         // Urun SADECE varsa soylenir (yoksa hic bahsedilmez).
         if (!empty($veri['enUrun']['ad'])) {
-            $parcalar[] = "en çok satan ürün " . $veri['enUrun']['ad']
-                        . " (" . $this->tl($veri['enUrun']['ciro']) . ")";
+            $parcalar[] = "En çok satan ürün " . $veri['enUrun']['ad']
+                        . ", " . $this->tl($veri['enUrun']['ciro']);
         }
         if (!empty($veri['enPersonel']['ad'])) {
-            $parcalar[] = "en çok işlem yapan " . $veri['enPersonel']['ad']
-                        . " (" . (int) $veri['enPersonel']['islem'] . " işlem)";
+            $parcalar[] = "En çok işlem yapan " . $veri['enPersonel']['ad']
+                        . ", " . (int) $veri['enPersonel']['islem'] . " işlemle";
         }
 
-        $cevap = implode(", ", $parcalar) . ". " . $this->gunYorum($toplam, $veri);
+        // Kisa, AYRI cumleler (nokta ile) -> TTS daha vurgulu/dogal okur; uzun
+        // virgullu liste monoton geliyor.
+        $cevap = implode(". ", $parcalar) . ". " . $this->gunYorum($toplam, $veri);
 
         return [
             'basarili' => true, 'intent' => 'ozet', 'cevap' => $cevap, 'seslendir' => true,
@@ -444,13 +446,13 @@ class PatronAsistanServisi
     protected function gunYorum($toplam, array $veri)
     {
         if ($toplam <= 0) {
-            return "Gün daha yeni, bol bereketli olsun.";
+            return "Gün daha yeni, bol bereketli olsun!";
         }
         $secenekler = [
-            "Gün güzel gidiyor, eline sağlık.",
-            "Bugün bereketli görünüyor, aynen devam.",
-            "İşler yolunda, tebrikler.",
-            "Güzel bir gün, böyle devam.",
+            "Gün güzel gidiyor, eline sağlık!",
+            "Bugün bereketli görünüyor, aynen devam!",
+            "İşler yolunda, tebrikler!",
+            "Güzel bir gün, böyle devam!",
         ];
         $yorum = $secenekler[((int) $toplam) % count($secenekler)];
         if (!empty($veri['enPersonel']['ad'])) {
