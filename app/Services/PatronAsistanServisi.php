@@ -1665,6 +1665,79 @@ class PatronAsistanServisi
         ];
     }
 
+    /** Mesaj bir BILANCO / kar-zarar istegi mi? */
+    public function bilancoTetik($metin)
+    {
+        $n = ' ' . $this->normalize($metin) . ' ';
+        foreach (['bilanco', 'kar zarar', 'kar-zarar', 'karzarar', 'gelir gider', 'gelir-gider',
+                  'mali durum', 'mali tablo', 'mali rapor', 'net kar', 'aylik bilanco',
+                  'aylik rapor', 'kar durumu', 'kazanc gider', 'gelir tablosu', 'kar zarar tablosu'] as $k) {
+            if (strpos($n, $k) !== false) return true;
+        }
+        return false;
+    }
+
+    /** Bilanco ay sayisi: "son N ay" / "N aylik" / "yillik". Varsayilan 3. */
+    public function bilancoAySayisi($metin)
+    {
+        $n = $this->normalize($metin);
+        if (preg_match('/son\s*(\d{1,2})\s*ay/', $n, $m)) { $s = (int) $m[1]; return ($s >= 1 && $s <= 24) ? $s : 3; }
+        if (preg_match('/(\d{1,2})\s*ayl/', $n, $m)) { $s = (int) $m[1]; return ($s >= 1 && $s <= 24) ? $s : 3; }
+        if (preg_match('/(\d{1,2})\s*ay/', $n, $m)) { $s = (int) $m[1]; return ($s >= 1 && $s <= 24) ? $s : 3; }
+        if (strpos($n, 'yillik') !== false || strpos($n, 'bu yil') !== false || strpos($n, '12 ay') !== false) return 12;
+        if (strpos($n, 'alti ay') !== false) return 6;
+        return 3;
+    }
+
+    /** Bilanco cevabi: kisa sozlu ozet + ay ay liste kart. AI YOK. */
+    public function cevapBilanco(array $b)
+    {
+        $aylar = $b['aylar'] ?? [];
+        if (empty($aylar)) {
+            return [
+                'basarili' => true, 'intent' => 'bilanco', 'seslendir' => true, 'kart' => null,
+                'cevap' => 'Bu dönem için bilanço oluşturacak veri bulunamadı.',
+            ];
+        }
+
+        $satirlar = []; $enKarli = null;
+        foreach ($aylar as $a) {
+            $net = (float) $a['net'];
+            $satirlar[] = [
+                'ay'    => $a['ay_adi'],
+                'gelir' => $this->tl((float) $a['gelir']),
+                'gider' => $this->tl((float) $a['gider']),
+                'net'   => $this->tl($net),
+                'kar'   => ($net >= 0),
+            ];
+            if ($enKarli === null || $net > $enKarli['net']) $enKarli = ['ay' => $a['ay_adi'], 'net' => $net];
+        }
+
+        $tN = (float) $b['toplam_net'];
+        $ozet = 'Son ' . $b['ay_sayisi'] . ' ayın bilançosu. Toplam gelir ' . $this->tl((float) $b['toplam_gelir'])
+              . ', toplam gider ' . $this->tl((float) $b['toplam_gider']) . ', net '
+              . ($tN >= 0 ? 'kâr ' : 'zarar ') . $this->tl(abs($tN)) . '. ';
+        if ($enKarli) $ozet .= 'En kârlı ay ' . $enKarli['ay'] . '. ';
+        $ozet .= 'Ay ay detay listede.';
+
+        return [
+            'basarili' => true, 'intent' => 'bilanco', 'seslendir' => true,
+            'cevap'    => $ozet,
+            'kart'     => [
+                'tip'      => 'bilanco',
+                'baslik'   => 'Bilanço · son ' . $b['ay_sayisi'] . ' ay',
+                'satirlar' => $satirlar,
+                'toplam'   => [
+                    'ay'    => 'TOPLAM',
+                    'gelir' => $this->tl((float) $b['toplam_gelir']),
+                    'gider' => $this->tl((float) $b['toplam_gider']),
+                    'net'   => $this->tl($tN),
+                    'kar'   => ($tN >= 0),
+                ],
+            ],
+        ];
+    }
+
     /**
      * Net KAPANIS/TESEKKUR/VEDA mesaji mi? ("tesekkurler kapat", "tamam yeter",
      * "sag ol gorusuruz"...). Boyleyse AI'ya GITMEDEN sohbete dusurulur; yoksa

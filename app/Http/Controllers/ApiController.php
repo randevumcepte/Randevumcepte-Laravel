@@ -2475,6 +2475,12 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             return $cevapla($kampCevap);
         }
 
+        // BILANCO / kar-zarar: "son 3 aylik bilanco cikar" -> ay ay gelir/gider/net (AI YOK).
+        if ($asistan->bilancoTetik($metin)) {
+            $aySayisi = $asistan->bilancoAySayisi($metin);
+            return $cevapla($asistan->cevapBilanco($veriSrv->bilanco($salonId, $aySayisi)));
+        }
+
         // KARSILASTIRMA: "gecen ayla bu ayi karsilastir" -> veriye dayali kiyas (AI YOK).
         // Cok sayida kalip; degerlendirme/niyet'ten ONCE bakilir.
         if ($asistan->karsilastirmaTetik($metin)) {

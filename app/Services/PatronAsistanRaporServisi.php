@@ -515,6 +515,35 @@ class PatronAsistanRaporServisi
         return array_slice($out, 0, 15);
     }
 
+    /**
+     * BILANCO (kar-zarar): son N ayin ay ay geliri/gideri/net kari + toplam.
+     * Web ile ayni formul: net = tahsilatlar - masraflar (masraflar.tarih donemi).
+     */
+    public function bilanco($salonId, $aySayisi = 3)
+    {
+        $aySayisi = max(1, min(24, (int) $aySayisi));
+        $aylarTr = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz',
+                    'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+        $aylar = []; $tG = 0; $tM = 0;
+        for ($i = $aySayisi - 1; $i >= 0; $i--) {
+            $bas = date('Y-m-01', strtotime("-$i months"));
+            $bit = date('Y-m-t', strtotime($bas));
+            $gelir = (float) DB::table('tahsilatlar')->where('salon_id', $salonId)
+                ->whereBetween('odeme_tarihi', [$bas . ' 00:00:00', $bit . ' 23:59:59'])->sum('tutar');
+            $gider = (float) DB::table('masraflar')->where('salon_id', $salonId)
+                ->whereBetween('tarih', [$bas . ' 00:00:00', $bit . ' 23:59:59'])->sum('tutar');
+            $tG += $gelir; $tM += $gider;
+            $aylar[] = [
+                'ay_adi' => $aylarTr[(int) date('n', strtotime($bas))] . ' ' . date('Y', strtotime($bas)),
+                'gelir'  => $gelir, 'gider' => $gider, 'net' => $gelir - $gider,
+            ];
+        }
+        return [
+            'aylar' => $aylar, 'ay_sayisi' => $aySayisi,
+            'toplam_gelir' => $tG, 'toplam_gider' => $tM, 'toplam_net' => $tG - $tM,
+        ];
+    }
+
     // ---- yardimcilar ----
 
     /** Tahsilat satirlarini nakit/kart/havale/diger/toplam kirilimina cevir (dashboardKasa mantigi). */
