@@ -662,7 +662,7 @@ class PatronAsistanServisi
      * Rapor niyetinden ONCE cagirilir (yoksa "musteri artir" -> musteri istatistigi olur).
      * Her seferinde RASTGELE 3 farkli oneri -> ezbere durmaz, bedava.
      */
-    public function salonOnerisi($metin)
+    public function salonOnerisiTetikMi($metin)
     {
         $norm = ' ' . $this->normalize($metin) . ' ';
         $tetik = [
@@ -676,15 +676,18 @@ class PatronAsistanServisi
             'islerim durgun', 'islerim kotu', 'isler durgun', 'isler kotu', 'isler acilmiyor',
             'salonumu buyut', 'isimi buyut', 'daha cok is', 'nasil kazan', 'buyumek istiyorum',
         ];
-        $eslesti = false;
         foreach ($tetik as $t) {
-            if (strpos($norm, $t) !== false) { $eslesti = true; break; }
+            if (strpos($norm, $t) !== false) {
+                return true;
+            }
         }
-        if (!$eslesti) {
-            return null;
-        }
+        return false;
+    }
 
-        $ipuclari = [
+    /** Genel (veriden bagimsiz) pratik oneri havuzu. */
+    protected function genelIpuclari()
+    {
+        return [
             'Sadakat programı kurun: her ziyarette puan verin, belli puanda ücretsiz hizmet ya da indirim tanımlayın. Müşteri geri gelmek için sebep bulur.',
             'Boş ve sakin saatlere özel indirim yapın; örneğin öğle saatleri için indirim kampanyasıyla ölü saatleri doldurabilirsiniz.',
             'Google işletme profilinizi güncel tutun ve memnun müşterilerden yorum isteyin. Yüksek puan yeni müşteri getirir.',
@@ -709,21 +712,97 @@ class PatronAsistanServisi
             'Kampanyalarınızı mevcut müşterilere düzenli duyurun. Onları bilgilendirmek, yeni müşteri aramaktan daha ucuz ve etkilidir.',
         ];
 
-        $idx = (array) array_rand($ipuclari, min(3, count($ipuclari)));
-        $secili = [];
-        foreach ($idx as $i) {
-            $secili[] = $ipuclari[$i];
+    }
+
+    /**
+     * VERIYE DAYALI oneri: son donem (bu ay) verilerine bakip salona OZEL tavsiye
+     * uretir; eksik kalirsa genel havuzdan tamamlar (3 oneri). Controller veriyi
+     * toplar: ['kasa'=>..., 'hizmet'=>..., 'urun'=>..., 'personel'=>..., 'musteri'=>...].
+     * Bedava (kural + veri analizi).
+     */
+    public function veriliOneri(array $veri)
+    {
+        $oneriler = [];
+        $veriVar  = false;
+
+        // Musteri: yeni az / sadik guclu
+        $m = $veri['musteri'] ?? [];
+        $aktif  = (int) ($m['toplam_aktif'] ?? 0);
+        $yeni   = (int) ($m['yeni_musteri'] ?? 0);
+        $tekrar = (int) ($m['tekrar_gelen'] ?? 0);
+        if ($aktif >= 5) {
+            $veriVar = true;
+            if ($yeni <= $aktif * 0.2) {
+                $oneriler[] = "Bu ay yeni müşteri sayınız düşük görünüyor; sadece " . $yeni
+                            . " yeni müşteri gelmiş. Arkadaşını getir kampanyası ve sosyal medyada "
+                            . "öncesi sonrası paylaşımlarıyla yeni müşteri çekebilirsiniz.";
+            }
+            if ($tekrar >= 5 && $tekrar >= $yeni) {
+                $oneriler[] = "Sadık müşteri kitleniz güçlü; " . $tekrar . " tekrar gelen müşteriniz var. "
+                            . "Onlara seans paketleri ve abonelik sunarak hem cironuzu hem bağlılığı artırabilirsiniz.";
+            }
         }
 
-        $girisler = [
-            'İşletmenizi büyütmek için birkaç fikrim var.',
-            'İşleri artırmak için şunları deneyebilirsiniz.',
-            'Salonunuzu daha ileri taşımak için birkaç önerim var.',
-            'Cironuzu ve müşteri sayınızı artırmak için şu adımlar işe yarar.',
-        ];
-        $cevap = $girisler[array_rand($girisler)] . ' '
-               . implode(' ', $secili)
-               . ' Dilerseniz bu konularda daha fazla fikir verebilirim.';
+        // Urun satisi yok
+        if ((float) ($veri['urun']['toplam_ciro'] ?? 0) <= 0) {
+            $oneriler[] = "Bu ay ürün satışınız görünmüyor. Bakım ürünleri satışıyla her müşteriden "
+                        . "ek gelir elde edebilirsiniz.";
+        } else {
+            $veriVar = true;
+        }
+
+        // Hizmet konsantrasyonu (tek hizmet baskin)
+        $hizmetler = $veri['hizmet']['hizmetler'] ?? [];
+        $hToplam   = (float) ($veri['hizmet']['toplam_ciro'] ?? 0);
+        if (!empty($hizmetler) && $hToplam > 0) {
+            $veriVar = true;
+            $enH = (array) $hizmetler[0];
+            if ((float) ($enH['ciro'] ?? 0) >= $hToplam * 0.6) {
+                $oneriler[] = ($enH['hizmet_adi'] ?? 'Bir hizmetiniz') . " cironuzun büyük kısmını "
+                            . "oluşturuyor. Bu hizmetin yanına tamamlayıcı hizmetler önererek sepet tutarını yükseltebilirsiniz.";
+            }
+        }
+
+        // Personel konsantrasyonu (tek personel baskin)
+        $pers = $veri['personel']['personeller'] ?? [];
+        if (count($pers) >= 2) {
+            $pToplam = 0; $enP = null; $enPciro = 0;
+            foreach ($pers as $p) {
+                $c = (float) ($p['ciro'] ?? 0);
+                $pToplam += $c;
+                if ($c > $enPciro) { $enPciro = $c; $enP = $p; }
+            }
+            if ($pToplam > 0 && $enPciro >= $pToplam * 0.55 && $enP) {
+                $veriVar = true;
+                $oneriler[] = "Cironuzun önemli bölümü " . ($enP['personel_adi'] ?? 'tek bir personel')
+                            . " üzerinde. Diğer personeli eğitip müşteri dağılımını dengeleyerek hem riski "
+                            . "azaltır hem kapasiteyi artırırsınız.";
+            }
+        }
+
+        // Kasa hareketsiz
+        if ((float) ($veri['kasa']['toplam'] ?? 0) <= 0) {
+            $oneriler[] = "Bu dönem kasada belirgin bir hareket görünmüyor. Mevcut müşterilerinize kampanya "
+                        . "duyurusu ve boş saatlere özel indirimle hızlı bir canlanma sağlayabilirsiniz.";
+        }
+
+        // 3'e tamamla (genel havuzdan, tekrar etmeyecek sekilde)
+        if (count($oneriler) < 3) {
+            $havuz = $this->genelIpuclari();
+            shuffle($havuz);
+            foreach ($havuz as $ip) {
+                if (count($oneriler) >= 3) break;
+                if (!in_array($ip, $oneriler, true)) {
+                    $oneriler[] = $ip;
+                }
+            }
+        }
+        $oneriler = array_slice($oneriler, 0, 3);
+
+        $giris = $veriVar
+            ? 'İşletmenizin son dönem verilerine göz attım. '
+            : 'İşletmenizi büyütmek için birkaç önerim var. ';
+        $cevap = $giris . implode(' ', $oneriler) . ' Dilerseniz bu başlıkları daha da açabiliriz.';
 
         return [
             'basarili' => true, 'intent' => 'oneri', 'seslendir' => true,

@@ -2439,8 +2439,17 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         // Salon buyutme / is artirma danismanligi -> rapor niyetinden ONCE
         // ("musteri cek / ciro artir" gibi ifadeler yanlislikla istatistige gitmesin).
-        if ($oneri = $asistan->salonOnerisi($metin)) {
-            return response()->json($oneri, 200, [], JSON_UNESCAPED_UNICODE);
+        // VERIYE DAYALI: son ay verisine bakip salona OZEL oneri uret.
+        if ($asistan->salonOnerisiTetikMi($metin)) {
+            list($ot1, $ot2) = $veriSrv->donemTarih('ay');
+            $oneriVeri = [
+                'kasa'     => $veriSrv->kasa($salonId, $ot1, $ot2),
+                'hizmet'   => $veriSrv->hizmet($salonId, $ot1, $ot2),
+                'urun'     => $veriSrv->urun($salonId, $ot1, $ot2),
+                'personel' => $veriSrv->personel($salonId, $ot1, $ot2),
+                'musteri'  => $veriSrv->musteri($salonId, $ot1, $ot2),
+            ];
+            return response()->json($asistan->veriliOneri($oneriVeri), 200, [], JSON_UNESCAPED_UNICODE);
         }
 
         // ONCE bedava kural motoru (yaygin sorular). SADECE anlasilamayanda (bilinmiyor)
