@@ -1689,52 +1689,64 @@ class PatronAsistanServisi
         return 3;
     }
 
-    /** Bilanco cevabi: kisa sozlu ozet + ay ay liste kart. AI YOK. */
+    /** GELIR TABLOSU (kar-zarar) cevabi: gelir/gider DOKUMU + aylik trend. AI YOK. */
     public function cevapBilanco(array $b, $salonAdi = '')
     {
-        $aylar = $b['aylar'] ?? [];
-        if (empty($aylar)) {
-            return [
-                'basarili' => true, 'intent' => 'bilanco', 'seslendir' => true, 'kart' => null,
-                'cevap' => 'Bu dönem için bilanço oluşturacak veri bulunamadı.',
-            ];
-        }
+        $net = (float) ($b['net'] ?? 0);
+        $marj = (float) ($b['marj'] ?? 0);
 
+        // --- Gelir/Gider dokumu ---
+        $dokum = [];
+        $dokum[] = ['grup' => 'GELİR (TAHSİLAT)'];
+        $dokum[] = ['etiket' => 'Toplam tahsilat', 'deger' => $this->tl((float) $b['toplam_tahsilat']), 'vurgu' => true];
+        if ((float) $b['nakit']  > 0) $dokum[] = ['etiket' => 'Nakit',  'deger' => $this->tl((float) $b['nakit'])];
+        if ((float) $b['kart']   > 0) $dokum[] = ['etiket' => 'Kart',   'deger' => $this->tl((float) $b['kart'])];
+        if ((float) $b['havale'] > 0) $dokum[] = ['etiket' => 'Havale', 'deger' => $this->tl((float) $b['havale'])];
+        if ((float) $b['diger']  > 0) $dokum[] = ['etiket' => 'Diğer',  'deger' => $this->tl((float) $b['diger'])];
+
+        $dokum[] = ['grup' => 'SATIŞ DAĞILIMI'];
+        $dokum[] = ['etiket' => 'Hizmet geliri', 'deger' => $this->tl((float) $b['hizmet_geliri'])];
+        $dokum[] = ['etiket' => 'Ürün geliri',   'deger' => $this->tl((float) $b['urun_geliri'])];
+
+        $dokum[] = ['grup' => 'GİDER'];
+        $dokum[] = ['etiket' => 'Salon masrafı',   'deger' => $this->tl((float) $b['salon_masrafi'])];
+        $dokum[] = ['etiket' => 'Personel gideri', 'deger' => $this->tl((float) $b['personel_gideri'])];
+        $dokum[] = ['etiket' => 'Toplam gider',    'deger' => $this->tl((float) $b['toplam_gider']), 'vurgu' => true];
+
+        $dokum[] = ['grup' => 'SONUÇ'];
+        $dokum[] = ['etiket' => ($net >= 0 ? 'Net kâr' : 'Net zarar'), 'deger' => $this->tl(abs($net)), 'vurgu' => true, 'kar' => ($net >= 0)];
+        $dokum[] = ['etiket' => 'Kâr marjı', 'deger' => '%' . round($marj)];
+
+        // --- Aylik trend ---
         $satirlar = []; $enKarli = null;
-        foreach ($aylar as $a) {
-            $net = (float) $a['net'];
+        foreach (($b['aylar'] ?? []) as $a) {
+            $an = (float) $a['net'];
             $satirlar[] = [
                 'ay'    => $a['ay_adi'],
                 'gelir' => $this->tl((float) $a['gelir']),
                 'gider' => $this->tl((float) $a['gider']),
-                'net'   => $this->tl($net),
-                'kar'   => ($net >= 0),
+                'net'   => $this->tl($an),
+                'kar'   => ($an >= 0),
             ];
-            if ($enKarli === null || $net > $enKarli['net']) $enKarli = ['ay' => $a['ay_adi'], 'net' => $net];
+            if ($enKarli === null || $an > $enKarli['net']) $enKarli = ['ay' => $a['ay_adi'], 'net' => $an];
         }
 
-        $tN = (float) $b['toplam_net'];
-        $ozet = 'Son ' . $b['ay_sayisi'] . ' ayın bilançosu. Toplam gelir ' . $this->tl((float) $b['toplam_gelir'])
-              . ', toplam gider ' . $this->tl((float) $b['toplam_gider']) . ', net '
-              . ($tN >= 0 ? 'kâr ' : 'zarar ') . $this->tl(abs($tN)) . '. ';
+        $ozet = 'Son ' . $b['ay_sayisi'] . ' ayın gelir tablosu. Toplam tahsilat '
+              . $this->tl((float) $b['toplam_tahsilat']) . ', toplam gider '
+              . $this->tl((float) $b['toplam_gider']) . ', net ' . ($net >= 0 ? 'kâr ' : 'zarar ')
+              . $this->tl(abs($net)) . ', kâr marjı yüzde ' . round($marj) . '. ';
         if ($enKarli) $ozet .= 'En kârlı ay ' . $enKarli['ay'] . '. ';
-        $ozet .= 'Ay ay detay listede.';
+        $ozet .= 'Gelir gider dökümü ve aylık trend listede.';
 
         return [
             'basarili' => true, 'intent' => 'bilanco', 'seslendir' => true,
             'cevap'    => $ozet,
             'kart'     => [
                 'tip'       => 'bilanco',
-                'baslik'    => 'Bilanço · son ' . $b['ay_sayisi'] . ' ay',
+                'baslik'    => 'Gelir Tablosu · son ' . $b['ay_sayisi'] . ' ay',
                 'salon_adi' => (string) $salonAdi,
+                'dokum'     => $dokum,
                 'satirlar'  => $satirlar,
-                'toplam'   => [
-                    'ay'    => 'TOPLAM',
-                    'gelir' => $this->tl((float) $b['toplam_gelir']),
-                    'gider' => $this->tl((float) $b['toplam_gider']),
-                    'net'   => $this->tl($tN),
-                    'kar'   => ($tN >= 0),
-                ],
             ],
         ];
     }

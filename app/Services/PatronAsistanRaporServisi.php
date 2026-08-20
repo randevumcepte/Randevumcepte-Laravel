@@ -516,31 +516,81 @@ class PatronAsistanRaporServisi
     }
 
     /**
-     * BILANCO (kar-zarar): son N ayin ay ay geliri/gideri/net kari + toplam.
-     * Web ile ayni formul: net = tahsilatlar - masraflar (masraflar.tarih donemi).
+     * BILANCO (kar-zarar): son N ay icin GELIR/GIDER DOKUMU + aylik trend.
+     * net = tahsilatlar - masraflar (web ile ayni). Gider: salon masrafi + personel
+     * gideri (masraflar.personel_gideri). Gelir dokumu: nakit/kart/havale + hizmet/urun.
      */
     public function bilanco($salonId, $aySayisi = 3)
     {
         $aySayisi = max(1, min(24, (int) $aySayisi));
         $aylarTr = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz',
                     'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
-        $aylar = []; $tG = 0; $tM = 0;
+
+        $ilkBas = date('Y-m-01', strtotime('-' . ($aySayisi - 1) . ' months'));
+        $sonBit = date('Y-m-t');
+
+        // --- Donem GELIR (tahsilat) + odeme yontemi kirilimi ---
+        $tahRows = DB::table('tahsilatlar')
+            ->leftJoin('odeme_yontemleri', 'tahsilatlar.odeme_yontemi_id', '=', 'odeme_yontemleri.id')
+            ->where('tahsilatlar.salon_id', $salonId)
+            ->whereBetween('tahsilatlar.odeme_tarihi', [$ilkBas . ' 00:00:00', $sonBit . ' 23:59:59'])
+            ->select('odeme_yontemleri.odeme_yontemi as yontem', DB::raw('SUM(tahsilatlar.tutar) as toplam'))
+            ->groupBy('odeme_yontemleri.odeme_yontemi')->get();
+        $tah = $this->tahsilatKirilim($tahRows);
+
+        // --- Satis dagilimi: hizmet / urun geliri ---
+        $hizmetGeliri = (float) DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)
+            ->whereBetween('a.created_at', [$ilkBas . ' 00:00:00', $sonBit . ' 23:59:59'])
+            ->sum(DB::raw('ah.fiyat - COALESCE(ah.indirim_tutari,0)'));
+        $urunGeliri = (float) DB::table('adisyon_urunler as au')
+            ->join('adisyonlar as a', 'a.id', '=', 'au.adisyon_id')
+            ->where('a.salon_id', $salonId)
+            ->whereBetween('a.created_at', [$ilkBas . ' 00:00:00', $sonBit . ' 23:59:59'])
+            ->sum(DB::raw('au.fiyat - COALESCE(au.indirim_tutari,0)'));
+
+        // --- Gider: salon masrafi (personel_gideri=0/null) + personel gideri (=1) ---
+        $personelGideri = (float) DB::table('masraflar')->where('salon_id', $salonId)
+            ->whereBetween('tarih', [$ilkBas . ' 00:00:00', $sonBit . ' 23:59:59'])
+            ->where('personel_gideri', 1)->sum('tutar');
+        $toplamGider = (float) DB::table('masraflar')->where('salon_id', $salonId)
+            ->whereBetween('tarih', [$ilkBas . ' 00:00:00', $sonBit . ' 23:59:59'])->sum('tutar');
+        $salonMasrafi = $toplamGider - $personelGideri;
+
+        $net = $tah['toplam'] - $toplamGider;
+        $marj = $tah['toplam'] > 0 ? ($net / $tah['toplam']) * 100 : 0;
+
+        // --- Aylik trend ---
+        $aylar = [];
         for ($i = $aySayisi - 1; $i >= 0; $i--) {
             $bas = date('Y-m-01', strtotime("-$i months"));
             $bit = date('Y-m-t', strtotime($bas));
-            $gelir = (float) DB::table('tahsilatlar')->where('salon_id', $salonId)
+            $g = (float) DB::table('tahsilatlar')->where('salon_id', $salonId)
                 ->whereBetween('odeme_tarihi', [$bas . ' 00:00:00', $bit . ' 23:59:59'])->sum('tutar');
-            $gider = (float) DB::table('masraflar')->where('salon_id', $salonId)
+            $m = (float) DB::table('masraflar')->where('salon_id', $salonId)
                 ->whereBetween('tarih', [$bas . ' 00:00:00', $bit . ' 23:59:59'])->sum('tutar');
-            $tG += $gelir; $tM += $gider;
             $aylar[] = [
                 'ay_adi' => $aylarTr[(int) date('n', strtotime($bas))] . ' ' . date('Y', strtotime($bas)),
-                'gelir'  => $gelir, 'gider' => $gider, 'net' => $gelir - $gider,
+                'gelir'  => $g, 'gider' => $m, 'net' => $g - $m,
             ];
         }
+
         return [
-            'aylar' => $aylar, 'ay_sayisi' => $aySayisi,
-            'toplam_gelir' => $tG, 'toplam_gider' => $tM, 'toplam_net' => $tG - $tM,
+            'ay_sayisi'       => $aySayisi,
+            'toplam_tahsilat' => $tah['toplam'],
+            'nakit'           => $tah['nakit'],
+            'kart'            => $tah['kart'],
+            'havale'          => $tah['havale'],
+            'diger'           => $tah['diger'],
+            'hizmet_geliri'   => $hizmetGeliri,
+            'urun_geliri'     => $urunGeliri,
+            'salon_masrafi'   => $salonMasrafi,
+            'personel_gideri' => $personelGideri,
+            'toplam_gider'    => $toplamGider,
+            'net'             => $net,
+            'marj'            => $marj,
+            'aylar'           => $aylar,
         ];
     }
 
