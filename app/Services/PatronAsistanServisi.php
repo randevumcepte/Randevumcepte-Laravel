@@ -404,8 +404,7 @@ class PatronAsistanServisi
 
         $parcalar = [];
         if ($toplam > 0) {
-            $parcalar[] = ucfirst($donemAdi) . " kasada " . $this->tl($toplam) . " var"
-                        . " (nakit " . $this->tl($kasa['nakit'] ?? 0) . ", kart " . $this->tl($kasa['kart'] ?? 0) . ")";
+            $parcalar[] = ucfirst($donemAdi) . " kasada " . $this->tl($toplam) . " var";
         } else {
             $parcalar[] = ucfirst($donemAdi) . " kasada henüz hareket yok";
         }
@@ -445,13 +444,13 @@ class PatronAsistanServisi
     protected function gunYorum($toplam, array $veri)
     {
         if ($toplam <= 0) {
-            return "Gün daha yeni, bol bereketli olsun! 🍀";
+            return "Gün daha yeni, bol bereketli olsun.";
         }
         $secenekler = [
-            "Gün güzel gidiyor, eline sağlık! 👏",
-            "Bugün bereketli görünüyor, aynen devam! 💪",
-            "İşler yolunda, tebrikler! 🎉",
-            "Güzel bir gün, böyle devam! ✨",
+            "Gün güzel gidiyor, eline sağlık.",
+            "Bugün bereketli görünüyor, aynen devam.",
+            "İşler yolunda, tebrikler.",
+            "Güzel bir gün, böyle devam.",
         ];
         $yorum = $secenekler[((int) $toplam) % count($secenekler)];
         if (!empty($veri['enPersonel']['ad'])) {
