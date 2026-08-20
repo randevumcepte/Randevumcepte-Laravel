@@ -1387,6 +1387,124 @@ class PatronAsistanServisi
     }
 
     /**
+     * Mesaj bir KARSILASTIRMA istegi mi? (bu ay vs gecen ay gibi). Cok sayida farkli
+     * kalip -> salon sahipleri degisik sorabilir.
+     */
+    public function karsilastirmaTetik($metin)
+    {
+        $n = ' ' . $this->normalize($metin) . ' ';
+        $anahtarlar = [
+            'karsilastir', 'karsilastirma', 'karsilastirmali', 'kiyasla', 'kiyaslama', 'mukayese',
+            'gecen aya gore', 'onceki aya gore', 'bu ayla gecen', 'gecen ayla', 'gecen ay ile',
+            'gecen ay ne kadar', 'gecen aya kiyasla', 'onceki ay', 'gecen haftaya gore',
+            'gecen hafta bu hafta', 'bu haftayla gecen', 'gecen yila gore', 'gecen yil bu yil',
+            'dune gore', 'dunle bugun', 'onceki doneme', 'gecen doneme gore', 'gecen sefere gore',
+            'artti mi azaldi mi', 'arttimi azaldimi', 'artti mi', 'azaldi mi', 'yukseldi mi',
+            'dustu mu', 'daha iyi mi', 'daha mi iyi', 'daha kotu mu', 'buyuduk mu', 'kuculduk mu',
+            'geriledik mi', 'gelistik mi', 'ilerledik mi', 'artis var mi', 'dusus var mi',
+            'fark ne', 'ne kadar fark', 'farki ne', 'ne fark var', 'gecmise gore',
+        ];
+        foreach ($anahtarlar as $k) {
+            if (strpos($n, $k) !== false) return true;
+        }
+        return false;
+    }
+
+    /** Karsilastirma donemi: bu vs onceki tarih araliklari + adlar. Varsayilan AY. */
+    public function karsilastirmaDonem($metin)
+    {
+        $n = $this->normalize($metin);
+        if (strpos($n, 'hafta') !== false) {
+            return [
+                'buT1' => date('Y-m-d', strtotime('monday this week')),
+                'buT2' => date('Y-m-d', strtotime('sunday this week')),
+                'onT1' => date('Y-m-d', strtotime('monday last week')),
+                'onT2' => date('Y-m-d', strtotime('sunday last week')),
+                'buAd' => 'bu hafta', 'onAd' => 'geçen hafta',
+            ];
+        }
+        if (strpos($n, 'yil') !== false || strpos($n, 'sene') !== false) {
+            return [
+                'buT1' => date('Y-01-01'), 'buT2' => date('Y-12-31'),
+                'onT1' => date('Y-01-01', strtotime('-1 year')),
+                'onT2' => date('Y-12-31', strtotime('-1 year')),
+                'buAd' => 'bu yıl', 'onAd' => 'geçen yıl',
+            ];
+        }
+        if (strpos($n, 'dun') !== false) {
+            return [
+                'buT1' => date('Y-m-d'), 'buT2' => date('Y-m-d'),
+                'onT1' => date('Y-m-d', strtotime('-1 day')),
+                'onT2' => date('Y-m-d', strtotime('-1 day')),
+                'buAd' => 'bugün', 'onAd' => 'dün',
+            ];
+        }
+        return [
+            'buT1' => date('Y-m-01'), 'buT2' => date('Y-m-t'),
+            'onT1' => date('Y-m-01', strtotime('first day of last month')),
+            'onT2' => date('Y-m-t', strtotime('last day of last month')),
+            'buAd' => 'bu ay', 'onAd' => 'geçen ay',
+        ];
+    }
+
+    /** Karsilastirma cevabi: kisa sozlu ozet + tam liste kart. AI YOK (veriye dayali). */
+    public function cevapKarsilastirma(array $bu, array $on, $buAd, $onAd)
+    {
+        $metrikler = [
+            ['etiket' => 'Ciro',            'bu' => $bu['gelir'],        'on' => $on['gelir'],        'tip' => 'tl',   'artiIyi' => true],
+            ['etiket' => 'İşlem (adisyon)', 'bu' => $bu['adisyon'],      'on' => $on['adisyon'],      'tip' => 'adet', 'artiIyi' => true],
+            ['etiket' => 'Hizmet cirosu',   'bu' => $bu['hizmet_ciro'],  'on' => $on['hizmet_ciro'],  'tip' => 'tl',   'artiIyi' => true],
+            ['etiket' => 'Ürün cirosu',     'bu' => $bu['urun_ciro'],    'on' => $on['urun_ciro'],    'tip' => 'tl',   'artiIyi' => true],
+            ['etiket' => 'Randevu',         'bu' => $bu['randevu'],      'on' => $on['randevu'],      'tip' => 'adet', 'artiIyi' => true],
+            ['etiket' => 'İptal',           'bu' => $bu['iptal'],        'on' => $on['iptal'],        'tip' => 'adet', 'artiIyi' => false],
+            ['etiket' => 'Gelmeyen',        'bu' => $bu['gelmedi'],      'on' => $on['gelmedi'],      'tip' => 'adet', 'artiIyi' => false],
+            ['etiket' => 'Yeni müşteri',    'bu' => $bu['yeni_musteri'], 'on' => $on['yeni_musteri'], 'tip' => 'adet', 'artiIyi' => true],
+        ];
+
+        $satirlar = [];
+        foreach ($metrikler as $m) {
+            $b = (float) $m['bu']; $o = (float) $m['on'];
+            $fark = $b - $o;
+            $yuzde = $o > 0 ? (int) round(($fark / $o) * 100) : ($b > 0 ? 100 : 0);
+            $yon = ($fark > 0) ? 'up' : (($fark < 0) ? 'down' : 'flat');
+            $iyi = ($fark == 0) ? true : ((($fark > 0) && $m['artiIyi']) || (($fark < 0) && !$m['artiIyi']));
+            $satirlar[] = [
+                'etiket' => $m['etiket'],
+                'bu'     => $m['tip'] === 'tl' ? $this->tl($b) : (string) (int) $b,
+                'onceki' => $m['tip'] === 'tl' ? $this->tl($o) : (string) (int) $o,
+                'yuzde'  => abs($yuzde),
+                'yon'    => $yon,
+                'iyi'    => $iyi,
+            ];
+        }
+
+        $ciroFark = (float) $bu['gelir'] - (float) $on['gelir'];
+        $ciroYuzde = (float) $on['gelir'] > 0 ? (int) round(($ciroFark / (float) $on['gelir']) * 100) : 0;
+        if ($ciroFark > 0) {
+            $ozet = ucfirst($buAd) . ', ' . $onAd . 'a göre ciro yüzde ' . abs($ciroYuzde) . ' artmış; '
+                  . $this->tl((float) $on['gelir']) . 'dan ' . $this->tl((float) $bu['gelir']) . 'a yükselmiş.';
+        } elseif ($ciroFark < 0) {
+            $ozet = ucfirst($buAd) . ', ' . $onAd . 'a göre ciro yüzde ' . abs($ciroYuzde) . ' azalmış; '
+                  . $this->tl((float) $on['gelir']) . 'dan ' . $this->tl((float) $bu['gelir']) . 'a inmiş.';
+        } else {
+            $ozet = ucfirst($buAd) . ' ile ' . $onAd . ' ciro açısından hemen hemen aynı.';
+        }
+        $ozet .= ' Kalemlerin detaylı karşılaştırması listede.';
+
+        return [
+            'basarili' => true, 'intent' => 'karsilastirma', 'seslendir' => true,
+            'cevap'    => $ozet,
+            'kart'     => [
+                'tip'       => 'karsilastirma',
+                'baslik'    => ucfirst($buAd) . ' — ' . ucfirst($onAd),
+                'bu_ad'     => $buAd,
+                'onceki_ad' => $onAd,
+                'satirlar'  => $satirlar,
+            ],
+        ];
+    }
+
+    /**
      * Net KAPANIS/TESEKKUR/VEDA mesaji mi? ("tesekkurler kapat", "tamam yeter",
      * "sag ol gorusuruz"...). Boyleyse AI'ya GITMEDEN sohbete dusurulur; yoksa
      * konusma bellegi yuzunden onceki konu ("oneri ver") devam ediyor saniliyor.

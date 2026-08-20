@@ -362,6 +362,57 @@ class PatronAsistanRaporServisi
         return ['personel_adi' => $row->personel_adi, 'adet' => (int) $row->adet];
     }
 
+    /**
+     * KARSILASTIRMA icin tek donemin ozet metrikleri (kasa/satis/hizmet/urun/randevu/
+     * iptal/gelmedi/yeni musteri). Iki donem cagirilip kiyaslanir. AI YOK.
+     */
+    public function karsilastirmaVeri($salonId, $t1, $t2)
+    {
+        $gelir = (float) DB::table('tahsilatlar')->where('salon_id', $salonId)
+            ->whereBetween('odeme_tarihi', [$t1 . ' 00:00:00', $t2 . ' 23:59:59'])->sum('tutar');
+
+        $randevu = DB::table('randevular')->where('salon_id', $salonId)
+            ->whereBetween('tarih', [$t1, $t2])->count();
+        $iptal = DB::table('randevular')->where('salon_id', $salonId)
+            ->whereBetween('tarih', [$t1, $t2])->where('durum', '>=', 2)->count();
+        $gelmedi = DB::table('randevular')->where('salon_id', $salonId)
+            ->whereBetween('tarih', [$t1, $t2])->where('randevuya_geldi', 0)->count();
+
+        $adisyon = DB::table('adisyonlar')->where('salon_id', $salonId)
+            ->whereBetween('created_at', [$t1 . ' 00:00:00', $t2 . ' 23:59:59'])->count();
+
+        $hizmet = DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)
+            ->whereBetween('a.created_at', [$t1 . ' 00:00:00', $t2 . ' 23:59:59'])
+            ->selectRaw('COUNT(*) as adet, SUM(ah.fiyat - COALESCE(ah.indirim_tutari,0)) as ciro')->first();
+
+        $urun = DB::table('adisyon_urunler as au')
+            ->join('adisyonlar as a', 'a.id', '=', 'au.adisyon_id')
+            ->where('a.salon_id', $salonId)
+            ->whereBetween('a.created_at', [$t1 . ' 00:00:00', $t2 . ' 23:59:59'])
+            ->selectRaw('SUM(COALESCE(au.adet,1)) as adet, SUM(au.fiyat - COALESCE(au.indirim_tutari,0)) as ciro')->first();
+
+        $yeni = 0;
+        if (\Schema::hasTable('musteri_portfoy')) {
+            $yeni = DB::table('musteri_portfoy')->where('salon_id', $salonId)
+                ->whereBetween('created_at', [$t1 . ' 00:00:00', $t2 . ' 23:59:59'])->count();
+        }
+
+        return [
+            'gelir'        => $gelir,
+            'randevu'      => $randevu,
+            'iptal'        => $iptal,
+            'gelmedi'      => $gelmedi,
+            'adisyon'      => $adisyon,
+            'hizmet_ciro'  => (float) ($hizmet->ciro ?? 0),
+            'hizmet_adet'  => (int) ($hizmet->adet ?? 0),
+            'urun_ciro'    => (float) ($urun->ciro ?? 0),
+            'urun_adet'    => (int) ($urun->adet ?? 0),
+            'yeni_musteri' => $yeni,
+        ];
+    }
+
     // ---- yardimcilar ----
 
     /** Tahsilat satirlarini nakit/kart/havale/diger/toplam kirilimina cevir (dashboardKasa mantigi). */

@@ -2475,6 +2475,15 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             return $cevapla($kampCevap);
         }
 
+        // KARSILASTIRMA: "gecen ayla bu ayi karsilastir" -> veriye dayali kiyas (AI YOK).
+        // Cok sayida kalip; degerlendirme/niyet'ten ONCE bakilir.
+        if ($asistan->karsilastirmaTetik($metin)) {
+            $kd = $asistan->karsilastirmaDonem($metin);
+            $buV = $veriSrv->karsilastirmaVeri($salonId, $kd['buT1'], $kd['buT2']);
+            $onV = $veriSrv->karsilastirmaVeri($salonId, $kd['onT1'], $kd['onT2']);
+            return $cevapla($asistan->cevapKarsilastirma($buV, $onV, $kd['buAd'], $kd['onAd']));
+        }
+
         // PERSONEL DETAYLI DEGERLENDIRME: "Ahmet'i son 7 gun degerlendir / rapor cikar /
         // performansini olc" -> zengin veri + AI detayli karne. 'guclu' kelime isim
         // olmasa da sorar; 'zayif' kelime (rapor/performans/olc...) YALNIZ personel adi
