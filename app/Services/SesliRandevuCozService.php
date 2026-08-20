@@ -388,6 +388,27 @@ class SesliRandevuCozService
                     ];
                 }
             }
+
+            // GUN 0: istenen saat verildi ama o saatten SONRASI bu gun doluysa,
+            // ayni gunun ERKEN (istenen saatten onceki) bos slotlarini da oner ->
+            // sabah bos iken ertesi gune ATLAMASIN.
+            if ($g === 0 && $tercihDk !== null) {
+                $erkenBas = ($tarihStr === $bugun->toDateString())
+                    ? max($basDk, $simdiDk) : $basDk;
+                for ($slot = $erkenBas; $slot + $sureDk <= $bitDk && $slot < $aramaBas; $slot += $adim) {
+                    if ($this->slotBos($slot, $slot + $sureDk, $dolu)) {
+                        return [
+                            'bulundu'      => true,
+                            'tarih'        => $tarihStr,
+                            'saat'         => $this->dkToHi($slot),
+                            'sure_dk'      => $sureDk,
+                            'tam_istek'    => false,
+                            'istenen_dolu' => true, // istenen saat doluydu; alternatif
+                            '_debug'       => $dbg,
+                        ];
+                    }
+                }
+            }
         }
         return ['bulundu' => false, '_debug' => $dbg];
     }
@@ -433,23 +454,40 @@ class SesliRandevuCozService
 
         // Gorunurluk kapisi takvimAcikMi'de kontrol edildi. Burada saat: once personelin
         // kendi calisma saati, yoksa salonun saati (gorunur personel icin makul varsayilan).
-        $ch = null;
-        if ($personelId) {
-            $ch = PersonelCalismaSaatleri::where('personel_id', $personelId)
-                ->where('haftanin_gunu', $dow)->first();
+        $pch = $personelId
+            ? PersonelCalismaSaatleri::where('personel_id', $personelId)
+                ->where('haftanin_gunu', $dow)->first()
+            : null;
+        $sch = SalonCalismaSaatleri::where('salon_id', $salonId)
+            ->where('haftanin_gunu', $dow)->first();
+
+        // Personel satiri varsa esas o. AMA gun ACIK isaretli olup saat GIRILMEMIS
+        // (00:00-00:00 / gecersiz) ise SALON saatine dus (kullanici gunu acmis ama
+        // saat yazmamis -> salonun saatiyle calissin, sesli randevu bos gecmesin).
+        if ($pch) {
+            $calisiyor = ((int) $pch->calisiyor === 1);
+            $bas = $this->hiToDk($pch->baslangic_saati);
+            $bit = $this->hiToDk($pch->bitis_saati);
+            if ($calisiyor && ($bas === null || $bit === null || $bit <= $bas) && $sch) {
+                $sbas = $this->hiToDk($sch->baslangic_saati);
+                $sbit = $this->hiToDk($sch->bitis_saati);
+                if ($sbas !== null && $sbit !== null && $sbit > $sbas) {
+                    $bas = $sbas;
+                    $bit = $sbit;
+                }
+            }
+            return ['calisiyor' => $calisiyor, 'baslangic' => $bas, 'bitis' => $bit];
         }
-        if (!$ch) {
-            $ch = SalonCalismaSaatleri::where('salon_id', $salonId)
-                ->where('haftanin_gunu', $dow)->first();
+
+        // Personel satiri yok -> salon saati
+        if ($sch) {
+            return [
+                'calisiyor' => ((int) $sch->calisiyor === 1),
+                'baslangic' => $this->hiToDk($sch->baslangic_saati),
+                'bitis'     => $this->hiToDk($sch->bitis_saati),
+            ];
         }
-        if (!$ch) {
-            return null;
-        }
-        return [
-            'calisiyor' => ((int) $ch->calisiyor === 1),
-            'baslangic' => $this->hiToDk($ch->baslangic_saati),
-            'bitis'     => $this->hiToDk($ch->bitis_saati),
-        ];
+        return null;
     }
 
     /** O personelin o gunku (iptal olmayan) randevu araliklari (dk) */
