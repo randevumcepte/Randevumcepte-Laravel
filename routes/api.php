@@ -318,6 +318,14 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::post('/benimYetkilerim','ApiController@benimYetkilerimApi')->middleware('auth:isletmeyonetim-api');
     // Patron Asistani (mobil): sesli/yazili serbest soru -> dogal cevap. Sadece Sahip + Yonetici (rapor.ciro_kar_gor).
     Route::match(['GET','POST'],'/patron-asistan-sor','ApiController@patronAsistanSorApi')->middleware('auth:isletmeyonetim-api');
+    // ACIK kontrol ucu (auth yok, gizli bilgi yok): canliya hangi kodun indigini dogrulamak icin.
+    Route::get('/patron-asistan-ping', function () {
+        return response()->json([
+            'ok'            => true,
+            'surum'         => 'gun-ozeti-2026-08-20-b069',
+            'gun_ozeti_var' => method_exists(\App\Services\PatronAsistanServisi::class, 'cevapGunOzeti'),
+        ]);
+    });
         Route::post('/cihaz_sil','ApiController@cihaz_sil');
          Route::post('/oda_sil','ApiController@oda_sil');
     Route::post('/arayanmusteribilgi','ApiController@arayanmusteribilgi');
