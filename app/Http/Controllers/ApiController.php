@@ -2497,6 +2497,29 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             if ($sohbet) {
                 return response()->json($sohbet, 200, [], JSON_UNESCAPED_UNICODE);
             }
+
+            // KONUSMA AI FALLBACK: kural bulamadi -> once OGRENILEN sohbet (bedava),
+            // yoksa Haiku dogal cevap ver + OGREN (bir dahakine bedava). Boylece
+            // "bilgim yok" yerine akici yanit; AI de gercekten devrede.
+            $ogrSohbet = $asistan->ogrenilenSohbet($metin);
+            if ($ogrSohbet !== null) {
+                return response()->json([
+                    'basarili' => true, 'intent' => 'sohbet', 'seslendir' => true,
+                    'cevap' => $ogrSohbet, 'kart' => null,
+                ], 200, [], JSON_UNESCAPED_UNICODE);
+            }
+            $aiSohbet = $asistan->sohbetAI($metin);
+            if ($aiSohbet !== null && $aiSohbet !== '') {
+                $asistan->ogrenSohbet($metin, $aiSohbet);
+                $cikti = [
+                    'basarili' => true, 'intent' => 'sohbet_ai', 'seslendir' => true,
+                    'cevap' => $aiSohbet, 'kart' => null,
+                ];
+                if ($request->has('debug')) {
+                    $cikti['_debug'] = ['kaynak' => 'sohbet_ai', 'ai_teshis' => $asistan->aiTeshis];
+                }
+                return response()->json($cikti, 200, [], JSON_UNESCAPED_UNICODE);
+            }
         }
 
         // GELISIM DONGUSU: hala anlasilmadiysa soruyu kaydet. Gercek patron

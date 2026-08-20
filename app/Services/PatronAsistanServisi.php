@@ -84,9 +84,13 @@ class PatronAsistanServisi
         }
         $intent = $enYuksek > 0 ? $enIyi : 'bilinmiyor';
 
-        // "kim ne sattı" + isim gecerse personel niyeti one cikar
+        // "kim ne sattı" + isim gecerse personel niyeti one cikar. ANCAK sohbet/kimlik
+        // cumlesi ise ("Sen kimsin", "Adin ne") yukseltme YOK: STT ilk kelimeyi buyuk
+        // yazdigi icin "Sen" -> personel adi ("E-sen") sanilip yanlis rapor donuyordu.
         $personelIpucu = $this->personelIpucuCoz($norm, $ham);
-        if ($personelIpucu && $skor['personel'] === 0 && $skor['kasa'] === 0) {
+        if ($this->sohbetIfadesiMi($norm)) {
+            $personelIpucu = null;
+        } elseif ($personelIpucu && $skor['personel'] === 0 && $skor['kasa'] === 0) {
             $intent = 'personel';
         }
 
@@ -125,7 +129,9 @@ class PatronAsistanServisi
         $stop = ['bugun','bu','ay','hafta','ne','kadar','sattı','satti','yaptı','yapti',
                  'kim','en','cok','satis','kasa','ciro','personel','eleman','performans',
                  'gosterir','misin','bana','ver','getir','durum','nasil','gidiyor','ki',
-                 'da','de','icin','the','a','an'];
+                 'da','de','icin','the','a','an',
+                 // Sohbet/kimlik zamirleri: personel ADI sanilmasin ("Sen"->"Esen").
+                 'sen','senin','sensin','ben','benim','biz','siz','adin','ismin','kimsin','nesin'];
         $kelimeler = preg_split('/\s+/', trim($ham));
         foreach ($kelimeler as $kel) {
             $temiz = preg_replace('/[^\p{L}]/u', '', $kel);
@@ -140,6 +146,33 @@ class PatronAsistanServisi
             }
         }
         return null;
+    }
+
+    /**
+     * Metin acik bir SOHBET/KIMLIK ifadesi mi? ("sen kimsin", "adin ne", "merhaba"...)
+     * Boyleyse rapor motoru personel ADI cikarimini iptal eder -> sohbet cevabina duser.
+     * Rapor baglami olan cumleleri ("Ayse ne satti") bilerek ISARETLEMEZ.
+     */
+    protected function sohbetIfadesiMi($norm)
+    {
+        $p = ' ' . $norm . ' ';
+        $isaretler = [
+            'kimsin', 'sen kimsin', 'sen nesin', 'nesin', 'adin ne', 'adin nedir',
+            'ismin ne', 'ismin nedir', 'ne yapabilirsin', 'neler yapabilirsin',
+            'ne yaparsin', 'ne is yaparsin', 'gorevin ne', 'kim sin',
+            'ne yapiyorsun', 'neler yapiyorsun', 'napiyorsun', 'ne is yapiyorsun',
+            'sen ne yapiyorsun', 'ne ise yararsin', 'nasil calisirsin',
+            'merhaba', 'selam', 'gunaydin', 'naber', 'ne haber', 'nasilsin', 'nasilsiniz',
+            'iyi misin', 'tesekkur', 'sag ol', 'sagol', 'saol', 'eyvallah',
+            'gorusuruz', 'hosca kal', 'iyi geceler', 'robot musun', 'insan misin',
+            'gercek misin', 'kac yasindasin', 'nerelisin',
+        ];
+        foreach ($isaretler as $s) {
+            if (strpos($p, ' ' . $this->normalize($s) . ' ') !== false) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------
@@ -656,6 +689,111 @@ class PatronAsistanServisi
         }
     }
 
+    // ------------------------------------------------------------------
+    // KONUSMA AI FALLBACK — kural HICBIR seyi cozemeyince Haiku dogal cevap verir.
+    // Rapor sorulari zaten yukarida cozuluyor; buraya SADECE sohbet/kimlik/serbest
+    // ifadeler duser. Cevap OGRENILIR -> ayni soru tekrar gelince BEDAVA.
+    // ------------------------------------------------------------------
+
+    /** Daha once AI ile uretilmis sohbet cevabini dondurur (bedava tekrar); yoksa null. */
+    public function ogrenilenSohbet($metin)
+    {
+        try {
+            $v = \Cache::get($this->ogrenSohbetAnahtar($metin));
+            if (is_string($v) && $v !== '') return $v;
+        } catch (\Throwable $e) {}
+        return null;
+    }
+
+    /** AI sohbet cevabini kalici sakla (sonraki sefer bedava). */
+    public function ogrenSohbet($metin, $cevap)
+    {
+        $cevap = trim((string) $cevap);
+        if ($cevap === '') return;
+        try {
+            \Cache::forever($this->ogrenSohbetAnahtar($metin), $cevap);
+        } catch (\Throwable $e) {}
+    }
+
+    protected function ogrenSohbetAnahtar($metin)
+    {
+        return 'patron_asistan_sohbet:' . md5($this->normalize($metin));
+    }
+
+    /**
+     * Haiku ile DOGAL sohbet cevabi. Salon asistani kimligiyle kisa, sicak, DUZ metin
+     * (TTS icin). Rakam/veri URETMEZ; veri istenirse nasil sorulacagini soyler; konu
+     * disi ise nazikce salona yonlendirir. Key yoksa/hata olursa null (-> yardimCevabi).
+     *
+     * @return string|null
+     */
+    public function sohbetAI($metin)
+    {
+        $apiKey = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
+        if (!$apiKey) { $this->aiTeshis = 'anahtar_yok'; return null; }
+
+        $ham = trim((string) $metin);
+        if ($ham === '') return null;
+
+        $sistem = 'Sen bir GUZELLIK/KUAFOR SALONUNUN patronu icin calisan sesli asistansin. '
+            . 'Adin yok, kendini "salonunuzun asistani" diye tanit. Kisa (en fazla iki cumle), '
+            . 'sicak ve NET konus. TTS ile seslendirilecegin icin DUZ yaz: emoji, madde isareti, '
+            . 'yildiz, tirnak KULLANMA. Yapabildiklerin: kasa ve ciro durumu, en cok satilan hizmet, '
+            . 'urun satisi, personel performansi, gunun randevulari, gunluk ozet, isletmeyi buyutme '
+            . 'onerileri ve musterilere ucretsiz indirim kampanyasi hazirlayip gonderme. '
+            . 'RAKAM veya VERI UYDURMA; patron rakam isterse "bugun kasa ne durumda gibi sorabilirsiniz" '
+            . 'de. Salonla ilgisiz konularda (genel kultur, siyaset, hava durumu vb.) nazikce '
+            . 'salonuyla ilgili yardimci olabilecegini soyle. Sadece Turkce yanit ver.';
+
+        $govde = [
+            'model'      => config('services.anthropic.model') ?: 'claude-haiku-4-5',
+            'max_tokens' => 200,
+            'system'     => $sistem,
+            'messages'   => [['role' => 'user', 'content' => $ham]],
+        ];
+
+        try {
+            $ch = curl_init('https://api.anthropic.com/v1/messages');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST           => true,
+                CURLOPT_TIMEOUT        => 12,
+                CURLOPT_HTTPHEADER     => [
+                    'content-type: application/json',
+                    'x-api-key: ' . $apiKey,
+                    'anthropic-version: 2023-06-01',
+                ],
+                CURLOPT_POSTFIELDS     => json_encode($govde, JSON_UNESCAPED_UNICODE),
+            ]);
+            $yanit = curl_exec($ch);
+            $kod   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlHata = curl_error($ch);
+            curl_close($ch);
+
+            if ($yanit === false || $kod !== 200) {
+                $this->aiTeshis = ($yanit === false) ? ('curl_HATA: ' . $curlHata)
+                    : ('http_' . $kod . ': ' . mb_substr((string) $yanit, 0, 200));
+                return null;
+            }
+            $data = json_decode($yanit, true);
+            if (!is_array($data) || empty($data['content'])) { $this->aiTeshis = 'yanit_bos'; return null; }
+
+            // Metin bloklarini birlestir.
+            $metinCevap = '';
+            foreach ($data['content'] as $blok) {
+                if (($blok['type'] ?? '') === 'text') { $metinCevap .= $blok['text'] ?? ''; }
+            }
+            $metinCevap = trim($metinCevap);
+            if ($metinCevap === '') { $this->aiTeshis = 'metin_bos'; return null; }
+
+            $this->aiTeshis = 'ok_sohbet';
+            return $metinCevap;
+        } catch (\Throwable $e) {
+            $this->aiTeshis = 'exception: ' . $e->getMessage();
+            return null;
+        }
+    }
+
     /**
      * SALON BUYUTME / IS ARTIRMA DANISMANLIGI. "Nasil daha cok musteri cekerim,
      * isleri nasil artiririm, ne yapmaliyim" gibi sorularda pratik oneriler sunar.
@@ -675,6 +813,10 @@ class PatronAsistanServisi
             'kazanc artir', 'satis artir', 'satislari artir', 'isleri canlandir',
             'islerim durgun', 'islerim kotu', 'isler durgun', 'isler kotu', 'isler acilmiyor',
             'salonumu buyut', 'isimi buyut', 'daha cok is', 'nasil kazan', 'buyumek istiyorum',
+            // "Dilerseniz basliklari acalim" teklifine devam: yeni oneriler ver.
+            'acalim', 'baslikları ac', 'basliklari ac', 'daha ac', 'daha fazla oneri',
+            'biraz daha oneri', 'baska oneri', 'baska oneriler', 'devam edelim', 'detaylandir',
+            'daha fazla anlat', 'baska ne yapabilirim', 'baska neler yapabilirim',
         ];
         foreach ($tetik as $t) {
             if (strpos($norm, $t) !== false) {
@@ -844,7 +986,7 @@ class PatronAsistanServisi
                 ],
             ],
             [ // hal hatir
-                'kelimeler' => ['nasilsin','naber','ne haber','iyi misin','nasilsiniz','ne yapiyorsun','keyifler nasil'],
+                'kelimeler' => ['nasilsin','naber','ne haber','iyi misin','nasilsiniz','keyifler nasil'],
                 'cevaplar'  => [
                     'İyiyim, teşekkür ederim. Siz nasılsınız, merak ettiğiniz bir şey var mı?',
                     'Gayet iyiyim, sağ olun. Size nasıl yardımcı olabilirim?',
@@ -861,10 +1003,10 @@ class PatronAsistanServisi
                 ],
             ],
             [ // kimsin / ne yaparsin
-                'kelimeler' => ['kimsin','sen kimsin','adin ne','ismin ne','sen nesin','ne yapabilirsin','neler yapabilirsin','ne is yaparsin','ne ise yararsin','ne yaparsin','gorevin ne'],
+                'kelimeler' => ['kimsin','sen kimsin','adin ne','ismin ne','sen nesin','ne yapabilirsin','neler yapabilirsin','ne is yaparsin','ne ise yararsin','ne yaparsin','gorevin ne','ne yapiyorsun','neler yapiyorsun','napiyorsun','ne is yapiyorsun','sen ne yapiyorsun','nasil calisirsin'],
                 'cevaplar'  => [
-                    'Ben salonunuzun asistanıyım. Kasa, ciro, en çok satılan hizmet, personel performansı ve randevular gibi konularda size anında bilgi verebilirim.',
-                    'Salonunuzun dijital asistanıyım. İşletmenizle ilgili günlük özet, kasa, personel ve randevu bilgilerini sorabilirsiniz.',
+                    'Ben salonunuzun asistanıyım. Size kasa ve ciro durumunu, en çok satılan hizmeti, personel performansını ve günün randevularını söyleyebilirim. Ayrıca işletmenizi büyütmek için öneriler sunar, indirim kampanyası hazırlayıp müşterilerinize gönderebilirim.',
+                    'Salonunuzun dijital asistanıyım. Günlük özet, kasa, personel, hizmet ve randevu bilgisi verebilir, büyüme önerileri sunabilir, hatta müşterilerinize ücretsiz kampanya bildirimi gönderebilirim. Sadece sorun yeter.',
                 ],
             ],
             [ // kisisel merak (oyunbaz)
