@@ -1007,15 +1007,32 @@ class PatronAsistanServisi
     // ------------------------------------------------------------------
 
     /** Mesaj bir personel DEGERLENDIRME/karne istegi mi? */
-    public function degerlendirmeTetik($metin)
+    /**
+     * Personel degerlendirme tetigi ve GUCU:
+     *  - 'guclu': "degerlendir/karne/performans raporu..." -> her zaman degerlendirme
+     *    (isim yoksa "kimi degerlendireyim" diye sorulur).
+     *  - 'zayif': "rapor/performans/analiz/olc/incele..." -> YALNIZ bir personel adi
+     *    varsa degerlendirme (yoksa "kasa raporu" gibi sorular kacmasin diye normal akis).
+     *  - null: degerlendirme degil.
+     * @return string|null 'guclu' | 'zayif' | null
+     */
+    public function degerlendirmeTur($metin)
     {
         $n = ' ' . $this->normalize($metin) . ' ';
-        foreach (['degerlendir', 'degerlendirme', 'karne', 'detayli rapor', 'detay rapor',
-                  'performans raporu', 'ise yeni', 'yeni personel', 'takip raporu',
-                  'detayli degerlendir', 'personeli degerlendir'] as $k) {
-            if (strpos($n, $k) !== false) return true;
+        $guclu = ['degerlendir', 'degerlendirme', 'degerlendirmesi', 'karne', 'detayli rapor',
+                  'detay rapor', 'detayli degerlendir', 'performans raporu', 'takip raporu',
+                  'ise yeni', 'yeni personel', 'personeli degerlendir', 'performansini olc',
+                  'performans olc', 'performansini degerlendir', 'performans degerlendir'];
+        foreach ($guclu as $k) {
+            if (strpos($n, $k) !== false) return 'guclu';
         }
-        return false;
+        $zayif = ['rapor', 'raporu', 'raporunu', 'performans', 'performansi', 'analiz',
+                  'incele', 'inceleme', 'olc', 'olcelim', 'nasil gidiyor', 'ne durumda',
+                  'nasil calisiyor', 'durumu ne', 'nasil biri', 'verimli mi', 'basarili mi'];
+        foreach ($zayif as $k) {
+            if (strpos($n, $k) !== false) return 'zayif';
+        }
+        return null;
     }
 
     /** Degerlendirme penceresi (gun). "son N gun", "bir hafta", "aylik"... Varsayilan 7. */

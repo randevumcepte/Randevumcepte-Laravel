@@ -2475,9 +2475,12 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             return $cevapla($kampCevap);
         }
 
-        // YENI PERSONEL DETAYLI DEGERLENDIRME: "Ahmet'i son 7 gun degerlendir" ->
-        // zengin veri + AI detayli karne. (Kayit yok; istenince calisir.)
-        if ($asistan->degerlendirmeTetik($metin)) {
+        // PERSONEL DETAYLI DEGERLENDIRME: "Ahmet'i son 7 gun degerlendir / rapor cikar /
+        // performansini olc" -> zengin veri + AI detayli karne. 'guclu' kelime isim
+        // olmasa da sorar; 'zayif' kelime (rapor/performans/olc...) YALNIZ personel adi
+        // varsa degerlendirir (yoksa "kasa raporu" gibi sorular normal akista kalir).
+        $degTur = $asistan->degerlendirmeTur($metin);
+        if ($degTur !== null) {
             $plist = $veriSrv->personelListesi($salonId);
             $kisi = $asistan->personelMesajdanBul($plist, $metin);
             if (is_object($kisi)) {
@@ -2494,11 +2497,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                              . '. Hangisini değerlendireyim?',
                 ]);
             }
-            return $cevapla([
-                'basarili' => true, 'intent' => 'personel', 'seslendir' => true, 'kart' => null,
-                'cevap' => 'Hangi personeli değerlendireyim? Adını söyleyip süreyi ekleyebilirsiniz, '
-                         . 'örneğin Ahmet son yedi gün.',
-            ]);
+            if ($degTur === 'guclu') {
+                return $cevapla([
+                    'basarili' => true, 'intent' => 'personel', 'seslendir' => true, 'kart' => null,
+                    'cevap' => 'Hangi personeli değerlendireyim? Adını söyleyip süreyi ekleyebilirsiniz, '
+                             . 'örneğin Ahmet son yedi gün.',
+                ]);
+            }
+            // 'zayif' + isim yok -> degerlendirme degil; normal akis islesin.
         }
 
         // ONCE bedava kural motoru (yaygin sorular). SADECE anlasilamayanda (bilinmiyor)
