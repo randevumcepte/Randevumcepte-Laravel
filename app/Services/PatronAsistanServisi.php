@@ -937,6 +937,23 @@ class PatronAsistanServisi
      * Rakam UYDURMAZ (verilen ciro/islem'i kullanir). Key yoksa/hata olursa null.
      * @return string|null
      */
+    /**
+     * AI cevabini VERI-ANAHTARIYLA cache'ler: ayni girdiyle (ayni gun) tekrar sorulursa
+     * Haiku'ya GITMEDEN kaliptan doner (BEDAVA). $uret sadece cache bosken calisir.
+     */
+    protected function aiCache($anahtar, callable $uret, $dakika = 720)
+    {
+        try {
+            $c = \Cache::get($anahtar);
+            if (is_string($c) && $c !== '') { $this->aiTeshis = 'ok_cache'; return $c; }
+        } catch (\Throwable $e) {}
+        $out = $uret();
+        if (is_string($out) && $out !== '') {
+            try { \Cache::put($anahtar, $out, $dakika); } catch (\Throwable $e) {}
+        }
+        return $out;
+    }
+
     public function personelYorumAI($personel, $donemAdi, $toplam = 0, $sira = 0, $dusuk = false)
     {
         $ad    = (string) ($personel['personel_adi'] ?? 'Personel');
@@ -952,7 +969,12 @@ class PatronAsistanServisi
             . " TL. Islem sayisi: {$islem}. Toplam personel: {$toplam}. Siralamasi: {$sira}."
             . ($dusuk ? ' Bu personel donemin EN DUSUK performanslisi.' : '');
 
-        return $this->haikuText($sistem, $kullanici, 160);
+        // Ayni personel+veri, ayni gun -> BEDAVA kalip (12 saat).
+        $anahtar = 'pa_pyorum:' . md5($ad . '|' . $donemAdi . '|' . $ciro . '|' . $islem . '|' . ($dusuk ? 1 : 0))
+                 . ':' . date('Y-m-d');
+        return $this->aiCache($anahtar, function () use ($sistem, $kullanici) {
+            return $this->haikuText($sistem, $kullanici, 160);
+        });
     }
 
     /**
@@ -1173,7 +1195,11 @@ class PatronAsistanServisi
             $u .= "En cok yaptigi islemler: " . implode(', ', $hs) . ". ";
         }
 
-        return $this->haikuText($sistem, $u, 600);
+        // Ayni personel+veri, ayni gun tekrar sorulursa BEDAVA kalip (12 saat).
+        $anahtar = 'pa_karne:' . md5($ad . '|' . $gun . '|' . json_encode($d)) . ':' . date('Y-m-d');
+        return $this->aiCache($anahtar, function () use ($sistem, $u) {
+            return $this->haikuText($sistem, $u, 600);
+        });
     }
 
     /**
