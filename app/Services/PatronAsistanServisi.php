@@ -445,23 +445,47 @@ class PatronAsistanServisi
         ];
     }
 
-    /** Samimi, degisken yorum (rakama gore). AI'a gerek yok — bedava ve her zaman calisir. */
+    /**
+     * Samimi yorum — HER SEFERINDE FARKLI olsun diye rastgele secilir (ezbere durmaz).
+     * Bedava (AI'a gerek yok). Sesli asistan icin DUZ yazim: unlem yok, az noktalama.
+     */
     protected function gunYorum($toplam, array $veri)
     {
         if ($toplam <= 0) {
-            return "Gün daha yeni, bol bereketli olsun!";
+            $sifir = [
+                'Gün daha yeni bol bereketli olsun',
+                'Henüz erken güzel bir gün diliyorum',
+                'Gün yeni başlıyor bereketli geçsin',
+                'Bugün için henüz erken umarım güzel geçer',
+            ];
+            return $sifir[array_rand($sifir)] . '.';
         }
-        $secenekler = [
-            "Gün güzel gidiyor, eline sağlık!",
-            "Bugün bereketli görünüyor, aynen devam!",
-            "İşler yolunda, tebrikler!",
-            "Güzel bir gün, böyle devam!",
+        $genel = [
+            'Gün güzel gidiyor eline sağlık',
+            'Bugün bereketli görünüyor aynen devam',
+            'İşler yolunda tebrik ederim',
+            'Güzel bir gün geçiriyorsun böyle devam',
+            'Bugün gayet iyi görünüyor',
+            'Fena değil istikrarı koru',
+            'Güzel bir tempo yakalamışsın',
+            'İyi bir gün emeğine sağlık',
+            'Bugün için memnun olabilirsin',
+            'Akışında güzel bir gün',
         ];
-        $yorum = $secenekler[((int) $toplam) % count($secenekler)];
+        $yorum = $genel[array_rand($genel)];
         if (!empty($veri['enPersonel']['ad'])) {
-            $yorum .= " " . $veri['enPersonel']['ad'] . " bugün elini taşın altına koymuş.";
+            $ad = $veri['enPersonel']['ad'];
+            $ovgu = [
+                ' Bugün en çok emeği geçen ' . $ad . ' olmuş',
+                ' ' . $ad . ' bugün gerçekten yoğun çalışmış',
+                ' ' . $ad . ' bugünkü performansıyla öne çıkıyor',
+                ' Özellikle ' . $ad . ' bugün çok iş çıkarmış',
+                '', // bazen ovgu olmasin -> cesitlilik
+                '', // ovgusuz ihtimali biraz artir
+            ];
+            $yorum .= $ovgu[array_rand($ovgu)];
         }
-        return $yorum;
+        return $yorum . '.';
     }
 
     /** Kisa/veri-yok cevaplari icin ortak sarmalayici. */
