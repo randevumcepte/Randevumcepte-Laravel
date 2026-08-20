@@ -656,16 +656,52 @@ class PatronAsistanServisi
         }
     }
 
-    /** Niyet anlasilamadiginda yardim/ornek cevabi. */
+    /**
+     * Terbiyesiz / kufur / hakaret iceriyor mu? Kelime siniriyla aranir (yanlis
+     * pozitif azaltmak icin; is terimleriyle cakisan kelimeler listede YOK).
+     */
+    public function kufurMu($metin)
+    {
+        $norm = ' ' . $this->normalize($metin) . ' ';
+        $kelimeler = [
+            'amk', 'aq', 'amina', 'amina koyayim', 'amcik', 'orospu', 'oc', 'pic',
+            'siktir', 'sikeyim', 'sikerim', 'sikik', 'sicayim', 'yarrak', 'yarak',
+            'gavat', 'kahpe', 'ibne', 'serefsiz', 'pezevenk', 'gerizekali', 'salak',
+            'aptal', 'embesil', 'denyo', 'yavsak', 'surtuk', 'godos',
+        ];
+        foreach ($kelimeler as $k) {
+            if (strpos($norm, ' ' . $this->normalize($k) . ' ') !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Terbiyesiz konusmaya NAZIK uyari. */
+    public function kufurCevabi()
+    {
+        return [
+            'basarili'  => true,
+            'intent'    => 'uyari',
+            'seslendir' => true,
+            'cevap'     => 'Efendim sizi saygıya davet ediyorum. Eğer böyle konuşmaya devam ederseniz görüşmeyi kapatmak zorunda kalacağım.',
+            'kart'      => null,
+        ];
+    }
+
+    /**
+     * Niyet anlasilamadi / konu disi soru (ör. mac skoru, hava durumu).
+     * Siri tarzi nazik geri cevirme + salon konularina yonlendirme.
+     */
     public function yardimCevabi(array $niyet = [])
     {
         return [
             'basarili' => true,
             'intent'   => 'bilinmiyor',
             'seslendir'=> true,
-            'cevap'    => "Tam anlayamadım. Şunları sorabilirsin: "
-                        . "\"bugün kasa ne durumda\", \"bu ay ciro ne kadar\", "
-                        . "\"en çok kim sattı\", \"bugün kaç randevu var\".",
+            'cevap'    => "Efendim bu konu hakkında bilgim yok, ama isterseniz salonunuz "
+                        . "hakkında bilgi verebilirim. Örneğin bugünkü kasa, en çok satılan "
+                        . "hizmet ya da personel performansı gibi konularda yardımcı olabilirim.",
             'ornekler' => [
                 'Bugün kasa ne durumda?',
                 'Bu ay ciro ne kadar?',

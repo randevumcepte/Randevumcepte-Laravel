@@ -2432,6 +2432,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $asistan = new \App\Services\PatronAsistanServisi();
         $veriSrv = new \App\Services\PatronAsistanRaporServisi();
 
+        // Terbiyesizlik/kufur/hakaret -> niyet cozmeden ONCE nazik uyari.
+        if ($asistan->kufurMu($metin)) {
+            return response()->json($asistan->kufurCevabi(), 200, [], JSON_UNESCAPED_UNICODE);
+        }
+
         // ONCE bedava kural motoru (yaygin sorular). SADECE anlasilamayanda (bilinmiyor)
         // opsiyonel Haiku'ya dus -> boylece AI acik olsa bile maliyet neredeyse sifir
         // (sorularin buyuk cogunlugu Haiku'ya hic gitmez). Anahtar yoksa zaten kural kalir.
