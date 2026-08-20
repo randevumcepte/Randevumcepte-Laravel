@@ -2582,6 +2582,17 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     $sonuc = $asistan->cevapRandevuDonem($veriSrv->ozet($salonId, $t1, $t2), $niyet);
                 }
                 break;
+            case 'oneri':
+                // AI danisma niyeti dedi (kural tetigi kacirdi) -> veriye dayali oneri.
+                list($ot1, $ot2) = $veriSrv->donemTarih('ay');
+                $sonuc = $asistan->veriliOneri([
+                    'kasa'     => $veriSrv->kasa($salonId, $ot1, $ot2),
+                    'hizmet'   => $veriSrv->hizmet($salonId, $ot1, $ot2),
+                    'urun'     => $veriSrv->urun($salonId, $ot1, $ot2),
+                    'personel' => $veriSrv->personel($salonId, $ot1, $ot2),
+                    'musteri'  => $veriSrv->musteri($salonId, $ot1, $ot2),
+                ]);
+                break;
             default:
                 $sonuc = $asistan->yardimCevabi($niyet); break;
         }

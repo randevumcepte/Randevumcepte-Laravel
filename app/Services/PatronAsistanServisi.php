@@ -84,15 +84,13 @@ class PatronAsistanServisi
         }
         $intent = $enYuksek > 0 ? $enIyi : 'bilinmiyor';
 
-        // "kim ne sattı" + isim gecerse personel niyeti one cikar. ANCAK sohbet/kimlik
-        // cumlesi ise ("Sen kimsin", "Adin ne") yukseltme YOK: STT ilk kelimeyi buyuk
-        // yazdigi icin "Sen" -> personel adi ("E-sen") sanilip yanlis rapor donuyordu.
-        $personelIpucu = $this->personelIpucuCoz($norm, $ham);
-        if ($this->sohbetIfadesiMi($norm)) {
-            $personelIpucu = null;
-        } elseif ($personelIpucu && $skor['personel'] === 0 && $skor['kasa'] === 0) {
-            $intent = 'personel';
-        }
+        // KOK NEDEN FIX: Lone buyuk-harfli kelimeyi personel ADI sanip niyeti personele
+        // YUKSELTMEYI biraktik. STT her cumlenin ilk harfini buyuttugu icin "Sen kimsin",
+        // "Isleri buyutmem lazim", "Adin ne" gibi cumlelerde ilk kelime ("Sen"/"Isleri")
+        // personel sanilip yanlis ciro donuyordu. Artik personel ipucu YALNIZ intent
+        // zaten personelken ("hangi kisi") kullanilir; belirsiz cumleyi AI dogru
+        // kategoriye koyar (kasa/personel/.../oneri) ya da sohbete duser.
+        $personelIpucu = ($intent === 'personel') ? $this->personelIpucuCoz($norm, $ham) : null;
 
         return [
             'intent'        => $intent,
@@ -602,8 +600,8 @@ class PatronAsistanServisi
                 'properties' => [
                     'intent' => [
                         'type' => 'string',
-                        'enum' => ['kasa','personel','hizmet','urun','musteri','ozet','bugun','bilinmiyor'],
-                        'description' => 'kasa=ciro/tahsilat, personel=kim ne sattı, hizmet=hizmet karlilik, urun=urun satis, musteri=musteri ozeti, ozet=genel/gun sonu, bugun=bugunku randevular, bilinmiyor=anlasilamadi',
+                        'enum' => ['kasa','personel','hizmet','urun','musteri','ozet','bugun','oneri','bilinmiyor'],
+                        'description' => 'kasa=ciro/tahsilat, personel=kim ne sattı, hizmet=hizmet karlilik, urun=urun satis, musteri=musteri ozeti, ozet=genel/gun sonu, bugun=bugunku randevular, oneri=isletmeyi buyutme/gelistirme/daha cok musteri/ne yapmaliyim gibi TAVSIYE istegi, bilinmiyor=anlasilamadi',
                     ],
                     'donem' => [
                         'type' => 'string',
@@ -813,6 +811,12 @@ class PatronAsistanServisi
             'kazanc artir', 'satis artir', 'satislari artir', 'isleri canlandir',
             'islerim durgun', 'islerim kotu', 'isler durgun', 'isler kotu', 'isler acilmiyor',
             'salonumu buyut', 'isimi buyut', 'daha cok is', 'nasil kazan', 'buyumek istiyorum',
+            // Kok-bazli genis kaliplar (cekim eklerinden etkilenmesin).
+            'buyut', 'buyume', 'buyutme', 'isleri buyut', 'islerimi buyut', 'isimi buyut',
+            'ne yapmam', 'neler yapmam', 'yapmam lazim', 'yapmam gerek', 'ne yapmaliyim',
+            'ne yapmali', 'ne yapmam lazim', 'neler yapmam lazim', 'nasil yapmali',
+            'sence ne', 'sizce ne', 'sence neler', 'sizce neler', 'ne dersin', 'fikrin ne',
+            'onerin ne', 'tavsiyen ne', 'daha cok musteri', 'musteri artirmak', 'is artirmak',
             // "Dilerseniz basliklari acalim" teklifine devam: yeni oneriler ver.
             'acalim', 'baslikları ac', 'basliklari ac', 'daha ac', 'daha fazla oneri',
             'biraz daha oneri', 'baska oneri', 'baska oneriler', 'devam edelim', 'detaylandir',
