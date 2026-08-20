@@ -876,6 +876,8 @@ class PatronAsistanServisi
             'acalim', 'baslikları ac', 'basliklari ac', 'daha ac', 'daha fazla oneri',
             'biraz daha oneri', 'baska oneri', 'baska oneriler', 'devam edelim', 'detaylandir',
             'daha fazla anlat', 'baska ne yapabilirim', 'baska neler yapabilirim',
+            'biraz daha detay', 'daha detay', 'detay ver', 'biraz daha ac', 'biraz daha bilgi',
+            'daha fazla detay', 'devam et',
         ];
         foreach ($tetik as $t) {
             if (strpos($norm, $t) !== false) {
@@ -921,12 +923,12 @@ class PatronAsistanServisi
      * toplar: ['kasa'=>..., 'hizmet'=>..., 'urun'=>..., 'personel'=>..., 'musteri'=>...].
      * Bedava (kural + veri analizi).
      */
-    public function veriliOneri(array $veri)
+    public function veriliOneri(array $veri, $userId = 0)
     {
-        $oneriler = [];
-        $veriVar  = false;
+        $veriVar = false;
+        $adaylar = []; // sirali aday oneriler: ['k'=>sabit_anahtar, 't'=>metin]
 
-        // Musteri: yeni az / sadik guclu
+        // --- Veriye dayali (oncelikli) oneriler ---
         $m = $veri['musteri'] ?? [];
         $aktif  = (int) ($m['toplam_aktif'] ?? 0);
         $yeni   = (int) ($m['yeni_musteri'] ?? 0);
@@ -934,37 +936,29 @@ class PatronAsistanServisi
         if ($aktif >= 5) {
             $veriVar = true;
             if ($yeni <= $aktif * 0.2) {
-                $oneriler[] = "Bu ay yeni müşteri sayınız düşük görünüyor; sadece " . $yeni
-                            . " yeni müşteri gelmiş. Arkadaşını getir kampanyası ve sosyal medyada "
-                            . "öncesi sonrası paylaşımlarıyla yeni müşteri çekebilirsiniz.";
+                $adaylar[] = ['k' => 'veri:yeni_az', 't' => "Bu ay yeni müşteri sayınız düşük görünüyor; sadece " . $yeni
+                    . " yeni müşteri gelmiş. Arkadaşını getir kampanyası ve sosyal medyada öncesi sonrası paylaşımlarıyla yeni müşteri çekebilirsiniz."];
             }
             if ($tekrar >= 5 && $tekrar >= $yeni) {
-                $oneriler[] = "Sadık müşteri kitleniz güçlü; " . $tekrar . " tekrar gelen müşteriniz var. "
-                            . "Onlara seans paketleri ve abonelik sunarak hem cironuzu hem bağlılığı artırabilirsiniz.";
+                $adaylar[] = ['k' => 'veri:sadik', 't' => "Sadık müşteri kitleniz güçlü; " . $tekrar
+                    . " tekrar gelen müşteriniz var. Onlara seans paketleri ve abonelik sunarak hem cironuzu hem bağlılığı artırabilirsiniz."];
             }
         }
-
-        // Urun satisi yok
         if ((float) ($veri['urun']['toplam_ciro'] ?? 0) <= 0) {
-            $oneriler[] = "Bu ay ürün satışınız görünmüyor. Bakım ürünleri satışıyla her müşteriden "
-                        . "ek gelir elde edebilirsiniz.";
+            $adaylar[] = ['k' => 'veri:urun_yok', 't' => "Bu ay ürün satışınız görünmüyor. Bakım ürünleri satışıyla her müşteriden ek gelir elde edebilirsiniz."];
         } else {
             $veriVar = true;
         }
-
-        // Hizmet konsantrasyonu (tek hizmet baskin)
         $hizmetler = $veri['hizmet']['hizmetler'] ?? [];
         $hToplam   = (float) ($veri['hizmet']['toplam_ciro'] ?? 0);
         if (!empty($hizmetler) && $hToplam > 0) {
             $veriVar = true;
             $enH = (array) $hizmetler[0];
             if ((float) ($enH['ciro'] ?? 0) >= $hToplam * 0.6) {
-                $oneriler[] = ($enH['hizmet_adi'] ?? 'Bir hizmetiniz') . " cironuzun büyük kısmını "
-                            . "oluşturuyor. Bu hizmetin yanına tamamlayıcı hizmetler önererek sepet tutarını yükseltebilirsiniz.";
+                $adaylar[] = ['k' => 'veri:hizmet_konsantre', 't' => ($enH['hizmet_adi'] ?? 'Bir hizmetiniz')
+                    . " cironuzun büyük kısmını oluşturuyor. Bu hizmetin yanına tamamlayıcı hizmetler önererek sepet tutarını yükseltebilirsiniz."];
             }
         }
-
-        // Personel konsantrasyonu (tek personel baskin)
         $pers = $veri['personel']['personeller'] ?? [];
         if (count($pers) >= 2) {
             $pToplam = 0; $enP = null; $enPciro = 0;
@@ -975,35 +969,61 @@ class PatronAsistanServisi
             }
             if ($pToplam > 0 && $enPciro >= $pToplam * 0.55 && $enP) {
                 $veriVar = true;
-                $oneriler[] = "Cironuzun önemli bölümü " . ($enP['personel_adi'] ?? 'tek bir personel')
-                            . " üzerinde. Diğer personeli eğitip müşteri dağılımını dengeleyerek hem riski "
-                            . "azaltır hem kapasiteyi artırırsınız.";
+                $adaylar[] = ['k' => 'veri:personel_konsantre', 't' => "Cironuzun önemli bölümü " . ($enP['personel_adi'] ?? 'tek bir personel')
+                    . " üzerinde. Diğer personeli eğitip müşteri dağılımını dengeleyerek hem riski azaltır hem kapasiteyi artırırsınız."];
             }
         }
-
-        // Kasa hareketsiz
         if ((float) ($veri['kasa']['toplam'] ?? 0) <= 0) {
-            $oneriler[] = "Bu dönem kasada belirgin bir hareket görünmüyor. Mevcut müşterilerinize kampanya "
-                        . "duyurusu ve boş saatlere özel indirimle hızlı bir canlanma sağlayabilirsiniz.";
+            $adaylar[] = ['k' => 'veri:kasa_dusuk', 't' => "Bu dönem kasada belirgin bir hareket görünmüyor. Mevcut müşterilerinize kampanya duyurusu ve boş saatlere özel indirimle hızlı bir canlanma sağlayabilirsiniz."];
         }
 
-        // 3'e tamamla (genel havuzdan, tekrar etmeyecek sekilde)
-        if (count($oneriler) < 3) {
-            $havuz = $this->genelIpuclari();
-            shuffle($havuz);
-            foreach ($havuz as $ip) {
-                if (count($oneriler) >= 3) break;
-                if (!in_array($ip, $oneriler, true)) {
-                    $oneriler[] = $ip;
-                }
-            }
+        // --- Genel havuz (karisik sirayla, sabit anahtarli) ---
+        $havuz = $this->genelIpuclari();
+        shuffle($havuz);
+        foreach ($havuz as $ip) {
+            $adaylar[] = ['k' => 'genel:' . md5($ip), 't' => $ip];
         }
-        $oneriler = array_slice($oneriler, 0, 3);
 
-        $giris = $veriVar
-            ? 'İşletmenizin son dönem verilerine göz attım. '
-            : 'İşletmenizi büyütmek için birkaç önerim var. ';
-        $cevap = $giris . implode(' ', $oneriler) . ' Dilerseniz bu başlıkları daha da açabiliriz.';
+        // --- Daha once bu kullaniciya verilenleri disla (tekrar etmesin) ---
+        $anahtar = 'patron_asistan_oneri_verildi:' . (int) $userId;
+        $verilen = [];
+        if ($userId > 0) {
+            try { $v = \Cache::get($anahtar); if (is_array($v)) $verilen = $v; } catch (\Throwable $e) {}
+        }
+        $verilenSet = array_flip($verilen);
+
+        $secilen = []; $yeniKeys = [];
+        foreach ($adaylar as $a) {
+            if (isset($verilenSet[$a['k']])) continue;
+            $secilen[] = $a['t'];
+            $yeniKeys[] = $a['k'];
+            if (count($secilen) >= 3) break;
+        }
+
+        // Hepsi verilmisse: seti sifirla, kibarca bildir (bir dahakine bastan).
+        if (empty($secilen)) {
+            if ($userId > 0) { try { \Cache::forget($anahtar); } catch (\Throwable $e) {} }
+            return [
+                'basarili' => true, 'intent' => 'oneri', 'seslendir' => true, 'kart' => null,
+                'cevap' => 'Şimdilik önerebileceklerimin hepsini paylaştım. Dilerseniz bir başlığı birlikte '
+                         . 'derinleştirelim ya da hazır bir indirim kampanyası kuralım.',
+            ];
+        }
+
+        $ilkTur = empty($verilen);
+        if ($userId > 0) {
+            try { \Cache::put($anahtar, array_merge($verilen, $yeniKeys), 30); } catch (\Throwable $e) {} // 30 dk
+        }
+
+        if ($ilkTur) {
+            $giris   = $veriVar ? 'İşletmenizin son dönem verilerine göz attım. ' : 'İşletmenizi büyütmek için birkaç önerim var. ';
+            $kapanis = ' Dilerseniz daha fazla öneri sıralayabilirim.';
+        } else {
+            // TAKIP: veri cumlesini TEKRARLAMA, yeni onerileri sun.
+            $giris   = 'Şunları da ekleyebilirim. ';
+            $kapanis = ' Dilerseniz devam edeyim.';
+        }
+        $cevap = $giris . implode(' ', $secilen) . $kapanis;
 
         return [
             'basarili' => true, 'intent' => 'oneri', 'seslendir' => true,

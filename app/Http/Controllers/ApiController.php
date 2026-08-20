@@ -2460,7 +2460,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 'personel' => $veriSrv->personel($salonId, $ot1, $ot2),
                 'musteri'  => $veriSrv->musteri($salonId, $ot1, $ot2),
             ];
-            return $cevapla($asistan->veriliOneri($oneriVeri));
+            return $cevapla($asistan->veriliOneri($oneriVeri, $uid));
         }
 
         // Otomatik kampanya TEKLIFI (kayip musteri / bos saat / dogum gunu / genel).
@@ -2607,7 +2607,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     'urun'     => $veriSrv->urun($salonId, $ot1, $ot2),
                     'personel' => $veriSrv->personel($salonId, $ot1, $ot2),
                     'musteri'  => $veriSrv->musteri($salonId, $ot1, $ot2),
-                ]);
+                ], $uid);
                 break;
             default:
                 $sonuc = $asistan->yardimCevabi($niyet); break;
