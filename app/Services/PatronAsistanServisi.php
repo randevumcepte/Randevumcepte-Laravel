@@ -582,7 +582,7 @@ class PatronAsistanServisi
     /** Son AI cagrisinin teshisi (debug): anahtar_yok | http_XXX | curl_HATA | yanit_bos | tool_yok | ok */
     public $aiTeshis = null;
 
-    public function niyetCozAI($metin)
+    public function niyetCozAI($metin, $gecmis = [])
     {
         // config once (config:cache'liyse de calisir), yoksa env fallback.
         $apiKey = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
@@ -622,8 +622,8 @@ class PatronAsistanServisi
             'max_tokens' => 256,
             'tool_choice'=> ['type' => 'tool', 'name' => 'rapor_sec'],
             'tools'      => $araclar,
-            'system'     => 'Sen bir salon isletme yonetim panelinin asistanisin. Patronun Turkce (argo/yarim cumle olabilir) sorusunu oku ve rapor_sec aracini cagirarak hangi raporu hangi donem icin istedigini belirt. Rakam URETME, yorum yapma; sadece araci cagir.',
-            'messages'   => [['role' => 'user', 'content' => $ham]],
+            'system'     => 'Sen bir salon isletme yonetim panelinin asistanisin. Patronun Turkce (argo/yarim cumle olabilir) sorusunu oku ve rapor_sec aracini cagirarak hangi raporu hangi donem icin istedigini belirt. Onceki konusma varsa takip sorularini (ornek: "peki bu hafta", "onu detaylandir") ona gore yorumla. Rakam URETME, yorum yapma; sadece araci cagir.',
+            'messages'   => array_merge($this->gecmisMesajlari($gecmis), [['role' => 'user', 'content' => $ham]]),
         ];
 
         try {
@@ -718,6 +718,58 @@ class PatronAsistanServisi
         return 'patron_asistan_sohbet:' . md5($this->normalize($metin));
     }
 
+    // ------------------------------------------------------------------
+    // KONUSMA BELLEGI (kisa sureli) — takip sorulari icin baglam.
+    // "az once onerdigin seyi detaylandir", "peki bu hafta?" gibi.
+    // Kullanici basina son birkac tur; TTL 30 dk.
+    // ------------------------------------------------------------------
+
+    /** Kullanicinin son konusma turlarini dondurur: [['role'=>..,'content'=>..], ...]. */
+    public function gecmisGetir($userId)
+    {
+        try {
+            $v = \Cache::get($this->gecmisAnahtar($userId));
+            if (is_array($v)) return $v;
+        } catch (\Throwable $e) {}
+        return [];
+    }
+
+    /** Bir turu (soru + cevap) gecmise ekler; son 6 mesaji (3 tur) tutar. */
+    public function gecmisEkle($userId, $soru, $cevap)
+    {
+        $soru  = trim((string) $soru);
+        $cevap = trim((string) $cevap);
+        if ($soru === '' || $cevap === '') return;
+        try {
+            $g = $this->gecmisGetir($userId);
+            $g[] = ['role' => 'user', 'content' => mb_substr($soru, 0, 500)];
+            $g[] = ['role' => 'assistant', 'content' => mb_substr($cevap, 0, 800)];
+            if (count($g) > 6) $g = array_slice($g, -6); // son 3 tur
+            \Cache::put($this->gecmisAnahtar($userId), $g, 30); // L5.6: 30 = dakika
+        } catch (\Throwable $e) {}
+    }
+
+    protected function gecmisAnahtar($userId)
+    {
+        return 'patron_asistan_gecmis:' . (int) $userId;
+    }
+
+    /** Gecmisi gecerli Anthropic mesaj dizisine cevirir (user ile baslar, rol/gecerli icerik). */
+    protected function gecmisMesajlari($gecmis)
+    {
+        if (!is_array($gecmis) || empty($gecmis)) return [];
+        $out = [];
+        foreach ($gecmis as $m) {
+            $rol = ($m['role'] ?? '') === 'assistant' ? 'assistant' : 'user';
+            $ic  = trim((string) ($m['content'] ?? ''));
+            if ($ic === '') continue;
+            // Ilk mesaj 'user' olmali; bastaki assistant'i at.
+            if (empty($out) && $rol !== 'user') continue;
+            $out[] = ['role' => $rol, 'content' => $ic];
+        }
+        return $out;
+    }
+
     /**
      * Haiku ile DOGAL sohbet cevabi. Salon asistani kimligiyle kisa, sicak, DUZ metin
      * (TTS icin). Rakam/veri URETMEZ; veri istenirse nasil sorulacagini soyler; konu
@@ -725,7 +777,7 @@ class PatronAsistanServisi
      *
      * @return string|null
      */
-    public function sohbetAI($metin)
+    public function sohbetAI($metin, $gecmis = [])
     {
         $apiKey = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
         if (!$apiKey) { $this->aiTeshis = 'anahtar_yok'; return null; }
@@ -743,11 +795,14 @@ class PatronAsistanServisi
             . 'de. Salonla ilgisiz konularda (genel kultur, siyaset, hava durumu vb.) nazikce '
             . 'salonuyla ilgili yardimci olabilecegini soyle. Sadece Turkce yanit ver.';
 
+        $mesajlar = $this->gecmisMesajlari($gecmis);
+        $mesajlar[] = ['role' => 'user', 'content' => $ham];
+
         $govde = [
             'model'      => config('services.anthropic.model') ?: 'claude-haiku-4-5',
-            'max_tokens' => 200,
+            'max_tokens' => 220,
             'system'     => $sistem,
-            'messages'   => [['role' => 'user', 'content' => $ham]],
+            'messages'   => $mesajlar,
         ];
 
         try {

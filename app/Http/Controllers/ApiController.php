@@ -2432,6 +2432,17 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $asistan = new \App\Services\PatronAsistanServisi();
         $veriSrv = new \App\Services\PatronAsistanRaporServisi();
 
+        // KONUSMA BELLEGI: takip sorulari icin son turlar. Cevap verirken $cevapla ile
+        // hem yaniti dondururuz hem gecmise yazariz (tek noktadan).
+        $uid = (int) $u->id;
+        $gecmis = $asistan->gecmisGetir($uid);
+        $cevapla = function ($veri) use ($asistan, $uid, $metin) {
+            if (is_array($veri) && !empty($veri['cevap'])) {
+                $asistan->gecmisEkle($uid, $metin, (string) $veri['cevap']);
+            }
+            return response()->json($veri, 200, [], JSON_UNESCAPED_UNICODE);
+        };
+
         // Terbiyesizlik/kufur/hakaret -> niyet cozmeden ONCE nazik uyari.
         if ($asistan->kufurMu($metin)) {
             return response()->json($asistan->kufurCevabi(), 200, [], JSON_UNESCAPED_UNICODE);
@@ -2449,7 +2460,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 'personel' => $veriSrv->personel($salonId, $ot1, $ot2),
                 'musteri'  => $veriSrv->musteri($salonId, $ot1, $ot2),
             ];
-            return response()->json($asistan->veriliOneri($oneriVeri), 200, [], JSON_UNESCAPED_UNICODE);
+            return $cevapla($asistan->veriliOneri($oneriVeri));
         }
 
         // Otomatik kampanya TEKLIFI (kayip musteri / bos saat / dogum gunu / genel).
@@ -2461,7 +2472,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // raporuna KACMAZ; kampanya akisina girer.
         $kampSrv = new \App\Services\PatronAsistanKampanyaServisi();
         if ($kampCevap = $kampSrv->coz($metin, $salonId)) {
-            return response()->json($kampCevap, 200, [], JSON_UNESCAPED_UNICODE);
+            return $cevapla($kampCevap);
         }
 
         // ONCE bedava kural motoru (yaygin sorular). SADECE anlasilamayanda (bilinmiyor)
@@ -2470,15 +2481,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $niyet = $asistan->niyetCoz($metin);
         if (($niyet['intent'] ?? 'bilinmiyor') === 'bilinmiyor') {
             // 1) Ogrenen onbellek: bu soru daha once AI ile cozulduyse BEDAVA getir.
-            $ogr = $asistan->ogrenilenNiyet($metin);
+            // YALNIZ baglamsiz (ilk) turda: "peki bu hafta" gibi takip sorulari baglama
+            // baglidir, sabit ogrenilmis niyete duserse yanlis olur -> gecmis varsa atla.
+            $ogr = empty($gecmis) ? $asistan->ogrenilenNiyet($metin) : null;
             if ($ogr) {
                 $niyet = $ogr;
             } else {
                 // 2) Haiku fallback (anahtar varsa). Cozerse OGREN -> sonraki sefer bedava.
-                $aiNiyet = $asistan->niyetCozAI($metin);
+                // Baglamli (takip) sorusunu OGRENME (context-free saklamak yanlis olur).
+                $aiNiyet = $asistan->niyetCozAI($metin, $gecmis);
                 if ($aiNiyet) {
                     $niyet = $aiNiyet;
-                    $asistan->ogren($metin, $aiNiyet);
+                    if (empty($gecmis)) $asistan->ogren($metin, $aiNiyet);
                 }
             }
         }
@@ -2489,22 +2503,24 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         if (($niyet['intent'] ?? 'bilinmiyor') === 'bilinmiyor') {
             $sohbet = $asistan->sohbetCevabi($metin);
             if ($sohbet) {
-                return response()->json($sohbet, 200, [], JSON_UNESCAPED_UNICODE);
+                return $cevapla($sohbet);
             }
 
             // KONUSMA AI FALLBACK: kural bulamadi -> once OGRENILEN sohbet (bedava),
-            // yoksa Haiku dogal cevap ver + OGREN (bir dahakine bedava). Boylece
-            // "bilgim yok" yerine akici yanit; AI de gercekten devrede.
+            // yoksa Haiku dogal cevap ver + OGREN (bir dahakine bedava). GECMIS beslenir ki
+            // "az once onerdigini detaylandir" gibi takip sorulari baglamli cevaplansin.
             $ogrSohbet = $asistan->ogrenilenSohbet($metin);
-            if ($ogrSohbet !== null) {
-                return response()->json([
+            if ($ogrSohbet !== null && empty($gecmis)) {
+                // Ogrenilen cevap yalniz baglamsiz (ilk) turda bedava getirilir; takip
+                // sorusu olabilecegi durumda (gecmis varsa) AI'ya baglamla sorariz.
+                return $cevapla([
                     'basarili' => true, 'intent' => 'sohbet', 'seslendir' => true,
                     'cevap' => $ogrSohbet, 'kart' => null,
-                ], 200, [], JSON_UNESCAPED_UNICODE);
+                ]);
             }
-            $aiSohbet = $asistan->sohbetAI($metin);
+            $aiSohbet = $asistan->sohbetAI($metin, $gecmis);
             if ($aiSohbet !== null && $aiSohbet !== '') {
-                $asistan->ogrenSohbet($metin, $aiSohbet);
+                if (empty($gecmis)) $asistan->ogrenSohbet($metin, $aiSohbet); // yalniz baglamsiz cevabi ogren
                 $cikti = [
                     'basarili' => true, 'intent' => 'sohbet_ai', 'seslendir' => true,
                     'cevap' => $aiSohbet, 'kart' => null,
@@ -2512,7 +2528,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 if ($request->has('debug')) {
                     $cikti['_debug'] = ['kaynak' => 'sohbet_ai', 'ai_teshis' => $asistan->aiTeshis];
                 }
-                return response()->json($cikti, 200, [], JSON_UNESCAPED_UNICODE);
+                return $cevapla($cikti);
             }
         }
 
@@ -2609,7 +2625,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ];
         }
 
-        return response()->json($sonuc, 200, [], JSON_UNESCAPED_UNICODE);
+        return $cevapla($sonuc);
     }
 
     /**
