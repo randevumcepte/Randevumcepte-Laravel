@@ -31,13 +31,13 @@
 #mdetay .mh-btn.is-ok{background:#1f9d55;box-shadow:0 8px 18px rgba(31,157,85,.3);}
 
 /* Ana sekmeler */
-#mdetay .elementmusteridetay{border:0;display:flex;flex-wrap:wrap;gap:8px;padding:6px;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 22px rgba(92,0,142,.05);}
+#mdetay .elementmusteridetay{border:0;display:flex;flex-wrap:wrap;gap:10px;padding:10px;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 8px 22px rgba(92,0,142,.05);}
 #mdetay .elementmusteridetay .nav-item{margin:0!important;}
-#mdetay .elementmusteridetay .btn{width:auto!important;border:0!important;border-radius:11px!important;padding:10px 18px!important;font-weight:600;color:var(--muted);background:transparent;transition:all .15s;}
+#mdetay .elementmusteridetay .btn{width:auto!important;border:0!important;border-radius:12px!important;padding:13px 24px!important;font-size:14.5px!important;font-weight:600;color:var(--muted);background:transparent;transition:all .15s;}
 #mdetay .elementmusteridetay .btn:hover{background:var(--soft);color:var(--m2);}
 #mdetay .elementmusteridetay .btn.active{background:linear-gradient(135deg,var(--m1),var(--m3));color:#fff!important;box-shadow:0 8px 18px rgba(92,0,142,.28);}
 #mdetay .elementmusteridetay .btn-warning,#mdetay .elementmusteridetay .btn-warning.active{background:linear-gradient(135deg,#f7971e,#ffb347)!important;color:#fff!important;box-shadow:0 8px 18px rgba(247,151,30,.28);}
-#mdetay .elementmusteridetay .btn.tab-mini{padding:7px 13px!important;font-size:12.5px!important;border-radius:10px!important;}
+#mdetay .elementmusteridetay .btn.tab-mini{padding:12px 20px!important;font-size:14px!important;border-radius:12px!important;}
 
 /* Kartlar */
 #mdetay .card-box{border-radius:16px;border:1px solid var(--line);box-shadow:0 8px 22px rgba(31,37,51,.05);}

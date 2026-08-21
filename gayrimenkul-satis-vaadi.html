@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Gayrimenkul Satış Vaadi ve Kapora Sözleşmesi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c2333; --muted:#5b6472; --line:#dfe3ea;
+    --navy:#132a4a; --navy2:#1f3d63; --gold:#a9822f; --gold-soft:#c9a24b;
+    --soft:#f5f7fa;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{font-family:'Manrope',-apple-system,Segoe UI,Arial,sans-serif;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{size:A4;margin:0}
+  body{background:#5a616e;display:flex;justify-content:center;padding:8mm 0}
+  @media print{body{background:#fff;padding:0}.page{box-shadow:none}}
+  .page{width:210mm;height:297mm;background:#fff;padding:13mm 15mm 12mm;position:relative;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.35);display:flex;flex-direction:column}
+  .serif{font-family:'Playfair Display',Georgia,serif}
+
+  /* header */
+  .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid var(--navy);padding-bottom:10px}
+  .head .kick{color:var(--gold);letter-spacing:3px;font-size:7.5pt;font-weight:800;text-transform:uppercase}
+  .head h1{color:var(--navy);font-size:19pt;font-weight:800;line-height:1.1;margin-top:4px}
+  .head .seal{width:46px;height:46px;border-radius:10px;background:var(--navy);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;flex-shrink:0}
+  .head .seal .b{font-size:13pt;line-height:1}
+  .head .seal .s{font-size:5.4pt;letter-spacing:1px;color:var(--gold-soft);margin-top:2px}
+  .date{text-align:right;font-size:8.5pt;color:var(--muted);margin-top:7px}
+  .date b{color:var(--ink)}
+
+  /* sections */
+  .sec{margin-top:11px}
+  .sec-t{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+  .sec-t .n{width:20px;height:20px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:8.5pt;font-weight:800;flex-shrink:0}
+  .sec-t h2{color:var(--navy);font-size:11pt;font-weight:800;letter-spacing:.2px;text-transform:uppercase}
+  p{font-size:9.8pt;line-height:1.5;color:#2c3444}
+
+  .parties{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pcard{border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:8px;padding:9px 12px;background:var(--soft)}
+  .pcard .lab{font-size:7pt;letter-spacing:1.5px;color:var(--gold);font-weight:800;text-transform:uppercase}
+  .pcard .fill{font-size:9.2pt;color:var(--muted);margin-top:5px;line-height:1.6}
+
+  .estate{border:1px solid var(--line);border-radius:8px;padding:11px 14px;background:linear-gradient(135deg,#fbfcfe,#f2f5f9)}
+  .estate .addr{font-size:10.5pt;font-weight:700;color:var(--navy);line-height:1.35}
+  .estate .price{margin-top:8px;display:flex;align-items:baseline;gap:8px}
+  .estate .price .v{font-size:16pt;font-weight:800;color:var(--gold);letter-spacing:-.5px}
+  .estate .price .w{font-size:8.5pt;color:var(--muted)}
+
+  .pay{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:2px}
+  .pbox{border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+  .pbox.dep{background:#f3f8f4;border-color:#cfe6d6}
+  .pbox.bal{background:#f7f4ee;border-color:#e6d9bf}
+  .pbox .t{font-size:7.5pt;letter-spacing:1px;font-weight:800;text-transform:uppercase;color:var(--muted)}
+  .pbox .amt{font-size:13pt;font-weight:800;margin-top:3px;color:var(--navy)}
+  .pbox .d{font-size:8.4pt;color:var(--muted);margin-top:3px;line-height:1.4}
+
+  .warn{border:1px dashed var(--gold);background:linear-gradient(135deg,rgba(169,130,47,.10),rgba(169,130,47,.03));border-radius:8px;padding:9px 13px;margin-top:2px}
+  .warn p{font-size:9.4pt;color:#4a3d22}
+  .warn b{color:#7a5e18}
+
+  .terms{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tcard{border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+  .tcard h3{font-size:9pt;color:var(--navy);font-weight:800;margin-bottom:4px}
+  .tcard p{font-size:8.9pt;line-height:1.45}
+
+  /* signatures */
+  .sign{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:26px}
+  .sbox{text-align:center}
+  .sbox .role{font-size:8pt;letter-spacing:2px;font-weight:800;color:var(--gold);text-transform:uppercase;margin-bottom:26px}
+  .sbox .lineimza{border-top:1.4px solid var(--ink);padding-top:6px;font-size:8.2pt;color:var(--muted)}
+  .foot{text-align:center;font-size:7.4pt;color:#9aa2af;margin-top:11px;letter-spacing:.3px}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="head">
+    <div>
+      <div class="kick">Resmî Anlaşma Belgesi</div>
+      <h1 class="serif">Gayrimenkul Satış Vaadi<br>ve Kapora Sözleşmesi</h1>
+    </div>
+    <div class="seal"><span class="b">§</span><span class="s">SÖZLEŞME</span></div>
+  </div>
+  <div class="date">Düzenleme Tarihi: <b>14.08.2026</b></div>
+
+  <div class="sec">
+    <div class="sec-t"><span class="n">1</span><h2>Taraflar</h2></div>
+    <div class="parties">
+      <div class="pcard">
+        <div class="lab">Satıcı</div>
+        <div class="fill">Ad Soyad: ______________________<br>T.C. No: ______________________<br>Adres: ______________________</div>
+      </div>
+      <div class="pcard">
+        <div class="lab">Alıcı</div>
+        <div class="fill">Ad Soyad: ______________________<br>T.C. No: ______________________<br>Adres: ______________________</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-t"><span class="n">2</span><h2>Konu ve Gayrimenkul Bilgileri</h2></div>
+    <p style="margin-bottom:7px">İşbu sözleşme, satıcıya ait aşağıda belirtilen taşınmazın, alıcıya belirtilen bedel karşılığında satılması hususunda tarafların mutabakatını içerir.</p>
+    <div class="estate">
+      <div class="addr">İnönü Mahallesi, 146 Sokak, B Blok, No: 32/2, Pırıl Sitesi — Ayrancılar / İzmir</div>
+      <div class="price"><span class="v">7.550.000 ₺</span><span class="w">(Yedi Milyon Beş Yüz Elli Bin Türk Lirası) — toplam satış bedeli</span></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-t"><span class="n">3</span><h2>Ödeme Planı ve Şartları</h2></div>
+    <div class="pay">
+      <div class="pbox dep">
+        <div class="t">Kapora</div>
+        <div class="amt">500.000 ₺</div>
+        <div class="d">(Beş Yüz Bin TL) — imza tarihinde satıcıya ödenmiştir.</div>
+      </div>
+      <div class="pbox bal">
+        <div class="t">Kalan Bakiye</div>
+        <div class="amt">7.050.000 ₺</div>
+        <div class="d">(Yedi Milyon Elli Bin TL) — en geç <b>31.08.2026</b> tarihine kadar ödenecektir.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-t"><span class="n">4</span><h2>Gecikme Faizi ve Süre</h2></div>
+    <div class="warn">
+      <p><b>31.08.2026</b> tarihine kadar herhangi bir faiz işletilmez. Ödemenin bu tarihe kadar yapılmaması durumunda, tarihi takip eden her gün için kalan bakiye üzerinden <b>günlük %40</b> oranında gecikme faizi işletilir. Bu gecikme süresi son ödeme tarihinden itibaren en fazla <b>1,5 (bir buçuk) ay</b> ile sınırlıdır; süre sonunda bakiye ödenmezse sözleşme kendiliğinden feshedilmiş sayılır.</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-t"><span class="n">5</span><h2>Cayma Hakkı ve Yaptırımlar</h2></div>
+    <div class="terms">
+      <div class="tcard">
+        <h3>Alıcının Vazgeçmesi</h3>
+        <p>Alıcının satın almaktan vazgeçmesi durumunda, ödenen 500.000 ₺ kapora satıcıda kalır ve alıcıya iade edilmez.</p>
+      </div>
+      <div class="tcard">
+        <h3>Satıcının Vazgeçmesi</h3>
+        <p>Satıcının satmaktan vazgeçmesi durumunda, almış olduğu 500.000 ₺ kaporayı alıcıya derhal ve nakden iade etmekle yükümlüdür.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-t"><span class="n">6</span><h2>Yürürlük</h2></div>
+    <p>İşbu sözleşme, tarafların hür iradeleriyle 14.08.2026 tarihinde iki nüsha olarak düzenlenmiş ve imza altına alınmıştır.</p>
+  </div>
+
+  <div class="sign">
+    <div class="sbox">
+      <div class="role">Satıcı</div>
+      <div class="lineimza">İmza / Ad Soyad</div>
+    </div>
+    <div class="sbox">
+      <div class="role">Alıcı</div>
+      <div class="lineimza">İmza / Ad Soyad</div>
+    </div>
+  </div>
+
+  <div class="foot">Bu belge iki (2) nüsha olarak düzenlenmiştir. — Ayrancılar / İzmir · 14.08.2026</div>
+
+</div>
+</body>
+</html>

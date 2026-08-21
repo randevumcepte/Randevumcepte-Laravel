@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Sosyal Medya & Dijital Reklam Yönetimi Teklifi · Senail Beauty Salonu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --mor:#5C008E; --mor2:#7B2FB8; --mor3:#9D5DC8;
+    --plum:#2b0a45; --gold:#C9A24B; --gold-soft:#e7d3a0;
+    --ink:#241832; --muted:#6b6480; --line:#ece7f4; --bg:#f7f4fc; --green:#2E9E5B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{font-family:'Manrope',-apple-system,Segoe UI,Arial,sans-serif;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{size:A4;margin:0}
+  body{background:#4a4256;display:flex;flex-direction:column;align-items:center;gap:10mm;padding:10mm 0}
+  .page{width:210mm;min-height:297mm;padding:15mm 15mm 14mm;position:relative;page-break-after:always;background:#fff;overflow:hidden;box-shadow:0 8px 34px rgba(0,0,0,.4)}
+  .page:last-child{page-break-after:auto}
+  @media print{body{background:#fff;display:block;gap:0;padding:0}.page{box-shadow:none}}
+  h1,h2,h3,h4{color:var(--mor);line-height:1.15;letter-spacing:-.01em}
+  p{line-height:1.5;font-size:10.5pt;color:#3a3348}
+  .serif{font-family:'Playfair Display',Georgia,serif}
+
+  /* COVER */
+  .cover{background:linear-gradient(150deg,#25073c 0%,#5C008E 52%,#7B2FB8 100%);color:#fff;display:flex;flex-direction:column;justify-content:space-between}
+  .cover::after{content:"";position:absolute;inset:0;background:
+    radial-gradient(420px 260px at 88% 4%,rgba(255,255,255,.16),transparent 62%),
+    radial-gradient(360px 240px at 4% 104%,rgba(201,162,75,.20),transparent 60%);pointer-events:none}
+  .cover>*{position:relative;z-index:2}
+  .brand{display:flex;align-items:center;gap:13px}
+  .brand .rc{width:50px;height:50px;border-radius:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.32);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17pt;color:#fff;letter-spacing:1px}
+  .brand .bn{font-weight:800;letter-spacing:3px;font-size:13pt}
+  .brand .bn small{display:block;color:var(--gold-soft);letter-spacing:3.5px;font-size:6.8pt;font-weight:700;margin-top:2px}
+  .cover-mid{margin-top:12mm}
+  .kicker{color:var(--gold);letter-spacing:5px;font-size:10.5pt;font-weight:700;text-transform:uppercase}
+  .cover h1{color:#fff;font-size:31pt;font-weight:800;margin:14px 0 6px;line-height:1.1}
+  .cover h1 .g{color:var(--gold);font-style:italic}
+  .cover .sub{color:#e6d9f2;font-size:11.5pt;max-width:162mm;line-height:1.55;margin-top:12px}
+  .to{display:flex;gap:14px;margin-top:22px;flex-wrap:wrap}
+  .tob{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:13px 18px;min-width:52mm}
+  .tob .k{font-size:7.2pt;color:var(--gold);letter-spacing:2px;text-transform:uppercase;font-weight:700}
+  .tob .val{font-size:12.5pt;color:#fff;font-weight:700;margin-top:3px}
+  .price-hero{display:flex;align-items:center;gap:14px;margin-top:22px;background:rgba(201,162,75,.14);border:1px solid var(--gold);border-radius:14px;padding:15px 24px;width:fit-content}
+  .price-hero .lab{font-size:8.5pt;color:var(--gold-soft);letter-spacing:2px;text-transform:uppercase;font-weight:700}
+  .price-hero .amt{font-size:30pt;font-weight:800;color:var(--gold);line-height:1}
+  .price-hero .amt small{font-size:11pt;color:#e6d9f2;font-weight:600}
+  .price-hero .pd{font-size:8.5pt;color:#e6d9f2;max-width:46mm;line-height:1.35}
+  .cover-foot{display:flex;justify-content:space-between;align-items:flex-end;color:#c9b6dd;font-size:9pt;border-top:1px solid rgba(255,255,255,.16);padding-top:12px}
+  .cover-foot b{color:#fff}
+
+  /* HEADER/FOOTER */
+  .ph{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--mor);padding-bottom:9px;margin-bottom:15px}
+  .ph .k{color:var(--gold);font-weight:800;letter-spacing:3px;font-size:8pt;text-transform:uppercase}
+  .ph h2{font-size:18pt;margin-top:2px}
+  .ph .rc2{width:38px;height:38px;border-radius:10px;background:var(--mor);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12pt;letter-spacing:.5px}
+  .foot{position:absolute;bottom:8mm;left:15mm;right:15mm;display:flex;justify-content:space-between;color:var(--muted);font-size:7.5pt;border-top:1px solid var(--line);padding-top:6px}
+
+  .lead{background:var(--bg);border-left:4px solid var(--gold);padding:13px 16px;border-radius:0 8px 8px 0;margin-bottom:16px}
+  .lead p{font-size:10.3pt;color:#33283f}
+  .lead b{color:var(--mor)}
+
+  /* CARDS */
+  .dgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .dcard{border:1px solid var(--line);border-radius:11px;padding:13px 15px;background:#fff}
+  .dcard h3{font-size:11pt;display:flex;align-items:center;gap:9px;margin-bottom:8px}
+  .dcard h3 .ic{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--mor),var(--mor2));color:#fff;display:flex;align-items:center;justify-content:center;font-size:13pt;flex-shrink:0}
+  .dcard ul{list-style:none}
+  .dcard li{font-size:9pt;color:#3d3450;padding:3.5px 0 3.5px 18px;position:relative;line-height:1.4}
+  .dcard li::before{content:'✓';position:absolute;left:0;top:3px;color:var(--green);font-weight:800;font-size:9pt}
+
+  /* DELIVERABLE BAND */
+  .band{display:flex;gap:0;margin-top:14px;border:1.5px solid var(--gold);border-radius:12px;overflow:hidden}
+  .band .b-badge{background:linear-gradient(135deg,var(--mor),var(--mor2));color:#fff;font-weight:800;font-size:11pt;letter-spacing:1px;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 16px;min-width:32mm;line-height:1.25}
+  .band .b-body{flex:1;padding:13px 16px;background:linear-gradient(135deg,#fdf7e8,#fbf1f8)}
+  .band .b-body h3{font-size:11.5pt;margin-bottom:9px}
+  .band .b-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+  .band .b-item{border-left:2px solid var(--gold);padding-left:10px}
+  .band .b-n{font-family:'Playfair Display',serif;font-weight:800;font-size:16pt;color:var(--mor)}
+  .band .b-l{font-size:8pt;color:#4a4258;line-height:1.32;margin-top:2px}
+  .band .b-l b{color:var(--mor)}
+
+  /* SPOTLIGHT */
+  .spot{background:linear-gradient(135deg,#1c0730,#4a0d78);color:#fff;border-radius:14px;padding:20px 22px;position:relative;overflow:hidden;margin-bottom:14px}
+  .spot::after{content:"";position:absolute;inset:0;background:radial-gradient(360px 200px at 90% 0%,rgba(201,162,75,.28),transparent 60%)}
+  .spot>*{position:relative;z-index:2}
+  .spot .st{color:var(--gold);letter-spacing:2px;font-size:8pt;font-weight:800;text-transform:uppercase}
+  .spot h3{color:#fff;font-size:15pt;margin:5px 0 6px}
+  .spot p{color:#eaddf6;font-size:9.6pt;max-width:152mm}
+
+  /* DIFF */
+  .diffgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .di{display:flex;gap:11px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:#fff}
+  .di .c{width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,var(--mor),var(--mor3));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11pt;flex-shrink:0}
+  .di b{font-size:10pt;color:var(--mor)}
+  .di span{display:block;font-size:8.6pt;color:#57506a;line-height:1.4;margin-top:1px}
+
+  /* TABLE */
+  table{width:100%;border-collapse:collapse;font-size:9.5pt;margin-top:4px}
+  th{background:var(--mor);color:#fff;text-align:left;padding:9px 12px;font-size:9pt;letter-spacing:.3px}
+  th.r,td.r{text-align:right}
+  td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:nth-child(even) td{background:#faf8fd}
+  .trow-sum td{font-weight:700;color:var(--mor);background:#fff !important}
+  .trow-total td{background:linear-gradient(135deg,var(--mor),var(--mor2)) !important;color:#fff;font-weight:800;font-size:12.5pt}
+  .trow-total td .kdv{font-size:8pt;font-weight:600;color:var(--gold-soft)}
+
+  /* STEPS */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:6px}
+  .sc{border:1px solid var(--line);border-top:4px solid var(--gold);border-radius:8px;padding:12px}
+  .sc .st{font-size:7.4pt;color:var(--gold);font-weight:800;letter-spacing:1px}
+  .sc h4{font-size:10pt;margin:3px 0 6px}
+  .sc p{font-size:8.2pt;color:#4a4258;line-height:1.4}
+
+  /* TERMS */
+  .terms{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:4px}
+  .tbox{border:1px solid var(--line);border-radius:10px;padding:12px 15px}
+  .tbox h4{font-size:10pt;margin-bottom:6px;color:var(--mor)}
+  .tbox ul{list-style:none}
+  .tbox li{font-size:8.7pt;color:#4a4258;padding:3px 0 3px 15px;position:relative;line-height:1.42}
+  .tbox li::before{content:'▸';position:absolute;left:0;color:var(--gold)}
+  .tbox b{color:var(--mor)}
+
+  .note{background:#fdf6e6;border:1px solid #eeddb0;border-radius:9px;padding:11px 14px;margin-top:12px}
+  .note p{font-size:8.7pt;color:#7a5c00}
+  .note b{color:#5c4500}
+
+  .cta{background:linear-gradient(135deg,#2b0a45,#5C008E);color:#fff;border-radius:12px;padding:18px 22px;margin-top:14px;position:relative;overflow:hidden}
+  .cta::after{content:"";position:absolute;inset:0;background:radial-gradient(280px 160px at 92% 0,rgba(201,162,75,.25),transparent 60%)}
+  .cta-in{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:20px}
+  .cta h3{color:#fff;font-size:14pt}
+  .cta p{color:#e6d9f2;font-size:9pt;margin-top:5px;max-width:118mm}
+  .cta .sign{text-align:center;flex-shrink:0}
+  .cta .sign .line{width:50mm;border-top:1px solid var(--gold-soft);margin:26px auto 6px}
+  .cta .sign small{color:var(--gold-soft);font-size:8pt}
+
+  .contact{display:flex;justify-content:center;gap:26px;margin-top:14px;flex-wrap:wrap}
+  .contact .ci{font-size:9pt;color:var(--mor)}
+  .contact .ci b{color:var(--gold);letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="page cover">
+  <div class="brand">
+    <div class="rc">RC</div>
+    <div class="bn">RANDEVUM CEPTE<small>DİJİTAL ÇÖZÜM ORTAĞINIZ</small></div>
+  </div>
+
+  <div class="cover-mid">
+    <div class="kicker">AYLIK HİZMET TEKLİFİ</div>
+    <h1>Sosyal Medya, <span class="g serif">Prodüksiyon</span><br>& Dijital Reklam Yönetimi</h1>
+    <div class="sub">Salonunuzun marka bilinirliğini büyüten; içerik üretimi, profesyonel çekim, Meta (Instagram/Facebook) ve Google reklamlarını tek elden yöneten <b style="color:#fff">aylık performans paketi.</b> Amacımız net: daha fazla görünürlük, daha fazla telefon, daha fazla randevu.</div>
+
+    <div class="to">
+      <div class="tob"><div class="k">Sayın Müşterimiz</div><div class="val">Senail Beauty Salonu</div></div>
+      <div class="tob"><div class="k">Teklif Tarihi</div><div class="val">22.07.2026</div></div>
+      <div class="tob"><div class="k">Hizmet Tipi</div><div class="val">Aylık · Süresiz</div></div>
+    </div>
+
+    <div class="price-hero">
+      <div><div class="lab">Aylık Hizmet Bedeli</div><div class="amt">20.000 ₺ <small>/ ay</small></div></div>
+      <div class="pd">İçerik, prodüksiyon, reklam yönetimi ve raporlama dahildir.</div>
+    </div>
+  </div>
+
+  <div class="cover-foot">
+    <div>Hazırlayan: <b>Randevum Cepte · Dijital Pazarlama Çözümleri</b></div>
+    <div>Teklif No: RC-2026-SM-002</div>
+  </div>
+</section>
+
+<!-- ============ PAGE 1 · KAPSAM ============ -->
+<section class="page">
+  <div class="ph"><div><div class="k">Teklif · Bölüm 01</div><h2>Hizmet Kapsamı</h2></div><div class="rc2">RC</div></div>
+
+  <div class="lead"><p><b>Amaç:</b> Senail Beauty Salonu'nun sosyal medyada güçlü, tutarlı ve profesyonel bir marka olarak konumlanması; üretilen içerik ve reklamlarla <b>doğrudan telefon araması ve randevuya</b> dönüşen bir müşteri akışı yaratmak. Aşağıdaki tüm hizmetler <b>aylık paket kapsamında</b>, uçtan uca tarafımızca yürütülür.</p></div>
+
+  <div class="dgrid">
+    <div class="dcard">
+      <h3><span class="ic">📸</span> Sosyal Medya Yönetimi</h3>
+      <ul>
+        <li>Her sabah <b>hikaye (story) tasarımı</b> ve paylaşımı</li>
+        <li>Haftada <b>5 gönderi (post)</b> tasarımı ve paylaşımı</li>
+        <li>Aylık içerik takvimi, metin (copy) ve hashtag stratejisi</li>
+        <li>Yorum &amp; DM etkileşimi (topluluk yönetimi)</li>
+        <li>Profil optimizasyonu, öne çıkan hikayeler ve bio düzeni</li>
+      </ul>
+    </div>
+    <div class="dcard">
+      <h3><span class="ic">🎬</span> Prodüksiyon &amp; Video Kurgu</h3>
+      <ul>
+        <li>Ayda <b>1 tam gün profesyonel çekim</b> (video + fotoğraf)</li>
+        <li>Reels / hikaye / tanıtım videolarının kurgusu</li>
+        <li>Edit, renk, altyazı, müzik — <b>tüm post-prodüksiyon</b></li>
+        <li>Çekilen içeriklerin <b>tüm aya yayılarak</b> planlı paylaşımı</li>
+        <li>Çekim konsepti, senaryo ve yönlendirme</li>
+      </ul>
+    </div>
+    <div class="dcard">
+      <h3><span class="ic">🎯</span> Meta Reklam Yönetimi (Instagram / Facebook)</h3>
+      <ul>
+        <li>Reklam kurgusu ve <b>reklam görseli/video tasarımları</b></li>
+        <li>Hedef kitle kurgusu, A/B test ve bütçe optimizasyonu</li>
+        <li>Mesaj / telefon / randevu <b>dönüşüm kampanyaları</b></li>
+        <li>Piksel &amp; dönüşüm takibi kurulumu</li>
+        <li>Haftalık izleme, aylık performans raporu</li>
+      </ul>
+    </div>
+    <div class="dcard">
+      <h3><span class="ic">📍</span> Google İşletme &amp; Google Ads</h3>
+      <ul>
+        <li>Google İşletme profili yönetimi ve optimizasyonu</li>
+        <li><b>Anahtar kelimelerde üst sıralara</b> çıkarma çalışması</li>
+        <li>Google reklamlarıyla <b>doğrudan telefon araması</b> (call) kampanyaları</li>
+        <li>Harita &amp; yerel görünürlük (Local Pack) optimizasyonu</li>
+        <li>Yorum yönetimi ve işletme içgörüleri takibi</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="band">
+    <div class="b-badge">AYLIK<br>TESLİMAT</div>
+    <div class="b-body">
+      <h3>Her Ay Elinize Geçenler</h3>
+      <div class="b-grid">
+        <div class="b-item"><div class="b-n">~30</div><div class="b-l"><b>Hikaye</b> tasarımı (her sabah paylaşım)</div></div>
+        <div class="b-item"><div class="b-n">~20</div><div class="b-l"><b>Gönderi</b> (haftada 5 post)</div></div>
+        <div class="b-item"><div class="b-n">1 Gün</div><div class="b-l"><b>Prodüksiyon</b> çekimi + tüm kurgular</div></div>
+        <div class="b-item"><div class="b-n">Sürekli</div><div class="b-l"><b>Reklam</b> yönetimi + aylık rapor</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><span>Randevum Cepte · Dijital Pazarlama Çözümleri</span><span>Senail Beauty Salonu · Sosyal Medya &amp; Reklam Teklifi</span></div>
+</section>
+
+<!-- ============ PAGE 2 · SÜREÇ + FARK ============ -->
+<section class="page">
+  <div class="ph"><div><div class="k">Teklif · Bölüm 02</div><h2>Çalışma Şekli &amp; Farkımız</h2></div><div class="rc2">RC</div></div>
+
+  <div class="spot">
+    <div class="st">⚡ Sonuç Odaklı Yaklaşım</div>
+    <h3>İçerik güzel görünsün diye değil — telefonunuzu çaldırsın diye</h3>
+    <p>Her paylaşımı ve reklamı tek bir hedefe bağlarız: <b>daha fazla arama ve randevu.</b> Google ve Meta reklamlarını doğrudan "ara" ve "mesaj gönder" aksiyonlarına kurgular, aylık raporda harcanan her kuruşun getirisini şeffaf biçimde gösteririz.</p>
+  </div>
+
+  <h3 style="font-size:12pt;margin:6px 0 10px">Aylık Çalışma Akışı</h3>
+  <div class="steps">
+    <div class="sc"><div class="st">HAFTA 0 · BAŞLANGIÇ</div><h4>Strateji</h4><p>İçerik takvimi, konsept ve reklam planının hazırlanması.</p></div>
+    <div class="sc"><div class="st">AYDA 1 GÜN</div><h4>Çekim</h4><p>Profesyonel prodüksiyon: video + fotoğraf çekimi.</p></div>
+    <div class="sc"><div class="st">HER GÜN</div><h4>Yayın</h4><p>Sabah hikayesi, haftada 5 post ve reklamların yönetimi.</p></div>
+    <div class="sc"><div class="st">AY SONU</div><h4>Raporlama</h4><p>Erişim, etkileşim, arama ve dönüşüm analizleri.</p></div>
+  </div>
+
+  <h3 style="font-size:12pt;margin:18px 0 9px">Bizi Farklı Kılan Noktalar</h3>
+  <div class="diffgrid">
+    <div class="di"><div class="c">✓</div><div><b>Çekim + kurgu tek elden</b><span>Ayrı ekip aramanıza gerek yok; çekim, edit ve paylaşım bizde.</span></div></div>
+    <div class="di"><div class="c">✓</div><div><b>Tek çekim, bir aylık içerik</b><span>Bir günlük çekimi profesyonelce aya yayarız — her gün taze içerik.</span></div></div>
+    <div class="di"><div class="c">✓</div><div><b>Reklamda telefonu çaldıran kurgu</b><span>Google &amp; Meta reklamları doğrudan arama/randevuya yönlendirilir.</span></div></div>
+    <div class="di"><div class="c">✓</div><div><b>Şeffaf aylık raporlama</b><span>Rakamlarla ne yaptığımızı ve ne kazandırdığımızı görürsünüz.</span></div></div>
+    <div class="di"><div class="c">✓</div><div><b>Marka bütünlüğü</b><span>Renk, ton ve tarz tutarlı — premium bir salon algısı.</span></div></div>
+    <div class="di"><div class="c">✓</div><div><b>Sürekli iletişim</b><span>Tek WhatsApp hattından hızlı onay ve geri bildirim.</span></div></div>
+  </div>
+
+  <div class="note"><p><b>Reklam bütçesi hakkında:</b> Aylık hizmet bedeli; strateji, içerik üretimi, çekim, kurgu ve reklam <b>yönetimini</b> kapsar. Meta ve Google'a ödenecek <b>reklam harcaması (reklam bütçesi) bu bedele dahil değildir</b> ve doğrudan platformlara ödenir. Uygun bütçeyi birlikte belirleriz.</p></div>
+
+  <div class="foot"><span>Randevum Cepte · Dijital Pazarlama Çözümleri</span><span>Senail Beauty Salonu · Sosyal Medya &amp; Reklam Teklifi</span></div>
+</section>
+
+<!-- ============ PAGE 3 · FİYAT + KOŞULLAR ============ -->
+<section class="page">
+  <div class="ph"><div><div class="k">Teklif · Bölüm 03</div><h2>Fiyatlandırma &amp; Koşullar</h2></div><div class="rc2">RC</div></div>
+
+  <table>
+    <thead><tr><th style="width:58%">Hizmet Kalemi</th><th style="width:14%" class="r">Periyot</th><th class="r">Tutar</th></tr></thead>
+    <tbody>
+      <tr><td><b>Sosyal Medya, Prodüksiyon &amp; Dijital Reklam Yönetimi (Senail Beauty Salonu)</b><br><small style="color:var(--muted)">Günlük hikaye + haftada 5 post · aylık 1 gün prodüksiyon çekimi &amp; tüm kurgular · Meta reklam yönetimi &amp; tasarımları · Google İşletme yönetimi + Google Ads telefon araması kampanyaları · içerik takvimi · raporlama &amp; analiz</small></td><td class="r">Aylık</td><td class="r">20.000,00 ₺</td></tr>
+      <tr class="trow-total"><td colspan="2">AYLIK TOPLAM <span class="kdv">(her ay tekrarlanır)</span></td><td class="r">20.000,00 ₺</td></tr>
+    </tbody>
+  </table>
+
+  <div class="terms" style="margin-top:16px">
+    <div class="tbox">
+      <h4>Ödeme Koşulları</h4>
+      <ul>
+        <li>Aylık bedel <b>peşin</b> ödenir; <b>ödeme alındıktan sonra o ayki çalışma başlar.</b></li>
+        <li>Ödeme her ay, hizmet dönemi başlamadan önce yapılır.</li>
+        <li>Ödeme elden veya banka havalesi / EFT ile yapılabilir.</li>
+      </ul>
+    </div>
+    <div class="tbox">
+      <h4>Kapsam &amp; Süre</h4>
+      <ul>
+        <li>Hizmet <b>aylık</b> olup, karşılıklı memnuniyetle her ay yenilenir.</li>
+        <li>Bedel; strateji, içerik, çekim, kurgu ve reklam <b>yönetimini</b> kapsar.</li>
+        <li><b>Reklam bütçesi</b> (Meta/Google'a ödenen) hariçtir; ayrıca belirlenir.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="terms" style="margin-top:11px">
+    <div class="tbox">
+      <h4>Müşteriden Beklenenler</h4>
+      <ul>
+        <li>Sosyal medya hesapları ve Google İşletme erişimi</li>
+        <li>Çekim günü için salonun ve ekibin uygunluğu</li>
+        <li>Kampanya / hizmet bilgileri ve onay geri dönüşleri</li>
+      </ul>
+    </div>
+    <div class="tbox">
+      <h4>Çalışma &amp; Sorumluluk</h4>
+      <ul>
+        <li>Tüm içerik ve reklamlar <b>profesyonel standartta</b> üretilir.</li>
+        <li>Reklam sonuçları platform algoritması ve bütçeye bağlı olarak <b>hedeflenir.</b></li>
+        <li>Aylık raporla tüm çalışmalar <b>şeffaf</b> biçimde paylaşılır.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="cta">
+    <div class="cta-in">
+      <div>
+        <h3>Başlamaya hazır mısınız?</h3>
+        <p>Onayınız ve ilk ay ödemesinin ardından strateji görüşmesini yapıp içerik takvimini çıkarıyor, ilk çekim gününü planlıyoruz. Senail Beauty Salonu'nu sosyal medyada hak ettiği yere taşıyalım.</p>
+      </div>
+      <div class="sign">
+        <div class="line"></div>
+        <small>Onay · İmza</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="contact">
+    <div class="ci"><b>TELEFON</b> &nbsp;0541 294 81 44</div>
+    <div class="ci"><b>WHATSAPP</b> &nbsp;0541 294 81 44</div>
+    <div class="ci"><b>WEB</b> &nbsp;www.randevumcepte.com.tr</div>
+  </div>
+
+  <div class="foot"><span>Randevum Cepte · Dijital Pazarlama Çözümleri</span><span>Teklif No: RC-2026-SM-002 · Aylık hizmet</span></div>
+</section>
+
+</body>
+</html>

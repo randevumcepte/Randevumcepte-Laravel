@@ -138,6 +138,12 @@ class Kernel extends ConsoleKernel
         // WhatsApp 2 ay ücretsiz promo — günde bir: promosu başlat + süresi dolanı kapat
         $schedule->command('whatsapp:promo-kontrol')->withoutOverlapping()->dailyAt('00:30');
 
+        // Asistan Egitimi kalip kutuphaneleri (sohbet + hizmet bilgilendirme) — surum
+        // degisince OTOMATIK uygular. Ayni surumse ucuz no-op. Boylece deploy sonrasi
+        // elle "artisan asistan:*-kaliplari" calistirmaya GEREK KALMAZ.
+        $schedule->command('asistan:sohbet-kaliplari --quiet-noop')->withoutOverlapping()->everyTenMinutes();
+        $schedule->command('asistan:hizmet-kaliplari --quiet-noop')->withoutOverlapping()->everyTenMinutes();
+
         // Yedek
         $schedule->command('dbyedek:al')->dailyAt('23:59')->withoutOverlapping();
     }

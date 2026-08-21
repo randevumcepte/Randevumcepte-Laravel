@@ -21,25 +21,36 @@ use Illuminate\Support\Facades\Schema;
  */
 class HizmetBilgiKaliplari extends Command
 {
-    protected $signature = 'asistan:hizmet-kaliplari';
-    protected $description = 'Kuafor/guzellik hizmet BILGILENDIRME kaliplarini (cevap havuzlu) yukler/gunceller. Idempotent.';
+    protected $signature = 'asistan:hizmet-kaliplari {--force : Surum ayni olsa da yeniden yaz} {--quiet-noop : Degismemisse sessizce cik (zamanlayici icin)}';
+    protected $description = 'Kuafor/guzellik hizmet BILGILENDIRME kaliplarini (cevap havuzlu) yukler. Surum degisince OTOMATIK uygulanir (zamanlayici).';
+
+    // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
+    // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
+    protected $surum = 'v4-2026-08-21';
 
     public function handle()
     {
         if (!Schema::hasTable('asistan_kalip')) {
-            $this->error('asistan_kalip tablosu yok. Once: php artisan migrate --force');
-            return 1;
+            if (!$this->option('quiet-noop')) $this->error('asistan_kalip tablosu yok. Once: php artisan migrate --force');
+            return 0;
+        }
+
+        // SURUM KONTROLU: ayni surum zaten yuklenmisse hicbir sey yapma (ucuz no-op).
+        $surumAnahtar = 'asistan_hizmet_kalip_surum';
+        $mevcut = null;
+        try { $mevcut = \Cache::get($surumAnahtar); } catch (\Throwable $e) {}
+        if (!$this->option('force') && $mevcut === $this->surum) {
+            if (!$this->option('quiet-noop')) $this->info("Hizmet kaliplari guncel (surum {$this->surum}), degisiklik yok.");
+            return 0;
         }
 
         $lib = $this->kutuphane();
         $kategoriler = array_keys($lib);
         $now = date('Y-m-d H:i:s');
 
-        // Idempotent + KOPYA TEMIZLIGI: bu seeder'in sahip oldugu kategorilerdeki tum
-        // kayitlari silip yeniden yaz. Boylece tetikleyici degisse bile kopya olusmaz
-        // ve ayni konudan birden fazla kalip (cakisan) kalmaz.
-        // NOT: Panelden bu kategorilere elle eklediklerin de silinir; kalici olsun
-        //      istersen seeder'a eklenmeli.
+        // KOPYA TEMIZLIGI: bu seeder'in sahip oldugu kategorileri silip yeniden yaz.
+        // NOT: Panelden bu kategorilere elle eklediklerin surum artinca silinir;
+        //      kalici olsun istersen seeder'a eklenmeli.
         $silinen = DB::table('asistan_kalip')->whereIn('kategori', $kategoriler)->delete();
 
         $eklendi = 0;
@@ -53,8 +64,11 @@ class HizmetBilgiKaliplari extends Command
             $eklendi++;
         }
 
+        try { \Cache::forever($surumAnahtar, $this->surum); } catch (\Throwable $e) {}
         try { \Cache::forget('asistan_kalip_liste_v1'); } catch (\Throwable $e) {}
-        $this->info("Hizmet bilgilendirme kutuphanesi hazir. Silinen eski: {$silinen}, yazilan: {$eklendi}. Cache tazelendi.");
+        if (!$this->option('quiet-noop')) {
+            $this->info("Hizmet kutuphanesi yazildi (surum {$this->surum}). Silinen: {$silinen}, yazilan: {$eklendi}.");
+        }
         return 0;
     }
 
@@ -113,6 +127,20 @@ class HizmetBilgiKaliplari extends Command
                     'Saç dipleriniz belirginleştiyse, tüm saçı boyamaya gerek kalmadan sadece kökleri boyayarak doğal bir görünüm elde edebiliriz. Beyaz ya da kır saçınız varsa dip boya bunları da kapatır. İşlem kısa sürer; süre saç uzunluğunuza ve dip miktarına göre değişir.',
                     'Dip boyada amaç, saçın uzayan kök kısmındaki renk açılmasını gidermektir. Boylardaki renk korunur, yalnızca yeni çıkan dip bölgesi renklendirilir. Düzenli boya yaptıranların araya yaptırdığı pratik bir bakımdır ve komple boyaya göre saçı daha az yıpratır.',
                     'Diplerinizin çıktığını fark ettiyseniz ve komple renk değişikliği istemiyorsanız dip boya idealdir. Renginize uygun ton belirlenir, sadece köklere uygulanır, bekletilir ve durulanır. Sonuçta saçınız yeni boyanmış gibi bütünlüklü görünür.',
+                ],
+            ],
+
+            // FIYAT (kontrollu): uydurma rakam YOK; salona/randevuya yonlendirir.
+            // Tetikleyiciler DIP BOYA'ya OZEL (bilgi kalibinin "dip boya" anahtarindan
+            // daha uzun -> fiyat sorusunda fiyat kalibi kazanir). "kac para" gibi genel
+            // kelimeler BILEREK yok: patron kendisi "kac para kazandik" derse ciroya karismasin.
+            'fiyat-dip-boya' => [
+                'tetik' => 'dip boya fiyat, dip boya fiyati, dip boya ne kadar, dip boya ucret, dip boya ucreti, dip boya kac para, dip boya kac tl, dip boya kac lira, dip boya kaca, dip boya fiyat bilgisi, dip boya ne kadara, dip boya ucret ne',
+                'cevaplar' => [
+                    'Dip boya fiyatı; saç uzunluğunuza, kullanılan boyaya ve saçınızın durumuna göre değişebilir efendim. Daha net bir fiyat bilgisi için salonumuzla iletişime geçebilir ya da bir randevu oluşturabilirsiniz.',
+                    'Dip boya ücreti saç uzunluğu ve tercih edilen ürüne göre farklılık gösterir. Kesin fiyat için sizi salonumuza bekleriz; dilerseniz hemen bir randevu oluşturalım.',
+                    'Dip boyada fiyat, saçınızın uzunluğuna ve renk/ürün tercihine göre belirlenir. En doğru bilgiyi salonumuzu arayarak ya da randevu alarak öğrenebilirsiniz.',
+                    'Dip boya için kesin fiyatı, saçınızı görüp değerlendirdikten sonra netleştiriyoruz. İsterseniz bir randevu oluşturalım; geldiğinizde size net fiyatı sunalım.',
                 ],
             ],
 

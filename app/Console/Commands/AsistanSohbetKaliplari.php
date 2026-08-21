@@ -19,41 +19,52 @@ use Illuminate\Support\Facades\Schema;
  */
 class AsistanSohbetKaliplari extends Command
 {
-    protected $signature = 'asistan:sohbet-kaliplari';
-    protected $description = 'Patron asistani icin hazir SOHBET kalip kutuphanesini (cevap havuzlu) yukler/gunceller. Idempotent.';
+    protected $signature = 'asistan:sohbet-kaliplari {--force : Surum ayni olsa da yeniden yaz} {--quiet-noop : Degismemisse sessizce cik (zamanlayici icin)}';
+    protected $description = 'Patron asistani icin hazir SOHBET kalip kutuphanesini (cevap havuzlu) yukler. Surum degisince OTOMATIK uygulanir (zamanlayici).';
+
+    // ICERIK SURUMU: iceriyi degistirdiginde ARTIR -> zamanlayici otomatik uygular.
+    protected $surum = 'v2-2026-08-21';
 
     public function handle()
     {
         if (!Schema::hasTable('asistan_kalip')) {
-            $this->error('asistan_kalip tablosu yok. Once: php artisan migrate --force');
-            return 1;
+            if (!$this->option('quiet-noop')) $this->error('asistan_kalip tablosu yok. Once: php artisan migrate --force');
+            return 0;
         }
 
-        $now = date('Y-m-d H:i:s');
-        $eklendi = 0; $guncellendi = 0;
+        $surumAnahtar = 'asistan_sohbet_kalip_surum';
+        $mevcut = null;
+        try { $mevcut = \Cache::get($surumAnahtar); } catch (\Throwable $e) {}
+        if (!$this->option('force') && $mevcut === $this->surum) {
+            if (!$this->option('quiet-noop')) $this->info("Sohbet kaliplari guncel (surum {$this->surum}), degisiklik yok.");
+            return 0;
+        }
 
-        foreach ($this->kutuphane() as $kat => $maddeler) {
+        $lib = $this->kutuphane();
+        $kategoriler = array_keys($lib);
+        $now = date('Y-m-d H:i:s');
+
+        // KOPYA TEMIZLIGI: kendi kategorilerini silip yeniden yaz.
+        $silinen = DB::table('asistan_kalip')->whereIn('kategori', $kategoriler)->delete();
+
+        $eklendi = 0;
+        foreach ($lib as $kat => $maddeler) {
             foreach ($maddeler as $m) {
-                $tet = trim($m['tetik']);
-                $cev = implode("\n---\n", $m['cevaplar']);
-                $row = DB::table('asistan_kalip')->where('tetikleyiciler', $tet)->first();
-                if ($row) {
-                    DB::table('asistan_kalip')->where('id', $row->id)->update([
-                        'cevap' => $cev, 'kategori' => $kat, 'aktif' => 1, 'updated_at' => $now,
-                    ]);
-                    $guncellendi++;
-                } else {
-                    DB::table('asistan_kalip')->insert([
-                        'tetikleyiciler' => $tet, 'cevap' => $cev, 'kategori' => $kat,
-                        'aktif' => 1, 'kullanim_sayisi' => 0, 'created_at' => $now, 'updated_at' => $now,
-                    ]);
-                    $eklendi++;
-                }
+                DB::table('asistan_kalip')->insert([
+                    'tetikleyiciler' => trim($m['tetik']),
+                    'cevap'          => implode("\n---\n", $m['cevaplar']),
+                    'kategori'       => $kat, 'aktif' => 1, 'kullanim_sayisi' => 0,
+                    'created_at'     => $now, 'updated_at' => $now,
+                ]);
+                $eklendi++;
             }
         }
 
+        try { \Cache::forever($surumAnahtar, $this->surum); } catch (\Throwable $e) {}
         try { \Cache::forget('asistan_kalip_liste_v1'); } catch (\Throwable $e) {}
-        $this->info("Sohbet kutuphanesi hazir. Eklenen: {$eklendi}, guncellenen: {$guncellendi}. Cache tazelendi.");
+        if (!$this->option('quiet-noop')) {
+            $this->info("Sohbet kutuphanesi yazildi (surum {$this->surum}). Silinen: {$silinen}, yazilan: {$eklendi}.");
+        }
         return 0;
     }
 

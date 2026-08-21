@@ -2219,6 +2219,19 @@ class PatronAsistanServisi
         return in_array($tek, ['devam', 'daha', 'baska', 'peki', 'sonra', 'anlat', 'aciklasana'], true);
     }
 
+    /** Yeterince bilgi verildikten sonra NAZIK randevu yonlendirmesi (rastgele). */
+    protected function randevuYonlendir()
+    {
+        $havuz = [
+            'Bu konuda yeterince bilgi verebildiğimi düşünüyorum efendim 😊 Dilerseniz sizin için bir randevu oluşturabilirim; “randevu al” demeniz yeterli.',
+            'Umarım aklınızdaki soruları yanıtlayabilmişimdir 😊 İsterseniz size uygun bir randevu ayarlayalım; “randevu al” demeniz kâfi.',
+            'Sanırım gerekli bilgileri paylaştım efendim 😊 Dilerseniz sizi bir randevuya alabilirim; “randevu al” demeniz yeterli.',
+            'Bu konuda elimden gelen bilgiyi vermeye çalıştım 😊 İsterseniz hemen bir randevu oluşturalım; “randevu al” demeniz yeterli.',
+            'Merak ettiklerinizi aktarabildiysem ne mutlu bana 😊 Dilerseniz sizin için bir randevu planlayabilirim; “randevu al” demeniz yeterli.',
+        ];
+        return $havuz[mt_rand(0, count($havuz) - 1)];
+    }
+
     /**
      * AYNI KONUDA "biraz daha bilgi ver" -> en son eslesplen kalibin cevap HAVUZUNDAN
      * DAHA ONCE VERILMEMIS bir cevabi getirir (bedava). Yakinda bir kalip cevabi
@@ -2234,12 +2247,12 @@ class PatronAsistanServisi
             $row = \DB::table('asistan_kalip')->where('id', (int) $v['id'])->where('aktif', 1)->first();
             if (!$row) return null;
 
-            // 4 kez ek bilgi verdikten SONRA: bilgi doniyoruz -> randevuya yonlendir.
+            // 4 kez ek bilgi verdikten SONRA: bilgi doniyoruz -> nazikce randevuya yonlendir.
             $devamSayisi = (int) ($v['devam'] ?? 0);
             if ($devamSayisi >= 4) {
                 return [
                     'basarili' => true, 'intent' => 'kalip', 'seslendir' => true, 'kart' => null,
-                    'cevap' => 'Sanırım bu konuda yeterince bilgi verdim 😊 İsterseniz hemen bir randevu oluşturalım — “randevu al” demeniz yeterli. Dilerseniz başka bir hizmeti de sorabilirsiniz.',
+                    'cevap' => $this->randevuYonlendir(),
                 ];
             }
 
@@ -2247,7 +2260,7 @@ class PatronAsistanServisi
             if (count($havuz) < 2) {
                 return [
                     'basarili' => true, 'intent' => 'kalip', 'seslendir' => true, 'kart' => null,
-                    'cevap' => 'Bu konuda elimdeki bilgi şimdilik bu kadar efendim. İsterseniz randevu oluşturalım — “randevu al” demeniz yeterli.',
+                    'cevap' => $this->randevuYonlendir(),
                 ];
             }
             $verilen = is_array($v['verilen'] ?? null) ? $v['verilen'] : [];
@@ -2255,10 +2268,10 @@ class PatronAsistanServisi
                 return !in_array($c, $verilen, true);
             }));
             if (empty($kalan)) {
-                // Havuz bitti -> randevuya yonlendir (tekrar etmesin).
+                // Havuz bitti -> nazikce randevuya yonlendir (tekrar etmesin).
                 return [
                     'basarili' => true, 'intent' => 'kalip', 'seslendir' => true, 'kart' => null,
-                    'cevap' => 'Bu konuda anlatabileceklerimin hepsini paylaştım 😊 İsterseniz randevu oluşturalım — “randevu al” demeniz yeterli.',
+                    'cevap' => $this->randevuYonlendir(),
                 ];
             }
             $sec = $kalan[mt_rand(0, count($kalan) - 1)];
