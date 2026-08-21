@@ -74,6 +74,63 @@
                   </div>
                </div>
                @endif
+
+               @if(!empty($dakika))
+               @php
+                   $dk_personel = !empty($dakika['dahili']);
+                   $dk_yuzde = (int)($dakika['yuzde'] ?? 0);
+                   $dk_renk = $dk_yuzde >= 90 ? '#ff0000' : ($dk_yuzde >= 70 ? '#f59e0b' : '#28a745');
+               @endphp
+               <div class="col-lg-12 col-md-12 col-sm-12 mb-20">
+                  <div class="pd-20 card-box">
+                     @if($dk_personel)
+                        {{-- Personel: yalnizca kendi dahilisinin giden konusma dakikasi --}}
+                        <div class="d-flex flex-wrap justify-content-between align-items-center">
+                           <div>
+                              <div class="font-14 text-secondary weight-500">Bu dönem giden konuşma sürem (Dahili {{ $dakika['dahili'] }})</div>
+                              <div class="weight-700 font-24 text-dark">{{ number_format($dakika['kullanilan'], 1, ',', '.') }} <span class="font-14 text-secondary">dk</span></div>
+                              <div class="font-13 text-secondary">{{ $dakika['adet'] }} giden çağrı · {{ date('d.m.Y', strtotime($dakika['sayim_baslangic'])) }} tarihinden bugüne</div>
+                           </div>
+                           <div class="widget-icon" style="background-color:rgb(146, 0, 188)">
+                              <div class="icon" data-color="#fff"><i class="icon-copy bi bi-stopwatch-fill"></i></div>
+                           </div>
+                        </div>
+                     @else
+                        {{-- Salon geneli: tanimli / kullanilan / kalan + ilerleme --}}
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-15">
+                           <div class="font-16 weight-600 text-dark"><i class="bi bi-stopwatch-fill"></i> Dakika Kullanımı <span class="font-13 text-secondary weight-400">(giden — havuz)</span></div>
+                           <div class="font-13 text-secondary">{{ date('d.m.Y', strtotime($dakika['sayim_baslangic'])) }} tarihinden bugüne · {{ $dakika['adet'] }} giden çağrı</div>
+                        </div>
+                        <div class="row">
+                           <div class="col-4 text-center">
+                              <div class="weight-700 font-24 text-dark">{{ number_format($dakika['tanimli'], 0, ',', '.') }}</div>
+                              <div class="font-13 text-secondary weight-500">Tanımlı (dk)</div>
+                           </div>
+                           <div class="col-4 text-center">
+                              <div class="weight-700 font-24 text-dark">{{ number_format($dakika['kullanilan'], 1, ',', '.') }}</div>
+                              <div class="font-13 text-secondary weight-500">Kullanılan (dk)</div>
+                           </div>
+                           <div class="col-4 text-center">
+                              <div class="weight-700 font-24" style="color:{{ $dakika['kalan'] < 0 ? '#ff0000' : '#28a745' }}">{{ number_format($dakika['kalan'], 1, ',', '.') }}</div>
+                              <div class="font-13 text-secondary weight-500">Kalan (dk)</div>
+                           </div>
+                        </div>
+                        @if($dakika['tanimli'] > 0)
+                        <div style="margin-top:15px;height:10px;border-radius:6px;background:#eceff4;overflow:hidden">
+                           <div style="height:100%;width:{{ $dk_yuzde }}%;background:{{ $dk_renk }};border-radius:6px"></div>
+                        </div>
+                        <div class="font-13 text-secondary text-right" style="margin-top:5px">%{{ $dk_yuzde }}</div>
+                        @else
+                        <div class="font-13 text-secondary text-center" style="margin-top:12px">Bu işletme için henüz tanımlı dakika girilmemiş.</div>
+                        @endif
+                     @endif
+                     @if(!empty($dakika['hata']))
+                        <div class="font-12" style="color:#ff0000;margin-top:8px">Dakika verisi şu an alınamadı, lütfen daha sonra tekrar deneyin.</div>
+                     @endif
+                  </div>
+               </div>
+               @endif
+
                <div class="col-lg-12 col-md-12 col-sm-12 mb-30">
 
                      <div class="pd-20 card-box">

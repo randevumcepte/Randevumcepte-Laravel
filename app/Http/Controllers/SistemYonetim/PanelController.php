@@ -10,6 +10,7 @@ use App\Personeller;
 use App\Randevular;
 use App\SabitNumaralar;
 use App\SistemYonetim\SalonDakikaPaketi;
+use App\SistemYonetim\DakikaHesap;
 use App\SistemYonetim\Audit;
 use App\SistemYonetim\AuditLog;
 use App\SistemYonetim\LoginLog;
@@ -2042,69 +2043,22 @@ class PanelController extends Controller
      * ============================================================ */
 
     /**
-     * FreePBX CDR'dan bir salonun GIDEN (dis hat) konusma dakikasini ceker.
-     * Kaynak: santral.randevumcepte.com.tr/monitor/api/dakikaOzet.php
-     * Olcum: outbound_cnum = trunk olan ANSWERED cagrilarin SUM(billsec)/60.
+     * CDR'dan giden dakika — ortak DakikaHesap servisine delege eder.
+     * (Ayni mantik isletme santral sayfasinda da kullanildigi icin servise tasindi.)
      *
      * @return array{dakika: float, adet: int, hata: bool}
      */
     private function dakikaKullanimHesapla($trunk, $tarih1 = null, $tarih2 = null)
     {
-        if (empty($trunk) || !preg_match('/^\d+$/', (string) $trunk)) {
-            return ['dakika' => 0.0, 'adet' => 0, 'hata' => false];
-        }
-
-        $qs = 'did=' . urlencode($trunk);
-        if ($tarih1) $qs .= '&tarih1=' . urlencode($tarih1);
-        if ($tarih2) $qs .= '&tarih2=' . urlencode($tarih2);
-
-        // Liste her salon icin ayri CDR sorgusu yapar; 5 dk cache ile santral
-        // API'si cok musteride her yenilemede yeniden yuklenmez.
-        $cacheKey = 'sy.dakika.' . md5($qs);
-        $cached = \Cache::get($cacheKey);
-        if (is_array($cached)) return $cached;
-
-        $endpoint = 'https://santral.randevumcepte.com.tr/monitor/api/dakikaOzet.php?' . $qs;
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $endpoint);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-        $raw = curl_exec($ch);
-        if (curl_errno($ch)) {
-            \Log::error('dakikaKullanimHesapla curl: ' . curl_error($ch));
-            curl_close($ch);
-            return ['dakika' => 0.0, 'adet' => 0, 'hata' => true];
-        }
-        curl_close($ch);
-
-        $d = json_decode($raw, true);
-        if (!is_array($d) || isset($d['error'])) {
-            return ['dakika' => 0.0, 'adet' => 0, 'hata' => true];
-        }
-
-        $sonuc = [
-            'dakika' => (float) ($d['toplam_dakika'] ?? 0),
-            'adet'   => (int) ($d['giden_cevaplanan_adet'] ?? 0),
-            'hata'   => false,
-        ];
-        \Cache::put($cacheKey, $sonuc, 300);
-        return $sonuc;
+        return DakikaHesap::cdrKullanim($trunk, $tarih1, $tarih2);
     }
 
     /**
-     * Bir salon icin sayim baslangic tarihi: paket kaydinda ozel bir tarih
-     * varsa o, yoksa salonun olusturma tarihi (secim: "salon olusturma tarihi").
+     * Sayim baslangic tarihi — ortak DakikaHesap servisine delege eder.
      */
     private function dakikaSayimBaslangic($salon, $paket = null)
     {
-        if ($paket && !empty($paket->sayim_baslangic)) {
-            return date('Y-m-d', strtotime($paket->sayim_baslangic));
-        }
-        if (!empty($salon->created_at)) {
-            return date('Y-m-d', strtotime((string) $salon->created_at));
-        }
-        return '2020-01-01';
+        return DakikaHesap::sayimBaslangic($salon, $paket);
     }
 
     /**

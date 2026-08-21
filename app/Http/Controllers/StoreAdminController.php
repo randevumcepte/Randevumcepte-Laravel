@@ -27069,9 +27069,28 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $santral_raporlari = self::santral_raporlari($isletme->id,date('Y-m-d'),date('Y-m-d'),'',$request);
         $kalan_uyelik_suresi = self::lisans_sure_kontrol($request);
         $santral_ayarlari = SalonSantralAyarlari::where('salon_id',self::mevcutsube($request))->get();
+
+        // -------------------------------------------------------------
+        // Dakika ozeti (giden konusma dakikasi — havuz).
+        //  rol < 5  : salon geneli (tanimli/kullanilan/kalan gorunur).
+        //  rol == 5 : sadece kendi dahilisi tanimliysa, kendi giden dakikasi.
+        // -------------------------------------------------------------
+        $dakika = null;
+        if ($rol < 5) {
+            $dakika = \App\SistemYonetim\DakikaHesap::hesapla($isletme->id);
+        } else if (Auth::guard('isletmeyonetim')->check()) {
+            $kendiDahili = Personeller::where('salon_id',$isletme->id)
+                ->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)
+                ->value('dahili_no');
+            if (!empty($kendiDahili)) {
+                $dakika = \App\SistemYonetim\DakikaHesap::hesapla($isletme->id, $kendiDahili);
+            }
+        }
+
         return view('isletmeadmin.santral',['kullaniciRolu'=>$rol,'bildirimler'=>self::bildirimgetir($request),'paketler'=>$paketler,'sayfa_baslik'=>'Santral Sistemi & Aramalar','pageindex' => 43,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi, 'santral_raporlari'=>$santral_raporlari,
             'santral_ayarlari' => $santral_ayarlari,'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),
-            'personel_drop'=>self::personeldropliste($request,array()),'yetkiliolunanisletmeler'=>$isletmeler
+            'personel_drop'=>self::personeldropliste($request,array()),'yetkiliolunanisletmeler'=>$isletmeler,
+            'dakika'=>$dakika
     ]);
     }
     public function cdr_rapor_filtre(Request $request)
