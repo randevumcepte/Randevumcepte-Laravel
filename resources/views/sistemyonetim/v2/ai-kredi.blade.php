@@ -57,11 +57,19 @@
 
 {{-- Ozet kartlari --}}
 <div class="ai-kartlar">
-    <div class="ai-kart {{ $kalanUsd < 0 ? 'kotu' : 'iyi' }}">
+    @if((float)$ayar['yuklenen_usd'] <= 0)
+    <div class="ai-kart">
+        <div class="e">Kalan Kredi</div>
+        <div class="d" style="font-size:16px;color:#fbbf24">Kredi girilmedi</div>
+        <div class="alt">Aşağıdan yüklediğin krediyi gir ↓</div>
+    </div>
+    @else
+    <div class="ai-kart {{ $kalanUsd < ((float)$ayar['yuklenen_usd']*0.15) ? 'kotu' : 'iyi' }}">
         <div class="e">Kalan Kredi</div>
         <div class="d">{{ $usd($kalanUsd) }}</div>
-        <div class="alt">{{ $tl($kalanUsd) }}</div>
+        <div class="alt">{{ $tl($kalanUsd) }} · yükledin {{ $usd($ayar['yuklenen_usd']) }}</div>
     </div>
+    @endif
     <div class="ai-kart">
         <div class="e">Yüklenen Kredi</div>
         <div class="d">{{ $usd($ayar['yuklenen_usd']) }}</div>
