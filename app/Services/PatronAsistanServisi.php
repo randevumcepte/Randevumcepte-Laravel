@@ -55,6 +55,13 @@ class PatronAsistanServisi
             'iptal edilmis', 'gelmedi', 'gelmeyen', 'gelmeyenler', 'gelinmeyen', 'kim gelmedi',
             'no show', 'gelmeyen randevu', 'gelmeyen musteri', 'kacan randevu',
         ],
+        'saat' => [
+            'calisma saat', 'calisma saatleri', 'calisma gunleri', 'mesai', 'kacta acil',
+            'kacta kapan', 'kacta acik', 'kaca kadar acik', 'acik misiniz', 'acik misin',
+            'aciksiniz', 'kapali misiniz', 'acik miyiz', 'hangi saatler', 'hangi gunler acik',
+            'saatleriniz', 'acilis saati', 'kapanis saati', 'ne zaman aciksiniz', 'ne zaman kapali',
+            'pazar acik', 'bugun acik', 'su an acik', 'acik mi',
+        ],
         'bugun' => [
             'randevu', 'takvim', 'gundem', 'kimler var', 'kimler gelecek', 'kim gelecek',
             'kac randevu', 'randevu var', 'gunluk program',
@@ -84,7 +91,7 @@ class PatronAsistanServisi
         // En yuksek skorlu niyet; esitlikte oncelik sirasina gore (deterministik).
         // NOT: personel, kasa'dan ONCE -> "en dusuk CIRO yapan PERSONEL" gibi cumlelerde
         // 'ciro'(kasa) ile 'personel' esit skorlanir; personel kazanmali.
-        $oncelik = ['iptal', 'personel', 'kasa', 'hizmet', 'urun', 'musteri', 'bugun', 'ozet'];
+        $oncelik = ['saat', 'iptal', 'personel', 'kasa', 'hizmet', 'urun', 'musteri', 'bugun', 'ozet'];
         $enIyi = 'bilinmiyor'; $enYuksek = 0;
         foreach ($oncelik as $n) {
             if (($skor[$n] ?? 0) > $enYuksek) {
@@ -648,8 +655,8 @@ class PatronAsistanServisi
                 'properties' => [
                     'intent' => [
                         'type' => 'string',
-                        'enum' => ['kasa','personel','hizmet','urun','musteri','ozet','bugun','iptal','oneri','bilinmiyor'],
-                        'description' => 'kasa=ciro/tahsilat, personel=kim ne sattı, hizmet=hizmet karlilik, urun=urun satis, musteri=musteri ozeti, ozet=genel/gun sonu, bugun=bugunku/donem randevu SAYISI, iptal=IPTAL edilen ya da GELMEYEN (no-show) randevu sayisi / en cok iptal-gelmeyen personel, oneri=isletmeyi buyutme/gelistirme/tavsiye istegi, bilinmiyor=anlasilamadi',
+                        'enum' => ['kasa','personel','hizmet','urun','musteri','ozet','bugun','iptal','saat','oneri','bilinmiyor'],
+                        'description' => 'kasa=ciro/tahsilat, personel=kim ne sattı, hizmet=hizmet karlilik, urun=urun satis, musteri=musteri ozeti, ozet=genel/gun sonu, bugun=bugunku/donem randevu SAYISI, iptal=IPTAL edilen ya da GELMEYEN randevu, saat=salonun CALISMA SAATLERI / hangi gunler-saatler acik / bugun acik mi, oneri=isletmeyi buyutme/tavsiye, bilinmiyor=anlasilamadi',
                     ],
                     'donem' => [
                         'type' => 'string',
@@ -901,6 +908,46 @@ class PatronAsistanServisi
             $this->aiTeshis = 'exception: ' . $e->getMessage();
             return null;
         }
+    }
+
+    /** Calisma saatleri cevabi — VERIDEN (bedava). Belirli gun / bugun / tum hafta. */
+    public function cevapCalismaSaati(array $liste, array $niyet)
+    {
+        $gunAd = [1 => 'Pazartesi', 2 => 'Salı', 3 => 'Çarşamba', 4 => 'Perşembe', 5 => 'Cuma', 6 => 'Cumartesi', 7 => 'Pazar'];
+        $harita = [];
+        foreach ($liste as $r) {
+            $harita[(int) $r['gun']][] = $r['bas'] . ' ile ' . $r['bit'];
+        }
+        if (empty($harita)) {
+            return ['basarili' => true, 'intent' => 'saat', 'seslendir' => true, 'kart' => null,
+                'cevap' => 'Çalışma saatleriniz sistemde tanımlı görünmüyor. Salon ayarlarından ekleyebilirsiniz.'];
+        }
+        $ham = $this->normalize($niyet['ham'] ?? '');
+
+        // 1) Belirli bir gun adi gecti mi?
+        foreach ($gunAd as $no => $ad) {
+            if (strpos($ham, $this->normalize($ad)) !== false) {
+                $cevap = isset($harita[$no])
+                    ? $ad . ' günü ' . implode(', ', $harita[$no]) . ' saatlerinde açığız.'
+                    : $ad . ' günü kapalıyız.';
+                return ['basarili' => true, 'intent' => 'saat', 'seslendir' => true, 'kart' => null, 'cevap' => $cevap];
+            }
+        }
+        // 2) Bugun / su an
+        if (strpos($ham, 'bugun') !== false || strpos($ham, 'su an') !== false || strpos($ham, 'simdi') !== false) {
+            $bg = (int) date('N'); // 1=Pzt .. 7=Paz
+            $cevap = isset($harita[$bg])
+                ? 'Bugün ' . $gunAd[$bg] . ', ' . implode(', ', $harita[$bg]) . ' saatleri arasında açığız.'
+                : 'Bugün ' . $gunAd[$bg] . ' kapalıyız.';
+            return ['basarili' => true, 'intent' => 'saat', 'seslendir' => true, 'kart' => null, 'cevap' => $cevap];
+        }
+        // 3) Genel: tum hafta
+        $parcalar = [];
+        for ($g = 1; $g <= 7; $g++) {
+            $parcalar[] = isset($harita[$g]) ? $gunAd[$g] . ' ' . implode(' ve ', $harita[$g]) : $gunAd[$g] . ' kapalı';
+        }
+        return ['basarili' => true, 'intent' => 'saat', 'seslendir' => true, 'kart' => null,
+            'cevap' => 'Çalışma saatlerimiz şöyle: ' . implode(', ', $parcalar) . '.'];
     }
 
     /**

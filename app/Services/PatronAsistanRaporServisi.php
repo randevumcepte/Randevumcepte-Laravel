@@ -594,6 +594,22 @@ class PatronAsistanRaporServisi
         ];
     }
 
+    /** Salonun haftalik calisma saatleri (salon_calisma_saatleri). Gun yoksa = kapali. */
+    public function calismaSaatleri($salonId)
+    {
+        if (!\Schema::hasTable('salon_calisma_saatleri')) return [];
+        $rows = DB::table('salon_calisma_saatleri')->where('salon_id', $salonId)
+            ->orderBy('haftanin_gunu')->orderBy('baslangic_saati')->get();
+        $out = [];
+        foreach ($rows as $r) {
+            $bas = $r->baslangic_saati ? substr((string) $r->baslangic_saati, 0, 5) : null;
+            $bit = $r->bitis_saati ? substr((string) $r->bitis_saati, 0, 5) : null;
+            if (!$bas || !$bit) continue;
+            $out[] = ['gun' => (int) $r->haftanin_gunu, 'bas' => $bas, 'bit' => $bit];
+        }
+        return $out;
+    }
+
     // ---- yardimcilar ----
 
     /** Tahsilat satirlarini nakit/kart/havale/diger/toplam kirilimina cevir (dashboardKasa mantigi). */
