@@ -2197,6 +2197,7 @@ class PatronAsistanServisi
             }
             $v['verilen'][] = (string) $verilenText;
             if (count($v['verilen']) > 30) $v['verilen'] = array_slice($v['verilen'], -30);
+            $v['devam'] = 0; // TAM soru soruldu -> "biraz daha" sayaci sifirlanir (yeniden 4 hak)
             \Cache::put($k, $v, 12);
         } catch (\Throwable $e) {}
     }
@@ -2233,11 +2234,20 @@ class PatronAsistanServisi
             $row = \DB::table('asistan_kalip')->where('id', (int) $v['id'])->where('aktif', 1)->first();
             if (!$row) return null;
 
+            // 4 kez ek bilgi verdikten SONRA: bilgi doniyoruz -> randevuya yonlendir.
+            $devamSayisi = (int) ($v['devam'] ?? 0);
+            if ($devamSayisi >= 4) {
+                return [
+                    'basarili' => true, 'intent' => 'kalip', 'seslendir' => true, 'kart' => null,
+                    'cevap' => 'Sanırım bu konuda yeterince bilgi verdim 😊 İsterseniz hemen bir randevu oluşturalım — “randevu al” demeniz yeterli. Dilerseniz başka bir hizmeti de sorabilirsiniz.',
+                ];
+            }
+
             $havuz = $this->cevapHavuzu($row->cevap);
             if (count($havuz) < 2) {
                 return [
                     'basarili' => true, 'intent' => 'kalip', 'seslendir' => true, 'kart' => null,
-                    'cevap' => 'Bu konuda elimdeki bilgi şimdilik bu kadar efendim. Dilerseniz randevu oluşturabilir ya da başka bir konu sorabilirsiniz.',
+                    'cevap' => 'Bu konuda elimdeki bilgi şimdilik bu kadar efendim. İsterseniz randevu oluşturalım — “randevu al” demeniz yeterli.',
                 ];
             }
             $verilen = is_array($v['verilen'] ?? null) ? $v['verilen'] : [];
@@ -2245,15 +2255,15 @@ class PatronAsistanServisi
                 return !in_array($c, $verilen, true);
             }));
             if (empty($kalan)) {
-                $v['verilen'] = []; // havuz bitti -> sifirla (istenirse tekrar dolasir)
-                \Cache::put($k, $v, 12);
+                // Havuz bitti -> randevuya yonlendir (tekrar etmesin).
                 return [
                     'basarili' => true, 'intent' => 'kalip', 'seslendir' => true, 'kart' => null,
-                    'cevap' => 'Bu konuda anlatabileceklerimin hepsini paylaştım efendim. İsterseniz randevu oluşturayım ya da başka bir konuda yardımcı olayım.',
+                    'cevap' => 'Bu konuda anlatabileceklerimin hepsini paylaştım 😊 İsterseniz randevu oluşturalım — “randevu al” demeniz yeterli.',
                 ];
             }
             $sec = $kalan[mt_rand(0, count($kalan) - 1)];
             $v['verilen'][] = $sec;
+            $v['devam'] = $devamSayisi + 1;
             \Cache::put($k, $v, 12);
             try { \DB::table('asistan_kalip')->where('id', (int) $v['id'])->increment('kullanim_sayisi'); } catch (\Throwable $e) {}
             return [
