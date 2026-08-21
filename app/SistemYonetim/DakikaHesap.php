@@ -46,23 +46,47 @@ class DakikaHesap
 
         $bas = self::sayimBaslangic($salon, $paket);
 
-        $kullanim = self::cdrKullanim($trunk, $bas, date('Y-m-d'), $dahili);
+        // Kaynak secimi:
+        //  - Salon geneli (dahili yok): ONCE saglayici (voicetelekom) = faturaya
+        //    birebir. Erisilemezse CDR'a (dstchannel/billsec, ~%10 fazla) duser.
+        //  - Personel (dahili): saglayici dahili bilmez -> her zaman CDR.
+        $kaynak = 'santral';
+        $hata   = false;
+        if ($dahili === null) {
+            $sag = SaglayiciDakika::fetch($trunk, $bas, date('Y-m-d'));
+            if (!empty($sag['ok'])) {
+                $kullanilan = (float) $sag['dakika'];
+                $adet       = (int) ($sag['adet'] ?? 0);
+                $kaynak     = 'saglayici';
+            } else {
+                $kullanim   = self::cdrKullanim($trunk, $bas, date('Y-m-d'));
+                $kullanilan = $kullanim['dakika'];
+                $adet       = $kullanim['adet'];
+                $hata       = $kullanim['hata'];
+            }
+        } else {
+            $kullanim   = self::cdrKullanim($trunk, $bas, date('Y-m-d'), $dahili);
+            $kullanilan = $kullanim['dakika'];
+            $adet       = $kullanim['adet'];
+            $hata       = $kullanim['hata'];
+            $kaynak     = 'santral-dahili';
+        }
 
-        $tanimli    = (int) ($paket->tanimli_dakika ?? 0);
-        $kullanilan = $kullanim['dakika'];
-        $kalan      = round($tanimli - $kullanilan, 1);
-        $yuzde      = $tanimli > 0 ? (int) min(100, round($kullanilan / $tanimli * 100)) : 0;
+        $tanimli = (int) ($paket->tanimli_dakika ?? 0);
+        $kalan   = round($tanimli - $kullanilan, 1);
+        $yuzde   = $tanimli > 0 ? (int) min(100, round($kullanilan / $tanimli * 100)) : 0;
 
         return [
             'trunk'           => $trunk,
             'tanimli'         => $tanimli,
-            'kullanilan'      => $kullanilan,
+            'kullanilan'      => round($kullanilan, 1),
             'kalan'           => $kalan,
             'yuzde'           => $yuzde,
-            'adet'            => $kullanim['adet'],
+            'adet'            => $adet,
             'sayim_baslangic' => $bas,
             'dahili'          => $dahili,
-            'hata'            => $kullanim['hata'],
+            'kaynak'          => $kaynak,   // saglayici | santral | santral-dahili
+            'hata'            => $hata,
         ];
     }
 

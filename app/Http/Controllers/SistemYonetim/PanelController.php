@@ -2094,39 +2094,30 @@ class PanelController extends Controller
         }
         $salonlar = $salonQ->orderBy('salon_adi')->get();
 
-        // Paket tanimlarini tek sorguda al
-        $paketler = SalonDakikaPaketi::whereIn('salon_id', $salonlar->pluck('id'))
-            ->get()->keyBy('salon_id');
-
         $satirlar = [];
         $toplamTanimli = 0;
         $toplamKullanilan = 0.0;
 
         foreach ($salonlar as $salon) {
-            $paket  = $paketler->get($salon->id);
-            $trunk  = $trunkler->get($salon->id);
-            $bas    = $this->dakikaSayimBaslangic($salon, $paket);
+            // Salon geneli: saglayici-oncelikli (faturaya birebir), CDR fallback.
+            // Ortak servis; SaglayiciDakika tek login'i tum salonlar icin paylasir.
+            $d = DakikaHesap::hesapla($salon->id);
 
-            $kullanim  = $this->dakikaKullanimHesapla($trunk, $bas, date('Y-m-d'));
-            $tanimli   = (int) ($paket->tanimli_dakika ?? 0);
-            $kullanilan = $kullanim['dakika'];
-            $kalan     = round($tanimli - $kullanilan, 1);
-            $yuzde     = $tanimli > 0 ? min(100, round($kullanilan / $tanimli * 100)) : 0;
-
-            $toplamTanimli    += $tanimli;
-            $toplamKullanilan += $kullanilan;
+            $toplamTanimli    += $d['tanimli'];
+            $toplamKullanilan += $d['kullanilan'];
 
             $satirlar[] = [
                 'salon_id'        => $salon->id,
                 'salon_adi'       => $salon->salon_adi,
-                'trunk'           => $trunk,
-                'sayim_baslangic' => $bas,
-                'tanimli'         => $tanimli,
-                'kullanilan'      => $kullanilan,
-                'kalan'           => $kalan,
-                'yuzde'           => $yuzde,
-                'adet'            => $kullanim['adet'],
-                'hata'            => $kullanim['hata'],
+                'trunk'           => $d['trunk'],
+                'sayim_baslangic' => $d['sayim_baslangic'],
+                'tanimli'         => $d['tanimli'],
+                'kullanilan'      => $d['kullanilan'],
+                'kalan'           => $d['kalan'],
+                'yuzde'           => $d['yuzde'],
+                'adet'            => $d['adet'],
+                'kaynak'          => $d['kaynak'],
+                'hata'            => $d['hata'],
             ];
         }
 

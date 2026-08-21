@@ -24,6 +24,9 @@
     .dk-kalan-eksi { color:#d04d5e; font-weight:700; }
     .dk-kalan-arti { color:#2f9e6f; font-weight:600; }
     .dk-hata { color:#d04d5e; font-size:11.5px; }
+    .dk-kaynak { display:inline-block; font-size:10px; font-weight:600; padding:1px 6px; border-radius:6px; margin-top:3px; }
+    .dk-kaynak-fatura { background:rgba(47,158,111,.12); color:#2f9e6f; }
+    .dk-kaynak-santral { background:rgba(224,147,47,.12); color:#c47f1e; }
     .dk-bos { text-align:center; padding:40px; color:var(--sy-text-muted,#7e7595); }
 
     /* Modal */
@@ -105,6 +108,11 @@
                         <td class="dk-num" style="text-align:right">{{ number_format($s['tanimli'], 0, ',', '.') }}</td>
                         <td class="dk-num" style="text-align:right">
                             {{ number_format($s['kullanilan'], 1, ',', '.') }}
+                            @if(($s['kaynak'] ?? '') === 'saglayici')
+                                <div class="dk-kaynak dk-kaynak-fatura" title="Operatör (voicetelekom) faturalandırılan süre">fatura</div>
+                            @else
+                                <div class="dk-kaynak dk-kaynak-santral" title="Santral (CDR) ölçümü — operatör faturasından ~%10 fazla olabilir">≈ santral</div>
+                            @endif
                             @if($s['hata'])<div class="dk-hata">veri alınamadı</div>@endif
                         </td>
                         <td class="dk-num" style="text-align:right">
