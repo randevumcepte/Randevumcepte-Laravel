@@ -852,7 +852,8 @@ class PatronAsistanServisi
             . 'onerileri ve musterilere ucretsiz indirim kampanyasi hazirlayip gonderme. '
             . 'RAKAM veya VERI UYDURMA; patron rakam isterse "bugun kasa ne durumda gibi sorabilirsiniz" '
             . 'de. Salonla ilgisiz konularda (genel kultur, siyaset, hava durumu vb.) nazikce '
-            . 'salonuyla ilgili yardimci olabilecegini soyle. Sadece Turkce yanit ver.';
+            . 'salonuyla ilgili yardimci olabilecegini soyle. "Buyurun" kelimesini KULLANMA. '
+            . 'Sadece Turkce yanit ver.';
 
         $mesajlar = $this->gecmisMesajlari($gecmis);
         $mesajlar[] = ['role' => 'user', 'content' => $ham];
@@ -1887,7 +1888,7 @@ class PatronAsistanServisi
                     'Merhaba, size nasıl yardımcı olabilirim?',
                     'Merhaba, hoş geldiniz. İşletmeniz hakkında ne öğrenmek istersiniz?',
                     'Selam, bugün size nasıl yardımcı olayım?',
-                    'Merhaba efendim, buyurun, sizi dinliyorum.',
+                    'Merhaba efendim, sizi dinliyorum.',
                 ],
             ],
             [ // hal hatir
@@ -1895,7 +1896,7 @@ class PatronAsistanServisi
                 'cevaplar'  => [
                     'İyiyim, teşekkür ederim. Siz nasılsınız, merak ettiğiniz bir şey var mı?',
                     'Gayet iyiyim, sağ olun. Size nasıl yardımcı olabilirim?',
-                    'Turp gibiyim diyebilirim, hep hazırım. Buyurun, ne öğrenmek istersiniz?',
+                    'Turp gibiyim diyebilirim, hep hazırım. Ne öğrenmek istersiniz?',
                 ],
             ],
             [ // tesekkur
@@ -1924,7 +1925,7 @@ class PatronAsistanServisi
             [ // dinliyor mu
                 'kelimeler' => ['dinliyor musun','orada misin','beni duyuyor musun','uyuyor musun','mesgul musun'],
                 'cevaplar'  => [
-                    'Evet, buradayım ve sizi dinliyorum. Buyurun.',
+                    'Evet, buradayım ve sizi dinliyorum.',
                     'Buradayım efendim, sizi dinliyorum.',
                 ],
             ],
@@ -1947,7 +1948,7 @@ class PatronAsistanServisi
                 'cevaplar'  => [
                     'Ne zaman isterseniz buradayım.',
                     'Emrinizdeyim efendim.',
-                    'Başka bir şey öğrenmek isterseniz buyurun.',
+                    'Başka bir şey öğrenmek isterseniz söylemeniz yeterli.',
                 ],
             ],
             [ // yardim iste
