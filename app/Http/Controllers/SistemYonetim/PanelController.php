@@ -2077,7 +2077,11 @@ class PanelController extends Controller
 
         $salonIdler = $trunkler->keys()->all();
 
-        $salonQ = Salonlar::whereIn('id', $salonIdler);
+        // Sadece e-santral musterileri (uyelik_turu = 3) ve uyelik suresi
+        // dolmamis olanlar listelenir.
+        $salonQ = Salonlar::whereIn('id', $salonIdler)
+            ->where('uyelik_turu', 3)
+            ->where('uyelik_bitis_tarihi', '>=', date('Y-m-d'));
         if ($this->rol() === 'destek') {
             $salonQ->where('musteri_yetkili_id', $this->user()->id);
         }
