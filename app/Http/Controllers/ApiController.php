@@ -2430,6 +2430,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         }
 
         $asistan = new \App\Services\PatronAsistanServisi();
+        $asistan->aktifSalonId = (int) $salonId; // AI kullanim logu bu salona yazilsin
         $veriSrv = new \App\Services\PatronAsistanRaporServisi();
 
         // KONUSMA BELLEGI: takip sorulari icin son turlar. Cevap verirken $cevapla ile

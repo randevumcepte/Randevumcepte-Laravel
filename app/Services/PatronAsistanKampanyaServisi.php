@@ -138,7 +138,7 @@ class PatronAsistanKampanyaServisi
 
         // 2.5) AI YARDIMI: kural cozemedi -> Haiku hedefi cikarsin (kisi adi / segment),
         // sonra DB'den dogrula. Gonderim yok; teklif yine ONAY ister (guvenli).
-        $ai = $this->kampanyaCozAI($metin);
+        $ai = $this->kampanyaCozAI($metin, $salonId);
         if (is_array($ai)) {
             $ht = $ai['hedef_tur'];
             if ($ht === 'kisi' && $ai['kisi_adi'] !== '') {
@@ -320,7 +320,7 @@ class PatronAsistanKampanyaServisi
      * onay ister. Key yoksa/hata olursa null -> cagiran taraf netlestirme sorar.
      * @return array|null ['hedef_tur'=>'kisi|kayip|bossaat|dogumgunu|genel|belirsiz','kisi_adi'=>string]
      */
-    protected function kampanyaCozAI($metin)
+    protected function kampanyaCozAI($metin, $salonId = 0)
     {
         $apiKey = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
         if (!$apiKey) { $this->kampAiTeshis = 'anahtar_yok'; return null; }
@@ -377,6 +377,10 @@ class PatronAsistanKampanyaServisi
             if ($yanit === false || $kod !== 200) { $this->kampAiTeshis = 'http_' . $kod; return null; }
             $data = json_decode($yanit, true);
             if (!is_array($data) || empty($data['content'])) { $this->kampAiTeshis = 'yanit_bos'; return null; }
+
+            $uc = $data['usage'] ?? [];
+            \App\Services\AiKullanimLog::yaz($salonId, 'kampanya',
+                $uc['input_tokens'] ?? 0, $uc['output_tokens'] ?? 0, $govde['model'] ?? null, false, true);
 
             foreach ($data['content'] as $blok) {
                 if (($blok['type'] ?? '') === 'tool_use' && ($blok['name'] ?? '') === 'kampanya_sec') {

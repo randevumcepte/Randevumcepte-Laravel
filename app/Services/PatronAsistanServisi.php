@@ -627,6 +627,8 @@ class PatronAsistanServisi
      */
     /** Son AI cagrisinin teshisi (debug): anahtar_yok | http_XXX | curl_HATA | yanit_bos | tool_yok | ok */
     public $aiTeshis = null;
+    /** Kullanim logu icin aktif salon (controller set eder). */
+    public $aktifSalonId = 0;
 
     public function niyetCozAI($metin, $gecmis = [])
     {
@@ -701,6 +703,10 @@ class PatronAsistanServisi
                 $this->aiTeshis = 'yanit_bos';
                 return null;
             }
+            // Kullanim logu (gercek token'lar Anthropic usage'dan).
+            $uk = $data['usage'] ?? [];
+            \App\Services\AiKullanimLog::yaz($this->aktifSalonId, 'niyet',
+                $uk['input_tokens'] ?? 0, $uk['output_tokens'] ?? 0, $govde['model'] ?? null, false, true);
             // tool_use blogunu bul
             $tool = null;
             foreach ($data['content'] as $blok) {
@@ -877,6 +883,10 @@ class PatronAsistanServisi
             $data = json_decode($yanit, true);
             if (!is_array($data) || empty($data['content'])) { $this->aiTeshis = 'yanit_bos'; return null; }
 
+            $us = $data['usage'] ?? [];
+            \App\Services\AiKullanimLog::yaz($this->aktifSalonId, 'sohbet',
+                $us['input_tokens'] ?? 0, $us['output_tokens'] ?? 0, $govde['model'] ?? null, false, true);
+
             // Metin bloklarini birlestir.
             $metinCevap = '';
             foreach ($data['content'] as $blok) {
@@ -941,13 +951,17 @@ class PatronAsistanServisi
      * AI cevabini VERI-ANAHTARIYLA cache'ler: ayni girdiyle (ayni gun) tekrar sorulursa
      * Haiku'ya GITMEDEN kaliptan doner (BEDAVA). $uret sadece cache bosken calisir.
      */
-    protected function aiCache($anahtar, callable $uret, $dakika = 720)
+    protected function aiCache($anahtar, callable $uret, $dakika = 720, $tur = 'ai')
     {
         try {
             $c = \Cache::get($anahtar);
-            if (is_string($c) && $c !== '') { $this->aiTeshis = 'ok_cache'; return $c; }
+            if (is_string($c) && $c !== '') {
+                $this->aiTeshis = 'ok_cache';
+                \App\Services\AiKullanimLog::yaz($this->aktifSalonId, $tur, 0, 0, null, true, true);
+                return $c;
+            }
         } catch (\Throwable $e) {}
-        $out = $uret();
+        $out = $uret(); // canli cagri -> haikuText kendi logunu yazar
         if (is_string($out) && $out !== '') {
             try { \Cache::put($anahtar, $out, $dakika); } catch (\Throwable $e) {}
         }
@@ -973,15 +987,15 @@ class PatronAsistanServisi
         $anahtar = 'pa_pyorum:' . md5($ad . '|' . $donemAdi . '|' . $ciro . '|' . $islem . '|' . ($dusuk ? 1 : 0))
                  . ':' . date('Y-m-d');
         return $this->aiCache($anahtar, function () use ($sistem, $kullanici) {
-            return $this->haikuText($sistem, $kullanici, 160);
-        });
+            return $this->haikuText($sistem, $kullanici, 160, 'yorum');
+        }, 720, 'yorum');
     }
 
     /**
      * Genel amacli tek seferlik Haiku metin cagrisi (arac yok, gecmis yok).
      * @return string|null
      */
-    protected function haikuText($sistem, $userContent, $maxTokens = 160)
+    protected function haikuText($sistem, $userContent, $maxTokens = 160, $tur = 'ai')
     {
         $apiKey = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
         if (!$apiKey) { $this->aiTeshis = 'anahtar_yok'; return null; }
@@ -1019,6 +1033,9 @@ class PatronAsistanServisi
             }
             $data = json_decode($yanit, true);
             if (!is_array($data) || empty($data['content'])) { $this->aiTeshis = 'yanit_bos'; return null; }
+            $uh = $data['usage'] ?? [];
+            \App\Services\AiKullanimLog::yaz($this->aktifSalonId, $tur,
+                $uh['input_tokens'] ?? 0, $uh['output_tokens'] ?? 0, $govde['model'] ?? null, false, true);
             $out = '';
             foreach ($data['content'] as $blok) {
                 if (($blok['type'] ?? '') === 'text') { $out .= $blok['text'] ?? ''; }
@@ -1198,8 +1215,8 @@ class PatronAsistanServisi
         // Ayni personel+veri, ayni gun tekrar sorulursa BEDAVA kalip (12 saat).
         $anahtar = 'pa_karne:' . md5($ad . '|' . $gun . '|' . json_encode($d)) . ':' . date('Y-m-d');
         return $this->aiCache($anahtar, function () use ($sistem, $u) {
-            return $this->haikuText($sistem, $u, 600);
-        });
+            return $this->haikuText($sistem, $u, 600, 'karne');
+        }, 720, 'karne');
     }
 
     /**

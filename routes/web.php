@@ -611,6 +611,10 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::get('/dakika', 'PanelController@dakika')->name('sistemyonetim.v2.dakika');
     Route::post('/salon/{id}/dakika', 'PanelController@dakikaKaydet');
 
+    // AI Kredi & Kullanim paneli (Patron Asistani Haiku harcamasi)
+    Route::get('/ai-kredi', 'AiKrediController@index')->name('sistemyonetim.v2.aikredi');
+    Route::post('/ai-kredi/kredi-yukle', 'AiKrediController@krediYukle');
+
     // Notlar
     Route::post('/salon/{id}/not', 'PanelController@notEkle');
     Route::delete('/not/{id}', 'PanelController@notSil');

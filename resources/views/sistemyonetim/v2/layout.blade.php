@@ -53,6 +53,10 @@
                 <span class="icon mdi mdi-phone-clock"></span>
                 Dakika Yönetimi
             </a>
+            <a href="/sistemyonetim/v2/ai-kredi" class="sy-nav-item {{ $aktifMenu === 'aikredi' ? 'active' : '' }}">
+                <span class="icon mdi mdi-robot-happy"></span>
+                AI Kredi &amp; Kullanım
+            </a>
             <a href="/sistemyonetim/v2/ticket" class="sy-nav-item {{ $aktifMenu === 'ticket' ? 'active' : '' }}">
                 <span class="icon mdi mdi-lifebuoy"></span>
                 Destek Talepleri
