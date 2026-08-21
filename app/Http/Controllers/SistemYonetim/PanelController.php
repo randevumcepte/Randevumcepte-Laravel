@@ -2116,7 +2116,6 @@ class PanelController extends Controller
                 'kalan'           => $d['kalan'],
                 'yuzde'           => $d['yuzde'],
                 'adet'            => $d['adet'],
-                'kaynak'          => $d['kaynak'],
                 'hata'            => $d['hata'],
             ];
         }
@@ -2134,22 +2133,6 @@ class PanelController extends Controller
             'toplamTanimli'    => $toplamTanimli,
             'toplamKullanilan' => round($toplamKullanilan, 1),
         ]);
-    }
-
-    /**
-     * Saglayici (voicetelekom) scraper testi — panele baglamadan once dogrulama.
-     * ?did=902322404717&tarih1=2026-07-01&tarih2=2026-08-21
-     */
-    public function dakikaSaglayiciTest(Request $request)
-    {
-        $this->gerektir(['super_admin', 'yonetici']);
-        $did    = preg_replace('/\D/', '', (string) $request->get('did', ''));
-        $tarih1 = $request->get('tarih1') ?: null;
-        $tarih2 = $request->get('tarih2') ?: null;
-        return response()->json(
-            \App\SistemYonetim\SaglayiciDakika::fetch($did, $tarih1, $tarih2),
-            200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE
-        );
     }
 
     /**

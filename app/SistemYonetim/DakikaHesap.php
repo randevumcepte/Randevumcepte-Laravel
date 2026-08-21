@@ -46,35 +46,15 @@ class DakikaHesap
 
         $bas = self::sayimBaslangic($salon, $paket);
 
-        // Kaynak secimi:
-        //  - Salon geneli (dahili yok): ONCE saglayici (voicetelekom) = faturaya
-        //    birebir. Erisilemezse CDR'a (dstchannel/billsec, ~%10 fazla) duser.
-        //  - Personel (dahili): saglayici dahili bilmez -> her zaman CDR.
-        $kaynak = 'santral';
-        $hata   = false;
-        if ($dahili === null) {
-            $sag = SaglayiciDakika::fetch($trunk, $bas, date('Y-m-d'));
-            if (!empty($sag['ok'])) {
-                $kullanilan = (float) $sag['dakika'];
-                $adet       = (int) ($sag['adet'] ?? 0);
-                $kaynak     = 'saglayici';
-            } else {
-                $kullanim   = self::cdrKullanim($trunk, $bas, date('Y-m-d'));
-                $kullanilan = $kullanim['dakika'];
-                $adet       = $kullanim['adet'];
-                $hata       = $kullanim['hata'];
-            }
-        } else {
-            $kullanim   = self::cdrKullanim($trunk, $bas, date('Y-m-d'), $dahili);
-            $kullanilan = $kullanim['dakika'];
-            $adet       = $kullanim['adet'];
-            $hata       = $kullanim['hata'];
-            $kaynak     = 'santral-dahili';
-        }
+        // Olcum: santral CDR (dstchannel/billsec). Operator faturasindan ~%10
+        // fazla olabilir (early-media/ringback billsec'e giriyor) ama hizli ve
+        // olcegeklenebilir; operator panelinin yavas CDR'ina bagimli degil.
+        $kullanim = self::cdrKullanim($trunk, $bas, date('Y-m-d'), $dahili);
 
-        $tanimli = (int) ($paket->tanimli_dakika ?? 0);
-        $kalan   = round($tanimli - $kullanilan, 1);
-        $yuzde   = $tanimli > 0 ? (int) min(100, round($kullanilan / $tanimli * 100)) : 0;
+        $tanimli    = (int) ($paket->tanimli_dakika ?? 0);
+        $kullanilan = $kullanim['dakika'];
+        $kalan      = round($tanimli - $kullanilan, 1);
+        $yuzde      = $tanimli > 0 ? (int) min(100, round($kullanilan / $tanimli * 100)) : 0;
 
         return [
             'trunk'           => $trunk,
@@ -82,11 +62,10 @@ class DakikaHesap
             'kullanilan'      => round($kullanilan, 1),
             'kalan'           => $kalan,
             'yuzde'           => $yuzde,
-            'adet'            => $adet,
+            'adet'            => $kullanim['adet'],
             'sayim_baslangic' => $bas,
             'dahili'          => $dahili,
-            'kaynak'          => $kaynak,   // saglayici | santral | santral-dahili
-            'hata'            => $hata,
+            'hata'            => $kullanim['hata'],
         ];
     }
 

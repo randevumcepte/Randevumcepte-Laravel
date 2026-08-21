@@ -124,11 +124,6 @@
                         <div class="font-13 text-secondary text-center" style="margin-top:12px">Bu işletme için henüz tanımlı dakika girilmemiş.</div>
                         @endif
                      @endif
-                     @if(($dakika['kaynak'] ?? '') === 'saglayici')
-                        <div class="font-12 text-secondary" style="margin-top:8px"><i class="bi bi-receipt"></i> Operatör faturalandırılan süre</div>
-                     @elseif(($dakika['kaynak'] ?? '') !== 'santral-dahili')
-                        <div class="font-12 text-secondary" style="margin-top:8px">≈ Santral ölçümü (yaklaşık)</div>
-                     @endif
                      @if(!empty($dakika['hata']))
                         <div class="font-12" style="color:#ff0000;margin-top:8px">Dakika verisi şu an alınamadı, lütfen daha sonra tekrar deneyin.</div>
                      @endif
