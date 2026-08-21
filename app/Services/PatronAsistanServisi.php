@@ -1097,6 +1097,112 @@ class PatronAsistanServisi
         }
     }
 
+    /**
+     * PDF'ten (base64) SORU-CEVAP kaliplari cikarir. PDF DOGRUDAN Claude'a "document"
+     * olarak gonderilir -> sunucuda PDF parser gerekmez. TEK SEFERLIK maliyet; sonuc
+     * kalibla kaydedilince o sorular sonsuza kadar BEDAVA cevaplanir.
+     * @return array [bool basari, array|string veri_veya_hata]
+     */
+    public function pdftenKalipCikar($base64Pdf, $mediaType = 'application/pdf')
+    {
+        $apiKey = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
+        if (!$apiKey) return [false, 'Anthropic API anahtari tanimli degil.'];
+        if (!$base64Pdf) return [false, 'PDF okunamadi.'];
+
+        $sistem = 'Sen bir salon isletme asistani icin EGITIM verisi hazirliyorsun. '
+            . 'Verilen PDF belgesinden, kullanicinin asistana sorabilecegi net SORU-CEVAP ciftleri cikar. '
+            . 'KURALLAR: '
+            . '1) SADECE gecerli JSON dizi dondur; ONUNDE/ARKASINDA hicbir aciklama yazma. '
+            . '2) Her oge tam olarak: {"tetikleyiciler":"...","cevap":"...","kategori":"..."} . '
+            . '3) tetikleyiciler CUMLE DEGIL, virgulle ayrilmis KISA anahtar kelime kaliplari olsun (2-5 tane). Ornek: "wifi sifresi, internet sifresi, kablosuz sifre". '
+            . '4) cevap kisa, net, dogrudan bilgi (en fazla 2-3 cumle). '
+            . '5) Belgede OLMAYAN bilgiyi UYDURMA; bilgi yoksa o ogeyi hic ekleme. '
+            . '6) En fazla 40 oge.';
+        $govde = [
+            'model'      => config('services.anthropic.model') ?: 'claude-haiku-4-5',
+            'max_tokens' => 3000,
+            'system'     => $sistem,
+            'messages'   => [[
+                'role' => 'user',
+                'content' => [
+                    ['type' => 'document', 'source' => [
+                        'type' => 'base64', 'media_type' => $mediaType, 'data' => $base64Pdf,
+                    ]],
+                    ['type' => 'text', 'text' => 'Bu belgeden soru-cevap kaliplarini cikar ve SADECE JSON dizi dondur.'],
+                ],
+            ]],
+        ];
+        try {
+            $ch = curl_init('https://api.anthropic.com/v1/messages');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST           => true,
+                CURLOPT_TIMEOUT        => 90,
+                CURLOPT_HTTPHEADER     => [
+                    'content-type: application/json',
+                    'x-api-key: ' . $apiKey,
+                    'anthropic-version: 2023-06-01',
+                ],
+                CURLOPT_POSTFIELDS     => json_encode($govde, JSON_UNESCAPED_UNICODE),
+            ]);
+            $yanit = curl_exec($ch);
+            $kod   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $hata  = curl_error($ch);
+            curl_close($ch);
+
+            if ($yanit === false) return [false, 'Baglanti hatasi: ' . $hata];
+            if ($kod !== 200) return [false, 'AI hatasi (http ' . $kod . '): ' . mb_substr((string) $yanit, 0, 300)];
+
+            $data = json_decode($yanit, true);
+            if (!is_array($data) || empty($data['content'])) return [false, 'AI bos yanit dondu.'];
+            $uh = $data['usage'] ?? [];
+            \App\Services\AiKullanimLog::yaz($this->aktifSalonId ?: 0, 'pdf_egitim',
+                $uh['input_tokens'] ?? 0, $uh['output_tokens'] ?? 0, $govde['model'] ?? null, false, true);
+
+            $metin = '';
+            foreach ($data['content'] as $blok) {
+                if (($blok['type'] ?? '') === 'text') $metin .= $blok['text'] ?? '';
+            }
+            $liste = $this->jsonDiziAyikla($metin);
+            if (empty($liste)) return [false, 'Belgeden soru-cevap cikarilamadi. AI metni: ' . mb_substr(trim($metin), 0, 200)];
+
+            $temiz = [];
+            foreach ($liste as $o) {
+                if (!is_array($o)) continue;
+                $t = trim((string) ($o['tetikleyiciler'] ?? ''));
+                $c = trim((string) ($o['cevap'] ?? ''));
+                if ($t === '' || $c === '') continue;
+                $temiz[] = [
+                    'tetikleyiciler' => mb_substr($t, 0, 500),
+                    'cevap'          => mb_substr($c, 0, 1500),
+                    'kategori'       => (mb_substr(trim((string) ($o['kategori'] ?? '')), 0, 40) ?: 'pdf'),
+                ];
+            }
+            if (empty($temiz)) return [false, 'Gecerli soru-cevap bulunamadi.'];
+            return [true, $temiz];
+        } catch (\Throwable $e) {
+            return [false, 'Istisna: ' . $e->getMessage()];
+        }
+    }
+
+    /** AI metninden ilk JSON diziyi ayiklar (kod bloklari/aciklama olsa da toparlar). */
+    protected function jsonDiziAyikla($metin)
+    {
+        $m = trim((string) $metin);
+        if ($m === '') return [];
+        $m = preg_replace('/^```[a-z]*\s*/i', '', $m); // ```json soy
+        $m = preg_replace('/\s*```$/', '', $m);
+        $dec = json_decode($m, true);
+        if (is_array($dec)) return $dec;
+        $bas = strpos($m, '[');
+        $son = strrpos($m, ']');
+        if ($bas !== false && $son !== false && $son > $bas) {
+            $dec = json_decode(substr($m, $bas, $son - $bas + 1), true);
+            if (is_array($dec)) return $dec;
+        }
+        return [];
+    }
+
     // ------------------------------------------------------------------
     // YENI PERSONEL DETAYLI DEGERLENDIRME (istenince) — kayit/migration yok.
     // "Ahmet'i son 7 gun degerlendir" -> zengin veri + AI detayli karne.

@@ -33,6 +33,7 @@
 <div class="ae-alt">Kalıp soru-cevap ekle → o sorular (ve eş anlamlıları) AI’ya gitmeden <b>bedava</b> cevaplanır. Aşağıda AI’ya düşen soruları görüp tek tıkla kalıba çevir; asistan zamanla AI’ya daha az ihtiyaç duyar.</div>
 
 @if(session('ok'))<div class="ae-ok">✓ {{ session('ok') }}</div>@endif
+@if(session('hata'))<div class="ae-uyari">⚠ {{ session('hata') }}</div>@endif
 @if(!empty($tabloYok))
     <div class="ae-uyari">⚠ <b>asistan_kalip</b> tabloları yok. Sunucuda <code>php artisan migrate</code> çalıştırın.</div>
 @endif
@@ -42,6 +43,60 @@
     <div class="ae-kart yesil"><div class="e">Bedava Cevaplanan</div><div class="d">{{ number_format($ozet['bedava'],0,',','.') }}</div></div>
     <div class="ae-kart"><div class="e">Bekleyen Soru</div><div class="d">{{ number_format($ozet['bekleyen'],0,',','.') }}</div></div>
 </div>
+
+{{-- PDF ile toplu egitim --}}
+<div class="ae-panel">
+    <h2>📄 PDF ile Eğitim (toplu)</h2>
+    <div style="font-size:13px;color:#6b5b86;margin-bottom:12px;line-height:1.5">
+        Bir PDF yükle → yapay zeka belgeyi <b>tek seferlik</b> okuyup soru-cevap kalıpları çıkarır → sen kontrol edip kaydedersin.
+        Kaydedilen sorular <b style="color:#16a34a">sonsuza kadar bedava</b> cevaplanır (bir daha AI’ya gitmez).
+        <br><span class="ae-ipucu">Not: PDF gelişigüzel olabilir (broşür, fiyat listesi, kurallar). Soru-cevap ayrı ayrı yazman gerekmez; AI kendisi çıkarır. En fazla 20 MB.</span>
+    </div>
+    <form method="POST" action="/sistemyonetim/v2/asistan-egitim/pdf-coz" enctype="multipart/form-data">
+        {{ csrf_field() }}
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <input type="file" name="pdf" accept="application/pdf,.pdf" required
+                   style="font-size:13px;color:#3a2a5c">
+            <button type="submit" class="ae-btn" onclick="this.innerText='Okunuyor… (10-30 sn)';this.disabled=true;this.form.submit();">
+                PDF’i Oku ve Çıkar
+            </button>
+        </div>
+    </form>
+</div>
+
+@if(session('pdf_onizleme'))
+{{-- PDF'ten cikan onizleme -> onayla ve kaydet --}}
+<div class="ae-panel" style="border-color:#c9b8ec">
+    <h2>✅ Çıkarılan Soru-Cevaplar — kontrol et, kaydet
+        @if(session('pdf_dosya'))<span style="text-transform:none;color:#8b7ba8;font-weight:600"> ({{ session('pdf_dosya') }})</span>@endif
+    </h2>
+    <form method="POST" action="/sistemyonetim/v2/asistan-egitim/pdf-kaydet">
+        {{ csrf_field() }}
+        @foreach(session('pdf_onizleme') as $i => $o)
+            <div style="border:1px solid #ece7f6;border-radius:12px;padding:14px;margin-bottom:12px;background:#faf9fe">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:700;color:#2a2340;font-size:13px;margin-bottom:10px">
+                    <input type="checkbox" name="sec[]" value="{{ $i }}" checked> Bu kalıbı kaydet
+                    <span class="ae-etik" style="margin-left:auto">{{ $o['kategori'] }}</span>
+                </label>
+                <div class="ae-alan">
+                    <label>Tetikleyiciler (virgülle)</label>
+                    <textarea name="tetikleyiciler[{{ $i }}]" style="min-height:48px">{{ $o['tetikleyiciler'] }}</textarea>
+                </div>
+                <div class="ae-alan" style="margin-bottom:0">
+                    <label>Cevap</label>
+                    <textarea name="cevap[{{ $i }}]">{{ $o['cevap'] }}</textarea>
+                </div>
+                <input type="hidden" name="kategori[{{ $i }}]" value="{{ $o['kategori'] }}">
+            </div>
+        @endforeach
+        <div style="display:flex;gap:10px;align-items:center;margin-top:6px">
+            <button type="submit" class="ae-btn">Seçilenleri Kaydet</button>
+            <button type="button" class="ae-btn gri" onclick="document.querySelectorAll('input[name=&quot;sec[]&quot;]').forEach(c=>c.checked=false)">Tümünün işaretini kaldır</button>
+            <button type="button" class="ae-btn gri" onclick="document.querySelectorAll('input[name=&quot;sec[]&quot;]').forEach(c=>c.checked=true)">Tümünü seç</button>
+        </div>
+    </form>
+</div>
+@endif
 
 {{-- Kalip ekle/duzenle formu --}}
 <div class="ae-panel" id="kalipForm">

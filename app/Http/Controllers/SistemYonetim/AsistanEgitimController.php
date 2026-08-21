@@ -90,6 +90,69 @@ class AsistanEgitimController extends Controller
         return redirect('/sistemyonetim/v2/asistan-egitim')->with('ok', 'Soru listeden kaldırıldı.');
     }
 
+    /**
+     * PDF yukle -> Claude belgeyi okur -> SORU-CEVAP kaliplari cikarir (TEK SEFERLIK AI).
+     * Sonuc onizleme olarak session'a konur; kullanici kontrol edip pdfKaydet ile kaydeder.
+     */
+    public function pdfCoz(Request $request)
+    {
+        if (!$request->hasFile('pdf')) {
+            return redirect('/sistemyonetim/v2/asistan-egitim')->with('hata', 'PDF seçilmedi.');
+        }
+        $file = $request->file('pdf');
+        $uzanti = strtolower($file->getClientOriginalExtension());
+        if ($uzanti !== 'pdf' && $file->getClientMimeType() !== 'application/pdf') {
+            return redirect('/sistemyonetim/v2/asistan-egitim')->with('hata', 'Lütfen bir PDF dosyası yükleyin.');
+        }
+        if ($file->getSize() > 20 * 1024 * 1024) {
+            return redirect('/sistemyonetim/v2/asistan-egitim')->with('hata', 'PDF çok büyük (en fazla 20 MB).');
+        }
+
+        $base64 = base64_encode(file_get_contents($file->getRealPath()));
+        $asistan = new \App\Services\PatronAsistanServisi();
+        list($ok, $veri) = $asistan->pdftenKalipCikar($base64, 'application/pdf');
+
+        if (!$ok) {
+            return redirect('/sistemyonetim/v2/asistan-egitim')->with('hata', 'PDF işlenemedi: ' . $veri);
+        }
+        return redirect('/sistemyonetim/v2/asistan-egitim')
+            ->with('pdf_onizleme', $veri)
+            ->with('pdf_dosya', $file->getClientOriginalName())
+            ->with('ok', count($veri) . ' soru-cevap çıkarıldı. Kontrol edip kaydedin (istemediğinizin işaretini kaldırın).');
+    }
+
+    /** Onizlemede secili (ve duzenlenmis) maddeleri kalip olarak toplu kaydet. */
+    public function pdfKaydet(Request $request)
+    {
+        $tet = (array) $request->input('tetikleyiciler', []);
+        $cev = (array) $request->input('cevap', []);
+        $kat = (array) $request->input('kategori', []);
+        $sec = (array) $request->input('sec', []);
+        if (empty($sec)) {
+            return redirect('/sistemyonetim/v2/asistan-egitim')->with('hata', 'Kaydedilecek madde seçilmedi.');
+        }
+        $eklendi = 0; $now = date('Y-m-d H:i:s');
+        foreach ($sec as $i) {
+            $i = (int) $i;
+            $t = trim((string) ($tet[$i] ?? ''));
+            $c = trim((string) ($cev[$i] ?? ''));
+            if ($t === '' || $c === '') continue;
+            DB::table('asistan_kalip')->insert([
+                'tetikleyiciler' => $t,
+                'cevap'          => $c,
+                'kategori'       => (trim((string) ($kat[$i] ?? '')) ?: 'pdf'),
+                'aktif'          => 1,
+                'kullanim_sayisi' => 0,
+                'created_at'     => $now,
+                'updated_at'     => $now,
+            ]);
+            $eklendi++;
+        }
+        $this->cacheTazele();
+        return redirect('/sistemyonetim/v2/asistan-egitim')
+            ->with('ok', $eklendi . ' kalıp eklendi. Bu sorular artık AI’ya gitmeden bedava cevaplanır.');
+    }
+
     protected function cacheTazele()
     {
         try { \Cache::forget('asistan_kalip_liste_v1'); } catch (\Throwable $e) {}

@@ -622,6 +622,8 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::post('/asistan-egitim/kalip-kaydet', 'AsistanEgitimController@kalipKaydet');
     Route::post('/asistan-egitim/kalip-sil/{id}', 'AsistanEgitimController@kalipSil');
     Route::post('/asistan-egitim/cozulmeyen-sil/{id}', 'AsistanEgitimController@cozulmeyenSil');
+    Route::post('/asistan-egitim/pdf-coz', 'AsistanEgitimController@pdfCoz');
+    Route::post('/asistan-egitim/pdf-kaydet', 'AsistanEgitimController@pdfKaydet');
 
     // Notlar
     Route::post('/salon/{id}/not', 'PanelController@notEkle');
