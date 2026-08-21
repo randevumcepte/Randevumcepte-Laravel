@@ -1665,28 +1665,38 @@ class PatronAsistanServisi
         ];
     }
 
-    /** Mesaj bir BILANCO / kar-zarar istegi mi? */
+    /** Mesaj bir BILANCO / GELIR TABLOSU / KASA RAPORU-OZETI istegi mi? (genis kalip). */
     public function bilancoTetik($metin)
     {
         $n = ' ' . $this->normalize($metin) . ' ';
-        foreach (['bilanco', 'kar zarar', 'kar-zarar', 'karzarar', 'gelir gider', 'gelir-gider',
-                  'mali durum', 'mali tablo', 'mali rapor', 'net kar', 'aylik bilanco',
-                  'aylik rapor', 'kar durumu', 'kazanc gider', 'gelir tablosu', 'kar zarar tablosu'] as $k) {
+        foreach ([
+            // bilanco / gelir tablosu / kar-zarar
+            'bilanco', 'kar zarar', 'kar-zarar', 'karzarar', 'gelir gider', 'gelir-gider',
+            'gelir tablosu', 'kar zarar tablosu', 'net kar', 'kar durumu', 'kazanc gider',
+            'mali durum', 'mali tablo', 'mali rapor', 'aylik bilanco', 'aylik rapor',
+            // kasa raporu / ozeti + es anlamlilar
+            'kasa raporu', 'kasa ozeti', 'kasa detay', 'kasa dokum', 'kasa analiz',
+            'kasa durumu raporu', 'gelir gider raporu', 'gelir gider ozeti',
+            'finansal ozet', 'finansal durum', 'finansal rapor', 'finansal tablo',
+            'ozet rapor', 'genel mali', 'gelir raporu', 'gelir ozeti', 'ciro raporu',
+            'ciro ozeti', 'hesap ozeti', 'hesap raporu', 'muhasebe ozeti',
+        ] as $k) {
             if (strpos($n, $k) !== false) return true;
         }
         return false;
     }
 
-    /** Bilanco ay sayisi: "son N ay" / "N aylik" / "yillik". Varsayilan 3. */
+    /** Kac aylik? "son N ay"/"N aylik"/"yillik". Sure belirtilmezse BU AY (1). */
     public function bilancoAySayisi($metin)
     {
         $n = $this->normalize($metin);
-        if (preg_match('/son\s*(\d{1,2})\s*ay/', $n, $m)) { $s = (int) $m[1]; return ($s >= 1 && $s <= 24) ? $s : 3; }
-        if (preg_match('/(\d{1,2})\s*ayl/', $n, $m)) { $s = (int) $m[1]; return ($s >= 1 && $s <= 24) ? $s : 3; }
-        if (preg_match('/(\d{1,2})\s*ay/', $n, $m)) { $s = (int) $m[1]; return ($s >= 1 && $s <= 24) ? $s : 3; }
+        if (preg_match('/son\s*(\d{1,2})\s*ay/', $n, $m)) { $s = (int) $m[1]; return ($s >= 1 && $s <= 24) ? $s : 1; }
+        if (preg_match('/(\d{1,2})\s*ayl/', $n, $m)) { $s = (int) $m[1]; return ($s >= 1 && $s <= 24) ? $s : 1; }
+        if (preg_match('/(\d{1,2})\s*ay/', $n, $m)) { $s = (int) $m[1]; return ($s >= 1 && $s <= 24) ? $s : 1; }
         if (strpos($n, 'yillik') !== false || strpos($n, 'bu yil') !== false || strpos($n, '12 ay') !== false) return 12;
         if (strpos($n, 'alti ay') !== false) return 6;
-        return 3;
+        if (strpos($n, 'gecen ay') !== false) return 2; // gecen ay dahil kiyas hissi
+        return 1; // sure yok -> bu ay (kasa ozeti mantigi)
     }
 
     /** GELIR TABLOSU (kar-zarar) cevabi: gelir/gider DOKUMU + aylik trend. AI YOK. */
@@ -1731,22 +1741,26 @@ class PatronAsistanServisi
             if ($enKarli === null || $an > $enKarli['net']) $enKarli = ['ay' => $a['ay_adi'], 'net' => $an];
         }
 
-        $ozet = 'Son ' . $b['ay_sayisi'] . ' ayın gelir tablosu. Toplam tahsilat '
-              . $this->tl((float) $b['toplam_tahsilat']) . ', toplam gider '
+        $tekAy = ((int) $b['ay_sayisi']) <= 1;
+        $donemAdi = $tekAy ? ($b['aylar'][0]['ay_adi'] ?? 'bu ay') : ('son ' . $b['ay_sayisi'] . ' ay');
+        $baslik   = $tekAy ? ('Kasa Özeti · ' . $donemAdi) : ('Gelir Tablosu · son ' . $b['ay_sayisi'] . ' ay');
+
+        $ozet = ($tekAy ? ucfirst($donemAdi) . ' kasa özeti. ' : 'Son ' . $b['ay_sayisi'] . ' ayın gelir tablosu. ')
+              . 'Toplam tahsilat ' . $this->tl((float) $b['toplam_tahsilat']) . ', toplam gider '
               . $this->tl((float) $b['toplam_gider']) . ', net ' . ($net >= 0 ? 'kâr ' : 'zarar ')
               . $this->tl(abs($net)) . ', kâr marjı yüzde ' . round($marj) . '. ';
-        if ($enKarli) $ozet .= 'En kârlı ay ' . $enKarli['ay'] . '. ';
-        $ozet .= 'Gelir gider dökümü ve aylık trend listede.';
+        if (!$tekAy && $enKarli) $ozet .= 'En kârlı ay ' . $enKarli['ay'] . '. ';
+        $ozet .= $tekAy ? 'Gelir gider dökümü listede.' : 'Gelir gider dökümü ve aylık trend listede.';
 
         return [
             'basarili' => true, 'intent' => 'bilanco', 'seslendir' => true,
             'cevap'    => $ozet,
             'kart'     => [
                 'tip'       => 'bilanco',
-                'baslik'    => 'Gelir Tablosu · son ' . $b['ay_sayisi'] . ' ay',
+                'baslik'    => $baslik,
                 'salon_adi' => (string) $salonAdi,
                 'dokum'     => $dokum,
-                'satirlar'  => $satirlar,
+                'satirlar'  => $tekAy ? [] : $satirlar,
             ],
         ];
     }
