@@ -2451,6 +2451,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             return response()->json($asistan->kufurCevabi(), 200, [], JSON_UNESCAPED_UNICODE);
         }
 
+        // AYNI KONUDA "biraz daha bilgi ver / detay / baska" -> en son verilen kalibin
+        // (hizmet bilgisi / sohbet) cevap havuzundan YENI bir cevap (bedava). Sadece
+        // yakinda bir kalip cevabi verildiyse (son_kalip cache) devreye girer; yoksa
+        // null -> normal akis. Oneri "biraz daha detay" ile cakismasin diye ONCE burada.
+        if ($kalipDevamCevap = $asistan->kalipDevam($metin, $uid)) {
+            return $cevapla($kalipDevamCevap);
+        }
+
         // Salon buyutme / is artirma danismanligi -> rapor niyetinden ONCE
         // ("musteri cek / ciro artir" gibi ifadeler yanlislikla istatistige gitmesin).
         // VERIYE DAYALI: son ay verisine bakip salona OZEL oneri uret.
@@ -2567,7 +2575,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
 
             // KALIP KUTUPHANESI (Asistan Egitimi) -> eslesirse BEDAVA cevap, AI'dan ONCE.
-            $kalip = $asistan->kalipCevabi($metin);
+            $kalip = $asistan->kalipCevabi($metin, $uid);
             if ($kalip) return $cevapla($kalip);
 
             // 1) Ogrenen onbellek: bu soru daha once AI ile cozulduyse BEDAVA getir.

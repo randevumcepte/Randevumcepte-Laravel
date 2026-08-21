@@ -2134,7 +2134,7 @@ class PatronAsistanServisi
      * KALIP kutuphanesinden BEDAVA cevap; yoksa null. Rapor niyeti bulunamayinca,
      * AI'dan ONCE cagirilir. Tetik ifadelerin en UZUN (en spesifik) eslesmesi kazanir.
      */
-    public function kalipCevabi($metin)
+    public function kalipCevabi($metin, $userId = 0)
     {
         $liste = $this->kalipListesi();
         if (empty($liste)) return null;
@@ -2154,26 +2154,113 @@ class PatronAsistanServisi
         if (!$enIyi) return null;
 
         try { \DB::table('asistan_kalip')->where('id', $enIyi->id)->increment('kullanim_sayisi'); } catch (\Throwable $e) {}
+        $cevap = $this->cevapSec($enIyi->cevap);
+        $this->sonKalipKaydet($userId, $enIyi->id, $cevap);
         return [
             'basarili' => true, 'intent' => 'kalip', 'seslendir' => true,
-            'cevap' => $this->cevapSec($enIyi->cevap), 'kart' => null,
+            'cevap' => $cevap, 'kart' => null,
         ];
     }
 
     /**
-     * Cevap HAVUZU: bir kalibin cevabinda "---" satiriyla ayrilmis birden cok cevap
-     * varsa her seferinde RASTGELE birini secer (asistan hep ayni seyi soylemesin).
-     * Ayirici yoksa cevabin tamami tek cevaptir (geriye donuk uyumlu).
+     * Cevap havuzunu diziye ayirir: "---" satiriyla ayrilmis parcalar. Ayirici yoksa
+     * tek elemanli dizi (geriye donuk uyumlu).
      */
-    protected function cevapSec($cevap)
+    protected function cevapHavuzu($cevap)
     {
         $c = (string) $cevap;
-        if (strpos($c, '---') === false) return trim($c);
+        if (strpos($c, '---') === false) {
+            $c = trim($c);
+            return $c === '' ? [] : [$c];
+        }
         $parcalar = preg_split('/^\s*-{3,}\s*$/m', $c);
-        $parcalar = array_values(array_filter(array_map('trim', $parcalar), function ($p) { return $p !== ''; }));
-        if (empty($parcalar)) return trim($c);
-        if (count($parcalar) === 1) return $parcalar[0];
-        return $parcalar[mt_rand(0, count($parcalar) - 1)];
+        return array_values(array_filter(array_map('trim', $parcalar), function ($p) { return $p !== ''; }));
+    }
+
+    /** Havuzdan RASTGELE bir cevap secer (asistan hep ayni seyi soylemesin). */
+    protected function cevapSec($cevap)
+    {
+        $h = $this->cevapHavuzu($cevap);
+        if (empty($h)) return trim((string) $cevap);
+        return count($h) === 1 ? $h[0] : $h[mt_rand(0, count($h) - 1)];
+    }
+
+    /** Kullanici basina EN SON eslesplen kalibi + verilen cevaplari 12 dk hatirla. */
+    protected function sonKalipKaydet($userId, $kalipId, $verilenText)
+    {
+        if ((int) $userId <= 0) return;
+        try {
+            $k = 'patron_asistan_son_kalip:' . (int) $userId;
+            $v = \Cache::get($k);
+            if (!is_array($v) || (int) ($v['id'] ?? 0) !== (int) $kalipId) {
+                $v = ['id' => (int) $kalipId, 'verilen' => []];
+            }
+            $v['verilen'][] = (string) $verilenText;
+            if (count($v['verilen']) > 30) $v['verilen'] = array_slice($v['verilen'], -30);
+            \Cache::put($k, $v, 12);
+        } catch (\Throwable $e) {}
+    }
+
+    /** Mesaj "ayni konuda biraz daha bilgi ver / detay / baska / devam" mi? */
+    public function devamMi($metin)
+    {
+        $n = ' ' . $this->normalize($metin) . ' ';
+        $anahtar = [
+            'biraz daha', 'daha fazla', 'daha detay', 'detay ver', 'detaylandir',
+            'baska ne', 'baska bilgi', 'devam et', 'devami', 'biraz anlat',
+            'daha anlat', 'baska soyle', 'baska bir sey soyle', 'bilgi ver',
+            'bilgilendir', 'ornek ver', 'aciklar misin', 'biraz daha bilgi',
+        ];
+        foreach ($anahtar as $a) {
+            if (strpos($n, $a) !== false) return true;
+        }
+        $tek = trim($this->normalize($metin));
+        return in_array($tek, ['devam', 'daha', 'baska', 'peki', 'sonra', 'anlat', 'aciklasana'], true);
+    }
+
+    /**
+     * AYNI KONUDA "biraz daha bilgi ver" -> en son eslesplen kalibin cevap HAVUZUNDAN
+     * DAHA ONCE VERILMEMIS bir cevabi getirir (bedava). Yakinda bir kalip cevabi
+     * verilmediyse ya da devam ifadesi degilse null (normal akis islesin).
+     */
+    public function kalipDevam($metin, $userId)
+    {
+        if ((int) $userId <= 0 || !$this->devamMi($metin)) return null;
+        try {
+            $k = 'patron_asistan_son_kalip:' . (int) $userId;
+            $v = \Cache::get($k);
+            if (!is_array($v) || empty($v['id'])) return null;
+            $row = \DB::table('asistan_kalip')->where('id', (int) $v['id'])->where('aktif', 1)->first();
+            if (!$row) return null;
+
+            $havuz = $this->cevapHavuzu($row->cevap);
+            if (count($havuz) < 2) {
+                return [
+                    'basarili' => true, 'intent' => 'kalip', 'seslendir' => true, 'kart' => null,
+                    'cevap' => 'Bu konuda elimdeki bilgi şimdilik bu kadar efendim. Dilerseniz randevu oluşturabilir ya da başka bir konu sorabilirsiniz.',
+                ];
+            }
+            $verilen = is_array($v['verilen'] ?? null) ? $v['verilen'] : [];
+            $kalan = array_values(array_filter($havuz, function ($c) use ($verilen) {
+                return !in_array($c, $verilen, true);
+            }));
+            if (empty($kalan)) {
+                $v['verilen'] = []; // havuz bitti -> sifirla (istenirse tekrar dolasir)
+                \Cache::put($k, $v, 12);
+                return [
+                    'basarili' => true, 'intent' => 'kalip', 'seslendir' => true, 'kart' => null,
+                    'cevap' => 'Bu konuda anlatabileceklerimin hepsini paylaştım efendim. İsterseniz randevu oluşturayım ya da başka bir konuda yardımcı olayım.',
+                ];
+            }
+            $sec = $kalan[mt_rand(0, count($kalan) - 1)];
+            $v['verilen'][] = $sec;
+            \Cache::put($k, $v, 12);
+            try { \DB::table('asistan_kalip')->where('id', (int) $v['id'])->increment('kullanim_sayisi'); } catch (\Throwable $e) {}
+            return [
+                'basarili' => true, 'intent' => 'kalip', 'seslendir' => true, 'kart' => null,
+                'cevap' => $sec,
+            ];
+        } catch (\Throwable $e) { return null; }
     }
 
     /** Kural+kalip bulamayip AI'ya/genel yanita dusen soruyu (adet sayacli) kaydet. */
