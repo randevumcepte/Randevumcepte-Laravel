@@ -57,6 +57,10 @@
                 <span class="icon mdi mdi-robot-happy"></span>
                 AI Kredi &amp; Kullanım
             </a>
+            <a href="/sistemyonetim/v2/asistan-egitim" class="sy-nav-item {{ $aktifMenu === 'asistanegitim' ? 'active' : '' }}">
+                <span class="icon mdi mdi-school"></span>
+                Asistan Eğitimi
+            </a>
             <a href="/sistemyonetim/v2/ticket" class="sy-nav-item {{ $aktifMenu === 'ticket' ? 'active' : '' }}">
                 <span class="icon mdi mdi-lifebuoy"></span>
                 Destek Talepleri

@@ -1959,6 +1959,76 @@ class PatronAsistanServisi
         return $a[(int) date('n')];
     }
 
+    // ------------------------------------------------------------------
+    // ASISTAN EGITIMI — bedava KALIP kutuphanesi + cevaplanamayan soru kaydi.
+    // Amac: sorularin cogu AI'ya GITMEDEN kaliptan bedava cevaplansin.
+    // ------------------------------------------------------------------
+
+    /** Aktif kaliplari (10 dk cache). Panelde degisince \Cache::forget ile tazelenir. */
+    protected function kalipListesi()
+    {
+        try {
+            return \Cache::remember('asistan_kalip_liste_v1', 10, function () {
+                if (!\Schema::hasTable('asistan_kalip')) return [];
+                return \DB::table('asistan_kalip')->where('aktif', 1)
+                    ->select('id', 'tetikleyiciler', 'cevap')->get()->all();
+            });
+        } catch (\Throwable $e) { return []; }
+    }
+
+    /**
+     * KALIP kutuphanesinden BEDAVA cevap; yoksa null. Rapor niyeti bulunamayinca,
+     * AI'dan ONCE cagirilir. Tetik ifadelerin en UZUN (en spesifik) eslesmesi kazanir.
+     */
+    public function kalipCevabi($metin)
+    {
+        $liste = $this->kalipListesi();
+        if (empty($liste)) return null;
+
+        $n = ' ' . $this->normalize($metin) . ' ';
+        $enIyi = null; $enSkor = 0;
+        foreach ($liste as $k) {
+            foreach (preg_split('/[\r\n,;]+/', (string) $k->tetikleyiciler) as $t) {
+                $t = trim($this->normalize($t));
+                if (mb_strlen($t) < 2) continue;
+                if (strpos($n, ' ' . $t . ' ') !== false) {
+                    $skor = mb_strlen($t);
+                    if ($skor > $enSkor) { $enSkor = $skor; $enIyi = $k; }
+                }
+            }
+        }
+        if (!$enIyi) return null;
+
+        try { \DB::table('asistan_kalip')->where('id', $enIyi->id)->increment('kullanim_sayisi'); } catch (\Throwable $e) {}
+        return [
+            'basarili' => true, 'intent' => 'kalip', 'seslendir' => true,
+            'cevap' => (string) $enIyi->cevap, 'kart' => null,
+        ];
+    }
+
+    /** Kural+kalip bulamayip AI'ya/genel yanita dusen soruyu (adet sayacli) kaydet. */
+    public function cozulemeyenKaydet($metin)
+    {
+        try {
+            if (!\Schema::hasTable('asistan_cozulmeyen')) return;
+            $norm = mb_substr($this->normalize($metin), 0, 191);
+            if ($norm === '') return;
+            $row = \DB::table('asistan_cozulmeyen')->where('soru_norm', $norm)->first();
+            if ($row) {
+                \DB::table('asistan_cozulmeyen')->where('id', $row->id)->update([
+                    'adet' => $row->adet + 1, 'ham' => mb_substr((string) $metin, 0, 500),
+                    'son_tarih' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+            } else {
+                \DB::table('asistan_cozulmeyen')->insert([
+                    'soru_norm' => $norm, 'ham' => mb_substr((string) $metin, 0, 500), 'adet' => 1,
+                    'son_tarih' => date('Y-m-d H:i:s'),
+                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+            }
+        } catch (\Throwable $e) {}
+    }
+
     /**
      * Terbiyesiz / kufur / hakaret iceriyor mu? Kelime siniriyla aranir (yanlis
      * pozitif azaltmak icin; is terimleriyle cakisan kelimeler listede YOK).

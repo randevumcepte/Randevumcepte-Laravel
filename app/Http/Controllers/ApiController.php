@@ -2564,6 +2564,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 ]);
             }
 
+            // KALIP KUTUPHANESI (Asistan Egitimi) -> eslesirse BEDAVA cevap, AI'dan ONCE.
+            $kalip = $asistan->kalipCevabi($metin);
+            if ($kalip) return $cevapla($kalip);
+
             // 1) Ogrenen onbellek: bu soru daha once AI ile cozulduyse BEDAVA getir.
             // YALNIZ baglamsiz (ilk) turda: "peki bu hafta" gibi takip sorulari baglama
             // baglidir, sabit ogrenilmis niyete duserse yanlis olur -> gecmis varsa atla.
@@ -2602,6 +2606,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     'cevap' => $ogrSohbet, 'kart' => null,
                 ]);
             }
+            // Kural+kalip bulamadi -> AI'ya gidiyor: bu soruyu "cevaplanamayan"a yaz
+            // (panelde gorulup kalibi eklenince bir dahakine BEDAVA gelir).
+            $asistan->cozulemeyenKaydet($metin);
+
             $aiSohbet = $asistan->sohbetAI($metin, $gecmis);
             if ($aiSohbet !== null && $aiSohbet !== '') {
                 if (empty($gecmis)) $asistan->ogrenSohbet($metin, $aiSohbet); // yalniz baglamsiz cevabi ogren

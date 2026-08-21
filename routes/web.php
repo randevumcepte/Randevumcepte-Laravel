@@ -617,6 +617,12 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::post('/ai-kredi/kredi-ekle', 'AiKrediController@krediEkle');
     Route::post('/ai-kredi/test-alarm', 'AiKrediController@testAlarm');
 
+    // Asistan Egitimi (bedava kalip kutuphanesi + cevaplanamayan sorular)
+    Route::get('/asistan-egitim', 'AsistanEgitimController@index')->name('sistemyonetim.v2.asistanegitim');
+    Route::post('/asistan-egitim/kalip-kaydet', 'AsistanEgitimController@kalipKaydet');
+    Route::post('/asistan-egitim/kalip-sil/{id}', 'AsistanEgitimController@kalipSil');
+    Route::post('/asistan-egitim/cozulmeyen-sil/{id}', 'AsistanEgitimController@cozulmeyenSil');
+
     // Notlar
     Route::post('/salon/{id}/not', 'PanelController@notEkle');
     Route::delete('/not/{id}', 'PanelController@notSil');
