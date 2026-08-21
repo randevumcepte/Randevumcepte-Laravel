@@ -9,7 +9,7 @@ return [
     'service_token' => env('WHATSAPP_SERVICE_TOKEN', ''),
     'webhook_secret' => env('WHATSAPP_WEBHOOK_SECRET', ''),
     'request_timeout' => (int) env('WHATSAPP_REQUEST_TIMEOUT', 10),
-    'default_daily_limit' => (int) env('WHATSAPP_DEFAULT_DAILY_LIMIT', 350),
+    'default_daily_limit' => (int) env('WHATSAPP_DEFAULT_DAILY_LIMIT', 200),
     'business_hours' => [
         // 'enforce' = false ise saat kontrolü tamamen atlanır (24/7 gönderim).
         // Test ve sürekli akış için default kapalı bırakıldı.

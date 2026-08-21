@@ -142,7 +142,7 @@ class WhatsAppService
             'message' => $message,
             'warmupStart' => optional($salon->whatsapp_warmup_baslangic)->toIso8601String()
                 ?: optional($salon->whatsapp_baglanti_tarihi)->toIso8601String(),
-            'dailyLimit' => (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 350)),
+            'dailyLimit' => (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 200)),
             'logId' => $logId,
             'urgent' => $urgent,
         ]);
@@ -246,7 +246,7 @@ class WhatsAppService
         if (!$salon->whatsapp_aktif || $salon->whatsapp_durum !== 'connected') {
             return false;
         }
-        $limit = (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 350));
+        $limit = (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 200));
         if ($limit <= 0) return false;
 
         $sentToday = DB::table('whatsapp_gonderim_loglari')
@@ -264,7 +264,7 @@ class WhatsAppService
      */
     public function warmupCap(Salonlar $salon)
     {
-        return (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 350));
+        return (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 200));
     }
 
     public function withinBusinessHours()
