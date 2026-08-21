@@ -12,33 +12,33 @@
 
 <style>
     .ai-baslik { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
-    .ai-baslik h1 { font-size:20px; font-weight:700; margin:0; }
+    .ai-baslik h1 { font-size:20px; font-weight:700; margin:0; color:#2a2340; }
     .ai-filtre { display:flex; gap:8px; }
     .ai-filtre a { padding:7px 14px; border-radius:20px; font-size:12.5px; font-weight:600; text-decoration:none;
-        border:1px solid var(--sy-border,#2a3550); color:var(--sy-muted,#94a3b8); }
+        border:1px solid #e3daf3; color:#6b7280; background:#fff; }
     .ai-filtre a.act { background:linear-gradient(135deg,#5C008E,#7B2FB8); color:#fff; border-color:transparent; }
     .ai-kartlar { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:18px; }
-    .ai-kart { background:var(--sy-card-bg,#0f172a); border:1px solid var(--sy-border,#2a3550); border-radius:14px; padding:16px; }
-    .ai-kart .e { font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--sy-muted,#94a3b8); font-weight:600; }
-    .ai-kart .d { font-size:23px; font-weight:800; margin-top:5px; color:#f1f5f9; }
-    .ai-kart .alt { font-size:12px; color:var(--sy-muted,#94a3b8); margin-top:3px; }
-    .ai-kart.iyi .d { color:#34d399; } .ai-kart.kotu .d { color:#f87171; }
-    .ai-panel { background:var(--sy-card-bg,#0f172a); border:1px solid var(--sy-border,#2a3550); border-radius:14px; padding:16px 18px; margin-bottom:18px; }
-    .ai-panel h2 { font-size:13px; text-transform:uppercase; letter-spacing:.4px; color:var(--sy-muted,#94a3b8); font-weight:700; margin:0 0 12px; }
+    .ai-kart { background:#fff; border:1px solid #ece7f6; border-radius:14px; padding:16px; box-shadow:0 2px 8px rgba(92,0,142,.05); }
+    .ai-kart .e { font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:#8b7ba8; font-weight:700; }
+    .ai-kart .d { font-size:23px; font-weight:800; margin-top:5px; color:#2a2340; }
+    .ai-kart .alt { font-size:12px; color:#8b7ba8; margin-top:3px; }
+    .ai-kart.iyi .d { color:#16a34a; } .ai-kart.kotu .d { color:#dc2626; }
+    .ai-panel { background:#fff; border:1px solid #ece7f6; border-radius:14px; padding:16px 18px; margin-bottom:18px; box-shadow:0 2px 8px rgba(92,0,142,.05); }
+    .ai-panel h2 { font-size:13px; text-transform:uppercase; letter-spacing:.4px; color:#8b7ba8; font-weight:700; margin:0 0 12px; }
     .ai-tablo { width:100%; border-collapse:collapse; font-size:13px; }
-    .ai-tablo th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--sy-muted,#94a3b8); font-weight:600; padding:9px 10px; border-bottom:1px solid var(--sy-border,#2a3550); }
-    .ai-tablo td { padding:11px 10px; border-bottom:1px solid var(--sy-border,#1e293b); color:#e5e7eb; font-size:13.5px; }
+    .ai-tablo th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; color:#8b7ba8; font-weight:600; padding:9px 10px; border-bottom:2px solid #f0ebf8; }
+    .ai-tablo td { padding:11px 10px; border-bottom:1px solid #f4f1fa; color:#3a2a5c; font-size:13.5px; }
     .ai-tablo td.sag, .ai-tablo th.sag { text-align:right; }
-    .ai-tablo td.sag { font-weight:700; color:#f1f5f9; }
+    .ai-tablo td.sag { font-weight:700; color:#2a2340; }
     .ai-rozet { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; vertical-align:middle; }
     .ai-form { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
-    .ai-form label { font-size:11px; color:var(--sy-muted,#94a3b8); font-weight:600; display:block; margin-bottom:4px; }
-    .ai-form input { background:#0b1220; border:1px solid var(--sy-border,#2a3550); border-radius:9px; padding:9px 12px; color:#e5e7eb; font-size:14px; width:160px; }
+    .ai-form label { font-size:11px; color:#8b7ba8; font-weight:600; display:block; margin-bottom:4px; }
+    .ai-form input { background:#f7f6fb; border:1px solid #e3daf3; border-radius:9px; padding:9px 12px; color:#2a2340; font-size:14px; width:160px; }
     .ai-form button { background:linear-gradient(135deg,#5C008E,#7B2FB8); color:#fff; border:none; border-radius:9px; padding:10px 18px; font-weight:700; cursor:pointer; }
-    .ai-bar-bg { background:#0b1220; border-radius:6px; height:8px; overflow:hidden; }
+    .ai-bar-bg { background:#f0ebf8; border-radius:6px; height:8px; overflow:hidden; }
     .ai-bar { height:8px; background:linear-gradient(90deg,#7B2FB8,#38bdf8); border-radius:6px; }
-    .ai-uyari { background:rgba(251,191,36,.1); border:1px solid rgba(251,191,36,.3); color:#fbbf24; border-radius:10px; padding:12px 14px; font-size:13px; margin-bottom:16px; }
-    .ai-ok { background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.35); color:#34d399; border-radius:10px; padding:10px 14px; font-size:13px; margin-bottom:14px; }
+    .ai-uyari { background:#fef8e7; border:1px solid #f3d98a; color:#8a6100; border-radius:10px; padding:12px 14px; font-size:13px; margin-bottom:16px; }
+    .ai-ok { background:#e8f8ef; border:1px solid #a7e0c0; color:#15803d; border-radius:10px; padding:10px 14px; font-size:13px; margin-bottom:14px; }
 </style>
 
 <div class="ai-baslik">
@@ -55,7 +55,7 @@
     <div class="ai-uyari">⚠ <b>ai_kullanim</b> tablosu henüz yok. Sunucuda <code>php artisan migrate</code> çalıştırın; loglama ondan sonra başlar.</div>
 @endif
 @if((float)$ayar['yuklenen_usd'] > 0 && $kalanUsd < (float)$ayar['esik_usd'])
-    <div class="ai-uyari" style="background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.4);color:#f87171">
+    <div class="ai-uyari" style="background:#fdecec;border-color:#f3b4b4;color:#b91c1c">
         🔴 <b>AI kredin azaldı!</b> Kalan {{ $usd($kalanUsd) }} (eşik {{ $usd($ayar['esik_usd']) }}). Düşük-kredi WhatsApp alarmı otomatik gönderilir. Aşağıdan kredi ekleyin.
     </div>
 @endif
@@ -65,7 +65,7 @@
     @if((float)$ayar['yuklenen_usd'] <= 0)
     <div class="ai-kart">
         <div class="e">Kalan Kredi</div>
-        <div class="d" style="font-size:16px;color:#fbbf24">Kredi girilmedi</div>
+        <div class="d" style="font-size:16px;color:#b45309">Kredi girilmedi</div>
         <div class="alt">Aşağıdan yüklediğin krediyi gir ↓</div>
     </div>
     @else
@@ -130,7 +130,7 @@
     </form>
 
     {{-- Hizli ekle + test --}}
-    <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-end; border-top:1px solid var(--sy-border,#2a3550); padding-top:14px">
+    <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-end; border-top:1px solid #ece7f6; padding-top:14px">
         <form class="ai-form" method="POST" action="/sistemyonetim/v2/ai-kredi/kredi-ekle">
             {{ csrf_field() }}
             <div><label>Yeni yükleme ekle (USD)</label><input type="number" step="0.01" name="eklenen" placeholder="ör. 20"></div>
@@ -138,7 +138,7 @@
         </form>
         <form method="POST" action="/sistemyonetim/v2/ai-kredi/test-alarm">
             {{ csrf_field() }}
-            <button type="submit" style="background:#334155;color:#e5e7eb;border:none;border-radius:9px;padding:10px 16px;font-weight:600;cursor:pointer">
+            <button type="submit" style="background:#f0ebf8;color:#5C008E;border:1px solid #e3daf3;border-radius:9px;padding:10px 16px;font-weight:700;cursor:pointer">
                 <span class="mdi mdi-whatsapp"></span> Test alarmı gönder
             </button>
         </form>
