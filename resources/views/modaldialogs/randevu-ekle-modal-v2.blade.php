@@ -993,6 +993,10 @@
             '<div class="v2-row-head">'+
                 '<span class="v2-row-num">Hizmet #'+(idx+1)+'</span>'+
                 '<span class="v2-row-meta" data-meta-for="'+idx+'"></span>'+
+                '<label class="v2-birlestir-lbl" style="display:'+(idx>0?'inline-flex':'none')+';align-items:center;gap:6px;margin-left:auto;font-size:12px;color:#6b7280;cursor:pointer;user-select:none;" title="Bu hizmeti üstteki ile aynı saatte (paralel) uygula">'+
+                    '<input type="checkbox" class="v2-birlestir" style="width:14px;height:14px;cursor:pointer;">'+
+                    '<span>Üsttekiyle birleştir</span>'+
+                '</label>'+
             '</div>'+
             '<div class="v2-service-grid">'+
                 // Hizmet 6 | Süre 3 | Fiyat 3 (Bootstrap row)
@@ -1025,6 +1029,14 @@
             $(this).find('.v2-row-num').text('Hizmet #'+(i+1));
             $(this).find('[data-index]').attr('data-index', i);
             $(this).find('.v2-row-meta').attr('data-meta-for', i);
+            // "Üsttekiyle birleştir" sadece 1. satır SONRASI icin gorunur; ilk satir gizli
+            var $bl = $(this).find('.v2-birlestir-lbl');
+            if(i === 0){
+                $bl.hide();
+                $(this).find('.v2-birlestir').prop('checked', false);
+            } else {
+                $bl.css('display','inline-flex');
+            }
         });
         var count = $services.find('.v2-service-row').length;
         $services.find('.v2-remove-row').prop('disabled', count <= 1);
@@ -2755,6 +2767,13 @@
                 formData.append('randevucihazlariyeni[]', cihazId);
                 formData.append('randevuodalariyeni[]', odaId);
                 formData.append('randevuyardimcipersonelleriyeni_'+i+'[]', '');
+
+                // "Üsttekiyle birleştir" (paralel): backend key2 > 0 icin birlestir{key2} kontrolu
+                // yapar (kod: !isset($request->{"birlestir{$birsonraki}"}) => $birsonraki=$key2+1'de
+                // saat ilerletir; SET ise ilerletmez => row i, row i-1 ile ayni saatte baslar)
+                if(i > 0 && $row.find('.v2-birlestir').is(':checked')){
+                    formData.append('birlestir'+i, 1);
+                }
 
                 // Satır seviyesi manuel Süre + Fiyat input'larından oku
                 var rowSureRaw = String($row.find('.v2-row-sure').val() || '').trim();
