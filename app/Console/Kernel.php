@@ -63,6 +63,7 @@ class Kernel extends ConsoleKernel
         Commands\CakismaTeshis::class,
         Commands\TahsilatTeshis::class,
         Commands\AsistanSohbetKaliplari::class,
+        Commands\HizmetBilgiKaliplari::class,
     ];
 
     public function __construct(\Illuminate\Contracts\Foundation\Application $app, \Illuminate\Contracts\Events\Dispatcher $events)
