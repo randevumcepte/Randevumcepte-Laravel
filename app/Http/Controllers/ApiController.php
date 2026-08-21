@@ -2441,6 +2441,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             if (is_array($veri) && !empty($veri['cevap'])) {
                 // "buyurun"u kaynagi ne olursa olsun (AI/cache/kural) suz.
                 $veri['cevap'] = $asistan->buyurunTemizle($veri['cevap']);
+                // Emojileri suz (TTS "gulen yuz / aglayan yuz" diye okumasin).
+                $veri['cevap'] = $asistan->emojiTemizle($veri['cevap']);
                 $asistan->gecmisEkle($uid, $metin, (string) $veri['cevap']);
             }
             return response()->json($veri, 200, [], JSON_UNESCAPED_UNICODE);

@@ -2330,6 +2330,24 @@ class PatronAsistanServisi
     }
 
     /**
+     * Cevaptan EMOJI ve piktogramlari suzer (TTS "aglayan yuz / gulen yuz" diye
+     * OKUMASIN diye). Genis Unicode emoji araliklari + varyasyon/ZWJ temizlenir.
+     */
+    public function emojiTemizle($cevap)
+    {
+        $c = (string) $cevap;
+        $c = preg_replace(
+            '/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}'
+            . '\x{2300}-\x{23FF}\x{2190}-\x{21FF}\x{FE00}-\x{FE0F}\x{200D}\x{20E3}]/u',
+            '',
+            $c
+        );
+        $c = preg_replace('/[ ]{2,}/u', ' ', $c);            // cift bosluk
+        $c = preg_replace('/[ ]+([,\.\!\?])/u', '$1', $c);   // noktalama oncesi bosluk
+        return trim($c);
+    }
+
+    /**
      * Terbiyesiz / kufur / hakaret iceriyor mu? Kelime siniriyla aranir (yanlis
      * pozitif azaltmak icin; is terimleriyle cakisan kelimeler listede YOK).
      */
