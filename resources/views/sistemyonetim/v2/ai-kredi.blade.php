@@ -54,6 +54,11 @@
 @if(!empty($tabloYok))
     <div class="ai-uyari">⚠ <b>ai_kullanim</b> tablosu henüz yok. Sunucuda <code>php artisan migrate</code> çalıştırın; loglama ondan sonra başlar.</div>
 @endif
+@if((float)$ayar['yuklenen_usd'] > 0 && $kalanUsd < (float)$ayar['esik_usd'])
+    <div class="ai-uyari" style="background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.4);color:#f87171">
+        🔴 <b>AI kredin azaldı!</b> Kalan {{ $usd($kalanUsd) }} (eşik {{ $usd($ayar['esik_usd']) }}). Düşük-kredi WhatsApp alarmı otomatik gönderilir. Aşağıdan kredi ekleyin.
+    </div>
+@endif
 
 {{-- Ozet kartlari --}}
 <div class="ai-kartlar">
@@ -109,17 +114,35 @@
 
 {{-- Kredi yukle --}}
 <div class="ai-panel">
-    <h2>Kredi Yükleme</h2>
-    <div class="alt" style="font-size:12.5px;color:#94a3b8;margin-bottom:12px">
+    <h2>Kredi Yükleme &amp; Alarm</h2>
+    <div class="alt" style="font-size:12.5px;color:#94a3b8;margin-bottom:14px">
         Anthropic bakiyeyi API'den vermez; buraya <b>yüklediğin toplam krediyi</b> (USD) gir. Kalan = yüklenen − tüm zaman harcama.
-        Son güncelleme: {{ $ayar['guncelleme'] ?? '—' }}
+        Kalan, <b>eşiğin</b> altına inince <b>otomatik WhatsApp + SMS alarmı</b> gider (günde 1 kez). Son güncelleme: {{ $ayar['guncelleme'] ?? '—' }}
     </div>
-    <form class="ai-form" method="POST" action="/sistemyonetim/v2/ai-kredi/kredi-yukle">
+
+    {{-- Toplam + kur + esik --}}
+    <form class="ai-form" method="POST" action="/sistemyonetim/v2/ai-kredi/kredi-yukle" style="margin-bottom:14px">
         {{ csrf_field() }}
         <div><label>Toplam yüklenen kredi (USD)</label><input type="number" step="0.01" name="yuklenen" value="{{ $ayar['yuklenen_usd'] }}"></div>
         <div><label>USD → TL kuru</label><input type="number" step="0.01" name="kur" value="{{ $ayar['kur'] }}"></div>
+        <div><label>Alarm eşiği (USD)</label><input type="number" step="0.01" name="esik" value="{{ $ayar['esik_usd'] }}"></div>
         <button type="submit">Kaydet</button>
     </form>
+
+    {{-- Hizli ekle + test --}}
+    <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-end; border-top:1px solid var(--sy-border,#2a3550); padding-top:14px">
+        <form class="ai-form" method="POST" action="/sistemyonetim/v2/ai-kredi/kredi-ekle">
+            {{ csrf_field() }}
+            <div><label>Yeni yükleme ekle (USD)</label><input type="number" step="0.01" name="eklenen" placeholder="ör. 20"></div>
+            <button type="submit">+ Krediye Ekle</button>
+        </form>
+        <form method="POST" action="/sistemyonetim/v2/ai-kredi/test-alarm">
+            {{ csrf_field() }}
+            <button type="submit" style="background:#334155;color:#e5e7eb;border:none;border-radius:9px;padding:10px 16px;font-weight:600;cursor:pointer">
+                <span class="mdi mdi-whatsapp"></span> Test alarmı gönder
+            </button>
+        </form>
+    </div>
 </div>
 
 {{-- Tur dagilimi --}}

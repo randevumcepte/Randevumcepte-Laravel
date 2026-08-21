@@ -118,18 +118,41 @@ class AiKrediController extends Controller
         ]));
     }
 
-    /** Yuklenen kredi + kur guncelle. */
+    /** Toplam yuklenen kredi + kur + esik guncelle (mutlak deger). */
     public function krediYukle(Request $request)
     {
         $this->validate($request, [
             'yuklenen' => 'required|numeric|min:0',
             'kur'      => 'nullable|numeric|min:1',
+            'esik'     => 'nullable|numeric|min:0',
         ]);
         $ayar = AiKullanimLog::ayar();
         AiKullanimLog::ayarKaydet(
             $request->input('yuklenen'),
-            $request->input('kur', $ayar['kur'])
+            $request->input('kur', $ayar['kur']),
+            $request->input('esik', $ayar['esik_usd'])
         );
         return redirect('/sistemyonetim/v2/ai-kredi')->with('ok', 'Kredi ayarı güncellendi.');
+    }
+
+    /** Mevcut yuklenen krediye EKLE (yeni yukleme yapinca toplamla ugrasma). */
+    public function krediEkle(Request $request)
+    {
+        $this->validate($request, ['eklenen' => 'required|numeric|min:0.01']);
+        $ayar = AiKullanimLog::ayar();
+        $yeniToplam = (float) $ayar['yuklenen_usd'] + (float) $request->input('eklenen');
+        AiKullanimLog::ayarKaydet($yeniToplam, $ayar['kur'], $ayar['esik_usd']);
+        return redirect('/sistemyonetim/v2/ai-kredi')
+            ->with('ok', '$' . number_format((float) $request->input('eklenen'), 2, ',', '.') . ' eklendi. Yeni toplam: $' . number_format($yeniToplam, 2, ',', '.'));
+    }
+
+    /** Test: dusuk kredi alarmini WhatsApp'tan HEMEN gonder (numara/oturum dogrulama). */
+    public function testAlarm()
+    {
+        $r = AiKullanimLog::alarmGonder(AiKullanimLog::kalan(), (float) AiKullanimLog::ayar()['esik_usd'], AiKullanimLog::ayar()['kur']);
+        $ok = !empty($r['ok']);
+        return redirect('/sistemyonetim/v2/ai-kredi')->with('ok',
+            $ok ? 'Test alarmı gönderildi (WhatsApp + SMS). Gelmezse Sistem WhatsApp numarası/aktifliğini kontrol edin.'
+                : 'Alarm gönderilemedi — Sistem WhatsApp ayarını (numara + aktif) kontrol edin.');
     }
 }

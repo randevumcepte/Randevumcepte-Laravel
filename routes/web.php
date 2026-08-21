@@ -614,6 +614,8 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     // AI Kredi & Kullanim paneli (Patron Asistani Haiku harcamasi)
     Route::get('/ai-kredi', 'AiKrediController@index')->name('sistemyonetim.v2.aikredi');
     Route::post('/ai-kredi/kredi-yukle', 'AiKrediController@krediYukle');
+    Route::post('/ai-kredi/kredi-ekle', 'AiKrediController@krediEkle');
+    Route::post('/ai-kredi/test-alarm', 'AiKrediController@testAlarm');
 
     // Notlar
     Route::post('/salon/{id}/not', 'PanelController@notEkle');
