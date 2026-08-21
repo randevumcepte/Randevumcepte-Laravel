@@ -2145,7 +2145,10 @@ class PatronAsistanServisi
             foreach (preg_split('/[\r\n,;]+/', (string) $k->tetikleyiciler) as $t) {
                 $t = trim($this->normalize($t));
                 if (mb_strlen($t) < 2) continue;
-                if (strpos($n, ' ' . $t . ' ') !== false) {
+                // TURKCE EK TOLERANSLI eslesme: kelime basinda tetik + (varsa) ek harfleri
+                // + sinir. "dip boya" -> "dip boyam / dip boyasi / dip boyayi / dip boyama"
+                // hepsini yakalar (aksi halde "dip boyaM geldi" kacar).
+                if (preg_match('/(?:^| )' . preg_quote($t, '/') . '[a-z]*(?= |$)/u', $n)) {
                     $skor = mb_strlen($t);
                     if ($skor > $enSkor) { $enSkor = $skor; $enIyi = $k; }
                 }
