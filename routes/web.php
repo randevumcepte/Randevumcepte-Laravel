@@ -610,6 +610,8 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     // Dakika Yonetimi (e-santral giden konusma dakikasi takibi)
     Route::get('/dakika', 'PanelController@dakika')->name('sistemyonetim.v2.dakika');
     Route::post('/salon/{id}/dakika', 'PanelController@dakikaKaydet');
+    // Saglayici (voicetelekom) scraper testi: ?did=<trunk>&tarih1=&tarih2=
+    Route::get('/dakika/saglayici-test', 'PanelController@dakikaSaglayiciTest');
 
     // AI Kredi & Kullanim paneli (Patron Asistani Haiku harcamasi)
     Route::get('/ai-kredi', 'AiKrediController@index')->name('sistemyonetim.v2.aikredi');
