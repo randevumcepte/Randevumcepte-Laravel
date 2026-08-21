@@ -31,29 +31,30 @@ class HizmetBilgiKaliplari extends Command
             return 1;
         }
 
+        $lib = $this->kutuphane();
+        $kategoriler = array_keys($lib);
         $now = date('Y-m-d H:i:s');
-        $eklendi = 0; $guncellendi = 0;
 
-        foreach ($this->kutuphane() as $kat => $m) {
-            $tet = trim($m['tetik']);
-            $cev = implode("\n---\n", $m['cevaplar']);
-            $row = DB::table('asistan_kalip')->where('tetikleyiciler', $tet)->first();
-            if ($row) {
-                DB::table('asistan_kalip')->where('id', $row->id)->update([
-                    'cevap' => $cev, 'kategori' => $kat, 'aktif' => 1, 'updated_at' => $now,
-                ]);
-                $guncellendi++;
-            } else {
-                DB::table('asistan_kalip')->insert([
-                    'tetikleyiciler' => $tet, 'cevap' => $cev, 'kategori' => $kat,
-                    'aktif' => 1, 'kullanim_sayisi' => 0, 'created_at' => $now, 'updated_at' => $now,
-                ]);
-                $eklendi++;
-            }
+        // Idempotent + KOPYA TEMIZLIGI: bu seeder'in sahip oldugu kategorilerdeki tum
+        // kayitlari silip yeniden yaz. Boylece tetikleyici degisse bile kopya olusmaz
+        // ve ayni konudan birden fazla kalip (cakisan) kalmaz.
+        // NOT: Panelden bu kategorilere elle eklediklerin de silinir; kalici olsun
+        //      istersen seeder'a eklenmeli.
+        $silinen = DB::table('asistan_kalip')->whereIn('kategori', $kategoriler)->delete();
+
+        $eklendi = 0;
+        foreach ($lib as $kat => $m) {
+            DB::table('asistan_kalip')->insert([
+                'tetikleyiciler' => trim($m['tetik']),
+                'cevap'          => implode("\n---\n", $m['cevaplar']),
+                'kategori'       => $kat, 'aktif' => 1, 'kullanim_sayisi' => 0,
+                'created_at'     => $now, 'updated_at' => $now,
+            ]);
+            $eklendi++;
         }
 
         try { \Cache::forget('asistan_kalip_liste_v1'); } catch (\Throwable $e) {}
-        $this->info("Hizmet bilgilendirme kutuphanesi hazir. Eklenen: {$eklendi}, guncellenen: {$guncellendi}. Cache tazelendi.");
+        $this->info("Hizmet bilgilendirme kutuphanesi hazir. Silinen eski: {$silinen}, yazilan: {$eklendi}. Cache tazelendi.");
         return 0;
     }
 
@@ -62,7 +63,7 @@ class HizmetBilgiKaliplari extends Command
     {
         return [
             'dip-boya' => [
-                'tetik' => 'dip boya, dip boyama, dip boyasi, dipleri geldi, dipler cikti, dip kapatma, sac dibi boya, kokleri geldi, kokler geldi, diplerim uzadi, dipleri boyat, dip rengi, sac dipleri',
+                'tetik' => 'dip boya, dip boyama, dip boyasi, dipleri geldi, dipler cikti, diplerim cikti, dip kapatma, sac dibi boya, kokleri geldi, kokler geldi, koklerim geldi, diplerim uzadi, dipleri boyat, diplerimi boyat, dip rengi, sac dipleri, sac diplerim, dipleri belli, dipleri belli oldu, dip acildi',
                 'cevaplar' => [
                     'Dip boya, saçınızın uzayan kök kısmında oluşan renk farkını kapatmak için yapılan boya işlemidir. Sadece dip bölgesine, mevcut saç renginize uygun ton uygulanır.',
                     'Saç dipleriniz uzayınca çıkan renk farkını gidermek için uygulanan işleme dip boya denir. Saçın tamamı değil, yalnızca uzayan kökler boyanır.',
@@ -78,6 +79,10 @@ class HizmetBilgiKaliplari extends Command
                     'Saç diplerinizdeki renk açılmasını uygun tonda boyayla kapatıyoruz; boylarınız olduğu gibi kalıyor.',
                     'Dip boya genelde kısa sürer, ancak saçınızın uzunluğuna ve durumuna göre süre değişebilir. Renk tercihini birlikte belirleriz.',
                     'Diplerinizi kapatmak istiyorsanız uygun; rengi seçip yalnızca köklere uyguluyoruz, böylece saçınız yeni boyanmış gibi görünüyor.',
+                    'Dip boya, saç uzadıkça kökte beliren renk farkını mevcut saç renginizle uyumlu hale getirmek için uygulanır. Saçın tamamı boyanmaz; yalnızca uzayan dip bölgesine, renginize en yakın ton seçilerek uygulama yapılır. Böylece renk bütünlüğü korunur ve saç uçları yıpranmaz.',
+                    'Saç dipleriniz belirginleştiyse, tüm saçı boyamaya gerek kalmadan sadece kökleri boyayarak doğal bir görünüm elde edebiliriz. Beyaz ya da kır saçınız varsa dip boya bunları da kapatır. İşlem kısa sürer; süre saç uzunluğunuza ve dip miktarına göre değişir.',
+                    'Dip boyada amaç, saçın uzayan kök kısmındaki renk açılmasını gidermektir. Boylardaki renk korunur, yalnızca yeni çıkan dip bölgesi renklendirilir. Düzenli boya yaptıranların araya yaptırdığı pratik bir bakımdır ve komple boyaya göre saçı daha az yıpratır.',
+                    'Diplerinizin çıktığını fark ettiyseniz ve komple renk değişikliği istemiyorsanız dip boya idealdir. Renginize uygun ton belirlenir, sadece köklere uygulanır, bekletilir ve durulanır. Sonuçta saçınız yeni boyanmış gibi bütünlüklü görünür.',
                 ],
             ],
 
