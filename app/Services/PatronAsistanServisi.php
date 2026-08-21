@@ -2078,6 +2078,23 @@ class PatronAsistanServisi
     }
 
     /**
+     * Cevaptan "buyurun" kelimesini (ve cevresindeki noktalamayi) suzer. Kaynak ne
+     * olursa olsun (AI, cache, kural) kullaniciya gitmeden temizlenir. Cumleyi bozmaz.
+     */
+    public function buyurunTemizle($cevap)
+    {
+        $c = (string) $cevap;
+        if (stripos($c, 'buyurun') === false) return $c;
+        $c = preg_replace('/\bbuyur[uü]n\b[ ]*[,\.\!]?/iu', '', $c); // kelime + bitisik noktalama
+        $c = preg_replace('/[ ]{2,}/u', ' ', $c);                     // cift bosluk
+        $c = preg_replace('/[ ]+([,\.\!\?])/u', '$1', $c);            // noktalama oncesi bosluk
+        $c = preg_replace('/^[ ,\.\!]+/u', '', $c);                   // bastaki artik
+        $c = trim($c);
+        if ($c !== '') $c = mb_strtoupper(mb_substr($c, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($c, 1, null, 'UTF-8');
+        return $c;
+    }
+
+    /**
      * Terbiyesiz / kufur / hakaret iceriyor mu? Kelime siniriyla aranir (yanlis
      * pozitif azaltmak icin; is terimleriyle cakisan kelimeler listede YOK).
      */

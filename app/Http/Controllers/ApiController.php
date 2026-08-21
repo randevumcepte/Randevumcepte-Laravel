@@ -2439,6 +2439,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $gecmis = $asistan->gecmisGetir($uid);
         $cevapla = function ($veri) use ($asistan, $uid, $metin) {
             if (is_array($veri) && !empty($veri['cevap'])) {
+                // "buyurun"u kaynagi ne olursa olsun (AI/cache/kural) suz.
+                $veri['cevap'] = $asistan->buyurunTemizle($veri['cevap']);
                 $asistan->gecmisEkle($uid, $metin, (string) $veri['cevap']);
             }
             return response()->json($veri, 200, [], JSON_UNESCAPED_UNICODE);
