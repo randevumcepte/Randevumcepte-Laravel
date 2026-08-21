@@ -2156,8 +2156,24 @@ class PatronAsistanServisi
         try { \DB::table('asistan_kalip')->where('id', $enIyi->id)->increment('kullanim_sayisi'); } catch (\Throwable $e) {}
         return [
             'basarili' => true, 'intent' => 'kalip', 'seslendir' => true,
-            'cevap' => (string) $enIyi->cevap, 'kart' => null,
+            'cevap' => $this->cevapSec($enIyi->cevap), 'kart' => null,
         ];
+    }
+
+    /**
+     * Cevap HAVUZU: bir kalibin cevabinda "---" satiriyla ayrilmis birden cok cevap
+     * varsa her seferinde RASTGELE birini secer (asistan hep ayni seyi soylemesin).
+     * Ayirici yoksa cevabin tamami tek cevaptir (geriye donuk uyumlu).
+     */
+    protected function cevapSec($cevap)
+    {
+        $c = (string) $cevap;
+        if (strpos($c, '---') === false) return trim($c);
+        $parcalar = preg_split('/^\s*-{3,}\s*$/m', $c);
+        $parcalar = array_values(array_filter(array_map('trim', $parcalar), function ($p) { return $p !== ''; }));
+        if (empty($parcalar)) return trim($c);
+        if (count($parcalar) === 1) return $parcalar[0];
+        return $parcalar[mt_rand(0, count($parcalar) - 1)];
     }
 
     /** Kural+kalip bulamayip AI'ya/genel yanita dusen soruyu (adet sayacli) kaydet. */

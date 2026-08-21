@@ -111,8 +111,9 @@
             <div class="ae-ipucu">Bu ifadelerden biri soruda geçerse kalıp devreye girer. Ne kadar çok eş anlamlı yazarsan o kadar çok soruyu bedava karşılar.</div>
         </div>
         <div class="ae-alan">
-            <label>Cevap</label>
-            <textarea name="cevap" id="f_cevap" placeholder="İade politikamız 7 gündür; kullanılmamış ürünlerde fiş ile iade alınır."></textarea>
+            <label>Cevap — birden çok cevap için araya <code>---</code> koy (asistan her seferinde rastgele birini söyler)</label>
+            <textarea name="cevap" id="f_cevap" placeholder="İyiyim, teşekkürler 😊 Sen nasılsın?&#10;---&#10;Gayet iyiyim, bugün nasıl yardımcı olayım?&#10;---&#10;Harikayım! Hazırım, ne konuşalım?"></textarea>
+            <div class="ae-ipucu">Tek satırlık <code>---</code> ayırıcı = cevap havuzu. Örn. “nasılsın” için 10-20 farklı cevap yazarsan asistan hep aynısını söylemez. (Kasa/ciro gibi <b>veri</b> soruları için kalıp KULLANMA; onları sistem canlı veriden bedava söyler.)</div>
         </div>
         <div class="ae-alan" style="max-width:280px">
             <label>Kategori (opsiyonel)</label>
