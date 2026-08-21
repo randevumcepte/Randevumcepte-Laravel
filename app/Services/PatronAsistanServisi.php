@@ -1967,10 +1967,21 @@ class PatronAsistanServisi
     {
         $norm = ' ' . $this->normalize($metin) . ' ';
         $kelimeler = [
-            'amk', 'aq', 'amina', 'amina koyayim', 'amcik', 'orospu', 'oc', 'pic',
-            'siktir', 'sikeyim', 'sikerim', 'sikik', 'sicayim', 'yarrak', 'yarak',
-            'gavat', 'kahpe', 'ibne', 'serefsiz', 'pezevenk', 'gerizekali', 'salak',
-            'aptal', 'embesil', 'denyo', 'yavsak', 'surtuk', 'godos',
+            // --- Agir / cinsel kufurler ---
+            'amk', 'aq', 'amina', 'amina koyayim', 'amina koyim', 'aminakoyim', 'amcik', 'amcik agzi',
+            'orospu', 'orospu cocugu', 'oc', 'pic', 'pic kurusu', 'siktir', 'siktir git', 'siktir lan',
+            'sikeyim', 'sikerim', 'sikik', 'siktigim', 'sicayim', 'sicarim', 'yarrak', 'yarak', 'yarragi',
+            'gavat', 'kahpe', 'ibne', 'pust', 'kaltak', 'fahise', 'surtuk', 'pezevenk', 'godos', 'yavsak',
+            'anani', 'anani sikeyim', 'avradini', 'sulaleni', 'sulalene',
+            // --- Hakaret / asagilama ---
+            'serefsiz', 'onursuz', 'haysiyetsiz', 'alcak', 'soysuz', 'asalak', 'suluk', 'yalaka', 'dalkavuk',
+            'gerizekali', 'geri zekali', 'beyinsiz', 'dangalak', 'salak', 'aptal', 'embesil', 'ahmak',
+            'gerzek', 'budala', 'sersem', 'hoduk', 'denyo', 'psikopat', 'sapik', 'ucube', 'zibidi',
+            'pislik', 'igrenc', 'madara', 'defol', 'defol git', 'cehennem ol',
+            // --- Beddua / kargis ---
+            'allah belani versin', 'belani versin', 'cezani versin', 'allah cezani versin',
+            'allah kahretsin', 'kahrol', 'gebersin', 'geber', 'gebertirim', 'canin ciksin',
+            'canin cehenneme', 'lanet olsun', 'nalet olsun',
         ];
         foreach ($kelimeler as $k) {
             if (strpos($norm, ' ' . $this->normalize($k) . ' ') !== false) {
