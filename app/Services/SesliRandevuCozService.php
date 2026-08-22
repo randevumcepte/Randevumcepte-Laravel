@@ -98,17 +98,31 @@ class SesliRandevuCozService
         // personelin musteri adini kapmasini onler ("Ferdi" personel degil, musteri).
         $musteriIpucu = $this->datifMusteriBul($fold);
 
-        // Hizmet: personel verildiyse SADECE o personelin sundugu hizmetlerle sinirli
-        list($hizmetler, $hizmetMetinleri) = $this->hizmetEslestir($fold);
-
-        // Personel: giris yapan personel SABIT (cumleden cozumlenmez). Yoksa cumleden.
-        if ($this->personelId) {
+        // Personel: HER personel HERKESE randevu acabilir -> cumlede baska bir
+        // personel adi geciyorsa (giris yapan olsa da olmasa da) ONU kullan;
+        // hizmetler de o personelinkiyle sinirli olsun. Cumlede isim gecmezse
+        // giris yapan personel (personel_id) SABIT kalir; o da yoksa cozulemez.
+        list($cumlePersonel, $personelMetni) = $this->personelEslestir($fold, [], $musteriIpucu);
+        if ($cumlePersonel) {
+            // Cumlede gecen personel adina -> hizmet eslestirmesi de onunla sinirli
+            $this->personelId = (int) $cumlePersonel['personel_id'];
+            $personel = [
+                'personel_id'  => (int) $cumlePersonel['personel_id'],
+                'personel_adi' => $cumlePersonel['personel_adi'],
+                'sabit'        => false,
+            ];
+        } elseif ($this->personelId) {
             $p = Personeller::find($this->personelId);
             $personel = $p ? ['personel_id' => (int) $p->id, 'personel_adi' => $p->personel_adi, 'sabit' => true] : null;
             $personelMetni = null;
         } else {
-            list($personel, $personelMetni) = $this->personelEslestir($fold, $hizmetler, $musteriIpucu);
+            $personel = null;
+            $personelMetni = null;
         }
+
+        // Hizmet: yukarida cozulen personel ($this->personelId) SADECE onun
+        // sundugu hizmetlerle sinirli.
+        list($hizmetler, $hizmetMetinleri) = $this->hizmetEslestir($fold);
 
         // Musteri: datif ipucu varsa onu kullan, yoksa kalan kelimelerden ad tahmini
         $musteri = $this->musteriEslestir($ham, $fold, $hizmetMetinleri, $personelMetni, $musteriIpucu);
