@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v4-2026-08-21';
+    protected $surum = 'v5-2026-08-22';
 
     public function handle()
     {
@@ -141,6 +141,22 @@ class HizmetBilgiKaliplari extends Command
                     'Dip boya ücreti saç uzunluğu ve tercih edilen ürüne göre farklılık gösterir. Kesin fiyat için sizi salonumuza bekleriz; dilerseniz hemen bir randevu oluşturalım.',
                     'Dip boyada fiyat, saçınızın uzunluğuna ve renk/ürün tercihine göre belirlenir. En doğru bilgiyi salonumuzu arayarak ya da randevu alarak öğrenebilirsiniz.',
                     'Dip boya için kesin fiyatı, saçınızı görüp değerlendirdikten sonra netleştiriyoruz. İsterseniz bir randevu oluşturalım; geldiğinizde size net fiyatı sunalım.',
+                ],
+            ],
+
+            // GENEL FIYAT: "fiyatlar ne kadar / fiyat listesi / ucretiniz" gibi belirli
+            // hizmet gecmeyen sorular. Kural motorunda hicbir niyete uymuyor -> AI "fiyat"i
+            // urun saniyordu. Bu kalip AI'dan ONCE devreye girer, kontrollu cevap verir
+            // (uydurma fiyat YOK). Belirli hizmet+fiyat ("dip boya fiyati") daha uzun tetikle
+            // fiyat-dip-boya'ya gider; urun/hizmet/kasa sorulari niyetCoz'da zaten yakalanir.
+            'fiyat-genel' => [
+                'tetik' => 'fiyat, fiyatlar, fiyati, fiyatlari, fiyatiniz, fiyatlariniz, fiyat listesi, fiyat bilgisi, ucret, ucretler, ucretiniz, ne kadar tutar, kaca, fiyat ne',
+                'cevaplar' => [
+                    'Fiyatlarımız yapılan işleme, saç ya da uygulama durumunuza ve kullanılan ürüne göre değişir. En doğru fiyat için salonumuzla iletişime geçebilir ya da bir randevu oluşturabilirsiniz.',
+                    'Hizmetlerimizin fiyatı işlemin türüne ve kapsamına göre farklılık gösterir. Size en doğru fiyatı salonumuzda değerlendirip veririz; dilerseniz hemen bir randevu oluşturalım.',
+                    'Fiyat, tercih ettiğiniz işleme ve saçınızın/uygulamanızın durumuna göre belirlenir. Güncel fiyat için bizi arayabilir veya randevu alarak yerinde net bilgi alabilirsiniz.',
+                    'Kesin fiyatı işleme ve ihtiyacınıza göre belirlediğimiz için önceden tek bir rakam vermek doğru olmaz. Salonumuzu arayarak ya da randevu oluşturarak net fiyatı öğrenebilirsiniz.',
+                    'Fiyatlarımız hizmete göre değiştiği için size en uygun ve net bilgiyi salonumuzda verebiliyoruz. İsterseniz bir randevu oluşturayım, geldiğinizde tüm detayları paylaşalım.',
                 ],
             ],
 
