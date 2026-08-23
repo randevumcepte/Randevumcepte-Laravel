@@ -627,7 +627,7 @@ class SesliRandevuCozService
                     $eslesenKelime = 0;
                     foreach ($adKelimeleri as $ak) {
                         foreach ($metinKelimeleri as $mk) {
-                            if ($ak === $mk || $this->benzerlik($ak, $mk) >= 0.85) {
+                            if ($this->kelimeUyar($ak, $mk)) {
                                 $eslesenKelime++;
                                 break;
                             }
@@ -894,6 +894,40 @@ class SesliRandevuCozService
         }
         similar_text($a, $b, $yuzde);
         return $yuzde / 100;
+    }
+
+    /**
+     * Iki kelime (fold'lanmis) ayni HIZMETI mi ifade ediyor? TURKCE EK toleransli:
+     * dogal konusma "sac boyamasi / sacimi boyatmak / boya yaptirmak" da hizmetteki
+     * "sac boyama" ile eslessin diye.
+     *  1) Birebir ayni
+     *  2) Biri digerinin ONEKI (>=3 harf): sac/sacimi, boyama/boyamasi, kesim/kesimi
+     *  3) Ortak ON EK govdesi >=4: boyama/boyatmak -> "boya", rofle/roflelerim
+     *  4) Genel yazim benzerligi (typo) >=0.80
+     */
+    protected function kelimeUyar($a, $b)
+    {
+        if ($a === '' || $b === '') return false;
+        if ($a === $b) return true;
+        $kisa = min(mb_strlen($a), mb_strlen($b));
+        if ($kisa >= 3 && (mb_strpos($a, $b) === 0 || mb_strpos($b, $a) === 0)) {
+            return true;
+        }
+        if ($this->ortakOnek($a, $b) >= 4) {
+            return true;
+        }
+        return $this->benzerlik($a, $b) >= 0.80;
+    }
+
+    /** Iki kelimenin bastan ortak (ayni) harf sayisi. */
+    protected function ortakOnek($a, $b)
+    {
+        $n = min(mb_strlen($a), mb_strlen($b));
+        $i = 0;
+        while ($i < $n && mb_substr($a, $i, 1) === mb_substr($b, $i, 1)) {
+            $i++;
+        }
+        return $i;
     }
 
     protected function telMaskele($tel)
