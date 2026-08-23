@@ -99,10 +99,20 @@ class SesliRandevuCozService
         // personelin musteri adini kapmasini onler ("Ferdi" personel degil, musteri).
         $musteriIpucu = $this->datifMusteriBul($fold);
 
+        // ACIK ROL etiketleri (tek cumlelik tam komut): "Ayse musterisine"/"musteri Ayse"
+        // -> musteri; "personel Fatih"/"Fatih personeline" -> personel. Ayni cumlede
+        // musteri ile personel adinin karismasini onler.
+        $rolMusteri = $this->rolAdiBul($fold, 'musteri');
+        $rolPersonel = $this->rolAdiBul($fold, 'personel');
+        if ($rolMusteri && !$musteriIpucu) {
+            $musteriIpucu = $rolMusteri; // musteri adini isaretle -> personelden haric tutulur
+        }
+
         // Personel: cumlede baska bir personel adi geciyorsa ONU kullan; hizmetler de
-        // o personelinkiyle sinirli olsun. Cumlede isim gecmezse giris yapan personel
-        // (personel_id) SABIT kalir; o da yoksa cozulemez.
-        list($cumlePersonel, $personelMetni) = $this->personelEslestir($fold, [], $musteriIpucu);
+        // o personelinkiyle sinirli olsun. "personel X" etiketi varsa X tercih edilir.
+        // Cumlede isim gecmezse giris yapan personel (personel_id) SABIT kalir.
+        list($cumlePersonel, $personelMetni) =
+            $this->personelEslestir($fold, [], $musteriIpucu, $rolPersonel);
         // YETKI GATE: BASKA personele randevu SADECE 'tum_personel' yetkisi olanlara.
         // Yetki yoksa cumlede baska personel gecse bile YOKSAY -> giris yapan personele
         // yazilir (hizmet de onunla sinirli kalir; tutarli). Kendini soylemesi serbest.
@@ -195,6 +205,46 @@ class SesliRandevuCozService
             return null;
         }
         return implode(' ', array_slice($kelimeler, -3)); // en fazla ad + soyad (+1)
+    }
+
+    /**
+     * ACIK ROL etiketiyle gecen adi bulur (tek cumlelik tam komutlar icin):
+     *   "<rol> Ahmet"        -> rol kelimesinden SONRAKI ilk kelime (ad)
+     *   "Ahmet <rol...ine>"  -> rol kelimesinden ONCEKI 1-2 kelime (ad soyad)
+     * $rolKok fold'lu: 'musteri' | 'personel'. Bulamazsa null. Boylece ayni cumlede
+     * "Ayse musterisine ... personel Fatih" -> Ayse=musteri, Fatih=personel ayrisir.
+     */
+    protected function rolAdiBul($fold, $rolKok)
+    {
+        // SONRAKI: "musteri ayse", "personel fatih olsun" -> tek kelime ad (yan alani kapmasin)
+        if (preg_match('/\b' . $rolKok . '[a-z]*\s+([a-z]+)/u', $fold, $m)) {
+            $ad = $this->rolAdTemizle($m[1]);
+            if ($ad !== '') return $ad;
+        }
+        // ONCEKI: "ayse musterisine", "fatih gul personeline" -> 1-2 kelime ad(+soyad)
+        if (preg_match('/([a-z]+(?:\s+[a-z]+)?)\s+' . $rolKok . '[a-z]*\b/u', $fold, $m)) {
+            $ad = $this->rolAdTemizle($m[1]);
+            if ($ad !== '') return $ad;
+        }
+        return null;
+    }
+
+    /** Rol etiketi yaninda yakalanan adi temizler (komut/dolgu/tarih kelimelerini eler). */
+    protected function rolAdTemizle($s)
+    {
+        static $komut = [
+            'olsun', 'olustur', 'olusturalim', 'olusturun', 'olusabilir', 'ver', 'verin',
+            'al', 'alalim', 'icin', 'randevu', 'randevusu', 'lutfen', 'bir', 'adli',
+            'adinda', 'ismi', 'isimli', 'olarak', 'da', 'de', 'ye', 'ya', 'na',
+        ];
+        $kel = array_values(array_filter(preg_split('/\s+/u', trim($s)), function ($w) use ($komut) {
+            return mb_strlen($w) >= 2
+                && !in_array($w, $komut, true)
+                && !in_array($w, $this->stopKelimeler, true)
+                && !array_key_exists($w, $this->gunler)
+                && !array_key_exists($w, $this->aylar);
+        }));
+        return implode(' ', array_slice($kel, 0, 2)); // ad (+soyad)
     }
 
     /* ------------------------------------------------------------------ */
@@ -688,7 +738,7 @@ class SesliRandevuCozService
     /* PERSONEL                                                           */
     /* ------------------------------------------------------------------ */
 
-    protected function personelEslestir($fold, $hizmetler, $musteriIpucu = null)
+    protected function personelEslestir($fold, $hizmetler, $musteriIpucu = null, $tercihAd = null)
     {
         // Datif ipucundaki kelimeler MUSTERI adidir; personel eslestirmesinden haric tut
         $haric = $musteriIpucu ? preg_split('/\s+/u', $musteriIpucu) : [];
@@ -698,6 +748,25 @@ class SesliRandevuCozService
                 $q->whereNull('arsivli')->orWhere('arsivli', '!=', 1);
             })
             ->get();
+
+        // ACIK "personel X" etiketi: X bir personele uyuyorsa DOGRUDAN onu sec (cumledeki
+        // baska adlarla karismasin). Ek-toleransli eslesme (Fatih/Fatih Gul).
+        if ($tercihAd) {
+            $tf = $this->fold($tercihAd);
+            foreach ($liste as $p) {
+                $adFold = $this->fold($p->personel_adi ?? '');
+                if ($adFold === '') continue;
+                $ilk = explode(' ', $adFold)[0];
+                if ($adFold === $tf || $ilk === $tf
+                    || mb_strpos($adFold, $tf) !== false
+                    || $this->kelimeUyar($ilk, $tf)) {
+                    return [[
+                        'personel_id'  => $p->id,
+                        'personel_adi' => $p->personel_adi,
+                    ], $adFold];
+                }
+            }
+        }
 
         $enIyi = null;
         $enIyiSkor = 0.0;
