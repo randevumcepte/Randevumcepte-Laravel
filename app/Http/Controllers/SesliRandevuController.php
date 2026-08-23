@@ -38,10 +38,13 @@ class SesliRandevuController extends Controller
             ], 422);
         }
 
-        // Randevu DAIMA giris yapan personel adina; hizmetler o personelinkiyle sinirli
+        // Randevu giris yapan personel adina; hizmetler o personelinkiyle sinirli.
         $personelId = $request->filled('personel_id') ? (int) $request->input('personel_id') : null;
+        // YETKI: cumlede gecen BASKA personele randevu yalniz 'tum_personel'=1 ise.
+        // Yetki yoksa cumledeki baska personel yoksayilir -> giris yapan personele yazilir.
+        $tumPersonel = in_array((string) $request->input('tum_personel', '0'), ['1', 'true'], true);
 
-        $sonuc = $servis->coz($metin, $salonId, $personelId);
+        $sonuc = $servis->coz($metin, $salonId, $personelId, $tumPersonel);
         $sonuc['salon_id'] = $salonId;
 
         // Debug alanlari yalnizca ?debug=1 ile don (app'e temiz JSON gitsin)

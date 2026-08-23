@@ -76,10 +76,11 @@ class SesliRandevuCozService
      * @param  int|null $personelId  Varsa: randevu bu personel adina; hizmetler onunkiyle sinirli
      * @return array
      */
-    public function coz($metin, $salonId, $personelId = null)
+    public function coz($metin, $salonId, $personelId = null, $tumPersonel = false)
     {
         $this->salonId = (int) $salonId;
         $this->personelId = $personelId ? (int) $personelId : null;
+        $girisPersonelId = $this->personelId; // yetki gate icin: giris yapan sabit
 
         $ham = trim((string) $metin);
         // Girdi UTF-8 degilse (latin5/Windows-1254 tek baytlar) once cevir; yoksa Turkce
@@ -98,11 +99,21 @@ class SesliRandevuCozService
         // personelin musteri adini kapmasini onler ("Ferdi" personel degil, musteri).
         $musteriIpucu = $this->datifMusteriBul($fold);
 
-        // Personel: HER personel HERKESE randevu acabilir -> cumlede baska bir
-        // personel adi geciyorsa (giris yapan olsa da olmasa da) ONU kullan;
-        // hizmetler de o personelinkiyle sinirli olsun. Cumlede isim gecmezse
-        // giris yapan personel (personel_id) SABIT kalir; o da yoksa cozulemez.
+        // Personel: cumlede baska bir personel adi geciyorsa ONU kullan; hizmetler de
+        // o personelinkiyle sinirli olsun. Cumlede isim gecmezse giris yapan personel
+        // (personel_id) SABIT kalir; o da yoksa cozulemez.
         list($cumlePersonel, $personelMetni) = $this->personelEslestir($fold, [], $musteriIpucu);
+        // YETKI GATE: BASKA personele randevu SADECE 'tum_personel' yetkisi olanlara.
+        // Yetki yoksa cumlede baska personel gecse bile YOKSAY -> giris yapan personele
+        // yazilir (hizmet de onunla sinirli kalir; tutarli). Kendini soylemesi serbest.
+        if ($cumlePersonel
+            && !$tumPersonel
+            && $girisPersonelId
+            && (int) $cumlePersonel['personel_id'] !== (int) $girisPersonelId) {
+            $cumlePersonel = null;
+            $personelMetni = null;
+            $this->personelId = (int) $girisPersonelId; // giris yapan sabit kalsin
+        }
         if ($cumlePersonel) {
             // Cumlede gecen personel adina -> hizmet eslestirmesi de onunla sinirli
             $this->personelId = (int) $cumlePersonel['personel_id'];
