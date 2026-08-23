@@ -909,6 +909,32 @@ class SesliRandevuCozService
     }
 
     /**
+     * ES ANLAMLI SOZLUK: ayni hizmetin FARKLI soyleyislerini ortak koke indirger.
+     * ONEMLI: SADECE ayni hizmet birlestirilir. Farkli hizmetler (rofle/balyaj/ombre,
+     * dip boya/komple boya, boyama/yikama) ASLA burada birlestirilmez -> onlar
+     * kendi kelimeleriyle (rofle, balyaj, dip, komple...) zaten ayrisir.
+     * Yeni kelime cikarsa buraya 1 satir eklemek yeterli.
+     */
+    protected $esAnlamli = [
+        // BOYAMA (renk verme) — dip/komple KELIMESI hizmeti ayirir, bunlar birlesmez
+        'renk' => 'boya', 'renkli' => 'boya', 'renklendirme' => 'boya',
+        'renklendir' => 'boya', 'boyat' => 'boya', 'boyatma' => 'boya',
+        'boyatmak' => 'boya', 'boyama' => 'boya', 'boyasi' => 'boya', 'boyanma' => 'boya',
+        // KESIM
+        'kestir' => 'kesim', 'kestirme' => 'kesim', 'kestirmek' => 'kesim',
+        'kesme' => 'kesim', 'kesimi' => 'kesim',
+        // YIKAMA
+        'yika' => 'yikama', 'yikat' => 'yikama', 'yikatma' => 'yikama',
+        'yikatmak' => 'yikama', 'yikanma' => 'yikama',
+    ];
+
+    /** Kelimeyi es anlamli sozlukten kanonik forma cevirir (yoksa aynen doner). */
+    protected function kanonik($w)
+    {
+        return isset($this->esAnlamli[$w]) ? $this->esAnlamli[$w] : $w;
+    }
+
+    /**
      * Iki kelime (fold'lanmis) ayni HIZMETI mi ifade ediyor? TURKCE EK toleransli:
      * dogal konusma "sac boyamasi / sacimi boyatmak / boya yaptirmak" da hizmetteki
      * "sac boyama" ile eslessin diye.
@@ -920,6 +946,9 @@ class SesliRandevuCozService
     protected function kelimeUyar($a, $b)
     {
         if ($a === '' || $b === '') return false;
+        // Once es anlamli koke cevir: "renk"->"boya", "kestir"->"kesim" -> sonra karsilastir.
+        $a = $this->kanonik($a);
+        $b = $this->kanonik($b);
         if ($a === $b) return true;
         $kisa = min(mb_strlen($a), mb_strlen($b));
         if ($kisa >= 3 && (mb_strpos($a, $b) === 0 || mb_strpos($b, $a) === 0)) {
