@@ -616,6 +616,8 @@ class SesliRandevuCozService
             // dahil, or. "cilt"/"sac") metinde gecmeli. Boylece "cilt bakimi" yalnizca
             // "Cilt Bakimi" ile eslesir; ortak "bakimi" yuzunden "Sac Bakimi"ye kaymaz.
             $skor = 0.0;
+            $eslesenKelime = 0;
+            $adKelimeleri = [];
             if (mb_strpos($fold, $adFold) !== false) {
                 $skor = 1.0; // tam hizmet adi cumlede geciyor
             } else {
@@ -624,7 +626,6 @@ class SesliRandevuCozService
                     function ($w) { return mb_strlen($w) >= 2; }
                 ));
                 if (!empty($adKelimeleri)) {
-                    $eslesenKelime = 0;
                     foreach ($adKelimeleri as $ak) {
                         foreach ($metinKelimeleri as $mk) {
                             if ($this->kelimeUyar($ak, $mk)) {
@@ -633,13 +634,22 @@ class SesliRandevuCozService
                             }
                         }
                     }
-                    if ($eslesenKelime === count($adKelimeleri)) {
-                        $skor = 0.9; // hizmetin tum kelimeleri metinde var
+                    $toplam = count($adKelimeleri);
+                    $oran = $eslesenKelime / $toplam;
+                    if ($eslesenKelime === $toplam) {
+                        $skor = 0.9; // hizmetin TUM kelimeleri metinde
+                    } elseif ($eslesenKelime >= 2) {
+                        // KISMI: kullanicinin soyledigi kelimeler hizmette geciyor ama
+                        // hizmet adinda FAZLA kelime var (or. "sac boyama" -> "Komple Sac
+                        // Boyama"). En cok kelime eslesen + en yuksek oran kazanir.
+                        $skor = 0.6 + 0.25 * $oran;
+                    } elseif ($eslesenKelime === 1 && $toplam === 1) {
+                        $skor = 0.75; // tek kelimelik hizmet ve o kelime geciyor
                     }
                 }
             }
 
-            if ($skor >= 0.9) {
+            if ($skor >= 0.6) {
                 $eslesen[] = [
                     'hizmet_id'      => $sh->hizmet_id,
                     'salon_hizmet_id'=> $sh->id,
@@ -647,14 +657,16 @@ class SesliRandevuCozService
                     'sure_dk'        => ((int) $sh->sure_dk > 0 ? (int) $sh->sure_dk : 30),
                     'fiyat'          => $sh->son_fiyat ?: $sh->baslangic_fiyat,
                     'skor'           => round($skor, 2),
+                    'eslesen_kelime' => $eslesenKelime,
                 ];
                 $metinler[] = $adFold;
             }
         }
 
-        // En yuksek skora gore sirala
+        // En yuksek skor; esitlikte EN COK kelime eslesen kazanir.
         usort($eslesen, function ($a, $b) {
-            return $b['skor'] <=> $a['skor'];
+            if ($b['skor'] !== $a['skor']) return $b['skor'] <=> $a['skor'];
+            return ($b['eslesen_kelime'] ?? 0) <=> ($a['eslesen_kelime'] ?? 0);
         });
 
         // Ayni adli hizmet birden fazla kayitliysa tekille (en yuksek skorlusu kalir)
