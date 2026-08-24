@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v14-2026-08-24-keratin';
+    protected $surum = 'v15-2026-08-24-brezilya-fonu';
 
     public function handle()
     {
@@ -60,7 +60,7 @@ class HizmetBilgiKaliplari extends Command
         // EMEKLI KATEGORILER: artik uretilmeyen ama eskiden DB'ye yazilmis kategoriler.
         // Bunlar $lib'te olmadigi icin normal silme onlari birakirdi (oksuz kayit).
         // Burada elle silinir. rofle-balyaj -> yerine ayri 'rofle'/'balayage'/'ombre'.
-        $emekli = ['rofle-balyaj'];
+        $emekli = ['rofle-balyaj', 'keratin'];
         DB::table('asistan_kalip')->whereIn('kategori', $emekli)->delete();
 
         // KOPYA TEMIZLIGI: bu seeder'in sahip oldugu kategorileri silip yeniden yaz.
@@ -197,26 +197,9 @@ class HizmetBilgiKaliplari extends Command
             // (app/Support/HizmetBilgiIcerik). Eski lumped 'rofle-balyaj' kalibi EMEKLI
             // edildi (handle() icindeki $emekli listesi DB'den siler).
 
-            // NOT: 'keratin' ARTIK ayri zengin kategori 'keratin-bakimi' (HizmetBilgiIcerik).
-            // Cakismasin diye buradaki tetikler DARALTILDI: yalniz brezilya fonu/duzlestirme
-            // (kopru). Brezilya Fonu (10. hizmet) gelince bu built-in tamamen EMEKLI edilecek.
-            'keratin' => [
-                'tetik' => 'brezilya fonu, sac duzlestirme, duzlestirme, kalici duzlestirme, sac duzlestirme islemi',
-                'cevaplar' => [
-                    'Keratin bakımı, saça keratin proteini kazandırarak elektriklenmeyi azaltan ve saçı pürüzsüz, parlak gösteren bir bakımdır.',
-                    'Brezilya fönü, kabaran ve elektriklenen saçları düzleştirip yönetilebilir hale getiren bir bakım işlemidir.',
-                    'Saçınız çok kabarıyor veya elektrikleniyorsa keratin bakımıyla daha düz, ipeksi ve bakımlı bir görünüm elde edebiliriz.',
-                    'Keratin, saç tellerindeki boşlukları doldurarak yıpranmış saçları onarır ve parlaklık verir.',
-                    'Brezilya fönünden sonra saçınız günlük bakımda çok daha kolay şekil alır; fön süreniz belirgin şekilde kısalır.',
-                    'İşlemde saça keratin içerikli ürün uygulanır, ardından ısıyla sabitlenir; sonuç birkaç ay kalıcı olur.',
-                    'Sık fön/maşa kullanıp yıpranan saçlar için keratin bakımı hem onarır hem düzleştirir.',
-                    'Kabarıklığı almak ve saçı pürüzsüzleştirmek isteyenler için brezilya fönü çok idealdir.',
-                    'Keratin saçı düzleştirirken doğal görünümü korur; taş gibi düz değil, akışkan ve parlak bir sonuç verir.',
-                    'İşlem saç durumunuza göre planlanır; ne kadar düzlük istediğinizi konuşarak ürünü ona göre seçeriz.',
-                    'Bakım sonrası kalıcılık için ilk günlerde dikkat edilmesi gereken birkaç nokta var, onları da anlatırız.',
-                    'Elektriklenme ve kabarmadan şikâyetçiyseniz keratin/brezilya fönü günlük saç rutininizi ciddi şekilde kolaylaştırır.',
-                ],
-            ],
+            // NOT: keratin ARTIK 'keratin-bakimi', brezilya fonu/duzlestirme ARTIK
+            // 'brezilya-fonu' (ikisi de HizmetBilgiIcerik'te ayri zengin kategori).
+            // Eski kisa built-in 'keratin' kalibi EMEKLI edildi (handle() $emekli listesi siler).
 
             'sac-kesim' => [
                 'tetik' => 'sac kesimi, sac kestirmek, sac kes, kesim, uc alma, uclari al, model kesim, sacimi kestir, fon, fon cektirmek, fon cekmek, sac sekillendirme',
