@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v20-2026-08-25-kas-tasarimi';
+    protected $surum = 'v21-2026-08-25-kirpik-lifting';
 
     public function handle()
     {
@@ -254,19 +254,18 @@ class HizmetBilgiKaliplari extends Command
                 ],
             ],
 
+            // NOT: kirpik LIFTING ARTIK zengin 'kirpik-lifting' (HizmetBilgiIcerik).
+            // Cakismasin diye buradaki tetikler DARALTILDI: yalniz IPEK/TAKMA/VOLUME kirpik
+            // (kopru). Ipek Kirpik (17. hizmet) gelince bu kalip ayni mantikla ele alinacak.
             'kirpik' => [
-                'tetik' => 'ipek kirpik, kirpik, kirpik lifting, kirpik takma, kirpik perma, kirpik dolgu, volume kirpik, kirpik yaptirmak, takma kirpik',
+                'tetik' => 'ipek kirpik, kirpik takma, takma kirpik, kirpik dolgu, volume kirpik, hacimli kirpik, kirpik ekleme, ipek kirpik yaptirmak, kirpik takdirmak',
                 'cevaplar' => [
-                    'İpek kirpik, doğal kirpiklere tek tek ya da tutam halinde takılan ve gözlere belirgin, dolgun bir görünüm veren uygulamadır.',
-                    'Kirpik lifting, kendi kirpiklerinizi kıvırıp yukarı kaldırarak daha uzun ve açık bir bakış elde etmenizi sağlar.',
-                    'Kirpiklerinizin daha uzun ve dolgun görünmesini istiyorsanız ipek kirpik veya kirpik lifting güzel seçenekler.',
-                    'İpek kirpikle maskara sürmeden bile belirgin, bakımlı gözler elde edersiniz; günlük hayatı kolaylaştırır.',
-                    'Kirpik liftingde takma kirpik kullanılmaz; kendi kirpikleriniz şekillendirilip kaldırılır, çok doğal durur.',
-                    'Ne kadar dolgun bir görünüm istediğinizi konuşup ona göre doğal ya da volüm kirpik uyguluyoruz.',
-                    'Belirli aralıklarla dolgu yaptırarak ipek kirpiklerinizin dolgunluğunu koruyabilirsiniz.',
-                    'Kirpik perması ve lifting, kendi kirpiğini uzun süre kıvrık göstermek isteyenler için idealdir.',
-                    'Uygulama sırasında gözünüz kapalı şekilde rahatça uzanırsınız; işlem konforlu geçer.',
-                    'Doğal mı yoksa iddialı mı bir bakış istiyorsunuz, buna göre kirpik yoğunluğunu birlikte seçeriz.',
+                    'İpek kirpik, doğal kirpiklere tek tek ya da tutam halinde takılan ve gözlere daha belirgin, dolgun bir görünüm vermeyi amaçlayan bir uygulamadır.',
+                    'İpek kirpikle maskara sürmeden bile daha belirgin ve bakımlı bir göz görünümü elde edilebilir; sonuç kirpik yapınıza göre değişir.',
+                    'Daha dolgun bir görünüm için doğal ya da volüm kirpik uygulanabilir; hangisinin uygun olduğu kirpik yoğunluğunuza göre belirlenir.',
+                    'Belirli aralıklarla dolgu yaptırarak ipek kirpiklerin dolgun görünümünü korumak mümkün olabilir.',
+                    'Uygulama sırasında gözünüz kapalı şekilde rahatça uzanırsınız; göz çevresi hassas olduğu için işlemin dikkatli yapılması önemlidir.',
+                    'Doğal mı yoksa daha belirgin bir bakış mı istediğinize göre kirpik yoğunluğu birlikte belirlenebilir; göz hassasiyetiniz varsa önceden belirtmelisiniz.',
                 ],
             ],
 
