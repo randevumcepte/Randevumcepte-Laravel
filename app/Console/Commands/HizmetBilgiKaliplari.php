@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v5-2026-08-22';
+    protected $surum = 'v6-2026-08-24-dipboya-zengin';
 
     public function handle()
     {
@@ -45,6 +45,15 @@ class HizmetBilgiKaliplari extends Command
         }
 
         $lib = $this->kutuphane();
+        // ZENGIN bilgilendirme icerigi (app/Support/HizmetBilgiIcerik) built-in kisa
+        // kayitlarin UZERINE yazar. Yeni/genis hizmetler orada yonetilir.
+        try {
+            foreach (\App\Support\HizmetBilgiIcerik::veri() as $kat => $veri) {
+                if (!empty($veri['tetik']) && !empty($veri['cevaplar'])) {
+                    $lib[$kat] = $veri;
+                }
+            }
+        } catch (\Throwable $e) {}
         $kategoriler = array_keys($lib);
         $now = date('Y-m-d H:i:s');
 
