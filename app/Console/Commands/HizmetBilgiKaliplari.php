@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v21-2026-08-25-kirpik-lifting';
+    protected $surum = 'v22-2026-08-25-ipek-kirpik';
 
     public function handle()
     {
@@ -60,7 +60,7 @@ class HizmetBilgiKaliplari extends Command
         // EMEKLI KATEGORILER: artik uretilmeyen ama eskiden DB'ye yazilmis kategoriler.
         // Bunlar $lib'te olmadigi icin normal silme onlari birakirdi (oksuz kayit).
         // Burada elle silinir. rofle-balyaj -> yerine ayri 'rofle'/'balayage'/'ombre'.
-        $emekli = ['rofle-balyaj', 'keratin', 'lazer'];
+        $emekli = ['rofle-balyaj', 'keratin', 'lazer', 'kirpik'];
         DB::table('asistan_kalip')->whereIn('kategori', $emekli)->delete();
 
         // KOPYA TEMIZLIGI: bu seeder'in sahip oldugu kategorileri silip yeniden yaz.
@@ -254,20 +254,9 @@ class HizmetBilgiKaliplari extends Command
                 ],
             ],
 
-            // NOT: kirpik LIFTING ARTIK zengin 'kirpik-lifting' (HizmetBilgiIcerik).
-            // Cakismasin diye buradaki tetikler DARALTILDI: yalniz IPEK/TAKMA/VOLUME kirpik
-            // (kopru). Ipek Kirpik (17. hizmet) gelince bu kalip ayni mantikla ele alinacak.
-            'kirpik' => [
-                'tetik' => 'ipek kirpik, kirpik takma, takma kirpik, kirpik dolgu, volume kirpik, hacimli kirpik, kirpik ekleme, ipek kirpik yaptirmak, kirpik takdirmak',
-                'cevaplar' => [
-                    'İpek kirpik, doğal kirpiklere tek tek ya da tutam halinde takılan ve gözlere daha belirgin, dolgun bir görünüm vermeyi amaçlayan bir uygulamadır.',
-                    'İpek kirpikle maskara sürmeden bile daha belirgin ve bakımlı bir göz görünümü elde edilebilir; sonuç kirpik yapınıza göre değişir.',
-                    'Daha dolgun bir görünüm için doğal ya da volüm kirpik uygulanabilir; hangisinin uygun olduğu kirpik yoğunluğunuza göre belirlenir.',
-                    'Belirli aralıklarla dolgu yaptırarak ipek kirpiklerin dolgun görünümünü korumak mümkün olabilir.',
-                    'Uygulama sırasında gözünüz kapalı şekilde rahatça uzanırsınız; göz çevresi hassas olduğu için işlemin dikkatli yapılması önemlidir.',
-                    'Doğal mı yoksa daha belirgin bir bakış mı istediğinize göre kirpik yoğunluğu birlikte belirlenebilir; göz hassasiyetiniz varsa önceden belirtmelisiniz.',
-                ],
-            ],
+            // NOT: kirpik LIFTING -> 'kirpik-lifting', IPEK/TAKMA kirpik -> 'ipek-kirpik'
+            // (ikisi de HizmetBilgiIcerik'te ayri zengin kategori). Eski kisa built-in
+            // 'kirpik' kalibi EMEKLI edildi (handle() $emekli listesi DB'den siler).
 
             // NOT: kaş ALMA/ŞEKİL/TASARIM ARTIK zengin 'kas-tasarimi' (HizmetBilgiIcerik).
             // Cakismasin diye buradaki tetikler DARALTILDI: yalniz laminasyon / microblading /
