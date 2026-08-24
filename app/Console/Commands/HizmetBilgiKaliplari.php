@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v9-2026-08-24-fon-zengin';
+    protected $surum = 'v10-2026-08-24-balayage';
 
     public function handle()
     {
@@ -187,8 +187,10 @@ class HizmetBilgiKaliplari extends Command
                 ],
             ],
 
+            // NOT: balyaj/balayage/ombre/sombre ARTIK AYRI kategoriler (HizmetBilgiIcerik).
+            // Cakismasin diye buradan cikarildi; bu kalip yalniz rofle/acma/tonlama icin.
             'rofle-balyaj' => [
-                'tetik' => 'rofle, rofle yaptirmak, roflelerim, balyaj, balayage, ombre, sombre, sac acma, acma islemi, ince tel, renkli tutam, gunes vurmus, tonlama, sac tonlama',
+                'tetik' => 'rofle, rofle yaptirmak, roflelerim, sac acma, acma islemi, ince tel, renkli tutam, tonlama, sac tonlama',
                 'cevaplar' => [
                     'Röfle, saçın belirli tutamlarının açılarak açık renk verilmesidir; saça boyutlu, ışıltılı bir görünüm katar.',
                     'Balyaj (balayage), fırça tekniğiyle saç uçlarına doğru doğal bir açılma verilen boyamadır; güneş vurmuş etkisi yaratır.',
