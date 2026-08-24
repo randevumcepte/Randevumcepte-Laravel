@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v16-2026-08-24-sac-botoksu';
+    protected $surum = 'v17-2026-08-24-lazer-epilasyon';
 
     public function handle()
     {
@@ -60,7 +60,7 @@ class HizmetBilgiKaliplari extends Command
         // EMEKLI KATEGORILER: artik uretilmeyen ama eskiden DB'ye yazilmis kategoriler.
         // Bunlar $lib'te olmadigi icin normal silme onlari birakirdi (oksuz kayit).
         // Burada elle silinir. rofle-balyaj -> yerine ayri 'rofle'/'balayage'/'ombre'.
-        $emekli = ['rofle-balyaj', 'keratin'];
+        $emekli = ['rofle-balyaj', 'keratin', 'lazer'];
         DB::table('asistan_kalip')->whereIn('kategori', $emekli)->delete();
 
         // KOPYA TEMIZLIGI: bu seeder'in sahip oldugu kategorileri silip yeniden yaz.
@@ -217,25 +217,8 @@ class HizmetBilgiKaliplari extends Command
                 ],
             ],
 
-            'lazer' => [
-                'tetik' => 'lazer epilasyon, lazer, epilasyon, tuy aldirmak, istenmeyen tuy, lazerle tuy, kalici epilasyon, tuy azaltma, bolgesel lazer, agda yerine lazer',
-                'cevaplar' => [
-                    'Lazer epilasyon, istenmeyen tüyleri kökten azaltmak için lazer ışını kullanılan bir uygulamadır; seanslar halinde yapılır.',
-                    'Lazerde tüy kökü ısıyla etkisizleştirilir; birkaç seans sonunda tüyler belirgin şekilde azalır ve incelir.',
-                    'İstenmeyen tüylerden kalıcı olarak kurtulmak isteyenler için lazer epilasyon uygulanır. Bölgeye göre seans sayısı değişir.',
-                    'İşlem seanslar halinde yapılır çünkü tüyler farklı büyüme döngülerindedir; düzenli seanslarla en iyi sonuç alınır.',
-                    'Lazer yüz, koltuk altı, bacak, bikini gibi birçok bölgeye uygulanabilir; hangi bölgeyi istediğinizi konuşarak planlarız.',
-                    'Her seansta o an aktif büyüme evresindeki tüyler etkilenir, bu yüzden seanslar aralıklı yapılır ve tüyler giderek azalır.',
-                    'Uygulama genelde rahat tolere edilir; cilt tipiniz ve tüy yapınıza göre uygun ayarlarla yapılır.',
-                    'Ağda/tıraşla uğraşmaktan yorulduysanız lazer epilasyon uzun vadede çok daha pratik ve kalıcı bir çözümdür.',
-                    'Seans öncesi bölgenin tıraşlı olması ve güneşten korunması önemlidir; detayları uygulamadan önce anlatırız.',
-                    'Bölgeye ve tüy yoğunluğuna göre ortalama seans sayısını değerlendirip size özel bir plan çıkarıyoruz.',
-                    'Lazer tüyleri inceltip seyreltir; birkaç seans sonra tıraş ihtiyacınız ciddi şekilde azalır.',
-                    'Cilt renginiz ve tüy renginize göre uygun lazer tipi belirlenir; en doğru yöntemi uzmanımız seçer.',
-                    'Kalıcı tüy azaltma için düzenli seans şarttır; aralıkları doğru takip edince sonuç çok daha başarılı olur.',
-                    'Uygulama sonrası cildinizi güneşten korumanız ve nemlendirmeniz önerilir; bakım önerilerini de paylaşırız.',
-                ],
-            ],
+            // NOT: 'lazer' ARTIK ayri zengin kategori 'lazer-epilasyon' (HizmetBilgiIcerik).
+            // Eski kisa built-in 'lazer' kalibi EMEKLI edildi (handle() $emekli listesi siler).
 
             'cilt-bakimi' => [
                 'tetik' => 'cilt bakimi, hydrafacial, hydra facial, yuz bakimi, cilt temizligi, siyah nokta, cilt yenileme, cilt nemlendirme, gozenek, cilt pruzsuz',
