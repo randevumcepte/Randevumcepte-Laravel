@@ -27931,65 +27931,70 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
 
         if(in_array(0,$request->personeller))
         {
+            // ── "Farketmez": slot, salondaki EN AZ BİR personel [saat, saat+toplamSure)
+            // boyunca tamamen boşsa müsaittir.
+            // ÖNCEKİ HATA: $dolusaatler personeller arası BİRİKİYOR ve $doluSet olarak
+            // hepsinin birleşimi kullanılıyordu; grid üyeliğiyle kontrol de gerçek
+            // örtüşmeyi kaçırıyordu → müsaitlik yanlış (çoğu zaman eksik bloklama).
+            // Artık her personelin dolu aralıkları AYRI tutulur ve gerçek zaman
+            // örtüşmesiyle kontrol edilir.
+            $personelDolu = array(); // pid => [[bas_ts, bit_ts], ...]
 
-            foreach($personelListe as $pid)
-            {
-                $randevular = Randevular::where('tarih', $tarih)->where('durum','<',2)
-                ->whereHas('hizmetler', function($query) use ($request,$pid) {
-                    $query->where('personel_id', $pid);
+            $randevular = Randevular::where('tarih', $tarih)->where('durum','<',2)
+                ->whereHas('hizmetler', function($query) use ($personelListe) {
+                    $query->whereIn('personel_id', $personelListe);
                 })
-                ->with(['hizmetler' => function($query) {
-                    $query->select('randevu_id', 'sure_dk', 'saat','saat_bitis','personel_id');
+                ->with(['hizmetler' => function($query) use ($personelListe) {
+                    $query->select('randevu_id', 'sure_dk', 'saat','saat_bitis','personel_id')
+                          ->whereIn('personel_id', $personelListe);
                 }])
                 ->get();
-
-                foreach ($randevular as $randevu) {
-
-                    foreach($randevu->hizmetler as $rH)
-                    {
-
-                        $baslangic = strtotime($rH->saat);
-                        $bitis = strtotime($rH->saat_bitis);
-
-                        // Tüm zaman aralığını blokla
-                        for ($t = $baslangic; $t < $bitis; $t += ($randevusaataraligi * 60)) {
-
-
-                                array_push($dolusaatler,array('dolu'=>'1','saat'=>date('H:i', $t)));
-
-                        }
-                    }
-
+            foreach ($randevular as $randevu) {
+                foreach ($randevu->hizmetler as $rH) {
+                    if (!in_array($rH->personel_id, $personelListe)) continue;
+                    $personelDolu[$rH->personel_id][] = array(strtotime($rH->saat), strtotime($rH->saat_bitis));
                 }
-
-
-                $saatindex = 0;
-                // Bu personelin dolu dilimleri (hizmet süresi penceresi bununla kontrol edilir).
-                $doluSet = array_column($dolusaatler, 'saat');
-
-                for ($j = strtotime($ortakBaslangic); $j < strtotime($ortakBitis); $j += ($randevusaataraligi * 60)) {
-                    $saat = date('H:i', $j);
-                    if ($saat < $simdikiZaman) continue;
-
-                    if ($slotUygunMu($saat, $doluSet)) {
-                        array_push($bosSaatler,array('dolu'=>'0','saat'=>$saat));
-                        $saatindex++;
-                    }
-                }
-
             }
-            $bosSaatler = array_map("unserialize", array_unique(array_map("serialize", $bosSaatler)));
-            $dolusaatler = array_map("unserialize", array_unique(array_map("serialize", $dolusaatler)));
-            $bosSaatListesi = array_column($bosSaatler, 'saat');
 
-            // 2) Dolulardan çıkar
-            $dolusaatler = array_values(array_filter($dolusaatler, function($item) use ($bosSaatListesi) {
-                return !in_array($item['saat'], $bosSaatListesi);
-            }));
+            // Personel molaları da o personel için dolu sayılır.
+            $molalar = PersonelMolaSaatleri::whereIn('personel_id', array_unique($personelListe))
+                ->where('mola_var', 1)
+                ->where('haftanin_gunu', $day)
+                ->get();
+            foreach ($molalar as $mola) {
+                if ($mola->baslangic_saati && $mola->bitis_saati) {
+                    $personelDolu[$mola->personel_id][] = array(strtotime($mola->baslangic_saati), strtotime($mola->bitis_saati));
+                }
+            }
 
+            $saatindex = 0;
+            for ($j = strtotime($ortakBaslangic); $j < strtotime($ortakBitis); $j += ($randevusaataraligi * 60)) {
+                $saat = date('H:i', $j);
+                if ($saat < $simdikiZaman) continue;
 
+                $bit = $j + ($toplamSure * 60);
+                if ($bit > strtotime($ortakBitis)) { // hizmet süresi kapanışı aşıyor
+                    array_push($dolusaatler, array('dolu'=>'1','saat'=>$saat));
+                    continue;
+                }
 
+                // En az bir personel bu pencerede tamamen boş mu?
+                $bosVar = false;
+                foreach ($personelListe as $pid) {
+                    $uygun = true;
+                    foreach (($personelDolu[$pid] ?? array()) as $ar) {
+                        if ($j < $ar[1] && $bit > $ar[0]) { $uygun = false; break; } // örtüşme
+                    }
+                    if ($uygun) { $bosVar = true; break; }
+                }
 
+                if ($bosVar) {
+                    array_push($bosSaatler, array('dolu'=>'0','saat'=>$saat));
+                    $saatindex++;
+                } else {
+                    array_push($dolusaatler, array('dolu'=>'1','saat'=>$saat));
+                }
+            }
         }
         else
         {
