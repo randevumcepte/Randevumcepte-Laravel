@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v18-2026-08-24-cilt-bakimi';
+    protected $surum = 'v19-2026-08-24-hydrafacial';
 
     public function handle()
     {
@@ -220,20 +220,9 @@ class HizmetBilgiKaliplari extends Command
             // NOT: 'lazer' ARTIK ayri zengin kategori 'lazer-epilasyon' (HizmetBilgiIcerik).
             // Eski kisa built-in 'lazer' kalibi EMEKLI edildi (handle() $emekli listesi siler).
 
-            // NOT: 'cilt-bakimi' ARTIK ayri zengin kategori (HizmetBilgiIcerik, ustune yazar).
-            // Buradaki blok HYDRAFACIAL koprusune donusturuldu (yalniz hydrafacial tetikleri);
-            // cilt-bakimi ile cakismaz. Hydrafacial (14. hizmet) gelince bu kopru ya ayni
-            // 'hydrafacial' slug'iyla ustune yazilir ya da emekli edilir.
-            'hydrafacial' => [
-                'tetik' => 'hydrafacial, hydra facial, hidrafacial, hydra fesyıl, hydrafacial nedir, hydrafacial bakim',
-                'cevaplar' => [
-                    'Hydrafacial, cildi derinlemesine temizleyip nemlendiren, siyah noktaları ve ölü derileri arındırmaya yardımcı olan popüler bir cilt bakım uygulamasıdır.',
-                    'Hydrafacial sonrası cilt genellikle daha pürüzsüz, nemli ve parlak görünür; özel günler öncesinde sıkça tercih edilir.',
-                    'Hydrafacial birçok cilt tipine uygulanabilir; cildinizde hassasiyet varsa uygulama ve ürünler ona göre seçilir.',
-                    'İşlemde cilt önce temizlenir, ardından arındırma ve nemlendirme aşamalarıyla cildin daha canlı görünmesi hedeflenir.',
-                    'Hydrafacial cildin daha temiz ve nemli görünmesine yardımcı olabilir ancak sonuç cilt tipinize ve cildinizin durumuna göre değişebilir.',
-                ],
-            ],
+            // NOT: 'cilt-bakimi' VE 'hydrafacial' ARTIK ayri zengin kategoriler
+            // (HizmetBilgiIcerik). Gecici hydrafacial koprusu KALDIRILDI; zengin
+            // 'hydrafacial' kategorisi ayni slug'la otomatik ustune yaziyor.
 
             'kalici-oje' => [
                 'tetik' => 'kalici oje, manikur, pedikur, oje, tirnak boyama, el bakimi, ayak bakimi, tirnak bakimi, kalici oje yaptirmak, tirnaklarimi yaptir',
