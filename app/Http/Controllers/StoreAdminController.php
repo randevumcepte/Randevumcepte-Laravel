@@ -3757,13 +3757,12 @@ public function carkverilerigetir(Request $request)
         $takvim_turu = 1;
     }
 
-    // "Saati geçen randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri).
-    // Tarih alt sinirini bugune cekiyoruz (indeks kullanimi icin) + bugunun saati gecmis
-    // randevulari asagida whereHas icinde eliyoruz. Aralik tamamen gecmiste kalirsa
+    // "Geçmiş randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri).
+    // GUN BAZLI: bugun ve sonrasi gorunur; bugunun saati gecmis randevulari GIZLENMEZ.
+    // Tarih alt sinirini bugune cekmek yeterli (indeksli). Aralik tamamen gecmiste kalirsa
     // $tarih1 > $tarih2 olur ve sorgu dogal olarak bos doner; takvimin geri kalan yapisi
     // (resource/calisma saatleri) bozulmaz.
     $_gecmisGizle = self::gecmisRandevuGizlensinMi($isletmeId);
-    $_simdi = date('Y-m-d H:i:s');
     if ($_gecmisGizle && $tarih1 < date('Y-m-d')) {
         $tarih1 = date('Y-m-d');
     }
@@ -3781,19 +3780,13 @@ public function carkverilerigetir(Request $request)
         'randevu.ongorusme.personel',
         'randevu.hizmetler', // partial icindeki yardimci personel taramasi N+1'ini engellemek icin
     ])->where('sure_dk','>',0)
-    ->whereHas('randevu', function ($q)  use($isletmeId,$tarih1,$tarih2,$_gecmisGizle,$_simdi){
+    ->whereHas('randevu', function ($q)  use($isletmeId,$tarih1,$tarih2){
         $q->where('durum', '<', 2);
+        // GUN BAZLI gecmis gizleme: $tarih1 zaten (gerekiyorsa) bugune cekildi;
+        // tarih>=$tarih1 filtresi gunun tamamini gosterir, saat bazli ek eleme yok.
         $q->where('tarih','>=',$tarih1);
         $q->where('tarih','<=',$tarih2);
         $q->where('salon_id',$isletmeId);
-        if ($_gecmisGizle) {
-            // Korelasyonlu alt sorgu — randevu_hizmetler kolonlari burada erisilebilir.
-            // Kalem saati NULL ise randevunun kendi saatine dus (ApiController ile ayni mantik).
-            $q->whereRaw(
-                "CONCAT(randevular.tarih,' ',COALESCE(randevu_hizmetler.saat, randevular.saat)) >= ?",
-                [$_simdi]
-            );
-        }
     })
     ->when($kendiPersonelIdFiltre, function ($q) use ($kendiPersonelIdFiltre) {
         $q->where('personel_id', $kendiPersonelIdFiltre);
@@ -17120,18 +17113,13 @@ DB::raw('
     $baseQuery = DB::table('randevular')
         ->where('randevular.salon_id', $salon_id);
 
-    // "Saati geçen randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri):
-    // alt siniri bugune cek (indeks) + bugunun saati gecmis randevularini ele.
-    // Musteri kartindaki "Randevular" sekmesine ($userid dolu) de uygulanir — istege gore
-    // orada da saati gecmis randevular gizlenir.
+    // "Geçmiş randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri):
+    // GUN BAZLI — alt siniri bugune cek; bugunun saati gecmis randevulari GIZLENMEZ.
+    // Musteri kartindaki "Randevular" sekmesine ($userid dolu) de uygulanir.
     if (self::gecmisRandevuGizlensinMi($salon_id)) {
         if ($tarih1 == '' || $tarih1 < date('Y-m-d')) {
             $tarih1 = date('Y-m-d');
         }
-        $baseQuery->whereRaw(
-            "CONCAT(randevular.tarih,' ',randevular.saat) >= ?",
-            [date('Y-m-d H:i:s')]
-        );
     }
 
     // Apply filters early to reduce the dataset before joins
@@ -19161,11 +19149,11 @@ DB::raw('
 
         $v = $s->c.'|'.$s->hmx.'|'.$s->hmu.'|'.$s->rmx.'|'.$s->rmu;
 
-        // Saati gecen randevu gizlenirken takvimin SADECE zaman ilerledigi icin de
-        // tazelenmesi gerekir (hicbir kayit degismese bile). Imzaya 5 dakikalik zaman
-        // kovasi ekle: en gec 5 dk icinde saati gecen randevu takvimden dusor.
+        // GUN BAZLI gizleme: randevular yalnizca gece yarisi (gun degisince) dusor,
+        // gun ici saat ilerledigi icin dusmez. Bu yuzden 5 dakikalik zaman kovasi
+        // eklemiyoruz; imzaya gunun tarihini ekleyip gun degisince tazelenmesi yeter.
         if ($_gecmisGizle) {
-            $v .= '|t'.floor(time() / 300);
+            $v .= '|d'.date('Y-m-d');
         }
 
         return response()->json(['v' => $v]);
