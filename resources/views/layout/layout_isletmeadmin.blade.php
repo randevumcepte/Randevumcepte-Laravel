@@ -2259,9 +2259,11 @@
                <h3 id="waPromoBaslik" class="wa-promo-baslik">WhatsApp Ücretsiz Kullanım Bitiyor</h3>
                @php
                   $_waBitisTs = \Carbon\Carbon::parse($rcWaUyari['bitis'] ?? '2026-08-31');
+                  $_waAylarTr = [1=>'Ocak',2=>'Şubat',3=>'Mart',4=>'Nisan',5=>'Mayıs',6=>'Haziran',7=>'Temmuz',8=>'Ağustos',9=>'Eylül',10=>'Ekim',11=>'Kasım',12=>'Aralık'];
+                  $_waTrTarih = function($t) use ($_waAylarTr) { return $t->format('d') . ' ' . $_waAylarTr[(int)$t->format('n')] . ' ' . $t->format('Y'); };
                   $_waBitisKisa = $_waBitisTs->format('d.m.Y');
-                  $_waBitisUzun = $_waBitisTs->translatedFormat('d F Y');
-                  $_waKontorluBaslangic = $_waBitisTs->copy()->addDay()->translatedFormat('d F Y');
+                  $_waBitisUzun = $_waTrTarih($_waBitisTs);
+                  $_waKontorluBaslangic = $_waTrTarih($_waBitisTs->copy()->addDay());
                @endphp
                <div class="wa-promo-pill">📅 Son tarih <b>{{ $_waBitisKisa }}</b>
                   @if((int)$rcWaUyari['kalan_gun'] > 0) · <b>{{ (int) $rcWaUyari['kalan_gun'] }} gün</b> kaldı @else · <b>bugün</b> son gün @endif
