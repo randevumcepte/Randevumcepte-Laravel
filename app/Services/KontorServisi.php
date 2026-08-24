@@ -9,21 +9,37 @@ use Illuminate\Support\Facades\Schema;
 /**
  * WhatsApp kontör (kredi) yönetimi. 1 mesaj = 1 kontör.
  *
- * - 31 Ağustos 2026'ya kadar ÜCRETSİZ dönem: kontör düşmez, engel yok.
- * - 1 Eylül 2026'dan itibaren: her WhatsApp mesajı 1 kontör düşer; bakiye yoksa gönderilmez
- *   (arayan taraf SMS'e düşürür).
+ * - Salon-basi 60 gun UCRETSIZ deneme: whatsapp_deneme_bitis kolonuna kadar
+ *   kontor dusmez, engel yok. Elle uzatilabilir (ornek: mevcut salonlar icin 2026-08-31)
+ * - Deneme bitisinden sonra: her WhatsApp mesaji 1 kontor duser; bakiye yoksa gonderilmez
+ *   (arayan taraf SMS'e dusurur).
+ * - Deneme tarihi bilinmiyorsa (kolon yok / degeri null) fallback global BASLANGIC.
  *
  * Bakiye salonlar.whatsapp_kontor'da; her hareket whatsapp_kontor_hareketleri'nde loglanır.
- * Kolon/tablo yoksa self-heal ile oluşturulur (migrate koşmamış sunucular için).
  */
 class KontorServisi
 {
-    /** Kontörlü dönemin başladığı tarih (bu tarihten önce ücretsiz). */
+    /** Fallback: hicbir salon-ozel deneme bitisi yoksa kullanilan global tarih. */
     const BASLANGIC = '2026-09-01';
 
-    /** Kontörlü dönem başladı mı? (öncesi ücretsiz) */
-    public static function kontorlusDonemMi()
+    /**
+     * Kontorlu donem basladi mi? Salon verilirse salon-ozel deneme_bitis'e bakilir,
+     * verilmezse global BASLANGIC fallback'i kullanilir.
+     */
+    public static function kontorlusDonemMi($salon = null)
     {
+        if ($salon) {
+            $bitis = is_object($salon) ? ($salon->whatsapp_deneme_bitis ?? null) : null;
+            if (!$bitis && !is_object($salon)) {
+                // salon_id gecildiyse cek
+                try {
+                    $bitis = DB::table('salonlar')->where('id', (int) $salon)->value('whatsapp_deneme_bitis');
+                } catch (\Throwable $e) {}
+            }
+            if ($bitis) {
+                return date('Y-m-d') > substr((string) $bitis, 0, 10);
+            }
+        }
         return date('Y-m-d') >= self::BASLANGIC;
     }
 
@@ -73,7 +89,8 @@ class KontorServisi
      */
     public static function yeterliMi($salon, $adet = 1)
     {
-        if (!self::kontorlusDonemMi()) return true;
+        // Salon-ozel deneme bitisine bakilir; deneme surerken engel yok.
+        if (!self::kontorlusDonemMi($salon)) return true;
         if (!self::kolonVar()) return true;
         return self::bakiye($salon) >= $adet;
     }
@@ -84,7 +101,8 @@ class KontorServisi
      */
     public static function dus($salon, $adet = 1, $aciklama = 'whatsapp-mesaj')
     {
-        if (!self::kontorlusDonemMi()) return true;
+        // Salon-ozel deneme bitisine bakilir; deneme surerken kontor dusmez.
+        if (!self::kontorlusDonemMi($salon)) return true;
         $id = is_object($salon) ? ($salon->id ?? null) : $salon;
         if (!$id || $adet < 1) return false;
         self::selfHeal();

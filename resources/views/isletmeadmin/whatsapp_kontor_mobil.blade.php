@@ -51,7 +51,11 @@
 <body>
 @php
     $_kBakiye = (int) ($isletme->whatsapp_kontor ?? 0);
-    $_kDonem  = \App\Services\KontorServisi::kontorlusDonemMi();
+    $_kDonem  = \App\Services\KontorServisi::kontorlusDonemMi($isletme);
+    $_denemeBitisRaw = $isletme->whatsapp_deneme_bitis ?? '2026-08-31';
+    $_denemeBitis = \Carbon\Carbon::parse($_denemeBitisRaw);
+    $_denemeBitisMetin = $_denemeBitis->translatedFormat('d F Y');
+    $_kontorluBaslangicMetin = $_denemeBitis->copy()->addDay()->translatedFormat('d F Y');
 @endphp
 <div class="wrap">
 
@@ -59,8 +63,8 @@
     <div class="wkp-free-banner">
         <div class="wkp-free-ic">🎉</div>
         <div>
-            <div class="wkp-free-t1">31 Ağustos'a kadar WhatsApp tamamen ÜCRETSİZ</div>
-            <div class="wkp-free-t2"><b>1 Eylül 2026</b>'dan itibaren kontörlü sisteme geçilecek — <b>1 mesaj = 1 kontör</b>. Şimdiden paketleri inceleyip hazırlanabilirsiniz.</div>
+            <div class="wkp-free-t1">{{ $_denemeBitisMetin }} tarihine kadar WhatsApp tamamen ÜCRETSİZ</div>
+            <div class="wkp-free-t2"><b>{{ $_kontorluBaslangicMetin }}</b> tarihinden itibaren kontörlü sisteme geçilecek — <b>1 mesaj = 1 kontör</b>. Şimdiden paketleri inceleyip hazırlanabilirsiniz.</div>
         </div>
         <div class="wkp-free-pill">ŞU AN ÜCRETSİZ</div>
     </div>

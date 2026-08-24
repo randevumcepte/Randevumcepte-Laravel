@@ -2257,14 +2257,20 @@
                   </svg>
                </div>
                <h3 id="waPromoBaslik" class="wa-promo-baslik">WhatsApp Ücretsiz Kullanım Bitiyor</h3>
-               <div class="wa-promo-pill">📅 Son tarih <b>31.08.2026</b>
+               @php
+                  $_waBitisTs = \Carbon\Carbon::parse($rcWaUyari['bitis'] ?? '2026-08-31');
+                  $_waBitisKisa = $_waBitisTs->format('d.m.Y');
+                  $_waBitisUzun = $_waBitisTs->translatedFormat('d F Y');
+                  $_waKontorluBaslangic = $_waBitisTs->copy()->addDay()->translatedFormat('d F Y');
+               @endphp
+               <div class="wa-promo-pill">📅 Son tarih <b>{{ $_waBitisKisa }}</b>
                   @if((int)$rcWaUyari['kalan_gun'] > 0) · <b>{{ (int) $rcWaUyari['kalan_gun'] }} gün</b> kaldı @else · <b>bugün</b> son gün @endif
                </div>
             </div>
             <div class="wa-promo-body">
                <p>
-                  Ücretsiz WhatsApp hatırlatma kullanımınız <b>31 Ağustos 2026</b>'da sona eriyor.
-                  <b>1 Eylül</b>'den itibaren mesajlar kontörden düşecek.
+                  Ücretsiz WhatsApp hatırlatma kullanımınız <b>{{ $_waBitisUzun }}</b>'de sona eriyor.
+                  <b>{{ $_waKontorluBaslangic }}</b>'den itibaren mesajlar kontörden düşecek.
                </p>
                <div class="wa-promo-kbox">💬 1 mesaj = 1 kontör</div>
                <p style="margin-bottom:2px;">

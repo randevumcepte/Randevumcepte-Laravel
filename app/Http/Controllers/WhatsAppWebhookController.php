@@ -179,6 +179,12 @@ class WhatsAppWebhookController extends Controller
             $salon->whatsapp_baglanti_tarihi = now();
             $salon->whatsapp_warmup_baslangic = now();
         }
+        // Salon-basi 60 gun ucretsiz deneme — ilk baglanmada bir kez set edilir.
+        // Zaten set edilmis salonlara dokunmaz (manuel uzatma korunur).
+        if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar', 'whatsapp_deneme_bitis')
+            && empty($salon->whatsapp_deneme_bitis)) {
+            $salon->whatsapp_deneme_bitis = now()->addDays(60)->toDateString();
+        }
         $salon->whatsapp_son_hata = null;
         $salon->save();
     }

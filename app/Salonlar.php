@@ -46,33 +46,30 @@ class Salonlar extends Model
         $iletisimTel = '05412948144';
 
         try {
-            // === YENİ MODEL (2026-07) — salon-başı 2 ay promo KALDIRILDI ===
-            // Herkes 31.08.2026'ya kadar ücretsiz (global tek tarih); 1 Eylül'de
-            // kontörlü sisteme geçiş (bkz. KontorServisi + whatsapp.blade kontör
-            // uyarıları). Bu metod artık SADECE "Hesabım > Aldığım Hizmetler"
-            // kartını besler; ESKİ "son 5 gün ara/öde" popup'ı ÜRETMEZ
-            // ('uyari' her zaman false). whatsapp_promo_* kolonları kullanılmıyor.
+            // === MODEL (2026-08) — salon-basi 60 gun deneme (whatsapp_deneme_bitis kolonu) ===
+            // Her salon WhatsApp'a ilk baglandiginda 60 gun ucretsiz deneme baslar
+            // (webhook.onConnected). Elle uzatilabilir. Mevcut salonlar 2026-08-31'e
+            // migrate edildi (baslangic karari). Deneme bitisinden sonra kontorlu.
 
-            // Ücretli paketler zaten promo dışında — kendi kartı/akışı var
+            // Ücretli paketler promo dışında — kendi kartı/akışı var
             $paket = $isletme->whatsapp_paket ?: 'baslangic';
             if (in_array($paket, ['pro', 'premium'])) {
                 return ['promo' => false, 'iletisim' => $iletisimTel];
             }
 
-            $bitis = \Carbon\Carbon::parse('2026-08-31')->startOfDay();
+            // Salon-ozel deneme bitisi (yoksa global 2026-08-31 fallback)
+            $bitisStr = $isletme->whatsapp_deneme_bitis ?? '2026-08-31';
+            $bitis = \Carbon\Carbon::parse($bitisStr)->startOfDay();
             $kalan = (int) \Carbon\Carbon::now()->startOfDay()->diffInDays($bitis, false);
-            $suresiDoldu = $kalan < 0; // 1 Eylül+ => kontörlü dönem başladı
+            $suresiDoldu = $kalan < 0;
 
-            // Ağustos "kontör al" heads-up popup'ı: 1–31 Ağustos arası günde 1 kez
-            // gösterilir (layout). bitis=31 Ağustos → Ağustos 1'de kalan=30.
-            // 1 Eylül+ olunca (suresiDoldu) kapanır; yerini kontör bakiyesi
-            // popup'ları alır (whatsapp.blade). Ücretli paketler zaten yukarıda elendi.
+            // Son ay heads-up popup'i (kalan <=30 gun)
             $agustosUyari = !$suresiDoldu && $kalan <= 30;
 
             return [
                 'promo'         => true,
                 'baslangic'     => null,
-                'bitis'         => '2026-08-31',
+                'bitis'         => $bitis->toDateString(),
                 'kalan_gun'     => max(0, $kalan),
                 'suresi_doldu'  => $suresiDoldu,
                 'aktif'         => !$suresiDoldu,
