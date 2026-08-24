@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v7-2026-08-24-komple-boya-zengin';
+    protected $surum = 'v8-2026-08-24-sac-kesim-zengin';
 
     public function handle()
     {
