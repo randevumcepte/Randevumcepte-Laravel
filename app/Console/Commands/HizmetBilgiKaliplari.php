@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v17-2026-08-24-lazer-epilasyon';
+    protected $surum = 'v18-2026-08-24-cilt-bakimi';
 
     public function handle()
     {
@@ -220,21 +220,18 @@ class HizmetBilgiKaliplari extends Command
             // NOT: 'lazer' ARTIK ayri zengin kategori 'lazer-epilasyon' (HizmetBilgiIcerik).
             // Eski kisa built-in 'lazer' kalibi EMEKLI edildi (handle() $emekli listesi siler).
 
-            'cilt-bakimi' => [
-                'tetik' => 'cilt bakimi, hydrafacial, hydra facial, yuz bakimi, cilt temizligi, siyah nokta, cilt yenileme, cilt nemlendirme, gozenek, cilt pruzsuz',
+            // NOT: 'cilt-bakimi' ARTIK ayri zengin kategori (HizmetBilgiIcerik, ustune yazar).
+            // Buradaki blok HYDRAFACIAL koprusune donusturuldu (yalniz hydrafacial tetikleri);
+            // cilt-bakimi ile cakismaz. Hydrafacial (14. hizmet) gelince bu kopru ya ayni
+            // 'hydrafacial' slug'iyla ustune yazilir ya da emekli edilir.
+            'hydrafacial' => [
+                'tetik' => 'hydrafacial, hydra facial, hidrafacial, hydra fesyıl, hydrafacial nedir, hydrafacial bakim',
                 'cevaplar' => [
-                    'Cilt bakımı, cildin temizlenmesi, nemlendirilmesi ve canlandırılması için yapılan bir uygulamadır; cilt tipinize göre planlanır.',
-                    'Hydrafacial, cildi derinlemesine temizleyip nemlendiren, siyah noktaları ve ölü derileri arındıran popüler bir bakımdır.',
-                    'Cildinizde siyah nokta, mat görünüm veya kuruluk varsa cilt bakımıyla temiz, nemli ve ışıltılı bir görünüm elde edebiliriz.',
-                    'İşlemde cilt önce temizlenir, ardından cilt tipinize uygun bakım adımları uygulanır ve nemlendirmeyle tamamlanır.',
-                    'Hydrafacial sonrası cilt anında daha pürüzsüz ve parlak görünür; özel günler öncesi çok tercih edilir.',
-                    'Cilt bakımıyla gözenekler arındırılır, cilt tonu düzenlenir ve cilt yenilenmeye teşvik edilir.',
-                    'Cilt tipinizi (kuru, yağlı, karma, hassas) değerlendirip bakımı ona göre kişiselleştiriyoruz.',
-                    'Düzenli cilt bakımı cildin daha sağlıklı, dengeli ve genç görünmesine yardımcı olur.',
-                    'Leke, mat görünüm veya yorgun bir cilt için canlandırıcı bakımlar uyguluyoruz; ihtiyacınıza göre programlarız.',
-                    'Bakım sırasında cildi yormadan, nazik ürünlerle temizlik ve nemlendirme yapıyoruz.',
-                    'Cildinizin ihtiyacını birlikte belirleyip uygun bakımı öneriyoruz.',
-                    'Hydrafacial gibi bakımlar birçok cilt tipine uygundur; hassasiyetiniz varsa ona göre ürün seçeriz.',
+                    'Hydrafacial, cildi derinlemesine temizleyip nemlendiren, siyah noktaları ve ölü derileri arındırmaya yardımcı olan popüler bir cilt bakım uygulamasıdır.',
+                    'Hydrafacial sonrası cilt genellikle daha pürüzsüz, nemli ve parlak görünür; özel günler öncesinde sıkça tercih edilir.',
+                    'Hydrafacial birçok cilt tipine uygulanabilir; cildinizde hassasiyet varsa uygulama ve ürünler ona göre seçilir.',
+                    'İşlemde cilt önce temizlenir, ardından arındırma ve nemlendirme aşamalarıyla cildin daha canlı görünmesi hedeflenir.',
+                    'Hydrafacial cildin daha temiz ve nemli görünmesine yardımcı olabilir ancak sonuç cilt tipinize ve cildinizin durumuna göre değişebilir.',
                 ],
             ],
 
