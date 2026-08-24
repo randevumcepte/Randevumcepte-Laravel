@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v11-2026-08-24-ombre';
+    protected $surum = 'v12-2026-08-24-rofle';
 
     public function handle()
     {
@@ -56,6 +56,12 @@ class HizmetBilgiKaliplari extends Command
         } catch (\Throwable $e) {}
         $kategoriler = array_keys($lib);
         $now = date('Y-m-d H:i:s');
+
+        // EMEKLI KATEGORILER: artik uretilmeyen ama eskiden DB'ye yazilmis kategoriler.
+        // Bunlar $lib'te olmadigi icin normal silme onlari birakirdi (oksuz kayit).
+        // Burada elle silinir. rofle-balyaj -> yerine ayri 'rofle'/'balayage'/'ombre'.
+        $emekli = ['rofle-balyaj'];
+        DB::table('asistan_kalip')->whereIn('kategori', $emekli)->delete();
 
         // KOPYA TEMIZLIGI: bu seeder'in sahip oldugu kategorileri silip yeniden yaz.
         // NOT: Panelden bu kategorilere elle eklediklerin surum artinca silinir;
@@ -187,25 +193,9 @@ class HizmetBilgiKaliplari extends Command
                 ],
             ],
 
-            // NOT: balyaj/balayage/ombre/sombre ARTIK AYRI kategoriler (HizmetBilgiIcerik).
-            // Cakismasin diye buradan cikarildi; bu kalip yalniz rofle/acma/tonlama icin.
-            'rofle-balyaj' => [
-                'tetik' => 'rofle, rofle yaptirmak, roflelerim, sac acma, acma islemi, ince tel, renkli tutam, tonlama, sac tonlama',
-                'cevaplar' => [
-                    'Röfle, saçın belirli tutamlarının açılarak açık renk verilmesidir; saça boyutlu, ışıltılı bir görünüm katar.',
-                    'Balyaj (balayage), fırça tekniğiyle saç uçlarına doğru doğal bir açılma verilen boyamadır; güneş vurmuş etkisi yaratır.',
-                    'Ombre, dipten uca koyudan açığa geçişli bir renklendirmedir. Sombre ise bunun daha yumuşak, doğal tonudur.',
-                    'Röfle/balyaj ile saçınıza boyut ve hareket kazandırıyoruz; tamamını açmadan ışıltılı tutamlar oluşturuyoruz.',
-                    'Doğal bir açılma ve derinlik istiyorsanız balyaj çok tercih edilir; dipler daha koyu, uçlar açık olur.',
-                    'Röflede ince tutamlar folyoyla açılır; böylece saçta ton ton bir canlılık elde edilir.',
-                    'Balyaj serbest teknikle uygulandığı için sonuç çok doğal olur ve uzadıkça belirgin dip çizgisi bırakmaz.',
-                    'Güneşte açılmış gibi doğal bir görünüm istiyorsanız balayage ideal; uçlara doğru yumuşak bir açılma veriyoruz.',
-                    'Ombre’de dip koyu bırakılıp uçlara doğru belirgin bir açılma yapılır; iddialı bir görünüm sever misiniz, birlikte karar veririz.',
-                    'Röfle ile hem kır kapatma hem canlılık sağlanabilir; ne kadar açık istediğinizi konuşarak belirleriz.',
-                    'Açma işleminden sonra genelde tonlama yapılır; böylece istenmeyen sarılık/turuncu giderilir ve renk oturur.',
-                    'Balyaj/ombre saç boyunuza ve mevcut renginize göre planlanır; doğal mı iddialı mı istediğinizi söylemeniz yeterli.',
-                ],
-            ],
+            // NOT: rofle/balyaj/balayage/ombre/sombre ARTIK AYRI kategoriler
+            // (app/Support/HizmetBilgiIcerik). Eski lumped 'rofle-balyaj' kalibi EMEKLI
+            // edildi (handle() icindeki $emekli listesi DB'den siler).
 
             'keratin' => [
                 'tetik' => 'keratin, keratin bakimi, brezilya fonu, sac duzlestirme, duzlestirme, sacim kabariyor, kabaran sac, elektrikleniyor, elektriklenme, sac pruzsuz, ipeksi sac',
