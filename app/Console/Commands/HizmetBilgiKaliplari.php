@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v22-2026-08-25-ipek-kirpik';
+    protected $surum = 'v23-2026-08-25-manikur';
 
     public function handle()
     {
@@ -224,8 +224,11 @@ class HizmetBilgiKaliplari extends Command
             // (HizmetBilgiIcerik). Gecici hydrafacial koprusu KALDIRILDI; zengin
             // 'hydrafacial' kategorisi ayni slug'la otomatik ustune yaziyor.
 
+            // NOT: MANIKUR ARTIK zengin 'manikur' (HizmetBilgiIcerik). Cakismasin diye
+            // buradaki manikur/el bakimi/tirnak bakimi tetikleri CIKARILDI. Bu kalip artik
+            // KALICI OJE + PEDIKUR koprusu (pedikur 19. hizmet gelince ayrilacak).
             'kalici-oje' => [
-                'tetik' => 'kalici oje, manikur, pedikur, oje, tirnak boyama, el bakimi, ayak bakimi, tirnak bakimi, kalici oje yaptirmak, tirnaklarimi yaptir',
+                'tetik' => 'kalici oje, oje, oje surme, tirnak boyama, tirnak ojesi, kalici oje yaptirmak, kalici oje bakimi, jel oje, pedikur, ayak bakimi',
                 'cevaplar' => [
                     'Kalıcı oje, normal ojeden farklı olarak UV/LED ışıkta sertleşen ve haftalarca dökülmeden kalan bir uygulamadır.',
                     'Manikür, el ve tırnak bakımıdır; tırnak şekillendirilir, tırnak etleri düzenlenir ve isteğe göre oje uygulanır.',
