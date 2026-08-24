@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v19-2026-08-24-hydrafacial';
+    protected $surum = 'v20-2026-08-25-kas-tasarimi';
 
     public function handle()
     {
@@ -270,19 +270,21 @@ class HizmetBilgiKaliplari extends Command
                 ],
             ],
 
+            // NOT: kaş ALMA/ŞEKİL/TASARIM ARTIK zengin 'kas-tasarimi' (HizmetBilgiIcerik).
+            // Cakismasin diye buradaki tetikler DARALTILDI: yalniz laminasyon / microblading /
+            // kas boyama gibi AYRI alt hizmetler (kopru). Bunlar ileride kendi zengin
+            // kategorilerini alirsa bu kalip emekli edilir.
             'kas' => [
-                'tetik' => 'kas laminasyon, kas dizayn, kas alma, ipek kas, kas boyama, kas sekillendirme, microblading, kalici kas, kas yaptirmak, kaslarim',
+                'tetik' => 'kas laminasyon, kas laminasyonu, laminasyon, ipek kas, microblading, micro blading, kalici kas, kas boyama, kas boyatma, kas renklendirme, kas renk',
                 'cevaplar' => [
-                    'Kaş dizaynı, yüz hatlarınıza uygun kaş şeklinin belirlenip şekillendirilmesidir.',
-                    'Kaş laminasyonu, kaş kıllarını istenen yöne sabitleyip daha dolgun ve düzenli bir görünüm kazandıran işlemdir.',
-                    'Kaşlarınız dağınık ya da seyrekse laminasyon ve dizaynla daha dolgun, bakımlı bir form elde edebiliriz.',
-                    'Kaş boyamayla kaşlarınıza uygun ton verilir; seyrek bölgeler daha dolgun görünür.',
-                    'Yüzünüze en çok yakışacak kaş formunu birlikte belirleyip ona göre şekillendiriyoruz.',
-                    'Kaş laminasyonu kaşları taranmış gibi düzenli tutar ve günlük olarak daha derli toplu görünmenizi sağlar.',
-                    'İstediğiniz görünüm doğal mı yoksa belirgin mi, buna göre kaş tasarımını planlıyoruz.',
-                    'Kaş alma ve şekillendirmeyle yüz ifadenizi tazeleyip daha bakımlı bir görünüm kazandırıyoruz.',
-                    'Kaş boyama ve laminasyon birlikte yapıldığında etki daha dolgun ve kalıcı olur.',
-                    'Kaşlarınızın mevcut yapısını değerlendirip size en uygun işlemi öneriyoruz.',
+                    'Kaş laminasyonu, kaş kıllarını istenen yöne sabitleyip daha dolgun ve düzenli bir görünüm kazandırmaya yardımcı olan bir işlemdir.',
+                    'Kaş laminasyonu kaşları taranmış gibi düzenli tutar ve günlük olarak daha derli toplu görünmenize yardımcı olabilir.',
+                    'Kaş boyamayla kaşlarınıza uygun ton verilerek seyrek bölgelerin daha dolgun görünmesi sağlanabilir.',
+                    'Kaş boyama ve laminasyon birlikte yapıldığında etki daha dolgun ve daha belirgin görünebilir.',
+                    'Microblading, kaşlara kıl görünümü verecek şekilde uygulanan kalıcı kaş işlemlerinden biridir; uygunluğu kişiye göre değerlendirilir.',
+                    'Kalıcı kaş uygulamalarında amaç kaşların daha dolgun ve belirgin görünmesidir; sonuç cilt ve kaş yapısına göre değişebilir.',
+                    'İpek kaş ve kalıcı kaş uygulamaları kaşları daha dolgun göstermeye yardımcı olabilir; hangisinin uygun olduğu kaş yapınıza göre belirlenir.',
+                    'Kaşlarınızın mevcut yapısını değerlendirip laminasyon, boyama veya kalıcı uygulamalardan size en uygun olanı önerebiliriz.',
                 ],
             ],
         ];
