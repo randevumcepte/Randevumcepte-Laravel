@@ -1053,9 +1053,9 @@
                            <div class="form-group">
                               <div class="custom-control custom-checkbox mb-5">
                                  <input type="checkbox" class="custom-control-input" name="gecmis_randevulari_gizle" id="gecmis_randevulari_gizle" value="1" {{(!empty($isletme->gecmis_randevulari_gizle)) ? 'checked' : ''}}>
-                                 <label class="custom-control-label" for="gecmis_randevulari_gizle">Saati geçen randevular görünmesin</label>
+                                 <label class="custom-control-label" for="gecmis_randevulari_gizle">Geçmiş günlerin randevuları görünmesin</label>
                               </div>
-                              <small class="text-muted">Bu seçenek açıkken randevu takviminde, randevu listesinde ve müşteri kartındaki randevular sekmesinde saati geçmiş randevular gösterilmez.</small>
+                              <small class="text-muted">Bu seçenek açıkken randevu takviminde, randevu listesinde ve müşteri kartındaki randevular sekmesinde geçmiş günlere ait randevular gösterilmez. Bugünün randevuları (saati geçmiş olsa bile) görünmeye devam eder.</small>
                            </div>
                         </div>
                         <div class="col-md-12">

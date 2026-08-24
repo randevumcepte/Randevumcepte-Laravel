@@ -623,8 +623,10 @@
         // Salon-ozel deneme bitisi (yoksa global fallback)
         $_denemeBitisRaw = $isletme->whatsapp_deneme_bitis ?? '2026-08-31';
         $_denemeBitis = \Carbon\Carbon::parse($_denemeBitisRaw);
-        $_denemeBitisMetin = $_denemeBitis->translatedFormat('d F Y');
-        $_kontorluBaslangicMetin = $_denemeBitis->copy()->addDay()->translatedFormat('d F Y');
+        $_aylarTr = [1=>'Ocak',2=>'Şubat',3=>'Mart',4=>'Nisan',5=>'Mayıs',6=>'Haziran',7=>'Temmuz',8=>'Ağustos',9=>'Eylül',10=>'Ekim',11=>'Kasım',12=>'Aralık'];
+        $_trTarih = function($t) use ($_aylarTr) { return $t->format('d') . ' ' . $_aylarTr[(int)$t->format('n')] . ' ' . $t->format('Y'); };
+        $_denemeBitisMetin = $_trTarih($_denemeBitis);
+        $_kontorluBaslangicMetin = $_trTarih($_denemeBitis->copy()->addDay());
     @endphp
     @if(!$_kDonem)
     <div class="wkp-free-banner">

@@ -69,7 +69,7 @@ class AdetDonemiBildirimleri extends Command
 
                 if ($hatirlatma->haftanin_gunleri) {
                     $gunler = json_decode($hatirlatma->haftanin_gunleri, true) ?? [];
-                    $bugunStr = $now->translatedFormat('l'); // Örn: Pazartesi
+                    $bugunStr = $now->format('l'); // İngilizce gün adı; turkceGun() çevirir
                     // Türkçe çeviri desteği
                     $bugunStr = $this->turkceGun($bugunStr);
                     if (in_array($bugunStr, $gunler)) {
