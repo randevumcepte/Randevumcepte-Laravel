@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v13-2026-08-24-sombre';
+    protected $surum = 'v14-2026-08-24-keratin';
 
     public function handle()
     {
@@ -197,8 +197,11 @@ class HizmetBilgiKaliplari extends Command
             // (app/Support/HizmetBilgiIcerik). Eski lumped 'rofle-balyaj' kalibi EMEKLI
             // edildi (handle() icindeki $emekli listesi DB'den siler).
 
+            // NOT: 'keratin' ARTIK ayri zengin kategori 'keratin-bakimi' (HizmetBilgiIcerik).
+            // Cakismasin diye buradaki tetikler DARALTILDI: yalniz brezilya fonu/duzlestirme
+            // (kopru). Brezilya Fonu (10. hizmet) gelince bu built-in tamamen EMEKLI edilecek.
             'keratin' => [
-                'tetik' => 'keratin, keratin bakimi, brezilya fonu, sac duzlestirme, duzlestirme, sacim kabariyor, kabaran sac, elektrikleniyor, elektriklenme, sac pruzsuz, ipeksi sac',
+                'tetik' => 'brezilya fonu, sac duzlestirme, duzlestirme, kalici duzlestirme, sac duzlestirme islemi',
                 'cevaplar' => [
                     'Keratin bakımı, saça keratin proteini kazandırarak elektriklenmeyi azaltan ve saçı pürüzsüz, parlak gösteren bir bakımdır.',
                     'Brezilya fönü, kabaran ve elektriklenen saçları düzleştirip yönetilebilir hale getiren bir bakım işlemidir.',
