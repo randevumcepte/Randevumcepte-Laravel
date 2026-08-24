@@ -20987,7 +20987,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $urun_kalem_sayisi = isset($request->adisyon_urun_id) ? AdisyonUrunler::whereIn('id',$request->adisyon_urun_id)->count() : 0;
         $paket_kalem_sayisi = isset($request->adisyon_paket_id) ? AdisyonPaketler::whereIn('id',$request->adisyon_paket_id)->count() : 0;
         $kalem_sayisi = $hizmet_kalem_sayisi+$urun_kalem_sayisi+$paket_kalem_sayisi;
-        $kalem_basina_indirim_tutari = round((str_replace(['.',','],['','.'],$request->indirim_tutari)+$request->musteri_indirimi)/ $kalem_sayisi,2);
+        // Non-numeric/bos input'lar (PHP 7'de string+int aritmetigi warning firlatiyor) ve /0 guvenligi
+        $_hariciIndirimNum = (float) str_replace(['.',','],['','.'], (string)($request->indirim_tutari ?? '0'));
+        $_musteriIndirimNum = (float) str_replace(['.',','],['','.'], (string)($request->musteri_indirimi ?? '0'));
+        $kalem_basina_indirim_tutari = $kalem_sayisi > 0
+            ? round(($_hariciIndirimNum + $_musteriIndirimNum) / $kalem_sayisi, 2)
+            : 0;
         if(isset($request->adisyon_hizmet_id)){
             foreach($request->adisyon_hizmet_id as $hizmet_id)
             {
