@@ -25485,18 +25485,30 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 }
                 $adisyonpaket->delete();
             }
-            $taksitler = TaksitliTahsilatlar::whereIn('id',$taksitlitahsilat_idler)->get();
-            foreach($taksitler as $taksit)
+            // Taksitli tahsilatlari HEM kalem baglantisi HEM de adisyon_id uzerinden yakala:
+            // Bazi flow'lar (ozellikle Yeni Tahsilat -> Taksit Yap komisyon senaryosu)
+            // taksitli_tahsilat_id'yi kalemlere yansitmayabiliyor -> boyle durumda adisyon
+            // silinse bile TaksitliTahsilatlar+vadeler+alacaklar kaliyordu.
+            $_taksitBundle = TaksitliTahsilatlar::whereIn('id', array_values(array_filter($taksitlitahsilat_idler)))
+                ->orWhere('adisyon_id', $request->adisyon_id)
+                ->get();
+            $_silinenTaksitIdler = [];
+            foreach($_taksitBundle as $taksit)
             {
                 foreach($taksit->vadeler as $vade)
                     $vade->delete();
+                $_silinenTaksitIdler[] = $taksit->id;
                 $taksit->delete();
             }
-            $senetler = Senetler::whereIn('id',$senet_idler)->get();
-            foreach($senetler as $senet)
+            $_senetBundle = Senetler::whereIn('id', array_values(array_filter($senet_idler)))
+                ->orWhere('adisyon_id', $request->adisyon_id)
+                ->get();
+            $_silinenSenetIdler = [];
+            foreach($_senetBundle as $senet)
             {
                 foreach($senet->vadeler as $vade)
                     $vade->delete();
+                $_silinenSenetIdler[] = $senet->id;
                 $senet->delete();
             }
             // YETIM ALACAK FIX: taksit/senet uzerinden bagli Alacaklar kayitlarinda
@@ -25505,10 +25517,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             // bunlari yakalamaz -> silinmis vadeye isaret eden 18 "hayalet alacak" +
             // taksit kaydi kalir. Burada taksitli_tahsilat_id ve senet_id uzerinden de
             // temizliyoruz.
-            $_temizTaksitIdler = array_values(array_filter($taksitlitahsilat_idler));
+            $_temizTaksitIdler = array_values(array_unique(array_filter(array_merge($taksitlitahsilat_idler, $_silinenTaksitIdler))));
             if(count($_temizTaksitIdler) > 0)
                 Alacaklar::whereIn('taksitli_tahsilat_id',$_temizTaksitIdler)->delete();
-            $_temizSenetIdler = array_values(array_filter($senet_idler));
+            $_temizSenetIdler = array_values(array_unique(array_filter(array_merge($senet_idler, $_silinenSenetIdler))));
             if(count($_temizSenetIdler) > 0)
                 Alacaklar::whereIn('senet_id',$_temizSenetIdler)->delete();
             Tahsilatlar::whereIn('id',$tahsilat_idler)->delete();
