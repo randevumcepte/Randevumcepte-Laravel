@@ -13133,67 +13133,73 @@ $('#taksitli_tahsilat_formu').on('submit',function(e){
              $("#preloader").hide();
              if(result && result.adisyonId && $('#session_adisyon_id').length)
                  $('#session_adisyon_id').val(result.adisyonId);
+
+             // Modali kesin kapat (data-dismiss + programatik)
+             $('#yeni_taksitli_tahsilat_modal').modal('hide');
+             $('#taksitModalKapat').trigger('click');
+
              swal(
                 {
                     type: "success",
                     title: "Başarılı",
-                    html: "<p>Taksitli alacak kayıtları başarıyla oluşturuldu</p>"+
-                          "<a class='btn btn-primary btn-lg btn-block' id='alacaklar_listeme_git' href='#'>"
-                          +"Alacaklar Listeme Git</a>",
+                    html: "<p>Taksitli alacak kayıtları başarıyla oluşturuldu</p>",
                     showCloseButton: false,
                     showCancelButton: false,
                     showConfirmButton:false,
+                    timer: 2500
                 }
             );
-            if($('#tahsilat_ekrani').length)
-            {
+
+            // Kismi ödeme = 0 < onOdemeTutari < birim_tutar (kalem toplami)
+            var _onOdeme = parseFloat(($('#onOdemeTutari').val()||'0').replace(/\./g,'').replace(',','.')) || 0;
+            var _tamAlacak = parseFloat(($('#birim_tutar').val()||'0').replace(/\./g,'').replace(',','.')) || 0;
+            var _kismiOdeme = _onOdeme > 0 && _onOdeme < _tamAlacak;
+
+            // Odenecek/Kalan/Komisyon/Harici indirim her durumda sifirlanir
+            $('#odenecek_tutar').val('0,00');
+            $('#indirimli_toplam_tahsilat_tutari').val('0,00');
+            $('#toplam_tahsilat_tutari').val('0,00');
+            $('#tahsil_edilecek_kalan_tutar,.tahsil_edilecek_kalan_tutar').empty().append('0,00');
+            $('#komisyon_tutari').val('0');
+            $('#uygulanan_komisyon_tutari').text('0,00');
+            $('#harici_indirim_tutari').val('');
+
+            if(!_kismiOdeme){
+                // Tam taksit / tam ödeme -> form tamamen sifir
                 $('#tum_tahsilatlar').empty();
-                $('#tum_tahsilatlar').append(result.kalemler);
                 $('#tahsilat_listesi').empty();
-                $('#tahsilat_listesi').append(result.tahsilatlar);
-                tahsilatyenidenhesapla();
+                $('#birim_tutar').val('0,00');
+                $('#musteri_indirimi').val(0);
+                $('#uygulanan_indirim_tutari').empty().append('0,00');
+                $('#uygulanan_harici_indirim_tutari').empty().append('0,00');
+                $('#ara_toplam').empty().append('0,00');
+                $('#tahsilat_durumu').hide();
+                $('#onOdemeTutari').val('');
+                $('#taksit_tutar').val('');
+                if($('#session_adisyon_id').length)
+                    $('#session_adisyon_id').val('');
+            } else {
+                // Kismi: backend'den donen kalem listesi ile guncelle
+                if(result && result.kalemler){
+                    $('#tum_tahsilatlar').empty().append(result.kalemler);
+                }
+                if(result && result.tahsilatlar){
+                    $('#tahsilat_listesi').empty().append(result.tahsilatlar);
+                }
+                if(typeof tahsilatyenidenhesapla === 'function') tahsilatyenidenhesapla();
             }
-            else
-            {
+
+            // Adisyon detay sayfasi (session_adisyon_id yok) icin ilave buton state
+            if(!$('#session_adisyon_id').length){
                 $('#yeni_tahsilat_ekle').removeAttr('data-value');
                 $('#yeni_tahsilat_ekle').removeAttr('data-toggle');
                 $('#yeni_tahsilat_ekle').removeAttr('data-target');
                 $('#yeni_tahsilat_ekle').attr('id','taksitle_tahsil_et');
                 $('#taksitveyasenet').val(result);
                 $('#taksitveyasenet').attr('id','adisyontaksitlitahsilatid');
-                // Yenitahsilat: Adisyon taksite baglandi -> Odenecek 0, session bosal
-                $('#odenecek_tutar').val('0,00');
-                $('#indirimli_toplam_tahsilat_tutari').val('0,00');
-                $('#toplam_tahsilat_tutari').val('0,00');
-                $('#tahsil_edilecek_kalan_tutar,.tahsil_edilecek_kalan_tutar').empty().append('0,00');
-                $('#komisyon_tutari').val('0');
-                $('#uygulanan_komisyon_tutari').text('0,00');
-                $('#harici_indirim_tutari').val('');
-                if($('#session_adisyon_id').length)
-                    $('#session_adisyon_id').val('');
-                // Kismi olmayan (tam taksit ya da tam odemeli) durumlarda formu tamamen sifirla.
-                // Kismi ödeme = 0 < onOdemeTutari < indirimli_toplam
-                var _onOdeme = parseFloat(($('#onOdemeTutari').val()||'0').replace(/\./g,'').replace(',','.')) || 0;
-                var _tamAlacak = parseFloat(($('#birim_tutar').val()||'0').replace(/\./g,'').replace(',','.')) || 0;
-                var _kismiOdeme = _onOdeme > 0 && _onOdeme < _tamAlacak;
-                if(!_kismiOdeme){
-                    // Kalem listesi, birim tutar, indirimler, tum ozet fieldlar temizle
-                    $('#tum_tahsilatlar').empty();
-                    $('#tahsilat_listesi').empty();
-                    $('#birim_tutar').val('0,00');
-                    $('#musteri_indirimi').val(0);
-                    $('#uygulanan_indirim_tutari').empty().append('0,00');
-                    $('#uygulanan_harici_indirim_tutari').empty().append('0,00');
-                    $('#ara_toplam').empty().append('0,00');
-                    $('#tahsilat_durumu').hide();
-                    $('#onOdemeTutari').val('');
-                    $('#taksit_tutar').val('');
-                    $('.adisyon_ekle_buttonlar').each(function(){ $(this).attr('disabled','true'); });
-                }
+            }
             if($('#yeni_taksitli_tahsilat_olusur').length)
                 $('#yeni_taksitli_tahsilat_olusur').attr('disabled','true');
-            $('#taksitModalKapat').trigger('click');
-            }
         },
         error: function (request, status, error) {
                 $("#preloader").hide();
