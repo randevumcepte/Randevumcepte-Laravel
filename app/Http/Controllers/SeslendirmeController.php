@@ -30,8 +30,16 @@ class SeslendirmeController extends Controller
 
         $ad = $servis->uret($metin, $ses ?: null);
         if (!$ad) {
-            // Anahtar yok / uretilemedi -> uygulama cihaz TTS'ine dusecek
-            return response()->json(['basarili' => false, 'hata' => 'Ses uretilemedi.'], 502);
+            // NOT: 502 yerine 200 -> Cloudflare govdeyi yemesin, app JSON okuyup cihaz
+            // TTS'ine dussun. 'anahtar_var' teshis icin (false=.env'de yok/cache).
+            $anahtarVar = (string) config('services.google_tts.key', '') !== '';
+            return response()->json([
+                'basarili'    => false,
+                'hata'        => $anahtarVar
+                    ? 'Ses uretilemedi (Google cagrisi basarisiz olabilir).'
+                    : 'GOOGLE_TTS_API_KEY sunucuda tanimli degil (.env) veya config cache.',
+                'anahtar_var' => $anahtarVar,
+            ], 200);
         }
 
         return response()->json([
