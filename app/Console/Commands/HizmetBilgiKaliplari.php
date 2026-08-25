@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v23-2026-08-25-manikur';
+    protected $surum = 'v24-2026-08-25-pedikur';
 
     public function handle()
     {
@@ -224,22 +224,21 @@ class HizmetBilgiKaliplari extends Command
             // (HizmetBilgiIcerik). Gecici hydrafacial koprusu KALDIRILDI; zengin
             // 'hydrafacial' kategorisi ayni slug'la otomatik ustune yaziyor.
 
-            // NOT: MANIKUR ARTIK zengin 'manikur' (HizmetBilgiIcerik). Cakismasin diye
-            // buradaki manikur/el bakimi/tirnak bakimi tetikleri CIKARILDI. Bu kalip artik
-            // KALICI OJE + PEDIKUR koprusu (pedikur 19. hizmet gelince ayrilacak).
+            // NOT: MANIKUR -> 'manikur', PEDIKUR -> 'pedikur' (ikisi de HizmetBilgiIcerik'te
+            // ayri zengin kategori). Bu kalip artik SADECE KALICI OJE / oje bilgisi verir.
             'kalici-oje' => [
-                'tetik' => 'kalici oje, oje, oje surme, tirnak boyama, tirnak ojesi, kalici oje yaptirmak, kalici oje bakimi, jel oje, pedikur, ayak bakimi',
+                'tetik' => 'kalici oje, oje, oje surme, oje surmek, tirnak boyama, tirnak ojesi, kalici oje yaptirmak, kalici oje bakimi, kalici oje sonrasi, kalici oje cikarma, jel oje, tirnak kaplama',
                 'cevaplar' => [
-                    'Kalıcı oje, normal ojeden farklı olarak UV/LED ışıkta sertleşen ve haftalarca dökülmeden kalan bir uygulamadır.',
-                    'Manikür, el ve tırnak bakımıdır; tırnak şekillendirilir, tırnak etleri düzenlenir ve isteğe göre oje uygulanır.',
-                    'Pedikür ise ayak ve ayak tırnağı bakımıdır; tırnaklar bakımlı, ayaklar pürüzsüz hale gelir.',
-                    'Uzun süre bozulmayan bir tırnak istiyorsanız kalıcı oje idealdir; parlaklığını haftalarca korur.',
-                    'Kalıcı ojede istediğiniz rengi seçiyoruz, tırnağa uygulayıp ışıkta kurutuyoruz; çıkışta hemen işinize dönebilirsiniz.',
-                    'Manikür-pedikürle ellerinizi ve ayaklarınızı bakımlı, temiz ve şık gösteriyoruz.',
-                    'Kalıcı oje günlük hayatta çabuk bozulmadığı için pratiktir; renk ve modeli birlikte seçeriz.',
-                    'Tırnak bakımında tırnak sağlığını koruyarak şekillendirme ve renklendirme yapıyoruz.',
-                    'İstediğiniz renk, simli, mat ya da nail-art detayları... nasıl bir tırnak istediğinizi söylemeniz yeterli.',
-                    'El ve ayak bakımınızı birlikte yaptırabilir, hem bakımlı hem şık bir görünüm elde edebilirsiniz.',
+                    'Kalıcı oje, normal ojeden farklı olarak UV veya LED ışıkta sertleşen ve genellikle daha uzun süre dökülmeden kalan bir tırnak uygulamasıdır.',
+                    'Kalıcı ojede istediğiniz renk seçilir, tırnağa uygulanır ve ışıkta kurutulur; çıkışta ojenin kuruma derdi olmadan gününüze devam edebilirsiniz.',
+                    'Uzun süre bozulmadan kalan bir tırnak görünümü isteyen kişiler için kalıcı oje pratik bir seçenek olabilir; parlaklığını uzun süre korur.',
+                    'Kalıcı ojenin ne kadar kalacağı tırnak yapınıza, uzama hızınıza ve günlük kullanımınıza göre kişiden kişiye değişebilir.',
+                    'Kalıcı oje çıkarılırken tırnağı kazımak veya zorlayarak sökmek yerine uygun yöntemle nazikçe çıkarılması tırnak sağlığı açısından önemlidir.',
+                    'Renk seçenekleri geniştir; simli, mat, parlak veya farklı detaylarla nasıl bir görünüm istediğinizi belirtmeniz yeterli olur.',
+                    'Kalıcı oje günlük hayatta çabuk bozulmadığı için özellikle yoğun temposu olan kişiler tarafından tercih edilebilir.',
+                    'Tırnaklarınız çok ince veya kırılgansa kalıcı oje uygulaması ve çıkarımı sırasında daha nazik davranılması önemlidir.',
+                    'Sık kalıcı oje yaptırıyorsanız zaman zaman tırnakların dinlendirilmesi ve bakımı tırnak sağlığı açısından faydalı olabilir.',
+                    'Kalıcı oje bir tırnak renklendirme ve kaplama uygulamasıdır; el veya ayak bakımıyla birlikte de yaptırılabilir, ancak işlem içerikleri farklıdır.',
                 ],
             ],
 
