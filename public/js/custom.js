@@ -1,4 +1,4 @@
-// custom.js v262.6 — kaynak cakisma coklu kontrol (personel+oda+cihaz) + yaniltici basari koruma
+// custom.js v263.1 — randevu submit cift-tik kilidi (in-flight bayrak + buton disable, .always ile sifirla) => tek randevudan 3 kayit bug fix
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // jQuery
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3602,6 +3602,10 @@ function kaynakMusaitSecici(res){
 }
 $(document).on('submit','#yenirandevuekleform',function(e){
     e.preventDefault();
+    // Cift-submit korumasi: onceki istek ucarken (preloader modalin ALTINDA kaldigi
+    // icin buton tiklanabilir kaliyordu) resepsiyonun 2-3 kez tiklamasi 3 ayri randevu
+    // aciyordu. In-flight bayragi + buton disable ile ikinci submit engellenir.
+    if(window.__rndSubmitting){ return false; }
     var personelveyacihasecili = true;
     var hizmetsecili = true;
     var suregirildi = true;
@@ -3707,6 +3711,9 @@ $(document).on('submit','#yenirandevuekleform',function(e){
         for (var pair of formData.entries()) {
             console.log(pair[0]+ ', ' + pair[1]);
         }
+        // Kilidi tam istek ucmadan once koy; .always() ile serbest birak.
+        window.__rndSubmitting = true;
+        $('#randevu-olustur').prop('disabled', true);
         $.ajax({
             type: "POST",
             //url: '/isletmeyonetim/yenirandevuekle',
@@ -3858,6 +3865,11 @@ $(document).on('submit','#yenirandevuekleform',function(e){
                 $('button[data-dismiss="modal"]').trigger('click');
                 $('#preloader').hide();
             }
+        }).always(function(){
+            // Ilk istek bitti (basari/cakisma/hata) -> kilidi ac. Cakisma onayindan
+            // sonraki ikinci gonderim swal overlay'i arkasinda oldugu icin guvenli.
+            window.__rndSubmitting = false;
+            $('#randevu-olustur').prop('disabled', false);
         });
      }
 });
