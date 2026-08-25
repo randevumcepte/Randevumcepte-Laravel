@@ -13193,6 +13193,7 @@ $('#taksitli_tahsilat_formu').on('submit',function(e){
             if($('#yeni_taksitli_tahsilat_olusur').length)
                 $('#yeni_taksitli_tahsilat_olusur').attr('disabled','true');
             $('#taksitModalKapat').trigger('click');
+            }
         },
         error: function (request, status, error) {
                 $("#preloader").hide();
