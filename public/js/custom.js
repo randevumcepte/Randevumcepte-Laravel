@@ -13161,6 +13161,17 @@ $('#taksitli_tahsilat_formu').on('submit',function(e){
                 $('#yeni_tahsilat_ekle').attr('id','taksitle_tahsil_et');
                 $('#taksitveyasenet').val(result);
                 $('#taksitveyasenet').attr('id','adisyontaksitlitahsilatid');
+                // Yenitahsilat: Adisyon artik taksite baglandi -> Odenecek Tutar 0,
+                // session_adisyon_id bosal (yeni kalem yeni adisyon acsin), komisyon/harici indirim sifirla
+                $('#odenecek_tutar').val('0,00');
+                $('#indirimli_toplam_tahsilat_tutari').val('0,00');
+                $('#toplam_tahsilat_tutari').val('0,00');
+                $('#tahsil_edilecek_kalan_tutar,.tahsil_edilecek_kalan_tutar').empty().append('0,00');
+                $('#komisyon_tutari').val('0');
+                $('#uygulanan_komisyon_tutari').text('0,00');
+                $('#harici_indirim_tutari').val('');
+                if($('#session_adisyon_id').length)
+                    $('#session_adisyon_id').val('');
             }
             if($('#yeni_taksitli_tahsilat_olusur').length)
                 $('#yeni_taksitli_tahsilat_olusur').attr('disabled','true');
