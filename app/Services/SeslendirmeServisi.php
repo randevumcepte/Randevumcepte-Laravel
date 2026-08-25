@@ -1,0 +1,159 @@
+<?php
+
+namespace App\Services;
+
+/**
+ * Google Cloud Text-to-Speech ile metni MP3'e cevirir ve SUNUCUDA ONBELLEGE alir.
+ *
+ * Mantik:
+ *  - Ayni metin (ayni ses) daha once uretildiyse tekrar Google'a gidilmez -> dosya
+ *    dogrudan doner. Bilgilendirme cevaplari SABIT oldugu icin tum salonlarda ORTAK
+ *    cache; pratikte tek seferlik uretim -> maliyet ~0.
+ *  - Anahtar yoksa null doner; cagiran taraf cihaz TTS'ine duser (regresyon yok).
+ *
+ * Dosyalar: storage/app/tts/<hash>.mp3
+ */
+class SeslendirmeServisi
+{
+    protected $klasor;
+
+    public function __construct()
+    {
+        $this->klasor = storage_path('app/tts');
+        if (!is_dir($this->klasor)) {
+            @mkdir($this->klasor, 0775, true);
+        }
+    }
+
+    /**
+     * Metni sese cevirir. Cache'de varsa uretmeden dosya ADINI doner (<hash>.mp3).
+     * Basarisizsa null (cagiran cihaz TTS'ine duser).
+     */
+    public function uret($metin, $ses = null)
+    {
+        $metin = trim((string) $metin);
+        if ($metin === '') return null;
+
+        $ses = $ses ?: (string) config('services.google_tts.voice', 'tr-TR-Wavenet-E');
+        $okunacak = $this->okunusHazirla($metin);
+        if ($okunacak === '') return null;
+
+        $hash = md5($ses . '|' . $okunacak);
+        $ad = $hash . '.mp3';
+        $yol = $this->klasor . '/' . $ad;
+
+        // Cache hit
+        if (is_file($yol) && filesize($yol) > 0) return $ad;
+
+        $mp3 = $this->googleUret($okunacak, $ses);
+        if ($mp3 === null || $mp3 === '') return null;
+
+        @file_put_contents($yol, $mp3);
+        return (is_file($yol) && filesize($yol) > 0) ? $ad : null;
+    }
+
+    /** Dosya adindan tam yol (guvenlik: sadece basename). Yoksa null. */
+    public function dosyaYolu($ad)
+    {
+        $ad = basename((string) $ad);
+        if (!preg_match('/^[a-f0-9]{32}\.mp3$/', $ad)) return null;
+        $yol = $this->klasor . '/' . $ad;
+        return is_file($yol) ? $yol : null;
+    }
+
+    /** Google Cloud TTS REST cagrisi. Basarisizsa null. */
+    protected function googleUret($metin, $ses)
+    {
+        $key = (string) config('services.google_tts.key', '');
+        if ($key === '') return null;
+
+        $url = 'https://texttospeech.googleapis.com/v1/text:synthesize?key=' . urlencode($key);
+        $govde = json_encode([
+            'input'       => ['text' => $metin],
+            'voice'       => ['languageCode' => 'tr-TR', 'name' => $ses],
+            'audioConfig' => ['audioEncoding' => 'MP3', 'speakingRate' => 1.0, 'pitch' => 0.0],
+        ], JSON_UNESCAPED_UNICODE);
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json; charset=utf-8'],
+            CURLOPT_POSTFIELDS     => $govde,
+            CURLOPT_TIMEOUT        => 20,
+            CURLOPT_CONNECTTIMEOUT => 8,
+        ]);
+        $res  = curl_exec($ch);
+        $kod  = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($kod !== 200 || !$res) return null;
+        $j = json_decode($res, true);
+        if (empty($j['audioContent'])) return null;
+        $bin = base64_decode($j['audioContent'], true);
+        return $bin !== false ? $bin : null;
+    }
+
+    /**
+     * Okunusu hazirlar: (1) marka terimlerini fonetik yaz (Hydrafacial -> Hidrafeşıl),
+     * (2) saat "14:30" -> "on dort otuz", (3) kalan rakamlari yaziya cevir. Boylece
+     * TTS rakamlari/markalari dogru okur.
+     */
+    public function okunusHazirla($metin)
+    {
+        $m = ' ' . trim((string) $metin) . ' ';
+
+        // 1) Marka/yabanci terimler (Turkce TTS yanlis okuyor)
+        $m = preg_replace('/hydra\s*facial/iu', 'Hidrafeşıl', $m);
+        $m = preg_replace('/hydrafacial/iu', 'Hidrafeşıl', $m);
+
+        // 2) Saat HH:MM -> yaziyla
+        $m = preg_replace_callback('/\b([01]?\d|2[0-3]):([0-5]\d)\b/u', function ($x) {
+            $s = $this->sayiYazi((int) $x[1]);
+            $d = ((int) $x[2]) > 0 ? ' ' . $this->sayiYazi((int) $x[2]) : '';
+            return $s . $d;
+        }, $m);
+
+        // 3) Kalan tam sayilar -> yaziya
+        $m = preg_replace_callback('/\d+/u', function ($x) {
+            return $this->sayiYazi((int) $x[0]);
+        }, $m);
+
+        return trim(preg_replace('/\s+/u', ' ', $m));
+    }
+
+    /** 0..999999 arasi tam sayiyi Turkce yaziya cevirir (nadir buyuklukte oldugu gibi). */
+    protected function sayiYazi($n)
+    {
+        if ($n === 0) return 'sıfır';
+        $on = '';
+        if ($n < 0) { $on = 'eksi '; $n = -$n; }
+        if ($n >= 1000000) return $on . (string) $n;
+
+        $bin = intdiv($n, 1000);
+        $kalan = $n % 1000;
+        $out = '';
+        if ($bin > 0) {
+            $out .= ($bin === 1) ? 'bin ' : $this->ucBasamak($bin) . ' bin ';
+        }
+        if ($kalan > 0) {
+            $out .= $this->ucBasamak($kalan);
+        }
+        return $on . trim($out);
+    }
+
+    protected function ucBasamak($n)
+    {
+        $birler = ['', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'];
+        $onlar  = ['', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan'];
+        $out = '';
+        $yuz = intdiv($n, 100);
+        $k   = $n % 100;
+        if ($yuz > 0) $out .= (($yuz === 1) ? 'yüz' : $birler[$yuz] . ' yüz') . ' ';
+        $o = intdiv($k, 10);
+        $b = $k % 10;
+        if ($o > 0) $out .= $onlar[$o] . ' ';
+        if ($b > 0) $out .= $birler[$b] . ' ';
+        return trim($out);
+    }
+}

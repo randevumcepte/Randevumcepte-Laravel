@@ -176,6 +176,9 @@ Route::post('/randevuekleguncelle','ApiController@randevuekleguncelle');
 Route::match(['GET','POST'], '/sesli-randevu-coz', 'SesliRandevuController@coz'); // salt-okunur cozumleme; tarayicidan da test edilebilsin diye GET de acik
 Route::match(['GET','POST'], '/sesli-randevu-musaitlik', 'SesliRandevuController@musaitlik'); // en yakin bos slot
 Route::match(['GET','POST'], '/sesli-randevu-takvim-durumu', 'SesliRandevuController@takvimDurumu'); // personel takvimi acik mi
+// Sesli asistan BULUT TTS (sadece iOS kullanir): metin -> MP3 URL (sunucuda onbellekli)
+Route::match(['GET','POST'], '/seslendir', 'SeslendirmeController@uret');
+Route::get('/ses/{ad}', 'SeslendirmeController@ses')->where('ad', '[a-f0-9]{32}\.mp3');
 Route::post('/saatkapamaekle','ApiController@saatkapamaekle');
 Route::post('/kapalisaatsil','ApiController@kapalisaatsil');
 Route::post('/paketVarmiKontrolu','ApiController@paketVarmiKontroluApi');

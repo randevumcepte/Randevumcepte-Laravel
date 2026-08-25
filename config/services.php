@@ -53,4 +53,12 @@ return [
         'model' => env('ANTHROPIC_MODEL', 'claude-haiku-4-5'),
     ],
 
+    // Google Cloud Text-to-Speech — SADECE iOS icin bulut ses (Android cihaz sesi
+    // zaten bedava/iyi). Anahtar YOKSA sistem cihaz TTS'ine duser (regresyon yok).
+    // Cevaplar sunucuda MP3 olarak ONBELLEGE alinir -> ayni cumle tekrar uretilmez.
+    'google_tts' => [
+        'key'   => env('GOOGLE_TTS_API_KEY', ''),
+        'voice' => env('GOOGLE_TTS_VOICE', 'tr-TR-Wavenet-E'), // erkek; kadin icin tr-TR-Wavenet-D
+    ],
+
 ];
