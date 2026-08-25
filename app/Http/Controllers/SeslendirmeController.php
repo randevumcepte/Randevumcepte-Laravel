@@ -46,10 +46,14 @@ class SeslendirmeController extends Controller
             return response()->json($cevap, 200);
         }
 
-        return response()->json([
+        $cevap = [
             'basarili' => true,
             'url'      => url('/api/v1/ses/' . $ad),
-        ]);
+        ];
+        if ($request->has('debug')) {
+            $cevap['okunus'] = $servis->okunusHazirla($metin); // TTS'e giden metin (dogrulama)
+        }
+        return response()->json($cevap);
     }
 
     /** GET /api/v1/ses/{ad}.mp3 -> onbellekteki MP3'u servis eder */
