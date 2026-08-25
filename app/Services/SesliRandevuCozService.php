@@ -699,6 +699,19 @@ class SesliRandevuCozService
                 }
             }
 
+            // KAMPANYA/PAKET adli hizmetler (icinde bircok hizmet olan demetler):
+            // kullanici ACIKCA "kampanya/paket" demediyse GERI PLANA at. Boylece
+            // "kalici oje" deyince "... Kalici Oje Kampanyasi/Paketi" degil, gercek
+            // "Kalici Oje" hizmeti secilir. Gercek hizmet yoksa skor 0.6 altina
+            // duserek elenir -> asistan yanlis demeti otomatik eklemek yerine sorar.
+            $adKampanyaMi = (mb_strpos($adFold, 'kampanya') !== false)
+                || (mb_strpos($adFold, 'paket') !== false);
+            $kullaniciDemetIstedi = (mb_strpos($fold, 'kampanya') !== false)
+                || (mb_strpos($fold, 'paket') !== false);
+            if ($adKampanyaMi && !$kullaniciDemetIstedi) {
+                $skor -= 0.5;
+            }
+
             if ($skor >= 0.6) {
                 $eslesen[] = [
                     'hizmet_id'      => $sh->hizmet_id,
