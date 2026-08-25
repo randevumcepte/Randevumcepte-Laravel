@@ -13161,8 +13161,7 @@ $('#taksitli_tahsilat_formu').on('submit',function(e){
                 $('#yeni_tahsilat_ekle').attr('id','taksitle_tahsil_et');
                 $('#taksitveyasenet').val(result);
                 $('#taksitveyasenet').attr('id','adisyontaksitlitahsilatid');
-                // Yenitahsilat: Adisyon artik taksite baglandi -> Odenecek Tutar 0,
-                // session_adisyon_id bosal (yeni kalem yeni adisyon acsin), komisyon/harici indirim sifirla
+                // Yenitahsilat: Adisyon taksite baglandi -> Odenecek 0, session bosal
                 $('#odenecek_tutar').val('0,00');
                 $('#indirimli_toplam_tahsilat_tutari').val('0,00');
                 $('#toplam_tahsilat_tutari').val('0,00');
@@ -13172,7 +13171,25 @@ $('#taksitli_tahsilat_formu').on('submit',function(e){
                 $('#harici_indirim_tutari').val('');
                 if($('#session_adisyon_id').length)
                     $('#session_adisyon_id').val('');
-            }
+                // Kismi olmayan (tam taksit ya da tam odemeli) durumlarda formu tamamen sifirla.
+                // Kismi ödeme = 0 < onOdemeTutari < indirimli_toplam
+                var _onOdeme = parseFloat(($('#onOdemeTutari').val()||'0').replace(/\./g,'').replace(',','.')) || 0;
+                var _tamAlacak = parseFloat(($('#birim_tutar').val()||'0').replace(/\./g,'').replace(',','.')) || 0;
+                var _kismiOdeme = _onOdeme > 0 && _onOdeme < _tamAlacak;
+                if(!_kismiOdeme){
+                    // Kalem listesi, birim tutar, indirimler, tum ozet fieldlar temizle
+                    $('#tum_tahsilatlar').empty();
+                    $('#tahsilat_listesi').empty();
+                    $('#birim_tutar').val('0,00');
+                    $('#musteri_indirimi').val(0);
+                    $('#uygulanan_indirim_tutari').empty().append('0,00');
+                    $('#uygulanan_harici_indirim_tutari').empty().append('0,00');
+                    $('#ara_toplam').empty().append('0,00');
+                    $('#tahsilat_durumu').hide();
+                    $('#onOdemeTutari').val('');
+                    $('#taksit_tutar').val('');
+                    $('.adisyon_ekle_buttonlar').each(function(){ $(this).attr('disabled','true'); });
+                }
             if($('#yeni_taksitli_tahsilat_olusur').length)
                 $('#yeni_taksitli_tahsilat_olusur').attr('disabled','true');
             $('#taksitModalKapat').trigger('click');

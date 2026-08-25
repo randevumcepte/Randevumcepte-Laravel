@@ -5636,7 +5636,7 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=13.6')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=262.7')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=262.8')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
