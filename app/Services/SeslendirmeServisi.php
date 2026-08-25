@@ -165,24 +165,28 @@ class SeslendirmeServisi
         return $m !== '' ? $m : trim((string) $metin);
     }
 
-    /** 0..999999 arasi tam sayiyi Turkce yaziya cevirir (nadir buyuklukte oldugu gibi). */
+    /** Tam sayiyi Turkce yaziya cevirir (milyar'a kadar; ustu nadir -> oldugu gibi). */
     protected function sayiYazi($n)
     {
         if ($n === 0) return 'sıfır';
         $on = '';
         if ($n < 0) { $on = 'eksi '; $n = -$n; }
-        if ($n >= 1000000) return $on . (string) $n;
+        if ($n >= 1000000000000) return $on . (string) $n; // trilyon ustu cok nadir
 
-        $bin = intdiv($n, 1000);
-        $kalan = $n % 1000;
+        $gruplar = [1000000000 => 'milyar', 1000000 => 'milyon', 1000 => 'bin', 1 => ''];
         $out = '';
-        if ($bin > 0) {
-            $out .= ($bin === 1) ? 'bin ' : $this->ucBasamak($bin) . ' bin ';
+        foreach ($gruplar as $bol => $ad) {
+            $adet = intdiv($n, $bol);
+            $n = $n % $bol;
+            if ($adet <= 0) continue;
+            // "bir bin" DEGIL, sadece "bin"; ama "bir milyon"/"bir milyar" DOGRU.
+            if ($bol === 1000 && $adet === 1) {
+                $out .= 'bin ';
+            } else {
+                $out .= $this->ucBasamak($adet) . ($ad !== '' ? ' ' . $ad . ' ' : ' ');
+            }
         }
-        if ($kalan > 0) {
-            $out .= $this->ucBasamak($kalan);
-        }
-        return $on . trim($out);
+        return $on . trim(preg_replace('/\s+/', ' ', $out));
     }
 
     protected function ucBasamak($n)
