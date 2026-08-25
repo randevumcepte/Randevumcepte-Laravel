@@ -17,6 +17,9 @@ class SeslendirmeServisi
 {
     protected $klasor;
 
+    /** Son Google cagrisinin teshis bilgisi (debug icin). */
+    public $sonHata = null;
+
     public function __construct()
     {
         $this->klasor = storage_path('app/tts');
@@ -83,9 +86,17 @@ class SeslendirmeServisi
             CURLOPT_TIMEOUT        => 20,
             CURLOPT_CONNECTTIMEOUT => 8,
         ]);
-        $res  = curl_exec($ch);
-        $kod  = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $res     = curl_exec($ch);
+        $kod     = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr = curl_error($ch);
         curl_close($ch);
+
+        // Teshis (debug icin): ne oldu?
+        $this->sonHata = [
+            'http'     => $kod,
+            'curl_err' => $curlErr,
+            'govde'    => is_string($res) ? mb_substr($res, 0, 250) : '(bos)',
+        ];
 
         if ($kod !== 200 || !$res) return null;
         $j = json_decode($res, true);

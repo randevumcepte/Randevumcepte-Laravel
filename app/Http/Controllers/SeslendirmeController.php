@@ -33,13 +33,17 @@ class SeslendirmeController extends Controller
             // NOT: 502 yerine 200 -> Cloudflare govdeyi yemesin, app JSON okuyup cihaz
             // TTS'ine dussun. 'anahtar_var' teshis icin (false=.env'de yok/cache).
             $anahtarVar = (string) config('services.google_tts.key', '') !== '';
-            return response()->json([
+            $cevap = [
                 'basarili'    => false,
                 'hata'        => $anahtarVar
                     ? 'Ses uretilemedi (Google cagrisi basarisiz olabilir).'
                     : 'GOOGLE_TTS_API_KEY sunucuda tanimli degil (.env) veya config cache.',
                 'anahtar_var' => $anahtarVar,
-            ], 200);
+            ];
+            if ($request->has('debug')) {
+                $cevap['teshis'] = $servis->sonHata; // http kodu + curl hatasi + govde
+            }
+            return response()->json($cevap, 200);
         }
 
         return response()->json([
