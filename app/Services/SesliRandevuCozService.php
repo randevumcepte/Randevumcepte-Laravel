@@ -54,6 +54,7 @@ class SesliRandevuCozService
     protected $stopKelimeler = [
         'randevu', 'randevusu', 'randevuyu', 'ver', 'versene', 'yaz', 'ekle', 'olustur',
         'olusturur', 'musun', 'lutfen', 'icin', 'ile', 've', 'bir',
+        'ara', 'arama', 'aç', 'ac', 'lazim', 'istiyorum', 'istiyor', 'yaptir', 'yaptirmak',
         // tarih ekli/yalin
         'bugun', 'bugune', 'yarin', 'yarina', 'obur', 'ertesi', 'haftaya',
         'gun', 'gune', 'gunu', 'gunku',
@@ -828,12 +829,22 @@ class SesliRandevuCozService
                 return mb_strlen(trim($t)) >= 2;
             }));
         } else {
-            // Cumleden tarih/saat/hizmet/personel ve dolgu kelimeleri cikar -> geriye ad kalir
+            // Cumleden tarih/saat/hizmet/personel ve dolgu kelimeleri cikar -> geriye ad kalir.
+            // Hizmet/personel adlarini KELIME KELIME de cikar: kullanici hizmeti farkli
+            // sirayla/eksik soylese ("yuz lazer" -> "Lazer Epilasyon Yuz") ya da yanlis
+            // eslesse bile o kelimeler musteri adina KARISMASIN (or. "lazer" -> "Irem Lazer").
             $temiz = $fold;
+            $cikarKelimeler = [];
             foreach (array_merge($hizmetMetinleri, [$personelMetni]) as $cikar) {
-                if ($cikar) {
-                    $temiz = str_replace($cikar, ' ', $temiz);
+                if (!$cikar) continue;
+                $temiz = str_replace($cikar, ' ', $temiz); // bitisik gecerse toptan sil
+                foreach (preg_split('/\s+/u', $cikar) as $kw) {
+                    $kw = trim($kw);
+                    if (mb_strlen($kw) >= 2) $cikarKelimeler[$kw] = true;
                 }
+            }
+            foreach (array_keys($cikarKelimeler) as $kw) {
+                $temiz = preg_replace('/(?:^| )' . preg_quote($kw, '/') . '(?= |$)/u', ' ', $temiz);
             }
             // saat/tarih iz birakan rakam ve kaliplari sil
             $temiz = preg_replace('/\b\d{1,2}[:.]\d{2}\b/u', ' ', $temiz);
