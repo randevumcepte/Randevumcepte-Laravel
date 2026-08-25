@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v24-2026-08-25-pedikur';
+    protected $surum = 'v25-2026-08-25-protez-tirnak';
 
     public function handle()
     {
@@ -227,7 +227,7 @@ class HizmetBilgiKaliplari extends Command
             // NOT: MANIKUR -> 'manikur', PEDIKUR -> 'pedikur' (ikisi de HizmetBilgiIcerik'te
             // ayri zengin kategori). Bu kalip artik SADECE KALICI OJE / oje bilgisi verir.
             'kalici-oje' => [
-                'tetik' => 'kalici oje, oje, oje surme, oje surmek, tirnak boyama, tirnak ojesi, kalici oje yaptirmak, kalici oje bakimi, kalici oje sonrasi, kalici oje cikarma, jel oje, tirnak kaplama',
+                'tetik' => 'kalici oje, oje, oje surme, oje surmek, tirnak boyama, tirnak ojesi, kalici oje yaptirmak, kalici oje bakimi, kalici oje sonrasi, kalici oje cikarma, jel oje',
                 'cevaplar' => [
                     'Kalıcı oje, normal ojeden farklı olarak UV veya LED ışıkta sertleşen ve genellikle daha uzun süre dökülmeden kalan bir tırnak uygulamasıdır.',
                     'Kalıcı ojede istediğiniz renk seçilir, tırnağa uygulanır ve ışıkta kurutulur; çıkışta ojenin kuruma derdi olmadan gününüze devam edebilirsiniz.',
@@ -242,19 +242,8 @@ class HizmetBilgiKaliplari extends Command
                 ],
             ],
 
-            'protez-tirnak' => [
-                'tetik' => 'protez tirnak, tirnak uzatma, jel tirnak, tirnak protez, akrilik tirnak, tirnak dolgu, tirnak yaptirmak',
-                'cevaplar' => [
-                    'Protez tırnak, doğal tırnağın üzerine ek yapılarak uzun ve şekilli bir tırnak elde edilen uygulamadır.',
-                    'Tırnaklarınız kısa ya da kırılıyorsa protez tırnakla istediğiniz boy ve formda bakımlı tırnaklara kavuşabilirsiniz.',
-                    'İşlemde doğal tırnağınıza uygun malzemeyle uzatma yapılır, şekil verilir ve isteğe göre renk/model uygulanır.',
-                    'Protez tırnakla düzgün, uzun ve dayanıklı bir görünüm elde edilir; günlük kullanımda oldukça sağlamdır.',
-                    'İstediğiniz uzunluk ve şekli (badem, kare, oval) birlikte belirleyip ona göre uyguluyoruz.',
-                    'Tırnaklarınızı kendiniz uzatmakta zorlanıyorsanız protez tırnak pratik ve şık bir çözümdür.',
-                    'Belirli aralıklarla dolgu yaptırarak protez tırnağınızın görünümünü uzun süre koruyabilirsiniz.',
-                    'Renk, simli ya da nail-art detaylı... nasıl bir tırnak hayal ediyorsanız ona göre tasarlıyoruz.',
-                ],
-            ],
+            // NOT: 'protez-tirnak' ARTIK zengin kategori (HizmetBilgiIcerik, ayni slug'la
+            // ustune yazar). Eski kisa built-in blok kaldirildi.
 
             // NOT: kirpik LIFTING -> 'kirpik-lifting', IPEK/TAKMA kirpik -> 'ipek-kirpik'
             // (ikisi de HizmetBilgiIcerik'te ayri zengin kategori). Eski kisa built-in
