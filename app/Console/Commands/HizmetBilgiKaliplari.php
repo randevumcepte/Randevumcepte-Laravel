@@ -26,7 +26,7 @@ class HizmetBilgiKaliplari extends Command
 
     // ICERIK SURUMU: iceriyi (tetik/cevap) her degistirdiginde ARTIR. Sunucuda
     // zamanlayici bu surumu gorunce KENDILIGINDEN uygular; elle komut GEREKMEZ.
-    protected $surum = 'v25-2026-08-25-protez-tirnak';
+    protected $surum = 'v26-2026-08-25-kalici-oje';
 
     public function handle()
     {
@@ -224,23 +224,9 @@ class HizmetBilgiKaliplari extends Command
             // (HizmetBilgiIcerik). Gecici hydrafacial koprusu KALDIRILDI; zengin
             // 'hydrafacial' kategorisi ayni slug'la otomatik ustune yaziyor.
 
-            // NOT: MANIKUR -> 'manikur', PEDIKUR -> 'pedikur' (ikisi de HizmetBilgiIcerik'te
-            // ayri zengin kategori). Bu kalip artik SADECE KALICI OJE / oje bilgisi verir.
-            'kalici-oje' => [
-                'tetik' => 'kalici oje, oje, oje surme, oje surmek, tirnak boyama, tirnak ojesi, kalici oje yaptirmak, kalici oje bakimi, kalici oje sonrasi, kalici oje cikarma, jel oje',
-                'cevaplar' => [
-                    'Kalıcı oje, normal ojeden farklı olarak UV veya LED ışıkta sertleşen ve genellikle daha uzun süre dökülmeden kalan bir tırnak uygulamasıdır.',
-                    'Kalıcı ojede istediğiniz renk seçilir, tırnağa uygulanır ve ışıkta kurutulur; çıkışta ojenin kuruma derdi olmadan gününüze devam edebilirsiniz.',
-                    'Uzun süre bozulmadan kalan bir tırnak görünümü isteyen kişiler için kalıcı oje pratik bir seçenek olabilir; parlaklığını uzun süre korur.',
-                    'Kalıcı ojenin ne kadar kalacağı tırnak yapınıza, uzama hızınıza ve günlük kullanımınıza göre kişiden kişiye değişebilir.',
-                    'Kalıcı oje çıkarılırken tırnağı kazımak veya zorlayarak sökmek yerine uygun yöntemle nazikçe çıkarılması tırnak sağlığı açısından önemlidir.',
-                    'Renk seçenekleri geniştir; simli, mat, parlak veya farklı detaylarla nasıl bir görünüm istediğinizi belirtmeniz yeterli olur.',
-                    'Kalıcı oje günlük hayatta çabuk bozulmadığı için özellikle yoğun temposu olan kişiler tarafından tercih edilebilir.',
-                    'Tırnaklarınız çok ince veya kırılgansa kalıcı oje uygulaması ve çıkarımı sırasında daha nazik davranılması önemlidir.',
-                    'Sık kalıcı oje yaptırıyorsanız zaman zaman tırnakların dinlendirilmesi ve bakımı tırnak sağlığı açısından faydalı olabilir.',
-                    'Kalıcı oje bir tırnak renklendirme ve kaplama uygulamasıdır; el veya ayak bakımıyla birlikte de yaptırılabilir, ancak işlem içerikleri farklıdır.',
-                ],
-            ],
+            // NOT: MANIKUR -> 'manikur', PEDIKUR -> 'pedikur', KALICI OJE -> 'kalici-oje'
+            // (ucu de HizmetBilgiIcerik'te ayri zengin kategori). Kalici oje artik zengin
+            // surumle (ayni slug) ustune yaziliyor; eski kisa built-in blok kaldirildi.
 
             // NOT: 'protez-tirnak' ARTIK zengin kategori (HizmetBilgiIcerik, ayni slug'la
             // ustune yazar). Eski kisa built-in blok kaldirildi.
