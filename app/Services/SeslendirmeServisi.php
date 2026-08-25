@@ -139,7 +139,20 @@ class SeslendirmeServisi
         }, $m);
         if ($t !== null) $m = $t;
 
-        // 3) Kalan tam sayilar -> yaziya
+        // 3a) Binlik ayiracli sayilar (Turkce nokta): "13.500" -> 13500,
+        //     "1.250.000" -> 1250000. Once bunlari coz, sonra yaziya cevir.
+        $t = preg_replace_callback('/\b\d{1,3}(?:\.\d{3})+\b/u', function ($x) {
+            return $this->sayiYazi((int) str_replace('.', '', $x[0]));
+        }, $m);
+        if ($t !== null) $m = $t;
+
+        // 3b) Ondalik (virgul): "13,5" -> "on uc virgul bes"
+        $t = preg_replace_callback('/\b(\d+),(\d+)\b/u', function ($x) {
+            return $this->sayiYazi((int) $x[1]) . ' virgül ' . $this->sayiYazi((int) $x[2]);
+        }, $m);
+        if ($t !== null) $m = $t;
+
+        // 3c) Kalan tam sayilar -> yaziya
         $t = preg_replace_callback('/\d+/u', function ($x) {
             return $this->sayiYazi((int) $x[0]);
         }, $m);
