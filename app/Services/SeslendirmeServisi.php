@@ -119,25 +119,37 @@ class SeslendirmeServisi
      */
     public function okunusHazirla($metin)
     {
-        $m = ' ' . trim((string) $metin) . ' ';
+        $metin = (string) $metin;
+        // Gecersiz UTF-8 ise onar; aksi halde /u regex NULL doner ve cevap KAYBOLUR.
+        if (!mb_check_encoding($metin, 'UTF-8')) {
+            $metin = @mb_convert_encoding($metin, 'UTF-8', 'UTF-8');
+        }
+        $m = ' ' . trim($metin) . ' ';
 
+        // Her adimda NULL gelirse onceki degeri koru (asla cevabi kaybetme).
         // 1) Marka/yabanci terimler (Turkce TTS yanlis okuyor)
-        $m = preg_replace('/hydra\s*facial/iu', 'Hidrafeşıl', $m);
-        $m = preg_replace('/hydrafacial/iu', 'Hidrafeşıl', $m);
+        $t = preg_replace('/hydra\s*facial/iu', 'Hidrafeşıl', $m); if ($t !== null) $m = $t;
+        $t = preg_replace('/hydrafacial/iu', 'Hidrafeşıl', $m);   if ($t !== null) $m = $t;
 
         // 2) Saat HH:MM -> yaziyla
-        $m = preg_replace_callback('/\b([01]?\d|2[0-3]):([0-5]\d)\b/u', function ($x) {
+        $t = preg_replace_callback('/\b([01]?\d|2[0-3]):([0-5]\d)\b/u', function ($x) {
             $s = $this->sayiYazi((int) $x[1]);
             $d = ((int) $x[2]) > 0 ? ' ' . $this->sayiYazi((int) $x[2]) : '';
             return $s . $d;
         }, $m);
+        if ($t !== null) $m = $t;
 
         // 3) Kalan tam sayilar -> yaziya
-        $m = preg_replace_callback('/\d+/u', function ($x) {
+        $t = preg_replace_callback('/\d+/u', function ($x) {
             return $this->sayiYazi((int) $x[0]);
         }, $m);
+        if ($t !== null) $m = $t;
 
-        return trim(preg_replace('/\s+/u', ' ', $m));
+        $t = preg_replace('/\s+/u', ' ', $m); if ($t !== null) $m = $t;
+        $m = trim($m);
+
+        // Emniyet: bir sekilde bosaldiysa orijinal metne don.
+        return $m !== '' ? $m : trim((string) $metin);
     }
 
     /** 0..999999 arasi tam sayiyi Turkce yaziya cevirir (nadir buyuklukte oldugu gibi). */
