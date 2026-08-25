@@ -193,8 +193,10 @@ class LoginController extends Controller
             );
         };
         // Oncelikli kontroller (sidebar siralamasi ile ayni)
-        if ($has('randevu.takvim_gor'))      return '/isletmeyonetim/randevular';
-        if ($has('musteri.liste_gor'))       return '/isletmeyonetim/musteriler';
+        // Login sonrasi varsayilan: Ozet (dashboard) sayfasi. Takvim/musteri/satis
+        // yetkilerinden herhangi biri olan yetkili dogrudan Ozet'e duser.
+        if ($has('randevu.takvim_gor'))      return '/isletmeyonetim';
+        if ($has('musteri.liste_gor'))       return '/isletmeyonetim';
         if ($has('satis.adisyon_olustur') || $has('satis.tahsilat_al') || $has('satis.tum_satis_gor'))
                                               return '/isletmeyonetim/adisyonlar';
         if ($has('rapor.satis'))             return '/isletmeyonetim/raporlar';
