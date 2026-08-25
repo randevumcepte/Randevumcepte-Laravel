@@ -64,6 +64,7 @@ class Kernel extends ConsoleKernel
         Commands\TahsilatTeshis::class,
         Commands\AsistanSohbetKaliplari::class,
         Commands\HizmetBilgiKaliplari::class,
+        Commands\SeslendirmeOnUret::class,
     ];
 
     public function __construct(\Illuminate\Contracts\Foundation\Application $app, \Illuminate\Contracts\Events\Dispatcher $events)
