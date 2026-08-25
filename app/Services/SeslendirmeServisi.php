@@ -51,7 +51,13 @@ class SeslendirmeServisi
         $mp3 = $this->googleUret($okunacak, $ses);
         if ($mp3 === null || $mp3 === '') return null;
 
-        @file_put_contents($yol, $mp3);
+        $yazilan = @file_put_contents($yol, $mp3);
+        if (is_array($this->sonHata)) {
+            $this->sonHata['klasor']         = $this->klasor;
+            $this->sonHata['klasor_yazilir'] = is_writable($this->klasor) ? 1 : 0;
+            $this->sonHata['yazilan_byte']   = ($yazilan === false) ? -1 : (int) $yazilan;
+            $this->sonHata['dosya_var']      = is_file($yol) ? 1 : 0;
+        }
         return (is_file($yol) && filesize($yol) > 0) ? $ad : null;
     }
 
@@ -101,8 +107,9 @@ class SeslendirmeServisi
         if ($kod !== 200 || !$res) return null;
         $j = json_decode($res, true);
         if (empty($j['audioContent'])) return null;
-        $bin = base64_decode($j['audioContent'], true);
-        return $bin !== false ? $bin : null;
+        $bin = base64_decode($j['audioContent']); // strict degil: Google'a guveniyoruz
+        $this->sonHata['mp3_uzunluk'] = ($bin !== false) ? strlen($bin) : -1;
+        return ($bin !== false && $bin !== '') ? $bin : null;
     }
 
     /**
