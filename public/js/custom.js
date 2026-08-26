@@ -22992,7 +22992,9 @@ $(document).on('click','button[name="satisDuzenle"]',function(e){
            $('#tum_tahsilatlar_duzenleme').append(result.kalemler);
            $('#tahsilat_listesi_duzenleme').empty();
            $('#tahsilat_listesi_duzenleme').append(result.tahsilatlar);
+           satisDetayTaksitleriDoldur(result.taksitler);
             var musteridata = result.musteribilgi;
+            $('#satis_listesi').data('musteriId', musteridata.id);
                 var data={
                         id:musteridata.id,
                         text:musteridata.name
@@ -23024,9 +23026,67 @@ $(document).on('click','button[name="satisDuzenle"]',function(e){
         error: function (xhr) {
           console.error("Error:", xhr.statusText);
         }
-    });    
-  
+    });
 
+
+});
+// Satis Detaylari modali: adisyona bagli taksit planlari listesini doldur/gizle
+function satisDetayTaksitleriDoldur(taksitlerHtml){
+    var html = taksitlerHtml || '';
+    $('#adisyon_taksitleri_listesi').empty().append(html);
+    if($.trim(html).length)
+        $('#adisyon_taksitleri_bolumu').show();
+    else
+        $('#adisyon_taksitleri_bolumu').hide();
+}
+// Taksit planini (taksitli tahsilat) sil ve modali yeniden yukle
+$(document).on('click','button[name="adisyon_taksit_plani_sil"]',function(e){
+    e.preventDefault();
+    if(!confirm('Bu taksit planı ve tüm vadeleri silinecek. İlgili kalemler tekrar "tahsil edilecek" olarak listelenecektir. Devam edilsin mi?'))
+        return;
+    var btn = $(this);
+    var ttid = btn.attr('data-value');
+    var musteriId = $('#satis_listesi').data('musteriId');
+    var adisyonId = $('#satis_listesi input[name="adisyon_id"]').val();
+    var sube = $('input[name="sube"]').val();
+    var token = $('input[name="_token"]').val();
+    btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
+    $.ajax({
+        url: '/isletmeyonetim/adisyonTaksitliTahsilatSil',
+        method: 'POST',
+        data: { taksitli_tahsilat_id: ttid, sube: sube, _token: token },
+        success: function(res){
+            if(res && res.durum && res.durum !== 'ok'){
+                alert(res.mesaj || 'Taksit planı silinemedi.');
+                btn.prop('disabled', false).html('<i class="fa fa-trash"></i> Planı Sil');
+                return;
+            }
+            // Modali guncel veriyle yeniden yukle
+            $.ajax({
+                url: '/isletmeyonetim/satisDetaylariveDuzenleme',
+                method: 'GET',
+                data: { sube: sube, musteriId: musteriId, adisyonId: adisyonId, _token: token },
+                success: function(result){
+                    $('#tum_tahsilatlar_duzenleme').empty().append(result.kalemler);
+                    $('#tahsilat_listesi_duzenleme').empty().append(result.tahsilatlar);
+                    satisDetayTaksitleriDoldur(result.taksitler);
+                    tahsilatyenidenhesapla();
+                    adisyontoplamhesapla();
+                    $('#adisyon_odenen_tutar').empty().append(result.odenenTutar);
+                    $('#adisyon_toplam_tutar').empty().append(result.toplamTutar);
+                    $('#tahsil_edilecek_kalan_tutar').empty().append(result.kalanTutar);
+                    var _kom = (result.komisyonTutar || '0,00').toString();
+                    var _komFloat = parseFloat(_kom.replace(/\./g,'').replace(',','.')) || 0;
+                    if(_komFloat > 0){ $('#adisyon_komisyon_tutar').text(_kom); $('#sd_komisyon_block').show(); }
+                    else { $('#adisyon_komisyon_tutar').empty(); $('#sd_komisyon_block').hide(); }
+                }
+            });
+        },
+        error: function(xhr){
+            alert('Taksit planı silinirken bir hata oluştu.');
+            btn.prop('disabled', false).html('<i class="fa fa-trash"></i> Planı Sil');
+        }
+    });
 });
 $('#satis_listesi').on('submit',function(e){
     e.preventDefault();

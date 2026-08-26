@@ -1050,6 +1050,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/seansgirdiguncelle','StoreAdminController@seansgirdiguncelle');
 	Route::post('/senetekleguncelle','StoreAdminController@senetekleguncelle');
 	Route::post('/taksitekleguncelle','StoreAdminController@taksitekleguncelle');
+	Route::post('/adisyonTaksitliTahsilatSil','StoreAdminController@adisyonTaksitliTahsilatSil');
 	Route::get('/senetfiltre','StoreAdminController@senetfiltre');
 	Route::get('/senetvadegetir','StoreAdminController@senetvadegetir');
 	Route::get('/taksitvadegetir','StoreAdminController@taksitvadegetir');

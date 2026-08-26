@@ -33300,8 +33300,101 @@ DB::raw('
                 ];
             }
         }
+        $adisyonDetay['taksitler'] = self::adisyonTaksitleriHtml($request->adisyonId, $request->sube);
         return $adisyonDetay;
 
+    }
+    /**
+     * Satis Detaylari modali icin adisyona bagli taksit planlarini (taksitli_tahsilatlar
+     * + vadeleri) HTML olarak uretir. Taksitler HEM adisyon_id HEM de kalemlerdeki
+     * taksitli_tahsilat_id uzerinden yakalanir (bazi flow'lar birini set etmiyor).
+     */
+    private function adisyonTaksitleriHtml($adisyonId, $sube)
+    {
+        if(!$adisyonId)
+            return '';
+        $kalemTaksitIdler = array_merge(
+            AdisyonHizmetler::where('adisyon_id',$adisyonId)->whereNotNull('taksitli_tahsilat_id')->pluck('taksitli_tahsilat_id')->toArray(),
+            AdisyonUrunler::where('adisyon_id',$adisyonId)->whereNotNull('taksitli_tahsilat_id')->pluck('taksitli_tahsilat_id')->toArray(),
+            AdisyonPaketler::where('adisyon_id',$adisyonId)->whereNotNull('taksitli_tahsilat_id')->pluck('taksitli_tahsilat_id')->toArray()
+        );
+        $planlar = TaksitliTahsilatlar::where(function($q) use($adisyonId,$kalemTaksitIdler){
+            $q->where('adisyon_id',$adisyonId);
+            if(count($kalemTaksitIdler) > 0)
+                $q->orWhereIn('id',$kalemTaksitIdler);
+        })->orderBy('id','asc')->get();
+
+        $html = '';
+        $bugun = date('Y-m-d');
+        foreach($planlar as $plan)
+        {
+            $vadeler = TaksitVadeleri::where('taksitli_tahsilat_id',$plan->id)->orderBy('vade_tarih','asc')->get();
+            if($vadeler->count() == 0)
+                continue;
+
+            $adlar = array();
+            foreach($plan->hizmetler as $h) $adlar[] = optional($h->hizmet)->hizmet_adi.' (H)';
+            foreach($plan->urunler as $u)   $adlar[] = optional($u->urun)->urun_adi.' (Ü)';
+            foreach($plan->paketler as $p)  $adlar[] = optional($p->paket)->paket_adi.' (P)';
+            $baslik = count($adlar) ? implode(', ',$adlar) : ('Taksit #'.$plan->id);
+            $toplam = $vadeler->sum('tutar');
+            $odenenAdet = $vadeler->where('odendi',true)->count();
+
+            $html .= '<div class="sd-taksit-plan">';
+            $html .= '<div class="sd-taksit-plan-head">';
+            $html .= '<div class="sd-taksit-plan-title">'.e($baslik).' <small>('.$vadeler->count().' vade · '.number_format($toplam,2,',','.').' ₺ · '.$odenenAdet.'/'.$vadeler->count().' ödendi)</small></div>';
+            $html .= '<button type="button" class="sd-taksit-plan-sil" name="adisyon_taksit_plani_sil" data-value="'.$plan->id.'"><i class="fa fa-trash"></i> Planı Sil</button>';
+            $html .= '</div>';
+            $vadeNo = 0;
+            foreach($vadeler as $vade)
+            {
+                $vadeNo++;
+                if($vade->odendi)
+                {
+                    $yontem = optional($vade->odeme_turu)->odeme_yontemi;
+                    $durum = '<span class="sd-tv-durum odendi">Ödendi'.($yontem ? ' · '.e($yontem) : '').'</span>';
+                }
+                elseif($vade->vade_tarih < $bugun)
+                    $durum = '<span class="sd-tv-durum gecikmis">Gecikmiş</span>';
+                else
+                    $durum = '<span class="sd-tv-durum bekliyor">Bekliyor</span>';
+
+                $html .= '<div class="sd-taksit-vade">';
+                $html .= '<span class="sd-tv-no">Vade '.$vadeNo.'</span>';
+                $html .= '<span class="sd-tv-tarih">'.($vade->vade_tarih ? date('d.m.Y',strtotime($vade->vade_tarih)) : '—').' '.$durum.'</span>';
+                $html .= '<span class="sd-tv-tutar">'.number_format($vade->tutar,2,',','.').' ₺</span>';
+                $html .= '</div>';
+            }
+            $html .= '</div>';
+        }
+        return $html;
+    }
+    /**
+     * Satis Detaylari modalindan bir taksit planini (taksitli_tahsilat) tamamen siler:
+     * vadeler + bagli alacaklar (yetim tuzagi: taksitli_tahsilat_id ile) temizlenir,
+     * kalemlerdeki baglanti cozulur (kalemler tekrar tahsil edilecek olur).
+     */
+    public function adisyonTaksitliTahsilatSil(Request $request)
+    {
+        if($r = self::satisYetkiYoksa403($request, 'satis.senet_olustur')) return $r;
+        $plan = TaksitliTahsilatlar::where('id',$request->taksitli_tahsilat_id)->first();
+        if(!$plan)
+            return response()->json(['durum'=>'hata','mesaj'=>'Taksit planı bulunamadı.'], 404);
+        if($request->sube && $plan->salon_id && (int)$plan->salon_id !== (int)$request->sube)
+            return response()->json(['durum'=>'hata','mesaj'=>'Bu taksit planı için yetkiniz yok.'], 403);
+
+        \DB::transaction(function() use($plan){
+            // Kalem baglantilarini coz: kalemler tekrar normal (tahsil edilecek) olur
+            AdisyonHizmetler::where('taksitli_tahsilat_id',$plan->id)->update(['taksitli_tahsilat_id'=>null]);
+            AdisyonUrunler::where('taksitli_tahsilat_id',$plan->id)->update(['taksitli_tahsilat_id'=>null]);
+            AdisyonPaketler::where('taksitli_tahsilat_id',$plan->id)->update(['taksitli_tahsilat_id'=>null]);
+            // Vadeler
+            TaksitVadeleri::where('taksitli_tahsilat_id',$plan->id)->delete();
+            // Yetim alacak fix: adisyon_id NULL olsa bile taksitli_tahsilat_id ile sil
+            Alacaklar::where('taksitli_tahsilat_id',$plan->id)->delete();
+            $plan->delete();
+        });
+        return response()->json(['durum'=>'ok']);
     }
     public function satisTarihiGuncelle(Request $request)
     {

@@ -110,6 +110,16 @@
                         </div>
                         <button type="submit" class="btn btn-success" style="width:100%;margin-top:10px;display:none;">Değişiklikleri Kaydet</button>
                      </div>
+
+                     {{-- ===== ADİSYONA BAĞLI TAKSİTLER ===== --}}
+                     <div id="adisyon_taksitleri_bolumu" style="display:none;">
+                        <div class="sd-taksit-card">
+                           <div class="sd-taksit-head">
+                              <i class="fa fa-calendar-check-o"></i> Taksit Planları
+                           </div>
+                           <div id="adisyon_taksitleri_listesi"></div>
+                        </div>
+                     </div>
                   </div>
 
                   <div class="modal-footer sd-footer">
@@ -280,6 +290,49 @@
                font-size:13px !important; line-height:1 !important;
             }
             #satisKalemleri #tahsilat_listesi_duzenleme tr td button[name="tahsilat_adisyondan_sil"]:hover{ color:#b91c1c !important; }
+
+            /* Taksit planlari karti */
+            #satisKalemleri .sd-taksit-card{
+               background:#fff; border:1px solid #ede5f7; border-radius:10px;
+               padding:10px 12px; margin-top:10px;
+               box-shadow:0 2px 6px -3px rgba(76,29,149,.08);
+            }
+            #satisKalemleri .sd-taksit-head{
+               font-size:13px; font-weight:700; color:#5C008E;
+               display:flex; align-items:center; gap:6px; margin-bottom:8px;
+            }
+            #satisKalemleri .sd-taksit-head i{ color:#7B2FB8; }
+            #satisKalemleri .sd-taksit-plan{
+               border:1px solid #f0e6fb; border-radius:8px; overflow:hidden; margin-bottom:8px;
+            }
+            #satisKalemleri .sd-taksit-plan:last-child{ margin-bottom:0; }
+            #satisKalemleri .sd-taksit-plan-head{
+               display:flex; align-items:center; justify-content:space-between; gap:8px;
+               background:linear-gradient(90deg,#faf5ff 0%,#fdfaff 100%);
+               padding:6px 10px; border-bottom:1px solid #f3e8ff;
+            }
+            #satisKalemleri .sd-taksit-plan-title{ font-size:12.5px; font-weight:600; color:#0f172a; }
+            #satisKalemleri .sd-taksit-plan-title small{ color:#64748b; font-weight:500; }
+            #satisKalemleri .sd-taksit-plan-sil{
+               background:transparent; border:1px solid #fecaca; color:#dc2626;
+               padding:3px 9px; border-radius:6px; font-size:11.5px; font-weight:600;
+               cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;
+               transition:all .12s ease;
+            }
+            #satisKalemleri .sd-taksit-plan-sil:hover{ background:#ef4444; border-color:#ef4444; color:#fff; }
+            #satisKalemleri .sd-taksit-plan-sil:disabled{ opacity:.5; cursor:default; }
+            #satisKalemleri .sd-taksit-vade{
+               display:grid; grid-template-columns: 60px 1fr auto; gap:8px; align-items:center;
+               padding:5px 10px; font-size:12.5px; border-bottom:1px solid #f6f1fc;
+            }
+            #satisKalemleri .sd-taksit-vade:last-child{ border-bottom:none; }
+            #satisKalemleri .sd-taksit-vade .sd-tv-no{ color:#7B2FB8; font-weight:700; }
+            #satisKalemleri .sd-taksit-vade .sd-tv-tarih{ color:#475569; }
+            #satisKalemleri .sd-taksit-vade .sd-tv-tutar{ font-weight:700; color:#5C008E; text-align:right; white-space:nowrap; }
+            #satisKalemleri .sd-taksit-vade .sd-tv-durum{ font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:20px; }
+            #satisKalemleri .sd-taksit-vade .sd-tv-durum.odendi{ background:#ecfdf5; color:#059669; }
+            #satisKalemleri .sd-taksit-vade .sd-tv-durum.bekliyor{ background:#fff7ed; color:#c2410c; }
+            #satisKalemleri .sd-taksit-vade .sd-tv-durum.gecikmis{ background:#fef2f2; color:#dc2626; }
 
             /* Footer */
             #satisKalemleri .sd-footer{
