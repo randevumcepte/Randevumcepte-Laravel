@@ -11699,6 +11699,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 if ($request->randevuKaynak == 'salon') $yenirandevu->salon = true;
                 if ($request->randevuKaynak == 'uygulama') $yenirandevu->uygulama = true;
                 if ($request->randevuKaynak == 'web') $yenirandevu->web = true;
+                // ADDITIVE: santral sesli asistani (telefon) olusturdu -> "Musteri (Asistan)".
+                // Yalniz easistan=1 gonderen cagiran (PBX) etkilenir; app/web bu alani yollamaz.
+                if ($request->easistan == '1') $yenirandevu->easistan = true;
                 $yenirandevu->olusturan_personel_id = $request->olusturan;
                 $yenirandevu->olusturan_user_id = $request->olusturanMusteri;
 
