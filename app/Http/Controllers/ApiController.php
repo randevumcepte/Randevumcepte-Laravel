@@ -28331,10 +28331,14 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 array_push($personeller,$personel->id);
             }
         }
-        array_push($personeller,0);
+        // "Farketmez" secenegi (id=0 sahte personel) musteri randevu ekraninda
+        // gosterilmesin — musteri belirli personel secsin. Geri getirmek icin
+        // asagidaki iki satiri eski haline al (array_push + salon_id icinde 0).
+        // array_push($personeller,0);
 
 
-        return Personeller::where('aktif',1)->whereIn('salon_id',[$salonId,0])->whereIn('id',$personeller)->get();
+        // return Personeller::where('aktif',1)->whereIn('salon_id',[$salonId,0])->whereIn('id',$personeller)->get(); // Farketmez'li hali
+        return Personeller::where('aktif',1)->where('salon_id',$salonId)->whereIn('id',$personeller)->get();
     }
     public function hizmetRaporlari(Request $request)
     {
