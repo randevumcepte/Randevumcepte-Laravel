@@ -22586,7 +22586,14 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         // Personel güncelleme
         Log::info('Personel guncelleme basliyor');
-        $silinenPersonel = PersonelHizmetler::where("hizmet_id", $hizmet_id)->delete();
+        // GUVENLIK: hizmet_id global katalog id'si (hizmetler.id) — ayni id'yi
+        // paylasan diger salonlarin atamalarini silmemek icin sadece BU salonun
+        // personellerini kapsa (personel_sunulan_hizmetler'de salon_id kolonu yok,
+        // parent iliski salon_personelleri.salon_id uzerinden sinirlanir).
+        $silinenPersonel = PersonelHizmetler::where("hizmet_id", $hizmet_id)
+            ->whereHas('personeller', function ($q) use ($request) {
+                $q->where('salon_id', $request->sube);
+            })->delete();
         Log::info('Eski personel kayitlari silindi. Silinen sayi: ' . $silinenPersonel);
 
         if (isset($request->secilipersoneller[$key])) {
@@ -22605,7 +22612,13 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         // Cihaz güncelleme
         Log::info('Cihaz guncelleme basliyor');
-        $silinenCihaz = CihazHizmetler::where("hizmet_id", $hizmet["id"])->delete();
+        // GUVENLIK: ayni sekilde sadece BU salonun cihazlarinin atamalarini sil.
+        // (Not: eskiden $hizmet["id"] ile siliniyordu ama asagida insert $hizmet_id
+        //  ile yapiliyor; anahtar tutarli olsun diye $hizmet_id'ye cevrildi.)
+        $silinenCihaz = CihazHizmetler::where("hizmet_id", $hizmet_id)
+            ->whereHas('cihaz', function ($q) use ($request) {
+                $q->where('salon_id', $request->sube);
+            })->delete();
         Log::info('Eski cihaz kayitlari silindi. Silinen sayi: ' . $silinenCihaz);
 
         if (isset($request->secilicihazlar[$key])) {

@@ -18862,7 +18862,13 @@ DB::raw('
             }
             $_persIdler = is_array($request->{"hizmet_personelleri_{$hizmet_id}"} ?? null)
                 ? $request->{"hizmet_personelleri_{$hizmet_id}"} : [];
-            PersonelHizmetler::where('hizmet_id',$hizmet_id)->delete();
+            // GUVENLIK: hizmet_id global katalog id'si; ayni id'yi paylasan diger
+            // salonlarin personel atamalarini silmemek icin sadece BU salonun
+            // personellerini kapsa (parent salon_personelleri.salon_id uzerinden).
+            PersonelHizmetler::where('hizmet_id',$hizmet_id)
+                ->whereHas('personeller', function ($q) use ($request) {
+                    $q->where('salon_id',$request->sube);
+                })->delete();
             foreach($_persIdler as $personel_id){
                 $personelhizmet = new PersonelHizmetler();
                 $personelhizmet->personel_id = $personel_id;
