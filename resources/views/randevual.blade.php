@@ -86,7 +86,7 @@
                         <div class="rdv-card__num">2</div>
                         <div class="rdv-card__title-wrap">
                             <h3 class="rdv-card__title">Personel Seç</h3>
-                            <div class="rdv-card__subtitle">Her hizmet için tercih ettiğiniz personeli seçin veya "Farketmez" deyin.</div>
+                            <div class="rdv-card__subtitle">Her hizmet için tercih ettiğiniz personeli seçin.</div>
                         </div>
                     </div>
                     <div class="rdv-card__body">
@@ -107,7 +107,9 @@
                                     <div class="rdv-staff-group__label">{{$secilenhizmet->hizmet_adi}}</div>
                                     <div class="form-group" style="margin:0">
                                         <select name="personeller[]">
-                                            <option value="0">Farketmez</option>
+                                            {{-- "Farketmez" musteri randevu ekraninda gizlendi — musteri belirli
+                                                 personel secsin. Geri getirmek icin asagidaki satirin yorumunu kaldir. --}}
+                                            {{-- <option value="0">Farketmez</option> --}}
                                             @foreach($personelhizmetleri as $personelhizmet)
                                                 @if($personelhizmet->hizmet_id == $secilenhizmet->id)
                                                     <option>{{$personelhizmet->personeller->personel_adi}}</option>

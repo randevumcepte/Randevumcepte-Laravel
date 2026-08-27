@@ -718,9 +718,20 @@ $salon = Salonlar::where('domain', $domain)->first();
                             "<form id='personellisteparametreler' method='get'><div class='form-group'>
                                     <select name='personeller[]' style='border-radius:60px'>";
 
-        // "Farketmez" her zaman en ustte; uygun personel yoksa da bu kalir
-        $farketmezSelected = $personeller->count() > 0 ? '' : 'selected';
-        $html_personel_bolumu .= "<option value='0' ".$farketmezSelected.">Farketmez</option>";
+        // "Farketmez" musteri web randevu ekraninda gizlendi — musteri belirli
+        // personel secsin. Geri getirmek icin asagidaki 2 satirin yorumunu ac.
+        // $farketmezSelected = $personeller->count() > 0 ? '' : 'selected';
+        // $html_personel_bolumu .= "<option value='0' ".$farketmezSelected.">Farketmez</option>";
+
+        // Bu hizmete atanmis personel yoksa (eskiden Farketmez fallback devreye
+        // girerdi) dropdown bos kalmasin diye tum aktif/takvimde gorunen personeli
+        // goster — uygulamadaki 'atama yoksa herkes' kurali ile ayni.
+        if ($personeller->isEmpty()) {
+            $personeller = Personeller::where('salon_id', $id)
+                ->where('aktif', 1)
+                ->where('takvimde_gorunsun', true)
+                ->get();
+        }
         foreach($personeller as $personel) {
             $html_personel_bolumu .= "<option value='".$personel->id."'>".$personel->personel_adi."</option>";
         }
