@@ -67,8 +67,11 @@
         <div>
             <div class="wkp-free-t1">{{ $_denemeBitisMetin }} tarihine kadar WhatsApp tamamen ÜCRETSİZ</div>
             <div class="wkp-free-t2"><b>{{ $_kontorluBaslangicMetin }}</b> tarihinden itibaren kontörlü sisteme geçilecek — <b>1 mesaj = 1 kontör</b>. Şimdiden paketleri inceleyip hazırlanabilirsiniz.</div>
+            @if($_kBakiye > 0)
+            <div class="wkp-free-t2" style="margin-top:7px;color:#12805a;font-weight:800;">💰 Yüklü kontör bakiyeniz: {{ number_format($_kBakiye,0,',','.') }} — {{ $_kontorluBaslangicMetin }} tarihinde kullanılmaya başlayacak (şu an düşmüyor).</div>
+            @endif
         </div>
-        <div class="wkp-free-pill">ŞU AN ÜCRETSİZ</div>
+        <div class="wkp-free-pill">{{ $_kBakiye > 0 ? number_format($_kBakiye,0,',','.').' KONTÖR' : 'ŞU AN ÜCRETSİZ' }}</div>
     </div>
     @else
     <div class="wkp-free-banner" style="{{ $_kBakiye <= 500 ? 'background:linear-gradient(135deg,#fdeaea,#fbdada);border-color:#f5b5b5;' : ($_kBakiye <= 1000 ? 'background:linear-gradient(135deg,#fff4e0,#ffe9c7);border-color:#f5d59a;' : '') }}">
