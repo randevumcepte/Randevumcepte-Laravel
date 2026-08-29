@@ -7829,7 +7829,7 @@ private function ayAdiCevir($ingilizceAy)
             $_randevuTs = strtotime($request->tarih . ' ' . $request->saat);
             $_kalanSaat = ($_randevuTs - $_now) / 3600;
             $_kritikBypass = ($_randevuTarihi === $_yarinTarih)
-                          && ($_hour >= 19)
+                          && ($_hour >= 18) // 1-gun-once penceresi 15:00-18:00; 18 sonrasi olusanlar bypass
                           && ($_kalanSaat > 0)
                           && ($_kalanSaat < 24);
 

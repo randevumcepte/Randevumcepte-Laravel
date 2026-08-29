@@ -12059,7 +12059,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $_randevuTarihi = date('Y-m-d', strtotime($request->randevu_tarihi));
                 $_randevuTs = strtotime($request->randevu_tarihi . ' ' . $request->randevu_saati);
                 $_kritikBypass = ($_randevuTarihi === $_yarinTarih)
-                              && ($_hour >= 19)
+                              && ($_hour >= 18) // 1-gun-once penceresi 15:00-18:00; 18 sonrasi olusanlar bypass
                               && ($_randevuTs - $_now > 0)
                               && (($_randevuTs - $_now) / 3600 < 24);
 

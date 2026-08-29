@@ -462,15 +462,16 @@ class RandevuSMSHatirlatma extends Command
      * Aynı müşterinin yarınki tüm randevuları TEK mesajda toplanır.
      *
      * Davranis:
-     *   - Sadece 17:00-19:00 saat araliginda gonderilir
-     *   - Pencere icinde deterministik stagger (salon_id*31 + user_id*7 mod 120dk)
+     *   - Sadece 15:00-18:00 saat araliginda gonderilir (salon acikken; musteri
+     *     mesaji alinca arayip guncelleme/iptal yapabilsin). TUM salonlar icin.
+     *   - Pencere icinde deterministik stagger (salon_id*31 + user_id*7 mod 180dk)
      *     ile dakika dakika dagitilir (anti-burst)
      *   - Ayar (SalonSMSAyarlari ayar_id=6, musteri toggle) kapaliysa atlanir,
      *     flag set edilir (bir daha denenmesin)
      *
      * NOT: <24h kala oluşturulan randevuda toggle bypass'i BURADA degil
      *      randevu olusturma noktasinda yapilir (StoreAdminController),
-     *      cunku 19:00 sonrasi pencere zaten gecmis olur.
+     *      cunku 18:00 sonrasi pencere zaten gecmis olur.
      */
     protected function birGunOnceGrupluGonder($randevular, $wa, $controller)
     {
@@ -478,10 +479,12 @@ class RandevuSMSHatirlatma extends Command
         $now = time();
         $nowMinuteOfDay = ((int) date('G', $now)) * 60 + (int) date('i', $now);
 
-        // 17:00-19:00 = dakika cinsinden 1020-1140 araligi (120dk pencere)
-        $winStart = 17 * 60;
-        $winEnd   = 19 * 60;
-        $bucketSize = $winEnd - $winStart; // 120
+        // 15:00-18:00 = dakika cinsinden 900-1080 araligi (180dk pencere).
+        // Salon ACIKKEN gonderilsin ki musteri mesaji alinca arayip guncelleme/
+        // iptal yapabilsin. Tum salonlar icin ayni. (onceden 17:00-19:00 idi)
+        $winStart = 15 * 60;
+        $winEnd   = 18 * 60;
+        $bucketSize = $winEnd - $winStart; // 180
 
         // Pencere disindaysak hicbir sey yapma (her cron tick bos cikar)
         if ($nowMinuteOfDay < $winStart || $nowMinuteOfDay >= $winEnd) {
