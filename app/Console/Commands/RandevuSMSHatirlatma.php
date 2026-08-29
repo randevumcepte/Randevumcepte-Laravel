@@ -307,7 +307,12 @@ class RandevuSMSHatirlatma extends Command
             // whatsmeow serbest-metin gönderiminde alta eklenir.
             // Uygulaması olmayana WA'da indirme daveti + link ekle (merkezî yardımcı)
             $personalized = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($personalized, $salon, $musteri->id);
-            $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $personalized, $randevu->id, $musteri->id, $templateCtx, false, 'randevu_hatirlatma');
+            // Gönderim tipi: "1 gün önce" hatırlatma ÜCRETSİZ (kontör düşmez),
+            // "yaklaşan" (X saat önce) ve diğer tüm mesajlar ücretli.
+            $_gonderimTipi = (isset($templateCtx['key']) && $templateCtx['key'] === '1gun')
+                ? 'randevu_hatirlatma_1gun'
+                : 'randevu_hatirlatma';
+            $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $personalized, $randevu->id, $musteri->id, $templateCtx, false, $_gonderimTipi);
             Log::info('[RND-SMS] müşteri WA sonuc', [
                 'salon_id' => $salon->id, 'randevu_id' => $randevu->id, 'sonuc' => $sonuc,
             ]);

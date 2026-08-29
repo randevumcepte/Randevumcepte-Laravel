@@ -13,6 +13,20 @@ class WhatsAppService
     protected $token;
     protected $timeout;
 
+    /**
+     * Kontör DÜŞMEYEN (ücretsiz) gönderim tipleri.
+     * Sadece "1 gün önce" randevu hatırlatması ücretsiz; diğer TÜM mesajlar
+     * (yaklaşan hatırlatma, oluşturma/güncelleme/iptal, seans, manuel, personel...)
+     * kontör düşer. Bu tipler hem bakiye engelinden hem düşmeden muaftır.
+     */
+    const KONTOR_UCRETSIZ_TIPLER = ['randevu_hatirlatma_1gun'];
+
+    /** Bu gönderim tipi kontörden muaf (ücretsiz) mi? */
+    protected function kontorUcretsizMi($gonderimTipi)
+    {
+        return in_array($gonderimTipi, self::KONTOR_UCRETSIZ_TIPLER, true);
+    }
+
     public function __construct()
     {
         $this->baseUrl = rtrim(config('whatsapp.service_url'), '/');
@@ -110,7 +124,8 @@ class WhatsAppService
 
         // KONTÖR kapısı — 1 Eylül 2026'dan itibaren her WhatsApp mesajı 1 kontör düşer.
         // Bakiye yoksa WA atlanır; arayan taraf SMS'e düşürür. Ücretsiz dönemde bu kapı hiç çalışmaz.
-        if (\App\Services\KontorServisi::kontorlusDonemMi() && !\App\Services\KontorServisi::yeterliMi($salon, 1)) {
+        // ÜCRETSİZ tipler (1 gün önce hatırlatma) bakiye 0 olsa bile ENGELLENMEZ.
+        if (!$this->kontorUcretsizMi($gonderimTipi) && \App\Services\KontorServisi::kontorlusDonemMi() && !\App\Services\KontorServisi::yeterliMi($salon, 1)) {
             return ['ok' => false, 'error' => 'kontor-yetersiz'];
         }
 
@@ -150,7 +165,10 @@ class WhatsAppService
         // 202 Accepted = kuyruğa alındı, webhook ile sent/failed bildirecek
         if (($response['status'] ?? 0) === 202) {
             // Kontör düş (ücretsiz dönemde no-op). Kuyruğa girdiğinde düşülür.
-            \App\Services\KontorServisi::dus($salon, 1, 'whatsapp:' . ($gonderimTipi ?: 'mesaj'));
+            // ÜCRETSİZ tip (1 gün önce hatırlatma) düşmez.
+            if (!$this->kontorUcretsizMi($gonderimTipi)) {
+                \App\Services\KontorServisi::dus($salon, 1, 'whatsapp:' . ($gonderimTipi ?: 'mesaj'));
+            }
             return ['ok' => true, 'queued' => true, 'logId' => $logId, 'provider' => 'baileys'];
         }
 
@@ -222,7 +240,9 @@ class WhatsAppService
 
         if ($resp['ok']) {
             $this->markSent($logId, $resp['messageId'] ?? null);
-            \App\Services\KontorServisi::dus($salon, 1, 'whatsapp:' . ($gonderimTipi ?: 'mesaj'));
+            if (!$this->kontorUcretsizMi($gonderimTipi)) {
+                \App\Services\KontorServisi::dus($salon, 1, 'whatsapp:' . ($gonderimTipi ?: 'mesaj'));
+            }
             return ['ok' => true, 'queued' => false, 'logId' => $logId, 'messageId' => $resp['messageId'], 'provider' => 'cloud_api'];
         }
 
