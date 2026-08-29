@@ -26580,23 +26580,16 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         //   1) wl.user_id -> users.name  (direkt log'a yazilmissa)
         //   2) wl.randevu_id -> randevular.user_id -> users.name (cogu randevu akisi user_id'yi log'a koymaz)
         //   3) wl.telefon -> users.cep_telefon -> users.name (son care, son kaydedilen user)
-        // Telefon -> isim eslestirmesi icin alt sorgu (ayni telefonla birden fazla user'da
-        // satir cogalmasini onler). MAX(name) -> deterministik tek isim.
-        // Telefon formati farkli (log 90XXX..., users 0XXX../5XXX..) — SON 10 HANEYE
-        // gore eslestir ki format farki isim cozumunu bozmasin.
-        $telNorm = "RIGHT(REPLACE(REPLACE(cep_telefon,' ',''),'-',''), 10)";
-        $telefonSubq = "(SELECT {$telNorm} as tel10, MAX(name) as name FROM users WHERE cep_telefon IS NOT NULL AND cep_telefon <> '' GROUP BY {$telNorm})";
-
+        // Telefon -> isim: user_id/randevu_id yoksa asagida PHP'de (sadece bu sayfanin
+        // telefonlari icin, indeks dostu whereIn) doldurulur. Buyuk users tablosunda
+        // agir GROUP BY/expression-join YAPILMAZ (o sorgu zaman asimina ugruyordu).
         $q = DB::table('whatsapp_gonderim_loglari as wl')
             ->leftJoin('users as u', 'u.id', '=', 'wl.user_id')
             ->leftJoin('randevular as r', 'r.id', '=', 'wl.randevu_id')
             ->leftJoin('users as ru', 'ru.id', '=', 'r.user_id')
-            ->leftJoin(DB::raw($telefonSubq . ' as pu'), function ($join) {
-                $join->on(DB::raw('pu.tel10'), '=', DB::raw('RIGHT(wl.telefon, 10)'));
-            })
             ->select('wl.id', 'wl.user_id', 'wl.randevu_id', 'wl.telefon', 'wl.mesaj',
                 'wl.durum', 'wl.hata', 'wl.mesaj_id', 'wl.gonderim_tarihi', 'wl.created_at',
-                DB::raw('COALESCE(NULLIF(u.name, \'\'), NULLIF(ru.name, \'\'), NULLIF(pu.name, \'\')) as musteri_adi'))
+                DB::raw('COALESCE(NULLIF(u.name, \'\'), NULLIF(ru.name, \'\')) as musteri_adi'))
             ->where('wl.salon_id', $salonId);
 
         if ($durum = $request->input('durum')) $q->where('wl.durum', $durum);
@@ -26609,6 +26602,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $page = max((int) $request->input('page', 1), 1);
         $toplam = (clone $q)->count();
         $rows = $q->orderByDesc('wl.id')->offset(($page - 1) * $perPage)->limit($perPage)->get();
+        $this->waLoglariIsimDoldur($rows); // eksik musteri adlarini telefon eslesmesiyle doldur
 
         return response()->json([
             'rows' => $rows, 'toplam' => $toplam,
@@ -26617,24 +26611,70 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         ]);
     }
 
+    /**
+     * WA log/alici satirlarinda eksik (user_id/randevu_id ile cozulememis) musteri
+     * adlarini TELEFON esleyerek doldurur. Yalniz verilen satirlarin telefonlari icin
+     * calisir; users.cep_telefon uzerinde indeks dostu whereIn (format varyantlari) —
+     * buyuk tabloda agir GROUP BY yapmaz. Hata olursa liste bozulmaz (try/catch).
+     */
+    private function waLoglariIsimDoldur($rows)
+    {
+        try {
+            $son10 = function ($tel) {
+                return substr(preg_replace('/\D/', '', (string) $tel), -10);
+            };
+            $eksik = [];
+            foreach ($rows as $r) {
+                if (empty($r->musteri_adi) && !empty($r->telefon)) {
+                    $s = $son10($r->telefon);
+                    if (strlen($s) === 10) $eksik[$s] = true;
+                }
+            }
+            if (!$eksik) return;
+
+            $varyantlar = [];
+            foreach (array_keys($eksik) as $s) {
+                $varyantlar[] = $s;            // 5XXXXXXXXX
+                $varyantlar[] = '0' . $s;      // 05XXXXXXXXX
+                $varyantlar[] = '90' . $s;     // 905XXXXXXXXX
+                $varyantlar[] = '+90' . $s;    // +905XXXXXXXXX
+                $varyantlar[] = '0090' . $s;   // 00905XXXXXXXXX
+            }
+
+            $harita = [];
+            DB::table('users')
+                ->whereIn('cep_telefon', array_values(array_unique($varyantlar)))
+                ->whereNotNull('name')->where('name', '<>', '')
+                ->select('cep_telefon', 'name')
+                ->get()
+                ->each(function ($e) use (&$harita, $son10) {
+                    $s = $son10($e->cep_telefon);
+                    if (strlen($s) === 10 && !isset($harita[$s])) $harita[$s] = $e->name;
+                });
+
+            foreach ($rows as $r) {
+                if (empty($r->musteri_adi) && !empty($r->telefon)) {
+                    $s = $son10($r->telefon);
+                    if (isset($harita[$s])) $r->musteri_adi = $harita[$s];
+                }
+            }
+        } catch (\Throwable $e) {
+            // isim doldurma basarisizsa liste yine de yuklensin
+        }
+    }
+
     public function whatsappAlicilarData(Request $request)
     {
         $salonId = $this->whatsappYetkiliSalon($request);
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
-        // Telefon -> isim eslestirmesi: user_id bos olan kayitlar icin telefon uzerinden COALESCE.
-        // Format farki icin SON 10 HANEYE gore eslestir (log 90XXX..., users 0XXX../5XXX..).
-        $telNorm = "RIGHT(REPLACE(REPLACE(cep_telefon,' ',''),'-',''), 10)";
-        $telefonSubq = "(SELECT {$telNorm} as tel10, MAX(name) as name FROM users WHERE cep_telefon IS NOT NULL AND cep_telefon <> '' GROUP BY {$telNorm})";
-
+        // Telefon -> isim: user_id ile cozulur; eksikler asagida PHP'de (indeks dostu
+        // whereIn) doldurulur. Buyuk users tablosunda agir expression-join YAPILMAZ.
         $rows = DB::table('whatsapp_gonderim_loglari as wl')
             ->leftJoin('users as u', 'u.id', '=', 'wl.user_id')
-            ->leftJoin(DB::raw($telefonSubq . ' as pu'), function ($join) {
-                $join->on(DB::raw('pu.tel10'), '=', DB::raw('RIGHT(wl.telefon, 10)'));
-            })
             ->select(
                 'wl.telefon',
-                DB::raw('COALESCE(NULLIF(MAX(u.name), \'\'), NULLIF(MAX(pu.name), \'\')) as musteri_adi'),
+                DB::raw('NULLIF(MAX(u.name), \'\') as musteri_adi'),
                 DB::raw('COUNT(*) as toplam'),
                 DB::raw('SUM(CASE WHEN wl.durum = 1 THEN 1 ELSE 0 END) as basari'),
                 DB::raw('SUM(CASE WHEN wl.durum = 2 THEN 1 ELSE 0 END) as fail'),
@@ -26647,6 +26687,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             ->orderByDesc('son_mesaj')
             ->limit(500)
             ->get();
+        $this->waLoglariIsimDoldur($rows); // eksik adlari telefon eslesmesiyle doldur
 
         return response()->json(['rows' => $rows, 'toplam' => $rows->count()]);
     }
