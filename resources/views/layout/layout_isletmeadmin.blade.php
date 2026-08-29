@@ -1348,14 +1348,22 @@
                $waTitle  = $waBagli
                   ? ('WhatsApp Bağlı'.($waNumara ? ' ('.$waNumara.')' : ''))
                   : 'WhatsApp Bağlı Değil — tıklayın, QR ile bağlayın';
+               // Kontör bakiyesi rozeti: yüklüyse ya da kontörlü dönemdeyse göster
+               $_hdrKontor = (int) ($isletme->whatsapp_kontor ?? 0);
+               $_hdrKontorluDonem = \App\Services\KontorServisi::kontorlusDonemMi($isletme);
+               $_hdrKontorGoster = $waBagli && ($_hdrKontor > 0 || $_hdrKontorluDonem);
+               $_hdrKontorKritik = $_hdrKontorluDonem && $_hdrKontor <= 0;
             @endphp
             <div class="user-notification" style="padding:20px 0 0 0" id="whatsappDurumKutu">
                <a href="/isletmeyonetim/whatsapp{{ isset($_GET['sube']) ? '?sube='.$isletme->id : '' }}"
                   class="btn"
-                  title="{{ $waTitle }}"
+                  title="{{ $waTitle }}{{ $_hdrKontorGoster ? ' · Kontör: '.number_format($_hdrKontor,0,',','.') : '' }}"
                   style="background:{{ $waBagli ? '#25D366' : '#DC2626' }};color:#fff;padding:5px 9px;border:none;display:inline-flex;align-items:center;gap:6px;">
                   <i class="bi bi-whatsapp" style="font-size:16px;"></i>
                   <span style="font-size:12px;font-weight:600;">{{ $waBagli ? 'Bağlı' : 'Bağlı Değil' }}</span>
+                  @if($_hdrKontorGoster)
+                  <span title="WhatsApp kontör bakiyesi" style="background:{{ $_hdrKontorKritik ? '#DC2626' : 'rgba(255,255,255,.30)' }};color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:800;line-height:1.7;white-space:nowrap;">{{ number_format($_hdrKontor,0,',','.') }}</span>
+                  @endif
                   <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px {{ $waBagli ? '#25D366' : '#DC2626' }};"></span>
                </a>
             </div>
