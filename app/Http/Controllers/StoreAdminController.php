@@ -26582,13 +26582,18 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         //   3) wl.telefon -> users.cep_telefon -> users.name (son care, son kaydedilen user)
         // Telefon -> isim eslestirmesi icin alt sorgu (ayni telefonla birden fazla user'da
         // satir cogalmasini onler). MAX(name) -> deterministik tek isim.
-        $telefonSubq = '(SELECT cep_telefon, MAX(name) as name FROM users WHERE cep_telefon IS NOT NULL AND cep_telefon != \'\' GROUP BY cep_telefon)';
+        // Telefon formati farkli (log 90XXX..., users 0XXX../5XXX..) — SON 10 HANEYE
+        // gore eslestir ki format farki isim cozumunu bozmasin.
+        $telNorm = "RIGHT(REPLACE(REPLACE(cep_telefon,' ',''),'-',''), 10)";
+        $telefonSubq = "(SELECT {$telNorm} as tel10, MAX(name) as name FROM users WHERE cep_telefon IS NOT NULL AND cep_telefon <> '' GROUP BY {$telNorm})";
 
         $q = DB::table('whatsapp_gonderim_loglari as wl')
             ->leftJoin('users as u', 'u.id', '=', 'wl.user_id')
             ->leftJoin('randevular as r', 'r.id', '=', 'wl.randevu_id')
             ->leftJoin('users as ru', 'ru.id', '=', 'r.user_id')
-            ->leftJoin(DB::raw($telefonSubq . ' as pu'), 'pu.cep_telefon', '=', 'wl.telefon')
+            ->leftJoin(DB::raw($telefonSubq . ' as pu'), function ($join) {
+                $join->on(DB::raw('pu.tel10'), '=', DB::raw('RIGHT(wl.telefon, 10)'));
+            })
             ->select('wl.id', 'wl.user_id', 'wl.randevu_id', 'wl.telefon', 'wl.mesaj',
                 'wl.durum', 'wl.hata', 'wl.mesaj_id', 'wl.gonderim_tarihi', 'wl.created_at',
                 DB::raw('COALESCE(NULLIF(u.name, \'\'), NULLIF(ru.name, \'\'), NULLIF(pu.name, \'\')) as musteri_adi'))
@@ -26618,11 +26623,15 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
         // Telefon -> isim eslestirmesi: user_id bos olan kayitlar icin telefon uzerinden COALESCE.
-        $telefonSubq = '(SELECT cep_telefon, MAX(name) as name FROM users WHERE cep_telefon IS NOT NULL AND cep_telefon != \'\' GROUP BY cep_telefon)';
+        // Format farki icin SON 10 HANEYE gore eslestir (log 90XXX..., users 0XXX../5XXX..).
+        $telNorm = "RIGHT(REPLACE(REPLACE(cep_telefon,' ',''),'-',''), 10)";
+        $telefonSubq = "(SELECT {$telNorm} as tel10, MAX(name) as name FROM users WHERE cep_telefon IS NOT NULL AND cep_telefon <> '' GROUP BY {$telNorm})";
 
         $rows = DB::table('whatsapp_gonderim_loglari as wl')
             ->leftJoin('users as u', 'u.id', '=', 'wl.user_id')
-            ->leftJoin(DB::raw($telefonSubq . ' as pu'), 'pu.cep_telefon', '=', 'wl.telefon')
+            ->leftJoin(DB::raw($telefonSubq . ' as pu'), function ($join) {
+                $join->on(DB::raw('pu.tel10'), '=', DB::raw('RIGHT(wl.telefon, 10)'));
+            })
             ->select(
                 'wl.telefon',
                 DB::raw('COALESCE(NULLIF(MAX(u.name), \'\'), NULLIF(MAX(pu.name), \'\')) as musteri_adi'),
