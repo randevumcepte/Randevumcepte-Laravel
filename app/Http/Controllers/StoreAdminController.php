@@ -3758,13 +3758,15 @@ public function carkverilerigetir(Request $request)
     }
 
     // "Geçmiş randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri).
-    // GUN BAZLI: bugun ve sonrasi gorunur; bugunun saati gecmis randevulari GIZLENMEZ.
-    // Tarih alt sinirini bugune cekmek yeterli (indeksli). Aralik tamamen gecmiste kalirsa
-    // $tarih1 > $tarih2 olur ve sorgu dogal olarak bos doner; takvimin geri kalan yapisi
-    // (resource/calisma saatleri) bozulmaz.
+    // 1 SAATLIK PAY: mevcut zamandan 1 saat oncesi ve sonrasindaki randevular gorunur;
+    // daha eskiler gizlenir. Tarih alt sinirini (indeks icin) 1 saat oncesinin gunune cek,
+    // saat elemesini whereHas icinde yap. Aralik tamamen gecmiste kalirsa $tarih1 > $tarih2
+    // olur ve sorgu dogal olarak bos doner; takvimin geri kalan yapisi bozulmaz.
     $_gecmisGizle = self::gecmisRandevuGizlensinMi($isletmeId);
-    if ($_gecmisGizle && $tarih1 < date('Y-m-d')) {
-        $tarih1 = date('Y-m-d');
+    $_simdi = date('Y-m-d H:i:s', strtotime('-1 hour'));
+    $_altGun = date('Y-m-d', strtotime('-1 hour'));
+    if ($_gecmisGizle && $tarih1 < $_altGun) {
+        $tarih1 = $_altGun;
     }
 
     $randevu_hizmetler_raw = RandevuHizmetler::with([
@@ -3780,13 +3782,19 @@ public function carkverilerigetir(Request $request)
         'randevu.ongorusme.personel',
         'randevu.hizmetler', // partial icindeki yardimci personel taramasi N+1'ini engellemek icin
     ])->where('sure_dk','>',0)
-    ->whereHas('randevu', function ($q)  use($isletmeId,$tarih1,$tarih2){
+    ->whereHas('randevu', function ($q)  use($isletmeId,$tarih1,$tarih2,$_gecmisGizle,$_simdi){
         $q->where('durum', '<', 2);
-        // GUN BAZLI gecmis gizleme: $tarih1 zaten (gerekiyorsa) bugune cekildi;
-        // tarih>=$tarih1 filtresi gunun tamamini gosterir, saat bazli ek eleme yok.
         $q->where('tarih','>=',$tarih1);
         $q->where('tarih','<=',$tarih2);
         $q->where('salon_id',$isletmeId);
+        if ($_gecmisGizle) {
+            // 1 saatlik pay: (tarih+saat) >= (simdi - 1 saat). Kalem saati NULL ise
+            // randevunun kendi saatine dus.
+            $q->whereRaw(
+                "CONCAT(randevular.tarih,' ',COALESCE(randevu_hizmetler.saat, randevular.saat)) >= ?",
+                [$_simdi]
+            );
+        }
     })
     ->when($kendiPersonelIdFiltre, function ($q) use ($kendiPersonelIdFiltre) {
         $q->where('personel_id', $kendiPersonelIdFiltre);
@@ -17114,12 +17122,17 @@ DB::raw('
         ->where('randevular.salon_id', $salon_id);
 
     // "Geçmiş randevular görünmesin" ayari (sadece randevu.randevumcepte.com.tr girisleri):
-    // GUN BAZLI — alt siniri bugune cek; bugunun saati gecmis randevulari GIZLENMEZ.
+    // 1 SAATLIK PAY — mevcut zamandan 1 saat oncesi ve sonrasi gorunur; daha eskiler gizli.
     // Musteri kartindaki "Randevular" sekmesine ($userid dolu) de uygulanir.
     if (self::gecmisRandevuGizlensinMi($salon_id)) {
-        if ($tarih1 == '' || $tarih1 < date('Y-m-d')) {
-            $tarih1 = date('Y-m-d');
+        $_altGun = date('Y-m-d', strtotime('-1 hour'));
+        if ($tarih1 == '' || $tarih1 < $_altGun) {
+            $tarih1 = $_altGun;
         }
+        $baseQuery->whereRaw(
+            "CONCAT(randevular.tarih,' ',randevular.saat) >= ?",
+            [date('Y-m-d H:i:s', strtotime('-1 hour'))]
+        );
     }
 
     // Apply filters early to reduce the dataset before joins
@@ -19135,11 +19148,12 @@ DB::raw('
             $tarih2 = $tarihObj->format('Y-m-t');
         }
 
-        // randevuyukle ile AYNI clamp: gecmis gizliyse imza da sadece bugun ve sonrasini kapsasin,
+        // randevuyukle ile AYNI clamp: gecmis gizliyse imza da 1 saat oncesi ve sonrasini kapsasin,
         // aksi halde gorunmeyen bir gecmis randevu degistiginde bosuna takvim yenilenir.
         $_gecmisGizle = self::gecmisRandevuGizlensinMi($salonId);
-        if ($_gecmisGizle && $tarih1 < date('Y-m-d')) {
-            $tarih1 = date('Y-m-d');
+        $_altGun = date('Y-m-d', strtotime('-1 hour'));
+        if ($_gecmisGizle && $tarih1 < $_altGun) {
+            $tarih1 = $_altGun;
         }
 
         // randevuyukle ile AYNI filtre: randevu_hizmetler -> randevu (salon + tarih).
@@ -19155,11 +19169,11 @@ DB::raw('
 
         $v = $s->c.'|'.$s->hmx.'|'.$s->hmu.'|'.$s->rmx.'|'.$s->rmu;
 
-        // GUN BAZLI gizleme: randevular yalnizca gece yarisi (gun degisince) dusor,
-        // gun ici saat ilerledigi icin dusmez. Bu yuzden 5 dakikalik zaman kovasi
-        // eklemiyoruz; imzaya gunun tarihini ekleyip gun degisince tazelenmesi yeter.
+        // 1 saatlik pay ile gizlemede randevu, saati+1sa gectiginde dusor. Bu yuzden hicbir
+        // kayit degismese bile takvimin zaman ilerledikce tazelenmesi gerekir. Imzaya 5
+        // dakikalik zaman kovasi ekle: en gec 5 dk icinde payi biten randevu takvimden duser.
         if ($_gecmisGizle) {
-            $v .= '|d'.date('Y-m-d');
+            $v .= '|t'.floor(time() / 300);
         }
 
         return response()->json(['v' => $v]);
