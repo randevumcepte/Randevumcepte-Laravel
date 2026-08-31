@@ -15,11 +15,18 @@ class WhatsAppService
 
     /**
      * Kontör DÜŞMEYEN (ücretsiz) gönderim tipleri.
-     * Sadece "1 gün önce" randevu hatırlatması ücretsiz; diğer TÜM mesajlar
-     * (yaklaşan hatırlatma, oluşturma/güncelleme/iptal, seans, manuel, personel...)
-     * kontör düşer. Bu tipler hem bakiye engelinden hem düşmeden muaftır.
+     * Randevu bilgilendirme + hatırlatma mesajları ücretsiz; diğer TÜM mesajlar
+     * (anket, kampanya, dogum gunu, cark, OTP/sifre, manuel toplu, seans bildirim, ...)
+     * kontör düşer. Ücretsiz tipler bakiye engelinden ve düşmeden muaftır.
      */
-    const KONTOR_UCRETSIZ_TIPLER = ['randevu_hatirlatma_1gun'];
+    const KONTOR_UCRETSIZ_TIPLER = [
+        'randevu_hatirlatma_1gun',   // 1 gun onceki hatirlatma
+        'randevu_hatirlatma',        // yaklasan/bugun hatirlatma
+        'yeni_randevu_bildirim',     // musteriye randevu olusturuldu
+        'guncelleme_bildirim',       // randevu guncellendi
+        'iptal_bildirim',            // randevu iptal edildi
+        'personel_hatirlatma',       // personele randevu bilgilendirmesi
+    ];
 
     /** Bu gönderim tipi kontörden muaf (ücretsiz) mi? */
     protected function kontorUcretsizMi($gonderimTipi)
@@ -125,7 +132,7 @@ class WhatsAppService
         // KONTÖR kapısı — 1 Eylül 2026'dan itibaren her WhatsApp mesajı 1 kontör düşer.
         // Bakiye yoksa WA atlanır; arayan taraf SMS'e düşürür. Ücretsiz dönemde bu kapı hiç çalışmaz.
         // ÜCRETSİZ tipler (1 gün önce hatırlatma) bakiye 0 olsa bile ENGELLENMEZ.
-        if (!$this->kontorUcretsizMi($gonderimTipi) && \App\Services\KontorServisi::kontorlusDonemMi() && !\App\Services\KontorServisi::yeterliMi($salon, 1)) {
+        if (!$this->kontorUcretsizMi($gonderimTipi) && \App\Services\KontorServisi::kontorlusDonemMi($salon) && !\App\Services\KontorServisi::yeterliMi($salon, 1)) {
             return ['ok' => false, 'error' => 'kontor-yetersiz'];
         }
 
