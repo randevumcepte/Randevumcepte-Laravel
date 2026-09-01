@@ -28,18 +28,10 @@ class KontorServisi
      */
     public static function kontorlusDonemMi($salon = null)
     {
-        if ($salon) {
-            $bitis = is_object($salon) ? ($salon->whatsapp_deneme_bitis ?? null) : null;
-            if (!$bitis && !is_object($salon)) {
-                // salon_id gecildiyse cek
-                try {
-                    $bitis = DB::table('salonlar')->where('id', (int) $salon)->value('whatsapp_deneme_bitis');
-                } catch (\Throwable $e) {}
-            }
-            if ($bitis) {
-                return date('Y-m-d') > substr((string) $bitis, 0, 10);
-            }
-        }
+        // 1 Eylül 2026 itibariyle TÜM salonlar kontörlü. Salon-başı 60 günlük deneme
+        // (whatsapp_deneme_bitis) KALDIRILDI — artık dikkate alınmaz; herkes global
+        // BASLANGIC tarihinden itibaren ücretli. $salon parametresi geriye dönük
+        // çağrı uyumu için duruyor (kullanılmıyor).
         return date('Y-m-d') >= self::BASLANGIC;
     }
 
