@@ -624,14 +624,20 @@ class RandevuSMSHatirlatma extends Command
      */
     protected function whatsAppRichMetin($salon, $musteri, $tarihStr, $saatlerStr, $randevuKelime, $hizmetlerStr = '')
     {
+        // Klinik turu isletmeler (dermatoloji/estetik/tip merkezleri) icin ikon+kelime degistir
+        $klinikMi = in_array((int) ($salon->salon_turu_id ?? 0), [15, 28, 29], true);
+        $isyeriKucuk = $klinikMi ? 'klinikte' : 'salonda';
+        $isyeriBuyuk = $klinikMi ? 'Klinik' : 'Salon';
+        $hizmetIkon = $klinikMi ? '💉' : '✂️';
+
         $mesaj  = "🌸 Merhaba, *" . $musteri->name . "*,\n\n";
-        $mesaj .= ($salon->salon_adi ?? 'Salon') . " için size yaklaşan " . $randevuKelime . " hatırlatmak isteriz. 💖\n\n";
+        $mesaj .= ($salon->salon_adi ?? $isyeriBuyuk) . " için size yaklaşan " . $randevuKelime . " hatırlatmak isteriz. 💖\n\n";
         $mesaj .= "📅 *Tarih:* " . $tarihStr . "\n";
         $mesaj .= "🕒 *Saat:* " . $saatlerStr . "\n";
         if (!empty($hizmetlerStr)) {
-            $mesaj .= "✂️ *Hizmetler:* " . $hizmetlerStr . "\n";
+            $mesaj .= $hizmetIkon . " *Hizmetler:* " . $hizmetlerStr . "\n";
         }
-        $mesaj .= "\nSizi zamanında ve en iyi şekilde ağırlayabilmemiz için randevu saatinizden birkaç dakika önce salonda olmanızı rica ederiz.\n\n";
+        $mesaj .= "\nSizi zamanında ve en iyi şekilde ağırlayabilmemiz için randevu saatinizden birkaç dakika önce " . $isyeriKucuk . " olmanızı rica ederiz.\n\n";
 
         if (!empty($salon->konum_linki)) {
             $mesaj .= "📍 *Konum:* " . $salon->konum_linki . "\n";
@@ -644,7 +650,7 @@ class RandevuSMSHatirlatma extends Command
             if ($tel !== '' && ctype_digit($tel[0]) && $tel[0] !== '0') {
                 $tel = '0' . $tel;
             }
-            $mesaj .= "📞 *Salon Telefonu:* " . $tel . "\n";
+            $mesaj .= "📞 *" . $isyeriBuyuk . " Telefonu:* " . $tel . "\n";
         }
 
         $mesaj .= "\nHerhangi bir değişiklik yapmak veya bizimle iletişime geçmek isterseniz bu WhatsApp hattından ya da telefon numaramızdan bize ulaşabilirsiniz.\n\n";
