@@ -48,14 +48,29 @@ class WhatsAppMesajFormat
      * @param string $saatStr H:i formatinda
      * @param string $hizmetlerStr virgullu hizmet listesi ("solaryum, cilt bakimi")
      */
+    /** Klinik turu isletme mi? (salon_turu_id 15/28/29 -> dermatoloji/estetik/tip merkezi) */
+    public static function klinikMi($salon)
+    {
+        return in_array((int) ($salon->salon_turu_id ?? 0), [15, 28, 29], true);
+    }
+
+    /** WA mesajlarindaki hizmet ikonu: klinikte sirinca, digerinde makas. */
+    public static function hizmetIkon($salon)
+    {
+        return self::klinikMi($salon) ? '💉' : '✂️';
+    }
+
     public static function randevuOlusturuldu($salon, $musteriAdi, $tarihStr, $saatStr, $hizmetlerStr = '')
     {
+        $klinikMi = self::klinikMi($salon);
+        $hizmetIkon = self::hizmetIkon($salon);
+
         $mesaj  = "🌸 Merhaba, *" . $musteriAdi . "*,\n\n";
         $mesaj .= ($salon->salon_adi ?? '') . " için randevunuz başarıyla oluşturulmuştur. ✨\n\n";
         $mesaj .= "📅 *Tarih:* " . $tarihStr . "\n";
         $mesaj .= "🕒 *Saat:* " . $saatStr . "\n";
         if (!empty($hizmetlerStr)) {
-            $mesaj .= "✂️ *Hizmetler:* " . $hizmetlerStr . "\n";
+            $mesaj .= $hizmetIkon . " *Hizmetler:* " . $hizmetlerStr . "\n";
         }
         $mesaj .= "\nRandevunuzun sorunsuz geçmesi için lütfen belirtilen saatten birkaç dakika önce hazır olunuz. 💐\n\n";
         if (!empty($salon->konum_linki)) {

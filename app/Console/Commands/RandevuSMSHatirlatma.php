@@ -625,10 +625,10 @@ class RandevuSMSHatirlatma extends Command
     protected function whatsAppRichMetin($salon, $musteri, $tarihStr, $saatlerStr, $randevuKelime, $hizmetlerStr = '')
     {
         // Klinik turu isletmeler (dermatoloji/estetik/tip merkezleri) icin ikon+kelime degistir
-        $klinikMi = in_array((int) ($salon->salon_turu_id ?? 0), [15, 28, 29], true);
+        $klinikMi = \App\Services\WhatsAppMesajFormat::klinikMi($salon);
         $isyeriKucuk = $klinikMi ? 'klinikte' : 'salonda';
         $isyeriBuyuk = $klinikMi ? 'Klinik' : 'Salon';
-        $hizmetIkon = $klinikMi ? '💉' : '✂️';
+        $hizmetIkon = \App\Services\WhatsAppMesajFormat::hizmetIkon($salon);
 
         $mesaj  = "🌸 Merhaba, *" . $musteri->name . "*,\n\n";
         $mesaj .= ($salon->salon_adi ?? $isyeriBuyuk) . " için size yaklaşan " . $randevuKelime . " hatırlatmak isteriz. 💖\n\n";
