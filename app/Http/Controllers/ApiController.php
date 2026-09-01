@@ -24237,6 +24237,47 @@ if (is_array($request->cihaz_id)) {
 
     }
 
+    /**
+     * Apple 1.2 UGC uyumu: musteri uygun olmayan yorumu isletme sahibine bildirir.
+     * salon_yorumlar.bildirilen_sayisi ++ ve son sebep + son bildiren kayit edilir.
+     * Isletme admin panelinde bildirilen yorumlar rozetli gorunur, silinebilir (24 saat SLA).
+     */
+    public function yorumBildir(Request $request)
+    {
+        $yorumId    = (int) $request->yorum_id;
+        $sebep      = trim((string) $request->sebep);
+        $bildirenId = $request->bildiren_id ? (int) $request->bildiren_id : null;
+
+        if ($yorumId <= 0 || $sebep === '') {
+            return response()->json(['success' => false, 'message' => 'Eksik parametre'], 400);
+        }
+
+        $yorum = SalonYorumlar::find($yorumId);
+        if (!$yorum) {
+            return response()->json(['success' => false, 'message' => 'Yorum bulunamadi'], 404);
+        }
+
+        // Kolon yoksa migration'siz calissin diye kontrol
+        if (\Schema::hasColumn('salon_yorumlar', 'bildirilen_sayisi')) {
+            $yorum->bildirilen_sayisi = ((int) ($yorum->bildirilen_sayisi ?? 0)) + 1;
+        }
+        if (\Schema::hasColumn('salon_yorumlar', 'bildirim_sebep')) {
+            $yorum->bildirim_sebep = mb_substr($sebep, 0, 200);
+        }
+        if (\Schema::hasColumn('salon_yorumlar', 'bildiren_id')) {
+            $yorum->bildiren_id = $bildirenId;
+        }
+        if (\Schema::hasColumn('salon_yorumlar', 'bildirim_tarihi')) {
+            $yorum->bildirim_tarihi = now();
+        }
+        $yorum->save();
+
+        Audit::logApi($yorum->salon_id, $request, 'yorum_bildir', 'salon_yorum', $yorum->id,
+            null, "Musteri yorumu bildirdi: $sebep", ['sebep' => $sebep]);
+
+        return response()->json(['success' => true, 'message' => 'Bildirim alindi']);
+    }
+
     public function musteriozet(Request $request)
     {
         $salonlar = Salonlar::where('app_bundle',$request->appBundle)->pluck('id')->toArray();

@@ -356,6 +356,8 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
       Route::post('/musteriresimnot','ApiController@musteriResimNot');
         Route::post('/randevudegerlendir','ApiController@randevudegerlendir');
      Route::post('/yorumyap','ApiController@yorumyap');
+     // Apple 1.2 UGC uyumu: uygunsuz yorum bildirimi (musteri -> isletme sahibi)
+     Route::post('/yorum-bildir','ApiController@yorumBildir');
     Route::post('/musteriozet','ApiController@musteriozet');
     Route::post('/salonyorumlari','ApiController@salonyorumlari');
      Route::post('/bildirimgetirmusteri','ApiController@bildirimgetirmusteri');
