@@ -214,7 +214,11 @@ class StoreAdminController extends Controller
             }
 
             return $next($request);
-        })->except(['uygulamaIndir', 'seansDokumuPdf']); // uygulamaIndir: QR public; seansDokumuPdf: mobil API (oturumsuz) erisir
+        })->except(['uygulamaIndir', 'seansDokumuPdf',
+            // Mobil (Bearer/Passport) dogum gunu uclari — web session guard'ina takilmasin,
+            // route'un auth:isletmeyonetim-api middleware'i kimligi zaten dogruluyor.
+            'apiBugunDogumGunu', 'apiDogumGunuGonder', 'apiDogumGunuAtla',
+        ]); // uygulamaIndir: QR public; seansDokumuPdf + apiDogumGunu*: mobil API (oturumsuz) erisir
 
     }
     /**
