@@ -5794,6 +5794,159 @@ document.addEventListener('DOMContentLoaded', function() {
     @endif
   </script>
 
+{{-- ====== DOĞUM GÜNÜ POPUP (Vanilla — tum isletmeyonetim sayfalarinda) ======
+     Ortak layout'ta oldugu icin dashboard + randevu modulu + diger sayfalarda cikar.
+     Gate: musteri listesini gorebilen HER rol (sahip/sekreter/yonetici/supervizor).
+     API'nin kendisi de musteri.liste_gor ister; gonderim ucu ayrica pazarlama yetkisini kontrol eder. --}}
+@if(isset($isletme) && (!$_layoutAuthId || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_layoutAuthId, $isletme->id, 'musteri.liste_gor')))
+<style>
+.rmc-bday-overlay{position:fixed;inset:0;background:rgba(20,20,40,.55);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;animation:rmcBdayFade .2s ease-out;}
+@keyframes rmcBdayFade{from{opacity:0}to{opacity:1}}
+.rmc-bday-box{background:#fff;border-radius:16px;padding:28px 24px;width:92%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.25);text-align:center;animation:rmcBdayPop .25s cubic-bezier(.34,1.56,.64,1);}
+@keyframes rmcBdayPop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.rmc-bday-emoji{font-size:56px;line-height:1;margin-bottom:10px;}
+.rmc-bday-lbl{font-size:14px;color:#666;margin:0 0 4px;}
+.rmc-bday-name{font-size:22px;font-weight:700;color:#e63b6e;margin:0 0 8px;}
+.rmc-bday-q{font-size:14px;color:#444;margin:0 0 6px;}
+.rmc-bday-info{font-size:12px;color:#999;margin:0 0 18px;}
+.rmc-bday-btns{display:flex;flex-direction:column;gap:8px;}
+.rmc-bday-btn{padding:12px 16px;border:0;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:transform .1s,filter .15s;}
+.rmc-bday-btn:hover{filter:brightness(.95);}
+.rmc-bday-btn:active{transform:scale(.97);}
+.rmc-bday-btn.ok{background:#1fbf6f;color:#fff;}
+.rmc-bday-btn.deny{background:#9097ad;color:#fff;}
+.rmc-bday-btn.no{background:#ff5c8a;color:#fff;}
+.rmc-bday-msg{margin-top:14px;padding:10px;border-radius:8px;font-size:13px;}
+.rmc-bday-msg.ok{background:#e8f8ee;color:#1a7f47;}
+.rmc-bday-msg.err{background:#fde8ec;color:#a01035;}
+</style>
+<script>
+(function rmcBdayPopupInit(){
+  var subeParam = @json(isset($_GET['sube']) ? '?sube='.$isletme->id : '');
+  var lsKey = 'rmc_dogumgunu_kapatildi_' + new Date().toISOString().slice(0,10);
+
+  function csrfToken(){
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if(meta) return meta.getAttribute('content');
+    var inp = document.querySelector('input[name="_token"]');
+    return inp ? inp.value : '';
+  }
+
+  function fetchJSON(url, opts){
+    return fetch(url, Object.assign({credentials:'same-origin', headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}}, opts||{}))
+      .then(function(r){ return r.json(); });
+  }
+
+  function gosterModal(m, onResult){
+    var ov = document.createElement('div');
+    ov.className = 'rmc-bday-overlay';
+    ov.innerHTML =
+      '<div class="rmc-bday-box">'
+    + '  <div class="rmc-bday-emoji">🎂</div>'
+    + '  <p class="rmc-bday-lbl">Bugün</p>'
+    + '  <h3 class="rmc-bday-name"></h3>'
+    + '  <p class="rmc-bday-q">Müşterinize doğum günü mesajı göndermek ister misiniz?</p>'
+    + '  <p class="rmc-bday-info">Önce WhatsApp denenecek, başarısız olursa SMS gönderilecek.</p>'
+    + '  <div class="rmc-bday-btns">'
+    + '    <button class="rmc-bday-btn ok" data-r="ok">✉️ Evet, Gönder</button>'
+    + '    <button class="rmc-bday-btn no" data-r="no">Hayır</button>'
+    + '  </div>'
+    + '  <div class="rmc-bday-result"></div>'
+    + '</div>';
+    ov.querySelector('.rmc-bday-name').textContent = m.name || 'Müşteri';
+    document.body.appendChild(ov);
+
+    var sonucBox = ov.querySelector('.rmc-bday-result');
+    var btnsBox = ov.querySelector('.rmc-bday-btns');
+
+    ov.querySelectorAll('.rmc-bday-btn').forEach(function(b){
+      b.addEventListener('click', function(){
+        var r = b.getAttribute('data-r');
+        if(r === 'ok'){
+          btnsBox.style.opacity = '.4';
+          btnsBox.style.pointerEvents = 'none';
+          sonucBox.innerHTML = '<div class="rmc-bday-msg ok">Gönderiliyor…</div>';
+          gonderim(m, function(out){
+            if(out && out.ok){
+              sonucBox.innerHTML = '<div class="rmc-bday-msg ok">✅ '+(out.mesaj || 'Gönderildi.')+'</div>';
+            } else {
+              sonucBox.innerHTML = '<div class="rmc-bday-msg err">⚠️ '+((out && out.mesaj) ? out.mesaj : 'Hata oluştu.')+'</div>';
+            }
+            setTimeout(function(){ ov.remove(); onResult && onResult(); }, 1800);
+          });
+        } else {
+          // Hayir: o gun bu musteri icin bir daha sorma (hem cihaz-yerel hem sunucu-kalici)
+          try {
+            var arr = JSON.parse(localStorage.getItem(lsKey) || '[]');
+            if(arr.indexOf(m.id) === -1) arr.push(m.id);
+            localStorage.setItem(lsKey, JSON.stringify(arr));
+          } catch(e){}
+          atla(m); // sunucuya kalici "atlandi" isareti — diger cihazlarda da cikmasin
+          ov.remove(); onResult && onResult();
+        }
+      });
+    });
+  }
+
+  function gonderim(m, cb){
+    var csrf = csrfToken();
+    var fd = new FormData();
+    fd.append('musteri_id', m.id);
+    fd.append('_token', csrf);
+    fetch('/isletmeyonetim/dogum-gunu-mesaj-gonder' + (subeParam || ''), {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json','X-CSRF-TOKEN': csrf},
+      body: fd,
+    }).then(function(r){ return r.json(); }).then(cb).catch(function(){ cb({ok:false, mesaj:'Sunucuya bağlanılamadı.'}); });
+  }
+
+  function atla(m){
+    var csrf = csrfToken();
+    var fd = new FormData();
+    fd.append('musteri_id', m.id);
+    fd.append('_token', csrf);
+    fetch('/isletmeyonetim/dogum-gunu-atla' + (subeParam || ''), {
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json','X-CSRF-TOKEN': csrf},
+      body: fd,
+    }).catch(function(){});
+  }
+
+  function basla(){
+    fetchJSON('/isletmeyonetim/api/dashboard/bugun-dogum-gunu' + (subeParam || ''))
+      .then(function(d){
+        var liste = (d && d.liste ? d.liste : []).filter(function(m){ return !m.gonderildi; });
+        try {
+          var kapatilanlar = JSON.parse(localStorage.getItem(lsKey) || '[]');
+          liste = liste.filter(function(m){ return kapatilanlar.indexOf(m.id) === -1; });
+        } catch(e){}
+        if(liste.length === 0){ return; }
+
+        var idx = 0;
+        function sira(){
+          if(idx >= liste.length) return;
+          gosterModal(liste[idx], function(){ idx++; setTimeout(sira, 300); });
+        }
+        sira();
+      })
+      .catch(function(e){ console.warn('[BDAY] api hatasi', e); });
+  }
+
+  // Window load eventinde calistir — Chart/Swal/diger bagimli scriptlerden bagimsiz
+  if(document.readyState === 'complete'){
+    setTimeout(basla, 800);
+  } else {
+    window.addEventListener('load', function(){ setTimeout(basla, 800); });
+  }
+
+  // Manuel test icin global tetikleyici
+  window.rmcBdayTrigger = basla;
+})();
+</script>
+@endif
+
    </body>
   
 

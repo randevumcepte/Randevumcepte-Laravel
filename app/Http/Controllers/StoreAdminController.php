@@ -11922,9 +11922,11 @@ private function ayAdiCevir($ingilizceAy)
             return response()->json(['ok' => false, 'error' => 'portfoy-disi'], 403);
         }
 
+        // kanal='atlandi' => "Hayir" ile atlanan; gercek gonderimi engellemesin.
         $bugunGonderildi = DB::table('dogum_gunu_mesaj_loglari')
             ->where('salon_id', $salonId)
             ->where('user_id', $musteriId)
+            ->where('kanal', '<>', 'atlandi')
             ->whereDate('gonderim_tarihi', date('Y-m-d'))
             ->exists();
         if($bugunGonderildi) {
@@ -11987,6 +11989,45 @@ private function ayAdiCevir($ingilizceAy)
             return response()->json(['ok' => false, 'error' => 'gonderim-hatasi', 'mesaj' => 'Mesaj gönderiminde hata oluştu.'], 500);
         }
     }
+
+    /**
+     * "Hayir" ile atlanan dogum gununu sunucuda kalici olarak isaretler.
+     * Ayni tabloya kanal='atlandi' kaydi atar; boylece o gun HANGI cihazdan
+     * girilirse girilsin bu musteri icin popup tekrar cikmaz
+     * (dashboardBugunDogumGunu, gunun tum kayitlarini kanaldan bagimsiz eler).
+     * Sadece popup'i gormeye yetkili (musteri.liste_gor) roller cagirir.
+     */
+    public function dogumGunuAtla(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        if(!$salonId) return response()->json(['ok' => false, 'error' => 'forbidden'], 403);
+        if($r = self::dashYetkiYoksa403($salonId, 'musteri.liste_gor')) return $r;
+
+        $musteriId = (int) $request->musteri_id;
+        if(!$musteriId) return response()->json(['ok' => false, 'error' => 'musteri_id-gerekli'], 422);
+
+        // Ayni gun icin zaten kayit (gonderildi VEYA atlandi) varsa tekrar ekleme.
+        $zatenVar = DB::table('dogum_gunu_mesaj_loglari')
+            ->where('salon_id', $salonId)
+            ->where('user_id', $musteriId)
+            ->whereDate('gonderim_tarihi', date('Y-m-d'))
+            ->exists();
+        if(!$zatenVar) {
+            DB::table('dogum_gunu_mesaj_loglari')->insert([
+                'salon_id' => $salonId,
+                'user_id' => $musteriId,
+                'kanal' => 'atlandi',
+                'mesaj' => null,
+                'detay' => 'kullanici-hayir',
+                'gonderim_tarihi' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
     public function cacheTemizle(Request $request)
     {
         $cikti = [];
