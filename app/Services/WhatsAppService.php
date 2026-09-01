@@ -15,17 +15,13 @@ class WhatsAppService
 
     /**
      * Kontör DÜŞMEYEN (ücretsiz) gönderim tipleri.
-     * Randevu bilgilendirme + hatırlatma mesajları ücretsiz; diğer TÜM mesajlar
-     * (anket, kampanya, dogum gunu, cark, OTP/sifre, manuel toplu, seans bildirim, ...)
-     * kontör düşer. Ücretsiz tipler bakiye engelinden ve düşmeden muaftır.
+     * SADECE "1 gün önce" randevu hatırlatması ücretsiz; diğer TÜM mesajlar
+     * (yaklaşan/bugün hatırlatma, oluşturma/güncelleme/iptal bildirimi, personel,
+     * seans, anket, kampanya, manuel, OTP...) kontör düşer. Ücretsiz tip bakiye
+     * engelinden ve düşmeden muaftır. (Kullanıcı kararı 2026-09-01: sadece 1gün.)
      */
     const KONTOR_UCRETSIZ_TIPLER = [
-        'randevu_hatirlatma_1gun',   // 1 gun onceki hatirlatma
-        'randevu_hatirlatma',        // yaklasan/bugun hatirlatma
-        'yeni_randevu_bildirim',     // musteriye randevu olusturuldu
-        'guncelleme_bildirim',       // randevu guncellendi
-        'iptal_bildirim',            // randevu iptal edildi
-        'personel_hatirlatma',       // personele randevu bilgilendirmesi
+        'randevu_hatirlatma_1gun',   // SADECE 1 gun onceki randevu hatirlatmasi
     ];
 
     /** Bu gönderim tipi kontörden muaf (ücretsiz) mi? */
