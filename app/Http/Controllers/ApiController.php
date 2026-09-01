@@ -24304,7 +24304,7 @@ if (is_array($request->cihaz_id)) {
     public function musteriYorumlariAdmin($salonId)
     {
         $hasBildirim = \Schema::hasColumn('salon_yorumlar', 'bildirilen_sayisi');
-        $q = SalonYorumlar::where('salon_id', $salonId)
+        $q = SalonYorumlar::where('salon_yorumlar.salon_id', $salonId)
             ->leftJoin('users', 'salon_yorumlar.user_id', '=', 'users.id')
             ->select('salon_yorumlar.*', 'users.name as kullanici_adi');
         if ($hasBildirim) {
