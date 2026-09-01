@@ -24275,7 +24275,102 @@ if (is_array($request->cihaz_id)) {
         Audit::logApi($yorum->salon_id, $request, 'yorum_bildir', 'salon_yorum', $yorum->id,
             null, "Musteri yorumu bildirdi: $sebep", ['sebep' => $sebep]);
 
+        // Isletme sahibi ve yoneticilere anlik uygulama-ici bildirim (dashboard rozet).
+        try {
+            $yorumOzet = mb_substr(trim((string) $yorum->yorum), 0, 60, 'UTF-8');
+            if (mb_strlen((string) $yorum->yorum, 'UTF-8') > 60) $yorumOzet .= '...';
+            $aciklama = "Kotuye kullanim bildirimi ({$sebep}): \"{$yorumOzet}\"";
+            \DB::table('bildirimler')->insert([
+                'aciklama'   => $aciklama,
+                'salon_id'   => $yorum->salon_id,
+                'url'        => '/isletmeadmin/musteri-yorumlari',
+                'tarih_saat' => date('Y-m-d H:i:s'),
+                'okundu'     => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('yorumBildir bildirim insert hata: ' . $e->getMessage());
+        }
+
         return response()->json(['success' => true, 'message' => 'Bildirim alindi']);
+    }
+
+    /**
+     * Isletme sahibi/yoneticileri icin salonun yorumlar listesi.
+     * Bildirilen (bildirilen_sayisi > 0) yorumlar en uste alinir.
+     * Apple 1.2 UGC uyumu: moderasyon paneli.
+     */
+    public function musteriYorumlariAdmin($salonId)
+    {
+        $hasBildirim = \Schema::hasColumn('salon_yorumlar', 'bildirilen_sayisi');
+        $q = SalonYorumlar::where('salon_id', $salonId)
+            ->leftJoin('users', 'salon_yorumlar.user_id', '=', 'users.id')
+            ->select('salon_yorumlar.*', 'users.name as kullanici_adi');
+        if ($hasBildirim) {
+            $q->orderByDesc('salon_yorumlar.bildirilen_sayisi')
+              ->orderByDesc('salon_yorumlar.updated_at');
+        } else {
+            $q->orderByDesc('salon_yorumlar.updated_at');
+        }
+        $rows = $q->get();
+
+        // user_id -> puan haritasi (1-5 arasi yildiz)
+        $userIds = $rows->pluck('user_id')->unique()->values()->all();
+        $puanMap = [];
+        if (!empty($userIds)) {
+            $puanRows = SalonPuanlar::where('salon_id', $salonId)
+                ->whereIn('user_id', $userIds)
+                ->whereBetween('puan', [1, 5])
+                ->get(['user_id', 'puan']);
+            foreach ($puanRows as $p) {
+                $puanMap[$p->user_id] = (int) round($p->puan);
+            }
+        }
+
+        $liste = [];
+        foreach ($rows as $y) {
+            $liste[] = [
+                'id'                => (int) $y->id,
+                'user_id'           => (int) $y->user_id,
+                'kullanici_adi'     => trim((string) ($y->kullanici_adi ?? 'Musteri')),
+                'yorum'             => (string) ($y->yorum ?? ''),
+                'puan'              => $puanMap[$y->user_id] ?? 0,
+                'tarih'             => $y->updated_at ? date('Y-m-d H:i:s', strtotime($y->updated_at)) : null,
+                'bildirilen_sayisi' => $hasBildirim ? (int) ($y->bildirilen_sayisi ?? 0) : 0,
+                'bildirim_sebep'    => $hasBildirim ? ($y->bildirim_sebep ?? null) : null,
+                'bildirim_tarihi'   => $hasBildirim && $y->bildirim_tarihi
+                    ? date('Y-m-d H:i:s', strtotime($y->bildirim_tarihi)) : null,
+            ];
+        }
+
+        $bildirilenSayi = collect($liste)->where('bildirilen_sayisi', '>', 0)->count();
+
+        return response()->json([
+            'success'          => true,
+            'yorumlar'         => $liste,
+            'toplam'           => count($liste),
+            'bildirilen_sayi'  => $bildirilenSayi,
+        ]);
+    }
+
+    /**
+     * Isletme sahibi yorumu siler (bildirim geldiginde moderasyon, 24 saat SLA).
+     */
+    public function musteriYorumSil($yorumId, Request $request)
+    {
+        $yorum = SalonYorumlar::find($yorumId);
+        if (!$yorum) {
+            return response()->json(['success' => false, 'message' => 'Yorum bulunamadi'], 404);
+        }
+
+        $salonId = $yorum->salon_id;
+        $yorum->delete();
+
+        Audit::logApi($salonId, $request, 'yorum_sil', 'salon_yorum', $yorumId,
+            null, 'Isletme moderasyonu: yorum silindi');
+
+        return response()->json(['success' => true, 'message' => 'Yorum silindi']);
     }
 
     public function musteriozet(Request $request)

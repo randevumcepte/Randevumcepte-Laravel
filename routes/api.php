@@ -358,6 +358,9 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
      Route::post('/yorumyap','ApiController@yorumyap');
      // Apple 1.2 UGC uyumu: uygunsuz yorum bildirimi (musteri -> isletme sahibi)
      Route::post('/yorum-bildir','ApiController@yorumBildir');
+     // Isletme admin moderasyon (Apple 1.2 UGC uyumu — 24 saat SLA)
+     Route::get('/musteri-yorumlari-admin/{salonId}','ApiController@musteriYorumlariAdmin');
+     Route::delete('/musteri-yorumu-sil/{yorumId}','ApiController@musteriYorumSil');
     Route::post('/musteriozet','ApiController@musteriozet');
     Route::post('/salonyorumlari','ApiController@salonyorumlari');
      Route::post('/bildirimgetirmusteri','ApiController@bildirimgetirmusteri');

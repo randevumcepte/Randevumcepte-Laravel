@@ -1364,6 +1364,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/personel-yetki-getir','StoreAdminController@personelYetkiGetirWeb');
 	Route::post('/personel-yetki-kaydet','StoreAdminController@personelYetkiKaydetWeb');
 	 	 	Route::get('/carkifelek','StoreAdminController@carkifelek')->name('isletmeadmin.carkifelek');
+		Route::get('/musteri-yorumlari','StoreAdminController@musteriYorumlariAdmin')->name('isletmeadmin.musteri.yorumlari');
 	 	 	Route::post('/carkdilimekle', [StoreAdminController::class, 'carkdilimekle'])->name('isletmeadmin.carkdilimekle');
 Route::get('/carkverilerigetir', [StoreAdminController::class, 'carkverilerigetir'])->name('isletmeadmin.carkverilerigetir');
 Route::get('/carkkazananlar', [StoreAdminController::class, 'carkKazananlar'])->name('isletmeadmin.cark.kazananlar');

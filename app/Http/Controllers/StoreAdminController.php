@@ -309,6 +309,29 @@ class StoreAdminController extends Controller
 
         return self::$_mevcutsubeCache[$cacheKey] = $sube;
     }
+    /**
+     * Apple 1.2 UGC uyumu: isletme sahibi/yoneticileri icin musteri yorumlari
+     * moderasyon paneli. Bildirilen yorumlar rozetli gozukur, silme yetkili.
+     */
+    public function musteriYorumlariAdmin(Request $request)
+    {
+        if (!Auth::guard('isletmeyonetim')->check() && !Auth::guard('satisortakligi')->check()) {
+            return redirect()->route('isletmeadmin.login');
+        }
+
+        $subeId = self::mevcutsube($request);
+        $isletme = Salonlar::where('id', $subeId)->first();
+        if (!$isletme) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+
+        return view('isletmeadmin.musteri_yorumlari', [
+            'isletme'   => $isletme,
+            'pageindex' => 999,
+            'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
+        ]);
+    }
+
     public function carkifelek(Request $request){
         $isletmeler = '';
         $isletme='';
