@@ -26550,30 +26550,40 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salonId = $this->whatsappYetkiliSalon($request);
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
+        // Paylasilan oturumda alt salon "baglan" basamaz — ust salonun oturumu zaten paylasilir.
+        $oturumId = $this->whatsappOturumSalonId($salonId);
+        if ($oturumId !== (int) $salonId) {
+            return response()->json([
+                'error' => 'paylasilan-oturum',
+                'mesaj' => 'Bu isletme ' . $oturumId . ' ID\'li isletmenin WhatsApp oturumunu paylasiyor. Bagla/QR islemi ust isletmeden yapilmali.',
+                'paylasilan_salon_id' => $oturumId,
+            ], 409);
+        }
+
         $svc = app(\App\Services\WhatsAppService::class);
 
         // AKILLI BASLAT: gercekten connected degilse eski cached credentials'i
         // sil, fresh QR uret. Aksi halde "Bagli" gozukup numara bos kaliyordu
         // (bridge cached'e reconnect deneyip fail oluyor, QR uretmiyordu).
-        $statusRes = $svc->status($salonId);
+        $statusRes = $svc->status($oturumId);
         $curStatus = $statusRes['body']['status'] ?? '';
         $curPhone  = $statusRes['body']['phone'] ?? null;
         // Gercekten bagliysa (status=connected VE numara var) dokunma
         if ($curStatus !== 'connected' || empty($curPhone)) {
-            $svc->logout($salonId);
+            $svc->logout($oturumId);
             usleep(400 * 1000); // 0.4sn bridge'in state temizlemesi icin
         }
 
-        $res = $svc->startSession($salonId);
+        $res = $svc->startSession($oturumId);
 
         if ($res['ok'] ?? false) {
-            Salonlar::where('id', $salonId)->update([
+            Salonlar::where('id', $oturumId)->update([
                 'whatsapp_aktif' => 1,
                 'whatsapp_durum' => $res['body']['status'] ?? 'connecting',
                 'whatsapp_bridge_tipi' => 'whatsmeow', // whatsmeow-only: bağlantılar yeni köprüden
             ]);
             // Audit
-            SalonAudit::log($salonId, 'whatsapp_baglanti_baslat', 'whatsapp', $salonId,
+            SalonAudit::log($salonId, 'whatsapp_baglanti_baslat', 'whatsapp', $oturumId,
                 'WhatsApp oturumu',
                 'WhatsApp bağlantı oturumu başlatıldı (QR aşaması)',
                 ['durum'=>$res['body']['status'] ?? 'connecting']);
@@ -26592,11 +26602,20 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salonId = $this->whatsappYetkiliSalon($request);
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
+        $oturumId = $this->whatsappOturumSalonId($salonId);
+        if ($oturumId !== (int) $salonId) {
+            return response()->json([
+                'error' => 'paylasilan-oturum',
+                'mesaj' => 'Bu isletme ' . $oturumId . ' ID\'li isletmenin WhatsApp oturumunu paylasiyor. Bagla/QR islemi ust isletmeden yapilmali.',
+                'paylasilan_salon_id' => $oturumId,
+            ], 409);
+        }
+
         $phone = trim((string) $request->input('phone', ''));
         if ($phone === '') return response()->json(['error' => 'phone-required'], 422);
 
         $svc = app(\App\Services\WhatsmeowService::class);
-        $res = $svc->pairPhone($salonId, $phone);
+        $res = $svc->pairPhone($oturumId, $phone);
         return response()->json($res['body'] ?? ['error' => 'servis-erisilemiyor'], $res['status'] ?: 502);
     }
 
@@ -26605,21 +26624,29 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salonId = $this->whatsappYetkiliSalon($request);
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
+        $oturumId = $this->whatsappOturumSalonId($salonId);
         $svc = app(\App\Services\WhatsAppService::class);
-        $res = $svc->status($salonId);
+        $res = $svc->status($oturumId);
         $body = $res['body'] ?? ['status' => 'servis-kapali'];
 
         if (($res['ok'] ?? false) && isset($body['status'])) {
+            // Ust salonun durumunu guncelle (oturum orada)
             $update = ['whatsapp_durum' => $body['status']];
             if ($body['status'] === 'connected') {
-                $salon = Salonlar::find($salonId);
+                $salon = Salonlar::find($oturumId);
                 if ($salon && !$salon->whatsapp_baglanti_tarihi) {
                     $update['whatsapp_baglanti_tarihi'] = now();
                     $update['whatsapp_warmup_baslangic'] = now();
                 }
                 if (!empty($body['phone'])) $update['whatsapp_numara'] = $body['phone'];
             }
-            Salonlar::where('id', $salonId)->update($update);
+            Salonlar::where('id', $oturumId)->update($update);
+
+            // Alt salonun panelde "bagli" gorunmesi icin durumu mirror'la
+            // (paylasilan durumda whatsapp_aktif zaten 1 tutulur, sadece durum yansitilir)
+            if ($oturumId !== (int) $salonId) {
+                Salonlar::where('id', $salonId)->update(['whatsapp_durum' => $body['status']]);
+            }
         }
         return response()->json($body);
     }
@@ -26629,8 +26656,17 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salonId = $this->whatsappYetkiliSalon($request);
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
+        $oturumId = $this->whatsappOturumSalonId($salonId);
+        if ($oturumId !== (int) $salonId) {
+            return response()->json([
+                'error' => 'paylasilan-oturum',
+                'mesaj' => 'Bu isletme ' . $oturumId . ' ID\'li isletmenin WhatsApp oturumunu paylasiyor.',
+                'paylasilan_salon_id' => $oturumId,
+            ], 409);
+        }
+
         $svc = app(\App\Services\WhatsAppService::class);
-        $res = $svc->qr($salonId);
+        $res = $svc->qr($oturumId);
         return response()->json($res['body'] ?? ['error' => 'qr-yok'], $res['status'] ?: 404);
     }
 
@@ -26638,6 +26674,16 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     {
         $salonId = $this->whatsappYetkiliSalon($request);
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
+
+        // Paylasilan oturumda alt salon "cikis" YAPAMAZ — 246'nin oturumunu kapatirdi.
+        $oturumId = $this->whatsappOturumSalonId($salonId);
+        if ($oturumId !== (int) $salonId) {
+            return response()->json([
+                'error' => 'paylasilan-oturum',
+                'mesaj' => 'Bu isletme ' . $oturumId . ' ID\'li isletmenin WhatsApp oturumunu paylasiyor. Cikis islemi ust isletmeden yapilmali.',
+                'paylasilan_salon_id' => $oturumId,
+            ], 409);
+        }
 
         $_audit_numara = Salonlar::where('id',$salonId)->value('whatsapp_numara');
         $svc = app(\App\Services\WhatsAppService::class);
@@ -26665,6 +26711,17 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             ->yetkili_olunan_isletmeler->where('aktif', 1)
             ->pluck('salon_id')->toArray();
         return in_array($current, $yetkili) ? $current : null;
+    }
+
+    /**
+     * Paylasilan WA oturumu icin bridge tarafinda kullanilacak session id'sini dondurur.
+     * Salon whatsapp_paylasilan_salon_id doluysa -> ust salonun id'si.
+     * Boylece 416'nin panelinden status/qr/baslat cagrilari 246'nin oturumuna gider.
+     */
+    protected function whatsappOturumSalonId($salonId)
+    {
+        $paylasilan = Salonlar::where('id', $salonId)->value('whatsapp_paylasilan_salon_id');
+        return (!empty($paylasilan) && (int) $paylasilan !== (int) $salonId) ? (int) $paylasilan : (int) $salonId;
     }
 
     // ─── Salon kendi WhatsApp istatistikleri (sadece kendi verisi) ───
