@@ -12149,12 +12149,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 if (!empty($mesajlar)) {
                     try {
                         // WhatsApp-first: salon WA aktif+connected ise once WA dene,
-                        // basarisiz olanlari SMS'e dusur. WhatsAppRouterService salonun
-                        // whatsapp_bridge_tipi'ne gore otomatik baileys/whatsmeow secer.
+                        // basarisiz olanlari SMS'e dusur. Paylasilan oturum durumunda
+                        // durum kontrolu ust salonda yapilir (416 -> 246).
                         $isletme = Salonlar::find($salonId);
-                        $waKanaliAcik = $isletme
-                            && !empty($isletme->whatsapp_aktif)
-                            && ($isletme->whatsapp_durum ?? '') === 'connected';
+                        $waIsletme = $isletme ? \App\Services\WhatsAppService::resolveWaSalon($isletme) : null;
+                        $waKanaliAcik = $waIsletme
+                            && !empty($waIsletme->whatsapp_aktif)
+                            && ($waIsletme->whatsapp_durum ?? '') === 'connected';
 
                         $smsKalan = $mesajlar;
                         if ($waKanaliAcik) {
@@ -15520,9 +15521,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             // baileys veya whatsmeow'a otomatik yonlendirir.
             try {
                 $isletme = Salonlar::find($randevu->salon_id);
-                $waKanaliAcik = $isletme
-                    && !empty($isletme->whatsapp_aktif)
-                    && ($isletme->whatsapp_durum ?? '') === 'connected';
+                // Paylasilan oturum destegi: durum kontrolu ust salonda
+                $waIsletme = $isletme ? \App\Services\WhatsAppService::resolveWaSalon($isletme) : null;
+                $waKanaliAcik = $waIsletme
+                    && !empty($waIsletme->whatsapp_aktif)
+                    && ($waIsletme->whatsapp_durum ?? '') === 'connected';
 
                 $smsKalan = $mesajlar;
                 if ($waKanaliAcik) {
@@ -29239,8 +29242,13 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 $personelSmsAcik = $ayar && $ayar->personel == 1;
 
                 $waService = app(\App\Services\WhatsAppService::class);
-                $waAcik = !empty($randevu->salonlar->whatsapp_aktif)
-                    && ($randevu->salonlar->whatsapp_durum ?? null) === 'connected';
+                // Paylasilan oturum destegi: durum kontrolu ust salonda
+                $waSalonKontrol = $randevu->salonlar
+                    ? \App\Services\WhatsAppService::resolveWaSalon($randevu->salonlar)
+                    : null;
+                $waAcik = $waSalonKontrol
+                    && !empty($waSalonKontrol->whatsapp_aktif)
+                    && ($waSalonKontrol->whatsapp_durum ?? null) === 'connected';
 
                 $smsListesi = [];
 

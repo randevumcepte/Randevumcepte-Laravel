@@ -258,7 +258,9 @@ class CustomerController extends Controller
                 if ($isAtanan && !empty($yetkili->cep_telefon) && !empty($isletme->yeni_sms)) {
                     $telefon = $yetkili->cep_telefon;
                     $waOk = false;
-                    if (!empty($isletme->whatsapp_aktif) && ($isletme->whatsapp_durum ?? null) === 'connected') {
+                    // Paylasilan oturum destegi: durum kontrolu ust salonda
+                    $_waIsletmeChk = \App\Services\WhatsAppService::resolveWaSalon($isletme);
+                    if (!empty($_waIsletmeChk->whatsapp_aktif) && ($_waIsletmeChk->whatsapp_durum ?? null) === 'connected') {
                         try {
                             $wa = app(\App\Services\WhatsAppService::class)
                                 ->sendUrgent($isletme, $telefon, $mesaj_isletme_bildirim, null, 'yeni_randevu_bildirim');
