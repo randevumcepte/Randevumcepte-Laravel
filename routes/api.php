@@ -319,6 +319,10 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::post('/personelYetkiGetir','ApiController@personelYetkiGetirApi');
     Route::post('/personelYetkiKaydet','ApiController@personelYetkiKaydetApi');
     Route::post('/benimYetkilerim','ApiController@benimYetkilerimApi')->middleware('auth:isletmeyonetim-api');
+    // Dogum gunu popup (mobil): web'deki isletmeyonetim uclarinin Bearer'li karsiligi.
+    Route::get('/dogum-gunu/bugun','StoreAdminController@apiBugunDogumGunu')->middleware('auth:isletmeyonetim-api');
+    Route::post('/dogum-gunu/gonder','StoreAdminController@apiDogumGunuGonder')->middleware('auth:isletmeyonetim-api');
+    Route::post('/dogum-gunu/atla','StoreAdminController@apiDogumGunuAtla')->middleware('auth:isletmeyonetim-api');
     // Patron Asistani (mobil): sesli/yazili serbest soru -> dogal cevap. Sadece Sahip + Yonetici (rapor.ciro_kar_gor).
     Route::match(['GET','POST'],'/patron-asistan-sor','ApiController@patronAsistanSorApi')->middleware('auth:isletmeyonetim-api');
     // Onaylanmis kampanyayi uygula (kupon olustur + SMS gonder). Sadece Sahip+Yonetici.

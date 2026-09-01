@@ -11847,6 +11847,20 @@ private function ayAdiCevir($ingilizceAy)
         if(!$salonId) return response()->json(['error'=>'forbidden'], 403);
         if($r = self::dashYetkiYoksa403($salonId, 'musteri.liste_gor')) return $r;
 
+        // Yetki: musteri.telefon_gor kapaliysa cep_telefon maskeli.
+        $liste = self::_maskeleCepTelefonKolonu(self::_dogumGunuBugunListesi($salonId), $salonId);
+
+        return response()->json(['liste' => $liste, 'tarih' => date('Y-m-d')]);
+    }
+
+    /**
+     * Bugun (ay-gun) dogum gunu olan aktif portfoy musterileri + "gonderildi"
+     * isareti. Web (session guard) ile mobil (api guard) uclari paylasir.
+     * gonderildi = o gun icin dogum_gunu_mesaj_loglari'nda kayit var (gonderildi
+     * VEYA 'atlandi' fark etmez → popup'ta tekrar cikmasin).
+     */
+    private static function _dogumGunuBugunListesi($salonId)
+    {
         $bugun = date('m-d');
         $liste = DB::table('users')
             ->join('musteri_portfoy','musteri_portfoy.user_id','=','users.id')
@@ -11858,22 +11872,16 @@ private function ayAdiCevir($ingilizceAy)
             ->limit(20)
             ->get();
 
-        // Bugün için zaten gönderim yapılan müşterileri işaretle
         $gonderilenIds = DB::table('dogum_gunu_mesaj_loglari')
             ->where('salon_id', $salonId)
             ->whereDate('gonderim_tarihi', date('Y-m-d'))
             ->pluck('user_id')
             ->toArray();
 
-        $liste = $liste->map(function($r) use ($gonderilenIds) {
+        return $liste->map(function($r) use ($gonderilenIds) {
             $r->gonderildi = in_array($r->id, $gonderilenIds);
             return $r;
         });
-
-        // Yetki: musteri.telefon_gor kapaliysa cep_telefon maskeli.
-        $liste = self::_maskeleCepTelefonKolonu($liste, $salonId);
-
-        return response()->json(['liste' => $liste, 'tarih' => date('Y-m-d')]);
     }
 
     /**
@@ -11906,7 +11914,16 @@ private function ayAdiCevir($ingilizceAy)
         // Musteriye WhatsApp/SMS gonderimi → en az birinin yetkisi gerekli
         if($r = self::dashYetkiYoksa403($salonId, ['pazarlama.whatsapp_gonder','pazarlama.sms_gonder'])) return $r;
 
-        $musteriId = (int) $request->musteri_id;
+        return self::_dogumGunuGonderCekirdek($request, $salonId, (int) $request->musteri_id);
+    }
+
+    /**
+     * Dogum gunu mesaj gonderiminin ortak cekirdegi (web + mobil-api paylasir).
+     * Cagiran taraf salon uyeligini + pazarlama yetkisini kendi guard'iyla dogrular;
+     * burada sadece musteri/portfoy/gonderim mantigi yer alir.
+     */
+    private function _dogumGunuGonderCekirdek(Request $request, $salonId, $musteriId)
+    {
         if(!$musteriId) return response()->json(['ok' => false, 'error' => 'musteri_id-gerekli'], 422);
 
         $musteri = User::where('id', $musteriId)->first();
@@ -11960,10 +11977,10 @@ private function ayAdiCevir($ingilizceAy)
                     $kanalDetay = 'queued';
                 } else {
                     $kanalDetay = 'wa-fail:' . ($sonuc['error'] ?? 'unknown');
-                    self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false);
+                    self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false, $salonId);
                 }
             } else {
-                self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false);
+                self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false, $salonId);
             }
 
             DB::table('dogum_gunu_mesaj_loglari')->insert([
@@ -12003,7 +12020,15 @@ private function ayAdiCevir($ingilizceAy)
         if(!$salonId) return response()->json(['ok' => false, 'error' => 'forbidden'], 403);
         if($r = self::dashYetkiYoksa403($salonId, 'musteri.liste_gor')) return $r;
 
-        $musteriId = (int) $request->musteri_id;
+        return self::_dogumGunuAtlaCekirdek($salonId, (int) $request->musteri_id);
+    }
+
+    /**
+     * "Hayir" isaretinin ortak cekirdegi (web + mobil-api paylasir).
+     * kanal='atlandi' kaydi atar; o gun ayni musteri icin baska kayit yoksa.
+     */
+    private static function _dogumGunuAtlaCekirdek($salonId, $musteriId)
+    {
         if(!$musteriId) return response()->json(['ok' => false, 'error' => 'musteri_id-gerekli'], 422);
 
         // Ayni gun icin zaten kayit (gonderildi VEYA atlandi) varsa tekrar ekleme.
@@ -12026,6 +12051,56 @@ private function ayAdiCevir($ingilizceAy)
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    // ================= MOBIL (isletmeyonetim-api guard) dogum gunu uclari =================
+    // Web uclari session guard + CSRF ister; mobil Bearer token ile /api/v1 uzerinden
+    // konusur. Ayni cekirdek mantigi paylasilir, sadece auth/yetki katmani farkli.
+
+    private function apiDogumGunuSalonId(Request $request)
+    {
+        $user = \Auth::guard('isletmeyonetim-api')->user();
+        if(!$user) return null;
+        $salonId = (int) $request->sube;
+        if(!$salonId) return null;
+        $yetkili = $user->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+        return in_array($salonId, $yetkili) ? $salonId : null;
+    }
+
+    public function apiBugunDogumGunu(Request $request)
+    {
+        $user = \Auth::guard('isletmeyonetim-api')->user();
+        $salonId = self::apiDogumGunuSalonId($request);
+        if(!$user || !$salonId) return response()->json(['liste'=>[], 'error'=>'forbidden'], 403);
+        if(!\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($user->id, $salonId, 'musteri.liste_gor'))
+            return response()->json(['liste'=>[], 'error'=>'forbidden'], 403);
+
+        $liste = self::_maskeleCepTelefonKolonu(self::_dogumGunuBugunListesi($salonId), $salonId);
+        return response()->json(['liste' => $liste, 'tarih' => date('Y-m-d')]);
+    }
+
+    public function apiDogumGunuGonder(Request $request)
+    {
+        $user = \Auth::guard('isletmeyonetim-api')->user();
+        $salonId = self::apiDogumGunuSalonId($request);
+        if(!$user || !$salonId) return response()->json(['ok'=>false, 'error'=>'forbidden'], 403);
+        // Gonderim → pazarlama yetkisi (web ile ayni kural)
+        $yetki = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($user->id, $salonId, 'pazarlama.whatsapp_gonder')
+              || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($user->id, $salonId, 'pazarlama.sms_gonder');
+        if(!$yetki) return response()->json(['ok'=>false, 'error'=>'forbidden', 'mesaj'=>'Mesaj gönderme yetkiniz yok.'], 403);
+
+        return self::_dogumGunuGonderCekirdek($request, $salonId, (int) $request->musteri_id);
+    }
+
+    public function apiDogumGunuAtla(Request $request)
+    {
+        $user = \Auth::guard('isletmeyonetim-api')->user();
+        $salonId = self::apiDogumGunuSalonId($request);
+        if(!$user || !$salonId) return response()->json(['ok'=>false, 'error'=>'forbidden'], 403);
+        if(!\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($user->id, $salonId, 'musteri.liste_gor'))
+            return response()->json(['ok'=>false, 'error'=>'forbidden'], 403);
+
+        return self::_dogumGunuAtlaCekirdek($salonId, (int) $request->musteri_id);
     }
 
     public function cacheTemizle(Request $request)
