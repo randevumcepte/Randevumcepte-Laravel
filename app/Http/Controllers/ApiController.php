@@ -24407,6 +24407,7 @@ if (is_array($request->cihaz_id)) {
             }
             $yorumListesi[] = [
                 'id' => $y->id,
+                'user_id' => (int) $y->user_id, // Frontend: kendi yorumuna 'bildir' butonu gizlensin
                 'kullanici_adi' => $gosterilenAd,
                 'puan' => $puanMap[$y->user_id] ?? 0,
                 'yorum' => $y->yorum,
