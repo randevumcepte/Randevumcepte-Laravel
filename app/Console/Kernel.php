@@ -17,6 +17,7 @@ class Kernel extends ConsoleKernel
         Commands\GuvenlikBildir::class,
         Commands\KurusReconcile::class,
         Commands\AlacakTemizle::class,
+        Commands\YetkiTeshis::class,
 
         Commands\SMSGonder::class,
         Commands\RandevuSMSHatirlatma::class,
