@@ -293,7 +293,10 @@ class StoreAdminController extends Controller
         if(Auth::guard('satisortakligi')->check())
             $subeler = [15];
         else
-            $subeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->pluck('salon_id')->toArray();
+            // aktif=1 filtresi SART: deaktif edilen (salon_personelleri.aktif=0) ama
+            // silinmeyen isletme, tum sayfa guard'lari aktif filtreli calistigi icin
+            // burada filtresiz secilirse (ilk salon deaktif ise) her sayfa yetkisiz doner.
+            $subeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
 
         $apiHosts = ['app.randevumcepte.com.tr','apptest.randevumcepte.com.tr','demoapp.randevumcepte.com.tr','randevu.randevumcepte.com.tr'];
         if(!in_array($_SERVER['HTTP_HOST'] ?? '', $apiHosts, true)){
