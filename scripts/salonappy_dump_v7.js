@@ -272,7 +272,7 @@
       const remaining = visits.length - ok;
       const eta = (remaining / (processed/elapsed)).toFixed(0);
       console.log(`  ${ok}/${visits.length}  ok=${ok} fail=${fail} bu_run=${processed}  ETA ${eta}s`);
-    }
+    }w
   }
   await dbPut('bookingDetails', bookingDetails);
   console.log(`✓ TAMAM: ok=${ok} fail=${fail}`);

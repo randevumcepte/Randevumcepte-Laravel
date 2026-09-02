@@ -84,6 +84,32 @@ Route::get('/firebase-messaging-sw.js', function () {
     ]);
 })->name('firebase.sw');
 
+// GECICI TESHIS: mini sitede personel fotograflarinin neden cikmadigini gormek icin
+// her personelin yetkili_id -> isletmeyetkilileri -> profil_resim zincirini dokum.
+Route::get('/dev-personel-foto-teshis', function() {
+    $salon = \App\Salonlar::where('domain', $_SERVER['HTTP_HOST'])->first();
+    if (!$salon) return 'Bu domain icin salon bulunamadi.';
+    $pers = \App\Personeller::where('salon_id', $salon->id)->get();
+    $out = "<pre style='font:13px monospace;padding:20px;line-height:1.6'>";
+    $out .= "SALON: {$salon->salon_adi} (#{$salon->id})  domain={$salon->domain}\n";
+    $out .= str_repeat('-', 90)."\n";
+    foreach ($pers as $p) {
+        $yById  = !empty($p->yetkili_id) ? \App\IsletmeYetkilileri::find($p->yetkili_id) : null;
+        $yByRev = \App\IsletmeYetkilileri::where('personel_id', $p->id)->first();
+        $out .= "personel #{$p->id} '".e($p->personel_adi)."'  yetkili_id=".var_export($p->yetkili_id,true)."\n";
+        $out .= "   yById   : ".($yById  ? "#{$yById->id} profil_resim=".var_export($yById->profil_resim,true)  : 'YOK')."\n";
+        $out .= "   yByRev  : ".($yByRev ? "#{$yByRev->id} profil_resim=".var_export($yByRev->profil_resim,true) : 'YOK')."\n";
+    }
+    // Bu salona bagli, profil_resim yuklemis TUM yetkililer (baglanti kopuk mu gormek icin)
+    $out .= str_repeat('-', 90)."\n";
+    $out .= "Bu salonun yetkilileri (isletmeyetkilileri.salon_id={$salon->id}):\n";
+    foreach (\App\IsletmeYetkilileri::where('salon_id',$salon->id)->get() as $y) {
+        $out .= "   yetkili #{$y->id} name='".e($y->name)."' personel_id=".var_export($y->personel_id,true)." profil_resim=".var_export($y->profil_resim,true)."\n";
+    }
+    $out .= "</pre>";
+    return $out;
+});
+
 // GECICI: personel_id=0 olan randevu_hizmetler kayitlarini hizmete uygun ilk personele atayarak duzelt
 Route::get('/dev-randevu-personel-duzelt', function() {
     $salon = \App\Salonlar::where('domain', $_SERVER['HTTP_HOST'])->first();

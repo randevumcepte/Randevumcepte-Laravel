@@ -5,3 +5,44 @@ Login deneniyor...
 Login sonuc: OK - webforms
 Detay: Login OK. Son URL: https://uygulama.drklinik.net/default.aspx?v=202652411242547
 Seans saglama: 2024-01-01 - 2030-12-31
+  ..hafta 20 unique musid: 0
+  ..hafta 40 unique musid: 404
+  ..hafta 60 unique musid: 894
+  ..hafta 80 unique musid: 1347
+  ..hafta 100 unique musid: 1777
+  ..hafta 120 unique musid: 2192
+  ..hafta 140 unique musid: 2339
+  ..hafta 160 unique musid: 2339
+  ..hafta 180 unique musid: 2339
+  ..hafta 200 unique musid: 2339
+  ..hafta 220 unique musid: 2339
+  ..hafta 240 unique musid: 2339
+  ..hafta 260 unique musid: 2339
+  ..hafta 280 unique musid: 2339
+  ..hafta 300 unique musid: 2339
+  ..hafta 320 unique musid: 2339
+  ..hafta 340 unique musid: 2339
+  ..hafta 360 unique musid: 2339
+Toplam unique musid: 2339
+  ..100/2339 ok_musteri=56 farkli_musteri=28
+  ..200/2339 ok_musteri=117 farkli_musteri=51
+  ..300/2339 ok_musteri=165 farkli_musteri=67
+  ..400/2339 ok_musteri=217 farkli_musteri=79
+  ..600/2339 ok_musteri=310 farkli_musteri=107
+  ..700/2339 ok_musteri=358 farkli_musteri=124
+  ..800/2339 ok_musteri=398 farkli_musteri=151
+  ..900/2339 ok_musteri=439 farkli_musteri=176
+  ..1000/2339 ok_musteri=475 farkli_musteri=192
+  ..1100/2339 ok_musteri=523 farkli_musteri=216
+  ..1200/2339 ok_musteri=580 farkli_musteri=230
+  ..1300/2339 ok_musteri=626 farkli_musteri=258
+  ..1400/2339 ok_musteri=671 farkli_musteri=275
+  ..1500/2339 ok_musteri=727 farkli_musteri=296
+  ..1600/2339 ok_musteri=789 farkli_musteri=310
+  ..1800/2339 ok_musteri=881 farkli_musteri=353
+  ..1900/2339 ok_musteri=932 farkli_musteri=367
+  ..2000/2339 ok_musteri=990 farkli_musteri=380
+  ..2200/2339 ok_musteri=1110 farkli_musteri=391
+  ..2300/2339 ok_musteri=1173 farkli_musteri=403
+Saglama bitti. OK musteri=1199, farkli musteri=403, fark satir=501
+CSV: /tmp/drk_seans_fark_362.csv
