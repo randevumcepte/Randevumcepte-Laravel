@@ -80,7 +80,11 @@ class SifreSifirlamaController extends Controller
             // ⚠️ DEMO HESAP KORUMASI (Apple/Google reviewer için)
             // Demo hesapların şifresi her zaman "1234" olarak sabit kalır.
             // SMS / WhatsApp / hiçbir bildirim TETİKLENMEZ — fonksiyon erken döner.
-            $isDemoMusteri  = ($kullanici instanceof User)              && $kullanici->id == 46120;
+            // GEÇİCİ (2026-09-02): kendi test numaram (users id 46120 / 5316237563)
+            // demo korumasindan cikarildi ki sifremi unuttum WA testini gercek yapabileyim.
+            // ⚠️ GERI AL: yayin/review oncesi asagidaki satiri eski haline getir:
+            //     $isDemoMusteri = ($kullanici instanceof User) && $kullanici->id == 46120;
+            $isDemoMusteri  = false; // <-- TEST BITINCE GERI FLAGLA
             $isDemoYetkili  = ($kullanici instanceof IsletmeYetkilileri) && $kullanici->id == 3;
             if ($isDemoMusteri || $isDemoYetkili) {
                 Log::info('Demo hesap şifre sıfırlama engellendi', [
