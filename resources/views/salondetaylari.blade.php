@@ -1304,7 +1304,8 @@
                         $_perYetkili = !empty($per->yetkili_id) ? \App\IsletmeYetkilileri::where('id',$per->yetkili_id)->first() : null;
                         if (!$_perYetkili) $_perYetkili = \App\IsletmeYetkilileri::where('personel_id',$per->id)->first();
                         $_perResim = $_perYetkili ? $_perYetkili->profil_resim : null;
-                        if (empty($_perResim)) {
+                        // Varsayilan admin-panel avatar.png'sini de "foto yok" say: temali fallback daha iyi durur.
+                        if (empty($_perResim) || strpos($_perResim, 'isletmeyonetim_assets/img/avatar.png') !== false) {
                             $_perResim = $per->cinsiyet==0 ? 'public/img/author0.jpg' : 'public/img/author1.jpg';
                         }
                         $_perName = $_perYetkili && $_perYetkili->name ? $_perYetkili->name : $per->personel_adi;
