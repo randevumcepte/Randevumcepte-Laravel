@@ -466,10 +466,30 @@ class ApiController extends Controller
     {
         try {
             $salonId = null;
-            if (($request->appBundle ?? '') === 'com.randevumcepte.randevumcepte') {
+            $appBundle = $request->appBundle ?? '';
+            $salonIdKaynak = 'salonidler';
+            if ($appBundle === 'com.randevumcepte.randevumcepte') {
                 $salonId = 20;
+                $salonIdKaynak = 'master';
             } else {
-                $salonId = $request->salonidler ?? null;
+                // White-label: WA hedef salonunu appBundle'dan coz. appBundle gercek
+                // paket adindan gelir (guvenilir); app'in yolladigi salonidler ise
+                // hardcode oldugundan marka switch'te yanlis kalabilir (or. EYM Life
+                // build'i 432 yollamis). Once appBundle'a bagli WA-bagli+aktif salonu
+                // ara; bulunamazsa app'in yolladigi salonidler'e dus.
+                if ($appBundle !== '') {
+                    $waSalonByBundle = Salonlar::where('app_bundle', $appBundle)
+                        ->where('whatsapp_aktif', 1)
+                        ->where('whatsapp_durum', 'connected')
+                        ->first();
+                    if ($waSalonByBundle) {
+                        $salonId = $waSalonByBundle->id;
+                        $salonIdKaynak = 'appBundle';
+                    }
+                }
+                if (!$salonId) {
+                    $salonId = $request->salonidler ?? null;
+                }
             }
 
             $salon = $salonId ? Salonlar::where('id', $salonId)->first() : null;
@@ -479,6 +499,7 @@ class ApiController extends Controller
             Log::info('[Sifre WA] kanal karari', [
                 'appBundle' => $request->appBundle ?? null,
                 'salonidler_input' => $request->salonidler ?? null,
+                'salon_id_kaynak' => $salonIdKaynak,
                 'belirlenen_salon_id' => $salonId,
                 'wa_session_salon_id' => $waSalon->id ?? null,
                 'salon_var_mi' => (bool) $salon,
