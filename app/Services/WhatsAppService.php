@@ -22,6 +22,7 @@ class WhatsAppService
      */
     const KONTOR_UCRETSIZ_TIPLER = [
         'randevu_hatirlatma_1gun',   // SADECE 1 gun onceki randevu hatirlatmasi
+        'sifre_sifirlama',           // Sifremi unuttum: her zaman ucretsiz (kontor/deneme bagimsiz)
     ];
 
     /** Bu gönderim tipi kontörden muaf (ücretsiz) mi? */

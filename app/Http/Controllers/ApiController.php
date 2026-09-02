@@ -497,7 +497,10 @@ class ApiController extends Controller
                 $to = $m['to'] ?? null;
                 $msg = $m['message'] ?? null;
                 if (!$to || !$msg) { $hepsiBasarili = false; continue; }
-                $sonuc = $wa->sendUrgent($salon, $to, $msg, $userId);
+                // Sifremi unuttum kontorden bagimsiz ve ucretsiz: 'sifre_sifirlama' tipi
+                // KONTOR_UCRETSIZ_TIPLER'de oldugundan kontor kapisi/bakiye engeli calismaz,
+                // bakiye 0 veya deneme bitmis olsa bile WA'dan gonderilir, kontor dusmez.
+                $sonuc = $wa->sendUrgent($salon, $to, $msg, $userId, 'sifre_sifirlama');
                 if (!($sonuc['ok'] ?? false)) {
                     $hepsiBasarili = false;
                     Log::warning('[Sifre WA] gonderim basarisiz -> SMS fallback', [
