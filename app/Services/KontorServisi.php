@@ -24,14 +24,34 @@ class KontorServisi
 
     /**
      * Kontorlu donem basladi mi? Salon verilirse salon-ozel deneme_bitis'e bakilir,
-     * verilmezse global BASLANGIC fallback'i kullanilir.
+     * verilmezse (veya kolon null'sa) global BASLANGIC fallback'i kullanilir.
+     * ORNEK: salonun whatsapp_deneme_bitis=2026-11-30 ise 1 Aralik'a kadar
+     * kontor dusmez, engel yok. Salon parametresi id (int) veya Eloquent obj olabilir.
      */
     public static function kontorlusDonemMi($salon = null)
     {
-        // 1 Eylül 2026 itibariyle TÜM salonlar kontörlü. Salon-başı 60 günlük deneme
-        // (whatsapp_deneme_bitis) KALDIRILDI — artık dikkate alınmaz; herkes global
-        // BASLANGIC tarihinden itibaren ücretli. $salon parametresi geriye dönük
-        // çağrı uyumu için duruyor (kullanılmıyor).
+        if ($salon) {
+            $bitis = null;
+            if (is_object($salon)) {
+                $bitis = $salon->whatsapp_deneme_bitis ?? null;
+            }
+            // Obje olsa bile null gelirse (attribute yuklenmemis) veya id gecildiyse DB'den cek
+            if (empty($bitis)) {
+                try {
+                    $id = is_object($salon) ? ($salon->id ?? null) : (int) $salon;
+                    if ($id) {
+                        $bitis = DB::table('salonlar')->where('id', (int) $id)->value('whatsapp_deneme_bitis');
+                    }
+                } catch (\Throwable $e) {}
+            }
+            if (!empty($bitis)) {
+                // '0000-00-00' gibi bozuk degerleri es gec, fallback'e dus
+                $s = substr((string) $bitis, 0, 10);
+                if ($s !== '' && $s !== '0000-00-00') {
+                    return date('Y-m-d') > $s;
+                }
+            }
+        }
         return date('Y-m-d') >= self::BASLANGIC;
     }
 

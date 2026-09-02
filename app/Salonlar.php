@@ -13,12 +13,14 @@ class Salonlar extends Model
         'whatsapp_saglayici','cloud_api_phone_number_id','cloud_api_token',
         'cloud_api_template_1gun','cloud_api_template_yaklasan','cloud_api_template_iptal','cloud_api_template_guncelleme','cloud_api_template_dil','faturasiz_gizle',
         'whatsapp_promo_baslangic','whatsapp_promo_bitis','whatsapp_promo_aktif','whatsapp_promo_kapatildi',
+        'whatsapp_deneme_bitis','whatsapp_kontor','whatsapp_paylasilan_salon_id',
         'cakisma_uyarisi_aktif' ];
 
     protected $casts = [
         'whatsapp_aktif' => 'boolean',
         'whatsapp_baglanti_tarihi' => 'datetime',
         'whatsapp_warmup_baslangic' => 'datetime',
+        'whatsapp_deneme_bitis' => 'date',
         'faturasiz_gizle' => 'boolean',
         'whatsapp_promo_aktif' => 'boolean',
         'whatsapp_promo_kapatildi' => 'boolean',
