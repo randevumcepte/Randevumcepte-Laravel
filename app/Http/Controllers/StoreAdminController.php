@@ -5497,11 +5497,7 @@ private function ayAdiCevir($ingilizceAy)
          
             $yetkili->unvan = $request->unvan;
             $yetkili->cinsiyet = $request->cinsiyet;
-            // Sadece hic fotograf yoksa varsayilani ata. Aksi halde personel duzenlemesi
-            // (isim/maas/hizmet vb.) yuklenmis gercek profil resmini her seferinde eziyordu.
-            if(empty($yetkili->profil_resim)){
-                $yetkili->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
-            }
+            $yetkili->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
             $yetkili->name = $request->personel_adi;
             $yetkili->gsm1 = $request->cep_telefon;
             if($yenihesapacma)
