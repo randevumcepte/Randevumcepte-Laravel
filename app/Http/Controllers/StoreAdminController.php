@@ -5497,11 +5497,13 @@ private function ayAdiCevir($ingilizceAy)
          
             $yetkili->unvan = $request->unvan;
             $yetkili->cinsiyet = $request->cinsiyet;
-            $yetkili->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
             $yetkili->name = $request->personel_adi;
             $yetkili->gsm1 = $request->cep_telefon;
             if($yenihesapacma)
             {
+                // Varsayilan avatar SADECE yeni hesap acilirken atanir;
+                // duzenlemede dokunulmaz, boylece yuklenmis profil fotografi silinmez.
+                $yetkili->profil_resim = '/public/isletmeyonetim_assets/img/avatar.png';
                 $random = str_shuffle('abcdefghjklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ1234567890');
                 $olusturulansifre = substr($random, 0, 6);
                 $yetkili->password = Hash::make($olusturulansifre);

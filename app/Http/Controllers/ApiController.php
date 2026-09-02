@@ -19562,15 +19562,16 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             $yetkili->cinsiyet = $request->cinsiyet;
 
-            $yetkili->profil_resim =
-
-                "/public/isletmeyonetim_assets/img/avatar.png";
-
             $yetkili->name = $request->personel_adi;
 
             $yetkili->gsm1 = self::telefon_no_format_duzenle($request->cep_telefon);
 
             if ($yenihesapacma) {
+
+                // Varsayilan avatar SADECE yeni hesap acilirken atanir;
+                // duzenlemede dokunulmaz, boylece yuklenmis profil fotografi silinmez.
+                $yetkili->profil_resim =
+                    "/public/isletmeyonetim_assets/img/avatar.png";
 
                 $random = str_shuffle(
 
