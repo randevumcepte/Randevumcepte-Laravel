@@ -11446,7 +11446,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
      * Doner: '' (ayar kapali VEYA cakisma yok) | duz metin mesaj (ilk cakisma).
      * Mesaj DUZ METIN (HTML yok) — mobil AlertDialog'da dogru gorunsun diye.
      */
-    private function kaynak_cakisma_kontrol_api($request, $randevu_tarihleri, $salonId)
+    private function kaynak_cakisma_kontrol_api($request, $randevu_tarihleri, $salonId, $sadeceOnayli = true)
     {
         $salon = Salonlar::find($salonId);
         if (!$salon || empty($salon->cakisma_uyarisi_aktif)) {
@@ -11480,7 +11480,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     if ($kid === null || $kid === '' || $kid === 'null') {
                         continue; // bu satirda bu tip kaynak yok (oda bos ise otomatik atanir; odaMusaitlikCakismasi zaten korur)
                     }
-                    $mesaj = self::_kaynak_cakisma_tekil_api($k['tip'], $k['kolon'], $kid, $tarih, $saat_baslangic, $saat_bitis, $salonId, $current_randevu_id);
+                    $mesaj = self::_kaynak_cakisma_tekil_api($k['tip'], $k['kolon'], $kid, $tarih, $saat_baslangic, $saat_bitis, $salonId, $current_randevu_id, $sadeceOnayli);
                     if ($mesaj !== '') {
                         return $mesaj;
                     }
@@ -11491,12 +11491,16 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
 
     /** Tek kaynak icin verilen pencerede ONAYLI cakisma var mi? Varsa duz metin mesaj, yoksa ''. */
-    private function _kaynak_cakisma_tekil_api($tip, $kolon, $kaynak_id, $tarih, $saat_baslangic, $saat_bitis, $salonId, $current_randevu_id)
+    private function _kaynak_cakisma_tekil_api($tip, $kolon, $kaynak_id, $tarih, $saat_baslangic, $saat_bitis, $salonId, $current_randevu_id, $sadeceOnayli = true)
     {
         $onaylilar = DB::table('randevular')
             ->join('randevu_hizmetler', 'randevular.id', '=', 'randevu_hizmetler.randevu_id')
             ->where('randevular.tarih', $tarih)
-            ->where('randevular.durum', 1)
+            // $sadeceOnayli=true => yalniz ONAYLI (durum=1); false => BEKLEYEN+ONAYLI (durum<2).
+            // Musteri uygulamasi (durum=0) kaydinda bekleyen randevular da cakisma sayilir ki
+            // iki bekleyen app randevusu birbirini gormezden gelip ust uste binmesin.
+            ->when($sadeceOnayli, function ($q) { $q->where('randevular.durum', 1); })
+            ->when(!$sadeceOnayli, function ($q) { $q->where('randevular.durum', '<', 2); })
             ->where('randevular.salon_id', $salonId)
             ->where('randevu_hizmetler.' . $kolon, $kaynak_id)
             ->when($current_randevu_id, function ($q) use ($current_randevu_id) {
@@ -11675,8 +11679,20 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // kontrol hic calismaz => hicbir surum (eski/yeni) etkilenmez. Ayar ACIK
         // salonda hem web hem mobil (eski app'ler dahil, mevcut cakismavar dialog'u
         // ile) uyari gosterir.
-        if ($request->cakisanrandevuekle != "1" && $request->durum != 0) {
-            $kaynakMesaj = self::kaynak_cakisma_kontrol_api($request, $randevu_tarihleri, $salonId);
+        if ($request->randevuKaynak == 'uygulama') {
+            // ── MÜŞTERİ UYGULAMASI: SERT ENGEL ──────────────────────────────────
+            // Müşteri kaydı durum=0 geldiği için ESKİDEN bu kontrol tamamen atlanıyordu
+            // → app, ONAYLI (durum=1) randevunun bile üstüne randevu oluşturabiliyordu.
+            // Artık app kayıtlarında kontrol HER ZAMAN çalışır (cakisanrandevuekle=1 ile
+            // override EDİLEMEZ) ve BEKLEYEN+ONAYLI (durum<2) randevularla karşılaştırılır.
+            // (Salon ayarı KAPALI ise fonksiyon kendi içinde boş döner → değişiklik yok.)
+            $kaynakMesaj = self::kaynak_cakisma_kontrol_api($request, $randevu_tarihleri, $salonId, false);
+            if ($kaynakMesaj !== "") {
+                return ["cakismavar" => "1", "cakisanunsurlar" => $kaynakMesaj];
+            }
+        } elseif ($request->cakisanrandevuekle != "1" && $request->durum != 0) {
+            // Salon/web: yumuşak uyarı (yine de oluştur ile atlanır); yalnız ONAYLI (durum=1).
+            $kaynakMesaj = self::kaynak_cakisma_kontrol_api($request, $randevu_tarihleri, $salonId, true);
             if ($kaynakMesaj !== "") {
                 return ["cakismavar" => "1", "cakisanunsurlar" => $kaynakMesaj];
             }
