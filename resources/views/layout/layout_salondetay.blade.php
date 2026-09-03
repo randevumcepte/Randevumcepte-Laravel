@@ -35,7 +35,7 @@
       <link rel="stylesheet" href="{{secure_asset('public/css/selectize.css')}}" type="text/css">
       <link rel="stylesheet" href="/public/css/style.css?v=1.9">
       <link rel="stylesheet" href="{{secure_asset('public/css/user.css')}}">
-      <link rel="stylesheet" href="{{secure_asset('public/css/randevu-luxe.css')}}?v=18">
+      <link rel="stylesheet" href="{{secure_asset('public/css/randevu-luxe.css')}}?v=19">
       <link rel="stylesheet" href="{{secure_asset('public/css/salon-landing.css')}}?v=15">
       <link rel="stylesheet" href="{{secure_asset('public/css/navigationmobilemenu.css')}}">
       <link rel="stylesheet" type="text/css" href="{{secure_asset('public/isletmeyonetim_assets/lib/perfect-scrollbar/css/perfect-scrollbar.min.css')}}"/>

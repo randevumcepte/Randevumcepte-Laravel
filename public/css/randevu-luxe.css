@@ -277,9 +277,7 @@ body {
 #randevuozetbolumu {
     order: 1;
     min-width: 0;
-    position: sticky;
-    top: 16px;
-    transition: top .28s cubic-bezier(.4,0,.2,1);
+    position: static; /* sabitleme kaldirildi — sayfayla birlikte kayar */
 }
 
 @media (max-width: 991px) {
