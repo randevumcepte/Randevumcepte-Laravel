@@ -240,36 +240,82 @@
       }
       </style>
 
-      <script src="{{secure_asset('public/js/OneSignalSDKWorker.js')}}"></script>
-      <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-      <script>
-         window.OneSignal = window.OneSignal || [];
-         
-         OneSignal.push(function() {
-         
-           OneSignal.init({
-         
-             appId: "5e50f84e-2cd8-4532-a765-f2cb82a22ff9",
-         
-           });
-         
-          });
-         
-          OneSignal.push(function () {
-         
-             OneSignal.SERVICE_WORKER_PARAM = { scope: '/public/js/' };
-         
-             OneSignal.SERVICE_WORKER_PATH = 'public/js/OneSignalSDKWorker.js'
-         
-             OneSignal.SERVICE_WORKER_UPDATER_PATH = 'public/js/OneSignalSDKWorker.js'
-         
-             OneSignal.init(initConfig);
-         
-          });
-         
-         
-         
+      {{-- Firebase Web Push (FCM) — yetkili tarayicisi icin (OneSignal'in yerini aldi) --}}
+      @php $fbCfg = config('firebase_web'); @endphp
+      @if(!empty($fbCfg['apiKey']) && !empty($fbCfg['vapidKey']))
+      <script type="module">
+         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+         import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js";
+
+         const firebaseConfig = @json([
+            'apiKey'            => $fbCfg['apiKey'],
+            'authDomain'        => $fbCfg['authDomain'],
+            'projectId'         => $fbCfg['projectId'],
+            'storageBucket'     => $fbCfg['storageBucket'],
+            'messagingSenderId' => $fbCfg['messagingSenderId'],
+            'appId'             => $fbCfg['appId'],
+            'measurementId'     => $fbCfg['measurementId'],
+         ]);
+         const VAPID_KEY = @json($fbCfg['vapidKey']);
+
+         try {
+            const app = initializeApp(firebaseConfig);
+            const messaging = getMessaging(app);
+
+            function ensureDeviceId() {
+               let id = localStorage.getItem('rdv_device_id');
+               if (!id) {
+                  id = (crypto && crypto.randomUUID) ? crypto.randomUUID()
+                       : 'd-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+                  localStorage.setItem('rdv_device_id', id);
+               }
+               return id;
+            }
+            function detectBrowser() {
+               const ua = navigator.userAgent || '';
+               let browser = 'Unknown';
+               if (/Edg\//.test(ua))           browser = 'Edge';
+               else if (/OPR\//.test(ua))      browser = 'Opera';
+               else if (/Chrome\//.test(ua))   browser = 'Chrome';
+               else if (/Firefox\//.test(ua))  browser = 'Firefox';
+               else if (/Safari\//.test(ua))   browser = 'Safari';
+               let os = 'Unknown';
+               if (/Windows NT/.test(ua))      os = 'Windows';
+               else if (/Mac OS X/.test(ua))   os = 'macOS';
+               else if (/Android/.test(ua))    os = 'Android';
+               else if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS';
+               else if (/Linux/.test(ua))      os = 'Linux';
+               return browser + ' / ' + os;
+            }
+            async function registerFcm() {
+               if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+               const permission = await Notification.requestPermission();
+               if (permission !== 'granted') return;
+               const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+               const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+               if (!token) return;
+               const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+               await fetch('/isletmeyonetim/bildirim/cihaz-kaydet', {
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                  body: JSON.stringify({ token: token, cihaz: ensureDeviceId(), tarayici: detectBrowser() })
+               });
+            }
+            registerFcm().catch(e => console.warn('FCM register hata:', e));
+
+            // Sayfa acikken gelen pushlari da banner olarak goster
+            onMessage(messaging, (payload) => {
+               const n = payload.notification || {};
+               if (Notification.permission === 'granted' && n.title) {
+                  new Notification(n.title, { body: n.body || '', icon: n.icon || '/public/img/logo.png' });
+               }
+            });
+         } catch (e) {
+            console.warn('Firebase init hata:', e);
+         }
       </script>
+      @endif
       <script type="text/javascript">  
          function selects(){  
          
