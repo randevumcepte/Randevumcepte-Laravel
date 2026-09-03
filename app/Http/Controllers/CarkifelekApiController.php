@@ -521,6 +521,18 @@ class CarkifelekApiController extends Controller
     {
         // Once admin'in girdigi "Odul Adi" kullanilir; bossa otomatik metin uretilir.
         $ad = trim((string) ($d->dilim_ismi ?? ''));
+
+        // Indirim dilimlerinde ozel ada indirim degeri eklenir
+        // (or. "Kas Alimi" -> "Kas Alimi · 200₺ Indirim"). Ad zaten indirim
+        // bilgisi iceriyorsa (%, ₺, TL, indirim, bedava) tekrar eklenmez.
+        $indirimTipleri = ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi'];
+        if ($ad !== '' && in_array($d->tip, $indirimTipleri) && $d->deger) {
+            $ek = $this->indirimEki($d);
+            if ($ek !== '' && !preg_match('/%|₺|\bTL\b|indirim|bedava/iu', $ad)) {
+                return $ad . ' · ' . $ek;
+            }
+            return $ad;
+        }
         if ($ad !== '') return $ad;
 
         // Indirim degeri "tutar" ise "50 ₺", degilse "%50". %100 yuzde = Bedava.
@@ -542,5 +554,19 @@ class CarkifelekApiController extends Controller
             case 'bos':             return 'Boş';
             default:                return 'Ödül';
         }
+    }
+
+    /**
+     * İndirim dilimi için değer eki: tutar → "200₺ İndirim",
+     * yüzde → "%20 İndirim" (100 → "Bedava"). Değer yoksa boş.
+     */
+    private function indirimEki($d)
+    {
+        $deger = (float) ($d->deger ?? 0);
+        if ($deger <= 0) return '';
+        $tutar = (isset($d->indirim_tipi) && $d->indirim_tipi === 'tutar');
+        if ($tutar) return ((int) $deger) . '₺ İndirim';
+        if ((int) $deger >= 100) return 'Bedava';
+        return '%' . ((int) $deger) . ' İndirim';
     }
 }
