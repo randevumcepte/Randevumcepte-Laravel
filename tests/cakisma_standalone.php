@@ -33,7 +33,7 @@ $TEST_PREFIX = 'zzt_cakisma_';
 $GLOBALS['_TABLOLAR'] = [
     'salonlar', 'salon_calisma_saatleri', 'personel_calisma_saatleri', 'personel_mola_saatleri',
     'salon_personelleri', 'hizmetler', 'salon_sunulan_hizmetler', 'randevular', 'randevu_hizmetler',
-    'odalar', 'oda_sunulan_hizmetler', 'cihazlar',
+    'odalar', 'oda_sunulan_hizmetler', 'cihazlar', 'hizmet_kategorisi',
 ];
 if ($USE_SQLITE) {
     config([
@@ -119,9 +119,16 @@ function semaKur()
     $s->create('salon_personelleri', function (Blueprint $t) {
         $t->increments('id'); $t->integer('salon_id'); $t->string('personel_adi')->nullable(); $t->integer('aktif')->default(1);
     });
-    $s->create('hizmetler', function (Blueprint $t) { $t->increments('id'); $t->string('hizmet_adi')->nullable(); });
+    $s->create('hizmet_kategorisi', function (Blueprint $t) {
+        $t->increments('id'); $t->string('kategori_adi')->nullable();
+    });
+    $s->create('hizmetler', function (Blueprint $t) {
+        $t->increments('id'); $t->string('hizmet_adi')->nullable();
+        $t->integer('hizmet_kategori_id')->nullable(); $t->integer('personeller_id')->nullable();
+    });
     $s->create('salon_sunulan_hizmetler', function (Blueprint $t) {
-        $t->increments('id'); $t->integer('salon_id'); $t->integer('hizmet_id'); $t->integer('sure_dk')->nullable();
+        $t->increments('id'); $t->integer('salon_id'); $t->integer('hizmet_id');
+        $t->integer('sure_dk')->nullable(); $t->integer('hizmet_kategori_id')->nullable();
     });
     $s->create('randevular', function (Blueprint $t) {
         $t->increments('id'); $t->integer('user_id')->nullable(); $t->integer('salon_id'); $t->string('tarih');
