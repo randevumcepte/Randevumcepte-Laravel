@@ -47,8 +47,10 @@ if ($USE_SQLITE) {
     if (getenv('CAKISMA_DB_USER') !== false) $my['username'] = getenv('CAKISMA_DB_USER');
     if (getenv('CAKISMA_DB_PASS') !== false) $my['password'] = getenv('CAKISMA_DB_PASS');
     if (getenv('CAKISMA_DB_HOST') !== false) $my['host'] = getenv('CAKISMA_DB_HOST');
-    // Test DB'sini oluşturmak için ayrı bir "yönetim" bağlantısı (DB seçmeden bağlanır).
-    $admin = $my; unset($admin['database']);
+    // Test DB'sini oluşturmak için ayrı bir "yönetim" bağlantısı.
+    // Üretim şemasına bağlanmamak için sistem şeması information_schema kullanılır;
+    // CREATE/DROP DATABASE buradan çalışır, üretim tablolarına dokunulmaz.
+    $admin = $my; $admin['database'] = 'information_schema';
     config(['database.connections.cakisma_admin' => $admin]);
     DB::purge('cakisma_admin');
     try {
