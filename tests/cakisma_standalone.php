@@ -28,7 +28,13 @@ use App\Http\Controllers\ApiController;
 //  sonunda tamamen SİL. Böylece sunucuda ek kurulum gerekmez.
 // ─────────────────────────────────────────────────────────────────────────────
 $USE_SQLITE = extension_loaded('pdo_sqlite');
-$MYSQL_TEST_DB = 'randevu_cakisma_test';
+$TEST_PREFIX = 'zzt_cakisma_';
+// Testin oluşturduğu/sildiği tablolar (üretim tabloları DEĞİL — hepsi önekli)
+$GLOBALS['_TABLOLAR'] = [
+    'salonlar', 'salon_calisma_saatleri', 'personel_calisma_saatleri', 'personel_mola_saatleri',
+    'salon_personelleri', 'hizmetler', 'salon_sunulan_hizmetler', 'randevular', 'randevu_hizmetler',
+    'odalar', 'oda_sunulan_hizmetler', 'cihazlar',
+];
 if ($USE_SQLITE) {
     config([
         'database.default' => 'sqlite',
@@ -39,41 +45,25 @@ if ($USE_SQLITE) {
     $CONN = 'sqlite';
     echo "Bağlantı: sqlite (bellek-içi)\n";
 } else {
-    echo "pdo_sqlite yok → MySQL test veritabanı kullanılacak: `$MYSQL_TEST_DB` (üretim verisine dokunulmaz)\n";
+    // pdo_sqlite yok → AYNI MySQL veritabanında, '$TEST_PREFIX' önekli AYRI tablolar.
+    // Laravel bağlantı 'prefix'i sayesinde controller/modeller otomatik bu önekli
+    // tablolara gider; ÜRETİM TABLOLARINA (salonlar, randevular…) HİÇ DOKUNULMAZ.
+    // Yalnız CREATE/DROP TABLE gerekir (kullanıcının kendi DB'sinde zaten var olan yetki).
+    echo "pdo_sqlite yok → aynı DB'de '$TEST_PREFIX' önekli test tabloları kullanılacak (üretim tablolarına dokunulmaz)\n";
     $my = config('database.connections.mysql');
     if (!$my) { fwrite(STDERR, "HATA: mysql bağlantı ayarı bulunamadı.\n"); exit(2); }
-    // CREATE DATABASE yetkisi için env ile root MySQL bilgisi verilebilir:
-    //   CAKISMA_DB_USER=root CAKISMA_DB_PASS=xxx /opt/php74/bin/php tests/cakisma_standalone.php
-    if (getenv('CAKISMA_DB_USER') !== false) $my['username'] = getenv('CAKISMA_DB_USER');
-    if (getenv('CAKISMA_DB_PASS') !== false) $my['password'] = getenv('CAKISMA_DB_PASS');
-    if (getenv('CAKISMA_DB_HOST') !== false) $my['host'] = getenv('CAKISMA_DB_HOST');
-    // Test DB'sini oluşturmak için ayrı bir "yönetim" bağlantısı.
-    // Üretim şemasına bağlanmamak için sistem şeması information_schema kullanılır;
-    // CREATE/DROP DATABASE buradan çalışır, üretim tablolarına dokunulmaz.
-    $admin = $my; $admin['database'] = 'information_schema';
-    config(['database.connections.cakisma_admin' => $admin]);
-    DB::purge('cakisma_admin');
-    try {
-        DB::connection('cakisma_admin')->statement("DROP DATABASE IF EXISTS `$MYSQL_TEST_DB`");
-        DB::connection('cakisma_admin')->statement("CREATE DATABASE `$MYSQL_TEST_DB` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-    } catch (\Throwable $e) {
-        fwrite(STDERR, "HATA: test veritabanı oluşturulamadı (CREATE DATABASE yetkisi yok olabilir):\n  "
-            . $e->getMessage() . "\nÇözüm: pdo_sqlite'i etkinleştir (php7.4-sqlite3) ya da yetkili DB kullanıcısı ver.\n");
-        exit(2);
-    }
-    $my['database'] = $MYSQL_TEST_DB;
+    $my['prefix'] = $TEST_PREFIX;
     config(['database.connections.cakisma_test' => $my, 'database.default' => 'cakisma_test']);
     DB::purge('cakisma_test');
     $CONN = 'cakisma_test';
 }
 
-// Test bittiğinde MySQL test DB'sini temizle
-register_shutdown_function(function () use ($USE_SQLITE, $MYSQL_TEST_DB) {
+// Test bittiğinde önekli test tablolarını temizle (yalnız MySQL modunda)
+register_shutdown_function(function () use ($USE_SQLITE, $CONN) {
     if (!$USE_SQLITE) {
         try {
-            config(['database.default' => 'mysql']);
-            DB::purge('cakisma_test');
-            DB::connection('cakisma_admin')->statement("DROP DATABASE IF EXISTS `$MYSQL_TEST_DB`");
+            $s = Schema::connection($CONN);
+            foreach (array_reverse($GLOBALS['_TABLOLAR']) as $t) { $s->dropIfExists($t); }
         } catch (\Throwable $e) { /* yok say */ }
     }
 });
@@ -105,9 +95,7 @@ function semaKur()
 {
     global $CONN;
     $s = Schema::connection($CONN);
-    foreach (['salonlar','salon_calisma_saatleri','personel_calisma_saatleri','personel_mola_saatleri',
-              'salon_personelleri','hizmetler','salon_sunulan_hizmetler','randevular','randevu_hizmetler',
-              'odalar','oda_sunulan_hizmetler','cihazlar'] as $tbl) {
+    foreach (array_reverse($GLOBALS['_TABLOLAR']) as $tbl) {
         $s->dropIfExists($tbl);
     }
 
