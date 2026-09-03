@@ -54,15 +54,33 @@ class CarkifelekApiController extends Controller
     }
 
     /**
-     * Müşteri bugün (yerel tarih) bu salonda çarkı çevirdi mi?
+     * İşletmenin çevirme aralığı (takvim günü). Varsayılan 1, geçersizse 1.
      */
-    private function bugunCevirdi($salonId, $userId)
+    private function cevirmeAraligiGun($cark)
     {
-        return CarkifelekCevirmeLoglari::where('salon_id', $salonId)
+        $g = (int) ($cark->cevirme_araligi_gun ?? 1);
+        return $g > 0 ? $g : 1;
+    }
+
+    /**
+     * Çevirme hakkı kilitli mi? Takvim günü bazlı: son (tekrar_dene hariç)
+     * çevirme tarihi + N gün, bugüne gelmediyse kilitli.
+     * $sonrakiTarih referansına bir sonraki hak tarihini yazar (Carbon|null).
+     */
+    private function cevirmeKilitli($cark, $salonId, $userId, &$sonrakiTarih = null)
+    {
+        $sonrakiTarih = null;
+        $son = CarkifelekCevirmeLoglari::where('salon_id', $salonId)
             ->where('user_id', $userId)
             ->where('tip', '!=', 'tekrar_dene')
-            ->whereDate('created_at', Carbon::today())
-            ->exists();
+            ->orderByDesc('created_at')
+            ->first();
+        if (!$son) return false;
+
+        $sonraki = Carbon::parse($son->created_at)->startOfDay()
+            ->addDays($this->cevirmeAraligiGun($cark));
+        $sonrakiTarih = $sonraki;
+        return Carbon::today()->lt($sonraki);
     }
 
     /**
@@ -99,8 +117,10 @@ class CarkifelekApiController extends Controller
             ]);
         }
 
-        $bugunCevirdi   = $userId > 0 ? $this->bugunCevirdi($salonId, $userId) : false;
-        // Onaylı randevu şartı kaldırıldı: giriş yapan herkese günde 1 çevirme hakkı.
+        // Onaylı randevu şartı kaldırıldı: giriş yapan herkese işletmenin
+        // belirlediği aralıkta (varsayılan 1 gün) çevirme hakkı.
+        $sonrakiTarih   = null;
+        $bugunCevirdi   = $userId > 0 ? $this->cevirmeKilitli($cark, $salonId, $userId, $sonrakiTarih) : false;
         $hakSayisi      = ($userId > 0 && !$bugunCevirdi) ? 1 : 0;
 
         $hasIndirimTipi = \Schema::hasColumn('carkifelek_dilimleri', 'indirim_tipi');
@@ -125,7 +145,9 @@ class CarkifelekApiController extends Controller
             'kalanHak'     => $hakSayisi,
             'randevuIdleri'=> [],
             'bugunCevirdi' => $bugunCevirdi,
-            'yarinSaat'    => Carbon::tomorrow()->format('d.m.Y H:i'),
+            'cevirmeAraligiGun' => $this->cevirmeAraligiGun($cark),
+            'sonrakiHakTarihi'  => $sonrakiTarih ? $sonrakiTarih->format('d.m.Y') : null,
+            'yarinSaat'    => $sonrakiTarih ? $sonrakiTarih->format('d.m.Y H:i') : Carbon::tomorrow()->format('d.m.Y H:i'),
         ]);
     }
 
@@ -146,12 +168,15 @@ class CarkifelekApiController extends Controller
             return response()->json(['success' => false, 'message' => 'Çarkıfelek şu an aktif değil.']);
         }
 
-        // Onaylı randevu şartı kaldırıldı: giriş yapan herkese günde 1 çevirme.
-        if ($this->bugunCevirdi($salonId, $userId)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Bugün çarkı çevirdiniz. Yarın tekrar deneyebilirsiniz.',
-            ]);
+        // Onaylı randevu şartı kaldırıldı: giriş yapan herkese işletmenin
+        // belirlediği aralıkta (varsayılan 1 gün) çevirme hakkı.
+        $sonrakiTarih = null;
+        if ($this->cevirmeKilitli($cark, $salonId, $userId, $sonrakiTarih)) {
+            $aralik = $this->cevirmeAraligiGun($cark);
+            $mesaj  = $aralik <= 1
+                ? 'Bugün çarkı çevirdiniz. Yarın tekrar deneyebilirsiniz.'
+                : 'Çarkı çevirdiniz. Bir sonraki çevirme: ' . $sonrakiTarih->format('d.m.Y') . '.';
+            return response()->json(['success' => false, 'message' => $mesaj]);
         }
 
         $randevuId = null;

@@ -629,6 +629,24 @@
 
             <div class="slices-body" id="slices-list"></div>
 
+            {{-- Çevirme Sıklığı --}}
+            <div class="mgmt-coupon">
+                <div class="mgmt-coupon-head">
+                    <span class="mgmt-coupon-icon">🔁</span>
+                    <div>
+                        <h3>Çevirme Sıklığı</h3>
+                        <p>Bir müşteri çarkı kaç <b>günde bir</b> çevirebilsin? <b>1</b> = her gün (varsayılan). Örn. <b>7</b> → müşteri son çevirmeden 7 gün sonra tekrar çevirebilir.</p>
+                    </div>
+                </div>
+                <div class="mgmt-coupon-grid">
+                    <div class="mgmt-coupon-field">
+                        <label>Çevirme aralığı (gün)</label>
+                        <input type="number" min="1" step="1" id="cevirme-araligi-gun" placeholder="1 = her gün" />
+                        <small>En az 1. Değer büyüdükçe müşteri daha seyrek çevirir; ücretsiz/değerli ödüllerin sık kazanılmasını sınırlamak için idealdir.</small>
+                    </div>
+                </div>
+            </div>
+
             {{-- Kupon Geçerlilik Süreleri (Dilim Yönetimi ile bütünleşik) --}}
             <div class="mgmt-coupon">
                 <div class="mgmt-coupon-head">
@@ -831,6 +849,11 @@
                 const _puanEl = document.getElementById('kupon-puan-gun');
                 if (_carkEl) _carkEl.value = _carkGun > 0 ? _carkGun : '';
                 if (_puanEl) _puanEl.value = _puanGun > 0 ? _puanGun : '';
+
+                // Çevirme aralığı (varsayılan 1)
+                const _aralik = parseInt(data.data.cevirme_araligi_gun) || 1;
+                const _aralikEl = document.getElementById('cevirme-araligi-gun');
+                if (_aralikEl) _aralikEl.value = _aralik > 1 ? _aralik : '';
                 if (data.data.dilimler && data.data.dilimler.length > 0) {
                     slices = data.data.dilimler.map(d => ({
                         name:        d.name,
@@ -1521,6 +1544,8 @@
             const _puanGunEl = document.getElementById('kupon-puan-gun');
             const _carkGunVal = _carkGunEl ? Math.max(0, parseInt(_carkGunEl.value) || 0) : 0;
             const _puanGunVal = _puanGunEl ? Math.max(0, parseInt(_puanGunEl.value) || 0) : 0;
+            const _aralikEl = document.getElementById('cevirme-araligi-gun');
+            const _aralikVal = _aralikEl ? Math.max(1, parseInt(_aralikEl.value) || 1) : 1;
             const res  = await fetch('{{ route("isletmeadmin.carkdilimekle") }}' + (_sube ? ('?sube=' + encodeURIComponent(_sube)) : ''), {
                 method: 'POST',
                 headers: HEADERS,
@@ -1531,6 +1556,7 @@
                     kurallar: kurallar,
                     kupon_cark_gecerlilik_gun: _carkGunVal,
                     kupon_puan_gecerlilik_gun: _puanGunVal,
+                    cevirme_araligi_gun: _aralikVal,
                     // Çoklu şube: seçili şubeler (boş → yalnız bu şube)
                     salon_ids: (window.ssSeciliIdler ? window.ssSeciliIdler() : [])
                 })

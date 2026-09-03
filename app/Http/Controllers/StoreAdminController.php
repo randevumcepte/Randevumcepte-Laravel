@@ -531,6 +531,11 @@ public function carkdilimekle(Request $request)
         if ($carkGun !== null && $carkGun < 0) $carkGun = 0;
         if ($puanGun !== null && $puanGun < 0) $puanGun = 0;
 
+        // Çevirme aralığı (takvim günü): 1 = her gün. Min 1.
+        $hasAralik = \Schema::hasColumn('carkifelek_sistemi', 'cevirme_araligi_gun');
+        $aralikGun = $request->has('cevirme_araligi_gun')
+            ? max(1, (int) $request->input('cevirme_araligi_gun')) : null;
+
         // tip/deger kolonlarının tabloda var mı kontrol et (migration yoksa skip)
         $hasTip         = \Schema::hasColumn('carkifelek_dilimleri', 'tip');
         $hasDeger       = \Schema::hasColumn('carkifelek_dilimleri', 'deger');
@@ -563,6 +568,7 @@ public function carkdilimekle(Request $request)
                 if ($hasKurallar && $request->has('kurallar')) $payload['kullanim_kurallari'] = $kurallar;
                 if ($hasCarkGun && $carkGun !== null) $payload['kupon_cark_gecerlilik_gun'] = $carkGun ?: null;
                 if ($hasPuanGun && $puanGun !== null) $payload['kupon_puan_gecerlilik_gun'] = $puanGun ?: null;
+                if ($hasAralik && $aralikGun !== null) $payload['cevirme_araligi_gun'] = $aralikGun;
                 if ($hasGecerli) $payload['gecerli_salonlar'] = $gecerliJson;
                 $cs = CarkifelekSistemi::create($payload);
             } else {
@@ -570,6 +576,7 @@ public function carkdilimekle(Request $request)
                 if ($hasKurallar && $request->has('kurallar')) $cs->kullanim_kurallari = $kurallar;
                 if ($hasCarkGun && $carkGun !== null) $cs->kupon_cark_gecerlilik_gun = $carkGun ?: null;
                 if ($hasPuanGun && $puanGun !== null) $cs->kupon_puan_gecerlilik_gun = $puanGun ?: null;
+                if ($hasAralik && $aralikGun !== null) $cs->cevirme_araligi_gun = $aralikGun;
                 if ($hasGecerli) $cs->gecerli_salonlar = $gecerliJson;
                 $cs->updated_at = now();
                 $cs->save();
@@ -699,6 +706,8 @@ public function carkverilerigetir(Request $request)
             ? (int) ($carkifelek->kupon_cark_gecerlilik_gun ?? 0) : 0;
         $puanGun = \Schema::hasColumn('carkifelek_sistemi', 'kupon_puan_gecerlilik_gun')
             ? (int) ($carkifelek->kupon_puan_gecerlilik_gun ?? 0) : 0;
+        $aralikGun = \Schema::hasColumn('carkifelek_sistemi', 'cevirme_araligi_gun')
+            ? max(1, (int) ($carkifelek->cevirme_araligi_gun ?? 1)) : 1;
 
         return response()->json([
             'success' => true,
@@ -707,6 +716,7 @@ public function carkverilerigetir(Request $request)
                 'kurallar'                    => $kurallar,
                 'kupon_cark_gecerlilik_gun'   => $carkGun,
                 'kupon_puan_gecerlilik_gun'   => $puanGun,
+                'cevirme_araligi_gun'         => $aralikGun,
                 'dilimler'                    => $dilimler
             ]
         ]);

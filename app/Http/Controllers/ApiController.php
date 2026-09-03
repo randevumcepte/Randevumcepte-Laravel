@@ -29936,6 +29936,8 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 ? (int) ($cark->kupon_cark_gecerlilik_gun ?? 0) : 0;
             $puanGun = Schema::hasColumn('carkifelek_sistemi', 'kupon_puan_gecerlilik_gun')
                 ? (int) ($cark->kupon_puan_gecerlilik_gun ?? 0) : 0;
+            $aralikGun = Schema::hasColumn('carkifelek_sistemi', 'cevirme_araligi_gun')
+                ? max(1, (int) ($cark->cevirme_araligi_gun ?? 1)) : 1;
 
             return response()->json([
                 'basarili' => true,
@@ -29944,6 +29946,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                     'aktifmi'                   => (int) $cark->aktifmi,
                     'kupon_cark_gecerlilik_gun' => $carkGun,
                     'kupon_puan_gecerlilik_gun' => $puanGun,
+                    'cevirme_araligi_gun'       => $aralikGun,
                 ],
                 'dilimler' => $dilimler,
             ]);
@@ -29996,10 +29999,13 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
 
             $hasCarkGun = Schema::hasColumn('carkifelek_sistemi', 'kupon_cark_gecerlilik_gun');
             $hasPuanGun = Schema::hasColumn('carkifelek_sistemi', 'kupon_puan_gecerlilik_gun');
+            $hasAralik  = Schema::hasColumn('carkifelek_sistemi', 'cevirme_araligi_gun');
             $carkGun = $request->has('kupon_cark_gecerlilik_gun')
                 ? max(0, (int) $request->input('kupon_cark_gecerlilik_gun')) : null;
             $puanGun = $request->has('kupon_puan_gecerlilik_gun')
                 ? max(0, (int) $request->input('kupon_puan_gecerlilik_gun')) : null;
+            $aralikGun = $request->has('cevirme_araligi_gun')
+                ? max(1, (int) $request->input('cevirme_araligi_gun')) : null;
 
             $hasTip         = Schema::hasColumn('carkifelek_dilimleri', 'tip');
             $hasDeger       = Schema::hasColumn('carkifelek_dilimleri', 'deger');
@@ -30026,12 +30032,14 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                     ];
                     if ($hasCarkGun && $carkGun !== null) $payload['kupon_cark_gecerlilik_gun'] = $carkGun ?: null;
                     if ($hasPuanGun && $puanGun !== null) $payload['kupon_puan_gecerlilik_gun'] = $puanGun ?: null;
+                    if ($hasAralik && $aralikGun !== null) $payload['cevirme_araligi_gun'] = $aralikGun;
                     if ($hasGecerli) $payload['gecerli_salonlar'] = $gecerliJson;
                     $c = CarkifelekSistemi::create($payload);
                 } else {
                     $c->aktifmi = (int) $request->input('aktifmi', $c->aktifmi);
                     if ($hasCarkGun && $carkGun !== null) $c->kupon_cark_gecerlilik_gun = $carkGun ?: null;
                     if ($hasPuanGun && $puanGun !== null) $c->kupon_puan_gecerlilik_gun = $puanGun ?: null;
+                    if ($hasAralik && $aralikGun !== null) $c->cevirme_araligi_gun = $aralikGun;
                     if ($hasGecerli) $c->gecerli_salonlar = $gecerliJson;
                     $c->save();
                 }
