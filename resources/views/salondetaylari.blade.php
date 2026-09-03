@@ -62,6 +62,12 @@
    </div>
 
    @php
+       // Telefon normalizasyonu: basinda 0 yoksa ekle (+90/90 onekini at). Gosterim + tel: linki icin.
+       $_telNum = preg_replace('/\D/', '', trim($salon->telefon_1 ?? ''));
+       if (strlen($_telNum) === 12 && substr($_telNum, 0, 2) === '90') { $_telNum = substr($_telNum, 2); }
+       if (strlen($_telNum) === 10 && $_telNum[0] !== '0') { $_telNum = '0' . $_telNum; }
+       $_telHref = $_telNum !== '' ? 'tel:' . $_telNum : '';
+
        $_aktifCark = \App\CarkifelekSistemi::where('salon_id', $salon->id)->where('aktifmi', 1)->first();
        $_cark_dilim_sayisi = $_aktifCark ? \App\CarkifelekDilimleri::where('cark_id', $_aktifCark->id)->count() : 0;
        // Salon acik mi? Bugunun calisma saati
@@ -151,7 +157,7 @@
                </a>
                @endif
                @if(!empty($salon->telefon_1))
-                  <a href="tel:{{$salon->telefon_1}}" class="slp-btn slp-btn--ghost">
+                  <a href="{{ $_telHref }}" class="slp-btn slp-btn--ghost">
                      <i class="fa fa-phone"></i> Hemen Ara
                   </a>
                @endif
@@ -181,7 +187,7 @@
                @if(!empty($salon->telefon_1))
                   <div class="slp-hero__card-row">
                      <i class="fa fa-phone"></i>
-                     <span>{{$salon->telefon_1}}</span>
+                     <span>{{ $_telNum }}</span>
                   </div>
                @endif
                <div class="slp-hero__card-row">
@@ -1054,11 +1060,11 @@
    {{-- ============ BOTTOM DOCK — ORTADA CIFT BUTON (HEMEN ARA + RANDEVU AL) ============ --}}
    <div class="slp-dock" role="region" aria-label="Hizli aksiyonlar">
       @if(!empty($salon->telefon_1))
-         <a href="tel:{{$salon->telefon_1}}" class="slp-dock__btn slp-dock__btn--call" aria-label="Hemen Ara">
+         <a href="{{ $_telHref }}" class="slp-dock__btn slp-dock__btn--call" aria-label="Hemen Ara">
             <span class="slp-dock__icon slp-dock__icon--call"><i class="fa fa-phone"></i></span>
             <span class="slp-dock__label">
                <span class="slp-dock__top">Hemen Ara</span>
-               <span class="slp-dock__sub">{{$salon->telefon_1}}</span>
+               <span class="slp-dock__sub">{{ $_telNum }}</span>
             </span>
          </a>
       @endif
@@ -1103,7 +1109,7 @@
             </a>
          @endif
          @if(!empty($salon->telefon_1))
-            <a href="tel:{{ $salon->telefon_1 }}" class="slp-social__btn slp-social__btn--phone" aria-label="Telefon ile ara" title="Telefon">
+            <a href="{{ $_telHref }}" class="slp-social__btn slp-social__btn--phone" aria-label="Telefon ile ara" title="Telefon">
                <i class="fa fa-phone"></i>
             </a>
          @endif
@@ -2043,7 +2049,7 @@
                   </a>
                   @endif
                   @if(!empty($salon->telefon_1))
-                     <a href="tel:{{$salon->telefon_1}}" class="slp-btn slp-btn--ghost">
+                     <a href="{{ $_telHref }}" class="slp-btn slp-btn--ghost">
                         <i class="fa fa-phone"></i> Bizi Arayın
                      </a>
                   @endif
@@ -2095,7 +2101,7 @@
                   <div class="slp-contact-card">
                      <div class="slp-contact-card__icon"><i class="fa fa-phone"></i></div>
                      <p class="slp-contact-card__lbl">Telefon</p>
-                     <p class="slp-contact-card__val"><a href="tel:{{$salon->telefon_1}}">{{$salon->telefon_1}}</a></p>
+                     <p class="slp-contact-card__val"><a href="{{ $_telHref }}">{{ $_telNum }}</a></p>
                   </div>
                @endif
                <div class="slp-contact-card">
