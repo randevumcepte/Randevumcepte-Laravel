@@ -130,6 +130,14 @@ class NotificationService
         $tokens = $this->findTokens();
         $sent = 0; $failed = 0;
 
+        // Mobil (iOS/Android) tokenlar salonun firebase_profile projesinde uretilir;
+        // WEB tokenlari ise DAIMA tek web projesinde (config/firebase_web.php -> .env,
+        // = firebase_projects.default = 5ff4d) uretilir. Salonun profili baska bir
+        // projeye isaret etse bile web tokenini o projeden gondermek SENDER_ID_MISMATCH
+        // verir ve asagidaki dongu tokeni SILER. Bu yuzden platforma gore proje sec.
+        $mobileFile = $this->firebaseJsonFile;
+        $webFile    = config('firebase_projects.default', $mobileFile);
+
         $deepLink = $this->buildDeepLink();
         $payloadExtra = array_merge([
             'type'      => $this->type,
@@ -144,6 +152,8 @@ class NotificationService
 
         foreach ($tokens as $row) {
             try {
+                // Web tokenini web projesinden, digerlerini salon projesinden gonder.
+                $this->firebaseJsonFile = ($row->platform === 'web') ? $webFile : $mobileFile;
                 $this->sendOne($row->bildirim_id, $payloadExtra, $row->platform);
                 $sent++;
                 BildirimKimlikleri::where('id', $row->id)->update([
