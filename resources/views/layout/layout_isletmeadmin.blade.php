@@ -241,13 +241,9 @@
       </style>
 
       {{-- Firebase Web Push (FCM) — yetkili tarayicisi icin (OneSignal'in yerini aldi) --}}
-      @php $fbCfg = config('firebase_web'); @endphp
-      @if(!empty($fbCfg['apiKey']) && !empty($fbCfg['vapidKey']))
-      <script type="module">
-         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-         import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js";
-
-         const firebaseConfig = @json([
+      @php
+         $fbCfg = config('firebase_web');
+         $fbClientCfg = [
             'apiKey'            => $fbCfg['apiKey'],
             'authDomain'        => $fbCfg['authDomain'],
             'projectId'         => $fbCfg['projectId'],
@@ -255,8 +251,15 @@
             'messagingSenderId' => $fbCfg['messagingSenderId'],
             'appId'             => $fbCfg['appId'],
             'measurementId'     => $fbCfg['measurementId'],
-         ]);
-         const VAPID_KEY = @json($fbCfg['vapidKey']);
+         ];
+      @endphp
+      @if(!empty($fbCfg['apiKey']) && !empty($fbCfg['vapidKey']))
+      <script type="module">
+         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+         import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js";
+
+         const firebaseConfig = {!! json_encode($fbClientCfg, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) !!};
+         const VAPID_KEY = {!! json_encode($fbCfg['vapidKey']) !!};
 
          try {
             const app = initializeApp(firebaseConfig);
