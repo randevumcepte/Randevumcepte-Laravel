@@ -22,20 +22,59 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use App\Http\Controllers\ApiController;
 
-// Bu betik bellek-içi sqlite kullanır (production MySQL'e DOKUNMAZ).
-if (!extension_loaded('pdo_sqlite')) {
-    fwrite(STDERR, "HATA: pdo_sqlite eklentisi yok. Sunucuda: php74 -m | grep sqlite ile kontrol et,\n"
-        . "gerekirse pdo_sqlite'i etkinleştir. (Bu test production DB'ye dokunmaz.)\n");
-    exit(2);
+// ─────────────────────────────────────────────────────────────────────────────
+//  BAĞLANTI: pdo_sqlite varsa bellek-içi sqlite (en temiz, izole).
+//  Yoksa: AYRI bir MySQL test veritabanı oluştur (production tablolarına DOKUNMAZ),
+//  sonunda tamamen SİL. Böylece sunucuda ek kurulum gerekmez.
+// ─────────────────────────────────────────────────────────────────────────────
+$USE_SQLITE = extension_loaded('pdo_sqlite');
+$MYSQL_TEST_DB = 'randevu_cakisma_test';
+if ($USE_SQLITE) {
+    config([
+        'database.default' => 'sqlite',
+        'database.connections.sqlite.database' => ':memory:',
+        'database.connections.sqlite.foreign_key_constraints' => false,
+    ]);
+    DB::purge('sqlite');
+    $CONN = 'sqlite';
+    echo "Bağlantı: sqlite (bellek-içi)\n";
+} else {
+    echo "pdo_sqlite yok → MySQL test veritabanı kullanılacak: `$MYSQL_TEST_DB` (üretim verisine dokunulmaz)\n";
+    $my = config('database.connections.mysql');
+    if (!$my) { fwrite(STDERR, "HATA: mysql bağlantı ayarı bulunamadı.\n"); exit(2); }
+    // CREATE DATABASE yetkisi için env ile root MySQL bilgisi verilebilir:
+    //   CAKISMA_DB_USER=root CAKISMA_DB_PASS=xxx /opt/php74/bin/php tests/cakisma_standalone.php
+    if (getenv('CAKISMA_DB_USER') !== false) $my['username'] = getenv('CAKISMA_DB_USER');
+    if (getenv('CAKISMA_DB_PASS') !== false) $my['password'] = getenv('CAKISMA_DB_PASS');
+    if (getenv('CAKISMA_DB_HOST') !== false) $my['host'] = getenv('CAKISMA_DB_HOST');
+    // Test DB'sini oluşturmak için ayrı bir "yönetim" bağlantısı (DB seçmeden bağlanır).
+    $admin = $my; unset($admin['database']);
+    config(['database.connections.cakisma_admin' => $admin]);
+    DB::purge('cakisma_admin');
+    try {
+        DB::connection('cakisma_admin')->statement("DROP DATABASE IF EXISTS `$MYSQL_TEST_DB`");
+        DB::connection('cakisma_admin')->statement("CREATE DATABASE `$MYSQL_TEST_DB` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+    } catch (\Throwable $e) {
+        fwrite(STDERR, "HATA: test veritabanı oluşturulamadı (CREATE DATABASE yetkisi yok olabilir):\n  "
+            . $e->getMessage() . "\nÇözüm: pdo_sqlite'i etkinleştir (php7.4-sqlite3) ya da yetkili DB kullanıcısı ver.\n");
+        exit(2);
+    }
+    $my['database'] = $MYSQL_TEST_DB;
+    config(['database.connections.cakisma_test' => $my, 'database.default' => 'cakisma_test']);
+    DB::purge('cakisma_test');
+    $CONN = 'cakisma_test';
 }
 
-// Bellek-içi sqlite
-config([
-    'database.default' => 'sqlite',
-    'database.connections.sqlite.database' => ':memory:',
-    'database.connections.sqlite.foreign_key_constraints' => false,
-]);
-DB::purge('sqlite');
+// Test bittiğinde MySQL test DB'sini temizle
+register_shutdown_function(function () use ($USE_SQLITE, $MYSQL_TEST_DB) {
+    if (!$USE_SQLITE) {
+        try {
+            config(['database.default' => 'mysql']);
+            DB::purge('cakisma_test');
+            DB::connection('cakisma_admin')->statement("DROP DATABASE IF EXISTS `$MYSQL_TEST_DB`");
+        } catch (\Throwable $e) { /* yok say */ }
+    }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Mini test çatısı
@@ -62,7 +101,8 @@ $SALON = 1;
 
 function semaKur()
 {
-    $s = Schema::connection('sqlite');
+    global $CONN;
+    $s = Schema::connection($CONN);
     foreach (['salonlar','salon_calisma_saatleri','personel_calisma_saatleri','personel_mola_saatleri',
               'salon_personelleri','hizmetler','salon_sunulan_hizmetler','randevular','randevu_hizmetler',
               'odalar','oda_sunulan_hizmetler','cihazlar'] as $tbl) {
