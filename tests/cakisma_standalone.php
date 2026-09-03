@@ -136,12 +136,14 @@ function semaKur()
         $t->integer('uygulama')->nullable(); $t->integer('salon')->nullable(); $t->integer('web')->nullable();
         $t->integer('olusturan_personel_id')->nullable(); $t->integer('olusturan_user_id')->nullable();
         $t->integer('on_gorusme_id')->nullable(); $t->integer('easistan')->nullable(); $t->text('personel_notu')->nullable();
+        $t->timestamp('created_at')->nullable(); $t->timestamp('updated_at')->nullable();
     });
     $s->create('randevu_hizmetler', function (Blueprint $t) {
         $t->increments('id'); $t->integer('randevu_id'); $t->integer('hizmet_id')->nullable();
         $t->integer('personel_id')->nullable(); $t->integer('cihaz_id')->nullable(); $t->integer('oda_id')->nullable();
         $t->integer('sure_dk')->nullable(); $t->string('fiyat')->nullable(); $t->string('saat')->nullable();
         $t->string('saat_bitis')->nullable(); $t->integer('yardimci_personel')->nullable(); $t->integer('dusum_miktari')->nullable();
+        $t->timestamp('created_at')->nullable(); $t->timestamp('updated_at')->nullable();
     });
     $s->create('odalar', function (Blueprint $t) {
         $t->increments('id'); $t->integer('salon_id'); $t->string('oda_adi')->nullable();
@@ -223,6 +225,31 @@ function appRandevuEkle($personelId, $saat, $cakisanEkle = ''): array
 
 function ayariAc() { global $SALON; DB::table('salonlar')->where('id', $SALON)->update(['cakisma_uyarisi_aktif' => 1]); }
 
+/** Oda sert engelini doğrudan çağır (kayıt döngüsüne girmeden). '' = çakışma yok. */
+function odaKontrol($personelId, $saat): string
+{
+    global $SALON, $TARIH;
+    $req = Request::create('/x', 'POST', [
+        'randevu_saati' => $saat, 'randevu_id' => '',
+        'hizmetler' => [['hizmet_id' => 100, 'personel_id' => (string) $personelId, 'oda_id' => '', 'cihaz_id' => '', 'sure_dk' => 50]],
+    ]);
+    return (string) (new ApiController())->odaMusaitlikCakismasi($req, [$TARIH], $SALON, null);
+}
+
+/** App-modu kaynak (personel) çakışma kontrolünü doğrudan çağır. '' = çakışma yok. */
+function kaynakKontrolApp($personelId, $saat): string
+{
+    global $SALON, $TARIH;
+    $m = new ReflectionMethod(ApiController::class, 'kaynak_cakisma_kontrol_api');
+    $m->setAccessible(true);
+    $req = Request::create('/x', 'POST', [
+        'randevu_saati' => $saat, 'randevu_id' => '',
+        'hizmetler' => [['hizmet_id' => 100, 'personel_id' => (string) $personelId, 'oda_id' => '', 'cihaz_id' => '', 'sure_dk' => 50]],
+    ]);
+    // app modu: sadeceOnayli=false, ayarZorunlu=false
+    return (string) $m->invoke(new ApiController(), $req, [$TARIH], $SALON, false, false);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  SENARYOLAR
 // ─────────────────────────────────────────────────────────────────────────────
@@ -278,10 +305,8 @@ $res = appRandevuEkle(10, '10:30', '1'); // yine de oluştur
 ok(($res['cakismavar'] ?? null) === '1', 'App çakışmayı override EDEMEZ (sert engel)');
 
 sifirla();
-ayariAc();
 randevuEkle(20, '10:00', '10:50', 1); // personel 20 dolu
-$res = appRandevuEkle(10, '10:00');   // personel 10 boş
-ok(($res['cakismavar'] ?? '0') !== '1', 'Farklı personel aynı saat çakışma DEĞİL');
+ok(kaynakKontrolApp(10, '10:00') === '', 'Farklı personel aynı saat çakışma DEĞİL');
 
 echo "\nC) ODA SERT ENGELİ (odaMusaitlikCakismasi)\n";
 
@@ -298,8 +323,7 @@ foreach ([1, 2] as $oid) {
     DB::table('oda_sunulan_hizmetler')->insert(['salon_id' => $SALON, 'oda_id' => $oid, 'hizmet_id' => 100]);
 }
 randevuEkle(20, '10:00', '10:50', 1, 1); // yalnız oda 1 dolu
-$res = appRandevuEkle(10, '10:30');
-ok(($res['cakismavar'] ?? '0') !== '1', 'İki odadan biri boşken engel YOK (boş odaya atanır)');
+ok(odaKontrol(10, '10:30') === '', 'İki odadan biri boşken engel YOK (boş odaya atanır)');
 
 echo "\nD) SALON/WEB davranışı korunmuş mu (ayar bağımlı)\n";
 
