@@ -51,11 +51,10 @@ body {
     overflow-x: clip !important;
 }
 
-/* ---------- HERO BANNER (sticky, full-size, no shrink) ---------- */
+/* ---------- HERO BANNER (normal akis — sabitleme KALDIRILDI) ---------- */
 .lx-hero {
-    position: sticky;
-    top: 0;
-    z-index: 50;
+    position: relative;
+    z-index: 1;
     margin: 22px 0 28px;
     padding: 42px 44px;
     border-radius: var(--lx-radius-lg);
@@ -253,7 +252,7 @@ body {
 .lx-progress__label.is-done { color: rgba(123, 47, 184, 0.9); }
 
 @media (max-width: 991px) {
-    .lx-hero { position: static; top: auto; padding: 28px 24px; border-radius: var(--lx-radius); }
+    .lx-hero { padding: 28px 24px; border-radius: var(--lx-radius); }
     .lx-hero__grid { grid-template-columns: 1fr; gap: 22px; }
     .lx-hero__title { font-size: 28px; }
     .lx-progress { padding: 20px 16px 14px; }
@@ -279,7 +278,7 @@ body {
     order: 1;
     min-width: 0;
     position: sticky;
-    top: calc(var(--lx-hero-h, 180px) + 16px);
+    top: 16px;
     transition: top .28s cubic-bezier(.4,0,.2,1);
 }
 
