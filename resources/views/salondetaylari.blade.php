@@ -2102,11 +2102,11 @@
                   <div class="slp-contact-card__icon"><i class="fa fa-share-alt"></i></div>
                   <p class="slp-contact-card__lbl">Sosyal Medya</p>
                   <div class="slp-contact-card__social">
-                     @if(!empty($salon->instagram_sayfa))
-                        <a href="https://instagram.com/{{ltrim($salon->instagram_sayfa,'@')}}" target="_blank" rel="noopener" aria-label="Instagram"><i class="fa fa-instagram"></i></a>
+                     @if(!empty($_igUrl))
+                        <a href="{{ $_igUrl }}" target="_blank" rel="noopener" aria-label="Instagram"><i class="fa fa-instagram"></i></a>
                      @endif
-                     @if(!empty($salon->facebook_sayfa))
-                        <a href="{{$salon->facebook_sayfa}}" target="_blank" rel="noopener" aria-label="Facebook"><i class="fa fa-facebook"></i></a>
+                     @if(!empty($_fbUrl))
+                        <a href="{{ $_fbUrl }}" target="_blank" rel="noopener" aria-label="Facebook"><i class="fa fa-facebook"></i></a>
                      @endif
                      @if(!empty($salon->musteri_online_randevu_aktif))
                      <a href="#randevu-al" data-slp-open aria-label="Randevu Al"><i class="fa fa-calendar"></i></a>
