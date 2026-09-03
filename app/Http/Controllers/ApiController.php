@@ -11446,11 +11446,17 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
      * Doner: '' (ayar kapali VEYA cakisma yok) | duz metin mesaj (ilk cakisma).
      * Mesaj DUZ METIN (HTML yok) — mobil AlertDialog'da dogru gorunsun diye.
      */
-    private function kaynak_cakisma_kontrol_api($request, $randevu_tarihleri, $salonId, $sadeceOnayli = true)
+    private function kaynak_cakisma_kontrol_api($request, $randevu_tarihleri, $salonId, $sadeceOnayli = true, $ayarZorunlu = true)
     {
         $salon = Salonlar::find($salonId);
-        if (!$salon || empty($salon->cakisma_uyarisi_aktif)) {
+        // $ayarZorunlu=true (salon/web): salon ayari KAPALI ise kontrol yok.
+        // $ayarZorunlu=false (musteri uygulamasi): ayardan BAGIMSIZ — app hicbir
+        // durumda cakisan randevu talebi gondermemeli (kullanici talebi).
+        if ($ayarZorunlu && (!$salon || empty($salon->cakisma_uyarisi_aktif))) {
             return ''; // ayar kapali => kisitlama yok
+        }
+        if (!$salon) {
+            return '';
         }
         if (!isset($request->hizmetler) || !is_array($request->hizmetler)) {
             return '';
@@ -11652,10 +11658,12 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // ── ODA ÇAKIŞMASI (SERT ENGEL) ──────────────────────────────────────────
         // Oda bazlı takvimde müşteri oda seçmez; oda personel/hizmetten OTOMATİK
         // atanır. O atanacak oda seçilen saatte DOLUYSA randevu oluşmamalı.
-        // NOT: Kullanici talebiyle bu engel de salon ayarina baglandi — ayar KAPALI
-        // ise oda doluluk engeli UYGULANMAZ (ayni odaya cift randevu verilebilir).
+        // Salon/web: salon ayarina baglidir (ayar KAPALI ise engel yok).
+        // MÜŞTERİ UYGULAMASI: ayardan BAĞIMSIZ — app her koşulda çakışan randevu
+        // talebi göndermemeli (kullanıcı talebi).
+        $appKaydi = ($request->randevuKaynak == 'uygulama');
         $odaCakismasi = "";
-        if ($cakismaAyariAcik) {
+        if ($cakismaAyariAcik || $appKaydi) {
             $odaCakismasi = self::odaMusaitlikCakismasi(
                 $request,
                 $randevu_tarihleri,
@@ -11679,14 +11687,15 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // kontrol hic calismaz => hicbir surum (eski/yeni) etkilenmez. Ayar ACIK
         // salonda hem web hem mobil (eski app'ler dahil, mevcut cakismavar dialog'u
         // ile) uyari gosterir.
-        if ($request->randevuKaynak == 'uygulama') {
-            // ── MÜŞTERİ UYGULAMASI: SERT ENGEL ──────────────────────────────────
+        if ($appKaydi) {
+            // ── MÜŞTERİ UYGULAMASI: SERT ENGEL, AYARDAN BAĞIMSIZ ────────────────
             // Müşteri kaydı durum=0 geldiği için ESKİDEN bu kontrol tamamen atlanıyordu
             // → app, ONAYLI (durum=1) randevunun bile üstüne randevu oluşturabiliyordu.
-            // Artık app kayıtlarında kontrol HER ZAMAN çalışır (cakisanrandevuekle=1 ile
-            // override EDİLEMEZ) ve BEKLEYEN+ONAYLI (durum<2) randevularla karşılaştırılır.
-            // (Salon ayarı KAPALI ise fonksiyon kendi içinde boş döner → değişiklik yok.)
-            $kaynakMesaj = self::kaynak_cakisma_kontrol_api($request, $randevu_tarihleri, $salonId, false);
+            // Artık app kayıtlarında kontrol HER ZAMAN çalışır:
+            //   • salon "cakisma_uyarisi_aktif" ayarına BAKILMAZ ($ayarZorunlu=false),
+            //   • cakisanrandevuekle=1 ile override EDİLEMEZ,
+            //   • BEKLEYEN+ONAYLI (durum<2) randevularla karşılaştırılır ($sadeceOnayli=false).
+            $kaynakMesaj = self::kaynak_cakisma_kontrol_api($request, $randevu_tarihleri, $salonId, false, false);
             if ($kaynakMesaj !== "") {
                 return ["cakismavar" => "1", "cakisanunsurlar" => $kaynakMesaj];
             }
