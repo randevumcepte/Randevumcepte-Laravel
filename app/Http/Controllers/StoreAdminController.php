@@ -556,6 +556,9 @@ public function carkdilimekle(Request $request)
 
         $carkifelek = null;
         $savedSlices = [];
+        // ATOMIK: dilimler once silinip yeniden yaziliyor. Transaction olmadan,
+        // insert sirasinda bir hata olursa dilimler silinmis kalir (cark bosalir).
+        \DB::beginTransaction();
         foreach ($hedefSubeler as $hedefSalon) {
             $cs = CarkifelekSistemi::where('salon_id', $hedefSalon)->first();
             if (!$cs) {
@@ -616,6 +619,7 @@ public function carkdilimekle(Request $request)
             }
             if ($birincil) $carkifelek = $cs;
         }
+        \DB::commit();
         Log::info('Çark kaydedildi. Şubeler: ' . implode(',', $hedefSubeler));
 
         // Audit
@@ -637,10 +641,13 @@ public function carkdilimekle(Request $request)
             ]
         ]);
         
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
+        // \Throwable: PHP fatal Error'lari da yakala (yoksa tarayici HTML 500 alir
+        // ve "Baglanti hatasi" gorunur). Transaction'i geri al -> dilimler silinmez.
+        try { \DB::rollBack(); } catch (\Throwable $ignore) {}
         Log::error('Çark dilim ekleme hatası: ' . $e->getMessage());
         Log::error('Hata detayı: ' . $e->getTraceAsString());
-        
+
         return response()->json([
             'success' => false,
             'message' => 'Dilimler kaydedilirken hata oluştu: ' . $e->getMessage()
