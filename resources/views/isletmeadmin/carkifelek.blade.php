@@ -1595,7 +1595,7 @@
 
     function wrapText(str, max) {
         const words = str.split(' ');
-        const lines = [];
+        let lines = [];
         let line = '';
         for (const w of words) {
             if (w.length > max) {
