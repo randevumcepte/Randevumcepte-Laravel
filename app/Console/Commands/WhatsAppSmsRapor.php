@@ -8,19 +8,17 @@ use Illuminate\Support\Facades\Schema;
 use PDF;
 
 /**
- * Salon-bazli WhatsApp + SMS gonderim raporu (PDF).
+ * Salon-bazli WhatsApp gonderim ozet raporu (PDF, sadece toplam+kategori).
  *
  * Kullanim (canlida):
  *   /opt/php74/bin/php artisan wa:pdf-rapor 223 2026-01-14 2026-09-04
  *
- * Uretilen PDF: storage/app/public/raporlar/wa_sms_{salon}_{baslangic}_{bitis}.pdf
- * URL: https://.../storage/raporlar/wa_sms_223_2026-01-14_2026-09-04.pdf
- * (storage:link kurulu ise; degilse: sunucudan indir)
+ * Cikti: storage/app/public/raporlar/wa_{salon}_{baslangic}_{bitis}.pdf
  */
 class WhatsAppSmsRapor extends Command
 {
     protected $signature = 'wa:pdf-rapor {salonId} {baslangic} {bitis?}';
-    protected $description = 'Salon icin WA+SMS gonderim raporu (PDF) uretir';
+    protected $description = 'Salon icin WhatsApp gonderim ozet raporu (PDF, kategorize)';
 
     public function handle()
     {
@@ -41,87 +39,58 @@ class WhatsAppSmsRapor extends Command
 
         $bitis23 = $bitis . ' 23:59:59';
 
-        // WHATSAPP GONDERIMLERI
-        $waTumu = DB::table('whatsapp_gonderim_loglari')
+        // Sadece toplam+kategori icin DB agregasyonu (detay yok — bellek dostu)
+        $waOzet = [
+            'toplam'       => (int) DB::table('whatsapp_gonderim_loglari')->where('salon_id', $salonId)->whereBetween('created_at', [$baslangic, $bitis23])->count(),
+            'basarili'     => (int) DB::table('whatsapp_gonderim_loglari')->where('salon_id', $salonId)->whereBetween('created_at', [$baslangic, $bitis23])->where('durum', 1)->count(),
+            'hata'         => (int) DB::table('whatsapp_gonderim_loglari')->where('salon_id', $salonId)->whereBetween('created_at', [$baslangic, $bitis23])->where('durum', 2)->count(),
+            'kuyrukta'     => (int) DB::table('whatsapp_gonderim_loglari')->where('salon_id', $salonId)->whereBetween('created_at', [$baslangic, $bitis23])->where('durum', 0)->count(),
+            'sms_fallback' => (int) DB::table('whatsapp_gonderim_loglari')->where('salon_id', $salonId)->whereBetween('created_at', [$baslangic, $bitis23])->where('durum', 3)->count(),
+        ];
+
+        $waTipeGore = DB::table('whatsapp_gonderim_loglari')
             ->where('salon_id', $salonId)
             ->whereBetween('created_at', [$baslangic, $bitis23])
-            ->orderBy('id', 'desc')
+            ->select('gonderim_tipi',
+                DB::raw('COUNT(*) as toplam'),
+                DB::raw('SUM(CASE WHEN durum=1 THEN 1 ELSE 0 END) as basarili'),
+                DB::raw('SUM(CASE WHEN durum=2 THEN 1 ELSE 0 END) as hata'),
+                DB::raw('SUM(CASE WHEN durum=3 THEN 1 ELSE 0 END) as fallback')
+            )
+            ->groupBy('gonderim_tipi')
+            ->orderByDesc('toplam')
             ->get();
 
-        $waOzet = [
-            'toplam' => $waTumu->count(),
-            'basarili' => $waTumu->where('durum', 1)->count(),
-            'hata' => $waTumu->where('durum', 2)->count(),
-            'kuyrukta' => $waTumu->where('durum', 0)->count(),
-            'sms_fallback' => $waTumu->where('durum', 3)->count(),
-        ];
+        $waAylik = DB::table('whatsapp_gonderim_loglari')
+            ->where('salon_id', $salonId)
+            ->whereBetween('created_at', [$baslangic, $bitis23])
+            ->select(DB::raw("DATE_FORMAT(created_at, '%Y-%m') as ay"),
+                DB::raw('COUNT(*) as toplam'),
+                DB::raw('SUM(CASE WHEN durum=1 THEN 1 ELSE 0 END) as basarili')
+            )
+            ->groupBy('ay')
+            ->orderBy('ay')
+            ->get();
 
-        $waTipeGore = $waTumu->groupBy('gonderim_tipi')->map(function ($grup) {
-            return [
-                'toplam' => $grup->count(),
-                'basarili' => $grup->where('durum', 1)->count(),
-                'hata' => $grup->where('durum', 2)->count(),
-                'fallback' => $grup->where('durum', 3)->count(),
-            ];
-        });
-
-        $waGunluk = $waTumu->groupBy(function ($r) {
-            return substr($r->created_at, 0, 10);
-        })->map(function ($g) {
-            return [
-                'toplam' => $g->count(),
-                'basarili' => $g->where('durum', 1)->count(),
-            ];
-        })->sortKeys();
-
-        // SMS ILETIM RAPORLARI (sms_iletim_raporlari)
-        $smsTumu = collect();
-        if (Schema::hasTable('sms_iletim_raporlari')) {
-            $smsTumu = DB::table('sms_iletim_raporlari')
-                ->where('salon_id', $salonId)
-                ->whereBetween('updated_at', [$baslangic, $bitis23])
-                ->orderBy('id', 'desc')
-                ->get();
-        }
-
-        $turAdi = [1 => 'Bildirim', 2 => 'Grup', 3 => 'Filtre', 4 => 'Toplu', 5 => 'Kampanya', 6 => 'Etkinlik'];
-        $smsOzet = [
-            'toplam_kayit' => $smsTumu->count(),
-            'toplam_adet' => (int) $smsTumu->sum('adet'),
-            'toplam_kredi' => (int) $smsTumu->sum('kredi'),
-        ];
-        $smsTureGore = $smsTumu->groupBy('tur')->map(function ($g) {
-            return [
-                'kayit' => $g->count(),
-                'adet' => (int) $g->sum('adet'),
-                'kredi' => (int) $g->sum('kredi'),
-            ];
-        });
-
-        $html = view('rapor.wa_sms_rapor', [
-            'salon'       => $salon,
-            'baslangic'   => $baslangic,
-            'bitis'       => $bitis,
-            'waOzet'      => $waOzet,
-            'waTipeGore'  => $waTipeGore,
-            'waGunluk'    => $waGunluk,
-            'waTumu'      => $waTumu,
-            'smsOzet'     => $smsOzet,
-            'smsTureGore' => $smsTureGore,
-            'smsTumu'     => $smsTumu,
-            'turAdi'      => $turAdi,
+        $html = view('rapor.wa_rapor', [
+            'salon'      => $salon,
+            'baslangic'  => $baslangic,
+            'bitis'      => $bitis,
+            'waOzet'     => $waOzet,
+            'waTipeGore' => $waTipeGore,
+            'waAylik'    => $waAylik,
         ])->render();
 
         $dir = storage_path('app/public/raporlar');
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
-        $dosya = $dir . "/wa_sms_{$salonId}_{$baslangic}_{$bitis}.pdf";
+        $dosya = $dir . "/wa_{$salonId}_{$baslangic}_{$bitis}.pdf";
 
-        $pdf = PDF::loadHTML($html)->setPaper('a4', 'portrait')
-            ->setOptions(['defaultFont' => 'sans-serif', 'isRemoteEnabled' => false]);
-        $pdf->save($dosya);
+        PDF::loadHTML($html)->setPaper('a4', 'portrait')
+            ->setOptions(['defaultFont' => 'sans-serif', 'isRemoteEnabled' => false])
+            ->save($dosya);
 
         $this->info("PDF olusturuldu: $dosya");
-        $this->info("URL (storage:link varsa): " . url('storage/raporlar/' . basename($dosya)));
+        $this->info("URL: " . url('storage/raporlar/' . basename($dosya)));
         return 0;
     }
 }
