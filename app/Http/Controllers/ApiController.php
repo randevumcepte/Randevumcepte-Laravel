@@ -28204,12 +28204,41 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
         }
         else
         {
-            // ── Yalnizca SECILI personel(ler)in randevulari bu personelin
-            // musaitligini etkiler.
-            // ONCEKI HATA: orWhereIn('hizmet_id', secilenhizmetler) ile AYNI hizmeti
-            // veren TUM personellerin randevulari da "dolu" sayiliyordu; bu yuzden
-            // secili personel icin neredeyse butun saatler dolu goruyordu. Ayrica
-            // eslesen randevunun BASKA personele ait hizmet satirlari da blokleniyordu.
+            // ── ÇOK PERSONELLİ / ÇOKLU HİZMET DOĞRU MÜSAİTLİK ───────────────────────
+            // Her hizmet KENDİ personeliyle, KENDİ alt-zaman diliminde kontrol edilir.
+            //   Fön (Fatih, 30dk) → [T, T+30)   Pedikür (Ayşegül, 50dk) → [T+30, T+80)
+            // ÖNCEKİ HATA: toplam süre + TÜM seçili personellerin randevu BİRLEŞİMİ tek
+            // pencereye bakılıyordu → bir personelin randevusu, o dilimde BAŞKA personelin
+            // yapacağı hizmeti bile bloke ediyordu (Fatih dolu → Ayşegül'ün boş dilimleri
+            // de kapanıyordu). Ayrıca eski orWhereIn('hizmet_id') aşırı-bloklaması da vardı.
+            //
+            // NOT: bu dala yalnız TÜM servislerde personel BELİRLİ (0/farketmez yok) iken
+            // girilir; bu yüzden her servisin kendi personeli garantidir.
+
+            // Servis sırası: secilenhizmetler[i] ↔ personeller[i], süre SalonHizmetler'den.
+            $hizmetArr = array_values($request->secilenhizmetler ?? array());
+            $persArr   = array_values($request->personeller ?? array());
+            $servisler = array(); // [ ['pid'=>, 'sure'=>dk], ... ]
+            foreach ($hizmetArr as $i => $hid) {
+                $sh = SalonHizmetler::where('hizmet_id', $hid)->where('salon_id', $salonId)->first();
+                $sure = ($sh && $sh->sure_dk) ? (int) $sh->sure_dk : 60;
+                $pid = isset($persArr[$i]) ? $persArr[$i] : ($persArr[0] ?? 0);
+                $servisler[] = array('pid' => $pid, 'sure' => $sure);
+            }
+            if (empty($servisler)) {
+                $servisler[] = array('pid' => ($persArr[0] ?? 0), 'sure' => $randevusaataraligi);
+            }
+
+            // İlgili personellerin çalışma penceresi: pid => [bas_ts, bit_ts]
+            $persCalisma = array();
+            foreach ($personelCalismalari as $calisma) {
+                $persCalisma[$calisma->personel_id] = array(
+                    strtotime($calisma->baslangic_saati), strtotime($calisma->bitis_saati)
+                );
+            }
+
+            // İlgili personellerin DOLU aralıkları (randevu + mola): pid => [[bas,bit],...]
+            $persDolu = array();
             $randevular = Randevular::where('tarih', $tarih)->where('durum','<',2)
                 ->whereHas('hizmetler', function($query) use ($personelListe) {
                     $query->whereIn('personel_id', $personelListe);
@@ -28219,53 +28248,56 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                           ->whereIn('personel_id', $personelListe);
                 }])
                 ->get();
-
-            // Secili personelin dolu araliklari [bas, bit) — timestamp cifti.
-            $doluAraliklar = array();
             foreach ($randevular as $randevu) {
                 foreach ($randevu->hizmetler as $rH) {
-                    if (!in_array($rH->personel_id, $personelListe)) continue; // guvenlik
-                    $doluAraliklar[] = array(strtotime($rH->saat), strtotime($rH->saat_bitis));
+                    if (!in_array($rH->personel_id, $personelListe)) continue;
+                    $persDolu[$rH->personel_id][] = array(strtotime($rH->saat), strtotime($rH->saat_bitis));
                 }
             }
-
-            // Secili personel(ler)in mola araliklari da bloklanir (or. 16:30-20:00 kapali).
             $molalar = PersonelMolaSaatleri::whereIn('personel_id', array_unique($personelListe))
-                ->where('mola_var', 1)
-                ->where('haftanin_gunu', $day)
-                ->get();
+                ->where('mola_var', 1)->where('haftanin_gunu', $day)->get();
             foreach ($molalar as $mola) {
                 if ($mola->baslangic_saati && $mola->bitis_saati) {
-                    $doluAraliklar[] = array(strtotime($mola->baslangic_saati), strtotime($mola->bitis_saati));
+                    $persDolu[$mola->personel_id][] = array(
+                        strtotime($mola->baslangic_saati), strtotime($mola->bitis_saati)
+                    );
                 }
             }
 
-            // Bir baslangic saati; [saat, saat+toplamSure) araligi hicbir dolu/mola
-            // araligiyla CAKISMIYORSA ve calisma bitisini asmiyorsa musaittir.
-            // (Grid uyeligi degil GERCEK zaman ortusmesi: 09:55 / 12:40 gibi grid'e
-            //  denk gelmeyen randevular da dogru bloklanir.)
+            $salonBas = strtotime($salonCalisma->baslangic_saati);
+            $salonBit = strtotime($salonCalisma->bitis_saati);
+
+            // Aday başlangıç: salon çalışma aralığında $randevusaataraligi adımlarla.
+            // Bir başlangıç müsait sayılır ANCAK: her servis, KENDİ personeliyle
+            // KENDİ alt-diliminde → (a) salon açık, (b) personel çalışıyor ve alt-dilim
+            // çalışma penceresinde, (c) personel o alt-dilimde randevu/mola ile ÇAKIŞMIYOR.
             $bosSaatler = array();
             $saatindex = 0;
-            for ($j = strtotime($ortakBaslangic); $j < strtotime($ortakBitis); $j += ($randevusaataraligi * 60)) {
+            for ($j = $salonBas; $j < $salonBit; $j += ($randevusaataraligi * 60)) {
                 $saat = date('H:i', $j);
                 if ($saat < $simdikiZaman) continue;
 
-                $bit = $j + ($toplamSure * 60);
-                if ($bit > strtotime($ortakBitis)) { // hizmet suresi kapanisi asiyor
-                    array_push($dolusaatler, array('dolu'=>'1','saat'=>$saat));
-                    continue;
+                $uygun = true;
+                $offsetDk = 0;
+                foreach ($servisler as $srv) {
+                    $subBas = $j + ($offsetDk * 60);
+                    $subBit = $subBas + ($srv['sure'] * 60);
+                    $offsetDk += $srv['sure'];
+                    $pid = $srv['pid'];
+
+                    if ($subBit > $salonBit) { $uygun = false; break; }              // salon kapanışı
+                    if (!isset($persCalisma[$pid])) { $uygun = false; break; }         // personel çalışmıyor
+                    if ($subBas < $persCalisma[$pid][0] || $subBit > $persCalisma[$pid][1]) { $uygun = false; break; }
+                    foreach (($persDolu[$pid] ?? array()) as $ar) {
+                        if ($subBas < $ar[1] && $subBit > $ar[0]) { $uygun = false; break 2; } // örtüşme
+                    }
                 }
 
-                $cakisti = false;
-                foreach ($doluAraliklar as $ar) {
-                    if ($j < $ar[1] && $bit > $ar[0]) { $cakisti = true; break; } // ortusme
-                }
-
-                if ($cakisti) {
-                    array_push($dolusaatler, array('dolu'=>'1','saat'=>$saat));
-                } else {
+                if ($uygun) {
                     array_push($bosSaatler, array('dolu'=>'0','saat'=>$saat));
                     $saatindex++;
+                } else {
+                    array_push($dolusaatler, array('dolu'=>'1','saat'=>$saat));
                 }
             }
         }

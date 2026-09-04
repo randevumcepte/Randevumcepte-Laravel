@@ -178,6 +178,9 @@ function temelVeri()
     }
     DB::table('hizmetler')->insert(['id' => 100, 'hizmet_adi' => 'Hizmet']);
     DB::table('salon_sunulan_hizmetler')->insert(['salon_id' => $SALON, 'hizmet_id' => 100, 'sure_dk' => 50]);
+    // İkinci hizmet (çok personelli çoklu hizmet testi için, 30 dk)
+    DB::table('hizmetler')->insert(['id' => 101, 'hizmet_adi' => 'Hizmet2']);
+    DB::table('salon_sunulan_hizmetler')->insert(['salon_id' => $SALON, 'hizmet_id' => 101, 'sure_dk' => 30]);
 }
 
 function sifirla() { semaKur(); temelVeri(); }
@@ -280,6 +283,15 @@ randevuEkle(10, '11:00', '11:50', 1);
 $bos = musaitSaatler([10, 10], [100, 100]); // toplam 100 dk
 ok(!in_array('10:15', $bos), 'Çoklu hizmet toplam süresi overlap bloklar (10:15→11:55)');
 ok(in_array('09:00', $bos), 'Çoklu hizmet: çakışmayan başlangıç boş (09:00→10:40)');
+
+// ÇOK PERSONELLİ çoklu hizmet: her hizmet KENDİ personeline bakar (Fatih/Ayşegül vakası)
+// servis1: hizmet 101 (30dk) personel 10 → [T,T+30) ; servis2: hizmet 100 (50dk) personel 20 → [T+30,T+80)
+sifirla();
+randevuEkle(10, '10:00', '16:00', 1); // personel 10 gün ortası TAM dolu; personel 20 boş
+$bos = musaitSaatler([10, 20], [101, 100]);
+ok(in_array('09:00', $bos), 'Çok personelli: personel10 boşken (09:00) slot AÇIK — diğer personelin doluluğu bloke etmez');
+ok(!in_array('09:45', $bos), 'Çok personelli: servis1 personeli o alt-dilimde doluysa (09:45→10:15) bloklanır');
+ok(in_array('16:00', $bos), 'Çok personelli: personel10 boşalınca (16:00) tekrar açık');
 
 echo "\nB) KAYIT ÇAKIŞMA ENGELİ (app / randevuekleguncelle)\n";
 
