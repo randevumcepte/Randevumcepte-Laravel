@@ -308,6 +308,17 @@ sifirla();
 randevuEkle(20, '10:00', '10:50', 1); // personel 20 dolu
 ok(kaynakKontrolApp(10, '10:00') === '', 'Farklı personel aynı saat çakışma DEĞİL');
 
+// durum kodları: 0=bekleyen, 1=onaylı, 2=iptal, 3=müşteri iptali → sadece 0/1 bloklar
+sifirla();
+randevuEkle(10, '10:00', '10:50', 2); // İPTAL (durum=2)
+ok(kaynakKontrolApp(10, '10:00') === '', 'İPTAL (durum=2) randevu çakışma sayılmaz');
+sifirla();
+randevuEkle(10, '10:00', '10:50', 3); // MÜŞTERİ İPTALİ (durum=3)
+ok(kaynakKontrolApp(10, '10:00') === '', 'Müşteri iptali (durum=3) randevu çakışma sayılmaz');
+sifirla();
+randevuEkle(10, '10:00', '10:50', 2); // iptal → müsaitlikte de boş görünmeli
+ok(in_array('10:00', musaitSaatler([10], [100])), 'İPTAL randevu müsaitlikte slotu bloklamaz (10:00 boş)');
+
 echo "\nC) ODA SERT ENGELİ (odaMusaitlikCakismasi)\n";
 
 sifirla();
