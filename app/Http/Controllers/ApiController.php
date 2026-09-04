@@ -11589,6 +11589,23 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         }
 
+        // ── SIRA BAĞIMSIZ ÇOKLU HİZMET (müşteri uygulaması) ─────────────────────
+        // Müsaitlik, hizmetleri HERHANGİ sıraya dizince sığıyorsa slot açar. Kayıt da
+        // AYNI sığan sırayı kullanmalı ki müsaitliğin açtığı slot kayıtta çakışmasın.
+        // Bu yüzden app kaydında hizmetleri, seçilen başlangıçta sığan sıraya diziyoruz.
+        // (Yardımcı personel index eşlemesini bozmamak için yalnız yardımcı YOKKEN.)
+        if ($request->randevuKaynak == 'uygulama'
+            && is_array($request->hizmetler) && count($request->hizmetler) > 1
+            && empty($request->yardimcipersoneller)) {
+            $request->merge(['hizmetler' => $this->_appHizmetleriSigacakSiraya_diz(
+                $request->hizmetler,
+                $request->randevu_saati,
+                $request->randevu_tarihi,
+                $salonId,
+                ($request->randevu_id !== null && $request->randevu_id !== '') ? $request->randevu_id : null
+            )]);
+        }
+
         // --- Güncelleme kontrolü, eski randevu verilerini al (varsa)
         $guncelleme = false;
         $zamanDegisti = false;
@@ -28046,6 +28063,135 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
     {
         return Salonlar::whereIn('id',$request->salonIdler)->get();
     }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  ÇOKLU HİZMET — SIRA BAĞIMSIZ (KOMBİNASYONLU) MÜSAİTLİK YARDIMCILARI
+    //  Hem randevuTarihSaatAdimi (müsaitlik) hem randevuekleguncelle (kayıt) AYNI
+    //  mantığı kullanır → tutarlı. Bir başlangıç, hizmetler HERHANGİ bir sıraya
+    //  dizildiğinde sığıyorsa müsaittir; kayıt da sığan sırayı kullanır.
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /** İlgili personellerin dolu aralıkları (randevu+mola) ve çalışma pencereleri.
+     *  Döner: [ $persDolu(pid=>[[bas,bit]..]), $persPencere(pid=>[bas,bit]), $salonBas, $salonBit ].
+     *  Çalışma penceresi: personel kaydı varsa salon ile kesişim, YOKSA salon saatleri. */
+    private function _persMusaitlikVerisi($tarih, $salonId, array $personelIds, $day, $haricRandevuId = null)
+    {
+        $salonCalisma = SalonCalismaSaatleri::where('salon_id', $salonId)
+            ->where('calisiyor', 1)->where('haftanin_gunu', $day)->first();
+        $salonBas = $salonCalisma ? strtotime($salonCalisma->baslangic_saati) : strtotime('00:00');
+        $salonBit = $salonCalisma ? strtotime($salonCalisma->bitis_saati) : strtotime('23:59');
+
+        $personelIds = array_values(array_unique(array_filter($personelIds, function ($p) {
+            return $p !== null && $p !== '' && $p !== 'null' && (int) $p !== 0;
+        })));
+
+        $persPencere = array();
+        $persDolu = array();
+        if (!empty($personelIds)) {
+            $cal = PersonelCalismaSaatleri::whereIn('personel_id', $personelIds)
+                ->where('calisiyor', 1)->where('haftanin_gunu', $day)->get();
+            foreach ($cal as $c) {
+                $persPencere[$c->personel_id] = array(
+                    max($salonBas, strtotime($c->baslangic_saati)),
+                    min($salonBit, strtotime($c->bitis_saati))
+                );
+            }
+            $rand = Randevular::where('tarih', $tarih)->where('durum', '<', 2)
+                ->when($haricRandevuId, function ($q) use ($haricRandevuId) { $q->where('id', '!=', $haricRandevuId); })
+                ->whereHas('hizmetler', function ($q) use ($personelIds) { $q->whereIn('personel_id', $personelIds); })
+                ->with(['hizmetler' => function ($q) use ($personelIds) {
+                    $q->select('randevu_id', 'saat', 'saat_bitis', 'personel_id')->whereIn('personel_id', $personelIds);
+                }])->get();
+            foreach ($rand as $r) {
+                foreach ($r->hizmetler as $rH) {
+                    if (!in_array($rH->personel_id, $personelIds)) continue;
+                    $persDolu[$rH->personel_id][] = array(strtotime($rH->saat), strtotime($rH->saat_bitis));
+                }
+            }
+            $mol = PersonelMolaSaatleri::whereIn('personel_id', $personelIds)
+                ->where('mola_var', 1)->where('haftanin_gunu', $day)->get();
+            foreach ($mol as $m) {
+                if ($m->baslangic_saati && $m->bitis_saati) {
+                    $persDolu[$m->personel_id][] = array(strtotime($m->baslangic_saati), strtotime($m->bitis_saati));
+                }
+            }
+        }
+        return array($persDolu, $persPencere, $salonBas, $salonBit);
+    }
+
+    /** Verilen başlangıçta hizmetleri HERHANGİ bir sıraya dizince sığan İLK sırayı bul.
+     *  $servisler: [ ['pid'=>, 'sure'=>dk], ... ]. Döner: sığan sıra
+     *  [ ['orijinal_index'=>, 'pid'=>, 'sure'=>, 'bas'=>ts, 'bit'=>ts], ... ] veya null. */
+    private function _coklu_sigan_sira(array $servisler, $startTs, array $persDolu, array $persPencere, $salonBas, $salonBit)
+    {
+        $n = count($servisler);
+        if ($n === 0) return array();
+        // Permütasyon patlamasını önle: 6'dan fazla hizmette verilen sırayı dene.
+        $permler = ($n > 6) ? array(range(0, $n - 1)) : $this->_permutasyonlar(range(0, $n - 1));
+        foreach ($permler as $perm) {
+            $out = array();
+            $offsetDk = 0;
+            $sigar = true;
+            foreach ($perm as $idx) {
+                $srv = $servisler[$idx];
+                $bas = $startTs + $offsetDk * 60;
+                $bit = $bas + ((int) $srv['sure']) * 60;
+                $offsetDk += (int) $srv['sure'];
+                $pid = $srv['pid'];
+
+                if ($bit > $salonBit) { $sigar = false; break; }
+                $pencere = isset($persPencere[$pid]) ? $persPencere[$pid] : array($salonBas, $salonBit);
+                if ($bas < $pencere[0] || $bit > $pencere[1]) { $sigar = false; break; }
+                foreach ((isset($persDolu[$pid]) ? $persDolu[$pid] : array()) as $ar) {
+                    if ($bas < $ar[1] && $bit > $ar[0]) { $sigar = false; break 2; }
+                }
+                $out[] = array('orijinal_index' => $idx, 'pid' => $pid, 'sure' => (int) $srv['sure'], 'bas' => $bas, 'bit' => $bit);
+            }
+            if ($sigar) return $out;
+        }
+        return null;
+    }
+
+    /** Basit permütasyon üreteci (küçük N için). */
+    private function _permutasyonlar(array $items)
+    {
+        if (count($items) <= 1) return array($items);
+        $sonuc = array();
+        foreach ($items as $i => $it) {
+            $kalan = $items;
+            array_splice($kalan, $i, 1);
+            foreach ($this->_permutasyonlar(array_values($kalan)) as $p) {
+                array_unshift($p, $it);
+                $sonuc[] = $p;
+            }
+        }
+        return $sonuc;
+    }
+
+    /** Müşteri app kaydında hizmetleri, seçilen başlangıçta SIĞAN sıraya diz (sıra
+     *  bağımsızlığı: müsaitlik hangi sırayla sığdıysa kayıt da onu yazsın → tutarlı).
+     *  Sığan sıra yoksa orijinali döndürür (çakışma guard'ları yakalar). */
+    private function _appHizmetleriSigacakSiraya_diz(array $hizmetler, $randevuSaati, $tarih, $salonId, $haricRandevuId = null)
+    {
+        if (count($hizmetler) < 2) return $hizmetler;
+        $day = date('N', strtotime($tarih));
+        $servisler = array();
+        $pids = array();
+        foreach ($hizmetler as $h) {
+            $sure = (isset($h['sure_dk']) && $h['sure_dk'] !== '') ? (int) $h['sure_dk'] : 60;
+            $pid = isset($h['personel_id']) ? $h['personel_id'] : null;
+            $servisler[] = array('pid' => $pid, 'sure' => $sure);
+            $pids[] = $pid;
+        }
+        list($persDolu, $persPencere, $salonBas, $salonBit) =
+            $this->_persMusaitlikVerisi($tarih, $salonId, $pids, $day, $haricRandevuId);
+        $r = $this->_coklu_sigan_sira($servisler, strtotime($randevuSaati), $persDolu, $persPencere, $salonBas, $salonBit);
+        if ($r === null) return $hizmetler; // sığan sıra yok → orijinal
+        $yeni = array();
+        foreach ($r as $slot) { $yeni[] = $hizmetler[$slot['orijinal_index']]; }
+        return $yeni;
+    }
+
     public function randevuTarihSaatAdimi(Request $request)
     {
         $tarih = $request->randevutarihi ?? date('Y-m-d');
@@ -28217,7 +28363,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             //
             // NOT: bu dala yalnız TÜM servislerde personel BELİRLİ (0/farketmez yok) iken girilir.
 
-            // Servis sırası: secilenhizmetler[i] ↔ personeller[i], süre SalonHizmetler'den.
+            // Servis listesi: secilenhizmetler[i] ↔ personeller[i], süre SalonHizmetler'den.
             $hizmetArr = array_values($request->secilenhizmetler ?? array());
             $persArr   = array_values($request->personeller ?? array());
             $servisler = array(); // [ ['pid'=>, 'sure'=>dk], ... ]
@@ -28231,73 +28377,22 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 $servisler[] = array('pid' => ($persArr[0] ?? 0), 'sure' => $randevusaataraligi);
             }
 
-            $salonBas = strtotime($salonCalisma->baslangic_saati);
-            $salonBit = strtotime($salonCalisma->bitis_saati);
+            // Personel dolu aralıkları + çalışma pencereleri (kayıt yoksa salon saatleri).
+            $pidler = array_map(function ($s) { return $s['pid']; }, $servisler);
+            list($persDolu, $persPencere, $salonBas, $salonBit) =
+                $this->_persMusaitlikVerisi($tarih, $salonId, $pidler, $day);
 
-            // Çalışma penceresi: pid => [bas_ts, bit_ts]. Kayıt varsa salon ile kesişim.
-            // Kayıt YOKSA aşağıda salon saatlerine düşülür.
-            $persPencere = array();
-            foreach ($personelCalismalari as $calisma) {
-                $persPencere[$calisma->personel_id] = array(
-                    max($salonBas, strtotime($calisma->baslangic_saati)),
-                    min($salonBit, strtotime($calisma->bitis_saati))
-                );
-            }
-
-            // İlgili personellerin DOLU aralıkları (randevu + mola): pid => [[bas,bit],...]
-            $persDolu = array();
-            $randevular = Randevular::where('tarih', $tarih)->where('durum','<',2)
-                ->whereHas('hizmetler', function($query) use ($personelListe) {
-                    $query->whereIn('personel_id', $personelListe);
-                })
-                ->with(['hizmetler' => function($query) use ($personelListe) {
-                    $query->select('randevu_id', 'sure_dk', 'saat','saat_bitis','personel_id')
-                          ->whereIn('personel_id', $personelListe);
-                }])
-                ->get();
-            foreach ($randevular as $randevu) {
-                foreach ($randevu->hizmetler as $rH) {
-                    if (!in_array($rH->personel_id, $personelListe)) continue;
-                    $persDolu[$rH->personel_id][] = array(strtotime($rH->saat), strtotime($rH->saat_bitis));
-                }
-            }
-            $molalar = PersonelMolaSaatleri::whereIn('personel_id', array_unique($personelListe))
-                ->where('mola_var', 1)->where('haftanin_gunu', $day)->get();
-            foreach ($molalar as $mola) {
-                if ($mola->baslangic_saati && $mola->bitis_saati) {
-                    $persDolu[$mola->personel_id][] = array(
-                        strtotime($mola->baslangic_saati), strtotime($mola->bitis_saati)
-                    );
-                }
-            }
-
-            // Aday başlangıç: salon çalışma aralığında $randevusaataraligi adımlarla.
-            // Her servis, KENDİ personeliyle KENDİ alt-diliminde: salon açık + personel
-            // çalışma penceresinde (kayıt yoksa salon saatleri) + o alt-dilimde
-            // randevu/mola ile ÇAKIŞMIYOR.
+            // SIRA BAĞIMSIZ: bir başlangıç, hizmetler HERHANGİ bir sıraya dizilince
+            // (her hizmet KENDİ personeliyle, KENDİ ardışık alt-diliminde, salon açık +
+            // personel penceresinde + randevu/mola ile çakışmadan) sığıyorsa müsaittir.
             $bosSaatler = array();
             $saatindex = 0;
             for ($j = $salonBas; $j < $salonBit; $j += ($randevusaataraligi * 60)) {
                 $saat = date('H:i', $j);
                 if ($saat < $simdikiZaman) continue;
 
-                $uygun = true;
-                $offsetDk = 0;
-                foreach ($servisler as $srv) {
-                    $subBas = $j + ($offsetDk * 60);
-                    $subBit = $subBas + ($srv['sure'] * 60);
-                    $offsetDk += $srv['sure'];
-                    $pid = $srv['pid'];
-
-                    if ($subBit > $salonBit) { $uygun = false; break; } // salon kapanışı
-                    $pencere = isset($persPencere[$pid]) ? $persPencere[$pid] : array($salonBas, $salonBit);
-                    if ($subBas < $pencere[0] || $subBit > $pencere[1]) { $uygun = false; break; }
-                    foreach (($persDolu[$pid] ?? array()) as $ar) {
-                        if ($subBas < $ar[1] && $subBit > $ar[0]) { $uygun = false; break 2; } // örtüşme
-                    }
-                }
-
-                if ($uygun) {
+                $sira = $this->_coklu_sigan_sira($servisler, $j, $persDolu, $persPencere, $salonBas, $salonBit);
+                if ($sira !== null) {
                     array_push($bosSaatler, array('dolu'=>'0','saat'=>$saat));
                     $saatindex++;
                 } else {

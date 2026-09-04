@@ -378,6 +378,32 @@ $req = Request::create('/x', 'POST', ['randevu_saati' => '10:30', 'randevu_id' =
 $msg = $refl->invoke(new ApiController(), $req, [$TARIH], $SALON, true, true);
 ok($msg !== '', 'Salon/web: ayar AÇIK + onaylı çakışma bulunur');
 
+echo "\nE) SIRA BAĞIMSIZ ÇOKLU HİZMET (permütasyon)\n";
+
+// personel 10 sadece 09:00-13:00 boş ; personel 20 sadece 13:00-20:00 boş
+// hizmet 101=30dk(p10) + hizmet 100=50dk(p20). Yalnız p10→p20 sırasıyla 12:30'da sığar.
+sifirla();
+randevuEkle(10, '13:00', '20:00', 1);
+randevuEkle(20, '09:00', '13:00', 1);
+$b1 = musaitSaatler([10, 20], [101, 100]); // istek sırası A: 30dk(p10) + 50dk(p20)
+$b2 = musaitSaatler([20, 10], [100, 101]); // istek sırası B (TERS): 50dk(p20) + 30dk(p10)
+ok(in_array('12:30', $b1), 'Sıra bağımsız: 12:30 açık (sığan sıra p10→p20) [istek sırası A]');
+ok(in_array('12:30', $b2), 'Sıra bağımsız: 12:30 açık — istek TERS sırada da bulunur [istek sırası B]');
+$s1 = $b1; $s2 = $b2; sort($s1); sort($s2);
+ok($s1 === $s2, 'İstek sırası müsaitlik sonucunu DEĞİŞTİRMEZ (iki set birebir aynı)');
+ok(!in_array('11:00', $b1), 'Hiçbir sıranın sığmadığı başlangıç (11:00) bloklu');
+
+// Kayıt tarafı: app hizmetleri seçilen başlangıçta SIĞAN sıraya dizilir (tutarlılık)
+$diz = new ReflectionMethod(ApiController::class, '_appHizmetleriSigacakSiraya_diz');
+$diz->setAccessible(true);
+$giris = [
+    ['hizmet_id' => 100, 'personel_id' => '20', 'sure_dk' => 50, 'oda_id' => '', 'cihaz_id' => ''], // sığmayan sıra: p20 önce
+    ['hizmet_id' => 101, 'personel_id' => '10', 'sure_dk' => 30, 'oda_id' => '', 'cihaz_id' => ''],
+];
+$cikti = $diz->invoke(new ApiController(), $giris, '12:30', $TARIH, $SALON, null);
+ok(($cikti[0]['personel_id'] ?? null) == '10', 'Kayıt: hizmetler sığan sıraya dizildi (p10 öne alındı)');
+ok(count($cikti) === 2, 'Kayıt: hizmet sayısı korunur (sadece sıra değişir)');
+
 // ─────────────────────────────────────────────────────────────────────────────
 echo "\n" . str_repeat('─', 60) . "\n";
 printf("GEÇEN: %d   KALAN: %d\n", $GLOBALS['_gecen'], $GLOBALS['_kalan']);
