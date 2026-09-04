@@ -80,21 +80,37 @@ class CarkHatirlatmaGonder extends Command
             }
             if (!$asama) continue;
 
-            // Hak sahibi müşteriler: grup genelinde onaylanmış randevusu olan +
-            // grup genelinde bugün çevirmemiş + bu aşamayı grupta bugün almamış
-            $onayliRandevuKullanicilari = Randevular::whereIn('salon_id', $grup)
-                ->where('durum', 1)
-                ->pluck('user_id')->unique()->filter();
+            // Hak sahibi müşteriler — RANDEVU ŞARTI KALDIRILDI (çark artık giriş
+            // yapan herkese hak veriyor; müşteri tarafı CarkifelekApiController::durum
+            // ile senkron). Salonun müşteri tabanı: grup genelinde randevusu olan
+            // (durum farketmeksizin) VEYA çarkı daha önce çevirmiş kullanıcılar.
+            $randevuUserlar = Randevular::whereIn('salon_id', $grup)
+                ->whereNotNull('user_id')
+                ->pluck('user_id');
+            $cevirenGecmis = CarkifelekCevirmeLoglari::whereIn('salon_id', $grup)
+                ->where('user_id', '>', 0)
+                ->pluck('user_id');
+            $hedefUserlar = $randevuUserlar->merge($cevirenGecmis)
+                ->map(function ($id) { return (int) $id; })
+                ->filter(function ($id) { return $id > 0; })
+                ->unique();
 
-            if ($onayliRandevuKullanicilari->isEmpty()) continue;
+            if ($hedefUserlar->isEmpty()) continue;
 
-            // Grubun herhangi bir şubesinde bugün çarkı çevirmiş kullanıcılar (hak grup geneli tükenir)
-            $bugunCevirenler = CarkifelekCevirmeLoglari::whereIn('salon_id', $grup)
+            // Kilitli olanları çıkar: çarkın "cevirme_araligi_gun" penceresi içinde
+            // (tekrar_dene hariç) çevirmiş olanların hakkı yok. cevirmeKilitli() ile
+            // aynı kural: kilitli <=> son çevirme tarihi > (bugün - aralık).
+            // Kolon yoksa (canlıda migrate edilmemişse) aralık=1 → "bugün çevirenler".
+            $aralik = max(1, (int) ($cark->cevirme_araligi_gun ?? 1));
+            $kilitTarihi = $now->copy()->startOfDay()->subDays($aralik - 1)->toDateString();
+            $kilitliUserlar = CarkifelekCevirmeLoglari::whereIn('salon_id', $grup)
                 ->where('tip', '!=', 'tekrar_dene')
-                ->whereDate('created_at', $bugun)
-                ->pluck('user_id')->unique();
+                ->whereDate('created_at', '>=', $kilitTarihi)
+                ->pluck('user_id')
+                ->map(function ($id) { return (int) $id; })
+                ->unique();
 
-            $hedefUserlar = $onayliRandevuKullanicilari->diff($bugunCevirenler);
+            $hedefUserlar = $hedefUserlar->diff($kilitliUserlar);
             if ($hedefUserlar->isEmpty()) continue;
 
             // Bu aşamayı bugün (grup genelinde) almış olanları çıkar
