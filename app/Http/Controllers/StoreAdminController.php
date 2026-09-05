@@ -7077,9 +7077,17 @@ private function ayAdiCevir($ingilizceAy)
                 } catch (\Throwable $e) { \Log::warning('musteri randevu onay push: '.$e->getMessage()); }
             }
             if (SalonSMSAyarlari::where('ayar_id',2)->where('salon_id',$randevu->salon_id)->value('personel') == 1) {
+                // Randevu tarihine gore dogru gun ifadesi (bugun / yarin / dd.mm.YYYY)
+                $_bugun = date('Y-m-d');
+                $_yarin = date('Y-m-d', strtotime('+1 day'));
+                $_rTarih = date('Y-m-d', strtotime($randevu->tarih));
+                if ($_rTarih === $_bugun)      $_gunIfade = 'bugün';
+                elseif ($_rTarih === $_yarin)  $_gunIfade = 'yarın';
+                else                            $_gunIfade = date('d.m.Y', strtotime($randevu->tarih));
+
                 foreach ($randevu->hizmetler as $hizmet) {
                     $yetkiliid = Personeller::where('id',$hizmet->personel_id)->value('yetkili_id');
-                    $mesaj = $randevu->users->name.' isimli müşterinin yarın '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmet->hizmetler->hizmet_adi.' randevusu '.$kullaniciAdi.' tarafından onaylanmıştır.';
+                    $mesaj = $randevu->users->name.' isimli müşterinin '.$_gunIfade.' '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmet->hizmetler->hizmet_adi.' randevusu '.$kullaniciAdi.' tarafından onaylanmıştır.';
                     $mesajlar[] = [
                         'to' => IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1'),
                         'message' => $mesaj,
@@ -7099,7 +7107,9 @@ private function ayAdiCevir($ingilizceAy)
                 }
             }
             if (count($mesajlar) > 0) {
-                self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false);
+                // Salon override + tip: dogru salonun WA oturumu kullanilsin (multi-branch),
+                // ve kontor kapisi 'randevu_onay_bildirim' tipini ucretsiz sayabilsin.
+                self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false, $randevu->salon_id, 'randevu_onay_bildirim');
             }
         } catch (\Throwable $e) {
             \Log::error('[randevuonayla background] SMS/bildirim hata: '.$e->getMessage(), ['randevu_id' => $randevu->id]);
@@ -15884,7 +15894,7 @@ DB::raw('
         }
         self::sms_gonder_bildirimli($request,$mesajlar,true,1,false);
     }
-    public function sms_gonder_bildirimli(Request $request,$mesajlar,$geribildirimgonder,$tur,$dogrulama,$salonOverride=null)
+    public function sms_gonder_bildirimli(Request $request,$mesajlar,$geribildirimgonder,$tur,$dogrulama,$salonOverride=null,$gonderimTipi='transaksiyonel')
     {
         // $salonOverride: cagri yeri salon_id'yi ACIKCA biliyorsa bunu kullan.
         // Aksi halde mevcutsube — multi-branch kullanicida ilk yetkili salonu doner,
@@ -15929,7 +15939,9 @@ DB::raw('
                     // WA icin cagri yeri farkli metin verebilir (zenginlestirilmis
                     // format). Yoksa SMS metni ile ayni gonderilir (eski davranis).
                     $waMsg = $mesaj['wa_message'] ?? $msg;
-                    $sonuc = $wa->sendReminder($isletme, $to, $waMsg, $mesaj['randevu_id'] ?? null, $mesaj['user_id'] ?? null, null, $waUrgent, 'transaksiyonel');
+                    // Cagri yeri per-mesaj tip verirse onceligi o alir, yoksa toplu $gonderimTipi
+                    $_tipi = $mesaj['gonderim_tipi'] ?? $gonderimTipi;
+                    $sonuc = $wa->sendReminder($isletme, $to, $waMsg, $mesaj['randevu_id'] ?? null, $mesaj['user_id'] ?? null, null, $waUrgent, $_tipi);
                     if ($sonuc['ok'] ?? false) {
                         Log::info('[Transactional WA] kuyruğa eklendi', [
                             'salon_id' => $isletme->id, 'to' => $to, 'logId' => $sonuc['logId'] ?? null, 'tur' => $tur,
