@@ -6595,7 +6595,7 @@ private function ayAdiCevir($ingilizceAy)
                     if ($tarihSaatDegisti) {
                         // Müşteriye gönder (WhatsApp-first + SMS fallback)
                         $musteriMesaji = $randevu->salonlar->salon_adi . " tarafından " . $eskitarihsaat . " " . ($seansVar ? $hizmetAdi : "") . " randevunuz " . date('d.m.Y', strtotime($randevu->tarih)) . '-' . $randevu->saat . ' olarak güncellenmiştir. Detaylı bilgi için bize ulaşın. 0' . $randevu->salonlar->telefon_1;
-                        $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 14, 'musteri', $randevu->id, $randevu->user_id, $mesajlar);
+                        $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 14, 'musteri', $randevu->id, $randevu->user_id, $mesajlar, 'guncelleme_bildirim');
                         // Musteri push (SMS metniyle birebir)
                         if($randevu->user_id){
                             try {
@@ -6614,7 +6614,7 @@ private function ayAdiCevir($ingilizceAy)
                             $yetkiliid = Personeller::where('id', $hizmet->personel_id)->value('yetkili_id');
                             $personelTel = IsletmeYetkilileri::where('id', $yetkiliid)->value('gsm1');
                             $personelMesaji = $randevu->users->name . " isimli müşterinin " . $hizmet->hizmetler->hizmet_adi . " randevusu " . date('d.m.Y', strtotime($randevu->tarih)) . " - " . date('H:i', strtotime($hizmet->saat)) . " olarak " . Auth::guard('isletmeyonetim')->user()->name . " tarafından güncellenmiştir.";
-                            $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $personelMesaji, 14, 'personel', $randevu->id, null, $mesajlar);
+                            $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $personelMesaji, 14, 'personel', $randevu->id, null, $mesajlar, 'guncelleme_bildirim');
                         }
                     }
                     
@@ -6638,7 +6638,7 @@ private function ayAdiCevir($ingilizceAy)
                     
                     // Eğer tarih/saat değiştiyse ve gönderilecek mesaj varsa SMS gönder
                     if ($tarihSaatDegisti && count($mesajlar) > 0) {
-                        self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false);
+                        self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false, $randevu->salon_id, 'guncelleme_bildirim');
                     }
                     
                     $butonlar = '';
@@ -6783,7 +6783,7 @@ private function ayAdiCevir($ingilizceAy)
                 $randevu->salonlar,
                 optional($randevu->users)->cep_telefon,
                 $musteriSmsMesaj, 14, 'musteri',
-                $randevu->id, $randevu->user_id, $mesajlar
+                $randevu->id, $randevu->user_id, $mesajlar, 'guncelleme_bildirim'
             );
 
             // Personel mesaji
@@ -6797,14 +6797,14 @@ private function ayAdiCevir($ingilizceAy)
                 $this->smsVeyaWhatsappGonder(
                     $randevu->salonlar, $personelTel,
                     $personelSmsMesaj, 14, 'personel',
-                    $randevu->id, null, $mesajlar
+                    $randevu->id, null, $mesajlar, 'guncelleme_bildirim'
                 );
             }
 
             if (count($mesajlar) > 0) {
                 // salon_id ACIKCA gec — multi-branch kullanicida mevcutsube
                 // yanlis salon (kullanicinin ilk yetkili sube'si) donerdi.
-                self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false, $randevu->salon_id);
+                self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false, $randevu->salon_id, 'guncelleme_bildirim');
             }
         }
 
@@ -6898,7 +6898,7 @@ private function ayAdiCevir($ingilizceAy)
         if($red)
         {
             $musteriMesaji = $isletme->salon_adi." için oluşturduğunuz ".date('d.m.Y',strtotime($randevu->tarih)) ." ". date('H:i',strtotime($randevu->saat)) ." tarihli randevu talebiniz reddedilmiştir. Detaylı bilgi için bize ulaşın. 0".$isletme->telefon_1;
-            $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 3, 'musteri', $randevu->id, $randevu->user_id, $mesajlar);
+            $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 3, 'musteri', $randevu->id, $randevu->user_id, $mesajlar, 'iptal_bildirim');
             if($randevu->user_id){
                 try {
                     NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
@@ -6918,7 +6918,7 @@ private function ayAdiCevir($ingilizceAy)
                 $mesaj = $randevu->users->name .' isimli müşterinin yarın '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmetAdi.' randevusu '.Auth::guard('isletmeyonetim')->user()->name.' tarafından reddedilmiştir.';
                 $yetkiliid = Personeller::where('id',$hizmet->personel_id)->value('yetkili_id');
                 $personelTel = IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1');
-                $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $mesaj, 3, 'personel', $randevu->id, null, $mesajlar);
+                $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $mesaj, 3, 'personel', $randevu->id, null, $mesajlar, 'iptal_bildirim');
 
                 self::bildirimekle($request,$randevu->salon_id,$mesaj,"#",$hizmet->personel_id,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$randevu->id);
                 if($hizmet->personel_id){
@@ -6938,7 +6938,7 @@ private function ayAdiCevir($ingilizceAy)
         else
         {
             $musteriMesaji = $isletme->salon_adi." için oluşturulan ".date('d.m.Y',strtotime($randevu->tarih)) ." ". date('H:i',strtotime($randevu->saat)) ." tarihli randevunuz iptal edilmiştir. Detaylı bilgi için bize ulaşın. 0".$isletme->telefon_1;
-            $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 3, 'musteri', $randevu->id, $randevu->user_id, $mesajlar);
+            $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 3, 'musteri', $randevu->id, $randevu->user_id, $mesajlar, 'iptal_bildirim');
             if($randevu->user_id){
                 try {
                     NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
@@ -6958,7 +6958,7 @@ private function ayAdiCevir($ingilizceAy)
                 $personelTel = IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1');
                 $hizmetAdi = ($hizmet->hizmetler && isset($hizmet->hizmetler->hizmet_adi)) ? $hizmet->hizmetler->hizmet_adi : '';
                 $mesaj = $randevu->users->name .' isimli müşterinin yarın '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmetAdi.' randevusu '.Auth::guard('isletmeyonetim')->user()->name.' tarafından iptal edilmiştir.';
-                $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $mesaj, 3, 'personel', $randevu->id, null, $mesajlar);
+                $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $mesaj, 3, 'personel', $randevu->id, null, $mesajlar, 'iptal_bildirim');
 
                 self::bildirimekle($request,$randevu->salon_id,$mesaj,"#",$hizmet->personel_id,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$randevu->id);
                 if($hizmet->personel_id){
@@ -6978,7 +6978,8 @@ private function ayAdiCevir($ingilizceAy)
         if(count($mesajlar)>0)
             // salon_id ACIKCA gec — multi-branch kullanicida mevcutsube
             // yanlis salon (kullanicinin ilk yetkili sube'si) donerdi.
-            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false,$randevu->salon_id);
+            // 'iptal_bildirim' toplu tip: kontor kapisi ucretsiz sayar.
+            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false,$randevu->salon_id,'iptal_bildirim');
         if(is_numeric($request->musteriid))
         {
             return self::randevu_liste_getir($request, date('Y-m-d'), // tarih1: bugün
@@ -7954,7 +7955,8 @@ private function ayAdiCevir($ingilizceAy)
             if(count($mesajlar)>0)
                 // salon_id ACIKCA gec — multi-branch kullanicida mevcutsube
                 // yanlis salon (kullanicinin ilk yetkili sube'si) donerdi.
-                self::sms_gonder_bildirimli($request,$mesajlar,false,1,false,$yenirandevu->salon_id);
+                // 'yeni_randevu_bildirim' toplu tip: kontor kapisi ucretsiz sayar.
+                self::sms_gonder_bildirimli($request,$mesajlar,false,1,false,$yenirandevu->salon_id,'yeni_randevu_bildirim');
 
             $butonlar = '';
             $randevu = array();
@@ -27072,7 +27074,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
      * Toggle (musteri/personel) açıksa $mesajlar'a yazar. WhatsApp yonlendirmesi
      * sms_gonder_bildirimli icinde otomatik yapilir (salon WA aktif+connected ise).
      */
-    protected function smsVeyaWhatsappGonder($salon, $to, $message, $ayarId, $alanAdi, $randevuId, $userId, array &$mesajlar)
+    protected function smsVeyaWhatsappGonder($salon, $to, $message, $ayarId, $alanAdi, $randevuId, $userId, array &$mesajlar, $gonderimTipi = null)
     {
         if (!$to || !$salon) return;
 
@@ -27080,7 +27082,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if (!$ayar) return;
 
         if ((int) ($ayar->{$alanAdi} ?? 0) === 1) {
-            $mesajlar[] = ['to' => $to, 'message' => $message, 'randevu_id' => $randevuId, 'user_id' => $userId];
+            $satir = ['to' => $to, 'message' => $message, 'randevu_id' => $randevuId, 'user_id' => $userId];
+            if ($gonderimTipi) $satir['gonderim_tipi'] = $gonderimTipi;
+            $mesajlar[] = $satir;
         }
     }
 
