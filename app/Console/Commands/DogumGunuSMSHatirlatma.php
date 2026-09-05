@@ -59,19 +59,34 @@ class DogumGunuSMSHatirlatma extends Command
 
             $kutlamaMesaji = 'Sayın ' . $dogumGunu->users->name . ' ' . $dogumGunu->salonlar->salon_adi . ' olarak doğum gününüzü kutlar, sağlıklı, mutlu ve başarılı dolu seneler dileriz.';
 
-            $mesaj = [[
-                'to' => $dogumGunu->users->cep_telefon,
-                'message' => $kutlamaMesaji,
-            ]];
-            Log::info('doğum günü SMS salon_id ' . $dogumGunu->salon_id);
-            $controller->sms_gonder($dogumGunu->salon_id, $mesaj);
+            // WA-first: paylasilan oturum destegi ile ust salonun durumuna bakilir.
+            // 'dogum_gunu' tipi kontor duser (randevu bildirim/hatirlatma DEGIL).
+            $telefon = $dogumGunu->users->cep_telefon;
+            $waGitti = false;
+            $kanal = 'sms-otomatik';
+            try {
+                $waSalon = \App\Services\WhatsAppService::resolveWaSalon($dogumGunu->salonlar);
+                if ($telefon && !empty($waSalon->whatsapp_aktif) && ($waSalon->whatsapp_durum ?? null) === 'connected') {
+                    $r = app(\App\Services\WhatsAppService::class)
+                        ->sendReminder($dogumGunu->salonlar, $telefon, $kutlamaMesaji, null, $dogumGunu->user_id, null, false, 'dogum_gunu');
+                    if (!empty($r['ok'])) { $waGitti = true; $kanal = 'wa-otomatik'; }
+                    else Log::info('[DOGUM-GUNU] WA fail, SMS fallback', ['salon_id' => $dogumGunu->salon_id, 'err' => $r['error'] ?? '?']);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('[DOGUM-GUNU] WA exception: '.$e->getMessage());
+            }
 
-            // Otomatik SMS gonderildigine dair log dus (gun icinde duplicate engellemesi icin)
+            if (!$waGitti) {
+                Log::info('doğum günü SMS salon_id ' . $dogumGunu->salon_id);
+                $controller->sms_gonder($dogumGunu->salon_id, [[ 'to' => $telefon, 'message' => $kutlamaMesaji ]]);
+            }
+
+            // Otomatik gonderildigine dair log dus (gun icinde duplicate engellemesi icin)
             try {
                 DB::table('dogum_gunu_mesaj_loglari')->insert([
                     'salon_id' => $dogumGunu->salon_id,
                     'user_id' => $dogumGunu->user_id,
-                    'kanal' => 'sms-otomatik',
+                    'kanal' => $kanal,
                     'mesaj' => mb_substr($kutlamaMesaji, 0, 500),
                     'detay' => 'scheduled',
                     'gonderim_tarihi' => now(),

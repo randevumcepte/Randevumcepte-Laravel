@@ -208,34 +208,50 @@ class CustomerController extends Controller
             $mesaj_isletme = Auth::user()->name .' isimli müşteri '.date('d.m.Y',strtotime($randevu->tarih)) ." - ". date('H:i',strtotime($randevu->saat)) ." için randevu oluşturmuş olup onayınızı bekliyor.";
             
             $mesaj_isletme_bildirim = Auth::user()->name .' '.date('d.m.Y',strtotime($randevu->tarih)) ." - ". date('H:i',strtotime($randevu->saat)) ." için randevu oluşturmuştur";
-            if($isletme->yeni_sms)
-            {
-                $smsController = app()->make(SMSController::class);
-                $smsController->tekilSMSGonderVoiceTelekom(Auth::user()->cep_telefon,$mesaj,$randevu->salon_id,'Randevu talebi bilgilendirme');
+            // WA-first: salon WA aktif+connected ise (paylasilan oturum destegi) once WA dene;
+            // fail ise SMS'e dus. 'yeni_randevu_bildirim' tipi ucretsiz listede — kontor dusmez.
+            $_musteriWaGitti = false;
+            try {
+                $_waIsletme = \App\Services\WhatsAppService::resolveWaSalon($isletme);
+                if (!empty($_waIsletme->whatsapp_aktif) && ($_waIsletme->whatsapp_durum ?? null) === 'connected') {
+                    $_r = app(\App\Services\WhatsAppService::class)
+                        ->sendReminder($isletme, Auth::user()->cep_telefon, $mesaj, $randevu->id, Auth::user()->id, null, false, 'yeni_randevu_bildirim');
+                    $_musteriWaGitti = !empty($_r['ok']);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('musteri randevu talep WA hata: '.$e->getMessage());
             }
-            else
-            {
-                $postUrl = "https://api.efetech.net.tr/v2/sms/basic";
-                $apiKey = $isletme->sms_apikey; // should match with Server key
-                $headers = array(
-                     'Authorization: Key '.$apiKey,
-                     'Content-Type: application/json',
-                     'Accept: application/json'
-                );
-                 $postData = json_encode( array( "originator"=> $isletme->sms_baslik, "message"=>$mesaj, "to"=>[Auth::user()->cep_telefon],"encoding"=>"auto") );
-                 $postData2 = json_encode( array( "originator"=> $isletme->sms_baslik, "message"=>$mesaj_isletme, "to"=>['05316237563'],"encoding"=>"auto") );
-              
-                 
-                $ch=curl_init();
-                curl_setopt($ch,CURLOPT_URL,$postUrl);
-                curl_setopt($ch,CURLOPT_POSTFIELDS,$postData);
-                curl_setopt($ch,CURLOPT_POST,1);
-                curl_setopt($ch,CURLOPT_TIMEOUT,5);
-                curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
-                curl_setopt($ch,CURLOPT_HTTPHEADER,$headers);
-                    
-                $response=curl_exec($ch);
-                curl_close($ch);
+
+            if (!$_musteriWaGitti) {
+                if($isletme->yeni_sms)
+                {
+                    $smsController = app()->make(SMSController::class);
+                    $smsController->tekilSMSGonderVoiceTelekom(Auth::user()->cep_telefon,$mesaj,$randevu->salon_id,'Randevu talebi bilgilendirme');
+                }
+                else
+                {
+                    $postUrl = "https://api.efetech.net.tr/v2/sms/basic";
+                    $apiKey = $isletme->sms_apikey; // should match with Server key
+                    $headers = array(
+                         'Authorization: Key '.$apiKey,
+                         'Content-Type: application/json',
+                         'Accept: application/json'
+                    );
+                     $postData = json_encode( array( "originator"=> $isletme->sms_baslik, "message"=>$mesaj, "to"=>[Auth::user()->cep_telefon],"encoding"=>"auto") );
+                     $postData2 = json_encode( array( "originator"=> $isletme->sms_baslik, "message"=>$mesaj_isletme, "to"=>['05316237563'],"encoding"=>"auto") );
+
+
+                    $ch=curl_init();
+                    curl_setopt($ch,CURLOPT_URL,$postUrl);
+                    curl_setopt($ch,CURLOPT_POSTFIELDS,$postData);
+                    curl_setopt($ch,CURLOPT_POST,1);
+                    curl_setopt($ch,CURLOPT_TIMEOUT,5);
+                    curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
+                    curl_setopt($ch,CURLOPT_HTTPHEADER,$headers);
+
+                    $response=curl_exec($ch);
+                    curl_close($ch);
+                }
             }
             
 
