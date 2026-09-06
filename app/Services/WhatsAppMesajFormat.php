@@ -89,6 +89,33 @@ class WhatsAppMesajFormat
     }
 
     /**
+     * Randevu TALEBI ALINDI bildirimi (WA) — musterinin uygulama/web'den olusturdugu
+     * talep henuz onaylanmamis. Salon onayladiginda ayrica randevuOnaylandi mesaji gider.
+     */
+    public static function randevuTalebiAlindi($salon, $musteriAdi, $tarihStr, $saatStr, $hizmetlerStr = '')
+    {
+        $hizmetIkon = self::hizmetIkon($salon);
+
+        $mesaj  = "🌸 Merhaba, *" . $musteriAdi . "*,\n\n";
+        $mesaj .= ($salon->salon_adi ?? '') . " için *randevu talebiniz alınmıştır*. ⏳\n";
+        $mesaj .= "Talebiniz salon tarafından onaylandığında ayrıca bilgilendirileceksiniz.\n\n";
+        $mesaj .= "📅 *Tarih:* " . $tarihStr . "\n";
+        $mesaj .= "🕒 *Saat:* " . $saatStr . "\n";
+        if (!empty($hizmetlerStr)) {
+            $mesaj .= $hizmetIkon . " *Hizmetler:* " . $hizmetlerStr . "\n";
+        }
+        if (!empty($salon->telefon_1)) {
+            $tel = ltrim((string) $salon->telefon_1);
+            if ($tel !== '' && ctype_digit($tel[0]) && $tel[0] !== '0') {
+                $tel = '0' . $tel;
+            }
+            $mesaj .= "📞 *İletişim:* " . $tel . "\n";
+        }
+        $mesaj .= "\nİlginiz için teşekkür ederiz. 💐";
+        return $mesaj;
+    }
+
+    /**
      * Randevu talebi ONAYLANDI bildirimi (WA).
      * Musterinin uygulama/web'den olusturdugu talep salon tarafindan onaylanmis;
      * detay + bilgilendirme (randevuOlusturuldu ile ayni gorunum, farkli baslik).

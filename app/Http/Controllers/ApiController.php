@@ -12090,22 +12090,43 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $isletme = Salonlar::where("id", $yenirandevu->salon_id)->first();
                 $musteribilgi = User::where("id", $yenirandevu->user_id)->first();
                 $gsm = $musteribilgi->cep_telefon;
-                $cumleyeek = "randevunuz oluşturulmuştur.";
-                $ekCumle = "";
 
-                if ($guncelleme) {
-                    $cumleyeek = "randevunuz güncellenmiştir.";
-                }
-                if($request->durum == 0){
+                // Musteri kaynakli (uygulama/web) yeni randevu -> henuz onaylanmamis,
+                // "talep alindi" tonu; salon onayladiginda randevuonayla ayrica bildirim gonderir.
+                $_kaynakStr = $request->randevuKaynak ?: $request->input('randevuKaynak');
+                $_musteriKaynakli = !$guncelleme && (
+                    in_array($_kaynakStr, ['uygulama', 'web'], true)
+                    || !empty($yenirandevu->uygulama)
+                    || !empty($yenirandevu->web)
+                    || ((int) $request->durum === 0)
+                );
+                \Log::info('[RND-MUSTERI-MSG] kaynak karar', [
+                    'randevu_id' => $yenirandevu->id,
+                    'kaynak' => $_kaynakStr,
+                    'db_uygulama' => (int) ($yenirandevu->uygulama ?? 0),
+                    'db_web' => (int) ($yenirandevu->web ?? 0),
+                    'durum' => $request->durum,
+                    'guncelleme' => (bool) $guncelleme,
+                    'musteri_kaynakli' => $_musteriKaynakli,
+                ]);
+
+                if ($_musteriKaynakli) {
                     $cumleyeek = "randevu talebiniz alınmıştır.";
-                    $ekCumle = " Talebiniz kısa sürede sonuçlanacaktır. İlginiz için teşekkür ederiz. 0" . $isletme->telefon_1;
+                    $ekCumle = " Talebiniz salon tarafından onaylandığında ayrıca bilgilendirileceksiniz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
+                } elseif ($guncelleme) {
+                    $cumleyeek = "randevunuz güncellenmiştir.";
+                    $ekCumle = " Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
+                } else {
+                    $cumleyeek = "randevunuz oluşturulmuştur.";
+                    $ekCumle = " Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
                 }
 
-                else
-                    $ekCumle = " Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
-
-                // Müşteri mesajı
+                // Müşteri mesajı (SMS)
                 $musteriMesaj = $isletme->salon_adi . " tarafından " . date("d.m.Y", strtotime($request->randevu_tarihi)) . " " . $request->randevu_saati . " olarak " . $cumleyeek . $ekCumle;
+                if ($_musteriKaynakli) {
+                    // "salon tarafindan" ifadesi talep akisinda uygunsuz — sade cumle kullan
+                    $musteriMesaj = $isletme->salon_adi . " için " . date("d.m.Y", strtotime($request->randevu_tarihi)) . " " . $request->randevu_saati . " tarihli " . $cumleyeek . $ekCumle;
+                }
 
                 // Bildirim ekle (müşteriye)
                 self::bildirimekle($request, $yenirandevu->salon_id, $musteriMesaj, "#", null, $yenirandevu->user_id, IsletmeYetkilileri::where("id", $request->olusturan)->value("profil_resim"), $yenirandevu->id);
@@ -12141,13 +12162,24 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                                 $_hAd = optional($_h->hizmetler)->hizmet_adi;
                                 if ($_hAd) $_hizmetAdlari->push($_hAd);
                             }
-                            $_waMesaj = \App\Services\WhatsAppMesajFormat::randevuOlusturuldu(
-                                $isletme,
-                                $musteribilgi->name ?? '',
-                                date('d.m.Y', strtotime($request->randevu_tarihi)),
-                                $request->randevu_saati,
-                                $_hizmetAdlari->unique()->values()->implode(', ')
-                            );
+                            $_hizmetlerStr = $_hizmetAdlari->unique()->values()->implode(', ');
+                            if ($_musteriKaynakli) {
+                                $_waMesaj = \App\Services\WhatsAppMesajFormat::randevuTalebiAlindi(
+                                    $isletme,
+                                    $musteribilgi->name ?? '',
+                                    date('d.m.Y', strtotime($request->randevu_tarihi)),
+                                    $request->randevu_saati,
+                                    $_hizmetlerStr
+                                );
+                            } else {
+                                $_waMesaj = \App\Services\WhatsAppMesajFormat::randevuOlusturuldu(
+                                    $isletme,
+                                    $musteribilgi->name ?? '',
+                                    date('d.m.Y', strtotime($request->randevu_tarihi)),
+                                    $request->randevu_saati,
+                                    $_hizmetlerStr
+                                );
+                            }
                             // Uygulaması olmayana WA'da indirme daveti + link ekle
                             $_waMesaj = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($_waMesaj, $isletme, $musteribilgi->id ?? null);
                         }
@@ -12603,7 +12635,22 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     // Musteri kaynakli yeni randevu (uygulama/web) -> henuz onaylanmamis;
                     // "talep alindi" tonlu mesaj gonderilir. Salon onayladiginda ayrica
                     // "randevu talebiniz onaylanmistir" mesaji gider (randevuonayla).
-                    $_musteriKaynakli = !$guncelleme && in_array($request->randevuKaynak, ['uygulama', 'web'], true);
+                    // Kaynak 3 farkli yerden okunur: request property, input(), DB flag'i.
+                    $_kaynakStr = $request->randevuKaynak ?: $request->input('randevuKaynak');
+                    $_musteriKaynakli = !$guncelleme && (
+                        in_array($_kaynakStr, ['uygulama', 'web'], true)
+                        || !empty($yenirandevu->uygulama)
+                        || !empty($yenirandevu->web)
+                    );
+                    \Log::info('[RND-MUSTERI-MSG] kaynak karar', [
+                        'randevu_id' => $yenirandevu->id,
+                        'kaynak' => $_kaynakStr,
+                        'db_uygulama' => (int) ($yenirandevu->uygulama ?? 0),
+                        'db_web' => (int) ($yenirandevu->web ?? 0),
+                        'db_salon' => (int) ($yenirandevu->salon ?? 0),
+                        'guncelleme' => (bool) $guncelleme,
+                        'musteri_kaynakli' => $_musteriKaynakli,
+                    ]);
                     if ($_musteriKaynakli) {
                         $musteriMesaj = $isletme->salon_adi." için oluşturduğunuz ".date("d.m.Y",strtotime($request->randevu_tarihi))." ".$request->randevu_saati." tarihli randevu talebiniz alınmıştır. Talebiniz salon tarafından onaylandığında ayrıca bilgilendirileceksiniz. Detaylı bilgi için bize ulaşın. 0".$isletme->telefon_1;
                         $_pushTitle = 'Randevu Talebiniz Alındı';
