@@ -7058,11 +7058,32 @@ private function ayAdiCevir($ingilizceAy)
             $isletme = Salonlar::where('id',$randevu->salon_id)->first();
             $mesajlar = array();
 
+            // SMS (kisa metin): geriye uyumlu, sade
             $musteriOnayMesaji = $isletme->salon_adi." için oluşturduğunuz ".date('d.m.Y',strtotime($randevu->tarih))." ".date('H:i',strtotime($randevu->saat))." tarihli randevu talebiniz onaylanmıştır. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0".$randevu->salonlar->telefon_1;
+
+            // WA (zengin metin): detay + bilgilendirme (randevu olusturuldu formatiyla ayni)
+            $_hizmetAdlari = [];
+            foreach ($randevu->hizmetler as $_h) {
+                if ($_h->hizmetler && $_h->hizmetler->hizmet_adi) $_hizmetAdlari[] = $_h->hizmetler->hizmet_adi;
+            }
+            $_hizmetlerStr = implode(', ', array_unique($_hizmetAdlari));
+            $musteriOnayMesajiWA = \App\Services\WhatsAppMesajFormat::randevuOnaylandi(
+                $randevu->salonlar,
+                $randevu->users->name ?? 'Müşteri',
+                date('d.m.Y', strtotime($randevu->tarih)),
+                date('H:i', strtotime($randevu->saat)),
+                $_hizmetlerStr
+            );
+            // Uygulamasi olmayana WA'da indirme daveti ekle
+            $musteriOnayMesajiWA = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($musteriOnayMesajiWA, $randevu->salonlar, $randevu->user_id);
+
             if (SalonSMSAyarlari::where('ayar_id',2)->where('salon_id',$randevu->salon_id)->value('musteri') == 1) {
                 $mesajlar[] = [
                     'to' => $randevu->users->cep_telefon,
-                    'message' => $musteriOnayMesaji
+                    'message' => $musteriOnayMesaji,          // SMS icin sade
+                    'wa_message' => $musteriOnayMesajiWA,     // WA icin zengin
+                    'randevu_id' => $randevu->id,
+                    'user_id' => $randevu->user_id,
                 ];
             }
             // Musteri push (SMS metniyle birebir, SMS ayarindan bagimsiz)

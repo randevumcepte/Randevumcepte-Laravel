@@ -87,4 +87,36 @@ class WhatsAppMesajFormat
         $mesaj .= "Sizi ağırlamayı sabırsızlıkla bekliyoruz. 💖";
         return $mesaj;
     }
+
+    /**
+     * Randevu talebi ONAYLANDI bildirimi (WA).
+     * Musterinin uygulama/web'den olusturdugu talep salon tarafindan onaylanmis;
+     * detay + bilgilendirme (randevuOlusturuldu ile ayni gorunum, farkli baslik).
+     */
+    public static function randevuOnaylandi($salon, $musteriAdi, $tarihStr, $saatStr, $hizmetlerStr = '')
+    {
+        $hizmetIkon = self::hizmetIkon($salon);
+
+        $mesaj  = "🌸 Merhaba, *" . $musteriAdi . "*,\n\n";
+        $mesaj .= ($salon->salon_adi ?? '') . " için randevu talebiniz *onaylanmıştır*. ✅\n\n";
+        $mesaj .= "📅 *Tarih:* " . $tarihStr . "\n";
+        $mesaj .= "🕒 *Saat:* " . $saatStr . "\n";
+        if (!empty($hizmetlerStr)) {
+            $mesaj .= $hizmetIkon . " *Hizmetler:* " . $hizmetlerStr . "\n";
+        }
+        $mesaj .= "\nRandevunuzun sorunsuz geçmesi için lütfen belirtilen saatten birkaç dakika önce hazır olunuz. 💐\n\n";
+        if (!empty($salon->konum_linki)) {
+            $mesaj .= "📍 *Konum:* " . $salon->konum_linki . "\n";
+        }
+        if (!empty($salon->telefon_1)) {
+            $tel = ltrim((string) $salon->telefon_1);
+            if ($tel !== '' && ctype_digit($tel[0]) && $tel[0] !== '0') {
+                $tel = '0' . $tel;
+            }
+            $mesaj .= "📞 *İletişim:* " . $tel . "\n";
+        }
+        $mesaj .= "\nRandevunuzu değiştirmek ya da iptal etmek isterseniz bu WhatsApp hattından ya da telefon numaramızdan bize ulaşabilirsiniz.\n\n";
+        $mesaj .= "Sizi ağırlamayı sabırsızlıkla bekliyoruz. 💖";
+        return $mesaj;
+    }
 }
