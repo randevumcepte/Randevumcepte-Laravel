@@ -12111,8 +12111,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 ]);
 
                 if ($_musteriKaynakli) {
+                    $_isyeriKucuk = \App\Services\WhatsAppMesajFormat::klinikMi($isletme) ? 'klinik' : 'salon';
                     $cumleyeek = "randevu talebiniz alınmıştır.";
-                    $ekCumle = " Talebiniz salon tarafından onaylandığında ayrıca bilgilendirileceksiniz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
+                    $ekCumle = " Talebiniz " . $_isyeriKucuk . " tarafından onaylandığında ayrıca bilgilendirileceksiniz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
                 } elseif ($guncelleme) {
                     $cumleyeek = "randevunuz güncellenmiştir.";
                     $ekCumle = " Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
@@ -12652,7 +12653,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         'musteri_kaynakli' => $_musteriKaynakli,
                     ]);
                     if ($_musteriKaynakli) {
-                        $musteriMesaj = $isletme->salon_adi." için oluşturduğunuz ".date("d.m.Y",strtotime($request->randevu_tarihi))." ".$request->randevu_saati." tarihli randevu talebiniz alınmıştır. Talebiniz salon tarafından onaylandığında ayrıca bilgilendirileceksiniz. Detaylı bilgi için bize ulaşın. 0".$isletme->telefon_1;
+                        $_isyeriKucuk2 = \App\Services\WhatsAppMesajFormat::klinikMi($isletme) ? 'klinik' : 'salon';
+                        $musteriMesaj = $isletme->salon_adi." için oluşturduğunuz ".date("d.m.Y",strtotime($request->randevu_tarihi))." ".$request->randevu_saati." tarihli randevu talebiniz alınmıştır. Talebiniz ".$_isyeriKucuk2." tarafından onaylandığında ayrıca bilgilendirileceksiniz. Detaylı bilgi için bize ulaşın. 0".$isletme->telefon_1;
                         $_pushTitle = 'Randevu Talebiniz Alındı';
                         $_pushType = NotificationTypes::APPOINTMENT_CREATED;
                     } else {

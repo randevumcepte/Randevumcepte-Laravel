@@ -95,10 +95,11 @@ class WhatsAppMesajFormat
     public static function randevuTalebiAlindi($salon, $musteriAdi, $tarihStr, $saatStr, $hizmetlerStr = '')
     {
         $hizmetIkon = self::hizmetIkon($salon);
+        $isyeriKucuk = self::klinikMi($salon) ? 'klinik' : 'salon';
 
         $mesaj  = "🌸 Merhaba, *" . $musteriAdi . "*,\n\n";
         $mesaj .= ($salon->salon_adi ?? '') . " için *randevu talebiniz alınmıştır*. ⏳\n";
-        $mesaj .= "Talebiniz salon tarafından onaylandığında ayrıca bilgilendirileceksiniz.\n\n";
+        $mesaj .= "Talebiniz " . $isyeriKucuk . " tarafından onaylandığında ayrıca bilgilendirileceksiniz.\n\n";
         $mesaj .= "📅 *Tarih:* " . $tarihStr . "\n";
         $mesaj .= "🕒 *Saat:* " . $saatStr . "\n";
         if (!empty($hizmetlerStr)) {
