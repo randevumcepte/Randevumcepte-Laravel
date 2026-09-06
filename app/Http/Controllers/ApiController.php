@@ -12599,14 +12599,26 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                         $cumleyeek = "güncellenmiştir";
 
-                    }   
-                    $musteriMesaj = $isletme->salon_adi ." tarafından " .date("d.m.Y",strtotime($request->randevu_tarihi)) ." " .$request->randevu_saati ." olarak randevunuz " .$cumleyeek .". Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" .$isletme->telefon_1;
+                    }
+                    // Musteri kaynakli yeni randevu (uygulama/web) -> henuz onaylanmamis;
+                    // "talep alindi" tonlu mesaj gonderilir. Salon onayladiginda ayrica
+                    // "randevu talebiniz onaylanmistir" mesaji gider (randevuonayla).
+                    $_musteriKaynakli = !$guncelleme && in_array($request->randevuKaynak, ['uygulama', 'web'], true);
+                    if ($_musteriKaynakli) {
+                        $musteriMesaj = $isletme->salon_adi." için oluşturduğunuz ".date("d.m.Y",strtotime($request->randevu_tarihi))." ".$request->randevu_saati." tarihli randevu talebiniz alınmıştır. Talebiniz salon tarafından onaylandığında ayrıca bilgilendirileceksiniz. Detaylı bilgi için bize ulaşın. 0".$isletme->telefon_1;
+                        $_pushTitle = 'Randevu Talebiniz Alındı';
+                        $_pushType = NotificationTypes::APPOINTMENT_CREATED;
+                    } else {
+                        $musteriMesaj = $isletme->salon_adi ." tarafından " .date("d.m.Y",strtotime($request->randevu_tarihi)) ." " .$request->randevu_saati ." olarak randevunuz " .$cumleyeek .". Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" .$isletme->telefon_1;
+                        $_pushTitle = $guncelleme ? 'Randevunuz Güncellendi' : 'Yeni Randevunuz Oluşturuldu';
+                        $_pushType = $guncelleme ? NotificationTypes::APPOINTMENT_TIME_CHANGED : NotificationTypes::APPOINTMENT_CREATED;
+                    }
                     self::bildirimekle($request, $yenirandevu->salon_id,$musteriMesaj,"#",null,$yenirandevu->user_id,IsletmeYetkilileri::where("id",$request->olusturan)->value("profil_resim"),$yenirandevu->id);
                     if($yenirandevu->user_id){
                         try {
                             NotificationService::toCustomer((int)$yenirandevu->user_id, (int)$yenirandevu->salon_id)
-                                ->type($guncelleme ? NotificationTypes::APPOINTMENT_TIME_CHANGED : NotificationTypes::APPOINTMENT_CREATED)
-                                ->title($guncelleme ? 'Randevunuz Güncellendi' : 'Yeni Randevunuz Oluşturuldu')
+                                ->type($_pushType)
+                                ->title($_pushTitle)
                                 ->body($musteriMesaj)
                                 ->randevu((int)$yenirandevu->id)
                                 ->deepLink('appointment_detail', ['randevu_id' => $yenirandevu->id])
