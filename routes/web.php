@@ -132,6 +132,20 @@ Route::get('/dev-saat-teshis', function() {
         }
         if ($r->user_id==2012 || $ilgili) $out .= $satir;
     }
+    $out .= str_repeat('-',80)."\n";
+    $out .= "SECILI PERSONELLERIN TUM TARIHLERDEKI KAPALI SAAT (user_id=2012) bloklari:\n";
+    $khRows = \DB::table('randevu_hizmetler')
+        ->join('randevular','randevular.id','=','randevu_hizmetler.randevu_id')
+        ->where('randevular.user_id',2012)
+        ->whereIn('randevu_hizmetler.personel_id',$persIds)
+        ->where('randevular.tarih','>=',date('Y-m-d',strtotime('-1 day')))
+        ->orderBy('randevular.tarih')
+        ->select('randevular.id','randevular.tarih','randevu_hizmetler.personel_id','randevu_hizmetler.saat','randevu_hizmetler.saat_bitis')
+        ->limit(50)->get();
+    if ($khRows->count()==0) $out .= "  (yok)\n";
+    foreach ($khRows as $k) {
+        $out .= "  tarih={$k->tarih} personel_id={$k->personel_id} {$k->saat}-{$k->saat_bitis} (RND #{$k->id})\n";
+    }
     $out .= "</pre>";
     return $out;
 });
