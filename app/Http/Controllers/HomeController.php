@@ -900,13 +900,40 @@ $salon = Salonlar::where('domain', $domain)->first();
     }
     Log::info("dolu saatler : ",$dolusaatler);
     $dolusaatler = array_unique($dolusaatler);
+
+    // Salon sahibinin online randevuya ACIK biraktigi saat pencereleri (+ tarihe ozel kapali/ozel istisna).
+    // null = kisitlama kapali (tum saatler acik), [] = o gun online tamamen kapali, [{bas,bit}] = yalniz bu araliklar.
+    $izinliAraliklar = \App\SalonOnlineRandevuSaatleri::izinliAraliklar($id, $tarih);
+
+    // Mola (kapali) araliklari: salon molasi + secili personel molalari
+    $molaAraliklar = [];
+    foreach (\App\SalonMolaSaatleri::where('salon_id', $id)->where('mola_var', 1)->where('haftanin_gunu', $day)->get() as $m) {
+        if ($m->baslangic_saati && $m->bitis_saati) $molaAraliklar[] = [strtotime($m->baslangic_saati), strtotime($m->bitis_saati)];
+    }
+    if (!empty($request->secilenpersoneller)) {
+        foreach (\App\PersonelMolaSaatleri::whereIn('personel_id', $request->secilenpersoneller)->where('mola_var', 1)->where('haftanin_gunu', $day)->get() as $m) {
+            if ($m->baslangic_saati && $m->bitis_saati) $molaAraliklar[] = [strtotime($m->baslangic_saati), strtotime($m->bitis_saati)];
+        }
+    }
+
     $html = '<div class="saatler">';
     $saatindex = 0;
 
     for ($j = strtotime($ortakBaslangic); $j < strtotime($ortakBitis); $j += ($randevusaataraligi * 60)) {
         $saat = date('H:i', $j);
 
-        if ($saat >= $simdikiZaman && !in_array($saat, $dolusaatler)) {
+        // Online kisitlama aktifse ve bu saat izinli pencerelerin disindaysa: hic gosterme (kapali).
+        if (!\App\SalonOnlineRandevuSaatleri::slotIzinliMi($izinliAraliklar, $saat, 0)) {
+            continue;
+        }
+
+        // Bu saat bir mola araligina denk geliyor mu?
+        $molada = false;
+        foreach ($molaAraliklar as $ma) {
+            if ($j >= $ma[0] && $j < $ma[1]) { $molada = true; break; }
+        }
+
+        if ($saat >= $simdikiZaman && !in_array($saat, $dolusaatler) && !$molada) {
             $html .= '<div class="input-radio">
                 <input class="saatsecimleri" id="time'.$j.'" type="radio" name="randevusaati" value="'.$saat.'">
                 <label for="time'.$j.'">'.$saat.'</label>
@@ -915,7 +942,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         } else {
             $html .= '<div class="input-radio">
                 <input class="saatsecimleri" id="time'.$j.'" type="radio" name="randevusaati" value="'.$saat.'" disabled>
-                <label for="time'.$j.'" title="Bu saat dolu">'.$saat.'</label>
+                <label for="time'.$j.'" title="'.($molada ? 'Mola saati' : 'Bu saat dolu').'">'.$saat.'</label>
             </div>';
         }
     }
@@ -925,7 +952,7 @@ $salon = Salonlar::where('domain', $domain)->first();
     }
 
     $html .= '</div>';
- 
+
     /*$day = date('N', strtotime($tarih)); // 1 (Pazartesi) ile 7 (Pazar) arasında değer
     $nowtime = date('H:i');
     $html = "";  
