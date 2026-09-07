@@ -21190,6 +21190,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             return $personel;
         }
 
+        // yetkili_id bos ise $yetkili null gelir; asagida Hash::make/gsm1 erisimleri
+        // 500 fatal verirdi. Once guard koy, sifre gonderilemez sonucu don.
+        if (!$yetkili) {
+            return response()->json(['sonuc' => 'yetkili_bulunamadi'], 422);
+        }
+
         $random = str_shuffle("ABCDEFGHJKLMNOPQRSTUVWXYZ1234567890");
 
         $kod = substr($random, 0, 6);
@@ -21224,21 +21230,30 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         ];
 
-        self::sms_gonder_2(
+        // Once WhatsApp'tan anlik gonder (sifremi-unuttum ile ayni kalip). sms_gonder_2
+        // WA'yi HIC denemez -> personel sifresi bu yuzden WhatsApp'tan gitmiyordu.
+        // Flutter bu uca sadece personelid yolladigi icin salonidler bos gelir;
+        // sifreWhatsappGonder salonu salonidler'den cozdugunden $personel->salon_id'yi
+        // request'e enjekte ediyoruz. Basarisiz olursa SMS'e dusulur.
+        $request->merge(['salonidler' => $personel->salon_id]);
+        $waBasarili = self::sifreWhatsappGonder($request, $mesajlar, $yetkili->id ?? null);
+        if (!$waBasarili) {
+            self::sms_gonder_2(
 
-            $request,
+                $request,
 
-            $mesajlar,
+                $mesajlar,
 
-            false,
+                false,
 
-            1,
+                1,
 
-            false,
+                false,
 
-            $personel->salon_id,false
+                $personel->salon_id,true
 
-        );
+            );
+        }
 
         Audit::logApi(optional($personel)->salon_id, $request, 'personel_sifre_gonder', 'personel', $personel->id, optional($personel)->personel_adi, 'Personele yeni sifre SMS gonderildi');
 
