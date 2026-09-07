@@ -14,5 +14,12 @@ class AppBundleAyarlari extends Model
     protected $fillable = [
         'app_bundle',
         'bundle_baslik',
+        // Genel (ortak) app sürüm kontrolü — bundle bazlı (per-salon değil)
+        'android_son_versiyon',
+        'ios_son_versiyon',
+        'huawei_son_versiyon',
+        'android_uygulama',
+        'ios_uygulama',
+        'huawei_uygulama',
     ];
 }

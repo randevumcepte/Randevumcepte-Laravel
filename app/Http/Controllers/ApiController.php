@@ -205,6 +205,25 @@ class ApiController extends Controller
 
  public function versiyonAppKontrol(Request $request)
     {
+        // ÖNCELİK: Genel/ortak app gibi salon-bazlı OLMAYAN bundle'lar için sürüm
+        // bilgisi app_bundle_ayarlari'nda (app_bundle bazlı) tutulur. Sürüm alanı
+        // doluysa buradan dön. Marka bundle'larında bu alanlar boş olduğundan
+        // aşağıdaki mevcut salon-bazlı mantık aynen çalışır (geriye dönük uyumlu).
+        if (Schema::hasTable('app_bundle_ayarlari')) {
+            $bundleAyar = \App\AppBundleAyarlari::where('app_bundle', $request->appBundle)->first();
+            if ($bundleAyar
+                && (!empty($bundleAyar->android_son_versiyon) || !empty($bundleAyar->ios_son_versiyon))) {
+                return array(
+                    'ios_latest'     => $bundleAyar->ios_son_versiyon ?? '',
+                    'android_latest' => $bundleAyar->android_son_versiyon ?? '',
+                    'huawei_latest'  => $bundleAyar->huawei_son_versiyon ?? '',
+                    'play_store'     => $bundleAyar->android_uygulama ?? '',
+                    'app_store'      => $bundleAyar->ios_uygulama ?? '',
+                    'app_gallery'    => $bundleAyar->huawei_uygulama ?? '',
+                );
+            }
+        }
+
         $isletme = Salonlar::where('app_bundle',$request->appBundle)->first();
         if (!$isletme) {
             // app_bundle ile eslesen salon yok — bos defaults dön (Flutter tarafı update tetiklemez)

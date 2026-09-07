@@ -30,6 +30,11 @@ return [
     'shemall'      => 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
 
 
+    // NOT: "Genel" (ortak) app icin per-salon firebase_profile KULLANILMAZ.
+    // Genel, tek app_bundle'i cok isletme paylasan bir mecra oldugundan Firebase
+    // projesi BUNDLE-bazli cozulur -> config/firebase_bundle_projects.php.
+    // (Marka appler asagidaki gibi salon-bazli profile devam eder.)
+
     // Salooncadde markasi - randevumcepte-uygulamalar projesinde
     'salooncadde'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
     'dermatouch'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',

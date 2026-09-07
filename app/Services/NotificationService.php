@@ -137,6 +137,11 @@ class NotificationService
         // verir ve asagidaki dongu tokeni SILER. Bu yuzden platforma gore proje sec.
         $mobileFile = $this->firebaseJsonFile;
         $webFile    = config('firebase_projects.default', $mobileFile);
+        // "Genel" gibi tek app_bundle'i cok isletme paylasan ORTAK uygulamalarda
+        // Firebase projesi salon-bazli (firebase_profile) degil, token'in KENDI
+        // app_bundle'ina gore secilir. Haritada olmayan bundle'lar salon-bazli
+        // mobileFile'a duser (beyaz-etiket marka appler — davranis degismez).
+        $bundleMap = config('firebase_bundle_projects', []);
 
         $deepLink = $this->buildDeepLink();
         $payloadExtra = array_merge([
@@ -152,8 +157,18 @@ class NotificationService
 
         foreach ($tokens as $row) {
             try {
-                // Web tokenini web projesinden, digerlerini salon projesinden gonder.
-                $this->firebaseJsonFile = ($row->platform === 'web') ? $webFile : $mobileFile;
+                // Web tokenini web projesinden gonder. Mobil tokenlari once KENDI
+                // app_bundle'ina gore coz (ortak/genel app); haritada yoksa salon
+                // projesi (mobileFile).
+                if ($row->platform === 'web') {
+                    $this->firebaseJsonFile = $webFile;
+                } else {
+                    $tokenBundle = $row->app_bundle ?? '';
+                    $this->firebaseJsonFile =
+                        (!empty($tokenBundle) && !empty($bundleMap[$tokenBundle]))
+                            ? $bundleMap[$tokenBundle]
+                            : $mobileFile;
+                }
                 $this->sendOne($row->bildirim_id, $payloadExtra, $row->platform);
                 $sent++;
                 BildirimKimlikleri::where('id', $row->id)->update([
