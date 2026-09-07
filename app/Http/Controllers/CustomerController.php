@@ -39,6 +39,8 @@ use App\Bildirimler;
 use App\BildirimKimlikleri;
 class CustomerController extends Controller
 {
+    use \App\RandevuMusaitlikTrait;
+
     /**
      * Create a new controller instance.
      *
@@ -111,6 +113,40 @@ class CustomerController extends Controller
     }
     public function randevuekle(Request $request){
         try{
+            // ── SIRA BAĞIMSIZ + ÇAKIŞMA ENGELİ (web online randevu, belirli personel) ──
+            // Müsaitlik (HomeController@tarihsaatadiminagec) ile AYNI ortak mantık:
+            // hizmetler HERHANGİ sıraya dizilince sığıyorsa kabul; kayıt da o sığan
+            // sırayı kullanır. Hiçbir sıra sığmıyorsa randevu OLUŞTURULMAZ (çift
+            // randevu engeli). Yalnız TÜM personeller belirli iken devreye girer.
+            $reqHizmetler  = array_values((array) $request->hizmetler);
+            $reqPersoneller = array_values((array) $request->personeller);
+            $hepsiBelirli = count($reqHizmetler) > 0 && count($reqHizmetler) === count($reqPersoneller);
+            foreach ($reqPersoneller as $pp) { if (empty($pp) || (int) $pp === 0) { $hepsiBelirli = false; break; } }
+            if ($hepsiBelirli) {
+                $servisler = array();
+                $pids = array();
+                foreach ($reqHizmetler as $k => $hid) {
+                    $sure = SalonHizmetler::where('hizmet_id', $hid)->where('salon_id', $request->salonno)->value('sure_dk');
+                    $servisler[] = array('pid' => $reqPersoneller[$k], 'sure' => ($sure ?: 60));
+                    $pids[] = $reqPersoneller[$k];
+                }
+                $day = date('N', strtotime($request->randevutarihi));
+                list($persDolu, $persPencere, $salonBas, $salonBit) =
+                    $this->_persMusaitlikVerisi($request->randevutarihi, $request->salonno, $pids, $day);
+                $sira = $this->_coklu_sigan_sira($servisler, strtotime($request->randevusaati), $persDolu, $persPencere, $salonBas, $salonBit);
+                if ($sira === null) {
+                    echo "<span style='background-color:1px solid #FF4E00; font-size:17px; font-weight:bold; border:radius:60px;padding:10px'>Seçtiğiniz saat için uygun randevu bulunamadı. Lütfen başka bir saat seçiniz.</span>";
+                    return;
+                }
+                // Sığan sıraya göre hizmetler/personeller'i eşli olarak yeniden diz.
+                $yeniH = array(); $yeniP = array();
+                foreach ($sira as $slot) {
+                    $yeniH[] = $reqHizmetler[$slot['orijinal_index']];
+                    $yeniP[] = $reqPersoneller[$slot['orijinal_index']];
+                }
+                $request->merge(array('hizmetler' => $yeniH, 'personeller' => $yeniP));
+            }
+
             $randevu = new Randevular();
             $salon = Salonlar::where('id',$request->salonno)->first();
             $randevu->user_id = Auth::user()->id;
@@ -179,7 +215,7 @@ class CustomerController extends Controller
                     foreach ($odaAdaylari as $candidateOdaId) {
                         $cakisma = RandevuHizmetler::where('oda_id', $candidateOdaId)
                             ->whereHas('randevu', function($q) use ($randevu){
-                                $q->where('tarih', $randevu->tarih);
+                                $q->where('tarih', $randevu->tarih)->where('durum', '<', 2);
                             })
                             ->where(function($q) use ($randevuhizmetler){
                                 $q->where('saat', '<', $randevuhizmetler->saat_bitis)

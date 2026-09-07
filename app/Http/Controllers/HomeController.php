@@ -72,6 +72,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 class HomeController extends Controller
 {
+    use \App\RandevuMusaitlikTrait;
+
     /**
      * Create a new controller instance.
      *
@@ -611,81 +613,101 @@ $salon = Salonlar::where('domain', $domain)->first();
     }
 
     $simdikiZaman = (date('Y-m-d') == $tarih) ? date('H:i') : '00:00';
-    Log::info("Tarih ".$tarih);
-    // Randevu ve hizmet bilgilerini al
-    $randevular = Randevular::where('tarih', $tarih)
-        ->whereHas('hizmetler', function($query) use ($personelIds, $request) {
-            $query->whereIn('personel_id', $personelIds)
-                  ->orWhereIn('hizmet_id', (array)($request->secilenhizmetler ?? []));
-        })
-        ->with(['hizmetler' => function($query) {
-            $query->select('randevu_id', 'sure_dk', 'saat','saat_bitis','personel_id');
-        }])
-        ->get();
+    if (!$randevusaataraligi) $randevusaataraligi = 30;
 
-    $dolusaatler = [];
-
-    foreach ($randevular as $randevu) {
-        foreach($randevu->hizmetler as $rH)
-        {
-            $baslangic = strtotime($rH->saat);
-            $bitis = strtotime($rH->saat_bitis);
-            for ($t = $baslangic; $t < $bitis; $t += ($randevusaataraligi * 60)) {
-                $dolusaatler[] = date('H:i', $t);
-            }
+    // Slot radyo HTML'i (boş/dolu)
+    $radyo = function ($j, $saat, $bos) {
+        if ($bos) {
+            return '<div class="input-radio"><input class="saatsecimleri" id="time'.$j.'" type="radio" name="randevusaati" value="'.$saat.'"><label for="time'.$j.'">'.$saat.'</label></div>';
         }
-    }
+        return '<div class="input-radio"><input class="saatsecimleri" id="time'.$j.'" type="radio" name="randevusaati" value="'.$saat.'" disabled><label for="time'.$j.'" title="Bu saat dolu">'.$saat.'</label></div>';
+    };
 
-    // Oda bazli takvim ise: aday personellerin odalarinin dolu dilimlerini de elensin
-    if ($takvimTuru == 3) {
-        $personelOdaIdleri = Odalar::whereIn('personel_id', $personelIds)
-            ->where('durum', 1)
-            ->pluck('id')->toArray();
-        if (!empty($personelOdaIdleri)) {
-            $odaRandevular = RandevuHizmetler::whereIn('oda_id', $personelOdaIdleri)
-                ->whereHas('randevu', function($q) use ($tarih) {
-                    $q->where('tarih', $tarih);
-                })->get();
-            foreach($odaRandevular as $rH) {
-                $baslangic = strtotime($rH->saat);
-                $bitis = strtotime($rH->saat_bitis);
-                for ($t = $baslangic; $t < $bitis; $t += ($randevusaataraligi * 60)) {
-                    $dolusaatler[] = date('H:i', $t);
+    // Servis listesi: secilenhizmetler[i] ↔ personeller[i], süre SalonHizmetler'den.
+    $hizmetArr = array_values((array)($request->secilenhizmetler ?? []));
+    $persArr   = array_values((array)($request->personeller ?? []));
+    $servisler = [];
+    foreach ($hizmetArr as $i => $hid) {
+        $sh = SalonHizmetler::where('hizmet_id', $hid)->where('salon_id', $id)->first();
+        $sure = ($sh && $sh->sure_dk) ? (int) $sh->sure_dk : 60;
+        $pid = isset($persArr[$i]) ? $persArr[$i] : ($persArr[0] ?? 0);
+        $servisler[] = ['pid' => $pid, 'sure' => $sure];
+    }
+    if (empty($servisler)) $servisler[] = ['pid' => ($persArr[0] ?? 0), 'sure' => (int) $randevusaataraligi];
+
+    $html = '<div class="saatler">';
+    $saatindex = 0;
+    $spesifikYol = (!$farketmezVar && !empty($requestedPersonelIds));
+
+    if ($spesifikYol) {
+        // ── SIRA BAĞIMSIZ (kombinasyonlu) — mobil app ile AYNI ortak mantık ─────
+        $pidler = array_map(function ($s) { return $s['pid']; }, $servisler);
+        list($persDolu, $persPencere, $salonBas, $salonBit) = $this->_persMusaitlikVerisi($tarih, $id, $pidler, $day);
+
+        // Oda bazlı takvim (takvim_turu=3): personelin odasının dolu dilimleri o
+        // personel için de dolu sayılır (oda ≈ personel). durum<2 ile.
+        if ($takvimTuru == 3) {
+            $odaMap = Odalar::whereIn('personel_id', $pidler)->where('durum', 1)->pluck('personel_id', 'id'); // oda_id => personel_id
+            if ($odaMap->count()) {
+                $odaBusy = RandevuHizmetler::whereIn('oda_id', $odaMap->keys()->toArray())
+                    ->whereHas('randevu', function ($q) use ($tarih) { $q->where('tarih', $tarih)->where('durum', '<', 2); })
+                    ->get(['oda_id', 'saat', 'saat_bitis']);
+                foreach ($odaBusy as $rH) {
+                    $pid = $odaMap[$rH->oda_id] ?? null;
+                    if ($pid) $persDolu[$pid][] = [strtotime($rH->saat), strtotime($rH->saat_bitis)];
                 }
             }
         }
-    }
-    Log::info("dolu saatler : ",$dolusaatler);
-    $dolusaatler = array_unique($dolusaatler);
-    $html = '<div class="saatler">';
-    $saatindex = 0;
 
-    for ($j = strtotime($ortakBaslangic); $j < strtotime($ortakBitis); $j += ($randevusaataraligi * 60)) {
-        $saat = date('H:i', $j);
+        for ($j = $salonBas; $j < $salonBit; $j += ($randevusaataraligi * 60)) {
+            $saat = date('H:i', $j);
+            $bos = ($saat >= $simdikiZaman)
+                && ($this->_coklu_sigan_sira($servisler, $j, $persDolu, $persPencere, $salonBas, $salonBit) !== null);
+            $html .= $radyo($j, $saat, $bos);
+            if ($bos) $saatindex++;
+        }
+    } else {
+        // ── Farketmez / belirsiz personel: union davranış (düzeltilmiş: durum<2 +
+        //    gerçek zaman örtüşmesi + hizmet süresi penceresi). ─────────────────
+        $toplamSure = 0; foreach ($servisler as $s) $toplamSure += (int) $s['sure'];
+        if ($toplamSure <= 0) $toplamSure = (int) $randevusaataraligi;
 
-        if ($saat >= $simdikiZaman && !in_array($saat, $dolusaatler)) {
-            $html .= '<div class="input-radio">
-                <input class="saatsecimleri" id="time'.$j.'" type="radio" name="randevusaati" value="'.$saat.'">
-                <label for="time'.$j.'">'.$saat.'</label>
-            </div>';
-            $saatindex++;
-        } else {
-            $html .= '<div class="input-radio">
-                <input class="saatsecimleri" id="time'.$j.'" type="radio" name="randevusaati" value="'.$saat.'" disabled>
-                <label for="time'.$j.'" title="Bu saat dolu">'.$saat.'</label>
-            </div>';
+        $doluAralik = [];
+        $randevular = Randevular::where('tarih', $tarih)->where('durum', '<', 2)
+            ->whereHas('hizmetler', function ($query) use ($personelIds) { $query->whereIn('personel_id', $personelIds); })
+            ->with(['hizmetler' => function ($query) use ($personelIds) {
+                $query->select('randevu_id', 'saat', 'saat_bitis', 'personel_id')->whereIn('personel_id', $personelIds);
+            }])->get();
+        foreach ($randevular as $randevu) foreach ($randevu->hizmetler as $rH) {
+            if (!in_array($rH->personel_id, $personelIds)) continue;
+            $doluAralik[] = [strtotime($rH->saat), strtotime($rH->saat_bitis)];
+        }
+        if ($takvimTuru == 3) {
+            $personelOdaIdleri = Odalar::whereIn('personel_id', $personelIds)->where('durum', 1)->pluck('id')->toArray();
+            if (!empty($personelOdaIdleri)) {
+                $odaRandevular = RandevuHizmetler::whereIn('oda_id', $personelOdaIdleri)
+                    ->whereHas('randevu', function ($q) use ($tarih) { $q->where('tarih', $tarih)->where('durum', '<', 2); })->get();
+                foreach ($odaRandevular as $rH) $doluAralik[] = [strtotime($rH->saat), strtotime($rH->saat_bitis)];
+            }
+        }
+        for ($j = strtotime($ortakBaslangic); $j < strtotime($ortakBitis); $j += ($randevusaataraligi * 60)) {
+            $saat = date('H:i', $j);
+            $bit = $j + ($toplamSure * 60);
+            $bos = ($saat >= $simdikiZaman) && ($bit <= strtotime($ortakBitis));
+            if ($bos) {
+                foreach ($doluAralik as $ar) { if ($j < $ar[1] && $bit > $ar[0]) { $bos = false; break; } }
+            }
+            $html .= $radyo($j, $saat, $bos);
+            if ($bos) $saatindex++;
         }
     }
 
-    if ($saatindex == 0) {
-        $html .= "<p>Seçtiğiniz tarih için uygun randevu bulunamadı.</p>";
-    }
-
+    if ($saatindex == 0) $html .= "<p>Seçtiğiniz tarih için uygun randevu bulunamadı.</p>";
     $html .= '</div>';
 
     return response()->json([
         'tarihsaatbolumu' => $html,
-        'personelbilgi' => $personelBilgi,
+        'personelbilgi'   => $personelBilgi,
     ]);
 }
 

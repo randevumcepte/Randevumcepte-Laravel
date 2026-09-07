@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use App\Http\Controllers\ApiController;
+use App\Http\Controllers\HomeController;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  BAĞLANTI: pdo_sqlite varsa bellek-içi sqlite (en temiz, izole).
@@ -213,6 +214,23 @@ function musaitSaatler(array $personeller, array $hizmetler): array
     return array_values(array_map(fn($x) => $x['saat'], $bos));
 }
 
+/** WEB online randevu müsaitliği (HomeController@tarihsaatadiminagec) — HTML döner,
+ *  aktif (disabled OLMAYAN) slotların saatlerini parse edip döndürür. */
+function webMusaitSaatler(array $personeller, array $hizmetler): array
+{
+    global $SALON, $TARIH;
+    $req = Request::create('/x', 'POST', [
+        'personeller' => $personeller, 'secilenhizmetler' => $hizmetler, 'randevutarihi' => $TARIH,
+    ]);
+    $res = (new HomeController())->tarihsaatadiminagec($req, $SALON);
+    $data = method_exists($res, 'getData') ? $res->getData(true) : (array) $res;
+    $html = $data['tarihsaatbolumu'] ?? '';
+    preg_match_all('/value="(\d{2}:\d{2})"( disabled)?/', $html, $m, PREG_SET_ORDER);
+    $bos = [];
+    foreach ($m as $mm) { if (empty($mm[2])) $bos[] = $mm[1]; }
+    return array_values(array_unique($bos));
+}
+
 function appRandevuEkle($personelId, $saat, $cakisanEkle = ''): array
 {
     global $SALON, $TARIH;
@@ -393,8 +411,8 @@ $s1 = $b1; $s2 = $b2; sort($s1); sort($s2);
 ok($s1 === $s2, 'İstek sırası müsaitlik sonucunu DEĞİŞTİRMEZ (iki set birebir aynı)');
 ok(!in_array('11:00', $b1), 'Hiçbir sıranın sığmadığı başlangıç (11:00) bloklu');
 
-// Kayıt tarafı: app hizmetleri seçilen başlangıçta SIĞAN sıraya dizilir (tutarlılık)
-$diz = new ReflectionMethod(ApiController::class, '_appHizmetleriSigacakSiraya_diz');
+// Kayıt tarafı: hizmetler seçilen başlangıçta SIĞAN sıraya dizilir (ortak trait)
+$diz = new ReflectionMethod(ApiController::class, '_hizmetleriSigacakSiraya_diz');
 $diz->setAccessible(true);
 $giris = [
     ['hizmet_id' => 100, 'personel_id' => '20', 'sure_dk' => 50, 'oda_id' => '', 'cihaz_id' => ''], // sığmayan sıra: p20 önce
@@ -403,6 +421,38 @@ $giris = [
 $cikti = $diz->invoke(new ApiController(), $giris, '12:30', $TARIH, $SALON, null);
 ok(($cikti[0]['personel_id'] ?? null) == '10', 'Kayıt: hizmetler sığan sıraya dizildi (p10 öne alındı)');
 ok(count($cikti) === 2, 'Kayıt: hizmet sayısı korunur (sadece sıra değişir)');
+
+echo "\nF) WEB ONLİNE RANDEVU müsaitliği (HomeController@tarihsaatadiminagec)\n";
+
+// Aynı ortak mantık web'de de: tek personel + dolu blok
+sifirla();
+randevuEkle(10, '10:00', '10:50', 1);
+$w = webMusaitSaatler([10], [100]);
+ok(!in_array('10:00', $w), 'Web: dolu aralık bloklanır (10:00)');
+ok(in_array('09:00', $w), 'Web: çakışmayan başlangıç boş (09:00)');
+
+// KRİTİK web bug'ı: İPTAL (durum=2) randevu slotu bloklamamalı (eskiden durum filtresi yoktu)
+sifirla();
+randevuEkle(10, '10:00', '10:50', 2); // iptal
+$w = webMusaitSaatler([10], [100]);
+ok(in_array('10:00', $w), 'Web: İPTAL (durum=2) randevu slotu BLOKLAMAZ (durum<2 fix)');
+
+// Başka personelin randevusu seçili personeli bloklamaz (orWhereIn aşırı-bloklama fix)
+sifirla();
+randevuEkle(20, '10:00', '10:50', 1); // personel 20 dolu
+$w = webMusaitSaatler([10], [100]);              // personel 10 sorgulanıyor
+ok(in_array('10:00', $w), 'Web: başka personelin randevusu seçili personeli bloklamaz');
+
+// Web'de de SIRA BAĞIMSIZ (kombinasyonlu): p10 sadece 09-13, p20 sadece 13-20 boş
+sifirla();
+randevuEkle(10, '13:00', '20:00', 1);
+randevuEkle(20, '09:00', '13:00', 1);
+$w1 = webMusaitSaatler([10, 20], [101, 100]);
+$w2 = webMusaitSaatler([20, 10], [100, 101]);
+ok(in_array('12:30', $w1), 'Web sıra bağımsız: 12:30 açık [istek A]');
+ok(in_array('12:30', $w2), 'Web sıra bağımsız: 12:30 açık [istek TERS]');
+sort($w1); sort($w2);
+ok($w1 === $w2, 'Web: istek sırası sonucu değiştirmez (iki set aynı)');
 
 // ─────────────────────────────────────────────────────────────────────────────
 echo "\n" . str_repeat('─', 60) . "\n";
