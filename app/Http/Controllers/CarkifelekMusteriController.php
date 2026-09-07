@@ -919,6 +919,10 @@ class CarkifelekMusteriController extends Controller
 
     private function baslikUret($d)
     {
+        // Puan: isim ne olursa olsun her zaman miktari goster (kac puan onemli).
+        if ($d->tip === 'puan') {
+            return $d->deger ? ((int) $d->deger) . ' Puan' : 'Puan';
+        }
         // Once admin'in girdigi "Odul Adi" kullanilir; bossa otomatik metin uretilir.
         $ad = trim((string) ($d->dilim_ismi ?? ''));
 
