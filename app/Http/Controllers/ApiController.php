@@ -26886,9 +26886,26 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             Log::info("Telefon no ".$telefon);
             $mesajlar = array(array("to"=>$telefon,"message"=>$isletme->salon_adi." için yol tarifi: ".($isletme->yol_tarifi ? " Yol tarifi: ".$isletme->yol_tarifi : "")));
 
-            
-
-            self::sms_gonder_2($request, $mesajlar, false, 1, false, $request->salonid,false);
+            // WhatsApp-first: salon WA aktif+connected ise ONCE WhatsApp dene, basarisizlari SMS'e dus.
+            // (Diger bildirimlerle ayni mantik; sms_gonder_2 tek basina WA'yi atliyordu.)
+            try {
+                $waAcik = $isletme && !empty($isletme->whatsapp_aktif) && ($isletme->whatsapp_durum ?? '') === 'connected';
+                $smsKalan = $mesajlar;
+                if ($waAcik) {
+                    $wa = app(\App\Services\WhatsAppService::class);
+                    $smsKalan = [];
+                    foreach ($mesajlar as $m) {
+                        $to = $m['to'] ?? null; $msg = $m['message'] ?? null;
+                        if (!$to || !$msg) { $smsKalan[] = $m; continue; }
+                        $sonuc = $wa->sendReminder($isletme, $to, $msg, null, null, null, false, 'yol_tarifi');
+                        if (!($sonuc['ok'] ?? false)) $smsKalan[] = $m;
+                    }
+                }
+                if (!empty($smsKalan)) self::sms_gonder_2($request, $smsKalan, false, 1, false, $request->salonid, false);
+            } catch (\Throwable $e) {
+                \Log::warning('yolTarifiGonder WA-first hatasi, SMS denenecek: '.$e->getMessage());
+                self::sms_gonder_2($request, $mesajlar, false, 1, false, $request->salonid, false);
+            }
 
              return response()->json([
 
