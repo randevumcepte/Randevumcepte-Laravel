@@ -14922,17 +14922,36 @@ DB::raw('
         $toplamTutar = 0;
         // Satici (personel) degistirme: Satis Detaylari modalinda kalem saticisini
         // duzenlemek icin salon personel listesini bir kez cek ve select uretici hazirla.
-        $saticiPersonelleri = $satisDuzenle ? Personeller::where('salon_id',$request->sube)->orderBy('personel_adi')->get() : collect();
-        $saticiSelectYap = function($tur,$kalemId,$seciliId,$ekMetin='') use($saticiPersonelleri){
+        // Satici personel listesi: aktif/pasif hepsi gelir ama AYNI ISIM iki kez gelmesin.
+        // Isme gore tekillestir; mukerrerde aktif olani (yoksa en dusuk id) tut.
+        $saticiTumPersoneller = $satisDuzenle ? Personeller::where('salon_id',$request->sube)->orderBy('personel_adi')->get() : collect();
+        $saticiTumMap = array();           // id => personel (mevcut secimi her zaman gosterebilmek icin)
+        $saticiTekiller = array();         // normalize_ad => personel
+        foreach($saticiTumPersoneller as $p){
+            $saticiTumMap[$p->id] = $p;
+            $anahtar = mb_strtolower(trim($p->personel_adi ?? ''),'UTF-8');
+            if(!isset($saticiTekiller[$anahtar]) || ((int)($p->aktif ?? 0) === 1 && (int)($saticiTekiller[$anahtar]->aktif ?? 0) !== 1))
+                $saticiTekiller[$anahtar] = $p;
+        }
+        $saticiTekilListe = array_values($saticiTekiller);
+        $saticiSelectYap = function($tur,$kalemId,$seciliId,$ekMetin='') use($saticiTekilListe,$saticiTumMap){
+            $seciliId = ($seciliId === '' || $seciliId === null) ? '' : (int)$seciliId;
+            // Mevcut secili personel tekil listede yoksa (mukerrer eleme sonucu), onu da ekle
+            $liste = $saticiTekilListe;
+            if($seciliId !== '' && isset($saticiTumMap[$seciliId])){
+                $varMi = false;
+                foreach($liste as $p){ if((int)$p->id === $seciliId){ $varMi = true; break; } }
+                if(!$varMi) $liste[] = $saticiTumMap[$seciliId];
+            }
             $opt = '<option value="">— Satıcı seçiniz —</option>';
-            foreach($saticiPersonelleri as $p){
-                $sel = ((string)$seciliId !== '' && (int)$seciliId === (int)$p->id) ? ' selected' : '';
+            foreach($liste as $p){
+                $sel = ($seciliId !== '' && $seciliId === (int)$p->id) ? ' selected' : '';
                 $opt .= '<option value="'.$p->id.'"'.$sel.'>'.e($p->personel_adi).'</option>';
             }
             $out = '';
             if($ekMetin !== '')
                 $out .= '<div class="sd-satici-cihaz" title="Bu kalem cihaza/odaya bağlı">'.e($ekMetin).'</div>';
-            $out .= '<select class="form-control sd-satici-sec" data-tur="'.$tur.'" data-id="'.$kalemId.'">'.$opt.'</select>';
+            $out .= '<select class="form-control sd-satici-sec custom-select2" data-tur="'.$tur.'" data-id="'.$kalemId.'" data-secili="'.$seciliId.'">'.$opt.'</select>';
             return $out;
         };
         foreach($acik_adisyonlar as $adisyon)

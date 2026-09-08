@@ -253,6 +253,18 @@
             #satisKalemleri .sd-items .tahsilat_kalemleri_listesi .sd-satici-cihaz{
                font-size:10.5px; color:#c2410c; font-weight:600; margin-bottom:2px;
             }
+            /* select2 kutusunu kompakt satira oturt */
+            #satisKalemleri .sd-items .tahsilat_kalemleri_listesi .select2-container{ width:100% !important; }
+            #satisKalemleri .sd-items .select2-container--default .select2-selection--single{
+               height:26px !important; border:1px solid #d8b4fe !important; border-radius:5px !important;
+            }
+            #satisKalemleri .sd-items .select2-container--default .select2-selection--single .select2-selection__rendered{
+               line-height:24px !important; padding-left:7px !important; padding-right:20px !important;
+               font-size:12px !important; color:#475569 !important;
+            }
+            #satisKalemleri .sd-items .select2-container--default .select2-selection--single .select2-selection__arrow{ height:24px !important; }
+            /* modal icindeki select2 acilir menu ust katmanda kalsin */
+            #satisKalemleri .select2-container{ z-index:20000; }
 
             /* Summary card — colorized */
             #satisKalemleri .sd-summary{

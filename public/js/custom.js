@@ -22993,6 +22993,7 @@ $(document).on('click','button[name="satisDuzenle"]',function(e){
            $('#tahsilat_listesi_duzenleme').empty();
            $('#tahsilat_listesi_duzenleme').append(result.tahsilatlar);
            satisDetayTaksitleriDoldur(result.taksitler);
+           satisDetaySaticiSelect2();
             var musteridata = result.musteribilgi;
             $('#satis_listesi').data('musteriId', musteridata.id);
                 var data={
@@ -23030,13 +23031,40 @@ $(document).on('click','button[name="satisDuzenle"]',function(e){
 
 
 });
-// Satis Detaylari modali: kalem saticisini (personel) degistir
+// Satis Detaylari modali: satici (personel) select kutularini select2 yap.
+// Sadece HENUZ init edilmemis olanlara uygulanir (idempotent; observer ile guvenli).
+function satisDetaySaticiSelect2(){
+    if(!$.fn.select2) return;
+    $('#satisKalemleri .sd-satici-sec').each(function(){
+        var $s = $(this);
+        if($s.hasClass('select2-hidden-accessible')) return; // zaten hazir
+        $s.select2({
+            width: '100%',
+            dropdownParent: $('#satisKalemleri'),
+            placeholder: 'Satıcı seçiniz',
+            allowClear: false
+        });
+    });
+}
+// Kalemler her yeniden basildiginda (ekle/duzenle/seans degistir vb.) select2'yi otomatik uygula
+$(function(){
+    var kalemCont = document.getElementById('tum_tahsilatlar_duzenleme');
+    if(kalemCont && window.MutationObserver){
+        var _sdTimer;
+        new MutationObserver(function(){
+            clearTimeout(_sdTimer);
+            _sdTimer = setTimeout(satisDetaySaticiSelect2, 60);
+        }).observe(kalemCont, { childList: true });
+    }
+});
+// Kalem saticisini (personel) degistir
 $(document).on('change','#satisKalemleri .sd-satici-sec',function(e){
     var sel = $(this);
     var tur = sel.attr('data-tur');
     var kalemId = sel.attr('data-id');
     var personelId = sel.val();
-    var eskiDeger = sel.data('oncekiDeger');
+    var eskiDeger = sel.attr('data-secili') || '';
+    if((personelId || '') === eskiDeger) return; // degisiklik yok
     sel.prop('disabled', true);
     $.ajax({
         url: '/isletmeyonetim/adisyonKalemSaticiGuncelle',
@@ -23050,21 +23078,17 @@ $(document).on('change','#satisKalemleri .sd-satici-sec',function(e){
             sel.prop('disabled', false);
             if(res && res.durum && res.durum !== 'ok'){
                 alert(res.mesaj || 'Satıcı güncellenemedi.');
-                if(eskiDeger !== undefined) sel.val(eskiDeger);
+                sel.val(eskiDeger).trigger('change.select2');
                 return;
             }
-            sel.data('oncekiDeger', personelId);
+            sel.attr('data-secili', personelId || '');
         },
         error: function(){
             sel.prop('disabled', false);
             alert('Satıcı güncellenirken bir hata oluştu.');
-            if(eskiDeger !== undefined) sel.val(eskiDeger);
+            sel.val(eskiDeger).trigger('change.select2');
         }
     });
-});
-// Onceki degeri sakla (hata halinde geri almak icin)
-$(document).on('focus','#satisKalemleri .sd-satici-sec',function(){
-    $(this).data('oncekiDeger', $(this).val());
 });
 // Satis Detaylari modali: adisyona bagli taksit planlari listesini doldur/gizle
 function satisDetayTaksitleriDoldur(taksitlerHtml){
@@ -23106,6 +23130,7 @@ $(document).on('click','button[name="adisyon_taksit_plani_sil"]',function(e){
                     $('#tum_tahsilatlar_duzenleme').empty().append(result.kalemler);
                     $('#tahsilat_listesi_duzenleme').empty().append(result.tahsilatlar);
                     satisDetayTaksitleriDoldur(result.taksitler);
+                    satisDetaySaticiSelect2();
                     tahsilatyenidenhesapla();
                     adisyontoplamhesapla();
                     $('#adisyon_odenen_tutar').empty().append(result.odenenTutar);
