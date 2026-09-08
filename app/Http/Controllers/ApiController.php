@@ -21175,6 +21175,22 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             Audit::logApi(optional($yetkili)->salon_id, $request, 'personel_pasif', 'personel', $request->personelid, optional($yetkili)->personel_adi, 'Personel pasife alındı');
         } catch (\Throwable $e) {}
 
+        // GUVENLIK: pasife alinan personelin (bagli login kimliginin) BASKA aktif
+        // salonu kalmadiysa oturumunu sonlandir (token revoke + force_logout push).
+        // Baska aktif salonu varsa dokunma -> login'in bugunku davranisiyla birebir.
+        try {
+            \App\Services\OturumServisi::personelErisimiKalktiysaSonlandir(
+                (int) $yetkili->id,
+                $yetkili->yetkili_id !== null ? (int) $yetkili->yetkili_id : null,
+                $yetkili->salon_id  !== null ? (int) $yetkili->salon_id  : null,
+                \App\Services\NotificationTypes::PERSONEL_PASIF,
+                'Hesabınız pasife alındı',
+                'Yöneticiniz hesabınızı pasife aldı. Oturumunuz sonlandırıldı, tekrar giriş yapmanız gerekiyor.'
+            );
+        } catch (\Throwable $e) {
+            \Log::warning('personelpasif oturum sonlandirma hatasi: ' . $e->getMessage());
+        }
+
         return $yetkili;
 
     }

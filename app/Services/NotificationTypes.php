@@ -45,6 +45,14 @@ class NotificationTypes
     // Flutter tarafi alinca: Yetki.tazele + popup + logout zorlamasi.
     public const YETKI_DEGISTI             = 'yetki_degisti';
 
+    // Guvenlik: hesabin oturumu sunucuda sonlandirildi (token revoke edildi).
+    // Bu tiplerin push'u extra['force_logout']='1' tasir; Flutter alinca
+    // oturumu kapatip login ekranina yonlendirir. Gercek yaptirim token
+    // revoke'tur (sonraki istek 401); push yalnizca anlik + mesajli logout icindir.
+    public const SIFRE_DEGISTI             = 'sifre_degisti';   // sifre degistirildi/sifirlandi
+    public const PERSONEL_PASIF            = 'personel_pasif';  // personel pasife alindi
+    public const PERSONEL_SILINDI          = 'personel_silindi';// personel silindi
+
     /**
      * Bu tipler resimli + popup gösterilmeli (foreground'da büyük dialog).
      */

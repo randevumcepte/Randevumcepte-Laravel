@@ -103,7 +103,14 @@ class SifreSifirlamaController extends Controller
             // 6. Şifreyi güncelle
             $kullanici->password = Hash::make($olusturulansifre);
             $kullanici->save();
-            
+
+            // 6b. GUVENLIK: sifre sifirlaninca o hesabin ELDEKI tum Passport
+            // token'larini iptal et. Boylece eski cihazdaki oturum bir sonraki
+            // istekte 401 alir. Kullanici yeni sifreyle tekrar giris yapar.
+            // (Istegi yapan kisi login degil -> kendi oturumu etkilenmez.
+            //  Demo hesap yukarida erken donduğu icin buraya hic ulasmaz.)
+            \App\Services\OturumServisi::tokenlariIptalEt($kullanici);
+
             // 7. Log kaydı
             Log::info('Password reset', [
                 'user_id' => $kullanici->id,

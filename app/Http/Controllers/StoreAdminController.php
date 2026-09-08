@@ -6137,7 +6137,28 @@ private function ayAdiCevir($ingilizceAy)
             $personel->personel_adi ?: ('Personel #'.$personel->id),
             $aktarilanSayi > 0 ? ($aktarilanSayi.' gelecek hizmet başka personele aktarıldı, personel silindi') : 'Personel silindi');
 
+        // Silmeden ONCE oturum sonlandirma icin gerekli kimlikleri sakla
+        $silinenPersonelId = (int) $personel->id;
+        $silinenYetkiliId  = $personel->yetkili_id !== null ? (int) $personel->yetkili_id : null;
+        $silinenSalonId    = $personel->salon_id  !== null ? (int) $personel->salon_id  : null;
+
         $personel->delete();
+
+        // GUVENLIK: silinen personelin (bagli login kimliginin) BASKA aktif salonu
+        // kalmadiysa oturumunu sonlandir (token revoke + force_logout push).
+        // Satir zaten silindi -> kalan aktif salon sorgusu dogru sonuc verir.
+        try {
+            \App\Services\OturumServisi::personelErisimiKalktiysaSonlandir(
+                $silinenPersonelId,
+                $silinenYetkiliId,
+                $silinenSalonId,
+                \App\Services\NotificationTypes::PERSONEL_SILINDI,
+                'Hesabınız kaldırıldı',
+                'Yöneticiniz hesabınızı kaldırdı. Oturumunuz sonlandırıldı.'
+            );
+        } catch (\Throwable $e) {
+            \Log::warning('personelsil oturum sonlandirma hatasi: ' . $e->getMessage());
+        }
 
         if($request->ajax() || $request->wantsJson())
             return response()->json(['ok'=>true,'mesaj'=>'Personel silindi.','aktarilan'=>$aktarilanSayi]);
@@ -7173,7 +7194,11 @@ private function ayAdiCevir($ingilizceAy)
            return json_encode($randevuguncel);
     }
     public function sifredegistir(Request $request){
-        $user = Auth::guard('isletmeyonetim')->user()->first();
+        // DUZELTME: onceden `->user()->first()` cagriliyordu; bu bir model
+        // ornegine first() uygulayip TABLONUN ILK kaydini donduruyordu (yanlis
+        // kullanicinin parolasini degistirme riski). Giris yapmis yetkiliyi
+        // dogrudan alacak sekilde duzeltildi (yetkilibilgiguncelle ile ayni desen).
+        $user = Auth::guard('isletmeyonetim')->user();
         $cevap = "";
             $user->password = Hash::make($request->yenisifre);
             $user->save();
@@ -7182,6 +7207,22 @@ private function ayAdiCevir($ingilizceAy)
          SalonAudit::log(self::mevcutsube($request), 'sifre_degistir', 'yetkili', $user->id,
              $user->name ?: 'Kullanıcı',
              'Kullanıcı kendi parolasını değiştirdi');
+
+         // GUVENLIK: parola degisince bu hesabin DIGER (mobil) Passport oturumlarini
+         // sonlandir + tum salon personel satirlarina force_logout push. Islem web
+         // oturumundan yapildigi icin mevcut web oturumu etkilenmez.
+         try {
+             \App\Services\OturumServisi::tokenlariIptalEt($user);
+             \App\Services\OturumServisi::yetkiliTumCihazlaraForceLogout(
+                 (int) $user->id,
+                 \App\Services\NotificationTypes::SIFRE_DEGISTI,
+                 'Şifreniz değiştirildi',
+                 'Hesabınızın şifresi değiştirildi. Lütfen tekrar giriş yapınız.'
+             );
+         } catch (\Throwable $e) {
+             \Log::warning('yetkili sifredegistir oturum sonlandirma: ' . $e->getMessage());
+         }
+
          echo $cevap;
     }
     public function yetkilibilgiguncelle(Request $request){
@@ -7201,6 +7242,22 @@ private function ayAdiCevir($ingilizceAy)
             $user->name ?: 'Kullanıcı',
             'Kullanıcı kendi profil bilgilerini güncelledi',
             ['eski'=>$_eski, 'yeni'=>['name'=>$user->name,'email'=>$user->email,'gsm1'=>$user->gsm1], 'sifre_degisti'=>($request->password != "")]);
+
+        // GUVENLIK: profil guncellemesi parolayi da degistirdiyse diger (mobil)
+        // oturumlari sonlandir + force_logout push. Sadece parola degistiyse.
+        if ($request->password != "") {
+            try {
+                \App\Services\OturumServisi::tokenlariIptalEt($user);
+                \App\Services\OturumServisi::yetkiliTumCihazlaraForceLogout(
+                    (int) $user->id,
+                    \App\Services\NotificationTypes::SIFRE_DEGISTI,
+                    'Şifreniz değiştirildi',
+                    'Hesabınızın şifresi değiştirildi. Lütfen tekrar giriş yapınız.'
+                );
+            } catch (\Throwable $e) {
+                \Log::warning('yetkilibilgiguncelle oturum sonlandirma: ' . $e->getMessage());
+            }
+        }
     }
     public function yenisubeekle(Request $request){
         if($r = self::yetkiYoksa403($request, 'ayar.sube_yonet')) return $r;

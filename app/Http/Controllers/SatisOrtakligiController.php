@@ -2311,6 +2311,13 @@ Açıklamaya mutlaka referans bilgilerinizi yazmanız gerekmektedir. Ödemenizi 
         if(Hash::check($request->mevcut_sifre, $bayi_bilgileri->password )){
             $bayi_bilgileri->password= Hash::make($request->yeni_sifre);
              $bayi_bilgileri->save();
+            // GUVENLIK: parola degisince diger Passport oturumlarini sonlandir.
+            // (Satis ortakligi web paneli; mevcut web oturumu etkilenmez.)
+            try {
+                \App\Services\OturumServisi::tokenlariIptalEt($bayi_bilgileri);
+            } catch (\Throwable $e) {
+                \Log::warning('satisortakligi sifre_guncelle oturum sonlandirma: ' . $e->getMessage());
+            }
             echo '<div class="alert alert-success alert-dismissible fade show" role="alert">
                 <span class="alert-icon"><i class="ni ni-like-2"></i></span>
                 <span class="alert-text"><strong>Tebrikler!</strong> Şifrenizi başarı ile güncellediniz.</span>

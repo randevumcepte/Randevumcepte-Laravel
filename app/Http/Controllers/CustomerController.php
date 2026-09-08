@@ -506,7 +506,23 @@ class CustomerController extends Controller
         $user = Auth::user();
         $user->password = bcrypt($request->get('new-password'));
         $user->save();
-          return array( 
+
+        // GUVENLIK: parola degisince bu hesabin DIGER (mobil) Passport oturumlarini
+        // sonlandir + force_logout push. Islem web oturumundan yapildigi icin
+        // kullanicinin mevcut web oturumu etkilenmez (session != Passport token).
+        try {
+            \App\Services\OturumServisi::tokenlariIptalEt($user);
+            \App\Services\OturumServisi::forceLogoutPushMusteri(
+                (int) $user->id, null,
+                \App\Services\NotificationTypes::SIFRE_DEGISTI,
+                'Şifreniz değiştirildi',
+                'Hesabınızın şifresi değiştirildi. Lütfen tekrar giriş yapınız.'
+            );
+        } catch (\Throwable $e) {
+            \Log::warning('musteri sifredegistir oturum sonlandirma: ' . $e->getMessage());
+        }
+
+          return array(
                 'type' =>'success',
                 'title' => 'Başarılı',
                 'text' => "Şifreniz başarıyla değiştirildi.",
