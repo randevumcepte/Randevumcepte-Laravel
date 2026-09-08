@@ -1744,9 +1744,12 @@
             // Orijinal sure/fiyat hizmet detaylari (submit'te orantili dagilim icin)
             var origDetails = grp.hizmetler.map(function(h){
                 var d = window.hizmetDataCache ? window.hizmetDataCache[h.id] : null;
+                // Paket suresi oncelikli (buildPaketCardHTML ile ayni mantik)
+                var hSure = parseFloat(h.sure || 0) || 0;
+                var dSure = parseFloat((d && d.sure) || 0) || 0;
                 return {
                     id: String(h.id),
-                    sure: parseFloat((d && d.sure) || h.sure || 0) || 0,
+                    sure: hSure > 0 ? hSure : dSure,
                     fiyat: parseFloat((d && d.fiyat) || 0) || 0
                 };
             });
@@ -1825,7 +1828,11 @@
         var origHizmetler = [];
         var hizmetListHTML = grp.hizmetler.map(function(h){
             var d = window.hizmetDataCache ? window.hizmetDataCache[h.id] : null;
-            var sure = parseFloat((d && d.sure) || h.sure || 0) || 0;
+            // PAKET SURESI: paketin kendi h.sure degeri (adisyon_paket/hizmet.sure) oncelikli;
+            // yoksa salon default d.sure. Aksi halde salon default (ornek 60) paket suresini (30) eziyordu.
+            var hSure = parseFloat(h.sure || 0) || 0;
+            var dSure = parseFloat((d && d.sure) || 0) || 0;
+            var sure = hSure > 0 ? hSure : dSure;
             var fiyat = parseFloat((d && d.fiyat) || 0) || 0;
             totalSure += sure;
             totalFiyat += fiyat;
