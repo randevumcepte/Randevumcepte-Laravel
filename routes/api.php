@@ -393,6 +393,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     Route::post('/asistanRandevuIptalEt','ApiController@asistanRandevuIptalEt');
     Route::post('/gorev-iptal-et','ApiController@gorev_iptal_et');
     Route::post('/yolTarifiGonder','ApiController@yolTarifiGonder');
+    Route::post('/randevuBilgiGonder','ApiController@randevuBilgiGonder');
     Route::post('/drKlinikSatisEkle','ApiController@drKlinikSatisEkle');
     Route::post('/drKlinikSatisHizmetEkle','ApiController@drKlinikSatisHizmetEkle');
     Route::post('/drKlinikTahsilatEkle','ApiController@drKlinikTahsilatEkle');

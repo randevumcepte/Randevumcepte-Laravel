@@ -27,6 +27,7 @@ class WhatsAppService
         'iptal_bildirim',            // randevu iptal edildi
         'personel_hatirlatma',       // personele randevu bilgilendirmesi
         'randevu_onay_bildirim',     // randevu onaylandi (musteri+personel)
+        'randevu_bilgi',             // Sesli asistan: "randevum ne zaman" -> randevu bilgilendirme mesaji
         'sifre_sifirlama',           // Sifremi unuttum: her zaman ucretsiz
     ];
 

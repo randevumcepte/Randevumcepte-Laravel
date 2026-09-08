@@ -26933,11 +26933,92 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
 
 
 
-       
 
-       
+
+
 
     }
+
+    /**
+     * Sesli asistan "randevum ne zaman" sorgusu: en yakin gelecek randevusunun bilgilerini
+     * WhatsApp/SMS mesaji olarak gonderir. RANDEVU BILGILENDIRMESI oldugundan WhatsApp-first'te
+     * 'randevu_bilgi' tipi ile KONTORDEN MUAF (ucretsiz). yolTarifiGonder ile ayni desen.
+     * Girdi: salonid, userid, cep_telefon.
+     */
+    public function randevuBilgiGonder(Request $request)
+    {
+        try {
+            $user    = User::where('id', $request->userid)->first();
+            $isletme = Salonlar::where('id', $request->salonid)->first();
+            if (!$isletme) {
+                return response()->json(['success' => false, 'message' => 'Isletme bulunamadi.'], 200);
+            }
+
+            // En yakin gelecek randevu (iptal/silinmis haric): durum 2/3 disi, tarih >= bugun.
+            $bugun = \Carbon\Carbon::now('Europe/Istanbul')->format('Y-m-d');
+            $randevu = Randevular::with(['hizmetler.hizmetler', 'hizmetler.personeller'])
+                ->where('user_id', $request->userid)
+                ->where('salon_id', $request->salonid)
+                ->whereNotIn('durum', [2, 3])
+                ->whereDate('tarih', '>=', $bugun)
+                ->orderBy('tarih', 'asc')
+                ->orderBy('saat', 'asc')
+                ->first();
+
+            $telefon = $user ? $user->cep_telefon : self::telefon_no_format_duzenle($request->cep_telefon);
+
+            if (!$randevu) {
+                return response()->json(['success' => false, 'message' => 'Yaklasan randevu yok.'], 200);
+            }
+
+            // Turkce tarih (gun + ay adiyla).
+            $gunler = ['Pazar', 'Pazartesi', 'Sali', 'Carsamba', 'Persembe', 'Cuma', 'Cumartesi'];
+            $aylar  = ['', 'Ocak', 'Subat', 'Mart', 'Nisan', 'Mayis', 'Haziran', 'Temmuz', 'Agustos', 'Eylul', 'Ekim', 'Kasim', 'Aralik'];
+            $c = \Carbon\Carbon::parse($randevu->tarih);
+            $tarihMetni = $c->format('d') . ' ' . $aylar[(int) $c->format('n')] . ' ' . $c->format('Y') . ' ' . $gunler[(int) $c->format('w')];
+            $saatMetni  = substr((string) $randevu->saat, 0, 5);
+
+            // Hizmet + personel adlari (benzersiz).
+            $hizmetAdlari = []; $personelAdlari = [];
+            foreach ($randevu->hizmetler as $h) {
+                if ($h->hizmetler && $h->hizmetler->hizmet_adi) $hizmetAdlari[] = $h->hizmetler->hizmet_adi;
+                if ($h->personeller && $h->personeller->personel_adi) $personelAdlari[] = $h->personeller->personel_adi;
+            }
+            $hizmetAdlari  = array_values(array_unique($hizmetAdlari));
+            $personelAdlari = array_values(array_unique($personelAdlari));
+
+            $mesajMetni = $isletme->salon_adi . ' randevu bilgileriniz: ' . $tarihMetni . ', saat ' . $saatMetni . '.';
+            if (!empty($hizmetAdlari))  $mesajMetni .= ' Hizmet: ' . implode(', ', $hizmetAdlari) . '.';
+            if (!empty($personelAdlari)) $mesajMetni .= ' Personel: ' . implode(', ', $personelAdlari) . '.';
+
+            $mesajlar = array(array('to' => $telefon, 'message' => $mesajMetni));
+
+            // WhatsApp-first: randevu bilgilendirmesi -> 'randevu_bilgi' KONTORSUZ (KONTOR_UCRETSIZ_TIPLER).
+            try {
+                $waAcik = $isletme && !empty($isletme->whatsapp_aktif) && ($isletme->whatsapp_durum ?? '') === 'connected';
+                $smsKalan = $mesajlar;
+                if ($waAcik) {
+                    $wa = app(\App\Services\WhatsAppService::class);
+                    $smsKalan = [];
+                    foreach ($mesajlar as $m) {
+                        $to = $m['to'] ?? null; $msg = $m['message'] ?? null;
+                        if (!$to || !$msg) { $smsKalan[] = $m; continue; }
+                        $sonuc = $wa->sendReminder($isletme, $to, $msg, $randevu->id, null, null, false, 'randevu_bilgi');
+                        if (!($sonuc['ok'] ?? false)) $smsKalan[] = $m;
+                    }
+                }
+                if (!empty($smsKalan)) self::sms_gonder_2($request, $smsKalan, false, 1, false, $request->salonid, false);
+            } catch (\Throwable $e) {
+                \Log::warning('randevuBilgiGonder WA-first hatasi, SMS denenecek: ' . $e->getMessage());
+                self::sms_gonder_2($request, $mesajlar, false, 1, false, $request->salonid, false);
+            }
+
+            return response()->json(['success' => true, 'message' => 'Randevu bilgisi gonderildi.'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Bir hata olustu: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function yeniMusteriKaydi($adsoyad,$telefon,$salon_id)
     {
         $user = new User();
