@@ -50,6 +50,56 @@ class SesliRandevuCozService
         'ekim' => 10, 'kasim' => 11, 'aralik' => 12,
     ];
 
+    /** Turkce sayi sozcukleri ("uc gun sonra", "iki hafta sonra") -> rakam. */
+    protected $sayiKelimeleri = [
+        'bir' => 1, 'iki' => 2, 'uc' => 3, 'dort' => 4, 'bes' => 5,
+        'alti' => 6, 'yedi' => 7, 'sekiz' => 8, 'dokuz' => 9, 'on' => 10, 'yirmi' => 20,
+    ];
+
+    /** Token'i sayiya cevir (rakam ya da sozcuk); bulunamazsa null. */
+    protected function sayiKelimeCoz($tok)
+    {
+        if (preg_match('/^\d+$/', $tok)) return (int) $tok;
+        return $this->sayiKelimeleri[$tok] ?? null;
+    }
+
+    /**
+     * "ayin <gun>" -> ayin gunu (1-31). Rakam ("ayin 20 si") ya da sozcuk ("ayin yirmi besi",
+     * "ayin onu") olabilir; sayi kokleri ONEK olarak eslesir (ordinal/iyelik ekleri toleransli).
+     * Bulunamazsa null.
+     */
+    protected function ayGunSayisi($fold)
+    {
+        if (!preg_match('/\bay(?:in|nin)?\s+(.+)$/u', $fold, $mm)) return null;
+        $rest = trim($mm[1]);
+        if (preg_match('/^(\d{1,2})\b/u', $rest, $m)) {
+            return ((int) $m[1] >= 1 && (int) $m[1] <= 31) ? (int) $m[1] : null;
+        }
+        $birler = ['bir' => 1, 'iki' => 2, 'uc' => 3, 'dort' => 4, 'bes' => 5, 'alti' => 6, 'yedi' => 7, 'sekiz' => 8, 'dokuz' => 9];
+        $onlar  = ['on' => 10, 'yirmi' => 20, 'otuz' => 30];
+        $onek = function ($t, $map) {
+            $best = null; $bl = -1;
+            foreach ($map as $k => $v) { if (strpos($t, $k) === 0 && strlen($k) > $bl) { $best = $v; $bl = strlen($k); } }
+            return $best;
+        };
+        $val = 0; $kullanildi = false;
+        foreach (preg_split('/\s+/', $rest) as $i => $t) {
+            if ($i === 0) { $o = $onek($t, $onlar); if ($o !== null) { $val += $o; $kullanildi = true; continue; } }
+            $b = $onek($t, $birler); if ($b !== null) { $val += $b; $kullanildi = true; break; }
+            break;
+        }
+        return ($kullanildi && $val >= 1 && $val <= 31) ? $val : null;
+    }
+
+    /** Ay+gun -> tarih (gecmisse gelecek yila alir). tarihCoz'daki iki kalibin ortak yardimcisi. */
+    protected function ayGunTarih($ay, $gun, $bugun)
+    {
+        if (!checkdate($ay, $gun, $bugun->year)) return null;
+        $t = Carbon::createFromDate($bugun->year, $ay, $gun)->startOfDay();
+        if ($t->lt($bugun->copy()->startOfDay())) $t->addYear();
+        return $t->toDateString();
+    }
+
     /** Musteri adini bulurken atilacak dolgu kelimeleri */
     protected $stopKelimeler = [
         'randevu', 'randevusu', 'randevuyu', 'ver', 'versene', 'yaz', 'ekle', 'olustur',
@@ -267,21 +317,47 @@ class SesliRandevuCozService
             return $this->guvenliTarih($yil, $m[2], $m[1]);
         }
 
-        // 2) Goreli: bugun / yarin / obur gun / ertesi gun
+        // 2) Goreli: bugun / yarin / obur gun / ertesi gun / yarindan sonra
         if (preg_match('/\bbugun\b/u', $fold))                  return $bugun->toDateString();
-        if (preg_match('/\byarin\b/u', $fold))                  return $bugun->copy()->addDay()->toDateString();
-        if (preg_match('/\bobur gun\b|\bertesi gun\b/u', $fold)) return $bugun->copy()->addDays(2)->toDateString();
+        if (preg_match('/\byarin\b/u', $fold) && !preg_match('/\byarindan sonra\b/u', $fold)) return $bugun->copy()->addDay()->toDateString();
+        if (preg_match('/\bobur gun\b|\bobursu gun\b|\bertesi gun\b|\byarindan sonra\b/u', $fold)) return $bugun->copy()->addDays(2)->toDateString();
 
-        // 3) "15 agustos" / "3 nisan"
-        if (preg_match('/\b(\d{1,2})\s+(' . implode('|', array_keys($this->aylar)) . ')\b/u', $fold, $m)) {
-            $ay  = $this->aylar[$m[2]];
-            $gun = (int) $m[1];
-            if (!checkdate($ay, $gun, $bugun->year)) {
-                return null;
-            }
-            $t = Carbon::createFromDate($bugun->year, $ay, $gun);
-            if ($t->lt($bugun)) {
-                $t->addYear(); // gecmisse gelecek yila al
+        // 2b) "uc gun sonra" / "3 gun icinde" / "iki hafta sonra"  (sozcuk ya da rakam)
+        $sayiRe = '(?:\d{1,2}|' . implode('|', array_keys($this->sayiKelimeleri)) . ')';
+        if (preg_match('/\b(' . $sayiRe . ')\s*gun\s*(?:sonra|icinde|sonrasi|sonrasinda)\b/u', $fold, $m)) {
+            $n = $this->sayiKelimeCoz($m[1]);
+            if ($n) return $bugun->copy()->addDays($n)->toDateString();
+        }
+        if (preg_match('/\b(' . $sayiRe . ')\s*hafta\s*(?:sonra|icinde|sonrasinda)\b/u', $fold, $m)) {
+            $n = $this->sayiKelimeCoz($m[1]);
+            if ($n) return $bugun->copy()->addWeeks($n)->toDateString();
+        }
+        // 2c) "hafta sonu" -> ilk cumartesi
+        if (preg_match('/\bhafta ?sonu\b/u', $fold)) {
+            return $bugun->copy()->next(Carbon::SATURDAY)->toDateString();
+        }
+
+        // 3) "15 agustos" / "3 nisan"  VEYA ters "agustos 15" / "agustosun 15" (ek toleransli)
+        $ayRe = implode('|', array_keys($this->aylar));
+        if (preg_match('/\b(\d{1,2})\s+(' . $ayRe . ')\b/u', $fold, $m)) {
+            return $this->ayGunTarih($this->aylar[$m[2]], (int) $m[1], $bugun);
+        }
+        if (preg_match('/\b(' . $ayRe . ')(?:in|un|nin|nun)?\s+(\d{1,2})\b/u', $fold, $m)) {
+            return $this->ayGunTarih($this->aylar[$m[1]], (int) $m[2], $bugun);
+        }
+        // 3b) "ayin 20 si" / "bu ayin ucu" / "gelecek ayin yirmi besi" (rakam ya da sozcuk)
+        $ayGun = $this->ayGunSayisi($fold);
+        if ($ayGun !== null) {
+            $gun = $ayGun;
+            $gelecekAy = (bool) preg_match('/\bgelecek ay|\bonumuzdeki ay/u', $fold);
+            $y = $bugun->year; $ay = $bugun->month;
+            if ($gelecekAy) { $ay++; if ($ay > 12) { $ay = 1; $y++; } }
+            if (!checkdate($ay, $gun, $y)) return null;
+            $t = Carbon::createFromDate($y, $ay, $gun)->startOfDay();
+            if (!$gelecekAy && $t->lt($bugun->copy()->startOfDay())) {
+                $ay++; if ($ay > 12) { $ay = 1; $y++; }
+                if (!checkdate($ay, $gun, $y)) return null;
+                $t = Carbon::createFromDate($y, $ay, $gun)->startOfDay();
             }
             return $t->toDateString();
         }
@@ -290,7 +366,8 @@ class SesliRandevuCozService
         foreach ($this->gunler as $ad => $dow) {
             if (preg_match('/\b' . $ad . '\b/u', $fold)) {
                 $hedef = $bugun->copy()->next($dow);            // her zaman ILERI tarih
-                if (preg_match('/\bhaftaya\b/u', $fold)) {
+                // "haftaya / gelecek hafta / onumuzdeki hafta carsamba" -> gelecek haftaya kaydir.
+                if (preg_match('/\bhaftaya\b|\b(gelecek|onumuzdeki|onumuzdaki) hafta\b/u', $fold)) {
                     $hedef->addWeek();
                 }
                 return $hedef->toDateString();
@@ -314,15 +391,31 @@ class SesliRandevuCozService
             return $this->saatFormat((int) $m[1], (int) $m[2], $ogledenSonra, $sabah, true);
         }
 
+        // 1b) "10'a ceyrek kala" -> (saat-1):45 ; "3'u ceyrek gece" -> saat:15
+        if (preg_match('/\b(\d{1,2}).{0,6}\bceyrek kala\b/u', $fold, $m)) {
+            $h = (int) $m[1] - 1; if ($h < 0) $h = 23;
+            return $this->saatFormat($h, 45, $ogledenSonra, $sabah, false);
+        }
+        if (preg_match('/\b(\d{1,2}).{0,6}\bceyrek (?:gece|geciyor)\b/u', $fold, $m)) {
+            return $this->saatFormat((int) $m[1], 15, $ogledenSonra, $sabah, false);
+        }
+
         // 2) "2 bucuk" / "3 bucukta" (ekli hali de) -> :30
         if (preg_match('/\b(\d{1,2})\s*bucuk/u', $fold, $m)) {
             return $this->saatFormat((int) $m[1], 30, $ogledenSonra, $sabah, false);
         }
 
-        // 3) "saat 14" / "2'de" / "saat 2" / "ogleden sonra 3"
+        // 2b) rakamsiz "oglen" / "ogleyin" / "ogle vakti" -> 12:00
+        if (!preg_match('/\d/', $fold) && preg_match('/\boglen\b|\bogle\b|\bogleyin\b|\bogle vakti\b/u', $fold)) {
+            return $this->saatFormat(12, 0, false, false, true);
+        }
+
+        // 3) "saat 14" / "2'de" / "saat 2" / "ogleden sonra 3" / "3 gibi" / "9'a dogru"
         if (preg_match('/\bsaat\s+(\d{1,2})\b/u', $fold, $m)
             || preg_match('/\b(\d{1,2})[\'’]?(?:de|da|te|ta)\b/u', $fold, $m)
-            || preg_match('/\b(?:ogleden sonra|aksam|sabah)\s+(\d{1,2})\b/u', $fold, $m)) {
+            || preg_match('/\b(?:ogleden sonra|aksam|sabah)\s+(\d{1,2})\b/u', $fold, $m)
+            || preg_match('/\b(\d{1,2})\s*(?:gibi|sularinda|civari|civarinda|dolaylarinda)\b/u', $fold, $m)
+            || preg_match('/\b(\d{1,2})[\'’]?\s*[ae]\s+dogru\b/u', $fold, $m)) {
             return $this->saatFormat((int) $m[1], 0, $ogledenSonra, $sabah, false);
         }
 
