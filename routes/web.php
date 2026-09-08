@@ -1053,6 +1053,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/senetekleguncelle','StoreAdminController@senetekleguncelle');
 	Route::post('/taksitekleguncelle','StoreAdminController@taksitekleguncelle');
 	Route::post('/adisyonTaksitliTahsilatSil','StoreAdminController@adisyonTaksitliTahsilatSil');
+	Route::post('/adisyonKalemSaticiGuncelle','StoreAdminController@adisyonKalemSaticiGuncelle');
 	Route::get('/senetfiltre','StoreAdminController@senetfiltre');
 	Route::get('/senetvadegetir','StoreAdminController@senetvadegetir');
 	Route::get('/taksitvadegetir','StoreAdminController@taksitvadegetir');

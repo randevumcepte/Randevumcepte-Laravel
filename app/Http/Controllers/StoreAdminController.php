@@ -14920,6 +14920,21 @@ DB::raw('
         $adisyonUrunleri = array();
         $adisyonPaketleri = array();
         $toplamTutar = 0;
+        // Satici (personel) degistirme: Satis Detaylari modalinda kalem saticisini
+        // duzenlemek icin salon personel listesini bir kez cek ve select uretici hazirla.
+        $saticiPersonelleri = $satisDuzenle ? Personeller::where('salon_id',$request->sube)->orderBy('personel_adi')->get() : collect();
+        $saticiSelectYap = function($tur,$kalemId,$seciliId,$ekMetin='') use($saticiPersonelleri){
+            $opt = '<option value="">— Satıcı seçiniz —</option>';
+            foreach($saticiPersonelleri as $p){
+                $sel = ((string)$seciliId !== '' && (int)$seciliId === (int)$p->id) ? ' selected' : '';
+                $opt .= '<option value="'.$p->id.'"'.$sel.'>'.e($p->personel_adi).'</option>';
+            }
+            $out = '';
+            if($ekMetin !== '')
+                $out .= '<div class="sd-satici-cihaz" title="Bu kalem cihaza/odaya bağlı">'.e($ekMetin).'</div>';
+            $out .= '<select class="form-control sd-satici-sec" data-tur="'.$tur.'" data-id="'.$kalemId.'">'.$opt.'</select>';
+            return $out;
+        };
         foreach($acik_adisyonlar as $adisyon)
         {
             foreach($adisyon->hizmetler as $key=>$hizmet)
@@ -14933,10 +14948,15 @@ DB::raw('
                                        '.$hizmet->hizmet->hizmet_adi.'
                               </div>
                               <div class="col-md-3 col-7 col-xs-7  col-sm-3">';
-                    if($hizmet->personel_id !== null)
-                        $html .= $hizmet->personel->personel_adi;
-                    if($hizmet->cihaz_id !== null)
-                        $html .= $hizmet->cihaz->cihaz_adi;
+                    if($satisDuzenle){
+                        $_cihazAd = $hizmet->cihaz_id !== null ? optional($hizmet->cihaz)->cihaz_adi : '';
+                        $html .= $saticiSelectYap('hizmet',$hizmet->id,$hizmet->personel_id,$_cihazAd);
+                    } else {
+                        if($hizmet->personel_id !== null)
+                            $html .= $hizmet->personel->personel_adi;
+                        if($hizmet->cihaz_id !== null)
+                            $html .= $hizmet->cihaz->cihaz_adi;
+                    }
                     $tahsilatVar = TahsilatHizmetler::where('adisyon_hizmet_id',$hizmet->id)->count();
                     $html .='</div>
                         <div class="col-md-2 col-5 col-xs-5  col-sm-2">';
@@ -15022,7 +15042,7 @@ DB::raw('
                                   '.$urun->urun->urun_adi.'
                                  </div>
                               <div class="col-md-3  col-7 col-xs-7  col-sm-3">
-                                  '.($urun->personel_id!==null ? $urun->personel->personel_adi : "").'
+                                  '.($satisDuzenle ? $saticiSelectYap('urun',$urun->id,$urun->personel_id) : ($urun->personel_id!==null ? $urun->personel->personel_adi : "")).'
                               </div>
                               <div class="col-md-2 col-5 col-xs-5  col-sm-2">';
                     $tahsilatVar = TahsilatUrunler::where('adisyon_urun_id',$urun->id)->count();
@@ -15115,7 +15135,7 @@ DB::raw('
                                  '.$paket->paket->paket_adi.'
                               </div>
                               <div class="col-md-3  col-7 col-xs-7  col-sm-3">
-                                  '.($paket->personel_id!== null ?  $paket->personel->personel_adi : "").'
+                                  '.($satisDuzenle ? $saticiSelectYap('paket',$paket->id,$paket->personel_id) : ($paket->personel_id!== null ?  $paket->personel->personel_adi : "")).'
                               </div>
                                <div class="col-md-2 col-5 col-xs-5  col-sm-2">';
                     if($tahsilatVar == 0)
@@ -33723,6 +33743,48 @@ DB::raw('
             Alacaklar::where('taksitli_tahsilat_id',$plan->id)->delete();
             $plan->delete();
         });
+        return response()->json(['durum'=>'ok']);
+    }
+    /**
+     * Satis Detaylari modalinda bir kalemin (hizmet/urun/paket) saticisini (personel_id)
+     * gunceller. Personel secilince cihaz_id NULL yapilir (satici artik bir kisi).
+     */
+    public function adisyonKalemSaticiGuncelle(Request $request)
+    {
+        if($r = self::satisYetkiYoksa403($request, 'satis.adisyon_olustur')) return $r;
+        $tur = $request->tur;
+        $kalemId = $request->kalem_id;
+        $personelId = ($request->personel_id === '' || $request->personel_id === null) ? null : (int)$request->personel_id;
+
+        $modelMap = [
+            'hizmet' => AdisyonHizmetler::class,
+            'urun'   => AdisyonUrunler::class,
+            'paket'  => AdisyonPaketler::class,
+        ];
+        if(!isset($modelMap[$tur]))
+            return response()->json(['durum'=>'hata','mesaj'=>'Geçersiz kalem türü.'], 422);
+
+        $kalem = $modelMap[$tur]::where('id',$kalemId)->first();
+        if(!$kalem)
+            return response()->json(['durum'=>'hata','mesaj'=>'Kalem bulunamadı.'], 404);
+
+        // Adisyon salon kontrolu (yetkisiz salon kalemine dokunma)
+        $adisyon = Adisyonlar::where('id',$kalem->adisyon_id)->first();
+        if(!$adisyon || ($request->sube && (int)$adisyon->salon_id !== (int)$request->sube))
+            return response()->json(['durum'=>'hata','mesaj'=>'Bu kalem için yetkiniz yok.'], 403);
+
+        // Secilen personel bu salona ait mi?
+        if($personelId !== null){
+            $personel = Personeller::where('id',$personelId)->where('salon_id',$adisyon->salon_id)->first();
+            if(!$personel)
+                return response()->json(['durum'=>'hata','mesaj'=>'Seçilen personel bu salona ait değil.'], 422);
+        }
+
+        $kalem->personel_id = $personelId;
+        if($personelId !== null && \Schema::hasColumn($kalem->getTable(),'cihaz_id'))
+            $kalem->cihaz_id = null;
+        $kalem->save();
+
         return response()->json(['durum'=>'ok']);
     }
     public function satisTarihiGuncelle(Request $request)

@@ -23030,6 +23030,42 @@ $(document).on('click','button[name="satisDuzenle"]',function(e){
 
 
 });
+// Satis Detaylari modali: kalem saticisini (personel) degistir
+$(document).on('change','#satisKalemleri .sd-satici-sec',function(e){
+    var sel = $(this);
+    var tur = sel.attr('data-tur');
+    var kalemId = sel.attr('data-id');
+    var personelId = sel.val();
+    var eskiDeger = sel.data('oncekiDeger');
+    sel.prop('disabled', true);
+    $.ajax({
+        url: '/isletmeyonetim/adisyonKalemSaticiGuncelle',
+        method: 'POST',
+        data: {
+            tur: tur, kalem_id: kalemId, personel_id: personelId,
+            sube: $('input[name="sube"]').val(),
+            _token: $('input[name="_token"]').val()
+        },
+        success: function(res){
+            sel.prop('disabled', false);
+            if(res && res.durum && res.durum !== 'ok'){
+                alert(res.mesaj || 'Satıcı güncellenemedi.');
+                if(eskiDeger !== undefined) sel.val(eskiDeger);
+                return;
+            }
+            sel.data('oncekiDeger', personelId);
+        },
+        error: function(){
+            sel.prop('disabled', false);
+            alert('Satıcı güncellenirken bir hata oluştu.');
+            if(eskiDeger !== undefined) sel.val(eskiDeger);
+        }
+    });
+});
+// Onceki degeri sakla (hata halinde geri almak icin)
+$(document).on('focus','#satisKalemleri .sd-satici-sec',function(){
+    $(this).data('oncekiDeger', $(this).val());
+});
 // Satis Detaylari modali: adisyona bagli taksit planlari listesini doldur/gizle
 function satisDetayTaksitleriDoldur(taksitlerHtml){
     var html = taksitlerHtml || '';

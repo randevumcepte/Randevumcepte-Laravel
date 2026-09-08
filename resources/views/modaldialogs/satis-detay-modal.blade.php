@@ -242,6 +242,17 @@
             #satisKalemleri .sd-items .tahsilat_kalemleri_listesi input.tahsilat_kalemleri{
                text-align:right !important; font-weight:700 !important; color:#5C008E !important;
             }
+            /* Satici (personel) secim kutusu */
+            #satisKalemleri .sd-items .tahsilat_kalemleri_listesi select.sd-satici-sec{
+               height:26px !important; padding:0 6px !important;
+               border:1px solid #d8b4fe !important; border-radius:5px !important;
+               font-size:12px !important; background:#fff !important; color:#475569 !important;
+               max-width:100% !important; width:100% !important;
+            }
+            #satisKalemleri .sd-items .tahsilat_kalemleri_listesi select.sd-satici-sec:disabled{ opacity:.55 !important; }
+            #satisKalemleri .sd-items .tahsilat_kalemleri_listesi .sd-satici-cihaz{
+               font-size:10.5px; color:#c2410c; font-weight:600; margin-bottom:2px;
+            }
 
             /* Summary card — colorized */
             #satisKalemleri .sd-summary{
