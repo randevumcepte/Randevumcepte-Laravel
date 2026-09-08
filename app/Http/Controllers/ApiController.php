@@ -26987,11 +26987,22 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             $hizmetAdlari  = array_values(array_unique($hizmetAdlari));
             $personelAdlari = array_values(array_unique($personelAdlari));
 
+            // SMS'e giden KISA metin (WA'ya giden zengin metin asagida ayri).
             $mesajMetni = $isletme->salon_adi . ' randevu bilgileriniz: ' . $tarihMetni . ', saat ' . $saatMetni . '.';
             if (!empty($hizmetAdlari))  $mesajMetni .= ' Hizmet: ' . implode(', ', $hizmetAdlari) . '.';
             if (!empty($personelAdlari)) $mesajMetni .= ' Personel: ' . implode(', ', $personelAdlari) . '.';
 
-            $mesajlar = array(array('to' => $telefon, 'message' => $mesajMetni));
+            // WA'ya giden ZENGIN govde: diger hatirlatma/bildirimlerle AYNI format (emoji+markdown+konum+tel).
+            $waMesaj = \App\Services\WhatsAppMesajFormat::randevuBilgilendirme(
+                $isletme,
+                $user->name ?? '',
+                \Carbon\Carbon::parse($randevu->tarih)->format('d.m.Y'),
+                $saatMetni,
+                implode(', ', $hizmetAdlari)
+            );
+            $waMesaj = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($waMesaj, $isletme, $user->id ?? null);
+
+            $mesajlar = array(array('to' => $telefon, 'message' => $mesajMetni, 'wa_message' => $waMesaj));
 
             // WhatsApp-first: randevu bilgilendirmesi -> 'randevu_bilgi' KONTORSUZ (KONTOR_UCRETSIZ_TIPLER).
             try {
@@ -27001,7 +27012,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                     $wa = app(\App\Services\WhatsAppService::class);
                     $smsKalan = [];
                     foreach ($mesajlar as $m) {
-                        $to = $m['to'] ?? null; $msg = $m['message'] ?? null;
+                        $to = $m['to'] ?? null; $msg = $m['wa_message'] ?? $m['message'] ?? null; // WA'da zengin govde
                         if (!$to || !$msg) { $smsKalan[] = $m; continue; }
                         $sonuc = $wa->sendReminder($isletme, $to, $msg, $randevu->id, null, null, false, 'randevu_bilgi');
                         if (!($sonuc['ok'] ?? false)) $smsKalan[] = $m;
