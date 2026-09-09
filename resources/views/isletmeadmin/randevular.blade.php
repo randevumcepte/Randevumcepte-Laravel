@@ -621,7 +621,7 @@
                 @foreach(($dersHizmetleri ?? []) as $h)<option value="{{ $h->id }}">{{ $h->hizmet_adi }}</option>@endforeach
               </select></div>
             <div class="dm-field dm-full"><label>Tarih</label>
-              <input type="date" id="ders-tarih"></div>
+              <input type="text" id="ders-tarih" readonly style="cursor:pointer;background:#fff;"></div>
             <div class="dm-field"><label>Başlangıç</label>
               <input type="time" id="ders-saat" value="09:00"></div>
             <div class="dm-field"><label>Bitiş</label>
@@ -668,6 +668,21 @@
     return $.ajax({ url:url, method:'POST', data:data, headers:{'X-CSRF-TOKEN':_csrf(),'X-Requested-With':'XMLHttpRequest','Accept':'application/json'} });
   }
   function _refreshTakvim(){ if(typeof takvimyukle==='function') takvimyukle(true,false); }
+
+  // Projenin air-datepicker'i (tr dil objesi inline). Takvim sayfasinda zaten yuklu.
+  var _dersTrLang = {
+     days:['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'],
+     daysShort:['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'],
+     daysMin:['Pz','Pt','Sa','Ça','Pe','Cu','Ct'],
+     months:['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'],
+     monthsShort:['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'],
+     today:'Bugün', clear:'Temizle', dateFormat:'yyyy-mm-dd', firstDay:1
+  };
+  $(function(){
+     if($.fn.datepicker){
+        try{ $('#ders-tarih').datepicker({ language:_dersTrLang, autoClose:true, dateFormat:'yyyy-mm-dd', position:'bottom left' }); }catch(e){}
+     }
+  });
 
   window.dersOturumYeni = function(){
     $('#ders-oturum-id').val('');
