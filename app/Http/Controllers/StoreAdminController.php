@@ -2759,7 +2759,13 @@ public function carkverilerigetir(Request $request)
 
         $dersPersonelleri = Personeller::where('salon_id',$isletme->id)->where('aktif',true)
             ->orderBy('takvim_sirasi','asc')->get(['id','personel_adi']);
-        return view('isletmeadmin.randevular',['bildirimler'=>self::bildirimgetir($request),  'sayfa_baslik'=>'Randevu Takvimi','pageindex' => 2,'randevular'=>$randevular,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'yetkiliolunanisletmeler'=>$isletmeler,'gapKampanyalari'=>$gapKampanyalari,'dersPersonelleri'=>$dersPersonelleri]);
+        $dersHizmetleri = DB::table('salon_sunulan_hizmetler')
+            ->join('hizmetler','salon_sunulan_hizmetler.hizmet_id','=','hizmetler.id')
+            ->where('salon_sunulan_hizmetler.salon_id',$isletme->id)
+            ->where('salon_sunulan_hizmetler.aktif',true)
+            ->orderBy('hizmetler.hizmet_adi','asc')
+            ->get(['hizmetler.id','hizmetler.hizmet_adi']);
+        return view('isletmeadmin.randevular',['bildirimler'=>self::bildirimgetir($request),  'sayfa_baslik'=>'Randevu Takvimi','pageindex' => 2,'randevular'=>$randevular,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'yetkiliolunanisletmeler'=>$isletmeler,'gapKampanyalari'=>$gapKampanyalari,'dersPersonelleri'=>$dersPersonelleri,'dersHizmetleri'=>$dersHizmetleri]);
     }
 
     /**
@@ -4570,6 +4576,7 @@ public function carkverilerigetir(Request $request)
                 'ad'     => $k->musteri ? $k->musteri->name : ('#'.$k->user_id),
                 'tel'    => $k->musteri ? $k->musteri->cep_telefon : '',
                 'durum'  => $k->durum,
+                'hak_dusuldu' => (int)$k->hak_dusuldu,
             ];
         })->values();
 
@@ -4579,6 +4586,7 @@ public function carkverilerigetir(Request $request)
             'oturum'       => [
                 'id'         => $oturum->id,
                 'ders_tipi'  => $oturum->ders_tipi,
+                'hizmet_id'  => $oturum->hizmet_id,
                 'tarih'      => $oturum->tarih,
                 'saat'       => substr($oturum->saat,0,5),
                 'saat_bitis' => substr($oturum->saat_bitis,0,5),
@@ -4602,6 +4610,7 @@ public function carkverilerigetir(Request $request)
             'sube_id'     => $isletmeId,
             'personel_id' => $request->personel_id ?: null,
             'ders_tipi'   => $request->ders_tipi ?: 'Grup Dersi',
+            'hizmet_id'   => $request->hizmet_id ?: null,
             'tarih'       => $request->tarih,
             'saat'        => $request->saat,
             'saat_bitis'  => $request->saat_bitis,
@@ -4631,6 +4640,11 @@ public function carkverilerigetir(Request $request)
         // Iptalden ONCE, kontenjani dolduran katilimcilari topla (bildirim icin)
         $bildirilecekler = \App\DersKatilimci::where('oturum_id',$oturum->id)
             ->whereNotIn('durum',['iptal'])->pluck('user_id')->unique()->values()->toArray();
+
+        // Dusulen paket haklarini iade et (ders iptal olunca seanslar geri yuklensin)
+        foreach(\App\DersKatilimci::where('oturum_id',$oturum->id)->where('hak_dusuldu',true)->get() as $_dk){
+            try{ \App\Services\DersSeansServisi::dusumGeriAl($_dk); }catch(\Throwable $e){}
+        }
 
         $oturum->aktif = false;
         $oturum->iptal = true;
@@ -4696,6 +4710,8 @@ public function carkverilerigetir(Request $request)
         $k = \App\DersKatilimci::where('salon_id',$isletmeId)->find($request->katilimci_id);
         if(!$k) return response()->json(['durum'=>'hata','mesaj'=>'Katilimci bulunamadi.'],404);
         $oturumId = $k->oturum_id;
+        // Dusulen hak varsa iade et (cikinca paket geri yuklensin)
+        if($k->hak_dusuldu){ try{ \App\Services\DersSeansServisi::dusumGeriAl($k); }catch(\Throwable $e){} }
         $k->durum = 'iptal';
         $k->save();
 
@@ -4732,7 +4748,24 @@ public function carkverilerigetir(Request $request)
         $yeni = in_array($request->yeni_durum,['geldi','gelmedi','rezerve']) ? $request->yeni_durum : 'rezerve';
         $k->durum = $yeni;
         $k->save();
-        return response()->json(['durum'=>'ok']);
+
+        // Paket/seans dusumu — randevu mantigi: "Geldi" = paketten dus,
+        // "gelmedi"/"rezerve" = iade. Oturum bir hizmete bagliysa (hizmet_id) calisir.
+        $dusumSonuc = null;
+        try {
+            if($yeni === 'geldi'){
+                $oturum = \App\DersOturumu::find($k->oturum_id);
+                if($oturum){
+                    $apsId = \App\Services\DersSeansServisi::dusumYap($oturum, $k);
+                    $dusumSonuc = $apsId ? 'dusuldu' : (($oturum->hizmet_id) ? 'hak_yok' : 'hizmet_bagli_degil');
+                }
+            } elseif($k->hak_dusuldu){
+                \App\Services\DersSeansServisi::dusumGeriAl($k);
+                $dusumSonuc = 'iade';
+            }
+        } catch(\Throwable $e){ \Log::warning('[DERS] durum dusum fail: '.$e->getMessage()); }
+
+        return response()->json(['durum'=>'ok','dusum'=>$dusumSonuc]);
     }
 
     // Katilimci eklemek icin musteri arama (ad veya telefon) — JSON liste
@@ -4780,6 +4813,12 @@ public function carkverilerigetir(Request $request)
         $isletmeId = self::mevcutsube($request);
         $personeller = Personeller::where('salon_id',$isletmeId)->where('aktif',true)
             ->orderBy('takvim_sirasi','asc')->get(['id','personel_adi']);
+        $hizmetler = DB::table('salon_sunulan_hizmetler')
+            ->join('hizmetler','salon_sunulan_hizmetler.hizmet_id','=','hizmetler.id')
+            ->where('salon_sunulan_hizmetler.salon_id',$isletmeId)
+            ->where('salon_sunulan_hizmetler.aktif',true)
+            ->orderBy('hizmetler.hizmet_adi','asc')
+            ->get(['hizmetler.id','hizmetler.hizmet_adi']);
         $sablon = \App\DersProgramiSablonu::where('salon_id',$isletmeId)->where('aktif',true)
             ->orderBy('hafta_gunu','asc')->orderBy('saat','asc')->get();
         return view('isletmeadmin.ders_programi',[
@@ -4791,6 +4830,7 @@ public function carkverilerigetir(Request $request)
             'kalan_uyelik_suresi'=>self::lisans_sure_kontrol($request),
             'yetkiliolunanisletmeler'=>$isletmeler,
             'personeller'=>$personeller,
+            'hizmetler'=>$hizmetler,
             'sablon'=>$sablon,
         ]);
     }
@@ -4807,6 +4847,7 @@ public function carkverilerigetir(Request $request)
             'saat'        => $request->saat,
             'saat_bitis'  => $request->saat_bitis,
             'ders_tipi'   => $request->ders_tipi ?: 'Grup Dersi',
+            'hizmet_id'   => $request->hizmet_id ?: null,
             'kapasite'    => max(1,(int)$request->kapasite),
             'renk'        => $request->renk ?: null,
             'aktif'       => true,
@@ -4862,6 +4903,7 @@ public function carkverilerigetir(Request $request)
                     'sube_id'     => $isletmeId,
                     'personel_id' => $s->personel_id,
                     'ders_tipi'   => $s->ders_tipi,
+                    'hizmet_id'   => $s->hizmet_id,
                     'tarih'       => $tarihStr,
                     'saat'        => $s->saat,
                     'saat_bitis'  => $s->saat_bitis,

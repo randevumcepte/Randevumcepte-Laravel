@@ -13,7 +13,7 @@ class DersKatilimci extends Model
 
     protected $fillable = [
         'oturum_id', 'user_id', 'salon_id', 'durum', 'adisyon_paket_id',
-        'ekleyen_personel_id', 'not',
+        'ekleyen_personel_id', 'not', 'aps_id', 'hak_dusuldu',
     ];
 
     public function oturum()

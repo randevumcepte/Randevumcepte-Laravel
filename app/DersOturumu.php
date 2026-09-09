@@ -13,7 +13,7 @@ class DersOturumu extends Model
     protected $table = 'ders_oturumlari';
 
     protected $fillable = [
-        'salon_id', 'sube_id', 'personel_id', 'ders_tipi', 'tarih', 'saat',
+        'salon_id', 'sube_id', 'personel_id', 'ders_tipi', 'hizmet_id', 'tarih', 'saat',
         'saat_bitis', 'kapasite', 'sablon_id', 'iptal', 'aktif', 'renk', 'not',
         'olusturan_personel_id', 'hatirlatma_gonderildi',
     ];

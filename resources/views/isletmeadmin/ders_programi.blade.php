@@ -56,7 +56,7 @@
                   <div class="d">{{ $s->personel ? $s->personel->personel_adi : '—' }}</div>
                   <div class="acts">
                      <a class="text-primary"
-                        onclick="dpDuzenle({{ $s->id }},{{ $gid }},'{{ addslashes($s->ders_tipi) }}','{{ $s->personel_id }}','{{ substr($s->saat,0,5) }}','{{ substr($s->saat_bitis,0,5) }}',{{ (int)$s->kapasite }})">
+                        onclick="dpDuzenle({{ $s->id }},{{ $gid }},'{{ addslashes($s->ders_tipi) }}','{{ $s->personel_id }}','{{ substr($s->saat,0,5) }}','{{ substr($s->saat_bitis,0,5) }}',{{ (int)$s->kapasite }},'{{ $s->hizmet_id }}')">
                         <i class="fa fa-edit"></i> Düzenle</a>
                      <a class="text-danger" onclick="dpSil({{ $s->id }})"><i class="fa fa-trash"></i> Sil</a>
                   </div>
@@ -91,6 +91,11 @@
                   <option value="">— Seçiniz —</option>
                   @foreach($personeller as $p)<option value="{{ $p->id }}">{{ $p->personel_adi }}</option>@endforeach
                </select></div>
+            <div class="form-group"><label>Hizmet <small style="color:#95a5a6;">(paketten seans düşümü için)</small></label>
+               <select id="dp-hizmet" class="form-control">
+                  <option value="">— Hizmet bağlama (paket düşmez) —</option>
+                  @foreach(($hizmetler ?? []) as $h)<option value="{{ $h->id }}">{{ $h->hizmet_adi }}</option>@endforeach
+               </select></div>
             <div class="row">
                <div class="form-group col-xs-4"><label>Başlangıç</label>
                   <input type="time" id="dp-saat" class="form-control" value="09:00"></div>
@@ -114,20 +119,20 @@
 
    window.dpEkle = function(gun){
       $('#dp-sablon-id').val(''); $('#dp-gun').val(gun);
-      $('#dp-tipi').val(''); $('#dp-personel').val(''); $('#dp-kapasite').val(3);
+      $('#dp-tipi').val(''); $('#dp-personel').val(''); $('#dp-hizmet').val(''); $('#dp-kapasite').val(3);
       $('#dp-saat').val('09:00'); $('#dp-saat-bitis').val('10:00');
       $('#dp-modal-baslik').text('Ders Ekle'); $('#dp-modal').modal();
    };
-   window.dpDuzenle = function(id,gun,tipi,pid,saat,bitis,kap){
+   window.dpDuzenle = function(id,gun,tipi,pid,saat,bitis,kap,hid){
       $('#dp-sablon-id').val(id); $('#dp-gun').val(gun);
-      $('#dp-tipi').val(tipi); $('#dp-personel').val(pid||''); $('#dp-kapasite').val(kap);
+      $('#dp-tipi').val(tipi); $('#dp-personel').val(pid||''); $('#dp-hizmet').val(hid||''); $('#dp-kapasite').val(kap);
       $('#dp-saat').val(saat); $('#dp-saat-bitis').val(bitis);
       $('#dp-modal-baslik').text('Ders Düzenle'); $('#dp-modal').modal();
    };
    window.dpKaydet = function(){
       _post('{{ url('/isletmeyonetim/ders-sablon-kaydet') }}', {
          sablon_id:$('#dp-sablon-id').val(), hafta_gunu:$('#dp-gun').val(), ders_tipi:$('#dp-tipi').val(),
-         personel_id:$('#dp-personel').val(), saat:$('#dp-saat').val(), saat_bitis:$('#dp-saat-bitis').val(),
+         personel_id:$('#dp-personel').val(), hizmet_id:$('#dp-hizmet').val(), saat:$('#dp-saat').val(), saat_bitis:$('#dp-saat-bitis').val(),
          kapasite:$('#dp-kapasite').val()
       }).done(function(r){ if(r.durum==='ok') location.reload(); else swal('Hata',(r&&r.mesaj)||'Kaydedilemedi','error'); })
         .fail(function(){ swal('Hata','Kaydedilemedi','error'); });

@@ -615,6 +615,11 @@
                 <option value="">— Eğitmen seçiniz —</option>
                 @foreach(($dersPersonelleri ?? []) as $p)<option value="{{ $p->id }}">{{ $p->personel_adi }}</option>@endforeach
               </select></div>
+            <div class="dm-field dm-full"><label>Hizmet <small style="color:#95a5a6;font-weight:400;">(paketten seans düşümü için)</small></label>
+              <select id="ders-hizmet">
+                <option value="">— Hizmet bağlama (paket düşmez) —</option>
+                @foreach(($dersHizmetleri ?? []) as $h)<option value="{{ $h->id }}">{{ $h->hizmet_adi }}</option>@endforeach
+              </select></div>
             <div class="dm-field dm-full"><label>Tarih</label>
               <input type="date" id="ders-tarih"></div>
             <div class="dm-field"><label>Başlangıç</label>
@@ -670,7 +675,7 @@
     $('#ders-saat').val('09:00'); $('#ders-saat-bitis').val('10:00');
     var d=$('#takvim_tarihe_gore').val()||new Date().toISOString().slice(0,10);
     $('#ders-tarih').val(d);
-    $('#ders-personel').val('');
+    $('#ders-personel').val(''); $('#ders-hizmet').val('');
     $('#ders-modal-baslik').html('👥 Yeni Grup Dersi');
     $('#ders-form-alani').show(); $('#ders-katilimci-alani').hide();
     $('#ders-oturum-modal').modal();
@@ -689,7 +694,7 @@
       $('#ders-oturum-id').val(o.id);
       $('#ders-tipi').val(o.ders_tipi); $('#ders-kapasite').val(o.kapasite);
       $('#ders-tarih').val(o.tarih); $('#ders-saat').val(o.saat); $('#ders-saat-bitis').val(o.saat_bitis);
-      $('#ders-personel').val(o.personel_id||'');
+      $('#ders-personel').val(o.personel_id||''); $('#ders-hizmet').val(o.hizmet_id||'');
       $('#ders-ozet-tip').text((o.ders_tipi||'Grup Dersi'));
       $('#ders-ozet-detay').text(o.tarih+'  '+o.saat+'-'+o.saat_bitis+(o.personel?('  •  '+o.personel):''));
       var rozet=$('#ders-doluluk-rozet').text(o.doluluk+' / '+o.kapasite);
@@ -713,8 +718,9 @@
     var $l=$('#ders-katilimci-liste').empty();
     if(!list || !list.length){ $l.append('<li style="color:#95a5a6;text-align:center;">Henüz katılımcı yok.</li>'); return; }
     list.forEach(function(k){
+      var paketRozet = k.hak_dusuldu ? ' <span style="font-size:10px;background:#8e44ad;color:#fff;border-radius:4px;padding:1px 5px;">paket -1</span>' : '';
       $l.append('<li><div class="dm-kat-row">'
-        +'<span><strong>'+$('<i>').text(k.ad).html()+'</strong> <small style="color:#95a5a6;">'+(k.tel||'')+'</small></span>'
+        +'<span><strong>'+$('<i>').text(k.ad).html()+'</strong> <small style="color:#95a5a6;">'+(k.tel||'')+'</small>'+paketRozet+'</span>'
         +'<span style="white-space:nowrap;">'+_durumBtn(k)
         +' <button class="dm-x" onclick="dersKatilimciCikar('+k.id+')" title="Çıkar">×</button>'
         +'</span></div></li>');
@@ -725,6 +731,7 @@
     var id=$('#ders-oturum-id').val();
     _post('/isletmeyonetim/ders-oturum-kaydet', {
       oturum_id:id, ders_tipi:$('#ders-tipi').val(), personel_id:$('#ders-personel').val(),
+      hizmet_id:$('#ders-hizmet').val(),
       tarih:$('#ders-tarih').val(), saat:$('#ders-saat').val(), saat_bitis:$('#ders-saat-bitis').val(),
       kapasite:$('#ders-kapasite').val()
     }).done(function(r){
@@ -743,7 +750,13 @@
 
   window.dersKatilimciDurum = function(kid, durum){
     _post('/isletmeyonetim/ders-katilimci-durum', {katilimci_id:kid, yeni_durum:durum})
-      .done(function(){ window.dersOturumAc($('#ders-oturum-id').val()); });
+      .done(function(r){
+        if(r && r.dusum==='hak_yok')
+          swal({title:'Paket hakkı yok',text:'Müşterinin bu hizmete ait kullanılabilir paket/seans hakkı bulunamadı. Katılım kaydedildi ama seans düşülmedi.',type:'warning',timer:3000,showConfirmButton:false});
+        else if(r && r.dusum==='dusuldu')
+          swal({title:'Seans düşüldü',text:'Paketten 1 seans düşüldü.',type:'success',timer:1400,showConfirmButton:false});
+        window.dersOturumAc($('#ders-oturum-id').val());
+      });
   };
   window.dersKatilimciCikar = function(kid){
     _post('/isletmeyonetim/ders-katilimci-cikar', {katilimci_id:kid})

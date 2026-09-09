@@ -14,7 +14,7 @@ class DersProgramiSablonu extends Model
 
     protected $fillable = [
         'salon_id', 'sube_id', 'personel_id', 'hafta_gunu', 'saat', 'saat_bitis',
-        'ders_tipi', 'kapasite', 'renk', 'aktif',
+        'ders_tipi', 'hizmet_id', 'kapasite', 'renk', 'aktif',
     ];
 
     public function personel()
