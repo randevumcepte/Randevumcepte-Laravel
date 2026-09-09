@@ -2757,7 +2757,9 @@ public function carkverilerigetir(Request $request)
         // Aktif gap kampanyalari — takvim ustunde bilgi seridi icin
         $gapKampanyalari = $this->_gapKampanyalariListesi(self::mevcutsube($request));
 
-        return view('isletmeadmin.randevular',['bildirimler'=>self::bildirimgetir($request),  'sayfa_baslik'=>'Randevu Takvimi','pageindex' => 2,'randevular'=>$randevular,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'yetkiliolunanisletmeler'=>$isletmeler,'gapKampanyalari'=>$gapKampanyalari]);
+        $dersPersonelleri = Personeller::where('salon_id',$isletme->id)->where('aktif',true)
+            ->orderBy('takvim_sirasi','asc')->get(['id','personel_adi']);
+        return view('isletmeadmin.randevular',['bildirimler'=>self::bildirimgetir($request),  'sayfa_baslik'=>'Randevu Takvimi','pageindex' => 2,'randevular'=>$randevular,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'yetkiliolunanisletmeler'=>$isletmeler,'gapKampanyalari'=>$gapKampanyalari,'dersPersonelleri'=>$dersPersonelleri]);
     }
 
     /**

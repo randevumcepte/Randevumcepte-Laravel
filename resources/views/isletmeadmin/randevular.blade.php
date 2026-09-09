@@ -560,53 +560,93 @@
 {{-- ============================================================
      GRUP DERSI (Pilates/kurs) — kapasiteli ders oturumu + katilimci modali
      ============================================================ --}}
+<style>
+  #ders-oturum-modal .modal-dialog{ width:460px; max-width:94%; }
+  #ders-oturum-modal .modal-content{ border:none; border-radius:14px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.25); }
+  #ders-oturum-modal .dm-head{ background:#16a085; color:#fff; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
+  #ders-oturum-modal .dm-head h4{ margin:0; font-size:17px; font-weight:700; }
+  #ders-oturum-modal .dm-head .dm-close{ background:none; border:none; color:#fff; font-size:22px; line-height:1; cursor:pointer; opacity:.9; }
+  #ders-oturum-modal .dm-body{ padding:20px; background:#fff; }
+  #ders-oturum-modal .dm-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px 14px; }
+  #ders-oturum-modal .dm-field{ display:flex; flex-direction:column; }
+  #ders-oturum-modal .dm-field.dm-full{ grid-column:1 / -1; }
+  #ders-oturum-modal .dm-field label{ font-size:12px; font-weight:600; color:#5f6b7a; margin:0 0 5px; }
+  #ders-oturum-modal .dm-field input, #ders-oturum-modal .dm-field select{
+     height:40px; border:1px solid #d7dde3; border-radius:8px; padding:0 11px; font-size:14px; color:#2c3e50; background:#fff; width:100%; }
+  #ders-oturum-modal .dm-field input:focus, #ders-oturum-modal .dm-field select:focus{ outline:none; border-color:#16a085; box-shadow:0 0 0 3px rgba(22,160,133,.15); }
+  #ders-oturum-modal .dm-btn{ display:block; width:100%; margin-top:16px; height:44px; border:none; border-radius:9px; background:#16a085; color:#fff; font-size:15px; font-weight:700; cursor:pointer; }
+  #ders-oturum-modal .dm-btn:hover{ background:#12876f; }
+  #ders-oturum-modal .dm-summary{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; padding-bottom:12px; margin-bottom:14px; border-bottom:1px solid #eef1f4; }
+  #ders-oturum-modal .dm-summary .t{ font-size:16px; font-weight:700; color:#2c3e50; }
+  #ders-oturum-modal .dm-summary .d{ font-size:12.5px; color:#7f8c8d; margin-top:3px; }
+  #ders-oturum-modal .dm-rozet{ white-space:nowrap; font-size:14px; font-weight:700; color:#fff; border-radius:999px; padding:5px 12px; }
+  #ders-oturum-modal .dm-rozet.ok{ background:#16a085; } #ders-oturum-modal .dm-rozet.warn{ background:#e67e22; } #ders-oturum-modal .dm-rozet.full{ background:#c0392b; }
+  #ders-oturum-modal .dm-search-wrap{ position:relative; margin-bottom:12px; }
+  #ders-oturum-modal #ders-musteri-sonuc{ position:absolute; z-index:20; background:#fff; border:1px solid #e1e6ea; border-radius:8px; width:100%; max-height:210px; overflow:auto; display:none; box-shadow:0 6px 18px rgba(0,0,0,.12); margin-top:3px; }
+  #ders-oturum-modal .dm-kat-liste{ list-style:none; margin:0 0 6px; padding:0; }
+  #ders-oturum-modal .dm-kat-liste li{ border:1px solid #eef1f4; border-radius:9px; padding:9px 11px; margin-bottom:7px; }
+  #ders-oturum-modal .dm-kat-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  #ders-oturum-modal .dm-foot{ display:flex; justify-content:space-between; margin-top:6px; }
+  #ders-oturum-modal .dm-mini{ border:1px solid #d7dde3; background:#fff; border-radius:7px; padding:6px 11px; font-size:13px; cursor:pointer; color:#34495e; }
+  #ders-oturum-modal .dm-mini.danger{ border-color:#f0b4ac; color:#c0392b; }
+  #ders-oturum-modal .dm-durum b{ display:inline-block; padding:3px 8px; border-radius:6px; font-size:11px; cursor:pointer; border:1px solid #d7dde3; color:#7f8c8d; font-weight:600; margin-left:3px; }
+  #ders-oturum-modal .dm-durum b.on-r{ background:#2980b9; border-color:#2980b9; color:#fff; }
+  #ders-oturum-modal .dm-durum b.on-g{ background:#16a085; border-color:#16a085; color:#fff; }
+  #ders-oturum-modal .dm-durum b.on-x{ background:#c0392b; border-color:#c0392b; color:#fff; }
+  #ders-oturum-modal .dm-x{ background:none; border:none; color:#c0392b; cursor:pointer; font-size:15px; }
+</style>
 <div class="modal fade" id="ders-oturum-modal" tabindex="-1" role="dialog">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
-      <div class="modal-header" style="background:#16a085;color:#fff;">
-        <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9;">&times;</button>
-        <h4 class="modal-title" id="ders-modal-baslik"><i class="fa fa-users"></i> Grup Dersi</h4>
+      <div class="dm-head">
+        <h4 id="ders-modal-baslik">👥 Grup Dersi</h4>
+        <button type="button" class="dm-close" data-dismiss="modal">&times;</button>
       </div>
-      <div class="modal-body">
+      <div class="dm-body">
 
         {{-- OLUSTUR / DUZENLE FORMU --}}
         <div id="ders-form-alani">
           <input type="hidden" id="ders-oturum-id" value="">
-          <div class="row">
-            <div class="form-group col-xs-12"><label>Ders Tipi</label>
-              <input type="text" id="ders-tipi" class="form-control" placeholder="Reformer / Mat / Crossfit / Birebir"></div>
-            <div class="form-group col-xs-12"><label>Eğitmen</label>
-              <select id="ders-personel" class="form-control"></select></div>
-            <div class="form-group col-xs-6"><label>Tarih</label>
-              <input type="date" id="ders-tarih" class="form-control"></div>
-            <div class="form-group col-xs-3"><label>Başlangıç</label>
-              <input type="time" id="ders-saat" class="form-control" value="09:00"></div>
-            <div class="form-group col-xs-3"><label>Bitiş</label>
-              <input type="time" id="ders-saat-bitis" class="form-control" value="10:00"></div>
-            <div class="form-group col-xs-6"><label>Kapasite (kişi)</label>
-              <input type="number" id="ders-kapasite" class="form-control" min="1" value="3"></div>
+          <div class="dm-grid">
+            <div class="dm-field dm-full"><label>Ders Tipi</label>
+              <input type="text" id="ders-tipi" placeholder="Reformer / Mat / Crossfit / Birebir"></div>
+            <div class="dm-field dm-full"><label>Eğitmen</label>
+              <select id="ders-personel">
+                <option value="">— Eğitmen seçiniz —</option>
+                @foreach(($dersPersonelleri ?? []) as $p)<option value="{{ $p->id }}">{{ $p->personel_adi }}</option>@endforeach
+              </select></div>
+            <div class="dm-field dm-full"><label>Tarih</label>
+              <input type="date" id="ders-tarih"></div>
+            <div class="dm-field"><label>Başlangıç</label>
+              <input type="time" id="ders-saat" value="09:00"></div>
+            <div class="dm-field"><label>Bitiş</label>
+              <input type="time" id="ders-saat-bitis" value="10:00"></div>
+            <div class="dm-field dm-full"><label>Kapasite (kişi)</label>
+              <input type="number" id="ders-kapasite" min="1" value="3"></div>
           </div>
-          <button class="btn btn-success btn-block" onclick="dersOturumKaydet();return false;">
-            <i class="fa fa-save"></i> Kaydet</button>
+          <button class="dm-btn" onclick="dersOturumKaydet();return false;">💾 Kaydet</button>
         </div>
 
         {{-- KATILIMCI YONETIMI --}}
         <div id="ders-katilimci-alani" style="display:none;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <div><strong id="ders-ozet-tip"></strong><br><small id="ders-ozet-detay" style="color:#7f8c8d;"></small></div>
-            <span id="ders-doluluk-rozet" class="label label-success" style="font-size:14px;padding:6px 10px;"></span>
+          <div class="dm-summary">
+            <div><div class="t" id="ders-ozet-tip"></div><div class="d" id="ders-ozet-detay"></div></div>
+            <span id="ders-doluluk-rozet" class="dm-rozet ok"></span>
           </div>
 
-          <div class="form-group" style="position:relative;">
-            <label>Katılımcı Ekle (isim / telefon)</label>
-            <input type="text" id="ders-musteri-arama" class="form-control" placeholder="En az 2 harf yazın" autocomplete="off">
-            <div id="ders-musteri-sonuc" style="position:absolute;z-index:10;background:#fff;border:1px solid #ddd;width:100%;max-height:200px;overflow:auto;display:none;"></div>
+          <div class="dm-search-wrap">
+            <label style="font-size:12px;font-weight:600;color:#5f6b7a;display:block;margin-bottom:5px;">Katılımcı Ekle (isim / telefon)</label>
+            <input type="text" id="ders-musteri-arama" placeholder="En az 2 harf yazın" autocomplete="off"
+                   style="height:40px;border:1px solid #d7dde3;border-radius:8px;padding:0 11px;width:100%;font-size:14px;">
+            <div id="ders-musteri-sonuc"></div>
           </div>
 
-          <ul class="list-group" id="ders-katilimci-liste" style="margin-bottom:10px;"></ul>
+          <ul class="dm-kat-liste" id="ders-katilimci-liste"></ul>
 
-          <button class="btn btn-default btn-sm" onclick="dersOturumFormAc();return false;"><i class="fa fa-edit"></i> Dersi Düzenle</button>
-          <button class="btn btn-danger btn-sm pull-right" onclick="dersOturumIptal();return false;"><i class="fa fa-trash"></i> Dersi İptal Et</button>
+          <div class="dm-foot">
+            <button class="dm-mini" onclick="dersOturumFormAc();return false;">✎ Dersi Düzenle</button>
+            <button class="dm-mini danger" onclick="dersOturumIptal();return false;">🗑 Dersi İptal Et</button>
+          </div>
         </div>
 
       </div>
@@ -624,28 +664,14 @@
   }
   function _refreshTakvim(){ if(typeof takvimyukle==='function') takvimyukle(true,false); }
 
-  // Egitmen dropdown'unu sayfadaki personel select'inden klonla
-  function _personelDoldur(secili){
-    var $t = $('#ders-personel').empty();
-    var $src = $('select[name="randevupersonelleriyeni[]"] option');
-    if($src.length){
-      $src.each(function(){
-        var v=$(this).val(), t=$(this).text();
-        if(v==='' || v===null) return;
-        $t.append($('<option>').val(v).text(t));
-      });
-    }
-    if(secili) $t.val(secili);
-  }
-
   window.dersOturumYeni = function(){
     $('#ders-oturum-id').val('');
     $('#ders-tipi').val(''); $('#ders-kapasite').val(3);
     $('#ders-saat').val('09:00'); $('#ders-saat-bitis').val('10:00');
     var d=$('#takvim_tarihe_gore').val()||new Date().toISOString().slice(0,10);
     $('#ders-tarih').val(d);
-    _personelDoldur();
-    $('#ders-modal-baslik').html('<i class="fa fa-users"></i> Yeni Grup Dersi');
+    $('#ders-personel').val('');
+    $('#ders-modal-baslik').html('👥 Yeni Grup Dersi');
     $('#ders-form-alani').show(); $('#ders-katilimci-alani').hide();
     $('#ders-oturum-modal').modal();
   };
@@ -663,14 +689,14 @@
       $('#ders-oturum-id').val(o.id);
       $('#ders-tipi').val(o.ders_tipi); $('#ders-kapasite').val(o.kapasite);
       $('#ders-tarih').val(o.tarih); $('#ders-saat').val(o.saat); $('#ders-saat-bitis').val(o.saat_bitis);
-      _personelDoldur(o.personel_id);
+      $('#ders-personel').val(o.personel_id||'');
       $('#ders-ozet-tip').text((o.ders_tipi||'Grup Dersi'));
       $('#ders-ozet-detay').text(o.tarih+'  '+o.saat+'-'+o.saat_bitis+(o.personel?('  •  '+o.personel):''));
       var rozet=$('#ders-doluluk-rozet').text(o.doluluk+' / '+o.kapasite);
-      rozet.removeClass('label-success label-danger label-warning')
-           .addClass(o.doluluk>=o.kapasite?'label-danger':(o.doluluk>0?'label-warning':'label-success'));
+      rozet.removeClass('ok warn full')
+           .addClass(o.doluluk>=o.kapasite?'full':(o.doluluk>0?'warn':'ok'));
       _katilimciListele(r.katilimcilar);
-      $('#ders-modal-baslik').html('<i class="fa fa-users"></i> Ders Katılımcıları');
+      $('#ders-modal-baslik').html('👥 Ders Katılımcıları');
       $('#ders-form-alani').hide(); $('#ders-katilimci-alani').show();
       $('#ders-musteri-arama').val(''); $('#ders-musteri-sonuc').hide().empty();
       $('#ders-oturum-modal').modal();
@@ -679,19 +705,18 @@
   };
 
   function _durumBtn(k){
-    function b(d,lbl,cls){ return '<button class="btn btn-xs '+(k.durum===d?cls:'btn-default')+'" onclick="dersKatilimciDurum('+k.id+',\''+d+'\')">'+lbl+'</button>'; }
-    if(k.durum==='bekleme') return '<span class="label label-default">BEKLEME</span>';
-    return b('rezerve','Rezerve','btn-info')+' '+b('geldi','Geldi','btn-success')+' '+b('gelmedi','Gelmedi','btn-danger');
+    function b(d,lbl,onc){ return '<b class="'+(k.durum===d?onc:'')+'" onclick="dersKatilimciDurum('+k.id+',\''+d+'\')">'+lbl+'</b>'; }
+    if(k.durum==='bekleme') return '<span style="font-size:11px;font-weight:700;color:#e67e22;">BEKLEMEDE</span>';
+    return '<span class="dm-durum">'+b('rezerve','Rezerve','on-r')+b('geldi','Geldi','on-g')+b('gelmedi','Gelmedi','on-x')+'</span>';
   }
   function _katilimciListele(list){
     var $l=$('#ders-katilimci-liste').empty();
-    if(!list || !list.length){ $l.append('<li class="list-group-item text-muted">Henüz katılımcı yok.</li>'); return; }
+    if(!list || !list.length){ $l.append('<li style="color:#95a5a6;text-align:center;">Henüz katılımcı yok.</li>'); return; }
     list.forEach(function(k){
-      $l.append('<li class="list-group-item" style="padding:8px 10px;">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">'
-        +'<span><strong>'+$('<i>').text(k.ad).html()+'</strong> <small style="color:#999;">'+(k.tel||'')+'</small></span>'
+      $l.append('<li><div class="dm-kat-row">'
+        +'<span><strong>'+$('<i>').text(k.ad).html()+'</strong> <small style="color:#95a5a6;">'+(k.tel||'')+'</small></span>'
         +'<span style="white-space:nowrap;">'+_durumBtn(k)
-        +' <button class="btn btn-xs btn-link text-danger" onclick="dersKatilimciCikar('+k.id+')" title="Çıkar"><i class="fa fa-times"></i></button>'
+        +' <button class="dm-x" onclick="dersKatilimciCikar('+k.id+')" title="Çıkar">×</button>'
         +'</span></div></li>');
     });
   }
