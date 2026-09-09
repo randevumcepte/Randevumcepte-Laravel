@@ -4627,9 +4627,31 @@ public function carkverilerigetir(Request $request)
         $isletmeId = self::mevcutsube($request);
         $oturum = \App\DersOturumu::where('salon_id',$isletmeId)->find($request->oturum_id);
         if(!$oturum) return response()->json(['durum'=>'hata','mesaj'=>'Oturum bulunamadi.'],404);
+
+        // Iptalden ONCE, kontenjani dolduran katilimcilari topla (bildirim icin)
+        $bildirilecekler = \App\DersKatilimci::where('oturum_id',$oturum->id)
+            ->whereNotIn('durum',['iptal'])->pluck('user_id')->unique()->values()->toArray();
+
         $oturum->aktif = false;
         $oturum->iptal = true;
         $oturum->save();
+
+        // Katilimcilara "dersiniz iptal edildi" bildirimi (WA oncelikli / SMS yedek)
+        if(!empty($bildirilecekler)){
+            try {
+                $salon = Salonlar::find($isletmeId);
+                if($salon){
+                    $tarihStr = date('d.m.Y', strtotime($oturum->tarih));
+                    $saatStr  = substr($oturum->saat,0,5);
+                    $dersAdi  = $oturum->ders_tipi ?: 'Grup Dersi';
+                    foreach(\App\User::whereIn('id',$bildirilecekler)->get() as $musteri){
+                        $mesaj = 'Sayın ' . $musteri->name . '; ' . $tarihStr . ' saat ' . $saatStr . ' '
+                            . $dersAdi . ' dersiniz iptal edilmiştir. Bilginize, geçmiş olsun.';
+                        \App\Services\DersBildirimServisi::musteriyeGonder($salon, $musteri, $mesaj, 'ders_iptal');
+                    }
+                }
+            } catch (\Throwable $e) { \Log::warning('[DERS] iptal bildirim fail: '.$e->getMessage()); }
+        }
         return response()->json(['durum'=>'ok']);
     }
 
@@ -4677,13 +4699,25 @@ public function carkverilerigetir(Request $request)
         $k->durum = 'iptal';
         $k->save();
 
-        // Bekleme listesindeki ilk kisiyi terfi ettir
+        // Bekleme listesindeki ilk kisiyi terfi ettir + "yeriniz acildi" bildirimi
         $oturum = \App\DersOturumu::find($oturumId);
         if($oturum){
             $aktifSayi = \App\DersKatilimci::where('oturum_id',$oturumId)->whereNotIn('durum',['iptal','bekleme'])->count();
             if($aktifSayi < (int)$oturum->kapasite){
                 $bekleyen = \App\DersKatilimci::where('oturum_id',$oturumId)->where('durum','bekleme')->orderBy('id','asc')->first();
-                if($bekleyen){ $bekleyen->durum='rezerve'; $bekleyen->save(); }
+                if($bekleyen){
+                    $bekleyen->durum='rezerve'; $bekleyen->save();
+                    try {
+                        $salon = Salonlar::find($isletmeId);
+                        $musteri = \App\User::find($bekleyen->user_id);
+                        if($salon && $musteri){
+                            $mesaj = 'Sayın ' . $musteri->name . '; ' . date('d.m.Y', strtotime($oturum->tarih))
+                                . ' saat ' . substr($oturum->saat,0,5) . ' ' . ($oturum->ders_tipi ?: 'Grup Dersi')
+                                . ' dersinde yeriniz açıldı, kaydınız onaylandı. Görüşmek üzere ✨';
+                            \App\Services\DersBildirimServisi::musteriyeGonder($salon, $musteri, $mesaj, 'ders_bekleme_terfi');
+                        }
+                    } catch (\Throwable $e) { \Log::warning('[DERS] terfi bildirim fail: '.$e->getMessage()); }
+                }
             }
         }
         return response()->json(['durum'=>'ok']);

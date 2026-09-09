@@ -15,12 +15,17 @@ class DersOturumu extends Model
     protected $fillable = [
         'salon_id', 'sube_id', 'personel_id', 'ders_tipi', 'tarih', 'saat',
         'saat_bitis', 'kapasite', 'sablon_id', 'iptal', 'aktif', 'renk', 'not',
-        'olusturan_personel_id',
+        'olusturan_personel_id', 'hatirlatma_gonderildi',
     ];
 
     public function katilimcilar()
     {
         return $this->hasMany(DersKatilimci::class, 'oturum_id');
+    }
+
+    public function salon()
+    {
+        return $this->belongsTo(Salonlar::class, 'salon_id');
     }
 
     // Kontenjani dolduran (iptal olmayan, bekleme olmayan) katilimcilar

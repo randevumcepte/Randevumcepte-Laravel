@@ -49,6 +49,7 @@ class Kernel extends ConsoleKernel
         Commands\IlacHatirlatmalari::class,
         Commands\OlcumHatirlatmalari::class,
         Commands\SeansHatirlatma::class,
+        Commands\DersHatirlatma::class,
         Commands\FormVarsayilanYay::class,
         Commands\SiriusFormKur::class,
         Commands\DermatouchFormKur::class,
@@ -123,6 +124,11 @@ class Kernel extends ConsoleKernel
         // Seans hatırlatma — yarın yapılacak seansı 12:00'de tek seferlik push olarak müşteriye hatırlat.
         // Bildirim tıklanınca "Seanslarım" ekranı açılır (session_reminder -> sessions intent).
         $schedule->command('seans:hatirlat')->withoutOverlapping()->dailyAt('12:00');
+
+        // Grup dersi (Pilates/kurs) hatırlatma — randevu hatırlatma ile aynı yapı:
+        // salon.randevu_sms_hatirlatma saati kadar önce, WhatsApp öncelikli/SMS yedek.
+        // Her dakika tetik anını kontrol eder (oturum başına atomik claim ile tek gönderim).
+        $schedule->command('ders:hatirlat')->withoutOverlapping()->everyMinute();
 
         // WhatsApp kuyrukta takılı kalan mesajları SMS'e düşür — her 3 dakikada bir
         // Sebep: Node service RAM-only queue, restart/crash olunca mesajlar takılı kalıyordu
