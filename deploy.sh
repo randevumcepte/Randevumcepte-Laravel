@@ -80,9 +80,14 @@ fi
 # 4c) CANLI (app.randevumcepte.com.tr) — ayni sunucuda, kullanici onayiyla her
 # push'ta otomatik senkron edilir. GUVENLIK: yalnizca ayni GitHub repo'yu takip
 # eden gercek bir git checkout ise reset uygulanir; aksi halde dokunulmaz.
+#
+# GECICI OLARAK KAPALI: Su an yalnizca TEST (apptest) deploy edilir; CANLI (app)
+# otomatik senkronu durduruldu, canli mevcut commit'te DONAR. Tekrar acmak icin
+# asagidaki DEPLOY_PROD degerini 1 yap.
+DEPLOY_PROD=0
 PROD_DIR="/var/www/www-root/data/www/randevumcepte"
 EXPECTED_REPO="randevumcepte/Randevumcepte-Laravel"
-if [ -d "$PROD_DIR/.git" ]; then
+if [ "$DEPLOY_PROD" -eq 1 ] && [ -d "$PROD_DIR/.git" ]; then
     PROD_REMOTE=$(git -C "$PROD_DIR" config --get remote.origin.url 2>/dev/null)
     case "$PROD_REMOTE" in
         *"$EXPECTED_REPO"*)
@@ -112,6 +117,8 @@ if [ -d "$PROD_DIR/.git" ]; then
             log "CANLI deploy ATLANDI: remote beklenenle uyusmuyor (remote=$PROD_REMOTE)"
             ;;
     esac
+elif [ "$DEPLOY_PROD" -ne 1 ]; then
+    log "CANLI deploy KAPALI (DEPLOY_PROD=0): yalnizca test deploy edildi"
 else
     log "CANLI deploy atlandi: $PROD_DIR git checkout degil"
 fi
