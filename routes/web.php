@@ -393,6 +393,9 @@ Route::get('/save-excel', function () {
 	Route::get('/smskampanyabildirimiptal','HomeController@smskampanyabildirimiptal');
 	Route::get('/mailkampanyabildirimiptal','HomeController@mailkampanyabildirimiptal');
    Route::get('/randevual/{hizmet}/{id}','HomeController@randevual');
+   // Grup dersi (Pilates/kurs) online rezervasyon (mini-site)
+   Route::get('/grup-dersleri/{salon_id}','HomeController@grupDersleriSayfa');
+   Route::post('/grup-dersi-rezervasyon','HomeController@grupDersiRezervasyonWeb');
    Route::get('/saatgetir','HomeController@saatgetir');
    Route::post('/randevuonayla','HomeController@randevuonayla1');
    Route::post('/randevuonaylaauth','HomeController@randevuonaylaauth');

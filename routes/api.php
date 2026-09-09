@@ -18,6 +18,9 @@ Route::post('login', 'AuthController@login');
 Route::post('register', 'AuthController@register');
 Route::get('loggedin','AuthController@loggedin');
 Route::get('subeler/{salonid}','ApiController@subeler');
+// Grup dersi (Pilates/kurs) online rezervasyon (mobil app)
+Route::get('/grup-dersleri/{salonid}','ApiController@grupDersleriListe');
+Route::post('/grup-dersi-rezervasyon','ApiController@grupDersiRezervasyon');
 Route::post('/logout', 'AuthController@logout')->middleware('auth:isletmeyonetim-api');
 // Mobil WebView koprusu: uygulama Bearer token'iyla cagirir, 2 dk gecerli
 // tek kullanimlik imzali giris linki doner (WhatsApp kontor ekrani icin).

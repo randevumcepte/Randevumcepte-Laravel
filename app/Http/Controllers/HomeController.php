@@ -3557,4 +3557,37 @@ $salon = Salonlar::where('domain', $domain)->first();
             return response()->json(['basarili' => false]);
         }
     }
+
+    // ================================================================
+    // GRUP DERSI (Pilates/kurs) — mini-site online rezervasyon.
+    // Sadece hakki olan (paket/seans) mevcut musteri; kimlik telefon+sifre
+    // (mevcut online randevu akisi randevuonayla1 ile ayni Auth::attempt).
+    // ================================================================
+    public function grupDersleriSayfa($salon_id)
+    {
+        $salon = Salonlar::where('id', $salon_id)->first();
+        if (!$salon) abort(404);
+        $dersler = \App\Services\DersRezervasyonServisi::uygunDersler((int) $salon_id, 14);
+        return view('grup_dersleri', ['salon' => $salon, 'dersler' => $dersler]);
+    }
+
+    public function grupDersiRezervasyonWeb(Request $request)
+    {
+        $salonId  = $request->salon_id;
+        $oturumId = (int) $request->oturum_id;
+        if (!$salonId || !$oturumId) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Eksik bilgi.'], 422);
+        }
+
+        // Kimlik: girisli degilse telefon+sifre ile dogrula (impersonation korumasi)
+        if (!Auth::check()) {
+            $ok = Auth::attempt(['cep_telefon' => $request->ceptelefon, 'password' => $request->sifre]);
+            if (!$ok) {
+                return response()->json(['durum' => 'hata', 'mesaj' => 'Telefon veya şifre hatalı. Kayıtlı müşteri değilseniz lütfen salonu arayın.'], 401);
+            }
+        }
+        $userId = Auth::id();
+        $sonuc = \App\Services\DersRezervasyonServisi::rezervasyonYap($salonId, $oturumId, $userId, true);
+        return response()->json($sonuc, $sonuc['durum'] === 'ok' ? 200 : 409);
+    }
 }

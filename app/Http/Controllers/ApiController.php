@@ -31645,4 +31645,30 @@ SOZLESME_TXT;
         $deger = (int) Salonlar::where('id', (int) $salonid)->value('faturasiz_gizle');
         return response()->json(['faturasiz_gizle' => $deger]);
     }
+
+    // ================================================================
+    // GRUP DERSI (Pilates/kurs) — mobil uygulama online rezervasyon.
+    // Musteri app'te kendi user_id'siyle calisir (mevcut app deseni).
+    // ================================================================
+
+    // Salonun online rezervasyona uygun (dolu olmayan, gelecekteki, hizmete bagli) dersleri
+    public function grupDersleriListe(Request $request, $salonid)
+    {
+        $dersler = \App\Services\DersRezervasyonServisi::uygunDersler((int) $salonid, 14);
+        return response()->json(['durum' => 'ok', 'dersler' => $dersler]);
+    }
+
+    // Online rezervasyon (hak zorunlu). Body: salon_id/salonid, oturum_id, user_id
+    public function grupDersiRezervasyon(Request $request)
+    {
+        $salonId  = $request->salon_id ?: $request->salonid;
+        $oturumId = (int) $request->oturum_id;
+        $userId   = (int) $request->user_id;
+        if (!$salonId || !$oturumId || !$userId) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Eksik bilgi.'], 422);
+        }
+        $sonuc = \App\Services\DersRezervasyonServisi::rezervasyonYap($salonId, $oturumId, $userId, true);
+        $kod = ($sonuc['durum'] === 'ok') ? 200 : 409;
+        return response()->json($sonuc, $kod);
+    }
 }
