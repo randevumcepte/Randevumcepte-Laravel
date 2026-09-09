@@ -23,6 +23,16 @@ use Illuminate\Contracts\Auth\Factory as AuthFactory;
  * (Laravel 6+ ile gelen davranis). Boylece her guard kendi hash'ini tutar;
  * impersonation sirasinda iki oturum birbirini atmaz, password degisiminde
  * oturum gecersiz kilma guvenligi de korunur.
+ *
+ * PAROLA DEGISINCE OTURUM SONLANDIRMA (kullanici talebi):
+ * logout() artik AKTIF. Parola degistiginde, o hesabin parola-degisimini YAPAN
+ * oturum haric (o oturum tap() ile yeni hash'i alir) diger tum web oturumlari
+ * bir sonraki isteklerinde hash uyusmazligina dusup cikis yapar (Laravel'in
+ * kanonik logoutOtherDevices mekanizmasi). Eski "rastgele atma" agrisinin iki
+ * nedeni de artik yok: (1) cok-guard karismasi -> password_hash_{guard} ayrimi,
+ * (2) impersonation -> asagidaki sysadmin_impersonation_id bypass'i. Bu yuzden
+ * logout, tum oturumu flush etmek yerine SADECE ilgili guard'i cikarir; ayni
+ * oturumda mesru olarak aktif baska guard (or. sistemyonetim) varsa korunur.
  */
 class AuthenticateSession
 {
@@ -80,17 +90,25 @@ class AuthenticateSession
     }
 
     /**
-     * DEVRE DISI (kullanici talebi: "hicbir kosulda disari atmasin").
+     * Parola-hash uyusmazliginda SADECE ilgili guard'in oturumunu sonlandirir.
      *
-     * Eskiden parola-hash uyusmazliginda oturumu FLUSH edip kullaniciyi atiyordu.
-     * Cok-guard + impersonation + tarayici cok-sekme senaryolarinda bu, sistem
-     * yonetiminden "sacma sapan" atilmalara sebep oluyordu. Artik flush/logout YOK:
-     * uyusmazlik algilansa bile kullanici oturumda kalir. Guvenlik etkisi: parola
-     * degisince diger oturumlar otomatik gecersiz KILINMAZ (kabul edilen tavizat).
+     * Laravel'in orijinali burada tum session'i flush() edip regenerate() yapar;
+     * bu uygulamada ayni oturumda birden cok guard mesru olarak aktif olabildigi
+     * icin (or. sistemyonetim), full flush yanlis guard'i da atardi. Bunun yerine
+     * yalnizca aktif guard cikarilir + o guard'in hash anahtari silinir, sonra
+     * guard'a duyarli AuthenticationException firlatilir (Handler dogru login
+     * sayfasina yonlendirir; AJAX icin 401 doner). Impersonation zaten handle()
+     * basinda bypass edildigi icin buraya impersonation isteklerinde girilmez.
      */
     protected function logout($request)
     {
-        try { \Log::info('[AuthSession] flush ATLANDI (auto-logout kapali)'); } catch (\Throwable $e) {}
-        // Bilerek: logout/flush/exception YOK.
+        $guard = $this->auth->getDefaultDriver();
+        try {
+            $this->auth->guard($guard)->logout();
+            $request->session()->forget('password_hash_' . $guard);
+            try { \Log::info('[AuthSession] parola degisti -> oturum sonlandirildi guard=' . $guard); } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {}
+
+        throw new AuthenticationException('Unauthenticated.', [$guard]);
     }
 }
