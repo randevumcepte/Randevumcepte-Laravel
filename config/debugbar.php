@@ -14,7 +14,11 @@ return [
      |
      */
 
-    'enabled' => env('DEBUGBAR_ENABLED', null),
+    // Guvenlik + bellek: Debugbar canlida ASLA calismamali (her sorgu/veriyi bellekte
+    // klonlar; agir sayfalarda bellegi patlatir + hassas veri sizdirir). Prod .env'de
+    // APP_ENV=local/APP_DEBUG=true kalmis olsa bile, acikca DEBUGBAR_ENABLED=true
+    // denmedikce KAPALI kalsin (varsayilan null -> APP_DEBUG'a uyuyordu, o yuzden acikti).
+    'enabled' => env('DEBUGBAR_ENABLED', false),
     'except' => [
         //
     ],

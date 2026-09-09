@@ -3373,13 +3373,23 @@ public function carkverilerigetir(Request $request)
         }
          
          
-        try {
+        // Bu sayfa harici SMS API'sinden binlerce rapor cekip 6 tabloya basar; canlida
+        // yanlislikla acik kalan Debugbar tum sorgu/veriyi bellekte klonlayip cok-raporlu
+        // isletmelerde bellegi patlatiyor (yakalanamayan fatal -> beyaz sayfa). Bu istekte
+        // Debugbar'i kapat (config'te de global kapatildi).
+        if (class_exists(\Debugbar::class)) { try { \Debugbar::disable(); } catch (\Throwable $e) {} }
         $sms_ayarlari = SalonSMSAyarlari::where('salon_id',self::mevcutsube($request))->orderBy('ayar_id','asc')->get();
         $taslaklar = SMSTaslaklari::where('salon_id',self::mevcutsube($request))->orWhere('salon_id',null)->get();
         $paketler = self::paket_liste_getir("",true,$request);
         $grup=self::grup_sms_liste_getir($request);
        
-        $raporlar = self::sms_raporlari($request);
+        // KOK NEDEN (beyaz sayfa): sms_raporlari() harici VoiceTelekom API'sinden 20.000'e
+        // kadar SMS raporu ceker (416 icin 4753 kayit). Bu sonuc canli SMS Yonetimi view'inde
+        // HIC KULLANILMIYOR (rapor tablolari ayri /sms-raporlari AJAX ucundan doluyor). Sayfa
+        // yuklenirken bosuna cekilen bu binlerce kayit + acik kalan Debugbar'in klonlamasi cok
+        // raporlu isletmelerde bellegi patlatip yakalanamayan fatal -> BEYAZ SAYFA yapiyordu.
+        // Bu yuzden eager cagriyi kaldirdik; raporlar zaten sekmesi acilinca AJAX ile gelir.
+        $raporlar = ['toplu'=>collect(),'bildirim'=>collect(),'grup'=>collect(),'filtre'=>collect(),'kampanya'=>collect(),'etkinlik'=>collect()];
         // NOT: $portfoy ve $musteridanisansecimi canli SMS Yonetimi view'inde KULLANILMIYOR
         // (yalnizca olu layout/toplusmsgonder kopyasinda). Sayfa yuklenirken bosuna
         // hesaplaniyorlardi; musteriportfoydropliste bir JsonResponse uretir ve bir musteri
@@ -3400,19 +3410,7 @@ public function carkverilerigetir(Request $request)
             return $r;
         });
 
-        // NOT: ->render() ile Blade'i try/catch ICINDE render ediyoruz ki view render
-        // sirasindaki hatalar da yakalanip ?smsdebug=1 ile gorunsun (normalde view render
-        // controller donduKten SONRA, try disinda calisir ve gizli 500 uretir).
-        return response(view('isletmeadmin.toplusmsgonder',['portfoy' => $portfoy,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'title' => 'Toplu SMS Gönder','pageindex' => 106,'isletme'=>$isletme,'taslaklar'=>$taslaklar,'grup'=>$grup,'sms_ayarlari'=>$sms_ayarlari,'raporlar'=>$raporlar,'karaliste'=>$karaliste, 'sayfa_baslik'=>'SMS Yönetimi' , 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'musteridanisansecimi'=>null])->render());
-        } catch (\Throwable $e) {
-            \Log::error('toplusmsgonder patladi', ['sube'=>self::mevcutsube($request),'msg'=>$e->getMessage(),'file'=>$e->getFile(),'line'=>$e->getLine()]);
-            if ($request->has('smsdebug')) {
-                $out = 'SMSDEBUG '.get_class($e).': '.$e->getMessage()."\n@ ".$e->getFile().':'.$e->getLine()."\n\n"
-                     . implode("\n", array_slice(explode("\n", $e->getTraceAsString()), 0, 15));
-                return response($out, 500)->header('Content-Type', 'text/plain; charset=utf-8');
-            }
-            throw $e;
-        }
+        return view('isletmeadmin.toplusmsgonder',['portfoy' => $portfoy,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'title' => 'Toplu SMS Gönder','pageindex' => 106,'isletme'=>$isletme,'taslaklar'=>$taslaklar,'grup'=>$grup,'sms_ayarlari'=>$sms_ayarlari,'raporlar'=>$raporlar,'karaliste'=>$karaliste, 'sayfa_baslik'=>'SMS Yönetimi' , 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'musteridanisansecimi'=>null]);
     }
      public function e_asistan(Request $request){
         $isletmeler = '';
