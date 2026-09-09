@@ -3400,7 +3400,10 @@ public function carkverilerigetir(Request $request)
             return $r;
         });
 
-        return view('isletmeadmin.toplusmsgonder',['portfoy' => $portfoy,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'title' => 'Toplu SMS Gönder','pageindex' => 106,'isletme'=>$isletme,'taslaklar'=>$taslaklar,'grup'=>$grup,'sms_ayarlari'=>$sms_ayarlari,'raporlar'=>$raporlar,'karaliste'=>$karaliste, 'sayfa_baslik'=>'SMS Yönetimi' , 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'musteridanisansecimi'=>null]);
+        // NOT: ->render() ile Blade'i try/catch ICINDE render ediyoruz ki view render
+        // sirasindaki hatalar da yakalanip ?smsdebug=1 ile gorunsun (normalde view render
+        // controller donduKten SONRA, try disinda calisir ve gizli 500 uretir).
+        return response(view('isletmeadmin.toplusmsgonder',['portfoy' => $portfoy,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'title' => 'Toplu SMS Gönder','pageindex' => 106,'isletme'=>$isletme,'taslaklar'=>$taslaklar,'grup'=>$grup,'sms_ayarlari'=>$sms_ayarlari,'raporlar'=>$raporlar,'karaliste'=>$karaliste, 'sayfa_baslik'=>'SMS Yönetimi' , 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'musteridanisansecimi'=>null])->render());
         } catch (\Throwable $e) {
             \Log::error('toplusmsgonder patladi', ['sube'=>self::mevcutsube($request),'msg'=>$e->getMessage(),'file'=>$e->getFile(),'line'=>$e->getLine()]);
             if ($request->has('smsdebug')) {

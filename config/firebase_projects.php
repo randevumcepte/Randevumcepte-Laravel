@@ -43,6 +43,7 @@ return [
     'bercislina'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
     'busrayilmaz'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
     'edasavut'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+    'fizyofly'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
 
 
     'aydangurece'  => 'app/firebase/egekobi-893bd4d005ff.json',
@@ -54,5 +55,8 @@ return [
     'essa'  => 'app/firebase/egekobi-893bd4d005ff.json',
     'faya'  => 'app/firebase/egekobi-893bd4d005ff.json',
     'fulyakandemir'  => 'app/firebase/egekobi-893bd4d005ff.json',
+
+    'shiningstars'=>'app/firebase/randevumcepte-5fd93-05a39b8b2f48.json',
+    'aleynaguzellik'=> 'app/firebase/randevumcepte-5fd93-05a39b8b2f48.json',
 
 ];
