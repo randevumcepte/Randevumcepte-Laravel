@@ -62,7 +62,8 @@ class AuthenticateSession
         }
 
         // Aktif guard (auth:<guard> middleware'i shouldUse ile burayi set eder)
-        $key = 'password_hash_' . $this->auth->getDefaultDriver();
+        $guard = $this->auth->getDefaultDriver();
+        $key = 'password_hash_' . $guard;
 
         if ($this->auth->viaRemember()) {
             $recaller = $request->cookies->get($this->auth->getRecallerName());
@@ -74,19 +75,38 @@ class AuthenticateSession
             }
         }
 
+        // Kiyaslanacak deger: parola hash'i + (isletmeyonetim icin) erisim-iptal
+        // damgasi. Damga oturumHashDamgasi() ile hesaplanir; personel pasif/silme
+        // sonrasi OturumServisi bu damgayi degistirir -> oturum sonlanir. Diger
+        // guard'larda (satisortakligi/sistemyonetim) davranis eskisi gibi: yalniz
+        // parola hash'i (parola degisimi hala yakalanir).
+        $damga = $this->oturumDamgasi($request->user(), $guard);
+
         if (! $request->session()->has($key)) {
-            $request->session()->put($key, $request->user()->getAuthPassword());
+            $request->session()->put($key, $damga);
         }
 
-        if ($request->session()->get($key) !== $request->user()->getAuthPassword()) {
+        if ($request->session()->get($key) !== $damga) {
             $this->logout($request);
         }
 
-        return tap($next($request), function () use ($request, $key) {
+        return tap($next($request), function () use ($request, $key, $guard) {
             if ($request->user()) {
-                $request->session()->put($key, $request->user()->getAuthPassword());
+                $request->session()->put($key, $this->oturumDamgasi($request->user(), $guard));
             }
         });
+    }
+
+    /**
+     * Oturum-gecerlilik damgasi. isletmeyonetim guard'inda parola hash'i + erisim
+     * iptal damgasi (oturumHashDamgasi); diger guard'larda yalniz parola hash'i.
+     */
+    protected function oturumDamgasi($user, $guard)
+    {
+        if ($guard === 'isletmeyonetim' && method_exists($user, 'oturumHashDamgasi')) {
+            return $user->oturumHashDamgasi();
+        }
+        return $user->getAuthPassword();
     }
 
     /**

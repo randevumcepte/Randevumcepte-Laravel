@@ -36,6 +36,22 @@ class IsletmeYetkilileri extends Authenticatable
      public function yetkili_olunan_isletmeler(){
         return $this->hasMany(Personeller::class,'yetkili_id');
      }
+
+     /**
+      * Web oturumu gecerlilik damgasi (AuthenticateSession middleware kullanir).
+      *
+      * getAuthPassword (parola hash) + oturum_iptal_tarihi birlestirilir. Boylece:
+      *  - parola degisince (hash degisir) -> damga degisir -> diger oturumlar cikar,
+      *  - personel pasif/silme sonrasi OturumServisi oturum_iptal_tarihi'ni gunceller
+      *    -> damga degisir -> web oturumlari cikar.
+      * getAuthPassword'in KENDISI degismedigi icin login/credential dogrulamasi
+      * etkilenmez; bu damga yalnizca middleware'in oturum-gecerlilik kiyaslamasinda
+      * kullanilir.
+      */
+     public function oturumHashDamgasi()
+     {
+        return $this->getAuthPassword() . '|' . (string) ($this->getAttribute('oturum_iptal_tarihi') ?? '');
+     }
       
      
    

@@ -49,6 +49,25 @@ class OturumServisi
     }
 
     /**
+     * Bir isletmeyetkilileri (login kimligi) AKTIF WEB oturumlarini gecersiz kilar.
+     *
+     * Mobil tarafta yaptirim Passport token revoke'tur; web (session) tarafinda ise
+     * boyle bir token yoktur. isletmeyetkilileri.oturum_iptal_tarihi guncellenir;
+     * AuthenticateSession middleware bu damgayi oturumdaki degerle karsilastirir ve
+     * uyusmazsa (yani bu update'ten sonra) oturumu bir sonraki istekte sonlandirir.
+     * Best-effort; hata yutulur. Kolon yoksa (migration kosmadiysa) sessizce gecer.
+     */
+    public static function webOturumlariniGecersizKil(int $yetkiliId): void
+    {
+        try {
+            IsletmeYetkilileri::where('id', $yetkiliId)
+                ->update(['oturum_iptal_tarihi' => date('Y-m-d H:i:s')]);
+        } catch (\Throwable $e) {
+            Log::warning('OturumServisi webOturumlariniGecersizKil hata: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * force_logout push'u tek noktadan gonderir (best-effort; hata yutulur).
      * Hedef = salon_personelleri.id (bildirim_kimlikleri.isletme_yetkili_id).
      */
@@ -162,6 +181,9 @@ class OturumServisi
         $yetkili = IsletmeYetkilileri::find($yetkiliId);
         if ($yetkili) {
             self::tokenlariIptalEt($yetkili);
+            // WEB: oturum-iptal damgasini ilerlet -> AuthenticateSession middleware
+            // bu kimligin aktif web oturumlarini bir sonraki istekte sonlandirir.
+            self::webOturumlariniGecersizKil($yetkiliId);
         }
         self::forceLogoutPush($personelId, $salonId, $tip, $baslik, $govde);
         return true;

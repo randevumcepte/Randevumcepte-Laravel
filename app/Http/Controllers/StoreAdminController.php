@@ -180,7 +180,10 @@ class StoreAdminController extends Controller
                             session()->put($g->getName(), $y->getAuthIdentifier());
                             $g->setUser($y);
                             session()->put('sysadmin_impersonation_id', $lid);
-                            session()->put('password_hash_isletmeyonetim', $y->getAuthPassword());
+                            // Damga formati AuthenticateSession ile ayni olmali
+                            // (yoksa impersonation bitince oturum yanlislikla duser).
+                            session()->put('password_hash_isletmeyonetim',
+                                method_exists($y, 'oturumHashDamgasi') ? $y->oturumHashDamgasi() : $y->getAuthPassword());
                             @file_put_contents(storage_path('logs/imptest.log'),
                                 date('H:i:s') . ' [HEAL] iy geri kuruldu yetkili=' . $yid . ' /' . $request->path() . "\n", FILE_APPEND);
                         }
