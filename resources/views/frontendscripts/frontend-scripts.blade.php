@@ -255,13 +255,19 @@
             
              },
             eventRender: function(event, element) {
-                   
+
                     // Arkaplan etkinlikleri tıklanabilir hale getirme
                     if (event.title === 'Boş slot') {
-                        event.editable = false; 
-                        event.className += " disabled-event"; 
+                        event.editable = false;
+                        event.className += " disabled-event";
                     }
 
+                    // Grup dersi oturumu: surukleme/resize KAPALI (randevu degil),
+                    // baslik cok-satirli gorunsun
+                    if (event.dersOturumId) {
+                        event.editable = false;
+                        event.className += " ders-event";
+                    }
 
                 },
             eventAfterRender: function(event, element) {
@@ -316,6 +322,11 @@
     
             
             eventClick: function(event, jsEvent, view) {
+        // Grup dersi (Pilates/kurs) oturumu — kendi kapasite/katilimci modalini ac
+        if (event.dersOturumId) {
+            if (typeof dersOturumAc === 'function') dersOturumAc(event.dersOturumId);
+            return false;
+        }
         if (event.title === 'Boş slot') {
             var tarihsaattext = event.start.format().split("T");
             

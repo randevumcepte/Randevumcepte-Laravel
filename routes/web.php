@@ -844,6 +844,14 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/randevuiptalet','StoreAdminController@randevuiptalet');
 	Route::get('/randevuonayla','StoreAdminController@randevuonayla');
 	Route::get('/randevubilgiguncelle','StoreAdminController@randevubilgiguncelle');
+	// Grup dersi (Pilates/kurs) — kapasiteli ders oturumu + katilimci yonetimi
+	Route::get ('/ders-oturum-getir','StoreAdminController@ders_oturum_getir');
+	Route::post('/ders-oturum-kaydet','StoreAdminController@ders_oturum_kaydet');
+	Route::post('/ders-oturum-sil','StoreAdminController@ders_oturum_sil');
+	Route::post('/ders-katilimci-ekle','StoreAdminController@ders_katilimci_ekle');
+	Route::post('/ders-katilimci-cikar','StoreAdminController@ders_katilimci_cikar');
+	Route::post('/ders-katilimci-durum','StoreAdminController@ders_katilimci_durum');
+	Route::get ('/ders-musteri-ara','StoreAdminController@ders_musteri_ara');
 	//Route::middleware('role:Hesap Sahibi,Süpervizör,Yönetici')->get('/ayarlar','StoreAdminController@ayarlar');
 	Route::get('/ayarlar','StoreAdminController@ayarlar');
 	Route::get('/log-hareketleri','StoreAdminController@logHareketleri')->name('isletmeadmin.log');

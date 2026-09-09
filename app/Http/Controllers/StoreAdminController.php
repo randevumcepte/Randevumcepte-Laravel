@@ -4177,6 +4177,76 @@ public function carkverilerigetir(Request $request)
         $randevu_hizmetler = $merged;
     }
 
+    // ============================================================
+    // GRUP DERSI (Pilates/kurs) — kapasiteli ders oturumlari.
+    // Mevcut randevu akisina DOKUNMADAN, takvime ayri event kaynagi
+    // olarak binen kapasiteli ders oturumlari. resourceId = personel_id
+    // oldugu icin yalnizca personel takviminde (takvim_turu==1) anlamli;
+    // diger modlarda gosterilmez. Tablo/kolon kontrolu YAPILMAZ (10sn poll
+    // hot-path) — tablo yoksa/hata olursa try/catch ile sessizce atlanir,
+    // takvim asla bozulmaz.
+    $dersEventleri = [];
+    if ($takvim_turu == 1) {
+        try {
+            $ders_oturumlari = \App\DersOturumu::with('aktifKatilimcilar')
+                ->where('salon_id', $isletmeId)
+                ->where('aktif', true)
+                ->where('tarih', '>=', $tarih1)
+                ->where('tarih', '<=', $tarih2)
+                ->when($kendiPersonelIdFiltre, function ($q) use ($kendiPersonelIdFiltre) {
+                    $q->where('personel_id', $kendiPersonelIdFiltre);
+                })
+                ->get();
+
+            foreach ($ders_oturumlari as $o) {
+                $doluluk  = $o->aktifKatilimcilar->count();
+                $kapasite = (int) $o->kapasite;
+                $iptal    = (bool) $o->iptal;
+
+                if ($iptal) {
+                    $color = '#95a5a6';                 // iptal — gri
+                } elseif ($kapasite > 0 && $doluluk >= $kapasite) {
+                    $color = '#c0392b';                 // dolu — kirmizi
+                } elseif ($doluluk > 0) {
+                    $color = '#16a085';                 // kismi dolu — turkuaz
+                } else {
+                    $color = ($o->renk ?: '#5d6d7e');   // bos — gri/mavi
+                }
+
+                $dersAdi = $o->ders_tipi ?: 'Grup Dersi';
+                $title   = $dersAdi . ' ' . $doluluk . '/' . $kapasite . ' dolu';
+                if ($iptal) $title .= "\n(İPTAL)";
+
+                $dersEventleri[] = [
+                    'id'            => 'ders-' . $o->id,
+                    'title'         => $title,
+                    'start'         => Carbon::parse($o->tarih . ' ' . $o->saat)->toIso8601String(),
+                    'end'           => Carbon::parse($o->tarih . ' ' . $o->saat_bitis)->toIso8601String(),
+                    'eventbuttons'  => '',
+                    'description'   => '',
+                    'hoverHtml'     => '',
+                    'color'         => $color,
+                    'randevuId'     => '',
+                    'dersOturumId'  => $o->id,
+                    'dersKapasite'  => $kapasite,
+                    'dersDoluluk'   => $doluluk,
+                    'dersIptal'     => $iptal ? 1 : 0,
+                    'resourceId'    => $o->personel_id ?? 0,
+                    'personelId'    => $o->personel_id,
+                    'odaId'         => '',
+                    'odaAdi'        => '',
+                    'resourceTitle' => '',
+                    'textColor'     => '#ffffff',
+                    'modal_title'   => $dersAdi,
+                    'duzenle_buton' => '',
+                ];
+            }
+        } catch (\Throwable $e) {
+            // Tablo henuz yok / gecici hata — takvimi bozma, ders olmadan devam.
+            $dersEventleri = [];
+        }
+    }
+
     $emptySlots = [];
     $startDate = Carbon::parse($tarih1 . " 07:00:00");
     $endDate = Carbon::parse($tarih2 . " 23:00:00");
@@ -4206,7 +4276,16 @@ public function carkverilerigetir(Request $request)
             'end'   => Carbon::parse($item['end']   ?? $item->end),
         ];
     }
-    
+    // Grup dersi pencereleri de bos-slot kontrolune girsin (dersin altina "Bos slot" cizilmesin)
+    foreach ($dersEventleri as $de) {
+        $rid = $de['resourceId'] ?? '';
+        if ($rid === '' || $rid === null) continue;
+        $randevu_hizmetler2_by_resource[$rid][] = (object)[
+            'start' => Carbon::parse($de['start']),
+            'end'   => Carbon::parse($de['end']),
+        ];
+    }
+
     $resources = "";
     if($takvim_turu == 1 || self::personelmi($request, 'randevu.tum_personel_gor')) {
         $resources = Personeller::join('renk_duzenleri','salon_personelleri.renk','=','renk_duzenleri.id')
@@ -4457,7 +4536,7 @@ public function carkverilerigetir(Request $request)
     Log::info('randevu yükleme bitti');
 
     return array(
-        'randevu' => array_merge($randevu_hizmetler->toArray(), $emptySlots),
+        'randevu' => array_merge($randevu_hizmetler->toArray(), $dersEventleri, $emptySlots),
         'resource' => $resources,
         'baslangic' => $takvim_baslangic_saat,
         'bitis' => $takvim_bitis_saat,
@@ -4467,6 +4546,176 @@ public function carkverilerigetir(Request $request)
         'randevu_sayisi' => $randevu_sayisi,
     );
 }
+
+    // ================================================================
+    // GRUP DERSI (Pilates/kurs) — kapasiteli ders oturumu yonetimi.
+    // Mevcut randevu akisindan bagimsiz; ders_oturumlari + ders_katilimcilar.
+    // ================================================================
+
+    // Modal icin: bir oturumun bilgisi + katilimci listesi (JSON)
+    public function ders_oturum_getir(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.takvim_gor')) return $r;
+        $isletmeId = self::mevcutsube($request);
+        $oturum = \App\DersOturumu::with(['katilimcilar.musteri','personel'])
+            ->where('salon_id',$isletmeId)->find($request->oturum_id);
+        if(!$oturum)
+            return response()->json(['durum'=>'hata','mesaj'=>'Oturum bulunamadi.'],404);
+
+        $katilimcilar = $oturum->katilimcilar->map(function($k){
+            return [
+                'id'     => $k->id,
+                'user_id'=> $k->user_id,
+                'ad'     => $k->musteri ? $k->musteri->name : ('#'.$k->user_id),
+                'tel'    => $k->musteri ? $k->musteri->cep_telefon : '',
+                'durum'  => $k->durum,
+            ];
+        })->values();
+
+        $aktifSayi = $oturum->katilimcilar->whereNotIn('durum',['iptal','bekleme'])->count();
+        return response()->json([
+            'durum'        => 'ok',
+            'oturum'       => [
+                'id'         => $oturum->id,
+                'ders_tipi'  => $oturum->ders_tipi,
+                'tarih'      => $oturum->tarih,
+                'saat'       => substr($oturum->saat,0,5),
+                'saat_bitis' => substr($oturum->saat_bitis,0,5),
+                'kapasite'   => (int)$oturum->kapasite,
+                'personel_id'=> $oturum->personel_id,
+                'personel'   => $oturum->personel ? $oturum->personel->personel_adi : '',
+                'iptal'      => (int)$oturum->iptal,
+                'doluluk'    => $aktifSayi,
+            ],
+            'katilimcilar' => $katilimcilar,
+        ]);
+    }
+
+    // Oturum olustur / guncelle
+    public function ders_oturum_kaydet(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.olustur')) return $r;
+        $isletmeId = self::mevcutsube($request);
+
+        $data = [
+            'salon_id'    => $isletmeId,
+            'sube_id'     => $isletmeId,
+            'personel_id' => $request->personel_id ?: null,
+            'ders_tipi'   => $request->ders_tipi ?: 'Grup Dersi',
+            'tarih'       => $request->tarih,
+            'saat'        => $request->saat,
+            'saat_bitis'  => $request->saat_bitis,
+            'kapasite'    => max(1,(int)$request->kapasite),
+            'renk'        => $request->renk ?: null,
+            'not'         => $request->not ?: null,
+        ];
+
+        if($request->oturum_id){
+            $oturum = \App\DersOturumu::where('salon_id',$isletmeId)->find($request->oturum_id);
+            if(!$oturum) return response()->json(['durum'=>'hata','mesaj'=>'Oturum bulunamadi.'],404);
+            $oturum->update($data);
+        } else {
+            $data['olusturan_personel_id'] = Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id ?? 0)->where('salon_id',$isletmeId)->value('id');
+            $oturum = \App\DersOturumu::create($data);
+        }
+        return response()->json(['durum'=>'ok','oturum_id'=>$oturum->id]);
+    }
+
+    // Oturumu iptal et / sil (aktif=0 -> takvimden kalkar; katilimci varsa iptal isaretle)
+    public function ders_oturum_sil(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.duzenle_iptal')) return $r;
+        $isletmeId = self::mevcutsube($request);
+        $oturum = \App\DersOturumu::where('salon_id',$isletmeId)->find($request->oturum_id);
+        if(!$oturum) return response()->json(['durum'=>'hata','mesaj'=>'Oturum bulunamadi.'],404);
+        $oturum->aktif = false;
+        $oturum->iptal = true;
+        $oturum->save();
+        return response()->json(['durum'=>'ok']);
+    }
+
+    // Katilimci ekle (kapasite kontrollu)
+    public function ders_katilimci_ekle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.olustur')) return $r;
+        $isletmeId = self::mevcutsube($request);
+
+        return DB::transaction(function() use($request,$isletmeId){
+            $oturum = \App\DersOturumu::where('salon_id',$isletmeId)->lockForUpdate()->find($request->oturum_id);
+            if(!$oturum) return response()->json(['durum'=>'hata','mesaj'=>'Oturum bulunamadi.'],404);
+
+            $userId = (int)$request->user_id;
+            if(!$userId) return response()->json(['durum'=>'hata','mesaj'=>'Musteri secilmedi.'],422);
+
+            // Zaten ekli mi (iptal olmayan)?
+            $mevcut = \App\DersKatilimci::where('oturum_id',$oturum->id)
+                ->where('user_id',$userId)->whereNotIn('durum',['iptal'])->first();
+            if($mevcut) return response()->json(['durum'=>'hata','mesaj'=>'Bu musteri zaten ekli.'],409);
+
+            $aktifSayi = \App\DersKatilimci::where('oturum_id',$oturum->id)
+                ->whereNotIn('durum',['iptal','bekleme'])->count();
+
+            // Kapasite doluysa bekleme listesine al
+            $durum = ($aktifSayi >= (int)$oturum->kapasite) ? 'bekleme' : 'rezerve';
+
+            $k = \App\DersKatilimci::create([
+                'oturum_id' => $oturum->id,
+                'user_id'   => $userId,
+                'salon_id'  => $isletmeId,
+                'durum'     => $durum,
+                'ekleyen_personel_id' => Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id ?? 0)->where('salon_id',$isletmeId)->value('id'),
+            ]);
+            return response()->json(['durum'=>'ok','katilimci_id'=>$k->id,'katilimci_durum'=>$durum]);
+        });
+    }
+
+    // Katilimci cikar (iptal isaretle -> kontenjan serbest; bekleyen varsa terfi)
+    public function ders_katilimci_cikar(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.duzenle_iptal')) return $r;
+        $isletmeId = self::mevcutsube($request);
+        $k = \App\DersKatilimci::where('salon_id',$isletmeId)->find($request->katilimci_id);
+        if(!$k) return response()->json(['durum'=>'hata','mesaj'=>'Katilimci bulunamadi.'],404);
+        $oturumId = $k->oturum_id;
+        $k->durum = 'iptal';
+        $k->save();
+
+        // Bekleme listesindeki ilk kisiyi terfi ettir
+        $oturum = \App\DersOturumu::find($oturumId);
+        if($oturum){
+            $aktifSayi = \App\DersKatilimci::where('oturum_id',$oturumId)->whereNotIn('durum',['iptal','bekleme'])->count();
+            if($aktifSayi < (int)$oturum->kapasite){
+                $bekleyen = \App\DersKatilimci::where('oturum_id',$oturumId)->where('durum','bekleme')->orderBy('id','asc')->first();
+                if($bekleyen){ $bekleyen->durum='rezerve'; $bekleyen->save(); }
+            }
+        }
+        return response()->json(['durum'=>'ok']);
+    }
+
+    // Katilimci durumu (geldi / gelmedi / rezerve)
+    public function ders_katilimci_durum(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.takvim_gor')) return $r;
+        $isletmeId = self::mevcutsube($request);
+        $k = \App\DersKatilimci::where('salon_id',$isletmeId)->find($request->katilimci_id);
+        if(!$k) return response()->json(['durum'=>'hata','mesaj'=>'Katilimci bulunamadi.'],404);
+        $yeni = in_array($request->yeni_durum,['geldi','gelmedi','rezerve']) ? $request->yeni_durum : 'rezerve';
+        $k->durum = $yeni;
+        $k->save();
+        return response()->json(['durum'=>'ok']);
+    }
+
+    // Katilimci eklemek icin musteri arama (ad veya telefon) — JSON liste
+    public function ders_musteri_ara(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.takvim_gor')) return $r;
+        $isletmeId = self::mevcutsube($request);
+        $q = trim($request->q ?? '');
+        if(mb_strlen($q) < 2) return response()->json([]);
+        $rows = DB::table('musteri_portfoy')
+            ->join('users','musteri_portfoy.user_id','=','users.id')
+            ->where('musteri_portfoy.salon_id',$isletmeId)
+            ->where(function($w) use($q){
+                $w->where('users.name','like','%'.$q.'%')
+                  ->orWhere('users.cep_telefon','like','%'.$q.'%');
+            })
+            ->select('users.id as id','users.name as ad','users.cep_telefon as tel')
+            ->limit(15)->get();
+        return response()->json($rows);
+    }
 
     public function kasadefteri(Request $request){
        $isletmeler = '';

@@ -131,6 +131,14 @@
    </div>
    @endif
 
+   {{-- Grup Dersi (Pilates/kurs) hizli ekle --}}
+   <div style="margin:6px 0;">
+      <a href="#" onclick="dersOturumYeni();return false;" class="btn btn-sm" style="background:#16a085;color:#fff;">
+         <i class="fa fa-users"></i> Grup Dersi Ekle
+      </a>
+      <small style="color:#7f8c8d;margin-left:8px;">Kapasiteli ders oturumu — takvimde "Ders 2/3" olarak görünür, tıklayınca katılımcıları yönetirsiniz.</small>
+   </div>
+
    {{-- Takvim Kartı --}}
    <div class="rc-rt-card rc-rt-calendar-card">
       <div style="position:relative; width:100%; overflow-y:auto">
@@ -548,5 +556,208 @@
   }
 
 </style>
+
+{{-- ============================================================
+     GRUP DERSI (Pilates/kurs) — kapasiteli ders oturumu + katilimci modali
+     ============================================================ --}}
+<div class="modal fade" id="ders-oturum-modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#16a085;color:#fff;">
+        <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9;">&times;</button>
+        <h4 class="modal-title" id="ders-modal-baslik"><i class="fa fa-users"></i> Grup Dersi</h4>
+      </div>
+      <div class="modal-body">
+
+        {{-- OLUSTUR / DUZENLE FORMU --}}
+        <div id="ders-form-alani">
+          <input type="hidden" id="ders-oturum-id" value="">
+          <div class="row">
+            <div class="form-group col-xs-12"><label>Ders Tipi</label>
+              <input type="text" id="ders-tipi" class="form-control" placeholder="Reformer / Mat / Crossfit / Birebir"></div>
+            <div class="form-group col-xs-12"><label>Eğitmen</label>
+              <select id="ders-personel" class="form-control"></select></div>
+            <div class="form-group col-xs-6"><label>Tarih</label>
+              <input type="date" id="ders-tarih" class="form-control"></div>
+            <div class="form-group col-xs-3"><label>Başlangıç</label>
+              <input type="time" id="ders-saat" class="form-control" value="09:00"></div>
+            <div class="form-group col-xs-3"><label>Bitiş</label>
+              <input type="time" id="ders-saat-bitis" class="form-control" value="10:00"></div>
+            <div class="form-group col-xs-6"><label>Kapasite (kişi)</label>
+              <input type="number" id="ders-kapasite" class="form-control" min="1" value="3"></div>
+          </div>
+          <button class="btn btn-success btn-block" onclick="dersOturumKaydet();return false;">
+            <i class="fa fa-save"></i> Kaydet</button>
+        </div>
+
+        {{-- KATILIMCI YONETIMI --}}
+        <div id="ders-katilimci-alani" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div><strong id="ders-ozet-tip"></strong><br><small id="ders-ozet-detay" style="color:#7f8c8d;"></small></div>
+            <span id="ders-doluluk-rozet" class="label label-success" style="font-size:14px;padding:6px 10px;"></span>
+          </div>
+
+          <div class="form-group" style="position:relative;">
+            <label>Katılımcı Ekle (isim / telefon)</label>
+            <input type="text" id="ders-musteri-arama" class="form-control" placeholder="En az 2 harf yazın" autocomplete="off">
+            <div id="ders-musteri-sonuc" style="position:absolute;z-index:10;background:#fff;border:1px solid #ddd;width:100%;max-height:200px;overflow:auto;display:none;"></div>
+          </div>
+
+          <ul class="list-group" id="ders-katilimci-liste" style="margin-bottom:10px;"></ul>
+
+          <button class="btn btn-default btn-sm" onclick="dersOturumFormAc();return false;"><i class="fa fa-edit"></i> Dersi Düzenle</button>
+          <button class="btn btn-danger btn-sm pull-right" onclick="dersOturumIptal();return false;"><i class="fa fa-trash"></i> Dersi İptal Et</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function _csrf(){ return $('meta[name="csrf-token"]').attr('content'); }
+  function _sube(){ return $('input[name="sube"]').val(); }
+  function _post(url, data){
+    data = data || {}; data.sube = _sube();
+    return $.ajax({ url:url, method:'POST', data:data, headers:{'X-CSRF-TOKEN':_csrf(),'X-Requested-With':'XMLHttpRequest','Accept':'application/json'} });
+  }
+  function _refreshTakvim(){ if(typeof takvimyukle==='function') takvimyukle(true,false); }
+
+  // Egitmen dropdown'unu sayfadaki personel select'inden klonla
+  function _personelDoldur(secili){
+    var $t = $('#ders-personel').empty();
+    var $src = $('select[name="randevupersonelleriyeni[]"] option');
+    if($src.length){
+      $src.each(function(){
+        var v=$(this).val(), t=$(this).text();
+        if(v==='' || v===null) return;
+        $t.append($('<option>').val(v).text(t));
+      });
+    }
+    if(secili) $t.val(secili);
+  }
+
+  window.dersOturumYeni = function(){
+    $('#ders-oturum-id').val('');
+    $('#ders-tipi').val(''); $('#ders-kapasite').val(3);
+    $('#ders-saat').val('09:00'); $('#ders-saat-bitis').val('10:00');
+    var d=$('#takvim_tarihe_gore').val()||new Date().toISOString().slice(0,10);
+    $('#ders-tarih').val(d);
+    _personelDoldur();
+    $('#ders-modal-baslik').html('<i class="fa fa-users"></i> Yeni Grup Dersi');
+    $('#ders-form-alani').show(); $('#ders-katilimci-alani').hide();
+    $('#ders-oturum-modal').modal();
+  };
+
+  window.dersOturumFormAc = function(){
+    $('#ders-form-alani').show(); $('#ders-katilimci-alani').hide();
+  };
+
+  window.dersOturumAc = function(id){
+    $.ajax({ url:'/isletmeyonetim/ders-oturum-getir', data:{oturum_id:id, sube:_sube()}, method:'GET',
+      headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'} })
+    .done(function(r){
+      if(!r || r.durum!=='ok'){ swal('Hata', (r&&r.mesaj)||'Oturum yüklenemedi', 'error'); return; }
+      var o=r.oturum;
+      $('#ders-oturum-id').val(o.id);
+      $('#ders-tipi').val(o.ders_tipi); $('#ders-kapasite').val(o.kapasite);
+      $('#ders-tarih').val(o.tarih); $('#ders-saat').val(o.saat); $('#ders-saat-bitis').val(o.saat_bitis);
+      _personelDoldur(o.personel_id);
+      $('#ders-ozet-tip').text((o.ders_tipi||'Grup Dersi'));
+      $('#ders-ozet-detay').text(o.tarih+'  '+o.saat+'-'+o.saat_bitis+(o.personel?('  •  '+o.personel):''));
+      var rozet=$('#ders-doluluk-rozet').text(o.doluluk+' / '+o.kapasite);
+      rozet.removeClass('label-success label-danger label-warning')
+           .addClass(o.doluluk>=o.kapasite?'label-danger':(o.doluluk>0?'label-warning':'label-success'));
+      _katilimciListele(r.katilimcilar);
+      $('#ders-modal-baslik').html('<i class="fa fa-users"></i> Ders Katılımcıları');
+      $('#ders-form-alani').hide(); $('#ders-katilimci-alani').show();
+      $('#ders-musteri-arama').val(''); $('#ders-musteri-sonuc').hide().empty();
+      $('#ders-oturum-modal').modal();
+    })
+    .fail(function(){ swal('Hata','Oturum yüklenemedi','error'); });
+  };
+
+  function _durumBtn(k){
+    function b(d,lbl,cls){ return '<button class="btn btn-xs '+(k.durum===d?cls:'btn-default')+'" onclick="dersKatilimciDurum('+k.id+',\''+d+'\')">'+lbl+'</button>'; }
+    if(k.durum==='bekleme') return '<span class="label label-default">BEKLEME</span>';
+    return b('rezerve','Rezerve','btn-info')+' '+b('geldi','Geldi','btn-success')+' '+b('gelmedi','Gelmedi','btn-danger');
+  }
+  function _katilimciListele(list){
+    var $l=$('#ders-katilimci-liste').empty();
+    if(!list || !list.length){ $l.append('<li class="list-group-item text-muted">Henüz katılımcı yok.</li>'); return; }
+    list.forEach(function(k){
+      $l.append('<li class="list-group-item" style="padding:8px 10px;">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">'
+        +'<span><strong>'+$('<i>').text(k.ad).html()+'</strong> <small style="color:#999;">'+(k.tel||'')+'</small></span>'
+        +'<span style="white-space:nowrap;">'+_durumBtn(k)
+        +' <button class="btn btn-xs btn-link text-danger" onclick="dersKatilimciCikar('+k.id+')" title="Çıkar"><i class="fa fa-times"></i></button>'
+        +'</span></div></li>');
+    });
+  }
+
+  window.dersOturumKaydet = function(){
+    var id=$('#ders-oturum-id').val();
+    _post('/isletmeyonetim/ders-oturum-kaydet', {
+      oturum_id:id, ders_tipi:$('#ders-tipi').val(), personel_id:$('#ders-personel').val(),
+      tarih:$('#ders-tarih').val(), saat:$('#ders-saat').val(), saat_bitis:$('#ders-saat-bitis').val(),
+      kapasite:$('#ders-kapasite').val()
+    }).done(function(r){
+      if(r.durum==='ok'){ _refreshTakvim(); window.dersOturumAc(r.oturum_id); }
+      else swal('Hata',(r&&r.mesaj)||'Kaydedilemedi','error');
+    }).fail(function(){ swal('Hata','Kaydedilemedi','error'); });
+  };
+
+  window.dersOturumIptal = function(){
+    var id=$('#ders-oturum-id').val();
+    swal({title:'Dersi iptal et?',text:'Bu ders takvimden kalkacak.',type:'warning',showCancelButton:true,
+      confirmButtonText:'İptal Et',cancelButtonText:'Vazgeç',confirmButtonColor:'#c0392b'})
+    .then(function(res){ if(res.value){ _post('/isletmeyonetim/ders-oturum-sil',{oturum_id:id})
+      .done(function(){ $('#ders-oturum-modal').modal('hide'); _refreshTakvim(); }); } });
+  };
+
+  window.dersKatilimciDurum = function(kid, durum){
+    _post('/isletmeyonetim/ders-katilimci-durum', {katilimci_id:kid, yeni_durum:durum})
+      .done(function(){ window.dersOturumAc($('#ders-oturum-id').val()); });
+  };
+  window.dersKatilimciCikar = function(kid){
+    _post('/isletmeyonetim/ders-katilimci-cikar', {katilimci_id:kid})
+      .done(function(){ _refreshTakvim(); window.dersOturumAc($('#ders-oturum-id').val()); });
+  };
+
+  // Musteri arama (debounce)
+  var _aramaTimer=null;
+  $(document).on('input','#ders-musteri-arama',function(){
+    var q=$(this).val(); clearTimeout(_aramaTimer);
+    if(q.length<2){ $('#ders-musteri-sonuc').hide().empty(); return; }
+    _aramaTimer=setTimeout(function(){
+      $.ajax({url:'/isletmeyonetim/ders-musteri-ara',data:{q:q,sube:_sube()},method:'GET',
+        headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}})
+      .done(function(rows){
+        var $box=$('#ders-musteri-sonuc').empty();
+        if(!rows.length){ $box.append('<div style="padding:8px;color:#999;">Bulunamadı</div>').show(); return; }
+        rows.forEach(function(m){
+          $('<a href="#" style="display:block;padding:8px 10px;border-bottom:1px solid #eee;color:#333;">')
+            .html('<strong>'+$('<i>').text(m.ad).html()+'</strong> <small style="color:#999;">'+(m.tel||'')+'</small>')
+            .on('click',function(e){ e.preventDefault(); _katilimciEkle(m.id); })
+            .appendTo($box);
+        });
+        $box.show();
+      });
+    },250);
+  });
+  function _katilimciEkle(userId){
+    _post('/isletmeyonetim/ders-katilimci-ekle', {oturum_id:$('#ders-oturum-id').val(), user_id:userId})
+    .done(function(r){
+      $('#ders-musteri-arama').val(''); $('#ders-musteri-sonuc').hide().empty();
+      if(r.durum==='ok'){
+        if(r.katilimci_durum==='bekleme') swal({title:'Kapasite dolu',text:'Kişi BEKLEME listesine eklendi.',type:'info',timer:1800,showConfirmButton:false});
+        _refreshTakvim(); window.dersOturumAc($('#ders-oturum-id').val());
+      } else swal('Hata',(r&&r.mesaj)||'Eklenemedi','warning');
+    })
+    .fail(function(x){ var m=(x.responseJSON&&x.responseJSON.mesaj)||'Eklenemedi'; swal('Hata',m,'warning'); });
+  }
+})();
+</script>
 
 @endsection
