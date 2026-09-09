@@ -852,6 +852,11 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/ders-katilimci-cikar','StoreAdminController@ders_katilimci_cikar');
 	Route::post('/ders-katilimci-durum','StoreAdminController@ders_katilimci_durum');
 	Route::get ('/ders-musteri-ara','StoreAdminController@ders_musteri_ara');
+	// Haftalik Ders Programi (sablon) sayfasi + ileriye donuk oturum uretimi
+	Route::get ('/ders-programi','StoreAdminController@ders_programi')->name('isletmeadmin.ders_programi');
+	Route::post('/ders-sablon-kaydet','StoreAdminController@ders_sablon_kaydet');
+	Route::post('/ders-sablon-sil','StoreAdminController@ders_sablon_sil');
+	Route::post('/ders-programi-yayinla','StoreAdminController@ders_programi_yayinla');
 	//Route::middleware('role:Hesap Sahibi,Süpervizör,Yönetici')->get('/ayarlar','StoreAdminController@ayarlar');
 	Route::get('/ayarlar','StoreAdminController@ayarlar');
 	Route::get('/log-hareketleri','StoreAdminController@logHareketleri')->name('isletmeadmin.log');

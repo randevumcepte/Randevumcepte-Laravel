@@ -1784,6 +1784,20 @@
                   </li>
                   @endif
 
+                  {{-- 3b) Ders Programı (Pilates/kurs — haftalık grup dersi sablonu) --}}
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
+                  <li>
+                     @if($pageindex==205)
+                     <a href="/isletmeyonetim/ders-programi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/ders-programi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-grid-3x3-gap-fill"></span
+                        ><span class="mtext">Ders Programı</span>
+                     </a>
+                  </li>
+                  @endif
+
                   {{-- 4) Ön Görüşmeler --}}
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'gorusme.liste_gor'))
                   <li>

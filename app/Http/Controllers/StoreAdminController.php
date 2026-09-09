@@ -4717,6 +4717,129 @@ public function carkverilerigetir(Request $request)
         return response()->json($rows);
     }
 
+    // ---------- Haftalik Ders Programi (sablon) sayfasi ----------
+    public function ders_programi(Request $request){
+        $isletmeler = '';
+        $isletme='';
+        if(Auth::guard('satisortakligi')->check()){
+            $isletmeler = [15];
+            $isletme = Salonlar::where('id',15)->first();
+        } else {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme= Salonlar::where('id',self::mevcutsube($request))->first();
+        }
+        if(!in_array(self::mevcutsube($request),$isletmeler) || $_SERVER['HTTP_HOST'] == "randevu.randevumcepte.com.tr"){
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if(str_contains(self::lisans_sure_kontrol($request),'-')){
+            return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+        }
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'randevu.takvim_gor')) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if(count($isletmeler)>1 && !isset($_GET['sube'])){
+            return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
+        }
+        $isletmeId = self::mevcutsube($request);
+        $personeller = Personeller::where('salon_id',$isletmeId)->where('aktif',true)
+            ->orderBy('takvim_sirasi','asc')->get(['id','personel_adi']);
+        $sablon = \App\DersProgramiSablonu::where('salon_id',$isletmeId)->where('aktif',true)
+            ->orderBy('hafta_gunu','asc')->orderBy('saat','asc')->get();
+        return view('isletmeadmin.ders_programi',[
+            'sayfa_baslik'=>'Ders Programı',
+            'title'=>'Ders Programı | '.$isletme->salon_adi.' İşletme Yönetim Paneli',
+            'pageindex'=>205,
+            'bildirimler'=>self::bildirimgetir($request),
+            'isletme'=>$isletme,
+            'kalan_uyelik_suresi'=>self::lisans_sure_kontrol($request),
+            'yetkiliolunanisletmeler'=>$isletmeler,
+            'personeller'=>$personeller,
+            'sablon'=>$sablon,
+        ]);
+    }
+
+    // Sablon satiri ekle/guncelle (JSON)
+    public function ders_sablon_kaydet(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.olustur')) return $r;
+        $isletmeId = self::mevcutsube($request);
+        $data = [
+            'salon_id'    => $isletmeId,
+            'sube_id'     => $isletmeId,
+            'personel_id' => $request->personel_id ?: null,
+            'hafta_gunu'  => (int)$request->hafta_gunu,
+            'saat'        => $request->saat,
+            'saat_bitis'  => $request->saat_bitis,
+            'ders_tipi'   => $request->ders_tipi ?: 'Grup Dersi',
+            'kapasite'    => max(1,(int)$request->kapasite),
+            'renk'        => $request->renk ?: null,
+            'aktif'       => true,
+        ];
+        if($request->sablon_id){
+            $s = \App\DersProgramiSablonu::where('salon_id',$isletmeId)->find($request->sablon_id);
+            if(!$s) return response()->json(['durum'=>'hata','mesaj'=>'Kayit bulunamadi.'],404);
+            $s->update($data);
+        } else {
+            $s = \App\DersProgramiSablonu::create($data);
+        }
+        return response()->json(['durum'=>'ok','sablon_id'=>$s->id]);
+    }
+
+    // Sablon satiri sil (JSON) — sadece sablonu siler, uretilmis oturumlara dokunmaz
+    public function ders_sablon_sil(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.duzenle_iptal')) return $r;
+        $isletmeId = self::mevcutsube($request);
+        \App\DersProgramiSablonu::where('salon_id',$isletmeId)->where('id',$request->sablon_id)->delete();
+        return response()->json(['durum'=>'ok']);
+    }
+
+    // Programi yayinla: sablondan ileriye donuk ders_oturumlari uret (idempotent)
+    public function ders_programi_yayinla(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.olustur')) return $r;
+        $isletmeId = self::mevcutsube($request);
+
+        $hafta = max(1, min(12, (int)($request->hafta ?: 4)));   // kac hafta ileri (1-12)
+        $baslangic = $request->baslangic ?: date('Y-m-d');
+        $bugun = Carbon::parse($baslangic)->startOfDay();
+
+        $sablonlar = \App\DersProgramiSablonu::where('salon_id',$isletmeId)->where('aktif',true)->get();
+        if($sablonlar->isEmpty())
+            return response()->json(['durum'=>'hata','mesaj'=>'Once haftalik programa ders ekleyin.'],422);
+
+        $olusan = 0; $atlanan = 0;
+        for($h=0; $h<$hafta; $h++){
+            foreach($sablonlar as $s){
+                // hafta_gunu: 1=Pazartesi..7=Pazar. Carbon dayOfWeekIso: 1=Mon..7=Sun.
+                // Carbon 1.x uyumu: startOfWeek(param) yerine ISO gun farkiyla hesapla.
+                $ref = $bugun->copy()->addWeeks($h);
+                $tarih = $ref->copy()->addDays((int)$s->hafta_gunu - $ref->dayOfWeekIso);
+                if($tarih->lt($bugun)) { continue; } // gecmis gunu uretme
+                $tarihStr = $tarih->format('Y-m-d');
+
+                // Ayni sablon + tarih icin zaten var mi? (idempotent)
+                $var = \App\DersOturumu::where('salon_id',$isletmeId)
+                    ->where('sablon_id',$s->id)->where('tarih',$tarihStr)->exists();
+                if($var){ $atlanan++; continue; }
+
+                \App\DersOturumu::create([
+                    'salon_id'    => $isletmeId,
+                    'sube_id'     => $isletmeId,
+                    'personel_id' => $s->personel_id,
+                    'ders_tipi'   => $s->ders_tipi,
+                    'tarih'       => $tarihStr,
+                    'saat'        => $s->saat,
+                    'saat_bitis'  => $s->saat_bitis,
+                    'kapasite'    => $s->kapasite,
+                    'sablon_id'   => $s->id,
+                    'renk'        => $s->renk,
+                    'aktif'       => true,
+                ]);
+                $olusan++;
+            }
+        }
+        return response()->json(['durum'=>'ok','olusan'=>$olusan,'atlanan'=>$atlanan,'hafta'=>$hafta]);
+    }
+
     public function kasadefteri(Request $request){
        $isletmeler = '';
         $isletme='';
