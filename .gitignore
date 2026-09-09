@@ -70,3 +70,6 @@ yarn-error.log
 /inspect_*.php
 /kasa_islemleri.html
 /resp.txt
+
+# Buyuk DB dokumleri repoya girmesin (git add -A tuzagi)
+/storage/*.sql

@@ -1901,9 +1901,9 @@
                   @endif
                   @endif
 
-                  {{-- 10) Çarkıfelek (sadece uyelik_turu == 3) --}}
+                  {{-- 10) Çarkıfelek (uyelik_turu 2 ve 3) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if($isletme->uyelik_turu == 3)
+                  @if($isletme->uyelik_turu >= 2)
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.cark_yonet'))
                   <li>
                      @if(in_array($pageindex ?? 0, [500, 501, 502]))
