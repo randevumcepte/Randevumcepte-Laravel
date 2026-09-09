@@ -92,7 +92,13 @@ class AuthenticateSession
 
         return tap($next($request), function ($response) use ($request, $key, $guard) {
             if ($request->user()) {
-                $request->session()->put($key, $this->oturumDamgasi($request->user(), $guard));
+                // NOT: Damgayi burada HER istekte YENIDEN YAZMIYORUZ (Laravel'in
+                // logoutOtherDevices davranisi). Boyle olsaydi, parolayi DEGISTIREN
+                // oturum kendi damgasini yeni degere guncelleyip acik kalirdi ("mevcut
+                // oturumu koru"). Kullanici talebi: parola degisince o oturum DA atilsin.
+                // Bu yuzden damga yalniz login'de bir kez tohumlanir (yukarida); parola
+                // (veya personel pasif/silme -> oturum_iptal_tarihi) degisince tohumlanan
+                // damga ile uyusmayan TUM oturumlar (degisiteni dahil) sonlanir.
 
                 // SAFARI FIX: kimligi dogrulanmis panel sayfalarini onbelleklenemez
                 // yap. Aksi halde Safari, reload'da sayfayi HTTP disk cache'inden /
