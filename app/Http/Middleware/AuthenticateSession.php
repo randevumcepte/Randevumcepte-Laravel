@@ -90,9 +90,23 @@ class AuthenticateSession
             $this->logout($request);
         }
 
-        return tap($next($request), function () use ($request, $key, $guard) {
+        return tap($next($request), function ($response) use ($request, $key, $guard) {
             if ($request->user()) {
                 $request->session()->put($key, $this->oturumDamgasi($request->user(), $guard));
+
+                // SAFARI FIX: kimligi dogrulanmis panel sayfalarini onbelleklenemez
+                // yap. Aksi halde Safari, reload'da sayfayi HTTP disk cache'inden /
+                // bfcache'ten sunup sunucuya HIC GITMIYOR -> bu middleware'in
+                // oturum-iptal (parola degisimi / personel pasif-silme) kontrolu
+                // calismiyor ve oturum sonlanmis gibi gorunmuyordu. Chrome reload'da
+                // revalidate ettigi icin dogru calisiyordu. no-store hem HTTP cache'i
+                // hem Safari bfcache'ini keser. Public/mini-site yanitlarina dokunmaz
+                // (orada $request->user() bostur -> bu blok calismaz), SEO cache'i korunur.
+                if ($response instanceof \Symfony\Component\HttpFoundation\Response) {
+                    $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+                    $response->headers->set('Pragma', 'no-cache');
+                    $response->headers->set('Expires', '0');
+                }
             }
         });
     }
