@@ -3380,7 +3380,12 @@ public function carkverilerigetir(Request $request)
         $grup=self::grup_sms_liste_getir($request);
        
         $raporlar = self::sms_raporlari($request);
-        $portfoy = MusteriPortfoy::where('salon_id',self::mevcutsube($request))->groupBy('user_id')->get();
+        // NOT: $portfoy ve $musteridanisansecimi canli SMS Yonetimi view'inde KULLANILMIYOR
+        // (yalnizca olu layout/toplusmsgonder kopyasinda). Sayfa yuklenirken bosuna
+        // hesaplaniyorlardi; musteriportfoydropliste bir JsonResponse uretir ve bir musteri
+        // adinda bozuk UTF-8 (latin5) varsa json_encode "Malformed UTF-8" ile patlayip TUM
+        // sayfayi beyaz (500) yapiyordu. Musteri listesi zaten ayri AJAX ucundan geliyor.
+        $portfoy = collect();
         $karaliste = DB::table('users')->join('musteri_portfoy','musteri_portfoy.user_id','=','users.id')->select(
             'users.name as ad_soyad',
             'users.cep_telefon as telefon',
@@ -3395,7 +3400,7 @@ public function carkverilerigetir(Request $request)
             return $r;
         });
 
-        return view('isletmeadmin.toplusmsgonder',['portfoy' => $portfoy,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'title' => 'Toplu SMS Gönder','pageindex' => 106,'isletme'=>$isletme,'taslaklar'=>$taslaklar,'grup'=>$grup,'sms_ayarlari'=>$sms_ayarlari,'raporlar'=>$raporlar,'karaliste'=>$karaliste, 'sayfa_baslik'=>'SMS Yönetimi' , 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'musteridanisansecimi'=>self::musteriportfoydropliste($request)]);
+        return view('isletmeadmin.toplusmsgonder',['portfoy' => $portfoy,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'title' => 'Toplu SMS Gönder','pageindex' => 106,'isletme'=>$isletme,'taslaklar'=>$taslaklar,'grup'=>$grup,'sms_ayarlari'=>$sms_ayarlari,'raporlar'=>$raporlar,'karaliste'=>$karaliste, 'sayfa_baslik'=>'SMS Yönetimi' , 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'musteridanisansecimi'=>null]);
         } catch (\Throwable $e) {
             \Log::error('toplusmsgonder patladi', ['sube'=>self::mevcutsube($request),'msg'=>$e->getMessage(),'file'=>$e->getFile(),'line'=>$e->getLine()]);
             if ($request->has('smsdebug')) {
@@ -29403,6 +29408,8 @@ public function musteriportfoydropliste(Request $request)
             ->take($perPage)
             ->get();
 
+        // Bozuk UTF-8 (latin5) musteri adlari json_encode'u "Malformed UTF-8" ile patlatiyordu.
+        // JSON_INVALID_UTF8_SUBSTITUTE ile gecersiz baytlar �'ye cevrilir, 500 olmaz.
         return response()->json([
             'total' => $total,
             'perPage' => $perPage,
@@ -29414,7 +29421,7 @@ public function musteriportfoydropliste(Request $request)
             'filtre'=>$filtre,
             'salonId'=>$salonId,
             'musteriTuru'=>$musteriTuru,
-        ]);
+        ], 200, [], JSON_INVALID_UTF8_SUBSTITUTE);
     }
     public function urundropliste(Request $request)
     {
