@@ -3373,6 +3373,7 @@ public function carkverilerigetir(Request $request)
         }
          
          
+        try {
         $sms_ayarlari = SalonSMSAyarlari::where('salon_id',self::mevcutsube($request))->orderBy('ayar_id','asc')->get();
         $taslaklar = SMSTaslaklari::where('salon_id',self::mevcutsube($request))->orWhere('salon_id',null)->get();
         $paketler = self::paket_liste_getir("",true,$request);
@@ -3395,6 +3396,15 @@ public function carkverilerigetir(Request $request)
         });
 
         return view('isletmeadmin.toplusmsgonder',['portfoy' => $portfoy,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'title' => 'Toplu SMS Gönder','pageindex' => 106,'isletme'=>$isletme,'taslaklar'=>$taslaklar,'grup'=>$grup,'sms_ayarlari'=>$sms_ayarlari,'raporlar'=>$raporlar,'karaliste'=>$karaliste, 'sayfa_baslik'=>'SMS Yönetimi' , 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'musteridanisansecimi'=>self::musteriportfoydropliste($request)]);
+        } catch (\Throwable $e) {
+            \Log::error('toplusmsgonder patladi', ['sube'=>self::mevcutsube($request),'msg'=>$e->getMessage(),'file'=>$e->getFile(),'line'=>$e->getLine()]);
+            if ($request->has('smsdebug')) {
+                $out = 'SMSDEBUG '.get_class($e).': '.$e->getMessage()."\n@ ".$e->getFile().':'.$e->getLine()."\n\n"
+                     . implode("\n", array_slice(explode("\n", $e->getTraceAsString()), 0, 15));
+                return response($out, 500)->header('Content-Type', 'text/plain; charset=utf-8');
+            }
+            throw $e;
+        }
     }
      public function e_asistan(Request $request){
         $isletmeler = '';
