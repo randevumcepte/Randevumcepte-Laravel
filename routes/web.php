@@ -744,6 +744,9 @@ Route::get('/mobil/webview-giris', 'MobilWebViewController@giris')->name('mobil.
 
 // Salon paneli — destek + duyuru okundu
 Route::prefix('isletmeyonetim')->middleware('auth:isletmeyonetim')->group(function() {
+    // Oturum nobetcisi ucu (iOS Safari bfcache fix): oturum gecerliyse 200 {ok:true},
+    // gecersizse AuthenticateSession/Authenticate 401 dondurur -> istemci login'e atar.
+    Route::get('/oturum-durum', 'StoreAdminController@oturumDurum')->name('isletmeadmin.oturum.durum');
     Route::post('/duyuru/{id}/okundu', 'SalonDestekController@duyuruOkundu');
     Route::get('/destek', 'SalonDestekController@destekListesi');
     Route::get('/destek/yeni', 'SalonDestekController@destekYeniForm');

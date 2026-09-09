@@ -5996,8 +5996,50 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 @endif
 
+<!--
+  OTURUM NOBETCISI (iOS Safari bfcache fix).
+  iOS Safari, sayfayi bfcache/HTTP cache'ten geri yukleyip sunucuya HIC GITMEDIGI
+  icin, sunucudaki oturum-iptal kontrolu (parola degisimi / personel pasif-silme)
+  calismiyor ve oturum sonlanmis gibi gorunmuyordu (Chrome revalidate ettigi icin
+  calisiyordu). Cozum tarayici cache'inden BAGIMSIZ: sayfa bfcache'ten geri
+  yuklense bile JS 'pageshow' olayinda calisir; hafif bir fetch ile sunucuya
+  "oturum gecerli mi?" diye sorar. 401/419 gelirse login'e atar. fetch no-store +
+  cache-busting oldugu icin daima sunucuya gider (navigation cache'ine takilmaz).
+-->
+<script>
+(function(){
+  var LOGIN_URL = "{{ route('isletmeadmin.login') }}";
+  var CHECK_URL = "{{ url('/isletmeyonetim/oturum-durum') }}";
+  var mesgul = false;
+  function oturumKontrol(){
+    if (mesgul) return; mesgul = true;
+    fetch(CHECK_URL + (CHECK_URL.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now(), {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      redirect: 'manual',
+      headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(function(r){
+      // 401/419 = oturum gecersiz; opaqueredirect = login'e 302 (redirect:manual)
+      if (r.status === 401 || r.status === 419 || r.type === 'opaqueredirect' || r.status === 0) {
+        window.location.replace(LOGIN_URL);
+      }
+    }).catch(function(){ /* ag/gecici hata: oturuma dokunma, yanlis atma yapma */ })
+      .then(function(){ mesgul = false; });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', oturumKontrol);
+  else oturumKontrol();
+  // EN KRITIK: bfcache'ten geri yukleme (iOS Safari geri/ileri + reload)
+  window.addEventListener('pageshow', function(){ oturumKontrol(); });
+  // Mobilde uygulamaya/sekmeye geri donunce
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) oturumKontrol(); });
+  // Periyodik guvence
+  setInterval(oturumKontrol, 45000);
+})();
+</script>
+
    </body>
-  
+
 
 
 </html>

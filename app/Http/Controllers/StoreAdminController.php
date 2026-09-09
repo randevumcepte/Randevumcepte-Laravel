@@ -7212,6 +7212,15 @@ private function ayAdiCevir($ingilizceAy)
           $randevuguncel['success'] = 'Randevu başarı ile güncellendi';
            return json_encode($randevuguncel);
     }
+    /**
+     * Oturum nobetcisi ucu (iOS Safari bfcache fix). Buraya ulasilabiliyorsa oturum
+     * gecerli demektir (auth:isletmeyonetim + AuthenticateSession'dan gecti). Oturum
+     * gecersizse bu metoda hic girilmez; middleware 401 dondurur. Yanit no-store'dur
+     * (AuthenticateSession authed yanitlara zaten no-store ekliyor).
+     */
+    public function oturumDurum(Request $request){
+        return response()->json(['ok' => true]);
+    }
     public function sifredegistir(Request $request){
         // DUZELTME: onceden `->user()->first()` cagriliyordu; bu bir model
         // ornegine first() uygulayip TABLONUN ILK kaydini donduruyordu (yanlis
