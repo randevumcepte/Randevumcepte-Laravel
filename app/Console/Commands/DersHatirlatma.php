@@ -165,13 +165,30 @@ class DersHatirlatma extends Command
         $saatStr  = substr($o->saat, 0, 5);
         $dersAdi  = $o->ders_tipi ?: 'Grup Dersi';
 
+        // Egitmen (hoca) adi
+        $egitmen = optional($o->personel)->personel_adi;
+
+        // Klinik/salon telefonu (randevu hatirlatmasi ile ayni: telefon_1, basina 0)
+        $tel = trim((string) ($salon->telefon_1 ?? ''));
+        if ($tel !== '' && ctype_digit($tel[0]) && $tel[0] !== '0') {
+            $tel = '0' . $tel;
+        }
+
+        // Randevu hatirlatmasi gibi: ders adi + egitmen + tarih + saat + klinik no
+        $satirlar = [];
+        $satirlar[] = '📅 Tarih: ' . $tarihStr;
+        $satirlar[] = '🕒 Saat: ' . $saatStr;
+        $satirlar[] = '🧘 Ders: ' . $dersAdi;
+        if (!empty($egitmen)) $satirlar[] = '👤 Eğitmen: ' . $egitmen;
+        if ($tel !== '')      $satirlar[] = '📞 ' . $tel;
+
         foreach ($katilimcilar as $m) {
             if ($dry) {
-                $this->line('     - ' . $m->name . ' (' . ($m->cep_telefon ?: 'TEL YOK') . ') wa_onay=' . (int)($m->whatsapp_onay ?? 1));
+                $this->line('     - ' . $m->name . ' (' . ($m->cep_telefon ?: 'TEL YOK') . ')');
                 continue;
             }
-            $mesaj = 'Sayın ' . $m->name . '; ' . $tarihStr . ' tarihinde saat ' . $saatStr
-                . ' ' . $dersAdi . ' dersinizi hatırlatmak isteriz, görüşmek üzere ✨';
+            $mesaj = 'Sayın ' . $m->name . '; aşağıdaki dersinizi hatırlatmak isteriz, görüşmek üzere ✨' . "\n\n"
+                . implode("\n", $satirlar);
             DersBildirimServisi::musteriyeGonder($salon, $m, $mesaj, 'ders_hatirlatma');
         }
         if ($dry) return;
