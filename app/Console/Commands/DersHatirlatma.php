@@ -77,6 +77,17 @@ class DersHatirlatma extends Command
             $dersZamani = strtotime($o->tarih . ' ' . $o->saat);
             $tetik = date('Y-m-d H:i', $dersZamani - $x * 3600);
 
+            // GOZLEMLENEBILIRLIK: tetige +-5 dk yakin oturumlari her cron tur'unda
+            // logla (cron elle komut calistirmadan neden gitti/gitmedi gorunsun).
+            $yakin = abs(($dersZamani - $x * 3600) - strtotime($simdi)) <= 300;
+            if ($yakin && !$test) {
+                Log::info('[DERS-HAT] aday', [
+                    'oturum' => $o->id, 'salon' => $sid, 'ders' => $o->ders_tipi,
+                    'tetik' => $tetik, 'simdi' => $simdi, 'toggle' => $toggleAcik ? 1 : 0,
+                    'sure_saat' => $x, 'gonderildi' => $o->hatirlatma_gonderildi,
+                ]);
+            }
+
             if ($test) {
                 $this->line("Oturum #{$o->id} [{$salon->salon_adi}] {$o->tarih} {$o->saat} '{$o->ders_tipi}'");
                 $this->line("  toggle(ayar_id=1): " . ($toggleAcik ? 'ACIK' : 'KAPALI')
@@ -84,11 +95,18 @@ class DersHatirlatma extends Command
                     . " | tetik: {$tetik} | simdi: {$simdi}");
             }
 
-            if (!$toggleAcik) { if ($test) $this->warn('  -> ATLANDI: randevu hatirlatma toggle KAPALI'); continue; }
-            if ($x <= 0)      { if ($test) $this->warn('  -> ATLANDI: salon hatirlatma suresi tanimsiz (0)'); continue; }
+            if (!$toggleAcik) {
+                if ($yakin && !$test) Log::info('[DERS-HAT] ATLANDI: toggle(ayar_id=1) KAPALI', ['oturum' => $o->id]);
+                if ($test) $this->warn('  -> ATLANDI: randevu hatirlatma toggle KAPALI'); continue;
+            }
+            if ($x <= 0) {
+                if ($yakin && !$test) Log::info('[DERS-HAT] ATLANDI: hatirlatma suresi 0', ['oturum' => $o->id]);
+                if ($test) $this->warn('  -> ATLANDI: salon hatirlatma suresi tanimsiz (0)'); continue;
+            }
 
             // Tetik saati kontrolu — --force ile yoksayilir
             if (!$force && $tetik !== $simdi) {
+                if ($yakin && !$test) Log::info('[DERS-HAT] ATLANDI: tetik dakikasi degil', ['oturum' => $o->id, 'tetik' => $tetik, 'simdi' => $simdi]);
                 if ($test) $this->warn('  -> ATLANDI: tetik saati degil (--force ile zorlanabilir)');
                 continue;
             }
@@ -108,8 +126,12 @@ class DersHatirlatma extends Command
                 ->where('id', $o->id)
                 ->whereNull('hatirlatma_gonderildi')
                 ->update(['hatirlatma_gonderildi' => date('Y-m-d H:i:s')]);
-            if ($claimed !== 1) continue;
+            if ($claimed !== 1) {
+                Log::info('[DERS-HAT] ATLANDI: baska process claim etti / zaten gonderildi', ['oturum' => $o->id]);
+                continue;
+            }
 
+            Log::info('[DERS-HAT] TETIK ESLESTI, gonderiliyor', ['oturum' => $o->id, 'tetik' => $tetik]);
             $this->oturumuHatirlat($o, $salon);
         }
     }
