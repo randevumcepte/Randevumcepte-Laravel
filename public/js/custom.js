@@ -10785,6 +10785,12 @@ function takvimyukle(preload,turdegisti)
                         event.className += " disabled-event";
                     }
 
+                    // Grup dersi oturumu: surukleme/resize KAPALI (randevu degil)
+                    if (event.dersOturumId) {
+                        event.editable = false;
+                        event.className += " ders-event";
+                    }
+
                     // V2 takvim hover tooltip artik document delegation ile
                     // calisiyor (custom.js basinda kuruluyor) — eventRender'da
                     // bind yapmaya gerek yok, takvim refresh'lerinde kaybolmaz.
@@ -10792,9 +10798,13 @@ function takvimyukle(preload,turdegisti)
                 },
 
              eventClick: function (event, jsEvent, view) {
-                
-         
-                
+
+                // Grup dersi (Pilates/kurs) oturumu — kendi kapasite/katilimci modalini ac
+                if (event.dersOturumId) {
+                    if (typeof dersOturumAc === 'function') dersOturumAc(event.dersOturumId);
+                    return false;
+                }
+
                 if (event.title === 'Boş slot') {
                     // Burada istediğiniz işlemi yapabilirsiniz, örneğin slotu seçmek
                     console.log('Boş slot tıklandı Resource id: ' + event.resourceId + " "+event.resourceTitle);

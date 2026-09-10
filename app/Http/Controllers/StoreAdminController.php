@@ -4196,7 +4196,7 @@ public function carkverilerigetir(Request $request)
     $dersEventleri = [];
     if ($takvim_turu == 1) {
         try {
-            $ders_oturumlari = \App\DersOturumu::with('aktifKatilimcilar')
+            $ders_oturumlari = \App\DersOturumu::with(['aktifKatilimcilar','personel.trenk'])
                 ->where('salon_id', $isletmeId)
                 ->where('aktif', true)
                 ->where('tarih', '>=', $tarih1)
@@ -4211,14 +4211,13 @@ public function carkverilerigetir(Request $request)
                 $kapasite = (int) $o->kapasite;
                 $iptal    = (bool) $o->iptal;
 
+                // Renk = personelin takvim rengi (normal randevularla ayni gorunum).
+                // Iptal ise gri. Doluluk bilgisi baslikta "X/Y dolu" olarak.
+                $personelRenk = ($o->personel && $o->personel->trenk) ? $o->personel->trenk->renk : null;
                 if ($iptal) {
                     $color = '#95a5a6';                 // iptal — gri
-                } elseif ($kapasite > 0 && $doluluk >= $kapasite) {
-                    $color = '#c0392b';                 // dolu — kirmizi
-                } elseif ($doluluk > 0) {
-                    $color = '#16a085';                 // kismi dolu — turkuaz
                 } else {
-                    $color = ($o->renk ?: '#5d6d7e');   // bos — gri/mavi
+                    $color = $personelRenk ?: ($o->renk ?: '#5d6d7e');
                 }
 
                 $dersAdi = $o->ders_tipi ?: 'Grup Dersi';
