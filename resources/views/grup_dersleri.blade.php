@@ -6,35 +6,38 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>{{ $salon->salon_adi }} — Grup Dersleri</title>
 <style>
+  /* Mini-site temasiyla ayni palet (public/css/randevu-booking.css) */
+  :root{--p:#5C008E;--p2:#7B2FB8;--soft:#F3ECFA;--softer:#FAF5FF;--ink:#2c3e50;}
   *{box-sizing:border-box;}
-  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f4f6f8;color:#2c3e50;}
-  .gd-head{background:#16a085;color:#fff;padding:20px 16px;text-align:center;}
-  .gd-head h1{margin:0;font-size:19px;}
-  .gd-head p{margin:4px 0 0;font-size:13px;opacity:.9;}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#F8F9FC;color:var(--ink);}
+  .gd-head{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;padding:22px 16px;text-align:center;}
+  .gd-head h1{margin:0;font-size:19px;font-weight:800;}
+  .gd-head p{margin:5px 0 0;font-size:13px;opacity:.92;}
   .gd-wrap{max-width:560px;margin:0 auto;padding:14px;}
-  .gd-gun{font-weight:700;color:#16a085;margin:16px 4px 8px;font-size:15px;border-bottom:2px solid #e6f4f1;padding-bottom:4px;}
-  .gd-card{background:#fff;border:1px solid #eef1f4;border-radius:12px;padding:12px 14px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
-  .gd-card .t{font-weight:700;font-size:15px;}
+  .gd-gun{font-weight:700;color:var(--p);margin:18px 4px 8px;font-size:15px;border-bottom:2px solid var(--soft);padding-bottom:5px;}
+  .gd-card{background:#fff;border:1px solid #ECE8F4;border-radius:14px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 1px 3px rgba(92,0,142,.05);}
+  .gd-card .t{font-weight:700;font-size:15px;color:var(--p);}
   .gd-card .d{font-size:12.5px;color:#7f8c8d;margin-top:2px;}
-  .gd-card .doluluk{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;display:inline-block;margin-top:5px;}
-  .doluluk.ok{background:#e8f8f5;color:#148f77;}
-  .doluluk.full{background:#fdedec;color:#c0392b;}
-  .gd-btn{background:#16a085;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
-  .gd-btn.full{background:#e67e22;}
-  .gd-bos{color:#95a5a6;text-align:center;padding:40px 10px;}
+  .gd-card .doluluk{font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:999px;display:inline-block;margin-top:6px;}
+  .doluluk.ok{background:#ECFDF5;color:#059669;}
+  .doluluk.full{background:#FEF2F2;color:#EF4444;}
+  .gd-btn{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;border:none;border-radius:9px;padding:10px 16px;font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 6px rgba(92,0,142,.25);}
+  .gd-btn.full{background:#F59E0B;box-shadow:0 2px 6px rgba(245,158,11,.25);}
+  .gd-bos{color:#95a5a6;text-align:center;padding:44px 12px;}
   /* modal */
-  .gd-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:50;}
-  .gd-modal{background:#fff;border-radius:14px;max-width:380px;width:100%;overflow:hidden;}
-  .gd-modal-h{background:#16a085;color:#fff;padding:14px 16px;font-weight:700;}
-  .gd-modal-b{padding:16px;}
-  .gd-modal-b label{font-size:12px;font-weight:600;color:#5f6b7a;display:block;margin:8px 0 4px;}
-  .gd-modal-b input{width:100%;height:42px;border:1px solid #d7dde3;border-radius:8px;padding:0 11px;font-size:15px;}
+  .gd-ov{position:fixed;inset:0;background:rgba(35,10,55,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:50;}
+  .gd-modal{background:#fff;border-radius:16px;max-width:380px;width:100%;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.3);}
+  .gd-modal-h{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;padding:15px 18px;font-weight:700;font-size:16px;}
+  .gd-modal-b{padding:18px;}
+  .gd-modal-b label{font-size:12px;font-weight:600;color:#5f6b7a;display:block;margin:10px 0 5px;}
+  .gd-modal-b input{width:100%;height:44px;border:1px solid #d7dde3;border-radius:9px;padding:0 12px;font-size:15px;}
+  .gd-modal-b input:focus{outline:none;border-color:var(--p);box-shadow:0 0 0 3px var(--soft);}
   .gd-modal-b .info{font-size:12.5px;color:#7f8c8d;margin:0 0 6px;}
-  .gd-modal-b .ders-ozet{background:#f4f6f8;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;}
-  .gd-modal-b button{width:100%;height:44px;border:none;border-radius:9px;background:#16a085;color:#fff;font-weight:700;font-size:15px;margin-top:14px;cursor:pointer;}
-  .gd-modal-b .iptal{background:#eee;color:#555;height:38px;margin-top:8px;}
-  .gd-msg{padding:10px 12px;border-radius:8px;font-size:13.5px;margin-top:10px;display:none;}
-  .gd-msg.ok{background:#e8f8f5;color:#148f77;} .gd-msg.err{background:#fdedec;color:#c0392b;}
+  .gd-modal-b .ders-ozet{background:var(--softer);border:1px solid var(--soft);border-radius:9px;padding:10px 12px;font-size:13px;margin-bottom:10px;color:var(--p);font-weight:600;}
+  .gd-modal-b button{width:100%;height:46px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;font-weight:700;font-size:15px;margin-top:14px;cursor:pointer;}
+  .gd-modal-b .iptal{background:#f1f0f4;color:#555;height:40px;margin-top:8px;}
+  .gd-msg{padding:10px 12px;border-radius:9px;font-size:13.5px;margin-top:10px;display:none;}
+  .gd-msg.ok{background:#ECFDF5;color:#059669;} .gd-msg.err{background:#FEF2F2;color:#EF4444;}
 </style>
 </head>
 <body>
