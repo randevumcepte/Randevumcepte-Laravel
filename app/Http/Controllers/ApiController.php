@@ -2381,9 +2381,52 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $bitis = '20:00';
         }
 
+        // GRUP DERSI (Pilates/kurs) — mobil takvime ders oturumu enjeksiyonu.
+        // Web randevuyukle ile ayni mantik: takvim_turu==1 (personel), personel rengi,
+        // baslik "Ders X/Y dolu", tiklama icin dersOturumId. try/catch korumali.
+        $dersEventleri = [];
+        if ($takvim_turu == 1) {
+            try {
+                $dq = \App\DersOturumu::with(['aktifKatilimcilar','personel.trenk'])
+                    ->where('salon_id', $isletmeId)->where('aktif', true)
+                    ->where('tarih','>=',$tarih1)->where('tarih','<=',$tarih2);
+                if ($personelRolu == 5 && $request->personel_id) {
+                    $dq->where('personel_id', $request->personel_id);
+                }
+                foreach ($dq->get() as $o) {
+                    $doluluk  = $o->aktifKatilimcilar->count();
+                    $kapasite = (int) $o->kapasite;
+                    $iptal    = (bool) $o->iptal;
+                    if ($iptal)                                   $c = '#95a5a6';
+                    elseif ($o->personel && $o->personel->trenk)  $c = $o->personel->trenk->renk;
+                    else                                          $c = ($o->renk ?: '#5d6d7e');
+                    $dersAdi = $o->ders_tipi ?: 'Grup Dersi';
+                    $dersEventleri[] = [
+                        'id'           => 'ders-'.$o->id,
+                        'randevu_id'   => '',
+                        'dersOturumId' => $o->id,
+                        'dersKapasite' => $kapasite,
+                        'dersDoluluk'  => $doluluk,
+                        'dersIptal'    => $iptal ? 1 : 0,
+                        'title'        => $dersAdi.' '.$doluluk.'/'.$kapasite.' dolu',
+                        'start'        => \Carbon\Carbon::parse($o->tarih.' '.$o->saat)->toIso8601String(),
+                        'end'          => \Carbon\Carbon::parse($o->tarih.' '.$o->saat_bitis)->toIso8601String(),
+                        'bgcolor'      => $c,
+                        'borderColor'  => '#ffffff',
+                        'resourceId'   => $o->personel_id ?? 0,
+                        'personelId'   => $o->personel_id,
+                        'musteri'      => $dersAdi,
+                        'modal_title'  => $dersAdi,
+                        'durum'        => 'ders',
+                        'textColor'    => '#ffffff',
+                    ];
+                }
+            } catch (\Throwable $e) { $dersEventleri = []; }
+        }
+
         return [
             "randevular_liste" => Randevular::with(['users','hizmetler.hizmetler','hizmetler.personeller','hizmetler.cihaz','hizmetler.oda'])->where("salon_id",$isletmeId)->where('user_id','!=',2012)->where('tarih','>=',$tarih1)->where('tarih','<=',$tarih2)->get(),
-            "randevular" => $randevu_hizmetler->toArray(),
+            "randevular" => array_merge($randevu_hizmetler->toArray(), $dersEventleri),
             "resources" => $resources,
             "personeller" => $personeller,
             'baslangic' =>  $baslangic,
@@ -31670,5 +31713,262 @@ SOZLESME_TXT;
         $sonuc = \App\Services\DersRezervasyonServisi::rezervasyonYap($salonId, $oturumId, $userId, true);
         $kod = ($sonuc['durum'] === 'ok') ? 200 : 409;
         return response()->json($sonuc, $kod);
+    }
+
+    // ================================================================
+    // GRUP DERSI — ISLETME (panel) tarafi mobil API. Web StoreAdminController
+    // ders_* metodlarinin /api/v1 karsiligi (salon body'den, web session yok).
+    // ================================================================
+
+    private function _dersSalon(Request $request)
+    {
+        return $request->salon_id ?: ($request->salonid ?: $request->sube);
+    }
+    private function _dersEkleyenPersonel(Request $request, $salonId)
+    {
+        if ($request->personel_id) return $request->personel_id;
+        if ($request->user_id) {
+            return \App\Personeller::where('yetkili_id', $request->user_id)->where('salon_id', $salonId)->value('id');
+        }
+        return null;
+    }
+
+    // Ders Programi ekrani verisi: personeller + hizmetler + sablon
+    public function dersProgramiListe(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        if (!$salonId) return response()->json(['durum' => 'hata', 'mesaj' => 'salon yok'], 422);
+        $personeller = \App\Personeller::where('salon_id', $salonId)->where('aktif', true)
+            ->orderBy('takvim_sirasi', 'asc')->get(['id', 'personel_adi']);
+        $hizmetler = \DB::table('salon_sunulan_hizmetler')
+            ->join('hizmetler', 'salon_sunulan_hizmetler.hizmet_id', '=', 'hizmetler.id')
+            ->where('salon_sunulan_hizmetler.salon_id', $salonId)
+            ->where('salon_sunulan_hizmetler.aktif', true)
+            ->orderBy('hizmetler.hizmet_adi', 'asc')->get(['hizmetler.id', 'hizmetler.hizmet_adi']);
+        $sablon = \App\DersProgramiSablonu::with('personel')->where('salon_id', $salonId)->where('aktif', true)
+            ->orderBy('hafta_gunu', 'asc')->orderBy('saat', 'asc')->get()->map(function ($s) {
+                return [
+                    'id' => $s->id, 'hafta_gunu' => (int) $s->hafta_gunu, 'ders_tipi' => $s->ders_tipi,
+                    'hizmet_id' => $s->hizmet_id, 'personel_id' => $s->personel_id,
+                    'personel' => $s->personel ? $s->personel->personel_adi : null,
+                    'saat' => substr($s->saat, 0, 5), 'saat_bitis' => substr($s->saat_bitis, 0, 5),
+                    'kapasite' => (int) $s->kapasite,
+                ];
+            });
+        return response()->json(['durum' => 'ok', 'personeller' => $personeller, 'hizmetler' => $hizmetler, 'sablon' => $sablon]);
+    }
+
+    public function dersSablonKaydet(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        if (!$salonId) return response()->json(['durum' => 'hata', 'mesaj' => 'salon yok'], 422);
+        $data = [
+            'salon_id' => $salonId, 'sube_id' => $salonId, 'personel_id' => $request->personel_id ?: null,
+            'hafta_gunu' => (int) $request->hafta_gunu, 'saat' => $request->saat, 'saat_bitis' => $request->saat_bitis,
+            'ders_tipi' => $request->ders_tipi ?: 'Grup Dersi', 'hizmet_id' => $request->hizmet_id ?: null,
+            'kapasite' => max(1, (int) $request->kapasite), 'aktif' => true,
+        ];
+        $senkron = 0;
+        if ($request->sablon_id) {
+            $s = \App\DersProgramiSablonu::where('salon_id', $salonId)->find($request->sablon_id);
+            if (!$s) return response()->json(['durum' => 'hata', 'mesaj' => 'Kayit bulunamadi.'], 404);
+            $s->update($data);
+            $senkron = \App\DersOturumu::where('salon_id', $salonId)->where('sablon_id', $s->id)
+                ->where('tarih', '>=', date('Y-m-d'))->where('aktif', true)
+                ->where(function ($q) { $q->whereNull('iptal')->orWhere('iptal', 0); })
+                ->update(['hizmet_id' => $s->hizmet_id, 'ders_tipi' => $s->ders_tipi, 'personel_id' => $s->personel_id,
+                    'saat' => $s->saat, 'saat_bitis' => $s->saat_bitis, 'kapasite' => $s->kapasite]);
+        } else {
+            $s = \App\DersProgramiSablonu::create($data);
+        }
+        return response()->json(['durum' => 'ok', 'sablon_id' => $s->id, 'senkron' => $senkron]);
+    }
+
+    public function dersSablonSil(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        if (!$salonId) return response()->json(['durum' => 'hata', 'mesaj' => 'salon yok'], 422);
+        $temizlenen = 0; $korunan = 0;
+        foreach (\App\DersOturumu::where('salon_id', $salonId)->where('sablon_id', $request->sablon_id)
+                     ->where('tarih', '>=', date('Y-m-d'))->where('aktif', true)->get() as $o) {
+            $katVar = \App\DersKatilimci::where('oturum_id', $o->id)->whereNotIn('durum', ['iptal'])->exists();
+            if ($katVar) { $korunan++; continue; }
+            $o->aktif = false; $o->iptal = true; $o->save(); $temizlenen++;
+        }
+        \App\DersProgramiSablonu::where('salon_id', $salonId)->where('id', $request->sablon_id)->delete();
+        return response()->json(['durum' => 'ok', 'temizlenen' => $temizlenen, 'korunan' => $korunan]);
+    }
+
+    public function dersProgramiYayinla(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        if (!$salonId) return response()->json(['durum' => 'hata', 'mesaj' => 'salon yok'], 422);
+        $hafta = max(1, min(12, (int) ($request->hafta ?: 4)));
+        $bugun = \Carbon\Carbon::parse($request->baslangic ?: date('Y-m-d'))->startOfDay();
+        $sablonlar = \App\DersProgramiSablonu::where('salon_id', $salonId)->where('aktif', true)->get();
+        if ($sablonlar->isEmpty()) return response()->json(['durum' => 'hata', 'mesaj' => 'Once haftalik programa ders ekleyin.'], 422);
+        $olusan = 0; $atlanan = 0;
+        for ($h = 0; $h < $hafta; $h++) {
+            foreach ($sablonlar as $s) {
+                $ref = $bugun->copy()->addWeeks($h);
+                $tarih = $ref->copy()->addDays((int) $s->hafta_gunu - $ref->dayOfWeekIso);
+                if ($tarih->lt($bugun)) continue;
+                $tarihStr = $tarih->format('Y-m-d');
+                if (\App\DersOturumu::where('salon_id', $salonId)->where('sablon_id', $s->id)->where('tarih', $tarihStr)->exists()) { $atlanan++; continue; }
+                \App\DersOturumu::create([
+                    'salon_id' => $salonId, 'sube_id' => $salonId, 'personel_id' => $s->personel_id,
+                    'ders_tipi' => $s->ders_tipi, 'hizmet_id' => $s->hizmet_id, 'tarih' => $tarihStr,
+                    'saat' => $s->saat, 'saat_bitis' => $s->saat_bitis, 'kapasite' => $s->kapasite,
+                    'sablon_id' => $s->id, 'aktif' => true,
+                ]);
+                $olusan++;
+            }
+        }
+        return response()->json(['durum' => 'ok', 'olusan' => $olusan, 'atlanan' => $atlanan]);
+    }
+
+    // Oturum + katilimci listesi
+    public function dersOturumGetir(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        $oturum = \App\DersOturumu::with(['katilimcilar.musteri', 'personel'])
+            ->where('salon_id', $salonId)->find($request->oturum_id);
+        if (!$oturum) return response()->json(['durum' => 'hata', 'mesaj' => 'Oturum bulunamadi.'], 404);
+        $katilimcilar = $oturum->katilimcilar->map(function ($k) {
+            return ['id' => $k->id, 'user_id' => $k->user_id,
+                'ad' => $k->musteri ? $k->musteri->name : ('#' . $k->user_id),
+                'tel' => $k->musteri ? $k->musteri->cep_telefon : '', 'durum' => $k->durum];
+        })->values();
+        $aktif = $oturum->katilimcilar->whereNotIn('durum', ['iptal', 'bekleme'])->count();
+        return response()->json(['durum' => 'ok', 'oturum' => [
+            'id' => $oturum->id, 'ders_tipi' => $oturum->ders_tipi, 'hizmet_id' => $oturum->hizmet_id,
+            'tarih' => $oturum->tarih, 'saat' => substr($oturum->saat, 0, 5), 'saat_bitis' => substr($oturum->saat_bitis, 0, 5),
+            'kapasite' => (int) $oturum->kapasite, 'personel_id' => $oturum->personel_id,
+            'personel' => $oturum->personel ? $oturum->personel->personel_adi : '', 'doluluk' => $aktif,
+        ], 'katilimcilar' => $katilimcilar]);
+    }
+
+    public function dersOturumKaydet(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        if (!$salonId) return response()->json(['durum' => 'hata', 'mesaj' => 'salon yok'], 422);
+        $data = [
+            'salon_id' => $salonId, 'sube_id' => $salonId, 'personel_id' => $request->personel_id ?: null,
+            'ders_tipi' => $request->ders_tipi ?: 'Grup Dersi', 'hizmet_id' => $request->hizmet_id ?: null,
+            'tarih' => $request->tarih, 'saat' => $request->saat, 'saat_bitis' => $request->saat_bitis,
+            'kapasite' => max(1, (int) $request->kapasite),
+        ];
+        if ($request->oturum_id) {
+            $o = \App\DersOturumu::where('salon_id', $salonId)->find($request->oturum_id);
+            if (!$o) return response()->json(['durum' => 'hata', 'mesaj' => 'Oturum bulunamadi.'], 404);
+            $o->update($data);
+        } else {
+            $data['olusturan_personel_id'] = $this->_dersEkleyenPersonel($request, $salonId);
+            $o = \App\DersOturumu::create($data);
+        }
+        return response()->json(['durum' => 'ok', 'oturum_id' => $o->id]);
+    }
+
+    public function dersOturumSil(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        $o = \App\DersOturumu::where('salon_id', $salonId)->find($request->oturum_id);
+        if (!$o) return response()->json(['durum' => 'hata', 'mesaj' => 'Oturum bulunamadi.'], 404);
+        $bildirilecekler = \App\DersKatilimci::where('oturum_id', $o->id)->whereNotIn('durum', ['iptal', 'bekleme'])->pluck('user_id')->toArray();
+        $o->aktif = false; $o->iptal = true; $o->save();
+        try {
+            $salon = \App\Salonlar::find($salonId);
+            if ($salon && !empty($bildirilecekler)) {
+                $tarihStr = date('d.m.Y', strtotime($o->tarih)); $saatStr = substr($o->saat, 0, 5); $dersAdi = $o->ders_tipi ?: 'Grup Dersi';
+                foreach (\App\User::whereIn('id', $bildirilecekler)->get() as $m) {
+                    $mesaj = 'Sayın ' . $m->name . '; ' . $tarihStr . ' saat ' . $saatStr . ' ' . $dersAdi . ' dersiniz iptal edilmiştir. Bilginize.';
+                    \App\Services\DersBildirimServisi::musteriyeGonder($salon, $m, $mesaj, 'ders_iptal');
+                }
+            }
+        } catch (\Throwable $e) {}
+        return response()->json(['durum' => 'ok']);
+    }
+
+    public function dersKatilimciEkle(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        return \DB::transaction(function () use ($request, $salonId) {
+            $oturum = \App\DersOturumu::where('salon_id', $salonId)->lockForUpdate()->find($request->oturum_id);
+            if (!$oturum) return response()->json(['durum' => 'hata', 'mesaj' => 'Oturum bulunamadi.'], 404);
+            // Katilimci = musteri user id. app'te 'user_id' CAGIRAN yetkili oldugu icin
+            // musteri ayri param: 'musteri_id'.
+            $userId = (int) $request->musteri_id;
+            if (!$userId) return response()->json(['durum' => 'hata', 'mesaj' => 'Musteri secilmedi.'], 422);
+            $mevcut = \App\DersKatilimci::where('oturum_id', $oturum->id)->where('user_id', $userId)->whereNotIn('durum', ['iptal'])->first();
+            if ($mevcut) return response()->json(['durum' => 'hata', 'mesaj' => 'Bu musteri zaten ekli.'], 409);
+            $aktifSayi = \App\DersKatilimci::where('oturum_id', $oturum->id)->whereNotIn('durum', ['iptal', 'bekleme'])->count();
+            $durum = ($aktifSayi >= (int) $oturum->kapasite) ? 'bekleme' : 'rezerve';
+            $k = \App\DersKatilimci::create([
+                'oturum_id' => $oturum->id, 'user_id' => $userId, 'salon_id' => $salonId, 'durum' => $durum,
+                'ekleyen_personel_id' => $this->_dersEkleyenPersonel($request, $salonId),
+            ]);
+            try {
+                $salon = \App\Salonlar::find($salonId); $musteri = \App\User::find($userId);
+                if ($salon && $musteri) {
+                    $tarihStr = date('d.m.Y', strtotime($oturum->tarih)); $saatStr = substr($oturum->saat, 0, 5); $dersAdi = $oturum->ders_tipi ?: 'Grup Dersi';
+                    $mesaj = ($durum === 'bekleme')
+                        ? 'Sayın ' . $musteri->name . '; ' . $tarihStr . ' saat ' . $saatStr . ' ' . $dersAdi . ' dersi kapasitesi dolu olduğundan bekleme listesine alındınız. Yer açılırsa bilgilendireceğiz.'
+                        : 'Sayın ' . $musteri->name . '; ' . $tarihStr . ' saat ' . $saatStr . ' ' . $dersAdi . ' dersine kaydınız oluşturuldu. Görüşmek üzere ✨';
+                    \App\Services\DersBildirimServisi::musteriyeGonder($salon, $musteri, $mesaj, 'ders_bildirim');
+                }
+            } catch (\Throwable $e) {}
+            return response()->json(['durum' => 'ok', 'katilimci_id' => $k->id, 'katilimci_durum' => $durum]);
+        });
+    }
+
+    public function dersKatilimciCikar(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        $k = \App\DersKatilimci::where('salon_id', $salonId)->find($request->katilimci_id);
+        if (!$k) return response()->json(['durum' => 'hata', 'mesaj' => 'Katilimci bulunamadi.'], 404);
+        $oturumId = $k->oturum_id;
+        if ($k->hak_dusuldu) { try { \App\Services\DersSeansServisi::dusumGeriAl($k); } catch (\Throwable $e) {} }
+        $k->durum = 'iptal'; $k->save();
+        $oturum = \App\DersOturumu::find($oturumId);
+        if ($oturum) {
+            $aktifSayi = \App\DersKatilimci::where('oturum_id', $oturumId)->whereNotIn('durum', ['iptal', 'bekleme'])->count();
+            if ($aktifSayi < (int) $oturum->kapasite) {
+                $bekleyen = \App\DersKatilimci::where('oturum_id', $oturumId)->where('durum', 'bekleme')->orderBy('id', 'asc')->first();
+                if ($bekleyen) {
+                    $bekleyen->durum = 'rezerve'; $bekleyen->save();
+                    try {
+                        $salon = \App\Salonlar::find($salonId); $m = \App\User::find($bekleyen->user_id);
+                        if ($salon && $m) {
+                            $tarihStr = date('d.m.Y', strtotime($oturum->tarih)); $saatStr = substr($oturum->saat, 0, 5); $dersAdi = $oturum->ders_tipi ?: 'Grup Dersi';
+                            $mesaj = 'Sayın ' . $m->name . '; ' . $tarihStr . ' saat ' . $saatStr . ' ' . $dersAdi . ' dersinde yeriniz açıldı, rezervasyonunuz onaylandı ✨';
+                            \App\Services\DersBildirimServisi::musteriyeGonder($salon, $m, $mesaj, 'ders_bekleme_terfi');
+                        }
+                    } catch (\Throwable $e) {}
+                }
+            }
+        }
+        return response()->json(['durum' => 'ok']);
+    }
+
+    public function dersKatilimciDurum(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        $k = \App\DersKatilimci::where('salon_id', $salonId)->find($request->katilimci_id);
+        if (!$k) return response()->json(['durum' => 'hata', 'mesaj' => 'Katilimci bulunamadi.'], 404);
+        $yeni = in_array($request->yeni_durum, ['geldi', 'gelmedi', 'rezerve']) ? $request->yeni_durum : 'rezerve';
+        $k->durum = $yeni; $k->save();
+        $dusum = null;
+        try {
+            if ($yeni === 'geldi') {
+                $oturum = \App\DersOturumu::find($k->oturum_id);
+                if ($oturum) {
+                    $apsId = \App\Services\DersSeansServisi::dusumYap($oturum, $k);
+                    $dusum = $apsId ? 'dusuldu' : (($oturum->hizmet_id) ? 'hak_yok' : 'hizmet_bagli_degil');
+                }
+            } elseif ($k->hak_dusuldu) {
+                \App\Services\DersSeansServisi::dusumGeriAl($k); $dusum = 'iade';
+            }
+        } catch (\Throwable $e) {}
+        return response()->json(['durum' => 'ok', 'dusum' => $dusum]);
     }
 }

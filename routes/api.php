@@ -18,9 +18,20 @@ Route::post('login', 'AuthController@login');
 Route::post('register', 'AuthController@register');
 Route::get('loggedin','AuthController@loggedin');
 Route::get('subeler/{salonid}','ApiController@subeler');
-// Grup dersi (Pilates/kurs) online rezervasyon (mobil app)
+// Grup dersi (Pilates/kurs) online rezervasyon (mobil app - musteri)
 Route::get('/grup-dersleri/{salonid}','ApiController@grupDersleriListe');
 Route::post('/grup-dersi-rezervasyon','ApiController@grupDersiRezervasyon');
+// Grup dersi ISLETME (panel) tarafi mobil API (StoreAdminController ders_* karsiligi)
+Route::post('/ders-programi-liste','ApiController@dersProgramiListe');
+Route::post('/ders-sablon-kaydet','ApiController@dersSablonKaydet');
+Route::post('/ders-sablon-sil','ApiController@dersSablonSil');
+Route::post('/ders-programi-yayinla','ApiController@dersProgramiYayinla');
+Route::post('/ders-oturum-getir','ApiController@dersOturumGetir');
+Route::post('/ders-oturum-kaydet','ApiController@dersOturumKaydet');
+Route::post('/ders-oturum-sil','ApiController@dersOturumSil');
+Route::post('/ders-katilimci-ekle','ApiController@dersKatilimciEkle');
+Route::post('/ders-katilimci-cikar','ApiController@dersKatilimciCikar');
+Route::post('/ders-katilimci-durum','ApiController@dersKatilimciDurum');
 Route::post('/logout', 'AuthController@logout')->middleware('auth:isletmeyonetim-api');
 // Mobil WebView koprusu: uygulama Bearer token'iyla cagirir, 2 dk gecerli
 // tek kullanimlik imzali giris linki doner (WhatsApp kontor ekrani icin).
