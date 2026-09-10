@@ -33,10 +33,8 @@ class DersBildirimServisi
         } else {
             $kanalAcik = !empty($waSalon->whatsapp_aktif) && $waSalon->whatsapp_durum === 'connected';
         }
-        $onayli = !Schema::hasColumn('users', 'whatsapp_onay') || (int) ($musteri->whatsapp_onay ?? 1) === 1;
-
-        // GOZLEMLENEBILIRLIK: WA neden denendi/atlandi (randevu "kanal karar" logu ile ayni).
-        // WA atlanip SMS'e dusuyorsa sebebi (kanal kapali / onay yok) buradan gorunur.
+        // WA icin MUSTERI ONAYI ARANMAZ — salon WA bagliysa her zaman once WA dene,
+        // gitmezse SMS. (Onay kontrolu kaldirildi.)
         Log::info('[DERS-BILD] kanal karar', [
             'salon_id' => $salon->id ?? null,
             'wa_session_salon_id' => $waSalon->id ?? null,
@@ -46,13 +44,11 @@ class DersBildirimServisi
             'wa_aktif' => (int) ($waSalon->whatsapp_aktif ?? 0),
             'wa_durum' => $waSalon->whatsapp_durum ?? null,
             'wa_kanali_acik' => $kanalAcik,
-            'musteri_whatsapp_onay' => isset($musteri->whatsapp_onay) ? (int) $musteri->whatsapp_onay : 'kolon-yok/null',
-            'musteri_onayli' => $onayli,
             'gonderim_tipi' => $gonderimTipi,
         ]);
 
         $waOk = false;
-        if ($kanalAcik && $onayli) {
+        if ($kanalAcik) {
             try {
                 $wa = app(WhatsAppService::class);
                 $metin = WhatsAppMesajFormat::uygulamaDavetiEk($mesaj, $salon, $musteri->id ?? null);
