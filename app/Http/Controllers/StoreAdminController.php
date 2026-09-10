@@ -4969,6 +4969,45 @@ public function carkverilerigetir(Request $request)
         return response()->json(['durum'=>'ok','olusan'=>$olusan,'atlanan'=>$atlanan,'hafta'=>$hafta]);
     }
 
+    // ---------- Grup Dersi Raporu ----------
+    public function grup_dersi_raporu(Request $request){
+        $isletmeler = '';
+        $isletme='';
+        if(Auth::guard('satisortakligi')->check()){
+            $isletmeler = [15]; $isletme = Salonlar::where('id',15)->first();
+        } else {
+            $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+            $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
+        }
+        if(!in_array(self::mevcutsube($request),$isletmeler) || $_SERVER['HTTP_HOST'] == "randevu.randevumcepte.com.tr"){
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if(str_contains(self::lisans_sure_kontrol($request),'-')){
+            return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+        }
+        $_authUser = Auth::guard('isletmeyonetim')->user();
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'randevu.takvim_gor')) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if(count($isletmeler)>1 && !isset($_GET['sube'])){
+            return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
+        }
+        $isletmeId = self::mevcutsube($request);
+        $tarih1 = $request->tarih1 ?: date('Y-m-01');
+        $tarih2 = $request->tarih2 ?: date('Y-m-d');
+        $rapor = \App\Services\DersRaporServisi::ozet($isletmeId, $tarih1, $tarih2);
+        return view('isletmeadmin.grup_dersi_raporu',[
+            'sayfa_baslik'=>'Grup Dersi Raporu',
+            'title'=>'Grup Dersi Raporu | '.$isletme->salon_adi.' İşletme Yönetim Paneli',
+            'pageindex'=>206,
+            'bildirimler'=>self::bildirimgetir($request),
+            'isletme'=>$isletme,
+            'kalan_uyelik_suresi'=>self::lisans_sure_kontrol($request),
+            'yetkiliolunanisletmeler'=>$isletmeler,
+            'rapor'=>$rapor, 'tarih1'=>$tarih1, 'tarih2'=>$tarih2,
+        ]);
+    }
+
     public function kasadefteri(Request $request){
        $isletmeler = '';
         $isletme='';

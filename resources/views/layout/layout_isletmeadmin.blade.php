@@ -1798,6 +1798,20 @@
                   </li>
                   @endif
 
+                  {{-- 3c) Grup Dersi Raporu (Pilates/kurs) --}}
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
+                  <li>
+                     @if($pageindex==206)
+                     <a href="/isletmeyonetim/grup-dersi-raporu{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/grup-dersi-raporu{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-bar-chart-fill"></span
+                        ><span class="mtext">Grup Dersi Raporu</span>
+                     </a>
+                  </li>
+                  @endif
+
                   {{-- 4) Ön Görüşmeler --}}
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'gorusme.liste_gor'))
                   <li>

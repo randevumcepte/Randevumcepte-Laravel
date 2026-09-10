@@ -32071,4 +32071,15 @@ SOZLESME_TXT;
         } catch (\Throwable $e) {}
         return response()->json(['durum' => 'ok', 'dusum' => $dusum, 'mesaj' => 'Katılımınız kaydedildi ✨']);
     }
+
+    // Grup dersi raporu (isletme) — ozet + egitmen + ders bazli
+    public function grupDersiRapor(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        if (!$salonId) return response()->json(['durum' => 'hata', 'mesaj' => 'salon yok'], 422);
+        $tarih1 = $request->tarih1 ?: date('Y-m-01');
+        $tarih2 = $request->tarih2 ?: date('Y-m-d');
+        $rapor = \App\Services\DersRaporServisi::ozet($salonId, $tarih1, $tarih2);
+        return response()->json(['durum' => 'ok', 'tarih1' => $tarih1, 'tarih2' => $tarih2] + $rapor);
+    }
 }
