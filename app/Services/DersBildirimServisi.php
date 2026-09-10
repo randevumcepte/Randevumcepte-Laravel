@@ -58,6 +58,8 @@ class DersBildirimServisi
                 $metin = WhatsAppMesajFormat::uygulamaDavetiEk($mesaj, $salon, $musteri->id ?? null);
                 $sonuc = $wa->sendReminder($salon, $musteri->cep_telefon, $metin, null, $musteri->id ?? null, null, false, $gonderimTipi);
                 $waOk = $sonuc['ok'] ?? false;
+                // Basari dahil HER durumu logla (WA'ya gitti mi, gitmediyse neden)
+                Log::info('[DERS-BILD] WA sonuc', ['salon_id' => $salon->id, 'wa_ok' => $waOk, 'sonuc' => $sonuc]);
                 if (!$waOk) {
                     Log::warning('[DERS-BILD] WA basarisiz -> SMS fallback', [
                         'salon_id' => $salon->id, 'error' => $sonuc['error'] ?? 'unknown',
