@@ -187,14 +187,21 @@
          sablon_id:$('#dp-sablon-id').val(), hafta_gunu:$('#dp-gun').val(), ders_tipi:$('#dp-tipi').val(),
          personel_id:$('#dp-personel').val(), hizmet_id:$('#dp-hizmet').val(), saat:$('#dp-saat').val(), saat_bitis:$('#dp-saat-bitis').val(),
          kapasite:$('#dp-kapasite').val()
-      }).done(function(r){ if(r.durum==='ok') location.reload(); else swal('Hata',(r&&r.mesaj)||'Kaydedilemedi','error'); })
-        .fail(function(){ swal('Hata','Kaydedilemedi','error'); });
+      }).done(function(r){
+         if(r.durum==='ok'){
+            if(r.senkron && r.senkron>0){ swal('Kaydedildi', r.senkron+' mevcut ders oturumu da güncellendi (hizmet dahil).','success').then(function(){ location.reload(); }); }
+            else { location.reload(); }
+         } else swal('Hata',(r&&r.mesaj)||'Kaydedilemedi','error');
+      }).fail(function(){ swal('Hata','Kaydedilemedi','error'); });
    };
    window.dpSil = function(id){
-      swal({title:'Silinsin mi?',text:'Bu programdan kaldırılacak (oluşturulmuş dersler kalır).',type:'warning',
+      swal({title:'Silinsin mi?',text:'Bu program satırı silinecek ve bu şablondan üretilmiş, katılımcısı olmayan gelecek dersler de kaldırılacak. (Katılımcısı olan dersler korunur.)',type:'warning',
          showCancelButton:true,confirmButtonText:'Sil',cancelButtonText:'Vazgeç',confirmButtonColor:'#c0392b'})
       .then(function(res){ if(res.value){ _post('{{ url('/isletmeyonetim/ders-sablon-sil') }}',{sablon_id:id})
-         .done(function(){ location.reload(); }); } });
+         .done(function(r){
+            var msg = 'Silindi.'; if(r && r.temizlenen!==undefined){ msg = r.temizlenen+' gelecek ders kaldırıldı'+(r.korunan? ', '+r.korunan+' ders katılımcısı olduğu için korundu':'')+'.'; }
+            swal('Tamam', msg, 'success').then(function(){ location.reload(); });
+         }); } });
    };
    window.dpYayinla = function(){
       var hafta=$('#dp-hafta').val(), bas=$('#dp-baslangic').val();

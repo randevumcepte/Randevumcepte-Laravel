@@ -4872,22 +4872,53 @@ public function carkverilerigetir(Request $request)
             'renk'        => $request->renk ?: null,
             'aktif'       => true,
         ];
+        $senkron = 0;
         if($request->sablon_id){
             $s = \App\DersProgramiSablonu::where('salon_id',$isletmeId)->find($request->sablon_id);
             if(!$s) return response()->json(['durum'=>'hata','mesaj'=>'Kayit bulunamadi.'],404);
             $s->update($data);
+            // Bu sablondan URETILMIS gelecekteki oturumlari da senkronla (hizmet/kapasite/
+            // saat/personel degisiklikleri yansisin). Boylece hizmeti programa ekleyince
+            // mevcut oturumlar da online'a acilir — tek tek duzeltme/yeniden yayin gerekmez.
+            $senkron = \App\DersOturumu::where('salon_id',$isletmeId)
+                ->where('sablon_id',$s->id)
+                ->where('tarih','>=',date('Y-m-d'))
+                ->where('aktif',true)
+                ->where(function($q){ $q->whereNull('iptal')->orWhere('iptal',0); })
+                ->update([
+                    'hizmet_id'   => $s->hizmet_id,
+                    'ders_tipi'   => $s->ders_tipi,
+                    'personel_id' => $s->personel_id,
+                    'saat'        => $s->saat,
+                    'saat_bitis'  => $s->saat_bitis,
+                    'kapasite'    => $s->kapasite,
+                    'renk'        => $s->renk,
+                ]);
         } else {
             $s = \App\DersProgramiSablonu::create($data);
         }
-        return response()->json(['durum'=>'ok','sablon_id'=>$s->id]);
+        return response()->json(['durum'=>'ok','sablon_id'=>$s->id,'senkron'=>$senkron]);
     }
 
-    // Sablon satiri sil (JSON) — sadece sablonu siler, uretilmis oturumlara dokunmaz
+    // Sablon satiri sil (JSON) — sablonu siler + bu sablondan uretilmis, KATILIMCISIZ
+    // gelecek oturumlari da iptal eder (katilimcisi olanlara dokunmaz).
     public function ders_sablon_sil(Request $request){
         if($r = self::yetkiYoksa403($request, 'randevu.duzenle_iptal')) return $r;
         $isletmeId = self::mevcutsube($request);
+
+        $temizlenen = 0; $korunan = 0;
+        $oturumlar = \App\DersOturumu::where('salon_id',$isletmeId)
+            ->where('sablon_id',$request->sablon_id)
+            ->where('tarih','>=',date('Y-m-d'))
+            ->where('aktif',true)->get();
+        foreach($oturumlar as $o){
+            $katVar = \App\DersKatilimci::where('oturum_id',$o->id)->whereNotIn('durum',['iptal'])->exists();
+            if($katVar){ $korunan++; continue; }        // katilimcisi olan oturuma dokunma
+            $o->aktif = false; $o->iptal = true; $o->save();
+            $temizlenen++;
+        }
         \App\DersProgramiSablonu::where('salon_id',$isletmeId)->where('id',$request->sablon_id)->delete();
-        return response()->json(['durum'=>'ok']);
+        return response()->json(['durum'=>'ok','temizlenen'=>$temizlenen,'korunan'=>$korunan]);
     }
 
     // Programi yayinla: sablondan ileriye donuk ders_oturumlari uret (idempotent)
