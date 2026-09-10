@@ -104,10 +104,17 @@ class DersHatirlatma extends Command
                 if ($test) $this->warn('  -> ATLANDI: salon hatirlatma suresi tanimsiz (0)'); continue;
             }
 
-            // Tetik saati kontrolu — --force ile yoksayilir
-            if (!$force && $tetik !== $simdi) {
-                if ($yakin && !$test) Log::info('[DERS-HAT] ATLANDI: tetik dakikasi degil', ['oturum' => $o->id, 'tetik' => $tetik, 'simdi' => $simdi]);
-                if ($test) $this->warn('  -> ATLANDI: tetik saati degil (--force ile zorlanabilir)');
+            // Tetik PENCERESI (--force ile yoksayilir): tetik aninDAN ders baslangicina
+            // KADAR herhangi bir cron turunda gonder. Exact-dakika esitligi (tetik==simdi)
+            // KIRILGANDI: cron o dakikayi kacirirsa (sunucu yuku / withoutOverlapping
+            // gecikmesi — log'da 13:45 turu hic olmamis, 13:44'ten 13:46'ya atlamis)
+            // hatirlatma sonsuza dek kacar. Pencere + atomik claim (hatirlatma_gonderildi)
+            // = kacan dakikayi sonraki tur yakalar, yine de TEK gonderim.
+            $simdiTs = strtotime($simdi);
+            $tetikTs = $dersZamani - $x * 3600;
+            if (!$force && !($simdiTs >= $tetikTs && $simdiTs < $dersZamani)) {
+                if ($yakin && !$test) Log::info('[DERS-HAT] ATLANDI: tetik penceresi disinda', ['oturum' => $o->id, 'tetik' => $tetik, 'simdi' => $simdi]);
+                if ($test) $this->warn('  -> ATLANDI: tetik penceresi disinda (--force ile zorlanabilir)');
                 continue;
             }
 
