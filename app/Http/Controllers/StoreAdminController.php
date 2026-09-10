@@ -4659,7 +4659,7 @@ public function carkverilerigetir(Request $request)
                     $dersAdi  = $oturum->ders_tipi ?: 'Grup Dersi';
                     foreach(\App\User::whereIn('id',$bildirilecekler)->get() as $musteri){
                         $mesaj = 'Sayın ' . $musteri->name . '; ' . $tarihStr . ' saat ' . $saatStr . ' '
-                            . $dersAdi . ' dersiniz iptal edilmiştir. Bilginize, geçmiş olsun.';
+                            . $dersAdi . ' dersiniz iptal edilmiştir. Bilginize.';
                         \App\Services\DersBildirimServisi::musteriyeGonder($salon, $musteri, $mesaj, 'ders_iptal');
                     }
                 }
@@ -4698,6 +4698,27 @@ public function carkverilerigetir(Request $request)
                 'durum'     => $durum,
                 'ekleyen_personel_id' => Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id ?? 0)->where('salon_id',$isletmeId)->value('id'),
             ]);
+
+            // Kayit bildirimi (randevu olusturulunca gidenle ayni mantik; WA oncelikli/SMS yedek,
+            // kontordan muaf). rezerve = kayit onayi, bekleme = bekleme listesi bilgisi.
+            try {
+                $salon   = Salonlar::find($isletmeId);
+                $musteri = \App\User::find($userId);
+                if($salon && $musteri){
+                    $tarihStr = date('d.m.Y', strtotime($oturum->tarih));
+                    $saatStr  = substr($oturum->saat,0,5);
+                    $dersAdi  = $oturum->ders_tipi ?: 'Grup Dersi';
+                    if($durum === 'bekleme'){
+                        $mesaj = 'Sayın ' . $musteri->name . '; ' . $tarihStr . ' saat ' . $saatStr . ' '
+                            . $dersAdi . ' dersi kapasitesi dolu olduğundan bekleme listesine alındınız. Yer açılırsa bilgilendireceğiz.';
+                    } else {
+                        $mesaj = 'Sayın ' . $musteri->name . '; ' . $tarihStr . ' saat ' . $saatStr . ' '
+                            . $dersAdi . ' dersine kaydınız oluşturuldu. Görüşmek üzere ✨';
+                    }
+                    \App\Services\DersBildirimServisi::musteriyeGonder($salon, $musteri, $mesaj, 'ders_bildirim');
+                }
+            } catch (\Throwable $e) { \Log::warning('[DERS] kayit bildirim fail: '.$e->getMessage()); }
+
             return response()->json(['durum'=>'ok','katilimci_id'=>$k->id,'katilimci_durum'=>$durum]);
         });
     }
