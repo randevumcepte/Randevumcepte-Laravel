@@ -109,10 +109,12 @@
             <span class="rc-rt-count-value">{{$randevular['randevu_sayisi']}}</span>
          </div>
          @yetki('randevu.olustur')
+         @if($isletme->grup_dersi_aktif ?? 0)
          <a href="#" onclick="dersOturumYeni();return false;"
             class="rc-rt-btn yenieklebuton" style="background:#16a085;border-color:#16a085;color:#fff;">
             <i class="fa fa-users"></i><span>Grup Dersi</span>
          </a>
+         @endif
          <a href="#" data-toggle="modal" data-target="#modal-view-event-add-v2"
             class="rc-rt-btn rc-rt-btn-primary yenieklebuton">
             <i class="fa fa-plus"></i><span>Yeni Randevu</span>

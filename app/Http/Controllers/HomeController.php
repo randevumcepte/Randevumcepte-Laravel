@@ -3573,6 +3573,7 @@ $salon = Salonlar::where('domain', $domain)->first();
             $salon = Salonlar::where('domain', $_SERVER['HTTP_HOST'] ?? '')->first();
         }
         if (!$salon) abort(404);
+        if (!($salon->grup_dersi_aktif ?? 0)) abort(404); // modul kapali
         $dersler = \App\Services\DersRezervasyonServisi::uygunDersler((int) $salon->id, 14);
         return view('grup_dersleri', ['salon' => $salon, 'dersler' => $dersler]);
     }

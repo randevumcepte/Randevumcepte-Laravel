@@ -4194,7 +4194,7 @@ public function carkverilerigetir(Request $request)
     // hot-path) — tablo yoksa/hata olursa try/catch ile sessizce atlanir,
     // takvim asla bozulmaz.
     $dersEventleri = [];
-    if ($takvim_turu == 1) {
+    if ($takvim_turu == 1 && (optional($_waSalonRaw)->grup_dersi_aktif ?? 0)) {
         try {
             $ders_oturumlari = \App\DersOturumu::with(['aktifKatilimcilar','personel.trenk'])
                 ->where('salon_id', $isletmeId)

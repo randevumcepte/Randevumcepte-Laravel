@@ -2408,7 +2408,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // Web randevuyukle ile ayni mantik: takvim_turu==1 (personel), personel rengi,
         // baslik "Ders X/Y dolu", tiklama icin dersOturumId. try/catch korumali.
         $dersEventleri = [];
-        if ($takvim_turu == 1) {
+        if ($takvim_turu == 1 && Salonlar::where('id', $isletmeId)->value('grup_dersi_aktif')) {
             try {
                 $dq = \App\DersOturumu::with(['aktifKatilimcilar','personel.trenk'])
                     ->where('salon_id', $isletmeId)->where('aktif', true)
@@ -31720,6 +31720,9 @@ SOZLESME_TXT;
     // Salonun online rezervasyona uygun (dolu olmayan, gelecekteki, hizmete bagli) dersleri
     public function grupDersleriListe(Request $request, $salonid)
     {
+        if (!Salonlar::where('id', $salonid)->value('grup_dersi_aktif')) {
+            return response()->json(['durum' => 'ok', 'dersler' => []]); // modul kapali
+        }
         $dersler = \App\Services\DersRezervasyonServisi::uygunDersler((int) $salonid, 14);
         return response()->json(['durum' => 'ok', 'dersler' => $dersler]);
     }
