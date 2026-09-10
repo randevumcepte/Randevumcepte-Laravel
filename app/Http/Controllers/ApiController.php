@@ -31994,4 +31994,81 @@ SOZLESME_TXT;
         } catch (\Throwable $e) {}
         return response()->json(['durum' => 'ok', 'dusum' => $dusum]);
     }
+
+    // ================================================================
+    // DANISAN (musteri) tarafi: kendi grup derslerini gorme + kendi "Geldim".
+    // Body: user_id (musteri). Kimlik user_id ile (app deseni).
+    // ================================================================
+
+    public function danisanGrupDerslerim(Request $request)
+    {
+        $userId = (int) $request->user_id;
+        if (!$userId) return response()->json(['durum' => 'hata', 'mesaj' => 'user_id yok'], 422);
+        $altTarih = date('Y-m-d', strtotime('-3 day'));
+
+        $rows = \DB::table('ders_katilimcilar as k')
+            ->join('ders_oturumlari as o', 'o.id', '=', 'k.oturum_id')
+            ->leftJoin('salon_personelleri as p', 'p.id', '=', 'o.personel_id')
+            ->leftJoin('salonlar as s', 's.id', '=', 'o.salon_id')
+            ->where('k.user_id', $userId)
+            ->where('k.durum', '!=', 'iptal')
+            ->where('o.aktif', true)
+            ->where(function ($q) { $q->whereNull('o.iptal')->orWhere('o.iptal', 0); })
+            ->where('o.tarih', '>=', $altTarih)
+            ->when($request->salon_id, function ($q) use ($request) { $q->where('o.salon_id', $request->salon_id); })
+            ->orderBy('o.tarih', 'asc')->orderBy('o.saat', 'asc')
+            ->select('k.id as katilimci_id', 'k.durum', 'o.id as oturum_id', 'o.ders_tipi',
+                'o.tarih', 'o.saat', 'o.saat_bitis', 'o.salon_id', 's.salon_adi',
+                DB::raw('p.personel_adi as personel'))
+            ->get();
+
+        $bugun = date('Y-m-d');
+        $dersler = $rows->map(function ($r) use ($bugun) {
+            $gecmis = strtotime($r->tarih . ' ' . $r->saat_bitis) < time();
+            return [
+                'katilimci_id' => $r->katilimci_id,
+                'durum' => $r->durum,
+                'oturum_id' => $r->oturum_id,
+                'ders_tipi' => $r->ders_tipi ?: 'Grup Dersi',
+                'tarih' => $r->tarih,
+                'saat' => substr($r->saat, 0, 5),
+                'saat_bitis' => substr($r->saat_bitis, 0, 5),
+                'salon_id' => $r->salon_id,
+                'salon_adi' => $r->salon_adi,
+                'personel' => $r->personel ?? '',
+                'gecmis' => $gecmis,
+                // Kendi "Geldim" isaretleyebilir: rezerve + ders gunu bugun veya gecmis
+                'geldim_isaretleyebilir' => ($r->durum == 'rezerve' && $r->tarih <= $bugun),
+            ];
+        });
+        return response()->json(['durum' => 'ok', 'dersler' => $dersler]);
+    }
+
+    // Danisan kendi katilimini "Geldim" isaretler (paketten dusum tetiklenir).
+    public function danisanDersGeldim(Request $request)
+    {
+        $userId = (int) $request->user_id;
+        $katilimciId = (int) $request->katilimci_id;
+        if (!$userId || !$katilimciId) return response()->json(['durum' => 'hata', 'mesaj' => 'Eksik bilgi.'], 422);
+
+        $k = \App\DersKatilimci::where('id', $katilimciId)->where('user_id', $userId)->first();
+        if (!$k) return response()->json(['durum' => 'hata', 'mesaj' => 'Kayıt bulunamadı.'], 404);
+        if ($k->durum == 'iptal') return response()->json(['durum' => 'hata', 'mesaj' => 'Bu kayıt iptal edilmiş.'], 409);
+        if ($k->durum == 'geldi') return response()->json(['durum' => 'ok', 'mesaj' => 'Zaten geldi olarak işaretli.']);
+
+        $oturum = \App\DersOturumu::find($k->oturum_id);
+        if (!$oturum) return response()->json(['durum' => 'hata', 'mesaj' => 'Ders bulunamadı.'], 404);
+        // Gelecekteki derse "geldim" denemez
+        if (strtotime($oturum->tarih) > strtotime(date('Y-m-d'))) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Ders henüz gerçekleşmedi.'], 409);
+        }
+
+        $k->durum = 'geldi'; $k->save();
+        $dusum = null;
+        try {
+            $apsId = \App\Services\DersSeansServisi::dusumYap($oturum, $k);
+            $dusum = $apsId ? 'dusuldu' : (($oturum->hizmet_id) ? 'hak_yok' : 'hizmet_bagli_degil');
+        } catch (\Throwable $e) {}
+        return response()->json(['durum' => 'ok', 'dusum' => $dusum, 'mesaj' => 'Katılımınız kaydedildi ✨']);
+    }
 }

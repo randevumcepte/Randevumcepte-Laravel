@@ -32,6 +32,9 @@ Route::post('/ders-oturum-sil','ApiController@dersOturumSil');
 Route::post('/ders-katilimci-ekle','ApiController@dersKatilimciEkle');
 Route::post('/ders-katilimci-cikar','ApiController@dersKatilimciCikar');
 Route::post('/ders-katilimci-durum','ApiController@dersKatilimciDurum');
+// Danisan (musteri) kendi grup dersleri
+Route::post('/danisan-grup-derslerim','ApiController@danisanGrupDerslerim');
+Route::post('/danisan-ders-geldim','ApiController@danisanDersGeldim');
 Route::post('/logout', 'AuthController@logout')->middleware('auth:isletmeyonetim-api');
 // Mobil WebView koprusu: uygulama Bearer token'iyla cagirir, 2 dk gecerli
 // tek kullanimlik imzali giris linki doner (WhatsApp kontor ekrani icin).
