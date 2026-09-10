@@ -2765,7 +2765,11 @@ public function carkverilerigetir(Request $request)
             ->where('salon_sunulan_hizmetler.aktif',true)
             ->orderBy('hizmetler.hizmet_adi','asc')
             ->get(['hizmetler.id','hizmetler.hizmet_adi']);
-        return view('isletmeadmin.randevular',['bildirimler'=>self::bildirimgetir($request),  'sayfa_baslik'=>'Randevu Takvimi','pageindex' => 2,'randevular'=>$randevular,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'yetkiliolunanisletmeler'=>$isletmeler,'gapKampanyalari'=>$gapKampanyalari,'dersPersonelleri'=>$dersPersonelleri,'dersHizmetleri'=>$dersHizmetleri]);
+        $dersEslesme = DB::table('personel_sunulan_hizmetler as ph')
+            ->join('salon_personelleri as p','p.id','=','ph.personel_id')
+            ->where('p.salon_id',$isletme->id)->where('p.aktif',true)
+            ->select('ph.personel_id','ph.hizmet_id')->get();
+        return view('isletmeadmin.randevular',['bildirimler'=>self::bildirimgetir($request),  'sayfa_baslik'=>'Randevu Takvimi','pageindex' => 2,'randevular'=>$randevular,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi,'yetkiliolunanisletmeler'=>$isletmeler,'gapKampanyalari'=>$gapKampanyalari,'dersPersonelleri'=>$dersPersonelleri,'dersHizmetleri'=>$dersHizmetleri,'dersEslesme'=>$dersEslesme]);
     }
 
     /**
@@ -4841,6 +4845,10 @@ public function carkverilerigetir(Request $request)
             ->get(['hizmetler.id','hizmetler.hizmet_adi']);
         $sablon = \App\DersProgramiSablonu::where('salon_id',$isletmeId)->where('aktif',true)
             ->orderBy('hafta_gunu','asc')->orderBy('saat','asc')->get();
+        $eslesme = DB::table('personel_sunulan_hizmetler as ph')
+            ->join('salon_personelleri as p','p.id','=','ph.personel_id')
+            ->where('p.salon_id',$isletmeId)->where('p.aktif',true)
+            ->select('ph.personel_id','ph.hizmet_id')->get();
         return view('isletmeadmin.ders_programi',[
             'sayfa_baslik'=>'Ders Programı',
             'title'=>'Ders Programı | '.$isletme->salon_adi.' İşletme Yönetim Paneli',
@@ -4852,6 +4860,7 @@ public function carkverilerigetir(Request $request)
             'personeller'=>$personeller,
             'hizmetler'=>$hizmetler,
             'sablon'=>$sablon,
+            'eslesme'=>$eslesme,
         ]);
     }
 

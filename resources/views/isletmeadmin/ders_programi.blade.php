@@ -216,4 +216,35 @@
    };
 })();
 </script>
+
+<script>
+{{-- Grup dersi: hizmet<->egitmen iki yonlu filtre --}}
+(function(){
+  var ESLESME = <?php echo json_encode($eslesme ?? []) ?>;
+  var h2p={}, p2h={};
+  ESLESME.forEach(function(e){ var p=String(e.personel_id), h=String(e.hizmet_id);
+    (h2p[h]=h2p[h]||[]).push(p); (p2h[p]=p2h[p]||[]).push(h); });
+  var mP=null, mH=null;
+  function opts(sel){ return Array.from(sel.options).map(function(o){return {v:o.value,t:o.text};}); }
+  function rebuild(sel, master, allowed){
+    var cur=sel.value; sel.innerHTML='';
+    master.forEach(function(o){
+      if(o.v==='' || !allowed || allowed.indexOf(o.v)>=0){
+        var op=document.createElement('option'); op.value=o.v; op.text=o.t; sel.appendChild(op);
+      }
+    });
+    sel.value = Array.from(sel.options).some(function(o){return o.value===cur;}) ? cur : '';
+  }
+  function uygula(){
+    var $p=document.getElementById('dp-personel'), $h=document.getElementById('dp-hizmet');
+    if(!$p||!$h) return;
+    if(mP===null) mP=opts($p); if(mH===null) mH=opts($h);
+    var pv=$p.value, hv=$h.value;
+    rebuild($p, mP, (hv && h2p[hv] && h2p[hv].length) ? h2p[hv] : null);
+    rebuild($h, mH, (pv && p2h[pv] && p2h[pv].length) ? p2h[pv] : null);
+  }
+  document.addEventListener('change', function(e){ if(e.target && (e.target.id==='dp-personel'||e.target.id==='dp-hizmet')) uygula(); });
+  if(window.jQuery){ jQuery(document).on('shown.bs.modal','#dp-modal', function(){ setTimeout(uygula,60); }); }
+})();
+</script>
 @endsection

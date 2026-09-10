@@ -31781,7 +31781,12 @@ SOZLESME_TXT;
                     'kapasite' => (int) $s->kapasite,
                 ];
             });
-        return response()->json(['durum' => 'ok', 'personeller' => $personeller, 'hizmetler' => $hizmetler, 'sablon' => $sablon]);
+        // personel<->hizmet eslemesi (iki yonlu filtre icin)
+        $eslesme = \DB::table('personel_sunulan_hizmetler as ph')
+            ->join('salon_personelleri as p', 'p.id', '=', 'ph.personel_id')
+            ->where('p.salon_id', $salonId)->where('p.aktif', true)
+            ->select('ph.personel_id', 'ph.hizmet_id')->get();
+        return response()->json(['durum' => 'ok', 'personeller' => $personeller, 'hizmetler' => $hizmetler, 'sablon' => $sablon, 'eslesme' => $eslesme]);
     }
 
     public function dersSablonKaydet(Request $request)
