@@ -35,6 +35,22 @@ class DersBildirimServisi
         }
         $onayli = !Schema::hasColumn('users', 'whatsapp_onay') || (int) ($musteri->whatsapp_onay ?? 1) === 1;
 
+        // GOZLEMLENEBILIRLIK: WA neden denendi/atlandi (randevu "kanal karar" logu ile ayni).
+        // WA atlanip SMS'e dusuyorsa sebebi (kanal kapali / onay yok) buradan gorunur.
+        Log::info('[DERS-BILD] kanal karar', [
+            'salon_id' => $salon->id ?? null,
+            'wa_session_salon_id' => $waSalon->id ?? null,
+            'musteri_id' => $musteri->id ?? null,
+            'telefon' => $musteri->cep_telefon ?? null,
+            'saglayici' => $saglayici,
+            'wa_aktif' => (int) ($waSalon->whatsapp_aktif ?? 0),
+            'wa_durum' => $waSalon->whatsapp_durum ?? null,
+            'wa_kanali_acik' => $kanalAcik,
+            'musteri_whatsapp_onay' => isset($musteri->whatsapp_onay) ? (int) $musteri->whatsapp_onay : 'kolon-yok/null',
+            'musteri_onayli' => $onayli,
+            'gonderim_tipi' => $gonderimTipi,
+        ]);
+
         $waOk = false;
         if ($kanalAcik && $onayli) {
             try {
