@@ -35,6 +35,7 @@ class WhatsAppService
         'ders_iptal',                // ders iptal bildirimi
         'ders_bekleme_terfi',        // bekleme listesinden yer acildi bildirimi
         'ders_bildirim',             // ders genel bildirim (varsayilan tip)
+        'ders_kalan_uyari',          // "N dersiniz kaldi" paket bitis/yeniden satis uyarisi
     ];
 
     /** Bu gönderim tipi kontörden muaf (ücretsiz) mi? */

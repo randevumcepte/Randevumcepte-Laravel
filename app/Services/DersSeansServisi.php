@@ -65,6 +65,11 @@ class DersSeansServisi
             $katilimci->aps_id = $aps->id;
             $katilimci->hak_dusuldu = true;
             $katilimci->save();
+
+            // KALAN DERS UYARISI: dususten sonra bu hizmette kalan toplam esik altindaysa
+            // musteriye WhatsApp/SMS "N dersiniz kaldi" (yeniden satis tetikleyici).
+            try { self::kalanUyariGonder($oturum, (int) $katilimci->user_id, $hizmetId); } catch (\Throwable $e) {}
+
             return $aps->id;
         } catch (\Throwable $e) {
             Log::warning('[DERS-SEANS] dusum hata: ' . $e->getMessage(), [
@@ -72,6 +77,69 @@ class DersSeansServisi
             ]);
             return null;
         }
+    }
+
+    /** Kalan ders uyarisi esigi (bu kadar veya daha az kalinca uyari gonderilir). */
+    const KALAN_UYARI_ESIK = 3;
+
+    /**
+     * Musterinin bu hizmet icin TUM aktif paket/hizmet satislarindaki kalan seans toplami.
+     * adaySec ile ayni sayim mantigi (adisyon_hizmetler + adisyon_paketler), ama tek aday
+     * yerine toplam.
+     */
+    public static function kalanToplam($salonId, $userId, $hizmetId): int
+    {
+        if (!$salonId || !$userId || !$hizmetId) return 0;
+        $toplam = 0;
+
+        $hizmetAdaylar = DB::table('adisyon_hizmetler')
+            ->join('adisyonlar', 'adisyon_hizmetler.adisyon_id', '=', 'adisyonlar.id')
+            ->where('adisyon_hizmetler.hizmet_id', $hizmetId)
+            ->where('adisyonlar.user_id', $userId)->where('adisyonlar.salon_id', $salonId)
+            ->where('adisyon_hizmetler.seans_sayisi', '>', 0)
+            ->where(function ($q) {
+                $q->whereNull('adisyon_hizmetler.otomatik_randevu_olusturuldu')->orWhere('adisyon_hizmetler.otomatik_randevu_olusturuldu', '!=', 1);
+            })
+            ->select('adisyon_hizmetler.id', 'adisyon_hizmetler.seans_sayisi')->get();
+        foreach ($hizmetAdaylar as $h) {
+            $kul = (int) DB::table('adisyon_paket_seanslar')->where('adisyon_hizmet_id', $h->id)->count();
+            $toplam += max(0, (int) $h->seans_sayisi - $kul);
+        }
+
+        $paketAdaylar = DB::table('adisyon_paketler')
+            ->join('adisyonlar', 'adisyon_paketler.adisyon_id', '=', 'adisyonlar.id')
+            ->join('paket_hizmetler', 'paket_hizmetler.paket_id', '=', 'adisyon_paketler.paket_id')
+            ->where('paket_hizmetler.hizmet_id', $hizmetId)
+            ->where('adisyonlar.user_id', $userId)->where('adisyonlar.salon_id', $salonId)
+            ->where('adisyon_paketler.seans_sayisi', '>', 0)
+            ->where(function ($q) {
+                $q->whereNull('adisyon_paketler.otomatik_randevu_olusturuldu')->orWhere('adisyon_paketler.otomatik_randevu_olusturuldu', '!=', 1);
+            })
+            ->select('adisyon_paketler.id', 'adisyon_paketler.seans_sayisi')->distinct()->get();
+        foreach ($paketAdaylar as $p) {
+            $kul = (int) DB::table('adisyon_paket_seanslar')->where('adisyon_paket_id', $p->id)->where('hizmet_id', $hizmetId)->count();
+            $toplam += max(0, (int) $p->seans_sayisi - $kul);
+        }
+        return $toplam;
+    }
+
+    private static function kalanUyariGonder(DersOturumu $oturum, $userId, $hizmetId): void
+    {
+        $kalan = self::kalanToplam($oturum->salon_id, $userId, $hizmetId);
+        if ($kalan > self::KALAN_UYARI_ESIK) return; // esik ustunde -> uyari yok
+
+        $salon = \App\Salonlar::find($oturum->salon_id);
+        $musteri = \App\User::find($userId);
+        if (!$salon || !$musteri || empty($musteri->cep_telefon)) return;
+
+        $hizmetAdi = DB::table('hizmetler')->where('id', $hizmetId)->value('hizmet_adi') ?: 'ders';
+        if ($kalan <= 0) {
+            $mesaj = 'Sayın ' . $musteri->name . '; ' . $hizmetAdi . ' paketinizdeki ders hakkınız doldu. Devam etmek için paketinizi yenileyebilirsiniz. Bilgi için bize ulaşın 🌸';
+        } else {
+            $mesaj = 'Sayın ' . $musteri->name . '; ' . $hizmetAdi . ' paketinizde ' . $kalan . ' dersiniz kaldı. Aksatmadan devam etmek için yeni paketinizi şimdiden planlayabilirsiniz 🌸';
+        }
+        \App\Services\DersBildirimServisi::musteriyeGonder($salon, $musteri, $mesaj, 'ders_kalan_uyari');
+        Log::info('[DERS-KALAN] uyari gonderildi', ['user_id' => $userId, 'hizmet_id' => $hizmetId, 'kalan' => $kalan]);
     }
 
     /**
