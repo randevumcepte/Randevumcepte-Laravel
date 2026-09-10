@@ -40,6 +40,8 @@ class RandevuSMSHatirlatma extends Command
         // Personel/yonetici hatirlatmasi randevu basina yalnizca BIR kez gonderilsin
         // diye idempotency bayragi (cron overlap / yeniden tetikleme korumasi).
         $personelFlagVar = Schema::hasColumn('randevular', 'hatirlatma_personel_gonderildi');
+        // Musteri "X saat once" hatirlatmasi icin idempotency bayragi (grace penceresi fix)
+        $musteriFlagVar = Schema::hasColumn('randevular', 'hatirlatma_musteri_gonderildi');
 
         Log::info('[RND-SMS] cron tick', [
             'simdi' => date('d.m.Y H:i'),
@@ -95,7 +97,30 @@ class RandevuSMSHatirlatma extends Command
             // NOT: Push, SMS/WA toggle'dan BAGIMSIZ. musteriyeGonder icinde ayar
             // kontrolu WA/SMS blogunu koruyor; push blogu her zaman calisir.
             // Personel/yonetici tarafi ile ayni pattern (bkz. 167-177, 197-208).
-            if ($simdi == $tetikSalonSaat) {
+            // Musteri "X saat once" hatirlatmasi — GRACE PENCERESI + idempotency.
+            // Eskiden tam-dakika esitligi (simdi==tetik) idi; cron o dakikayi kacirirsa
+            // (bugun ders tarafinda 13:45 turu komple atlanmisti) hatirlatma kaciyordu.
+            // Simdi: tetik aninDAN tetik+15dk'ya kadar herhangi bir turda gonder, atomik
+            // claim ile TEK sefer. Bayrak kolonu yoksa eski exact-dakika davranisina duser.
+            $musteriGonder = false;
+            if ($musteriFlagVar) {
+                $simdiTs   = strtotime($simdi);
+                $tetikTs   = strtotime($tetikSalonSaat);
+                $randevuTs = strtotime($randevutarihsaat);
+                $pencereSon = min($tetikTs + 900, $randevuTs); // +15dk, randevu baslamadan
+                if ($simdiTs >= $tetikTs && $simdiTs < $pencereSon) {
+                    $claimed = Randevular::where('id', $value->id)
+                        ->whereNull('hatirlatma_musteri_gonderildi')
+                        ->update(['hatirlatma_musteri_gonderildi' => now()]);
+                    $musteriGonder = ($claimed === 1);
+                    if ($claimed !== 1) {
+                        Log::info('[RND-SMS] musteri hatirlatmasi zaten gonderilmis — atlandi', ['randevu_id' => $value->id]);
+                    }
+                }
+            } else {
+                $musteriGonder = ($simdi == $tetikSalonSaat);
+            }
+            if ($musteriGonder) {
                 $ayar = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 1)->first();
                 Log::info('[RND-SMS] müşteri salon-saati tetiklendi', [
                     'randevu_id' => $value->id,

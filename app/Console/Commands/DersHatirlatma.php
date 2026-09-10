@@ -110,9 +110,13 @@ class DersHatirlatma extends Command
             // gecikmesi — log'da 13:45 turu hic olmamis, 13:44'ten 13:46'ya atlamis)
             // hatirlatma sonsuza dek kacar. Pencere + atomik claim (hatirlatma_gonderildi)
             // = kacan dakikayi sonraki tur yakalar, yine de TEK gonderim.
+            // Grace penceresi: tetik aninDAN tetik+15dk'ya kadar. Kacan cron dakikasini
+            // yakalar ama saatler once tetigi gecmis oturumlara (deploy sonrasi) toplu
+            // mesaj ATMAZ. Ders baslangicini gecmisse de gondermez.
             $simdiTs = strtotime($simdi);
             $tetikTs = $dersZamani - $x * 3600;
-            if (!$force && !($simdiTs >= $tetikTs && $simdiTs < $dersZamani)) {
+            $pencereSon = min($tetikTs + 900, $dersZamani); // +15dk, ama ders baslamadan
+            if (!$force && !($simdiTs >= $tetikTs && $simdiTs < $pencereSon)) {
                 if ($yakin && !$test) Log::info('[DERS-HAT] ATLANDI: tetik penceresi disinda', ['oturum' => $o->id, 'tetik' => $tetik, 'simdi' => $simdi]);
                 if ($test) $this->warn('  -> ATLANDI: tetik penceresi disinda (--force ile zorlanabilir)');
                 continue;
