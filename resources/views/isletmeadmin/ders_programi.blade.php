@@ -123,7 +123,7 @@
                      @foreach($gunler as $gid=>$gad)<option value="{{ $gid }}">{{ $gad }}</option>@endforeach
                   </select></div>
                <div class="dpm-field full"><label>Ders Adı</label>
-                  <input type="text" id="dp-tipi" placeholder="Reformer / Mat / Crossfit / Birebir"></div>
+                  <input type="text" id="dp-tipi" placeholder="Ders adı"></div>
                <div class="dpm-field full"><label>Eğitmen</label>
                   <select id="dp-personel">
                      <option value="">— Seçiniz —</option>

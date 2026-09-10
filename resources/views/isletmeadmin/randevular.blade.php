@@ -610,7 +610,7 @@
           <input type="hidden" id="ders-oturum-id" value="">
           <div class="dm-grid">
             <div class="dm-field dm-full"><label>Ders Adı</label>
-              <input type="text" id="ders-tipi" placeholder="Reformer / Mat / Crossfit / Birebir"></div>
+              <input type="text" id="ders-tipi" placeholder="Ders adı"></div>
             <div class="dm-field dm-full"><label>Eğitmen</label>
               <select id="ders-personel">
                 <option value="">— Eğitmen seçiniz —</option>
