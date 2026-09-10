@@ -45,7 +45,7 @@
    #dp-modal .modal-dialog{ width:470px; max-width:94%; }
    #dp-modal .modal-content{ border:none; border-radius:16px; overflow:hidden; box-shadow:0 14px 46px rgba(0,0,0,.28); }
    #dp-modal .dpm-head{ background:linear-gradient(135deg,#16a085,#12957d); color:#fff; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
-   #dp-modal .dpm-head h4{ margin:0; font-size:17px; font-weight:700; }
+   #dp-modal .dpm-head h4, #dp-modal .dpm-head #dp-modal-baslik{ margin:0; font-size:17px; font-weight:700; color:#fff !important; }
    #dp-modal .dpm-head .dpm-close{ background:none; border:none; color:#fff; font-size:22px; line-height:1; cursor:pointer; opacity:.9; }
    #dp-modal .dpm-body{ padding:20px; background:#fff; }
    #dp-modal .dpm-grid{ display:grid; grid-template-columns:1fr 1fr; gap:13px 14px; }

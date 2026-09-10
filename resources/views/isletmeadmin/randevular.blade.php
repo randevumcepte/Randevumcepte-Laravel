@@ -109,6 +109,10 @@
             <span class="rc-rt-count-value">{{$randevular['randevu_sayisi']}}</span>
          </div>
          @yetki('randevu.olustur')
+         <a href="#" onclick="dersOturumYeni();return false;"
+            class="rc-rt-btn yenieklebuton" style="background:#16a085;border-color:#16a085;color:#fff;">
+            <i class="fa fa-users"></i><span>Grup Dersi</span>
+         </a>
          <a href="#" data-toggle="modal" data-target="#modal-view-event-add-v2"
             class="rc-rt-btn rc-rt-btn-primary yenieklebuton">
             <i class="fa fa-plus"></i><span>Yeni Randevu</span>
@@ -130,14 +134,6 @@
       @endforeach
    </div>
    @endif
-
-   {{-- Grup Dersi (Pilates/kurs) hizli ekle --}}
-   <div style="margin:6px 0;">
-      <a href="#" onclick="dersOturumYeni();return false;" class="btn btn-sm" style="background:#16a085;color:#fff;">
-         <i class="fa fa-users"></i> Grup Dersi Ekle
-      </a>
-      <small style="color:#7f8c8d;margin-left:8px;">Kapasiteli ders oturumu — takvimde "Ders 2/3" olarak görünür, tıklayınca katılımcıları yönetirsiniz.</small>
-   </div>
 
    {{-- Takvim Kartı --}}
    <div class="rc-rt-card rc-rt-calendar-card">
@@ -564,7 +560,7 @@
   #ders-oturum-modal .modal-dialog{ width:460px; max-width:94%; }
   #ders-oturum-modal .modal-content{ border:none; border-radius:14px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.25); }
   #ders-oturum-modal .dm-head{ background:#16a085; color:#fff; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
-  #ders-oturum-modal .dm-head h4{ margin:0; font-size:17px; font-weight:700; }
+  #ders-oturum-modal .dm-head h4, #ders-oturum-modal .dm-head #ders-modal-baslik{ margin:0; font-size:17px; font-weight:700; color:#fff !important; }
   #ders-oturum-modal .dm-head .dm-close{ background:none; border:none; color:#fff; font-size:22px; line-height:1; cursor:pointer; opacity:.9; }
   #ders-oturum-modal .dm-body{ padding:20px; background:#fff; }
   #ders-oturum-modal .dm-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px 14px; }
@@ -606,6 +602,9 @@
 
         {{-- OLUSTUR / DUZENLE FORMU --}}
         <div id="ders-form-alani">
+          <div style="background:#eafaf4;border:1px solid #cdeee4;border-radius:9px;padding:10px 12px;margin-bottom:14px;font-size:12.5px;color:#0e6b57;line-height:1.5;">
+            <i class="fa fa-info-circle"></i> Kapasiteli ders oturumu oluşturur. Takvimde <b>"Ders 2/3 dolu"</b> olarak görünür; bloğa tıklayıp katılımcıları eklersiniz. <b>Hizmet</b> seçerseniz "Geldi"de paketten seans düşer.
+          </div>
           <input type="hidden" id="ders-oturum-id" value="">
           <div class="dm-grid">
             <div class="dm-field dm-full"><label>Ders Tipi</label>
