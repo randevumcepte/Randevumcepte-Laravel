@@ -424,10 +424,17 @@ class ApiController extends Controller
                     $smsMesaj = [
                             [
                                 "to" => self::telefon_no_format_duzenle($request->cep_telefon),
+                                // SMS icin kisa metin (fallback halinde)
                                 "message" =>
                                     $request->isletmeadi .
                                     " uygulama şifreniz  : " .
                                     $olusturulansifre,
+                                // WA icin dogal cumle + varyasyon (Meta 463 spam riski dusuk)
+                                "wa_message" => \App\Services\WhatsAppMesajFormat::sifreMesaji(
+                                    $request->isletmeadi,
+                                    optional($kullanici)->name ?? '',
+                                    $olusturulansifre
+                                ),
                             ],
                         ];
 
@@ -537,7 +544,9 @@ class ApiController extends Controller
             $hepsiBasarili = true;
             foreach ((array) $mesajlar as $m) {
                 $to = $m['to'] ?? null;
-                $msg = $m['message'] ?? null;
+                // WA icin 'wa_message' (dogal cumle) tercih edilir; yoksa SMS metniyle ayni.
+                // Kisa OTP formati Meta tarafindan spam (463) sayilir; dogal cumle riskini azaltir.
+                $msg = $m['wa_message'] ?? $m['message'] ?? null;
                 if (!$to || !$msg) { $hepsiBasarili = false; continue; }
                 // Sifremi unuttum kontorden bagimsiz ve ucretsiz: 'sifre_sifirlama' tipi
                 // KONTOR_UCRETSIZ_TIPLER'de oldugundan kontor kapisi/bakiye engeli calismaz,
@@ -633,13 +642,20 @@ class ApiController extends Controller
 
                             "to" => $phone,
 
+                            // SMS icin kisa (fallback)
                             "message" =>
 
                                 $request->isletmeadi .
 
                                 " uygulama şifreniz  : " .
 
+                                $olusturulansifre,
+                            // WA icin dogal cumle + varyasyon
+                            "wa_message" => \App\Services\WhatsAppMesajFormat::sifreMesaji(
+                                $request->isletmeadi,
+                                optional($kullanici)->name ?? '',
                                 $olusturulansifre
+                            ),
                         ],
                 ];
                 if (!self::sifreWhatsappGonder($request, $smsMesaj, $kullanici->id ?? null)) {
@@ -687,7 +703,14 @@ class ApiController extends Controller
                     [
 
                         "to" => self::telefon_no_format_duzenle($request->cep_telefon),
-                        "message" => $request->isletmeadi ." uygulama şifreniz  : ".$olusturulansifre
+                        // SMS icin kisa (fallback)
+                        "message" => $request->isletmeadi ." uygulama şifreniz  : ".$olusturulansifre,
+                        // WA icin dogal cumle + varyasyon
+                        "wa_message" => \App\Services\WhatsAppMesajFormat::sifreMesaji(
+                            $request->isletmeadi,
+                            optional($kullanici)->name ?? '',
+                            $olusturulansifre
+                        ),
                     ]
                 ];
 

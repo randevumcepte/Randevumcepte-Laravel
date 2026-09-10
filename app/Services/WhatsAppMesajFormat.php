@@ -89,6 +89,30 @@ class WhatsAppMesajFormat
     }
 
     /**
+     * Sifre teslim mesaji — OTP formatindan uzak, dogal cumle + rastgele varyasyon.
+     * Meta 463 (spam) riskini dusurmek icin: kisa "X sifreniz: 123" yerine
+     * konusma tonlu, kisisel bir metin gonderilir. Her cagride farkli sablon.
+     */
+    public static function sifreMesaji($isletmeAdi, $musteriAdi, $sifre)
+    {
+        $ad = trim((string) $musteriAdi);
+        $selamlama = $ad !== '' ? "Merhaba " . $ad . "," : "Merhaba,";
+        $isletme = trim((string) $isletmeAdi) ?: 'İşletmemiz';
+
+        $sablonlar = [
+            $selamlama . "\n\n" . $isletme . " için uygulamamıza hoş geldiniz. 🌸\nGiriş yaparken şu şifreyi kullanabilirsiniz: *" . $sifre . "*\n\nGüvenliğiniz için ilk girişten sonra şifrenizi değiştirmenizi öneririz. İyi günler dileriz. 💐",
+
+            $selamlama . "\n\n" . $isletme . " hesabınız oluşturuldu. Uygulamaya girerken şu geçici şifreyi kullanabilirsiniz: *" . $sifre . "*\n\nDilerseniz uygulama içinden yeni bir şifre belirleyebilirsiniz. ✨",
+
+            $selamlama . "\n\n" . $isletme . " uygulamasına giriş için oluşturulan şifreniz: *" . $sifre . "*\n\nHesabınızı kişiselleştirmek için uygulamayı ziyaret edebilirsiniz. Görüşmek üzere. 🌷",
+
+            $selamlama . "\n\n" . $isletme . " ailesine hoş geldiniz. 🌟\nUygulamamıza giriş yaparken şu şifreyi kullanabilirsiniz: *" . $sifre . "*\n\nSorularınız için bize her zaman ulaşabilirsiniz.",
+        ];
+
+        return $sablonlar[array_rand($sablonlar)];
+    }
+
+    /**
      * Randevu TALEBI ALINDI bildirimi (WA) — musterinin uygulama/web'den olusturdugu
      * talep henuz onaylanmamis. Salon onayladiginda ayrica randevuOnaylandi mesaji gider.
      */
