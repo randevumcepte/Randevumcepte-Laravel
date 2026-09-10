@@ -29,6 +29,12 @@ class WhatsAppService
         'randevu_onay_bildirim',     // randevu onaylandi (musteri+personel)
         'randevu_bilgi',             // Sesli asistan: "randevum ne zaman" -> randevu bilgilendirme mesaji
         'sifre_sifirlama',           // Sifremi unuttum: her zaman ucretsiz
+        // Grup dersi (Pilates/kurs) bildirimleri — randevu bildirimleriyle ayni
+        // muafiyet: WhatsApp kontorundan DUSMEZ.
+        'ders_hatirlatma',           // ders hatirlatmasi
+        'ders_iptal',                // ders iptal bildirimi
+        'ders_bekleme_terfi',        // bekleme listesinden yer acildi bildirimi
+        'ders_bildirim',             // ders genel bildirim (varsayilan tip)
     ];
 
     /** Bu gönderim tipi kontörden muaf (ücretsiz) mi? */
