@@ -26124,9 +26124,14 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function cikisyap(Request $request){
         auth('isletmeyonetim')->logout();
+        auth('satisortakligi')->logout(); // ornek satis ortagi hesabi da ayni ekrandan cikabilsin
+        // Impersonation self-heal cookie'si: temizlenmezse /isletmeyonetim'e donerken
+        // constructor middleware oturumu ANINDA geri kurar ve cikis "calismiyor" gorunur.
+        \Cookie::queue(\Cookie::forget('imp_iy'));
         $request->session()->invalidate(); // Oturumu tamamen temizle
         $request->session()->regenerateToken(); // Yeni bir CSRF token oluştur
-        return redirect('/isletmeyonetim' );
+        // Dogrudan giris ekranina git: /isletmeyonetim -> index -> self-heal bounce'unu atla
+        return redirect('/isletmeyonetim/girisyap');
     }
     public function exceldataaktarornek(Request $request)
     {
