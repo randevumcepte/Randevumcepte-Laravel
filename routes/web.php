@@ -394,6 +394,10 @@ Route::get('/save-excel', function () {
 	Route::get('/mailkampanyabildirimiptal','HomeController@mailkampanyabildirimiptal');
    Route::get('/randevual/{hizmet}/{id}','HomeController@randevual');
    // Grup dersi (Pilates/kurs) online rezervasyon (mini-site)
+   // Id'siz: salon domain'den (HTTP_HOST) cozulur — salon kendi sitesinde /grup-dersleri
+   // yazinca calisir. Id'li hali test/apptest icin. Id'siz route catch-all'dan
+   // ({isletme_adi}-{isletme_id}) ONCE tanimli olmali ki ona takilmasin.
+   Route::get('/grup-dersleri','HomeController@grupDersleriSayfa');
    Route::get('/grup-dersleri/{salon_id}','HomeController@grupDersleriSayfa');
    Route::post('/grup-dersi-rezervasyon','HomeController@grupDersiRezervasyonWeb');
    Route::get('/saatgetir','HomeController@saatgetir');

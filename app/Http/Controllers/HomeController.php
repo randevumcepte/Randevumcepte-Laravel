@@ -3563,17 +3563,27 @@ $salon = Salonlar::where('domain', $domain)->first();
     // Sadece hakki olan (paket/seans) mevcut musteri; kimlik telefon+sifre
     // (mevcut online randevu akisi randevuonayla1 ile ayni Auth::attempt).
     // ================================================================
-    public function grupDersleriSayfa($salon_id)
+    public function grupDersleriSayfa($salon_id = null)
     {
-        $salon = Salonlar::where('id', $salon_id)->first();
+        // Id verilmediyse salonu domain'den (mini-site host) coz — domain zaten
+        // isletmeyi isaret ediyor. Id verildiyse (test/apptest) ona gore.
+        if ($salon_id) {
+            $salon = Salonlar::where('id', $salon_id)->first();
+        } else {
+            $salon = Salonlar::where('domain', $_SERVER['HTTP_HOST'] ?? '')->first();
+        }
         if (!$salon) abort(404);
-        $dersler = \App\Services\DersRezervasyonServisi::uygunDersler((int) $salon_id, 14);
+        $dersler = \App\Services\DersRezervasyonServisi::uygunDersler((int) $salon->id, 14);
         return view('grup_dersleri', ['salon' => $salon, 'dersler' => $dersler]);
     }
 
     public function grupDersiRezervasyonWeb(Request $request)
     {
         $salonId  = $request->salon_id;
+        // Form salon_id gondermediyse domain'den coz (id'siz mini-site erisimi)
+        if (!$salonId) {
+            $salonId = Salonlar::where('domain', $_SERVER['HTTP_HOST'] ?? '')->value('id');
+        }
         $oturumId = (int) $request->oturum_id;
         if (!$salonId || !$oturumId) {
             return response()->json(['durum' => 'hata', 'mesaj' => 'Eksik bilgi.'], 422);
