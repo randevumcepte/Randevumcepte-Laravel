@@ -191,6 +191,19 @@
                   aria-selected="false"
                   >Randevular</a>
             </li>
+            @if(!empty($isletme->studyo_modu))
+            <li class="nav-item" style="margin:5px">
+               <a
+                  class="btn btn-outline-primary"
+                  data-toggle="tab"
+                  href="#vucut_olcumu"
+                  role="tab"
+                  style="width: 150px;"
+                  aria-selected="false"
+                  onclick="olcumListeYukle()"
+                  ><i class="fa fa-heartbeat"></i> Vücut Ölçümü</a>
+            </li>
+            @endif
             @yetki('paket.seans_takip')
             <li class="nav-item" style="margin:5px">
                <a
@@ -293,6 +306,47 @@
             @endyetki
          </ul>
          <div class="tab-content">
+            @if(!empty($isletme->studyo_modu))
+            <div class="tab-pane fade" id="vucut_olcumu" role="tabpanel">
+               <div class="card-box pd-20">
+                  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:15px;">
+                     <h4 style="margin:0"><b>{{$musteri_bilgi->name}} — Vücut Ölçümleri</b></h4>
+                     <button type="button" class="btn btn-primary" onclick="olcumEkleFormAc()"><i class="fa fa-plus"></i> Yeni Ölçüm</button>
+                  </div>
+
+                  {{-- Ekleme formu (gizli) --}}
+                  <div id="olcum_ekle_form" style="display:none;background:#f7f7fb;border:1px solid #e5e5ef;border-radius:10px;padding:18px;margin-bottom:20px;">
+                     <div class="row">
+                        <div class="col-md-3 col-6 form-group"><label>Ölçüm Tarihi</label><input type="date" id="ol_tarih" class="form-control" value="{{date('Y-m-d')}}"></div>
+                        <div class="col-md-3 col-6 form-group"><label>Yaş</label><input type="number" id="ol_yas" class="form-control" placeholder="örn. 32"></div>
+                        <div class="col-md-3 col-6 form-group"><label>Boy (cm)</label><input type="number" step="0.1" id="ol_boy" class="form-control" placeholder="örn. 170" oninput="olcumVkiOnizle()"></div>
+                        <div class="col-md-3 col-6 form-group"><label>Kilo (kg)</label><input type="number" step="0.1" id="ol_kilo" class="form-control" placeholder="örn. 68" oninput="olcumVkiOnizle()"></div>
+                        <div class="col-md-3 col-6 form-group"><label>VKİ (otomatik)</label><input type="text" id="ol_vki" class="form-control" readonly style="background:#eee;font-weight:bold;"></div>
+                        <div class="col-md-3 col-6 form-group"><label>Yağ Oranı (%)</label><input type="number" step="0.1" id="ol_yag" class="form-control"></div>
+                        <div class="col-md-3 col-6 form-group"><label>Ödem</label><input type="number" step="0.1" id="ol_odem" class="form-control"></div>
+                        <div class="col-md-3 col-6 form-group"><label>Kas Puanı</label><input type="number" step="0.1" id="ol_kaspuan" class="form-control"></div>
+                        <div class="col-md-3 col-6 form-group"><label>Kas (kg)</label><input type="number" step="0.1" id="ol_kaskg" class="form-control"></div>
+                        <div class="col-md-3 col-6 form-group"><label>İç Yağlanma</label><input type="number" step="0.1" id="ol_icyag" class="form-control"></div>
+                        <div class="col-md-6 col-12 form-group"><label>Not</label><input type="text" id="ol_not" class="form-control" placeholder="opsiyonel"></div>
+                     </div>
+                     <div style="text-align:right;">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('olcum_ekle_form').style.display='none'">Vazgeç</button>
+                        <button type="button" class="btn btn-success" id="ol_kaydet_btn" onclick="olcumKaydet()">Kaydet</button>
+                     </div>
+                  </div>
+
+                  {{-- Gecmis tablo --}}
+                  <div style="overflow-x:auto;">
+                     <table class="table stripe hover" style="min-width:820px;">
+                        <thead><tr style="background:#f0f0f7;">
+                           <th>Tarih</th><th>Kilo</th><th>VKİ</th><th>Yağ %</th><th>Ödem</th><th>Kas Puanı</th><th>Kas kg</th><th>İç Yağ.</th><th></th>
+                        </tr></thead>
+                        <tbody id="olcum_tbody"><tr><td colspan="9" style="text-align:center;color:#999;padding:25px;">Yükleniyor...</td></tr></tbody>
+                     </table>
+                  </div>
+               </div>
+            </div>
+            @endif
             <div
                class="tab-pane fade"
                id="formlar"
@@ -1514,6 +1568,91 @@ function anketHizliGonder(userId, btn){
          if (status === 'timeout') msg = 'Sunucu 20 saniye içinde cevap vermedi.';
          swal('Hata', msg, 'error');
       }).always(function(){ $('#preloader').hide(); });
+   });
+}
+
+/* ===================== Vucut Olcumu (studyo modu) ===================== */
+const OL_USER_ID = {{ (int)$musteri_bilgi->id }};
+
+function olcumVkiSinif(v){
+   v = parseFloat(v)||0;
+   if(v<=0) return '';
+   if(v<18.5) return 'Zayıf';
+   if(v<25)   return 'Normal';
+   if(v<30)   return 'Fazla Kilolu';
+   return 'Obez';
+}
+function olcumVkiOnizle(){
+   const boy = parseFloat(document.getElementById('ol_boy').value)||0;
+   const kilo = parseFloat(document.getElementById('ol_kilo').value)||0;
+   let vki = '';
+   if(boy>0 && kilo>0){ const m=boy/100; vki = (kilo/(m*m)).toFixed(2)+' ('+olcumVkiSinif(kilo/(m*m))+')'; }
+   document.getElementById('ol_vki').value = vki;
+}
+function olcumEkleFormAc(){
+   const f = document.getElementById('olcum_ekle_form');
+   f.style.display = (f.style.display==='none' || !f.style.display) ? 'block' : 'none';
+}
+function olVal(id){ const v=document.getElementById(id).value; return v===''?'':v; }
+
+async function olcumListeYukle(){
+   const tb = document.getElementById('olcum_tbody');
+   tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#999;padding:25px;">Yükleniyor...</td></tr>';
+   const res = await dpFetch(`/isletmeyonetim/musteri-olcum-liste?user_id=${OL_USER_ID}`);
+   if(!res.ok || !res.data || res.data.durum!=='ok'){
+      tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#dc3545;padding:25px;">Yüklenemedi.</td></tr>';
+      return;
+   }
+   const list = res.data.olcumler || [];
+   if(!list.length){
+      tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#999;padding:25px;">Henüz ölçüm girilmemiş.</td></tr>';
+      return;
+   }
+   const g = v => (v===null||v===undefined||v==='')?'-':v;
+   tb.innerHTML = list.map(o=>{
+      const vki = o.vki ? (o.vki+' <small style="color:#888">'+olcumVkiSinif(o.vki)+'</small>') : '-';
+      return `<tr>
+         <td><b>${o.olcum_tarihi||'-'}</b></td>
+         <td>${g(o.kilo)}${o.kilo?' kg':''}</td>
+         <td>${vki}</td>
+         <td>${g(o.yag_orani)}</td>
+         <td>${g(o.odem)}</td>
+         <td>${g(o.kas_puani)}</td>
+         <td>${g(o.kas_kg)}</td>
+         <td>${g(o.ic_yaglanma)}</td>
+         <td><button class="btn btn-sm btn-outline-danger" onclick="olcumSil(${o.id})"><i class="fa fa-trash"></i></button></td>
+      </tr>` + (o.not ? `<tr><td colspan="9" style="background:#fafafa;color:#666;font-size:12px;padding:4px 12px;">📝 ${o.not}</td></tr>` : '');
+   }).join('');
+}
+
+async function olcumKaydet(){
+   const boy = olVal('ol_boy'), kilo = olVal('ol_kilo');
+   if(!boy && !kilo){ swal('Eksik','En az boy veya kilo girin.','warning'); return; }
+   const btn = document.getElementById('ol_kaydet_btn'); btn.disabled=true;
+   const res = await dpFetch('/isletmeyonetim/musteri-olcum-ekle', { method:'POST', body:{
+      user_id: OL_USER_ID,
+      olcum_tarihi: olVal('ol_tarih'), yas: olVal('ol_yas'),
+      boy: boy, kilo: kilo, yag_orani: olVal('ol_yag'), odem: olVal('ol_odem'),
+      kas_puani: olVal('ol_kaspuan'), kas_kg: olVal('ol_kaskg'),
+      ic_yaglanma: olVal('ol_icyag'), not: olVal('ol_not'),
+   }});
+   btn.disabled=false;
+   if(res.ok && res.data && res.data.durum==='ok'){
+      ['ol_yas','ol_boy','ol_kilo','ol_vki','ol_yag','ol_odem','ol_kaspuan','ol_kaskg','ol_icyag','ol_not'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('olcum_ekle_form').style.display='none';
+      olcumListeYukle();
+   } else {
+      swal('Hata',(res.data && res.data.mesaj)||'Kaydedilemedi.','error');
+   }
+}
+
+function olcumSil(id){
+   swal({ title:'Silinsin mi?', text:'Bu ölçüm kaydı silinecek.', icon:'warning', buttons:['Vazgeç','Sil'], dangerMode:true })
+   .then(async(onay)=>{
+      if(!onay) return;
+      const res = await dpFetch('/isletmeyonetim/musteri-olcum-sil', { method:'POST', body:{ olcum_id:id } });
+      if(res.ok && res.data && res.data.durum==='ok'){ olcumListeYukle(); }
+      else swal('Hata','Silinemedi.','error');
    });
 }
 </script>
