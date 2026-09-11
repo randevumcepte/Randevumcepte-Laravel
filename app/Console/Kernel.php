@@ -129,6 +129,8 @@ class Kernel extends ConsoleKernel
         // salon.randevu_sms_hatirlatma saati kadar önce, WhatsApp öncelikli/SMS yedek.
         // Her dakika tetik anını kontrol eder (oturum başına atomik claim ile tek gönderim).
         $schedule->command('ders:hatirlat')->withoutOverlapping()->everyMinute();
+        // Ders bitiminde salon "Geldi" dememisse musteriye "katildiniz mi?" push
+        $schedule->command('ders:katilim-sor')->withoutOverlapping()->everyMinute();
 
         // WhatsApp kuyrukta takılı kalan mesajları SMS'e düşür — her 3 dakikada bir
         // Sebep: Node service RAM-only queue, restart/crash olunca mesajlar takılı kalıyordu
