@@ -32084,6 +32084,39 @@ SOZLESME_TXT;
         return response()->json(['durum' => 'ok', 'dusum' => $dusum, 'mesaj' => 'Katılımınız kaydedildi ✨']);
     }
 
+    // Danisan kendi katilimini bildirir: durum = geldi | gelmedi.
+    // geldi -> paket dusumu; gelmedi -> dusum yok (onceden dusulduyse iade).
+    public function danisanDersKatilim(Request $request)
+    {
+        $userId = (int) $request->user_id;
+        $katilimciId = (int) $request->katilimci_id;
+        $durum = in_array($request->durum, ['geldi', 'gelmedi']) ? $request->durum : null;
+        if (!$userId || !$katilimciId || !$durum) return response()->json(['durum' => 'hata', 'mesaj' => 'Eksik bilgi.'], 422);
+
+        $k = \App\DersKatilimci::where('id', $katilimciId)->where('user_id', $userId)->first();
+        if (!$k) return response()->json(['durum' => 'hata', 'mesaj' => 'Kayıt bulunamadı.'], 404);
+        if ($k->durum == 'iptal') return response()->json(['durum' => 'hata', 'mesaj' => 'Bu kayıt iptal edilmiş.'], 409);
+
+        $oturum = \App\DersOturumu::find($k->oturum_id);
+        if (!$oturum) return response()->json(['durum' => 'hata', 'mesaj' => 'Ders bulunamadı.'], 404);
+        if (strtotime($oturum->tarih) > strtotime(date('Y-m-d'))) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Ders henüz gerçekleşmedi.'], 409);
+        }
+
+        $k->durum = $durum; $k->save();
+        $dusum = null;
+        try {
+            if ($durum === 'geldi') {
+                $apsId = \App\Services\DersSeansServisi::dusumYap($oturum, $k);
+                $dusum = $apsId ? 'dusuldu' : (($oturum->hizmet_id) ? 'hak_yok' : 'hizmet_bagli_degil');
+            } else {
+                if ($k->hak_dusuldu) { \App\Services\DersSeansServisi::dusumGeriAl($k); $dusum = 'iade'; }
+            }
+        } catch (\Throwable $e) {}
+        $msg = $durum === 'geldi' ? 'Katılımınız kaydedildi ✨' : 'Teşekkürler, katılmadınız olarak işaretlendi.';
+        return response()->json(['durum' => 'ok', 'dusum' => $dusum, 'mesaj' => $msg]);
+    }
+
     // Grup dersi raporu (isletme) — ozet + egitmen + ders bazli
     public function grupDersiRapor(Request $request)
     {
