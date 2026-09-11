@@ -124,7 +124,7 @@
    </div>
 
    {{-- Aktif gap kampanyalari bilgi seridi --}}
-   @if(!empty($gapKampanyalari))
+   @if(!empty($gapKampanyalari) && !($isletme->studyo_modu ?? 0))
    <div class="gap-info-strip">
       <span class="gap-strip-label"><i class="fa fa-tag"></i> Aktif Kampanya:</span>
       @foreach($gapKampanyalari as $k)

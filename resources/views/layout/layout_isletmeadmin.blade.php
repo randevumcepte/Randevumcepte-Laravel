@@ -1839,10 +1839,10 @@
                   </li>
 
                   {{-- 6) Form Yönetimi --}}
-                  @if(
+                  @if((
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'form.olustur') ||
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'form.gonder')
-                  )
+                  ) && !($isletme->studyo_modu ?? 0))
                   <li>
                      @if($pageindex==50 || $pageindex==51)
                      <a href="/isletmeyonetim/arsivyonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
