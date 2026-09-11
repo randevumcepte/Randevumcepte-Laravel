@@ -1813,7 +1813,7 @@
                   @endif
 
                   {{-- 4) Ön Görüşmeler --}}
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'gorusme.liste_gor'))
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'gorusme.liste_gor') && !($isletme->studyo_modu ?? 0))
                   <li>
                      @if($pageindex==12)
                      <a href="/isletmeyonetim/ongorusmeler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1932,7 +1932,7 @@
                   {{-- 10) Çarkıfelek (uyelik_turu 2 ve 3) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu >= 2)
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.cark_yonet'))
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.cark_yonet') && !($isletme->studyo_modu ?? 0))
                   <li>
                      @if(in_array($pageindex ?? 0, [500, 501, 502]))
                      <a href="/isletmeyonetim/carkifelek{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2012,7 +2012,7 @@
 
                   {{-- 13.5) Isletme Raporlari (yeni — tabbed rapor dashboard) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !in_array(4, $_layoutRoller))
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !in_array(4, $_layoutRoller) && !($isletme->studyo_modu ?? 0))
                   <li>
                      @if(($pageindex ?? -1) == 600)
                      <a href="/isletmeyonetim/isletmeraporlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2027,7 +2027,7 @@
 
                   {{-- 14) Satış Raporları --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !in_array(4, $_layoutRoller))
+                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !in_array(4, $_layoutRoller) && !($isletme->studyo_modu ?? 0))
                   <li>
                      @if($pageindex==400)
                      <a href="/isletmeyonetim/raporlar{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2089,6 +2089,7 @@
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.stok_sayim') ||
                      \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.tedarikci_yonet')
                   )
+                  @if(!($isletme->studyo_modu ?? 0))
                   <li>
                      @if($pageindex==30)
                      <a href="/isletmeyonetim/urunler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2099,6 +2100,7 @@
                      <span class="mtext">Stok Yönetimi</span>
                      </a>
                   </li>
+                  @endif
                   @endif
                   @endif
                   @endif
@@ -2150,6 +2152,7 @@
                         \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.alacak_yonet')
                      )
                      && !in_array(4, $_layoutRoller)
+                     && !($isletme->studyo_modu ?? 0)
                   )
                   <li>
                      @if($pageindex==103)
