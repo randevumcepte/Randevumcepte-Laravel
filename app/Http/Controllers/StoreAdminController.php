@@ -19456,6 +19456,10 @@ DB::raw('
         if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar', 'cakisma_uyarisi_aktif')) {
             $isletme->cakisma_uyarisi_aktif = $request->has('cakisma_uyarisi_aktif') ? 1 : 0;
         }
+        // Studyo Modu (Pilates/kurs) — isletme bazli ac/kapa
+        if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar', 'studyo_modu')) {
+            $isletme->studyo_modu = $request->has('studyo_modu') ? 1 : 0;
+        }
         $isletme->save();
         // Ayar degistiginde host bazli cache'i dusur (ayni istek icinde tekrar okunursa taze olsun)
         self::$_gecmisGizleCache = [];

@@ -1068,6 +1068,15 @@
                            </div>
                         </div>
                         <div class="col-md-12">
+                           <div class="form-group">
+                              <div class="custom-control custom-checkbox mb-5">
+                                 <input type="checkbox" class="custom-control-input" name="studyo_modu" id="studyo_modu" value="1" {{(!empty($isletme->studyo_modu)) ? 'checked' : ''}}>
+                                 <label class="custom-control-label" for="studyo_modu">Stüdyo Modu (Pilates / kurs stüdyosu)</label>
+                              </div>
+                              <small class="text-muted">Açıkken finans/satış/ürün/ön görüşme/çark gibi paneller gizlenir, ödeme "Alındı / Alınmadı" olarak sadeleşir ve üyeler için vücut ölçümü + gelişim takibi açılır. Pilates/fitness stüdyoları içindir; diğer işletmelerde kapalı bırakın.</small>
+                           </div>
+                        </div>
+                        <div class="col-md-12">
                            <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i> Kaydet</button>
                         </div>
                      </div>
