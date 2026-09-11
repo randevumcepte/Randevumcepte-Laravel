@@ -2423,6 +2423,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     if ($iptal)                                   $c = '#95a5a6';
                     elseif ($o->personel && $o->personel->trenk)  $c = $o->personel->trenk->renk;
                     else                                          $c = ($o->renk ?: '#5d6d7e');
+                    // Mobil takvim rengi 0xFFRRGGBB bekliyor (normal event'lerle ayni format);
+                    // trenk->renk '#EA43F2' geldiginde app int.parse ile cokuyordu.
+                    $__hx = ltrim((string) $c, '#');
+                    $c = (stripos($__hx, '0x') === 0) ? $c : ('0xFF' . strtoupper($__hx));
                     $dersAdi = $o->ders_tipi ?: 'Grup Dersi';
                     $dersEventleri[] = [
                         'id'           => 'ders-'.$o->id,
