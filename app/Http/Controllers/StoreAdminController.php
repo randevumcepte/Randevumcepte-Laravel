@@ -36453,6 +36453,10 @@ DB::raw('
         if(!in_array(self::mevcutsube($request),$isletmeler)){
             return view('isletmeadmin.yetkisizerisim');
         }
+        // Studyo modu: prim/hakedis modulu kapali — dogrudan URL erisimi de engellenir.
+        if($isletme && !empty($isletme->studyo_modu)){
+            return redirect()->route('isletmeadmin.randevular');
+        }
         // Prim & Hak Edis ekrani: personel.prim_hakedis_gor zorunlu (Sekreter vb. ozel
         // yetkili hesaplar da dahil; personelmi() sadece rol-5'i engelliyordu).
         $_primAu = Auth::guard('isletmeyonetim')->user();

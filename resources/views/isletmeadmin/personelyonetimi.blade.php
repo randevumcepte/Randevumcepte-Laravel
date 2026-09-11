@@ -335,6 +335,7 @@
          <i class="fa fa-users"></i> Personeller
       </a>
    </li>
+   @if(!($isletme->studyo_modu ?? 0))
    @yetki('personel.prim_hakedis_gor')
    <li class="nav-item">
       <a class="nav-link" data-toggle="tab" href="#primHakedis" role="tab" aria-selected="false" id="tabBtn-primHakedis">
@@ -342,6 +343,7 @@
       </a>
    </li>
    @endyetki
+   @endif
 </ul>
 
 <div class="tab-content">
@@ -377,9 +379,11 @@
       </div>
    </div>
    <div class="tab-pane fade" id="primHakedis" role="tabpanel">
+      @if(!($isletme->studyo_modu ?? 0))
       @yetki('personel.prim_hakedis_gor')
       @include('isletmeadmin.partials.prim_hakedis_panel')
       @endyetki
+      @endif
    </div>
 </div>
 
