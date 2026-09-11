@@ -5017,6 +5017,42 @@ public function carkverilerigetir(Request $request)
         ]);
     }
 
+    // ---------- Vucut Olcumu (Pilates/studyo modu) ----------
+    public function musteri_olcum_ekle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.takvim_gor')) return $r;
+        $salonId = self::mevcutsube($request);
+        $userId = (int)$request->user_id;
+        if(!$userId) return response()->json(['durum'=>'hata','mesaj'=>'Müşteri seçilmedi.'],422);
+        $vki = \App\MusteriOlcum::vkiHesapla($request->boy, $request->kilo);
+        $o = \App\MusteriOlcum::create([
+            'salon_id'=>$salonId, 'user_id'=>$userId,
+            'olcum_tarihi'=>$request->olcum_tarihi ?: date('Y-m-d'),
+            'boy'=>$request->boy ?: null, 'kilo'=>$request->kilo ?: null, 'yas'=>$request->yas ?: null,
+            'vki'=>$vki, 'yag_orani'=>$request->yag_orani ?: null, 'odem'=>$request->odem ?: null,
+            'kas_puani'=>$request->kas_puani ?: null, 'kas_kg'=>$request->kas_kg ?: null,
+            'ic_yaglanma'=>$request->ic_yaglanma ?: null,
+            'olcen_personel_id'=>Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id ?? 0)->where('salon_id',$salonId)->value('id'),
+            'not'=>$request->not ?: null,
+        ]);
+        return response()->json(['durum'=>'ok','id'=>$o->id,'vki'=>$vki,'vki_sinif'=>\App\MusteriOlcum::vkiSinif($vki)]);
+    }
+
+    public function musteri_olcum_liste(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.takvim_gor')) return $r;
+        $salonId = self::mevcutsube($request);
+        $olcumler = \App\MusteriOlcum::where('salon_id',$salonId)->where('user_id',(int)$request->user_id)
+            ->orderBy('olcum_tarihi','desc')->orderBy('id','desc')->get();
+        return response()->json(['durum'=>'ok','olcumler'=>$olcumler,
+            'vki_sinif'=>$olcumler->map(function($o){ return \App\MusteriOlcum::vkiSinif($o->vki); })]);
+    }
+
+    public function musteri_olcum_sil(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.duzenle_iptal')) return $r;
+        $salonId = self::mevcutsube($request);
+        \App\MusteriOlcum::where('salon_id',$salonId)->where('id',$request->olcum_id)->delete();
+        return response()->json(['durum'=>'ok']);
+    }
+
     public function kasadefteri(Request $request){
        $isletmeler = '';
         $isletme='';

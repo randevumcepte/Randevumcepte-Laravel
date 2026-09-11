@@ -37,6 +37,11 @@ Route::post('/danisan-grup-derslerim','ApiController@danisanGrupDerslerim');
 Route::post('/danisan-ders-geldim','ApiController@danisanDersGeldim');
 Route::post('/danisan-ders-katilim','ApiController@danisanDersKatilim');
 Route::post('/grup-dersi-rapor','ApiController@grupDersiRapor');
+// Vucut olcumu (studyo)
+Route::post('/musteri-olcum-ekle','ApiController@musteriOlcumEkle');
+Route::post('/musteri-olcum-liste','ApiController@musteriOlcumListe');
+Route::post('/musteri-olcum-sil','ApiController@musteriOlcumSil');
+Route::post('/danisan-olcumlerim','ApiController@danisanOlcumlerim');
 Route::post('/logout', 'AuthController@logout')->middleware('auth:isletmeyonetim-api');
 // Mobil WebView koprusu: uygulama Bearer token'iyla cagirir, 2 dk gecerli
 // tek kullanimlik imzali giris linki doner (WhatsApp kontor ekrani icin).

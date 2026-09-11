@@ -32127,4 +32127,53 @@ SOZLESME_TXT;
         $rapor = \App\Services\DersRaporServisi::ozet($salonId, $tarih1, $tarih2);
         return response()->json(['durum' => 'ok', 'tarih1' => $tarih1, 'tarih2' => $tarih2] + $rapor);
     }
+
+    // ================================================================
+    // VUCUT OLCUMU (Pilates/studyo) — isletme girer, uye gorur.
+    // ================================================================
+
+    public function musteriOlcumEkle(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        $userId = (int) $request->musteri_id;
+        if (!$salonId || !$userId) return response()->json(['durum' => 'hata', 'mesaj' => 'Eksik bilgi.'], 422);
+        $vki = \App\MusteriOlcum::vkiHesapla($request->boy, $request->kilo);
+        $o = \App\MusteriOlcum::create([
+            'salon_id' => $salonId, 'user_id' => $userId,
+            'olcum_tarihi' => $request->olcum_tarihi ?: date('Y-m-d'),
+            'boy' => $request->boy ?: null, 'kilo' => $request->kilo ?: null, 'yas' => $request->yas ?: null,
+            'vki' => $vki, 'yag_orani' => $request->yag_orani ?: null, 'odem' => $request->odem ?: null,
+            'kas_puani' => $request->kas_puani ?: null, 'kas_kg' => $request->kas_kg ?: null,
+            'ic_yaglanma' => $request->ic_yaglanma ?: null,
+            'olcen_personel_id' => $this->_dersEkleyenPersonel($request, $salonId),
+            'not' => $request->not ?: null,
+        ]);
+        return response()->json(['durum' => 'ok', 'id' => $o->id, 'vki' => $vki, 'vki_sinif' => \App\MusteriOlcum::vkiSinif($vki)]);
+    }
+
+    public function musteriOlcumListe(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        $olcumler = \App\MusteriOlcum::where('salon_id', $salonId)->where('user_id', (int) $request->musteri_id)
+            ->orderBy('olcum_tarihi', 'desc')->orderBy('id', 'desc')->get();
+        return response()->json(['durum' => 'ok', 'olcumler' => $olcumler]);
+    }
+
+    public function musteriOlcumSil(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        \App\MusteriOlcum::where('salon_id', $salonId)->where('id', $request->olcum_id)->delete();
+        return response()->json(['durum' => 'ok']);
+    }
+
+    // Danisan kendi olcumlerini gorur (gecmis + grafik icin ARTAN tarih).
+    public function danisanOlcumlerim(Request $request)
+    {
+        $userId = (int) $request->user_id;
+        if (!$userId) return response()->json(['durum' => 'hata', 'mesaj' => 'user_id yok'], 422);
+        $q = \App\MusteriOlcum::where('user_id', $userId);
+        if ($request->salon_id) $q->where('salon_id', $request->salon_id);
+        $olcumler = $q->orderBy('olcum_tarihi', 'asc')->orderBy('id', 'asc')->get();
+        return response()->json(['durum' => 'ok', 'olcumler' => $olcumler]);
+    }
 }
