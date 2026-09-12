@@ -32138,9 +32138,11 @@ SOZLESME_TXT;
         $adisyon = \App\Adisyonlar::where('id', $request->adisyon_id)
             ->where('salon_id', $salonId)->first();
         if (!$adisyon) return response()->json(['durum' => 'hata', 'mesaj' => 'Adisyon bulunamadı.'], 404);
-        $adisyon->odendi = filter_var($request->alindi, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
-        $adisyon->save();
-        return response()->json(['durum' => 'ok', 'odendi' => (int) $adisyon->odendi]);
+        $alindi = filter_var($request->alindi, FILTER_VALIDATE_BOOLEAN);
+        $olusturan = Personeller::where('salon_id', $salonId)->where('yetkili_id', $request->olusturan ?? 0)->value('id');
+        // Fiyat sistemde tutulur (gizli); tam tahsilat/geri-al ile adisyon normal mekanizmayla kapanir/acilir.
+        if ($alindi) $adisyon->tamOde(null, $olusturan); else $adisyon->odemeGeriAl();
+        return response()->json(['durum' => 'ok', 'odendi' => $alindi ? 1 : 0]);
     }
 
     // ================================================================

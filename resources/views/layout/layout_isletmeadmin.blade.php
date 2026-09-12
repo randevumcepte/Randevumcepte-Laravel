@@ -2735,7 +2735,7 @@
                            <div class="col-md-2 col-6 col-sm-6 col-xs-6" style="{{ !empty($isletme->studyo_modu) ? 'display:none' : '' }}">
                               <div class="form-group">
                                  <label>Fiyat ₺</label>
-                                 <input type="tel" class="form-control" {{ empty($isletme->studyo_modu) ? 'required' : '' }} name="adisyonhizmetfiyati[]" value="{{ !empty($isletme->studyo_modu) ? '0' : '' }}" placeholder="0">
+                                 <input type="tel" class="form-control" required name="adisyonhizmetfiyati[]" value="" placeholder="0">
                               </div>
                            </div>
                            <div class="col-md-2 col-6 col-sm-6 col-xs-6">
@@ -3066,7 +3066,7 @@
                            <div class="col-md-3" style="{{ !empty($isletme->studyo_modu) ? 'display:none' : '' }}">
                               <div class="form-group">
                                  <label>Fiyat (₺)</label>
-                                 <input type="tel" name="paketfiyat[]" value="{{ !empty($isletme->studyo_modu) ? '0' : App\Paketler::where('salon_id',$isletme->id)->where('aktif',true)->value('fiyat') }}"  class="form-control" {{ empty($isletme->studyo_modu) ? 'required' : '' }}>
+                                 <input type="tel" name="paketfiyat[]" value="{{App\Paketler::where('salon_id',$isletme->id)->where('aktif',true)->value('fiyat')}}"  class="form-control" required>
                               </div>
                            </div>
                            
@@ -5725,7 +5725,7 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=13.6')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=263.7')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=263.9')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>

@@ -6879,10 +6879,9 @@ $(document).on('change','select[name="randevuhizmetleriyeni[]"],select[name="adi
         },
         success: function(result)  {
             $("#preloader").hide();
-            // Studyo modu (fiyat gizleme): hizmet fiyatini 0 tut, sure aynen kalsin
-            fiyat_text.val(window.STUDYO_MODU ? '0' : result.fiyat);
+            fiyat_text.val(result.fiyat);
             sure_text.val(result.sure);
-            fiyat_text_adisyon.val(window.STUDYO_MODU ? '0' : result.fiyat);
+            fiyat_text_adisyon.val(result.fiyat);
             sure_text_adisyon.val(result.sure);
         },
         error: function (request, status, error) {
@@ -8621,8 +8620,7 @@ $(document).on('click','button[name="satis_formuna_paket_ekle"]',function(){
                      if($('input[name="paket_id[]"]').eq(index).val() == ""){
                         $('input[name="paketadi[]"]').eq(index).val(tds[0].innerHTML);
                         $('input[name="paketadet[]"]').eq(index).val(tds[1].innerHTML);
-                        // Studyo modu (fiyat gizleme): paket fiyatini 0 tut
-                        $('input[name="paketfiyat[]"]').eq(index).val(window.STUDYO_MODU ? '0' : tds[3].innerHTML);
+                        $('input[name="paketfiyat[]"]').eq(index).val(tds[3].innerHTML);
                         $('input[name="paket_id[]').eq(index).val(paketid);
                         $('select[name="pakethizmet[]"]').eq(index).select2("trigger", "select", {
                             data: { id: data['hizmet_id']}
