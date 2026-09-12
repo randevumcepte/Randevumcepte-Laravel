@@ -6026,7 +6026,7 @@ $(document).on('submit','#paket_formu,#paket_formu_duzenleme',function(e){
                         {data: 'paket_adi'},
                         {data: 'hizmetler'},
                         {data: 'seanslar'},
-                        {data: 'fiyat'},
+                        {data: 'fiyat', visible: !window.STUDYO_MODU},
                         {data: 'islemler'},
                     ],
                     data: result.paketler.paket_liste,
@@ -6247,7 +6247,7 @@ $('#paket_liste').on('click','a[name="paket_sil"]',function(e){
                            { data: 'paket_adi' },
                            { data: 'hizmetler' },
                            { data: 'seanslar' },
-                           { data: 'fiyat' },
+                           { data: 'fiyat', visible: !window.STUDYO_MODU },
                            {data : 'islemler'},
                        ],
                        data: result.paket_liste,
@@ -18110,10 +18110,15 @@ $('#secilenpaket_satis_yap').click(function(e){
              var _st=((row.cells[3]?row.cells[3].innerText:'')||'').match(/\d+/); _seansVal=_st?_st[0]:'';
              _fiyatVal=((row.cells[4]?row.cells[4].innerText:'')||'').replace(/[^\d.,]/g,'').trim();
          }
+         // Studyo modu: Fiyat alani gizli (deger korunur), Seans tam genislik
+         var _fiyatBlok = window.STUDYO_MODU
+             ? "<input type='hidden' name='paket_satis_fiyat[]' value='"+_fiyatVal+"'>"
+             : "<div class='col-md-6'><label>Fiyat</label><input type='tel' class='form-control' name='paket_satis_fiyat[]' value='"+_fiyatVal+"' style='height:38px;margin-bottom:10px'></div>";
+         var _seansCol = window.STUDYO_MODU ? 'col-md-12' : 'col-md-6';
          html+= "<div class='row'><div class='col-md-12'><p style='font-size:18px;font-weight:bold;margin-bottom:10px;margin-top:10px'>"+row.cells[1].innerHTML
 +"</p></div>"+
-                "<div class='col-md-6'><label>Seans Sayısı</label><input type='tel' class='form-control' name='paket_satis_seans[]' value='"+_seansVal+"' style='height:38px;margin-bottom:10px'></div>"+
-                "<div class='col-md-6'><label>Fiyat</label><input type='tel' class='form-control' name='paket_satis_fiyat[]' value='"+_fiyatVal+"' style='height:38px;margin-bottom:10px'></div>"+
+                "<div class='"+_seansCol+"'><label>Seans Sayısı</label><input type='tel' class='form-control' name='paket_satis_seans[]' value='"+_seansVal+"' style='height:38px;margin-bottom:10px'></div>"+
+                _fiyatBlok+
                 "</div> ";
     });
     if(i==0 || $('select[name="paket_satis_musteri_id"]').val()==0 )
@@ -18149,7 +18154,7 @@ $('#secilenpaket_satis_yap').click(function(e){
         if(window.STUDYO_MODU){
             // Studyo modu: tutar makinesi yerine dogrudan ikili odeme (adisyon-odeme-isaretle -> tamOde tarih/saat)
             swal({
-                html: "<p style='font-size:18px;font-weight:bold;'>Seans ve fiyat</p>"+html,
+                html: "<p style='font-size:18px;font-weight:bold;'>Seans Sayısı</p>"+html,
                 showCancelButton: true,
                 confirmButtonText: 'Ödeme Alındı',
                 cancelButtonText: 'Ödeme Alınmadı',
