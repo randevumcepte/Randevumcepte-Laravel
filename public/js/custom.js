@@ -18160,15 +18160,17 @@ $('#secilenpaket_satis_yap').click(function(e){
                 cancelButtonClass: 'btn btn-secondary',
             }).then(function(result){
                 if(result.value){
-                    _paketSatisGonder(function(adisyonId){
+                    _paketSatisGonder(function(result2){
+                        // pakettahsilatagit "{musteriId}/{adisyonId}/?sube=X" doner -> adisyonId = parcalar[1]
+                        var _adisyonId = String(result2).split('/')[1] || '';
                         $.ajax({
                             type:"POST", url:'/isletmeyonetim/adisyon-odeme-isaretle', dataType:"json",
-                            data:{ adisyon_id: adisyonId, alindi: 1, sube: _sube, _token: $('input[name="_token"]').val() },
+                            data:{ adisyon_id: _adisyonId, alindi: 1, sube: _sube, _token: $('input[name="_token"]').val() },
                             complete: function(){ window.location.href = '/isletmeyonetim/adisyonlar?sube='+_sube; }
                         });
                     });
                 } else if(result.dismiss === swal.DismissReason.cancel){
-                    _paketSatisGonder(function(adisyonId){
+                    _paketSatisGonder(function(result2){
                         window.location.href = '/isletmeyonetim/adisyonlar?sube='+_sube;
                     });
                 }
