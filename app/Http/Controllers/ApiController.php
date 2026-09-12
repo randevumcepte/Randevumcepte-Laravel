@@ -1093,6 +1093,8 @@ class ApiController extends Controller
                 'islemler' => $islemler,
                 'user_id'=> $adisyon->user_id,
                 'fatura_kesildi' => (int) ($adisyon->fatura_kesildi ?? 0),
+                'odendi' => (int) ($adisyon->odendi ?? 0),
+                'odendi_tarihi' => $adisyon->odendi_tarihi ? date('d.m.Y H:i', strtotime($adisyon->odendi_tarihi)) : '',
             ];
         });
 
@@ -1641,6 +1643,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         'user_id' => $adisyon->user_id,
         'durum' => $kalan > 0 ? 'acik' : 'kapali',
         'fatura_kesildi' => (int) ($adisyon->fatura_kesildi ?? 0),
+        'odendi' => (int) ($adisyon->odendi ?? 0),
+        'odendi_tarihi' => $adisyon->odendi_tarihi ? date('d.m.Y H:i', strtotime($adisyon->odendi_tarihi)) : '',
     ];
 }
     public function musteri_randevulari(Request $request, $id)
