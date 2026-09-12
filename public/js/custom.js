@@ -7670,43 +7670,26 @@ $(document).on('submit','#saat_kapama',function(e){
 // tahsilatekle adisyonu olusturur (indirimli_toplam=0 -> odeme yok), donen adisyonId
 // ile alindi=1 ise adisyon-odeme-isaretle (tamOde: tarih/saat + kapali).
 function studyoYeniSatis(alindi){
-    var _sube = $('input[name="sube"]').val() || $('#session_adisyon_id').closest('form').find('input[name="sube"]').val() || '';
-    if(!$('select[name="tahsilat_musteri_id"]').val()){
-        swal({type:'warning',title:'Uyarı',text:'Lütfen önce müşteri/danışan seçin.',showConfirmButton:false,timer:2500});
+    var _sube = $('input[name="sube"]').val() || '';
+    // Hizmet/Paket eklenince adisyon zaten olusur ve #session_adisyon_id set edilir.
+    var aid = ($('#session_adisyon_id').val() || '').toString().trim();
+    if(!aid){
+        swal({type:'warning',title:'Uyarı',text:'Lütfen önce müşteri seçip en az bir hizmet veya paket ekleyin.',showConfirmButton:false,timer:2800});
         return;
     }
-    if($('#adisyon_tahsilat .adisyon_kalemler').length===0){
-        swal({type:'warning',title:'Uyarı',text:'Lütfen en az bir hizmet veya paket ekleyin.',showConfirmButton:false,timer:2500});
-        return;
-    }
-    var formData = new FormData();
-    $('#adisyon_tahsilat .adisyon_kalemler').each(function(){
-        if($(this).attr('name')=='adisyon_odeme_hizmet[]'){ formData.append('adisyon_hizmet_id[]',$(this).attr('data-value')); formData.append('hizmet_odeme_secili[]','true'); }
-        if($(this).attr('name')=='adisyon_odeme_urun[]'){ formData.append('adisyon_urun_id[]',$(this).attr('data-value')); formData.append('urun_odeme_secili[]','true'); }
-        if($(this).attr('name')=='adisyon_odeme_paket[]'){ formData.append('adisyon_paket_id[]',$(this).attr('data-value')); formData.append('paket_odeme_secili[]','true'); }
-    });
-    var other = $('#adisyon_tahsilat').serializeArray();
-    $.each(other,function(k,i){ formData.append(i.name,i.value); });
-    // Studyo: odeme adisyon-odeme-isaretle ile islenir; burada tahsilat=0
-    formData.set('indirimli_toplam_tahsilat_tutari','0');
-    formData.set('komisyon_tutari','0');
     var _redirect = function(){ window.location.href = '/isletmeyonetim/adisyonlar?sube='+_sube; };
-    $.ajax({
-        type:"POST", url:'/isletmeyonetim/tahsilatekle', dataType:"json",
-        data:formData, processData:false, contentType:false,
-        beforeSend:function(){ $("#preloader").show(); },
-        success:function(result){
-            var aid = result && result.adisyonId ? result.adisyonId : '';
-            if(alindi && aid){
-                $.ajax({
-                    type:"POST", url:'/isletmeyonetim/adisyon-odeme-isaretle', dataType:"json",
-                    data:{ adisyon_id:aid, alindi:1, sube:_sube, _token:$('input[name="_token"]').val() },
-                    complete:function(){ $("#preloader").hide(); _redirect(); }
-                });
-            } else { $("#preloader").hide(); _redirect(); }
-        },
-        error:function(request){ $("#preloader").hide(); document.getElementById('hata').innerHTML = request.responseText; }
-    });
+    if(alindi){
+        // Odeme alindi -> tamOde (tarih/saat + kapali)
+        $("#preloader").show();
+        $.ajax({
+            type:"POST", url:'/isletmeyonetim/adisyon-odeme-isaretle', dataType:"json",
+            data:{ adisyon_id:aid, alindi:1, sube:_sube, _token:$('input[name="_token"]').val() },
+            complete:function(){ $("#preloader").hide(); _redirect(); }
+        });
+    } else {
+        // Odeme alinmadi -> adisyon zaten olustu (acik), takibe don
+        _redirect();
+    }
 }
 $(document).on('submit','#adisyon_tahsilat',function(e){
         e.preventDefault();

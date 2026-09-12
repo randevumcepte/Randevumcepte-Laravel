@@ -3148,14 +3148,14 @@
                                  @endif
                               </select>
                            </div>
-                           <div class="form-group">
-                               
+                           <div class="form-group" @if(!empty($isletme->studyo_modu))style="display:none"@endif>
+
                                                 <label>Randevu Oluştur</label><br>
                                                 <label class="switch">
                                                 <input id="paketRandevuOlustur" name="paketRandevuOlustur" type="checkbox">
                                                 <span class="slider"></span>
-                                                </label> 
-                                            
+                                                </label>
+
                            </div>
                         </div>
                         
@@ -5725,7 +5725,7 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=13.6')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=264.5')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=264.6')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
