@@ -7691,6 +7691,19 @@ function studyoYeniSatis(alindi){
         _redirect();
     }
 }
+// Studyo: Satis Takibi listesinde İşlemler'den dogrudan ikili odeme (tahsilat ekranina gitmeden).
+function _studyoListeOdeme(aid, alindi){
+    if(!aid) return;
+    var _sube = (new URLSearchParams(window.location.search)).get('sube') || $('input[name="sube"]').val() || '';
+    $("#preloader").show();
+    $.ajax({
+        type:"POST", url:'/isletmeyonetim/adisyon-odeme-isaretle', dataType:"json",
+        data:{ adisyon_id:aid, alindi:alindi, sube:_sube, _token:$('input[name="_token"]').val() },
+        complete:function(){ $("#preloader").hide(); window.location.reload(); }
+    });
+}
+$(document).on('click','a[name="studyo_odeme_al"]',function(e){ e.preventDefault(); _studyoListeOdeme($(this).attr('data-value'), 1); });
+$(document).on('click','a[name="studyo_odeme_geri_al"]',function(e){ e.preventDefault(); _studyoListeOdeme($(this).attr('data-value'), 0); });
 $(document).on('submit','#adisyon_tahsilat',function(e){
         e.preventDefault();
         console.log($('#adisyon_tahsilat').serialize());

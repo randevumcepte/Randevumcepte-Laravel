@@ -14692,6 +14692,7 @@ private function getHizmetDetaylari($hizmetId)
 public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $tarih1, $tarih2, $musteriid, $personelid)
 {
     $isletmeId = self::mevcutsube($request);
+    $_studyo = (bool) Salonlar::where('id', $isletmeId)->value('studyo_modu'); // studyo modu: fatura yok, tahsil = ikili odeme
     $length = $request->input('length');
     $start = $request->input('start', 0);
     $searchValue = $request->input('search.value');
@@ -15129,9 +15130,16 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         $islemler = "";
         
         if ($kalanVar == 0) {
-            $islemler = '<a style="line-height:5px;padding:5px" title="Ödeme Bilgileri" href="#" name="adisyon_odeme_detaylari" type="button" data-value="'.$adisyon->id.'"  class="btn btn-primary"><i class="dw dw-eye"></i></a>';
-           
-        } else { 
+            // Studyo: odenmis adisyon -> geri al (odeme alinmadi); diger: odeme bilgileri
+            if ($_studyo) {
+                $islemler = '<a style="line-height:5px;padding:5px" title="Ödemeyi Geri Al" href="#" name="studyo_odeme_geri_al" data-value="'.$adisyon->id.'" type="button" class="btn btn-warning"><i class="fa fa-undo"></i></a>';
+            } else {
+                $islemler = '<a style="line-height:5px;padding:5px" title="Ödeme Bilgileri" href="#" name="adisyon_odeme_detaylari" type="button" data-value="'.$adisyon->id.'"  class="btn btn-primary"><i class="dw dw-eye"></i></a>';
+            }
+        } else if ($_studyo) {
+            // Studyo: tahsilat ekranina gitmeden AJAX ile "Ödeme Alındı" (tarih/saat + kapali)
+            $islemler = '<a style="line-height:5px;padding:5px" title="Ödeme Alındı" href="#" name="studyo_odeme_al" data-value="'.$adisyon->id.'" type="button"  class="btn btn-success"><i class="fa fa-check"></i></a>';
+        } else {
         $islemler = '<a style="line-height:5px;padding:5px" title="Tahsil Et" href="/isletmeyonetim/tahsilat/'.$adisyon->user_id.'/'.$adisyon->id.'?sube='.$isletmeId.'" type="button"  class="btn btn-success"><i class="fa fa-money"></i></a>';
         }
         
@@ -15141,7 +15149,7 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         // tiklayinca geri alinir. Ust taraftaki fatura filtresi sadece
         // yesil/faturali satislari listeler. Sil (X) ikonu en sagda kalsin
         // diye faturadan once render edilir.
-        if ($_hesapSahibi) {
+        if ($_hesapSahibi && !$_studyo) {
             $_fk = (int) $adisyon->fatura_kesildi;
             // Net renk farki: faturali = yesil, faturasiz = saydam gri (bakar bakmaz ayrilabilsin)
             $_btnStyle = $_fk
@@ -15174,9 +15182,11 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             'urunToplam' => $urunToplam,
             'paketToplam' => $paketToplam,
             'islemler' => $islemler,
+            'odendi' => (int) ($adisyon->odendi ?? 0),
+            'odendi_tarihi' => $adisyon->odendi_tarihi ? date('d.m.Y H:i', strtotime($adisyon->odendi_tarihi)) : '',
         ];
     });
-    
+
     // Null değerleri filtrele
     $formatted = $formatted->filter(function($item) {
         return $item !== null;
