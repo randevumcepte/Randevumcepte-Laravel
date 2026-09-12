@@ -319,10 +319,21 @@
 
                   {{-- Ekleme formu (gizli) --}}
                   <div id="olcum_ekle_form" style="display:none;background:#f7f7fb;border:1px solid #e5e5ef;border-radius:10px;padding:18px;margin-bottom:20px;">
+                     {{-- Sabit profil: Boy & Yas (bir kere girilir, tekrar sorulmaz) --}}
+                     <div id="ol_profil_ozet" style="display:none;align-items:center;gap:16px;flex-wrap:wrap;background:#eef6ff;border:1px solid #d6e6fb;border-radius:8px;padding:10px 14px;margin-bottom:14px;">
+                        <span style="font-size:13.5px;color:#243;">📏 Boy: <b id="ol_profil_boy_txt">—</b> cm</span>
+                        <span style="font-size:13.5px;color:#243;">🎂 Yaş: <b id="ol_profil_yas_txt">—</b></span>
+                        <a href="#" onclick="olcumProfilDuzenle();return false;" style="font-size:12.5px;font-weight:600;"><i class="fa fa-pencil"></i> Düzenle</a>
+                        <span style="font-size:11px;color:#8896a5;">Sabit bilgiler — her ölçümde tekrar girmenize gerek yok</span>
+                     </div>
+                     <div id="ol_profil_giris" class="row" style="display:none;">
+                        <div class="col-md-3 col-6 form-group"><label>Boy (cm)</label><input type="number" step="0.1" id="ol_boy" class="form-control" placeholder="örn. 170" oninput="olcumVkiOnizle()"></div>
+                        <div class="col-md-3 col-6 form-group"><label>Yaş</label><input type="number" id="ol_yas" class="form-control" placeholder="örn. 32"></div>
+                     </div>
+
+                     {{-- Degisken olcum degerleri (her seferinde girilir) --}}
                      <div class="row">
                         <div class="col-md-3 col-6 form-group"><label>Ölçüm Tarihi</label><input type="text" id="ol_tarih" class="form-control geriye-yonelik" value="{{date('Y-m-d')}}" autocomplete="off" readonly style="background:#fff;"></div>
-                        <div class="col-md-3 col-6 form-group"><label>Yaş</label><input type="number" id="ol_yas" class="form-control" placeholder="örn. 32"></div>
-                        <div class="col-md-3 col-6 form-group"><label>Boy (cm)</label><input type="number" step="0.1" id="ol_boy" class="form-control" placeholder="örn. 170" oninput="olcumVkiOnizle()"></div>
                         <div class="col-md-3 col-6 form-group"><label>Kilo (kg)</label><input type="number" step="0.1" id="ol_kilo" class="form-control" placeholder="örn. 68" oninput="olcumVkiOnizle()"></div>
                         <div class="col-md-3 col-6 form-group"><label>VKİ (otomatik)</label><div id="ol_vki" class="form-control" style="background:#f4f4fb;display:flex;align-items:center;min-height:38px;color:#999;">—</div></div>
                         <div class="col-md-3 col-6 form-group"><label>Yağ Oranı (%)</label><input type="number" step="0.1" id="ol_yag" class="form-control"></div>
@@ -342,7 +353,7 @@
                   <div style="overflow-x:auto;">
                      <table class="table stripe hover" style="min-width:820px;">
                         <thead><tr style="background:#f0f0f7;">
-                           <th>Tarih</th><th>Kilo</th><th>VKİ</th><th>Yağ %</th><th>Ödem</th><th>Kas Puanı</th><th>Kas kg</th><th>İç Yağ.</th><th></th>
+                           <th>Tarih / Saat</th><th>Kilo</th><th>VKİ</th><th>Yağ %</th><th>Ödem</th><th>Kas Puanı</th><th>Kas kg</th><th>İç Yağ.</th><th></th>
                         </tr></thead>
                         <tbody id="olcum_tbody"><tr><td colspan="9" style="text-align:center;color:#999;padding:25px;">Yükleniyor...</td></tr></tbody>
                      </table>
@@ -1608,12 +1619,58 @@ function olcumVkiKonum(v){
    v = parseFloat(v)||0; const min=15, max=40;
    return Math.max(0, Math.min(100, ((v-min)/(max-min))*100));
 }
+// Sabit profil (boy & yas) — bir kere girilir, sonraki olcumlerde otomatik gelir
+let OL_PROFIL = { boy:null, yas:null };
+// Formda gecerli boy (giris aciksa input, degilse profildeki sabit deger)
+function olcumEtkinBoy(){
+   const giris = document.getElementById('ol_profil_giris');
+   if(giris && giris.style.display!=='none'){ return parseFloat(document.getElementById('ol_boy').value)||0; }
+   return parseFloat(OL_PROFIL.boy)||0;
+}
+function olcumEtkinYas(){
+   const giris = document.getElementById('ol_profil_giris');
+   if(giris && giris.style.display!=='none'){ return document.getElementById('ol_yas').value||''; }
+   return (OL_PROFIL.yas!==null && OL_PROFIL.yas!==undefined) ? OL_PROFIL.yas : '';
+}
+// Kayitli olcumden gelen tarih+saat (saat: olcum_saati varsa o, yoksa created_at)
+function olcumTarihSaat(o){
+   const t = o.olcum_tarihi || '-';
+   let s = o.olcum_saati || '';
+   if(!s && o.created_at){ const m = String(o.created_at).match(/(\d{2}:\d{2})/); s = m?m[1]:''; }
+   else if(s){ s = String(s).slice(0,5); }
+   return { tarih:t, saat:s };
+}
 function olcumVkiOnizle(){
-   const boy = parseFloat(document.getElementById('ol_boy').value)||0;
+   const boy = olcumEtkinBoy();
    const kilo = parseFloat(document.getElementById('ol_kilo').value)||0;
    const el = document.getElementById('ol_vki');
    if(boy>0 && kilo>0){ const m=boy/100; el.innerHTML = olcumVkiBadge(kilo/(m*m)); }
    else { el.innerHTML = '<span style="color:#999;">—</span>'; }
+}
+// Profil ozet/giris gorunumunu ayarla
+function olcumProfilUygula(){
+   const ozet = document.getElementById('ol_profil_ozet');
+   const giris = document.getElementById('ol_profil_giris');
+   if(!ozet || !giris) return;
+   if(OL_PROFIL.boy){
+      document.getElementById('ol_profil_boy_txt').textContent = OL_PROFIL.boy;
+      document.getElementById('ol_profil_yas_txt').textContent = (OL_PROFIL.yas!==null && OL_PROFIL.yas!==undefined && OL_PROFIL.yas!=='') ? OL_PROFIL.yas : '—';
+      ozet.style.display = 'flex';
+      giris.style.display = 'none';
+   } else {
+      // Henuz profil yok -> ilk giris
+      ozet.style.display = 'none';
+      giris.style.display = 'flex';
+   }
+}
+// "Duzenle" -> boy/yas girisini ac, mevcut degerleri doldur
+function olcumProfilDuzenle(){
+   const giris = document.getElementById('ol_profil_giris');
+   document.getElementById('ol_boy').value = OL_PROFIL.boy || '';
+   document.getElementById('ol_yas').value = (OL_PROFIL.yas!==null && OL_PROFIL.yas!==undefined) ? OL_PROFIL.yas : '';
+   giris.style.display = 'flex';
+   document.getElementById('ol_profil_ozet').style.display = 'none';
+   olcumVkiOnizle();
 }
 // Buyuk "Son Olcum" ozet karti + renkli gauge
 function olcumOzetRender(list){
@@ -1626,6 +1683,10 @@ function olcumOzetRender(list){
    const v = parseFloat(son.vki)||0;
    const renk = olcumVkiRenk(v), sinif = olcumVkiSinif(v);
    const pos = olcumVkiKonum(v);
+   const ts = olcumTarihSaat(son);
+   // Boy/Yas: son olcumde yoksa gecmisteki en yakin dolu degeri kullan
+   const boyTxt = (son.boy || (olcumler.find(o=>o.boy)||{}).boy) || '';
+   const yasTxt = (son.yas || (olcumler.find(o=>o.yas)||{}).yas) || '';
 
    // Onceki olcume gore kilo degisimi
    let deltaHtml = '';
@@ -1662,9 +1723,14 @@ function olcumOzetRender(list){
        + '</div>'
        // Sag: gauge + bilgiler
        + '<div style="flex:1;min-width:240px;">'
-         + '<div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px;">'
-           + '<span><i class="fa fa-calendar"></i> '+(son.olcum_tarihi||'-')+'</span>'
-           + '<span>'+(son.kilo?('<b>'+son.kilo+' kg</b>'):'')+(son.boy?(' · '+son.boy+' cm'):'')+'</span>'
+         + '<div style="font-size:12px;color:#666;margin-bottom:6px;">'
+           + '<i class="fa fa-clock-o"></i> Son ölçüm: <b>'+ts.tarih+'</b>'+(ts.saat?(' · '+ts.saat):'')
+         + '</div>'
+         // Boy / Yas / Kilo belirgin pill'ler
+         + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'
+           + (boyTxt ? '<span style="background:#eef2ff;color:#3b4a6b;font-size:12.5px;font-weight:600;padding:4px 12px;border-radius:20px;">📏 Boy '+boyTxt+' cm</span>' : '')
+           + (yasTxt ? '<span style="background:#fef3f2;color:#8a4b3b;font-size:12.5px;font-weight:600;padding:4px 12px;border-radius:20px;">🎂 Yaş '+yasTxt+'</span>' : '')
+           + (son.kilo ? '<span style="background:#f0fdf4;color:#2f6b46;font-size:12.5px;font-weight:600;padding:4px 12px;border-radius:20px;">⚖️ Kilo '+son.kilo+' kg</span>' : '')
          + '</div>'
          // renkli gauge bar
          + '<div style="position:relative;margin:10px 0 4px;">'
@@ -1683,7 +1749,9 @@ function olcumOzetRender(list){
 }
 function olcumEkleFormAc(){
    const f = document.getElementById('olcum_ekle_form');
-   f.style.display = (f.style.display==='none' || !f.style.display) ? 'block' : 'none';
+   const ac = (f.style.display==='none' || !f.style.display);
+   f.style.display = ac ? 'block' : 'none';
+   if(ac){ olcumProfilUygula(); olcumVkiOnizle(); }
 }
 function olVal(id){ const v=document.getElementById(id).value; return v===''?'':v; }
 
@@ -1698,6 +1766,11 @@ async function olcumListeYukle(){
       return;
    }
    const list = res.data.olcumler || [];
+   // Sabit profil: en yeni dolu boy/yas degerini yakala
+   OL_PROFIL.boy = (list.find(o=>o.boy)||{}).boy || null;
+   OL_PROFIL.yas = (list.find(o=>o.yas!==null && o.yas!==undefined && o.yas!=='')||{}).yas;
+   if(OL_PROFIL.yas===undefined) OL_PROFIL.yas = null;
+   olcumProfilUygula();
    olcumOzetRender(list);
    if(!list.length){
       tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#999;padding:25px;">Henüz ölçüm girilmemiş.</td></tr>';
@@ -1706,8 +1779,9 @@ async function olcumListeYukle(){
    const g = v => (v===null||v===undefined||v==='')?'-':v;
    tb.innerHTML = list.map(o=>{
       const vki = olcumVkiBadge(o.vki);
+      const ts = olcumTarihSaat(o);
       return `<tr>
-         <td><b>${o.olcum_tarihi||'-'}</b></td>
+         <td><b>${ts.tarih}</b>${ts.saat?` <span style="color:#8896a5;font-size:12px;font-weight:600;">🕐 ${ts.saat}</span>`:''}</td>
          <td>${g(o.kilo)}${o.kilo?' kg':''}</td>
          <td>${vki}</td>
          <td>${g(o.yag_orani)}</td>
@@ -1721,12 +1795,15 @@ async function olcumListeYukle(){
 }
 
 async function olcumKaydet(){
-   const boy = olVal('ol_boy'), kilo = olVal('ol_kilo');
-   if(!boy && !kilo){ swal('Eksik','En az boy veya kilo girin.','warning'); return; }
+   // Sabit profil (giris aciksa input, degilse kayitli deger)
+   const boy = olcumEtkinBoy() || '';
+   const yas = olcumEtkinYas();
+   const kilo = olVal('ol_kilo');
+   if(!kilo){ swal('Eksik','Kilo girin.','warning'); return; }
    const btn = document.getElementById('ol_kaydet_btn'); btn.disabled=true;
    const res = await dpFetch('/isletmeyonetim/musteri-olcum-ekle', { method:'POST', body:{
       user_id: OL_USER_ID,
-      olcum_tarihi: olVal('ol_tarih'), yas: olVal('ol_yas'),
+      olcum_tarihi: olVal('ol_tarih'), yas: yas,
       boy: boy, kilo: kilo, yag_orani: olVal('ol_yag'), odem: olVal('ol_odem'),
       kas_puani: olVal('ol_kaspuan'), kas_kg: olVal('ol_kaskg'),
       ic_yaglanma: olVal('ol_icyag'), not: olVal('ol_not'),

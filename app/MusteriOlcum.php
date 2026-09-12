@@ -12,7 +12,7 @@ class MusteriOlcum extends Model
     protected $table = 'musteri_olcumleri';
 
     protected $fillable = [
-        'salon_id', 'user_id', 'olcum_tarihi', 'boy', 'kilo', 'yas', 'vki',
+        'salon_id', 'user_id', 'olcum_tarihi', 'olcum_saati', 'boy', 'kilo', 'yas', 'vki',
         'yag_orani', 'odem', 'kas_puani', 'kas_kg', 'ic_yaglanma',
         'olcen_personel_id', 'not',
     ];

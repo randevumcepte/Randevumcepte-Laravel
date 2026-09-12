@@ -5042,6 +5042,7 @@ public function carkverilerigetir(Request $request)
         $o = \App\MusteriOlcum::create([
             'salon_id'=>$salonId, 'user_id'=>$userId,
             'olcum_tarihi'=>$request->olcum_tarihi ?: date('Y-m-d'),
+            'olcum_saati'=>$request->olcum_saati ?: date('H:i:s'),
             'boy'=>$request->boy ?: null, 'kilo'=>$request->kilo ?: null, 'yas'=>$request->yas ?: null,
             'vki'=>$vki, 'yag_orani'=>$request->yag_orani ?: null, 'odem'=>$request->odem ?: null,
             'kas_puani'=>$request->kas_puani ?: null, 'kas_kg'=>$request->kas_kg ?: null,
