@@ -6377,9 +6377,12 @@ $('#adisyon_hizmet_formu').on('submit',function(e){
     e.preventDefault();
 
     var _personelEksik = false;
-    $('#adisyon_hizmet_formu select[name="adisyonhizmetpersonelleriyeni[]"]').each(function(){
-        if(!$(this).val()) _personelEksik = true;
-    });
+    // Studyo modunda personel secimi zorunlu degil (prim yok).
+    if(!window.STUDYO_MODU){
+        $('#adisyon_hizmet_formu select[name="adisyonhizmetpersonelleriyeni[]"]').each(function(){
+            if(!$(this).val()) _personelEksik = true;
+        });
+    }
     if(_personelEksik){
         swal({
             type: "warning",
