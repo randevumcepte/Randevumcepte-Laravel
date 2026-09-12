@@ -29530,8 +29530,7 @@ public function arsivformekleme(Request $request){
         }
         $paketler = self::paket_liste_getir('',true,$request);
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
-        return view('isletmeadmin.yenitahsilat',['isletme'=>$isletme,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request), 'sayfa_baslik'=>'
-            Yeni Tahsilat','pageindex' => 11111 ,'request'=>$request, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
+        return view('isletmeadmin.yenitahsilat',['isletme'=>$isletme,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request), 'sayfa_baslik'=> (!empty($isletme->studyo_modu) ? 'Yeni Satış' : 'Yeni Tahsilat'),'pageindex' => 11111 ,'request'=>$request, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler]);
     }
     public function tahsilatbilgigetir(Request $request)

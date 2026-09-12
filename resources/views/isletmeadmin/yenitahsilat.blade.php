@@ -35,7 +35,7 @@
             <input type="hidden" name="adisyon_id" id="session_adisyon_id" value="">
             <div class="modal-header">
                <div class="col-6 col-xs-6 col-sm-6">
-                  <h2>Tahsilat</h2>
+                  <h2>@if(!empty($isletme->studyo_modu))Satış@else Tahsilat @endif</h2>
                </div>
                <div class="col-6 col-xs-6 col-sm-6">
                   <div class="row">
@@ -66,7 +66,9 @@
                            <button disabled type="button" data-toggle="modal" data-target="#adisyon_yeni_hizmet_modal" id="adisyon_hizmet_ekle_button" class="btn btn-info btn-block adisyon_ekle_buttonlar"  style="font-size:12px">Hizmet Ekle</button>
                         </div>
                         <div class="col-2" style="padding-left: 0;">
+                           @if(empty($isletme->studyo_modu))
                            <button disabled type="button" data-toggle="modal" id="adisyon_urun_ekle_button" data-target="#urun_satisi_modal" data-value=''onclick="modalbaslikata('Yeni Ürün Satışı Ekle','')" class="btn  btn-danger  btn-block adisyon_ekle_buttonlar"  style="font-size:12px">Ürün Ekle</button>
+                           @endif
                         </div>
                         <div class="col-2" style="padding-left: 0;">
                            <button disabled type="button" data-toggle="modal" id="adisyon_paket_ekle_button" data-target="#paket_satisi_modal" data-value='' class="btn  btn-primary  btn-block adisyon_ekle_buttonlar" style="font-size:12px">Paket Ekle</button>
@@ -96,6 +98,20 @@
                      </div>
                   </div>
                </div>
+               @if(!empty($isletme->studyo_modu))
+               {{-- Studyo modu: tutar makinesi gizli, ikili odeme (adisyon olusur + isaretlenir) --}}
+               <style>.tek_tahsilat_formu,#odeme_kayit_bolumu,#tahsilats_type,.tahsilat_kalemleri{display:none !important;}</style>
+               <div id="studyo_yeni_satis_panel" style="border:1px solid #e5e5ef;border-radius:12px;padding:16px;background:#faf9ff;margin-top:10px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                     <div style="font-weight:700;font-size:15px;color:#333;">Ödeme Durumu</div>
+                     <div>
+                        <button type="button" class="btn btn-success" onclick="studyoYeniSatis(1)"><i class="fa fa-check"></i> Ödeme Alındı</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="studyoYeniSatis(0)">Ödeme Alınmadı</button>
+                     </div>
+                  </div>
+                  <div style="color:#888;font-size:12px;margin-top:8px;">Önce müşteri seçip Hizmet/Paket ekleyin, sonra ödeme durumunu işaretleyin.</div>
+               </div>
+               @endif
                <div class="row tek_tahsilat_formu" data-value="0">
                   <div class="col-md-2 col-sm-6 col-xs-6 col-6 ">
                      <div class="form-group">
