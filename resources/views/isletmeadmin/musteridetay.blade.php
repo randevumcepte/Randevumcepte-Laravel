@@ -317,7 +317,7 @@
                   {{-- Ekleme formu (gizli) --}}
                   <div id="olcum_ekle_form" style="display:none;background:#f7f7fb;border:1px solid #e5e5ef;border-radius:10px;padding:18px;margin-bottom:20px;">
                      <div class="row">
-                        <div class="col-md-3 col-6 form-group"><label>Ölçüm Tarihi</label><input type="date" id="ol_tarih" class="form-control" value="{{date('Y-m-d')}}"></div>
+                        <div class="col-md-3 col-6 form-group"><label>Ölçüm Tarihi</label><input type="text" id="ol_tarih" class="form-control geriye-yonelik" value="{{date('Y-m-d')}}" autocomplete="off" readonly style="background:#fff;"></div>
                         <div class="col-md-3 col-6 form-group"><label>Yaş</label><input type="number" id="ol_yas" class="form-control" placeholder="örn. 32"></div>
                         <div class="col-md-3 col-6 form-group"><label>Boy (cm)</label><input type="number" step="0.1" id="ol_boy" class="form-control" placeholder="örn. 170" oninput="olcumVkiOnizle()"></div>
                         <div class="col-md-3 col-6 form-group"><label>Kilo (kg)</label><input type="number" step="0.1" id="ol_kilo" class="form-control" placeholder="örn. 68" oninput="olcumVkiOnizle()"></div>
