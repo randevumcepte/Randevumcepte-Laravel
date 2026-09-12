@@ -16395,7 +16395,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $odeme = new TahsilatHizmetler();
                 $odeme->adisyon_hizmet_id = $hizmet_id;
                 $odeme->tahsilat_id = $tahsilat->id;
-                $oran = $hizmet->fiyat / $toplam_adisyon;
+                $oran = $toplam_adisyon > 0 ? $hizmet->fiyat / $toplam_adisyon : 0; // studyo modu: fiyat=0'da sifira bolme korumasi
 
                 $odeme->tutar = $oran * $yapilan_odeme;
                 $odeme->save();
@@ -16408,7 +16408,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $odeme->adisyon_urun_id = $urun_id;
                 $odeme->tahsilat_id = $tahsilat->id;
 
-                $oran = $urun->fiyat / $toplam_adisyon;
+                $oran = $toplam_adisyon > 0 ? $urun->fiyat / $toplam_adisyon : 0; // studyo modu koruma
                   Log::info('Oran '.$oran);
                 $odeme->tutar = $oran * $yapilan_odeme;
                 $odeme->save();
@@ -16420,7 +16420,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $odeme = new TahsilatPaketler();
                 $odeme->adisyon_paket_id = $paket_id;
                 $odeme->tahsilat_id = $tahsilat->id;
-                $oran = $paket->fiyat / $toplam_adisyon;
+                $oran = $toplam_adisyon > 0 ? $paket->fiyat / $toplam_adisyon : 0; // studyo modu koruma
                 $odeme->tutar = $oran * $yapilan_odeme;
                 $odeme->save();
             }
@@ -32126,6 +32126,21 @@ SOZLESME_TXT;
         $tarih2 = $request->tarih2 ?: date('Y-m-d');
         $rapor = \App\Services\DersRaporServisi::ozet($salonId, $tarih1, $tarih2);
         return response()->json(['durum' => 'ok', 'tarih1' => $tarih1, 'tarih2' => $tarih2] + $rapor);
+    }
+
+    // ================================================================
+    // STUDYO MODU: ikili odeme durumu (fiyat gizleme)
+    // Tutar sormadan "odeme alindi/alinmadi". adisyonlar.odendi set edilir.
+    // ================================================================
+    public function adisyonOdemeIsaretle(Request $request)
+    {
+        $salonId = $request->salon_id;
+        $adisyon = \App\Adisyonlar::where('id', $request->adisyon_id)
+            ->where('salon_id', $salonId)->first();
+        if (!$adisyon) return response()->json(['durum' => 'hata', 'mesaj' => 'Adisyon bulunamadı.'], 404);
+        $adisyon->odendi = filter_var($request->alindi, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        $adisyon->save();
+        return response()->json(['durum' => 'ok', 'odendi' => (int) $adisyon->odendi]);
     }
 
     // ================================================================

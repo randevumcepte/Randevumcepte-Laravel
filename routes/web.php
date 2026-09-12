@@ -865,6 +865,8 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/ders-sablon-sil','StoreAdminController@ders_sablon_sil');
 	Route::post('/ders-programi-yayinla','StoreAdminController@ders_programi_yayinla');
 	Route::get ('/grup-dersi-raporu','StoreAdminController@grup_dersi_raporu')->name('isletmeadmin.grup_dersi_raporu');
+	// Studyo modu: ikili odeme durumu
+	Route::post('/adisyon-odeme-isaretle','StoreAdminController@adisyonOdemeIsaretle');
 	// Vucut olcumu (studyo modu)
 	Route::post('/musteri-olcum-ekle','StoreAdminController@musteri_olcum_ekle');
 	Route::get ('/musteri-olcum-liste','StoreAdminController@musteri_olcum_liste');

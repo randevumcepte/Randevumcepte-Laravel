@@ -37,6 +37,8 @@ Route::post('/danisan-grup-derslerim','ApiController@danisanGrupDerslerim');
 Route::post('/danisan-ders-geldim','ApiController@danisanDersGeldim');
 Route::post('/danisan-ders-katilim','ApiController@danisanDersKatilim');
 Route::post('/grup-dersi-rapor','ApiController@grupDersiRapor');
+// Studyo modu: ikili odeme durumu
+Route::post('/adisyon-odeme-isaretle','ApiController@adisyonOdemeIsaretle');
 // Vucut olcumu (studyo)
 Route::post('/musteri-olcum-ekle','ApiController@musteriOlcumEkle');
 Route::post('/musteri-olcum-liste','ApiController@musteriOlcumListe');

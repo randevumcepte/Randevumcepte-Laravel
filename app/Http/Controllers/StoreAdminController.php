@@ -5017,6 +5017,19 @@ public function carkverilerigetir(Request $request)
         ]);
     }
 
+    // ---------- Studyo modu: ikili odeme durumu (fiyat gizleme) ----------
+    // Tutar sormadan "odeme alindi/alinmadi". adisyonlar.odendi flag'i set edilir.
+    // YALNIZCA studyo modu isletmelerde kullanilir; tutar-bazli akis degismez.
+    public function adisyonOdemeIsaretle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'satis.tahsilat_al')) return $r;
+        $salonId = self::mevcutsube($request);
+        $adisyon = Adisyonlar::where('id',$request->adisyon_id)->where('salon_id',$salonId)->first();
+        if(!$adisyon) return response()->json(['durum'=>'hata','mesaj'=>'Adisyon bulunamadı.'],404);
+        $adisyon->odendi = filter_var($request->alindi, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        $adisyon->save();
+        return response()->json(['durum'=>'ok','odendi'=>(int)$adisyon->odendi]);
+    }
+
     // ---------- Vucut Olcumu (Pilates/studyo modu) ----------
     public function musteri_olcum_ekle(Request $request){
         if($r = self::yetkiYoksa403($request, 'randevu.takvim_gor')) return $r;
