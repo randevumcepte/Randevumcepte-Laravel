@@ -64,6 +64,49 @@
                   @endif
                @endif
             </div>
+            @if(!empty($isletme->studyo_modu))
+            {{-- Studyo modu (fiyat gizleme): tutar makinesi gizli, ikili odeme durumu --}}
+            <style>
+               .tek_tahsilat_formu, #odeme_kayit_bolumu, #tahsilats_type, .tahsilat_kalemleri { display:none !important; }
+            </style>
+            <div class="modal-body" style="padding-bottom:0">
+               <div id="studyo_odeme_panel" style="border:1px solid #e5e5ef;border-radius:12px;padding:16px;background:#faf9ff;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                     <div>
+                        <div style="font-weight:700;font-size:15px;color:#333;">Ödeme Durumu</div>
+                        <div id="studyo_odeme_rozet" style="margin-top:6px;"></div>
+                     </div>
+                     <div>
+                        <button type="button" class="btn btn-success" onclick="studyoOdemeIsaretle(1)"><i class="fa fa-check"></i> Ödeme Alındı</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="studyoOdemeIsaretle(0)">Ödeme Alınmadı</button>
+                     </div>
+                  </div>
+               </div>
+            </div>
+            <script>
+               (function(){
+                  var mevcut = {{ (int)(\Schema::hasColumn('adisyonlar','odendi') ? (\App\Adisyonlar::where('id',$adisyon_id)->value('odendi') ?? 0) : 0) }};
+                  function rozetCiz(v){
+                     var el = document.getElementById('studyo_odeme_rozet'); if(!el) return;
+                     el.innerHTML = (v==1)
+                        ? '<span style="background:#1fbf6f;color:#fff;padding:4px 12px;border-radius:20px;font-weight:600;font-size:13px;">✓ Ödeme Alındı</span>'
+                        : '<span style="background:#9097ad;color:#fff;padding:4px 12px;border-radius:20px;font-weight:600;font-size:13px;">Ödeme Alınmadı</span>';
+                  }
+                  window.studyoOdemeIsaretle = function(alindi){
+                     var csrf = document.querySelector('meta[name=csrf-token]').getAttribute('content');
+                     fetch('/isletmeyonetim/adisyon-odeme-isaretle', {
+                        method:'POST',
+                        headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':csrf,'X-Requested-With':'XMLHttpRequest'},
+                        body: JSON.stringify({adisyon_id: {{ (int)$adisyon_id }}, alindi: alindi})
+                     }).then(function(r){return r.json();}).then(function(d){
+                        if(d && d.durum==='ok'){ rozetCiz(d.odendi); if(window.swal){ swal({title:'Kaydedildi',icon:'success',timer:1000,buttons:false}); } }
+                        else { if(window.swal) swal('Hata','Kaydedilemedi','error'); }
+                     }).catch(function(){ if(window.swal) swal('Hata','İstek başarısız','error'); });
+                  };
+                  document.addEventListener('DOMContentLoaded', function(){ rozetCiz(mevcut); });
+               })();
+            </script>
+            @endif
             <div class="modal-body">
                {!!csrf_field()!!}
                <div class="row">
@@ -73,7 +116,9 @@
                            <button type="button" data-toggle="modal" data-target="#adisyon_yeni_hizmet_modal" id="adisyon_hizmet_ekle_button" class="btn btn-info btn-block adisyon_ekle_buttonlar"  style="font-size:12px">Hizmet Ekle</button>
                         </div>
                         <div class="col-2" style="padding-left: 0;">
+                           @if(empty($isletme->studyo_modu))
                            <button type="button" data-toggle="modal" id="adisyon_urun_ekle_button" data-target="#urun_satisi_modal" data-value=''onclick="modalbaslikata('Yeni Ürün Satışı Ekle','')" class="btn  btn-danger  btn-block adisyon_ekle_buttonlar"  style="font-size:12px">Ürün Ekle</button>
+                           @endif
                         </div>
                         <div class="col-2" style="padding-left: 0;">
                            <button type="button" data-toggle="modal" id="adisyon_paket_ekle_button" data-target="#paket_satisi_modal" data-value='' class="btn  btn-primary  btn-block adisyon_ekle_buttonlar" style="font-size:12px">Paket Ekle</button>
