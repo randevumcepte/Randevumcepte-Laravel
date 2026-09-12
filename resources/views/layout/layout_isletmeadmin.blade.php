@@ -26,6 +26,7 @@
       <!-- Basic Page Info -->
       <meta charset="utf-8" />
       <meta name="csrf-token" content="{{ csrf_token() }}">
+      <script>window.STUDYO_MODU = {{ (int)($isletme->studyo_modu ?? 0) }};</script>
       <title>{{$sayfa_baslik}} | {{$isletme->salon_adi}} Yönetim Paneli</title>
       <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
       
@@ -2731,10 +2732,10 @@
                                  <input type="tel" class="form-control" name="adisyonhizmetsuresi[]" value="">
                               </div>
                            </div>
-                           <div class="col-md-2 col-6 col-sm-6 col-xs-6">
+                           <div class="col-md-2 col-6 col-sm-6 col-xs-6" style="{{ !empty($isletme->studyo_modu) ? 'display:none' : '' }}">
                               <div class="form-group">
                                  <label>Fiyat ₺</label>
-                                 <input type="tel" class="form-control" required name="adisyonhizmetfiyati[]" value="" placeholder="0">
+                                 <input type="tel" class="form-control" {{ empty($isletme->studyo_modu) ? 'required' : '' }} name="adisyonhizmetfiyati[]" value="{{ !empty($isletme->studyo_modu) ? '0' : '' }}" placeholder="0">
                               </div>
                            </div>
                            <div class="col-md-2 col-6 col-sm-6 col-xs-6">
@@ -3062,10 +3063,10 @@
                                  <input type="tel" name="paketseans[]" value="{{App\Paketler::where('salon_id',$isletme->id)->where('aktif',true)->value('miktar')}}"  class="form-control" required>
                               </div>
                            </div>
-                           <div class="col-md-3">
+                           <div class="col-md-3" style="{{ !empty($isletme->studyo_modu) ? 'display:none' : '' }}">
                               <div class="form-group">
                                  <label>Fiyat (₺)</label>
-                                 <input type="tel" name="paketfiyat[]" value="{{App\Paketler::where('salon_id',$isletme->id)->where('aktif',true)->value('fiyat')}}"  class="form-control" required>
+                                 <input type="tel" name="paketfiyat[]" value="{{ !empty($isletme->studyo_modu) ? '0' : App\Paketler::where('salon_id',$isletme->id)->where('aktif',true)->value('fiyat') }}"  class="form-control" {{ empty($isletme->studyo_modu) ? 'required' : '' }}>
                               </div>
                            </div>
                            
@@ -5724,7 +5725,7 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=13.6')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=263.5')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=263.6')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
