@@ -41,13 +41,13 @@
                                 <input type="tel" name="seanslar" class="form-control">
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-4" @if(!empty($isletme->studyo_modu))style="display:none"@endif>
                             <div class="form-group">
                                 <label>Fiyat (₺) (opsiyonel)</label>
                                 <input type="tel" name="fiyatlar" class="form-control">
                             </div>
                         </div>
-                        
+
                         <div class="paket_hizmetler_bolumu" style="margin-left: 20px">
                             <div class="row" data-value="0">
                                 <!-- Hizmet seçimleri buraya gelecek -->

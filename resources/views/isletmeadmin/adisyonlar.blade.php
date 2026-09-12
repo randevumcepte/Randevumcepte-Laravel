@@ -86,12 +86,14 @@
             <label>Bitiş Tarihi</label>
             <input class="form-control" placeholder="Bitiş tarihini seçiniz.." type="text" id="satisbitistarihi" />
          </div>
+         @if(empty($isletme->studyo_modu))
          <div class="rc-adi-filter">
             <label>Personele Göre Filtrele</label>
             <select class="form-control personel_secimi" id="satisPersonelFiltre" style="width:100%">
                <option></option>
             </select>
          </div>
+         @endif
          <div class="rc-adi-filter">
             <label>Satış Durumu</label>
             <select class="form-control" id="satis_durumu_filtre">

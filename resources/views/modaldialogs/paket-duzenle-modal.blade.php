@@ -41,7 +41,7 @@
                                     <input type="tel"  name="seanslar" id="paketSeanslari" class="form-control">
                                  </div>
                               </div>
-                              <div class="col-md-4">
+                              <div class="col-md-4" @if(!empty($isletme->studyo_modu))style="display:none"@endif>
                                  <div class="form-group">
                                     <label>Fiyat (₺) (opsiyonel)</label>
                                     <input type="tel" name="fiyatlar" id="paketFiyati" class="form-control">
