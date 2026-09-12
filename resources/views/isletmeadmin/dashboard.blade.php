@@ -580,6 +580,7 @@
     @endyetki
 
     {{-- ÇARKIFELEK --}}
+    @if(!($isletme->studyo_modu ?? 0))
     @yetki('pazarlama.cark_yonet')
     <div class="rmc-card tone-mix delay-4" id="rmc-cark-card">
       <div class="rmc-card-head">
@@ -617,6 +618,7 @@
       </div>
     </div>
     @endyetki
+    @endif
 
   </div>
 
@@ -964,6 +966,8 @@ function rmcDashInit(){
 
   // ===== ÇARKIFELEK =====
   function renderCark(period){
+    // Studyo modunda cark karti render edilmez; bosuna API cagirmayalim.
+    if(!document.getElementById('rmc-cark-card')) return;
     api('/cark', 'period='+period).then(function(d){
       var t = Number(d.toplam_cevrim)||0;
       animateCount(document.getElementById('rmc-cark-toplam'), t);
