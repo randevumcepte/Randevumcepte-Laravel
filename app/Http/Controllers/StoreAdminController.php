@@ -18787,6 +18787,8 @@ DB::raw('
         self::afisLogoCiz($im, $isletme, 102, 62, 102);
         // Salon adi (ust bar: sol x=236, dikey merkez ~113, max gen ~780 @2x)
         self::afisAdYaz($im, (string) ($isletme->isletme_adi ?: ($isletme->salon_adi ?: '')), 236, 113, 780, 40);
+        // Telefon mockup ekranindaki demo salon adini gercek isletme adiyla degistir (pill: merkez ~1077,316)
+        self::afisTelefonAdiYaz($im, (string) ($isletme->isletme_adi ?: ($isletme->salon_adi ?: '')));
 
         ob_start();
         imagepng($im);
@@ -18914,6 +18916,58 @@ DB::raw('
         $th       = $bb[1] - $bb[7];
         $baseline = (int) ($cy - $th / 2 - $bb[7]);
         imagettftext($im, $size, 0, (int) $x, $baseline, $renk, $font, $text);
+    }
+
+    // Telefon mockup'undaki ekran ustundeki demo salon pill'ini gercek isletme adiyla yeniden cizer.
+    // Arka plan afis-bg.png icinde "Ceren Ceviz Estetik" ekran goruntusu gomulu; burada uzeri kapatilir.
+    private static function afisTelefonAdiYaz(&$im, $ad)
+    {
+        $ad = trim($ad);
+        if ($ad === '') { return; }
+        $font = public_path('afis/Poppins-SemiBold.ttf');
+        if (!is_file($font)) { return; }
+
+        // Cok uzun isimleri kisalt
+        if (mb_strlen($ad, 'UTF-8') > 22) { $ad = mb_substr($ad, 0, 21, 'UTF-8') . '…'; }
+
+        // Metin yuksekligini ~20px'e normalize et (GD/freetype olcegi ortamlar arasi degisebilir)
+        $size = 20;
+        $bb = imagettfbbox($size, 0, $font, $ad);
+        $th = $bb[1] - $bb[7];
+        if ($th > 0) { $size = max(8, (int) round($size * 20 / $th)); }
+        $bb = imagettfbbox($size, 0, $font, $ad);
+        $tw = abs($bb[2] - $bb[0]);
+        $th = $bb[1] - $bb[7];
+
+        // Pill cok genisse (uzun isim) yaziyi kucult ki profil ikonuna girmesin
+        $padX = 26; $h = 40; $r = (int) ($h / 2);
+        $pillW = $tw + $padX * 2;
+        while ($pillW > 210 && $size > 9) {
+            $size--;
+            $bb = imagettfbbox($size, 0, $font, $ad);
+            $tw = abs($bb[2] - $bb[0]);
+            $th = $bb[1] - $bb[7];
+            $pillW = $tw + $padX * 2;
+        }
+
+        // Eski demo pill'ini ekran arka plani (beyaz) ile sil
+        $bg = imagecolorallocate($im, 243, 239, 240);
+        imagefilledrectangle($im, 985, 292, 1170, 340, $bg);
+
+        // Yeni lavanta pill (yuvarlak uclu), merkez 1077,316
+        $cx = 1077; $cy = 316;
+        $x0 = (int) ($cx - $pillW / 2); $x1 = (int) ($cx + $pillW / 2);
+        $y0 = (int) ($cy - $h / 2);
+        $pill = imagecolorallocate($im, 233, 220, 227);
+        imagefilledrectangle($im, $x0 + $r, $y0, $x1 - $r, $y0 + $h, $pill);
+        imagefilledellipse($im, $x0 + $r, $cy, $h, $h, $pill);
+        imagefilledellipse($im, $x1 - $r, $cy, $h, $h, $pill);
+
+        // Isletme adi (koyu bordo, ortali)
+        $renk = imagecolorallocate($im, 0x6b, 0x50, 0x5a);
+        $tx = (int) ($cx - $tw / 2 - $bb[0]);
+        $ty = (int) ($cy - $th / 2 - $bb[7]);
+        imagettftext($im, $size, 0, $tx, $ty, $renk, $font, $ad);
     }
 
     private static function trSlug($s)
