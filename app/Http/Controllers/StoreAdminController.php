@@ -14976,7 +14976,7 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
                 ->count() >= 1);
     }
 
-    $formatted = $sayfalanmisAdisyonlar->map(function ($adisyon) use ($isletmeId, $personel_id, $_silYetki, $_hesapSahibi, &$hizmetHakedisToplam, &$urunHakedisToplam, &$paketHakedisToplam, &$hizmetSatisToplam, &$urunSatisToplam, &$paketSatisToplam) {
+    $formatted = $sayfalanmisAdisyonlar->map(function ($adisyon) use ($isletmeId, $_studyo, $personel_id, $_silYetki, $_hesapSahibi, &$hizmetHakedisToplam, &$urunHakedisToplam, &$paketHakedisToplam, &$hizmetSatisToplam, &$urunSatisToplam, &$paketSatisToplam) {
         $satilanlar = [];
         $satilanlarStr = "";
 

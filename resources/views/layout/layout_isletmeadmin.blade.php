@@ -1648,11 +1648,13 @@
                         >
                      @endyetki
                      @endif
+                     @if(empty($isletme->studyo_modu))
                      @yetki('finans.masraf_ekle')
                      <a onclick="masrafModalAc('masraf')" class="dropdown-item" href="#"
                         ><i class="fa fa-upload"></i> Yeni Masraf</a
                         >
                      @endyetki
+                     @endif
                      @endif
                      @if(!in_array(5, $_layoutRoller))
                      <a class="dropdown-item" href="#" data-toggle="modal" data-target="#formugondermodal"
