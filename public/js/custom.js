@@ -9391,7 +9391,7 @@ function randevufiltre()
                 type: "GET",
                 url: '/isletmeyonetim/randevulistefiltre',
                 dataType: "json",
-                data : {olusturulma : $('#olusturulmaya_gore_filtre').val(),durum : $('#duruma_gore_filtre').val(),zaman : $('#zamana_gore_filtre').val(),ozeltarih:$('#tarihe_gore_filtre').val(),salon_id:$('input[name="sube"]').val(),musteriid:$('input[name="musteri_id"]').val()},
+                data : {olusturulma : $('#olusturulmaya_gore_filtre').val(),durum : $('#duruma_gore_filtre').val(),hizmet : $('#hizmete_gore_filtre').val(),zaman : $('#zamana_gore_filtre').val(),ozeltarih:$('#tarihe_gore_filtre').val(),salon_id:$('input[name="sube"]').val(),musteriid:$('input[name="musteri_id"]').val()},
                 beforeSend:function(){
                     $('#preloader').show();
                 },
@@ -9445,7 +9445,7 @@ function randevufiltre()
                 }
     });
 }
-$('#olusturulmaya_gore_filtre,#duruma_gore_filtre').change(function(e){
+$('#olusturulmaya_gore_filtre,#duruma_gore_filtre,#hizmete_gore_filtre').change(function(e){
     e.preventDefault();
     if($('#zamana_gore_filtre').val()!="ozel")
         randevufiltre();

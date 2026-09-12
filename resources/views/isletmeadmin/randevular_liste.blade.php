@@ -33,10 +33,22 @@
             <label for="duruma_gore_filtre">Durum</label>
             <select class="form-control rc-rl-select" id="duruma_gore_filtre">
                <option selected value="">Tüm Durumlar</option>
+               <option value="geldi">Geldi</option>
+               <option value="gelmedi">Gelmedi</option>
+               <option value="beklemede">Beklemede</option>
                <option value="0">Onay bekleyen</option>
                <option value="1">Onaylı</option>
                <option value="2">Reddedilen</option>
                <option value="3">Müşteri tarafından iptal edilen</option>
+            </select>
+         </div>
+         <div class="rc-rl-field">
+            <label for="hizmete_gore_filtre">Hizmet</label>
+            <select class="form-control rc-rl-select" id="hizmete_gore_filtre">
+               <option selected value="">Tüm Hizmetler</option>
+               @foreach($hizmet_drop as $_hz)
+                  <option value="{{$_hz->id}}">{{$_hz->hizmet_adi}}</option>
+               @endforeach
             </select>
          </div>
          <div class="rc-rl-field">

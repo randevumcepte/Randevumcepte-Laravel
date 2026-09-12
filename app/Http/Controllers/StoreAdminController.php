@@ -17102,8 +17102,17 @@ DB::raw('
         $paketler = self::paket_liste_getir('',true,$request);
         $randevular = self::randevu_liste_getir($request,date('Y-m-d'),date('Y-m-d'),true,true,true,null,self::mevcutsube($request),'');
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
-          
-        return view('isletmeadmin.randevular_liste',['isletme'=>$isletme,'randevular_liste'=>$randevular,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'pageindex'=>3,'sayfa_baslik'=>'Randevular', 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'yetkiliolunanisletmeler'=>$isletmeler]);
+        // Hizmet filtresi dropdown'u: salonun aktif sundugu hizmetler
+        $hizmet_drop = DB::table('salon_sunulan_hizmetler')
+            ->join('hizmetler','salon_sunulan_hizmetler.hizmet_id','=','hizmetler.id')
+            ->where('salon_sunulan_hizmetler.salon_id', self::mevcutsube($request))
+            ->where('salon_sunulan_hizmetler.aktif', true)
+            ->select('hizmetler.id','hizmetler.hizmet_adi')
+            ->groupBy('hizmetler.id','hizmetler.hizmet_adi')
+            ->orderBy('hizmetler.hizmet_adi')
+            ->get();
+
+        return view('isletmeadmin.randevular_liste',['isletme'=>$isletme,'randevular_liste'=>$randevular,'paketler'=>$paketler,'bildirimler'=>self::bildirimgetir($request),'pageindex'=>3,'sayfa_baslik'=>'Randevular', 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),'yetkiliolunanisletmeler'=>$isletmeler,'hizmet_drop'=>$hizmet_drop]);
     }
     public function randevulistegetir(Request $request)
     {
@@ -18031,13 +18040,14 @@ DB::raw('
         // o durumda sadece ilgili musterinin randevulari donsun (aksi halde tum salon gelir).
         // Genel randevu listesi sayfasinda musteriid gonderilmez => '' => filtre uygulanmaz.
         $userid = is_numeric($request->musteriid) ? $request->musteriid : '';
-        return self::randevu_liste_getir($request,$tarih[0],$tarih[1],$salon,$web,$uygulama,$request->durum,$request->salon_id,$userid);
+        $hizmet_id = is_numeric($request->hizmet) ? $request->hizmet : '';
+        return self::randevu_liste_getir($request,$tarih[0],$tarih[1],$salon,$web,$uygulama,$request->durum,$request->salon_id,$userid,$hizmet_id);
     }
     public function liste_deneme(Request $request)
     {
        return self::randevu_liste_getir($request,'2025-02-01','2025-02-28',true,null,null,1,182,'');
     }
-  public function randevu_liste_getir(Request $request, $tarih1, $tarih2, $salon, $web, $uygulama, $durum, $salon_id, $userid)
+  public function randevu_liste_getir(Request $request, $tarih1, $tarih2, $salon, $web, $uygulama, $durum, $salon_id, $userid, $hizmet_id = '')
 {
     // Start with a base query on the main table to reduce initial dataset
     $baseQuery = DB::table('randevular')
@@ -18074,11 +18084,28 @@ DB::raw('
     }
 
     if ($durum != '') {
-        $baseQuery->where('randevular.durum', $durum);
+        // "geldi/gelmedi/beklemede" durum + randevuya_geldi kombinasyonuna cevrilir;
+        // sayisal degerler (0/1/2/3) dogrudan randevular.durum'a uygulanir.
+        if ($durum === 'geldi') {
+            $baseQuery->where('randevular.durum', 1)->where('randevular.randevuya_geldi', 1);
+        } elseif ($durum === 'gelmedi') {
+            $baseQuery->where('randevular.durum', 1)->where('randevular.randevuya_geldi', 0);
+        } elseif ($durum === 'beklemede') {
+            $baseQuery->where('randevular.durum', 0);
+        } else {
+            $baseQuery->where('randevular.durum', $durum);
+        }
     }
 
     if ($userid != '') {
         $baseQuery->where('randevular.user_id', $userid);
+    }
+
+    // Hizmet filtresi: sadece secili hizmeti iceren randevular
+    if ($hizmet_id != '') {
+        $baseQuery->whereIn('randevular.id', function($q) use ($hizmet_id) {
+            $q->select('randevu_id')->from('randevu_hizmetler')->where('hizmet_id', $hizmet_id);
+        });
     }
 
     // Get only the appointment IDs first (much smaller dataset)
