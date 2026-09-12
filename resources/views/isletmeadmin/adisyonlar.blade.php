@@ -36,7 +36,8 @@
       </div>
    </div>
 
-   {{-- Özet Stat Kartları --}}
+   {{-- Özet Stat Kartları (studyo modunda gizli — tutar gosterilmez) --}}
+   @if(empty($isletme->studyo_modu))
    <div class="rc-adi-stats">
       <div class="rc-adi-stat rc-adi-stat-primary">
          <div class="rc-adi-stat-icon"><i class="fa fa-shopping-bag"></i></div>
@@ -60,6 +61,7 @@
          </div>
       </div>
    </div>
+   @endif
 
    {{-- Filtreler --}}
    <div class="rc-adi-card rc-adi-filters-card">
@@ -96,15 +98,17 @@
                <option value="" selected>Tüm Satışlar</option>
                <option value="acik">Açık Satışlar</option>
                <option value="kapali">Kapalı Satışlar</option>
+               @if(empty($isletme->studyo_modu))
                <option value="faturali">Faturalı İşlemler</option>
                <option value="faturasiz">Faturasız İşlemler</option>
+               @endif
             </select>
          </div>
          <div class="rc-adi-filter rc-adi-filter-extras">
             <label>&nbsp;</label>
             <div class="rc-adi-extras">
                <span id="satisDurumuSayilari" class="rc-adi-status-counts"></span>
-               @if(DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
+               @if(empty($isletme->studyo_modu) && DB::table('model_has_roles')->where('role_id',1)->where('model_id',Auth::guard('isletmeyonetim')->user()->id)->where('salon_id',$isletme->id)->count() == 1)
                <button type="button" id="faturasizGizleSatisBtn"
                        data-aktif="{{ (int)($isletme->faturasiz_gizle ?? 0) }}"
                        class="btn btn-{{ (int)($isletme->faturasiz_gizle ?? 0) === 1 ? 'warning' : 'default' }} rc-adi-fatura-btn"
@@ -133,11 +137,13 @@
                   <i class="fa fa-cogs"></i><span>Hizmetler/İşlemler</span><span class="rc-adi-tab-count" id="satis_takibi_islem_sayisi"></span>
                </button>
             </li>
+            @if(empty($isletme->studyo_modu))
             <li class="nav-item">
                <button class="rc-adi-tab" data-toggle="tab" href="#ürün_adisyonlar" role="tab" aria-selected="false">
                   <i class="fa fa-cube"></i><span>Ürünler</span><span class="rc-adi-tab-count" id="satis_takibi_urun_sayisi"></span>
                </button>
             </li>
+            @endif
             <li class="nav-item">
                <button class="rc-adi-tab" data-toggle="tab" href="#paket_adisyonlar" role="tab" aria-selected="false">
                   <i class="fa fa-archive"></i><span>Paketler</span><span class="rc-adi-tab-count" id="satis_takibi_paket_sayisi"></span>
@@ -166,7 +172,7 @@
                         <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
                         <th>Yaklaşan Ödeme Tarihi</th>
                         <th>Adisyon İçeriği</th>
-                        <th>Toplam ₺</th>
+                        <th>@if(!empty($isletme->studyo_modu))Ödeme Tarihi @else Toplam ₺ @endif</th>
                         <th>Ödenen ₺</th>
                         <th>Kalan ₺</th>
                         <th class="rc-adi-col-actions">İşlemler</th>
@@ -188,7 +194,7 @@
                         <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
                         <th>Yaklaşan Ödeme Tarihi</th>
                         <th>Adisyon İçeriği</th>
-                        <th>Toplam ₺</th>
+                        <th>@if(!empty($isletme->studyo_modu))Ödeme Tarihi @else Toplam ₺ @endif</th>
                         <th>Ödenen ₺</th>
                         <th>Kalan ₺</th>
                         <th class="rc-adi-col-actions">İşlemler</th>
@@ -210,7 +216,7 @@
                         <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
                         <th>Yaklaşan Ödeme Tarihi</th>
                         <th>Adisyon İçeriği</th>
-                        <th>Toplam ₺</th>
+                        <th>@if(!empty($isletme->studyo_modu))Ödeme Tarihi @else Toplam ₺ @endif</th>
                         <th>Ödenen ₺</th>
                         <th>Kalan ₺</th>
                         <th class="rc-adi-col-actions">İşlemler</th>
@@ -232,7 +238,7 @@
                         <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
                         <th>Yaklaşan Ödeme Tarihi</th>
                         <th>Adisyon İçeriği</th>
-                        <th>Toplam ₺</th>
+                        <th>@if(!empty($isletme->studyo_modu))Ödeme Tarihi @else Toplam ₺ @endif</th>
                         <th>Ödenen ₺</th>
                         <th>Kalan ₺</th>
                         <th class="rc-adi-col-actions">İşlemler</th>
@@ -1396,7 +1402,7 @@
                         <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
                         <th>Yaklaşan Ödeme Tarihi</th>
                         <th>Adisyon İçeriği</th>
-                        <th>Toplam ₺</th>
+                        <th>@if(!empty($isletme->studyo_modu))Ödeme Tarihi @else Toplam ₺ @endif</th>
                         <th>Ödenen ₺</th>
                         <th>Kalan ₺</th>
                         <th class="rc-adi-col-actions">İşlemler</th>
@@ -1514,9 +1520,13 @@
                 { data: 'musteri' },
                 { data: 'planlanan_alacak_tarihi' },
                 { data: 'icerik' },
-                { data: 'toplam' },
-                { data: 'odenen' },
-                { data: 'kalan_tutar' },
+                // Studyo modu: 'Toplam' kolonu tutar yerine odeme tarih/saatini gosterir
+                { data: 'toplam', render: function(data, type, row){
+                    if(window.STUDYO_MODU) return (row && row.odendi_tarihi) ? row.odendi_tarihi : '';
+                    return data;
+                } },
+                { data: 'odenen', visible: !window.STUDYO_MODU },
+                { data: 'kalan_tutar', visible: !window.STUDYO_MODU },
                 { data: 'islemler' }
             ],
             order: isTaksitTable ? [[5, "asc"]] : [[1, "desc"]],

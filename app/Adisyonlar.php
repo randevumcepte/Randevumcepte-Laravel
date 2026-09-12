@@ -8,7 +8,7 @@ class Adisyonlar extends Model
 {
    
    //protected $connection = 'mysql_source'; // Varsayılan olarak kaynak database
-    protected $fillable = ['salon_id','user_id','harici','fatura_kesildi','fatura_kesildi_tarihi','fatura_kesen_personel_id','odendi'];
+    protected $fillable = ['salon_id','user_id','harici','fatura_kesildi','fatura_kesildi_tarihi','fatura_kesen_personel_id','odendi','odendi_tarihi'];
 
     protected $casts = [
         'harici' => 'boolean',
@@ -92,7 +92,9 @@ class Adisyonlar extends Model
         foreach ($urunKalem as $k) { $t=new \App\TahsilatUrunler(); $t->adisyon_urun_id=$k[0]; $t->tahsilat_id=$tahsilat->id; $t->tutar=$k[1]; $t->save(); }
         foreach ($paketKalem as $k) { $t=new \App\TahsilatPaketler(); $t->adisyon_paket_id=$k[0]; $t->tahsilat_id=$tahsilat->id; $t->tutar=$k[1]; $t->save(); }
 
-        if (\Schema::hasColumn('adisyonlar','odendi')) { $this->odendi = 1; $this->save(); }
+        if (\Schema::hasColumn('adisyonlar','odendi')) $this->odendi = 1;
+        if (\Schema::hasColumn('adisyonlar','odendi_tarihi')) $this->odendi_tarihi = date('Y-m-d H:i:s');
+        $this->save();
         return true;
     }
 
@@ -109,7 +111,9 @@ class Adisyonlar extends Model
             \App\TahsilatPaketler::whereIn('tahsilat_id',$tahsilatIds)->delete();
             \App\Tahsilatlar::where('adisyon_id',$this->id)->delete();
         }
-        if (\Schema::hasColumn('adisyonlar','odendi')) { $this->odendi = 0; $this->save(); }
+        if (\Schema::hasColumn('adisyonlar','odendi')) $this->odendi = 0;
+        if (\Schema::hasColumn('adisyonlar','odendi_tarihi')) $this->odendi_tarihi = null;
+        $this->save();
         return true;
     }
    
