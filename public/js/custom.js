@@ -18104,10 +18104,16 @@ $('#secilenpaket_satis_yap').click(function(e){
     $('input:checkbox[name="paket_bilgi[]"]:checked').each(function(){
          i++;
          var row=$(this).closest("tr")[0];
+         // Studyo modu: seans + fiyat paket satirindan otomatik gelsin (cells[3]=seans, cells[4]=fiyat)
+         var _seansVal='', _fiyatVal='';
+         if(window.STUDYO_MODU){
+             var _st=((row.cells[3]?row.cells[3].innerText:'')||'').match(/\d+/); _seansVal=_st?_st[0]:'';
+             _fiyatVal=((row.cells[4]?row.cells[4].innerText:'')||'').replace(/[^\d.,]/g,'').trim();
+         }
          html+= "<div class='row'><div class='col-md-12'><p style='font-size:18px;font-weight:bold;margin-bottom:10px;margin-top:10px'>"+row.cells[1].innerHTML
 +"</p></div>"+
-                "<div class='col-md-6'><label>Seans Sayısı</label><input type='tel' class='form-control' name='paket_satis_seans[]' style='height:38px;margin-bottom:10px'></div>"+
-                "<div class='col-md-6'><label>Fiyat</label><input type='tel' class='form-control' name='paket_satis_fiyat[]' style='height:38px;margin-bottom:10px'></div>"+
+                "<div class='col-md-6'><label>Seans Sayısı</label><input type='tel' class='form-control' name='paket_satis_seans[]' value='"+_seansVal+"' style='height:38px;margin-bottom:10px'></div>"+
+                "<div class='col-md-6'><label>Fiyat</label><input type='tel' class='form-control' name='paket_satis_fiyat[]' value='"+_fiyatVal+"' style='height:38px;margin-bottom:10px'></div>"+
                 "</div> ";
     });
     if(i==0 || $('select[name="paket_satis_musteri_id"]').val()==0 )
@@ -18124,93 +18130,73 @@ $('#secilenpaket_satis_yap').click(function(e){
          });
     }
     else{
-        swal({
-        html: "<p style='font-size:18px;font-weight:bold;'>Seans ve gün aralığını belirleyin!</p>"+
-                html,
-        showCancelButton: false,
-        confirmButtonColor: '#00bc8c',
-        confirmButtonText: 'Tahsilata Git',
-        showCloseButton:true,
-        confirmButtonClass: 'btn btn-success',
-        cancelButtonClass: 'btn btn-danger',
-    }).then(function (result) {
-            if(result.value){
-                if(
-                    ($('input[name="paket_satis_seans_baslangic[]"]').val()!='' && $('input[name="paket_satis_seans_araligi[]"]').val()!='' && $('input[name="paket_satis_seans_saati[]"]').val()!='' && $('#paketRandevuOlustur2').prop('checked'))
-                    || (!$('#paketRandevuOlustur2').prop('checked'))
-                )
-                {
-                    var personelIds = [];
-                  
-                   
-                    var formData = new FormData();
-                    $('input[name="paket_satis_seans[]"]').each(function(){
-                        formData.append('paket_satis_seans[]',$(this).val());
+        var _sube = $('input[name="sube"]').val() || '';
+        function _paketSatisGonder(onSuccess){
+            var formData = new FormData();
+            $('input[name="paket_satis_seans[]"]').each(function(){ formData.append('paket_satis_seans[]',$(this).val()); });
+            $('input[name="paket_satis_fiyat[]"]').each(function(){ formData.append('paket_satis_fiyat[]',$(this).val()); });
+            var data1 = $('#paket_satis_form').serializeArray();
+            $.each(data1,function(key,input){ formData.append(input.name,input.value); });
+            $.ajax({
+                type: "POST", url: '/isletmeyonetim/pakettahsilatagit', dataType: "text",
+                data: formData, processData: false, contentType: false,
+                headers: { 'X-CSRF-TOKEN': $('input[name="_token"]').val() },
+                beforeSend: function(){ $("#preloader").show(); },
+                success: function(result2){ $("#preloader").hide(); onSuccess(result2); },
+                error: function(request){ $("#preloader").hide(); document.getElementById('hata').innerHTML = request.responseText; }
+            });
+        }
+        if(window.STUDYO_MODU){
+            // Studyo modu: tutar makinesi yerine dogrudan ikili odeme (adisyon-odeme-isaretle -> tamOde tarih/saat)
+            swal({
+                html: "<p style='font-size:18px;font-weight:bold;'>Seans ve fiyat</p>"+html,
+                showCancelButton: true,
+                confirmButtonText: 'Ödeme Alındı',
+                cancelButtonText: 'Ödeme Alınmadı',
+                confirmButtonColor: '#1fbf6f',
+                cancelButtonColor: '#6c757d',
+                showCloseButton: true,
+                confirmButtonClass: 'btn btn-success',
+                cancelButtonClass: 'btn btn-secondary',
+            }).then(function(result){
+                if(result.value){
+                    _paketSatisGonder(function(adisyonId){
+                        $.ajax({
+                            type:"POST", url:'/isletmeyonetim/adisyon-odeme-isaretle', dataType:"json",
+                            data:{ adisyon_id: adisyonId, alindi: 1, sube: _sube, _token: $('input[name="_token"]').val() },
+                            complete: function(){ window.location.href = '/isletmeyonetim/adisyonlar?sube='+_sube; }
+                        });
                     });
-                    $('input[name="paket_satis_fiyat[]"]').each(function(){
-                        formData.append('paket_satis_fiyat[]',$(this).val());
-                    });
-                    /*$('input[name="paket_satis_seans_baslangic[]"]').each(function(){
-                        formData.append('paket_satis_seans_baslangic[]',$(this).val());
-                    });
-                    $('input[name="paket_satis_seans_araligi[]"]').each(function(){
-                        formData.append('paket_satis_seans_araligi[]',$(this).val());
-                    });
-                     $('input[name="paket_satis_seans_saati[]"]').each(function(){
-                        formData.append('paket_satis_seans_saati[]',$(this).val());
-                    });
-                    $('select[name="paket_satis_personel_id[]"]').each(function(){
-                        formData.append('paket_satis_personel_id[]',$(this).val());
-                        personelIds.push($(this).val());
-                    });
-                    if($('#paketRandevuOlustur2').prop('checked')){
-                        
-                        formData.append('paketRandevuOlustur','on');
-                    }*/
-                    
-                    var data1 = $('#paket_satis_form').serializeArray();
-                    $.each(data1,function(key,input){
-                        formData.append(input.name,input.value);
-                    });
-                    $.ajax({
-                        type: "POST",
-                        url: '/isletmeyonetim/pakettahsilatagit',
-                        dataType: "text",
-                        data : formData,
-                        processData: false,
-                        contentType: false,
-                        headers: {
-                            'X-CSRF-TOKEN': $('input[name="_token"]').val()
-                        },
-                        beforeSend: function() {
-                            $("#preloader").show();
-                        },
-                        success: function(result2)  {
-                            $("#preloader").hide();
-                            window.location.href = '/isletmeyonetim/tahsilat/'+result2;
-                        },
-                        error: function (request, status, error) {
-                            $("#preloader").hide();
-                            document.getElementById('hata').innerHTML = request.responseText;
-                        }
+                } else if(result.dismiss === swal.DismissReason.cancel){
+                    _paketSatisGonder(function(adisyonId){
+                        window.location.href = '/isletmeyonetim/adisyonlar?sube='+_sube;
                     });
                 }
-                else
-                {
-                    swal(
-                                {
-                                    type: 'warning',
-                                    title: 'Başarılı',
-                                    html: "<p>Otomatik randevu oluşturmak için seans bilgilerini girmeniz gerekmektedir.</p>",
-                                    showCloseButton: false,
-                                    showCancelButton: false,
-                                    showConfirmButton:false,
-                                }
-                            );
+            });
+            select2YenidenYukle2();
+        } else {
+            swal({
+                html: "<p style='font-size:18px;font-weight:bold;'>Seans ve gün aralığını belirleyin!</p>"+html,
+                showCancelButton: false,
+                confirmButtonColor: '#00bc8c',
+                confirmButtonText: 'Tahsilata Git',
+                showCloseButton:true,
+                confirmButtonClass: 'btn btn-success',
+                cancelButtonClass: 'btn btn-danger',
+            }).then(function (result) {
+                if(result.value){
+                    if(
+                        ($('input[name="paket_satis_seans_baslangic[]"]').val()!='' && $('input[name="paket_satis_seans_araligi[]"]').val()!='' && $('input[name="paket_satis_seans_saati[]"]').val()!='' && $('#paketRandevuOlustur2').prop('checked'))
+                        || (!$('#paketRandevuOlustur2').prop('checked'))
+                    ){
+                        _paketSatisGonder(function(result2){ window.location.href = '/isletmeyonetim/tahsilat/'+result2; });
+                    } else {
+                        swal({ type:'warning', title:'Başarılı', html:"<p>Otomatik randevu oluşturmak için seans bilgilerini girmeniz gerekmektedir.</p>", showCloseButton:false, showCancelButton:false, showConfirmButton:false });
+                    }
                 }
-            }
-        });
-        select2YenidenYukle2();
+            });
+            select2YenidenYukle2();
+        }
     }
    
     $('input[name="paket_satis_seans_baslangic[]').each(function(){

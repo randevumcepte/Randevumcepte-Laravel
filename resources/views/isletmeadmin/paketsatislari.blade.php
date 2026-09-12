@@ -25,12 +25,14 @@
             <option></option>
          </select>
       </div>
+      @if(empty($isletme->studyo_modu))
       <div class="rc-pk-field">
          <select class="form-control custom-select2 personel_secimi" id="paket_satis_personel_id"
                  name="paket_satis_personel_id" aria-label="Personel" style="width:100%">
             <option value=""></option>
          </select>
       </div>
+      @endif
 
       <button type="button" data-toggle="modal" data-target="#paket-modal"
               class="rc-pk-btn rc-pk-btn-success yenieklebuton501">

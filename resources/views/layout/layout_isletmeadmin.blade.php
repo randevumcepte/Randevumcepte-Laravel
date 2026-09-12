@@ -1642,11 +1642,13 @@
                      @endif
                      @if($isletme->uyelik_turu > 1 )
                      @if( $_SERVER["HTTP_HOST"]!="randevu.randevumcepte.com.tr")
+                     @if(empty($isletme->studyo_modu))
                      @yetki('satis.adisyon_olustur')
                      <a class="dropdown-item" href="/isletmeyonetim/yenitahsilat/?sube={{$isletme->id}}"
                         ><i class="icon-copy fa fa-shopping-cart" aria-hidden="true"></i> Yeni Satış & Tahsilat</a
                         >
                      @endyetki
+                     @endif
                      @endif
                      @yetki('finans.masraf_ekle')
                      <a onclick="masrafModalAc('masraf')" class="dropdown-item" href="#"
@@ -5725,7 +5727,7 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=13.6')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=264.1')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=264.2')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
