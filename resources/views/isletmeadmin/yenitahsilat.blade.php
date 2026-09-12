@@ -25,7 +25,7 @@
 <form id="adisyon_tahsilat"  method="POST">
 
 <div class="row">
-   <div class="col-md-9">
+   <div class="col-md-{{ !empty($isletme->studyo_modu) ? '12' : '9' }}">
       <div class="card-box pd-5"  style="margin-bottom:20px">
         
             <input type="hidden" name='sube' value="{{$isletme->id}}">
@@ -61,14 +61,23 @@
                {!!csrf_field()!!}
                <div class="row">
                   <div class="col-md-12">
+                     @if(!empty($isletme->studyo_modu))
+                     {{-- Studyo modu: sade iki buton (Hizmet + Paket), tutar/senet yok --}}
+                     <div class="row" style="margin-bottom: 20px;">
+                        <div class="col-md-4 col-6">
+                           <button disabled type="button" data-toggle="modal" data-target="#adisyon_yeni_hizmet_modal" id="adisyon_hizmet_ekle_button" class="btn btn-info btn-block adisyon_ekle_buttonlar">Hizmet Ekle</button>
+                        </div>
+                        <div class="col-md-4 col-6">
+                           <button disabled type="button" data-toggle="modal" id="adisyon_paket_ekle_button" data-target="#paket_satisi_modal" data-value='' class="btn btn-primary btn-block adisyon_ekle_buttonlar">Paket Ekle</button>
+                        </div>
+                     </div>
+                     @else
                      <div class="row" style="margin-bottom: 20px;">
                         <div class="col-2">
                            <button disabled type="button" data-toggle="modal" data-target="#adisyon_yeni_hizmet_modal" id="adisyon_hizmet_ekle_button" class="btn btn-info btn-block adisyon_ekle_buttonlar"  style="font-size:12px">Hizmet Ekle</button>
                         </div>
                         <div class="col-2" style="padding-left: 0;">
-                           @if(empty($isletme->studyo_modu))
                            <button disabled type="button" data-toggle="modal" id="adisyon_urun_ekle_button" data-target="#urun_satisi_modal" data-value=''onclick="modalbaslikata('Yeni Ürün Satışı Ekle','')" class="btn  btn-danger  btn-block adisyon_ekle_buttonlar"  style="font-size:12px">Ürün Ekle</button>
-                           @endif
                         </div>
                         <div class="col-2" style="padding-left: 0;">
                            <button disabled type="button" data-toggle="modal" id="adisyon_paket_ekle_button" data-target="#paket_satisi_modal" data-value='' class="btn  btn-primary  btn-block adisyon_ekle_buttonlar" style="font-size:12px">Paket Ekle</button>
@@ -80,6 +89,7 @@
                            @endyetki
                         </div>
                      </div>
+                     @endif
                      <div id='tum_tahsilatlar'>
                      </div>
                      <div id="taksitli_ve_senetli_tahsilatlar">
@@ -189,7 +199,7 @@
         
       </div>
    </div>
-   <div class="col-md-3">
+   <div class="col-md-3" @if(!empty($isletme->studyo_modu))style="display:none"@endif>
       <div id="odeme_kayit_bolumu">
          <h2>Ödeme</h2>
          <div class="card-box pd-20 odemeozeti"  style="margin-bottom:20px">
