@@ -11511,17 +11511,23 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function paket_liste_getir($returntext,$addition,$request){
         $paket_liste = "";
+        // Studyo modu: paket_hizmetler.seans 0 iken paketler.miktar goster (satis swal seans dogru gelsin).
+        // Diger isletmelerde ESKI davranis korunur (GROUP_CONCAT(seans)).
+        $_studyoSeans = (bool) Salonlar::where('id', self::mevcutsube($request))->value('studyo_modu');
+        $_seansExpr = $_studyoSeans
+            ? 'IF(COALESCE(SUM(paket_hizmetler.seans),0) > 0, GROUP_CONCAT(paket_hizmetler.seans), paketler.miktar) as seanslar'
+            : 'COALESCE(CONCAT(GROUP_CONCAT(paket_hizmetler.seans)),paketler.miktar) as seanslar';
         if($addition)
             $paket_liste = DB::table('paketler')->join('paket_hizmetler','paketler.id','=','paket_hizmetler.paket_id')->join('hizmetler','paket_hizmetler.hizmet_id','=','hizmetler.id')->select(
                  DB::raw('CONCAT( GROUP_CONCAT(hizmetler.hizmet_adi)) as hizmetler'),
-                        DB::raw('IF(COALESCE(SUM(paket_hizmetler.seans),0) > 0, GROUP_CONCAT(paket_hizmetler.seans), paketler.miktar) as seanslar'),'paketler.paket_adi as paket_adi',DB::raw('CONCAT(COALESCE(SUM(paket_hizmetler.fiyat),0)) as fiyat'),DB::raw('CONCAT("<button title=\"Ekle\" class=\"btn btn-success\" name=\"satis_formuna_paket_ekle\" data-value=\"",paketler.id,"\"><i class=\"fa fa-plus\"></i> Ekle</a>") AS islemler'))->where('paketler.salon_id',self::mevcutsube($request))->orderBy('paketler.id','desc')->groupBy('paket_hizmetler.paket_id')->get();
+                        DB::raw($_seansExpr),'paketler.paket_adi as paket_adi',DB::raw('CONCAT(COALESCE(SUM(paket_hizmetler.fiyat),0)) as fiyat'),DB::raw('CONCAT("<button title=\"Ekle\" class=\"btn btn-success\" name=\"satis_formuna_paket_ekle\" data-value=\"",paketler.id,"\"><i class=\"fa fa-plus\"></i> Ekle</a>") AS islemler'))->where('paketler.salon_id',self::mevcutsube($request))->orderBy('paketler.id','desc')->groupBy('paket_hizmetler.paket_id')->get();
         else
             $paket_liste = DB::table('paketler')->join('paket_hizmetler','paketler.id','=','paket_hizmetler.paket_id')->join('hizmetler','paket_hizmetler.hizmet_id','=','hizmetler.id')->
                     select(
                       DB::raw('CONCAT("<div class=\"dt-checkbox\"><input type=\"checkbox\"  class=\"paket-checkbox\" style=\"margin-left:11px;\"  name=\"paket_bilgi[]\" value=\"",paketler.id,"\"><span style=\"margin-left:11px;\" class=\"dt-checkbox-label\"></span></div>") as id'),
                         'paketler.paket_adi as paket_adi',
                         DB::raw('CONCAT(GROUP_CONCAT(hizmetler.hizmet_adi)) as hizmetler'),
-                        DB::raw('IF(COALESCE(SUM(paket_hizmetler.seans),0) > 0, GROUP_CONCAT(paket_hizmetler.seans), paketler.miktar) as seanslar'),
+                        DB::raw($_seansExpr),
                         DB::raw('CONCAT(COALESCE(SUM(paket_hizmetler.fiyat),paketler.fiyat)) as fiyat'),
                         DB::raw('CONCAT("<div class=\"dropdown\">
                         <a class=\"btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle\"
