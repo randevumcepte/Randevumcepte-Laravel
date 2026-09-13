@@ -15082,7 +15082,8 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             }
 
             $paketNetTutar = ($paket->fiyat ?? 0) - ($paket->indirim_tutari ?? 0);
-            $satilanlarStr .= $paket->paket_id ? $paket->paket->paket_adi." (P) " : "";
+            $__paketSeansEt = ((int)($paket->seans_sayisi ?? 0) > 0) ? '('.(int)$paket->seans_sayisi.' Seans) ' : '';
+            $satilanlarStr .= $paket->paket_id ? $paket->paket->paket_adi." (P) ".$__paketSeansEt : "";
             $satilanlar[] = [
                 'tip' => 'paket',
                 'ad' => $paket->paket_id ? $paket->paket->paket_adi : "",
