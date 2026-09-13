@@ -1587,10 +1587,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $paketHakedis += $tahsilatToplam * ($this->primOrani($paket->personel, 'paket', $paket->paket_id, $primHarita) / 100);
         }
         
-        $satilanlarStr .= ($paket->paket->paket_adi ?? '') . " (P)  " . 
-                          ($paket->personel->personel_adi ?? '') . "  " . 
+        $__seansEt = ((int)($paket->seans_sayisi ?? 0) > 0) ? '('.(int)$paket->seans_sayisi.' Seans) ' : '';
+        $satilanlarStr .= ($paket->paket->paket_adi ?? '') . " (P) " . $__seansEt . " " .
+                          ($paket->personel->personel_adi ?? '') . "  " .
                           number_format($paket->fiyat, 2, ',', '.') . " ₺\r\n";
-        $satilanlarStrKisaIcerik .= ($paket->paket->paket_adi ?? '') . ($paket->personel_id ? ' ('.trim($paket->personel->personel_adi ?? '').')' : '') . " (P)  " .
+        $satilanlarStrKisaIcerik .= ($paket->paket->paket_adi ?? '') . ($paket->personel_id ? ' ('.trim($paket->personel->personel_adi ?? '').')' : '') . " (P) " . $__seansEt . " " .
                                      ($paket->personel->personel_adi ?? '') . "  " .
                                      number_format($paket->fiyat, 2, ',', '.') . " ₺\r\n";
         $personellerStr .= ($paket->personel->personel_adi ?? '') . ' ';
