@@ -252,6 +252,8 @@
                   aria-selected="false"
                   >Sağlık Bilgileri</a>
             </li>
+            @if(empty($isletme->studyo_modu))
+            {{-- Studyo modu: Sözleşmeler/Belgeler sekmesi gizli --}}
             <li class="nav-item" style="margin:5px">
                <a
                   class="btn btn-outline-primary "
@@ -262,6 +264,7 @@
                   aria-selected="false"
                   >Sözleşmeler/Belgeler</a>
             </li>
+            @endif
             <li class="nav-item" style="margin:5px">
                <a
                   class="btn btn-outline-primary "
