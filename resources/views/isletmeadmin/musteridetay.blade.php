@@ -285,6 +285,8 @@
             </li>
             @endyetki
             @yetki('satis.tahsilat_al')
+            @if(empty($isletme->studyo_modu))
+            {{-- Studyo modu: parasal islem yok -> Harici Tahsilat gizli --}}
             <li class="nav-item" style="margin:5px">
                <button
                   type="button"
@@ -294,6 +296,7 @@
                   data-target="#harici_tahsilat_modal"
                   ><i class="fa fa-cloud-download"></i> Harici Tahsilat</button>
             </li>
+            @endif
             @endyetki
             @yetki('pazarlama.anket_yonet')
             <li class="nav-item" style="margin:5px">
