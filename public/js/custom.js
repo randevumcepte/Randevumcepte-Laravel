@@ -18197,7 +18197,13 @@ $('#secilenpaket_satis_yap').click(function(e){
         function _paketSatisSonrasi(sube){
             var _url = '/isletmeyonetim/adisyonlar?sube='+sube;
             var _mid = $('select[name="paket_satis_musteri_id"]').val();
-            if(window.dersPlaniModalAc && _mid && _mid != 0){ dersPlaniModalAc(_mid, _url); }
+            // Satista secilen paket adlari -> modal sadece bunlari gostersin
+            var _adlar = [];
+            $('input:checkbox[name="paket_bilgi[]"]:checked').each(function(){
+                var r = $(this).closest('tr')[0];
+                if(r && r.cells[1]) _adlar.push((r.cells[1].innerText||'').trim());
+            });
+            if(window.dersPlaniModalAc && _mid && _mid != 0){ dersPlaniModalAc(_mid, _url, _adlar); }
             else { window.location.href = _url; }
         }
         if(window.STUDYO_MODU){

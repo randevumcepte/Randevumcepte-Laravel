@@ -15018,10 +15018,11 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         if ($personel_id && $hizmetler->isEmpty() && $urunler->isEmpty() && $paketler->isEmpty()) continue;
         
         $kalanTutar = $toplamTutar - $odenenTutar;
-        $durum = $kalanTutar > 0 ? 'acik' : 'kapali';
-        
+        // Studyo modu: acik/kapali "Ödeme Alındı" bayragina (odendi) baglidir (fiyat gizli).
+        $durum = ($_studyo ? ((int) ($adisyon->odendi ?? 0) === 1) : ($kalanTutar <= 0)) ? 'kapali' : 'acik';
+
         // TÜM adisyonlar için sayıları hesapla (filtreden bağımsız)
-        $tumDurum = $kalanTutar > 0 ? 'acik' : 'kapali';
+        $tumDurum = $durum;
         if ($tumDurum == 'acik') {
             $tumAdisyonAcikSayisi++;
         } else {
@@ -15271,22 +15272,23 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             ->orderBy('planlanan_odeme_tarihi', 'asc')
             ->first();
         
-        // Adisyon durumuna göre renk belirle
-        $durumRenk = $kalanVar == 0 ? 'success' : 'warning';
-        $durumText = $kalanVar == 0 ? 'KAPALI' : 'AÇIK';
-        
+        // Adisyon durumu. Studyo modu: fiyat gizli oldugundan KAPALI/AÇIK "Ödeme Alındı"
+        // bayragina (odendi) baglidir; diger isletmelerde eskisi gibi kalan tutara bagli.
+        $_kapali = $_studyo ? ((int) ($adisyon->odendi ?? 0) === 1) : ($kalanVar == 0);
+        $durumRenk = $_kapali ? 'success' : 'warning';
+        $durumText = $_kapali ? 'KAPALI' : 'AÇIK';
+
         $islemler = "";
-        
-        if ($kalanVar == 0) {
-            // Studyo: odenmis adisyon -> geri al (odeme alinmadi); diger: odeme bilgileri
-            if ($_studyo) {
+
+        if ($_studyo) {
+            // Studyo: odendi'ye gore Ödeme Alındı / Geri Al (tahsilat ekrani yok)
+            if ($_kapali) {
                 $islemler = '<a style="line-height:5px;padding:5px" title="Ödemeyi Geri Al" href="#" name="studyo_odeme_geri_al" data-value="'.$adisyon->id.'" type="button" class="btn btn-warning"><i class="fa fa-undo"></i></a>';
             } else {
-                $islemler = '<a style="line-height:5px;padding:5px" title="Ödeme Bilgileri" href="#" name="adisyon_odeme_detaylari" type="button" data-value="'.$adisyon->id.'"  class="btn btn-primary"><i class="dw dw-eye"></i></a>';
+                $islemler = '<a style="line-height:5px;padding:5px" title="Ödeme Alındı" href="#" name="studyo_odeme_al" data-value="'.$adisyon->id.'" type="button"  class="btn btn-success"><i class="fa fa-check"></i></a>';
             }
-        } else if ($_studyo) {
-            // Studyo: tahsilat ekranina gitmeden AJAX ile "Ödeme Alındı" (tarih/saat + kapali)
-            $islemler = '<a style="line-height:5px;padding:5px" title="Ödeme Alındı" href="#" name="studyo_odeme_al" data-value="'.$adisyon->id.'" type="button"  class="btn btn-success"><i class="fa fa-check"></i></a>';
+        } else if ($kalanVar == 0) {
+            $islemler = '<a style="line-height:5px;padding:5px" title="Ödeme Bilgileri" href="#" name="adisyon_odeme_detaylari" type="button" data-value="'.$adisyon->id.'"  class="btn btn-primary"><i class="dw dw-eye"></i></a>';
         } else {
         $islemler = '<a style="line-height:5px;padding:5px" title="Tahsil Et" href="/isletmeyonetim/tahsilat/'.$adisyon->user_id.'/'.$adisyon->id.'?sube='.$isletmeId.'" type="button"  class="btn btn-success"><i class="fa fa-money"></i></a>';
         }
@@ -15331,7 +15333,9 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             'paketToplam' => $paketToplam,
             'islemler' => $islemler,
             'odendi' => (int) ($adisyon->odendi ?? 0),
-            'odendi_tarihi' => $adisyon->odendi_tarihi ? date('d.m.Y H:i', strtotime($adisyon->odendi_tarihi)) : '',
+            'odendi_tarihi' => $adisyon->odendi_tarihi
+                ? date('d.m.Y H:i', strtotime($adisyon->odendi_tarihi))
+                : (((int) ($adisyon->odendi ?? 0) === 1 && $adisyon->updated_at) ? date('d.m.Y H:i', strtotime($adisyon->updated_at)) : ''),
         ];
     });
 

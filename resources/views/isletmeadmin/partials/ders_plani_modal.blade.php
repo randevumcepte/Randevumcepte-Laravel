@@ -22,9 +22,10 @@
          </div>
          <div class="modal-body">
             <p style="font-size:13px;color:#6b7280;margin-bottom:14px;">Paketin/hizmetin seanslarını, seçtiğiniz sabit ders slotlarına (gün+saat+eğitmen) haftalık otomatik dağıtır.</p>
-            <div class="form-group">
+            <div class="form-group" id="dp_kaynak_wrap">
                <label style="font-weight:600;font-size:13px;">Paket / Hizmet</label>
                <select id="dp_kaynak" class="form-control" onchange="dpRenderSlots()"></select>
+               <div id="dp_kaynak_tek" style="display:none;padding:10px 12px;border:1px solid #e0d6ec;border-radius:8px;background:#faf7fd;font-weight:600;color:#5C008E;"></div>
             </div>
             <div id="dp_slot_wrap" style="margin-top:6px;">
                <label style="font-weight:600;font-size:13px;">Ders Slotları</label>
@@ -42,8 +43,9 @@
    </div>
 </div>
 <script>
-   var DP_MUSTERI = null, DP_REDIRECT = null;
+   var DP_MUSTERI = null, DP_REDIRECT = null, DP_FILTRE_ADLAR = null;
    var dpKaynaklar = [], dpSablonlar = [], dpSecili = {}, dpFiltreEgitmen = null, dpAktifGun = null;
+   function dpNorm(s){ return String(s||'').replace(/\s+/g,' ').trim().toLocaleLowerCase('tr'); }
    var DP_GUNAD = ['','Pzt','Sal','Çar','Per','Cum','Cmt','Paz'];
    function dpCsrf(){ return ($('meta[name="csrf-token"]').attr('content')) || ($('input[name="_token"]').first().val()) || ''; }
    async function dpFetchP(url, body){
@@ -55,10 +57,13 @@
    // Modal kapaninca (planlamadan) satis sonrasi yonlendirme yapilsin.
    $(document).on('hidden.bs.modal','#ders_plani_modal',function(){ if(DP_REDIRECT){ var u=DP_REDIRECT; DP_REDIRECT=null; window.location.href=u; } });
 
-   async function dersPlaniModalAc(musteriId, redirectUrl){
+   // paketAdlari: satista secilen paket adlari (varsa) -> kaynaklar bunlara kisitlanir,
+   // tek kaynak kalirsa dropdown yerine duz etiket gosterilir.
+   async function dersPlaniModalAc(musteriId, redirectUrl, paketAdlari){
       DP_MUSTERI = musteriId; DP_REDIRECT = redirectUrl || null;
+      DP_FILTRE_ADLAR = (paketAdlari && paketAdlari.length) ? paketAdlari.map(dpNorm) : null;
       dpKaynaklar = []; dpSablonlar = []; dpSecili = {}; dpFiltreEgitmen = null; dpAktifGun = null;
-      $('#dp_kaynak').html('<option>Yükleniyor…</option>');
+      $('#dp_kaynak').show().html('<option>Yükleniyor…</option>'); $('#dp_kaynak_tek').hide().text('');
       $('#dp_egitmen_filtre,#dp_gun_sekme,#dp_slot_liste').html('');
       $('#dp_secim_ozet').text('');
       $('#ders_plani_modal').modal('show');
@@ -66,12 +71,24 @@
       if(!(res.ok && res.data && res.data.durum==='ok')){ $('#dp_kaynak').html('<option>Yüklenemedi</option>'); return; }
       dpKaynaklar = res.data.kaynaklar || [];
       dpSablonlar = res.data.sablonlar || [];
+      // Satista secilen paket(ler)e kisitla
+      if(DP_FILTRE_ADLAR){
+         var _f = dpKaynaklar.filter(function(k){ var e=dpNorm(k.etiket); return DP_FILTRE_ADLAR.some(function(ad){ return ad && e.indexOf(ad)>=0; }); });
+         if(_f.length) dpKaynaklar = _f;
+      }
       if(!dpKaynaklar.length){
          $('#dp_kaynak').html('<option value="">Uygun (kalan seanslı) satış yok</option>');
          $('#dp_slot_wrap').hide(); $('#dp_kaydet_btn').prop('disabled',true); return;
       }
       $('#dp_slot_wrap').show(); $('#dp_kaydet_btn').prop('disabled',false);
-      $('#dp_kaynak').html(dpKaynaklar.map(function(k,i){ return '<option value="'+i+'">'+k.etiket+' • '+k.kalan_seans+' seans</option>'; }).join(''));
+      if(dpKaynaklar.length === 1){
+         // Tek kaynak: secim gerekmez, duz etiket
+         $('#dp_kaynak').hide().html('<option value="0">'+dpKaynaklar[0].etiket+'</option>').val('0');
+         $('#dp_kaynak_tek').show().text(dpKaynaklar[0].etiket + ' • ' + dpKaynaklar[0].kalan_seans + ' seans');
+      } else {
+         $('#dp_kaynak_tek').hide();
+         $('#dp_kaynak').show().html(dpKaynaklar.map(function(k,i){ return '<option value="'+i+'">'+k.etiket+' • '+k.kalan_seans+' seans</option>'; }).join(''));
+      }
       dpRenderSlots();
    }
    function dpKaynak(){ var i = parseInt($('#dp_kaynak').val()); return (i>=0 && dpKaynaklar[i]) ? dpKaynaklar[i] : null; }
