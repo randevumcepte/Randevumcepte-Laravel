@@ -32,6 +32,7 @@ Route::post('/ders-tekrarli-kaydet','ApiController@dersTekrarliKaydet');
 Route::post('/ders-tekrarli-liste','ApiController@dersTekrarliListe');
 Route::post('/ders-tekrarli-sil','ApiController@dersTekrarliSil');
 Route::post('/ders-oturum-getir','ApiController@dersOturumGetir');
+Route::post('/ders-gun-liste','ApiController@dersGunListe');
 Route::post('/ders-oturum-kaydet','ApiController@dersOturumKaydet');
 Route::post('/ders-oturum-sil','ApiController@dersOturumSil');
 Route::post('/ders-katilimci-ekle','ApiController@dersKatilimciEkle');

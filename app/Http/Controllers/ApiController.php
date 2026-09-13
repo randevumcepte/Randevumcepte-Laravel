@@ -32046,6 +32046,30 @@ SOZLESME_TXT;
         ], 'katilimcilar' => $katilimcilar]);
     }
 
+    // Bir gunun (varsayilan bugun) ders oturumlari, saat sirasiyla + doluluk.
+    // Isletme ozet ekraninda "Bugunun Dersleri" listesi icin.
+    public function dersGunListe(Request $request)
+    {
+        $salonId = $this->_dersSalon($request);
+        if (!$salonId) return response()->json(['durum' => 'hata', 'mesaj' => 'salon yok'], 422);
+        $tarih = $request->tarih ?: date('Y-m-d');
+        $oturumlar = \App\DersOturumu::with('personel')
+            ->where('salon_id', $salonId)->where('tarih', $tarih)
+            ->where('aktif', true)->where('iptal', false)
+            ->orderBy('saat')->get()->map(function ($o) {
+                $aktif = \App\DersKatilimci::where('oturum_id', $o->id)
+                    ->whereNotIn('durum', ['iptal', 'bekleme'])->count();
+                return [
+                    'id' => $o->id, 'ders_tipi' => $o->ders_tipi ?: 'Grup Dersi',
+                    'saat' => substr($o->saat, 0, 5), 'saat_bitis' => substr($o->saat_bitis, 0, 5),
+                    'kapasite' => (int) $o->kapasite,
+                    'personel' => $o->personel ? $o->personel->personel_adi : '',
+                    'doluluk' => $aktif,
+                ];
+            })->values();
+        return response()->json(['durum' => 'ok', 'tarih' => $tarih, 'dersler' => $oturumlar]);
+    }
+
     public function dersOturumKaydet(Request $request)
     {
         $salonId = $this->_dersSalon($request);
