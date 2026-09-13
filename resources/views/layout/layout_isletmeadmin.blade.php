@@ -27,6 +27,16 @@
       <meta charset="utf-8" />
       <meta name="csrf-token" content="{{ csrf_token() }}">
       <script>window.STUDYO_MODU = {{ (int)($isletme->studyo_modu ?? 0) }};</script>
+      @if(!empty($isletme->studyo_modu))
+      {{-- Studyo modu: satis kalemi satirlarinda satici (personel) + fiyat gizli (fiyat gosterilmez) --}}
+      <style>
+         .tahsilat_kalemleri_listesi .sd-satici-sec,
+         .tahsilat_kalemleri_listesi .sd-satici-cihaz,
+         .tahsilat_kalemleri_listesi .tahsilat_kalemleri,
+         .tahsilat_kalemleri_listesi .try-currency,
+         .tahsilat_kalemleri_listesi .tl { display:none !important; }
+      </style>
+      @endif
       <title>{{$sayfa_baslik}} | {{$isletme->salon_adi}} Yönetim Paneli</title>
       <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
       
@@ -5730,7 +5740,7 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=13.6')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=265.2')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=265.3')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>

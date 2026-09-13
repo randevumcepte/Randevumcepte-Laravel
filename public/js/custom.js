@@ -7677,7 +7677,17 @@ function studyoYeniSatis(alindi){
         swal({type:'warning',title:'Uyarı',text:'Lütfen önce müşteri seçip en az bir hizmet veya paket ekleyin.',showConfirmButton:false,timer:2800});
         return;
     }
-    var _redirect = function(){ window.location.href = '/isletmeyonetim/adisyonlar?sube='+_sube; };
+    // Satis sonrasi: studyo ders plani modalini ac (varsa), yoksa takibe don.
+    var _redirect = function(){
+        var _url = '/isletmeyonetim/adisyonlar?sube='+_sube;
+        var _mid = $('#tahsilat_musteri_id').val();
+        var _adlar = [];
+        $('#tum_tahsilatlar .tm-item-name, #tum_tahsilatlar .paket-row .tm-item-name').each(function(){
+            var t = ($(this).text()||'').trim(); if(t) _adlar.push(t);
+        });
+        if(window.dersPlaniModalAc && _mid){ dersPlaniModalAc(_mid, _url, _adlar); }
+        else { window.location.href = _url; }
+    };
     if(alindi){
         // Odeme alindi -> tamOde (tarih/saat + kapali)
         $("#preloader").show();
