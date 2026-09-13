@@ -83,7 +83,8 @@ class DersRezervasyonServisi
             ->where('salon_id', $salonId)
             ->where('aktif', true)
             ->where(function ($q) { $q->whereNull('iptal')->orWhere('iptal', 0); })
-            ->whereNotNull('hizmet_id')
+            // hizmet_id sarti KALDIRILDI: paket/hak zorunlu olmadigi icin hizmete
+            // bagli olmayan dersler de online rezervasyona acik.
             ->whereBetween('tarih', [$bugun, $son])
             ->orderBy('tarih', 'asc')->orderBy('saat', 'asc')
             ->get();
