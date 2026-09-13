@@ -30,8 +30,11 @@
       @if(!empty($isletme->studyo_modu))
       {{-- Studyo modu: satis kalemi satirlarinda satici (personel) + fiyat gizli (fiyat gosterilmez) --}}
       <style>
+         /* satici select (+ select2 gorunur container) + fiyat gizli */
          .tahsilat_kalemleri_listesi .sd-satici-sec,
          .tahsilat_kalemleri_listesi .sd-satici-cihaz,
+         .tahsilat_kalemleri_listesi .select2,
+         .tahsilat_kalemleri_listesi .select2-container,
          .tahsilat_kalemleri_listesi .tahsilat_kalemleri,
          .tahsilat_kalemleri_listesi .try-currency,
          .tahsilat_kalemleri_listesi .tl { display:none !important; }
