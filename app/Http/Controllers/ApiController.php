@@ -31731,7 +31731,7 @@ SOZLESME_TXT;
         if (!Salonlar::where('id', $salonid)->value('grup_dersi_aktif')) {
             return response()->json(['durum' => 'ok', 'dersler' => []]); // modul kapali
         }
-        $dersler = \App\Services\DersRezervasyonServisi::uygunDersler((int) $salonid, 14);
+        $dersler = \App\Services\DersRezervasyonServisi::uygunDersler((int) $salonid, 30); // 1 ay
         return response()->json(['durum' => 'ok', 'dersler' => $dersler]);
     }
 
