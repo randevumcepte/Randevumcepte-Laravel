@@ -3598,7 +3598,8 @@ $salon = Salonlar::where('domain', $domain)->first();
             }
         }
         $userId = Auth::id();
-        $sonuc = \App\Services\DersRezervasyonServisi::rezervasyonYap($salonId, $oturumId, $userId, true);
+        // Paket/seans hakki ZORUNLU DEGIL — herkes kontenjan varsa rezervasyon yapabilir.
+        $sonuc = \App\Services\DersRezervasyonServisi::rezervasyonYap($salonId, $oturumId, $userId, false);
         return response()->json($sonuc, $sonuc['durum'] === 'ok' ? 200 : 409);
     }
 }

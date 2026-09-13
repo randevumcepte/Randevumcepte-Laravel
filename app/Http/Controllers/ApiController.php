@@ -31744,7 +31744,8 @@ SOZLESME_TXT;
         if (!$salonId || !$oturumId || !$userId) {
             return response()->json(['durum' => 'hata', 'mesaj' => 'Eksik bilgi.'], 422);
         }
-        $sonuc = \App\Services\DersRezervasyonServisi::rezervasyonYap($salonId, $oturumId, $userId, true);
+        // Paket/seans hakki ZORUNLU DEGIL — herkes kontenjan varsa rezervasyon yapabilir.
+        $sonuc = \App\Services\DersRezervasyonServisi::rezervasyonYap($salonId, $oturumId, $userId, false);
         $kod = ($sonuc['durum'] === 'ok') ? 200 : 409;
         return response()->json($sonuc, $kod);
     }
