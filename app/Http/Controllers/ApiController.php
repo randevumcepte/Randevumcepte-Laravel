@@ -987,13 +987,14 @@ class ApiController extends Controller
             }
 
             foreach ($adisyon->paketler as $paket) {
+                $__seansEt = ((int)($paket->seans_sayisi ?? 0) > 0) ? '('.(int)$paket->seans_sayisi.' Seans) ' : '';
 
-                $satilanlarStr .= $paket->paket_id ? $paket->paket->paket_adi." (P) " : "";
+                $satilanlarStr .= $paket->paket_id ? $paket->paket->paket_adi." (P) ".$__seansEt : "";
                 $satilanlarStr .= '  ';
-                
+
                 $satilanlarStrKisaIcerik .= $paket->paket_id ? $paket->paket->paket_adi : "";
                 $satilanlarStrKisaIcerik .= $paket->personel_id ? ' ('.trim($paket->personel->personel_adi).')' : '';
-                $satilanlarStrKisaIcerik .= ' (P)  ';
+                $satilanlarStrKisaIcerik .= ' (P) '.$__seansEt.' ';
                 
                 $satilanlarStr .= $paket->personel_id ? $paket->personel->personel_adi.' ' : '';
                 $satilanlarStr .= '  ';
