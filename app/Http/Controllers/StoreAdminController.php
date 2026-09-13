@@ -4998,7 +4998,19 @@ public function carkverilerigetir(Request $request)
         if(!Salonlar::where('id',$isletmeId)->value('studyo_modu')) return response()->json(['durum'=>'hata','mesaj'=>'kapali'],403);
         $userId = $request->user_id ?: $request->musteri_id;
         if(!$userId) return response()->json(['durum'=>'hata','mesaj'=>'musteri yok'],422);
-        return response()->json(['durum'=>'ok','kaynaklar'=>self::_dersTekrarliKaynakListesi($isletmeId,$userId)]);
+        // Slot secici icin haftalik sablonlar (gun+saat+egitmen sabit) da doner.
+        $sablonlar = \App\DersProgramiSablonu::with('personel')
+            ->where('salon_id',$isletmeId)->where('aktif',true)
+            ->orderBy('hafta_gunu')->orderBy('saat')->get()->map(function($s){
+                return [
+                    'id'=>$s->id,'hafta_gunu'=>(int)$s->hafta_gunu,
+                    'saat'=>substr($s->saat,0,5),'saat_bitis'=>substr($s->saat_bitis,0,5),
+                    'ders_tipi'=>$s->ders_tipi,'hizmet_id'=>$s->hizmet_id,
+                    'kapasite'=>(int)$s->kapasite,'personel_id'=>$s->personel_id,
+                    'personel'=>$s->personel ? $s->personel->personel_adi : '',
+                ];
+            })->values();
+        return response()->json(['durum'=>'ok','kaynaklar'=>self::_dersTekrarliKaynakListesi($isletmeId,$userId),'sablonlar'=>$sablonlar]);
     }
 
     private static function _dersTekrarliKaynakListesi($salonId,$userId){
