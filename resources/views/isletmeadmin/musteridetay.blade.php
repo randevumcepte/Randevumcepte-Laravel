@@ -135,7 +135,8 @@
          </nav>
       </div>
       <div class="mh-right">
-         @if($_SERVER['HTTP_HOST'] != 'randevu.randevumcepte.com.tr')
+         {{-- Studyo modu: parasal kartlar gizli (fiyat gosterilmez) --}}
+         @if($_SERVER['HTTP_HOST'] != 'randevu.randevumcepte.com.tr' && empty($isletme->studyo_modu))
          <div class="mh-stat is-borc">
             <span class="lbl"><i class="fa fa-arrow-down"></i> Toplam Borç</span>
             <button type="button" class="val" id="toplamBorc">0,00 ₺</button>
@@ -420,7 +421,7 @@
                         <th>Planlanan Alacak Tarihi</th>
                        
                         <th>Satış İçeriği </th>
-                        <th>Toplam ₺</th>
+                        <th>@if(!empty($isletme->studyo_modu))Ödeme Tarihi @else Toplam ₺ @endif</th>
                         <th>Ödenen ₺</th>
                         <th>Kalan ₺</th>
                         <th>İşlemler</th>

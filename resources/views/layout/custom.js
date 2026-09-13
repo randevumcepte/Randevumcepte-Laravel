@@ -16315,33 +16315,37 @@ $('#personel_rapor_tablo').DataTable().destroy()
                             },
                         },
                        columns:[
-                         
+
                                 { data: 'acilis_tarihi'},
-                               
+
                                { data: 'planlanan_alacak_tarihi'},
-                              
-                             
+
+
                                { data: 'icerik'},
-                               {data : 'toplam'},
-                               {data : 'odenen'},
-                               {data : 'kalan_tutar'},
+                               // Studyo modu: Toplam yerine Odeme Tarihi (odendi_tarihi); Odenen/Kalan gizli
+                               {data : 'toplam', render: function(data, type, row){
+                                   if(window.STUDYO_MODU) return (row && row.odendi_tarihi) ? row.odendi_tarihi : '';
+                                   return data;
+                               }},
+                               {data : 'odenen', visible: !window.STUDYO_MODU},
+                               {data : 'kalan_tutar', visible: !window.STUDYO_MODU},
                                {data : 'islemler' },
                        ],
                        columnDefs: [
-            
+
                            { type: namesType, targets: 1 }
                         ],
                        "order": [[ 0, "desc" ]],
-                      
-            
+
+
                        "language" : {
                            "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
                            searchPlaceholder: "Ara",
                            paginate: {
                                next: '<i class="ion-chevron-right"></i>',
-                               previous: '<i class="ion-chevron-left"></i>'  
+                               previous: '<i class="ion-chevron-left"></i>'
                            }
-                       }, 
+                       },
                });
                 $('#adisyon_liste_hizmet').DataTable().destroy();
                $('#adisyon_liste_hizmet').DataTable({
