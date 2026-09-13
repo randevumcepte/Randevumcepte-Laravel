@@ -31852,8 +31852,15 @@ SOZLESME_TXT;
     {
         $salonId = $this->_dersSalon($request);
         if (!$salonId) return response()->json(['durum' => 'hata', 'mesaj' => 'salon yok'], 422);
-        $hafta = max(1, min(12, (int) ($request->hafta ?: 4)));
+        // Yayin araligi: hafta sayisi (1-52) VEYA bitis tarihi ('bitis').
         $bugun = \Carbon\Carbon::parse($request->baslangic ?: date('Y-m-d'))->startOfDay();
+        $bitis = $request->bitis ? \Carbon\Carbon::parse($request->bitis)->endOfDay() : null;
+        if ($bitis) {
+            if ($bitis->lt($bugun)) return response()->json(['durum' => 'hata', 'mesaj' => 'Bitis tarihi baslangictan once olamaz.'], 422);
+            $hafta = min(54, (int) floor($bugun->copy()->diffInDays($bitis) / 7) + 2);
+        } else {
+            $hafta = max(1, min(52, (int) ($request->hafta ?: 4)));
+        }
         $sablonlar = \App\DersProgramiSablonu::where('salon_id', $salonId)->where('aktif', true)->get();
         if ($sablonlar->isEmpty()) return response()->json(['durum' => 'hata', 'mesaj' => 'Once haftalik programa ders ekleyin.'], 422);
         $olusan = 0; $atlanan = 0;
@@ -31862,6 +31869,7 @@ SOZLESME_TXT;
                 $ref = $bugun->copy()->addWeeks($h);
                 $tarih = $ref->copy()->addDays((int) $s->hafta_gunu - $ref->dayOfWeekIso);
                 if ($tarih->lt($bugun)) continue;
+                if ($bitis && $tarih->gt($bitis)) continue;
                 $tarihStr = $tarih->format('Y-m-d');
                 if (\App\DersOturumu::where('salon_id', $salonId)->where('sablon_id', $s->id)->where('tarih', $tarihStr)->exists()) { $atlanan++; continue; }
                 \App\DersOturumu::create([
