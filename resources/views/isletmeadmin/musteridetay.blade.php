@@ -305,16 +305,6 @@
                   ><i class="fa fa-comments"></i> Anket Gönder</button>
             </li>
             @endyetki
-            @if(!empty($isletme->studyo_modu))
-            <li class="nav-item" style="margin:5px">
-               <button
-                  type="button"
-                  class="btn tab-mini"
-                  style="background:#5C008E;color:#fff"
-                  onclick="dersPlaniModalAc({{ $musteri_bilgi->id }})"
-                  ><i class="fa fa-refresh"></i> Ders Planı Oluştur</button>
-            </li>
-            @endif
          </ul>
          <div class="tab-content">
             @if(!empty($isletme->studyo_modu))
@@ -1274,10 +1264,6 @@
       </form>
    </div>
 </div>
-
-@if(!empty($isletme->studyo_modu))
-@include('isletmeadmin.partials.ders_plani_modal')
-@endif
 
 <script>
    function thisFileUpload() {

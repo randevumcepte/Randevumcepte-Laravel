@@ -5179,6 +5179,25 @@ public function carkverilerigetir(Request $request)
         return response()->json(['durum'=>'ok','odendi'=>$alindi?1:0]);
     }
 
+    // Studyo modu: satis detayinda "Ödeme Alınma Tarihi"ni elle guncelle (odendi=1 yapar).
+    public function adisyonOdemeTarihiGuncelle(Request $request){
+        if($r = self::yetkiYoksa403($request, 'satis.tahsilat_al')) return $r;
+        $salonId = self::mevcutsube($request);
+        if(!Salonlar::where('id',$salonId)->value('studyo_modu')) return response()->json(['durum'=>'hata','mesaj'=>'kapali'],403);
+        $adisyon = Adisyonlar::where('id',$request->adisyon_id)->where('salon_id',$salonId)->first();
+        if(!$adisyon) return response()->json(['durum'=>'hata','mesaj'=>'Adisyon bulunamadı.'],404);
+        $tarih = $request->tarih ? date('Y-m-d H:i:s', strtotime($request->tarih)) : date('Y-m-d H:i:s');
+        // Odenmemisse once tam tahsilat (odendi=1); sonra tarihi elle set et.
+        if((int)($adisyon->odendi ?? 0) !== 1){
+            $olusturan = Personeller::where('salon_id',$salonId)->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id ?? 0)->value('id');
+            $adisyon->tamOde(null,$olusturan);
+            $adisyon = Adisyonlar::find($adisyon->id);
+        }
+        if(\Schema::hasColumn('adisyonlar','odendi_tarihi')) $adisyon->odendi_tarihi = $tarih;
+        $adisyon->save();
+        return response()->json(['durum'=>'ok','odendi_tarihi'=>date('d.m.Y H:i',strtotime($tarih))]);
+    }
+
     // ---------- Vucut Olcumu (Pilates/studyo modu) ----------
     public function musteri_olcum_ekle(Request $request){
         if($r = self::yetkiYoksa403($request, 'randevu.takvim_gor')) return $r;
@@ -34608,6 +34627,10 @@ DB::raw('
             }
         }
         $adisyonDetay['taksitler'] = self::adisyonTaksitleriHtml($request->adisyonId, $request->sube);
+        // Studyo modu: fiyat yerine "Ödeme Alınma Tarihi" gosterilir/duzenlenir
+        $adisyonDetay['odendi'] = $adisyon ? (int)($adisyon->odendi ?? 0) : 0;
+        $adisyonDetay['odendiTarihi'] = ($adisyon && $adisyon->odendi_tarihi)
+            ? date('Y-m-d\TH:i', strtotime($adisyon->odendi_tarihi)) : '';
         return $adisyonDetay;
 
     }

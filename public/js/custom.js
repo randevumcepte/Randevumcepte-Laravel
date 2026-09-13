@@ -7699,7 +7699,16 @@ function _studyoListeOdeme(aid, alindi){
     $.ajax({
         type:"POST", url:'/isletmeyonetim/adisyon-odeme-isaretle', dataType:"json",
         data:{ adisyon_id:aid, alindi:alindi, sube:_sube, _token:$('input[name="_token"]').val() },
-        complete:function(){ $("#preloader").hide(); window.location.reload(); }
+        complete:function(){
+            $("#preloader").hide();
+            // F5 yok: acik olan adisyon DataTable'larini yerinde tazele (sayfa/konum korunur)
+            var _ids = ['#adisyon_liste','#adisyon_liste_hizmet','#adisyon_liste_urun','#adisyon_liste_paket','#adisyon_liste_musteri'];
+            var _yenilendi = false;
+            _ids.forEach(function(id){
+                try{ if($.fn.dataTable && $.fn.dataTable.isDataTable(id)){ $(id).DataTable().ajax.reload(null,false); _yenilendi=true; } }catch(e){}
+            });
+            if(!_yenilendi) window.location.reload();
+        }
     });
 }
 $(document).on('click','a[name="studyo_odeme_al"]',function(e){ e.preventDefault(); _studyoListeOdeme($(this).attr('data-value'), 1); });
@@ -23024,6 +23033,27 @@ $('#gorevTanimla').click(function(e){
 
 
 });
+// Studyo: satis detayinda "Ödeme Alınma Tarihi"ni kaydet (odendi=1 + tarih)
+function sdStudyoOdemeKaydet(){
+    var aid = $('input[name="adisyon_id"]').val();
+    if(!aid){ swal('Uyarı','Adisyon bulunamadı.','warning'); return; }
+    var t = $('#sd_odeme_tarihi_input').val(); // yyyy-aa-gg (bos ise backend bugunu isler)
+    var _sube = $('input[name="sube"]').val() || (new URLSearchParams(window.location.search)).get('sube') || '';
+    $("#preloader").show();
+    $.ajax({
+        type:'POST', url:'/isletmeyonetim/adisyon-odeme-tarihi-guncelle', dataType:'json',
+        data:{ adisyon_id:aid, tarih:t, sube:_sube, _token:$('input[name="_token"]').val() },
+        success:function(r){
+            if(r && r.durum==='ok'){
+                $('#sd_odeme_durum').css('color','#059669').text('✓ Kaydedildi ('+r.odendi_tarihi+')');
+                var _ids=['#adisyon_liste','#adisyon_liste_hizmet','#adisyon_liste_urun','#adisyon_liste_paket','#adisyon_liste_musteri'];
+                _ids.forEach(function(id){ try{ if($.fn.dataTable && $.fn.dataTable.isDataTable(id)){ $(id).DataTable().ajax.reload(null,false); } }catch(e){} });
+            } else { swal('Hata',(r&&r.mesaj)||'Kaydedilemedi.','error'); }
+        },
+        error:function(){ swal('Hata','Kaydedilemedi.','error'); },
+        complete:function(){ $("#preloader").hide(); }
+    });
+}
 $(document).on('click','button[name="satisDuzenle"]',function(e){
     var tds = $(this).closest('tr').children('td');
     e.preventDefault();
@@ -23082,9 +23112,20 @@ $(document).on('click','button[name="satisDuzenle"]',function(e){
                     $('#adisyon_komisyon_tutar').empty();
                     $('#sd_komisyon_block').hide();
                 }
+                // Studyo modu: fiyat yerine "Ödeme Alınma Tarihi" alanini doldur
+                if(window.STUDYO_MODU){
+                    var _ot = (result.odendiTarihi || '');
+                    var _otDate = _ot ? _ot.split('T')[0] : '';
+                    $('#sd_odeme_tarihi_input').val(_otDate);
+                    if((result.odendi|0) === 1){
+                        $('#sd_odeme_durum').css('color','#059669').text('✓ Ödeme alındı');
+                    } else {
+                        $('#sd_odeme_durum').css('color','#9a3412').text('Ödeme henüz alınmadı');
+                    }
+                }
                 $('#satisKalemleri').modal('show');
         },
-        
+
         error: function (xhr) {
           console.error("Error:", xhr.statusText);
         }

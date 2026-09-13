@@ -1,7 +1,17 @@
  <div
          id="satisKalemleri"
-         class="modal modal-top fade calendar-modal sd-modal"
+         class="modal modal-top fade calendar-modal sd-modal @if(!empty($isletme->studyo_modu)) sd-studyo @endif"
          >
+@if(!empty($isletme->studyo_modu))
+<style>
+   /* Studyo modu: satis detayinda fiyat/urun/ozet gizli, yerine odeme tarihi */
+   #satisKalemleri.sd-studyo .sd-col-amount { display:none !important; }
+   #satisKalemleri.sd-studyo .sd-add-btn.urun { display:none !important; }
+   #satisKalemleri.sd-studyo .sd-summary-amounts,
+   #satisKalemleri.sd-studyo .sd-summary-history { display:none !important; }
+   #satisKalemleri.sd-studyo .odemeozeti { display:none !important; }
+</style>
+@endif
          <div class="modal-dialog modal-dialog-centered modal-xl" style="max-width:980px;width:94%;">
             <div class="modal-content sd-content" style="max-width:980px; width:100%; border:none; border-radius:12px; overflow:hidden; box-shadow:0 18px 44px -14px rgba(76,29,149,.25);">
                <form id="satis_listesi">
@@ -60,6 +70,24 @@
 
                         </div>
                      </div>
+
+                     @if(!empty($isletme->studyo_modu))
+                     {{-- ===== STUDYO: Ödeme Alınma Tarihi (fiyat yerine) ===== --}}
+                     <div id="sd_studyo_odeme" class="card-box" style="padding:16px;margin-top:10px;border:1px solid #ede7f4;border-radius:10px;">
+                        <div style="font-weight:700;color:#5C008E;margin-bottom:10px;"><i class="fa fa-check-circle"></i> Ödeme Durumu</div>
+                        <div class="row" style="align-items:flex-end;">
+                           <div class="col-md-5 form-group" style="margin-bottom:8px;">
+                              <label style="font-size:12px;font-weight:600;color:#6b7280;">Ödeme Alınma Tarihi</label>
+                              <input type="text" id="sd_odeme_tarihi_input" class="form-control geriye-yonelik" autocomplete="off" readonly placeholder="Ödeme alınmadı" style="background:#fff;">
+                           </div>
+                           <div class="col-md-3 form-group" style="margin-bottom:8px;">
+                              <button type="button" class="btn btn-primary btn-block" style="background:#5C008E;border-color:#5C008E;" onclick="sdStudyoOdemeKaydet()"><i class="fa fa-check"></i> Kaydet</button>
+                           </div>
+                           <div class="col-md-4" style="padding-bottom:14px;"><span id="sd_odeme_durum" style="font-size:12.5px;font-weight:600;"></span></div>
+                        </div>
+                        <div style="font-size:11.5px;color:#8896a5;">Tarih boşsa "Kaydet" o günü işler; değiştirip güncelleyebilirsiniz.</div>
+                     </div>
+                     @endif
 
                      {{-- ===== ÖZET + GEÇMİŞ ÖDEMELER ===== --}}
                      <div id="odeme_kayit_bolumu">
