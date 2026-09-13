@@ -32005,14 +32005,17 @@ SOZLESME_TXT;
         $yeni = in_array($request->yeni_durum, ['geldi', 'gelmedi', 'rezerve']) ? $request->yeni_durum : 'rezerve';
         $k->durum = $yeni; $k->save();
         $dusum = null;
+        // Studyo modu: no-show (gelmedi) da seans DUSER. Diger isletmelerde gelmedi -> iade (eski davranis).
+        $studyoNoShow = (bool) \App\Salonlar::where('id', $salonId)->value('studyo_modu');
         try {
-            if ($yeni === 'geldi') {
+            if ($yeni === 'geldi' || ($yeni === 'gelmedi' && $studyoNoShow)) {
                 $oturum = \App\DersOturumu::find($k->oturum_id);
                 if ($oturum) {
                     $apsId = \App\Services\DersSeansServisi::dusumYap($oturum, $k);
                     $dusum = $apsId ? 'dusuldu' : (($oturum->hizmet_id) ? 'hak_yok' : 'hizmet_bagli_degil');
                 }
             } elseif ($k->hak_dusuldu) {
+                // rezerve (veya studyo-disi gelmedi) -> iade
                 \App\Services\DersSeansServisi::dusumGeriAl($k); $dusum = 'iade';
             }
         } catch (\Throwable $e) {}
@@ -32117,8 +32120,10 @@ SOZLESME_TXT;
 
         $k->durum = $durum; $k->save();
         $dusum = null;
+        // Studyo modu: no-show (gelmedi) da seans DUSER. Diger isletmelerde gelmedi -> iade.
+        $studyoNoShow = (bool) \App\Salonlar::where('id', $oturum->salon_id)->value('studyo_modu');
         try {
-            if ($durum === 'geldi') {
+            if ($durum === 'geldi' || ($durum === 'gelmedi' && $studyoNoShow)) {
                 $apsId = \App\Services\DersSeansServisi::dusumYap($oturum, $k);
                 $dusum = $apsId ? 'dusuldu' : (($oturum->hizmet_id) ? 'hak_yok' : 'hizmet_bagli_degil');
             } else {

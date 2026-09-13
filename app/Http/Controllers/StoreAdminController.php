@@ -4773,11 +4773,12 @@ public function carkverilerigetir(Request $request)
         $k->durum = $yeni;
         $k->save();
 
-        // Paket/seans dusumu — randevu mantigi: "Geldi" = paketten dus,
-        // "gelmedi"/"rezerve" = iade. Oturum bir hizmete bagliysa (hizmet_id) calisir.
+        // Paket/seans dusumu — randevu mantigi: "Geldi" = paketten dus, "gelmedi"/"rezerve" = iade.
+        // Studyo modu: no-show (gelmedi) DA seans duser (diger isletmelerde eski davranis = iade).
         $dusumSonuc = null;
+        $studyoNoShow = (bool) Salonlar::where('id',$isletmeId)->value('studyo_modu');
         try {
-            if($yeni === 'geldi'){
+            if($yeni === 'geldi' || ($yeni === 'gelmedi' && $studyoNoShow)){
                 $oturum = \App\DersOturumu::find($k->oturum_id);
                 if($oturum){
                     $apsId = \App\Services\DersSeansServisi::dusumYap($oturum, $k);
