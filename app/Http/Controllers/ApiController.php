@@ -31728,10 +31728,10 @@ SOZLESME_TXT;
     // Salonun online rezervasyona uygun (dolu olmayan, gelecekteki, hizmete bagli) dersleri
     public function grupDersleriListe(Request $request, $salonid)
     {
-        // Online rezervasyon YALNIZCA studyo modunda acik (+ grup dersi modulu).
-        $__s = Salonlar::where('id', $salonid)->first(['grup_dersi_aktif', 'studyo_modu']);
-        if (!$__s || !$__s->grup_dersi_aktif || empty($__s->studyo_modu)) {
-            return response()->json(['durum' => 'ok', 'dersler' => []]); // modul/studyo kapali
+        // Online rezervasyon: grup dersi modulu + studyo modu + isletmenin online randevu ayari acik olmali.
+        $__s = Salonlar::where('id', $salonid)->first(['grup_dersi_aktif', 'studyo_modu', 'musteri_online_randevu_aktif']);
+        if (!$__s || !$__s->grup_dersi_aktif || empty($__s->studyo_modu) || empty($__s->musteri_online_randevu_aktif)) {
+            return response()->json(['durum' => 'ok', 'dersler' => []]); // modul/studyo/online kapali
         }
         $dersler = \App\Services\DersRezervasyonServisi::uygunDersler((int) $salonid, 30); // 1 ay
         return response()->json(['durum' => 'ok', 'dersler' => $dersler]);
@@ -31746,8 +31746,9 @@ SOZLESME_TXT;
         if (!$salonId || !$oturumId || !$userId) {
             return response()->json(['durum' => 'hata', 'mesaj' => 'Eksik bilgi.'], 422);
         }
-        // Online rezervasyon YALNIZCA studyo modunda acik.
-        if (empty(Salonlar::where('id', $salonId)->value('studyo_modu'))) {
+        // Online rezervasyon: studyo modu + isletmenin online randevu ayari acik olmali.
+        $__sr = Salonlar::where('id', $salonId)->first(['studyo_modu', 'musteri_online_randevu_aktif']);
+        if (!$__sr || empty($__sr->studyo_modu) || empty($__sr->musteri_online_randevu_aktif)) {
             return response()->json(['durum' => 'hata', 'mesaj' => 'Online rezervasyon bu işletmede kapalı.'], 403);
         }
         // Paket/seans hakki ZORUNLU DEGIL — herkes kontenjan varsa rezervasyon yapabilir.

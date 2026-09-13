@@ -3575,6 +3575,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         if (!$salon) abort(404);
         if (!($salon->grup_dersi_aktif ?? 0)) abort(404); // modul kapali
         if (empty($salon->studyo_modu)) abort(404); // online rezervasyon yalnizca studyo modunda
+        if (empty($salon->musteri_online_randevu_aktif)) abort(404); // isletmenin online randevu ayari kapali
         $dersler = \App\Services\DersRezervasyonServisi::uygunDersler((int) $salon->id, 14);
         return view('grup_dersleri', ['salon' => $salon, 'dersler' => $dersler]);
     }
@@ -3590,8 +3591,9 @@ $salon = Salonlar::where('domain', $domain)->first();
         if (!$salonId || !$oturumId) {
             return response()->json(['durum' => 'hata', 'mesaj' => 'Eksik bilgi.'], 422);
         }
-        // Online rezervasyon YALNIZCA studyo modunda acik.
-        if (empty(Salonlar::where('id', $salonId)->value('studyo_modu'))) {
+        // Online rezervasyon: studyo modu + isletmenin online randevu ayari acik olmali.
+        $__sr = Salonlar::where('id', $salonId)->first(['studyo_modu', 'musteri_online_randevu_aktif']);
+        if (!$__sr || empty($__sr->studyo_modu) || empty($__sr->musteri_online_randevu_aktif)) {
             return response()->json(['durum' => 'hata', 'mesaj' => 'Online rezervasyon bu işletmede kapalı.'], 403);
         }
 
