@@ -864,6 +864,11 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/ders-sablon-kaydet','StoreAdminController@ders_sablon_kaydet');
 	Route::post('/ders-sablon-sil','StoreAdminController@ders_sablon_sil');
 	Route::post('/ders-programi-yayinla','StoreAdminController@ders_programi_yayinla');
+	// Tekrarli otomatik katilim (studyo modu)
+	Route::post('/ders-tekrarli-kaynaklar','StoreAdminController@ders_tekrarli_kaynaklar');
+	Route::post('/ders-tekrarli-kaydet','StoreAdminController@ders_tekrarli_kaydet');
+	Route::post('/ders-tekrarli-liste','StoreAdminController@ders_tekrarli_liste');
+	Route::post('/ders-tekrarli-sil','StoreAdminController@ders_tekrarli_sil');
 	Route::get ('/grup-dersi-raporu','StoreAdminController@grup_dersi_raporu')->name('isletmeadmin.grup_dersi_raporu');
 	// Studyo modu: ikili odeme durumu
 	Route::post('/adisyon-odeme-isaretle','StoreAdminController@adisyonOdemeIsaretle');

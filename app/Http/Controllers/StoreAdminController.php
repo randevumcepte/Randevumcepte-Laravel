@@ -4989,6 +4989,127 @@ public function carkverilerigetir(Request $request)
         return response()->json(['durum'=>'ok','olusan'=>$olusan,'atlanan'=>$atlanan,'hafta'=>$hafta]);
     }
 
+    // ---------- Tekrarli Otomatik Katilim (studyo modu) ----------
+
+    // Bir musterinin otomatik dagitima kaynak olabilecek aktif satislari (hizmet bazinda kalan seans).
+    public function ders_tekrarli_kaynaklar(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.olustur')) return $r;
+        $isletmeId = self::mevcutsube($request);
+        if(!Salonlar::where('id',$isletmeId)->value('studyo_modu')) return response()->json(['durum'=>'hata','mesaj'=>'kapali'],403);
+        $userId = $request->user_id ?: $request->musteri_id;
+        if(!$userId) return response()->json(['durum'=>'hata','mesaj'=>'musteri yok'],422);
+        return response()->json(['durum'=>'ok','kaynaklar'=>self::_dersTekrarliKaynakListesi($isletmeId,$userId)]);
+    }
+
+    private static function _dersTekrarliKaynakListesi($salonId,$userId){
+        $kaynaklar = [];
+        $hizmetAdisyonlari = Adisyonlar::whereHas('hizmetler', function($q){
+            $q->where(function($qq){ $qq->whereNull('otomatik_randevu_olusturuldu')->orWhere('otomatik_randevu_olusturuldu','!=',1); });
+        })->where('user_id',$userId)->where('salon_id',$salonId)->with(['hizmetler.hizmet'])->get();
+        foreach($hizmetAdisyonlari as $ad){
+            foreach($ad->hizmetler as $h){
+                if(!$h->hizmet) continue;
+                $toplam = (int)($h->seans_sayisi ?? 0);
+                $kullanilan = (int) DB::table('adisyon_paket_seanslar')->where('adisyon_hizmet_id',$h->id)->count();
+                $kalan = max(0,$toplam-$kullanilan);
+                if($kalan<=0) continue;
+                $kaynaklar[] = [
+                    'etiket'=>$h->hizmet->hizmet_adi.' (Tek Hizmet)',
+                    'hizmet_id'=>(int)$h->hizmet_id,'hizmet_adi'=>$h->hizmet->hizmet_adi,
+                    'kalan_seans'=>$kalan,'adisyon_paket_id'=>null,'adisyon_hizmet_id'=>(int)$h->id,
+                ];
+            }
+        }
+        $paketAdisyonlari = Adisyonlar::whereHas('paketler', function($q){
+            $q->where(function($qq){ $qq->whereNull('otomatik_randevu_olusturuldu')->orWhere('otomatik_randevu_olusturuldu','!=',1); });
+        })->where('user_id',$userId)->where('salon_id',$salonId)->with(['paketler.paket.hizmetler.hizmet'])->get();
+        foreach($paketAdisyonlari as $ad){
+            foreach($ad->paketler as $p){
+                if(!$p->paket) continue;
+                $hizmetSayisi = $p->paket->hizmetler ? count($p->paket->hizmetler) : 0;
+                if($hizmetSayisi<=0) continue;
+                $seansPer = (int)($p->seans_sayisi ?? 0);
+                $kullanilanTop = (int) DB::table('adisyon_paket_seanslar')->where('adisyon_paket_id',$p->id)->count();
+                $kalanPer = max(0,(int)floor(($seansPer*$hizmetSayisi-$kullanilanTop)/$hizmetSayisi));
+                if($kalanPer<=0) continue;
+                foreach($p->paket->hizmetler as $ph){
+                    if(!$ph->hizmet) continue;
+                    $kaynaklar[] = [
+                        'etiket'=>$ph->hizmet->hizmet_adi.' — '.$p->paket->paket_adi.' (Paket)',
+                        'hizmet_id'=>(int)$ph->hizmet_id,'hizmet_adi'=>$ph->hizmet->hizmet_adi,
+                        'kalan_seans'=>$kalanPer,'adisyon_paket_id'=>(int)$p->id,'adisyon_hizmet_id'=>null,
+                    ];
+                }
+            }
+        }
+        return $kaynaklar;
+    }
+
+    public function ders_tekrarli_kaydet(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.olustur')) return $r;
+        $isletmeId = self::mevcutsube($request);
+        if(!Salonlar::where('id',$isletmeId)->value('studyo_modu')) return response()->json(['durum'=>'hata','mesaj'=>'kapali'],403);
+        $userId = $request->user_id ?: $request->musteri_id;
+        $hizmetId = (int)$request->hizmet_id;
+        $toplam = (int)$request->toplam_seans;
+        $gunler = $request->gunler; if(is_string($gunler)) $gunler = json_decode($gunler,true);
+        $gunler = array_values(array_unique(array_map('intval',(array)$gunler)));
+        $saatler = $request->saatler; if(is_string($saatler)) $saatler = json_decode($saatler,true);
+        $saatler = array_values(array_map('strval',(array)($saatler ?: [])));
+        if(!$userId || !$hizmetId || $toplam<=0 || empty($gunler)){
+            return response()->json(['durum'=>'hata','mesaj'=>'Eksik bilgi: musteri, hizmet, seans ve en az bir gun secin.'],422);
+        }
+        $kayit = null;
+        if($request->kayit_id) $kayit = \App\DersTekrarliKatilim::where('salon_id',$isletmeId)->find($request->kayit_id);
+        if(!$kayit) $kayit = new \App\DersTekrarliKatilim(['salon_id'=>$isletmeId]);
+        $kayit->salon_id = $isletmeId;
+        $kayit->user_id = $userId;
+        $kayit->hizmet_id = $hizmetId;
+        $kayit->adisyon_paket_id = $request->adisyon_paket_id ?: null;
+        $kayit->adisyon_hizmet_id = $request->adisyon_hizmet_id ?: null;
+        $kayit->toplam_seans = $toplam;
+        $kayit->gunler = json_encode($gunler);
+        $kayit->saatler = json_encode($saatler);
+        $kayit->personel_id = $request->personel_id ?: null;
+        $kayit->baslangic_tarihi = $request->baslangic ?: date('Y-m-d');
+        $kayit->aktif = true;
+        $kayit->save();
+        $sonuc = \App\Services\DersOtomatikKatilimServisi::dagit($kayit);
+        return response()->json(['durum'=>'ok','kayit_id'=>$kayit->id,'sonuc'=>$sonuc]);
+    }
+
+    public function ders_tekrarli_liste(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.olustur')) return $r;
+        $isletmeId = self::mevcutsube($request);
+        $userId = $request->user_id ?: $request->musteri_id;
+        $q = \App\DersTekrarliKatilim::where('salon_id',$isletmeId);
+        if($userId) $q->where('user_id',$userId);
+        $kayitlar = $q->orderBy('id','desc')->get()->map(function($k){
+            $yerlesen = \App\DersKatilimci::where('tekrarli_id',$k->id)->where('durum','!=','iptal')->count();
+            $hizmetAdi = \App\Hizmetler::where('id',$k->hizmet_id)->value('hizmet_adi');
+            return [
+                'id'=>$k->id,'user_id'=>$k->user_id,'hizmet_id'=>$k->hizmet_id,
+                'hizmet_adi'=>$hizmetAdi ?: ('#'.$k->hizmet_id),
+                'toplam_seans'=>(int)$k->toplam_seans,'yerlesen'=>$yerlesen,
+                'kalan'=>max(0,(int)$k->toplam_seans-$yerlesen),
+                'gunler'=>$k->gunlerDizi(),'saatler'=>$k->saatlerDizi(),
+                'personel_id'=>$k->personel_id,'baslangic'=>(string)$k->baslangic_tarihi,
+                'aktif'=>(bool)$k->aktif,
+            ];
+        })->values();
+        return response()->json(['durum'=>'ok','kayitlar'=>$kayitlar]);
+    }
+
+    public function ders_tekrarli_sil(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.olustur')) return $r;
+        $isletmeId = self::mevcutsube($request);
+        $kayit = \App\DersTekrarliKatilim::where('salon_id',$isletmeId)->find($request->kayit_id);
+        if(!$kayit) return response()->json(['durum'=>'hata','mesaj'=>'Kayit bulunamadi.'],404);
+        $silinen = \App\Services\DersOtomatikKatilimServisi::gelecekTemizle($kayit);
+        $kayit->delete();
+        return response()->json(['durum'=>'ok','temizlenen'=>$silinen]);
+    }
+
     // ---------- Grup Dersi Raporu ----------
     public function grup_dersi_raporu(Request $request){
         $isletmeler = '';
