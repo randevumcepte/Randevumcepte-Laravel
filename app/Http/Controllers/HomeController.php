@@ -3574,6 +3574,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         }
         if (!$salon) abort(404);
         if (!($salon->grup_dersi_aktif ?? 0)) abort(404); // modul kapali
+        if (empty($salon->studyo_modu)) abort(404); // online rezervasyon yalnizca studyo modunda
         $dersler = \App\Services\DersRezervasyonServisi::uygunDersler((int) $salon->id, 14);
         return view('grup_dersleri', ['salon' => $salon, 'dersler' => $dersler]);
     }
@@ -3588,6 +3589,10 @@ $salon = Salonlar::where('domain', $domain)->first();
         $oturumId = (int) $request->oturum_id;
         if (!$salonId || !$oturumId) {
             return response()->json(['durum' => 'hata', 'mesaj' => 'Eksik bilgi.'], 422);
+        }
+        // Online rezervasyon YALNIZCA studyo modunda acik.
+        if (empty(Salonlar::where('id', $salonId)->value('studyo_modu'))) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Online rezervasyon bu işletmede kapalı.'], 403);
         }
 
         // Kimlik: girisli degilse telefon+sifre ile dogrula (impersonation korumasi)

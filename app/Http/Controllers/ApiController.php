@@ -31728,8 +31728,10 @@ SOZLESME_TXT;
     // Salonun online rezervasyona uygun (dolu olmayan, gelecekteki, hizmete bagli) dersleri
     public function grupDersleriListe(Request $request, $salonid)
     {
-        if (!Salonlar::where('id', $salonid)->value('grup_dersi_aktif')) {
-            return response()->json(['durum' => 'ok', 'dersler' => []]); // modul kapali
+        // Online rezervasyon YALNIZCA studyo modunda acik (+ grup dersi modulu).
+        $__s = Salonlar::where('id', $salonid)->first(['grup_dersi_aktif', 'studyo_modu']);
+        if (!$__s || !$__s->grup_dersi_aktif || empty($__s->studyo_modu)) {
+            return response()->json(['durum' => 'ok', 'dersler' => []]); // modul/studyo kapali
         }
         $dersler = \App\Services\DersRezervasyonServisi::uygunDersler((int) $salonid, 30); // 1 ay
         return response()->json(['durum' => 'ok', 'dersler' => $dersler]);
@@ -31743,6 +31745,10 @@ SOZLESME_TXT;
         $userId   = (int) $request->user_id;
         if (!$salonId || !$oturumId || !$userId) {
             return response()->json(['durum' => 'hata', 'mesaj' => 'Eksik bilgi.'], 422);
+        }
+        // Online rezervasyon YALNIZCA studyo modunda acik.
+        if (empty(Salonlar::where('id', $salonId)->value('studyo_modu'))) {
+            return response()->json(['durum' => 'hata', 'mesaj' => 'Online rezervasyon bu işletmede kapalı.'], 403);
         }
         // Paket/seans hakki ZORUNLU DEGIL — herkes kontenjan varsa rezervasyon yapabilir.
         $sonuc = \App\Services\DersRezervasyonServisi::rezervasyonYap($salonId, $oturumId, $userId, false);
