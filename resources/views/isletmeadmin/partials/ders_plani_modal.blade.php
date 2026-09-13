@@ -9,6 +9,9 @@
    #ders_plani_modal .dp-slot .dp-rad{ width:20px;height:20px;border-radius:50%;border:2px solid #cbd5e1;flex:0 0 auto; }
    #ders_plani_modal .dp-slot.on .dp-rad{ border-color:#5C008E;background:#5C008E;box-shadow:inset 0 0 0 3px #fff; }
    #ders_plani_modal .dp-uyari{ background:#fff7ed;color:#9a3412;padding:10px;border-radius:9px;font-size:12.5px; }
+   #ders_plani_modal .modal-header .modal-title,
+   #ders_plani_modal .modal-header .close,
+   #ders_plani_modal .modal-header .close span{ color:#fff !important; opacity:1; text-shadow:none; }
 </style>
 <div class="modal fade" id="ders_plani_modal" tabindex="-1" role="dialog" aria-hidden="true">
    <div class="modal-dialog modal-lg" role="document">
