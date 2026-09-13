@@ -15,7 +15,7 @@ class DersTekrarliKatilim extends Model
 
     protected $fillable = [
         'salon_id', 'user_id', 'hizmet_id', 'adisyon_paket_id', 'adisyon_hizmet_id',
-        'toplam_seans', 'gunler', 'saatler', 'personel_id', 'baslangic_tarihi', 'aktif',
+        'toplam_seans', 'gunler', 'saatler', 'sablonlar', 'personel_id', 'baslangic_tarihi', 'aktif',
     ];
 
     // gunler / saatler JSON string tutulur; dizi olarak okumak icin yardimcilar.
@@ -29,6 +29,12 @@ class DersTekrarliKatilim extends Model
     {
         $d = json_decode($this->saatler ?? '[]', true);
         return is_array($d) ? array_values(array_map('strval', $d)) : [];
+    }
+
+    public function sablonlarDizi()
+    {
+        $d = json_decode($this->sablonlar ?? '[]', true);
+        return is_array($d) ? array_values(array_filter(array_map('intval', $d))) : [];
     }
 
     public function musteri()

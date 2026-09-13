@@ -67,28 +67,33 @@ class DersOtomatikKatilimServisi
             return $sonuc;
         }
 
-        $gunler  = $kayit->gunlerDizi();   // [1..7], 1=Pzt (ISO)
-        $saatler = $kayit->saatlerDizi();  // ["09:00",..] veya [] = hepsi
-        if (empty($gunler)) {
-            return $sonuc; // gun secilmemis -> dagitilamaz
-        }
-
-        // Eslesen sablonlar (haftalik). Gun bazli gruplayalim.
-        $sablonQuery = DersProgramiSablonu::where('salon_id', $kayit->salon_id)
-            ->where('aktif', true)
-            ->whereIn('hafta_gunu', $gunler);
-        if ($kayit->hizmet_id) {
-            $sablonQuery->where('hizmet_id', $kayit->hizmet_id);
-        }
-        if ($kayit->personel_id) {
-            $sablonQuery->where('personel_id', $kayit->personel_id);
-        }
-        $sablonlar = $sablonQuery->orderBy('saat')->get();
-        // Saat filtresi (HH:MM) uygula
-        if (!empty($saatler)) {
-            $sablonlar = $sablonlar->filter(function ($s) use ($saatler) {
-                return in_array(substr($s->saat, 0, 5), $saatler, true);
-            })->values();
+        // Kaynak sablonlar: (A) slot bazli — secili sablon id listesi; yoksa
+        // (B) eski filtre bazli — gun/saat/personel tercihine gore sorgu.
+        $sablonIdler = $kayit->sablonlarDizi();
+        if (!empty($sablonIdler)) {
+            $sablonlar = DersProgramiSablonu::where('salon_id', $kayit->salon_id)
+                ->where('aktif', true)->whereIn('id', $sablonIdler)->orderBy('saat')->get();
+        } else {
+            $gunler  = $kayit->gunlerDizi();   // [1..7], 1=Pzt (ISO)
+            $saatler = $kayit->saatlerDizi();  // ["09:00",..] veya [] = hepsi
+            if (empty($gunler)) {
+                return $sonuc; // gun secilmemis -> dagitilamaz
+            }
+            $sablonQuery = DersProgramiSablonu::where('salon_id', $kayit->salon_id)
+                ->where('aktif', true)
+                ->whereIn('hafta_gunu', $gunler);
+            if ($kayit->hizmet_id) {
+                $sablonQuery->where('hizmet_id', $kayit->hizmet_id);
+            }
+            if ($kayit->personel_id) {
+                $sablonQuery->where('personel_id', $kayit->personel_id);
+            }
+            $sablonlar = $sablonQuery->orderBy('saat')->get();
+            if (!empty($saatler)) {
+                $sablonlar = $sablonlar->filter(function ($s) use ($saatler) {
+                    return in_array(substr($s->saat, 0, 5), $saatler, true);
+                })->values();
+            }
         }
         if ($sablonlar->isEmpty()) {
             $sonuc['yerlesmeyen'] = $kalan;
@@ -114,8 +119,10 @@ class DersOtomatikKatilimServisi
             if (!isset($gunSablon[$iso])) {
                 continue;
             }
-            // Bu gunun eslesen sablonlarini saat sirasiyla dene; ilk uygun yere yerlestir.
+            // Bu gunun eslesen (secili) her slotuna yerlestir — o gunde birden fazla
+            // secili slot varsa hepsine (haftalik N ders = N slot). Dolu->atla.
             foreach ($gunSablon[$iso] as $s) {
+                if ($kalan <= 0) break;
                 // Gecmis saat ise (bugun) atla
                 if ($tarih->isSameDay($bugun) && strtotime($tarih->toDateString() . ' ' . $s->saat) < time()) {
                     continue;
@@ -123,7 +130,6 @@ class DersOtomatikKatilimServisi
                 $yerlesti = self::slotaYerlestir($kayit, $s, $tarih->toDateString(), $sonuc);
                 if ($yerlesti) {
                     $kalan--;
-                    break; // gun basina 1 seans -> sonraki uygun gune gec
                 }
             }
         }

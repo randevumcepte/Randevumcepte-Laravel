@@ -5056,8 +5056,10 @@ public function carkverilerigetir(Request $request)
         $gunler = array_values(array_unique(array_map('intval',(array)$gunler)));
         $saatler = $request->saatler; if(is_string($saatler)) $saatler = json_decode($saatler,true);
         $saatler = array_values(array_map('strval',(array)($saatler ?: [])));
-        if(!$userId || !$hizmetId || $toplam<=0 || empty($gunler)){
-            return response()->json(['durum'=>'hata','mesaj'=>'Eksik bilgi: musteri, hizmet, seans ve en az bir gun secin.'],422);
+        $sablonlar = $request->sablonlar; if(is_string($sablonlar)) $sablonlar = json_decode($sablonlar,true);
+        $sablonlar = array_values(array_filter(array_map('intval',(array)($sablonlar ?: []))));
+        if(!$userId || !$hizmetId || $toplam<=0 || (empty($gunler) && empty($sablonlar))){
+            return response()->json(['durum'=>'hata','mesaj'=>'Eksik bilgi: musteri, hizmet, seans ve en az bir ders slotu secin.'],422);
         }
         $kayit = null;
         if($request->kayit_id) $kayit = \App\DersTekrarliKatilim::where('salon_id',$isletmeId)->find($request->kayit_id);
@@ -5070,6 +5072,7 @@ public function carkverilerigetir(Request $request)
         $kayit->toplam_seans = $toplam;
         $kayit->gunler = json_encode($gunler);
         $kayit->saatler = json_encode($saatler);
+        $kayit->sablonlar = json_encode($sablonlar);
         $kayit->personel_id = $request->personel_id ?: null;
         $kayit->baslangic_tarihi = $request->baslangic ?: date('Y-m-d');
         $kayit->aktif = true;
