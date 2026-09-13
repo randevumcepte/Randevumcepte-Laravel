@@ -4936,15 +4936,17 @@ public function carkverilerigetir(Request $request)
         if($r = self::yetkiYoksa403($request, 'randevu.olustur')) return $r;
         $isletmeId = self::mevcutsube($request);
 
-        // Yayin araligi: ya hafta sayisi (1-52) ya da bitis tarihi ('bitis') verilir.
+        // Yayin araligi. Studyo modu: 1 yila (52 hafta) kadar + 'bitis' ile ozel aralik.
+        // Diger isletmeler: eski davranis (max 12 hafta, bitis yok).
+        $studyo = (bool) Salonlar::where('id',$isletmeId)->value('studyo_modu');
         $baslangic = $request->baslangic ?: date('Y-m-d');
         $bugun = Carbon::parse($baslangic)->startOfDay();
-        $bitis = $request->bitis ? Carbon::parse($request->bitis)->endOfDay() : null;
+        $bitis = ($studyo && $request->bitis) ? Carbon::parse($request->bitis)->endOfDay() : null;
         if ($bitis) {
             if ($bitis->lt($bugun)) return response()->json(['durum'=>'hata','mesaj'=>'Bitis tarihi baslangictan once olamaz.'],422);
             $hafta = min(54, (int) floor($bugun->copy()->diffInDays($bitis) / 7) + 2); // araligi kapsayan hafta
         } else {
-            $hafta = max(1, min(52, (int)($request->hafta ?: 4)));   // 1 yila kadar
+            $hafta = max(1, min($studyo ? 52 : 12, (int)($request->hafta ?: 4)));
         }
 
         $sablonlar = \App\DersProgramiSablonu::where('salon_id',$isletmeId)->where('aktif',true)->get();

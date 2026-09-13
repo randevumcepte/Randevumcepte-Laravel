@@ -31852,14 +31852,16 @@ SOZLESME_TXT;
     {
         $salonId = $this->_dersSalon($request);
         if (!$salonId) return response()->json(['durum' => 'hata', 'mesaj' => 'salon yok'], 422);
-        // Yayin araligi: hafta sayisi (1-52) VEYA bitis tarihi ('bitis').
+        // Yayin araligi. Studyo modu: 1 yila (52 hafta) kadar + 'bitis' ile ozel aralik.
+        // Diger isletmeler: eski davranis (max 12 hafta, bitis yok).
+        $studyo = (bool) Salonlar::where('id', $salonId)->value('studyo_modu');
         $bugun = \Carbon\Carbon::parse($request->baslangic ?: date('Y-m-d'))->startOfDay();
-        $bitis = $request->bitis ? \Carbon\Carbon::parse($request->bitis)->endOfDay() : null;
+        $bitis = ($studyo && $request->bitis) ? \Carbon\Carbon::parse($request->bitis)->endOfDay() : null;
         if ($bitis) {
             if ($bitis->lt($bugun)) return response()->json(['durum' => 'hata', 'mesaj' => 'Bitis tarihi baslangictan once olamaz.'], 422);
             $hafta = min(54, (int) floor($bugun->copy()->diffInDays($bitis) / 7) + 2);
         } else {
-            $hafta = max(1, min(52, (int) ($request->hafta ?: 4)));
+            $hafta = max(1, min($studyo ? 52 : 12, (int) ($request->hafta ?: 4)));
         }
         $sablonlar = \App\DersProgramiSablonu::where('salon_id', $salonId)->where('aktif', true)->get();
         if ($sablonlar->isEmpty()) return response()->json(['durum' => 'hata', 'mesaj' => 'Once haftalik programa ders ekleyin.'], 422);
