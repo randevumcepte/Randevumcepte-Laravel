@@ -2705,6 +2705,9 @@
 
       @if($pageindex==11111 || $pageindex==1111 || $pageindex==41 || $pageindex==11)
       @include('modaldialogs.satis-detay-modal')
+      @if(!empty($isletme->studyo_modu))
+      @include('isletmeadmin.partials.ders_plani_modal')
+      @endif
       <div
          id="adisyon_yeni_hizmet_modal"
          class="modal  fade calendar-modal"
@@ -5727,7 +5730,7 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=13.6')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=265.1')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=265.2')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>

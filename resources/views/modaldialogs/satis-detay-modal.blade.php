@@ -6,6 +6,7 @@
 <style>
    /* Studyo modu: satis detayinda fiyat/urun/ozet gizli, yerine odeme tarihi */
    #satisKalemleri.sd-studyo .sd-col-amount { display:none !important; }
+   #satisKalemleri.sd-studyo .sd-col-seller { display:none !important; }
    #satisKalemleri.sd-studyo .sd-add-btn.urun { display:none !important; }
    #satisKalemleri.sd-studyo .sd-summary-amounts,
    #satisKalemleri.sd-studyo .sd-summary-history { display:none !important; }
@@ -55,6 +56,11 @@
                         <button type="button" data-toggle="modal" id="adisyon_paket_ekle_button" data-target="#paket_satisi_modal" data-value='' class="sd-add-btn paket adisyon_ekle_buttonlar">
                            <i class="fa fa-plus"></i> Paket Ekle
                         </button>
+                        @if(!empty($isletme->studyo_modu))
+                        <button type="button" class="sd-add-btn" style="background:#5C008E;color:#fff;border-color:#5C008E;" onclick="sdDersPlaniAc()">
+                           <i class="fa fa-refresh"></i> Ders Planı Oluştur
+                        </button>
+                        @endif
                      </div>
                      <div id="kullanilan_kupon_bilgi" style="display:none;background:#fff3cd;color:#856404;border:1px solid #ffeeba;border-radius:6px;padding:8px 12px;font-size:13px;font-weight:bold;margin:10px 0;"></div>
 

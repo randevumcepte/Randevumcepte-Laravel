@@ -8759,6 +8759,11 @@ $('#paket_satisi').off('submit').on('submit',function(e){
 
                     //$('button[data-dismiss="modal"]').trigger('click');
                     $('#paket_satisi_modal').modal('hide');
+                    // Studyo: Yeni Satis (detay) akisinda paket eklenince otomatik ders plani modali
+                    if(window.STUDYO_MODU && $('#adisyon_detay_paket_tablo').length){
+                        var _dpMid = $('#satis_listesi').data('musteriId') || $('.musteri_satis').val();
+                        if(window.dersPlaniModalAc && _dpMid){ setTimeout(function(){ dersPlaniModalAc(_dpMid); }, 450); }
+                    }
                     if($('#adisyon_detay_paket_tablo').length)
                     {
                         $('#adisyon_detay_paket_tablo').empty();
@@ -23033,6 +23038,13 @@ $('#gorevTanimla').click(function(e){
 
 
 });
+// Studyo: Satis Detaylari modalinda "Ders Planı Oluştur" -> planlama modali (musteri odakli)
+function sdDersPlaniAc(){
+    var mid = $('#satis_listesi').data('musteriId') || $('.musteri_satis').val() || $('select[name="paket_satis_musteri_id"]').val();
+    if(!mid){ swal('Uyarı','Önce müşteri seçili bir satış açın.','warning'); return; }
+    if(window.dersPlaniModalAc){ dersPlaniModalAc(mid); }
+    else { swal('Bilgi','Ders planı bu ekranda kullanılamıyor.','info'); }
+}
 // Studyo: satis detayinda "Ödeme Alınma Tarihi"ni kaydet (odendi=1 + tarih)
 function sdStudyoOdemeKaydet(){
     var aid = $('input[name="adisyon_id"]').val();
