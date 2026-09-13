@@ -18193,6 +18193,13 @@ $('#secilenpaket_satis_yap').click(function(e){
                 error: function(request){ $("#preloader").hide(); document.getElementById('hata').innerHTML = request.responseText; }
             });
         }
+        // Studyo: satis sonrasi otomatik ders plani modalini ac (varsa), yoksa yonlendir.
+        function _paketSatisSonrasi(sube){
+            var _url = '/isletmeyonetim/adisyonlar?sube='+sube;
+            var _mid = $('select[name="paket_satis_musteri_id"]').val();
+            if(window.dersPlaniModalAc && _mid && _mid != 0){ dersPlaniModalAc(_mid, _url); }
+            else { window.location.href = _url; }
+        }
         if(window.STUDYO_MODU){
             // Studyo modu: tutar makinesi yerine dogrudan ikili odeme (adisyon-odeme-isaretle -> tamOde tarih/saat)
             swal({
@@ -18213,12 +18220,12 @@ $('#secilenpaket_satis_yap').click(function(e){
                         $.ajax({
                             type:"POST", url:'/isletmeyonetim/adisyon-odeme-isaretle', dataType:"json",
                             data:{ adisyon_id: _adisyonId, alindi: 1, sube: _sube, _token: $('input[name="_token"]').val() },
-                            complete: function(){ window.location.href = '/isletmeyonetim/adisyonlar?sube='+_sube; }
+                            complete: function(){ _paketSatisSonrasi(_sube); }
                         });
                     });
                 } else if(result.dismiss === swal.DismissReason.cancel){
                     _paketSatisGonder(function(result2){
-                        window.location.href = '/isletmeyonetim/adisyonlar?sube='+_sube;
+                        _paketSatisSonrasi(_sube);
                     });
                 }
             });

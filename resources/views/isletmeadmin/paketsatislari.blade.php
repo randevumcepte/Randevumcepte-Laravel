@@ -691,4 +691,8 @@ $(document).on('init.dt', '#paket_liste', function() {
 })();
 </script>
 
+@if(!empty($isletme->studyo_modu))
+@include('isletmeadmin.partials.ders_plani_modal')
+@endif
+
 @endsection()
