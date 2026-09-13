@@ -274,6 +274,8 @@
             </li>
             @endif
             @yetki('satis.adisyon_olustur')
+            @if(empty($isletme->studyo_modu))
+            {{-- Studyo modu: satis Yeni Satis/Paketler ekranindan yapilir -> burada gizli --}}
             <li class="nav-item" style="margin:5px">
                <a
                   class="btn btn-warning tab-mini"
@@ -283,6 +285,7 @@
                   aria-selected="false"
                   ><i class="fa fa-shopping-cart"></i> Randevusuz Satış</a>
             </li>
+            @endif
             @endyetki
             @yetki('satis.tahsilat_al')
             @if(empty($isletme->studyo_modu))
