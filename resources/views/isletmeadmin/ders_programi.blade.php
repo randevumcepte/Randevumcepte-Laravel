@@ -70,7 +70,11 @@
          <div class="fld"><label>Başlangıç</label>
             <input type="text" id="dp-baslangic" value="{{ date('Y-m-d') }}" readonly style="width:130px;cursor:pointer;"></div>
          <div class="fld"><label>Hafta</label>
-            <input type="number" id="dp-hafta" min="1" max="12" value="4" style="width:64px;"></div>
+            <input type="number" id="dp-hafta" min="1" max="{{ $isletme->studyo_modu ? 52 : 12 }}" value="4" style="width:64px;"></div>
+         @if($isletme->studyo_modu)
+         <div class="fld"><label>Bitiş (ops.)</label>
+            <input type="text" id="dp-bitis" value="" readonly placeholder="—" style="width:130px;cursor:pointer;"></div>
+         @endif
          <button class="dp-yayinla-btn" onclick="dpYayinla();return false;">🚀 Programı Yayınla</button>
       </div>
    </div>
@@ -167,6 +171,7 @@
    $(function(){
       if($.fn.datepicker){
          $('#dp-baslangic').datepicker({ language:_trLang, autoClose:true, dateFormat:'yyyy-mm-dd', position:'bottom left', minDate:new Date() });
+      $('#dp-bitis').datepicker({ language:_trLang, autoClose:true, dateFormat:'yyyy-mm-dd', position:'bottom left', minDate:new Date() });
       }
    });
 
@@ -204,11 +209,13 @@
          }); } });
    };
    window.dpYayinla = function(){
-      var hafta=$('#dp-hafta').val(), bas=$('#dp-baslangic').val();
-      swal({title:'Program yayınlansın mı?',text:bas+' tarihinden itibaren '+hafta+' hafta boyunca ders oturumları takvime oluşturulacak.',
+      var hafta=$('#dp-hafta').val(), bas=$('#dp-baslangic').val(), bitis=$('#dp-bitis').length?$('#dp-bitis').val():'';
+      var ozet = bitis ? (bas+' – '+bitis+' tarih aralığında') : (bas+' tarihinden itibaren '+hafta+' hafta boyunca');
+      swal({title:'Program yayınlansın mı?',text:ozet+' ders oturumları takvime oluşturulacak.',
          type:'question',showCancelButton:true,confirmButtonText:'Yayınla',cancelButtonText:'Vazgeç',confirmButtonColor:'#16a085'})
       .then(function(res){ if(!res.value) return;
-         _post('{{ url('/isletmeyonetim/ders-programi-yayinla') }}',{hafta:hafta,baslangic:bas})
+         var _pd={hafta:hafta,baslangic:bas}; if(bitis) _pd.bitis=bitis;
+         _post('{{ url('/isletmeyonetim/ders-programi-yayinla') }}',_pd)
          .done(function(r){ if(r.durum==='ok') swal('Yayınlandı', r.olusan+' yeni ders oluşturuldu ('+r.atlanan+' zaten vardı).','success').then(function(){ location.reload(); });
                             else swal('Hata',(r&&r.mesaj)||'Yayınlanamadı','warning'); })
          .fail(function(x){ swal('Hata',(x.responseJSON&&x.responseJSON.mesaj)||'Yayınlanamadı','error'); });
