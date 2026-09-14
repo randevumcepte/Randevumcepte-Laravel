@@ -296,6 +296,7 @@ Route::get ('/bildirim/liste',            'NotificationApiController@liste');
 Route::post('/bildirim/okundu',           'NotificationApiController@okundu');
 Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSayi');
  Route::post('/randevuonayla','ApiController@randevuonayla');
+ Route::post('/randevu-sonrasi-not-kaydet','ApiController@randevu_sonrasi_not_kaydet');
  Route::get('/randevulistedeneme/{salonid}','ApiController@randevulistedeneme');
   Route::post('/ajanda_okunduisaretle','ApiController@ajanda_okunduisaretle');
   Route::post('/odagetir/{salonid}','ApiController@odagetir');

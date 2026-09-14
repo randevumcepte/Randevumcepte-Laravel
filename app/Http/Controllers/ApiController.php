@@ -2994,6 +2994,26 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         return null;
     }
 
+    /**
+     * Randevu sonrasi islem notu kaydet (mobil).
+     * Web karsiligi: StoreAdminController@islemsonrasinotekleme.
+     * Yetki: musteri.not_yaz — randevunun kendi salonu uzerinden dogrulanir.
+     */
+    public function randevu_sonrasi_not_kaydet(Request $request)
+    {
+        $randevu = Randevular::where('id', $request->input('randevu_id'))->first();
+        if (!$randevu) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Randevu bulunamadı.'], 404);
+        }
+        $this->_yetkiYoksaRed($request, $randevu->salon_id, 'musteri.not_yaz');
+        $randevu->randevu_sonrasi_not = $request->input('not');
+        $randevu->save();
+        return response()->json([
+            'basarili' => true,
+            'not' => (string) $randevu->randevu_sonrasi_not,
+        ]);
+    }
+
     public function musteriler(Request $request, $salonid)
     {
         $gorebilir = $this->_telGorebilir($request, $salonid);
