@@ -34396,9 +34396,14 @@ DB::raw('
         if (!$isletmeAdi) $isletmeAdi = Salonlar::where('id',$salonId)->value('salon_adi');
 
         // Onizlemede {müşteri} yerine salonun GERCEK bir musterisinin tam ismi kullanilir
-        // (cinsiyete gore bey/hanim EKLENMEZ). Musteri yoksa jenerik ornek.
-        $ornekPortfoy   = MusteriPortfoy::where('salon_id',$salonId)->where('aktif',1)->orderBy('id','desc')->first();
-        $ornekMusteriAdi = $ornekPortfoy ? trim((string) optional(User::find($ornekPortfoy->user_id))->name) : '';
+        // (cinsiyete gore bey/hanim EKLENMEZ). Yalnizca musteri_portfoy'daki AKTIF kayitlar;
+        // isim portfoyun kendi musteri iliskisinden alinir. Aktif musteri yoksa jenerik ornek.
+        $ornekPortfoy = MusteriPortfoy::with('users:id,name')
+            ->where('salon_id',$salonId)
+            ->where('aktif',1)
+            ->orderBy('id','desc')
+            ->first();
+        $ornekMusteriAdi = $ornekPortfoy ? trim((string) optional($ornekPortfoy->users)->name) : '';
         if ($ornekMusteriAdi === '') $ornekMusteriAdi = 'Örnek Müşteri';
 
         $adimlar    = json_decode((string) $request->adimlar, true);
