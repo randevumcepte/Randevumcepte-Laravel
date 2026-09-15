@@ -479,7 +479,7 @@
                               </button>
                               <div class="kss-voice-wrap">
                                  <span class="kss-info">
-                                    <i class="fa fa-microphone"></i> Filiz · Türkçe Kadın
+                                    <i class="fa fa-microphone"></i> Google · Türkçe Erkek
                                  </span>
                                  <span class="kss-quality-badge kss-q-online" id="kssQualityBadge">✨ Doğal Ses</span>
                                  <!-- Selector gizli — JS bekliyor -->
@@ -560,21 +560,34 @@
 
                   <script>
                   (function(){
-                     // Tek Türkçe ses: Filiz (Polly). Hız frontend'de playbackRate ile artırılır.
+                     // Tek Türkçe ses: Google WaveNet ERKEK (santral/hatırlatma ile AYNI ses).
                      var VIRTUAL_VOICES = [
-                        { id:'sev_filiz', voice:'filiz_normal', ad:'Filiz · Türkçe Kadın' }
+                        { id:'sev_filiz', voice:'google_erkek', ad:'Google · Türkçe Erkek' }
                      ];
-                     // Audio playback hızı (1.0 = normal yavaş, 1.25 = %25 daha canlı)
-                     var KSS_PLAYBACK_RATE = 1.25;
-                     function virtualUrl(v, metin){
-                        // Backend proxy: CORS/SSL/availability sorunlarını önler,
-                        // sağlayıcılar arası fallback yapar.
-                        var t = metin.substring(0, 1500);
-                        return '/isletmeyonetim/tts-proxy?voice=' + encodeURIComponent(v.voice || 'Filiz') +
-                               '&q=' + encodeURIComponent(t) +
-                               '&_=' + Date.now();
-                     }
+                     var GOOGLE_SES = 'tr-TR-Wavenet-E';        // Google Türkçe erkek WaveNet
+                     var _seslendirCache = {};                  // metin -> ses url (oturum içi)
                      function virtualBul(id){ return VIRTUAL_VOICES.find(function(v){ return v.id === id; }); }
+
+                     // BÜYÜK harf markaları baş-harfi-büyük yap (ORBEY->Orbey); santralla aynı md5
+                     // -> aynı sunucu cache paylaşımı. (senaryoSihirbazi.js / gttscache.php ile aynı.)
+                     function kssCapsFix(s){
+                        return String(s || '').replace(/[A-ZÇĞİÖŞÜ]{2,}/g, function(w){
+                           return w.charAt(0) + w.slice(1).toLocaleLowerCase('tr');
+                        });
+                     }
+                     // /api/v1/seslendir -> Google erkek mp3 URL (sunucu md5 cache + tarayıcı mp3 cache).
+                     function seslendirUrlGetir(metin, cb){
+                        if(_seslendirCache[metin]){ cb(_seslendirCache[metin]); return; }
+                        $.ajax({
+                           url: '/api/v1/seslendir', method: 'POST', dataType: 'json',
+                           data: { metin: metin, ses: GOOGLE_SES },
+                           success: function(res){
+                              if(res && res.basarili && res.url){ _seslendirCache[metin] = res.url; cb(res.url); }
+                              else { cb(null); }
+                           },
+                           error: function(){ cb(null); }
+                        });
+                     }
 
                      // -------- BROWSER VOICES --------
                      var hasSpeech = ('speechSynthesis' in window);
@@ -676,24 +689,26 @@
                         var sec = $('#kampanyaSesSecici').val() || 'sev_filiz';
 
                         if(sec.indexOf('sev_') === 0){
-                           // Harici API → audio src ile çal
-                           var v = virtualBul(sec);
-                           if(!v){ return; }
-                           var url = virtualUrl(v, metin);
+                           // Google erkek (cache'li) → /api/v1/seslendir → mp3 URL → audio ile çal
                            var a = $audio[0];
                            if(!a){ return; }
-                           $('#calinacak_kayit').attr('src', url);
-                           a.load();
-                           // Hızlandır — Polly default'u yavaş okuyor
-                           a.playbackRate = KSS_PLAYBACK_RATE;
-                           // playbackRate set'i load'dan sonra resetlenebilir; loadedmetadata'da tekrar uygula
-                           a.onloadedmetadata = function(){ try { a.playbackRate = KSS_PLAYBACK_RATE; } catch(_) {} };
-                           a.onplaying = function(){ try { a.playbackRate = KSS_PLAYBACK_RATE; } catch(_) {}; calmaBaslat(); };
-                           a.onended = a.onerror = durdur;
-                           var p = a.play();
-                           if(p && p.catch) p.catch(function(){
-                              durdur();
-                              if(typeof swal === 'function') swal({type:'warning',title:'Ses yüklenemedi',text:'İnternet bağlantısını veya seçili sesi kontrol edin.',timer:3000,showConfirmButton:false});
+                           var okunacak = kssCapsFix(metin);
+                           $('#kampanyaSesOku').addClass('is-playing').html('<i class="fa fa-spinner fa-spin"></i> Hazırlanıyor...');
+                           seslendirUrlGetir(okunacak, function(url){
+                              if(!url){
+                                 durdur();
+                                 if(typeof swal === 'function') swal({type:'warning',title:'Ses üretilemedi',text:'Sunucu seslendirme servisi yanıt vermedi (TTS anahtarı tanımlı olmayabilir).',timer:3000,showConfirmButton:false});
+                                 return;
+                              }
+                              a.src = url;              // mp3 (type uyumsuzluğu olmasın diye source child değil)
+                              a.load();
+                              a.onplaying = calmaBaslat;
+                              a.onended = a.onerror = durdur;
+                              var p = a.play();
+                              if(p && p.catch) p.catch(function(){
+                                 durdur();
+                                 if(typeof swal === 'function') swal({type:'warning',title:'Ses çalınamadı',text:'Tarayıcı sesi oynatamadı.',timer:3000,showConfirmButton:false});
+                              });
                            });
                            return;
                         }
@@ -715,6 +730,18 @@
                      });
                      $(document).on('click','#kampanyaSesDurdur',function(e){ e.preventDefault(); durdur(); });
                      $('#yeni_kampanya_modal').on('hidden.bs.modal', durdur);
+
+                     // İndirim türü toggle: kapalı = "X al Y öde", açık = "Yüzde İndirim"
+                     function indirimTuruUygula(){
+                        if($('#indirimTuru').is(':checked')){
+                           $('#XalYodeBolumu').hide();
+                           $('#yuzdeIndirimBolumu').show();
+                        } else {
+                           $('#XalYodeBolumu').show();
+                           $('#yuzdeIndirimBolumu').hide();
+                        }
+                     }
+                     $(document).on('change','#indirimTuru', indirimTuruUygula);
                   })();
                   </script>
                </div>
