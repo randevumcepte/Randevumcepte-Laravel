@@ -790,7 +790,7 @@
                                <div class="row">
                                   <div class="col-md-6 custom-control custom-checkbox mb-5">
                                
-                                        <input type="checkbox" class="custom-control-input" id="customCheck50" {{($sms_ayarlari[17]->personel) ? 'checked' : ''}} name='randevuayar_26_personel_acik_kapali'>
+                                        <input type="checkbox" class="custom-control-input" id="customCheck50" {{($sms_ayarlari[18]->personel) ? 'checked' : ''}} name='randevuayar_26_personel_acik_kapali'>
                                         <label class="custom-control-label" for="customCheck50">Açık / Kapalı</label>
                                  
                                   </div>
