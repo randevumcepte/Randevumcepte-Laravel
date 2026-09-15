@@ -34085,18 +34085,8 @@ DB::raw('
         $isletme = Salonlar::where('id',$request->salonId)->value('santral_telaffuz_hatirlatma_aramasi');
         
         $ornekMusteri = isset($request->katilimciId) ? User::where('id',$request->katilimciId)->first() : User::where('id',$ilkMusteri->user_id)->first();
-        $musteriAdi = $ornekMusteri->name;
-        $beyBayanStr = '';
-        if($ornekMusteri->cinsiyet == 0){
-            $beyBayanStr = 'hanım';
-            $ornekMusteriArr = explode(' ',$musteriAdi);
-            $musteriAdi = $ornekMusteriArr[0].' '.$beyBayanStr;
-        }
-        if($ornekMusteri->cinsiyet == 1){
-            $beyBayanStr = 'bey';
-            $ornekMusteriArr = explode(' ',$musteriAdi);
-            $musteriAdi = $ornekMusteriArr[0].' '.$beyBayanStr;
-        }
+        // Cinsiyete gore bey/hanim EKLENMEZ; musterinin tam ismi okunur.
+        $musteriAdi = trim($ornekMusteri->name);
          
 
         // Şablon ID'si "sablon-X" prefix'liyse kullanıcının kendi SMS taslağı,
@@ -34411,7 +34401,7 @@ DB::raw('
         if (!is_array($aksiyonlar)) $aksiyonlar = [];
 
         $coz = function($metin) use ($isletmeAdi, $request) {
-            $metin = str_replace('{müşteri}', 'Ferdi Bey', (string) $metin);
+            $metin = str_replace('{müşteri}', 'Ferdi Yılmaz', (string) $metin);
             $metin = str_replace('{işletmeden}', $isletmeAdi, $metin);
             $metin = str_replace('{indirim}', ($request->indirim ?: '20'), $metin);
             $metin = str_replace('{gün}', ($request->gun ?: '7'), $metin);

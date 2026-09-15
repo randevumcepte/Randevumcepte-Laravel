@@ -139,9 +139,8 @@ class KampanyaAramaYap extends Command
      */
     protected function katilimciParametresi($katilimci, $kampanya)
     {
-        $cinsiyetStr = $katilimci->musteri->cinsiyet === 0 ? 'hanim' : 'bey';
-        $ilkAd = explode(' ', trim($katilimci->musteri->name))[0];
-        $hitap = $ilkAd . ' ' . $cinsiyetStr;
+        // Cinsiyete gore bey/hanim EKLENMEZ; musterinin tam ismi okunur.
+        $hitap = trim($katilimci->musteri->name);
 
         $mesaj = 'Merhaba ' . $hitap . '. Sizi ' .
             $kampanya->salon->santral_telaffuz_hatirlatma_aramasi . ' ariyorum. ' .
