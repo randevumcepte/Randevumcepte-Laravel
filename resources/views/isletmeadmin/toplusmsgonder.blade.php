@@ -680,7 +680,7 @@
                                <select class="form-control" name="randevu_hatirlatama_saat_once" >
                                  
                                   <option {{($isletme->randevu_sms_hatirlatma==1) ? 'selected' : ''}} value="1">1 saat</option>
-                                  <option {{($isletme->randevu_sms_hatirlatma==2) ? 'selected' : ''}} value="2" selected="">2 saat</option>
+                                  <option {{($isletme->randevu_sms_hatirlatma==2) ? 'selected' : ''}} value="2">2 saat</option>
                                   <option {{($isletme->randevu_sms_hatirlatma==3) ? 'selected' : ''}} value="3">3 saat</option>
                                   <option {{($isletme->randevu_sms_hatirlatma==4) ? 'selected' : ''}} value="4">4 saat</option>
                                   <option {{($isletme->randevu_sms_hatirlatma==5) ? 'selected' : ''}} value="5">5 saat</option>
