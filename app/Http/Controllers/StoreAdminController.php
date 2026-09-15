@@ -34395,13 +34395,19 @@ DB::raw('
         $isletmeAdi = Salonlar::where('id',$salonId)->value('santral_telaffuz_hatirlatma_aramasi');
         if (!$isletmeAdi) $isletmeAdi = Salonlar::where('id',$salonId)->value('salon_adi');
 
+        // Onizlemede {müşteri} yerine salonun GERCEK bir musterisinin tam ismi kullanilir
+        // (cinsiyete gore bey/hanim EKLENMEZ). Musteri yoksa jenerik ornek.
+        $ornekPortfoy   = MusteriPortfoy::where('salon_id',$salonId)->where('aktif',1)->orderBy('id','desc')->first();
+        $ornekMusteriAdi = $ornekPortfoy ? trim((string) optional(User::find($ornekPortfoy->user_id))->name) : '';
+        if ($ornekMusteriAdi === '') $ornekMusteriAdi = 'Örnek Müşteri';
+
         $adimlar    = json_decode((string) $request->adimlar, true);
         $aksiyonlar = json_decode((string) $request->aksiyonlar, true);
         if (!is_array($adimlar))    $adimlar = [];
         if (!is_array($aksiyonlar)) $aksiyonlar = [];
 
-        $coz = function($metin) use ($isletmeAdi, $request) {
-            $metin = str_replace('{müşteri}', 'Ferdi Yılmaz', (string) $metin);
+        $coz = function($metin) use ($isletmeAdi, $ornekMusteriAdi, $request) {
+            $metin = str_replace('{müşteri}', $ornekMusteriAdi, (string) $metin);
             $metin = str_replace('{işletmeden}', $isletmeAdi, $metin);
             $metin = str_replace('{indirim}', ($request->indirim ?: '20'), $metin);
             $metin = str_replace('{gün}', ($request->gun ?: '7'), $metin);
