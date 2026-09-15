@@ -5748,7 +5748,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
       <script src="{{secure_asset('public/js/musteriSecimiDuzenle.js?v=11.0')}}"></script>
-      <script src="{{secure_asset('public/js/senaryoSihirbazi.js?v=1.1')}}"></script>
+      <script src="{{secure_asset('public/js/senaryoSihirbazi.js?v=1.2')}}"></script>
       @endif
 
       @include('frontendscripts.frontend-scripts')

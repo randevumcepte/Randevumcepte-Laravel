@@ -22,7 +22,8 @@
         { key:'onay_kod',      baslik:'Kod gönderildi mesajı',  ipucu:'Müşteri evet dedikten sonra' },
         { key:'soru_randevu',  baslik:'Randevu sorusu',         ipucu:'"…randevu oluşturayım mı?"' },
         { key:'soru_gun_saat', baslik:'Gün/saat sorusu',        ipucu:'"Hangi gün ve saat olsun?"' },
-        { key:'kapanis',       baslik:'Kapanış',                ipucu:'Randevu sonrası veda' },
+        { key:'onay_randevu',  baslik:'Randevu oluşturuldu mesajı', ipucu:'Yalnızca "randevu oluştur" aksiyonu açıksa okunur' },
+        { key:'kapanis',       baslik:'Kapanış',                ipucu:'Genel veda (aksiyondan bağımsız, her zaman okunur)' },
         { key:'red',           baslik:'Müşteri "hayır" derse',  ipucu:'Kibar kapanış' }
     ];
     var TEK_METIN_ALANI = [

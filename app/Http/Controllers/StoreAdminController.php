@@ -34210,7 +34210,8 @@ DB::raw('
                     'onay_kod'      => 'Mesaj olarak indirim kodunuzu ve yol tarifini gönderdim.',
                     'soru_randevu'  => 'Dilerseniz hemen bir randevu da oluşturabilirim, ister misiniz?',
                     'soru_gun_saat' => 'Hangi gün ve saat olsun?',
-                    'kapanis'       => 'Randevunuzu oluşturdum. On beş dakika önce gelmenizi rica eder, sağlıklı günler dilerim.',
+                    'onay_randevu'  => 'Randevunuzu oluşturdum. On beş dakika önce gelmenizi rica ederim.',
+                    'kapanis'       => 'Sağlıklı günler dilerim.',
                     'red'           => 'Tabi, anlıyorum. İleride ihtiyaç duyarsanız biz her zaman buradayız. Sağlıklı günler dilerim.',
                 ],
                 'aksiyonlar' => ['indirim_kodu_sms'=>true, 'yol_tarifi_sms'=>true, 'randevu_olustur'=>true],
@@ -34226,7 +34227,8 @@ DB::raw('
                     'onay_kod'      => 'Hediye indirim kodunuzu mesaj olarak gönderdim.',
                     'soru_randevu'  => 'Dilerseniz size uygun bir randevu oluşturabilirim, ister misiniz?',
                     'soru_gun_saat' => 'Hangi gün ve saat olsun?',
-                    'kapanis'       => 'Randevunuzu oluşturdum. Nice mutlu yıllar dileriz, sağlıklı günler.',
+                    'onay_randevu'  => 'Randevunuzu oluşturdum.',
+                    'kapanis'       => 'Nice mutlu yıllar dileriz, sağlıklı günler.',
                     'red'           => 'Tabi efendim. Doğum gününüzü tekrar kutlar, sağlıklı günler dileriz.',
                 ],
                 'aksiyonlar' => ['indirim_kodu_sms'=>true, 'yol_tarifi_sms'=>false, 'randevu_olustur'=>true],
@@ -34242,7 +34244,8 @@ DB::raw('
                     'onay_kod'      => 'İndirim kodunuzu mesaj olarak gönderdim.',
                     'soru_randevu'  => 'Hemen bir randevu oluşturmamı ister misiniz?',
                     'soru_gun_saat' => 'Hangi gün ve saat olsun?',
-                    'kapanis'       => 'Randevunuzu oluşturdum. On beş dakika önce gelmenizi rica eder, sağlıklı günler dilerim.',
+                    'onay_randevu'  => 'Randevunuzu oluşturdum. On beş dakika önce gelmenizi rica ederim.',
+                    'kapanis'       => 'Sağlıklı günler dilerim.',
                     'red'           => 'Tabi, anlıyorum. Hazır olduğunuzda biz buradayız. Sağlıklı günler dilerim.',
                 ],
                 'aksiyonlar' => ['indirim_kodu_sms'=>true, 'yol_tarifi_sms'=>false, 'randevu_olustur'=>true],
@@ -34258,7 +34261,8 @@ DB::raw('
                     'onay_kod'      => 'İndirim kodunuzu ve yol tarifini mesaj olarak gönderdim.',
                     'soru_randevu'  => 'Denemek için bir randevu oluşturmamı ister misiniz?',
                     'soru_gun_saat' => 'Hangi gün ve saat olsun?',
-                    'kapanis'       => 'Randevunuzu oluşturdum. On beş dakika önce gelmenizi rica eder, sağlıklı günler dilerim.',
+                    'onay_randevu'  => 'Randevunuzu oluşturdum. On beş dakika önce gelmenizi rica ederim.',
+                    'kapanis'       => 'Sağlıklı günler dilerim.',
                     'red'           => 'Tabi efendim. Merak ederseniz her zaman bekleriz. Sağlıklı günler dilerim.',
                 ],
                 'aksiyonlar' => ['indirim_kodu_sms'=>true, 'yol_tarifi_sms'=>true, 'randevu_olustur'=>true],
@@ -34274,6 +34278,7 @@ DB::raw('
                     'onay_kod'      => '',
                     'soru_randevu'  => '',
                     'soru_gun_saat' => 'Hangi gün ve saat olsun?',
+                    'onay_randevu'  => 'Randevunuzu oluşturdum. On beş dakika önce gelmenizi rica ederim.',
                     'kapanis'       => 'Sağlıklı günler dilerim.',
                     'red'           => 'Tabi efendim, sağlıklı günler dilerim.',
                 ],
@@ -34445,8 +34450,11 @@ DB::raw('
             $ekle('musteri', 'Çarşamba öğleden sonra olsun.');
             $ekle('bot', 'Memnuniyetle, hemen kontrol ediyorum. Çarşamba saat 13:00 uygun mu efendim?');
             $ekle('musteri', 'Evet.');
+            // Randevu onayi SADECE randevu aksiyonu acikken okunur (kapanis'ten ayri).
+            $ekle('bot', $coz($adimlar['onay_randevu'] ?? ''));
         }
 
+        // Kapanis aksiyondan bagimsiz genel veda (artik "Randevunuzu olusturdum" icermez).
         $ekle('bot', $coz($adimlar['kapanis'] ?? ''));
 
         return response()->json([
