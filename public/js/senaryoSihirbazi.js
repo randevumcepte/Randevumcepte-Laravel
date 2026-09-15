@@ -154,20 +154,68 @@
         });
     }
 
-    /* ---------- Sesli önizleme (tarayıcı TTS) ---------- */
-    function sesliOnizle(){
-        if(!('speechSynthesis' in window)){
-            if(typeof swal === 'function') swal({type:'info', title:'Desteklenmiyor', text:'Tarayıcınız sesli önizlemeyi desteklemiyor.', timer:2500, showConfirmButton:false});
-            return;
-        }
-        window.speechSynthesis.cancel();
-        var botLines = $('#ssbDiyalog .ssb-balon--bot').map(function(){ return $(this).text(); }).get();
-        if(!botLines.length) return;
-        botLines.forEach(function(t){
-            var u = new SpeechSynthesisUtterance(t);
-            u.lang = 'tr-TR'; u.rate = 1.05;
-            window.speechSynthesis.speak(u);
+    /* ---------- Sesli önizleme (Google TTS erkek, cache'li) ----------
+       Santral aramasiyla AYNI ses: /api/v1/seslendir (tr-TR-Wavenet-E erkek WaveNet,
+       sunucu md5 cache). capsFix ile BUYUK harf markalari duzeltilir (ORBEY->Orbey) ki
+       hem harf harf okunmasin hem de santralla ayni md5 -> ayni sunucu cache paylasilsin.
+       Cache: oturum ici URL cache (_ttsCache) + sunucu md5 cache + tarayici mp3 cache. */
+    var _ttsAudio = null;
+    var _ttsCache = {}; // metin -> ses url (ayni oturumda tekrar POST etme)
+
+    function ttsCapsFix(s){
+        return String(s || '').replace(/[A-ZÇĞİÖŞÜ]{2,}/g, function(w){
+            return w.charAt(0) + w.slice(1).toLocaleLowerCase('tr');
         });
+    }
+
+    function ttsSesUrlGetir(metin, cb){
+        if(_ttsCache[metin]){ cb(_ttsCache[metin]); return; }
+        $.ajax({
+            url: '/api/v1/seslendir',
+            method: 'POST',
+            dataType: 'json',
+            data: { metin: metin, ses: 'tr-TR-Wavenet-E' },
+            success: function(res){
+                if(res && res.basarili && res.url){ _ttsCache[metin] = res.url; cb(res.url); }
+                else { cb(null); }
+            },
+            error: function(){ cb(null); }
+        });
+    }
+
+    function sesliOnizleDurdur(){
+        if(_ttsAudio){ try{ _ttsAudio.pause(); }catch(e){} _ttsAudio.onended = null; }
+        if(window.speechSynthesis){ try{ window.speechSynthesis.cancel(); }catch(e){} }
+    }
+
+    function sesliOnizle(){
+        var botLines = $('#ssbDiyalog .ssb-balon--bot').map(function(){ return $(this).text(); }).get()
+            .map(function(t){ return (t || '').trim(); }).filter(function(t){ return t; });
+        if(!botLines.length) return;
+
+        sesliOnizleDurdur();
+        _ttsAudio = new Audio();
+
+        var i = 0, herhangiCaldi = false;
+        function calSonraki(){
+            if(i >= botLines.length){
+                if(!herhangiCaldi && typeof swal === 'function'){
+                    swal({type:'info', title:'Ses üretilemedi', text:'Sunucu seslendirme servisi yanıt vermedi (TTS anahtarı tanımlı olmayabilir).', timer:3000, showConfirmButton:false});
+                }
+                return;
+            }
+            var metin = ttsCapsFix(botLines[i]);
+            i++;
+            ttsSesUrlGetir(metin, function(url){
+                if(!url){ calSonraki(); return; } // uretilemezse bu satiri atla
+                herhangiCaldi = true;
+                _ttsAudio.src = url;
+                var p = _ttsAudio.play();
+                if(p && p.catch){ p.catch(function(){}); }
+            });
+        }
+        _ttsAudio.onended = calSonraki;
+        calSonraki();
     }
 
     /* ---------- Kaydet ---------- */
@@ -253,7 +301,7 @@
     });
 
     $(document).on('hidden.bs.modal', '#senaryo_sihirbaz_modal', function(){
-        window.speechSynthesis && window.speechSynthesis.cancel();
+        sesliOnizleDurdur();
         if(sessionStorage.getItem('ssbReklamGeriDon') === '1'){
             sessionStorage.removeItem('ssbReklamGeriDon');
             setTimeout(function(){ $('#yeni_kampanya_modal').modal('show'); }, 300);

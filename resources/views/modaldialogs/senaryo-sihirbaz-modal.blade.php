@@ -111,7 +111,7 @@
 #senaryo_sihirbaz_modal .ssb-content{ border:none; border-radius:18px; overflow:hidden; box-shadow:0 28px 70px rgba(15,23,42,.28); }
 .ssb-header{ display:flex; align-items:center; gap:14px; padding:18px 22px; background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; }
 .ssb-header-icon{ width:44px; height:44px; border-radius:12px; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; font-size:19px; }
-.ssb-header-text h5{ margin:0; font-weight:700; font-size:18px; }
+.ssb-header-text h5{ margin:0; font-weight:700; font-size:18px; color:#fff; }
 .ssb-header-text p{ margin:0; font-size:12.5px; opacity:.85; }
 .ssb-close{ margin-left:auto; background:none; border:none; color:#fff; font-size:28px; line-height:1; opacity:.85; cursor:pointer; }
 
