@@ -1899,11 +1899,11 @@
                      </a>
                   </li>
 
-                  {{-- 8) Reklam Yönetimi (simdilik gizli - uzerinde calisiliyor) --}}
+                  {{-- 8) Reklam Yönetimi (test modu - menude acik; santral tarafi hardcoded, DB-okur AGI + Faz3 deploy bekliyor) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu>2)
                   @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.kampanya_yonet'))
-                  <li style="display:none;">
+                  <li>
                      @if($pageindex==22)
                      <a href="/isletmeyonetim/kampanya_yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
                      @else
