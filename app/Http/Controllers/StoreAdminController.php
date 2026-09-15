@@ -34083,10 +34083,19 @@ DB::raw('
             $ilkMusteri = MusteriPortfoy::where('salon_id',$request->salonId)->where('aktif',1)->orderBy('id','desc')->first();
         
         $isletme = Salonlar::where('id',$request->salonId)->value('santral_telaffuz_hatirlatma_aramasi');
-        
+        if (!$isletme) $isletme = Salonlar::where('id',$request->salonId)->value('salon_adi'); // telaffuz alani bossa isletme adi
+
         $ornekMusteri = isset($request->katilimciId) ? User::where('id',$request->katilimciId)->first() : User::where('id',$ilkMusteri->user_id)->first();
         // Cinsiyete gore bey/hanim EKLENMEZ; musterinin tam ismi okunur.
         $musteriAdi = trim($ornekMusteri->name);
+        // {gün} = ornek musterinin son randevudan bu yana YOKLUK gunu (kupon kalan gunu DEGIL;
+        // senaryo metni "kac gundur gelmedi" anlaminda kullaniyor). Randevu yoksa/bugunse makul varsayilan.
+        $sonRandevuTarihi = Randevular::where('user_id',$ornekMusteri->id)
+            ->where('salon_id',$request->salonId)
+            ->orderBy('tarih','desc')
+            ->value('tarih');
+        $yoklukGun = $sonRandevuTarihi ? Carbon::parse($sonRandevuTarihi)->diffInDays(Carbon::today()) : 0;
+        if ($yoklukGun <= 0) $yoklukGun = 30;
          
 
         // Şablon ID'si "sablon-X" prefix'liyse kullanıcının kendi SMS taslağı,
@@ -34113,7 +34122,7 @@ DB::raw('
         $promptStr = str_replace('{müşteri}',$musteriAdi,$sablon);
         $promptStr = str_replace('{işletmeden}',$isletme,$promptStr);
         $promptStr = str_replace('{indirim}',$request->kampanyaIndirim,$promptStr);
-        $promptStr = str_replace('{gün}',self::kampanyaKalanGun($request->gecerlilikTarihi),$promptStr);
+        $promptStr = str_replace('{gün}',$yoklukGun,$promptStr);
         $hizmetUrunPaket = '';
         if(str_contains($request->hizmetUrunPaket,'urun'))
         {
