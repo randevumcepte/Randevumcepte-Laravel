@@ -24409,47 +24409,54 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function kampanyaAra(Request $request){
         $kampanyabeklenen= KampanyaYonetimi::where('id',$request->kampanyaid)->first();
+        if(!$kampanyabeklenen){
+            return array("mesaj" => "Kampanya bulunamadı.", "gonder"=>"");
+        }
+
+        // Manuel "tekrar ara" hedef grubu:
+        //  - katilmayan => cevap verip katilmayanlar (durum_asistan = 0)
+        //  - beklenen (varsayilan) => cevapsiz/etkilesimsiz (durum_asistan IS NULL)
+        // Otomatik akis cevapsizlarda zaten "ilk arama + 1 tekrar" ile duruyor
+        // (tekrar_arandi=1 olunca cron bir daha almiyor). Manuel tetikte bayraklari
+        // ilk-arama durumuna resetliyoruz ki cron yeniden alsin ve yine ayni
+        // "en fazla 1 otomatik tekrar" dongusu islesin.
+        $hedefSorgu = \DB::table('kampanya_katilimcilari')->where('kampanya_id', $kampanyabeklenen->id);
+        if(isset($request->katilmayan)){
+            $hedefSorgu->where('durum_asistan', 0);
+        } else {
+            $hedefSorgu->whereNull('durum_asistan');
+        }
+        $hedefSorgu->update([
+            'durum_asistan'           => null,
+            'tekrar_aranacak'         => null,
+            'tekrar_arandi'           => null,
+            'tekrar_arama_tarih_saat' => null,
+            'asistan_ulasamadi'       => 0,
+            'kilitli'                 => null,
+        ]);
 
         if($request->hemen_aranacak=='on')
         {
-              $katilimcilar=array();
-               
-               foreach ($kampanyabeklenen->kampanya_katilimcilari as  $katilimci) {
-                 
-                if(isset($request->beklenen) && $katilimci->durum_asistan === null){                    
-                    array_push($katilimcilar,$katilimci);
-                }
-                if(isset($request->katilmayan)&& ($katilimci->durum_asistan === 0 && $katilimci->durum_asistan !== null) ){                    
-                    array_push($katilimcilar,$katilimci);
-                      
-                } 
-                
-              } 
-             
-              self::kampanyaAramaIleGonder($kampanyabeklenen,$katilimcilar);
-
-              
-              return array(
-                  "mesaj" => "Arama başarıyla gerçekleştiriliyor.",
-                  "gonder"=>"",
-              );
-              exit;
-        }
-        else
-        {
-        
-            
-             $kampanyabeklenen->asistan_tarih_saat = $request->gonderim_tarih." ".$request->gonderim_saat;
+             // Hemen: bir sonraki dakikaya planla; cron dakika-esleslesmesine (ilkAramaDakikasi)
+             // guvenli sekilde ~1 dk icinde yakalanir.
+             $kampanyabeklenen->asistan_tarih_saat = now()->addMinute()->format('Y-m-d H:i');
              $kampanyabeklenen->arama_ile_gonderim = true;
              $kampanyabeklenen->save();
              return array(
-                  "mesaj" => "Reklamın tekrar tanıtımı ".date('d.m.y',strtotime($request->gonderim_tarih))." tarihi ve ".date('H:i',strtotime($request->gonderim_saat))." saati için başarıyla planlandı.",
+                  "mesaj" => "Cevapsiz katilimcilar icin tekrar arama baslatiliyor.",
                   "gonder"=>"",
               );
-              exit;
         }
-
-     
+        else
+        {
+             $kampanyabeklenen->asistan_tarih_saat = $request->arama_tarih." ".$request->arama_saat;
+             $kampanyabeklenen->arama_ile_gonderim = true;
+             $kampanyabeklenen->save();
+             return array(
+                  "mesaj" => "Reklamın tekrar tanıtımı ".date('d.m.y',strtotime($request->arama_tarih))." tarihi ve ".date('H:i',strtotime($request->arama_saat))." saati için başarıyla planlandı.",
+                  "gonder"=>"",
+              );
+        }
     }
      public function kampanyapaketfiyatgetir(Request $request){
         $kampanya_hizmetler=PaketHizmetler::where('paket_id',$request->paket_id)->get();

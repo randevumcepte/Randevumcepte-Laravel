@@ -15948,7 +15948,7 @@ $('#kampanyabeklenenleritekrarara').click(function(e){
                 type: "POST",
                 url: '/isletmeyonetim/kampanyaAra',
                 dataType: "json",
-                data : {kampanyaid:id,_token:$('input[name="_token"]').val(),sube:$('input[name="sube"]').val(),katilmayan:1,hemen_aranacak:$('#hemen_ara_katilmayan').val(),arama_tarih:$('#tekrar_arama_tarihi_katilmayan').val(),arama_saat:$('#tekrar_arama_saati_katilmayan').val()},
+                data : {kampanyaid:id,_token:$('input[name="_token"]').val(),sube:$('input[name="sube"]').val(),katilmayan:1,hemen_aranacak:($('#hemen_ara_katilmayan').is(':checked')?'on':''),arama_tarih:$('#tekrar_arama_tarihi_katilmayan').val(),arama_saat:$('#tekrar_arama_saati_katilmayan').val()},
                 beforeSend:function(){
                     $('#preloader').show();
                 },
@@ -16008,7 +16008,7 @@ $('#kampanyabeklenenleriara').click(function(e){
                 type: "POST",
                 url: '/isletmeyonetim/kampanyaAra',
                 dataType: "json",
-                data : {kampanyaid:id,_token:$('input[name="_token"]').val(),sube:$('input[name="sube"]').val(),beklenen:1,hemen_aranacak:$('#hemen_ara_bekleyen').val(),arama_tarih:$('#tekrar_arama_tarihi_bekleyen').val(),arama_saat:$('#tekrar_arama_saati_bekleyen').val()},
+                data : {kampanyaid:id,_token:$('input[name="_token"]').val(),sube:$('input[name="sube"]').val(),beklenen:1,hemen_aranacak:($('#hemen_ara_bekleyen').is(':checked')?'on':''),arama_tarih:$('#tekrar_arama_tarihi_bekleyen').val(),arama_saat:$('#tekrar_arama_saati_bekleyen').val()},
                 beforeSend:function(){
                     $('#preloader').show();
                 },
