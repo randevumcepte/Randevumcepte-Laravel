@@ -1,6 +1,9 @@
 @if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
 @section('content')
 
+{{-- Telafi onay metni ders mi randevu mu diline gore degissin (grup dersi aktif = ders) --}}
+<input type="hidden" id="grupDersiAktif" value="{{ optional($isletme)->grup_dersi_aktif ? 1 : 0 }}">
+
 <div class="rc-st-page">
 
    {{-- Modern Page Header --}}

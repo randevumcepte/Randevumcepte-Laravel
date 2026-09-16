@@ -301,6 +301,10 @@ $(document).on('click','i[name="seansDetay"]',function(e)
     // TELAFI (turuncu) daireye tiklaninca: musteri telafi dersine geldi mi?
     // "Evet" -> geldi=1 (yesile doner). "Hayir" -> telafi olarak kalir.
     if (geldi === '2') {
+        // Grup dersi aktifse "derse katıldı mı", degilse (randevu isletmesi) "randevuya geldi mi".
+        var _telafiSoru = ($('#grupDersiAktif').val() === '1')
+            ? 'Müşteri telafi dersine katıldı mı?'
+            : 'Müşteri telafi randevusuna geldi mi?';
         swal({
             title: "Telafi Kullanılsın mı?",
             html: "<div style='padding:5px;'>" +
@@ -309,7 +313,7 @@ $(document).on('click','i[name="seansDetay"]',function(e)
                   "<div style='color:#2d3748; font-size:15px; margin-top:8px;'><i class='fa fa-tag' style='color:#FDA172; width:20px;'></i> " + hizmetAdi + "</div>" +
                   "<div style='color:#2d3748; font-size:15px; margin-top:8px;'><i class='fa fa-calendar' style='color:#FDA172; width:20px;'></i> " + tarih + " | " + (saat || '--:--') + "</div>" +
                   "</div>" +
-                  "<div style='color:#6b7280; font-size:13px; margin-bottom:16px;'>Müşteri telafi dersine katıldı mı? \"Evet\" derseniz seans <b>Geldi (yeşil)</b> olarak işaretlenir.</div>" +
+                  "<div style='color:#6b7280; font-size:13px; margin-bottom:16px;'>" + _telafiSoru + " \"Evet\" derseniz seans <b>Geldi (yeşil)</b> olarak işaretlenir.</div>" +
                   "<div style='display:flex; gap:8px; justify-content:center;'>" +
                   "<button type='button' class='btn btn-sm btn-success' id='seansTelafiKullanildi' data-value='"+paketId+"' data-seans-id='" + seansId + "' style='border-radius:20px; padding:6px 18px;'><i class='fa fa-check'></i> Evet</button>" +
                   "<button type='button' class='btn btn-sm btn-secondary' id='seansTelafiIptal' style='border-radius:20px; padding:6px 18px;'>Hayır</button>" +

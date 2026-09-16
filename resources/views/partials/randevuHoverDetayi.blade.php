@@ -14,6 +14,9 @@
    elseif($r->randevuya_gelecek === 1) { $statusLabel = 'Gelecek'; $statusClass = 'gelecek'; }
    elseif($r->durum === 0) { $statusLabel = 'Onay Bekliyor'; $statusClass = 'beklemede'; }
 
+   // TELAFI: randevunun seansi telafi slotunda (geldi=2) ise ayrica Telafi rozeti gosterilir.
+   $telafiVar = \App\AdisyonPaketSeanslar::where('randevu_id', $r->id)->where('geldi', 2)->exists();
+
    $hizmetAdi = ($randevu->hizmet_id && $randevu->hizmetler) ? $randevu->hizmetler->hizmet_adi : '';
    $personelAdi = ($randevu->personel_id && $randevu->personeller) ? $randevu->personeller->personel_adi : '';
    $odaAdi = ($randevu->oda_id && $randevu->oda) ? $randevu->oda->oda_adi : '';
@@ -41,6 +44,7 @@
          <span class="rc-tip-time"><i class="fa fa-clock-o"></i> {{ $saatStr }}{{ $bitisStr ? '–'.$bitisStr : '' }}</span>
          @if($sureStr)<span class="rc-tip-dur">· {{ $sureStr }} dk</span>@endif
          <span class="rc-tip-status rc-st-{{ $statusClass }}">{{ $statusLabel }}</span>
+         @if($telafiVar)<span class="rc-tip-telafi" style="padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:800;letter-spacing:.2px;text-transform:uppercase;background:#ffe8d6;color:#c2410c;margin-left:6px;">Telafi</span>@endif
       </div>
    </div>
    <div class="rc-tip-body">
