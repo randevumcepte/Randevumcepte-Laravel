@@ -23047,7 +23047,9 @@ $('#katilimciTuru,#gelenGelmeyenMusteri,#musteriGruplari').change(function(e){
 $('#gorevTanimla').click(function(e){
     e.preventDefault();
 
-    kampanyaolustur($('#kampanyaTuru').val());
+    // gonderim_turu = secili KANAL (gorevTuru). Onceden sablon turu (kampanyaTuru) gonderiliyordu;
+    // o varsayilan '' oldugu icin dogrulama hep basarisiz olup bos uyari veriyordu.
+    kampanyaolustur($('#gorevTuru').val());
 
 
 });
