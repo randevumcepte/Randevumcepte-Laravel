@@ -32093,10 +32093,16 @@ SOZLESME_TXT;
         $oturum = \App\DersOturumu::with(['katilimcilar.musteri', 'personel'])
             ->where('salon_id', $salonId)->find($request->oturum_id);
         if (!$oturum) return response()->json(['durum' => 'hata', 'mesaj' => 'Oturum bulunamadi.'], 404);
-        $katilimcilar = $oturum->katilimcilar->map(function ($k) {
+        // Telafi butonu SADECE paketi olanda gosterilir (seans takibi akisi): hizmet
+        // baglilıysa ve katilimcinin bu hizmete hakki varsa (veya zaten dusulmusse).
+        $oturumHizmetId = (int) $oturum->hizmet_id;
+        $katilimcilar = $oturum->katilimcilar->map(function ($k) use ($salonId, $oturumHizmetId) {
+            $paketVar = ((int)$k->hak_dusuldu === 1)
+                || ($oturumHizmetId > 0 && \App\Services\DersSeansServisi::hakVarMi($salonId, $k->user_id, $oturumHizmetId));
             return ['id' => $k->id, 'user_id' => $k->user_id,
                 'ad' => $k->musteri ? $k->musteri->name : ('#' . $k->user_id),
-                'tel' => $k->musteri ? $k->musteri->cep_telefon : '', 'durum' => $k->durum];
+                'tel' => $k->musteri ? $k->musteri->cep_telefon : '', 'durum' => $k->durum,
+                'hak_dusuldu' => (int)$k->hak_dusuldu, 'paket_var' => $paketVar ? 1 : 0];
         })->values();
         $aktif = $oturum->katilimcilar->whereNotIn('durum', ['iptal', 'bekleme'])->count();
         return response()->json(['durum' => 'ok', 'oturum' => [
