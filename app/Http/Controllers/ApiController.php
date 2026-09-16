@@ -1860,7 +1860,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         //   ile gizler; "KARMA" icinde PAKET substring'i olmadigi icin karma
         //   randevularda tahsilat butonu dogru sekilde gorunur (geriye uyumlu).
         $seansKayitlari = AdisyonPaketSeanslar::whereIn('randevu_id', $randevuIds)
-            ->get(['randevu_id','adisyon_paket_id','adisyon_hizmet_id','hizmet_id']);
+            ->get(['randevu_id','adisyon_paket_id','adisyon_hizmet_id','hizmet_id','geldi']);
         // Paket merge icin: seans kayitlarini randevu_id'ye gore grupla (web ile ayni).
         $seanslarByRandevuMobil = $seansKayitlari->groupBy('randevu_id');
         $seansSayisiKayitliHizmetIds = AdisyonHizmetler::whereIn('id', $seansKayitlari->pluck('adisyon_hizmet_id')->filter()->unique()->values())
@@ -2197,6 +2197,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 if($__sv->adisyon_hizmet_id){ $_paketSource = 'AH:'.$__sv->adisyon_hizmet_id; break; }
             }
             $rol = $personelRolu;
+            // TELAFI: bu randevunun seanslarindan biri telafi slotunda (geldi=2) ise
+            // durum string'ine 6. segment olarak 1 eklenir (app telafi rozeti icin). Ekstra sorgu yok.
+            $_telafiVar = $seansVar->where('geldi', 2)->isNotEmpty() ? 1 : 0;
             return [
                 'id' => $rh->randevu_id,
                 '_paketSource' => $_paketSource,
@@ -2219,7 +2222,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 'modal_title' => $modalTitle,
                 'duzenle_buton'=>$duzenleButon,
                 'satis_olustu'=>$satisOlustu,
-                'durum'=>($rh->randevu->durum !==null ? $rh->randevu->durum : "na") ."-".($rh->randevu->randevuya_geldi !== null ? $rh->randevu->randevuya_geldi : "na").'-'.$satisOlustu.'-'.$odemeYapildi.'-'.$rh->id,
+                'durum'=>($rh->randevu->durum !==null ? $rh->randevu->durum : "na") ."-".($rh->randevu->randevuya_geldi !== null ? $rh->randevu->randevuya_geldi : "na").'-'.$satisOlustu.'-'.$odemeYapildi.'-'.$rh->id.'-'.$_telafiVar,
             ];
         });
 
