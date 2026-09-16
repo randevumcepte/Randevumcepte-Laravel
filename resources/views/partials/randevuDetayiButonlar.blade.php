@@ -36,6 +36,12 @@
          <a name="geldi_isaretle"   href="#" class="btn btn-success" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-check"></i> Geldi</a>
       @endif
 
+      {{-- TELAFI: sadece paket/seans randevusunda. Seansı telafi slotuna (geldi=2) alır;
+           bir sonraki randevuda o telafiye bağlanır (yeni seans düşülmez). --}}
+      @if(($hasPaketTahsilat ?? false))
+         <a name="telafi_isaretle" href="#" class="btn" style="background:#FDA172;border-color:#FDA172;color:#fff" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-exclamation-triangle"></i> Telafi</a>
+      @endif
+
       @if($_SERVER['HTTP_HOST'] != 'randevu.randevumcepte.com.tr')
          @if(!empty($adisyonId))
             {{-- Randevuya bagli (cozumlenebilen) adisyon var -> popup yerine ilgili adisyon (tahsilat) ekranina git --}}

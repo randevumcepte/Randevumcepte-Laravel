@@ -8677,6 +8677,21 @@ private function ayAdiCevir($ingilizceAy)
                         // takiliyordu (ornek: musteri 163360, hizmet 3805 icin iki adisyon_hizmet;
                         // biri NULL biri 10 seans; APS NULL olana bagliniyordu, takvim etiketi
                         // 'seans_sayisi > 0' arayan mantiga takilip PAKET etiketini gostermiyordu).
+                        // TELAFI: musterinin bu hizmette bekleyen telafisi (APS.geldi=2)
+                        // varsa YENI seans dusme; mevcut telafiyi bu randevuya bagla
+                        // (tarih/saat/personel/randevu_id guncelle, geldi=2 KALIR -> telafi slotu).
+                        $_bekleyenTelafi = \App\Services\DersSeansServisi::bekleyenTelafi($request->sube, $musteriid, $rHizmet, $tarihler);
+                        if ($_bekleyenTelafi) {
+                            $_bekleyenTelafi->seans_tarih = $tarihler;
+                            $_bekleyenTelafi->seans_saat  = $yenisaatbaslangic;
+                            $_bekleyenTelafi->personel_id = $personel_id;
+                            $_bekleyenTelafi->cihaz_id    = $cihaz_id;
+                            $_bekleyenTelafi->oda_id      = $hizmetOdaId;
+                            $_bekleyenTelafi->randevu_id  = $yenirandevu->id;
+                            $_bekleyenTelafi->save();       // geldi=2 dokunulmaz
+                            continue; // yeni seans dusme, sonraki hizmete gec
+                        }
+
                         $_hizmetSecili = null;
                         foreach (DB::table('adisyon_hizmetler')
                             ->join('adisyonlar', 'adisyon_hizmetler.adisyon_id', '=', 'adisyonlar.id')
@@ -21386,6 +21401,7 @@ DB::raw('
                     'ap_id' => $orijinal->adisyon_paket_id ?? null,
                 ]);
                 if (!$orijinal) continue;
+                if ((int)$orijinal->geldi === 2) continue; // telafi slotu korunur
 
                 $orijinal->geldi = true;
                 $orijinal->dusulen_miktar = 1;
@@ -21427,9 +21443,11 @@ DB::raw('
                     ]);
                 }
             }
-            // Isaretlenmeyenleri sil — yeni replikalar zaten $secilenIds'e eklendigi icin korunur
+            // Isaretlenmeyenleri sil — yeni replikalar zaten $secilenIds'e eklendigi icin korunur.
+            // Telafi slotu (geldi=2) ASLA silinmez -> telafi kredisi kazara kaybolmasin.
             AdisyonPaketSeanslar::where('randevu_id', $randevu->id)
                 ->whereNotIn('id', $secilenIds)
+                ->where(function($q){ $q->whereNull('geldi')->orWhere('geldi','!=',2); })
                 ->delete();
             // Paket bazli DB durumu — gosterim sorunu teshisi icin
             try {
@@ -21456,7 +21474,7 @@ DB::raw('
         } else {
             foreach($seanslar->get() as $seans)
             {
-
+                if((int)$seans->geldi === 2) continue; // telafi slotu korunur (geldi=2 ezilmez)
                 $seans->geldi = true;
                 $seans->save();
             }
@@ -23564,6 +23582,31 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         }
         return array( 'adisyon_id' => $adisyon_id,'on_gorusmeler' => self::ongorusmegetir($request,false),'user_id'=>$user->id);
     }
+    // Randevuyu TELAFI olarak isaretle: paket/seans randevusunun APS satiri(lari)
+    // geldi=2 yapilir (telafi slotu). Randevu no-show (gelmedi) sayilir ama seans
+    // korunur -> bir sonraki randevuda bekleyenTelafi ile o randevuya baglanir.
+    public function randevuTelafiIsaretle(Request $request)
+    {
+        $randevu = Randevular::where('id',$request->randevuid)->first();
+        if(!$randevu) return array('mesaj'=>'Randevu bulunamadı','hata'=>true);
+        $q = AdisyonPaketSeanslar::where('randevu_id',$randevu->id);
+        if($request->hizmetid) $q->where('hizmet_id',$request->hizmetid);
+        $seansVar = $q->get();
+        if($seansVar->count() === 0){
+            return array('mesaj'=>'Bu randevu paket/seans randevusu değil, telafi işaretlenemez.','hata'=>true);
+        }
+        foreach($seansVar as $s){ $s->geldi = 2; $s->save(); }
+        // Telafi = gelmedi + makyaj hakki: randevu no-show sayilir, seans telafi kalir.
+        $randevu->randevuya_geldi = false;
+        $randevu->save();
+        foreach($randevu->hizmetler as $rh){ $rh->seansa_geldi = false; $rh->save(); }
+        try {
+            $_lbl = (optional($randevu->users)->name ?? ('Müşteri #'.$randevu->user_id)).' — '.date('d.m.Y',strtotime($randevu->tarih)).' '.date('H:i',strtotime($randevu->saat));
+            SalonAudit::log($randevu->salon_id,'randevu_telafi','randevu',$randevu->id,$_lbl,'Randevu telafi olarak işaretlendi (seans telafi slotuna alındı)');
+        } catch(\Throwable $e){}
+        return array('mesaj'=>'Telafi olarak işaretlendi','telafi'=>true);
+    }
+
     public function randevuyagelmedi(Request $request)
     {
 
@@ -23582,9 +23625,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                    
                     foreach($seansVar as $seansVar1)
                     {
+                        if((int)$seansVar1->geldi === 2) continue; // telafi slotu korunur
                         $seansVar1->geldi = false;
                         $seansVar1->save();
-                        
+
                     }
                     foreach($randevu->hizmetler as $randevuHizmet)
                     {

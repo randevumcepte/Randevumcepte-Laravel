@@ -1131,6 +1131,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/kategoriyegorehizmetgetir','StoreAdminController@kategoriyegorehizmetgetir');
 	Route::post('/ongorusmesatisyapildi','StoreAdminController@ongorusmesatisyapildi');
 	Route::post('/randevuyagelmedi','StoreAdminController@randevuyagelmedi');
+	Route::post('/randevuTelafiIsaretle','StoreAdminController@randevuTelafiIsaretle');
 	Route::get('/seanstakip','StoreAdminController@seanstakip');
 	Route::post('/grupsil','StoreAdminController@grup_sil');
 	Route::post('/grupduzenle','StoreAdminController@grupduzenle');

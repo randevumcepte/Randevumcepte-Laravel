@@ -3027,7 +3027,44 @@ $(document).on('click','a[name="gelmedi_isaretle"]',function(e){
 
             randevuyaGelmedi(hizmetid,id,'');
 
-           
+
+        }
+    });
+});
+// TELAFI isaretle — paket/seans randevusunu telafi slotuna (geldi=2) alir.
+$(document).on('click','a[name="telafi_isaretle"]',function(e){
+    e.preventDefault();
+    var id = $(this).attr('data-value');
+    var hizmetid = $(this).attr('data-index-number');
+    swal({
+        title: "Telafi seansı",
+        text: "Bu randevu telafi olarak işaretlensin mi? Seans telafi slotuna alınır; müşteriye bir sonraki randevu verildiğinde bu telafiye bağlanır (yeni seans düşülmez).",
+        type: "warning",
+        showCancelButton: true,
+        confirmButtonColor: '#FDA172',
+        confirmButtonText: 'Telafi İşaretle',
+        cancelButtonText: "Vazgeç",
+        confirmButtonClass: 'btn btn-success',
+        cancelButtonClass: 'btn btn-danger',
+    }).then(function (result) {
+        if(result.value){
+            $.ajax({
+                type: "POST",
+                url: '/isletmeyonetim/randevuTelafiIsaretle',
+                data: {randevuid:id,hizmetid:hizmetid,sube:$('input[name="sube"]').val(),_token:$('input[name="_token"]').val()},
+                dataType: "json",
+                headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
+                beforeSend: function(){ $('#preloader').show(); },
+                success: function(res){
+                    $('#preloader').hide();
+                    if(res && res.hata){ swal('Uyarı', res.mesaj||'Telafi işaretlenemedi', 'warning'); return; }
+                    swal({title:'Telafi', text:(res && res.mesaj) ? res.mesaj : 'Telafi olarak işaretlendi', type:'success', timer:1600, showConfirmButton:false});
+                    $('#modal-view-event').modal('hide');
+                    if($('#randevu_liste').length){ randevufiltre(); }
+                    if($('#calendar').length){ takvimyukle(false,false); }
+                },
+                error: function (request){ $('#preloader').hide(); if(document.getElementById('hata')) document.getElementById('hata').innerHTML = request.responseText; }
+            });
         }
     });
 });
