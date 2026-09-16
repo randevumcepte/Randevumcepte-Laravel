@@ -34588,13 +34588,11 @@ DB::raw('
 
         $html = '';
 
-        // Senaryo Sihirbazı ile oluşturulan senaryolar (sistem + bu salon), kanala göre
+        // Senaryo Sihirbazı senaryolari (sistem + bu salon) — kanal/tur filtresi UYGULANMAZ;
+        // sihirbaz her sey degisken oldugundan senaryolar filtre secince KAYBOLMAMALI, hep gorunur.
         $senaryolar = KampanyaSenaryolari::where('aktif',1)
             ->where(function($q) use ($request){
                 $q->whereNull('salon_id')->orWhere('salon_id',$request->salonId);
-            })
-            ->where(function($q) use ($request){
-                if($request->gorevTuru != '') $q->where('gorev_turu',(int)$request->gorevTuru);
             })
             ->orderBy('ad')->get();
 

@@ -15638,7 +15638,7 @@ $(document).on('change', '#kampanyaTuru,#gorevTuru',function(e){
             $('#kampanyaTuru').empty();
             $('#kampanyaTuru').append('<option value="">Tümü</option><option value="1">Tek SMSler</option><option value="2">Uzun SMSler</option><option value="3">Kaydedilen SMSler</option>');
             $('#sablon_olustur').attr('style','display:inline');
-            $('#kampanyaSablonFiltre').attr('style','display: block;');
+            $('#kampanyaSablonFiltre').attr('style','display: none;'); // Sablon turu ayrimi kaldirildi (sihirbaz var)
             $('#planlamaYazi').removeClass('col-md-12').addClass('col-md-6');
         }
         else if($(this).val()=='4')
