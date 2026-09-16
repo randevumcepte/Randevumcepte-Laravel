@@ -14679,6 +14679,11 @@ private function createDurumButonlari($id, $tip)
             ->where('adisyon_paket_id', $id)
             ->where('geldi', 0)
             ->count();
+
+        $telafi = DB::table('adisyon_paket_seanslar')
+            ->where('adisyon_paket_id', $id)
+            ->where('geldi', 2)
+            ->count();
     } else {
         $hizmet = DB::table('adisyon_hizmetler')->find($id);
         $toplam = $hizmet->seans_sayisi ?? 0;
@@ -14692,9 +14697,15 @@ private function createDurumButonlari($id, $tip)
             ->where('adisyon_hizmet_id', $id)
             ->where('geldi', 0)
             ->count();
+
+        $telafi = DB::table('adisyon_paket_seanslar')
+            ->where('adisyon_hizmet_id', $id)
+            ->where('geldi', 2)
+            ->count();
     }
-    
-    $bekleyen = $toplam - $kullanilan - $kullanilmayan;
+
+    // Telafi da (Gelmedi gibi) kapasiteyi tuketir -> bekleyen'den dusulur.
+    $bekleyen = $toplam - $kullanilan - $kullanilmayan - $telafi;
 
     // Lazer epilasyon paketi/hizmeti mi? Paket adi VEYA icindeki hizmet adlarindan
     // biri "lazer" iceriyorsa (kart bazli lazer tespitiyle ayni mantik).
@@ -14751,6 +14762,7 @@ private function createDurumButonlari($id, $tip)
            '<button name="bekleyen_seanslar" data-value="'.$id.'" type="button" style="'.$btnStil.'" class="btn btn-warning">'.$bekleyen.' <i class="fa fa-calendar"></i></button>' .
            '<button type="button" name="kullanilan_seanslar" data-value="'.$id.'" style="'.$btnStil.'" class="btn btn-success">'.$kullanilan.' <i class="fa fa-check"></i></button>' .
            '<button type="button" name="kullanilmayan_seanslar" data-value="'.$id.'" style="'.$btnStil.'" class="btn btn-danger">'.$kullanilmayan.' <i class="fa fa-times"></i></button>' .
+           '<button type="button" name="telafi_seanslar" data-value="'.$id.'" style="'.$btnStil.';background:#FDA172;border-color:#FDA172;color:#fff" class="btn" title="Telafi">'.$telafi.' <i class="fa fa-exclamation-triangle"></i></button>' .
            $pdfBtn .
            '</span>';
 }

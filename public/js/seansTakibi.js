@@ -223,6 +223,7 @@ function formatHizmetDetaylari(hizmetler) {
 
             if (seans.geldi === 1) { ikonClass = 'fa-check-circle'; ikonColor = '#28a745'; title += ' - Geldi'; }
             else if (seans.geldi === 0) { ikonClass = 'fa-times-circle'; ikonColor = '#dc3545'; title += ' - Gelmedi'; }
+            else if (seans.geldi === 2) { ikonClass = 'fa-exclamation-circle'; ikonColor = '#FDA172'; title += ' - Telafi'; }
             else { title += ' - Beklemede'; }
 
             ikonlar += '<i data-index-number="'+hizmet.hizmetId+'" data-tarih="'+seans.seans_tarih+'" data-saat="'+seans.seans_saat+'" data-value="'+hizmet.id+'" data-lazer="'+lazer+'" name="seansDetay" class="fa ' + ikonClass + '" style="font-size:20px;color:' + ikonColor + ';margin:0 2px;cursor:pointer;" title="' + title + '" data-seans-id="' + seans.id + '"></i>';
@@ -235,7 +236,8 @@ function formatHizmetDetaylari(hizmetler) {
 
         var kullanilan = seansDetaylari.filter(function(s){ return s.geldi===1; }).length;
         var gelmedi = seansDetaylari.filter(function(s){ return s.geldi===0; }).length;
-        var kalanS = hizmet.toplam_seans - (kullanilan+gelmedi);
+        var telafi = seansDetaylari.filter(function(s){ return s.geldi===2; }).length;
+        var kalanS = hizmet.toplam_seans - (kullanilan+gelmedi+telafi);
         html += '<input type="hidden" name="paketMusteriAdi" data-value="'+hizmet.id+'" value="'+hizmet.musteriAdi+'">' +
                 '<div class="col-sm-6 col-md-4 col-lg-3 mb-3">' +
                 '<div class="card h-100 shadow-sm" style="border: 1px solid rgba(0,0,0,0.05); border-radius: 12px;">' +
@@ -247,9 +249,10 @@ function formatHizmetDetaylari(hizmetler) {
                 '<div class="card-body pt-0">' +
                 '<div class="mb-2 seans-ikonlari" style="min-height: 45px;">' + ikonlar + '</div>' +
                 '<div class="row mt-2">' +
-                '<div class="col-4 text-center"><small class="text-muted d-block">Kullanıldı</small><strong class="text-success">'+kullanilan+'</strong></div>' +
-                '<div class="col-4 text-center"><small class="text-muted d-block">Kalan</small><strong class="text-warning">'+kalanS+'</strong></div>' +
-                '<div class="col-4 text-center"><small class="text-muted d-block">Kullanılmadı</small><strong class="text-danger">'+gelmedi+'</strong></div>' +
+                '<div class="col-3 text-center"><small class="text-muted d-block">Kullanıldı</small><strong class="text-success">'+kullanilan+'</strong></div>' +
+                '<div class="col-3 text-center"><small class="text-muted d-block">Kalan</small><strong class="text-warning">'+kalanS+'</strong></div>' +
+                '<div class="col-3 text-center"><small class="text-muted d-block">Kullanılmadı</small><strong class="text-danger">'+gelmedi+'</strong></div>' +
+                '<div class="col-3 text-center"><small class="text-muted d-block">Telafi</small><strong style="color:#FDA172">'+telafi+'</strong></div>' +
                 '</div>' +
                 (lazer ? "<div class='mt-2'><button type='button' name='cihazBilgileriKart' data-key='"+kartKey+"' style='display:block; width:100%; background:#4f46e5; color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:600; padding:9px 8px; cursor:pointer; text-align:center; white-space:normal; line-height:1.2;'><i class='fa fa-bolt'></i> Cihaz Bilgileri</button></div>" : '') +
                 '</div></div></div>';
@@ -310,6 +313,7 @@ $(document).on('click','i[name="seansDetay"]',function(e)
               "<button type='button' class='btn btn-sm btn-success' id='seansKullanildi' data-value='"+paketId+"' data-seans-id='" + seansId + "' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-check'></i> Kullanıldı</button>" +
 
               "<button type='button' class='btn btn-sm btn-danger' id='seansKullanilmadi' data-value='"+paketId+"' data-seans-id='" + seansId + "' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-times'></i> Kullanılmadı</button>" +
+              "<button type='button' class='btn btn-sm' id='seansTelafi' data-value='"+paketId+"' data-seans-id='" + seansId + "' style='border-radius:20px; padding:6px 12px; background:#FDA172; border-color:#FDA172; color:#fff;'><i class='fa fa-exclamation-triangle'></i> Telafi</button>" +
                             "<button type='button' class='btn btn-sm btn-warning' id='seansBeklemede' data-value='"+paketId+"' data-seans-id='" + seansId + "' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-clock-o'></i> Beklemede</button>" +
               "</div>" +
               "</div>",
@@ -550,6 +554,8 @@ $(document).on('click','i[name="yeniSeansEkle"]',function(e)
 
               "<button type='button' class='btn btn-sm btn-danger' id='seansKullanilmadiYeni'  data-index-number='"+hizmetId+"' data-paket='"+paket+"' data-value='"+paketId+"' style='border-radius:20px; padding:6px 12px;'><i class='fa fa-times'></i> Kullanılmadı</button>" +
 
+              "<button type='button' class='btn btn-sm' id='seansTelafiYeni' data-index-number='"+hizmetId+"' data-paket='"+paket+"' data-value='"+paketId+"' style='border-radius:20px; padding:6px 12px; background:#FDA172; border-color:#FDA172; color:#fff;'><i class='fa fa-exclamation-triangle'></i> Telafi</button>" +
+
               "</div>" +
               "</div>",
         showCancelButton: false,
@@ -651,13 +657,13 @@ $(document).on('click','#seansKullanilmadiYeni',function(e){
                 url: '/isletmeyonetim/seansEkle',
                 data:  {hizmetId:hizmetId,paketId:paketId,_token:$('input[name="_token"]').val(),sube:$('input[name="sube"]').val(),musteriId:musteriId,geldi:0,paket:paket,seansTarihi:seansTarihi} ,
                 dataType: "text",
-                
+
                 beforeSend: function(){
                     $('#preloader').show();
                 },
                success: function(result)  {
                     $('#preloader').hide();
-                     
+
                     swal({
                         type: "success",
                         title: "Başarılı",
@@ -668,8 +674,51 @@ $(document).on('click','#seansKullanilmadiYeni',function(e){
                         timer: 3000,
                     });
                     seanslariGetir(paketId);
-                    
-                     
+
+
+                },
+                error: function (request, status, error) {
+                     document.getElementById('hata').innerHTML =request.responseText;
+                     $('#preloader').hide();
+                }
+            });
+
+});
+$(document).on('click','#seansTelafiYeni',function(e){
+
+    var paket  = $(this).attr('data-paket');
+    var paketId = $(this).attr('data-value');
+    var hizmetId = $(this).attr('data-index-number');
+    var musteriId = $('#musteriKarti').length ? $('#musteriKarti').val() : '';
+    var seansTarihi = seansTarihiOku();
+    e.preventDefault();
+    if (seansTarihi === null) {
+        seansTarihUyar();
+        return;
+    }
+     $.ajax({
+                type: "POST",
+                url: '/isletmeyonetim/seansEkle',
+                data:  {hizmetId:hizmetId,paketId:paketId,_token:$('input[name="_token"]').val(),sube:$('input[name="sube"]').val(),musteriId:musteriId,geldi:2,paket:paket,seansTarihi:seansTarihi} ,
+                dataType: "text",
+
+                beforeSend: function(){
+                    $('#preloader').show();
+                },
+               success: function(result)  {
+                    $('#preloader').hide();
+
+                    swal({
+                        type: "success",
+                        title: "Başarılı",
+                        text:  "Seans telafi olarak başarıyla eklendi.",
+                        showCloseButton: false,
+                        showCancelButton: false,
+                        showConfirmButton:false,
+                        timer: 3000,
+                    });
+                    seanslariGetir(paketId);
+
                 },
                 error: function (request, status, error) {
                      document.getElementById('hata').innerHTML =request.responseText;
@@ -747,6 +796,42 @@ $(document).on('click','#seansKullanilmadi',function(e){
                     });
                     seanslariGetir(paketId);
                     
+                },
+                error: function (request, status, error) {
+                     document.getElementById('hata').innerHTML =request.responseText;
+                     $('#preloader').hide();
+                }
+            });
+
+});
+$(document).on('click','#seansTelafi',function(e){
+    var seansId = $(this).attr('data-seans-id');
+    var musteriId = $('#musteriKarti').length ? $('#musteriKarti').val() : '';
+      var paketId = $(this).attr('data-value');
+    e.preventDefault();
+     $.ajax({
+                type: "POST",
+                url: '/isletmeyonetim/seansGuncelle',
+                data: {seansId:seansId,geldi:2,_token:$('input[name="_token"]').val(),musteriId:musteriId} ,
+                dataType: "text",
+
+                beforeSend: function(){
+                    $('#preloader').show();
+                },
+               success: function(result)  {
+                    $('#preloader').hide();
+
+                    swal({
+                        type: "success",
+                        title: "Başarılı",
+                        text:  "Seans telafi olarak başarıyla güncellendi.",
+                        showCloseButton: false,
+                        showCancelButton: false,
+                        showConfirmButton:false,
+                        timer: 3000,
+                    });
+                    seanslariGetir(paketId);
+
                 },
                 error: function (request, status, error) {
                      document.getElementById('hata').innerHTML =request.responseText;

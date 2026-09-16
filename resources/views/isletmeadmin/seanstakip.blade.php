@@ -28,6 +28,7 @@
       <span class="rc-st-legend rc-st-legend-wait"><i class="fa fa-calendar"></i> Beklemede</span>
       <span class="rc-st-legend rc-st-legend-came"><i class="fa fa-check"></i> Geldi</span>
       <span class="rc-st-legend rc-st-legend-miss"><i class="fa fa-times"></i> Gelmedi</span>
+      <span class="rc-st-legend rc-st-legend-telafi"><i class="fa fa-exclamation-triangle"></i> Telafi</span>
    </div>
 
    {{-- Modern Tablo Kartı --}}
@@ -142,6 +143,7 @@
 .rc-st-legend-wait  { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); }
 .rc-st-legend-came  { background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); }
 .rc-st-legend-miss  { background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); }
+.rc-st-legend-telafi{ background: linear-gradient(135deg, #FDA172 0%, #ffb98f 100%); }
 
 /* === TABLO KARTI === */
 .rc-st-card {
