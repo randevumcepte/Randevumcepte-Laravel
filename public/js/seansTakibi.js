@@ -226,7 +226,7 @@ function formatHizmetDetaylari(hizmetler) {
             else if (seans.geldi === 2) { ikonClass = 'fa-exclamation-circle'; ikonColor = '#FDA172'; title += ' - Telafi'; }
             else { title += ' - Beklemede'; }
 
-            ikonlar += '<i data-index-number="'+hizmet.hizmetId+'" data-tarih="'+seans.seans_tarih+'" data-saat="'+seans.seans_saat+'" data-value="'+hizmet.id+'" data-lazer="'+lazer+'" name="seansDetay" class="fa ' + ikonClass + '" style="font-size:20px;color:' + ikonColor + ';margin:0 2px;cursor:pointer;" title="' + title + '" data-seans-id="' + seans.id + '"></i>';
+            ikonlar += '<i data-index-number="'+hizmet.hizmetId+'" data-tarih="'+seans.seans_tarih+'" data-saat="'+seans.seans_saat+'" data-value="'+hizmet.id+'" data-lazer="'+lazer+'" data-geldi="'+seans.geldi+'" name="seansDetay" class="fa ' + ikonClass + '" style="font-size:20px;color:' + ikonColor + ';margin:0 2px;cursor:pointer;" title="' + title + '" data-seans-id="' + seans.id + '"></i>';
         }
 
         for (var j = 0; j < kalanSeans; j++) {
@@ -296,6 +296,30 @@ $(document).on('click','i[name="seansDetay"]',function(e)
     var paketId = $(this).attr('data-value');
     var seansId = $(this).attr('data-seans-id');
     var lazer = $(this).attr('data-lazer');
+    var geldi = $(this).attr('data-geldi');
+
+    // TELAFI (turuncu) daireye tiklaninca: musteri telafi dersine geldi mi?
+    // "Evet" -> geldi=1 (yesile doner). "Hayir" -> telafi olarak kalir.
+    if (geldi === '2') {
+        swal({
+            title: "Telafi Kullanılsın mı?",
+            html: "<div style='padding:5px;'>" +
+                  "<div style='background:#fff4ec; padding:12px; border-radius:10px; margin-bottom:12px; border:1px solid #FDA172;'>" +
+                  "<div style='color:#2d3748; font-size:15px;'><i class='fa fa-user' style='color:#FDA172; width:20px;'></i> " + musteriAdi + "</div>" +
+                  "<div style='color:#2d3748; font-size:15px; margin-top:8px;'><i class='fa fa-tag' style='color:#FDA172; width:20px;'></i> " + hizmetAdi + "</div>" +
+                  "<div style='color:#2d3748; font-size:15px; margin-top:8px;'><i class='fa fa-calendar' style='color:#FDA172; width:20px;'></i> " + tarih + " | " + (saat || '--:--') + "</div>" +
+                  "</div>" +
+                  "<div style='color:#6b7280; font-size:13px; margin-bottom:16px;'>Müşteri telafi dersine katıldı mı? \"Evet\" derseniz seans <b>Geldi (yeşil)</b> olarak işaretlenir.</div>" +
+                  "<div style='display:flex; gap:8px; justify-content:center;'>" +
+                  "<button type='button' class='btn btn-sm btn-success' id='seansTelafiKullanildi' data-value='"+paketId+"' data-seans-id='" + seansId + "' style='border-radius:20px; padding:6px 18px;'><i class='fa fa-check'></i> Evet</button>" +
+                  "<button type='button' class='btn btn-sm btn-secondary' id='seansTelafiIptal' style='border-radius:20px; padding:6px 18px;'>Hayır</button>" +
+                  "</div>" +
+                  "</div>",
+            showCancelButton: false,
+            showConfirmButton: false
+        });
+        return;
+    }
 
     swal({
         title: "Seans Düzenle",
@@ -796,6 +820,46 @@ $(document).on('click','#seansKullanilmadi',function(e){
                     });
                     seanslariGetir(paketId);
                     
+                },
+                error: function (request, status, error) {
+                     document.getElementById('hata').innerHTML =request.responseText;
+                     $('#preloader').hide();
+                }
+            });
+
+});
+$(document).on('click','#seansTelafiIptal',function(e){
+    e.preventDefault();
+    if (typeof swal !== 'undefined' && swal.close) swal.close();
+});
+$(document).on('click','#seansTelafiKullanildi',function(e){
+    var seansId = $(this).attr('data-seans-id');
+     var musteriId = $('#musteriKarti').length ? $('#musteriKarti').val() : '';
+     var paketId = $(this).attr('data-value');
+    e.preventDefault();
+     $.ajax({
+                type: "POST",
+                url: '/isletmeyonetim/seansGuncelle',
+                data: {seansId:seansId,geldi:1,_token:$('input[name="_token"]').val(),musteriId:musteriId} ,
+                dataType: "text",
+
+                beforeSend: function(){
+                    $('#preloader').show();
+                },
+               success: function(result)  {
+                    $('#preloader').hide();
+
+                    swal({
+                        type: "success",
+                        title: "Başarılı",
+                        text:  "Telafi seansı kullanıldı (Geldi) olarak güncellendi.",
+                        showCloseButton: false,
+                        showCancelButton: false,
+                        showConfirmButton:false,
+                        timer: 3000,
+                    });
+                    seanslariGetir(paketId);
+
                 },
                 error: function (request, status, error) {
                      document.getElementById('hata').innerHTML =request.responseText;
