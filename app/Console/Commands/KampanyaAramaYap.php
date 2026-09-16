@@ -142,9 +142,13 @@ class KampanyaAramaYap extends Command
         // Cinsiyete gore bey/hanim EKLENMEZ; musterinin tam ismi okunur.
         $hitap = trim($katilimci->musteri->name);
 
+        // Govdedeki kisiye ozel placeholder'lari ({müşteri}, {gün}=bu musterinin en son
+        // GELDIGI randevudan bu yana yokluk gunu) bu katilimciya gore coz.
+        $govde = \App\KampanyaYonetimi::kisisellestir($kampanya->mesaj, $katilimci->user_id, $kampanya->salon_id);
+
         $mesaj = 'Merhaba ' . $hitap . '. Sizi ' .
             $kampanya->salon->santral_telaffuz_hatirlatma_aramasi . ' ariyorum. ' .
-            'Umarim gununuz saglikli geciyordur. ' . $kampanya->mesaj;
+            'Umarim gununuz saglikli geciyordur. ' . $govde;
 
         return [
             'alacakIdler' => '',

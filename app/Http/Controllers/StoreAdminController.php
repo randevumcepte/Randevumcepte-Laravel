@@ -22625,7 +22625,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
         $kampanyaMetinSMS = self::kampanyaIceriginiGoruntule($request);
 
-        $kampanya_yonetimi->mesaj = $request->gorevTuru==1 ?  preg_replace('/^([^.!?]*[.!?]\s*){2}/u', '', $request->kampanya_sms) : $kampanyaMetinSMS['promptStr'];
+        // {müşteri} ve {gün} placeholder olarak KORUNUR (gonderimde kisiye ozel cozulur).
+        // Arama: sadece ILK cumle (selamlama; santral kendi selamini basa ekliyor) silinir;
+        // "{gün} gundur goremiyoruz" cumlesi KORUNUR ve kisiye ozel seslendirilir.
+        $kampanya_yonetimi->mesaj = $request->gorevTuru==1
+            ? preg_replace('/^([^.!?]*[.!?]\s*){1}/u', '', $kampanyaMetinSMS['hamMetin'])
+            : $kampanyaMetinSMS['hamMetin'];
         $kampanya_yonetimi->musteri_turu = $musteriData['musteriTuru'];
         $kampanya_yonetimi->baslangic_tarihi = $request->asistan_tarih;
         $kampanya_yonetimi->bitis_tarihi = $request->kampanyaGecerlilikTarihi;
@@ -34100,14 +34105,9 @@ DB::raw('
         $ornekMusteri = isset($request->katilimciId) ? User::where('id',$request->katilimciId)->first() : User::where('id',$ilkMusteri->user_id)->first();
         // Cinsiyete gore bey/hanim EKLENMEZ; musterinin tam ismi okunur.
         $musteriAdi = trim($ornekMusteri->name);
-        // {gün} = ornek musterinin son randevudan bu yana YOKLUK gunu (kupon kalan gunu DEGIL;
-        // senaryo metni "kac gundur gelmedi" anlaminda kullaniyor). Randevu yoksa/bugunse makul varsayilan.
-        $sonRandevuTarihi = Randevular::where('user_id',$ornekMusteri->id)
-            ->where('salon_id',$request->salonId)
-            ->orderBy('tarih','desc')
-            ->value('tarih');
-        $yoklukGun = $sonRandevuTarihi ? Carbon::parse($sonRandevuTarihi)->diffInDays(Carbon::today()) : 0;
-        if ($yoklukGun <= 0) $yoklukGun = 30;
+        // {gün} onizleme = ornek musterinin en son GELDIGI randevudan bu yana yokluk gunu.
+        // (Gonderimde her katilimci icin KampanyaYonetimi::kisisellestir ile kisiye ozel cozulur.)
+        $yoklukGun = KampanyaYonetimi::musteriYoklukGunu($ornekMusteri->id, $request->salonId);
          
 
         // Şablon ID'si "sablon-X" prefix'liyse kullanıcının kendi SMS taslağı,
@@ -34150,12 +34150,22 @@ DB::raw('
             $hizmetUrunPaket = Paketler::where('id',$request->hizmetUrunPaket)->value('paket_adi');
         if($hizmetUrunPaket != '')
             $promptStr = str_replace('{ürün_hizmet_paket}',$hizmetUrunPaket,$promptStr);
+
+        // hamMetin: KAYDEDILECEK surum. Kisiye ozel olan {müşteri} ve {gün} placeholder
+        // olarak KORUNUR (gonderimde KampanyaYonetimi::kisisellestir ile cozulur); salon/
+        // kampanya bazli placeholder'lar ({işletmeden},{indirim},{ürün_hizmet_paket}) cozulur.
+        $hamMetin = str_replace('{işletmeden}',$isletme,$sablon);
+        $hamMetin = str_replace('{indirim}',$request->kampanyaIndirim,$hamMetin);
+        if($hizmetUrunPaket != '')
+            $hamMetin = str_replace('{ürün_hizmet_paket}',$hizmetUrunPaket,$hamMetin);
+
         $calinacakMetin  ='';
         if(!isset($request->kampanyaYayinlaniyor))
             $calinacakMetin =  self::metniSeseDonustur($promptStr);
         return array(
             'calinacakMetin' => $calinacakMetin,
             'promptStr'=>$promptStr,
+            'hamMetin'=>$hamMetin,
         );
 
     }

@@ -73,7 +73,7 @@ class KampanyaSMSGonder extends Command
 			                    $katilim_link = ' Katılım için : https://'.$kampanya->salon->domain.'/kampanyakatilim/'.$kampanya->id.'/'.$katilimci->user_id;
 			            	$parametre = [
 			            		'to'=>$katilimci->musteri->cep_telefon,
-			            		'message'=>$kampanya->mesaj.$katilim_link,
+			            		'message'=>\App\KampanyaYonetimi::kisisellestir($kampanya->mesaj, $katilimci->user_id, $kampanya->salon_id).$katilim_link,
 			            	];
 			            	array_push($mesajlar,$parametre);
 			            	Log::info('sms için müşteri kaydedildi');		
