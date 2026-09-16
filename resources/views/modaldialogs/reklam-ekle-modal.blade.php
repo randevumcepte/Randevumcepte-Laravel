@@ -1107,6 +1107,9 @@
             $('#yeni_kampanya_modal .reklam-kanal-kart').removeClass('is-active');
             if(v) $('#yeni_kampanya_modal .reklam-kanal-kart[data-gorev="'+v+'"]').addClass('is-active');
             rkpFiltreOzeti();
+            // Sablon/senaryo listesini ILK acilista yukle (onceden sadece kaydetme/kanal
+            // degisikligi tetikliyordu -> kayitli sablonlar ilk acilista gozukmuyordu).
+            if(typeof kampanyaSablonGetir === 'function') kampanyaSablonGetir();
          });
 
          // ---- CİNSİYET SEGMENTED ----
