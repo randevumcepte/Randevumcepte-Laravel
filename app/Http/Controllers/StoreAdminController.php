@@ -4200,7 +4200,7 @@ public function carkverilerigetir(Request $request)
     $dersEventleri = [];
     if ($takvim_turu == 1 && (optional($_waSalonRaw)->grup_dersi_aktif ?? 0)) {
         try {
-            $ders_oturumlari = \App\DersOturumu::with(['aktifKatilimcilar','personel.trenk'])
+            $ders_oturumlari = \App\DersOturumu::with(['aktifKatilimcilar.musteri','personel.trenk'])
                 ->where('salon_id', $isletmeId)
                 ->where('aktif', true)
                 ->where('tarih', '>=', $tarih1)
@@ -4226,6 +4226,16 @@ public function carkverilerigetir(Request $request)
 
                 $dersAdi = $o->ders_tipi ?: 'Grup Dersi';
                 $title   = $dersAdi . ' ' . $doluluk . '/' . $kapasite . ' dolu';
+                // Katilimci isimlerini slota bas (her biri alt satirda).
+                $isimler = $o->aktifKatilimcilar
+                    ->map(function ($k) {
+                        return $k->musteri ? trim($k->musteri->name) : '';
+                    })
+                    ->filter(function ($n) { return $n !== ''; })
+                    ->values();
+                if ($isimler->count()) {
+                    $title .= "\n" . $isimler->implode("\n");
+                }
                 if ($iptal) $title .= "\n(İPTAL)";
 
                 $dersEventleri[] = [

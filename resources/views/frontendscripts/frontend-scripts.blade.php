@@ -10,6 +10,10 @@
       - Yeni bir alani dahil etmek icin input'a "js-titlecase" sinifi eklemek
         veya asagidaki AD_ALANLARI listesine name eklemek yeterlidir.
      ========================================================================= --}}
+ {{-- Grup dersi slotu: baslik + katilimci isimleri cok-satirli gorunsun --}}
+ <style>
+     .ders-event .fc-title { white-space: pre-line; line-height: 1.15; }
+ </style>
  <script type="text/javascript">
      (function () {
          // Hangi isim alanlari otomatik bas-harf-buyutmeye dahil olsun:
