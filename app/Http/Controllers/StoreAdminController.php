@@ -23589,9 +23589,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     {
         $randevu = Randevular::where('id',$request->randevuid)->first();
         if(!$randevu) return array('mesaj'=>'Randevu bulunamadı','hata'=>true);
-        $q = AdisyonPaketSeanslar::where('randevu_id',$randevu->id);
-        if($request->hizmetid) $q->where('hizmet_id',$request->hizmetid);
-        $seansVar = $q->get();
+        // Randevudaki TUM hizmetlerin seansi telafi olur (Gelmedi/Geldi gibi randevu geneli).
+        $seansVar = AdisyonPaketSeanslar::where('randevu_id',$randevu->id)->get();
         if($seansVar->count() === 0){
             return array('mesaj'=>'Bu randevu paket/seans randevusu değil, telafi işaretlenemez.','hata'=>true);
         }

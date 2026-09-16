@@ -15585,9 +15585,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     {
         $randevu = Randevular::where('id', $request->randevuid)->first();
         if(!$randevu) return response()->json(['hata'=>true,'mesaj'=>'Randevu bulunamadı']);
-        $q = AdisyonPaketSeanslar::where('randevu_id', $randevu->id);
-        if($request->hizmetid) $q->where('hizmet_id', $request->hizmetid);
-        $seansVar = $q->get();
+        // Randevudaki TUM hizmetlerin seansi telafi olur (Gelmedi/Geldi gibi randevu geneli).
+        $seansVar = AdisyonPaketSeanslar::where('randevu_id', $randevu->id)->get();
         if($seansVar->count() === 0){
             return response()->json(['hata'=>true,'mesaj'=>'Bu randevu paket/seans randevusu değil, telafi işaretlenemez.']);
         }
