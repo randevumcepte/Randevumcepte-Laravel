@@ -768,7 +768,9 @@
     var $l=$('#ders-katilimci-liste').empty();
     if(!list || !list.length){ $l.append('<li style="color:#95a5a6;text-align:center;">Henüz katılımcı yok.</li>'); return; }
     list.forEach(function(k){
-      var paketRozet = k.hak_dusuldu ? ' <span style="font-size:10px;background:#8e44ad;color:#fff;border-radius:4px;padding:1px 5px;">paket -1</span>' : '';
+      var paketRozet = (k.durum==='telafi')
+        ? ' <span style="font-size:10px;background:#FDA172;color:#fff;border-radius:4px;padding:1px 5px;">telafi</span>'
+        : (k.hak_dusuldu ? ' <span style="font-size:10px;background:#8e44ad;color:#fff;border-radius:4px;padding:1px 5px;">paket -1</span>' : '');
       $l.append('<li><div class="dm-kat-row">'
         +'<span><strong>'+$('<i>').text(k.ad).html()+'</strong> <small style="color:#95a5a6;">'+(k.tel||'')+'</small>'+paketRozet+'</span>'
         +'<span style="white-space:nowrap;">'+_durumBtn(k)
@@ -840,6 +842,7 @@
       $('#ders-musteri-arama').val(''); $('#ders-musteri-sonuc').hide().empty();
       if(r.durum==='ok'){
         if(r.katilimci_durum==='bekleme') swal({title:'Kapasite dolu',text:'Kişi BEKLEME listesine eklendi.',type:'info',timer:1800,showConfirmButton:false});
+        else if(r.telafi_baglandi) swal({title:'Telafi seansı',text:'Müşterinin bekleyen telafisi bu derse bağlandı. Yeni seans düşülmedi.',type:'success',timer:2200,showConfirmButton:false});
         _refreshTakvim(); window.dersOturumAc($('#ders-oturum-id').val());
       } else swal('Hata',(r&&r.mesaj)||'Eklenemedi','warning');
     })

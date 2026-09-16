@@ -32149,6 +32149,14 @@ SOZLESME_TXT;
                 'oturum_id' => $oturum->id, 'user_id' => $userId, 'salon_id' => $salonId, 'durum' => $durum,
                 'ekleyen_personel_id' => $this->_dersEkleyenPersonel($request, $salonId),
             ]);
+            // TELAFI: bekleyen telafi varsa yeni seans dusme, mevcut telafiyi bu derse bagla.
+            $telafiBaglandi = false;
+            if ($durum !== 'bekleme' && (int) $oturum->hizmet_id > 0) {
+                try {
+                    $telafi = \App\Services\DersSeansServisi::bekleyenTelafi($salonId, $userId, (int) $oturum->hizmet_id, $oturum->tarih);
+                    if ($telafi) { \App\Services\DersSeansServisi::telafiBagla($telafi, $oturum, $k); $telafiBaglandi = true; }
+                } catch (\Throwable $e) {}
+            }
             try {
                 $salon = \App\Salonlar::find($salonId); $musteri = \App\User::find($userId);
                 if ($salon && $musteri) {
@@ -32159,7 +32167,7 @@ SOZLESME_TXT;
                     \App\Services\DersBildirimServisi::musteriyeGonder($salon, $musteri, $mesaj, 'ders_bildirim');
                 }
             } catch (\Throwable $e) {}
-            return response()->json(['durum' => 'ok', 'katilimci_id' => $k->id, 'katilimci_durum' => $durum]);
+            return response()->json(['durum' => 'ok', 'katilimci_id' => $k->id, 'katilimci_durum' => ($telafiBaglandi ? 'telafi' : $durum), 'telafi_baglandi' => $telafiBaglandi]);
         });
     }
 
@@ -32169,7 +32177,14 @@ SOZLESME_TXT;
         $k = \App\DersKatilimci::where('salon_id', $salonId)->find($request->katilimci_id);
         if (!$k) return response()->json(['durum' => 'hata', 'mesaj' => 'Katilimci bulunamadi.'], 404);
         $oturumId = $k->oturum_id;
-        if ($k->hak_dusuldu) { try { \App\Services\DersSeansServisi::dusumGeriAl($k); } catch (\Throwable $e) {} }
+        // Telafi-bagli ise APS silme -> krediyi koru; degilse normal iade.
+        if ($k->hak_dusuldu) {
+            try {
+                if (!\App\Services\DersSeansServisi::telafiGeriBirak($k)) {
+                    \App\Services\DersSeansServisi::dusumGeriAl($k);
+                }
+            } catch (\Throwable $e) {}
+        }
         $k->durum = 'iptal'; $k->save();
         $oturum = \App\DersOturumu::find($oturumId);
         if ($oturum) {

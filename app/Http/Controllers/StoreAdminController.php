@@ -4719,6 +4719,19 @@ public function carkverilerigetir(Request $request)
                 'ekleyen_personel_id' => Personeller::where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id ?? 0)->where('salon_id',$isletmeId)->value('id'),
             ]);
 
+            // TELAFI: musterinin bu hizmette bekleyen telafisi varsa yeni seans dusme,
+            // mevcut telafiyi bu derse bagla (tarih guncelle, geldi=2 kalir, durum=telafi).
+            $telafiBaglandi = false;
+            if($durum !== 'bekleme' && (int)$oturum->hizmet_id > 0){
+                try {
+                    $telafi = \App\Services\DersSeansServisi::bekleyenTelafi($isletmeId, $userId, (int)$oturum->hizmet_id, $oturum->tarih);
+                    if($telafi){
+                        \App\Services\DersSeansServisi::telafiBagla($telafi, $oturum, $k);
+                        $telafiBaglandi = true;
+                    }
+                } catch(\Throwable $e){ \Log::warning('[DERS] telafi bagla fail: '.$e->getMessage()); }
+            }
+
             // Kayit bildirimi (randevu olusturulunca gidenle ayni mantik; WA oncelikli/SMS yedek,
             // kontordan muaf). rezerve = kayit onayi, bekleme = bekleme listesi bilgisi.
             try {
@@ -4739,7 +4752,7 @@ public function carkverilerigetir(Request $request)
                 }
             } catch (\Throwable $e) { \Log::warning('[DERS] kayit bildirim fail: '.$e->getMessage()); }
 
-            return response()->json(['durum'=>'ok','katilimci_id'=>$k->id,'katilimci_durum'=>$durum]);
+            return response()->json(['durum'=>'ok','katilimci_id'=>$k->id,'katilimci_durum'=>($telafiBaglandi ? 'telafi' : $durum),'telafi_baglandi'=>$telafiBaglandi]);
         });
     }
 
@@ -4750,8 +4763,15 @@ public function carkverilerigetir(Request $request)
         $k = \App\DersKatilimci::where('salon_id',$isletmeId)->find($request->katilimci_id);
         if(!$k) return response()->json(['durum'=>'hata','mesaj'=>'Katilimci bulunamadi.'],404);
         $oturumId = $k->oturum_id;
-        // Dusulen hak varsa iade et (cikinca paket geri yuklensin)
-        if($k->hak_dusuldu){ try{ \App\Services\DersSeansServisi::dusumGeriAl($k); }catch(\Throwable $e){} }
+        // Dusulen hak varsa iade et (cikinca paket geri yuklensin).
+        // Telafi-bagli ise APS'i SILME -> krediyi koru, telafiyi bekleyene geri birak.
+        if($k->hak_dusuldu){
+            try{
+                if(!\App\Services\DersSeansServisi::telafiGeriBirak($k)){
+                    \App\Services\DersSeansServisi::dusumGeriAl($k);
+                }
+            }catch(\Throwable $e){}
+        }
         $k->durum = 'iptal';
         $k->save();
 

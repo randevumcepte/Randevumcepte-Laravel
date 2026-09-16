@@ -167,6 +167,77 @@ class DersSeansServisi
     }
 
     /**
+     * Musterinin bu hizmette BEKLEYEN telafisi (henuz makyaji yapilmamis).
+     * Telafi = adisyon_paket_seanslar.geldi == 2. "Bekleyen" = tarihi makyaj
+     * dersinin tarihinden ONCE olan (yani gecmiste isaretlenmis) telafi.
+     * Makyaja baglaninca tarihi ileri alindigi icin ayni telafi tekrar secilmez.
+     * Donus: AdisyonPaketSeanslar (en eski) | null.
+     */
+    public static function bekleyenTelafi($salonId, $userId, $hizmetId, $hedefTarih)
+    {
+        if (!$salonId || !$userId || !$hizmetId || !$hedefTarih) return null;
+        // 1) Tek hizmet satisi uzerinden
+        $r = DB::table('adisyon_paket_seanslar as aps')
+            ->join('adisyon_hizmetler as ah', 'aps.adisyon_hizmet_id', '=', 'ah.id')
+            ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+            ->where('aps.geldi', 2)->where('aps.hizmet_id', $hizmetId)
+            ->where('a.user_id', $userId)->where('a.salon_id', $salonId)
+            ->whereDate('aps.seans_tarih', '<', $hedefTarih)
+            ->orderBy('aps.seans_tarih', 'asc')->value('aps.id');
+        if (!$r) {
+            // 2) Paket satisi uzerinden
+            $r = DB::table('adisyon_paket_seanslar as aps')
+                ->join('adisyon_paketler as ap', 'aps.adisyon_paket_id', '=', 'ap.id')
+                ->join('adisyonlar as a', 'ap.adisyon_id', '=', 'a.id')
+                ->where('aps.geldi', 2)->where('aps.hizmet_id', $hizmetId)
+                ->where('a.user_id', $userId)->where('a.salon_id', $salonId)
+                ->whereDate('aps.seans_tarih', '<', $hedefTarih)
+                ->orderBy('aps.seans_tarih', 'asc')->value('aps.id');
+        }
+        return $r ? AdisyonPaketSeanslar::find($r) : null;
+    }
+
+    /**
+     * Bekleyen telafiyi yeni ders oturumuna bagla: APS'in tarih/saat/personelini
+     * makyaj dersine tasir (geldi=2 KALIR -> hala telafi), katilimciya baglar ve
+     * durumu 'telafi' yapar. YENI seans DUSMEZ (mevcut telafi tuketilir).
+     */
+    public static function telafiBagla(AdisyonPaketSeanslar $telafi, DersOturumu $oturum, DersKatilimci $katilimci): void
+    {
+        $telafi->seans_tarih = $oturum->tarih;
+        $telafi->seans_saat  = $oturum->saat;
+        $telafi->personel_id = $oturum->personel_id;
+        $telafi->save();
+        $katilimci->aps_id = $telafi->id;
+        $katilimci->hak_dusuldu = true;
+        $katilimci->durum = 'telafi';
+        $katilimci->save();
+    }
+
+    /**
+     * Telafi-bagli katilimci dersten cikarilinca: APS'i SILME (kredi kaybolmasin),
+     * tarihini gecmise alip bagi cozerek telafiyi yeniden "bekleyen" yap.
+     * Donus: telafi geri birakildi mi (true) — degilse normal dusumGeriAl gerekir.
+     */
+    public static function telafiGeriBirak(DersKatilimci $katilimci): bool
+    {
+        if (!$katilimci->aps_id) return false;
+        $aps = AdisyonPaketSeanslar::find($katilimci->aps_id);
+        if (!$aps || (int) $aps->geldi !== 2) return false; // telafi degil -> cagiran normal iade yapsin
+        try {
+            // Tarihi net gecmise cek ki bekleyenTelafi tekrar bulabilsin (kredi korunur).
+            $aps->seans_tarih = '2000-01-01';
+            $aps->save();
+        } catch (\Throwable $e) {
+            Log::warning('[DERS-SEANS] telafi geri-birak hata: ' . $e->getMessage(), ['katilimci_id' => $katilimci->id]);
+        }
+        $katilimci->aps_id = null;
+        $katilimci->hak_dusuldu = false;
+        $katilimci->save();
+        return true;
+    }
+
+    /**
      * Hizmete ait, kalani olan en eski (FIFO) adisyon_hizmet veya adisyon_paket adayi.
      * Mevcut StoreAdminController seciminin (6904-6965) birebir uyarlamasi.
      * Donus: {tur:'hizmet'|'paket', id, kullanilan_seans, kullanilmayan_seans, adisyon_tarih} | null
