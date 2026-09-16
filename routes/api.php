@@ -247,6 +247,7 @@ Route::get('/faturasizgizledurum/{salonid}','ApiController@faturasizGizleDurum')
 Route::post('alacaklar/{salonid}','ApiController@alacaklar');
 Route::post('/randevugeldiisaretle','ApiController@randevugeldiisaretle');
 Route::post('/randevuyagelmediisaretle','ApiController@randevuyagelmedi');
+Route::post('/randevuTelafiIsaretle','ApiController@randevuTelafiIsaretle');
 
 Route::get('/randevuiptalet','ApiController@randevuiptalet');
 

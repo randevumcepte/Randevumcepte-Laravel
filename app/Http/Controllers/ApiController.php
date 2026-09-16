@@ -12110,6 +12110,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                                     }
                                 }
                             } else {
+                                // TELAFI: bekleyen telafi (APS.geldi=2) varsa yeni seans dusme,
+                                // mevcut telafiyi bu randevuya bagla (geldi=2 KALIR -> telafi slotu).
+                                $_bekleyenTelafi = \App\Services\DersSeansServisi::bekleyenTelafi($yenirandevu->salon_id, $request->user_id, $_hzId, date('Y-m-d', strtotime($tarihler)));
+                                if ($_bekleyenTelafi) {
+                                    $_bekleyenTelafi->seans_tarih = date('Y-m-d', strtotime($tarihler));
+                                    $_bekleyenTelafi->seans_saat  = $yenirandevuhizmetpersonel->saat;
+                                    $_bekleyenTelafi->personel_id = $yenirandevuhizmetpersonel->personel_id;
+                                    $_bekleyenTelafi->cihaz_id    = $yenirandevuhizmetpersonel->cihaz_id;
+                                    $_bekleyenTelafi->oda_id      = $yenirandevuhizmetpersonel->oda_id;
+                                    $_bekleyenTelafi->randevu_id  = $yenirandevu->id;
+                                    $_bekleyenTelafi->save();
+                                } else {
                                 // Yeni APS icin aday sec
                                 $_hizmetSecili = null;
                                 foreach (\DB::table('adisyon_hizmetler')
@@ -12193,6 +12205,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                                     $seansKaydi->hizmet_id   = $_hzId;
                                     $seansKaydi->save();
                                 }
+                                } // telafi else kapan
                             }
                         } catch (\Throwable $e) {
                             \Log::warning('mobil randevuekleguncelle APS insert hata: '.$e->getMessage(), [
@@ -15499,20 +15512,23 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                         elseif (isset($miktarlar[(string)$sid])) $m = max(1, (int) $miktarlar[(string)$sid]);
                         AdisyonPaketSeanslar::where('id', $sid)
                             ->where('randevu_id', $request->randevuid)
+                            ->where(function($q){ $q->whereNull('geldi')->orWhere('geldi','!=',2); })
                             ->update(['geldi' => true, 'dusulen_miktar' => $m]);
                     }
-                    // Isaretlenmeyenleri sil
+                    // Isaretlenmeyenleri sil — telafi slotu (geldi=2) ASLA silinmez.
                     AdisyonPaketSeanslar::where('randevu_id', $request->randevuid)
                         ->whereNotIn('id', $secilenIds)
+                        ->where(function($q){ $q->whereNull('geldi')->orWhere('geldi','!=',2); })
                         ->delete();
                 } else {
+                    // Telafi slotu (geldi=2) korunur -> geldi=true ile ezilmez.
                     AdisyonPaketSeanslar::where(
 
                         "randevu_id",
 
                         $request->randevuid
 
-                    )->update(["geldi" => true]);
+                    )->where(function($q){ $q->whereNull('geldi')->orWhere('geldi','!=',2); })->update(["geldi" => true]);
                 }
 
                 // Musteriye seans kullanim bilgilendirme push'u — paket/hizmet
@@ -15563,6 +15579,28 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     }
 
+    // Randevuyu TELAFI olarak isaretle (mobil): paket/seans randevusunun APS'i
+    // geldi=2 (telafi slotu). Bir sonraki randevuda bekleyenTelafi ile baglanir.
+    public function randevuTelafiIsaretle(Request $request)
+    {
+        $randevu = Randevular::where('id', $request->randevuid)->first();
+        if(!$randevu) return response()->json(['hata'=>true,'mesaj'=>'Randevu bulunamadı']);
+        $q = AdisyonPaketSeanslar::where('randevu_id', $randevu->id);
+        if($request->hizmetid) $q->where('hizmet_id', $request->hizmetid);
+        $seansVar = $q->get();
+        if($seansVar->count() === 0){
+            return response()->json(['hata'=>true,'mesaj'=>'Bu randevu paket/seans randevusu değil, telafi işaretlenemez.']);
+        }
+        foreach($seansVar as $s){ $s->geldi = 2; $s->save(); }
+        $randevu->randevuya_geldi = false;
+        $randevu->save();
+        foreach($randevu->hizmetler as $rh){ $rh->seansa_geldi = false; $rh->save(); }
+        try {
+            Audit::logApi($randevu->salon_id, $request, 'randevu_telafi', 'randevu', $randevu->id, optional($randevu->users)->name, 'Randevu telafi olarak işaretlendi (seans telafi slotuna alındı)');
+        } catch(\Throwable $e){}
+        return response()->json(['hata'=>false,'telafi'=>true,'mesaj'=>'Telafi olarak işaretlendi']);
+    }
+
     public function randevuyagelmedi(Request $request)
 
     {
@@ -15574,6 +15612,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         if ($seansVar->count() > 0) {
             if ($request->seansDusumuYap == '1') {
                 foreach ($seansVar as $seans) {
+                    if ((int)$seans->geldi === 2) continue; // telafi slotu korunur
                     $seans->geldi = false;
                     $seans->save();
                 }
