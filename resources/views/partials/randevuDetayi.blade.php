@@ -172,6 +172,7 @@
         <div class="rd-row">
            <div class="rd-label"><i class="fa fa-check-circle"></i> Geldi mi?</div>
            <div class="rd-value">
+              @php $__telafiVar = \App\AdisyonPaketSeanslar::where('randevu_id', $randevu->randevu->id)->where('geldi', 2)->exists(); @endphp
               @if($randevu->randevu->randevuya_geldi === 1)
                  <span class="rd-status geldi">Geldi</span>
               @elseif($randevu->randevu->randevuya_geldi === 0)
@@ -179,6 +180,7 @@
               @else
                  <span class="rd-status beklemede">Belirtilmemiş</span>
               @endif
+              @if($__telafiVar)<span class="rd-status" style="background:#ffe8d6;color:#c2410c;margin-left:6px;">Telafi</span>@endif
            </div>
         </div>
         @if($_SERVER['HTTP_HOST'] != 'randevu.randevumcepte.com.tr')
