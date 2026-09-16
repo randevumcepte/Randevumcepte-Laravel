@@ -32197,13 +32197,15 @@ SOZLESME_TXT;
         $salonId = $this->_dersSalon($request);
         $k = \App\DersKatilimci::where('salon_id', $salonId)->find($request->katilimci_id);
         if (!$k) return response()->json(['durum' => 'hata', 'mesaj' => 'Katilimci bulunamadi.'], 404);
-        $yeni = in_array($request->yeni_durum, ['geldi', 'gelmedi', 'rezerve']) ? $request->yeni_durum : 'rezerve';
+        // 'telafi' = telafi hakki (seans takibindeki geldi=2 karsiligi): seans DUSER
+        // (idempotent dusumYap sayesinde sonradan 'geldi' olunca tekrar dusmez).
+        $yeni = in_array($request->yeni_durum, ['geldi', 'gelmedi', 'rezerve', 'telafi']) ? $request->yeni_durum : 'rezerve';
         $k->durum = $yeni; $k->save();
         $dusum = null;
         // Studyo modu: no-show (gelmedi) da seans DUSER. Diger isletmelerde gelmedi -> iade (eski davranis).
         $studyoNoShow = (bool) \App\Salonlar::where('id', $salonId)->value('studyo_modu');
         try {
-            if ($yeni === 'geldi' || ($yeni === 'gelmedi' && $studyoNoShow)) {
+            if ($yeni === 'geldi' || $yeni === 'telafi' || ($yeni === 'gelmedi' && $studyoNoShow)) {
                 $oturum = \App\DersOturumu::find($k->oturum_id);
                 if ($oturum) {
                     $apsId = \App\Services\DersSeansServisi::dusumYap($oturum, $k);
