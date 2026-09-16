@@ -68,7 +68,7 @@
                     <div class="v2-row-2">
                         <div class="v2-field">
                             <label class="v2-label"><i class="fa fa-calendar"></i> Tarih</label>
-                            <input type="text" id="v2_tarih" class="form-control v2-input" autocomplete="off" value="{{ date('Y-m-d') }}">
+                            <input type="text" id="v2_tarih" class="form-control v2-input geriye-yonelik" autocomplete="off" value="{{ date('Y-m-d') }}">
                         </div>
                         <div class="v2-field">
                             <label class="v2-label"><i class="fa fa-clock-o"></i> Saat</label>
@@ -164,7 +164,7 @@
                     <div class="v2-row-3">
                         <div class="v2-field">
                             <label class="v2-label-sm"><i class="fa fa-calendar"></i> Tarih</label>
-                            <input type="text" name="tarih" id="v2_kapama_tarih" class="form-control v2-input v2-sm" autocomplete="off" value="{{ date('Y-m-d') }}">
+                            <input type="text" name="tarih" id="v2_kapama_tarih" class="form-control v2-input v2-sm geriye-yonelik" autocomplete="off" value="{{ date('Y-m-d') }}">
                         </div>
                         <div class="v2-field">
                             <label class="v2-label-sm">Başlangıç</label>
@@ -2205,12 +2205,17 @@
     // -------- EVENTS --------
     $modal.on('shown.bs.modal', function(){
         initV2();
-        // Date picker init (eski v1 modaldaki helper varsa kullan)
-        if($.fn.datepicker && !$tarih.data('datepicker-init')){
-            try {
-                $tarih.datepicker({ format: 'yyyy-mm-dd', autoclose: true, language: 'tr', todayHighlight: true });
-                $tarih.data('datepicker-init', true);
-            } catch(e){}
+        // Date picker init — hem randevu hem saat kapama tarih inputlari
+        if($.fn.datepicker){
+            var $kapamaTarih = $('#v2_kapama_tarih');
+            [$tarih, $kapamaTarih].forEach(function($el){
+                if($el.length && !$el.data('datepicker-init')){
+                    try {
+                        $el.datepicker({ format: 'yyyy-mm-dd', autoclose: true, language: 'tr', todayHighlight: true, container: 'body', orientation: 'auto' });
+                        $el.data('datepicker-init', true);
+                    } catch(e){}
+                }
+            });
         }
     });
 
@@ -2378,7 +2383,12 @@
         // mantigini ensureHizmetVerisi callback'ine sariyoruz.
         var fillV2 = function(){
             var doFill = function(){
-                if(tarih) $tarih.val(tarih);
+                if(tarih) {
+                    $tarih.val(tarih);
+                    // Saat Kapama sekmesi tarih input'una da yansit (kullanici sekme
+                    // gecince bosluk gormemeli)
+                    $('#v2_kapama_tarih').val(tarih);
+                }
                 if(saat) $saat.val(saat);
 
                 // Ilk satira personel/oda/cihaz yaz
