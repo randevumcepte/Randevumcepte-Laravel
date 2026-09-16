@@ -8681,6 +8681,7 @@ private function ayAdiCevir($ingilizceAy)
                         // varsa YENI seans dusme; mevcut telafiyi bu randevuya bagla
                         // (tarih/saat/personel/randevu_id guncelle, geldi=2 KALIR -> telafi slotu).
                         $_bekleyenTelafi = \App\Services\DersSeansServisi::bekleyenTelafi($request->sube, $musteriid, $rHizmet, $tarihler);
+                        \Log::info('[TELAFI-TUKET] web randevu', ['salon'=>$request->sube,'user'=>$musteriid,'hizmet'=>$rHizmet,'tarih'=>$tarihler,'bulunan_aps'=>$_bekleyenTelafi ? $_bekleyenTelafi->id : null]);
                         if ($_bekleyenTelafi) {
                             $_bekleyenTelafi->seans_tarih = $tarihler;
                             $_bekleyenTelafi->seans_saat  = $yenisaatbaslangic;
@@ -21401,7 +21402,7 @@ DB::raw('
                     'ap_id' => $orijinal->adisyon_paket_id ?? null,
                 ]);
                 if (!$orijinal) continue;
-                if ((int)$orijinal->geldi === 2) continue; // telafi slotu korunur
+                // Telafi (geldi=2) -> geldi isaretlenince makyaj yapildi say, geldi=1'e cevir (tuket).
 
                 $orijinal->geldi = true;
                 $orijinal->dusulen_miktar = 1;
@@ -21474,7 +21475,7 @@ DB::raw('
         } else {
             foreach($seanslar->get() as $seans)
             {
-                if((int)$seans->geldi === 2) continue; // telafi slotu korunur (geldi=2 ezilmez)
+                // Telafi (geldi=2) -> geldi isaretlenince makyaj yapildi say, geldi=1'e cevir (tuket).
                 $seans->geldi = true;
                 $seans->save();
             }

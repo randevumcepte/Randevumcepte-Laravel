@@ -12113,6 +12113,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                                 // TELAFI: bekleyen telafi (APS.geldi=2) varsa yeni seans dusme,
                                 // mevcut telafiyi bu randevuya bagla (geldi=2 KALIR -> telafi slotu).
                                 $_bekleyenTelafi = \App\Services\DersSeansServisi::bekleyenTelafi($yenirandevu->salon_id, $request->user_id, $_hzId, date('Y-m-d', strtotime($tarihler)));
+                                \Log::info('[TELAFI-TUKET] mobil randevu', ['salon'=>$yenirandevu->salon_id,'user'=>$request->user_id,'hizmet'=>$_hzId,'tarih'=>date('Y-m-d', strtotime($tarihler)),'bulunan_aps'=>$_bekleyenTelafi ? $_bekleyenTelafi->id : null]);
                                 if ($_bekleyenTelafi) {
                                     $_bekleyenTelafi->seans_tarih = date('Y-m-d', strtotime($tarihler));
                                     $_bekleyenTelafi->seans_saat  = $yenirandevuhizmetpersonel->saat;
@@ -15512,7 +15513,6 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                         elseif (isset($miktarlar[(string)$sid])) $m = max(1, (int) $miktarlar[(string)$sid]);
                         AdisyonPaketSeanslar::where('id', $sid)
                             ->where('randevu_id', $request->randevuid)
-                            ->where(function($q){ $q->whereNull('geldi')->orWhere('geldi','!=',2); })
                             ->update(['geldi' => true, 'dusulen_miktar' => $m]);
                     }
                     // Isaretlenmeyenleri sil — telafi slotu (geldi=2) ASLA silinmez.
@@ -15521,14 +15521,14 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                         ->where(function($q){ $q->whereNull('geldi')->orWhere('geldi','!=',2); })
                         ->delete();
                 } else {
-                    // Telafi slotu (geldi=2) korunur -> geldi=true ile ezilmez.
+                    // Telafi (geldi=2) dahil -> geldi isaretlenince makyaj yapildi say, geldi=1 (tuket).
                     AdisyonPaketSeanslar::where(
 
                         "randevu_id",
 
                         $request->randevuid
 
-                    )->where(function($q){ $q->whereNull('geldi')->orWhere('geldi','!=',2); })->update(["geldi" => true]);
+                    )->update(["geldi" => true]);
                 }
 
                 // Musteriye seans kullanim bilgilendirme push'u — paket/hizmet
