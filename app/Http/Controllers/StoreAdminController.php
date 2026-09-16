@@ -34102,12 +34102,13 @@ DB::raw('
         $isletme = Salonlar::where('id',$request->salonId)->value('santral_telaffuz_hatirlatma_aramasi');
         if (!$isletme) $isletme = Salonlar::where('id',$request->salonId)->value('salon_adi'); // telaffuz alani bossa isletme adi
 
-        $ornekMusteri = isset($request->katilimciId) ? User::where('id',$request->katilimciId)->first() : User::where('id',$ilkMusteri->user_id)->first();
-        // Cinsiyete gore bey/hanim EKLENMEZ; musterinin tam ismi okunur.
-        $musteriAdi = trim($ornekMusteri->name);
+        $ornekUserId = isset($request->katilimciId) ? $request->katilimciId : (is_object($ilkMusteri) ? $ilkMusteri->user_id : null);
+        $ornekMusteri = $ornekUserId ? User::where('id',$ornekUserId)->first() : null;
+        // Cinsiyete gore bey/hanim EKLENMEZ; musterinin tam ismi okunur. Ornek musteri yoksa jenerik.
+        $musteriAdi = $ornekMusteri ? trim((string) $ornekMusteri->name) : 'Örnek Müşteri';
         // {gün} onizleme = ornek musterinin en son GELDIGI randevudan bu yana yokluk gunu.
         // (Gonderimde her katilimci icin KampanyaYonetimi::kisisellestir ile kisiye ozel cozulur.)
-        $yoklukGun = KampanyaYonetimi::musteriYoklukGunu($ornekMusteri->id, $request->salonId);
+        $yoklukGun = $ornekMusteri ? KampanyaYonetimi::musteriYoklukGunu($ornekMusteri->id, $request->salonId) : 30;
          
 
         // Şablon ID'si "sablon-X" prefix'liyse kullanıcının kendi SMS taslağı,
