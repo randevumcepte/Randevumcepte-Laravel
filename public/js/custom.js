@@ -15686,17 +15686,20 @@ $(document).on('change', '#kampanyaTuru,#gorevTuru',function(e){
 function kampanyaolustur(tur)
 {
 
+    // Hedef kitle CINSIYET secimiyle degil, gercek katilimci sayisiyla dogrulanir:
+    // "Tümü" (cinsiyet='') gecerli bir secim; kitle grup/segment ile de tanimlanabilir.
+    var katilimciSayisi = parseInt(($('#kampanya_katilimci_sayisi').text()||'0').replace(/[^0-9]/g,''),10) || 0;
     var isValid = false;
-    if($('#kampanyaGecerlilikTarihi').val()!=''  &&$('#kampanyaPrompt').text()!='' && $('#katilimciTuru').val()!='' && tur != '' )
+    if($('#kampanyaGecerlilikTarihi').val()!=''  &&$('#kampanyaPrompt').text()!='' && katilimciSayisi > 0 && tur != '' )
         isValid = true;
     var warningtext = '';
-     
+
     if($('#kampanyaGecerlilikTarihi').val()=='')
         warningtext += '<br>-Kampanya geçerlilik tarihini belirtiniz gerekir.';
-     
+
     if($('#kampanyaPrompt').text()=='')
         warningtext += '<br>-Kampanya şablonunu seçmeniz gerekir.';
-    if($('#katilimciTuru').val()=='')
+    if(katilimciSayisi <= 0)
         warningtext += '<br>-Kampanyaya katılacak müşteri/danışanları seçmeniz gerekir.';
     if($('#gorevTuru').val() == '')
         warningtext += '<br>-Kampanyaya görev türü (arama/sms) seçmeniz gerekir.';
