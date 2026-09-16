@@ -622,6 +622,7 @@
   #ders-oturum-modal .dm-durum b.on-r{ background:#2980b9; border-color:#2980b9; color:#fff; }
   #ders-oturum-modal .dm-durum b.on-g{ background:#16a085; border-color:#16a085; color:#fff; }
   #ders-oturum-modal .dm-durum b.on-x{ background:#c0392b; border-color:#c0392b; color:#fff; }
+  #ders-oturum-modal .dm-durum b.on-t{ background:#FDA172; border-color:#FDA172; color:#fff; }
   #ders-oturum-modal .dm-x{ background:none; border:none; color:#c0392b; cursor:pointer; font-size:15px; }
 </style>
 <div class="modal fade" id="ders-oturum-modal" tabindex="-1" role="dialog">
@@ -759,7 +760,9 @@
   function _durumBtn(k){
     function b(d,lbl,onc){ return '<b class="'+(k.durum===d?onc:'')+'" onclick="dersKatilimciDurum('+k.id+',\''+d+'\')">'+lbl+'</b>'; }
     if(k.durum==='bekleme') return '<span style="font-size:11px;font-weight:700;color:#e67e22;">BEKLEMEDE</span>';
-    return '<span class="dm-durum">'+b('rezerve','Rezerve','on-r')+b('geldi','Geldi','on-g')+b('gelmedi','Gelmedi','on-x')+'</span>';
+    // Telafi SADECE paketi olan (veya durumu zaten telafi olan) katilimcida gosterilir.
+    var telafiBtn = (k.paket_var || k.durum==='telafi') ? b('telafi','Telafi','on-t') : '';
+    return '<span class="dm-durum">'+b('rezerve','Rezerve','on-r')+b('geldi','Geldi','on-g')+b('gelmedi','Gelmedi','on-x')+telafiBtn+'</span>';
   }
   function _katilimciListele(list){
     var $l=$('#ders-katilimci-liste').empty();

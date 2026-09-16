@@ -4572,7 +4572,12 @@ public function carkverilerigetir(Request $request)
         if(!$oturum)
             return response()->json(['durum'=>'hata','mesaj'=>'Oturum bulunamadi.'],404);
 
-        $katilimcilar = $oturum->katilimcilar->map(function($k){
+        // Telafi butonu SADECE paketi olanlarda gosterilir: oturumun hizmeti varsa
+        // ve katilimcinin bu hizmete ait kullanilabilir hakki varsa (veya zaten dusulmusse).
+        $oturumHizmetId = (int)$oturum->hizmet_id;
+        $katilimcilar = $oturum->katilimcilar->map(function($k) use ($isletmeId, $oturumHizmetId){
+            $paketVar = ((int)$k->hak_dusuldu === 1)
+                || ($oturumHizmetId > 0 && \App\Services\DersSeansServisi::hakVarMi($isletmeId, $k->user_id, $oturumHizmetId));
             return [
                 'id'     => $k->id,
                 'user_id'=> $k->user_id,
@@ -4580,6 +4585,7 @@ public function carkverilerigetir(Request $request)
                 'tel'    => $k->musteri ? $k->musteri->cep_telefon : '',
                 'durum'  => $k->durum,
                 'hak_dusuldu' => (int)$k->hak_dusuldu,
+                'paket_var'   => $paketVar ? 1 : 0,
             ];
         })->values();
 
