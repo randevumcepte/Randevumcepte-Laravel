@@ -36,9 +36,15 @@ class DersSeansServisi
      * olusturur, id'yi ders_katilimcilar.aps_id'ye yazar. Zaten dusulduyse tekrar
      * dusmez. Donus: olusan APS id veya null (hak yok / hizmet_id yok).
      */
-    public static function dusumYap(DersOturumu $oturum, DersKatilimci $katilimci): ?int
+    public static function dusumYap(DersOturumu $oturum, DersKatilimci $katilimci, bool $telafi = false): ?int
     {
-        if ($katilimci->hak_dusuldu && $katilimci->aps_id) return $katilimci->aps_id;
+        // Seans takibi telafi'yi APS.geldi == 2 ile ayirir; normal katilim geldi == 1.
+        $geldiDeger = $telafi ? 2 : 1;
+        if ($katilimci->hak_dusuldu && $katilimci->aps_id) {
+            // Zaten dusuldu: seansi tekrar dusme, sadece geldi/telafi isaretini guncelle.
+            try { AdisyonPaketSeanslar::where('id', $katilimci->aps_id)->update(['geldi' => $geldiDeger]); } catch (\Throwable $e) {}
+            return $katilimci->aps_id;
+        }
         $hizmetId = (int) $oturum->hizmet_id;
         if ($hizmetId <= 0) return null; // hizmet bagli degil -> dusum yok
 
@@ -58,7 +64,7 @@ class DersSeansServisi
             } else {
                 $aps->adisyon_paket_id = $aday->id;
             }
-            $aps->geldi = true;
+            $aps->geldi = $geldiDeger;
             $aps->dusulen_miktar = 1;
             $aps->save();
 
