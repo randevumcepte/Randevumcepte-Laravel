@@ -405,7 +405,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/taksitvadegetir-tahsilat','StoreAdminController@taksitvadegetir_tahsilat');
 
 	Route::get('/kampanya_yonetimi','StoreAdminController@kampanya_yonetimi_liste');
-	Route::get('/kampanyadetay','StoreAdminController@kampanyadetay');
+	Route::match(['GET','POST'],'/kampanyadetay','StoreAdminController@kampanyadetay');
 	Route::post('/kampanyasil','StoreAdminController@kampanya_sil');
 	Route::post('/etkinliksil','StoreAdminController@etkinlik_sil');
 	Route::post('/kampanyaekleduzenle','StoreAdminController@kampanyaekleduzenle');
