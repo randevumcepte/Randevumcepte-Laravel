@@ -76,13 +76,14 @@ class KampanyaAramaYap extends Command
 
         // Bu kampanya bu dakikada ya yeni baslar ya da tekrar aramasi olanlari
         // vardir. Katilimci sorgusu TAM DAKIKA esasli kurulur.
+        // NOT: 'kilitli' kolonu kampanya_katilimcilari tablosunda YOK (kimse set etmiyordu) —
+        // sorguya dahil edilince her dakika SQLSTATE 42S22 ile komut coken oluyordu, hic arama
+        // kuyruga girmiyordu. Cikarildi; eszamanlilik zaten withoutOverlapping + tekrar_arandi/
+        // tekrar_aranacak bayraklariyla korunuyor.
         $sorgu = $kampanya->kampanya_katilimcilari()
             ->with(['musteri:id,name,cinsiyet,cep_telefon'])
-            ->select('id', 'user_id', 'kampanya_id', 'tekrar_arandi', 'tekrar_aranacak', 'tekrar_arama_tarih_saat', 'durum_asistan', 'kilitli')
-            ->whereNull('durum_asistan')
-            ->where(function ($q) {
-                $q->whereNull('kilitli')->orWhere('kilitli', '!=', 1);
-            });
+            ->select('id', 'user_id', 'kampanya_id', 'tekrar_arandi', 'tekrar_aranacak', 'tekrar_arama_tarih_saat', 'durum_asistan')
+            ->whereNull('durum_asistan');
 
         if ($ilkAramaDakikasi) {
             // Ilk arama partisi: henuz hic aranmamis katilimcilar.
