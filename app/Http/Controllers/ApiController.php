@@ -16342,8 +16342,23 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $_indirimliToplam = (float) str_replace(['.',','],['','.'], (string)($request->indirimli_toplam_tahsilat_tutari ?? '0'));
         $_adisyonPayment = max(0, $_indirimliToplam - $_komisyon);
 
+        // App tarafi (Flutter tahsilet) istekte adisyon_id GONDERMIYOR -> tahsilat.adisyon_id
+        // NULL kaliyordu. Bu yuzden adisyon silinince adisyonSil'deki "adisyon_id" bazli oksuz
+        // tahsilat temizligi bu kayitlari YAKALAYAMIYOR ve KASADA kalinti olarak duruyordu
+        // (web sorunsuz cunku web adisyon_id gonderiyor). Cozum: adisyon_id gelmediyse app'in
+        // zaten gonderdigi kalem id'lerinden turet.
+        $_adisyonId = $request->adisyon_id;
+        if (empty($_adisyonId)) {
+            if (!empty($request->adisyon_hizmet_id))
+                $_adisyonId = AdisyonHizmetler::whereIn('id', (array) $request->adisyon_hizmet_id)->value('adisyon_id');
+            if (empty($_adisyonId) && !empty($request->adisyon_urun_id))
+                $_adisyonId = AdisyonUrunler::whereIn('id', (array) $request->adisyon_urun_id)->value('adisyon_id');
+            if (empty($_adisyonId) && !empty($request->adisyon_paket_id))
+                $_adisyonId = AdisyonPaketler::whereIn('id', (array) $request->adisyon_paket_id)->value('adisyon_id');
+        }
+
         $tahsilat = new Tahsilatlar();
-        $tahsilat->adisyon_id = $request->adisyon_id;
+        $tahsilat->adisyon_id = $_adisyonId;
         $tahsilat->tutar = $_adisyonPayment;
         if (\Schema::hasColumn('tahsilatlar', 'komisyon_tutari')) {
             $tahsilat->komisyon_tutari = $_komisyon;
@@ -16367,7 +16382,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             try {
                 // 1) Gelir kaydi
                 $_komTahsilat = new Tahsilatlar();
-                $_komTahsilat->adisyon_id      = $request->adisyon_id;
+                $_komTahsilat->adisyon_id      = $_adisyonId;
                 $_komTahsilat->tutar           = $_komisyon;
                 $_komTahsilat->user_id         = $request->ad_soyad;
                 $_komTahsilat->odeme_tarihi    = $request->tahsilat_tarihi;
@@ -16385,7 +16400,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $_masraf = new Masraflar();
                 $_masraf->salon_id           = $request->sube;
                 if (\Schema::hasColumn('masraflar', 'adisyon_id')) {
-                    $_masraf->adisyon_id     = $request->adisyon_id;
+                    $_masraf->adisyon_id     = $_adisyonId;
                 }
                 $_masraf->harcayan_id        = Personeller::where("salon_id", $request->sube)
                     ->where("yetkili_id", $request->olusturan)->value("id");
