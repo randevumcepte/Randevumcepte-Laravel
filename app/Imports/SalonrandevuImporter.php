@@ -6,6 +6,7 @@ use App\Services\SalonrandevuClient;
 use App\Hizmetler;
 use App\Hizmet_Kategorisi;
 use App\SalonHizmetler;
+use App\PersonelHizmetler;
 use App\Personeller;
 use App\IsletmeYetkilileri;
 use App\Randevular;
@@ -756,6 +757,92 @@ class SalonrandevuImporter
         }
         $cache[$ck] = $hizmet->id;
         return $hizmet->id;
+    }
+
+    // ================= PERSONEL-HIZMET ESLEMESI =================
+
+    /**
+     * SR personel detaylarindan (/company/staff/{id} -> services[]) personel-hizmet
+     * eslemesini cekip personel_sunulan_hizmetler tablosunu doldurur.
+     *
+     * services[].staffId   -> SR personel  -> personelMap -> personel_id
+     * services[].serviceId -> SR hizmet    -> hizmetMap   -> hizmet_id
+     *   (map'te yoksa services[].service ile ensurePersonel/ensureHizmet ile isimden cozer)
+     *
+     * Idempotent: var olan (personel_id,hizmet_id) ciftini atlar, cift-kayit yapmaz.
+     *
+     * @param bool $dryRun true ise DB'ye yazmaz, sadece ne olacagini raporlar.
+     */
+    public function importStaffServices($dryRun = false)
+    {
+        // Master map'leri doldur (personelMap[srId]=pid, hizmetMap[srId]=hid)
+        if (empty($this->personelMap)) $this->importPersoneller();
+        if (empty($this->hizmetMap))   $this->importHizmetler();
+
+        $this->log(($dryRun ? '[DRY-RUN] ' : '') . 'Personel-hizmet eslemesi cekiliyor (/company/staff/{id})...');
+        $j = $this->client->get('/company/staffs/unsafe');
+        $list = $j['data'] ?? [];
+
+        $eklendi = 0; $mevcut = 0; $atlandiPers = 0; $atlandiHiz = 0;
+        foreach ($list as $row) {
+            $srStaffId = $row['id'] ?? null;
+            if (!$srStaffId) continue;
+
+            $personelId = $this->personelMap[$srStaffId] ?? null;
+            if (!$personelId) {
+                $ad = trim(($row['name'] ?? '') . ' ' . ($row['surname'] ?? ''));
+                $personelId = $this->ensurePersonel($ad, $row['detail']['phone'] ?? null);
+            }
+            if (!$personelId) { $atlandiPers++; continue; }
+
+            $detay = $this->client->get('/company/staff/' . $srStaffId);
+            $d = (isset($detay['data']) && is_array($detay['data'])) ? $detay['data'] : $detay;
+            $services = (is_array($d) && isset($d['services']) && is_array($d['services'])) ? $d['services'] : [];
+
+            $staffEklendi = 0;
+            foreach ($services as $svc) {
+                $srServiceId = $svc['serviceId'] ?? ($svc['service']['id'] ?? null);
+                if (!$srServiceId) continue;
+
+                $hizmetId = $this->hizmetMap[$srServiceId] ?? null;
+                if (!$hizmetId && isset($svc['service']) && is_array($svc['service'])) {
+                    $s = $svc['service'];
+                    $hizmetId = $this->ensureHizmet(
+                        $s['name'] ?? '',
+                        (int) ($s['process_time'] ?? 30),
+                        (float) ($s['amount'] ?? 0),
+                        $s['category_name'] ?? null
+                    );
+                    if ($hizmetId) $this->hizmetMap[$srServiceId] = $hizmetId;
+                }
+                if (!$hizmetId) { $atlandiHiz++; continue; }
+
+                $var = PersonelHizmetler::where('personel_id', $personelId)
+                    ->where('hizmet_id', $hizmetId)->first();
+                if ($var) { $mevcut++; continue; }
+
+                if (!$dryRun) {
+                    try {
+                        $ph = new PersonelHizmetler();
+                        $ph->personel_id = $personelId;
+                        $ph->hizmet_id = $hizmetId;
+                        $ph->save();
+                    } catch (\Throwable $e) {
+                        \Log::warning('[Salonrandevu] personel-hizmet insert', [
+                            'personel_id' => $personelId, 'hizmet_id' => $hizmetId, 'err' => $e->getMessage(),
+                        ]);
+                        continue;
+                    }
+                }
+                $eklendi++; $staffEklendi++;
+            }
+            $this->log('  staff ' . $srStaffId . ' -> personel_id ' . $personelId
+                . ': services=' . count($services) . ' yeni=' . $staffEklendi);
+        }
+
+        $this->log(($dryRun ? '[DRY-RUN] ' : '') . 'Personel-hizmet eslemesi: '
+            . 'eklendi=' . $eklendi . ' mevcut=' . $mevcut
+            . ' atlandi(personel yok)=' . $atlandiPers . ' atlandi(hizmet yok)=' . $atlandiHiz);
     }
 
     private function ensureKategori($ad)

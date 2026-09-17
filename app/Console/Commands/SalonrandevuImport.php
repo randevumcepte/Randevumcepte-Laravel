@@ -33,6 +33,7 @@ class SalonrandevuImport extends Command
         {--inspect-salon : Salon icin DB sayim: personel/hizmet/urun/musteri/randevu/adisyon (login gerekmez). --salon zorunlu.}
         {--probe-appointment-params : SR /appointment/list endpoint\'inde farkli parametre kombinasyonlarini dene (default/ispaid/cancelled/include/status...) ve sayfa1 sayilarini karsilastir. UI\'daki gercek sayiya en yakin kombinasyon bulunur.}
         {--inspect-staff-services : Login + /company/staffs/unsafe -> ilk N personel icin GET /company/staff/{id} tam JSON dump. Personel-hizmet eslemesi hangi alanda geliyor kesfetmek icin (salt-okunur).}
+        {--only-staff-services : Personel-hizmet eslemesini aktar (/company/staff/{id} services[] -> personel_sunulan_hizmetler). Personel+hizmet master otomatik yuklenir. --dry-run ile sadece raporlar.}
         {--start-page= : --only-other-receipts icin baslangic sayfa (resume). Default 1.}
         {--max-page= : --only-other-receipts icin son sayfa (inclusive). Belirtilmezse SR\'nin next_page=0 donene kadar.}
         {--dry-run : Reset oncesi sayim}';
@@ -226,6 +227,13 @@ class SalonrandevuImport extends Command
         // --probe-appointment-params: endpoint parametre kombinasyonlarini dene
         if ((bool) $this->option('probe-appointment-params')) {
             $importer->probeAppointmentParams($this->option('from'), $this->option('to'));
+            return 0;
+        }
+
+        // --only-staff-services: personel-hizmet eslemesi (personel_sunulan_hizmetler)
+        if ((bool) $this->option('only-staff-services')) {
+            $importer->importStaffServices((bool) $this->option('dry-run'));
+            $this->info('Tamam.');
             return 0;
         }
 
