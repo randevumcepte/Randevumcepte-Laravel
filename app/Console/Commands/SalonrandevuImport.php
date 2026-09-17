@@ -32,6 +32,7 @@ class SalonrandevuImport extends Command
         {--report-randevu : SR /appointment/list vs DB [salonrandevu-rdv:%] aylik dagilim + eksik aylar raporu. --from --to ile sinirlandirilabilir.}
         {--inspect-salon : Salon icin DB sayim: personel/hizmet/urun/musteri/randevu/adisyon (login gerekmez). --salon zorunlu.}
         {--probe-appointment-params : SR /appointment/list endpoint\'inde farkli parametre kombinasyonlarini dene (default/ispaid/cancelled/include/status...) ve sayfa1 sayilarini karsilastir. UI\'daki gercek sayiya en yakin kombinasyon bulunur.}
+        {--inspect-staff-services : Login + /company/staffs/unsafe -> ilk N personel icin GET /company/staff/{id} tam JSON dump. Personel-hizmet eslemesi hangi alanda geliyor kesfetmek icin (salt-okunur).}
         {--start-page= : --only-other-receipts icin baslangic sayfa (resume). Default 1.}
         {--max-page= : --only-other-receipts icin son sayfa (inclusive). Belirtilmezse SR\'nin next_page=0 donene kadar.}
         {--dry-run : Reset oncesi sayim}';
@@ -111,6 +112,35 @@ class SalonrandevuImport extends Command
                 $this->line(json_encode($info['first'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             }
             $this->info('Tam JSON dump: ' . $client->dumpDir() . '/inspect_*.json');
+            return 0;
+        }
+
+        if ((bool) $this->option('inspect-staff-services')) {
+            $this->info('Staff-services kesif: /company/staffs/unsafe cekiliyor...');
+            $j = $client->get('/company/staffs/unsafe');
+            $list = $j['data'] ?? [];
+            $this->line('Personel sayisi: ' . count($list));
+            foreach (array_slice($list, 0, 3) as $row) {
+                $sid = $row['id'] ?? null;
+                $ad  = trim(($row['name'] ?? '') . ' ' . ($row['surname'] ?? ''));
+                if (!$sid) continue;
+                $this->line('');
+                $this->line("======== STAFF {$sid}  {$ad} ========");
+                $detay = $client->get('/company/staff/' . $sid);
+                if ($detay === null) { $this->warn('  detay alinamadi (null) - dump dizinini inceleyin.'); continue; }
+                $d = (isset($detay['data']) && is_array($detay['data'])) ? $detay['data'] : $detay;
+                $this->line('Ust anahtarlar: ' . implode(', ', array_keys(is_array($d) ? $d : [])));
+                // Hizmet dizisi alan adi adaylari
+                foreach (['services', 'service_ids', 'staff_services', 'serviceList', 'company_services', 'bounties', 'service'] as $cand) {
+                    if (isset($d[$cand])) {
+                        $ornek = is_array($d[$cand]) ? array_slice($d[$cand], 0, 2) : $d[$cand];
+                        $this->line("  -> '{$cand}' VAR: " . json_encode($ornek, JSON_UNESCAPED_UNICODE));
+                    }
+                }
+                $safe = 'company_staff_' . $sid;
+                $this->line('Tam JSON dump: ' . $client->dumpDir() . "/get_{$safe}.body");
+            }
+            $this->info('Kesif tamam. Dump: ' . $client->dumpDir());
             return 0;
         }
 
