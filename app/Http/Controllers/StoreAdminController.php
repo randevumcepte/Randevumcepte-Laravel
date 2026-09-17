@@ -22529,7 +22529,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         });
     }
 
-    $query->join('users', 'users.id', '=', 'kampanya_katilimcilari.user_id')
+    // leftJoin: user_id users'ta bulunamasa bile katilimci satiri DUSMESIN (INNER join
+    // katilimcilari eliyordu -> "Toplam Katilimci 0"). Isim/tel musteri iliskisinden gelir.
+    $query->leftJoin('users', 'users.id', '=', 'kampanya_katilimcilari.user_id')
           ->select('kampanya_katilimcilari.*')
           ->orderBy('users.name', 'asc');
 

@@ -15787,7 +15787,7 @@ function kampanyaolustur(tur)
                         $('#kampanyayonetim_tablo').DataTable().destroy();
                                 $('#kampanyayonetim_tablo').DataTable({
                                         columns:[
-                             { data: 'paket_isim'   },
+                             { data: 'kampanya'   },
                  
                               { data: 'seans', className:"ortaya-yasli" },
                  
