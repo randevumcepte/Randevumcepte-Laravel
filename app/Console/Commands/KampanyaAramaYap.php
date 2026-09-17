@@ -46,6 +46,13 @@ class KampanyaAramaYap extends Command
         $nowMin = now()->format('Y-m-d H:i');
         Log::info('[REKLAM-ARAMA] kontrol basladi. dk=' . $nowMin);
 
+        // Teshis: kac kampanya uygun (aktifmi=1, arama_ile_gonderim=1, zamani gelmis)?
+        $uygunKampanya = KampanyaYonetimi::where('aktifmi', 1)
+            ->where('arama_ile_gonderim', 1)
+            ->where('asistan_tarih_saat', '<=', now())
+            ->count();
+        Log::info("[REKLAM-ARAMA] uygun kampanya: {$uygunKampanya} (aktifmi=1 & arama_ile_gonderim=1 & asistan_tarih_saat<=now).");
+
         KampanyaYonetimi::where('aktifmi', 1)
             ->where('arama_ile_gonderim', 1)
             ->where('asistan_tarih_saat', '<=', now())
@@ -94,6 +101,7 @@ class KampanyaAramaYap extends Command
             ->where('ayar_id', self::AYAR_ID_KAMPANYA)
             ->value('acik_kapali');
         if (!$ayarAcik) {
+            Log::info("[REKLAM-ARAMA] kampanya {$kampanya->id} ATLANDI: E-Asistan ayar_id=8 (kampanya aramasi) KAPALI (salon {$kampanya->salon_id}).");
             return;
         }
 
