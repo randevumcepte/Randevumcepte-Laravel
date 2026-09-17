@@ -640,8 +640,11 @@ class Controller extends BaseController
             $katilimci_duzenlenecek->tekrar_aranacak = 1;
         else
             $katilimci_duzenlenecek->tekrar_arandi = 1;
+        // Cift-arama kilidini ac: arama Originate edildi ve bayraklar guncellendi; tekrar arama
+        // zamani geldiginde tekrar secilebilsin diye kilitli=0'a cekilir.
+        $katilimci_duzenlenecek->kilitli = 0;
         $katilimci_duzenlenecek->save();
-         
+
     }
     public function alacakHatırlatmaAramasiYapildiIsaretle($alacakIdler,$yapildi)
     {

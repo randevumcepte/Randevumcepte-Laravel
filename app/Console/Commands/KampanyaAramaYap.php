@@ -76,14 +76,16 @@ class KampanyaAramaYap extends Command
 
         // Bu kampanya bu dakikada ya yeni baslar ya da tekrar aramasi olanlari
         // vardir. Katilimci sorgusu TAM DAKIKA esasli kurulur.
-        // NOT: 'kilitli' kolonu kampanya_katilimcilari tablosunda YOK (kimse set etmiyordu) —
-        // sorguya dahil edilince her dakika SQLSTATE 42S22 ile komut coken oluyordu, hic arama
-        // kuyruga girmiyordu. Cikarildi; eszamanlilik zaten withoutOverlapping + tekrar_arandi/
-        // tekrar_aranacak bayraklariyla korunuyor.
+        // kilitli: cift-arama kilidi. Kuyruga atilan katilimci kilitli=1 yapilir (asagida);
+        // gecikmeli chunk penceresinde bir sonraki dakika ayni katilimciyi TEKRAR kuyruga
+        // atmasin diye kilitli=1 olanlar elenir. (Kolon 2026_09_17 migration ile eklendi.)
         $sorgu = $kampanya->kampanya_katilimcilari()
             ->with(['musteri:id,name,cinsiyet,cep_telefon'])
-            ->select('id', 'user_id', 'kampanya_id', 'tekrar_arandi', 'tekrar_aranacak', 'tekrar_arama_tarih_saat', 'durum_asistan')
-            ->whereNull('durum_asistan');
+            ->select('id', 'user_id', 'kampanya_id', 'tekrar_arandi', 'tekrar_aranacak', 'tekrar_arama_tarih_saat', 'durum_asistan', 'kilitli')
+            ->whereNull('durum_asistan')
+            ->where(function ($q) {
+                $q->whereNull('kilitli')->orWhere('kilitli', '!=', 1);
+            });
 
         if ($ilkAramaDakikasi) {
             // Ilk arama partisi: henuz hic aranmamis katilimcilar.
@@ -123,6 +125,14 @@ class KampanyaAramaYap extends Command
         $toplam = count($tumListe);
         Log::info("[REKLAM-ARAMA] kampanya {$kampanya->id} / salon {$kampanya->salon_id}: {$toplam} arama (" .
             ($ilkAramaDakikasi ? 'ilk' : 'tekrar') . ').');
+
+        // Cift-arama kilidi: kuyruga giren katilimcilari HEMEN kilitle; gecikmeli chunk
+        // penceresinde bir sonraki dakikanin kosusu ayni kisiyi tekrar kuyruga atmasin.
+        // Arama yapildi isaretlenince Controller kilitli=0'a ceker (tekrar arama serbest kalir).
+        $kilitlenecek = array_column($tumListe, 'kampanyaKatilimci');
+        if (!empty($kilitlenecek)) {
+            \App\KampanyaKatilimcilari::whereIn('id', $kilitlenecek)->update(['kilitli' => 1]);
+        }
 
         // 50'serli chunk'lara bol, her chunk'i 35sn arayla kuyruga koy.
         $chunks = array_chunk($tumListe, $this->chunkSize);
