@@ -22712,7 +22712,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $kampanya_yonetimi->sms_tarih_saat = date('Y-m-d H:i:s', strtotime($request->asistan_tarih." ".$request->asistan_saat));
         $kampanya_yonetimi->bildirim_tarih_saat = date('Y-m-d H:i:s', strtotime($request->asistan_tarih." ".$request->asistan_saat));
         $kampanya_yonetimi->save();
-        $katilimcilar = KampanyaKatilimcilari::where('id',$kampanya_yonetimi->id)->delete();
+        // Eski katilimcilari temizle: dogru kolon kampanya_id (onceden yanlislikla 'id' idi).
+        KampanyaKatilimcilari::where('kampanya_id',$kampanya_yonetimi->id)->delete();
         $gsm = array();
         $mesajlar=array();
 
@@ -22722,7 +22723,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
         $now = now();
 
-        foreach ($musteriData['musteriIdler'] as $katilimci) {
+        foreach (($musteriData['musteriIdler'] ?? []) as $katilimci) {
             $insertData[] = [
                 'kampanya_id' =>  $kampanya_yonetimi->id,
                 'user_id' => $katilimci,
@@ -22732,50 +22733,72 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             ];
         }
 
-        $chunks = array_chunk($insertData, 1000);
-        foreach ($chunks as $chunk) {
-            KampanyaKatilimcilari::insert($chunk);
+        try {
+            $chunks = array_chunk($insertData, 1000);
+            foreach ($chunks as $chunk) {
+                KampanyaKatilimcilari::insert($chunk);
+            }
+        } catch (\Throwable $e) {
+            \Log::error('[KAMPANYA-KAYDET-HATA] katilimci insert basarisiz', [
+                'kampanya_id' => $kampanya_yonetimi->id,
+                'salon_id'    => $kampanya_yonetimi->salon_id,
+                'adet'        => count($insertData),
+                'grup'        => $request->musteriGruplari,
+                'hata'        => $e->getMessage(),
+            ]);
+            return response()->json([
+                'mesaj'  => 'Katılımcılar kaydedilirken hata oluştu: '.$e->getMessage(),
+                'gonder' => '',
+            ], 500);
         }
-        $controller = app(\App\Http\Controllers\BildirimController::class);
-        $personeller = Personeller::where('salon_id',$kampanya_yonetimi->salon_id)->pluck('id')->toArray();
-        $bildirimKimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$personeller)->whereNotNull('bildirim_id')->where('salon_id',$kampanya_yonetimi->salon_id)->get();
+        // Push bildirimi kaydin kritik parcasi DEGIL; patlarsa kampanya/katilimci kaydini bozma, sadece logla.
+        try {
+            $controller = app(\App\Http\Controllers\BildirimController::class);
+            $personeller = Personeller::where('salon_id',$kampanya_yonetimi->salon_id)->pluck('id')->toArray();
+            $bildirimKimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$personeller)->whereNotNull('bildirim_id')->where('salon_id',$kampanya_yonetimi->salon_id)->get();
 
-        foreach($bildirimKimlikleri  as $token)
-        {
-             $data = [
-                    'category' => 'reklam',
-                    'buttons' => json_encode([  ]),
-                    'userInfo'=>'',
-                    'salonId'=>$kampanya_yonetimi->salon_id,
-                    'bildirimlereGitYonetici'=>"1",
-                    'kullaniciRolu'=>Personeller::where('id',$token->isletme_yetkili_id)->value('role_id'),
-                    'type'=>'',
-            ];
-            $controller->bildirimGonder(
-                    'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
-                    $token->bildirim_id,
-                    "Yeni Reklam Kampanyası Oluşturma",
-                    "Sisteme ".$kampanya_yonetimi->paket_isim." ile ilgili reklam kaydını başarıyla olşturdunuz.",
-                    $data,
-                     $kampanya_yonetimi->salon_id,
-                    null,
-                    '/public/yeni_panel/vendors/images/eczane24-icon.jpg',
-                    'kampanya',
-                    null,
-                    null,
-                    null,
-                    null,
-                    $token->isletme_yetkili_id,
-                    $kampanya_yonetimi->id,
-            );
+            foreach($bildirimKimlikleri  as $token)
+            {
+                 $data = [
+                        'category' => 'reklam',
+                        'buttons' => json_encode([  ]),
+                        'userInfo'=>'',
+                        'salonId'=>$kampanya_yonetimi->salon_id,
+                        'bildirimlereGitYonetici'=>"1",
+                        'kullaniciRolu'=>Personeller::where('id',$token->isletme_yetkili_id)->value('role_id'),
+                        'type'=>'',
+                ];
+                $controller->bildirimGonder(
+                        'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+                        $token->bildirim_id,
+                        "Yeni Reklam Kampanyası Oluşturma",
+                        "Sisteme ".$kampanya_yonetimi->paket_isim." ile ilgili reklam kaydını başarıyla olşturdunuz.",
+                        $data,
+                         $kampanya_yonetimi->salon_id,
+                        null,
+                        '/public/yeni_panel/vendors/images/eczane24-icon.jpg',
+                        'kampanya',
+                        null,
+                        null,
+                        null,
+                        null,
+                        $token->isletme_yetkili_id,
+                        $kampanya_yonetimi->id,
+                );
+            }
+        } catch (\Throwable $e) {
+            \Log::error('[KAMPANYA-KAYDET-HATA] push bildirim basarisiz (kayit korundu)', [
+                'kampanya_id' => $kampanya_yonetimi->id, 'hata' => $e->getMessage(),
+            ]);
         }
 
 
         // Audit
+        $_katilimciAdet = count($musteriData['musteriIdler'] ?? []);
         SalonAudit::log($kampanya_yonetimi->salon_id, $_yeniKampanya ? 'kampanya_olustur' : 'kampanya_guncelle', 'kampanya', $kampanya_yonetimi->id,
-            ($kampanya_yonetimi->paket_isim ?: 'Kampanya').' — '.count($musteriData['musteriIdler']).' kişi',
+            ($kampanya_yonetimi->paket_isim ?: 'Kampanya').' — '.$_katilimciAdet.' kişi',
             $_yeniKampanya ? 'Yeni kampanya/reklam oluşturuldu' : 'Kampanya/reklam güncellendi',
-            ['gorev_turu'=>$request->gorevTuru, 'katilimci_sayisi'=>count($musteriData['musteriIdler']), 'kod'=>$request->kampanyaKodu]);
+            ['gorev_turu'=>$request->gorevTuru, 'katilimci_sayisi'=>$_katilimciAdet, 'kod'=>$request->kampanyaKodu]);
 
         return array(
           "mesaj" => "Kampanya başarıyla kaydedildi",
