@@ -5420,17 +5420,49 @@ public function kasa_raporu_getir(Request $request,$returntext)
         $tum_tahsilatlar_toplam = Tahsilatlar::where('salon_id', $salon_id)->sum('tutar');
     }
 
+    // ÖKSÜZ/BAĞSIZ TAHSİLAT TESPİTİ: adisyon kalemine (tahsilat_hizmetler/urunler/paketler ->
+    // var olan adisyon_hizmet/urun/paket) VEYA var olan bir adisyona (adisyon_id) baglanamayan
+    // tahsilatlar. Bunlar genelde adisyon/kalem silinince geride kalan "kasa kalintisi"
+    // kayitlardir; listede kirmizi rozet + arka planla isaretlenir ki gercek satislardan
+    // ayirt edilip temizlenebilsin. Manuel Para Ekle/Cek (para_girisi/para_cikisi) haric.
+    $_gelirTahsilatIds = $tahsilatlar->pluck('id')->all();
+    $_kalemeBagliIds = [];    // var olan bir kaleme kirilim ile bagli tahsilat id'leri
+    $_adisyonaBagliIds = [];  // var olan bir adisyona adisyon_id ile bagli adisyon id'leri
+    if (!empty($_gelirTahsilatIds)) {
+        $_kalemeBagliIds = array_flip(array_merge(
+            DB::table('tahsilat_hizmetler')->whereIn('tahsilat_id',$_gelirTahsilatIds)
+                ->whereIn('adisyon_hizmet_id', function($q){ $q->select('id')->from('adisyon_hizmetler'); })
+                ->pluck('tahsilat_id')->all(),
+            DB::table('tahsilat_urunler')->whereIn('tahsilat_id',$_gelirTahsilatIds)
+                ->whereIn('adisyon_urun_id', function($q){ $q->select('id')->from('adisyon_urunler'); })
+                ->pluck('tahsilat_id')->all(),
+            DB::table('tahsilat_paketler')->whereIn('tahsilat_id',$_gelirTahsilatIds)
+                ->whereIn('adisyon_paket_id', function($q){ $q->select('id')->from('adisyon_paketler'); })
+                ->pluck('tahsilat_id')->all()
+        ));
+        $_adisyonaBagliIds = array_flip(
+            Adisyonlar::whereIn('id', array_values(array_filter($tahsilatlar->pluck('adisyon_id')->unique()->all())))
+                ->pluck('id')->all()
+        );
+    }
+
     $tahsilat_liste = '';
     foreach($tahsilatlar as $tahsilat){
         $_gostTutar = $_gosterTutar($tahsilat);
-        $tahsilat_liste .= '<tr class="rc-kd-gelir-row" data-tahsilat-id="'.$tahsilat->id.'" title="Detayları görüntülemek için tıklayın">
+        // Manuel kasa hareketi degil + hicbir var-olan kaleme/adisyona baglanamiyorsa = bagsiz
+        $_bagsiz = ($tahsilat->para_girisi != true && $tahsilat->para_cikisi != true)
+            && !isset($_kalemeBagliIds[$tahsilat->id])
+            && !($tahsilat->adisyon_id !== null && isset($_adisyonaBagliIds[$tahsilat->adisyon_id]));
+        $_rowStyle  = $_bagsiz ? ' style="background:#fff1f2"' : '';
+        $_bagsizRozet = $_bagsiz ? ' <span style="background:#dc2626;color:#fff;border-radius:6px;padding:1px 7px;font-size:11px;white-space:nowrap">Kaleme bağlı değil</span>' : '';
+        $tahsilat_liste .= '<tr class="rc-kd-gelir-row'.($_bagsiz?' rc-kd-bagsiz':'').'"'.$_rowStyle.' data-tahsilat-id="'.$tahsilat->id.'" title="Detayları görüntülemek için tıklayın">
                         <td>'.date('d.m.Y',strtotime($tahsilat->odeme_tarihi)).'</td>
                         <td>';
         if($tahsilat->user_id !== null)
         {
             $tahsilat_liste .= $tahsilat->musteri ? $tahsilat->musteri->name : '';
         }
-        $tahsilat_liste .= '</td>';
+        $tahsilat_liste .= $_bagsizRozet.'</td>';
         $tahsilat_liste .= '<td>'.($tahsilat->olusturan? $tahsilat->olusturan->personel_adi : '').'</td>';
         $tahsilat_liste .='</td>
                         <td>'.$tahsilat->notlar.'</td>
@@ -5439,7 +5471,7 @@ public function kasa_raporu_getir(Request $request,$returntext)
         if($tahsilat->para_girisi == true)
             $tahsilat_liste .= '<td>
                       <button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Para Ekleme Sil"  name="para_ekleme_sil" data-value="'.$tahsilat->id.'"><i class="fa fa-times"></i></button></td>';
-        elseif($tahsilat->adisyon_id === null && $tahsilat->para_cikisi != true)
+        elseif(($tahsilat->adisyon_id === null || $_bagsiz) && $tahsilat->para_cikisi != true)
             $tahsilat_liste .= '<td>
                       <button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Bağımsız Tahsilatı Sil"  name="bagimsiz_tahsilat_sil" data-value="'.$tahsilat->id.'"><i class="fa fa-times"></i></button></td>';
 
