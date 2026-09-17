@@ -13455,6 +13455,12 @@ $('#senet_filtre').change(function (e) {
     });
 });
 $(document).on('click','a[name="kampanya_detay"]',function(e){
+    // DEVRE DISI: Rapor modali (reklam-detay-modal) artik reklamYonetimi2.js tarafindan
+    // yonetiliyor (POST kampanyadetay, response.data ile tbody doldurur). Bu eski handler
+    // ayni #kampanya_tablo_tum_katilimci_arama tablosunu YANLIS anahtarlarla
+    // (result.katilimcilar_arama = undefined) DataTable'a cevirip reklamYonetimi2'nin
+    // ekledigi satirlari siliyordu -> "Toplam Katilimci 0". Cakismayi onlemek icin cikildi.
+    return;
     e.preventDefault();
     var kampanya_id = $(this).attr('data-value');
     $.ajax({
