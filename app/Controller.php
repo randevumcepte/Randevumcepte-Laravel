@@ -376,7 +376,7 @@ class Controller extends BaseController
                         
 
                         //$originateRequest .= "Channel: Local/".$exten."@from-internal-custom\r\n";
-                        $originateRequest .= "Channel: PJSIP/0".$tel."@".$sabitno->numara."\r\n";
+                        $originateRequest .= "Channel: ".env('SANTRAL_CHANNEL_TECH', 'SIP')."/0".$tel."@".$sabitno->numara."\r\n";
                         $originateRequest .= "Callerid: ".$sabitno->numara."\r\n";
                         $originateRequest .= "Exten: ".$exten."\r\n";  // 1 numaralı uzantıya yönlendirme
                         $originateRequest .= "Context: $context\r\n";  // Asterisk bağlamı (context)
