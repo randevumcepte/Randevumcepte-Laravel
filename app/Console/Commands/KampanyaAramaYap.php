@@ -187,7 +187,10 @@ class KampanyaAramaYap extends Command
             'mesaj' => $mesaj,
             'tel' => $katilimci->musteri->cep_telefon,
             'salonId' => $kampanya->salon_id,
-            'exten' => 3,
+            // exten 4 = RANDEVUMCEPTE kampanya akisi (kampanya-tanitim -> ulasildi.php ->
+            // app.randevumcepte.com.tr). exten 3 ECZANE akisiydi (ulasildiEczane.php ->
+            // app.eczella.com): yanlis anons + "ulasildi" bilgisi eczella'ya gidiyordu.
+            'exten' => 4,
         ];
     }
 }
