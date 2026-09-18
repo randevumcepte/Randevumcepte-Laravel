@@ -420,7 +420,10 @@ class Controller extends BaseController
         $i = 0;
 
         // Context for outbound calls. See /etc/asterisk/extensions.conf if unsure.
-        $context = "from-internal-custom";
+        // Originate hedef context'i. Santral dialplan'inda exten 1/2/3 (randevu/alacak/kampanya)
+        // [from-internal] icinde ([from-internal-custom] yorumda). Kod eskiden from-internal-custom
+        // gonderiyordu -> yeni santralda "Extension does not exist". .env ile override edilebilir.
+        $context = env('SANTRAL_CONTEXT', 'from-internal');
 
         // Baglanti kurulamazsa net logla (eskiden IP yanlisti -> "Connection timed out").
         $socket = @stream_socket_client("tcp://$santralHost:$port", $amiErrno, $amiErrstr, 10);

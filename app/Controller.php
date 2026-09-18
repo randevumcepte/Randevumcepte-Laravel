@@ -341,7 +341,7 @@ class Controller extends BaseController
         else
             $aranacakTelefonlar = $telefon;
         // Context for outbound calls. See /etc/asterisk/extensions.conf if unsure.
-        $context = "from-internal-custom";   
+        $context = env('SANTRAL_CONTEXT', 'from-internal');
          
         $socket = stream_socket_client("tcp://".env('SANTRAL_HOST', '89.252.140.61').":$port");
         if($socket)
