@@ -22547,12 +22547,14 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     $search  = trim($request->search ?? '');
     $query = KampanyaKatilimcilari::where('kampanya_id', $kampanyaId);
 
+    // Sekmeler ARAMA durumuna gore: 2=Katilanlar (durum_asistan=1), 3=Katilmayanlar (=0),
+    // 4=Beklenenler/henuz cevap yok (durum_asistan NULL). (Eskiden kupon durumuna gore idi.)
     if ($request->katilimDurumu == 2) {
-        $query->where('indirim_kodu_kullanildi', 1);
+        $query->where('durum_asistan', 1);
     } elseif ($request->katilimDurumu == 3) {
-        $query->where('indirim_kodu_kullanildi', 0);
+        $query->where('durum_asistan', 0);
     } elseif ($request->katilimDurumu == 4) {
-        $query->whereNull('indirim_kodu_kullanildi');
+        $query->whereNull('durum_asistan');
     }
 
     if ($search !== '') {
@@ -22576,7 +22578,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         ->take($perPage)
         ->get();
 
-    $katilimcilarDatasi = $katilimcilar->map(function ($item) use ($salonId) {
+    $fmtZaman = function ($v) { return $v ? date('d.m.Y H:i', strtotime($v)) : ''; };
+    $katilimcilarDatasi = $katilimcilar->map(function ($item) use ($salonId, $fmtZaman) {
         $telefon = $item->musteri->cep_telefon ?? '';
         $telefonGizlenmis = $telefon;
 
@@ -22589,12 +22592,23 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $telefonGizlenmis = self::telefonGizle($telefon);
         }
 
-        if ($item->indirim_kodu_kullanildi === null) {
-            $katilimDurumu = '<button class="btn btn-warning btn-sm">Beklemede</button>';
-        } elseif ($item->indirim_kodu_kullanildi === 1) {
-            $katilimDurumu = '<button class="btn btn-success btn-sm">Kod Kullanıldı</button>';
+        // ARAMA durumu (kupon degil): yasam dongusu.
+        //  durum_asistan: 1=cevap verdi & katildi, 0=cevap verdi & katilmadi, null=henuz cevap yok
+        //  kilitli=1 -> su an araniyor; tekrar_arandi=1 -> 2 kez arandi cevap yok; tekrar_aranacak=1 -> tekrar planli
+        $da = $item->durum_asistan;
+        if ($da !== null && (int) $da === 1) {
+            $katilimDurumu = '<button class="btn btn-success btn-sm">Ulaşıldı · Katıldı</button>';
+        } elseif ($da !== null && (int) $da === 0) {
+            $katilimDurumu = '<button class="btn btn-secondary btn-sm">Ulaşıldı · Katılmadı</button>';
+        } elseif ((int) $item->kilitli === 1) {
+            $katilimDurumu = '<button class="btn btn-info btn-sm">Aranıyor…</button>';
+        } elseif ((int) $item->tekrar_arandi === 1) {
+            $katilimDurumu = '<button class="btn btn-danger btn-sm">Ulaşılamadı</button>';
+        } elseif ((int) $item->tekrar_aranacak === 1) {
+            $t = $fmtZaman($item->tekrar_arama_tarih_saat);
+            $katilimDurumu = '<button class="btn btn-warning btn-sm">Tekrar aranacak' . ($t ? ' · ' . $t : '') . '</button>';
         } else {
-            $katilimDurumu = '<button class="btn btn-danger btn-sm">Kod Kullanılmadı</button>';
+            $katilimDurumu = '<button class="btn btn-warning btn-sm">Sırada (aranacak)</button>';
         }
 
         return [
