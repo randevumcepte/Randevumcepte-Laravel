@@ -407,27 +407,26 @@ class Controller extends BaseController
     {   
        
        
-        // Replace with your port if not using the default.
-        // If unsure check /etc/asterisk/manager.conf under [general];
-        $port = 5038;
-
-        // Replace with your username. You can find it in /etc/asterisk/manager.conf.
-        // If unsure look for a user with "originate" permissions, or create one sizi
-        // shown at http://www.voip-info.org/wiki/view/Asterisk+config+manager.conf.
-        $username = "cxpanel";
-
-        // Replace with your password (refered to as "secret" in /etc/asterisk/manager.conf)
-        $password = "cxmanager*con";
+        // Santral (Asterisk AMI) baglanti bilgileri .env'den; ayar yoksa guncel varsayilan.
+        // SANTRAL IP degisince tek yer: .env SANTRAL_HOST (veya asagidaki varsayilan).
+        $santralHost = env('SANTRAL_HOST', '89.252.140.61');
+        $port        = (int) env('SANTRAL_AMI_PORT', 5038);
+        $username    = env('SANTRAL_AMI_USER', 'cxpanel');
+        $password    = env('SANTRAL_AMI_SECRET', 'cxmanager*con');
 
         // Internal phone line to call from
         $internalPhoneline = "31";
-       
+
         $i = 0;
-        
+
         // Context for outbound calls. See /etc/asterisk/extensions.conf if unsure.
-        $context = "from-internal-custom";   
-         
-        $socket = stream_socket_client("tcp://34.45.69.65:$port");
+        $context = "from-internal-custom";
+
+        // Baglanti kurulamazsa net logla (eskiden IP yanlisti -> "Connection timed out").
+        $socket = @stream_socket_client("tcp://$santralHost:$port", $amiErrno, $amiErrstr, 10);
+        if (!$socket) {
+            \Log::error("[ARAMA-AMI] santral baglanti hatasi: {$santralHost}:{$port} -> [{$amiErrno}] {$amiErrstr}");
+        }
         if($socket)
         {
           

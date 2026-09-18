@@ -343,7 +343,7 @@ class Controller extends BaseController
         // Context for outbound calls. See /etc/asterisk/extensions.conf if unsure.
         $context = "from-internal-custom";   
          
-        $socket = stream_socket_client("tcp://34.45.69.65:$port");
+        $socket = stream_socket_client("tcp://".env('SANTRAL_HOST', '89.252.140.61').":$port");
         if($socket)
         {
           
