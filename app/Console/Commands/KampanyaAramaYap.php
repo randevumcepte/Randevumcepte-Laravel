@@ -87,17 +87,27 @@ class KampanyaAramaYap extends Command
                 $q->whereNull('kilitli')->orWhere('kilitli', '!=', 1);
             });
 
-        if ($ilkAramaDakikasi) {
-            // Ilk arama partisi: henuz hic aranmamis katilimcilar.
-            $sorgu->whereNull('tekrar_arandi')->whereNull('tekrar_aranacak');
-        } else {
-            // Sadece tekrar arama zamani su an olan katilimcilar.
-            $sorgu->where('tekrar_aranacak', 1)
-                  ->where(function ($q) {
-                      $q->whereNull('tekrar_arandi')->orWhere('tekrar_arandi', '!=', 1);
-                  })
-                  ->where('tekrar_arama_tarih_saat', 'like', $nowMin . '%');
-        }
+        // ONEMLI: Eskiden "ilk arama" YALNIZCA asistan_tarih_saat'in TAM DAKIKASINDA yapiliyordu
+        // (ilkAramaDakikasi). O dakika kacinca (orn. job cokerse/gecikirse) hic aranmamis
+        // katilimci "tekrar arama" dalina da giremiyor (tekrar_aranacak=null) -> KALICI TAKILI.
+        // Cozum: hic aranmamislari, kampanya zamani geldiginde (dis sorgu asistan_tarih_saat<=now)
+        // her koşuda al; tekrar arama icin de tam-dakika yerine "zamani gelmis/gecmis" (<=now).
+        // Cift-arama kilidi (kilitli) + tekrar_aranacak bayragi spam'i onler.
+        $sorgu->where(function ($q) {
+            // (a) Ilk arama: hic aranmamis katilimcilar
+            $q->where(function ($q2) {
+                $q2->whereNull('tekrar_arandi')->whereNull('tekrar_aranacak');
+            })
+            // (b) VEYA tekrar arama zamani gelmis/gecmis
+            ->orWhere(function ($q2) {
+                $q2->where('tekrar_aranacak', 1)
+                   ->where(function ($q3) {
+                       $q3->whereNull('tekrar_arandi')->orWhere('tekrar_arandi', '!=', 1);
+                   })
+                   ->whereNotNull('tekrar_arama_tarih_saat')
+                   ->where('tekrar_arama_tarih_saat', '<=', now());
+            });
+        });
 
         // Ayar kontrolu (kampanya basina tek sorgu) — kapaliysa hic dolasma.
         $ayarAcik = SalonEAsistanAyarlari::where('salon_id', $kampanya->salon_id)
