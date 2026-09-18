@@ -469,11 +469,20 @@ class Controller extends BaseController
                         
 
                         //$originateRequest .= "Channel: Local/".$exten."@from-internal-custom\r\n";
-                        // Kanal teknigi trunk teknolojisiyle eslesmeli. Trunk chan_sip (SIP/) —
-                        // PJSIP/ ile "Unable to create PJSIP channel - endpoint not found" veriyordu.
+                        // Kanal teknigi + FORMAT trunk teknolojisiyle eslesmeli:
+                        //  chan_sip (SIP/): SIP/<trunk-peer>/<numara>  ('numara@peer' -> chan_sip
+                        //     "Purely numeric hostname ... not a peer--rejecting" hatasi verir)
+                        //  PJSIP:           PJSIP/<numara>@<endpoint>
                         // .env SANTRAL_CHANNEL_TECH ile override (varsayilan SIP).
-                        $kanalTeknigi = env('SANTRAL_CHANNEL_TECH', 'SIP');
-                        $originateRequest .= "Channel: ".$kanalTeknigi."/0".$parametre["tel"]."@".$sabitno->numara."\r\n";
+                        $kanalTeknigi   = env('SANTRAL_CHANNEL_TECH', 'SIP');
+                        $aranacakNumara = '0'.$parametre["tel"];
+                        if (strtoupper($kanalTeknigi) === 'SIP') {
+                            // Calisan referans (eczane24): peer adi <numara>-out, slash format.
+                            $kanal = 'SIP/'.$sabitno->numara.'-out/'.$aranacakNumara;
+                        } else {
+                            $kanal = $kanalTeknigi.'/'.$aranacakNumara.'@'.$sabitno->numara;
+                        }
+                        $originateRequest .= "Channel: ".$kanal."\r\n";
                         $originateRequest .= "Callerid: ".$sabitno->numara."\r\n";
                         $originateRequest .= "Exten: ".$parametre["exten"]."\r\n";  // 1 numaralı uzantıya yönlendirme
                         $originateRequest .= "Context: $context\r\n";  // Asterisk bağlamı (context)
