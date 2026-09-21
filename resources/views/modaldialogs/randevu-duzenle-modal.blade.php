@@ -780,6 +780,11 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
                         duzenleUpdateOzeti();
                         return;
                     }
+                    // IDEMPOTENT: cift fetch/cift tiklama durumunda satirlar birikmesin
+                    // (paralel iki randevu-duzenle-json call'i her ikisi de append yapip
+                    // 4 satir olusturuyordu -> backend duplicate insert. #1911070 bug.)
+                    $('.hizmetler_bolumu_randevu_duzenleme').empty();
+                    window.duzenleHizmetIndex = 0;
                     data.hizmetler.forEach(function(h){
                         var $row = duzenleYeniHizmetSatiri();
                         if(!$row) return;
