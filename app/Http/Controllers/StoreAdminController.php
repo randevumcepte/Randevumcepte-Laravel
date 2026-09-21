@@ -17888,7 +17888,13 @@ DB::raw('
                     ),"</span>") END as yaklasan_vade'),*/
             DB::raw('DATE_FORMAT(alacaklar.created_at,"%d.%m.%Y") as olusturulma'),
             DB::raw('CONCAT("<a href=\"/isletmeyonetim/adisyon/",adisyonlar.id,"\" class=\"btn btn-primary\"> Tahsil Et <i class=\"fa fa-chevron-right\"></i></button>") as islemler')
-        )->where('alacaklar.salon_id',self::mevcutsube($request))->get();
+        )->where('alacaklar.salon_id',self::mevcutsube($request))
+        // Vadesi odenmis (taksit veya senet) alacaklari GIZLE — tahsilatekle
+        // taksit_vade/senet_vade.odendi=1 yapiyordu ama alacak listesi bu filtreyi
+        // uygulamiyordu, o yuzden odenmis alacaklar hala listede goruniyordu.
+        ->whereRaw('NOT EXISTS (SELECT 1 FROM taksit_vadeleri tv WHERE tv.id = alacaklar.taksit_vade_id AND tv.odendi = 1)')
+        ->whereRaw('NOT EXISTS (SELECT 1 FROM senet_vadeleri sv WHERE sv.id = alacaklar.senet_vade_id AND sv.odendi = 1)')
+        ->get();
         $alacaklar_hizmet=DB::table('alacaklar')
          ->join('users','alacaklar.user_id','=','users.id')
         ->join('salonlar','alacaklar.salon_id','=','salonlar.id')
@@ -17911,7 +17917,13 @@ DB::raw('
                     ),"</span>") END as yaklasan_vade'),*/
             DB::raw('DATE_FORMAT(alacaklar.created_at,"%d.%m.%Y") as olusturulma'),
             DB::raw('CONCAT("<a href=\"/isletmeyonetim/adisyon/",adisyonlar.id,"\" class=\"btn btn-primary\"> Tahsil Et <i class=\"fa fa-chevron-right\"></i></button>") as islemler')
-        )->where('alacaklar.salon_id',self::mevcutsube($request))->get();
+        )->where('alacaklar.salon_id',self::mevcutsube($request))
+        // Vadesi odenmis (taksit veya senet) alacaklari GIZLE — tahsilatekle
+        // taksit_vade/senet_vade.odendi=1 yapiyordu ama alacak listesi bu filtreyi
+        // uygulamiyordu, o yuzden odenmis alacaklar hala listede goruniyordu.
+        ->whereRaw('NOT EXISTS (SELECT 1 FROM taksit_vadeleri tv WHERE tv.id = alacaklar.taksit_vade_id AND tv.odendi = 1)')
+        ->whereRaw('NOT EXISTS (SELECT 1 FROM senet_vadeleri sv WHERE sv.id = alacaklar.senet_vade_id AND sv.odendi = 1)')
+        ->get();
           $alacaklar_urun=DB::table('alacaklar')
          ->join('users','alacaklar.user_id','=','users.id')
         ->join('salonlar','alacaklar.salon_id','=','salonlar.id')
@@ -17934,7 +17946,13 @@ DB::raw('
                     ),"</span>") END as yaklasan_vade'),*/
             DB::raw('DATE_FORMAT(alacaklar.created_at,"%d.%m.%Y") as olusturulma'),
             DB::raw('CONCAT("<a href=\"/isletmeyonetim/adisyon/",adisyonlar.id,"\" class=\"btn btn-primary\"> Tahsil Et <i class=\"fa fa-chevron-right\"></i></button>") as islemler')
-        )->where('alacaklar.salon_id',self::mevcutsube($request))->get();
+        )->where('alacaklar.salon_id',self::mevcutsube($request))
+        // Vadesi odenmis (taksit veya senet) alacaklari GIZLE — tahsilatekle
+        // taksit_vade/senet_vade.odendi=1 yapiyordu ama alacak listesi bu filtreyi
+        // uygulamiyordu, o yuzden odenmis alacaklar hala listede goruniyordu.
+        ->whereRaw('NOT EXISTS (SELECT 1 FROM taksit_vadeleri tv WHERE tv.id = alacaklar.taksit_vade_id AND tv.odendi = 1)')
+        ->whereRaw('NOT EXISTS (SELECT 1 FROM senet_vadeleri sv WHERE sv.id = alacaklar.senet_vade_id AND sv.odendi = 1)')
+        ->get();
            $alacaklar_paket=DB::table('alacaklar')
          ->join('users','alacaklar.user_id','=','users.id')
         ->join('salonlar','alacaklar.salon_id','=','salonlar.id')
@@ -17957,7 +17975,13 @@ DB::raw('
                     ),"</span>") END as yaklasan_vade'),*/
             DB::raw('DATE_FORMAT(alacaklar.created_at,"%d.%m.%Y") as olusturulma'),
             DB::raw('CONCAT("<a href=\"/isletmeyonetim/adisyon/",adisyonlar.id,"\" class=\"btn btn-primary\"> Tahsil Et <i class=\"fa fa-chevron-right\"></i></button>") as islemler')
-        )->where('alacaklar.salon_id',self::mevcutsube($request))->get();
+        )->where('alacaklar.salon_id',self::mevcutsube($request))
+        // Vadesi odenmis (taksit veya senet) alacaklari GIZLE — tahsilatekle
+        // taksit_vade/senet_vade.odendi=1 yapiyordu ama alacak listesi bu filtreyi
+        // uygulamiyordu, o yuzden odenmis alacaklar hala listede goruniyordu.
+        ->whereRaw('NOT EXISTS (SELECT 1 FROM taksit_vadeleri tv WHERE tv.id = alacaklar.taksit_vade_id AND tv.odendi = 1)')
+        ->whereRaw('NOT EXISTS (SELECT 1 FROM senet_vadeleri sv WHERE sv.id = alacaklar.senet_vade_id AND sv.odendi = 1)')
+        ->get();
         return array(
         'alacaklar'=>$alacaklar,
         'alacaklar_hizmet'=>$alacaklar_hizmet,
