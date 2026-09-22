@@ -26872,12 +26872,30 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
         $katilimci->durum_asistan = $request->katilacak;
         $katilimci->save();
 
-        // Indirim kodu + yol tarifi SMS'i YALNIZCA "evet" (katilacak=1) diyene gonderilir;
-        // "hayir" diyene indirim kodu gitmesin.
+        // Indirim kodu + yol tarifi mesaji YALNIZCA "evet" (katilacak=1) diyene gider.
         if ($request->katilacak == 1) {
             $mesaj = 'Size özel indirim kodunuz: '.$katilimci->indirim_kodu.'. '.$kampanya->salon->salon_adi.' yol tarifi: '.$kampanya->salon->yol_tarifi.'. Sağlıklı ve mutlu günler geçirmenizi dileriz.';
-            $mesajlar = array(array("to"=>$katilimci->musteri->cep_telefon,"message"=>$mesaj));
-            self::sms_gonder_2($request,$mesajlar, false,1,false,$kampanya->salon_id,false);
+            $telefon = $katilimci->musteri->cep_telefon;
+
+            // WHATSAPP-FIRST: once WhatsApp (anlik kuyruk = hizli, senkron SMS beklemesi yok),
+            // WA yoksa/bagli degilse/hata verirse SMS'e duser. (Geldi/OTP ile ayni desen.)
+            $waGonderildi = false;
+            try {
+                $salon   = $kampanya->salon;
+                $waSalon = $salon ? \App\Services\WhatsAppService::resolveWaSalon($salon) : null;
+                if ($waSalon && !empty($waSalon->whatsapp_aktif) && ($waSalon->whatsapp_durum ?? null) === 'connected') {
+                    $wa    = app(\App\Services\WhatsAppService::class);
+                    $sonuc = $wa->sendUrgent($salon, $telefon, $mesaj, $katilimci->user_id, 'kampanya');
+                    $waGonderildi = (bool) ($sonuc['ok'] ?? false);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('[Kampanya WA] istisna, SMS fallback', ['err' => $e->getMessage()]);
+            }
+
+            if (!$waGonderildi) {
+                $mesajlar = array(array("to"=>$telefon,"message"=>$mesaj));
+                self::sms_gonder_2($request,$mesajlar, false,1,false,$kampanya->salon_id,false);
+            }
         }
 
         Audit::logApi($kampanya->salon_id, $request, 'kampanyaya_katil', 'kampanya_katilimci', $katilimci->id, null, 'Kampanya katilim durumu guncellendi');
