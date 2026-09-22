@@ -60,6 +60,11 @@ class KampanyaAramaYap extends Command
         $this->kalanButce = (int) env('KAMPANYA_ARAMA_MAX_PER_RUN', $this->maxAramaPerRun);
         Log::info("[REKLAM-ARAMA] kontrol basladi. dk={$nowMin} (dakika butcesi={$this->kalanButce})");
 
+        // TAM TARAMA GARANTISI: takili kalan kilitleri coz (cevapsiz cagri -> santral
+        // geri bildirmedigi icin kilitli=1 kalir; cozulmezse o kisi kalici atlanir).
+        // Ayrica ulasilamama 1-tekrar mantigini burada uygular.
+        $this->kilitliKurtar();
+
         // Teshis: kac kampanya uygun (aktifmi=1, arama_ile_gonderim=1, zamani gelmis)?
         $uygunKampanya = KampanyaYonetimi::where('aktifmi', 1)
             ->where('arama_ile_gonderim', 1)
@@ -84,6 +89,57 @@ class KampanyaAramaYap extends Command
             Log::info("[REKLAM-ARAMA] dakika butcesi doldu; kalan katilimcilar sonraki dakika(lar) aranacak (kilitli degil).");
         }
         Log::info('[REKLAM-ARAMA] kontrol tamamlandi.');
+    }
+
+    /**
+     * TAKILI KILIT KURTARMA — tam tarama garantisi + ulasilamama 1-tekrar.
+     *
+     * Cevapsiz/cevaplanmamis cagrilar kilitli=1 takili kalir (santral cevapsiz cagriyi
+     * geri bildirmez -> isaretle fonksiyonu cagrilmaz). Cozulmezse o katilimci KALICI
+     * ATLANIR. Cagri suresinden (KAMPANYA_KILIT_TIMEOUT_DK, default 5dk) eskiyen ve hala
+     * cevaplanmamis (durum_asistan NULL) kilitleri cozeriz:
+     *   - Ilk deneme cevapsiz (tekrar planlanmamis) -> tekrar_aranacak=1 + zaman -> 1 KEZ DAHA aranir.
+     *   - Tekrar da cevapsiz (tekrar_aranacak=1'di) -> tekrar_arandi=1 -> FINAL, bir daha aranmaz.
+     * Her iki halde kilitli=0 -> asla kalici takili kalmaz. asistan_ulasamadi=1 raporlanir.
+     * SIRA ONEMLI: once FINAL (tekrar_aranacak=1 olanlar), sonra ILK (tekrar_aranacak!=1);
+     * boylece bu turda ilk-denemeye tekrar_aranacak=1 verip ayni turda final'e cekmeyiz.
+     */
+    protected function kilitliKurtar()
+    {
+        $esik       = now()->subMinutes((int) env('KAMPANYA_KILIT_TIMEOUT_DK', 5));
+        $tekrarGeci = now()->addMinutes((int) env('KAMPANYA_TEKRAR_ARAMA_DK', 15));
+
+        // (2) FINAL: tekrar denemesi de cevapsiz kaldi -> bir daha arama.
+        $final = \App\KampanyaKatilimcilari::where('kilitli', 1)
+            ->whereNull('durum_asistan')
+            ->whereNotNull('kilitli_zaman')
+            ->where('kilitli_zaman', '<=', $esik)
+            ->where('tekrar_aranacak', 1)
+            ->where(function ($q) { $q->whereNull('tekrar_arandi')->orWhere('tekrar_arandi', '!=', 1); })
+            ->update([
+                'asistan_ulasamadi' => 1,
+                'tekrar_arandi'     => 1,   // secim disi -> final ulasilamadi
+                'kilitli'           => 0,
+                'kilitli_zaman'     => null,
+            ]);
+
+        // (1) ILK: ilk deneme cevapsiz -> 1 kez daha aramak uzere planla.
+        $ilk = \App\KampanyaKatilimcilari::where('kilitli', 1)
+            ->whereNull('durum_asistan')
+            ->whereNotNull('kilitli_zaman')
+            ->where('kilitli_zaman', '<=', $esik)
+            ->where(function ($q) { $q->whereNull('tekrar_aranacak')->orWhere('tekrar_aranacak', '!=', 1); })
+            ->update([
+                'asistan_ulasamadi'       => 1,
+                'tekrar_aranacak'         => 1,
+                'tekrar_arama_tarih_saat' => $tekrarGeci,
+                'kilitli'                 => 0,
+                'kilitli_zaman'           => null,
+            ]);
+
+        if ($ilk > 0 || $final > 0) {
+            Log::info("[REKLAM-ARAMA] takili kilit kurtarma: {$ilk} katilimci tekrar planlandi, {$final} final ulasilamadi.");
+        }
     }
 
     protected function kampanyayiIsle($kampanya, $nowMin)
@@ -165,7 +221,10 @@ class KampanyaAramaYap extends Command
         // Arama yapildi isaretlenince Controller kilitli=0'a ceker (tekrar arama serbest kalir).
         $kilitlenecek = array_column($tumListe, 'kampanyaKatilimci');
         if (!empty($kilitlenecek)) {
-            \App\KampanyaKatilimcilari::whereIn('id', $kilitlenecek)->update(['kilitli' => 1]);
+            // kilitli_zaman: kilitli takili kalirsa (cevapsiz cagri) kilitliKurtar() bunu
+            // esik'e gore cozer -> kimse kalici takili kalmaz, tum liste taranir.
+            \App\KampanyaKatilimcilari::whereIn('id', $kilitlenecek)
+                ->update(['kilitli' => 1, 'kilitli_zaman' => now()]);
         }
 
         // 50'serli chunk'lara bol, her chunk'i 35sn arayla kuyruga koy.
