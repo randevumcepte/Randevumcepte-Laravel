@@ -70,17 +70,44 @@ class SeslendirmeServisi
         return is_file($yol) ? $yol : null;
     }
 
-    /** Google Cloud TTS REST cagrisi. Basarisizsa null. */
+    /**
+     * Google Cloud TTS. Once istenen ses (varsayilan Chirp3-HD) denenir; 400/hata
+     * gelirse (orn. proje Chirp3-HD'yi desteklemiyor) fallback sese (Wavenet) duser
+     * -> cagride sessizlik olmaz. Basarisizsa null.
+     */
     protected function googleUret($metin, $ses)
     {
         $key = (string) config('services.google_tts.key', '');
         if ($key === '') return null;
 
+        $rate = (float) config('services.google_tts.rate', 1.0);
+
+        $bin = $this->googleSentez($metin, $ses, $rate, $key);
+        if ($bin !== null) return $bin;
+
+        // Fallback: istenen ses (Chirp3-HD) uretilemedi -> Wavenet vb. dene.
+        $fallback = (string) config('services.google_tts.voice_fallback', '');
+        if ($fallback !== '' && strcasecmp($fallback, $ses) !== 0) {
+            $bin = $this->googleSentez($metin, $fallback, $rate, $key);
+        }
+        return $bin;
+    }
+
+    /** Tek bir Google TTS sentez cagrisi (belirli ses). Basarisizsa null. */
+    protected function googleSentez($metin, $ses, $rate, $key)
+    {
         $url = 'https://texttospeech.googleapis.com/v1/text:synthesize?key=' . urlencode($key);
+
+        $audioConfig = ['audioEncoding' => 'MP3', 'speakingRate' => $rate];
+        // Chirp3-HD pitch DESTEKLEMEZ (400 verir); yalnizca Wavenet/Standard'da gonder.
+        if (stripos($ses, 'Chirp') === false) {
+            $audioConfig['pitch'] = 0.0;
+        }
+
         $govde = json_encode([
             'input'       => ['text' => $metin],
             'voice'       => ['languageCode' => 'tr-TR', 'name' => $ses],
-            'audioConfig' => ['audioEncoding' => 'MP3', 'speakingRate' => 1.0, 'pitch' => 0.0],
+            'audioConfig' => $audioConfig,
         ], JSON_UNESCAPED_UNICODE);
 
         $ch = curl_init($url);
@@ -97,8 +124,9 @@ class SeslendirmeServisi
         $curlErr = curl_error($ch);
         curl_close($ch);
 
-        // Teshis (debug icin): ne oldu?
+        // Teshis (debug icin): ne oldu? (son cagriyi yansitir)
         $this->sonHata = [
+            'ses'      => $ses,
             'http'     => $kod,
             'curl_err' => $curlErr,
             'govde'    => is_string($res) ? mb_substr($res, 0, 250) : '(bos)',

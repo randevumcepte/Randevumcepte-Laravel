@@ -58,7 +58,13 @@ return [
     // Cevaplar sunucuda MP3 olarak ONBELLEGE alinir -> ayni cumle tekrar uretilmez.
     'google_tts' => [
         'key'   => env('GOOGLE_TTS_API_KEY', ''),
-        'voice' => env('GOOGLE_TTS_VOICE', 'tr-TR-Wavenet-E'), // erkek; kadin icin tr-TR-Wavenet-D
+        // Chirp3-HD = Google'in en dogal/insansi sesleri (erkek: Charon/Puck/Fenrir/Orus).
+        // SSML/pitch DESTEKLEMEZ; dogalligi + speakingRate ile sicaklik verilir.
+        'voice' => env('GOOGLE_TTS_VOICE', 'tr-TR-Chirp3-HD-Charon'),
+        // Chirp3-HD proje/bolgede kapaliysa (400) buna duser -> cagride sessizlik olmaz.
+        'voice_fallback' => env('GOOGLE_TTS_VOICE_FALLBACK', 'tr-TR-Wavenet-E'),
+        // Hafif yavas = daha sicak/anlasilir (1.0 notr, 0.90-0.95 sicak).
+        'rate'  => (float) env('GOOGLE_TTS_RATE', 0.95),
     ],
 
 ];
