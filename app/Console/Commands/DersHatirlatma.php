@@ -182,13 +182,25 @@ class DersHatirlatma extends Command
         if (!empty($egitmen)) $satirlar[] = '👤 Eğitmen: ' . $egitmen;
         if ($tel !== '')      $satirlar[] = '📞 ' . $tel;
 
+        // ODEME HATIRLATMASI (studyo modu): ders hatirlatmasina EK olarak, danisanin
+        // tamamlanmamis odemesi (odendi=0 adisyon) varsa mesaja tutarsiz bir odeme
+        // satiri eklenir. Dersler tekrar ettikce odeme "Odeme Alindi" (tamOde) ile
+        // kapanana kadar dogal olarak tekrarlar. SADECE studyo modu: non-studyo
+        // salonlarda odendi kullanilmadigindan (hep 0) yanlis pozitif olurdu.
+        $studyoModu = (int) ($salon->studyo_modu ?? 0) === 1;
+
         foreach ($katilimcilar as $m) {
+            $odemeBekliyor = $studyoModu && $this->musteriOdemeBekliyorMu($salon->id, $m->id);
             if ($dry) {
-                $this->line('     - ' . $m->name . ' (' . ($m->cep_telefon ?: 'TEL YOK') . ')');
+                $this->line('     - ' . $m->name . ' (' . ($m->cep_telefon ?: 'TEL YOK') . ')'
+                    . ($odemeBekliyor ? '  [+odeme hatirlatma]' : ''));
                 continue;
             }
             $mesaj = 'Sayın ' . $m->name . '; aşağıdaki dersinizi hatırlatmak isteriz, görüşmek üzere ✨' . "\n\n"
                 . implode("\n", $satirlar);
+            if ($odemeBekliyor) {
+                $mesaj .= "\n\n" . '💳 Ayrıca tamamlanmamış bir ödemeniz görünmektedir. Ödemenizi tamamlamak için bizimle iletişime geçebilirsiniz.';
+            }
             DersBildirimServisi::musteriyeGonder($salon, $m, $mesaj, 'ders_hatirlatma');
         }
         if ($dry) return;
@@ -196,5 +208,33 @@ class DersHatirlatma extends Command
         Log::info('[DERS-HAT] oturum hatirlatildi', [
             'oturum_id' => $o->id, 'salon_id' => $salon->id, 'katilimci' => $katilimcilar->count(),
         ]);
+    }
+
+    /**
+     * Studyo modu: danisanin tamamlanmamis (odendi=0) ve gercek kalem iceren adisyonu
+     * var mi? Tutar KULLANILMAZ (studyoda fiyat gizli, ikili odendi durumu). Bos
+     * (kalemsiz) adisyonlari haric tutar. 'Odeme Alindi' (tamOde) -> odendi=1 olunca
+     * false doner, hatirlatma dogal olarak durur. Deploy'da migration yoksa false.
+     */
+    private function musteriOdemeBekliyorMu($salonId, $userId): bool
+    {
+        if (!\Schema::hasColumn('adisyonlar', 'odendi')) return false;
+        return DB::table('adisyonlar')
+            ->where('salon_id', $salonId)
+            ->where('user_id', $userId)
+            ->whereRaw('COALESCE(odendi,0) = 0')
+            ->where(function ($q) {
+                $q->whereExists(function ($s) {
+                    $s->select(DB::raw(1))->from('adisyon_hizmetler')
+                      ->whereRaw('adisyon_hizmetler.adisyon_id = adisyonlar.id');
+                })->orWhereExists(function ($s) {
+                    $s->select(DB::raw(1))->from('adisyon_paketler')
+                      ->whereRaw('adisyon_paketler.adisyon_id = adisyonlar.id');
+                })->orWhereExists(function ($s) {
+                    $s->select(DB::raw(1))->from('adisyon_urunler')
+                      ->whereRaw('adisyon_urunler.adisyon_id = adisyonlar.id');
+                });
+            })
+            ->exists();
     }
 }
