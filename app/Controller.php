@@ -341,7 +341,7 @@ class Controller extends BaseController
         else
             $aranacakTelefonlar = $telefon;
         // Context for outbound calls. See /etc/asterisk/extensions.conf if unsure.
-        $context = env('SANTRAL_CONTEXT', 'from-internal');
+        $context = env('SANTRAL_CONTEXT', 'randevumcepte-cikis'); // from-internal DEGIL: FreePBX ext-local cakismasi (Congestion) fix
          
         $socket = stream_socket_client("tcp://".env('SANTRAL_HOST', '89.252.140.61').":$port");
         if($socket)

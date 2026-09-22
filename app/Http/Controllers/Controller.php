@@ -420,10 +420,12 @@ class Controller extends BaseController
         $i = 0;
 
         // Context for outbound calls. See /etc/asterisk/extensions.conf if unsure.
-        // Originate hedef context'i. Santral dialplan'inda exten 1/2/3 (randevu/alacak/kampanya)
-        // [from-internal] icinde ([from-internal-custom] yorumda). Kod eskiden from-internal-custom
-        // gonderiyordu -> yeni santralda "Extension does not exist". .env ile override edilebilir.
-        $context = env('SANTRAL_CONTEXT', 'from-internal');
+        // Originate hedef context'i = OZEL [randevumcepte-cikis] (from-internal DEGIL!).
+        // from-internal FreePBX'e ait; tek haneli exten'ler (ozellikle 4) ext-local dahili
+        // numara cevirmeyle cakisip Congestion ("bip bip bip") veriyordu. randevumcepte-cikis
+        // yalniz bizim tanimladigimiz exten 1/2/3/4/5/6/7'yi tutar -> cakisma yok.
+        // NOT: Sunucu .env'inde eski SANTRAL_CONTEXT=from-internal satiri VARSA guncellenmeli.
+        $context = env('SANTRAL_CONTEXT', 'randevumcepte-cikis');
 
         // Baglanti kurulamazsa net logla (eskiden IP yanlisti -> "Connection timed out").
         $socket = @stream_socket_client("tcp://$santralHost:$port", $amiErrno, $amiErrstr, 10);
