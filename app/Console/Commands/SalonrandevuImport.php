@@ -271,22 +271,44 @@ class SalonrandevuImport extends Command
         $aIds = \DB::table('adisyonlar')->where('salon_id', $salonId)->pluck('id');
         $tCnt = \DB::table('tahsilatlar')->where('salon_id', $salonId)->count();
         $mCnt = \DB::table('masraflar')->where('salon_id', $salonId)->count();
-        $this->line("randevu={$rIds->count()} adisyon={$aIds->count()} tahsilat={$tCnt} masraf={$mCnt}");
+        $pCnt = $aIds->count()
+            ? \DB::table('adisyon_paketler')->whereIn('adisyon_id', $aIds->all())->count() : 0;
+        $this->line("randevu={$rIds->count()} adisyon={$aIds->count()} paket={$pCnt} tahsilat={$tCnt} masraf={$mCnt}");
         if ($dryRun) { $this->warn('DRY-RUN - silme yapilmadi.'); return 0; }
 
         // Adisyon alt kayitlari
         foreach (array_chunk($aIds->all(), 1000) as $ck) {
+            // APS iki sekilde bagli: adisyon_hizmet_id (eski mantik) VEYA adisyon_paket_id (paket mantigi)
             $ahIds = \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $ck)->pluck('id');
             foreach (array_chunk($ahIds->all(), 1000) as $ahCk) {
                 \DB::table('adisyon_paket_seanslar')->whereIn('adisyon_hizmet_id', $ahCk)->delete();
             }
+            $apIds = \DB::table('adisyon_paketler')->whereIn('adisyon_id', $ck)->pluck('id');
+            foreach (array_chunk($apIds->all(), 1000) as $apCk) {
+                \DB::table('adisyon_paket_seanslar')->whereIn('adisyon_paket_id', $apCk)->delete();
+            }
             \DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $ck)->delete();
             \DB::table('adisyon_urunler')->whereIn('adisyon_id', $ck)->delete();
+            \DB::table('adisyon_paketler')->whereIn('adisyon_id', $ck)->delete();
         }
         // Tahsilat
         \DB::table('tahsilatlar')->where('salon_id', $salonId)->delete();
         // Adisyon
         \DB::table('adisyonlar')->where('salon_id', $salonId)->delete();
+        // Yetim AdisyonPaketler + APS temizligi (adisyon silinmis ama salon paketine bagli kalmis olabilir)
+        $orphanApIds = \DB::table('adisyon_paketler as ap')
+            ->leftJoin('adisyonlar as a', 'a.id', '=', 'ap.adisyon_id')
+            ->whereNull('a.id')
+            ->join('paketler as p', 'p.id', '=', 'ap.paket_id')
+            ->where('p.salon_id', $salonId)
+            ->pluck('ap.id');
+        if ($orphanApIds->count()) {
+            foreach (array_chunk($orphanApIds->all(), 1000) as $apCk) {
+                \DB::table('adisyon_paket_seanslar')->whereIn('adisyon_paket_id', $apCk)->delete();
+            }
+            \DB::table('adisyon_paketler')->whereIn('id', $orphanApIds->all())->delete();
+            $this->line("Yetim AdisyonPaketler temizlendi: " . $orphanApIds->count());
+        }
         // Randevu alt + randevu
         foreach (array_chunk($rIds->all(), 1000) as $ck) {
             \DB::table('randevu_hizmetler')->whereIn('randevu_id', $ck)->delete();
