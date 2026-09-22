@@ -26869,15 +26869,16 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
 
         $katilimci = KampanyaKatilimcilari::where('id',$request->katilimci_id)->first();
         $kampanya = KampanyaYonetimi::where('id',$katilimci->kampanya_id)->first();
-        $mesaj = 'Size özel indirim kodunuz: '.$katilimci->indirim_kodu.'. '.$kampanya->salon->salon_adi.' yol tarifi: '.$kampanya->salon->yol_tarifi.'. Sağlıklı ve mutlu günler geçirmenizi dileriz.';
-
         $katilimci->durum_asistan = $request->katilacak;
-
-
         $katilimci->save();
-        $mesajlar = array(array("to"=>$katilimci->musteri->cep_telefon,"message"=>$mesaj));
 
-        self::sms_gonder_2($request,$mesajlar, false,1,false,$kampanya->salon_id,false);
+        // Indirim kodu + yol tarifi SMS'i YALNIZCA "evet" (katilacak=1) diyene gonderilir;
+        // "hayir" diyene indirim kodu gitmesin.
+        if ($request->katilacak == 1) {
+            $mesaj = 'Size özel indirim kodunuz: '.$katilimci->indirim_kodu.'. '.$kampanya->salon->salon_adi.' yol tarifi: '.$kampanya->salon->yol_tarifi.'. Sağlıklı ve mutlu günler geçirmenizi dileriz.';
+            $mesajlar = array(array("to"=>$katilimci->musteri->cep_telefon,"message"=>$mesaj));
+            self::sms_gonder_2($request,$mesajlar, false,1,false,$kampanya->salon_id,false);
+        }
 
         Audit::logApi($kampanya->salon_id, $request, 'kampanyaya_katil', 'kampanya_katilimci', $katilimci->id, null, 'Kampanya katilim durumu guncellendi');
         return response()->json([
