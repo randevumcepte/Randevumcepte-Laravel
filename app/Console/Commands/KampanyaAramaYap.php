@@ -56,7 +56,7 @@ class KampanyaAramaYap extends Command
         KampanyaYonetimi::where('aktifmi', 1)
             ->where('arama_ile_gonderim', 1)
             ->where('asistan_tarih_saat', '<=', now())
-            ->with(['salon:id,santral_telaffuz_hatirlatma_aramasi'])
+            ->with(['salon:id,santral_telaffuz_hatirlatma_aramasi,salon_adi'])
             ->chunk(20, function ($kampanyalar) use ($nowMin) {
                 foreach ($kampanyalar as $kampanya) {
                     $this->kampanyayiIsle($kampanya, $nowMin);
@@ -175,8 +175,14 @@ class KampanyaAramaYap extends Command
         // GELDIGI randevudan bu yana yokluk gunu) bu katilimciya gore coz.
         $govde = \App\KampanyaYonetimi::kisisellestir($kampanya->mesaj, $katilimci->user_id, $kampanya->salon_id);
 
+        // Isletme adi: telaffuz alani bos ise salon adina dus (yoksa "Sizi  ariyorum" der).
+        $isletmeAdi = trim((string) $kampanya->salon->santral_telaffuz_hatirlatma_aramasi);
+        if ($isletmeAdi === '') {
+            $isletmeAdi = trim((string) $kampanya->salon->salon_adi);
+        }
+
         $mesaj = 'Merhaba ' . $hitap . '. Sizi ' .
-            $kampanya->salon->santral_telaffuz_hatirlatma_aramasi . ' arıyorum. ' .
+            $isletmeAdi . ' arıyorum. ' .
             'Umarım gününüz sağlıklı geçiyordur. ' . $govde;
         // BUYUK harf kelimeleri (ORBEY -> Orbey) duzelt; yoksa Google TTS harf harf okur.
         $mesaj = \App\KampanyaYonetimi::okunusNormalize($mesaj);
