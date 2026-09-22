@@ -38,13 +38,27 @@ class KampanyaAramaYap extends Command
     /** Bir chunk'in ortalama suresi (sn) — chunk'lar bu kadar arayla baslar. */
     protected $callDuration = 35;
 
+    /**
+     * DAKIKA BASINA MAKSIMUM ARAMA (tum kampanyalar toplami). OLCEKLENME KORUMASI:
+     * QUEUE_DRIVER=sync oldugu icin isler inline calisir; tavan olmadan tek koşuda
+     * BINLERCE Originate atilir -> santral kanal tasmasi + dakikalarca blok + sisme.
+     * Komut her dakika calistigindan, koşu basina bu kadarla sinirlarsak buyuk kampanya
+     * kendiliginden dakikalara yayilir (bu koşuda alinanlar kilitli=1, kalanlar sonraki
+     * dakika). env KAMPANYA_ARAMA_MAX_PER_RUN ile ayarlanir; santral es zamanli kanal
+     * kapasitesine gore secilmeli.
+     */
+    protected $maxAramaPerRun = 40;
+    /** Bu koşuda kalan arama butcesi (handle icinde doldurulur). */
+    protected $kalanButce = 0;
+
     /** ayar_id = 8: reklam/kampanya aramasi acik/kapali. */
     const AYAR_ID_KAMPANYA = 8;
 
     public function handle()
     {
         $nowMin = now()->format('Y-m-d H:i');
-        Log::info('[REKLAM-ARAMA] kontrol basladi. dk=' . $nowMin);
+        $this->kalanButce = (int) env('KAMPANYA_ARAMA_MAX_PER_RUN', $this->maxAramaPerRun);
+        Log::info("[REKLAM-ARAMA] kontrol basladi. dk={$nowMin} (dakika butcesi={$this->kalanButce})");
 
         // Teshis: kac kampanya uygun (aktifmi=1, arama_ile_gonderim=1, zamani gelmis)?
         $uygunKampanya = KampanyaYonetimi::where('aktifmi', 1)
@@ -59,10 +73,16 @@ class KampanyaAramaYap extends Command
             ->with(['salon:id,santral_telaffuz_hatirlatma_aramasi,salon_adi'])
             ->chunk(20, function ($kampanyalar) use ($nowMin) {
                 foreach ($kampanyalar as $kampanya) {
+                    if ($this->kalanButce <= 0) {
+                        return false; // dakika butcesi doldu -> chunk dongusunu durdur
+                    }
                     $this->kampanyayiIsle($kampanya, $nowMin);
                 }
             });
 
+        if ($this->kalanButce <= 0) {
+            Log::info("[REKLAM-ARAMA] dakika butcesi doldu; kalan katilimcilar sonraki dakika(lar) aranacak (kilitli degil).");
+        }
         Log::info('[REKLAM-ARAMA] kontrol tamamlandi.');
     }
 
@@ -118,9 +138,13 @@ class KampanyaAramaYap extends Command
             return;
         }
 
+        // Dakika butcesi kadar topla; kalanlar (kilitli=NULL) sonraki koşuda alinir.
         $tumListe = [];
         $sorgu->chunk(200, function ($katilimcilar) use ($kampanya, &$tumListe) {
             foreach ($katilimcilar as $katilimci) {
+                if (count($tumListe) >= $this->kalanButce) {
+                    return false; // bu koşu icin tavan doldu -> chunk'i durdur
+                }
                 if (!$katilimci->musteri || !$katilimci->musteri->cep_telefon) {
                     continue;
                 }
@@ -155,7 +179,10 @@ class KampanyaAramaYap extends Command
             dispatch($job);
         }
 
-        Log::info("[REKLAM-ARAMA] {$toplam} arama " . count($chunks) . " chunk halinde kuyruga eklendi (kampanya {$kampanya->id}).");
+        // Bu kampanyanin aldigi kadar dakika butcesinden dus (sonraki kampanyalar/koşular icin).
+        $this->kalanButce -= $toplam;
+
+        Log::info("[REKLAM-ARAMA] {$toplam} arama " . count($chunks) . " chunk halinde kuyruga eklendi (kampanya {$kampanya->id}). Kalan dakika butcesi={$this->kalanButce}.");
 
         // Yoneticilere "tamamlandi" bildirimi yalnizca ilk arama partisinde.
         if ($ilkAramaDakikasi) {
