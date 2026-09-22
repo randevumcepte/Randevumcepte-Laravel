@@ -53,4 +53,19 @@ class KampanyaYonetimi extends Model
         $mesaj = str_replace('{gün}', $gun, $mesaj);
         return $mesaj;
     }
+
+    /**
+     * TTS okunus normalize: 2+ harfli TAMAMEN BUYUK kelimeleri ("ORBEY") bas-harfi-buyuk
+     * forma ("Orbey") cevirir; yoksa Google TTS harf harf okur (O-R-B-E-Y). santral
+     * gttscache.php seslendirmeMetni() ve sesli-asistan.php ile AYNI mantik. Turkce
+     * kucuk harf donusumu (I->ı, İ->i) korunur.
+     */
+    public static function okunusNormalize($s)
+    {
+        return preg_replace_callback('/[A-ZÇĞİÖŞÜ]{2,}/u', function ($m) {
+            $w = $m[0];
+            $kucuk = mb_strtolower(str_replace(['I', 'İ'], ['ı', 'i'], $w), 'UTF-8');
+            return mb_substr($w, 0, 1, 'UTF-8') . mb_substr($kucuk, 1, null, 'UTF-8');
+        }, (string) $s);
+    }
 }

@@ -176,8 +176,10 @@ class KampanyaAramaYap extends Command
         $govde = \App\KampanyaYonetimi::kisisellestir($kampanya->mesaj, $katilimci->user_id, $kampanya->salon_id);
 
         $mesaj = 'Merhaba ' . $hitap . '. Sizi ' .
-            $kampanya->salon->santral_telaffuz_hatirlatma_aramasi . ' ariyorum. ' .
-            'Umarim gununuz saglikli geciyordur. ' . $govde;
+            $kampanya->salon->santral_telaffuz_hatirlatma_aramasi . ' arıyorum. ' .
+            'Umarım gününüz sağlıklı geçiyordur. ' . $govde;
+        // BUYUK harf kelimeleri (ORBEY -> Orbey) duzelt; yoksa Google TTS harf harf okur.
+        $mesaj = \App\KampanyaYonetimi::okunusNormalize($mesaj);
 
         return [
             'alacakIdler' => '',
