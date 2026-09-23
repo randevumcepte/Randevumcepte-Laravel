@@ -15790,10 +15790,17 @@ function kampanyaolustur(tur)
                                         showConfirmButton:false,
                                     }
                                 );
-                        // ESKI 6-kolonlu destroy()+re-init 10-kolonlu thead'e oturmayip satiri
-                        // kaydiriyordu ("2" bozuk satir) + bos-durum gizlenmiyordu. Sunucu render'i
-                        // 10 kolonu + bos-durumu dogru yapiyor -> sayfayi tazele.
-                        location.reload();
+                        // AJAX ile tazele (sayfa YENILENMEZ): mevcut 10-kolonlu DataTable
+                        // instance'inin verisini degistir. destroy/re-init YOK -> kolon kaymaz
+                        // (eski 6-kolon re-init "2" bozuk satiri yapiyordu). Bos-durumu da guncelle.
+                        try {
+                            var _kt = $('#kampanyayonetim_tablo').DataTable();
+                            var _kd = result.kampanya_yonetimi || [];
+                            _kt.clear();
+                            _kt.rows.add(_kd);
+                            _kt.draw(false);
+                            if (_kd.length > 0) { $('#reklamBosDurum').hide(); } else { $('#reklamBosDurum').show(); }
+                        } catch(e) { location.reload(); }
                             },
                         error: function (request, status, error) {
                             $('#preloader').hide();
@@ -16166,9 +16173,16 @@ $(document).on('change','#hemen_sms_gonder_katilmayan',function(e){
                                 showConfirmButton:false,
                             }
                         );
-                        // ESKI 6-kolonlu destroy()+re-init 10-kolonlu thead'e oturmuyordu -> sunucu
-                        // render'i dogru (10 kolon + bos-durum) -> sayfayi tazele.
-                        location.reload();
+                        // AJAX ile tazele (sayfa YENILENMEZ): mevcut 10-kolonlu DataTable
+                        // instance'inin verisini degistir. Sil endpoint'i diziyi dogrudan doner.
+                        try {
+                            var _kt = $('#kampanyayonetim_tablo').DataTable();
+                            var _kd = result || [];
+                            _kt.clear();
+                            _kt.rows.add(_kd);
+                            _kt.draw(false);
+                            if (_kd.length > 0) { $('#reklamBosDurum').hide(); } else { $('#reklamBosDurum').show(); }
+                        } catch(e) { location.reload(); }
                     },
                     error: function (request, status, error) {
                         $("#preloader").hide();
