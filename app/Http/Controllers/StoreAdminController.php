@@ -12241,6 +12241,59 @@ private function ayAdiCevir($ingilizceAy)
 
         self::sms_gonder_bildirimli(null, [["to" => $musteri->cep_telefon, "message" => $mesaj]], false, 1, false);
     }
+    /**
+     * Telefonu kanonik hale getirir.
+     * TURKIYE: +90 / 90 / bastaki 0 soyulur -> 10 haneli "5XXXXXXXXX".
+     * YABANCI: ulke kodu KORUNUR (ornn +31, +49); sadece ayrac/gorunmez karakter temizlenir.
+     * Kopyala-yapistir kaynakli gorunmez unicode (NBSP, LRM/RLM, ZWSP, BOM) ve 00 uluslararasi oneki de ele alinir.
+     */
+    public static function telefonKanonik($ham)
+    {
+        if ($ham === null) return '';
+        $s = (string) $ham;
+        // Gorunmez unicode karakterleri at (paste kaynakli)
+        $s = preg_replace('/[\x{00A0}\x{200B}\x{200C}\x{200D}\x{200E}\x{200F}\x{FEFF}]/u', '', $s);
+        $d = preg_replace('/\D/', '', $s); // sadece rakam
+        if ($d === '') return '';
+
+        // Uluslararasi 00 oneki -> at (0090..., 0049...)
+        if (strpos($d, '00') === 0) {
+            $d = substr($d, 2);
+        }
+
+        // --- TURKIYE: kanonik = 10 haneli 5XXXXXXXXX ---
+        if (strlen($d) === 12 && strpos($d, '90') === 0) return substr($d, 2); // 90 + 10 hane
+        if (strlen($d) === 11 && $d[0] === '0')          return substr($d, 1); // 0 + 10 hane
+        if (strlen($d) === 10 && $d[0] === '5')          return $d;            // zaten TR cep
+
+        // --- YABANCI / bilinmeyen: ulke kodunu KORU, dokunma ---
+        return $d;
+    }
+
+    /**
+     * Kanonik numaranin, DB'de gecmisten kalma farkli formatlarda saklanmis
+     * olabilecek varyantlarini uretir (dedup lookup icin). Ic bosluklu eski
+     * kayitlar bu listede yakalanmaz; onlar zaten nadirdir.
+     */
+    public static function telefonAramaVaryantlari($kanonik)
+    {
+        $kanonik = (string) $kanonik;
+        if ($kanonik === '') return [];
+        $v = [$kanonik];
+        if (strlen($kanonik) === 10 && $kanonik[0] === '5') {
+            // TR cep: eski kayitlar 0 / 90 / +90 / 0090 onekli saklanmis olabilir
+            $v[] = '0' . $kanonik;
+            $v[] = '90' . $kanonik;
+            $v[] = '+90' . $kanonik;
+            $v[] = '0090' . $kanonik;
+        } else {
+            // Yabanci: + / 00 onekli varyantlar
+            $v[] = '+' . $kanonik;
+            $v[] = '00' . $kanonik;
+        }
+        return array_values(array_unique($v));
+    }
+
     public function musteriekleguncelle(Request $request){
             if($r = self::yetkiYoksa403($request, 'musteri.ekle_duzenle')) return $r;
 
@@ -12260,10 +12313,14 @@ private function ayAdiCevir($ingilizceAy)
                 $musteri = User::where('id',$request->musteri_id)->first();
             }
             else{
-                $musteri_var = User::where('cep_telefon',$request->telefon)->count();
+                // Telefonu kanonikle + gecmis format varyantlariyla eslestir (TR: +90/90/0 soyulur, yabanci korunur)
+                $_telKanonik = self::telefonKanonik($request->telefon);
+                $_telVaryant = self::telefonAramaVaryantlari($_telKanonik);
+                $mevcut = (!empty($_telVaryant)) ? User::whereIn('cep_telefon',$_telVaryant)->first() : null;
+                $musteri_var = $mevcut ? 1 : 0;
                 if($musteri_var > 0)
                 {
-                    $mevcut = User::where('cep_telefon',$request->telefon)->first();
+                    // $mevcut yukarida bulundu (varyant eslesme)
                     $portfoyvar = MusteriPortfoy::where('user_id',$mevcut->id)->where('salon_id',$request->sube)->where('aktif',true)->count();
                     if($portfoyvar==1){
 
@@ -12335,7 +12392,7 @@ private function ayAdiCevir($ingilizceAy)
             }
             $musteri->name = $request->ad_soyad;
             $musteri->email = $request->email;
-            $musteri->cep_telefon = $request->telefon;
+            $musteri->cep_telefon = self::telefonKanonik($request->telefon);
             $musteri->tc_kimlik_no = $request->tc_kimlik_no;
             $_dogum_kaydet = $this->dogum_tarihi_formatla($request);
             if ($_dogum_kaydet) {
