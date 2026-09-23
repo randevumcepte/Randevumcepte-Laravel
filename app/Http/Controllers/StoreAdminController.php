@@ -22749,7 +22749,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
 
         $musteriData = $katilimcilar->getData(true);
-        $kampanya_yonetimi->indirim_kodu = $request->kampanyaKodu;
+        // Indirim kodu girilmemisse 4 haneli OTOMATIK uret (eczane24 deseni) -> yoksa
+        // katilimci.indirim_kodu NULL kalir, SMS "Size ozel indirim kodunuz: ." olur.
+        $kampanyaKodu = $request->kampanyaKodu;
+        if (empty($kampanyaKodu)) {
+            $kampanyaKodu = substr(str_shuffle('1234567890'), 0, 4);
+        }
+        $kampanya_yonetimi->indirim_kodu = $kampanyaKodu;
 
 
         $kampanyaMetinSMS = self::kampanyaIceriginiGoruntule($request);
@@ -22799,7 +22805,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $insertData[] = [
                 'kampanya_id' =>  $kampanya_yonetimi->id,
                 'user_id' => $katilimci,
-                'indirim_kodu'=>$request->kampanyaKodu,
+                'indirim_kodu'=>$kampanyaKodu,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
@@ -23257,7 +23263,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $katilimci = new KampanyaKatilimcilari();
             $katilimci->kampanya_id = $request->kampanyaid;
             $katilimci->user_id = $request->musteriid;
-            $katilimci->indirim_kodu = $ilkKatilimci->indirim_kodu;
+            $katilimci->indirim_kodu = $ilkKatilimci->indirim_kodu ?: substr(str_shuffle('1234567890'), 0, 4);
             if ($request->has('durum')) {
                 $katilimci->durum = $request->durum;
             }
