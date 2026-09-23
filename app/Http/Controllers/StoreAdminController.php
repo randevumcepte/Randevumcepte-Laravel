@@ -22773,7 +22773,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         // (bu yuzden kolon bostu) -> SUNUCUDA uret: indirimTuru checkbox checked=Yuzde,
         // degilse X al Y ode. (Xal/Yode inputlarina name eklendi ki POST'a girsin.)
         if($request->gorevTuru != 4 && $request->etkinlikRandevuTarihi == '') {
-            if ($request->has('indirimTuru') && $request->indirimTuru) {
+            $yuzdeMi = filter_var($request->indirimTuru, FILTER_VALIDATE_BOOLEAN); // checked=yuzde
+            if ($yuzdeMi) {
                 $kampanya_yonetimi->indirim_turu = '%' . ($request->kampanyaIndirim ?: '0') . ' İndirim';
             } else {
                 $kampanya_yonetimi->indirim_turu = ($request->Xal ?: '2') . ' Al ' . ($request->Yode ?: '1') . ' Öde';
