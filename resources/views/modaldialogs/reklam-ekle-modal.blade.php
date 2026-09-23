@@ -431,8 +431,8 @@
                      <div class="col-md-4 col-sm-4 col-xs-6 col-6 " id="indirimInput">
                        <div id="XalYodeBolumu" style="display:block">
                         <label style="width:100%;visibility: hidden;">X al Y öde</label>
-                        <input type="tel" class="form-control" style="max-width:100px;float: left;" id="Xal" placeholder="X al" value="2">
-                        <input type="tel" class="form-control" style="max-width: 100px;float: left;margin-left: 10px;" id="Yode" placeholder="Y öde" value="1">
+                        <input type="tel" class="form-control" style="max-width:100px;float: left;" id="Xal" name="Xal" placeholder="X al" value="2">
+                        <input type="tel" class="form-control" style="max-width: 100px;float: left;margin-left: 10px;" id="Yode" name="Yode" placeholder="Y öde" value="1">
                        </div>
                        <div id="yuzdeIndirimBolumu" style="display:none">
                           <label style="visibility: hidden;">İndirim(%)</label>

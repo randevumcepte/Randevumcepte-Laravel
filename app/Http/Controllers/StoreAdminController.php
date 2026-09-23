@@ -22769,15 +22769,33 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $kampanya_yonetimi->musteri_turu = $musteriData['musteriTuru'];
         $kampanya_yonetimi->baslangic_tarihi = $request->asistan_tarih;
         $kampanya_yonetimi->bitis_tarihi = $request->kampanyaGecerlilikTarihi;
-        $indirimTuru = '';
-        if($request->gorevTuru != 4 && $request->etkinlikRandevuTarihi == '')
-            $kampanya_yonetimi->indirim_turu = $request->indirimTuruYazili;
+        // Indirim etiketi (liste INDIRIM kolonu). Frontend 'indirimTuruYazili' GONDERMIYOR
+        // (bu yuzden kolon bostu) -> SUNUCUDA uret: indirimTuru checkbox checked=Yuzde,
+        // degilse X al Y ode. (Xal/Yode inputlarina name eklendi ki POST'a girsin.)
+        if($request->gorevTuru != 4 && $request->etkinlikRandevuTarihi == '') {
+            if ($request->has('indirimTuru') && $request->indirimTuru) {
+                $kampanya_yonetimi->indirim_turu = '%' . ($request->kampanyaIndirim ?: '0') . ' İndirim';
+            } else {
+                $kampanya_yonetimi->indirim_turu = ($request->Xal ?: '2') . ' Al ' . ($request->Yode ?: '1') . ' Öde';
+            }
+        }
 
         $kampanya_yonetimi->randevu_tarihi = $request->etkinlikRandevuTarihi;
 
-        $seciliSablon = KampanyaSablonlari::where('id',$request->seciliSablonId)->first();
-        if($seciliSablon)
-            $kampanya_yonetimi->paket_isim = $seciliSablon->baslik;
+        // KAMPANYA adi (liste KAMPANYA kolonu). Sablon secildiyse basligi; SENARYO secildiyse
+        // ('senaryo-ID' oneki) senaryonun adi. Eskiden senaryo id'siyle KampanyaSablonlari
+        // arandigi icin null donuyor, paket_isim bos kaliyordu (santral arama kampanyasinda).
+        $sablonIdRaw = (string) $request->seciliSablonId;
+        if (strpos($sablonIdRaw, 'senaryo-') === 0) {
+            $senaryoId = (int) substr($sablonIdRaw, strlen('senaryo-'));
+            $senaryo = \App\KampanyaSenaryolari::where('id', $senaryoId)->first();
+            if ($senaryo && !empty($senaryo->ad))
+                $kampanya_yonetimi->paket_isim = $senaryo->ad;
+        } else {
+            $seciliSablon = KampanyaSablonlari::where('id', $sablonIdRaw)->first();
+            if ($seciliSablon)
+                $kampanya_yonetimi->paket_isim = $seciliSablon->baslik;
+        }
 
 
         if($request->gorevTuru == 1)

@@ -15790,31 +15790,10 @@ function kampanyaolustur(tur)
                                         showConfirmButton:false,
                                     }
                                 );
-                        $('#kampanyayonetim_tablo').DataTable().destroy();
-                                $('#kampanyayonetim_tablo').DataTable({
-                                        columns:[
-                             { data: 'kampanya'   },
-                 
-                              { data: 'seans', className:"ortaya-yasli" },
-                 
-                             { data: 'katilimci_sayisi'  ,   className:"ortaya-yasli" },
-                 
-                              { data: 'hizmet_adi'   },
-                 
-                              { data: 'fiyat', className:"saga-yasli"},
-                 
-                              { data: 'islemler', className:"saga-yasli" }, 
-                           ],
-                                        data: result.kampanya_yonetimi,
-                                        "language" : {
-                                            "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
-                                            searchPlaceholder: "Ara",
-                                            paginate: {
-                                                next: '<i class="ion-chevron-right"></i>',
-                                                previous: '<i class="ion-chevron-left"></i>'
-                                            }
-                                        },
-                                });
+                        // ESKI 6-kolonlu destroy()+re-init 10-kolonlu thead'e oturmayip satiri
+                        // kaydiriyordu ("2" bozuk satir) + bos-durum gizlenmiyordu. Sunucu render'i
+                        // 10 kolonu + bos-durumu dogru yapiyor -> sayfayi tazele.
+                        location.reload();
                             },
                         error: function (request, status, error) {
                             $('#preloader').hide();
@@ -16187,31 +16166,9 @@ $(document).on('change','#hemen_sms_gonder_katilmayan',function(e){
                                 showConfirmButton:false,
                             }
                         );
-                        $('#kampanyayonetim_tablo').DataTable().destroy();
-                        $('#kampanyayonetim_tablo').DataTable({
-                                columns:[
-                    { data: 'paket_isim'   },
-         
-                      { data: 'seans', className:"ortaya-yasli" },
-         
-                     { data: 'katilimci_sayisi'  ,   className:"ortaya-yasli" },
-         
-                      { data: 'hizmet_adi'   },
-         
-                      { data: 'fiyat', className:"saga-yasli"},
-         
-                      { data: 'islemler', className:"saga-yasli" }, 
-                   ],
-                                data: result,
-                                "language" : {
-                                    "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
-                                    searchPlaceholder: "Ara",
-                                    paginate: {
-                                        next: '<i class="ion-chevron-right"></i>',
-                                        previous: '<i class="ion-chevron-left"></i>'
-                                    }
-                                },
-                        });
+                        // ESKI 6-kolonlu destroy()+re-init 10-kolonlu thead'e oturmuyordu -> sunucu
+                        // render'i dogru (10 kolon + bos-durum) -> sayfayi tazele.
+                        location.reload();
                     },
                     error: function (request, status, error) {
                         $("#preloader").hide();
