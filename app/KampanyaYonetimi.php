@@ -27,16 +27,23 @@ class KampanyaYonetimi extends Model
      */
     public static function musteriYoklukGunu($userId, $salonId)
     {
+        // ATTENDED = randevuya_geldi truthy + tarih GECMIS. durum=1 filtresi KALDIRILDI:
+        // tamamlanan/gecmis randevularin durum'u 1 olmayabilir (talep/onay/tamam farkli
+        // degerler) ve o filtre gecmis "geldi" kayitlarini eliyor -> hep 30 fallback donuyordu.
         $sonGeldigi = \App\Randevular::where('user_id', $userId)
             ->where('salon_id', $salonId)
-            ->where('durum', 1)
-            ->where('randevuya_geldi', true)
+            ->where('randevuya_geldi', 1)
+            ->whereDate('tarih', '<=', \Carbon\Carbon::today())
             ->orderBy('tarih', 'desc')
             ->value('tarih');
+
         if ($sonGeldigi) {
             $g = \Carbon\Carbon::parse($sonGeldigi)->startOfDay()->diffInDays(\Carbon\Carbon::today());
-            if ($g > 0) return $g;
+            \Log::info("[KAMPANYA-GUN] user={$userId} salon={$salonId} son_geldigi={$sonGeldigi} gun={$g}");
+            return $g > 0 ? $g : 1; // bugun geldiyse 1 ("0 gundur" demesin)
         }
+
+        \Log::info("[KAMPANYA-GUN] user={$userId} salon={$salonId} gelmis randevu YOK -> fallback 30");
         return 30;
     }
 
