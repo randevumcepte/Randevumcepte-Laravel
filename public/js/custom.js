@@ -1,4 +1,4 @@
-// custom.js v263.1 — randevu submit cift-tik kilidi (in-flight bayrak + buton disable, .always ile sifirla) => tek randevudan 3 kayit bug fix
+// custom.js v269.0 — global AJAX guvenlik agi (20sn timeout + ajaxError/ajaxStop preloader kapat) + readGorseller async:false kaldirildi (donma fix)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // jQuery
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -6,6 +6,30 @@ var automaticGeoLocation = false;
 var resizeId;
 const gizliAlanAdlari = ['randevu.randevumcepte.com.tr'];   // değiştirebilirsiniz
 const odenenGizlensin = gizliAlanAdlari.includes(window.location.hostname);
+
+// ===== Global AJAX guvenlik agi =====
+// 1) Her istege 20sn timeout: asili kalan istek sonsuza dek donmasin (jQuery ajax "donma" fix)
+// 2) Global ajaxError: hata/timeout'ta preloader'i her kosulda kapat + kullaniciyi bilgilendir
+//    (boylece modal bos acilip sessizce takili kalmaz; kapat-ac zorunlulugu azalir)
+// 3) ajaxStop backstop: hicbir istek kalmayinca takili spinner varsa kapat
+(function(){
+    try {
+        $.ajaxSetup({ timeout: 20000 });
+        $(document).ajaxError(function (e, xhr) {
+            if (!xhr || xhr.statusText === 'abort') return;   // bilerek iptal edilenleri atla
+            $('#preloader').hide();
+            var msg = (xhr.status === 0)
+                ? 'Sunucuya ulaşılamadı veya işlem zaman aşımına uğradı, lütfen tekrar deneyin.'
+                : 'İşlem tamamlanamadı, lütfen tekrar deneyin.';
+            if (window.swal) {
+                swal({ type: 'warning', title: 'Bağlantı sorunu', text: msg,
+                    showCloseButton: false, showCancelButton: false, showConfirmButton: false, timer: 3500 });
+            }
+        });
+        $(document).ajaxStop(function(){ $('#preloader').hide(); });
+    } catch (err) { /* jQuery yoksa sessizce gec */ }
+})();
+// ===== /Global AJAX guvenlik agi =====
 
 // V2 takvim icin randevu hover tooltip — eventRender'da cagrilir.
 // Tek bir #rc-event-tip elementi body'ye lazy append edilir, position:fixed
@@ -1493,13 +1517,16 @@ function readURL3(input) {
     }
 }*/
 function readGorseller(input){
-    var baslangicindex = $.ajax({
-            type :'GET',
-             url: '/isletmeyonetim/kayitlisalongorselisayisi',
-            data: {isletmeid:$('input[name="sube"]').val()},
-            async:false,
-    }).responseText;
-    baslangicindex = parseInt(baslangicindex);
+    // async:false kaldirildi (senkron XHR tarayici sekmesini donduruyordu).
+    // Gorsel sayisi asenkron cekilir, geri kalan mantik success callback'inde calisir.
+    $.ajax({
+        type :'GET',
+        url: '/isletmeyonetim/kayitlisalongorselisayisi',
+        data: {isletmeid:$('input[name="sube"]').val()},
+        success: function(resp){ readGorseller_devam(input, parseInt(resp)); }
+    });
+}
+function readGorseller_devam(input, baslangicindex){
     var resimsayisimax = 12-baslangicindex;
     if(input.files.length > 12-baslangicindex){
           swal(
