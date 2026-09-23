@@ -22792,6 +22792,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             $senaryo = \App\KampanyaSenaryolari::where('id', $senaryoId)->first();
             if ($senaryo && !empty($senaryo->ad))
                 $kampanya_yonetimi->paket_isim = $senaryo->ad;
+            // Senaryonun randevu_olustur aksiyonunu kampanyaya kopyala (santral sesli randevu
+            // gate'i buna bakar; kampanya senaryo_id saklamadigi icin bayragi dogrudan tasiyoruz).
+            if ($senaryo) {
+                $aks = is_array($senaryo->aksiyonlar) ? $senaryo->aksiyonlar : [];
+                $kampanya_yonetimi->randevu_olustur = !empty($aks['randevu_olustur']) ? 1 : 0;
+            }
         } else {
             $seciliSablon = KampanyaSablonlari::where('id', $sablonIdRaw)->first();
             if ($seciliSablon)

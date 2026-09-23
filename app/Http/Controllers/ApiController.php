@@ -26966,7 +26966,10 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             }
 
             if ($mod === 'bilgi') {
-                return response()->json(['success'=>true,'bookable'=>(bool) $hizmetId]);
+                // Sesli randevu diyaloguna SADECE kampanyanin randevu_olustur aksiyonu ACIK
+                // ve uygun hizmet varsa girilir. Aksi halde her "evet"te randevu teklif edilir.
+                $randevuAcik = (bool) $kampanya->randevu_olustur;
+                return response()->json(['success'=>true,'bookable'=>($randevuAcik && (bool) $hizmetId)]);
             }
 
             if (!$hizmetId) return response()->json(['success'=>false,'message'=>'Randevu icin uygun hizmet yok']);
