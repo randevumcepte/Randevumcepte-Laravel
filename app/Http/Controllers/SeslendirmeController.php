@@ -14,6 +14,12 @@ class SeslendirmeController extends Controller
     /** POST/GET /api/v1/seslendir  body: metin, (ops) ses -> {basarili, url} */
     public function uret(Request $request, SeslendirmeServisi $servis)
     {
+        // ON-ISITMA (pre-warm): kampanya aramasi ring sirasinda fire-and-forget istek atar;
+        // istemci baglantiyi hemen kapatsa bile uretim tamamlanip cache'lensin ki cagri
+        // acildiginda anons HAZIR olsun (ilk-uretim ~13sn sessizligi biter).
+        @ignore_user_abort(true);
+        @set_time_limit(30);
+
         $metin = trim((string) $request->input('metin', ''));
         if ($metin === '') {
             return response()->json(['basarili' => false, 'hata' => 'Bos metin.'], 422);

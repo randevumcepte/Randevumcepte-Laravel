@@ -273,6 +273,13 @@ class KampanyaAramaYap extends Command
         // BUYUK harf kelimeleri (ORBEY -> Orbey) duzelt; yoksa Google TTS harf harf okur.
         $mesaj = \App\KampanyaYonetimi::okunusNormalize($mesaj);
 
+        // TTS ON-ISITMA: kisiye ozel anonsu SIMDI (arama ring'e girmeden) urettir ki cagri
+        // acildiginda santral googletts /seslendir cache'ten aninda calsin -> ~13sn ilk-uretim
+        // sessizligi biter. Fire-and-forget (cagriyi bloklamaz). env ile kapatilabilir.
+        if (filter_var(env('KAMPANYA_TTS_ONISIT', true), FILTER_VALIDATE_BOOLEAN)) {
+            $this->seslendirmeOnIsit($mesaj);
+        }
+
         return [
             'alacakIdler' => '',
             'randevuid' => '',
@@ -286,5 +293,33 @@ class KampanyaAramaYap extends Command
             // app.eczella.com): yanlis anons + "ulasildi" bilgisi eczella'ya gidiyordu.
             'exten' => 4,
         ];
+    }
+
+    /**
+     * TTS ON-ISITMA (fire-and-forget): /api/v1/seslendir'e metni POST'lar; sunucu
+     * (SeslendirmeController ignore_user_abort ile) uretimi tamamlayip cache'ler.
+     * Santral googletts.php ayni metni (ayni default ses) gonderdiginde cache HIT ->
+     * cagri acildiginda anons aninda calar. Cevabi BEKLEMEZ (aramayi geciktirmez).
+     */
+    protected function seslendirmeOnIsit($mesaj)
+    {
+        $mesaj = trim((string) $mesaj);
+        if ($mesaj === '') return;
+        try {
+            $host = env('SESLENDIR_HOST', 'app.randevumcepte.com.tr');
+            $body = http_build_query(['metin' => $mesaj]);
+            $fp = @fsockopen('ssl://' . $host, 443, $errno, $errstr, 2);
+            if (!$fp) return;
+            $req  = "POST /api/v1/seslendir HTTP/1.1\r\n";
+            $req .= "Host: {$host}\r\n";
+            $req .= "Content-Type: application/x-www-form-urlencoded\r\n";
+            $req .= "Content-Length: " . strlen($body) . "\r\n";
+            $req .= "Connection: Close\r\n\r\n";
+            $req .= $body;
+            @fwrite($fp, $req);
+            @fclose($fp); // cevabi bekleme; server ignore_user_abort ile uretimi bitirir
+        } catch (\Throwable $e) {
+            // on-isitma best-effort; hata olsa da arama normal akar (cache miss = eski davranis).
+        }
     }
 }
