@@ -60,6 +60,38 @@ class SalonrandevuClient
     public function setToken($t) { $this->token = $t; }
     public function getToken() { return $this->token; }
 
+    /**
+     * Cok subeli hesaplarda sube listesi (/company/branches).
+     * @return array [['id'=>.., 'name'=>..], ...] veya bos dizi
+     */
+    public function branches()
+    {
+        $j = $this->get('/company/branches');
+        return $j['data'] ?? [];
+    }
+
+    /**
+     * Su an token'in bagli oldugu company/sube bilgisi (/company/itself).
+     */
+    public function itself()
+    {
+        $j = $this->get('/company/itself');
+        return $j['data'] ?? $j;
+    }
+
+    /**
+     * Belirtilen subeye gecis: /company/loginbranch/{id} YENI token doner,
+     * token guncellenir; sonraki /company/* cagrilari o subenin verisini verir.
+     * @return bool basari
+     */
+    public function loginBranch($branchId)
+    {
+        $j = $this->get('/company/loginbranch/' . $branchId);
+        $token = $j['data']['token'] ?? ($j['data']['data']['token'] ?? ($j['token'] ?? null));
+        if ($token) { $this->token = $token; return true; }
+        return false;
+    }
+
     private function dump($name, $content)
     {
         @file_put_contents($this->dumpDir . '/' . $name,

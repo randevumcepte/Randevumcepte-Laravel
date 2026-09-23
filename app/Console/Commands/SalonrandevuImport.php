@@ -34,6 +34,8 @@ class SalonrandevuImport extends Command
         {--probe-appointment-params : SR /appointment/list endpoint\'inde farkli parametre kombinasyonlarini dene (default/ispaid/cancelled/include/status...) ve sayfa1 sayilarini karsilastir. UI\'daki gercek sayiya en yakin kombinasyon bulunur.}
         {--inspect-staff-services : Login + /company/staffs/unsafe -> ilk N personel icin GET /company/staff/{id} tam JSON dump. Personel-hizmet eslemesi hangi alanda geliyor kesfetmek icin (salt-okunur).}
         {--only-staff-services : Personel-hizmet eslemesini aktar (/company/staff/{id} services[] -> personel_sunulan_hizmetler). Personel+hizmet master otomatik yuklenir. --dry-run ile sadece raporlar.}
+        {--list-branches : Login + /company/branches (tum subeler id+ad) + /company/itself (su an bagli sube). Cok subeli hesapta hangi subeyi cektigimizi gormek icin (salt-okunur).}
+        {--branch= : Cok subeli hesapta import oncesi bu sube ID\'sine gec (/company/loginbranch/{id}). Verilmezse hesabin varsayilan/ana subesi cekilir.}
         {--start-page= : --only-other-receipts icin baslangic sayfa (resume). Default 1.}
         {--max-page= : --only-other-receipts icin son sayfa (inclusive). Belirtilmezse SR\'nin next_page=0 donene kadar.}
         {--dry-run : Reset oncesi sayim}';
@@ -102,6 +104,38 @@ class SalonrandevuImport extends Command
         $this->line('Login sonuc: ' . ($login['ok'] ? 'OK' : 'FAIL') . ' - ' . $login['method']);
         $this->line('Detay: ' . $login['detail']);
         if (!$login['ok']) { $this->error('Login basarisiz. Dump dizinini inceleyin: ' . $client->dumpDir()); return 2; }
+
+        // Cok subeli hesap: istenen subeye gec (TUM modlardan once, token guncellenir)
+        $branch = $this->option('branch');
+        if ($branch) {
+            $this->info("Sube gecisi: /company/loginbranch/{$branch}...");
+            if ($client->loginBranch($branch)) {
+                $this->line('  Sube token alindi -> artik bu subenin verisi cekilecek.');
+            } else {
+                $this->error("Sube gecisi basarisiz (branch={$branch}). Dump dizinini inceleyin: " . $client->dumpDir());
+                return 4;
+            }
+        }
+
+        // --list-branches: subeleri + su an bagli subeyi listele (salt-okunur)
+        if ((bool) $this->option('list-branches')) {
+            $this->info('Subeler (/company/branches):');
+            $liste = $client->branches();
+            if (empty($liste)) {
+                $this->warn('  Sube listesi bos (tek subeli hesap olabilir) - /company/itself ile devam.');
+            }
+            foreach ($liste as $b) {
+                $bid = $b['id'] ?? '?';
+                $bad = $b['name'] ?? ($b['company_name'] ?? ($b['title'] ?? ''));
+                $this->line("  id={$bid}  {$bad}");
+            }
+            $self = $client->itself();
+            $curId = is_array($self) ? ($self['id'] ?? ($self['company_id'] ?? '?')) : '?';
+            $curAd = is_array($self) ? ($self['name'] ?? ($self['company_name'] ?? '')) : '';
+            $this->info("Su an bagli sube (/company/itself): id={$curId}  {$curAd}");
+            $this->line('Tam dump: ' . $client->dumpDir());
+            return 0;
+        }
 
         if ($inspect) {
             $this->info('Inspect modu: her endpoint ilk kaydin tam yapisi...');
