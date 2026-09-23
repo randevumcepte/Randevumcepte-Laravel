@@ -1,4 +1,4 @@
-// custom.js v269.0 — global AJAX guvenlik agi (20sn timeout + ajaxError/ajaxStop preloader kapat) + readGorseller async:false kaldirildi (donma fix)
+// custom.js v270.0 — liste "Düzenle" telefon yuklenmeme fix: setDeger yanlis modale (duzenle-modal) gidiyordu, dogru modal (#musteri-bilgi-modal) + kur() ile yarisa dayanikli
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // jQuery
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -14738,7 +14738,12 @@ $('#musteri_tablo,#musteri_tablo_sadik,#musteri_tablo_aktif,#musteri_tablo_pasif
             $("#preloader").hide();
             $('.musteri_bilgi_formu input[name="ad_soyad"]').eq(1).val(result.ad_soyad);
             $('.musteri_bilgi_formu input[name="telefon"]').eq(1).val(result.cep_telefon);
-            if(window.TelefonUlke){ TelefonUlke.setDeger(document.querySelector('#musteri-bilgi-duzenle-modal .tel-grup'), result.cep_telefon); }
+            // Liste "Düzenle" #musteri-bilgi-modal'i acar (duzenle-modal DEGIL). Telefonu DOGRU modalin
+            // widget'ina yaz; kur() ile once kurulumu garanti et ki shown.bs.modal->kurHepsi degeri sifirlamasin.
+            if(window.TelefonUlke){
+                var _telRootMd = document.querySelector('#musteri-bilgi-modal .tel-grup');
+                if(_telRootMd){ TelefonUlke.kur(_telRootMd); TelefonUlke.setDeger(_telRootMd, result.cep_telefon); }
+            }
             $('.musteri_bilgi_formu input[name="email"]').eq(1).val(result.eposta);
             $('.musteri_bilgi_formu select[name="dogum_tarihi_gun"]').eq(1).val(result.dogum_tarihi_gun).change();
             $('.musteri_bilgi_formu select[name="dogum_tarihi_ay"]').eq(1).val(result.dogum_tarihi_ay).change();
