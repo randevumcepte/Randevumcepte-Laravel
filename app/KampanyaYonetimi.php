@@ -27,23 +27,25 @@ class KampanyaYonetimi extends Model
      */
     public static function musteriYoklukGunu($userId, $salonId)
     {
-        // ATTENDED = randevuya_geldi truthy + tarih GECMIS. durum=1 filtresi KALDIRILDI:
-        // tamamlanan/gecmis randevularin durum'u 1 olmayabilir (talep/onay/tamam farkli
-        // degerler) ve o filtre gecmis "geldi" kayitlarini eliyor -> hep 30 fallback donuyordu.
+        // ATTENDED = durum=1 & randevuya_geldi=1 & tarih GECMIS/bugun. En son geleni al.
         $sonGeldigi = \App\Randevular::where('user_id', $userId)
             ->where('salon_id', $salonId)
+            ->where('durum', 1)
             ->where('randevuya_geldi', 1)
             ->whereDate('tarih', '<=', \Carbon\Carbon::today())
             ->orderBy('tarih', 'desc')
             ->value('tarih');
 
         if ($sonGeldigi) {
+            // ONEMLI: kayit BULUNDU -> gercek gun sayisini dondur. Eskiden $g==0 (bugun
+            // geldi) durumunda 'return 30' fallback'ine dusuyordu -> "durum=1 & geldi=1
+            // olmasina ragmen 30" bug'i. Bugun geldiyse en az 1 dondur, ASLA 30'a dusme.
             $g = \Carbon\Carbon::parse($sonGeldigi)->startOfDay()->diffInDays(\Carbon\Carbon::today());
             \Log::info("[KAMPANYA-GUN] user={$userId} salon={$salonId} son_geldigi={$sonGeldigi} gun={$g}");
-            return $g > 0 ? $g : 1; // bugun geldiyse 1 ("0 gundur" demesin)
+            return max($g, 1);
         }
 
-        \Log::info("[KAMPANYA-GUN] user={$userId} salon={$salonId} gelmis randevu YOK -> fallback 30");
+        \Log::info("[KAMPANYA-GUN] user={$userId} salon={$salonId} durum=1&geldi=1 randevu YOK -> fallback 30");
         return 30;
     }
 
