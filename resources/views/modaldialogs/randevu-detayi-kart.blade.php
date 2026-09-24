@@ -103,6 +103,26 @@
       }
    });
 
+   // DETAY ICERIGINI UYGULA (timing-guvenli). Icerigi dogrudan .html() ile basmak,
+   // fade animasyonu + yukaridaki appendChild tasimasi bitmeden TUTMUYORDU (detay bos
+   // geliyordu). rcDetayUygula: hem hemen dener hem window._rcDetayPending'e yazar;
+   // shown.bs.modal (animasyon+tasima BITTIKTEN sonra) pending'i nihai elemana kesin basar.
+   window._rcDetayPending = null;
+   window.rcDetayUygula = function (desc, btns) {
+      window._rcDetayPending = { description: desc || '', eventbuttons: btns || '' };
+      var m = document.getElementById('modal-view-event');
+      if (m) {
+         var b = m.querySelector('.event-body');    if (b) b.innerHTML = (desc || '');
+         var f = m.querySelector('.event-buttons'); if (f) f.innerHTML = (btns || '');
+      }
+   };
+   $(document).on('shown.bs.modal', '#modal-view-event', function () {
+      if (window._rcDetayPending) {
+         var b = this.querySelector('.event-body');    if (b) b.innerHTML = (window._rcDetayPending.description || '');
+         var f = this.querySelector('.event-buttons'); if (f) f.innerHTML = (window._rcDetayPending.eventbuttons || '');
+      }
+   });
+
    // Tek-tik memnuniyet anketi gonderim (musteri kartindaki anketHizliGonder ile ayni akis).
    // Randevu detay kartinin header'indaki "Anket Gönder" butonu.
    $(document).on('click', '.anket-hizli-gonder-btn', function (e) {

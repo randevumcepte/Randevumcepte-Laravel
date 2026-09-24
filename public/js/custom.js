@@ -11057,23 +11057,23 @@ function takvimyukle(preload,turdegisti)
                   // GORUNEN (tasinmis) node bos kaliyordu (detay bos geliyordu). Once goster ->
                   // tasima bitsin -> tum fill'ler (cache/fetch) nihai in-body elemana otursun.
                   jQuery("#modal-view-event").modal();
-                  // PERF: description/eventbuttons artik toplu takvim yuklemesinde gelmiyor.
-                  // Ilk acilista tek randevu icin cekilir ve ID-BAZLI cache'lenir.
-                  // ONEMLI: cache'i event objesine degil window._rcDetayCache'e koyariz;
-                  // cunku 15sn'lik yenileme (removeEventSources+addEventSource) event
-                  // objelerini YENIDEN yaratir ve event uzerindeki cache silinirdi ->
-                  // yogun salonda her tiklama yeniden fetch yapiyordu. ID cache yenilemeyi
-                  // asar; gercek degisiklikte (imza degisince) takvimVersiyonKontrol temizler.
+                  // PERF + TIMING: detay/eventbuttons toplu takvim yuklemesinde gelmiyor;
+                  // tek randevu icin cekilir ve ID-BAZLI (window._rcDetayCache) cache'lenir.
+                  // ONEMLI TIMING: icerigi DOGRUDAN .event-body.html() ile basmak, Bootstrap'in
+                  // acilis animasyonu (fade) + show.bs.modal->appendChild (modal'i body'ye tasima)
+                  // bitmeden yapilinca TUTMUYORDU (detay bos geliyordu; manuel fill sonradan
+                  // calisiyordu). Cozum: icerigi rcDetayUygula() ile ver — hem hemen dener hem
+                  // de window._rcDetayPending'e yazar; shown.bs.modal (animasyon+tasima BITTIKTEN
+                  // sonra) pending'i nihai in-body elemana kesin uygular. (rcDetayUygula ve
+                  // shown.bs.modal handler'i modaldialogs/randevu-detayi-kart.blade'de tanimli.)
                   window._rcDetayCache = window._rcDetayCache || {};
                   var _rcDet = event.description
                       ? {description: event.description, eventbuttons: event.eventbuttons}
                       : window._rcDetayCache[event.id];
                   if (_rcDet) {
-                      jQuery(".event-body").html(_rcDet.description);
-                      jQuery(".event-buttons").html(_rcDet.eventbuttons);
+                      rcDetayUygula(_rcDet.description, _rcDet.eventbuttons);
                   } else {
-                      jQuery(".event-body").html('<div style="padding:24px;text-align:center;color:#9D5DC8"><i class="fa fa-spinner fa-spin fa-2x"></i></div>');
-                      jQuery(".event-buttons").html('');
+                      rcDetayUygula('<div style="padding:24px;text-align:center;color:#9D5DC8"><i class="fa fa-spinner fa-spin fa-2x"></i></div>', '');
                       var _rcReqId = event.id;
                       jQuery.getJSON('/isletmeyonetim/randevu-event-detay', {id: event.id, sube: jQuery('input[name="sube"]').val()})
                           .done(function(d){
@@ -11081,11 +11081,10 @@ function takvimyukle(preload,turdegisti)
                               event.eventbuttons = d.eventbuttons;
                               event.hoverHtml    = d.hoverHtml;
                               window._rcDetayCache[_rcReqId] = {description: d.description, eventbuttons: d.eventbuttons, hoverHtml: d.hoverHtml};
-                              jQuery(".event-body").html(d.description);
-                              jQuery(".event-buttons").html(d.eventbuttons);
+                              rcDetayUygula(d.description, d.eventbuttons);
                           })
                           .fail(function(){
-                              jQuery(".event-body").html('<div style="padding:20px;text-align:center;color:#c00">Detay yüklenemedi, tekrar deneyin.</div>');
+                              rcDetayUygula('<div style="padding:20px;text-align:center;color:#c00">Detay yüklenemedi, tekrar deneyin.</div>', '');
                           });
                   }
                   jQuery(".eventUrl").attr("href", event.url);
