@@ -153,7 +153,18 @@ function rcEventTipBind(element, event) {
         var el = this;
         window.__rcTipCurrentEl = el;
         // hoverHtml zaten cache'lenmisse hemen goster
+        window._rcDetayCache = window._rcDetayCache || {};
         if (evData.hoverHtml) { rcShowTip(el, evData); return; }
+        // Baska bir event bu id'yi zaten cekmisse (id-bazli paylasimli cache) tekrar cekme:
+        // hover verisini oradan al -> tiklama da aninda acilir.
+        var _hc = window._rcDetayCache[evData.id];
+        if (_hc && _hc.hoverHtml) {
+            evData.hoverHtml    = _hc.hoverHtml;
+            evData.description  = _hc.description;
+            evData.eventbuttons = _hc.eventbuttons;
+            rcShowTip(el, evData);
+            return;
+        }
         // PERF: hoverHtml toplu takvim yuklemesinde gelmiyor — tek randevu icin lazy fetch + cache
         if (evData._hoverLoading || !evData.id) return;
         evData._hoverLoading = true;
@@ -163,6 +174,8 @@ function rcEventTipBind(element, event) {
                 evData.description  = d.description;
                 evData.eventbuttons = d.eventbuttons;
                 evData._hoverLoading = false;
+                // Tiklama akisi ile paylasimli id-cache'e de yaz (yenilemeyi asar)
+                window._rcDetayCache[evData.id] = {description: d.description, eventbuttons: d.eventbuttons, hoverHtml: d.hoverHtml};
                 // Sadece kullanici hala ayni event uzerindeyse goster
                 if (window.__rcTipCurrentEl === el && d.hoverHtml) rcShowTip(el, evData);
             })
