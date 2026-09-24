@@ -96,11 +96,15 @@
 </div>
 
 <script>
-   // Modal acilirken body'ye tasi — parent container'lar centering'i bozmasin
-   $(document).on('show.bs.modal', '#modal-view-event', function () {
-      if (this.parentNode !== document.body) {
-         document.body.appendChild(this);
-      }
+   // Modal'i SAYFA YUKLENINCE (bir kez) body'ye tasi — parent container'lar centering'i
+   // bozmasin. ONEMLI: Eskiden bu tasima 'show.bs.modal' aninda yapiliyordu; ama modal'i
+   // acilis animasyonu (fade) SIRASINDA DOM'da tasimak CSS gecisini iptal edip
+   // 'shown.bs.modal'in tetiklenmemesine ve gecis sirasindaki .html() fill'lerinin
+   // TUTMAMASINA yol aciyordu (detay bos geliyordu). Acilistan once tasiyinca acilis
+   // sirasinda DOM oynamiyor -> gecis saglam -> shown.bs.modal tetiklenir -> fill oturur.
+   $(function () {
+      var m = document.getElementById('modal-view-event');
+      if (m && m.parentNode !== document.body) { document.body.appendChild(m); }
    });
 
    // DETAY ICERIGINI UYGULA (timing-guvenli). Icerigi dogrudan .html() ile basmak,
