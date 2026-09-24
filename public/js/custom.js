@@ -11051,6 +11051,12 @@ function takvimyukle(preload,turdegisti)
                   jQuery(".event-icon").html("<i class='fa fa-" + event.icon + "'></i>");
                   jQuery(".event-title").html(event.modal_title);
                   jQuery('#duzenle_butonu_bolumu').html(event.duzenle_buton);
+                  // ONEMLI: Modal'i ICERIK DOLDURMADAN ONCE goster. show.bs.modal handler'i
+                  // modal'i document.body'ye tasiyor (appendChild). Eskiden once .event-body
+                  // doldurulup sonra .modal() cagriliyordu; tasima + async fetch fill yarisinda
+                  // GORUNEN (tasinmis) node bos kaliyordu (detay bos geliyordu). Once goster ->
+                  // tasima bitsin -> tum fill'ler (cache/fetch) nihai in-body elemana otursun.
+                  jQuery("#modal-view-event").modal();
                   // PERF: description/eventbuttons artik toplu takvim yuklemesinde gelmiyor.
                   // Ilk acilista tek randevu icin cekilir ve ID-BAZLI cache'lenir.
                   // ONEMLI: cache'i event objesine degil window._rcDetayCache'e koyariz;
@@ -11093,10 +11099,9 @@ function takvimyukle(preload,turdegisti)
                     
             
                   });
-            
-                  jQuery("#modal-view-event").modal();
+                  // (.modal() yukari alindi — icerik doldurulmadan ONCE gosteriliyor)
                }
-              
+
              },
             });
 if (preload && !turdegisti) {
