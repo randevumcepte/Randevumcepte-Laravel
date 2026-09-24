@@ -24715,6 +24715,8 @@ $(document).on('click', '.cark_kupon_secim', function(){
 // alani goster + kodu tiklanabilir listele (carkKuponlariniYukle ile ayni desen).
 function kampanyaIndirimKodlariniYukle(userId){
     if(!$('#kampanya_indirim_kodu_bolumu').length) return;
+    // Adisyona islenmis (disabled) durumda sunucu render etti; JS gizleyip acma, gorunur birak.
+    if($('#kampanya_indirim_kodu_uygula_btn').length === 0){ $('#kampanya_indirim_kodu_bolumu').show(); return; }
     $.ajax({
         url: '/isletmeyonetim/kullaniciKampanyaKodlari',
         method: 'GET',
@@ -24790,7 +24792,7 @@ $(document).on('click', '#kampanya_indirim_kodu_uygula_btn', function(e){
     $.ajax({
         url:'/isletmeyonetim/kampanyaindirimkodukullan',
         method:'POST',
-        data:{ kod: kod, musteri_id: musteriId, sube: sube, _token: $('input[name="_token"]').val() },
+        data:{ kod: kod, musteri_id: musteriId, sube: sube, adisyon_id: ($('#session_adisyon_id').length ? $('#session_adisyon_id').val() : $('input[name="adisyon_id"]').val()), _token: $('input[name="_token"]').val() },
         success: function(res){
             $('#preloader').hide();
             if(!res || !res.success){
@@ -24809,6 +24811,10 @@ $(document).on('click', '#kampanya_indirim_kodu_uygula_btn', function(e){
                 $('#harici_indirim_tutari').val(fmt).trigger('keyup');
                 if(typeof tahsilatyenidenhesapla === 'function') tahsilatyenidenhesapla();
             }
+            // Uygulandiktan sonra alani kilitle (ayni oturumda tekrar denemesin; sayfa yenilenince
+            // sunucu bu adisyona islenmis kodu disabled render eder).
+            $('#kampanya_indirim_kodu').prop('disabled', true);
+            $('#kampanya_indirim_kodu_uygula_btn').prop('disabled', true).text('Uygulandı ✓');
             swal({type:'success', title:'Kod Uygulandı', text: res.mesaj || '', timer:2500, showConfirmButton:false});
         },
         error: function(xhr){

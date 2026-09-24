@@ -30801,10 +30801,14 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         $yuzde = 0; $tip = 'xalyode';
         if (preg_match('/%\s*(\d+)/u', $indirimTuru, $m)) { $yuzde = (int) $m[1]; $tip = 'yuzde'; }
 
-        \App\KampanyaKatilimcilari::where('id', $katilimci->id)->update([
+        $guncelle = [
             'indirim_kodu_kullanildi'      => 1,
             'indirim_kodu_kullanim_tarihi' => now(),
-        ]);
+        ];
+        if (\Schema::hasColumn('kampanya_katilimcilari', 'indirim_kodu_adisyon_id') && $request->filled('adisyon_id')) {
+            $guncelle['indirim_kodu_adisyon_id'] = (int) $request->adisyon_id;
+        }
+        \App\KampanyaKatilimcilari::where('id', $katilimci->id)->update($guncelle);
 
         try {
             Audit::logApi($salonId, $request, 'kampanya_indirim_kodu_kullan', 'kampanya_katilimci', $katilimci->id, $kod, 'Kampanya indirim kodu kullanildi (app)', ['indirim_turu' => $indirimTuru]);

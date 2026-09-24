@@ -398,15 +398,29 @@
                            </div>
                         </div>
                      </div>
-                     <div id="kampanya_indirim_kodu_bolumu" style="background:#e8f5e9;border:1px solid #c8e6c9;border-radius:6px;padding:10px;margin:10px 0;">
+                     @php
+                        $_kampanya_kod_kullanildi = null;
+                        if(\Schema::hasColumn('kampanya_katilimcilari','indirim_kodu_adisyon_id') && !empty($adisyon_id)){
+                           $_kampanya_kod_kullanildi = \App\KampanyaKatilimcilari::where('indirim_kodu_adisyon_id',$adisyon_id)->where('indirim_kodu_kullanildi',1)->first();
+                        }
+                     @endphp
+                     <div id="kampanya_indirim_kodu_bolumu" style="{{ $_kampanya_kod_kullanildi ? '' : 'display:none;' }}background:#e8f5e9;border:1px solid #c8e6c9;border-radius:6px;padding:10px;margin:10px 0;">
                         <label style="font-weight:bold;color:#2e7d32;margin:0 0 6px 0;display:block;">🎟️ Kampanya İndirim Kodu</label>
-                        <div id="kampanya_indirim_kodu_sonuc" style="font-size:12px;color:#2e7d32;margin-bottom:6px;"></div>
+                        <div id="kampanya_indirim_kodu_sonuc" style="font-size:12px;color:#2e7d32;margin-bottom:6px;">@if($_kampanya_kod_kullanildi)Bu adisyona uygulandı.@endif</div>
                         <div class="row" style="margin:0;">
                            <div class="col-md-8 col-8" style="padding-left:0;">
+                              @if($_kampanya_kod_kullanildi)
+                              <input type="text" class="form-control" value="{{ $_kampanya_kod_kullanildi->indirim_kodu }}" disabled>
+                              @else
                               <input type="text" id="kampanya_indirim_kodu" class="form-control" placeholder="SMS/WhatsApp ile gelen indirim kodu" autocomplete="off">
+                              @endif
                            </div>
                            <div class="col-md-4 col-4" style="padding:0;">
+                              @if($_kampanya_kod_kullanildi)
+                              <button type="button" class="btn btn-secondary btn-block" disabled>Uygulandı ✓</button>
+                              @else
                               <button type="button" id="kampanya_indirim_kodu_uygula_btn" class="btn btn-success btn-block">Uygula</button>
+                              @endif
                            </div>
                         </div>
                      </div>

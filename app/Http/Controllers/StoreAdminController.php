@@ -1267,10 +1267,15 @@ public function carkverilerigetir(Request $request)
             $tip   = 'yuzde';
         }
 
-        \App\KampanyaKatilimcilari::where('id', $katilimci->id)->update([
+        $guncelle = [
             'indirim_kodu_kullanildi'      => 1,
             'indirim_kodu_kullanim_tarihi' => now(),
-        ]);
+        ];
+        // Kodu adisyona ilistir (adisyona donunce disabled gosterilir). Kolon varsa yaz.
+        if (\Schema::hasColumn('kampanya_katilimcilari', 'indirim_kodu_adisyon_id') && $request->filled('adisyon_id')) {
+            $guncelle['indirim_kodu_adisyon_id'] = (int) $request->adisyon_id;
+        }
+        \App\KampanyaKatilimcilari::where('id', $katilimci->id)->update($guncelle);
 
         try {
             \App\SalonAudit::log($salonId, 'kampanya_indirim_kodu_kullan', 'kampanya_katilimci', $katilimci->id,
