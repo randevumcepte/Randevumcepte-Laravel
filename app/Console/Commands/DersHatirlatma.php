@@ -211,33 +211,36 @@ class DersHatirlatma extends Command
     }
 
     /**
-     * Danisanin ODENMEMIS adisyonu var mi? Tek kriter = KALAN > 0, uygulamanin
-     * 'Odendi' karariyla BIREBIR (adisyonpage.dart: isFullPaid = kalan <= 0).
-     * kalan = SUM(kalem.fiyat) - SUM(kalem tahsilat.tutar) (ApiController adisyon_yukle
-     * ile ayni). Tutar mesajda GOSTERILMEZ; sadece "kalan var mi yok mu" boolean'i.
+     * Studyo modu: danisanin ODENMEMIS adisyonu var mi? Sinyal = adisyonlar.odendi != 1
+     * ('Odeme Alindi' butonu basilmamis) VE gercek kalem (hizmet/paket/urun) iceren adisyon.
      *
-     * NEDEN adisyonlar.odendi DEGIL: o kolon yalnizca studyo 'Odeme Alindi' (tamOde)
-     * butonuyla yazilir; normal tahsilatla tam odenen adisyonda (kalan=0) BOS kalir
-     * (ornek adisyon 635052: odendi bos ama uygulamada 'Odendi' cunku kalan=0). Uygulama
-     * da odendi'yi paid karari icin KULLANMIYOR, sadece tarih/✓ gostermek icin. Bu yuzden
-     * hatirlatma da yalnizca kalan>0'a bakar -> uygulamada 'odenmemis' gorunen adisyonlarla
-     * tam ortusur.
+     * NEDEN kalan DEGIL: studyoda fiyat 0'dir (fiyat gosterilmez/girilmez) -> kalan hep 0,
+     * yani kalan bazli tespit hic tetiklenmez. Odeme durumu SADECE odendi bayragiyla
+     * ('Odeme Alindi'/'Alinmadi') tutulur. (Uygulamanin studyo 'Odendi' gostergesi
+     * isFullPaid=kalan<=0'a bakiyor -> fiyat 0 iken hepsini 'Odendi' gosteriyor; bu app
+     * tarafi ayri bir bug. Web ise odendi'ye bakip dogru gosteriyor.)
+     * 'Odeme Alindi' (tamOde) -> odendi=1 olunca false doner, hatirlatma durur.
+     * Deploy'da migration yoksa false (guvenli).
      */
     private function musteriOdemeBekliyorMu($salonId, $userId): bool
     {
-        $kalan = "("
-            . " COALESCE((SELECT SUM(ah.fiyat) FROM adisyon_hizmetler ah WHERE ah.adisyon_id = adisyonlar.id),0)"
-            . "+COALESCE((SELECT SUM(au.fiyat) FROM adisyon_urunler au WHERE au.adisyon_id = adisyonlar.id),0)"
-            . "+COALESCE((SELECT SUM(ap.fiyat) FROM adisyon_paketler ap WHERE ap.adisyon_id = adisyonlar.id),0)"
-            . "-COALESCE((SELECT SUM(th.tutar) FROM tahsilat_hizmetler th JOIN adisyon_hizmetler ah2 ON th.adisyon_hizmet_id=ah2.id WHERE ah2.adisyon_id = adisyonlar.id),0)"
-            . "-COALESCE((SELECT SUM(tu.tutar) FROM tahsilat_urunler tu JOIN adisyon_urunler au2 ON tu.adisyon_urun_id=au2.id WHERE au2.adisyon_id = adisyonlar.id),0)"
-            . "-COALESCE((SELECT SUM(tp.tutar) FROM tahsilat_paketler tp JOIN adisyon_paketler ap2 ON tp.adisyon_paket_id=ap2.id WHERE ap2.adisyon_id = adisyonlar.id),0)"
-            . ")";
-
+        if (!\Schema::hasColumn('adisyonlar', 'odendi')) return false;
         return DB::table('adisyonlar')
             ->where('salon_id', $salonId)
             ->where('user_id', $userId)
-            ->whereRaw("ROUND($kalan, 2) > 0")
+            ->whereRaw('COALESCE(odendi,0) <> 1')
+            ->where(function ($q) {
+                $q->whereExists(function ($s) {
+                    $s->select(DB::raw(1))->from('adisyon_hizmetler')
+                      ->whereRaw('adisyon_hizmetler.adisyon_id = adisyonlar.id');
+                })->orWhereExists(function ($s) {
+                    $s->select(DB::raw(1))->from('adisyon_paketler')
+                      ->whereRaw('adisyon_paketler.adisyon_id = adisyonlar.id');
+                })->orWhereExists(function ($s) {
+                    $s->select(DB::raw(1))->from('adisyon_urunler')
+                      ->whereRaw('adisyon_urunler.adisyon_id = adisyonlar.id');
+                });
+            })
             ->exists();
     }
 }
