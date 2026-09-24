@@ -10700,10 +10700,12 @@ if($('#calendar').length){
     // KOSULLU POLLING: agir randevuyukle'yi her seferinde calistirmak yerine once
     // COK UCUZ bir imza (randevuversiyon) kontrol edilir. Imza degismediyse hicbir
     // sey yapilmaz; degistiyse (online randevu / iptal / surukle-birak / duzenleme)
-    // takvim OTOMATIK yenilenir. Tazelik ayni (~15sn, refresh'siz), DB yuku ~%95 azalir.
+    // takvim OTOMATIK yenilenir. Tazelik ~30sn, refresh'siz.
     // Sekme arka plandayken (document.hidden) hic sorgu atilmaz.
+    // PERF: yogun salonda (cok kolon/randevu) her sekme her tetiklemede agir randevuyukle
+    // uretiyordu; aralik 15->30sn'ye cikarildi (php-fpm havuz yukunu ~yariya indirir).
     window._takvimImza = null;
-    interval = setInterval(takvimVersiyonKontrol, 15000);
+    interval = setInterval(takvimVersiyonKontrol, 30000);
 }
 function takvimVersiyonKontrol()
 {
