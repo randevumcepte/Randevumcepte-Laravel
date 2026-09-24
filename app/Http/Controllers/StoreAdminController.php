@@ -4375,8 +4375,21 @@ public function carkverilerigetir(Request $request)
         ];
     }
 
+    // PERF: Periyodik (15sn) yenilemede (turdegisti=0) frontend YALNIZCA event'leri
+    // (result.randevu) kullanir; kolon basliklarini (resource) yeniden UYGULAMAZ
+    // (custom.js else dali: removeEventSources + addEventSource(result.randevu)).
+    // Bu yuzden kolon basligindaki randevu-sayisi correlated alt-sorgusunu (kolon
+    // basina 1 tarama; 15 personelde tek sorguda 15 tarama) bu durumda HESAPLAMAYIZ.
+    // Bos-slot uretimi ($resource->id) ve kolonlar init/tur degisiminde (turdegisti=1)
+    // aynen calisir; sayilar orada guncellenir. Server-side ilk yukleme param gondermez
+    // -> tam baslik hesaplanir.
+    $sadeceEvent = ($request->has('turdegisti') && (string)$request->turdegisti === '0');
+
     $resources = "";
     if($takvim_turu == 1 || self::personelmi($request, 'randevu.tum_personel_gor')) {
+        $personelBaslik = $sadeceEvent
+            ? 'salon_personelleri.personel_adi as title'
+            : 'CONCAT(salon_personelleri.personel_adi, " (", (SELECT COUNT(*) FROM randevu_hizmetler inner join randevular on randevu_hizmetler.randevu_id = randevular.id where randevu_hizmetler.personel_id = salon_personelleri.id and randevular.tarih <= "'.$tarih2.'" and randevular.tarih>= "'.$tarih1.'"AND randevular.durum <= 1 ) ,")") as title';
         $resources = Personeller::join('renk_duzenleri','salon_personelleri.renk','=','renk_duzenleri.id')
                     ->where(function($q) use($request,$personel_idler, $isletmeId){
                         if(self::personelmi($request, 'randevu.tum_personel_gor')) {
@@ -4392,7 +4405,7 @@ public function carkverilerigetir(Request $request)
                     })->where('salon_personelleri.aktif',true)
                     ->where('salon_personelleri.takvimde_gorunsun',true)->orderBy('salon_personelleri.takvim_sirasi','asc')
                     ->get(['salon_personelleri.id as id',
-                        DB::raw('CONCAT(salon_personelleri.personel_adi, " (", (SELECT COUNT(*) FROM randevu_hizmetler inner join randevular on randevu_hizmetler.randevu_id = randevular.id where randevu_hizmetler.personel_id = salon_personelleri.id and randevular.tarih <= "'.$tarih2.'" and randevular.tarih>= "'.$tarih1.'"AND randevular.durum <= 1 ) ,")") as title'),  
+                        DB::raw($personelBaslik),
                         'renk_duzenleri.renk as bgcolor']);
     }
     
@@ -4405,15 +4418,17 @@ public function carkverilerigetir(Request $request)
                 'salon_sunulan_hizmetler.hizmet_kategori_id as id',
                 'hizmet_kategorisi.hizmet_kategorisi_adi',
                 'renk_duzenleri.renk as bgcolor',
-                DB::raw('CONCAT(hizmet_kategorisi.hizmet_kategorisi_adi, " (", (
-                    SELECT COUNT(DISTINCT randevu_hizmetler.id) 
-                    FROM randevu_hizmetler 
-                    INNER JOIN randevular ON randevu_hizmetler.randevu_id = randevular.id 
+                DB::raw($sadeceEvent
+                    ? 'hizmet_kategorisi.hizmet_kategorisi_adi AS title'
+                    : 'CONCAT(hizmet_kategorisi.hizmet_kategorisi_adi, " (", (
+                    SELECT COUNT(DISTINCT randevu_hizmetler.id)
+                    FROM randevu_hizmetler
+                    INNER JOIN randevular ON randevu_hizmetler.randevu_id = randevular.id
                     INNER JOIN hizmetler ON randevu_hizmetler.hizmet_id = hizmetler.id
-                    WHERE hizmetler.hizmet_kategori_id = hizmet_kategorisi.id 
+                    WHERE hizmetler.hizmet_kategori_id = hizmet_kategorisi.id
                     AND randevular.salon_id = salon_sunulan_hizmetler.salon_id
-                    AND randevular.tarih <= "'.$tarih2.'" 
-                    AND randevular.tarih >= "'.$tarih1.'" 
+                    AND randevular.tarih <= "'.$tarih2.'"
+                    AND randevular.tarih >= "'.$tarih1.'"
                     AND randevular.durum <= 1
                 ), ")") AS title')
             ])
@@ -4433,13 +4448,15 @@ public function carkverilerigetir(Request $request)
             ->join('salon_cihaz_renkleri','salon_cihaz_renkleri.cihaz_id','=','cihazlar.id')
             ->join('renk_duzenleri','salon_cihaz_renkleri.renk_id','=','renk_duzenleri.id')
             ->select(['cihazlar.id as id',
-                DB::raw('CONCAT(cihazlar.cihaz_adi, " (", (
-                    SELECT COUNT(*) 
-                    FROM randevu_hizmetler 
-                    INNER JOIN randevular ON randevu_hizmetler.randevu_id = randevular.id 
-                    WHERE randevu_hizmetler.cihaz_id = cihazlar.id 
-                    AND randevular.tarih <= "'.$tarih2.'" 
-                    AND randevular.tarih >= "'.$tarih1.'" 
+                DB::raw($sadeceEvent
+                    ? 'cihazlar.cihaz_adi AS title'
+                    : 'CONCAT(cihazlar.cihaz_adi, " (", (
+                    SELECT COUNT(*)
+                    FROM randevu_hizmetler
+                    INNER JOIN randevular ON randevu_hizmetler.randevu_id = randevular.id
+                    WHERE randevu_hizmetler.cihaz_id = cihazlar.id
+                    AND randevular.tarih <= "'.$tarih2.'"
+                    AND randevular.tarih >= "'.$tarih1.'"
                     AND randevular.durum <= 1
                 ), ")") AS title'),
                 'renk_duzenleri.renk as bgcolor'
@@ -4451,13 +4468,15 @@ public function carkverilerigetir(Request $request)
             ->join('salon_oda_renkleri','salon_oda_renkleri.oda_id','=','odalar.id')
             ->join('renk_duzenleri','salon_oda_renkleri.renk_id','=','renk_duzenleri.id')
             ->select(['odalar.id as id',
-                DB::raw('CONCAT(odalar.oda_adi, " (", (
-                    SELECT COUNT(*) 
-                    FROM randevu_hizmetler 
-                    INNER JOIN randevular ON randevu_hizmetler.randevu_id = randevular.id 
-                    WHERE randevu_hizmetler.oda_id = odalar.id 
-                    AND randevular.tarih <= "'.$tarih2.'" 
-                    AND randevular.tarih >= "'.$tarih1.'" 
+                DB::raw($sadeceEvent
+                    ? 'odalar.oda_adi AS title'
+                    : 'CONCAT(odalar.oda_adi, " (", (
+                    SELECT COUNT(*)
+                    FROM randevu_hizmetler
+                    INNER JOIN randevular ON randevu_hizmetler.randevu_id = randevular.id
+                    WHERE randevu_hizmetler.oda_id = odalar.id
+                    AND randevular.tarih <= "'.$tarih2.'"
+                    AND randevular.tarih >= "'.$tarih1.'"
                     AND randevular.durum <= 1
                 ), ")") AS title'),
                 'renk_duzenleri.renk as bgcolor'
@@ -17535,7 +17554,18 @@ DB::raw('
         $personel = 0;
         if(!Auth::guard('satisortakligi')->check())
             $personel = Personeller::where('salon_id',self::mevcutsube($request) )->where('yetkili_id',Auth::guard('isletmeyonetim')->user()->id)->value('id');
-        $bildirimler = Bildirimler::where('personel_id',$personel)->where('salon_id',self::mevcutsube($request))->orderBy('id','desc')->get();
+
+        $salonId = self::mevcutsube($request);
+
+        // PERF: Eskiden TUM bildirimler (yogun salonda 8000+ satir) her sayfa
+        // yuklemesinde RAM'e cekiliyordu; layout badge'i de koleksiyon uzerinden
+        // ->where('okundu',false)->count() ile hesapliyordu. Artik okunmamis sayisi
+        // indeksli CHEAP COUNT ile alinir ve layout'a paylasilir; liste icin yalnizca
+        // son 100 kayit cekilir (blade zaten ->take(100) render ediyordu).
+        $okunmamisSayisi = Bildirimler::where('personel_id',$personel)->where('salon_id',$salonId)->where('okundu',false)->count();
+        view()->share('bildirimOkunmamisSayisi', $okunmamisSayisi);
+
+        $bildirimler = Bildirimler::where('personel_id',$personel)->where('salon_id',$salonId)->orderBy('id','desc')->take(100)->get();
         return $bildirimler;
     }
    public function paketsatisekle(Request $request){

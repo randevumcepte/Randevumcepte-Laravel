@@ -10715,7 +10715,7 @@ function takvimyukle(preload,turdegisti)
      $.ajax({
         type: "GET",
         url: '/isletmeyonetim/randevuyukle',
-        data: {ayar:$('#randevu_ayarina_gore').val(),sube:$('input[name="sube"]').val(),takvimtarih:moment,takvimgorunum:curview.type},
+        data: {ayar:$('#randevu_ayarina_gore').val(),sube:$('input[name="sube"]').val(),takvimtarih:moment,takvimgorunum:curview.type,turdegisti:(turdegisti?1:0)},
         dataType: "json",
         headers: {
             'X-CSRF-TOKEN': $('input[name="_token"]').val()

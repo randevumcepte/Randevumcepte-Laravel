@@ -1547,9 +1547,10 @@
                      data-display="static"
                      >
                   <i class="icon-copy dw dw-notification"></i>
-                  <span id="bildirim-badge" class="{{($bildirimler->where('okundu',false)->count()>0) ? 'badge notification-afctive' : ''}}">
-                  @if($bildirimler->where('okundu',false)->count()>0)
-                  {{$bildirimler->where('okundu',false)->count()}}
+                  @php($bildirimOkunmamis = $bildirimOkunmamisSayisi ?? $bildirimler->where('okundu',false)->count())
+                  <span id="bildirim-badge" class="{{($bildirimOkunmamis>0) ? 'badge notification-afctive' : ''}}">
+                  @if($bildirimOkunmamis>0)
+                  {{$bildirimOkunmamis}}
                   @endif
                   </span>
                   </a>
@@ -1558,8 +1559,8 @@
                         <div class="rc-notif-head">
                            <div class="rc-notif-title">
                               <span class="rc-notif-title-text">Bildirimler</span>
-                              @if($bildirimler->where('okundu',false)->count() > 0)
-                                 <span class="rc-notif-count" id="bildirim-count-pill">{{ $bildirimler->where('okundu',false)->count() }} yeni</span>
+                              @if($bildirimOkunmamis > 0)
+                                 <span class="rc-notif-count" id="bildirim-count-pill">{{ $bildirimOkunmamis }} yeni</span>
                               @endif
                            </div>
                            <div class="rc-notif-actions">
@@ -5743,7 +5744,7 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=13.9')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=276.0')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=277.0')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
