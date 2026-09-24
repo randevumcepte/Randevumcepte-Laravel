@@ -1547,7 +1547,9 @@
                      data-display="static"
                      >
                   <i class="icon-copy dw dw-notification"></i>
-                  @php($bildirimOkunmamis = $bildirimOkunmamisSayisi ?? $bildirimler->where('okundu',false)->count())
+                  @php
+                     $bildirimOkunmamis = isset($bildirimOkunmamisSayisi) ? $bildirimOkunmamisSayisi : $bildirimler->where('okundu',false)->count();
+                  @endphp
                   <span id="bildirim-badge" class="{{($bildirimOkunmamis>0) ? 'badge notification-afctive' : ''}}">
                   @if($bildirimOkunmamis>0)
                   {{$bildirimOkunmamis}}
