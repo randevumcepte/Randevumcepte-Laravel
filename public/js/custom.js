@@ -11083,28 +11083,48 @@ function takvimyukle(preload,turdegisti)
                   jQuery('#modal-view-event .event-body').html('<div style="padding:24px;text-align:center;color:#9D5DC8"><i class="fa fa-spinner fa-spin fa-2x"></i></div>');
                   jQuery('#modal-view-event .event-buttons').html('');
                   jQuery('#modal-view-event').modal('show');
+                  // ===== GECICI DEBUG SERIDI (teshis sonrasi kaldirilacak) =====
+                  function rcDbg(msg){
+                     var d = document.getElementById('rc-dbg');
+                     if(!d){ d=document.createElement('div'); d.id='rc-dbg';
+                        d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#b00020;color:#fff;font:12px/1.4 monospace;padding:6px 10px;white-space:pre-wrap;max-height:40vh;overflow:auto';
+                        document.body.appendChild(d); }
+                     d.textContent += msg + '\n';
+                  }
+                  (function(){
+                     var d=document.getElementById('rc-dbg'); if(d) d.textContent='';
+                     var $mv=jQuery('#modal-view-event');
+                     rcDbg('CLICK id='+event.id+' title='+event.title);
+                     rcDbg('#modal-view-event sayisi='+$mv.length+' | .event-body sayisi='+jQuery('.event-body').length+' | modal parent='+($mv[0]?$mv[0].parentNode.tagName:'-'));
+                  })();
+                  // ===== /DEBUG =====
                   (function(_id){
-                      if (!_id || String(_id).indexOf('empty-') === 0) return; // bos slot -> cekme
+                      if (!_id || String(_id).indexOf('empty-') === 0) { rcDbg('GUARD: bos slot / id yok -> cikildi'); return; }
                       window._rcDetayCache = window._rcDetayCache || {};
                       function basVeDogrula(html, btns){
+                          rcDbg('basVeDogrula cagrildi, gelen html len='+((html||'').length));
                           var t = 0;
                           (function tekrar(){
                               var $b = jQuery('#modal-view-event .event-body');
                               var $f = jQuery('#modal-view-event .event-buttons');
                               if ($b.length){ $b.html(html || ''); if ($f.length) $f.html(btns || ''); }
                               t++;
-                              // Icerik gercekten oturmadiysa (or. gecis silmisse) tekrar dene (~4sn)
-                              if ((((($b.html())||'').length) < 10) && t < 25) setTimeout(tekrar, 150);
+                              var sonLen = (($b.html())||'').length;
+                              if(t<=3 || sonLen>=10) rcDbg('  fill#'+t+' bodyCount='+$b.length+' visible='+$b.is(':visible')+' sonrasiLen='+sonLen);
+                              if ((sonLen < 10) && t < 25) setTimeout(tekrar, 150);
                           })();
                       }
                       var c = window._rcDetayCache[_id];
-                      if (c){ basVeDogrula(c.description, c.eventbuttons); return; }
+                      if (c){ rcDbg('CACHE hit'); basVeDogrula(c.description, c.eventbuttons); return; }
+                      rcDbg('FETCH basliyor id='+_id);
                       jQuery.getJSON('/isletmeyonetim/randevu-event-detay', {id:_id, sube: jQuery('input[name="sube"]').val()})
                           .done(function(d){
+                              rcDbg('FETCH done, description len='+((d&&d.description||'').length));
                               window._rcDetayCache[_id] = {description:d.description, eventbuttons:d.eventbuttons, hoverHtml:d.hoverHtml};
                               basVeDogrula(d.description, d.eventbuttons);
                           })
-                          .fail(function(){
+                          .fail(function(x){
+                              rcDbg('FETCH FAIL status='+(x&&x.status));
                               jQuery('#modal-view-event .event-body').html('<div style="padding:20px;text-align:center;color:#c00">Detay yüklenemedi, tekrar deneyin.</div>');
                           });
                   })(event.id);
