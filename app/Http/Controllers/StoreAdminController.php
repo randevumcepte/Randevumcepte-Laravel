@@ -1225,6 +1225,69 @@ public function carkverilerigetir(Request $request)
         ]);
     }
 
+    /**
+     * KAMPANYA INDIRIM KODU KULLAN (tahsilat) — musteriye SMS ile gonderilen kampanya
+     * indirim kodunu dogrular, kullanildi isaretler, indirim bilgisini doner. eczane24
+     * indirimKoduKullan karsiligi. % indirim tahsilattaki musteri_indirim alanina yazilir
+     * (X Al Y Ode simdilik manuel bilgi olarak doner).
+     */
+    public function kampanyaIndirimKoduKullan(Request $request)
+    {
+        $salonId   = self::mevcutsube($request);
+        $musteriId = (int) $request->input('musteri_id');
+        $kod       = trim((string) $request->input('kod'));
+
+        if ($kod === '' || !$musteriId) {
+            return response()->json(['success' => false, 'mesaj' => 'Kod ve müşteri gerekli.']);
+        }
+
+        // Bu salonun kampanyasina ait + bu musteriye verilmis kod.
+        $katilimci = \App\KampanyaKatilimcilari::where('kampanya_katilimcilari.user_id', $musteriId)
+            ->where('kampanya_katilimcilari.indirim_kodu', $kod)
+            ->join('kampanya_yonetimi', 'kampanya_yonetimi.id', '=', 'kampanya_katilimcilari.kampanya_id')
+            ->where('kampanya_yonetimi.salon_id', $salonId)
+            ->select('kampanya_katilimcilari.*', 'kampanya_yonetimi.indirim_turu as k_indirim_turu')
+            ->orderBy('kampanya_katilimcilari.id', 'desc')
+            ->first();
+
+        if (!$katilimci) {
+            return response()->json(['success' => false, 'mesaj' => 'Geçersiz kod ya da bu müşteriye ait değil.']);
+        }
+        if (!empty($katilimci->indirim_kodu_kullanildi)) {
+            $t = $katilimci->indirim_kodu_kullanim_tarihi ? date('d.m.Y', strtotime($katilimci->indirim_kodu_kullanim_tarihi)) : '';
+            return response()->json(['success' => false, 'mesaj' => 'Bu kod zaten kullanılmış' . ($t ? " ($t)" : '') . '.']);
+        }
+
+        // Indirim tipini coz: "%10 Indirim" -> yuzde ; "2 Al 1 Ode" -> xalyode (manuel).
+        $indirimTuru = (string) $katilimci->k_indirim_turu;
+        $yuzde = 0;
+        $tip   = 'xalyode';
+        if (preg_match('/%\s*(\d+)/u', $indirimTuru, $m)) {
+            $yuzde = (int) $m[1];
+            $tip   = 'yuzde';
+        }
+
+        \App\KampanyaKatilimcilari::where('id', $katilimci->id)->update([
+            'indirim_kodu_kullanildi'      => 1,
+            'indirim_kodu_kullanim_tarihi' => now(),
+        ]);
+
+        try {
+            \App\SalonAudit::log($salonId, 'kampanya_indirim_kodu_kullan', 'kampanya_katilimci', $katilimci->id,
+                $kod, 'Kampanya indirim kodu kullanildi', ['indirim_turu' => $indirimTuru, 'user_id' => $musteriId]);
+        } catch (\Throwable $e) { /* audit best-effort */ }
+
+        return response()->json([
+            'success' => true,
+            'tip'     => $tip,
+            'yuzde'   => $yuzde,
+            'metin'   => $indirimTuru,
+            'mesaj'   => $tip === 'yuzde'
+                ? "%{$yuzde} indirim uygulandı."
+                : "İndirim: {$indirimTuru} (bu tip için tutarı elle uygulayın).",
+        ]);
+    }
+
     public function sube_yetki_kontrol_et($request)
     {
         $mevcutsube = self::mevcutsube($request);

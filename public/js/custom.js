@@ -24754,3 +24754,38 @@ $(document).on('click', '#cark_kupon_uygula_btn', function(e){
         }
     });
 });
+
+// KAMPANYA INDIRIM KODU (tahsilat): SMS ile gonderilen kodu dogrula + kullanildi isaretle +
+// % indirimi musteri_indirim alanina uygula. (X Al Y Ode simdilik manuel bilgi olarak doner.)
+$(document).on('click', '#kampanya_indirim_kodu_uygula_btn', function(e){
+    e.preventDefault();
+    var kod = ($('#kampanya_indirim_kodu').val() || '').trim();
+    if(!kod){ swal({type:'warning', title:'İndirim kodu giriniz', timer:1500, showConfirmButton:false}); return; }
+    var musteriId = $('select[name="tahsilat_musteri_id"]').val() || $('input[name="musteri_id"]').val() || $('#musteri_id').val();
+    var sube = $('input[name="sube"]').val();
+    $('#preloader').show();
+    $.ajax({
+        url:'/isletmeyonetim/kampanyaindirimkodukullan',
+        method:'POST',
+        data:{ kod: kod, musteri_id: musteriId, sube: sube, _token: $('input[name="_token"]').val() },
+        success: function(res){
+            $('#preloader').hide();
+            if(!res || !res.success){
+                swal({type:'error', title:'Hata', text:(res && res.mesaj) ? res.mesaj : 'Kod uygulanamadı.'});
+                return;
+            }
+            $('#kampanya_indirim_kodu_sonuc').text(res.mesaj || '');
+            if(res.tip === 'yuzde' && res.yuzde){
+                $('#musteri_indirim').val(res.yuzde);
+                if(typeof tahsilatyenidenhesapla === 'function') tahsilatyenidenhesapla();
+                if(typeof adisyontoplamhesapla === 'function') adisyontoplamhesapla();
+            }
+            swal({type:'success', title:'Kod Uygulandı', text: res.mesaj || '', timer:2500, showConfirmButton:false});
+        },
+        error: function(xhr){
+            $('#preloader').hide();
+            var m = (xhr.responseJSON && xhr.responseJSON.mesaj) ? xhr.responseJSON.mesaj : 'Kod uygulanamadı.';
+            swal({type:'error', title:'Hata', text: m});
+        }
+    });
+});
