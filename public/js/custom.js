@@ -348,8 +348,9 @@ $(document).ready(function($) {
     });
 //  Bootstrap tooltip initialization
     $('[data-toggle="tooltip"]').tooltip();
-//  iCheck
-    $(".input-radio,input[name='puanlama']").iCheck();
+//  iCheck (eklenti yuklu degilse cagirma; yoksa TypeError firlatip bu ready blogunun
+//  geri kalanini iptal ediyordu -> console'da "iCheck is not a function")
+    if ($.fn && $.fn.iCheck) { $(".input-radio,input[name='puanlama']").iCheck(); }
     $(".form.email .btn[type='submit']").on("click", function(e){
         var button = $(this);
         var form = $(this).closest("form");
@@ -10672,6 +10673,12 @@ function takvimVersiyonKontrol()
 {
     if (document.hidden) return;
     if (!$('#calendar').length) return;
+    // Randevu detay modali acikken AGIR yenilemeyi durdur: (1) detay fetch'i
+    // (randevu-event-detay) ayni anda calisan agir randevuyukle ile php-fpm
+    // worker'lari icin yarismasin (yogun salonda detay bos/gec geliyordu),
+    // (2) removeEventSources+addEventSource detay cache'ini mid-view silmesin.
+    // Modal kapaninca sonraki tick normal yenilemeye devam eder.
+    if ($('#modal-view-event').is(':visible')) return;
     var curview = $('#calendar').fullCalendar('getView');
     var moment = '';
     if($('#takvim_tarihe_gore').val()!= '')
