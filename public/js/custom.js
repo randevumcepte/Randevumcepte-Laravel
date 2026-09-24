@@ -24700,13 +24700,8 @@ function carkKuponlariniYukle(userId){
         success: function(res){
             var list = (res && res.kuponlar) || [];
             if(!list.length){ $('#cark_kupon_bolumu').hide(); return; }
-            var tipAd = { hizmet_indirimi:'Hizmet', urun_indirimi:'Ürün', paket_indirimi:'Paket' };
-            var html = 'Mevcut kuponlar: ';
-            html += list.map(function(k){
-                var t = tipAd[k.tip] || k.tip;
-                return '<b style="cursor:pointer;text-decoration:underline" class="cark_kupon_secim" data-kod="'+k.kod+'">'+k.kod+'</b> (%'+parseInt(k.deger,10)+' '+t+')';
-            }).join(', ');
-            $('#cark_kupon_listesi').html(html);
+            // Kupon kodunu listeleme (musteri kendi kodunu girer); sadece alani goster.
+            $('#cark_kupon_listesi').empty();
             $('#cark_kupon_bolumu').show();
         }
     });
@@ -24727,10 +24722,8 @@ function kampanyaIndirimKodlariniYukle(userId){
         success: function(res){
             var list = (res && res.kodlar) || [];
             if(!list.length){ $('#kampanya_indirim_kodu_bolumu').hide(); return; }
-            var html = 'Mevcut kod: ' + list.map(function(k){
-                return '<b style="cursor:pointer;text-decoration:underline" class="kampanya_kod_secim" data-kod="'+k.kod+'">'+k.kod+'</b>' + (k.indirim ? ' ('+k.indirim+')' : '');
-            }).join(', ');
-            $('#kampanya_indirim_kodu_sonuc').html(html);
+            // Kodu listeleme (musteri SMS'ten girer); sadece alani goster.
+            $('#kampanya_indirim_kodu_sonuc').empty();
             $('#kampanya_indirim_kodu_bolumu').show();
         }
     });
