@@ -423,9 +423,31 @@
         if (event.title !== 'Boş slot') {
             jQuery(".event-icon").html("<i class='fa fa-" + event.icon + "'></i>");
             jQuery(".event-title").html(event.modal_title);
-            jQuery(".event-body").html(event.description);
-            jQuery(".event-buttons").html(event.eventbuttons);
             jQuery('#duzenle_butonu_bolumu').html(event.duzenle_buton);
+            // Detay (.event-body) ve eventbuttons toplu takvim yuklemesinde BOS geliyor
+            // (lazy-load: performans icin bulk'tan cikarilmisti). O yuzden direkt
+            // event.description basmak BOS birakiyordu. Tek randevu icin randevu-event-detay'dan
+            // cekilir ve ID-bazli cache'lenir. (event.id = randevu_hizmetler.id)
+            (function(_rid){
+                window._rcDetayCache = window._rcDetayCache || {};
+                var _c = window._rcDetayCache[_rid];
+                if (_c) {
+                    jQuery(".event-body").html(_c.description || '');
+                    jQuery(".event-buttons").html(_c.eventbuttons || '');
+                    return;
+                }
+                jQuery(".event-body").html('<div style="padding:24px;text-align:center;color:#9D5DC8"><i class="fa fa-spinner fa-spin fa-2x"></i></div>');
+                jQuery(".event-buttons").html('');
+                jQuery.getJSON('/isletmeyonetim/randevu-event-detay', {id:_rid, sube: jQuery('input[name="sube"]').val()})
+                    .done(function(d){
+                        window._rcDetayCache[_rid] = {description:d.description, eventbuttons:d.eventbuttons, hoverHtml:d.hoverHtml};
+                        jQuery(".event-body").html(d.description || '');
+                        jQuery(".event-buttons").html(d.eventbuttons || '');
+                    })
+                    .fail(function(){
+                        jQuery(".event-body").html('<div style="padding:20px;text-align:center;color:#c00">Detay yüklenemedi, tekrar deneyin.</div>');
+                    });
+            })(event.id);
             jQuery(".eventUrl").attr("href", event.url);
             jQuery('input[name="randevuhizmettarih"]').datepicker({
                 minDate: new Date(),

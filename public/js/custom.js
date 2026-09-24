@@ -11083,48 +11083,28 @@ function takvimyukle(preload,turdegisti)
                   jQuery('#modal-view-event .event-body').html('<div style="padding:24px;text-align:center;color:#9D5DC8"><i class="fa fa-spinner fa-spin fa-2x"></i></div>');
                   jQuery('#modal-view-event .event-buttons').html('');
                   jQuery('#modal-view-event').modal('show');
-                  // ===== GECICI DEBUG SERIDI (teshis sonrasi kaldirilacak) =====
-                  function rcDbg(msg){
-                     var d = document.getElementById('rc-dbg');
-                     if(!d){ d=document.createElement('div'); d.id='rc-dbg';
-                        d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#b00020;color:#fff;font:12px/1.4 monospace;padding:6px 10px;white-space:pre-wrap;max-height:40vh;overflow:auto';
-                        document.body.appendChild(d); }
-                     d.textContent += msg + '\n';
-                  }
-                  (function(){
-                     var d=document.getElementById('rc-dbg'); if(d) d.textContent='';
-                     var $mv=jQuery('#modal-view-event');
-                     rcDbg('CLICK id='+event.id+' title='+event.title);
-                     rcDbg('#modal-view-event sayisi='+$mv.length+' | .event-body sayisi='+jQuery('.event-body').length+' | modal parent='+($mv[0]?$mv[0].parentNode.tagName:'-'));
-                  })();
-                  // ===== /DEBUG =====
+                  // NOT: Bu blok custom.js icindeki IKINCIL/ikiz eventClick'tir. Randevu takvimi
+                  // (randevular sayfasi) GERCEK eventClick'i frontendscripts/frontend-scripts.blade
+                  // icindedir; asil detay lazy-fetch fix'i ORADA. Burada da tutarlilik icin ayni
+                  // lazy-fetch uygulanir (bu handler baska bir takvimde calisiyorsa bos kalmasin).
                   (function(_id){
-                      if (!_id || String(_id).indexOf('empty-') === 0) { rcDbg('GUARD: bos slot / id yok -> cikildi'); return; }
+                      if (!_id || String(_id).indexOf('empty-') === 0) return;
                       window._rcDetayCache = window._rcDetayCache || {};
-                      function basVeDogrula(html, btns){
-                          rcDbg('basVeDogrula cagrildi, gelen html len='+((html||'').length));
-                          var t = 0;
-                          (function tekrar(){
-                              var $b = jQuery('#modal-view-event .event-body');
-                              var $f = jQuery('#modal-view-event .event-buttons');
-                              if ($b.length){ $b.html(html || ''); if ($f.length) $f.html(btns || ''); }
-                              t++;
-                              var sonLen = (($b.html())||'').length;
-                              if(t<=3 || sonLen>=10) rcDbg('  fill#'+t+' bodyCount='+$b.length+' visible='+$b.is(':visible')+' sonrasiLen='+sonLen);
-                              if ((sonLen < 10) && t < 25) setTimeout(tekrar, 150);
-                          })();
-                      }
                       var c = window._rcDetayCache[_id];
-                      if (c){ rcDbg('CACHE hit'); basVeDogrula(c.description, c.eventbuttons); return; }
-                      rcDbg('FETCH basliyor id='+_id);
+                      if (c){
+                          jQuery('#modal-view-event .event-body').html(c.description || '');
+                          jQuery('#modal-view-event .event-buttons').html(c.eventbuttons || '');
+                          return;
+                      }
+                      jQuery('#modal-view-event .event-body').html('<div style="padding:24px;text-align:center;color:#9D5DC8"><i class="fa fa-spinner fa-spin fa-2x"></i></div>');
+                      jQuery('#modal-view-event .event-buttons').html('');
                       jQuery.getJSON('/isletmeyonetim/randevu-event-detay', {id:_id, sube: jQuery('input[name="sube"]').val()})
                           .done(function(d){
-                              rcDbg('FETCH done, description len='+((d&&d.description||'').length));
                               window._rcDetayCache[_id] = {description:d.description, eventbuttons:d.eventbuttons, hoverHtml:d.hoverHtml};
-                              basVeDogrula(d.description, d.eventbuttons);
+                              jQuery('#modal-view-event .event-body').html(d.description || '');
+                              jQuery('#modal-view-event .event-buttons').html(d.eventbuttons || '');
                           })
-                          .fail(function(x){
-                              rcDbg('FETCH FAIL status='+(x&&x.status));
+                          .fail(function(){
                               jQuery('#modal-view-event .event-body').html('<div style="padding:20px;text-align:center;color:#c00">Detay yüklenemedi, tekrar deneyin.</div>');
                           });
                   })(event.id);
