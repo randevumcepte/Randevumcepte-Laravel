@@ -211,30 +211,37 @@ class DersHatirlatma extends Command
     }
 
     /**
-     * Studyo modu: danisanin tamamlanmamis (odendi=0) ve gercek kalem iceren adisyonu
-     * var mi? Tutar KULLANILMAZ (studyoda fiyat gizli, ikili odendi durumu). Bos
-     * (kalemsiz) adisyonlari haric tutar. 'Odeme Alindi' (tamOde) -> odendi=1 olunca
-     * false doner, hatirlatma dogal olarak durur. Deploy'da migration yoksa false.
+     * Danisanin ODENMEMIS adisyonu var mi? Sinyal = KALAN > 0 (uygulama/web 'paid'
+     * mantigi ile birebir: kalan = SUM(kalem.fiyat) - SUM(kalem tahsilat.tutar);
+     * bkz ApiController adisyon_yukle $kalan == 0). Tutar GOSTERILMEZ, sadece boolean.
+     *
+     * NEDEN odendi DEGIL: adisyonlar.odendi yalnizca studyo 'Odeme Alindi' (tamOde)
+     * ile yazilir; normal tahsilatla tam odenen adisyonda (kalan=0) odendi=0 kalir ->
+     * odendi bazli tespit yanlis pozitif verirdi (ornek: adisyon 635052 odendi bos
+     * ama kalan=0/uygulamada odendi gorunuyor). Kalan tam tahsilatta 0 olur, tamOde
+     * de tam tahsilat yazdigi icin kalan=0 -> her iki odeme yolu da dogru kapanir.
+     * Ek guvenlik: odendi=1 acikca isaretliyse (kolon varsa) gonderme.
      */
     private function musteriOdemeBekliyorMu($salonId, $userId): bool
     {
-        if (!\Schema::hasColumn('adisyonlar', 'odendi')) return false;
-        return DB::table('adisyonlar')
+        $kalan = "("
+            . " COALESCE((SELECT SUM(ah.fiyat) FROM adisyon_hizmetler ah WHERE ah.adisyon_id = adisyonlar.id),0)"
+            . "+COALESCE((SELECT SUM(au.fiyat) FROM adisyon_urunler au WHERE au.adisyon_id = adisyonlar.id),0)"
+            . "+COALESCE((SELECT SUM(ap.fiyat) FROM adisyon_paketler ap WHERE ap.adisyon_id = adisyonlar.id),0)"
+            . "-COALESCE((SELECT SUM(th.tutar) FROM tahsilat_hizmetler th JOIN adisyon_hizmetler ah2 ON th.adisyon_hizmet_id=ah2.id WHERE ah2.adisyon_id = adisyonlar.id),0)"
+            . "-COALESCE((SELECT SUM(tu.tutar) FROM tahsilat_urunler tu JOIN adisyon_urunler au2 ON tu.adisyon_urun_id=au2.id WHERE au2.adisyon_id = adisyonlar.id),0)"
+            . "-COALESCE((SELECT SUM(tp.tutar) FROM tahsilat_paketler tp JOIN adisyon_paketler ap2 ON tp.adisyon_paket_id=ap2.id WHERE ap2.adisyon_id = adisyonlar.id),0)"
+            . ")";
+
+        $q = DB::table('adisyonlar')
             ->where('salon_id', $salonId)
             ->where('user_id', $userId)
-            ->whereRaw('COALESCE(odendi,0) = 0')
-            ->where(function ($q) {
-                $q->whereExists(function ($s) {
-                    $s->select(DB::raw(1))->from('adisyon_hizmetler')
-                      ->whereRaw('adisyon_hizmetler.adisyon_id = adisyonlar.id');
-                })->orWhereExists(function ($s) {
-                    $s->select(DB::raw(1))->from('adisyon_paketler')
-                      ->whereRaw('adisyon_paketler.adisyon_id = adisyonlar.id');
-                })->orWhereExists(function ($s) {
-                    $s->select(DB::raw(1))->from('adisyon_urunler')
-                      ->whereRaw('adisyon_urunler.adisyon_id = adisyonlar.id');
-                });
-            })
-            ->exists();
+            ->whereRaw("ROUND($kalan, 2) > 0");
+
+        // odendi acikca 1 ise (studyo 'Odeme Alindi') hatirlatma.
+        if (\Schema::hasColumn('adisyonlar', 'odendi')) {
+            $q->whereRaw('COALESCE(odendi,0) <> 1');
+        }
+        return $q->exists();
     }
 }
