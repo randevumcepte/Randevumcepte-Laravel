@@ -111,7 +111,7 @@
                         <div id="kampanya_indirim_kodu_sonuc" style="font-size:12px;color:#2e7d32;margin-bottom:6px;"></div>
                         <div class="row" style="margin:0;">
                            <div class="col-md-8 col-8" style="padding-left:0;">
-                              <input type="text" id="kampanya_indirim_kodu" class="form-control" placeholder="SMS ile gelen indirim kodu" autocomplete="off">
+                              <input type="text" id="kampanya_indirim_kodu" class="form-control" placeholder="SMS/WhatsApp ile gelen indirim kodu" autocomplete="off">
                            </div>
                            <div class="col-md-4 col-4" style="padding:0;">
                               <button type="button" id="kampanya_indirim_kodu_uygula_btn" class="btn btn-success btn-block">Uygula</button>
