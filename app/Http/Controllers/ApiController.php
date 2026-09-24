@@ -1245,8 +1245,18 @@ class ApiController extends Controller
         }
     } catch (\Throwable $e) {}
 
+    // STUDYO MODU: fiyat 0 tutulur -> kalan hep 0 olur. Bu yuzden acik/kapali
+    // (odenmemis/odenmis) KALAN ile belirlenemez; adisyonlar.odendi bayragi
+    // ('Odeme Alindi' butonu) esastir. Non-studyo salonlarda eski kalan mantigi.
+    $studyoModu = \Schema::hasColumn('adisyonlar', 'odendi')
+        && (int) (Salonlar::where('id', $isletmeId)->value('studyo_modu')) === 1;
+
     // AÇIK/KAPALI FİLTRELEME (SQL ile)
     if($acikKapali != -1) {
+        if ($studyoModu) {
+            // acik = odenmemis (odendi != 1), kapali = odenmis (odendi = 1)
+            $query->whereRaw('COALESCE(adisyonlar.odendi,0) ' . ($acikKapali == 1 ? '<> 1' : '= 1'));
+        } else {
         $operator = $acikKapali == 1 ? '>' : '=';
         $query->whereRaw("
             (
@@ -1254,14 +1264,15 @@ class ApiController extends Controller
                 COALESCE((SELECT SUM(fiyat) FROM adisyon_urunler WHERE adisyon_id = adisyonlar.id), 0) +
                 COALESCE((SELECT SUM(fiyat) FROM adisyon_paketler WHERE adisyon_id = adisyonlar.id), 0)
             ) $operator (
-                COALESCE((SELECT SUM(t.tutar) FROM tahsilat_hizmetler t 
+                COALESCE((SELECT SUM(t.tutar) FROM tahsilat_hizmetler t
                     WHERE t.adisyon_hizmet_id IN (SELECT id FROM adisyon_hizmetler WHERE adisyon_id = adisyonlar.id)), 0) +
-                COALESCE((SELECT SUM(t.tutar) FROM tahsilat_urunler t 
+                COALESCE((SELECT SUM(t.tutar) FROM tahsilat_urunler t
                     WHERE t.adisyon_urun_id IN (SELECT id FROM adisyon_urunler WHERE adisyon_id = adisyonlar.id)), 0) +
-                COALESCE((SELECT SUM(t.tutar) FROM tahsilat_paketler t 
+                COALESCE((SELECT SUM(t.tutar) FROM tahsilat_paketler t
                     WHERE t.adisyon_paket_id IN (SELECT id FROM adisyon_paketler WHERE adisyon_id = adisyonlar.id)), 0)
             )
         ");
+        }
     }
 
     // SAYFALAMA — paginate()'in pahali count(*) taramasini yapmamak icin
@@ -1374,8 +1385,32 @@ class ApiController extends Controller
     // "Acik 33" gibi bayat rozet sayilari gorunuyordu. 15 saniye = 0.25 dakika.
     $acikKapaliSayim = \Cache::remember($sayimCacheKey, 15 / 60, function () use (
         $personelid, $faturaFiltreSayim, $personelFiltre, $turFiltreSayim,
-        $musteriFiltreSayim, $salonScopeSql, $salonScopeBind, $tarih1, $tarih2, $personelBind, $musteriBindSayim
+        $musteriFiltreSayim, $salonScopeSql, $salonScopeBind, $tarih1, $tarih2, $personelBind, $musteriBindSayim, $studyoModu
     ) {
+        // Studyo: acik/kapali odendi bayragiyla (fiyat 0 -> kalan hep 0). Kalan
+        // alt-sorgulari ve personelid bind'leri gerekmez; ayni WHERE filtreleri.
+        if ($studyoModu) {
+            return \DB::selectOne(
+            "SELECT
+                SUM(CASE WHEN COALESCE(sub.odendi,0) <> 1 THEN 1 ELSE 0 END) as acik,
+                SUM(CASE WHEN COALESCE(sub.odendi,0) = 1 THEN 1 ELSE 0 END) as kapali
+             FROM (
+                SELECT a.id, a.odendi
+                FROM adisyonlar a
+                WHERE $salonScopeSql AND a.tarih BETWEEN ? AND ?
+                $faturaFiltreSayim
+                $personelFiltre
+                $turFiltreSayim
+                $musteriFiltreSayim
+             ) sub",
+                array_merge(
+                    $salonScopeBind,
+                    [$tarih1, $tarih2],
+                    $personelBind,
+                    $musteriBindSayim
+                )
+            );
+        }
         return \DB::selectOne(
         "SELECT
             SUM(CASE WHEN kalan > 0 THEN 1 ELSE 0 END) as acik,
