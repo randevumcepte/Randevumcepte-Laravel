@@ -10692,6 +10692,7 @@ function takvimVersiyonKontrol()
             }
             if (yeni !== window._takvimImza){
                 window._takvimImza = yeni;
+                window._rcDetayCache = {};    // veri degisti -> bayat detay gostermemek icin cache'i tazele
                 takvimyukle(false, false);   // gercek degisiklik -> takvimi yenile
             }
         }
@@ -11026,18 +11027,29 @@ function takvimyukle(preload,turdegisti)
                   jQuery(".event-title").html(event.modal_title);
                   jQuery('#duzenle_butonu_bolumu').html(event.duzenle_buton);
                   // PERF: description/eventbuttons artik toplu takvim yuklemesinde gelmiyor.
-                  // Ilk acilista tek randevu icin cekilir, event uzerinde cache'lenir.
-                  if (event.description) {
-                      jQuery(".event-body").html(event.description);
-                      jQuery(".event-buttons").html(event.eventbuttons);
+                  // Ilk acilista tek randevu icin cekilir ve ID-BAZLI cache'lenir.
+                  // ONEMLI: cache'i event objesine degil window._rcDetayCache'e koyariz;
+                  // cunku 15sn'lik yenileme (removeEventSources+addEventSource) event
+                  // objelerini YENIDEN yaratir ve event uzerindeki cache silinirdi ->
+                  // yogun salonda her tiklama yeniden fetch yapiyordu. ID cache yenilemeyi
+                  // asar; gercek degisiklikte (imza degisince) takvimVersiyonKontrol temizler.
+                  window._rcDetayCache = window._rcDetayCache || {};
+                  var _rcDet = event.description
+                      ? {description: event.description, eventbuttons: event.eventbuttons}
+                      : window._rcDetayCache[event.id];
+                  if (_rcDet) {
+                      jQuery(".event-body").html(_rcDet.description);
+                      jQuery(".event-buttons").html(_rcDet.eventbuttons);
                   } else {
                       jQuery(".event-body").html('<div style="padding:24px;text-align:center;color:#9D5DC8"><i class="fa fa-spinner fa-spin fa-2x"></i></div>');
                       jQuery(".event-buttons").html('');
+                      var _rcReqId = event.id;
                       jQuery.getJSON('/isletmeyonetim/randevu-event-detay', {id: event.id, sube: jQuery('input[name="sube"]').val()})
                           .done(function(d){
                               event.description  = d.description;
                               event.eventbuttons = d.eventbuttons;
                               event.hoverHtml    = d.hoverHtml;
+                              window._rcDetayCache[_rcReqId] = {description: d.description, eventbuttons: d.eventbuttons, hoverHtml: d.hoverHtml};
                               jQuery(".event-body").html(d.description);
                               jQuery(".event-buttons").html(d.eventbuttons);
                           })
