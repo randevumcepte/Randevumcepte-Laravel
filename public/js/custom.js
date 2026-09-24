@@ -150,6 +150,11 @@ function rcEventTipBind(element, event) {
         var evData = $el.data('fcSeg');
         evData = evData && evData.event ? evData.event : null;
         if (!evData) return;
+        // BOS SLOT / ders / gercek olmayan event'ler icin detay CEKME: bunlarin id'si
+        // 'empty-<resource>-<saat>' formatinda; randevu-event-detay (int)id=0 -> HTTP 400
+        // dondururdu. Bu cop istekler tarayicinin ~6 eszamanli baglanti havuzunu doldurup
+        // GERCEK randevunun detay fetch'ini kuyruga atiyordu (body bos kaliyordu).
+        if (!evData.id || String(evData.id).indexOf('empty-') === 0 || evData.title === 'Boş slot' || evData.dersOturumId) return;
         var el = this;
         window.__rcTipCurrentEl = el;
         // hoverHtml zaten cache'lenmisse hemen goster
