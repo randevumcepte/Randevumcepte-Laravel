@@ -1,4 +1,4 @@
-// custom.js v270.0 — liste "Düzenle" telefon yuklenmeme fix: setDeger yanlis modale (duzenle-modal) gidiyordu, dogru modal (#musteri-bilgi-modal) + kur() ile yarisa dayanikli
+// custom.js v271.0 — global ajaxError "Baglanti sorunu" popup'i kaldirildi (takvimde surekli cikiyordu); preloader-hide + timeout korundu
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // jQuery
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -18,13 +18,8 @@ const odenenGizlensin = gizliAlanAdlari.includes(window.location.hostname);
         $(document).ajaxError(function (e, xhr) {
             if (!xhr || xhr.statusText === 'abort') return;   // bilerek iptal edilenleri atla
             $('#preloader').hide();
-            var msg = (xhr.status === 0)
-                ? 'Sunucuya ulaşılamadı veya işlem zaman aşımına uğradı, lütfen tekrar deneyin.'
-                : 'İşlem tamamlanamadı, lütfen tekrar deneyin.';
-            if (window.swal) {
-                swal({ type: 'warning', title: 'Bağlantı sorunu', text: msg,
-                    showCloseButton: false, showCancelButton: false, showConfirmButton: false, timer: 3500 });
-            }
+            // NOT: kullaniciya "Baglanti sorunu" popup'i GOSTERILMIYOR — takvimde arka plan
+            // istekleri (iptal/timeout) yuzunden surekli cikiyordu. Sadece preloader kapatilir.
         });
         $(document).ajaxStop(function(){ $('#preloader').hide(); });
     } catch (err) { /* jQuery yoksa sessizce gec */ }
