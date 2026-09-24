@@ -30743,6 +30743,82 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         ]);
     }
 
+    /**
+     * KAMPANYA INDIRIM KODU (app) — musterinin bu salona ait KULLANILMAMIS kodlari.
+     * App tahsilat ekraninda musteri secilince alani gostermek icin. Web
+     * kullaniciKampanyaKodlari muadili.
+     */
+    public function kampanyaKodlariApi(Request $request, $salonId)
+    {
+        $userId = (int) $request->input('user_id');
+        $kodlar = \App\KampanyaKatilimcilari::where('kampanya_katilimcilari.user_id', $userId)
+            ->whereNotNull('kampanya_katilimcilari.indirim_kodu')
+            ->where('kampanya_katilimcilari.indirim_kodu', '!=', '')
+            ->where(function ($q) {
+                $q->whereNull('kampanya_katilimcilari.indirim_kodu_kullanildi')
+                  ->orWhere('kampanya_katilimcilari.indirim_kodu_kullanildi', '!=', 1);
+            })
+            ->join('kampanya_yonetimi', 'kampanya_yonetimi.id', '=', 'kampanya_katilimcilari.kampanya_id')
+            ->where('kampanya_yonetimi.salon_id', (int) $salonId)
+            ->orderBy('kampanya_katilimcilari.id', 'desc')
+            ->select('kampanya_katilimcilari.indirim_kodu as kod', 'kampanya_yonetimi.indirim_turu as indirim')
+            ->get()
+            ->map(function ($k) { return ['kod' => $k->kod, 'indirim' => $k->indirim]; })
+            ->values();
+        return response()->json(['basarili' => true, 'kodlar' => $kodlar]);
+    }
+
+    /**
+     * KAMPANYA INDIRIM KODU KULLAN (app tahsilat) — dogrula + kullanildi isaretle + indirim
+     * bilgisi don. Web kampanyaIndirimKoduKullan muadili. % indirim app tarafinda harici
+     * indirime uygulanir; X Al Y Ode simdilik bilgi olarak doner.
+     */
+    public function kampanyaKodKullanApi(Request $request, $salonId)
+    {
+        $musteriId = (int) $request->input('musteri_id');
+        $kod = trim((string) $request->input('kod'));
+        if ($kod === '' || !$musteriId) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Kod ve musteri gerekli'], 422);
+        }
+
+        $katilimci = \App\KampanyaKatilimcilari::where('kampanya_katilimcilari.user_id', $musteriId)
+            ->where('kampanya_katilimcilari.indirim_kodu', $kod)
+            ->join('kampanya_yonetimi', 'kampanya_yonetimi.id', '=', 'kampanya_katilimcilari.kampanya_id')
+            ->where('kampanya_yonetimi.salon_id', (int) $salonId)
+            ->select('kampanya_katilimcilari.*', 'kampanya_yonetimi.indirim_turu as k_indirim_turu')
+            ->orderBy('kampanya_katilimcilari.id', 'desc')
+            ->first();
+
+        if (!$katilimci) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Gecersiz kod ya da bu musteriye ait degil'], 404);
+        }
+        if (!empty($katilimci->indirim_kodu_kullanildi)) {
+            $t = $katilimci->indirim_kodu_kullanim_tarihi ? date('d.m.Y', strtotime($katilimci->indirim_kodu_kullanim_tarihi)) : '';
+            return response()->json(['basarili' => false, 'mesaj' => 'Bu kod zaten kullanilmis' . ($t ? " ($t)" : '')], 409);
+        }
+
+        $indirimTuru = (string) $katilimci->k_indirim_turu;
+        $yuzde = 0; $tip = 'xalyode';
+        if (preg_match('/%\s*(\d+)/u', $indirimTuru, $m)) { $yuzde = (int) $m[1]; $tip = 'yuzde'; }
+
+        \App\KampanyaKatilimcilari::where('id', $katilimci->id)->update([
+            'indirim_kodu_kullanildi'      => 1,
+            'indirim_kodu_kullanim_tarihi' => now(),
+        ]);
+
+        try {
+            Audit::logApi($salonId, $request, 'kampanya_indirim_kodu_kullan', 'kampanya_katilimci', $katilimci->id, $kod, 'Kampanya indirim kodu kullanildi (app)', ['indirim_turu' => $indirimTuru]);
+        } catch (\Throwable $e) { /* audit best-effort */ }
+
+        return response()->json([
+            'basarili' => true,
+            'tip'      => $tip,
+            'yuzde'    => $yuzde,
+            'metin'    => $indirimTuru,
+            'mesaj'    => $tip === 'yuzde' ? "%{$yuzde} indirim uygulandi" : "Indirim: {$indirimTuru} (elle uygulayin)",
+        ]);
+    }
+
     public function carkHatirlatmaGetirApi(Request $request, $salonId)
     {
         $a = CarkHatirlatmaAyarlari::firstOrCreate(['salon_id' => $salonId]);

@@ -117,6 +117,8 @@ Route::post('/carkAdmin/bildirim-gonder/{salonId}','ApiController@carkBildirimGo
 Route::get('/carkAdmin/kazananlar/{salonId}','ApiController@carkKazananlarApi');
 Route::post('/carkAdmin/kupon-dogrula/{salonId}','ApiController@carkKuponDogrulaApi');
 Route::post('/carkAdmin/kupon-kullan/{salonId}','ApiController@carkKuponKullanApi');
+Route::get('/kampanyaAdmin/kodlar/{salonId}','ApiController@kampanyaKodlariApi');
+Route::post('/kampanyaAdmin/kod-kullan/{salonId}','ApiController@kampanyaKodKullanApi');
 Route::get('/carkAdmin/hatirlatma/{salonId}','ApiController@carkHatirlatmaGetirApi');
 Route::post('/carkAdmin/hatirlatma/{salonId}','ApiController@carkHatirlatmaKaydetApi');
 Route::get ('/carkAdmin/puan-odul/{salonId}',    'ApiController@carkAdminPuanOdulleriApi');
