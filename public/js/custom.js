@@ -10660,6 +10660,48 @@ function rcTakvimBaslikTarihSeciciKur(){
     setTimeout(rcTakvimBaslikIkonEkle, 300);
     setTimeout(rcTakvimBaslikIkonEkle, 1200);
 }
+
+// ===================== RANDEVU DETAY MODALI (timing-bagimsiz tek yetkili kurulum) =====================
+// Uzun suredir detay modal body BOS geliyordu. Kok neden: icerik, Bootstrap'in acilis
+// animasyonu (fade) + modal'i body'ye tasima (appendChild) ile yaris halinde basiliyordu;
+// gecis sirasindaki .html() TUTMUYORDU. Cozum (bu blok): (1) fade'i kaldir -> animasyon/yaris yok,
+// (2) modal'i sayfa yuklenince body'ye tasi -> ancestor transform centering'i bozmasin, acilista
+// DOM oynamasin, (3) detayi MODAL TAM ACILDIKTAN SONRA (shown.bs.modal) cek+bas. eventClick sadece
+// data-rh-id set eder + spinner gosterir. Hepsi cache-bust'li custom.js'te (blade deploy'a bagli degil).
+$(function () {
+    var m = document.getElementById('modal-view-event');
+    if (m) {
+        $(m).removeClass('fade');                                   // animasyon yok -> timing yarisi yok
+        if (m.parentNode !== document.body) document.body.appendChild(m); // sayfa yuklenince BIR kez tasi
+    }
+
+    // Modal TAM acildiktan sonra: isaretli randevunun detayini cek ve nihai (in-body) elemana bas.
+    $(document).on('shown.bs.modal', '#modal-view-event', function () {
+        var self = this;
+        var id = $(self).attr('data-rh-id');
+        if (!id || String(id).indexOf('empty-') === 0) return;      // bos slot vb. -> cekme
+        window._rcDetayCache = window._rcDetayCache || {};
+        var c = window._rcDetayCache[id];
+        if (c) {                                                    // cache -> aninda
+            $(self).find('.event-body').html(c.description || '');
+            $(self).find('.event-buttons').html(c.eventbuttons || '');
+            return;
+        }
+        jQuery.getJSON('/isletmeyonetim/randevu-event-detay', { id: id, sube: jQuery('input[name="sube"]').val() })
+            .done(function (d) {
+                window._rcDetayCache[id] = { description: d.description, eventbuttons: d.eventbuttons, hoverHtml: d.hoverHtml };
+                // Kullanici modali kapatmadiysa ve hala AYNI randevudaysa bas
+                if ($(self).is(':visible') && $(self).attr('data-rh-id') === id) {
+                    $(self).find('.event-body').html(d.description || '');
+                    $(self).find('.event-buttons').html(d.eventbuttons || '');
+                }
+            })
+            .fail(function () {
+                $(self).find('.event-body').html('<div style="padding:20px;text-align:center;color:#c00">Detay yüklenemedi, tekrar deneyin.</div>');
+            });
+    });
+});
+// =====================================================================================================
 if($('#calendar').length){
     // Baslik degistikce ikonu tekrar ekle
     (function(){
@@ -11056,37 +11098,14 @@ function takvimyukle(preload,turdegisti)
                   // doldurulup sonra .modal() cagriliyordu; tasima + async fetch fill yarisinda
                   // GORUNEN (tasinmis) node bos kaliyordu (detay bos geliyordu). Once goster ->
                   // tasima bitsin -> tum fill'ler (cache/fetch) nihai in-body elemana otursun.
-                  jQuery("#modal-view-event").modal();
-                  // PERF + TIMING: detay/eventbuttons toplu takvim yuklemesinde gelmiyor;
-                  // tek randevu icin cekilir ve ID-BAZLI (window._rcDetayCache) cache'lenir.
-                  // ONEMLI TIMING: icerigi DOGRUDAN .event-body.html() ile basmak, Bootstrap'in
-                  // acilis animasyonu (fade) + show.bs.modal->appendChild (modal'i body'ye tasima)
-                  // bitmeden yapilinca TUTMUYORDU (detay bos geliyordu; manuel fill sonradan
-                  // calisiyordu). Cozum: icerigi rcDetayUygula() ile ver — hem hemen dener hem
-                  // de window._rcDetayPending'e yazar; shown.bs.modal (animasyon+tasima BITTIKTEN
-                  // sonra) pending'i nihai in-body elemana kesin uygular. (rcDetayUygula ve
-                  // shown.bs.modal handler'i modaldialogs/randevu-detayi-kart.blade'de tanimli.)
-                  window._rcDetayCache = window._rcDetayCache || {};
-                  var _rcDet = event.description
-                      ? {description: event.description, eventbuttons: event.eventbuttons}
-                      : window._rcDetayCache[event.id];
-                  if (_rcDet) {
-                      rcDetayUygula(_rcDet.description, _rcDet.eventbuttons);
-                  } else {
-                      rcDetayUygula('<div style="padding:24px;text-align:center;color:#9D5DC8"><i class="fa fa-spinner fa-spin fa-2x"></i></div>', '');
-                      var _rcReqId = event.id;
-                      jQuery.getJSON('/isletmeyonetim/randevu-event-detay', {id: event.id, sube: jQuery('input[name="sube"]').val()})
-                          .done(function(d){
-                              event.description  = d.description;
-                              event.eventbuttons = d.eventbuttons;
-                              event.hoverHtml    = d.hoverHtml;
-                              window._rcDetayCache[_rcReqId] = {description: d.description, eventbuttons: d.eventbuttons, hoverHtml: d.hoverHtml};
-                              rcDetayUygula(d.description, d.eventbuttons);
-                          })
-                          .fail(function(){
-                              rcDetayUygula('<div style="padding:20px;text-align:center;color:#c00">Detay yüklenemedi, tekrar deneyin.</div>', '');
-                          });
-                  }
+                  // REBUILD (timing-bagimsiz): eventClick SADECE hangi randevu oldugunu
+                  // isaretler + spinner gosterir + modali acar. Detayi CEKME+BASMA isi
+                  // asagidaki tek 'shown.bs.modal' handler'inda yapilir (modal TAM acildiktan
+                  // sonra -> yaris/animasyon/pending sorunu YOK). event.id = randevu_hizmetler.id.
+                  jQuery('#modal-view-event').attr('data-rh-id', event.id);
+                  jQuery('#modal-view-event .event-body').html('<div style="padding:24px;text-align:center;color:#9D5DC8"><i class="fa fa-spinner fa-spin fa-2x"></i></div>');
+                  jQuery('#modal-view-event .event-buttons').html('');
+                  jQuery('#modal-view-event').modal('show');
                   jQuery(".eventUrl").attr("href", event.url);
                   jQuery('input[name="randevuhizmettarih"]').datepicker({
                      minDate: new Date(),
