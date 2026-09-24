@@ -1552,6 +1552,7 @@ Route::get('/bosFormIndirDinamik','StoreAdminController@bosFormIndirDinamik');
 Route::get('/satisDetaylariveDuzenleme','StoreAdminController@satisDetaylariveDuzenleme');
 Route::post('/satisTarihiGuncelle','StoreAdminController@satisTarihiGuncelle');
 Route::get('/kullaniciKuponlari','StoreAdminController@kullaniciKuponlari');
+Route::get('/kullaniciKampanyaKodlari','StoreAdminController@kullaniciKampanyaKodlari');
 Route::post('/kuponUygula','StoreAdminController@kuponUygula');
 Route::get('/paketVarmiKontrolu','StoreAdminController@paketVarmiKontrolu');
 Route::post('/seansEkle','StoreAdminController@seansEkle');

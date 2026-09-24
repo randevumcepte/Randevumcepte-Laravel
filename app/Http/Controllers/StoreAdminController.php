@@ -35188,6 +35188,31 @@ DB::raw('
             })->values();
         return response()->json(['kuponlar' => $kuponlar]);
     }
+
+    /**
+     * Musterinin bu salona ait KULLANILMAMIS kampanya indirim kodlari (tahsilat ekraninda
+     * musteri secilince gosterilir; kod yoksa alan gizli kalir). kullaniciKuponlari'nin
+     * kampanya indirim kodu karsiligi.
+     */
+    public function kullaniciKampanyaKodlari(Request $request)
+    {
+        $sube = (int) $request->sube;
+        $kodlar = \App\KampanyaKatilimcilari::where('kampanya_katilimcilari.user_id', (int) $request->user_id)
+            ->whereNotNull('kampanya_katilimcilari.indirim_kodu')
+            ->where('kampanya_katilimcilari.indirim_kodu', '!=', '')
+            ->where(function ($q) {
+                $q->whereNull('kampanya_katilimcilari.indirim_kodu_kullanildi')
+                  ->orWhere('kampanya_katilimcilari.indirim_kodu_kullanildi', '!=', 1);
+            })
+            ->join('kampanya_yonetimi', 'kampanya_yonetimi.id', '=', 'kampanya_katilimcilari.kampanya_id')
+            ->where('kampanya_yonetimi.salon_id', $sube)
+            ->orderBy('kampanya_katilimcilari.id', 'desc')
+            ->select('kampanya_katilimcilari.indirim_kodu as kod', 'kampanya_yonetimi.indirim_turu as indirim')
+            ->get()
+            ->map(function ($k) { return ['kod' => $k->kod, 'indirim' => $k->indirim]; })
+            ->values();
+        return response()->json(['kodlar' => $kodlar]);
+    }
     public function kuponUygula(Request $request)
     {
         // Çoklu şube: kupon yalnızca uygulandığı şube grubunda (gecerli_salonlar) kullanılır.

@@ -21316,6 +21316,13 @@ $('select[name="tahsilat_musteri_id"]').change(function(){
                  if($(this).val() && $(this).val()!=0){
                      carkKuponlariniYukle($(this).val());
                  }
+                 // Kampanya indirim kodu alani: musteri secilince kontrol et (kod yoksa gizli kalir)
+                 $('#kampanya_indirim_kodu_bolumu').hide();
+                 $('#kampanya_indirim_kodu').val('');
+                 $('#kampanya_indirim_kodu_sonuc').empty();
+                 if($(this).val() && $(this).val()!=0){
+                     kampanyaIndirimKodlariniYukle($(this).val());
+                 }
     if($(this).val()!=0)
     {
         $('.adisyon_ekle_buttonlar').each(function(){
@@ -24707,6 +24714,29 @@ function carkKuponlariniYukle(userId){
 
 $(document).on('click', '.cark_kupon_secim', function(){
     $('#cark_kupon_kod').val($(this).data('kod'));
+});
+
+// KAMPANYA INDIRIM KODU: musteri secilince, bu salona ait KULLANILMAMIS kodu varsa
+// alani goster + kodu tiklanabilir listele (carkKuponlariniYukle ile ayni desen).
+function kampanyaIndirimKodlariniYukle(userId){
+    if(!$('#kampanya_indirim_kodu_bolumu').length) return;
+    $.ajax({
+        url: '/isletmeyonetim/kullaniciKampanyaKodlari',
+        method: 'GET',
+        data: { user_id: userId, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
+        success: function(res){
+            var list = (res && res.kodlar) || [];
+            if(!list.length){ $('#kampanya_indirim_kodu_bolumu').hide(); return; }
+            var html = 'Mevcut kod: ' + list.map(function(k){
+                return '<b style="cursor:pointer;text-decoration:underline" class="kampanya_kod_secim" data-kod="'+k.kod+'">'+k.kod+'</b>' + (k.indirim ? ' ('+k.indirim+')' : '');
+            }).join(', ');
+            $('#kampanya_indirim_kodu_sonuc').html(html);
+            $('#kampanya_indirim_kodu_bolumu').show();
+        }
+    });
+}
+$(document).on('click', '.kampanya_kod_secim', function(){
+    $('#kampanya_indirim_kodu').val($(this).data('kod'));
 });
 
 $(document).on('click', '#cark_kupon_uygula_btn', function(e){

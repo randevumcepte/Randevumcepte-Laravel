@@ -106,7 +106,7 @@
                            </div>
                         </div>
                      </div>
-                     <div id="kampanya_indirim_kodu_bolumu" style="background:#e8f5e9;border:1px solid #c8e6c9;border-radius:6px;padding:10px;margin:10px 0;">
+                     <div id="kampanya_indirim_kodu_bolumu" style="display:none;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:6px;padding:10px;margin:10px 0;">
                         <label style="font-weight:bold;color:#2e7d32;margin:0 0 6px 0;display:block;">🎟️ Kampanya İndirim Kodu</label>
                         <div id="kampanya_indirim_kodu_sonuc" style="font-size:12px;color:#2e7d32;margin-bottom:6px;"></div>
                         <div class="row" style="margin:0;">
