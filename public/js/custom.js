@@ -24776,9 +24776,15 @@ $(document).on('click', '#kampanya_indirim_kodu_uygula_btn', function(e){
             }
             $('#kampanya_indirim_kodu_sonuc').text(res.mesaj || '');
             if(res.tip === 'yuzde' && res.yuzde){
-                $('#musteri_indirim').val(res.yuzde);
+                // % indirimi ARA TOPLAM'dan hesaplayip Harici Indirim (₺) alanina uygula
+                // (musteri_indirim alani disabled/sadakat indirimi oldugu icin ona dokunmuyoruz).
+                var _at = ($('#ara_toplam').text() || '').replace(/[^0-9.,]/g,'').replace(/\./g,'').replace(',','.');
+                var araToplam = parseFloat(_at);
+                if(!araToplam){ araToplam = parseFloat(($('#birim_tutar').val()||'').replace(/\./g,'').replace(',','.')) || 0; }
+                var indirimTutar = Math.round((araToplam * parseFloat(res.yuzde) / 100) * 100) / 100;
+                var fmt = (typeof accounting !== 'undefined') ? accounting.formatMoney(indirimTutar,'',2,'.',',') : String(indirimTutar);
+                $('#harici_indirim_tutari').val(fmt).trigger('keyup');
                 if(typeof tahsilatyenidenhesapla === 'function') tahsilatyenidenhesapla();
-                if(typeof adisyontoplamhesapla === 'function') adisyontoplamhesapla();
             }
             swal({type:'success', title:'Kod Uygulandı', text: res.mesaj || '', timer:2500, showConfirmButton:false});
         },

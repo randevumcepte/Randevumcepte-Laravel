@@ -106,6 +106,18 @@
                            </div>
                         </div>
                      </div>
+                     <div id="kampanya_indirim_kodu_bolumu" style="background:#e8f5e9;border:1px solid #c8e6c9;border-radius:6px;padding:10px;margin:10px 0;">
+                        <label style="font-weight:bold;color:#2e7d32;margin:0 0 6px 0;display:block;">🎟️ Kampanya İndirim Kodu</label>
+                        <div id="kampanya_indirim_kodu_sonuc" style="font-size:12px;color:#2e7d32;margin-bottom:6px;"></div>
+                        <div class="row" style="margin:0;">
+                           <div class="col-md-8 col-8" style="padding-left:0;">
+                              <input type="text" id="kampanya_indirim_kodu" class="form-control" placeholder="SMS ile gelen indirim kodu" autocomplete="off">
+                           </div>
+                           <div class="col-md-4 col-4" style="padding:0;">
+                              <button type="button" id="kampanya_indirim_kodu_uygula_btn" class="btn btn-success btn-block">Uygula</button>
+                           </div>
+                        </div>
+                     </div>
                   </div>
                </div>
                @if(!empty($isletme->studyo_modu))
