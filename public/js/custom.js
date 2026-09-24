@@ -10674,32 +10674,8 @@ $(function () {
         $(m).removeClass('fade');                                   // animasyon yok -> timing yarisi yok
         if (m.parentNode !== document.body) document.body.appendChild(m); // sayfa yuklenince BIR kez tasi
     }
-
-    // Modal TAM acildiktan sonra: isaretli randevunun detayini cek ve nihai (in-body) elemana bas.
-    $(document).on('shown.bs.modal', '#modal-view-event', function () {
-        var self = this;
-        var id = $(self).attr('data-rh-id');
-        if (!id || String(id).indexOf('empty-') === 0) return;      // bos slot vb. -> cekme
-        window._rcDetayCache = window._rcDetayCache || {};
-        var c = window._rcDetayCache[id];
-        if (c) {                                                    // cache -> aninda
-            $(self).find('.event-body').html(c.description || '');
-            $(self).find('.event-buttons').html(c.eventbuttons || '');
-            return;
-        }
-        jQuery.getJSON('/isletmeyonetim/randevu-event-detay', { id: id, sube: jQuery('input[name="sube"]').val() })
-            .done(function (d) {
-                window._rcDetayCache[id] = { description: d.description, eventbuttons: d.eventbuttons, hoverHtml: d.hoverHtml };
-                // Kullanici modali kapatmadiysa ve hala AYNI randevudaysa bas
-                if ($(self).is(':visible') && $(self).attr('data-rh-id') === id) {
-                    $(self).find('.event-body').html(d.description || '');
-                    $(self).find('.event-buttons').html(d.eventbuttons || '');
-                }
-            })
-            .fail(function () {
-                $(self).find('.event-body').html('<div style="padding:20px;text-align:center;color:#c00">Detay yüklenemedi, tekrar deneyin.</div>');
-            });
-    });
+    // NOT: Detay cekme+basma isi eventClick icindeki DOGRULAYAN retry'de yapiliyor
+    // (event/animasyon/timing'e guvenmiyoruz). shown.bs.modal handler'i kaldirildi.
 });
 // =====================================================================================================
 if($('#calendar').length){
@@ -11098,14 +11074,40 @@ function takvimyukle(preload,turdegisti)
                   // doldurulup sonra .modal() cagriliyordu; tasima + async fetch fill yarisinda
                   // GORUNEN (tasinmis) node bos kaliyordu (detay bos geliyordu). Once goster ->
                   // tasima bitsin -> tum fill'ler (cache/fetch) nihai in-body elemana otursun.
-                  // REBUILD (timing-bagimsiz): eventClick SADECE hangi randevu oldugunu
-                  // isaretler + spinner gosterir + modali acar. Detayi CEKME+BASMA isi
-                  // asagidaki tek 'shown.bs.modal' handler'inda yapilir (modal TAM acildiktan
-                  // sonra -> yaris/animasyon/pending sorunu YOK). event.id = randevu_hizmetler.id.
+                  // REBUILD v2 (event/animasyon/timing'e GUVENMEYEN, DOGRULAYAN retry):
+                  // Modali goster, sonra icerigi cek ve GERCEKTEN DOM'a oturana kadar (html
+                  // uzunlugu kontrolu) 150ms araliklarla tekrar bas. Bir sey icerigi silse/
+                  // gecis tutmasa bile bir sonraki tur yeniden basar; oturunca durur. Manuel
+                  // .html()'in calistigi ani boylece kesin yakalar. event.id = randevu_hizmetler.id.
                   jQuery('#modal-view-event').attr('data-rh-id', event.id);
                   jQuery('#modal-view-event .event-body').html('<div style="padding:24px;text-align:center;color:#9D5DC8"><i class="fa fa-spinner fa-spin fa-2x"></i></div>');
                   jQuery('#modal-view-event .event-buttons').html('');
                   jQuery('#modal-view-event').modal('show');
+                  (function(_id){
+                      if (!_id || String(_id).indexOf('empty-') === 0) return; // bos slot -> cekme
+                      window._rcDetayCache = window._rcDetayCache || {};
+                      function basVeDogrula(html, btns){
+                          var t = 0;
+                          (function tekrar(){
+                              var $b = jQuery('#modal-view-event .event-body');
+                              var $f = jQuery('#modal-view-event .event-buttons');
+                              if ($b.length){ $b.html(html || ''); if ($f.length) $f.html(btns || ''); }
+                              t++;
+                              // Icerik gercekten oturmadiysa (or. gecis silmisse) tekrar dene (~4sn)
+                              if ((((($b.html())||'').length) < 10) && t < 25) setTimeout(tekrar, 150);
+                          })();
+                      }
+                      var c = window._rcDetayCache[_id];
+                      if (c){ basVeDogrula(c.description, c.eventbuttons); return; }
+                      jQuery.getJSON('/isletmeyonetim/randevu-event-detay', {id:_id, sube: jQuery('input[name="sube"]').val()})
+                          .done(function(d){
+                              window._rcDetayCache[_id] = {description:d.description, eventbuttons:d.eventbuttons, hoverHtml:d.hoverHtml};
+                              basVeDogrula(d.description, d.eventbuttons);
+                          })
+                          .fail(function(){
+                              jQuery('#modal-view-event .event-body').html('<div style="padding:20px;text-align:center;color:#c00">Detay yüklenemedi, tekrar deneyin.</div>');
+                          });
+                  })(event.id);
                   jQuery(".eventUrl").attr("href", event.url);
                   jQuery('input[name="randevuhizmettarih"]').datepicker({
                      minDate: new Date(),
