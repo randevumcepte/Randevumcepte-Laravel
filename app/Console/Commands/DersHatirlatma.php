@@ -211,16 +211,17 @@ class DersHatirlatma extends Command
     }
 
     /**
-     * Danisanin ODENMEMIS adisyonu var mi? Sinyal = KALAN > 0 (uygulama/web 'paid'
-     * mantigi ile birebir: kalan = SUM(kalem.fiyat) - SUM(kalem tahsilat.tutar);
-     * bkz ApiController adisyon_yukle $kalan == 0). Tutar GOSTERILMEZ, sadece boolean.
+     * Danisanin ODENMEMIS adisyonu var mi? Tek kriter = KALAN > 0, uygulamanin
+     * 'Odendi' karariyla BIREBIR (adisyonpage.dart: isFullPaid = kalan <= 0).
+     * kalan = SUM(kalem.fiyat) - SUM(kalem tahsilat.tutar) (ApiController adisyon_yukle
+     * ile ayni). Tutar mesajda GOSTERILMEZ; sadece "kalan var mi yok mu" boolean'i.
      *
-     * NEDEN odendi DEGIL: adisyonlar.odendi yalnizca studyo 'Odeme Alindi' (tamOde)
-     * ile yazilir; normal tahsilatla tam odenen adisyonda (kalan=0) odendi=0 kalir ->
-     * odendi bazli tespit yanlis pozitif verirdi (ornek: adisyon 635052 odendi bos
-     * ama kalan=0/uygulamada odendi gorunuyor). Kalan tam tahsilatta 0 olur, tamOde
-     * de tam tahsilat yazdigi icin kalan=0 -> her iki odeme yolu da dogru kapanir.
-     * Ek guvenlik: odendi=1 acikca isaretliyse (kolon varsa) gonderme.
+     * NEDEN adisyonlar.odendi DEGIL: o kolon yalnizca studyo 'Odeme Alindi' (tamOde)
+     * butonuyla yazilir; normal tahsilatla tam odenen adisyonda (kalan=0) BOS kalir
+     * (ornek adisyon 635052: odendi bos ama uygulamada 'Odendi' cunku kalan=0). Uygulama
+     * da odendi'yi paid karari icin KULLANMIYOR, sadece tarih/✓ gostermek icin. Bu yuzden
+     * hatirlatma da yalnizca kalan>0'a bakar -> uygulamada 'odenmemis' gorunen adisyonlarla
+     * tam ortusur.
      */
     private function musteriOdemeBekliyorMu($salonId, $userId): bool
     {
@@ -233,15 +234,10 @@ class DersHatirlatma extends Command
             . "-COALESCE((SELECT SUM(tp.tutar) FROM tahsilat_paketler tp JOIN adisyon_paketler ap2 ON tp.adisyon_paket_id=ap2.id WHERE ap2.adisyon_id = adisyonlar.id),0)"
             . ")";
 
-        $q = DB::table('adisyonlar')
+        return DB::table('adisyonlar')
             ->where('salon_id', $salonId)
             ->where('user_id', $userId)
-            ->whereRaw("ROUND($kalan, 2) > 0");
-
-        // odendi acikca 1 ise (studyo 'Odeme Alindi') hatirlatma.
-        if (\Schema::hasColumn('adisyonlar', 'odendi')) {
-            $q->whereRaw('COALESCE(odendi,0) <> 1');
-        }
-        return $q->exists();
+            ->whereRaw("ROUND($kalan, 2) > 0")
+            ->exists();
     }
 }
