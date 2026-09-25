@@ -32422,7 +32422,7 @@ SOZLESME_TXT;
             if ($yeni === 'geldi' || $yeni === 'telafi' || ($yeni === 'gelmedi' && $studyoNoShow)) {
                 $oturum = \App\DersOturumu::find($k->oturum_id);
                 if ($oturum) {
-                    $apsId = \App\Services\DersSeansServisi::dusumYap($oturum, $k, $yeni === 'telafi');
+                    $apsId = \App\Services\DersSeansServisi::dusumYap($oturum, $k, $yeni === 'telafi' ? 2 : ($yeni === 'gelmedi' ? 0 : 1));
                     $dusum = $apsId ? 'dusuldu' : (($oturum->hizmet_id) ? 'hak_yok' : 'hizmet_bagli_degil');
                 }
             } elseif ($k->hak_dusuldu) {
