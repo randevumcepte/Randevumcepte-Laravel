@@ -22848,27 +22848,31 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $hizmetUrunPaket ='';
         if($request->hizmetUrunPaket != '')
         {
+            // Deger formati: urun-{id} / hizmet-{id} / paket-{id} (3 ayri dropdown). Eski
+            // duz id (prefixsiz) = paket olarak geriye-uyumlu ele alinir. Null guard: eksik
+            // kayitta 500 vermesin.
             if(str_contains($request->hizmetUrunPaket,'urun'))
             {
                 $hupArr = explode('-',$request->hizmetUrunPaket);
-                $urunAdi = Urunler::where('id',$hupArr[1])->first();
-                $kampanya_yonetimi->paket_isim = $urunAdi->urun_adi;
-                $kampanya_yonetimi->urun_id = $urunAdi->id;
-
+                $urunAdi = Urunler::where('id',$hupArr[1] ?? 0)->first();
+                if($urunAdi){ $kampanya_yonetimi->paket_isim = $urunAdi->urun_adi; $kampanya_yonetimi->urun_id = $urunAdi->id; }
             }
             elseif(str_contains($request->hizmetUrunPaket,'hizmet'))
             {
                 $hupArr = explode('-',$request->hizmetUrunPaket);
-                $hizmetAdi = Hizmetler::where('id',$hupArr[1])->first();
-                $kampanya_yonetimi->paket_isim = $hizmetAdi->hizmet_adi;
-                $kampanya_yonetimi->hizmet_id = $hizmetAdi->id;
-
+                $hizmetAdi = Hizmetler::where('id',$hupArr[1] ?? 0)->first();
+                if($hizmetAdi){ $kampanya_yonetimi->paket_isim = $hizmetAdi->hizmet_adi; $kampanya_yonetimi->hizmet_id = $hizmetAdi->id; }
+            }
+            elseif(str_contains($request->hizmetUrunPaket,'paket'))
+            {
+                $hupArr = explode('-',$request->hizmetUrunPaket);
+                $paketAdi = Paketler::where('id',$hupArr[1] ?? 0)->first();
+                if($paketAdi){ $kampanya_yonetimi->paket_isim = $paketAdi->paket_adi; $kampanya_yonetimi->paket_id = $paketAdi->id; }
             }
             else
             {
                 $paketAdi = Paketler::where('id',$request->hizmetUrunPaket)->first();
-                $kampanya_yonetimi->paket_isim = $paketAdi->paket_adi;
-                $kampanya_yonetimi->paket_id = $paketAdi->id;
+                if($paketAdi){ $kampanya_yonetimi->paket_isim = $paketAdi->paket_adi; $kampanya_yonetimi->paket_id = $paketAdi->id; }
             }
         }
 
