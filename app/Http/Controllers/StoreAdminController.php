@@ -21686,7 +21686,10 @@ DB::raw('
         } else {
             foreach($seanslar->get() as $seans)
             {
-                // Telafi (geldi=2) -> geldi isaretlenince makyaj yapildi say, geldi=1'e cevir (tuket).
+                // Telafi (geldi=2) OTOMATIK TUKETILMEZ: baska bir seans "geldi"
+                // isaretlenince telafi slotuna DOKUNULMAZ (isletme ne zaman isterse
+                // seans takibinden acikca isaretler). Onceki davranis bug'diyi.
+                if ((int)$seans->geldi === 2) continue;
                 $seans->geldi = true;
                 $seans->save();
             }
