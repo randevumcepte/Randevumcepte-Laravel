@@ -191,6 +191,34 @@
                            </div>
 
                            <!-- 3. Preset'e göre dinamik açılan ek alanlar -->
+                           <!-- ONCE GRUP: Ozel Grubum secilince grup dropdown'u HUP'in ustunde acilir (kullanici once grubu bekler) -->
+                           <div class="rkp-preset-extra" id="rkpPresetGrup" style="display:none;">
+                              <div class="rkp-cell" id="gruplarFiltre">
+                                 <div class="rkp-grup-header">
+                                    <div class="rkp-label"><i class="fa fa-users"></i> Hangi grup?</div>
+                                    <button type="button" class="rkp-yeni-grup-btn" id="rkpYeniGrupBtn">
+                                       <i class="fa fa-plus"></i> Yeni Grup Oluştur
+                                    </button>
+                                 </div>
+                                 @php
+                                    $hariciGruplar = [];
+                                    foreach(($gruplar ?? []) as $g){ if(isset($g['id'])){ $hariciGruplar[] = $g; } }
+                                 @endphp
+                                 <select id="musteriGruplari" name="musteriGruplari" class="form-control rkp-select">
+                                    <option value="">Grup seçin...</option>
+                                    @foreach($hariciGruplar as $grup2)
+                                       <option value="haricigrup-{{ $grup2['id'] }}">{{ $grup2['grup_adi'] }}</option>
+                                    @endforeach
+                                 </select>
+                                 @if(count($hariciGruplar) === 0)
+                                    <div class="rkp-grup-empty">
+                                       <i class="fa fa-info-circle"></i>
+                                       Henüz grup oluşturmadınız. <b>+ Yeni Grup Oluştur</b> butonuyla oluşturabilirsiniz.
+                                    </div>
+                                 @endif
+                              </div>
+                           </div>
+
                            <!-- HİZMET/ÜRÜN/PAKET → HER ZAMAN görünür, 3 dropdown (birini seç), 3-3-6 kolon -->
                            <div id="rkpPresetHup" style="border:1px dashed #e2e8f0;border-radius:10px;padding:12px;margin-top:10px;">
                               <div class="row" style="margin:0;">
@@ -231,33 +259,6 @@
                                 backend name="hizmetUrunPaket" bekler. Gorunur birlesik dropdown KALDIRILDI. -->
                            <input type="hidden" id="hizmetUrunPaket" name="hizmetUrunPaket" value="">
                            <div id="hizmetUrunFiltre" style="display:none;"></div>
-
-                           <div class="rkp-preset-extra" id="rkpPresetGrup" style="display:none;">
-                              <div class="rkp-cell" id="gruplarFiltre">
-                                 <div class="rkp-grup-header">
-                                    <div class="rkp-label"><i class="fa fa-users"></i> Hangi grup?</div>
-                                    <button type="button" class="rkp-yeni-grup-btn" id="rkpYeniGrupBtn">
-                                       <i class="fa fa-plus"></i> Yeni Grup Oluştur
-                                    </button>
-                                 </div>
-                                 @php
-                                    $hariciGruplar = [];
-                                    foreach(($gruplar ?? []) as $g){ if(isset($g['id'])){ $hariciGruplar[] = $g; } }
-                                 @endphp
-                                 <select id="musteriGruplari" name="musteriGruplari" class="form-control rkp-select">
-                                    <option value="">Grup seçin...</option>
-                                    @foreach($hariciGruplar as $grup2)
-                                       <option value="haricigrup-{{ $grup2['id'] }}">{{ $grup2['grup_adi'] }}</option>
-                                    @endforeach
-                                 </select>
-                                 @if(count($hariciGruplar) === 0)
-                                    <div class="rkp-grup-empty">
-                                       <i class="fa fa-info-circle"></i>
-                                       Henüz grup oluşturmadınız. <b>+ Yeni Grup Oluştur</b> butonuyla oluşturabilirsiniz.
-                                    </div>
-                                 @endif
-                              </div>
-                           </div>
 
                            <!-- Gizli select'ler — preset'ler tarafından programatik olarak set edilir -->
                            <div id="rkpPresetCustom" style="display:none;">
