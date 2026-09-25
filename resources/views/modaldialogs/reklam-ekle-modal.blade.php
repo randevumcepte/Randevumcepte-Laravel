@@ -1052,8 +1052,8 @@
             $m.find('.rkp-preset').removeClass('is-active');
             $m.find('.rkp-preset[data-preset="all"]').addClass('is-active');
             $m.find('#rkpPresetHup, #rkpPresetGrup').hide();
-            // Hizmet/Ürün/Paket 3 dropdown'unu sıfırla
-            $m.find('#rkpHizmetTek, #rkpUrunTek, #rkpPaketTek').val('');
+            // Hizmet/Ürün/Paket 3 dropdown'unu sıfırla (select2 görünümü de)
+            $m.find('#rkpHizmetTek, #rkpUrunTek, #rkpPaketTek').val('').trigger('change.select2');
             // Tüm filtre select'lerini boşalt
             ['gorevTuru','katilimciTuru','kampanyaTuru','kampanyaKategori','hizmetUrunPaket','musteriGruplari','gelenGelmeyenMusteri']
                .forEach(function(id){
@@ -1081,6 +1081,14 @@
             var v = $('#gorevTuru').val();
             $('#yeni_kampanya_modal .reklam-kanal-kart').removeClass('is-active');
             if(v) $('#yeni_kampanya_modal .reklam-kanal-kart[data-gorev="'+v+'"]').addClass('is-active');
+            // Hizmet/Ürün/Paket 3 dropdown'unu select2 yap (aramali). Modal ici -> dropdownParent sart.
+            try {
+               $('#rkpHizmetTek, #rkpUrunTek, #rkpPaketTek').each(function(){
+                  var $s = $(this);
+                  if($s.hasClass('select2-hidden-accessible')) return;
+                  $s.select2({ width:'100%', dropdownParent: $('#yeni_kampanya_modal'), placeholder: $s.find('option:first').text() });
+               });
+            } catch(e) {}
             rkpFiltreOzeti();
             // Sablon/senaryo listesini ILK acilista yukle (onceden sadece kaydetme/kanal
             // degisikligi tetikliyordu -> kayitli sablonlar ilk acilista gozukmuyordu).
