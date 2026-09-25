@@ -436,6 +436,8 @@ class CarkifelekApiController extends Controller
             $kuponTip = in_array($odul->tip, ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi'])
                 ? $odul->tip
                 : 'hizmet_indirimi';
+            // "Hediye" tipi = bedava → tahsilatta otomatik %100 hizmet indirimi uygulanır.
+            $kuponDeger = ($odul->tip === 'hediye') ? 100 : ($odul->deger ?: 0);
 
             $kuponData = [
                 'log_id'            => null,
@@ -443,7 +445,7 @@ class CarkifelekApiController extends Controller
                 'user_id'           => $userId,
                 'kod'               => strtoupper(Str::random(8)),
                 'tip'               => $kuponTip,
-                'deger'             => $odul->deger ?: 0,
+                'deger'             => $kuponDeger,
                 'baslik'            => $odul->baslik,
                 'gecerlilik_tarihi' => $this->kuponBitisTarihi($salonId, 'puan'),
             ];
