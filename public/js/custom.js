@@ -15702,7 +15702,9 @@ $('#reklam_asistan_ve_sms_ile_gonder').click(function(e){
 
 function initSelect2HizmetUrun(result) {
     const $select = $('#hizmetUrunPaket');
-    $select.select2('destroy');
+    // #hizmetUrunPaket artik GIZLI INPUT (3 ayri dropdown kullaniliyor) -> select2 uygulama.
+    if (!$select.is('select')) return;
+    if ($select.hasClass('select2-hidden-accessible')) $select.select2('destroy');
     $select.empty();
     $select.append('<option></option>');
     $select.select2({
@@ -15722,6 +15724,8 @@ $('#kampanyaKategori').change(function(e){
     const salonId = $('input[name="sube"]').val();
     const kampanyaTuru = $('#kampanyaTuru').val();
     const kategoriId = $('#kampanyaKategori').val();
+    // Bos kategori (preset temizligi vb.) -> eski kategori->hizmet akisi calismasin (3 dropdown var).
+    if (!kategoriId) return;
 
     let url = '';
     if (kategoriId.includes('urun-')) {
