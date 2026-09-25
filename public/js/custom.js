@@ -24865,12 +24865,17 @@ $(document).on('click', '#kampanya_indirim_kodu_uygula_btn', function(e){
             }
             $('#kampanya_indirim_kodu_sonuc').text(res.mesaj || '');
             if(res.tip === 'yuzde' && res.yuzde){
-                // % indirimi ARA TOPLAM'dan hesaplayip Harici Indirim (₺) alanina uygula
-                // (musteri_indirim alani disabled/sadakat indirimi oldugu icin ona dokunmuyoruz).
-                var _at = ($('#ara_toplam').text() || '').replace(/[^0-9.,]/g,'').replace(/\./g,'').replace(',','.');
-                var araToplam = parseFloat(_at);
-                if(!araToplam){ araToplam = parseFloat(($('#birim_tutar').val()||'').replace(/\./g,'').replace(',','.')) || 0; }
-                var indirimTutar = Math.round((araToplam * parseFloat(res.yuzde) / 100) * 100) / 100;
+                var indirimTutar;
+                if(res.indirimTutar !== null && res.indirimTutar !== undefined){
+                    // KALEME OZEL: server, kampanyanin hizmet/urun/paket kaleminden hesapladi.
+                    indirimTutar = parseFloat(res.indirimTutar);
+                } else {
+                    // Kaleme ozel degil -> ARA TOPLAM'dan % (musteri_indirim disabled, ona dokunmuyoruz).
+                    var _at = ($('#ara_toplam').text() || '').replace(/[^0-9.,]/g,'').replace(/\./g,'').replace(',','.');
+                    var araToplam = parseFloat(_at);
+                    if(!araToplam){ araToplam = parseFloat(($('#birim_tutar').val()||'').replace(/\./g,'').replace(',','.')) || 0; }
+                    indirimTutar = Math.round((araToplam * parseFloat(res.yuzde) / 100) * 100) / 100;
+                }
                 var fmt = (typeof accounting !== 'undefined') ? accounting.formatMoney(indirimTutar,'',2,'.',',') : String(indirimTutar);
                 $('#harici_indirim_tutari').val(fmt).trigger('keyup');
                 if(typeof tahsilatyenidenhesapla === 'function') tahsilatyenidenhesapla();

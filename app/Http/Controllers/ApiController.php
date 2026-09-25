@@ -30888,7 +30888,9 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             ->where('kampanya_katilimcilari.indirim_kodu', $kod)
             ->join('kampanya_yonetimi', 'kampanya_yonetimi.id', '=', 'kampanya_katilimcilari.kampanya_id')
             ->where('kampanya_yonetimi.salon_id', (int) $salonId)
-            ->select('kampanya_katilimcilari.*', 'kampanya_yonetimi.indirim_turu as k_indirim_turu')
+            ->select('kampanya_katilimcilari.*', 'kampanya_yonetimi.indirim_turu as k_indirim_turu',
+                     'kampanya_yonetimi.hizmet_id as k_hizmet_id', 'kampanya_yonetimi.urun_id as k_urun_id',
+                     'kampanya_yonetimi.paket_id as k_paket_id')
             ->orderBy('kampanya_katilimcilari.id', 'desc')
             ->first();
 
@@ -30904,6 +30906,24 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         $yuzde = 0; $tip = 'xalyode';
         if (preg_match('/%\s*(\d+)/u', $indirimTuru, $m)) { $yuzde = (int) $m[1]; $tip = 'yuzde'; }
 
+        // KALEM KISITI: kampanya belirli hizmet/urun/paket icinse indirim SADECE o kaleme;
+        // adisyonda o kalem yoksa kod yakilmaz.
+        $indirimTutar = null; $kalemAdi = '';
+        $adisyonId = (int) $request->input('adisyon_id');
+        $hId = (int) ($katilimci->k_hizmet_id ?? 0);
+        $uId = (int) ($katilimci->k_urun_id ?? 0);
+        $pId = (int) ($katilimci->k_paket_id ?? 0);
+        if ($tip === 'yuzde' && ($hId || $uId || $pId) && $adisyonId) {
+            $kalemTutar = 0;
+            if ($hId) { $kalemTutar = (float) \DB::table('adisyon_hizmetler')->where('adisyon_id',$adisyonId)->where('hizmet_id',$hId)->sum('fiyat'); $kalemAdi = (string) \App\Hizmetler::where('id',$hId)->value('hizmet_adi'); }
+            elseif ($uId) { $kalemTutar = (float) \DB::table('adisyon_urunler')->where('adisyon_id',$adisyonId)->where('urun_id',$uId)->sum('fiyat'); $kalemAdi = (string) \App\Urunler::where('id',$uId)->value('urun_adi'); }
+            elseif ($pId) { $kalemTutar = (float) \DB::table('adisyon_paketler')->where('adisyon_id',$adisyonId)->where('paket_id',$pId)->sum('fiyat'); $kalemAdi = (string) \App\Paketler::where('id',$pId)->value('paket_adi'); }
+            if ($kalemTutar <= 0) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Bu kod yalnizca "'.$kalemAdi.'" icin gecerli; bu adisyonda o kalem yok'], 409);
+            }
+            $indirimTutar = round($kalemTutar * $yuzde / 100, 2);
+        }
+
         $guncelle = [
             'indirim_kodu_kullanildi'      => 1,
             'indirim_kodu_kullanim_tarihi' => now(),
@@ -30918,11 +30938,15 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         } catch (\Throwable $e) { /* audit best-effort */ }
 
         return response()->json([
-            'basarili' => true,
-            'tip'      => $tip,
-            'yuzde'    => $yuzde,
-            'metin'    => $indirimTuru,
-            'mesaj'    => $tip === 'yuzde' ? "%{$yuzde} indirim uygulandi" : "Indirim: {$indirimTuru} (elle uygulayin)",
+            'basarili'     => true,
+            'tip'          => $tip,
+            'yuzde'        => $yuzde,
+            'metin'        => $indirimTuru,
+            'indirimTutar' => $indirimTutar,
+            'kalem_adi'    => $kalemAdi,
+            'mesaj'        => $tip === 'yuzde'
+                ? ($indirimTutar !== null ? "\"{$kalemAdi}\" icin %{$yuzde} indirim" : "%{$yuzde} indirim uygulandi")
+                : "Indirim: {$indirimTuru} (elle uygulayin)",
         ]);
     }
 
