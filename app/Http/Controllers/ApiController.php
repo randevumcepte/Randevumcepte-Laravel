@@ -27070,36 +27070,74 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 ]);
             }
 
-            // mod=olustur
-            $ts = strtotime($tarihsaat);
-            $olusturReq = new Request();
-            $olusturReq->merge([
-                'easistan'            => 1,
-                'olusturan_user_id'   => $userId,
-                'salon_id'            => $salonId,
-                'user_id'             => $userId,
-                'durum'               => 0,
-                'hizmetler'           => [$hizmetId],
-                'randevuPersonelleri' => [$uygun['personelid'] ?? null],
-                'tarih'               => date('Y-m-d', $ts),
-                'saat'                => date('H:i:s', $ts),
-                'hizmetSuresi'        => [$uygun['sure'] ?? null],
-                'hizmetFiyati'        => [$uygun['fiyat'] ?? 0],
-                'randevuOdalari'      => [ (isset($uygun['odaid']) && $uygun['odaid'] !== '') ? $uygun['odaid'] : null ],
-                'paketBilgi'          => null,
-            ]);
-            $sonuc = self::santralRandevuEkle($olusturReq);
-            $ok = is_array($sonuc)
-                ? !empty($sonuc['success'])
-                : (($sonuc instanceof \Illuminate\Http\JsonResponse) ? !empty($sonuc->getData(true)['success']) : false);
+            // mod=olustur — ON GORUSME randevusu olarak ac (ongorusmeekleguncelle deseni):
+            // kampanyanin hizmet/urun/paketi on_gorusmeler'e ilistirilir; bagli randevu
+            // (durum=1) + randevu_hizmetler (hizmet_id=1 SABIT, personel/oda uygunluktan;
+            // oda modunda [randevu_takvim_turu==3] oda yazilir).
+            $ts     = strtotime($tarihsaat);
+            $tarih  = date('Y-m-d', $ts);
+            $saat   = date('H:i:s', $ts);
+            $sureDk = (int) ($uygun['sure'] ?? 60);
+            if ($sureDk <= 0) $sureDk = 60;
+            $personelId = $uygun['personelid'] ?? null;
+            $odaId      = (isset($uygun['odaid']) && $uygun['odaid'] !== '') ? $uygun['odaid'] : null;
+            $takvimTuru = \App\Salonlar::where('id', $salonId)->value('randevu_takvim_turu');
+            $musteri    = User::find($userId);
 
-            // Randevu olustuysa katilimciyi katildi olarak isaretle.
-            if ($ok && $katilimci->durum_asistan === null) {
+            // 1) On gorusme kaydi — GERCEK hizmet/urun/paket burada tutulur.
+            $ong = new OnGorusmeler();
+            $ong->salon_id          = $salonId;
+            $ong->user_id           = $userId;
+            $ong->ad_soyad          = $musteri->name ?? '';
+            $ong->cep_telefon       = $musteri->cep_telefon ?? '';
+            $ong->on_gorusme_saati  = $saat;
+            $ong->hatirlatma_tarihi = $tarih;
+            $ong->hizmet_id         = $kampanya->hizmet_id ?: null;
+            $ong->urun_id           = $kampanya->urun_id ?: null;
+            $ong->paket_id          = $kampanya->paket_id ?: null;
+            $ong->personel_id       = $personelId;
+            $ong->aciklama          = 'Kampanya sesli asistan ile olusturuldu';
+            $ong->save();
+
+            // 2) Bagli randevu (durum=1 ONAYLANDI).
+            $randevu = new Randevular();
+            $randevu->on_gorusme_id  = $ong->id;
+            $randevu->user_id        = $userId;
+            $randevu->salon_id       = $salonId;
+            $randevu->tarih          = $tarih;
+            $randevu->saat           = $saat;
+            $randevu->salon          = true;
+            $randevu->easistan       = 1;
+            $randevu->sms_hatirlatma = true;
+            $randevu->durum          = 1;
+            $randevu->save();
+
+            // 3) randevu_hizmetler — ON GORUSME hizmet_id=1 (sabit); personel/oda uygunluktan.
+            $rh = new \App\RandevuHizmetler();
+            $rh->randevu_id  = $randevu->id;
+            $rh->hizmet_id   = 1;
+            $rh->personel_id = $personelId;
+            $rh->saat        = $saat;
+            $rh->sure_dk     = $sureDk;
+            $rh->saat_bitis  = date('H:i:s', strtotime("+{$sureDk} minutes", strtotime($saat)));
+            if ($takvimTuru == 3 && $odaId) {
+                $rh->oda_id = $odaId;
+            }
+            $rh->save();
+
+            // Randevu olustu -> katilimciyi katildi olarak isaretle.
+            if ($katilimci->durum_asistan === null) {
                 $katilimci->durum_asistan = 1;
                 $katilimci->save();
             }
 
-            return response()->json(['success'=>$ok,'tarihsaat'=>$tarihsaat,'dogalIfade'=>$dogal]);
+            return response()->json([
+                'success'        => true,
+                'tarihsaat'      => $tarihsaat,
+                'dogalIfade'     => $dogal,
+                'on_gorusme_id'  => $ong->id,
+                'randevu_id'     => $randevu->id,
+            ]);
         } catch (\Exception $e) {
             Log::error('kampanyaSesliRandevu hata: '.$e->getMessage());
             return response()->json(['success'=>false,'message'=>$e->getMessage()], 500);
