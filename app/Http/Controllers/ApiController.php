@@ -15559,13 +15559,14 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                         ->where(function($q){ $q->whereNull('geldi')->orWhere('geldi','!=',2); })
                         ->delete();
                 } else {
-                    // Telafi (geldi=2) OTOMATIK TUKETILMEZ: baska bir seans "geldi"
-                    // isaretlenince telafi slotuna DOKUNULMAZ. Telafi ancak isletme
-                    // acikca isaretlerse geldi olur (secilen dali / seans takibi tek-satir).
-                    // (Onceki davranis geldi=2 dahil hepsini geldi=1 yapiyordu -> bug.)
-                    AdisyonPaketSeanslar::where("randevu_id", $request->randevuid)
-                        ->where(function($q){ $q->whereNull('geldi')->orWhere('geldi','!=',2); })
-                        ->update(["geldi" => true]);
+                    // Telafi (geldi=2) dahil -> geldi isaretlenince makyaj yapildi say, geldi=1 (tuket).
+                    AdisyonPaketSeanslar::where(
+
+                        "randevu_id",
+
+                        $request->randevuid
+
+                    )->update(["geldi" => true]);
                 }
 
                 // Musteriye seans kullanim bilgilendirme push'u — paket/hizmet
