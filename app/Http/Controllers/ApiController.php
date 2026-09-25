@@ -11419,7 +11419,22 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 ->groupBy('user_id')
                 ->get()
                 ->keyBy('user_id');
-    
+
+            // Musteri kategorisi (Pasif/Aktif/Sadik) icin ODEME SAYISI. Studyo modunda
+            // tahsilat tutari 0 tutuluyor -> odeme sinyali adisyonlar.odendi=1 ('Odeme
+            // Alindi'); normal salonda tahsilat satir sayisi. Esik: 0->pasif,1-2->aktif,3+->sadik.
+            $_studyoModu = \Schema::hasColumn('adisyonlar', 'odendi')
+                && (bool) \App\Salonlar::where('id', $salonId)->value('studyo_modu');
+            $odemeSayilari = ($_studyoModu
+                    ? DB::table('adisyonlar')->where('odendi', 1)
+                    : DB::table('tahsilatlar'))
+                ->select('user_id', DB::raw('COUNT(*) as odeme_sayisi'))
+                ->whereIn('user_id', $userIds)
+                ->where('salon_id', $salonId)
+                ->groupBy('user_id')
+                ->get()
+                ->keyBy('user_id');
+
             // Yetki: musteri.telefon_gor kapaliysa cep_telefon maskeli.
             $_callerYetkiliId = $request->user_id ?? null;
             $_telGor = true;
@@ -11432,13 +11447,15 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             } catch (\Throwable $e) {}
 
             // Verileri birleştir
-            $musteriler->getCollection()->transform(function ($item) use ($randevuBilgileri, $odemeBilgileri,$salonId,$_telGor) {
+            $musteriler->getCollection()->transform(function ($item) use ($randevuBilgileri, $odemeBilgileri, $odemeSayilari, $salonId,$_telGor) {
                 if (!$_telGor && isset($item->cep_telefon)) {
                     $item->cep_telefon = \App\PersonelYetkiSabitleri::telefonMaskele($item->cep_telefon);
                 }
                 $randevu = $randevuBilgileri[$item->id] ?? null;
                 $odeme = $odemeBilgileri[$item->id] ?? null;
 
+                // Pasif/Aktif/Sadik icin odeme sayisi (studyo: odendi=1 adisyon, normal: tahsilat)
+                $item->odeme_sayisi = isset($odemeSayilari[$item->id]) ? (int) $odemeSayilari[$item->id]->odeme_sayisi : 0;
                 $item->randevu_sayisi = $randevu ? $randevu->randevu_sayisi : 0;
                 $item->son_randevu_tarihi = $randevu && $randevu->son_randevu_tarihi ? 
                     date('d.m.Y', strtotime($randevu->son_randevu_tarihi)) : '-';
@@ -11485,45 +11502,43 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ->where('aktif', true)
             ->count();
         
+        // ODEME kaynagi: studyo modunda tahsilat tutari 0 tutuluyor -> odeme sinyali
+        // adisyonlar.odendi=1 ('Odeme Alindi'); normal salonda tahsilat satirlari.
+        // Esik ayni: 0->pasif, 1-2->aktif, 3+->sadik.
+        $_studyo = \Schema::hasColumn('adisyonlar', 'odendi')
+            && (bool) Salonlar::where('id', $salonId)->value('studyo_modu');
+        $odemeExists = function ($having = null) use ($salonId, $_studyo) {
+            return function ($q) use ($salonId, $_studyo, $having) {
+                $tbl = $_studyo ? 'adisyonlar' : 'tahsilatlar';
+                $q->select(DB::raw(1))->from($tbl)
+                    ->whereRaw("$tbl.user_id = users.id")
+                    ->where("$tbl.salon_id", $salonId);
+                if ($_studyo) $q->where('adisyonlar.odendi', 1);
+                $q->groupBy("$tbl.user_id");
+                if ($having) $q->havingRaw($having);
+            };
+        };
+
         // Ödeme yapmayanlar (pasif müşteriler)
         $odemeYapmayanlarSayisi = DB::table('musteri_portfoy')
             ->join('users', 'musteri_portfoy.user_id', '=', 'users.id')
             ->where('musteri_portfoy.salon_id', $salonId)
             ->where('musteri_portfoy.aktif', true)
-            ->whereNotExists(function ($q) use ($salonId) {
-                $q->select(DB::raw(1))
-                    ->from('tahsilatlar')
-                    ->whereRaw('tahsilatlar.user_id = users.id')
-                    ->where('tahsilatlar.salon_id', $salonId);
-            })->count();
-        
+            ->whereNotExists($odemeExists())->count();
+
         // Az işlem yapanlar (aktif müşteriler - 2 veya daha az işlem)
         $azIslemYapanlarSayisi = DB::table('musteri_portfoy')
             ->join('users', 'musteri_portfoy.user_id', '=', 'users.id')
             ->where('musteri_portfoy.salon_id', $salonId)
             ->where('musteri_portfoy.aktif', true)
-            ->whereExists(function ($q) use ($salonId) {
-                $q->select(DB::raw(1))
-                    ->from('tahsilatlar')
-                    ->whereRaw('tahsilatlar.user_id = users.id')
-                    ->where('tahsilatlar.salon_id', $salonId)
-                    ->groupBy('tahsilatlar.user_id')
-                    ->havingRaw('COUNT(*) <= 2');
-            })->count();
-        
+            ->whereExists($odemeExists('COUNT(*) <= 2'))->count();
+
         // Sadık müşteriler (3 veya daha fazla işlem)
         $sadikMusterilerSayisi = DB::table('musteri_portfoy')
             ->join('users', 'musteri_portfoy.user_id', '=', 'users.id')
             ->where('musteri_portfoy.salon_id', $salonId)
             ->where('musteri_portfoy.aktif', true)
-            ->whereExists(function ($q) use ($salonId) {
-                $q->select(DB::raw(1))
-                    ->from('tahsilatlar')
-                    ->whereRaw('tahsilatlar.user_id = users.id')
-                    ->where('tahsilatlar.salon_id', $salonId)
-                    ->groupBy('tahsilatlar.user_id')
-                    ->havingRaw('COUNT(*) >= 3');
-            })->count();
+            ->whereExists($odemeExists('COUNT(*) >= 3'))->count();
 
         return response()->json([
             'success' => true,
@@ -24765,12 +24780,27 @@ if (is_array($request->cihaz_id)) {
 
             ->get();
 
-        // Müşteri kategorisi (web ile aynı mantık: tahsilat sayısı bazlı)
-        // 0 → pasif, 1-2 → aktif, 3+ → sadık
-        $tahsilatSayisi = DB::table('tahsilatlar')
-            ->where('user_id', $request->user_id)
-            ->whereIn('salon_id', $salonlar)
-            ->count();
+        // Müşteri kategorisi (web ile aynı mantık: ödeme sayısı bazlı)
+        // 0 → pasif, 1-2 → aktif, 3+ → sadık. Studyo salonlarinda tahsilat tutari 0
+        // tutuluyor -> odeme = adisyonlar.odendi=1; normal salonlarda tahsilat satirlari.
+        $_studyoSalonlar = \Schema::hasColumn('adisyonlar', 'odendi')
+            ? Salonlar::whereIn('id', $salonlar)->where('studyo_modu', 1)->pluck('id')->toArray()
+            : [];
+        $_normalSalonlar = array_values(array_diff($salonlar, $_studyoSalonlar));
+        $tahsilatSayisi = 0;
+        if (!empty($_normalSalonlar)) {
+            $tahsilatSayisi += DB::table('tahsilatlar')
+                ->where('user_id', $request->user_id)
+                ->whereIn('salon_id', $_normalSalonlar)
+                ->count();
+        }
+        if (!empty($_studyoSalonlar)) {
+            $tahsilatSayisi += DB::table('adisyonlar')
+                ->where('user_id', $request->user_id)
+                ->whereIn('salon_id', $_studyoSalonlar)
+                ->where('odendi', 1)
+                ->count();
+        }
 
         if ($tahsilatSayisi >= 3) {
             $kategori = 'sadik';
