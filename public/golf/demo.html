@@ -1,0 +1,320 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>YeÅŸilvadi Golf & Country Club</title>
+<meta name="description" content="18 delik ÅŸampiyona golf sahasÄ±, akademi ve kulÃ¼p deneyimi." />
+<script>document.documentElement.className='js';</script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --green:#0c2c1e;      /* koyu fairway */
+    --green-2:#123d29;
+    --green-3:#1c5238;
+    --cream:#f4efe3;
+    --cream-2:#e9e2d0;
+    --gold:#c8a24a;
+    --gold-2:#dcbd74;
+    --sky:#8fc9a8;
+    --ink:#0a1c14;
+    --line:rgba(200,162,74,.22);
+    --maxw:1200px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Jost',system-ui,sans-serif;background:var(--green);color:var(--cream);
+    line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  h1,h2,h3,.serif{font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;line-height:1.06;letter-spacing:.005em}
+  a{color:inherit;text-decoration:none}
+  img{max-width:100%;display:block}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 30px}
+  .gold{color:var(--gold)}
+  .up{text-transform:uppercase;letter-spacing:.28em;font-size:12px;font-weight:500}
+
+  /* NAV */
+  .nav{position:fixed;inset:0 0 auto 0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+    padding:22px 30px;transition:.45s}
+  .nav.scrolled{background:rgba(10,28,20,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:14px 30px}
+  .logo{font-family:'Cormorant Garamond',serif;font-size:23px;font-weight:700;letter-spacing:.04em;display:flex;align-items:center;gap:12px}
+  .logo .crest{width:30px;height:30px;border:1.5px solid var(--gold);border-radius:50%;display:grid;place-items:center;
+    font-size:13px;color:var(--gold)}
+  .navlinks{display:flex;gap:30px;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+  .navlinks a{opacity:.82;transition:.3s;position:relative}
+  .navlinks a:hover{opacity:1;color:var(--gold)}
+  .nav .book{border:1px solid var(--gold);color:var(--gold);padding:10px 20px;border-radius:2px;font-size:12px;
+    letter-spacing:.14em;text-transform:uppercase;transition:.35s}
+  .nav .book:hover{background:var(--gold);color:var(--ink)}
+  @media(max-width:900px){.navlinks{display:none}}
+
+  /* HERO */
+  .hero{position:relative;height:100svh;min-height:620px;display:flex;align-items:center;overflow:hidden}
+  .hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+  .hero .veil{position:absolute;inset:0;z-index:1;
+    background:linear-gradient(180deg,rgba(10,28,20,.55),rgba(10,28,20,.35) 40%,rgba(10,28,20,.85))}
+  .hero .wrap{position:relative;z-index:2}
+  .hero .tagline{color:var(--gold);margin-bottom:22px}
+  .hero h1{font-size:clamp(46px,8.5vw,120px);font-weight:600;letter-spacing:.01em;text-shadow:0 6px 30px rgba(0,0,0,.35)}
+  .hero .sub{max-width:520px;margin-top:22px;font-size:18px;font-weight:300;opacity:.94}
+  .hero .cta{display:flex;flex-wrap:wrap;gap:16px;margin-top:38px}
+  .btn{display:inline-flex;align-items:center;gap:10px;padding:15px 30px;border-radius:2px;font-size:13px;
+    letter-spacing:.14em;text-transform:uppercase;font-weight:500;transition:.4s;cursor:pointer;border:1px solid transparent}
+  .btn-gold{background:linear-gradient(120deg,var(--gold),var(--gold-2));color:var(--ink)}
+  .btn-gold:hover{transform:translateY(-3px);box-shadow:0 16px 34px -14px rgba(200,162,74,.7)}
+  .btn-out{border-color:rgba(244,239,227,.5);color:var(--cream)}
+  .btn-out:hover{border-color:var(--gold);color:var(--gold)}
+
+  /* STATS */
+  .stats{background:var(--ink);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .stats .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:44px 30px;text-align:center}
+  .stat .n{font-family:'Cormorant Garamond',serif;font-size:clamp(38px,5vw,58px);color:var(--gold);font-weight:700;line-height:1}
+  .stat .l{margin-top:8px;opacity:.7;font-size:12px;letter-spacing:.18em;text-transform:uppercase}
+  @media(max-width:700px){.stats .wrap{grid-template-columns:repeat(2,1fr);gap:34px}}
+
+  section{position:relative}
+  .sec{padding:110px 0}
+  .kicker{color:var(--gold);margin-bottom:16px}
+  .h2{font-size:clamp(34px,5vw,64px)}
+  .lead{max-width:560px;opacity:.86;font-weight:300;margin-top:18px;font-size:17px}
+
+  /* KULÃœP split */
+  .split{display:grid;grid-template-columns:1.05fr .95fr;gap:60px;align-items:center}
+  @media(max-width:880px){.split{grid-template-columns:1fr;gap:36px}}
+  .frame{position:relative;border-radius:4px;overflow:hidden;aspect-ratio:4/5;
+    background:linear-gradient(135deg,var(--green-3),var(--green-2))}
+  .frame .ph{position:absolute;inset:0;display:grid;place-items:center;opacity:.5;font-size:13px;letter-spacing:.2em;text-transform:uppercase}
+  .frame::after{content:"";position:absolute;inset:14px;border:1px solid rgba(244,239,227,.25)}
+
+  /* SAHA holes */
+  .holes{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:52px}
+  @media(max-width:880px){.holes{grid-template-columns:1fr}}
+  .hole{background:linear-gradient(160deg,var(--green-2),rgba(18,61,41,.4));border:1px solid var(--line);
+    border-radius:4px;padding:34px 30px;transition:.45s;position:relative;overflow:hidden}
+  .hole::before{content:"";position:absolute;top:0;left:0;width:100%;height:3px;
+    background:linear-gradient(90deg,var(--gold),transparent);transform:scaleX(0);transform-origin:left;transition:.5s}
+  .hole:hover{transform:translateY(-8px);border-color:var(--gold)}
+  .hole:hover::before{transform:scaleX(1)}
+  .hole .no{font-family:'Cormorant Garamond',serif;font-size:52px;color:var(--gold);font-weight:700;line-height:1}
+  .hole h3{font-size:26px;margin:8px 0 10px}
+  .hole .meta{display:flex;gap:18px;opacity:.7;font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin-top:14px}
+
+  /* ÃœYELÄ°K */
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:52px}
+  @media(max-width:880px){.plans{grid-template-columns:1fr}}
+  .plan{background:rgba(244,239,227,.03);border:1px solid var(--line);border-radius:4px;padding:40px 34px;
+    transition:.45s;position:relative}
+  .plan:hover{transform:translateY(-8px);background:rgba(244,239,227,.06)}
+  .plan.feat{border-color:var(--gold);background:linear-gradient(180deg,rgba(200,162,74,.1),transparent)}
+  .plan .tier{color:var(--gold)}
+  .plan h3{font-size:30px;margin:6px 0 4px}
+  .plan .price{font-family:'Cormorant Garamond',serif;font-size:44px;font-weight:700;margin:16px 0}
+  .plan .price small{font-family:'Jost';font-size:15px;opacity:.6;font-weight:300}
+  .plan ul{list-style:none;margin:22px 0 30px;display:flex;flex-direction:column;gap:12px}
+  .plan li{display:flex;gap:11px;font-weight:300;opacity:.9}
+  .plan li::before{content:"â›³";font-size:13px}
+  .plan .btn{width:100%;justify-content:center}
+
+  /* AKADEMÄ° banner */
+  .band{background:var(--ink);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .band .split{padding:0}
+  .band .frame{aspect-ratio:16/11}
+
+  /* REZERVASYON */
+  .book-sec{background:linear-gradient(180deg,var(--green),var(--ink))}
+  .form{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:44px;max-width:720px}
+  .form .full{grid-column:1/-1}
+  .field label{display:block;font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+  .field input,.field select{width:100%;background:rgba(244,239,227,.05);border:1px solid var(--line);
+    color:var(--cream);padding:14px 16px;border-radius:3px;font-family:'Jost';font-size:15px;transition:.3s}
+  .field input:focus,.field select:focus{outline:0;border-color:var(--gold);background:rgba(244,239,227,.08)}
+  @media(max-width:640px){.form{grid-template-columns:1fr}}
+
+  footer{background:var(--ink);border-top:1px solid var(--line);padding:60px 0 34px}
+  .fgrid{display:flex;flex-wrap:wrap;justify-content:space-between;gap:30px;margin-bottom:40px}
+  .fgrid .logo{margin-bottom:14px}
+  .fcol h4{color:var(--gold);font-size:12px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px;font-weight:500}
+  .fcol a,.fcol p{display:block;opacity:.75;font-weight:300;margin-bottom:8px;font-size:14px}
+  .copy{border-top:1px solid var(--line);padding-top:24px;opacity:.55;font-size:13px;font-weight:300;text-align:center}
+
+  .rv{opacity:1}
+  .js .rv{opacity:0;transform:translateY(34px)}
+  @media(prefers-reduced-motion:reduce){.js .rv{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav">
+  <div class="logo"><span class="crest">YV</span>YeÅŸilvadi<span class="gold">Golf</span></div>
+  <div class="navlinks">
+    <a href="#kulup">KulÃ¼p</a><a href="#saha">Saha</a><a href="#uyelik">Ãœyelik</a>
+    <a href="#akademi">Akademi</a><a href="#rezervasyon">Rezervasyon</a>
+  </div>
+  <a href="#rezervasyon" class="book">Tee-Time Al</a>
+</nav>
+
+<header class="hero">
+  <video autoplay muted loop playsinline poster="">
+    <source src="assets/golf-hero.mp4" type="video/mp4" />
+  </video>
+  <div class="veil"></div>
+  <div class="wrap">
+    <div class="up tagline rv">Est. 1998 Â· Åampiyona SahasÄ±</div>
+    <h1 class="rv">YeÅŸil, sonsuza<br>kadar uzanÄ±r.</h1>
+    <p class="sub rv">18 delik, 72 par ÅŸampiyona sahasÄ±; zeytin aÄŸaÃ§larÄ± ve deniz esintisi arasÄ±nda bir golf deneyimi.</p>
+    <div class="cta rv">
+      <a href="#rezervasyon" class="btn btn-gold">Tee-Time Rezervasyonu</a>
+      <a href="#saha" class="btn btn-out">SahayÄ± KeÅŸfet</a>
+    </div>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="wrap">
+    <div class="stat"><div class="n" data-count="18">18</div><div class="l">Delik</div></div>
+    <div class="stat"><div class="n" data-count="72">72</div><div class="l">Par</div></div>
+    <div class="stat"><div class="n" data-count="6402">6402</div><div class="l">Metre</div></div>
+    <div class="stat"><div class="n" data-count="27">27</div><div class="l">YÄ±llÄ±k Miras</div></div>
+  </div>
+</div>
+
+<!-- KULÃœP -->
+<section class="sec" id="kulup">
+  <div class="wrap split">
+    <div class="rv">
+      <div class="up kicker">KulÃ¼p HakkÄ±nda</div>
+      <h2 class="h2">Bir oyundan<br>fazlasÄ±.</h2>
+      <p class="lead">YeÅŸilvadi, oyunun inceliÄŸini doÄŸanÄ±n sÃ¼kÃ»netiyle birleÅŸtirir. USGA standartlarÄ±nda bakÄ±mlÄ± greenler, ÅŸampiyona tee'leri ve her deliÄŸinde farklÄ± bir hikÃ¢ye anlatan bir tasarÄ±m.</p>
+      <p class="lead">Oyunun ardÄ±ndan clubhouse'ta, geniÅŸ terasta gÃ¼neÅŸin batÄ±ÅŸÄ±nÄ± izleyerek gÃ¼nÃ¼nÃ¼zÃ¼ taÃ§landÄ±rÄ±n.</p>
+      <a href="#uyelik" class="btn btn-out" style="margin-top:30px">Ãœyelik AyrÄ±calÄ±klarÄ±</a>
+    </div>
+    <div class="frame rv"><div class="ph">Clubhouse & Green gÃ¶rseli</div></div>
+  </div>
+</section>
+
+<!-- SAHA -->
+<section class="sec" id="saha" style="background:var(--ink)">
+  <div class="wrap">
+    <div class="rv" style="max-width:640px">
+      <div class="up kicker">Saha</div>
+      <h2 class="h2">Ä°mza delikler</h2>
+      <p class="lead">Her biri ustaca tasarlanmÄ±ÅŸ, akÄ±lda kalan Ã¼Ã§ imza delik.</p>
+    </div>
+    <div class="holes">
+      <div class="hole rv"><div class="no">04</div><h3>Zeytinlik</h3>
+        <p style="opacity:.85;font-weight:300">AsÄ±rlÄ±k zeytin aÄŸaÃ§larÄ± arasÄ±ndan dogleg; isabet Ã¶dÃ¼llendirilir.</p>
+        <div class="meta"><span>Par 4</span><span>412 m</span><span>HCP 6</span></div></div>
+      <div class="hole rv"><div class="no">12</div><h3>Deniz Feneri</h3>
+        <p style="opacity:.85;font-weight:300">Su tehlikesi Ã¼zerinden uzun bir par 3; rÃ¼zgÃ¢rÄ± okumak ÅŸart.</p>
+        <div class="meta"><span>Par 3</span><span>198 m</span><span>HCP 12</span></div></div>
+      <div class="hole rv"><div class="no">18</div><h3>Final</h3>
+        <p style="opacity:.85;font-weight:300">Clubhouse Ã¶nÃ¼nde amfitiyatro green ile gÃ¶rkemli bir final.</p>
+        <div class="meta"><span>Par 5</span><span>528 m</span><span>HCP 2</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ÃœYELÄ°K -->
+<section class="sec" id="uyelik">
+  <div class="wrap">
+    <div class="rv" style="max-width:640px">
+      <div class="up kicker">Ãœyelik</div>
+      <h2 class="h2">AyrÄ±calÄ±klÄ± Ã¼yelik</h2>
+      <p class="lead">Size en uygun Ã¼yelik seviyesini seÃ§in; kapÄ±lar aÃ§Ä±lsÄ±n.</p>
+    </div>
+    <div class="plans">
+      <div class="plan rv"><div class="up tier">Bireysel</div><h3>Green</h3>
+        <div class="price">â‚º48.000<small>/yÄ±l</small></div>
+        <ul><li>SÄ±nÄ±rsÄ±z tee-time</li><li>Driving range dahil</li><li>%15 pro-shop indirimi</li></ul>
+        <a href="#rezervasyon" class="btn btn-out">BaÅŸvur</a></div>
+      <div class="plan feat rv"><div class="up tier">En Ã‡ok Tercih Edilen</div><h3>Eagle</h3>
+        <div class="price">â‚º78.000<small>/yÄ±l</small></div>
+        <ul><li>Bireysel tÃ¼m haklar</li><li>+1 misafir hakkÄ±</li><li>Akademi 4 Ã¶zel ders</li><li>Turnuva Ã¶nceliÄŸi</li></ul>
+        <a href="#rezervasyon" class="btn btn-gold">BaÅŸvur</a></div>
+      <div class="plan rv"><div class="up tier">Aile</div><h3>Albatross</h3>
+        <div class="price">â‚º120.000<small>/yÄ±l</small></div>
+        <ul><li>2 yetiÅŸkin + 2 Ã§ocuk</li><li>Junior akademi dahil</li><li>Clubhouse loca Ã¶nceliÄŸi</li></ul>
+        <a href="#rezervasyon" class="btn btn-out">BaÅŸvur</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- AKADEMÄ° -->
+<section class="sec band" id="akademi">
+  <div class="wrap split">
+    <div class="frame rv"><div class="ph">Akademi / antrenman gÃ¶rseli</div></div>
+    <div class="rv">
+      <div class="up kicker">Akademi</div>
+      <h2 class="h2">Ä°lk vuruÅŸtan<br>ÅŸampiyonluÄŸa.</h2>
+      <p class="lead">PGA sertifikalÄ± eÄŸitmenler, TrackMan analiz ve kiÅŸiye Ã¶zel programlar. Ä°ster ilk kez sopa tutun, ister handikapÄ±nÄ±zÄ± dÃ¼ÅŸÃ¼rÃ¼n.</p>
+      <a href="#rezervasyon" class="btn btn-out" style="margin-top:28px">Deneme Dersi Al</a>
+    </div>
+  </div>
+</section>
+
+<!-- REZERVASYON -->
+<section class="sec book-sec" id="rezervasyon">
+  <div class="wrap">
+    <div class="rv" style="max-width:640px">
+      <div class="up kicker">Rezervasyon</div>
+      <h2 class="h2">Tee-time ayÄ±rtÄ±n</h2>
+      <p class="lead">Formu doldurun; kulÃ¼p resepsiyonu sizi arasÄ±n.</p>
+    </div>
+    <form class="form rv" onsubmit="event.preventDefault();this.querySelector('.btn').textContent='âœ“ Talebiniz alÄ±ndÄ±';">
+      <div class="field"><label>Ad Soyad</label><input type="text" placeholder="AdÄ±nÄ±z" required></div>
+      <div class="field"><label>Telefon</label><input type="tel" placeholder="05..." required></div>
+      <div class="field"><label>Tarih</label><input type="date" required></div>
+      <div class="field"><label>Oyuncu SayÄ±sÄ±</label>
+        <select><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+      <div class="field full"><label>Not</label><input type="text" placeholder="Ekipman kiralama, caddy vb."></div>
+      <button type="submit" class="btn btn-gold full">Rezervasyon Talebi GÃ¶nder</button>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="fgrid">
+      <div style="max-width:280px">
+        <div class="logo"><span class="crest">YV</span>YeÅŸilvadi<span class="gold">Golf</span></div>
+        <p style="opacity:.7;font-weight:300">DoÄŸayla iÃ§ iÃ§e bir ÅŸampiyona golf deneyimi.</p>
+      </div>
+      <div class="fcol"><h4>MenÃ¼</h4><a href="#kulup">KulÃ¼p</a><a href="#saha">Saha</a><a href="#uyelik">Ãœyelik</a><a href="#akademi">Akademi</a></div>
+      <div class="fcol"><h4>Ä°letiÅŸim</h4><p>Antalya / Belek</p><p>+90 000 000 00 00</p><p>info@yesilvadigolf.com</p></div>
+      <div class="fcol"><h4>Takip Et</h4><a href="#">Instagram</a><a href="#">YouTube</a><a href="#">LinkedIn</a></div>
+    </div>
+    <div class="copy">Â© 2026 YeÅŸilvadi Golf & Country Club Â· Demo tasarÄ±m</div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script>
+(function(){
+  var nav=document.getElementById('nav');
+  window.addEventListener('scroll',function(){nav.classList.toggle('scrolled',window.scrollY>60);},{passive:true});
+  document.querySelectorAll('a[href^="#"]').forEach(function(a){
+    a.addEventListener('click',function(e){var t=document.querySelector(a.getAttribute('href'));
+      if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth'});}});
+  });
+  if(window.gsap && window.ScrollTrigger){
+    gsap.registerPlugin(ScrollTrigger);
+    gsap.set('.hero .rv',{opacity:0,y:34});
+    gsap.to('.hero .rv',{opacity:1,y:0,duration:1,stagger:.12,ease:'power3.out',delay:.25});
+    gsap.utils.toArray('.rv').forEach(function(el){
+      if(el.closest('.hero'))return;
+      gsap.to(el,{opacity:1,y:0,duration:.9,ease:'power3.out',scrollTrigger:{trigger:el,start:'top 86%'}});
+    });
+    gsap.utils.toArray('[data-count]').forEach(function(el){
+      var end=+el.getAttribute('data-count'),o={v:0};
+      ScrollTrigger.create({trigger:el,start:'top 92%',once:true,onEnter:function(){
+        gsap.to(o,{v:end,duration:1.6,ease:'power2.out',
+          onUpdate:function(){el.textContent=Math.round(o.v).toLocaleString('tr-TR');}});}});
+    });
+  } else {
+    document.querySelectorAll('.rv').forEach(function(el){el.style.opacity=1;el.style.transform='none';});
+  }
+})();
+</script>
+</body>
+</html>
