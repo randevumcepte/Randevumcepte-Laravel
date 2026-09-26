@@ -172,6 +172,10 @@ Route::post('/kampanyalar/{salonid}','ApiController@kampanyalar');
 Route::get('/smstaslaklari/{salonid}','ApiController@smstaslaklari');
 Route::post('/etkinlikekleduzenle/{salonid}','ApiController@etkinlikekleduzenle');
 Route::post('/kampanyaekleduzenle/{salonid}','ApiController@kampanyaekleduzenle');
+// Flutter Reklam Yonetimi sihirbazi/rapor icin (web paritesi)
+Route::match(['GET','POST'],'/kampanyaFormVerileri/{salonid}','ApiController@kampanyaFormVerileri');
+Route::match(['GET','POST'],'/kampanyaDuzenleGetir/{salonid}','ApiController@kampanyaDuzenleGetirApi');
+Route::match(['GET','POST'],'/kampanyaDetay/{salonid}','ApiController@kampanyaDetayApi');
 Route::post('/kampanyapasifet','ApiController@kampanyapasifet');
 Route::post('/kampanyatekrarsmsgonder','ApiController@kampanyatekrarsmsgonder');
 Route::post('/arsivyukle/{salonid}','ApiController@arsivyukle');

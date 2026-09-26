@@ -9046,135 +9046,296 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
 
     public function kampanyaekleduzenle(Request $request, $salonid)
-
     {
+        // API PARITE — web StoreAdminController@kampanyaekleduzenle ile AYNI davranis:
+        // kanal (gorevTuru) + hedef kitle preset + hizmet/urun/paket + sablon/mesaj + indirim
+        // + duzenleme guvenligi. Hedef kitle motoru (musteriportfoydropliste) ve mesaj uretimi
+        // (kampanyaIceriginiGoruntule) StoreAdminController'dan salonId ile yeniden kullanilir
+        // (web metoduna DOKUNULMAZ, regresyon yok). Flutter/web ayni alan adlarini gonderir.
+        $request->merge(['sube' => $salonid, 'salonId' => $salonid]);
+        $sac = app(\App\Http\Controllers\StoreAdminController::class);
 
-        $kampanya_yonetimi = "";
-
-        if (isset($request->kampanya_id)) {
-
-            $kampanya_yonetimi = KampanyaYonetimi::where(
-
-                "id",
-
-                $request->kampanya_id
-
-            )->first();
-
+        // Duzenleme tespiti VALUE ile (bos '' kampanya_id -> yeni).
+        $_yeniKampanya = false;
+        if (!empty($request->kampanya_id) && ($_mevcut = KampanyaYonetimi::where('id', $request->kampanya_id)->where('salon_id', $salonid)->first())) {
+            $kampanya_yonetimi = $_mevcut;
         } else {
-
             $kampanya_yonetimi = new KampanyaYonetimi();
+            $_yeniKampanya = true;
+        }
+        // Hedef kitle yeniden kurulsun mu? Yeni HER ZAMAN; duzenlemede sadece hedefDegisti=1 ise.
+        $hedefKitleyiYenidenKur = ($_yeniKampanya || filter_var($request->hedefDegisti ?? 0, FILTER_VALIDATE_BOOLEAN));
 
+        // Hizmet/Urun/Paket (hizmet-|urun-|paket-X; prefixsiz = paket geriye-uyumlu).
+        if (!empty($request->hizmetUrunPaket)) {
+            $hup   = $request->hizmetUrunPaket;
+            $parca = explode('-', $hup);
+            $pid   = $parca[1] ?? 0;
+            if (str_contains($hup, 'urun')) {
+                $u = \App\Urunler::find($pid);
+                if ($u) { $kampanya_yonetimi->paket_isim = $u->urun_adi; $kampanya_yonetimi->urun_id = $u->id; $kampanya_yonetimi->hizmet_id = null; $kampanya_yonetimi->paket_id = null; }
+            } elseif (str_contains($hup, 'hizmet')) {
+                $h = \App\Hizmetler::find($pid);
+                if ($h) { $kampanya_yonetimi->paket_isim = $h->hizmet_adi; $kampanya_yonetimi->hizmet_id = $h->id; $kampanya_yonetimi->urun_id = null; $kampanya_yonetimi->paket_id = null; }
+            } else {
+                $pidP = str_contains($hup, 'paket') ? $pid : $hup;
+                $p = \App\Paketler::find($pidP);
+                if ($p) { $kampanya_yonetimi->paket_isim = $p->paket_adi; $kampanya_yonetimi->paket_id = $p->id; $kampanya_yonetimi->hizmet_id = null; $kampanya_yonetimi->urun_id = null; }
+            }
         }
 
-        $kampanya_yonetimi->paket_isim = Paketler::where(
+        $kampanya_yonetimi->salon_id   = $salonid;
+        $kampanya_yonetimi->gorev_turu = $request->gorevTuru;
+        $kampanya_yonetimi->aktifmi    = 1;
 
-            "id",
+        // Cinsiyet (katilimciTuru: erkekler=1, kadinlar=0, digeri = tumu).
+        $cinsiyet = '';
+        if ($request->katilimciTuru == 'erkekler')      $cinsiyet = '1';
+        elseif ($request->katilimciTuru == 'kadinlar')  $cinsiyet = '0';
 
-            $request->paket
+        // Hedef kitleyi web motoruyla coz (salonId acikca verilir; auth yoksa kisitlama null).
+        $request->merge([
+            'filtre'               => $request->gelenGelmeyenMusteri ?? '',
+            'search'               => '',
+            'cinsiyet'             => $cinsiyet,
+            'kampanyaYayinlaniyor' => true,
+            'sablonId'             => $request->seciliSablonId,
+            'grup'                 => $request->musteriGruplari,
+        ]);
+        $katilimcilarResp = $sac->musteriportfoydropliste($request);
+        $musteriData = $katilimcilarResp instanceof \Illuminate\Http\JsonResponse ? $katilimcilarResp->getData(true) : (array) $katilimcilarResp;
 
-        )->value("paket_adi");
+        // Indirim kodu: bos ise 4 haneli otomatik uret.
+        $kampanyaKodu = $request->kampanyaKodu;
+        if (empty($kampanyaKodu)) $kampanyaKodu = substr(str_shuffle('1234567890'), 0, 4);
+        $kampanya_yonetimi->indirim_kodu = $kampanyaKodu;
 
-        $kampanya_yonetimi->hizmet_adi = $request->kampanyapakethizmet;
+        // Mesaj (sablon/senaryo tabanli). Arama'da ilk cumle (selamlama) atilir.
+        $kampanyaMetinSMS = $sac->kampanyaIceriginiGoruntule($request);
+        $ham = is_array($kampanyaMetinSMS) ? ($kampanyaMetinSMS['hamMetin'] ?? '') : '';
+        $yeniMesaj = $request->gorevTuru == 1
+            ? preg_replace('/^([^.!?]*[.!?]\s*){1}/u', '', $ham)
+            : $ham;
+        // Duzenleme + serbest metin: sablon yeniden secilmediyse prompt metnini kullan
+        // (on-doldurmada stored mesaj konur; {müşteri}/{gün} korunur, arama'da tekrar strip etme).
+        if (empty($request->seciliSablonId) && !$_yeniKampanya && trim((string) $request->kampanya_sms) !== '')
+            $yeniMesaj = $request->kampanya_sms;
+        // Bos mesaj ile mevcut kaydi EZME.
+        if (trim((string) $yeniMesaj) !== '' || $_yeniKampanya)
+            $kampanya_yonetimi->mesaj = $yeniMesaj;
 
-        $kampanya_yonetimi->fiyat = $request->kampanyapaketfiyat;
+        // musteri_turu sadece hedef kitle yeniden kurulunca guncellenir.
+        if ($hedefKitleyiYenidenKur)
+            $kampanya_yonetimi->musteri_turu = $musteriData['musteriTuru'] ?? '';
 
-        $kampanya_yonetimi->seans = $request->kampanyapaketseans;
+        $kampanya_yonetimi->baslangic_tarihi = $request->asistan_tarih;
+        $kampanya_yonetimi->bitis_tarihi     = $request->kampanyaGecerlilikTarihi;
 
-        $kampanya_yonetimi->salon_id = $salonid;
+        // Indirim etiketi (bildirim/gorev 4 haric): checkbox checked=Yuzde, degilse X Al Y Ode.
+        if ($request->gorevTuru != 4) {
+            $yuzdeMi = filter_var($request->indirimTuru, FILTER_VALIDATE_BOOLEAN);
+            $kampanya_yonetimi->indirim_turu = $yuzdeMi
+                ? '%' . ($request->kampanyaIndirim ?: '0') . ' İndirim'
+                : ($request->Xal ?: '2') . ' Al ' . ($request->Yode ?: '1') . ' Öde';
+        }
 
-        $kampanya_yonetimi->aktifmi = 1;
+        // Kampanya adi (KAMPANYA kolonu): senaryo -> ad + randevu_olustur; sablon -> baslik.
+        $sablonIdRaw = (string) $request->seciliSablonId;
+        if (strpos($sablonIdRaw, 'senaryo-') === 0) {
+            $senaryo = \App\KampanyaSenaryolari::where('id', (int) substr($sablonIdRaw, strlen('senaryo-')))->first();
+            if ($senaryo && !empty($senaryo->ad)) $kampanya_yonetimi->paket_isim = $senaryo->ad;
+            if ($senaryo) {
+                $aks = is_array($senaryo->aksiyonlar) ? $senaryo->aksiyonlar : [];
+                $kampanya_yonetimi->randevu_olustur = !empty($aks['randevu_olustur']) ? 1 : 0;
+            }
+        } elseif ($sablonIdRaw !== '') {
+            $sb = \App\KampanyaSablonlari::where('id', $sablonIdRaw)->first();
+            if ($sb) $kampanya_yonetimi->paket_isim = $sb->baslik;
+        }
 
-        $kampanya_yonetimi->mesaj = $request->kampanya_sms;
+        if ($request->gorevTuru == 1) $kampanya_yonetimi->arama_ile_gonderim = true;
+        if ($request->gorevTuru == 2) $kampanya_yonetimi->sms_ile_gonderim = true;
+        if ($request->gorevTuru == 3 || $request->gorevTuru == 4) $kampanya_yonetimi->bildirim_ile_gonderim = true;
 
+        $ts = strtotime(($request->asistan_tarih ?: date('Y-m-d')) . ' ' . ($request->asistan_saat ?: date('H:i')));
+        $kampanya_yonetimi->asistan_tarih_saat  = date('Y-m-d H:i:s', $ts);
+        $kampanya_yonetimi->sms_tarih_saat      = date('Y-m-d H:i:s', $ts);
+        $kampanya_yonetimi->bildirim_tarih_saat = date('Y-m-d H:i:s', $ts);
         $kampanya_yonetimi->save();
 
-        KampanyaKatilimcilari::where(
-
-            "kampanya_id",
-
-            $kampanya_yonetimi->id
-
-        )->delete();
-
-        $gsm = [];
-
-        $mesajlar = [];
-
-        if (isset($request->secilen_katilimcilar)) {
-
-            foreach (
-
-                json_decode($request->secilen_katilimcilar, false)
-
-                as $key => $katilimci
-
-            ) {
-
-                $yenikatilimci = new KampanyaKatilimcilari();
-
-                $yenikatilimci->kampanya_id = $kampanya_yonetimi->id;
-
-                $yenikatilimci->user_id = $katilimci->id;
-
-                $yenikatilimci->save();
-
-                $toplumusteri = User::where("id", $katilimci->id)->first();
-
-                $katilim_link = "";
-
-                if (
-
-                    SalonSMSAyarlari::where("ayar_id", 10)
-
-                        ->where("salon_id", $kampanya_yonetimi->salon_id)
-
-                        ->value("musteri") == 1
-
-                ) {
-
-                    $katilim_link =
-
-                        " Katılım için : https://app.randevumcepte.com.tr/kampanyakatilim/" .
-
-                        $kampanya_yonetimi->id .
-
-                        "/" .
-
-                        $toplumusteri->id;
-
-                }
-
-                if (
-
-                    MusteriPortfoy::where("user_id", $toplumusteri->id)
-
-                        ->where("salon_id", $kampanya_yonetimi->salon_id)
-
-                        ->value("kara_liste") != 1
-
-                ) {
-
-                    array_push($mesajlar, [
-
-                        "to" => $toplumusteri->cep_telefon,
-
-                        "message" => $kampanya_yonetimi->mesaj . $katilim_link,
-
-                    ]);
-
-                }
-
+        // Katilimci yeniden kurma — SADECE hedef kitle degistiginde (arama/kupon ilerlemesi korunur).
+        if ($hedefKitleyiYenidenKur) {
+            KampanyaKatilimcilari::where('kampanya_id', $kampanya_yonetimi->id)->delete();
+            $insert = [];
+            $now = now();
+            foreach (($musteriData['musteriIdler'] ?? []) as $uid) {
+                $insert[] = [
+                    'kampanya_id'  => $kampanya_yonetimi->id,
+                    'user_id'      => $uid,
+                    'indirim_kodu' => $kampanyaKodu,
+                    'created_at'   => $now,
+                    'updated_at'   => $now,
+                ];
             }
-
+            foreach (array_chunk($insert, 1000) as $chunk) {
+                KampanyaKatilimcilari::insert($chunk);
+            }
         }
 
-        self::sms_gonder_2($request, $mesajlar, false, 4, false, $salonid,false);
+        Audit::logApi($salonid, $request, $_yeniKampanya ? 'kampanya_ekle' : 'kampanya_guncelle', 'kampanya', optional($kampanya_yonetimi)->id, optional($kampanya_yonetimi)->paket_isim, 'Kampanya kaydedildi (API parite).');
 
-        Audit::logApi($salonid, $request, isset($request->kampanya_id) ? 'kampanya_guncelle' : 'kampanya_ekle', 'kampanya', optional($kampanya_yonetimi)->id, optional($kampanya_yonetimi)->paket_isim, 'Kampanya paketi kaydedildi.');
+        return response()->json([
+            'success'     => true,
+            'mesaj'       => 'Kampanya başarıyla kaydedildi',
+            'kampanya_id' => $kampanya_yonetimi->id,
+        ]);
+    }
 
-        return "başarılı";
+    /**
+     * Kampanya sihirbazi FORM VERILERI (Flutter): hizmet/urun/paket, sablon, grup listeleri.
+     * Web reklam-ekle-modal'daki RKP_DATA + sablon/grup listelerinin API karsiligi.
+     */
+    public function kampanyaFormVerileri(Request $request, $salonid)
+    {
+        $hizmetler = \App\SalonHizmetler::with('hizmetler')
+            ->where('salon_id', $salonid)->where('aktif', 1)->get()
+            ->map(function ($sh) {
+                $h = $sh->hizmetler;
+                if (!$h) return null;
+                return ['value' => 'hizmet-' . $sh->hizmet_id, 'label' => $h->hizmet_adi];
+            })->filter()->values();
 
+        $urunler = \App\Urunler::where('salon_id', $salonid)->where('aktif', 1)->get()
+            ->map(function ($u) { return ['value' => 'urun-' . $u->id, 'label' => $u->urun_adi]; })->values();
+
+        $paketler = \App\Paketler::where('salon_id', $salonid)->get()
+            ->map(function ($p) { return ['value' => 'paket-' . $p->id, 'label' => $p->paket_adi]; })->values();
+
+        $sablonlar = [];
+        foreach (\App\SMSTaslaklari::where('salon_id', $salonid)->get() as $s) {
+            $sablonlar[] = ['value' => 'sablon-' . $s->id, 'label' => $s->baslik, 'icerik' => $s->taslak_icerik];
+        }
+        foreach (\App\KampanyaSablonlari::all() as $s) {
+            $sablonlar[] = ['value' => (string) $s->id, 'label' => $s->baslik, 'icerik' => $s->icerik];
+        }
+
+        $gruplar = \App\GrupSMS::where('salon_id', $salonid)->get()
+            ->map(function ($g) { return ['value' => 'haricigrup-' . $g->id, 'label' => $g->grup_adi]; })->values();
+
+        return response()->json([
+            'success'   => true,
+            'hizmetler' => $hizmetler,
+            'urunler'   => $urunler,
+            'paketler'  => $paketler,
+            'sablonlar' => $sablonlar,
+            'gruplar'   => $gruplar,
+        ], 200, [], JSON_INVALID_UTF8_SUBSTITUTE);
+    }
+
+    /**
+     * Kampanya DUZENLE — sihirbazi dolu acmak icin mevcut degerleri doner (web kampanyaDuzenleGetir karsiligi).
+     */
+    public function kampanyaDuzenleGetirApi(Request $request, $salonid)
+    {
+        $k = KampanyaYonetimi::where('id', $request->kampanya_id)->where('salon_id', $salonid)->first();
+        if (!$k) return response()->json(['success' => false, 'message' => 'Kampanya bulunamadi'], 404);
+
+        $hup = '';
+        if ($k->hizmet_id)     $hup = 'hizmet-' . $k->hizmet_id;
+        elseif ($k->urun_id)   $hup = 'urun-' . $k->urun_id;
+        elseif ($k->paket_id)  $hup = 'paket-' . $k->paket_id;
+
+        $yuzdeMi = false; $yuzde = ''; $xal = ''; $yode = '';
+        $it = (string) $k->indirim_turu;
+        if (preg_match('/%\s*(\d+)/u', $it, $m)) { $yuzdeMi = true; $yuzde = $m[1]; }
+        elseif (preg_match('/(\d+)\s*Al\s*(\d+)\s*Öde/iu', $it, $m)) { $xal = $m[1]; $yode = $m[2]; }
+
+        return response()->json([
+            'success'          => true,
+            'kampanya_id'      => $k->id,
+            'gorev_turu'       => $k->gorev_turu,
+            'katilimci_sayisi' => KampanyaKatilimcilari::where('kampanya_id', $k->id)->count(),
+            'hizmetUrunPaket'  => $hup,
+            'mesaj'            => $k->mesaj,
+            'indirim_kodu'     => $k->indirim_kodu,
+            'yuzde_mi'         => $yuzdeMi,
+            'yuzde'            => $yuzde,
+            'xal'              => $xal,
+            'yode'             => $yode,
+            'baslangic_tarihi' => $k->baslangic_tarihi ? date('Y-m-d', strtotime($k->baslangic_tarihi)) : '',
+            'bitis_tarihi'     => $k->bitis_tarihi ? date('Y-m-d', strtotime($k->bitis_tarihi)) : '',
+            'paket_isim'       => $k->paket_isim,
+        ], 200, [], JSON_INVALID_UTF8_SUBSTITUTE);
+    }
+
+    /**
+     * Kampanya RAPORU (Flutter): ozet + katilimci listesi. Sekme (katilimDurumu):
+     * 1=Tumu, 2=Indirim Kullanan (indirim_kodu_kullanildi=1), 3=Kullanmayan, 4=Beklenen (durum_asistan NULL).
+     * Web StoreAdminController@kampanyadetay karsiligi.
+     */
+    public function kampanyaDetayApi(Request $request, $salonid)
+    {
+        $kampanyaId = $request->kampanya_id;
+        $tur     = $request->input('katilimDurumu', 1);
+        $page    = (int) $request->input('page', 1);
+        $perPage = (int) $request->input('perPage', 50);
+        $search  = trim((string) $request->input('search', ''));
+
+        $q = KampanyaKatilimcilari::where('kampanya_id', $kampanyaId);
+        if ($tur == 2)      $q->where('indirim_kodu_kullanildi', 1);
+        elseif ($tur == 3)  $q->where(function ($x) { $x->whereNull('indirim_kodu_kullanildi')->orWhere('indirim_kodu_kullanildi', '!=', 1); });
+        elseif ($tur == 4)  $q->whereNull('durum_asistan');
+
+        if ($search !== '') {
+            $q->whereHas('musteri', function ($x) use ($search) { $x->where('name', 'like', "%{$search}%"); });
+        }
+        $q->with('musteri');
+
+        $total = (clone $q)->count();
+        $kayitlar = $q->skip(($page - 1) * $perPage)->take($perPage)->get()->map(function ($item) {
+            $da = $item->durum_asistan;
+            if ($da !== null && (int) $da === 1)       $durum = 'Ulaşıldı · Katıldı';
+            elseif ($da !== null && (int) $da === 0)   $durum = 'Ulaşıldı · Katılmadı';
+            elseif ((int) $item->kilitli === 1)        $durum = 'Aranıyor…';
+            elseif ((int) $item->tekrar_arandi === 1)  $durum = 'Ulaşılamadı';
+            elseif ((int) $item->tekrar_aranacak === 1)$durum = 'Tekrar aranacak';
+            else                                       $durum = 'Sırada (aranacak)';
+            return [
+                'id'                     => $item->id,
+                'ad_soyad'               => $item->musteri->name ?? '',
+                'telefon'                => $item->musteri->cep_telefon ?? '',
+                'durum'                  => $durum,
+                'indirim_kodu'           => $item->indirim_kodu,
+                'indirim_kodu_kullanildi'=> (int) ($item->indirim_kodu_kullanildi ?? 0),
+            ];
+        });
+
+        $k = KampanyaYonetimi::where('id', $kampanyaId)->first();
+        $hizmetAdi = '';
+        if ($k) {
+            if ($k->hizmet_id)     $hizmetAdi = \App\Hizmetler::where('id', $k->hizmet_id)->value('hizmet_adi') ?: '';
+            elseif ($k->urun_id)   $hizmetAdi = \App\Urunler::where('id', $k->urun_id)->value('urun_adi') ?: '';
+            elseif ($k->paket_id)  $hizmetAdi = \App\Paketler::where('id', $k->paket_id)->value('paket_adi') ?: '';
+        }
+        $gorevAdi = '';
+        if ($k) {
+            $gorevAdi = $k->gorev_turu == 2 ? 'SMS' : ($k->gorev_turu == 1 ? 'Arama' : ($k->gorev_turu == 3 ? 'Bildirim' : ($k->gorev_turu == 4 ? 'Bilgilendirme' : '')));
+        }
+
+        return response()->json([
+            'success'  => true,
+            'kampanya' => [
+                'gorev_turu'       => $gorevAdi,
+                'paket_isim'       => $k->paket_isim ?? '',
+                'hizmet_adi'       => $hizmetAdi,
+                'mesaj'            => $k->mesaj ?? '',
+                'katilimci_sayisi' => KampanyaKatilimcilari::where('kampanya_id', $kampanyaId)->count(),
+            ],
+            'data'    => $kayitlar,
+            'total'   => $total,
+            'page'    => $page,
+            'perPage' => $perPage,
+        ], 200, [], JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     public function kampanyapasifet(Request $request)
