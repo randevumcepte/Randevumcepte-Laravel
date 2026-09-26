@@ -22730,6 +22730,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                         <a class=\"dropdown-item\" href=\"#\" data-toggle=\"modal\" name=\"kampanya_detay\" data-target=\"#kampanya_detay_modal\" data-value=\"", kampanya_yonetimi.id, "\">
                             <i class=\"fa fa-eye\"></i> Reklam Raporu
                         </a>
+                        <a class=\"dropdown-item\" href=\"#\" name=\"kampanya_duzenle\" data-value=\"", kampanya_yonetimi.id, "\">
+                            <i class=\"fa fa-edit\"></i> Düzenle
+                        </a>
                         <a class=\"dropdown-item\" href=\"#\" name=\"kampanya_sil\" data-value=\"", kampanya_yonetimi.id, "\" >
                             <i class=\"dw dw-delete-3\"></i> Sil
                         </a>
@@ -22739,6 +22742,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             DB::raw('CONCAT(
                 "<a title=\"Reklam Raporu\" style=\"color:white; margin-right: 5px;\" data-toggle=\"modal\" name=\"kampanya_detay\" data-target=\"#kampanya_detay_modal\" data-value=\"", kampanya_yonetimi.id, "\" class=\"btn btn-primary btn-sm\">
                     <i class=\"fa fa-eye\"></i>
+                </a>
+                <a title=\"Düzenle\" style=\"color:white; margin-right: 5px;\" href=\"#\" name=\"kampanya_duzenle\" data-value=\"", kampanya_yonetimi.id, "\" class=\"btn btn-warning btn-sm\">
+                    <i class=\"fa fa-edit\"></i>
                 </a>
                 <a title=\"Sil\" style=\"color:white;\" href=\"#\" name=\"kampanya_sil\" data-value=\"", kampanya_yonetimi.id, "\"  class=\"btn btn-danger btn-sm\">
                     <i class=\"fa fa-trash\"></i>
@@ -22871,18 +22877,68 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     {
 
     }
+
+    /**
+     * Kampanya DUZENLE — sihirbazi 2. asamada DOLU acmak icin kampanyanin mevcut
+     * verilerini doner (kanal, hizmet/urun/paket, mesaj, indirim, tarihler).
+     */
+    public function kampanyaDuzenleGetir(Request $request)
+    {
+        if($r = self::yetkiYoksa403($request, 'pazarlama.kampanya_yonet')) return $r;
+        $k = KampanyaYonetimi::where('id', $request->kampanya_id)
+            ->where('salon_id', self::mevcutsube($request))->first();
+        if(!$k) return response()->json(['success'=>false,'message'=>'Kampanya bulunamadi'], 404);
+
+        // hizmet/urun/paket -> dropdown degeri (hizmet-/urun-/paket-)
+        $hup = '';
+        if($k->hizmet_id)     $hup = 'hizmet-'.$k->hizmet_id;
+        elseif($k->urun_id)   $hup = 'urun-'.$k->urun_id;
+        elseif($k->paket_id)  $hup = 'paket-'.$k->paket_id;
+
+        // indirim_turu metni -> yapisal ("%10 İndirim" / "2 Al 1 Öde")
+        $yuzdeMi = false; $yuzde = ''; $xal = ''; $yode = '';
+        $it = (string) $k->indirim_turu;
+        if(preg_match('/%\s*(\d+)/u', $it, $m)) { $yuzdeMi = true; $yuzde = $m[1]; }
+        elseif(preg_match('/(\d+)\s*Al\s*(\d+)\s*Öde/iu', $it, $m)) { $xal = $m[1]; $yode = $m[2]; }
+
+        return response()->json([
+            'success'          => true,
+            'kampanya_id'      => $k->id,
+            'gorev_turu'       => $k->gorev_turu,
+            // Mevcut katilimci sayisi: duzenleme acilinca sayaci doldur ki "musteri secin"
+            // dogrulamasi bloklamasin (hedef degistirilmezse bu kitle korunur).
+            'katilimci_sayisi' => KampanyaKatilimcilari::where('kampanya_id', $k->id)->count(),
+            'hizmetUrunPaket'  => $hup,
+            'mesaj'            => $k->mesaj,
+            'indirim_kodu'     => $k->indirim_kodu,
+            'yuzde_mi'         => $yuzdeMi,
+            'yuzde'            => $yuzde,
+            'xal'              => $xal,
+            'yode'             => $yode,
+            'baslangic_tarihi' => $k->baslangic_tarihi ? date('Y-m-d', strtotime($k->baslangic_tarihi)) : '',
+            'bitis_tarihi'     => $k->bitis_tarihi ? date('Y-m-d', strtotime($k->bitis_tarihi)) : '',
+            'paket_isim'       => $k->paket_isim,
+        ]);
+    }
+
     public function kampanyaekleduzenle(Request $request)
     {
         if($r = self::yetkiYoksa403($request, 'pazarlama.kampanya_yonet')) return $r;
         $gonder = "";
         $kampanya_yonetimi = "";
         $_yeniKampanya = false;
-        if(isset($request->kampanya_id))
-            $kampanya_yonetimi = KampanyaYonetimi::where('id',$request->kampanya_id)->first();
+        // DUZENLEME tespiti VALUE ile: hidden kampanya_id bos ('') gelebilir; isset() bunu
+        // yakalamiyor. kampanya_id DOLU ve kayit VARSA guncelle, aksi halde YENI olustur.
+        if(!empty($request->kampanya_id) && ($_mevcutKampanya = KampanyaYonetimi::where('id',$request->kampanya_id)->first()))
+            $kampanya_yonetimi = $_mevcutKampanya;
         else {
             $kampanya_yonetimi = new KampanyaYonetimi();
             $_yeniKampanya = true;
         }
+        // Hedef kitle yeniden kurulsun mu? Yeni kampanya HER ZAMAN; duzenlemede SADECE kullanici
+        // hedef filtresini degistirdiyse (hedefDegisti=1). Aksi halde mevcut katilimcilar +
+        // arama/kupon ilerlemesi KORUNUR.
+        $hedefKitleyiYenidenKur = ($_yeniKampanya || filter_var($request->hedefDegisti ?? 0, FILTER_VALIDATE_BOOLEAN));
         $hizmetUrunPaket ='';
         if($request->hizmetUrunPaket != '')
         {
@@ -22960,10 +23016,20 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         // {müşteri} ve {gün} placeholder olarak KORUNUR (gonderimde kisiye ozel cozulur).
         // Arama: sadece ILK cumle (selamlama; santral kendi selamini basa ekliyor) silinir;
         // "{gün} gundur goremiyoruz" cumlesi KORUNUR ve kisiye ozel seslendirilir.
-        $kampanya_yonetimi->mesaj = $request->gorevTuru==1
+        $yeniMesaj = $request->gorevTuru==1
             ? preg_replace('/^([^.!?]*[.!?]\s*){1}/u', '', $kampanyaMetinSMS['hamMetin'])
             : $kampanyaMetinSMS['hamMetin'];
-        $kampanya_yonetimi->musteri_turu = $musteriData['musteriTuru'];
+        // DUZENLEME + serbest metin: sablon YENIDEN secilmediyse (seciliSablonId bos) kullanicinin
+        // prompt'ta duzenledigi metni kullan. On-doldururken stored 'mesaj' konuldugu icin
+        // {müşteri}/{gün} yer tutuculari korunur; arama'da ilk cumle ZATEN atilmis, tekrar atma.
+        if(empty($request->seciliSablonId) && !$_yeniKampanya && trim((string)$request->kampanya_sms) !== '')
+            $yeniMesaj = $request->kampanya_sms;
+        // Bos mesaj ile mevcut kaydi EZME (duzenlemede sablon secilmediginde bos gelebilir).
+        if(trim((string)$yeniMesaj) !== '' || $_yeniKampanya)
+            $kampanya_yonetimi->mesaj = $yeniMesaj;
+        // musteri_turu sadece hedef kitle yeniden kurulunca guncellenir (aksi halde stored korunur).
+        if($hedefKitleyiYenidenKur)
+            $kampanya_yonetimi->musteri_turu = $musteriData['musteriTuru'];
         $kampanya_yonetimi->baslangic_tarihi = $request->asistan_tarih;
         $kampanya_yonetimi->bitis_tarihi = $request->kampanyaGecerlilikTarihi;
         // Indirim etiketi (liste INDIRIM kolonu). Frontend 'indirimTuruYazili' GONDERMIYOR
@@ -23012,46 +23078,48 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $kampanya_yonetimi->sms_tarih_saat = date('Y-m-d H:i:s', strtotime($request->asistan_tarih." ".$request->asistan_saat));
         $kampanya_yonetimi->bildirim_tarih_saat = date('Y-m-d H:i:s', strtotime($request->asistan_tarih." ".$request->asistan_saat));
         $kampanya_yonetimi->save();
-        // Eski katilimcilari temizle: dogru kolon kampanya_id (onceden yanlislikla 'id' idi).
-        KampanyaKatilimcilari::where('kampanya_id',$kampanya_yonetimi->id)->delete();
+        // Hedef kitle yeniden kurulacaksa (YENI kampanya veya hedef degistirildi): eski
+        // katilimcilari temizle + yeniden ekle. Aksi halde (sadece metin/indirim/tarih
+        // duzenlendi) mevcut katilimcilar + arama/kupon ilerlemesi KORUNUR.
         $gsm = array();
         $mesajlar=array();
+        if($hedefKitleyiYenidenKur){
+            KampanyaKatilimcilari::where('kampanya_id',$kampanya_yonetimi->id)->delete();
 
-
-
-       $insertData = [];
-
-        $now = now();
-
-        foreach (($musteriData['musteriIdler'] ?? []) as $katilimci) {
-            $insertData[] = [
-                'kampanya_id' =>  $kampanya_yonetimi->id,
-                'user_id' => $katilimci,
-                'indirim_kodu'=>$kampanyaKodu,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-        }
-
-        try {
-            $chunks = array_chunk($insertData, 1000);
-            foreach ($chunks as $chunk) {
-                KampanyaKatilimcilari::insert($chunk);
+            $insertData = [];
+            $now = now();
+            foreach (($musteriData['musteriIdler'] ?? []) as $katilimci) {
+                $insertData[] = [
+                    'kampanya_id' =>  $kampanya_yonetimi->id,
+                    'user_id' => $katilimci,
+                    'indirim_kodu'=>$kampanyaKodu,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
             }
-        } catch (\Throwable $e) {
-            \Log::error('[KAMPANYA-KAYDET-HATA] katilimci insert basarisiz', [
-                'kampanya_id' => $kampanya_yonetimi->id,
-                'salon_id'    => $kampanya_yonetimi->salon_id,
-                'adet'        => count($insertData),
-                'grup'        => $request->musteriGruplari,
-                'hata'        => $e->getMessage(),
-            ]);
-            return response()->json([
-                'mesaj'  => 'Katılımcılar kaydedilirken hata oluştu: '.$e->getMessage(),
-                'gonder' => '',
-            ], 500);
+
+            try {
+                $chunks = array_chunk($insertData, 1000);
+                foreach ($chunks as $chunk) {
+                    KampanyaKatilimcilari::insert($chunk);
+                }
+            } catch (\Throwable $e) {
+                \Log::error('[KAMPANYA-KAYDET-HATA] katilimci insert basarisiz', [
+                    'kampanya_id' => $kampanya_yonetimi->id,
+                    'salon_id'    => $kampanya_yonetimi->salon_id,
+                    'adet'        => count($insertData),
+                    'grup'        => $request->musteriGruplari,
+                    'hata'        => $e->getMessage(),
+                ]);
+                return response()->json([
+                    'mesaj'  => 'Katılımcılar kaydedilirken hata oluştu: '.$e->getMessage(),
+                    'gonder' => '',
+                ], 500);
+            }
         }
         // Push bildirimi kaydin kritik parcasi DEGIL; patlarsa kampanya/katilimci kaydini bozma, sadece logla.
+        // SADECE yeni kampanyada gonder (duzenlemede "yeni reklam olusturuldu" bildirimi yaniltici).
+        if($_yeniKampanya)
         try {
             $controller = app(\App\Http\Controllers\BildirimController::class);
             $personeller = Personeller::where('salon_id',$kampanya_yonetimi->salon_id)->pluck('id')->toArray();

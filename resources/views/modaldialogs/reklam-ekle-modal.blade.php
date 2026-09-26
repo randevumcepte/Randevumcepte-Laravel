@@ -14,6 +14,9 @@
                <div class="modal-body">
                   {!!csrf_field()!!}
                   <input type="hidden" name="kampanya_id" value="">
+                  <!-- Duzenlemede hedef kitle DEGISTIRILDIYSE 1 olur; backend katilimcilari sadece
+                       o zaman yeniden kurar (aksi halde arama/kupon ilerlemesi korunur). -->
+                  <input type="hidden" name="hedefDegisti" value="0">
                   <input type="hidden" name="sube" value="{{$isletme->id}}">
                   <input type="hidden" name="kampanyaKodu" id="kampanyaKodu">
                    <input type="hidden" name="seciliSablonId" id="seciliSablonId">
@@ -1024,6 +1027,7 @@
             if(formEl) formEl.reset();
             // Hidden ve dinamik input'lar
             $m.find('input[name="kampanya_id"]').val('');
+            $m.find('input[name="hedefDegisti"]').val('0');
             $m.find('#kampanyaKodu').val('');
             $m.find('#seciliSablonId').val('');
             // Kanal kartları

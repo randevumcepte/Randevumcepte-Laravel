@@ -15923,10 +15923,111 @@ function kampanyaolustur(tur)
 }
 
 
+// ============================================================================
+// KAMPANYA DUZENLE — Islemler > Duzenle: ekle-sihirbazini kampanyanin verileriyle
+// DOLU acar (2. asama). Kaydet -> kampanyaekleduzenle UPDATE (kampanya_id dolu).
+// Hedef kitle DEGISTIRILMEDIYSE mevcut katilimcilar (arama/kupon ilerlemesi) korunur:
+// audience kontrolu degisince hedefDegisti=1 isaretlenir (prefill sirasinda haric).
+// ============================================================================
+window.rkpPrefilling = false;
+
+function rkpHedefDegistiIsaretle(){
+    if(window.rkpPrefilling) return;
+    $('#yeni_kampanya_modal input[name="hedefDegisti"]').val('1');
+}
+$(document).on('change', '#gelenGelmeyenMusteri, #musteriGruplari, #kampanyaKategori, #katilimciTuru, #yeni_kampanya_modal .rkp-hup-sec', rkpHedefDegistiIsaretle);
+$(document).on('click', '#yeni_kampanya_modal .rkp-preset, #yeni_kampanya_modal .rkp-seg-btn, #yeni_kampanya_modal .reklam-kanal-kart', rkpHedefDegistiIsaretle);
+
+$(document).on('click', 'a[name="kampanya_duzenle"], [name="kampanya_duzenle"]', function(e){
+    e.preventDefault();
+    var kid = $(this).attr('data-value');
+    if(!kid) return;
+    $('#preloader').show();
+    $.ajax({
+        url: '/isletmeyonetim/kampanyaduzenlegetir',
+        method: 'POST',
+        dataType: 'json',
+        data: {
+            kampanya_id: kid,
+            sube: $('#yeni_kampanya_modal input[name="sube"]').val() || $('input[name="sube"]').val(),
+            _token: $('input[name="_token"]').val()
+        },
+        success: function(res){
+            $('#preloader').hide();
+            if(!res || !res.success){
+                swal({type:'error',title:'Hata',text:(res&&res.message)||'Kampanya getirilemedi',timer:3000,showConfirmButton:false});
+                return;
+            }
+            window.rkpKampanyaDuzenleVerisi = res;
+            $('#yeni_kampanya_modal').modal('show');
+        },
+        error: function(){
+            $('#preloader').hide();
+            swal({type:'error',title:'Hata',text:'Kampanya getirilemedi',timer:3000,showConfirmButton:false});
+        }
+    });
+});
+
+// Modal acildiktan (select2 hazir) SONRA doldur — tek sefer.
+$('#yeni_kampanya_modal').on('shown.bs.modal', function(){
+    var d = window.rkpKampanyaDuzenleVerisi;
+    if(!d) return;
+    window.rkpKampanyaDuzenleVerisi = null;
+    window.rkpPrefilling = true;
+    try {
+        var $m = $('#yeni_kampanya_modal');
+        $m.find('#kampanya_modal_baslik').text('Reklam Düzenle');
+        $m.find('input[name="kampanya_id"]').val(d.kampanya_id);
+        $m.find('input[name="hedefDegisti"]').val('0');
+
+        // Kanal (gorev turu)
+        if(d.gorev_turu){
+            $('#gorevTuru').val(String(d.gorev_turu));
+            $m.find('.reklam-kanal-kart').removeClass('is-active');
+            $m.find('.reklam-kanal-kart[data-gorev="'+d.gorev_turu+'"]').addClass('is-active');
+        }
+
+        // Hizmet / Urun / Paket (hizmet-|urun-|paket-X)
+        if(d.hizmetUrunPaket){
+            var pre = String(d.hizmetUrunPaket).split('-')[0];
+            var selId = pre==='hizmet' ? '#rkpHizmetTek' : (pre==='urun' ? '#rkpUrunTek' : '#rkpPaketTek');
+            $(selId).val(d.hizmetUrunPaket).trigger('change.select2').trigger('change');
+            $('#hizmetUrunPaket').val(d.hizmetUrunPaket);
+        }
+
+        // Kampanya metni (stored mesaj; {müşteri}/{gün} yer tutuculari korunmus halde)
+        if(d.mesaj){ $m.find('#kampanyaPrompt').text(d.mesaj); }
+
+        // Katilimci sayaci (mevcut kitle) -> "musteri secin" dogrulamasi gecsin. Hedef
+        // degistirilirse normal akis bu sayiyi yeniden hesaplar.
+        $m.find('#kampanya_katilimci_sayisi').text(d.katilimci_sayisi || '0');
+
+        // Indirim
+        $m.find('#kampanyaKodu').val(d.indirim_kodu || '');
+        if(d.yuzde_mi){
+            $m.find('#indirimTuru').prop('checked', true);
+            $m.find('#XalYodeBolumu').hide();
+            $m.find('#yuzdeIndirimBolumu').show();
+            if(d.yuzde) $m.find('#kampanyaIndirim').val(d.yuzde);
+        } else {
+            $m.find('#indirimTuru').prop('checked', false);
+            $m.find('#XalYodeBolumu').show();
+            $m.find('#yuzdeIndirimBolumu').hide();
+            if(d.xal)  $m.find('#Xal').val(d.xal);
+            if(d.yode) $m.find('#Yode').val(d.yode);
+        }
+
+        // Tarihler
+        if(d.baslangic_tarihi) $m.find('#kampanyatarih').val(d.baslangic_tarihi);
+        if(d.bitis_tarihi)     $m.find('#kampanyaGecerlilikTarihi').val(d.bitis_tarihi);
+    } catch(err){ console.error('kampanya duzenle doldurma hatasi', err); }
+    window.rkpPrefilling = false;
+});
+
 $(document).on('submit','#kampanya_formu',function(e){
      e.preventDefault();
-    
-     
+
+
   });
 $('#kampanyaTuru').change(function(e){
     e.preventDefault();
