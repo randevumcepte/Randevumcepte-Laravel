@@ -27023,8 +27023,15 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             $salonId = $kampanya->salon_id;
             $userId  = $katilimci->user_id;
 
-            // Randevu hizmeti: once kampanyanin hizmeti, yoksa salonun ilk aktif hizmeti.
+            // Randevu hizmeti: once kampanyanin hizmeti; PAKET kampanyasinda paketin ILK
+            // hizmeti (paket_hizmetler); yoksa salonun ilk aktif hizmeti.
+            // (paket/urun kampanyasinda hizmet_id BOS oldugu icin eskiden yanlislikla
+            //  salonun ilk aktif hizmetine -orn. sac kesimi- dusuyor, randevu o hizmet +
+            //  o hizmetin suresiyle aciliyordu. Artik paketin gercek hizmeti kullaniliyor.)
             $hizmetId = $kampanya->hizmet_id;
+            if (!$hizmetId && $kampanya->paket_id) {
+                $hizmetId = \App\PaketHizmetler::where('paket_id', $kampanya->paket_id)->value('hizmet_id');
+            }
             if (!$hizmetId) {
                 $ilkHizmet = SalonHizmetler::where('salon_id', $salonId)->where('aktif', 1)->first();
                 $hizmetId = $ilkHizmet ? $ilkHizmet->hizmet_id : null;
@@ -27072,13 +27079,14 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
 
             // mod=olustur — ON GORUSME randevusu olarak ac (ongorusmeekleguncelle deseni):
             // kampanyanin hizmet/urun/paketi on_gorusmeler'e ilistirilir; bagli randevu
-            // (durum=1) + randevu_hizmetler (hizmet_id=1 SABIT, personel/oda uygunluktan;
-            // oda modunda [randevu_takvim_turu==3] oda yazilir).
+            // (durum=1) + randevu_hizmetler (kampanyanin GERCEK hizmeti, personel/oda
+            // uygunluktan; oda modunda [randevu_takvim_turu==3] oda yazilir). Sure max 60dk.
             $ts     = strtotime($tarihsaat);
             $tarih  = date('Y-m-d', $ts);
             $saat   = date('H:i:s', $ts);
             $sureDk = (int) ($uygun['sure'] ?? 60);
             if ($sureDk <= 0) $sureDk = 60;
+            if ($sureDk > 60) $sureDk = 60; // ON GORUSME randevusu MAX 1 saat (paket suresi 160dk olsa bile)
             $personelId = $uygun['personelid'] ?? null;
             $odaId      = (isset($uygun['odaid']) && $uygun['odaid'] !== '') ? $uygun['odaid'] : null;
             $takvimTuru = \App\Salonlar::where('id', $salonId)->value('randevu_takvim_turu');
@@ -27112,10 +27120,12 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             $randevu->durum          = 1;
             $randevu->save();
 
-            // 3) randevu_hizmetler — ON GORUSME hizmet_id=1 (sabit); personel/oda uygunluktan.
+            // 3) randevu_hizmetler — kampanyanin GERCEK hizmeti (paket kampanyasinda paketin
+            //    hizmeti); personel/oda uygunluktan. (Eskiden sabit 1 = sac kesimi yaziliyor,
+            //    takvimde yanlis hizmet gorunuyordu.)
             $rh = new \App\RandevuHizmetler();
             $rh->randevu_id  = $randevu->id;
-            $rh->hizmet_id   = 1;
+            $rh->hizmet_id   = $hizmetId;
             $rh->personel_id = $personelId;
             $rh->saat        = $saat;
             $rh->sure_dk     = $sureDk;
