@@ -31147,6 +31147,43 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         ]);
     }
 
+    /**
+     * Sihirbaz CANLI KITLE SAYISI: secili hedef kitle filtresine gore kac musteri.
+     * Web musteriportfoydropliste 'total' degeri (salonId ile yeniden kullanilir).
+     */
+    public function kampanyaKitleSayisi(Request $request, $salonid)
+    {
+        $request->merge([
+            'salonId'  => $salonid,
+            'filtre'   => $request->input('filtre', ''),
+            'cinsiyet' => $request->input('cinsiyet', ''),
+            'grup'     => $request->input('grup', ''),
+            'search'   => '',
+        ]);
+        $resp = app(\App\Http\Controllers\StoreAdminController::class)->musteriportfoydropliste($request);
+        $data = $resp instanceof \Illuminate\Http\JsonResponse ? $resp->getData(true) : (array) $resp;
+        return response()->json(['basarili' => true, 'toplam' => (int) ($data['total'] ?? 0)]);
+    }
+
+    /**
+     * Bu adisyona daha once bir kampanya indirim kodu UYGULANDI mi? (tahsilatta tekrar
+     * kod girme yerine "uygulanmis" disabled kutu gostermek icin.)
+     */
+    public function kampanyaKoduAdisyonDurum(Request $request, $salonid)
+    {
+        $adisyonId = (int) $request->input('adisyon_id');
+        if (!$adisyonId || !\Schema::hasColumn('kampanya_katilimcilari', 'indirim_kodu_adisyon_id')) {
+            return response()->json(['basarili' => true, 'uygulanmis' => false]);
+        }
+        $row = \App\KampanyaKatilimcilari::where('kampanya_katilimcilari.indirim_kodu_adisyon_id', $adisyonId)
+            ->join('kampanya_yonetimi', 'kampanya_yonetimi.id', '=', 'kampanya_katilimcilari.kampanya_id')
+            ->where('kampanya_yonetimi.salon_id', (int) $salonid)
+            ->select('kampanya_katilimcilari.indirim_kodu as kod', 'kampanya_yonetimi.indirim_turu as metin')
+            ->first();
+        if (!$row) return response()->json(['basarili' => true, 'uygulanmis' => false]);
+        return response()->json(['basarili' => true, 'uygulanmis' => true, 'kod' => $row->kod, 'metin' => $row->metin]);
+    }
+
     public function carkHatirlatmaGetirApi(Request $request, $salonId)
     {
         $a = CarkHatirlatmaAyarlari::firstOrCreate(['salon_id' => $salonId]);
