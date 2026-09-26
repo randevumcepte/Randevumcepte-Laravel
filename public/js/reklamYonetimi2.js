@@ -20,6 +20,22 @@ $(document).on('click', 'a[name="kampanya_detay"]', function (e) {
     $('#kampanya_detay_modal').modal('show');
 });
 
+// Tab'a tiklaninca ilgili turu yukle: 1=Tumu, 2=Indirim Kullanan, 3=Indirim Kullanmayan,
+// 4=Beklenenler. (Eskiden sadece "Tumu" aciliyordu; diger sekmeler tiklaninca bos/0 kaliyordu.)
+$(document).on('shown.bs.tab', '#kampanya_detay_modal a[data-toggle="tab"]', function () {
+    var hrefTurMap = {
+        '#tum_kampanya_arama': 1,
+        '#kampanya_katilanlar_arama': 2,
+        '#kampanya_katilmayanlar_arama': 3,
+        '#kampanya_beklenen_arama': 4
+    };
+    var tur = hrefTurMap[$(this).attr('href')];
+    if (!tur) return;
+    currentPages2[tur] = 1;
+    var searchInput = getSearchInputForTur(tur);
+    loadKampanyaDetaylari(1, tur, searchInput ? searchInput.val() : '');
+});
+
 function loadKampanyaDetaylari(page = 1, tur, hasta) {
     if (loading2) return;
     loading2 = true;
@@ -48,7 +64,7 @@ function loadKampanyaDetaylari(page = 1, tur, hasta) {
             $('#kampanya_katilimci').empty();
             $('#kampanya_katilimci').append(response.kampanya.katilimci_sayisi);
             $('#kampanya_hizmeti').empty();
-            $('#kampanya_hizmeti').append(response.kampanya.hizmet_adi);
+            $('#kampanya_hizmeti').append(response.kampanya.hizmet_adi || '-');
             $('#mesajIcerigiContent').empty();
             $('#mesajIcerigiContent').append(response.kampanya.mesaj);
             console.log(response.kampanya.mesaj);

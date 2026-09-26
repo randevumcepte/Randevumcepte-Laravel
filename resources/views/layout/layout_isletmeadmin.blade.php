@@ -5748,7 +5748,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
       <script src="{{secure_asset('public/js/custom.js?v=291.0')}}"></script>
       @if($pageindex==22)
-      <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.5')}}"></script>
+      <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.6')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
       <script src="{{secure_asset('public/js/musteriSecimiDuzenle.js?v=11.0')}}"></script>
       <script src="{{secure_asset('public/js/senaryoSihirbazi.js?v=1.2')}}"></script>

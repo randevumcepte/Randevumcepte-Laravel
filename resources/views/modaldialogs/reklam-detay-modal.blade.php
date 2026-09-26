@@ -6,8 +6,8 @@
          <div class="modal-header border-bottom-0">
             <div class="d-flex align-items-center justify-content-between w-100">
                <div>
-                  <h2 class="modal-title h4 font-weight-600 text-gray-800 mb-0">Reklam Raporu</h2>
-                  <p class="text-muted small mb-0 mt-1">Kampanya detayları ve katılımcı analizi</p>
+                  <h2 class="modal-title h4 font-weight-600 mb-0" style="color:#fff;">Reklam Raporu</h2>
+                  <p class="small mb-0 mt-1" style="color:rgba(255,255,255,.9);">Kampanya detayları ve katılımcı analizi</p>
                </div>
                <button type="button" class="close" data-dismiss="modal" aria-label="Kapat">
                   <span aria-hidden="true">&times;</span>
@@ -97,12 +97,12 @@
                                  </li>
                                  <li class="nav-item">
                                     <a class="nav-link" data-toggle="tab" href="#kampanya_katilanlar_arama" role="tab">
-                                       <span class="badge badge-light badge-sm ml-1" id="katilan_arama_count">0</span> Katılanlar
+                                       <span class="badge badge-light badge-sm ml-1" id="katilan_arama_count">0</span> İndirim Kullanan
                                     </a>
                                  </li>
                                  <li class="nav-item">
                                     <a class="nav-link" data-toggle="tab" href="#kampanya_katilmayanlar_arama" role="tab">
-                                       <span class="badge badge-light badge-sm ml-1" id="katilmayan_arama_count">0</span> Katılmayanlar
+                                       <span class="badge badge-light badge-sm ml-1" id="katilmayan_arama_count">0</span> İndirim Kullanmayan
                                     </a>
                                  </li>
                                  <li class="nav-item">
@@ -180,7 +180,7 @@
                               <div class="data-table-card">
                                  <div class="card-header border-bottom bg-white">
                                     <div class="d-flex justify-content-between align-items-center">
-                                       <h4 class="h6 font-weight-600 text-gray-800 mb-0">Katılanlar</h4>
+                                       <h4 class="h6 font-weight-600 text-gray-800 mb-0">İndirim Kullanan</h4>
                                        <div class="d-flex align-items-center">
                                           <div class="search-box mr-2">
                                              <div class="input-group input-group-sm">
@@ -213,7 +213,7 @@
                                        <div class="empty-state-icon">
                                           <i class="fa fa-user-check text-muted"></i>
                                        </div>
-                                       <p class="empty-state-text">Katılan bulunmamaktadır</p>
+                                       <p class="empty-state-text">İndirim kullanan bulunmamaktadır</p>
                                     </div>
                                  </div>
                               </div>
@@ -224,7 +224,7 @@
                               <div class="data-table-card">
                                  <div class="card-header border-bottom bg-white">
                                     <div class="d-flex justify-content-between align-items-center">
-                                       <h4 class="h6 font-weight-600 text-gray-800 mb-0">Katılmayanlar</h4>
+                                       <h4 class="h6 font-weight-600 text-gray-800 mb-0">İndirim Kullanmayan</h4>
                                        <div class="d-flex align-items-center">
                                           <div class="search-box mr-2">
                                              <div class="input-group input-group-sm">
@@ -257,7 +257,7 @@
                                        <div class="empty-state-icon">
                                           <i class="fa fa-user-times text-muted"></i>
                                        </div>
-                                       <p class="empty-state-text">Katılmayan bulunmamaktadır</p>
+                                       <p class="empty-state-text">İndirim kullanmayan bulunmamaktadır</p>
                                     </div>
                                  </div>
                                  <div class="card-footer bg-white border-top py-3">

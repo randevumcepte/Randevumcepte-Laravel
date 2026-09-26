@@ -22759,12 +22759,14 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     $search  = trim($request->search ?? '');
     $query = KampanyaKatilimcilari::where('kampanya_id', $kampanyaId);
 
-    // Sekmeler ARAMA durumuna gore: 2=Katilanlar (durum_asistan=1), 3=Katilmayanlar (=0),
-    // 4=Beklenenler/henuz cevap yok (durum_asistan NULL). (Eskiden kupon durumuna gore idi.)
+    // Sekmeler INDIRIM KODU KULLANIMINA gore: 2=Indirim Kullanan (indirim_kodu_kullanildi=1),
+    // 3=Indirim Kullanmayan (0/NULL), 4=Beklenenler/henuz aranmadi (durum_asistan NULL).
     if ($request->katilimDurumu == 2) {
-        $query->where('durum_asistan', 1);
+        $query->where('indirim_kodu_kullanildi', 1);
     } elseif ($request->katilimDurumu == 3) {
-        $query->where('durum_asistan', 0);
+        $query->where(function ($q) {
+            $q->whereNull('indirim_kodu_kullanildi')->orWhere('indirim_kodu_kullanildi', '!=', 1);
+        });
     } elseif ($request->katilimDurumu == 4) {
         $query->whereNull('durum_asistan');
     }
@@ -22835,10 +22837,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         ->join('kampanya_katilimcilari', 'kampanya_yonetimi.id', '=', 'kampanya_katilimcilari.kampanya_id')
         ->leftJoin('hizmetler', 'kampanya_yonetimi.hizmet_id', '=', 'hizmetler.id')
         ->leftJoin('urunler', 'kampanya_yonetimi.urun_id', '=', 'urunler.id')
+        ->leftJoin('paketler', 'kampanya_yonetimi.paket_id', '=', 'paketler.id')
         ->select(
             DB::raw('COUNT(kampanya_katilimcilari.kampanya_id) as katilimci_sayisi'),
             'kampanya_yonetimi.seans',
-            DB::raw('CONCAT(COALESCE(hizmetler.hizmet_adi,""), COALESCE(urunler.urun_adi,"")) as hizmet_adi'),
+            // Hizmet/Urun/PAKET adi: kampanya hangi kaleme baglandiysa onun adi (paket kampanyasinda
+            // hizmet/urun bos oldugu icin eskiden bu alan bos donuyordu -> sag ust kart bostu).
+            DB::raw('NULLIF(CONCAT(COALESCE(hizmetler.hizmet_adi,""), COALESCE(urunler.urun_adi,""), COALESCE(paketler.paket_adi,"")),"") as hizmet_adi'),
             DB::raw('CASE
                 WHEN kampanya_yonetimi.gorev_turu = 2 THEN "SMS"
                 WHEN kampanya_yonetimi.gorev_turu = 1 THEN "Arama"
