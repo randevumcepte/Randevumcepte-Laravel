@@ -434,6 +434,20 @@ Route::get('/save-excel', function () {
 	};
 	Route::get('/ucretsiz-denemenizi-baslatin', $ucretsizDeneme);
 	Route::get('/ucretsiz-deneme', $ucretsizDeneme);
+	// Golf teklif mini-sitesi — nginx public/ statik sunmadigi icin HTML/video Laravel'den
+	// servis edilir. Catch-all ({isletme_adi}-{isletme_id})'DEN ONCE olmali: /golf-demo tire
+	// icerdiginden aksi halde salonDetay_anasayfa'ya takilir.
+	Route::get('/golf', function () {
+		return response()->file(public_path('golf/index.html'));
+	});
+	Route::get('/golf-demo', function () {
+		return response()->file(public_path('golf/demo.html'));
+	});
+	Route::get('/golf-video/{name}', function ($name) {
+		$p = public_path('golf/assets/' . basename($name));
+		abort_unless(is_file($p), 404);
+		return response()->file($p);
+	})->where('name', '[A-Za-z0-9_\.\-]+');
 	Route::get('/{isletme_adi}-{isletme_id}/personel/{personel_id}', 'HomeController@personelDetayPublic')->where('personel_id','[0-9]+')->name('personeldetay_public');
 	Route::get('/{isletme_adi}-{isletme_id}', 'HomeController@salonDetay_anasayfa')->name('salondetaylari');
 	Route::get('/', 'HomeController@salonDetay');
