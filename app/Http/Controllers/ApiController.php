@@ -27023,76 +27023,101 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             $salonId = $kampanya->salon_id;
             $userId  = $katilimci->user_id;
 
-            // Randevu hizmeti: once kampanyanin hizmeti; PAKET kampanyasinda paketin ILK
-            // hizmeti (paket_hizmetler); yoksa salonun ilk aktif hizmeti.
-            // (paket/urun kampanyasinda hizmet_id BOS oldugu icin eskiden yanlislikla
-            //  salonun ilk aktif hizmetine -orn. sac kesimi- dusuyor, randevu o hizmet +
-            //  o hizmetin suresiyle aciliyordu. Artik paketin gercek hizmeti kullaniliyor.)
+            // Kampanya hizmeti — SADECE "uygun personel" adaylarini daraltmak icin kullanilir
+            // (o hizmeti yapan personel). Paket kampanyasinda paketin ilk hizmeti; yoksa null.
+            // Randevunun kendisi ON GORUSME'dir; satilabilir hizmet ZORUNLU DEGIL (paket/urun
+            // kampanyasinda hizmet salon_sunulan_hizmetler'de olmayabilir -> eskiden uygunluk
+            // kontrolu bunu bulamayip "randevu veremiyoruz" diyordu).
             $hizmetId = $kampanya->hizmet_id;
             if (!$hizmetId && $kampanya->paket_id) {
                 $hizmetId = \App\PaketHizmetler::where('paket_id', $kampanya->paket_id)->value('hizmet_id');
             }
-            if (!$hizmetId) {
-                $ilkHizmet = SalonHizmetler::where('salon_id', $salonId)->where('aktif', 1)->first();
-                $hizmetId = $ilkHizmet ? $ilkHizmet->hizmet_id : null;
-            }
 
             if ($mod === 'bilgi') {
-                // Sesli randevu diyaloguna SADECE kampanyanin randevu_olustur aksiyonu ACIK
-                // ve uygun hizmet varsa girilir. Aksi halde her "evet"te randevu teklif edilir.
-                $randevuAcik = (bool) $kampanya->randevu_olustur;
-                return response()->json(['success'=>true,'bookable'=>($randevuAcik && (bool) $hizmetId)]);
+                // Sesli randevu diyaloguna SADECE kampanyanin randevu_olustur aksiyonu ACIKSA girilir.
+                // (On gorusme icin satilabilir hizmet sarti YOK; hizmet/urun/paket sadece iliştirilir.)
+                return response()->json(['success'=>true,'bookable'=>(bool) $kampanya->randevu_olustur]);
             }
 
-            if (!$hizmetId) return response()->json(['success'=>false,'message'=>'Randevu icin uygun hizmet yok']);
             if (empty($request->tarihSaat)) return response()->json(['success'=>false,'message'=>'Tarih/saat bos']);
 
-            // Uygunluk kontrolu — mevcut enyakinuygunrandevubul mantigini kullan.
-            $uygunReq = new Request();
-            $uygunReq->merge([
-                'randevuId'     => null,
-                'salonHizmetId' => $hizmetId,
-                'salonId'       => $salonId,
-                'tarihSaat'     => date('Y-m-d H:i', strtotime($request->tarihSaat)),
-                'personelId'    => null,
-                'paketBilgi'    => null,
-            ]);
-            $uygunResp = self::randevuUygunlukKontrolEt($uygunReq);
-            $uygun = $uygunResp instanceof \Illuminate\Http\JsonResponse ? $uygunResp->getData(true) : (array) $uygunResp;
+            // Tarih/saat cozumle.
+            $ts = strtotime($request->tarihSaat);
+            if (!$ts) return response()->json(['success'=>false,'message'=>'Tarih/saat cozumlenemedi']);
+            $tarih     = date('Y-m-d', $ts);
+            $saat      = date('H:i:s', $ts);
+            $tarihsaat = date('Y-m-d H:i', $ts);
+            $dogal     = self::tarihSaatiDogalIfadeTR($tarihsaat);
+            $sureDk    = 60; // ON GORUSME randevusu her zaman 1 saat.
+            $takvimTuru = \App\Salonlar::where('id', $salonId)->value('randevu_takvim_turu');
 
-            if (empty($uygun['success'])) {
-                return response()->json(['success'=>false,'metin'=>$uygun['metin'] ?? '','message'=>'Uygun slot yok']);
+            // UYGUN PERSONEL: kampanyanin hizmetini yapan aktif personeller (varsa) icinden;
+            // yoksa salonun tum aktif personelleri icinden, o gun/saatte (60dk) BOS olan ilki.
+            // cakisan_randevu_kontrol "" donerse cakisma yok demektir (ongorusme akisiyla ayni).
+            $adaylarQ = Personeller::where('salon_id', $salonId)->where('aktif', 1);
+            if ($hizmetId) {
+                $yapanIdler = \App\PersonelHizmetler::where('hizmet_id', $hizmetId)
+                    ->whereHas('personeller', function ($q) use ($salonId) {
+                        $q->where('salon_id', $salonId)->where('aktif', 1);
+                    })->pluck('personel_id')->unique()->values()->all();
+                if (!empty($yapanIdler)) $adaylarQ->whereIn('id', $yapanIdler);
+            }
+            $adaylar = $adaylarQ->get();
+
+            $personelId = null;
+            foreach ($adaylar as $aday) {
+                $ckReq = new Request([
+                    'salon_id'      => $salonId,
+                    'randevu_tarihi'=> $tarih,
+                    'randevu_saati' => $saat,
+                    'personel_id'   => $aday->id,
+                    'randevu_id'    => null,
+                    'birlestir'     => false,
+                    'hizmetler'     => [[ 'sure_dk'=>$sureDk, 'personel_id'=>$aday->id, 'cihaz_id'=>'', 'oda_id'=>'', 'birlestir'=>false ]],
+                ]);
+                $cakisma = self::cakisan_randevu_kontrol($ckReq, [$tarih]);
+                if ($cakisma === "" || $cakisma === null) { $personelId = $aday->id; break; }
+            }
+            // Bos personel bulunamadiysa (hepsi dolu) ilk adayla yine de ac — kampanya randevusu
+            // HER HALUKARDA olussun; "veremiyoruz" cikmazi olusmasin.
+            if (!$personelId && $adaylar->count() > 0) $personelId = $adaylar->first()->id;
+
+            // ODA (takvim oda-moduysa): o saatte bos olan ilk aktif oda.
+            $odaId = null;
+            if ($takvimTuru == 3) {
+                $odalar = \App\Odalar::where('salon_id', $salonId)->where('aktifmi', 1)->get();
+                foreach ($odalar as $oda) {
+                    $ckO = new Request([
+                        'salon_id'      => $salonId,
+                        'randevu_tarihi'=> $tarih,
+                        'randevu_saati' => $saat,
+                        'personel_id'   => '',
+                        'randevu_id'    => null,
+                        'birlestir'     => false,
+                        'hizmetler'     => [[ 'sure_dk'=>$sureDk, 'personel_id'=>'', 'cihaz_id'=>'', 'oda_id'=>$oda->id, 'birlestir'=>false ]],
+                    ]);
+                    $cakismaO = self::cakisan_randevu_kontrol($ckO, [$tarih]);
+                    if ($cakismaO === "" || $cakismaO === null) { $odaId = $oda->id; break; }
+                }
+                if (!$odaId && $odalar->count() > 0) $odaId = $odalar->first()->id;
             }
 
-            $tarihsaat = !empty($uygun['tarihsaat']) ? $uygun['tarihsaat'] : date('Y-m-d H:i', strtotime($request->tarihSaat));
-            $dogal = self::tarihSaatiDogalIfadeTR($tarihsaat);
-
             if ($request->mod !== 'olustur') {
-                // mod=kontrol
+                // mod=kontrol — slot her zaman verilebilir (belirtilen gun/saat).
                 return response()->json([
-                    'success'        => true,
-                    'tarihsaat'      => $tarihsaat,
-                    'dogalIfade'     => $dogal,
-                    'alternatifOneri'=> (bool) ($uygun['alternatifOneri'] ?? false),
+                    'success'    => true,
+                    'tarihsaat'  => $tarihsaat,
+                    'dogalIfade' => $dogal,
                 ]);
             }
 
-            // mod=olustur — ON GORUSME randevusu olarak ac (ongorusmeekleguncelle deseni):
-            // kampanyanin hizmet/urun/paketi on_gorusmeler'e ilistirilir; bagli randevu
-            // (durum=1) + randevu_hizmetler (kampanyanin GERCEK hizmeti, personel/oda
-            // uygunluktan; oda modunda [randevu_takvim_turu==3] oda yazilir). Sure max 60dk.
-            $ts     = strtotime($tarihsaat);
-            $tarih  = date('Y-m-d', $ts);
-            $saat   = date('H:i:s', $ts);
-            $sureDk = (int) ($uygun['sure'] ?? 60);
-            if ($sureDk <= 0) $sureDk = 60;
-            if ($sureDk > 60) $sureDk = 60; // ON GORUSME randevusu MAX 1 saat (paket suresi 160dk olsa bile)
-            $personelId = $uygun['personelid'] ?? null;
-            $odaId      = (isset($uygun['odaid']) && $uygun['odaid'] !== '') ? $uygun['odaid'] : null;
-            $takvimTuru = \App\Salonlar::where('id', $salonId)->value('randevu_takvim_turu');
-            $musteri    = User::find($userId);
+            // mod=olustur — ON GORUSME randevusu (ongorusmeekleguncelle deseni):
+            //  * hizmet/urun/paket -> on_gorusmeler (gercek "neden")
+            //  * randevu_hizmetler.hizmet_id = 1 (SABIT = "On Gorusme"; ongorusme akisiyla ayni)
+            //  * sure 60dk, personel/oda yukarida secilen uygun kaynak
+            $musteri = User::find($userId);
 
-            // 1) On gorusme kaydi — GERCEK hizmet/urun/paket burada tutulur.
+            // 1) On gorusme kaydi — kampanyanin hizmet/urun/paketi ILISTIRILIR.
             $ong = new OnGorusmeler();
             $ong->salon_id          = $salonId;
             $ong->user_id           = $userId;
@@ -27120,12 +27145,11 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             $randevu->durum          = 1;
             $randevu->save();
 
-            // 3) randevu_hizmetler — kampanyanin GERCEK hizmeti (paket kampanyasinda paketin
-            //    hizmeti); personel/oda uygunluktan. (Eskiden sabit 1 = sac kesimi yaziliyor,
-            //    takvimde yanlis hizmet gorunuyordu.)
+            // 3) randevu_hizmetler — ON GORUSME hizmeti SABIT 1; sure 60dk; secilen personel/oda.
+            //    (Gercek hizmet/urun/paket on_gorusmeler'de tutulur; ongorusmeekleguncelle ile ayni.)
             $rh = new \App\RandevuHizmetler();
             $rh->randevu_id  = $randevu->id;
-            $rh->hizmet_id   = $hizmetId;
+            $rh->hizmet_id   = 1;
             $rh->personel_id = $personelId;
             $rh->saat        = $saat;
             $rh->sure_dk     = $sureDk;
