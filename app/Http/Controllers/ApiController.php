@@ -9118,7 +9118,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             : $ham;
         // Duzenleme + serbest metin: sablon yeniden secilmediyse prompt metnini kullan
         // (on-doldurmada stored mesaj konur; {müşteri}/{gün} korunur, arama'da tekrar strip etme).
-        if (empty($request->seciliSablonId) && !$_yeniKampanya && trim((string) $request->kampanya_sms) !== '')
+        // Flutter serbest metin: sablon secilmediyse prompt/kampanya_sms metnini kullan
+        // (yeni VE duzenlemede). Sablon seciliyse o kazanir (regenerate).
+        if (empty($request->seciliSablonId) && trim((string) $request->kampanya_sms) !== '')
             $yeniMesaj = $request->kampanya_sms;
         // Bos mesaj ile mevcut kaydi EZME.
         if (trim((string) $yeniMesaj) !== '' || $_yeniKampanya)
