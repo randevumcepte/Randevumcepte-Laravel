@@ -437,7 +437,7 @@ Route::get('/save-excel', function () {
 	// Golf teklif mini-sitesi — nginx public/ statik sunmadigi icin HTML/video Laravel'den
 	// servis edilir. Catch-all ({isletme_adi}-{isletme_id})'DEN ONCE olmali: /golf-demo tire
 	// icerdiginden aksi halde salonDetay_anasayfa'ya takilir.
-	Route::get('/golf', function () {
+	Route::get('/golf-teklif', function () {
 		return response()->file(public_path('golf/index.html'));
 	});
 	Route::get('/golf-demo', function () {
