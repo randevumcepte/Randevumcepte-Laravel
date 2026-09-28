@@ -18679,6 +18679,7 @@ DB::raw('
         END as hizmetler'),
         DB::raw('CONCAT("<span style=\"display:none\">",UNIX_TIMESTAMP(randevular.tarih),UNIX_TIMESTAMP(randevular.saat),"</span>",DATE_FORMAT(randevular.tarih, "%d.%m.%Y")) as tarih'),
         DB::raw('CASE WHEN randevular.randevuya_geldi=1 THEN "Geldi" ELSE "Gelmedi" END as geldimi'),
+        DB::raw('COALESCE(randevular.personel_notu, "") as randevu_notu'),
     ];
 
     // Add conditional selects based on user type

@@ -9550,6 +9550,7 @@ function randevufiltre()
                            { data: 'durum' },
                            { data: 'hizmetler' },
                            { data: 'personelcihazoda' },
+                           { data: 'randevu_notu', defaultContent: '', render: function(d){ return d ? String(d).replace(/</g,'&lt;') : '<span style="color:#bbb;font-style:italic;">—</span>'; } },
                            { data: 'olusturan' },
                            { data: 'olusturulma' },
                            { data: 'islemler' }

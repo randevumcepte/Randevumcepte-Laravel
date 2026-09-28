@@ -594,7 +594,7 @@
                            <th>Durum</th>
                            <th>Hizmetler</th>
                            <th>Personel/Cihaz/Oda</th>
-                           
+                           <th>Randevu Notu</th>
                            <th>Oluşturan</th>
                            <th>Oluşturulma</th>
                            <th class="datatable-nosort"></th>
