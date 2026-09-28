@@ -27211,8 +27211,18 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             $saat      = date('H:i:s', $ts);
             $tarihsaat = date('Y-m-d H:i', $ts);
             $dogal     = self::tarihSaatiDogalIfadeTR($tarihsaat);
-            $sureDk    = 60; // ON GORUSME randevusu her zaman 1 saat.
             $takvimTuru = \App\Salonlar::where('id', $salonId)->value('randevu_takvim_turu');
+
+            // HIZMET kampanyasi (kampanya->hizmet_id dolu) -> DIREKT hizmet randevusu
+            // (on gorusme DEGIL): hizmetin GERCEK suresi kullanilir. Aksi halde (urun/paket/
+            // none) on gorusme = 60dk.
+            $hizmetKampanyasi = (bool) $kampanya->hizmet_id;
+            $sureDk = 60;
+            if ($hizmetKampanyasi) {
+                $gercekSure = (int) \App\SalonHizmetler::where('salon_id', $salonId)
+                    ->where('hizmet_id', $kampanya->hizmet_id)->value('sure_dk');
+                if ($gercekSure > 0) $sureDk = $gercekSure;
+            }
 
             // UYGUN PERSONEL: kampanyanin hizmetini yapan aktif personeller (varsa) icinden;
             // yoksa salonun tum aktif personelleri icinden, o gun/saatte (60dk) BOS olan ilki.
@@ -27274,30 +27284,41 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 ]);
             }
 
-            // mod=olustur — ON GORUSME randevusu (ongorusmeekleguncelle deseni):
-            //  * hizmet/urun/paket -> on_gorusmeler (gercek "neden")
-            //  * randevu_hizmetler.hizmet_id = 1 (SABIT = "On Gorusme"; ongorusme akisiyla ayni)
-            //  * sure 60dk, personel/oda yukarida secilen uygun kaynak
+            // mod=olustur:
+            //  * HIZMET kampanyasi -> DIREKT hizmet randevusu (on gorusme YOK): randevu_hizmetler.
+            //    hizmet_id = kampanyanin gercek hizmeti, gercek sure.
+            //  * PAKET kampanyasi  -> on gorusme (60dk); randevu_hizmetler.hizmet_id = paketin
+            //    hizmeti (SAC KESIMI/sabit 1 DEGIL); paket on_gorusmeler'e iliştirilir.
+            //  * URUN/none         -> on gorusme (60dk); randevu_hizmetler.hizmet_id = null.
             $musteri = User::find($userId);
 
-            // 1) On gorusme kaydi — kampanyanin hizmet/urun/paketi ILISTIRILIR.
-            $ong = new OnGorusmeler();
-            $ong->salon_id          = $salonId;
-            $ong->user_id           = $userId;
-            $ong->ad_soyad          = $musteri->name ?? '';
-            $ong->cep_telefon       = $musteri->cep_telefon ?? '';
-            $ong->on_gorusme_saati  = $saat;
-            $ong->hatirlatma_tarihi = $tarih;
-            $ong->hizmet_id         = $kampanya->hizmet_id ?: null;
-            $ong->urun_id           = $kampanya->urun_id ?: null;
-            $ong->paket_id          = $kampanya->paket_id ?: null;
-            $ong->personel_id       = $personelId;
-            $ong->aciklama          = 'Kampanya sesli asistan ile olusturuldu';
-            $ong->save();
+            // randevu_hizmetler hizmet_id:
+            $rhHizmetId = $hizmetKampanyasi
+                ? $kampanya->hizmet_id
+                : ($kampanya->paket_id ? $hizmetId : null); // $hizmetId = paketin ilk hizmeti
 
-            // 2) Bagli randevu (durum=1 ONAYLANDI).
+            // 1) HIZMET kampanyasi degilse ON GORUSME kaydi (hizmet/urun/paket iliştirilir).
+            $onGorusmeId = null;
+            if (!$hizmetKampanyasi) {
+                $ong = new OnGorusmeler();
+                $ong->salon_id          = $salonId;
+                $ong->user_id           = $userId;
+                $ong->ad_soyad          = $musteri->name ?? '';
+                $ong->cep_telefon       = $musteri->cep_telefon ?? '';
+                $ong->on_gorusme_saati  = $saat;
+                $ong->hatirlatma_tarihi = $tarih;
+                $ong->hizmet_id         = $kampanya->hizmet_id ?: null;
+                $ong->urun_id           = $kampanya->urun_id ?: null;
+                $ong->paket_id          = $kampanya->paket_id ?: null;
+                $ong->personel_id       = $personelId;
+                $ong->aciklama          = 'Kampanya sesli asistan ile olusturuldu';
+                $ong->save();
+                $onGorusmeId = $ong->id;
+            }
+
+            // 2) Randevu (durum=1 ONAYLANDI). Hizmet kampanyasinda on_gorusme_id null (direkt hizmet).
             $randevu = new Randevular();
-            $randevu->on_gorusme_id  = $ong->id;
+            $randevu->on_gorusme_id  = $onGorusmeId;
             $randevu->user_id        = $userId;
             $randevu->salon_id       = $salonId;
             $randevu->tarih          = $tarih;
@@ -27308,11 +27329,11 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             $randevu->durum          = 1;
             $randevu->save();
 
-            // 3) randevu_hizmetler — ON GORUSME hizmeti SABIT 1; sure 60dk; secilen personel/oda.
-            //    (Gercek hizmet/urun/paket on_gorusmeler'de tutulur; ongorusmeekleguncelle ile ayni.)
+            // 3) randevu_hizmetler — hizmet kampanyasinda gercek hizmet+sure; paket'te paketin
+            //    hizmeti; urun/none'da hizmet_id null (SAC KESIMI eklenmez).
             $rh = new \App\RandevuHizmetler();
             $rh->randevu_id  = $randevu->id;
-            $rh->hizmet_id   = 1;
+            $rh->hizmet_id   = $rhHizmetId;
             $rh->personel_id = $personelId;
             $rh->saat        = $saat;
             $rh->sure_dk     = $sureDk;
@@ -27332,8 +27353,9 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 'success'        => true,
                 'tarihsaat'      => $tarihsaat,
                 'dogalIfade'     => $dogal,
-                'on_gorusme_id'  => $ong->id,
+                'on_gorusme_id'  => $onGorusmeId,
                 'randevu_id'     => $randevu->id,
+                'tur'            => $hizmetKampanyasi ? 'hizmet' : 'on_gorusme',
             ]);
         } catch (\Exception $e) {
             Log::error('kampanyaSesliRandevu hata: '.$e->getMessage());
