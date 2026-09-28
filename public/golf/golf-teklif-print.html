@@ -16,7 +16,7 @@
   html,body{font-family:'Manrope',-apple-system,Segoe UI,Arial,sans-serif;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @page{size:A4;margin:0}
   body{background:#33383f;display:flex;flex-direction:column;align-items:center;gap:10mm;padding:10mm 0}
-  .page{width:210mm;min-height:297mm;padding:16mm 16mm 14mm;position:relative;page-break-after:always;background:#fff;overflow:hidden}
+  .page{width:210mm;height:297mm;padding:14mm 15mm 12mm;position:relative;page-break-after:always;background:#fff;overflow:hidden}
   .page:last-child{page-break-after:auto}
   @media print{body{background:#fff;display:block;gap:0;padding:0}}
   h1,h2,h3,h4{color:var(--navy);line-height:1.15;letter-spacing:-.01em}
@@ -58,8 +58,8 @@
   .foot{position:absolute;bottom:9mm;left:16mm;right:16mm;display:flex;justify-content:space-between;color:var(--muted);font-size:7.6pt;border-top:1px solid var(--line);padding-top:7px}
   .foot b{color:var(--navy)}
 
-  .lead{background:var(--bg);border-left:4px solid var(--gold);padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:18px}
-  .lead p{font-size:10.3pt;color:#33405a}
+  .lead{background:var(--bg);border-left:4px solid var(--gold);padding:11px 16px;border-radius:0 8px 8px 0;margin-bottom:13px}
+  .lead p{font-size:9.8pt;color:#33405a;line-height:1.42}
   .lead b{color:var(--navy)}
 
   /* overview cards */
@@ -80,15 +80,15 @@
   .rdnote b{color:#4d3f18}
 
   /* section groups */
-  .grp{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:15px}
-  .grp-h{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;display:flex;align-items:center;gap:12px;padding:11px 16px}
-  .grp-h .badge{width:26px;height:26px;border-radius:7px;background:var(--gold);color:var(--navy);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12pt;flex-shrink:0}
-  .grp-h h3{color:#fff;font-size:12pt;flex:1}
-  .grp-h .tag{border:1px solid var(--gold);color:var(--gold2);font-size:7.4pt;font-weight:800;letter-spacing:1.5px;padding:4px 11px;border-radius:20px;text-transform:uppercase}
-  .row{padding:9px 16px;border-bottom:1px solid var(--line)}
+  .grp{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:10px;page-break-inside:avoid}
+  .grp-h{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;display:flex;align-items:center;gap:11px;padding:8px 15px}
+  .grp-h .badge{width:24px;height:24px;border-radius:7px;background:var(--gold);color:var(--navy);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11pt;flex-shrink:0}
+  .grp-h h3{color:#fff;font-size:11.5pt;flex:1}
+  .grp-h .tag{border:1px solid var(--gold);color:var(--gold2);font-size:7pt;font-weight:800;letter-spacing:1.3px;padding:3px 10px;border-radius:20px;text-transform:uppercase}
+  .row{padding:6px 15px;border-bottom:1px solid var(--line)}
   .row:last-child{border-bottom:0}
-  .row .t{font-size:10pt;font-weight:700;color:var(--navy)}
-  .row .d{font-size:8.7pt;color:#5b657a;line-height:1.4;margin-top:2px}
+  .row .t{font-size:9.4pt;font-weight:700;color:var(--navy)}
+  .row .d{font-size:8pt;color:#5b657a;line-height:1.32;margin-top:1px}
   .row .d b{color:var(--navy)}
 
   /* summary */
@@ -96,7 +96,7 @@
   .sums{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .sum{border:1px solid var(--line);border-radius:12px;overflow:hidden}
   .sum-h{background:var(--navy);color:#fff;padding:12px 16px;font-weight:800;font-size:11.5pt}
-  .sum-r{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .sum-r{display:flex;justify-content:space-between;align-items:center;padding:8px 16px;border-bottom:1px solid var(--line)}
   .sum-r .l{font-size:9.6pt;color:#3d4658}
   .sum-r .v{font-weight:800;font-size:12pt;color:var(--navy)}
   .sum-r.tot{background:linear-gradient(135deg,#e9d6a4,#f2e7c6)}
@@ -104,7 +104,7 @@
   .sum-r.tot .v{color:var(--navy);font-size:14pt}
   .sum-r.tot .v small{font-size:9pt}
 
-  .cta{background:linear-gradient(135deg,#0a1524,#16304e);color:#fff;border-radius:12px;padding:18px 22px;margin-top:16px;position:relative;overflow:hidden}
+  .cta{background:linear-gradient(135deg,#0a1524,#16304e);color:#fff;border-radius:12px;padding:13px 20px;margin-top:10px;position:relative;overflow:hidden}
   .cta::after{content:"";position:absolute;inset:0;background:radial-gradient(300px 170px at 92% 0,rgba(201,162,75,.22),transparent 60%)}
   .cta-in{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:20px}
   .cta h3{color:#fff;font-size:14pt}
@@ -112,7 +112,7 @@
   .cta .sign{text-align:center;flex-shrink:0}
   .cta .sign .line{width:48mm;border-top:1px solid var(--gold-soft);margin:26px auto 6px}
   .cta .sign small{color:var(--gold-soft);font-size:8pt}
-  .contact{display:flex;justify-content:center;gap:26px;margin-top:14px;flex-wrap:wrap}
+  .contact{display:flex;justify-content:center;gap:26px;margin-top:10px;flex-wrap:wrap}
   .contact .ci{font-size:9pt;color:var(--navy)}
   .contact .ci b{color:var(--gold);letter-spacing:1px}
 </style>
@@ -234,7 +234,7 @@
     <div class="row"><div class="t">Aylık performans raporu</div><div class="d">Erişim, sıralama, harita görünürlüğü ve rezervasyon dönüşümlerinin şeffaf raporlanması.</div></div>
   </div>
 
-  <div class="gozet" style="margin-top:20px">Genel Özet</div>
+  <div class="gozet" style="margin-top:12px">Genel Özet</div>
   <div class="sums">
     <div class="sum">
       <div class="sum-h">Tek Seferlik Kurulum</div>
