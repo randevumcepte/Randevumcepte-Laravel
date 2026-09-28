@@ -11174,24 +11174,16 @@ if (preload && !turdegisti) {
             setTimeout(_rcKolonAyarla, 250);
             setTimeout(_rcKolonAyarla, 800);
 
-            $('.fc-today-button').click(function(e){
+            // NAMESPACED bind + off: her takvimyukle cagrisinda re-bind edilir;
+            // eskilerini temizlemezsek handler'lar birikir (periyodik 30sn refresh
+            // her seferinde +3 handler ekler) -> tek tikta N paralel takvimyukle
+            // baslar, gec donen eski cevap resource sayilari eski tarihe takilir.
+            $('.fc-today-button, .fc-prev-button, .fc-next-button').off('click.rcNav').on('click.rcNav', function(e){
                 e.preventDefault();
-                
                 $('#takvim_tarihe_gore').val('');
-                takvimyukle(true,true);
-            });
-            $('.fc-prev-button').click(function(e){
-                e.preventDefault();
-                
-                $('#takvim_tarihe_gore').val('');
-                takvimyukle(true,true);
-            });
-            
-            $('.fc-next-button').click(function(e){
-                e.preventDefault();
-                
-                $('#takvim_tarihe_gore').val('');
-                takvimyukle(true,true);
+                // setTimeout(0): FC'nin kendi click handler'i (jQuery bind sirasi)
+                // once calisip internal date'i ilerletsin; sonra getDate NEW dondursun.
+                setTimeout(function(){ takvimyukle(true, true); }, 0);
             });
             
             
