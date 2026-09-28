@@ -178,6 +178,7 @@ Route::match(['GET','POST'],'/kampanyaDuzenleGetir/{salonid}','ApiController@kam
 Route::match(['GET','POST'],'/kampanyaDetay/{salonid}','ApiController@kampanyaDetayApi');
 Route::match(['GET','POST'],'/kampanyaKitleSayisi/{salonid}','ApiController@kampanyaKitleSayisi');
 Route::match(['GET','POST'],'/kampanyaKoduAdisyonDurum/{salonid}','ApiController@kampanyaKoduAdisyonDurum');
+Route::match(['GET','POST'],'/kampanyaMesajOnizle/{salonid}','ApiController@kampanyaMesajOnizle');
 Route::post('/kampanyapasifet','ApiController@kampanyapasifet');
 Route::post('/kampanyatekrarsmsgonder','ApiController@kampanyatekrarsmsgonder');
 Route::post('/arsivyukle/{salonid}','ApiController@arsivyukle');

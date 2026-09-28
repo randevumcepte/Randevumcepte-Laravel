@@ -9249,6 +9249,25 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
 
     /**
+     * Kampanya MESAJ ONIZLEME (Flutter): secili sablon/senaryo + hizmet/urun/paket + indirim'e
+     * gore COZULMUS mesaj metni. Web'de kampanya metni alani DUZENLENEMEZ; icerik buradan gelir.
+     * kampanyaIceriginiGoruntule (salonId ile) yeniden kullanilir; TTS uretilmez (yayinlaniyor=true).
+     */
+    public function kampanyaMesajOnizle(Request $request, $salonid)
+    {
+        $request->merge([
+            'sube'                 => $salonid,
+            'salonId'              => $salonid,
+            'sablonId'             => $request->input('seciliSablonId', $request->input('sablonId', '')),
+            'kampanyaYayinlaniyor' => true, // sadece metin, TTS uretme (hizli)
+        ]);
+        $res = app(\App\Http\Controllers\StoreAdminController::class)->kampanyaIceriginiGoruntule($request);
+        $prompt = is_array($res) ? ($res['promptStr'] ?? '') : '';
+        $ham    = is_array($res) ? ($res['hamMetin'] ?? '') : '';
+        return response()->json(['basarili' => true, 'mesaj' => $prompt, 'hamMesaj' => $ham]);
+    }
+
+    /**
      * Kampanya DUZENLE — sihirbazi dolu acmak icin mevcut degerleri doner (web kampanyaDuzenleGetir karsiligi).
      */
     public function kampanyaDuzenleGetirApi(Request $request, $salonid)
