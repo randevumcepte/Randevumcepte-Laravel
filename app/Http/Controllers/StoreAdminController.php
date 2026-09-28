@@ -27464,6 +27464,32 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         }
     }
 
+    // Randevu detay modalinden inline not guncelleme (musteri_notu = randevu.notlar,
+    // personel_notu = randevu.personel_notu). Yeni pencere gerektirmez.
+    public function randevuNotGuncelle(Request $request)
+    {
+        if($r = self::yetkiYoksa403($request, 'randevu.duzenle_iptal')) return $r;
+        $randevu_id = (int) $request->randevu_id;
+        if(!$randevu_id) return response()->json(['error' => 'randevu_id gerekli'], 400);
+        $randevu = Randevular::where('id', $randevu_id)->first();
+        if(!$randevu) return response()->json(['error' => 'Randevu bulunamadı'], 404);
+
+        // Salon guvenlik: kullanicinin aktif isletmesine ait mi?
+        $isletmeid = self::mevcutsube($request);
+        if((int) $randevu->salon_id !== (int) $isletmeid) {
+            return response()->json(['error' => 'Yetkisiz'], 403);
+        }
+
+        $alan = $request->alan; // 'notlar' | 'personel_notu'
+        if(!in_array($alan, ['notlar', 'personel_notu'], true)){
+            return response()->json(['error' => 'Gecersiz alan'], 400);
+        }
+        $deger = trim((string) $request->deger);
+        $randevu->{$alan} = $deger;
+        $randevu->save();
+        return response()->json(['success' => true, 'alan' => $alan, 'deger' => $deger]);
+    }
+
     // Randevu modali icin: tum hizmetler + personel/cihaz eslemeleri (tek AJAX)
     public function randevuModalHizmetVerisi(Request $request)
     {

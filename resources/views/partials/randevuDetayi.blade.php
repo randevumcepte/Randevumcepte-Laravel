@@ -191,15 +191,142 @@
         @endif
         <div class="rd-row">
            <div class="rd-label"><i class="fa fa-comment-o"></i> Müşteri Notu</div>
-           <div class="rd-value {{ !empty($randevu->randevu->notlar) ? '' : 'empty' }}">
-              {{ $randevu->randevu->notlar ?: 'Not yok' }}
+           <div class="rd-value rd-not-inline {{ !empty($randevu->randevu->notlar) ? '' : 'empty' }}"
+                data-not-alan="notlar"
+                data-randevu-id="{{ $randevu->randevu->id }}"
+                data-orig="{{ $randevu->randevu->notlar }}"
+                title="Düzenlemek için tıklayın">
+              <span class="rd-not-goster">{{ $randevu->randevu->notlar ?: 'Not yok' }}</span>
+              <i class="fa fa-pencil rd-not-icon" style="opacity:.35;margin-left:6px;font-size:11px;"></i>
            </div>
         </div>
         <div class="rd-row">
            <div class="rd-label"><i class="fa fa-sticky-note"></i> Personel Notu</div>
-           <div class="rd-value {{ !empty($randevu->randevu->personel_notu) ? '' : 'empty' }}">
-              {{ $randevu->randevu->personel_notu ?: 'Not yok' }}
+           <div class="rd-value rd-not-inline {{ !empty($randevu->randevu->personel_notu) ? '' : 'empty' }}"
+                data-not-alan="personel_notu"
+                data-randevu-id="{{ $randevu->randevu->id }}"
+                data-orig="{{ $randevu->randevu->personel_notu }}"
+                title="Düzenlemek için tıklayın">
+              <span class="rd-not-goster">{{ $randevu->randevu->personel_notu ?: 'Not yok' }}</span>
+              <i class="fa fa-pencil rd-not-icon" style="opacity:.35;margin-left:6px;font-size:11px;"></i>
            </div>
         </div>
     @endif
 </div>
+
+<style>
+.rd-not-inline { cursor: pointer; position: relative; transition: background 0.15s; }
+.rd-not-inline:hover { background: #faf5ff; }
+.rd-not-inline .rd-not-icon { transition: opacity 0.15s; }
+.rd-not-inline:hover .rd-not-icon { opacity: .8; }
+.rd-not-inline.editing { cursor: text; background: #fff; padding: 4px !important; }
+.rd-not-inline textarea.rd-not-input {
+    width: 100%; min-height: 60px; border: 1px solid #a78bfa; border-radius: 4px;
+    padding: 6px 8px; font-size: 13px; font-family: inherit; resize: vertical;
+    outline: none; box-shadow: 0 0 0 2px rgba(139,92,246,.15);
+}
+.rd-not-actions { margin-top: 6px; display: flex; gap: 6px; justify-content: flex-end; }
+.rd-not-actions button {
+    padding: 4px 10px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer;
+}
+.rd-not-save { background: #7c3aed; color: #fff; }
+.rd-not-save:hover { background: #6d28d9; }
+.rd-not-cancel { background: #e5e7eb; color: #4b5563; }
+.rd-not-cancel:hover { background: #d1d5db; }
+</style>
+<script>
+(function(){
+    // Ayni partial birden fazla insert edilebilir; her seferinde tek delegasyon yeter
+    if(window._rdNotInlineWired) return;
+    window._rdNotInlineWired = true;
+
+    var _csrf = function(){ return $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').first().val() || ''; };
+
+    $(document).on('click', '.rd-not-inline:not(.editing)', function(e){
+        e.stopPropagation();
+        var $el = $(this);
+        var orig = $el.attr('data-orig') || '';
+        $el.addClass('editing');
+        $el.html(
+            '<textarea class="rd-not-input" placeholder="Not yazın..."></textarea>' +
+            '<div class="rd-not-actions">' +
+                '<button type="button" class="rd-not-cancel">İptal</button>' +
+                '<button type="button" class="rd-not-save"><i class="fa fa-check"></i> Kaydet</button>' +
+            '</div>'
+        );
+        var $ta = $el.find('textarea.rd-not-input');
+        $ta.val(orig).focus();
+        // Cursor sona
+        try { $ta[0].setSelectionRange(orig.length, orig.length); } catch(_){}
+    });
+
+    // Sadece iptal butonu
+    $(document).on('click', '.rd-not-inline .rd-not-cancel', function(e){
+        e.stopPropagation();
+        var $el = $(this).closest('.rd-not-inline');
+        var orig = $el.attr('data-orig') || '';
+        _renderStatic($el, orig);
+    });
+
+    // Kaydet
+    $(document).on('click', '.rd-not-inline .rd-not-save', function(e){
+        e.stopPropagation();
+        var $el = $(this).closest('.rd-not-inline');
+        _kaydet($el);
+    });
+
+    // Ctrl+Enter kaydet, Esc iptal
+    $(document).on('keydown', '.rd-not-inline textarea.rd-not-input', function(e){
+        var $el = $(this).closest('.rd-not-inline');
+        if(e.key === 'Escape'){
+            e.preventDefault();
+            _renderStatic($el, $el.attr('data-orig') || '');
+        } else if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+            e.preventDefault();
+            _kaydet($el);
+        }
+    });
+
+    // Ic tikta bubble edilmesin (yeniden edit moda gecmesin)
+    $(document).on('click', '.rd-not-inline.editing', function(e){ e.stopPropagation(); });
+
+    function _renderStatic($el, deger){
+        $el.removeClass('editing');
+        var isEmpty = !deger || !String(deger).trim();
+        $el.toggleClass('empty', isEmpty);
+        $el.attr('data-orig', deger || '');
+        $el.html(
+            '<span class="rd-not-goster">' + (isEmpty ? 'Not yok' : _escape(deger)) + '</span>' +
+            '<i class="fa fa-pencil rd-not-icon" style="opacity:.35;margin-left:6px;font-size:11px;"></i>'
+        );
+    }
+
+    function _kaydet($el){
+        var randevuId = $el.attr('data-randevu-id');
+        var alan = $el.attr('data-not-alan');
+        var deger = $el.find('textarea.rd-not-input').val() || '';
+        var $save = $el.find('.rd-not-save').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
+        $.ajax({
+            type: 'POST',
+            url: '/isletmeyonetim/randevu-not-guncelle',
+            dataType: 'json',
+            data: { _token: _csrf(), randevu_id: randevuId, alan: alan, deger: deger }
+        }).done(function(res){
+            _renderStatic($el, res.deger !== undefined ? res.deger : deger);
+        }).fail(function(xhr){
+            $save.prop('disabled', false).html('<i class="fa fa-check"></i> Kaydet');
+            var msg = 'Kaydedilemedi';
+            try { var j = JSON.parse(xhr.responseText); if(j && j.error) msg = j.error; } catch(_){}
+            if(typeof swal !== 'undefined'){
+                swal({type:'error', title:'Hata', text: msg, showConfirmButton:false, timer:2500});
+            } else { alert(msg); }
+        });
+    }
+
+    function _escape(s){
+        return String(s).replace(/[&<>"']/g, function(c){
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+        });
+    }
+})();
+</script>
