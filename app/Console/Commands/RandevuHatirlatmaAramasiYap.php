@@ -103,6 +103,14 @@ class RandevuHatirlatmaAramasiYap extends Command
                         ];
                     }
 
+                    // Tarih/saat anonsu: ham ISO ("2026-09-29") TTS'te bozuk okunuyordu.
+                    // Turkce tarih ("29 Eylül") + net saat ("13:00"). Saat tarih+saat birlesik
+                    // timestamp'ten alinir (TZ tutarli).
+                    $rTs = strtotime($value->tarih . ' ' . $value->saat);
+                    $aylarTR = [1=>'Ocak',2=>'Şubat',3=>'Mart',4=>'Nisan',5=>'Mayıs',6=>'Haziran',7=>'Temmuz',8=>'Ağustos',9=>'Eylül',10=>'Ekim',11=>'Kasım',12=>'Aralık'];
+                    $tarihMetin = date('j', $rTs) . ' ' . ($aylarTR[(int) date('n', $rTs)] ?? '');
+                    $saatMetin  = date('H:i', $rTs);
+
                     $aramaListesi[] = [
                         'alacakIdler' => '',
                         'randevuid' => $value->id,
@@ -110,7 +118,7 @@ class RandevuHatirlatmaAramasiYap extends Command
                         'katilimci' => '',
                         'mesaj' => 'Sayın ' . $value->users->name . '. ' .
                             $salonCache[$value->salon_id]['telaffuz'] .
-                            ' için ' . $value->tarih . ' saat ' . date('H:i', strtotime($value->saat)) .
+                            ' için ' . $tarihMetin . ' saat ' . $saatMetin .
                             ' randevunuzu hatırlatmak isteriz. Randevuya gelecekseniz biri, randevunuzu başka bir tarihe ertelemek istiyorsanız ikiyi tuşlayınız.',
                         'tel' => $value->users->cep_telefon,
                         'salonId' => $value->salon_id,
