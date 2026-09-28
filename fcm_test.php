@@ -115,10 +115,14 @@ if ($tokenArg) {
     }
     $stmt = $pdo->query("SELECT id, bildirim_id, kullanici_tipi, platform, app_bundle, isletme_yetkili_id, user_id, son_kullanim_tarihi
                          FROM bildirim_kimlikleri
-                         WHERE salon_id=432 AND platform='ios' AND aktif=1 AND kullanici_tipi='yetkili'
-                         ORDER BY id DESC LIMIT 10");
+                         WHERE salon_id=432 AND aktif=1 AND kullanici_tipi IN ('yetkili','personel')
+                         ORDER BY platform, id DESC LIMIT 50");
     $tokens = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    echo "salon 432 / yetkili / ios AKTIF token sayisi: ".count($tokens)."\n\n";
+    // Platform dagilimini ozetle (ios vs android karsilastirmasi icin)
+    $dagilim = [];
+    foreach ($tokens as $t) { $p = $t['platform'] ?: 'NULL'; $dagilim[$p] = ($dagilim[$p]??0)+1; }
+    echo "salon 432 / (yetkili+personel) AKTIF token sayisi: ".count($tokens)."\n";
+    echo "Platform dagilimi: ".json_encode($dagilim)."\n\n";
     if (!$tokens) {
         echo "⚠️ Hic ios token bulunamadi. Kontrol: cihaz backend'e kayit oldu mu, platform kolonu 'ios' mu.\n";
         exit(0);
@@ -129,7 +133,8 @@ if ($tokenArg) {
 $endpoint = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send";
 foreach ($tokens as $i => $row) {
     $fcmToken = $row['bildirim_id'];
-    echo "----- [".($i+1)."] id={$row['id']} bundle={$row['app_bundle']} son_kullanim={$row['son_kullanim_tarihi']} -----\n";
+    $plt = $row['platform'] ?? '?'; $ktip = $row['kullanici_tipi'] ?? '?';
+    echo "----- [".($i+1)."] id={$row['id']} [{$plt}/{$ktip}] bundle={$row['app_bundle']} son_kullanim={$row['son_kullanim_tarihi']} -----\n";
     echo "token: ".substr($fcmToken,0,28)."...\n";
 
     $payload = json_encode([
