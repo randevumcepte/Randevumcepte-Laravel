@@ -81,43 +81,34 @@ $tokens = [];
 if ($tokenArg) {
     $tokens[] = ['bildirim_id'=>$tokenArg, 'id'=>'(arg)', 'app_bundle'=>'?', 'son_kullanim_tarihi'=>'?'];
 } else {
-    // .env'den DB bilgisi oku (script kendisi okur)
-    $env = [];
-    $envPath = dirname($jsonPath);
-    // json genelde storage/app/firebase altinda; proje kokunu bul
-    $root = getcwd();
-    foreach ([getcwd().'/.env', dirname($jsonPath).'/../../../.env', dirname($jsonPath).'/../../../../.env'] as $p) {
-        if (is_file($p)) { $root = dirname($p); break; }
-    }
-    $envFile = $root.'/.env';
-    if (is_file($envFile)) {
-        foreach (file($envFile) as $line) {
-            if (preg_match('/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/', $line, $m)) {
-                $env[$m[1]] = trim($m[2], "\"'");
-            }
-        }
-    }
-    $host = $env['DB_HOST'] ?? '127.0.0.1';
-    $port = $env['DB_PORT'] ?? '3306';
-    $db   = $env['DB_DATABASE'] ?? '';
-    $user = $env['DB_USERNAME'] ?? '';
-    $pass = $env['DB_PASSWORD'] ?? '';
-    echo "DB baglaniliyor: $user@$host:$port/$db\n";
-    try {
-        $pdo = new PDO("mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4", $user, $pass, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_TIMEOUT => 10,
-        ]);
-    } catch (Exception $e) {
-        echo "❌ DB baglantisi basarisiz: ".$e->getMessage()."\n";
-        echo "   (DB uzaktaysa bu scripti SUNUCUDA calistirin, ya da token'i 2. arguman olarak verin.)\n";
+    // DB dockerize -> duz PDO ile baglanamiyoruz. Laravel'i bootstrap edip
+    // uygulamanin KENDI DB baglantisini kullaniyoruz (docker DB'ye nasil
+    // baglaniyorsa oyle). Bu yuzden bu yol php74 gerektirir.
+    $autoload  = getcwd().'/vendor/autoload.php';
+    $bootstrap = getcwd().'/bootstrap/app.php';
+    if (!is_file($autoload) || !is_file($bootstrap)) {
+        echo "❌ Laravel bulunamadi (vendor/autoload.php veya bootstrap/app.php yok).\n";
+        echo "   Bu scripti PROJE KOKUNDE ve php74 ile calistirin, ya da token'i 2. arguman olarak verin.\n";
         exit(1);
     }
-    $stmt = $pdo->query("SELECT id, bildirim_id, kullanici_tipi, platform, app_bundle, isletme_yetkili_id, user_id, son_kullanim_tarihi
-                         FROM bildirim_kimlikleri
-                         WHERE salon_id=432 AND aktif=1 AND kullanici_tipi IN ('yetkili','personel')
-                         ORDER BY platform, id DESC LIMIT 50");
-    $tokens = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    require $autoload;
+    $app = require $bootstrap;
+    $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+    try {
+        $rows = Illuminate\Support\Facades\DB::table('bildirim_kimlikleri')
+            ->where('salon_id', 432)
+            ->where('aktif', 1)
+            ->whereIn('kullanici_tipi', ['yetkili', 'personel'])
+            ->orderBy('platform')
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get(['id','bildirim_id','kullanici_tipi','platform','app_bundle','isletme_yetkili_id','user_id','son_kullanim_tarihi']);
+        $tokens = json_decode(json_encode($rows), true);
+    } catch (Exception $e) {
+        echo "❌ DB sorgusu basarisiz: ".$e->getMessage()."\n";
+        exit(1);
+    }
     // Platform dagilimini ozetle (ios vs android karsilastirmasi icin)
     $dagilim = [];
     foreach ($tokens as $t) { $p = $t['platform'] ?: 'NULL'; $dagilim[$p] = ($dagilim[$p]??0)+1; }
