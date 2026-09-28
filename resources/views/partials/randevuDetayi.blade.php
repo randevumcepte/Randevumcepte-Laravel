@@ -313,6 +313,9 @@
             data: { _token: _csrf(), randevu_id: randevuId, alan: alan, deger: deger }
         }).done(function(res){
             _renderStatic($el, res.deger !== undefined ? res.deger : deger);
+            // Randevu detay HTML client cache'i temizle — modal kapatilip yeniden
+            // acildiginda backend'ten fresh yuklensin (yoksa notlar hala eski gorunur).
+            try { if(window._rcDetayCache) window._rcDetayCache = {}; } catch(_){}
         }).fail(function(xhr){
             $save.prop('disabled', false).html('<i class="fa fa-check"></i> Kaydet');
             var msg = 'Kaydedilemedi';
