@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Fiyat Teklifi · Zeyde Turizm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0e1c30; --navy2:#13273f; --navy3:#1b3a5c;
+    --deep:#0a1524; --gold:#c9a24b; --gold2:#e0c583; --gold-soft:#e7d3a0;
+    --ink:#16243a; --muted:#6a7385; --line:#e6e9ef; --bg:#f4f6f9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{font-family:'Manrope',-apple-system,Segoe UI,Arial,sans-serif;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{size:A4;margin:0}
+  body{background:#33383f;display:flex;flex-direction:column;align-items:center;gap:10mm;padding:10mm 0}
+  .page{width:210mm;min-height:297mm;padding:16mm 16mm 14mm;position:relative;page-break-after:always;background:#fff;overflow:hidden}
+  .page:last-child{page-break-after:auto}
+  @media print{body{background:#fff;display:block;gap:0;padding:0}}
+  h1,h2,h3,h4{color:var(--navy);line-height:1.15;letter-spacing:-.01em}
+  p{line-height:1.5;font-size:10.5pt;color:#3d4658}
+  .serif{font-family:'Playfair Display',Georgia,serif;font-style:italic}
+  .gold{color:var(--gold)}
+
+  /* brand */
+  .brand{display:flex;align-items:center;gap:13px}
+  .brand .w{width:48px;height:48px;border-radius:12px;background:rgba(201,162,75,.1);border:1px solid var(--gold);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:19pt;color:var(--gold)}
+  .brand .bn{font-weight:800;letter-spacing:4px;font-size:13pt;color:#fff}
+  .brand .bn small{display:block;color:var(--gold-soft);letter-spacing:2.6px;font-size:6.6pt;font-weight:600;margin-top:3px}
+  .brand.dark .bn{color:var(--navy)}
+  .brand.dark .w{width:40px;height:40px;font-size:15pt;background:var(--navy);color:var(--gold);border-color:var(--navy)}
+
+  /* COVER */
+  .cover{background:linear-gradient(160deg,#0a1524 0%,#0e1c30 45%,#16304e 100%);color:#fff;display:flex;flex-direction:column;justify-content:flex-start}
+  .cover::after{content:"";position:absolute;inset:0;background:
+    radial-gradient(560px 340px at 90% 6%,rgba(201,162,75,.16),transparent 60%),
+    radial-gradient(460px 300px at 0% 100%,rgba(40,90,150,.30),transparent 62%);pointer-events:none}
+  .cover>*{position:relative;z-index:2}
+  .cover-mid{margin-top:58mm}
+  .kicker{color:var(--gold);letter-spacing:6px;font-size:10.5pt;font-weight:700;text-transform:uppercase}
+  .cover h1{color:#fff;font-size:33pt;font-weight:800;margin:16px 0 4px;line-height:1.08}
+  .cover h1 .g{color:var(--gold);font-family:'Playfair Display',Georgia,serif;font-style:italic;font-weight:700}
+  .cover .sub{color:#c7d3e2;font-size:11.5pt;max-width:170mm;line-height:1.6;margin-top:14px}
+  .to{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap}
+  .tob{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:13px 18px;min-width:46mm}
+  .tob .k{font-size:7pt;color:var(--gold);letter-spacing:2px;text-transform:uppercase;font-weight:700}
+  .tob .val{font-size:11.5pt;color:#fff;font-weight:700;margin-top:4px}
+  .cover-foot{position:absolute;left:16mm;right:16mm;bottom:14mm;z-index:2;display:flex;justify-content:space-between;align-items:flex-end;color:#8fa1b8;font-size:9pt;border-top:1px solid rgba(255,255,255,.14);padding-top:12px}
+  .cover-foot b{color:#fff}
+
+  /* interior header/footer */
+  .ph{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--navy);padding-bottom:10px;margin-bottom:16px}
+  .ph .k{color:var(--gold);font-weight:800;letter-spacing:3px;font-size:8pt;text-transform:uppercase}
+  .ph h2{font-size:19pt;margin-top:2px}
+  .ph .w2{width:38px;height:38px;border-radius:10px;background:var(--navy);color:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13pt}
+  .foot{position:absolute;bottom:9mm;left:16mm;right:16mm;display:flex;justify-content:space-between;color:var(--muted);font-size:7.6pt;border-top:1px solid var(--line);padding-top:7px}
+  .foot b{color:var(--navy)}
+
+  .lead{background:var(--bg);border-left:4px solid var(--gold);padding:14px 18px;border-radius:0 8px 8px 0;margin-bottom:18px}
+  .lead p{font-size:10.3pt;color:#33405a}
+  .lead b{color:var(--navy)}
+
+  /* overview cards */
+  .ocards{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+  .oc{border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start}
+  .oc .ic{width:44px;height:44px;border-radius:11px;background:linear-gradient(140deg,var(--navy),var(--navy3));color:var(--gold2);display:flex;align-items:center;justify-content:center;font-size:19pt;flex-shrink:0}
+  .oc h3{font-size:12pt;margin-bottom:4px}
+  .oc p{font-size:9pt;color:#55617a;line-height:1.42}
+
+  .subttl{font-size:13pt;margin:22px 0 6px;color:var(--navy)}
+  .subttl+.smut{color:var(--muted);font-size:9.5pt;margin-bottom:12px}
+  .pills{display:flex;flex-wrap:wrap;gap:10px}
+  .pill{border:1px solid var(--gold);border-radius:22px;padding:8px 16px;font-size:9.5pt;font-weight:600;color:var(--navy);display:flex;align-items:center;gap:7px}
+  .pill b{color:var(--gold);font-size:7.5pt;font-weight:800;letter-spacing:.5px;text-transform:uppercase}
+
+  .rdnote{border:1px dashed var(--gold);border-radius:10px;padding:13px 16px;margin-top:20px;background:#fdfaf2}
+  .rdnote p{font-size:8.8pt;color:#6d5a2c}
+  .rdnote b{color:#4d3f18}
+
+  /* section groups */
+  .grp{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:15px}
+  .grp-h{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;display:flex;align-items:center;gap:12px;padding:11px 16px}
+  .grp-h .badge{width:26px;height:26px;border-radius:7px;background:var(--gold);color:var(--navy);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12pt;flex-shrink:0}
+  .grp-h h3{color:#fff;font-size:12pt;flex:1}
+  .grp-h .tag{border:1px solid var(--gold);color:var(--gold2);font-size:7.4pt;font-weight:800;letter-spacing:1.5px;padding:4px 11px;border-radius:20px;text-transform:uppercase}
+  .row{padding:9px 16px;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:0}
+  .row .t{font-size:10pt;font-weight:700;color:var(--navy)}
+  .row .d{font-size:8.7pt;color:#5b657a;line-height:1.4;margin-top:2px}
+  .row .d b{color:var(--navy)}
+
+  /* summary */
+  .gozet{font-size:14pt;margin:8px 0 12px}
+  .sums{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .sum{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .sum-h{background:var(--navy);color:#fff;padding:12px 16px;font-weight:800;font-size:11.5pt}
+  .sum-r{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .sum-r .l{font-size:9.6pt;color:#3d4658}
+  .sum-r .v{font-weight:800;font-size:12pt;color:var(--navy)}
+  .sum-r.tot{background:linear-gradient(135deg,#e9d6a4,#f2e7c6)}
+  .sum-r.tot .l{font-weight:800;color:var(--navy)}
+  .sum-r.tot .v{color:var(--navy);font-size:14pt}
+  .sum-r.tot .v small{font-size:9pt}
+
+  .cta{background:linear-gradient(135deg,#0a1524,#16304e);color:#fff;border-radius:12px;padding:18px 22px;margin-top:16px;position:relative;overflow:hidden}
+  .cta::after{content:"";position:absolute;inset:0;background:radial-gradient(300px 170px at 92% 0,rgba(201,162,75,.22),transparent 60%)}
+  .cta-in{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:20px}
+  .cta h3{color:#fff;font-size:14pt}
+  .cta p{color:#c7d3e2;font-size:9pt;margin-top:5px;max-width:120mm}
+  .cta .sign{text-align:center;flex-shrink:0}
+  .cta .sign .line{width:48mm;border-top:1px solid var(--gold-soft);margin:26px auto 6px}
+  .cta .sign small{color:var(--gold-soft);font-size:8pt}
+  .contact{display:flex;justify-content:center;gap:26px;margin-top:14px;flex-wrap:wrap}
+  .contact .ci{font-size:9pt;color:var(--navy)}
+  .contact .ci b{color:var(--gold);letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<!-- ============ KAPAK ============ -->
+<section class="page cover">
+  <div class="brand">
+    <div class="w">W</div>
+    <div class="bn">WEBFİRMAM<small>DİJİTAL STRATEJİ &amp; İTİBAR DANIŞMANLIĞI</small></div>
+  </div>
+
+  <div class="cover-mid">
+    <div class="kicker">FİYAT TEKLİFİ</div>
+    <h1>Zeyde Turizm<br>Golf &amp; Dijital Ekosistem<br><span class="g">Fiyat Teklifi</span></h1>
+    <div class="sub">Çok dilli yeni nesil “yaşayan” golf web sitesi, Google SEO altyapısı, dil bazlı Google &amp; Yandex İşletme (harita) kayıtları ve çok kanallı sosyal medya yönetimi — golf turistini sahaya getiren uçtan uca dijital kurgu.</div>
+
+    <div class="to">
+      <div class="tob"><div class="k">Hazırlayan</div><div class="val">Webfirmam</div></div>
+      <div class="tob"><div class="k">Kime</div><div class="val">Zeyde Turizm</div></div>
+      <div class="tob"><div class="k">Teklif Tarihi</div><div class="val">28 Eylül 2026</div></div>
+      <div class="tob"><div class="k">Geçerlilik</div><div class="val">30 gün</div></div>
+    </div>
+  </div>
+
+  <div class="cover-foot">
+    <div>Teklif No: <b>WF-2026-ZEYDE-01</b></div>
+    <div>Gizli · Yalnızca Muhataba Özel</div>
+  </div>
+</section>
+
+<!-- ============ GENEL BAKIŞ ============ -->
+<section class="page">
+  <div class="ph"><div><div class="k">Genel Bakış</div><h2>Teklif Kapsamı</h2></div><div class="w2">W</div></div>
+
+  <div class="lead"><p>Bu teklif, <b>Zeyde Turizm</b> golf işletmesi için uçtan uca dijital ekosistemi kapsar: çok dilli “yaşayan” web sitesinden arama motoru altyapısına, dil bazlı harita kayıtlarından çok kanallı sosyal medya yönetimine kadar. Kalemler <b>Tek Seferlik Kurulum</b> ve <b>Aylık Yönetim</b> olarak iki bölümde sunulmuştur. Amaç: golf turistini her dilde bularak <b>doğrudan rezervasyon ve tee-time talebine</b> dönüştürmek.</p></div>
+
+  <div class="ocards">
+    <div class="oc"><div class="ic">🌐</div><div><h3>Yeni Nesil “Yaşayan” Web Sitesi</h3><p>Animasyonlu/interaktif, çok dilli, tee-time rezervasyon formu + galeri &amp; sosyal medya bağlantılı.</p></div></div>
+    <div class="oc"><div class="ic">🔎</div><div><h3>Google SEO Altyapısı</h3><p>Teknik SEO, anahtar kelime haritalama, çok dilli optimizasyon (golf turizmi odaklı).</p></div></div>
+    <div class="oc"><div class="ic">📍</div><div><h3>Harita Kayıtları (Dil Bazlı)</h3><p>Google &amp; Yandex İşletme kurulumu ve doğrulaması; her dilde ayrı optimizasyon.</p></div></div>
+    <div class="oc"><div class="ic">📱</div><div><h3>Sosyal Medya Yönetimi</h3><p>Instagram · Facebook · YouTube; içerik üretimi, Reels ve topluluk yönetimi.</p></div></div>
+  </div>
+
+  <div class="subttl">Çok dilli yapı — golf turizmi pazarları</div>
+  <div class="smut">Hedef pazarlara göre önerilen dil seti (onayınıza göre netleşir):</div>
+  <div class="pills">
+    <div class="pill"><b>TR</b> Türkçe</div>
+    <div class="pill"><b>EN</b> İngilizce</div>
+    <div class="pill"><b>DE</b> Almanca</div>
+    <div class="pill"><b>RU</b> Rusça</div>
+    <div class="pill"><b>SE</b> İsveççe</div>
+    <div class="pill"><b>NO</b> Norveççe</div>
+    <div class="pill"><b>FI</b> Fince</div>
+    <div class="pill"><b>FR</b> Fransızca</div>
+  </div>
+
+  <div class="rdnote"><p><b>Nasıl okunur:</b> “Tek Seferlik Kurulum” kalemleri projenin bir defa yapılan kuruluş işleridir. “Aylık Yönetim” kalemleri ise düzenli devam eden içerik, paylaşım ve takip hizmetleridir. <b>Fiyat alanları görüşme öncesi bilinçli olarak “0” bırakılmıştır.</b></p></div>
+
+  <div class="foot"><span><b>Webfirmam</b> · Fiyat Teklifi</span><span>Zeyde Turizm · Golf &amp; Dijital Ekosistem</span></div>
+</section>
+
+<!-- ============ BÖLÜM 01 · TEK SEFERLİK ============ -->
+<section class="page">
+  <div class="ph"><div><div class="k">Bölüm 01</div><h2>Tek Seferlik Kurulum</h2></div><div class="w2">W</div></div>
+
+  <div class="grp">
+    <div class="grp-h"><div class="badge">A</div><h3>Yeni Nesil “Yaşayan” Golf Web Sitesi</h3><div class="tag">Tek Seferlik</div></div>
+    <div class="row"><div class="t">Özel tasarım + “yaşayan” arayüz</div><div class="d">Sinematik açılış, hareketli/interaktif bölümler, saha videosu — golf turistine premium bir kulüp deneyimi. Hazır tema değil, markaya özgün.</div></div>
+    <div class="row"><div class="t">Çok dilli altyapı</div><div class="d">Dil değiştirme sistemi, hreflang, her dil için ayrı içerik alanı ve yönetimi (TR/EN/DE/RU + isteğe bağlı Skandinav dilleri).</div></div>
+    <div class="row"><div class="t">Tee-time / rezervasyon modülü</div><div class="d">Ziyaretçi tarih, kişi sayısı ve dil seçerek rezervasyon talebi gönderir; talep doğrudan işletmeye ulaşır (form + e-posta/WhatsApp bildirimi).</div></div>
+    <div class="row"><div class="t">Saha &amp; kulüp tanıtım bölümleri</div><div class="d">18 delik/par bilgisi, imza delikler, akademi, clubhouse, konaklama/paket sayfaları ve <b>galeri</b>.</div></div>
+    <div class="row"><div class="t">Sosyal medya entegrasyonu</div><div class="d">Instagram/YouTube akışı + tüm hesaplara bağlantılar; Reels ve video gömme.</div></div>
+    <div class="row"><div class="t">Yönetim paneli + eğitim</div><div class="d">İçerik, fiyat ve görselleri kendiniz güncelleyebilmeniz için panel ve kısa kullanım eğitimi.</div></div>
+    <div class="row"><div class="t">Mobil uyum · hız · güvenlik</div><div class="d">Tüm cihazlarda kusursuz görünüm, hızlı yükleme, SSL güvenlik; 1. yıl hosting &amp; alan adı dahil.</div></div>
+  </div>
+
+  <div class="grp">
+    <div class="grp-h"><div class="badge">B</div><h3>Google SEO Altyapısı</h3><div class="tag">Tek Seferlik</div></div>
+    <div class="row"><div class="t">Teknik SEO kurulumu</div><div class="d">Schema (JSON-LD: LocalBusiness/GolfCourse), sitemap, temiz URL yapısı, Core Web Vitals hız optimizasyonu.</div></div>
+    <div class="row"><div class="t">Anahtar kelime araştırması &amp; haritalama</div><div class="d">“belek golf sahası”, “antalya golf tatili”, “golf course turkey”, “tee time belek” gibi hedeflerin belirlenip sayfalara bağlanması.</div></div>
+    <div class="row"><div class="t">Çok dilli SEO</div><div class="d">Her dil için hreflang ve dil bazlı anahtar kelime kurgusu (DE/RU/İskandinav golf turisti aramaları dahil).</div></div>
+    <div class="row"><div class="t">Search Console + Analytics kurulumu</div><div class="d">Ölçüm, dönüşüm (rezervasyon formu) ve raporlama altyapısının bağlanması.</div></div>
+  </div>
+
+  <div class="grp">
+    <div class="grp-h"><div class="badge">C</div><h3>Harita Kayıtları &amp; Hesap Kurulumu (Dil Bazlı)</h3><div class="tag">Tek Seferlik</div></div>
+    <div class="row"><div class="t">Google İşletme Profili — dil bazlı</div><div class="d">Hesap açılışı, doğrulama, kategori/hizmet/saat optimizasyonu; <b>her dilde ayrı açıklama ve anahtar kelime</b> (TR·EN·DE·RU). “Yakınımdaki golf” aramalarında görünürlük.</div></div>
+    <div class="row"><div class="t">Yandex İşletme (Rus pazarı)</div><div class="d">Yandex Business hesabı açılışı ve doğrulaması; Rusça golf turisti için harita görünürlüğü.</div></div>
+    <div class="row"><div class="t">Instagram + Facebook kurulum/optimizasyon</div><div class="d">Profil, biyografi, görsel kimlik, öne çıkan hikâyeler, bağlantılar.</div></div>
+    <div class="row"><div class="t">YouTube kanal kurulumu</div><div class="d">Kanal oluşturma, marka görselleri, bölüm/oynatma listesi yapısı (saha tanıtım videoları için).</div></div>
+    <div class="row"><div class="t">Görsel &amp; video yükleme</div><div class="d">Profesyonel saha fotoğraf/videolarının profillere ve haritaya yüklenmesi.</div></div>
+  </div>
+
+  <div class="foot"><span><b>Webfirmam</b> · Fiyat Teklifi</span><span>Bölüm 01 · Tek Seferlik Kurulum</span></div>
+</section>
+
+<!-- ============ BÖLÜM 02 · AYLIK ============ -->
+<section class="page">
+  <div class="ph"><div><div class="k">Bölüm 02</div><h2>Aylık Yönetim</h2></div><div class="w2">W</div></div>
+
+  <div class="lead"><p>Kurulumdan sonra markayı canlı tutan düzenli hizmetler. Aşağıdaki kalemler <b>aylık</b> olarak sunulur ve içerik hacmine göre paketlenebilir. Amaç: her ay taze içerik + yükselen sıralama + artan rezervasyon.</p></div>
+
+  <div class="grp">
+    <div class="grp-h"><div class="badge">D</div><h3>Sosyal Medya &amp; İçerik Yönetimi</h3><div class="tag">Aylık</div></div>
+    <div class="row"><div class="t">Instagram + Facebook yönetimi</div><div class="d">Aylık içerik takvimi, tasarım gönderiler (1:1, 4:5), günlük hikâye paylaşımı, etkileşim &amp; DM yönetimi.</div></div>
+    <div class="row"><div class="t">Reels / kısa video üretimi</div><div class="d">Sahadan çekilen görüntülerin kurgusu; altyazı, müzik, marka bindirmesi (9:16). “1 çekim → çok içerik” modeli.</div></div>
+    <div class="row"><div class="t">YouTube yönetimi</div><div class="d">Video yayın planı, başlık/açıklama SEO, tanıtım ve Shorts üretimi.</div></div>
+    <div class="row"><div class="t">İçerik üretimi (görsel · video · metin)</div><div class="d">Aylık belirlenen adette özgün içerik; çok dilli caption (TR/EN/DE/RU) ile uluslararası kitleye hitap.</div></div>
+    <div class="row"><div class="t">Meta reklam yönetimi (opsiyonel)</div><div class="d">Hedef kitle kurgusu, A/B test, rezervasyon/mesaj dönüşüm kampanyaları. <b>Reklam bütçesi hariç.</b></div></div>
+  </div>
+
+  <div class="grp">
+    <div class="grp-h"><div class="badge">E</div><h3>SEO Takip · Harita · Raporlama</h3><div class="tag">Aylık</div></div>
+    <div class="row"><div class="t">Anahtar kelime bazlı SEO takibi</div><div class="d">Hedef kelimelerde sıralama izleme, on-page iyileştirme, aylık içerik/blog ile otorite büyütme.</div></div>
+    <div class="row"><div class="t">Harita &amp; yorum yönetimi</div><div class="d">Google/Yandex İşletme güncel tutma, gönderi ekleme, yorum yanıtları ve yıldız stratejisi.</div></div>
+    <div class="row"><div class="t">Blog / haber içerik yönetimi</div><div class="d">Aylık SEO uyumlu yazılar (golf, saha, etkinlik, turnuva duyuruları); yayın ve güncelleme.</div></div>
+    <div class="row"><div class="t">Aylık performans raporu</div><div class="d">Erişim, sıralama, harita görünürlüğü ve rezervasyon dönüşümlerinin şeffaf raporlanması.</div></div>
+  </div>
+
+  <div class="gozet" style="margin-top:20px">Genel Özet</div>
+  <div class="sums">
+    <div class="sum">
+      <div class="sum-h">Tek Seferlik Kurulum</div>
+      <div class="sum-r"><span class="l">A · Web Sitesi</span><span class="v">0 TL</span></div>
+      <div class="sum-r"><span class="l">B · SEO Altyapısı</span><span class="v">0 TL</span></div>
+      <div class="sum-r"><span class="l">C · Harita &amp; Hesap Kurulumu</span><span class="v">0 TL</span></div>
+      <div class="sum-r tot"><span class="l">TOPLAM (Tek Seferlik)</span><span class="v">0 TL</span></div>
+    </div>
+    <div class="sum">
+      <div class="sum-h">Aylık Yönetim</div>
+      <div class="sum-r"><span class="l">D · Sosyal Medya &amp; İçerik</span><span class="v">0 <small>TL/ay</small></span></div>
+      <div class="sum-r"><span class="l">E · SEO · Harita · Rapor</span><span class="v">0 <small>TL/ay</small></span></div>
+      <div class="sum-r" style="visibility:hidden"><span class="l">—</span><span class="v">—</span></div>
+      <div class="sum-r tot"><span class="l">TOPLAM (Aylık)</span><span class="v">0 <small>TL/ay</small></span></div>
+    </div>
+  </div>
+
+  <div class="cta">
+    <div class="cta-in">
+      <div>
+        <h3>Başlamaya hazır mısınız?</h3>
+        <p>Onayınızın ardından strateji görüşmesini yapıp web sitesini kuruyor, dil bazlı harita kayıtlarını açıyor ve içerik takvimini çıkarıyoruz. Zeyde Turizm'i golf turizminde dijital olarak öne çıkaralım.</p>
+      </div>
+      <div class="sign"><div class="line"></div><small>Onay · İmza</small></div>
+    </div>
+  </div>
+
+  <div class="contact">
+    <div class="ci"><b>TELEFON</b> &nbsp;0541 294 81 44</div>
+    <div class="ci"><b>WHATSAPP</b> &nbsp;0541 294 81 44</div>
+    <div class="ci"><b>WEB</b> &nbsp;www.webfirmam.com</div>
+  </div>
+
+  <div class="foot"><span><b>Webfirmam</b> · Fiyat Teklifi</span><span>Teklif No: WF-2026-ZEYDE-01</span></div>
+</section>
+
+</body>
+</html>
