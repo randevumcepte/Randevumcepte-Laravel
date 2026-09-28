@@ -9350,23 +9350,19 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
 
     public function kampanyapasifet(Request $request)
-
     {
-
-        $kampanya = KampanyaYonetimi::where(
-
-            "id",
-
-            $request->kampanyaid
-
-        )->first();
-
+        // Hem kampanyaid (web/eski) hem kampanya_id (Flutter) kabul edilir. Eskiden yalniz
+        // kampanyaid okunuyordu -> Flutter kampanya_id gonderince id=null -> null->save() FATAL
+        // (500) -> app "Silinemedi" diyordu. Null-guard + JSON donus eklendi.
+        $id = $request->input('kampanyaid', $request->input('kampanya_id'));
+        $kampanya = KampanyaYonetimi::where("id", $id)->first();
+        if (!$kampanya) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Kampanya bulunamadi'], 404);
+        }
         $kampanya->aktifmi = 0;
-
         $kampanya->save();
-
-        Audit::logApi(optional($kampanya)->salon_id, $request, 'kampanya_pasif', 'kampanya', optional($kampanya)->id, optional($kampanya)->paket_isim, 'Kampanya pasife alindi.');
-
+        Audit::logApi($kampanya->salon_id, $request, 'kampanya_pasif', 'kampanya', $kampanya->id, $kampanya->paket_isim, 'Kampanya pasife alindi.');
+        return response()->json(['basarili' => true]);
     }
 
     public function urunpasifet(Request $request)
