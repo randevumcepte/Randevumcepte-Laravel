@@ -986,21 +986,15 @@ console.log("İlk satır hizmet detayları:", <?php echo json_encode($seanslar[0
                                 responsive: true,
                                 "order": [[ 4, "desc" ]],
                                 columns:[
-                                    
                                     { data: 'tarih' },
-                                   
                                     { data: 'saat' },
-                                    { data: 'durum' }, 
-                                   
-                                    { data: 'hizmetler'   }, 
-                                     { data: 'personelcihazoda'   }, 
+                                    { data: 'durum' },
+                                    { data: 'hizmetler'   },
+                                    { data: 'personelcihazoda'   },
+                                    { data: 'randevu_notu', defaultContent: '', render: function(d){ return d ? String(d).replace(/</g,'&lt;') : '<span style="color:#bbb;font-style:italic;">—</span>'; } },
                                     { data: 'olusturan' },
                                     { data: 'olusturulma' },
-                                
                                     { data: 'islemler' }
-                                      
-                                 
-                                     
                                 ],
                                 data: <?php echo $randevular_liste; ?>,
                         
