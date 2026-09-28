@@ -202,6 +202,21 @@ class DersHatirlatma extends Command
                 $mesaj .= "\n\n" . '💳 Ayrıca tamamlanmamış bir ödemeniz görünmektedir. Ödemenizi tamamlamak için bizimle iletişime geçebilirsiniz.';
             }
             DersBildirimServisi::musteriyeGonder($salon, $m, $mesaj, 'ders_hatirlatma');
+
+            // PUSH — WhatsApp/SMS kanalindan BAGIMSIZ: salon WA bagli olsun olmasin,
+            // her durumda uygulama bildirimi de gonderilir (kullanici talebi).
+            try {
+                $pushBody = $dersAdi . ' dersiniz ' . $tarihStr . ' ' . $saatStr . '. Görüşmek üzere!'
+                    . ($odemeBekliyor ? ' (Bekleyen ödemeniz bulunmaktadır.)' : '');
+                \App\Services\NotificationService::toCustomer($m->id, $salon->id)
+                    ->type(\App\Services\NotificationTypes::CLASS_REMINDER)
+                    ->title('Ders Hatırlatması')
+                    ->body($pushBody)
+                    ->deepLink('sessions')
+                    ->send();
+            } catch (\Throwable $e) {
+                Log::warning('[DERS-HAT] push fail', ['salon_id' => $salon->id, 'user_id' => $m->id, 'err' => $e->getMessage()]);
+            }
         }
         if ($dry) return;
 
