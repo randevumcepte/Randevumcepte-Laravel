@@ -483,19 +483,23 @@
 });
             
             $(document).on('click','.fc-header-toolbar button',function(){
-            
+
                 $('#takvim_tarihe_gore').val('');
-                     
+
                   var view = $('#calendar').fullCalendar('getView');
-      
+
                   if(view.type=='agendaDay'){
                      <?php $headdata = json_decode($randevular['resource'],true); ?>
                   <?php foreach($headdata as $key=>$res){ ?>
                      $('.fc th:nth-child('+<?php echo $key+2 ;?>+'n)').css({'background':'<?php echo $res['bgcolor']; ?>','color':'#fff'});
-                      
+
                   <?php } ?>
-                  }  
-                  takvimyukle(true,false);
+                  }
+                  // turdegisti=true (onceden false idi): backend sadeceEvent=false
+                  // dondurup resource title'larini yeni tarihin sayilariyla hesaplasin;
+                  // frontend destroy+reinit ile resource'lari yenilesin. Aksi halde
+                  // tarih degisince kolon basligindaki (N) sayilari eski tarihte kaliyordu.
+                  takvimyukle(true,true);
                  
                   
             });
