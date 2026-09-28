@@ -8875,20 +8875,19 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     {
 
+        // Arama SADECE dolu ise isim filtresi uygulanir. (Eskiden bos aramada bile
+        // paket_isim/hizmet_adi LIKE '%%' vardi -> ikisi de NULL olan kampanyalar -orn.
+        // hizmet-only, paket_isim null- listede HIC gozukmuyordu.)
         return KampanyaYonetimi::with("kampanya_katilimcilari")
-
             ->where("salon_id", $salonid)
-
             ->where("aktifmi", 1)
-
-            ->where(function ($q) use ($request) {
-
-                $q->where("paket_isim", "like", "%" . $request->arama . "%");
-
-                $q->orWhere("hizmet_adi", "like", "%" . $request->arama . "%");
-
+            ->when(trim((string) $request->arama) !== '', function ($q) use ($request) {
+                $q->where(function ($x) use ($request) {
+                    $x->where("paket_isim", "like", "%" . $request->arama . "%")
+                      ->orWhere("hizmet_adi", "like", "%" . $request->arama . "%");
+                });
             })
-
+            ->orderBy("id", "desc")
             ->paginate(10);
 
     }
