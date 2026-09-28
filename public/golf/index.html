@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Yeşilvadi Golf · Marka & Dijital Teklifi</title>
-<meta name="description" content="Golf sahası işletmesi için sinematik web tasarım ve sosyal medya teklifi." />
+<title>Yeşilvadi Golf · Dijital Hizmet Teklifi</title>
+<meta name="description" content="Golf sahası işletmesi için web sitesi, sosyal medya, Google Harita ve SEO teklifi." />
 <script>document.documentElement.className='js';</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -17,12 +17,12 @@
     --ink:#081a11;
     --line:rgba(200,162,74,.20);
     --glass:rgba(244,239,227,.04);--glass-brd:rgba(244,239,227,.11);
-    --maxw:1180px;
+    --maxw:1120px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Jost',system-ui,sans-serif;background:var(--green);color:var(--cream);
-    line-height:1.65;overflow-x:hidden;-webkit-font-smoothing:antialiased}
-  h1,h2,h3,.serif{font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;line-height:1.05}
+    line-height:1.7;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,h4,.serif{font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;line-height:1.08}
   a{color:inherit;text-decoration:none}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
   .gold{color:var(--gold)} .sky{color:var(--sky)}
@@ -30,18 +30,18 @@
 
   .aura{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
   .aura::before,.aura::after{content:"";position:absolute;border-radius:50%;filter:blur(90px);opacity:.4}
-  .aura::before{width:55vw;height:55vw;left:-12vw;top:-10vw;background:radial-gradient(circle,rgba(87,196,139,.25),transparent 60%)}
-  .aura::after{width:52vw;height:52vw;right:-12vw;bottom:-8vw;background:radial-gradient(circle,rgba(200,162,74,.22),transparent 60%)}
+  .aura::before{width:55vw;height:55vw;left:-12vw;top:-10vw;background:radial-gradient(circle,rgba(87,196,139,.22),transparent 60%)}
+  .aura::after{width:52vw;height:52vw;right:-12vw;bottom:-8vw;background:radial-gradient(circle,rgba(200,162,74,.20),transparent 60%)}
 
   .progress{position:fixed;top:0;left:0;height:2px;width:0;z-index:60;background:linear-gradient(90deg,var(--sky),var(--gold))}
   .nav{position:fixed;inset:0 0 auto 0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:20px 28px;transition:.45s}
-  .nav.scrolled{background:rgba(8,26,17,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:13px 28px}
+  .nav.scrolled{background:rgba(8,26,17,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:13px 28px}
   .logo{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:700;letter-spacing:.03em;display:flex;align-items:center;gap:11px}
   .logo .crest{width:28px;height:28px;border:1.5px solid var(--gold);border-radius:50%;display:grid;place-items:center;font-size:12px;color:var(--gold)}
-  .logo small{display:block;font-family:'Jost';font-weight:500;font-size:9px;letter-spacing:.24em;color:var(--gold);text-transform:uppercase}
-  .navlinks{display:flex;gap:26px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .logo small{display:block;font-family:'Jost';font-weight:500;font-size:9px;letter-spacing:.22em;color:var(--gold);text-transform:uppercase}
+  .navlinks{display:flex;gap:22px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
   .navlinks a{transition:.3s} .navlinks a:hover{color:var(--gold)}
-  @media(max-width:860px){.navlinks{display:none}}
+  @media(max-width:880px){.navlinks{display:none}}
   .btn{display:inline-flex;align-items:center;gap:9px;padding:14px 26px;border-radius:2px;font-size:12.5px;
     letter-spacing:.13em;text-transform:uppercase;font-weight:500;transition:.4s;cursor:pointer;border:1px solid transparent}
   .btn-gold{background:linear-gradient(120deg,var(--gold),var(--gold-2));color:var(--ink)}
@@ -52,86 +52,79 @@
 
   .hero{position:relative;min-height:100svh;display:flex;align-items:center;overflow:hidden}
   .hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
-  .hero .veil{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(8,26,17,.6),rgba(8,26,17,.45) 45%,rgba(11,42,28,.92))}
+  .hero .veil{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(8,26,17,.6),rgba(8,26,17,.45) 45%,rgba(11,42,28,.94))}
   .hero .wrap{position:relative;z-index:2;padding-top:80px}
   .eyebrow{display:inline-flex;align-items:center;gap:12px;color:var(--gold);margin-bottom:24px}
   .eyebrow::before{content:"";width:32px;height:1px;background:var(--gold)}
-  .hero h1{font-size:clamp(44px,8vw,104px);font-weight:600}
+  .hero h1{font-size:clamp(42px,7.5vw,98px);font-weight:600}
   .hero h1 em{font-style:italic;color:var(--gold)}
-  .hero .lead{max-width:540px;margin-top:24px;font-size:18px;font-weight:300;opacity:.94}
+  .hero .lead{max-width:560px;margin-top:24px;font-size:18px;font-weight:300;opacity:.95}
   .hero-cta{display:flex;flex-wrap:wrap;gap:16px;margin-top:38px}
-  .scrollcue{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:2;color:var(--muted);
+  .scrollcue{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:2;color:var(--muted);
     display:flex;flex-direction:column;align-items:center;gap:10px;font-size:11px;letter-spacing:.3em;text-transform:uppercase}
   .scrollcue .dot{width:22px;height:36px;border:1px solid var(--muted);border-radius:14px;position:relative}
   .scrollcue .dot::after{content:"";position:absolute;top:7px;left:50%;transform:translateX(-50%);width:3px;height:7px;border-radius:2px;background:var(--gold);animation:cue 1.6s infinite}
   @keyframes cue{0%{opacity:0;transform:translate(-50%,0)}40%{opacity:1}100%{opacity:0;transform:translate(-50%,14px)}}
 
   section{position:relative;z-index:2}
-  .sec{padding:110px 0}
+  .sec{padding:100px 0}
+  .sec.tight{padding:70px 0}
   .sec-num{color:var(--gold);margin-bottom:14px}
-  .sec-title{font-size:clamp(32px,5vw,60px)}
-  .sec-sub{max-width:560px;margin-top:16px;color:var(--muted);font-weight:300;font-size:17px}
-  .sec-head{margin-bottom:54px}
+  .sec-title{font-size:clamp(30px,4.6vw,56px)}
+  .sec-sub{max-width:640px;margin-top:16px;color:var(--muted);font-weight:300;font-size:17px}
+  .sec-head{margin-bottom:48px}
 
-  .grid{display:grid;gap:24px}
-  .g2{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:repeat(3,1fr)}
-  @media(max-width:900px){.g2,.g3{grid-template-columns:1fr}}
-  .card{position:relative;background:var(--glass);border:1px solid var(--glass-brd);border-radius:6px;padding:34px;overflow:hidden;
-    transition:transform .5s cubic-bezier(.2,.7,.2,1),border-color .4s;backdrop-filter:blur(8px)}
-  .card::before{content:"";position:absolute;inset:0;opacity:0;transition:.5s;
-    background:radial-gradient(480px circle at var(--mx,50%) var(--my,0%),rgba(200,162,74,.13),transparent 45%)}
-  .card:hover{transform:translateY(-8px);border-color:var(--gold)}
-  .card:hover::before{opacity:1}
-  .card.feat{border-color:var(--line)}
-  .ribbon{position:absolute;top:20px;right:-40px;transform:rotate(45deg);background:linear-gradient(120deg,var(--gold),var(--gold-2));
-    color:var(--ink);font-size:10.5px;font-weight:700;letter-spacing:.12em;padding:6px 48px;text-transform:uppercase}
-  .tag{color:var(--sky)} .card h3{font-size:28px;margin:4px 0 2px}
-  .mock{aspect-ratio:16/10;border-radius:4px;margin-bottom:24px;position:relative;overflow:hidden;
-    background:linear-gradient(135deg,var(--green-3),var(--green-2));border:1px solid var(--glass-brd);display:grid;place-items:center}
-  .mock .ph{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
-  .mock::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.07) 50%,transparent 60%);transform:translateX(-120%);transition:.7s}
-  .card:hover .mock::after{transform:translateX(120%)}
-  .price{display:flex;align-items:baseline;gap:12px;margin:20px 0 6px}
-  .price .now{font-family:'Cormorant Garamond',serif;font-size:44px;font-weight:700}
-  .price .cur{font-size:15px;color:var(--muted)}
-  .price .old{font-size:16px;color:var(--muted);text-decoration:line-through;opacity:.65}
-  .save{display:inline-block;font-size:12px;font-weight:500;color:var(--sky);background:rgba(87,196,139,.1);padding:4px 12px;border-radius:100px;margin-bottom:16px}
-  .feats{list-style:none;margin-top:20px;display:flex;flex-direction:column;gap:12px}
-  .feats li{display:flex;gap:11px;font-weight:300;opacity:.92;font-size:14.5px}
-  .feats li::before{content:"⛳";font-size:12px;margin-top:3px}
-  .card-actions{display:flex;gap:10px;margin-top:26px;flex-wrap:wrap}
-  .pick{flex:1;justify-content:center}
-  .pick[data-on="1"]{background:linear-gradient(120deg,var(--gold),var(--gold-2));color:var(--ink);border-color:transparent}
+  /* Hizmet blogu */
+  .svc{background:var(--glass);border:1px solid var(--glass-brd);border-radius:10px;overflow:hidden;backdrop-filter:blur(8px);margin-bottom:30px}
+  .svc-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:20px;align-items:flex-start;padding:38px 40px 26px;border-bottom:1px solid var(--line)}
+  .svc-top .lft{max-width:640px}
+  .svc-no{font-family:'Cormorant Garamond',serif;font-size:15px;letter-spacing:.25em;color:var(--gold);font-weight:700;margin-bottom:10px}
+  .svc h3{font-size:34px;margin-bottom:12px}
+  .svc .desc{color:var(--muted);font-weight:300;font-size:16px}
+  .price-tag{text-align:right;flex:0 0 auto}
+  .price-tag .amt{font-family:'Cormorant Garamond',serif;font-size:46px;font-weight:700;color:var(--cream);line-height:1}
+  .price-tag .amt .cur{font-size:17px;color:var(--muted);font-weight:400;margin-left:4px}
+  .price-tag .unit{font-size:12px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:6px}
+  .price-tag .hint{font-size:11px;color:var(--gold);opacity:.8;margin-top:6px}
 
-  .mini{padding:30px} .mini h3{font-size:22px}
-  .mini .p{font-family:'Cormorant Garamond',serif;font-size:32px;color:var(--gold);margin-top:12px;font-weight:700}
-  .mini .p small{font-family:'Jost';font-size:13px;color:var(--muted);font-weight:300}
-  .note{font-size:13px;color:var(--muted);font-weight:300}
+  .svc-body{padding:32px 40px 40px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px 40px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}.svc-top,.svc-body{padding-left:26px;padding-right:26px}}
+  .feats{list-style:none;display:flex;flex-direction:column;gap:12px}
+  .feats li{display:flex;gap:12px;font-weight:300;font-size:15px;color:#d7e0d6}
+  .feats li b{font-weight:600;color:var(--cream)}
+  .feats li::before{content:"⛳";font-size:12px;margin-top:4px;flex:0 0 auto}
+  .subhead{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold);margin:6px 0 16px}
 
-  .reels{display:grid;grid-template-columns:320px 1fr;gap:50px;align-items:center;margin-top:20px}
-  @media(max-width:820px){.reels{grid-template-columns:1fr;justify-items:center;text-align:center}}
-  .phone{width:300px;aspect-ratio:9/19.5;border-radius:38px;border:2px solid var(--glass-brd);padding:10px;
-    background:#000;position:relative;box-shadow:0 40px 80px -30px rgba(0,0,0,.7);overflow:hidden}
-  .phone::before{content:"";position:absolute;top:16px;left:50%;transform:translateX(-50%);width:90px;height:6px;border-radius:6px;background:#222;z-index:3}
-  .phone video{width:100%;height:100%;object-fit:cover;border-radius:30px;display:block}
-  .phone .ui{position:absolute;right:16px;bottom:80px;z-index:2;display:flex;flex-direction:column;gap:16px;align-items:center;color:#fff;font-size:11px}
-  .phone .ui .ic{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.15);display:grid;place-items:center;backdrop-filter:blur(4px)}
-  .phone .cap{position:absolute;left:16px;bottom:22px;z-index:2;color:#fff;font-size:12px;max-width:190px;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+  /* satir kalemleri (dil/kelime bazli) */
+  .lines{margin-top:26px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .lines .row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:15px 22px;border-bottom:1px solid var(--line);font-size:15px}
+  .lines .row:last-child{border-bottom:0}
+  .lines .row .k{font-weight:300}.lines .row .k b{font-weight:600}
+  .lines .row .v{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:var(--cream);white-space:nowrap}
+  .lines .row .v small{font-family:'Jost';font-size:12px;color:var(--muted);font-weight:400}
+  .lines .row.head{background:rgba(200,162,74,.08);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
 
-  .summary{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(28,82,56,.35),transparent)}
-  .sumbox{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:30px;
-    background:var(--glass);border:1px solid var(--glass-brd);border-radius:8px;padding:40px;backdrop-filter:blur(8px)}
-  .sumbox .lbl{color:var(--gold)} .sumtotal{font-family:'Cormorant Garamond',serif;font-size:clamp(42px,6vw,72px);font-weight:700;line-height:1}
-  .sumtotal small{font-size:20px;color:var(--muted)}
-  .sumlist{color:var(--muted);font-weight:300;margin-top:10px;min-height:22px;font-size:14px}
+  .note{color:var(--muted);font-weight:300;font-size:14px}
 
-  .final{text-align:center;padding:120px 0 80px}
-  .final h2{font-size:clamp(34px,5.5vw,66px)}
-  .final p{color:var(--muted);max-width:460px;margin:18px auto 32px;font-weight:300}
+  /* OZET tablosu */
+  .summary{border-top:1px solid var(--line);background:linear-gradient(180deg,rgba(28,82,56,.3),transparent)}
+  .sumtable{border:1px solid var(--glass-brd);border-radius:10px;overflow:hidden;background:var(--glass);backdrop-filter:blur(8px)}
+  .sumtable .r{display:flex;justify-content:space-between;gap:16px;padding:18px 26px;border-bottom:1px solid var(--line)}
+  .sumtable .r .lab{font-weight:300} .sumtable .r .lab b{font-weight:600}
+  .sumtable .r .val{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700}
+  .sumtable .r.total{background:rgba(200,162,74,.1)}
+  .sumtable .r.total .lab{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--gold)}
+  .sumtable .r.total .val{font-size:34px;color:var(--gold)}
+  .sumtable .r:last-child{border-bottom:0}
+
+  .final{text-align:center;padding:110px 0 80px}
+  .final h2{font-size:clamp(34px,5.5vw,64px)}
+  .final p{color:var(--muted);max-width:480px;margin:18px auto 32px;font-weight:300}
   footer{border-top:1px solid var(--line);padding:34px 0;display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;color:var(--muted);font-size:13px;font-weight:300}
 
   .rv{opacity:1}
-  .js .rv{opacity:0;transform:translateY(36px)}
+  .js .rv{opacity:0;transform:translateY(30px)}
   @media(prefers-reduced-motion:reduce){.js .rv{opacity:1;transform:none}}
 </style>
 </head>
@@ -140,11 +133,11 @@
 <div class="progress" id="progress"></div>
 
 <nav class="nav" id="nav">
-  <div class="logo"><span class="crest">YV</span><div>Yeşilvadi Golf<small>Marka Teklifi</small></div></div>
+  <div class="logo"><span class="crest">YV</span><div>Yeşilvadi Golf<small>Dijital Teklif</small></div></div>
   <div class="navlinks">
-    <a href="#web">Web</a><a href="#bakim">Bakım</a><a href="#sosyal">Sosyal Medya</a><a href="#ozet">Özet</a>
+    <a href="#web">Web Sitesi</a><a href="#sosyal">Sosyal Medya</a><a href="#harita">Google Harita</a><a href="#seo">SEO</a><a href="#ozet">Özet</a>
   </div>
-  <a href="#ozet" class="btn btn-gold sm">Teklifi Gör</a>
+  <a href="#ozet" class="btn btn-gold sm">Özeti Gör</a>
 </nav>
 
 <header class="hero">
@@ -153,165 +146,226 @@
   </video>
   <div class="veil"></div>
   <div class="wrap">
-    <span class="eyebrow up" data-hero>Yeşilvadi Golf &amp; Country Club · Eylül 2026</span>
-    <h1 data-hero>Sahanız kadar<br><em>etkileyici bir marka.</em></h1>
-    <p class="lead" data-hero>Golf sahanızı dijitalde hak ettiği prestije taşıyacak sinematik bir web sitesi ve sosyal medya kurgusu. Sıradan bir site değil — bir kulüp deneyimi.</p>
+    <span class="eyebrow up" data-hero>Yeşilvadi Golf &amp; Country Club · Dijital Hizmet Teklifi</span>
+    <h1 data-hero>Sahanızı dijitalde<br><em>zirveye taşıyalım.</em></h1>
+    <p class="lead" data-hero>Web sitesi, sosyal medya yönetimi, Google Harita kayıtları ve anahtar kelime bazlı SEO — golf turistini sahanıza getiren uçtan uca bir dijital kurgu. Aşağıda her kalem detaylıca açıklanmıştır.</p>
     <div class="hero-cta" data-hero>
-      <a href="#web" class="btn btn-gold">Teklifi Keşfet</a>
-      <a href="#ozet" class="btn btn-out">Paketini Oluştur</a>
+      <a href="#web" class="btn btn-gold">Teklifi İncele</a>
+      <a href="/golf-demo" target="_blank" class="btn btn-out">Örnek Siteyi Gör ↗</a>
     </div>
   </div>
   <div class="scrollcue"><div class="dot"></div>Kaydır</div>
 </header>
 
+<!-- 01 WEB -->
 <section class="sec" id="web">
   <div class="wrap">
-    <div class="sec-head rv">
-      <div class="up sec-num">01 — Web Tasarım</div>
-      <h2 class="sec-title">Kulübünüzün dijital vitrini</h2>
-      <p class="sec-sub">Mobil öncelikli, SEO uyumlu, tee-time rezervasyonuna hazır. Aşağıdaki canlı örneği inceleyebilirsiniz.</p>
-    </div>
-    <div class="grid g2">
-      <article class="card feat rv" data-tilt>
-        <div class="ribbon">Önerilen</div>
-        <div class="mock"><span class="ph">Canlı Örnek · demo</span></div>
-        <span class="up tag">Şablon 01</span>
-        <h3>Premium (Sinematik)</h3>
-        <div class="price"><span class="now" data-count="20000">0</span><span class="cur">TL</span><span class="old">25.000 TL</span></div>
-        <span class="save">5.000 TL avantaj · tek seferlik kurulum</span>
-        <ul class="feats">
-          <li>Video hero + sinematik animasyonlar</li>
-          <li>AI destekli içerik &amp; görsel üretimi</li>
-          <li>Tee-time / üyelik rezervasyon formu</li>
-          <li>SEO uyumlu, tam responsive yapı</li>
-        </ul>
-        <div class="card-actions">
-          <a href="/golf-demo" target="_blank" class="btn btn-out">Canlı İncele ↗</a>
-          <button class="btn btn-out pick" data-pick="Web Premium" data-amt="20000">Pakete Ekle</button>
+    <div class="svc rv">
+      <div class="svc-top">
+        <div class="lft">
+          <div class="svc-no">01 — HİZMET</div>
+          <h3>Web Sitesi Tasarımı &amp; Geliştirme</h3>
+          <p class="desc">Golf kulübünüze özel, sinematik ve mobil öncelikli bir web sitesi. Şablon değil; markanıza özgün tasarlanan, hızlı, güvenli ve rezervasyon almaya hazır bir dijital vitrin. Canlı örneği <a href="/golf-demo" target="_blank" class="gold">buradan</a> inceleyebilirsiniz.</p>
         </div>
-      </article>
-      <article class="card rv" data-tilt>
-        <div class="mock"><span class="ph">Klasik düzen önizleme</span></div>
-        <span class="up tag">Şablon 02</span>
-        <h3>Klasik</h3>
-        <div class="price"><span class="now" data-count="15000">0</span><span class="cur">TL</span><span class="old">20.000 TL</span></div>
-        <span class="save">5.000 TL avantaj · tek seferlik kurulum</span>
-        <ul class="feats">
-          <li>Mevcut görsellerinizle sade &amp; şık kurgu</li>
-          <li>SEO uyumlu, tam responsive yapı</li>
-          <li>Hızlı yayına alma</li>
-          <li>İletişim &amp; harita entegrasyonu</li>
-        </ul>
-        <div class="card-actions">
-          <a href="/golf-demo" target="_blank" class="btn btn-out">Örnek İncele ↗</a>
-          <button class="btn btn-out pick" data-pick="Web Klasik" data-amt="15000">Pakete Ekle</button>
+        <div class="price-tag">
+          <div class="amt">0<span class="cur">TL</span></div>
+          <div class="unit">Tek seferlik kurulum</div>
+          <div class="hint">Fiyat sizinle netleştirilecek</div>
         </div>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section class="sec" id="bakim" style="background:var(--ink)">
-  <div class="wrap">
-    <div class="sec-head rv">
-      <div class="up sec-num">02 — Bakım &amp; Süreklilik</div>
-      <h2 class="sec-title">Yayına aldıktan sonra da yanınızda</h2>
-      <p class="sec-sub">Siteniz canlı ve güncel kalsın. Opsiyonel destek hizmetleri.</p>
-    </div>
-    <div class="grid g3">
-      <article class="card mini rv" data-tilt>
-        <span class="up tag">Yıllık Bakım</span><h3>Bakım &amp; Güncelleme</h3>
-        <div class="p">15.000<small> /yıl</small></div><p class="note">veya 2.000 TL / ay</p>
-        <div class="card-actions"><button class="btn btn-out pick" data-pick="Yıllık Bakım" data-amt="15000">Pakete Ekle</button></div>
-      </article>
-      <article class="card mini rv" data-tilt>
-        <span class="up tag">Yönetim</span><h3>Panel Yönetimi</h3>
-        <div class="p">10.000<small> /tek sefer</small></div><p class="note">İçerik &amp; güncelleme yönetimi</p>
-        <div class="card-actions"><button class="btn btn-out pick" data-pick="Panel Yönetimi" data-amt="10000">Pakete Ekle</button></div>
-      </article>
-      <article class="card mini rv" data-tilt>
-        <span class="up tag">Hediye</span><h3>Hosting</h3>
-        <div class="p sky">1. Yıl<small> ücretsiz</small></div><p class="note">Web paketine dahil</p>
-        <div class="card-actions"><div class="btn btn-out" style="cursor:default;opacity:.55">Otomatik Dahil</div></div>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section class="sec" id="sosyal">
-  <div class="wrap">
-    <div class="sec-head rv">
-      <div class="up sec-num">03 — Sosyal Medya</div>
-      <h2 class="sec-title">Her ay taze içerik akışı</h2>
-      <p class="sec-sub">Görseller 1:1, 4:5 ve 9:16 formatlarında. Aşağıda örnek bir Reels çalışması yer alıyor.</p>
-    </div>
-
-    <div class="reels rv">
-      <div class="phone">
-        <video autoplay muted loop playsinline>
-          <source src="/golf-video/golf-reels.mp4" type="video/mp4" />
-        </video>
-        <div class="cap"><strong>Yeşilvadi Golf</strong><br>Hafta sonu tee-time'ların açıldı ⛳</div>
-        <div class="ui"><div class="ic">♥</div><span>2.4B</span><div class="ic">💬</div><span>186</span><div class="ic">↗</div></div>
       </div>
-      <div>
-        <h3 style="font-size:32px;margin-bottom:14px">Örnek Reels · <span class="gold">9:16</span></h3>
-        <p class="note" style="font-size:16px;max-width:440px">Sahanızdan çekilen görüntüleri kurgulayıp altyazı, müzik ve marka kimliğinizle profesyonel Reels'e dönüştürüyoruz. Bu örnek, temsili bir stok görüntüyle hazırlanmıştır.</p>
-        <ul class="feats" style="margin-top:22px">
-          <li>Kurgu + altyazı + müzik senkronu</li>
-          <li>Dikey (9:16), kare (1:1) ve besleme (4:5)</li>
-          <li>Marka renk &amp; logo bindirmesi</li>
-        </ul>
+      <div class="svc-body">
+        <div class="grid2">
+          <div>
+            <div class="subhead">Tasarım &amp; İçerik</div>
+            <ul class="feats">
+              <li><b>Özgün tasarım</b> — hazır tema değil, markanıza özel arayüz</li>
+              <li><b>Sinematik hero</b> — video/görsel ile etkileyici açılış</li>
+              <li><b>Saha & delik tanıtımı</b>, akademi, clubhouse bölümleri</li>
+              <li><b>Galeri</b> ve Instagram akışı entegrasyonu</li>
+              <li><b>Çoklu dil altyapısı</b> (TR/EN/DE/RU — golf turisti dilleri)</li>
+            </ul>
+          </div>
+          <div>
+            <div class="subhead">Teknik &amp; Fonksiyon</div>
+            <ul class="feats">
+              <li><b>Tee-time / rezervasyon formu</b> — talep doğrudan size ulaşır</li>
+              <li><b>Tam responsive</b> — telefon, tablet, masaüstü</li>
+              <li><b>Hız optimizasyonu</b> ve <b>SSL güvenlik sertifikası</b></li>
+              <li><b>Yönetim paneli</b> — içerikleri kendiniz güncelleyin</li>
+              <li><b>SEO uyumlu altyapı</b> + <b>1. yıl hosting &amp; alan adı</b> dahil</li>
+            </ul>
+          </div>
+        </div>
+        <div class="lines">
+          <div class="row head"><span class="k">Opsiyonel Sürekli Hizmet</span><span class="v"> </span></div>
+          <div class="row"><span class="k"><b>Yıllık bakım &amp; güncelleme</b> — teknik destek, yedekleme, güncelleme</span><span class="v">0 <small>TL/yıl</small></span></div>
+          <div class="row"><span class="k"><b>İçerik / panel yönetimi</b> — sizin adınıza güncelleme</span><span class="v">0 <small>TL/ay</small></span></div>
+        </div>
       </div>
     </div>
+  </div>
+</section>
 
-    <div class="grid g3" style="margin-top:60px">
-      <article class="card rv" data-tilt>
-        <span class="up tag">Paket 01</span><h3>Başlangıç</h3>
-        <div class="price"><span class="now" data-count="5000">0</span><span class="cur">TL/ay</span></div>
-        <ul class="feats"><li>Aylık 16 özgün tasarım</li><li>3 format (1:1 · 4:5 · 9:16)</li><li>Marka kimliğine uygun kurgu</li></ul>
-        <div class="card-actions"><button class="btn btn-out pick" data-pick="Sosyal 01" data-amt="5000">Pakete Ekle</button></div>
-      </article>
-      <article class="card feat rv" data-tilt>
-        <div class="ribbon">Popüler</div>
-        <span class="up tag">Paket 02</span><h3>Profesyonel</h3>
-        <div class="price"><span class="now" data-count="8000">0</span><span class="cur">TL/ay</span></div>
-        <ul class="feats"><li>Aylık 12 tasarım + 4 Reels</li><li>3 format (1:1 · 4:5 · 9:16)</li><li>Kurgu + altyazı + müzik</li></ul>
-        <div class="card-actions"><button class="btn btn-out pick" data-pick="Sosyal 02" data-amt="8000">Pakete Ekle</button></div>
-      </article>
-      <article class="card rv" data-tilt>
-        <span class="up tag">Paket 03</span><h3>AI Prestij</h3>
-        <div class="price"><span class="now" data-count="10000">0</span><span class="cur">TL/ay</span></div>
-        <ul class="feats"><li>Aylık 12 tasarım + 4 AI Reels</li><li>3 format (1:1 · 4:5 · 9:16)</li><li>AI görsel &amp; video üretimi</li></ul>
-        <div class="card-actions"><button class="btn btn-out pick" data-pick="Sosyal 03" data-amt="10000">Pakete Ekle</button></div>
-      </article>
+<!-- 02 SOSYAL -->
+<section class="sec tight" id="sosyal">
+  <div class="wrap">
+    <div class="svc rv">
+      <div class="svc-top">
+        <div class="lft">
+          <div class="svc-no">02 — HİZMET</div>
+          <h3>Sosyal Medya Yönetimi</h3>
+          <p class="desc">Instagram ve Facebook hesaplarınızın profesyonel yönetimi. Düzenli, marka kimliğinize uygun içerik akışı ile takipçi ve rezervasyon büyümesi. Golf turistinin ilgisini çeken görsel ve video kurgular.</p>
+        </div>
+        <div class="price-tag">
+          <div class="amt">0<span class="cur">TL</span></div>
+          <div class="unit">Aylık</div>
+          <div class="hint">Pakete göre değişir</div>
+        </div>
+      </div>
+      <div class="svc-body">
+        <div class="grid2">
+          <div>
+            <div class="subhead">İçerik Üretimi</div>
+            <ul class="feats">
+              <li><b>Aylık içerik takvimi</b> — planlı, düzenli paylaşım</li>
+              <li><b>Özgün tasarım gönderiler</b> (1:1, 4:5 formatlarında)</li>
+              <li><b>Reels / kısa video kurgu</b> — altyazı, müzik, marka bindirmesi</li>
+              <li><b>Hikâye (Story)</b> paylaşımları ve öne çıkanlar</li>
+            </ul>
+          </div>
+          <div>
+            <div class="subhead">Yönetim &amp; Büyüme</div>
+            <ul class="feats">
+              <li><b>Topluluk yönetimi</b> — yorum ve mesaj takibi</li>
+              <li><b>Hashtag &amp; erişim stratejisi</b></li>
+              <li><b>Reklam yönetimi</b> (opsiyonel — bütçe ayrı)</li>
+              <li><b>Aylık performans raporu</b> — erişim, etkileşim, takipçi</li>
+            </ul>
+          </div>
+        </div>
+        <div class="lines">
+          <div class="row head"><span class="k">Paket Seçenekleri</span><span class="v"> </span></div>
+          <div class="row"><span class="k"><b>Başlangıç</b> — aylık 16 tasarım</span><span class="v">0 <small>TL/ay</small></span></div>
+          <div class="row"><span class="k"><b>Profesyonel</b> — aylık 12 tasarım + 4 Reels</span><span class="v">0 <small>TL/ay</small></span></div>
+          <div class="row"><span class="k"><b>Prestij</b> — aylık 12 tasarım + 4 AI Reels</span><span class="v">0 <small>TL/ay</small></span></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
+<!-- 03 GOOGLE HARITA -->
+<section class="sec tight" id="harita">
+  <div class="wrap">
+    <div class="svc rv">
+      <div class="svc-top">
+        <div class="lft">
+          <div class="svc-no">03 — HİZMET</div>
+          <h3>Google Harita Kayıtları <span class="gold">(Dil Bazlı)</span></h3>
+          <p class="desc">Google İşletme Profili (Google Business / Maps) kaydı ve optimizasyonu. Golf turisti farklı ülkelerden geldiği için işletmeniz <b>her dilde</b> ayrı optimize edilir; müşteri kendi dilinde arattığında sahanız haritada üstte çıkar.</p>
+        </div>
+        <div class="price-tag">
+          <div class="amt">0<span class="cur">TL</span></div>
+          <div class="unit">Dil başına</div>
+          <div class="hint">Kayıt + optimizasyon</div>
+        </div>
+      </div>
+      <div class="svc-body">
+        <div class="grid2">
+          <div>
+            <div class="subhead">Kapsam</div>
+            <ul class="feats">
+              <li><b>İşletme profili oluşturma / sahiplenme</b> ve doğrulama</li>
+              <li><b>Kategori, hizmet, çalışma saati</b> ve iletişim optimizasyonu</li>
+              <li><b>Profesyonel fotoğraf &amp; video</b> yüklemesi</li>
+              <li><b>Yorum yönetimi</b> ve yıldız puanı stratejisi</li>
+              <li><b>Harita SEO</b> — "yakınımdaki golf" aramalarında görünürlük</li>
+            </ul>
+          </div>
+          <div>
+            <div class="subhead">Dil Bazlı Kayıt</div>
+            <div class="note">Her dil için ayrı açıklama, anahtar kelime ve içerik hazırlanır:</div>
+            <div class="lines" style="margin-top:14px">
+              <div class="row"><span class="k">🇹🇷 <b>Türkçe</b></span><span class="v">0 <small>TL</small></span></div>
+              <div class="row"><span class="k">🇬🇧 <b>İngilizce</b></span><span class="v">0 <small>TL</small></span></div>
+              <div class="row"><span class="k">🇩🇪 <b>Almanca</b></span><span class="v">0 <small>TL</small></span></div>
+              <div class="row"><span class="k">🇷🇺 <b>Rusça</b></span><span class="v">0 <small>TL</small></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 SEO -->
+<section class="sec tight" id="seo">
+  <div class="wrap">
+    <div class="svc rv">
+      <div class="svc-top">
+        <div class="lft">
+          <div class="svc-no">04 — HİZMET</div>
+          <h3>Google SEO <span class="gold">(Anahtar Kelime Bazlı)</span></h3>
+          <p class="desc">Web sitenizin Google aramalarında üst sıralara çıkması için anahtar kelime bazlı SEO çalışması. Hedeflenen her kelime için içerik, teknik iyileştirme ve otorite çalışması yapılır; aylık sıralama raporuyla ilerleme şeffaf takip edilir.</p>
+        </div>
+        <div class="price-tag">
+          <div class="amt">0<span class="cur">TL</span></div>
+          <div class="unit">Kelime / aylık</div>
+          <div class="hint">Hedefe göre paketlenir</div>
+        </div>
+      </div>
+      <div class="svc-body">
+        <div class="grid2">
+          <div>
+            <div class="subhead">Çalışma Kapsamı</div>
+            <ul class="feats">
+              <li><b>Anahtar kelime araştırması</b> ve rakip analizi</li>
+              <li><b>On-page SEO</b> — başlık, meta, içerik, iç linkleme</li>
+              <li><b>Teknik SEO</b> — hız, mobil, dizin, site haritası</li>
+              <li><b>İçerik üretimi</b> (blog / sayfa) hedef kelimelere göre</li>
+              <li><b>Otorite / backlink</b> çalışması ve <b>aylık sıralama raporu</b></li>
+            </ul>
+          </div>
+          <div>
+            <div class="subhead">Örnek Hedef Kelimeler</div>
+            <div class="note">Kelime başına aylık ücretlendirme; birlikte belirleyeceğiz:</div>
+            <div class="lines" style="margin-top:14px">
+              <div class="row head"><span class="k">Anahtar Kelime</span><span class="v">Aylık</span></div>
+              <div class="row"><span class="k">"belek golf sahası"</span><span class="v">0 <small>TL</small></span></div>
+              <div class="row"><span class="k">"antalya golf tatili"</span><span class="v">0 <small>TL</small></span></div>
+              <div class="row"><span class="k">"golf course turkey"</span><span class="v">0 <small>TL</small></span></div>
+              <div class="row"><span class="k">"tee time belek"</span><span class="v">0 <small>TL</small></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- OZET -->
 <section class="sec summary" id="ozet">
   <div class="wrap">
     <div class="sec-head rv">
       <div class="up sec-num">— Teklif Özeti</div>
-      <h2 class="sec-title">Paketinizi oluşturun</h2>
-      <p class="sec-sub">Yukarıdan istediğiniz hizmetleri seçin; toplam anında güncellensin.</p>
+      <h2 class="sec-title">Hizmet kalemleri</h2>
+      <p class="sec-sub">Aşağıdaki tabloyu inceleyin; fiyatları birlikte netleştirdikten sonra güncelleyeceğiz.</p>
     </div>
-    <div class="sumbox rv">
-      <div>
-        <div class="up lbl">Seçilen Toplam</div>
-        <div class="sumtotal"><span id="total">0</span> <small>TL</small></div>
-        <div class="sumlist" id="sumlist">Henüz hizmet seçilmedi.</div>
-        <div class="note" style="margin-top:12px;opacity:.75">* Aylık sosyal medya kalemleri, tek seferlik web kalemleriyle birlikte gösterilir.</div>
-      </div>
-      <a href="#iletisim" class="btn btn-gold">Bu Teklifi Onayla</a>
+    <div class="sumtable rv">
+      <div class="r"><span class="lab"><b>01.</b> Web Sitesi Tasarımı &amp; Geliştirme <span class="note">(tek seferlik)</span></span><span class="val">0 TL</span></div>
+      <div class="r"><span class="lab"><b>02.</b> Sosyal Medya Yönetimi <span class="note">(aylık)</span></span><span class="val">0 TL</span></div>
+      <div class="r"><span class="lab"><b>03.</b> Google Harita Kayıtları <span class="note">(dil başına)</span></span><span class="val">0 TL</span></div>
+      <div class="r"><span class="lab"><b>04.</b> Google SEO <span class="note">(kelime / aylık)</span></span><span class="val">0 TL</span></div>
+      <div class="r total"><span class="lab">Genel Toplam</span><span class="val">0 TL</span></div>
     </div>
+    <p class="note" style="margin-top:18px">* Fiyatlar netleştirilecektir. Tek seferlik (web) ve aylık (sosyal medya, SEO) kalemler ayrı ayrı değerlendirilir.</p>
   </div>
 </section>
 
 <section class="final" id="iletisim">
   <div class="wrap">
-    <h2 class="rv">Kulübünüzü<br><span class="gold">öne çıkaralım.</span></h2>
-    <p class="rv">Sorularınız mı var, revizyon mu istersiniz? Bir kahve içimi mesafedeyiz.</p>
+    <h2 class="rv">Başlayalım mı?</h2>
+    <p class="rv">Fiyatları netleştirmek veya kapsamı konuşmak için bir adım uzaktayız.</p>
     <div class="rv" style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
       <a href="tel:+900000000000" class="btn btn-gold">Hemen Ara</a>
       <a href="https://wa.me/900000000000" class="btn btn-out">WhatsApp</a>
@@ -320,7 +374,7 @@
 </section>
 
 <footer class="wrap">
-  <div>© 2026 [Ajans Adı] · Marka Stüdyosu</div>
+  <div>© 2026 [Ajans Adı] · Dijital Pazarlama Stüdyosu</div>
   <div>Yeşilvadi Golf için hazırlanmıştır · Eylül 2026</div>
 </footer>
 
@@ -349,36 +403,11 @@
     gsap.set('[data-hero]',{opacity:0,y:34});
     gsap.to('[data-hero]',{opacity:1,y:0,duration:1,stagger:.12,ease:'power3.out',delay:.25});
     gsap.utils.toArray('.rv').forEach(function(el){
-      gsap.to(el,{opacity:1,y:0,duration:.9,ease:'power3.out',scrollTrigger:{trigger:el,start:'top 86%'}});
-    });
-    gsap.utils.toArray('[data-count]').forEach(function(el){
-      var end=+el.getAttribute('data-count'),o={v:0};
-      ScrollTrigger.create({trigger:el,start:'top 92%',once:true,onEnter:function(){
-        gsap.to(o,{v:end,duration:1.4,ease:'power2.out',onUpdate:function(){el.textContent=Math.round(o.v).toLocaleString('tr-TR');}});}});
+      gsap.to(el,{opacity:1,y:0,duration:.9,ease:'power3.out',scrollTrigger:{trigger:el,start:'top 88%'}});
     });
   }else{
     document.querySelectorAll('.rv,[data-hero]').forEach(function(el){el.style.opacity=1;el.style.transform='none';});
-    document.querySelectorAll('[data-count]').forEach(function(el){el.textContent=(+el.getAttribute('data-count')).toLocaleString('tr-TR');});
   }
-
-  document.querySelectorAll('[data-tilt]').forEach(function(card){
-    card.addEventListener('mousemove',function(e){var r=card.getBoundingClientRect();
-      card.style.setProperty('--mx',(e.clientX-r.left)+'px');card.style.setProperty('--my',(e.clientY-r.top)+'px');});
-  });
-
-  var picked={},totalEl=document.getElementById('total'),listEl=document.getElementById('sumlist');
-  function render(){
-    var keys=Object.keys(picked),sum=keys.reduce(function(a,k){return a+picked[k];},0);
-    if(window.gsap){var o={v:+totalEl.textContent.replace(/\D/g,'')||0};
-      gsap.to(o,{v:sum,duration:.6,ease:'power2.out',onUpdate:function(){totalEl.textContent=Math.round(o.v).toLocaleString('tr-TR');}});}
-    else{totalEl.textContent=sum.toLocaleString('tr-TR');}
-    listEl.textContent=keys.length?keys.join('  ·  '):'Henüz hizmet seçilmedi.';
-  }
-  document.querySelectorAll('.pick[data-pick]').forEach(function(btn){
-    btn.addEventListener('click',function(){var k=btn.getAttribute('data-pick'),amt=+btn.getAttribute('data-amt');
-      if(picked[k]!==undefined){delete picked[k];btn.dataset.on='0';btn.textContent='Pakete Ekle';}
-      else{picked[k]=amt;btn.dataset.on='1';btn.textContent='✓ Eklendi';}render();});
-  });
 })();
 </script>
 </body>
