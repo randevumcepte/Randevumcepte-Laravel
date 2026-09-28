@@ -9226,8 +9226,16 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         foreach (\App\KampanyaSablonlari::all() as $s) {
             $sablonlar[] = ['value' => (string) $s->id, 'label' => $s->baslik, 'icerik' => $s->icerik];
         }
+        // SENARYOLAR (Senaryo Sihirbazi ile olusturulan) da sablon listesine (web ile ayni,
+        // value 'senaryo-ID'). salon_id NULL = sistem (hazir) senaryosu; salonun kendi + sistem.
+        foreach (\App\KampanyaSenaryolari::where('aktif', 1)
+                    ->where(function ($q) use ($salonid) { $q->where('salon_id', $salonid)->orWhereNull('salon_id'); })
+                    ->orderBy('id', 'desc')->get() as $sn) {
+            $sablonlar[] = ['value' => 'senaryo-' . $sn->id, 'label' => $sn->ad, 'icerik' => ''];
+        }
 
-        $gruplar = \App\GrupSMS::where('salon_id', $salonid)->get()
+        // Grup: web ile ayni -> SADECE aktif_mi=1 (Dogum Gunu Listesi gibi otomatik/pasif gruplar gelmesin).
+        $gruplar = \App\GrupSMS::where('salon_id', $salonid)->where('aktif_mi', 1)->get()
             ->map(function ($g) { return ['value' => 'haricigrup-' . $g->id, 'label' => $g->grup_adi]; })->values();
 
         return response()->json([
@@ -31181,6 +31189,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     public function kampanyaKitleSayisi(Request $request, $salonid)
     {
         $request->merge([
+            'sube'     => $salonid, // mevcutsube() erken donsun (auth'a dusup patlamasin)
             'salonId'  => $salonid,
             'filtre'   => $request->input('filtre', ''),
             'cinsiyet' => $request->input('cinsiyet', ''),
