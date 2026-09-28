@@ -15988,6 +15988,27 @@ $('#yeni_kampanya_modal').on('shown.bs.modal', function(){
             $m.find('.reklam-kanal-kart[data-gorev="'+d.gorev_turu+'"]').addClass('is-active');
         }
 
+        // Hedef kitle: kayitli filtre/grup/cinsiyet -> preset karti + gizli select'ler.
+        var hf = (d.hedef_filtre||'').toString();
+        var hg = (d.hedef_grup||'').toString();
+        var hc = (d.hedef_cinsiyet||'').toString();
+        var presetId = 'all';
+        if(hg) presetId = 'grup';
+        else if(hf==='6') presetId='sadik';
+        else if(hf==='7') presetId='aktif';
+        else if(hf==='8') presetId='pasif';
+        else if(hf==='1') presetId='son1yil';
+        $m.find('.rkp-preset').removeClass('is-active');
+        $m.find('.rkp-preset[data-preset="'+presetId+'"]').addClass('is-active');
+        $('#rkpPresetGrup').toggle(presetId==='grup');
+        $('#gelenGelmeyenMusteri').val(presetId==='grup' ? '' : hf);
+        $('#musteriGruplari').val(hg);
+        if($('#musteriGruplari').hasClass('select2-hidden-accessible')) $('#musteriGruplari').trigger('change.select2');
+        $('#katilimciTuru').val(hc);
+        var $seg = $m.find('.rkp-segment .rkp-seg-btn');
+        $seg.removeClass('is-active');
+        $seg.filter('[data-val="'+(hc||'')+'"]').addClass('is-active');
+
         // Hizmet / Urun / Paket (hizmet-|urun-|paket-X)
         if(d.hizmetUrunPaket){
             var pre = String(d.hizmetUrunPaket).split('-')[0];

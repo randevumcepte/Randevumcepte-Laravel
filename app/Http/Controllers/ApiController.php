@@ -9125,9 +9125,16 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         if (trim((string) $yeniMesaj) !== '' || $_yeniKampanya)
             $kampanya_yonetimi->mesaj = $yeniMesaj;
 
-        // musteri_turu sadece hedef kitle yeniden kurulunca guncellenir.
-        if ($hedefKitleyiYenidenKur)
+        // musteri_turu + HEDEF KITLE secimi sadece hedef kitle yeniden kurulunca guncellenir.
+        // hedef_* kolonlari duzenlemede sihirbaza secili doldurmak icin saklanir.
+        if ($hedefKitleyiYenidenKur) {
             $kampanya_yonetimi->musteri_turu = $musteriData['musteriTuru'] ?? '';
+            if (\Schema::hasColumn('kampanya_yonetimi', 'hedef_filtre')) {
+                $kampanya_yonetimi->hedef_filtre   = $request->gelenGelmeyenMusteri ?? '';
+                $kampanya_yonetimi->hedef_grup     = $request->musteriGruplari ?? '';
+                $kampanya_yonetimi->hedef_cinsiyet = $request->katilimciTuru ?? '';
+            }
+        }
 
         $kampanya_yonetimi->baslangic_tarihi = $request->asistan_tarih;
         $kampanya_yonetimi->bitis_tarihi     = $request->kampanyaGecerlilikTarihi;
@@ -9266,6 +9273,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             'baslangic_tarihi' => $k->baslangic_tarihi ? date('Y-m-d', strtotime($k->baslangic_tarihi)) : '',
             'bitis_tarihi'     => $k->bitis_tarihi ? date('Y-m-d', strtotime($k->bitis_tarihi)) : '',
             'paket_isim'       => $k->paket_isim,
+            'hedef_filtre'     => \Schema::hasColumn('kampanya_yonetimi', 'hedef_filtre') ? ($k->hedef_filtre ?? '') : '',
+            'hedef_grup'       => \Schema::hasColumn('kampanya_yonetimi', 'hedef_grup') ? ($k->hedef_grup ?? '') : '',
+            'hedef_cinsiyet'   => \Schema::hasColumn('kampanya_yonetimi', 'hedef_cinsiyet') ? ($k->hedef_cinsiyet ?? '') : '',
         ], 200, [], JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
