@@ -40,7 +40,11 @@
     .log-badge.action-sil, .log-badge.action-iptal { background:#fdecec; color:#c81e1e; }
     .log-badge.action-ekle, .log-badge.action-olustur { background:#e6f9ed; color:#0c7a3a; }
     .log-badge.action-guncelle, .log-badge.action-duzenle { background:#fff4e0; color:#a86200; }
-    .log-badge.action-login, .log-badge.action-logout { background:#e7eefb; color:#1f4ec5; }
+    .log-badge.action-login, .log-badge.action-logout, .log-badge.action-gonder { background:#e7eefb; color:#1f4ec5; }
+    .log-badge.action-onay, .log-badge.action-odeme { background:#def7f2; color:#0f766e; }
+    .log-src { display:inline-block; margin-left:6px; padding:2px 7px; border-radius:12px; font-size:10.5px; font-weight:700; vertical-align:middle; }
+    .log-src.src-mobil { background:#eef2ff; color:#4338ca; }
+    .log-src.src-panel { background:#f3f4f6; color:#4b5563; }
 
     .log-detail-pre {
         background:#f7f4ff; border:1px solid #e3d6f7; border-radius:6px;
@@ -123,11 +127,15 @@
                 @forelse($loglar as $log)
                     @php
                         $actionClass = '';
-                        if (str_contains($log->action, 'sil')) $actionClass = 'action-sil';
+                        if (str_contains($log->action, 'sil') || str_contains($log->action, 'kaldir')) $actionClass = 'action-sil';
                         elseif (str_contains($log->action, 'iptal')) $actionClass = 'action-iptal';
-                        elseif (str_contains($log->action, 'ekle') || str_contains($log->action, 'olustur')) $actionClass = 'action-ekle';
-                        elseif (str_contains($log->action, 'guncelle') || str_contains($log->action, 'duzenle')) $actionClass = 'action-guncelle';
+                        elseif (str_contains($log->action, 'ekle') || str_contains($log->action, 'olustur') || str_contains($log->action, 'kaydet') || str_contains($log->action, 'yeni')) $actionClass = 'action-ekle';
+                        elseif (str_contains($log->action, 'guncelle') || str_contains($log->action, 'duzenle') || str_contains($log->action, 'degistir')) $actionClass = 'action-guncelle';
+                        elseif (str_contains($log->action, 'onay') || str_contains($log->action, 'odeme') || str_contains($log->action, 'tahsilat')) $actionClass = 'action-onay';
+                        elseif (str_contains($log->action, 'gonder') || str_contains($log->action, 'yolla')) $actionClass = 'action-gonder';
                         elseif ($log->action == 'login' || $log->action == 'logout') $actionClass = 'action-login';
+                        $kaynak = null;
+                        if ($log->meta) { $mArr = json_decode($log->meta, true); $kaynak = is_array($mArr) ? ($mArr['kaynak'] ?? null) : null; }
                     @endphp
                     <tr>
                         <td class="log-meta-mute" style="font-size:12px">
@@ -138,7 +146,10 @@
                             <div class="log-fw-600">{{ $log->user_name ?: 'Sistem' }}</div>
                             <div class="log-meta-mute">{{ $log->user_rol }}</div>
                         </td>
-                        <td><span class="log-badge {{ $actionClass }}">{{ $log->action }}</span></td>
+                        <td>
+                            <span class="log-badge {{ $actionClass }}">{{ $log->action }}</span>
+                            @if($kaynak=='mobil')<span class="log-src src-mobil">📱 mobil</span>@elseif($kaynak=='panel_oto' || $kaynak=='panel')<span class="log-src src-panel">🖥️ panel</span>@endif
+                        </td>
                         <td>
                             @if($log->target_type)
                                 <div class="log-meta-mute">{{ $log->target_type }}#{{ $log->target_id }}</div>

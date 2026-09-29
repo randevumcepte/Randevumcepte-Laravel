@@ -68,6 +68,7 @@ class Kernel extends HttpKernel
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\AuthenticateSession::class,
             \HTMLMin\HTMLMin\Http\Middleware\MinifyMiddleware::class,
+            \App\Http\Middleware\PanelAktiviteLog::class, // her degistiren istegi terminate'de otomatik loglar (tum hareketler)
 
         ],
         'api' => [
