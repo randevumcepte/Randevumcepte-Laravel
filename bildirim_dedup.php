@@ -47,19 +47,23 @@ function ownerKey($r){
 $groups = [];
 foreach ($rows as $r) { $groups[ownerKey($r)][] = $r; }
 
+// WEB platformu dedup DISI: ayni kullanicinin birden cok tarayicisi mesrudur.
+// Sadece mobil (ios/android) icin en guncel token tutulur.
 $dupGroups = 0; $toDeactivate = [];
 foreach ($groups as $key => $list) {
     if (count($list) < 2) continue;          // duplicate yok
+    $platform = $list[0]['platform'] ?: 'NULL';
+    $isWeb = ($platform === 'web');
     $dupGroups++;
     // en buyuk id = en guncel (get zaten orderByDesc id) -> ilk eleman tutulur
     $keep = $list[0];
-    $drop = array_slice($list, 1);
-    echo "── GRUP: $key  (".count($list)." aktif token)\n";
+    echo "── GRUP: $key  (".count($list)." aktif token)".($isWeb ? "  [WEB — DOKUNULMAYACAK]" : "")."\n";
     foreach ($list as $r) {
-        $flag = ($r['id']==$keep['id']) ? 'TUT ' : 'SIL ';
+        if ($isWeb) { $flag = 'WEB '; }
+        else        { $flag = ($r['id']==$keep['id']) ? 'TUT ' : 'SIL '; }
         $tok = substr($r['bildirim_id'],0,18);
         echo "   [$flag] id={$r['id']} cihaz=".($r['cihaz']?:'(bos)')." son_kullanim=".($r['son_kullanim_tarihi']?:'(bos)')." tok=$tok...\n";
-        if ($r['id']!=$keep['id']) $toDeactivate[] = $r['id'];
+        if (!$isWeb && $r['id']!=$keep['id']) $toDeactivate[] = $r['id'];
     }
     echo "\n";
 }
