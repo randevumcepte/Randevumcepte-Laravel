@@ -10405,16 +10405,29 @@ private function ayAdiCevir($ingilizceAy)
             exit(0);
         }
         $isletme = Salonlar::where('id',self::mevcutsube($request))->first();
-        $randevular_liste = self::randevu_liste_getir($request,'','','','','','',self::mevcutsube($request),$id);
+        // PERF: musteri kartinda randevu tablosu son 300 randevu ile sinirli (cok gecmisli
+        // musteride bellek/CPU patlamasini onler; eskiler adisyon/seans sekmelerinde var).
+        $randevular_liste = self::randevu_liste_getir($request,'','','','','','',self::mevcutsube($request),$id,'',300);
 
-        // Eager loading ile N+1 sorunu onlendi
+        // Eager loading ile N+1 sorunu onlendi. PERF: timeline da son 300 ile sinirli.
         $randevular = Randevular::where('user_id',$id)
             ->where('salon_id',self::mevcutsube($request))
             ->with(['hizmetler' => function($q){ $q->with('hizmetler'); }])
             ->orderBy('tarih','desc')
+            ->limit(300)
             ->get();
 
         $portfoy = MusteriPortfoy::where("user_id",$id)->where('salon_id',$isletme->id)->first();
+        // GUVENLIK: portfoy kaydi olmayan musteride ($portfoy null) asagida $portfoy->users
+        // fatal veriyordu -> BOS BEYAZ SAYFA (log: "Trying to get property 'users' of non-object"
+        // StoreAdminController:10465). Kullaniciyi dogrudan cek, fallback ver.
+        $musteri_user = ($portfoy && $portfoy->users) ? $portfoy->users : \App\User::find($id);
+        if (!$musteri_user) {
+            return redirect('/isletmeyonetim/musteriler')->with('hata','Müşteri bulunamadı.');
+        }
+        // Blade $portfoy->musteri_tipi / ->ozel_notlar (satir 704/708) kullaniyor; null ise
+        // bos model ver ki blade patlamasin (musteri_tipi/ozel_notlar/id -> null).
+        if (!$portfoy) { $portfoy = new MusteriPortfoy(); }
         $paketler = self::paket_liste_getir('',true,$request);
 
         // Arsiv: tek sorgu, PHP tarafinda filtreleme (5 sorgu yerine 1)
@@ -10462,16 +10475,16 @@ private function ayAdiCevir($ingilizceAy)
             'harici_hizmetler'=>$harici_hizmetler,
             'harici_urunler'=>$harici_urunler,
             'harici_paketler'=>$harici_paketler,
-            'harici_sabit_musteri_id'=>$portfoy->users->id,
-            'harici_sabit_musteri_adi'=>$portfoy->users->name,
+            'harici_sabit_musteri_id'=>$musteri_user->id,
+            'harici_sabit_musteri_adi'=>$musteri_user->name,
             'bildirimler'=>self::bildirimgetir($request),
             'paketler'=>$paketler,
             'pageindex'=>41,
-            'sayfa_baslik'=> $portfoy->users->name,
+            'sayfa_baslik'=> $musteri_user->name,
             'isletme'=>$isletme,
             'portfoy'=>$portfoy,
             'arsiv'=>$form,
-            'musteri_bilgi'=>$portfoy->users,
+            'musteri_bilgi'=>$musteri_user,
             'randevular'=>$randevular,
             'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
             'arsiv_onayli'=>$form_onayli,
@@ -18547,7 +18560,7 @@ DB::raw('
     {
        return self::randevu_liste_getir($request,'2025-02-01','2025-02-28',true,null,null,1,182,'');
     }
-  public function randevu_liste_getir(Request $request, $tarih1, $tarih2, $salon, $web, $uygulama, $durum, $salon_id, $userid, $hizmet_id = '')
+  public function randevu_liste_getir(Request $request, $tarih1, $tarih2, $salon, $web, $uygulama, $durum, $salon_id, $userid, $hizmet_id = '', $limit = null)
 {
     // Start with a base query on the main table to reduce initial dataset
     $baseQuery = DB::table('randevular')
@@ -18609,6 +18622,12 @@ DB::raw('
     }
 
     // Get only the appointment IDs first (much smaller dataset)
+    // PERF: musteri kartinda ($limit dolu) cok gecmisli musteride binlerce randevuyu
+    // JSON'a cevirip client DataTable'a basmak bellegi/CPU'yu sisiriyordu (bos/gec sayfa).
+    // En son $limit randevu ile sinirla; eski randevular adisyon/seans sekmelerinde zaten var.
+    if ($limit) {
+        $baseQuery->orderBy('randevular.tarih','desc')->orderBy('randevular.saat','desc')->limit($limit);
+    }
     $randevuIds = $baseQuery->pluck('id');
 
     // If no appointments found, return empty collection early
