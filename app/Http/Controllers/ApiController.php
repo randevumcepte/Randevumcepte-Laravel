@@ -20092,15 +20092,29 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         } else {
 
     
-            if (IsletmeYetkilileri::where("gsm1",self::telefon_no_format_duzenle($request->cep_telefon))->count() == 0 &&  $request->personel_id == "" ) {
+            $telFormatted = self::telefon_no_format_duzenle($request->cep_telefon);
+            $isDuzenleme = ($request->personel_id != "");
 
+            // DUZENLEME: yetkili DAIMA personelin yetkili_id'si uzerinden bulunur.
+            // (Telefonla aramak; telefon bos/degismisse yanlis - hatta bos-gsm'li id 203 gibi -
+            //  bir baska yetkiliyi yakalayip adini/unvanini eziyor ve personeli yanlis yetkiliye
+            //  baglıyordu. Kok neden buydu.)
+            $yetkili = null;
+            if ($isDuzenleme) {
+                $mevcutPersonel = Personeller::where("id", $request->personel_id)
+                    ->where("salon_id", $request->salon_id)->first();
+                if ($mevcutPersonel && $mevcutPersonel->yetkili_id) {
+                    $yetkili = IsletmeYetkilileri::where("id", $mevcutPersonel->yetkili_id)->first();
+                }
+            }
+            // Yetkili hala yoksa: SADECE telefon doluysa gsm ile ara.
+            // Bos telefon, bos-gsm'li kayitlari yakalamasin (203 bug'i).
+            if (!$yetkili && $telFormatted !== "") {
+                $yetkili = IsletmeYetkilileri::where("gsm1", $telFormatted)->first();
+            }
+            if (!$yetkili) {
                 $yetkili = new IsletmeYetkilileri();
                 $yenihesapacma = true;
-
-            } else {
-
-                $yetkili = IsletmeYetkilileri::where( "gsm1",self::telefon_no_format_duzenle($request->cep_telefon) )->first();
-
             }
 
             $yetkili->unvan = $request->unvan;
@@ -20109,7 +20123,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             $yetkili->name = $request->personel_adi;
 
-            $yetkili->gsm1 = self::telefon_no_format_duzenle($request->cep_telefon);
+            // Telefonu SADECE dolu geldiyse yaz; bos gelirse mevcut gsm1 korunur (yanlislikla silinmesin).
+            if ($telFormatted !== "") {
+                $yetkili->gsm1 = $telFormatted;
+            } elseif ($yenihesapacma) {
+                $yetkili->gsm1 = "";
+            }
 
             if ($yenihesapacma) {
 
@@ -20176,7 +20195,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             Log::info("personel adı".($personel->personel_adi ?? ''));
             $personel->personel_adi = $request->personel_adi;
             $personel->unvan = $request->unvan;
-            $personel->cep_telefon = self::telefon_no_format_duzenle($request->cep_telefon);
+            // Telefonu SADECE dolu geldiyse yaz; bos gelirse mevcut numara korunur.
+            if ($telFormatted !== "") {
+                $personel->cep_telefon = $telFormatted;
+            }
             $personel->salon_id = $request->salon_id;
             $personel->cinsiyet = $request->cinsiyet;
             $personel->maas = $request->personel_maas;

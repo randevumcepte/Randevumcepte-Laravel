@@ -6459,8 +6459,11 @@ private function ayAdiCevir($ingilizceAy)
                     $yetkili = IsletmeYetkilileri::where('id',$personel->yetkili_id)->first();
                 }
                 if(!$yetkili){
-                    // Personel'in yetkili'si yoksa, gsm ile dene
-                    $yetkili = IsletmeYetkilileri::where('gsm1',$request->cep_telefon)->first();
+                    // Personel'in yetkili'si yoksa, gsm ile dene — ANCAK telefon doluysa.
+                    // Bos telefon `gsm1=''` bos-gsm'li rastgele kaydi (or. id 203) yakalayip veri bozuyordu.
+                    if(trim((string)$request->cep_telefon) !== ''){
+                        $yetkili = IsletmeYetkilileri::where('gsm1',$request->cep_telefon)->first();
+                    }
                     if(!$yetkili){
                         $yetkili = new IsletmeYetkilileri();
                         $yenihesapacma = true;
@@ -6491,7 +6494,12 @@ private function ayAdiCevir($ingilizceAy)
             $yetkili->unvan = $request->unvan;
             $yetkili->cinsiyet = $request->cinsiyet;
             $yetkili->name = $request->personel_adi;
-            $yetkili->gsm1 = $request->cep_telefon;
+            // Telefonu SADECE dolu geldiyse yaz; bos gelirse mevcut gsm1 korunur (yanlislikla silinmesin).
+            if(trim((string)$request->cep_telefon) !== ''){
+                $yetkili->gsm1 = $request->cep_telefon;
+            } elseif($yenihesapacma){
+                $yetkili->gsm1 = $request->cep_telefon;
+            }
             if($yenihesapacma)
             {
                 // Varsayilan avatar SADECE yeni hesap acilirken atanir;
@@ -6504,7 +6512,10 @@ private function ayAdiCevir($ingilizceAy)
             }
             $yetkili->save();
             $personel->personel_adi = $request->personel_adi;
-            $personel->cep_telefon = $request->cep_telefon;
+            // Telefonu SADECE dolu geldiyse yaz; bos gelirse mevcut numara korunur.
+            if(trim((string)$request->cep_telefon) !== ''){
+                $personel->cep_telefon = $request->cep_telefon;
+            }
             $personel->salon_id = $request->sube;
             $personel->cinsiyet = $request->cinsiyet;
             $personel->maas = $request->personel_maas;
