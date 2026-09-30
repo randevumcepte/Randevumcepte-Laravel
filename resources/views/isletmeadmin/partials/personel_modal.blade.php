@@ -271,7 +271,7 @@
                         <div class="pm-field">
                            <label>Hesap Türü</label>
                            <select class="form-control" name="sistem_yetki" id="sistem_yetki">
-                              <option disabled value="Hesap Sahibi">Hesap Sahibi</option>
+                              <option value="Hesap Sahibi">Hesap Sahibi</option>
                               @foreach($roller as $key => $rol)
                                  @if($key != 0 && $key != 5)
                                  <option value="{{$rol->name}}">{{$rol->name}}</option>

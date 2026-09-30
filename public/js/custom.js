@@ -10473,12 +10473,8 @@ $('#personel_tablo').on('click','a[name="personel_detayi"]',function(){
                         // Takvimde gorunsun
                         var _tg = !!Number(result.personelbilgi.takvimde_gorunsun);
                         $('#takvimde_gorunsun').prop('checked', _tg).trigger('change');
-                        if(result.hesapturu=='Hesap Sahibi'){
-                            $('#sistem_yetki').prop('disabled',true);
-                        }
-                        else{
-                            $('#sistem_yetki').prop('disabled',false);
-                        }
+                        // Hesap turu her halukarda duzenlenebilir (Hesap Sahibi dahil).
+                        $('#sistem_yetki').prop('disabled',false);
                         $('#sistem_yetki').val(result.hesapturu);
                         $.each(result.calismasaatleri, function( key, value ) {
                             ++key;

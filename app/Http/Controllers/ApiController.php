@@ -20216,16 +20216,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             // yolu. Set edilirse takvimde gizlenmis personel, herhangi bir
             // duzenlemede sessizce tekrar gorunur olur. Varsayilan sadece yeni
             // kayitta atanir (yukaridaki 'new Personeller()' dali).
-            // Hesap Sahibi (rol 1) rolu degistirilemez — yanlislikla sahibi personele
-            // dusurup hesabi kilitlemeyi onler. Mevcut rolu 1 ise 1 olarak kalir.
+            // Hesap turu HER HALUKARDA degistirilebilir (Hesap Sahibi dahil) — talep uzerine
+            // eski "owner -> 1'e sabitle" korumasi kaldirildi.
             $hedefSistemYetki = $request->sistem_yetki;
-            $mevcutRolId = (int) DB::table('model_has_roles')
-                ->where('model_id', $yetkili->id)
-                ->where('salon_id', $request->salon_id)
-                ->value('role_id');
-            if ($mevcutRolId === 1 && (int) $hedefSistemYetki !== 1) {
-                $hedefSistemYetki = 1;
-            }
             $personel->role_id = $hedefSistemYetki;
             $personel->save();
 
