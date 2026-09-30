@@ -7574,8 +7574,10 @@ function modalbaslikata(str,form_id){
             if($(this).attr('name')!='sube' &&$(this).attr('name')!='_token'  &&$(this).attr('name')!='masraf_sayfasi' && $(this).attr('name') != 'takvim_sayfasi')
                 $(this).val('');
         });
-        if($('#sistem_yetki').length)
+        if($('#sistem_yetki').length){
             $('#sistem_yetki').removeAttr('disabled');
+            $('#sistem_yetki option').prop('disabled',false);
+        }
         // Yeni personel: detayli prim durumunu sifirla + urun/paket katalogunu yukle (hizmet bos)
         if(form_id === 'yenipersonelbilgiekle' && typeof window.pmPrimReset === 'function'){
             window.pmPrimReset();
@@ -10475,6 +10477,8 @@ $('#personel_tablo').on('click','a[name="personel_detayi"]',function(){
                         $('#takvimde_gorunsun').prop('checked', _tg).trigger('change');
                         // Hesap turu her halukarda duzenlenebilir (Hesap Sahibi dahil).
                         $('#sistem_yetki').prop('disabled',false);
+                        // Olasi eski/derlenmis blade'de kalan 'Hesap Sahibi' disabled option'ini da ac.
+                        $('#sistem_yetki option').prop('disabled',false);
                         $('#sistem_yetki').val(result.hesapturu);
                         $.each(result.calismasaatleri, function( key, value ) {
                             ++key;
