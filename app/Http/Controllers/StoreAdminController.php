@@ -26520,7 +26520,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     public function personeldetaygetir(Request $request)
     {
         $personel = Personeller::where('id',$request->personelid)->first();
-        $yetkili = IsletmeYetkilileri::where('id',$personel->yetkili_id)->first();
+        // Yetkili DAIMA personel.yetkili_id ile bulunur; NULL/gecersizse null kalir (500 vermesin).
+        $yetkili = ($personel && $personel->yetkili_id)
+            ? IsletmeYetkilileri::where('id',$personel->yetkili_id)->first()
+            : null;
         return array(
             'hizmet_prim_detayli' => (int)($personel->hizmet_prim_detayli ?? 0),
             'urun_prim_detayli'   => (int)($personel->urun_prim_detayli ?? 0),
@@ -26528,12 +26531,17 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'personelbilgi'=>json_decode($personel),
             'calismasaatleri'=>json_decode(PersonelCalismaSaatleri::where('personel_id',$request->personelid)->orderBy('haftanin_gunu','asc')->get()),
             'molasaatleri'=>json_decode(PersonelMolaSaatleri::where('personel_id',$request->personelid)->orderBy('haftanin_gunu','asc')->get()),
-            'hesapturu'=> DB::table('model_has_roles')->join('roles','model_has_roles.role_id','=','roles.id')->where('salon_id',$request->sube)->where('model_id',$yetkili->id)->value('roles.name'),
+            'hesapturu'=> $yetkili
+                ? DB::table('model_has_roles')->join('roles','model_has_roles.role_id','=','roles.id')->where('salon_id',$request->sube)->where('model_id',$yetkili->id)->value('roles.name')
+                : null,
             'hizmetyuzde' => Personeller::where('id',$request->personelid)->value('hizmet_prim_yuzde'),
             'urunyuzde' => Personeller::where('id',$request->personelid)->value('urun_prim_yuzde'),
             'paketyuzde' => Personeller::where('id',$request->personelid)->value('paket_prim_yuzde'),
             'maas' => Personeller::where('id',$request->personelid)->value('maas'),
-            'cep_telefon' => $yetkili->gsm1
+            // Telefonu personelin KENDI kaydindan al; bos ise (eski kayitlar) yetkili.gsm1'e dus.
+            'cep_telefon' => ($personel && trim((string)$personel->cep_telefon) !== '')
+                ? $personel->cep_telefon
+                : ($yetkili ? $yetkili->gsm1 : '')
         );
     }
 
