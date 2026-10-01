@@ -1255,6 +1255,47 @@ class SalonrandevuImporter
         return isset($this->manuelIsaretliIds[$randevuId]);
     }
 
+    /**
+     * Mevcut duble randevu temizligi: ayni musteri + tarih + saat + hizmet olan
+     * [salonrandevu-rdv:] markerli kayitlari grupla; her gruptan 1 tane TUT (manuel
+     * isaretli varsa onu, yoksa en kucuk id), fazlalari sil (+randevu_hizmetler).
+     */
+    public function dedupRandevu($dryRun = false)
+    {
+        $this->log(($dryRun ? '[DRY-RUN] ' : '') . "Duble randevu taraniyor (salon {$this->salonId})...");
+        $gruplar = DB::select("
+            SELECT r.user_id, r.tarih, r.saat, COALESCE(rh.hizmet_id,0) AS hid,
+                   GROUP_CONCAT(DISTINCT r.id ORDER BY r.id) AS ids, COUNT(DISTINCT r.id) AS cnt
+            FROM randevular r
+            LEFT JOIN randevu_hizmetler rh ON rh.randevu_id = r.id
+            WHERE r.salon_id = ? AND r.personel_notu LIKE '%[salonrandevu-rdv:%'
+            GROUP BY r.user_id, r.tarih, r.saat, hid
+            HAVING cnt > 1
+        ", [$this->salonId]);
+
+        $silinecek = [];
+        foreach ($gruplar as $g) {
+            $ids = array_map('intval', explode(',', $g->ids));
+            // Korunacak: manuel isaretli olan (varsa, en kucuk) yoksa en kucuk id
+            $manuelOlan = array_filter($ids, function ($id) { return $this->randevuElleIsaretli($id); });
+            $tut = !empty($manuelOlan) ? min($manuelOlan) : min($ids);
+            foreach ($ids as $id) { if ($id !== $tut) $silinecek[] = $id; }
+        }
+        $silinecek = array_values(array_unique($silinecek));
+        $this->log(($dryRun ? '[DRY-RUN] ' : '') . 'Duble grup: ' . count($gruplar)
+            . ', silinecek fazla kayit: ' . count($silinecek));
+        if ($dryRun || empty($silinecek)) {
+            if ($dryRun) $this->log('DRY-RUN - silme yapilmadi.');
+            return;
+        }
+        $sil = 0;
+        foreach (array_chunk($silinecek, 1000) as $ck) {
+            DB::table('randevu_hizmetler')->whereIn('randevu_id', $ck)->delete();
+            $sil += DB::table('randevular')->whereIn('id', $ck)->delete();
+        }
+        $this->log("Silindi: {$sil} duble randevu (randevu_hizmetler dahil).");
+    }
+
     private function importOneAppointment($appt)
     {
         {
@@ -1329,6 +1370,25 @@ class SalonrandevuImporter
                 $fiyat = (float) ($svc['amount'] ?? 0);
             }
 
+            // IKINCIL DEDUP: marker eslesmezse, ayni musteri + tarih + saat + hizmet
+            // zaten varsa onu kullan (marker kirpilmasi/eski import bugu -> DUBLE ENGELLE).
+            $ikincilEslesme = false;
+            if (!$existRandevu) {
+                $q = Randevular::where('salon_id', $this->salonId)
+                    ->where('user_id', $userId)
+                    ->where('tarih', $tarih)
+                    ->where('saat', $saat);
+                if ($hizmetId) {
+                    $q->whereExists(function ($sub) use ($hizmetId) {
+                        $sub->select(DB::raw(1))->from('randevu_hizmetler')
+                            ->whereRaw('randevu_hizmetler.randevu_id = randevular.id')
+                            ->where('randevu_hizmetler.hizmet_id', $hizmetId);
+                    });
+                }
+                $existRandevu = $q->first();
+                if ($existRandevu) { $ikincilEslesme = true; $this->counts['randevu_dedup']++; }
+            }
+
             // customer_state -> durum / randevuya_geldi mapping
             // AMPIRIK dogrulandi (Sinan Yilmaz 38 randevu; SR UI ikonlari + kart sayilari
             // Geldi=29/Yeni=1 ile BIREBIR tuttu). ESKI varsayim TERSTI, durumlar kaymisti.
@@ -1381,7 +1441,15 @@ class SalonrandevuImporter
                 if ($not === '' && !empty($appt['customer']['description'])) {
                     $not = trim((string) $appt['customer']['description']);
                 }
-                $r->personel_notu = trim(($not ? $not . ' ' : '') . $marker);
+                if ($ikincilEslesme) {
+                    // Mevcut kayit (marker'siz/kirpilmis) adopte ediliyor: notu KORU, marker yoksa ekle
+                    $mevcutNot = (string) ($existRandevu->personel_notu ?? '');
+                    $r->personel_notu = (strpos($mevcutNot, $marker) === false)
+                        ? trim(($mevcutNot !== '' ? $mevcutNot . ' ' : '') . $marker)
+                        : $mevcutNot;
+                } else {
+                    $r->personel_notu = trim(($not ? $not . ' ' : '') . $marker);
+                }
                 if (!$existRandevu && !empty($appt['created_at'])) {
                     $ct = strtotime($appt['created_at']);
                     if ($ct) $r->created_at = date('Y-m-d H:i:s', $ct);

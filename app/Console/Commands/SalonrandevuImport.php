@@ -38,6 +38,7 @@ class SalonrandevuImport extends Command
         {--branch= : Cok subeli hesapta import oncesi bu sube ID\'sine gec (/company/loginbranch/{id}). Verilmezse hesabin varsayilan/ana subesi cekilir.}
         {--inspect-appointment : /company/appointment/list?customerkey=<--customer> ile bir musterinin randevularini cek; her biri icin id+tarih+customer_state+durum alanlarini bas. Durum (geldi/gelmedi/iptal) eslemesini dogrulamak icin (salt-okunur).}
         {--customer= : --inspect-appointment icin musteri arama anahtari (ad veya telefon).}
+        {--dedup-randevu : Mevcut duble randevu temizligi (ayni musteri+tarih+saat+hizmet markerli kayitlardan 1 tut, fazlalari sil). Login gerekmez. --dry-run ile sadece raporlar.}
         {--start-page= : --only-other-receipts icin baslangic sayfa (resume). Default 1.}
         {--max-page= : --only-other-receipts icin son sayfa (inclusive). Belirtilmezse SR\'nin next_page=0 donene kadar.}
         {--dry-run : Reset oncesi sayim}';
@@ -99,6 +100,15 @@ class SalonrandevuImport extends Command
                 return $this->resetAll((int) $salonId, (bool) $this->option('dry-run'));
             }
             return $this->resetSalonrandevu((int) $salonId, (bool) $this->option('dry-run'));
+        }
+
+        // --dedup-randevu: mevcut duble randevu temizligi (login gerekmez, saf DB)
+        if ((bool) $this->option('dedup-randevu')) {
+            if (!$salonId) { $this->error('--dedup-randevu icin --salon zorunlu.'); return 1; }
+            $importer = new \App\Imports\SalonrandevuImporter($client, (int) $salonId, $this->output);
+            $importer->dedupRandevu((bool) $this->option('dry-run'));
+            $this->info('Tamam.');
+            return 0;
         }
 
         $this->info('Login deneniyor...');
