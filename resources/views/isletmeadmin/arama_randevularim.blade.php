@@ -6,8 +6,9 @@
 .arl-hero{ background:linear-gradient(120deg,#5C008E 0%,#7B2FB8 55%,#9D5DC8 100%); border-radius:18px; padding:22px 26px; color:#fff; margin-bottom:18px; box-shadow:0 12px 30px -10px rgba(92,0,142,.45); position:relative; overflow:hidden; }
 .arl-hero:after{ content:""; position:absolute; right:-40px; top:-40px; width:170px; height:170px; border-radius:50%; background:rgba(255,255,255,.10); }
 .arl-hero h4{ margin:0 0 6px; font-weight:700; font-size:22px; color:#fff; }
-.arl-geri{ display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.25); color:#fff !important; text-decoration:none; margin-right:8px; vertical-align:middle; transition:filter .15s; }
-.arl-geri:hover{ filter:brightness(1.2); color:#fff; }
+.arl-geri{ display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border-radius:30px; background:#fff; color:#5C008E !important; font-size:14px; font-weight:800; text-decoration:none; margin-right:12px; vertical-align:middle; box-shadow:0 6px 16px -6px rgba(0,0,0,.4); transition:transform .12s, filter .15s; }
+.arl-geri:hover{ color:#5C008E; transform:translateX(-2px); filter:brightness(.97); }
+.arl-geri i{ font-size:16px; }
 .arl-hero p{ margin:0; opacity:.92; font-size:13.5px; max-width:680px; }
 
 /* Araç çubuğu: tarih seçimi + hızlı butonlar */
@@ -58,7 +59,7 @@
 
 <div class="arl-wrap">
    <div class="arl-hero">
-      <h4><a href="javascript:void(0)" class="arl-geri" onclick="arlGeri()" title="Geri"><i class="fa fa-arrow-left"></i></a><i class="fa fa-calendar-check-o"></i> Arama Randevularım</h4>
+      <h4><a href="javascript:void(0)" class="arl-geri" onclick="arlGeri()" title="Geri"><i class="fa fa-arrow-left"></i> Geri</a><i class="fa fa-calendar-check-o"></i> Arama Randevularım</h4>
       <p>Kimi ne zaman arayacağınızın listesi. Tarih seçin, o güne ait aramalar listelensin. Zamanı geçmiş aramalar <b>kırmızı</b> görünür. Buradan doğrudan arayabilir veya başka güne erteleyebilirsiniz.</p>
    </div>
 
