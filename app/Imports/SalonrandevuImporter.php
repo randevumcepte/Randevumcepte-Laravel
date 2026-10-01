@@ -43,6 +43,7 @@ class SalonrandevuImporter
     private $packetMaster = null; // packet_id => [service_id => period]
     private $personelMap = [];   // sr staff id -> personeller.id
     private $urunMap = [];        // sr stock id -> urunler.id
+    private $manuelIsaretliIds = null; // salon_aktivite_log: elle geldi/gelmedi/iptal yapilmis randevu id'leri
 
     private $counts = ['personel' => 0, 'hizmet' => 0, 'urun' => 0, 'musteri' => 0,
                        'randevu' => 0, 'randevu_dedup' => 0, 'adisyon' => 0,
@@ -1232,6 +1233,28 @@ class SalonrandevuImporter
             . " | son sayfa=" . ($page - 1) . " sure={$sure}s");
     }
 
+    /**
+     * Bu randevuya SISTEM uzerinden elle geldi/gelmedi/iptal isaretlemesi yapilmis mi?
+     * salon_aktivite_log (SalonAudit) target_type=randevu + action in (...) ile tespit.
+     * Importer bu tabloya yazmadigi icin bu kayitlar YALNIZCA manuel mudahalelerdir.
+     * Tek sorgu ile tum id'ler hafizaya alinir (set), O(1) kontrol.
+     */
+    private function randevuElleIsaretli($randevuId)
+    {
+        if ($this->manuelIsaretliIds === null) {
+            $this->manuelIsaretliIds = DB::table('salon_aktivite_log')
+                ->where('salon_id', $this->salonId)
+                ->where('target_type', 'randevu')
+                ->whereIn('action', ['randevu_geldi', 'randevu_gelmedi', 'randevu_iptal', 'randevu_reddet'])
+                ->pluck('target_id')
+                ->filter()
+                ->flip()
+                ->all();
+            $this->log('Manuel isaretli randevu korumasi: ' . count($this->manuelIsaretliIds) . ' kayit (elle geldi/gelmedi/iptal).');
+        }
+        return isset($this->manuelIsaretliIds[$randevuId]);
+    }
+
     private function importOneAppointment($appt)
     {
         {
@@ -1323,6 +1346,14 @@ class SalonrandevuImporter
             elseif ($state === 2)                     { $durum = 0; $geldi = null; } // Yeni/Bekleme
             elseif ($state === 3)                     { $durum = 1; $geldi = null; } // onayli (tahmin)
             elseif (in_array($state, [4, 5], true))   { $durum = 2; $geldi = null; } // Iptal
+
+            // KORUMA: bu randevuya sistem uzerinden elle geldi/gelmedi/iptal isaretlenmisse
+            // SR durumu ezmesin -> mevcut durum/geldi degerleri aynen korunur.
+            if ($existRandevu && $this->randevuElleIsaretli($existRandevu->id)) {
+                $durum = (int) $existRandevu->durum;
+                $geldi = $existRandevu->randevuya_geldi;
+                $this->counts['manuel_korundu'] = ($this->counts['manuel_korundu'] ?? 0) + 1;
+            }
 
             try {
                 $r = $existRandevu ?: new Randevular();
