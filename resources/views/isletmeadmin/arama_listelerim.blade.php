@@ -202,10 +202,12 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
 .ag-script-icerik{ background:#f7f8fc; border:1px solid #eef0f5; border-radius:10px; padding:12px 14px; margin-top:10px; font-size:13.5px; color:#4b5163; white-space:pre-wrap; line-height:1.55; }
 .ag-kat-secim{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
 @media (max-width:520px){ .ag-kat-secim{ grid-template-columns:1fr; } }
-.ag-sonra{ display:flex; align-items:center; gap:9px; margin-top:12px; font-size:13px; color:#574f6b; cursor:pointer; }
-.ag-sonra input{ width:17px; height:17px; }
-.ag-sonra-alan{ display:none; gap:10px; margin-top:10px; }
-.ag-sonra-alan input{ flex:1; border:1px solid #e7e9f0; border-radius:10px; padding:9px 11px; font-size:13px; outline:none; }
+.ag-sonra{ display:flex; align-items:center; gap:10px; margin-top:14px; font-size:14px; font-weight:700; color:#5C008E; cursor:pointer; background:#f3edfb; border:2px dashed #a970e0; border-radius:12px; padding:13px 15px; }
+.ag-sonra:hover{ background:#ece0fb; }
+.ag-sonra input{ width:20px; height:20px; accent-color:#6d28d9; }
+.ag-sonra-alan{ display:none; flex-wrap:wrap; gap:10px; margin-top:10px; background:#faf7ff; border:1px solid #e3d5f5; border-radius:12px; padding:12px; }
+.ag-sonra-alan .ag-sonra-lbl{ width:100%; font-size:12.5px; font-weight:700; color:#6d28d9; margin-bottom:2px; }
+.ag-sonra-alan input{ flex:1; min-width:130px; border:1px solid #d9c9f0; border-radius:10px; padding:10px 11px; font-size:14px; outline:none; }
 .ag-kaydet{ width:100%; margin-top:14px; background:linear-gradient(120deg,#6d28d9,#7c3aed); color:#fff; border:none; border-radius:12px; padding:13px; font-weight:800; font-size:14.5px; cursor:pointer; transition:opacity .12s ease, transform .12s ease; box-shadow:0 8px 20px -10px rgba(109,40,217,.6); }
 .ag-kaydet:hover{ opacity:.95; transform:translateY(-1px); }
 .ag-kaydet:disabled{ opacity:.55; cursor:not-allowed; }
@@ -614,8 +616,9 @@ function agDetayCiz(m){
             '<input type="number" min="0" step="0.01" id="ag_satis_tutari" placeholder="örn: 1500">'+
             '<button type="button" class="ag-kasa-btn" id="ag_satis_kasa"><i class="fa fa-money"></i> Kasaya İşle</button>'+
          '</div>'+
-         '<label class="ag-sonra"><input type="checkbox" id="ag_sonra_chk"> Müşteri sonra aranmak istedi (Tekrar Aranacak)</label>'+
+         '<label class="ag-sonra"><input type="checkbox" id="ag_sonra_chk"> 📅 ARAMA RANDEVUSU VER — müşteri sonra aranmak istedi (Tekrar Aranacak)</label>'+
          '<div class="ag-sonra-alan" id="ag_sonra_alan">'+
+            '<div class="ag-sonra-lbl">Ne zaman tekrar aransın? Tarih + saat seç, sonra “Sonucu Kaydet”e bas.</div>'+
             '<input type="date" id="ag_sonra_tarih">'+
             '<input type="time" id="ag_sonra_saat">'+
          '</div>'+
