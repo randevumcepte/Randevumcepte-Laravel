@@ -78,9 +78,9 @@
 
    <div class="ck-ozet" id="ck_ozet">
       <div class="ck-oz"><div class="n" id="oz_toplam">0</div><div class="t"><span class="dot" style="background:#9097ad;"></span> Toplam Çağrı</div></div>
-      <div class="ck-oz"><div class="n" id="oz_gorusulen">0</div><div class="t"><span class="dot" style="background:#16a34a;"></span> Görüşülen</div></div>
-      <div class="ck-oz"><div class="n" id="oz_randevu">0</div><div class="t"><span class="dot" style="background:#1565c0;"></span> Arama Randevusu</div></div>
-      <div class="ck-oz"><div class="n" id="oz_satis">0</div><div class="t"><span class="dot" style="background:#b7791f;"></span> Telefonda Satış</div></div>
+      <div class="ck-oz"><div class="n" id="oz_kayitli">0</div><div class="t"><span class="dot" style="background:#7c3aed;"></span> Ses Kayıtlı</div></div>
+      <div class="ck-oz"><div class="n" id="oz_gelen">0</div><div class="t"><span class="dot" style="background:#16a34a;"></span> Gelen</div></div>
+      <div class="ck-oz"><div class="n" id="oz_giden">0</div><div class="t"><span class="dot" style="background:#1565c0;"></span> Giden</div></div>
    </div>
 
    <div class="ck-grid">
@@ -106,19 +106,12 @@ var ckSecili = null;
 
 function ckGeri(){ if(window.history.length>1){ window.history.back(); } else { window.location.href='/isletmeyonetim/arama-listelerim'+(ckSube?('?sube='+ckSube):''); } }
 
-function ckStil(kod){
-   switch(kod){
-      case 4: return {c:'yesil', bl:'bl-yesil', b:'b-yesil'};
-      case 1: return {c:'yesil', bl:'bl-yesil', b:'b-yesil'};
-      case 2: return {c:'kirmizi', bl:'bl-kirmizi', b:'b-kirmizi'};
-      case 5: return {c:'kirmizi', bl:'bl-kirmizi', b:'b-kirmizi'};
-      case 0: return {c:'turuncu', bl:'bl-turuncu', b:'b-turuncu'};
-      case 3: return {c:'mavi', bl:'bl-mavi', b:'b-mavi'};
-      case 6: return {c:'mavi', bl:'bl-mavi', b:'b-mavi'};
-      case 7: return {c:'altin', bl:'bl-altin', b:'b-altin'};
-      default: return {c:'gri', bl:'', b:'b-gri'};
-   }
+function ckYon(y){
+   return (y==='gelen')
+      ? {bl:'bl-yesil', b:'b-yesil', et:'↙ Gelen'}
+      : {bl:'bl-mavi',  b:'b-mavi',  et:'↗ Giden'};
 }
+function ckSure(sn){ sn=parseInt(sn)||0; if(sn<=0) return '—'; if(sn<60) return sn+' sn'; var d=Math.floor(sn/60), s=sn%60; return d+' dk'+(s?(' '+s+' sn'):''); }
 
 function ckListeCiz(){
    var ara = ($('#ck_ara').val()||'').toLocaleLowerCase('tr');
@@ -129,14 +122,14 @@ function ckListeCiz(){
    if(!veri.length){ $('#ck_liste').html('<div class="ck-bos" style="padding:40px;"><i class="fa fa-inbox"></i><div>Kayıt yok.</div></div>'); return; }
    var html='';
    veri.forEach(function(k){
-      var st = ckStil(k.sonuc_kod);
+      var y = ckYon(k.yon);
       var bas = (k.ad||'?').trim().charAt(0).toLocaleUpperCase('tr');
       html += '<div class="ck-item'+(ckSecili===k.id?' aktif':'')+'" data-id="'+ckEsc(k.id)+'">'
          + '<div class="ck-av">'+ckEsc(bas)+'</div>'
          + '<div class="bil"><div class="ad">'+ckEsc(k.ad)+'</div>'
          + '<div class="alt">'+(k.not? ckEsc(k.not) : ckEsc(k.telefon||'—'))+'</div></div>'
          + '<div class="sag"><div class="zmn">'+ckEsc(k.tarih)+'</div>'
-         + '<span class="ck-badge '+st.b+'">'+ckEsc(k.sonuc)+'</span>'
+         + '<span class="ck-badge '+y.b+'">'+y.et+'</span>'
          + (k.ses? ' <i class="fa fa-microphone" style="color:#7c3aed;margin-left:3px;" title="Ses kaydı var"></i>':'')
          + '</div></div>';
    });
@@ -144,25 +137,23 @@ function ckListeCiz(){
 }
 
 function ckDetayCiz(k){
-   var st = ckStil(k.sonuc_kod);
+   var y = ckYon(k.yon);
    var bas = (k.ad||'?').trim().charAt(0).toLocaleUpperCase('tr');
-   // Aynı müşterinin diğer çağrıları (telefon eşleşmesi)
+   // Aynı numaranın diğer çağrıları
    var gecmis = ckVeri.filter(function(x){ return x.id!==k.id && x.telefon && x.telefon===k.telefon; });
-   var satis = (k.satis_tutari!=null) ? ('<div class="ck-d-chip">💰 Satış: <b>'+Number(k.satis_tutari).toLocaleString('tr-TR')+' ₺</b></div>') : '';
    var audio = k.ses
       ? ('<div class="ck-d-audio"><audio controls preload="none" src="'+ckEsc(k.ses)+'"></audio></div>')
       : ('<div class="ck-d-audio"><span class="yok">🎙️ Bu çağrı için ses kaydı yok.</span></div>');
-   var not = k.not ? ('<div class="ck-d-not"><span class="lbl">GÖRÜŞME NOTU</span>'+ckEsc(k.not)+'</div>') : '';
+   var not = k.not ? ('<div class="ck-d-not"><span class="lbl">SON GÖRÜŞME NOTU</span>'+ckEsc(k.not)+'</div>') : '';
 
    var gecmisHtml='';
    if(gecmis.length){
-      gecmisHtml = '<div class="ck-gecmis-bas"><i class="fa fa-history"></i> Bu müşterinin diğer görüşmeleri ('+gecmis.length+')</div>';
-      gecmis.slice(0,20).forEach(function(g){
-         var gs=ckStil(g.sonuc_kod);
-         gecmisHtml += '<div class="ck-g-row '+gs.bl+'"><div class="ust">'
-            + '<span class="ck-badge '+gs.b+'">'+ckEsc(g.sonuc)+'</span>'
-            + '<span class="zmn">'+ckEsc(g.tarih)+(g.sure_dk>0?(' · '+g.sure_dk+' dk'):'')+'</span></div>'
-            + (g.not?('<div class="not">'+ckEsc(g.not)+'</div>'):'')
+      gecmisHtml = '<div class="ck-gecmis-bas"><i class="fa fa-history"></i> Bu numaranın diğer çağrıları ('+gecmis.length+')</div>';
+      gecmis.slice(0,30).forEach(function(g){
+         var gy=ckYon(g.yon);
+         gecmisHtml += '<div class="ck-g-row '+gy.bl+'"><div class="ust">'
+            + '<span class="ck-badge '+gy.b+'">'+gy.et+'</span>'
+            + '<span class="zmn">'+ckEsc(g.tarih)+(g.sure_sn>0?(' · '+ckSure(g.sure_sn)):'')+'</span></div>'
             + (g.ses?('<audio controls preload="none" src="'+ckEsc(g.ses)+'"></audio>'):'')
             + '</div>';
       });
@@ -172,11 +163,9 @@ function ckDetayCiz(k){
       '<div class="ck-d-bas"><div class="ck-d-av">'+ckEsc(bas)+'</div>'
       + '<div><div class="ck-d-ad">'+ckEsc(k.ad)+'</div><div class="ck-d-tel"><i class="fa fa-phone"></i> '+ckEsc(k.telefon||'—')+'</div></div></div>'
       + '<div class="ck-d-satir">'
-      +    '<div class="ck-d-chip"><span class="ck-badge '+st.b+'">'+ckEsc(k.sonuc)+'</span></div>'
+      +    '<div class="ck-d-chip"><span class="ck-badge '+y.b+'">'+y.et+'</span></div>'
       +    '<div class="ck-d-chip">🕒 <b>'+ckEsc(k.tarih)+'</b></div>'
-      +    (k.sure_dk>0?('<div class="ck-d-chip">⏱️ Süre: <b>'+k.sure_dk+' dk</b></div>'):'')
-      +    (k.personel?('<div class="ck-d-chip">👤 '+ckEsc(k.personel)+'</div>'):'')
-      +    satis
+      +    (k.sure_sn>0?('<div class="ck-d-chip">⏱️ Süre: <b>'+ckSure(k.sure_sn)+'</b></div>'):'')
       + '</div>'
       + audio + not + gecmisHtml
    );
@@ -195,8 +184,8 @@ function ckYukle(){
    $.get('/isletmeyonetim/arama-cagri-kayitlari-veri', { sube: ckSube }, function(res){
       ckVeri = (res && res.kayitlar) ? res.kayitlar : [];
       var o = (res && res.ozet) ? res.ozet : {};
-      $('#oz_toplam').text(o.toplam||0); $('#oz_gorusulen').text(o.gorusulen||0);
-      $('#oz_randevu').text(o.randevu||0); $('#oz_satis').text(o.satis||0);
+      $('#oz_toplam').text(o.toplam||0); $('#oz_kayitli').text(o.kayitli||0);
+      $('#oz_gelen').text(o.gelen||0); $('#oz_giden').text(o.giden||0);
       ckListeCiz();
    }).fail(function(){ $('#ck_liste').html('<div class="ck-bos" style="padding:40px;"><i class="fa fa-exclamation-triangle"></i><div>Yüklenemedi.</div></div>'); });
 }

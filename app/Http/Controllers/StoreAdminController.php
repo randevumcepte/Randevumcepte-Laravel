@@ -33791,9 +33791,10 @@ DB::raw('
     }
 
     /**
-     * Cagri Kayitlari VERISI (JSON): gorusme_notlari'ndan tum cagrilar (salon).
-     * Her kayit: tarih, musteri (rol 5 maskeli), personel, sonuc, sure, not, ses kaydi URL, satis.
-     * Personel kendi cagrilarini, yonetici salonun tumunu gorur. Ozet sayilar da doner.
+     * Cagri Kayitlari VERISI (JSON): santralin CANLI CDR API'sinden GERCEK cagri gecmisi
+     * (gelen+giden, ses kayitlariyla) — musteri_ses_kayitlari ile AYNI kaynak (freepbxapi.php).
+     * Numara, arama listelerindeki musterilerle (son 10 hane) eslesirse ad + son gorusme notu eklenir.
+     * Personel sadece kendi dahilisini, yonetici salonun tum dahililerini gorur. Rol 5'te ad/tel maskeli.
      */
     public function arama_cagri_kayitlari(Request $request)
     {
@@ -33801,58 +33802,124 @@ DB::raw('
         if ((int) optional(Salonlar::where('id', $salonId)->first())->uyelik_turu !== 3) {
             abort(403);
         }
-        if (!Schema::hasTable('gorusme_notlari')) {
-            return response()->json(['kayitlar' => [], 'ozet' => ['toplam' => 0, 'gorusulen' => 0, 'randevu' => 0, 'satis' => 0]]);
-        }
         $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
         $personelMi = ($rol == 5);
-        $myPid = $personelMi ? $this->aktifPersonelId($salonId) : null;
 
-        $taban = \App\GorusmeNotlari::where('salon_id', $salonId);
-        if ($personelMi) $taban->where('personel_id', $myPid);
+        // Taranacak dahililer: personel sadece kendisi, yonetici tum salon
+        if ($personelMi) {
+            $myPid = $this->aktifPersonelId($salonId);
+            $dahili = Personeller::where('id', $myPid)->value('dahili_no');
+            $dahililer = $dahili ? [$dahili] : [];
+        } else {
+            $dahililer = Personeller::where('salon_id', $salonId)
+                ->whereNotNull('dahili_no')->where('dahili_no', '!=', '')
+                ->pluck('dahili_no')->toArray();
+        }
+        if (empty($dahililer)) {
+            return response()->json(['kayitlar' => [], 'ozet' => ['toplam' => 0, 'kayitli' => 0, 'gelen' => 0, 'giden' => 0]]);
+        }
+        $dahiliSet = array_map('strval', $dahililer);
 
-        // Ozet (TUM kayitlar uzerinden)
-        $ozetSql = "COUNT(*) as toplam,"
-            . " SUM(CASE WHEN sonuc IN (1,4) THEN 1 ELSE 0 END) as gorusulen,"
-            . " SUM(CASE WHEN sonuc=3 THEN 1 ELSE 0 END) as randevu,"
-            . " SUM(CASE WHEN sonuc=7 THEN 1 ELSE 0 END) as satis";
-        $ozetRow = (clone $taban)->selectRaw($ozetSql)->first();
-        $ozet = [
-            'toplam'    => (int) ($ozetRow->toplam ?? 0),
-            'gorusulen' => (int) ($ozetRow->gorusulen ?? 0),
-            'randevu'   => (int) ($ozetRow->randevu ?? 0),
-            'satis'     => (int) ($ozetRow->satis ?? 0),
-        ];
+        // Numara -> musteri (ad + user_id) haritasi: bu salonun arama listelerindeki musteriler (son 10 hane)
+        $telMap = [];
+        $listeIds = AramaListesi::where('salon_id', $salonId)->pluck('id')->all();
+        if ($listeIds) {
+            $mus = DB::table('aranacak_musteriler as am')->join('users as u', 'u.id', '=', 'am.user_id')
+                ->whereIn('am.arama_id', $listeIds)->select('u.id', 'u.name', 'u.cep_telefon')->get();
+            foreach ($mus as $m) {
+                $k = substr(preg_replace('/\D/', '', (string) $m->cep_telefon), -10);
+                if ($k !== '') $telMap[$k] = ['ad' => $m->name, 'uid' => $m->id];
+            }
+        }
+        // user_id -> son gorusme notu
+        $notMap = [];
+        if ($telMap && Schema::hasTable('gorusme_notlari')) {
+            $uids = array_values(array_unique(array_map(function ($x) { return $x['uid']; }, $telMap)));
+            $gn = \App\GorusmeNotlari::where('salon_id', $salonId)->whereIn('user_id', $uids)
+                ->whereNotNull('not')->where('not', '!=', '')->orderBy('id', 'desc')->get(['user_id', 'not']);
+            foreach ($gn as $g) { if (!isset($notMap[$g->user_id])) $notMap[$g->user_id] = $g->not; }
+        }
 
-        $notlar = (clone $taban)->orderBy('id', 'desc')->limit(1000)->get();
+        // Santral CANLI CDR (son 60 gun)
+        $trunk = \App\SabitNumaralar::where('salon_id', $salonId)->value('numara');
+        $qs = '?offset=0';
+        foreach ($dahililer as $d) $qs .= '&dahililer[]=' . urlencode($d);
+        $qs .= '&tarih1=' . date('Y-m-d', strtotime('-60 days'));
+        $qs .= '&tarih2=' . date('Y-m-d', strtotime('+1 day'));
+        if ($trunk) $qs .= '&did=' . urlencode($trunk);
 
-        $userIds = $notlar->pluck('user_id')->filter()->unique()->all();
-        $users = $userIds ? \App\User::whereIn('id', $userIds)->get(['id', 'name', 'cep_telefon'])->keyBy('id') : collect();
-        $pIds = $notlar->pluck('personel_id')->filter()->unique()->all();
-        $pers = $pIds ? Personeller::whereIn('id', $pIds)->pluck('personel_adi', 'id') : collect();
+        $kayitlar = [];
+        $ozet = ['toplam' => 0, 'kayitli' => 0, 'gelen' => 0, 'giden' => 0];
+        try {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, 'https://santral.randevumcepte.com.tr/monitor/api/freepbxapi.php' . $qs);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+            $raw = curl_exec($ch);
+            curl_close($ch);
+            $results = json_decode($raw, true);
+            $satirlar = (isset($results['data']) && is_array($results['data'])) ? $results['data'] : (is_array($results) ? $results : []);
 
-        $kayitlar = $notlar->map(function ($n) use ($personelMi, $users, $pers) {
-            $u = $users[$n->user_id] ?? null;
-            $ad = $u ? ($u->name ?? 'Müşteri') : 'Müşteri';
-            $tel = $u ? (string) ($u->cep_telefon ?? '') : '';
-            if ($personelMi) { $ad = self::adSoyadMaskele($ad); $tel = self::telefonGizle($tel); }
-            $kod = is_null($n->sonuc) ? null : (int) $n->sonuc;
-            return [
-                'id'           => $n->id,
-                'ad'           => $ad,
-                'telefon'      => $tel,
-                'personel'     => $pers[$n->personel_id] ?? '',
-                'tarih'        => $n->created_at ? date('d.m.Y H:i', strtotime($n->created_at)) : '',
-                'sonuc_kod'    => $kod,
-                'sonuc'        => self::aranacakDurumMetin($n->sonuc),
-                'sure_dk'      => (int) ($n->sure_dk ?? 0),
-                'not'          => $n->not ?? '',
-                'ses'          => self::sesKaydiUrl($n->ses_kaydi),
-                'satis_tutari' => ($kod === 7 && isset($n->satis_tutari) && $n->satis_tutari !== null) ? (float) $n->satis_tutari : null,
-            ];
-        });
+            $gorulen = [];
+            foreach ($satirlar as $r) {
+                if (!is_array($r)) continue;
+                $src = preg_replace('/\D/', '', (string) ($r['src'] ?? ''));
+                $dst = preg_replace('/\D/', '', (string) ($r['dst'] ?? ''));
+                $srcIc = ($src === '' || strlen($src) <= 5 || in_array($src, $dahiliSet, true));
+                $dstIc = ($dst === '' || strlen($dst) <= 5 || in_array($dst, $dahiliSet, true));
 
-        return response()->json(['kayitlar' => $kayitlar, 'ozet' => $ozet]);
+                // Dis numara + yon
+                $disNo = ''; $yon = '';
+                if (!$srcIc && strlen($src) >= 10) { $disNo = $src; $yon = 'gelen'; }
+                elseif (!$dstIc && strlen($dst) >= 10) { $disNo = $dst; $yon = 'giden'; }
+                else {
+                    $saman = preg_replace('/\D/', '', ($r['channel'] ?? '') . '|' . ($r['dstchannel'] ?? ''));
+                    if (preg_match('/(\d{10})(?!.*\d)/', $saman, $mm)) { $disNo = $mm[1]; $yon = 'giden'; }
+                }
+                if ($disNo === '') continue; // dis numara cozulemeyen satirlari atla (internal-internal)
+                $son10 = substr($disNo, -10);
+
+                // Benzersizlestir (ayni cagri birden fazla CDR satiri olabilir)
+                $tsRaw = !empty($r['calldate']) ? strtotime($r['calldate']) : 0;
+                $uniq = $son10 . '|' . $tsRaw;
+                if (isset($gorulen[$uniq])) continue;
+                $gorulen[$uniq] = true;
+
+                $url = isset($r['recording_path']) ? trim((string) $r['recording_path']) : '';
+                if ($url !== '' && stripos($url, 'http') !== 0) {
+                    $url = 'https://voicerecords.randevumcepte.com.tr' . (substr($url, 0, 1) === '/' ? '' : '/') . $url;
+                }
+                $sureSn = (int) ($r['billsec'] ?? $r['duration'] ?? 0);
+
+                $m = $telMap[$son10] ?? null;
+                $ad = $m ? $m['ad'] : $son10;
+                $not = ($m && isset($notMap[$m['uid']])) ? $notMap[$m['uid']] : '';
+                $telGoster = $son10;
+                if ($personelMi) { $ad = self::adSoyadMaskele($ad); $telGoster = self::telefonGizle($son10); }
+
+                $kayitlar[] = [
+                    '_ts'     => $tsRaw,
+                    'ad'      => $ad,
+                    'telefon' => $telGoster,
+                    'yon'     => $yon,
+                    'tarih'   => $tsRaw ? date('d.m.Y H:i', $tsRaw) : '',
+                    'sure_sn' => $sureSn,
+                    'not'     => $not,
+                    'ses'     => $url,
+                ];
+                $ozet['toplam']++;
+                if ($url !== '') $ozet['kayitli']++;
+                if ($yon === 'gelen') $ozet['gelen']++; elseif ($yon === 'giden') $ozet['giden']++;
+            }
+            usort($kayitlar, function ($a, $b) { return $b['_ts'] <=> $a['_ts']; });
+            $kayitlar = array_slice($kayitlar, 0, 800);
+            foreach ($kayitlar as $i => &$k) { $k['id'] = $i; unset($k['_ts']); }
+            unset($k);
+        } catch (\Throwable $e) {
+            \Log::warning('[CAGRI-KAYITLARI] freepbxapi hata: ' . $e->getMessage());
+        }
+
+        return response()->json(['kayitlar' => array_values($kayitlar), 'ozet' => $ozet]);
     }
 
     /**
