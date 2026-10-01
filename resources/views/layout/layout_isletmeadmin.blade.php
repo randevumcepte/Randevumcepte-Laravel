@@ -1329,8 +1329,8 @@
       <input id='dogrulama_kodu_ayari' type="hidden" value="{{\App\SalonSMSAyarlari::where('salon_id',$isletme->id)->where('ayar_id',16)->value('musteri')}}">
       <input id='ekleme_onay_ayari' type="hidden" value="{{\App\SalonSMSAyarlari::where('salon_id',$isletme->id)->where('ayar_id',22)->value('musteri')}}">
       <input name="sube" type="hidden" value="{{$isletme->id}}">
-      <input id='santral_dahili_no' type="hidden" value="{{optional($_layoutYetkiliPersonel)->dahili_no}}">
-      <input id='santral_dahili_sifre' type="hidden" value="{{optional($_layoutYetkiliPersonel)->dahili_sifre}}">
+      <input id='santral_dahili_no' type="hidden" value="{{optional($_layoutYetkiliPersonel)->dahili_no_webrtc}}">
+      <input id='santral_dahili_sifre' type="hidden" value="{{optional($_layoutYetkiliPersonel)->dahili_sifre_webrtc}}">
       <div id="preloader">
          <div id="loaderstatus">&nbsp;</div>
       </div>
@@ -1429,7 +1429,7 @@
                </a>
             </div>
             @endif
-            @if(optional($_layoutYetkiliPersonel)->dahili_no !== null)
+            @if(optional($_layoutYetkiliPersonel)->dahili_no_webrtc !== null)
             <div class="user-notification " style="padding:20px 0 0 0">
                <div class="dropdown" id="webTelefonDropDown">
                   <!--{{(!$_layoutDahiliDurum) ? 'dropdown' : 'modal'}}
@@ -1438,7 +1438,7 @@
                      -->
                   <span
                      id='webtelefon'
-                     class="dropdown-toggle no-arrow {{(optional($_layoutYetkiliPersonel)->dahili_no !== null) ? 'btn btn-success':''}}"
+                     class="dropdown-toggle no-arrow {{(optional($_layoutYetkiliPersonel)->dahili_no_webrtc !== null) ? 'btn btn-success':''}}"
                      href="#"
                      role="button"
                      data-toggle="dropdown" 
@@ -1460,9 +1460,9 @@
                            <div class="form-group">
                               @if(in_array(5, $_layoutRoller))
 
-                              <input type="tel" style="display: none;" id="dial" class="form-control"  placeholder="{{(optional($_layoutYetkiliPersonel)->dahili_no === null) ? 'Web telefonunu kullanabilmek için lütfen ayarlardan dahili numara ataması yapınız!' : 'Çevirmek istediğiniz dahili/numara'}}"   aria-describedby="dial-input">
+                              <input type="tel" style="display: none;" id="dial" class="form-control"  placeholder="{{(optional($_layoutYetkiliPersonel)->dahili_no_webrtc === null) ? 'Web telefonunu kullanabilmek için lütfen ayarlardan dahili numara ataması yapınız!' : 'Çevirmek istediğiniz dahili/numara'}}"   aria-describedby="dial-input">
                               @else
-                              <input type="tel" style="border-radius: 0; padding: 35px; text-align:center; border-color: #fff;" id="dial" class="form-control"  placeholder="{{(optional($_layoutYetkiliPersonel)->dahili_no === null) ? 'Web telefonunu kullanabilmek için lütfen ayarlardan dahili numara ataması yapınız!' : 'Çevirmek istediğiniz dahili/numara'}}"   aria-describedby="dial-input">
+                              <input type="tel" style="border-radius: 0; padding: 35px; text-align:center; border-color: #fff;" id="dial" class="form-control"  placeholder="{{(optional($_layoutYetkiliPersonel)->dahili_no_webrtc === null) ? 'Web telefonunu kullanabilmek için lütfen ayarlardan dahili numara ataması yapınız!' : 'Çevirmek istediğiniz dahili/numara'}}"   aria-describedby="dial-input">
                               @endif
                            </div>
                            <span style="display: none;" id='aranacak_dahili_telefon'></span>
@@ -5820,7 +5820,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <script src="{{secure_asset('public/js/accounting.js')}}"></script>
       <span id="server" style="display: none;"></span>
       
-      @if(optional($_layoutYetkiliPersonel)->dahili_no!==null)
+      @if(optional($_layoutYetkiliPersonel)->dahili_no_webrtc!==null)
       <audio id="ringtone" src="/public/telefon-ses/phone_incoming.mp3" class="d-none" loop></audio>
       <audio id="ringtone-local" src="/public/telefon-ses/phone_incoming.mp3" class="d-none" loop></audio>
       <audio id="ringbacktone" src="/public/telefon-ses/phone-outgoing.mp3" class="d-none" loop></audio>
@@ -5832,7 +5832,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <audio id="ringtone-local" src="/public/telefon-ses/phone_incoming.mp3"></audio>
       <audio id="remoteAudio"class="d-none"></audio>
       <script src="{{secure_asset('public/js/santral/sip-0.21.2.min.js')}}"></script>
-      @if($isletme->santral_aktif && (optional($_layoutYetkiliPersonel)->dahili_no !== null))
+      @if($isletme->santral_aktif && (optional($_layoutYetkiliPersonel)->dahili_no_webrtc !== null))
       <script src="{{secure_asset('public/js/santral/webphone.js?v=12.1')}}"></script>
       @endif
  
