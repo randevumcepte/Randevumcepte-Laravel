@@ -32584,6 +32584,103 @@ DB::raw('
         ]);
     }
 
+    /** Patron: tum personelin arama randevulari — takvim gorunumu (FullCalendar). */
+    public function arama_randevu_takvim(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray();
+        $isletme = Salonlar::where('id', $salonId)->first();
+
+        if (!in_array($salonId, $isletmeler)) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if ((int) optional($isletme)->uyelik_turu !== 3) {
+            abort(403);
+        }
+        $lisansSure = self::lisans_sure_kontrol($request);
+        if (str_contains($lisansSure, '-')) {
+            return view('isletmeadmin.lisanssurebitti', ['isletme' => $isletme]);
+        }
+        $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
+        if ($rol == 5) {
+            return view('isletmeadmin.yetkisizerisim'); // personel goremez
+        }
+
+        return view('isletmeadmin.arama_randevu_takvim', [
+            'kullaniciRolu'           => $rol,
+            'bildirimler'             => self::bildirimgetir($request),
+            'sayfa_baslik'            => 'Arama Randevu Takvimi',
+            'pageindex'               => 46,
+            'isletme'                 => $isletme,
+            'kalan_uyelik_suresi'     => $lisansSure,
+            'yetkiliolunanisletmeler' => $isletmeler,
+        ]);
+    }
+
+    /** Takvim JSON: salonun tum arama randevulari (durum=3 veya tamamlanmis) — FullCalendar event'leri. */
+    public function arama_randevu_takvim_verileri(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        if ((int) optional(Salonlar::where('id', $salonId)->first())->uyelik_turu !== 3) {
+            abort(403);
+        }
+        $arVar = Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at');
+
+        $bas = $request->filled('start') ? date('Y-m-d', strtotime($request->start)) : date('Y-m-d', strtotime('-31 days'));
+        $bit = $request->filled('end') ? date('Y-m-d', strtotime($request->end)) : date('Y-m-d', strtotime('+62 days'));
+
+        $q = DB::table('aranacak_musteriler as am')
+            ->join('arama_listesi as al', 'al.id', '=', 'am.arama_id')
+            ->leftJoin('users as u', 'u.id', '=', 'am.user_id')
+            ->leftJoin('personeller as p', 'p.id', '=', 'al.personel_id')
+            ->where('al.salon_id', $salonId)
+            ->whereNotNull('am.tarih')->where('am.tarih', '!=', '')
+            ->whereNotNull('am.saat')->where('am.saat', '!=', '')
+            ->whereBetween('am.tarih', [$bas, $bit]);
+        if ($arVar) {
+            $q->where(function ($w) {
+                $w->where('am.durum', 3)->orWhereNotNull('am.ar_tamamlandi_at');
+            });
+        } else {
+            $q->where('am.durum', 3);
+        }
+        $secim = ['am.id', 'am.tarih', 'am.saat', 'am.durum', 'u.name as musteri_ad', 'p.personel_adi', 'al.personel_id'];
+        if ($arVar) { $secim[] = 'am.ar_tamamlandi_at'; $secim[] = 'am.ar_gecikti'; }
+        $kayitlar = $q->select($secim)->limit(2000)->get();
+
+        $nowTs = time();
+        $events = [];
+        foreach ($kayitlar as $k) {
+            $apptTs = strtotime($k->tarih . ' ' . $k->saat);
+            $tamamlandi = $arVar && !empty($k->ar_tamamlandi_at);
+            if ($tamamlandi) {
+                $gec = strtotime($k->ar_tamamlandi_at) > $apptTs;
+                $renk = $gec ? '#f59e0b' : '#16a34a';            // turuncu=geç arandı, yeşil=zamanında
+                $durumMetin = $gec ? 'Geç arandı' : 'Zamanında arandı';
+            } elseif ((int) $k->durum === 3 && ($apptTs < $nowTs || ($arVar && (int) $k->ar_gecikti === 1))) {
+                $renk = '#dc2626';                                // kırmızı=gecikti
+                $durumMetin = 'Gecikti';
+            } else {
+                $renk = '#2563eb';                                // mavi=planlı
+                $durumMetin = 'Planlı';
+            }
+            $personel = $k->personel_adi ?: 'Personel';
+            $musteri = $k->musteri_ad ?: 'Müşteri';
+            $events[] = [
+                'id'              => $k->id,
+                'title'           => $personel . ' · ' . $musteri,
+                'start'           => date('Y-m-d\TH:i:s', $apptTs),
+                'color'          => $renk,
+                'personel_id'     => (int) $k->personel_id,
+                'personel'        => $personel,
+                'musteri'         => $musteri,
+                'durum_metin'     => $durumMetin,
+            ];
+        }
+
+        return response()->json($events);
+    }
+
     /** Dashboard JSON: personel bazli arama metrikleri (kart verileri). */
     public function arama_dashboard_verileri(Request $request)
     {
@@ -32593,20 +32690,27 @@ DB::raw('
         }
 
         // Aranacak musteri durum metrikleri (personel = arama_listesi.personel_id)
+        $selectler = [
+            'al.personel_id',
+            DB::raw('COUNT(*) as atanan'),
+            DB::raw('SUM(CASE WHEN am.durum IS NOT NULL THEN 1 ELSE 0 END) as aranan'),
+            DB::raw('SUM(CASE WHEN am.durum IN (2,5) THEN 1 ELSE 0 END) as cevapsiz'),
+            DB::raw('SUM(CASE WHEN am.durum IN (1,4) THEN 1 ELSE 0 END) as konusulan'),
+            DB::raw('SUM(CASE WHEN am.durum=0 THEN 1 ELSE 0 END) as ulasilamadi'),
+            DB::raw('SUM(CASE WHEN am.durum=3 THEN 1 ELSE 0 END) as randevu'),
+            DB::raw('SUM(CASE WHEN am.durum=6 THEN 1 ELSE 0 END) as ongorusme'),
+            DB::raw('SUM(CASE WHEN am.durum=7 THEN 1 ELSE 0 END) as satis'),
+        ];
+        // Arama Randevusu (callback) gecikme metrikleri — ar_* kolonlari varsa
+        if (Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at')) {
+            $selectler[] = DB::raw("SUM(CASE WHEN am.durum=3 AND am.tarih IS NOT NULL AND am.tarih<>'' AND am.saat IS NOT NULL AND am.saat<>'' AND (am.ar_gecikti=1 OR CONCAT(am.tarih,' ',am.saat) < NOW()) THEN 1 ELSE 0 END) as gecikti");
+            $selectler[] = DB::raw("SUM(CASE WHEN am.ar_tamamlandi_at IS NOT NULL AND am.tarih IS NOT NULL AND am.tarih<>'' AND am.saat IS NOT NULL AND am.saat<>'' AND CONCAT(am.tarih,' ',am.saat) < am.ar_tamamlandi_at THEN 1 ELSE 0 END) as gec_aranan");
+            $selectler[] = DB::raw("SUM(CASE WHEN am.ar_tamamlandi_at IS NOT NULL AND am.tarih IS NOT NULL AND am.tarih<>'' AND am.saat IS NOT NULL AND am.saat<>'' AND CONCAT(am.tarih,' ',am.saat) >= am.ar_tamamlandi_at THEN 1 ELSE 0 END) as zamaninda_aranan");
+        }
         $rows = DB::table('aranacak_musteriler as am')
             ->join('arama_listesi as al', 'al.id', '=', 'am.arama_id')
             ->where('al.salon_id', $salonId)
-            ->select(
-                'al.personel_id',
-                DB::raw('COUNT(*) as atanan'),
-                DB::raw('SUM(CASE WHEN am.durum IS NOT NULL THEN 1 ELSE 0 END) as aranan'),
-                DB::raw('SUM(CASE WHEN am.durum IN (2,5) THEN 1 ELSE 0 END) as cevapsiz'),
-                DB::raw('SUM(CASE WHEN am.durum IN (1,4) THEN 1 ELSE 0 END) as konusulan'),
-                DB::raw('SUM(CASE WHEN am.durum=0 THEN 1 ELSE 0 END) as ulasilamadi'),
-                DB::raw('SUM(CASE WHEN am.durum=3 THEN 1 ELSE 0 END) as randevu'),
-                DB::raw('SUM(CASE WHEN am.durum=6 THEN 1 ELSE 0 END) as ongorusme'),
-                DB::raw('SUM(CASE WHEN am.durum=7 THEN 1 ELSE 0 END) as satis')
-            )
+            ->select($selectler)
             ->groupBy('al.personel_id')
             ->get()
             ->keyBy('personel_id');
@@ -32650,6 +32754,10 @@ DB::raw('
                 'toplam_dk'      => $g ? (int) $g->toplam_dk : 0,
                 'gorusme_sayisi' => $g ? (int) $g->gorusme_sayisi : 0,
                 'satis_cirosu'   => $g ? (float) $g->satis_cirosu : 0,
+                // Arama randevusu (callback) gecikme metrikleri
+                'gecikti'          => isset($r->gecikti) ? (int) $r->gecikti : 0,
+                'gec_aranan'       => isset($r->gec_aranan) ? (int) $r->gec_aranan : 0,
+                'zamaninda_aranan' => isset($r->zamaninda_aranan) ? (int) $r->zamaninda_aranan : 0,
             ];
         }
 
@@ -32868,11 +32976,42 @@ DB::raw('
         $satisTutari = ($kayitDurum === 7 && $request->filled('satis_tutari'))
             ? round((float) str_replace(',', '.', $request->satis_tutari), 2) : null;
 
+        // --- Arama Randevusu (callback) yasam dongusu ---
+        // Bu kayitta BEKLEYEN bir arama randevusu var miydi? (durum=3 + zaman + henuz tamamlanmamis)
+        $arKolonVar = Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at');
+        $vardiCallback = ((int) $kayit->durum === 3 && !empty($kayit->tarih) && !empty($kayit->saat)
+            && (!$arKolonVar || is_null($kayit->ar_tamamlandi_at)));
+        $yeniCallback = ($kayitDurum === 3 && $randevuMu);
+
         // Mevcut tablo: tekrar arama randevusu tarih/saat alanlari (TekrarAramaHatirlat bunu okur)
         $kayit->musteri_not = $notIcerik;
-        $kayit->tarih = $tekrarTarih;
-        $kayit->saat  = $tekrarSaat;
         $kayit->durum = $kayitDurum;
+        if ($randevuMu) {
+            // Yeni zaman verildi (durum 3 veya 6 On Gorusme) -> eski davranis gibi tarih/saat guncelle
+            $kayit->tarih = $tekrarTarih;
+            $kayit->saat  = $tekrarSaat;
+        } elseif (!$vardiCallback) {
+            // Bekleyen callback yok ve yeni zaman da verilmedi -> eski davranis (alanlar bos yazilir)
+            $kayit->tarih = $tekrarTarih;
+            $kayit->saat  = $tekrarSaat;
+        }
+        // else: bekleyen callback ELLE cozuldu, yeni zaman yok -> onceki randevu zamanini KORU
+        //       ("gec aranan" raporunun ar_tamamlandi_at ile karsilastirabilmesi icin)
+
+        if ($arKolonVar) {
+            if ($yeniCallback) {
+                // Yeni/yeniden planlanan callback -> yeni dongu icin bayraklari sifirla
+                $kayit->ar_5dk_at = null;
+                $kayit->ar_zaman_at = null;
+                $kayit->ar_gecikti = 0;
+                $kayit->ar_tamamlandi_at = null;
+            } elseif ($vardiCallback) {
+                // Bekleyen callback artik islendi (gorusuldu/satis/on gorusme/vb.) -> tamamlandi
+                $kayit->ar_tamamlandi_at = date('Y-m-d H:i:s');
+                $kayit->ar_gecikti = 0;
+            }
+        }
+
         if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
             $kayit->son_arama_zamani = date('Y-m-d H:i:s');
         }
@@ -33136,8 +33275,12 @@ DB::raw('
         $sonuc = $this->cagriMerkeziOriginate($salonId, $tel, $dahili);
 
         if (!empty($sonuc['success'])) {
-            // Arama randevusu (durum=3) ise arandi olarak isaretle ki popup tekrar nag yapmasin.
+            // Arama randevusu (durum=3) ise: tamamlandi damgala (rapor icin) + arandi yap (popup susar).
             if ((int) $kayit->durum === 3) {
+                if (Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at')) {
+                    $kayit->ar_tamamlandi_at = date('Y-m-d H:i:s'); // zamaninda/gec ayrimi: tarih/saat KORUNUR
+                    $kayit->ar_gecikti = 0;
+                }
                 $kayit->durum = 1;
             }
             if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
@@ -33394,8 +33537,11 @@ DB::raw('
     }
 
     /**
-     * Agent calisma ekrani — ZAMANI GELEN arama randevulari (durum=3, tarih+saat <= simdi).
-     * Personel ise kendi listeleri; yonetici ise salonun tum listeleri. Popup hatirlatma kullanir.
+     * Agent calisma ekrani — Arama Randevusu (callback, durum=3) popup hatirlatmasi.
+     * Pencere: [now-12h, now+6dk]. Henuz tamamlanmamis (ar_tamamlandi_at NULL) olanlar.
+     * Her kayda `faz` doner: on5 (yaklasiyor) | zaman (zamani geldi/gecti) | gecikti (10dk+ gecti).
+     * Personel ise kendi listeleri + maskeli ad; yonetici salonun tum listeleri.
+     * SADECE durum=3 — On Gorusme (durum=6) gercek randevudur, buraya girmez.
      */
     public function cagri_yaklasan_randevular(Request $request)
     {
@@ -33411,33 +33557,152 @@ DB::raw('
             return response()->json(['randevular' => []]);
         }
 
-        $now = date('Y-m-d H:i:s');
-        $altSinir = date('Y-m-d H:i:s', strtotime('-12 hours')); // cok eski randevulari gosterme
+        $ustSinir = date('Y-m-d H:i:s', strtotime('+6 minutes'));  // yaklasan (5dk) dahil
+        $altSinir = date('Y-m-d H:i:s', strtotime('-12 hours'));   // cok eski olanlari gosterme
 
-        $kayitlar = AranacakMusteriler::whereIn('arama_id', $listeIds)
-            ->whereIn('durum', [3, 6])
+        $qr = AranacakMusteriler::whereIn('arama_id', $listeIds)
+            ->where('durum', 3)
             ->whereNotNull('tarih')->where('tarih', '!=', '')
             ->whereNotNull('saat')->where('saat', '!=', '')
-            ->whereRaw("CONCAT(tarih,' ',saat) <= ?", [$now])
-            ->whereRaw("CONCAT(tarih,' ',saat) >= ?", [$altSinir])
-            ->with('musteri')
-            ->orderByRaw("CONCAT(tarih,' ',saat) desc")
-            ->limit(20)->get();
+            ->whereRaw("CONCAT(tarih,' ',saat) <= ?", [$ustSinir])
+            ->whereRaw("CONCAT(tarih,' ',saat) >= ?", [$altSinir]);
+        if (Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at')) {
+            $qr->whereNull('ar_tamamlandi_at');
+        }
+        $kayitlar = $qr->with('musteri')
+            ->orderByRaw("CONCAT(tarih,' ',saat) asc")
+            ->limit(30)->get();
+
+        // Ses kaydi sayisi + en yeni kayit tarihi (gorusme_notlari uzerinden, santral API'ye yuk bindirmeden)
+        $sesMap = [];
+        if (Schema::hasTable('gorusme_notlari') && $kayitlar->isNotEmpty()) {
+            $sesMap = DB::table('gorusme_notlari')
+                ->whereIn('aranacak_musteri_id', $kayitlar->pluck('id')->all())
+                ->whereNotNull('ses_kaydi')->where('ses_kaydi', '!=', '')
+                ->select('aranacak_musteri_id', DB::raw('COUNT(*) as adet'), DB::raw('MAX(created_at) as son'))
+                ->groupBy('aranacak_musteri_id')->get()->keyBy('aranacak_musteri_id');
+        }
 
         $personelMi = ($rol == 5);
-        $out = $kayitlar->map(function ($k) use ($personelMi) {
+        $nowTs = time();
+        $out = $kayitlar->map(function ($k) use ($personelMi, $sesMap, $nowTs) {
             $ad = optional($k->musteri)->name ?? 'Müşteri';
             if ($personelMi) $ad = self::adSoyadMaskele($ad);
+            $apptTs = strtotime($k->tarih . ' ' . $k->saat);
+            if ($apptTs > $nowTs) $faz = 'on5';
+            elseif ($apptTs < $nowTs - 600) $faz = 'gecikti';
+            else $faz = 'zaman';
+            $ses = $sesMap[$k->id] ?? null;
             return [
-                'id'       => $k->id,
-                'arama_id' => $k->arama_id,
-                'ad'       => $ad,
-                'tarih'    => $k->tarih ? date('d.m.Y', strtotime($k->tarih)) : '',
-                'saat'     => $k->saat ? date('H:i', strtotime($k->saat)) : '',
+                'id'         => $k->id,
+                'arama_id'   => $k->arama_id,
+                'ad'         => $ad,
+                'tarih'      => $k->tarih ? date('d.m.Y', strtotime($k->tarih)) : '',
+                'saat'       => $k->saat ? date('H:i', strtotime($k->saat)) : '',
+                'faz'        => $faz,
+                'not'        => mb_substr((string) ($k->musteri_not ?? ''), 0, 120),
+                'ses_sayisi' => $ses ? (int) $ses->adet : 0,
+                'ses_son'    => ($ses && $ses->son) ? date('d.m.Y H:i', strtotime($ses->son)) : '',
             ];
         });
 
         return response()->json(['randevular' => $out]);
+    }
+
+    /**
+     * Agent — Arama Randevularim ajandasi (durum=3 callback'ler, zamana gore sirali).
+     * Her satir: maskeli ad, zaman, not, ses kaydi sayisi + en yeni tarih, durum (yaklasan/gecikti/bugun).
+     * Personel kendi listelerini, yonetici salonun tumunu gorur.
+     */
+    public function arama_randevularim(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
+
+        $q = AramaListesi::where('salon_id', $salonId);
+        if ($rol == 5) {
+            $q->where('personel_id', $this->aktifPersonelId($salonId));
+        }
+        $listeIds = $q->pluck('id')->all();
+        if (empty($listeIds)) {
+            return response()->json(['randevular' => []]);
+        }
+
+        $qr = AranacakMusteriler::whereIn('arama_id', $listeIds)
+            ->where('durum', 3)
+            ->whereNotNull('tarih')->where('tarih', '!=', '')
+            ->whereNotNull('saat')->where('saat', '!=', '');
+        if (Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at')) {
+            $qr->whereNull('ar_tamamlandi_at');
+        }
+        $kayitlar = $qr->with('musteri')
+            ->orderByRaw("CONCAT(tarih,' ',saat) asc")
+            ->limit(500)->get();
+
+        $sesMap = [];
+        if (Schema::hasTable('gorusme_notlari') && $kayitlar->isNotEmpty()) {
+            $sesMap = DB::table('gorusme_notlari')
+                ->whereIn('aranacak_musteri_id', $kayitlar->pluck('id')->all())
+                ->whereNotNull('ses_kaydi')->where('ses_kaydi', '!=', '')
+                ->select('aranacak_musteri_id', DB::raw('COUNT(*) as adet'), DB::raw('MAX(created_at) as son'))
+                ->groupBy('aranacak_musteri_id')->get()->keyBy('aranacak_musteri_id');
+        }
+
+        $personelMi = ($rol == 5);
+        $nowTs = time();
+        $gecikti = ($arKolon = Schema::hasColumn('aranacak_musteriler', 'ar_gecikti'));
+        $out = $kayitlar->map(function ($k) use ($personelMi, $sesMap, $nowTs, $gecikti) {
+            $ad = optional($k->musteri)->name ?? 'Müşteri';
+            if ($personelMi) $ad = self::adSoyadMaskele($ad);
+            $apptTs = strtotime($k->tarih . ' ' . $k->saat);
+            $gecti = ($apptTs < $nowTs) || ($gecikti && (int) $k->ar_gecikti === 1);
+            $ses = $sesMap[$k->id] ?? null;
+            return [
+                'id'         => $k->id,
+                'arama_id'   => $k->arama_id,
+                'ad'         => $ad,
+                'tarih'      => $k->tarih ? date('d.m.Y', strtotime($k->tarih)) : '',
+                'saat'       => $k->saat ? date('H:i', strtotime($k->saat)) : '',
+                'gecti'      => $gecti ? 1 : 0,
+                'not'        => mb_substr((string) ($k->musteri_not ?? ''), 0, 160),
+                'ses_sayisi' => $ses ? (int) $ses->adet : 0,
+                'ses_son'    => ($ses && $ses->son) ? date('d.m.Y H:i', strtotime($ses->son)) : '',
+            ];
+        });
+
+        return response()->json(['randevular' => $out]);
+    }
+
+    /**
+     * Arama randevusunu ERTELE: yeni tarih/saat ata, hatirlatma bayraklarini sifirla (yeni dongu).
+     * Sadece ilgili liste yetkilisi (personel kendi listesi / yonetici). durum=3'te kalir.
+     */
+    public function arama_randevu_ertele(Request $request)
+    {
+        $kayit = AranacakMusteriler::where('id', $request->aranacak_musteri_id)->first();
+        if (!$kayit) {
+            return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı'], 404);
+        }
+        $liste = AramaListesi::where('id', $kayit->arama_id)->first();
+        if (!$this->cagriListeYetkiliMi($liste)) {
+            return response()->json(['success' => false, 'message' => 'Yetkiniz yok'], 403);
+        }
+        $yeniTarih = $request->tarih;
+        $yeniSaat  = $request->saat;
+        if (empty($yeniTarih) || empty($yeniSaat)) {
+            return response()->json(['success' => false, 'message' => 'Tarih ve saat zorunludur'], 422);
+        }
+        $kayit->tarih = $yeniTarih;
+        $kayit->saat  = $yeniSaat;
+        $kayit->durum = 3;
+        if (Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at')) {
+            $kayit->ar_5dk_at = null;
+            $kayit->ar_zaman_at = null;
+            $kayit->ar_gecikti = 0;
+            $kayit->ar_tamamlandi_at = null;
+        }
+        $kayit->save();
+        return response()->json(['success' => true]);
     }
 
     /**

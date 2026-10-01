@@ -80,9 +80,30 @@ class CagriMerkeziSchema
             self::run("ALTER TABLE `aranacak_musteriler` ADD COLUMN `updated_at` TIMESTAMP NULL");
         }
 
+        // Arama Randevusu (callback) yasam dongusu alanlari — SADECE durum=3 (Tekrar Aranacak) icin.
+        // Normal randevu akisindan tamamen bagimsiz; musteriye hatirlatma GITMEZ, sadece personel uyarilir.
+        // ar_5dk_at   : "5 dk once" hatirlatmasi gonderildi (idempotent bayrak)
+        // ar_zaman_at : "tam zamani geldi" hatirlatmasi gonderildi (idempotent bayrak)
+        // ar_gecikti  : zamani gecti ama aranmadi (overdue). cron isaretler.
+        // ar_tamamlandi_at : callback sonrasi gercekten arandigi an (zamaninda/gec ayrimi burdan turetilir)
+        if (!Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at')) {
+            self::run("ALTER TABLE `aranacak_musteriler` ADD COLUMN `ar_5dk_at` TIMESTAMP NULL");
+        }
+        if (!Schema::hasColumn('aranacak_musteriler', 'ar_zaman_at')) {
+            self::run("ALTER TABLE `aranacak_musteriler` ADD COLUMN `ar_zaman_at` TIMESTAMP NULL");
+        }
+        if (!Schema::hasColumn('aranacak_musteriler', 'ar_gecikti')) {
+            self::run("ALTER TABLE `aranacak_musteriler` ADD COLUMN `ar_gecikti` TINYINT(1) NOT NULL DEFAULT 0");
+        }
+        if (!Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at')) {
+            self::run("ALTER TABLE `aranacak_musteriler` ADD COLUMN `ar_tamamlandi_at` TIMESTAMP NULL");
+        }
+
         self::addIndexIfMissing('aranacak_musteriler', ['arama_id', 'durum'], 'am_arama_durum_idx');
         self::addIndexIfMissing('aranacak_musteriler', ['user_id'], 'am_user_idx');
         self::addIndexIfMissing('aranacak_musteriler', ['tarih', 'saat'], 'am_tarih_saat_idx');
+        // cron'un callback randevularini hizli taramasi icin
+        self::addIndexIfMissing('aranacak_musteriler', ['durum', 'tarih', 'saat'], 'am_arandevu_idx');
     }
 
     /** gorusme_notlari: cogul gorusme notu + ses + sure + sonuc (musteriye kalici bag) */

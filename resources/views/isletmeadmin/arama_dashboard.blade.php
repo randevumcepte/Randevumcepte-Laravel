@@ -266,6 +266,7 @@
       <h4><i class="fa fa-headphones"></i> {{ $sayfa_baslik }}</h4>
       <p>Çağrı yapan personellerinizin ilerlemesini tek ekrandan takip edin. Her personele <b>atanan data</b> (aranacak müşteri listesi) üzerinden ne kadarını aradığını, kaç görüşme ve randevu çıkardığını görürsünüz. Detaylı görüşme dökümü için bir personel kartına tıklayın.</p>
       <a href="#" class="cm-hero-btn" data-toggle="modal" data-target="#santral_musteri_listesi"><i class="fa fa-plus"></i> Arama Listesi Oluştur</a>
+      <a href="/isletmeyonetim/arama-randevu-takvim?sube={{ $isletme->id }}" class="cm-hero-btn" style="margin-left:10px;background:#efe3fb;color:#5C008E;"><i class="fa fa-calendar"></i> Arama Randevu Takvimi</a>
    </div>
 
    {{-- Özet bant --}}
@@ -398,7 +399,8 @@ function dashYukle() {
                        data-atanan="${k.atanan}" data-aranan="${k.aranan}" data-kalan="${k.kalan}"
                        data-konusulan="${k.konusulan}" data-cevapsiz="${k.cevapsiz}" data-randevu="${k.randevu}"
                        data-ulasilamadi="${k.ulasilamadi}" data-dk="${k.toplam_dk}"
-                       data-ongorusme="${k.ongorusme||0}" data-satis="${k.satis||0}" data-ciro="${k.satis_cirosu||0}">
+                       data-ongorusme="${k.ongorusme||0}" data-satis="${k.satis||0}" data-ciro="${k.satis_cirosu||0}"
+                       data-gecikti="${k.gecikti||0}" data-gecaranan="${k.gec_aranan||0}" data-zamaninda="${k.zamaninda_aranan||0}">
                      <div class="cm-card-head">
                         <div class="cm-avatar">${bashHarf}</div>
                         <p class="nm">${ad}</p>
@@ -425,6 +427,10 @@ function dashYukle() {
                            <div class="box"><div class="n n-koyu">${cmEsc(k.kalan)}</div><span class="t">Kalan</span></div>
                            <div class="box"><div class="n n-gri">${cmEsc(k.ulasilamadi)}</div><span class="t">Ulaşılamadı</span></div>
                         </div>
+                        <div class="cm-mini2">
+                           <div class="box"><div class="n n-kirmizi">${cmEsc(k.gecikti||0)}</div><span class="t">Geciken Arama</span></div>
+                           <div class="box"><div class="n" style="color:#e07a1a;">${cmEsc(k.gec_aranan||0)}</div><span class="t">Geç Aranan</span></div>
+                        </div>
                      </div>
                   </div>
                </div>`;
@@ -435,6 +441,13 @@ function dashYukle() {
          $('#oz_konusulan').text(tKonusulan);
          $('#oz_cevapsiz').text(tCevapsiz);
          $('#oz_randevu').text(tRandevu);
+
+         // Takvimden "Personel Detayı" ile gelindiyse (?acpersonel=ID) ilgili kartı aç
+         if (window.__acPersonel){
+            var hedef = $('.personel-kart[data-id="'+window.__acPersonel+'"]');
+            window.__acPersonel = null;
+            if (hedef.length) hedef.trigger('click');
+         }
       },
       error: function () {
          $('#personel_kartlari').html('<div class="col-md-12"><div class="cm-empty"><i class="fa fa-exclamation-triangle"></i>Veriler yüklenirken hata oluştu.</div></div>');
@@ -482,6 +495,8 @@ function pdOzetCiz(d){
       <div class="pd-oz"><div class="oz-ic c-kirmizi"><i class="fa fa-ban"></i></div><div class="oz-n c-kirmizi">${d.cevapsiz}</div><span class="oz-t">Cevapsız</span></div>
       <div class="pd-oz"><div class="oz-ic c-turuncu"><i class="fa fa-volume-off"></i></div><div class="oz-n c-turuncu">${d.ulasilamadi}</div><span class="oz-t">Ulaşılamadı</span></div>
       <div class="pd-oz"><div class="oz-ic c-mavi"><i class="fa fa-redo"></i></div><div class="oz-n c-mavi">${d.randevu}</div><span class="oz-t">Tekrar Aranacak</span></div>
+      <div class="pd-oz"><div class="oz-ic c-kirmizi"><i class="fa fa-exclamation-triangle"></i></div><div class="oz-n c-kirmizi">${d.gecikti}</div><span class="oz-t">Geciken Arama</span></div>
+      <div class="pd-oz"><div class="oz-ic c-turuncu"><i class="fa fa-history"></i></div><div class="oz-n c-turuncu">${d.gecaranan}</div><span class="oz-t">Geç Aranan</span></div>
       <div class="pd-oz"><div class="oz-ic c-gri"><i class="fa fa-hourglass-half"></i></div><div class="oz-n c-gri">${d.kalan}</div><span class="oz-t">Sırada</span></div>
    `);
 }
@@ -560,7 +575,8 @@ $(document).on('click', '.personel-kart', function () {
       cevapsiz: +$k.data('cevapsiz') || 0, ulasilamadi: +$k.data('ulasilamadi') || 0,
       randevu: +$k.data('randevu') || 0, kalan: +$k.data('kalan') || 0,
       aranan: +$k.data('aranan') || 0, atanan: +$k.data('atanan') || 0,
-      ongorusme: +$k.data('ongorusme') || 0, satis: +$k.data('satis') || 0, ciro: +$k.data('ciro') || 0
+      ongorusme: +$k.data('ongorusme') || 0, satis: +$k.data('satis') || 0, ciro: +$k.data('ciro') || 0,
+      gecikti: +$k.data('gecikti') || 0, gecaranan: +$k.data('gecaranan') || 0
    };
    pdOzetCiz(d);
    $('#pd_altbaslik').text(d.aranan + ' / ' + d.atanan + ' arandı');
@@ -784,6 +800,9 @@ $(document).on('hidden.bs.modal', '#santral_musteri_listesi', function(){
    dashYukle();
 });
 
-$(document).ready(function () { dashYukle(); segListeleriYukle(); segPersonelYukle(); });
+$(document).ready(function () {
+   try { var ap = new URLSearchParams(window.location.search).get('acpersonel'); if (ap) window.__acPersonel = ap; } catch(e){}
+   dashYukle(); segListeleriYukle(); segPersonelYukle();
+});
 </script>
 @endsection

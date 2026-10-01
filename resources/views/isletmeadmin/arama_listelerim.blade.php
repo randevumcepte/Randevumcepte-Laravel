@@ -16,6 +16,29 @@
 .ag-hero h4{ margin:0 0 4px; font-weight:700; font-size:21px; color:#fff; }
 .ag-hero p{ margin:0; opacity:.90; font-size:13px; }
 .ag-hero-stats{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; position:relative; z-index:2; }
+/* Arama Randevularım butonu (hero sağ üst) */
+.ag-ajanda-ac{ position:absolute; top:16px; right:18px; z-index:3; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.25); color:#fff; border-radius:12px; padding:9px 14px; font-size:12.5px; font-weight:700; cursor:pointer; transition:filter .15s; }
+.ag-ajanda-ac:hover{ filter:brightness(1.12); }
+.ag-ajanda-rozet{ background:#dc2626; color:#fff; border-radius:20px; padding:1px 8px; font-size:11px; margin-left:4px; }
+.ag-ajanda-overlay{ position:fixed; inset:0; background:rgba(20,20,40,.55); backdrop-filter:blur(4px); z-index:99998; display:flex; align-items:flex-start; justify-content:center; padding:40px 12px; }
+.ag-ajanda-box{ background:#fff; border-radius:16px; width:100%; max-width:560px; max-height:82vh; display:flex; flex-direction:column; box-shadow:0 24px 64px rgba(0,0,0,.25); overflow:hidden; }
+.ag-ajanda-head{ display:flex; align-items:center; padding:16px 18px; border-bottom:1px solid #eef0f5; }
+.ag-ajanda-head h5{ margin:0; font-weight:700; font-size:16px; color:#1f2433; }
+.ag-ajanda-kapat{ margin-left:auto; border:0; background:none; font-size:26px; line-height:1; color:#9097ad; cursor:pointer; }
+.ag-ajanda-liste{ overflow-y:auto; padding:10px 14px 16px; }
+.ag-ajanda-row{ border:1px solid #eef0f5; border-left:4px solid #2563eb; border-radius:12px; padding:11px 13px; margin-bottom:9px; }
+.ag-ajanda-row.gecti{ border-left-color:#dc2626; background:#fef2f2; }
+.ag-ajanda-row .ust{ display:flex; align-items:center; gap:8px; }
+.ag-ajanda-row .ad{ font-weight:700; color:#1f2433; font-size:14px; }
+.ag-ajanda-row .zaman{ margin-left:auto; font-size:12.5px; font-weight:700; color:#374151; }
+.ag-ajanda-row.gecti .zaman{ color:#dc2626; }
+.ag-ajanda-row .not{ font-size:12px; color:#6b7280; font-style:italic; margin:5px 0 2px; }
+.ag-ajanda-row .ses{ font-size:11.5px; color:#7c3aed; }
+.ag-ajanda-row .aksiyon{ display:flex; gap:7px; margin-top:8px; }
+.ag-ajanda-row .aksiyon button{ border:0; border-radius:9px; padding:7px 12px; font-size:12px; font-weight:600; cursor:pointer; }
+.ag-ajanda-row .b-ara{ background:#16a34a; color:#fff; }
+.ag-ajanda-row .b-ertele{ background:#eef0f5; color:#374151; }
+.ag-ajanda-bos{ text-align:center; color:#9097ad; padding:30px 10px; font-size:13px; }
 .ag-hstat{ background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.10); border-radius:12px; padding:8px 16px; min-width:104px; }
 .ag-hstat .n{ font-size:22px; font-weight:800; line-height:1; }
 .ag-hstat .t{ font-size:11.5px; opacity:.9; margin-top:3px; }
@@ -207,6 +230,7 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
 
    {{-- Başlık şeridi + kuyruk özetleri --}}
    <div class="ag-hero">
+      <button type="button" id="ag_ajanda_ac" class="ag-ajanda-ac"><i class="fa fa-calendar-check-o"></i> Arama Randevularım <span id="ag_ajanda_rozet" class="ag-ajanda-rozet" style="display:none;">0</span></button>
       <h4><i class="fa fa-headphones"></i> Çağrı Merkezi — Çalışma Ekranı</h4>
       <p>Size atanan listelerden müşterileri arayın, görüşme sonucunu ve notunu kaydedin. Numaralar KVKK gereği gizlidir — <b>Ara</b> butonuyla santral sizi bağlar.</p>
       <div class="ag-hero-stats">
@@ -214,6 +238,19 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
          <div class="ag-hstat"><div class="n" id="ag_h_toplam">0</div><div class="t">Toplam Müşteri</div></div>
          <div class="ag-hstat"><div class="n" id="ag_h_arandi">0</div><div class="t">Arandı</div></div>
          <div class="ag-hstat"><div class="n" id="ag_h_kalan">0</div><div class="t">Sırada Bekleyen</div></div>
+      </div>
+   </div>
+
+   {{-- Arama Randevularım (callback ajandası) modalı --}}
+   <div id="ag_ajanda_modal" class="ag-ajanda-overlay" style="display:none;">
+      <div class="ag-ajanda-box">
+         <div class="ag-ajanda-head">
+            <h5><i class="fa fa-calendar-check-o"></i> Arama Randevularım</h5>
+            <button type="button" class="ag-ajanda-kapat" id="ag_ajanda_kapat">&times;</button>
+         </div>
+         <div class="ag-ajanda-liste" id="ag_ajanda_liste">
+            <div class="ag-spin"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>
+         </div>
       </div>
    </div>
 
@@ -973,11 +1010,88 @@ function agRandevuKontrol(){
    });
 }
 
+// ---- Arama Randevularım (callback ajandası) ----
+function agAjandaCsrf(){ var m=document.querySelector('meta[name="csrf-token"]'); if(m) return m.getAttribute('content'); var i=document.querySelector('input[name="_token"]'); return i?i.value:''; }
+
+function agAjandaYukle(){
+   var box = document.getElementById('ag_ajanda_liste');
+   box.innerHTML = '<div class="ag-spin"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>';
+   $.get('/isletmeyonetim/arama-randevularim', { sube: $('input[name="sube"]').val() }, function(res){
+      var liste = (res && res.randevular) ? res.randevular : [];
+      // rozet: geciken sayısı
+      var gecikenSay = liste.filter(function(r){ return r.gecti; }).length;
+      var rozet = document.getElementById('ag_ajanda_rozet');
+      if (gecikenSay>0){ rozet.textContent = gecikenSay; rozet.style.display='inline-block'; }
+      else { rozet.style.display='none'; }
+
+      if (!liste.length){ box.innerHTML = '<div class="ag-ajanda-bos">Bekleyen arama randevunuz yok.</div>'; return; }
+      var html = '';
+      liste.forEach(function(r){
+         var ses = (r.ses_sayisi>0) ? ('<div class="ses">🎙️ '+r.ses_sayisi+' ses kaydı'+(r.ses_son?(' · son: '+r.ses_son):'')+'</div>') : '';
+         var not = r.not ? ('<div class="not">“'+agEsc(r.not)+'”</div>') : '';
+         html += '<div class="ag-ajanda-row'+(r.gecti?' gecti':'')+'" data-id="'+agEsc(r.id)+'">'
+            + '<div class="ust"><span class="ad">'+agEsc(r.ad)+'</span>'
+            + '<span class="zaman">'+(r.gecti?'⚠️ ':'')+agEsc(r.tarih)+' '+agEsc(r.saat)+'</span></div>'
+            + not + ses
+            + '<div class="aksiyon">'
+            + '<button class="b-ara" data-arama="'+agEsc(r.arama_id)+'" data-id="'+agEsc(r.id)+'"><i class="fa fa-phone"></i> Ara</button>'
+            + '<button class="b-ertele" data-id="'+agEsc(r.id)+'"><i class="fa fa-clock-o"></i> Ertele</button>'
+            + '</div></div>';
+      });
+      box.innerHTML = html;
+   });
+}
+
+function agAjandaAc(){ document.getElementById('ag_ajanda_modal').style.display='flex'; agAjandaYukle(); }
+function agAjandaKapat(){ document.getElementById('ag_ajanda_modal').style.display='none'; }
+
+$(document).on('click', '#ag_ajanda_ac', agAjandaAc);
+$(document).on('click', '#ag_ajanda_kapat', agAjandaKapat);
+$(document).on('click', '#ag_ajanda_modal', function(e){ if(e.target===this) agAjandaKapat(); });
+// Ajandadan "Ara": müşteriye git (listeyi açar + kartı seçer)
+$(document).on('click', '#ag_ajanda_liste .b-ara', function(){
+   var arama = $(this).data('arama'), id = $(this).data('id');
+   agAjandaKapat();
+   if (arama) agMusteriyeGit(arama, id);
+});
+// Ajandadan "Ertele": yeni tarih/saat al, bayrakları sıfırla
+$(document).on('click', '#ag_ajanda_liste .b-ertele', function(){
+   var id = $(this).data('id');
+   var t = prompt('Yeni tarih (GG.AA.YYYY):', '');
+   if (!t) return;
+   var s = prompt('Yeni saat (SS:DD):', '');
+   if (!s) return;
+   // GG.AA.YYYY -> YYYY-AA-GG
+   var p = t.split('.'); var iso = (p.length===3) ? (p[2]+'-'+p[1]+'-'+p[0]) : t;
+   $.ajax({ url:'/isletmeyonetim/arama-randevu-ertele', method:'POST',
+      data:{ aranacak_musteri_id:id, tarih:iso, saat:s, sube:$('input[name="sube"]').val(), _token:agAjandaCsrf() },
+      success:function(res){ if(res && res.success){ agAjandaYukle(); } else { alert((res&&res.message)?res.message:'Ertelenemedi'); } },
+      error:function(){ alert('Ertelenemedi'); }
+   });
+});
+
 $(document).ready(function(){
+   // Bu sayfa cockpit — ortak layout'taki global popup burada çift açmasın.
+   window.__aramaCockpit = true;
    agListeleriYukle(); agScriptleriYukle(); agKategorileriYukle();
    // Randevu hatirlatma: acilista + her 45 sn'de bir kontrol et
    agRandevuKontrol();
    setInterval(agRandevuKontrol, 45000);
+
+   // Popup'tan "Hemen Ara" ile gelindiyse (?ac=ID) ilgili müşteriyi aç.
+   try {
+      var acId = new URLSearchParams(window.location.search).get('ac');
+      if (acId){
+         // Ajandayı açıp ilgili kaydı vurgula; liste yüklenince kullanıcı Ara'ya basabilir.
+         setTimeout(function(){
+            agAjandaAc();
+            setTimeout(function(){
+               var row = document.querySelector('#ag_ajanda_liste .ag-ajanda-row[data-id="'+acId+'"]');
+               if (row){ row.style.boxShadow='0 0 0 3px #16a34a'; row.scrollIntoView({block:'center'}); }
+            }, 700);
+         }, 900);
+      }
+   } catch(e){}
 });
 </script>
 @endsection

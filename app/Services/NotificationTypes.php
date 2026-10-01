@@ -24,6 +24,10 @@ class NotificationTypes
     // Grup dersi
     public const CLASS_REMINDER            = 'class_reminder'; // grup dersi hatirlatma (push, WA/SMS'ten bagimsiz)
 
+    // Cagri merkezi: arama randevusu (callback) hatirlatmasi — SADECE personele gider.
+    // Flutter alinca yuksek oncelikli popup + zil gostermeli (arama zamani geldi).
+    public const CALL_APPOINTMENT_REMINDER = 'call_appointment_reminder';
+
     // Ödeme & mesaj
     public const PAYMENT_RECEIVED          = 'payment_received';
     public const NEW_MESSAGE               = 'new_message';
@@ -84,6 +88,7 @@ class NotificationTypes
             self::CLASS_REMINDER,
             self::NEW_MESSAGE,
             self::PAYMENT_RECEIVED,
+            self::CALL_APPOINTMENT_REMINDER,
         ], true);
     }
 }

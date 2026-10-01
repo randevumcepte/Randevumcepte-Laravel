@@ -2200,6 +2200,16 @@
                      <span class="mtext"> Çağrı Merkezi </span>
                      </a>
                   </li>
+                  <li>
+                     @if($pageindex==46)
+                     <a href="/isletmeyonetim/arama-randevu-takvim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/arama-randevu-takvim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-calendar-check"></span>
+                     <span class="mtext"> Arama Randevu Takvimi </span>
+                     </a>
+                  </li>
                   @endif
                   @endif
 
@@ -6045,6 +6055,118 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Manuel test icin global tetikleyici
   window.rmcBdayTrigger = basla;
+})();
+</script>
+@endif
+
+{{-- ====== ARAMA RANDEVUSU (CALLBACK) POPUP — tum cagri merkezi sayfalarinda ======
+     Personel/yonetici hangi sayfada olursa olsun, arama zamani gelince (5 dk once + tam zamani
+     + geciken) ekranda zil sesli uyari cikar. Musteriye HICBIR sey gitmez.
+     Cockpit (arama-listelerim) acikken window.__aramaCockpit=true oldugu icin cift popup olmaz. --}}
+@if(isset($isletme) && (int) optional($isletme)->uyelik_turu === 3)
+<style>
+.rmc-ara-overlay{position:fixed;inset:0;background:rgba(20,20,40,.55);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;animation:rmcBdayFade .2s ease-out;}
+.rmc-ara-box{background:#fff;border-radius:16px;padding:24px 22px;width:92%;max-width:430px;box-shadow:0 24px 64px rgba(0,0,0,.25);text-align:center;animation:rmcBdayPop .25s cubic-bezier(.34,1.56,.64,1);border-top:6px solid #2563eb;}
+.rmc-ara-box.gecikti{border-top-color:#dc2626;}
+.rmc-ara-box.zaman{border-top-color:#f59e0b;}
+.rmc-ara-emoji{font-size:48px;line-height:1;margin-bottom:8px;}
+.rmc-ara-lbl{font-size:13px;font-weight:600;color:#2563eb;margin:0 0 4px;text-transform:uppercase;letter-spacing:.5px;}
+.rmc-ara-box.gecikti .rmc-ara-lbl{color:#dc2626;}
+.rmc-ara-box.zaman .rmc-ara-lbl{color:#d97706;}
+.rmc-ara-name{font-size:22px;font-weight:700;color:#1f2937;margin:0 0 4px;}
+.rmc-ara-time{font-size:15px;color:#374151;margin:0 0 6px;font-weight:600;}
+.rmc-ara-note{font-size:13px;color:#6b7280;margin:0 0 6px;font-style:italic;}
+.rmc-ara-ses{font-size:12px;color:#7c3aed;margin:0 0 16px;}
+.rmc-ara-btns{display:flex;flex-direction:column;gap:8px;}
+.rmc-ara-btn{padding:12px 16px;border:0;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:transform .1s,filter .15s;}
+.rmc-ara-btn:hover{filter:brightness(.95);}
+.rmc-ara-btn:active{transform:scale(.97);}
+.rmc-ara-btn.ara{background:#16a34a;color:#fff;}
+.rmc-ara-btn.kapat{background:#9097ad;color:#fff;}
+</style>
+<script>
+(function rmcAramaPopupInit(){
+  var subeParam = @json(isset($_GET['sube']) ? '?sube='.$isletme->id : '');
+  var gosterilen = {}; // (id+faz) -> true (ayni uyari tekrar cikmasin)
+  try { gosterilen = JSON.parse(sessionStorage.getItem('rmc_arama_gosterilen') || '{}'); } catch(e){}
+
+  function kaydet(){ try { sessionStorage.setItem('rmc_arama_gosterilen', JSON.stringify(gosterilen)); } catch(e){} }
+
+  function bip(){
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      var ctx = new AC();
+      [0, .18, .36].forEach(function(t){
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type='sine'; o.frequency.value = 880;
+        o.connect(g); g.connect(ctx.destination);
+        g.gain.setValueAtTime(.001, ctx.currentTime+t);
+        g.gain.exponentialRampToValueAtTime(.25, ctx.currentTime+t+.02);
+        g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime+t+.15);
+        o.start(ctx.currentTime+t); o.stop(ctx.currentTime+t+.16);
+      });
+      setTimeout(function(){ try{ ctx.close(); }catch(e){} }, 800);
+    } catch(e){}
+  }
+
+  function gosterModal(r){
+    var faz = r.faz || 'zaman';
+    var cls = (faz === 'gecikti') ? 'gecikti' : (faz === 'zaman' ? 'zaman' : '');
+    var emoji = (faz === 'gecikti') ? '⚠️' : (faz === 'on5' ? '⏰' : '📞');
+    var lbl = (faz === 'gecikti') ? 'Geciken Arama' : (faz === 'on5' ? 'Yaklaşan Arama (5 dk)' : 'Arama Zamanı Geldi');
+    var ov = document.createElement('div');
+    ov.className = 'rmc-ara-overlay';
+    var sesHtml = (r.ses_sayisi > 0) ? ('<p class="rmc-ara-ses">🎙️ '+r.ses_sayisi+' ses kaydı'+(r.ses_son?(' · son: '+r.ses_son):'')+'</p>') : '';
+    var notHtml = (r.not) ? ('<p class="rmc-ara-note">“'+String(r.not).replace(/</g,'&lt;')+'”</p>') : '';
+    ov.innerHTML =
+      '<div class="rmc-ara-box '+cls+'">'
+    + '  <div class="rmc-ara-emoji">'+emoji+'</div>'
+    + '  <p class="rmc-ara-lbl">'+lbl+'</p>'
+    + '  <h3 class="rmc-ara-name"></h3>'
+    + '  <p class="rmc-ara-time">'+(r.tarih||'')+' '+(r.saat||'')+'</p>'
+    +    notHtml + sesHtml
+    + '  <div class="rmc-ara-btns">'
+    + '    <button class="rmc-ara-btn ara">📞 Hemen Ara</button>'
+    + '    <button class="rmc-ara-btn kapat">Kapat</button>'
+    + '  </div>'
+    + '</div>';
+    ov.querySelector('.rmc-ara-name').textContent = r.ad || 'Müşteri';
+    document.body.appendChild(ov);
+    bip();
+
+    ov.querySelector('.ara').addEventListener('click', function(){
+      var url = '/isletmeyonetim/arama-listelerim' + (subeParam || '?sube=') ;
+      url += (url.indexOf('?')>=0 ? '&' : '?') + 'ac=' + r.id;
+      window.location.href = url;
+    });
+    ov.querySelector('.kapat').addEventListener('click', function(){ ov.remove(); });
+  }
+
+  function kontrol(){
+    if(window.__aramaCockpit) return; // cockpit kendi daha zengin popup'ini yonetiyor
+    fetch('/isletmeyonetim/cagri-yaklasan-randevular' + (subeParam || ''), {
+      credentials:'same-origin', headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}
+    }).then(function(x){ return x.json(); }).then(function(d){
+      var liste = (d && d.randevular) ? d.randevular : [];
+      var yeni = liste.filter(function(r){ return !gosterilen[r.id + '|' + r.faz]; });
+      if(!yeni.length) return;
+      var idx = 0;
+      function sira(){
+        if(idx >= yeni.length) return;
+        var r = yeni[idx];
+        gosterilen[r.id + '|' + r.faz] = 1; kaydet();
+        gosterModal(r);
+        idx++; setTimeout(sira, 600);
+      }
+      sira();
+    }).catch(function(){});
+  }
+
+  function basla(){ kontrol(); setInterval(kontrol, 30000); }
+  if(document.readyState === 'complete'){ setTimeout(basla, 1500); }
+  else { window.addEventListener('load', function(){ setTimeout(basla, 1500); }); }
+  window.rmcAramaTrigger = kontrol;
 })();
 </script>
 @endif

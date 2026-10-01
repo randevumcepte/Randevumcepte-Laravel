@@ -620,6 +620,9 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::post('/not-ekle',                 'CagriMerkeziApiController@santral_not_ekle');
         Route::post('/musteri-gecmisi',          'CagriMerkeziApiController@cagri_musteri_gecmisi');
         Route::get ('/yaklasan-randevular',      'CagriMerkeziApiController@cagri_yaklasan_randevular');
+        // Arama Randevusu (callback) ajandasi + ertele — personel + yonetici
+        Route::get ('/arama-randevularim',       'CagriMerkeziApiController@arama_randevularim');
+        Route::post('/arama-randevu-ertele',     'CagriMerkeziApiController@arama_randevu_ertele');
         Route::post('/ongorusme-bilgi',          'CagriMerkeziApiController@cagri_musteri_ongorusme_bilgi');
         Route::post('/hizli-satis',              'CagriMerkeziApiController@cagri_hizli_satis');
         Route::post('/whatsapp-gonder',          'CagriMerkeziApiController@cagri_whatsapp_gonder');
