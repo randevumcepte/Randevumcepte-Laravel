@@ -592,6 +592,7 @@ class PanelController extends Controller
                 . ($salon->salon_adi ? ($salon->salon_adi . "\n") : '')
                 . "Paket: {$paket} ({$periyotEtiket})\n"
                 . "Süre: {$toplamAy} ay" . ($hediye ? " ({$hediye} ay hediye dahil)" : '') . "\n"
+                . "Tutar: " . number_format($ucret, 2, ',', '.') . " ₺\n"
                 . "Yeni bitiş tarihi: " . date('d.m.Y', strtotime($yeni)) . "\n"
                 . "Bizi tercih ettiğiniz için teşekkürler. 🙏";
             try {
