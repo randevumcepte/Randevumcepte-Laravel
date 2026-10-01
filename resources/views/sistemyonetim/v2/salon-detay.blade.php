@@ -82,8 +82,12 @@
     $ubGecerli = $ub && substr((string) $ub, 0, 4) !== '0000';
     $kalanGun = $ubGecerli ? (int) floor((strtotime($ub . ' 23:59:59') - time()) / 86400) : null;
     $ubRenk = !$ubGecerli ? 'muted' : ($kalanGun < 0 ? 'danger' : ($kalanGun <= 7 ? 'warning' : 'success'));
-    // Demo: uyelik_turu=3 VE lisansi kisa (<=90 gun). Uzun lisansi olan = Aktif (bayat demo_hesabi hesaba katilmaz).
-    $demo = (int) ($salon->uyelik_turu ?? 0) === 3 && ($kalanGun === null || $kalanGun <= 90);
+    // Demo: demo_hesabi=1 (yeni demolar boyle acilir) VE uyelik_turu=3 VE lisansi kisa (<=90 gun).
+    // NOT: uyelik_turu=3 ayni zamanda "Premium" paket; demo_hesabi==1 sarti paketli/odeme yapmis
+    // Premium salonun (demo_hesabi=0) yanlislikla demo gorunmesini engeller.
+    $demo = (int) ($salon->demo_hesabi ?? 0) === 1
+        && (int) ($salon->uyelik_turu ?? 0) === 3
+        && ($kalanGun === null || $kalanGun <= 90);
 @endphp
 <div class="sy-card sy-mt-12" style="border-left:4px solid var(--sy-{{ $ubRenk }})">
     <div class="sy-card-body">

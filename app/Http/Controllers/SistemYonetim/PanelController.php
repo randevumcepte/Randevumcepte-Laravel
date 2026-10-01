@@ -515,7 +515,10 @@ class PanelController extends Controller
         $this->gerektir(['super_admin', 'yonetici']);
         $salon = Salonlar::findOrFail($id);
 
-        $paketlerGecerli = ['Başlangıç', 'Standart', 'Premium'];
+        // Paket -> uyelik_turu kademesi (uyelik tablosu / $paketAdlari ile birebir):
+        // 1=Başlangıç, 2=Standart, 3=Premium. Feature gate'leri (uyelik_turu >1 / <2 / <3)
+        // bu degere gore acilir/kapanir.
+        $paketTurleri = ['Başlangıç' => 1, 'Standart' => 2, 'Premium' => 3];
         $paket   = trim((string) $request->get('paket', ''));
         $periyot = $request->get('periyot') === 'yillik' ? 'yillik' : 'aylik';
         $adet    = max(1, (int) $request->get('adet', 1));
@@ -523,7 +526,7 @@ class PanelController extends Controller
         $ucret   = round((float) str_replace(',', '.', (string) $request->get('ucret', 0)), 2);
         $kdvDahil = filter_var($request->get('kdv_dahil'), FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
 
-        if (!in_array($paket, $paketlerGecerli, true)) {
+        if (!isset($paketTurleri[$paket])) {
             return redirect()->back()->with('hata', 'Geçerli bir paket seçin (Başlangıç / Standart / Premium).');
         }
 
@@ -541,9 +544,9 @@ class PanelController extends Controller
             : strtotime(date('Y-m-d'));
         $yeni = date('Y-m-d', strtotime('+' . $toplamAy . ' months', $bazTs));
 
-        // Paketli uzatma = lisansli hesap (demo degil)
+        // Paketli uzatma = lisansli hesap (demo degil); uyelik_turu secilen paket kademesi
         $salon->demo_hesabi         = 0;
-        $salon->uyelik_turu         = 1;
+        $salon->uyelik_turu         = $paketTurleri[$paket];
         $salon->uyelik_bitis_tarihi = $yeni;
         $salon->save();
 
