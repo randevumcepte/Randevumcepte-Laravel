@@ -1394,7 +1394,7 @@ class SalonrandevuImporter
             // Geldi=29/Yeni=1 ile BIREBIR tuttu). ESKI varsayim TERSTI, durumlar kaymisti.
             //   0 = Geldi            -> randevuya_geldi=1, durum=1
             //   1 = Gelmedi          -> randevuya_geldi=0, durum=1
-            //   2 = Yeni/Bekleme     -> randevuya_geldi=null, durum=0
+            //   2 = Yeni/Bekleme     -> randevuya_geldi=null, durum=1 (Onayli; planlanmis randevu)
             //   3 = (ornek yok; onayli/ileri tarihli varsayildi) -> durum=1
             //   4/5 = Iptal          -> durum=2
             $state = $appt['customer_state'] ?? null;
@@ -1403,7 +1403,7 @@ class SalonrandevuImporter
             $geldi = null;  // default: belirtilmemis
             if ($state === 0)                         { $durum = 1; $geldi = 1; }   // Geldi
             elseif ($state === 1)                     { $durum = 1; $geldi = 0; }   // Gelmedi
-            elseif ($state === 2)                     { $durum = 0; $geldi = null; } // Yeni/Bekleme
+            elseif ($state === 2)                     { $durum = 1; $geldi = null; } // Yeni/Bekleme -> Onayli
             elseif ($state === 3)                     { $durum = 1; $geldi = null; } // onayli (tahmin)
             elseif (in_array($state, [4, 5], true))   { $durum = 2; $geldi = null; } // Iptal
 
