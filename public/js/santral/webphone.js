@@ -100,7 +100,36 @@ function webphoneBaglan()
         console.error(`[${simpleUser.id}] failed to connect`);
         console.error(error);
         targetSpan.innerHTML = "Sunucuya bağlanamadı: " + error;
+        webphoneYenidenBaglan();
     });
+}
+
+// Otomatik yeniden baglanma: Asterisk restart/reload (fwconsole/Apply Config)
+// ya da ag kopmasinda WS dusunce softphone kendini tekrar baglayip REGISTER
+// olur. Yoksa dahili "Bagli Degil" kalir, cagri dusmez - elle refresh gerekirdi.
+var _kullaniciKapatti = false;
+var _yenidenBaglanmaDeneme = 0;
+function webphoneYenidenBaglan()
+{
+    if (_kullaniciKapatti) return;
+    _yenidenBaglanmaDeneme++;
+    var gecikme = Math.min(_yenidenBaglanmaDeneme * 2000, 30000); // 2,4,...max 30sn
+    targetSpan.innerHTML = `Yeniden bağlanılıyor... (${_yenidenBaglanmaDeneme})`;
+    setTimeout(function()
+    {
+        if (_kullaniciKapatti) return;
+        simpleUser.connect().then(function()
+        {
+            callButton.disabled = false;
+            serverSpan.innerHTML = defaultSIPServer;
+            // basarili: register onServerConnect -> serverConnect icinde olur
+        })
+        .catch(function(error)
+        {
+            console.error('Yeniden baglanma basarisiz, tekrar denenecek', error);
+            webphoneYenidenBaglan();
+        });
+    }, gecikme);
 }
 
 // Baglantiyi sayfa ETKILESIME HAZIR olduktan sonra arka planda baslat.
@@ -782,6 +811,7 @@ serverConnect = function()
 {
     // update display
     targetSpan.innerHTML = `Bağlandı. Dahili : `+$('#santral_dahili_no').val();
+    _yenidenBaglanmaDeneme = 0; // basarili baglanti -> yeniden-baglanma sayacini sifirla
 
     // register to receive calls
     simpleUser.register();
@@ -793,8 +823,13 @@ serverDisconnect = function(error)
 {
     console.log(error);
     callButton.disabled = true;
-    targetSpan.innerHTML = `Bağlantı Kesildi: ${error}`;
     baglantidurumu(0);
+    if (!_kullaniciKapatti) {
+        // WS koptu (restart/reload/ag) -> otomatik yeniden baglan
+        webphoneYenidenBaglan();
+    } else {
+        targetSpan.innerHTML = `Bağlantı Kesildi: ${error}`;
+    }
 };
 
 
@@ -835,6 +870,7 @@ window.onbeforeunload = function()
 // disconnect connection when leaving page
 window.onunload = function()
 {
+    _kullaniciKapatti = true; // sayfa kapaniyor -> otomatik yeniden baglanma deneme
     simpleUser.disconnect();
 };
 function baglantidurumu(durum)
