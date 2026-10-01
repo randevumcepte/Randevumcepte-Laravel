@@ -64,7 +64,7 @@ simpleUserOptions = {
     },
     aor: `sip:${dahili}@${defaultSIPServer}`,
     userAgentOptions: {
-        logLevel: "error",
+        logLevel: "debug",
         displayName: dahili,
         authorizationUsername: dahili,
         authorizationPassword: dahiliSifre,
@@ -72,7 +72,7 @@ simpleUserOptions = {
         // WSS adresini transportOptions'a yalnizca transportOptions YOKSA enjekte eder;
         // connectionTimeout ekleyince server dusuyordu -> "Invalid WebSocket Server URL".
         // connectionTimeout: santral erisilemezse hizli vazgec (varsayilan 5sn).
-        transportOptions: { server: webSocketServer, connectionTimeout: 3 }
+        transportOptions: { server: webSocketServer, connectionTimeout: 3, traceSip: true }
     }
 };
 
