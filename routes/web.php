@@ -617,6 +617,7 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::post('/salon/{id}/askiya-al', 'PanelController@salonAskiyaAl');
     Route::post('/salon/{id}/aktif-et', 'PanelController@salonAktifEt');
     Route::post('/salon/{id}/sure-uzat', 'PanelController@salonSureUzat');
+    Route::post('/salon/{id}/paketli-uzat', 'PanelController@salonPaketliUzat');
     Route::post('/salon/{id}/lisans-aktif', 'PanelController@salonLisansAktif');
     Route::post('/salon/{id}/lisans-kapat', 'PanelController@salonLisansKapat');
     Route::post('/salon/{id}/mt-ata', 'PanelController@salonMusteriTemsilcisiAta');

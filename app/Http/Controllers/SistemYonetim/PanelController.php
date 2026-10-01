@@ -16,6 +16,7 @@ use App\SistemYonetim\AuditLog;
 use App\SistemYonetim\LoginLog;
 use App\SistemYonetim\ImpersonationLog;
 use App\SistemYonetim\SalonNotu;
+use App\SistemYonetim\SalonUyelikOdemesi;
 use App\SistemYonetim\DestekTalebi;
 use App\SistemYonetim\DestekMesaji;
 use App\SatisOrtakligiModel\Musteri_Formlari;
@@ -498,6 +499,113 @@ class PanelController extends Controller
 
         return redirect()->back()->with('basari',
             'Demo/üyelik süresi güncellendi. Yeni bitiş tarihi: ' . date('d.m.Y', strtotime($yeni)));
+    }
+
+    /**
+     * PAKETLI UYELIK UZATMA — paket (Baslangic/Standart/Premium) + periyot (aylik/yillik)
+     * + adet + hediye ay + ucret alir; uyelik_bitis_tarihi'ni hediye dahil toplam ay kadar
+     * uzatir, salon_uyelik_odemeleri'ne tahsilat satiri yazar ve salon yetkilisine
+     * WhatsApp + SMS bilgilendirmesi gonderir (sistem hattindan).
+     *
+     * Toplam ay = (periyot==yillik ? adet*12 : adet) + hediye_ay.
+     * Baz tarih: mevcut bitis gelecekteyse onun uzerine, degilse bugunden eklenir.
+     */
+    public function salonPaketliUzat(Request $request, $id)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+        $salon = Salonlar::findOrFail($id);
+
+        $paketlerGecerli = ['Başlangıç', 'Standart', 'Premium'];
+        $paket   = trim((string) $request->get('paket', ''));
+        $periyot = $request->get('periyot') === 'yillik' ? 'yillik' : 'aylik';
+        $adet    = max(1, (int) $request->get('adet', 1));
+        $hediye  = max(0, (int) $request->get('hediye_ay', 0));
+        $ucret   = round((float) str_replace(',', '.', (string) $request->get('ucret', 0)), 2);
+
+        if (!in_array($paket, $paketlerGecerli, true)) {
+            return redirect()->back()->with('hata', 'Geçerli bir paket seçin (Başlangıç / Standart / Premium).');
+        }
+
+        // Uzatilacak toplam ay (hediye dahil)
+        $toplamAy = ($periyot === 'yillik' ? $adet * 12 : $adet) + $hediye;
+        if ($toplamAy < 1) {
+            return redirect()->back()->with('hata', 'Uzatma süresi en az 1 ay olmalı.');
+        }
+
+        $eski = $salon->uyelik_bitis_tarihi;
+        $eskiGecerli = $eski && substr((string) $eski, 0, 4) !== '0000' && strtotime((string) $eski) !== false;
+        // Mevcut bitis gelecekteyse onun uzerine ekle (kalan sure kaybolmaz); degilse bugunden
+        $bazTs = ($eskiGecerli && strtotime((string) $eski) > strtotime(date('Y-m-d')))
+            ? strtotime((string) $eski)
+            : strtotime(date('Y-m-d'));
+        $yeni = date('Y-m-d', strtotime('+' . $toplamAy . ' months', $bazTs));
+
+        // Paketli uzatma = lisansli hesap (demo degil)
+        $salon->demo_hesabi         = 0;
+        $salon->uyelik_turu         = 1;
+        $salon->uyelik_bitis_tarihi = $yeni;
+        $salon->save();
+
+        // Tahsilat/uzatma kaydi
+        $u = $this->user();
+        $periyotEtiket = $periyot === 'yillik' ? 'Yıllık' : 'Aylık';
+        try {
+            SalonUyelikOdemesi::create([
+                'salon_id'   => $salon->id,
+                'paket'      => $paket,
+                'periyot'    => $periyot,
+                'adet'       => $adet,
+                'hediye_ay'  => $hediye,
+                'toplam_ay'  => $toplamAy,
+                'ucret'      => $ucret,
+                'eski_tarih' => $eskiGecerli ? date('Y-m-d', strtotime((string) $eski)) : null,
+                'yeni_tarih' => $yeni,
+                'yapan_id'   => $u ? $u->id : null,
+                'yapan_adi'  => $u ? $u->name : null,
+                'aciklama'   => $paket . ' / ' . $periyotEtiket . ' x' . $adet . ($hediye ? (' + ' . $hediye . ' ay hediye') : ''),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('[PaketliUzat] odeme kaydi hata: ' . $e->getMessage());
+        }
+
+        Audit::log('salon_paketli_uzat', 'salon', $salon->id, $salon->salon_adi,
+            $paket . ' / ' . $periyotEtiket . ' (' . $toplamAy . ' ay) — ' . number_format($ucret, 2, ',', '.') . ' ₺',
+            ['eski' => $eski, 'yeni' => $yeni, 'paket' => $paket, 'periyot' => $periyot, 'adet' => $adet, 'hediye_ay' => $hediye, 'ucret' => $ucret]);
+
+        // Salon yetkilisine WhatsApp + SMS bilgilendirme (sistem hattindan). Hesap sahibi
+        // fallback'i salonDetay ile ayni: yetkili bos ise role_id=1 personel.
+        $yad  = trim((string) $salon->yetkili_adi);
+        $ytel = trim((string) $salon->yetkili_telefon);
+        if ($ytel === '') {
+            $hs = DB::table('salon_personelleri')->where('role_id', 1)->where('salon_id', $id)
+                ->orderBy('id', 'asc')->first(['personel_adi', 'cep_telefon']);
+            if ($hs) {
+                if ($yad === '') $yad = trim((string) $hs->personel_adi);
+                $ytel = trim((string) $hs->cep_telefon);
+            }
+        }
+        if ($ytel === '') $ytel = trim((string) $salon->telefon_1);
+
+        $bildirimDurum = 'telefon yok';
+        if ($ytel !== '') {
+            $mesaj = "🎉 Üyeliğiniz uzatıldı\n"
+                . ($salon->salon_adi ? ($salon->salon_adi . "\n") : '')
+                . "Paket: {$paket} ({$periyotEtiket})\n"
+                . "Süre: {$toplamAy} ay" . ($hediye ? " ({$hediye} ay hediye dahil)" : '') . "\n"
+                . "Yeni bitiş tarihi: " . date('d.m.Y', strtotime($yeni)) . "\n"
+                . "Bizi tercih ettiğiniz için teşekkürler. 🙏";
+            try {
+                $r = \App\Services\SistemBildirim::gonderTekil($ytel, $mesaj);
+                $bildirimDurum = !empty($r['ok']) ? 'gönderildi' : 'gönderilemedi';
+            } catch (\Throwable $e) {
+                $bildirimDurum = 'hata';
+                \Log::warning('[PaketliUzat] bildirim hata: ' . $e->getMessage());
+            }
+        }
+
+        return redirect()->back()->with('basari',
+            'Üyelik uzatıldı ✓  ' . $paket . ' / ' . $periyotEtiket . ' — yeni bitiş: '
+            . date('d.m.Y', strtotime($yeni)) . '. Yetkiliye bilgilendirme: ' . $bildirimDurum . '.');
     }
 
     /* ============================================================

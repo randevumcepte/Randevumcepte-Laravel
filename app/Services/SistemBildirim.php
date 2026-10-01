@@ -181,6 +181,44 @@ class SistemBildirim
     }
 
     /**
+     * TEK bir numaraya (ayardaki alici listesine DEGIL) WhatsApp + SMS gonderir.
+     * Salon yetkilisine bildirim (orn. uyelik uzatildi) icin kullanilir. WhatsApp
+     * salon-bagimsiz 'sistem' oturumundan (randevumcepte hatti) gider; oturum bagli
+     * degilse WA atlanir, SMS yine de gonderilir. Cagriyi asla patlatma: try/catch'li.
+     *
+     * @return array ['ok'=>bool, 'wa'=>..., 'sms'=>...]
+     */
+    public static function gonderTekil($numara, $mesaj)
+    {
+        $hedef = self::normalizeTel($numara);
+        if ($hedef === '') {
+            return ['ok' => false, 'reason' => 'numara-yok'];
+        }
+
+        $detay = ['wa' => null, 'sms' => null];
+        try {
+            $detay['wa'] = app(WhatsmeowService::class)->sendTest(self::sessionId(), $hedef, $mesaj);
+        } catch (\Throwable $e) {
+            $detay['wa'] = ['ok' => false, 'error' => $e->getMessage()];
+            Log::warning('[SistemBildirim] gonderTekil WA hata', ['numara' => $hedef, 'e' => $e->getMessage()]);
+        }
+        try {
+            $detay['sms'] = self::smsGonder($hedef, $mesaj);
+        } catch (\Throwable $e) {
+            $detay['sms'] = ['ok' => false, 'error' => $e->getMessage()];
+            Log::warning('[SistemBildirim] gonderTekil SMS hata', ['numara' => $hedef, 'e' => $e->getMessage()]);
+        }
+
+        Log::info('[SistemBildirim] gonderTekil tamam', [
+            'numara' => $hedef,
+            'wa' => $detay['wa']['ok'] ?? null,
+            'sms' => $detay['sms']['ok'] ?? null,
+        ]);
+
+        return ['ok' => ($detay['wa']['ok'] ?? false) || ($detay['sms']['ok'] ?? false), 'wa' => $detay['wa'], 'sms' => $detay['sms']];
+    }
+
+    /**
      * Yeni demo acildiginda cagrilir (kayit akisini asla bozmasin diye try/catch'li kullan).
      * Satis takibi icin: salon adi + yetkili adi + telefon -> hemen aranabilsin.
      */

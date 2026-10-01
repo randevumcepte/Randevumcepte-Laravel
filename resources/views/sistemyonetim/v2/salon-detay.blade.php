@@ -157,6 +157,57 @@
         </div>
     </div>
 </div>
+
+{{-- PAKETLI UYELIK UZATMA: paket + periyot + hediye ay + ucret -> uzat, tahsilat kaydi,
+     yetkiliye WhatsApp + SMS bilgilendirme (sistem hattindan). --}}
+<div class="sy-card sy-mt-12" style="border-left:4px solid var(--sy-primary)">
+    <div class="sy-card-body">
+        <div class="sy-text-muted sy-fs-12" style="text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
+            <span class="mdi mdi-cash-register"></span> Paketli Üyelik Uzatma &amp; Tahsilat
+        </div>
+        <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/paketli-uzat"
+              style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"
+              data-confirm="Üyelik paketli olarak uzatılacak ve yetkiliye WhatsApp/SMS bilgilendirme gidecek. Devam?">
+            @csrf
+            <div>
+                <label class="sy-text-muted sy-fs-12">Paket</label>
+                <select name="paket" class="sy-select" style="width:140px" required>
+                    <option value="Başlangıç">Başlangıç</option>
+                    <option value="Standart" selected>Standart</option>
+                    <option value="Premium">Premium</option>
+                </select>
+            </div>
+            <div>
+                <label class="sy-text-muted sy-fs-12">Periyot</label>
+                <select name="periyot" class="sy-select" style="width:110px">
+                    <option value="aylik">Aylık</option>
+                    <option value="yillik" selected>Yıllık</option>
+                </select>
+            </div>
+            <div>
+                <label class="sy-text-muted sy-fs-12">Süre (adet)</label>
+                <input type="number" name="adet" class="sy-input" style="width:90px" value="1" min="1" step="1">
+            </div>
+            <div>
+                <label class="sy-text-muted sy-fs-12">Hediye ay</label>
+                <input type="number" name="hediye_ay" class="sy-input" style="width:90px" value="0" min="0" step="1">
+            </div>
+            <div>
+                <label class="sy-text-muted sy-fs-12">Ücret (₺)</label>
+                <input type="number" name="ucret" class="sy-input" style="width:110px" value="" min="0" step="0.01" placeholder="0,00">
+            </div>
+            <div>
+                <button type="submit" class="sy-btn sy-btn-sm sy-btn-primary">
+                    <span class="mdi mdi-check-bold"></span> Uzat &amp; Bilgilendir
+                </button>
+            </div>
+        </form>
+        <div class="sy-text-muted sy-fs-12" style="margin-top:8px">
+            Yıllık seçiminde "Süre" yıl, Aylık seçiminde ay sayısıdır. Hediye ay toplam süreye eklenir (örn. Yıllık × 1 + 4 hediye = 16 ay).
+            Mevcut bitiş ileride ise kalan süre korunur, üzerine eklenir.
+        </div>
+    </div>
+</div>
 @endif
 
 @php
