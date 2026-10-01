@@ -36,6 +36,8 @@ class SalonrandevuImport extends Command
         {--only-staff-services : Personel-hizmet eslemesini aktar (/company/staff/{id} services[] -> personel_sunulan_hizmetler). Personel+hizmet master otomatik yuklenir. --dry-run ile sadece raporlar.}
         {--list-branches : Login + /company/branches (tum subeler id+ad) + /company/itself (su an bagli sube). Cok subeli hesapta hangi subeyi cektigimizi gormek icin (salt-okunur).}
         {--branch= : Cok subeli hesapta import oncesi bu sube ID\'sine gec (/company/loginbranch/{id}). Verilmezse hesabin varsayilan/ana subesi cekilir.}
+        {--inspect-appointment : /company/appointment/list?customerkey=<--customer> ile bir musterinin randevularini cek; her biri icin id+tarih+customer_state+durum alanlarini bas. Durum (geldi/gelmedi/iptal) eslemesini dogrulamak icin (salt-okunur).}
+        {--customer= : --inspect-appointment icin musteri arama anahtari (ad veya telefon).}
         {--start-page= : --only-other-receipts icin baslangic sayfa (resume). Default 1.}
         {--max-page= : --only-other-receipts icin son sayfa (inclusive). Belirtilmezse SR\'nin next_page=0 donene kadar.}
         {--dry-run : Reset oncesi sayim}';
@@ -134,6 +136,42 @@ class SalonrandevuImport extends Command
             $curAd = is_array($self) ? ($self['name'] ?? ($self['company_name'] ?? '')) : '';
             $this->info("Su an bagli sube (/company/itself): id={$curId}  {$curAd}");
             $this->line('Tam dump: ' . $client->dumpDir());
+            return 0;
+        }
+
+        if ((bool) $this->option('inspect-appointment')) {
+            $ckey = $this->option('customer');
+            $this->info('Randevu durum kesif: /company/appointment/list' . ($ckey ? " customerkey={$ckey}" : ' (ilk sayfalar)'));
+            $this->line('Durum alani eslemesi: customer_state degerini SR UI durumuyla karsilastirin.');
+            $page = 1; $shown = 0; $ilkDump = false;
+            while ($page <= 20) {
+                $params = ['page' => $page];
+                if ($ckey) $params['customerkey'] = $ckey;
+                $j = $client->get('/company/appointment/list?' . http_build_query($params));
+                $d = $j['data'] ?? [];
+                $rows = $d['records'] ?? (isset($d[0]) ? $d : []);
+                if (empty($rows)) break;
+                if (!$ilkDump && !empty($rows[0])) {
+                    $ilkDump = true;
+                    $this->line('Ilk kayit alanlari: ' . implode(', ', array_keys($rows[0])));
+                }
+                foreach ($rows as $r) {
+                    $id  = $r['id'] ?? '?';
+                    $sd  = substr((string) ($r['appointment_start_date'] ?? ''), 0, 16);
+                    $cs  = array_key_exists('customer_state', $r) ? var_export($r['customer_state'], true) : 'YOK';
+                    $svc = $r['service']['name'] ?? ($r['service_name'] ?? '');
+                    $ek  = '';
+                    foreach (['status', 'appointment_status', 'is_came', 'came', 'is_cancelled'] as $f) {
+                        if (array_key_exists($f, $r)) $ek .= " {$f}=" . var_export($r[$f], true);
+                    }
+                    $this->line("  rdv={$id} | {$sd} | customer_state={$cs}{$ek} | {$svc}");
+                    $shown++;
+                }
+                $cur = $d['page'] ?? $page; $next = $d['next_page'] ?? null;
+                if ($next === null || (int) $next <= (int) $cur) break;
+                $page = (int) $next;
+            }
+            $this->info("Toplam {$shown} randevu listelendi. Tam JSON dump: " . $client->dumpDir());
             return 0;
         }
 
