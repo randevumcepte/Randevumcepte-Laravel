@@ -3,10 +3,10 @@
 */
 
 // SIP Server
-defaultSIPServer = "santral2.randevumcepte.com.tr";
+defaultSIPServer = "santral.randevumcepte.com.tr";
 
 // WebSocket Server URL
-webSocketServer = `wss://santral2.randevumcepte.com.tr:8089/ws`;
+webSocketServer = `wss://santral.randevumcepte.com.tr:8089/ws`;
 
 // get interactive elements
 serverSpan = document.getElementById("server");
