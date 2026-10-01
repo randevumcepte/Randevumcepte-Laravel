@@ -1306,27 +1306,23 @@ class SalonrandevuImporter
                 $fiyat = (float) ($svc['amount'] ?? 0);
             }
 
-            // customer_state -> durum / geldi mapping
-            // Salonrandevu state degerleri (sample inspect ile dogrulandi):
-            //   0 = Beklemede (onaysiz)
-            //   1 = Onaylı (rezerve edilmis, henuz olmamis)
-            //   2 = Geldi (musteri geldi - sadece GECMIS randevular icin anlamli)
-            //   3 = Gelmedi (musteri gelmedi)
-            //   4 = İptal
-            //   5 = İptal (alternatif)
+            // customer_state -> durum / randevuya_geldi mapping
+            // AMPIRIK dogrulandi (Sinan Yilmaz 38 randevu; SR UI ikonlari + kart sayilari
+            // Geldi=29/Yeni=1 ile BIREBIR tuttu). ESKI varsayim TERSTI, durumlar kaymisti.
+            //   0 = Geldi            -> randevuya_geldi=1, durum=1
+            //   1 = Gelmedi          -> randevuya_geldi=0, durum=1
+            //   2 = Yeni/Bekleme     -> randevuya_geldi=null, durum=0
+            //   3 = (ornek yok; onayli/ileri tarihli varsayildi) -> durum=1
+            //   4/5 = Iptal          -> durum=2
             $state = $appt['customer_state'] ?? null;
-            $randevuTs = $tarih . ' ' . $saat;
-            $isFuture = (strtotime($randevuTs) > time());
 
-            $durum = 1; // default: onayli
-            $geldi = null; // default: belli degil
-            if ($state === 0)                         { $durum = 0; }
-            elseif ($state === 1)                     { $durum = 1; }
-            elseif ($state === 2 && !$isFuture)       { $durum = 1; $geldi = 1; }
-            elseif ($state === 2 && $isFuture)        { $durum = 1; } // gelecekse Geldi degil
-            elseif ($state === 3 && !$isFuture)       { $durum = 1; $geldi = 0; }
-            elseif ($state === 3 && $isFuture)        { $durum = 1; }
-            elseif (in_array($state, [4, 5], true))   { $durum = 2; $geldi = 0; }
+            $durum = 1;     // default: onayli/aktif
+            $geldi = null;  // default: belirtilmemis
+            if ($state === 0)                         { $durum = 1; $geldi = 1; }   // Geldi
+            elseif ($state === 1)                     { $durum = 1; $geldi = 0; }   // Gelmedi
+            elseif ($state === 2)                     { $durum = 0; $geldi = null; } // Yeni/Bekleme
+            elseif ($state === 3)                     { $durum = 1; $geldi = null; } // onayli (tahmin)
+            elseif (in_array($state, [4, 5], true))   { $durum = 2; $geldi = null; } // Iptal
 
             try {
                 $r = $existRandevu ?: new Randevular();
