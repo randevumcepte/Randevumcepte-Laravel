@@ -33609,10 +33609,41 @@ DB::raw('
         return response()->json(['randevular' => $out]);
     }
 
+    /** Agent — Arama Randevularim SAYFASI (personel + yonetici). Veri AJAX ile arama_randevularim'dan gelir. */
+    public function arama_randevularim_sayfa(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray();
+        $isletme = Salonlar::where('id', $salonId)->first();
+
+        if (!in_array($salonId, $isletmeler)) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if ((int) optional($isletme)->uyelik_turu !== 3) {
+            abort(403);
+        }
+        $lisansSure = self::lisans_sure_kontrol($request);
+        if (str_contains($lisansSure, '-')) {
+            return view('isletmeadmin.lisanssurebitti', ['isletme' => $isletme]);
+        }
+        $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
+
+        return view('isletmeadmin.arama_randevularim', [
+            'kullaniciRolu'           => $rol,
+            'bildirimler'             => self::bildirimgetir($request),
+            'sayfa_baslik'            => 'Arama Randevularım',
+            'pageindex'               => 47,
+            'isletme'                 => $isletme,
+            'kalan_uyelik_suresi'     => $lisansSure,
+            'yetkiliolunanisletmeler' => $isletmeler,
+        ]);
+    }
+
     /**
-     * Agent — Arama Randevularim ajandasi (durum=3 callback'ler, zamana gore sirali).
-     * Her satir: maskeli ad, zaman, not, ses kaydi sayisi + en yeni tarih, durum (yaklasan/gecikti/bugun).
-     * Personel kendi listelerini, yonetici salonun tumunu gorur.
+     * Agent — Arama Randevularim VERISI (JSON). durum=3 callback'ler.
+     * ?tarih verilirse O GUNUN tum callback'leri (bekleyen + tamamlanan); yoksa tum bekleyenler.
+     * Her satir: maskeli ad, zaman, not, ses kaydi sayisi + en yeni tarih, durum (bekliyor/gecikti/tamamlandi/gec).
+     * Personel kendi listelerini, yonetici salonun tumunu gorur. Mobil API de bu metodu kullanir.
      */
     public function arama_randevularim(Request $request)
     {
@@ -33628,13 +33659,29 @@ DB::raw('
             return response()->json(['randevular' => []]);
         }
 
+        $arVar = Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at');
+        $gunFiltre = $request->filled('tarih') ? date('Y-m-d', strtotime($request->tarih)) : null;
+
         $qr = AranacakMusteriler::whereIn('arama_id', $listeIds)
-            ->where('durum', 3)
             ->whereNotNull('tarih')->where('tarih', '!=', '')
             ->whereNotNull('saat')->where('saat', '!=', '');
-        if (Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at')) {
-            $qr->whereNull('ar_tamamlandi_at');
+
+        if ($gunFiltre) {
+            // Belirli gun: o gune ait bekleyen callback'ler + o gun tamamlananlar (gun dokumu)
+            $qr->where('tarih', $gunFiltre);
+            if ($arVar) {
+                $qr->where(function ($w) {
+                    $w->where('durum', 3)->orWhereNotNull('ar_tamamlandi_at');
+                });
+            } else {
+                $qr->where('durum', 3);
+            }
+        } else {
+            // Gun secilmedi: bekleyen (tamamlanmamis) tum callback'ler
+            $qr->where('durum', 3);
+            if ($arVar) $qr->whereNull('ar_tamamlandi_at');
         }
+
         $kayitlar = $qr->with('musteri')
             ->orderByRaw("CONCAT(tarih,' ',saat) asc")
             ->limit(500)->get();
@@ -33650,12 +33697,19 @@ DB::raw('
 
         $personelMi = ($rol == 5);
         $nowTs = time();
-        $gecikti = ($arKolon = Schema::hasColumn('aranacak_musteriler', 'ar_gecikti'));
-        $out = $kayitlar->map(function ($k) use ($personelMi, $sesMap, $nowTs, $gecikti) {
+        $out = $kayitlar->map(function ($k) use ($personelMi, $sesMap, $nowTs, $arVar) {
             $ad = optional($k->musteri)->name ?? 'Müşteri';
             if ($personelMi) $ad = self::adSoyadMaskele($ad);
             $apptTs = strtotime($k->tarih . ' ' . $k->saat);
-            $gecti = ($apptTs < $nowTs) || ($gecikti && (int) $k->ar_gecikti === 1);
+            $tamamlandi = $arVar && !empty($k->ar_tamamlandi_at);
+            if ($tamamlandi) {
+                $gec = strtotime($k->ar_tamamlandi_at) > $apptTs;
+                $durum = $gec ? 'gec' : 'zamaninda';
+            } elseif ($apptTs < $nowTs || ($arVar && (int) $k->ar_gecikti === 1)) {
+                $durum = 'gecikti';
+            } else {
+                $durum = 'bekliyor';
+            }
             $ses = $sesMap[$k->id] ?? null;
             return [
                 'id'         => $k->id,
@@ -33663,8 +33717,9 @@ DB::raw('
                 'ad'         => $ad,
                 'tarih'      => $k->tarih ? date('d.m.Y', strtotime($k->tarih)) : '',
                 'saat'       => $k->saat ? date('H:i', strtotime($k->saat)) : '',
-                'gecti'      => $gecti ? 1 : 0,
-                'not'        => mb_substr((string) ($k->musteri_not ?? ''), 0, 160),
+                'gecti'      => ($durum === 'gecikti') ? 1 : 0,
+                'durum'      => $durum,
+                'not'        => mb_substr((string) ($k->musteri_not ?? ''), 0, 200),
                 'ses_sayisi' => $ses ? (int) $ses->adet : 0,
                 'ses_son'    => ($ses && $ses->son) ? date('d.m.Y H:i', strtotime($ses->son)) : '',
             ];

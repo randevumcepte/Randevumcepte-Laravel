@@ -1392,8 +1392,9 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/cagri-yaklasan-randevular','StoreAdminController@cagri_yaklasan_randevular');
 	Route::post('/cagri-musteri-ongorusme-bilgi','StoreAdminController@cagri_musteri_ongorusme_bilgi');
 	Route::post('/cagri-hizli-satis','StoreAdminController@cagri_hizli_satis');
-	// Arama Randevusu (callback) — ajanda + ertele + patron takvimi
-	Route::get('/arama-randevularim','StoreAdminController@arama_randevularim');
+	// Arama Randevusu (callback) — ajanda sayfasi + veri + ertele + patron takvimi
+	Route::get('/arama-randevularim','StoreAdminController@arama_randevularim_sayfa');
+	Route::get('/arama-randevularim-veri','StoreAdminController@arama_randevularim');
 	Route::post('/arama-randevu-ertele','StoreAdminController@arama_randevu_ertele');
 	Route::get('/arama-randevu-takvim','StoreAdminController@arama_randevu_takvim');
 	Route::get('/arama-randevu-takvim-verileri','StoreAdminController@arama_randevu_takvim_verileri');

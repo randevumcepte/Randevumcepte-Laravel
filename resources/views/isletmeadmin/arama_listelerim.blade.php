@@ -241,18 +241,6 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
       </div>
    </div>
 
-   {{-- Arama Randevularım (callback ajandası) modalı --}}
-   <div id="ag_ajanda_modal" class="ag-ajanda-overlay" style="display:none;">
-      <div class="ag-ajanda-box">
-         <div class="ag-ajanda-head">
-            <h5><i class="fa fa-calendar-check-o"></i> Arama Randevularım</h5>
-            <button type="button" class="ag-ajanda-kapat" id="ag_ajanda_kapat">&times;</button>
-         </div>
-         <div class="ag-ajanda-liste" id="ag_ajanda_liste">
-            <div class="ag-spin"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>
-         </div>
-      </div>
-   </div>
 
    <div class="ag-grid">
 
@@ -1010,64 +998,10 @@ function agRandevuKontrol(){
    });
 }
 
-// ---- Arama Randevularım (callback ajandası) ----
-function agAjandaCsrf(){ var m=document.querySelector('meta[name="csrf-token"]'); if(m) return m.getAttribute('content'); var i=document.querySelector('input[name="_token"]'); return i?i.value:''; }
-
-function agAjandaYukle(){
-   var box = document.getElementById('ag_ajanda_liste');
-   box.innerHTML = '<div class="ag-spin"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>';
-   $.get('/isletmeyonetim/arama-randevularim', { sube: $('input[name="sube"]').val() }, function(res){
-      var liste = (res && res.randevular) ? res.randevular : [];
-      // rozet: geciken sayısı
-      var gecikenSay = liste.filter(function(r){ return r.gecti; }).length;
-      var rozet = document.getElementById('ag_ajanda_rozet');
-      if (gecikenSay>0){ rozet.textContent = gecikenSay; rozet.style.display='inline-block'; }
-      else { rozet.style.display='none'; }
-
-      if (!liste.length){ box.innerHTML = '<div class="ag-ajanda-bos">Bekleyen arama randevunuz yok.</div>'; return; }
-      var html = '';
-      liste.forEach(function(r){
-         var ses = (r.ses_sayisi>0) ? ('<div class="ses">🎙️ '+r.ses_sayisi+' ses kaydı'+(r.ses_son?(' · son: '+r.ses_son):'')+'</div>') : '';
-         var not = r.not ? ('<div class="not">“'+agEsc(r.not)+'”</div>') : '';
-         html += '<div class="ag-ajanda-row'+(r.gecti?' gecti':'')+'" data-id="'+agEsc(r.id)+'">'
-            + '<div class="ust"><span class="ad">'+agEsc(r.ad)+'</span>'
-            + '<span class="zaman">'+(r.gecti?'⚠️ ':'')+agEsc(r.tarih)+' '+agEsc(r.saat)+'</span></div>'
-            + not + ses
-            + '<div class="aksiyon">'
-            + '<button class="b-ara" data-arama="'+agEsc(r.arama_id)+'" data-id="'+agEsc(r.id)+'"><i class="fa fa-phone"></i> Ara</button>'
-            + '<button class="b-ertele" data-id="'+agEsc(r.id)+'"><i class="fa fa-clock-o"></i> Ertele</button>'
-            + '</div></div>';
-      });
-      box.innerHTML = html;
-   });
-}
-
-function agAjandaAc(){ document.getElementById('ag_ajanda_modal').style.display='flex'; agAjandaYukle(); }
-function agAjandaKapat(){ document.getElementById('ag_ajanda_modal').style.display='none'; }
-
-$(document).on('click', '#ag_ajanda_ac', agAjandaAc);
-$(document).on('click', '#ag_ajanda_kapat', agAjandaKapat);
-$(document).on('click', '#ag_ajanda_modal', function(e){ if(e.target===this) agAjandaKapat(); });
-// Ajandadan "Ara": müşteriye git (listeyi açar + kartı seçer)
-$(document).on('click', '#ag_ajanda_liste .b-ara', function(){
-   var arama = $(this).data('arama'), id = $(this).data('id');
-   agAjandaKapat();
-   if (arama) agMusteriyeGit(arama, id);
-});
-// Ajandadan "Ertele": yeni tarih/saat al, bayrakları sıfırla
-$(document).on('click', '#ag_ajanda_liste .b-ertele', function(){
-   var id = $(this).data('id');
-   var t = prompt('Yeni tarih (GG.AA.YYYY):', '');
-   if (!t) return;
-   var s = prompt('Yeni saat (SS:DD):', '');
-   if (!s) return;
-   // GG.AA.YYYY -> YYYY-AA-GG
-   var p = t.split('.'); var iso = (p.length===3) ? (p[2]+'-'+p[1]+'-'+p[0]) : t;
-   $.ajax({ url:'/isletmeyonetim/arama-randevu-ertele', method:'POST',
-      data:{ aranacak_musteri_id:id, tarih:iso, saat:s, sube:$('input[name="sube"]').val(), _token:agAjandaCsrf() },
-      success:function(res){ if(res && res.success){ agAjandaYukle(); } else { alert((res&&res.message)?res.message:'Ertelenemedi'); } },
-      error:function(){ alert('Ertelenemedi'); }
-   });
+// ---- Arama Randevularım: artık ayrı SAYFA (buton o sayfaya götürür) ----
+$(document).on('click', '#ag_ajanda_ac', function(){
+   var s = $('input[name="sube"]').val();
+   window.location.href = '/isletmeyonetim/arama-randevularim' + (s ? ('?sube=' + s) : '');
 });
 
 $(document).ready(function(){
@@ -1077,21 +1011,6 @@ $(document).ready(function(){
    // Randevu hatirlatma: acilista + her 45 sn'de bir kontrol et
    agRandevuKontrol();
    setInterval(agRandevuKontrol, 45000);
-
-   // Popup'tan "Hemen Ara" ile gelindiyse (?ac=ID) ilgili müşteriyi aç.
-   try {
-      var acId = new URLSearchParams(window.location.search).get('ac');
-      if (acId){
-         // Ajandayı açıp ilgili kaydı vurgula; liste yüklenince kullanıcı Ara'ya basabilir.
-         setTimeout(function(){
-            agAjandaAc();
-            setTimeout(function(){
-               var row = document.querySelector('#ag_ajanda_liste .ag-ajanda-row[data-id="'+acId+'"]');
-               if (row){ row.style.boxShadow='0 0 0 3px #16a34a'; row.scrollIntoView({block:'center'}); }
-            }, 700);
-         }, 900);
-      }
-   } catch(e){}
 });
 </script>
 @endsection

@@ -2210,6 +2210,16 @@
                      <span class="mtext"> Arama Randevu Takvimi </span>
                      </a>
                   </li>
+                  <li>
+                     @if($pageindex==47)
+                     <a href="/isletmeyonetim/arama-randevularim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/arama-randevularim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-list-check"></span>
+                     <span class="mtext"> Arama Randevuları </span>
+                     </a>
+                  </li>
                   @endif
                   @endif
 
@@ -2330,6 +2340,16 @@
                      @endif
                      <span class="micon bi bi-telephone-outbound"></span>
                      <span class="mtext">Arama Listesi</span>
+                     </a>
+                  </li>
+                  <li>
+                     @if($pageindex==47)
+                     <a href="/isletmeyonetim/arama-randevularim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/arama-randevularim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-calendar-check"></span>
+                     <span class="mtext">Arama Randevularım</span>
                      </a>
                   </li>
                   @endif
@@ -6136,7 +6156,7 @@ document.addEventListener('DOMContentLoaded', function() {
     bip();
 
     ov.querySelector('.ara').addEventListener('click', function(){
-      var url = '/isletmeyonetim/arama-listelerim' + (subeParam || '?sube=') ;
+      var url = '/isletmeyonetim/arama-randevularim' + (subeParam || '') ;
       url += (url.indexOf('?')>=0 ? '&' : '?') + 'ac=' + r.id;
       window.location.href = url;
     });
