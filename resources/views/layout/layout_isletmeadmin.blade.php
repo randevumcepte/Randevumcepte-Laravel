@@ -2218,6 +2218,16 @@
                      <span class="mtext"> Arama Randevuları </span>
                      </a>
                   </li>
+                  <li>
+                     @if($pageindex==48)
+                     <a href="/isletmeyonetim/arama-cagri-kayitlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/arama-cagri-kayitlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-telephone"></span>
+                     <span class="mtext"> Çağrı Kayıtları </span>
+                     </a>
+                  </li>
                   @endif
                   @endif
 
@@ -2348,6 +2358,16 @@
                      @endif
                      <span class="micon bi bi-calendar-check"></span>
                      <span class="mtext">Arama Randevularım</span>
+                     </a>
+                  </li>
+                  <li>
+                     @if($pageindex==48)
+                     <a href="/isletmeyonetim/arama-cagri-kayitlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/arama-cagri-kayitlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-telephone"></span>
+                     <span class="mtext">Çağrı Kayıtları</span>
                      </a>
                   </li>
                   @endif

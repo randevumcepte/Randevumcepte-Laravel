@@ -1400,6 +1400,9 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/arama-randevu-ertele','StoreAdminController@arama_randevu_ertele');
 	Route::get('/arama-randevu-takvim','StoreAdminController@arama_randevu_takvim');
 	Route::get('/arama-randevu-takvim-verileri','StoreAdminController@arama_randevu_takvim_verileri');
+	// Cagri Kayitlari (tum cagrilarin dokumu + ses kayitlari)
+	Route::get('/arama-cagri-kayitlari','StoreAdminController@arama_cagri_kayitlari_sayfa');
+	Route::get('/arama-cagri-kayitlari-veri','StoreAdminController@arama_cagri_kayitlari');
 	// Cagri Merkezi — Faz 5: liste segmentasyonu (sonuca gore ayikla, indir, personele tasi)
 	Route::get('/cagri-liste-segmentler','StoreAdminController@cagri_liste_segmentler');
 	Route::get('/cagri-segment-indir','StoreAdminController@cagri_segment_indir');

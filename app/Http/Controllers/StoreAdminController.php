@@ -33760,6 +33760,101 @@ DB::raw('
         return response()->json(['success' => true]);
     }
 
+    /** Cagri Kayitlari SAYFASI (personel + yonetici). Veri AJAX ile arama_cagri_kayitlari'dan gelir. */
+    public function arama_cagri_kayitlari_sayfa(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $isletmeler = Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray();
+        $isletme = Salonlar::where('id', $salonId)->first();
+
+        if (!in_array($salonId, $isletmeler)) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if ((int) optional($isletme)->uyelik_turu !== 3) {
+            abort(403);
+        }
+        $lisansSure = self::lisans_sure_kontrol($request);
+        if (str_contains($lisansSure, '-')) {
+            return view('isletmeadmin.lisanssurebitti', ['isletme' => $isletme]);
+        }
+        $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
+
+        return view('isletmeadmin.arama_cagri_kayitlari', [
+            'kullaniciRolu'           => $rol,
+            'bildirimler'             => self::bildirimgetir($request),
+            'sayfa_baslik'            => 'Çağrı Kayıtları',
+            'pageindex'               => 48,
+            'isletme'                 => $isletme,
+            'kalan_uyelik_suresi'     => $lisansSure,
+            'yetkiliolunanisletmeler' => $isletmeler,
+        ]);
+    }
+
+    /**
+     * Cagri Kayitlari VERISI (JSON): gorusme_notlari'ndan tum cagrilar (salon).
+     * Her kayit: tarih, musteri (rol 5 maskeli), personel, sonuc, sure, not, ses kaydi URL, satis.
+     * Personel kendi cagrilarini, yonetici salonun tumunu gorur. Ozet sayilar da doner.
+     */
+    public function arama_cagri_kayitlari(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        if ((int) optional(Salonlar::where('id', $salonId)->first())->uyelik_turu !== 3) {
+            abort(403);
+        }
+        if (!Schema::hasTable('gorusme_notlari')) {
+            return response()->json(['kayitlar' => [], 'ozet' => ['toplam' => 0, 'gorusulen' => 0, 'randevu' => 0, 'satis' => 0]]);
+        }
+        $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
+        $personelMi = ($rol == 5);
+        $myPid = $personelMi ? $this->aktifPersonelId($salonId) : null;
+
+        $taban = \App\GorusmeNotlari::where('salon_id', $salonId);
+        if ($personelMi) $taban->where('personel_id', $myPid);
+
+        // Ozet (TUM kayitlar uzerinden)
+        $ozetSql = "COUNT(*) as toplam,"
+            . " SUM(CASE WHEN sonuc IN (1,4) THEN 1 ELSE 0 END) as gorusulen,"
+            . " SUM(CASE WHEN sonuc=3 THEN 1 ELSE 0 END) as randevu,"
+            . " SUM(CASE WHEN sonuc=7 THEN 1 ELSE 0 END) as satis";
+        $ozetRow = (clone $taban)->selectRaw($ozetSql)->first();
+        $ozet = [
+            'toplam'    => (int) ($ozetRow->toplam ?? 0),
+            'gorusulen' => (int) ($ozetRow->gorusulen ?? 0),
+            'randevu'   => (int) ($ozetRow->randevu ?? 0),
+            'satis'     => (int) ($ozetRow->satis ?? 0),
+        ];
+
+        $notlar = (clone $taban)->orderBy('id', 'desc')->limit(1000)->get();
+
+        $userIds = $notlar->pluck('user_id')->filter()->unique()->all();
+        $users = $userIds ? \App\User::whereIn('id', $userIds)->get(['id', 'name', 'cep_telefon'])->keyBy('id') : collect();
+        $pIds = $notlar->pluck('personel_id')->filter()->unique()->all();
+        $pers = $pIds ? Personeller::whereIn('id', $pIds)->pluck('personel_adi', 'id') : collect();
+
+        $kayitlar = $notlar->map(function ($n) use ($personelMi, $users, $pers) {
+            $u = $users[$n->user_id] ?? null;
+            $ad = $u ? ($u->name ?? 'Müşteri') : 'Müşteri';
+            $tel = $u ? (string) ($u->cep_telefon ?? '') : '';
+            if ($personelMi) { $ad = self::adSoyadMaskele($ad); $tel = self::telefonGizle($tel); }
+            $kod = is_null($n->sonuc) ? null : (int) $n->sonuc;
+            return [
+                'id'           => $n->id,
+                'ad'           => $ad,
+                'telefon'      => $tel,
+                'personel'     => $pers[$n->personel_id] ?? '',
+                'tarih'        => $n->created_at ? date('d.m.Y H:i', strtotime($n->created_at)) : '',
+                'sonuc_kod'    => $kod,
+                'sonuc'        => self::aranacakDurumMetin($n->sonuc),
+                'sure_dk'      => (int) ($n->sure_dk ?? 0),
+                'not'          => $n->not ?? '',
+                'ses'          => self::sesKaydiUrl($n->ses_kaydi),
+                'satis_tutari' => ($kod === 7 && isset($n->satis_tutari) && $n->satis_tutari !== null) ? (float) $n->satis_tutari : null,
+            ];
+        });
+
+        return response()->json(['kayitlar' => $kayitlar, 'ozet' => $ozet]);
+    }
+
     /**
      * Ön Görüşme Randevusu için müşteri bilgisi (user_id + GERÇEK ad + telefon).
      * KVKK: agent normalde maskeli görür; ön görüşme randevusu OLUSTURMAK icin gercek bilgi gerekir

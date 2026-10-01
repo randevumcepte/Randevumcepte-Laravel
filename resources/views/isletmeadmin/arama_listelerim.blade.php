@@ -16,9 +16,10 @@
 .ag-hero h4{ margin:0 0 4px; font-weight:700; font-size:21px; color:#fff; }
 .ag-hero p{ margin:0; opacity:.90; font-size:13px; }
 .ag-hero-stats{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; position:relative; z-index:2; }
-/* Arama Randevularım butonu (hero sağ üst) */
-.ag-ajanda-ac{ position:absolute; top:16px; right:18px; z-index:3; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.25); color:#fff; border-radius:12px; padding:9px 14px; font-size:12.5px; font-weight:700; cursor:pointer; transition:filter .15s; }
-.ag-ajanda-ac:hover{ filter:brightness(1.12); }
+/* Hero sağ üst buton grubu */
+.ag-hero-btns{ position:absolute; top:16px; right:18px; z-index:3; display:flex; gap:8px; flex-wrap:wrap; }
+.ag-ajanda-ac{ background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.25); color:#fff; border-radius:12px; padding:9px 14px; font-size:12.5px; font-weight:700; cursor:pointer; transition:filter .15s; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+.ag-ajanda-ac:hover{ filter:brightness(1.12); color:#fff; }
 .ag-ajanda-rozet{ background:#dc2626; color:#fff; border-radius:20px; padding:1px 8px; font-size:11px; margin-left:4px; }
 .ag-ajanda-overlay{ position:fixed; inset:0; background:rgba(20,20,40,.55); backdrop-filter:blur(4px); z-index:99998; display:flex; align-items:flex-start; justify-content:center; padding:40px 12px; }
 .ag-ajanda-box{ background:#fff; border-radius:16px; width:100%; max-width:560px; max-height:82vh; display:flex; flex-direction:column; box-shadow:0 24px 64px rgba(0,0,0,.25); overflow:hidden; }
@@ -232,7 +233,10 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
 
    {{-- Başlık şeridi + kuyruk özetleri --}}
    <div class="ag-hero">
-      <button type="button" id="ag_ajanda_ac" class="ag-ajanda-ac"><i class="fa fa-calendar-check-o"></i> Arama Randevularım <span id="ag_ajanda_rozet" class="ag-ajanda-rozet" style="display:none;">0</span></button>
+      <div class="ag-hero-btns">
+         <button type="button" id="ag_ajanda_ac" class="ag-ajanda-ac"><i class="fa fa-calendar-check-o"></i> Arama Randevularım <span id="ag_ajanda_rozet" class="ag-ajanda-rozet" style="display:none;">0</span></button>
+         <a href="/isletmeyonetim/arama-cagri-kayitlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="ag-ajanda-ac"><i class="fa fa-phone"></i> Çağrı Kayıtları</a>
+      </div>
       <h4><i class="fa fa-headphones"></i> Çağrı Merkezi — Çalışma Ekranı</h4>
       <p>Size atanan listelerden müşterileri arayın, görüşme sonucunu ve notunu kaydedin. Numaralar KVKK gereği gizlidir — <b>Ara</b> butonuyla santral sizi bağlar.</p>
       <div class="ag-hero-stats">
