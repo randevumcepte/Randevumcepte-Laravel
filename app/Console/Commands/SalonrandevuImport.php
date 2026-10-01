@@ -59,9 +59,10 @@ class SalonrandevuImport extends Command
         $only     = $this->option('only');
         $reset    = (bool) $this->option('reset-salonrandevu');
         $resetAll = (bool) $this->option('reset-all');
+        $dedup    = (bool) $this->option('dedup-randevu');
 
-        if (!$analyze && !$reset && !$resetAll && (!$email || !$password)) {
-            $this->error('--email ve --password zorunlu (veya --analyze / --reset-salonrandevu / --reset-all verin).');
+        if (!$analyze && !$reset && !$resetAll && !$dedup && (!$email || !$password)) {
+            $this->error('--email ve --password zorunlu (veya --analyze / --reset-salonrandevu / --reset-all / --dedup-randevu verin).');
             return 1;
         }
         if (!$analyze && !$probe && !$inspect && !$salonId) {
