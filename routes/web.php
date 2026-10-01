@@ -715,6 +715,7 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::post('/sistem-whatsapp/cikis', 'PanelController@sistemWhatsappCikis');
     Route::post('/sistem-whatsapp/ayar', 'PanelController@sistemWhatsappAyar');
     Route::post('/sistem-whatsapp/test', 'PanelController@sistemWhatsappTest');
+    Route::post('/sistem-whatsapp/pair-phone', 'PanelController@sistemWhatsappPairPhone');
 
     // API: arama + bildirim
     Route::get('/api/global-arama', 'PanelController@globalArama');

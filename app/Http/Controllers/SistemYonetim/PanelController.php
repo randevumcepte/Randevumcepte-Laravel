@@ -2054,6 +2054,22 @@ class PanelController extends Controller
         return redirect()->back()->with('basari', 'Oturum sıfırlandı — şimdi "Bağlan / QR Göster" ile yeni numarayı bağla.');
     }
 
+    /**
+     * Telefon numarasi ile pair kodu uretir (QR alternatifi). Bridge'ten donen 8 haneli kodu
+     * kullanici telefonun WA "Telefon numarasiyla baglan" ekranina girer. Bazi iPhone/Business
+     * "baglantiyi kontrol et" sorunlarini bypass eder.
+     */
+    public function sistemWhatsappPairPhone(Request $request)
+    {
+        $this->gerektir(['super_admin']);
+        $phone = trim((string) $request->input('phone', ''));
+        if ($phone === '') return response()->json(['error' => 'phone-required'], 422);
+
+        $svc = app(\App\Services\WhatsmeowService::class);
+        $res = $svc->pairPhone(\App\Services\SistemBildirim::sessionId(), $phone);
+        return response()->json($res['body'] ?? ['error' => 'servis-erisilemiyor'], $res['status'] ?: 502);
+    }
+
     public function sistemWhatsappAyar(Request $request)
     {
         $this->gerektir(['super_admin']);

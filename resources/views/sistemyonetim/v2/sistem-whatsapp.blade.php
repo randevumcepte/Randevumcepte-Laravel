@@ -82,6 +82,24 @@
                 <img id="wa-qr" src="" alt="QR" style="width:300px;height:300px;max-width:100%;border:1px solid #eee;padding:8px;background:#fff;border-radius:8px">
                 <div class="sy-text-muted sy-fs-12" style="margin-top:8px">QR 30-60 sn geçerli, otomatik yenilenir. Okuttuktan sonra "Bağlı" olur.</div>
             </div>
+
+            {{-- Alternatif: telefon numarasi ile pair kodu (QR calismadiginda kullan) --}}
+            <div style="margin-top:24px;padding-top:16px;border-top:1px dashed #ddd">
+                <h4 style="margin:0 0 8px"><span class="mdi mdi-cellphone-key"></span> Alternatif: Telefon Numarası ile Bağla</h4>
+                <p class="sy-text-muted sy-fs-13" style="margin:0 0 10px">
+                    QR okutmakta zorlanıyorsan telefon numarasını yaz, 8 haneli kodu <b>WhatsApp &gt; Bağlı Cihazlar &gt; Cihaz Bağla &gt; "Telefon numarası ile bağlan"</b> ekranına gir.
+                </p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <input id="wa-pair-tel" type="tel" class="sy-form-control" placeholder="905321234567" style="max-width:220px" />
+                    <button id="wa-pair-btn" type="button" class="sy-btn sy-btn-outline"><span class="mdi mdi-key"></span> Kod Oluştur</button>
+                </div>
+                <div id="wa-pair-kod" style="display:none;margin-top:12px;padding:12px;background:#f5f9ff;border:1px solid #cfe0ff;border-radius:6px">
+                    <div class="sy-text-muted sy-fs-12">8 haneli pair kodunuz:</div>
+                    <div id="wa-pair-kod-val" style="font-size:28px;font-weight:bold;letter-spacing:4px;color:var(--sy-primary);font-family:monospace">--------</div>
+                    <div class="sy-text-muted sy-fs-12" style="margin-top:4px">Kod ~60 sn geçerlidir. WhatsApp'ta ilgili ekrana yaz.</div>
+                </div>
+                <div id="wa-pair-hata" class="sy-text-danger sy-fs-13" style="margin-top:8px;display:none"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -181,6 +199,55 @@
             .catch(function () { setDurum('Servise ulaşılamadı', 'danger'); teshis('baglat isteği başarısız.'); })
             .finally(function () { baglanBtn.disabled = false; baglanBtn.innerHTML = '<span class="mdi mdi-whatsapp"></span> Bağlan / QR Göster'; });
     });
+
+    // Pair code (telefon numarasiyla baglanma) — QR alternatifi
+    var pairBtn = document.getElementById('wa-pair-btn');
+    var pairTel = document.getElementById('wa-pair-tel');
+    var pairKod = document.getElementById('wa-pair-kod');
+    var pairKodVal = document.getElementById('wa-pair-kod-val');
+    var pairHata = document.getElementById('wa-pair-hata');
+    if (pairBtn) {
+        pairBtn.addEventListener('click', function () {
+            var phone = (pairTel.value || '').replace(/[^0-9]/g, '');
+            pairHata.style.display = 'none';
+            if (!phone || phone.length < 10) {
+                pairHata.textContent = 'Lütfen ülke kodu ile birlikte geçerli bir numara girin (örn. 905321234567).';
+                pairHata.style.display = 'block';
+                return;
+            }
+            pairBtn.disabled = true; pairBtn.textContent = 'Kod isteniyor…';
+            // Once oturumu baslat (bridge aktif oturum ister), sonra pair-phone cagir
+            fetch('/sistemyonetim/v2/sistem-whatsapp/baglat', { method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' } })
+                .then(function () {
+                    return fetch('/sistemyonetim/v2/sistem-whatsapp/pair-phone', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ phone: phone })
+                    });
+                })
+                .then(function (r) { return r.json().then(function (j) { return { st: r.status, j: j }; }); })
+                .then(function (o) {
+                    var kod = (o.j && (o.j.code || o.j.pairingCode || o.j.pair_code)) || null;
+                    if (kod) {
+                        // 1234-5678 formatinda goster
+                        var fmt = String(kod).replace(/\s+/g, '').toUpperCase();
+                        if (fmt.length === 8) fmt = fmt.slice(0, 4) + '-' + fmt.slice(4);
+                        pairKodVal.textContent = fmt;
+                        pairKod.style.display = 'block';
+                        if (pollTimer) clearInterval(pollTimer);
+                        pollTimer = setInterval(statusCek, 3000);
+                    } else {
+                        pairHata.textContent = 'Kod alınamadı. Sunucu cevabı: ' + JSON.stringify(o.j).slice(0, 160);
+                        pairHata.style.display = 'block';
+                    }
+                })
+                .catch(function (e) {
+                    pairHata.textContent = 'İstek başarısız: ' + (e && e.message ? e.message : 'bilinmeyen hata');
+                    pairHata.style.display = 'block';
+                })
+                .finally(function () { pairBtn.disabled = false; pairBtn.innerHTML = '<span class="mdi mdi-key"></span> Kod Oluştur'; });
+        });
+    }
 
     function healthCek() {
         var el = document.getElementById('wa-servis');
