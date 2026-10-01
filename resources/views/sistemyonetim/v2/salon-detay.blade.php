@@ -197,6 +197,12 @@
                 <input type="number" name="ucret" class="sy-input" style="width:110px" value="" min="0" step="0.01" placeholder="0,00">
             </div>
             <div>
+                <label class="sy-text-muted sy-fs-12" style="display:block">&nbsp;</label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;height:34px">
+                    <input type="checkbox" name="kdv_dahil" value="1"> KDV dahil
+                </label>
+            </div>
+            <div>
                 <button type="submit" class="sy-btn sy-btn-sm sy-btn-primary">
                     <span class="mdi mdi-check-bold"></span> Uzat &amp; Bilgilendir
                 </button>

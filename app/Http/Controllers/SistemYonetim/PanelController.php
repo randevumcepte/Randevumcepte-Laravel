@@ -521,6 +521,7 @@ class PanelController extends Controller
         $adet    = max(1, (int) $request->get('adet', 1));
         $hediye  = max(0, (int) $request->get('hediye_ay', 0));
         $ucret   = round((float) str_replace(',', '.', (string) $request->get('ucret', 0)), 2);
+        $kdvDahil = filter_var($request->get('kdv_dahil'), FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
 
         if (!in_array($paket, $paketlerGecerli, true)) {
             return redirect()->back()->with('hata', 'Geçerli bir paket seçin (Başlangıç / Standart / Premium).');
@@ -558,6 +559,7 @@ class PanelController extends Controller
                 'hediye_ay'  => $hediye,
                 'toplam_ay'  => $toplamAy,
                 'ucret'      => $ucret,
+                'kdv_dahil'  => $kdvDahil,
                 'eski_tarih' => $eskiGecerli ? date('Y-m-d', strtotime((string) $eski)) : null,
                 'yeni_tarih' => $yeni,
                 'yapan_id'   => $u ? $u->id : null,
@@ -592,7 +594,7 @@ class PanelController extends Controller
                 . ($salon->salon_adi ? ($salon->salon_adi . "\n") : '')
                 . "Paket: {$paket} ({$periyotEtiket})\n"
                 . "Süre: {$toplamAy} ay" . ($hediye ? " ({$hediye} ay hediye dahil)" : '') . "\n"
-                . "Tutar: " . number_format($ucret, 2, ',', '.') . " ₺\n"
+                . "Tutar: " . ($kdvDahil ? 'KDV dahil ' : '') . number_format($ucret, 2, ',', '.') . " ₺\n"
                 . "Yeni bitiş tarihi: " . date('d.m.Y', strtotime($yeni)) . "\n"
                 . "Bizi tercih ettiğiniz için teşekkürler. 🙏";
             try {

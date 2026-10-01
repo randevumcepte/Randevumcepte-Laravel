@@ -14,6 +14,6 @@ class SalonUyelikOdemesi extends Model
 
     protected $fillable = [
         'salon_id', 'paket', 'periyot', 'adet', 'hediye_ay', 'toplam_ay',
-        'ucret', 'eski_tarih', 'yeni_tarih', 'yapan_id', 'yapan_adi', 'aciklama',
+        'ucret', 'kdv_dahil', 'eski_tarih', 'yeni_tarih', 'yapan_id', 'yapan_adi', 'aciklama',
     ];
 }
