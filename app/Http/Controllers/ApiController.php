@@ -29957,6 +29957,21 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                  if($request->takvimTuru == 3)
                     $hizmet->oda_id = $request->resourceId;
                 $hizmet->save();
+
+                // Bu randevu hizmetine bagli adisyon satisi varsa, adisyon_hizmetler
+                // tarafindaki kaynagi da ayni id ile senkronize et. adisyon_hizmetler
+                // randevuya randevu_id + hizmet_id ikilisiyle bagli (randevu_hizmet id tutulmuyor);
+                // bu yuzden ayni randevudaki kardes hizmetleri ezmemek icin hizmet_id ile eslestiriyoruz.
+                if($request->takvimTuru == 1) {
+                    AdisyonHizmetler::where('randevu_id', $randevu->id)
+                        ->where('hizmet_id', $hizmet->hizmet_id)
+                        ->update(['personel_id' => $request->resourceId]);
+                }
+                if($request->takvimTuru == 2) {
+                    AdisyonHizmetler::where('randevu_id', $randevu->id)
+                        ->where('hizmet_id', $hizmet->hizmet_id)
+                        ->update(['cihaz_id' => $request->resourceId]);
+                }
             }
         }
         $randevu->saat = $randevu->hizmetler->min('saat');
