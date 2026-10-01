@@ -72,10 +72,7 @@ simpleUserOptions = {
         // WSS adresini transportOptions'a yalnizca transportOptions YOKSA enjekte eder;
         // connectionTimeout ekleyince server dusuyordu -> "Invalid WebSocket Server URL".
         // connectionTimeout: santral erisilemezse hizli vazgec (varsayilan 5sn).
-        // keepAliveInterval: NAT/firewall idle WebSocket'i ~30-60sn'de kapatiyor;
-        // 30sn'de bir CRLF ping yollayip soketi canli tutar (yoksa register
-        // oluyor ama kisa sure sonra soket oluyor -> contact Unavail -> cagri dusmez).
-        transportOptions: { server: webSocketServer, connectionTimeout: 3, keepAliveInterval: 30 }
+        transportOptions: { server: webSocketServer, connectionTimeout: 3 }
     }
 };
 
