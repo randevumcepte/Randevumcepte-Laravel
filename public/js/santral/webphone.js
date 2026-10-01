@@ -68,8 +68,11 @@ simpleUserOptions = {
         displayName: dahili,
         authorizationUsername: dahili,
         authorizationPassword: dahiliSifre,
-        // Santral erisilemezse hizli vazgec (varsayilan 5sn) — UI bekletmesin
-        transportOptions: { connectionTimeout: 3 }
+        // ONEMLI: server'i transportOptions'a KOY. sip.js SimpleUser ilk arg'daki
+        // WSS adresini transportOptions'a yalnizca transportOptions YOKSA enjekte eder;
+        // connectionTimeout ekleyince server dusuyordu -> "Invalid WebSocket Server URL".
+        // connectionTimeout: santral erisilemezse hizli vazgec (varsayilan 5sn).
+        transportOptions: { server: webSocketServer, connectionTimeout: 3 }
     }
 };
 
