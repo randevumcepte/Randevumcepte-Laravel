@@ -5794,7 +5794,7 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=13.9')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=295.4')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=295.5')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.6')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
@@ -5853,7 +5853,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <audio id="remoteAudio"class="d-none"></audio>
       <script src="{{secure_asset('public/js/santral/sip-0.21.2.min.js')}}"></script>
       @if($isletme->santral_aktif && (optional($_layoutYetkiliPersonel)->dahili_no_webrtc !== null))
-      <script src="{{secure_asset('public/js/santral/webphone.js?v=12.2')}}"></script>
+      <script src="{{secure_asset('public/js/santral/webphone.js?v=12.3')}}"></script>
       @endif
  
       <select id="audioOutputSelect" style="display: none"></select>

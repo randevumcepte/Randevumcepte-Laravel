@@ -41,6 +41,22 @@ callId = "";
 callerNumber = "";
 extension = "";
 cevaplamaZamani = "";
+
+// Softphone panelini (Bootstrap dropdown) GUVENLI sekilde acar.
+// ESKI HATA: `$('#webtelefon').prop('aria-expanded')` HER ZAMAN undefined dondugu icin
+// (aria-expanded bir attribute'tur, prop degil) kosul daima dogru oluyordu ve panel
+// ZATEN ACIKKEN gelen/cevaplanan cagrida trigger('click') paneli TEKRAR TOGGLE edip
+// KAPATIYORDU -> cagri gelince/cevaplaninca softphone kayboluyordu.
+// Guvenilir kontrol: Bootstrap 4 acikken hem .dropdown kabina hem de .dropdown-menu'ye
+// `.show` ekler. Sadece kapaliysa ac; asla kapatma (idempotent).
+function webphonePaneliniAc()
+{
+    var acik = $('#webTelefonDropDown').hasClass('show') || $('.webphone').hasClass('show');
+    if (!acik)
+    {
+        $('#webtelefon').trigger('click');
+    }
+}
 /*
 ** Setup SIP
 */
@@ -587,11 +603,8 @@ callCreate = function()
                     if(dialInput.value != '')
                     {
                         targetSpan.innerHTML = `Aranıyor: `+result;
-                         if(!$('#webTelefonDropDown').hasClass('show'))
-                           {
-                             $('#webtelefon').trigger('click');
-                           }
-                        
+                         webphonePaneliniAc();
+
                     }
                     
                    
@@ -616,6 +629,9 @@ callAnswer = function(session)
     
     console.log(`[${simpleUserOptions.userAgentOptions.displayName}] Call answered`);
     console.log("Call id session id "+simpleUser.session.id);
+    // Cevaplama aninda panel kapanmissa (ornegin Cevapla tiklamasi dropdown'u kapatirsa)
+    // paneli tekrar ac; cagri devam ederken softphone gorunur kalmali.
+    webphonePaneliniAc();
     keypadDisabled(true);
     holdButtonToggle(false);
 
@@ -785,11 +801,8 @@ callReceived = function(session)
                     console.log('arama geldi web telefon açık : '+$('#webTelefonDropDown').hasClass('show'));
                     targetSpan.innerHTML = `Gelen Arama: `+result;
 
-                     if(!$('#webtelefon').prop('aria-expanded')||$('#webtelefon').prop('aria-expanded')=='false')
-                       {
-                         $('#webtelefon').trigger('click');
-                       }
-                   
+                     webphonePaneliniAc();
+
                   
 
                 },

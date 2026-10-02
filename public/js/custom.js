@@ -21497,8 +21497,9 @@ $('table').on('click','button[name="musteriyi_ara"]',function (e) {
       }
       return;
    }
-   var telefon = $('#webtelefon')
-   if(!$('#webtelefon').prop('aria-expanded')||$('#webtelefon').prop('aria-expanded')=='false')
+   // GUVENILIR panel acma: aria-expanded prop ile okunamaz (daima undefined) -> eskiden
+   // panel acikken tekrar toggle edip kapatiyordu. Bootstrap 4 acikken .show class'i ekler.
+   if(!$('#webTelefonDropDown').hasClass('show') && !$('.webphone').hasClass('show'))
    {
      $('#webtelefon').trigger('click');
    }
@@ -21539,7 +21540,7 @@ $('table').on('click','button[name="musteriyi_ara"]',function (e) {
 $('#web_telefon_burada_kullan').click(function(){
     let script2 = document.createElement('script');
     script2.src =
-        "/public/js/santral/webphone.js?v=3.37";
+        "/public/js/santral/webphone.js?v=12.3";
         document.head.appendChild(script2);
     $('#webtelefon').attr('data-toggle','dropdown');
     $('#webtelefon').removeAttr('data-target');
