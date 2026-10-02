@@ -2568,6 +2568,19 @@
             return;
         }
 
+        // Kara liste on-kontrol — v2 kendi POST pipeline'ini kullandigi icin v1 submit
+        // handler'indaki check buraya tetiklenmiyor. Burada aciktan kontrol et.
+        if (!v2SubmitAll._klChecked && typeof window.karaListeOnKontrol === 'function') {
+            var _klSalon = $('input[name="sube"]').val() || window.aktifSube;
+            window.karaListeOnKontrol(musteriId, _klSalon, 'yeni', function(){
+                v2SubmitAll._klChecked = true;
+                v2SubmitAll();
+                v2SubmitAll._klChecked = false;
+            });
+            return;
+        }
+        v2SubmitAll._klChecked = false;
+
         var common = {
             musteriId: musteriId, tarih: tarih, saat: saat,
             not: $('#v2_not').val() || '',

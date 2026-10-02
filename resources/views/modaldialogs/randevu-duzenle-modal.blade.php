@@ -248,6 +248,20 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
         e.stopPropagation();
 
         var formScope = $('#randevuduzenleform');
+
+        // Kara liste on-kontrol — stopImmediatePropagation custom.js handler'ini iptal
+        // ettiginden burada aciktan cagirmak zorundayiz. Flag ile recursive.
+        if (!e.target.__klChecked && typeof window.karaListeOnKontrol === 'function') {
+            var _klUser = $('#randevuduzenle_musteri_id').val();
+            var _klSalon = formScope.find('input[name="sube"]').val();
+            var _klForm = e.target;
+            window.karaListeOnKontrol(_klUser, _klSalon, 'guncelleme', function(){
+                _klForm.__klChecked = true;
+                $(_klForm).submit();
+            });
+            return;
+        }
+        e.target.__klChecked = false;
         var personelveyacihasecili = true;
         formScope.find('select[name="randevupersonelleriyeni[]"]').each(function(index){
             var $cihaz = formScope.find('select[name="randevucihazlariyeni[]"]').eq(index);
