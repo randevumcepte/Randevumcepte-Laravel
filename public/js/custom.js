@@ -21540,7 +21540,7 @@ $('table').on('click','button[name="musteriyi_ara"]',function (e) {
 $('#web_telefon_burada_kullan').click(function(){
     let script2 = document.createElement('script');
     script2.src =
-        "/public/js/santral/webphone.js?v=12.3";
+        "/public/js/santral/webphone.js?v=12.4";
         document.head.appendChild(script2);
     $('#webtelefon').attr('data-toggle','dropdown');
     $('#webtelefon').removeAttr('data-target');

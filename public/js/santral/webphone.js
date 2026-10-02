@@ -57,6 +57,23 @@ function webphonePaneliniAc()
         $('#webtelefon').trigger('click');
     }
 }
+
+// Cagri aktifken (zil caliyor / gorusme suruyor) panelin kapanmasini TAMAMEN engeller.
+// Cevapla/Kapat gibi butonlar Bootstrap dropdown icinde <button> oldugundan tiklaninca
+// Bootstrap paneli kapatmaya calisiyordu; webphonePaneliniAc() yeniden acsa bile
+// zamanlama yarisi yuzunden bazen kapali kaliyordu. En saglam cozum: Bootstrap 4'un
+// iptal edilebilir `hide.bs.dropdown` olayini cagri aktifken preventDefault ile kesmek.
+var cagriAktif = false;
+$(function()
+{
+    $(document).on('hide.bs.dropdown', '#webTelefonDropDown', function(e)
+    {
+        if (cagriAktif)
+        {
+            e.preventDefault();
+        }
+    });
+});
 /*
 ** Setup SIP
 */
@@ -577,6 +594,7 @@ holdButtonToggle = function (down)
 // on call created
 callCreate = function()
 {
+    cagriAktif = true;
     console.log(`Arayan veya aranan telefon no : ${dialInput.value}`);
     callButton.disabled = true;
     hangupButton.disabled = false;
@@ -684,6 +702,7 @@ callAnswer = function(session)
 // on call hang up
 callHangUp = function()
 {
+    cagriAktif = false;
     console.log("ARama sonlandı : "+callId+" - "+callerNumber+" - "+ extension+" - "+cevaplamaZamani);
     console.log(`[${simpleUserOptions.userAgentOptions.displayName}] Call hangup`);
     callButton.disabled = false;
@@ -774,6 +793,7 @@ callHold = function(held)
 // incomming call
 callReceived = function(session)
 {
+    cagriAktif = true;
     answerButton.disabled = false;
     answerButton2.disabled = false;
     answerButton3.disabled = false;
