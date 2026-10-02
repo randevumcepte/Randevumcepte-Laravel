@@ -165,15 +165,24 @@ $('#arl_tarih').on('change', function(){ arlTumMod = false; arlModGuncelle(); ar
 $('#arl_bugun').on('click', function(){ arlTumMod = false; arlModGuncelle(); $('#arl_tarih').val(arlBugunStr()); arlYukle(); });
 $('#arl_tumu').on('click', function(){ arlTumMod = !arlTumMod; arlModGuncelle(); arlYukle(); });
 
-// Ara: santral üzerinden bağlan (numara gizli)
+// Ara: softphone (WebRTC) hazirsa dogrudan ondan ara; degilse santral originate (Bria).
 $(document).on('click', '#arl_liste .b-ara', function(){
    var id = $(this).data('id');
-   var $btn = $(this); $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Bağlanıyor...');
+   var $btn = $(this);
+   var softphoneHazir = (window.webphoneHazir === true && typeof window.webphoneAra === 'function');
+   $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Bağlanıyor...');
    $.ajax({ url:'/isletmeyonetim/arama-baslat', method:'POST',
-      data:{ aranacak_musteri_id:id, sube:arlSube, _token:arlToken },
+      data:{ aranacak_musteri_id:id, softphone: softphoneHazir ? 1 : 0, sube:arlSube, _token:arlToken },
       success:function(res){
          if (res && res.success){
-            if (typeof swal==='function') swal({type:'success', title:'Arama başlatıldı', text:'Santral sizi bağlıyor. Telefonunuz çalacak.', timer:3000, showConfirmButton:false});
+            if (res.softphone && res.numara_ara){
+               var basladi = window.webphoneAra(res.numara_ara);
+               if (!basladi && typeof swal==='function'){
+                  swal({type:'warning', title:'Softphone hazır değil', text:'Sayfanın üst köşesindeki telefonun "Bağlandı" olduğundan emin olun.'});
+               }
+            } else {
+               if (typeof swal==='function') swal({type:'success', title:'Arama başlatıldı', text:'Santral sizi bağlıyor. Telefonunuz çalacak.', timer:3000, showConfirmButton:false});
+            }
             setTimeout(arlYukle, 1500);
          } else {
             $btn.prop('disabled', false).html('<i class="fa fa-phone"></i> Ara');
