@@ -33417,6 +33417,33 @@ DB::raw('
         }
         $tel = ltrim($numara, '0');
 
+        // SOFTPHONE (WebRTC) modu: tarayicida kayitli softphone varsa santral originate
+        // (agent-first Bria caldirma) YERINE, numara tarayiciya verilir ve dogrudan
+        // softphone uzerinden dis arama yapilir. Originate'teki ile AYNI dial formati:
+        // outbound route '0<no>' bekler (bkz. cagriMerkeziOriginate Data: ...-out/0<tel>).
+        if (filter_var($request->input('softphone'), FILTER_VALIDATE_BOOLEAN)) {
+            // Originate'teki kayit islemlerinin AYNISI (arama baslatildi damgasi).
+            if ((int) $kayit->durum === 3) {
+                if (Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at')) {
+                    $kayit->ar_tamamlandi_at = date('Y-m-d H:i:s');
+                    $kayit->ar_gecikti = 0;
+                }
+                $kayit->durum = 1;
+            }
+            if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
+                $kayit->son_arama_zamani = date('Y-m-d H:i:s');
+            }
+            $kayit->save();
+
+            return response()->json([
+                'success'      => true,
+                'softphone'    => true,
+                'numara_ara'   => '0' . $tel, // softphone'un dial edecegi numara
+                'message'      => 'Softphone üzerinden aranıyor...',
+                'aramaListeId' => $kayit->arama_id,
+            ]);
+        }
+
         // Arayan kullanicinin (personel/yonetici) dahilisi — Bria bu dahiliye kayitli.
         $dahili = \App\Personeller::where('yetkili_id', $this->cmAuthId())
             ->where('salon_id', $salonId)->value('dahili_no');

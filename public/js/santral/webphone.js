@@ -542,6 +542,22 @@ makeCall = function (target)
     });
 };
 
+// Diger ekranlardan (ornegin Cagri Merkezi "ARA" butonu) softphone ile DIREKT dis
+// arama baslatmak icin kullanilir. Panel'i acar, numarayi girer ve aramayi yapar.
+// Donus: arama baslatildi mi (softphone hazir degilse false -> cagiran taraf
+// originate'e geri donebilir).
+window.webphoneAra = function (numara)
+{
+    var tel = ('' + (numara || '')).replace(/\D/g, '');
+    if (!tel) return false;
+    if (typeof makeCall !== 'function' || !window.webphoneHazir) return false;
+    webphonePaneliniAc();
+    if (dialInput) { dialInput.value = tel; }
+    try { $('#aranacak_dahili_telefon').text(tel); } catch (e) {}
+    makeCall(tel);
+    return true;
+};
+
 // Keypad helper function
 keypadDisabled = function (disabled)
 {
@@ -849,6 +865,8 @@ serverConnect = function()
     // register to receive calls
     simpleUser.register();
     baglantidurumu(1);
+    // Softphone hazir: diger ekranlar (ornegin Cagri Merkezi "ARA" butonu) buna bakar.
+    window.webphoneHazir = true;
 };
 
 // when server is disconnected
@@ -856,6 +874,7 @@ serverDisconnect = function(error)
 {
     console.log(error);
     callButton.disabled = true;
+    window.webphoneHazir = false;
     baglantidurumu(0);
     if (!_kullaniciKapatti) {
         // WS koptu (restart/reload/ag) -> otomatik yeniden baglan

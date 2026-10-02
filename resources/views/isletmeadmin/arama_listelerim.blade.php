@@ -874,16 +874,29 @@ $(document).on('click', '#ag_ara_btn', function(){
    if (agAramaGonderiliyor) return;
    var id = $(this).data('id');
    agAramaGonderiliyor = true;
+   // Tarayicida kayitli softphone varsa: Bria'yi caldiran santral originate YERINE
+   // dogrudan softphone (WebRTC) uzerinden ara. Sunucu numarayi dondurur, burada baglariz.
+   var softphoneHazir = (window.webphoneHazir === true && typeof window.webphoneAra === 'function');
    $.ajax({
       url:'/isletmeyonetim/arama-baslat', method:'POST',
-      data:{ aranacak_musteri_id:id, _token:$('input[name="_token"]').val() },
+      data:{ aranacak_musteri_id:id, softphone: softphoneHazir ? 1 : 0, _token:$('input[name="_token"]').val() },
       success:function(res){
          if (res.success){
+            // Softphone modu: numara geldi -> dogrudan softphone'dan ara
+            if (res.softphone && res.numara_ara){
+               var basladi = window.webphoneAra(res.numara_ara);
+               if (!basladi){
+                  // softphone bu an elverisli degilse kullaniciyi bilgilendir
+                  swal({ type:'warning', title:'Softphone hazır değil', text:'Sayfanın üst köşesindeki telefonun "Bağlandı" olduğundan emin olun.' });
+               }
+            }
             agDurumGuncelle(id, 1); // optimistic: Arandı
             agBeklemedeId = id;     // sonuç kaydedilene kadar kilitle
             $('#ag_ara_btn').addClass('pasif');
             $('#ag_sonuc_kart').removeClass('kilitli'); // arama yapıldı -> sonuç formu açılır
-            swal({ type:'success', title:'Arama başlatıldı', text:res.message||'Telefonunuz (Bria) çalacak, açın.', timer:3800, showConfirmButton:false });
+            if (!res.softphone){
+               swal({ type:'success', title:'Arama başlatıldı', text:res.message||'Telefonunuz (Bria) çalacak, açın.', timer:3800, showConfirmButton:false });
+            }
          } else {
             swal({ type:'warning', title:'Aranamadı', text:res.message||'Arama başlatılamadı.' });
          }
