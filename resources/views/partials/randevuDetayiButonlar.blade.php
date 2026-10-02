@@ -25,9 +25,19 @@
          (isset($randevu->randevu->randevuya_geldi) && $randevu->randevu->randevuya_geldi === 1)
          || (isset($randevu->seansa_geldi) && $randevu->seansa_geldi === 1)
       );
+      // Gelmedi olarak işaretli mi? — randevuya_geldi===0 (strict: null != 0)
+      $__zatenGelmedi = (
+         isset($randevu->randevu->randevuya_geldi)
+         && $randevu->randevu->randevuya_geldi === 0
+      );
    @endphp
    <div class="rdb-row">
-      <a name="gelmedi_isaretle" href="#" class="btn btn-danger" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-times"></i> Gelmedi</a>
+      @if($__zatenGelmedi)
+         {{-- Zaten gelmedi -> Beklemede butonu (gelmedi işaretini kaldırır) --}}
+         <a name="gelmedi_isareti_kaldir" href="#" class="btn btn-warning" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-undo"></i> Beklemede</a>
+      @else
+         <a name="gelmedi_isaretle" href="#" class="btn btn-danger" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-times"></i> Gelmedi</a>
+      @endif
 
       @if($__zatenGeldi)
          {{-- Zaten geldi -> Beklemede butonu (geldi işaretini kaldırır; hem randevu hem seanstan) --}}

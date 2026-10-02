@@ -430,6 +430,7 @@
             // cekilir ve ID-bazli cache'lenir. (event.id = randevu_hizmetler.id)
             (function(_rid){
                 window._rcDetayCache = window._rcDetayCache || {};
+                window._rcModalAcikRHId = _rid; // state change sonrasi yenileme icin bil
                 var _c = window._rcDetayCache[_rid];
                 if (_c) {
                     jQuery(".event-body").html(_c.description || '');
@@ -448,6 +449,29 @@
                         jQuery(".event-body").html('<div style="padding:20px;text-align:center;color:#c00">Detay yüklenemedi, tekrar deneyin.</div>');
                     });
             })(event.id);
+
+            // Helper: state degisimi (geldi/gelmedi/beklemede/iptal/not vb.) sonrasi
+            // detay modalini in-place yeniler. Cache invalidate + modal acikken refetch.
+            // custom.js'teki action handler'lari success'te bunu cagirir, modal.hide YERINE.
+            window._rcModalDetayYenile = window._rcModalDetayYenile || function(rhId){
+                try {
+                    if(!rhId) rhId = window._rcModalAcikRHId;
+                    if(window._rcDetayCache && rhId){ delete window._rcDetayCache[rhId]; }
+                    var $m = jQuery('#modal-view-event');
+                    if(!$m.is(':visible') || !rhId) return;
+                    jQuery(".event-body").html('<div style="padding:24px;text-align:center;color:#9D5DC8"><i class="fa fa-spinner fa-spin fa-2x"></i></div>');
+                    jQuery(".event-buttons").html('');
+                    jQuery.getJSON('/isletmeyonetim/randevu-event-detay', {id:rhId, sube: jQuery('input[name="sube"]').val()})
+                        .done(function(d){
+                            window._rcDetayCache[rhId] = {description:d.description, eventbuttons:d.eventbuttons, hoverHtml:d.hoverHtml};
+                            jQuery(".event-body").html(d.description || '');
+                            jQuery(".event-buttons").html(d.eventbuttons || '');
+                        })
+                        .fail(function(){
+                            jQuery(".event-body").html('<div style="padding:20px;text-align:center;color:#c00">Detay yüklenemedi.</div>');
+                        });
+                } catch(_){}
+            };
             jQuery(".eventUrl").attr("href", event.url);
             jQuery('input[name="randevuhizmettarih"]').datepicker({
                 minDate: new Date(),

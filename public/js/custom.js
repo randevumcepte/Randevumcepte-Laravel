@@ -3032,8 +3032,13 @@ function randevuyaGelmedi(hizmetid,id,seansDusumuYap)
                     }
                     else
                     {
-                        $('#modal-view-event').modal('hide');
-                    
+                        // Modal'i kapatma; in-place yenile ki kullanici Beklemede butonunu hemen gorsun
+                        if(typeof window._rcModalDetayYenile === 'function'){
+                            window._rcModalDetayYenile(hizmetid);
+                        } else {
+                            $('#modal-view-event').modal('hide');
+                        }
+
                         if($('#randevu_liste').length){
                              randevufiltre();
                         }
@@ -3041,7 +3046,7 @@ function randevuyaGelmedi(hizmetid,id,seansDusumuYap)
                             takvimyukle(false,false);
                         }
                     }
-                   
+
                 },
                 error: function (request, status, error) {
                      document.getElementById('hata').innerHTML =request.responseText;
@@ -12311,7 +12316,11 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
         success: function(result) {
             $("#preloader").hide();
             if (result.geldiIsaretlendi) {
-                $('#modal-view-event').modal('hide');
+                if (typeof window._rcModalDetayYenile === 'function') {
+                    window._rcModalDetayYenile(hizmetid);
+                } else {
+                    $('#modal-view-event').modal('hide');
+                }
                 if ($('#randevu_liste').length) {
                     randevufiltre();
                 }
@@ -12504,7 +12513,11 @@ $(document).on('click','a[name="geldi_isaretle"]',function(e){
                 },
                 success: function(result) {
                     $("#preloader").hide();
-                      $('#modal-view-event').modal('hide');
+                    if(typeof window._rcModalDetayYenile === 'function'){
+                        window._rcModalDetayYenile(hizmetid);
+                    } else {
+                        $('#modal-view-event').modal('hide');
+                    }
                     takvimyukle(false,false);
                 },
                 error: function(request, status, error) {
@@ -12512,11 +12525,11 @@ $(document).on('click','a[name="geldi_isaretle"]',function(e){
                     document.getElementById('hata').innerHTML = request.responseText;
                 }
             });
-                       
-                
-                 
-                
-            
+
+
+
+
+
         }
     });
 });
@@ -12553,8 +12566,12 @@ $(document).on('click','a[name="gelmedi_isareti_kaldir"]',function(e){
                 },
                 success: function(result) {
                     $("#preloader").hide();
-                      $('#modal-view-event').modal('hide');
-                      takvimyukle(false,false);
+                    if(typeof window._rcModalDetayYenile === 'function'){
+                        window._rcModalDetayYenile(hizmetid);
+                    } else {
+                        $('#modal-view-event').modal('hide');
+                    }
+                    takvimyukle(false,false);
                 },
                 error: function(request, status, error) {
                     $("#preloader").hide();
