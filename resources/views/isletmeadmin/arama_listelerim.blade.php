@@ -672,7 +672,7 @@ function agGecmisYukle(aranacakId){
          gecmis.forEach(function(g){
             var st = durStil(g.sonuc_kod);
             var not = g.not ? '<div style="font-size:12.5px;color:#574f6b;margin-top:7px;"><i class="fa fa-sticky-note-o" style="color:#b6aecb;margin-right:5px;"></i>'+agEsc(g.not)+'</div>' : '';
-            var ses = g.ses ? '<audio controls preload="none" src="'+agEsc(g.ses)+'"></audio>'
+            var ses = g.ses ? '<audio controls preload="metadata" src="'+agEsc(g.ses)+'"></audio>'
                             : '<div style="font-size:11.5px;color:#aab0c0;margin-top:8px;"><i class="fa fa-hourglass-half"></i> Ses kaydı işleniyor — birazdan "Yenile"ye basın.</div>';
             var randevuBilgi = (g.randevu_tarih) ? '<span class="ag-randevu-zaman"><i class="fa fa-calendar-check-o"></i> '+agEsc(g.randevu_tarih)+(g.randevu_saat?(' '+agEsc(g.randevu_saat)):'')+'</span>' : '';
             var satisBilgi = (g.satis_tutari) ? '<span class="ag-satis-rozet"><i class="fa fa-shopping-bag"></i> '+agEsc(g.satis_tutari)+' ₺</span>' : '';
