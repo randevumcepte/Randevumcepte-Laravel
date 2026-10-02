@@ -6,6 +6,7 @@ use App\MusteriPortfoy;
 use App\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Merkezi kara liste filtresi — SMS + WhatsApp + Push ucleyi icin tek nokta.
@@ -41,6 +42,32 @@ class KaraListeServisi
     }
 
     /**
+     * Salonun kara liste modulu AKTIF mi? Default: 1 (geriye uyumlu).
+     * Kolon yoksa veya salon yoksa aktif kabul edilir.
+     * Kucuk bir in-memory cache ile tek istekte tekrar sorgu olmaz.
+     */
+    protected static $salonAktifCache = [];
+    public static function salonAktifMi($salonId)
+    {
+        $salonId = (int) $salonId;
+        if ($salonId <= 0) return true;
+        if (array_key_exists($salonId, self::$salonAktifCache)) {
+            return self::$salonAktifCache[$salonId];
+        }
+        try {
+            if (!Schema::hasColumn('salonlar', 'kara_liste_aktif')) {
+                return self::$salonAktifCache[$salonId] = true;
+            }
+            $v = DB::table('salonlar')->where('id', $salonId)->value('kara_liste_aktif');
+            // null / 1 / '1' -> aktif. Sadece 0/'0' pasif.
+            $aktif = ($v === null) ? true : ((int) $v === 1);
+            return self::$salonAktifCache[$salonId] = $aktif;
+        } catch (\Throwable $e) {
+            return self::$salonAktifCache[$salonId] = true;
+        }
+    }
+
+    /**
      * Tek musteri icin kara liste kontrolu.
      * @param int|null $salonId
      * @param string|null $telefon normalize edilmemis de olabilir
@@ -53,6 +80,7 @@ class KaraListeServisi
         if (self::tipMuaf($gonderimTipi)) return false;
         $salonId = (int) $salonId;
         if ($salonId <= 0) return false; // salon belirsizse engelleme
+        if (!self::salonAktifMi($salonId)) return false; // salon modulu pasif
 
         try {
             // user_id varsa dogrudan portfoy sorgusu
@@ -87,6 +115,7 @@ class KaraListeServisi
         if (self::tipMuaf($gonderimTipi)) return $mesajlar;
         $salonId = (int) $salonId;
         if ($salonId <= 0 || empty($mesajlar)) return $mesajlar;
+        if (!self::salonAktifMi($salonId)) return $mesajlar; // salon modulu pasif
 
         try {
             // Telefonlari topla + user_id'li varsa dogrudan isaretle

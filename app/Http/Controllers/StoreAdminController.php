@@ -10543,6 +10543,7 @@ private function ayAdiCevir($ingilizceAy)
             'tahsilatlar_count'=>$tahsilatlar_count,
             'son_tahsilat_tarihi'=>$son_tahsilat_tarihi,
             'kara_liste'=>$kara_liste,
+            'kara_liste_aktif'=> \App\Services\KaraListeServisi::salonAktifMi($isletme->id ?? null),
             'is_personel_rolu'=>$is_personel_rolu,
             'odeme_yontemleri'=>$odeme_yontemleri,
             'bankalar'=>$bankalar,
@@ -25690,6 +25691,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function musterikaralisteayari(Request $request)
     {
+        // Modul pasif ise ekleme kabul edilmez (frontend bypass'ina karsi)
+        if ((int) $request->karaliste === 1 && !\App\Services\KaraListeServisi::salonAktifMi($request->sube)) {
+            return response()->json(['error' => 'Kara liste modulu bu isletmede pasif.'], 400);
+        }
         $portfoy = MusteriPortfoy::where('user_id',$request->user_id)->where('salon_id',$request->sube)->first();
         $portfoy->kara_liste = $request->karaliste;
         $portfoy->save();

@@ -154,7 +154,8 @@
             data-bagli="{{ $_waBagli ? 1 : 0 }}">
             <i class="fa fa-whatsapp"></i> WhatsApp Mesaj
          </button>
-         @if(!$is_personel_rolu)
+         {{-- Kara liste butonlari: SMS Yonetimi > Kara Liste modulu AKTIF ise gorunur. Pasif ise iki buton da gizlenir. --}}
+         @if(!$is_personel_rolu && !empty($kara_liste_aktif))
          <button style='display:{{($kara_liste != 1) ? "inline-flex": "none"}}' class="mh-btn is-dark" id='musteri_sms_kara_listeye_ekle' data-value='{{$musteri_bilgi->id}}'>
             <i class="fa fa-times"></i> Kara Listeye Ekle
          </button>

@@ -1737,6 +1737,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         }
         $karaliste = ((int) $request->karaliste) == 1 ? 1 : 0;
 
+        // Modul pasif ise ekleme kabul edilmez (frontend bypass'ina karsi guvenlik)
+        if ($karaliste === 1 && !\App\Services\KaraListeServisi::salonAktifMi($salonId)) {
+            return response()->json([
+                'error' => 'Kara liste modulu bu isletmede pasif. SMS Yonetimi > Ayarlar > Kara Liste bolumunden acin.',
+            ], 400);
+        }
+
         $portfoy = MusteriPortfoy::where('user_id', $request->user_id)
             ->where('salon_id', $salonId)
             ->first();
@@ -30270,6 +30277,8 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             'sms_baslik'=>$isletme->sms_baslik,
             'yeni_sms'=>(int)$isletme->yeni_sms,
             'randevu_sms_hatirlatma'=>(int)$isletme->randevu_sms_hatirlatma,
+            // kolon yoksa default 1 (aktif) — frontend bu bayraga gore buton/toggle gosterir
+            'kara_liste_aktif'=> \Schema::hasColumn('salonlar','kara_liste_aktif') ? (int)($isletme->kara_liste_aktif ?? 1) : 1,
             'ayarlar'=>$ayarlar,
             'taslaklar'=>$taslaklar,
         ]);
@@ -30616,6 +30625,32 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             }
         }
 
+        // Kara liste modulu toggle — pasif edilince mevcut kara liste kayitlar temizlenir
+        $karaListeAktif = $request->input('kara_liste_aktif');
+        if ($karaListeAktif !== null && \Schema::hasColumn('salonlar','kara_liste_aktif')) {
+            $yeniDeger = ((int) $karaListeAktif) === 1 ? 1 : 0;
+            $salon = Salonlar::where('id',$salonid)->first();
+            if ($salon) {
+                $eski = (int) ($salon->kara_liste_aktif ?? 1);
+                $salon->kara_liste_aktif = $yeniDeger;
+                $salon->save();
+                // Aktif(1) -> Pasif(0): salon_id'ye bagli tum kara_liste=1 kayitlari sifirla
+                if ($eski === 1 && $yeniDeger === 0) {
+                    $etkilenen = MusteriPortfoy::where('salon_id', $salonid)
+                        ->where('kara_liste', 1)
+                        ->update(['kara_liste' => 0]);
+                    Log::info('[KARA-LISTE] modul pasif edildi, portfoy temizlendi', [
+                        'salon_id' => $salonid, 'etkilenen' => $etkilenen,
+                    ]);
+                    Audit::logApi($salonid, $request, 'kara_liste_modul_pasif', 'sms_ayar', null, null,
+                        'Kara liste modulu pasif edildi, '.$etkilenen.' musterinin kara listesi kaldirildi');
+                } elseif ($eski === 0 && $yeniDeger === 1) {
+                    Audit::logApi($salonid, $request, 'kara_liste_modul_aktif', 'sms_ayar', null, null,
+                        'Kara liste modulu aktif edildi');
+                }
+            }
+        }
+
         Audit::logApi($salonid, $request, 'sms_ayar_kaydet', 'sms_ayar', null, null, 'SMS bildirim ayarlari kaydedildi');
         return response()->json(['basarili'=>true,'mesaj'=>'SMS ayarları başarıyla kaydedildi']);
     }
@@ -30651,6 +30686,10 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         $userId = $request->input('user_id');
         if(!$userId){
             return response()->json(['basarili'=>false,'mesaj'=>'Kullanıcı seçiniz']);
+        }
+        // Modul pasif ise ekleme kabul edilmez
+        if (!\App\Services\KaraListeServisi::salonAktifMi($salonid)) {
+            return response()->json(['basarili'=>false,'mesaj'=>'Kara liste modulu pasif. Ayarlar bolumunden acin.']);
         }
         $portfoy = MusteriPortfoy::where('user_id',$userId)->where('salon_id',$salonid)->first();
         if(!$portfoy){
