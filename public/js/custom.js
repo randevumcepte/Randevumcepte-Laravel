@@ -3034,7 +3034,7 @@ function randevuyaGelmedi(hizmetid,id,seansDusumuYap)
                     {
                         // Modal'i kapatma; in-place yenile ki kullanici Beklemede butonunu hemen gorsun
                         if(typeof window._rcModalDetayYenile === 'function'){
-                            window._rcModalDetayYenile(hizmetid);
+                            window._rcModalDetayYenile();
                         } else {
                             $('#modal-view-event').modal('hide');
                         }
@@ -12317,7 +12317,7 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
             $("#preloader").hide();
             if (result.geldiIsaretlendi) {
                 if (typeof window._rcModalDetayYenile === 'function') {
-                    window._rcModalDetayYenile(hizmetid);
+                    window._rcModalDetayYenile();
                 } else {
                     $('#modal-view-event').modal('hide');
                 }
@@ -12514,7 +12514,7 @@ $(document).on('click','a[name="geldi_isaretle"]',function(e){
                 success: function(result) {
                     $("#preloader").hide();
                     if(typeof window._rcModalDetayYenile === 'function'){
-                        window._rcModalDetayYenile(hizmetid);
+                        window._rcModalDetayYenile();
                     } else {
                         $('#modal-view-event').modal('hide');
                     }
@@ -12567,7 +12567,7 @@ $(document).on('click','a[name="gelmedi_isareti_kaldir"]',function(e){
                 success: function(result) {
                     $("#preloader").hide();
                     if(typeof window._rcModalDetayYenile === 'function'){
-                        window._rcModalDetayYenile(hizmetid);
+                        window._rcModalDetayYenile();
                     } else {
                         $('#modal-view-event').modal('hide');
                     }
