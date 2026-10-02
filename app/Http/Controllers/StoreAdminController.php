@@ -33595,9 +33595,17 @@ DB::raw('
     private function cagriMerkeziKayitAdaylari($salonId, $dahili)
     {
         $out = [];
-        if (empty($dahili)) return $out;
+        // $dahili tek deger ya da dizi olabilir. Personel WebRTC (dahili_no_webrtc) VEYA
+        // normal dahili (dahili_no) ile gorusebilir; kayit kanali hangisiyse o dahiliyle
+        // olusur (ornek: WebRTC arama -> PJSIP/<dahili_no_webrtc>). Bu yuzden TUM dahililerin
+        // kayitlari aday havuzuna alinir, aksi halde yanlis kayit eslesir.
+        $set = array_values(array_unique(array_filter(array_map(function ($d) {
+            return preg_replace('/\D/', '', (string) $d);
+        }, (array) $dahili), 'strlen')));
+        if (empty($set)) return $out;
         $trunk = \App\SabitNumaralar::where('salon_id', $salonId)->value('numara');
-        $qs = '?offset=0&dahililer[]=' . urlencode($dahili)
+        $qs = '?offset=0'
+            . implode('', array_map(function ($d) { return '&dahililer[]=' . urlencode($d); }, $set))
             . '&tarih1=' . date('Y-m-d', strtotime('-2 day'))
             . '&tarih2=' . date('Y-m-d', strtotime('+1 day'));
         if ($trunk) $qs .= '&did=' . urlencode($trunk);
@@ -33619,7 +33627,7 @@ DB::raw('
                 if (preg_match('/^[^\/]+\/([^-\s]+)/', ($r['channel'] ?? ''), $m)) {
                     $kanalDahili = preg_replace('/\D/', '', $m[1]);
                 }
-                if ($kanalDahili !== (string) $dahili) continue;
+                if ($kanalDahili === '' || !in_array($kanalDahili, $set, true)) continue;
 
                 $rp = $r['recording_path'];
                 if (isset($gorulen[$rp])) continue; // ayni kayit birden fazla CDR satirinda olabilir
@@ -33671,12 +33679,20 @@ DB::raw('
         foreach ($notlar as $n) { // en yeniden eskiye dogru ata
             $oTs = $n->created_at ? strtotime($n->created_at) : 0;
             if ($oTs < $esikTs) continue; // eski not: dokunma
-            $dahili = $n->personel_id ? Personeller::where('id', $n->personel_id)->value('dahili_no') : null;
-            if (empty($dahili)) { if (!empty($n->ses_kaydi)) $kullanilan[] = $n->ses_kaydi; continue; }
-            if (!isset($adayCache[$dahili])) $adayCache[$dahili] = $this->cagriMerkeziKayitAdaylari($salonId, $dahili);
+            // Personel WebRTC (dahili_no_webrtc) VEYA normal dahili (dahili_no) ile gorusmus
+            // olabilir; kayit hangi kanaldaysa o dahiliyle olusur. Her iki dahiliyi de topla.
+            $per = $n->personel_id ? Personeller::where('id', $n->personel_id)->first(['dahili_no', 'dahili_no_webrtc']) : null;
+            $dahililer = [];
+            if ($per) {
+                if (!empty($per->dahili_no)) $dahililer[] = $per->dahili_no;
+                if (!empty($per->dahili_no_webrtc)) $dahililer[] = $per->dahili_no_webrtc;
+            }
+            if (empty($dahililer)) { if (!empty($n->ses_kaydi)) $kullanilan[] = $n->ses_kaydi; continue; }
+            $dahiliKey = implode('|', $dahililer);
+            if (!isset($adayCache[$dahiliKey])) $adayCache[$dahiliKey] = $this->cagriMerkeziKayitAdaylari($salonId, $dahililer);
 
             $sec = '';
-            foreach ($adayCache[$dahili] as $c) {
+            foreach ($adayCache[$dahiliKey] as $c) {
                 if (!in_array($c['path'], $kullanilan, true)) { $sec = $c['path']; break; }
             }
             if ($sec !== '') {
