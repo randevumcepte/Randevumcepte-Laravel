@@ -865,12 +865,7 @@ var agBeklemedeId = null;   // sonucu bekleyen aramanin musteri id'si (null = be
 var agAramaGonderiliyor = false; // ayni anda cift gonderimi engeller
 
 $(document).on('click', '#ag_ara_btn', function(){
-   // Onceki aramanin sonucu kaydedilmeden yeni arama YOK
-   if (agBeklemedeId !== null){
-      swal({ type:'warning', title:'Önce sonucu kaydedin',
-             text:'Yeni arama yapmadan önce, yaptığınız aramanın sonucunu (Görüşüldü / Cevapsız / Meşgul / Ulaşılamadı veya Sonra Ara) seçip "Sonucu Kaydet"e basın.' });
-      return;
-   }
+   // Tek basista kilitlenmesin; sonuc kaydedilmeden tekrar aranabilir (uyari popup'i YOK).
    if (agAramaGonderiliyor) return;
    var id = $(this).data('id');
    agAramaGonderiliyor = true;
@@ -891,8 +886,6 @@ $(document).on('click', '#ag_ara_btn', function(){
                }
             }
             agDurumGuncelle(id, 1); // optimistic: Arandı
-            agBeklemedeId = id;     // sonuç kaydedilene kadar kilitle
-            $('#ag_ara_btn').addClass('pasif');
             $('#ag_sonuc_kart').removeClass('kilitli'); // arama yapıldı -> sonuç formu açılır
             if (!res.softphone){
                swal({ type:'success', title:'Arama başlatıldı', text:res.message||'Telefonunuz (Bria) çalacak, açın.', timer:3800, showConfirmButton:false });
