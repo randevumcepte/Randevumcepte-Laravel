@@ -29278,7 +29278,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                     }
 
                     if ($hedefDahili) {
-                        $hedefDahiliNo = $hedefDahili->dahili_no ?: $hedefDahili->dahili_no_webrtc;
+                        // Aranan GERCEK dahili (dst) gosterilir — webrtc veya normal olabilir.
+                        $hedefDahiliNo = preg_replace('/\D/', '', (string) ($result['dst'] ?? '')) ?: ($hedefDahili->dahili_no ?: $hedefDahili->dahili_no_webrtc);
                         $musteriAdi = $hedefDahili->personel_adi.' ('.$hedefDahiliNo.')';
                         $telefon = $hedefDahiliNo;
                         $avatar = '/public/isletmeyonetim_assets/img/avatar.png';
@@ -29298,9 +29299,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                         }
                     }
 
-                    // Aramayi yapan personel (channel'dan cikarilan dahili — webrtc de olabilir)
+                    // Aramayi yapan personel (channel'dan cikarilan dahili — webrtc de olabilir).
+                    // Parantez icinde GERCEKTE kullanilan dahili gosterilir (channel'daki).
+                    $kullanilanDahili = $dahili;
                     $kaynakPersonel = $dahili !== '' ? $this->personelByDahiliHerhangi($dahili) : null;
-                    $dahili = $kaynakPersonel ? $kaynakPersonel->personel_adi.' ('.($kaynakPersonel->dahili_no ?: $kaynakPersonel->dahili_no_webrtc).')' : ($dahili !== '' ? 'Dahili '.$dahili : '');
+                    $dahili = $kaynakPersonel ? $kaynakPersonel->personel_adi.' ('.$kullanilanDahili.')' : ($dahili !== '' ? 'Dahili '.$dahili : '');
 
                     $raporaEkle = true;
                 }
@@ -29387,8 +29390,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                         
                         $personel = $this->personelByDahiliHerhangi($result['dst'] ?? '');
                         // İsim bağlıysa "Ad (Dahili)", değilse sadece dahili numarası göster.
+                        // Parantez icinde aramayi ALAN GERCEK dahili (dst) gosterilir.
+                        $cevaplayanDahili = preg_replace('/\D/', '', (string) ($result['dst'] ?? ''));
                         if ($personel && trim($personel->personel_adi) !== '') {
-                            $dahili = $personel->personel_adi.' ('.($personel->dahili_no ?: $personel->dahili_no_webrtc).')';
+                            $dahili = $personel->personel_adi.' ('.$cevaplayanDahili.')';
                         } else {
                             $dahili = !empty($result['dst']) ? $result['dst'] : '';
                         }
