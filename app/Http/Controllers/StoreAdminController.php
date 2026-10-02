@@ -7466,7 +7466,14 @@ private function ayAdiCevir($ingilizceAy)
                                     ->where('adisyon_hizmetler.hizmet_id', $_hzmtId)
                                     ->where('adisyonlar.user_id', $userId)
                                     ->where('adisyonlar.salon_id', $salonId)
-                                    ->where('adisyon_hizmetler.seans_sayisi', '>', 0)
+                                    ->where(function($q){
+            // seans_sayisi NULL olabilir; seans kaydi adisyon_paket_seanslar'da varsa da goster.
+            $q->where('adisyon_hizmetler.seans_sayisi', '>', 0)
+              ->orWhereExists(function($sub){
+                  $sub->select(DB::raw(1))->from('adisyon_paket_seanslar')
+                      ->whereColumn('adisyon_paket_seanslar.adisyon_hizmet_id', 'adisyon_hizmetler.id');
+              });
+        })
                                     ->where(function($q){
                                         $q->whereNull('adisyon_hizmetler.otomatik_randevu_olusturuldu')
                                           ->orWhere('adisyon_hizmetler.otomatik_randevu_olusturuldu', '!=', 1);
@@ -7491,7 +7498,16 @@ private function ayAdiCevir($ingilizceAy)
                                     ->where('paket_hizmetler.hizmet_id', $_hzmtId)
                                     ->where('adisyonlar.user_id', $userId)
                                     ->where('adisyonlar.salon_id', $salonId)
-                                    ->where('adisyon_paketler.seans_sayisi', '>', 0)
+                                    ->where(function($q){
+            // seans_sayisi kolonu eski/normal paketlerde NULL olabilir; seanslar
+            // adisyon_paket_seanslar'da tutulur. NULL>0 false oldugu icin bu paketler
+            // hem sayidan hem listeden dusup "Kayit yok" veriyordu. Seans kaydi varsa da goster.
+            $q->where('adisyon_paketler.seans_sayisi', '>', 0)
+              ->orWhereExists(function($sub){
+                  $sub->select(DB::raw(1))->from('adisyon_paket_seanslar')
+                      ->whereColumn('adisyon_paket_seanslar.adisyon_paket_id', 'adisyon_paketler.id');
+              });
+        })
                                     ->where(function($q){
                                         $q->whereNull('adisyon_paketler.otomatik_randevu_olusturuldu')
                                           ->orWhere('adisyon_paketler.otomatik_randevu_olusturuldu', '!=', 1);
@@ -8862,7 +8878,14 @@ private function ayAdiCevir($ingilizceAy)
                             ->where('adisyon_hizmetler.hizmet_id', $rHizmet)
                             ->where('adisyonlar.user_id', $musteriid)
                             ->where('adisyonlar.salon_id', $request->sube)
-                            ->where('adisyon_hizmetler.seans_sayisi', '>', 0)
+                            ->where(function($q){
+            // seans_sayisi NULL olabilir; seans kaydi adisyon_paket_seanslar'da varsa da goster.
+            $q->where('adisyon_hizmetler.seans_sayisi', '>', 0)
+              ->orWhereExists(function($sub){
+                  $sub->select(DB::raw(1))->from('adisyon_paket_seanslar')
+                      ->whereColumn('adisyon_paket_seanslar.adisyon_hizmet_id', 'adisyon_hizmetler.id');
+              });
+        })
                             ->where(function($q){
                                 $q->whereNull('adisyon_hizmetler.otomatik_randevu_olusturuldu')
                                   ->orWhere('adisyon_hizmetler.otomatik_randevu_olusturuldu', '!=', 1);
@@ -8885,7 +8908,16 @@ private function ayAdiCevir($ingilizceAy)
                             ->where('paket_hizmetler.hizmet_id', $rHizmet)
                             ->where('adisyonlar.user_id', $musteriid)
                             ->where('adisyonlar.salon_id', $request->sube)
-                            ->where('adisyon_paketler.seans_sayisi', '>', 0)
+                            ->where(function($q){
+            // seans_sayisi kolonu eski/normal paketlerde NULL olabilir; seanslar
+            // adisyon_paket_seanslar'da tutulur. NULL>0 false oldugu icin bu paketler
+            // hem sayidan hem listeden dusup "Kayit yok" veriyordu. Seans kaydi varsa da goster.
+            $q->where('adisyon_paketler.seans_sayisi', '>', 0)
+              ->orWhereExists(function($sub){
+                  $sub->select(DB::raw(1))->from('adisyon_paket_seanslar')
+                      ->whereColumn('adisyon_paket_seanslar.adisyon_paket_id', 'adisyon_paketler.id');
+              });
+        })
                             ->where(function($q){
                                 $q->whereNull('adisyon_paketler.otomatik_randevu_olusturuldu')
                                   ->orWhere('adisyon_paketler.otomatik_randevu_olusturuldu', '!=', 1);
@@ -14838,7 +14870,16 @@ public function personel_listesi_getir(Request $request)
         ->when($customerFilter, function($q) use ($customerFilter) {
             return $q->where([$customerFilter]);
         })
-        ->where('adisyon_paketler.seans_sayisi', '>', 0)
+        ->where(function($q){
+            // seans_sayisi kolonu eski/normal paketlerde NULL olabilir; seanslar
+            // adisyon_paket_seanslar'da tutulur. NULL>0 false oldugu icin bu paketler
+            // hem sayidan hem listeden dusup "Kayit yok" veriyordu. Seans kaydi varsa da goster.
+            $q->where('adisyon_paketler.seans_sayisi', '>', 0)
+              ->orWhereExists(function($sub){
+                  $sub->select(DB::raw(1))->from('adisyon_paket_seanslar')
+                      ->whereColumn('adisyon_paket_seanslar.adisyon_paket_id', 'adisyon_paketler.id');
+              });
+        })
         ->count();
 
     $totalRecords += DB::table('adisyon_hizmetler')
@@ -14847,7 +14888,14 @@ public function personel_listesi_getir(Request $request)
         ->when($customerFilter, function($q) use ($customerFilter) {
             return $q->where([$customerFilter]);
         })
-        ->where('adisyon_hizmetler.seans_sayisi', '>', 0)
+        ->where(function($q){
+            // seans_sayisi NULL olabilir; seans kaydi adisyon_paket_seanslar'da varsa da goster.
+            $q->where('adisyon_hizmetler.seans_sayisi', '>', 0)
+              ->orWhereExists(function($sub){
+                  $sub->select(DB::raw(1))->from('adisyon_paket_seanslar')
+                      ->whereColumn('adisyon_paket_seanslar.adisyon_hizmet_id', 'adisyon_hizmetler.id');
+              });
+        })
         ->count();
 
     // ANA SORGU - sayfalama ile
@@ -14882,7 +14930,16 @@ public function personel_listesi_getir(Request $request)
                      ->orWhere('paketler.paket_adi', 'like', '%'.$searchValue.'%');
             });
         })
-        ->where('adisyon_paketler.seans_sayisi', '>', 0);
+        ->where(function($q){
+            // seans_sayisi kolonu eski/normal paketlerde NULL olabilir; seanslar
+            // adisyon_paket_seanslar'da tutulur. NULL>0 false oldugu icin bu paketler
+            // hem sayidan hem listeden dusup "Kayit yok" veriyordu. Seans kaydi varsa da goster.
+            $q->where('adisyon_paketler.seans_sayisi', '>', 0)
+              ->orWhereExists(function($sub){
+                  $sub->select(DB::raw(1))->from('adisyon_paket_seanslar')
+                      ->whereColumn('adisyon_paket_seanslar.adisyon_paket_id', 'adisyon_paketler.id');
+              });
+        });
 
     $hizmetlerQuery = DB::table('adisyon_hizmetler')
         ->leftJoin('adisyonlar', 'adisyon_hizmetler.adisyon_id', '=', 'adisyonlar.id')
@@ -14915,7 +14972,14 @@ public function personel_listesi_getir(Request $request)
                      ->orWhere('hizmetler.hizmet_adi', 'like', '%'.$searchValue.'%');
             });
         })
-        ->where('adisyon_hizmetler.seans_sayisi', '>', 0);
+        ->where(function($q){
+            // seans_sayisi NULL olabilir; seans kaydi adisyon_paket_seanslar'da varsa da goster.
+            $q->where('adisyon_hizmetler.seans_sayisi', '>', 0)
+              ->orWhereExists(function($sub){
+                  $sub->select(DB::raw(1))->from('adisyon_paket_seanslar')
+                      ->whereColumn('adisyon_paket_seanslar.adisyon_hizmet_id', 'adisyon_hizmetler.id');
+              });
+        });
 
     // Sayfalama ile sonuç - en son satıştan ilk satışa
     $sonuc = $paketlerQuery->union($hizmetlerQuery)
