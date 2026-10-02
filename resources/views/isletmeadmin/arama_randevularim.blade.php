@@ -137,11 +137,13 @@ function arlYukle(){
          var tamam = (r.durum==='zamaninda'||r.durum==='gec');
          var ses = (r.ses_sayisi>0) ? ('<div class="ses">🎙️ '+r.ses_sayisi+' ses kaydı'+(r.ses_son?(' · son: '+r.ses_son):'')+'</div>') : '';
          var not = r.not ? ('<div class="not">“'+arlEsc(r.not)+'”</div>') : '';
-         var aksiyon = tamam ? '' :
-            ('<div class="aksiyon">'+
+         // Ara butonu HER zaman gorunur (tamamlanmis randevu da tekrar aranabilir);
+         // Ertele yalnizca henuz aranmamis (bekleyen/geciken) randevularda anlamli.
+         var aksiyon =
+            '<div class="aksiyon">'+
                '<button class="b-ara" data-id="'+arlEsc(r.id)+'"><i class="fa fa-phone"></i> Ara</button>'+
-               '<button class="b-ertele" data-id="'+arlEsc(r.id)+'"><i class="fa fa-clock-o"></i> Ertele</button>'+
-            '</div>');
+               (tamam ? '' : '<button class="b-ertele" data-id="'+arlEsc(r.id)+'"><i class="fa fa-clock-o"></i> Ertele</button>')+
+            '</div>';
          html += '<div class="arl-row '+b.cls+'" id="arl_row_'+arlEsc(r.id)+'">'+
             '<div class="ust"><span class="ad">'+arlEsc(r.ad)+'</span>'+
                '<span class="arl-badge '+b.bcls+'">'+b.et+'</span>'+
