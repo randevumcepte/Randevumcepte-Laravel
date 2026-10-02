@@ -550,11 +550,14 @@ window.webphoneAra = function (numara)
 {
     var tel = ('' + (numara || '')).replace(/\D/g, '');
     if (!tel) return false;
-    if (typeof makeCall !== 'function' || !window.webphoneHazir) return false;
+    if (!window.webphoneHazir) return false;
+    // TR cep: 5 ile baslayan 10 haneli numaranin basina 0 koy (05xxxxxxxxx)
+    if (/^5\d{9}$/.test(tel)) { tel = '0' + tel; }
     webphonePaneliniAc();
-    if (dialInput) { dialInput.value = tel; }
+    // Numarayi #dial input'una yaz, sonra #call butonuna click tetikle (makeCall onun icinde)
+    $('#dial').val(tel);
     try { $('#aranacak_dahili_telefon').text(tel); } catch (e) {}
-    makeCall(tel);
+    $('#call').trigger('click');
     return true;
 };
 
