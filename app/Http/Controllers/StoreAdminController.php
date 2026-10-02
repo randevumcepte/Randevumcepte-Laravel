@@ -25750,12 +25750,39 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         try {
             SalonAudit::log($portfoy->salon_id, 'musteri_karaliste_ayar', 'musteri', $request->user_id, optional($portfoy->users)->name, $request->karaliste==1 ? 'Müşteri kara listeye alındı' : 'Müşteri kara listeden çıkarıldı');
         } catch (\Throwable $e) {}
-        if(SalonSMSAyarlari::where('ayar_id',15)->where('salon_id',$portfoy->salon_id)->value('musteri')==1 && $request->karaliste==1)
+        // Kara listeye ALINIRKEN bilgilendirme — ayar_id=15 musteri bayragi acikken.
+        // WA-first + SMS fallback (sms_gonder_bildirimli zaten bu mimariyi uyguluyor) +
+        // Push bildirim. Tip 'kara_liste_bildirim' KaraListeServisi::MUAF_TIPLER'de,
+        // dolayisiyla musteri az once kara listeye alinmis olsa bile bu mesaj susturulmaz.
+        if ($request->karaliste == 1
+            && SalonSMSAyarlari::where('ayar_id',15)->where('salon_id',$portfoy->salon_id)->value('musteri') == 1)
         {
-                $mesaj = array(
-                    array("to"=>$portfoy->users->cep_telefon,"message"=>"Sayın ".$portfoy->users->name.", isteğiniz doğrultusunda telefon numaranız kara listeye alınmıştır. Kampanya ve reklam SMS leri gönderilmeyecektir. Detaylı bilgi için bize ulaşınız. 0".Salonlar::where('id',$request->sube)->value('telefon_1')),
-                );
-            self::sms_gonder_bildirimli($request,$mesaj,false,1,false);
+            $_salonTel = Salonlar::where('id',$request->sube)->value('telefon_1');
+            $_mesajMetni = "Sayın " . $portfoy->users->name . ", isteğiniz doğrultusunda telefon numaranız kara listeye alınmıştır. Kampanya ve reklam mesajları gönderilmeyecektir. Detaylı bilgi için bize ulaşınız. 0" . $_salonTel;
+
+            // SMS + WhatsApp (WA-first mimari zaten sms_gonder_bildirimli icinde)
+            $mesaj = [[
+                'to' => $portfoy->users->cep_telefon,
+                'message' => $_mesajMetni,
+                'user_id' => $portfoy->user_id,
+                'gonderim_tipi' => 'kara_liste_bildirim',
+            ]];
+            self::sms_gonder_bildirimli($request, $mesaj, false, 1, false, $portfoy->salon_id, 'kara_liste_bildirim');
+
+            // Push bildirim (uygulamasi olan musteriye) — karaListeMuaf ile kara liste
+            // suzgeci bypass edilir (musteri az once kara listeye alindi, mesaj gidebilir).
+            if ($portfoy->user_id) {
+                try {
+                    \App\Services\NotificationService::toCustomer((int) $portfoy->user_id, (int) $portfoy->salon_id)
+                        ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                        ->title('Kara Listeye Alındınız')
+                        ->body($_mesajMetni)
+                        ->karaListeMuaf(true)
+                        ->send();
+                } catch (\Throwable $e) {
+                    \Log::warning('karaliste bildirim push hata: ' . $e->getMessage());
+                }
+            }
         }
         return DB::table('users')->join('musteri_portfoy','musteri_portfoy.user_id','=','users.id')->select(
             'users.name as ad_soyad',

@@ -45,6 +45,7 @@ class NotificationService
     /** @var array */ private $deepLinkParams = [];
     /** @var array */ private $extra = [];
     /** @var bool */ private $popup = false;
+    /** @var bool */ private $karaListeMuaf = false;
     /** @var string|null */ private $firebaseJsonFile = 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json';
 
     /** @return static */
@@ -103,6 +104,9 @@ class NotificationService
     public function popup(bool $on = true): self    { $this->popup = $on; return $this; }
     public function randevu(?int $id): self         { $this->randevuId = $id; return $this; }
     public function firebaseFile(string $f): self   { $this->firebaseJsonFile = $f; return $this; }
+    /** Kara liste suzgecinden muaf: "kara listeye alindiniz" / sifre teslim / OTP gibi
+     *  musterinin kendi aksiyonuyla iliskili bildirim push'lari icin. */
+    public function karaListeMuaf(bool $on = true): self { $this->karaListeMuaf = $on; return $this; }
 
     public function deepLink(string $route, array $params = []): self
     {
@@ -128,9 +132,8 @@ class NotificationService
         $this->resolveFirebaseProfile();
 
         // KARA LISTE kapisi — sadece MUSTERI hedefli push etkilenir, salon_id bilinir olmali.
-        // Muafiyet tipleri (OTP vb.) type ile eslesmez; push notification tiplerimizde bu
-        // guvenlik tipleri yok, kara liste direkt uygulanir.
-        if ($this->kullaniciTipi === 'musteri' && $this->userId && $this->salonId) {
+        // karaListeMuaf() ile iliskili push'lar bypass eder (kara liste bildirim, OTP vb.).
+        if (!$this->karaListeMuaf && $this->kullaniciTipi === 'musteri' && $this->userId && $this->salonId) {
             if (\App\Services\KaraListeServisi::engelliMi($this->salonId, null, $this->userId, null)) {
                 Log::info('[PUSH] kara liste — gonderim atlandi', [
                     'user_id' => $this->userId, 'salon_id' => $this->salonId, 'type' => $this->type,

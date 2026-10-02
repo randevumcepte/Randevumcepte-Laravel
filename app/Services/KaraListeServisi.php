@@ -33,6 +33,7 @@ class KaraListeServisi
         'sifre_sifirlama',          // Sifremi unuttum
         'geldi_dogrulama_kodu',     // Geldi tiklandi, kod istek
         'cark_kodu',                // Carkifelek kod
+        'kara_liste_bildirim',      // "Kara listeye alindiniz" bilgi mesaji (kara olana da gider)
     ];
 
     /** Belirli bir gonderim tipi kara liste muafi mi? */
