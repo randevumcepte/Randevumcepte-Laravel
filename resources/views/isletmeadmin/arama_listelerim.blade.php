@@ -622,8 +622,9 @@ function agDetayCiz(m){
          '</div>'+
          '<label class="ag-sonra"><input type="checkbox" id="ag_sonra_chk"> 📅 ARAMA RANDEVUSU VER — müşteri sonra aranmak istedi (Tekrar Aranacak)</label>'+
          '<div class="ag-sonra-alan" id="ag_sonra_alan">'+
-            '<div class="ag-sonra-lbl">Ne zaman tekrar aransın? Tarih ve saat seç, sonra “Sonucu Kaydet”e bas.</div>'+
-            '<input type="text" id="ag_sonra_tarih" class="ag-not-alani" autocomplete="off" readonly placeholder="Tarih ve saat seçin">'+
+            '<div class="ag-sonra-lbl">Ne zaman tekrar aransın? Tarih + saat seç, sonra “Sonucu Kaydet”e bas.</div>'+
+            '<input type="text" id="ag_sonra_tarih" class="ag-not-alani" autocomplete="off" readonly placeholder="Tarih seçin">'+
+            '<input type="time" id="ag_sonra_saat">'+
          '</div>'+
          '<button class="ag-kaydet" id="ag_kaydet"><i class="fa fa-save"></i> Sonucu Kaydet</button>'+
          // Memnuniyet anketi — arama şartına bağlı değil; yetkiliyse görünür (kilitli grileşmeden bağımsız)
@@ -642,16 +643,14 @@ function agDetayCiz(m){
 
    $('#ag_detay_bos').hide();
    $('#ag_detay_icerik').html(html).show();
-   // Tekrar arama tarihi: randevu formlarindaki air-datepicker (tarih + saat, ileri tarih).
+   // Tekrar arama tarihi: randevu formlarindaki air-datepicker (SADECE tarih, ileri tarih).
    try {
       if ($.fn.datepicker) {
          $('#ag_sonra_tarih').datepicker({
             minDate: new Date(),
-            timepicker: true,
             language: 'tr',
             autoClose: true,
-            dateFormat: 'yyyy-mm-dd',
-            timeFormat: 'hh:mm'
+            dateFormat: 'yyyy-mm-dd'
          });
       }
    } catch(e){}
@@ -920,11 +919,8 @@ $(document).on('click', '#ag_kaydet', function(){
    var sonraMu   = $('#ag_sonra_chk').is(':checked');
    var onGorusme = (agSecilenSonuc===6);
    var satisMi   = (agSecilenSonuc===7);
-   // Air-datepicker tek alanda "yyyy-mm-dd hh:mm" doner -> tarih ve saat olarak ayir.
-   var sonraVal = ($('#ag_sonra_tarih').val()||'').trim();
-   var sonraParca = sonraVal.split(/\s+/);
-   var tarih = sonraParca[0] || '';
-   var saat  = sonraParca[1] || '';
+   var tarih = $('#ag_sonra_tarih').val();
+   var saat  = $('#ag_sonra_saat').val();
    var not   = $('#ag_not').val();
    var satisTutari = satisMi ? ($('#ag_satis_tutari').val()||'') : '';
 
