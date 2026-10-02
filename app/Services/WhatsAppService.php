@@ -130,6 +130,13 @@ class WhatsAppService
             return ['ok' => false, 'error' => 'invalid-phone'];
         }
 
+        // KARA LISTE kapisi — musteri_portfoy.kara_liste=1 ise GITMEZ.
+        // Guvenlik mesajlari (sifre_sifirlama, OTP, cark_kodu) KaraListeServisi'nde muaf.
+        // SMS fallback de ayni kontrolu yapar, boylece WA ok=false donunce SMS gecmez.
+        if (\App\Services\KaraListeServisi::engelliMi($salon->id, $normalized, $userId, $gonderimTipi)) {
+            return ['ok' => false, 'error' => 'kara-liste'];
+        }
+
         if (!$this->canSendToday($salon)) {
             return ['ok' => false, 'error' => 'daily-cap-reached'];
         }

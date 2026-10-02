@@ -773,6 +773,16 @@ class Controller extends BaseController
     {
         $salonid = $args[0] ?? null;
         $mesajlar = $args[1] ?? [];
+
+        // KARA LISTE suzgeci — merkezi filtre, cagri yeri ne olursa olsun gecer.
+        // Hepsi kara ise erken return. Guvenlik mesajlari (OTP/sifre) muaf.
+        $gonderimTipi = $args[7] ?? null; // bazi callers tipi 8. arg olarak gecirir
+        $mesajlar = \App\Services\KaraListeServisi::topluSuz($salonid, (array) $mesajlar, $gonderimTipi);
+        if (empty($mesajlar)) {
+            Log::info('[SMS-API] sms_gonder: tumu kara listede, hic gonderim yok', ['salon_id' => $salonid]);
+            return;
+        }
+
         $alicilar = array_column((array) $mesajlar, 'to');
         $ilkMesaj = isset($mesajlar[0]['message']) ? $mesajlar[0]['message'] : '';
         Log::info('[SMS-API] sms_gonder cagrildi', [

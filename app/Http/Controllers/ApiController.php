@@ -9490,6 +9490,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
 
     public function sms_gonder_2(Request $request,$mesajlar, $geribildirimgonder,$tur,$dogrulama,$salonid,$sifregonder) {
+        // KARA LISTE suzgeci — $sifregonder=true ise sifre/OTP yolu, muafiyet KaraListeServisi'nde var
+        $_klTipi = $sifregonder ? 'sifre_sifirlama' : null;
+        $mesajlar = \App\Services\KaraListeServisi::topluSuz($salonid, (array) $mesajlar, $_klTipi);
+        if (empty($mesajlar)) {
+            Log::info('[sms_gonder_2] tumu kara listede, hic gonderim yok', ['salon_id' => $salonid]);
+            return;
+        }
         $isletme = '';
         if($sifregonder){
             if($request->appBundle == 'com.randevumcepte.randevumcepte')

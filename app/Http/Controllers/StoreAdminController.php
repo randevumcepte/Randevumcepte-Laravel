@@ -17199,6 +17199,19 @@ DB::raw('
         // bu da yanlis salon'un SMS basligi/WA oturumu kullanilmasina neden olabilir
         // (randevu sahibi salon 397 iken SMS salon 20 basligindan giderdi).
         $aktifSalonId = $salonOverride ?: self::mevcutsube($request);
+
+        // KARA LISTE suzgeci — WA pre-filter'dan ONCE (hem WA hem SMS atlasin).
+        // Per-mesaj 'gonderim_tipi' override edilebilir (WA kapisi muafiyeti ile ayni).
+        $mesajlar = \App\Services\KaraListeServisi::topluSuz($aktifSalonId, (array) $mesajlar, $gonderimTipi);
+        if (empty($mesajlar)) {
+            Log::info('[sms_gonder_bildirimli] tumu kara listede, hic gonderim yok', ['salon_id' => $aktifSalonId]);
+            return $geribildirimgonder ? [
+                'title' => 'Bilgi',
+                'status' => 'info',
+                'text' => 'Alıcıların tamamı kara listede olduğu için mesaj gönderilmedi.',
+            ] : null;
+        }
+
         $isletme = Salonlar::where('id', $aktifSalonId)->first();
 
         // WhatsApp pre-filter: salon WA aktif+connected ise her mesaj once WhatsApp'a

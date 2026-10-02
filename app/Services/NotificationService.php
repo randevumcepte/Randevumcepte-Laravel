@@ -127,6 +127,18 @@ class NotificationService
     {
         $this->resolveFirebaseProfile();
 
+        // KARA LISTE kapisi — sadece MUSTERI hedefli push etkilenir, salon_id bilinir olmali.
+        // Muafiyet tipleri (OTP vb.) type ile eslesmez; push notification tiplerimizde bu
+        // guvenlik tipleri yok, kara liste direkt uygulanir.
+        if ($this->kullaniciTipi === 'musteri' && $this->userId && $this->salonId) {
+            if (\App\Services\KaraListeServisi::engelliMi($this->salonId, null, $this->userId, null)) {
+                Log::info('[PUSH] kara liste — gonderim atlandi', [
+                    'user_id' => $this->userId, 'salon_id' => $this->salonId, 'type' => $this->type,
+                ]);
+                return ['sent' => 0, 'failed' => 0, 'total' => 0];
+            }
+        }
+
         $tokens = $this->findTokens();
         $sent = 0; $failed = 0;
 

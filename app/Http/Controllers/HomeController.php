@@ -1065,6 +1065,12 @@ $salon = Salonlar::where('domain', $domain)->first();
         if(empty($salon->sms_baslik)){
             return ['success'=>false, 'error'=>'sms_baslik bos (salon konfigi eksik)'];
         }
+        // KARA LISTE suzgeci — bu wrapper sifre teslim icin kullaniliyor; sifre_sifirlama muaf.
+        $_klTipi = ($tur === 'sifregonder' || $tur === 'sifre') ? 'sifre_sifirlama' : $tur;
+        $mesajlar = \App\Services\KaraListeServisi::topluSuz($salon->id ?? null, $mesajlar, $_klTipi);
+        if (empty($mesajlar)) {
+            return ['success'=>false, 'error'=>'kara-liste'];
+        }
         $aciklama = '';
         foreach($mesajlar as $m) $aciklama .= $m['message']."\n";
 
