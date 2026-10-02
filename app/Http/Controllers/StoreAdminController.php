@@ -25718,23 +25718,15 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if (!$kara) {
             return response()->json(['uyari' => false]);
         }
-        // Ilgili SMS ayarinda musteriye bildirim bayragi acik mi?
-        $ayarMap = ['yeni' => 12, 'guncelleme' => 14, 'iptal' => 3, 'onay' => 2];
-        $ayarId = $ayarMap[$tip] ?? 12;
-        $ayarAcik = (int) SalonSMSAyarlari::where('salon_id', $salonId)
-            ->where('ayar_id', $ayarId)->value('musteri') === 1;
-        if (!$ayarAcik) {
-            // Bildirim zaten gonderilmiyor; uyari gerekli degil
-            return response()->json(['uyari' => false]);
-        }
+        // Modul aktif + musteri kara listede ise her halde uyari gosterilir.
+        // (SMS ayari acik/kapali bakilmaz — kullanici her senaryoda net goruyor olsun.)
         $tipAd = [
             'yeni' => 'oluşturma', 'guncelleme' => 'güncelleme',
             'iptal' => 'iptal', 'onay' => 'onay',
         ][$tip] ?? 'bildirim';
         return response()->json([
             'uyari' => true,
-            'mesaj' => 'Bu müşteri kara listede olduğu için randevu ' . $tipAd .
-                ' bildirimi gönderilmeyecektir. Yine de randevu ' . $tipAd . ' işlemi yapılsın mı?',
+            'mesaj' => 'Bu müşteri kara listede. SMS/WhatsApp/push bildirimi gönderilmeyecektir. Yine de randevu ' . $tipAd . ' işlemi yapılsın mı?',
         ]);
     }
 
