@@ -623,7 +623,7 @@ function agDetayCiz(m){
          '<label class="ag-sonra"><input type="checkbox" id="ag_sonra_chk"> 📅 ARAMA RANDEVUSU VER — müşteri sonra aranmak istedi (Tekrar Aranacak)</label>'+
          '<div class="ag-sonra-alan" id="ag_sonra_alan">'+
             '<div class="ag-sonra-lbl">Ne zaman tekrar aransın? Tarih + saat seç, sonra “Sonucu Kaydet”e bas.</div>'+
-            '<input type="text" id="ag_sonra_tarih" class="ag-not-alani" autocomplete="off" readonly placeholder="Tarih seçin">'+
+            '<input type="text" id="ag_sonra_tarih" autocomplete="off" readonly placeholder="Tarih seçin">'+
             '<input type="time" id="ag_sonra_saat">'+
          '</div>'+
          '<button class="ag-kaydet" id="ag_kaydet"><i class="fa fa-save"></i> Sonucu Kaydet</button>'+
