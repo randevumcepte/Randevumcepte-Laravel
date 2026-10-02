@@ -4005,6 +4005,20 @@ $(document).on('submit','#yenirandevuekleform',function(e){
 });
 $(document).on('submit','#randevuduzenleform',function(e){
     e.preventDefault();
+    // Kara liste on-kontrol (guncelleme). Modul aktif + musteri kara listede ise
+    // swal uyari gosterir; onay verilirse recursive submit, flag ile ikinci cagri atlar.
+    if (!this.__klChecked) {
+        var _klUser = $('#randevuduzenle_musteri_id').val();
+        var _klSalon = $('input[name="sube"]').val();
+        var _klForm = this;
+        window.karaListeOnKontrol(_klUser, _klSalon, 'guncelleme', function () {
+            _klForm.__klChecked = true;
+            $(_klForm).submit();
+        });
+        return;
+    }
+    this.__klChecked = false;
+
      var personelveyacihasecili = true;
     var hizmetsecili = true;
     var suregirildi = true;
