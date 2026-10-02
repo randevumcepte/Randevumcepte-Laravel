@@ -3683,12 +3683,59 @@ function kaynakMusaitSecici(res){
         $('#yenirandevuekleform').submit();
     });
 }
+// Kara liste on-kontrol helper (randevu ekle/guncelle oncesi uyari popup'i)
+if (typeof window.karaListeOnKontrol !== 'function') {
+    window.karaListeOnKontrol = function (userId, salonId, tip, onay) {
+        if (!userId || !salonId) { onay(); return; }
+        $.ajax({
+            type: 'GET',
+            url: '/isletmeyonetim/karaliste-bildirim-uyari',
+            data: { user_id: userId, salon_id: salonId, tip: tip || 'yeni' },
+            dataType: 'json',
+            timeout: 5000
+        }).done(function (r) {
+            if (r && r.uyari) {
+                swal({
+                    title: 'Kara Liste Uyarısı',
+                    text: r.mesaj || 'Müşteri kara listede. Bildirim gönderilmeyecek. Devam edilsin mi?',
+                    type: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yine de devam et',
+                    cancelButtonText: 'Vazgeç',
+                    confirmButtonColor: '#d33',
+                    reverseButtons: true,
+                    allowOutsideClick: false
+                }).then(function (res) {
+                    if (res && (res.value || res === true)) onay();
+                }).catch(function () { /* iptal — hic bir sey yapma */ });
+            } else {
+                onay();
+            }
+        }).fail(function () { onay(); }); // kontrol basarisizsa normal akis
+    };
+}
+
 $(document).on('submit','#yenirandevuekleform',function(e){
     e.preventDefault();
     // Cift-submit korumasi: onceki istek ucarken (preloader modalin ALTINDA kaldigi
     // icin buton tiklanabilir kaliyordu) resepsiyonun 2-3 kez tiklamasi 3 ayri randevu
     // aciyordu. In-flight bayragi + buton disable ile ikinci submit engellenir.
     if(window.__rndSubmitting){ return false; }
+
+    // Kara liste on-kontrol — form valid oldugunda bir kez calisir; onay verilirse
+    // formu tekrar submit eder (flag ile ikinci cagriyi atlar). Modul pasif / kara
+    // liste yok / ayar kapali durumlarinda hemen devam.
+    if (!this.__klChecked) {
+        var _klUser = $('#randevuekle_musteri_id').val();
+        var _klSalon = $('input[name="sube"]').val();
+        var _klForm = this;
+        window.karaListeOnKontrol(_klUser, _klSalon, 'yeni', function () {
+            _klForm.__klChecked = true;
+            $(_klForm).submit();
+        });
+        return;
+    }
+    this.__klChecked = false; // sonraki submit icin resetle
     var personelveyacihasecili = true;
     var hizmetsecili = true;
     var suregirildi = true;

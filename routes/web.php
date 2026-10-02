@@ -967,6 +967,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/yenirandevu','StoreAdminController@yenirandevu');
 	Route::get('/randevupersonelgetir','StoreAdminController@randevupersonelgetir');
 	Route::post('/yenirandevuekle','StoreAdminController@yenirandevuekle');
+	Route::get('/karaliste-bildirim-uyari','StoreAdminController@karalisteBildirimUyari');
 	Route::get('/calismasaatigetir','StoreAdminController@calismasaatigetir');
 	Route::get('/musteribilgigetir','StoreAdminController@musteribilgigetir');
 	Route::get('/avantajlar','StoreAdminController@kampanyalar');

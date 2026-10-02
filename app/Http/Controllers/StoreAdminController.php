@@ -25689,6 +25689,55 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         }
         return $yetkili_liste;
     }
+    /**
+     * Randevu islemi (olustur/guncelle/iptal/onay) oncesi musteri kara listede mi
+     * ve ilgili bildirim ayari acik mi diye on kontrol. Frontend form submit'inden
+     * once bu endpointi cagirir, 'uyari' donerse swal gosterir, kullanici onay
+     * verirse form submit edilir.
+     *
+     * Query: user_id, salon_id (ops.), tip (yeni|guncelleme|iptal|onay)
+     * Response: {uyari: bool, mesaj: string}
+     */
+    public function karalisteBildirimUyari(Request $request)
+    {
+        $userId = (int) $request->user_id;
+        $salonId = (int) ($request->salon_id ?: self::mevcutsube($request));
+        $tip = (string) $request->tip ?: 'yeni';
+        if ($userId <= 0 || $salonId <= 0) {
+            return response()->json(['uyari' => false]);
+        }
+        // Modul pasif -> hic uyari gostermeye gerek yok (butonlar zaten gizli)
+        if (!\App\Services\KaraListeServisi::salonAktifMi($salonId)) {
+            return response()->json(['uyari' => false]);
+        }
+        // Musteri kara listede mi?
+        $kara = MusteriPortfoy::where('user_id', $userId)
+            ->where('salon_id', $salonId)
+            ->where('kara_liste', 1)
+            ->exists();
+        if (!$kara) {
+            return response()->json(['uyari' => false]);
+        }
+        // Ilgili SMS ayarinda musteriye bildirim bayragi acik mi?
+        $ayarMap = ['yeni' => 12, 'guncelleme' => 14, 'iptal' => 3, 'onay' => 2];
+        $ayarId = $ayarMap[$tip] ?? 12;
+        $ayarAcik = (int) SalonSMSAyarlari::where('salon_id', $salonId)
+            ->where('ayar_id', $ayarId)->value('musteri') === 1;
+        if (!$ayarAcik) {
+            // Bildirim zaten gonderilmiyor; uyari gerekli degil
+            return response()->json(['uyari' => false]);
+        }
+        $tipAd = [
+            'yeni' => 'oluşturma', 'guncelleme' => 'güncelleme',
+            'iptal' => 'iptal', 'onay' => 'onay',
+        ][$tip] ?? 'bildirim';
+        return response()->json([
+            'uyari' => true,
+            'mesaj' => 'Bu müşteri kara listede olduğu için randevu ' . $tipAd .
+                ' bildirimi gönderilmeyecektir. Yine de randevu ' . $tipAd . ' işlemi yapılsın mı?',
+        ]);
+    }
+
     public function musterikaralisteayari(Request $request)
     {
         // Modul pasif ise ekleme kabul edilmez (frontend bypass'ina karsi)
