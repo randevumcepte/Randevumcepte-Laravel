@@ -29168,10 +29168,35 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
 
 
+    /**
+     * Bir dahili numarasiyla personel bulur — hem normal dahili (dahili_no) hem de
+     * WebRTC dahilisi (dahili_no_webrtc) kontrol edilir. Personel WebRTC softphone VEYA
+     * fiziksel dahiliyle gorusebilir; kanaldan cikan dahili ikisinden biri olabilir.
+     */
+    private function personelByDahiliHerhangi($dahili)
+    {
+        $d = preg_replace('/\D/', '', (string) $dahili);
+        if ($d === '') return null;
+        return Personeller::where(function ($q) use ($d) {
+            $q->where('dahili_no', $d)->orWhere('dahili_no_webrtc', $d);
+        })->first();
+    }
+
     public function santral_raporlari($salon_id,$tarih1,$tarih2,$durum,$request)
     {
-         
-        $dahililer = Personeller::where('salon_id',$salon_id)->where('dahili_no','!=',null)->pluck('dahili_no')->toArray();
+
+        // Personel WebRTC (dahili_no_webrtc) VEYA normal dahili (dahili_no) ile gorusebilir;
+        // WebRTC uzerinden gelen/giden aramalar PJSIP/<dahili_no_webrtc> kanalinda oldugundan
+        // HER iki dahili de sorguya katilmali, aksi halde o aramalar raporda gorunmez.
+        $dahiliRows = Personeller::where('salon_id',$salon_id)
+            ->where(function($q){ $q->whereNotNull('dahili_no')->orWhereNotNull('dahili_no_webrtc'); })
+            ->get(['dahili_no','dahili_no_webrtc']);
+        $dahililer = [];
+        foreach ($dahiliRows as $r) {
+            if (!empty($r->dahili_no)) $dahililer[] = $r->dahili_no;
+            if (!empty($r->dahili_no_webrtc)) $dahililer[] = $r->dahili_no_webrtc;
+        }
+        $dahililer = array_values(array_unique($dahililer));
         $trunk = SabitNumaralar::where('salon_id',$salon_id)->value('numara');
         $queryStr = '?offset='.$request->offset.'&';
         foreach($dahililer as $key=>$dahili)
@@ -29234,7 +29259,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 if(($result['dcontext'] ?? '')=='from-internal')
                 {
                     // Hedef bir personel mi (dahili-dahili) yoksa dis numara mi?
-                    $hedefDahili = Personeller::where('dahili_no', $result['dst'] ?? '')->first();
+                    $hedefDahili = $this->personelByDahiliHerhangi($result['dst'] ?? '');
 
                     if(($result['disposition'] ?? '')=='NO ANSWER' || ($result['disposition'] ?? '')=='BUSY'){
                         $durum = '<button class="btn btn-danger">ULAŞILAMADI</button>';
@@ -29253,8 +29278,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                     }
 
                     if ($hedefDahili) {
-                        $musteriAdi = $hedefDahili->personel_adi.' ('.$hedefDahili->dahili_no.')';
-                        $telefon = $hedefDahili->dahili_no;
+                        $hedefDahiliNo = $hedefDahili->dahili_no ?: $hedefDahili->dahili_no_webrtc;
+                        $musteriAdi = $hedefDahili->personel_adi.' ('.$hedefDahiliNo.')';
+                        $telefon = $hedefDahiliNo;
                         $avatar = '/public/isletmeyonetim_assets/img/avatar.png';
                     } else {
                         $musteri = User::where('cep_telefon',str_replace(["(",")"," "],["","",""],preg_replace('/^\+?90/', '', $result['dst'] ?? '')))->first();
@@ -29272,9 +29298,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                         }
                     }
 
-                    // Aramayi yapan personel (channel'dan cikarilan dahili)
-                    $kaynakPersonel = $dahili !== '' ? Personeller::where('dahili_no', $dahili)->first() : null;
-                    $dahili = $kaynakPersonel ? $kaynakPersonel->personel_adi.' ('.$kaynakPersonel->dahili_no.')' : ($dahili !== '' ? 'Dahili '.$dahili : '');
+                    // Aramayi yapan personel (channel'dan cikarilan dahili — webrtc de olabilir)
+                    $kaynakPersonel = $dahili !== '' ? $this->personelByDahiliHerhangi($dahili) : null;
+                    $dahili = $kaynakPersonel ? $kaynakPersonel->personel_adi.' ('.($kaynakPersonel->dahili_no ?: $kaynakPersonel->dahili_no_webrtc).')' : ($dahili !== '' ? 'Dahili '.$dahili : '');
 
                     $raporaEkle = true;
                 }
@@ -29359,10 +29385,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                             $avatar = '/public/isletmeyonetim_assets/img/avatar.png' ;
                         }
                         
-                        $personel = Personeller::where('dahili_no',$result['dst'])->first();
+                        $personel = $this->personelByDahiliHerhangi($result['dst'] ?? '');
                         // İsim bağlıysa "Ad (Dahili)", değilse sadece dahili numarası göster.
                         if ($personel && trim($personel->personel_adi) !== '') {
-                            $dahili = $personel->personel_adi.' ('.$personel->dahili_no.')';
+                            $dahili = $personel->personel_adi.' ('.($personel->dahili_no ?: $personel->dahili_no_webrtc).')';
                         } else {
                             $dahili = !empty($result['dst']) ? $result['dst'] : '';
                         }
