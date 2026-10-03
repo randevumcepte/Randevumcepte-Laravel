@@ -122,11 +122,18 @@ class AramaRandevuAktar extends Command
             return 0;
         }
 
+        // Personel isimleri (ozet tablo icin)
+        $pidler = array_filter(array_keys($gruplar));
+        $isimler = $pidler
+            ? \App\Personeller::whereIn('id', $pidler)->pluck('personel_adi', 'id')->toArray()
+            : [];
+
         // Ozet tablo
         $this->table(
-            ['Personel ID', 'Yeni kayit'],
-            array_map(function ($pid, $items) {
-                return [$pid === 0 ? '(atanmamis)' : $pid, count($items)];
+            ['Personel ID', 'Personel', 'Yeni kayit'],
+            array_map(function ($pid, $items) use ($isimler) {
+                $ad = $pid === 0 ? '(atanmamis)' : ($isimler[$pid] ?? '(isim yok)');
+                return [$pid === 0 ? '(atanmamis)' : $pid, $ad, count($items)];
             }, array_keys($gruplar), $gruplar)
         );
 
@@ -162,7 +169,8 @@ class AramaRandevuAktar extends Command
                 AranacakMusteriler::insert($parca);
                 $yazilan += count($parca);
             }
-            $this->line("  Liste #{$liste->id} ('{$liste->arama_baslik}', personel=" . ($pid ?: 'atanmamis') . "): " . count($items) . ' kayit');
+            $pAd = $pid > 0 ? ($isimler[$pid] ?? '(isim yok)') : 'atanmamis';
+            $this->line("  Liste #{$liste->id} ('{$liste->arama_baslik}', personel=" . ($pid ?: 'atanmamis') . " {$pAd}): " . count($items) . ' kayit');
         }
 
         $this->info("TAMAM. Toplam yazilan arama randevusu: $yazilan");
