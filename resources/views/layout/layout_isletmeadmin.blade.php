@@ -75,10 +75,11 @@
 
       @endif
       @if($pageindex==46)
-      {{-- Arama Randevu Takvimi (FullCalendar v3). Not: fullcalendar.io CDN'i olu -> LOCAL kopya. --}}
+      {{-- Arama Randevu Takvimi (FullCalendar v3) CSS + moment. fullcalendar.min.js
+           BODY SONUNDA yuklenir (asagida), cunku jQuery body'de tekrar yukleniyor ve
+           eklenti aksi halde kayboluyor. --}}
       <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_panel/src/plugins/fullcalendar/fullcalendar.css?v=1.1')}}" />
       <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.js"></script>
-      <script src="{{secure_asset('public/yeni_panel/src/plugins/fullcalendar/fullcalendar.min.js')}}"></script>
       @endif
       <script src="{{secure_asset('/public/js/dist/inputmask.min.js')}}"></script>
       <script src="{{secure_asset('/public/js/dist/jquery.inputmask.min.js')}}"></script> 
@@ -2594,7 +2595,11 @@
       @if($pageindex == 2)
       <script src="{{secure_asset('public/yeni_panel/src/plugins/fullcalendar/fullcalendar.min.js')}}"></script>
       <script src="{{secure_asset('public/yeni_panel/vendors/scripts/calendar-setting.js')}}"></script>
-     
+
+      @endif
+      @if($pageindex == 46)
+      {{-- Arama Randevu Takvimi: fullcalendar BODY sonunda (son jQuery'den sonra) yuklenmeli. --}}
+      <script src="{{secure_asset('public/yeni_panel/src/plugins/fullcalendar/fullcalendar.min.js')}}"></script>
       @endif
        
       <!-- End Google Tag Manager (noscript) -->
