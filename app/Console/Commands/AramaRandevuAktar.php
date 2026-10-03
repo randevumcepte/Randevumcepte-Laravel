@@ -58,7 +58,11 @@ class AramaRandevuAktar extends Command
             ->join('hizmetler as h', 'h.id', '=', 'rh.hizmet_id')
             ->where('r.salon_id', $salon)
             ->whereRaw('LOWER(h.hizmet_adi) LIKE ?', ['%' . $pattern . '%'])
-            ->whereNotIn('r.durum', [2, 3]) // 2=IPTAL, 3=KABUL EDILMEDI
+            // IPTAL kurali: bu isletmede randevular.durum > 2 ise iptal sayilir.
+            // Iptal olanlari aktarmayiz; durum <= 2 (veya NULL/beklemede) dikkate alinir.
+            ->where(function ($w) {
+                $w->where('r.durum', '<=', 2)->orWhereNull('r.durum');
+            })
             ->whereNotNull('r.user_id');
         if (!$gecmis) {
             $q->where('r.tarih', '>=', $bugun);
