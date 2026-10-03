@@ -34,6 +34,7 @@ class AramaRandevuAktar extends Command
         {--salon=195 : Hangi isletme (salon_id)}
         {--apply : Gercekten yaz (varsayilan dry-run)}
         {--gecmis : Gecmis tarihli randevulari da aktar (varsayilan: sadece bugun ve sonrasi)}
+        {--baslangic= : Baslangic tarihi YYYY-MM-DD (bu tarih ve sonrasi). Verilmezse bugun. --gecmis varsa yok sayilir}
         {--pattern=arama randev : Hizmet adinda aranacak metin (kucuk harf)}';
 
     protected $description = "Isletmenin 'Arama Randevusu' hizmetli randevularini arama randevusu (callback) olarak aktarir";
@@ -49,8 +50,17 @@ class AramaRandevuAktar extends Command
         if ($pattern === '') { $this->error('Gecersiz pattern.'); return 1; }
 
         $bugun = date('Y-m-d');
+        // Baslangic tarihi: --baslangic verildiyse onu kullan, yoksa bugun. --gecmis varsa filtre yok.
+        $baslangic = $bugun;
+        $bas = trim((string) $this->option('baslangic'));
+        if ($bas !== '') {
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $bas)) {
+                $this->error('Gecersiz --baslangic. Bicim: YYYY-MM-DD'); return 1;
+            }
+            $baslangic = $bas;
+        }
         $this->info(($apply ? '[UYGULA]' : '[DRY-RUN]')
-            . " salon=$salon  pattern='$pattern'  kapsam=" . ($gecmis ? 'TUM tarihler' : "bugun ve sonrasi ($bugun+)"));
+            . " salon=$salon  pattern='$pattern'  kapsam=" . ($gecmis ? 'TUM tarihler' : "$baslangic ve sonrasi"));
 
         // --- Kaynak: "arama randev" hizmetli randevular (iptal/kabul edilmedi haric) ---
         $q = DB::table('randevular as r')
@@ -65,7 +75,7 @@ class AramaRandevuAktar extends Command
             })
             ->whereNotNull('r.user_id');
         if (!$gecmis) {
-            $q->where('r.tarih', '>=', $bugun);
+            $q->where('r.tarih', '>=', $baslangic);
         }
         $rows = $q->select(
             'r.id as randevu_id', 'r.user_id', 'r.tarih',
