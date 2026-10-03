@@ -32813,7 +32813,7 @@ DB::raw('
         $q = DB::table('aranacak_musteriler as am')
             ->join('arama_listesi as al', 'al.id', '=', 'am.arama_id')
             ->leftJoin('users as u', 'u.id', '=', 'am.user_id')
-            ->leftJoin('personeller as p', 'p.id', '=', 'al.personel_id')
+            ->leftJoin('salon_personelleri as p', 'p.id', '=', 'al.personel_id')
             ->where('al.salon_id', $salonId)
             ->whereNotNull('am.tarih')->where('am.tarih', '!=', '')
             ->whereNotNull('am.saat')->where('am.saat', '!=', '')
