@@ -625,7 +625,12 @@ callCreate = function()
     keypadDisabled(true);
     holdButtonToggle(false);
     //muteButtonToggle(false);
-    startRingbackTone();
+    // Ringback (giden/calma zili) YALNIZCA giden aramada calsin. Gelen aramada da
+    // onCallCreated tetiklenir ama dialInput bostur; orada ringback calmamali (gelen
+    // zili callReceived'de calar), aksi halde iki zil ayni anda oluyordu.
+    if (dialInput.value != '') {
+        startRingbackTone();
+    }
 
     $.ajax({
                 type:"GET",
@@ -813,6 +818,10 @@ callHold = function(held)
 callReceived = function(session)
 {
     cagriAktif = true;
+    // GELEN cagri: SimpleUser once onCallCreated (callCreate -> ringback/giden zili) sonra
+    // onCallReceived tetikler; ikisi birden calmasin diye GIDEN zilini (ringback) durdur,
+    // sadece GELEN zili (ringtone) calsin.
+    stopRingbackTone();
     answerButton.disabled = false;
     answerButton2.disabled = false;
     answerButton3.disabled = false;

@@ -34029,16 +34029,29 @@ DB::raw('
         $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
         $personelMi = ($rol == 5);
 
-        // Taranacak dahililer: personel sadece kendisi, yonetici tum salon
+        // Taranacak dahililer: personel sadece kendisi, yonetici tum salon.
+        // Personel WebRTC (dahili_no_webrtc) VEYA normal dahili (dahili_no) ile gorusebilir;
+        // WebRTC aramalari PJSIP/<dahili_no_webrtc> kanalinda oldugundan HER iki dahili de
+        // taranmali, aksi halde o cagrilarin ses kayitlari gelmez/yanlis eslesir.
         if ($personelMi) {
             $myPid = $this->aktifPersonelId($salonId);
-            $dahili = Personeller::where('id', $myPid)->value('dahili_no');
-            $dahililer = $dahili ? [$dahili] : [];
+            $per = Personeller::where('id', $myPid)->first(['dahili_no', 'dahili_no_webrtc']);
+            $dahililer = [];
+            if ($per) {
+                if (!empty($per->dahili_no)) $dahililer[] = $per->dahili_no;
+                if (!empty($per->dahili_no_webrtc)) $dahililer[] = $per->dahili_no_webrtc;
+            }
         } else {
-            $dahililer = Personeller::where('salon_id', $salonId)
-                ->whereNotNull('dahili_no')->where('dahili_no', '!=', '')
-                ->pluck('dahili_no')->toArray();
+            $rows = Personeller::where('salon_id', $salonId)
+                ->where(function ($q) { $q->whereNotNull('dahili_no')->orWhereNotNull('dahili_no_webrtc'); })
+                ->get(['dahili_no', 'dahili_no_webrtc']);
+            $dahililer = [];
+            foreach ($rows as $rr) {
+                if (!empty($rr->dahili_no)) $dahililer[] = $rr->dahili_no;
+                if (!empty($rr->dahili_no_webrtc)) $dahililer[] = $rr->dahili_no_webrtc;
+            }
         }
+        $dahililer = array_values(array_unique(array_filter($dahililer, 'strlen')));
         if (empty($dahililer)) {
             return response()->json(['kayitlar' => [], 'ozet' => ['toplam' => 0, 'kayitli' => 0, 'gelen' => 0, 'giden' => 0]]);
         }
