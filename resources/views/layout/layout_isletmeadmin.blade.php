@@ -72,9 +72,15 @@
       <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" rel="stylesheet" />
       <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.js"></script>
       <script src="https://fullcalendar.io/js/fullcalendar-3.1.0/fullcalendar.js"></script>
-      
+
       @endif
-      <script src="{{secure_asset('/public/js/dist/inputmask.min.js')}}"></script> 
+      @if($pageindex==46)
+      {{-- Arama Randevu Takvimi (FullCalendar v3). Not: fullcalendar.io CDN'i olu -> LOCAL kopya. --}}
+      <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_panel/src/plugins/fullcalendar/fullcalendar.css?v=1.1')}}" />
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.js"></script>
+      <script src="{{secure_asset('public/yeni_panel/src/plugins/fullcalendar/fullcalendar.min.js')}}"></script>
+      @endif
+      <script src="{{secure_asset('/public/js/dist/inputmask.min.js')}}"></script>
       <script src="{{secure_asset('/public/js/dist/jquery.inputmask.min.js')}}"></script> 
       <script src="{{secure_asset('/public/js/dist/bindings/inputmask.binding.js')}}"></script>
       <style>
