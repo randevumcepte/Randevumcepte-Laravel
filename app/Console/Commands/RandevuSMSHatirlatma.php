@@ -34,6 +34,32 @@ class RandevuSMSHatirlatma extends Command
             ->whereBetween('tarih', [date('Y-m-d'), date('Y-m-d', strtotime('+1 days', strtotime(date('Y-m-d'))))])
             ->get();
 
+        // Hatirlatma istisnalari — salon_id => hizmet_adi (lowercase) icinde gecen pattern'ler.
+        // Bu kalemlerin hizmet olarak bulundugu randevulara hatirlatma MESAJI gonderilmez
+        // (ne musteriye ne personele ne push). Istek: 195 "Arama Randevusu" hizmeti.
+        $_hatirlatmaIstisnalari = [
+            195 => ['arama randev'], // "Arama Randevu" / "Arama Randevusu" vb. yakalar
+        ];
+        if (!empty($_hatirlatmaIstisnalari)) {
+            $_oncekiSayi = $randevular->count();
+            $randevular = $randevular->reject(function ($r) use ($_hatirlatmaIstisnalari) {
+                if (!isset($_hatirlatmaIstisnalari[(int) $r->salon_id])) return false;
+                $patterns = $_hatirlatmaIstisnalari[(int) $r->salon_id];
+                foreach (($r->hizmetler ?? []) as $rh) {
+                    $ad = mb_strtolower((string) optional($rh->hizmetler)->hizmet_adi);
+                    if ($ad === '') continue;
+                    foreach ($patterns as $p) {
+                        if (mb_stripos($ad, $p) !== false) return true; // reject
+                    }
+                }
+                return false;
+            })->values();
+            $_atlanan = $_oncekiSayi - $randevular->count();
+            if ($_atlanan > 0) {
+                Log::info('[RND-SMS] hatirlatma istisnasi atlandi', ['sayi' => $_atlanan]);
+            }
+        }
+
         $controller = app()->make(Controller::class);
         $wa = app(WhatsAppService::class);
 
