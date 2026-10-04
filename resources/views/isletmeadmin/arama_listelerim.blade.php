@@ -55,7 +55,9 @@
    .ag-hero{ flex:0 0 auto; }
    .ag-grid{ flex:1 1 auto; min-height:0; }
    .ag-grid > .ag-panel{ height:100%; max-height:100%; min-height:0; display:flex; flex-direction:column; }
-   #ag_kuyruk{ flex:1 1 auto; min-height:0; max-height:none; }
+   /* Sol panel: liste secici (ust) + musteri kuyrugu (alt) IKI ESIT, AYRI scroll'lu parca */
+   .ag-grid > .ag-panel:first-child #ag_listeler{ flex:1 1 50%; min-height:0; max-height:none; overflow-y:auto; }
+   .ag-grid > .ag-panel:first-child #ag_kuyruk{ flex:1 1 50%; min-height:0; max-height:none; overflow-y:auto; }
    #ag_detay_panel{ overflow-y:auto; }
 }
 
@@ -65,7 +67,7 @@
 .ag-panel-head .say{ margin-left:auto; background:#f1edfb; color:#6d28d9; font-weight:700; border-radius:20px; padding:3px 11px; font-size:12px; }
 
 /* Liste seçici çipleri */
-.ag-listeler{ display:flex; gap:8px; flex-wrap:wrap; padding:12px 16px 4px; }
+.ag-listeler{ display:flex; gap:8px; flex-wrap:wrap; align-content:flex-start; padding:12px 16px 8px; overflow-y:auto; max-height:34vh; }
 .ag-liste-chip{ border:1px solid #e7e9f0; background:#fff; color:#5b6172; border-radius:12px; padding:8px 13px; cursor:pointer; font-size:12.5px; font-weight:600; transition:all .12s ease; max-width:100%; }
 .ag-liste-chip:hover{ border-color:#8b5cf6; color:#6d28d9; }
 .ag-liste-chip.aktif{ background:linear-gradient(120deg,#6d28d9,#7c3aed); border-color:transparent; color:#fff; box-shadow:0 6px 16px -8px rgba(109,40,217,.6); }
@@ -81,7 +83,7 @@
 .ag-fil-chip.aktif{ background:#6d28d9; border-color:#6d28d9; color:#fff; }
 
 /* Müşteri kuyruğu */
-.ag-kuyruk{ max-height:62vh; overflow-y:auto; padding:4px 10px 12px; }
+.ag-kuyruk{ max-height:46vh; overflow-y:auto; padding:4px 10px 12px; }
 .ag-musteri{ display:flex; align-items:center; gap:11px; padding:11px 12px; border-radius:13px; cursor:pointer; border:1px solid transparent; transition:background .12s ease, border-color .12s ease; }
 .ag-musteri:hover{ background:#f7f8fc; }
 .ag-musteri.secili{ background:#f4f1fd; border-color:#ddd4f3; }
