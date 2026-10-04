@@ -96,18 +96,23 @@ class AramaRandevuAktar extends Command
         }
         $this->info('Bulunan uygun randevu: ' . count($kaynak));
 
-        // --- Idempotentlik: salonda ZATEN var olan callback'ler (user|tarih|saat) ---
+        // --- Mevcut callback'ler (user|tarih|saat -> id + mevcut not) ---
+        // Ayni musteri+tarih+saat ZATEN varsa: YENI eklenmez; ama randevu notu varsa
+        // mevcut kaydin notu GUNCELLENIR. Boylece hem mevcutlar not alir hem yeniler eklenir.
         $salonListeIds = AramaListesi::where('salon_id', $salon)->pluck('id')->all();
         $mevcut = [];
         if ($salonListeIds) {
             DB::table('aranacak_musteriler')
                 ->whereIn('arama_id', $salonListeIds)
                 ->where('durum', 3)
-                ->select('user_id', 'tarih', 'saat')
+                ->select('id', 'user_id', 'tarih', 'saat', 'musteri_not')
                 ->orderBy('id')
                 ->chunk(2000, function ($ch) use (&$mevcut) {
                     foreach ($ch as $e) {
-                        $mevcut[$e->user_id . '|' . $e->tarih . '|' . substr((string) $e->saat, 0, 5)] = true;
+                        $k = $e->user_id . '|' . $e->tarih . '|' . substr((string) $e->saat, 0, 5);
+                        if (!isset($mevcut[$k])) {
+                            $mevcut[$k] = ['id' => $e->id, 'not' => (string) $e->musteri_not];
+                        }
                     }
                 });
         }
@@ -115,30 +120,43 @@ class AramaRandevuAktar extends Command
         $arKolonVar = Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at');
         $now = date('Y-m-d H:i:s');
 
-        // Personel -> aktarilacak kayitlar
+        // Personel -> aktarilacak YENI kayitlar  +  mevcutlarda guncellenecek notlar
         $gruplar = [];
+        $guncellenecek = [];   // aranacak_musteri_id => yeni_not
+        $eklenenKey = [];      // ayni calistirmada ayni key'i iki kez ekleme
         $atlanan = 0;
         foreach ($kaynak as $r) {
             $tarih = $r->tarih;
             $saat  = substr((string) ($r->r_saat ?: $r->rh_saat), 0, 5);
             if ($tarih === '' || $tarih === null) { $atlanan++; continue; }
+            $not = trim((string) ($r->not_metni ?? ''));
             $key = $r->user_id . '|' . $tarih . '|' . $saat;
-            if (isset($mevcut[$key])) { $atlanan++; continue; } // zaten var
-            $mevcut[$key] = true; // ayni calistirmada ikinci kez eklenmesin
+
+            if (isset($mevcut[$key])) {
+                // Zaten var -> yeni eklenmez; randevu notu varsa ve farkliysa notu guncelle
+                if ($not !== '' && $not !== $mevcut[$key]['not']) {
+                    $guncellenecek[$mevcut[$key]['id']] = $not;
+                }
+                $atlanan++;
+                continue;
+            }
+            if (isset($eklenenKey[$key])) { continue; }
+            $eklenenKey[$key] = true;
             $pid = $r->personel_id ? (int) $r->personel_id : 0;
             $gruplar[$pid][] = [
                 'user_id' => (int) $r->user_id,
                 'tarih'   => $tarih,
                 'saat'    => $saat,
-                'not'     => (string) ($r->not_metni ?? ''),
+                'not'     => $not,
             ];
         }
 
         $toplamYeni = array_sum(array_map('count', $gruplar));
-        $this->info("Zaten mevcut/atlanan: $atlanan   Aktarilacak YENI: $toplamYeni");
+        $toplamGuncel = count($guncellenecek);
+        $this->info("Zaten mevcut: $atlanan   Yeni eklenecek: $toplamYeni   Notu guncellenecek: $toplamGuncel");
 
-        if ($toplamYeni === 0) {
-            $this->info('Yapilacak yeni aktarim yok.');
+        if ($toplamYeni === 0 && $toplamGuncel === 0) {
+            $this->info('Yapilacak yeni ekleme veya not guncellemesi yok.');
             return 0;
         }
 
@@ -148,21 +166,34 @@ class AramaRandevuAktar extends Command
             ? \App\Personeller::whereIn('id', $pidler)->pluck('personel_adi', 'id')->toArray()
             : [];
 
-        // Ozet tablo
-        $this->table(
-            ['Personel ID', 'Personel', 'Yeni kayit'],
-            array_map(function ($pid, $items) use ($isimler) {
-                $ad = $pid === 0 ? '(atanmamis)' : ($isimler[$pid] ?? '(isim yok)');
-                return [$pid === 0 ? '(atanmamis)' : $pid, $ad, count($items)];
-            }, array_keys($gruplar), $gruplar)
-        );
+        // Ozet tablo (yeni eklenecekler)
+        if ($toplamYeni > 0) {
+            $this->table(
+                ['Personel ID', 'Personel', 'Yeni kayit'],
+                array_map(function ($pid, $items) use ($isimler) {
+                    $ad = $pid === 0 ? '(atanmamis)' : ($isimler[$pid] ?? '(isim yok)');
+                    return [$pid === 0 ? '(atanmamis)' : $pid, $ad, count($items)];
+                }, array_keys($gruplar), $gruplar)
+            );
+        }
 
         if (!$apply) {
             $this->warn('DRY-RUN: hicbir sey yazilmadi. Uygulamak icin --apply ekleyin.');
             return 0;
         }
 
-        // --- Uygula ---
+        // --- Uygula: once mevcutlarin notunu guncelle ---
+        $guncellenen = 0;
+        foreach ($guncellenecek as $amId => $yeniNot) {
+            DB::table('aranacak_musteriler')->where('id', $amId)
+                ->update(['musteri_not' => $yeniNot, 'updated_at' => $now]);
+            $guncellenen++;
+        }
+        if ($guncellenen > 0) {
+            $this->line("  Not guncellenen mevcut kayit: $guncellenen");
+        }
+
+        // --- Uygula: yeni kayitlari ekle ---
         $yazilan = 0;
         foreach ($gruplar as $pid => $items) {
             $liste = $this->listeBulVeyaOlustur($salon, $pid, $now);
@@ -194,7 +225,7 @@ class AramaRandevuAktar extends Command
             $this->line("  Liste #{$liste->id} ('{$liste->arama_baslik}', personel=" . ($pid ?: 'atanmamis') . " {$pAd}): " . count($items) . ' kayit');
         }
 
-        $this->info("TAMAM. Toplam yazilan arama randevusu: $yazilan");
+        $this->info("TAMAM. Yeni eklenen: $yazilan   Notu guncellenen: $guncellenen");
         return 0;
     }
 
