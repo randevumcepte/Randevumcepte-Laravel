@@ -2590,6 +2590,13 @@
       <script src="{{secure_asset('public/yeni_panel/vendors/scripts/calendar-setting.js')}}"></script>
 
       @endif
+      @if($pageindex == 46)
+      {{-- Arama Randevu Takvimi: resource destekli FullCalendar. BODY sonunda (son
+           jQuery'den sonra) yuklenmeli; aksi halde .fullCalendar is not a function. --}}
+      <link rel="stylesheet" type="text/css" href="{{secure_asset('public/yeni_panel/src/plugins/fullcalendar/fullcalendar.css?v=1.1')}}" />
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.20.1/moment.js"></script>
+      <script src="{{secure_asset('public/yeni_panel/src/plugins/fullcalendar/fullcalendar.min.js')}}"></script>
+      @endif
        
       <!-- End Google Tag Manager (noscript) -->
       @if($pageindex==2)

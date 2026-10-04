@@ -79,7 +79,8 @@ class AramaRandevuAktar extends Command
         }
         $rows = $q->select(
             'r.id as randevu_id', 'r.user_id', 'r.tarih',
-            'r.saat as r_saat', 'rh.saat as rh_saat', 'rh.personel_id'
+            'r.saat as r_saat', 'rh.saat as rh_saat', 'rh.personel_id',
+            'r.personel_notu as not_metni'
         )->orderBy('r.tarih')->orderBy('r.saat')->get();
 
         // Randevu basina TEK kayit (ayni randevuda birden fazla arama-randev kalemi olabilir)
@@ -125,7 +126,12 @@ class AramaRandevuAktar extends Command
             if (isset($mevcut[$key])) { $atlanan++; continue; } // zaten var
             $mevcut[$key] = true; // ayni calistirmada ikinci kez eklenmesin
             $pid = $r->personel_id ? (int) $r->personel_id : 0;
-            $gruplar[$pid][] = ['user_id' => (int) $r->user_id, 'tarih' => $tarih, 'saat' => $saat];
+            $gruplar[$pid][] = [
+                'user_id' => (int) $r->user_id,
+                'tarih'   => $tarih,
+                'saat'    => $saat,
+                'not'     => (string) ($r->not_metni ?? ''),
+            ];
         }
 
         $toplamYeni = array_sum(array_map('count', $gruplar));
@@ -163,13 +169,14 @@ class AramaRandevuAktar extends Command
             $satirlar = [];
             foreach ($items as $it) {
                 $satir = [
-                    'user_id'    => $it['user_id'],
-                    'arama_id'   => $liste->id,
-                    'durum'      => 3,          // Arama Randevusu (callback)
-                    'tarih'      => $it['tarih'],
-                    'saat'       => $it['saat'],
-                    'created_at' => $now,
-                    'updated_at' => $now,
+                    'user_id'     => $it['user_id'],
+                    'arama_id'    => $liste->id,
+                    'durum'       => 3,          // Arama Randevusu (callback)
+                    'tarih'       => $it['tarih'],
+                    'saat'        => $it['saat'],
+                    'musteri_not' => ($it['not'] !== '') ? $it['not'] : null, // randevu notu tasinir
+                    'created_at'  => $now,
+                    'updated_at'  => $now,
                 ];
                 if ($arKolonVar) {
                     $satir['ar_5dk_at'] = null;
