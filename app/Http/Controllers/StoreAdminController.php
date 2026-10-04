@@ -32787,29 +32787,6 @@ DB::raw('
             return view('isletmeadmin.yetkisizerisim'); // personel goremez
         }
 
-        // Resource (personel) kolonlari: bu salonda arama listesi olan personeller + Atanmamis.
-        $pidler = DB::table('arama_listesi')->where('salon_id', $salonId)->distinct()->pluck('personel_id');
-        $adlar = Personeller::whereIn('id', $pidler->filter()->all())->pluck('personel_adi', 'id');
-        $resources = [];
-        $atanmamisVar = false;
-        foreach ($pidler as $pid) {
-            if ($pid) {
-                $resources[] = ['id' => (int) $pid, 'title' => ($adlar[$pid] ?? ('Personel #' . $pid))];
-            } else {
-                $atanmamisVar = true;
-            }
-        }
-        usort($resources, function ($a, $b) { return strcoll($a['title'], $b['title']); });
-        if ($atanmamisVar) { $resources[] = ['id' => 0, 'title' => 'Atanmamış']; }
-
-        // Takvim ilk acilista en yakin (bugun+) arama randevusu gununu gostersin.
-        $ilkTarih = DB::table('aranacak_musteriler as am')
-            ->join('arama_listesi as al', 'al.id', '=', 'am.arama_id')
-            ->where('al.salon_id', $salonId)->where('am.durum', 3)
-            ->whereNotNull('am.tarih')->where('am.tarih', '!=', '')
-            ->where('am.tarih', '>=', date('Y-m-d'))
-            ->min('am.tarih');
-
         return view('isletmeadmin.arama_randevu_takvim', [
             'kullaniciRolu'           => $rol,
             'bildirimler'             => self::bildirimgetir($request),
@@ -32818,8 +32795,6 @@ DB::raw('
             'isletme'                 => $isletme,
             'kalan_uyelik_suresi'     => $lisansSure,
             'yetkiliolunanisletmeler' => $isletmeler,
-            'ar_resources'            => $resources,
-            'ar_ilk_tarih'            => $ilkTarih ?: date('Y-m-d'),
         ]);
     }
 
@@ -32874,11 +32849,9 @@ DB::raw('
             $musteri = $k->musteri_ad ?: 'Müşteri';
             $events[] = [
                 'id'              => $k->id,
-                'title'           => $musteri,
+                'title'           => $personel . ' · ' . $musteri,
                 'start'           => date('Y-m-d\TH:i:s', $apptTs),
-                'end'             => date('Y-m-d\TH:i:s', $apptTs + 900), // +15dk (takvimde gorunur blok)
                 'color'           => $renk,
-                'resourceId'      => (int) $k->personel_id,   // FullCalendar personel kolonu
                 'personel_id'     => (int) $k->personel_id,
                 'personel'        => $personel,
                 'musteri'         => $musteri,
