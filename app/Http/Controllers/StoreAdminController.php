@@ -34267,6 +34267,9 @@ DB::raw('
                 foreach ($ph as $h) { $toplamSeans += (int) ($h->seans ?? 0); }
                 $ap->seans_sayisi = $toplamSeans; $ap->bekleyen_seans = $toplamSeans;
                 $ap->kullanilan_seans = 0; $ap->kullanilmayan_seans = 0; $ap->otomatik_randevu_olusturuldu = false;
+                // AdisyonPaketler zorunlu kolonlari (yoksa insert patlar -> rollback -> satis olmaz)
+                if (Schema::hasColumn('adisyon_paketler', 'baslangic_tarihi')) $ap->baslangic_tarihi = $tarih;
+                if (Schema::hasColumn('adisyon_paketler', 'seans_araligi')) $ap->seans_araligi = 7;
                 $ap->save();
                 foreach ($ph as $h) {
                     $seans = (int) ($h->seans ?? 1); if ($seans < 1) $seans = 1;
@@ -34287,6 +34290,18 @@ DB::raw('
             $t->odeme_yontemi_id = $odeme; $t->notlar = 'Telefonda satış (çağrı merkezi)';
             if (!empty($request->banka)) $t->banka_id = $request->banka;
             $t->save();
+
+            // Tahsilat KALEM PIVOTU — odemeyi adisyon kalemine baglar. Kasa detayi/raporlar
+            // ve "adisyon odendi" durumu bu pivot uzerinden okudugu icin ZORUNLU (yoksa satis
+            // kasaya yansimaz). ($ah/$au/$ap yukaridaki ilgili daldan fonksiyon-kapsaminda gelir.)
+            if ($tip === 'hizmet') {
+                $tp = new TahsilatHizmetler(); $tp->adisyon_hizmet_id = $ah->id;
+            } elseif ($tip === 'urun') {
+                $tp = new TahsilatUrunler(); $tp->adisyon_urun_id = $au->id;
+            } else {
+                $tp = new TahsilatPaketler(); $tp->adisyon_paket_id = $ap->id;
+            }
+            $tp->tahsilat_id = $t->id; $tp->tutar = $fiyat; $tp->save();
 
             try {
                 SalonAudit::log($sube, 'cagri_hizli_satis', 'adisyon', $adisyon_id,
