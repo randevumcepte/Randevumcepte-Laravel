@@ -32794,6 +32794,22 @@ DB::raw('
             return view('isletmeadmin.yetkisizerisim'); // personel goremez
         }
 
+        // Telefonda Satış (Hızlı Satış popup) icin salon bazli listeler (calisma ekrani ile ayni)
+        $cm_odeme_yontemleri = \App\OdemeYontemleri::all();
+        $cm_hizmetler = DB::table('salon_sunulan_hizmetler')
+            ->join('hizmetler', 'salon_sunulan_hizmetler.hizmet_id', '=', 'hizmetler.id')
+            ->where('salon_sunulan_hizmetler.salon_id', $isletme->id)
+            ->where('salon_sunulan_hizmetler.aktif', true)
+            ->select('hizmetler.id as id', 'hizmetler.hizmet_adi as ad',
+                DB::raw('COALESCE(salon_sunulan_hizmetler.son_fiyat, salon_sunulan_hizmetler.baslangic_fiyat, hizmetler.fiyat, 0) as fiyat'))
+            ->orderBy('hizmetler.hizmet_adi')->get();
+        $cm_urunler = DB::table('urunler')
+            ->where('salon_id', $isletme->id)->where('aktif', true)
+            ->select('id', 'urun_adi as ad', 'fiyat')->orderBy('urun_adi')->get();
+        $cm_paketler = DB::table('paketler')
+            ->where('salon_id', $isletme->id)
+            ->select('id', 'paket_adi as ad', 'fiyat')->orderBy('paket_adi')->get();
+
         return view('isletmeadmin.arama_randevu_takvim', [
             'kullaniciRolu'           => $rol,
             'bildirimler'             => self::bildirimgetir($request),
@@ -32802,6 +32818,10 @@ DB::raw('
             'isletme'                 => $isletme,
             'kalan_uyelik_suresi'     => $lisansSure,
             'yetkiliolunanisletmeler' => $isletmeler,
+            'cm_odeme_yontemleri'     => $cm_odeme_yontemleri,
+            'cm_hizmetler'            => $cm_hizmetler,
+            'cm_urunler'              => $cm_urunler,
+            'cm_paketler'             => $cm_paketler,
         ]);
     }
 

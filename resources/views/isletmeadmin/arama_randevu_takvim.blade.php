@@ -139,7 +139,8 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
             <div id="artm_satis_alan" style="display:none;background:#fffaf0;border:1px solid #f0dcb0;border-radius:12px;padding:12px;margin-top:12px;">
                <div style="font-size:12.5px;font-weight:700;color:#b26a00;margin-bottom:6px;"><i class="fa fa-shopping-bag"></i> Telefonda Satış tutarı (₺)</div>
                <input type="number" min="0" step="0.01" class="artm-alan" id="artm_satis_tutari" placeholder="örn: 1500" style="margin-top:0;">
-               <div style="font-size:11.5px;color:#8a8398;margin-top:6px;"><i class="fa fa-info-circle"></i> Sadece görüşme kaydına yazılır (satış notu + tutar). Kasaya / tahsilata <b>otomatik işlenmez</b> — tahsilat için satışı ayrıca kaydedin.</div>
+               <div style="font-size:11.5px;color:#8a8398;margin:8px 0;"><i class="fa fa-info-circle"></i> "Sonucu Kaydet" yalnızca görüşme kaydına yazar. Gerçek satış + tahsilat (kasa) için:</div>
+               <button type="button" id="artm_kasaya_isle" style="width:100%;background:#16a34a;border:none;color:#fff;font-weight:800;border-radius:10px;padding:11px;cursor:pointer;font-size:13.5px;"><i class="fa fa-money"></i> Kasaya İşle (gerçek satış oluştur)</button>
             </div>
             <label class="artm-sonra"><input type="checkbox" id="artm_sonra_chk"> 📅 ARAMA RANDEVUSU VER — müşteri sonra aranmak istedi (Tekrar Aranacak)</label>
             <div class="artm-sonra-alan" id="artm_sonra_alan">
@@ -154,6 +155,59 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
                <button type="button" class="btn-nav" id="artm_gecmis_yenile" style="padding:4px 10px;font-size:12px;"><i class="fa fa-refresh"></i> Yenile</button>
             </div>
             <div id="artm_gecmis"></div>
+         </div>
+      </div>
+   </div>
+</div>
+
+{{-- Telefonda Satış (Hızlı Satış -> Kasaya İşle) modali — takvime ozel --}}
+<div class="modal fade" id="artm_satis_modal" tabindex="-1" role="dialog" aria-hidden="true">
+   <div class="modal-dialog" role="document">
+      <div class="modal-content" style="border-radius:16px;">
+         <div class="modal-header" style="background:#16a34a;color:#fff;border-top-left-radius:16px;border-top-right-radius:16px;border-bottom:none;">
+            <h5 style="margin:0;font-weight:800;color:#fff;"><i class="fa fa-money"></i> Telefonda Satış</h5>
+            <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9;"><span>&times;</span></button>
+         </div>
+         <div class="modal-body" style="padding:18px 20px;">
+            <div style="margin-bottom:12px;font-size:14px;"><i class="fa fa-user-circle-o" style="color:#16a34a;"></i> <b id="hss_musteri_ad" style="color:#15803d;"></b></div>
+            <input type="hidden" id="hss_musteri_id">
+            <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Ne satıldı?</label>
+            <select id="hss_tip" class="form-control" style="margin-bottom:8px;">
+               <option value="paket">Paket</option>
+               <option value="hizmet">Hizmet</option>
+               <option value="urun">Ürün</option>
+            </select>
+            <select id="hss_item_paket" class="form-control hss-item" style="margin-bottom:10px;">
+               <option value="">Paket seçin...</option>
+               @foreach(($cm_paketler ?? []) as $p)<option value="{{$p->id}}" data-fiyat="{{$p->fiyat}}">{{$p->ad}}</option>@endforeach
+            </select>
+            <select id="hss_item_hizmet" class="form-control hss-item" style="display:none;margin-bottom:10px;">
+               <option value="">Hizmet seçin...</option>
+               @foreach(($cm_hizmetler ?? []) as $h)<option value="{{$h->id}}" data-fiyat="{{$h->fiyat}}">{{$h->ad}}</option>@endforeach
+            </select>
+            <select id="hss_item_urun" class="form-control hss-item" style="display:none;margin-bottom:10px;">
+               <option value="">Ürün seçin...</option>
+               @foreach(($cm_urunler ?? []) as $u)<option value="{{$u->id}}" data-fiyat="{{$u->fiyat}}">{{$u->ad}}</option>@endforeach
+            </select>
+            <div class="row">
+               <div class="col-7">
+                  <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Satış fiyatı (₺)</label>
+                  <input type="number" id="hss_fiyat" class="form-control" min="0" step="0.01" placeholder="örn: 1500">
+               </div>
+               <div class="col-5">
+                  <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Ödeme</label>
+                  <select id="hss_odeme" class="form-control">
+                     @foreach(($cm_odeme_yontemleri ?? []) as $oy)<option value="{{$oy->id}}">{{$oy->odeme_yontemi}}</option>@endforeach
+                  </select>
+               </div>
+            </div>
+            <div id="hss_adet_kutu" style="display:none;margin-top:10px;">
+               <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Adet</label>
+               <input type="number" id="hss_adet" class="form-control" value="1" min="1" step="1">
+            </div>
+         </div>
+         <div class="modal-footer" style="border:none;padding:0 20px 18px;">
+            <button type="button" id="hss_kaydet" style="width:100%;background:#16a34a;border:none;color:#fff;font-weight:800;border-radius:10px;padding:12px;cursor:pointer;font-size:14px;"><i class="fa fa-check"></i> Satışı Oluştur (Kasaya İşle)</button>
          </div>
       </div>
    </div>
@@ -382,6 +436,86 @@ $(document).ready(function(){
    });
    $(document).on('hidden.bs.modal', '.modal', function(){
       if ($('.modal:visible').length){ $('body').addClass('modal-open'); } // ust modal kapaninca alttaki scroll'u koru
+   });
+
+   // ===== Telefonda Satış -> Kasaya İşle (gerçek satış + tahsilat) =====
+   // "Kasaya İşle" -> musteri user_id coz + quick-sale modalini ac
+   $(document).on('click', '#artm_kasaya_isle', function(){
+      if (!artmAmId) return;
+      $.post('/isletmeyonetim/cagri-musteri-ongorusme-bilgi',
+         { aranacak_musteri_id: artmAmId, _token: token },
+         function(res){
+            if (res && res.success && res.user_id){
+               $('#hss_musteri_id').val(res.user_id);
+               $('#hss_musteri_ad').text(res.ad || ('#'+res.user_id));
+               $('#hss_fiyat').val($('#artm_satis_tutari').val()||'');
+               $('#hss_tip').val('paket').trigger('change');
+               $('.hss-item').val(''); $('#hss_adet').val(1);
+               $('#artm_satis_modal').modal('show'); // cockpit uzerine (stacked)
+            } else if (typeof swal==='function'){
+               swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
+            }
+         }
+      ).fail(function(){ if(typeof swal==='function') swal({ type:'error', title:'Hata', text:'Satış ekranı açılamadı.' }); });
+   });
+   // Kalem tipi -> ilgili secim + adet; select2 toggle
+   $(document).on('change', '#hss_tip', function(){
+      var t = $(this).val();
+      $('.hss-item').each(function(){
+         if ($(this).hasClass('select2-hidden-accessible')){ try{$(this).select2('destroy');}catch(e){} }
+         $(this).hide().val('');
+      });
+      var $akt = $('#hss_item_'+t).show().val('');
+      if ($.fn.select2 && $('#artm_satis_modal').hasClass('show')){
+         $akt.select2({ width:'100%', dropdownParent: $('#artm_satis_modal'), placeholder:'Ürün/hizmet/paket ara...' });
+      }
+      $('#hss_adet_kutu').toggle(t==='urun');
+   });
+   // Kalem secilince fiyati otomatik doldur
+   $(document).on('change', '.hss-item', function(){
+      var f = $(this).find('option:selected').data('fiyat');
+      if (f!==undefined && f!=='' && !($('#hss_fiyat').val()>0)){ $('#hss_fiyat').val(f); }
+   });
+   // Satis modali select2 (acilinca kur, kapaninca temizle)
+   $(document).on('shown.bs.modal', '#artm_satis_modal', function(){
+      if (!$.fn.select2) return;
+      var mp = $('#artm_satis_modal');
+      $('#hss_tip, #hss_odeme').each(function(){ var $e=$(this); if($e.hasClass('select2-hidden-accessible')){try{$e.select2('destroy');}catch(e){}} $e.select2({width:'100%', dropdownParent:mp}); });
+      var $akt = $('#hss_item_'+$('#hss_tip').val());
+      if($akt.hasClass('select2-hidden-accessible')){try{$akt.select2('destroy');}catch(e){}}
+      $akt.select2({width:'100%', dropdownParent:mp, placeholder:'Ürün/hizmet/paket ara...'});
+   });
+   $(document).on('hidden.bs.modal', '#artm_satis_modal', function(){
+      $('#hss_tip, #hss_odeme, .hss-item').each(function(){ if($(this).hasClass('select2-hidden-accessible')){try{$(this).select2('destroy');}catch(e){}} });
+   });
+   // Satisi olustur -> gercek satis (kasa) + aramayi durum=7 isaretle
+   $(document).on('click', '#hss_kaydet', function(){
+      var tip = $('#hss_tip').val();
+      var itemId = $('#hss_item_'+tip).val();
+      var fiyat = $('#hss_fiyat').val();
+      var odeme = $('#hss_odeme').val();
+      var musteriId = $('#hss_musteri_id').val();
+      if (!itemId){ swal({type:'warning',title:'Seçim yapın',text:'Satılan paket/hizmet/ürünü seçin.'}); return; }
+      if (!fiyat || parseFloat(fiyat)<=0){ swal({type:'warning',title:'Fiyat girin',text:'Satış fiyatını girin.'}); return; }
+      if (!odeme){ swal({type:'warning',title:'Ödeme',text:'Ödeme yöntemi seçin.'}); return; }
+      var adet = parseInt($('#hss_adet').val()||1,10) || 1;
+      var satisToplam = parseFloat(fiyat) * (tip==='urun' ? adet : 1);
+      var _amId = artmAmId, _aramaId = artmAramaId;
+      var $btn = $(this); $btn.prop('disabled', true);
+      $.post('/isletmeyonetim/cagri-hizli-satis',
+         { sube:sube, musteri_id:musteriId, kalem_tip:tip, kalem_id:itemId, fiyat:fiyat, odeme_yontemi:odeme, adet:adet, _token:token },
+         function(res){
+            if (res && res.success){
+               $('#artm_satis_modal').modal('hide');
+               if (typeof swal==='function') swal({ type:'success', title:'Satış oluşturuldu', text:res.message||'Kasaya işlendi.', timer:2600, showConfirmButton:false });
+               // Aramayi otomatik "Satis"(durum=7) isaretle + cockpit kapat + takvim tazele
+               $.post('/isletmeyonetim/santral_not_ekle',
+                  { arama_detay_id:_aramaId, aranacak_musteri_id:_amId, noticerik:($('#artm_not').val()||''), sonuc:7, satis_tutari:satisToplam, _token:token },
+                  function(r){ if(r && r.success){ $('#artm_modal').modal('hide'); yukle(); } });
+            } else if (typeof swal==='function'){ swal({ type:'error', title:'Hata', text:(res&&res.message)||'Satış oluşturulamadı.' }); }
+         }
+      ).fail(function(){ if(typeof swal==='function') swal({ type:'error', title:'Hata', text:'İşlem başarısız.' }); })
+       .always(function(){ $btn.prop('disabled', false); });
    });
 
    // Tekrar aranacak toggle
