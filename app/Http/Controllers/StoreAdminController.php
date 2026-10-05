@@ -32825,7 +32825,7 @@ DB::raw('
         } else {
             $q->where('am.durum', 3);
         }
-        $secim = ['am.id', 'am.tarih', 'am.saat', 'am.durum', 'u.name as musteri_ad', 'p.personel_adi', 'al.personel_id'];
+        $secim = ['am.id', 'am.arama_id', 'am.tarih', 'am.saat', 'am.durum', 'u.name as musteri_ad', 'p.personel_adi', 'al.personel_id'];
         if ($arVar) { $secim[] = 'am.ar_tamamlandi_at'; $secim[] = 'am.ar_gecikti'; }
         $kayitlar = $q->select($secim)->limit(2000)->get();
 
@@ -32848,7 +32848,8 @@ DB::raw('
             $personel = $k->personel_adi ?: 'Personel';
             $musteri = $k->musteri_ad ?: 'Müşteri';
             $events[] = [
-                'id'              => $k->id,
+                'id'              => $k->id,          // aranacak_musteri_id
+                'arama_id'        => (int) $k->arama_id, // liste id (santral_not_ekle icin)
                 'title'           => $personel . ' · ' . $musteri,
                 'start'           => date('Y-m-d\TH:i:s', $apptTs),
                 'color'           => $renk,

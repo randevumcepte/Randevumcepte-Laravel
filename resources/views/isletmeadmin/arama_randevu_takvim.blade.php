@@ -38,12 +38,40 @@
 .art-bos{ padding:40px; text-align:center; color:#9a93ad; }
 .art-bos i{ font-size:34px; display:block; margin-bottom:10px; opacity:.5; }
 .art-spin{ padding:40px; text-align:center; color:#7B2FB8; }
+
+/* Arama Randevusu detay modali (cockpit) */
+#artm_modal .modal-header{ align-items:center; gap:12px; }
+#artm_modal .modal-title-wrap h5{ margin:0; font-weight:800; color:#1f2433; font-size:17px; }
+#artm_modal .modal-title-wrap small{ color:#6b6480; }
+.artm-ara-btn{ background:#16a34a; border:none; color:#fff; font-weight:800; border-radius:12px; padding:10px 18px; font-size:15px; margin-left:auto; cursor:pointer; }
+.artm-ara-btn:hover{ filter:brightness(.96); }
+.artm-ara-btn[disabled]{ opacity:.6; cursor:default; }
+.artm-kart-bas{ font-weight:700; color:#5C008E; font-size:13px; margin:6px 0 10px; display:flex; align-items:center; gap:7px; }
+.artm-sonuc-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.artm-donusum-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:8px; }
+.artm-sonuc{ border:1px solid #e7e9f0; border-radius:12px; padding:11px 8px; text-align:center; cursor:pointer; font-size:12.5px; font-weight:700; color:#5b6172; transition:all .12s; }
+.artm-sonuc i{ display:block; font-size:16px; margin-bottom:4px; }
+.artm-sonuc:hover{ border-color:#8b5cf6; }
+.artm-sonuc.aktif{ color:#fff; border-color:transparent; }
+.artm-sonuc.sec-yesil.aktif{ background:#16a34a; } .artm-sonuc.sec-kirmizi.aktif{ background:#dc2626; }
+.artm-sonuc.sec-koyukirmizi.aktif{ background:#991b1b; } .artm-sonuc.sec-turuncu.aktif{ background:#f59e0b; }
+.artm-sonuc.sec-mavi.aktif{ background:#2563eb; } .artm-sonuc.sec-altin.aktif{ background:#b8860b; }
+.artm-alan{ width:100%; border:1px solid #e7e9f0; border-radius:12px; padding:10px 12px; font-size:13.5px; outline:none; margin-top:12px; }
+textarea.artm-alan{ min-height:70px; resize:vertical; }
+.artm-sonra{ display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13px; font-weight:600; color:#4a4461; cursor:pointer; }
+.artm-sonra-alan{ display:none; gap:10px; flex-wrap:wrap; margin-top:10px; background:#faf7ff; border:1px solid #e3d5f5; border-radius:12px; padding:12px; }
+.artm-sonra-alan input{ flex:1; min-width:130px; border:1px solid #d9c9f0; border-radius:10px; padding:9px 11px; font-size:14px; }
+.artm-kaydet{ width:100%; margin-top:14px; background:linear-gradient(120deg,#6d28d9,#7c3aed); border:none; color:#fff; font-weight:800; border-radius:12px; padding:12px; cursor:pointer; font-size:14px; }
+.artm-kaydet:hover{ filter:brightness(.97); }
+#artm_gecmis .artm-g-item{ border-left:4px solid #c9c2de; background:#faf9fe; border:1px solid #eef0f5; border-radius:10px; padding:9px 11px; margin-top:8px; }
+#artm_gecmis audio{ width:100%; height:34px; margin-top:8px; }
+.artm-g-bos{ text-align:center; color:#a9a3bb; padding:18px; font-size:12.5px; }
 </style>
 
 <div class="art-wrap">
    <div class="art-hero">
       <h4><i class="fa fa-calendar-check-o"></i> {{ $sayfa_baslik }}</h4>
-      <p>Seçtiğiniz güne ait arama randevularını <b>personele göre</b> sütunlar halinde görün; her sütunda aramalar <b>saatine göre</b> sıralıdır. Bir aramaya tıklayınca o personelin detayına gidebilirsiniz.</p>
+      <p>Seçtiğiniz güne ait arama randevularını <b>personele göre</b> sütunlar halinde görün; her sütunda aramalar <b>saatine göre</b> sıralıdır. Bir aramaya tıklayınca <b>arama yapıp sonucu kaydedebilir</b>, geçmiş görüşmeleri ve ses kayıtlarını görebilirsiniz.</p>
       <a href="/isletmeyonetim/arama-dashboard?sube={{ $isletme->id }}" class="art-hero-btn"><i class="fa fa-arrow-left"></i> Performans Paneline Dön</a>
    </div>
 
@@ -69,6 +97,54 @@
 </div>
 
 <input type="hidden" name="sube" value="{{ $isletme->id }}">
+<input type="hidden" name="_token" value="{{ csrf_token() }}">
+
+{{-- Arama Randevusu detay modali: takvimden ARA + sonuc kaydetme (cockpit) --}}
+<div class="modal fade" id="artm_modal" tabindex="-1" role="dialog" aria-hidden="true">
+   <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content" style="border-radius:16px;">
+         <div class="modal-header">
+            <div class="modal-title-wrap">
+               <h5 id="artm_ad">Müşteri</h5>
+               <small><i class="fa fa-phone"></i> <span id="artm_tel">gizli</span> &middot; <span id="artm_zaman">-</span> &middot; <i class="fa fa-user"></i> <span id="artm_personel">-</span></small>
+            </div>
+            <button type="button" class="artm-ara-btn" id="artm_ara"><i class="fa fa-phone"></i> ARA</button>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Kapat"><span aria-hidden="true">&times;</span></button>
+         </div>
+         <div class="modal-body">
+            <div class="artm-kart-bas"><i class="fa fa-check-circle"></i> Görüşme Sonucu</div>
+            <div class="artm-sonuc-grid">
+               <div class="artm-sonuc sec-yesil" data-sonuc="4"><i class="fa fa-phone"></i>Görüşüldü</div>
+               <div class="artm-sonuc sec-kirmizi" data-sonuc="2"><i class="fa fa-phone-square"></i>Cevapsız</div>
+               <div class="artm-sonuc sec-koyukirmizi" data-sonuc="5"><i class="fa fa-ban"></i>Meşgul</div>
+               <div class="artm-sonuc sec-turuncu" data-sonuc="0"><i class="fa fa-volume-off"></i>Ulaşılamadı</div>
+            </div>
+            <div class="artm-kart-bas" style="margin-top:12px;">🎯 Sonuç (hedef)</div>
+            <div class="artm-donusum-grid">
+               <div class="artm-sonuc sec-mavi" data-sonuc="6"><i class="fa fa-calendar-check-o"></i>Ön Görüşme Randevusu</div>
+               <div class="artm-sonuc sec-altin" data-sonuc="7"><i class="fa fa-shopping-bag"></i>Telefonda Satış</div>
+            </div>
+            <textarea class="artm-alan" id="artm_not" placeholder="Görüşme notu (müşteri ne dedi, talep, vb.)..."></textarea>
+            <div id="artm_satis_alan" style="display:none;">
+               <input type="number" min="0" step="0.01" class="artm-alan" id="artm_satis_tutari" placeholder="Satış tutarı (₺)">
+            </div>
+            <label class="artm-sonra"><input type="checkbox" id="artm_sonra_chk"> 📅 ARAMA RANDEVUSU VER — müşteri sonra aranmak istedi (Tekrar Aranacak)</label>
+            <div class="artm-sonra-alan" id="artm_sonra_alan">
+               <input type="text" id="artm_sonra_tarih" autocomplete="off" readonly placeholder="Tarih seçin">
+               <input type="time" id="artm_sonra_saat">
+            </div>
+            <button class="artm-kaydet" id="artm_kaydet"><i class="fa fa-save"></i> Sonucu Kaydet</button>
+
+            <hr style="margin:18px 0 10px;">
+            <div class="artm-kart-bas" style="justify-content:space-between;">
+               <span><i class="fa fa-history"></i> Çağrı Geçmişi &amp; Ses Kayıtları</span>
+               <button type="button" class="btn-nav" id="artm_gecmis_yenile" style="padding:4px 10px;font-size:12px;"><i class="fa fa-refresh"></i> Yenile</button>
+            </div>
+            <div id="artm_gecmis"></div>
+         </div>
+      </div>
+   </div>
+</div>
 
 <script>
 $(document).ready(function(){
@@ -134,6 +210,8 @@ $(document).ready(function(){
             g.items.forEach(function(e){
                var saat = (e.start && e.start.length>=16) ? e.start.substr(11,5) : '';
                html += '<div class="art-item" style="border-left-color:'+esc(e.color)+'" '+
+                        'data-id="'+esc(e.id)+'" '+
+                        'data-arama="'+esc(e.arama_id)+'" '+
                         'data-pid="'+esc(e.personel_id)+'" '+
                         'data-musteri="'+esc(e.musteri)+'" '+
                         'data-personel="'+esc(e.personel)+'" '+
@@ -155,23 +233,159 @@ $(document).ready(function(){
       });
    }
 
-   // Bir aramaya tiklayinca personel detayina git
-   $(document).on('click', '#art_board .art-item', function(){
-      var pid = $(this).data('pid');
-      var metin = '👤 Personel: ' + ($(this).data('personel')||'-') + '\n'
-                + '📞 Müşteri: ' + ($(this).data('musteri')||'-') + '\n'
-                + '🕒 Saat: ' + ($(this).data('zaman')||'-') + '\n'
-                + '📌 Durum: ' + ($(this).data('durum')||'-');
-      var git = function(){ window.location.href = '/isletmeyonetim/arama-dashboard?sube=' + sube + '&acpersonel=' + pid; };
-      if (typeof swal === 'function'){
-         var r = swal({ title:'Arama Randevusu', text:metin, showCancelButton:true,
-            confirmButtonText:'Personel Detayı', cancelButtonText:'Kapat' },
-            function(onay){ if(onay) git(); });
-         if (r && typeof r.then === 'function'){ r.then(function(x){ if(x===true||(x&&x.value)) git(); }).catch(function(){}); }
-      } else {
-         if (confirm(metin + '\n\nPersonel detayına gidilsin mi?')) git();
+   // ================= Arama Randevusu detay modali (ARA + sonuc kaydetme) =================
+   var token = $('input[name="_token"]').val();
+   var artmAmId = null, artmAramaId = null, artmSonuc = null;
+
+   function artmDurStil(kod){
+      switch(parseInt(kod,10)){
+         case 4: return {et:'Görüşüldü', c:'#16a34a'};
+         case 2: return {et:'Cevapsız', c:'#dc2626'};
+         case 5: return {et:'Meşgul', c:'#991b1b'};
+         case 0: return {et:'Ulaşılamadı', c:'#f59e0b'};
+         case 6: return {et:'Ön Görüşme Randevusu', c:'#2563eb'};
+         case 7: return {et:'Telefonda Satış', c:'#b8860b'};
+         case 3: return {et:'Tekrar Aranacak', c:'#2563eb'};
+         default: return {et:'—', c:'#9a93ad'};
       }
+   }
+
+   // Bir aramaya tiklayinca cockpit modali ac
+   $(document).on('click', '#art_board .art-item', function(){
+      artmAmId   = $(this).data('id');
+      artmAramaId= $(this).data('arama');
+      artmSonuc  = null;
+      $('#artm_ad').text($(this).data('musteri') || 'Müşteri');
+      $('#artm_tel').text('gizli');
+      $('#artm_zaman').text($(this).data('zaman') || '-');
+      $('#artm_personel').text($(this).data('personel') || '-');
+      // reset form
+      $('.artm-sonuc').removeClass('aktif');
+      $('#artm_not').val('');
+      $('#artm_satis_alan').hide(); $('#artm_satis_tutari').val('');
+      $('#artm_sonra_chk').prop('checked', false);
+      $('#artm_sonra_alan').hide();
+      $('#artm_sonra_tarih').val(''); $('#artm_sonra_saat').val('');
+      $('#artm_ara').prop('disabled', false).html('<i class="fa fa-phone"></i> ARA');
+      $('#artm_gecmis').html('<div class="artm-g-bos"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>');
+      // tarih secici (varsa air-datepicker, sadece ileri tarih)
+      try {
+         if ($.fn.datepicker) {
+            $('#artm_sonra_tarih').datepicker({ minDate:new Date(), language:'tr', autoClose:true, dateFormat:'yyyy-mm-dd' });
+         }
+      } catch(e){}
+      artmGecmisYukle();
+      $('#artm_modal').modal();
    });
+
+   // Gorusme sonucu sec
+   $(document).on('click', '#artm_modal .artm-sonuc', function(){
+      var s = parseInt($(this).data('sonuc'),10);
+      if (artmSonuc === s){ artmSonuc = null; $(this).removeClass('aktif'); }
+      else { artmSonuc = s; $('.artm-sonuc').removeClass('aktif'); $(this).addClass('aktif'); }
+      $('#artm_satis_alan').toggle(artmSonuc === 7);
+   });
+
+   // Tekrar aranacak toggle
+   $(document).on('change', '#artm_sonra_chk', function(){
+      $('#artm_sonra_alan').css('display', this.checked ? 'flex' : 'none');
+   });
+
+   // ARA — softphone hazirsa dogrudan, degilse santral originate (arama_listelerim ile ayni)
+   $(document).on('click', '#artm_ara', function(){
+      if (!artmAmId) return;
+      var $btn = $(this);
+      var softphoneHazir = (window.webphoneHazir === true && typeof window.webphoneAra === 'function');
+      $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Bağlanıyor...');
+      $.ajax({ url:'/isletmeyonetim/arama-baslat', method:'POST',
+         data:{ aranacak_musteri_id:artmAmId, softphone: softphoneHazir ? 1 : 0, sube:sube, _token:token },
+         success:function(res){
+            if (res && res.success){
+               if (res.softphone && res.numara_ara){
+                  var ok = window.webphoneAra(res.numara_ara);
+                  if (!ok && typeof swal==='function'){ swal({type:'warning', title:'Softphone hazır değil', text:'Üst köşedeki telefonun "Bağlandı" olduğundan emin olun.'}); }
+               } else if (typeof swal==='function'){
+                  swal({type:'success', title:'Arama başlatıldı', text:res.message||'Telefonunuz çalacak.', timer:3000, showConfirmButton:false});
+               }
+            } else if (typeof swal==='function'){
+               swal({type:'warning', title:'Aranamadı', text:(res&&res.message)||'Arama başlatılamadı.'});
+            }
+            $btn.prop('disabled', false).html('<i class="fa fa-phone"></i> ARA');
+         },
+         error:function(xhr){
+            $btn.prop('disabled', false).html('<i class="fa fa-phone"></i> ARA');
+            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Arama başlatılamadı.';
+            if (typeof swal==='function') swal({type:'error', title:'Hata', text:msg});
+         }
+      });
+   });
+
+   // Sonucu kaydet
+   $(document).on('click', '#artm_kaydet', function(){
+      if (!artmAmId || !artmAramaId) return;
+      var sonraMu = $('#artm_sonra_chk').is(':checked');
+      var satisMi = (artmSonuc === 7);
+      var tarih = $('#artm_sonra_tarih').val();
+      var saat  = $('#artm_sonra_saat').val();
+      var not   = $('#artm_not').val();
+      var satisTutari = satisMi ? ($('#artm_satis_tutari').val()||'') : '';
+
+      if (sonraMu && (!tarih || !saat)){ if(typeof swal==='function') swal({type:'warning', title:'Tarih/saat seçin', text:'Tekrar arama için tarih ve saat seçin.'}); return; }
+      if (satisMi && (!satisTutari || parseFloat(satisTutari) <= 0)){ if(typeof swal==='function') swal({type:'warning', title:'Satış tutarı', text:'Telefonda satış için tutar girin.'}); return; }
+      if (!sonraMu && artmSonuc===null && !(not||'').trim()){ if(typeof swal==='function') swal({type:'warning', title:'Sonuç seçin', text:'Bir sonuç seçin, tekrar arama oluşturun ya da not yazın.'}); return; }
+
+      var $btn = $(this); $btn.prop('disabled', true);
+      $.ajax({ url:'/isletmeyonetim/santral_not_ekle', method:'POST',
+         data:{
+            arama_detay_id: artmAramaId,
+            aranacak_musteri_id: artmAmId,
+            noticerik: not,
+            sonuc: sonraMu ? '' : (artmSonuc===null ? '' : artmSonuc),
+            satis_tutari: satisMi ? satisTutari : '',
+            santralnottarih: sonraMu ? tarih : '',
+            santralnotsaat:  sonraMu ? saat  : '',
+            _token: token
+         },
+         success:function(res){
+            if (res && res.success){
+               if (typeof swal==='function') swal({type:'success', title:'Kaydedildi', timer:1300, showConfirmButton:false});
+               $('#artm_modal').modal('hide');
+               yukle(); // takvimi tazele (renk/durum guncellensin)
+            } else if (typeof swal==='function'){
+               swal({type:'error', title:'Hata', text:(res&&res.message)||'Kaydedilemedi.'});
+            }
+            $btn.prop('disabled', false);
+         },
+         error:function(){ $btn.prop('disabled', false); if(typeof swal==='function') swal({type:'error', title:'Hata', text:'Kaydedilirken sorun oluştu.'}); }
+      });
+   });
+
+   // Cagri gecmisi + ses kayitlari
+   function artmGecmisYukle(){
+      $.ajax({ url:'/isletmeyonetim/cagri-musteri-gecmisi', method:'POST',
+         data:{ aranacak_musteri_id:artmAmId, _token:token },
+         success:function(res){
+            var g = (res && res.gecmis) ? res.gecmis : [];
+            if (!g.length){ $('#artm_gecmis').html('<div class="artm-g-bos"><i class="fa fa-microphone-slash"></i> Bu müşteriyle henüz görüşme kaydedilmedi.</div>'); return; }
+            var html = '';
+            g.forEach(function(x){
+               var st = artmDurStil(x.sonuc_kod);
+               var ses = x.ses ? '<audio controls preload="none" src="'+esc(x.ses)+'"></audio>'
+                               : '<div style="font-size:11.5px;color:#aab0c0;margin-top:6px;"><i class="fa fa-hourglass-half"></i> Ses kaydı işleniyor — "Yenile"ye basın.</div>';
+               var rnd = (x.randevu_tarih) ? ' <span style="color:#1565c0;"><i class="fa fa-calendar-check-o"></i> '+esc(x.randevu_tarih)+(x.randevu_saat?(' '+esc(x.randevu_saat)):'')+'</span>' : '';
+               var sat = (x.satis_tutari) ? ' <span style="color:#b8860b;"><i class="fa fa-shopping-bag"></i> '+esc(x.satis_tutari)+' ₺</span>' : '';
+               html += '<div class="artm-g-item" style="border-left-color:'+st.c+'">'+
+                        '<div style="font-size:12.5px;"><i class="fa fa-clock-o"></i> '+esc(x.tarih)+' &middot; <b style="color:'+st.c+'">'+esc(st.et)+'</b>'+rnd+sat+'</div>'+
+                        (x.not ? '<div style="font-size:12.5px;color:#574f6b;margin-top:5px;"><i class="fa fa-sticky-note-o"></i> '+esc(x.not)+'</div>' : '')+
+                        ses+
+                     '</div>';
+            });
+            $('#artm_gecmis').html(html);
+         },
+         error:function(){ $('#artm_gecmis').html('<div class="artm-g-bos" style="color:#c62828;">Geçmiş yüklenemedi.</div>'); }
+      });
+   }
+   $(document).on('click', '#artm_gecmis_yenile', function(){ if(artmAmId){ $('#artm_gecmis').html('<div class="artm-g-bos"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>'); artmGecmisYukle(); } });
 
    $('#art_prev').on('click', function(){ $('#art_tarih').val(sonrakiGun($('#art_tarih').val(), -1)); yukle(); });
    $('#art_next').on('click', function(){ $('#art_tarih').val(sonrakiGun($('#art_tarih').val(), 1)); yukle(); });
