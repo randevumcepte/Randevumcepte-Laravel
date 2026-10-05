@@ -6181,23 +6181,49 @@ document.addEventListener('DOMContentLoaded', function() {
     ov.querySelector('.kapat').addEventListener('click', function(){ ov.remove(); });
   }
 
+  // Coklu yeni bildirim icin TEK ozet popup (ust uste yigma + render kilitlenmesi fix).
+  function gosterToplu(list){
+    var c = { on5:0, zaman:0, gecikti:0 };
+    list.forEach(function(r){ var f = r.faz || 'zaman'; c[f] = (c[f]||0) + 1; });
+    var parcalar = [];
+    if(c.zaman)   parcalar.push('📞 ' + c.zaman + ' arama zamanı geldi');
+    if(c.gecikti) parcalar.push('⚠️ ' + c.gecikti + ' geciken arama');
+    if(c.on5)     parcalar.push('⏰ ' + c.on5 + ' yaklaşan arama');
+    var cls = c.gecikti ? 'gecikti' : (c.zaman ? 'zaman' : '');
+    var ov = document.createElement('div');
+    ov.className = 'rmc-ara-overlay';
+    ov.innerHTML =
+        '<div class="rmc-ara-box '+cls+'">'
+      + '  <div class="rmc-ara-emoji">📋</div>'
+      + '  <p class="rmc-ara-lbl">Arama Randevuları</p>'
+      + '  <h3 class="rmc-ara-name"></h3>'
+      + '  <p class="rmc-ara-time">'+parcalar.join(' · ')+'</p>'
+      + '  <div class="rmc-ara-btns">'
+      + '    <button class="rmc-ara-btn ara">📞 Listeyi Aç</button>'
+      + '    <button class="rmc-ara-btn kapat">Kapat</button>'
+      + '  </div>'
+      + '</div>';
+    ov.querySelector('.rmc-ara-name').textContent = list.length + ' arama bekliyor';
+    document.body.appendChild(ov);
+    bip();
+    ov.querySelector('.ara').addEventListener('click', function(){ window.location.href = '/isletmeyonetim/arama-randevularim' + (subeParam || ''); });
+    ov.querySelector('.kapat').addEventListener('click', function(){ ov.remove(); });
+  }
+
   function kontrol(){
     if(window.__aramaCockpit) return; // cockpit kendi daha zengin popup'ini yonetiyor
+    if(document.querySelector('.rmc-ara-overlay')) return; // zaten bir popup acik -> UST USTE YIGMA
     fetch('/isletmeyonetim/cagri-yaklasan-randevular' + (subeParam || ''), {
       credentials:'same-origin', headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}
     }).then(function(x){ return x.json(); }).then(function(d){
       var liste = (d && d.randevular) ? d.randevular : [];
       var yeni = liste.filter(function(r){ return !gosterilen[r.id + '|' + r.faz]; });
       if(!yeni.length) return;
-      var idx = 0;
-      function sira(){
-        if(idx >= yeni.length) return;
-        var r = yeni[idx];
-        gosterilen[r.id + '|' + r.faz] = 1; kaydet();
-        gosterModal(r);
-        idx++; setTimeout(sira, 600);
-      }
-      sira();
+      // Hepsini 'gosterildi' isaretle -> tekrar/ust uste cikmaz (cron+panel bildirimi zaten var)
+      yeni.forEach(function(r){ gosterilen[r.id + '|' + r.faz] = 1; });
+      kaydet();
+      if(yeni.length === 1){ gosterModal(yeni[0]); }   // tek ise zengin kart
+      else { gosterToplu(yeni); }                       // coksa TEK ozet popup
     }).catch(function(){});
   }
 
