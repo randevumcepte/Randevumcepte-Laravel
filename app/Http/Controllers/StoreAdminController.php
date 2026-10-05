@@ -32827,10 +32827,10 @@ DB::raw('
             ->whereBetween('am.tarih', [$bas, $bit]);
         if ($arVar) {
             $q->where(function ($w) {
-                $w->where('am.durum', 3)->orWhereNotNull('am.ar_tamamlandi_at');
+                $w->where('am.durum', 3)->orWhereIn('am.durum', [6, 7])->orWhereNotNull('am.ar_tamamlandi_at');
             });
         } else {
-            $q->where('am.durum', 3);
+            $q->whereIn('am.durum', [3, 6, 7]);
         }
         $secim = ['am.id', 'am.arama_id', 'am.tarih', 'am.saat', 'am.durum', 'am.musteri_not', 'u.name as musteri_ad', 'p.personel_adi', 'al.personel_id'];
         if ($arVar) { $secim[] = 'am.ar_tamamlandi_at'; $secim[] = 'am.ar_gecikti'; }
@@ -32841,11 +32841,18 @@ DB::raw('
         foreach ($kayitlar as $k) {
             $apptTs = strtotime($k->tarih . ' ' . $k->saat);
             $tamamlandi = $arVar && !empty($k->ar_tamamlandi_at);
-            if ($tamamlandi) {
+            $d = (int) $k->durum;
+            if ($d === 6) {
+                $renk = '#7c3aed';                               // mor=ön görüşme
+                $durumMetin = 'Ön Görüşme';
+            } elseif ($d === 7) {
+                $renk = '#b8860b';                               // altın=satış
+                $durumMetin = 'Satış';
+            } elseif ($tamamlandi) {
                 $gec = strtotime($k->ar_tamamlandi_at) > $apptTs;
                 $renk = $gec ? '#f59e0b' : '#16a34a';            // turuncu=geç arandı, yeşil=zamanında
                 $durumMetin = $gec ? 'Geç arandı' : 'Zamanında arandı';
-            } elseif ((int) $k->durum === 3 && ($apptTs < $nowTs || ($arVar && (int) $k->ar_gecikti === 1))) {
+            } elseif ($d === 3 && ($apptTs < $nowTs || ($arVar && (int) $k->ar_gecikti === 1))) {
                 $renk = '#dc2626';                                // kırmızı=gecikti
                 $durumMetin = 'Gecikti';
             } else {

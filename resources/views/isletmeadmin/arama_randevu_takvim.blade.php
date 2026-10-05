@@ -99,6 +99,8 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
          <span class="lg flt" data-renk="#dc2626"><span class="dot" style="background:#dc2626;"></span> Geciken (aranmadı) <span class="cnt" id="cnt_gecikti">0</span></span>
          <span class="lg flt" data-renk="#16a34a"><span class="dot" style="background:#16a34a;"></span> Zamanında arandı <span class="cnt" id="cnt_zamaninda">0</span></span>
          <span class="lg flt" data-renk="#f59e0b"><span class="dot" style="background:#f59e0b;"></span> Geç arandı <span class="cnt" id="cnt_gec">0</span></span>
+         <span class="lg flt" data-renk="#7c3aed"><span class="dot" style="background:#7c3aed;"></span> Ön Görüşme <span class="cnt" id="cnt_ongorusme">0</span></span>
+         <span class="lg flt" data-renk="#b8860b"><span class="dot" style="background:#b8860b;"></span> Satış <span class="cnt" id="cnt_satis">0</span></span>
       </div>
 
       <div id="art_board"></div>
@@ -203,13 +205,15 @@ $(document).ready(function(){
 
    // Durum (renk) bazli musteri sayilarini legend'e yaz
    function sayilariGuncelle(){
-      var c = {'#2563eb':0,'#dc2626':0,'#16a34a':0,'#f59e0b':0};
+      var c = {'#2563eb':0,'#dc2626':0,'#16a34a':0,'#f59e0b':0,'#7c3aed':0,'#b8860b':0};
       artOlaylar.forEach(function(e){ if(c[e.color]!==undefined) c[e.color]++; });
       $('#cnt_all').text(artOlaylar.length);
       $('#cnt_aranacak').text(c['#2563eb']);
       $('#cnt_gecikti').text(c['#dc2626']);
       $('#cnt_zamaninda').text(c['#16a34a']);
       $('#cnt_gec').text(c['#f59e0b']);
+      $('#cnt_ongorusme').text(c['#7c3aed']);
+      $('#cnt_satis').text(c['#b8860b']);
    }
 
    // Aktif filtreye gore board'u ciz
