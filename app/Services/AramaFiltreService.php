@@ -71,44 +71,44 @@ class AramaFiltreService
             }
         }
 
-        // 2) Adisyon (satis fisi = "geldi + islem yapti") bazli musteri durumu.
-        //    musteri_liste_getir (ApiController) ile ayni mantik: adisyon sayisi.
-        //    Pasif = 0 adisyon, Aktif = 1-2, Sadik = 3+.
+        // 2) Musteri durumu = ODEME (tahsilat) SAYISI. musteri_liste_getir (ApiController)
+        //    ile AYNI taban: normal salonda `tahsilatlar` satir sayisi; studyo modunda
+        //    tahsilat tutulmadigindan `adisyonlar.odendi=1` ('Odeme Alindi') sayisi.
+        //    Esik: 0 -> Pasif, 1-2 -> Aktif, 3+ -> Sadik.
+        $studyoModu = Schema::hasColumn('adisyonlar', 'odendi')
+            && (bool) \App\Salonlar::where('id', $salonId)->value('studyo_modu');
+        $odemeTablo = $studyoModu ? 'adisyonlar' : 'tahsilatlar';
+        // Odeme alt-sorgusunu kuran yardimci (user+salon [+ studyo: odendi=1])
+        $odemeTemel = function ($q) use ($salonId, $odemeTablo, $studyoModu) {
+            $q->select(DB::raw(1))->from($odemeTablo)
+                ->whereRaw($odemeTablo . '.user_id = musteri_portfoy.user_id')
+                ->where($odemeTablo . '.salon_id', $salonId);
+            if ($studyoModu) $q->where($odemeTablo . '.odendi', 1);
+        };
         $durum = $f['durum'] ?? '';
         if ($durum === 'pasif') {
-            $query->whereNotExists(function ($q) use ($salonId, $silindiVar) {
-                $q->select(DB::raw(1))->from('adisyonlar')
-                    ->whereRaw('adisyonlar.user_id = musteri_portfoy.user_id')
-                    ->where('adisyonlar.salon_id', $salonId);
-                if ($silindiVar) $q->whereRaw('IFNULL(adisyonlar.silindi,0)=0');
-            });
+            $query->whereNotExists($odemeTemel);
         } elseif ($durum === 'aktif') {
-            $query->whereExists(function ($q) use ($salonId, $silindiVar) {
-                $q->select(DB::raw(1))->from('adisyonlar')
-                    ->whereRaw('adisyonlar.user_id = musteri_portfoy.user_id')
-                    ->where('adisyonlar.salon_id', $salonId);
-                if ($silindiVar) $q->whereRaw('IFNULL(adisyonlar.silindi,0)=0');
-                $q->groupBy('adisyonlar.user_id')->havingRaw('COUNT(*) BETWEEN 1 AND 2');
+            $query->whereExists(function ($q) use ($odemeTemel, $odemeTablo) {
+                $odemeTemel($q);
+                $q->groupBy($odemeTablo . '.user_id')->havingRaw('COUNT(*) BETWEEN 1 AND 2');
             });
         } elseif ($durum === 'sadik') {
-            $query->whereExists(function ($q) use ($salonId, $silindiVar) {
-                $q->select(DB::raw(1))->from('adisyonlar')
-                    ->whereRaw('adisyonlar.user_id = musteri_portfoy.user_id')
-                    ->where('adisyonlar.salon_id', $salonId);
-                if ($silindiVar) $q->whereRaw('IFNULL(adisyonlar.silindi,0)=0');
-                $q->groupBy('adisyonlar.user_id')->havingRaw('COUNT(*) >= 3');
+            $query->whereExists(function ($q) use ($odemeTemel, $odemeTablo) {
+                $odemeTemel($q);
+                $q->groupBy($odemeTablo . '.user_id')->havingRaw('COUNT(*) >= 3');
             });
         }
 
-        // 3) Belirli gun gelmeyenler. "Son gelis" = musterinin GERCEKTEN geldigi/islem
-        //    yaptigi son tarih = en son adisyonun tarihi (COALESCE(tarih,created_at)).
-        //    Iptal/gelinmeyen randevular SAYILMAZ (adisyon = gercek gelis). Hic adisyonu
-        //    olmayan (MAX NULL) bu filtreye girmez; onlar zaten "Pasif" segmentidir.
+        // 3) Belirli gun gelmeyenler = RANDEVUYA gelme bazli. "Son gelis" = musterinin
+        //    GELDIGI (durum=1 AND randevuya_geldi=1) en son RANDEVU tarihi. Bu tarih
+        //    N gunden eski ise "N gundur gelmemis" sayilir. Hic gelinmis randevusu
+        //    olmayan (MAX NULL) bu filtreye girmez (onlar "hic randevu almamis"/"pasif").
         $gelmeyen = $f['gelmeyen'] ?? '';
         if (in_array((int) $gelmeyen, [15, 30, 60, 90], true)) {
             $sinir = Carbon::now()->subDays((int) $gelmeyen)->toDateString();
             $query->whereRaw(
-                '(SELECT MAX(COALESCE(adisyonlar.tarih, adisyonlar.created_at)) FROM adisyonlar WHERE adisyonlar.user_id = musteri_portfoy.user_id AND adisyonlar.salon_id = ?' . $silindiSql . ') < ?',
+                '(SELECT MAX(randevular.tarih) FROM randevular WHERE randevular.user_id = musteri_portfoy.user_id AND randevular.salon_id = ? AND randevular.durum = 1 AND randevular.randevuya_geldi = 1) < ?',
                 [$salonId, $sinir]
             );
         }
