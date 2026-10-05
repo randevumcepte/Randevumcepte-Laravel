@@ -19,9 +19,15 @@
 .art-ctrl .art-gun-baslik{ font-weight:800; color:#2b1b45; font-size:16px; margin-left:4px; }
 .art-ctrl .art-say{ margin-left:auto; font-size:13px; color:#6d28d9; font-weight:700; }
 
-.art-legend{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:14px; font-size:12.5px; color:#5a5570; }
+.art-legend{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; font-size:12.5px; color:#5a5570; }
 .art-legend .lg{ display:inline-flex; align-items:center; gap:6px; }
 .art-legend .dot{ width:12px; height:12px; border-radius:3px; display:inline-block; }
+/* Tiklanabilir durum filtreleri */
+.art-legend .flt{ cursor:pointer; padding:6px 12px; border-radius:20px; border:1px solid #ece7f6; background:#fff; transition:all .12s; user-select:none; }
+.art-legend .flt:hover{ border-color:#8b5cf6; }
+.art-legend .flt.aktif{ background:#f1edfb; border-color:#8b5cf6; color:#6d28d9; font-weight:700; }
+.art-legend .cnt{ background:#eef0f5; color:#5b6172; border-radius:20px; padding:1px 8px; font-size:11.5px; margin-left:4px; font-weight:700; }
+.art-legend .flt.aktif .cnt{ background:#8b5cf6; color:#fff; }
 
 /* Resource board */
 .art-board{ display:flex; gap:14px; overflow-x:auto; padding-bottom:10px; align-items:flex-start; }
@@ -87,11 +93,12 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
          <span class="art-say" id="art_say"></span>
       </div>
 
-      <div class="art-legend">
-         <span class="lg"><span class="dot" style="background:#2563eb;"></span> Aranacak</span>
-         <span class="lg"><span class="dot" style="background:#dc2626;"></span> Geciken (aranmadı)</span>
-         <span class="lg"><span class="dot" style="background:#16a34a;"></span> Zamanında arandı</span>
-         <span class="lg"><span class="dot" style="background:#f59e0b;"></span> Geç arandı</span>
+      <div class="art-legend" id="art_legend">
+         <span class="lg flt aktif" data-renk=""><span class="dot" style="background:#9a93ad;"></span> Tümü <span class="cnt" id="cnt_all">0</span></span>
+         <span class="lg flt" data-renk="#2563eb"><span class="dot" style="background:#2563eb;"></span> Aranacak <span class="cnt" id="cnt_aranacak">0</span></span>
+         <span class="lg flt" data-renk="#dc2626"><span class="dot" style="background:#dc2626;"></span> Geciken (aranmadı) <span class="cnt" id="cnt_gecikti">0</span></span>
+         <span class="lg flt" data-renk="#16a34a"><span class="dot" style="background:#16a34a;"></span> Zamanında arandı <span class="cnt" id="cnt_zamaninda">0</span></span>
+         <span class="lg flt" data-renk="#f59e0b"><span class="dot" style="background:#f59e0b;"></span> Geç arandı <span class="cnt" id="cnt_gec">0</span></span>
       </div>
 
       <div id="art_board"></div>
@@ -169,6 +176,9 @@ $(document).ready(function(){
       return dt.getFullYear()+'-'+m+'-'+g;
    }
 
+   var artOlaylar = [];   // o gune ait tum aramalar
+   var artFiltre  = '';   // '' = tumu; '#2563eb' / '#dc2626' / '#16a34a' / '#f59e0b'
+
    function yukle(){
       var gun = $('#art_tarih').val();
       if(!gun){ return; }
@@ -181,59 +191,85 @@ $(document).ready(function(){
          start: gun,
          end: gun   // tek gun (endpoint whereBetween KAPSAYICI -> ayni gun)
       }, function(res){
-         var olaylar = res || [];
-         if(!olaylar.length){
-            $('#art_board').html('<div class="art-bos"><i class="fa fa-calendar-o"></i>Bu güne ait arama randevusu yok.</div>');
-            $('#art_say').text('0 arama');
-            return;
-         }
-
-         // Personele gore grupla
-         var grup = {};
-         olaylar.forEach(function(e){
-            var k = e.personel_id || 0;
-            if(!grup[k]) grup[k] = { ad: e.personel || 'Personel', items: [] };
-            grup[k].items.push(e);
-         });
-
-         // Personel adina gore sirala
-         var pidler = Object.keys(grup).sort(function(a,b){
-            return grup[a].ad.localeCompare(grup[b].ad, 'tr');
-         });
-
-         var html = '<div class="art-board">';
-         pidler.forEach(function(pid){
-            var g = grup[pid];
-            // Saate gore sirala
-            g.items.sort(function(a,b){ return (a.start||'').localeCompare(b.start||''); });
-            html += '<div class="art-col">';
-            html +=   '<div class="art-col-head"><span>'+esc(g.ad)+'</span><span class="adet">'+g.items.length+'</span></div>';
-            html +=   '<div class="art-col-body">';
-            g.items.forEach(function(e){
-               var saat = (e.start && e.start.length>=16) ? e.start.substr(11,5) : '';
-               html += '<div class="art-item" style="border-left-color:'+esc(e.color)+'" '+
-                        'data-id="'+esc(e.id)+'" '+
-                        'data-arama="'+esc(e.arama_id)+'" '+
-                        'data-pid="'+esc(e.personel_id)+'" '+
-                        'data-musteri="'+esc(e.musteri)+'" '+
-                        'data-personel="'+esc(e.personel)+'" '+
-                        'data-zaman="'+esc(saat)+'" '+
-                        'data-durum="'+esc(e.durum_metin)+'">'+
-                        '<div class="saat"><i class="fa fa-clock-o" style="color:'+esc(e.color)+'"></i> '+esc(saat)+'</div>'+
-                        '<div class="mus">'+esc(e.musteri)+'</div>'+
-                        '<span class="durum" style="background:'+esc(e.color)+'1a;color:'+esc(e.color)+'">'+esc(e.durum_metin)+'</span>'+
-                     '</div>';
-            });
-            html +=   '</div>';
-            html += '</div>';
-         });
-         html += '</div>';
-         $('#art_board').html(html);
-         $('#art_say').text(olaylar.length + ' arama · ' + pidler.length + ' personel');
+         artOlaylar = res || [];
+         sayilariGuncelle();
+         ciz();
       }).fail(function(){
          $('#art_board').html('<div class="art-bos" style="color:#c62828;"><i class="fa fa-exclamation-triangle"></i>Yüklenirken hata oluştu.</div>');
       });
    }
+
+   // Durum (renk) bazli musteri sayilarini legend'e yaz
+   function sayilariGuncelle(){
+      var c = {'#2563eb':0,'#dc2626':0,'#16a34a':0,'#f59e0b':0};
+      artOlaylar.forEach(function(e){ if(c[e.color]!==undefined) c[e.color]++; });
+      $('#cnt_all').text(artOlaylar.length);
+      $('#cnt_aranacak').text(c['#2563eb']);
+      $('#cnt_gecikti').text(c['#dc2626']);
+      $('#cnt_zamaninda').text(c['#16a34a']);
+      $('#cnt_gec').text(c['#f59e0b']);
+   }
+
+   // Aktif filtreye gore board'u ciz
+   function ciz(){
+      if(!artOlaylar.length){
+         $('#art_board').html('<div class="art-bos"><i class="fa fa-calendar-o"></i>Bu güne ait arama randevusu yok.</div>');
+         $('#art_say').text('0 arama');
+         return;
+      }
+      var liste = artFiltre ? artOlaylar.filter(function(e){ return e.color === artFiltre; }) : artOlaylar;
+      if(!liste.length){
+         $('#art_board').html('<div class="art-bos"><i class="fa fa-filter"></i>Bu filtreye uygun arama yok.</div>');
+         $('#art_say').text('0 / ' + artOlaylar.length + ' arama');
+         return;
+      }
+
+      // Personele gore grupla
+      var grup = {};
+      liste.forEach(function(e){
+         var k = e.personel_id || 0;
+         if(!grup[k]) grup[k] = { ad: e.personel || 'Personel', items: [] };
+         grup[k].items.push(e);
+      });
+      var pidler = Object.keys(grup).sort(function(a,b){ return grup[a].ad.localeCompare(grup[b].ad, 'tr'); });
+
+      var html = '<div class="art-board">';
+      pidler.forEach(function(pid){
+         var g = grup[pid];
+         g.items.sort(function(a,b){ return (a.start||'').localeCompare(b.start||''); });
+         html += '<div class="art-col">';
+         html +=   '<div class="art-col-head"><span>'+esc(g.ad)+'</span><span class="adet">'+g.items.length+'</span></div>';
+         html +=   '<div class="art-col-body">';
+         g.items.forEach(function(e){
+            var saat = (e.start && e.start.length>=16) ? e.start.substr(11,5) : '';
+            html += '<div class="art-item" style="border-left-color:'+esc(e.color)+'" '+
+                     'data-id="'+esc(e.id)+'" '+
+                     'data-arama="'+esc(e.arama_id)+'" '+
+                     'data-pid="'+esc(e.personel_id)+'" '+
+                     'data-musteri="'+esc(e.musteri)+'" '+
+                     'data-personel="'+esc(e.personel)+'" '+
+                     'data-zaman="'+esc(saat)+'" '+
+                     'data-durum="'+esc(e.durum_metin)+'">'+
+                     '<div class="saat"><i class="fa fa-clock-o" style="color:'+esc(e.color)+'"></i> '+esc(saat)+'</div>'+
+                     '<div class="mus">'+esc(e.musteri)+'</div>'+
+                     '<span class="durum" style="background:'+esc(e.color)+'1a;color:'+esc(e.color)+'">'+esc(e.durum_metin)+'</span>'+
+                  '</div>';
+         });
+         html +=   '</div>';
+         html += '</div>';
+      });
+      html += '</div>';
+      $('#art_board').html(html);
+      $('#art_say').text((artFiltre ? (liste.length + ' / ' + artOlaylar.length) : artOlaylar.length) + ' arama · ' + pidler.length + ' personel');
+   }
+
+   // Legend durum filtresi
+   $(document).on('click', '#art_legend .flt', function(){
+      artFiltre = $(this).attr('data-renk') || '';
+      $('#art_legend .flt').removeClass('aktif');
+      $(this).addClass('aktif');
+      ciz();
+   });
 
    // ================= Arama Randevusu detay modali (ARA + sonuc kaydetme) =================
    var token = $('input[name="_token"]').val();
