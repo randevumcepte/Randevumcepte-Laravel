@@ -40,9 +40,11 @@
 .art-spin{ padding:40px; text-align:center; color:#7B2FB8; }
 
 /* Arama Randevusu detay modali (cockpit) */
-#artm_modal .modal-header{ align-items:center; gap:12px; }
-#artm_modal .modal-title-wrap h5{ margin:0; font-weight:800; color:#1f2433; font-size:17px; }
-#artm_modal .modal-title-wrap small{ color:#6b6480; }
+#artm_modal .modal-header{ align-items:center; gap:12px; background:linear-gradient(120deg,#5C008E,#7B2FB8); border-top-left-radius:16px; border-top-right-radius:16px; border-bottom:none; }
+#artm_modal .modal-title-wrap h5{ margin:0; font-weight:800; color:#fff; font-size:17px; }
+#artm_modal .modal-title-wrap small{ color:rgba(255,255,255,.88); }
+#artm_modal .modal-header .close{ color:#fff; opacity:.9; text-shadow:none; }
+#artm_modal .modal-header .close:hover{ opacity:1; }
 .artm-ara-btn{ background:#16a34a; border:none; color:#fff; font-weight:800; border-radius:12px; padding:10px 18px; font-size:15px; margin-left:auto; cursor:pointer; }
 .artm-ara-btn:hover{ filter:brightness(.96); }
 .artm-ara-btn[disabled]{ opacity:.6; cursor:default; }
@@ -86,7 +88,7 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
       </div>
 
       <div class="art-legend">
-         <span class="lg"><span class="dot" style="background:#2563eb;"></span> Planlı</span>
+         <span class="lg"><span class="dot" style="background:#2563eb;"></span> Aranacak</span>
          <span class="lg"><span class="dot" style="background:#dc2626;"></span> Geciken (aranmadı)</span>
          <span class="lg"><span class="dot" style="background:#16a34a;"></span> Zamanında arandı</span>
          <span class="lg"><span class="dot" style="background:#f59e0b;"></span> Geç arandı</span>

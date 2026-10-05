@@ -32842,8 +32842,8 @@ DB::raw('
                 $renk = '#dc2626';                                // kırmızı=gecikti
                 $durumMetin = 'Gecikti';
             } else {
-                $renk = '#2563eb';                                // mavi=planlı
-                $durumMetin = 'Planlı';
+                $renk = '#2563eb';                                // mavi=aranacak (planlı)
+                $durumMetin = 'Aranacak';
             }
             $personel = $k->personel_adi ?: 'Personel';
             $musteri = $k->musteri_ad ?: 'Müşteri';
