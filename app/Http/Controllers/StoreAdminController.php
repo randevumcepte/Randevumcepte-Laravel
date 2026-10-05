@@ -33773,7 +33773,7 @@ DB::raw('
         $salonId = self::mevcutsube($request);
         $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
 
-        $q = AramaListesi::where('salon_id', $salonId);
+        $q = AramaListesi::where('salon_id', $salonId)->where('durum', 1); // SADECE aktif liste bildirim/popup uretir
         if ($rol == 5) {
             $q->where('personel_id', $this->aktifPersonelId($salonId));
         }

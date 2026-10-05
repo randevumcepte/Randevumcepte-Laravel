@@ -53,6 +53,7 @@ class TekrarAramaHatirlat extends Command
         return DB::table('aranacak_musteriler as am')
             ->join('arama_listesi as al', 'al.id', '=', 'am.arama_id')
             ->leftJoin('users as u', 'u.id', '=', 'am.user_id')
+            ->where('al.durum', 1)   // SADECE aktif liste hatirlatma uretir
             ->where('am.durum', 3)
             ->whereNotNull('am.tarih')->where('am.tarih', '!=', '')
             ->whereNotNull('am.saat')->where('am.saat', '!=', '')
@@ -103,6 +104,7 @@ class TekrarAramaHatirlat extends Command
         $gecikenler = DB::table('aranacak_musteriler as am')
             ->join('arama_listesi as al', 'al.id', '=', 'am.arama_id')
             ->leftJoin('users as u', 'u.id', '=', 'am.user_id')
+            ->where('al.durum', 1)   // SADECE aktif liste hatirlatma uretir
             ->where('am.durum', 3)
             ->where('am.ar_gecikti', 0)
             ->whereNull('am.ar_tamamlandi_at')
