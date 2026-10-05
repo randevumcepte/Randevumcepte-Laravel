@@ -44,6 +44,22 @@ class WhatsAppService
         return in_array($gonderimTipi, self::KONTOR_UCRETSIZ_TIPLER, true);
     }
 
+    /**
+     * Gunluk WA limitinden (whatsapp_gunluk_limit) MUAF tipler — guvenlik mesajlari.
+     * Sebep: SMS kredisi olmayan isletmelerde WA limit dolunca sifre/OTP hic
+     * ulasmiyor, musteri sisteme giremiyordu. Guvenlik tipleri daily cap'i bypass eder;
+     * istege bagli business hours'i da (urgent=true parametresiyle) bypass ediyorlar zaten.
+     */
+    const DAILY_CAP_MUAF_TIPLER = [
+        'sifre_sifirlama',
+        'geldi_dogrulama_kodu',
+        'cark_kodu',
+    ];
+    protected function dailyCapMuafMi($gonderimTipi)
+    {
+        return $gonderimTipi && in_array($gonderimTipi, self::DAILY_CAP_MUAF_TIPLER, true);
+    }
+
     public function __construct()
     {
         $this->baseUrl = rtrim(config('whatsapp.service_url'), '/');
@@ -137,7 +153,9 @@ class WhatsAppService
             return ['ok' => false, 'error' => 'kara-liste'];
         }
 
-        if (!$this->canSendToday($salon)) {
+        // Gunluk limit — guvenlik tipleri (sifre/OTP/cark) MUAF.
+        // SMS kredisi yoksa sifre hic ulasmiyordu; kullanici karari.
+        if (!$this->dailyCapMuafMi($gonderimTipi) && !$this->canSendToday($salon)) {
             return ['ok' => false, 'error' => 'daily-cap-reached'];
         }
 
