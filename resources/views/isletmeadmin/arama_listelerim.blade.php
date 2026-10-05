@@ -866,14 +866,23 @@ $(document).on('click', '#hs_kaydet', function(){
    if (!itemId){ swal({type:'warning',title:'Seçim yapın',text:'Satılan paket/hizmet/ürünü seçin.'}); return; }
    if (!fiyat || parseFloat(fiyat)<=0){ swal({type:'warning',title:'Fiyat girin',text:'Satış fiyatını girin.'}); return; }
    if (!odeme){ swal({type:'warning',title:'Ödeme',text:'Ödeme yöntemi seçin.'}); return; }
+   var adet = parseInt($('#hs_adet').val()||1,10) || 1;
+   var satisToplam = parseFloat(fiyat) * (tip==='urun' ? adet : 1);
    var $btn = $(this); $btn.prop('disabled', true);
    $.post('/isletmeyonetim/cagri-hizli-satis',
       { sube:$('input[name="sube"]').val(), musteri_id:musteriId, kalem_tip:tip, kalem_id:itemId,
-        fiyat:fiyat, odeme_yontemi:odeme, adet:$('#hs_adet').val()||1, _token:$('input[name="_token"]').val() },
+        fiyat:fiyat, odeme_yontemi:odeme, adet:adet, _token:$('input[name="_token"]').val() },
       function(res){
          if (res && res.success){
             $('#ag_satis_modal').modal('hide');
             swal({ type:'success', title:'Satış oluşturuldu', text:res.message||'Kasaya işlendi.', timer:2600, showConfirmButton:false });
+            // Aramayi otomatik "Satis"(durum=7) isaretle -> ayrica Sonucu Kaydet gerekmesin
+            if (agSecili && agAktifListe){
+               var _amId = agSecili.aranacak_musteri_id, _listeId = agAktifListe;
+               $.post('/isletmeyonetim/santral_not_ekle',
+                  { arama_detay_id:_listeId, aranacak_musteri_id:_amId, noticerik:($('#ag_not').val()||''), sonuc:7, satis_tutari:satisToplam, _token:$('input[name="_token"]').val() },
+                  function(r){ if(r && r.success){ agDurumGuncelle(_amId, 7); agGecmisYukle(_amId); } });
+            }
          } else { swal({ type:'error', title:'Hata', text:(res&&res.message)||'Satış oluşturulamadı.' }); }
       }
    ).fail(function(){ swal({ type:'error', title:'Hata', text:'İşlem başarısız.' }); })
