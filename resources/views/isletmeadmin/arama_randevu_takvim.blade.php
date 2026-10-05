@@ -134,8 +134,10 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
                <div class="artm-sonuc sec-altin" data-sonuc="7"><i class="fa fa-shopping-bag"></i>Telefonda Satış</div>
             </div>
             <textarea class="artm-alan" id="artm_not" placeholder="Görüşme notu (müşteri ne dedi, talep, vb.)..."></textarea>
-            <div id="artm_satis_alan" style="display:none;">
-               <input type="number" min="0" step="0.01" class="artm-alan" id="artm_satis_tutari" placeholder="Satış tutarı (₺)">
+            <div id="artm_satis_alan" style="display:none;background:#fffaf0;border:1px solid #f0dcb0;border-radius:12px;padding:12px;margin-top:12px;">
+               <div style="font-size:12.5px;font-weight:700;color:#b26a00;margin-bottom:6px;"><i class="fa fa-shopping-bag"></i> Telefonda Satış tutarı (₺)</div>
+               <input type="number" min="0" step="0.01" class="artm-alan" id="artm_satis_tutari" placeholder="örn: 1500" style="margin-top:0;">
+               <div style="font-size:11.5px;color:#8a8398;margin-top:6px;"><i class="fa fa-info-circle"></i> Sadece görüşme kaydına yazılır (satış notu + tutar). Kasaya / tahsilata <b>otomatik işlenmez</b> — tahsilat için satışı ayrıca kaydedin.</div>
             </div>
             <label class="artm-sonra"><input type="checkbox" id="artm_sonra_chk"> 📅 ARAMA RANDEVUSU VER — müşteri sonra aranmak istedi (Tekrar Aranacak)</label>
             <div class="artm-sonra-alan" id="artm_sonra_alan">
@@ -371,6 +373,9 @@ $(document).ready(function(){
       if (sonraMu && (!tarih || !saat)){ if(typeof swal==='function') swal({type:'warning', title:'Tarih/saat seçin', text:'Tekrar arama için tarih ve saat seçin.'}); return; }
       if (satisMi && (!satisTutari || parseFloat(satisTutari) <= 0)){ if(typeof swal==='function') swal({type:'warning', title:'Satış tutarı', text:'Telefonda satış için tutar girin.'}); return; }
       if (!sonraMu && artmSonuc===null && !(not||'').trim()){ if(typeof swal==='function') swal({type:'warning', title:'Sonuç seçin', text:'Bir sonuç seçin, tekrar arama oluşturun ya da not yazın.'}); return; }
+
+      // Satis secildiyse ve not bos ise otomatik satis notu (tutar ile). Kasaya islemez, sadece kayit.
+      if (satisMi && !(not||'').trim()){ not = 'Telefonda satış: ' + satisTutari + ' ₺'; }
 
       var $btn = $(this); $btn.prop('disabled', true);
       $.ajax({ url:'/isletmeyonetim/santral_not_ekle', method:'POST',
