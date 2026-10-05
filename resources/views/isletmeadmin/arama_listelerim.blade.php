@@ -821,12 +821,35 @@ $(document).on('click', '#ag_satis_kasa', function(){
    ).fail(function(){ swal({ type:'error', title:'Hata', text:'Satış ekranı açılamadı.' }); });
 });
 
-// Kalem tipi -> ilgili seçim kutusu + adet (ürün)
+// Kalem tipi -> ilgili seçim kutusu + adet (ürün). select2 destroy/init ile toggle.
 $(document).on('change', '#hs_tip', function(){
    var t = $(this).val();
-   $('.hs-item').hide().val('');
-   $('#hs_item_'+t).show();
+   $('.hs-item').each(function(){
+      if ($(this).hasClass('select2-hidden-accessible')) { try { $(this).select2('destroy'); } catch(e){} }
+      $(this).hide().val('');
+   });
+   var $akt = $('#hs_item_'+t).show().val('');
+   if ($.fn.select2 && $('#ag_satis_modal').hasClass('show')){
+      $akt.select2({ width:'100%', dropdownParent: $('#ag_satis_modal'), placeholder:'Ürün/hizmet/paket ara...' });
+   }
    $('#hs_adet_kutu').toggle(t==='urun');
+});
+// Satis modali acilinca secimleri searchable (select2) yap; kapaninca temizle.
+$(document).on('shown.bs.modal', '#ag_satis_modal', function(){
+   if (!$.fn.select2) return;
+   var mp = $('#ag_satis_modal');
+   $('#hs_tip, #hs_odeme').each(function(){
+      var $e=$(this); if($e.hasClass('select2-hidden-accessible')){ try{$e.select2('destroy');}catch(e){} }
+      $e.select2({ width:'100%', dropdownParent: mp });
+   });
+   var $akt = $('#hs_item_'+$('#hs_tip').val());
+   if($akt.hasClass('select2-hidden-accessible')){ try{$akt.select2('destroy');}catch(e){} }
+   $akt.select2({ width:'100%', dropdownParent: mp, placeholder:'Ürün/hizmet/paket ara...' });
+});
+$(document).on('hidden.bs.modal', '#ag_satis_modal', function(){
+   $('#hs_tip, #hs_odeme, .hs-item').each(function(){
+      if($(this).hasClass('select2-hidden-accessible')){ try{$(this).select2('destroy');}catch(e){} }
+   });
 });
 // Kalem seçilince fiyatı otomatik doldur
 $(document).on('change', '.hs-item', function(){
