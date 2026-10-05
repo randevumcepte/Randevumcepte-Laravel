@@ -649,7 +649,13 @@ function segListeleriYukle(){
       });
       $('#seg_liste_sec').html(opts);
       segSelect2('#seg_liste_sec', '380px', 'Liste ara / seç...');
-      // Onceki secim hala listede ise geri sec (panel acik kalsin)
+      // select2'nin 'change'i (coklu-jQuery yuzunden) document delegate'ine ulasmayabiliyor;
+      // select2'nin KENDI olayina AYNI baglamda baglan (her render'da yeniden, namespace ile).
+      var $ls = $('#seg_liste_sec');
+      $ls.off('.segsec');
+      if ($.fn.select2){ $ls.on('select2:select.segsec', function(){ segSegmentleriYukle(); }); }
+      else { $ls.on('change.segsec', function(){ segSegmentleriYukle(); }); }
+      // Onceki secim hala listede ise geri sec (panel acik kalsin; segment reload TETIKLEME)
       if (oncekiSecim && $('#seg_liste_sec option[value="'+oncekiSecim+'"]').length){
          $('#seg_liste_sec').val(oncekiSecim).trigger('change.select2');
       }
@@ -688,7 +694,7 @@ $(document).on('click', '.cm-tab', function(){
    if (t==='yonet'){ segListeleriYukle(); } // yonetime gecince listeleri tazele
 });
 
-$(document).on('change', '#seg_liste_sec', function(){ segSegmentleriYukle(); });
+{{-- #seg_liste_sec degisimi segListeleriYukle icinde select2:select.segsec ile baglanir --}}
 $(document).on('click', '#seg_yenile', function(){ segSegmentleriYukle(); });
 
 var segSecili = null;     // {kod, ad, adet}

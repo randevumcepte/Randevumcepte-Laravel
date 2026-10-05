@@ -2208,16 +2208,7 @@
                      <span class="mtext"> Arama Randevu Takvimi </span>
                      </a>
                   </li>
-                  <li>
-                     @if($pageindex==47)
-                     <a href="/isletmeyonetim/arama-randevularim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/arama-randevularim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                     <span class="micon bi bi-list-check"></span>
-                     <span class="mtext"> Arama Randevuları </span>
-                     </a>
-                  </li>
+                  {{-- 'Arama Randevulari' menusu kaldirildi: islevi Arama Randevu Takvimi (cockpit) karsiliyor --}}
                   <li>
                      @if($pageindex==48)
                      <a href="/isletmeyonetim/arama-cagri-kayitlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
