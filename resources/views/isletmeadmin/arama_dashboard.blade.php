@@ -111,8 +111,8 @@
    background:rgba(255,255,255,.20); display:flex; align-items:center; justify-content:center;
    font-size:20px; font-weight:700; color:#fff;
 }
-.pd-head-tit{ font-weight:700; font-size:18px; line-height:1.1; margin:0; }
-.pd-head-sub{ font-size:12px; opacity:.85; margin-top:2px; }
+.pd-head-tit{ font-weight:700; font-size:18px; line-height:1.1; margin:0; color:#fff !important; }
+.pd-head-sub{ font-size:12px; opacity:.85; margin-top:2px; color:#fff !important; }
 #personel_detay_modal .modal-body{ padding:18px 22px 22px; background:#faf9fc; max-height:65vh; overflow-y:auto; }
 
 /* Görüşme satırları (kart liste) */
@@ -255,7 +255,8 @@
 .seg-yonet-lbl{ font-size:12.5px; color:#6b7280; margin-right:6px; }
 .seg-yonet-lbl b{ color:#241b3a; }
 .seg-yonet .seg-personel{ min-width:150px; }
-.seg-sil{ color:#dc2626 !important; border-color:#f1c7c7 !important; margin-left:auto; }
+.seg-sil{ color:#b26a00 !important; border-color:#f0dcc0 !important; }
+.seg-rozet{ font-size:11px; font-weight:800; border-radius:20px; padding:2px 10px; margin-left:4px; }
 .seg-sil:hover{ background:#fdecec !important; border-color:#dc2626 !important; color:#dc2626 !important; }
 </style>
 
@@ -326,6 +327,9 @@
             <span class="seg-aciklama">Bir arama listesini sonuca göre ayır (Görüşüldü / Cevapsız / Meşgul / Ulaşılamadı / Randevu / Bekleyen); segmenti <b>indir</b> ya da <b>başka personele taşı</b>.</span>
          </div>
          <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+            <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:#5a5570;cursor:pointer;margin:0;">
+               <input type="checkbox" id="seg_arsiv_goster"> Arşivdekiler
+            </label>
             <select id="seg_liste_sec" class="seg-select"><option value="">Liste seçin...</option></select>
             <button id="seg_yenile" class="seg-indir" title="Segmentleri yenile"><i class="fa fa-refresh"></i> Yenile</button>
          </div>
@@ -619,7 +623,8 @@ function segPersonelYukle(){
 }
 function segListeleriYukle(){
    var oncekiSecim = $('#seg_liste_sec').val(); // rebuild sonrasi secimi koru
-   $.get('/isletmeyonetim/arama-kartlarim', { sube: $('input[name="sube"]').val() }, function(res){
+   var arsiv = $('#seg_arsiv_goster').is(':checked') ? 1 : 0;
+   $.get('/isletmeyonetim/arama-kartlarim', { sube: $('input[name="sube"]').val(), arsiv: arsiv }, function(res){
       var kartlar = (res && res.kartlar) ? res.kartlar : [];
       var opts = '<option value="">Liste seçin...</option>';
       kartlar.forEach(function(k){
@@ -655,6 +660,7 @@ $(document).on('click', '#seg_yenile', function(){ segSegmentleriYukle(); });
 
 var segSecili = null;     // {kod, ad, adet}
 var segAktifListe = null; // panelde yuklu listenin id'si (aksiyonlar bunu kullanir, dropdown'a bagimli degil)
+var segAktifDurum = 1;    // yuklu listenin durumu: 1=aktif, 0=pasif, 2=arsiv
 
 function segSegmentleriYukle(){
    var aramaId = $('#seg_liste_sec').val();
@@ -672,14 +678,27 @@ function segSegmentleriYukle(){
                      cmEsc(s.ad)+' <span class="seg-chip-n">'+s.adet+'</span></button>';
       });
       var atanan = res.personel_ad ? cmEsc(res.personel_ad) : '— atanmamış —';
+      segAktifDurum = (res.durum===undefined||res.durum===null) ? 1 : parseInt(res.durum,10);
+      var durRozet = (segAktifDurum===2)
+            ? '<span class="seg-rozet" style="background:#fde8e8;color:#c62828;">Arşiv</span>'
+            : (segAktifDurum===0 ? '<span class="seg-rozet" style="background:#fff3e0;color:#b26a00;">Pasif</span>'
+            : '<span class="seg-rozet" style="background:#e8f5e9;color:#2e7d32;">Aktif</span>');
+      // Aktif/Pasif toggle + Arsivle (arsivdeyse Arsivden Cikar)
+      var durBtnlar = (segAktifDurum===2)
+            ? '<button class="seg-indir" id="seg_arsivden_cikar"><i class="fa fa-undo"></i> Arşivden Çıkar</button>'
+            : (segAktifDurum===1
+                  ? '<button class="seg-indir" id="seg_pasif_yap"><i class="fa fa-pause"></i> Pasife Al</button>'
+                  : '<button class="seg-indir" id="seg_aktif_yap"><i class="fa fa-play"></i> Aktif Yap</button>')
+              + '<button class="seg-indir seg-sil" id="seg_arsivle"><i class="fa fa-archive"></i> Arşivle</button>';
       var html =
-         // Liste yönetimi: atamayı değiştir / geri al / listeyi sil
+         // Liste yönetimi: durum + atama + arsiv
          '<div class="seg-yonet">'+
             '<span class="seg-yonet-lbl"><i class="fa fa-user-circle-o"></i> Atanan personel: <b>'+atanan+'</b></span>'+
+            durRozet +
             '<select class="seg-personel" id="seg_atanan">'+segPersonelOpts(res.personel_id)+'</select>'+
             '<button class="seg-indir" id="seg_atama_kaydet"><i class="fa fa-exchange"></i> Ata / Değiştir</button>'+
             '<button class="seg-indir" id="seg_atama_kaldir"><i class="fa fa-user-times"></i> Atamayı Geri Al</button>'+
-            '<button class="seg-indir seg-sil" id="seg_liste_sil"><i class="fa fa-trash"></i> Listeyi Sil</button>'+
+            durBtnlar +
          '</div>'+
          // Segment cipleri + segment-bazli aksiyonlar
          '<div class="seg-bar">'+
@@ -687,7 +706,8 @@ function segSegmentleriYukle(){
             '<div class="seg-aksiyon">'+
                '<button class="seg-indir pasif" id="seg_indir"><i class="fa fa-download"></i> İndir</button>'+
                '<select class="seg-personel" id="seg_personel">'+segPersonelOpts()+'</select>'+
-               '<button class="seg-ata pasif" id="seg_ata"><i class="fa fa-user-plus"></i> Personele Taşı</button>'+
+               '<button class="seg-ata pasif" id="seg_ata"><i class="fa fa-user-plus"></i> Seçili Segmenti Taşı</button>'+
+               '<button class="seg-ata" id="seg_toplu_aktar" title="Bekleyen + Cevapsız + Meşgul + Ulaşılamadı hepsi birden"><i class="fa fa-users"></i> Sonuç Alınamayanları Aktar</button>'+
             '</div>'+
          '</div>';
       $('#seg_govde').html(html);
@@ -774,23 +794,60 @@ function segListePersonel(aramaId, personelId){
 }
 
 // Listeyi tamamen sil
-$(document).on('click', '#seg_liste_sil', function(){
+// Arşiv göster/gizle -> liste seciciyi yeniden yukle
+$(document).on('change', '#seg_arsiv_goster', function(){
+   segAktifListe = null; $('#seg_liste_sec').val('');
+   $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-hand-o-up"></i>'+($(this).is(':checked')?'Arşivdeki bir listeyi seçin.':'Yukarıdan bir arama listesi seçin.')+'</div>');
+   segListeleriYukle();
+});
+
+// Liste durumu degistir (aktif/pasif/arsiv). VERI SILINMEZ.
+function segDurumYap(durum){
+   if (!segAktifListe){ segMsg({ type:'warning', title:'Liste seçin', text:'Önce yukarıdan bir liste seçin.' }); return; }
+   $.post('/isletmeyonetim/cagri-liste-durum',
+      { arama_id: segAktifListe, durum: durum, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
+      function(res){
+         if (res.success){
+            segMsg({ type:'success', title:'Tamam', text:res.message, timer:2200, showConfirmButton:false });
+            // Arsive alindiysa ve arsiv gosterilmiyor -> panelden dussun
+            if (durum===2 && !$('#seg_arsiv_goster').is(':checked')){
+               segAktifListe = null; $('#seg_liste_sec').val('');
+               $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-archive"></i>Liste arşive alındı. (Görmek için "Arşivdekiler")</div>');
+            } else { segSegmentleriYukle(); }
+            segListeleriYukle(); dashYukle();
+         } else { segMsg({ type:'error', title:'Hata', text:res.message||'İşlem başarısız.' }); }
+      }
+   ).fail(function(){ segMsg({ type:'error', title:'Hata', text:'İşlem başarısız.' }); });
+}
+$(document).on('click', '#seg_pasif_yap',     function(){ segDurumYap(0); });
+$(document).on('click', '#seg_aktif_yap',     function(){ segDurumYap(1); });
+$(document).on('click', '#seg_arsivden_cikar',function(){ segDurumYap(1); });
+$(document).on('click', '#seg_arsivle', function(){
    if (!segAktifListe){ segMsg({ type:'warning', title:'Liste seçin', text:'Önce yukarıdan bir liste seçin.' }); return; }
    var ad = $('#seg_liste_sec option:selected').text();
-   if (confirm('"'+ad+'" listesi ve içindeki TÜM müşteri/görüşme kayıtları KALICI olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?')){
-      $.post('/isletmeyonetim/cagri-liste-sil',
-         { arama_id: segAktifListe, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
+   if (confirm('"'+ad+'" listesi ARŞİVLENECEK — çalışma ekranından ve bildirimlerden çıkar ama VERİ SİLİNMEZ (istediğinde "Arşivden Çıkar" ile geri alınır). Devam edilsin mi?')){
+      segDurumYap(2);
+   }
+});
+
+// TOPLU AKTAR: sonuç alınamayanları (bekleyen+Cevapsız+Meşgul+Ulaşılamadı) tek hamlede taşı
+$(document).on('click', '#seg_toplu_aktar', function(){
+   if (!segAktifListe){ segMsg({ type:'warning', title:'Liste seçin', text:'Önce yukarıdan bir liste seçin.' }); return; }
+   var personelId = $('#seg_personel').val();
+   var personelAd = $('#seg_personel option:selected').text();
+   if (!personelId){ segMsg({ type:'warning', title:'Personel seçin', text:'Aktarmak için sağdaki listeden bir personel seçin.' }); return; }
+   if (confirm('Bu listedeki SONUÇ ALINAMAYAN tüm müşteriler (Bekleyen + Cevapsız + Meşgul + Ulaşılamadı) "'+personelAd+'" personeline TAŞINACAK (bu listeden çıkacak). Devam edilsin mi?')){
+      var $btn = $('#seg_toplu_aktar'); $btn.prop('disabled', true);
+      $.post('/isletmeyonetim/cagri-toplu-aktar',
+         { arama_id: segAktifListe, personel_id: personelId, kodlar: 'bekleyen,0,2,5', sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
          function(res){
+            $btn.prop('disabled', false);
             if (res.success){
-               segMsg({ type:'success', title:'Silindi', text:res.message, timer:3000, showConfirmButton:false });
-               segAktifListe = null;
-               $('#seg_liste_sec').val('');
-               $('#seg_govde').html('<div class="cm-empty" style="padding:26px;"><i class="fa fa-hand-o-up"></i>Yukarıdan bir arama listesi seçin.</div>');
-               segListeleriYukle();
-               dashYukle();
-            } else { segMsg({ type:'error', title:'Hata', text:res.message||'Silinemedi.' }); }
+               segMsg({ type:'success', title:'Taşındı', text:res.message, timer:3500, showConfirmButton:false });
+               segSegmentleriYukle(); segListeleriYukle(); dashYukle();
+            } else { segMsg({ type:'warning', title:'Aktarılamadı', text:res.message||'İşlem başarısız.' }); }
          }
-      ).fail(function(){ segMsg({ type:'error', title:'Hata', text:'İşlem başarısız.' }); });
+      ).fail(function(){ $btn.prop('disabled', false); segMsg({ type:'error', title:'Hata', text:'İşlem başarısız.' }); });
    }
 });
 

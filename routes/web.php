@@ -1410,6 +1410,8 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/cagri-segment-ata','StoreAdminController@cagri_segment_ata');
 	Route::post('/cagri-liste-personel-degistir','StoreAdminController@cagri_liste_personel_degistir');
 	Route::post('/cagri-liste-sil','StoreAdminController@cagri_liste_sil');
+	Route::post('/cagri-liste-durum','StoreAdminController@cagri_liste_durum');
+	Route::post('/cagri-toplu-aktar','StoreAdminController@cagri_toplu_aktar');
 	Route::get('/raporlar','StoreAdminController@raporlar');
 	Route::get('/primraporu','StoreAdminController@primRaporu')->name('isletmeadmin.primraporu');
 	Route::post('/primhareketekle','StoreAdminController@primHareketEkle');

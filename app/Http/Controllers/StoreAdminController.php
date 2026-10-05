@@ -32681,6 +32681,12 @@ DB::raw('
         $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
 
         $q = AramaListesi::where('salon_id', $salonId);
+        // Arsiv (durum=2) calisma ekrani/seciciden gizli; ?arsiv=1 ile SADECE arsivdekiler.
+        if (filter_var($request->input('arsiv'), FILTER_VALIDATE_BOOLEAN)) {
+            $q->where('durum', 2);
+        } else {
+            $q->where('durum', '!=', 2);
+        }
         if ($rol == 5) {
             $q->where('personel_id', $this->aktifPersonelId($salonId));
         }
@@ -34322,7 +34328,82 @@ DB::raw('
             'baslik'      => $liste->arama_baslik,
             'personel_id' => $liste->personel_id,
             'personel_ad' => $personelAd,
+            'durum'       => (int) $liste->durum, // 1=aktif, 0=pasif, 2=arsiv
             'segmentler'  => $segmentler,
+        ]);
+    }
+
+    /** Liste durumu: 1=aktif, 0=pasif, 2=arsiv. Arsiv = calisma ekrani/dashboard'dan gizlenir,
+     *  VERI SILINMEZ (geri alinabilir). Pasif = gorunur ama hatirlatma/bildirim uretmez. */
+    public function cagri_liste_durum(Request $request)
+    {
+        $liste = AramaListesi::where('id', $request->arama_id)->first();
+        if (!$this->cagriListeYetkiliMi($liste)) {
+            return response()->json(['success' => false, 'message' => 'Bu listeye yetkiniz yok.']);
+        }
+        $durum = (int) $request->durum;
+        if (!in_array($durum, [0, 1, 2], true)) {
+            return response()->json(['success' => false, 'message' => 'Geçersiz durum.']);
+        }
+        $liste->durum = $durum;
+        $liste->save();
+        $etiket = $durum === 1 ? 'aktif' : ($durum === 0 ? 'pasif' : 'arşive alındı');
+        return response()->json(['success' => true, 'durum' => $durum, 'message' => '"' . $liste->arama_baslik . '" listesi ' . $etiket . '.']);
+    }
+
+    /** TOPLU aktar: bir listedeki SECILEN sonuc kodlarindaki (varsayilan: sonuc alinamayan
+     *  = bekleyen + Cevapsiz + Mesgul + Ulasilamadi) TUM musterileri tek hamlede baska
+     *  personele tasir (yeni liste olusturulur; gecmis/ses kayitlari da gider). */
+    public function cagri_toplu_aktar(Request $request)
+    {
+        $liste = AramaListesi::where('id', $request->arama_id)->first();
+        if (!$this->cagriListeYetkiliMi($liste)) {
+            return response()->json(['success' => false, 'message' => 'Bu listeye yetkiniz yok.']);
+        }
+        $salonId = (int) $liste->salon_id;
+        $hedef = $request->personel_id
+            ? Personeller::where('id', $request->personel_id)->where('salon_id', $salonId)->first()
+            : null;
+        if (!$hedef) {
+            return response()->json(['success' => false, 'message' => 'Geçerli bir personel seçin.']);
+        }
+
+        // kodlar: "bekleyen,0,2,5" (CSV). Bos ise sonuc-alinamayan varsayilani.
+        $kodlar = array_values(array_filter(array_map('trim', explode(',', (string) $request->kodlar))));
+        if (empty($kodlar)) $kodlar = ['bekleyen', '0', '2', '5'];
+        $bekleyen = in_array('bekleyen', $kodlar, true);
+        $nums = array_map('intval', array_filter($kodlar, function ($k) { return $k !== 'bekleyen'; }));
+
+        $ids = AranacakMusteriler::where('arama_id', $liste->id)
+            ->where(function ($w) use ($bekleyen, $nums) {
+                if ($bekleyen) $w->orWhereNull('durum');
+                if (!empty($nums)) $w->orWhereIn('durum', $nums);
+            })
+            ->pluck('id')->all();
+        if (empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'Taşınacak uygun müşteri yok.']);
+        }
+
+        $baslik = trim((string) $request->baslik);
+        if ($baslik === '') $baslik = $liste->arama_baslik . ' — Sonuç Alınamayanlar';
+
+        $yeni = new AramaListesi();
+        $yeni->salon_id = $salonId;
+        $yeni->arama_baslik = $baslik;
+        $yeni->personel_id = $hedef->id;
+        $yeni->aranacak_tarih = null;
+        $yeni->olusturan_yetkili_id = $this->cmAuthId();
+        $yeni->durum = 1;
+        $yeni->save();
+
+        AranacakMusteriler::whereIn('id', $ids)->update(['arama_id' => $yeni->id, 'updated_at' => date('Y-m-d H:i:s')]);
+        if (Schema::hasTable('gorusme_notlari')) {
+            \App\GorusmeNotlari::whereIn('aranacak_musteri_id', $ids)->update(['arama_id' => $yeni->id]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => count($ids) . ' müşteri "' . $hedef->personel_adi . '" personeline taşındı (yeni liste: ' . $baslik . ').',
         ]);
     }
 
