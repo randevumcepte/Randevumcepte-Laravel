@@ -644,15 +644,23 @@ function segListeleriYukle(){
       var opts = '<option value="">Liste seçin...</option>';
       kartlar.forEach(function(k){
          var atama = k.personel ? ('👤 '+k.personel) : '⚠ atanmamış';
-         var dur = (k.durum===2) ? '🗄 Arşiv' : (k.durum===0 ? '⏸ Pasif' : '🟢 Aktif');
+         var dur = (k.durum===2) ? '🗄 Arşiv' : (k.durum===3 ? '⏸ Pasif' : '🟢 Aktif');
          opts += '<option value="'+k.id+'">['+dur+'] '+cmEsc(k.baslik)+' ('+k.toplam+') — '+cmEsc(atama)+'</option>';
       });
       $('#seg_liste_sec').html(opts);
+      segSelect2('#seg_liste_sec', '380px', 'Liste ara / seç...');
       // Onceki secim hala listede ise geri sec (panel acik kalsin)
       if (oncekiSecim && $('#seg_liste_sec option[value="'+oncekiSecim+'"]').length){
-         $('#seg_liste_sec').val(oncekiSecim);
+         $('#seg_liste_sec').val(oncekiSecim).trigger('change.select2');
       }
    });
+}
+// Bir select'i searchable select2 yapar (varsa). Dinamik yeniden olusturulan select'ler icin.
+function segSelect2(sel, w, ph){
+   if (!$.fn.select2) return;
+   var $el = $(sel);
+   if ($el.hasClass('select2-hidden-accessible')) { try { $el.select2('destroy'); } catch(e){} }
+   $el.select2({ width: w || 'resolve', placeholder: ph || 'Seç...', dropdownAutoWidth: true });
 }
 function segRenk(kod){
    switch(String(kod)){
@@ -703,17 +711,18 @@ function segSegmentleriYukle(){
                      cmEsc(s.ad)+' <span class="seg-chip-n">'+s.adet+'</span></button>';
       });
       var atanan = res.personel_ad ? cmEsc(res.personel_ad) : '— atanmamış —';
-      segAktifDurum = (res.durum===undefined||res.durum===null) ? 1 : parseInt(res.durum,10);
+      // 1/0/null(legacy) = aktif, 3 = pasif, 2 = arsiv
+      segAktifDurum = parseInt(res.durum,10); if (isNaN(segAktifDurum)) segAktifDurum = 1;
       var durRozet = (segAktifDurum===2)
             ? '<span class="seg-rozet" style="background:#fde8e8;color:#c62828;">Arşiv</span>'
-            : (segAktifDurum===0 ? '<span class="seg-rozet" style="background:#fff3e0;color:#b26a00;">Pasif</span>'
+            : (segAktifDurum===3 ? '<span class="seg-rozet" style="background:#fff3e0;color:#b26a00;">Pasif</span>'
             : '<span class="seg-rozet" style="background:#e8f5e9;color:#2e7d32;">Aktif</span>');
       // Aktif/Pasif toggle + Arsivle (arsivdeyse Arsivden Cikar)
       var durBtnlar = (segAktifDurum===2)
             ? '<button class="seg-indir" id="seg_arsivden_cikar"><i class="fa fa-undo"></i> Arşivden Çıkar</button>'
-            : (segAktifDurum===1
-                  ? '<button class="seg-indir" id="seg_pasif_yap"><i class="fa fa-pause"></i> Pasife Al</button>'
-                  : '<button class="seg-indir" id="seg_aktif_yap"><i class="fa fa-play"></i> Aktif Yap</button>')
+            : (segAktifDurum===3
+                  ? '<button class="seg-indir" id="seg_aktif_yap"><i class="fa fa-play"></i> Aktif Yap</button>'
+                  : '<button class="seg-indir" id="seg_pasif_yap"><i class="fa fa-pause"></i> Pasife Al</button>')
               + '<button class="seg-indir seg-sil" id="seg_arsivle"><i class="fa fa-archive"></i> Arşivle</button>';
       var html =
          // Liste yönetimi: durum + atama + arsiv
@@ -736,6 +745,8 @@ function segSegmentleriYukle(){
             '</div>'+
          '</div>';
       $('#seg_govde').html(html);
+      segSelect2('#seg_atanan', '220px', 'Personel ara...');
+      segSelect2('#seg_personel', '200px', 'Personel ara...');
 
       // İlk DOLU segmenti otomatik seç
       var ilkDolu = segs.filter(function(s){ return s.adet>0; })[0] || segs[0];
@@ -844,7 +855,7 @@ function segDurumYap(durum){
       }
    ).fail(function(){ segMsg({ type:'error', title:'Hata', text:'İşlem başarısız.' }); });
 }
-$(document).on('click', '#seg_pasif_yap',     function(){ segDurumYap(0); });
+$(document).on('click', '#seg_pasif_yap',     function(){ segDurumYap(3); });
 $(document).on('click', '#seg_aktif_yap',     function(){ segDurumYap(1); });
 $(document).on('click', '#seg_arsivden_cikar',function(){ segDurumYap(1); });
 $(document).on('click', '#seg_arsivle', function(){

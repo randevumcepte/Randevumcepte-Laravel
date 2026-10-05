@@ -126,7 +126,7 @@ class SalonHatirlatmaController extends Controller
             ->join('arama_listesi as al', 'al.id', '=', 'am.arama_id')
             ->join('users as u', 'u.id', '=', 'am.user_id')
             ->where('al.salon_id', $salonId)
-            ->where('al.durum', 1)         // SADECE aktif liste bildirim uretir
+            ->whereNotIn('al.durum', [2, 3]) // aktif = arsiv(2)/pasif(3) DISINDA bildirim uretir
             ->where('al.personel_id', $personelId)
             ->where('am.durum', 3)         // 3 = Arama Randevusu
             ->where('am.tarih', $bugun)

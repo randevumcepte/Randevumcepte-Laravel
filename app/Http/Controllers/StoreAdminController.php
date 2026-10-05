@@ -33780,7 +33780,7 @@ DB::raw('
         $salonId = self::mevcutsube($request);
         $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
 
-        $q = AramaListesi::where('salon_id', $salonId)->where('durum', 1); // SADECE aktif liste bildirim/popup uretir
+        $q = AramaListesi::where('salon_id', $salonId)->whereNotIn('durum', [2, 3]); // aktif = arsiv(2)/pasif(3) DISINDA bildirim/popup uretir
         if ($rol == 5) {
             $q->where('personel_id', $this->aktifPersonelId($salonId));
         }
@@ -34343,12 +34343,13 @@ DB::raw('
             return response()->json(['success' => false, 'message' => 'Bu listeye yetkiniz yok.']);
         }
         $durum = (int) $request->durum;
-        if (!in_array($durum, [0, 1, 2], true)) {
+        // 1=aktif, 3=pasif, 2=arsiv (0/NULL legacy = aktif kabul edilir)
+        if (!in_array($durum, [1, 2, 3], true)) {
             return response()->json(['success' => false, 'message' => 'Geçersiz durum.']);
         }
         $liste->durum = $durum;
         $liste->save();
-        $etiket = $durum === 1 ? 'aktif' : ($durum === 0 ? 'pasif' : 'arşive alındı');
+        $etiket = $durum === 1 ? 'aktif yapıldı' : ($durum === 3 ? 'pasife alındı' : 'arşive alındı');
         return response()->json(['success' => true, 'durum' => $durum, 'message' => '"' . $liste->arama_baslik . '" listesi ' . $etiket . '.']);
     }
 
