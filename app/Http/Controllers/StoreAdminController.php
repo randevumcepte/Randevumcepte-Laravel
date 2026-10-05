@@ -32720,6 +32720,7 @@ DB::raw('
                 'baslik'         => $l->arama_baslik,
                 'personel'       => $l->personel_id ? ($personelAdlari[$l->personel_id] ?? null) : null,
                 'aranacak_tarih' => $l->aranacak_tarih ? date('d.m.Y', strtotime($l->aranacak_tarih)) : null,
+                'durum'          => (int) $l->durum, // 1=aktif, 0=pasif, 2=arsiv
                 'toplam'         => $toplam,
                 'arandi'         => $arandi,
                 'kalan'          => $toplam - $arandi,

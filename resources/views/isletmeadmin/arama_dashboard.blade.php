@@ -255,6 +255,10 @@
 .seg-yonet-lbl{ font-size:12.5px; color:#6b7280; margin-right:6px; }
 .seg-yonet-lbl b{ color:#241b3a; }
 .seg-yonet .seg-personel{ min-width:150px; }
+.cm-tabs{ display:flex; gap:8px; margin:18px 0 16px; flex-wrap:wrap; }
+.cm-tab{ border:1px solid #e3d5f5; background:#fff; color:#5C008E; font-weight:700; border-radius:12px; padding:10px 20px; cursor:pointer; font-size:14px; display:inline-flex; align-items:center; gap:8px; transition:all .12s; }
+.cm-tab:hover{ background:#faf7ff; }
+.cm-tab.aktif{ background:linear-gradient(120deg,#6d28d9,#7c3aed); border-color:transparent; color:#fff; box-shadow:0 6px 16px -8px rgba(109,40,217,.6); }
 .seg-sil{ color:#b26a00 !important; border-color:#f0dcc0 !important; }
 .seg-rozet{ font-size:11px; font-weight:800; border-radius:20px; padding:2px 10px; margin-left:4px; }
 .seg-sil:hover{ background:#fdecec !important; border-color:#dc2626 !important; color:#dc2626 !important; }
@@ -270,6 +274,13 @@
       <a href="/isletmeyonetim/arama-randevu-takvim?sube={{ $isletme->id }}" class="cm-hero-btn" style="margin-left:10px;background:#efe3fb;color:#5C008E;"><i class="fa fa-calendar"></i> Arama Randevu Takvimi</a>
    </div>
 
+   {{-- Sekmeler --}}
+   <div class="cm-tabs">
+      <button type="button" class="cm-tab aktif" data-tab="perf"><i class="fa fa-bar-chart"></i> Performans</button>
+      <button type="button" class="cm-tab" data-tab="yonet"><i class="fa fa-sliders"></i> Liste Yönetimi</button>
+   </div>
+
+   <div id="tab_perf" class="cm-tabpane">
    {{-- Özet bant --}}
    <div class="row" id="ozet_bant">
       <div class="col-md-3 col-sm-6 mb-20">
@@ -319,6 +330,9 @@
       <div class="col-md-12"><div class="cm-empty" id="dash_yukleniyor"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div></div>
    </div>
 
+   </div>{{-- /tab_perf --}}
+
+   <div id="tab_yonet" class="cm-tabpane" style="display:none;">
    {{-- Liste Segmentasyonu --}}
    <div class="seg-kart">
       <div class="seg-bas">
@@ -338,6 +352,7 @@
          <div class="cm-empty" style="padding:26px;"><i class="fa fa-hand-o-up"></i>Yukarıdan bir arama listesi seçin.</div>
       </div>
    </div>
+   </div>{{-- /tab_yonet --}}
 
 </div>
 
@@ -629,7 +644,8 @@ function segListeleriYukle(){
       var opts = '<option value="">Liste seçin...</option>';
       kartlar.forEach(function(k){
          var atama = k.personel ? ('👤 '+k.personel) : '⚠ atanmamış';
-         opts += '<option value="'+k.id+'">'+cmEsc(k.baslik)+' ('+k.toplam+') — '+cmEsc(atama)+'</option>';
+         var dur = (k.durum===2) ? '🗄 Arşiv' : (k.durum===0 ? '⏸ Pasif' : '🟢 Aktif');
+         opts += '<option value="'+k.id+'">['+dur+'] '+cmEsc(k.baslik)+' ('+k.toplam+') — '+cmEsc(atama)+'</option>';
       });
       $('#seg_liste_sec').html(opts);
       // Onceki secim hala listede ise geri sec (panel acik kalsin)
@@ -654,6 +670,15 @@ function segPersonelOpts(seciliId){
    });
    return o;
 }
+
+// Sekme gecisi: Performans / Liste Yönetimi
+$(document).on('click', '.cm-tab', function(){
+   $('.cm-tab').removeClass('aktif'); $(this).addClass('aktif');
+   var t = $(this).data('tab');
+   $('.cm-tabpane').hide();
+   $('#tab_'+t).show();
+   if (t==='yonet'){ segListeleriYukle(); } // yonetime gecince listeleri tazele
+});
 
 $(document).on('change', '#seg_liste_sec', function(){ segSegmentleriYukle(); });
 $(document).on('click', '#seg_yenile', function(){ segSegmentleriYukle(); });
