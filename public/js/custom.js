@@ -8241,8 +8241,16 @@ $(document).on('submit','#ongorusmeformu',function(e){
         },
         success: function(result)  {
             $("#preloader").hide();
+            // Cagri Merkezi: bu on gorusme ARAMA baglamindan acildiysa (calisma ekrani / arama
+            // takvimi) -> aramayi otomatik "On Gorusme"(durum=6) isaretle; ayrica "Sonucu Kaydet"
+            // gerekmez. Callback'i modal('hide')'DAN ONCE yakala (hidden senkron tetiklenip
+            // baglami null'larsa kaybolmasin).
+            var _ogcb = (window.__aramaOGCtx && typeof window.__aramaOGCtx.onKaydet === 'function')
+                ? window.__aramaOGCtx.onKaydet : null;
+            window.__aramaOGCtx = null;
             // Once modal'i kapat (data-dismiss=modal yerine API ile sadece bu modali hedefle)
             $('#ongorusme-modal').modal('hide');
+            if (_ogcb) { try { _ogcb(); } catch(e){} }
             // Sonra swal — modal hide animasyonuyla cakismamasi icin minik bir gecikme
             setTimeout(function(){
                 swal({

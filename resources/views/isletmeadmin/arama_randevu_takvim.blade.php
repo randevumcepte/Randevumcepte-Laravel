@@ -348,6 +348,13 @@ $(document).ready(function(){
                   if (res.ad){ $('#ad_soyad').val(res.ad); }
                   if (res.telefon){ $('#telefon').val(res.telefon); }
                } catch(e){}
+               // On gorusme KAYDEDILINCE aramayi otomatik durum=6 isaretle (Sonucu Kaydet gerekmesin)
+               var _amId = artmAmId, _aramaId = artmAramaId;
+               window.__aramaOGCtx = { onKaydet: function(){
+                  $.post('/isletmeyonetim/santral_not_ekle',
+                     { arama_detay_id:_aramaId, aranacak_musteri_id:_amId, noticerik:($('#artm_not').val()||''), sonuc:6, _token:token },
+                     function(r){ if(r && r.success){ $('#artm_modal').modal('hide'); yukle(); } });
+               } };
                $('#ongorusme-modal').modal('show'); // cockpit uzerine acilir (stacked)
             } else if (typeof swal==='function'){
                swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
@@ -355,6 +362,8 @@ $(document).ready(function(){
          }
       ).fail(function(){ if(typeof swal==='function') swal({ type:'error', title:'Hata', text:'Ön görüşme ekranı açılamadı.' }); });
    }
+   // On gorusme modali KAYITSIZ kapanirsa baglami temizle (iptal -> durum=6 isaretlenmesin)
+   $(document).on('hidden.bs.modal', '#ongorusme-modal', function(){ window.__aramaOGCtx = null; });
 
    // Stacked modal (ongorusme-modal, cockpit uzerine) z-index + backdrop fix
    $(document).on('show.bs.modal', '.modal', function(){

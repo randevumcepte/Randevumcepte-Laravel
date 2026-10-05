@@ -726,6 +726,13 @@ function agOnGorusmeAc(){
                if (res.ad){ $('#ad_soyad').val(res.ad); }
                if (res.telefon){ $('#telefon').val(res.telefon); }
             } catch(e){}
+            // On gorusme KAYDEDILINCE aramayi otomatik durum=6 isaretle (Sonucu Kaydet gerekmesin)
+            var _amId = agSecili.aranacak_musteri_id, _listeId = agAktifListe;
+            window.__aramaOGCtx = { onKaydet: function(){
+               $.post('/isletmeyonetim/santral_not_ekle',
+                  { arama_detay_id:_listeId, aranacak_musteri_id:_amId, noticerik:($('#ag_not').val()||''), sonuc:6, _token:$('input[name="_token"]').val() },
+                  function(r){ if(r && r.success){ agDurumGuncelle(_amId, 6); agGecmisYukle(_amId); } });
+            } };
             $('#ongorusme-modal').modal('show');
          } else {
             swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
@@ -733,6 +740,9 @@ function agOnGorusmeAc(){
       }
    ).fail(function(){ swal({ type:'error', title:'Hata', text:'Ön görüşme ekranı açılamadı.' }); });
 }
+// On gorusme modali KAYITSIZ kapanirsa (iptal) baglami temizle -> yanlis durum=6 isaretlenmesin.
+// (Kayitta custom.js success'i baglami zaten tuketip null'lar; burada kalan = iptal demektir.)
+$(document).on('hidden.bs.modal', '#ongorusme-modal', function(){ window.__aramaOGCtx = null; });
 
 // ---- Memnuniyet anketi gönder (görüşme sonucu penceresinden) ----
 $(document).on('click', '#ag_anket_gonder', function(){
