@@ -324,6 +324,48 @@ $(document).ready(function(){
       if (artmSonuc === s){ artmSonuc = null; $(this).removeClass('aktif'); }
       else { artmSonuc = s; $('.artm-sonuc').removeClass('aktif'); $(this).addClass('aktif'); }
       $('#artm_satis_alan').toggle(artmSonuc === 7);
+      // On Gorusme Randevusu(6) -> calisma ekranindaki gibi gercek randevu modalini ac
+      if (artmSonuc === 6){ artmOnGorusmeAc(); }
+   });
+
+   // On Gorusme: gercek randevu modalini musteri prefill'li acar (calisma ekrani ile ayni uc).
+   // #ongorusme-modal layout'ta global include'lu, takvim sayfasinda da mevcut.
+   function artmOnGorusmeAc(){
+      if (!artmAmId) return;
+      $.post('/isletmeyonetim/cagri-musteri-ongorusme-bilgi',
+         { aranacak_musteri_id: artmAmId, _token: token },
+         function(res){
+            if (res && res.success){
+               try {
+                  var $sel = $('#musteri_select_list');
+                  if ($sel.length){
+                     if ($sel.find('option[value="'+res.user_id+'"]').length===0){
+                        $sel.append(new Option(res.ad || ('#'+res.user_id), res.user_id, true, true));
+                     } else { $sel.val(res.user_id); }
+                     $sel.trigger('change');
+                  }
+                  if (res.ad){ $('#ad_soyad').val(res.ad); }
+                  if (res.telefon){ $('#telefon').val(res.telefon); }
+               } catch(e){}
+               $('#ongorusme-modal').modal('show'); // cockpit uzerine acilir (stacked)
+            } else if (typeof swal==='function'){
+               swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
+            }
+         }
+      ).fail(function(){ if(typeof swal==='function') swal({ type:'error', title:'Hata', text:'Ön görüşme ekranı açılamadı.' }); });
+   }
+
+   // Stacked modal (ongorusme-modal, cockpit uzerine) z-index + backdrop fix
+   $(document).on('show.bs.modal', '.modal', function(){
+      var acikSayi = $('.modal:visible').length;
+      if (acikSayi >= 1){
+         var z = 1050 + (acikSayi * 20);
+         $(this).css('z-index', z);
+         setTimeout(function(){ $('.modal-backdrop').not('.artm-stacked').last().css('z-index', z-10).addClass('artm-stacked'); }, 0);
+      }
+   });
+   $(document).on('hidden.bs.modal', '.modal', function(){
+      if ($('.modal:visible').length){ $('body').addClass('modal-open'); } // ust modal kapaninca alttaki scroll'u koru
    });
 
    // Tekrar aranacak toggle
