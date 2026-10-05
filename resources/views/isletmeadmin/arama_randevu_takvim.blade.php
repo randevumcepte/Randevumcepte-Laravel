@@ -251,6 +251,7 @@ $(document).ready(function(){
                      'data-musteri="'+esc(e.musteri)+'" '+
                      'data-personel="'+esc(e.personel)+'" '+
                      'data-zaman="'+esc(saat)+'" '+
+                     'data-not="'+esc(e.not||'')+'" '+
                      'data-durum="'+esc(e.durum_metin)+'">'+
                      '<div class="saat"><i class="fa fa-clock-o" style="color:'+esc(e.color)+'"></i> '+esc(saat)+'</div>'+
                      '<div class="mus">'+esc(e.musteri)+'</div>'+
@@ -299,9 +300,9 @@ $(document).ready(function(){
       $('#artm_tel').text('gizli');
       $('#artm_zaman').text($(this).data('zaman') || '-');
       $('#artm_personel').text($(this).data('personel') || '-');
-      // reset form
+      // reset form — mevcut/aktarilan notu goster (duzenlenebilir; kaydedince guncellenir)
       $('.artm-sonuc').removeClass('aktif');
-      $('#artm_not').val('');
+      $('#artm_not').val($(this).attr('data-not') || '');
       $('#artm_satis_alan').hide(); $('#artm_satis_tutari').val('');
       $('#artm_sonra_chk').prop('checked', false);
       $('#artm_sonra_alan').hide();
