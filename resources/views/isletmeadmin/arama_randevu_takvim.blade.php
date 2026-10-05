@@ -329,9 +329,20 @@ $(document).ready(function(){
       if (artmSonuc === s){ artmSonuc = null; $(this).removeClass('aktif'); }
       else { artmSonuc = s; $('.artm-sonuc').removeClass('aktif'); $(this).addClass('aktif'); }
       $('#artm_satis_alan').toggle(artmSonuc === 7);
-      // On Gorusme Randevusu(6) -> calisma ekranindaki gibi gercek randevu modalini ac
-      if (artmSonuc === 6){ artmOnGorusmeAc(); }
+      // On Gorusme Randevusu(6) -> aramayi HEMEN durum=6 isaretle + gercek randevu modalini ac
+      if (artmSonuc === 6){ artmOnGorusmeKaydetVeAc(); }
    });
+
+   // On Gorusme secilince: aramayi DOGRUDAN durum=6 isaretle (Sonucu Kaydet gerekmesin;
+   // hook'a/zamanlamaya bagli degil), sonra gercek randevu modalini prefill'li ac.
+   function artmOnGorusmeKaydetVeAc(){
+      if (artmAmId && artmAramaId){
+         $.post('/isletmeyonetim/santral_not_ekle',
+            { arama_detay_id:artmAramaId, aranacak_musteri_id:artmAmId, noticerik:($('#artm_not').val()||''), sonuc:6, _token:token },
+            function(r){ if(r && r.success){ yukle(); } }); // board'u tazele -> 'On Gorusme' gorunsun
+      }
+      artmOnGorusmeAc();
+   }
 
    // On Gorusme: gercek randevu modalini musteri prefill'li acar (calisma ekrani ile ayni uc).
    // #ongorusme-modal layout'ta global include'lu, takvim sayfasinda da mevcut.
@@ -352,13 +363,6 @@ $(document).ready(function(){
                   if (res.ad){ $('#ad_soyad').val(res.ad); }
                   if (res.telefon){ $('#telefon').val(res.telefon); }
                } catch(e){}
-               // On gorusme KAYDEDILINCE aramayi otomatik durum=6 isaretle (Sonucu Kaydet gerekmesin)
-               var _amId = artmAmId, _aramaId = artmAramaId;
-               window.__aramaOGCtx = { onKaydet: function(){
-                  $.post('/isletmeyonetim/santral_not_ekle',
-                     { arama_detay_id:_aramaId, aranacak_musteri_id:_amId, noticerik:($('#artm_not').val()||''), sonuc:6, _token:token },
-                     function(r){ if(r && r.success){ $('#artm_modal').modal('hide'); yukle(); } });
-               } };
                $('#ongorusme-modal').modal('show'); // cockpit uzerine acilir (stacked)
             } else if (typeof swal==='function'){
                swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
@@ -366,8 +370,6 @@ $(document).ready(function(){
          }
       ).fail(function(){ if(typeof swal==='function') swal({ type:'error', title:'Hata', text:'Ön görüşme ekranı açılamadı.' }); });
    }
-   // On gorusme modali KAYITSIZ kapanirsa baglami temizle (iptal -> durum=6 isaretlenmesin)
-   $(document).on('hidden.bs.modal', '#ongorusme-modal', function(){ window.__aramaOGCtx = null; });
 
    // Stacked modal (ongorusme-modal, cockpit uzerine) z-index + backdrop fix
    $(document).on('show.bs.modal', '.modal', function(){

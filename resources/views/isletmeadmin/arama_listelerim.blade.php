@@ -704,9 +704,21 @@ $(document).on('click', '.ag-sonuc', function(){
    $('#ag_sonra_alan').hide();
    // Telefonda Satış(7) -> tutar alanı
    $('#ag_satis_alan').css('display', agSecilenSonuc===7 ? 'flex' : 'none');
-   // Ön Görüşme Randevusu(6) -> gerçek ön görüşme randevu ekranı açılır
-   if (agSecilenSonuc===6){ agOnGorusmeAc(); }
+   // Ön Görüşme Randevusu(6) -> aramayi HEMEN durum=6 isaretle + gerçek randevu modalini ac
+   if (agSecilenSonuc===6){ agOnGorusmeKaydetVeAc(); }
 });
+
+// On Gorusme secilince: aramayi DOGRUDAN durum=6 isaretle (Sonucu Kaydet gerekmesin),
+// sonra gercek randevu modalini ac. (Hook/zamanlamaya bagli degil -> guvenilir.)
+function agOnGorusmeKaydetVeAc(){
+   if (agSecili && agAktifListe){
+      var _amId = agSecili.aranacak_musteri_id, _listeId = agAktifListe;
+      $.post('/isletmeyonetim/santral_not_ekle',
+         { arama_detay_id:_listeId, aranacak_musteri_id:_amId, noticerik:($('#ag_not').val()||''), sonuc:6, _token:$('input[name="_token"]').val() },
+         function(r){ if(r && r.success){ agDurumGuncelle(_amId, 6); agGecmisYukle(_amId); } });
+   }
+   agOnGorusmeAc();
+}
 
 // Ön Görüşme: gerçek randevu modalını müşteri prefill'li açar (KVKK maskesi bu an için kalkar)
 function agOnGorusmeAc(){
@@ -726,13 +738,6 @@ function agOnGorusmeAc(){
                if (res.ad){ $('#ad_soyad').val(res.ad); }
                if (res.telefon){ $('#telefon').val(res.telefon); }
             } catch(e){}
-            // On gorusme KAYDEDILINCE aramayi otomatik durum=6 isaretle (Sonucu Kaydet gerekmesin)
-            var _amId = agSecili.aranacak_musteri_id, _listeId = agAktifListe;
-            window.__aramaOGCtx = { onKaydet: function(){
-               $.post('/isletmeyonetim/santral_not_ekle',
-                  { arama_detay_id:_listeId, aranacak_musteri_id:_amId, noticerik:($('#ag_not').val()||''), sonuc:6, _token:$('input[name="_token"]').val() },
-                  function(r){ if(r && r.success){ agDurumGuncelle(_amId, 6); agGecmisYukle(_amId); } });
-            } };
             $('#ongorusme-modal').modal('show');
          } else {
             swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
