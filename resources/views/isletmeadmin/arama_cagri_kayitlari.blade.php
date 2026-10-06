@@ -12,21 +12,29 @@
 
 /* Özet kartları */
 .ck-ozet{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
-.ck-oz{ background:#fff; border:1px solid #f0eef5; border-radius:14px; padding:16px 18px; box-shadow:0 6px 18px -10px rgba(30,30,60,.15); }
-.ck-oz .n{ font-size:26px; font-weight:800; line-height:1; color:#241b3a; }
-.ck-oz .t{ font-size:12.5px; color:#8a85a0; margin-top:6px; display:flex; align-items:center; gap:6px; }
-.ck-oz .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+.ck-oz{ position:relative; background:#fff; border:1px solid #f0eef5; border-radius:14px; padding:18px 18px 16px; box-shadow:0 6px 18px -10px rgba(30,30,60,.15); overflow:hidden; transition:transform .15s, box-shadow .15s; }
+.ck-oz:before{ content:""; position:absolute; left:0; top:0; height:100%; width:5px; background:var(--acc,#9097ad); }
+.ck-oz:after{ content:""; position:absolute; right:-28px; top:-28px; width:92px; height:92px; border-radius:50%; background:var(--acc,#9097ad); opacity:.08; }
+.ck-oz:hover{ transform:translateY(-2px); box-shadow:0 12px 26px -12px rgba(30,30,60,.28); }
+.ck-oz .n{ font-size:28px; font-weight:800; line-height:1; color:var(--acc,#241b3a); }
+.ck-oz .t{ font-size:12.5px; color:#6f6a82; margin-top:7px; display:flex; align-items:center; gap:6px; font-weight:600; }
+.ck-oz .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; background:var(--acc,#9097ad); box-shadow:0 0 0 3px color-mix(in srgb, var(--acc,#9097ad) 22%, transparent); }
+.ck-oz.t-mor{ --acc:#7c3aed; background:linear-gradient(135deg,#faf6ff 0%,#fff 60%); border-color:#ece1fb; }
+.ck-oz.t-yesil{ --acc:#16a34a; background:linear-gradient(135deg,#f1fdf5 0%,#fff 60%); border-color:#d9f3e2; }
+.ck-oz.t-mavi{ --acc:#1565c0; background:linear-gradient(135deg,#f1f7fe 0%,#fff 60%); border-color:#dbe9fa; }
+.ck-oz.t-gri{ --acc:#5b6472; background:linear-gradient(135deg,#f6f7f9 0%,#fff 60%); border-color:#e8eaef; }
 @media (max-width:680px){ .ck-ozet{ grid-template-columns:repeat(2,1fr); } }
 
 /* İki kolon */
 .ck-grid{ display:grid; grid-template-columns:380px 1fr; gap:16px; align-items:start; }
 @media (max-width:991px){ .ck-grid{ grid-template-columns:1fr; } }
-.ck-panel{ background:#fff; border-radius:18px; border:1px solid #eef0f5; box-shadow:0 6px 20px -12px rgba(30,30,60,.16); overflow:hidden; }
+.ck-panel{ position:relative; background:#fff; border-radius:18px; border:1px solid #eef0f5; box-shadow:0 6px 20px -12px rgba(30,30,60,.16); overflow:hidden; }
+.ck-panel:before{ content:""; position:absolute; left:0; right:0; top:0; height:4px; background:linear-gradient(90deg,#5C008E,#7B2FB8,#9D5DC8); }
 
 /* Sol liste */
-.ck-ara{ padding:12px 14px; border-bottom:1px solid #f0eef5; position:relative; }
-.ck-ara input{ width:100%; border:1px solid #e7e9f0; border-radius:12px; padding:9px 12px 9px 34px; font-size:13px; outline:none; }
-.ck-ara input:focus{ border-color:#9D5DC8; }
+.ck-ara{ padding:12px 14px; border-bottom:1px solid #f0eef5; position:relative; background:linear-gradient(180deg,#faf6ff,#fff); }
+.ck-ara input{ width:100%; border:1px solid #e7e9f0; border-radius:12px; padding:9px 12px 9px 34px; font-size:13px; outline:none; background:#fff; transition:border-color .15s, box-shadow .15s; }
+.ck-ara input:focus{ border-color:#9D5DC8; box-shadow:0 0 0 3px rgba(157,93,200,.18); }
 .ck-ara .fa{ position:absolute; left:26px; top:50%; transform:translateY(-50%); color:#aab0c0; }
 .ck-liste{ max-height:62vh; overflow-y:auto; }
 .ck-item{ display:flex; align-items:center; gap:11px; padding:12px 14px; border-bottom:1px solid #f4f3f8; cursor:pointer; transition:background .12s; }
@@ -77,10 +85,10 @@
    </div>
 
    <div class="ck-ozet" id="ck_ozet">
-      <div class="ck-oz"><div class="n" id="oz_toplam">0</div><div class="t"><span class="dot" style="background:#9097ad;"></span> Toplam Çağrı</div></div>
-      <div class="ck-oz"><div class="n" id="oz_kayitli">0</div><div class="t"><span class="dot" style="background:#7c3aed;"></span> Ses Kayıtlı</div></div>
-      <div class="ck-oz"><div class="n" id="oz_gelen">0</div><div class="t"><span class="dot" style="background:#16a34a;"></span> Gelen</div></div>
-      <div class="ck-oz"><div class="n" id="oz_giden">0</div><div class="t"><span class="dot" style="background:#1565c0;"></span> Giden</div></div>
+      <div class="ck-oz t-gri"><div class="n" id="oz_toplam">0</div><div class="t"><span class="dot"></span> Toplam Çağrı</div></div>
+      <div class="ck-oz t-mor"><div class="n" id="oz_kayitli">0</div><div class="t"><span class="dot"></span> Ses Kayıtlı</div></div>
+      <div class="ck-oz t-yesil"><div class="n" id="oz_gelen">0</div><div class="t"><span class="dot"></span> Gelen</div></div>
+      <div class="ck-oz t-mavi"><div class="n" id="oz_giden">0</div><div class="t"><span class="dot"></span> Giden</div></div>
    </div>
 
    <div class="ck-grid">
