@@ -273,4 +273,17 @@ if [ "${#ALERT_LINES[@]}" -gt 0 ]; then
     log "ALARM gonderildi ($engelSayisi engel)"
 fi
 
+# ============================================================================
+#  HEARTBEAT — her turun SONUNDA yaz (olay olsun olmasin). Panel bu satira
+#  bakip "watchdog canli mi" gosterir. Bu olmadan sessiz sistemde panel
+#  calisiyor mu oldu mu ayirt edemiyor (cron PATH tuzagi 2 ay fark edilmedi).
+# ============================================================================
+BAN_SAYISI="$(ipset list "$IPSET_NAME" 2>/dev/null | awk -F': ' '/Number of entries/{print $2}')"
+PERM_SAYISI="$(ipset list "$IPSET_PERM" 2>/dev/null | awk -F': ' '/Number of entries/{print $2}')"
+AKTIF_BAN=$(( ${BAN_SAYISI:-0} + ${PERM_SAYISI:-0} ))
+if [ "$HAVE_DB" -eq 1 ]; then
+    printf "INSERT INTO guvenlik_durum (anahtar,deger,updated_at) VALUES ('heartbeat','ok',NOW()),('aktif_ban','%s',NOW()) ON DUPLICATE KEY UPDATE deger=VALUES(deger), updated_at=NOW();" \
+        "$AKTIF_BAN" | mysql_exec
+fi
+
 exit 0
