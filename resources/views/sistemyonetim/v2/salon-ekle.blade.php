@@ -5,7 +5,7 @@
 <div class="sy-page-head">
     <div>
         <h2 style="font-size:24px;font-weight:800">Yeni Salon (Demo)</h2>
-        <div class="subtitle">Demo hesabı oluşturur — giriş bilgileri kurulur, salon hemen giriş yapabilir.</div>
+        <div class="subtitle">Ücretsiz deneme kaydıyla birebir aynı kurulum: tüm ayarlar + varsayılan hizmet/form + örnek demo içeriği oluşturulur ve giriş bilgileri hesap sahibine SMS ile gönderilir.</div>
     </div>
     <div class="sy-flex-row">
         <a href="/sistemyonetim/v2/salonlar" class="sy-btn"><span class="mdi mdi-arrow-left"></span> Liste</a>

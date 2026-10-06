@@ -648,100 +648,62 @@ class PanelController extends Controller
         ]);
 
         $demoGun = (int) ($request->get('demo_gun') ?: 7);
+        // gsm1 normalize (ucretsiz deneme akisiyla AYNI): rakam disi + bastaki 90/0 kaldir
+        $telefon = preg_replace('/[^0-9]/', '', (string) $request->get('yetkili_telefon'));
+        $telefon = preg_replace('/^(90|0)/', '', $telefon);
+
+        // Ayni telefonla acilmis uyelik varsa engelle (ucretsiz deneme akisiyla ayni davranis)
+        if (IsletmeYetkilileri::where('gsm1', $telefon)->exists()) {
+            return redirect()->back()->withInput()
+                ->with('hata', 'Bu telefon numarasıyla daha önce açılmış bir üyelik var. Farklı bir numara ile tekrar deneyin.');
+        }
 
         // Sifre: verildiyse onu kullan, yoksa 6 haneli uret
         $sifre = trim((string) $request->get('yetkili_sifre'));
         if ($sifre === '') {
             $sifre = substr(str_shuffle('abcdefghjkmnpqrstuvwxyz23456789'), 0, 6);
         }
-        $telefon = preg_replace('/[^0-9]/', '', (string) $request->get('yetkili_telefon'));
 
-        DB::beginTransaction();
+        // ============================================================
+        // Ucretsiz deneme sayfasi (/ucretsiz-denemenizi-baslatin) ile AYNI kurulum.
+        // ApiController@demoHesapKur: yetkili + salon + tum ayarlar (santral/SMS/calisma/mola)
+        // + varsayilan hizmet & form kopyalama + ornek demo icerigi olusturur VE hesap
+        // sahibine giris bilgilerini SMS ile gonderir. Sistem sahibine demo bildirimi
+        // (SistemBildirim::demoAcildi) de bu metot icinde atilir.
+        // ============================================================
+        $kurulumReq = Request::create('/', 'POST', [
+            'adsoyad'       => $request->get('yetkili_ad'),
+            'ceptelefon'    => $telefon,
+            'email'         => trim((string) $request->get('yetkili_email')),
+            'isletmeadi'    => $request->get('salon_adi'),
+            'isletmeadresi' => (string) $request->get('adres'),
+        ]);
+
         try {
-            // 1) Yetkili (giris hesabi)
-            $yetkili = new IsletmeYetkilileri();
-            $yetkili->name     = $request->get('yetkili_ad');
-            $yetkili->email    = trim((string) $request->get('yetkili_email'));
-            $yetkili->gsm1     = $telefon;
-            $yetkili->password = Hash::make($sifre);
-            $yetkili->save();
-
-            // 2) Salon (DEMO)
-            $salon = new Salonlar();
-            $salon->salon_adi           = $request->get('salon_adi');
-            $salon->salon_turu_id       = $request->get('salon_turu_id');
-            $salon->il_id               = $request->get('il_id') ?: null;
-            $salon->ilce_id             = $request->get('ilce_id') ?: null;
-            $salon->adres               = (string) $request->get('adres'); // NOT NULL kolon — bosken '' yaz
-            $salon->yetkili_adi         = $request->get('yetkili_ad');
-            $salon->yetkili_telefon     = $telefon;
-            $salon->randevu_saat_araligi = 15;
-            $salon->randevu_takvim_turu = 1;
-            $salon->uyelik_turu         = 3;   // demo
-            $salon->demo_hesabi         = 1;
-            $salon->uyelik_bitis_tarihi = date('Y-m-d', strtotime('+' . $demoGun . ' days'));
-            $salon->save();
-
-            // 3) Calisma saatleri (Pzt-Cmt acik 09-19, Paz kapali)
-            $cs = [];
-            for ($g = 1; $g <= 7; $g++) {
-                $acik = $g <= 6 ? 1 : 0;
-                $cs[] = [
-                    'salon_id' => $salon->id, 'haftanin_gunu' => $g, 'calisiyor' => $acik,
-                    'baslangic_saati' => $acik ? '09:00:00' : '00:00:00',
-                    'bitis_saati'     => $acik ? '19:00:00' : '00:00:00',
-                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
-                ];
-            }
-            \App\SalonCalismaSaatleri::insert($cs);
-
-            // 4) Mola saatleri (kapali)
-            $ms = [];
-            for ($g = 1; $g <= 7; $g++) {
-                $ms[] = [
-                    'salon_id' => $salon->id, 'haftanin_gunu' => $g, 'mola_var' => 0,
-                    'baslangic_saati' => '00:00:00', 'bitis_saati' => '00:00:00',
-                    'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
-                ];
-            }
-            \App\SalonMolaSaatleri::insert($ms);
-
-            // 5) Rol: hesap sahibi (role_id=1)
-            DB::table('model_has_roles')->insert([
-                'role_id'    => 1,
-                'model_type' => 'App\\IsletmeYetkilileri',
-                'model_id'   => $yetkili->id,
-                'salon_id'   => $salon->id,
+            $sonuc = app(\App\Http\Controllers\ApiController::class)->demoHesapKur($kurulumReq, [
+                'demo_gun'      => $demoGun,
+                'sifre'         => $sifre,
+                'salon_turu_id' => $request->get('salon_turu_id'),
+                'il_id'         => $request->get('il_id') ?: null,
+                'ilce_id'       => $request->get('ilce_id') ?: null,
             ]);
-
-            // 6) Personel (yetkili = takvimde gorunen personel; kanonik yetkili-salon baglantisi)
-            $personel = new Personeller();
-            $personel->salon_id          = $salon->id;
-            $personel->personel_adi      = $yetkili->name;
-            $personel->cep_telefon       = $telefon;
-            $personel->yetkili_id        = $yetkili->id;
-            $personel->takvimde_gorunsun = 1;
-            $personel->takvim_sirasi     = 1;
-            $personel->renk              = 1;
-            $personel->aktif             = 1;
-            $personel->save();
-
-            DB::commit();
         } catch (\Throwable $e) {
-            DB::rollBack();
+            \Log::error('[salonEkleKaydet] demoHesapKur hata: ' . $e->getMessage());
             return redirect()->back()->withInput()
                 ->with('hata', 'Demo salon oluşturulamadı: ' . $e->getMessage());
         }
 
-        Audit::log('salon_demo_olustur', 'salon', $salon->id, $salon->salon_adi,
-            'Demo salon oluşturuldu (' . $demoGun . ' gün)', ['yetkili_email' => $yetkili->email]);
+        $salon   = $sonuc['salon'];
+        $yetkili = $sonuc['yetkili'];
+        $sifre   = $sonuc['sifre'];
 
-        // Sistem sahibine bildirim — sistem yönetiminden demo açıldı (her yoldan haber gelsin)
-        try { \App\Services\SistemBildirim::demoAcildi($salon, $salon->yetkili_adi, $telefon); }
-        catch (\Throwable $e) { \Log::warning('[SistemBildirim] salonEkleKaydet demoAcildi hata: ' . $e->getMessage()); }
+        Audit::log('salon_demo_olustur', 'salon', $salon->id, $salon->salon_adi,
+            'Demo salon oluşturuldu (' . $demoGun . ' gün) — sistem yönetiminden', ['yetkili_email' => $yetkili->email]);
 
         return redirect('/sistemyonetim/v2/salon/' . $salon->id)->with('basari',
-            'Demo salon oluşturuldu ✓  Giriş e-postası: ' . $yetkili->email
+            'Demo salon oluşturuldu ✓  Kurulum tamamlandı, giriş bilgileri hesap sahibine SMS ile gönderildi.'
+            . '  ·  Giriş e-postası: ' . $yetkili->email
+            . '  ·  Kullanıcı adı (telefon): ' . $yetkili->gsm1
             . '  ·  Şifre: ' . $sifre
             . '  ·  Demo bitiş: ' . date('d.m.Y', strtotime($salon->uyelik_bitis_tarihi)));
     }

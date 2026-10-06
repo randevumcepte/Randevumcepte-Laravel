@@ -4347,12 +4347,33 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             \Log::info('[siteden_kayit] ZATEN UYE — demoAcildi calismadi', ['ceptelefon' => $request->ceptelefon]);
 
             return "Girdiğiniz telefon numarası ile daha önceden açılmış bir üyelik bulunmaktadır. Farklı bir telefon numarası veya email adresi ile tekrar deneyiniz.";
+        }
 
-            exit();
+        // OTP dogrulandi -> ortak demo kurulum metodu. Ucretsiz deneme sayfasi ve
+        // sistem yonetimi salon-ekle (PanelController@salonEkleKaydet) AYNI metodu cagirir.
+        $this->demoHesapKur($request);
 
-        } else {
+        return response()->json([
+            'durum'     => 'tamam',
+            'mesaj'     => 'Hesabınız başarıyla oluşturulmuştur. Telefonunuza gönderilen şifreniz ile sisteme giriş yapabilirsiniz. Yönlendiriliyorsunuz...',
+            'yonlendir' => 'https://app.randevumcepte.com.tr/isletmeyonetim'
+        ]);
+    }
 
-             
+    /**
+     * Demo hesap kurulumu — ucretsiz deneme sayfasi (siteden_yeni_kayit_kullanici) ve
+     * sistem yonetimi salon-ekle (PanelController@salonEkleKaydet) AYNI metodu kullanir.
+     * Yetkili + salon + ayarlar + varsayilan hizmet/form + ornek demo icerigi olusturur
+     * ve hesap sahibine giris SMS'i gonderir. Donen: ['yetkili'=>..,'salon'=>..,'sifre'=>..].
+     *
+     * Beklenen $request alanlari: adsoyad, ceptelefon, email, isletmeadi, isletmeadresi, isletmeturu
+     * $opts: demo_gun(int=7), sifre(string|null), salon_turu_id(int|null),
+     *        il_id(int|null), ilce_id(int|null)
+     */
+    public function demoHesapKur(Request $request, array $opts = [])
+    {
+
+
 
             $yetkili = new IsletmeYetkilileri();
 
@@ -4374,7 +4395,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             );
 
-            $olusturulansifre = substr($random, 0, 5);
+            $olusturulansifre = !empty($opts['sifre']) ? (string) $opts['sifre'] : substr($random, 0, 5);
 
             $yetkili->password = Hash::make($olusturulansifre);
 
@@ -4390,13 +4411,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             $salon->adres = $request->isletmeadresi;
 
-            $salon->salon_turu_id = SalonTuru::where(
-
-                "salon_turu_adi",
-
-                $request->isletmeturu
-
-            )->value("id");
+            $salon->salon_turu_id = !empty($opts['salon_turu_id'])
+                ? $opts['salon_turu_id']
+                : SalonTuru::where("salon_turu_adi", $request->isletmeturu)->value("id");
 
             $salon->randevu_saat_araligi = 15;
 
@@ -4406,13 +4423,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                 "Y-m-d",
 
-                strtotime("+7 days", strtotime(date("Y-m-d")))
+                strtotime("+" . ((int) ($opts['demo_gun'] ?? 7)) . " days", strtotime(date("Y-m-d")))
 
             );
 
             $salon->uyelik_turu = 3;
 
             $salon->demo_hesabi = true;
+
+            if (!empty($opts['il_id']))   { $salon->il_id   = $opts['il_id']; }
+            if (!empty($opts['ilce_id'])) { $salon->ilce_id = $opts['ilce_id']; }
+            $salon->yetkili_adi     = $request->adsoyad;
+            $salon->yetkili_telefon = $yetkili->gsm1;
 
             $salon->save();
 
@@ -5865,18 +5887,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 Log::info("Code: ".$response->err->code."\n");
                 Log::info("Message: ".$response->err->message."\n");
             }
-            return response()->json([
-                'durum'     => 'tamam',
-                'mesaj'     => 'Hesabınız başarıyla oluşturulmuştur. Telefonunuza gönderilen şifreniz ile sisteme giriş yapabilirsiniz. Yönlendiriliyorsunuz...',
-                'yonlendir' => 'https://app.randevumcepte.com.tr/isletmeyonetim'
-            ]);
-
-
-            
-
-        }
-
+            return ['yetkili' => $yetkili, 'salon' => $salon, 'sifre' => $olusturulansifre];
     }
+
 
     /**
      * Semall Beauty (default id=370) form sablonlarini ayni salon turundeki hedef salona kopyalar.
