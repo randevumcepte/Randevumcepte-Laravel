@@ -69,8 +69,11 @@ class SalonHatirlatmaController extends Controller
                 Cache::forget($cacheKey);
             }
             // DIKKAT: Laravel 5.6'da remember TTL'i DAKIKA cinsindendir. Eskiden 15 yaziyordu =
-            // 15 DAKIKA cache -> "hep ayni veri" sikayeti buradan. Carbon ile 20 saniyeye cekildi.
-            $hatirlatmalar = Cache::remember($cacheKey, now()->addSeconds(20), function () use ($salonId) {
+            // 15 DAKIKA cache -> "hep ayni veri" sikayeti buradan. Carbon ile saniyeye cekildi.
+            // PERF: 20sn cok sik -> her acik panel her 20sn'de agir adisyon taramasi + GROUP BY
+            // yaptiriyordu (mariadbd yuku, trafikten bagimsiz). Acik-adisyon sayisi saniyelik
+            // tazelik gerektirmez; 90sn'ye cekildi (POLL_MS de 60sn).
+            $hatirlatmalar = Cache::remember($cacheKey, now()->addSeconds(90), function () use ($salonId) {
                 return $this->topla($salonId);
             });
         }
@@ -469,14 +472,15 @@ class SalonHatirlatmaController extends Controller
     private function acikAdisyonChunkSay(array $ids)
     {
         $sayim = 0;
+        try {
         $hizmet = DB::table('adisyon_hizmetler')->whereIn('adisyon_id', $ids)
-            ->select('adisyon_id', DB::raw('SUM(IFNULL(toplam_tutar,IFNULL(birim_tutar,0))) as t'))
+            ->select('adisyon_id', DB::raw('SUM(IFNULL(fiyat,0) - IFNULL(indirim_tutari,0)) as t'))
             ->groupBy('adisyon_id')->pluck('t', 'adisyon_id');
         $urun = DB::table('adisyon_urunler')->whereIn('adisyon_id', $ids)
-            ->select('adisyon_id', DB::raw('SUM(IFNULL(toplam_tutar,IFNULL(birim_tutar,0))) as t'))
+            ->select('adisyon_id', DB::raw('SUM(IFNULL(fiyat,0) - IFNULL(indirim_tutari,0)) as t'))
             ->groupBy('adisyon_id')->pluck('t', 'adisyon_id');
         $paket = DB::table('adisyon_paketler')->whereIn('adisyon_id', $ids)
-            ->select('adisyon_id', DB::raw('SUM(IFNULL(toplam_tutar,IFNULL(birim_tutar,0))) as t'))
+            ->select('adisyon_id', DB::raw('SUM(IFNULL(fiyat,0) - IFNULL(indirim_tutari,0)) as t'))
             ->groupBy('adisyon_id')->pluck('t', 'adisyon_id');
         $tahsilat = DB::table('tahsilatlar')->whereIn('adisyon_id', $ids)
             ->select('adisyon_id', DB::raw('SUM(IFNULL(tutar,0)) as t'))
@@ -486,6 +490,11 @@ class SalonHatirlatmaController extends Controller
             $toplam = (float) ($hizmet[$id] ?? 0) + (float) ($urun[$id] ?? 0) + (float) ($paket[$id] ?? 0);
             $odenen = (float) ($tahsilat[$id] ?? 0);
             if ($toplam - $odenen > 0.01) $sayim++;
+        }
+        } catch (\Throwable $e) {
+            // Sema/sorgu hatasinda feed'i COMME etme ve her 20-90sn log SISIRME.
+            \Log::warning('acikAdisyonChunkSay hata: '.$e->getMessage());
+            return 0;
         }
         return $sayim;
     }

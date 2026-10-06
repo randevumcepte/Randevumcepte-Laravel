@@ -10,7 +10,7 @@
 
     var SALON_ID = (window.SHT_AYARLAR && window.SHT_AYARLAR.salon_id) || 0;
     var FEED_URL = '/isletmeyonetim/api/hatirlatma-feed?sube=' + SALON_ID;
-    var POLL_MS  = 20000;             // 20 sn'de bir feed yenile
+    var POLL_MS  = 60000;             // 60 sn'de bir feed yenile (PERF: eskiden 20sn; her acik
     var GOSTERILEN_TOAST = {};        // {id+sayac: timestamp}
     var SON_FEED = [];
     var ILK_POPUP_GOSTERILDI = false; // sayfa basina 1 kez tam-ekran popup

@@ -8,7 +8,7 @@
 
 @if(($_SERVER['HTTP_HOST'] ?? '') != 'randevu.randevumcepte.com.tr')
 
-@php $shtVer = '2.1'; @endphp
+@php $shtVer = '2.2'; @endphp
 
 <link rel="stylesheet" href="{{ secure_asset('public/isletmeyonetim_assets/css/salon_hatirlatma.css') }}?v={{ $shtVer }}">
 
