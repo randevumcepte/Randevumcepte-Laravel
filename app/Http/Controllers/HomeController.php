@@ -296,8 +296,10 @@ class HomeController extends Controller
     public function salonDetay(Request $request){
         $domain = str_replace('www.', '', $_SERVER['HTTP_HOST']);
 $salon = Salonlar::where('domain', $domain)->first();
-        
-         
+        // Domain eslesmeyen istek (bot/crawler, tanimsiz Host) -> $salon null -> $salon->id
+        // fatal veriyordu (3 gunde 4450 exception + log). Temiz 404 don.
+        if (!$salon) abort(404);
+
         $isletme_id = $salon->id;
          $subeler = Subeler::where('salon_id',$isletme_id)->where('aktif',1)->get();
     $ipaddress = '';
@@ -382,12 +384,14 @@ $salon = Salonlar::where('domain', $domain)->first();
      {
          
          $salon = Salonlar::where('domain',$_SERVER['HTTP_HOST'])->first();
+        if (!$salon) abort(404);
         return view('gizlilik',['salon'=> $salon,'titlepage'=>$salon->salon_adi .' Gizlilik ve Kişisel Verileri Koruma Politikası']);
      }
     public function salonDetay_anasayfa(Request $request,$isletme_adi,$isletme_id){
 		 $salon = Salonlar::where('domain',$_SERVER['HTTP_HOST'])->where('id',$isletme_id)->first();
-		
-		 
+		// Domain/id eslesmeyen istek -> $salon null -> fatal (exception+log spam). Temiz 404.
+		if (!$salon) abort(404);
+
 		$isletme_id = $salon->id;
 		 $subeler = Subeler::where('salon_id',$isletme_id)->where('aktif',1)->get();
     $ipaddress = '';
