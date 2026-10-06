@@ -28,6 +28,7 @@
               style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;color:{{ $wdRenk }};background:{{ $wdBg }};border:1px solid {{ $wdRenk }}33">
             <i class="mdi {{ $wdIcon }}" style="font-size:16px"></i>
             Watchdog: {{ $wdDurum }} <span style="opacity:.75;font-weight:500">· {{ $wdZaman }}</span>
+            @if(!empty($wd['canli']) && isset($wd['aktif_ban']))<span style="opacity:.75;font-weight:500">· {{ (int) $wd['aktif_ban'] }} aktif ban</span>@endif
         </span>
         <a href="/sistemyonetim/v2/sistem-saglik" class="sy-btn sy-btn-soft">Sistem Sağlık</a>
         <a href="/sistemyonetim/v2/guvenlik/girisler" class="sy-btn sy-btn-soft">Giriş Logları</a>

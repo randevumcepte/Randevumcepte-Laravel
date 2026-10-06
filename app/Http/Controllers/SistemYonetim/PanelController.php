@@ -1543,15 +1543,17 @@ class PanelController extends Controller
 
         // Watchdog canlilik: her tur 'heartbeat' satirini NOW() ile gunceller.
         // Son 3 dk icinde yazilmissa CALISIYOR, degilse DURMUS kabul et.
-        $hb = Schema::hasTable('guvenlik_durum')
-            ? DB::table('guvenlik_durum')->where('anahtar', 'heartbeat')->first()
-            : null;
+        $durumRaw = Schema::hasTable('guvenlik_durum')
+            ? DB::table('guvenlik_durum')->whereIn('anahtar', ['heartbeat', 'aktif_ban'])->get()->keyBy('anahtar')
+            : collect();
+        $hb = $durumRaw->get('heartbeat');
         $hbSanize = $hb && $hb->updated_at ? strtotime($hb->updated_at) : null;
         $watchdog = [
-            'son'    => $hb ? $hb->updated_at : null,
-            'saniye' => $hbSanize ? max(0, time() - $hbSanize) : null,
-            'canli'  => $hbSanize ? (time() - $hbSanize) <= 180 : false,
-            'kuruldu'=> (bool) $hbSanize, // hic heartbeat yoksa watchdog guncel degil / hic kosmadi
+            'son'       => $hb ? $hb->updated_at : null,
+            'saniye'    => $hbSanize ? max(0, time() - $hbSanize) : null,
+            'canli'     => $hbSanize ? (time() - $hbSanize) <= 180 : false,
+            'kuruldu'   => (bool) $hbSanize, // hic heartbeat yoksa watchdog guncel degil / hic kosmadi
+            'aktif_ban' => optional($durumRaw->get('aktif_ban'))->deger, // ipset'teki gercek ban sayisi
         ];
 
         $ozet = [
