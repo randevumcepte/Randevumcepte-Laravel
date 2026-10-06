@@ -21,6 +21,10 @@
 
 set -uo pipefail
 
+# Cron minimal bir PATH ile calisir (/sbin, /usr/sbin YOK) — ipset/iptables/ss
+# oralarda oldugu icin script "ipset yok" diyip cikardi. PATH'i garantiye al.
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/sbin:/usr/bin:/bin:$PATH"
+
 # ----------------------------- AYARLAR --------------------------------------
 APP_DIR="/var/www/www-root/data/www/randevumcepte"
 PHP_BIN="/opt/php74/bin/php"
