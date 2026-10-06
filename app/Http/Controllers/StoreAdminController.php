@@ -3996,8 +3996,13 @@ public function carkverilerigetir(Request $request)
         : collect();
 
     // Tahsilat butonu icin: hangi randevu_id'lerin AdisyonPaketSeanslar veya AdisyonHizmetler kayitlari var
-    $randevuIdsHasSeans = !empty($randevuIds)
-        ? AdisyonPaketSeanslar::whereIn('randevu_id', $randevuIds)->pluck('randevu_id')->unique()->flip()
+    // PERF: AdisyonPaketSeanslar ayni filtre (whereIn randevu_id) ile YUKARIDA $seanslarByRandevu'ya
+    // zaten cekildi; "hangi randevunun seansi var" = o koleksiyonun ANAHTARLARI. Ikinci sorgu yerine
+    // bellekten turet (takvimin her yuklemesinde -1 sorgu). AdisyonHizmetler ise farkli (id vs
+    // randevu_id) oldugu icin oldugu gibi kalir.
+    $randevuIdsHasSeans = $seanslarByRandevu->keys()->flip();
+    $randevuIdsHasAdisyonHizmet = !empty($randevuIds)
+        ? AdisyonHizmetler::whereIn('randevu_id', $randevuIds)->pluck('randevu_id')->unique()->flip()
         : collect();
     $randevuIdsHasAdisyonHizmet = !empty($randevuIds)
         ? AdisyonHizmetler::whereIn('randevu_id', $randevuIds)->pluck('randevu_id')->unique()->flip()
