@@ -1430,6 +1430,17 @@
             </div>
             @endif
             @if(optional($_layoutYetkiliPersonel)->dahili_no_webrtc !== null)
+            @php
+               // Softphone yaninda gosterilecek KALAN dakika (sistem yonetimindeki sayac ile ayni kaynak).
+               // Santral API'sini her sayfada yormamak icin 3 dk cache'li.
+               $_softphoneKalanDk = null;
+               try {
+                   $_spDk = \Illuminate\Support\Facades\Cache::remember('sp_kalan_dk_'.$isletme->id, 3, function() use ($isletme) {
+                       return \App\SistemYonetim\DakikaHesap::hesapla($isletme->id);
+                   });
+                   $_softphoneKalanDk = isset($_spDk['kalan']) ? $_spDk['kalan'] : null;
+               } catch (\Throwable $e) { $_softphoneKalanDk = null; }
+            @endphp
             <div class="user-notification " style="padding:20px 0 0 0">
                <div class="dropdown" id="webTelefonDropDown">
                   <!--{{(!$_layoutDahiliDurum) ? 'dropdown' : 'modal'}}
@@ -1443,8 +1454,8 @@
                      role="button"
                      data-toggle="dropdown" 
                      style="cursor: pointer;padding: 5px 7px;color:#fff"
-                     >  &nbsp;<i class="icon-copy fi-telephone" ></i> &nbsp<i data-toggle='tooltip' data-placement='bottom' title='Dakika bazlıdır' class="icon-copy bi bi-info-circle-fill" style="font-size:14px"></i>
-                  </span>  
+                     >  &nbsp;<i class="icon-copy fi-telephone" ></i>@if($_softphoneKalanDk !== null) &nbsp;<span style="font-size:12px;font-weight:700;vertical-align:middle;" title="Kalan konuşma dakikası">{{ number_format($_softphoneKalanDk, 0, ',', '.') }} dk</span>@endif
+                  </span>
                   <div class="dropdown-menu webphone dropdown-menu-left" style="border:1px solid #5C008E">
                      <div class="dtmf bg-primary rounded p-3 text-white-50 text-monospace" style="min-height:110px">
                         <i class="fa fa-phone-square"></i> <span id="dtmf"></span>
