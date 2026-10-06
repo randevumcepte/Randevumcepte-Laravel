@@ -15173,26 +15173,39 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     public function yetkilibilgiguncelle(Request $request)
 
     {
+        // GUVENLIK (gecisli): auth-less uc; kimligi token'dan cozeriz.
+        // - Token VARSA: yalnizca KENDI profilini guncelleyebilir.
+        // - Token YOKSA (eski app): sifre/email/telefon DEGISTIRILMEZ (hesap ele gecirme onlemi);
+        //   isim/unvan/sms_gonderimi/cinsiyet geriye donuk guncellenir.
+        $authUser = \Auth::guard('isletmeyonetim-api')->user();
+        if ($authUser && (string) $authUser->id !== (string) $request->yetkili_id) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Bu işlem için yetkiniz yok.'], 403, [], JSON_UNESCAPED_UNICODE);
+        }
+        $dogrulandi = (bool) $authUser;
 
         $user = IsletmeYetkilileri::where("id", $request->yetkili_id)->first();
-
-        $user->name = $request->name;
-
-        $user->email = $request->email;
-
-        if ($request->password != "") {
-
-            $user->password = Hash::make($request->password);
-
+        if (!$user) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Yetkili bulunamadı.'], 404, [], JSON_UNESCAPED_UNICODE);
         }
 
-        $user->gsm1 = self::telefon_no_format_duzenle($request->gsm1);
+        $user->name = $request->name;
 
         $user->unvan = $request->unvan;
 
         $user->sms_gonderimi = $request->sms_gonderimi;
 
-        $user->cinsiyet = $request->cinsiyet;
+        if ($request->exists('cinsiyet')) {
+            $user->cinsiyet = $request->cinsiyet;
+        }
+
+        // Hassas alanlar: SADECE token ile dogrulanmis self-update'te degisir.
+        if ($dogrulandi) {
+            $user->email = $request->email;
+            $user->gsm1 = self::telefon_no_format_duzenle($request->gsm1);
+            if ($request->password != "") {
+                $user->password = Hash::make($request->password);
+            }
+        }
 
         $user->save();
 
@@ -15205,26 +15218,38 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     public function musteribilgiguncelle(Request $request)
 
     {
+        // GUVENLIK (gecisli): Bu uc api.php'de auth-less. Kimligi token'dan cozeriz.
+        // - Token VARSA: yalnizca KENDI profilini guncelleyebilir (yetkili_id == token kullanicisi).
+        // - Token YOKSA (eski app surumu): sifre/email/telefon gibi HESAP ELE GECIRME
+        //   vektorlerini DEGISTIRME; sadece isim/meslek/cinsiyet guncellenir (geriye donuk).
+        $authUser = \Auth::guard('api')->user();
+        if ($authUser && (string) $authUser->id !== (string) $request->yetkili_id) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Bu işlem için yetkiniz yok.'], 403, [], JSON_UNESCAPED_UNICODE);
+        }
+        $dogrulandi = (bool) $authUser;
 
         $user = User::where("id", $request->yetkili_id)->first();
+        if (!$user) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Kullanıcı bulunamadı.'], 404, [], JSON_UNESCAPED_UNICODE);
+        }
 
         $user->name = $request->name;
-
-        $user->email = $request->email;
         if($request->exists('meslek'))
         {
             $user->meslek = $request->meslek;
         }
-        if($request->exists('password'))
+        if($request->exists('cinsiyet'))
         {
-            if($request->password != '')
-                $user->password = Hash::make($request->password);
-
+            $user->cinsiyet = $request->cinsiyet;
         }
 
-        $user->cep_telefon = self::telefon_no_format_duzenle($request->cep_telefon ?? $request->gsm1);
-
-        $user->cinsiyet = $request->cinsiyet;
+        // Hassas alanlar: SADECE token ile dogrulanmis self-update'te degisir.
+        if ($dogrulandi) {
+            $user->email = $request->email;
+            $user->cep_telefon = self::telefon_no_format_duzenle($request->cep_telefon ?? $request->gsm1);
+            if($request->exists('password') && $request->password != '')
+                $user->password = Hash::make($request->password);
+        }
 
         $user->save();
 
