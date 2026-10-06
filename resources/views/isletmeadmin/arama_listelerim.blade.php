@@ -704,9 +704,21 @@ $(document).on('click', '.ag-sonuc', function(){
    $('#ag_sonra_alan').hide();
    // Telefonda Satış(7) -> tutar alanı
    $('#ag_satis_alan').css('display', agSecilenSonuc===7 ? 'flex' : 'none');
-   // Ön Görüşme Randevusu(6) -> gerçek ön görüşme randevu ekranı açılır
-   if (agSecilenSonuc===6){ agOnGorusmeAc(); }
+   // Ön Görüşme Randevusu(6) -> aramayi HEMEN durum=6 isaretle + gerçek randevu modalini ac
+   if (agSecilenSonuc===6){ agOnGorusmeKaydetVeAc(); }
 });
+
+// On Gorusme secilince: aramayi DOGRUDAN durum=6 isaretle (Sonucu Kaydet gerekmesin),
+// sonra gercek randevu modalini ac. (Hook/zamanlamaya bagli degil -> guvenilir.)
+function agOnGorusmeKaydetVeAc(){
+   if (agSecili && agAktifListe){
+      var _amId = agSecili.aranacak_musteri_id, _listeId = agAktifListe;
+      $.post('/isletmeyonetim/santral_not_ekle',
+         { arama_detay_id:_listeId, aranacak_musteri_id:_amId, noticerik:($('#ag_not').val()||''), sonuc:6, _token:$('input[name="_token"]').val() },
+         function(r){ if(r && r.success){ agDurumGuncelle(_amId, 6); agGecmisYukle(_amId); } });
+   }
+   agOnGorusmeAc();
+}
 
 // Ön Görüşme: gerçek randevu modalını müşteri prefill'li açar (KVKK maskesi bu an için kalkar)
 function agOnGorusmeAc(){
@@ -733,6 +745,9 @@ function agOnGorusmeAc(){
       }
    ).fail(function(){ swal({ type:'error', title:'Hata', text:'Ön görüşme ekranı açılamadı.' }); });
 }
+// On gorusme modali KAYITSIZ kapanirsa (iptal) baglami temizle -> yanlis durum=6 isaretlenmesin.
+// (Kayitta custom.js success'i baglami zaten tuketip null'lar; burada kalan = iptal demektir.)
+$(document).on('hidden.bs.modal', '#ongorusme-modal', function(){ window.__aramaOGCtx = null; });
 
 // ---- Memnuniyet anketi gönder (görüşme sonucu penceresinden) ----
 $(document).on('click', '#ag_anket_gonder', function(){
@@ -806,12 +821,35 @@ $(document).on('click', '#ag_satis_kasa', function(){
    ).fail(function(){ swal({ type:'error', title:'Hata', text:'Satış ekranı açılamadı.' }); });
 });
 
-// Kalem tipi -> ilgili seçim kutusu + adet (ürün)
+// Kalem tipi -> ilgili seçim kutusu + adet (ürün). select2 destroy/init ile toggle.
 $(document).on('change', '#hs_tip', function(){
    var t = $(this).val();
-   $('.hs-item').hide().val('');
-   $('#hs_item_'+t).show();
+   $('.hs-item').each(function(){
+      if ($(this).hasClass('select2-hidden-accessible')) { try { $(this).select2('destroy'); } catch(e){} }
+      $(this).hide().val('');
+   });
+   var $akt = $('#hs_item_'+t).show().val('');
+   if ($.fn.select2 && $('#ag_satis_modal').hasClass('show')){
+      $akt.select2({ width:'100%', dropdownParent: $('#ag_satis_modal'), placeholder:'Ürün/hizmet/paket ara...' });
+   }
    $('#hs_adet_kutu').toggle(t==='urun');
+});
+// Satis modali acilinca secimleri searchable (select2) yap; kapaninca temizle.
+$(document).on('shown.bs.modal', '#ag_satis_modal', function(){
+   if (!$.fn.select2) return;
+   var mp = $('#ag_satis_modal');
+   $('#hs_tip, #hs_odeme').each(function(){
+      var $e=$(this); if($e.hasClass('select2-hidden-accessible')){ try{$e.select2('destroy');}catch(e){} }
+      $e.select2({ width:'100%', dropdownParent: mp });
+   });
+   var $akt = $('#hs_item_'+$('#hs_tip').val());
+   if($akt.hasClass('select2-hidden-accessible')){ try{$akt.select2('destroy');}catch(e){} }
+   $akt.select2({ width:'100%', dropdownParent: mp, placeholder:'Ürün/hizmet/paket ara...' });
+});
+$(document).on('hidden.bs.modal', '#ag_satis_modal', function(){
+   $('#hs_tip, #hs_odeme, .hs-item').each(function(){
+      if($(this).hasClass('select2-hidden-accessible')){ try{$(this).select2('destroy');}catch(e){} }
+   });
 });
 // Kalem seçilince fiyatı otomatik doldur
 $(document).on('change', '.hs-item', function(){
@@ -828,14 +866,23 @@ $(document).on('click', '#hs_kaydet', function(){
    if (!itemId){ swal({type:'warning',title:'Seçim yapın',text:'Satılan paket/hizmet/ürünü seçin.'}); return; }
    if (!fiyat || parseFloat(fiyat)<=0){ swal({type:'warning',title:'Fiyat girin',text:'Satış fiyatını girin.'}); return; }
    if (!odeme){ swal({type:'warning',title:'Ödeme',text:'Ödeme yöntemi seçin.'}); return; }
+   var adet = parseInt($('#hs_adet').val()||1,10) || 1;
+   var satisToplam = parseFloat(fiyat) * (tip==='urun' ? adet : 1);
    var $btn = $(this); $btn.prop('disabled', true);
    $.post('/isletmeyonetim/cagri-hizli-satis',
       { sube:$('input[name="sube"]').val(), musteri_id:musteriId, kalem_tip:tip, kalem_id:itemId,
-        fiyat:fiyat, odeme_yontemi:odeme, adet:$('#hs_adet').val()||1, _token:$('input[name="_token"]').val() },
+        fiyat:fiyat, odeme_yontemi:odeme, adet:adet, _token:$('input[name="_token"]').val() },
       function(res){
          if (res && res.success){
             $('#ag_satis_modal').modal('hide');
             swal({ type:'success', title:'Satış oluşturuldu', text:res.message||'Kasaya işlendi.', timer:2600, showConfirmButton:false });
+            // Aramayi otomatik "Satis"(durum=7) isaretle -> ayrica Sonucu Kaydet gerekmesin
+            if (agSecili && agAktifListe){
+               var _amId = agSecili.aranacak_musteri_id, _listeId = agAktifListe;
+               $.post('/isletmeyonetim/santral_not_ekle',
+                  { arama_detay_id:_listeId, aranacak_musteri_id:_amId, noticerik:($('#ag_not').val()||''), sonuc:7, satis_tutari:satisToplam, _token:$('input[name="_token"]').val() },
+                  function(r){ if(r && r.success){ agDurumGuncelle(_amId, 7); agGecmisYukle(_amId); } });
+            }
          } else { swal({ type:'error', title:'Hata', text:(res&&res.message)||'Satış oluşturulamadı.' }); }
       }
    ).fail(function(){ swal({ type:'error', title:'Hata', text:'İşlem başarısız.' }); })

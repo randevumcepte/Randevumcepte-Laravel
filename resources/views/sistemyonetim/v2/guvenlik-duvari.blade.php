@@ -8,10 +8,46 @@
         <div class="subtitle">Flood / SSH brute-force otomatik engelleme · saldırı anında WhatsApp alarm</div>
     </div>
     <div class="sy-flex-row">
+        @php
+            $wd = $watchdog ?? ['canli' => false, 'kuruldu' => false, 'saniye' => null, 'son' => null];
+            if (!empty($wd['canli'])) {
+                $wdRenk = '#16a34a'; $wdBg = 'rgba(22,163,74,.12)'; $wdIcon = 'mdi-shield-check'; $wdDurum = 'ÇALIŞIYOR';
+            } elseif (!empty($wd['kuruldu'])) {
+                $wdRenk = '#dc2626'; $wdBg = 'rgba(220,38,38,.12)'; $wdIcon = 'mdi-shield-off'; $wdDurum = 'DURMUŞ';
+            } else {
+                $wdRenk = '#d97706'; $wdBg = 'rgba(217,119,6,.12)'; $wdIcon = 'mdi-shield-alert'; $wdDurum = 'KURULMAMIŞ';
+            }
+            $s = $wd['saniye'] ?? null;
+            if ($s === null)      $wdZaman = 'heartbeat yok';
+            elseif ($s < 90)      $wdZaman = 'son çalışma: az önce';
+            elseif ($s < 3600)    $wdZaman = 'son çalışma: ' . floor($s / 60) . ' dk önce';
+            elseif ($s < 86400)   $wdZaman = 'son çalışma: ' . floor($s / 3600) . ' sa önce';
+            else                  $wdZaman = 'son çalışma: ' . floor($s / 86400) . ' gün önce';
+        @endphp
+        <span title="{{ $wd['son'] ? 'Son heartbeat: ' . $wd['son'] : 'Watchdog hiç heartbeat yazmadı' }}"
+              style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;color:{{ $wdRenk }};background:{{ $wdBg }};border:1px solid {{ $wdRenk }}33">
+            <i class="mdi {{ $wdIcon }}" style="font-size:16px"></i>
+            Watchdog: {{ $wdDurum }} <span style="opacity:.75;font-weight:500">· {{ $wdZaman }}</span>
+            @if(!empty($wd['canli']) && isset($wd['aktif_ban']))<span style="opacity:.75;font-weight:500">· {{ (int) $wd['aktif_ban'] }} aktif ban</span>@endif
+        </span>
         <a href="/sistemyonetim/v2/sistem-saglik" class="sy-btn sy-btn-soft">Sistem Sağlık</a>
         <a href="/sistemyonetim/v2/guvenlik/girisler" class="sy-btn sy-btn-soft">Giriş Logları</a>
     </div>
 </div>
+
+@if(empty($wd['canli']))
+<div class="sy-card" style="margin-top:12px;border-left:4px solid {{ $wdRenk }};background:{{ $wdBg }}">
+    <div class="sy-card-body" style="font-size:13px">
+        @if(empty($wd['kuruldu']))
+            <strong>Watchdog kurulu değil / hiç çalışmadı.</strong> Root cron ve ipset kurulumu için <code>docs/GUVENLIK_DUVARI.md</code>.
+            Watchdog çalışmazsa bu paneldeki whitelist/blacklist kuralları ve otomatik engelleme <strong>uygulanmaz</strong>.
+        @else
+            <strong>Watchdog {{ $wdZaman }} — şu an engelleme yapmıyor olabilir.</strong>
+            Cron durmuş ya da script hata veriyor olabilir. Sunucuda: <code>journalctl -t guvenlik-watchdog -n 20</code>.
+        @endif
+    </div>
+</div>
+@endif
 
 {{-- Özet kartlar --}}
 <div class="sy-metric-grid">

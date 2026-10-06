@@ -1430,6 +1430,17 @@
             </div>
             @endif
             @if(optional($_layoutYetkiliPersonel)->dahili_no_webrtc !== null)
+            @php
+               // Softphone yaninda gosterilecek KALAN dakika (sistem yonetimindeki sayac ile ayni kaynak).
+               // Santral API'sini her sayfada yormamak icin 3 dk cache'li.
+               $_softphoneKalanDk = null;
+               try {
+                   $_spDk = \Illuminate\Support\Facades\Cache::remember('sp_kalan_dk_'.$isletme->id, 3, function() use ($isletme) {
+                       return \App\SistemYonetim\DakikaHesap::hesapla($isletme->id);
+                   });
+                   $_softphoneKalanDk = isset($_spDk['kalan']) ? $_spDk['kalan'] : null;
+               } catch (\Throwable $e) { $_softphoneKalanDk = null; }
+            @endphp
             <div class="user-notification " style="padding:20px 0 0 0">
                <div class="dropdown" id="webTelefonDropDown">
                   <!--{{(!$_layoutDahiliDurum) ? 'dropdown' : 'modal'}}
@@ -1443,8 +1454,8 @@
                      role="button"
                      data-toggle="dropdown" 
                      style="cursor: pointer;padding: 5px 7px;color:#fff"
-                     >  &nbsp;<i class="icon-copy fi-telephone" ></i> &nbsp<i data-toggle='tooltip' data-placement='bottom' title='Dakika bazlıdır' class="icon-copy bi bi-info-circle-fill" style="font-size:14px"></i>
-                  </span>  
+                     >  &nbsp;<i class="icon-copy fi-telephone" ></i>@if($_softphoneKalanDk !== null) &nbsp;<span style="font-size:12px;font-weight:700;vertical-align:middle;" title="Kalan konuşma dakikası">{{ number_format($_softphoneKalanDk, 0, ',', '.') }} dk</span>@endif
+                  </span>
                   <div class="dropdown-menu webphone dropdown-menu-left" style="border:1px solid #5C008E">
                      <div class="dtmf bg-primary rounded p-3 text-white-50 text-monospace" style="min-height:110px">
                         <i class="fa fa-phone-square"></i> <span id="dtmf"></span>
@@ -2208,16 +2219,7 @@
                      <span class="mtext"> Arama Randevu Takvimi </span>
                      </a>
                   </li>
-                  <li>
-                     @if($pageindex==47)
-                     <a href="/isletmeyonetim/arama-randevularim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
-                     @else
-                     <a href="/isletmeyonetim/arama-randevularim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
-                     @endif
-                     <span class="micon bi bi-list-check"></span>
-                     <span class="mtext"> Arama Randevuları </span>
-                     </a>
-                  </li>
+                  {{-- 'Arama Randevulari' menusu kaldirildi: islevi Arama Randevu Takvimi (cockpit) karsiliyor --}}
                   <li>
                      @if($pageindex==48)
                      <a href="/isletmeyonetim/arama-cagri-kayitlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -5794,7 +5796,7 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=13.9')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=295.5')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=295.6')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.6')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>

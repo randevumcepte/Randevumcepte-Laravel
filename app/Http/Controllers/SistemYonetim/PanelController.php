@@ -24,6 +24,7 @@ use App\SatisOrtakligiModel\Musteri_Formlari_Hizmetler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Hash;
 
 class PanelController extends Controller
@@ -1540,6 +1541,21 @@ class PanelController extends Controller
             $engelli[$o->ip] = $o;
         }
 
+        // Watchdog canlilik: her tur 'heartbeat' satirini NOW() ile gunceller.
+        // Son 3 dk icinde yazilmissa CALISIYOR, degilse DURMUS kabul et.
+        $durumRaw = Schema::hasTable('guvenlik_durum')
+            ? DB::table('guvenlik_durum')->whereIn('anahtar', ['heartbeat', 'aktif_ban'])->get()->keyBy('anahtar')
+            : collect();
+        $hb = $durumRaw->get('heartbeat');
+        $hbSanize = $hb && $hb->updated_at ? strtotime($hb->updated_at) : null;
+        $watchdog = [
+            'son'       => $hb ? $hb->updated_at : null,
+            'saniye'    => $hbSanize ? max(0, time() - $hbSanize) : null,
+            'canli'     => $hbSanize ? (time() - $hbSanize) <= 180 : false,
+            'kuruldu'   => (bool) $hbSanize, // hic heartbeat yoksa watchdog guncel degil / hic kosmadi
+            'aktif_ban' => optional($durumRaw->get('aktif_ban'))->deger, // ipset'teki gercek ban sayisi
+        ];
+
         $ozet = [
             'engelli_aktif' => count($engelli),
             'son24_engel'   => DB::table('guvenlik_olaylari')->where('aksiyon', 'engellendi')->where('created_at', '>=', $son24)->count(),
@@ -1550,6 +1566,7 @@ class PanelController extends Controller
         return view('sistemyonetim.v2.guvenlik-duvari', [
             'title'       => 'Güvenlik Duvarı',
             'aktifMenu'   => 'guvenlik-duvari',
+            'watchdog'    => $watchdog,
             'ozet'        => $ozet,
             'engelli'     => array_values($engelli),
             'whitelist'   => DB::table('guvenlik_ip_kurallari')->where('tip', 'whitelist')->orderBy('id', 'desc')->get(),

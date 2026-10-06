@@ -437,13 +437,10 @@ function setOptionDisabled($select, value, disabled) {
 // Celiskili filtre kombinasyonlarini engelle — ama dropdown'lari KILITLEME,
 // sadece mantiken imkansiz olan secenekleri devre disi birak.
 function filtreBagimliliklari() {
-  // 1) Tek kati celiski: PASIF = satis yok. Yani Pasif + "Satis Yapilmis" imkansiz.
-  //    Aktif/Sadik'in satis secenekleri SERBEST birakilir (onlarda satis olabilir).
-  var durum = $('#f_durum').val();
-  setOptionDisabled($('#f_satis'), 'var', durum === 'pasif');
-  // Ters yon: "Satis Yapilmis" secilince Pasif secilemez.
-  var satis = $('#f_satis').val();
-  setOptionDisabled($('#f_durum'), 'pasif', satis === 'var');
+  // 1) Musteri Durumu = ODEME (tahsilat) sayisi; Satis Durumu = ADISYON var/yok.
+  //    Artik BAGIMSIZ: "Pasif (0 tahsilat) + Satis Yapilmis (adisyon var)" GECERLIDIR
+  //    (satis yapildi ama odeme yok = alacakli). Bu yuzden karsilikli kilit KALDIRILDI.
+  //    (Eski kilit, ikisi de adisyon bazliyken gecerliydi.)
 
   // 2) "Hic randevu almamis" <-> "Gelmeyen" / "Iptal eden": gercekten karsilikli
   //    dislama (ortak gecerli secenek yok), bu yuzden alan bazli devre disi.

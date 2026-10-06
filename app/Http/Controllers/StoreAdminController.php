@@ -32794,6 +32794,22 @@ DB::raw('
             return view('isletmeadmin.yetkisizerisim'); // personel goremez
         }
 
+        // Telefonda Satış (Hızlı Satış popup) icin salon bazli listeler (calisma ekrani ile ayni)
+        $cm_odeme_yontemleri = \App\OdemeYontemleri::all();
+        $cm_hizmetler = DB::table('salon_sunulan_hizmetler')
+            ->join('hizmetler', 'salon_sunulan_hizmetler.hizmet_id', '=', 'hizmetler.id')
+            ->where('salon_sunulan_hizmetler.salon_id', $isletme->id)
+            ->where('salon_sunulan_hizmetler.aktif', true)
+            ->select('hizmetler.id as id', 'hizmetler.hizmet_adi as ad',
+                DB::raw('COALESCE(salon_sunulan_hizmetler.son_fiyat, salon_sunulan_hizmetler.baslangic_fiyat, hizmetler.fiyat, 0) as fiyat'))
+            ->orderBy('hizmetler.hizmet_adi')->get();
+        $cm_urunler = DB::table('urunler')
+            ->where('salon_id', $isletme->id)->where('aktif', true)
+            ->select('id', 'urun_adi as ad', 'fiyat')->orderBy('urun_adi')->get();
+        $cm_paketler = DB::table('paketler')
+            ->where('salon_id', $isletme->id)
+            ->select('id', 'paket_adi as ad', 'fiyat')->orderBy('paket_adi')->get();
+
         return view('isletmeadmin.arama_randevu_takvim', [
             'kullaniciRolu'           => $rol,
             'bildirimler'             => self::bildirimgetir($request),
@@ -32802,6 +32818,10 @@ DB::raw('
             'isletme'                 => $isletme,
             'kalan_uyelik_suresi'     => $lisansSure,
             'yetkiliolunanisletmeler' => $isletmeler,
+            'cm_odeme_yontemleri'     => $cm_odeme_yontemleri,
+            'cm_hizmetler'            => $cm_hizmetler,
+            'cm_urunler'              => $cm_urunler,
+            'cm_paketler'             => $cm_paketler,
         ]);
     }
 
@@ -32827,12 +32847,12 @@ DB::raw('
             ->whereBetween('am.tarih', [$bas, $bit]);
         if ($arVar) {
             $q->where(function ($w) {
-                $w->where('am.durum', 3)->orWhereNotNull('am.ar_tamamlandi_at');
+                $w->where('am.durum', 3)->orWhereIn('am.durum', [6, 7])->orWhereNotNull('am.ar_tamamlandi_at');
             });
         } else {
-            $q->where('am.durum', 3);
+            $q->whereIn('am.durum', [3, 6, 7]);
         }
-        $secim = ['am.id', 'am.arama_id', 'am.tarih', 'am.saat', 'am.durum', 'u.name as musteri_ad', 'p.personel_adi', 'al.personel_id'];
+        $secim = ['am.id', 'am.arama_id', 'am.tarih', 'am.saat', 'am.durum', 'am.musteri_not', 'u.name as musteri_ad', 'p.personel_adi', 'al.personel_id'];
         if ($arVar) { $secim[] = 'am.ar_tamamlandi_at'; $secim[] = 'am.ar_gecikti'; }
         $kayitlar = $q->select($secim)->limit(2000)->get();
 
@@ -32841,11 +32861,18 @@ DB::raw('
         foreach ($kayitlar as $k) {
             $apptTs = strtotime($k->tarih . ' ' . $k->saat);
             $tamamlandi = $arVar && !empty($k->ar_tamamlandi_at);
-            if ($tamamlandi) {
+            $d = (int) $k->durum;
+            if ($d === 6) {
+                $renk = '#7c3aed';                               // mor=ön görüşme
+                $durumMetin = 'Ön Görüşme';
+            } elseif ($d === 7) {
+                $renk = '#b8860b';                               // altın=satış
+                $durumMetin = 'Satış';
+            } elseif ($tamamlandi) {
                 $gec = strtotime($k->ar_tamamlandi_at) > $apptTs;
                 $renk = $gec ? '#f59e0b' : '#16a34a';            // turuncu=geç arandı, yeşil=zamanında
                 $durumMetin = $gec ? 'Geç arandı' : 'Zamanında arandı';
-            } elseif ((int) $k->durum === 3 && ($apptTs < $nowTs || ($arVar && (int) $k->ar_gecikti === 1))) {
+            } elseif ($d === 3 && ($apptTs < $nowTs || ($arVar && (int) $k->ar_gecikti === 1))) {
                 $renk = '#dc2626';                                // kırmızı=gecikti
                 $durumMetin = 'Gecikti';
             } else {
@@ -32863,6 +32890,7 @@ DB::raw('
                 'personel_id'     => (int) $k->personel_id,
                 'personel'        => $personel,
                 'musteri'         => $musteri,
+                'not'             => (string) ($k->musteri_not ?? ''), // randevu/musteri notu (aktarilan dahil)
                 'durum_metin'     => $durumMetin,
             ];
         }
@@ -34239,6 +34267,9 @@ DB::raw('
                 foreach ($ph as $h) { $toplamSeans += (int) ($h->seans ?? 0); }
                 $ap->seans_sayisi = $toplamSeans; $ap->bekleyen_seans = $toplamSeans;
                 $ap->kullanilan_seans = 0; $ap->kullanilmayan_seans = 0; $ap->otomatik_randevu_olusturuldu = false;
+                // AdisyonPaketler zorunlu kolonlari (yoksa insert patlar -> rollback -> satis olmaz)
+                if (Schema::hasColumn('adisyon_paketler', 'baslangic_tarihi')) $ap->baslangic_tarihi = $tarih;
+                if (Schema::hasColumn('adisyon_paketler', 'seans_araligi')) $ap->seans_araligi = 7;
                 $ap->save();
                 foreach ($ph as $h) {
                     $seans = (int) ($h->seans ?? 1); if ($seans < 1) $seans = 1;
@@ -34259,6 +34290,18 @@ DB::raw('
             $t->odeme_yontemi_id = $odeme; $t->notlar = 'Telefonda satış (çağrı merkezi)';
             if (!empty($request->banka)) $t->banka_id = $request->banka;
             $t->save();
+
+            // Tahsilat KALEM PIVOTU — odemeyi adisyon kalemine baglar. Kasa detayi/raporlar
+            // ve "adisyon odendi" durumu bu pivot uzerinden okudugu icin ZORUNLU (yoksa satis
+            // kasaya yansimaz). ($ah/$au/$ap yukaridaki ilgili daldan fonksiyon-kapsaminda gelir.)
+            if ($tip === 'hizmet') {
+                $tp = new TahsilatHizmetler(); $tp->adisyon_hizmet_id = $ah->id;
+            } elseif ($tip === 'urun') {
+                $tp = new TahsilatUrunler(); $tp->adisyon_urun_id = $au->id;
+            } else {
+                $tp = new TahsilatPaketler(); $tp->adisyon_paket_id = $ap->id;
+            }
+            $tp->tahsilat_id = $t->id; $tp->tutar = $fiyat; $tp->save();
 
             try {
                 SalonAudit::log($sube, 'cagri_hizli_satis', 'adisyon', $adisyon_id,

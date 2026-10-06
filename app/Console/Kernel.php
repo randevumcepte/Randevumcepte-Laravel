@@ -15,6 +15,7 @@ class Kernel extends ConsoleKernel
     protected $commands = [
         Commands\DBYedekAl::class,
         Commands\GuvenlikBildir::class,
+        Commands\GuvenlikDb::class,
         Commands\KurusReconcile::class,
         Commands\AlacakTemizle::class,
         Commands\MusteriDubleBul::class,

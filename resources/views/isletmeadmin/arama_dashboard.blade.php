@@ -630,6 +630,14 @@ $(document).on('click', '.personel-kart', function () {
 /* ===== Liste Segmentasyonu ===== */
 var segPersoneller = [];
 function segMsg(o){ if (typeof swal === 'function') swal(o); else alert((o.title||'')+'\n'+(o.text||'')); }
+// Onay penceresi (native confirm yerine swal). SweetAlert 1 (callback) + 2 (promise) uyumlu.
+function segOnay(baslik, metin, cb, onayText, renk){
+   if (typeof swal !== 'function'){ if (confirm(metin)) cb(); return; }
+   var r = swal({ title: baslik||'Emin misiniz?', text: metin, type:'warning',
+      showCancelButton:true, confirmButtonText: onayText||'Evet, devam et', cancelButtonText:'Vazgeç',
+      confirmButtonColor: renk||'#6d28d9', reverseButtons:true }, function(onay){ if(onay===true) cb(); });
+   if (r && typeof r.then === 'function'){ r.then(function(x){ if(x===true || (x && x.value)) cb(); }).catch(function(){}); }
+}
 
 function segPersonelYukle(){
    $.get('/isletmeyonetim/arama-personelleri', { sube: $('input[name="sube"]').val() }, function(res){
@@ -649,7 +657,13 @@ function segListeleriYukle(){
       });
       $('#seg_liste_sec').html(opts);
       segSelect2('#seg_liste_sec', '380px', 'Liste ara / seç...');
-      // Onceki secim hala listede ise geri sec (panel acik kalsin)
+      // select2'nin 'change'i (coklu-jQuery yuzunden) document delegate'ine ulasmayabiliyor;
+      // select2'nin KENDI olayina AYNI baglamda baglan (her render'da yeniden, namespace ile).
+      var $ls = $('#seg_liste_sec');
+      $ls.off('.segsec');
+      if ($.fn.select2){ $ls.on('select2:select.segsec', function(){ segSegmentleriYukle(); }); }
+      else { $ls.on('change.segsec', function(){ segSegmentleriYukle(); }); }
+      // Onceki secim hala listede ise geri sec (panel acik kalsin; segment reload TETIKLEME)
       if (oncekiSecim && $('#seg_liste_sec option[value="'+oncekiSecim+'"]').length){
          $('#seg_liste_sec').val(oncekiSecim).trigger('change.select2');
       }
@@ -688,7 +702,7 @@ $(document).on('click', '.cm-tab', function(){
    if (t==='yonet'){ segListeleriYukle(); } // yonetime gecince listeleri tazele
 });
 
-$(document).on('change', '#seg_liste_sec', function(){ segSegmentleriYukle(); });
+{{-- #seg_liste_sec degisimi segListeleriYukle icinde select2:select.segsec ile baglanir --}}
 $(document).on('click', '#seg_yenile', function(){ segSegmentleriYukle(); });
 
 var segSecili = null;     // {kod, ad, adet}
@@ -779,9 +793,9 @@ $(document).on('click', '#seg_ata', function(){
    var personelId = $('#seg_personel').val();
    var personelAd = $('#seg_personel option:selected').text();
    if (!personelId){ segMsg({ type:'warning', title:'Personel seçin', text:'Taşımak için bir personel seçin.' }); return; }
-   if (confirm(segSecili.ad+' segmentindeki '+segSecili.adet+' müşteri "'+personelAd+'" personeline TAŞINACAK (bu listeden çıkacak). Devam edilsin mi?')){
+   segOnay('Segmenti Taşı', segSecili.ad+' segmentindeki '+segSecili.adet+' müşteri "'+personelAd+'" personeline taşınacak (bu listeden çıkacak).', function(){
       segAtaYap(segAktifListe, segSecili.kod, personelId);
-   }
+   }, 'Evet, taşı');
 });
 
 function segAtaYap(aramaId, kod, personelId){
@@ -810,9 +824,9 @@ $(document).on('click', '#seg_atama_kaydet', function(){
 // Atamayı geri al (liste hiçbir personelde görünmez)
 $(document).on('click', '#seg_atama_kaldir', function(){
    if (!segAktifListe){ segMsg({ type:'warning', title:'Liste seçin', text:'Önce yukarıdan bir liste seçin.' }); return; }
-   if (confirm('Bu listenin ataması GERİ ALINACAK — artık hiçbir personelin ekranında görünmeyecek. Devam edilsin mi?')){
+   segOnay('Atamayı Geri Al', 'Bu listenin ataması geri alınacak — artık hiçbir personelin ekranında görünmeyecek.', function(){
       segListePersonel(segAktifListe, '');
-   }
+   }, 'Evet, geri al');
 });
 
 function segListePersonel(aramaId, personelId){
@@ -861,9 +875,9 @@ $(document).on('click', '#seg_arsivden_cikar',function(){ segDurumYap(1); });
 $(document).on('click', '#seg_arsivle', function(){
    if (!segAktifListe){ segMsg({ type:'warning', title:'Liste seçin', text:'Önce yukarıdan bir liste seçin.' }); return; }
    var ad = $('#seg_liste_sec option:selected').text();
-   if (confirm('"'+ad+'" listesi ARŞİVLENECEK — çalışma ekranından ve bildirimlerden çıkar ama VERİ SİLİNMEZ (istediğinde "Arşivden Çıkar" ile geri alınır). Devam edilsin mi?')){
+   segOnay('Listeyi Arşivle', '"'+ad+'" listesi arşivlenecek — çalışma ekranından ve bildirimlerden çıkar ama VERİ SİLİNMEZ (istediğinde "Arşivden Çıkar" ile geri alınır).', function(){
       segDurumYap(2);
-   }
+   }, 'Evet, arşivle', '#b26a00');
 });
 
 // TOPLU AKTAR: sonuç alınamayanları (bekleyen+Cevapsız+Meşgul+Ulaşılamadı) tek hamlede taşı
@@ -872,7 +886,7 @@ $(document).on('click', '#seg_toplu_aktar', function(){
    var personelId = $('#seg_personel').val();
    var personelAd = $('#seg_personel option:selected').text();
    if (!personelId){ segMsg({ type:'warning', title:'Personel seçin', text:'Aktarmak için sağdaki listeden bir personel seçin.' }); return; }
-   if (confirm('Bu listedeki SONUÇ ALINAMAYAN tüm müşteriler (Bekleyen + Cevapsız + Meşgul + Ulaşılamadı) "'+personelAd+'" personeline TAŞINACAK (bu listeden çıkacak). Devam edilsin mi?')){
+   segOnay('Sonuç Alınamayanları Aktar', 'Bu listedeki sonuç alınamayan tüm müşteriler (Bekleyen + Cevapsız + Meşgul + Ulaşılamadı) "'+personelAd+'" personeline taşınacak (bu listeden çıkacak).', function(){
       var $btn = $('#seg_toplu_aktar'); $btn.prop('disabled', true);
       $.post('/isletmeyonetim/cagri-toplu-aktar',
          { arama_id: segAktifListe, personel_id: personelId, kodlar: 'bekleyen,0,2,5', sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
@@ -884,7 +898,7 @@ $(document).on('click', '#seg_toplu_aktar', function(){
             } else { segMsg({ type:'warning', title:'Aktarılamadı', text:res.message||'İşlem başarısız.' }); }
          }
       ).fail(function(){ $btn.prop('disabled', false); segMsg({ type:'error', title:'Hata', text:'İşlem başarısız.' }); });
-   }
+   }, 'Evet, aktar');
 });
 
 // Arama listesi oluştur modalı kapanınca dashboard'ı tazele (yeni liste görünsün)
