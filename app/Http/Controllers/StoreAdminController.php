@@ -34330,6 +34330,91 @@ DB::raw('
         }
     }
 
+    /** Arama randevusu MANUEL ekleme icin musteri arama (select2 kaynagi). Salon portfoyunden ad/tel. */
+    public function cagri_musteri_select(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $q = trim((string) $request->input('q'));
+        $qDigits = preg_replace('/\D/', '', $q);
+        $rows = DB::table('musteri_portfoy')
+            ->join('users', 'users.id', '=', 'musteri_portfoy.user_id')
+            ->where('musteri_portfoy.salon_id', $salonId)
+            ->where('musteri_portfoy.aktif', true)
+            ->when($q !== '', function ($w) use ($q, $qDigits) {
+                $w->where(function ($x) use ($q, $qDigits) {
+                    $x->where('users.name', 'like', '%' . $q . '%');
+                    if ($qDigits !== '') $x->orWhere('users.cep_telefon', 'like', '%' . $qDigits . '%');
+                });
+            })
+            ->orderBy('users.name')->limit(30)
+            ->get(['users.id', 'users.name', 'users.cep_telefon']);
+
+        $results = [];
+        foreach ($rows as $r) {
+            $tel = preg_replace('/\D/', '', (string) $r->cep_telefon);
+            $son4 = $tel !== '' ? ('••• ' . substr($tel, -4)) : '';
+            $results[] = ['id' => (int) $r->id, 'text' => trim($r->name . ' ' . $son4)];
+        }
+        return response()->json(['results' => $results]);
+    }
+
+    /** Takvimden MANUEL arama randevusu ekler (durum=3). Personelin "Arama Randevulari (Manuel)"
+     *  listesine yazar (yoksa olusturur). */
+    public function cagri_arama_randevu_ekle(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
+
+        $musteriId  = (int) $request->musteri_id;
+        $personelId = (int) $request->personel_id;
+        $tarih = trim((string) $request->tarih);
+        $saat  = substr(trim((string) $request->saat), 0, 5);
+        $not   = trim((string) $request->not);
+
+        if (!$musteriId || !$personelId || $tarih === '' || $saat === '') {
+            return response()->json(['success' => false, 'message' => 'Müşteri, personel, tarih ve saat zorunludur.']);
+        }
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tarih)) {
+            return response()->json(['success' => false, 'message' => 'Tarih biçimi geçersiz (YYYY-MM-DD).']);
+        }
+        $per = Personeller::where('id', $personelId)->where('salon_id', $salonId)->first();
+        if (!$per) {
+            return response()->json(['success' => false, 'message' => 'Geçerli bir personel seçin.']);
+        }
+        // Personel (rol 5) sadece KENDINE ekleyebilsin
+        if ($rol == 5 && (int) $personelId !== (int) $this->aktifPersonelId($salonId)) {
+            return response()->json(['success' => false, 'message' => 'Sadece kendi üzerinize ekleyebilirsiniz.'], 403);
+        }
+        // Musteri bu salonun portfoyunde mi?
+        $portfoyVar = DB::table('musteri_portfoy')->where('salon_id', $salonId)->where('user_id', $musteriId)->exists();
+        if (!$portfoyVar) {
+            return response()->json(['success' => false, 'message' => 'Bu müşteri işletmenizde bulunamadı.']);
+        }
+
+        // Personelin "Manuel" arama randevu listesi (yoksa olustur)
+        $baslik = 'Arama Randevuları (Manuel)';
+        $liste = AramaListesi::where('salon_id', $salonId)->where('arama_baslik', $baslik)
+            ->where('personel_id', $personelId)->first();
+        if (!$liste) {
+            $liste = new AramaListesi();
+            $liste->salon_id = $salonId; $liste->arama_baslik = $baslik; $liste->personel_id = $personelId;
+            $liste->aranacak_tarih = null; $liste->durum = 1; $liste->olusturan_yetkili_id = $this->cmAuthId();
+            if (Schema::hasColumn('arama_listesi', 'filtre_snapshot')) $liste->filtre_snapshot = null;
+            $liste->save();
+        }
+
+        $am = new AranacakMusteriler();
+        $am->user_id = $musteriId; $am->arama_id = $liste->id; $am->durum = 3;
+        $am->tarih = $tarih; $am->saat = $saat;
+        $am->musteri_not = $not !== '' ? $not : null;
+        if (Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at')) {
+            $am->ar_5dk_at = null; $am->ar_zaman_at = null; $am->ar_gecikti = 0; $am->ar_tamamlandi_at = null;
+        }
+        $am->save();
+
+        return response()->json(['success' => true, 'message' => 'Arama randevusu eklendi: ' . $per->personel_adi . ' — ' . date('d.m.Y', strtotime($tarih)) . ' ' . $saat]);
+    }
+
     /* ============================================================
      * Cagri Merkezi — Liste Segmentasyonu (sonuca gore ayikla, indir, personele tasi)
      * ============================================================ */

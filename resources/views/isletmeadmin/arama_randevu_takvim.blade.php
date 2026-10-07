@@ -89,6 +89,7 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
          <input type="date" id="art_tarih" value="{{ date('Y-m-d') }}">
          <button class="btn-nav" id="art_next" title="Sonraki gün"><i class="fa fa-chevron-right"></i></button>
          <button class="btn-nav" id="art_bugun">Bugün</button>
+         <button class="btn-nav" id="art_randevu_ekle" style="background:linear-gradient(120deg,#6d28d9,#7c3aed);color:#fff;border-color:transparent;"><i class="fa fa-plus"></i> Arama Randevusu</button>
          <span class="art-gun-baslik" id="art_gun_baslik"></span>
          <span class="art-say" id="art_say"></span>
       </div>
@@ -208,6 +209,42 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
          </div>
          <div class="modal-footer" style="border:none;padding:0 20px 18px;">
             <button type="button" id="hss_kaydet" style="width:100%;background:#16a34a;border:none;color:#fff;font-weight:800;border-radius:10px;padding:12px;cursor:pointer;font-size:14px;"><i class="fa fa-check"></i> Satışı Oluştur (Kasaya İşle)</button>
+         </div>
+      </div>
+   </div>
+</div>
+
+{{-- Manuel Arama Randevusu Ekle modali --}}
+<div class="modal fade" id="art_ekle_modal" tabindex="-1" role="dialog" aria-hidden="true">
+   <div class="modal-dialog" role="document">
+      <div class="modal-content" style="border-radius:16px;">
+         <div class="modal-header" style="background:linear-gradient(120deg,#5C008E,#7B2FB8);color:#fff;border-top-left-radius:16px;border-top-right-radius:16px;border-bottom:none;">
+            <h5 style="margin:0;font-weight:800;color:#fff;"><i class="fa fa-calendar-plus-o"></i> Arama Randevusu Ekle</h5>
+            <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9;"><span>&times;</span></button>
+         </div>
+         <div class="modal-body" style="padding:18px 20px;">
+            <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Müşteri</label>
+            <select id="are_musteri" class="form-control" style="width:100%;margin-bottom:12px;"></select>
+
+            <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Arayacak personel</label>
+            <select id="are_personel" class="form-control" style="width:100%;margin-bottom:12px;"><option value="">Personel seçin...</option></select>
+
+            <div class="row">
+               <div class="col-7">
+                  <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Tarih</label>
+                  <input type="text" id="are_tarih" class="form-control" autocomplete="off" readonly placeholder="Tarih seçin">
+               </div>
+               <div class="col-5">
+                  <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Saat</label>
+                  <input type="time" id="are_saat" class="form-control">
+               </div>
+            </div>
+
+            <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin:12px 0 4px;">Not (opsiyonel)</label>
+            <textarea id="are_not" class="form-control" rows="2" placeholder="Görüşme notu / hatırlatma..."></textarea>
+         </div>
+         <div class="modal-footer" style="border:none;padding:0 20px 18px;">
+            <button type="button" id="are_kaydet" style="width:100%;background:linear-gradient(120deg,#6d28d9,#7c3aed);border:none;color:#fff;font-weight:800;border-radius:10px;padding:12px;cursor:pointer;font-size:14px;"><i class="fa fa-check"></i> Arama Randevusu Ekle</button>
          </div>
       </div>
    </div>
@@ -626,6 +663,76 @@ $(document).ready(function(){
    $('#art_next').on('click', function(){ $('#art_tarih').val(sonrakiGun($('#art_tarih').val(), 1)); yukle(); });
    $('#art_bugun').on('click', function(){ $('#art_tarih').val('{{ date('Y-m-d') }}'); yukle(); });
    $('#art_tarih').on('change', yukle);
+
+   // ===== Manuel Arama Randevusu Ekle =====
+   var arePersonelYuklendi = false;
+   function arePersonelleriYukle(){
+      $.get('/isletmeyonetim/arama-personelleri', { sube: sube }, function(res){
+         var ps = res || [];
+         var o = '<option value="">Personel seçin...</option>';
+         ps.forEach(function(p){ o += '<option value="'+p.id+'">'+esc(p.personel_adi)+'</option>'; });
+         $('#are_personel').html(o);
+         arePersonelYuklendi = true;
+      });
+   }
+   arePersonelleriYukle();
+
+   $('#art_randevu_ekle').on('click', function(){
+      // reset
+      $('#are_not').val(''); $('#are_saat').val('');
+      $('#are_tarih').val($('#art_tarih').val() || '{{ date('Y-m-d') }}');
+      if (!arePersonelYuklendi) arePersonelleriYukle();
+      $('#are_personel').val('');
+      // musteri select2'yi temizle
+      if ($.fn.select2 && $('#are_musteri').hasClass('select2-hidden-accessible')){ $('#are_musteri').val(null).trigger('change'); }
+      $('#art_ekle_modal').modal('show');
+   });
+
+   $(document).on('shown.bs.modal', '#art_ekle_modal', function(){
+      var mp = $('#art_ekle_modal');
+      if ($.fn.select2){
+         // Musteri: ajax select2
+         if ($('#are_musteri').hasClass('select2-hidden-accessible')){ try{$('#are_musteri').select2('destroy');}catch(e){} }
+         $('#are_musteri').select2({
+            width:'100%', dropdownParent: mp, placeholder:'Müşteri ara (ad / telefon)...', minimumInputLength:2,
+            ajax: {
+               url:'/isletmeyonetim/cagri-musteri-select', dataType:'json', delay:250,
+               data: function(params){ return { q: params.term, sube: sube }; },
+               processResults: function(data){ return { results: (data && data.results) ? data.results : [] }; }
+            }
+         });
+         if ($('#are_personel').hasClass('select2-hidden-accessible')){ try{$('#are_personel').select2('destroy');}catch(e){} }
+         $('#are_personel').select2({ width:'100%', dropdownParent: mp, placeholder:'Personel seçin...' });
+      }
+      // tarih datepicker (ileri+geri serbest; arama randevusu gecmise de planlanabilir degil ama esnek)
+      try { if ($.fn.datepicker){ $('#are_tarih').datepicker({ language:'tr', autoClose:true, dateFormat:'yyyy-mm-dd' }); } } catch(e){}
+   });
+   $(document).on('hidden.bs.modal', '#art_ekle_modal', function(){
+      if ($.fn.select2){ ['#are_musteri','#are_personel'].forEach(function(s){ if($(s).hasClass('select2-hidden-accessible')){ try{$(s).select2('destroy');}catch(e){} } }); }
+   });
+
+   $(document).on('click', '#are_kaydet', function(){
+      var musteriId = $('#are_musteri').val();
+      var personelId = $('#are_personel').val();
+      var tarih = $('#are_tarih').val();
+      var saat = $('#are_saat').val();
+      if (!musteriId){ if(typeof swal==='function') swal({type:'warning',title:'Müşteri seçin',text:'Arama randevusu için müşteri seçin.'}); return; }
+      if (!personelId){ if(typeof swal==='function') swal({type:'warning',title:'Personel seçin',text:'Arayacak personeli seçin.'}); return; }
+      if (!tarih || !saat){ if(typeof swal==='function') swal({type:'warning',title:'Tarih/saat',text:'Tarih ve saat seçin.'}); return; }
+      var $btn = $(this); $btn.prop('disabled', true);
+      $.post('/isletmeyonetim/cagri-arama-randevu-ekle',
+         { musteri_id:musteriId, personel_id:personelId, tarih:tarih, saat:saat, not:($('#are_not').val()||''), sube:sube, _token:token },
+         function(res){
+            $btn.prop('disabled', false);
+            if (res && res.success){
+               $('#art_ekle_modal').modal('hide');
+               if (typeof swal==='function') swal({type:'success',title:'Eklendi',text:res.message||'Arama randevusu eklendi.',timer:2600,showConfirmButton:false});
+               // Eklenen tarihe git + tazele
+               $('#art_tarih').val(tarih); yukle();
+            } else if (typeof swal==='function'){ swal({type:'error',title:'Hata',text:(res&&res.message)||'Eklenemedi.'}); }
+         }
+      ).fail(function(){ $btn.prop('disabled', false); if(typeof swal==='function') swal({type:'error',title:'Hata',text:'İşlem başarısız.'}); });
+   });
 
    yukle();
 });
