@@ -27043,6 +27043,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
     public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     {
+        // PERF: Bu metod sonunda KOSULSUZ 'return false' ediyordu (gercek sonuc $cakisan_unsurlar
+        // yorum satiri) — yani asagidaki ic ice (tarih x hizmet x eslesen randevular) N+1 sorgu
+        // yigini HER yeni/duzenle randevuda BOSA kosuyordu. Kaynak cakismasi zaten ayri ve aktif
+        // 'kaynak_cakisma_kontrol' ile yapiliyor. Davranis birebir ayni (false) kalsin diye en basta
+        // kisa devre; boylece her yazmada o bosa DB yuku gider. Eski mantik lazim olursa alttaki kod duruyor.
+        return false;
+
         $cakisan_unsurlar = '';
         $yazilanlar = [];
 
