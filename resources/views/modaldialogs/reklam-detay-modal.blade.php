@@ -130,8 +130,9 @@
                               </div>
                            </div>
                            <div class="card-footer bg-white border-top py-3" id="rrTekrarAraFooter" style="display:none;">
-                              <div class="text-center">
+                              <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
                                  <button class="btn btn-outline-success btn-action" id="kampanyabeklenenleriara"><i class="fa fa-redo-alt mr-2"></i> Tekrar Aramamı İster Misiniz?</button>
+                                 <button class="btn btn-outline-primary btn-action" id="rrPersoneleAta"><i class="fa fa-user-plus mr-2"></i> Personele Ata</button>
                               </div>
                            </div>
                         </div>
@@ -214,7 +215,7 @@
                         <div class="alert alert-light">
                            <small class="text-muted">
                               <i class="fa fa-clock mr-1"></i>
-                              <strong>Mesaj Tipi:</strong> Toplu SMS
+                              <strong>Mesaj Tipi:</strong> <span id="mesajTipiDeger">-</span>
                            </small>
                         </div>
                      </div>
@@ -222,7 +223,7 @@
                         <div class="alert alert-light">
                            <small class="text-muted">
                               <i class="fa fa-user mr-1"></i>
-                              <strong>Hedef Kitle:</strong> Kampanya Katılımcıları
+                              <strong>Hedef Kitle:</strong> <span id="hedefKitleDeger">-</span>
                            </small>
                         </div>
                      </div>

@@ -23022,12 +23022,15 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             DB::raw('NULLIF(CONCAT(COALESCE(hizmetler.hizmet_adi,""), COALESCE(urunler.urun_adi,""), COALESCE(paketler.paket_adi,"")),"") as hizmet_adi'),
             DB::raw('CASE
                 WHEN kampanya_yonetimi.gorev_turu = 2 THEN "SMS"
-                WHEN kampanya_yonetimi.gorev_turu = 1 THEN "Arama"
+                WHEN kampanya_yonetimi.gorev_turu = 1 THEN "Santral Arama"
+                WHEN kampanya_yonetimi.gorev_turu = 3 THEN "Uygulama Bildirimi"
+                WHEN kampanya_yonetimi.gorev_turu = 4 THEN "Bilgilendirme"
                 ELSE ""
             END as gorev_turu'),
             'kampanya_yonetimi.paket_isim',
             'kampanya_yonetimi.fiyat',
             'kampanya_yonetimi.mesaj as mesaj',
+            'kampanya_yonetimi.musteri_turu as musteri_turu',
         )
         ->where('kampanya_yonetimi.id', $kampanyaId)
         ->groupBy('kampanya_katilimcilari.kampanya_id')
@@ -32627,6 +32630,70 @@ DB::raw('
         'arama' => self::arama_listesi_getir($request)
     );
 }
+
+    /**
+     * Reklam Raporu > Ulasilamayanlar > "Tekrar Aramamı İster Misiniz?"
+     * Ulasilamayan (tekrar_arandi=1, cevap yok) katilimcilari YENIDEN kuyruga alir:
+     * tekrar_arandi/tekrar_aranacak NULL -> cron "hic aranmamis" gibi tekrar arar.
+     * (Kampanya arama ayari ACIK ve kampanya zamani gelmis olmalidir.)
+     */
+    public function kampanyaUlasilmayanlariTekrarAra(Request $request)
+    {
+        if($r = self::yetkiYoksa403($request, 'pazarlama.kampanya_yonet')) return $r;
+        $n = KampanyaKatilimcilari::where('kampanya_id', (int) $request->kampanya_id)
+            ->where('tekrar_arandi', 1)->whereNull('durum_asistan')
+            ->update([
+                'tekrar_arandi'           => null,
+                'tekrar_aranacak'         => null,
+                'tekrar_arama_tarih_saat' => null,
+                'kilitli'                 => 0,
+                'kilitli_zaman'           => null,
+            ]);
+        return response()->json(['basarili' => true, 'adet' => $n,
+            'mesaj' => $n.' kişi yeniden arama kuyruğuna alındı. Zamanı geldiğinde aranacaklar.']);
+    }
+
+    /**
+     * Reklam Raporu > Ulasilamayanlar > "Personele Ata": ulasilamayan katilimcilardan
+     * secili personele bir ARAMA LISTESI (cagri merkezi) olusturur. Personel bu listeyi
+     * manuel arayabilir. arama_listesi + aranacak_musteriler kaydi acilir.
+     */
+    public function kampanyaUlasilmayanlariPersoneleAta(Request $request)
+    {
+        if($r = self::yetkiYoksa403($request, 'pazarlama.kampanya_yonet')) return $r;
+        $salonId    = self::mevcutsube($request);
+        $kampanyaId = (int) $request->kampanya_id;
+        $personelId = (int) $request->personel_id;
+        if (!$personelId) return response()->json(['basarili' => false, 'mesaj' => 'Lütfen bir personel seçin.']);
+
+        $userIds = KampanyaKatilimcilari::where('kampanya_id', $kampanyaId)
+            ->where('tekrar_arandi', 1)->whereNull('durum_asistan')
+            ->pluck('user_id')->unique()->values()->all();
+        if (empty($userIds)) return response()->json(['basarili' => false, 'mesaj' => 'Ulaşılamayan kişi bulunmuyor.']);
+
+        $kampanyaAdi = KampanyaYonetimi::where('id', $kampanyaId)->value('paket_isim') ?: ('Kampanya #'.$kampanyaId);
+
+        $al = new AramaListesi();
+        $al->salon_id             = $salonId;
+        $al->arama_baslik         = mb_substr($kampanyaAdi.' — Ulaşılamayanlar', 0, 150);
+        $al->personel_id          = $personelId;
+        $al->filtre_snapshot      = ['kaynak' => 'kampanya_ulasilamayan', 'kampanya_id' => $kampanyaId];
+        $al->olusturan_yetkili_id = $this->cmAuthId();
+        $al->durum                = 1;
+        $al->save();
+
+        $now = date('Y-m-d H:i:s');
+        $rows = [];
+        foreach ($userIds as $uid) {
+            $rows[] = ['user_id' => $uid, 'arama_id' => $al->id, 'durum' => null, 'created_at' => $now, 'updated_at' => $now];
+        }
+        foreach (array_chunk($rows, 500) as $p) {
+            AranacakMusteriler::insert($p);
+        }
+
+        return response()->json(['basarili' => true, 'adet' => count($userIds),
+            'mesaj' => count($userIds).' kişilik arama listesi personele atandı.']);
+    }
 
     /**
      * Cagri Merkezi: arama listesi atanabilecek personeller (login hesabi olan = yetkili_id dolu,

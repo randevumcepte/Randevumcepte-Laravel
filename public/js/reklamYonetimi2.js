@@ -55,6 +55,9 @@ function rrYukle(reset) {
                 $('#kampanya_hizmeti').text(res.kampanya.hizmet_adi || '-');
                 if (res.kampanya.mesaj != null) $('#mesajIcerigiContent').text(res.kampanya.mesaj);
                 else $('#mesajIcerigiContent').text('Bu kampanya için mesaj içeriği bulunmamaktadır.');
+                // Kampanya Icerigi modali: Mesaj Tipi = gercek kanal, Hedef Kitle = secili hedef (musteri_turu)
+                $('#mesajTipiDeger').text(res.kampanya.gorev_turu || '-');
+                $('#hedefKitleDeger').text((res.kampanya.musteri_turu && String(res.kampanya.musteri_turu).trim()) ? res.kampanya.musteri_turu : 'Tüm müşteriler');
             }
             if (res.sayilar) {
                 $('#rrc1').text(res.sayilar.tumu || 0);
@@ -673,27 +676,56 @@ function getTabNameForTur(tur) {
 }
 
 // Diğer işlevler için Swal bildirimleri
+// Ulaşılamayanlar -> "Tekrar Aramamı İster Misiniz?": gercekten YENIDEN kuyruga alir.
 $(document).on('click', '#kampanyabeklenenleriara', function() {
-    swal({
-        type: "info",
-        title: "Bilgi",
-        html: 'Beklenenler listesi için tekrar arama isteği gönderildi.',
-        showCloseButton: false,
-        showCancelButton: false,
-        showConfirmButton: false,
-        timer: 3000,
+    if (!aramaDetayId2) return;
+    var $btn = $(this).prop('disabled', true);
+    $.ajax({
+        url: '/isletmeyonetim/kampanya-ulasilamayan-tekrar-ara',
+        method: 'POST',
+        data: { kampanya_id: aramaDetayId2, _token: $('input[name="_token"]').val() },
+        success: function(res) {
+            $btn.prop('disabled', false);
+            swal({ type: (res && res.basarili) ? 'success' : 'info', title: (res && res.basarili) ? 'Tamam' : 'Bilgi',
+                html: (res && res.mesaj) || 'İşlem tamamlandı.', timer: 3500, showCloseButton: false, showCancelButton: false, showConfirmButton: false });
+            rrYukle(true);
+        },
+        error: function() { $btn.prop('disabled', false); swal({ type: 'error', title: 'Hata', html: 'İşlem başarısız.', timer: 3000, showConfirmButton: false, showCancelButton: false }); }
     });
 });
 
-$(document).on('click', '#kampanyabeklenenleritekrarara', function() {
-    swal({
-        type: "info",
-        title: "Bilgi",
-        html: 'Katılmayanlar için tekrar arama isteği gönderildi.',
-        showCloseButton: false,
-        showCancelButton: false,
-        showConfirmButton: false,
-        timer: 3000,
+// Ulaşılamayanlar -> "Personele Ata": secili personele arama listesi olusturur.
+$(document).on('click', '#rrPersoneleAta', function() {
+    if (!aramaDetayId2) return;
+    $.get('/isletmeyonetim/arama-personelleri', function(personeller) {
+        if (!personeller || !personeller.length) {
+            swal({ type: 'info', title: 'Bilgi', html: 'Atanabilecek (giriş hesabı olan) personel bulunamadı.', timer: 3500, showConfirmButton: false, showCancelButton: false });
+            return;
+        }
+        var opts = {};
+        personeller.forEach(function(p) { opts[p.id] = p.personel_adi; });
+        swal({
+            title: 'Personele Ata',
+            text: 'Ulaşılamayanlar bu personele arama listesi olarak atanacak.',
+            input: 'select',
+            inputOptions: opts,
+            inputPlaceholder: 'Personel seçin',
+            showCancelButton: true,
+            confirmButtonText: 'Ata',
+            cancelButtonText: 'İptal'
+        }).then(function(result) {
+            var pid = result && result.value;
+            if (!pid) return;
+            $.ajax({
+                url: '/isletmeyonetim/kampanya-ulasilamayan-personele-ata',
+                method: 'POST',
+                data: { kampanya_id: aramaDetayId2, personel_id: pid, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
+                success: function(res) {
+                    swal({ type: (res && res.basarili) ? 'success' : 'info', title: (res && res.basarili) ? 'Atandı' : 'Bilgi', html: (res && res.mesaj) || 'İşlem tamamlandı.', timer: 3500, showConfirmButton: false, showCancelButton: false });
+                },
+                error: function() { swal({ type: 'error', title: 'Hata', html: 'Atama başarısız.', timer: 3000, showConfirmButton: false, showCancelButton: false }); }
+            });
+        });
     });
 });
 

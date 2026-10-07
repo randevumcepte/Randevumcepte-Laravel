@@ -909,6 +909,8 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/kampanya_yonetimi','StoreAdminController@kampanya_yonetimi_liste');
 	Route::match(['GET','POST'],'/kampanyadetay','StoreAdminController@kampanyadetay');
 	Route::match(['GET','POST'],'/kampanyaduzenlegetir','StoreAdminController@kampanyaDuzenleGetir');
+	Route::post('/kampanya-ulasilamayan-tekrar-ara','StoreAdminController@kampanyaUlasilmayanlariTekrarAra');
+	Route::post('/kampanya-ulasilamayan-personele-ata','StoreAdminController@kampanyaUlasilmayanlariPersoneleAta');
 	Route::post('/kampanyasil','StoreAdminController@kampanya_sil');
 	Route::post('/etkinliksil','StoreAdminController@etkinlik_sil');
 	Route::post('/kampanyaekleduzenle','StoreAdminController@kampanyaekleduzenle');
