@@ -9471,7 +9471,11 @@ $('#alacak_formu').on('submit',function(e){
    dropdown acildiginda yapilir (asagidaki shown.bs.dropdown handler). */
 var _rcBildirimSon = { sayisi: -1, toplam: -1, html: '' };
 if(($('#formdoldurma').length>0 && $('#formdoldurma').val()!= '1')||$('#formdoldurma').length==0)
-    setInterval(bildirimKontrol, 30000);
+    // PERF: arka plan sekmesinde (document.hidden) polling YAPMA — cok sekme acik personelde
+    // bosa CPU/DB yukunu keser. Sekmeye donunce visibilitychange/pageshow ile zaten tazelenir.
+    // Ayrica 30->60sn (bildirim aninda olmasi sart degil).
+    setInterval(function(){ if (!document.hidden) bildirimKontrol(); }, 60000);
+    document.addEventListener('visibilitychange', function(){ if (!document.hidden) bildirimKontrol(); });
 function bildirimKontrol(rebuildList) {
     $.ajax({
                 type: "GET",

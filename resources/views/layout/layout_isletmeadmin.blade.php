@@ -5796,7 +5796,7 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=13.9')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=295.6')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=295.7')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.6')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
@@ -6274,8 +6274,8 @@ document.addEventListener('DOMContentLoaded', function() {
   window.addEventListener('pageshow', function(){ oturumKontrol(); });
   // Mobilde uygulamaya/sekmeye geri donunce
   document.addEventListener('visibilitychange', function(){ if (!document.hidden) oturumKontrol(); });
-  // Periyodik guvence
-  setInterval(oturumKontrol, 45000);
+  // Periyodik guvence — arka plan sekmesinde atma (odaklaninca yukaridaki visibilitychange calisir)
+  setInterval(function(){ if (!document.hidden) oturumKontrol(); }, 45000);
 })();
 </script>
 

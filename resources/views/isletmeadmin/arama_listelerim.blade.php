@@ -1081,9 +1081,10 @@ $(document).ready(function(){
    // Bu sayfa cockpit — ortak layout'taki global popup burada çift açmasın.
    window.__aramaCockpit = true;
    agListeleriYukle(); agScriptleriYukle(); agKategorileriYukle();
-   // Randevu hatirlatma: acilista + her 45 sn'de bir kontrol et
+   // Randevu hatirlatma: acilista + her 45 sn'de bir kontrol et (arka plan sekmesinde atma)
    agRandevuKontrol();
-   setInterval(agRandevuKontrol, 45000);
+   setInterval(function(){ if (!document.hidden) agRandevuKontrol(); }, 45000);
+   document.addEventListener('visibilitychange', function(){ if (!document.hidden) agRandevuKontrol(); });
 });
 </script>
 @endsection

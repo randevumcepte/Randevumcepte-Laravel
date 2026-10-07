@@ -340,7 +340,8 @@
         // NOT: Header'daki can/zil ikonu kaldirildi (kullanici istegi).
         // Hatirlatmalar ilk popup + sag-alt kartlar uzerinden yonetilir.
         fetchFeed();
-        setInterval(function(){ fetchFeed(false); }, POLL_MS);
+        // PERF: arka plan sekmesinde polling yapma (odaklaninca visibilitychange zaten tazeliyor)
+        setInterval(function(){ if (!document.hidden) fetchFeed(false); }, POLL_MS);
         // sayfaya geri donulunce hemen yenile (sekme arasi gecis)
         document.addEventListener('visibilitychange', function(){
             if (!document.hidden) fetchFeed(true);
