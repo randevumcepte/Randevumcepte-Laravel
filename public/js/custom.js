@@ -21585,7 +21585,7 @@ $(document).on('click', '.rd-gecmis-btn', function(e){
     if(!uid) return;
     var esc = function(s){ return $('<div>').text(s==null?'':s).html(); };
     $('#rd-gecmis-ov').remove();
-    var ov = $('<div id="rd-gecmis-ov" style="position:fixed;inset:0;background:rgba(20,10,40,.55);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px;">'
+    var ov = $('<div id="rd-gecmis-ov" style="position:fixed;inset:0;background:rgba(20,10,40,.55);z-index:1000000;display:flex;align-items:center;justify-content:center;padding:20px;">'
         + '<div style="background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:82vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 70px -20px rgba(40,10,70,.55);">'
         + '<div style="background:linear-gradient(120deg,#5C008E,#7B2FB8);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;">'
         + '<div style="font-weight:800;"><i class="fa fa-history"></i> Randevu Geçmişi — '+esc(ad)+'</div>'
@@ -21595,8 +21595,21 @@ $(document).on('click', '.rd-gecmis-btn', function(e){
     $('body').append(ov);
     $.get('/isletmeyonetim/musteri-randevu-gecmisi', { user_id: uid, sube: $('input[name="sube"]').val() }, function(res){
         var list = (res && res.randevular) ? res.randevular : [];
-        if(!list.length){ $('#rd-gecmis-govde').html('<div style="text-align:center;padding:30px;color:#9a93ad;">Bu müşteriye ait randevu bulunamadı.</div>'); return; }
-        var html='';
+        var oz = (res && res.ozet) ? res.ozet : {geldi:0,gelmedi:0,onayli:0,son_gelis_gun:null};
+        // Ozet kutular (Geldi / Gelmedi / Onayli + son gelis)
+        var sonGelis = (oz.son_gelis_gun===null || oz.son_gelis_gun===undefined) ? 'Hiç gelmemiş'
+                     : (oz.son_gelis_gun===0 ? 'Bugün geldi' : (oz.son_gelis_gun+' gün önce'));
+        var kutu = function(n,l,renk){ return '<div style="flex:1;min-width:0;background:'+renk+'14;border:1px solid '+renk+'33;border-radius:12px;padding:10px 8px;text-align:center;">'
+            + '<div style="font-size:22px;font-weight:800;color:'+renk+';line-height:1;">'+n+'</div>'
+            + '<div style="font-size:11px;color:#6b6480;font-weight:700;margin-top:4px;">'+l+'</div></div>'; };
+        var ozetHtml = '<div style="display:flex;gap:8px;margin-bottom:12px;">'
+            + kutu(oz.geldi||0,'Geldi','#16a34a')
+            + kutu(oz.gelmedi||0,'Gelmedi','#b26a00')
+            + kutu(oz.onayli||0,'Onaylı','#2563eb')
+            + '</div>'
+            + '<div style="background:#f4f1fd;border:1px solid #e3d5f5;border-radius:12px;padding:9px 12px;margin-bottom:12px;font-size:13px;color:#4b2e83;font-weight:700;text-align:center;"><i class="fa fa-clock-o"></i> Son geliş: '+sonGelis+'</div>';
+        if(!list.length){ $('#rd-gecmis-govde').html(ozetHtml + '<div style="text-align:center;padding:20px;color:#9a93ad;">Bu müşteriye ait randevu bulunamadı.</div>'); return; }
+        var html = ozetHtml;
         list.forEach(function(r){
             html += '<div style="border-left:4px solid '+r.renk+';background:#faf9fc;border:1px solid #eef0f5;border-radius:10px;padding:10px 12px;margin-bottom:8px;">'
                 + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'

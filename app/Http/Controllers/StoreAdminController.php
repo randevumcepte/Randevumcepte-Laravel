@@ -34399,11 +34399,13 @@ DB::raw('
         if ($geldiVar) $sel[] = 'r.randevuya_geldi';
         $rows = $q->select($sel)->orderBy('r.tarih', 'desc')->orderBy('r.saat', 'desc')->limit(300)->get();
 
+        $bugun = date('Y-m-d');
         $map = [];
         foreach ($rows as $r) {
             if (!isset($map[$r->id])) {
                 $map[$r->id] = [
                     'id'       => $r->id,
+                    'tarih_ham'=> $r->tarih,
                     'tarih'    => $r->tarih ? date('d.m.Y', strtotime($r->tarih)) : '',
                     'saat'     => $r->saat ? substr($r->saat, 0, 5) : '',
                     'personel' => $r->personel_adi ?: '',
@@ -34416,12 +34418,25 @@ DB::raw('
                 $map[$r->id]['hizmetler'][] = $r->hizmet_adi;
             }
         }
+
+        $geldiSayi = 0; $gelmediSayi = 0; $onayliSayi = 0;
+        $sonGelisTarih = null; // en son GELDIGI randevunun tarihi (gun hesabi icin)
         $out = [];
         foreach ($map as $m) {
-            if ($m['durum'] === 2 || $m['durum'] === 3) { $et = 'İptal'; $renk = '#dc2626'; }
-            elseif ($m['durum'] === 1 && $m['geldi']) { $et = 'Geldi'; $renk = '#16a34a'; }
-            elseif ($m['durum'] === 1 && !$m['geldi']) { $et = 'Gelmedi'; $renk = '#b26a00'; }
-            else { $et = 'Bekliyor'; $renk = '#2563eb'; }
+            $gelecek = ($m['tarih_ham'] && $m['tarih_ham'] >= $bugun);
+            if ($m['durum'] === 2 || $m['durum'] === 3) {
+                $et = 'İptal'; $renk = '#dc2626';
+            } elseif ($m['geldi']) {
+                $et = 'Geldi'; $renk = '#16a34a';
+                $geldiSayi++;
+                if ($m['tarih_ham'] && (!$sonGelisTarih || $m['tarih_ham'] > $sonGelisTarih)) $sonGelisTarih = $m['tarih_ham'];
+            } elseif ($gelecek) {
+                $et = 'Onaylı'; $renk = '#2563eb';   // ileri tarihli, henuz gelmemis
+                $onayliSayi++;
+            } else {
+                $et = 'Gelmedi'; $renk = '#b26a00';  // gecmis + gelmemis
+                $gelmediSayi++;
+            }
             $out[] = [
                 'tarih'       => $m['tarih'],
                 'saat'        => $m['saat'],
@@ -34431,7 +34446,22 @@ DB::raw('
                 'renk'        => $renk,
             ];
         }
-        return response()->json(['randevular' => $out]);
+
+        $sonGelisGun = null;
+        if ($sonGelisTarih) {
+            $sonGelisGun = (int) floor((strtotime($bugun) - strtotime($sonGelisTarih)) / 86400);
+            if ($sonGelisGun < 0) $sonGelisGun = 0;
+        }
+
+        return response()->json([
+            'randevular' => $out,
+            'ozet' => [
+                'geldi'          => $geldiSayi,
+                'gelmedi'        => $gelmediSayi,
+                'onayli'         => $onayliSayi,
+                'son_gelis_gun'  => $sonGelisGun, // null = hic gelmemis
+            ],
+        ]);
     }
 
     /** Arama randevusu MANUEL ekleme icin musteri arama (select2 kaynagi). Salon portfoyunden ad/tel. */
