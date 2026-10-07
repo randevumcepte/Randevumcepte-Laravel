@@ -120,6 +120,13 @@
 .modal-backdrop.show + #randevu-duzenle-modal,
 body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
 
+/* SWAL/SweetAlert uyarilari modal uzerinde (100003) kalsin — aksi halde
+   "Hizmet secin" / "Personel secin" gibi form uyarilari modalin ARKASINDA
+   gorunmez kaliyor. */
+.sweet-overlay { z-index: 100029 !important; }
+.sweet-alert   { z-index: 100030 !important; }
+.swal2-container { z-index: 100030 !important; }
+
 /* Ekle modal ile ayni: dikey ortalama (modal-dialog-centered ::before hack i olmadan) */
 #randevu-duzenle-modal.show {
     display: flex !important;
