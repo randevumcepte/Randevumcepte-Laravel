@@ -751,8 +751,11 @@
     display: flex; align-items: center; gap: 14px; min-height: 32px;
 }
 #grup_sms_olustur_modal .gso-list .musteri-item .form-check-input {
-    margin: 0; width: 18px; height: 18px; flex-shrink: 0;
+    margin: 0 !important; width: 18px; height: 18px; flex-shrink: 0;
     accent-color: #7B2FB8; cursor: pointer;
+    /* Bootstrap .form-check-input float:left + margin-left:-1.5em checkbox'i avatarin
+       ustune bindiriyordu; flex satirda sabit konumda tut. */
+    float: none !important; position: static !important;
 }
 #grup_sms_olustur_modal .gso-list .musteri-item .form-check-label {
     margin: 0; cursor: pointer; flex: 1; min-width: 0;

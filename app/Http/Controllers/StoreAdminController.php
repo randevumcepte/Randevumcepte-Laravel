@@ -31021,7 +31021,7 @@ public function musteriportfoydropliste(Request $request)
                 if($cinsiyet !== null && $cinsiyet != '')
                     $q->where('users.cinsiyet',$cinsiyet);
             })
-            ->select('musteri_portfoy.user_id as id', 'users.name as name');
+            ->select('musteri_portfoy.user_id as id', 'users.name as name', 'users.cep_telefon as telefon');
 
         if (!empty($musteriAdi)) {
             $query->where('users.name', 'LIKE', '%'.$musteriAdi.'%');
