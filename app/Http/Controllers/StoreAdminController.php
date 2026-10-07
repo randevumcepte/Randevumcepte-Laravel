@@ -4203,9 +4203,9 @@ public function carkverilerigetir(Request $request)
             }
             // RANDEVU GECMISI butonu — popup ile musterinin tum randevularini yukler
             if(!empty($rh->randevu->user_id)){
-                $duzenleButon .= '<a href="#" class="btn btn-sm rd-gecmis-btn" style="background:#6d28d9;color:#fff;"'
+                $duzenleButon .= '<a href="#" class="btn btn-sm rd-gecmis-btn" title="Randevu Geçmişi" style="background:#6d28d9;color:#fff;"'
                     .' data-userid="'.($rh->randevu->user_id ?? '').'"'
-                    .' data-ad="'.htmlspecialchars($rh->randevu->users->name ?? 'Müşteri', ENT_QUOTES).'"><i class="fa fa-history"></i> Randevu Geçmişi</a>';
+                    .' data-ad="'.htmlspecialchars($rh->randevu->users->name ?? 'Müşteri', ENT_QUOTES).'"><i class="fa fa-history"></i></a>';
             }
 
             if($seansVar->count() > 0){
