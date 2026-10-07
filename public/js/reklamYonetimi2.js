@@ -10,10 +10,15 @@ $(document).on('click', 'a[name="kampanya_detay"]', function (e) {
     aramaDetayId2 = $(this).attr('data-value');
     kampanyaId = aramaDetayId2;
     
-    // Tüm tabloların page'lerini sıfırla
+    // Modern rapor: Tumu filtresiyle ac
     currentPages2 = { 1: 1, 2: 1, 3: 1, 4: 1 };
-    loadKampanyaDetaylari(1, 1, '');
-    
+    rrTur = 1;
+    $('#rrArama').val('');
+    $('#rrPills .rr-pill').removeClass('is-active');
+    $('#rrPills .rr-pill[data-tur="1"]').addClass('is-active');
+    $('#rrBaslik').text('Tüm Katılımcılar');
+    rrYukle(true);
+
     // Müşteri listesini yükle
     loadMusteriListesiForSelect();
     
@@ -22,168 +27,93 @@ $(document).on('click', 'a[name="kampanya_detay"]', function (e) {
 
 // Tab'a tiklaninca ilgili turu yukle: 1=Tumu, 2=Indirim Kullanan, 3=Indirim Kullanmayan,
 // 4=Beklenenler. (Eskiden sadece "Tumu" aciliyordu; diger sekmeler tiklaninca bos/0 kaliyordu.)
-$(document).on('shown.bs.tab', '#kampanya_detay_modal a[data-toggle="tab"]', function () {
-    var hrefTurMap = {
-        '#tum_kampanya_arama': 1,
-        '#kampanya_katilanlar_arama': 2,
-        '#kampanya_katilmayanlar_arama': 3,
-        '#kampanya_beklenen_arama': 4
-    };
-    var tur = hrefTurMap[$(this).attr('href')];
-    if (!tur) return;
-    currentPages2[tur] = 1;
-    var searchInput = getSearchInputForTur(tur);
-    loadKampanyaDetaylari(1, tur, searchInput ? searchInput.val() : '');
-});
+// ===== MODERN tek-tablo + pill filtre (rapor) =====
+var rrTur = 1, rrPage = 1, rrTotal = 0, rrLoading = false, rrSearchTimer = null;
+var rrPerPage = 50;
 
-function loadKampanyaDetaylari(page = 1, tur, hasta) {
-    if (loading2) return;
-    loading2 = true;
-    
-    kampanyaId = aramaDetayId2;
+function rrYukle(reset) {
+    if (rrLoading) return;
+    rrLoading = true;
+    if (reset) rrPage = 1;
     $.ajax({
         url: '/isletmeyonetim/kampanyadetay',
         method: 'POST',
         data: {
-            kampanyaid: kampanyaId,
+            kampanyaid: aramaDetayId2,
             sube: $('input[name="sube"]').val(),
-            page: page,
-            search: hasta,
-            perPage: perPage3,
-            katilimDurumu: tur,
+            page: rrPage,
+            search: $('#rrArama').val() || '',
+            perPage: rrPerPage,
+            katilimDurumu: rrTur,
             _token: $('input[name="_token"]').val()
         },
-        success: function (response) {
-            console.log('AJAX başarılı. Gelen veri sayısı:', response.data.length);
-
-            $('#paket_adi').empty();
-            $('#paket_adi').append(response.kampanya.gorev_turu);
-
-            $('#kampanya_seans').empty();
-            $('#kampanya_seans').append(response.kampanya.paket_isim);
-            $('#kampanya_katilimci').empty();
-            $('#kampanya_katilimci').append(response.kampanya.katilimci_sayisi);
-            $('#kampanya_hizmeti').empty();
-            $('#kampanya_hizmeti').append(response.kampanya.hizmet_adi || '-');
-            $('#mesajIcerigiContent').empty();
-            $('#mesajIcerigiContent').append(response.kampanya.mesaj);
-            console.log(response.kampanya.mesaj);
-            // Mesaj içeriğini modal için sakla
-            if (response.kampanya.mesaj!= null) {
-                $('#mesajIcerigiContent').text(response.kampanya.mesaj);
-            } else {
-                $('#mesajIcerigiContent').text('Bu kampanya için mesaj içeriği bulunmamaktadır.');
+        success: function (res) {
+            if (res.kampanya) {
+                $('#paket_adi').text(res.kampanya.gorev_turu || '');
+                $('#kampanya_seans').text(res.kampanya.paket_isim || '');
+                $('#kampanya_katilimci').text(res.kampanya.katilimci_sayisi || '0');
+                $('#kampanya_hizmeti').text(res.kampanya.hizmet_adi || '-');
+                if (res.kampanya.mesaj != null) $('#mesajIcerigiContent').text(res.kampanya.mesaj);
+                else $('#mesajIcerigiContent').text('Bu kampanya için mesaj içeriği bulunmamaktadır.');
             }
-
-            // Tabloyu belirle
-            let tableId = '';
-            let emptyId = '';
-            let containerId = '';
-            let countId = '';
-
-            if (tur == 1) {
-                tableId = '#kampanya_tablo_tum_katilimci_arama';
-                emptyId = 'tum_arama_empty';
-                containerId = '#aranacak_musteriler1';
-                countId = '#tum_arama_count';
+            if (res.sayilar) {
+                $('#rrc1').text(res.sayilar.tumu || 0);
+                $('#rrc5').text(res.sayilar.katilan || 0);
+                $('#rrc6').text(res.sayilar.katilmayan || 0);
+                $('#rrc7').text(res.sayilar.ulasilamadi || 0);
+                $('#rrc2').text(res.sayilar.indirimKullanan || 0);
+                $('#rrc3').text(res.sayilar.indirimKullanmayan || 0);
             }
-            if (tur == 2) {
-                tableId = '#kampanya_tablo_katilanlar_katilimci_arama';
-                emptyId = 'katilan_arama_empty';
-                containerId = '#aranacak_musteriler2';
-                countId = '#katilan_arama_count';
-            }
-            if (tur == 3) {
-                tableId = '#kampanya_tablo_katilmayanlar_katilimci_arama';
-                emptyId = 'katilmayan_arama_empty';
-                containerId = '#aranacak_musteriler3';
-                countId = '#katilmayan_arama_count';
-            }
-            if (tur == 4) {
-                tableId = '#kampanya_tablo_beklenen_katilimci_arama';
-                emptyId = 'beklenen_arama_empty';
-                containerId = '#aranacak_musteriler4';
-                countId = '#beklenen_arama_count';
-            }
-
-            // Count badge'leri güncelle
-            if (countId) {
-                $(countId).text(response.total || '0');
-            }
-
-            totalKayit2 = response.total;
-            const tbody = $(tableId + ' tbody');
-
-            if (page === 1) {
-                tbody.empty();
-                // İlk sayfa yüklendiğinde scroll'u en üste al
-                $(containerId).scrollTop(0);
-            }
-
-            let htmlRows = [];
-            if (response.data.length === 0 && page === 1) {
-                $(`#${emptyId}`).show();
-            } else {
-                $(`#${emptyId}`).hide();
-            }
-
-            response.data.forEach(function (item, index) {
-                let statusClass = '';
-                let statusText = item.durum || '';
-
-                if (statusText.includes('Katıldı') || statusText.includes('Katılan')) {
-                    statusClass = 'status-aktif';
-                } else if (statusText.includes('Katılmadı') || statusText.includes('Katılmayan')) {
-                    statusClass = 'status-pasif';
-                } else if (statusText.includes('Bekleniyor') || statusText.includes('Beklenen')) {
-                    statusClass = 'status-beklemede';
-                }
-                // Silme butonu için HTML
-                let deleteButton = `
-                    <button class="btn btn-sm btn-danger delete-katilimci" 
-                            data-value="${item.id}"
-                            data-adsoyad="${item.ad_soyad || ''}"
-                            data-tablo="${tableId}"
-                            data-tur="${tur}">
-                        <i class="fa fa-trash"></i>
-                    </button>
-                `;
-                // "Tümü" tabloları için durum sütunu da var
-                if (tur == 1) {
-                    htmlRows.push(`
-                        <tr data-index="${index}">
-                            <td>${item.ad_soyad || ''}</td>
-                            <td>${formatPhoneNumber(item.telefon || '')}</td>
-                            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                            <td>${deleteButton}</td>
-                        </tr>
-                    `);
-                } else {
-                    // Diğer tablolar için
-                    htmlRows.push(`
-                        <tr data-index="${index}">
-                            <td>${item.ad_soyad || ''}</td>
-                            <td>${formatPhoneNumber(item.telefon || '')}</td>
-                            <td>${deleteButton}</td>
-                        </tr>
-                    `);
-                }
+            rrTotal = res.total || 0;
+            var tbody = $('#rrTablo tbody');
+            if (rrPage === 1) { tbody.empty(); $('#rrContainer').scrollTop(0); }
+            var rows = [];
+            (res.data || []).forEach(function (item) {
+                var st = item.durum || '', sc = '';
+                if (st.indexOf('Katıldı') > -1) sc = 'status-aktif';
+                else if (st.indexOf('Katılmadı') > -1 || st.indexOf('Ulaşılamadı') > -1) sc = 'status-pasif';
+                else sc = 'status-beklemede';
+                var del = '<button class="btn btn-sm btn-danger delete-katilimci" data-value="' + item.id + '" data-adsoyad="' + (item.ad_soyad || '') + '" data-tablo="#rrTablo" data-tur="' + rrTur + '"><i class="fa fa-trash"></i></button>';
+                rows.push('<tr><td>' + (item.ad_soyad || '') + '</td><td>' + formatPhoneNumber(item.telefon || '') + '</td><td><span class="status-badge ' + sc + '">' + st + '</span></td><td>' + del + '</td></tr>');
             });
-
-            tbody.append(htmlRows.join(''));
-            
-            // Sadece başarılı yüklemede page'i artır
-            currentPages2[tur] = page + 1;
-            loading2 = false;
-            
-            console.log(`Tur ${tur} için yeni page: ${currentPages2[tur]}, Toplam kayıt: ${totalKayit2}, Yüklenen: ${page * perPage3}`);
+            if ((res.data || []).length === 0 && rrPage === 1) $('#rrEmpty').show(); else $('#rrEmpty').hide();
+            tbody.append(rows.join(''));
+            rrPage = rrPage + 1;
+            $('#rrTekrarAraFooter').toggle(rrTur === 7 && (res.total || 0) > 0);
+            rrLoading = false;
         },
-        error: function (xhr) {
-            console.error("AJAX Hatası:", xhr);
-            loading2 = false;
-        }
+        error: function (xhr) { console.error('rapor yukleme hatasi', xhr); rrLoading = false; }
     });
 }
+
+// Eski cagiranlar icin uyumluluk katmani (katilimci ekle/sil basarisinda cagriliyor).
+function loadKampanyaDetaylari(page, tur, hasta) {
+    if (tur) rrTur = parseInt(tur, 10) || rrTur;
+    rrYukle(true);
+}
+
+// Pill filtre tiklama
+$(document).on('click', '#rrPills .rr-pill', function () {
+    $('#rrPills .rr-pill').removeClass('is-active');
+    $(this).addClass('is-active');
+    rrTur = parseInt($(this).data('tur'), 10) || 1;
+    $('#rrBaslik').text($(this).data('baslik') || 'Katılımcılar');
+    rrYukle(true);
+});
+
+// Arama (debounce)
+$(document).on('input', '#rrArama', function () {
+    clearTimeout(rrSearchTimer);
+    rrSearchTimer = setTimeout(function () { rrYukle(true); }, 350);
+});
+
+// Sonsuz kaydirma (tek konteyner)
+$(document).on('scroll', '#rrContainer', function () {
+    var el = this;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 120 && !rrLoading && ((rrPage - 1) * rrPerPage) < rrTotal) {
+        rrYukle(false);
+    }
+});
 
 // Scroll event'lerini birleştirilmiş fonksiyon ile yönet
 function setupScrollEvent(containerId, tur) {

@@ -86,241 +86,54 @@
                   </div>
                   <div class="col-md-12">
                      
-                      <!-- Arama Alt Tab Menüsü -->
-                        <div class="subtabs-container mb-4">
-                           <div class="d-flex justify-content-between align-items-center">
-                              <ul class="nav nav-tabs subtabs-nav" role="tablist">
-                                 <li class="nav-item">
-                                    <a class="nav-link active" data-toggle="tab" href="#tum_kampanya_arama" role="tab">
-                                       <span class="badge badge-light badge-sm ml-1" id="tum_arama_count">0</span> Tümü
-                                    </a>
-                                 </li>
-                                 <li class="nav-item">
-                                    <a class="nav-link" data-toggle="tab" href="#kampanya_katilanlar_arama" role="tab">
-                                       <span class="badge badge-light badge-sm ml-1" id="katilan_arama_count">0</span> İndirim Kullanan
-                                    </a>
-                                 </li>
-                                 <li class="nav-item">
-                                    <a class="nav-link" data-toggle="tab" href="#kampanya_katilmayanlar_arama" role="tab">
-                                       <span class="badge badge-light badge-sm ml-1" id="katilmayan_arama_count">0</span> İndirim Kullanmayan
-                                    </a>
-                                 </li>
-                                 <li class="nav-item">
-                                    <a class="nav-link" data-toggle="tab" href="#kampanya_beklenen_arama" role="tab">
-                                       <span class="badge badge-light badge-sm ml-1" id="beklenen_arama_count">0</span> Beklenenler
-                                    </a>
-                                 </li>
-                              </ul>
-                              <div class="d-flex align-items-center katilimci-ekle-alani">
-                                 <!-- Mesaj İçeriği Butonu -->
-                                 <button class="btn btn-info btn-sm mr-2" id="mesajIcerigiBtn">
-                                    <i class="fa fa-envelope mr-1"></i> Kampanya İçeriği
-                                 </button>
-                                 <!-- Katılımcı Ekleme Alanı -->
-                                 <div class="katilimci-select-container mr-2" style="min-width: 250px;">
-                                    <select class="form-control form-control-sm katilimci-secim-select" id="katilimciSecimSelect">
-                                       <option value="">Müşteri seçin...</option>
-                                    </select>
-                                 </div>
-                                 <button class="btn btn-primary btn-sm" id="katilimciEkleBtn">
-                                    <i class="fa fa-plus mr-1"></i> Katılımcı Ekle
-                                 </button>
+                      <!-- Modern filtre bar (pill) -->
+                        <div class="rr-filtre-bar">
+                           <div class="rr-pills" id="rrPills">
+                              <button type="button" class="rr-pill is-active" data-tur="1" data-baslik="Tüm Katılımcılar"><span class="rr-dot rr-dot-slate"></span>Tümü<span class="rr-badge" id="rrc1">0</span></button>
+                              <button type="button" class="rr-pill" data-tur="5" data-baslik="Katılanlar"><span class="rr-dot rr-dot-green"></span>Katılan<span class="rr-badge" id="rrc5">0</span></button>
+                              <button type="button" class="rr-pill" data-tur="6" data-baslik="Katılmayanlar"><span class="rr-dot rr-dot-red"></span>Katılmayan<span class="rr-badge" id="rrc6">0</span></button>
+                              <button type="button" class="rr-pill" data-tur="7" data-baslik="Ulaşılamayanlar"><span class="rr-dot rr-dot-gray"></span>Ulaşılamadı<span class="rr-badge" id="rrc7">0</span></button>
+                              <button type="button" class="rr-pill" data-tur="2" data-baslik="İndirim Kullananlar"><span class="rr-dot rr-dot-purple"></span>İndirim Kullanan<span class="rr-badge" id="rrc2">0</span></button>
+                              <button type="button" class="rr-pill" data-tur="3" data-baslik="İndirim Kullanmayanlar"><span class="rr-dot rr-dot-amber"></span>İndirim Kullanmayan<span class="rr-badge" id="rrc3">0</span></button>
+                           </div>
+                           <div class="rr-actions">
+                              <button class="btn btn-info btn-sm" id="mesajIcerigiBtn"><i class="fa fa-envelope mr-1"></i> Kampanya İçeriği</button>
+                              <div class="katilimci-select-container" style="min-width: 210px;">
+                                 <select class="form-control form-control-sm katilimci-secim-select" id="katilimciSecimSelect"><option value="">Müşteri seçin...</option></select>
                               </div>
+                              <button class="btn btn-primary btn-sm" id="katilimciEkleBtn"><i class="fa fa-plus mr-1"></i> Katılımcı Ekle</button>
                            </div>
                         </div>
-                        <div class="tab-content">
-                           
-                           <!-- Tümü -->
-                           <div class="tab-pane fade show active" id="tum_kampanya_arama" role="tabpanel">
-                              <div class="data-table-card">
-                                 <div class="card-header border-bottom bg-white">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                       <h4 class="h6 font-weight-600 text-gray-800 mb-0">Tüm Katılımcılar</h4>
-                                       <div class="d-flex align-items-center">
-                                          <div class="search-box mr-2">
-                                             <div class="input-group input-group-sm">
-                                                <div class="input-group-prepend">
-                                                   <span class="input-group-text bg-white border-right-0">
-                                                      <i class="fa fa-search text-muted"></i>
-                                                   </span>
-                                                </div>
-                                                <input id="katilimciArama1" type="text" class="form-control border-left-0 arama-search" placeholder="İsim veya telefon ara..." data-target="tum_arama">
-                                             </div>
-                                          </div>
-                                         
-                                       </div>
-                                    </div>
-                                 </div>
-                                 <div class="table-responsive " id='aranacak_musteriler1' style="max-height: 320px;">
-                                    <table class="table table-hover mb-0" id="kampanya_tablo_tum_katilimci_arama">
-                                       <thead class="thead-light">
-                                          <tr>
-                                             <th width="40%">Ad Soyad</th>
-                                             <th width="30%">Telefon Numarası</th>
-                                             <th width="25%">Durum</th>
-                                             <th width="5%"></th>
-                                          </tr>
-                                       </thead>
-                                       <tbody>
-                                          <!-- Veriler buraya gelecek -->
-                                       </tbody>
-                                    </table>
-                                    <div id="tum_arama_empty" class="empty-state">
-                                       <div class="empty-state-icon">
-                                          <i class="fa fa-users text-muted"></i>
-                                       </div>
-                                       <p class="empty-state-text">Katılımcı bulunmamaktadır</p>
+
+                        <div class="data-table-card rr-card">
+                           <div class="card-header border-bottom bg-white">
+                              <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
+                                 <h4 class="h6 font-weight-600 text-gray-800 mb-0" id="rrBaslik">Tüm Katılımcılar</h4>
+                                 <div class="search-box">
+                                    <div class="input-group input-group-sm">
+                                       <div class="input-group-prepend"><span class="input-group-text bg-white border-right-0"><i class="fa fa-search text-muted"></i></span></div>
+                                       <input id="rrArama" type="text" class="form-control border-left-0" placeholder="İsim veya telefon ara...">
                                     </div>
                                  </div>
                               </div>
                            </div>
-                           
-                           <!-- Katılanlar -->
-                           <div class="tab-pane fade" id="kampanya_katilanlar_arama" role="tabpanel">
-                              <div class="data-table-card">
-                                 <div class="card-header border-bottom bg-white">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                       <h4 class="h6 font-weight-600 text-gray-800 mb-0">İndirim Kullanan</h4>
-                                       <div class="d-flex align-items-center">
-                                          <div class="search-box mr-2">
-                                             <div class="input-group input-group-sm">
-                                                <div class="input-group-prepend">
-                                                   <span class="input-group-text bg-white border-right-0">
-                                                      <i class="fa fa-search text-muted"></i>
-                                                   </span>
-                                                </div>
-                                                <input id="katilimciArama2" type="text" class="form-control border-left-0 arama-search" placeholder="İsim veya telefon ara..." data-target="katilan_arama">
-                                             </div>
-                                          </div>
-                                       
-                                       </div>
-                                    </div>
-                                 </div>
-                                 <div class="table-responsive" id='aranacak_musteriler2' style="max-height: 320px;">
-                                    <table class="table table-hover mb-0" id="kampanya_tablo_katilanlar_katilimci_arama">
-                                       <thead class="thead-light">
-                                          <tr>
-                                             <th width="45%">Ad Soyad</th>
-                                             <th width="45%">Telefon Numarası</th>
-                                             <th width="10%"></th>
-                                          </tr>
-                                       </thead>
-                                       <tbody>
-                                          <!-- Veriler buraya gelecek -->
-                                       </tbody>
-                                    </table>
-                                    <div id="katilan_arama_empty" class="empty-state">
-                                       <div class="empty-state-icon">
-                                          <i class="fa fa-user-check text-muted"></i>
-                                       </div>
-                                       <p class="empty-state-text">İndirim kullanan bulunmamaktadır</p>
-                                    </div>
-                                 </div>
+                           <div class="table-responsive" id="rrContainer" style="max-height: 340px;">
+                              <table class="table table-hover mb-0" id="rrTablo">
+                                 <thead class="thead-light">
+                                    <tr><th width="38%">Ad Soyad</th><th width="30%">Telefon Numarası</th><th width="27%">Durum</th><th width="5%"></th></tr>
+                                 </thead>
+                                 <tbody></tbody>
+                              </table>
+                              <div id="rrEmpty" class="empty-state">
+                                 <div class="empty-state-icon"><i class="fa fa-users text-muted"></i></div>
+                                 <p class="empty-state-text">Kayıt bulunmamaktadır</p>
                               </div>
                            </div>
-                           
-                           <!-- Katılmayanlar -->
-                           <div class="tab-pane fade" id="kampanya_katilmayanlar_arama" role="tabpanel">
-                              <div class="data-table-card">
-                                 <div class="card-header border-bottom bg-white">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                       <h4 class="h6 font-weight-600 text-gray-800 mb-0">İndirim Kullanmayan</h4>
-                                       <div class="d-flex align-items-center">
-                                          <div class="search-box mr-2">
-                                             <div class="input-group input-group-sm">
-                                                <div class="input-group-prepend">
-                                                   <span class="input-group-text bg-white border-right-0">
-                                                      <i class="fa fa-search text-muted"></i>
-                                                   </span>
-                                                </div>
-                                                <input id="katilimciArama3" type="text" class="form-control border-left-0 arama-search" placeholder="İsim veya telefon ara..." data-target="katilmayan_arama">
-                                             </div>
-                                          </div>
-                                         
-                                       </div>
-                                    </div>
-                                 </div>
-                                 <div class="table-responsive " id='aranacak_musteriler3' style="max-height: 250px;">
-                                    <table class="table table-hover mb-0" id="kampanya_tablo_katilmayanlar_katilimci_arama">
-                                       <thead class="thead-light">
-                                          <tr>
-                                             <th width="45%">Ad Soyad</th>
-                                             <th width="45%">Telefon Numarası</th>
-                                             <th width="10%"></th>
-                                          </tr>
-                                       </thead>
-                                       <tbody>
-                                          <!-- Veriler buraya gelecek -->
-                                       </tbody>
-                                    </table>
-                                    <div id="katilmayan_arama_empty" class="empty-state">
-                                       <div class="empty-state-icon">
-                                          <i class="fa fa-user-times text-muted"></i>
-                                       </div>
-                                       <p class="empty-state-text">İndirim kullanmayan bulunmamaktadır</p>
-                                    </div>
-                                 </div>
-                                 <div class="card-footer bg-white border-top py-3">
-                                    <div class="text-center">
-                                       <button class="btn btn-outline-success btn-action" id="kampanyabeklenenleritekrarara">
-                                          <i class="fa fa-redo-alt mr-2"></i> Tekrar Aramamı İster Misiniz?
-                                       </button>
-                                    </div>
-                                 </div>
+                           <div class="card-footer bg-white border-top py-3" id="rrTekrarAraFooter" style="display:none;">
+                              <div class="text-center">
+                                 <button class="btn btn-outline-success btn-action" id="kampanyabeklenenleriara"><i class="fa fa-redo-alt mr-2"></i> Tekrar Aramamı İster Misiniz?</button>
                               </div>
                            </div>
-                           
-                           <!-- Beklenenler -->
-                           <div class="tab-pane fade" id="kampanya_beklenen_arama" role="tabpanel">
-                              <div class="data-table-card">
-                                 <div class="card-header border-bottom bg-white">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                       <h4 class="h6 font-weight-600 text-gray-800 mb-0">Beklenenler</h4>
-                                       <div class="d-flex align-items-center">
-                                          <div class="search-box mr-2">
-                                             <div class="input-group input-group-sm">
-                                                <div class="input-group-prepend">
-                                                   <span class="input-group-text bg-white border-right-0">
-                                                      <i class="fa fa-search text-muted"></i>
-                                                   </span>
-                                                </div>
-                                                <input id="katilimciArama4" type="text" class="form-control border-left-0 arama-search" placeholder="İsim veya telefon ara..." data-target="beklenen_arama">
-                                             </div>
-                                          </div>
-                                       
-                                       </div>
-                                    </div>
-                                 </div>
-                                 <div class="table-responsive "  id='aranacak_musteriler4' style="max-height: 250px;">
-                                    <table class="table table-hover mb-0" id="kampanya_tablo_beklenen_katilimci_arama">
-                                       <thead class="thead-light">
-                                          <tr>
-                                             <th width="45%">Ad Soyad</th>
-                                             <th width="45%">Telefon Numarası</th>
-                                             <th width="10%"></th>
-                                          </tr>
-                                       </thead>
-                                       <tbody>
-                                          <!-- Veriler buraya gelecek -->
-                                       </tbody>
-                                    </table>
-                                    <div id="beklenen_arama_empty" class="empty-state">
-                                       <div class="empty-state-icon">
-                                          <i class="fa fa-clock text-muted"></i>
-                                       </div>
-                                       <p class="empty-state-text">Beklenen bulunmamaktadır</p>
-                                    </div>
-                                 </div>
-                                 <div class="card-footer bg-white border-top py-3">
-                                    <div class="text-center">
-                                       <button class="btn btn-outline-success btn-action" id="kampanyabeklenenleriara">
-                                          <i class="fa fa-redo-alt mr-2"></i> Tekrar Aramamı İster Misiniz?
-                                       </button>
-                                    </div>
-                                 </div>
-                              </div>
-                           </div>
-                           
                         </div>
                   </div>
                </div>
@@ -423,6 +236,36 @@
 </div>
 
 <style>
+/* ===== Modern Reklam Raporu filtre bar (pill) ===== */
+.rr-filtre-bar {
+   display: flex; align-items: center; justify-content: space-between;
+   gap: 12px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.rr-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.rr-pill {
+   display: inline-flex; align-items: center; gap: 7px;
+   border: 1px solid #e2e8f0; background: #fff; color: #475569;
+   border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600;
+   cursor: pointer; transition: all .15s ease; white-space: nowrap;
+}
+.rr-pill:hover { border-color: #cbd5e1; background: #f8fafc; }
+.rr-pill.is-active { background: #7B2FB8; border-color: #7B2FB8; color: #fff; box-shadow: 0 4px 12px rgba(123,47,184,.22); }
+.rr-pill .rr-badge {
+   background: #f1f5f9; color: #475569; border-radius: 999px;
+   font-size: 11px; font-weight: 700; padding: 1px 8px; min-width: 20px; text-align: center;
+}
+.rr-pill.is-active .rr-badge { background: rgba(255,255,255,.25); color: #fff; }
+.rr-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.rr-dot-slate { background: #64748b; }
+.rr-dot-green { background: #10b981; }
+.rr-dot-red { background: #ef4444; }
+.rr-dot-gray { background: #94a3b8; }
+.rr-dot-purple { background: #8b5cf6; }
+.rr-dot-amber { background: #f59e0b; }
+.rr-pill.is-active .rr-dot { background: #fff; }
+.rr-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rr-card { box-shadow: 0 2px 10px rgba(15,23,42,.06); }
+
 /* Select2 için ek stiller */
 .select2-container--default .select2-selection--single {
     height: 36px;

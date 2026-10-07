@@ -22929,8 +22929,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     $search  = trim($request->search ?? '');
     $query = KampanyaKatilimcilari::where('kampanya_id', $kampanyaId);
 
-    // Sekmeler INDIRIM KODU KULLANIMINA gore: 2=Indirim Kullanan (indirim_kodu_kullanildi=1),
-    // 3=Indirim Kullanmayan (0/NULL), 4=Beklenenler/henuz aranmadi (durum_asistan NULL).
+    // Filtreler: 1=Tumu, 2=Indirim Kullanan, 3=Indirim Kullanmayan, 4=Beklenenler(aranmadi),
+    // 5=Katilan(durum_asistan=1), 6=Katilmayan(durum_asistan=0), 7=Ulasilamadi(tekrar_arandi=1 & cevap yok).
     if ($request->katilimDurumu == 2) {
         $query->where('indirim_kodu_kullanildi', 1);
     } elseif ($request->katilimDurumu == 3) {
@@ -22939,6 +22939,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         });
     } elseif ($request->katilimDurumu == 4) {
         $query->whereNull('durum_asistan');
+    } elseif ($request->katilimDurumu == 5) {
+        $query->where('durum_asistan', 1);
+    } elseif ($request->katilimDurumu == 6) {
+        $query->where('durum_asistan', 0);
+    } elseif ($request->katilimDurumu == 7) {
+        $query->where('tekrar_arandi', 1)->whereNull('durum_asistan');
     }
 
     if ($search !== '') {
@@ -23027,11 +23033,27 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         ->groupBy('kampanya_katilimcilari.kampanya_id')
         ->first();
 
+    // Tum filtre sayilari (pill rozetleri) — arama uygulanmis baz uzerinden tek seferde.
+    $bazSay = KampanyaKatilimcilari::where('kampanya_id', $kampanyaId);
+    if ($search !== '') {
+        $bazSay->whereHas('musteri', function ($q) use ($search) { $q->where('name', 'like', "%{$search}%"); });
+    }
+    $sayilar = [
+        'tumu'               => (clone $bazSay)->count(),
+        'katilan'            => (clone $bazSay)->where('durum_asistan', 1)->count(),
+        'katilmayan'         => (clone $bazSay)->where('durum_asistan', 0)->count(),
+        'ulasilamadi'        => (clone $bazSay)->where('tekrar_arandi', 1)->whereNull('durum_asistan')->count(),
+        'indirimKullanan'    => (clone $bazSay)->where('indirim_kodu_kullanildi', 1)->count(),
+        'indirimKullanmayan' => (clone $bazSay)->where(function ($q) { $q->whereNull('indirim_kodu_kullanildi')->orWhere('indirim_kodu_kullanildi', '!=', 1); })->count(),
+        'beklenenler'        => (clone $bazSay)->whereNull('durum_asistan')->count(),
+    ];
+
     return response()->json([
         'kampanya'   => $kampanya,
         'kampanyaid'=> $kampanyaId,
         'data'       => $katilimcilarDatasi,
         'total'      => $total,
+        'sayilar'    => $sayilar,
         'page'       => $page,
         'perPage'    => $perPage
     ]);
