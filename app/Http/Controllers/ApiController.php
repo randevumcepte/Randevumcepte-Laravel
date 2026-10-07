@@ -1167,19 +1167,19 @@ class ApiController extends Controller
         'salon:id,salon_adi',
         'hizmetler' => function ($q) use ($personelid) {
             // PAKET satisi kriteri: randevu_id NULL (randevusuz) VE seans_sayisi > 0
-            $q->select('id', 'adisyon_id', 'hizmet_id', 'fiyat', 'personel_id', 'seans_sayisi', 'randevu_id')
+            $q->select('id', 'adisyon_id', 'hizmet_id', 'fiyat', 'indirim_tutari', 'personel_id', 'seans_sayisi', 'randevu_id')
               ->with(['hizmet:id,hizmet_adi'])
               ->with('tahsilatlar:id,adisyon_hizmet_id,tutar');
             if ($personelid) $q->where('personel_id', $personelid);
         },
         'urunler' => function ($q) use ($personelid) {
-            $q->select('id', 'adisyon_id', 'urun_id', 'fiyat', 'personel_id')
+            $q->select('id', 'adisyon_id', 'urun_id', 'fiyat', 'indirim_tutari', 'personel_id')
               ->with(['urun:id,urun_adi'])
               ->with('tahsilatlar:id,adisyon_urun_id,tutar');
             if ($personelid) $q->where('personel_id', $personelid);
         },
         'paketler' => function ($q) use ($personelid) {
-            $q->select('id', 'adisyon_id', 'paket_id', 'fiyat', 'personel_id')
+            $q->select('id', 'adisyon_id', 'paket_id', 'fiyat', 'indirim_tutari', 'personel_id')
               ->with(['paket:id,paket_adi'])
               ->with('tahsilatlar:id,adisyon_paket_id,tutar');
             if ($personelid) $q->where('personel_id', $personelid);
@@ -1258,20 +1258,23 @@ class ApiController extends Controller
             $query->whereRaw('COALESCE(adisyonlar.odendi,0) ' . ($acikKapali == 1 ? '<> 1' : '= 1'));
         } else {
         $operator = $acikKapali == 1 ? '>' : '=';
+        // NET (fiyat - indirim_tutari) ve personel kapsamı; sayim/formatAdisyonFast ile
+        // BIREBIR ayni mantik olmali ki sekme uyeligi ile kart etiketi uyusmasin kalmasin.
+        $pf = $personelid ? " AND personel_id = ?" : "";
         $query->whereRaw("
             (
-                COALESCE((SELECT SUM(fiyat) FROM adisyon_hizmetler WHERE adisyon_id = adisyonlar.id), 0) +
-                COALESCE((SELECT SUM(fiyat) FROM adisyon_urunler WHERE adisyon_id = adisyonlar.id), 0) +
-                COALESCE((SELECT SUM(fiyat) FROM adisyon_paketler WHERE adisyon_id = adisyonlar.id), 0)
+                COALESCE((SELECT SUM(COALESCE(fiyat,0) - COALESCE(indirim_tutari,0)) FROM adisyon_hizmetler WHERE adisyon_id = adisyonlar.id$pf), 0) +
+                COALESCE((SELECT SUM(COALESCE(fiyat,0) - COALESCE(indirim_tutari,0)) FROM adisyon_urunler WHERE adisyon_id = adisyonlar.id$pf), 0) +
+                COALESCE((SELECT SUM(COALESCE(fiyat,0) - COALESCE(indirim_tutari,0)) FROM adisyon_paketler WHERE adisyon_id = adisyonlar.id$pf), 0)
             ) $operator (
                 COALESCE((SELECT SUM(t.tutar) FROM tahsilat_hizmetler t
-                    WHERE t.adisyon_hizmet_id IN (SELECT id FROM adisyon_hizmetler WHERE adisyon_id = adisyonlar.id)), 0) +
+                    WHERE t.adisyon_hizmet_id IN (SELECT id FROM adisyon_hizmetler WHERE adisyon_id = adisyonlar.id$pf)), 0) +
                 COALESCE((SELECT SUM(t.tutar) FROM tahsilat_urunler t
-                    WHERE t.adisyon_urun_id IN (SELECT id FROM adisyon_urunler WHERE adisyon_id = adisyonlar.id)), 0) +
+                    WHERE t.adisyon_urun_id IN (SELECT id FROM adisyon_urunler WHERE adisyon_id = adisyonlar.id$pf)), 0) +
                 COALESCE((SELECT SUM(t.tutar) FROM tahsilat_paketler t
-                    WHERE t.adisyon_paket_id IN (SELECT id FROM adisyon_paketler WHERE adisyon_id = adisyonlar.id)), 0)
+                    WHERE t.adisyon_paket_id IN (SELECT id FROM adisyon_paketler WHERE adisyon_id = adisyonlar.id$pf)), 0)
             )
-        ");
+        ", $personelid ? [$personelid, $personelid, $personelid, $personelid, $personelid, $personelid] : []);
         }
     }
 
@@ -1418,9 +1421,9 @@ class ApiController extends Controller
          FROM (
             SELECT a.id,
                 (
-                    COALESCE((SELECT SUM(fiyat) FROM adisyon_hizmetler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . "), 0) +
-                    COALESCE((SELECT SUM(fiyat) FROM adisyon_urunler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . "), 0) +
-                    COALESCE((SELECT SUM(fiyat) FROM adisyon_paketler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . "), 0)
+                    COALESCE((SELECT SUM(COALESCE(fiyat,0) - COALESCE(indirim_tutari,0)) FROM adisyon_hizmetler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . "), 0) +
+                    COALESCE((SELECT SUM(COALESCE(fiyat,0) - COALESCE(indirim_tutari,0)) FROM adisyon_urunler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . "), 0) +
+                    COALESCE((SELECT SUM(COALESCE(fiyat,0) - COALESCE(indirim_tutari,0)) FROM adisyon_paketler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . "), 0)
                 ) -
                 (
                     COALESCE((SELECT SUM(t.tutar) FROM tahsilat_hizmetler t
@@ -1563,7 +1566,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     // Hizmetler
     foreach ($adisyon->hizmetler as $hizmet) {
         $tahsilatToplam = $hizmet->tahsilatlar->sum('tutar');
-        $toplamTutar += $hizmet->fiyat;
+        // NET: indirim_tutari dusulur (web adisyon listesi ve acik/kapali filtresiyle tutarli)
+        $toplamTutar += ($hizmet->fiyat ?? 0) - ($hizmet->indirim_tutari ?? 0);
         $odenen += $tahsilatToplam;
 
         // PAKET satisi (randevu_id NULL VE seans_sayisi>0): prim duz paket_prim_yuzde,
@@ -1596,7 +1600,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     // Ürünler
     foreach ($adisyon->urunler as $urun) {
         $tahsilatToplam = $urun->tahsilatlar->sum('tutar');
-        $toplamTutar += $urun->fiyat;
+        $toplamTutar += ($urun->fiyat ?? 0) - ($urun->indirim_tutari ?? 0);
         $odenen += $tahsilatToplam;
         
         if($urun->personel_id && $urun->personel) {
@@ -1615,7 +1619,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     // Paketler
     foreach ($adisyon->paketler as $paket) {
         $tahsilatToplam = $paket->tahsilatlar->sum('tutar');
-        $toplamTutar += $paket->fiyat;
+        $toplamTutar += ($paket->fiyat ?? 0) - ($paket->indirim_tutari ?? 0);
         $odenen += $tahsilatToplam;
         
         if($paket->personel_id && $paket->personel) {
