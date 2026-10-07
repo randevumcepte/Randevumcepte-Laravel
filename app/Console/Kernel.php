@@ -18,6 +18,7 @@ class Kernel extends ConsoleKernel
         Commands\GuvenlikDb::class,
         Commands\KurusReconcile::class,
         Commands\AlacakTemizle::class,
+        Commands\IndirimKuponBackfill::class,
         Commands\MusteriDubleBul::class,
         Commands\YetkiTeshis::class,
         Commands\PersonelYetkiliTeshis::class,
