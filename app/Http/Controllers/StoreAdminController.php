@@ -32901,7 +32901,7 @@ DB::raw('
         } else {
             $q->whereIn('am.durum', [3, 6, 7]);
         }
-        $secim = ['am.id', 'am.arama_id', 'am.tarih', 'am.saat', 'am.durum', 'am.musteri_not', 'u.name as musteri_ad', 'p.personel_adi', 'al.personel_id'];
+        $secim = ['am.id', 'am.arama_id', 'am.tarih', 'am.saat', 'am.durum', 'am.musteri_not', 'am.user_id', 'u.name as musteri_ad', 'p.personel_adi', 'al.personel_id'];
         if ($arVar) { $secim[] = 'am.ar_tamamlandi_at'; $secim[] = 'am.ar_gecikti'; }
         $kayitlar = $q->select($secim)->limit(2000)->get();
 
@@ -32939,6 +32939,7 @@ DB::raw('
                 'personel_id'     => (int) $k->personel_id,
                 'personel'        => $personel,
                 'musteri'         => $musteri,
+                'user_id'         => (int) $k->user_id, // musteri detay butonu icin
                 'not'             => (string) ($k->musteri_not ?? ''), // randevu/musteri notu (aktarilan dahil)
                 'durum_metin'     => $durumMetin,
             ];

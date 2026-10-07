@@ -120,6 +120,7 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
                <h5 id="artm_ad">Müşteri</h5>
                <small><i class="fa fa-phone"></i> <span id="artm_tel">gizli</span> &middot; <span id="artm_zaman">-</span> &middot; <i class="fa fa-user"></i> <span id="artm_personel">-</span></small>
             </div>
+            <a id="artm_musteri_detay" href="#" target="_blank" title="Müşteri Detayı" style="display:none;align-items:center;gap:6px;background:rgba(255,255,255,.18);color:#fff;font-weight:700;border-radius:10px;padding:8px 13px;text-decoration:none;font-size:13px;margin-right:8px;"><i class="fa fa-user-circle-o"></i> Müşteri Detayı</a>
             <button type="button" class="artm-ara-btn" id="artm_ara"><i class="fa fa-phone"></i> ARA</button>
             <button type="button" class="close" data-dismiss="modal" aria-label="Kapat"><span aria-hidden="true">&times;</span></button>
          </div>
@@ -342,6 +343,7 @@ $(document).ready(function(){
             html += '<div class="art-item" style="border-left-color:'+esc(e.color)+'" '+
                      'data-id="'+esc(e.id)+'" '+
                      'data-arama="'+esc(e.arama_id)+'" '+
+                     'data-user="'+esc(e.user_id||'')+'" '+
                      'data-pid="'+esc(e.personel_id)+'" '+
                      'data-musteri="'+esc(e.musteri)+'" '+
                      'data-personel="'+esc(e.personel)+'" '+
@@ -395,6 +397,10 @@ $(document).ready(function(){
       $('#artm_tel').text('gizli');
       $('#artm_zaman').text($(this).data('zaman') || '-');
       $('#artm_personel').text($(this).data('personel') || '-');
+      // Musteri Detayi butonu (randevu detayindaki gibi) — yeni sekmede musteridetay sayfasi
+      var _uid = $(this).attr('data-user');
+      if (_uid && _uid !== '0'){ $('#artm_musteri_detay').attr('href', '/isletmeyonetim/musteridetay/'+_uid+'?sube='+sube).css('display','inline-flex'); }
+      else { $('#artm_musteri_detay').hide(); }
       // reset form — mevcut/aktarilan notu goster (duzenlenebilir; kaydedince guncellenir)
       $('.artm-sonuc').removeClass('aktif');
       $('#artm_not').val($(this).attr('data-not') || '');
