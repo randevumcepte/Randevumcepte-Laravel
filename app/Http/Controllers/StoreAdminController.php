@@ -12255,6 +12255,26 @@ private function ayAdiCevir($ingilizceAy)
         }
     }
     public function musteriarama(Request $request){
+        // SELECT2 katilimci arama (Reklam Raporu > Katilimci Ekle): 'query' gelirse isim VEYA
+        // telefona gore eslesen musterileri JSON DIZI olarak doner. (Eski kod $request->telefon
+        // okuyup tek string donuyordu -> select2 response.map patlatiyordu: "could not be loaded".)
+        $q = trim((string) $request->input('query', ''));
+        if ($q !== '') {
+            $salonId = $request->sube ?: self::mevcutsube($request);
+            $liste = DB::table('musteri_portfoy')
+                ->join('users', 'musteri_portfoy.user_id', '=', 'users.id')
+                ->where('musteri_portfoy.salon_id', $salonId)
+                ->where('musteri_portfoy.aktif', 1)
+                ->where(function ($w) use ($q) {
+                    $w->where('users.name', 'like', '%'.$q.'%')
+                      ->orWhere('users.cep_telefon', 'like', '%'.$q.'%');
+                })
+                ->select('users.id as id', 'users.name as ad_soyad', 'users.cep_telefon as cep_telefon')
+                ->orderBy('users.name')
+                ->limit(30)->get();
+            return response()->json($liste, 200, [], JSON_INVALID_UTF8_SUBSTITUTE);
+        }
+
         $telefon = str_replace('+','',$request->telefon);
         $telefon = str_replace(substr($telefon, 0, 2),'',$telefon);
         $musteri = DB::table('musteri_portfoy')->join('users','musteri_portfoy.user_id','=','users.id')->select('users.id as id','users.name as ad_soyad')->where('musteri_portfoy.salon_id',$request->sube)->where('users.cep_telefon','like','%'.$telefon.'%')->first();
