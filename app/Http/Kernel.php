@@ -106,6 +106,7 @@ class Kernel extends HttpKernel
         'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
         'ai.sidecar' => \App\Http\Middleware\AiSidecarAuth::class,
         'salonappy.cors' => \App\Http\Middleware\SalonappyImportCors::class,
+        'salon.sahiplik' => \App\Http\Middleware\SalonSahiplikGate::class,
 
     ];
 }
