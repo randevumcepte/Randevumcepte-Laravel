@@ -9387,11 +9387,16 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         return response()->json([
             'success'  => true,
             'kampanya' => [
-                'gorev_turu'       => $gorevAdi,
-                'paket_isim'       => $k->paket_isim ?? '',
-                'hizmet_adi'       => $hizmetAdi,
-                'mesaj'            => $k->mesaj ?? '',
-                'katilimci_sayisi' => KampanyaKatilimcilari::where('kampanya_id', $kampanyaId)->count(),
+                'gorev_turu'          => $gorevAdi,
+                'paket_isim'          => $k->paket_isim ?? '',
+                'hizmet_adi'          => $hizmetAdi,
+                'mesaj'               => $k->mesaj ?? '',
+                'katilimci_sayisi'    => KampanyaKatilimcilari::where('kampanya_id', $kampanyaId)->count(),
+                // Teshis: planlanan arama zamani + kampanya aramasi ayari acik mi (ayar_id=8).
+                'asistan_tarih_saat'  => $k && $k->asistan_tarih_saat ? (string) $k->asistan_tarih_saat : '',
+                'arama_ile_gonderim'  => $k ? (int) $k->arama_ile_gonderim : 0,
+                'arama_ayari_acik'    => $k ? (int) (\App\SalonEAsistanAyarlari::where('salon_id', $k->salon_id)->where('ayar_id', 8)->value('acik_kapali')) : 0,
+                'sunucu_zamani'       => now()->format('Y-m-d H:i:s'),
             ],
             'data'    => $kayitlar,
             'total'   => $total,
