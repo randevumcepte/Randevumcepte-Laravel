@@ -21559,6 +21559,57 @@ $('#web_telefon_burada_kullan').click(function(){
     $('.webphone').addClass('show');
     //$('#santral-ustune-al').modal('hide');
 });
+
+// ===== Randevu detay modali: ARAMA + RANDEVU GECMISI (eventbuttons'tan gelen butonlar) =====
+// Arama: webrtc softphone aktifse DIREK ondan ara; degilse santral originate (Bria/3.taraf softphone)
+$(document).on('click', '.rd-ara-btn', function(e){
+    e.preventDefault();
+    var tel = String($(this).data('telefon') || '').replace(/\D/g,'');
+    if(!tel){ return; }
+    if (window.webphoneHazir === true && typeof window.webphoneAra === 'function'){
+        window.webphoneAra(tel);
+    } else {
+        $.post('/isletmeyonetim/arama-baslat-numara',
+            { numara: tel, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
+            function(res){
+                if (res && res.success){ if(typeof swal==='function') swal({type:'success',title:'Arama başlatıldı',text:res.message||'Telefonunuz çalacak, açın.',timer:3500,showConfirmButton:false}); }
+                else { if(typeof swal==='function') swal({type:'warning',title:'Aranamadı',text:(res&&res.message)||'Arama başlatılamadı.'}); }
+            }
+        ).fail(function(){ if(typeof swal==='function') swal({type:'error',title:'Hata',text:'Arama başlatılamadı.'}); });
+    }
+});
+// Randevu Gecmisi: popup ile musterinin tum randevularini yukle
+$(document).on('click', '.rd-gecmis-btn', function(e){
+    e.preventDefault();
+    var uid = $(this).data('userid'); var ad = $(this).data('ad') || 'Müşteri';
+    if(!uid) return;
+    var esc = function(s){ return $('<div>').text(s==null?'':s).html(); };
+    $('#rd-gecmis-ov').remove();
+    var ov = $('<div id="rd-gecmis-ov" style="position:fixed;inset:0;background:rgba(20,10,40,.55);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px;">'
+        + '<div style="background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:82vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 70px -20px rgba(40,10,70,.55);">'
+        + '<div style="background:linear-gradient(120deg,#5C008E,#7B2FB8);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;">'
+        + '<div style="font-weight:800;"><i class="fa fa-history"></i> Randevu Geçmişi — '+esc(ad)+'</div>'
+        + '<span id="rd-gecmis-kapat" style="cursor:pointer;font-size:24px;line-height:1;">&times;</span></div>'
+        + '<div id="rd-gecmis-govde" style="padding:14px 18px;overflow-y:auto;"><div style="text-align:center;padding:30px;color:#7B2FB8;"><i class="fa fa-spinner fa-spin fa-2x"></i></div></div>'
+        + '</div></div>');
+    $('body').append(ov);
+    $.get('/isletmeyonetim/musteri-randevu-gecmisi', { user_id: uid, sube: $('input[name="sube"]').val() }, function(res){
+        var list = (res && res.randevular) ? res.randevular : [];
+        if(!list.length){ $('#rd-gecmis-govde').html('<div style="text-align:center;padding:30px;color:#9a93ad;">Bu müşteriye ait randevu bulunamadı.</div>'); return; }
+        var html='';
+        list.forEach(function(r){
+            html += '<div style="border-left:4px solid '+r.renk+';background:#faf9fc;border:1px solid #eef0f5;border-radius:10px;padding:10px 12px;margin-bottom:8px;">'
+                + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'
+                + '<b style="color:#1e1733;">'+esc(r.tarih)+' '+esc(r.saat)+'</b>'
+                + '<span style="font-size:11.5px;font-weight:700;color:'+r.renk+';background:'+r.renk+'1a;border-radius:20px;padding:2px 10px;">'+esc(r.durum_metin)+'</span></div>'
+                + '<div style="font-size:13px;color:#4a4461;margin-top:3px;">'+(r.hizmet?esc(r.hizmet):'-')+'</div>'
+                + (r.personel?'<div style="font-size:12px;color:#8a8398;margin-top:2px;"><i class="fa fa-user"></i> '+esc(r.personel)+'</div>':'')
+                + '</div>';
+        });
+        $('#rd-gecmis-govde').html(html);
+    }).fail(function(){ $('#rd-gecmis-govde').html('<div style="text-align:center;padding:30px;color:#c62828;">Yüklenemedi.</div>'); });
+});
+$(document).on('click', '#rd-gecmis-kapat, #rd-gecmis-ov', function(e){ if(e.target===this || $(e.target).attr('id')==='rd-gecmis-kapat') $('#rd-gecmis-ov').remove(); });
 /*jQuery(document).on('click', function (e) {
     if($('.webphone').hasClass('show')){
         if($(e.target).closest(".webphone").length === 0

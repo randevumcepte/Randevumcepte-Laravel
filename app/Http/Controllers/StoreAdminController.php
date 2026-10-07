@@ -4195,6 +4195,19 @@ public function carkverilerigetir(Request $request)
                     .' data-sube="'.($rh->randevu->salon_id ?? '').'"><i class="fa fa-comments"></i> Anket Gönder</a>';
             }
 
+            // ARAMA butonu (yesil, SADECE telefon ikonu) — webrtc softphone aktifse direk ondan,
+            // degilse santral originate (Bria/3.taraf). JS: .rd-ara-btn (arama-randevu-takvim ile ayni mantik).
+            if(!empty($_waTelH)){
+                $duzenleButon .= '<a href="#" class="btn btn-success btn-sm rd-ara-btn" title="Ara"'
+                    .' data-telefon="'.htmlspecialchars($_waTelH, ENT_QUOTES).'"><i class="fa fa-phone"></i></a>';
+            }
+            // RANDEVU GECMISI butonu — popup ile musterinin tum randevularini yukler
+            if(!empty($rh->randevu->user_id)){
+                $duzenleButon .= '<a href="#" class="btn btn-sm rd-gecmis-btn" style="background:#6d28d9;color:#fff;"'
+                    .' data-userid="'.($rh->randevu->user_id ?? '').'"'
+                    .' data-ad="'.htmlspecialchars($rh->randevu->users->name ?? 'Müşteri', ENT_QUOTES).'"><i class="fa fa-history"></i> Randevu Geçmişi</a>';
+            }
+
             if($seansVar->count() > 0){
                 $apIds = $seansVar->pluck('adisyon_paket_id')->filter()->values();
                 $ahIds = $seansVar->pluck('adisyon_hizmet_id')->filter()->values();
@@ -34366,6 +34379,59 @@ DB::raw('
             \Log::warning('[CAGRI-MERKEZI] hizli satis hatasi: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Satış oluşturulamadı: ' . $e->getMessage()]);
         }
+    }
+
+    /** Randevu detay modali -> 'Randevu Gecmisi' popup: musterinin bu salondaki tum randevulari
+     *  (randevu basina hizmetler birlestirilmis, durum etiketiyle), yeniden eskiye. */
+    public function musteri_randevu_gecmisi(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $userId = (int) $request->user_id;
+        if (!$userId) return response()->json(['randevular' => []]);
+
+        $geldiVar = Schema::hasColumn('randevular', 'randevuya_geldi');
+        $q = DB::table('randevular as r')
+            ->leftJoin('randevu_hizmetler as rh', 'rh.randevu_id', '=', 'r.id')
+            ->leftJoin('hizmetler as h', 'h.id', '=', 'rh.hizmet_id')
+            ->leftJoin('salon_personelleri as p', 'p.id', '=', 'rh.personel_id')
+            ->where('r.salon_id', $salonId)->where('r.user_id', $userId);
+        $sel = ['r.id', 'r.tarih', 'r.saat', 'r.durum', 'h.hizmet_adi', 'p.personel_adi'];
+        if ($geldiVar) $sel[] = 'r.randevuya_geldi';
+        $rows = $q->select($sel)->orderBy('r.tarih', 'desc')->orderBy('r.saat', 'desc')->limit(300)->get();
+
+        $map = [];
+        foreach ($rows as $r) {
+            if (!isset($map[$r->id])) {
+                $map[$r->id] = [
+                    'id'       => $r->id,
+                    'tarih'    => $r->tarih ? date('d.m.Y', strtotime($r->tarih)) : '',
+                    'saat'     => $r->saat ? substr($r->saat, 0, 5) : '',
+                    'personel' => $r->personel_adi ?: '',
+                    'durum'    => (int) $r->durum,
+                    'geldi'    => $geldiVar ? (int) ($r->randevuya_geldi ?? 0) : 0,
+                    'hizmetler'=> [],
+                ];
+            }
+            if (!empty($r->hizmet_adi) && !in_array($r->hizmet_adi, $map[$r->id]['hizmetler'])) {
+                $map[$r->id]['hizmetler'][] = $r->hizmet_adi;
+            }
+        }
+        $out = [];
+        foreach ($map as $m) {
+            if ($m['durum'] === 2 || $m['durum'] === 3) { $et = 'İptal'; $renk = '#dc2626'; }
+            elseif ($m['durum'] === 1 && $m['geldi']) { $et = 'Geldi'; $renk = '#16a34a'; }
+            elseif ($m['durum'] === 1 && !$m['geldi']) { $et = 'Gelmedi'; $renk = '#b26a00'; }
+            else { $et = 'Bekliyor'; $renk = '#2563eb'; }
+            $out[] = [
+                'tarih'       => $m['tarih'],
+                'saat'        => $m['saat'],
+                'personel'    => $m['personel'],
+                'hizmet'      => implode(', ', $m['hizmetler']),
+                'durum_metin' => $et,
+                'renk'        => $renk,
+            ];
+        }
+        return response()->json(['randevular' => $out]);
     }
 
     /** Arama randevusu MANUEL ekleme icin musteri arama (select2 kaynagi). Salon portfoyunden ad/tel. */
