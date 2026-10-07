@@ -238,6 +238,11 @@
          .header{ width:calc(100% - 74px); }
          .main-container{ padding-left:94px; }
 
+         /* Softphone paneli her zaman yuksek z-index; panel ACIKKEN (.show) header'i
+            modal'in USTUNE cikar (randevu detay vb. modal arkasinda kalmasin). */
+         .dropdown-menu.webphone{ z-index:100050 !important; }
+         .header:has(.dropdown-menu.webphone.show){ z-index:100050 !important; position:relative; }
+
          /* --- Uzerine gelince genislet --- */
          .left-side-bar:hover{
             width:250px;
