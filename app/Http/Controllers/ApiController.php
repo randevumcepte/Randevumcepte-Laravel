@@ -9214,6 +9214,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         }
 
+        // ARAMA kampanyasi (gorev_turu=1) -> "Kampanya Aramasi" ayarini (ayar_id=8) OTOMATIK AC.
+        // Aksi halde ayar kapali salonlarda cron "ayar kapali" deyip sessizce aramiyordu (tuzak).
+        if ($request->gorevTuru == 1) {
+            $ayar = \App\SalonEAsistanAyarlari::firstOrNew(['salon_id' => $salonid, 'ayar_id' => 8]);
+            $ayar->acik_kapali = 1;
+            $ayar->save();
+        }
+
         Audit::logApi($salonid, $request, $_yeniKampanya ? 'kampanya_ekle' : 'kampanya_guncelle', 'kampanya', optional($kampanya_yonetimi)->id, optional($kampanya_yonetimi)->paket_isim, 'Kampanya kaydedildi (API parite).');
 
         return response()->json([
@@ -9270,6 +9278,19 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             'sablonlar' => $sablonlar,
             'gruplar'   => $gruplar,
         ], 200, [], JSON_INVALID_UTF8_SUBSTITUTE);
+    }
+
+    /**
+     * "Kampanya Aramasi" ayarini (ayar_id=8) ac/kapa. Arama kampanyalarinin cron'da
+     * aranmasi bu ayara baglidir; kapaliysa sessizce aranmaz.
+     */
+    public function kampanyaAramaAyariAyarla(Request $request, $salonid)
+    {
+        $acik = filter_var($request->input('acik', 1), FILTER_VALIDATE_BOOLEAN);
+        $ayar = \App\SalonEAsistanAyarlari::firstOrNew(['salon_id' => $salonid, 'ayar_id' => 8]);
+        $ayar->acik_kapali = $acik ? 1 : 0;
+        $ayar->save();
+        return response()->json(['basarili' => true, 'acik_kapali' => (int) $ayar->acik_kapali]);
     }
 
     /**
