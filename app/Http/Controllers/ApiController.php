@@ -16720,6 +16720,25 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         // ve mevcut indirim_tutari uzerine EKLE. Kismi tahsilatta indirim, kalan borctan
         // fazla uygulanmaz — boylece adisyon yanlislikla 'tam kapali' gorunmez.
         $_hariciIndirim = (float) str_replace(['.',','],['','.'], (string)($request->indirim_tutari ?? '0'));
+        // KUPON CIFT-SAYIM GUARD: kupon kullaniminda indirim adisyona ZATEN yazildiysa
+        // (kampanyaKodKullanApi -> adisyonaIndirimYaz), Flutter ayni tutari harici indirim
+        // olarak tekrar gonderir. Bir kez dusurup cift uygulamayi engelle.
+        try {
+            $_kuponAdId = (int) ($_adisyonId ?? ($request->adisyon_id ?? 0));
+            if ($_kuponAdId && $_hariciIndirim > 0
+                && \Schema::hasColumn('kampanya_katilimcilari', 'indirim_kodu_tutar')
+                && \Schema::hasColumn('kampanya_katilimcilari', 'indirim_kodu_tahsilata_dusuldu')) {
+                $_kuponlar = \App\KampanyaKatilimcilari::where('indirim_kodu_adisyon_id', $_kuponAdId)
+                    ->where('indirim_kodu_tahsilata_dusuldu', 0)
+                    ->where('indirim_kodu_tutar', '>', 0)->get();
+                $_kuponIndirim = (float) $_kuponlar->sum('indirim_kodu_tutar');
+                if ($_kuponIndirim > 0) {
+                    $_hariciIndirim = max(0, $_hariciIndirim - $_kuponIndirim);
+                    \App\KampanyaKatilimcilari::whereIn('id', $_kuponlar->pluck('id')->all())
+                        ->update(['indirim_kodu_tahsilata_dusuldu' => 1]);
+                }
+            }
+        } catch (\Throwable $e) { \Log::warning('kupon indirim guard hata (app): '.$e->getMessage()); }
         if ($_hariciIndirim > 0) {
             try {
                 $_hIds = $request->adisyon_hizmet_id ?? [];
@@ -31301,6 +31320,21 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             $guncelle['indirim_kodu_adisyon_id'] = (int) $request->adisyon_id;
         }
         \App\KampanyaKatilimcilari::where('id', $katilimci->id)->update($guncelle);
+
+        // Indirimi ANINDA adisyona yaz (web muadiliyle ayni). Yazilan tutar guard icin saklanir.
+        if ($adisyonId && $tip === 'yuzde' && $yuzde > 0) {
+            try {
+                $yaziliIndirim = \App\KampanyaKatilimcilari::adisyonaIndirimYaz($adisyonId, $yuzde, $hId, $uId, $pId);
+                if ($yaziliIndirim > 0) {
+                    $indirimTutar = $yaziliIndirim;
+                    if (\Schema::hasColumn('kampanya_katilimcilari', 'indirim_kodu_tutar')) {
+                        \App\KampanyaKatilimcilari::where('id', $katilimci->id)->update(['indirim_kodu_tutar' => $yaziliIndirim]);
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::error('kampanya indirimi adisyona yazilamadi (app)', ['err' => $e->getMessage(), 'adisyon_id' => $adisyonId]);
+            }
+        }
 
         try {
             Audit::logApi($salonId, $request, 'kampanya_indirim_kodu_kullan', 'kampanya_katilimci', $katilimci->id, $kod, 'Kampanya indirim kodu kullanildi (app)', ['indirim_turu' => $indirimTuru]);

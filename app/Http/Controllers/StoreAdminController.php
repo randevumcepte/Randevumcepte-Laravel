@@ -1306,6 +1306,24 @@ public function carkverilerigetir(Request $request)
         }
         \App\KampanyaKatilimcilari::where('id', $katilimci->id)->update($guncelle);
 
+        // Indirimi ANINDA adisyona yaz (kupon yandigi an = indirim adisyonda).
+        // Boylece 'kuponu uygula ama tahsilat kaydetme' durumunda adisyon acik kalmaz.
+        // Yazilan tutar guard icin saklanir (frontend ayni tutari harici indirim olarak
+        // tekrar gonderince tahsilat akisi bir kez duser -> cift uygulanmaz).
+        if ($adisyonId && $tip === 'yuzde' && $yuzde > 0) {
+            try {
+                $yaziliIndirim = \App\KampanyaKatilimcilari::adisyonaIndirimYaz($adisyonId, $yuzde, $hId, $uId, $pId);
+                if ($yaziliIndirim > 0) {
+                    $indirimTutar = $yaziliIndirim; // UI'da gercekten yazilan (kirpilmis) tutari goster
+                    if (\Schema::hasColumn('kampanya_katilimcilari', 'indirim_kodu_tutar')) {
+                        \App\KampanyaKatilimcilari::where('id', $katilimci->id)->update(['indirim_kodu_tutar' => $yaziliIndirim]);
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::error('kampanya indirimi adisyona yazilamadi (web)', ['err' => $e->getMessage(), 'adisyon_id' => $adisyonId]);
+            }
+        }
+
         try {
             \App\SalonAudit::log($salonId, 'kampanya_indirim_kodu_kullan', 'kampanya_katilimci', $katilimci->id,
                 $kod, 'Kampanya indirim kodu kullanildi', ['indirim_turu' => $indirimTuru, 'user_id' => $musteriId]);
@@ -13479,6 +13497,25 @@ private function ayAdiCevir($ingilizceAy)
         // kalan borctan fazla olamaz. Boylece kismi tahsilatta adisyon yanlislikla
         // 'tam kapali' gorunmez.
         $_hariciIndirim = (float) str_replace(['.',','],['','.'], (string)($request->indirim_tutari ?? '0'));
+        // KUPON CIFT-SAYIM GUARD: kupon kullaniminda indirim adisyona ZATEN yazildiysa
+        // (kampanyaIndirimKoduKullan -> adisyonaIndirimYaz), frontend ayni tutari harici
+        // indirim olarak tekrar gonderir. Bir kez dusurup cift uygulamayi engelle.
+        try {
+            $_kuponAdId = (int) ($request->adisyon_id ?? 0);
+            if ($_kuponAdId && $_hariciIndirim > 0
+                && \Schema::hasColumn('kampanya_katilimcilari', 'indirim_kodu_tutar')
+                && \Schema::hasColumn('kampanya_katilimcilari', 'indirim_kodu_tahsilata_dusuldu')) {
+                $_kuponlar = \App\KampanyaKatilimcilari::where('indirim_kodu_adisyon_id', $_kuponAdId)
+                    ->where('indirim_kodu_tahsilata_dusuldu', 0)
+                    ->where('indirim_kodu_tutar', '>', 0)->get();
+                $_kuponIndirim = (float) $_kuponlar->sum('indirim_kodu_tutar');
+                if ($_kuponIndirim > 0) {
+                    $_hariciIndirim = max(0, $_hariciIndirim - $_kuponIndirim);
+                    \App\KampanyaKatilimcilari::whereIn('id', $_kuponlar->pluck('id')->all())
+                        ->update(['indirim_kodu_tahsilata_dusuldu' => 1]);
+                }
+            }
+        } catch (\Throwable $e) { \Log::warning('kupon indirim guard hata (web): '.$e->getMessage()); }
         if ($_hariciIndirim > 0) {
             try {
                 $_hIds = $request->adisyon_hizmet_id ?? [];
