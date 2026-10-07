@@ -21617,6 +21617,7 @@ $(document).on('click', '.rd-gecmis-btn', function(e){
                 + '<span style="font-size:11.5px;font-weight:700;color:'+r.renk+';background:'+r.renk+'1a;border-radius:20px;padding:2px 10px;">'+esc(r.durum_metin)+'</span></div>'
                 + '<div style="font-size:13px;color:#4a4461;margin-top:3px;">'+(r.hizmet?esc(r.hizmet):'-')+'</div>'
                 + (r.personel?'<div style="font-size:12px;color:#8a8398;margin-top:2px;"><i class="fa fa-user"></i> '+esc(r.personel)+'</div>':'')
+                + (r.not?'<div style="font-size:12px;color:#574f6b;margin-top:5px;background:#f6f4fb;border-radius:8px;padding:6px 9px;"><i class="fa fa-sticky-note-o" style="color:#b6aecb;"></i> '+esc(r.not)+'</div>':'')
                 + '</div>';
         });
         $('#rd-gecmis-govde').html(html);

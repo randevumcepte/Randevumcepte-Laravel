@@ -34395,7 +34395,7 @@ DB::raw('
             ->leftJoin('hizmetler as h', 'h.id', '=', 'rh.hizmet_id')
             ->leftJoin('salon_personelleri as p', 'p.id', '=', 'rh.personel_id')
             ->where('r.salon_id', $salonId)->where('r.user_id', $userId);
-        $sel = ['r.id', 'r.tarih', 'r.saat', 'r.durum', 'h.hizmet_adi', 'p.personel_adi'];
+        $sel = ['r.id', 'r.tarih', 'r.saat', 'r.durum', 'r.personel_notu', 'h.hizmet_adi', 'p.personel_adi'];
         if ($geldiVar) $sel[] = 'r.randevuya_geldi';
         $rows = $q->select($sel)->orderBy('r.tarih', 'desc')->orderBy('r.saat', 'desc')->limit(300)->get();
 
@@ -34411,6 +34411,7 @@ DB::raw('
                     'personel' => $r->personel_adi ?: '',
                     'durum'    => (int) $r->durum,
                     'geldi'    => $geldiVar ? (int) ($r->randevuya_geldi ?? 0) : 0,
+                    'not'      => trim((string) ($r->personel_notu ?? '')),
                     'hizmetler'=> [],
                 ];
             }
@@ -34442,6 +34443,7 @@ DB::raw('
                 'saat'        => $m['saat'],
                 'personel'    => $m['personel'],
                 'hizmet'      => implode(', ', $m['hizmetler']),
+                'not'         => $m['not'],
                 'durum_metin' => $et,
                 'renk'        => $renk,
             ];
