@@ -13570,11 +13570,15 @@ private function ayAdiCevir($ingilizceAy)
                     if (!empty($_hizmetIdler)) $_oncekiTahsilat += (float) TahsilatHizmetler::whereIn('adisyon_hizmet_id', $_hizmetIdler)->sum('tutar');
                     if (!empty($_urunIdler))   $_oncekiTahsilat += (float) TahsilatUrunler::whereIn('adisyon_urun_id', $_urunIdler)->sum('tutar');
                     if (!empty($_paketIdler))  $_oncekiTahsilat += (float) TahsilatPaketler::whereIn('adisyon_paket_id', $_paketIdler)->sum('tutar');
-                    // Bu tahsilat sonrasi (indirim uygulanmadan onceki) kalan borc
-                    $_kalanBorcSonrasi = $_toplamKalemFiyat - $_mevcutIndirim - $_oncekiTahsilat - $_adisyonPayment;
-                    // Uygulanabilir indirim: bu tahsilat sonrasi kalan borctan fazla olamaz
-                    // (aksi halde adisyon negatife duser -> yanlislikla 'tam kapali' gorunur)
-                    $_uygulanacakIndirim = max(0, min($_hariciIndirim, $_kalanBorcSonrasi));
+                    // Uygulanabilir indirim: kalemlerin BRUT kalanindan (bu odeme DUSULMEDEN)
+                    // fazla olamaz. DIKKAT: Onceden '- $_adisyonPayment' de dusuluyordu; bu,
+                    // odenen tutar (indirimli_toplam_tahsilat_tutari) indirim dusulmeden tam
+                    // tutarla gelince kalan=0 yapip indirimi 0'a KIRPIYORDU; ardindan odeme
+                    // daha dusuk kaydedilince adisyon indirim kadar BORCLU kaliyordu (yeni
+                    // satista 'indirim kaybolma'). Indirim bir fiyat indirimidir; bu odemeye
+                    // bagli olmadan brut kalan kadar yazilmalidir.
+                    $_kalanBorc = $_toplamKalemFiyat - $_mevcutIndirim - $_oncekiTahsilat;
+                    $_uygulanacakIndirim = max(0, min($_hariciIndirim, $_kalanBorc));
                     if ($_uygulanacakIndirim > 0) {
                         foreach ($_hizmetler as $_h) {
                             $_pay = round(((float)$_h->fiyat / $_toplamKalemFiyat) * $_uygulanacakIndirim, 2);

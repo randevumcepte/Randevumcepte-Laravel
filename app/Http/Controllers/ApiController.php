@@ -16800,8 +16800,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                     if (!empty($_hizmetIdler)) $_oncekiTahsilat += (float) TahsilatHizmetler::whereIn('adisyon_hizmet_id', $_hizmetIdler)->sum('tutar');
                     if (!empty($_urunIdler))   $_oncekiTahsilat += (float) TahsilatUrunler::whereIn('adisyon_urun_id', $_urunIdler)->sum('tutar');
                     if (!empty($_paketIdler))  $_oncekiTahsilat += (float) TahsilatPaketler::whereIn('adisyon_paket_id', $_paketIdler)->sum('tutar');
-                    $_kalanBorcSonrasi = $_toplamKalemFiyat - $_mevcutIndirim - $_oncekiTahsilat - $_adisyonPayment;
-                    $_uygulanacakIndirim = max(0, min($_hariciIndirim, $_kalanBorcSonrasi));
+                    // Indirim BRUT kalana gore kirpilir (bu odeme DUSULMEDEN); aksi halde
+                    // odenen tutar indirim dusulmeden gelince indirim 0'a kirpilip adisyon
+                    // indirim kadar borclu kaliyordu (web ile ayni fix).
+                    $_kalanBorc = $_toplamKalemFiyat - $_mevcutIndirim - $_oncekiTahsilat;
+                    $_uygulanacakIndirim = max(0, min($_hariciIndirim, $_kalanBorc));
                     if ($_uygulanacakIndirim > 0) {
                         foreach ($_hizmetler as $_h) {
                             $_pay = round(((float)$_h->fiyat / $_toplamKalemFiyat) * $_uygulanacakIndirim, 2);
