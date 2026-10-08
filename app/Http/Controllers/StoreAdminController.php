@@ -15340,7 +15340,7 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         'musteri:id,name',
         'hizmetler' => function ($q) use ($personel_id) {
             // PAKET satisi kriteri: randevu_id NULL (randevusuz) VE seans_sayisi > 0
-            $q->select('id', 'adisyon_id', 'hizmet_id', "fiyat", "personel_id", "seans_sayisi", "randevu_id")
+            $q->select('id', 'adisyon_id', 'hizmet_id', "fiyat", "indirim_tutari", "personel_id", "seans_sayisi", "randevu_id")
               ->with(['hizmet:id,hizmet_adi'])
               ->with('tahsilatlar:id,adisyon_hizmet_id,tutar');
             if ($personel_id) {
@@ -15348,7 +15348,7 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             }
         },
         'urunler' => function ($q) use ($personel_id) {
-            $q->select('id', 'adisyon_id', 'urun_id', "fiyat", "personel_id")
+            $q->select('id', 'adisyon_id', 'urun_id', "fiyat", "indirim_tutari", "personel_id")
               ->with(['urun:id,urun_adi'])
               ->with('tahsilatlar:id,adisyon_urun_id,tutar');
             if ($personel_id) {
@@ -15356,7 +15356,7 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             }
         },
         'paketler' => function ($q) use ($personel_id) {
-            $q->select('id', 'adisyon_id', 'paket_id', "fiyat", "personel_id")
+            $q->select('id', 'adisyon_id', 'paket_id', "fiyat", "indirim_tutari", "personel_id")
               ->with(['paket:id,paket_adi'])
               ->with('tahsilatlar:id,adisyon_paket_id,tutar');
             if ($personel_id) {
