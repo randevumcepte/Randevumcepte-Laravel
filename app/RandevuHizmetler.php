@@ -34,8 +34,34 @@ class RandevuHizmetler extends Model
     {
         return $this->belongsTo(Odalar::class,'oda_id');
     }
-    
-   
-   
-    
+
+    /**
+     * Google Calendar entegrasyonu: RH kaydet/sil event'lerinde ilgili personelin
+     * Google Takvimine push. Yetkili baglantisi yoksa no-op; hata API'den donerse
+     * log'lanir, uygulama akisi bozulmaz.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saved(function ($rh) {
+            try {
+                // Yalniz forward tarihli ve personel atanmis randevulari sync et
+                if (!$rh->personel_id || !$rh->randevu_id) return;
+                $svc = app(\App\Services\GoogleCalendarService::class);
+                $svc->syncRandevuHizmet($rh);
+            } catch (\Throwable $e) {
+                \Log::warning('[GoogleCalendar] saved event hata', ['rh_id' => $rh->id, 'hata' => $e->getMessage()]);
+            }
+        });
+
+        static::deleting(function ($rh) {
+            try {
+                $svc = app(\App\Services\GoogleCalendarService::class);
+                $svc->removeRandevuHizmet($rh->id);
+            } catch (\Throwable $e) {
+                \Log::warning('[GoogleCalendar] deleting event hata', ['rh_id' => $rh->id, 'hata' => $e->getMessage()]);
+            }
+        });
+    }
 }

@@ -130,6 +130,14 @@
                            >Müşteri İndirimleri</a>
                      </li>
                      @endyetki
+                     <li class="nav-item">
+                        <a
+                           class="nav-link {{(isset($_GET['sekme']) && $_GET['sekme']=='entegrasyonlar') ? 'active' : ''}}"
+                           data-toggle="tab"
+                           href="#entegrasyonlar"
+                           role="tab"
+                           >Entegrasyonlar</a>
+                     </li>
                   </ul>
                </div>
                <div class="col-md-12 col-sm-12" style="margin-top:32px">
@@ -1404,6 +1412,71 @@
                   </form>
                </div>
             </div>
+
+            {{-- ===================== ENTEGRASYONLAR ===================== --}}
+            <div class="tab-pane fade {{(isset($_GET['sekme']) && $_GET['sekme']=='entegrasyonlar') ? 'active show' : ''}}"
+                 id="entegrasyonlar" role="tabpanel">
+               <div class="pd-20">
+                  <h3 class="text-blue" style="margin-bottom:16px;">Entegrasyonlar</h3>
+
+                  <div class="card" style="max-width:720px;border:1px solid #e5e7eb;border-radius:10px;">
+                     <div class="card-body" style="padding:20px;">
+                        <div style="display:flex;align-items:center;gap:14px;">
+                           <img src="https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png" alt="Google" style="width:44px;height:44px;">
+                           <div style="flex:1;">
+                              <h4 style="margin:0 0 4px 0;">Google Takvim</h4>
+                              <small class="text-muted">Hesabınızı bağlayın; verdiğiniz randevular Google Takviminize otomatik düşsün. Her personel kendi hesabını bağlar.</small>
+                           </div>
+                           <div id="gc-durum-rozet"></div>
+                        </div>
+
+                        @if(request('google_ok'))
+                           <div class="alert alert-success" style="margin-top:14px;">Google hesabınız başarıyla bağlandı.</div>
+                        @elseif(request('google_err'))
+                           <div class="alert alert-warning" style="margin-top:14px;">Bağlantı başarısız: {{ request('google_err') }}</div>
+                        @endif
+
+                        <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                           <a href="/isletmeyonetim/google/oauth/baglat?sube={{$isletme->id}}" id="gc-baglat-btn" class="btn btn-primary"><i class="fa fa-link"></i> Google Hesabımı Bağla</a>
+                           <button type="button" id="gc-coz-btn" class="btn btn-outline-danger" style="display:none;"><i class="fa fa-unlink"></i> Bağlantıyı Kaldır</button>
+                           <span id="gc-bagli-info" class="text-muted" style="display:none;"></span>
+                        </div>
+                        <div id="gc-son-hata" class="text-danger" style="margin-top:10px;display:none;font-size:12px;"></div>
+                     </div>
+                  </div>
+               </div>
+               <script>
+                  (function(){
+                     var sube = {{$isletme->id}};
+                     function render(d){
+                        var $r = $('#gc-durum-rozet'), $info = $('#gc-bagli-info'),
+                            $baglat = $('#gc-baglat-btn'), $coz = $('#gc-coz-btn'),
+                            $hata = $('#gc-son-hata');
+                        if(d && d.bagli){
+                           $r.html('<span class="badge badge-success" style="font-size:12px;padding:6px 10px;">Bağlı</span>');
+                           $info.text(d.email || '').show();
+                           $baglat.hide(); $coz.show();
+                           if(d.son_hata){ $hata.text('Son hata: '+d.son_hata+(d.son_hata_zamani?' ('+d.son_hata_zamani+')':'')).show(); } else { $hata.hide(); }
+                        } else {
+                           $r.html('<span class="badge badge-secondary" style="font-size:12px;padding:6px 10px;">Bağlı değil</span>');
+                           $info.hide(); $baglat.show(); $coz.hide(); $hata.hide();
+                        }
+                     }
+                     function yukle(){
+                        $.get('/isletmeyonetim/google/oauth/durum', {sube: sube}).done(render).fail(function(){ render({bagli:false}); });
+                     }
+                     $('#gc-coz-btn').on('click', function(){
+                        if(!confirm('Google bağlantısı kaldırılacak. Devam?')) return;
+                        $.post('/isletmeyonetim/google/oauth/coz', {sube: sube, _token: $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').first().val()})
+                           .done(function(){ yukle(); });
+                     });
+                     $(document).on('shown.bs.tab', 'a[href="#entegrasyonlar"]', yukle);
+                     // Direkt sekme=entegrasyonlar ile acildiginda da yukle
+                     if(location.search.indexOf('sekme=entegrasyonlar') !== -1){ setTimeout(yukle, 50); }
+                  })();
+               </script>
+            </div>
+
                 <div style="display:none;"
                class="tab-pane fade"
                id="form_taslaklari"
