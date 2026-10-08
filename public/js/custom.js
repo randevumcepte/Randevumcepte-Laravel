@@ -21560,6 +21560,45 @@ $('#web_telefon_burada_kullan').click(function(){
     //$('#santral-ustune-al').modal('hide');
 });
 
+// Cagri Merkezi -> normal "Yeni Randevu" (v2) modalini ACILAN musteriyle prefill'li ac.
+// Satis/on gorusme degil; normal RANDEVU kategorisinde kaydedilir (ayni form).
+window.cagriYeniRandevu = function(userId, adText){
+    if(!userId) return;
+    adText = adText || ('#'+userId);
+    var $m = $('#modal-view-event-add-v2');
+    if(!$m.length){ if(typeof swal==='function') swal({type:'warning',title:'Randevu formu bulunamadı'}); return; }
+    // Modal ACILDIKTAN sonra musteriyi set et (select2 modal shown'da init oluyor).
+    $m.one('shown.bs.modal', function(){
+        try {
+            var $v2 = $('#v2_musteri');
+            if($v2.length){
+                if($v2.find('option[value="'+userId+'"]').length===0){ $v2.append(new Option(adText, userId, true, true)); }
+                $v2.val(String(userId)).trigger('change');
+                $('#v2_musteri_info').text('✓ '+adText).show();
+                $('#v2_paket_aç').prop('disabled', false);
+            }
+            // v1 musteri select'ine de yansit (paket/akis v1 fieldlarini okuyor)
+            var $v1 = $('#randevuekle_musteri_id');
+            if($v1.length){
+                if($v1.find('option[value="'+userId+'"]').length===0){ $v1.append(new Option(adText, userId, true, true)); }
+                $v1.val(String(userId)).trigger('change');
+            }
+        } catch(e){}
+    });
+    $m.modal('show');
+};
+// aranacak_musteri_id -> user_id coz + yeni randevu modalini ac (cagri merkezi butonlari kullanir)
+window.cagriYeniRandevuAc = function(aranacakMusteriId){
+    if(!aranacakMusteriId) return;
+    $.post('/isletmeyonetim/cagri-musteri-ongorusme-bilgi',
+        { aranacak_musteri_id: aranacakMusteriId, _token: $('input[name="_token"]').val() },
+        function(res){
+            if(res && res.success && res.user_id){ window.cagriYeniRandevu(res.user_id, res.ad || ''); }
+            else if(typeof swal==='function'){ swal({type:'warning',title:'Açılamadı',text:(res&&res.message)||'Müşteri bilgisi alınamadı.'}); }
+        }
+    ).fail(function(){ if(typeof swal==='function') swal({type:'error',title:'Hata',text:'Randevu ekranı açılamadı.'}); });
+};
+
 // ===== Randevu detay modali: ARAMA + RANDEVU GECMISI (eventbuttons'tan gelen butonlar) =====
 // Arama: webrtc softphone aktifse DIREK ondan ara; degilse santral originate (Bria/3.taraf softphone)
 $(document).on('click', '.rd-ara-btn', function(e){

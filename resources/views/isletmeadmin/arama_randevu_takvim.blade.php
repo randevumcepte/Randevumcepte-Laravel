@@ -121,6 +121,7 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
                <small><i class="fa fa-phone"></i> <span id="artm_tel">gizli</span> &middot; <span id="artm_zaman">-</span> &middot; <i class="fa fa-user"></i> <span id="artm_personel">-</span></small>
             </div>
             <a id="artm_musteri_detay" href="#" target="_blank" title="Müşteri Detayı" style="display:none;align-items:center;gap:6px;background:rgba(255,255,255,.18);color:#fff;font-weight:700;border-radius:10px;padding:8px 13px;text-decoration:none;font-size:13px;margin-right:8px;"><i class="fa fa-user-circle-o"></i> Müşteri Detayı</a>
+            <button type="button" id="artm_yeni_randevu" title="Yeni Randevu" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#fff;font-weight:700;border:none;border-radius:10px;padding:8px 13px;cursor:pointer;font-size:13px;margin-right:8px;"><i class="fa fa-calendar-plus-o"></i> Yeni Randevu</button>
             <button type="button" class="artm-ara-btn" id="artm_ara"><i class="fa fa-phone"></i> ARA</button>
             <button type="button" class="close" data-dismiss="modal" aria-label="Kapat"><span aria-hidden="true">&times;</span></button>
          </div>
@@ -387,6 +388,11 @@ $(document).ready(function(){
          default: return {et:'—', c:'#9a93ad'};
       }
    }
+
+   // Yeni Randevu (normal randevu modali, aranan kisi prefill'li)
+   $(document).on('click', '#artm_yeni_randevu', function(){
+      if (artmAmId && typeof window.cagriYeniRandevuAc === 'function') window.cagriYeniRandevuAc(artmAmId);
+   });
 
    // Bir aramaya tiklayinca cockpit modali ac
    $(document).on('click', '#art_board .art-item', function(){

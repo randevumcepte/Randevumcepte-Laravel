@@ -586,6 +586,7 @@ function agDetayCiz(m){
          '<div class="ag-dhead-sub"><i class="fa fa-phone"></i> '+agEsc(m.telefonGizlenmis||'gizli')+' <span class="durnok">'+st.et+'</span></div>'+
       '</div>'+
       '<button class="ag-ara-btn'+(agBeklemedeId!==null?' pasif':'')+'" id="ag_ara_btn" data-id="'+agEsc(m.aranacak_musteri_id)+'"><i class="fa fa-phone"></i> ARA</button>'+
+      '<button id="ag_yeni_randevu" title="Yeni Randevu" data-id="'+agEsc(m.aranacak_musteri_id)+'" style="margin-left:8px;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;font-size:13px;"><i class="fa fa-calendar-plus-o"></i> Yeni Randevu</button>'+
    '</div>'+
    '<div class="ag-dbody">'+
 
@@ -923,6 +924,12 @@ $(document).on('change', '#ag_kat', function(){
 // Bir arama yapildiktan sonra, sonucu KAYDEDILENE kadar yeni arama yapilamaz.
 var agBeklemedeId = null;   // sonucu bekleyen aramanin musteri id'si (null = bekleyen yok)
 var agAramaGonderiliyor = false; // ayni anda cift gonderimi engeller
+
+// Yeni Randevu (normal randevu modali, aranan kisi prefill'li) — satis/on gorusme degil
+$(document).on('click', '#ag_yeni_randevu', function(){
+   var id = $(this).data('id') || (agSecili && agSecili.aranacak_musteri_id);
+   if (id && typeof window.cagriYeniRandevuAc === 'function') window.cagriYeniRandevuAc(id);
+});
 
 $(document).on('click', '#ag_ara_btn', function(){
    // Tek basista kilitlenmesin; sonuc kaydedilmeden tekrar aranabilir (uyari popup'i YOK).
