@@ -32674,30 +32674,41 @@ DB::raw('
     }
 
     /**
-     * Reklam Raporu > Ulasilamayanlar > "Personele Ata": ulasilamayan katilimcilardan
-     * secili personele bir ARAMA LISTESI (cagri merkezi) olusturur. Personel bu listeyi
-     * manuel arayabilir. arama_listesi + aranacak_musteriler kaydi acilir.
+     * Reklam Raporu > (her filtrede) "Personele Ata": AKTIF FILTREYE gore katilimcilardan
+     * secili personele bir ARAMA LISTESI (cagri merkezi) olusturur. Liste adi:
+     * "[Kampanya adi] — [filtre etiketi]" ( or. "Geri Kazanim — Katilmayanlar") boylece
+     * listenin hangi filtreden geldigi bellidir. arama_listesi + aranacak_musteriler acilir.
+     * tur: 1=Tumu,2=Indirim Kullananlar,3=Indirim Kullanmayanlar,4=Beklenenler,
+     *      5=Katilanlar,6=Katilmayanlar,7=Ulasilamayanlar.
      */
-    public function kampanyaUlasilmayanlariPersoneleAta(Request $request)
+    public function kampanyaKatilimciPersoneleAta(Request $request)
     {
         if($r = self::yetkiYoksa403($request, 'pazarlama.kampanya_yonet')) return $r;
         $salonId    = self::mevcutsube($request);
         $kampanyaId = (int) $request->kampanya_id;
         $personelId = (int) $request->personel_id;
+        $tur        = (int) $request->input('tur', 1);
         if (!$personelId) return response()->json(['basarili' => false, 'mesaj' => 'Lütfen bir personel seçin.']);
 
-        $userIds = KampanyaKatilimcilari::where('kampanya_id', $kampanyaId)
-            ->where('tekrar_arandi', 1)->whereNull('durum_asistan')
-            ->pluck('user_id')->unique()->values()->all();
-        if (empty($userIds)) return response()->json(['basarili' => false, 'mesaj' => 'Ulaşılamayan kişi bulunmuyor.']);
+        $q = KampanyaKatilimcilari::where('kampanya_id', $kampanyaId);
+        $etiket = 'Tüm Katılımcılar';
+        if ($tur == 2)      { $q->where('indirim_kodu_kullanildi', 1); $etiket = 'İndirim Kullananlar'; }
+        elseif ($tur == 3)  { $q->where(function ($x) { $x->whereNull('indirim_kodu_kullanildi')->orWhere('indirim_kodu_kullanildi', '!=', 1); }); $etiket = 'İndirim Kullanmayanlar'; }
+        elseif ($tur == 4)  { $q->whereNull('durum_asistan'); $etiket = 'Beklenenler'; }
+        elseif ($tur == 5)  { $q->where('durum_asistan', 1); $etiket = 'Katılanlar'; }
+        elseif ($tur == 6)  { $q->where('durum_asistan', 0); $etiket = 'Katılmayanlar'; }
+        elseif ($tur == 7)  { $q->where('tekrar_arandi', 1)->whereNull('durum_asistan'); $etiket = 'Ulaşılamayanlar'; }
+
+        $userIds = $q->pluck('user_id')->unique()->values()->all();
+        if (empty($userIds)) return response()->json(['basarili' => false, 'mesaj' => 'Bu filtrede kişi bulunmuyor.']);
 
         $kampanyaAdi = KampanyaYonetimi::where('id', $kampanyaId)->value('paket_isim') ?: ('Kampanya #'.$kampanyaId);
 
         $al = new AramaListesi();
         $al->salon_id             = $salonId;
-        $al->arama_baslik         = mb_substr($kampanyaAdi.' — Ulaşılamayanlar', 0, 150);
+        $al->arama_baslik         = mb_substr($kampanyaAdi.' — '.$etiket, 0, 150);
         $al->personel_id          = $personelId;
-        $al->filtre_snapshot      = ['kaynak' => 'kampanya_ulasilamayan', 'kampanya_id' => $kampanyaId];
+        $al->filtre_snapshot      = ['kaynak' => 'kampanya', 'kampanya_id' => $kampanyaId, 'tur' => $tur, 'etiket' => $etiket];
         $al->olusturan_yetkili_id = $this->cmAuthId();
         $al->durum                = 1;
         $al->save();
@@ -32712,7 +32723,7 @@ DB::raw('
         }
 
         return response()->json(['basarili' => true, 'adet' => count($userIds),
-            'mesaj' => count($userIds).' kişilik arama listesi personele atandı.']);
+            'mesaj' => count($userIds).' kişilik "'.$etiket.'" arama listesi personele atandı.']);
     }
 
     /**

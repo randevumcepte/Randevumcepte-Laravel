@@ -82,7 +82,9 @@ function rrYukle(reset) {
             if ((res.data || []).length === 0 && rrPage === 1) $('#rrEmpty').show(); else $('#rrEmpty').hide();
             tbody.append(rows.join(''));
             rrPage = rrPage + 1;
-            $('#rrTekrarAraFooter').toggle(rrTur === 7 && (res.total || 0) > 0);
+            // Footer (Personele Ata) her filtrede, kayit varsa; Tekrar Aramami SADECE Ulasilamadi (tur 7).
+            $('#rrFooter').toggle((res.total || 0) > 0);
+            $('#kampanyabeklenenleriara').toggle(rrTur === 7);
             rrLoading = false;
         },
         error: function (xhr) { console.error('rapor yukleme hatasi', xhr); rrLoading = false; }
@@ -704,9 +706,10 @@ $(document).on('click', '#rrPersoneleAta', function() {
         }
         var opts = {};
         personeller.forEach(function(p) { opts[p.id] = p.personel_adi; });
+        var _aktifEtiket = ($('#rrPills .rr-pill.is-active').text() || '').replace(/[0-9]/g,'').trim();
         swal({
             title: 'Personele Ata',
-            text: 'Ulaşılamayanlar bu personele arama listesi olarak atanacak.',
+            text: '"'+_aktifEtiket+'" filtresindeki katılımcılar bu personele arama listesi olarak atanacak.',
             input: 'select',
             inputOptions: opts,
             inputPlaceholder: 'Personel seçin',
@@ -717,9 +720,9 @@ $(document).on('click', '#rrPersoneleAta', function() {
             var pid = result && result.value;
             if (!pid) return;
             $.ajax({
-                url: '/isletmeyonetim/kampanya-ulasilamayan-personele-ata',
+                url: '/isletmeyonetim/kampanya-katilimci-personele-ata',
                 method: 'POST',
-                data: { kampanya_id: aramaDetayId2, personel_id: pid, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
+                data: { kampanya_id: aramaDetayId2, personel_id: pid, tur: rrTur, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
                 success: function(res) {
                     swal({ type: (res && res.basarili) ? 'success' : 'info', title: (res && res.basarili) ? 'Atandı' : 'Bilgi', html: (res && res.mesaj) || 'İşlem tamamlandı.', timer: 3500, showConfirmButton: false, showCancelButton: false });
                 },

@@ -129,9 +129,9 @@
                                  <p class="empty-state-text">Kayıt bulunmamaktadır</p>
                               </div>
                            </div>
-                           <div class="card-footer bg-white border-top py-3" id="rrTekrarAraFooter" style="display:none;">
+                           <div class="card-footer bg-white border-top py-3" id="rrFooter" style="display:none;">
                               <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-                                 <button class="btn btn-outline-success btn-action" id="kampanyabeklenenleriara"><i class="fa fa-redo-alt mr-2"></i> Tekrar Aramamı İster Misiniz?</button>
+                                 <button class="btn btn-outline-success btn-action" id="kampanyabeklenenleriara" style="display:none;"><i class="fa fa-redo-alt mr-2"></i> Tekrar Aramamı İster Misiniz?</button>
                                  <button class="btn btn-outline-primary btn-action" id="rrPersoneleAta"><i class="fa fa-user-plus mr-2"></i> Personele Ata</button>
                               </div>
                            </div>
