@@ -224,6 +224,15 @@
 
                            <!-- HİZMET/ÜRÜN/PAKET → HER ZAMAN görünür, 3 dropdown (birini seç), 3-3-6 kolon -->
                            <div id="rkpPresetHup" style="border:1px dashed #e2e8f0;border-radius:10px;padding:12px;margin-top:10px;">
+                              <!-- Bu bolum hedef kitle FILTRESI DEGIL; opsiyonel kalem secimi.
+                                   Kullanici "filtreye dahil" sanmasin diye acik baslik eklendi. -->
+                              <div class="reklam-kanal-secici-baslik" style="margin-bottom:12px;">
+                                 <span class="reklam-kanal-secici-step">3</span>
+                                 <div>
+                                    <h6 style="margin:0;">Hizmet / Ürün / Paket <span style="font-weight:400;color:#94a3b8;">(opsiyonel)</span></h6>
+                                    <small>Belirli bir <b>hizmet, ürün veya paket</b> için kampanya oluşturacaksanız seçin. <b>Hedef kitleyi daraltmaz</b> — yalnızca mesajda ilgili kalemi vurgular.</small>
+                                 </div>
+                              </div>
                               <div class="row" style="margin:0;">
                                  <div class="col-md-3 col-12" style="padding:0 6px 8px 0;">
                                     <div class="rkp-label rkp-label--nocaps"><i class="fa fa-cut"></i> Hizmet</div>
