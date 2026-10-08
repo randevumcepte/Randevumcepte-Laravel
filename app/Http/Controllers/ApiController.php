@@ -9281,6 +9281,23 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
 
     /**
+     * TANILAMA (gecici): bir adisyonun kalem durumunu doner — indirim yazilmis mi,
+     * paket/hizmet taksitli/senetli mi, onceki tahsilat ne kadar. Tahsilat indirim
+     * teshisi icin. (Kampanya indirimi neden adisyona yazilmadi sorusu.)
+     */
+    public function adisyonTanilama(Request $request, $adisyonId)
+    {
+        $h = \DB::table('adisyon_hizmetler')->where('adisyon_id', $adisyonId)->get(['id','hizmet_id','fiyat','indirim_tutari','senet_id','taksitli_tahsilat_id']);
+        $u = \DB::table('adisyon_urunler')->where('adisyon_id', $adisyonId)->get(['id','urun_id','fiyat','indirim_tutari','senet_id','taksitli_tahsilat_id']);
+        $p = \DB::table('adisyon_paketler')->where('adisyon_id', $adisyonId)->get(['id','paket_id','fiyat','indirim_tutari','senet_id','taksitli_tahsilat_id']);
+        $tP = (float) \DB::table('tahsilat_paketler')->whereIn('adisyon_paket_id', $p->pluck('id'))->sum('tutar');
+        $tH = (float) \DB::table('tahsilat_hizmetler')->whereIn('adisyon_hizmet_id', $h->pluck('id'))->sum('tutar');
+        $tU = (float) \DB::table('tahsilat_urunler')->whereIn('adisyon_urun_id', $u->pluck('id'))->sum('tutar');
+        return response()->json(['adisyon_id'=>(int)$adisyonId,'hizmetler'=>$h,'urunler'=>$u,'paketler'=>$p,
+            'tahsilat_toplam'=>['hizmet'=>$tH,'urun'=>$tU,'paket'=>$tP]]);
+    }
+
+    /**
      * "Kampanya Aramasi" ayarini (ayar_id=8) ac/kapa. Arama kampanyalarinin cron'da
      * aranmasi bu ayara baglidir; kapaliysa sessizce aranmaz.
      */
