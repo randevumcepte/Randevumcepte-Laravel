@@ -28,6 +28,12 @@ class LogRequestPerformance
     {
         $start = microtime(true);
 
+        // N+1 teshisi: istek basina DB sorgu sayisini HAFIF sayac ile say (query log DEGIL,
+        // sadece int increment -> minimum overhead). php-fpm'de app her istekte taze boot
+        // oldugundan listener birikmez.
+        $sorguSayisi = 0;
+        try { \DB::listen(function () use (&$sorguSayisi) { $sorguSayisi++; }); } catch (\Throwable $e) {}
+
         $response = $next($request);
 
         try {
@@ -79,6 +85,7 @@ class LogRequestPerformance
                 'salon_id'   => $salon_id ? (int) $salon_id : null,
                 'sure_ms'    => $sure_ms,
                 'bellek_mb'  => $bellek_mb,
+                'sorgu_sayisi' => $sorguSayisi,
                 'pid'        => function_exists('getmypid') ? getmypid() : null,
             ]);
 
