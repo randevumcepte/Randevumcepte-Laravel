@@ -2492,7 +2492,23 @@
     // FormData kurup /yenirandevuekle'ye sirayla POST atiyoruz.
     // Manuel satirlar tek bir randevuda toplaniyor.
     // ============================================================
-    $modal.on('click', '#v2_submit_btn', function(){ v2SubmitAll(); });
+    // Cift-tiklama korumasi: resepsiyon hizli hizli butona basinca ayni randevu
+    // 2-4 kez olusuyor ve ayni musteriye duplicate WA bildirim gidiyordu. Meta
+    // kisa surede ayni metni ayni alicida gormeyi spam sayip sender'a soft-ban
+    // koyuyor ("hesap kisitli"). Hem global flag hem buton disable + 1500ms cooldown.
+    window.__v2Submitting = window.__v2Submitting || false;
+    $modal.on('click', '#v2_submit_btn', function(){
+        if (window.__v2Submitting) return false;
+        window.__v2Submitting = true;
+        var $btn = $(this).prop('disabled', true).css('opacity', 0.6);
+        try { v2SubmitAll(); } catch (e) { console.error('v2SubmitAll hata:', e); }
+        // 1500ms sonra kilit kalkar; v2SubmitAll icindeki submitGroupsSeq sonu
+        // modal'i kapatiyor; buton tekrar erisilemez. Guvenlik agi olarak timeout.
+        setTimeout(function(){
+            window.__v2Submitting = false;
+            $btn.prop('disabled', false).css('opacity', 1);
+        }, 1500);
+    });
 
     // Tarih normalize: kullanicinin datepicker'i / tarayici locale'i gibi
     // sebeplerle '16.08.2026', '16/08/2026', '2026-08-16', '2026/08/16'

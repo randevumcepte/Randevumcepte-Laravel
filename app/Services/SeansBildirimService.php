@@ -50,6 +50,28 @@ class SeansBildirimService
             return;
         }
 
+        // IDEMPOTENCY: Ayni randevu icin son 5 dk icinde zaten seans_bildirim
+        // gittiyse tekrar gonderme. Sebep: ApiController ve StoreAdminController
+        // iki ayri yerden bilgilendir() cagiriyor; cift tiklama veya cakisma
+        // sonucu musteriye duplicate mesaj gidip Meta spam flag koyuyor.
+        try {
+            $zatenGitti = \DB::table('whatsapp_gonderim_loglari')
+                ->where('salon_id', $randevu->salon_id)
+                ->where('randevu_id', $randevu->id)
+                ->where('gonderim_tipi', 'seans_bildirim')
+                ->where('created_at', '>', now()->subMinutes(5))
+                ->exists();
+            if ($zatenGitti) {
+                Log::info('[SEANS-KULLANIM] duplicate — son 5dk icinde zaten gonderildi, atlandi', [
+                    'randevu_id' => $randevu->id, 'salon_id' => $randevu->salon_id,
+                ]);
+                return;
+            }
+        } catch (\Throwable $e) {
+            // Fail-open: idempotency sorgusu basarisizsa akis devam etsin
+            Log::warning('[SEANS-KULLANIM] idempotency check hata: ' . $e->getMessage());
+        }
+
         $musteri = $randevu->users ?? User::find($randevu->user_id);
         if (!$musteri || !$musteri->id) {
             Log::info('[SEANS-KULLANIM] musteri bulunamadi, atlandi', ['randevu_id' => $randevu->id]);
