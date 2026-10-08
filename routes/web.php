@@ -1014,6 +1014,11 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/randevu-modal-hizmet-verisi','StoreAdminController@randevuModalHizmetVerisi');
 	Route::get('/randevu-duzenle-json','StoreAdminController@randevuDuzenleJson');
 	Route::post('/randevu-not-guncelle','StoreAdminController@randevuNotGuncelle');
+	// Google Calendar entegrasyonu
+	Route::get('/google/oauth/baglat',  'GoogleCalendarController@baglat');
+	Route::get('/google/oauth/callback','GoogleCalendarController@callback');
+	Route::post('/google/oauth/coz',    'GoogleCalendarController@coz');
+	Route::get('/google/oauth/durum',   'GoogleCalendarController@durum');
  	Route::post('/pakettahsilatagit','StoreAdminController@pakettahsilatagit')->name('pakettahsilatagit');
  	
  	Route::post('/uruntahsilatagit','StoreAdminController@uruntahsilatagit')->name('uruntahsilatagit');
