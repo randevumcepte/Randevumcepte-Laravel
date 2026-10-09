@@ -15,7 +15,7 @@
 .art-ctrl{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
 .art-ctrl .btn-nav{ border:1px solid #e3d5f5; background:#faf7ff; color:#5C008E; font-weight:700; border-radius:10px; padding:8px 12px; cursor:pointer; font-size:14px; }
 .art-ctrl .btn-nav:hover{ background:#f1e9fb; }
-.art-ctrl input[type="date"]{ border:1px solid #d9c9f0; border-radius:10px; padding:8px 11px; font-size:14px; outline:none; }
+.art-ctrl #art_tarih{ border:1px solid #d9c9f0; border-radius:10px; padding:8px 11px; font-size:14px; outline:none; background:#fff; }
 .art-ctrl .art-gun-baslik{ font-weight:800; color:#2b1b45; font-size:16px; margin-left:4px; }
 .art-ctrl .art-say{ margin-left:auto; font-size:13px; color:#6d28d9; font-weight:700; }
 
@@ -86,7 +86,7 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
    <div class="art-panel">
       <div class="art-ctrl">
          <button class="btn-nav" id="art_prev" title="Önceki gün"><i class="fa fa-chevron-left"></i></button>
-         <input type="date" id="art_tarih" value="{{ date('Y-m-d') }}">
+         <input type="text" id="art_tarih" value="{{ date('Y-m-d') }}" autocomplete="off" readonly style="cursor:pointer;min-width:130px;text-align:center;">
          <button class="btn-nav" id="art_next" title="Sonraki gün"><i class="fa fa-chevron-right"></i></button>
          <button class="btn-nav" id="art_bugun">Bugün</button>
          <button class="btn-nav" id="art_randevu_ekle" style="background:linear-gradient(120deg,#6d28d9,#7c3aed);color:#fff;border-color:transparent;"><i class="fa fa-plus"></i> Arama Randevusu</button>
@@ -671,10 +671,34 @@ $(document).ready(function(){
    }
    $(document).on('click', '#artm_gecmis_yenile', function(){ if(artmAmId){ $('#artm_gecmis').html('<div class="artm-g-bos"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>'); artmGecmisYukle(); } });
 
-   $('#art_prev').on('click', function(){ $('#art_tarih').val(sonrakiGun($('#art_tarih').val(), -1)); yukle(); });
-   $('#art_next').on('click', function(){ $('#art_tarih').val(sonrakiGun($('#art_tarih').val(), 1)); yukle(); });
-   $('#art_bugun').on('click', function(){ $('#art_tarih').val('{{ date('Y-m-d') }}'); yukle(); });
-   $('#art_tarih').on('change', yukle);
+   // Tarih seçici: air-datepicker (geçmiş + gelecek serbest). Navigasyonla senkron.
+   var artDp = null, artProg = false;
+   if ($.fn.datepicker) {
+      try {
+         $('#art_tarih').datepicker({
+            language: 'tr', dateFormat: 'yyyy-mm-dd', autoClose: true, position: 'bottom left',
+            onSelect: function(fd){ if (artProg) return; if (fd) yukle(); }
+         });
+         artDp = $('#art_tarih').data('datepicker');
+      } catch(e){}
+   }
+   // Tarihi programatik ayarla (picker + input + yukle senkron, tek yukle)
+   function artSetTarih(dStr){
+      if (!dStr) return;
+      if (artDp) {
+         var p = dStr.split('-');
+         artProg = true;
+         artDp.selectDate(new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10)));
+         artProg = false;
+      }
+      $('#art_tarih').val(dStr);
+      yukle();
+   }
+   $('#art_prev').on('click', function(){ artSetTarih(sonrakiGun($('#art_tarih').val(), -1)); });
+   $('#art_next').on('click', function(){ artSetTarih(sonrakiGun($('#art_tarih').val(), 1)); });
+   $('#art_bugun').on('click', function(){ artSetTarih('{{ date('Y-m-d') }}'); });
+   // air-datepicker yoksa (fallback) manuel degisimde yukle
+   if (!artDp) $('#art_tarih').on('change', yukle);
 
    // ===== Manuel Arama Randevusu Ekle =====
    var arePersonelYuklendi = false;
