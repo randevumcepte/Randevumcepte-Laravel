@@ -33404,7 +33404,11 @@ DB::raw('
         $yeniCallback = ($kayitDurum === 3 && $randevuMu);
 
         // Mevcut tablo: tekrar arama randevusu tarih/saat alanlari (TekrarAramaHatirlat bunu okur)
-        $kayit->musteri_not = $notIcerik;
+        // BOS not ile mevcut notu (ornegin aktarilan randevu notunu) EZME; sadece dolu not gelince guncelle.
+        // (On gorusme/satis takvimden sonuc isaretlerken noticerik='' gonderir -> not kaybolmasin.)
+        if ($notIcerik !== null && trim((string) $notIcerik) !== '') {
+            $kayit->musteri_not = $notIcerik;
+        }
         $kayit->durum = $kayitDurum;
         if ($randevuMu) {
             // Yeni zaman verildi (durum 3 veya 6 On Gorusme) -> eski davranis gibi tarih/saat guncelle
