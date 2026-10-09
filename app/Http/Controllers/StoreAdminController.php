@@ -6689,7 +6689,14 @@ private function ayAdiCevir($ingilizceAy)
                     array_push($mesajlar, array("to"=>$yetkili->gsm1,"message"=> "Sayın ".$yetkili->name.". Randevu sistemi şifreniz : ".$olusturulansifre));
                     self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
             }
-            $yetkili->roles()->detach();
+            // SADECE mevcut isletme (sube) icin role satirini guncelle. Eski kod
+            // $yetkili->roles()->detach() ile TUM subelerdeki rolleri siliyordu;
+            // bu personel baska isletmede de calisiyorsa oralardaki rolu dusuyordu.
+            DB::table('model_has_roles')
+                ->where('model_id', $yetkili->id)
+                ->where('model_type', 'App\\IsletmeYetkilileri')
+                ->where('salon_id', $request->sube)
+                ->delete();
             DB::insert('insert into model_has_roles (role_id, model_type,model_id,salon_id) values ('.$rol_id.', "App\\\IsletmeYetkilileri",'.$yetkili->id.','.$request->sube.')');
             $result = 'Personel başarıyla kaydedildi';
             $swaltitle = 'Başarılı';
