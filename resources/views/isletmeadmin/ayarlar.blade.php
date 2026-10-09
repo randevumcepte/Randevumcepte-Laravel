@@ -1425,7 +1425,10 @@
                            <img src="https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png" alt="Google" style="width:44px;height:44px;">
                            <div style="flex:1;">
                               <h4 style="margin:0 0 4px 0;">Google Takvim</h4>
-                              <small class="text-muted">Hesabınızı bağlayın; verdiğiniz randevular Google Takviminize otomatik düşsün. Her personel kendi hesabını bağlar.</small>
+                              <div style="font-size:12px;color:#7c3aed;font-weight:600;margin-bottom:3px;">
+                                 <i class="fa fa-building"></i> Şu an için: {{ $isletme->salon_adi ?? ('İşletme #'.$isletme->id) }}
+                              </div>
+                              <small class="text-muted">Hesabınızı bağlayın; verdiğiniz randevular Google Takviminize otomatik düşsün. Bağlantı yalnızca bu işletmedeki randevularınız için geçerlidir — başka bir işletmeden de bağlamak isterseniz üstteki şube seçiciyle oraya geçip ayrıca bağlayın.</small>
                            </div>
                            <div id="gc-durum-rozet"></div>
                         </div>
