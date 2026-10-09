@@ -21582,8 +21582,8 @@ window.cagriYeniRandevu = function(userId, adText, aranacakMusteriId){
     adText = adText || ('#'+userId);
     var $m = $('#modal-view-event-add-v2');
     if(!$m.length){ if(typeof swal==='function') swal({type:'warning',title:'Randevu formu bulunamadı'}); return; }
-    // Cagri baglami: randevu OLUSTURULUNCA aramayi 'Randevu Olusturuldu'(durum=8) isaretle
-    window.__cagriRandevuCtx = aranacakMusteriId ? { amId: aranacakMusteriId } : null;
+    // NOT: durum=8 isaretleme artik butona TIKLANINCA (cagri sayfalarinda) yapiliyor;
+    // fragile v2-success-hook'a bagimli degil. Burada sadece modal acilir/prefill.
     // Modal ACILDIKTAN sonra musteriyi set et (select2 modal shown'da init oluyor).
     $m.one('shown.bs.modal', function(){
         try {

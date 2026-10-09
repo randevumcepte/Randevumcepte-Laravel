@@ -928,10 +928,14 @@ $(document).on('change', '#ag_kat', function(){
 var agBeklemedeId = null;   // sonucu bekleyen aramanin musteri id'si (null = bekleyen yok)
 var agAramaGonderiliyor = false; // ayni anda cift gonderimi engeller
 
-// Yeni Randevu (normal randevu modali, aranan kisi prefill'li) — satis/on gorusme degil
+// Yeni Randevu: aramayi HEMEN 'Randevu Olusturuldu'(8) isaretle (kesin) + randevu modalini ac
 $(document).on('click', '#ag_yeni_randevu', function(){
    var id = $(this).data('id') || (agSecili && agSecili.aranacak_musteri_id);
-   if (id && typeof window.cagriYeniRandevuAc === 'function') window.cagriYeniRandevuAc(id);
+   if (!id) return;
+   $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
+      { aranacak_musteri_id:id, sube:$('input[name="sube"]').val(), _token:$('input[name="_token"]').val() },
+      function(r){ if(r && r.success){ agDurumGuncelle(id, 8); agGecmisYukle(id); } });
+   if (typeof window.cagriYeniRandevuAc === 'function') window.cagriYeniRandevuAc(id);
 });
 // Cagri merkezi islem (randevu/on gorusme/satis) basariyla bitince: aktif liste kuyrugunu
 // yeniden yukle (durum guncel gorunsun). Modallar cagriIslemTamam ile zaten kapandi.

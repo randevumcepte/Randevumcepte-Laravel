@@ -395,10 +395,15 @@ $(document).ready(function(){
       }
    }
 
-   // Yeni Randevu (normal randevu modali, aranan kisi prefill'li).
-   // user_id zaten cockpit'te (data-user) oldugu icin DOGRUDAN ac -> ekstra POST yok (gecikme gider).
+   // Yeni Randevu: aramayi HEMEN 'Randevu Olusturuldu'(8) isaretle (KESIN; v2 hook'una bagimli degil)
+   // + cockpit'i kapat + randevu modalini prefill'li ac. (On gorusme akisiyla ayni mantik.)
    $(document).on('click', '#artm_yeni_randevu', function(){
-      if (artmUserId && typeof window.cagriYeniRandevu === 'function') window.cagriYeniRandevu(artmUserId, artmMusteriAd, artmAmId);
+      if (!artmAmId) return;
+      $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
+         { aranacak_musteri_id:artmAmId, sube:sube, _token:token },
+         function(r){ yukle(); }); // board tazele -> 'Randevu Olusturuldu' gorunsun
+      $('#artm_modal').modal('hide'); // arama (cockpit) modalini kapat
+      if (artmUserId && typeof window.cagriYeniRandevu === 'function') window.cagriYeniRandevu(artmUserId, artmMusteriAd);
       else if (artmAmId && typeof window.cagriYeniRandevuAc === 'function') window.cagriYeniRandevuAc(artmAmId);
    });
 
