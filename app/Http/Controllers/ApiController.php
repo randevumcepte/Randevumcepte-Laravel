@@ -18107,6 +18107,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         } else {
 
+            // Personel + ayar acik ise hesap sahibi onay kodu kapisi
+            $_salonId = $request->sube ?? $request->salonid ?? Adisyonlar::where('id',$adisyonurun->adisyon_id)->value('salon_id');
+            if($g = $this->mobilSilmeOnayKapisi($request, $_salonId, $request->olusturan, 'urun_'.$request->adisyonurunid,
+                'bir satış ürününü silmek için onayınızı istiyor.'))
+                return $g;
+
             $urunid = $adisyonurun->urun_id;
 
             $adet = $adisyonurun->adet;
@@ -18224,6 +18230,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             exit();
 
         } else {
+
+            // Personel + ayar acik ise hesap sahibi onay kodu kapisi
+            $_salonId = $request->sube ?? $request->salonid ?? Adisyonlar::where('id',$adisyon_id)->value('salon_id');
+            if($g = $this->mobilSilmeOnayKapisi($request, $_salonId, $request->olusturan, 'paket_'.$request->adisyonpaketid,
+                'bir satış paketini silmek için onayınızı istiyor.'))
+                return $g;
 
             $paketseanslari = AdisyonPaketSeanslar::where(
 
@@ -18366,6 +18378,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             exit();
 
         } else {
+
+            // Personel + ayar acik ise hesap sahibi onay kodu kapisi
+            $_salonId = $request->sube ?? $request->salonid ?? optional($hizmet)->salon_id ?? Adisyonlar::where('id',$adisyon_id)->value('salon_id');
+            if($g = $this->mobilSilmeOnayKapisi($request, $_salonId, $request->olusturan, 'hizmet_'.$request->hizmet_id,
+                'bir satış hizmetini silmek için onayınızı istiyor.'))
+                return $g;
 
             try {
                 Audit::logApi(optional($hizmet)->salon_id ?? $request->sube ?? $request->salonid, $request, 'satis_hizmet_sil', 'adisyon_hizmet', $request->hizmet_id, optional(optional($hizmet)->hizmet)->hizmet_adi, 'Satıştan hizmet kaldırıldı', ['adisyon_id' => $adisyon_id]);
@@ -29913,6 +29931,41 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         
         return $aylar[$ingilizceAy] ?? $ingilizceAy;
     }
+    // MOBIL SILME ONAY KAPISI: personel (role_id>1) + ayar_id 23 (personel=1) acik ise,
+    // silmeden once hesap sahibine SMS ile 4 haneli onay kodu gonderir ve kod dogrulanana
+    // kadar ['dogrulamaGerekli'=>true] doner. Flutter bu yaniti yakalayip kod diyalogu
+    // gosterir, kodu 'dogrulama_kodu' olarak tekrar gonderir. Kod Cache'te 10 dk saklanir
+    // (salon+anahtar bazli). Dogru kod gelince tuketilir ve null doner (silmeye devam).
+    // NOT: salonId/olusturan gelmezse (eski istemci) kapi UYGULANMAZ -> eski davranis korunur;
+    // web'deki guvenlik denetimi (StoreAdminController) bu kapinin web karsiligidir.
+    private function mobilSilmeOnayKapisi(Request $request, $salonId, $olusturanYetkiliId, $anahtar, $smsAciklama)
+    {
+        if(!$salonId || !$olusturanYetkiliId) return null;
+        $islemYapan = Personeller::where('yetkili_id',$olusturanYetkiliId)->where('salon_id',$salonId)->first();
+        if(!$islemYapan || $islemYapan->role_id <= 1) return null; // hesap sahibi/yonetici (role 1) -> kapi yok
+        $smsAyari = SalonSMSAyarlari::where('salon_id',$salonId)->where('ayar_id',23)->where('personel',1)->first();
+        if(!$smsAyari) return null; // ayar kapali -> kapi yok
+        $cacheKey = 'mobil_silme_onay_'.$salonId.'_'.$anahtar;
+        $kayitliKod = \Cache::get($cacheKey);
+        $girilen = trim((string)($request->dogrulama_kodu ?? ''));
+        if($kayitliKod === null){
+            $kod = str_pad((string) mt_rand(0,9999),4,'0',STR_PAD_LEFT);
+            \Cache::put($cacheKey, $kod, 10); // 10 dakika (Laravel 5.6: ikinci parametre DAKIKA)
+            $hesapSahibiYetkiliId = Personeller::where('salon_id',$salonId)->where('role_id',1)->value('yetkili_id');
+            $hesapSahibiTel = IsletmeYetkilileri::where('id',$hesapSahibiYetkiliId)->value('gsm1');
+            if($hesapSahibiTel){
+                $mesaj = $islemYapan->personel_adi.' '.$smsAciklama.' Onay Kodu : '.$kod;
+                self::sms_gonder_bildirimli($request, array(array("to"=>$hesapSahibiTel,"message"=>$mesaj)), false, 1, true, $salonId);
+            }
+            return array('dogrulamaGerekli'=>true, 'mesaj'=>'İşlem için hesap sahibine onay kodu gönderildi.');
+        }
+        if($girilen === '' || $girilen !== (string)$kayitliKod){
+            return array('dogrulamaGerekli'=>true, 'mesaj'=>'Doğrulama kodu hatalı, tekrar deneyin.');
+        }
+        \Cache::forget($cacheKey);
+        return null;
+    }
+
     public function adisyonSil(Request $request)
    {
             // Yetki: satis.adisyon_sil kapali ise 403
@@ -29924,7 +29977,12 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             }
             // Adisyon silinmeden once salon_id'yi yakala (log icin)
             $_adisyonSalonId = $request->salonId
+                ?? $request->sube
                 ?? Adisyonlar::where('id', $request->adisyon_id)->value('salon_id');
+            // Personel + ayar acik ise: hesap sahibi onay kodu kapisi (kod dogrulanana kadar dur)
+            if($g = $this->mobilSilmeOnayKapisi($request, $_adisyonSalonId, $request->olusturan, 'adisyon_'.$request->adisyon_id,
+                $request->adisyon_id.' numaralı adisyonu ve tüm kalemlerini silmek için onayınızı istiyor.'))
+                return response()->json($g);
             // Silme acik/kapali sayilarini degistirir → badge sayim cache'ini tazele
             self::adisyonSayimCacheTemizle($_adisyonSalonId);
             $adisyonhizmetler = AdisyonHizmetler::where('adisyon_id',$request->adisyon_id)->get();
