@@ -2620,8 +2620,17 @@
             var fail = results.filter(function(r){return r.error;}).length;
             var skipped = results.filter(function(r){return r.skipped;}).length;
             if(ok > 0){
+                // Cagri baglami: randevu olustu -> aramayi 'Randevu Olusturuldu'(8) isaretle.
+                // ctx'i modal.hide(hidden -> ctx null'lar) ONCESI YAKALA.
+                var _cagriAm = (window.__cagriRandevuCtx && window.__cagriRandevuCtx.amId) ? window.__cagriRandevuCtx.amId : null;
+                window.__cagriRandevuCtx = null;
                 $modal.modal('hide');
                 if(typeof takvimyukle === 'function') takvimyukle(true, true);
+                if(_cagriAm){
+                    $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
+                        { aranacak_musteri_id:_cagriAm, sube:$('input[name="sube"]').val(), _token:$('input[name="_token"]').val() },
+                        function(r){ if(typeof window.cagriIslemTamam==='function') window.cagriIslemTamam(); });
+                }
             }
             // Hicbir sey olusmadi VE hata yok (kullanici cakismada 'Vazgec' dedi) =>
             // gereksiz "0 olusturuldu, N atlandi" ozetini gosterme, sessizce cik.
@@ -2633,14 +2642,6 @@
             if(fail) summary += ', ' + fail + ' hata';
             if(typeof swal !== 'undefined'){
                 swal({type: fail ? 'warning' : 'success', title: fail ? 'Kısmi başarı' : 'Başarılı', text: summary, timer:3500, showConfirmButton:false});
-            }
-            // Cagri Merkezi: 'Yeni Randevu' baglamindan acildiysa ve randevu olustuysa -> aramayi
-            // 'Randevu Olusturuldu'(durum=8) isaretle + ilgili ekranlari tazele.
-            if(ok > 0 && window.__cagriRandevuCtx && window.__cagriRandevuCtx.amId){
-                var _amId = window.__cagriRandevuCtx.amId; window.__cagriRandevuCtx = null;
-                $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
-                    { aranacak_musteri_id:_amId, sube:$('input[name="sube"]').val(), _token:$('input[name="_token"]').val() },
-                    function(r){ if(r && r.success){ $(document).trigger('cagri:isaretlendi'); } });
             }
             return;
         }

@@ -310,8 +310,9 @@ $(document).ready(function(){
       $('#cnt_satis').text(c['#b8860b']);
       $('#cnt_randevu').text(c['#0ea5e9']);
    }
-   // Randevu olusturulunca (cagri baglamindan) takvimi tazele
-   $(document).on('cagri:isaretlendi', function(){ yukle(); });
+   // Cagri merkezi islem (randevu/on gorusme/satis) basariyla bitince takvimi tazele
+   // (modallar cagriIslemTamam ile zaten kapandi)
+   $(document).on('cagri:islem-tamam', function(){ yukle(); });
 
    // Aktif filtreye gore board'u ciz
    function ciz(){
@@ -470,6 +471,7 @@ $(document).ready(function(){
                   if (res.ad){ $('#ad_soyad').val(res.ad); }
                   if (res.telefon){ $('#telefon').val(res.telefon); }
                } catch(e){}
+               window.__cagriOnGorusme = true; // cagri baglami -> kayitta tum modallar kapansin
                $('#ongorusme-modal').modal('show'); // cockpit uzerine acilir (stacked)
             } else if (typeof swal==='function'){
                swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
@@ -559,12 +561,11 @@ $(document).ready(function(){
          { sube:sube, musteri_id:musteriId, kalem_tip:tip, kalem_id:itemId, fiyat:fiyat, odeme_yontemi:odeme, adet:adet, _token:token },
          function(res){
             if (res && res.success){
-               $('#artm_satis_modal').modal('hide');
                if (typeof swal==='function') swal({ type:'success', title:'Satış oluşturuldu', text:res.message||'Kasaya işlendi.', timer:2600, showConfirmButton:false });
-               // Aramayi otomatik "Satis"(durum=7) isaretle + cockpit kapat + takvim tazele
+               // Aramayi otomatik "Satis"(durum=7) isaretle -> ardindan TUM modallar kapanir + tazele
                $.post('/isletmeyonetim/santral_not_ekle',
                   { arama_detay_id:_aramaId, aranacak_musteri_id:_amId, noticerik:($('#artm_not').val()||''), sonuc:7, satis_tutari:satisToplam, _token:token },
-                  function(r){ if(r && r.success){ $('#artm_modal').modal('hide'); yukle(); } });
+                  function(r){ if(typeof window.cagriIslemTamam==='function') window.cagriIslemTamam(); });
             } else if (typeof swal==='function'){ swal({ type:'error', title:'Hata', text:(res&&res.message)||'Satış oluşturulamadı.' }); }
          }
       ).fail(function(){ if(typeof swal==='function') swal({ type:'error', title:'Hata', text:'İşlem başarısız.' }); })

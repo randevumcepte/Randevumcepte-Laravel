@@ -740,6 +740,7 @@ function agOnGorusmeAc(){
                if (res.ad){ $('#ad_soyad').val(res.ad); }
                if (res.telefon){ $('#telefon').val(res.telefon); }
             } catch(e){}
+            window.__cagriOnGorusme = true; // cagri baglami -> kayitta tum modallar kapansin
             $('#ongorusme-modal').modal('show');
          } else {
             swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
@@ -876,14 +877,15 @@ $(document).on('click', '#hs_kaydet', function(){
         fiyat:fiyat, odeme_yontemi:odeme, adet:adet, _token:$('input[name="_token"]').val() },
       function(res){
          if (res && res.success){
-            $('#ag_satis_modal').modal('hide');
             swal({ type:'success', title:'Satış oluşturuldu', text:res.message||'Kasaya işlendi.', timer:2600, showConfirmButton:false });
-            // Aramayi otomatik "Satis"(durum=7) isaretle -> ayrica Sonucu Kaydet gerekmesin
+            // Aramayi otomatik "Satis"(durum=7) isaretle -> ardindan TUM modallar kapanir + tazele
             if (agSecili && agAktifListe){
                var _amId = agSecili.aranacak_musteri_id, _listeId = agAktifListe;
                $.post('/isletmeyonetim/santral_not_ekle',
                   { arama_detay_id:_listeId, aranacak_musteri_id:_amId, noticerik:($('#ag_not').val()||''), sonuc:7, satis_tutari:satisToplam, _token:$('input[name="_token"]').val() },
-                  function(r){ if(r && r.success){ agDurumGuncelle(_amId, 7); agGecmisYukle(_amId); } });
+                  function(r){ if(typeof window.cagriIslemTamam==='function') window.cagriIslemTamam(); });
+            } else {
+               if(typeof window.cagriIslemTamam==='function') window.cagriIslemTamam();
             }
          } else { swal({ type:'error', title:'Hata', text:(res&&res.message)||'Satış oluşturulamadı.' }); }
       }
@@ -931,9 +933,11 @@ $(document).on('click', '#ag_yeni_randevu', function(){
    var id = $(this).data('id') || (agSecili && agSecili.aranacak_musteri_id);
    if (id && typeof window.cagriYeniRandevuAc === 'function') window.cagriYeniRandevuAc(id);
 });
-// Randevu olusturulunca aramayi 'Randevu Olusturuldu'(8) olarak tazele
-$(document).on('cagri:isaretlendi', function(){
-   if (agSecili){ agDurumGuncelle(agSecili.aranacak_musteri_id, 8); agGecmisYukle(agSecili.aranacak_musteri_id); }
+// Cagri merkezi islem (randevu/on gorusme/satis) basariyla bitince: aktif liste kuyrugunu
+// yeniden yukle (durum guncel gorunsun). Modallar cagriIslemTamam ile zaten kapandi.
+$(document).on('cagri:islem-tamam', function(){
+   var $c = $('.ag-liste-chip.aktif');
+   if ($c.length) $c.trigger('click');
 });
 
 $(document).on('click', '#ag_ara_btn', function(){

@@ -8251,6 +8251,12 @@ $(document).on('submit','#ongorusmeformu',function(e){
             // Once modal'i kapat (data-dismiss=modal yerine API ile sadece bu modali hedefle)
             $('#ongorusme-modal').modal('hide');
             if (_ogcb) { try { _ogcb(); } catch(e){} }
+            // Cagri Merkezi baglamindan acildiysa: TUM cagri modallarini kapat + ekranlari tazele.
+            // (Normal menu 'Yeni On Gorusme' bu bayragi set etmez -> etkilenmez.)
+            if (window.__cagriOnGorusme) {
+                window.__cagriOnGorusme = false;
+                if (typeof window.cagriIslemTamam === 'function') window.cagriIslemTamam();
+            }
             // Sonra swal — modal hide animasyonuyla cakismamasi icin minik bir gecikme
             setTimeout(function(){
                 swal({
@@ -21560,6 +21566,15 @@ $('#web_telefon_burada_kullan').click(function(){
     //$('#santral-ustune-al').modal('hide');
 });
 
+// Cagri Merkezi: bir islem (randevu/on gorusme/satis) BASARIYLA bitti -> TUM cagri merkezi
+// modallarini kapat ve ilgili ekranlari tazele (takvim/calisma ekrani 'cagri:islem-tamam' dinler).
+window.cagriIslemTamam = function(){
+    ['#ongorusme-modal','#artm_satis_modal','#ag_satis_modal','#modal-view-event-add-v2','#modal-view-event-add','#artm_modal'].forEach(function(sel){
+        try { if($(sel).hasClass('show') || $(sel).hasClass('in')) $(sel).modal('hide'); } catch(e){}
+    });
+    $(document).trigger('cagri:islem-tamam');
+};
+
 // Cagri Merkezi -> normal "Yeni Randevu" (v2) modalini ACILAN musteriyle prefill'li ac.
 // Satis/on gorusme degil; normal RANDEVU kategorisinde kaydedilir (ayni form).
 window.cagriYeniRandevu = function(userId, adText, aranacakMusteriId){
@@ -21591,6 +21606,8 @@ window.cagriYeniRandevu = function(userId, adText, aranacakMusteriId){
 };
 // Yeni Randevu modali KAYITSIZ kapanirsa cagri baglamini temizle (yanlis durum=8 isaretlenmesin)
 $(document).on('hidden.bs.modal', '#modal-view-event-add-v2', function(){ window.__cagriRandevuCtx = null; });
+// On gorusme modali KAYITSIZ kapanirsa cagri bayragini temizle (cagriIslemTamam yanlis tetiklenmesin)
+$(document).on('hidden.bs.modal', '#ongorusme-modal', function(){ setTimeout(function(){ window.__cagriOnGorusme = false; }, 50); });
 // aranacak_musteri_id -> user_id coz + yeni randevu modalini ac (cagri merkezi butonlari kullanir)
 window.cagriYeniRandevuAc = function(aranacakMusteriId){
     if(!aranacakMusteriId) return;
