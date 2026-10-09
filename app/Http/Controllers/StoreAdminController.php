@@ -33410,8 +33410,10 @@ DB::raw('
             // Yeni zaman verildi (durum 3 veya 6 On Gorusme) -> eski davranis gibi tarih/saat guncelle
             $kayit->tarih = $tekrarTarih;
             $kayit->saat  = $tekrarSaat;
-        } elseif (!$vardiCallback) {
+        } elseif (!$vardiCallback && !in_array($kayitDurum, [6, 7], true)) {
             // Bekleyen callback yok ve yeni zaman da verilmedi -> eski davranis (alanlar bos yazilir)
+            // AMA On Gorusme(6)/Satis(7) kayitlari arama randevu takviminde tarih/saat ile yasar;
+            // yeni zaman verilmediyse mevcut tarih/saat KORUNUR (yoksa takvimden kaybolur).
             $kayit->tarih = $tekrarTarih;
             $kayit->saat  = $tekrarSaat;
         }

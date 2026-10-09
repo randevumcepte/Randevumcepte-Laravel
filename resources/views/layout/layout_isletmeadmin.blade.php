@@ -241,7 +241,7 @@
          /* Softphone paneli her zaman yuksek z-index; panel ACIKKEN (.show) header'i
             modal'in USTUNE cikar (randevu detay vb. modal arkasinda kalmasin). */
          .dropdown-menu.webphone{ z-index:100050 !important; }
-         .header:has(.dropdown-menu.webphone.show){ z-index:100050 !important; position:relative; }
+         .header:has(.dropdown-menu.webphone.show){ z-index:100050 !important; }
 
          /* SweetAlert2 uyarilari HER ZAMAN en ustte (stacked modal z-index'leri yuzunden
             kara liste vb. uyarilar modal arkasinda kaliyordu). */
