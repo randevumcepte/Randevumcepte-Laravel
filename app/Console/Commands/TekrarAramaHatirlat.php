@@ -148,7 +148,7 @@ class TekrarAramaHatirlat extends Command
         }
 
         try {
-            $this->bildirimekle($a->salon_id, $mesaj, '/isletmeyonetim/arama-listelerim?ac=' . $a->id,
+            $this->bildirimekle($a->salon_id, $mesaj, '/isletmeyonetim/arama-randevu-takvim?sube=' . $a->salon_id . '&tarih=' . $a->tarih,
                 $a->personel_id, $a->user_id, $a->profil_resim ?? null);
         } catch (\Throwable $e) {
             Log::warning('[ARAMA-RANDEVU] bildirim fail', ['id' => $a->id, 'err' => $e->getMessage()]);

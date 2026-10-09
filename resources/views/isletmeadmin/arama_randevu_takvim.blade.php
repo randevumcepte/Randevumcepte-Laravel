@@ -74,6 +74,15 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
 #artm_gecmis .artm-g-item{ border-left:4px solid #c9c2de; background:#faf9fe; border:1px solid #eef0f5; border-radius:10px; padding:9px 11px; margin-top:8px; }
 #artm_gecmis audio{ width:100%; height:34px; margin-top:8px; }
 .artm-g-bos{ text-align:center; color:#a9a3bb; padding:18px; font-size:12.5px; }
+/* Telefonda Satis modali: dropdownlar sikisik gorunmesin */
+#artm_satis_modal .modal-body{ padding:20px 22px; }
+#artm_satis_modal .form-control, #artm_satis_modal .select2-container{ margin-bottom:12px !important; }
+#artm_satis_modal label{ margin-bottom:5px; display:block; }
+#artm_satis_modal .select2-container .select2-selection--single{ height:42px !important; display:flex; align-items:center; border:1px solid #d9c9f0; border-radius:8px; }
+#artm_satis_modal .select2-container .select2-selection__rendered{ line-height:normal !important; padding-left:12px; }
+#artm_satis_modal .select2-container .select2-selection__arrow{ height:40px !important; }
+#artm_satis_modal .row{ margin-left:-8px; margin-right:-8px; }
+#artm_satis_modal .row > [class^="col-"]{ padding-left:8px; padding-right:8px; }
 </style>
 
 <div class="art-wrap">
@@ -153,6 +162,7 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
                <input type="time" id="artm_sonra_saat">
             </div>
             <button class="artm-kaydet" id="artm_kaydet"><i class="fa fa-save"></i> Sonucu Kaydet</button>
+            <button type="button" id="artm_iptal" style="width:100%;margin-top:8px;background:#fff;border:1.5px solid #f1c7c7;color:#dc2626;font-weight:700;border-radius:12px;padding:10px;cursor:pointer;font-size:13px;"><i class="fa fa-ban"></i> Arama Randevusunu İptal Et</button>
 
             <hr style="margin:18px 0 10px;">
             <div class="artm-kart-bas" style="justify-content:space-between;">
@@ -395,20 +405,52 @@ $(document).ready(function(){
       }
    }
 
-   // Yeni Randevu: aramayi HEMEN 'Randevu Olusturuldu'(8) isaretle (KESIN; v2 hook'una bagimli degil)
-   // + cockpit'i kapat + randevu modalini prefill'li ac. (On gorusme akisiyla ayni mantik.)
+   // Yeni Randevu: SADECE randevu formu KAYDEDILINCE 'Randevu Olusturuldu'(8) isaretlenir.
+   // Burada sadece pending set edilir + randevu modali acilir (tiklayinca siniflandirma DEGISMEZ).
    $(document).on('click', '#artm_yeni_randevu', function(){
       if (!artmAmId) return;
-      $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
-         { aranacak_musteri_id:artmAmId, sube:sube, _token:token },
-         function(r){ yukle(); }); // board tazele -> 'Randevu Olusturuldu' gorunsun
-      $('#artm_modal').modal('hide'); // arama (cockpit) modalini kapat
+      window.__cagriRandevuPending = { amId: artmAmId, aramaId: artmAramaId };
       if (artmUserId && typeof window.cagriYeniRandevu === 'function') window.cagriYeniRandevu(artmUserId, artmMusteriAd);
-      else if (artmAmId && typeof window.cagriYeniRandevuAc === 'function') window.cagriYeniRandevuAc(artmAmId);
+      else if (typeof window.cagriYeniRandevuAc === 'function') window.cagriYeniRandevuAc(artmAmId);
+   });
+   // v2 randevu KAYDEDILDI -> pending varsa aramayi durum=8 isaretle + tum modallari kapat + tazele
+   $(document).on('cagri:v2-saved', function(){
+      if (window.__cagriRandevuPending){
+         var am = window.__cagriRandevuPending.amId; window.__cagriRandevuPending = null;
+         $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
+            { aranacak_musteri_id:am, sube:sube, _token:token },
+            function(r){ if(typeof window.cagriIslemTamam==='function') window.cagriIslemTamam(); });
+      }
+   });
+   // v2 modali KAYITSIZ kapanirsa pending temizle (siniflandirma degismesin)
+   $(document).on('hidden.bs.modal', '#modal-view-event-add-v2', function(){ setTimeout(function(){ window.__cagriRandevuPending = null; }, 60); });
+
+   // Arama randevusunu İptal Et (durum=9)
+   $(document).on('click', '#artm_iptal', function(){
+      if (!artmAmId) return;
+      var _am = artmAmId;
+      var doIt = function(){
+         $.post('/isletmeyonetim/cagri-arama-randevu-iptal',
+            { aranacak_musteri_id:_am, sube:sube, _token:token },
+            function(r){ if(r && r.success){ if(typeof window.cagriIslemTamam==='function') window.cagriIslemTamam(); }
+                         else if(typeof swal==='function'){ swal({type:'error',title:'Hata',text:(r&&r.message)||'İptal edilemedi.'}); } });
+      };
+      if (typeof swal==='function'){
+         var rr = swal({ title:'Arama randevusu iptal edilsin mi?', text:'Bu arama randevusu "İptal" olarak işaretlenecek.', type:'warning',
+            showCancelButton:true, confirmButtonText:'Evet, iptal et', cancelButtonText:'Vazgeç', confirmButtonColor:'#dc2626' });
+         if (rr && typeof rr.then==='function'){ rr.then(function(x){ if(x===true || (x&&x.value)) doIt(); }).catch(function(){}); }
+      } else { if(confirm('Arama randevusu iptal edilsin mi?')) doIt(); }
    });
 
    // Bir aramaya tiklayinca cockpit modali ac
    $(document).on('click', '#art_board .art-item', function(){
+      // Zaten islenmis (Randevu Olusturuldu / Satis / On Gorusme) -> tekrar islem modali ACMA,
+      // sadece durum bilgisi ver.
+      var _dm = $(this).data('durum') || '';
+      if (_dm==='Randevu Oluşturuldu' || _dm==='Satış' || _dm==='Ön Görüşme' || _dm==='İptal'){
+         if (typeof swal==='function') swal({ type:'info', title:_dm, text:(_dm==='İptal'?'Bu arama randevusu iptal edildi.':'Bu arama zaten "'+_dm+'" olarak işlendi. Tekrar işlem yapılamaz.'), timer:2800, showConfirmButton:false });
+         return;
+      }
       artmAmId   = $(this).data('id');
       artmAramaId= $(this).data('arama');
       artmSonuc  = null;
@@ -450,21 +492,29 @@ $(document).ready(function(){
       var s = parseInt($(this).data('sonuc'),10);
       if (artmSonuc === s){ artmSonuc = null; $(this).removeClass('aktif'); }
       else { artmSonuc = s; $('.artm-sonuc').removeClass('aktif'); $(this).addClass('aktif'); }
-      $('#artm_satis_alan').toggle(artmSonuc === 7);
-      // On Gorusme Randevusu(6) -> aramayi HEMEN durum=6 isaretle + gercek randevu modalini ac
-      if (artmSonuc === 6){ artmOnGorusmeKaydetVeAc(); }
+      // On Gorusme(6) -> on gorusme formu; Telefonda Satis(7) -> satis modali DIREKT ac.
+      // Bunlar "sonuc secimi" degil AKSIYON; modal acilinca chip secimini kaldir (Sonucu Kaydet'le cakismasin).
+      // Siniflandirma YALNIZCA ilgili form kaydedilince degisir.
+      $('#artm_satis_alan').hide();
+      if (artmSonuc === 6){ artmOnGorusmeKaydetVeAc(); artmSonuc=null; $('.artm-sonuc').removeClass('aktif'); }
+      else if (artmSonuc === 7){ artmSatisModalAc(); artmSonuc=null; $('.artm-sonuc').removeClass('aktif'); }
    });
 
-   // On Gorusme secilince: aramayi DOGRUDAN durum=6 isaretle (Sonucu Kaydet gerekmesin;
-   // hook'a/zamanlamaya bagli degil), sonra gercek randevu modalini prefill'li ac.
+   // On Gorusme secilince: SADECE on gorusme formu KAYDEDILINCE durum=6 isaretlenir.
+   // Tiklayinca pending set edilir + randevu modali acilir (siniflandirma DEGISMEZ).
    function artmOnGorusmeKaydetVeAc(){
-      if (artmAmId && artmAramaId){
-         $.post('/isletmeyonetim/santral_not_ekle',
-            { arama_detay_id:artmAramaId, aranacak_musteri_id:artmAmId, noticerik:($('#artm_not').val()||''), sonuc:6, _token:token },
-            function(r){ if(r && r.success){ yukle(); } }); // board'u tazele -> 'On Gorusme' gorunsun
-      }
+      window.__cagriOnGorusmePending = { amId: artmAmId, aramaId: artmAramaId };
       artmOnGorusmeAc();
    }
+   // On gorusme formu KAYDEDILDI -> pending varsa durum=6 isaretle + tum modallari kapat + tazele
+   $(document).on('cagri:ongorusme-saved', function(){
+      if (window.__cagriOnGorusmePending){
+         var p = window.__cagriOnGorusmePending; window.__cagriOnGorusmePending = null;
+         $.post('/isletmeyonetim/santral_not_ekle',
+            { arama_detay_id:p.aramaId, aranacak_musteri_id:p.amId, noticerik:'', sonuc:6, _token:token },
+            function(r){ if(typeof window.cagriIslemTamam==='function') window.cagriIslemTamam(); });
+      }
+   });
 
    // On Gorusme: gercek randevu modalini musteri prefill'li acar (calisma ekrani ile ayni uc).
    // #ongorusme-modal layout'ta global include'lu, takvim sayfasinda da mevcut.
@@ -509,24 +559,17 @@ $(document).ready(function(){
 
    // ===== Telefonda Satış -> Kasaya İşle (gerçek satış + tahsilat) =====
    // "Kasaya İşle" -> musteri user_id coz + quick-sale modalini ac
-   $(document).on('click', '#artm_kasaya_isle', function(){
-      if (!artmAmId) return;
-      $.post('/isletmeyonetim/cagri-musteri-ongorusme-bilgi',
-         { aranacak_musteri_id: artmAmId, _token: token },
-         function(res){
-            if (res && res.success && res.user_id){
-               $('#hss_musteri_id').val(res.user_id);
-               $('#hss_musteri_ad').text(res.ad || ('#'+res.user_id));
-               $('#hss_fiyat').val($('#artm_satis_tutari').val()||'');
-               $('#hss_tip').val('paket').trigger('change');
-               $('.hss-item').val(''); $('#hss_adet').val(1);
-               $('#artm_satis_modal').modal('show'); // cockpit uzerine (stacked)
-            } else if (typeof swal==='function'){
-               swal({ type:'warning', title:'Açılamadı', text:(res&&res.message)||'Müşteri bilgisi alınamadı.' });
-            }
-         }
-      ).fail(function(){ if(typeof swal==='function') swal({ type:'error', title:'Hata', text:'Satış ekranı açılamadı.' }); });
-   });
+   // Telefonda Satis -> satis modalini DIREKT ac (ek tutar adimi yok). user_id cockpit'te (data-user).
+   function artmSatisModalAc(){
+      if (!artmUserId){ if(typeof swal==='function') swal({type:'warning',title:'Müşteri bulunamadı'}); return; }
+      $('#hss_musteri_id').val(artmUserId);
+      $('#hss_musteri_ad').text(artmMusteriAd || ('#'+artmUserId));
+      $('#hss_fiyat').val('');
+      $('#hss_tip').val('paket').trigger('change');
+      $('.hss-item').val(''); $('#hss_adet').val(1);
+      $('#artm_satis_modal').modal('show'); // cockpit uzerine (stacked)
+   }
+   $(document).on('click', '#artm_kasaya_isle', function(){ artmSatisModalAc(); });
    // Kalem tipi -> ilgili secim + adet; select2 toggle
    $(document).on('change', '#hss_tip', function(){
       var t = $(this).val();
@@ -804,6 +847,15 @@ $(document).ready(function(){
          }
       ).fail(function(){ $btn.prop('disabled', false); if(typeof swal==='function') swal({type:'error',title:'Hata',text:'İşlem başarısız.'}); });
    });
+
+   // URL'de ?tarih=YYYY-MM-DD varsa o gune git (bildirim kartlarindan gelince dogru gun acilsin)
+   try {
+      var _urlTarih = new URLSearchParams(window.location.search).get('tarih');
+      if (_urlTarih && /^\d{4}-\d{2}-\d{2}$/.test(_urlTarih)) {
+         if (artDp){ var _p=_urlTarih.split('-'); artProg=true; artDp.selectDate(new Date(parseInt(_p[0],10),parseInt(_p[1],10)-1,parseInt(_p[2],10))); artProg=false; }
+         $('#art_tarih').val(_urlTarih);
+      }
+   } catch(e){}
 
    yukle();
 });

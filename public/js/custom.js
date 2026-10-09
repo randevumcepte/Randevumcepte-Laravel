@@ -8255,7 +8255,8 @@ $(document).on('submit','#ongorusmeformu',function(e){
             // (Normal menu 'Yeni On Gorusme' bu bayragi set etmez -> etkilenmez.)
             if (window.__cagriOnGorusme) {
                 window.__cagriOnGorusme = false;
-                if (typeof window.cagriIslemTamam === 'function') window.cagriIslemTamam();
+                // Dinleyen sayfa (takvim/calisma ekrani) pending varsa durum=6 isaretler + modallari kapatir.
+                $(document).trigger('cagri:ongorusme-saved');
             }
             // Sonra swal — modal hide animasyonuyla cakismamasi icin minik bir gecikme
             setTimeout(function(){
@@ -21607,7 +21608,9 @@ window.cagriYeniRandevu = function(userId, adText, aranacakMusteriId){
 // Yeni Randevu modali KAYITSIZ kapanirsa cagri baglamini temizle (yanlis durum=8 isaretlenmesin)
 $(document).on('hidden.bs.modal', '#modal-view-event-add-v2', function(){ window.__cagriRandevuCtx = null; });
 // On gorusme modali KAYITSIZ kapanirsa cagri bayragini temizle (cagriIslemTamam yanlis tetiklenmesin)
-$(document).on('hidden.bs.modal', '#ongorusme-modal', function(){ setTimeout(function(){ window.__cagriOnGorusme = false; }, 50); });
+$(document).on('hidden.bs.modal', '#ongorusme-modal', function(){ setTimeout(function(){ window.__cagriOnGorusme = false; window.__cagriOnGorusmePending = null; }, 60); });
+// Yeni Randevu (v2) KAYITSIZ kapanirsa cagri randevu pending temizle (siniflandirma degismesin)
+$(document).on('hidden.bs.modal', '#modal-view-event-add-v2', function(){ setTimeout(function(){ window.__cagriRandevuPending = null; }, 60); });
 // aranacak_musteri_id -> user_id coz + yeni randevu modalini ac (cagri merkezi butonlari kullanir)
 window.cagriYeniRandevuAc = function(aranacakMusteriId){
     if(!aranacakMusteriId) return;

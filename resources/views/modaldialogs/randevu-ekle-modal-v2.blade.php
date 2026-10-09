@@ -2620,17 +2620,12 @@
             var fail = results.filter(function(r){return r.error;}).length;
             var skipped = results.filter(function(r){return r.skipped;}).length;
             if(ok > 0){
-                // Cagri baglami: randevu olustu -> aramayi 'Randevu Olusturuldu'(8) isaretle.
-                // ctx'i modal.hide(hidden -> ctx null'lar) ONCESI YAKALA.
-                var _cagriAm = (window.__cagriRandevuCtx && window.__cagriRandevuCtx.amId) ? window.__cagriRandevuCtx.amId : null;
-                window.__cagriRandevuCtx = null;
+                // Cagri Merkezi: randevu KAYDEDILDI -> dinleyen sayfalar (takvim/calisma ekrani)
+                // pending varsa aramayi 'Randevu Olusturuldu' isaretler. Olayi modal.hide ONCESI
+                // tetikle (pending consume hidden'dan once olsun). Normal akista pending yok -> no-op.
+                $(document).trigger('cagri:v2-saved');
                 $modal.modal('hide');
                 if(typeof takvimyukle === 'function') takvimyukle(true, true);
-                if(_cagriAm){
-                    $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
-                        { aranacak_musteri_id:_cagriAm, sube:$('input[name="sube"]').val(), _token:$('input[name="_token"]').val() },
-                        function(r){ if(typeof window.cagriIslemTamam==='function') window.cagriIslemTamam(); });
-                }
             }
             // Hicbir sey olusmadi VE hata yok (kullanici cakismada 'Vazgec' dedi) =>
             // gereksiz "0 olusturuldu, N atlandi" ozetini gosterme, sessizce cik.

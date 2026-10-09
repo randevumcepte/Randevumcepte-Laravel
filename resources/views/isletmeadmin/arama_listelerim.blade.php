@@ -710,17 +710,30 @@ $(document).on('click', '.ag-sonuc', function(){
    if (agSecilenSonuc===6){ agOnGorusmeKaydetVeAc(); }
 });
 
-// On Gorusme secilince: aramayi DOGRUDAN durum=6 isaretle (Sonucu Kaydet gerekmesin),
-// sonra gercek randevu modalini ac. (Hook/zamanlamaya bagli degil -> guvenilir.)
+// On Gorusme: SADECE on gorusme formu KAYDEDILINCE durum=6 isaretlenir (pending).
 function agOnGorusmeKaydetVeAc(){
    if (agSecili && agAktifListe){
-      var _amId = agSecili.aranacak_musteri_id, _listeId = agAktifListe;
-      $.post('/isletmeyonetim/santral_not_ekle',
-         { arama_detay_id:_listeId, aranacak_musteri_id:_amId, noticerik:($('#ag_not').val()||''), sonuc:6, _token:$('input[name="_token"]').val() },
-         function(r){ if(r && r.success){ agDurumGuncelle(_amId, 6); agGecmisYukle(_amId); } });
+      window.__cagriOnGorusmePending = { amId: agSecili.aranacak_musteri_id, aramaId: agAktifListe };
    }
    agOnGorusmeAc();
 }
+// On gorusme / randevu KAYDEDILDI -> pending varsa isaretle + geçmiş/kuyruk tazele
+$(document).on('cagri:ongorusme-saved', function(){
+   if (window.__cagriOnGorusmePending){
+      var p = window.__cagriOnGorusmePending; window.__cagriOnGorusmePending = null;
+      $.post('/isletmeyonetim/santral_not_ekle',
+         { arama_detay_id:p.aramaId, aranacak_musteri_id:p.amId, noticerik:'', sonuc:6, _token:$('input[name="_token"]').val() },
+         function(r){ if(r && r.success){ agDurumGuncelle(p.amId, 6); agGecmisYukle(p.amId); } });
+   }
+});
+$(document).on('cagri:v2-saved', function(){
+   if (window.__cagriRandevuPending){
+      var pr = window.__cagriRandevuPending; window.__cagriRandevuPending = null;
+      $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
+         { aranacak_musteri_id:pr.amId, sube:$('input[name="sube"]').val(), _token:$('input[name="_token"]').val() },
+         function(r){ if(r && r.success){ agDurumGuncelle(pr.amId, 8); agGecmisYukle(pr.amId); } });
+   }
+});
 
 // Ön Görüşme: gerçek randevu modalını müşteri prefill'li açar (KVKK maskesi bu an için kalkar)
 function agOnGorusmeAc(){
@@ -928,13 +941,11 @@ $(document).on('change', '#ag_kat', function(){
 var agBeklemedeId = null;   // sonucu bekleyen aramanin musteri id'si (null = bekleyen yok)
 var agAramaGonderiliyor = false; // ayni anda cift gonderimi engeller
 
-// Yeni Randevu: aramayi HEMEN 'Randevu Olusturuldu'(8) isaretle (kesin) + randevu modalini ac
+// Yeni Randevu: SADECE randevu formu KAYDEDILINCE durum=8 isaretlenir (pending; cagri:v2-saved)
 $(document).on('click', '#ag_yeni_randevu', function(){
    var id = $(this).data('id') || (agSecili && agSecili.aranacak_musteri_id);
    if (!id) return;
-   $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
-      { aranacak_musteri_id:id, sube:$('input[name="sube"]').val(), _token:$('input[name="_token"]').val() },
-      function(r){ if(r && r.success){ agDurumGuncelle(id, 8); agGecmisYukle(id); } });
+   window.__cagriRandevuPending = { amId: id };
    if (typeof window.cagriYeniRandevuAc === 'function') window.cagriYeniRandevuAc(id);
 });
 // Cagri merkezi islem (randevu/on gorusme/satis) basariyla bitince: aktif liste kuyrugunu

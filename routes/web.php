@@ -1207,6 +1207,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/cagri-musteri-select','StoreAdminController@cagri_musteri_select');
 	Route::post('/cagri-arama-randevu-ekle','StoreAdminController@cagri_arama_randevu_ekle');
 	Route::post('/cagri-randevu-olusturuldu','StoreAdminController@cagri_randevu_olusturuldu_isaretle');
+	Route::post('/cagri-arama-randevu-iptal','StoreAdminController@cagri_arama_randevu_iptal');
 	Route::get('/musteri-randevu-gecmisi','StoreAdminController@musteri_randevu_gecmisi');
 	Route::post('/arama-baslat-numara','StoreAdminController@arama_baslat_numara');
 	Route::get('/raporlar','StoreAdminController@raporlar');

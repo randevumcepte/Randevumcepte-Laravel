@@ -167,7 +167,7 @@ class SalonHatirlatmaController extends Controller
                 'aksiyon'             => 'arama_baslat',
                 'aranacak_musteri_id' => $k->id,
                 'son_ses'             => $sonSes,
-                'link'                => '/isletmeyonetim/arama-listelerim?sube=' . $salonId,
+                'link'                => '/isletmeyonetim/arama-randevu-takvim?sube=' . $salonId . '&tarih=' . $k->tarih,
                 'sayac'               => 1,
             ];
         }

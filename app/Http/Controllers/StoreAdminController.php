@@ -33067,6 +33067,9 @@ DB::raw('
             } elseif ($d === 8) {
                 $renk = '#0ea5e9';                               // açık mavi=randevu oluşturuldu
                 $durumMetin = 'Randevu Oluşturuldu';
+            } elseif ($d === 9) {
+                $renk = '#9a93ad';                               // gri=iptal
+                $durumMetin = 'İptal';
             } elseif ($tamamlandi) {
                 $gec = strtotime($k->ar_tamamlandi_at) > $apptTs;
                 $renk = $gec ? '#f59e0b' : '#16a34a';            // turuncu=geç arandı, yeşil=zamanında
@@ -34622,6 +34625,26 @@ DB::raw('
         }
         if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
             $kayit->son_arama_zamani = date('Y-m-d H:i:s');
+        }
+        $kayit->save();
+        return response()->json(['success' => true]);
+    }
+
+    /** Arama randevusunu IPTAL ET (durum=9). Bekleyen kuyruktan cikar, takvimde 'İptal' gorunur. */
+    public function cagri_arama_randevu_iptal(Request $request)
+    {
+        $kayit = AranacakMusteriler::where('id', $request->aranacak_musteri_id)->first();
+        if (!$kayit) {
+            return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı'], 404);
+        }
+        $liste = AramaListesi::where('id', $kayit->arama_id)->first();
+        if (!$this->cagriListeYetkiliMi($liste)) {
+            return response()->json(['success' => false, 'message' => 'Yetkiniz yok'], 403);
+        }
+        $kayit->durum = 9; // İptal Edildi
+        if (Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at')) {
+            $kayit->ar_tamamlandi_at = date('Y-m-d H:i:s'); // bekleyen kuyruktan cikar
+            $kayit->ar_gecikti = 0;
         }
         $kayit->save();
         return response()->json(['success' => true]);
