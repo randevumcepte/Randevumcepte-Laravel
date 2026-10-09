@@ -1465,11 +1465,12 @@
 
                         <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                            <a href="/isletmeyonetim/google/oauth/baglat?sube={{$isletme->id}}" id="gc-baglat-btn" class="btn btn-primary"><i class="fa fa-link"></i> Google Hesabımı Bağla</a>
-                           <button type="button" id="gc-coz-btn" class="btn btn-outline-danger" style="display:none;"><i class="fa fa-unlink"></i> Bağlantıyı Kaldır</button>
-                           <button type="button" id="gc-aktar-btn" class="btn btn-success" style="display:none;" title="Son 90 gün + ileri tarihli randevularınızı Google Takvimine toplu aktar">
+                           <button type="button" id="gc-coz-btn" class="btn btn-outline-danger"><i class="fa fa-unlink"></i> Bağlantıyı Kaldır</button>
+                           <button type="button" id="gc-aktar-btn" class="btn btn-success" title="Son 90 gün + ileri tarihli randevularınızı Google Takvimine toplu aktar">
                               <i class="fa fa-cloud-upload"></i> Mevcut Randevuları Aktar
                            </button>
-                           <span id="gc-bagli-info" class="text-muted" style="display:none;"></span>
+                           <span id="gc-bagli-info" class="text-muted"></span>
+                           <small class="text-muted" style="margin-left:auto;font-size:11px;">UI v2</small>
                         </div>
                         <div id="gc-aktar-sonuc" class="alert alert-info" style="margin-top:10px;display:none;font-size:13px;"></div>
                         <div id="gc-son-hata" class="text-danger" style="margin-top:10px;display:none;font-size:12px;"></div>
@@ -1490,12 +1491,12 @@
                             $hata = $('#gc-son-hata');
                         if(d && d.bagli){
                            $r.html('<span class="badge badge-success" style="font-size:12px;padding:6px 10px;">Bağlı</span>');
-                           $info.text(d.email || '').show();
-                           $baglat.hide(); $coz.show(); $aktar.show();
+                           $info.text(d.email || '').css('display','inline');
+                           $baglat.hide(); $coz.css('display','inline-block'); $aktar.css('display','inline-block');
                            if(d.son_hata){ $hata.text('Son hata: '+d.son_hata+(d.son_hata_zamani?' ('+d.son_hata_zamani+')':'')).show(); } else { $hata.hide(); }
                         } else {
                            $r.html('<span class="badge badge-secondary" style="font-size:12px;padding:6px 10px;">Bağlı değil</span>');
-                           $info.hide(); $baglat.show(); $coz.hide(); $aktar.hide(); $hata.hide();
+                           $info.hide(); $baglat.css('display','inline-block'); $coz.hide(); $aktar.hide(); $hata.hide();
                         }
                      }
                      $('#gc-aktar-btn').on('click', function(){
