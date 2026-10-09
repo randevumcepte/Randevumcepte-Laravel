@@ -217,50 +217,59 @@ class GoogleCalendarService
     }
 
     /**
-     * Bir RandevuHizmet satirini personelin Google Takvimine yaz (insert veya update).
-     * Esleme varsa update, yoksa insert + esleme kaydet.
+     * Bir RandevuHizmet satirini salondaki tum ILGILI baglantilara push eder.
+     * Kapsam otomatik:
+     *   - Baglantiyi yapan yetkilinin salon_personelleri satiri VARSA (personel) ->
+     *     sadece kendi atandigi randevulari alir.
+     *   - YOKSA (hesap sahibi / admin) -> salondaki TUM randevulari alir.
+     * Birden fazla baglanti varsa her birine ayri event yazilir.
      */
     public function syncRandevuHizmet(\App\RandevuHizmetler $rh)
     {
         $r = $rh->randevu;
-        if (!$r || !$rh->personel_id) return;
+        if (!$r) return;
 
-        // RH personelinin yetkili_id'si (profil Google baglantisi burada)
-        $yetkiliId = \DB::table('salon_personelleri')->where('id', $rh->personel_id)->value('yetkili_id');
-        if (!$yetkiliId) return;
-
-        $bag = GoogleCalendarBaglanti::where('yetkili_id', $yetkiliId)
-            ->where('salon_id', $r->salon_id)
-            ->where('aktif', 1)
-            ->first();
-        if (!$bag) return; // bu personel baglamamis
+        $baglantilar = GoogleCalendarBaglanti::where('salon_id', $r->salon_id)
+            ->where('aktif', 1)->get();
+        if ($baglantilar->isEmpty()) return;
 
         $event = $this->buildEventFromRandevuHizmet($rh);
         if (!$event) return;
 
-        $esleme = GoogleCalendarEventEslemesi::where('baglanti_id', $bag->id)
-            ->where('randevu_hizmet_id', $rh->id)->first();
+        foreach ($baglantilar as $bag) {
+            // Bu baglantiyi yapan yetkilinin salondaki personel kaydini bul
+            $sp = \DB::table('salon_personelleri')
+                ->where('yetkili_id', $bag->yetkili_id)
+                ->where('salon_id', $r->salon_id)
+                ->first();
 
-        try {
-            if ($esleme) {
-                $this->updateEvent($bag, $esleme->google_event_id, $event);
-                $esleme->son_sync_zamani = Carbon::now();
-                $esleme->save();
-            } else {
-                $created = $this->insertEvent($bag, $event);
-                if (!empty($created['id'])) {
-                    GoogleCalendarEventEslemesi::create([
-                        'baglanti_id'       => $bag->id,
-                        'randevu_hizmet_id' => $rh->id,
-                        'google_event_id'   => $created['id'],
-                        'son_sync_zamani'   => Carbon::now(),
-                    ]);
+            // Personel baglantisiysa yalniz kendi randevulari; owner (SP yok) ise hepsi
+            if ($sp && (int)$rh->personel_id !== (int)$sp->id) continue;
+
+            $esleme = GoogleCalendarEventEslemesi::where('baglanti_id', $bag->id)
+                ->where('randevu_hizmet_id', $rh->id)->first();
+
+            try {
+                if ($esleme) {
+                    $this->updateEvent($bag, $esleme->google_event_id, $event);
+                    $esleme->son_sync_zamani = Carbon::now();
+                    $esleme->save();
+                } else {
+                    $created = $this->insertEvent($bag, $event);
+                    if (!empty($created['id'])) {
+                        GoogleCalendarEventEslemesi::create([
+                            'baglanti_id'       => $bag->id,
+                            'randevu_hizmet_id' => $rh->id,
+                            'google_event_id'   => $created['id'],
+                            'son_sync_zamani'   => Carbon::now(),
+                        ]);
+                    }
                 }
+            } catch (\Exception $e) {
+                \Log::warning('[GoogleCalendar] sync hata', [
+                    'rh_id' => $rh->id, 'baglanti_id' => $bag->id, 'hata' => $e->getMessage(),
+                ]);
             }
-        } catch (\Exception $e) {
-            \Log::warning('[GoogleCalendar] sync hata', [
-                'rh_id' => $rh->id, 'baglanti_id' => $bag->id, 'hata' => $e->getMessage(),
-            ]);
         }
     }
 
@@ -276,26 +285,24 @@ class GoogleCalendarService
     {
         $this->refreshIfNeeded($bag);
 
-        // Bu yetkiliye bagli SP (salon_personelleri) kayitlari (bir yetkili birden fazla
-        // kayitli olabilir ama ayni salon icinde genelde tek)
+        // Baglantiyi yapan yetkilinin salondaki personel kaydi
         $personelIds = \DB::table('salon_personelleri')
             ->where('yetkili_id', $bag->yetkili_id)
             ->where('salon_id', $bag->salon_id)
             ->pluck('id')->all();
-        if (empty($personelIds)) {
-            return ['sync' => 0, 'skip' => 0, 'hata' => 0, 'personel_yok' => true];
-        }
+
+        // Hesap sahibi / admin (SP yok) ise salondaki TUM randevulari aktar;
+        // personel ise sadece kendi atandiklari.
+        $hesapSahibi = empty($personelIds);
 
         $tarihBas = $kapsamGun !== null
             ? \Carbon\Carbon::now()->subDays((int)$kapsamGun)->format('Y-m-d')
             : \Carbon\Carbon::now()->format('Y-m-d');
 
-        // Zaten eslesmis RH id'leri — tekrar sorgulamayalim
         $eslesenIds = \App\GoogleCalendarEventEslemesi::where('baglanti_id', $bag->id)
             ->pluck('randevu_hizmet_id')->all();
 
-        $rhler = \App\RandevuHizmetler::with(['randevu.users', 'hizmetler'])
-            ->whereIn('personel_id', $personelIds)
+        $q = \App\RandevuHizmetler::with(['randevu.users', 'hizmetler'])
             ->whereNotIn('id', $eslesenIds ?: [0])
             ->whereHas('randevu', function($q) use ($bag, $tarihBas){
                 $q->where('salon_id', $bag->salon_id)
@@ -303,8 +310,12 @@ class GoogleCalendarService
                   ->where('durum', '!=', 2); // iptal degil
             })
             ->orderBy('id', 'desc')
-            ->limit($limit)
-            ->get();
+            ->limit($limit);
+
+        if (!$hesapSahibi) {
+            $q->whereIn('personel_id', $personelIds);
+        }
+        $rhler = $q->get();
 
         $sync = 0; $hata = 0;
         foreach ($rhler as $rh) {

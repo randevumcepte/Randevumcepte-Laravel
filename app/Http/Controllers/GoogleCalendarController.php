@@ -130,11 +130,7 @@ class GoogleCalendarController extends Controller
         $bfOzet = '';
         try {
             $bf = $this->gc->backfillPersonel($bag, 7, 100); // son 7 gun + ileri, 100 kayit limit
-            if (!empty($bf['personel_yok'])) {
-                $bfOzet = '&bf_pers=0';
-            } else {
-                $bfOzet = '&bf_sync=' . (int)$bf['sync'] . '&bf_hata=' . (int)$bf['hata'];
-            }
+            $bfOzet = '&bf_sync=' . (int)$bf['sync'] . '&bf_hata=' . (int)$bf['hata'];
         } catch (\Exception $e) {
             \Log::warning('[GoogleCalendar] callback backfill hata', ['hata' => $e->getMessage()]);
             $bfOzet = '&bf_err=1';
