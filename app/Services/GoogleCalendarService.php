@@ -227,14 +227,15 @@ class GoogleCalendarService
     public function syncRandevuHizmet(\App\RandevuHizmetler $rh)
     {
         $r = $rh->randevu;
-        if (!$r) return;
+        if (!$r) return false;
 
         $baglantilar = GoogleCalendarBaglanti::where('salon_id', $r->salon_id)
             ->where('aktif', 1)->get();
-        if ($baglantilar->isEmpty()) return;
+        if ($baglantilar->isEmpty()) return false;
 
         $event = $this->buildEventFromRandevuHizmet($rh);
-        if (!$event) return;
+        if (!$event) return false;
+        $basarili = false;
 
         foreach ($baglantilar as $bag) {
             // Bu baglantiyi yapan yetkilinin salondaki personel kaydini bul
@@ -254,6 +255,7 @@ class GoogleCalendarService
                     $this->updateEvent($bag, $esleme->google_event_id, $event);
                     $esleme->son_sync_zamani = Carbon::now();
                     $esleme->save();
+                    $basarili = true;
                 } else {
                     $created = $this->insertEvent($bag, $event);
                     if (!empty($created['id'])) {
@@ -263,6 +265,7 @@ class GoogleCalendarService
                             'google_event_id'   => $created['id'],
                             'son_sync_zamani'   => Carbon::now(),
                         ]);
+                        $basarili = true;
                     }
                 }
             } catch (\Exception $e) {
@@ -271,6 +274,7 @@ class GoogleCalendarService
                 ]);
             }
         }
+        return $basarili;
     }
 
     /**
@@ -320,9 +324,9 @@ class GoogleCalendarService
         $sync = 0; $hata = 0;
         foreach ($rhler as $rh) {
             try {
-                // syncRandevuHizmet esleme kontrolunu kendisi yapar; cift yazim riski yok
-                $this->syncRandevuHizmet($rh);
-                $sync++;
+                // syncRandevuHizmet gercekten yazdiysa true doner; aksi halde false
+                $ok = $this->syncRandevuHizmet($rh);
+                if ($ok) { $sync++; } else { $hata++; }
             } catch (\Exception $e) {
                 $hata++;
                 \Log::warning('[GoogleCalendar/backfill] hata', [
