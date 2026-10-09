@@ -2,6 +2,24 @@
 @section('content')
 <div class="row clearfix">
    <div class="col-lg-12 col-md-12 col-sm-12 mb-30">
+      {{-- GLOBAL banner: Google OAuth sonuclarini her tab'ta goster ve otomatik Entegrasyonlar tab'ina gec --}}
+      @if(request('google_ok'))
+         <div class="alert alert-success" style="margin-bottom:15px;">
+            <i class="fa fa-check-circle"></i>
+            <strong>Google Takvim bağlantısı başarılı.</strong>
+            @if(request('bf_sync') !== null)
+               Mevcut randevulardan <strong>{{ (int)request('bf_sync') }}</strong> tanesi Google Takviminize aktarıldı.
+               @if((int)request('bf_hata') > 0) ({{ (int)request('bf_hata') }} tanesinde hata oluştu.)@endif
+            @endif
+         </div>
+         <script>$(function(){ $('a[href="#entegrasyonlar"]').tab('show'); });</script>
+      @elseif(request('google_err'))
+         <div class="alert alert-warning" style="margin-bottom:15px;">
+            <i class="fa fa-exclamation-triangle"></i>
+            <strong>Google Takvim bağlantısı başarısız:</strong> {{ request('google_err') }}
+         </div>
+         <script>$(function(){ $('a[href="#entegrasyonlar"]').tab('show'); });</script>
+      @endif
       <div class="pd-20 card-box">
          <div class="tab">
             <div class="row clearfix">
@@ -1504,7 +1522,9 @@
                          .always(function(){ $btn.prop('disabled', false).html(orig); });
                      });
                      function yukle(){
-                        $.get('/isletmeyonetim/google/oauth/durum', {sube: sube}).done(render).fail(function(){ render({bagli:false}); });
+                        $.get('/isletmeyonetim/google/oauth/durum', {sube: sube})
+                         .done(function(d){ console.log('[GC durum]', d); render(d); })
+                         .fail(function(x){ console.warn('[GC durum fail]', x.status, x.responseText); render({bagli:false}); });
                      }
                      $('#gc-coz-btn').on('click', function(){
                         if(!confirm('Google bağlantısı kaldırılacak. Devam?')) return;
