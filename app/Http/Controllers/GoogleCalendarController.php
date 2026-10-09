@@ -22,6 +22,28 @@ class GoogleCalendarController extends Controller
         $this->gc = $gc;
     }
 
+    /** State'i HMAC ile imzala — session'a baglimlilik yok (OAuth sirasinda session rotate olabilir). */
+    protected function imzaliState($payload)
+    {
+        $json = json_encode($payload);
+        $sig  = hash_hmac('sha256', $json, config('app.key'));
+        return rtrim(strtr(base64_encode($json . '|' . $sig), '+/', '-_'), '=');
+    }
+
+    protected function stateCoz($state)
+    {
+        $raw = base64_decode(strtr($state, '-_', '+/'));
+        if (!$raw || strpos($raw, '|') === false) return null;
+        $parts = explode('|', $raw, 2);
+        if (count($parts) !== 2) return null;
+        list($json, $sig) = $parts;
+        $hesap = hash_hmac('sha256', $json, config('app.key'));
+        if (!hash_equals($hesap, $sig)) return null;
+        $data = json_decode($json, true);
+        if (!is_array($data)) return null;
+        return $data;
+    }
+
     /** 1) Baglat: Google OAuth consent sayfasina redirect. */
     public function baglat(Request $request)
     {
@@ -30,45 +52,48 @@ class GoogleCalendarController extends Controller
         $salonId = (int) $request->sube;
         if (!$salonId) return redirect()->back()->with('hata', 'Sube ID gerekli');
 
-        // state: CSRF korumasi + callback'te kullaniciyi tanimak icin yetkili_id+salon_id+random nonce
-        $nonce = bin2hex(random_bytes(8));
-        $state = base64_encode(json_encode([
-            'y' => $u->id, 's' => $salonId, 'n' => $nonce, 't' => time(),
-        ]));
-        session(['google_oauth_state' => $nonce, 'google_oauth_state_expires' => time() + 600]);
-
+        // Session'a yazmiyoruz — HMAC imzali state kendi kendini dogrular (session rotate'ten etkilenmez)
+        $state = $this->imzaliState([
+            'y' => $u->id, 's' => $salonId,
+            'n' => bin2hex(random_bytes(8)),
+            't' => time(),
+        ]);
         return redirect($this->gc->authUrl($state));
+    }
+
+    protected function hataGeri($salonId, $err)
+    {
+        $sube = $salonId ? '&sube=' . (int)$salonId : '';
+        return redirect('/isletmeyonetim/ayarlar?sekme=entegrasyonlar' . $sube . '&google_err=' . urlencode($err));
     }
 
     /** 2) Callback: Google'dan donen `code`'u token'a cevir, baglantiyi DB'ye yaz. */
     public function callback(Request $request)
     {
         $u = Auth::guard('isletmeyonetim')->user();
-        if (!$u) return redirect('/');
+        $state = $request->state;
+        $sd = $state ? $this->stateCoz($state) : null;
+        $salonId = (is_array($sd) && !empty($sd['s'])) ? (int)$sd['s'] : null;
+
+        if (!$u) return redirect('/'); // login yoksa degil, akis anlamsiz
 
         if ($request->has('error')) {
-            return redirect('/isletmeyonetim/ayarlar?sekme=entegrasyonlar&google_err=' . urlencode($request->error));
+            return $this->hataGeri($salonId, $request->error);
         }
-        $code  = $request->code;
-        $state = $request->state;
+        $code = $request->code;
         if (!$code || !$state) {
-            return redirect('/isletmeyonetim/ayarlar?sekme=entegrasyonlar&google_err=eksik_param');
+            return $this->hataGeri($salonId, 'eksik_param');
         }
-        $sd = @json_decode(base64_decode($state), true);
         if (!is_array($sd) || empty($sd['y']) || empty($sd['s']) || empty($sd['n'])) {
-            return redirect('/isletmeyonetim/ayarlar?sekme=entegrasyonlar&google_err=bozuk_state');
+            return $this->hataGeri($salonId, 'bozuk_state');
         }
-        // State CSRF: session'daki nonce ile eslesmeli, 10dk icinde kullanilmali
-        $sessionNonce = session('google_oauth_state');
-        $sessionExp   = session('google_oauth_state_expires', 0);
-        if ($sessionNonce !== $sd['n'] || time() > $sessionExp) {
-            return redirect('/isletmeyonetim/ayarlar?sekme=entegrasyonlar&google_err=state_uyusmazlik');
+        // State HMAC imzali — session gerekmez. Sadece zaman asimi kontrolu (10dk).
+        if (!isset($sd['t']) || (time() - (int)$sd['t']) > 600) {
+            return $this->hataGeri($salonId, 'state_sureli_doldu');
         }
-        session()->forget(['google_oauth_state', 'google_oauth_state_expires']);
-
         // Login olan kullanici state'teki yetkili ile eslesmeli (baska biri baglamasin)
         if ((int) $sd['y'] !== (int) $u->id) {
-            return redirect('/isletmeyonetim/ayarlar?sekme=entegrasyonlar&google_err=yetkisiz');
+            return $this->hataGeri($salonId, 'yetkisiz');
         }
 
         try {
@@ -76,7 +101,7 @@ class GoogleCalendarController extends Controller
             $email = $this->gc->fetchUserEmail($t['access_token']);
         } catch (\Exception $e) {
             \Log::error('[GoogleCalendar] exchange hata', ['hata' => $e->getMessage()]);
-            return redirect('/isletmeyonetim/ayarlar?sekme=entegrasyonlar&google_err=token_hata');
+            return $this->hataGeri($salonId, 'token_hata');
         }
 
         $expiresAt = Carbon::now()->addSeconds(((int)($t['expires_in'] ?? 3600)) - 60);
