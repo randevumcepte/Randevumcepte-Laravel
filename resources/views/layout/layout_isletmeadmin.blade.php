@@ -243,6 +243,10 @@
          .dropdown-menu.webphone{ z-index:100050 !important; }
          .header:has(.dropdown-menu.webphone.show){ z-index:100050 !important; position:relative; }
 
+         /* SweetAlert2 uyarilari HER ZAMAN en ustte (stacked modal z-index'leri yuzunden
+            kara liste vb. uyarilar modal arkasinda kaliyordu). */
+         .swal2-container{ z-index:2000000 !important; }
+
          /* --- Uzerine gelince genislet --- */
          .left-side-bar:hover{
             width:250px;
