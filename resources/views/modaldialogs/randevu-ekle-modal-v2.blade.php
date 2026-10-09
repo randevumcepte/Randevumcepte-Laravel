@@ -2634,6 +2634,14 @@
             if(typeof swal !== 'undefined'){
                 swal({type: fail ? 'warning' : 'success', title: fail ? 'Kısmi başarı' : 'Başarılı', text: summary, timer:3500, showConfirmButton:false});
             }
+            // Cagri Merkezi: 'Yeni Randevu' baglamindan acildiysa ve randevu olustuysa -> aramayi
+            // 'Randevu Olusturuldu'(durum=8) isaretle + ilgili ekranlari tazele.
+            if(ok > 0 && window.__cagriRandevuCtx && window.__cagriRandevuCtx.amId){
+                var _amId = window.__cagriRandevuCtx.amId; window.__cagriRandevuCtx = null;
+                $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
+                    { aranacak_musteri_id:_amId, sube:$('input[name="sube"]').val(), _token:$('input[name="_token"]').val() },
+                    function(r){ if(r && r.success){ $(document).trigger('cagri:isaretlendi'); } });
+            }
             return;
         }
         var group = groups[idx];

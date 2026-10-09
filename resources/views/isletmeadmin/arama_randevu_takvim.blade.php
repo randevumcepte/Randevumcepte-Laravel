@@ -102,6 +102,7 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
          <span class="lg flt" data-renk="#f59e0b"><span class="dot" style="background:#f59e0b;"></span> Geç arandı <span class="cnt" id="cnt_gec">0</span></span>
          <span class="lg flt" data-renk="#7c3aed"><span class="dot" style="background:#7c3aed;"></span> Ön Görüşme <span class="cnt" id="cnt_ongorusme">0</span></span>
          <span class="lg flt" data-renk="#b8860b"><span class="dot" style="background:#b8860b;"></span> Satış <span class="cnt" id="cnt_satis">0</span></span>
+         <span class="lg flt" data-renk="#0ea5e9"><span class="dot" style="background:#0ea5e9;"></span> Randevu Oluşturuldu <span class="cnt" id="cnt_randevu">0</span></span>
       </div>
 
       <div id="art_board"></div>
@@ -298,7 +299,7 @@ $(document).ready(function(){
 
    // Durum (renk) bazli musteri sayilarini legend'e yaz
    function sayilariGuncelle(){
-      var c = {'#2563eb':0,'#dc2626':0,'#16a34a':0,'#f59e0b':0,'#7c3aed':0,'#b8860b':0};
+      var c = {'#2563eb':0,'#dc2626':0,'#16a34a':0,'#f59e0b':0,'#7c3aed':0,'#b8860b':0,'#0ea5e9':0};
       artOlaylar.forEach(function(e){ if(c[e.color]!==undefined) c[e.color]++; });
       $('#cnt_all').text(artOlaylar.length);
       $('#cnt_aranacak').text(c['#2563eb']);
@@ -307,7 +308,10 @@ $(document).ready(function(){
       $('#cnt_gec').text(c['#f59e0b']);
       $('#cnt_ongorusme').text(c['#7c3aed']);
       $('#cnt_satis').text(c['#b8860b']);
+      $('#cnt_randevu').text(c['#0ea5e9']);
    }
+   // Randevu olusturulunca (cagri baglamindan) takvimi tazele
+   $(document).on('cagri:isaretlendi', function(){ yukle(); });
 
    // Aktif filtreye gore board'u ciz
    function ciz(){

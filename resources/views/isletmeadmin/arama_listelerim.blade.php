@@ -356,6 +356,7 @@ function durStil(kod){
       case 3: return { c:'mavi',    et:'Tekrar Aranacak' };
       case 6: return { c:'mavi',    et:'Ön Görüşme' };
       case 7: return { c:'yesil',   et:'Satış' };
+      case 8: return { c:'mavi',    et:'Randevu Oluşturuldu' };
       default:return { c:'gri',     et:'Bekliyor' };
    }
 }
@@ -929,6 +930,10 @@ var agAramaGonderiliyor = false; // ayni anda cift gonderimi engeller
 $(document).on('click', '#ag_yeni_randevu', function(){
    var id = $(this).data('id') || (agSecili && agSecili.aranacak_musteri_id);
    if (id && typeof window.cagriYeniRandevuAc === 'function') window.cagriYeniRandevuAc(id);
+});
+// Randevu olusturulunca aramayi 'Randevu Olusturuldu'(8) olarak tazele
+$(document).on('cagri:isaretlendi', function(){
+   if (agSecili){ agDurumGuncelle(agSecili.aranacak_musteri_id, 8); agGecmisYukle(agSecili.aranacak_musteri_id); }
 });
 
 $(document).on('click', '#ag_ara_btn', function(){

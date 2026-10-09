@@ -33061,6 +33061,9 @@ DB::raw('
             } elseif ($d === 7) {
                 $renk = '#b8860b';                               // altın=satış
                 $durumMetin = 'Satış';
+            } elseif ($d === 8) {
+                $renk = '#0ea5e9';                               // açık mavi=randevu oluşturuldu
+                $durumMetin = 'Randevu Oluşturuldu';
             } elseif ($tamamlandi) {
                 $gec = strtotime($k->ar_tamamlandi_at) > $apptTs;
                 $renk = $gec ? '#f59e0b' : '#16a34a';            // turuncu=geç arandı, yeşil=zamanında
@@ -34597,6 +34600,30 @@ DB::raw('
         ]);
     }
 
+    /** Cagri Merkezi -> 'Yeni Randevu' ile randevu olusturulunca aramayi 'Randevu Olusturuldu'
+     *  (durum=8) isaretler. ar_tamamlandi_at=now (takvimde gorunur + tamamlandi kabul edilir). */
+    public function cagri_randevu_olusturuldu_isaretle(Request $request)
+    {
+        $kayit = AranacakMusteriler::where('id', $request->aranacak_musteri_id)->first();
+        if (!$kayit) {
+            return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı'], 404);
+        }
+        $liste = AramaListesi::where('id', $kayit->arama_id)->first();
+        if (!$this->cagriListeYetkiliMi($liste)) {
+            return response()->json(['success' => false, 'message' => 'Yetkiniz yok'], 403);
+        }
+        $kayit->durum = 8; // Randevu Olusturuldu
+        if (Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at')) {
+            $kayit->ar_tamamlandi_at = date('Y-m-d H:i:s');
+            $kayit->ar_gecikti = 0;
+        }
+        if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
+            $kayit->son_arama_zamani = date('Y-m-d H:i:s');
+        }
+        $kayit->save();
+        return response()->json(['success' => true]);
+    }
+
     /** Arama randevusu MANUEL ekleme icin musteri arama (select2 kaynagi). Salon portfoyunden ad/tel. */
     public function cagri_musteri_select(Request $request)
     {
@@ -34717,6 +34744,7 @@ DB::raw('
         $tanim = [
             ['kod' => '6', 'ad' => 'Ön Görüşme Randevusu'],
             ['kod' => '7', 'ad' => 'Telefonda Satış'],
+            ['kod' => '8', 'ad' => 'Randevu Oluşturuldu'],
             ['kod' => '4', 'ad' => 'Görüşüldü'],
             ['kod' => '2', 'ad' => 'Cevapsız'],
             ['kod' => '5', 'ad' => 'Meşgul'],

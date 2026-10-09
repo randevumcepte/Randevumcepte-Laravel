@@ -21562,11 +21562,13 @@ $('#web_telefon_burada_kullan').click(function(){
 
 // Cagri Merkezi -> normal "Yeni Randevu" (v2) modalini ACILAN musteriyle prefill'li ac.
 // Satis/on gorusme degil; normal RANDEVU kategorisinde kaydedilir (ayni form).
-window.cagriYeniRandevu = function(userId, adText){
+window.cagriYeniRandevu = function(userId, adText, aranacakMusteriId){
     if(!userId) return;
     adText = adText || ('#'+userId);
     var $m = $('#modal-view-event-add-v2');
     if(!$m.length){ if(typeof swal==='function') swal({type:'warning',title:'Randevu formu bulunamadı'}); return; }
+    // Cagri baglami: randevu OLUSTURULUNCA aramayi 'Randevu Olusturuldu'(durum=8) isaretle
+    window.__cagriRandevuCtx = aranacakMusteriId ? { amId: aranacakMusteriId } : null;
     // Modal ACILDIKTAN sonra musteriyi set et (select2 modal shown'da init oluyor).
     $m.one('shown.bs.modal', function(){
         try {
@@ -21587,13 +21589,15 @@ window.cagriYeniRandevu = function(userId, adText){
     });
     $m.modal('show');
 };
+// Yeni Randevu modali KAYITSIZ kapanirsa cagri baglamini temizle (yanlis durum=8 isaretlenmesin)
+$(document).on('hidden.bs.modal', '#modal-view-event-add-v2', function(){ window.__cagriRandevuCtx = null; });
 // aranacak_musteri_id -> user_id coz + yeni randevu modalini ac (cagri merkezi butonlari kullanir)
 window.cagriYeniRandevuAc = function(aranacakMusteriId){
     if(!aranacakMusteriId) return;
     $.post('/isletmeyonetim/cagri-musteri-ongorusme-bilgi',
         { aranacak_musteri_id: aranacakMusteriId, _token: $('input[name="_token"]').val() },
         function(res){
-            if(res && res.success && res.user_id){ window.cagriYeniRandevu(res.user_id, res.ad || ''); }
+            if(res && res.success && res.user_id){ window.cagriYeniRandevu(res.user_id, res.ad || '', aranacakMusteriId); }
             else if(typeof swal==='function'){ swal({type:'warning',title:'Açılamadı',text:(res&&res.message)||'Müşteri bilgisi alınamadı.'}); }
         }
     ).fail(function(){ if(typeof swal==='function') swal({type:'error',title:'Hata',text:'Randevu ekranı açılamadı.'}); });
