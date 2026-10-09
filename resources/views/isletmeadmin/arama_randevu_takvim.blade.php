@@ -239,7 +239,7 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
                </div>
                <div class="col-5">
                   <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Saat</label>
-                  <input type="time" id="are_saat" class="form-control">
+                  <select id="are_saat" class="form-control"></select>
                </div>
             </div>
 
@@ -718,9 +718,23 @@ $(document).ready(function(){
    }
    arePersonelleriYukle();
 
+   // Saat slotlari (15 dk, 08:00-22:00) — randevu formundaki gibi secimli
+   function areSaatSlotlari(){
+      var o = '<option value="">Saat seçin...</option>';
+      for (var h=8; h<=22; h++){
+         for (var m=0; m<60; m+=15){
+            if (h===22 && m>0) break;
+            var hh=('0'+h).slice(-2), mm=('0'+m).slice(-2);
+            o += '<option value="'+hh+':'+mm+'">'+hh+':'+mm+'</option>';
+         }
+      }
+      $('#are_saat').html(o);
+   }
+
    $('#art_randevu_ekle').on('click', function(){
       // reset
-      $('#are_not').val(''); $('#are_saat').val('');
+      $('#are_not').val('');
+      areSaatSlotlari();
       $('#are_tarih').val($('#art_tarih').val() || '{{ date('Y-m-d') }}');
       if (!arePersonelYuklendi) arePersonelleriYukle();
       $('#are_personel').val('');
@@ -744,12 +758,14 @@ $(document).ready(function(){
          });
          if ($('#are_personel').hasClass('select2-hidden-accessible')){ try{$('#are_personel').select2('destroy');}catch(e){} }
          $('#are_personel').select2({ width:'100%', dropdownParent: mp, placeholder:'Personel seçin...' });
+         if ($('#are_saat').hasClass('select2-hidden-accessible')){ try{$('#are_saat').select2('destroy');}catch(e){} }
+         $('#are_saat').select2({ width:'100%', dropdownParent: mp, placeholder:'Saat seçin...' });
       }
       // tarih datepicker (ileri+geri serbest; arama randevusu gecmise de planlanabilir degil ama esnek)
       try { if ($.fn.datepicker){ $('#are_tarih').datepicker({ language:'tr', autoClose:true, dateFormat:'yyyy-mm-dd' }); } } catch(e){}
    });
    $(document).on('hidden.bs.modal', '#art_ekle_modal', function(){
-      if ($.fn.select2){ ['#are_musteri','#are_personel'].forEach(function(s){ if($(s).hasClass('select2-hidden-accessible')){ try{$(s).select2('destroy');}catch(e){} } }); }
+      if ($.fn.select2){ ['#are_musteri','#are_personel','#are_saat'].forEach(function(s){ if($(s).hasClass('select2-hidden-accessible')){ try{$(s).select2('destroy');}catch(e){} } }); }
    });
 
    $(document).on('click', '#are_kaydet', function(){
