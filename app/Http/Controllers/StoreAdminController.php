@@ -33030,6 +33030,9 @@ DB::raw('
         }
         $arVar = Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at');
 
+        // KVKK: numarayi SADECE yonetici/sahip gorur; personel (rol 5) icin gizli.
+        $telGoster = ((int) self::kullaniciRolu($salonId, $this->cmAuthId()) !== 5);
+
         $bas = $request->filled('start') ? date('Y-m-d', strtotime($request->start)) : date('Y-m-d', strtotime('-31 days'));
         $bit = $request->filled('end') ? date('Y-m-d', strtotime($request->end)) : date('Y-m-d', strtotime('+62 days'));
 
@@ -33048,7 +33051,7 @@ DB::raw('
         } else {
             $q->whereIn('am.durum', [3, 6, 7]);
         }
-        $secim = ['am.id', 'am.arama_id', 'am.tarih', 'am.saat', 'am.durum', 'am.musteri_not', 'am.user_id', 'u.name as musteri_ad', 'p.personel_adi', 'al.personel_id'];
+        $secim = ['am.id', 'am.arama_id', 'am.tarih', 'am.saat', 'am.durum', 'am.musteri_not', 'am.user_id', 'u.name as musteri_ad', 'u.cep_telefon', 'p.personel_adi', 'al.personel_id'];
         if ($arVar) { $secim[] = 'am.ar_tamamlandi_at'; $secim[] = 'am.ar_gecikti'; }
         $kayitlar = $q->select($secim)->limit(2000)->get();
 
@@ -33094,6 +33097,7 @@ DB::raw('
                 'musteri'         => $musteri,
                 'user_id'         => (int) $k->user_id, // musteri detay butonu icin
                 'not'             => (string) ($k->musteri_not ?? ''), // randevu/musteri notu (aktarilan dahil)
+                'telefon'         => ($telGoster && !empty($k->cep_telefon)) ? (string) $k->cep_telefon : '', // KVKK: yonetici/sahip gorur
                 'durum_metin'     => $durumMetin,
             ];
         }

@@ -366,6 +366,7 @@ $(document).ready(function(){
                      'data-personel="'+esc(e.personel)+'" '+
                      'data-zaman="'+esc(saat)+'" '+
                      'data-not="'+esc(e.not||'')+'" '+
+                     'data-tel="'+esc(e.telefon||'')+'" '+
                      'data-durum="'+esc(e.durum_metin)+'">'+
                      '<div class="saat"><i class="fa fa-clock-o" style="color:'+esc(e.color)+'"></i> '+esc(saat)+'</div>'+
                      '<div class="mus">'+esc(e.musteri)+'</div>'+
@@ -459,7 +460,7 @@ $(document).ready(function(){
       artmSonuc  = null;
       artmMusteriAd = $(this).data('musteri') || 'Müşteri';
       $('#artm_ad').text(artmMusteriAd);
-      $('#artm_tel').text('gizli');
+      $('#artm_tel').text($(this).data('tel') || 'gizli');
       $('#artm_zaman').text($(this).data('zaman') || '-');
       $('#artm_personel').text($(this).data('personel') || '-');
       // Musteri Detayi butonu (randevu detayindaki gibi) — yeni sekmede musteridetay sayfasi
