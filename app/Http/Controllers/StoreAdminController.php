@@ -16910,7 +16910,11 @@ DB::raw('
             Log::info('işlem yapan hesap sahibi değil');
             $smsAyari = SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',23)->where('personel',1)->first();
             
-            if($smsAyari && ($tahsilat->dogrulama_kodu == null || $request->dogrulama_kodu == ''))
+            // GUVENLIK FIX: eski kosul "($tahsilat->dogrulama_kodu == null || $request->dogrulama_kodu == '')"
+            // idi. Personel BOS-OLMAYAN herhangi bir kod (yanlis bile olsa) girince disardaki kosul
+            // FALSE olup tum dogrulama blogu ATLANIYOR, silme kodsuz geciyordu (yanlis kod kabul).
+            // Artik ayar aciksa HER ZAMAN kontrol edilir: kod yoksa uretilir, bos/yanlissa reddedilir.
+            if($smsAyari)
             {
                 Log::info('Hesap sahibine kod gitme ayarı açık');
                 if($tahsilat->dogrulama_kodu == null)
@@ -16922,25 +16926,24 @@ DB::raw('
                     $tahsilat->save();
                     $mesaj = $islemYapan->personel_adi.' '.date('d.m.Y',strtotime($tahsilat->odeme_tarihi)).' tarihli '.number_format($tahsilat->tutar, 2, ',', '.').' ₺ tutarındaki tahsilatı silmek için onayınızı istiyor. Onay Kodu : '.$kod;
 
-                     
+
                     $mesajlar = array(
                         array("to"=>$hesapSahibiYetkili->gsm1,"message"=>$mesaj),
                     );
                     self::sms_gonder_bildirimli($request,$mesajlar,false,1,true);
                     return array(
                         'dogrulamaGerekli'=>true,
-                    
+
                     );
                 }
-                else
+                else if($request->dogrulama_kodu == '' || $tahsilat->dogrulama_kodu != $request->dogrulama_kodu)
                 {
-                    if($tahsilat->dogrulama_kodu != $request->dogrulama_kodu)
-                         return array(
-                            'dogrulamaGerekli'=>true,
-                        
-                        );
+                    return array(
+                        'dogrulamaGerekli'=>true,
+
+                    );
                 }
-            }  
+            }
         }
         $adisyon_id = $request->adisyon_id;
         // Audit (silmeden once)
