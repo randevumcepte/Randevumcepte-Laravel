@@ -162,11 +162,39 @@
                 <button class="btn btn-primary mr-2 randevu-count-button">
                     Toplam Randevu: {{ $randevular['randevu_sayisi'] }}
                 </button>
+                {{-- Google Calendar durum/baglanti kisayolu --}}
+                <a href="/isletmeyonetim/ayarlar?sube={{$isletme->id}}&sekme=entegrasyonlar"
+                   id="gc-header-btn"
+                   class="btn btn-outline-secondary mr-2"
+                   title="Google Takvim entegrasyonu"
+                   style="display:none;">
+                    <img src="https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png"
+                         style="width:16px;height:16px;vertical-align:middle;margin-right:6px;">
+                    <span id="gc-header-label">Google Takvim</span>
+                </a>
                 @yetki('randevu.olustur')
                 <a href="#" data-toggle="modal" data-target="#modal-view-event-add-v2" class="btn btn-lg" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;">
                     <i class="fa fa-plus"></i> Yeni Randevu
                 </a>
                 @endyetki
+                <script>
+                    (function(){
+                        // Takvim header'inda Google baglanti durumunu goster
+                        $.get('/isletmeyonetim/google/oauth/durum', {sube: {{$isletme->id}}})
+                         .done(function(d){
+                            var $b = $('#gc-header-btn'), $l = $('#gc-header-label');
+                            $b.show();
+                            if(d && d.bagli){
+                                $l.html('Google Takvim <span class="badge badge-success" style="margin-left:4px;">Bağlı</span>');
+                                $b.attr('title', 'Bağlı hesap: ' + (d.email || ''));
+                            } else {
+                                $l.html('Google Takvim\'e Bağlan');
+                                $b.removeClass('btn-outline-secondary').addClass('btn-outline-primary');
+                            }
+                         })
+                         .fail(function(){ /* sessiz */ });
+                    })();
+                </script>
             </div>
         </div>
     </div>
