@@ -419,7 +419,10 @@ $(document).ready(function(){
          var am = window.__cagriRandevuPending.amId; window.__cagriRandevuPending = null;
          $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
             { aranacak_musteri_id:am, sube:sube, _token:token },
-            function(r){ if(typeof window.cagriIslemTamam==='function') window.cagriIslemTamam(); });
+            function(r){
+               if (typeof swal==='function') swal({ type:'success', title:'Başarılı', text:'Randevu başarıyla oluşturuldu', timer:3000, showConfirmButton:false });
+               if (typeof window.cagriIslemTamam==='function') window.cagriIslemTamam();
+            });
       }
    });
    // v2 modali KAYITSIZ kapanirsa pending temizle (siniflandirma degismesin)

@@ -731,7 +731,10 @@ $(document).on('cagri:v2-saved', function(){
       var pr = window.__cagriRandevuPending; window.__cagriRandevuPending = null;
       $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
          { aranacak_musteri_id:pr.amId, sube:$('input[name="sube"]').val(), _token:$('input[name="_token"]').val() },
-         function(r){ if(r && r.success){ agDurumGuncelle(pr.amId, 8); agGecmisYukle(pr.amId); } });
+         function(r){
+            if(r && r.success){ agDurumGuncelle(pr.amId, 8); agGecmisYukle(pr.amId); }
+            if(typeof swal==='function') swal({ type:'success', title:'Başarılı', text:'Randevu başarıyla oluşturuldu', timer:3000, showConfirmButton:false });
+         });
    }
 });
 
