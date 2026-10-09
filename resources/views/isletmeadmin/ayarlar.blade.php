@@ -132,7 +132,7 @@
                      @endyetki
                      <li class="nav-item">
                         <a
-                           class="nav-link {{(isset($_GET['sekme']) && $_GET['sekme']=='entegrasyonlar') ? 'active' : ''}}"
+                           class="nav-link {{(isset($_GET['p']) && $_GET['p']=='entegrasyonlar') ? 'active' : ''}}"
                            data-toggle="tab"
                            href="#entegrasyonlar"
                            role="tab"
@@ -1414,7 +1414,7 @@
             </div>
 
             {{-- ===================== ENTEGRASYONLAR ===================== --}}
-            <div class="tab-pane fade {{(isset($_GET['sekme']) && $_GET['sekme']=='entegrasyonlar') ? 'active show' : ''}}"
+            <div class="tab-pane fade {{(isset($_GET['p']) && $_GET['p']=='entegrasyonlar') ? 'active show' : ''}}"
                  id="entegrasyonlar" role="tabpanel">
                <div class="pd-20">
                   <h3 class="text-blue" style="margin-bottom:16px;">Entegrasyonlar</h3>
@@ -1512,8 +1512,8 @@
                            .done(function(){ yukle(); });
                      });
                      $(document).on('shown.bs.tab', 'a[href="#entegrasyonlar"]', yukle);
-                     // Direkt sekme=entegrasyonlar ile acildiginda da yukle
-                     if(location.search.indexOf('sekme=entegrasyonlar') !== -1){ setTimeout(yukle, 50); }
+                     // Direkt p=entegrasyonlar ile acildiginda da yukle
+                     if(location.search.indexOf('p=entegrasyonlar') !== -1){ setTimeout(yukle, 50); }
                   })();
                </script>
             </div>

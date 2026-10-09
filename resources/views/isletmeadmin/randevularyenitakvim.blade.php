@@ -163,7 +163,7 @@
                     Toplam Randevu: {{ $randevular['randevu_sayisi'] }}
                 </button>
                 {{-- Google Calendar durum/baglanti kisayolu --}}
-                <a href="/isletmeyonetim/ayarlar?sube={{$isletme->id}}&sekme=entegrasyonlar"
+                <a href="/isletmeyonetim/ayarlar?p=entegrasyonlar&sube={{$isletme->id}}"
                    id="gc-header-btn"
                    class="btn btn-outline-secondary mr-2"
                    title="Google Takvim entegrasyonu"

@@ -64,7 +64,8 @@ class GoogleCalendarController extends Controller
     protected function hataGeri($salonId, $err)
     {
         $sube = $salonId ? '&sube=' . (int)$salonId : '';
-        return redirect('/isletmeyonetim/ayarlar?sekme=entegrasyonlar' . $sube . '&google_err=' . urlencode($err));
+        // p=entegrasyonlar: ayarlar.blade.php $_GET['p'] bekliyor (undefined index olmasin)
+        return redirect('/isletmeyonetim/ayarlar?p=entegrasyonlar' . $sube . '&google_err=' . urlencode($err));
     }
 
     /** 2) Callback: Google'dan donen `code`'u token'a cevir, baglantiyi DB'ye yaz. */
@@ -139,7 +140,7 @@ class GoogleCalendarController extends Controller
             $bfOzet = '&bf_err=1';
         }
 
-        return redirect('/isletmeyonetim/ayarlar?sube=' . $sd['s'] . '&sekme=entegrasyonlar&google_ok=1' . $bfOzet);
+        return redirect('/isletmeyonetim/ayarlar?p=entegrasyonlar&sube=' . $sd['s'] . '&google_ok=1' . $bfOzet);
     }
 
     /** Manuel backfill: 'Mevcut randevularimi Google'a aktar' butonu. */
