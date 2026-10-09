@@ -21645,7 +21645,7 @@ $(document).on('click', '.rd-gecmis-btn', function(e){
     if(!uid) return;
     var esc = function(s){ return $('<div>').text(s==null?'':s).html(); };
     $('#rd-gecmis-ov').remove();
-    var ov = $('<div id="rd-gecmis-ov" style="position:fixed;inset:0;background:rgba(20,10,40,.55);z-index:1000000;display:flex;align-items:center;justify-content:center;padding:20px;">'
+    var ov = $('<div id="rd-gecmis-ov" style="position:fixed;inset:0;background:rgba(20,10,40,.55);z-index:2000001;display:flex;align-items:center;justify-content:center;padding:20px;">'
         + '<div style="background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:82vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 70px -20px rgba(40,10,70,.55);">'
         + '<div style="background:linear-gradient(120deg,#5C008E,#7B2FB8);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;">'
         + '<div style="font-weight:800;"><i class="fa fa-history"></i> Randevu Geçmişi — '+esc(ad)+'</div>'

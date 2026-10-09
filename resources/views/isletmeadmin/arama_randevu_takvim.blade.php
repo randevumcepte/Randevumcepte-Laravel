@@ -122,7 +122,7 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
                <small><i class="fa fa-phone"></i> <span id="artm_tel">gizli</span> &middot; <span id="artm_zaman">-</span> &middot; <i class="fa fa-user"></i> <span id="artm_personel">-</span></small>
             </div>
             <a id="artm_musteri_detay" href="#" target="_blank" title="Müşteri Detayı" style="display:none;align-items:center;gap:6px;background:rgba(255,255,255,.18);color:#fff;font-weight:700;border-radius:10px;padding:8px 13px;text-decoration:none;font-size:13px;margin-right:8px;"><i class="fa fa-user-circle-o"></i> Müşteri Detayı</a>
-            <button type="button" id="artm_yeni_randevu" title="Yeni Randevu" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#fff;font-weight:700;border:none;border-radius:10px;padding:8px 13px;cursor:pointer;font-size:13px;margin-right:8px;"><i class="fa fa-calendar-plus-o"></i> Yeni Randevu</button>
+            <button type="button" id="artm_gecmis_btn" class="rd-gecmis-btn" title="Randevu Geçmişi" data-userid="" data-ad="" style="display:none;align-items:center;gap:6px;background:rgba(255,255,255,.18);color:#fff;font-weight:700;border:none;border-radius:10px;padding:8px 13px;cursor:pointer;font-size:13px;margin-right:8px;"><i class="fa fa-history"></i></button>
             <button type="button" class="artm-ara-btn" id="artm_ara"><i class="fa fa-phone"></i> ARA</button>
             <button type="button" class="close" data-dismiss="modal" aria-label="Kapat"><span aria-hidden="true">&times;</span></button>
          </div>
@@ -139,6 +139,7 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
                <div class="artm-sonuc sec-mavi" data-sonuc="6"><i class="fa fa-calendar-check-o"></i>Ön Görüşme Randevusu</div>
                <div class="artm-sonuc sec-altin" data-sonuc="7"><i class="fa fa-shopping-bag"></i>Telefonda Satış</div>
             </div>
+            <button type="button" id="artm_yeni_randevu" style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;background:#eff6ff;border:1.5px solid #bfdbfe;color:#1d4ed8;font-weight:700;border-radius:12px;padding:12px;cursor:pointer;font-size:14px;"><i class="fa fa-calendar-plus-o"></i> Yeni Randevu Oluştur</button>
             <textarea class="artm-alan" id="artm_not" placeholder="Görüşme notu (müşteri ne dedi, talep, vb.)..."></textarea>
             <div id="artm_satis_alan" style="display:none;background:#fffaf0;border:1px solid #f0dcb0;border-radius:12px;padding:12px;margin-top:12px;">
                <div style="font-size:12.5px;font-weight:700;color:#b26a00;margin-bottom:6px;"><i class="fa fa-shopping-bag"></i> Telefonda Satış tutarı (₺)</div>
@@ -379,7 +380,7 @@ $(document).ready(function(){
 
    // ================= Arama Randevusu detay modali (ARA + sonuc kaydetme) =================
    var token = $('input[name="_token"]').val();
-   var artmAmId = null, artmAramaId = null, artmSonuc = null;
+   var artmAmId = null, artmAramaId = null, artmSonuc = null, artmUserId = null, artmMusteriAd = '';
 
    function artmDurStil(kod){
       switch(parseInt(kod,10)){
@@ -394,9 +395,11 @@ $(document).ready(function(){
       }
    }
 
-   // Yeni Randevu (normal randevu modali, aranan kisi prefill'li)
+   // Yeni Randevu (normal randevu modali, aranan kisi prefill'li).
+   // user_id zaten cockpit'te (data-user) oldugu icin DOGRUDAN ac -> ekstra POST yok (gecikme gider).
    $(document).on('click', '#artm_yeni_randevu', function(){
-      if (artmAmId && typeof window.cagriYeniRandevuAc === 'function') window.cagriYeniRandevuAc(artmAmId);
+      if (artmUserId && typeof window.cagriYeniRandevu === 'function') window.cagriYeniRandevu(artmUserId, artmMusteriAd, artmAmId);
+      else if (artmAmId && typeof window.cagriYeniRandevuAc === 'function') window.cagriYeniRandevuAc(artmAmId);
    });
 
    // Bir aramaya tiklayinca cockpit modali ac
@@ -404,14 +407,20 @@ $(document).ready(function(){
       artmAmId   = $(this).data('id');
       artmAramaId= $(this).data('arama');
       artmSonuc  = null;
-      $('#artm_ad').text($(this).data('musteri') || 'Müşteri');
+      artmMusteriAd = $(this).data('musteri') || 'Müşteri';
+      $('#artm_ad').text(artmMusteriAd);
       $('#artm_tel').text('gizli');
       $('#artm_zaman').text($(this).data('zaman') || '-');
       $('#artm_personel').text($(this).data('personel') || '-');
       // Musteri Detayi butonu (randevu detayindaki gibi) — yeni sekmede musteridetay sayfasi
       var _uid = $(this).attr('data-user');
-      if (_uid && _uid !== '0'){ $('#artm_musteri_detay').attr('href', '/isletmeyonetim/musteridetay/'+_uid+'?sube='+sube).css('display','inline-flex'); }
-      else { $('#artm_musteri_detay').hide(); }
+      artmUserId = (_uid && _uid !== '0') ? _uid : null;
+      if (artmUserId){
+         $('#artm_musteri_detay').attr('href', '/isletmeyonetim/musteridetay/'+artmUserId+'?sube='+sube).css('display','inline-flex');
+         // Randevu Gecmisi butonu (header) — randevu detayindaki rd-gecmis-btn akisi
+         $('#artm_gecmis_btn').attr('data-userid', artmUserId).attr('data-ad', artmMusteriAd).css('display','inline-flex');
+      }
+      else { $('#artm_musteri_detay').hide(); $('#artm_gecmis_btn').hide(); }
       // reset form — mevcut/aktarilan notu goster (duzenlenebilir; kaydedince guncellenir)
       $('.artm-sonuc').removeClass('aktif');
       $('#artm_not').val($(this).attr('data-not') || '');
