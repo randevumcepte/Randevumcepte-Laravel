@@ -264,6 +264,64 @@ class GoogleCalendarService
         }
     }
 
+    /**
+     * BACKFILL: Baglanti sonrasi (veya manuel tetik) bu personelin mevcut
+     * randevularini Google'a aktar. Idempotent — zaten eslesen varsa atlar.
+     *
+     * $kapsamGun: kac gun oncesinden baslayarak aktar (default 7 gun geriden).
+     *             null -> sadece bugun ve sonrasi.
+     * $limit: tek seferde en fazla kac RH islenir (Google rate-limit + browser timeout koruma).
+     */
+    public function backfillPersonel(GoogleCalendarBaglanti $bag, $kapsamGun = 7, $limit = 200)
+    {
+        $this->refreshIfNeeded($bag);
+
+        // Bu yetkiliye bagli SP (salon_personelleri) kayitlari (bir yetkili birden fazla
+        // kayitli olabilir ama ayni salon icinde genelde tek)
+        $personelIds = \DB::table('salon_personelleri')
+            ->where('yetkili_id', $bag->yetkili_id)
+            ->where('salon_id', $bag->salon_id)
+            ->pluck('id')->all();
+        if (empty($personelIds)) {
+            return ['sync' => 0, 'skip' => 0, 'hata' => 0, 'personel_yok' => true];
+        }
+
+        $tarihBas = $kapsamGun !== null
+            ? \Carbon\Carbon::now()->subDays((int)$kapsamGun)->format('Y-m-d')
+            : \Carbon\Carbon::now()->format('Y-m-d');
+
+        // Zaten eslesmis RH id'leri — tekrar sorgulamayalim
+        $eslesenIds = \App\GoogleCalendarEventEslemesi::where('baglanti_id', $bag->id)
+            ->pluck('randevu_hizmet_id')->all();
+
+        $rhler = \App\RandevuHizmetler::with(['randevu.users', 'hizmetler'])
+            ->whereIn('personel_id', $personelIds)
+            ->whereNotIn('id', $eslesenIds ?: [0])
+            ->whereHas('randevu', function($q) use ($bag, $tarihBas){
+                $q->where('salon_id', $bag->salon_id)
+                  ->where('tarih', '>=', $tarihBas)
+                  ->where('durum', '!=', 2); // iptal degil
+            })
+            ->orderBy('id', 'desc')
+            ->limit($limit)
+            ->get();
+
+        $sync = 0; $hata = 0;
+        foreach ($rhler as $rh) {
+            try {
+                // syncRandevuHizmet esleme kontrolunu kendisi yapar; cift yazim riski yok
+                $this->syncRandevuHizmet($rh);
+                $sync++;
+            } catch (\Exception $e) {
+                $hata++;
+                \Log::warning('[GoogleCalendar/backfill] hata', [
+                    'rh_id' => $rh->id, 'bag_id' => $bag->id, 'hata' => $e->getMessage(),
+                ]);
+            }
+        }
+        return ['sync' => $sync, 'skip' => count($eslesenIds), 'hata' => $hata, 'kalan_tahmini' => count($rhler) >= $limit ? '>'.$limit : 0];
+    }
+
     /** Randevu silinirken/iptal edilirken Google event'ini sil. */
     public function removeRandevuHizmet($rhId)
     {

@@ -1431,7 +1431,13 @@
                         </div>
 
                         @if(request('google_ok'))
-                           <div class="alert alert-success" style="margin-top:14px;">Google hesabınız başarıyla bağlandı.</div>
+                           <div class="alert alert-success" style="margin-top:14px;">
+                              Google hesabınız başarıyla bağlandı.
+                              @if(request('bf_sync') !== null)
+                                 <br><small>Mevcut randevulardan <strong>{{ (int)request('bf_sync') }}</strong> tanesi Google Takviminize aktarıldı.
+                                 @if((int)request('bf_hata') > 0) ({{ (int)request('bf_hata') }} tanesinde hata oluştu — tekrar deneyebilirsiniz.)@endif</small>
+                              @endif
+                           </div>
                         @elseif(request('google_err'))
                            <div class="alert alert-warning" style="margin-top:14px;">Bağlantı başarısız: {{ request('google_err') }}</div>
                         @endif
@@ -1439,9 +1445,17 @@
                         <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                            <a href="/isletmeyonetim/google/oauth/baglat?sube={{$isletme->id}}" id="gc-baglat-btn" class="btn btn-primary"><i class="fa fa-link"></i> Google Hesabımı Bağla</a>
                            <button type="button" id="gc-coz-btn" class="btn btn-outline-danger" style="display:none;"><i class="fa fa-unlink"></i> Bağlantıyı Kaldır</button>
+                           <button type="button" id="gc-aktar-btn" class="btn btn-success" style="display:none;" title="Son 90 gün + ileri tarihli randevularınızı Google Takvimine toplu aktar">
+                              <i class="fa fa-cloud-upload"></i> Mevcut Randevuları Aktar
+                           </button>
                            <span id="gc-bagli-info" class="text-muted" style="display:none;"></span>
                         </div>
+                        <div id="gc-aktar-sonuc" class="alert alert-info" style="margin-top:10px;display:none;font-size:13px;"></div>
                         <div id="gc-son-hata" class="text-danger" style="margin-top:10px;display:none;font-size:12px;"></div>
+
+                        <div style="margin-top:14px;padding:10px;background:#f8f9fb;border-left:3px solid #7c3aed;font-size:12px;color:#555;">
+                           <strong>Bilgi:</strong> Bu entegrasyon tek yönlüdür. Randevumcepte'de verdiğiniz randevular Google Takviminize yazılır; Google'daki mevcut etkinlikleriniz etkilenmez. Randevumcepte verileri de kaybolmaz — Google sadece ek bir kopya tutar.
+                        </div>
                      </div>
                   </div>
                </div>
@@ -1451,17 +1465,41 @@
                      function render(d){
                         var $r = $('#gc-durum-rozet'), $info = $('#gc-bagli-info'),
                             $baglat = $('#gc-baglat-btn'), $coz = $('#gc-coz-btn'),
+                            $aktar = $('#gc-aktar-btn'),
                             $hata = $('#gc-son-hata');
                         if(d && d.bagli){
                            $r.html('<span class="badge badge-success" style="font-size:12px;padding:6px 10px;">Bağlı</span>');
                            $info.text(d.email || '').show();
-                           $baglat.hide(); $coz.show();
+                           $baglat.hide(); $coz.show(); $aktar.show();
                            if(d.son_hata){ $hata.text('Son hata: '+d.son_hata+(d.son_hata_zamani?' ('+d.son_hata_zamani+')':'')).show(); } else { $hata.hide(); }
                         } else {
                            $r.html('<span class="badge badge-secondary" style="font-size:12px;padding:6px 10px;">Bağlı değil</span>');
-                           $info.hide(); $baglat.show(); $coz.hide(); $hata.hide();
+                           $info.hide(); $baglat.show(); $coz.hide(); $aktar.hide(); $hata.hide();
                         }
                      }
+                     $('#gc-aktar-btn').on('click', function(){
+                        var $btn = $(this), orig = $btn.html();
+                        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Aktarılıyor...');
+                        $('#gc-aktar-sonuc').hide();
+                        $.post('/isletmeyonetim/google/oauth/aktar',
+                               {sube: sube, kapsam: 'gecmis', _token: $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').first().val()})
+                         .done(function(res){
+                            var txt = '';
+                            if(res.ok){
+                               txt = (res.sync||0)+' randevu Google Takvime aktarıldı. '
+                                   + (res.skip||0)+' tanesi zaten eşleşmiş. '
+                                   + ((res.hata||0)>0 ? (res.hata+' hata.') : '');
+                               if(res.kalan_tahmini && String(res.kalan_tahmini).indexOf('>')===0){
+                                  txt += ' Çok sayıda kayıt var — tamamı için butona tekrar basabilirsiniz.';
+                               }
+                            } else {
+                               txt = 'Aktarım hata: ' + (res.hata || 'Bilinmeyen');
+                            }
+                            $('#gc-aktar-sonuc').text(txt).show();
+                         })
+                         .fail(function(x){ $('#gc-aktar-sonuc').text('Aktarım başarısız: HTTP '+x.status).show(); })
+                         .always(function(){ $btn.prop('disabled', false).html(orig); });
+                     });
                      function yukle(){
                         $.get('/isletmeyonetim/google/oauth/durum', {sube: sube}).done(render).fail(function(){ render({bagli:false}); });
                      }

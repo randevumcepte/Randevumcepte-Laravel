@@ -99,7 +99,44 @@ class GoogleCalendarController extends Controller
         $bag->son_hata_mesaji = null;
         $bag->save();
 
-        return redirect('/isletmeyonetim/ayarlar?sube=' . $sd['s'] . '&sekme=entegrasyonlar&google_ok=1');
+        // BACKFILL: ilk baglantida yakin tarihli mevcut randevulari Google'a aktar
+        // (daha fazlasi icin kullanici panelden 'Tumunu aktar' butonuyla devam eder).
+        $bfOzet = '';
+        try {
+            $bf = $this->gc->backfillPersonel($bag, 7, 100); // son 7 gun + ileri, 100 kayit limit
+            if (!empty($bf['personel_yok'])) {
+                $bfOzet = '&bf_pers=0';
+            } else {
+                $bfOzet = '&bf_sync=' . (int)$bf['sync'] . '&bf_hata=' . (int)$bf['hata'];
+            }
+        } catch (\Exception $e) {
+            \Log::warning('[GoogleCalendar] callback backfill hata', ['hata' => $e->getMessage()]);
+            $bfOzet = '&bf_err=1';
+        }
+
+        return redirect('/isletmeyonetim/ayarlar?sube=' . $sd['s'] . '&sekme=entegrasyonlar&google_ok=1' . $bfOzet);
+    }
+
+    /** Manuel backfill: 'Mevcut randevularimi Google'a aktar' butonu. */
+    public function aktar(Request $request)
+    {
+        $u = Auth::guard('isletmeyonetim')->user();
+        if (!$u) return response()->json(['hata' => 'yetkisiz'], 401);
+        $salonId = (int) $request->sube;
+        $bag = GoogleCalendarBaglanti::where('yetkili_id', $u->id)
+            ->where('salon_id', $salonId)->where('aktif', 1)->first();
+        if (!$bag) return response()->json(['hata' => 'Baglanti yok'], 400);
+
+        // Kapsam: 'gecmis' (90 gun) veya 'ileri' (yalniz bugun ve sonrasi)
+        $kapsamGun = $request->kapsam === 'gecmis' ? 90 : null;
+        $limit = min(300, max(50, (int)($request->limit ?: 150)));
+
+        try {
+            $sonuc = $this->gc->backfillPersonel($bag, $kapsamGun, $limit);
+            return response()->json(['ok' => true] + $sonuc);
+        } catch (\Exception $e) {
+            return response()->json(['hata' => $e->getMessage()], 500);
+        }
     }
 
     /** 3) Coz: baglantiyi deaktive et (token revoke isteyen Google'a opsiyonel). */

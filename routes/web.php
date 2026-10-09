@@ -1019,6 +1019,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/google/oauth/callback','GoogleCalendarController@callback');
 	Route::post('/google/oauth/coz',    'GoogleCalendarController@coz');
 	Route::get('/google/oauth/durum',   'GoogleCalendarController@durum');
+	Route::post('/google/oauth/aktar',  'GoogleCalendarController@aktar');
  	Route::post('/pakettahsilatagit','StoreAdminController@pakettahsilatagit')->name('pakettahsilatagit');
  	
  	Route::post('/uruntahsilatagit','StoreAdminController@uruntahsilatagit')->name('uruntahsilatagit');
