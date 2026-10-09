@@ -1492,11 +1492,18 @@
                         if(d && d.bagli){
                            $r.html('<span class="badge badge-success" style="font-size:12px;padding:6px 10px;">Bağlı</span>');
                            $info.text(d.email || '').css('display','inline');
-                           $baglat.hide(); $coz.css('display','inline-block'); $aktar.css('display','inline-block');
+                           $baglat.hide();
+                           $coz.css('display','inline-block').prop('disabled', false);
+                           $aktar.css('display','inline-block').prop('disabled', false).attr('title','Son 90 gün + ileri tarihli randevularınızı Google Takvimine toplu aktar');
                            if(d.son_hata){ $hata.text('Son hata: '+d.son_hata+(d.son_hata_zamani?' ('+d.son_hata_zamani+')':'')).show(); } else { $hata.hide(); }
                         } else {
                            $r.html('<span class="badge badge-secondary" style="font-size:12px;padding:6px 10px;">Bağlı değil</span>');
-                           $info.hide(); $baglat.css('display','inline-block'); $coz.hide(); $aktar.hide(); $hata.hide();
+                           $info.hide();
+                           $baglat.css('display','inline-block');
+                           $coz.hide();
+                           // Aktar butonu disabled gorunur (bagli degilken anlamsiz)
+                           $aktar.css('display','inline-block').prop('disabled', true).attr('title','Önce Google Hesabınızı bağlayın');
+                           $hata.hide();
                         }
                      }
                      $('#gc-aktar-btn').on('click', function(){

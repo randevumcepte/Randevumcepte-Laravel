@@ -147,7 +147,7 @@ class GoogleCalendarController extends Controller
         $salonId = (int) $request->sube;
         $bag = GoogleCalendarBaglanti::where('yetkili_id', $u->id)
             ->where('salon_id', $salonId)->where('aktif', 1)->first();
-        if (!$bag) return response()->json(['hata' => 'Baglanti yok'], 400);
+        if (!$bag) return response()->json(['hata' => 'Önce "Google Hesabımı Bağla" ile Google hesabınızı bağlamalısınız.'], 400);
 
         // Kapsam: 'gecmis' (90 gun) veya 'ileri' (yalniz bugun ve sonrasi)
         $kapsamGun = $request->kapsam === 'gecmis' ? 90 : null;
