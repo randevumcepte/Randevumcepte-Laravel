@@ -267,7 +267,7 @@ class PersonelYetkiSabitleri
                     'pazarlama.sms_gonder' => false, 'pazarlama.whatsapp_gonder' => false,
                     'pazarlama.toplu_sms' => false, 'pazarlama.kampanya_yonet' => false,
                     'pazarlama.cark_yonet' => false, 'pazarlama.anket_yonet' => false,
-                    'gorusme.liste_gor' => false, 'gorusme.ekle_duzenle' => false,
+                    'gorusme.liste_gor' => true, 'gorusme.ekle_duzenle' => true,
                     'form.olustur' => false, 'form.gonder' => false,
                     'ayar.salon_bilgi' => false, 'ayar.sube_yonet' => false, 'ayar.cihaz_oda_yonet' => false,
                 ],
