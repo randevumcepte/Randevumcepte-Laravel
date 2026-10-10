@@ -32986,9 +32986,9 @@ DB::raw('
             return view('isletmeadmin.lisanssurebitti', ['isletme' => $isletme]);
         }
         $rol = self::kullaniciRolu($salonId, Auth::guard('isletmeyonetim')->user()->id);
-        if ($rol == 5) {
-            return view('isletmeadmin.yetkisizerisim'); // personel goremez
-        }
+        // Personel (rol 5) de KENDI arama randevu takvimini gorebilir; veri endpoint'i
+        // (arama_randevu_takvim_verileri) rol==5 ise SADECE kendi listelerine filtreler,
+        // telefon KVKK geregi gizli kalir.
 
         // Telefonda Satış (Hızlı Satış popup) icin salon bazli listeler (calisma ekrani ile ayni)
         $cm_odeme_yontemleri = \App\OdemeYontemleri::all();
@@ -33031,7 +33031,8 @@ DB::raw('
         $arVar = Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at');
 
         // KVKK: numarayi SADECE yonetici/sahip gorur; personel (rol 5) icin gizli.
-        $telGoster = ((int) self::kullaniciRolu($salonId, $this->cmAuthId()) !== 5);
+        $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
+        $telGoster = ((int) $rol !== 5);
 
         $bas = $request->filled('start') ? date('Y-m-d', strtotime($request->start)) : date('Y-m-d', strtotime('-31 days'));
         $bit = $request->filled('end') ? date('Y-m-d', strtotime($request->end)) : date('Y-m-d', strtotime('+62 days'));
@@ -33044,6 +33045,10 @@ DB::raw('
             ->whereNotNull('am.tarih')->where('am.tarih', '!=', '')
             ->whereNotNull('am.saat')->where('am.saat', '!=', '')
             ->whereBetween('am.tarih', [$bas, $bit]);
+        // Personel (rol 5) SADECE kendine atanan listelerin randevularini gorur.
+        if ((int) $rol === 5) {
+            $q->where('al.personel_id', $this->aktifPersonelId($salonId));
+        }
         if ($arVar) {
             $q->where(function ($w) {
                 $w->where('am.durum', 3)->orWhereIn('am.durum', [6, 7])->orWhereNotNull('am.ar_tamamlandi_at');

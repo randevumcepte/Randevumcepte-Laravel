@@ -2349,8 +2349,10 @@
                   </li>
                   @endif
 
-                  {{-- Cagri Merkezi: Personel rolu (5) icin Arama Listesi (santral aktif + dahili varsa) — sadece uyelik_turu == 3 --}}
-                  @if($isletme->uyelik_turu == 3 && in_array(5, $_layoutRoller) && $isletme->santral_aktif && optional($_layoutYetkiliPersonel)->dahili_no)
+                  {{-- Cagri Merkezi: Personel rolu (5) icin Arama Ekrani + Arama Randevu Takvimi
+                       (santral aktif + dahili VEYA webrtc dahili varsa) — sadece uyelik_turu == 3.
+                       NOT: dahili_no_webrtc-only personel de gorebilsin diye ikisinden biri yeter. --}}
+                  @if($isletme->uyelik_turu == 3 && in_array(5, $_layoutRoller) && $isletme->santral_aktif && (optional($_layoutYetkiliPersonel)->dahili_no || optional($_layoutYetkiliPersonel)->dahili_no_webrtc))
                   <li>
                      @if($pageindex==44)
                      <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2358,7 +2360,17 @@
                      <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
                      @endif
                      <span class="micon bi bi-telephone-outbound"></span>
-                     <span class="mtext">Arama Listesi</span>
+                     <span class="mtext">Arama Ekranı</span>
+                     </a>
+                  </li>
+                  <li>
+                     @if($pageindex==46)
+                     <a href="/isletmeyonetim/arama-randevu-takvim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     @else
+                     <a href="/isletmeyonetim/arama-randevu-takvim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     @endif
+                     <span class="micon bi bi-calendar-check"></span>
+                     <span class="mtext">Arama Randevu Takvimi</span>
                      </a>
                   </li>
                   <li>
