@@ -3888,6 +3888,89 @@ public function carkverilerigetir(Request $request)
         return view('isletmeadmin.ayarlar',['hizmetler'=>$hizmetler,'hizmet_gruplari'=>$hizmet_gruplari,'kategoriler'=>$kategoriler_hy,'aktif_personel_sayisi'=>$aktif_personel_sayisi,'eklenebilir_hizmetler'=>$eklenebilir_hizmetler,'personeller_raw'=>$personeller_raw,'cihazlar_raw'=>$cihazlar_raw,'hizmetler_raw'=>$hizmetler_raw,'bildirimler'=>self::bildirimgetir($request),'sayfa_baslik' => 'Hesap Ayarları','pageindex' => 9,'salongorselleri'=> $salongorselleri,'saloncalismasaatleri'=>$saloncalismasaatleri,'personeller' => $personeller, 'salonhizmetler' => $salonhizmetler,'isletme'=> $isletme,'sayfa_baslik' => $isletme->salon_adi.' | Detayları & Düzenle', 'etiketler' => $etiketler,'isletmeturulistesi' => $isletmeturu_html,'gorseller_html' => $gorseller_html,'hizmetlistesi'=>$hizmetlistesi_html,'salongorselkapak'=>$salongorselkapak,'subeler'=>$subeler,'salonmolasaatleri'=>$salonmolasaatleri,'urunler'=> $urunler,'paketler'=>$paketler,'paketler_liste'=>$paketler_liste,'roller'=>Role::all(),'cihazlar'=>$cihazlar,'odalar'=>$odalar,'aramaterimleri'=>$aramaterimleri, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
             'yetkiliolunanisletmeler'=>$isletmeler]);
     }
+    /**
+     * TEK randevu-hizmet (rh) icin takvim event RENGINI hesaplar.
+     *
+     * NOT: Renk mantigi randevuyukle() icindeki map blogu (4087-4129) ile BIREBIR AYNI
+     * sirada tutulmalidir. randevuyukle hot-path'i $gelecek yan-etkisi + merge iceridigi icin
+     * oraya dokunmadan buraya KOPYALANDI; renk kurali degisirse IKI yeri de guncelle.
+     *
+     * Beklemede (geldi/gelmedi isareti kaldir) gibi SADECE renk degisen aksiyonlarda,
+     * tum takvimi refetch etmek yerine ilgili event(ler)in rengini client'ta guncellemek icin.
+     *
+     * $rh: RandevuHizmetler (randevu, personeller.trenk, hizmetler eager-load edilmis olmali)
+     * Renk maplari randevuyukle'deki ile ayni semaya gore disaridan verilir (salon basina 1 kez kur).
+     */
+    public static function takvimRandevuRengi($rh, $takvim_turu, array $kategoriRenkMap = [], array $cihazRenkMap = [], array $odaRenkMap = [])
+    {
+        $r = $rh->randevu;
+        if ($r && $r->user_id == 2012) return '#000000'; // Kapali Saat
+
+        if (($r && $r->randevuya_geldi !== null && $r->randevuya_geldi === 1) || ($rh->seansa_geldi !== null && $rh->seansa_geldi === 1)) {
+            return '#008000';
+        }
+        if (($r && $r->randevuya_geldi !== null && $r->randevuya_geldi === 0) || ($rh->seansa_geldi !== null && $rh->seansa_geldi === 0)) {
+            return '#ff0000';
+        }
+        if ($r && $r->durum === 0) {
+            return '#ffc107';
+        }
+        if ($r && $r->randevuya_gelecek !== null && $r->randevuya_gelecek === 1 && $r->randevuya_geldi === null) {
+            return '#EF7400';
+        }
+        if ($rh->iptal) {
+            return '#000000';
+        }
+        // Normal randevu — resource (kategori/personel/cihaz/oda) rengi
+        $color = '';
+        if ($takvim_turu == 0) {
+            if ($rh->hizmetler && isset($kategoriRenkMap[$rh->hizmetler->hizmet_kategori_id])) {
+                $color = $kategoriRenkMap[$rh->hizmetler->hizmet_kategori_id];
+            }
+        }
+        if ($takvim_turu == 1) {
+            if ($rh->personel_id != 183) {
+                $color = ($rh->personeller && $rh->personeller->trenk) ? $rh->personeller->trenk->renk : '';
+            }
+        }
+        if ($takvim_turu == 2) {
+            if (isset($cihazRenkMap[$rh->cihaz_id])) {
+                $color = $cihazRenkMap[$rh->cihaz_id];
+            }
+        }
+        if ($takvim_turu == 3) {
+            if (isset($odaRenkMap[$rh->oda_id])) {
+                $color = $odaRenkMap[$rh->oda_id];
+            }
+        }
+        return $color;
+    }
+
+    /**
+     * Bir salon icin takvim renk maplarini kur (randevuyukle 3922-3936 ile ayni).
+     * takvimRandevuRengi'ye beslenir.
+     */
+    public static function takvimRenkMaplariKur($isletmeId, $takvim_turu)
+    {
+        $kategoriRenkMap = $cihazRenkMap = $odaRenkMap = [];
+        if ($takvim_turu == 0) {
+            foreach (SalonHizmetKategoriRenkleri::where('salon_id',$isletmeId)->get() as $rk) {
+                if ($rk->renkduzeni) $kategoriRenkMap[$rk->hizmet_kategori_id] = $rk->renkduzeni->renk;
+            }
+        }
+        if ($takvim_turu == 2) {
+            foreach (SalonCihazRenkleri::where('salon_id',$isletmeId)->get() as $rk) {
+                if ($rk->renkduzeni) $cihazRenkMap[$rk->cihaz_id] = $rk->renkduzeni->renk;
+            }
+        }
+        if ($takvim_turu == 3) {
+            foreach (OdaRenkleri::where('salon_id',$isletmeId)->get() as $rk) {
+                if ($rk->renkduzeni) $odaRenkMap[$rk->oda_id] = $rk->renkduzeni->renk;
+            }
+        }
+        return [$kategoriRenkMap, $cihazRenkMap, $odaRenkMap];
+    }
+
     public function randevuyukle(Request $request,$takvim_turu,$tarih1,$tarih2){
     // PERF: Her takvim yuklemesinde (10sn poll) calisan Log::info ve Schema::hasColumn
     // self-heal kaldirildi — gorusme_konusu kolonu uretimde zaten mevcut (migration 2026_04_26).
@@ -37453,9 +37536,36 @@ DB::raw('
             $seans->geldi = null;
             $seans->save();
         }
+
+        // TEK-EVENT GUNCELLEME: isaret kaldirilinca event'in rengi duruma gore degisir
+        // (sari/turuncu/personel-kategori rengi). Tum takvimi refetch etmek yerine ilgili
+        // randevunun her hizmetinin YENI rengini hesaplayip client'a dondur; client o
+        // event'leri id (rh id) bazinda recolor eder. Hesaplanamazsa client refetch'e duser.
+        $renkler = [];
+        try {
+            $takvim_turu = $request->has('takvim_turu') ? (int)$request->takvim_turu : 1;
+            $isletmeId = self::mevcutsube($request);
+            list($katMap, $cihazMap, $odaMap) = self::takvimRenkMaplariKur($isletmeId, $takvim_turu);
+            $rhler = RandevuHizmetler::with(['randevu','personeller.trenk','hizmetler'])
+                ->where('randevu_id', $request->randevuid)->get();
+            foreach ($rhler as $rh) {
+                $renkler[] = [
+                    'id'    => $rh->id,
+                    'color' => self::takvimRandevuRengi($rh, $takvim_turu, $katMap, $cihazMap, $odaMap),
+                ];
+            }
+        } catch (\Throwable $e) {
+            $renkler = []; // client refetch'e duser
+        }
+
         // AJAX (dataType:'json') parse hatasi yememesi icin gecerli JSON yaniti dondur;
-        // success callback artik modal'i kapatabilir + takvimi yenileyebilir.
-        return response()->json(['ok' => true, 'message' => 'Geldi işareti kaldırıldı']);
+        // success callback artik modal'i kapatabilir + ilgili event(ler)i recolor edebilir.
+        return response()->json([
+            'ok' => true,
+            'message' => 'Geldi işareti kaldırıldı',
+            'randevuId' => (int)$request->randevuid,
+            'renkler' => $renkler,
+        ]);
     }
 
     public function hizmetYonetimiGuncelle(Request $request){

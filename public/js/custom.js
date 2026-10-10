@@ -12603,6 +12603,31 @@ $(document).on('click','a[name="geldi_isaretle"]',function(e){
         }
     });
 });
+ // Beklemede (geldi/gelmedi isareti kaldir) sonrasi: tum takvimi refetch etmek yerine
+ // server'in dondurdugu YENI renkleri ilgili event(ler)e uygula (tek-event guncelleme).
+ // renk gelmezse/eslesmezse eski davranisa (full refetch) duser. Detay cache temizlenir.
+ function rcBeklemeRecolor(result){
+     if(!$('#calendar').length) return;
+     try {
+         if(result && result.renkler && result.renkler.length){
+             var guncellendi = false;
+             result.renkler.forEach(function(rk){
+                 var evs = $('#calendar').fullCalendar('clientEvents', function(e){ return String(e.id) === String(rk.id); });
+                 if(evs && evs.length){
+                     evs.forEach(function(ev){ ev.color = rk.color; $('#calendar').fullCalendar('updateEvent', ev); });
+                     guncellendi = true;
+                 }
+             });
+             window._rcDetayCache = {}; // detay taze gelsin (durum degisti)
+             if(!guncellendi) takvimyukle(false,false); // event bulunamadi -> refetch
+         } else {
+             takvimyukle(false,false); // renk gelmedi -> eski davranis
+         }
+     } catch(e){
+         takvimyukle(false,false);
+     }
+ }
+
  $(document).on('click','a[name="geldi_isareti_kaldir"]',function(e){
     randevu_id = $(this).attr('data-value');
     hizmetid = $(this).attr('data-index-number');
@@ -12623,7 +12648,7 @@ $(document).on('click','a[name="geldi_isaretle"]',function(e){
                 type: "POST",
                 url: '/isletmeyonetim/randevuGeldiGelmediIsaretiKaldir',
                 dataType: "json",
-                data: {randevuid:randevu_id,hizmetid:hizmetid},
+                data: {randevuid:randevu_id,hizmetid:hizmetid,takvim_turu:$('#randevu_ayarina_gore').val()},
                  
                 
 
@@ -12640,7 +12665,7 @@ $(document).on('click','a[name="geldi_isaretle"]',function(e){
                     } else {
                         $('#modal-view-event').modal('hide');
                     }
-                    takvimyukle(false,false);
+                    rcBeklemeRecolor(result);
                 },
                 error: function(request, status, error) {
                     $("#preloader").hide();
@@ -12676,7 +12701,7 @@ $(document).on('click','a[name="gelmedi_isareti_kaldir"]',function(e){
                 type: "POST",
                 url: '/isletmeyonetim/randevuGeldiGelmediIsaretiKaldir',
                 dataType: "json",
-                data: {randevuid:randevu_id,hizmetid:hizmetid},
+                data: {randevuid:randevu_id,hizmetid:hizmetid,takvim_turu:$('#randevu_ayarina_gore').val()},
                
                 
 
@@ -12693,7 +12718,7 @@ $(document).on('click','a[name="gelmedi_isareti_kaldir"]',function(e){
                     } else {
                         $('#modal-view-event').modal('hide');
                     }
-                    takvimyukle(false,false);
+                    rcBeklemeRecolor(result);
                 },
                 error: function(request, status, error) {
                     $("#preloader").hide();
