@@ -291,6 +291,22 @@ class PanelController extends Controller
             ? IsletmeYetkilileri::whereIn('id', $tumYetkiliIds)->get()
             : collect();
 
+        // yetkili_id -> bu salondaki GERCEK rol adi (model_has_roles -> roles.name).
+        // is_admin bayragi tek basina yetersizdi: Sekreter/Yonetici/Supervizor de
+        // "Personel" gorunuyordu. Rol salon_id'ye scope'ludur (ayni yetkili baska
+        // salonda baska rolde olabilir).
+        $yetkiliRoller = [];
+        if ($tumYetkiliIds->isNotEmpty()) {
+            $rolRows = DB::table('model_has_roles')
+                ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
+                ->whereIn('model_has_roles.model_id', $tumYetkiliIds->all())
+                ->where('model_has_roles.model_type', 'App\\IsletmeYetkilileri')
+                ->where('model_has_roles.salon_id', $id)
+                ->select('model_has_roles.model_id', 'roles.name')
+                ->get();
+            foreach ($rolRows as $r) { $yetkiliRoller[$r->model_id] = $r->name; }
+        }
+
         // yetkili_id -> aktif mi (isten cikarilmis personel pasif gorunur). Ayni yetkili
         // birden cok personel kaydina baglanabilir; herhangi biri aktifse aktif say.
         $yetkiliAktif = [];
@@ -341,6 +357,7 @@ class PanelController extends Controller
             'iletisimTel' => $iletisimTel,
             'yetkililer' => $yetkililer,
             'yetkiliAktif' => $yetkiliAktif,
+            'yetkiliRoller' => $yetkiliRoller,
             'personeller' => $personeller,
             'notlar' => $notlar,
             'impersonationGecmisi' => $impersonationGecmisi,

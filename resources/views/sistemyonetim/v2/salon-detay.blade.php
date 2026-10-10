@@ -505,11 +505,13 @@
                             <div style="min-width:0">
                                 <div class="sy-fw-600">
                                     {{ $y->name }}
-                                    @if($y->is_admin)
-                                        <span class="sy-badge sy-badge-info">Sahip / Admin</span>
-                                    @else
-                                        <span class="sy-badge sy-badge-muted">Personel</span>
-                                    @endif
+                                    @php
+                                        // Gercek rol adi (model_has_roles -> roles.name, salon'a scope'lu).
+                                        // Yoksa is_admin bayragina dus (eski kayit / rol yazilmamis).
+                                        $rolAdi = $yetkiliRoller[$y->id] ?? ($y->is_admin ? 'Hesap Sahibi' : 'Personel');
+                                        $rolSinif = in_array($rolAdi, ['Hesap Sahibi', 'Yönetici']) ? 'sy-badge-info' : 'sy-badge-muted';
+                                    @endphp
+                                    <span class="sy-badge {{ $rolSinif }}">{{ $rolAdi }}</span>
                                     @if(($yetkiliAktif[$y->id] ?? 1) == 0)
                                         <span class="sy-badge sy-badge-danger">İşten Ayrılmış</span>
                                     @endif
