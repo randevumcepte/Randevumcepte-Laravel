@@ -3043,7 +3043,17 @@ function randevuyaGelmedi(hizmetid,id,seansDusumuYap)
                              randevufiltre();
                         }
                         if($('#calendar').length){
-                            takvimyukle(false,false);
+                            // PERF: tam refetch yerine o randevuyu KIRMIZIya boya (geldi ile ayni
+                            // mantik; DB imzasi degistiginden 30sn poll zaten senkronlar, art arda
+                            // islemde refetch'ler tek poll'da birikir). Bulunamazsa guvenli fallback.
+                            try {
+                                var _rcEvs2 = $('#calendar').fullCalendar('clientEvents', function(e){ return String(e.randevuId) === String(id); });
+                                if (_rcEvs2 && _rcEvs2.length) {
+                                    _rcEvs2.forEach(function(ev){ ev.color = '#ff0000'; $('#calendar').fullCalendar('updateEvent', ev); });
+                                } else {
+                                    takvimyukle(false,false);
+                                }
+                            } catch (e) { takvimyukle(false,false); }
                         }
                     }
 
@@ -12405,7 +12415,19 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
                     randevufiltre();
                 }
                 if ($('#calendar').length) {
-                    takvimyukle(false, false);
+                    // PERF: TAM refetch yerine o randevunun event(ler)ini client'ta YESILE boya.
+                    // DB degisikligi imzayi degistirdigi icin 30sn poll (modal kapaninca) zaten
+                    // tam senkronu yapar; art arda islemlerde refetch'ler TEK poll'da birikir
+                    // (coalesce) -> yogun salonda her islemde 200+ randevu + 960 bos-slot yeniden
+                    // uretme maliyeti biter. Event bulunamazsa guvenli fallback: tam refetch.
+                    try {
+                        var _rcEvs = $('#calendar').fullCalendar('clientEvents', function(e){ return String(e.randevuId) === String(randevu_id); });
+                        if (_rcEvs && _rcEvs.length) {
+                            _rcEvs.forEach(function(ev){ ev.color = '#008000'; $('#calendar').fullCalendar('updateEvent', ev); });
+                        } else {
+                            takvimyukle(false, false);
+                        }
+                    } catch (e) { takvimyukle(false, false); }
                 }
                 // Dakika paketi kontrolu: musterinin solaryum vb. sure paketi varsa
                 // popup ac ve kac dakika dusulecegini sor

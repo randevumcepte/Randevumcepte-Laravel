@@ -99,7 +99,7 @@
 
     <div class="content">
 
-        <p><span class="brand-tag">{{ $markaAdi }}</span> Bu politika, {{ $markaAdi }} mobil uygulamasının ve ilişkili web hizmetlerinin kullanımı sırasında kullanıcıların gizliliğini korumaya yönelik ilkeleri kapsar. Uygulama, <strong>Webfirmam İnternet Hizmetleri ve Reklamcılık Sanayi Ticaret Limited Şirketi</strong> tarafından geliştirilmiş olup, {{ $markaAdi }} işletmesinin randevu ve müşteri yönetimi süreçlerini yürütür.</p>
+        <p><span class="brand-tag">{{ $markaAdi }}</span> Bu politika, {{ $markaAdi }} mobil uygulamasının ve ilişkili web hizmetlerinin kullanımı sırasında kullanıcıların gizliliğini korumaya yönelik ilkeleri kapsar. Uygulama, <strong>Randevumcepte</strong> markası altında <strong>Webfirmam İnternet Hizmetleri ve Reklamcılık Sanayi Ticaret Limited Şirketi</strong> tarafından geliştirilmiş olup, {{ $markaAdi }} işletmesinin randevu ve müşteri yönetimi süreçlerini yürütür. Geliştirici hakkında detaylı bilgiye <a href="https://randevumcepte.com.tr" target="_blank" rel="noopener">https://randevumcepte.com.tr</a> adresinden ulaşabilirsiniz.</p>
 
         <h2>1. Gizlilik Politikası Kapsamı</h2>
         <p>{{ $markaAdi }}, uygulamayı ziyaret eden kullanıcıların bireysel ve kurumsal anlamda gizliliğini korumak amacıyla veri güvenliği ilkeleri benimsemiştir. Bu kurallar {{ $markaAdi }} mobil uygulaması, ilişkili web hizmetleri ve alt bileşenler için geçerlidir.</p>
@@ -178,10 +178,15 @@
 
         <h2>21. İletişim</h2>
         <div class="contact-box">
-            <p style="margin-top:0;"><strong>Veri Sorumlusu:</strong> Webfirmam İnternet Hizmetleri ve Reklamcılık Sanayi Ticaret Limited Şirketi</p>
+            <p style="margin-top:0;"><strong>Geliştirici / Yayıncı:</strong> Randevumcepte (Webfirmam İnternet Hizmetleri ve Reklamcılık Sanayi Ticaret Limited Şirketi)</p>
+            <p><strong>Veri Sorumlusu:</strong> Webfirmam İnternet Hizmetleri ve Reklamcılık Sanayi Ticaret Limited Şirketi</p>
             <p><strong>Uygulama:</strong> {{ $markaAdi }}</p>
+            <p><strong>Web Sitesi:</strong> <a href="https://randevumcepte.com.tr" target="_blank" rel="noopener">https://randevumcepte.com.tr</a></p>
+            <p><strong>Destek:</strong> <a href="https://randevumcepte.com.tr/bize-ulasin/" target="_blank" rel="noopener">https://randevumcepte.com.tr/bize-ulasin/</a></p>
             <p><strong>Telefon:</strong> <a href="tel:+905412948144">0541 294 81 44</a></p>
+            <!--email_off-->
             <p><strong>E-posta:</strong> <a href="mailto:info@randevumcepte.com.tr">info@randevumcepte.com.tr</a></p>
+            <!--/email_off-->
             <p style="margin-bottom:0;"><strong>Adres:</strong> Adalet Mahallesi, Şht. Polis Fethi Sekin Cd. No: 6, Kat: 3 Ofis: 32, 35530 Bayraklı / İzmir</p>
         </div>
 
@@ -190,7 +195,7 @@
 
     </div>
 
-    <p class="footer">© {{ date('Y') }} Webfirmam İnternet Hizmetleri Ltd. Şti. — {{ $markaAdi }}</p>
+    <p class="footer">© {{ date('Y') }} Randevumcepte · Webfirmam İnternet Hizmetleri Ltd. Şti. — {{ $markaAdi }} · <a href="https://randevumcepte.com.tr" target="_blank" rel="noopener" style="color:#6b7280;">randevumcepte.com.tr</a></p>
 
 </div>
 </body>
