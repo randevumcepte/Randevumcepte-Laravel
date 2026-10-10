@@ -83,11 +83,22 @@ class PersonelYetkiServisi
     private static $_personelRoluCache = [];
     public static function yetkiVar($personelId, $salonId, string $key): bool
     {
+        // Aksiyon/sayfa yolu — impersonation bypass GECERLI (sysadmin 403 yemesin).
+        return self::_yetkiVarCekirdek($personelId, $salonId, $key, true);
+    }
+
+    /**
+     * MENU gorunurlugu icin yetkiVar — impersonation bypass UYGULANMAZ.
+     * menuYetki -> _yetkiliYetkiVarCekirdek(bypass=false) bu yola duser.
+     */
+    private static function _yetkiVarCekirdek($personelId, $salonId, string $key, bool $impersonationBypass): bool
+    {
         self::tabloyuHazirla();
         if (!$personelId || !$salonId) return true; // bilinmiyorsa engelleme
 
         // Impersonation (sistem yoneticisi salona girdi) — tam yetki, kisitlama yok.
-        if (session()->has('sysadmin_impersonation_id')) return true;
+        // SADECE aksiyon/sayfa yolunda (bypass=true); menu gorunurlugunde UYGULANMAZ.
+        if ($impersonationBypass && session()->has('sysadmin_impersonation_id')) return true;
 
         $roluKey = $personelId.'|'.$salonId;
 
@@ -231,7 +242,7 @@ class PersonelYetkiServisi
             // Gercekten personel rolu degil (salon sahibi / direk yetkili) → tam yetki
             return self::$_yetkiliYetkiVarCache[$cacheKey] = true;
         }
-        return self::$_yetkiliYetkiVarCache[$cacheKey] = self::yetkiVar($personelId, $salonId, $key);
+        return self::$_yetkiliYetkiVarCache[$cacheKey] = self::_yetkiVarCekirdek($personelId, $salonId, $key, $impersonationBypass);
     }
 
     /**
