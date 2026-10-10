@@ -3057,6 +3057,7 @@ function randevuyaGelmedi(hizmetid,id,seansDusumuYap)
                                 var _rcEvs2 = $('#calendar').fullCalendar('clientEvents', function(e){ return String(e.randevuId) === String(id); });
                                 if (_rcEvs2 && _rcEvs2.length) {
                                     _rcEvs2.forEach(function(ev){ ev.color = '#ff0000'; $('#calendar').fullCalendar('updateEvent', ev); });
+                                    window._rcDetayCache = {}; // detay taze gelsin (gelmedi durumu degisti)
                                 } else {
                                     takvimyukle(false,false);
                                 }
@@ -10851,6 +10852,11 @@ function takvimyukle(preload,turdegisti)
      // Takvim her (yeniden) yuklendiginde imza bazini sifirla; sonraki versiyon
      // kontrolu mevcut araligi yeniden baz alir (navigasyonda gereksiz cift cekme olmaz).
      window._takvimImza = null;
+     // ONEMLI: detay cache'i rh_id'ye gore anahtarli. SURUKLE-BIRAK rh_id'yi KORUR ama
+     // randevu_id'yi DEGISTIRIR -> cache eski detayi (eski randevu_id'li) servis edip
+     // Gelmedi/Geldi bayat id gonderiyordu ("Randevu bulunamadi"). Veri degistigine gore
+     // (takvimyukle = refetch) detay cache'ini temizle ki detay taze (yeni id ile) gelsin.
+     window._rcDetayCache = {};
 
      var curview = $('#calendar').fullCalendar('getView');
      var moment = '';
@@ -12437,6 +12443,7 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
                         var _rcEvs = $('#calendar').fullCalendar('clientEvents', function(e){ return String(e.randevuId) === String(randevu_id); });
                         if (_rcEvs && _rcEvs.length) {
                             _rcEvs.forEach(function(ev){ ev.color = '#008000'; $('#calendar').fullCalendar('updateEvent', ev); });
+                            window._rcDetayCache = {}; // detay taze gelsin (geldi durumu degisti)
                         } else {
                             takvimyukle(false, false);
                         }
