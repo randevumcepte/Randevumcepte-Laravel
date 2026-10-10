@@ -21563,6 +21563,11 @@ DB::raw('
     $dogrulamaSorulduGonderilecek = $request->dogrulamaSorulduGonderilecek ?? false;
     
     $randevu = Randevular::where('id', $request->randevuid)->first();
+    // GUVENLIK: randevu bulunamazsa (or. surukle-birak eski id'yi degistirdi, client bayat id
+    // gonderdi) asagida $randevu->... fatal veriyordu. Nazik hata don, client yenilesin.
+    if (!$randevu) {
+        return array('mesaj'=>'Randevu bulunamadı — takvim güncel olmayabilir, sayfayı yenileyin.','hata'=>true,'yenile'=>true,'geldiIsaretlendi'=>false);
+    }
 
     // YETIM/HAYALET SEANS TEMIZLIGI: Paket randevusu olmadigi halde, kazara olusmus
     // adisyon_paket_seanslar kayitlari "paketten dus / seans secim" popup'ini yanlis
@@ -24235,6 +24240,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     {
 
         $randevu = Randevular::where('id',$request->randevuid)->first();
+        // GUVENLIK: randevu bulunamazsa ( or. surukle-birak eski id'yi degistirdi, client bayat
+        // id gonderdi) $randevu->id fatal veriyordu (Trying to get property 'id' of non-object).
+        if(!$randevu){
+            return array('mesaj'=>'Randevu bulunamadı — takvim güncel olmayabilir, sayfayı yenileyin.','hata'=>true,'yenile'=>true);
+        }
         $seansVar = AdisyonPaketSeanslar::where('randevu_id',$randevu->id)->get();
         // NOT: $seansVar Collection'dir; bos olsa bile 'if($seansVar)' TRUE donerdi
         // -> APS'siz randevularda da 'seansdan dusulsun mu?' popup gosteriliyordu.
