@@ -1356,7 +1356,7 @@
                  (musteri.tum_portfoy_gor). Yetkisi ayarlanmamis personelde bu kapali
                  oldugundan header dropdown gizlenir; Musteriler sayfasi (kendi portfoyu,
                  musteri.liste_gor) acik kalir. KVKK: global arama sadece yonetici/sekreter. --}}
-            @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.tum_portfoy_gor')  &&  $kalan_uyelik_suresi >= 0)
+            @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.tum_portfoy_gor')  &&  $kalan_uyelik_suresi >= 0)
             <div class="header-search" >
                <select id="musteri_arama" class="form-control custom-select2" style="width: 100%;">
 
@@ -1673,7 +1673,7 @@
                         ><i class="fa fa-calendar"></i> Yeni Randevu</a>
                      <a class="dropdown-item" href="#" data-toggle="modal" data-target="#ongorusme-modal" onclick="modalbaslikata('Yeni Ön Görüşme','ongorusmeformu')"
                         ><i class="fa fa-calendar"></i> Yeni Ön Görüşme</a>
-                     @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.ekle_duzenle'))
+                     @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.ekle_duzenle'))
                      <a  class="dropdown-item yanitli_musteri_ekleme" href="#" data-toggle="modal" data-target="#musteri-bilgi-modal"
                         ><i class="icon-copy fa fa-user-plus" aria-hidden="true"></i> Yeni @if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</a
                         >
@@ -1812,7 +1812,7 @@
                   {{-- "Çağrı Merkezi Ayarları" menü öğesi kaldırıldı (istek üzerine). Sayfa/route duruyor. --}}
 
                   {{-- 3) Randevu Takvimi --}}
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
                   <li>
                      @if($pageindex==2)
                      <a href="/isletmeyonetim/randevular{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1826,7 +1826,7 @@
                   @endif
 
                   {{-- 3b) Ders Programı (Pilates/kurs — haftalık grup dersi sablonu) --}}
-                  @if(($isletme->grup_dersi_aktif ?? 0) && \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
+                  @if(($isletme->grup_dersi_aktif ?? 0) && \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
                   <li>
                      @if($pageindex==205)
                      <a href="/isletmeyonetim/ders-programi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1840,7 +1840,7 @@
                   @endif
 
                   {{-- 3c) Grup Dersi Raporu (Pilates/kurs) --}}
-                  @if(($isletme->grup_dersi_aktif ?? 0) && \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
+                  @if(($isletme->grup_dersi_aktif ?? 0) && \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
                   <li>
                      @if($pageindex==206)
                      <a href="/isletmeyonetim/grup-dersi-raporu{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1854,7 +1854,7 @@
                   @endif
 
                   {{-- 4) Ön Görüşmeler --}}
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'gorusme.liste_gor') && !($isletme->studyo_modu ?? 0))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'gorusme.liste_gor') && !($isletme->studyo_modu ?? 0))
                   <li>
                      @if($pageindex==12)
                      <a href="/isletmeyonetim/ongorusmeler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1881,8 +1881,8 @@
 
                   {{-- 6) Form Yönetimi --}}
                   @if((
-                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'form.olustur') ||
-                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'form.gonder')
+                     \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'form.olustur') ||
+                     \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'form.gonder')
                   ) && !($isletme->studyo_modu ?? 0))
                   <li>
                      @if($pageindex==50 || $pageindex==51)
@@ -1898,7 +1898,7 @@
 
                   {{-- 7) Memnuniyet Anketi (sadece uyelik_turu == 3) --}}
                   @if($isletme->uyelik_turu == 3)
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.anket_yonet'))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.anket_yonet'))
                   <li>
                      @if($pageindex==52 || $pageindex==53)
                      <a href="/isletmeyonetim/anket-sonuclari?sube={{$isletme->id}}" class="dropdown-toggle no-arrow active">
@@ -1927,7 +1927,7 @@
                   {{-- 8) Reklam Yönetimi (test modu - menude acik; santral tarafi hardcoded, DB-okur AGI + Faz3 deploy bekliyor) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu>2)
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.kampanya_yonet'))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.kampanya_yonet'))
                   <li>
                      @if($pageindex==22)
                      <a href="/isletmeyonetim/kampanya_yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1955,7 +1955,7 @@
                   {{-- 9) Seans Takibi --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu>1)
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'paket.seans_takip'))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'paket.seans_takip'))
                   <li>
                         @if($pageindex==14)
                         <a href="/isletmeyonetim/seanstakip{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1973,7 +1973,7 @@
                   {{-- 10) Çarkıfelek (uyelik_turu 2 ve 3) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu >= 2)
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.cark_yonet') && !($isletme->studyo_modu ?? 0))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.cark_yonet') && !($isletme->studyo_modu ?? 0))
                   <li>
                      @if(in_array($pageindex ?? 0, [500, 501, 502]))
                      <a href="/isletmeyonetim/carkifelek{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2004,7 +2004,7 @@
                   @endif
 
                   {{-- 11) Müşteriler/Danışanlar --}}
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.liste_gor'))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.liste_gor'))
                   <li>
                      @if($pageindex==4 ||$pageindex==41)
                      <a href="/isletmeyonetim/musteriler{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2019,7 +2019,7 @@
 
                   {{-- 12) Personeller --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'personel.liste_gor'))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'personel.liste_gor'))
                   <li>
                      @if($pageindex==401)
                      <a href="/isletmeyonetim/personel-yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2036,7 +2036,7 @@
                   {{-- 13) Paket Yönetimi --}}
                   @if($_SERVER['HTTP_HOST']!='randevu.randevumcepte.com.tr')
                   @if($isletme->uyelik_turu>1)
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'paket.tanim_olustur'))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'paket.tanim_olustur'))
                   <li>
                      @if($pageindex==13)
                      <a href="/isletmeyonetim/paketsatislari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2053,7 +2053,7 @@
 
                   {{-- 13.5) Isletme Raporlari (yeni — tabbed rapor dashboard) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !in_array(4, $_layoutRoller) && !($isletme->studyo_modu ?? 0))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !in_array(4, $_layoutRoller) && !($isletme->studyo_modu ?? 0))
                   <li>
                      @if(($pageindex ?? -1) == 600)
                      <a href="/isletmeyonetim/isletmeraporlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2068,7 +2068,7 @@
 
                   {{-- 14) Satış Raporları --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !in_array(4, $_layoutRoller) && !($isletme->studyo_modu ?? 0))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !in_array(4, $_layoutRoller) && !($isletme->studyo_modu ?? 0))
                   <li>
                      @if($pageindex==400)
                      <a href="/isletmeyonetim/raporlar{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2087,9 +2087,9 @@
                   {{-- 15) Satış Takibi --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if(
-                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.adisyon_olustur') ||
-                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.tahsilat_al') ||
-                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.tum_satis_gor')
+                     \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.adisyon_olustur') ||
+                     \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.tahsilat_al') ||
+                     \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.tum_satis_gor')
                   )
                   <li>
                      @if($pageindex==11 || $pageindex==111)
@@ -2125,10 +2125,10 @@
                   @if($_SERVER['HTTP_HOST']!='randevu.randevumcepte.com.tr')
                   @if($isletme->uyelik_turu>1)
                   @if(
-                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.tanim_olustur') ||
-                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.stok_giris') ||
-                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.stok_sayim') ||
-                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.tedarikci_yonet')
+                     \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.tanim_olustur') ||
+                     \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.stok_giris') ||
+                     \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.stok_sayim') ||
+                     \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'urun.tedarikci_yonet')
                   )
                   @if(!($isletme->studyo_modu ?? 0))
                   <li>
@@ -2163,8 +2163,8 @@
                   @if($isletme->uyelik_turu>2)
                   @if(false)
                   @if(
-                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.senet_olustur') ||
-                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.alacak_yonet')
+                     \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.senet_olustur') ||
+                     \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.alacak_yonet')
                   )
                   <li>
                      @if($pageindex==17)
@@ -2186,11 +2186,11 @@
                   @if($isletme->uyelik_turu>1)
                   @if(
                      (
-                        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.kasa') ||
-                        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.kasa_giris_cikis') ||
-                        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.masraf_gor') ||
-                        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.masraf_ekle') ||
-                        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.alacak_yonet')
+                        \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.kasa') ||
+                        \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.kasa_giris_cikis') ||
+                        \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.masraf_gor') ||
+                        \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.masraf_ekle') ||
+                        \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.alacak_yonet')
                      )
                      && !in_array(4, $_layoutRoller)
                      && !($isletme->studyo_modu ?? 0)
@@ -2264,7 +2264,7 @@
 
                   {{-- 19) WhatsApp Yönetimi — tüm üyelik türlerine açık (uyelik_turu kısıtı kaldırıldı) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.whatsapp_gonder'))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.whatsapp_gonder'))
                   <li>
                      @if($pageindex==65 || $pageindex==651)
                      <a href="/isletmeyonetim/whatsapp{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2281,8 +2281,8 @@
                   {{-- 20) SMS Yönetimi --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if(
-                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.sms_gonder') ||
-                     \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.toplu_sms')
+                     \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.sms_gonder') ||
+                     \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.toplu_sms')
                   )
                   <li>
                      @if($pageindex==106)
@@ -2301,13 +2301,13 @@
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if(
                      (
-                        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'ayar.salon_bilgi') ||
-                        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'ayar.sube_yonet') ||
-                        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'ayar.cihaz_oda_yonet') ||
-                        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.online_ayar') ||
-                        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'hizmet.tanim_olustur') ||
-                        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'hizmet.kategori_yonet') ||
-                        \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.indirim_uygula')
+                        \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'ayar.salon_bilgi') ||
+                        \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'ayar.sube_yonet') ||
+                        \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'ayar.cihaz_oda_yonet') ||
+                        \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.online_ayar') ||
+                        \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'hizmet.tanim_olustur') ||
+                        \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'hizmet.kategori_yonet') ||
+                        \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.indirim_uygula')
                      )
                      && !in_array(4, $_layoutRoller)
                   )
@@ -5978,7 +5978,7 @@ document.addEventListener('DOMContentLoaded', function() {
      Ortak layout'ta oldugu icin dashboard + randevu modulu + diger sayfalarda cikar.
      Gate: musteri listesini gorebilen HER rol (sahip/sekreter/yonetici/supervizor).
      API'nin kendisi de musteri.liste_gor ister; gonderim ucu ayrica pazarlama yetkisini kontrol eder. --}}
-@if(isset($isletme) && (!$_layoutAuthId || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_layoutAuthId, $isletme->id, 'musteri.liste_gor')))
+@if(isset($isletme) && (!$_layoutAuthId || \App\Services\PersonelYetkiServisi::menuYetki($_layoutAuthId, $isletme->id, 'musteri.liste_gor')))
 <style>
 .rmc-bday-overlay{position:fixed;inset:0;background:rgba(20,20,40,.55);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;animation:rmcBdayFade .2s ease-out;}
 @keyframes rmcBdayFade{from{opacity:0}to{opacity:1}}

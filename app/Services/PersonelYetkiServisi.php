@@ -165,16 +165,38 @@ class PersonelYetkiServisi
      */
     private static $_yetkiliYetkiVarCache = [];
     private static $_personelIdCache = [];
+    /**
+     * Aksiyon/sayfa yetki kontrolu. Sysadmin "Hesabina Gir" (impersonation) ile
+     * girdiyse TAM YETKI doner (403 yemesin, destek verebilsin).
+     */
     public static function yetkiliYetkiVar($yetkiliId, $salonId, string $key): bool
+    {
+        return self::_yetkiliYetkiVarCekirdek($yetkiliId, $salonId, $key, true);
+    }
+
+    /**
+     * MENU/UI gorunurlugu icin yetki kontrolu. yetkiliYetkiVar ile AYNI — TEK fark:
+     * impersonation bypass'i UYGULANMAZ. Yani sysadmin "Hesabina Gir" ile girse bile
+     * menuler, impersonate edilen kullanicinin GERCEK yetkisine gore cizilir
+     * (sysadmin o kullanicinin ne gordugunu birebir gorur). Aksiyonlarda ise
+     * yetkiliYetkiVar/yetkiYoksa403 bypass'i gecerli oldugundan sysadmin 403 yemez.
+     */
+    public static function menuYetki($yetkiliId, $salonId, string $key): bool
+    {
+        return self::_yetkiliYetkiVarCekirdek($yetkiliId, $salonId, $key, false);
+    }
+
+    private static function _yetkiliYetkiVarCekirdek($yetkiliId, $salonId, string $key, bool $impersonationBypass): bool
     {
         if (!$yetkiliId || !$salonId) return true;
 
         // Sistem yoneticisi "Hesabina Gir" (impersonation) ile girdiyse salon rol
         // kisitlamalarina TAKILMASIN — tam yetkili gibi davran (403 yetkisiz-erisim
-        // sayfasi cikmasin). Impersonation session'da sysadmin_impersonation_id ile isaretli.
-        if (session()->has('sysadmin_impersonation_id')) return true;
+        // sayfasi cikmasin). SADECE aksiyon/sayfa kontrolunde (bypass=true); menu
+        // gorunurlugunde (menuYetki, bypass=false) UYGULANMAZ.
+        if ($impersonationBypass && session()->has('sysadmin_impersonation_id')) return true;
 
-        $cacheKey = $yetkiliId.'|'.$salonId.'|'.$key;
+        $cacheKey = $yetkiliId.'|'.$salonId.'|'.$key.'|'.($impersonationBypass ? '1' : '0');
         if (array_key_exists($cacheKey, self::$_yetkiliYetkiVarCache)) {
             return self::$_yetkiliYetkiVarCache[$cacheKey];
         }
