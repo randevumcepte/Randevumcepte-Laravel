@@ -1352,7 +1352,11 @@
                style="padding-left: 10px;"
                >
             </div>
-            @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.liste_gor')  &&  $kalan_uyelik_suresi >= 0)
+            {{-- Header global musteri arama: TUM musterileri gorme yetkisi gerektirir
+                 (musteri.tum_portfoy_gor). Yetkisi ayarlanmamis personelde bu kapali
+                 oldugundan header dropdown gizlenir; Musteriler sayfasi (kendi portfoyu,
+                 musteri.liste_gor) acik kalir. KVKK: global arama sadece yonetici/sekreter. --}}
+            @if(\App\Services\PersonelYetkiServisi::yetkiliYetkiVar(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'musteri.tum_portfoy_gor')  &&  $kalan_uyelik_suresi >= 0)
             <div class="header-search" >
                <select id="musteri_arama" class="form-control custom-select2" style="width: 100%;">
 
