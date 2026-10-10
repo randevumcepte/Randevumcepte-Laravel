@@ -1912,7 +1912,9 @@
                   @endif
                   @endif
 
-                  {{-- 8a) Bildirim Reklamlari (resimli/tiklanabilir, sade modul - panele giren herkes) --}}
+                  {{-- 8a) Bildirim Reklamlari — pazarlama modulu; yetkisi ayarlanmamis personel GORMEZ
+                       (personel default pazarlama.kampanya_yonet=false; yonetici/sekreter=true). --}}
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.kampanya_yonet'))
                   <li>
                      @if($pageindex==122)
                      <a href="/isletmeyonetim/bildirim-reklamlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1923,6 +1925,7 @@
                      ><span class="mtext">Bildirim Reklamları</span>
                      </a>
                   </li>
+                  @endif
 
                   {{-- 8) Reklam Yönetimi (test modu - menude acik; santral tarafi hardcoded, DB-okur AGI + Faz3 deploy bekliyor) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
@@ -1989,8 +1992,10 @@
                   @endif
                   {{-- Çark Kazananlar ve Puan Ödülleri linkleri Çarkıfelek sayfasına tab olarak entegre edildi --}}
 
-                  {{-- Uygulama İndirme Afişi (aktif tum salonlar) --}}
+                  {{-- Uygulama İndirme Afişi — yetkisi ayarlanmamis personel GORMEZ
+                       (personel default pazarlama.kampanya_yonet=false; yonetici/sekreter=true). --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.kampanya_yonet'))
                   <li>
                      @if(($pageindex ?? 0) == 80)
                      <a href="/isletmeyonetim/uygulama-afisi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2001,6 +2006,7 @@
                         ><span class="mtext">Uygulama Afişi</span>
                      </a>
                   </li>
+                  @endif
                   @endif
 
                   {{-- 11) Müşteriler/Danışanlar --}}
