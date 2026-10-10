@@ -142,11 +142,32 @@ return [
 
         'client' => 'predis',
 
+        // Paylasimli Redis'te (sunucuda 3 Laravel app) cakismayi onlemek icin
+        // app-ozel prefix. Ayrica session (DB2) ile cache (DB1) AYRI DB'lerde:
+        // 'cache:clear' (FLUSHDB) session'lari SILMEZ -> kullanicilar dusmez.
+        'options' => [
+            'prefix' => env('REDIS_PREFIX', 'rmcweb:'),
+        ],
+
         'default' => [
             'host' => env('REDIS_HOST', '127.0.0.1'),
             'password' => env('REDIS_PASSWORD', null),
             'port' => env('REDIS_PORT', 6379),
             'database' => 0,
+        ],
+
+        'cache' => [
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'password' => env('REDIS_PASSWORD', null),
+            'port' => env('REDIS_PORT', 6379),
+            'database' => env('REDIS_CACHE_DB', 1),
+        ],
+
+        'session' => [
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'password' => env('REDIS_PASSWORD', null),
+            'port' => env('REDIS_PORT', 6379),
+            'database' => env('REDIS_SESSION_DB', 2),
         ],
 
     ],

@@ -77,7 +77,7 @@ return [
 
         'redis' => [
             'driver' => 'redis',
-            'connection' => 'default',
+            'connection' => 'cache', // AYRI DB (1) — session'dan (DB2) izole
         ],
 
     ],
