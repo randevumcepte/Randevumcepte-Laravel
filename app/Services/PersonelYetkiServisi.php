@@ -192,7 +192,21 @@ class PersonelYetkiServisi
             self::$_personelIdCache[$personelCacheKey] = $personelId;
         }
         if (!$personelId) {
-            // Personel kaydi yoksa salon sahibidir veya direk yetkilidir → tam yetki
+            // Personel kaydi yok. AMA kullanici model_has_roles'ta Personel rolunde (5)
+            // ise salon sahibi DEGILDIR — Personeller.yetkili_id bagi kopuk olabilir
+            // (cogu personelde bu bag eksik). Bu durumda TAM YETKI VERME; yetkisi
+            // ayarlanmamis personel gibi davranip 'personel' default sablonunu uygula
+            // (yoksa rol-5 personele yonetici menuleri acilir + numaralar maskelenmez).
+            $personelRolunde = \DB::table('model_has_roles')
+                ->where('model_id', $yetkiliId)
+                ->where('salon_id', $salonId)
+                ->where('role_id', 5)
+                ->exists();
+            if ($personelRolunde) {
+                $sade = PersonelYetkiSabitleri::sablonAyarlari('personel');
+                return self::$_yetkiliYetkiVarCache[$cacheKey] = (bool)($sade[$key] ?? false);
+            }
+            // Gercekten personel rolu degil (salon sahibi / direk yetkili) → tam yetki
             return self::$_yetkiliYetkiVarCache[$cacheKey] = true;
         }
         return self::$_yetkiliYetkiVarCache[$cacheKey] = self::yetkiVar($personelId, $salonId, $key);
