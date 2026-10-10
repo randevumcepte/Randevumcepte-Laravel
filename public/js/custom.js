@@ -3005,6 +3005,13 @@ function randevuyaGelmedi(hizmetid,id,seansDusumuYap)
                success: function(result)  {
                     $('#preloader').hide();
 
+                    // Bayat id / server hatasi (or. surukle sonrasi) -> recolor etme, TAZELE + uyar
+                    if(result && result.hata){
+                        if($('#calendar').length){ takvimyukle(false,false); }
+                        swal('Uyarı', result.mesaj || 'İşlem yapılamadı, sayfa yenilendi.', 'warning');
+                        return;
+                    }
+
                     if(result.seansDusmeOnayi)
                     {
                         swal({
@@ -12405,6 +12412,12 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
         },
         success: function(result) {
             $("#preloader").hide();
+            // Bayat id / server hatasi (or. surukle sonrasi) -> recolor etme, TAZELE + uyar
+            if (result && result.hata) {
+                if ($('#calendar').length) { takvimyukle(false, false); }
+                swal('Uyarı', result.mesaj || 'İşlem yapılamadı, sayfa yenilendi.', 'warning');
+                return;
+            }
             if (result.geldiIsaretlendi) {
                 if (typeof window._rcModalDetayYenile === 'function') {
                     window._rcModalDetayYenile();
