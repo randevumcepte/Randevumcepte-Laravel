@@ -2349,10 +2349,13 @@
                   </li>
                   @endif
 
-                  {{-- Cagri Merkezi: Personel rolu (5) icin Arama Ekrani + Arama Randevu Takvimi
-                       (santral aktif + dahili VEYA webrtc dahili varsa) — sadece uyelik_turu == 3.
-                       NOT: dahili_no_webrtc-only personel de gorebilsin diye ikisinden biri yeter. --}}
-                  @if($isletme->uyelik_turu == 3 && in_array(5, $_layoutRoller) && $isletme->santral_aktif && (optional($_layoutYetkiliPersonel)->dahili_no || optional($_layoutYetkiliPersonel)->dahili_no_webrtc))
+                  {{-- Cagri Merkezi: Personel rolu (5) icin Arama Ekrani + Arama Randevu Takvimi.
+                       Cagri merkezi paketi (uyelik_turu==3) olan salonda rol-5 personel KENDI
+                       arama ekranini + randevu takvimini HER ZAMAN gorur; dahili/santral kosulu
+                       aranmaz (dahilisi olmayan personel de kendi listesini goruntuleyebilsin,
+                       ARA butonu softphone/dahili yoksa zaten uyari verir). Veri endpoint'leri
+                       rol==5 icin SADECE kendi listelerine filtreler, numara KVKK geregi gizli. --}}
+                  @if($isletme->uyelik_turu == 3 && in_array(5, $_layoutRoller))
                   <li>
                      @if($pageindex==44)
                      <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
