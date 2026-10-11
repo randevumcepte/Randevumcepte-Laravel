@@ -22834,130 +22834,74 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $adisyon = "";
 
+        // PERFORMANS: Eskiden her hizmet x her parca icin ayri 6-tablo JOIN +
+        // LIKE %% + HAVING subquery sorgusu atiliyordu (N x M). Yogun takvimli
+        // musteride FPM worker tutuyordu. Yeni mantik:
+        //   1) Tum hizmet parcalarini onceden topla, siralamayi koru
+        //   2) Isimli parcalar icin TEK sorgu (OR LIKE) ama ORDER BY CASE WHEN
+        //      ile hizmet dizisindeki sira priority olarak kullanilir — eski
+        //      "ilk eslesen hizmet" davranisi birebir korunur
+        //   3) Bulunamazsa + "Tum Vucut" parcasi varsa filtresiz fallback (eski
+        //      kodda da ayni davranis vardi — Tum Vucut ise filtre atlanirdi)
+        $aranacakAdlar = [];
+        $tumVucutVar = false;
         foreach ($randevu->hizmetler as $hizmet) {
-
-            $hizmetlernonexp = explode("+", $hizmet->hizmetler->hizmet_adi);
-
-            foreach ($hizmetlernonexp as $hizmetlerexp) {
-
-                $adisyon_var = DB::table("adisyonlar")
-
-                    ->join(
-
-                        "adisyon_paketler",
-
-                        "adisyonlar.id",
-
-                        "=",
-
-                        "adisyon_paketler.adisyon_id"
-
-                    )
-
-                    ->join(
-
-                        "adisyon_paket_seanslar",
-
-                        "adisyon_paketler.id",
-
-                        "=",
-
-                        "adisyon_paket_seanslar.adisyon_paket_id"
-
-                    )
-
-                    ->join(
-
-                        "paketler",
-
-                        "adisyon_paketler.paket_id",
-
-                        "=",
-
-                        "paketler.id"
-
-                    )
-
-                    ->join(
-
-                        "paket_hizmetler",
-
-                        "paketler.id",
-
-                        "=",
-
-                        "paket_hizmetler.paket_id"
-
-                    )
-
-                    ->join(
-
-                        "hizmetler",
-
-                        "paket_hizmetler.hizmet_id",
-
-                        "=",
-
-                        "hizmetler.id"
-
-                    )
-
-                    ->select(
-
-                        "adisyonlar.id as adisyon_id",
-
-                        DB::raw(
-
-                            "(SELECT COUNT(*) from adisyon_paket_seanslar where adisyon_paket_seanslar.geldi is null and adisyon_paket_seanslar.adisyon_paket_id = adisyon_paketler.id) as gelinmeyen_seans_sayisi"
-
-                        )
-
-                    )
-
-                    ->where("adisyonlar.salon_id", $randevu->salon_id)
-
-                    ->where(function ($q) use ($hizmetlerexp) {
-
-                        if (!str_contains($hizmetlerexp, "Tüm Vücut")) {
-
-                            $q->where(
-
-                                "hizmetler.hizmet_adi",
-
-                                "like",
-
-                                "%" . $hizmetlerexp . "%"
-
-                            );
-
-                        }
-
-                    })
-
-                    ->where("adisyonlar.user_id", $randevu->user_id)
-
-                    ->having(DB::raw("gelinmeyen_seans_sayisi"), ">", 0)
-
-                    ->first();
-
-                if ($adisyon_var && !$adisyonvar) {
-
-                    $adisyon = Adisyonlar::where(
-
-                        "id",
-
-                        $adisyon_var->adisyon_id
-
-                    )->first();
-
-                    $adisyonvar = true;
-
-                    break;
-
+            $parcalar = explode("+", $hizmet->hizmetler->hizmet_adi);
+            foreach ($parcalar as $parca) {
+                $trim = trim($parca);
+                if ($trim === '') continue;
+                if (str_contains($trim, "Tüm Vücut")) {
+                    $tumVucutVar = true;
+                    continue;
                 }
-
+                $aranacakAdlar[] = $trim;
             }
+        }
 
+        $paketAdisyonSorgusu = function ($withLikeFilter) use ($randevu, $aranacakAdlar) {
+            $q = DB::table("adisyonlar")
+                ->join("adisyon_paketler", "adisyonlar.id", "=", "adisyon_paketler.adisyon_id")
+                ->join("adisyon_paket_seanslar", "adisyon_paketler.id", "=", "adisyon_paket_seanslar.adisyon_paket_id")
+                ->join("paketler", "adisyon_paketler.paket_id", "=", "paketler.id")
+                ->join("paket_hizmetler", "paketler.id", "=", "paket_hizmetler.paket_id")
+                ->join("hizmetler", "paket_hizmetler.hizmet_id", "=", "hizmetler.id")
+                ->select(
+                    "adisyonlar.id as adisyon_id",
+                    DB::raw("(SELECT COUNT(*) from adisyon_paket_seanslar where adisyon_paket_seanslar.geldi is null and adisyon_paket_seanslar.adisyon_paket_id = adisyon_paketler.id) as gelinmeyen_seans_sayisi")
+                )
+                ->where("adisyonlar.salon_id", $randevu->salon_id)
+                ->where("adisyonlar.user_id", $randevu->user_id)
+                ->having(DB::raw("gelinmeyen_seans_sayisi"), ">", 0);
+            if ($withLikeFilter && !empty($aranacakAdlar)) {
+                $q->where(function ($sub) use ($aranacakAdlar) {
+                    foreach ($aranacakAdlar as $ad) {
+                        $sub->orWhere("hizmetler.hizmet_adi", "like", "%" . $ad . "%");
+                    }
+                });
+                // ORDER BY CASE WHEN ile eski "ilk eslesen hizmet sirasi" davranisi korunur
+                $orderCases = [];
+                $bindings = [];
+                foreach ($aranacakAdlar as $idx => $ad) {
+                    $orderCases[] = "WHEN hizmetler.hizmet_adi LIKE ? THEN " . ($idx + 1);
+                    $bindings[] = '%' . $ad . '%';
+                }
+                $q->orderByRaw("CASE " . implode(' ', $orderCases) . " ELSE 9999 END", $bindings);
+            }
+            return $q->first();
+        };
+
+        $adisyon_var = null;
+        if (!empty($aranacakAdlar)) {
+            $adisyon_var = $paketAdisyonSorgusu(true);
+        }
+        // Fallback: Tum Vucut varsa filtresiz tara (eski kodda da ayni akis)
+        if (!$adisyon_var && $tumVucutVar) {
+            $adisyon_var = $paketAdisyonSorgusu(false);
+        }
+
+        if ($adisyon_var && !$adisyonvar) {
+            $adisyon = Adisyonlar::where("id", $adisyon_var->adisyon_id)->first();
+            $adisyonvar = true;
         }
 
         if (
