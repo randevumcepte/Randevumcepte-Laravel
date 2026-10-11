@@ -16161,39 +16161,51 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         }
 
         if (count($mesajlar) > 0) {
-            // WhatsApp-first: salon WA aktif+connected ise once WA dene,
-            // basarisiz olanlari SMS'e dusur. Router salonun bridge_tipi'ne gore
-            // baileys veya whatsmeow'a otomatik yonlendirir.
-            try {
-                $isletme = Salonlar::find($randevu->salon_id);
-                // Paylasilan oturum destegi: durum kontrolu ust salonda
-                $waIsletme = $isletme ? \App\Services\WhatsAppService::resolveWaSalon($isletme) : null;
-                $waKanaliAcik = $waIsletme
-                    && !empty($waIsletme->whatsapp_aktif)
-                    && ($waIsletme->whatsapp_durum ?? '') === 'connected';
+            // WA/SMS gonderimi response sonrasina atildi (randevuekleguncelle ile ayni
+            // register_shutdown_function + fastcgi_finish_request pattern'i). WA gateway
+            // veya SMS saglayici yavaslarsa FPM worker tutulmaz; client anlik "Basarili" alir.
+            $_requestForSms = $request;
+            $_salonIdForSms = $randevu->salon_id;
+            $_randevuIdForSms = $randevu->id;
+            register_shutdown_function(function () use ($mesajlar, $_requestForSms, $_salonIdForSms, $_randevuIdForSms) {
+                @ignore_user_abort(true);
+                @set_time_limit(60);
+                if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
 
-                $smsKalan = $mesajlar;
-                if ($waKanaliAcik) {
-                    $wa = app(\App\Services\WhatsAppService::class);
-                    $smsKalan = [];
-                    foreach ($mesajlar as $m) {
-                        $to = $m['to'] ?? null;
-                        $msg = $m['message'] ?? null;
-                        if (!$to || !$msg) { $smsKalan[] = $m; continue; }
-                        $sonuc = $wa->sendReminder($isletme, $to, $msg, $randevu->id, null, null, false, 'iptal_bildirim');
-                        if (!($sonuc['ok'] ?? false)) {
-                            $smsKalan[] = $m;
+                try {
+                    $isletme = Salonlar::find($_salonIdForSms);
+                    $waIsletme = $isletme ? \App\Services\WhatsAppService::resolveWaSalon($isletme) : null;
+                    $waKanaliAcik = $waIsletme
+                        && !empty($waIsletme->whatsapp_aktif)
+                        && ($waIsletme->whatsapp_durum ?? '') === 'connected';
+
+                    $smsKalan = $mesajlar;
+                    if ($waKanaliAcik) {
+                        $wa = app(\App\Services\WhatsAppService::class);
+                        $smsKalan = [];
+                        foreach ($mesajlar as $m) {
+                            $to = $m['to'] ?? null;
+                            $msg = $m['message'] ?? null;
+                            if (!$to || !$msg) { $smsKalan[] = $m; continue; }
+                            $sonuc = $wa->sendReminder($isletme, $to, $msg, $_randevuIdForSms, null, null, false, 'iptal_bildirim');
+                            if (!($sonuc['ok'] ?? false)) {
+                                $smsKalan[] = $m;
+                            }
                         }
                     }
-                }
 
-                if (!empty($smsKalan)) {
-                    self::sms_gonder_2($request, $smsKalan, false, 1, false, $randevu->salon_id, false);
+                    if (!empty($smsKalan)) {
+                        self::sms_gonder_2($_requestForSms, $smsKalan, false, 1, false, $_salonIdForSms, false);
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('randevuiptalet WA-first (shutdown) hata, SMS fallback denenecek: ' . $e->getMessage());
+                    try {
+                        self::sms_gonder_2($_requestForSms, $mesajlar, false, 1, false, $_salonIdForSms, false);
+                    } catch (\Throwable $e2) {
+                        \Log::warning('randevuiptalet SMS fallback (shutdown) de hata: ' . $e2->getMessage());
+                    }
                 }
-            } catch (\Throwable $e) {
-                \Log::warning('randevuiptalet WA-first hatasi, direkt SMS denenecek: ' . $e->getMessage());
-                self::sms_gonder_2($request, $mesajlar, false, 1, false, $randevu->salon_id, false);
-            }
+            });
         }
 
         // Musteri push (red veya salon-iptal durumlarinda — musteri kendi iptal ederse mantiksiz)
