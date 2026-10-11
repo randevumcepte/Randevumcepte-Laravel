@@ -6452,6 +6452,22 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $personelId = $request->query('personel_id', $request->input('personel_id'));
         $personelId = ($personelId !== null && $personelId !== '') ? (int) $personelId : null;
 
+        // Cache: 35+ seri aggregate sorgu her istekte yeniden calistirilmasin.
+        // Key = salon + period + personel. TTL 2 dakika (Laravel 5.6 -> DAKIKA).
+        // Dashboard yenilemelerinde ani F5 fark etmez; 2 dk tolere edilebilir.
+        $cacheKey = 'dashKars_' . $salonId . '_' . $period . '_' . ($personelId ?: 'all');
+        $payload = \Cache::remember($cacheKey, 2, function () use ($salonId, $period, $personelId) {
+            return $this->_dashboardKarsilastirmaHesapla($salonId, $period, $personelId);
+        });
+
+        return response()->json($payload);
+    }
+
+    /**
+     * Agir hesap bloku — Cache::remember icinden cagrilir.
+     */
+    private function _dashboardKarsilastirmaHesapla($salonId, $period, $personelId)
+    {
         list($curStart, $curEnd, $prevStart, $prevEnd) = $this->_periodRanges($period);
 
         $currentCiro  = $this->_ciroFor($salonId, $curStart, $curEnd, $personelId);
@@ -6551,7 +6567,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // Yeni: salon calisma saatlerine gore zenginlestirilmis analiz
         $hourlyAnalysis = $this->_buildHourlyAnalysis($salonId, $curStart, $curEnd, $period, $hourlyRaw);
 
-        return response()->json([
+        return [
             'period' => $period,
             'current' => [
                 'label' => $this->_periodLabel($period, true),
@@ -6581,7 +6597,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             'hourlyDensity' => $hourly,
             'hourlyAnalysis' => $hourlyAnalysis,
             'subeler' => [],
-        ]);
+        ];
     }
 
     /**
