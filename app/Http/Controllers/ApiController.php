@@ -15898,14 +15898,25 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 // bazinda kullanilan ve kalan seans sayisini ozetler. Mantik
                 // SeansBildirimService'de merkezi; StoreAdminController da aynisini
                 // cagiriyor (web admin'in "Geldi" butonu) — boylece iki taraf senkron.
-                try {
-                    app(\App\Services\SeansBildirimService::class)->bilgilendir($randevu);
-                } catch (\Throwable $e) {
-                    \Log::warning('[SEANS-KULLANIM] push fail (api)', [
-                        'randevu_id' => $randevu->id,
-                        'err' => $e->getMessage(),
-                    ]);
-                }
+                // Push FCM gateway yavaslarsa FPM worker tutulmasin diye response
+                // sonrasina atildi (sik tetiklenen bir endpoint).
+                $_randevuIdForPush = $randevu->id;
+                register_shutdown_function(function () use ($_randevuIdForPush) {
+                    @ignore_user_abort(true);
+                    @set_time_limit(60);
+                    if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
+                    try {
+                        $_randevu = \App\Randevular::find($_randevuIdForPush);
+                        if ($_randevu) {
+                            app(\App\Services\SeansBildirimService::class)->bilgilendir($_randevu);
+                        }
+                    } catch (\Throwable $e) {
+                        \Log::warning('[SEANS-KULLANIM] push fail (api shutdown)', [
+                            'randevu_id' => $_randevuIdForPush,
+                            'err' => $e->getMessage(),
+                        ]);
+                    }
+                });
 
             }
 
@@ -21313,23 +21324,20 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         }
 
         if (count($mesajlar) > 0) {
-
-            self::sms_gonder_2(
-
-                $request,
-
-                $mesajlar,
-
-                false,
-
-                1,
-
-                false,
-
-                $randevu->salon_id,false
-
-            );
-
+            // SMS gonderimi response sonrasina atildi (SMS gateway yavaslarsa
+            // FPM worker tutulmasin). randevuiptalet ile ayni pattern.
+            $_requestForSms = $request;
+            $_salonIdForSms = $randevu->salon_id;
+            register_shutdown_function(function () use ($mesajlar, $_requestForSms, $_salonIdForSms) {
+                @ignore_user_abort(true);
+                @set_time_limit(60);
+                if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
+                try {
+                    self::sms_gonder_2($_requestForSms, $mesajlar, false, 1, false, $_salonIdForSms, false);
+                } catch (\Throwable $e) {
+                    \Log::warning('randevuonayla SMS (shutdown) hata: ' . $e->getMessage());
+                }
+            });
         }
 
         // Musteri push: SMS metniyle birebir
