@@ -1036,6 +1036,8 @@ Route::prefix('isletmeyonetim')->group(function() {
  	Route::post('/hizmetseansdegistir','StoreAdminController@hizmetseansdegistir');
 
  	Route::post('/pakettahsilattutaridegistir','StoreAdminController@pakettahsilattutaridegistir');
+ 	Route::post('/paketyukseltmeadaylari','StoreAdminController@paketYukseltmeAdaylari');
+ 	Route::post('/paketyukselt','StoreAdminController@paketYukselt');
  	Route::post('/hizmet-hediye-isle','StoreAdminController@hizmet_hediye_isle');
  	Route::post('/urun-hediye-isle','StoreAdminController@urun_hediye_isle');
  	Route::post('/paket-hediye-isle','StoreAdminController@paket_hediye_isle');

@@ -514,3 +514,178 @@
             })();
          </script>
       </div>
+
+{{-- ============ PAKETİ YÜKSELT SİHİRBAZI (yerinde dönüştürme: üst-küme pakete) ============ --}}
+<div class="modal fade" id="paket_yukselt_modal" tabindex="-1" role="dialog" aria-hidden="true" style="z-index:1061">
+   <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+         <div class="modal-header">
+            <h5 class="modal-title">Paketi Yükselt</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Kapat"><span aria-hidden="true">&times;</span></button>
+         </div>
+         <div class="modal-body">
+            <input type="hidden" id="py_adisyon_paket_id" value="">
+            <input type="hidden" id="py_hedef_paket_id" value="">
+            <input type="hidden" id="py_mevcut_odenen" value="0">
+
+            {{-- Adim 1: hedef (ust-kume) paket secimi --}}
+            <div id="py_adim1">
+               <p style="margin-bottom:10px"><strong id="py_mevcut_paket_adi"></strong> paketini, mevcut hizmetleri koruyarak hangi pakete yükseltelim?</p>
+               <div id="py_aday_listesi" style="max-height:300px;overflow:auto"></div>
+            </div>
+
+            {{-- Adim 2: ozet + fiyat + onay --}}
+            <div id="py_adim2" style="display:none">
+               <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:10px 12px;margin-bottom:12px">
+                  <div style="font-weight:600;color:#6d28d9" id="py_hedef_adi"></div>
+                  <div style="font-size:13px;color:#555;margin-top:4px">Eklenecek hizmetler: <span id="py_ek_hizmetler"></span></div>
+                  <div style="font-size:13px;color:#555;margin-top:2px">Hizmet başına seans: <span id="py_seans_per"></span></div>
+               </div>
+               <div class="form-group">
+                  <label>Paket fiyatı (₺)</label>
+                  <input type="number" min="0" step="0.01" class="form-control" id="py_fiyat" value="0">
+               </div>
+               <div style="display:flex;justify-content:space-between;font-size:13px;color:#555;margin-bottom:4px">
+                  <span>Önceden ödenen:</span><strong id="py_odenen_goster">0,00 ₺</strong>
+               </div>
+               <div style="display:flex;justify-content:space-between;font-size:14px;color:#111;margin-bottom:12px">
+                  <span>Kalan (tahsil edilecek):</span><strong id="py_kalan_goster" style="color:#b91c1c">0,00 ₺</strong>
+               </div>
+               <div style="text-align:right">
+                  <button type="button" class="btn btn-link" id="py_geri1">‹ Geri</button>
+                  <button type="button" class="btn btn-success" id="py_kaydet"><i class="fa fa-arrow-up"></i> Yükselt</button>
+               </div>
+            </div>
+         </div>
+      </div>
+   </div>
+</div>
+<script>
+(function(){
+   if(!window.jQuery) return;
+   var $ = window.jQuery;
+   var BASE = '/isletmeyonetim';
+   function csrf(){ var m=document.querySelector('meta[name=csrf-token]'); return m?m.getAttribute('content'):$('input[name="_token"]').first().val(); }
+   function goAdim(n){ $('#py_adim1,#py_adim2').hide(); $('#py_adim'+n).show(); }
+   function fmt(x){ return (parseFloat(x)||0).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+   // Ic ice modal: ust modal (Satis Detaylari) hala acikken alttaki body.modal-open sinifini koru
+   $('#paket_yukselt_modal').on('hidden.bs.modal', function(){
+      if($('#satisKalemleri').hasClass('show') || $('#satisKalemleri').is(':visible')){ $('body').addClass('modal-open'); }
+   });
+
+   function kalanHesapla(){
+      var fiyat = parseFloat($('#py_fiyat').val())||0;
+      var odenen = parseFloat($('#py_mevcut_odenen').val())||0;
+      var kalan = fiyat - odenen; if(kalan < 0) kalan = 0;
+      $('#py_kalan_goster').text(fmt(kalan)+' ₺');
+   }
+   $('#py_fiyat').on('input', kalanHesapla);
+
+   // Dropdown "Paketi Yükselt" -> adaylari getir (delegated; kalemler AJAX ile basiliyor)
+   $(document).on('click', '.tahsilat_paket_yukselt', function(e){
+      e.preventDefault();
+      var apid = $(this).attr('data-value');
+      $('#py_adisyon_paket_id').val(apid);
+      $('#py_hedef_paket_id').val('');
+      $('#py_mevcut_paket_adi').text($(this).attr('data-paket-adi') || 'Bu paket');
+      $('#py_aday_listesi').html('<div style="padding:12px;color:#888">Yükleniyor...</div>');
+      goAdim(1);
+      $('#paket_yukselt_modal').modal('show');
+      $.ajax({
+         type:'POST', url:BASE+'/paketyukseltmeadaylari', dataType:'json',
+         data:{ _token:csrf(), adisyonpaketid:apid, sube:$('input[name="sube"]').first().val() },
+         success:function(res){
+            if(!res || !res.success){ $('#py_aday_listesi').html('<div style="padding:12px;color:#c00">'+((res&&res.mesaj)||'Hata')+'</div>'); return; }
+            $('#py_mevcut_paket_adi').text(res.mevcut_paket_adi || 'Bu paket');
+            $('#py_mevcut_odenen').val(res.mevcut_odenen || 0);
+            if(!res.adaylar || !res.adaylar.length){
+               $('#py_aday_listesi').html('<div style="padding:12px;color:#c00">Bu paketi kapsayan (üst-küme) uygun bir yükseltme paketi bulunamadı. Katalogda, mevcut hizmetleri + ek hizmetleri içeren bir paket tanımlı olmalı.</div>');
+               return;
+            }
+            var html='';
+            res.adaylar.forEach(function(a){
+               var ek = (a.ek_hizmetler && a.ek_hizmetler.length) ? a.ek_hizmetler.join(', ') : '—';
+               html += '<label class="py-aday-sat" style="display:block;border:1px solid #e3e3ef;border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer">'+
+                  '<input type="radio" name="py_aday_radio" value="'+a.paket_id+'" '+
+                     'data-adi="'+$('<div>').text(a.paket_adi).html()+'" '+
+                     'data-fiyat="'+a.fiyat+'" data-seans="'+a.seans_per+'" '+
+                     'data-ek="'+$('<div>').text(ek).html()+'" style="margin-right:8px">'+
+                  '<strong>'+$('<div>').text(a.paket_adi).html()+'</strong> '+
+                  '<span style="float:right;color:#6d28d9;font-weight:600">'+fmt(a.fiyat)+' ₺</span>'+
+                  '<div style="font-size:12px;color:#888;margin-top:3px">+ '+$('<div>').text(ek).html()+'</div>'+
+                  '</label>';
+            });
+            $('#py_aday_listesi').html(html);
+         },
+         error:function(req){ $('#py_aday_listesi').html('<div style="padding:12px;color:#c00">Hata: '+(req.responseText||'istek başarısız')+'</div>'); }
+      });
+   });
+
+   // Aday secimi -> Adim 2 (ozet)
+   $(document).on('change', 'input[name="py_aday_radio"]', function(){
+      $('#py_hedef_paket_id').val($(this).val());
+      $('#py_hedef_adi').text($(this).attr('data-adi'));
+      $('#py_ek_hizmetler').text($(this).attr('data-ek'));
+      $('#py_seans_per').text($(this).attr('data-seans'));
+      $('#py_fiyat').val($(this).attr('data-fiyat'));
+      $('#py_odenen_goster').text(fmt($('#py_mevcut_odenen').val())+' ₺');
+      kalanHesapla();
+      goAdim(2);
+   });
+
+   $('#py_geri1').on('click', function(){ goAdim(1); });
+
+   // Satis Detaylari modalini (acik kalemler) sayfa yenilemeden tazele
+   function pyRefresh(){
+      var adisyonId = $('input[name="adisyon_id"]').first().val();
+      var musteriId = $('#satis_listesi').data('musteriId');
+      var modalAcik = $('#satisKalemleri').hasClass('show') || $('#satisKalemleri').is(':visible');
+      if(!adisyonId || !modalAcik || !$('#tum_tahsilatlar_duzenleme').length){ location.reload(); return; }
+      $.ajax({
+         url:BASE+'/satisDetaylariveDuzenleme', method:'GET',
+         data:{ sube:$('input[name="sube"]').first().val(), musteriId:musteriId, adisyonId:adisyonId, _token:csrf() },
+         success:function(result){
+            $('#tum_tahsilatlar_duzenleme').empty().append(result.kalemler);
+            $('#tahsilat_listesi_duzenleme').empty().append(result.tahsilatlar);
+            if(typeof satisDetayTaksitleriDoldur==='function') satisDetayTaksitleriDoldur(result.taksitler);
+            if(typeof satisDetaySaticiSelect2==='function') satisDetaySaticiSelect2();
+            if(typeof tahsilatyenidenhesapla==='function') tahsilatyenidenhesapla();
+         },
+         error:function(){ location.reload(); }
+      });
+   }
+
+   // Kaydet (Yükselt)
+   $('#py_kaydet').on('click', function(){
+      var $btn=$(this);
+      if(!$('#py_hedef_paket_id').val()){ if(window.swal) swal('Eksik','Lütfen bir yükseltme paketi seçin.','warning'); return; }
+      $btn.prop('disabled',true);
+      $.ajax({
+         type:'POST', url:BASE+'/paketyukselt', dataType:'json',
+         data:{
+            _token:csrf(),
+            adisyonpaketid:$('#py_adisyon_paket_id').val(),
+            hedef_paket_id:$('#py_hedef_paket_id').val(),
+            fiyat:$('#py_fiyat').val(),
+            sube:$('input[name="sube"]').first().val()
+         },
+         success:function(res){
+            $btn.prop('disabled',false);
+            $('#paket_yukselt_modal').modal('hide');
+            if(res && res.success){
+               if(window.swal){ swal({title:'Yükseltildi', text:(res.mesaj||''), icon:'success', timer:1800, buttons:false}); }
+               pyRefresh();
+            } else {
+               if(window.swal) swal('Hata', (res && res.mesaj) ? res.mesaj : 'Kaydedilemedi', 'error');
+            }
+         },
+         error:function(req){
+            $btn.prop('disabled',false);
+            var msg='İstek başarısız'; try{ var j=JSON.parse(req.responseText); if(j.mesaj) msg=j.mesaj; }catch(e){}
+            if(window.swal) swal('Hata', msg, 'error');
+         }
+      });
+   });
+})();
+</script>
