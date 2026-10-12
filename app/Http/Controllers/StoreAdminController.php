@@ -15426,6 +15426,13 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     
     
     // Temel sorgu
+    // Paket select kolonlari: yukseltme_kaynak_paket_id (rozet) migration henuz calismadiysa
+    // select'e eklemeyelim -> yoksa "column not found" ile tum satis takibi 500 verir.
+    $paketSelectCols = ['id', 'adisyon_id', 'paket_id', 'fiyat', 'indirim_tutari', 'personel_id', 'seans_sayisi'];
+    if (\Schema::hasColumn('adisyon_paketler', 'yukseltme_kaynak_paket_id')) {
+        $paketSelectCols[] = 'yukseltme_kaynak_paket_id';
+    }
+
     $adisyonlar = Adisyonlar::with([
         'musteri:id,name',
         'hizmetler' => function ($q) use ($personel_id) {
@@ -15445,8 +15452,8 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
                 $q->where('personel_id', $personel_id);
             }
         },
-        'paketler' => function ($q) use ($personel_id) {
-            $q->select('id', 'adisyon_id', 'paket_id', "fiyat", "indirim_tutari", "personel_id")
+        'paketler' => function ($q) use ($personel_id, $paketSelectCols) {
+            $q->select($paketSelectCols)
               ->with(['paket:id,paket_adi'])
               ->with('tahsilatlar:id,adisyon_paket_id,tutar');
             if ($personel_id) {

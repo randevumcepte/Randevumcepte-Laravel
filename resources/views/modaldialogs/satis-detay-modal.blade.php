@@ -519,9 +519,9 @@
 <div class="modal fade" id="paket_yukselt_modal" tabindex="-1" role="dialog" aria-hidden="true" style="z-index:1061">
    <div class="modal-dialog modal-dialog-centered" role="document">
       <div class="modal-content">
-         <div class="modal-header">
-            <h5 class="modal-title">Paketi Yükselt</h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Kapat"><span aria-hidden="true">&times;</span></button>
+         <div class="modal-header" style="background:#fff;border-bottom:1px solid #ede7f4">
+            <h5 class="modal-title" style="color:#5C008E;font-weight:700">Paketi Yükselt</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Kapat" style="color:#5C008E;opacity:1;text-shadow:none"><span aria-hidden="true">&times;</span></button>
          </div>
          <div class="modal-body">
             <input type="hidden" id="py_adisyon_paket_id" value="">
