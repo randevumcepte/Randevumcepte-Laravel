@@ -16614,7 +16614,9 @@ DB::raw('
                                            <div
                                               class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list"
                                            > ';
-                    
+                    // Paketi Yukselt: ODENMIS pakette de gorunur (tahsilatVar'dan bagimsiz, sil/hediye'den AYRI)
+                    $html .= '<a class="dropdown-item tahsilat_paket_yukselt" data-value="'.$paket->id.'" data-paket-adi="'.e($paket->paket->paket_adi).'" href="#"><i class="fa fa-arrow-up"></i> Paketi Yükselt</a>';
+
                     if(($paket->senet_id == null && $paket->taksitli_tahsilat_id == null &&  $tahsilatVar == 0 ) || ($paket->fiyat == 0 || $satisDuzenle))
                     {
 
