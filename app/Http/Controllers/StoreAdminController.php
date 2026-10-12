@@ -21852,7 +21852,7 @@ DB::raw('
             $seanslarListe = AdisyonPaketSeanslar::where('randevu_id', $randevu->id)->get();
             $list = [];
             foreach ($seanslarListe as $s) {
-                $ap = $s->adisyon_paket_id ? AdisyonPaketler::where('id', $s->adisyon_paket_id)->first() : null;
+                $ap = AdisyonPaketler::where('id', $s->adisyon_paket_id)->first();
                 $paketAdi = '';
                 $toplamSeans = 0;
                 $kullanilan = 0;
@@ -21865,18 +21865,6 @@ DB::raw('
                     $kullanilan = (int) AdisyonPaketSeanslar::where('adisyon_paket_id', $ap->id)
                         ->where('geldi', true)
                         ->sum('dusulen_miktar');
-                } elseif ($s->adisyon_hizmet_id) {
-                    // Seansli tek-hizmet kalemi (or. "paket ici hizmet yukseltme" ile eklenen ek seanslar):
-                    // APS adisyon_paket_id degil adisyon_hizmet_id ile baglidir; kalan/toplam adisyon_hizmetler'den
-                    // hesaplanmali — aksi halde $ap=null kalip pop-up'ta "0/0" gorunurdu.
-                    $ah = AdisyonHizmetler::where('id', $s->adisyon_hizmet_id)->first();
-                    if ($ah) {
-                        $toplamSeans = (int) ($ah->seans_sayisi ?? 0);
-                        $kullanilan = (int) AdisyonPaketSeanslar::where('adisyon_hizmet_id', $ah->id)
-                            ->where('geldi', true)
-                            ->sum('dusulen_miktar');
-                        $paketAdi = $s->hizmet ? $s->hizmet->hizmet_adi : '';
-                    }
                 }
                 $kalan = max(0, $toplamSeans - $kullanilan);
                 // Default miktar: randevu modalinda salon girmisse o, yoksa 1
@@ -28384,135 +28372,6 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'Adisyondaki paket fiyatı değiştirildi',
             ['adisyon_id'=>$adisyon_paket->adisyon_id, 'eski_fiyat'=>$_eskifiyat, 'yeni_fiyat'=>$adisyon_paket->fiyat]);
     }
-
-    /**
-     * "Paketi Yükselt" modali adim 2: secilen paketin ICINDEKI hizmetleri (lazer/cilt/zayiflama vb.)
-     * ve her birinin bu adisyondaki KALAN seansini dondurur.
-     * Kalan hesabi paketVarmiKontrolu (36967+) ile birebir ayni: her hizmet icin
-     * kalan = seans_per_hizmet - COUNT(APS by hizmet_id). bekleyen_seans kolonuna GUVENILMEZ.
-     */
-    public function paketIciHizmetlerGetir(Request $request)
-    {
-        $adisyon_paket = AdisyonPaketler::where('id', $request->adisyonpaketid)->first();
-        if (!$adisyon_paket || !$adisyon_paket->paket) {
-            return response()->json(['success' => false, 'hizmetler' => [], 'mesaj' => 'Paket bulunamadı.']);
-        }
-
-        // Bolge (hizmet) basina satin alinan seans sayisi (tek sayi, tum bolgelere esit)
-        $seansPerHizmet = (int) ($adisyon_paket->seans_sayisi ?? $adisyon_paket->bekleyen_seans ?? 0);
-
-        // Her bolge icin kullanilan APS sayisi (tek sorgu, hizmet_id bazli COUNT)
-        $kullanilanByHizmet = DB::table('adisyon_paket_seanslar')
-            ->where('adisyon_paket_id', $adisyon_paket->id)
-            ->select('hizmet_id', DB::raw('COUNT(*) as c'))
-            ->groupBy('hizmet_id')
-            ->pluck('c', 'hizmet_id')
-            ->toArray();
-
-        $hizmetler = [];
-        foreach ($adisyon_paket->paket->hizmetler as $hizmetP) {
-            if (!$hizmetP->hizmet) continue;
-            $kullanilan = (int) ($kullanilanByHizmet[$hizmetP->hizmet_id] ?? 0);
-            $kalan = max(0, $seansPerHizmet - $kullanilan);
-            $hizmetler[] = [
-                'hizmet_id'     => $hizmetP->hizmet_id,
-                'hizmet_adi'    => $hizmetP->hizmet->hizmet_adi,
-                'satin_alinan'  => $seansPerHizmet,
-                'kullanilan'    => $kullanilan,
-                'kalan'         => $kalan,
-            ];
-        }
-
-        return response()->json([
-            'success'          => true,
-            'paket_adi'        => $adisyon_paket->paket->paket_adi,
-            'adisyon_paket_id' => $adisyon_paket->id,
-            'hizmetler'        => $hizmetler,
-        ]);
-    }
-
-    /**
-     * "Paketi Yükselt" modali submit: secilen paket icindeki bir hizmete ek seans satin alinir.
-     *
-     * YOL A (ek kalem): Ek seanslar ESKI paketi (adisyon_paketler + tahsilat_paketler) HIC
-     * degistirmeden, AYNI adisyona SEANSLI TEK-HIZMET kalemi (adisyon_hizmetler, seans_sayisi>=1,
-     * APS adisyon_hizmet_id ile) olarak eklenir. Boylece:
-     *  - Odeme/islem oykusu kopmaz (eski paket satiri ve tahsilatlari aynen kalir),
-     *  - seans_sayisi x hizmet_adedi formulune (simetrik paket kapasitesi) DOKUNULMAZ; ek kalem
-     *    tek-hizmet oldugundan kalan = seans_sayisi - COUNT(APS by adisyon_hizmet_id) ile dogru sayilir,
-     *  - fark tutari yeni kalemin fiyati olur, kalan odeme ekrandaki toplu "Tahsil Et" ile alinir.
-     * APS satirlari burada URETILMEZ (otomatik_randevu_olusturuldu=false) — seanslar randevu
-     * acildikca tuketilir; paketsatisekle'nin "randevu olustur isaretlenmemis" davranisiyla ayni.
-     */
-    public function paketIciHizmetYukselt(Request $request)
-    {
-        if($r = self::satisYetkiYoksa403($request, 'satis.adisyon_olustur')) return $r;
-
-        $adisyon_paket = AdisyonPaketler::where('id', $request->adisyonpaketid)->first();
-        if (!$adisyon_paket) {
-            return response()->json(['success' => false, 'mesaj' => 'Paket bulunamadı.'], 404);
-        }
-
-        $adisyon_id = $adisyon_paket->adisyon_id;
-        $adisyon    = Adisyonlar::where('id', $adisyon_id)->first();
-        $musteri_id = $adisyon ? $adisyon->user_id : null;
-        $salon_id   = $adisyon ? $adisyon->salon_id : $request->sube;
-
-        $hizmet_id  = (int) $request->hizmet_id;
-        $ekSeans    = (int) $request->ek_seans;
-        $ekFiyat    = round((float) str_replace(['.', ','], ['', '.'], (string) $request->ek_fiyat), 2);
-        $hizmetAdi  = trim((string) $request->hizmet_adi);
-
-        if ($hizmet_id <= 0 || $ekSeans < 1) {
-            return response()->json(['success' => false, 'mesaj' => 'Hizmet ve ek seans adedi zorunludur.'], 422);
-        }
-
-        // Ek kalemin seçilen hizmetin, bu paketteki bir bölge olduğunu doğrula (dışarıdan uydurma hizmet engeli)
-        $gecerliHizmet = false;
-        if ($adisyon_paket->paket) {
-            foreach ($adisyon_paket->paket->hizmetler as $hizmetP) {
-                if ((int) $hizmetP->hizmet_id === $hizmet_id) { $gecerliHizmet = true; break; }
-            }
-        }
-        if (!$gecerliHizmet) {
-            return response()->json(['success' => false, 'mesaj' => 'Seçilen hizmet bu pakete ait değil.'], 422);
-        }
-
-        $sureDk = (int) (SalonHizmetler::where('salon_id', $salon_id)->where('hizmet_id', $hizmet_id)->value('sure_dk') ?? 0);
-
-        // Seansli tek-hizmet kalemi (adisyonhizmetekle:12988+ ile ayni insert deseni; APS uretimi YOK)
-        $adisyon_hizmet = new AdisyonHizmetler();
-        $adisyon_hizmet->adisyon_id   = $adisyon_id;
-        $adisyon_hizmet->hizmet_id    = $hizmet_id;
-        $adisyon_hizmet->islem_tarihi = date('Y-m-d');
-        $adisyon_hizmet->islem_saati  = date('H:i:s');
-        $adisyon_hizmet->sure         = $sureDk;
-        $adisyon_hizmet->fiyat        = $ekFiyat;
-        $adisyon_hizmet->personel_id  = $adisyon_paket->personel_id;
-        $adisyon_hizmet->seans_sayisi = $ekSeans;   // kapasite (tek bolge -> carpan yok, dogru sayilir)
-        $adisyon_hizmet->bekleyen_seans = $ekSeans;
-        $adisyon_hizmet->kullanilan_seans = 0;
-        $adisyon_hizmet->kullanilmayan_seans = 0;
-        $adisyon_hizmet->otomatik_randevu_olusturuldu = false;
-        $adisyon_hizmet->save();
-
-        $_paketAdi = optional($adisyon_paket->paket)->paket_adi ?? ('Paket #'.$adisyon_paket->paket_id);
-        if ($hizmetAdi === '') $hizmetAdi = 'Hizmet #'.$hizmet_id;
-        SalonAudit::log($salon_id, 'paket_ici_hizmet_yukselt', 'adisyon', $adisyon_id,
-            $_paketAdi.' → '.$hizmetAdi.' +'.$ekSeans.' seans',
-            'Paket içi hizmet yükseltildi (ek seanslı hizmet kalemi eklendi)',
-            ['adisyon_paket_id'=>$adisyon_paket->id, 'yeni_adisyon_hizmet_id'=>$adisyon_hizmet->id,
-             'hizmet_id'=>$hizmet_id, 'ek_seans'=>$ekSeans, 'ek_fiyat'=>$ekFiyat]);
-
-        return response()->json([
-            'success'              => true,
-            'adisyon_id'           => $adisyon_id,
-            'musteri_id'           => $musteri_id,
-            'yeni_adisyon_hizmet_id' => $adisyon_hizmet->id,
-            'mesaj'                => 'Hizmet yükseltmesi eklendi. Kalan ödemeyi aşağıdan tahsil edebilirsiniz.',
-        ]);
-    }
-
     public function hizmet_hediye_isle(Request $request)
     {
         if($r = self::satisYetkiYoksa403($request, 'satis.hediye_isle')) return $r;
