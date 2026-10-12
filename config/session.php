@@ -112,7 +112,14 @@ return [
     |
     */
 
-    'lottery' => [2, 100],
+    // KAPATILDI: file session gc'si (FileSessionHandler::gc) her ~%2 istekte
+    // storage/framework/sessions'daki TUM dosyalari Symfony Finder ile tariyordu.
+    // lifetime=525600dk (1 yil) oldugu icin dosyalar birikip milyonlara ulasti ->
+    // her gc dakikalarca CPU/dosya I/O yakip 4 cekirdegi pegliyordu (slowlog ile
+    // kanitlandi: load 12, %88 CPU worker'lar gc() icinde). [0,100] = istek-ici gc
+    // asla calismaz. Temizlik cron/dis script ile; kalici cozum SESSION_DRIVER=redis
+    // (Redis TTL ile kendi suresi dolaninca siler, tarama yok).
+    'lottery' => [0, 100],
 
     /*
     |--------------------------------------------------------------------------
