@@ -15795,8 +15795,14 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
 
             $paketNetTutar = ($paket->fiyat ?? 0) - ($paket->indirim_tutari ?? 0);
             $__paketSeansEt = ((int)($paket->seans_sayisi ?? 0) > 0) ? '('.(int)$paket->seans_sayisi.' Seans) ' : '';
-            // Paket yukseltildiyse satis takibi + musteri detay "Satis Icerigi" sutununda rozet
-            $__yukseltRozet = !empty($paket->yukseltme_kaynak_paket_id) ? '<span style="display:inline-block;background:#8b5cf6;color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;margin-left:2px;">⬆ Yükseltildi</span> ' : '';
+            // Paket yukseltildiyse satis takibi + musteri detay "Satis Icerigi" sutununda rozet (+ kaynak paket adi)
+            $__yukseltRozet = '';
+            if (!empty($paket->yukseltme_kaynak_paket_id)) {
+                $__kaynakAd = \App\Paketler::where('id', $paket->yukseltme_kaynak_paket_id)->value('paket_adi');
+                $__rozetMetni = $__kaynakAd ? '⬆ Yükseltildi ('.e($__kaynakAd).')' : '⬆ Yükseltildi';
+                $__rozetTitle = $__kaynakAd ? e($__kaynakAd).' paketinden yükseltildi' : 'Paket yükseltildi';
+                $__yukseltRozet = '<span title="'.$__rozetTitle.'" style="display:inline-block;background:#8b5cf6;color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;margin-left:2px;">'.$__rozetMetni.'</span> ';
+            }
             $satilanlarStr .= $paket->paket_id ? $paket->paket->paket_adi." (P) ".$__paketSeansEt.$__yukseltRozet : "";
             $satilanlar[] = [
                 'tip' => 'paket',
@@ -16564,9 +16570,16 @@ DB::raw('
                 if($adisyon_id != '' ||(($paket->fiyat - TahsilatPaketler::where('adisyon_paket_id',$paket->id)->sum('tutar') - $paket->indirim_tutari > 0 || $paket->hediye)&&  $paket->senet_id === null && $paket->taksitli_tahsilat_id === null))
                 {
                     $tahsilatVar = TahsilatPaketler::where('adisyon_paket_id',$paket->id)->count();
+                    $__kalemYukseltRozet = '';
+                    if (!empty($paket->yukseltme_kaynak_paket_id)) {
+                        $__kalemKaynakAd = \App\Paketler::where('id', $paket->yukseltme_kaynak_paket_id)->value('paket_adi');
+                        $__kalemRozetMetni = $__kalemKaynakAd ? '⬆ Yükseltildi ('.e($__kalemKaynakAd).')' : '⬆ Yükseltildi';
+                        $__kalemRozetTitle = $__kalemKaynakAd ? e($__kalemKaynakAd).' paketinden yükseltildi' : 'Paket yükseltildi';
+                        $__kalemYukseltRozet = ' <span title="'.$__kalemRozetTitle.'" style="display:inline-block;background:#8b5cf6;color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;">'.$__kalemRozetMetni.'</span>';
+                    }
                     $html .= '<div class="row tahsilat_kalemleri_listesi" style="background:#cce5ff;margin:5px 0 5px 0; padding:5px;font-size:14px" data-value="0">
                               <div class="col-md-4 col-5 col-xs-5  col-sm-4">
-                                 '.$paket->paket->paket_adi.(!empty($paket->yukseltme_kaynak_paket_id) ? ' <span style="display:inline-block;background:#8b5cf6;color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;">⬆ Yükseltildi</span>' : '').'
+                                 '.$paket->paket->paket_adi.$__kalemYukseltRozet.'
                               </div>
                               <div class="col-md-3  col-7 col-xs-7  col-sm-3">
                                   '.($satisDuzenle ? $saticiSelectYap('paket',$paket->id,$paket->personel_id) : ($paket->personel_id!== null ?  $paket->personel->personel_adi : "")).'
