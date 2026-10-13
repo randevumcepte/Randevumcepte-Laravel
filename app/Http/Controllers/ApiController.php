@@ -5900,7 +5900,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
      * Hedef salonda ayni form_adi varsa atlar. Sektor uyusmazsa hicbir sey yapmaz.
      * Yeni salon kayit akisinda ve formlar:varsayilan-yay artisan komutunda kullanilir.
      */
-    public static function varsayilanFormlariKopyala($hedefSalonId, $kaynakSalonId = 370)
+    public static function varsayilanFormlariKopyala($hedefSalonId, $kaynakSalonId = 370, $sektorKontrol = true)
     {
         try {
             if ((int)$hedefSalonId === (int)$kaynakSalonId) {
@@ -5914,7 +5914,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             if (!$kaynakSalon) {
                 return 0;
             }
-            if ((int)$kaynakSalon->salon_turu_id !== (int)$hedefSalon->salon_turu_id) {
+            // Sektor (salon_turu_id) kontrolu: kaynak ile hedef ayni turde olmali.
+            // $sektorKontrol=false verilince (tek salona elle yayma) bu kisit atlanir.
+            if ($sektorKontrol && (int)$kaynakSalon->salon_turu_id !== (int)$hedefSalon->salon_turu_id) {
                 return 0;
             }
             $kaynakFormlar = FormTaslaklari::where('salon_id', $kaynakSalonId)
