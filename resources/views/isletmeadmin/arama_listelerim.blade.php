@@ -595,9 +595,9 @@ function agDetayCiz(m){
    var subeId = $('input[name="sube"]').val() || '';
    // Ust-kose ikon butonlari (arama randevu takvimi modalindaki gibi): Musteri Detayi + Randevu Gecmisi.
    // Sira (soldan saga): Musteri Detayi, Randevu Gecmisi, Yeni Randevu, ARA.
-   var ikonBtnStil = 'width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #e3d9ef;background:#f5f0fb;color:#5C008E;border-radius:10px;cursor:pointer;font-size:15px;text-decoration:none;';
-   var musteriDetayBtn = m.user_id ? '<a href="/isletmeyonetim/musteridetay/'+agEsc(m.user_id)+(subeId?('?sube='+agEsc(subeId)):'')+'" target="_blank" rel="noopener" title="Müşteri Detayı" style="'+ikonBtnStil+'"><i class="fa fa-user"></i></a>' : '';
-   var gecmisBtn = m.user_id ? '<button class="rd-gecmis-btn" data-userid="'+agEsc(m.user_id)+'" data-ad="'+agEsc(m.ad)+'" title="Randevu Geçmişi" style="'+ikonBtnStil+'"><i class="fa fa-history"></i></button>' : '';
+   var ustBtnStil = 'display:inline-flex;align-items:center;gap:6px;border:1px solid #e3d9ef;background:#f5f0fb;color:#5C008E;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;padding:9px 14px;text-decoration:none;';
+   var musteriDetayBtn = m.user_id ? '<a href="/isletmeyonetim/musteridetay/'+agEsc(m.user_id)+(subeId?('?sube='+agEsc(subeId)):'')+'" target="_blank" rel="noopener" style="'+ustBtnStil+'">Müşteri Detayı</a>' : '';
+   var gecmisBtn = m.user_id ? '<button class="rd-gecmis-btn" data-userid="'+agEsc(m.user_id)+'" data-ad="'+agEsc(m.ad)+'" style="'+ustBtnStil+'">Randevu Geçmişi</button>' : '';
 
    var html =
    '<div class="ag-dhead">'+
