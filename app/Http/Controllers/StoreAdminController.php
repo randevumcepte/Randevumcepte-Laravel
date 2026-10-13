@@ -30084,7 +30084,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function arsiv_liste_getir(Request $request,$sorgu,$user_id){
         if($sorgu===''){
-             return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->join('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->select(
+             return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->leftJoin('users','arsiv.user_id','=','users.id')->leftJoin('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->select(
                 'arsiv.id as id',
                 'users.name as musteriadi',
                 DB::raw(' CONCAT("<a class=\"dropdown-item\" style=\"cursor:pointer;\" data-value=\"", CASE WHEN arsiv.form_id != 0 OR arsiv.is_sozlesme = 1 THEN CONCAT("isletmeyonetim/formgoster?arsivid=",arsiv.id) ELSE arsiv.uzanti END ,"\" name=\"form_goster\" href=\"#\">",CASE WHEN arsiv.form_id !=0 THEN formtaslaklari.form_adi WHEN arsiv.form_id=0 THEN arsiv.harici_belge END , ".pdf <i class=\"fa fa-file-pdf-o\"></i> </a>") AS belge_durum'),
@@ -30146,8 +30146,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                    </div></div>") END AS islemler' ))->where('arsiv.salon_id',self::mevcutsube($request))->where(function($q) use($user_id){if(is_numeric($user_id)) $q->where('arsiv.user_id',$user_id);} )->orderBy('arsiv.id','desc')->get(), $request);exit;
         }
         if($sorgu===0){
-            return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->
-        join('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->
+            return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->leftJoin('users','arsiv.user_id','=','users.id')->
+        leftJoin('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->
         select(
             'arsiv.id as id',
            DB::raw(' CONCAT("<a class=\"dropdown-item\" style=\"cursor:pointer;\" data-value=\"", CASE WHEN arsiv.form_id != 0 OR arsiv.is_sozlesme = 1 THEN CONCAT("isletmeyonetim/formgoster?arsivid=",arsiv.id) ELSE arsiv.uzanti END ,"\" name=\"form_goster\" href=\"#\">",CASE WHEN arsiv.form_id !=0 THEN formtaslaklari.form_adi WHEN arsiv.form_id=0 THEN arsiv.harici_belge END , ".pdf <i class=\"fa fa-file-pdf-o\"></i> </a>") AS belge_durum'),
@@ -30189,8 +30189,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
  exit;
         }
          if($sorgu===1){
-                return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->
-        join('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->select(  'arsiv.id as id',
+                return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->leftJoin('users','arsiv.user_id','=','users.id')->
+        leftJoin('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->select(  'arsiv.id as id',
            DB::raw(' CONCAT("<a class=\"dropdown-item\" style=\"cursor:pointer;\" data-value=\"", CASE WHEN arsiv.form_id != 0 OR arsiv.is_sozlesme = 1 THEN CONCAT("isletmeyonetim/formgoster?arsivid=",arsiv.id) ELSE arsiv.uzanti END ,"\" name=\"form_goster\" href=\"#\">",CASE WHEN arsiv.form_id !=0 THEN formtaslaklari.form_adi WHEN arsiv.form_id=0 THEN arsiv.harici_belge END , ".pdf <i class=\"fa fa-file-pdf-o\"></i> </a>") AS belge_durum'),
             'users.name as musteriadi',
             DB::raw('CASE WHEN arsiv.form_id != 0 THEN formtaslaklari.form_adi WHEN arsiv.form_id=0 THEN arsiv.harici_belge END AS baslik'),
@@ -30228,8 +30228,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                    '))->where('arsiv.durum', 0)->where('arsiv.salon_id',self::mevcutsube($request))->where(function($q) use($user_id){if(is_numeric($user_id)) $q->where('arsiv.user_id',$user_id);} )->orderBy('arsiv.id','desc')->get(), $request);exit;
         }
         if($sorgu===2){
-                return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->
-        join('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->
+                return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->leftJoin('users','arsiv.user_id','=','users.id')->
+        leftJoin('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->
         select(
             'arsiv.id as id',
            DB::raw(' CONCAT("<a class=\"dropdown-item\" style=\"cursor:pointer;\" data-value=\"", CASE WHEN arsiv.form_id != 0 OR arsiv.is_sozlesme = 1 THEN CONCAT("isletmeyonetim/formgoster?arsivid=",arsiv.id) ELSE arsiv.uzanti END ,"\" name=\"form_goster\" href=\"#\">",CASE WHEN arsiv.form_id !=0 THEN formtaslaklari.form_adi WHEN arsiv.form_id=0 THEN arsiv.harici_belge END , ".pdf <i class=\"fa fa-file-pdf-o\"></i> </a>") AS belge_durum'),
@@ -30270,8 +30270,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         )->whereNull('arsiv.durum')->where('arsiv.salon_id',self::mevcutsube($request))->where('arsiv.form_id','!=',0)->where(function($q) use($user_id){if(is_numeric($user_id)) $q->where('arsiv.user_id',$user_id);} )->orderBy('arsiv.id','desc')->get(), $request);exit;
         }
         if($sorgu===3){
-                return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->join('users','arsiv.user_id','=','users.id')->
-        join('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->
+                return self::arsivIslemlerFormGonderUygula(DB::table('arsiv')->leftjoin('formtaslaklari','arsiv.form_id','=','formtaslaklari.id')->leftJoin('users','arsiv.user_id','=','users.id')->
+        leftJoin('salon_personelleri','arsiv.personel_id','=','salon_personelleri.id')->
         select(
             'arsiv.id as id',
            DB::raw(' CONCAT("<a class=\"dropdown-item\" style=\"cursor:pointer;\" data-value=\"", CASE WHEN arsiv.form_id != 0 OR arsiv.is_sozlesme = 1 THEN CONCAT("isletmeyonetim/formgoster?arsivid=",arsiv.id) ELSE arsiv.uzanti END ,"\" name=\"form_goster\" href=\"#\">",CASE WHEN arsiv.form_id !=0 THEN formtaslaklari.form_adi WHEN arsiv.form_id=0 THEN arsiv.harici_belge END , ".pdf <i class=\"fa fa-file-pdf-o\"></i> </a>") AS belge_durum'),
