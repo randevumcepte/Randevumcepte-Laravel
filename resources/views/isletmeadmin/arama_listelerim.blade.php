@@ -973,7 +973,13 @@ $(document).on('click', '#ag_yeni_randevu', function(){
    var id = $(this).data('id') || (agSecili && agSecili.aranacak_musteri_id);
    if (!id) return;
    window.__cagriRandevuPending = { amId: id };
-   if (typeof window.cagriYeniRandevuAc === 'function') window.cagriYeniRandevuAc(id);
+   // HIZLI (takvim ile ayni): user_id zaten elimizde -> sunucuya POST ATMADAN dogrudan ac.
+   // Eski akis her tiklamada cagriYeniRandevuAc ile POST atip user_id cekiyordu (gecikme sebebi).
+   if (agSecili && agSecili.user_id && typeof window.cagriYeniRandevu === 'function'){
+      window.cagriYeniRandevu(agSecili.user_id, agSecili.ad || '', id);
+   } else if (typeof window.cagriYeniRandevuAc === 'function'){
+      window.cagriYeniRandevuAc(id); // fallback: user_id yoksa sunucudan cek
+   }
 });
 // Cagri merkezi islem (randevu/on gorusme/satis) basariyla bitince: aktif liste kuyrugunu
 // yeniden yukle (durum guncel gorunsun). Modallar cagriIslemTamam ile zaten kapandi.
@@ -987,6 +993,10 @@ $(document).on('click', '#ag_ara_btn', function(){
    if (agAramaGonderiliyor) return;
    var id = $(this).data('id');
    agAramaGonderiliyor = true;
+   // ANINDA GERI BILDIRIM (takvim ile ayni): originate POST donene kadar buton
+   // sessiz kalmasin -> "gec tepki veriyor" hissi gider.
+   var $araBtn = $(this);
+   $araBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Bağlanıyor...');
    // Tarayicida kayitli softphone varsa: Bria'yi caldiran santral originate YERINE
    // dogrudan softphone (WebRTC) uzerinden ara. Sunucu numarayi dondurur, burada baglariz.
    var softphoneHazir = (window.webphoneHazir === true && typeof window.webphoneAra === 'function');
@@ -1016,7 +1026,11 @@ $(document).on('click', '#ag_ara_btn', function(){
          var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Arama başlatılamadı.';
          swal({ type:'error', title:'Hata', text:msg });
       },
-      complete:function(){ agAramaGonderiliyor = false; }
+      complete:function(){
+         agAramaGonderiliyor = false;
+         // Buton hala DOM'da ise eski haline dondur (detay yeniden cizilmediyse).
+         $araBtn.prop('disabled', false).html('<i class="fa fa-phone"></i> ARA');
+      }
    });
 });
 
