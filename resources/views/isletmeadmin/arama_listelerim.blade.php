@@ -1136,13 +1136,10 @@ $(document).on('click', '#ag_ajanda_ac', function(){
 });
 
 $(document).ready(function(){
-   // Bu sayfa cockpit — ortak layout'taki global popup burada çift açmasın.
-   window.__aramaCockpit = true;
+   // Arama randevusu hatirlatmasi ARTIK ortak layout'taki global popup ile yonetilir
+   // (tek/coklu kart + Arama Randevu Takvimine yonlendirme). Bu sayfadaki eski TOPLU
+   // popup (agRandevuKontrol) KALDIRILDI; cift popup olmamasi icin __aramaCockpit SET EDILMEZ.
    agListeleriYukle(); agScriptleriYukle(); agKategorileriYukle();
-   // Randevu hatirlatma: acilista + her 45 sn'de bir kontrol et (arka plan sekmesinde atma)
-   agRandevuKontrol();
-   setInterval(function(){ if (!document.hidden) agRandevuKontrol(); }, 45000);
-   document.addEventListener('visibilitychange', function(){ if (!document.hidden) agRandevuKontrol(); });
 });
 </script>
 @endsection

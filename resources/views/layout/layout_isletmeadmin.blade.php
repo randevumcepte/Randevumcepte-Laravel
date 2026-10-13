@@ -6201,7 +6201,7 @@ document.addEventListener('DOMContentLoaded', function() {
     + '  <p class="rmc-ara-time">'+(r.tarih||'')+' '+(r.saat||'')+'</p>'
     +    notHtml + sesHtml
     + '  <div class="rmc-ara-btns">'
-    + '    <button class="rmc-ara-btn ara">📞 Hemen Ara</button>'
+    + '    <button class="rmc-ara-btn ara">📅 Takvimde Aç</button>'
     + '    <button class="rmc-ara-btn kapat">Kapat</button>'
     + '  </div>'
     + '</div>';
@@ -6209,9 +6209,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.appendChild(ov);
     bip();
 
+    // Arama Randevu Takvimine yonlendir (ilgili gune). r.tarih 'd.m.Y' -> 'Y-m-d'.
     ov.querySelector('.ara').addEventListener('click', function(){
-      var url = '/isletmeyonetim/arama-randevularim' + (subeParam || '') ;
-      url += (url.indexOf('?')>=0 ? '&' : '?') + 'ac=' + r.id;
+      var m = String(r.tarih||'').match(/(\d{2})\.(\d{2})\.(\d{4})/);
+      var iso = m ? (m[3]+'-'+m[2]+'-'+m[1]) : '';
+      var url = '/isletmeyonetim/arama-randevu-takvim' + (subeParam || '');
+      if(iso){ url += (url.indexOf('?')>=0 ? '&' : '?') + 'tarih=' + iso; }
       window.location.href = url;
     });
     ov.querySelector('.kapat').addEventListener('click', function(){ ov.remove(); });
@@ -6235,14 +6238,22 @@ document.addEventListener('DOMContentLoaded', function() {
       + '  <h3 class="rmc-ara-name"></h3>'
       + '  <p class="rmc-ara-time">'+parcalar.join(' · ')+'</p>'
       + '  <div class="rmc-ara-btns">'
-      + '    <button class="rmc-ara-btn ara">📞 Listeyi Aç</button>'
+      + '    <button class="rmc-ara-btn ara">📅 Takvimi Aç</button>'
       + '    <button class="rmc-ara-btn kapat">Kapat</button>'
       + '  </div>'
       + '</div>';
     ov.querySelector('.rmc-ara-name').textContent = list.length + ' arama bekliyor';
     document.body.appendChild(ov);
     bip();
-    ov.querySelector('.ara').addEventListener('click', function(){ window.location.href = '/isletmeyonetim/arama-randevularim' + (subeParam || ''); });
+    // Arama Randevu Takvimine yonlendir (ilk randevunun gunune). tarih 'd.m.Y' -> 'Y-m-d'.
+    ov.querySelector('.ara').addEventListener('click', function(){
+      var ilk = (list && list.length) ? list[0] : null;
+      var m = ilk ? String(ilk.tarih||'').match(/(\d{2})\.(\d{2})\.(\d{4})/) : null;
+      var iso = m ? (m[3]+'-'+m[2]+'-'+m[1]) : '';
+      var url = '/isletmeyonetim/arama-randevu-takvim' + (subeParam || '');
+      if(iso){ url += (url.indexOf('?')>=0 ? '&' : '?') + 'tarih=' + iso; }
+      window.location.href = url;
+    });
     ov.querySelector('.kapat').addEventListener('click', function(){ ov.remove(); });
   }
 
