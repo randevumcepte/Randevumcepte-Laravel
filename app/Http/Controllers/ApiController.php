@@ -377,7 +377,10 @@ class ApiController extends Controller
 
             $kullanici->name = $request->name;
 
-            $kullanici->cep_telefon = self::telefon_no_format_duzenle($request->cep_telefon);
+            // Maskeli telefon geldiyse yazma -> mevcut gercek numarayi koru
+            if (!self::telefonMaskeliMi($request->cep_telefon)) {
+                $kullanici->cep_telefon = self::telefon_no_format_duzenle($request->cep_telefon);
+            }
 
 
 
@@ -13314,7 +13317,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             $user->dogum_tarihi = $request->dogum_tarihi;
 
-            $user->cep_telefon = self::telefon_no_format_duzenle($request->cep_telefon);
+            // Maskeli telefon geldiyse yazma -> mevcut gercek numarayi koru
+            if (!self::telefonMaskeliMi($request->cep_telefon)) {
+                $user->cep_telefon = self::telefon_no_format_duzenle($request->cep_telefon);
+            }
 
             $user->tc_kimlik_no = $request->tc_kimlik_no;
 
@@ -14436,7 +14442,10 @@ public function cdrRaporLatest(Request $request)
             }
 
             $user->name = $request->ad_soyad ?? '';
-            $user->cep_telefon = self::telefon_no_format_duzenle($request->telefon ?? '');
+            // Maskeli telefon geldiyse yazma -> mevcut gercek numarayi koru
+            if (!self::telefonMaskeliMi($request->telefon)) {
+                $user->cep_telefon = self::telefon_no_format_duzenle($request->telefon ?? '');
+            }
             $user->cinsiyet = $request->cinsiyet ?? '';
             $user->il_id = $request->il_id ?? '';
             $user->meslek = $request->meslek ?? '';
@@ -14486,7 +14495,10 @@ public function cdrRaporLatest(Request $request)
                 // Ön görüşme bilgilerini kaydet
                 $ongorusme->salon_id = $request->salonid;
                 $ongorusme->ad_soyad = $request->ad_soyad ?? '';
-                $ongorusme->cep_telefon = self::telefon_no_format_duzenle($request->telefon ?? '');
+                // Maskeli telefon geldiyse yazma -> mevcut gercek numarayi koru
+                if (!self::telefonMaskeliMi($request->telefon)) {
+                    $ongorusme->cep_telefon = self::telefon_no_format_duzenle($request->telefon ?? '');
+                }
                 $ongorusme->email = $request->email ?? '';
                 $ongorusme->cinsiyet = $request->cinsiyet ?? '';
                 $ongorusme->adres = $request->adres ?? '';
@@ -15324,7 +15336,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         // Hassas alanlar: SADECE token ile dogrulanmis self-update'te degisir.
         if ($dogrulandi) {
             $user->email = $request->email;
-            $user->cep_telefon = self::telefon_no_format_duzenle($request->cep_telefon ?? $request->gsm1);
+            // Maskeli telefon geldiyse yazma -> mevcut gercek numarayi koru
+            if (!self::telefonMaskeliMi($request->cep_telefon ?? $request->gsm1)) {
+                $user->cep_telefon = self::telefon_no_format_duzenle($request->cep_telefon ?? $request->gsm1);
+            }
             if($request->exists('password') && $request->password != '')
                 $user->password = Hash::make($request->password);
         }
@@ -18965,7 +18980,10 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $musteri->email = $request->email;
 
-        $musteri->cep_telefon = self::telefon_no_format_duzenle($request->telefon);
+        // Maskeli telefon geldiyse yazma -> mevcut gercek numarayi koru
+        if (!self::telefonMaskeliMi($request->telefon)) {
+            $musteri->cep_telefon = self::telefon_no_format_duzenle($request->telefon);
+        }
 
         $musteri->dogum_tarihi = $request->dogum_tarihi;
 
@@ -20357,8 +20375,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             Log::info("personel adı".($personel->personel_adi ?? ''));
             $personel->personel_adi = $request->personel_adi;
             $personel->unvan = $request->unvan;
-            // Telefonu SADECE dolu geldiyse yaz; bos gelirse mevcut numara korunur.
-            if ($telFormatted !== "") {
+            // Telefonu SADECE dolu VE maskeli degilse yaz; bos/maskeli gelirse
+            // mevcut gercek numara korunur.
+            if ($telFormatted !== "" && !self::telefonMaskeliMi($telFormatted)) {
                 $personel->cep_telefon = $telFormatted;
             }
             $personel->salon_id = $request->salon_id;
@@ -27227,11 +27246,29 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
 
 
     public function telefon_no_format_duzenle($telefon)
-    { 
+    {
         $phone = preg_replace('/^(\+?90|0)/', '', $telefon);
         $phone = str_replace(["(",")"," ","-"], "", $phone);
         return $phone;
-         
+
+    }
+
+    /**
+     * Gelen telefon degeri maskeli/bozuk mu?
+     *
+     * Telefon gorme yetkisi olmayan personele liste/detaylar maskeli doner
+     * (orn "5068 *** ** 33"). Kayit guncellenirken bu maskeli deger geri
+     * gonderilirse telefon_no_format_duzenle yildizi silemedigi icin DB'ye
+     * "5068*****33" gibi cop yazilir ve musterinin gercek numarasi kalici
+     * kaybolur. Bu yardimci, boyle bir degeri yazmadan once tespit eder:
+     * cagiran taraf maskeli ise alana HIC dokunmamali (mevcut gercek numara
+     * korunur).
+     */
+    public function telefonMaskeliMi($tel)
+    {
+        if ($tel === null || $tel === '') return false;
+        if (strpos($tel, '*') !== false) return true;            // "5068 *** ** 33"
+        return strlen(preg_replace('/\D/', '', $tel)) < 10;      // eksik haneli
     }
     public function telefonFormatiAktarma($telefon)
     {
