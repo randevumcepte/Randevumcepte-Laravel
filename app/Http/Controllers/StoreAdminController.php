@@ -33552,6 +33552,18 @@ DB::raw('
         $query = AranacakMusteriler::where('arama_id', $aramaDetayId)
             ->with('musteri');
 
+        // ARAMA RANDEVUSU OLAN / ISLENMIS kayitlari KUYRUKTAN cikar — bunlar zaten
+        // "Arama Randevu Takvimi" bolumunde gorunur. Kriter:
+        //   durum 3 (tekrar aranacak/callback), 6 (on gorusme), 7 (satis),
+        //   8 (randevu olusturuldu), 9 (iptal)  VEYA  tamamlanmis callback (ar_tamamlandi_at).
+        // Kuyrukta kalan: bekleyen(null)/ulasilamadi(0)/arandi(1)/cevapsiz(2)/gorusuldu(4)/mesgul(5).
+        $query->where(function ($w) {
+            $w->whereNull('durum')->orWhereNotIn('durum', [3, 6, 7, 8, 9]);
+        });
+        if (Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at')) {
+            $query->whereNull('ar_tamamlandi_at');
+        }
+
         // SUNUCU-TARAFLI ARAMA: liste 500'den buyuk olabilir; client-side filtre
         // yalnizca yuklenen ilk sayfayi tarardi. Burada TUM liste icinde ara.
         // KVKK: telefonla arama SADECE numarayi gorebilen (maskesiz) kullaniciya acik.
