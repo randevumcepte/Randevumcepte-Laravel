@@ -429,6 +429,7 @@ function agListeSec(id, baslik){
    $('#aktif_arama_liste_link').attr('data-value', id);
    $('.ag-liste-chip').removeClass('aktif');
    $('.ag-liste-chip[data-id="'+id+'"]').addClass('aktif');
+   $('#ag_ara').val(''); // liste degisince arama kutusunu sifirla (eski terim tasinmasin)
    agMusterileriYukle();
 }
 
@@ -439,19 +440,23 @@ $(document).on('click', '.ag-liste-chip', function(){
 var agHedefSecim = null; // liste yuklenince secilecek belirli musteri (randevu popup'tan)
 
 // ---- Müşteriler (kuyruk) ----
-function agMusterileriYukle(){
+function agMusterileriYukle(arama){
    agSecili = null; // yeni liste -> önceki seçim sıfırlanır
+   arama = (arama===undefined||arama===null) ? '' : String(arama);
    $('#ag_kuyruk').html('<div class="ag-spin"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>');
+   var istekListe = agAktifListe; // yarış: istek dönene kadar liste değişirse sonucu yok say
    $.ajax({
       url:'/isletmeyonetim/arama_liste_detay_getir', method:'POST',
-      data:{ arama_detay_id:agAktifListe, page:1, perPage:500, _token:$('input[name="_token"]').val() },
+      // SUNUCU-TARAFLI ARAMA: 'arama' doluysa backend TÜM liste içinde (ad + yetkiliyse telefon) arar.
+      data:{ arama_detay_id:agAktifListe, page:1, perPage:500, arama:arama, _token:$('input[name="_token"]').val() },
       success:function(res){
+         if (String(istekListe) !== String(agAktifListe)) return; // eski isteği at
          agMusteriler = (res && res.data) ? res.data : [];
          agFiltreCiz();
          agKuyrukCiz();
          // Hedef müşteri varsa onu aç (randevu popup), yoksa ilk müşteriyi aç
          if (agHedefSecim){ agHedefSeciminiUygula(); }
-         else { agIlkMusteriyiSec(); }
+         else if (!arama) { agIlkMusteriyiSec(); }
       },
       error:function(){ $('#ag_kuyruk').html('<div class="ag-gecmis-bos" style="color:#c62828;">Müşteriler yüklenemedi.</div>'); }
    });
@@ -504,13 +509,12 @@ function agFiltreCiz(){
 }
 
 function agKuyrukCiz(){
-   var ara = ($('#ag_ara').val()||'').toLocaleLowerCase('tr');
+   // NOT: Ad/telefon aramasi SUNUCU tarafinda yapiliyor (agMusterileriYukle ile tum
+   // liste icinde). Burada yalnizca durum filtresi (chip) uygulanir.
    var grup = AG_FILTRELER.find(function(f){ return f.key===agFiltre; }) || AG_FILTRELER[0];
    var veri = agMusteriler.filter(function(m){
       var k = (m.durum_kod===undefined||m.durum_kod===null)?null:parseInt(m.durum_kod,10);
-      if (!grup.test(k)) return false;
-      if (ara && (m.ad||'').toLocaleLowerCase('tr').indexOf(ara)===-1) return false;
-      return true;
+      return grup.test(k);
    });
    $('#ag_kuyruk_say').text(veri.length);
 
@@ -536,7 +540,16 @@ function agKuyrukCiz(){
    $('#ag_kuyruk').html(html);
 }
 
-$('#ag_ara').on('input', agKuyrukCiz);
+// Arama: SUNUCU-TARAFLI (tüm liste). Debounce ile backend'e gider; boşalınca varsayılan kuyruk.
+var agAramaTimer = null;
+$('#ag_ara').on('input', function(){
+   var term = ($(this).val()||'').trim();
+   if (agAramaTimer) clearTimeout(agAramaTimer);
+   agAramaTimer = setTimeout(function(){
+      if (!agAktifListe) return;
+      agMusterileriYukle(term.length >= 2 ? term : '');
+   }, 350);
+});
 $(document).on('click', '.ag-fil-chip', function(){ agFiltre=$(this).data('fil'); agFiltreCiz(); agKuyrukCiz(); });
 
 // ---- Müşteri seç -> detay ----

@@ -33530,15 +33530,7 @@ DB::raw('
 
         $page = $request->input('page', 1);
         $perPage = $request->input('perPage', 50);
-
-        $query = AranacakMusteriler::where('arama_id', $aramaDetayId)
-            ->with('musteri');
-
-        $total = $query->count();
-
-        $aranacaklar = $query->skip(($page - 1) * $perPage)
-            ->take($perPage)
-            ->get();
+        $arama = trim((string) $request->input('arama', ''));
 
         // Rol bir kez hesaplanir (map icinde her satirda DB sorgusu yapmamak icin).
         $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
@@ -33556,6 +33548,29 @@ DB::raw('
             }
         } catch (\Throwable $e) {}
         $telefonMaskele = $personelMi && !$telefonGorYetkisi;
+
+        $query = AranacakMusteriler::where('arama_id', $aramaDetayId)
+            ->with('musteri');
+
+        // SUNUCU-TARAFLI ARAMA: liste 500'den buyuk olabilir; client-side filtre
+        // yalnizca yuklenen ilk sayfayi tarardi. Burada TUM liste icinde ara.
+        // KVKK: telefonla arama SADECE numarayi gorebilen (maskesiz) kullaniciya acik.
+        if ($arama !== '') {
+            $telDigits = preg_replace('/\D+/', '', $arama);
+            $telefonAranabilir = (!$telefonMaskele && $telDigits !== '');
+            $query->whereHas('musteri', function ($q) use ($arama, $telefonAranabilir, $telDigits) {
+                $q->where('name', 'like', '%' . $arama . '%');
+                if ($telefonAranabilir) {
+                    $q->orWhere('cep_telefon', 'like', '%' . $telDigits . '%');
+                }
+            });
+        }
+
+        $total = $query->count();
+
+        $aranacaklar = $query->skip(($page - 1) * $perPage)
+            ->take($perPage)
+            ->get();
 
         $data = $aranacaklar->map(function ($item) use ($aramaDetayId, $telefonMaskele) {
             $telefon = $item->musteri->cep_telefon ?? '';
