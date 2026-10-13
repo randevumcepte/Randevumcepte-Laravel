@@ -33170,6 +33170,12 @@ DB::raw('
             ->get();
 
         // N+1 ONLEME: tum listelerin toplam/arandi sayilari TEK sorguda; personel adlari TEK sorguda.
+        // 'kuyruk' = calisma ekraninda GORUNEN (arama randevusu/islenmis OLMAYAN) kayit sayisi;
+        // arama_liste_detay_getir ile AYNI haric tutma (durum 3/6/7/8/9 ve tamamlanmis callback cikar).
+        $arVar = Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at');
+        $kuyrukSql = 'SUM(CASE WHEN (durum IS NULL OR durum NOT IN (3,6,7,8,9)) '
+            . ($arVar ? 'AND ar_tamamlandi_at IS NULL ' : '')
+            . 'THEN 1 ELSE 0 END) as kuyruk';
         $listeIdler = $listeler->pluck('id')->all();
         $sayimlar = collect();
         if ($listeIdler) {
@@ -33177,9 +33183,11 @@ DB::raw('
                 ->whereIn('arama_id', $listeIdler)
                 ->select('arama_id',
                     DB::raw('COUNT(*) as toplam'),
-                    DB::raw('SUM(CASE WHEN durum IS NOT NULL THEN 1 ELSE 0 END) as arandi'))
+                    DB::raw('SUM(CASE WHEN durum IS NOT NULL THEN 1 ELSE 0 END) as arandi'),
+                    DB::raw($kuyrukSql))
                 ->groupBy('arama_id')->get()->keyBy('arama_id');
         }
+        $arsivGorunum = filter_var($request->input('arsiv'), FILTER_VALIDATE_BOOLEAN);
         $personelIdler = $listeler->pluck('personel_id')->filter()->unique()->all();
         $personelAdlari = $personelIdler
             ? Personeller::whereIn('id', $personelIdler)->pluck('personel_adi', 'id')
@@ -33189,6 +33197,7 @@ DB::raw('
             $s = $sayimlar->get($l->id);
             $toplam = $s ? (int) $s->toplam : 0;
             $arandi = $s ? (int) $s->arandi : 0;
+            $kuyruk = $s ? (int) $s->kuyruk : 0;
             return [
                 'id'             => $l->id,
                 'baslik'         => $l->arama_baslik,
@@ -33197,10 +33206,18 @@ DB::raw('
                 'durum'          => (int) $l->durum, // 1=aktif, 0=pasif, 2=arsiv
                 'toplam'         => $toplam,
                 'arandi'         => $arandi,
+                'kuyruk'         => $kuyruk, // calisma ekraninda gorunen (arama randevusu olmayan) kayit
                 'kalan'          => $toplam - $arandi,
                 'ilerleme'       => $toplam > 0 ? round(($arandi / $toplam) * 100) : 0,
             ];
         });
+
+        // "Uygun musteri yok ise liste gelmesin": calisma ekraninda kuyrugu BOS olan
+        // listeleri gizle (hepsi arama randevusu/islenmis -> zaten Arama Randevu Takviminde).
+        // Arsiv gorunumunde (?arsiv=1) tum arsivlenenleri goster.
+        if (!$arsivGorunum) {
+            $kartlar = $kartlar->filter(function ($k) { return $k['kuyruk'] > 0; })->values();
+        }
 
         return response()->json(['kartlar' => $kartlar]);
     }
@@ -33605,6 +33622,7 @@ DB::raw('
             return [
                 'aramaListesi'        => $aramaDetayId,
                 'aranacak_musteri_id' => $item->id,
+                'user_id'             => $item->user_id, // Musteri Detayi / Randevu Gecmisi butonlari icin
                 'ad'                  => $ad,
                 // Geriye donuk uyumluluk: 'telefon' sadece yoneticiye (personele null) gider
                 'telefon'             => $telefonHam,

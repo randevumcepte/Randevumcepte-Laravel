@@ -406,7 +406,8 @@ function agListeleriYukle(){
          }
          // Hero özet
          var top=0, ar=0, ka=0;
-         agListeler.forEach(function(k){ top+=+k.toplam||0; ar+=+k.arandi||0; ka+=+k.kalan||0; });
+         // "Sırada Bekleyen" = calisma ekraninda GORUNEN kuyruk (arama randevusu olanlar haric).
+         agListeler.forEach(function(k){ top+=+k.toplam||0; ar+=+k.arandi||0; ka+=(k.kuyruk!==undefined?+k.kuyruk:+k.kalan)||0; });
          $('#ag_h_liste').text(agListeler.length);
          $('#ag_h_toplam').text(top); $('#ag_h_arandi').text(ar); $('#ag_h_kalan').text(ka);
 
@@ -414,7 +415,7 @@ function agListeleriYukle(){
          agListeler.forEach(function(k){
             var tar = k.aranacak_tarih ? k.aranacak_tarih : 'Tarih yok';
             html += '<div class="ag-liste-chip" data-id="'+agEsc(k.id)+'" data-baslik="'+agEsc(k.baslik)+'" data-tarih="'+agEsc(tar)+'">'+
-                    agEsc(k.baslik)+'<span class="alt">'+agEsc(k.kalan)+' sırada • '+agEsc(tar)+'</span></div>';
+                    agEsc(k.baslik)+'<span class="alt">'+agEsc(k.kuyruk!==undefined?k.kuyruk:k.kalan)+' sırada • '+agEsc(tar)+'</span></div>';
          });
          $l.html(html);
          // İlk listeyi otomatik seç
@@ -591,6 +592,12 @@ function agDetayCiz(m){
    var harf = ((m.ad||'?').trim().charAt(0)||'?').toUpperCase();
    var listeBaslik = $('.ag-liste-chip[data-id="'+agAktifListe+'"]').data('baslik') || '';
    var randevuBilgi = (m.not_tarih && m.not_saat) ? '<div style="margin-top:6px;font-size:12.5px;color:#1565c0;"><i class="fa fa-calendar-check-o"></i> Randevu: '+agEsc(m.not_tarih)+' '+agEsc(m.not_saat)+'</div>' : '';
+   var subeId = $('input[name="sube"]').val() || '';
+   // Ust-kose ikon butonlari (arama randevu takvimi modalindaki gibi): Musteri Detayi + Randevu Gecmisi.
+   // Sira (soldan saga): Musteri Detayi, Randevu Gecmisi, Yeni Randevu, ARA.
+   var ikonBtnStil = 'width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #e3d9ef;background:#f5f0fb;color:#5C008E;border-radius:10px;cursor:pointer;font-size:15px;text-decoration:none;';
+   var musteriDetayBtn = m.user_id ? '<a href="/isletmeyonetim/musteridetay/'+agEsc(m.user_id)+(subeId?('?sube='+agEsc(subeId)):'')+'" target="_blank" rel="noopener" title="Müşteri Detayı" style="'+ikonBtnStil+'"><i class="fa fa-user"></i></a>' : '';
+   var gecmisBtn = m.user_id ? '<button class="rd-gecmis-btn" data-userid="'+agEsc(m.user_id)+'" data-ad="'+agEsc(m.ad)+'" title="Randevu Geçmişi" style="'+ikonBtnStil+'"><i class="fa fa-history"></i></button>' : '';
 
    var html =
    '<div class="ag-dhead">'+
@@ -599,8 +606,12 @@ function agDetayCiz(m){
          '<div class="ag-dhead-ad">'+agEsc(m.ad)+'</div>'+
          '<div class="ag-dhead-sub"><i class="fa fa-phone"></i> '+agEsc(m.telefonGizlenmis||'gizli')+' <span class="durnok">'+st.et+'</span></div>'+
       '</div>'+
-      '<button class="ag-ara-btn'+(agBeklemedeId!==null?' pasif':'')+'" id="ag_ara_btn" data-id="'+agEsc(m.aranacak_musteri_id)+'"><i class="fa fa-phone"></i> ARA</button>'+
-      '<button id="ag_yeni_randevu" title="Yeni Randevu" data-id="'+agEsc(m.aranacak_musteri_id)+'" style="margin-left:8px;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;font-size:13px;"><i class="fa fa-calendar-plus-o"></i> Yeni Randevu</button>'+
+      '<div style="margin-left:auto;display:flex;align-items:center;gap:8px;">'+
+         musteriDetayBtn +
+         gecmisBtn +
+         '<button id="ag_yeni_randevu" title="Yeni Randevu" data-id="'+agEsc(m.aranacak_musteri_id)+'" style="background:#2563eb;color:#fff;border:none;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;font-size:13px;"><i class="fa fa-calendar-plus-o"></i> Yeni Randevu</button>'+
+         '<button class="ag-ara-btn'+(agBeklemedeId!==null?' pasif':'')+'" id="ag_ara_btn" data-id="'+agEsc(m.aranacak_musteri_id)+'" style="margin-left:0;"><i class="fa fa-phone"></i> ARA</button>'+
+      '</div>'+
    '</div>'+
    '<div class="ag-dbody">'+
 
