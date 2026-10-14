@@ -10309,9 +10309,11 @@ private function ayAdiCevir($ingilizceAy)
             $anketVar   = $u && $salonId
                 ? \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($u->id, $salonId, 'pazarlama.anket_yonet')
                 : true;
+            // 'Ara' butonu SADECE kullanicinin atanmis dahilisi (dahili_no/webrtc) varsa gosterilir.
+            $dahiliVar = $this->cmDahiliVar($salonId, $u ? $u->id : null);
 
             // Verileri birleştir
-            $musteriler->getCollection()->transform(function ($item) use ($randevuBilgileri, $odemeBilgileri,$salonId,$telGor,$detayGor,$duzenleVar,$silVar,$anketVar) {
+            $musteriler->getCollection()->transform(function ($item) use ($randevuBilgileri, $odemeBilgileri,$salonId,$telGor,$detayGor,$duzenleVar,$silVar,$anketVar,$dahiliVar) {
                 $randevu = $randevuBilgileri[$item->id] ?? null;
                 $odeme = $odemeBilgileri[$item->id] ?? null;
 
@@ -10348,7 +10350,8 @@ private function ayAdiCevir($ingilizceAy)
                 // GORUNUR 'Ara' butonu — telefon kayitliysa HER zaman gosterilir.
                 // Maskeli personelde data-numara BOS gider; backend user_id ile numarayi bulur.
                 // NOT: btn-success KULLANMA — bu tabloda .btn-success::after ' ₺' ekliyor (odenen kolonu icin).
-                $araBtn = $telVar
+                // 'Ara' butonu: telefon kayitli VE kullanicinin atanmis dahilisi varsa gosterilir.
+                $araBtn = ($telVar && $dahiliVar)
                     ? '<button type="button" class="cm-ara-islem" title="Ara" data-user="'.$item->id.'" data-numara="'.($telGor ? $telHamDigits : '').'" style="margin-right:6px;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-weight:600;cursor:pointer;font-size:13px;white-space:nowrap;"><i class="fa fa-phone"></i> Ara</button>'
                     : '';
 
@@ -10682,6 +10685,8 @@ private function ayAdiCevir($ingilizceAy)
             'kara_liste'=>$kara_liste,
             'kara_liste_aktif'=> \App\Services\KaraListeServisi::salonAktifMi($isletme->id ?? null),
             'is_personel_rolu'=>$is_personel_rolu,
+            // 'Ara' butonu gate'i: kullanicinin atanmis dahilisi var mi?
+            'cm_dahili_var'=> $this->cmDahiliVar($isletme->id ?? null),
             'odeme_yontemleri'=>$odeme_yontemleri,
             'bankalar'=>$bankalar,
         ]);
@@ -33689,6 +33694,24 @@ DB::raw('
         return Personeller::where('yetkili_id', $this->cmAuthId())
             ->where('salon_id', $salonId)
             ->value('id');
+    }
+
+    /**
+     * Giris yapan kullanicinin bu salonda ATANMIS bir dahilisi var mi?
+     * (dahili_no VEYA dahili_no_webrtc). 'Ara' butonlari yalnizca dahili varsa
+     * gosterilir — dahili yoksa zaten originate/softphone yapilamaz.
+     */
+    public function cmDahiliVar($salonId, $yetkiliId = null): bool
+    {
+        $yetkiliId = $yetkiliId ?: $this->cmAuthId();
+        if (!$yetkiliId || !$salonId) return false;
+        return Personeller::where('yetkili_id', $yetkiliId)
+            ->where('salon_id', $salonId)
+            ->where(function ($q) {
+                $q->where(function ($a) { $a->whereNotNull('dahili_no')->where('dahili_no', '!=', ''); })
+                  ->orWhere(function ($b) { $b->whereNotNull('dahili_no_webrtc')->where('dahili_no_webrtc', '!=', ''); });
+            })
+            ->exists();
     }
 
     public function santral_not_ekle(Request $request)

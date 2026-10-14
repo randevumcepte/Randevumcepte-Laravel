@@ -148,7 +148,7 @@
          @endif
          {{-- Ara butonu: telefon kayitliysa gorunur. Yetkili numarayi gorur -> softphone/originate;
               maskeli personelde user_id ile backend numarayi bulup originate eder (KVKK). --}}
-         @if(!empty($musteri_bilgi->cep_telefon))
+         @if(!empty($musteri_bilgi->cep_telefon) && !empty($cm_dahili_var))
          <button type="button" class="mh-btn is-ara cm-ara-islem"
             data-user="{{$musteri_bilgi->id}}"
             data-numara="{{ preg_replace('/\D/','', (string)$musteri_bilgi->cep_telefon) }}"
