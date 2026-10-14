@@ -146,16 +146,6 @@
             <button type="button" class="val" id="toplamOdenen">0,00 ₺</button>
          </div>
          @endif
-         {{-- Ara butonu: telefon kayitliysa gorunur. Yetkili numarayi gorur -> softphone/originate;
-              maskeli personelde user_id ile backend numarayi bulup originate eder (KVKK). --}}
-         @if(!empty($musteri_bilgi->cep_telefon) && !empty($cm_dahili_var))
-         <button type="button" class="mh-btn is-ara cm-ara-islem"
-            data-user="{{$musteri_bilgi->id}}"
-            data-numara="{{ preg_replace('/\D/','', (string)$musteri_bilgi->cep_telefon) }}"
-            style="background:#16a34a;color:#fff;">
-            <i class="fa fa-phone"></i> Ara
-         </button>
-         @endif
          <button class="mh-btn is-wa whatsapp-mesaj-ac"
             data-userid="{{$musteri_bilgi->id}}"
             data-telefon="{{$musteri_bilgi->cep_telefon}}"
@@ -171,6 +161,16 @@
          </button>
          <button style='display:{{($kara_liste == 1) ? "inline-flex": "none"}}' class="mh-btn is-ok" id='musteri_sms_kara_listeden_cikar' data-value='{{$musteri_bilgi->id}}'>
             <i class="fa fa-check"></i> Kara Listeden Çıkar
+         </button>
+         @endif
+         {{-- Ara butonu EN SAGDA: telefon kayitli VE atanmis dahili varsa. Yetkili softphone/originate;
+              maskeli personelde user_id ile backend numarayi bulup originate eder (KVKK). --}}
+         @if(!empty($musteri_bilgi->cep_telefon) && !empty($cm_dahili_var))
+         <button type="button" class="mh-btn is-ara cm-ara-islem"
+            data-user="{{$musteri_bilgi->id}}"
+            data-numara="{{ preg_replace('/\D/','', (string)$musteri_bilgi->cep_telefon) }}"
+            style="background:#16a34a;color:#fff;">
+            <i class="fa fa-phone"></i> Ara
          </button>
          @endif
       </div>
