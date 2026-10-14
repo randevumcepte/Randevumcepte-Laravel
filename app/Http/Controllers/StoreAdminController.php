@@ -10347,8 +10347,9 @@ private function ayAdiCevir($ingilizceAy)
 
                 // GORUNUR 'Ara' butonu — telefon kayitliysa HER zaman gosterilir.
                 // Maskeli personelde data-numara BOS gider; backend user_id ile numarayi bulur.
+                // NOT: btn-success KULLANMA — bu tabloda .btn-success::after ' ₺' ekliyor (odenen kolonu icin).
                 $araBtn = $telVar
-                    ? '<button type="button" class="btn btn-success btn-sm cm-ara-islem" title="Ara" data-user="'.$item->id.'" data-numara="'.($telGor ? $telHamDigits : '').'" style="margin-right:6px;"><i class="fa fa-phone"></i> Ara</button>'
+                    ? '<button type="button" class="cm-ara-islem" title="Ara" data-user="'.$item->id.'" data-numara="'.($telGor ? $telHamDigits : '').'" style="margin-right:6px;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-weight:600;cursor:pointer;font-size:13px;white-space:nowrap;"><i class="fa fa-phone"></i> Ara</button>'
                     : '';
 
                 // Hicbir aksiyon yoksa dropdown gosterme (ama Ara butonu varsa onu goster).
