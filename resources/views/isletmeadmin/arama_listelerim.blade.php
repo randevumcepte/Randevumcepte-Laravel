@@ -625,8 +625,8 @@ function agDetayCiz(m){
       // Görüşme scripti (tanımlıysa)
       agScriptKart() +
 
-      // Görüşme sonucu formu — ARA yapilana kadar KILITLI (arama yapmadan sonuc isaretlenemez)
-      '<div class="ag-kart'+( (agBeklemedeId!==null && String(agBeklemedeId)===String(m.aranacak_musteri_id)) ? '' : ' kilitli')+'" id="ag_sonuc_kart">'+
+      // Görüşme sonucu formu — ARAMA ZORUNLU DEGIL; aramadan da sonuc/not islenebilir (kilit kaldirildi).
+      '<div class="ag-kart" id="ag_sonuc_kart">'+
          '<div class="ag-kart-bas"><i class="fa fa-check-circle"></i> Görüşme Sonucu</div>'+
          '<div class="ag-kilit-not"><i class="fa fa-lock"></i> Sonuç işaretlemek için önce yukarıdan <b>ARA</b>’ya basın.</div>'+
          '<div class="ag-sonuc-grid">'+
@@ -1089,7 +1089,7 @@ $(document).on('click', '#ag_kaydet', function(){
             agSecilenSonuc = null;
             $('.ag-sonuc').removeClass('aktif');
             $('#ag_not').val(''); $('#ag_satis_alan').hide(); $('#ag_sonra_alan').hide(); $('#ag_sonra_chk').prop('checked', false);
-            $('#ag_sonuc_kart').addClass('kilitli'); // sonuç kaydedildi -> form tekrar kilitlenir (yeni arama gerekir)
+            // NOT: form artik kilitlenmez — arama zorunlu degil, aramadan da islem yapilabilir.
             swal({ type:'success', title:'Kaydedildi', timer:1400, showConfirmButton:false });
          } else {
             swal({ type:'error', title:'Hata', text:res.message||'Kaydedilemedi.' });
