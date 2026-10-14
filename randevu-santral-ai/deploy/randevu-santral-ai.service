@@ -1,0 +1,33 @@
+# Randevu AI Santral kopru — systemd servisi (restaurant-santral-ai fork)
+# Kurulum:
+#   sudo cp deploy/randevu-santral-ai.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now randevu-santral-ai
+# Guncelleme:
+#   cd /opt/randevu-santral-ai && git pull && sudo systemctl restart randevu-santral-ai
+# Log izleme (canli):
+#   journalctl -u randevu-santral-ai -f
+
+[Unit]
+Description=Randevu AI Santral kopru (Asterisk ARI <-> Google STT/TTS <-> randevumcepte)
+After=network-online.target asterisk.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/randevu-santral-ai
+# KRITIK: IPv6 yolu kirik sunucuda Google'a IPv4 ile git (STT/TTS 'EHOSTUNREACH ...:443' cozumu)
+Environment=NODE_OPTIONS=--dns-result-order=ipv4first
+ExecStart=/usr/bin/node src/index.js
+Restart=always
+RestartSec=3
+StartLimitIntervalSec=60
+StartLimitBurst=10
+# node'u hangi kullanici calistiracak (STT json'u bu kullanici okuyabilmeli)
+User=root
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=randevu-santral-ai
+
+[Install]
+WantedBy=multi-user.target

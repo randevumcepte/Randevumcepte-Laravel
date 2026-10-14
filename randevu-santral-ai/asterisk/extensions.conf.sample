@@ -1,0 +1,21 @@
+; =====================================================================
+;  Randevu AI Santral — Asterisk 16/17 dialplan ornegi (restaurant-santral-ai fork)
+;  GEREKEN TEK SEY: gelen cagriyi Stasis'e vermek (asagidaki 3 satir).
+;  Kopru StasisStart arg'larini bekler: args[0]=arayan numara, args[1]=DID.
+;  (DID -> salon_id eslemesi Laravel RandevuAsistan tarafinda; dialplan sadece iletir.)
+; =====================================================================
+
+; --- Gelen randevu hatti: cagriyi Randevu AI Santral (Stasis/ARI) uygulamasina ver ---
+[sesli-asistan]
+exten => s,1,NoOp(Randevu AI cagri geldi: ${CALLERID(num)} DID=${FROM_DID})
+ same => n,Answer()
+ same => n,Stasis(randevu-santral-ai,${CALLERID(num)},${FROM_DID})   ; ARI_APP ile AYNI olmali
+ same => n,Hangup()
+
+; Belirli bir salonu zorlamak istersen (DID map yoksa) SUBE= arg'i da gecebilirsin:
+; exten => s,1,Stasis(randevu-santral-ai,${CALLERID(num)},${FROM_DID},SUBE=12)
+
+; --- FreePBX: gelen cagriyi bu context'e dusurmek ---
+; karsilamaRouter.php zaten DID'e gore ROUTED_CONTEXT setliyor; randevu DID'leri icin:
+;   $agi->exec("Set", "ROUTED_CONTEXT=sesli-asistan");
+; veya FreePBX Inbound Route -> Custom Destination: sesli-asistan,s,1
