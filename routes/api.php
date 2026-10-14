@@ -625,6 +625,14 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         // Arama Randevusu (callback) ajandasi + ertele — personel + yonetici
         Route::get ('/arama-randevularim',       'CagriMerkeziApiController@arama_randevularim');
         Route::post('/arama-randevu-ertele',     'CagriMerkeziApiController@arama_randevu_ertele');
+
+        // Arama Randevu Takvimi (mobil sekme) — personel + yonetici
+        Route::get ('/arama-randevu-takvim-verileri', 'CagriMerkeziApiController@arama_randevu_takvim_verileri');
+        Route::post('/randevu-olusturuldu-isaretle',  'CagriMerkeziApiController@cagri_randevu_olusturuldu_isaretle');
+        Route::post('/arama-randevu-iptal',           'CagriMerkeziApiController@cagri_arama_randevu_iptal');
+        Route::post('/arama-randevu-ekle',            'CagriMerkeziApiController@cagri_arama_randevu_ekle');
+        Route::get ('/musteri-select',                'CagriMerkeziApiController@cagri_musteri_select');
+        Route::get ('/musteri-randevu-gecmisi',       'CagriMerkeziApiController@musteri_randevu_gecmisi');
         Route::post('/ongorusme-bilgi',          'CagriMerkeziApiController@cagri_musteri_ongorusme_bilgi');
         Route::post('/hizli-satis',              'CagriMerkeziApiController@cagri_hizli_satis');
         Route::post('/whatsapp-gonder',          'CagriMerkeziApiController@cagri_whatsapp_gonder');
