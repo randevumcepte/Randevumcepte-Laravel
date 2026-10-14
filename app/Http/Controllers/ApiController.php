@@ -26185,7 +26185,7 @@ return date('Y')."-$ayNumara-$gun";
 
             // DTMF menusu SADECE asagidaki isletmelerde acik; digerlerinde kapali
             // (yalnizca "Sayin X ... hosgeldiniz" karsilamasi calar). Yeni salon eklemek icin diziye ekle.
-            $menuAcikSalonlar = [20];
+            $menuAcikSalonlar = [20, 236];
             if (in_array((int)$salonid, $menuAcikSalonlar, true)) {
                 $anaMenu .= ", yol tarifi almak için dördü, menüyü tekrar dinlemek için sıfırı tuşlayınız. Operatöre bağlanmak için lütfen bekleyiniz.";
             } else {
