@@ -10315,6 +10315,10 @@ private function ayAdiCevir($ingilizceAy)
                 $randevu = $randevuBilgileri[$item->id] ?? null;
                 $odeme = $odemeBilgileri[$item->id] ?? null;
 
+                // Telefon KAYITLI mi? (maskelemeden ONCE belirle — 'Ara' butonu bunun icin.)
+                $telHamDigits = preg_replace('/\D/', '', (string) ($item->telefon ?? ''));
+                $telVar = ($telHamDigits !== '');
+
                 if (!$telGor && isset($item->telefon)) {
                     $item->telefon = \App\PersonelYetkiSabitleri::telefonMaskele($item->telefon);
                 }
@@ -10341,11 +10345,17 @@ private function ayAdiCevir($ingilizceAy)
                     ? '<a class="dropdown-item" href="#" onclick="anketHizliGonderListe('.$item->id.', this); return false;" style="color:#25D366;"><i class="fa fa-comments"></i> Anket Gönder</a>'
                     : '';
 
-                // Hicbir aksiyon yoksa dropdown gosterme
+                // GORUNUR 'Ara' butonu — telefon kayitliysa HER zaman gosterilir.
+                // Maskeli personelde data-numara BOS gider; backend user_id ile numarayi bulur.
+                $araBtn = $telVar
+                    ? '<button type="button" class="btn btn-success btn-sm cm-ara-islem" title="Ara" data-user="'.$item->id.'" data-numara="'.($telGor ? $telHamDigits : '').'" style="margin-right:6px;"><i class="fa fa-phone"></i> Ara</button>'
+                    : '';
+
+                // Hicbir aksiyon yoksa dropdown gosterme (ama Ara butonu varsa onu goster).
                 if ($detayItem === '' && $duzenleItem === '' && $silItem === '' && $anketItem === '') {
-                    $item->islemler = '';
+                    $item->islemler = $araBtn;
                 } else {
-                    $item->islemler = '<div class="dropdown">
+                    $item->islemler = $araBtn . '<div class="dropdown" style="display:inline-block;vertical-align:middle;">
                         <a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown">
                             <i class="dw dw-more"></i>
                         </a>
@@ -34106,6 +34116,17 @@ DB::raw('
         }
 
         $numara = preg_replace('/\D/', '', (string) $request->numara);
+        // user_id verildiyse (musteri listesi/detay 'Ara' butonu) numarayi SUNUCUDAN al.
+        // Boylece maskeli personel bile numarayi GORMEDEN (KVKK) musteriyi aratabilir.
+        if ($request->filled('user_id')) {
+            $uid = (int) $request->user_id;
+            $bagli = DB::table('musteri_portfoy')->where('salon_id', $salonId)
+                ->where('user_id', $uid)->where('aktif', true)->exists();
+            if ($bagli) {
+                $dbTel = preg_replace('/\D/', '', (string) User::where('id', $uid)->value('cep_telefon'));
+                if ($dbTel !== '') $numara = $dbTel;
+            }
+        }
         if ($numara === '') {
             return response()->json(['success' => false, 'message' => 'Telefon numarası geçersiz'], 422);
         }

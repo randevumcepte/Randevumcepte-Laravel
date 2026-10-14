@@ -2262,7 +2262,7 @@
                      <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
                      @endif
                      <span class="micon bi bi-telephone-outbound"></span>
-                     <span class="mtext"> Arama Ekranı </span>
+                     <span class="mtext"> Atanan Aramalar </span>
                      </a>
                   </li>
                   @endif
@@ -2373,7 +2373,7 @@
                      <a href="/isletmeyonetim/arama-listelerim{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
                      @endif
                      <span class="micon bi bi-telephone-outbound"></span>
-                     <span class="mtext">Arama Ekranı</span>
+                     <span class="mtext">Atanan Aramalar</span>
                      </a>
                   </li>
                   <li>
@@ -5830,7 +5830,7 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=13.9')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=300.0')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=301.0')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.9')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>

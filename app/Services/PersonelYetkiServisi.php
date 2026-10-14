@@ -100,6 +100,13 @@ class PersonelYetkiServisi
         // SADECE aksiyon/sayfa yolunda (bypass=true); menu gorunurlugunde UYGULANMAZ.
         if ($impersonationBypass && session()->has('sysadmin_impersonation_id')) return true;
 
+        // Hesap Sahibi (role_id=1) HER ZAMAN tam yetki — ozel yetki kaydi olsa bile
+        // kisitlanamaz. Ozel yetki mekanizmasi (asagidaki $ozelAyar dali) yalnizca
+        // Yonetici/Sekreter/Personel gibi ALT rolleri kisitlamak icindir; yanlislikla
+        // sahibin personel kaydina bir PersonelYetkiAyari satiri dusse bile sahibi
+        // personel menusune KILITLEMEZ.
+        if (self::hesapSahibiMi($personelId, $salonId)) return true;
+
         $roluKey = $personelId.'|'.$salonId;
 
         // Ozel yetki kaydi (personel+salon basina tek query, request boyunca cache'li).
@@ -433,6 +440,29 @@ class PersonelYetkiServisi
             ->value('id');
         if (!$personelId) return null;
         return self::kendiPortfoyUserIds($salonId, $personelId);
+    }
+
+    /**
+     * Hesap Sahibi mi? (model_has_roles.role_id == 1)
+     * Sahip her zaman tam yetkilidir; ozel yetki kaydi onu kisitlayamaz.
+     */
+    private static $_hesapSahibiCache = [];
+    public static function hesapSahibiMi($personelId, $salonId): bool
+    {
+        $k = $personelId.'|'.$salonId;
+        if (array_key_exists($k, self::$_hesapSahibiCache)) {
+            return self::$_hesapSahibiCache[$k];
+        }
+        $yetkiliId = Personeller::where('id', $personelId)
+            ->where('salon_id', $salonId)
+            ->value('yetkili_id');
+        if (!$yetkiliId) return self::$_hesapSahibiCache[$k] = false;
+
+        return self::$_hesapSahibiCache[$k] = DB::table('model_has_roles')
+            ->where('role_id', 1) // Hesap Sahibi
+            ->where('model_id', $yetkiliId)
+            ->where('salon_id', $salonId)
+            ->exists();
     }
 
     /**

@@ -21708,6 +21708,31 @@ $(document).on('click', '.rd-ara-btn', function(e){
         ).fail(function(){ if(typeof swal==='function') swal({type:'error',title:'Hata',text:'Arama başlatılamadı.'}); });
     }
 });
+
+// ===== Musteri listesi / Musteri detayi: 'Ara' butonu =====
+// Yetkili numarayi gorur -> softphone hazirsa direkt softphone, degilse originate.
+// Maskeli personelde numara DOM'da YOK -> user_id gonderilir, backend numarayi bulup originate eder (KVKK).
+$(document).on('click', '.cm-ara-islem', function(e){
+    e.preventDefault();
+    var $b = $(this);
+    var numara = String($b.data('numara') || '').replace(/\D/g,'');
+    var userId = $b.data('user') || '';
+    if (numara && numara.length >= 7 && window.webphoneHazir === true && typeof window.webphoneAra === 'function'){
+        window.webphoneAra(numara);
+        return;
+    }
+    var old = $b.html();
+    $b.prop('disabled', true);
+    var tok = $('input[name="_token"]').val() || $('meta[name="csrf-token"]').attr('content');
+    $.post('/isletmeyonetim/arama-baslat-numara',
+        { user_id: userId, numara: numara, sube: $('input[name="sube"]').val(), _token: tok },
+        function(res){
+            if (res && res.success){ if(typeof swal==='function') swal({type:'success',title:'Arama başlatıldı',text:res.message||'Telefonunuz çalacak, açın.',timer:3500,showConfirmButton:false}); }
+            else { if(typeof swal==='function') swal({type:'warning',title:'Aranamadı',text:(res&&res.message)||'Arama başlatılamadı.'}); }
+        }
+    ).fail(function(xhr){ if(typeof swal==='function') swal({type:'error',title:'Hata',text:(xhr.responseJSON&&xhr.responseJSON.message)||'Arama başlatılamadı.'}); })
+     .always(function(){ $b.prop('disabled', false).html(old); });
+});
 // Randevu Gecmisi: popup ile musterinin tum randevularini yukle
 $(document).on('click', '.rd-gecmis-btn', function(e){
     e.preventDefault();
