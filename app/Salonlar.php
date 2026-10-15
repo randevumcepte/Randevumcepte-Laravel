@@ -14,7 +14,7 @@ class Salonlar extends Model
         'cloud_api_template_1gun','cloud_api_template_yaklasan','cloud_api_template_iptal','cloud_api_template_guncelleme','cloud_api_template_dil','faturasiz_gizle',
         'whatsapp_promo_baslangic','whatsapp_promo_bitis','whatsapp_promo_aktif','whatsapp_promo_kapatildi',
         'whatsapp_deneme_bitis','whatsapp_kontor','whatsapp_paylasilan_salon_id',
-        'cakisma_uyarisi_aktif','kara_liste_aktif' ];
+        'cakisma_uyarisi_aktif','kara_liste_aktif','tema_config','tema_seed' ];
 
     protected $casts = [
         'whatsapp_aktif' => 'boolean',

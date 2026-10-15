@@ -794,6 +794,65 @@ class ApiController extends Controller
 
     }
 
+    /**
+     * SALON TEMASI — oku. Flutter "Gorunum" ekrani ve ayni tema mini sitede.
+     * GET /api/v1/salonTemaGet/{salonId}
+     * Dondurdugu config'i Flutter dogrudan AppThemeConfig.fromJson ile yukler.
+     */
+    public function salonTemaGet(Request $request, $salonId)
+    {
+        $salon = Salonlar::find($salonId);
+        if (!$salon) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Salon bulunamadi.'], 404, [], JSON_UNESCAPED_UNICODE);
+        }
+
+        $config = $salon->tema_config ? json_decode($salon->tema_config, true) : null;
+        if (!is_array($config)) {
+            $config = ['preset' => 'mor_luks', 'brightnessMode' => 'light'];
+        }
+
+        return response()->json([
+            'basarili' => true,
+            'config'   => $config,
+            'seed'     => $salon->tema_seed ?: \App\Helpers\SalonTema::VARSAYILAN_SEED,
+        ], 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * SALON TEMASI — kaydet. Flutter rol<4 (sahip/yonetici) icin push eder.
+     * POST /api/v1/salonTemaSet/{salonId}  body: {preset, customSeedArgb?, brightnessMode}
+     * Ham config'i saklar + sunucuda tek seed hex'e cozup mini site icin yazar.
+     */
+    public function salonTemaSet(Request $request, $salonId)
+    {
+        $salon = Salonlar::find($salonId);
+        if (!$salon) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Salon bulunamadi.'], 404, [], JSON_UNESCAPED_UNICODE);
+        }
+
+        $preset         = $request->input('preset', 'mor_luks');
+        $customSeedArgb = $request->input('customSeedArgb', null);
+        $brightnessMode = $request->input('brightnessMode', 'light');
+
+        $config = [
+            'preset'         => $preset,
+            'brightnessMode' => $brightnessMode,
+        ];
+        if ($customSeedArgb !== null && $customSeedArgb !== '') {
+            $config['customSeedArgb'] = (int) $customSeedArgb;
+        }
+
+        $salon->tema_config = json_encode($config, JSON_UNESCAPED_UNICODE);
+        $salon->tema_seed   = \App\Helpers\SalonTema::seedCoz($config);
+        $salon->save();
+
+        return response()->json([
+            'basarili' => true,
+            'config'   => $config,
+            'seed'     => $salon->tema_seed,
+        ], 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
     /*public function adisyon_yukle( Request $request,$adisyonturu,$adisyondurumu,$tarih1, $tarih2,$musteriid,$personelid, $isletme_id,$sayfala) {
 
         $isletmeId = $isletme_id;

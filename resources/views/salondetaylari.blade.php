@@ -286,7 +286,7 @@
 
             {{-- GERÇEK çark — orijinal .cark-wheel--xl yerine SVG slice'lar --}}
             <div class="cark-popup__wheel-wrap" style="position:relative; padding-top:14px;">
-               <div style="position:relative; width:240px; height:240px; margin:0 auto; border-radius:50%; box-shadow: 0 0 0 6px #fff, 0 0 0 8px rgba(92,0,142,.5), 0 26px 60px rgba(92,0,142,.45); overflow:visible;">
+               <div style="position:relative; width:240px; height:240px; margin:0 auto; border-radius:50%; box-shadow: 0 0 0 6px #fff, 0 0 0 8px rgba(var(--slp-brand-rgb),.5), 0 26px 60px rgba(var(--slp-brand-rgb),.45); overflow:visible;">
                   {{-- Pointer (orijinal sarı üçgen) --}}
                   <span style="position:absolute; top:-14px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:14px solid transparent; border-right:14px solid transparent; border-top:26px solid #FBBF24; filter:drop-shadow(0 4px 8px rgba(0,0,0,.3)); z-index:3;"></span>
                   {{-- SVG çark — salonun gerçek dilimleri --}}
@@ -294,7 +294,7 @@
                      <svg id="carkPopupSvg" viewBox="0 0 300 300" style="width:100%; height:100%; display:block; transform-origin:50% 50%; transition: transform 9s cubic-bezier(0.17, 0.67, 0.12, 0.99);"></svg>
                   </div>
                   {{-- Hub (orijinal beyaz orta + altın çerçeve) --}}
-                  <span style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:56px; height:56px; border-radius:50%; background:#fff; border:3px solid #FBBF24; display:flex; align-items:center; justify-content:center; font-size:22px; color:#5C008E; z-index:2; pointer-events:none;">
+                  <span style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:56px; height:56px; border-radius:50%; background:#fff; border:3px solid #FBBF24; display:flex; align-items:center; justify-content:center; font-size:22px; color:var(--slp-brand); z-index:2; pointer-events:none;">
                      <i class="fa fa-gift"></i>
                   </span>
                </div>
@@ -844,7 +844,7 @@
                                     {{$hizmetfiyatlistesi->hizmetler->hizmet_adi}}
                                  </td>
                                  <td>
-                                    <p class="btn btn-primary small btn-rounded" style="width:100%; background-color:#5C008E; opacity: 1; text-align: center">Bilgi Alınız</p>
+                                    <p class="btn btn-primary small btn-rounded" style="width:100%; background-color:var(--slp-brand); opacity: 1; text-align: center">Bilgi Alınız</p>
                                  </td>
                               </tr>
                               @endif
@@ -918,7 +918,7 @@
                                   placeholder="Mevcut şifreniz"
                                   autocomplete="current-password"
                                   style="flex:1;min-width:180px;">
-                           <button type="button" id="rdv-sifremi-unuttum" class="btn btn-light" style="white-space:nowrap;background:#f3f0fa;border:1px solid #d9d1ee;color:#5C008E;font-weight:600;">
+                           <button type="button" id="rdv-sifremi-unuttum" class="btn btn-light" style="white-space:nowrap;background:#f3f0fa;border:1px solid #d9d1ee;color:var(--slp-brand);font-weight:600;">
                               <i class="fa fa-paper-plane"></i> Şifremi unuttum
                            </button>
                         </div>
@@ -1501,7 +1501,7 @@
                               title: window.psSecilenPersonelAd + ' seçildi',
                               text: 'Şimdi yapılacak hizmeti seç ve "DEVAM ET" butonuna bas — personel otomatik atanacak.',
                               confirmButtonText: 'Hizmeti Seç',
-                              confirmButtonColor: '#5C008E'
+                              confirmButtonColor: (getComputedStyle(document.documentElement).getPropertyValue('--slp-brand').trim() || '#5C008E')
                            });
                         } else {
                            alert(msg);
@@ -1589,7 +1589,7 @@
                   if (!t){
                      t = document.createElement('div');
                      t.id = 'psToast';
-                     t.style.cssText = 'position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(20px);background:linear-gradient(135deg,#5C008E 0%,#d946ef 100%);color:#fff;padding:14px 22px;border-radius:30px;font-weight:700;font-size:13px;letter-spacing:.3px;box-shadow:0 14px 30px rgba(92,0,142,.4);z-index:99999;opacity:0;transition:opacity .25s ease,transform .25s ease;max-width:90%;text-align:center;';
+                     t.style.cssText = 'position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(20px);background:linear-gradient(135deg,var(--slp-brand) 0%,var(--slp-brand-3) 100%);color:#fff;padding:14px 22px;border-radius:30px;font-weight:700;font-size:13px;letter-spacing:.3px;box-shadow:0 14px 30px rgba(var(--slp-brand-rgb),.4);z-index:99999;opacity:0;transition:opacity .25s ease,transform .25s ease;max-width:90%;text-align:center;';
                      document.body.appendChild(t);
                   }
                   t.textContent = msg;
@@ -1763,7 +1763,7 @@
                          }
                          // Ozet alanini doldur ve randevudokumu'nu goster (mevcut akista oldugu gibi)
                          $('#kisiselbilgileralani').attr('style','display:none');
-                         $('#randevudokumu').attr('style','display:block;border:3px solid #5C008E; border-radius:14px; padding:20px;margin-bottom:20px;background:#fff;');
+                         $('#randevudokumu').attr('style','display:block;border:3px solid var(--slp-brand); border-radius:14px; padding:20px;margin-bottom:20px;background:#fff;');
                          $('#randevudokumu').attr('tabindex','-1');
                          document.getElementById('secilenhizmetdokumu').innerHTML = result.hizmetler;
                          document.getElementById('secilenpersoneldokumu').innerHTML = result.personeller;
@@ -2078,9 +2078,9 @@
          </section>
          <style>
             .slp-keywords__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;max-width:1000px;margin:0 auto;padding:0 12px}
-            .slp-keyword-chip{display:flex;align-items:center;gap:12px;padding:16px 18px;background:#fff;border:1px solid rgba(92,0,142,.10);border-radius:14px;box-shadow:0 4px 16px rgba(92,0,142,.05);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
-            .slp-keyword-chip:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(92,0,142,.12);border-color:rgba(123,47,184,.35)}
-            .slp-keyword-chip i{color:#7B2FB8;font-size:18px;flex:0 0 auto}
+            .slp-keyword-chip{display:flex;align-items:center;gap:12px;padding:16px 18px;background:#fff;border:1px solid rgba(var(--slp-brand-rgb),.10);border-radius:14px;box-shadow:0 4px 16px rgba(var(--slp-brand-rgb),.05);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+            .slp-keyword-chip:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(var(--slp-brand-rgb),.12);border-color:rgba(var(--slp-brand-rgb),.35)}
+            .slp-keyword-chip i{color:var(--slp-brand-2);font-size:18px;flex:0 0 auto}
             .slp-keyword-chip h3{margin:0;font-size:15px;font-weight:600;color:#2a2340;line-height:1.35;text-transform:capitalize}
          </style>
          @endif
