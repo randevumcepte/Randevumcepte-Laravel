@@ -34781,6 +34781,9 @@ DB::raw('
 
         // Santral CANLI CDR (son 60 gun)
         $trunk = \App\SabitNumaralar::where('salon_id', $salonId)->value('numara');
+        // Trunk'in KENDI numarasi (son 10) — giden aramalarda CDR 'src' alani bu olur
+        // (ornek: src=902322404046, dst=musteri). Bu numarayi "dis musteri" saymamak icin.
+        $trunk10 = $trunk ? substr(preg_replace('/\D/', '', (string) $trunk), -10) : '';
         $qs = '?offset=0';
         foreach ($dahililer as $d) $qs .= '&dahililer[]=' . urlencode($d);
         $qs .= '&tarih1=' . date('Y-m-d', strtotime('-60 days'));
@@ -34804,16 +34807,32 @@ DB::raw('
                 if (!is_array($r)) continue;
                 $src = preg_replace('/\D/', '', (string) ($r['src'] ?? ''));
                 $dst = preg_replace('/\D/', '', (string) ($r['dst'] ?? ''));
-                $srcIc = ($src === '' || strlen($src) <= 5 || in_array($src, $dahiliSet, true));
-                $dstIc = ($dst === '' || strlen($dst) <= 5 || in_array($dst, $dahiliSet, true));
+                // Trunk'in kendi numarasi ic sayilir (giden aramada src=trunk olur -> yoksa yanlis 'gelen').
+                $srcTrunk = ($trunk10 !== '' && substr($src, -10) === $trunk10);
+                $dstTrunk = ($trunk10 !== '' && substr($dst, -10) === $trunk10);
+                $srcIc = ($src === '' || strlen($src) <= 5 || in_array($src, $dahiliSet, true) || $srcTrunk);
+                $dstIc = ($dst === '' || strlen($dst) <= 5 || in_array($dst, $dahiliSet, true) || $dstTrunk);
 
-                // Dis numara + yon
+                // Dis numara + yon. YON: santral_raporlari ile BIREBIR ayni mantik -> dcontext.
+                // 'from-internal' = ic kaynakli arama = GIDEN (dis musteri = dst),
+                // diger context'ler (ana-menu, ivr, from-trunk vb.) = GELEN (dis musteri = src).
+                $dcontext = (string) ($r['dcontext'] ?? '');
                 $disNo = ''; $yon = '';
-                if (!$srcIc && strlen($src) >= 10) { $disNo = $src; $yon = 'gelen'; }
-                elseif (!$dstIc && strlen($dst) >= 10) { $disNo = $dst; $yon = 'giden'; }
-                else {
+                if ($dcontext === 'from-internal') {
+                    // Giden: dis musteri dst'dedir (dahili-dahili ise dstIc true -> atlanir).
+                    if (!$dstIc && strlen($dst) >= 10) { $disNo = $dst; $yon = 'giden'; }
+                } else {
+                    // Gelen: dis musteri src'dedir.
+                    if (!$srcIc && strlen($src) >= 10) { $disNo = $src; $yon = 'gelen'; }
+                    elseif (!$dstIc && strlen($dst) >= 10) { $disNo = $dst; $yon = 'gelen'; }
+                }
+                if ($disNo === '') {
+                    // dcontext/numara belirsiz -> son care: kanaldan 10 hane cek.
                     $saman = preg_replace('/\D/', '', ($r['channel'] ?? '') . '|' . ($r['dstchannel'] ?? ''));
-                    if (preg_match('/(\d{10})(?!.*\d)/', $saman, $mm)) { $disNo = $mm[1]; $yon = 'giden'; }
+                    if (preg_match('/(\d{10})(?!.*\d)/', $saman, $mm)) {
+                        $disNo = $mm[1];
+                        $yon = ($dcontext === 'from-internal') ? 'giden' : 'gelen';
+                    }
                 }
                 if ($disNo === '') continue; // dis numara cozulemeyen satirlari atla (internal-internal)
                 $son10 = substr($disNo, -10);
