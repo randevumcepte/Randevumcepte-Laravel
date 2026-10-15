@@ -34265,9 +34265,10 @@ DB::raw('
      * ts DESC (en yeni once). Zaman damgasi ONCE DOSYA ADINDAN (-YYYYMMDD-HHMMSS-) okunur; bu santral
      * raporundaki saatle birebir ayni ve timezone'dan bagimsizdir. calldate yedek.
      */
-    private function cagriMerkeziKayitAdaylari($salonId, $dahili)
+    private function cagriMerkeziKayitAdaylari($salonId, $dahili, $son10 = '')
     {
         $out = [];
+        $son10 = preg_replace('/\D/', '', (string) $son10);
         // $dahili tek deger ya da dizi olabilir. Personel WebRTC (dahili_no_webrtc) VEYA
         // normal dahili (dahili_no) ile gorusebilir; kayit kanali hangisiyse o dahiliyle
         // olusur (ornek: WebRTC arama -> PJSIP/<dahili_no_webrtc>). Bu yuzden TUM dahililerin
@@ -34301,6 +34302,14 @@ DB::raw('
                     $kanalDahili = preg_replace('/\D/', '', $m[1]);
                 }
                 if ($kanalDahili === '' || !in_array($kanalDahili, $set, true)) continue;
+
+                // MUSTERI NUMARASI eslesmesi (varsa): kayit bu musteriye ait mi? Musteri
+                // numarasi src/dst'de OLMAYABILIR (SIP/<salon>-out/0<musteri>) -> tum ilgili
+                // alanlarin rakamlarinda son-10 hane ara. (musteri_ses_kayitlari ile AYNI mantik.)
+                if ($son10 !== '') {
+                    $samanlik = preg_replace('/\D/', '', ($r['channel'] ?? '') . '|' . ($r['dstchannel'] ?? '') . '|' . ($r['src'] ?? '') . '|' . ($r['dst'] ?? ''));
+                    if (strpos($samanlik, $son10) === false) continue;
+                }
 
                 $rp = $r['recording_path'];
                 if (isset($gorulen[$rp])) continue; // ayni kayit birden fazla CDR satirinda olabilir
@@ -34338,6 +34347,10 @@ DB::raw('
         $notlar = \App\GorusmeNotlari::where('aranacak_musteri_id', $kayit->id)
             ->orderBy('id', 'desc')->limit(50)->get(); // en yeni once
 
+        // Bu MUSTERININ numarasi (son 10 hane) — kayit eslestirmesi MUTLAKA buna gore yapilir,
+        // yoksa ayni personelin tum musterilerine ayni kayit duserdi.
+        $musteriSon10 = substr(preg_replace('/\D/', '', (string) optional($kayit->musteri)->cep_telefon), -10);
+
         // Her gorusmeye KENDI ses kaydini bagla (hepsine ayni kayit gelme sorununu cozer):
         // - Adaylar dahili bazinda santralden cekilir, zaman damgasina gore en yeni once siralanir.
         // - En yeni gorusme -> en yeni (kullanilmamis) kayit ... seklinde sirayla, TEKRARSIZ eslesir.
@@ -34361,8 +34374,12 @@ DB::raw('
                 if (!empty($per->dahili_no_webrtc)) $dahililer[] = $per->dahili_no_webrtc;
             }
             if (empty($dahililer)) { if (!empty($n->ses_kaydi)) $kullanilan[] = $n->ses_kaydi; continue; }
+            // Musteri numarasi yoksa guvenli eslesme yapilamaz -> mevcudu KORU (dokunma).
+            if ($musteriSon10 === '') { if (!empty($n->ses_kaydi)) $kullanilan[] = $n->ses_kaydi; continue; }
             $dahiliKey = implode('|', $dahililer);
-            if (!isset($adayCache[$dahiliKey])) $adayCache[$dahiliKey] = $this->cagriMerkeziKayitAdaylari($salonId, $dahililer);
+            if (!isset($adayCache[$dahiliKey])) {
+                $adayCache[$dahiliKey] = $this->cagriMerkeziKayitAdaylari($salonId, $dahililer, $musteriSon10);
+            }
 
             $sec = '';
             foreach ($adayCache[$dahiliKey] as $c) {
@@ -34371,8 +34388,10 @@ DB::raw('
             if ($sec !== '') {
                 $kullanilan[] = $sec;
                 if ($n->ses_kaydi !== $sec) { $n->ses_kaydi = $sec; $n->save(); }
-            } elseif (!empty($n->ses_kaydi)) {
-                $kullanilan[] = $n->ses_kaydi; // uygun yeni aday yok, mevcudu koru
+            } else {
+                // Bu musteriye AIT eslesen kayit yok -> onceki (muhtemelen yanlis paylasimli)
+                // kaydi TEMIZLE. Boylece "her gecmiste ayni ses" sorunu giderilir.
+                if (!empty($n->ses_kaydi)) { $n->ses_kaydi = null; $n->save(); }
             }
         }
         // aranacak_musteriler.ses_kaydi: en son gorusmenin kaydi (geriye donuk uyumluluk)
