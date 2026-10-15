@@ -29155,6 +29155,16 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 }
             }
 
+            // O gün ÇALIŞMASI KAPALI olan personeller (calisiyor=0): müsaitliğe
+            // katkı vermemeli. "Kayıt yok" = salon boyunca açık sayılır (eski davranış);
+            // sadece kaydı VAR ve calisiyor=0 olanlar o gün kapalı kabul edilir.
+            $kapaliPersonel = PersonelCalismaSaatleri::whereIn('personel_id', array_unique($personelListe))
+                ->where('calisiyor', 0)
+                ->where('haftanin_gunu', $day)
+                ->pluck('personel_id')
+                ->map(function ($v) { return (string) $v; })
+                ->toArray();
+
             $saatindex = 0;
             for ($j = strtotime($ortakBaslangic); $j < strtotime($ortakBitis); $j += ($randevusaataraligi * 60)) {
                 $saat = date('H:i', $j);
@@ -29169,6 +29179,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
                 // En az bir personel bu pencerede tamamen boş mu?
                 $bosVar = false;
                 foreach ($personelListe as $pid) {
+                    if (in_array((string) $pid, $kapaliPersonel, true)) continue; // o gün kapalı
                     $uygun = true;
                     foreach (($personelDolu[$pid] ?? array()) as $ar) {
                         if ($j < $ar[1] && $bit > $ar[0]) { $uygun = false; break; } // örtüşme

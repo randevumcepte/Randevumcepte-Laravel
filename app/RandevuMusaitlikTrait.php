@@ -34,9 +34,20 @@ trait RandevuMusaitlikTrait
         $persPencere = array();
         $persDolu = array();
         if (!empty($personelIds)) {
+            // O güne ait TÜM satırları çek (calisiyor filtresiz). Böylece
+            // "kayıt yok" (hiç yapılandırılmamış → salon saatlerine düş) ile
+            // "kayıt var ama calisiyor=0" (o gün KAPALI → hiç slot) ayırt edilir.
+            // ÖNCEKİ HATA: where('calisiyor',1) kapalı-gün satırını da eliyordu;
+            // isset($persPencere) false kalıp salon saatlerine fallback oluyor,
+            // kapalı personel tüm gün müsait görünüyordu.
             $cal = PersonelCalismaSaatleri::whereIn('personel_id', $personelIds)
-                ->where('calisiyor', 1)->where('haftanin_gunu', $day)->get();
+                ->where('haftanin_gunu', $day)->get();
             foreach ($cal as $c) {
+                if ((int) $c->calisiyor !== 1) {
+                    // O gün kapalı: hiçbir aralık sığmasın (imkansız pencere).
+                    $persPencere[$c->personel_id] = array(PHP_INT_MAX, 0);
+                    continue;
+                }
                 $persPencere[$c->personel_id] = array(
                     max($salonBas, strtotime($c->baslangic_saati)),
                     min($salonBit, strtotime($c->bitis_saati))
