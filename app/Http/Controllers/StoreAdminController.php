@@ -7581,6 +7581,13 @@ private function ayAdiCevir($ingilizceAy)
                                 }
                             }
 
+                            // Tek seferlik satis adisyon_hizmetler de personel_id'yi guncelle:
+                            // randevuda personel degisince adisyon detayinda 'Hizmet veren' de
+                            // degismeli (prim + rapor dogrulugu). Drag-drop'ta ayni mantik var.
+                            AdisyonHizmetler::where('randevu_id', $randevu->id)
+                                ->where('hizmet_id', $_hzmtId)
+                                ->update(['personel_id' => $yenirandevuhizmetpersonel->personel_id]);
+
                             if (!$_zatenVar) {
                                 // Aday adisyon_hizmet: sadece seans_sayisi > 0 olanlar (gercek paket satisi).
                                 // seans_sayisi NULL/0 olanlar tek seferlik hizmet satisi -> APS'ye baglanmamali;
