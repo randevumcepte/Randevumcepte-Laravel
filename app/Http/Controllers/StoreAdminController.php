@@ -34784,7 +34784,8 @@ DB::raw('
         // Trunk'in KENDI numarasi (son 10) — giden aramalarda CDR 'src' alani bu olur
         // (ornek: src=902322404046, dst=musteri). Bu numarayi "dis musteri" saymamak icin.
         $trunk10 = $trunk ? substr(preg_replace('/\D/', '', (string) $trunk), -10) : '';
-        $qs = '?offset=0';
+        // API varsayilani 50 kayit -> cok aktif salonlarda cagrilar kesilir; API tavani 500.
+        $qs = '?offset=0&limit=500';
         foreach ($dahililer as $d) $qs .= '&dahililer[]=' . urlencode($d);
         $qs .= '&tarih1=' . date('Y-m-d', strtotime('-60 days'));
         $qs .= '&tarih2=' . date('Y-m-d', strtotime('+1 day'));
