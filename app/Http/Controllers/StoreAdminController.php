@@ -29597,6 +29597,29 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         })->first();
     }
 
+    /**
+     * CDR numarasindan (format BAGIMSIZ — son 10 hane) musteriyi bulur.
+     * dst/src "05434808294" / "905434808294" / "+90..." / "5434808294" gibi FARKLI
+     * formatlarda gelebildigi icin tam eslesme ismi getirmiyordu; burada son-10 hane
+     * varyantlariyla (index dostu whereIn) eslesir. Once bu salonun portfoyundeki musteri.
+     */
+    private function santralMusteriBul($numara, $salonId = null)
+    {
+        $son10 = substr(preg_replace('/\D/', '', (string) $numara), -10);
+        if (strlen($son10) < 10) return null;
+        $cand = [$son10, '0' . $son10, '90' . $son10, '+90' . $son10, '0090' . $son10];
+        if ($salonId) {
+            $u = User::whereIn('cep_telefon', $cand)
+                ->whereExists(function ($q) use ($salonId) {
+                    $q->select(DB::raw(1))->from('musteri_portfoy')
+                      ->whereColumn('musteri_portfoy.user_id', 'users.id')
+                      ->where('musteri_portfoy.salon_id', $salonId);
+                })->first();
+            if ($u) return $u;
+        }
+        return User::whereIn('cep_telefon', $cand)->first();
+    }
+
     public function santral_raporlari($salon_id,$tarih1,$tarih2,$durum,$request)
     {
 
@@ -29699,7 +29722,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                         $telefon = $hedefDahiliNo;
                         $avatar = '/public/isletmeyonetim_assets/img/avatar.png';
                     } else {
-                        $musteri = User::where('cep_telefon',str_replace(["(",")"," "],["","",""],preg_replace('/^\+?90/', '', $result['dst'] ?? '')))->first();
+                        $musteri = $this->santralMusteriBul($result['dst'] ?? '', $salon_id);
                         if($musteri){
                             $musteriAdi = $musteri->name.' ('.$musteri->cep_telefon.')';
                             $aramaButonu = '<button title="Ara" class="btn btn-success" name="musteriyi_ara" style="margin-right:2px" data-value="0'.$musteri->cep_telefon.'"><i class="fa fa-phone"></i></button>';
@@ -29787,7 +29810,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                     }
                     if($raporaEkle)
                     {
-                        $musteri = User::where('cep_telefon',str_replace(["(",")"," "],["","",""],preg_replace('/^\+?90/', '', $result['src'])))->first();
+                        $musteri = $this->santralMusteriBul($result['src'] ?? '', $salon_id);
                         if($musteri){
                             $aramaButonu = '<button title="Ara" class="btn btn-success" name="musteriyi_ara" style="margin-right:2px" data-value="0'.$musteri->cep_telefon.'"><i class="fa fa-phone"></i></button>';
                             $musteriAdi = $musteri->name.' ('.$musteri->cep_telefon.')';
