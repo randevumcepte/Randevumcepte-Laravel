@@ -7914,6 +7914,16 @@ private function ayAdiCevir($ingilizceAy)
                 'cihaz_id'    => $hizmet->cihaz_id,
                 'oda_id'      => $hizmet->oda_id,
             ]);
+
+        // Adisyon_hizmetler (dogrudan satis kalemleri) de ayni randevuya bagliysa
+        // personel_id guncelle - takvimden surukle-birak ile atama degistirildiginde
+        // adisyonda da hizmet veren personel degismeli (prim/rapor dogru olsun).
+        AdisyonHizmetler::where('randevu_id',$randevu_eski->id)
+            ->whereIn('hizmet_id',$tasinanServisIds)
+            ->update([
+                'randevu_id'  => $randevu->id,
+                'personel_id' => $hizmet->personel_id,
+            ]);
         // Saat/tarih degisti — SMS Ayarlari ayar_id=14 (Randevu Guncelleme) musteri/personel
         // toggle'ina gore WhatsApp-first (salon WA aktifse) yoksa SMS gonderilir.
         // randevuguncelle ile ayni davranis.
