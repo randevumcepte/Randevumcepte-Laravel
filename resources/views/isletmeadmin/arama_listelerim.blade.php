@@ -287,6 +287,17 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
 {{-- Memnuniyet anketi gönderim yetkisi (görüşme sonucu penceresindeki buton bu bayrağa bakar) --}}
 <script>window.agAnketYetki = @yetki('pazarlama.anket_yonet') true @else false @endyetki;</script>
 
+{{-- Arama randevusu ver -> "arayacak personel" seçimi (yönetici; personel rol 5 sadece kendisi). --}}
+@php
+   $__cmPers = isset($cm_personeller)
+      ? $cm_personeller->map(function($p){ return ['id'=>(int)$p->id,'ad'=>$p->personel_adi]; })->values()
+      : collect();
+@endphp
+<script>
+   window.agRol = {{ (int)($kullaniciRolu ?? 0) }};
+   window.agPersoneller = {!! json_encode($__cmPers) !!};
+</script>
+
 {{-- Telefonda Satış: sade Hızlı Satış popup (gerçek satış kaydı oluşturur -> kasa/satış takibi) --}}
 <div id="ag_satis_modal" class="modal fade" role="dialog">
    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:520px;">
@@ -651,6 +662,13 @@ function agDetayCiz(m){
          '<label class="ag-sonra"><input type="checkbox" id="ag_sonra_chk"> 📅 ARAMA RANDEVUSU VER — müşteri sonra aranmak istedi (Tekrar Aranacak)</label>'+
          '<div class="ag-sonra-alan" id="ag_sonra_alan">'+
             '<div class="ag-sonra-lbl">Ne zaman tekrar aransın? Tarih + saat seç, sonra “Sonucu Kaydet”e bas.</div>'+
+            // Arayacak personel (yonetici degistirebilir; bos = liste personeli). Personel rol 5'te gizli.
+            ((window.agRol !== 5 && (window.agPersoneller||[]).length)
+               ? ('<select id="ag_sonra_personel" style="flex:1 1 100%;padding:9px 12px;border:1px solid #e7e9f0;border-radius:10px;margin-bottom:6px;font-size:13px;">'+
+                    '<option value="">👤 Arayacak personel (varsayılan: liste personeli)</option>'+
+                    window.agPersoneller.map(function(p){ return '<option value="'+p.id+'">'+agEsc(p.ad)+'</option>'; }).join('')+
+                  '</select>')
+               : '')+
             '<input type="text" id="ag_sonra_tarih" autocomplete="off" readonly placeholder="Tarih seçin">'+
             '<input type="time" id="ag_sonra_saat">'+
          '</div>'+
@@ -1071,6 +1089,8 @@ $(document).on('click', '#ag_kaydet', function(){
          satis_tutari: satisMi ? satisTutari : '',
          santralnottarih: sonraMu ? tarih : '',
          santralnotsaat:  sonraMu ? saat  : '',
+         // Arayacak personel (callback'i secilen personelin listesine tasir; bos = degisiklik yok)
+         arama_personel_id: sonraMu ? ($('#ag_sonra_personel').val() || '') : '',
          _token:$('input[name="_token"]').val()
       },
       success:function(res){

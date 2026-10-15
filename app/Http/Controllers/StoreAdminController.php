@@ -33157,6 +33157,10 @@ DB::raw('
             'cm_hizmetler'            => $cm_hizmetler,
             'cm_urunler'              => $cm_urunler,
             'cm_paketler'             => $cm_paketler,
+            // Arama randevusu ver -> "arayacak personel" secimi icin (yonetici degistirebilir).
+            'cm_personeller'          => Personeller::where('salon_id', $isletme->id)
+                ->where('aktif', 1)->orderBy('personel_adi')
+                ->get(['id', 'personel_adi']),
         ]);
     }
 
@@ -33789,6 +33793,22 @@ DB::raw('
         }
         // else: bekleyen callback ELLE cozuldu, yeni zaman yok -> onceki randevu zamanini KORU
         //       ("gec aranan" raporunun ar_tamamlandi_at ile karsilastirabilmesi icin)
+
+        // ARAYACAK PERSONEL secimi (callback olustururken): hedef personel listenin
+        // personelinden FARKLIYSA kaydi o personelin "Arama Randevulari (Manuel)" listesine
+        // TASI. Boylece callback secilen personelin kuyruk/takviminde cikar. (rol 5 sadece kendine)
+        if ($yeniCallback && $request->filled('arama_personel_id')) {
+            $hedefPersonelId = (int) $request->arama_personel_id;
+            if ($hedefPersonelId > 0) {
+                $per = Personeller::where('id', $hedefPersonelId)->where('salon_id', $salonId)->first();
+                $rolK = self::kullaniciRolu($salonId, $this->cmAuthId());
+                $izin = $per && (((int) $rolK !== 5) || ($hedefPersonelId === (int) $this->aktifPersonelId($salonId)));
+                $mevcutPersonelId = (int) optional($liste)->personel_id;
+                if ($izin && $hedefPersonelId !== $mevcutPersonelId) {
+                    $kayit->arama_id = $this->personelManuelAramaListesiId($salonId, $hedefPersonelId);
+                }
+            }
+        }
 
         if ($arKolonVar) {
             if ($yeniCallback) {
@@ -35061,6 +35081,26 @@ DB::raw('
         return response()->json(['results' => $results]);
     }
 
+    /** Personelin "Arama Randevulari (Manuel)" listesini dondurur (yoksa olusturur). */
+    private function personelManuelAramaListesiId($salonId, $personelId)
+    {
+        $baslik = 'Arama Randevuları (Manuel)';
+        $liste = AramaListesi::where('salon_id', $salonId)->where('arama_baslik', $baslik)
+            ->where('personel_id', $personelId)->first();
+        if (!$liste) {
+            $liste = new AramaListesi();
+            $liste->salon_id = $salonId;
+            $liste->arama_baslik = $baslik;
+            $liste->personel_id = $personelId;
+            $liste->aranacak_tarih = null;
+            $liste->durum = 1;
+            $liste->olusturan_yetkili_id = $this->cmAuthId();
+            if (Schema::hasColumn('arama_listesi', 'filtre_snapshot')) $liste->filtre_snapshot = null;
+            $liste->save();
+        }
+        return $liste->id;
+    }
+
     /** Takvimden MANUEL arama randevusu ekler (durum=3). Personelin "Arama Randevulari (Manuel)"
      *  listesine yazar (yoksa olusturur). */
     public function cagri_arama_randevu_ekle(Request $request)
@@ -35095,19 +35135,10 @@ DB::raw('
         }
 
         // Personelin "Manuel" arama randevu listesi (yoksa olustur)
-        $baslik = 'Arama Randevuları (Manuel)';
-        $liste = AramaListesi::where('salon_id', $salonId)->where('arama_baslik', $baslik)
-            ->where('personel_id', $personelId)->first();
-        if (!$liste) {
-            $liste = new AramaListesi();
-            $liste->salon_id = $salonId; $liste->arama_baslik = $baslik; $liste->personel_id = $personelId;
-            $liste->aranacak_tarih = null; $liste->durum = 1; $liste->olusturan_yetkili_id = $this->cmAuthId();
-            if (Schema::hasColumn('arama_listesi', 'filtre_snapshot')) $liste->filtre_snapshot = null;
-            $liste->save();
-        }
+        $hedefListeId = $this->personelManuelAramaListesiId($salonId, $personelId);
 
         $am = new AranacakMusteriler();
-        $am->user_id = $musteriId; $am->arama_id = $liste->id; $am->durum = 3;
+        $am->user_id = $musteriId; $am->arama_id = $hedefListeId; $am->durum = 3;
         $am->tarih = $tarih; $am->saat = $saat;
         $am->musteri_not = $not !== '' ? $not : null;
         if (Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at')) {
