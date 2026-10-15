@@ -34280,7 +34280,7 @@ DB::raw('
         $trunk = \App\SabitNumaralar::where('salon_id', $salonId)->value('numara');
         $qs = '?offset=0'
             . implode('', array_map(function ($d) { return '&dahililer[]=' . urlencode($d); }, $set))
-            . '&tarih1=' . date('Y-m-d', strtotime('-2 day'))
+            . '&tarih1=' . date('Y-m-d', strtotime('-5 day'))
             . '&tarih2=' . date('Y-m-d', strtotime('+1 day'));
         if ($trunk) $qs .= '&did=' . urlencode($trunk);
 
@@ -34297,18 +34297,21 @@ DB::raw('
             $gorulen = [];
             foreach ($satirlar as $r) {
                 if (!is_array($r) || empty($r['recording_path'])) continue;
-                $kanalDahili = '';
-                if (preg_match('/^[^\/]+\/([^-\s]+)/', ($r['channel'] ?? ''), $m)) {
-                    $kanalDahili = preg_replace('/\D/', '', $m[1]);
-                }
-                if ($kanalDahili === '' || !in_array($kanalDahili, $set, true)) continue;
 
-                // MUSTERI NUMARASI eslesmesi (varsa): kayit bu musteriye ait mi? Musteri
-                // numarasi src/dst'de OLMAYABILIR (SIP/<salon>-out/0<musteri>) -> tum ilgili
-                // alanlarin rakamlarinda son-10 hane ara. (musteri_ses_kayitlari ile AYNI mantik.)
                 if ($son10 !== '') {
+                    // MUSTERI BAZLI (LENIENT) esleme — musteri_ses_kayitlari ile AYNI: numara
+                    // herhangi bir kanalda (channel|dstchannel|src|dst) gecsin yeter. Kanal-dahili
+                    // sarti KOYMA (cagri merkezi aramasinda kayit agent bacaginda, musteri numarasi
+                    // outbound bacaginda olabilir -> kati sart gercek kaydi eliyordu).
                     $samanlik = preg_replace('/\D/', '', ($r['channel'] ?? '') . '|' . ($r['dstchannel'] ?? '') . '|' . ($r['src'] ?? '') . '|' . ($r['dst'] ?? ''));
                     if (strpos($samanlik, $son10) === false) continue;
+                } else {
+                    // Eski davranis (musteri numarasi yok): kanal dahilisi verilen set icinde olmali.
+                    $kanalDahili = '';
+                    if (preg_match('/^[^\/]+\/([^-\s]+)/', ($r['channel'] ?? ''), $m)) {
+                        $kanalDahili = preg_replace('/\D/', '', $m[1]);
+                    }
+                    if ($kanalDahili === '' || !in_array($kanalDahili, $set, true)) continue;
                 }
 
                 $rp = $r['recording_path'];
@@ -34351,8 +34354,10 @@ DB::raw('
         // yoksa ayni personelin tum musterilerine ayni kayit duserdi.
         $musteriSon10 = substr(preg_replace('/\D/', '', (string) optional($kayit->musteri)->cep_telefon), -10);
 
-        // Her gorusmeye KENDI ses kaydini bagla (hepsine ayni kayit gelme sorununu cozer):
-        // - Adaylar dahili bazinda santralden cekilir, zaman damgasina gore en yeni once siralanir.
+        // Her gorusmeye KENDI ses kaydini bagla (hepsine ayni/hic kayit gelme sorununu cozer):
+        // - ADAYLAR salonun TUM dahilileri uzerinden, MUSTERI NUMARASINA gore (son10 herhangi
+        //   kanalda) cekilir — cagri agent yerine trunk/baska dahiliden kayitli olsa bile bulunur.
+        //   (musteri_ses_kayitlari ile AYNI, LENIENT esleme.)
         // - En yeni gorusme -> en yeni (kullanilmamis) kayit ... seklinde sirayla, TEKRARSIZ eslesir.
         // - Son 2 gunden eski notlar yeniden atanmaz; sadece kayitlari rezerve edilir (cakisma olmasin).
         $esikTs = time() - 2 * 86400;
@@ -34361,36 +34366,41 @@ DB::raw('
             $oTs = $n->created_at ? strtotime($n->created_at) : 0;
             if ($oTs < $esikTs && !empty($n->ses_kaydi)) $kullanilan[] = $n->ses_kaydi;
         }
-        $adayCache = [];
+
+        // Bu musterinin kayit adaylari — salonun TUM dahilileri (normal + webrtc) uzerinden, TEK sefer.
+        $adaylar = [];
+        if ($musteriSon10 !== '') {
+            $tumDahililer = Personeller::where('salon_id', $salonId)
+                ->where(function ($q) {
+                    $q->where(function ($a) { $a->whereNotNull('dahili_no')->where('dahili_no', '!=', ''); })
+                      ->orWhere(function ($b) { $b->whereNotNull('dahili_no_webrtc')->where('dahili_no_webrtc', '!=', ''); });
+                })
+                ->get(['dahili_no', 'dahili_no_webrtc']);
+            $dset = [];
+            foreach ($tumDahililer as $p) {
+                if (!empty($p->dahili_no)) $dset[] = $p->dahili_no;
+                if (!empty($p->dahili_no_webrtc)) $dset[] = $p->dahili_no_webrtc;
+            }
+            if (!empty($dset)) {
+                $adaylar = $this->cagriMerkeziKayitAdaylari($salonId, $dset, $musteriSon10);
+            }
+        }
+
         foreach ($notlar as $n) { // en yeniden eskiye dogru ata
             $oTs = $n->created_at ? strtotime($n->created_at) : 0;
             if ($oTs < $esikTs) continue; // eski not: dokunma
-            // Personel WebRTC (dahili_no_webrtc) VEYA normal dahili (dahili_no) ile gorusmus
-            // olabilir; kayit hangi kanaldaysa o dahiliyle olusur. Her iki dahiliyi de topla.
-            $per = $n->personel_id ? Personeller::where('id', $n->personel_id)->first(['dahili_no', 'dahili_no_webrtc']) : null;
-            $dahililer = [];
-            if ($per) {
-                if (!empty($per->dahili_no)) $dahililer[] = $per->dahili_no;
-                if (!empty($per->dahili_no_webrtc)) $dahililer[] = $per->dahili_no_webrtc;
-            }
-            if (empty($dahililer)) { if (!empty($n->ses_kaydi)) $kullanilan[] = $n->ses_kaydi; continue; }
             // Musteri numarasi yoksa guvenli eslesme yapilamaz -> mevcudu KORU (dokunma).
             if ($musteriSon10 === '') { if (!empty($n->ses_kaydi)) $kullanilan[] = $n->ses_kaydi; continue; }
-            $dahiliKey = implode('|', $dahililer);
-            if (!isset($adayCache[$dahiliKey])) {
-                $adayCache[$dahiliKey] = $this->cagriMerkeziKayitAdaylari($salonId, $dahililer, $musteriSon10);
-            }
 
             $sec = '';
-            foreach ($adayCache[$dahiliKey] as $c) {
+            foreach ($adaylar as $c) {
                 if (!in_array($c['path'], $kullanilan, true)) { $sec = $c['path']; break; }
             }
             if ($sec !== '') {
                 $kullanilan[] = $sec;
                 if ($n->ses_kaydi !== $sec) { $n->ses_kaydi = $sec; $n->save(); }
             } else {
-                // Bu musteriye AIT eslesen kayit yok -> onceki (muhtemelen yanlis paylasimli)
-                // kaydi TEMIZLE. Boylece "her gecmiste ayni ses" sorunu giderilir.
+                // Bu musteriye AIT eslesen kayit yok -> onceki (yanlis/eski) kaydi TEMIZLE.
                 if (!empty($n->ses_kaydi)) { $n->ses_kaydi = null; $n->save(); }
             }
         }
