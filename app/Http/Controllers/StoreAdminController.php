@@ -29603,11 +29603,16 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
      * formatlarda gelebildigi icin tam eslesme ismi getirmiyordu; burada son-10 hane
      * varyantlariyla (index dostu whereIn) eslesir. Once bu salonun portfoyundeki musteri.
      */
+    private static $_santralMusteriCache = [];
     private function santralMusteriBul($numara, $salonId = null)
     {
         $son10 = substr(preg_replace('/\D/', '', (string) $numara), -10);
         if (strlen($son10) < 10) return null;
+        $ck = $salonId . '|' . $son10;
+        if (array_key_exists($ck, self::$_santralMusteriCache)) return self::$_santralMusteriCache[$ck];
+
         $cand = [$son10, '0' . $son10, '90' . $son10, '+90' . $son10, '0090' . $son10];
+        $u = null;
         if ($salonId) {
             $u = User::whereIn('cep_telefon', $cand)
                 ->whereExists(function ($q) use ($salonId) {
@@ -29615,9 +29620,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                       ->whereColumn('musteri_portfoy.user_id', 'users.id')
                       ->where('musteri_portfoy.salon_id', $salonId);
                 })->first();
-            if ($u) return $u;
         }
-        return User::whereIn('cep_telefon', $cand)->first();
+        if (!$u) $u = User::whereIn('cep_telefon', $cand)->first();
+        return self::$_santralMusteriCache[$ck] = $u;
     }
 
     public function santral_raporlari($salon_id,$tarih1,$tarih2,$durum,$request)
@@ -29636,7 +29641,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         }
         $dahililer = array_values(array_unique($dahililer));
         $trunk = SabitNumaralar::where('salon_id',$salon_id)->value('numara');
-        $queryStr = '?offset='.$request->offset.'&';
+        // limit VERILMEZSE API varsayilani 50 doner -> cok aktif bir dahili (or. 40) tum ilk
+        // 50 satiri doldurup diger dahililerin (or. 39) cagrilarini ITIYORDU. Tablo client-side
+        // sayfalandigindan o cagrilar HIC yuklenmiyordu. API tavani 500 -> hepsi yuklensin.
+        $queryStr = '?offset='.$request->offset.'&limit=500&';
         foreach($dahililer as $key=>$dahili)
         {
             $queryStr .= 'dahililer[]='.$dahili;
