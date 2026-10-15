@@ -157,6 +157,11 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
                <button type="button" id="artm_kasaya_isle" style="width:100%;background:#16a34a;border:none;color:#fff;font-weight:800;border-radius:10px;padding:11px;cursor:pointer;font-size:13.5px;"><i class="fa fa-money"></i> Kasaya İşle (gerçek satış oluştur)</button>
             </div>
             <label class="artm-sonra"><input type="checkbox" id="artm_sonra_chk"> 📅 ARAMA RANDEVUSU VER — müşteri sonra aranmak istedi (Tekrar Aranacak)</label>
+            @if(($kullaniciRolu ?? 0) != 5)
+            <div id="artm_sonra_personel_alan" style="display:none;margin:4px 0 8px;">
+               <select id="artm_sonra_personel" style="width:100%;"><option value="">👤 Arayacak personel (varsayılan: liste personeli)</option></select>
+            </div>
+            @endif
             <div class="artm-sonra-alan" id="artm_sonra_alan">
                <input type="text" id="artm_sonra_tarih" autocomplete="off" readonly placeholder="Tarih seçin">
                <input type="time" id="artm_sonra_saat">
@@ -478,6 +483,8 @@ $(document).ready(function(){
       $('#artm_satis_alan').hide(); $('#artm_satis_tutari').val('');
       $('#artm_sonra_chk').prop('checked', false);
       $('#artm_sonra_alan').hide();
+      $('#artm_sonra_personel_alan').hide();
+      try { var $sp=$('#artm_sonra_personel'); if($sp.hasClass('select2-hidden-accessible')) $sp.select2('destroy'); $sp.val(''); } catch(e){}
       $('#artm_sonra_tarih').val(''); $('#artm_sonra_saat').val('');
       $('#artm_ara').prop('disabled', false).html('<i class="fa fa-phone"></i> ARA');
       $('#artm_gecmis').html('<div class="artm-g-bos"><i class="fa fa-spinner fa-spin"></i> Yükleniyor...</div>');
@@ -635,7 +642,16 @@ $(document).ready(function(){
 
    // Tekrar aranacak toggle
    $(document).on('change', '#artm_sonra_chk', function(){
-      $('#artm_sonra_alan').css('display', this.checked ? 'flex' : 'none');
+      var ac = this.checked;
+      $('#artm_sonra_alan').css('display', ac ? 'flex' : 'none');
+      $('#artm_sonra_personel_alan').css('display', ac ? 'block' : 'none');
+      // SADECE bu select2 (arayacak personel) — modal icinde dropdownParent ile.
+      if (ac && $.fn.select2){
+         var $p = $('#artm_sonra_personel');
+         if ($p.length && !$p.hasClass('select2-hidden-accessible')){
+            $p.select2({ width:'100%', dropdownParent: $('#artm_modal'), placeholder:'Arayacak personel' });
+         }
+      }
    });
 
    // ARA — softphone hazirsa dogrudan, degilse santral originate (arama_listelerim ile ayni)
@@ -694,6 +710,8 @@ $(document).ready(function(){
             satis_tutari: satisMi ? satisTutari : '',
             santralnottarih: sonraMu ? tarih : '',
             santralnotsaat:  sonraMu ? saat  : '',
+            // Arayacak personel (callback'i secilen personele tasir; bos = degisiklik yok)
+            arama_personel_id: sonraMu ? ($('#artm_sonra_personel').val() || '') : '',
             _token: token
          },
          success:function(res){
@@ -774,6 +792,12 @@ $(document).ready(function(){
          var o = '<option value="">Personel seçin...</option>';
          ps.forEach(function(p){ o += '<option value="'+p.id+'">'+esc(p.personel_adi)+'</option>'; });
          $('#are_personel').html(o);
+         // Tekrar-arama "Arayacak personel" select'i de ayni listeyle dolsun (varsa).
+         if ($('#artm_sonra_personel').length){
+            var o2 = '<option value="">👤 Arayacak personel (varsayılan: liste personeli)</option>';
+            ps.forEach(function(p){ o2 += '<option value="'+p.id+'">'+esc(p.personel_adi)+'</option>'; });
+            $('#artm_sonra_personel').html(o2);
+         }
          arePersonelYuklendi = true;
       });
    }

@@ -689,6 +689,13 @@ function agDetayCiz(m){
 
    $('#ag_detay_bos').hide();
    $('#ag_detay_icerik').html(html).show();
+   // SADECE "Arayacak personel" select'i select2 olsun (tam satir).
+   try {
+      if ($.fn.select2 && $('#ag_sonra_personel').length){
+         $('#ag_sonra_personel').select2({ width:'100%', placeholder:'Arayacak personel' });
+         $('#ag_sonra_personel').next('.select2-container').css({ 'flex':'1 1 100%', 'margin-bottom':'6px' });
+      }
+   } catch(e){}
    // Tekrar arama tarihi: randevu formlarindaki air-datepicker (SADECE tarih, ileri tarih).
    try {
       if ($.fn.datepicker) {
