@@ -30994,11 +30994,22 @@ public function arsivformekleme(Request $request){
     {
         $indirim = 0;
         $isletme = Salonlar::where('id',$request->sube)->first();
-        if(Tahsilatlar::where('user_id',$request->musteriid)->where('salon_id',$isletme->id)->count()>3
+        // Aktif/sadik musteri indirimi GECMIS tahsilatlara gore belirlenir. Musterinin
+        // MEVCUT (ilk) adisyonuna yapilan kismi odeme bu siniflandirmaya girmemeli; aksi
+        // halde ilk adisyondan kismi tahsilat alinca musteri yanlislikla "aktif" sayilir.
+        $adisyonId = (int) $request->adisyon_id;
+        $gecmisTahsilatSorgu = Tahsilatlar::where('user_id',$request->musteriid)->where('salon_id',$isletme->id);
+        if($adisyonId > 0)
+            $gecmisTahsilatSorgu->where(function($q) use ($adisyonId){
+                $q->whereNull('adisyon_id')->orWhere('adisyon_id','!=',$adisyonId);
+            });
+        $gecmisTahsilatSayisi = (clone $gecmisTahsilatSorgu)->count();
+        $sonGecmisOdemeTarihi = (clone $gecmisTahsilatSorgu)->orderBy('id','desc')->value('odeme_tarihi');
+        if($gecmisTahsilatSayisi>3
                               &&
-                           date('Y-m-d H:i:s', strtotime('+90 days',strtotime(Tahsilatlar::where('user_id',$request->musteriid)->where('salon_id',$isletme->id)->orderBy('id','desc')->value('odeme_tarihi')))) < date('Y-m-d H:i:s', strtotime('+90 days', strtotime(date('Y-m-d H:i:s')))))
+                           date('Y-m-d H:i:s', strtotime('+90 days',strtotime($sonGecmisOdemeTarihi))) < date('Y-m-d H:i:s', strtotime('+90 days', strtotime(date('Y-m-d H:i:s')))))
             $indirim = $isletme->sadik_musteri_indirim_yuzde;
-        elseif(Tahsilatlar::where('user_id',$request->musteriid)->where('salon_id',$isletme->id)->count()==0)
+        elseif($gecmisTahsilatSayisi==0)
             $indirim = 0;
         else
             $indirim = $isletme->aktif_musteri_indirim_yuzde;
