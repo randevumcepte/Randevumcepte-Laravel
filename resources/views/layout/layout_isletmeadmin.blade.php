@@ -2631,6 +2631,7 @@
       @if($pageindex==2)
       @include('modaldialogs.randevu-detayi-kart')
       @include('isletmeadmin.partials.whatsapp_mesaj_modal')
+      @include('modaldialogs.telafi-randevu-modal')
       @endif
       @if($pageindex==40)
       @include('modaldialogs.ajandaekle-modal')

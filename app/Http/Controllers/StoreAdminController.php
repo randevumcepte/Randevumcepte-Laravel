@@ -28096,6 +28096,37 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         }
     }
 
+    /**
+     * Telafi randevusu olustur (yeni tarih/personel + fiyat 0 + orijinal baglantisi + prim transfer).
+     * Body: orijinal_rh_id, tarih, saat, personel_id, oda_id?, cihaz_id?, sure_dk?, not?
+     */
+    public function telafiRandevuOlustur(Request $request)
+    {
+        if($r = self::yetkiYoksa403($request, 'randevu.olustur')) return $r;
+        try {
+            $svc = app(\App\Services\TelafiRandevuServisi::class);
+            $yeniRH = $svc->olustur(
+                (int) $request->orijinal_rh_id,
+                (string) $request->tarih,
+                substr((string) $request->saat, 0, 5),
+                (int) $request->personel_id,
+                $request->oda_id   ? (int) $request->oda_id   : null,
+                $request->cihaz_id ? (int) $request->cihaz_id : null,
+                (int) $request->sure_dk,
+                (string) $request->not,
+                (int) \Auth::guard('isletmeyonetim')->user()->id
+            );
+            return response()->json([
+                'ok' => true,
+                'randevu_id'       => $yeniRH->randevu_id,
+                'randevu_hizmet_id'=> $yeniRH->id,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('[Telafi] olustur hata: '.$e->getMessage());
+            return response()->json(['hata' => $e->getMessage()], 400);
+        }
+    }
+
     // Randevu detay modalinden inline not guncelleme (musteri_notu = randevu.notlar,
     // personel_notu = randevu.personel_notu). Yeni pencere gerektirmez.
     public function randevuNotGuncelle(Request $request)

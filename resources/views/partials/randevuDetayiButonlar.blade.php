@@ -46,10 +46,33 @@
          <a name="geldi_isaretle"   href="#" class="btn btn-success" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-check"></i> Geldi</a>
       @endif
 
-      {{-- TELAFI: sadece paket/seans randevusunda. Seansı telafi slotuna (geldi=2) alır;
-           bir sonraki randevuda o telafiye bağlanır (yeni seans düşülmez). --}}
+      {{-- TELAFI (paket/seans): seansı telafi slotuna (APS.geldi=2) alır; bir sonraki
+           randevuda o telafiye bağlanır (yeni seans düşülmez). --}}
       @if(($hasPaketTahsilat ?? false))
-         <a name="telafi_isaretle" href="#" class="btn" style="background:#FDA172;border-color:#FDA172;color:#fff" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-exclamation-triangle"></i> Telafi</a>
+         <a name="telafi_isaretle" href="#" class="btn" style="background:#FDA172;border-color:#FDA172;color:#fff" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-exclamation-triangle"></i> Seansı Telafi İşaretle</a>
+      @endif
+
+      {{-- TELAFI RANDEVUSU OLUSTUR: ucretsiz duzeltme randevusu olustur, baska personel
+           yapacaksa prim de devredilir. Sadece zaten telafi randevusu DEGIL ise + devir
+           yapilmamissa gorunur. --}}
+      @php
+         // $randevu bu partial'da RandevuHizmetler instance ($rh)
+         $__telafiButtonGoster = empty($randevu->telafi_kaynak_rh_id)
+                               && empty($randevu->telafi_devir_yapildi);
+      @endphp
+      @if($__telafiButtonGoster)
+         <a href="#" class="btn btn-warning telafi-randevu-ac"
+            data-rh-id="{{ $randevu->id }}"
+            data-sure="{{ $randevu->sure_dk ?: 15 }}"
+            data-personel-id="{{ $randevu->personel_id }}"
+            data-oda-id="{{ $randevu->oda_id }}"
+            data-cihaz-id="{{ $randevu->cihaz_id }}"
+            data-musteri="{{ $randevu->randevu->users->name ?? '' }}"
+            data-hizmet="{{ $randevu->hizmetler->hizmet_adi ?? '' }}">
+            <i class="fa fa-undo"></i> Telafi Randevusu
+         </a>
+      @elseif($randevu->telafi_kaynak_rh_id)
+         <span class="badge" style="background:#FDA172;color:#fff;padding:6px 10px;align-self:center;"><i class="fa fa-undo"></i> Telafi Randevusu</span>
       @endif
 
       @if($_SERVER['HTTP_HOST'] != 'randevu.randevumcepte.com.tr')
