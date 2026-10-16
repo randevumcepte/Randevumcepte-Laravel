@@ -20513,7 +20513,13 @@ DB::raw('
         if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar', 'takvim_tek_renk_aktif')) {
             $isletme->takvim_tek_renk_aktif = $request->has('takvim_tek_renk_aktif') ? 1 : 0;
             $_tr = trim((string) $request->takvim_tek_renk);
-            $isletme->takvim_tek_renk = ($_tr !== '' && preg_match('/^#[0-9a-fA-F]{6}$/', $_tr)) ? $_tr : null;
+            // Gecerli hex geldiyse yaz; gelmediyse MEVCUT rengi KORU (sifirlama yok).
+            // Aktif ama hic renk yoksa makul varsayilan ata.
+            if ($_tr !== '' && preg_match('/^#[0-9a-fA-F]{6}$/', $_tr)) {
+                $isletme->takvim_tek_renk = strtoupper($_tr);
+            } elseif (empty($isletme->takvim_tek_renk)) {
+                $isletme->takvim_tek_renk = '#5C008E';
+            }
         }
         // Takvim Renk Sirasi — 10'lu renk skalasinin salon tercih sirasi (hex dizisi)
         if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar', 'takvim_renk_sirasi')) {

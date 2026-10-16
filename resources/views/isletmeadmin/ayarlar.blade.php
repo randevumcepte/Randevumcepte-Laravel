@@ -1130,8 +1130,8 @@
                               </div>
                               <small class="text-muted d-block mb-10">Açıkken randevu takviminde (web ve mobil) tüm personel, oda ve cihaz kolonları ile bu kaynaklara ait normal randevular aşağıda seçtiğiniz tek renge boyanır. Geldi (yeşil) / gelmedi (kırmızı) / onay bekliyor (sarı) gibi durum renkleri korunur.</small>
                               <div class="d-flex align-items-center flex-wrap" style="gap:10px;">
-                                 <input type="color" id="takvim_tek_renk" value="{{ $tekRenkDeger }}" style="width:52px;height:38px;padding:2px;border:1px solid #ddd;border-radius:6px;cursor:pointer;">
-                                 <input type="text" name="takvim_tek_renk" id="takvim_tek_renk_hex" value="{{ $tekRenkDeger }}" maxlength="7" placeholder="#5C008E" style="width:110px;height:38px;border:1px solid #ddd;border-radius:6px;padding:0 10px;font-family:monospace;text-transform:uppercase;">
+                                 <input type="color" name="takvim_tek_renk" id="takvim_tek_renk" value="{{ $tekRenkDeger }}" style="width:52px;height:38px;padding:2px;border:1px solid #ddd;border-radius:6px;cursor:pointer;">
+                                 <input type="text" id="takvim_tek_renk_hex" value="{{ $tekRenkDeger }}" maxlength="7" placeholder="#5C008E" style="width:110px;height:38px;border:1px solid #ddd;border-radius:6px;padding:0 10px;font-family:monospace;text-transform:uppercase;">
                                  <span class="text-muted">Renk kodu (hex) girin veya aşağıdan seçin</span>
                               </div>
                               @if(count($paletRenkleri))
@@ -1149,12 +1149,12 @@
                               <label class="d-block" style="font-weight:600;">Renk Sırası (10'lu skala)</label>
                               <small class="text-muted d-block mb-10">Tek renk <b>kapalıyken</b> takvim kaynakları (personel / oda / cihaz / kategori) görünüm sırasına göre bu renklerden sırayla boyanır. Oklarla sırayı değiştirin. Ayarı kaydetmezseniz renk düzenleri tablosundaki sıra geçerli olur.</small>
                               <input type="hidden" name="takvim_renk_sirasi" id="takvim_renk_sirasi" value="{{ implode(',', $sirali) }}">
-                              <ul id="takvim_renk_sira_liste" class="list-unstyled mb-0" style="max-width:420px;">
+                              <ul id="takvim_renk_sira_liste" class="list-unstyled mb-0" style="max-width:460px;">
                                  @foreach($sirali as $idx => $h)
-                                 <li class="trk-sira-item d-flex align-items-center" data-hex="{{ $h }}" style="gap:10px;padding:6px 8px;border:1px solid #eee;border-radius:8px;margin-bottom:6px;background:#fafafa;">
-                                    <span style="width:26px;height:26px;border-radius:6px;background:{{ $h }};border:1px solid #ccc;display:inline-block;"></span>
-                                    <span style="font-family:monospace;flex:1;">{{ $h }}</span>
-                                    <span class="text-muted" style="min-width:20px;text-align:center;">{{ $idx+1 }}</span>
+                                 <li class="trk-sira-item d-flex align-items-center" data-hex="{{ $h }}" style="gap:8px;padding:6px 8px;border:1px solid #eee;border-radius:8px;margin-bottom:6px;background:#fafafa;">
+                                    <input type="color" class="trk-sira-renk" value="{{ $h }}" title="Rengi değiştir" style="width:34px;height:30px;padding:2px;border:1px solid #ccc;border-radius:6px;cursor:pointer;">
+                                    <input type="text" class="trk-sira-hex" value="{{ $h }}" maxlength="7" style="width:96px;height:30px;font-family:monospace;text-transform:uppercase;border:1px solid #ddd;border-radius:6px;padding:0 8px;flex:1;">
+                                    <span class="trk-sira-no text-muted" style="min-width:20px;text-align:center;">{{ $idx+1 }}</span>
                                     <button type="button" class="btn btn-sm btn-outline-secondary trk-yukari" title="Yukarı">▲</button>
                                     <button type="button" class="btn btn-sm btn-outline-secondary trk-asagi" title="Aşağı">▼</button>
                                  </li>
@@ -1186,7 +1186,7 @@
                            });
                            if(hex) swatchVurgula(normHex(hex.value));
 
-                           // Renk sirasi: yukari/asagi
+                           // Renk sirasi: renk degistir + yukari/asagi
                            var liste = document.getElementById('takvim_renk_sira_liste');
                            var gizli = document.getElementById('takvim_renk_sirasi');
                            function siraGuncelle(){
@@ -1194,20 +1194,34 @@
                               var hexler=[], items=liste.querySelectorAll('.trk-sira-item');
                               items.forEach(function(it,i){
                                  hexler.push(it.getAttribute('data-hex'));
-                                 var sira=it.querySelector('span:nth-child(3)'); if(sira) sira.textContent=(i+1);
+                                 var no=it.querySelector('.trk-sira-no'); if(no) no.textContent=(i+1);
                               });
                               gizli.value = hexler.join(',');
                            }
-                           if(liste) liste.addEventListener('click', function(e){
-                              var btn=e.target.closest('.trk-yukari,.trk-asagi'); if(!btn) return;
-                              var li=btn.closest('.trk-sira-item'); if(!li) return;
-                              if(btn.classList.contains('trk-yukari') && li.previousElementSibling){
-                                 li.parentNode.insertBefore(li, li.previousElementSibling);
-                              } else if(btn.classList.contains('trk-asagi') && li.nextElementSibling){
-                                 li.parentNode.insertBefore(li.nextElementSibling, li);
-                              }
+                           function satirRenkAyarla(li, v){
+                              v = normHex(v); if(!gecerli(v)) return;
+                              li.setAttribute('data-hex', v);
+                              var cw=li.querySelector('.trk-sira-renk'); if(cw && cw.value.toUpperCase()!==v) cw.value=v;
+                              var hx=li.querySelector('.trk-sira-hex'); if(hx && hx.value.toUpperCase()!==v) hx.value=v;
                               siraGuncelle();
-                           });
+                           }
+                           if(liste){
+                              liste.addEventListener('click', function(e){
+                                 var btn=e.target.closest('.trk-yukari,.trk-asagi'); if(!btn) return;
+                                 var li=btn.closest('.trk-sira-item'); if(!li) return;
+                                 if(btn.classList.contains('trk-yukari') && li.previousElementSibling){
+                                    li.parentNode.insertBefore(li, li.previousElementSibling);
+                                 } else if(btn.classList.contains('trk-asagi') && li.nextElementSibling){
+                                    li.parentNode.insertBefore(li.nextElementSibling, li);
+                                 }
+                                 siraGuncelle();
+                              });
+                              liste.addEventListener('input', function(e){
+                                 var li=e.target.closest('.trk-sira-item'); if(!li) return;
+                                 if(e.target.classList.contains('trk-sira-renk')){ satirRenkAyarla(li, e.target.value); }
+                                 else if(e.target.classList.contains('trk-sira-hex')){ var v=normHex(e.target.value); if(gecerli(v)) satirRenkAyarla(li, v); }
+                              });
+                           }
                         })();
                         </script>
                         <div class="col-md-12">
