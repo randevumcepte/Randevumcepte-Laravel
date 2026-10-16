@@ -18836,7 +18836,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                 $response['phones'][] = [
 
-                    'phone' => $formattedPhone,
+                    // DB araması $formattedPhone (sıyrılmış) ile yapılır, ancak
+                    // 'phone' cevabında uygulamanın GONDERDIGI orijinal deger geri
+                    // dönmeli. Aksi halde app, 0/+90'li kendi formatıyla eslestirir
+                    // ve "zaten kayıtlı" tespiti tutmaz; mevcut müsteriler ekleme
+                    // ucuna gidip "warning" (başarısız) olur.
+                    'phone' => $phone,
 
                     'exists' => true,
 
@@ -18844,7 +18849,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                         return [
 
-                            'name' => $user->name, 
+                            'name' => $user->name,
 
                             'system' => $user->cep_telefon // Burada kullanıcıya ait sistem adını ekleyin
 
@@ -18858,7 +18863,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                 $response['phones'][] = [
 
-                    'phone' => $formattedPhone,
+                    'phone' => $phone,
 
                     'exists' => false
 
