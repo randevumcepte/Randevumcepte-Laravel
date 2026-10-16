@@ -34491,7 +34491,7 @@ DB::raw('
         $randevuTarih = $kayit->tarih ? date('d.m.Y', strtotime($kayit->tarih)) : '';
         $randevuSaat  = $kayit->saat ? date('H:i', strtotime($kayit->saat)) : '';
 
-        $gecmis = $notlar->map(function ($n) use ($randevuTarih, $randevuSaat) {
+        $gecmisArr = $notlar->map(function ($n) use ($randevuTarih, $randevuSaat) {
             $kod = is_null($n->sonuc) ? null : (int) $n->sonuc;
             return [
                 'tarih'         => $n->created_at ? date('d.m.Y H:i', strtotime($n->created_at)) : '',
@@ -34502,10 +34502,37 @@ DB::raw('
                 'randevu_tarih' => ($kod === 3 || $kod === 6) ? $randevuTarih : '',
                 'randevu_saat'  => ($kod === 3 || $kod === 6) ? $randevuSaat : '',
                 'satis_tutari'  => ($kod === 7 && isset($n->satis_tutari) && $n->satis_tutari !== null) ? (float) $n->satis_tutari : null,
+                '_ts'           => $n->created_at ? strtotime($n->created_at) : 0,
             ];
-        });
+        })->all();
 
-        return response()->json(['gecmis' => $gecmis]);
+        // ÇAĞRI GEÇMİŞİ: not KAYDEDILMEDEN yapilan aramalarin ses kayitlarini da goster.
+        // Nota baglanmamis (kullanilmayan) CDR adaylari -> "Arandı" satiri + ses kaydi.
+        foreach ($adaylar as $c) {
+            if (in_array($c['path'], $kullanilan, true)) continue;
+            $tsSec = 0; $tarihStr = '';
+            if (!empty($c['ts'])) {
+                $dt = \DateTime::createFromFormat('YmdHis', (string) $c['ts']);
+                if ($dt) { $tsSec = $dt->getTimestamp(); $tarihStr = $dt->format('d.m.Y H:i'); }
+            }
+            $gecmisArr[] = [
+                'tarih'         => $tarihStr,
+                'sonuc_kod'     => null,
+                'sonuc'         => 'Arandı',
+                'not'           => '',
+                'ses'           => self::sesKaydiUrl($c['path']),
+                'randevu_tarih' => '',
+                'randevu_saat'  => '',
+                'satis_tutari'  => null,
+                '_ts'           => $tsSec,
+            ];
+        }
+        // En yeni once sirala + yardimci alani cikar
+        usort($gecmisArr, function ($a, $b) { return $b['_ts'] <=> $a['_ts']; });
+        foreach ($gecmisArr as &$g) { unset($g['_ts']); }
+        unset($g);
+
+        return response()->json(['gecmis' => $gecmisArr]);
     }
 
     /**
