@@ -637,6 +637,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::get ('/musteri-select',                'CagriMerkeziApiController@cagri_musteri_select');
         Route::get ('/musteri-randevu-gecmisi',       'CagriMerkeziApiController@musteri_randevu_gecmisi');
         Route::post('/ongorusme-bilgi',          'CagriMerkeziApiController@cagri_musteri_ongorusme_bilgi');
+        Route::post('/satis-kalemler',           'CagriMerkeziApiController@cagri_satis_kalemler');
         Route::post('/hizli-satis',              'CagriMerkeziApiController@cagri_hizli_satis');
         Route::post('/whatsapp-gonder',          'CagriMerkeziApiController@cagri_whatsapp_gonder');
         Route::post('/anket-gonder',             'CagriMerkeziApiController@cagri_anket_gonder');

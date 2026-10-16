@@ -34939,6 +34939,37 @@ DB::raw('
      * Paket icin paket_hizmetler seanslariyla adisyon_hizmetler'e acilir (SEANS verilir).
      * Tum islem TRANSACTION icinde — hata olursa hicbir sey yazilmaz (bozuk veri yok).
      */
+    /** Cagri Merkezi Hizli Satis (mobil) icin kalem listeleri: hizmet/urun/paket + odeme yontemleri. */
+    public function cagri_satis_kalemler(Request $request)
+    {
+        $sube = $request->sube;
+        if ((int) optional(Salonlar::where('id', $sube)->first())->uyelik_turu !== 3) {
+            abort(403);
+        }
+        $hizmetler = DB::table('salon_sunulan_hizmetler')
+            ->join('hizmetler', 'salon_sunulan_hizmetler.hizmet_id', '=', 'hizmetler.id')
+            ->where('salon_sunulan_hizmetler.salon_id', $sube)
+            ->where('salon_sunulan_hizmetler.aktif', true)
+            ->select('hizmetler.id as id', 'hizmetler.hizmet_adi as ad',
+                DB::raw('COALESCE(salon_sunulan_hizmetler.son_fiyat, salon_sunulan_hizmetler.baslangic_fiyat, hizmetler.fiyat, 0) as fiyat'))
+            ->orderBy('hizmetler.hizmet_adi')->get();
+        $urunler = DB::table('urunler')
+            ->where('salon_id', $sube)->where('aktif', true)
+            ->select('id', 'urun_adi as ad', 'fiyat')->orderBy('urun_adi')->get();
+        $paketler = DB::table('paketler')
+            ->where('salon_id', $sube)
+            ->select('id', 'paket_adi as ad', 'fiyat')->orderBy('paket_adi')->get();
+        $odeme = DB::table('odeme_yontemleri')
+            ->select('id', 'odeme_yontemi as ad')->orderBy('id')->get();
+
+        return response()->json([
+            'hizmetler'        => $hizmetler,
+            'urunler'          => $urunler,
+            'paketler'         => $paketler,
+            'odeme_yontemleri' => $odeme,
+        ]);
+    }
+
     public function cagri_hizli_satis(Request $request)
     {
         $sube = $request->sube;
