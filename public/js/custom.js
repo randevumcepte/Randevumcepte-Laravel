@@ -11070,6 +11070,13 @@ function takvimyukle(preload,turdegisti)
                         event.className += " ders-event";
                     }
 
+                    // Yazi rengi: sunucudan gelen textColor'u event yazisina zorla uygula
+                    // (durum renkli event'lerde beyaz, normal event'lerde secilen renk).
+                    if (event.textColor) {
+                        element.css('color', event.textColor);
+                        element.find('.fc-title, .fc-time, .fc-content').css('color', event.textColor);
+                    }
+
                     // V2 takvim hover tooltip artik document delegation ile
                     // calisiyor (custom.js basinda kuruluyor) — eventRender'da
                     // bind yapmaya gerek yok, takvim refresh'lerinde kaybolmaz.
