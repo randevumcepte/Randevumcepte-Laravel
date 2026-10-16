@@ -868,10 +868,15 @@ class ApiController extends Controller
         }
         $renk = (!empty($salon->takvim_tek_renk) && preg_match('/^#[0-9a-fA-F]{6}$/', $salon->takvim_tek_renk))
             ? $salon->takvim_tek_renk : '#5C008E';
+        // 10'lu renk skalasi (renk_duzenleri — global palet). Flutter picker'da swatch olarak gosterilir.
+        $palet = \App\RenkDuzenleri::orderBy('id')->pluck('renk')
+            ->filter(function($h){ return is_string($h) && preg_match('/^#[0-9a-fA-F]{6}$/',$h); })
+            ->map(function($h){ return strtoupper($h); })->values()->toArray();
         return response()->json([
             'basarili' => true,
             'aktif'    => (int) $salon->takvim_tek_renk_aktif,
             'renk'     => $renk,
+            'palet'    => $palet,
         ], 200, [], JSON_UNESCAPED_UNICODE);
     }
 
@@ -1957,14 +1962,36 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         }
         $takvim_turu = isset($request->takvim_turu) && $request->takvim_turu != '' ? $request->takvim_turu : Salonlar::where('id',$isletmeId)->value('randevu_takvim_turu');
-        // TAKVIM TEK RENK (web randevuyukle ile ayni mantik): acikken tum kaynaklar
-        // ve normal randevular tek renge boyanir; durum renkleri korunur. Mobil
-        // renk formati 0xFFRRGGBB oldugundan hex -> 0xFF prefiksine cevrilir.
-        $tekRenk = null;
-        if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_tek_renk_aktif')) {
-            $_trS = Salonlar::where('id',$isletmeId)->first(['takvim_tek_renk_aktif','takvim_tek_renk']);
-            if ($_trS && $_trS->takvim_tek_renk_aktif && !empty($_trS->takvim_tek_renk)) {
-                $tekRenk = '0xFF'.strtoupper(ltrim((string)$_trS->takvim_tek_renk, '#'));
+        // TAKVIM TEK RENK + RENK SIRASI (web randevuyukle ile ayni mantik):
+        //  - Tek renk acik: tum kaynaklar ve normal randevular tek renge boyanir.
+        //  - Tek renk kapali + sira tanimli: kaynaklar gorunum sirasina gore
+        //    donerek bu listeden renklenir. Durum renkleri korunur.
+        // Mobil renk formati 0xFFRRGGBB oldugundan hex -> 0xFF prefiksine cevrilir.
+        $tekRenk  = null;
+        $renkSira = null;
+        $_hasTek  = \Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_tek_renk_aktif');
+        $_hasSira = \Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_renk_sirasi');
+        if ($_hasTek || $_hasSira) {
+            $_trCols = ['id'];
+            if ($_hasTek)  { $_trCols[] = 'takvim_tek_renk_aktif'; $_trCols[] = 'takvim_tek_renk'; }
+            if ($_hasSira) { $_trCols[] = 'takvim_renk_sirasi'; }
+            $_trS = Salonlar::where('id',$isletmeId)->first($_trCols);
+            if ($_trS) {
+                if ($_hasTek && $_trS->takvim_tek_renk_aktif && !empty($_trS->takvim_tek_renk)) {
+                    $tekRenk = '0xFF'.strtoupper(ltrim((string)$_trS->takvim_tek_renk, '#'));
+                }
+                if ($tekRenk === null && $_hasSira && !empty($_trS->takvim_renk_sirasi)) {
+                    $_arr = json_decode($_trS->takvim_renk_sirasi, true);
+                    if (is_array($_arr)) {
+                        $_tmp = [];
+                        foreach ($_arr as $_h) {
+                            if (is_string($_h) && preg_match('/^#[0-9a-fA-F]{6}$/',$_h)) {
+                                $_tmp[] = '0xFF'.strtoupper(ltrim($_h,'#'));
+                            }
+                        }
+                        if (count($_tmp) > 0) $renkSira = $_tmp;
+                    }
+                }
             }
         }
         $randevuHizmetler = RandevuHizmetler::with([
@@ -2106,6 +2133,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $end = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat_bitis)->toIso8601String();
             $title = "";
             $color = "";
+            $normalRenk = false; // true => kaynak/normal rengi (renk sirasi bunu ezebilir), durum rengi degil
             $resourceId = "";
             $duzenleButon= "";
             $detaylar = "";
@@ -2182,6 +2210,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         else
                            $color = '0xFF000000';
                     }
+                    // Durum rengi degil kaynak/normal rengi; renk sirasi bunu ezebilir.
+                    $normalRenk = true;
                     // Tek renk acik: normal randevu kaynagin rengi yerine tek rengi al.
                     if($tekRenk !== null){ $color = $tekRenk; }
                 }
@@ -2381,6 +2411,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 'musteri'=>$rh->randevu->users->name,
                 'ongorusmeid'=>$rh->randevu->on_gorusme_id,
                 'bgcolor' => $color,
+                '_normalRenk' => $normalRenk,
                 'resourceId' =>  $resourceId,
                 'personelId' => $rh->personel_id,
                 'odaId'=> $rh->odaId,
@@ -2521,8 +2552,27 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ,DB::raw('REPLACE(renk_duzenleri.renk,"#","0xFF") as bgcolor')])->where('odalar.salon_id',$isletmeId)->where('odalar.aktifmi',true)->orderBy('odalar.takvim_sirasi','asc')->get();
         }
         // TAKVIM TEK RENK: tum kaynak kolonlarini (personel/oda/cihaz/kategori) tek renge boya.
+        $renkSiraMap = []; // renkSira aktifken ders bloklarinda da kullanilir
         if($tekRenk !== null && $resources instanceof \Illuminate\Support\Collection){
             foreach($resources as $__r){ $__r->bgcolor = $tekRenk; }
+        }
+        // RENK SIRASI (tek renk kapaliyken): kaynaklari gorunum sirasina gore
+        // $renkSira'dan donerek renklendir; normal randevular kendi kaynak rengini alsin.
+        elseif(!empty($renkSira) && $resources instanceof \Illuminate\Support\Collection){
+            $__n = count($renkSira);
+            $__i = 0;
+            foreach($resources as $__r){
+                $__c = $renkSira[$__i % $__n];
+                $__r->bgcolor = $__c;
+                $renkSiraMap[(string)$__r->id] = $__c;
+                $__i++;
+            }
+            $randevu_hizmetler = $randevu_hizmetler->map(function($e) use($renkSiraMap){
+                if(!empty($e['_normalRenk']) && isset($renkSiraMap[(string)($e['resourceId'] ?? '')])){
+                    $e['bgcolor'] = $renkSiraMap[(string)$e['resourceId']];
+                }
+                return $e;
+            });
         }
         $personeller = Personeller::where("salon_id", $isletmeId)->where('takvimde_gorunsun',true)->get();
         $calismaSaati = SalonCalismaSaatleri::where('salon_id',$isletmeId)->where('haftanin_gunu',self::haftanin_gunu($tarih1))->where('calisiyor',1)->first();
@@ -2610,6 +2660,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     $c = (stripos($__hx, '0x') === 0) ? $c : ('0xFF' . strtoupper($__hx));
                     // Tek renk acik: iptal haric ders bloklarini da tek renge boya.
                     if($tekRenk !== null && !$iptal){ $c = $tekRenk; }
+                    // Renk sirasi acik: iptal haric ders blogunu personel kaynak rengine boya.
+                    elseif(!$iptal && isset($renkSiraMap[(string)($o->personel_id ?? '')])){ $c = $renkSiraMap[(string)$o->personel_id]; }
                     $dersAdi = $o->ders_tipi ?: 'Grup Dersi';
                     $dersEventleri[] = [
                         'id'           => 'ders-'.$o->id,

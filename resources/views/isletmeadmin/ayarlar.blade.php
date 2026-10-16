@@ -1102,6 +1102,26 @@
                               <small class="text-muted">Açıkken finans/satış/ürün/ön görüşme/çark gibi paneller gizlenir, ödeme "Alındı / Alınmadı" olarak sadeleşir ve üyeler için vücut ölçümü + gelişim takibi açılır. Pilates/fitness stüdyoları içindir; diğer işletmelerde kapalı bırakın.</small>
                            </div>
                         </div>
+                        @php
+                           // 10'lu renk skalasi (renk_duzenleri — global palet)
+                           $paletRenkleri = \App\RenkDuzenleri::orderBy('id')->pluck('renk')
+                               ->filter(function($h){ return is_string($h) && preg_match('/^#[0-9a-fA-F]{6}$/',$h); })
+                               ->map(function($h){ return strtoupper($h); })->values()->toArray();
+                           // Mevcut tek renk
+                           $tekRenkDeger = (!empty($isletme->takvim_tek_renk) && preg_match('/^#[0-9a-fA-F]{6}$/',$isletme->takvim_tek_renk))
+                               ? strtoupper($isletme->takvim_tek_renk) : '#5C008E';
+                           // Mevcut renk sirasi: kayitli sira + eksik palet renkleri sona eklenir
+                           $kayitliSira = [];
+                           if(!empty($isletme->takvim_renk_sirasi)){
+                               $d = json_decode($isletme->takvim_renk_sirasi, true);
+                               if(is_array($d)){
+                                   foreach($d as $h){ if(is_string($h) && preg_match('/^#[0-9a-fA-F]{6}$/',$h)) $kayitliSira[] = strtoupper($h); }
+                               }
+                           }
+                           $sirali = $kayitliSira;
+                           foreach($paletRenkleri as $h){ if(!in_array($h, $sirali)) $sirali[] = $h; }
+                           if(empty($sirali)) $sirali = $paletRenkleri;
+                        @endphp
                         <div class="col-md-12">
                            <div class="form-group">
                               <div class="custom-control custom-checkbox mb-5">
@@ -1109,12 +1129,87 @@
                                  <label class="custom-control-label" for="takvim_tek_renk_aktif">Takvim tek renk kullanılsın</label>
                               </div>
                               <small class="text-muted d-block mb-10">Açıkken randevu takviminde (web ve mobil) tüm personel, oda ve cihaz kolonları ile bu kaynaklara ait normal randevular aşağıda seçtiğiniz tek renge boyanır. Geldi (yeşil) / gelmedi (kırmızı) / onay bekliyor (sarı) gibi durum renkleri korunur.</small>
-                              <div class="d-flex align-items-center" style="gap:10px;">
-                                 <input type="color" name="takvim_tek_renk" id="takvim_tek_renk" value="{{ (!empty($isletme->takvim_tek_renk) && preg_match('/^#[0-9a-fA-F]{6}$/',$isletme->takvim_tek_renk)) ? $isletme->takvim_tek_renk : '#5C008E' }}" style="width:52px;height:38px;padding:2px;border:1px solid #ddd;border-radius:6px;cursor:pointer;">
-                                 <span class="text-muted">Takvim rengini seçin</span>
+                              <div class="d-flex align-items-center flex-wrap" style="gap:10px;">
+                                 <input type="color" id="takvim_tek_renk" value="{{ $tekRenkDeger }}" style="width:52px;height:38px;padding:2px;border:1px solid #ddd;border-radius:6px;cursor:pointer;">
+                                 <input type="text" name="takvim_tek_renk" id="takvim_tek_renk_hex" value="{{ $tekRenkDeger }}" maxlength="7" placeholder="#5C008E" style="width:110px;height:38px;border:1px solid #ddd;border-radius:6px;padding:0 10px;font-family:monospace;text-transform:uppercase;">
+                                 <span class="text-muted">Renk kodu (hex) girin veya aşağıdan seçin</span>
                               </div>
+                              @if(count($paletRenkleri))
+                              <div class="d-flex align-items-center flex-wrap mt-10" style="gap:8px;" id="takvim_tek_renk_swatchlar">
+                                 @foreach($paletRenkleri as $h)
+                                 <span class="trk-swatch" data-hex="{{ $h }}" title="{{ $h }}" style="width:30px;height:30px;border-radius:6px;background:{{ $h }};border:2px solid #ddd;cursor:pointer;display:inline-block;"></span>
+                                 @endforeach
+                              </div>
+                              @endif
                            </div>
                         </div>
+
+                        <div class="col-md-12">
+                           <div class="form-group">
+                              <label class="d-block" style="font-weight:600;">Renk Sırası (10'lu skala)</label>
+                              <small class="text-muted d-block mb-10">Tek renk <b>kapalıyken</b> takvim kaynakları (personel / oda / cihaz / kategori) görünüm sırasına göre bu renklerden sırayla boyanır. Oklarla sırayı değiştirin. Ayarı kaydetmezseniz renk düzenleri tablosundaki sıra geçerli olur.</small>
+                              <input type="hidden" name="takvim_renk_sirasi" id="takvim_renk_sirasi" value="{{ implode(',', $sirali) }}">
+                              <ul id="takvim_renk_sira_liste" class="list-unstyled mb-0" style="max-width:420px;">
+                                 @foreach($sirali as $idx => $h)
+                                 <li class="trk-sira-item d-flex align-items-center" data-hex="{{ $h }}" style="gap:10px;padding:6px 8px;border:1px solid #eee;border-radius:8px;margin-bottom:6px;background:#fafafa;">
+                                    <span style="width:26px;height:26px;border-radius:6px;background:{{ $h }};border:1px solid #ccc;display:inline-block;"></span>
+                                    <span style="font-family:monospace;flex:1;">{{ $h }}</span>
+                                    <span class="text-muted" style="min-width:20px;text-align:center;">{{ $idx+1 }}</span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary trk-yukari" title="Yukarı">▲</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary trk-asagi" title="Aşağı">▼</button>
+                                 </li>
+                                 @endforeach
+                              </ul>
+                           </div>
+                        </div>
+                        <script>
+                        (function(){
+                           var wheel = document.getElementById('takvim_tek_renk');
+                           var hex   = document.getElementById('takvim_tek_renk_hex');
+                           var swWrap= document.getElementById('takvim_tek_renk_swatchlar');
+                           function normHex(v){ v=(v||'').trim(); if(v && v[0] !== '#') v='#'+v; return v.toUpperCase(); }
+                           function gecerli(v){ return /^#[0-9A-F]{6}$/.test(v); }
+                           function swatchVurgula(v){
+                              if(!swWrap) return;
+                              swWrap.querySelectorAll('.trk-swatch').forEach(function(s){
+                                 s.style.borderColor = (s.getAttribute('data-hex').toUpperCase()===v) ? '#000' : '#ddd';
+                              });
+                           }
+                           function ayarla(v){
+                              v = normHex(v); if(!gecerli(v)) return;
+                              if(wheel) wheel.value = v; if(hex) hex.value = v; swatchVurgula(v);
+                           }
+                           if(wheel) wheel.addEventListener('input', function(){ ayarla(wheel.value); });
+                           if(hex) hex.addEventListener('input', function(){ var v=normHex(hex.value); if(gecerli(v)) ayarla(v); });
+                           if(swWrap) swWrap.querySelectorAll('.trk-swatch').forEach(function(s){
+                              s.addEventListener('click', function(){ ayarla(s.getAttribute('data-hex')); });
+                           });
+                           if(hex) swatchVurgula(normHex(hex.value));
+
+                           // Renk sirasi: yukari/asagi
+                           var liste = document.getElementById('takvim_renk_sira_liste');
+                           var gizli = document.getElementById('takvim_renk_sirasi');
+                           function siraGuncelle(){
+                              if(!liste||!gizli) return;
+                              var hexler=[], items=liste.querySelectorAll('.trk-sira-item');
+                              items.forEach(function(it,i){
+                                 hexler.push(it.getAttribute('data-hex'));
+                                 var sira=it.querySelector('span:nth-child(3)'); if(sira) sira.textContent=(i+1);
+                              });
+                              gizli.value = hexler.join(',');
+                           }
+                           if(liste) liste.addEventListener('click', function(e){
+                              var btn=e.target.closest('.trk-yukari,.trk-asagi'); if(!btn) return;
+                              var li=btn.closest('.trk-sira-item'); if(!li) return;
+                              if(btn.classList.contains('trk-yukari') && li.previousElementSibling){
+                                 li.parentNode.insertBefore(li, li.previousElementSibling);
+                              } else if(btn.classList.contains('trk-asagi') && li.nextElementSibling){
+                                 li.parentNode.insertBefore(li.nextElementSibling, li);
+                              }
+                              siraGuncelle();
+                           });
+                        })();
+                        </script>
                         <div class="col-md-12">
                            <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i> Kaydet</button>
                         </div>

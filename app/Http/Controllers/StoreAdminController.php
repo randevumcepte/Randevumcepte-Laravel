@@ -4018,14 +4018,34 @@ public function carkverilerigetir(Request $request)
         }
     }
 
-    // TAKVIM TEK RENK: acikken tum kaynaklar (personel/oda/cihaz/kategori) ve
-    // onlara ait NORMAL randevular tek renge boyanir. Durum renkleri (geldi/
-    // gelmedi/bekliyor/gelecek/iptal/kapali) korunur. Hex (#RRGGBB) tutulur.
-    $tekRenk = null;
-    if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_tek_renk_aktif')) {
-        $_trS = Salonlar::where('id',$isletmeId)->first(['takvim_tek_renk_aktif','takvim_tek_renk']);
-        if ($_trS && $_trS->takvim_tek_renk_aktif && !empty($_trS->takvim_tek_renk)) {
-            $tekRenk = $_trS->takvim_tek_renk;
+    // TAKVIM TEK RENK + RENK SIRASI.
+    //  - Tek renk acik: tum kaynaklar ve NORMAL randevular tek renge boyanir
+    //    (durum renkleri korunur).
+    //  - Tek renk kapali + renk sirasi tanimli: kaynaklar (personel/oda/cihaz/
+    //    kategori) gorunum sirasina gore bu hex listesinden donerek renklenir.
+    //  - Ikisi de yoksa: eski davranis (renk_duzenleri tablo rengi).
+    $tekRenk  = null;
+    $renkSira = null;
+    $_hasTek  = \Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_tek_renk_aktif');
+    $_hasSira = \Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_renk_sirasi');
+    if ($_hasTek || $_hasSira) {
+        $_trCols = ['id'];
+        if ($_hasTek)  { $_trCols[] = 'takvim_tek_renk_aktif'; $_trCols[] = 'takvim_tek_renk'; }
+        if ($_hasSira) { $_trCols[] = 'takvim_renk_sirasi'; }
+        $_trS = Salonlar::where('id',$isletmeId)->first($_trCols);
+        if ($_trS) {
+            if ($_hasTek && $_trS->takvim_tek_renk_aktif && !empty($_trS->takvim_tek_renk)) {
+                $tekRenk = $_trS->takvim_tek_renk;
+            }
+            if ($tekRenk === null && $_hasSira && !empty($_trS->takvim_renk_sirasi)) {
+                $_arr = json_decode($_trS->takvim_renk_sirasi, true);
+                if (is_array($_arr)) {
+                    $_arr = array_values(array_filter($_arr, function($h){
+                        return is_string($h) && preg_match('/^#[0-9a-fA-F]{6}$/',$h);
+                    }));
+                    if (count($_arr) > 0) $renkSira = $_arr;
+                }
+            }
         }
     }
 
@@ -4163,6 +4183,7 @@ public function carkverilerigetir(Request $request)
         $end = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat_bitis)->toIso8601String();
         $title = "";
         $color = "";
+        $normalRenk = false; // true => durum rengi degil, kaynak/normal rengi (renk sirasi bunu ezer)
         $resourceId = "";
         $duzenleButon= "";
         $gelecek = false;
@@ -4220,6 +4241,9 @@ public function carkverilerigetir(Request $request)
                         $color = $odaRenkMap[$rh->oda_id];
                     }
                 }
+                // Bu randevu durum rengi degil kaynak/normal rengi aldi;
+                // renk sirasi (tek renk kapaliyken) bunu resourceId'ye gore ezebilir.
+                $normalRenk = true;
                 // Tek renk acik: normal randevu kaynagin rengi yerine tek rengi al
                 // (durum renkleri yukaridaki elseif kollarinda zaten belirlendi).
                 if($tekRenk !== null){ $color = $tekRenk; }
@@ -4364,6 +4388,7 @@ public function carkverilerigetir(Request $request)
             'description' => '',
             'hoverHtml' => '',
             'color' => $color,
+            '_normalRenk' => $normalRenk,
             'randevuId'=>$rh->randevu_id,
             'resourceId' =>  $resourceId,
             'personelId' => $rh->personel_id,
@@ -4655,6 +4680,32 @@ public function carkverilerigetir(Request $request)
     // tek renge boya. Palet FK'si (renk_duzenleri) uzerinden gelen bgcolor'i ezer.
     if($tekRenk !== null && $resources instanceof \Illuminate\Support\Collection){
         foreach($resources as $__r){ $__r->bgcolor = $tekRenk; }
+    }
+    // RENK SIRASI (tek renk kapaliyken): kaynaklari gorunum sirasina gore
+    // $renkSira listesinden donerek renklendir; normal randevular ve ders bloklari
+    // kendi kaynaklarinin rengini alsin. Durum renkleri (_normalRenk=false) korunur.
+    elseif(!empty($renkSira) && $resources instanceof \Illuminate\Support\Collection){
+        $__n = count($renkSira);
+        $__renkByResource = [];
+        $__i = 0;
+        foreach($resources as $__r){
+            $__c = $renkSira[$__i % $__n];
+            $__r->bgcolor = $__c;
+            $__renkByResource[(string)$__r->id] = $__c;
+            $__i++;
+        }
+        $randevu_hizmetler = $randevu_hizmetler->map(function($e) use($__renkByResource){
+            if(!empty($e['_normalRenk']) && isset($__renkByResource[(string)($e['resourceId'] ?? '')])){
+                $e['color'] = $__renkByResource[(string)$e['resourceId']];
+            }
+            return $e;
+        });
+        foreach($dersEventleri as &$__de){
+            if(empty($__de['dersIptal']) && isset($__renkByResource[(string)($__de['resourceId'] ?? '')])){
+                $__de['color'] = $__renkByResource[(string)$__de['resourceId']];
+            }
+        }
+        unset($__de);
     }
 
     // Boş slotları oluştur
@@ -20463,6 +20514,18 @@ DB::raw('
             $isletme->takvim_tek_renk_aktif = $request->has('takvim_tek_renk_aktif') ? 1 : 0;
             $_tr = trim((string) $request->takvim_tek_renk);
             $isletme->takvim_tek_renk = ($_tr !== '' && preg_match('/^#[0-9a-fA-F]{6}$/', $_tr)) ? $_tr : null;
+        }
+        // Takvim Renk Sirasi — 10'lu renk skalasinin salon tercih sirasi (hex dizisi)
+        if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar', 'takvim_renk_sirasi')) {
+            $_ham = trim((string) $request->takvim_renk_sirasi);
+            $_sira = [];
+            if ($_ham !== '') {
+                foreach (explode(',', $_ham) as $_h) {
+                    $_h = trim($_h);
+                    if (preg_match('/^#[0-9a-fA-F]{6}$/', $_h)) $_sira[] = strtoupper($_h);
+                }
+            }
+            $isletme->takvim_renk_sirasi = count($_sira) > 0 ? json_encode(array_values($_sira)) : null;
         }
         $isletme->save();
         // Ayar degistiginde host bazli cache'i dusur (ayni istek icinde tekrar okunursa taze olsun)
