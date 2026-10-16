@@ -1,6 +1,21 @@
 @if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
 @section('content')
 {!!csrf_field()!!}
+@php
+   // Aktif/sadik/pasif siniflandirmasi, bu adisyondan ONCE olusmus adisyonlara gore
+   // yapilir. Boylece ilk adisyon (oncesinde hicbir adisyon yok) daima pasif kalir ve
+   // sonradan yeni adisyonlar acilsa bile ilk adisyonun sonraki odemelerine indirim gelmez.
+   $_siniflandirmaSorgu = \App\Adisyonlar::where('user_id',$musteri->id)->where('salon_id',$isletme->id);
+   if(!empty($adisyon_id)) $_siniflandirmaSorgu->where('id','<',$adisyon_id);
+   $_gecmisAdisyonSayisi = (clone $_siniflandirmaSorgu)->count();
+   $_sonGecmisAdisyonTarih = (clone $_siniflandirmaSorgu)->orderBy('id','desc')->value('created_at');
+   if($_gecmisAdisyonSayisi>3 && date('Y-m-d H:i:s', strtotime('+90 days',strtotime($_sonGecmisAdisyonTarih))) < date('Y-m-d H:i:s', strtotime('+90 days', strtotime(date('Y-m-d H:i:s')))))
+      $_musteriSinif = 'sadik';
+   elseif($_gecmisAdisyonSayisi==0)
+      $_musteriSinif = 'pasif';
+   else
+      $_musteriSinif = 'aktif';
+@endphp
 <div class="page-header">
    <div class="row">
       <div class="col-md-6 col-sm-6 col-10">
@@ -19,11 +34,9 @@
          </nav>
       </div>
       <div class="col-md-6 col-sm-6 col-2">
-         @if(\App\Adisyonlar::where('user_id',$musteri->id)->where('salon_id',$isletme->id)->count()>3 
-         && 
-         date('Y-m-d H:i:s', strtotime('+90 days',strtotime(\App\Adisyonlar::where('user_id',$musteri->id)->where('salon_id',$isletme->id)->orderBy('id','desc')->value('created_at')))) < date('Y-m-d H:i:s', strtotime('+90 days', strtotime(date('Y-m-d H:i:s')))))
+         @if($_musteriSinif === 'sadik')
          <img src="/public/img/sadik-1.png" class="pasifaktifsadik">
-         @elseif(\App\Adisyonlar::where('user_id',$musteri->id)->where('salon_id',$isletme->id)->count()==0)
+         @elseif($_musteriSinif === 'pasif')
          <img src="/public/img/pasif-1.png" class="pasifaktifsadik">
          @else
          <img src="/public/img/aktif-1.png" class="pasifaktifsadik">
@@ -443,11 +456,9 @@
                      <div class="form-group">
                         <label>Müşteri İndirimi (%)</label>
                         <input type="hidden" id='musteri_indirimi' name="musteri_indirimi">
-                        @if(\App\Adisyonlar::where('user_id',$musteri->id)->where('salon_id',$isletme->id)->count()>3 
-                        && 
-                        date('Y-m-d H:i:s', strtotime('+90 days',strtotime(\App\Adisyonlar::where('user_id',$musteri->id)->where('salon_id',$isletme->id)->orderBy('id','desc')->value('created_at')))) < date('Y-m-d H:i:s', strtotime('+90 days', strtotime(date('Y-m-d H:i:s')))))
+                        @if($_musteriSinif === 'sadik')
                         <input type="tel" id="musteri_indirim" value="{{$isletme->sadik_musteri_indirim_yuzde}} " disabled class="form-control" style="font-size:20px">
-                        @elseif(\App\Adisyonlar::where('user_id',$musteri->id)->where('salon_id',$isletme->id)->count()==0)
+                        @elseif($_musteriSinif === 'pasif')
                         <input type="tel" id="musteri_indirim" value="{{$isletme->pasif_musteri_indirim_yuzde}} "  disabled class="form-control" style="font-size:20px">
                         @else
                         <input type="tel" id="musteri_indirim" value="{{$isletme->aktif_musteri_indirim_yuzde}} " disabled class="form-control" style="font-size:20px">

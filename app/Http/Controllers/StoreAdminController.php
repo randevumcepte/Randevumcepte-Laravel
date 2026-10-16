@@ -30994,14 +30994,15 @@ public function arsivformekleme(Request $request){
     {
         $indirim = 0;
         $isletme = Salonlar::where('id',$request->sube)->first();
-        // Aktif/sadik musteri indirimi GECMIS tahsilatlara gore belirlenir. Musterinin
-        // MEVCUT (ilk) adisyonuna yapilan kismi odeme bu siniflandirmaya girmemeli; aksi
-        // halde ilk adisyondan kismi tahsilat alinca musteri yanlislikla "aktif" sayilir.
+        // Aktif/sadik musteri indirimi, bu adisyondan ONCE olusmus adisyonlara yapilan
+        // odemelere gore belirlenir. Boylece ilk adisyon (oncesinde adisyon yok) daima
+        // pasif kalir; ilk adisyona yapilan kismi odeme sonraki odemelerinde "aktif"
+        // indirimini tetiklemez, sonradan yeni adisyon acilsa bile ilk adisyon pasif kalir.
         $adisyonId = (int) $request->adisyon_id;
         $gecmisTahsilatSorgu = Tahsilatlar::where('user_id',$request->musteriid)->where('salon_id',$isletme->id);
         if($adisyonId > 0)
             $gecmisTahsilatSorgu->where(function($q) use ($adisyonId){
-                $q->whereNull('adisyon_id')->orWhere('adisyon_id','!=',$adisyonId);
+                $q->whereNull('adisyon_id')->orWhere('adisyon_id','<',$adisyonId);
             });
         $gecmisTahsilatSayisi = (clone $gecmisTahsilatSorgu)->count();
         $sonGecmisOdemeTarihi = (clone $gecmisTahsilatSorgu)->orderBy('id','desc')->value('odeme_tarihi');
