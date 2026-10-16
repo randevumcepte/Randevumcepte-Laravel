@@ -512,8 +512,8 @@
 
                   if(view.type=='agendaDay'){
                      <?php $headdata = json_decode($randevular['resource'],true); $__yaziRengi = $randevular['yaziRengi'] ?? '#fff'; ?>
-                  <?php foreach($headdata as $key=>$res){ ?>
-                     $('.fc th:nth-child('+<?php echo $key+2 ;?>+'n)').css({'background':'<?php echo $res['bgcolor']; ?>','color':'<?php echo $__yaziRengi; ?>'});
+                  <?php foreach($headdata as $key=>$res){ $__thYazi = (!empty($res['textColor'])) ? $res['textColor'] : $__yaziRengi; ?>
+                     $('.fc th:nth-child('+<?php echo $key+2 ;?>+'n)').css({'background':'<?php echo $res['bgcolor']; ?>','color':'<?php echo $__thYazi; ?>'});
 
                   <?php } ?>
                   }
@@ -533,9 +533,9 @@
                 takvimyukle(true,true);
             }); 
             <?php $headdata = json_decode($randevular['resource'],true); $__yaziRengi = $randevular['yaziRengi'] ?? '#fff'; ?>
-            <?php foreach($headdata as $key=>$res){ ?>
+            <?php foreach($headdata as $key=>$res){ $__thYazi = (!empty($res['textColor'])) ? $res['textColor'] : $__yaziRengi; ?>
 
-               $('.fc th:nth-child(<?php echo $key+2 ;?>n)').css({'background':'<?php echo $res['bgcolor']; ?>','color':'<?php echo $__yaziRengi; ?>'});
+               $('.fc th:nth-child(<?php echo $key+2 ;?>n)').css({'background':'<?php echo $res['bgcolor']; ?>','color':'<?php echo $__thYazi; ?>'});
 
             <?php } ?>
             });

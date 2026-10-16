@@ -4043,10 +4043,16 @@ public function carkverilerigetir(Request $request)
             if ($tekRenk === null && $_hasSira && !empty($_trS->takvim_renk_sirasi)) {
                 $_arr = json_decode($_trS->takvim_renk_sirasi, true);
                 if (is_array($_arr)) {
-                    $_arr = array_values(array_filter($_arr, function($h){
-                        return is_string($h) && preg_match('/^#[0-9a-fA-F]{6}$/',$h);
-                    }));
-                    if (count($_arr) > 0) $renkSira = $_arr;
+                    $_tmp = [];
+                    foreach ($_arr as $_e) {
+                        if (is_array($_e) && !empty($_e['bg']) && preg_match('/^#[0-9a-fA-F]{6}$/',$_e['bg'])) {
+                            $_tmp[] = ['bg'=>strtoupper($_e['bg']),
+                                       'text'=>(!empty($_e['text']) && preg_match('/^#[0-9a-fA-F]{6}$/',$_e['text'])) ? strtoupper($_e['text']) : null];
+                        } elseif (is_string($_e) && preg_match('/^#[0-9a-fA-F]{6}$/',$_e)) {
+                            $_tmp[] = ['bg'=>strtoupper($_e), 'text'=>null];
+                        }
+                    }
+                    if (count($_tmp) > 0) $renkSira = $_tmp;
                 }
             }
             if ($_hasYazi && $_trS->takvim_yazi_rengi_aktif && !empty($_trS->takvim_yazi_rengi)
@@ -4695,23 +4701,35 @@ public function carkverilerigetir(Request $request)
     // kendi kaynaklarinin rengini alsin. Durum renkleri (_normalRenk=false) korunur.
     elseif(!empty($renkSira) && $resources instanceof \Illuminate\Support\Collection){
         $__n = count($renkSira);
-        $__renkByResource = [];
+        $__bgByResource = [];
+        $__txtByResource = [];
         $__i = 0;
         foreach($resources as $__r){
-            $__c = $renkSira[$__i % $__n];
-            $__r->bgcolor = $__c;
-            $__renkByResource[(string)$__r->id] = $__c;
+            $__pair = $renkSira[$__i % $__n];
+            $__bg = $__pair['bg'];
+            $__tx = $__pair['text'] ?? ($yaziRengi ?? '#fff');
+            $__r->bgcolor = $__bg;
+            $__r->textColor = $__tx; // kolon basligi yazi rengi (per-renk)
+            $__bgByResource[(string)$__r->id] = $__bg;
+            $__txtByResource[(string)$__r->id] = $__tx;
             $__i++;
         }
-        $randevu_hizmetler = $randevu_hizmetler->map(function($e) use($__renkByResource){
-            if(!empty($e['_normalRenk']) && isset($__renkByResource[(string)($e['resourceId'] ?? '')])){
-                $e['color'] = $__renkByResource[(string)$e['resourceId']];
+        $randevu_hizmetler = $randevu_hizmetler->map(function($e) use($__bgByResource,$__txtByResource){
+            $rid = (string)($e['resourceId'] ?? '');
+            if(!empty($e['_normalRenk']) && isset($__bgByResource[$rid])){
+                $e['color'] = $__bgByResource[$rid];
+                $e['textColor'] = $__txtByResource[$rid]; // per-renk yazi
+            } else {
+                // durum renkli (geldi/gelmedi/...) event: yazi beyaz kalsin
+                $e['textColor'] = '#ffffff';
             }
             return $e;
         });
         foreach($dersEventleri as &$__de){
-            if(empty($__de['dersIptal']) && isset($__renkByResource[(string)($__de['resourceId'] ?? '')])){
-                $__de['color'] = $__renkByResource[(string)$__de['resourceId']];
+            $rid = (string)($__de['resourceId'] ?? '');
+            if(empty($__de['dersIptal']) && isset($__bgByResource[$rid])){
+                $__de['color'] = $__bgByResource[$rid];
+                $__de['textColor'] = $__txtByResource[$rid];
             }
         }
         unset($__de);
@@ -20541,14 +20559,33 @@ DB::raw('
                 $isletme->takvim_yazi_rengi = '#FFFFFF';
             }
         }
-        // Takvim Renk Sirasi — 10'lu renk skalasinin salon tercih sirasi (hex dizisi)
+        // Takvim Renk Sirasi — 10'lu skala: {bg, text} ciftleri (JSON). Her renge
+        // ayri yazi rengi. Eski format (virgullu/dizi hex) da desteklenir.
         if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar', 'takvim_renk_sirasi')) {
             $_ham = trim((string) $request->takvim_renk_sirasi);
+            $_oto = function($bg){
+                $r=hexdec(substr($bg,1,2)); $g=hexdec(substr($bg,3,2)); $b=hexdec(substr($bg,5,2));
+                $lum=(0.299*$r+0.587*$g+0.114*$b)/255;
+                return $lum > 0.6 ? '#000000' : '#FFFFFF';
+            };
             $_sira = [];
             if ($_ham !== '') {
-                foreach (explode(',', $_ham) as $_h) {
-                    $_h = trim($_h);
-                    if (preg_match('/^#[0-9a-fA-F]{6}$/', $_h)) $_sira[] = strtoupper($_h);
+                $_dec = json_decode($_ham, true);
+                if (is_array($_dec)) {
+                    foreach ($_dec as $_e) {
+                        if (is_array($_e) && !empty($_e['bg']) && preg_match('/^#[0-9a-fA-F]{6}$/', $_e['bg'])) {
+                            $_bg = strtoupper($_e['bg']);
+                            $_tx = (!empty($_e['text']) && preg_match('/^#[0-9a-fA-F]{6}$/', $_e['text'])) ? strtoupper($_e['text']) : $_oto($_bg);
+                            $_sira[] = ['bg' => $_bg, 'text' => $_tx];
+                        } elseif (is_string($_e) && preg_match('/^#[0-9a-fA-F]{6}$/', $_e)) {
+                            $_bg = strtoupper($_e); $_sira[] = ['bg' => $_bg, 'text' => $_oto($_bg)];
+                        }
+                    }
+                } else {
+                    foreach (explode(',', $_ham) as $_h) {
+                        $_h = trim($_h);
+                        if (preg_match('/^#[0-9a-fA-F]{6}$/', $_h)) { $_bg=strtoupper($_h); $_sira[] = ['bg'=>$_bg,'text'=>$_oto($_bg)]; }
+                    }
                 }
             }
             $isletme->takvim_renk_sirasi = count($_sira) > 0 ? json_encode(array_values($_sira)) : null;

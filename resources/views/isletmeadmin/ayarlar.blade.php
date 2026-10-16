@@ -1113,17 +1113,33 @@
                            // Mevcut yazi (font) rengi
                            $yaziRengiDeger = (!empty($isletme->takvim_yazi_rengi) && preg_match('/^#[0-9a-fA-F]{6}$/',$isletme->takvim_yazi_rengi))
                                ? strtoupper($isletme->takvim_yazi_rengi) : '#FFFFFF';
-                           // Mevcut renk sirasi: kayitli sira + eksik palet renkleri sona eklenir
-                           $kayitliSira = [];
+                           // Zemin parlakligina gore otomatik okunur yazi rengi (varsayilan)
+                           $otoYazi = function($bg){
+                               $r=hexdec(substr($bg,1,2)); $g=hexdec(substr($bg,3,2)); $b=hexdec(substr($bg,5,2));
+                               $lum=(0.299*$r+0.587*$g+0.114*$b)/255;
+                               return $lum > 0.6 ? '#000000' : '#FFFFFF';
+                           };
+                           // Mevcut renk sirasi: {bg, text} ciftleri. Eski format (sadece hex string)
+                           // da desteklenir; text yoksa otomatik kontrast atanir.
+                           $kayitliCift = [];
                            if(!empty($isletme->takvim_renk_sirasi)){
                                $d = json_decode($isletme->takvim_renk_sirasi, true);
                                if(is_array($d)){
-                                   foreach($d as $h){ if(is_string($h) && preg_match('/^#[0-9a-fA-F]{6}$/',$h)) $kayitliSira[] = strtoupper($h); }
+                                   foreach($d as $e){
+                                       if(is_string($e) && preg_match('/^#[0-9a-fA-F]{6}$/',$e)){
+                                           $bg=strtoupper($e); $kayitliCift[]=['bg'=>$bg,'text'=>$otoYazi($bg)];
+                                       } elseif(is_array($e) && !empty($e['bg']) && preg_match('/^#[0-9a-fA-F]{6}$/',$e['bg'])){
+                                           $bg=strtoupper($e['bg']);
+                                           $tx=(!empty($e['text']) && preg_match('/^#[0-9a-fA-F]{6}$/',$e['text'])) ? strtoupper($e['text']) : $otoYazi($bg);
+                                           $kayitliCift[]=['bg'=>$bg,'text'=>$tx];
+                                       }
+                                   }
                                }
                            }
-                           $sirali = $kayitliSira;
-                           foreach($paletRenkleri as $h){ if(!in_array($h, $sirali)) $sirali[] = $h; }
-                           if(empty($sirali)) $sirali = $paletRenkleri;
+                           $mevcutBg = array_map(function($p){ return $p['bg']; }, $kayitliCift);
+                           foreach($paletRenkleri as $h){ if(!in_array($h, $mevcutBg)) $kayitliCift[] = ['bg'=>$h,'text'=>$otoYazi($h)]; }
+                           if(empty($kayitliCift)){ foreach($paletRenkleri as $h){ $kayitliCift[] = ['bg'=>$h,'text'=>$otoYazi($h)]; } }
+                           $siraliPairs = $kayitliCift;
                         @endphp
                         <div class="col-md-12">
                            <div class="form-group">
@@ -1166,15 +1182,23 @@
                            <div class="form-group">
                               <label class="d-block" style="font-weight:600;">Renk Sırası (10'lu skala)</label>
                               <small class="text-muted d-block mb-10">Tek renk <b>kapalıyken</b> takvim kaynakları (personel / oda / cihaz / kategori) görünüm sırasına göre bu renklerden sırayla boyanır. Oklarla sırayı değiştirin. Ayarı kaydetmezseniz renk düzenleri tablosundaki sıra geçerli olur.</small>
-                              <input type="hidden" name="takvim_renk_sirasi" id="takvim_renk_sirasi" value="{{ implode(',', $sirali) }}">
-                              <ul id="takvim_renk_sira_liste" class="list-unstyled mb-0" style="max-width:460px;">
-                                 @foreach($sirali as $idx => $h)
-                                 <li class="trk-sira-item d-flex align-items-center" data-hex="{{ $h }}" style="gap:8px;padding:6px 8px;border:1px solid #eee;border-radius:8px;margin-bottom:6px;background:#fafafa;">
-                                    <input type="color" class="trk-sira-renk" value="{{ $h }}" title="Rengi değiştir" style="width:34px;height:30px;padding:2px;border:1px solid #ccc;border-radius:6px;cursor:pointer;">
-                                    <input type="text" class="trk-sira-hex" value="{{ $h }}" maxlength="7" style="width:96px;height:30px;font-family:monospace;text-transform:uppercase;border:1px solid #ddd;border-radius:6px;padding:0 8px;flex:1;">
-                                    <span class="trk-sira-no text-muted" style="min-width:20px;text-align:center;">{{ $idx+1 }}</span>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary trk-yukari" title="Yukarı">▲</button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary trk-asagi" title="Aşağı">▼</button>
+                              <input type="hidden" name="takvim_renk_sirasi" id="takvim_renk_sirasi" value="{{ json_encode($siraliPairs) }}">
+                              <div class="d-flex text-muted mb-5" style="max-width:560px;font-size:11px;gap:8px;padding:0 8px;">
+                                 <span style="width:118px;">Zemin rengi</span>
+                                 <span style="width:118px;">Yazı rengi</span>
+                                 <span style="flex:1;">Önizleme</span>
+                              </div>
+                              <ul id="takvim_renk_sira_liste" class="list-unstyled mb-0" style="max-width:560px;">
+                                 @foreach($siraliPairs as $idx => $p)
+                                 <li class="trk-sira-item d-flex align-items-center" data-bg="{{ $p['bg'] }}" data-text="{{ $p['text'] }}" style="gap:8px;padding:6px 8px;border:1px solid #eee;border-radius:8px;margin-bottom:6px;background:#fafafa;">
+                                    <input type="color" class="trk-sira-renk" value="{{ $p['bg'] }}" title="Zemin rengi" style="width:30px;height:30px;padding:2px;border:1px solid #ccc;border-radius:6px;cursor:pointer;">
+                                    <input type="text" class="trk-sira-hex" value="{{ $p['bg'] }}" maxlength="7" style="width:82px;height:30px;font-family:monospace;text-transform:uppercase;border:1px solid #ddd;border-radius:6px;padding:0 6px;">
+                                    <input type="color" class="trk-sira-yazi-renk" value="{{ $p['text'] }}" title="Yazı rengi" style="width:30px;height:30px;padding:2px;border:1px solid #ccc;border-radius:6px;cursor:pointer;">
+                                    <input type="text" class="trk-sira-yazi-hex" value="{{ $p['text'] }}" maxlength="7" style="width:82px;height:30px;font-family:monospace;text-transform:uppercase;border:1px solid #ddd;border-radius:6px;padding:0 6px;">
+                                    <span class="trk-sira-onizleme" style="flex:1;min-width:60px;text-align:center;padding:4px 6px;border-radius:6px;background:{{ $p['bg'] }};color:{{ $p['text'] }};font-weight:600;font-size:11px;">Örnek</span>
+                                    <span class="trk-sira-no text-muted" style="min-width:18px;text-align:center;">{{ $idx+1 }}</span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary trk-yukari" title="Yukarı" style="padding:2px 7px;">▲</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary trk-asagi" title="Aşağı" style="padding:2px 7px;">▼</button>
                                  </li>
                                  @endforeach
                               </ul>
@@ -1221,24 +1245,35 @@
                               s.addEventListener('click', function(){ onizleme.style.background = normHex(s.getAttribute('data-hex')); });
                            });
 
-                           // Renk sirasi: renk degistir + yukari/asagi
+                           // Renk sirasi: zemin + yazi rengi (her renge ayri), yukari/asagi
                            var liste = document.getElementById('takvim_renk_sira_liste');
                            var gizli = document.getElementById('takvim_renk_sirasi');
                            function siraGuncelle(){
                               if(!liste||!gizli) return;
-                              var hexler=[], items=liste.querySelectorAll('.trk-sira-item');
+                              var arr=[], items=liste.querySelectorAll('.trk-sira-item');
                               items.forEach(function(it,i){
-                                 hexler.push(it.getAttribute('data-hex'));
+                                 arr.push({bg: it.getAttribute('data-bg'), text: it.getAttribute('data-text')});
                                  var no=it.querySelector('.trk-sira-no'); if(no) no.textContent=(i+1);
                               });
-                              gizli.value = hexler.join(',');
+                              gizli.value = JSON.stringify(arr);
                            }
-                           function satirRenkAyarla(li, v){
+                           function onizlemeTazele(li){
+                              var oz=li.querySelector('.trk-sira-onizleme');
+                              if(oz){ oz.style.background=li.getAttribute('data-bg'); oz.style.color=li.getAttribute('data-text'); }
+                           }
+                           function satirZeminAyarla(li, v){
                               v = normHex(v); if(!gecerli(v)) return;
-                              li.setAttribute('data-hex', v);
+                              li.setAttribute('data-bg', v);
                               var cw=li.querySelector('.trk-sira-renk'); if(cw && cw.value.toUpperCase()!==v) cw.value=v;
                               var hx=li.querySelector('.trk-sira-hex'); if(hx && hx.value.toUpperCase()!==v) hx.value=v;
-                              siraGuncelle();
+                              onizlemeTazele(li); siraGuncelle();
+                           }
+                           function satirYaziAyarla(li, v){
+                              v = normHex(v); if(!gecerli(v)) return;
+                              li.setAttribute('data-text', v);
+                              var cw=li.querySelector('.trk-sira-yazi-renk'); if(cw && cw.value.toUpperCase()!==v) cw.value=v;
+                              var hx=li.querySelector('.trk-sira-yazi-hex'); if(hx && hx.value.toUpperCase()!==v) hx.value=v;
+                              onizlemeTazele(li); siraGuncelle();
                            }
                            if(liste){
                               liste.addEventListener('click', function(e){
@@ -1253,8 +1288,10 @@
                               });
                               liste.addEventListener('input', function(e){
                                  var li=e.target.closest('.trk-sira-item'); if(!li) return;
-                                 if(e.target.classList.contains('trk-sira-renk')){ satirRenkAyarla(li, e.target.value); }
-                                 else if(e.target.classList.contains('trk-sira-hex')){ var v=normHex(e.target.value); if(gecerli(v)) satirRenkAyarla(li, v); }
+                                 if(e.target.classList.contains('trk-sira-renk')){ satirZeminAyarla(li, e.target.value); }
+                                 else if(e.target.classList.contains('trk-sira-hex')){ var v=normHex(e.target.value); if(gecerli(v)) satirZeminAyarla(li, v); }
+                                 else if(e.target.classList.contains('trk-sira-yazi-renk')){ satirYaziAyarla(li, e.target.value); }
+                                 else if(e.target.classList.contains('trk-sira-yazi-hex')){ var v2=normHex(e.target.value); if(gecerli(v2)) satirYaziAyarla(li, v2); }
                               });
                            }
                         })();

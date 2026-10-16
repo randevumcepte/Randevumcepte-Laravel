@@ -1987,9 +1987,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     $_arr = json_decode($_trS->takvim_renk_sirasi, true);
                     if (is_array($_arr)) {
                         $_tmp = [];
-                        foreach ($_arr as $_h) {
-                            if (is_string($_h) && preg_match('/^#[0-9a-fA-F]{6}$/',$_h)) {
-                                $_tmp[] = '0xFF'.strtoupper(ltrim($_h,'#'));
+                        foreach ($_arr as $_e) {
+                            if (is_array($_e) && !empty($_e['bg']) && preg_match('/^#[0-9a-fA-F]{6}$/',$_e['bg'])) {
+                                $_tmp[] = [
+                                    'bg'   => '0xFF'.strtoupper(ltrim($_e['bg'],'#')),
+                                    'text' => (!empty($_e['text']) && preg_match('/^#[0-9a-fA-F]{6}$/',$_e['text'])) ? '0xFF'.strtoupper(ltrim($_e['text'],'#')) : null,
+                                ];
+                            } elseif (is_string($_e) && preg_match('/^#[0-9a-fA-F]{6}$/',$_e)) {
+                                $_tmp[] = ['bg'=>'0xFF'.strtoupper(ltrim($_e,'#')), 'text'=>null];
                             }
                         }
                         if (count($_tmp) > 0) $renkSira = $_tmp;
@@ -2561,6 +2566,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         }
         // TAKVIM TEK RENK: tum kaynak kolonlarini (personel/oda/cihaz/kategori) tek renge boya.
         $renkSiraMap = []; // renkSira aktifken ders bloklarinda da kullanilir
+        $renkSiraTextMap = []; // per-renk yazi rengi (ders bloklari icin)
         if($tekRenk !== null && $resources instanceof \Illuminate\Support\Collection){
             foreach($resources as $__r){ $__r->bgcolor = $tekRenk; }
         }
@@ -2569,15 +2575,25 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         elseif(!empty($renkSira) && $resources instanceof \Illuminate\Support\Collection){
             $__n = count($renkSira);
             $__i = 0;
+            $__txtByRes = [];
             foreach($resources as $__r){
-                $__c = $renkSira[$__i % $__n];
-                $__r->bgcolor = $__c;
-                $renkSiraMap[(string)$__r->id] = $__c;
+                $__pair = $renkSira[$__i % $__n];
+                $__bg = $__pair['bg'];
+                $__tx = $__pair['text'] ?? ($yaziRengi ?? null);
+                $__r->bgcolor = $__bg;
+                if($__tx !== null) $__r->textColor = $__tx;
+                $renkSiraMap[(string)$__r->id] = $__bg;
+                $__txtByRes[(string)$__r->id] = $__tx;
+                if($__tx !== null) $renkSiraTextMap[(string)$__r->id] = $__tx;
                 $__i++;
             }
-            $randevu_hizmetler = $randevu_hizmetler->map(function($e) use($renkSiraMap){
-                if(!empty($e['_normalRenk']) && isset($renkSiraMap[(string)($e['resourceId'] ?? '')])){
-                    $e['bgcolor'] = $renkSiraMap[(string)$e['resourceId']];
+            $randevu_hizmetler = $randevu_hizmetler->map(function($e) use($renkSiraMap,$__txtByRes){
+                $rid = (string)($e['resourceId'] ?? '');
+                if(!empty($e['_normalRenk']) && isset($renkSiraMap[$rid])){
+                    $e['bgcolor'] = $renkSiraMap[$rid];
+                    if(!empty($__txtByRes[$rid])) $e['textColor'] = $__txtByRes[$rid]; // per-renk yazi
+                } else {
+                    $e['textColor'] = '0xFFFFFFFF'; // durum renkli: beyaz yazi
                 }
                 return $e;
             });
@@ -2692,7 +2708,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         'musteri'      => $dersAdi,
                         'modal_title'  => $dersAdi,
                         'durum'        => 'ders',
-                        'textColor'    => (($yaziRengi !== null && !$iptal) ? $yaziRengi : '0xFFFFFFFF'),
+                        'textColor'    => $iptal ? '0xFFFFFFFF'
+                                            : (isset($renkSiraTextMap[(string)($o->personel_id ?? '')]) ? $renkSiraTextMap[(string)$o->personel_id]
+                                               : ($yaziRengi !== null ? $yaziRengi : '0xFFFFFFFF')),
                     ];
                 }
             } catch (\Throwable $e) { $dersEventleri = []; }
