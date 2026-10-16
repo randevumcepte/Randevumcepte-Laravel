@@ -174,6 +174,7 @@
                         <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
                         <th>Yaklaşan Ödeme Tarihi</th>
                         <th>Adisyon İçeriği</th>
+                        <th>İndirim ₺</th>
                         <th>@if(!empty($isletme->studyo_modu))Ödeme Tarihi @else Toplam ₺ @endif</th>
                         <th>Ödenen ₺</th>
                         <th>Kalan ₺</th>
@@ -196,6 +197,7 @@
                         <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
                         <th>Yaklaşan Ödeme Tarihi</th>
                         <th>Adisyon İçeriği</th>
+                        <th>İndirim ₺</th>
                         <th>@if(!empty($isletme->studyo_modu))Ödeme Tarihi @else Toplam ₺ @endif</th>
                         <th>Ödenen ₺</th>
                         <th>Kalan ₺</th>
@@ -218,6 +220,7 @@
                         <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
                         <th>Yaklaşan Ödeme Tarihi</th>
                         <th>Adisyon İçeriği</th>
+                        <th>İndirim ₺</th>
                         <th>@if(!empty($isletme->studyo_modu))Ödeme Tarihi @else Toplam ₺ @endif</th>
                         <th>Ödenen ₺</th>
                         <th>Kalan ₺</th>
@@ -240,6 +243,7 @@
                         <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
                         <th>Yaklaşan Ödeme Tarihi</th>
                         <th>Adisyon İçeriği</th>
+                        <th>İndirim ₺</th>
                         <th>@if(!empty($isletme->studyo_modu))Ödeme Tarihi @else Toplam ₺ @endif</th>
                         <th>Ödenen ₺</th>
                         <th>Kalan ₺</th>
@@ -1404,6 +1408,7 @@
                         <th>@if($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) Danışan @else Müşteri @endif</th>
                         <th>Yaklaşan Ödeme Tarihi</th>
                         <th>Adisyon İçeriği</th>
+                        <th>İndirim ₺</th>
                         <th>@if(!empty($isletme->studyo_modu))Ödeme Tarihi @else Toplam ₺ @endif</th>
                         <th>Ödenen ₺</th>
                         <th>Kalan ₺</th>
@@ -1504,7 +1509,7 @@
                 error: function(xhr, error, code) {
                     console.error('DataTables AJAX error for ' + tableId + ':', error);
                     $(tableId + ' tbody').html(
-                        '<tr><td colspan="' + (isTaksitTable ? '7' : '9') + '" class="text-center">Veri yüklenirken bir hata oluştu.</td></tr>'
+                        '<tr><td colspan="' + (isTaksitTable ? '7' : '10') + '" class="text-center">Veri yüklenirken bir hata oluştu.</td></tr>'
                     );
                 }
             },
@@ -1522,6 +1527,8 @@
                 { data: 'musteri' },
                 { data: 'planlanan_alacak_tarihi' },
                 { data: 'icerik' },
+                // Uygulanan indirim tutari (studyo modunda fiyatlar gizli -> gizle)
+                { data: 'indirim', visible: !window.STUDYO_MODU },
                 // Studyo modu: 'Toplam' kolonu tutar yerine odeme tarih/saatini gosterir
                 { data: 'toplam', render: function(data, type, row){
                     if(window.STUDYO_MODU) return (row && row.odendi_tarihi) ? row.odendi_tarihi : '';
@@ -1685,9 +1692,9 @@ $(document).ready(function() {
     });
 
     // Mobil kart gorunumu icin her hucreye sutun adi etiketi ekle
-    var adisyonLabels = ['Durum','Satış Tarihi','{{ ($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) ? "Danışan" : "Müşteri" }}','Yaklaşan Ödeme','Adisyon İçeriği','Toplam ₺','Ödenen ₺','Kalan ₺','İşlemler'];
+    var adisyonLabels = ['Durum','Satış Tarihi','{{ ($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) ? "Danışan" : "Müşteri" }}','Yaklaşan Ödeme','Adisyon İçeriği','İndirim ₺','Toplam ₺','Ödenen ₺','Kalan ₺','İşlemler'];
     var taksitLabels = ['Durum','{{ ($isletme->salon_turu_id==15 || $isletme->salon_turu_id==28||$isletme->salon_turu_id==29) ? "Danışan" : "Müşteri" }}','Vade Sayısı','Ödenmiş','Ödenmemiş','Yaklaşan Taksit','İşlemler'];
-    var adisyonTdClasses = ['rc-adi-td-durum','rc-adi-td-tarih','rc-adi-td-musteri','rc-adi-td-vade','rc-adi-td-icerik','rc-adi-td-toplam','rc-adi-td-odenen','rc-adi-td-kalan','rc-adi-td-actions'];
+    var adisyonTdClasses = ['rc-adi-td-durum','rc-adi-td-tarih','rc-adi-td-musteri','rc-adi-td-vade','rc-adi-td-icerik','rc-adi-td-indirim','rc-adi-td-toplam','rc-adi-td-odenen','rc-adi-td-kalan','rc-adi-td-actions'];
     var taksitTdClasses = ['rc-adi-td-durum','rc-adi-td-musteri','rc-adi-td-vade','rc-adi-td-odenen','rc-adi-td-kalan','rc-adi-td-vade','rc-adi-td-actions'];
     function applyLabels(){
         $(ALL_SELECTOR).each(function(){

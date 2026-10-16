@@ -15919,6 +15919,11 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             $islemler .= '&nbsp;<button style="line-height:5px;padding:5px"  class="btn btn-danger" href="#" title="Adisyonu Sil"  name="adisyon_sil" data-value="'.$adisyon->id.'"><i class="fa fa-times"></i></button>';
         }
 
+        // Adisyona uygulanan indirim tutari (kalem bazli indirim_tutari toplami).
+        $indirimToplam = $hizmetler->sum(function($h){ return $h->indirim_tutari ?? 0; })
+                       + $urunler->sum(function($u){ return $u->indirim_tutari ?? 0; })
+                       + $paketler->sum(function($p){ return $p->indirim_tutari ?? 0; });
+
         $acilisTarihiKaynak = $adisyon->tarih ?: $adisyon->created_at;
         return [
             'acilis_tarihi' => $acilisTarihiKaynak ? date('d.m.Y', strtotime($acilisTarihiKaynak)) : '',
@@ -15927,6 +15932,9 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             'satis_turu' => '',
             'icerik' => $satilanlarStr,
             'durum' => '<span class="badge badge-'.$durumRenk.'">'.$durumText.'</span>',
+            'indirim' => $indirimToplam > 0
+                ? '<button class="btn btn-warning btn-block" style="line-height:5px">'.number_format($indirimToplam, 2, ',', '.').'</button>'
+                : '<span class="text-muted">-</span>',
             'toplam' => '<button class="btn btn-primary btn-block" style="line-height:5px">'.number_format($toplamTutar, 2, ',', '.').'</button>',
             'odenen' => '<button class="btn btn-success btn-block" style="line-height:5px">'.number_format($odenen, 2, ',', '.').'</button>',
             'kalan_tutar' => '<button class="btn btn-'.($kalanVar > 0 ? 'danger' : 'secondary').' btn-block" style="line-height:5px">'.number_format($kalanVar, 2, ',', '.').'</button>',
