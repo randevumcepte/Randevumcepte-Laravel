@@ -33393,9 +33393,10 @@ DB::raw('
         }
         $arVar = Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at');
 
-        // KVKK: numarayi SADECE yonetici/sahip gorur; personel (rol 5) icin gizli.
+        // KVKK (web ile AYNI): numarayi yonetici/sahip gorur; personel SADECE
+        // 'musteri.telefon_gor' yetkisi acikken gorur, aksi halde gizli.
         $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
-        $telGoster = ((int) $rol !== 5);
+        $telGoster = !$this->cmTelefonMaskele($salonId, $rol);
 
         $bas = $request->filled('start') ? date('Y-m-d', strtotime($request->start)) : date('Y-m-d', strtotime('-31 days'));
         $bit = $request->filled('end') ? date('Y-m-d', strtotime($request->end)) : date('Y-m-d', strtotime('+62 days'));
@@ -33620,19 +33621,8 @@ DB::raw('
         // Rol bir kez hesaplanir (map icinde her satirda DB sorgusu yapmamak icin).
         $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
         $personelMi = ($rol == 5);
-        // Yetki: musteri.telefon_gor acik ise personel de ham numarayi gorur.
-        // Panelden bu yetki personele acildiginda arama ekraninda maskeleme
-        // uygulanmaz (yonetici tercihine gore).
-        $telefonGorYetkisi = false;
-        try {
-            $callerYetkiliId = $this->cmAuthId();
-            if ($callerYetkiliId) {
-                $telefonGorYetkisi = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
-                    $callerYetkiliId, $salonId, 'musteri.telefon_gor'
-                );
-            }
-        } catch (\Throwable $e) {}
-        $telefonMaskele = $personelMi && !$telefonGorYetkisi;
+        // KVKK (web ile AYNI, tek kural): rol 5 + 'musteri.telefon_gor' yetkisi YOK -> maskele.
+        $telefonMaskele = $this->cmTelefonMaskele($salonId, $rol);
 
         $query = AranacakMusteriler::where('arama_id', $aramaDetayId)
             ->with('musteri');
@@ -33764,6 +33754,25 @@ DB::raw('
                   ->orWhere(function ($b) { $b->whereNotNull('dahili_no_webrtc')->where('dahili_no_webrtc', '!=', ''); });
             })
             ->exists();
+    }
+
+    /**
+     * Cagri Merkezi KVKK telefon/isim maskeleme karari (web ile AYNI kural, her sayfada tutarli).
+     * Maskele = SADECE personel (rol 5) VE 'musteri.telefon_gor' yetkisi YOK.
+     *  - Yetki acik -> personel de ham numarayi/ismi gorur (yonetici tercihiyle acilmis).
+     *  - Yonetici/sahip (rol != 5) -> hicbir zaman maskelenmez.
+     */
+    public function cmTelefonMaskele($salonId, $rol = null): bool
+    {
+        if ($rol === null) $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
+        if ((int) $rol !== 5) return false; // yonetici/sahip: maskeleme yok
+        try {
+            $yid = $this->cmAuthId();
+            if ($yid && \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($yid, $salonId, 'musteri.telefon_gor')) {
+                return false; // personel ama yetki acik -> gormeli
+            }
+        } catch (\Throwable $e) {}
+        return true; // personel + yetki yok -> maskele
     }
 
     public function santral_not_ekle(Request $request)
@@ -34747,6 +34756,9 @@ DB::raw('
         }
         $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
         $personelMi = ($rol == 5);
+        // KVKK telefon/isim maskeleme (web ile AYNI): yetki aciksa personel de gorur.
+        // NOT: $personelMi asagida dahili KAPSAMI icin ayrica kullanilir (o degismez).
+        $telMaskele = $this->cmTelefonMaskele($salonId, $rol);
 
         // Taranacak dahililer: personel sadece kendisi, yonetici tum salon.
         // Personel WebRTC (dahili_no_webrtc) VEYA normal dahili (dahili_no) ile gorusebilir;
@@ -34871,7 +34883,7 @@ DB::raw('
                 $ad = $m ? $m['ad'] : $son10;
                 $not = ($m && isset($notMap[$m['uid']])) ? $notMap[$m['uid']] : '';
                 $telGoster = $son10;
-                if ($personelMi) { $ad = self::adSoyadMaskele($ad); $telGoster = self::telefonGizle($son10); }
+                if ($telMaskele) { $ad = self::adSoyadMaskele($ad); $telGoster = self::telefonGizle($son10); }
 
                 $kayitlar[] = [
                     '_ts'     => $tsRaw,
