@@ -2,19 +2,32 @@
 @section('content')
 {!!csrf_field()!!}
 @php
-   // Aktif/sadik/pasif siniflandirmasi, bu adisyondan ONCE olusmus adisyonlara gore
-   // yapilir. Boylece ilk adisyon (oncesinde hicbir adisyon yok) daima pasif kalir ve
-   // sonradan yeni adisyonlar acilsa bile ilk adisyonun sonraki odemelerine indirim gelmez.
-   $_siniflandirmaSorgu = \App\Adisyonlar::where('user_id',$musteri->id)->where('salon_id',$isletme->id);
-   if(!empty($adisyon_id)) $_siniflandirmaSorgu->where('id','<',$adisyon_id);
-   $_gecmisAdisyonSayisi = (clone $_siniflandirmaSorgu)->count();
-   $_sonGecmisAdisyonTarih = (clone $_siniflandirmaSorgu)->orderBy('id','desc')->value('created_at');
-   if($_gecmisAdisyonSayisi>3 && date('Y-m-d H:i:s', strtotime('+90 days',strtotime($_sonGecmisAdisyonTarih))) < date('Y-m-d H:i:s', strtotime('+90 days', strtotime(date('Y-m-d H:i:s')))))
+   // ROZET (musteri statusu): gercek iliskiye gore. Musteri odeme biraktiysa "aktif",
+   // hic odeme yoksa "pasif", cok + yakin tarihli ise "sadik". Bu adisyonun odemeleri
+   // de dahildir -- odeme birakan musteri aktif gorunmelidir.
+   $_odemeSorgu = \App\Tahsilatlar::where('user_id',$musteri->id)->where('salon_id',$isletme->id);
+   $_odemeSayisi = (clone $_odemeSorgu)->count();
+   $_sonOdemeTarih = (clone $_odemeSorgu)->orderBy('id','desc')->value('odeme_tarihi');
+   if($_odemeSayisi>3 && date('Y-m-d H:i:s', strtotime('+90 days',strtotime($_sonOdemeTarih))) < date('Y-m-d H:i:s', strtotime('+90 days', strtotime(date('Y-m-d H:i:s')))))
       $_musteriSinif = 'sadik';
-   elseif($_gecmisAdisyonSayisi==0)
+   elseif($_odemeSayisi==0)
       $_musteriSinif = 'pasif';
    else
       $_musteriSinif = 'aktif';
+
+   // INDIRIM YUZDESI: statuye gore, ANCAK musterinin ILK adisyonuna indirim uygulanmaz.
+   // Ilk adisyon = bu adisyondan once baska adisyon olmayan adisyon. Musteri aktif/sadik
+   // olsa dahi ilk adisyonda indirim 0'dir (ve ilk adisyonun sonraki odemelerinde de 0).
+   $_ilkAdisyon = !empty($adisyon_id)
+        && \App\Adisyonlar::where('user_id',$musteri->id)->where('salon_id',$isletme->id)->where('id','<',$adisyon_id)->count()==0;
+   if($_ilkAdisyon)
+      $_indirimYuzde = 0;
+   elseif($_musteriSinif === 'sadik')
+      $_indirimYuzde = $isletme->sadik_musteri_indirim_yuzde;
+   elseif($_musteriSinif === 'pasif')
+      $_indirimYuzde = $isletme->pasif_musteri_indirim_yuzde;
+   else
+      $_indirimYuzde = $isletme->aktif_musteri_indirim_yuzde;
 @endphp
 <div class="page-header">
    <div class="row">
@@ -456,13 +469,7 @@
                      <div class="form-group">
                         <label>Müşteri İndirimi (%)</label>
                         <input type="hidden" id='musteri_indirimi' name="musteri_indirimi">
-                        @if($_musteriSinif === 'sadik')
-                        <input type="tel" id="musteri_indirim" value="{{$isletme->sadik_musteri_indirim_yuzde}} " disabled class="form-control" style="font-size:20px">
-                        @elseif($_musteriSinif === 'pasif')
-                        <input type="tel" id="musteri_indirim" value="{{$isletme->pasif_musteri_indirim_yuzde}} "  disabled class="form-control" style="font-size:20px">
-                        @else
-                        <input type="tel" id="musteri_indirim" value="{{$isletme->aktif_musteri_indirim_yuzde}} " disabled class="form-control" style="font-size:20px">
-                        @endif
+                        <input type="tel" id="musteri_indirim" value="{{ $_indirimYuzde ?: 0 }}" disabled class="form-control" style="font-size:20px">
                      </div>
                   </div>
                   <div class="col-md-2 col-sm-6 col-xs-6 col-6 ">
