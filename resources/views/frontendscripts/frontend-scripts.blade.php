@@ -275,7 +275,9 @@
 
                     // Yazi rengi: sunucudan gelen textColor'u event yazisina zorla uygula
                     // (durum renkli event'lerde beyaz, normal event'lerde secilen renk).
-                    if (event.textColor) {
+                    // PERF: bos slotlar ('transparent') ve bossa ATLA — yuzlerce bos
+                    // slot icin gereksiz DOM find+css yapmasin (takvim yavaslamasin).
+                    if (event.textColor && event.textColor !== 'transparent' && event.title !== 'Boş slot') {
                         element.css('color', event.textColor);
                         element.find('.fc-title, .fc-time, .fc-content').css('color', event.textColor);
                     }
