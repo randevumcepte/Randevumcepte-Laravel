@@ -1110,6 +1110,9 @@
                            // Mevcut tek renk
                            $tekRenkDeger = (!empty($isletme->takvim_tek_renk) && preg_match('/^#[0-9a-fA-F]{6}$/',$isletme->takvim_tek_renk))
                                ? strtoupper($isletme->takvim_tek_renk) : '#5C008E';
+                           // Mevcut yazi (font) rengi
+                           $yaziRengiDeger = (!empty($isletme->takvim_yazi_rengi) && preg_match('/^#[0-9a-fA-F]{6}$/',$isletme->takvim_yazi_rengi))
+                               ? strtoupper($isletme->takvim_yazi_rengi) : '#FFFFFF';
                            // Mevcut renk sirasi: kayitli sira + eksik palet renkleri sona eklenir
                            $kayitliSira = [];
                            if(!empty($isletme->takvim_renk_sirasi)){
@@ -1141,6 +1144,21 @@
                                  @endforeach
                               </div>
                               @endif
+                           </div>
+                        </div>
+
+                        <div class="col-md-12">
+                           <div class="form-group">
+                              <div class="custom-control custom-checkbox mb-5">
+                                 <input type="checkbox" class="custom-control-input" name="takvim_yazi_rengi_aktif" id="takvim_yazi_rengi_aktif" value="1" {{(!empty($isletme->takvim_yazi_rengi_aktif)) ? 'checked' : ''}}>
+                                 <label class="custom-control-label" for="takvim_yazi_rengi_aktif">Takvim yazı rengini elle belirle</label>
+                              </div>
+                              <small class="text-muted d-block mb-10">Açıkken takvimde (web ve mobil) kolon başlıkları ile randevu/etkinlik yazıları seçtiğiniz renge boyanır. Kapalıyken yazı rengi otomatik ayarlanır (koyu zeminde beyaz, açık zeminde siyah).</small>
+                              <div class="d-flex align-items-center flex-wrap" style="gap:10px;">
+                                 <input type="color" name="takvim_yazi_rengi" id="takvim_yazi_rengi" value="{{ $yaziRengiDeger }}" style="width:52px;height:38px;padding:2px;border:1px solid #ddd;border-radius:6px;cursor:pointer;">
+                                 <input type="text" id="takvim_yazi_rengi_hex" value="{{ $yaziRengiDeger }}" maxlength="7" placeholder="#FFFFFF" style="width:110px;height:38px;border:1px solid #ddd;border-radius:6px;padding:0 10px;font-family:monospace;text-transform:uppercase;">
+                                 <span class="trk-yazi-onizleme" style="padding:4px 12px;border-radius:6px;background:{{ $tekRenkDeger }};color:{{ $yaziRengiDeger }};font-weight:600;">Örnek yazı</span>
+                              </div>
                            </div>
                         </div>
 
@@ -1185,6 +1203,23 @@
                               s.addEventListener('click', function(){ ayarla(s.getAttribute('data-hex')); });
                            });
                            if(hex) swatchVurgula(normHex(hex.value));
+
+                           // Yazi (font) rengi senkron + canli onizleme
+                           var yWheel = document.getElementById('takvim_yazi_rengi');
+                           var yHex   = document.getElementById('takvim_yazi_rengi_hex');
+                           var onizleme = document.querySelector('.trk-yazi-onizleme');
+                           function yaziAyarla(v){
+                              v = normHex(v); if(!gecerli(v)) return;
+                              if(yWheel) yWheel.value = v; if(yHex) yHex.value = v;
+                              if(onizleme) onizleme.style.color = v;
+                           }
+                           if(yWheel) yWheel.addEventListener('input', function(){ yaziAyarla(yWheel.value); });
+                           if(yHex) yHex.addEventListener('input', function(){ var v=normHex(yHex.value); if(gecerli(v)) yaziAyarla(v); });
+                           // Onizleme zemini tek renk tekerine gore guncellensin
+                           if(wheel && onizleme) wheel.addEventListener('input', function(){ onizleme.style.background = normHex(wheel.value); });
+                           if(swWrap && onizleme) swWrap.querySelectorAll('.trk-swatch').forEach(function(s){
+                              s.addEventListener('click', function(){ onizleme.style.background = normHex(s.getAttribute('data-hex')); });
+                           });
 
                            // Renk sirasi: renk degistir + yukari/asagi
                            var liste = document.getElementById('takvim_renk_sira_liste');

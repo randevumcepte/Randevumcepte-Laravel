@@ -4024,14 +4024,17 @@ public function carkverilerigetir(Request $request)
     //  - Tek renk kapali + renk sirasi tanimli: kaynaklar (personel/oda/cihaz/
     //    kategori) gorunum sirasina gore bu hex listesinden donerek renklenir.
     //  - Ikisi de yoksa: eski davranis (renk_duzenleri tablo rengi).
-    $tekRenk  = null;
-    $renkSira = null;
+    $tekRenk   = null;
+    $renkSira  = null;
+    $yaziRengi = null; // takvim yazi (font) rengi; null => eski davranis (kolon #fff)
     $_hasTek  = \Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_tek_renk_aktif');
     $_hasSira = \Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_renk_sirasi');
-    if ($_hasTek || $_hasSira) {
+    $_hasYazi = \Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_yazi_rengi_aktif');
+    if ($_hasTek || $_hasSira || $_hasYazi) {
         $_trCols = ['id'];
         if ($_hasTek)  { $_trCols[] = 'takvim_tek_renk_aktif'; $_trCols[] = 'takvim_tek_renk'; }
         if ($_hasSira) { $_trCols[] = 'takvim_renk_sirasi'; }
+        if ($_hasYazi) { $_trCols[] = 'takvim_yazi_rengi_aktif'; $_trCols[] = 'takvim_yazi_rengi'; }
         $_trS = Salonlar::where('id',$isletmeId)->first($_trCols);
         if ($_trS) {
             if ($_hasTek && $_trS->takvim_tek_renk_aktif && !empty($_trS->takvim_tek_renk)) {
@@ -4045,6 +4048,10 @@ public function carkverilerigetir(Request $request)
                     }));
                     if (count($_arr) > 0) $renkSira = $_arr;
                 }
+            }
+            if ($_hasYazi && $_trS->takvim_yazi_rengi_aktif && !empty($_trS->takvim_yazi_rengi)
+                && preg_match('/^#[0-9a-fA-F]{6}$/',$_trS->takvim_yazi_rengi)) {
+                $yaziRengi = $_trS->takvim_yazi_rengi;
             }
         }
     }
@@ -4176,7 +4183,7 @@ public function carkverilerigetir(Request $request)
     }
 
     $randevu_hizmetler = $randevu_hizmetler_raw
-    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$_anketYetki,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$tekRenk,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet,$paketDurumuByRandevu,$paketHizmetIdsByRandevu) {
+    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$_anketYetki,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$tekRenk,$yaziRengi,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet,$paketDurumuByRandevu,$paketHizmetIdsByRandevu) {
 
         $start = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat)->toIso8601String();
 
@@ -4395,7 +4402,9 @@ public function carkverilerigetir(Request $request)
             'odaId'=> $rh->odaId,
             'odaAdi'=>$rh->oda ? $rh->oda->oda_adi : '',
             'resourceTitle'=> "",
-            "textColor"=> "",
+            // Yazi rengi SADECE normal randevulara uygulanir; durum renkli
+            // (geldi/gelmedi/bekliyor/gelecek/iptal/kapali) randevularda yazi beyaz kalir.
+            "textColor"=> ($yaziRengi !== null ? ($normalRenk ? $yaziRengi : '#ffffff') : ""),
             'modal_title' => $modalTitle,
             'duzenle_buton'=>$duzenleButon,
             '_paketSource' => $_paketSource, // merge icin
@@ -4518,7 +4527,7 @@ public function carkverilerigetir(Request $request)
                     'odaId'         => '',
                     'odaAdi'        => '',
                     'resourceTitle' => '',
-                    'textColor'     => '#ffffff',
+                    'textColor'     => (($yaziRengi !== null && !$iptal) ? $yaziRengi : '#ffffff'),
                     'modal_title'   => $dersAdi,
                     'duzenle_buton' => '',
                 ];
@@ -4871,6 +4880,7 @@ public function carkverilerigetir(Request $request)
     return array(
         'randevu' => array_merge($randevu_hizmetler->toArray(), $dersEventleri, $emptySlots),
         'resource' => $resources,
+        'yaziRengi' => ($yaziRengi !== null ? $yaziRengi : '#fff'),
         'baslangic' => $takvim_baslangic_saat,
         'bitis' => $takvim_bitis_saat,
         'calismasaatleri' => $calismasaatleri,
@@ -20519,6 +20529,16 @@ DB::raw('
                 $isletme->takvim_tek_renk = strtoupper($_tr);
             } elseif (empty($isletme->takvim_tek_renk)) {
                 $isletme->takvim_tek_renk = '#5C008E';
+            }
+        }
+        // Takvim Yazi Rengi — kolon basligi + randevu yazilari icin font rengi
+        if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar', 'takvim_yazi_rengi_aktif')) {
+            $isletme->takvim_yazi_rengi_aktif = $request->has('takvim_yazi_rengi_aktif') ? 1 : 0;
+            $_yr = trim((string) $request->takvim_yazi_rengi);
+            if ($_yr !== '' && preg_match('/^#[0-9a-fA-F]{6}$/', $_yr)) {
+                $isletme->takvim_yazi_rengi = strtoupper($_yr);
+            } elseif (empty($isletme->takvim_yazi_rengi)) {
+                $isletme->takvim_yazi_rengi = '#FFFFFF';
             }
         }
         // Takvim Renk Sirasi — 10'lu renk skalasinin salon tercih sirasi (hex dizisi)

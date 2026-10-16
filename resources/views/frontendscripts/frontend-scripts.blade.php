@@ -504,9 +504,9 @@
                   var view = $('#calendar').fullCalendar('getView');
 
                   if(view.type=='agendaDay'){
-                     <?php $headdata = json_decode($randevular['resource'],true); ?>
+                     <?php $headdata = json_decode($randevular['resource'],true); $__yaziRengi = $randevular['yaziRengi'] ?? '#fff'; ?>
                   <?php foreach($headdata as $key=>$res){ ?>
-                     $('.fc th:nth-child('+<?php echo $key+2 ;?>+'n)').css({'background':'<?php echo $res['bgcolor']; ?>','color':'#fff'});
+                     $('.fc th:nth-child('+<?php echo $key+2 ;?>+'n)').css({'background':'<?php echo $res['bgcolor']; ?>','color':'<?php echo $__yaziRengi; ?>'});
 
                   <?php } ?>
                   }
@@ -525,11 +525,11 @@
                 $('#takvim_tarihe_gore').val('');
                 takvimyukle(true,true);
             }); 
-            <?php $headdata = json_decode($randevular['resource'],true); ?>
+            <?php $headdata = json_decode($randevular['resource'],true); $__yaziRengi = $randevular['yaziRengi'] ?? '#fff'; ?>
             <?php foreach($headdata as $key=>$res){ ?>
-               
-               $('.fc th:nth-child(<?php echo $key+2 ;?>n)').css({'background':'<?php echo $res['bgcolor']; ?>','color':'#fff'});
-               
+
+               $('.fc th:nth-child(<?php echo $key+2 ;?>n)').css({'background':'<?php echo $res['bgcolor']; ?>','color':'<?php echo $__yaziRengi; ?>'});
+
             <?php } ?>
             });
          </script>

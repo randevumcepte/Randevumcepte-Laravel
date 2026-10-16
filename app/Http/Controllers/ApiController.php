@@ -1967,14 +1967,17 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         //  - Tek renk kapali + sira tanimli: kaynaklar gorunum sirasina gore
         //    donerek bu listeden renklenir. Durum renkleri korunur.
         // Mobil renk formati 0xFFRRGGBB oldugundan hex -> 0xFF prefiksine cevrilir.
-        $tekRenk  = null;
-        $renkSira = null;
+        $tekRenk   = null;
+        $renkSira  = null;
+        $yaziRengi = null; // 0xFFRRGGBB; null => mobil client otomatik kontrast
         $_hasTek  = \Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_tek_renk_aktif');
         $_hasSira = \Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_renk_sirasi');
-        if ($_hasTek || $_hasSira) {
+        $_hasYazi = \Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_yazi_rengi_aktif');
+        if ($_hasTek || $_hasSira || $_hasYazi) {
             $_trCols = ['id'];
             if ($_hasTek)  { $_trCols[] = 'takvim_tek_renk_aktif'; $_trCols[] = 'takvim_tek_renk'; }
             if ($_hasSira) { $_trCols[] = 'takvim_renk_sirasi'; }
+            if ($_hasYazi) { $_trCols[] = 'takvim_yazi_rengi_aktif'; $_trCols[] = 'takvim_yazi_rengi'; }
             $_trS = Salonlar::where('id',$isletmeId)->first($_trCols);
             if ($_trS) {
                 if ($_hasTek && $_trS->takvim_tek_renk_aktif && !empty($_trS->takvim_tek_renk)) {
@@ -1991,6 +1994,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         }
                         if (count($_tmp) > 0) $renkSira = $_tmp;
                     }
+                }
+                if ($_hasYazi && $_trS->takvim_yazi_rengi_aktif && !empty($_trS->takvim_yazi_rengi)
+                    && preg_match('/^#[0-9a-fA-F]{6}$/',$_trS->takvim_yazi_rengi)) {
+                    $yaziRengi = '0xFF'.strtoupper(ltrim((string)$_trS->takvim_yazi_rengi,'#'));
                 }
             }
         }
@@ -2111,7 +2118,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $request,
             $takvim_turu,$isletmeId,$personelRolu,
             $adisyonHizmetlerByRandevu,$tahsilatToplamlari,$seansSayilariByRandevu,$paketRandevuIds,$paketDurumuByRandevu,$paketHizmetIdsByRandevu,
-            $kategoriRenkleri,$cihazRenkleri,$odaRenkleri,$seanslarByRandevuMobil,$tekRenk
+            $kategoriRenkleri,$cihazRenkleri,$odaRenkleri,$seanslarByRandevuMobil,$tekRenk,$yaziRengi
         ) {
             $satisOlustu = 0;
             $odemeYapildi = 0;
@@ -2417,7 +2424,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 'odaId'=> $rh->odaId,
                 'odaAdi'=>$rh->oda ? $rh->oda->oda_adi : '',
                 'resourceTitle'=> "",
-                "textColor"=> "",
+                // Yazi rengi sadece normal randevularda; durum renklerinde beyaz.
+                "textColor"=> ($yaziRengi !== null ? ($normalRenk ? $yaziRengi : '0xFFFFFFFF') : ""),
                 'modal_title' => $modalTitle,
                 'duzenle_buton'=>$duzenleButon,
                 'satis_olustu'=>$satisOlustu,
@@ -2574,6 +2582,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 return $e;
             });
         }
+        // YAZI RENGI: kaynak kolon basliklarina da textColor ekle (Flutter kullanir).
+        if($yaziRengi !== null && $resources instanceof \Illuminate\Support\Collection){
+            foreach($resources as $__r){ $__r->textColor = $yaziRengi; }
+        }
         $personeller = Personeller::where("salon_id", $isletmeId)->where('takvimde_gorunsun',true)->get();
         $calismaSaati = SalonCalismaSaatleri::where('salon_id',$isletmeId)->where('haftanin_gunu',self::haftanin_gunu($tarih1))->where('calisiyor',1)->first();
         $baslangic = '08:00';
@@ -2680,7 +2692,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         'musteri'      => $dersAdi,
                         'modal_title'  => $dersAdi,
                         'durum'        => 'ders',
-                        'textColor'    => '#ffffff',
+                        'textColor'    => (($yaziRengi !== null && !$iptal) ? $yaziRengi : '0xFFFFFFFF'),
                     ];
                 }
             } catch (\Throwable $e) { $dersEventleri = []; }
