@@ -4018,6 +4018,17 @@ public function carkverilerigetir(Request $request)
         }
     }
 
+    // TAKVIM TEK RENK: acikken tum kaynaklar (personel/oda/cihaz/kategori) ve
+    // onlara ait NORMAL randevular tek renge boyanir. Durum renkleri (geldi/
+    // gelmedi/bekliyor/gelecek/iptal/kapali) korunur. Hex (#RRGGBB) tutulur.
+    $tekRenk = null;
+    if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_tek_renk_aktif')) {
+        $_trS = Salonlar::where('id',$isletmeId)->first(['takvim_tek_renk_aktif','takvim_tek_renk']);
+        if ($_trS && $_trS->takvim_tek_renk_aktif && !empty($_trS->takvim_tek_renk)) {
+            $tekRenk = $_trS->takvim_tek_renk;
+        }
+    }
+
     // Yetki kontrolu: personel rolu + 'randevu.tum_personel_gor' kapali ise
     // sadece kendi randevulari filtrelenir (mobile akisinin aynisi).
     $kendiPersonelIdFiltre = null;
@@ -4145,7 +4156,7 @@ public function carkverilerigetir(Request $request)
     }
 
     $randevu_hizmetler = $randevu_hizmetler_raw
-    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$_anketYetki,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet,$paketDurumuByRandevu,$paketHizmetIdsByRandevu) {
+    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$_anketYetki,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$tekRenk,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet,$paketDurumuByRandevu,$paketHizmetIdsByRandevu) {
 
         $start = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat)->toIso8601String();
 
@@ -4209,6 +4220,9 @@ public function carkverilerigetir(Request $request)
                         $color = $odaRenkMap[$rh->oda_id];
                     }
                 }
+                // Tek renk acik: normal randevu kaynagin rengi yerine tek rengi al
+                // (durum renkleri yukaridaki elseif kollarinda zaten belirlendi).
+                if($tekRenk !== null){ $color = $tekRenk; }
             }
             $resourceId = "";
             if($takvim_turu==0)
@@ -4442,6 +4456,8 @@ public function carkverilerigetir(Request $request)
                     $color = '#95a5a6';                 // iptal — gri
                 } else {
                     $color = $personelRenk ?: ($o->renk ?: '#5d6d7e');
+                    // Tek renk acik: iptal haric ders bloklarini da tek renge boya.
+                    if($tekRenk !== null){ $color = $tekRenk; }
                 }
 
                 $dersAdi = $o->ders_tipi ?: 'Grup Dersi';
@@ -4633,6 +4649,12 @@ public function carkverilerigetir(Request $request)
                 ), ")") AS title'),
                 'renk_duzenleri.renk as bgcolor'
             ])->where('odalar.salon_id',$isletmeId)->where('odalar.aktifmi',true)->orderBy('takvim_sirasi','asc')->get();
+    }
+
+    // TAKVIM TEK RENK: tum kaynak kolon basliklarini (personel/oda/cihaz/kategori)
+    // tek renge boya. Palet FK'si (renk_duzenleri) uzerinden gelen bgcolor'i ezer.
+    if($tekRenk !== null && $resources instanceof \Illuminate\Support\Collection){
+        foreach($resources as $__r){ $__r->bgcolor = $tekRenk; }
     }
 
     // Boş slotları oluştur
@@ -20435,6 +20457,12 @@ DB::raw('
         // Studyo Modu (Pilates/kurs) — isletme bazli ac/kapa
         if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar', 'studyo_modu')) {
             $isletme->studyo_modu = $request->has('studyo_modu') ? 1 : 0;
+        }
+        // Takvim Tek Renk — tum kaynaklar/normal randevular icin tek renk
+        if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar', 'takvim_tek_renk_aktif')) {
+            $isletme->takvim_tek_renk_aktif = $request->has('takvim_tek_renk_aktif') ? 1 : 0;
+            $_tr = trim((string) $request->takvim_tek_renk);
+            $isletme->takvim_tek_renk = ($_tr !== '' && preg_match('/^#[0-9a-fA-F]{6}$/', $_tr)) ? $_tr : null;
         }
         $isletme->save();
         // Ayar degistiginde host bazli cache'i dusur (ayni istek icinde tekrar okunursa taze olsun)

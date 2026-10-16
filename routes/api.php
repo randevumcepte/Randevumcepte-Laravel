@@ -21,6 +21,9 @@ Route::get('subeler/{salonid}','ApiController@subeler');
 // Salon temasi (Flutter "Gorunum" -> ayni renk mini web sitesinde)
 Route::get('/salonTemaGet/{salonid}','ApiController@salonTemaGet'); // renk okuma: zararsiz, herkese acik
 Route::post('/salonTemaSet/{salonid}','ApiController@salonTemaSet')->middleware('salon.sahiplik:deny'); // yazma: token + sahiplik zorunlu
+// Takvim tek renk ayari (tum personel/oda/cihaz + normal randevular tek renk)
+Route::get('/takvimRenkGet/{salonid}','ApiController@takvimRenkGet'); // okuma: zararsiz
+Route::post('/takvimRenkSet/{salonid}','ApiController@takvimRenkSet')->middleware('salon.sahiplik:deny'); // yazma: token + sahiplik
 // Grup dersi (Pilates/kurs) online rezervasyon (mobil app - musteri)
 Route::get('/grup-dersleri/{salonid}','ApiController@grupDersleriListe');
 Route::post('/grup-dersi-rezervasyon','ApiController@grupDersiRezervasyon');

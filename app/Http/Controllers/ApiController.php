@@ -853,6 +853,54 @@ class ApiController extends Controller
         ], 200, [], JSON_UNESCAPED_UNICODE);
     }
 
+    /**
+     * TAKVIM TEK RENK — oku. GET /api/v1/takvimRenkGet/{salonId}
+     * -> { basarili, aktif: 0/1, renk: "#RRGGBB" }
+     */
+    public function takvimRenkGet(Request $request, $salonId)
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_tek_renk_aktif')) {
+            return response()->json(['basarili' => true, 'aktif' => 0, 'renk' => '#5C008E'], 200, [], JSON_UNESCAPED_UNICODE);
+        }
+        $salon = Salonlar::find($salonId);
+        if (!$salon) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Salon bulunamadi.'], 404, [], JSON_UNESCAPED_UNICODE);
+        }
+        $renk = (!empty($salon->takvim_tek_renk) && preg_match('/^#[0-9a-fA-F]{6}$/', $salon->takvim_tek_renk))
+            ? $salon->takvim_tek_renk : '#5C008E';
+        return response()->json([
+            'basarili' => true,
+            'aktif'    => (int) $salon->takvim_tek_renk_aktif,
+            'renk'     => $renk,
+        ], 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * TAKVIM TEK RENK — kaydet. POST /api/v1/takvimRenkSet/{salonId}
+     * body: { aktif: 0/1, renk: "#RRGGBB" }  (sahiplik middleware ile korunur)
+     */
+    public function takvimRenkSet(Request $request, $salonId)
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_tek_renk_aktif')) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Sunucu henuz hazir degil.'], 503, [], JSON_UNESCAPED_UNICODE);
+        }
+        $salon = Salonlar::find($salonId);
+        if (!$salon) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Salon bulunamadi.'], 404, [], JSON_UNESCAPED_UNICODE);
+        }
+        $salon->takvim_tek_renk_aktif = $request->input('aktif') ? 1 : 0;
+        $_tr = trim((string) $request->input('renk'));
+        if ($_tr !== '' && preg_match('/^#[0-9a-fA-F]{6}$/', $_tr)) {
+            $salon->takvim_tek_renk = $_tr;
+        }
+        $salon->save();
+        return response()->json([
+            'basarili' => true,
+            'aktif'    => (int) $salon->takvim_tek_renk_aktif,
+            'renk'     => $salon->takvim_tek_renk ?: '#5C008E',
+        ], 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
     /*public function adisyon_yukle( Request $request,$adisyonturu,$adisyondurumu,$tarih1, $tarih2,$musteriid,$personelid, $isletme_id,$sayfala) {
 
         $isletmeId = $isletme_id;
@@ -1909,6 +1957,16 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         }
         $takvim_turu = isset($request->takvim_turu) && $request->takvim_turu != '' ? $request->takvim_turu : Salonlar::where('id',$isletmeId)->value('randevu_takvim_turu');
+        // TAKVIM TEK RENK (web randevuyukle ile ayni mantik): acikken tum kaynaklar
+        // ve normal randevular tek renge boyanir; durum renkleri korunur. Mobil
+        // renk formati 0xFFRRGGBB oldugundan hex -> 0xFF prefiksine cevrilir.
+        $tekRenk = null;
+        if (\Illuminate\Support\Facades\Schema::hasColumn('salonlar','takvim_tek_renk_aktif')) {
+            $_trS = Salonlar::where('id',$isletmeId)->first(['takvim_tek_renk_aktif','takvim_tek_renk']);
+            if ($_trS && $_trS->takvim_tek_renk_aktif && !empty($_trS->takvim_tek_renk)) {
+                $tekRenk = '0xFF'.strtoupper(ltrim((string)$_trS->takvim_tek_renk, '#'));
+            }
+        }
         $randevuHizmetler = RandevuHizmetler::with([
             'hizmetler',
             'personeller.trenk',
@@ -2026,7 +2084,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $request,
             $takvim_turu,$isletmeId,$personelRolu,
             $adisyonHizmetlerByRandevu,$tahsilatToplamlari,$seansSayilariByRandevu,$paketRandevuIds,$paketDurumuByRandevu,$paketHizmetIdsByRandevu,
-            $kategoriRenkleri,$cihazRenkleri,$odaRenkleri,$seanslarByRandevuMobil
+            $kategoriRenkleri,$cihazRenkleri,$odaRenkleri,$seanslarByRandevuMobil,$tekRenk
         ) {
             $satisOlustu = 0;
             $odemeYapildi = 0;
@@ -2124,6 +2182,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         else
                            $color = '0xFF000000';
                     }
+                    // Tek renk acik: normal randevu kaynagin rengi yerine tek rengi al.
+                    if($tekRenk !== null){ $color = $tekRenk; }
                 }
                 $resourceId = "";
 
@@ -2460,6 +2520,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ), ")") AS name')
             ,DB::raw('REPLACE(renk_duzenleri.renk,"#","0xFF") as bgcolor')])->where('odalar.salon_id',$isletmeId)->where('odalar.aktifmi',true)->orderBy('odalar.takvim_sirasi','asc')->get();
         }
+        // TAKVIM TEK RENK: tum kaynak kolonlarini (personel/oda/cihaz/kategori) tek renge boya.
+        if($tekRenk !== null && $resources instanceof \Illuminate\Support\Collection){
+            foreach($resources as $__r){ $__r->bgcolor = $tekRenk; }
+        }
         $personeller = Personeller::where("salon_id", $isletmeId)->where('takvimde_gorunsun',true)->get();
         $calismaSaati = SalonCalismaSaatleri::where('salon_id',$isletmeId)->where('haftanin_gunu',self::haftanin_gunu($tarih1))->where('calisiyor',1)->first();
         $baslangic = '08:00';
@@ -2544,6 +2608,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     // trenk->renk '#EA43F2' geldiginde app int.parse ile cokuyordu.
                     $__hx = ltrim((string) $c, '#');
                     $c = (stripos($__hx, '0x') === 0) ? $c : ('0xFF' . strtoupper($__hx));
+                    // Tek renk acik: iptal haric ders bloklarini da tek renge boya.
+                    if($tekRenk !== null && !$iptal){ $c = $tekRenk; }
                     $dersAdi = $o->ders_tipi ?: 'Grup Dersi';
                     $dersEventleri[] = [
                         'id'           => 'ders-'.$o->id,

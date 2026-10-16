@@ -1103,6 +1103,19 @@
                            </div>
                         </div>
                         <div class="col-md-12">
+                           <div class="form-group">
+                              <div class="custom-control custom-checkbox mb-5">
+                                 <input type="checkbox" class="custom-control-input" name="takvim_tek_renk_aktif" id="takvim_tek_renk_aktif" value="1" {{(!empty($isletme->takvim_tek_renk_aktif)) ? 'checked' : ''}}>
+                                 <label class="custom-control-label" for="takvim_tek_renk_aktif">Takvim tek renk kullanılsın</label>
+                              </div>
+                              <small class="text-muted d-block mb-10">Açıkken randevu takviminde (web ve mobil) tüm personel, oda ve cihaz kolonları ile bu kaynaklara ait normal randevular aşağıda seçtiğiniz tek renge boyanır. Geldi (yeşil) / gelmedi (kırmızı) / onay bekliyor (sarı) gibi durum renkleri korunur.</small>
+                              <div class="d-flex align-items-center" style="gap:10px;">
+                                 <input type="color" name="takvim_tek_renk" id="takvim_tek_renk" value="{{ (!empty($isletme->takvim_tek_renk) && preg_match('/^#[0-9a-fA-F]{6}$/',$isletme->takvim_tek_renk)) ? $isletme->takvim_tek_renk : '#5C008E' }}" style="width:52px;height:38px;padding:2px;border:1px solid #ddd;border-radius:6px;cursor:pointer;">
+                                 <span class="text-muted">Takvim rengini seçin</span>
+                              </div>
+                           </div>
+                        </div>
+                        <div class="col-md-12">
                            <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i> Kaydet</button>
                         </div>
                      </div>
