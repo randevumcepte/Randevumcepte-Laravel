@@ -19683,6 +19683,10 @@ function tahsilatyenidenhesapla()
     var musteri_indirimi = $('#musteri_indirim').val().replace(".", "");
     musteri_indirimi = musteri_indirimi.replace(',','.');
     musteri_indirimi = parseFloat(musteri_indirimi);
+    // Pasif musteride indirim yuzdesi bos/NULL olabilir; NaN tum hesabi bozup odenecek
+    // tutari 0 gosteriyordu. Sayisal degilse 0 kabul et (harici_indirim ile ayni mantik).
+    if(!$.isNumeric(musteri_indirimi))
+        musteri_indirimi = 0;
     var birim_tutar = 0;
     var indirim_tutari = 0;
     var senetli_taksitli_birim_tutar = 0;
