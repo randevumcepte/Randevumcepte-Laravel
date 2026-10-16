@@ -52,19 +52,21 @@ function rcEventTipEnsure() {
     }
     return $tip;
 }
-function rcEventTipApplyContentStyles($tip, bg){
+function rcEventTipApplyContentStyles($tip, bg, txt){
+    // txt: sunucudan gelen yazi rengi (ayar). Yoksa beyaz (eski davranis).
+    txt = txt || '#fff';
     // Iç sınıflar için inline style fallback — CSS yuklenmediginde de duzgun gozuksun
     $tip.find('.rc-tip-head').css({
-        background: bg, color: '#fff', padding: '10px 14px 9px'
+        background: bg, color: txt, padding: '10px 14px 9px'
     });
     $tip.find('.rc-tip-name').css({
         fontSize: '14px', fontWeight: 700, lineHeight: 1.2,
         marginBottom: '4px', whiteSpace: 'nowrap',
-        overflow: 'hidden', textOverflow: 'ellipsis', color: '#fff'
+        overflow: 'hidden', textOverflow: 'ellipsis', color: txt
     });
     $tip.find('.rc-tip-meta').css({
         display: 'flex', alignItems: 'center', flexWrap: 'wrap',
-        gap: '6px', fontSize: '11.5px', opacity: 0.95, color: '#fff'
+        gap: '6px', fontSize: '11.5px', opacity: 0.95, color: txt
     });
     $tip.find('.rc-tip-status').each(function(){
         var $s = jQuery(this);
@@ -136,7 +138,7 @@ function rcEventTipBind(element, event) {
         var $tip = rcEventTipEnsure();
         var bg = evData.color || '#5C008E';
         $tip.html(evData.hoverHtml);
-        rcEventTipApplyContentStyles($tip, bg);
+        rcEventTipApplyContentStyles($tip, bg, evData.textColor);
         // Once -9999px'e koy, olcum yap, sonra dogru pozisyonu set et
         $tip.css({ left: '-9999px', top: '0', opacity: 1, transform: 'translateY(0)' });
         var rect = el.getBoundingClientRect();
