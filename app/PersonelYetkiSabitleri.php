@@ -25,6 +25,7 @@ class PersonelYetkiSabitleri
             ['key' => 'randevu.takvim_gor',          'kategori' => 'randevu', 'label' => 'Takvimi görüntüle',                'aciklama' => 'Randevu takvim sayfasını açabilir'],
             ['key' => 'randevu.tum_personel_gor',    'kategori' => 'randevu', 'label' => 'Tüm personellerin randevularını gör', 'aciklama' => 'Kapalıysa sadece kendi randevularını görür'],
             ['key' => 'randevu.olustur',             'kategori' => 'randevu', 'label' => 'Randevu oluştur',                 'aciklama' => 'Yeni randevu ekleyebilir'],
+            ['key' => 'randevu.onayla',              'kategori' => 'randevu', 'label' => 'Randevu talebini onayla',        'aciklama' => 'Bekleyen (online) randevu taleplerini onaylayabilir. Kapalıysa onayla butonları gizlenir'],
             ['key' => 'randevu.duzenle_iptal',       'kategori' => 'randevu', 'label' => 'Randevu düzenle / iptal et',      'aciklama' => 'Mevcut randevuda değişiklik yapabilir'],
             ['key' => 'randevu.kapanis_blok_ekle',   'kategori' => 'randevu', 'label' => 'Kapanış / blok ekle',             'aciklama' => 'Takvime saat bloku ekleyebilir'],
             ['key' => 'randevu.online_ayar',         'kategori' => 'randevu', 'label' => 'Online randevu ayarları',         'aciklama' => 'Online randevu ayarlarını değiştirebilir'],
@@ -140,7 +141,7 @@ class PersonelYetkiSabitleri
                 'ayarlar' => [
                     // Randevu — hepsi açık
                     'randevu.takvim_gor' => true, 'randevu.tum_personel_gor' => true,
-                    'randevu.olustur' => true, 'randevu.duzenle_iptal' => true,
+                    'randevu.olustur' => true, 'randevu.onayla' => true, 'randevu.duzenle_iptal' => true,
                     'randevu.kapanis_blok_ekle' => true, 'randevu.online_ayar' => true,
                     // Müşteri — sil ve telefon hariç hepsi açık
                     'musteri.liste_gor' => true, 'musteri.tum_portfoy_gor' => true,
@@ -190,7 +191,7 @@ class PersonelYetkiSabitleri
                 'ayarlar' => [
                     // Randevu — tüm randevular
                     'randevu.takvim_gor' => true, 'randevu.tum_personel_gor' => true,
-                    'randevu.olustur' => true, 'randevu.duzenle_iptal' => true,
+                    'randevu.olustur' => true, 'randevu.onayla' => true, 'randevu.duzenle_iptal' => true,
                     'randevu.kapanis_blok_ekle' => true, 'randevu.online_ayar' => false,
                     // Müşteri — telefon kapali (default)
                     'musteri.liste_gor' => true, 'musteri.tum_portfoy_gor' => true,
@@ -239,7 +240,7 @@ class PersonelYetkiSabitleri
                 'ikon' => 'person',
                 'ayarlar' => [
                     'randevu.takvim_gor' => true, 'randevu.tum_personel_gor' => false,
-                    'randevu.olustur' => true, 'randevu.duzenle_iptal' => true,
+                    'randevu.olustur' => true, 'randevu.onayla' => false, 'randevu.duzenle_iptal' => true,
                     'randevu.kapanis_blok_ekle' => false, 'randevu.online_ayar' => false,
                     'musteri.liste_gor' => true, 'musteri.tum_portfoy_gor' => false,
                     'musteri.detay_gor' => true, 'musteri.ekle_duzenle' => true,

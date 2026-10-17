@@ -3033,9 +3033,11 @@ public function carkverilerigetir(Request $request)
                             </button>';
             if($randevu->durum == 0){
                 $durumhtml .= "<button class='btn btn-warning'>Beklemede</button>";
-                $islemlerhtml .= ' <button class="btn btn-success randevuonayla" data-value="'.$randevu->id.'">
+                if(self::randevuOnaylaYetkiVar($request)){
+                    $islemlerhtml .= ' <button class="btn btn-success randevuonayla" data-value="'.$randevu->id.'">
                                <span class="mdi mdi-check-circle"></span> Onayla
                             </button>';
+                }
                 $islemlerhtml .=   '<button class="btn btn-danger randevuiptalet" data-value="'.$randevu->id.'">
                                <span class="mdi mdi-minus-circle"></span> İptal Et
                             </button>';
@@ -3096,8 +3098,13 @@ public function carkverilerigetir(Request $request)
                                 <div class="col-3 col-xs-3 col-sm-3"><a name="gelmedi_isaretle" href="#" class="btn btn-danger btn-block btn-lg" data-value="'.$randevu->id.'"> Gelmedi</a></div>
                                 <div class="col-3 col-xs-3 col-sm-3"><a name="geldi_isaretle" href="#" class="btn btn-success btn-block btn-lg" data-value="'.$randevu->id.'"> Geldi & Tahsilat</a></div>
                                 <div class="col-3 col-xs-3 col-sm-3"><button class="btn btn-danger btn-block btn-lg randevuiptalet" data-value="'.$randevu->id.'"> İptal Et</button></div></div>';
-        if($randevu->durum === 0)
-            $buttons = '<div class="row"><div class="col-6 col-xs-6 col-sm-6"><button class="btn btn-success btn-block btn-lg randevuonayla" data-value="'.$randevu->id.'"> Onayla</a></div><div class="col-6 col-xs-6 col-sm-6"><button class="btn btn-danger btn-block btn-lg randevuiptalet" data-value="'.$randevu->id.'"> İptal Et</button></div></div>';
+        if($randevu->durum === 0){
+            if(self::randevuOnaylaYetkiVar($request)){
+                $buttons = '<div class="row"><div class="col-6 col-xs-6 col-sm-6"><button class="btn btn-success btn-block btn-lg randevuonayla" data-value="'.$randevu->id.'"> Onayla</a></div><div class="col-6 col-xs-6 col-sm-6"><button class="btn btn-danger btn-block btn-lg randevuiptalet" data-value="'.$randevu->id.'"> İptal Et</button></div></div>';
+            } else {
+                $buttons = '<div class="row"><div class="col-12 col-xs-12 col-sm-12"><button class="btn btn-danger btn-block btn-lg randevuiptalet" data-value="'.$randevu->id.'"> İptal Et</button></div></div>';
+            }
+        }
         if($request->bildirim_okundu)
         {
             $bildirim = Bildirimler::where('id',$request->bildirimid)->first();
@@ -8267,6 +8274,7 @@ private function ayAdiCevir($ingilizceAy)
         }
     }
      public function randevuonayla(Request $request){
+        if($r = self::yetkiYoksa403($request, 'randevu.onayla')) return $r;
         $randevu = Randevular::where('id',$request->randevuid)->first();
         if (!$randevu) {
             return response()->json(['error' => 'Randevu bulunamadı'], 404);
@@ -11050,9 +11058,11 @@ private function ayAdiCevir($ingilizceAy)
                             </button>';
             if($randevu->durum == 0){
                 $durumhtml .= "<button class='btn btn-warning'>Beklemede</button>";
-                $islemlerhtml .= ' <button class="btn btn-success randevuonayla" data-value="'.$randevu->id.'">
+                if(self::randevuOnaylaYetkiVar($request)){
+                    $islemlerhtml .= ' <button class="btn btn-success randevuonayla" data-value="'.$randevu->id.'">
                                <span class="mdi mdi-check-circle"></span> Onayla
                             </button>';
+                }
                 $islemlerhtml .=   '<button class="btn btn-danger randevuiptalet" data-value="'.$randevu->id.'">
                                <span class="mdi mdi-minus-circle"></span> İptal Et
                             </button>';
@@ -14250,6 +14260,18 @@ private function ayAdiCevir($ingilizceAy)
             return response()->json(['durum' => 'hata', 'mesaj' => 'Bu islem icin yetkiniz yok.'], 403);
         }
         return null;
+    }
+
+    /**
+     * Giris yapan kullanici bekleyen randevu talebini ONAYLAYABILIR mi?
+     * Onayla butonlarinin (takvim popup / randevu listesi) gorunurlugu icin.
+     * authUser yoksa (edge) gorunur birakilir — aksiyon yine yetkiYoksa403 ile gate'li.
+     */
+    private function randevuOnaylaYetkiVar(Request $request)
+    {
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if (!$authUser) return true;
+        return \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, self::mevcutsube($request), 'randevu.onayla');
     }
 
     /**
@@ -19149,14 +19171,20 @@ DB::raw('
     SQL;
     $selectColumns[] = DB::raw($statusHtml);
 
+    // Bekleyen randevu dropdown'undaki "Onayla" satiri yalnizca randevu.onayla
+    // yetkisi olan kullaniciya gosterilir (yoksa bos). Heredoc icinde interpolate edilir.
+    $onaylaMenuSatiri = self::randevuOnaylaYetkiVar($request)
+        ? '<a class="dropdown-item randevuonayla" data-value="\',randevular.id,\'" href="#"> <i class="fa fa-check"></i> Onayla</a>'
+        : '';
+
     $actionsHtml = <<<SQL
-    CASE 
+    CASE
         WHEN randevular.durum = 0 THEN CONCAT('<div class="dropdown">
             <a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown"><i class="dw dw-more"></i>
             </a>
             <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                 <a class="dropdown-item" data-value="',randevular.id,'" name="randevu_duzenle" data-index-number="',COALESCE(randevu_hizmetler.hizmet_id, 0),'" href="#"> <i class="fa fa-edit"></i> Düzenle</a>
-                <a class="dropdown-item randevuonayla" data-value="',randevular.id,'" href="#"> <i class="fa fa-check"></i> Onayla</a>
+                {$onaylaMenuSatiri}
                 <a class="dropdown-item randevuiptalet" data-value="',randevular.id,'" href="#"> <i class="fa fa-times"></i> İptal Et</a>
             </div></div>')
         WHEN randevular.durum = 1 AND randevular.randevuya_geldi IS NOT TRUE THEN

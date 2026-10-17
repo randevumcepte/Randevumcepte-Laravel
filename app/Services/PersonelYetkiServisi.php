@@ -80,6 +80,7 @@ class PersonelYetkiServisi
     // Performans: ayni personel/salon kombinasyonu icin yetki ayarlari
     // ve personelRolu sonucu request boyunca cache'lensin.
     private static $_ayarlarCache = [];
+    private static $_sablonCache = [];
     private static $_personelRoluCache = [];
     public static function yetkiVar($personelId, $salonId, string $key): bool
     {
@@ -118,6 +119,7 @@ class PersonelYetkiServisi
                 ->where('salon_id', $salonId)
                 ->first();
             self::$_ayarlarCache[$roluKey] = ($ayar && is_array($ayar->ayarlar)) ? $ayar->ayarlar : null;
+            self::$_sablonCache[$roluKey] = $ayar ? ($ayar->sablon ?: 'ozel') : null;
         }
         $ozelAyar = self::$_ayarlarCache[$roluKey];
 
@@ -131,15 +133,20 @@ class PersonelYetkiServisi
             }
             // Personel rolu + kayit yok → sade sablon default'u
             $ayarlar = PersonelYetkiSabitleri::sablonAyarlari('personel');
+            $fallbackSablon = 'personel';
         } else {
             // 2. Ozel yetki kaydi var → rolden bagimsiz bu kaydi uygula
             $ayarlar = $ozelAyar;
+            $fallbackSablon = self::$_sablonCache[$roluKey] ?? 'personel';
         }
 
-        // Anahtar tabloda yoksa default sade'den al
+        // Anahtar kayitta yoksa kaydin KENDI sablonunun default'undan tamamla
+        // (ayarlariGetir/Flutter benimYetkilerim ile BIREBIR tutarli olmasi icin —
+        // aksi halde semaya yeni yetki eklendiginde ayni kisi web'de personel-sade
+        // default'a, mobilde kendi sablonuna duser ve iki platform celisirdi).
         if (!array_key_exists($key, $ayarlar)) {
-            $sadeAyarlar = PersonelYetkiSabitleri::sablonAyarlari('personel');
-            return (bool)($sadeAyarlar[$key] ?? false);
+            $sablonDefault = PersonelYetkiSabitleri::sablonAyarlari($fallbackSablon);
+            return (bool)($sablonDefault[$key] ?? false);
         }
 
         return (bool)$ayarlar[$key];

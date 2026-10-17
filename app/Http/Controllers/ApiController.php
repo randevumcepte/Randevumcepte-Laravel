@@ -21439,8 +21439,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $randevu = Randevular::where("id", $request->randevuid)->first();
 
-        // Yetki: randevu.duzenle_iptal
-        if ($randevu && !$this->_yetkiVar($request, $randevu->salon_id, 'randevu.duzenle_iptal')) {
+        // Yetki: randevu.onayla
+        if ($randevu && !$this->_yetkiVar($request, $randevu->salon_id, 'randevu.onayla')) {
             abort(403, 'Bu işlem için yetkiniz yok.');
         }
 
