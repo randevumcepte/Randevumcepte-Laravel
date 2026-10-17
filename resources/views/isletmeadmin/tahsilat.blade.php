@@ -1,13 +1,6 @@
 @if(Auth::guard('satisortakligi')->check()) @php $_layout = 'layout.layout_isletmesatisortagi'; @endphp @else @php $_layout = 'layout.layout_isletmeadmin'; @endphp @endif @extends($_layout)
 @section('content')
 {!!csrf_field()!!}
-@if((int) request('eklendi') > 0)
-   <div class="alert alert-success" style="margin:10px 15px;">
-      <i class="fa fa-check-circle"></i>
-      Randevudaki <strong>{{ (int) request('eklendi') }}</strong> ekstra hizmet adisyona otomatik eklendi.
-      Fiyat/personel bilgisini aşağıdan düzenleyebilirsiniz.
-   </div>
-@endif
 @php
    // ROZET (musteri statusu): gercek iliskiye gore. Musteri odeme biraktiysa "aktif",
    // hic odeme yoksa "pasif", cok + yakin tarihli ise "sadik". Bu adisyonun odemeleri
