@@ -28191,14 +28191,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                         ->update(['randevu_id' => $randevu_id, 'personel_id' => $rh->personel_id]);
                     continue;
                 }
-                // Yeni adisyon_hizmet insert
+                // Yeni adisyon_hizmet insert (sure_dk kolonu yok — sadece hizmet_id/fiyat/personel)
                 \DB::table('adisyon_hizmetler')->insert([
                     'adisyon_id'  => $adisyonId,
                     'randevu_id'  => $randevu_id,
                     'hizmet_id'   => $hid,
                     'personel_id' => $rh->personel_id,
                     'fiyat'       => $rh->fiyat,
-                    'sure_dk'     => $rh->sure_dk,
                     'created_at'  => now(),
                     'updated_at'  => now(),
                 ]);
