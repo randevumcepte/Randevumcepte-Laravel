@@ -1016,6 +1016,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/randevu-not-guncelle','StoreAdminController@randevuNotGuncelle');
 	Route::post('/telafi-randevu-olustur','StoreAdminController@telafiRandevuOlustur');
 	Route::get('/telafi-dropdown-verisi','StoreAdminController@telafiDropdownVerisi');
+	Route::get('/tahsilata-git-randevudan/{randevu_id}','StoreAdminController@tahsilataGitRandevudan');
 	// Google Calendar entegrasyonu
 	Route::get('/google/oauth/baglat',  'GoogleCalendarController@baglat');
 	Route::get('/google/oauth/callback','GoogleCalendarController@callback');

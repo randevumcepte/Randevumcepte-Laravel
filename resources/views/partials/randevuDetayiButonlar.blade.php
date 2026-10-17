@@ -79,8 +79,9 @@
 
       @if($_SERVER['HTTP_HOST'] != 'randevu.randevumcepte.com.tr')
          @if(!empty($adisyonId))
-            {{-- Randevuya bagli (cozumlenebilen) adisyon var -> popup yerine ilgili adisyon (tahsilat) ekranina git --}}
-            <a href="/isletmeyonetim/tahsilat/{{$randevu->randevu->user_id}}/{{$adisyonId}}?sube={{$randevu->randevu->salon_id}}" class="btn btn-primary"><i class="fa fa-money"></i> Tahsilat</a>
+            {{-- Randevuya bagli (cozumlenebilen) adisyon var -> ara endpoint uzerinden tahsilata git.
+                 Ara endpoint, randevudaki (paket disi) ekstra RH kalemlerini adisyona ekler. --}}
+            <a href="/isletmeyonetim/tahsilata-git-randevudan/{{$randevu->randevu_id}}?sube={{$randevu->randevu->salon_id}}" class="btn btn-primary"><i class="fa fa-money"></i> Tahsilat</a>
          @else
             {{-- Cozumlenebilen adisyon yok. hasPaketTahsilat sadece yetim/hayalet seans yuzunden true olabilir;
                  bu durumda paket gecmis-odeme popup'i alakasiz/bos olur. Normal tahsilat akisina dusur. --}}
