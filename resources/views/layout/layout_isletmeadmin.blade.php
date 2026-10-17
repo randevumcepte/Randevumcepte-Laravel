@@ -2644,6 +2644,7 @@
       @endif
       @if($pageindex==41)
       @include('modaldialogs.musteri-duzenle-modal')
+      @include('modaldialogs.telafi-randevu-modal')
       @endif
       @if($pageindex==20)
       @include('modaldialogs.etkinlik-ekle-modal')

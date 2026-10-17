@@ -27,7 +27,12 @@
                   </div>
                   <div class="col-md-3">
                      <label class="small"><i class="fa fa-clock-o"></i> Saat</label>
-                     <input type="time" id="telafi_saat" name="saat" class="form-control form-control-sm" required>
+                     <select id="telafi_saat" name="saat" class="form-control form-control-sm" required>
+                        <option value="">Seçin…</option>
+                        @for ($j = strtotime('07:00'); $j < strtotime('23:15'); $j += 15 * 60)
+                           <option value="{{ date('H:i', $j) }}:00">{{ date('H:i', $j) }}</option>
+                        @endfor
+                     </select>
                   </div>
                   <div class="col-md-3">
                      <label class="small">Süre (dk)</label>
@@ -92,40 +97,114 @@
       });
    }
 
-   function dropdownlariDoldur(){
+   function dropdownlariDoldur(cb){
       var d = (window.randevuModalData || {});
-      doldurDropdown($('#telafi_personel'), d.personeller || [], 'ad', 'id');
-      doldurDropdown($('#telafi_oda'),      d.odalar      || [], 'ad', 'id');
-      doldurDropdown($('#telafi_cihaz'),    d.cihazlar    || [], 'ad', 'id');
+      if(d.personeller && d.personeller.length){
+         doldurDropdown($('#telafi_personel'), d.personeller || [], 'ad', 'id');
+         doldurDropdown($('#telafi_oda'),      d.odalar      || [], 'ad', 'id');
+         doldurDropdown($('#telafi_cihaz'),    d.cihazlar    || [], 'ad', 'id');
+         if(cb) cb();
+         return;
+      }
+      // Musteri kartinda window.randevuModalData yok -> hafif ozel endpoint
+      $.get('/isletmeyonetim/telafi-dropdown-verisi', {sube: sube}).done(function(resp){
+         doldurDropdown($('#telafi_personel'), resp.personeller || [], 'ad', 'id');
+         doldurDropdown($('#telafi_oda'),      resp.odalar      || [], 'ad', 'id');
+         doldurDropdown($('#telafi_cihaz'),    resp.cihazlar    || [], 'ad', 'id');
+         // Cache: ileride yeniden ac'ta tekrar fetch gerekmesin
+         window.randevuModalData = {
+            personeller: resp.personeller || [],
+            odalar: resp.odalar || [],
+            cihazlar: resp.cihazlar || []
+         };
+         if(cb) cb();
+      }).fail(function(){ if(cb) cb(); });
    }
 
    // Datepicker (sayfadaki global air-datepicker/bootstrap datepicker init'inde geriye-yonelik class'ina baglanir)
 
+   function _select2Init(){
+      if(!$.fn.select2) return;
+      ['#telafi_personel', '#telafi_oda', '#telafi_cihaz', '#telafi_saat'].forEach(function(sel){
+         var $el = $(sel);
+         if($el.length){
+            if($el.data('select2')){ try { $el.select2('destroy'); } catch(_){} }
+            $el.select2({
+               placeholder: $el.find('option[value=""]').text() || 'Seçin…',
+               dropdownParent: $modal,
+               width: '100%',
+               allowClear: false
+            });
+         }
+      });
+   }
+
+   // Musteri kartindaki randevu listesinden "Telafi Randevusu" dropdown item'i
+   $(document).on('click', '.telafi-randevu-liste-ac', function(e){
+      e.preventDefault();
+      var randevuId = $(this).data('value');
+      if(!randevuId) return;
+      $.ajax({
+         url: '/isletmeyonetim/randevu-duzenle-json',
+         type: 'GET', dataType: 'json',
+         data: { randevu_id: randevuId, sube: sube }
+      }).done(function(data){
+         if(!data || data.error || !data.hizmetler || !data.hizmetler.length){
+            swal({type:'warning', title:'Uyarı', text: 'Randevu bilgisi alınamadı veya hizmet yok.', showConfirmButton:true});
+            return;
+         }
+         var h = data.hizmetler[0]; // ilk hizmet uzerinden telafi
+         if(h.telafi_kaynak_rh_id || h.telafi_devir_yapildi){
+            swal({type:'info', title:'Bilgi', text: 'Bu randevu için telafi zaten oluşturulmuş veya kendisi bir telafi randevusudur.', showConfirmButton:true});
+            return;
+         }
+         window._telafiOrigPersonelId = parseInt(h.personel_id || 0, 10);
+         $('#telafi_orijinal_rh_id').val(h.randevu_hizmet_id);
+         $('#telafi_sure').val(h.sure_dk || 30);
+         $('#telafi_musteri').text(data.musteri_adi || '—');
+         $('#telafi_hizmet').text(h.hizmet_adi || '—');
+         $('#telafi_tarih').val('{{ date("Y-m-d") }}');
+         $('#telafi_not').val('');
+         dropdownlariDoldur(function(){
+            $('#telafi_personel').val(h.personel_id || '');
+            $('#telafi_oda').val(h.oda_id || '');
+            $('#telafi_cihaz').val(h.cihaz_id || '');
+            $('#telafi_saat').val('');
+            _select2Init();
+            _personelInfoYenile();
+         });
+         $modal.modal('show');
+      }).fail(function(){
+         swal({type:'error', title:'Hata', text: 'Randevu bilgisi alınamadı.', showConfirmButton:true});
+      });
+   });
+
    $(document).on('click', '.telafi-randevu-ac', function(e){
       e.preventDefault();
       var $b = $(this);
+      // data-rh-id'yi window'a sakla ki change handler orijinal personel karsilastirsin
+      window._telafiOrigPersonelId = parseInt($b.data('personel-id') || 0, 10);
       $('#telafi_orijinal_rh_id').val($b.data('rh-id'));
       $('#telafi_sure').val($b.data('sure') || 30);
       $('#telafi_musteri').text($b.data('musteri') || '—');
       $('#telafi_hizmet').text($b.data('hizmet') || '—');
       $('#telafi_tarih').val('{{ date("Y-m-d") }}');
-      $('#telafi_saat').val('');
       $('#telafi_not').val('');
-      dropdownlariDoldur();
-      // Varsayilan: ayni personel/oda/cihaz
-      setTimeout(function(){
+      dropdownlariDoldur(function(){
          $('#telafi_personel').val($b.data('personel-id') || '');
          $('#telafi_oda').val($b.data('oda-id') || '');
          $('#telafi_cihaz').val($b.data('cihaz-id') || '');
+         $('#telafi_saat').val('');
+         _select2Init();
          _personelInfoYenile();
-      }, 50);
+      });
       $modal.modal('show');
    });
 
    $(document).on('change', '#telafi_personel', _personelInfoYenile);
    function _personelInfoYenile(){
       var yeniId = parseInt($('#telafi_personel').val() || 0, 10);
-      var origId = parseInt($('.telafi-randevu-ac').first().data('personel-id') || 0, 10);
+      var origId = parseInt(window._telafiOrigPersonelId || 0, 10);
       var $info = $('#telafi_personel_bilgi');
       if(yeniId && origId && yeniId !== origId){
          $info.html('<i class="fa fa-exchange text-warning"></i> Farklı personel seçildi — prim devredilecek.').removeClass('text-muted').addClass('text-dark');

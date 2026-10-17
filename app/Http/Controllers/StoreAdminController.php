@@ -4384,6 +4384,8 @@ public function carkverilerigetir(Request $request)
         }
         // $rol disaridan dondurulen closure scope degiskeni; her satir icin tekrar sorguya gerek yok
         $hasPaketTahsilat = isset($randevuIdsHasSeans[$rh->randevu_id]) || isset($randevuIdsHasAdisyonHizmet[$rh->randevu_id]);
+        // Sadece APS (paket/seans): 'Seansi Telafi Isaretle' butonu icin
+        $hasAPS = isset($randevuIdsHasSeans[$rh->randevu_id]);
 
         // MERGE icin "paket kaynagi": bu RandevuHizmetler (hizmet_id ozelinde)
         // hangi adisyon_paket / adisyon_hizmet'e bagli? Ayni kaynak + ayni resource
@@ -19193,14 +19195,16 @@ DB::raw('
             </a>
             <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                 <a class="dropdown-item" data-value="',randevular.id,'" name="randevu_duzenle" data-index-number="',COALESCE(randevu_hizmetler.hizmet_id, 0),'" href="#"> <i class="fa fa-edit"></i> Düzenle</a>
+                <a class="dropdown-item telafi-randevu-liste-ac" data-value="',randevular.id,'" href="#"> <i class="fa fa-undo"></i> Telafi Randevusu</a>
                 <a class="dropdown-item randevuiptalet" data-value="',randevular.id,'" href="#"> <i class="fa fa-times"></i> İptal Et</a>
-            </div></div>') 
+            </div></div>')
         WHEN randevular.durum = 1 AND randevular.randevuya_geldi IS TRUE THEN
             CONCAT('<div class="dropdown">
             <a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown"><i class="dw dw-more"></i>
             </a>
             <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                 <a class="dropdown-item" data-value="',randevular.id,'" name="randevu_sonrasi_islem_notu" href="#"> <i class="fa fa-plus"></i> İşlem Not Ekle</a>
+                <a class="dropdown-item telafi-randevu-liste-ac" data-value="',randevular.id,'" href="#"> <i class="fa fa-undo"></i> Telafi Randevusu</a>
             </div></div>')
         WHEN randevular.durum IN (2,3) THEN CONCAT('<div class="dropdown">
             <a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown"><i class="dw dw-more"></i>
@@ -21078,6 +21082,7 @@ DB::raw('
         }
         $hasPaketTahsilat = $seanslar->isNotEmpty()
             || AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->exists();
+        $hasAPS = $seanslar->isNotEmpty();
 
         // Bu randevuya ait adisyonu cozumle (POPUP YERINE ilgili adisyona yonlendirmek icin).
         // Oncelik sirasi:
@@ -21110,7 +21115,7 @@ DB::raw('
         }
 
         return response()->json([
-            'eventbuttons' => view('partials.randevuDetayiButonlar', ['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat, 'adisyonId' => $adisyonId])->render(),
+            'eventbuttons' => view('partials.randevuDetayiButonlar', ['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat, 'hasAPS' => $hasAPS, 'adisyonId' => $adisyonId])->render(),
             'description'  => view('partials.randevuDetayi', ['randevu' => $rh, 'rol' => $rol, 'paketAdi' => $paketAdi])->render(),
             'hoverHtml'    => view('partials.randevuHoverDetayi', ['randevu' => $rh, 'rol' => $rol, 'paketAdi' => $paketAdi])->render(),
         ]);
@@ -28100,6 +28105,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                     'sure_dk' => (int) ($rh->sure_dk ?? 0),
                     'fiyat' => (float) ($rh->fiyat ?? 0),
                     'dusum_miktari' => (int) ($rh->dusum_miktari ?? 1),
+                    'telafi_kaynak_rh_id' => $rh->telafi_kaynak_rh_id,
+                    'telafi_devir_yapildi' => (int) ($rh->telafi_devir_yapildi ?? 0),
                 ];
             })->values();
 
@@ -28122,6 +28129,28 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         } catch (\Exception $e) {
             return response()->json(['error' => 'Sunucu hatası: ' . $e->getMessage()], 500);
         }
+    }
+
+    /** Telafi modal icin personel/oda/cihaz basit listesi. */
+    public function telafiDropdownVerisi(Request $request)
+    {
+        $isletmeid = self::mevcutsube($request);
+        return response()->json([
+            'personeller' => \DB::table('salon_personelleri')
+                ->where('salon_id', $isletmeid)->where('aktif', 1)
+                ->orderBy('personel_adi')
+                ->select('id', 'personel_adi as ad')->get(),
+            'odalar' => \Schema::hasTable('odalar')
+                ? \DB::table('odalar')->where('salon_id', $isletmeid)
+                    ->orderBy('oda_adi')
+                    ->select('id', 'oda_adi as ad')->get()
+                : [],
+            'cihazlar' => \Schema::hasTable('cihazlar')
+                ? \DB::table('cihazlar')->where('salon_id', $isletmeid)
+                    ->orderBy('cihaz_adi')
+                    ->select('id', 'cihaz_adi as ad')->get()
+                : [],
+        ]);
     }
 
     /**

@@ -47,8 +47,10 @@
       @endif
 
       {{-- TELAFI (paket/seans): seansı telafi slotuna (APS.geldi=2) alır; bir sonraki
-           randevuda o telafiye bağlanır (yeni seans düşülmez). --}}
-      @if(($hasPaketTahsilat ?? false))
+           randevuda o telafiye bağlanır (yeni seans düşülmez).
+           SADECE gerçek paket/seans randevularinda (APS kaydı varsa) — tek seferlik
+           hizmet satışı (adisyon_hizmet) olanlarda bu buton anlamsız. --}}
+      @if(($hasAPS ?? false))
          <a name="telafi_isaretle" href="#" class="btn" style="background:#FDA172;border-color:#FDA172;color:#fff" data-index-number="{{$randevu->hizmet_id}}" data-value="{{$randevu->randevu_id}}"><i class="fa fa-exclamation-triangle"></i> Seansı Telafi İşaretle</a>
       @endif
 
