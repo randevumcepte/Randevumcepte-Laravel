@@ -57,6 +57,9 @@
       {{-- TELAFI RANDEVUSU OLUSTUR: ucretsiz duzeltme randevusu olustur, baska personel
            yapacaksa prim de devredilir. Sadece zaten telafi randevusu DEGIL ise + devir
            yapilmamissa gorunur. --}}
+      {{-- TELAFI RANDEVUSU BUTONU: canliya ciksin diye gecici gizlendi.
+            Rozetler (Telafi Randevusu / Telafi Verildi) hala gorunur. --}}
+      @if(false)
       @php
          // $randevu bu partial'da RandevuHizmetler instance ($rh)
          $__telafiButtonGoster = empty($randevu->telafi_kaynak_rh_id)
@@ -73,7 +76,9 @@
             data-hizmet="{{ $randevu->hizmetler->hizmet_adi ?? '' }}">
             <i class="fa fa-undo"></i> Telafi Randevusu
          </a>
-      @elseif($randevu->telafi_kaynak_rh_id)
+      @endif
+      @endif
+      @if($randevu->telafi_kaynak_rh_id)
          <span class="badge" style="background:#f97316;color:#fff;padding:6px 10px;align-self:center;"><i class="fa fa-undo"></i> Telafi Randevusu</span>
       @elseif(!empty($randevu->telafi_devir_yapildi))
          <span class="badge" style="background:#fde3c7;color:#8a4a00;padding:6px 10px;align-self:center;" title="Bu randevu icin ucretsiz telafi randevusu olusturuldu"><i class="fa fa-undo"></i> Telafi Verildi</span>
