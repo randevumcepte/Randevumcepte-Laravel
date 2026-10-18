@@ -239,6 +239,9 @@
             try { if(window._rcDetayCache) window._rcDetayCache = {}; } catch(_){}
             try { $('#modal-view-event').modal('hide'); } catch(_){}
             if($('#calendar').length && typeof takvimyukle === 'function') takvimyukle(true, true);
+            // Randevu listesi tablolari (musteri detay > Randevular + randevular-liste sayfasi)
+            // ikisi de ayni randevufiltre()'yi kullanir — mevcutsa cagir
+            try { if(typeof randevufiltre === 'function' && $('#randevu_liste').length) randevufiltre(); } catch(_){}
          } else {
             swal({type:'warning', title:'Uyarı', text: (res && res.hata) || 'Oluşturulamadı', showConfirmButton:true});
          }

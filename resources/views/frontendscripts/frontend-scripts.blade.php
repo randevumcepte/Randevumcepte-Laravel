@@ -13,6 +13,27 @@
  {{-- Grup dersi slotu: baslik + katilimci isimleri cok-satirli gorunsun --}}
  <style>
      .ders-event .fc-title { white-space: pre-line; line-height: 1.15; }
+     /* Telafi RANDEVUSU (yeni ucretsiz telafi) — belirgin turuncu kalin sol border + diyagonal pattern */
+     .rc-event-telafi-randevu {
+         border-left: 5px solid #f97316 !important;
+         background-image: repeating-linear-gradient(
+             135deg,
+             rgba(249,115,22,0.08) 0,
+             rgba(249,115,22,0.08) 10px,
+             transparent 10px,
+             transparent 20px
+         ) !important;
+     }
+     .rc-event-telafi-randevu .fc-title::before {
+         content: "↩ "; color: #f97316; font-weight: bold;
+     }
+     /* Telafi VERILMIS (orijinal randevu, bu randevu icin telafi olusturulmus) — soluk turuncu border */
+     .rc-event-telafi-verildi {
+         border-right: 5px solid #FDA172 !important;
+     }
+     .rc-event-telafi-verildi .fc-title::after {
+         content: " ↪"; color: #FDA172; font-weight: bold;
+     }
  </style>
  <script type="text/javascript">
      (function () {

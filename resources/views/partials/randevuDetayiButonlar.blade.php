@@ -74,7 +74,9 @@
             <i class="fa fa-undo"></i> Telafi Randevusu
          </a>
       @elseif($randevu->telafi_kaynak_rh_id)
-         <span class="badge" style="background:#FDA172;color:#fff;padding:6px 10px;align-self:center;"><i class="fa fa-undo"></i> Telafi Randevusu</span>
+         <span class="badge" style="background:#f97316;color:#fff;padding:6px 10px;align-self:center;"><i class="fa fa-undo"></i> Telafi Randevusu</span>
+      @elseif(!empty($randevu->telafi_devir_yapildi))
+         <span class="badge" style="background:#fde3c7;color:#8a4a00;padding:6px 10px;align-self:center;" title="Bu randevu icin ucretsiz telafi randevusu olusturuldu"><i class="fa fa-undo"></i> Telafi Verildi</span>
       @endif
 
       @if($_SERVER['HTTP_HOST'] != 'randevu.randevumcepte.com.tr')

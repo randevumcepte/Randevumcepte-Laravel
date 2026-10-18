@@ -4411,6 +4411,12 @@ public function carkverilerigetir(Request $request)
             'hoverHtml' => '',
             'color' => $color,
             '_normalRenk' => $normalRenk,
+            // Telafi bayraklari: CSS tarafinda border/pattern olarak gorunum (geldi/gelmedi
+            // ana rengini bozmaz, ayirt edici bir border/stripe eklenir).
+            'className' => trim(
+                (!empty($rh->telafi_kaynak_rh_id)       ? 'rc-event-telafi-randevu ' : '') .
+                (!empty($rh->telafi_devir_yapildi) === true ? 'rc-event-telafi-verildi' : '')
+            ),
             'randevuId'=>$rh->randevu_id,
             'resourceId' =>  $resourceId,
             'personelId' => $rh->personel_id,
@@ -19160,16 +19166,28 @@ DB::raw('
         $selectColumns[] = 'randevu_hizmetler.yardimci_personel';
     }
 
-    // Status and action buttons HTML - simplified
+    // Status and action buttons HTML - simplified.
+    // Telafi bayraklari da rozet olarak eklensin:
+    //  - telafi_kaynak_rh_id dolu  -> bu bir TELAFI RANDEVUSU (turuncu)
+    //  - telafi_devir_yapildi=1    -> bu randevuya TELAFI VERILMIS (orijinal; soluk turuncu)
     $statusHtml = <<<SQL
-    CASE 
-        WHEN randevular.durum=1 AND randevular.randevuya_geldi=true THEN '<button class="btn btn-success btn-block" style="line-height:5px">Geldi</button>' 
-        WHEN randevular.durum=1 AND randevular.randevuya_geldi=0 THEN '<button class="btn btn-danger btn-block" style="line-height:5px">Gelmedi</button>' 
-        WHEN randevular.durum=1 AND randevular.randevuya_geldi IS null THEN '<button class="btn btn-primary btn-block" style="line-height:5px">Onaylı</button>' 
-        WHEN randevular.durum=2 THEN '<button class="btn btn-dark btn-block" style="line-height:5px">İptal</button>' 
-        WHEN randevular.durum=3 THEN '<button class="btn btn-dark btn-block">Müşteri Tarafından İptal</button>' 
-        WHEN randevular.durum=0 THEN '<button class="btn btn-warning btn-block" style="line-height:5px">Beklemede</button>' 
-    END AS durum
+    CONCAT(
+       CASE
+          WHEN randevular.durum=1 AND randevular.randevuya_geldi=true THEN '<button class="btn btn-success btn-block" style="line-height:5px">Geldi</button>'
+          WHEN randevular.durum=1 AND randevular.randevuya_geldi=0    THEN '<button class="btn btn-danger btn-block" style="line-height:5px">Gelmedi</button>'
+          WHEN randevular.durum=1 AND randevular.randevuya_geldi IS NULL THEN '<button class="btn btn-primary btn-block" style="line-height:5px">Onaylı</button>'
+          WHEN randevular.durum=2 THEN '<button class="btn btn-dark btn-block" style="line-height:5px">İptal</button>'
+          WHEN randevular.durum=3 THEN '<button class="btn btn-dark btn-block">Müşteri Tarafından İptal</button>'
+          WHEN randevular.durum=0 THEN '<button class="btn btn-warning btn-block" style="line-height:5px">Beklemede</button>'
+       END,
+       CASE
+          WHEN randevu_hizmetler.telafi_kaynak_rh_id IS NOT NULL
+             THEN '<span class="badge" style="background:#FDA172;color:#fff;margin-top:4px;display:inline-block;"><i class="fa fa-undo"></i> Telafi Randevusu</span>'
+          WHEN COALESCE(randevu_hizmetler.telafi_devir_yapildi,0)=1
+             THEN '<span class="badge" style="background:#fde3c7;color:#8a4a00;margin-top:4px;display:inline-block;" title="Bu randevu icin ucretsiz telafi randevusu olusturuldu"><i class="fa fa-undo"></i> Telafi Verildi</span>'
+          ELSE ''
+       END
+    ) AS durum
     SQL;
     $selectColumns[] = DB::raw($statusHtml);
 
