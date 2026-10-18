@@ -168,16 +168,18 @@ class TelafiRandevuServisi
             \Log::info('[Telafi primTransfer] AH prim', ['yuzde'=>$yuzde, 'tutar'=>$tutar, 'strateji'=>$primOdenmisMi?'hareket':'adisyon_degistir']);
             if ($tutar <= 0) continue;
 
+            // HER DURUMDA adisyon.personel_id Ayse'ye devredilsin -> hak edis tablosu
+            // Anil'dan dusup Ayse'ye otomatik yansisin (Hizmet Primi kolonu)
+            $ah->personel_id = $yeniPersonelId;
+            $ah->save();
+            $this->sonTransferOzeti['adisyon_degisti']++;
+
+            // EK: Prim ODENMIS ise Anil'a -tutar hareket (haksiz yere aldigi primi gelecek
+            // hak edisten dussun diye bakiye negatife gitsin). Ayse icin ek hareket yok —
+            // adisyon degisikligi ile hak edisi zaten artmistir.
             if ($primOdenmisMi) {
-                // Fatma'ya prim ODENMIS -> adisyon'a dokunma, hareketlerle dengele
-                $this->primHareket($origPersonelId, null, $salonId, $tarih, -$tutar, $aciklamaBase.' (devir: çıkış - geçmiş prim ödendi, bakiye -)', $kullaniciId);
-                $this->primHareket($yeniPersonelId, null, $salonId, $tarih, +$tutar, $aciklamaBase.' (devir: giriş)', $kullaniciId);
-                $this->sonTransferOzeti['hareket'] += 2;
-            } else {
-                // Prim odenmemis -> adisyon degistir; hareket gerekmez (hak edis otomatik dengelenir)
-                $ah->personel_id = $yeniPersonelId;
-                $ah->save();
-                $this->sonTransferOzeti['adisyon_degisti']++;
+                $this->primHareket($origPersonelId, null, $salonId, $tarih, -$tutar, $aciklamaBase.' (telafi: geçmiş prim ödemesi düzeltme)', $kullaniciId);
+                $this->sonTransferOzeti['hareket'] += 1;
             }
         }
 
@@ -215,14 +217,14 @@ class TelafiRandevuServisi
             ]);
             if ($tutar <= 0) continue;
 
+            // HER DURUMDA APS.personel_id Ayse'ye
+            $aps->personel_id = $yeniPersonelId;
+            $aps->save();
+            $this->sonTransferOzeti['adisyon_degisti']++;
+
             if ($primOdenmisMi) {
-                $this->primHareket($origPersonelId, null, $salonId, $tarih, -$tutar, $aciklamaBase.' (paket devir: çıkış - geçmiş prim ödendi)', $kullaniciId);
-                $this->primHareket($yeniPersonelId, null, $salonId, $tarih, +$tutar, $aciklamaBase.' (paket devir: giriş)', $kullaniciId);
-                $this->sonTransferOzeti['hareket'] += 2;
-            } else {
-                $aps->personel_id = $yeniPersonelId;
-                $aps->save();
-                $this->sonTransferOzeti['adisyon_degisti']++;
+                $this->primHareket($origPersonelId, null, $salonId, $tarih, -$tutar, $aciklamaBase.' (paket telafi: geçmiş prim ödemesi düzeltme)', $kullaniciId);
+                $this->sonTransferOzeti['hareket'] += 1;
             }
         }
 
