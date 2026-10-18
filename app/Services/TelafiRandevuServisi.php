@@ -105,6 +105,23 @@ class TelafiRandevuServisi
         $tarih   = date('Y-m-d');
         $aciklamaBase = 'Telafi randevusu #'.$yeniRandevu->id.' – orijinal randevu #'.$origRH->randevu_id;
 
+        // Fatma'ya bu salonda HERHANGI bir prim ODEMESI (personel_maas_odemeleri tip=prim) yapildi mi?
+        // Yapildiysa -> adisyon_hizmet.personel_id DEGISTIRME (gecmis rapor dogru kalsin),
+        //              yerine Fatma -tutar / Ayse +tutar prim_hareketleri yaz.
+        // Yapilmadiysa -> adisyon.personel_id = Ayse degistir (hak edis otomatik dengelenir),
+        //                hareket yazma.
+        $odenenPrim = (float) DB::table('personel_maas_odemeleri')
+            ->where('personel_id', $origPersonelId)
+            ->where('salon_id', $salonId)
+            ->where('odeme_tipi', 'prim')
+            ->sum('tutar');
+        $primOdenmisMi = $odenenPrim > 0;
+        \Log::info('[Telafi primTransfer] odenen prim toplam', [
+            'orig_personel' => $origPersonelId,
+            'toplam_prim_odemesi' => $odenenPrim,
+            'prim_odenmis_mi' => $primOdenmisMi,
+        ]);
+
         $islenenKayit = 0;
 
         // ============ YOL 1: tek seferlik satis (adisyon_hizmetler) ============
@@ -118,23 +135,32 @@ class TelafiRandevuServisi
                 ->where('adisyon_hizmet_id', $ah->id)
                 ->sum('tutar');
             $islenenKayit++;
-            \Log::info('[Telafi primTransfer] AH', ['ah_id'=>$ah->id, 'odenmis'=>$odenmisTutar, 'personel'=>$ah->personel_id]);
+            \Log::info('[Telafi primTransfer] AH', ['ah_id'=>$ah->id, 'musteri_odemis'=>$odenmisTutar, 'personel'=>$ah->personel_id]);
 
             if ($odenmisTutar <= 0) {
+                // Henuz prim hak edilmemis (musteri odemesi yok) -> adisyon personel degistir
                 $ah->personel_id = $yeniPersonelId;
                 $ah->save();
                 continue;
             }
+
             $yuzde = $this->primYuzdesi($origPersonelId, (int) $ah->hizmet_id);
             $tutar = round($odenmisTutar * $yuzde / 100, 2);
-            \Log::info('[Telafi primTransfer] AH prim hesap', ['yuzde'=>$yuzde, 'tutar'=>$tutar]);
+            \Log::info('[Telafi primTransfer] AH prim', ['yuzde'=>$yuzde, 'tutar'=>$tutar, 'strateji'=>$primOdenmisMi?'hareket':'adisyon_degistir']);
             if ($tutar <= 0) continue;
-            $this->primHareket($origPersonelId, $yeniPersonelId, $salonId, $tarih, -$tutar, $aciklamaBase.' (devir: çıkış)', $kullaniciId);
-            $this->primHareket($yeniPersonelId, null, $salonId, $tarih, +$tutar, $aciklamaBase.' (devir: giriş)', $kullaniciId);
+
+            if ($primOdenmisMi) {
+                // Fatma'ya prim ODENMIS -> adisyon'a dokunma, hareketlerle dengele
+                $this->primHareket($origPersonelId, null, $salonId, $tarih, -$tutar, $aciklamaBase.' (devir: çıkış - geçmiş prim ödendi, bakiye -)', $kullaniciId);
+                $this->primHareket($yeniPersonelId, null, $salonId, $tarih, +$tutar, $aciklamaBase.' (devir: giriş)', $kullaniciId);
+            } else {
+                // Prim odenmemis -> adisyon degistir; hareket gerekmez (hak edis otomatik dengelenir)
+                $ah->personel_id = $yeniPersonelId;
+                $ah->save();
+            }
         }
 
         // ============ YOL 2: paket satisi (APS -> adisyon_paket) ============
-        // Randevu paket seanslariyla iliskiliyse paket satisi uzerinden prim hesaplaniyor olabilir.
         $apsList = \App\AdisyonPaketSeanslar::where('randevu_id', $origRH->randevu_id)
             ->where('hizmet_id', $origRH->hizmet_id)
             ->whereNotNull('adisyon_paket_id')
@@ -146,26 +172,34 @@ class TelafiRandevuServisi
             $ap = \App\AdisyonPaketler::find($aps->adisyon_paket_id);
             if (!$ap) continue;
 
-            // Paketin bu hizmete dusen pay orani: paket icinde kac seans/kalem var — basit yaklasim:
-            // tahsilat_paketler toplamini seans_sayisi (toplam seans) ile bol -> seans basi odenmis.
             $toplamOdenmisPaket = (float) DB::table('tahsilat_paketler')
                 ->where('adisyon_paket_id', $ap->id)
                 ->sum('tutar');
-            if ($toplamOdenmisPaket <= 0) continue; // tahsilat yok, prim de yok
+            if ($toplamOdenmisPaket <= 0) {
+                // Paket tahsilat yok -> APS kaydinin personel'ini degistir
+                $aps->personel_id = $yeniPersonelId;
+                $aps->save();
+                continue;
+            }
             $toplamSeans = (int) ($ap->seans_sayisi ?: 0);
             if ($toplamSeans <= 0) continue;
             $seansBasiOdeme = $toplamOdenmisPaket / max($toplamSeans, 1);
-
             $yuzde = $this->primYuzdesi($origPersonelId, (int) $origRH->hizmet_id);
             $tutar = round($seansBasiOdeme * $yuzde / 100, 2);
             \Log::info('[Telafi primTransfer] APS prim', [
-                'ap_id'=>$ap->id, 'toplam_odenmis'=>$toplamOdenmisPaket,
+                'ap_id'=>$ap->id, 'paket_odenmis'=>$toplamOdenmisPaket,
                 'seans_sayisi'=>$toplamSeans, 'seans_basi'=>$seansBasiOdeme,
-                'yuzde'=>$yuzde, 'tutar'=>$tutar
+                'yuzde'=>$yuzde, 'tutar'=>$tutar, 'strateji'=>$primOdenmisMi?'hareket':'aps_degistir'
             ]);
             if ($tutar <= 0) continue;
-            $this->primHareket($origPersonelId, null, $salonId, $tarih, -$tutar, $aciklamaBase.' (paket devir: çıkış)', $kullaniciId);
-            $this->primHareket($yeniPersonelId, null, $salonId, $tarih, +$tutar, $aciklamaBase.' (paket devir: giriş)', $kullaniciId);
+
+            if ($primOdenmisMi) {
+                $this->primHareket($origPersonelId, null, $salonId, $tarih, -$tutar, $aciklamaBase.' (paket devir: çıkış - geçmiş prim ödendi)', $kullaniciId);
+                $this->primHareket($yeniPersonelId, null, $salonId, $tarih, +$tutar, $aciklamaBase.' (paket devir: giriş)', $kullaniciId);
+            } else {
+                $aps->personel_id = $yeniPersonelId;
+                $aps->save();
+            }
         }
 
         if ($islenenKayit === 0) {
