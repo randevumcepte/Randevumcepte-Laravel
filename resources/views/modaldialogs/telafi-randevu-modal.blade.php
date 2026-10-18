@@ -214,6 +214,14 @@
    }
 
    $(document).on('click', '#telafi-olustur-btn', function(){
+      // Select2 kullaniliyor olabilir — val() dogru olsa da emin ol: HH:MM garanti et
+      var _saat = $('#telafi_saat').val() || '';
+      var _tarih = $('#telafi_tarih').val() || '';
+      var _personel = $('#telafi_personel').val() || '';
+      if(!_saat){ if(typeof swal!=='undefined') swal({type:'warning',title:'Uyarı',text:'Saat seçin.'}); return; }
+      if(!_tarih){ if(typeof swal!=='undefined') swal({type:'warning',title:'Uyarı',text:'Tarih seçin.'}); return; }
+      if(!_personel){ if(typeof swal!=='undefined') swal({type:'warning',title:'Uyarı',text:'Personel seçin.'}); return; }
+      console.log('[Telafi submit]', {tarih:_tarih, saat:_saat, personel:_personel, sure:$('#telafi_sure').val()});
       var $btn = $(this).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Oluşturuluyor...');
       $.ajax({
          type: 'POST',
@@ -222,10 +230,10 @@
          data: {
             _token: $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').first().val(),
             orijinal_rh_id: $('#telafi_orijinal_rh_id').val(),
-            tarih: $('#telafi_tarih').val(),
-            saat:  $('#telafi_saat').val(),
+            tarih: _tarih,
+            saat:  _saat,
             sure_dk: $('#telafi_sure').val(),
-            personel_id: $('#telafi_personel').val(),
+            personel_id: _personel,
             oda_id:  $('#telafi_oda').val(),
             cihaz_id:$('#telafi_cihaz').val(),
             not:     $('#telafi_not').val()

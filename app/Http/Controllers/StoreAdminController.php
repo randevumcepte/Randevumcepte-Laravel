@@ -28271,12 +28271,30 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     public function telafiRandevuOlustur(Request $request)
     {
         if($r = self::yetkiYoksa403($request, 'randevu.olustur')) return $r;
+        // Giris log + validation
+        \Log::info('[Telafi] input', [
+            'orijinal_rh_id' => $request->orijinal_rh_id,
+            'tarih' => $request->tarih,
+            'saat_raw' => $request->saat,
+            'personel_id' => $request->personel_id,
+            'sure_dk' => $request->sure_dk,
+        ]);
+        $saatRaw = trim((string) $request->saat);
+        // Beklenen format "HH:MM" veya "HH:MM:SS"; sadece ilk 5 karakter alinir ama bos ise hata
+        if ($saatRaw === '' || !preg_match('/^\d{2}:\d{2}/', $saatRaw)) {
+            return response()->json(['hata' => 'Saat seçilmedi veya geçersiz formatta.'], 400);
+        }
+        $saat = substr($saatRaw, 0, 5);
+        $tarihRaw = trim((string) $request->tarih);
+        if ($tarihRaw === '') {
+            return response()->json(['hata' => 'Tarih seçilmedi.'], 400);
+        }
         try {
             $svc = app(\App\Services\TelafiRandevuServisi::class);
             $yeniRH = $svc->olustur(
                 (int) $request->orijinal_rh_id,
-                (string) $request->tarih,
-                substr((string) $request->saat, 0, 5),
+                $tarihRaw,
+                $saat,
                 (int) $request->personel_id,
                 $request->oda_id   ? (int) $request->oda_id   : null,
                 $request->cihaz_id ? (int) $request->cihaz_id : null,
@@ -28284,6 +28302,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 (string) $request->not,
                 (int) \Auth::guard('isletmeyonetim')->user()->id
             );
+            \Log::info('[Telafi] yazildi', ['rh_id' => $yeniRH->id, 'saat' => $yeniRH->saat, 'tarih' => $yeniRH->randevu->tarih ?? null]);
             return response()->json([
                 'ok' => true,
                 'randevu_id'       => $yeniRH->randevu_id,
