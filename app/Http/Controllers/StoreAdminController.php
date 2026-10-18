@@ -28325,10 +28325,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 (int) \Auth::guard('isletmeyonetim')->user()->id
             );
             \Log::info('[Telafi] yazildi', ['rh_id' => $yeniRH->id, 'saat' => $yeniRH->saat, 'tarih' => $yeniRH->randevu->tarih ?? null]);
+            $primOzet = $svc->sonTransferOzeti ?? null;
             return response()->json([
                 'ok' => true,
                 'randevu_id'       => $yeniRH->randevu_id,
                 'randevu_hizmet_id'=> $yeniRH->id,
+                'prim' => $primOzet,
             ]);
         } catch (\Throwable $e) {
             \Log::warning('[Telafi] olustur hata: '.$e->getMessage());

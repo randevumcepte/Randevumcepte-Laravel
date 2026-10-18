@@ -86,8 +86,12 @@ class TelafiRandevuServisi
         }
     }
 
+    /** Son prim transfer islem ozeti (olustur() dondurur). */
+    public $sonTransferOzeti = ['ah'=>0, 'aps'=>0, 'hareket'=>0, 'adisyon_degisti'=>0, 'uyari'=>null];
+
     protected function primTransfer(RandevuHizmetler $origRH, Randevular $yeniRandevu, $yeniPersonelId, $kullaniciId)
     {
+        $this->sonTransferOzeti = ['ah'=>0, 'aps'=>0, 'hareket'=>0, 'adisyon_degisti'=>0, 'uyari'=>null];
         $origPersonelId = (int) $origRH->personel_id;
         \Log::info('[Telafi primTransfer] baslangic', [
             'origRH_id' => $origRH->id,
@@ -125,10 +129,25 @@ class TelafiRandevuServisi
         $islenenKayit = 0;
 
         // ============ YOL 1: tek seferlik satis (adisyon_hizmetler) ============
+        // Oncelik: randevu_id eslesmesi. Yoksa fallback: ayni musteri+salon+hizmet, randevu_id NULL
+        // olan (adisyona manuel eklenmis ama randevuya baglanmamis) satirlar.
+        $musteriId = (int) ($origRH->randevu->user_id ?? 0);
         $ahListesi = AdisyonHizmetler::where('randevu_id', $origRH->randevu_id)
             ->where('hizmet_id', $origRH->hizmet_id)
             ->get();
+        if ($ahListesi->isEmpty() && $musteriId > 0) {
+            // Fallback: tahsilat edilmis + personel_id = orig + hizmet_id = hedef
+            $ahListesi = AdisyonHizmetler::whereHas('adisyon', function($q) use ($musteriId, $salonId){
+                    $q->where('user_id', $musteriId)->where('salon_id', $salonId);
+                })
+                ->where('hizmet_id', $origRH->hizmet_id)
+                ->where('personel_id', $origPersonelId)
+                ->whereNull('randevu_id')
+                ->get();
+            \Log::info('[Telafi primTransfer] AH fallback (randevu_id yok) kullanildi', ['count'=>$ahListesi->count()]);
+        }
         \Log::info('[Telafi primTransfer] adisyon_hizmetler bulunan', ['count' => $ahListesi->count()]);
+        $this->sonTransferOzeti['ah'] = $ahListesi->count();
 
         foreach ($ahListesi as $ah) {
             $odenmisTutar = (float) DB::table('tahsilat_hizmetler')
@@ -153,10 +172,12 @@ class TelafiRandevuServisi
                 // Fatma'ya prim ODENMIS -> adisyon'a dokunma, hareketlerle dengele
                 $this->primHareket($origPersonelId, null, $salonId, $tarih, -$tutar, $aciklamaBase.' (devir: çıkış - geçmiş prim ödendi, bakiye -)', $kullaniciId);
                 $this->primHareket($yeniPersonelId, null, $salonId, $tarih, +$tutar, $aciklamaBase.' (devir: giriş)', $kullaniciId);
+                $this->sonTransferOzeti['hareket'] += 2;
             } else {
                 // Prim odenmemis -> adisyon degistir; hareket gerekmez (hak edis otomatik dengelenir)
                 $ah->personel_id = $yeniPersonelId;
                 $ah->save();
+                $this->sonTransferOzeti['adisyon_degisti']++;
             }
         }
 
@@ -166,6 +187,7 @@ class TelafiRandevuServisi
             ->whereNotNull('adisyon_paket_id')
             ->get();
         \Log::info('[Telafi primTransfer] APS bulunan', ['count' => $apsList->count()]);
+        $this->sonTransferOzeti['aps'] = $apsList->count();
 
         foreach ($apsList as $aps) {
             $islenenKayit++;
@@ -196,13 +218,16 @@ class TelafiRandevuServisi
             if ($primOdenmisMi) {
                 $this->primHareket($origPersonelId, null, $salonId, $tarih, -$tutar, $aciklamaBase.' (paket devir: çıkış - geçmiş prim ödendi)', $kullaniciId);
                 $this->primHareket($yeniPersonelId, null, $salonId, $tarih, +$tutar, $aciklamaBase.' (paket devir: giriş)', $kullaniciId);
+                $this->sonTransferOzeti['hareket'] += 2;
             } else {
                 $aps->personel_id = $yeniPersonelId;
                 $aps->save();
+                $this->sonTransferOzeti['adisyon_degisti']++;
             }
         }
 
         if ($islenenKayit === 0) {
+            $this->sonTransferOzeti['uyari'] = 'Bu randevuya bağlı adisyon kaydı bulunamadı (ne satış kalemi ne paket seansı). Prim devri yapılamadı.';
             \Log::warning('[Telafi primTransfer] bu randevu+hizmet icin ne AH ne APS kaydi var — prim devri yapilamadi', [
                 'rh_id' => $origRH->id, 'randevu_id' => $origRH->randevu_id, 'hizmet_id' => $origRH->hizmet_id
             ]);

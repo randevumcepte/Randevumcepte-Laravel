@@ -241,7 +241,18 @@
       }).done(function(res){
          if(res && res.ok){
             if(typeof swal !== 'undefined'){
-               swal({type:'success', title:'Telafi randevusu oluşturuldu', timer:1800, showConfirmButton:false});
+               var detay = 'Telafi randevusu oluşturuldu.';
+               var p = res.prim || null;
+               var uyariVar = false;
+               if(p){
+                  var parts = [];
+                  if(p.hareket > 0)         parts.push(p.hareket+' prim hareketi yazıldı (devir)');
+                  if(p.adisyon_degisti > 0) parts.push(p.adisyon_degisti+' satış kalemi yeni personele devredildi');
+                  if(p.uyari)               { parts.push('⚠ '+p.uyari); uyariVar = true; }
+                  if(!parts.length && p.ah===0 && p.aps===0) { parts.push('⚠ Orijinal randevu adisyona bağlı değil — prim devri yapılamadı.'); uyariVar = true; }
+                  if(parts.length) detay += '<br><br><small>'+parts.join('<br>')+'</small>';
+               }
+               swal({type: uyariVar ? 'warning' : 'success', title:'Oluşturuldu', html:detay, timer: uyariVar ? 6000 : 2500, showConfirmButton: uyariVar});
             }
             $modal.modal('hide');
             try { if(window._rcDetayCache) window._rcDetayCache = {}; } catch(_){}
