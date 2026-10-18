@@ -28199,12 +28199,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
         // Yeni adisyon ac (bugun, acik) ve ekstralari oraya ekle
         $yeniAdisyonId = \DB::table('adisyonlar')->insertGetId([
-            'user_id'    => $userId,
-            'salon_id'   => $salonId,
-            'tarih'      => date('Y-m-d'),
-            'durum'      => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'user_id'     => $userId,
+            'salon_id'    => $salonId,
+            'olusturan_id'=> \Auth::guard('isletmeyonetim')->user()->id ?? null,
+            'tarih'       => date('Y-m-d'),
+            'created_at'  => now(),
+            'updated_at'  => now(),
         ]);
 
         $eklenen = 0;
