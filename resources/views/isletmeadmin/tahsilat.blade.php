@@ -156,12 +156,52 @@
                         <div class="col-2" style="padding-left: 0;">
                            <button type="button" data-toggle="modal" id="adisyon_paket_ekle_button" data-target="#paket_satisi_modal" data-value='' class="btn  btn-primary  btn-block adisyon_ekle_buttonlar" style="font-size:12px">Paket Ekle</button>
                         </div>
-                        <div class="col-md-6 text-right" id="tahsilats_type">
+                        @php
+                           $_adisyonTarih = \App\Adisyonlar::where('id',$adisyon_id)->value('tarih');
+                           $_adisyonTarih = $_adisyonTarih ? date('Y-m-d', strtotime($_adisyonTarih)) : date('Y-m-d');
+                        @endphp
+                        <div class="col-md-3" style="padding-left:0;">
+                           <div style="display:flex;align-items:center;gap:6px;">
+                              <label for="adisyon_satis_tarihi" style="margin:0;font-size:12px;color:#555;white-space:nowrap;"><i class="fa fa-calendar"></i> Satış Tarihi:</label>
+                              <input type="text" id="adisyon_satis_tarihi" class="form-control form-control-sm geriye-yonelik" autocomplete="off" value="{{ $_adisyonTarih }}" style="font-size:12px;max-width:130px;">
+                              <small id="adisyon_satis_tarihi_durum" class="text-muted" style="font-size:11px;"></small>
+                           </div>
+                        </div>
+                        <div class="col-md-3 text-right" id="tahsilats_type">
                            <button  type="button" class="btn btn-success" id='senetle_veya_taksitle_tahsil_et'> Alacaklar</button>
                            @yetki('satis.senet_olustur')
                            <button type="button" id='yeni_taksitli_tahsilat_olusur' href="#"  data-value='' class="btn  btn-primary" style="font-weight: bold;">Taksit Yap</button>
                            @endyetki
                         </div>
+                        <script>
+                           (function(){
+                              var $inp = $('#adisyon_satis_tarihi');
+                              if(!$inp.length) return;
+                              var orig = $inp.val();
+                              function kaydet(){
+                                 var yeni = $inp.val();
+                                 if(!yeni || yeni === orig) return;
+                                 var $d = $('#adisyon_satis_tarihi_durum').text('Kaydediliyor…');
+                                 $.ajax({
+                                    type:'POST',
+                                    url:'/isletmeyonetim/adisyon-tarih-guncelle',
+                                    dataType:'json',
+                                    data:{
+                                       _token: $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').first().val(),
+                                       adisyon_id: {{ (int)$adisyon_id }},
+                                       tarih: yeni
+                                    }
+                                 }).done(function(r){
+                                    if(r && r.ok){ orig = yeni; $d.text('✓ Kaydedildi').css('color','#1fbf6f'); setTimeout(function(){ $d.text(''); }, 1500); }
+                                    else { $d.text('✕ ' + (r && r.hata ? r.hata : 'Hata')).css('color','#c00'); $inp.val(orig); }
+                                 }).fail(function(xhr){
+                                    var m='Hata'; try{ var j=JSON.parse(xhr.responseText); if(j.hata) m=j.hata; }catch(_){}
+                                    $d.text('✕ '+m).css('color','#c00'); $inp.val(orig);
+                                 });
+                              }
+                              $inp.on('change blur', kaydet);
+                           })();
+                        </script>
                      </div>
                      <div id='tum_tahsilatlar'>
                         @php
