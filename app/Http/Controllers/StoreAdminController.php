@@ -28132,10 +28132,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
 
     /**
-     * Randevudan tahsilata git. Randevuya bagli ama adisyonda OLMAYAN ekstra RH kalemlerini
-     * (fiyat>0, telafi degil, APS yok) ayni adisyona hizmet olarak insert eder, sonra tahsilat
-     * ekranina redirect eder. Idempotent: ayni (adisyon_id, randevu_id, hizmet_id) icin tek
-     * satir birakir.
+     * Randevudaki paket DISI (ekstra) hizmetleri icin YENI adisyon ac + tahsilat ekranina git.
+     * Paket adisyonuna HIC dokunulmaz. Ekstra kalemi tespit kurallari:
+     *   - RH.fiyat > 0, telafi degil, hizmet_id > 0
+     *   - APS'de kayitli degil (paketten gelmemis)
+     *   - Mevcut paket adisyonundaki paket_hizmetler icerigine ait degil
+     * Ekstra yoksa paket adisyonuna yonlendirir.
      */
     public function tahsilataGitRandevudan(Request $request, $randevu_id)
     {
@@ -28145,74 +28147,81 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salonId = (int) $randevu->salon_id;
         $userId  = (int) $randevu->user_id;
 
-        // 1) Bu randevuya cozumlenebilen adisyon_id'yi bul.
-        //    Oncelik: dogrudan randevu_id baglantisi (en guvenilir).
-        $adisyonId = \DB::table('adisyon_hizmetler')->where('randevu_id', $randevu_id)->value('adisyon_id');
-        if (!$adisyonId) {
-            // APS uzerinden paket -> adisyon
-            $adisyonPaketId = \DB::table('adisyon_paket_seanslar')
-                ->where('randevu_id', $randevu_id)->whereNotNull('adisyon_paket_id')
-                ->value('adisyon_paket_id');
-            if ($adisyonPaketId) {
-                $adisyonId = \DB::table('adisyon_paketler')->where('id', $adisyonPaketId)->value('adisyon_id');
-            }
+        // Paket adisyonunu bul (ekstra icerik filtresi + ekstra yoksa fallback icin)
+        $paketAdisyonId = null;
+        $adisyonPaketId = \DB::table('adisyon_paket_seanslar')
+            ->where('randevu_id', $randevu_id)->whereNotNull('adisyon_paket_id')
+            ->value('adisyon_paket_id');
+        if ($adisyonPaketId) {
+            $paketAdisyonId = \DB::table('adisyon_paketler')->where('id', $adisyonPaketId)->value('adisyon_id');
+        }
+        if (!$paketAdisyonId) {
+            // Dogrudan baglanti (eski kayitlar)
+            $paketAdisyonId = \DB::table('adisyon_hizmetler')->where('randevu_id', $randevu_id)->value('adisyon_id');
         }
 
-        // 2) Bu randevuya ait RH kalemlerini bul (telafi degil + hizmet_id>0 + fiyat>0)
         $rhListesi = RandevuHizmetler::where('randevu_id', $randevu_id)
             ->whereNull('telafi_kaynak_rh_id')
             ->where('hizmet_id', '>', 0)
             ->where('fiyat', '>', 0)
             ->get();
 
-        $eklenen = 0;
-        if ($adisyonId && $rhListesi->count()) {
-            // Zaten adisyonda olan hizmet_id'ler (bu randevuya bagli olmayanlar dahil
-            // ayni hizmet varsa tekrar eklemeyelim)
-            $mevcutHizmetIds = \DB::table('adisyon_hizmetler')
-                ->where('adisyon_id', $adisyonId)
-                ->pluck('hizmet_id')->map(function($v){ return (int)$v; })->toArray();
+        $apsHizmetIds = \DB::table('adisyon_paket_seanslar')
+            ->where('randevu_id', $randevu_id)
+            ->pluck('hizmet_id')->map(function($v){ return (int)$v; })->toArray();
 
-            // APS ile paketten gelen (bu randevu kalemleri paket icinde) hizmet_id'leri:
-            // bunlari ayrica adisyon_hizmet olarak EKLEMEYIZ (zaten paket icinde satis edilmis).
-            $apsHizmetIds = \DB::table('adisyon_paket_seanslar')
-                ->where('randevu_id', $randevu_id)
-                ->pluck('hizmet_id')->map(function($v){ return (int)$v; })->toArray();
-
-            foreach ($rhListesi as $rh) {
-                $hid = (int)$rh->hizmet_id;
-                if (in_array($hid, $apsHizmetIds, true)) continue; // paket icinde zaten var
-                if (in_array($hid, $mevcutHizmetIds, true)) {
-                    // Ayni hizmet adisyonda var — bu randevuya baglanmamissa randevu_id'yi yaz
-                    \DB::table('adisyon_hizmetler')
-                        ->where('adisyon_id', $adisyonId)
-                        ->where('hizmet_id', $hid)
-                        ->whereNull('randevu_id')
-                        ->update(['randevu_id' => $randevu_id, 'personel_id' => $rh->personel_id]);
-                    continue;
-                }
-                // Yeni adisyon_hizmet insert (sure_dk kolonu yok — sadece hizmet_id/fiyat/personel)
-                \DB::table('adisyon_hizmetler')->insert([
-                    'adisyon_id'  => $adisyonId,
-                    'randevu_id'  => $randevu_id,
-                    'hizmet_id'   => $hid,
-                    'personel_id' => $rh->personel_id,
-                    'fiyat'       => $rh->fiyat,
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
-                ]);
-                $eklenen++;
-                $mevcutHizmetIds[] = $hid;
+        $paketIciHizmetIds = [];
+        if ($paketAdisyonId) {
+            $adisyonPaketIds = \DB::table('adisyon_paketler')
+                ->where('adisyon_id', $paketAdisyonId)
+                ->pluck('paket_id')->filter()->all();
+            if (!empty($adisyonPaketIds)) {
+                $paketIciHizmetIds = \DB::table('paket_hizmetler')
+                    ->whereIn('paket_id', $adisyonPaketIds)
+                    ->pluck('hizmet_id')->map(function($v){ return (int)$v; })->toArray();
             }
         }
 
-        if ($adisyonId) {
-            $qs = 'sube='.$salonId.($eklenen > 0 ? '&eklendi='.$eklenen : '');
-            return redirect("/isletmeyonetim/tahsilat/{$userId}/{$adisyonId}?{$qs}");
+        $ekstralar = [];
+        foreach ($rhListesi as $rh) {
+            $hid = (int)$rh->hizmet_id;
+            if (in_array($hid, $apsHizmetIds, true))      continue;
+            if (in_array($hid, $paketIciHizmetIds, true)) continue;
+            $ekstralar[] = $rh;
         }
 
-        // Adisyon yoksa (saf randevu) — mevcut tahsil_et akisi kullansin
-        return redirect("/isletmeyonetim/randevular?sube={$salonId}&tahsilat_hata=adisyon_yok");
+        if (empty($ekstralar)) {
+            if ($paketAdisyonId) {
+                return redirect("/isletmeyonetim/tahsilat/{$userId}/{$paketAdisyonId}?sube={$salonId}");
+            }
+            return redirect("/isletmeyonetim/randevular?sube={$salonId}&tahsilat_hata=ekstra_yok");
+        }
+
+        // Yeni adisyon ac (bugun, acik) ve ekstralari oraya ekle
+        $yeniAdisyonId = \DB::table('adisyonlar')->insertGetId([
+            'user_id'    => $userId,
+            'salon_id'   => $salonId,
+            'tarih'      => date('Y-m-d'),
+            'durum'      => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $eklenen = 0;
+        foreach ($ekstralar as $rh) {
+            \DB::table('adisyon_hizmetler')->insert([
+                'adisyon_id'  => $yeniAdisyonId,
+                'randevu_id'  => $randevu_id,
+                'hizmet_id'   => (int)$rh->hizmet_id,
+                'personel_id' => $rh->personel_id,
+                'fiyat'       => $rh->fiyat,
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+            $eklenen++;
+        }
+
+        return redirect("/isletmeyonetim/tahsilat/{$userId}/{$yeniAdisyonId}?sube={$salonId}&eklendi={$eklenen}&yeni_adisyon=1");
     }
 
     /** Telafi modal icin personel/oda/cihaz basit listesi. */
