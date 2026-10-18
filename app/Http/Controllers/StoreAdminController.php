@@ -7586,6 +7586,19 @@ private function ayAdiCevir($ingilizceAy)
                     // Eski hizmet satirlarini HER ZAMAN sil (eskiden seansVar varsa
                     // silmiyordu; bu, eski satirlarin yeni durumla atil kalmasina ve
                     // listede 'bos hizmetler' gozukmesine yol aciyordu).
+                    // ONCE: telafi bayraklarini hizmet_id bazinda yakalayalim ki yeniden
+                    // insert edilen RH'lere bu bayraklar yeniden uygulanabilsin (aksi halde
+                    // telafi randevusunun kaynak baglantisi ve "telafi verildi" durumu kaybolur).
+                    $_eskiTelafiMap = [];
+                    foreach (RandevuHizmetler::where('randevu_id', $randevu->id)->get() as $__eskiRh) {
+                        $__hid = (int) $__eskiRh->hizmet_id;
+                        if (!isset($_eskiTelafiMap[$__hid])) {
+                            $_eskiTelafiMap[$__hid] = [
+                                'telafi_kaynak_rh_id'    => $__eskiRh->telafi_kaynak_rh_id,
+                                'telafi_devir_yapildi'   => $__eskiRh->telafi_devir_yapildi,
+                            ];
+                        }
+                    }
                     RandevuHizmetler::where('randevu_id', $randevu->id)->delete();
 
                     // EKSIK SEANS KAYDI INSERT'I icin: bu randevudaki mevcut APS kayitlarini
@@ -7665,6 +7678,13 @@ private function ayAdiCevir($ingilizceAy)
                             if (!isset($request->{"birlestir{$birsonraki}"})) {
                                 $yenisaatbaslangic = date("H:i", strtotime('+' . $request->hizmet_suresi[$key] . ' minutes', strtotime($yenisaatbaslangic)));
                             }
+                        }
+
+                        // Telafi bayraklarini (varsa) hizmet_id eslesmesinden geri yaz
+                        $__hid = (int) $value;
+                        if (isset($_eskiTelafiMap[$__hid])) {
+                            $yenirandevuhizmetpersonel->telafi_kaynak_rh_id  = $_eskiTelafiMap[$__hid]['telafi_kaynak_rh_id'];
+                            $yenirandevuhizmetpersonel->telafi_devir_yapildi = $_eskiTelafiMap[$__hid]['telafi_devir_yapildi'];
                         }
 
                         $yenirandevuhizmetpersonel->save();
