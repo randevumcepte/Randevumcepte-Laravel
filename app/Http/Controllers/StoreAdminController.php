@@ -3844,6 +3844,7 @@ public function carkverilerigetir(Request $request)
                 'hizmet_adi' => $sh->hizmetler ? $sh->hizmetler->hizmet_adi : 'Bilinmeyen',
                 'sure_dk' => $sh->sure_dk,
                 'fiyat' => $sh->baslangic_fiyat,
+                'maliyet' => (float) ($sh->maliyet ?? 0),
                 'personeller' => rtrim($personel_map[$sh->hizmet_id] ?? '', ', '),
                 'cinsiyet' => $sh->hizmetler ? $sh->hizmetler->cinsiyet : null,
                 'ozel_hizmet' => $is_ozel,
@@ -21010,6 +21011,7 @@ DB::raw('
         $sunulanhizmet->hizmet_kategori_id = $request->hizmet_kategorisi;
         $sunulanhizmet->bolum = $request->cinsiyet;
         $sunulanhizmet->baslangic_fiyat = self::parseFiyat($request->hizmet_fiyati);
+        $sunulanhizmet->maliyet = self::parseFiyat($request->hizmet_maliyet);
         $sunulanhizmet->aktif = true;
         $sunulanhizmet->sure_dk = $request->hizmet_sure;
         $sunulanhizmet->salon_id = $request->sube;
@@ -36533,7 +36535,7 @@ DB::raw('
             })->whereBetween('tarih',[$tarih1,$tarih2])->get();
 
         // 2. Tüm hizmetleri tek koleksiyonda birleştir
-        $tumHizmetler = $adisyonlar->flatMap(function ($adisyon) use($personel) { 
+        $tumHizmetler = $adisyonlar->flatMap(function ($adisyon) use($personel) {
 
            if ($personel != '') {
                 return $adisyon->hizmetler->where('personel_id', $personel);
@@ -36542,8 +36544,19 @@ DB::raw('
             return $adisyon->hizmetler;
         });
 
+        // Hizmet_id -> salon_sunulan_hizmetler.maliyet lookup (tek sorgu)
+        $hizmetIds = $tumHizmetler->pluck('hizmet_id')->unique()->filter()->all();
+        $maliyetMap = [];
+        if (!empty($hizmetIds) && \Schema::hasColumn('salon_sunulan_hizmetler','maliyet')) {
+            $maliyetMap = \DB::table('salon_sunulan_hizmetler')
+                ->where('salon_id', $salonId)
+                ->whereIn('hizmet_id', $hizmetIds)
+                ->pluck('maliyet','hizmet_id')
+                ->toArray();
+        }
+
         // 3. Hizmet_id üzerinden grupla
-        $raporlar = $tumHizmetler->groupBy('hizmet_id')->map(function ($items) {
+        $raporlar = $tumHizmetler->groupBy('hizmet_id')->map(function ($items) use ($maliyetMap) {
 
 
             $adisyonHizmetIds = $items->pluck('id');
@@ -36551,19 +36564,33 @@ DB::raw('
             $toplamKazanc = TahsilatHizmetler::whereIn('adisyon_hizmet_id', $adisyonHizmetIds)
                 ->sum('tutar');
 
+            $hid = $items->first()->hizmet_id;
+            $birimMaliyet = (float) ($maliyetMap[$hid] ?? 0);
+            $toplamMaliyet = $birimMaliyet * $items->count();
+            // Kar = tahsil edilen (toplamKazanc) - maliyet.
+            // Satis bedeli üzerinden değil, tahsil edilen bedel üzerinden kar hesaplanır
+            // (odenmemis = kazanilmamis). Alternatif raporda satis-maliyeti de verilebilir.
+            $kar = $toplamKazanc - $toplamMaliyet;
+
             return (object)[
                 'id'=>$items->first()->hizmet_id,
                 'adet' => $items->count(),
                 'toplam_tutar' => number_format($items->sum('fiyat'),'2',',','.'),
 
-                
+
                 'hizmet_adi' => $items->first()->hizmet->hizmet_adi ?? null,
                 'toplamKazanc' => number_format($toplamKazanc,'2',',','.'),
-                
+
                 'borc' => number_format($items->sum('fiyat') - $toplamKazanc,'2',',','.'),
                 'toplamTutarNumeric'=>$items->sum('fiyat'),
                 'toplamKazancNumeric'=>$toplamKazanc,
                 'borcNumeric'=>$items->sum('fiyat') - $toplamKazanc,
+                'birimMaliyet' => number_format($birimMaliyet,'2',',','.'),
+                'toplamMaliyet' => number_format($toplamMaliyet,'2',',','.'),
+                'kar' => number_format($kar,'2',',','.'),
+                'birimMaliyetNumeric' => $birimMaliyet,
+                'toplamMaliyetNumeric' => $toplamMaliyet,
+                'karNumeric' => $kar,
                 'islemler'=> ' <a title="Detaylı Bilgi" name="hizmeti_alan_musteriler" data-value="'.($items->first()->hizmet_id).'" data-adi="'.htmlspecialchars($items->first()->hizmet->hizmet_adi ?? '', ENT_QUOTES).'" href="javascript:void(0)" class="btn btn-info"><i class="dw dw-eye"></i> </a>'
             ];
         })->values();
@@ -38542,6 +38569,7 @@ DB::raw('
 
         // Sure, fiyat ve personel atamasi her hizmet icin degistirilebilir
         if($request->has('fiyat')) $sh->baslangic_fiyat = self::parseFiyat($request->fiyat);
+        if($request->has('maliyet')) $sh->maliyet = self::parseFiyat($request->maliyet);
         if($request->has('sure_dk')) $sh->sure_dk = $request->sure_dk;
         $sh->save();
 

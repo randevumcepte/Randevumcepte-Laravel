@@ -414,6 +414,20 @@
                      <div class="rpr-kpi-value" id="hizmetBorc">{{number_format($hizmetRaporlari->sum('borcNumeric'),2,',','.')}}</div>
                   </div>
                </div>
+               <div class="rpr-kpi rpr-kpi--kazanc" style="background:#fff8e1;">
+                  <div class="rpr-kpi-icon">₺</div>
+                  <div class="rpr-kpi-data">
+                     <div class="rpr-kpi-label">Toplam Maliyet</div>
+                     <div class="rpr-kpi-value" id="hizmetMaliyet">{{number_format($hizmetRaporlari->sum('toplamMaliyetNumeric'),2,',','.')}}</div>
+                  </div>
+               </div>
+               <div class="rpr-kpi rpr-kpi--kazanc" style="background:#e8f5e9;">
+                  <div class="rpr-kpi-icon">₺</div>
+                  <div class="rpr-kpi-data">
+                     <div class="rpr-kpi-label">Net Kâr (Kazanç − Maliyet)</div>
+                     <div class="rpr-kpi-value" id="hizmetKar">{{number_format($hizmetRaporlari->sum('karNumeric'),2,',','.')}}</div>
+                  </div>
+               </div>
             </div>
 
             <div class="rpr-table-card">
@@ -424,16 +438,23 @@
                      <th>Hizmet Geliri ₺</th>
                      <th>Toplam Kazanç ₺</th>
                      <th>Kalan Alacak ₺</th>
+                     <th>Birim Maliyet ₺</th>
+                     <th>Toplam Maliyet ₺</th>
+                     <th>Net Kâr ₺</th>
                      <th>İşlemler</th>
                   </thead>
                   <tbody>
                   @foreach($hizmetRaporlari as $rapor)
+                     @php $_karNum = $rapor->karNumeric ?? 0; @endphp
                      <tr>
                         <td>{{ $rapor->hizmet_adi }}</td>
                         <td>{{ $rapor->adet }}</td>
                         <td>{{ $rapor->toplam_tutar }}</td>
                         <td>{{ $rapor->toplamKazanc }}</td>
                         <td>{{ $rapor->borc }}</td>
+                        <td>{{ $rapor->birimMaliyet ?? '0,00' }}</td>
+                        <td>{{ $rapor->toplamMaliyet ?? '0,00' }}</td>
+                        <td style="font-weight:600;color:{{ $_karNum >= 0 ? '#1fbf6f' : '#c62828' }};">{{ $rapor->kar ?? '0,00' }}</td>
                         <td>
                            <a title="Detaylı Bilgi" name="hizmeti_alan_musteriler" data-value="{{ $rapor->id }}" data-adi="{{ $rapor->hizmet_adi }}" href="javascript:void(0)" class="btn btn-info">
                               <i class='dw dw-eye'></i>

@@ -2266,6 +2266,12 @@
                         <input type="text" inputmode="decimal" name="hizmet_fiyati" class="form-control hy-fiyat-input" placeholder="0,00" autocomplete="off">
                      </div>
                   </div>
+                  <div class="col-md-3">
+                     <div class="form-group">
+                        <label>Maliyet (₺) <small class="text-muted">(opsiyonel)</small></label>
+                        <input type="text" inputmode="decimal" name="hizmet_maliyet" class="form-control hy-fiyat-input" placeholder="0,00" autocomplete="off" title="Hizmetin size maliyeti — kar hesabı için kullanılır">
+                     </div>
+                  </div>
                   <div class="col-md-6">
                      <div class="form-group">
                         <label>Kategori</label>

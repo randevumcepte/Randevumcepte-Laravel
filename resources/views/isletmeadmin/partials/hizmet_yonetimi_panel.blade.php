@@ -342,6 +342,7 @@
                           data-salon-hizmet-id="{{$hizmet['id']}}"
                           data-hizmet-adi="{{$hizmet['hizmet_adi']}}"
                           data-fiyat="{{$hizmet['fiyat']}}"
+                          data-maliyet="{{ $hizmet['maliyet'] ?? 0 }}"
                           data-sure="{{$hizmet['sure_dk']}}"
                           data-kategori-id="{{$kategori->id}}"
                           data-cinsiyet="{{$hizmet['cinsiyet']}}"
@@ -369,6 +370,7 @@
                           data-salon-hizmet-id="{{$hizmet['id']}}"
                           data-hizmet-adi="{{$hizmet['hizmet_adi']}}"
                           data-fiyat="{{$hizmet['fiyat']}}"
+                          data-maliyet="{{ $hizmet['maliyet'] ?? 0 }}"
                           data-sure="{{$hizmet['sure_dk']}}"
                           data-kategori-id="{{$kategori->id}}"
                           data-cinsiyet="{{$hizmet['cinsiyet']}}"
@@ -438,7 +440,13 @@
                         <input type="text" inputmode="decimal" name="fiyat" id="hy_edit_fiyat" required class="form-control hy-fiyat-input" placeholder="0,00" autocomplete="off">
                      </div>
                   </div>
-                  <div class="col-md-6">
+                  <div class="col-md-3">
+                     <div class="form-group">
+                        <label>Maliyet (₺) <small class="text-muted">(opsiyonel)</small></label>
+                        <input type="text" inputmode="decimal" name="maliyet" id="hy_edit_maliyet" class="form-control hy-fiyat-input" placeholder="0,00" autocomplete="off" title="Kâr hesabı için — satış raporunda satış−maliyet olarak gösterilir">
+                     </div>
+                  </div>
+                  <div class="col-md-3">
                      <div class="form-group">
                         <label>Kategori</label>
                         <select name="kategori_id" id="hy_edit_kategori_id" class="form-control">
@@ -566,6 +574,8 @@ window.hyDuzenleClick = function(btn){
       $('#hy_edit_hizmet_adi').val(row.data('hizmet-adi'));
       var fiyatVal = row.data('fiyat');
       $('#hy_edit_fiyat').val(window.HyFiyat ? window.HyFiyat.format(fiyatVal) : fiyatVal);
+      var maliyetVal = row.data('maliyet') || 0;
+      $('#hy_edit_maliyet').val(window.HyFiyat ? window.HyFiyat.format(maliyetVal) : maliyetVal);
       $('#hy_edit_sure_dk').val(row.data('sure'));
       $('#hy_edit_kategori_id').val(row.data('kategori-id')).trigger('change');
       var c = row.data('cinsiyet');
@@ -727,7 +737,8 @@ $(document).ready(function(){
                   setTimeout(function(){ location.reload(); }, 700);
                   return;
                }
-               $row.attr({'data-fiyat':newFiyat,'data-sure':newSure,'data-hizmet-adi':newAd,'data-cinsiyet':newCinsiyet,'data-kategori-id':result.kategori_id || newKategoriId});
+               var newMaliyet = window.HyFiyat.parse($('#hy_edit_maliyet').val() || '0');
+               $row.attr({'data-fiyat':newFiyat,'data-maliyet':newMaliyet,'data-sure':newSure,'data-hizmet-adi':newAd,'data-cinsiyet':newCinsiyet,'data-kategori-id':result.kategori_id || newKategoriId});
                $row.find('.hy-chip-price').text(fiyatStr);
                $row.find('.hy-chip-time').html('<i class="fa fa-clock-o"></i> '+newSure+' dk');
                var $adiDiv = $row.find('.hy-hizmet-adi');
