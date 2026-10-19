@@ -629,18 +629,41 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
         if(!$sel.length) return;
         var ts = $sel[0] && $sel[0].tomselect;
         var $container = $('#duzenle-hizmet-detaylari-'+index);
-        $container.empty();
         if(!ts) return;
+        // BUGFIX: Container'i empty edip rebuild etmeden ONCE mevcut input degerlerini
+        // hizmet_id -> {sure, fiyat, miktar} map'inde sakla. Yeni render'da bu map'ten
+        // kullanilir. Boylece onChange sonrasi re-render manuel edit'leri kaybetmez
+        // VE yeni eklenen hizmet'in sure/fiyat'i eski hizmetinkiyle pollute olmaz.
+        var mevcutDegerler = {};
+        $container.find('.hizmet-detay-item').each(function(){
+            var hid = $(this).attr('data-hid');
+            if(!hid) return;
+            mevcutDegerler[hid] = {
+                sure:   $(this).find('input.hizmet-suresi').val(),
+                fiyat:  $(this).find('input.hizmet-fiyati').val(),
+                miktar: $(this).find('input.hizmet-miktari').val()
+            };
+        });
+        var tumHizmetler = (window.randevuHizmetVerisi && window.randevuHizmetVerisi.tum) || [];
+        $container.empty();
         ts.items.forEach(function(id, i){
             var opt = ts.options[id] || {};
             var ad = opt.text || '';
-            var sure = Number(opt.sure) || 0;
-            var fiyat = Number(opt.fiyat) || 0;
+            // RAW system default (option.sure yerine) — option bir yerde pollute olmus
+            // olsa bile dogru default gelsin
+            var sysH = tumHizmetler.find(function(h){ return String(h.id) === String(id); });
+            var defSure  = sysH ? (Number(sysH.sure)  || 0) : (Number(opt.sure)  || 0);
+            var defFiyat = sysH ? (Number(sysH.fiyat) || 0) : (Number(opt.fiyat) || 0);
+            // Mevcut input var -> user degeri koru; yoksa system default
+            var saved = mevcutDegerler[String(id)];
+            var sure  = (saved && saved.sure  !== '' && saved.sure  != null) ? Number(saved.sure)  : defSure;
+            var fiyat = (saved && saved.fiyat !== '' && saved.fiyat != null) ? Number(saved.fiyat) : defFiyat;
             var birlestirNum = i + 1;
             var birlestirDisabled = i === 0 ? 'disabled' : '';
             var birlestirOpacity = i === 0 ? 'opacity:0.4;' : '';
+            var savedMiktar = (saved && saved.miktar && Number(saved.miktar) > 0) ? saved.miktar : (opt.dusum_miktari || 1);
             var html =
-                '<div class="hizmet-detay-item" style="background:#fafbff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-top:6px;">' +
+                '<div class="hizmet-detay-item" data-hid="'+id+'" style="background:#fafbff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-top:6px;">' +
                   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;">' +
                     '<span style="font-size:0.82rem;font-weight:600;color:#111827;">'+ad+'</span>' +
                     '<div style="display:flex;align-items:center;gap:8px;">' +
@@ -663,7 +686,7 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
                     '</div>' +
                     '<div class="col-md-2">' +
                       '<label style="font-size:0.7rem;" title="Paketten kac seans veya dakika dusulecek">Miktar</label>' +
-                      '<input type="number" class="form-control form-control-sm hizmet-miktari" name="hizmet_miktari[]" value="'+ (opt.dusum_miktari || 1) +'" min="1" step="1" style="height:26px;padding:2px 6px;font-size:0.75rem;text-align:center;">' +
+                      '<input type="number" class="form-control form-control-sm hizmet-miktari" name="hizmet_miktari[]" value="'+ savedMiktar +'" min="1" step="1" style="height:26px;padding:2px 6px;font-size:0.75rem;text-align:center;">' +
                     '</div>' +
                   '</div>' +
                 '</div>';
