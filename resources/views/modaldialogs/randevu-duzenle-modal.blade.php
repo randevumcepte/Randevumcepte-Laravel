@@ -645,19 +645,23 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
             };
         });
         var tumHizmetler = (window.randevuHizmetVerisi && window.randevuHizmetVerisi.tum) || [];
+        console.log('[RENDER DEBUG v3] start', {items: ts.items.slice(), mevcut: mevcutDegerler, tumCount: tumHizmetler.length});
         $container.empty();
         ts.items.forEach(function(id, i){
             var opt = ts.options[id] || {};
             var ad = opt.text || '';
-            // RAW system default (option.sure yerine) — option bir yerde pollute olmus
-            // olsa bile dogru default gelsin
             var sysH = tumHizmetler.find(function(h){ return String(h.id) === String(id); });
             var defSure  = sysH ? (Number(sysH.sure)  || 0) : (Number(opt.sure)  || 0);
             var defFiyat = sysH ? (Number(sysH.fiyat) || 0) : (Number(opt.fiyat) || 0);
-            // Mevcut input var -> user degeri koru; yoksa system default
             var saved = mevcutDegerler[String(id)];
             var sure  = (saved && saved.sure  !== '' && saved.sure  != null) ? Number(saved.sure)  : defSure;
             var fiyat = (saved && saved.fiyat !== '' && saved.fiyat != null) ? Number(saved.fiyat) : defFiyat;
+            console.log('[RENDER DEBUG v3] hizmet='+id+' ad='+ad, {
+                opt_sure: opt.sure, opt_fiyat: opt.fiyat,
+                sysH_sure: sysH ? sysH.sure : 'YOK', sysH_fiyat: sysH ? sysH.fiyat : 'YOK',
+                saved: saved || 'YOK',
+                SONUC_sure: sure, SONUC_fiyat: fiyat
+            });
             var birlestirNum = i + 1;
             var birlestirDisabled = i === 0 ? 'disabled' : '';
             var birlestirOpacity = i === 0 ? 'opacity:0.4;' : '';
