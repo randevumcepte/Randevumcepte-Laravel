@@ -7023,6 +7023,15 @@ $(document).on('submit','#adisyon_formu',function(e){
 });
 $(document).on('change','select[name="randevuhizmetleriyeni[]"],select[name="adisyonhizmetleriyeni[]"], select[name="randevuhizmetleri[]"]',function(e){
     e.preventDefault();
+    // BUGFIX: Legacy handler multi-select'te .val() ARRAY doner, AJAX tek deger alir,
+    // .find('input[name="hizmet_fiyat[]"]') ROW'daki TUM input'lara ayni degeri yazardi
+    // (yeni eklenen hizmetin degeri 1. hizmetin degeriyle override). Modern duzenle/ekle
+    // modallari kendi onChange'leri ile her hizmete DOGRU degeri yaziyor. Multi-select
+    // ve .duzenle-hizmet-select / .v2-hizmet / .hizmet-select class'lari var ise skip.
+    if($(this).hasClass('duzenle-hizmet-select') || $(this).hasClass('v2-hizmet') ||
+       $(this).hasClass('hizmet-select') || $(this).attr('multiple') !== undefined){
+        return;
+    }
     var hizmetid = $(this).val();
     var fiyat_text = $(this).closest('div .row').find('input[name="hizmet_fiyat[]"]');
     var fiyat_text_adisyon = $(this).closest('div .row').find('input[name="adisyonhizmetfiyati[]"]');

@@ -6414,6 +6414,16 @@ $(document).on('submit','#adisyon_formu',function(e){
 });
 $(document).on('change','select[name="randevuhizmetleriyeni[]"],select[name="adisyonhizmetleriyeni[]"], select[name="randevuhizmetleri[]"]',function(e){
     e.preventDefault();
+    // BUGFIX: Legacy handler, multi-select ise TUM .val() array doner, AJAX tek deger
+    // getirir ve .find('input[name="hizmet_fiyat[]"]') ile ROW'daki TUM input'lara ayni
+    // deger yazar -> yeni eklenen hizmetin degeri 1. hizmetinki ile override olurdu.
+    // V1 (randevu-duzenle-modal) ve V2 modallarinda duzenle-hizmet-select class'i var
+    // ve kendi onChange'leri (duzenleRenderHizmetDetay / v2 syncRow) her hizmete DOGRU
+    // degeri yaziyor. Bu legacy handler artik gereksiz + zararli; multi-select'te skip.
+    if($(this).hasClass('duzenle-hizmet-select') || $(this).hasClass('v2-hizmet') ||
+       $(this).hasClass('hizmet-select') || $(this).attr('multiple') !== undefined){
+        return;
+    }
     var hizmetid = $(this).val();
     var fiyat_text = $(this).closest('div .row').find('input[name="hizmet_fiyat[]"]');
     var fiyat_text_adisyon = $(this).closest('div .row').find('input[name="adisyonhizmetfiyati[]"]');
