@@ -28241,11 +28241,21 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             }
         }
 
+        // Mevcut adisyonda DOGRUDAN kayitli hizmet_id'ler (normal hizmet randevusu
+        // icin adisyon_hizmetler satirlari) — bunlar ekstra SAYILMAZ, zaten faturalanmis
+        $mevcutAdisyonHizmetIds = [];
+        if ($paketAdisyonId) {
+            $mevcutAdisyonHizmetIds = \DB::table('adisyon_hizmetler')
+                ->where('adisyon_id', $paketAdisyonId)
+                ->pluck('hizmet_id')->map(function($v){ return (int)$v; })->toArray();
+        }
+
         $ekstralar = [];
         foreach ($rhListesi as $rh) {
             $hid = (int)$rh->hizmet_id;
-            if (in_array($hid, $apsHizmetIds, true))      continue;
-            if (in_array($hid, $paketIciHizmetIds, true)) continue;
+            if (in_array($hid, $apsHizmetIds, true))         continue; // paketten gelen seans
+            if (in_array($hid, $paketIciHizmetIds, true))    continue; // paket icerigi
+            if (in_array($hid, $mevcutAdisyonHizmetIds, true)) continue; // adisyonda zaten var
             $ekstralar[] = $rh;
         }
 

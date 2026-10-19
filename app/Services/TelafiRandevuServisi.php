@@ -136,7 +136,7 @@ class TelafiRandevuServisi
             ->where('hizmet_id', $origRH->hizmet_id)
             ->get();
         if ($ahListesi->isEmpty() && $musteriId > 0) {
-            // Fallback: tahsilat edilmis + personel_id = orig + hizmet_id = hedef
+            // Fallback A: ayni musteri+salon+hizmet+personel, randevu_id NULL
             $ahListesi = AdisyonHizmetler::whereHas('adisyon', function($q) use ($musteriId, $salonId){
                     $q->where('user_id', $musteriId)->where('salon_id', $salonId);
                 })
@@ -144,7 +144,27 @@ class TelafiRandevuServisi
                 ->where('personel_id', $origPersonelId)
                 ->whereNull('randevu_id')
                 ->get();
-            \Log::info('[Telafi primTransfer] AH fallback (randevu_id yok) kullanildi', ['count'=>$ahListesi->count()]);
+            \Log::info('[Telafi primTransfer] AH fallback A (randevu_id NULL) kullanildi', ['count'=>$ahListesi->count()]);
+        }
+        if ($ahListesi->isEmpty() && $musteriId > 0) {
+            // Fallback B: ayni musteri+salon+hizmet+personel, randevu_id FARKLI (ama tarih yakin)
+            // Normal hizmet randevulari icin adisyon_hizmetler.randevu_id yanlis baglanmis olabilir
+            $origTarih = $origRH->randevu->tarih ?? null;
+            $q = AdisyonHizmetler::whereHas('adisyon', function($q) use ($musteriId, $salonId){
+                    $q->where('user_id', $musteriId)->where('salon_id', $salonId);
+                })
+                ->where('hizmet_id', $origRH->hizmet_id)
+                ->where('personel_id', $origPersonelId);
+            if ($origTarih) {
+                // Orijinal randevunun tarihinden geriye max 7 gun pencere
+                $tarihMin = date('Y-m-d', strtotime($origTarih.' -7 days'));
+                $tarihMax = date('Y-m-d', strtotime($origTarih.' +1 days'));
+                $q->whereHas('adisyon', function($q2) use ($tarihMin, $tarihMax){
+                    $q2->whereBetween('tarih', [$tarihMin, $tarihMax]);
+                });
+            }
+            $ahListesi = $q->get();
+            \Log::info('[Telafi primTransfer] AH fallback B (musteri+hizmet+personel+tarih~) kullanildi', ['count'=>$ahListesi->count()]);
         }
         \Log::info('[Telafi primTransfer] adisyon_hizmetler bulunan', ['count' => $ahListesi->count()]);
         $this->sonTransferOzeti['ah'] = $ahListesi->count();
