@@ -624,55 +624,44 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
     }
 
     // Hizmet secimi sonrasi sure/fiyat input'larini render et (ekleme modali gibi)
+    // DELTA RENDER (v4): Container'i ASLA empty + rebuild etme.
+    // Mevcut input'lara DOKUNMA — user edit + default degerler hic bir timer tarafindan
+    // override edilemez. Sadece ekle/sil fark operasyonu + birlestir numaralandirmasi.
     function duzenleRenderHizmetDetay(index){
         var $sel = $('.duzenle-hizmet-select[data-index="'+index+'"]');
         if(!$sel.length) return;
         var ts = $sel[0] && $sel[0].tomselect;
         var $container = $('#duzenle-hizmet-detaylari-'+index);
         if(!ts) return;
-        // BUGFIX: Container'i empty edip rebuild etmeden ONCE mevcut input degerlerini
-        // hizmet_id -> {sure, fiyat, miktar} map'inde sakla. Yeni render'da bu map'ten
-        // kullanilir. Boylece onChange sonrasi re-render manuel edit'leri kaybetmez
-        // VE yeni eklenen hizmet'in sure/fiyat'i eski hizmetinkiyle pollute olmaz.
-        var mevcutDegerler = {};
+        var tumHizmetler = (window.randevuHizmetVerisi && window.randevuHizmetVerisi.tum) || [];
+        // DOM'daki mevcut satirlari hid->$row map'le
+        var mevcutRows = {};
         $container.find('.hizmet-detay-item').each(function(){
             var hid = $(this).attr('data-hid');
-            if(!hid) return;
-            mevcutDegerler[hid] = {
-                sure:   $(this).find('input.hizmet-suresi').val(),
-                fiyat:  $(this).find('input.hizmet-fiyati').val(),
-                miktar: $(this).find('input.hizmet-miktari').val()
-            };
+            if(hid) mevcutRows[String(hid)] = $(this);
         });
-        var tumHizmetler = (window.randevuHizmetVerisi && window.randevuHizmetVerisi.tum) || [];
-        console.log('[RENDER DEBUG v3] start', {items: ts.items.slice(), mevcut: mevcutDegerler, tumCount: tumHizmetler.length});
-        $container.empty();
-        ts.items.forEach(function(id, i){
+        var secili = ts.items.map(String);
+        // (b) Secili olmayan DOM satirlarini sil
+        Object.keys(mevcutRows).forEach(function(hid){
+            if(secili.indexOf(hid) === -1) mevcutRows[hid].remove();
+        });
+        // (a) Secili olup DOM'da olmayan icin yeni satir ekle (sirali)
+        secili.forEach(function(id, i){
+            if(mevcutRows[id]) return; // zaten var -> DOKUNMA
             var opt = ts.options[id] || {};
             var ad = opt.text || '';
             var sysH = tumHizmetler.find(function(h){ return String(h.id) === String(id); });
             var defSure  = sysH ? (Number(sysH.sure)  || 0) : (Number(opt.sure)  || 0);
             var defFiyat = sysH ? (Number(sysH.fiyat) || 0) : (Number(opt.fiyat) || 0);
-            var saved = mevcutDegerler[String(id)];
-            var sure  = (saved && saved.sure  !== '' && saved.sure  != null) ? Number(saved.sure)  : defSure;
-            var fiyat = (saved && saved.fiyat !== '' && saved.fiyat != null) ? Number(saved.fiyat) : defFiyat;
-            console.log('[RENDER DEBUG v3] hizmet='+id+' ad='+ad, {
-                opt_sure: opt.sure, opt_fiyat: opt.fiyat,
-                sysH_sure: sysH ? sysH.sure : 'YOK', sysH_fiyat: sysH ? sysH.fiyat : 'YOK',
-                saved: saved || 'YOK',
-                SONUC_sure: sure, SONUC_fiyat: fiyat
-            });
-            var birlestirNum = i + 1;
-            var birlestirDisabled = i === 0 ? 'disabled' : '';
-            var birlestirOpacity = i === 0 ? 'opacity:0.4;' : '';
-            var savedMiktar = (saved && saved.miktar && Number(saved.miktar) > 0) ? saved.miktar : (opt.dusum_miktari || 1);
+            var savedMiktar = opt.dusum_miktari || 1;
+            console.log('[RENDER DEBUG v4] YENI satir', {hid:id, ad:ad, sysH_sure:sysH?sysH.sure:'YOK', opt_sure:opt.sure, SONUC_sure:defSure, SONUC_fiyat:defFiyat});
             var html =
                 '<div class="hizmet-detay-item" data-hid="'+id+'" style="background:#fafbff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-top:6px;">' +
                   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;">' +
                     '<span style="font-size:0.82rem;font-weight:600;color:#111827;">'+ad+'</span>' +
                     '<div style="display:flex;align-items:center;gap:8px;">' +
-                      '<label style="font-size:0.72rem;margin:0;display:flex;align-items:center;gap:4px;'+birlestirOpacity+'">' +
-                        '<input type="checkbox" name="birlestir'+birlestirNum+'" '+birlestirDisabled+' style="margin:0;">' +
+                      '<label class="birlestir-wrap" style="font-size:0.72rem;margin:0;display:flex;align-items:center;gap:4px;">' +
+                        '<input type="checkbox" class="birlestir-cb" style="margin:0;">' +
                         'Üstteki ile birleştir' +
                       '</label>' +
                       '<button type="button" class="btn btn-sm btn-outline-danger duzenle-hizmet-kaldir" data-index="'+index+'" data-service-id="'+id+'" style="padding:1px 6px;font-size:0.7rem;">' +
@@ -682,11 +671,11 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
                   '<div class="row g-1">' +
                     '<div class="col-md-5">' +
                       '<label style="font-size:0.7rem;">Süre (dakika)</label>' +
-                      '<input type="number" class="form-control form-control-sm hizmet-suresi" name="hizmet_suresi[]" value="'+sure+'" min="0" step="5" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
+                      '<input type="number" class="form-control form-control-sm hizmet-suresi" name="hizmet_suresi[]" value="'+defSure+'" min="0" step="5" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
                     '</div>' +
                     '<div class="col-md-5">' +
                       '<label style="font-size:0.7rem;">Fiyat (₺)</label>' +
-                      '<input type="text" inputmode="decimal" class="form-control form-control-sm hizmet-fiyati hy-fiyat-input" name="hizmet_fiyat[]" value="'+fiyat+'" placeholder="0,00" autocomplete="off" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
+                      '<input type="text" inputmode="decimal" class="form-control form-control-sm hizmet-fiyati hy-fiyat-input" name="hizmet_fiyat[]" value="'+defFiyat+'" placeholder="0,00" autocomplete="off" style="height:26px;padding:2px 6px;font-size:0.75rem;">' +
                     '</div>' +
                     '<div class="col-md-2">' +
                       '<label style="font-size:0.7rem;" title="Paketten kac seans veya dakika dusulecek">Miktar</label>' +
@@ -694,7 +683,28 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
                     '</div>' +
                   '</div>' +
                 '</div>';
-            $container.append(html);
+            // Dogru sirada ekle: ts.items[i]'nin sirasi
+            if(i === 0){
+                $container.prepend(html);
+            } else {
+                var prevId = secili[i-1];
+                var $prevRow = $container.find('.hizmet-detay-item[data-hid="'+prevId+'"]');
+                if($prevRow.length) $prevRow.after(html);
+                else $container.append(html);
+            }
+        });
+        // (c) Birlestir checkbox numaralari ve disabled durumunu guncelle (sira bazli)
+        $container.find('.hizmet-detay-item').each(function(i){
+            var num = i + 1;
+            var $cb = $(this).find('.birlestir-cb');
+            $cb.attr('name', 'birlestir'+num);
+            if(i === 0){
+                $cb.prop('disabled', true).prop('checked', false);
+                $cb.closest('.birlestir-wrap').css('opacity', '0.4');
+            } else {
+                $cb.prop('disabled', false);
+                $cb.closest('.birlestir-wrap').css('opacity', '');
+            }
         });
     }
 
@@ -873,31 +883,30 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
                                 // (Tom Select option store cache'lemesi durumunda fallback)
                                 // 3 kat guvenlik: 50ms, 200ms, 500ms — filter re-run'larin
                                 // override etme ihtimaline karsi.
-                                // BUGFIX: .last() ile override gecikmeli (200/500ms) tetiklenince,
-                                // o aralikta kullanici YENI hizmet eklerse last() yeni hizmetin
-                                // input'una isaret eder ve iki hizmetin degerleri karisirdi.
-                                // Fix: TS items array'indeki index'e gore spesifik input'u sec
-                                // (eq(idx)); boylece her hizmet KENDI input'una yazar, race yok.
-                                var _overwriteRow = function(tag){
-                                    var $hzSel = $row.find('.duzenle-hizmet-select');
-                                    var tsLocal = $hzSel[0] && $hzSel[0].tomselect;
-                                    if(!tsLocal) return;
-                                    var hidStr = String(h.hizmet_id);
-                                    var tsIdx = tsLocal.items.indexOf(hidStr);
-                                    if(tsIdx < 0) return; // bu hizmet artik secili degil
-                                    var $sureInputs  = $row.find('input.hizmet-suresi');
-                                    var $fiyatInputs = $row.find('input.hizmet-fiyati');
-                                    var $miktarInputs= $row.find('input.hizmet-miktari');
-                                    var $tSure   = $sureInputs.eq(tsIdx);
-                                    var $tFiyat  = $fiyatInputs.eq(tsIdx);
-                                    var $tMiktar = $miktarInputs.eq(tsIdx);
-                                    if($tSure.length  && h.sure_dk !== undefined && h.sure_dk !== null && h.sure_dk !== '') $tSure.val(h.sure_dk);
-                                    if($tFiyat.length && h.fiyat   !== undefined && h.fiyat   !== null && h.fiyat   !== '') $tFiyat.val(h.fiyat);
-                                    if($tMiktar.length && h.dusum_miktari) $tMiktar.val(h.dusum_miktari);
-                                };
-                                setTimeout(function(){ _overwriteRow('50ms'); }, 50);
-                                setTimeout(function(){ _overwriteRow('200ms'); }, 200);
-                                setTimeout(function(){ _overwriteRow('500ms'); }, 500);
+                                // v4: Modal acilisinda RANDEVU'ya ozel degerler option'a
+                                // zaten yazildi (sure=optSure, fiyat=optFiyat line 870 civarinda).
+                                // Delta render ilk render'da bu option'dan okuyacak.
+                                // Belt-and-suspenders: option tanimli degilse diye bir kerelik set
+                                // ONCE option guncelle (bu zaten yukarida yapildi).
+                                // Eski 3 kat setTimeout _overwriteRow KALDIRILDI — render sonrasi
+                                // input'a mudahale eden hic bir timer kalmadi.
+                                // Spesifik olarak bu hizmet icin option.sure/fiyat'i tekrar garanti et:
+                                try {
+                                    var _tsLocal = ts;
+                                    var _curOpt = _tsLocal && _tsLocal.options[h.hizmet_id];
+                                    if(_curOpt){
+                                        if(h.sure_dk !== undefined && h.sure_dk !== null && h.sure_dk !== '') _curOpt.sure = Number(h.sure_dk);
+                                        if(h.fiyat !== undefined && h.fiyat !== null && h.fiyat !== '') _curOpt.fiyat = Number(h.fiyat);
+                                        if(h.dusum_miktari) _curOpt.dusum_miktari = Number(h.dusum_miktari);
+                                    }
+                                    // Delta render yeni satir icin option'dan okur — direkt input'u da yaz
+                                    var $tItem = $row.find('.hizmet-detay-item[data-hid="'+h.hizmet_id+'"]');
+                                    if($tItem.length){
+                                        if(h.sure_dk !== undefined && h.sure_dk !== null && h.sure_dk !== '') $tItem.find('input.hizmet-suresi').val(h.sure_dk);
+                                        if(h.fiyat !== undefined && h.fiyat !== null && h.fiyat !== '') $tItem.find('input.hizmet-fiyati').val(h.fiyat);
+                                        if(h.dusum_miktari) $tItem.find('input.hizmet-miktari').val(h.dusum_miktari);
+                                    }
+                                } catch(_e){}
                             }
                         }, 100);
                     });
