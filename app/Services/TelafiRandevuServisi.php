@@ -109,15 +109,13 @@ class TelafiRandevuServisi
         $tarih   = date('Y-m-d');
         $aciklamaBase = 'Telafi randevusu #'.$yeniRandevu->id.' – orijinal randevu #'.$origRH->randevu_id;
 
-        // Fatma'ya bu salonda HERHANGI bir prim ODEMESI (personel_maas_odemeleri tip=prim) yapildi mi?
-        // Yapildiysa -> adisyon_hizmet.personel_id DEGISTIRME (gecmis rapor dogru kalsin),
-        //              yerine Fatma -tutar / Ayse +tutar prim_hareketleri yaz.
-        // Yapilmadiysa -> adisyon.personel_id = Ayse degistir (hak edis otomatik dengelenir),
-        //                hareket yazma.
+        // Fatma'ya bu salonda HERHANGI bir odeme (prim/maas/diger — tipten bagimsiz) yapildi mi?
+        // User'in gercek urun akisinda "Ode" butonu farkli tip (prim yerine maas/diger)
+        // ile kaydedebiliyor; sadece 'prim' tipine bakmak yanlis negatif veriyordu.
+        // Herhangi bir odeme varsa -> telafi devri icin ek -tutar hareketi yazilsin.
         $odenenPrim = (float) DB::table('personel_maas_odemeleri')
             ->where('personel_id', $origPersonelId)
             ->where('salon_id', $salonId)
-            ->where('odeme_tipi', 'prim')
             ->sum('tutar');
         $primOdenmisMi = $odenenPrim > 0;
         \Log::info('[Telafi primTransfer] odenen prim toplam', [

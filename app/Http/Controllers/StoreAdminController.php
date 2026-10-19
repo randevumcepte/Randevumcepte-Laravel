@@ -39981,18 +39981,20 @@ DB::raw('
             $primRow = $primMap[$p->id];
             $primToplam = $primRow['hizmet_primi'] + $primRow['urun_primi'] + $primRow['paket_primi'];
 
-            $bonus = 0; $kesinti = 0;
+            $bonus = 0; $kesinti = 0; $telafiDevri = 0;
             $persHareketler = $hareketler->get($p->id, collect());
             foreach($persHareketler as $h){
-                if($h->tip === 'bonus') $bonus += (float)$h->tutar;
-                else $kesinti += (float)$h->tutar;
+                if($h->tip === 'bonus')              $bonus += (float)$h->tutar;
+                elseif($h->tip === 'telafi_devir')   $telafiDevri += (float)$h->tutar; // negatif tutar normal
+                else                                  $kesinti += (float)$h->tutar;
             }
 
             // Personelin donem ici personel gideri toplami — NET'ten DUSULUR
             $masraf = (float)($masrafToplamlari[$p->id] ?? 0);
 
             $maas = (float)($p->maas ?? 0);
-            $toplam = $maas + $primToplam + $bonus - $kesinti - $masraf;
+            // telafiDevri negatif tutarlar (ör. -40) — NET hak edise + ile eklenir (zaten negatif)
+            $toplam = $maas + $primToplam + $bonus - $kesinti - $masraf + $telafiDevri;
             // Net eksiye duserse personel salona borclu demektir
             $borclu = $toplam < 0;
 
@@ -40043,6 +40045,7 @@ DB::raw('
                 'prim_toplam'   => (float)$primToplam,
                 'bonus'         => (float)$bonus,
                 'kesinti'       => (float)$kesinti,
+                'telafi_devri'  => (float)$telafiDevri,
                 'masraf'        => (float)$masraf,
                 'borclu'        => $borclu,
                 'net_hakedis'   => (float)$toplam,

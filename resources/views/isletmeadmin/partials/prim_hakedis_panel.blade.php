@@ -859,6 +859,7 @@
           <th>Paket Primi</th>
           <th>Prim Toplam</th>
           <th>Bonus</th>
+          <th title="Telafi randevusu ile baska personele devredilen prim (ödenmişse)">Telafi Devri</th>
           <th>Masraf</th>
           <th>@if($isGunluk)Günün Primi @else NET Ödenecek @endif</th>
           <th>Durum</th>
@@ -886,6 +887,14 @@
             <td>{{$_fmt($r['paket_primi'])}} ₺</td>
             <td><strong>{{$_fmt($r['prim_toplam'])}} ₺</strong></td>
             <td class="pr-cell-bonus">+{{$_fmt($r['bonus'])}}@if($r['hareket_sayisi']>0) <small style="color:var(--rmc-muted); font-weight:500">({{$r['hareket_sayisi']}})</small>@endif</td>
+            <td class="pr-cell-telafi" title="Telafi randevusu ile başka personele devredilen prim (ödenmiş olduğu için gelecekten düşülecek bakiye)">
+                @php $_td = (float) ($r['telafi_devri'] ?? 0); @endphp
+                @if($_td < 0)
+                   <span style="color:#dc3545;font-weight:600;">−{{$_fmt(abs($_td))}} ₺</span>
+                @else
+                   <span style="color:#9ca3af;">0,00 ₺</span>
+                @endif
+            </td>
             <td class="pr-cell-masraf" title="Personelin kasadan aldığı/harcadığı tutar — net hak edişten düşülür">@if($r['masraf']>0)−@endif{{$_fmt($r['masraf'])}} ₺</td>
             <td class="pr-cell-net">
               <strong>{{$_fmt($isGunluk ? $gPrim : $r['net_hakedis'])}} ₺</strong>
