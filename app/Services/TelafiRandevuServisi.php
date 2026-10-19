@@ -172,16 +172,17 @@ class TelafiRandevuServisi
                 ->where('adisyon_hizmet_id', $ah->id)
                 ->sum('tutar');
             $islenenKayit++;
-            $yuzde = $this->primYuzdesi($origPersonelId, (int) $ah->hizmet_id);
-            // Tutar hesabi: oncelikle musteri odemesi × yuzde; musteri henuz odemediyse
-            // (odenmisTutar=0) adisyon kaleminin KENDI fiyati × yuzde -> prim ödenmişse
-            // bu tutar kadar duzeltme hareketi yazilabilsin.
+            $yuzdeOrig = $this->primYuzdesi($origPersonelId, (int) $ah->hizmet_id);
+            $yuzdeYeni = $this->primYuzdesi($yeniPersonelId, (int) $ah->hizmet_id);
+            // Yuzde fallback: Anil'da tanimli yoksa Gulsah'ta tanimli olanı kullan
+            // (en azindan Gulsah'in alacagi tutar kadar Anil'dan dusur -> simetri)
+            $yuzde = $yuzdeOrig > 0 ? $yuzdeOrig : $yuzdeYeni;
             $hesapTaban = $odenmisTutar > 0 ? $odenmisTutar : (float) $ah->fiyat;
             $tutar = round($hesapTaban * $yuzde / 100, 2);
             \Log::info('[Telafi primTransfer] AH', [
                 'ah_id'=>$ah->id, 'musteri_odemis'=>$odenmisTutar, 'ah_fiyat'=>$ah->fiyat,
-                'yuzde'=>$yuzde, 'tutar'=>$tutar, 'personel'=>$ah->personel_id,
-                'prim_odenmis'=>$primOdenmisMi,
+                'yuzde_orig'=>$yuzdeOrig, 'yuzde_yeni'=>$yuzdeYeni, 'yuzde_used'=>$yuzde,
+                'tutar'=>$tutar, 'personel'=>$ah->personel_id, 'prim_odenmis'=>$primOdenmisMi,
             ]);
 
             // HER DURUMDA adisyon.personel_id Ayse'ye devredilsin -> hak edis tablosu
