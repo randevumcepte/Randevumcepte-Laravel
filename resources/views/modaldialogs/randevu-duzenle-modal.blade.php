@@ -846,24 +846,27 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
                                 // (Tom Select option store cache'lemesi durumunda fallback)
                                 // 3 kat guvenlik: 50ms, 200ms, 500ms — filter re-run'larin
                                 // override etme ihtimaline karsi.
+                                // BUGFIX: .last() ile override gecikmeli (200/500ms) tetiklenince,
+                                // o aralikta kullanici YENI hizmet eklerse last() yeni hizmetin
+                                // input'una isaret eder ve iki hizmetin degerleri karisirdi.
+                                // Fix: TS items array'indeki index'e gore spesifik input'u sec
+                                // (eq(idx)); boylece her hizmet KENDI input'una yazar, race yok.
                                 var _overwriteRow = function(tag){
-                                    var $sureInputs = $row.find('input.hizmet-suresi');
+                                    var $hzSel = $row.find('.duzenle-hizmet-select');
+                                    var tsLocal = $hzSel[0] && $hzSel[0].tomselect;
+                                    if(!tsLocal) return;
+                                    var hidStr = String(h.hizmet_id);
+                                    var tsIdx = tsLocal.items.indexOf(hidStr);
+                                    if(tsIdx < 0) return; // bu hizmet artik secili degil
+                                    var $sureInputs  = $row.find('input.hizmet-suresi');
                                     var $fiyatInputs = $row.find('input.hizmet-fiyati');
-                                    var $miktarInputs = $row.find('input.hizmet-miktari');
-                                    var $lastSure = $sureInputs.last();
-                                    var $lastFiyat = $fiyatInputs.last();
-                                    var $lastMiktar = $miktarInputs.last();
-                                    var oncekiSure = $lastSure.length ? $lastSure.val() : null;
-                                    var oncekiFiyat = $lastFiyat.length ? $lastFiyat.val() : null;
-                                    // 0 da gecerli deger — sadece undefined/null/bos'ta atla
-                                    if($lastSure.length && h.sure_dk !== undefined && h.sure_dk !== null && h.sure_dk !== '') $lastSure.val(h.sure_dk);
-                                    if($lastFiyat.length && h.fiyat !== undefined && h.fiyat !== null && h.fiyat !== '') $lastFiyat.val(h.fiyat);
-                                    if($lastMiktar.length && h.dusum_miktari) $lastMiktar.val(h.dusum_miktari);
-                                    console.log('[DUZENLE sure/fiyat override '+tag+']', {
-                                        hizmet_id: h.hizmet_id, h_sure_dk: h.sure_dk, h_fiyat: h.fiyat,
-                                        oncekiSure: oncekiSure, sonrakiSure: $lastSure.length ? $lastSure.val() : null,
-                                        oncekiFiyat: oncekiFiyat, sonrakiFiyat: $lastFiyat.length ? $lastFiyat.val() : null,
-                                    });
+                                    var $miktarInputs= $row.find('input.hizmet-miktari');
+                                    var $tSure   = $sureInputs.eq(tsIdx);
+                                    var $tFiyat  = $fiyatInputs.eq(tsIdx);
+                                    var $tMiktar = $miktarInputs.eq(tsIdx);
+                                    if($tSure.length  && h.sure_dk !== undefined && h.sure_dk !== null && h.sure_dk !== '') $tSure.val(h.sure_dk);
+                                    if($tFiyat.length && h.fiyat   !== undefined && h.fiyat   !== null && h.fiyat   !== '') $tFiyat.val(h.fiyat);
+                                    if($tMiktar.length && h.dusum_miktari) $tMiktar.val(h.dusum_miktari);
                                 };
                                 setTimeout(function(){ _overwriteRow('50ms'); }, 50);
                                 setTimeout(function(){ _overwriteRow('200ms'); }, 200);
