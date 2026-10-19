@@ -2803,27 +2803,25 @@
                 formData.append('hizmet_suresi[]', calcSure);
             });
         } else {
-            // Manuel satirlar (tek bir randevu icinde gruplanir)
-            var flatIdx = 0; // her satirdaki her hizmet icin global index (flat compat)
-            group.rows.forEach(function(row, i){
+            // Manuel satirlar — HER HIZMET AYRI KEY2 (ayri randevu grubu) olarak gonderilir.
+            // Boylece ayni satirda multi-select 2 hizmet secildiyse backend ikisini AYRI
+            // RANDEVU_HIZMETLER (sirali saatlerle) kaydeder ve takvimde AYRI event gorunur.
+            // Eski davranis: tek key2 altinda array -> takvimde birlesik tek blok.
+            var flatIdx = 0;
+            var globalKey = 0; // backend key2 — her hizmet icin ayri
+            group.rows.forEach(function(row, satirIdx){
                 var $row = $(row);
                 var personelId = $row.find('.v2-personel').val() || '';
                 var cihazId    = $row.find('.v2-cihaz').val() || '';
                 var odaId      = $row.find('.v2-oda').val() || '';
                 var hizmetIds  = $row.find('.v2-hizmet').val() || [];
                 if(!Array.isArray(hizmetIds)) hizmetIds = [hizmetIds];
+                hizmetIds = hizmetIds.filter(function(x){ return x; });
+                if(!hizmetIds.length) return;
 
-                formData.append('randevupersonelleriyeni[]', personelId);
-                formData.append('randevucihazlariyeni[]', cihazId);
-                formData.append('randevuodalariyeni[]', odaId);
-                formData.append('randevuyardimcipersonelleriyeni_'+i+'[]', '');
-
-                // "Üsttekiyle birleştir" (paralel): backend key2 > 0 icin birlestir{key2} kontrolu
-                // yapar (kod: !isset($request->{"birlestir{$birsonraki}"}) => $birsonraki=$key2+1'de
-                // saat ilerletir; SET ise ilerletmez => row i, row i-1 ile ayni saatte baslar)
-                if(i > 0 && $row.find('.v2-birlestir').is(':checked')){
-                    formData.append('birlestir'+i, 1);
-                }
+                // "Üsttekiyle birleştir" (paralel) sadece satir bazli; multi-hizmet
+                // icinde sirali, satirlar arasi birlestirme kullanicinin tercihi.
+                var satirBirlestir = (satirIdx > 0 && $row.find('.v2-birlestir').is(':checked'));
 
                 // Satır seviyesi manuel Süre + Fiyat input'larından oku
                 var rowSureRaw = String($row.find('.v2-row-sure').val() || '').trim();
@@ -2834,21 +2832,35 @@
                 var hasManFiyat = !isNaN(rowFiyatMan) && rowFiyatRaw !== '';
 
                 hizmetIds.forEach(function(hid, hidx){
-                    formData.append('randevuhizmetleriyeni_'+i+'[]', hid);
+                    // Her hizmet AYRI key2 — ayri satir ayri personel/cihaz/oda, ayri hizmet dizisi
+                    formData.append('randevupersonelleriyeni[]', personelId);
+                    formData.append('randevucihazlariyeni[]', cihazId);
+                    formData.append('randevuodalariyeni[]', odaId);
+                    formData.append('randevuyardimcipersonelleriyeni_'+globalKey+'[]', '');
+                    formData.append('randevuhizmetleriyeni_'+globalKey+'[]', hid);
+
+                    // Birlestir: ya satir birlestir (ilk hizmet, hidx===0) ya da satir ici
+                    // paralel degil (hidx>0 => sirali default). Yani:
+                    //   - globalKey==0: ilk, birlestir yok
+                    //   - satir ici hidx>0: SIRALI (birlestir YOK)
+                    //   - satirlar arasi (hidx===0 && satirIdx>0 && satirBirlestir): paralel
+                    if(globalKey > 0 && hidx === 0 && satirBirlestir){
+                        formData.append('birlestir'+globalKey, 1);
+                    }
+
                     var d = window.hizmetDataCache ? window.hizmetDataCache[hid] : null;
                     var defaultSure  = d ? parseFloat(d.sure)||0  : 0;
                     var defaultFiyat = d ? parseFloat(d.fiyat)||0 : 0;
-                    // Manuel girilmişse: ilk hizmete TOPLAM ata, diğerlerine 0 (paket mantığı,
-                    // randevu blok-bazlı toplam süre/fiyat kadar yer kaplar)
+                    // Manuel girilmişse: ilk hizmete TOPLAM ata, diğerlerine 0
                     var sure  = hasManSure  ? (hidx === 0 ? rowSureMan  : 0) : defaultSure;
                     var fiyat = hasManFiyat ? (hidx === 0 ? rowFiyatMan : 0) : defaultFiyat;
                     formData.append('hizmet_sureleri-'+hid, sure);
                     formData.append('hizmet_fiyatlari-'+hid, (typeof fiyat === 'number' ? fiyat : 0).toFixed(2));
                     formData.append('hizmet_miktarlari-'+hid, '1');
-                    // BACKWARD COMPAT (cakisma kontrolu)
                     formData.append('randevuhizmetleriyeni[]', hid);
                     formData.append('hizmet_suresi[]', sure);
                     flatIdx++;
+                    globalKey++;
                 });
             });
         }
