@@ -654,6 +654,9 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::get ('/liste-segmentler',         'CagriMerkeziApiController@cagri_liste_segmentler');
         Route::post('/segment-ata',              'CagriMerkeziApiController@cagri_segment_ata');
         Route::post('/liste-personel-degistir',  'CagriMerkeziApiController@cagri_liste_personel_degistir');
+        Route::post('/liste-durum',              'CagriMerkeziApiController@cagri_liste_durum');
+        Route::post('/toplu-aktar',              'CagriMerkeziApiController@cagri_toplu_aktar');
+        Route::post('/segment-indir',            'CagriMerkeziApiController@cagri_segment_indir');
         Route::post('/liste-sil',                'CagriMerkeziApiController@cagri_liste_sil');
         Route::get ('/personeller',              'CagriMerkeziApiController@arama_personelleri');
         Route::get ('/listeler',                 'CagriMerkeziApiController@arama_listesi_getir');
