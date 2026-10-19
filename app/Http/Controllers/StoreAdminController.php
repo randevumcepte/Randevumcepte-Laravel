@@ -19242,7 +19242,8 @@ DB::raw('
             </a>
             <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                 <a class="dropdown-item" data-value="',randevular.id,'" name="randevu_duzenle" data-index-number="',COALESCE(randevu_hizmetler.hizmet_id, 0),'" href="#"> <i class="fa fa-edit"></i> Düzenle</a>',
-                /* Telafi Randevusu menu item'i canliya ciksin diye gecici gizlendi */ '',
+                IF(COALESCE(randevu_hizmetler.telafi_devir_yapildi,0)=0 AND randevu_hizmetler.telafi_kaynak_rh_id IS NULL,
+                   CONCAT('<a class="dropdown-item telafi-randevu-liste-ac" data-value="',randevular.id,'" href="#"> <i class="fa fa-undo"></i> Telafi Randevusu</a>'), ''),
                 '<a class="dropdown-item randevuiptalet" data-value="',randevular.id,'" href="#"> <i class="fa fa-times"></i> İptal Et</a>
             </div></div>')
         WHEN randevular.durum = 1 AND randevular.randevuya_geldi IS TRUE THEN
@@ -19251,7 +19252,8 @@ DB::raw('
             </a>
             <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                 <a class="dropdown-item" data-value="',randevular.id,'" name="randevu_sonrasi_islem_notu" href="#"> <i class="fa fa-plus"></i> İşlem Not Ekle</a>',
-                /* Telafi Randevusu menu item'i canliya ciksin diye gecici gizlendi */ '',
+                IF(COALESCE(randevu_hizmetler.telafi_devir_yapildi,0)=0 AND randevu_hizmetler.telafi_kaynak_rh_id IS NULL,
+                   CONCAT('<a class="dropdown-item telafi-randevu-liste-ac" data-value="',randevular.id,'" href="#"> <i class="fa fa-undo"></i> Telafi Randevusu</a>'), ''),
                 '</div></div>')
         WHEN randevular.durum IN (2,3) THEN CONCAT('<div class="dropdown">
             <a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown"><i class="dw dw-more"></i>
