@@ -83,8 +83,8 @@
 .hy-kategori-card.collapsed .hy-kategori-chevron { transform: rotate(-90deg); }
 .hy-kategori-body { padding: 0; }
 
-.hy-hizmet-header-row { display: grid; grid-template-columns: 2.5fr 1fr 1fr 2fr 110px; padding: 11px 20px; background: var(--hy-gray-50); border-bottom: 1px solid var(--hy-gray-200); font-size: 11px; font-weight: 700; color: var(--hy-gray-500); text-transform: uppercase; letter-spacing: 0.5px; gap: 12px; }
-.hy-hizmet-row { display: grid; grid-template-columns: 2.5fr 1fr 1fr 2fr 110px; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--hy-gray-100); gap: 12px; transition: all 0.15s; }
+.hy-hizmet-header-row { display: grid; grid-template-columns: 2.3fr 0.9fr 0.9fr 0.9fr 1.8fr 110px; padding: 11px 20px; background: var(--hy-gray-50); border-bottom: 1px solid var(--hy-gray-200); font-size: 11px; font-weight: 700; color: var(--hy-gray-500); text-transform: uppercase; letter-spacing: 0.5px; gap: 12px; }
+.hy-hizmet-row { display: grid; grid-template-columns: 2.3fr 0.9fr 0.9fr 0.9fr 1.8fr 110px; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--hy-gray-100); gap: 12px; transition: all 0.15s; }
 .hy-hizmet-row:hover { background: var(--hy-gray-50); }
 .hy-hizmet-row:last-child { border-bottom: none; }
 
@@ -128,8 +128,11 @@
    .hy-stat { min-width:85px; padding:9px 13px; }
    .hy-stat-value { font-size:17px; }
    .hy-hizmet-row, .hy-hizmet-header-row { grid-template-columns: 2fr 1fr 1fr 50px; }
+   /* Mobil: maliyet (4.) + personel (5.) kolonlarini gizle, Fiyat kalsin */
    .hy-hizmet-header-row > div:nth-child(4),
-   .hy-hizmet-row > div:nth-child(4) { display:none; }
+   .hy-hizmet-row > div:nth-child(4),
+   .hy-hizmet-header-row > div:nth-child(5),
+   .hy-hizmet-row > div:nth-child(5) { display:none; }
    .hy-hizmet-islemler { gap:4px; }
 }
 
@@ -325,6 +328,7 @@
                      <div>Hizmet Adı</div>
                      <div>Süre</div>
                      <div>Fiyat</div>
+                     <div>Maliyet</div>
                      <div>Personel / Cihaz</div>
                      <div style="text-align:right;">İşlemler</div>
                   </div>
@@ -352,6 +356,13 @@
                         </div>
                         <div><span class="hy-chip hy-chip-time"><i class="fa fa-clock-o"></i> {{$hizmet['sure_dk']}} dk</span></div>
                         <div><span class="hy-chip hy-chip-price">{{number_format($hizmet['fiyat'],2,',','.')}} ₺</span></div>
+                        <div>
+                           @if(!empty($hizmet['maliyet']) && (float)$hizmet['maliyet'] > 0)
+                              <span class="hy-chip" style="background:#fff3cd;color:#8a6a00;font-weight:600;">{{number_format($hizmet['maliyet'],2,',','.')}} ₺</span>
+                           @else
+                              <span class="hy-chip hy-chip-empty" style="opacity:0.6;">—</span>
+                           @endif
+                        </div>
                         <div class="hy-hizmet-personel" title="{{$hizmet['personeller']}}">
                            @if($hizmet['personeller'] == '')
                               <span class="hy-chip hy-chip-empty"><i class="fa fa-exclamation-circle"></i> Atanmamış</span>
@@ -741,6 +752,11 @@ $(document).ready(function(){
                $row.attr({'data-fiyat':newFiyat,'data-maliyet':newMaliyet,'data-sure':newSure,'data-hizmet-adi':newAd,'data-cinsiyet':newCinsiyet,'data-kategori-id':result.kategori_id || newKategoriId});
                $row.find('.hy-chip-price').text(fiyatStr);
                $row.find('.hy-chip-time').html('<i class="fa fa-clock-o"></i> '+newSure+' dk');
+               // Maliyet kolonu (4. div) — guncelle
+               var maliyetStr = (newMaliyet > 0)
+                  ? '<span class="hy-chip" style="background:#fff3cd;color:#8a6a00;font-weight:600;">'+newMaliyet.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ₺</span>'
+                  : '<span class="hy-chip hy-chip-empty" style="opacity:0.6;">—</span>';
+               $row.children('div').eq(3).html(maliyetStr);
                var $adiDiv = $row.find('.hy-hizmet-adi');
                $adiDiv.find('span').first().text(newAd);
                $adiDiv.find('.hy-cinsiyet-badge').remove();
