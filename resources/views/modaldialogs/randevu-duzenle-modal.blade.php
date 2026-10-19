@@ -282,12 +282,15 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
             return;
         }
 
-        // SATIR BAZLI birlestir -> FLAT INDEX birlestir<N> hidden input enjekte et
-        // Backend randevuguncelle flat 'randevuhizmetleriyeni' array index'ini key2 olarak
-        // kullaniyor; bir satirin ilk hizmetinin flat_idx'ini bulup o key2 icin birlestir
-        // input'u ekliyoruz. Eski birlestir* input'larini temizle, yeniden olustur.
+        // SATIR BAZLI birlestir -> FLAT INDEX birlestir<N> hidden input enjekte et.
+        // ONEMLI: Eski hizmet-detay kutularinda kalmis olabilecek 'birlestirN' name'li
+        // checkbox'lari + eski hidden input'lari TEMIZLE (serialize'da cakismasin).
         formScope.find('input.satir-birlestir-flat').remove();
+        formScope.find('input[type="checkbox"][name^="birlestir"]').each(function(){
+            $(this).prop('checked', false).removeAttr('name');
+        });
         var _flatIdx = 0;
+        var _birlestirLog = [];
         formScope.find('.hizmet-satiri-duzenle').each(function(satirIdx){
             var $satir = $(this);
             var $hzSel = $satir.find('.duzenle-hizmet-select');
@@ -296,13 +299,14 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
             if(!Array.isArray(secimler)) secimler = secimler ? [secimler] : [];
             secimler = secimler.filter(function(x){return x;});
             if(secimler.length === 0) return;
-            // Satir birlestir checked ise, bu satirin ILK hizmeti (flat key = _flatIdx) icin
-            // birlestir<_flatIdx>=1 hidden input ekle. (satirIdx===0 ise checkbox zaten yok)
-            if(satirIdx > 0 && $satir.find('.satir-birlestir-cb').is(':checked')){
+            var isChecked = $satir.find('.satir-birlestir-cb').is(':checked');
+            if(satirIdx > 0 && isChecked){
                 formScope.append('<input type="hidden" class="satir-birlestir-flat" name="birlestir'+_flatIdx+'" value="1">');
+                _birlestirLog.push({satirIdx:satirIdx, flatIdx:_flatIdx, hidden:'birlestir'+_flatIdx+'=1'});
             }
             _flatIdx += secimler.length;
         });
+        console.log('[DUZENLE SATIR BIRLESTIR]', _birlestirLog);
 
         // TESHIS LOG: Submit oncesi form alanlarini sirali yazdir
         try {
