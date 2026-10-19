@@ -36547,12 +36547,17 @@ DB::raw('
         // Hizmet_id -> salon_sunulan_hizmetler.maliyet lookup (tek sorgu)
         $hizmetIds = $tumHizmetler->pluck('hizmet_id')->unique()->filter()->all();
         $maliyetMap = [];
-        if (!empty($hizmetIds) && \Schema::hasColumn('salon_sunulan_hizmetler','maliyet')) {
-            $maliyetMap = \DB::table('salon_sunulan_hizmetler')
-                ->where('salon_id', $salonId)
-                ->whereIn('hizmet_id', $hizmetIds)
-                ->pluck('maliyet','hizmet_id')
-                ->toArray();
+        if (!empty($hizmetIds)) {
+            try {
+                $maliyetMap = \DB::table('salon_sunulan_hizmetler')
+                    ->where('salon_id', $salonId)
+                    ->whereIn('hizmet_id', $hizmetIds)
+                    ->pluck('maliyet','hizmet_id')
+                    ->toArray();
+            } catch (\Exception $e) {
+                \Log::warning('[hizmetRaporlari2] maliyet kolon yok mu? '.$e->getMessage());
+                $maliyetMap = [];
+            }
         }
 
         // 3. Hizmet_id üzerinden grupla
@@ -38569,7 +38574,11 @@ DB::raw('
 
         // Sure, fiyat ve personel atamasi her hizmet icin degistirilebilir
         if($request->has('fiyat')) $sh->baslangic_fiyat = self::parseFiyat($request->fiyat);
-        if($request->has('maliyet')) $sh->maliyet = self::parseFiyat($request->maliyet);
+        if($request->has('maliyet')) {
+            $_maliyetParsed = self::parseFiyat($request->maliyet);
+            \Log::info('[hizmet-guncelle] maliyet', ['sh_id'=>$sh->id, 'raw'=>$request->maliyet, 'parsed'=>$_maliyetParsed]);
+            $sh->maliyet = $_maliyetParsed;
+        }
         if($request->has('sure_dk')) $sh->sure_dk = $request->sure_dk;
         $sh->save();
 
@@ -38617,6 +38626,7 @@ DB::raw('
             'message' => 'Hizmet başarıyla güncellendi',
             'personeller' => $personellerStr,
             'kategori_id' => $sh->hizmet_kategori_id,
+            'maliyet' => (float) ($sh->maliyet ?? 0),
         ]);
     }
 
