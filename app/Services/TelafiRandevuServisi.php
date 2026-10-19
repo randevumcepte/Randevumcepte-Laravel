@@ -172,19 +172,17 @@ class TelafiRandevuServisi
                 ->where('adisyon_hizmet_id', $ah->id)
                 ->sum('tutar');
             $islenenKayit++;
-            \Log::info('[Telafi primTransfer] AH', ['ah_id'=>$ah->id, 'musteri_odemis'=>$odenmisTutar, 'personel'=>$ah->personel_id]);
-
-            if ($odenmisTutar <= 0) {
-                // Henuz prim hak edilmemis (musteri odemesi yok) -> adisyon personel degistir
-                $ah->personel_id = $yeniPersonelId;
-                $ah->save();
-                continue;
-            }
-
             $yuzde = $this->primYuzdesi($origPersonelId, (int) $ah->hizmet_id);
-            $tutar = round($odenmisTutar * $yuzde / 100, 2);
-            \Log::info('[Telafi primTransfer] AH prim', ['yuzde'=>$yuzde, 'tutar'=>$tutar, 'strateji'=>$primOdenmisMi?'hareket':'adisyon_degistir']);
-            if ($tutar <= 0) continue;
+            // Tutar hesabi: oncelikle musteri odemesi × yuzde; musteri henuz odemediyse
+            // (odenmisTutar=0) adisyon kaleminin KENDI fiyati × yuzde -> prim ödenmişse
+            // bu tutar kadar duzeltme hareketi yazilabilsin.
+            $hesapTaban = $odenmisTutar > 0 ? $odenmisTutar : (float) $ah->fiyat;
+            $tutar = round($hesapTaban * $yuzde / 100, 2);
+            \Log::info('[Telafi primTransfer] AH', [
+                'ah_id'=>$ah->id, 'musteri_odemis'=>$odenmisTutar, 'ah_fiyat'=>$ah->fiyat,
+                'yuzde'=>$yuzde, 'tutar'=>$tutar, 'personel'=>$ah->personel_id,
+                'prim_odenmis'=>$primOdenmisMi,
+            ]);
 
             // HER DURUMDA adisyon.personel_id Ayse'ye devredilsin -> hak edis tablosu
             // Anil'dan dusup Ayse'ye otomatik yansisin (Hizmet Primi kolonu)
@@ -193,9 +191,9 @@ class TelafiRandevuServisi
             $this->sonTransferOzeti['adisyon_degisti']++;
 
             // EK: Prim ODENMIS ise Anil'a -tutar hareket (haksiz yere aldigi primi gelecek
-            // hak edisten dussun diye bakiye negatife gitsin). Ayse icin ek hareket yok —
-            // adisyon degisikligi ile hak edisi zaten artmistir.
-            if ($primOdenmisMi) {
+            // hak edisten dussun diye bakiye negatife gitsin). Musteri henuz tahsilat
+            // yapmasa bile Anil'a avans/prim odendiyse bu hareket yazilmali.
+            if ($primOdenmisMi && $tutar > 0) {
                 $this->primHareket($origPersonelId, null, $salonId, $tarih, -$tutar, $aciklamaBase.' (telafi: geçmiş prim ödemesi düzeltme)', $kullaniciId);
                 $this->sonTransferOzeti['hareket'] += 1;
             }
