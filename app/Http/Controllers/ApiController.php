@@ -22860,7 +22860,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 'personel_rolunde' => false,
                 'salon_sahibi'     => true,
                 'sablon'           => 'tam_yetki',
-                'ayarlar'          => $tum,
+                // Mobil-gizli yeni anahtarlari cikar ki yayindaki build sahte
+                // "yetki degisti -> zorla cikis" tetiklemesin (bkz. mobilGizliAnahtarlar).
+                'ayarlar'          => \Illuminate\Support\Arr::except($tum, \App\PersonelYetkiSabitleri::mobilGizliAnahtarlar()),
             ]);
         }
 
@@ -22883,7 +22885,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 'personel_rolunde' => false,
                 'salon_sahibi'     => false,
                 'sablon'           => 'tam_yetki',
-                'ayarlar'          => $tum,
+                // Mobil-gizli yeni anahtarlari cikar (sahte zorla-cikis engeli).
+                'ayarlar'          => \Illuminate\Support\Arr::except($tum, \App\PersonelYetkiSabitleri::mobilGizliAnahtarlar()),
             ]);
         }
 
@@ -22896,7 +22899,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             'personel_rolunde' => true,
             'salon_sahibi'     => false,
             'sablon'           => $ayarlar['sablon'],
-            'ayarlar'          => $ayarlar['ayarlar'],
+            // Mobil-gizli yeni anahtarlari cikar (sahte zorla-cikis engeli).
+            'ayarlar'          => \Illuminate\Support\Arr::except($ayarlar['ayarlar'], \App\PersonelYetkiSabitleri::mobilGizliAnahtarlar()),
             'personel_id'      => $personelId,
         ]);
     }

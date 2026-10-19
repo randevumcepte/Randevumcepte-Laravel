@@ -299,6 +299,33 @@ class PersonelYetkiSabitleri
     }
 
     /**
+     * Mobil (Flutter) uygulamanin CANLIDAKI build'inin HENUZ bilmedigi,
+     * bu yuzden /benimYetkilerim cevabindan GIZLENMESI gereken yeni anahtarlar.
+     *
+     * NEDEN: Yayindaki Flutter build (Yetki.tazele) backend'den gelen 'ayarlar'
+     * haritasini onbellektekiyle YAPISAL kiyaslar (anahtar sayisi + degerler).
+     * Semaya yeni bir anahtar eklenince harita "degismis" gorunur ve uygulama
+     * "Yetkileriniz Guncellendi" deyip kullaniciyi ZORLA CIKISA yollar — oysa
+     * kisinin gercek yetkisi degismemistir. Bu anahtarlari benimYetkilerim
+     * cevabindan cikararak mobil-gorunur harita sabit kalir, sahte cikis olmaz.
+     *
+     * Yaptirim ETKILENMEZ: ilgili aksiyon ( or. randevuonayla) yetkiyi yine
+     * sunucu tarafinda ayarlariGetir/yetkiVar ile kontrol eder. Web de etkilenmez
+     * (web benimYetkilerim degil, dogrudan yetkiVar kullanir).
+     *
+     * NE ZAMAN BOSALTILIR: Yeni Flutter build (kiyasi eklenen anahtarlara
+     * toleransli hale getirilmis: sadece MEVCUT anahtarin degeri degisince
+     * cikis) yayina alinip yaygin kullanima gectiginde, ilgili anahtar bu
+     * listeden cikarilir; o an mobilde de buton gizleme/granular yetki aktiflesir.
+     */
+    public static function mobilGizliAnahtarlar(): array
+    {
+        return [
+            'randevu.onayla',
+        ];
+    }
+
+    /**
      * Telefon numarasini maskele: "0532 123 45 67" -> "0532 *** ** 67"
      * Son 2 hane gosterilir, geri kalan * ile.
      */
