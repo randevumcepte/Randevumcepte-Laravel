@@ -540,13 +540,16 @@ function agKuyrukCiz(){
       var st = durStil(k);
       var harf = ((m.ad||'?').trim().charAt(0)||'?').toUpperCase();
       var sec = (agSecili && agSecili.aranacak_musteri_id===m.aranacak_musteri_id) ? 'secili' : '';
+      var rvRozet = (+m.randevu_olusturuldu===1)
+         ? '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:4px;white-space:nowrap;"><i class="fa fa-calendar-check-o"></i> Randevu Verildi</span>'
+         : '';
       html += '<div class="ag-musteri '+sec+'" data-id="'+agEsc(m.aranacak_musteri_id)+'">'+
                  '<div class="ag-mus-av">'+agEsc(harf)+'</div>'+
                  '<div class="ag-mus-orta">'+
                     '<div class="ag-mus-ad">'+agEsc(m.ad)+'</div>'+
                     '<div class="ag-mus-tel"><i class="fa fa-phone"></i> '+agEsc(m.telefonGizlenmis||'gizli')+'</div>'+
                  '</div>'+
-                 '<span class="ag-mus-dur d-'+st.c+'">'+st.et+'</span>'+
+                 '<span class="ag-mus-dur d-'+st.c+'">'+st.et+'</span>'+ rvRozet +
               '</div>';
    });
    $('#ag_kuyruk').html(html);
@@ -778,11 +781,17 @@ $(document).on('cagri:ongorusme-saved', function(){
 $(document).on('cagri:v2-saved', function(){
    if (window.__cagriRandevuPending){
       var pr = window.__cagriRandevuPending; window.__cagriRandevuPending = null;
-      $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
+      // NORMAL randevu -> listeden CIKARMA (sadece arama randevusu=durum 3 cikarir).
+      // "Randevu Verildi" bayragini set et, kayit listede KALSIN + rozet gorunsun.
+      $.post('/isletmeyonetim/cagri-randevu-verildi',
          { aranacak_musteri_id:pr.amId, sube:$('input[name="sube"]').val(), _token:$('input[name="_token"]').val() },
          function(r){
-            if(r && r.success){ agDurumGuncelle(pr.amId, 8); agGecmisYukle(pr.amId); }
-            if(typeof swal==='function') swal({ type:'success', title:'Başarılı', text:'Randevu başarıyla oluşturuldu', timer:3000, showConfirmButton:false });
+            if(r && r.success){
+               var it = agMusteriler.find(function(m){ return m.aranacak_musteri_id==pr.amId; });
+               if(it){ it.randevu_olusturuldu = 1; }
+               agKuyrukCiz(); agGecmisYukle(pr.amId);
+            }
+            if(typeof swal==='function') swal({ type:'success', title:'Başarılı', text:'Randevu oluşturuldu (müşteri listede kaldı)', timer:3000, showConfirmButton:false });
          });
    }
 });

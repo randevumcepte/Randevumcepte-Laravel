@@ -635,6 +635,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         // Arama Randevu Takvimi (mobil sekme) — personel + yonetici
         Route::get ('/arama-randevu-takvim-verileri', 'CagriMerkeziApiController@arama_randevu_takvim_verileri');
         Route::post('/randevu-olusturuldu-isaretle',  'CagriMerkeziApiController@cagri_randevu_olusturuldu_isaretle');
+        Route::post('/randevu-verildi-isaretle',      'CagriMerkeziApiController@cagri_randevu_verildi_isaretle');
         Route::post('/arama-randevu-iptal',           'CagriMerkeziApiController@cagri_arama_randevu_iptal');
         Route::post('/arama-randevu-ekle',            'CagriMerkeziApiController@cagri_arama_randevu_ekle');
         Route::get ('/musteri-select',                'CagriMerkeziApiController@cagri_musteri_select');

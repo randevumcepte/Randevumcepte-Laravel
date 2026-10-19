@@ -34101,6 +34101,7 @@ DB::raw('
                 'telefonGizlenmis'    => $telefonCikti,
                 'durum'               => $durumMetin,
                 'durum_kod'           => $item->durum,
+                'randevu_olusturuldu' => (int) ($item->randevu_olusturuldu ?? 0),
                 'not'                 => $item->musteri_not ?? '',
                 'not_tarih'           => $item->tarih ?? '',
                 'not_saat'            => $item->saat ?? '',
@@ -35606,6 +35607,31 @@ DB::raw('
         if (Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at')) {
             $kayit->ar_tamamlandi_at = date('Y-m-d H:i:s');
             $kayit->ar_gecikti = 0;
+        }
+        if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
+            $kayit->son_arama_zamani = date('Y-m-d H:i:s');
+        }
+        $kayit->save();
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * NORMAL salon randevusu verildi -> "Randevu Verildi" bayragini set et.
+     * durum=8'den FARK: durum DEGISMEZ, kayit LISTEDE KALIR (kuyruktan cikmaz).
+     * Sadece arama randevusu (durum=3) listeden cikarir; normal randevu listede kalir + rozet.
+     */
+    public function cagri_randevu_verildi_isaretle(Request $request)
+    {
+        $kayit = AranacakMusteriler::where('id', $request->aranacak_musteri_id)->first();
+        if (!$kayit) {
+            return response()->json(['success' => false, 'message' => 'Kayıt bulunamadı'], 404);
+        }
+        $liste = AramaListesi::where('id', $kayit->arama_id)->first();
+        if (!$this->cagriListeYetkiliMi($liste)) {
+            return response()->json(['success' => false, 'message' => 'Yetkiniz yok'], 403);
+        }
+        if (Schema::hasColumn('aranacak_musteriler', 'randevu_olusturuldu')) {
+            $kayit->randevu_olusturuldu = 1;
         }
         if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
             $kayit->son_arama_zamani = date('Y-m-d H:i:s');
