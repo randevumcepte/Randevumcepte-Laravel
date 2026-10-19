@@ -28181,7 +28181,16 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
      */
     public function tahsilataGitRandevudan(Request $request, $randevu_id)
     {
-        if($r = self::yetkiYoksa403($request, 'odeme.al')) return $r;
+        // NOT: 'odeme.al' diye bir yetki anahtari YOK (semada yalnizca
+        // 'satis.tahsilat_al' tanimli). Yanlis anahtar -> eksik anahtar = yetki yok
+        // mantigiyla personel/yonetici/sekreter rolu HER zaman reddediliyordu.
+        // Ayrica bu bir GET sayfa navigasyonu; reddi JSON 403 yerine dostane
+        // yonlendirmeyle ver (tarayici ham JSON basmasin).
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if ($authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, self::mevcutsube($request), 'satis.tahsilat_al')) {
+            return redirect('/isletmeyonetim/randevular?sube='.(int)$request->sube)
+                ->with('hata', 'Tahsilat alma yetkiniz yok.');
+        }
         $randevu = Randevular::find($randevu_id);
         if(!$randevu) return redirect('/isletmeyonetim/randevular?sube='.(int)$request->sube);
         $salonId = (int) $randevu->salon_id;
