@@ -282,6 +282,28 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
             return;
         }
 
+        // SATIR BAZLI birlestir -> FLAT INDEX birlestir<N> hidden input enjekte et
+        // Backend randevuguncelle flat 'randevuhizmetleriyeni' array index'ini key2 olarak
+        // kullaniyor; bir satirin ilk hizmetinin flat_idx'ini bulup o key2 icin birlestir
+        // input'u ekliyoruz. Eski birlestir* input'larini temizle, yeniden olustur.
+        formScope.find('input.satir-birlestir-flat').remove();
+        var _flatIdx = 0;
+        formScope.find('.hizmet-satiri-duzenle').each(function(satirIdx){
+            var $satir = $(this);
+            var $hzSel = $satir.find('.duzenle-hizmet-select');
+            var tsLocal = $hzSel[0] && $hzSel[0].tomselect;
+            var secimler = tsLocal ? tsLocal.items.slice() : ($hzSel.val() || []);
+            if(!Array.isArray(secimler)) secimler = secimler ? [secimler] : [];
+            secimler = secimler.filter(function(x){return x;});
+            if(secimler.length === 0) return;
+            // Satir birlestir checked ise, bu satirin ILK hizmeti (flat key = _flatIdx) icin
+            // birlestir<_flatIdx>=1 hidden input ekle. (satirIdx===0 ise checkbox zaten yok)
+            if(satirIdx > 0 && $satir.find('.satir-birlestir-cb').is(':checked')){
+                formScope.append('<input type="hidden" class="satir-birlestir-flat" name="birlestir'+_flatIdx+'" value="1">');
+            }
+            _flatIdx += secimler.length;
+        });
+
         // TESHIS LOG: Submit oncesi form alanlarini sirali yazdir
         try {
             var __dbg = {
@@ -401,12 +423,24 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
     function duzenleYeniHizmetSatiri(){
         var idx = window.duzenleHizmetIndex++;
         var num = $('.hizmet-satiri-duzenle').length + 1;
+        // SATIR BAZLI birlestir — sadece 2+ satirlarda gorunur. Checked ise bu satirin
+        // ilk hizmeti ustteki satirin BITIS saatine degil, ustteki satirin BASLANGIC
+        // saatine denk gelir (paralel randevu). Backend birlestir<flat_idx> ile algilar.
+        var satirBirlestirHtml = (num > 1)
+            ? '<label class="satir-birlestir-wrap" style="font-size:0.72rem;margin:0;display:flex;align-items:center;gap:4px;cursor:pointer;">' +
+                '<input type="checkbox" class="satir-birlestir-cb" style="margin:0;">' +
+                'Üstteki satırla aynı saatte başlasın' +
+              '</label>'
+            : '';
         var html =
             '<div class="hizmet-satiri-duzenle card mb-2" data-value="'+idx+'" style="border: 1px solid #dee2e6;">' +
               '<div class="card-header py-1 d-flex justify-content-between align-items-center" style="padding:4px 8px; background:#f8f9fa;">' +
                 '<span class="fw-bold" style="font-size:0.85rem;">Hizmet #'+num+'</span>' +
-                '<button type="button" name="hizmet_formdan_sil" data-value="'+idx+'" class="btn btn-sm btn-danger duzenle-hizmet-sil" style="padding:2px 6px; font-size:0.7rem;">' +
-                  '<i class="icon-copy fa fa-trash"></i> Sil</button>' +
+                '<div style="display:flex;align-items:center;gap:10px;">' +
+                   satirBirlestirHtml +
+                   '<button type="button" name="hizmet_formdan_sil" data-value="'+idx+'" class="btn btn-sm btn-danger duzenle-hizmet-sil" style="padding:2px 6px; font-size:0.7rem;">' +
+                     '<i class="icon-copy fa fa-trash"></i> Sil</button>' +
+                '</div>' +
               '</div>' +
               '<div class="card-body p-2"><div class="row g-2">' +
                 '<div class="col-md-6"><div class="row g-2">' +
@@ -692,14 +726,8 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
                 '<div class="hizmet-detay-item" data-hid="'+id+'" style="background:#fafbff;border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-top:6px;">' +
                   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;">' +
                     '<span style="font-size:0.82rem;font-weight:600;color:#111827;">'+ad+'</span>' +
-                    '<div style="display:flex;align-items:center;gap:8px;">' +
-                      '<label class="birlestir-wrap" style="font-size:0.72rem;margin:0;display:flex;align-items:center;gap:4px;">' +
-                        '<input type="checkbox" class="birlestir-cb" style="margin:0;">' +
-                        'Üstteki ile birleştir' +
-                      '</label>' +
-                      '<button type="button" class="btn btn-sm btn-outline-danger duzenle-hizmet-kaldir" data-index="'+index+'" data-service-id="'+id+'" style="padding:1px 6px;font-size:0.7rem;">' +
-                        '<i class="fa fa-times"></i></button>' +
-                    '</div>' +
+                    '<button type="button" class="btn btn-sm btn-outline-danger duzenle-hizmet-kaldir" data-index="'+index+'" data-service-id="'+id+'" style="padding:1px 6px;font-size:0.7rem;">' +
+                      '<i class="fa fa-times"></i></button>' +
                   '</div>' +
                   '<div class="row g-1">' +
                     '<div class="col-md-5">' +
@@ -726,19 +754,7 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
                 else $container.append(html);
             }
         });
-        // (c) Birlestir checkbox numaralari ve disabled durumunu guncelle (sira bazli)
-        $container.find('.hizmet-detay-item').each(function(i){
-            var num = i + 1;
-            var $cb = $(this).find('.birlestir-cb');
-            $cb.attr('name', 'birlestir'+num);
-            if(i === 0){
-                $cb.prop('disabled', true).prop('checked', false);
-                $cb.closest('.birlestir-wrap').css('opacity', '0.4');
-            } else {
-                $cb.prop('disabled', false);
-                $cb.closest('.birlestir-wrap').css('opacity', '');
-            }
-        });
+        // (c) Birlestir checkbox satir basliga tasindi — hizmet detay'da gerek yok.
     }
 
     // Detay icindeki hizmet kaldirma butonu
