@@ -7640,10 +7640,18 @@ private function ayAdiCevir($ingilizceAy)
                         
                         $yenirandevuhizmetpersonel->randevu_id = $randevu->id;
                         $yenirandevuhizmetpersonel->hizmet_id = $value;
-                        $yenirandevuhizmetpersonel->cihaz_id = $yeniRandevuBilgileri['cihazlar'][$key];
-                        $yenirandevuhizmetpersonel->personel_id = $yeniRandevuBilgileri['personeller'][$key];
-                        // Oda: manuel seçim varsa onu kullan, yoksa hizmete uygun ilk müsait
-                        $duzenleOdaId = $yeniRandevuBilgileri['odalari'][$key] ?? null;
+                        // BUGFIX: Multi-select durumunda form 1 satir N hizmet gonderebilir
+                        // (randevuhizmetleriyeni[]=[h1,h2], randevupersonelleriyeni[]=[p1] yalnizca 1).
+                        // Bu durumda ikinci hizmet icin personel/cihaz/oda arrayinde index yok -> NULL
+                        // kaydediliyordu -> hizmet eklenmemis gibi gorunurdu. Index yoksa onceki
+                        // satirin degerini (satir seviyesi) kullan — ayni satirdaki tum hizmetler
+                        // ayni personel/cihaz/oda ile girilmistir.
+                        $_cihazKey  = isset($yeniRandevuBilgileri['cihazlar'][$key])    ? $key : max(0, count($yeniRandevuBilgileri['cihazlar']) - 1);
+                        $_personelKey = isset($yeniRandevuBilgileri['personeller'][$key]) ? $key : max(0, count($yeniRandevuBilgileri['personeller']) - 1);
+                        $_odaKey    = isset($yeniRandevuBilgileri['odalari'][$key])    ? $key : max(0, count($yeniRandevuBilgileri['odalari']) - 1);
+                        $yenirandevuhizmetpersonel->cihaz_id    = $yeniRandevuBilgileri['cihazlar'][$_cihazKey] ?? null;
+                        $yenirandevuhizmetpersonel->personel_id = $yeniRandevuBilgileri['personeller'][$_personelKey] ?? null;
+                        $duzenleOdaId = $yeniRandevuBilgileri['odalari'][$_odaKey] ?? null;
                         if (!$duzenleOdaId) {
                             $_baslangic = ($key == 0) ? $yeniRandevuBilgileri['saat'] : $yenisaatbaslangic;
                             $_bitis = date("H:i", strtotime('+' . (int)$request->hizmet_suresi[$key] . ' minutes', strtotime($_baslangic)));
