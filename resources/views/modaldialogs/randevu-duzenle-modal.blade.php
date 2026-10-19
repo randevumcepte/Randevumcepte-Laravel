@@ -246,7 +246,42 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
         });
     }
 
-    // Custom.js submit handler'ini bypass et - form scope'lu dogru validation yap
+    // CRITICAL: Submit butonu CLICK'inde (submit event'ten BAGIMSIZ) satir-birlestir
+    // hidden input'larini enjekte et. Form submit tetiklendiginde serialize bunlari
+    // dahil eder. Capture-phase submit handler calismasa bile bu CLICK handler calisir.
+    $(document).on('click', '#randevu-duzenle-modal button[type="submit"], #randevuduzenleform button[type="submit"]', function(){
+        try {
+            var $form = $('#randevuduzenleform');
+            // Eski birlestirN input/checkbox'larini temizle (cakisma)
+            $form.find('input.satir-birlestir-flat').remove();
+            $form.find('input[type="checkbox"][name^="birlestir"]').each(function(){
+                $(this).prop('checked', false).removeAttr('name');
+            });
+            var _flatIdx = 0;
+            var _log = [];
+            $form.find('.hizmet-satiri-duzenle').each(function(satirIdx){
+                var $satir = $(this);
+                var $hzSel = $satir.find('.duzenle-hizmet-select');
+                var tsLocal = $hzSel[0] && $hzSel[0].tomselect;
+                var secimler = tsLocal ? tsLocal.items.slice() : ($hzSel.val() || []);
+                if(!Array.isArray(secimler)) secimler = secimler ? [secimler] : [];
+                secimler = secimler.filter(function(x){return x;});
+                if(secimler.length === 0) return;
+                if(satirIdx > 0 && $satir.find('.satir-birlestir-cb').is(':checked')){
+                    $form.append('<input type="hidden" class="satir-birlestir-flat" name="birlestir'+_flatIdx+'" value="1">');
+                    _log.push({satirIdx:satirIdx, flatIdx:_flatIdx});
+                }
+                _flatIdx += secimler.length;
+            });
+            console.log('[DUZENLE CLICK SATIR BIRLESTIR]', _log);
+        } catch(err){ console.error('[DUZENLE CLICK ENJEKT HATA]', err); }
+    });
+
+    // Custom.js submit handler'ini bypass et - form scope'lu dogru validation yap.
+    // CAPTURE PHASE (3. arg = true) ile bind: jQuery event delegation (custom.js'teki
+    // $(document).on('submit', '#randevuduzenleform', ...)) bubble phase'de calisir.
+    // Capture'da once bizim handler calisir, stopImmediatePropagation sonrasi bubble'a
+    // devam etmez -> custom.js handler cagrilmaz, cift AJAX gitmez.
     document.addEventListener('submit', function(e){
         if(!e.target || e.target.id !== 'randevuduzenleform') return;
         // Custom.js validation bug'i: cihaz selector form scope degil, document-wide. Override et.
