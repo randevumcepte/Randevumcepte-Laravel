@@ -624,6 +624,39 @@ body.modal-open #randevu-duzenle-modal { z-index: 100003 !important; }
     }
 
     // Hizmet secimi sonrasi sure/fiyat input'larini render et (ekleme modali gibi)
+    // DEBUG v5: hizmet-suresi input'una value yazimini INTERCEPT et, stack trace at
+    (function installValueTracer(){
+        if(window._duzenleSureTracerInstalled) return;
+        window._duzenleSureTracerInstalled = true;
+        var origDesc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+        if(!origDesc || !origDesc.set) return;
+        document.addEventListener('focusin', function(ev){
+            var el = ev.target;
+            if(!el || !el.matches || !el.matches('#randevu-duzenle-modal .hizmet-suresi, #randevu-duzenle-modal .hizmet-fiyati')) return;
+            if(el._tracerAttached) return;
+            el._tracerAttached = true;
+        }, true);
+        // Daha agresif: hiz-suresi tum DOM input'larina direkt attach
+        var tryAttach = function(){
+            document.querySelectorAll('#randevu-duzenle-modal .hizmet-suresi, #randevu-duzenle-modal .hizmet-fiyati').forEach(function(el){
+                if(el._tracerAttached) return;
+                el._tracerAttached = true;
+                var sym = el.className.indexOf('hizmet-suresi')>-1 ? 'SURE' : 'FIYAT';
+                Object.defineProperty(el, 'value', {
+                    configurable: true,
+                    get: function(){ return origDesc.get.call(this); },
+                    set: function(v){
+                        var hid = (el.closest('.hizmet-detay-item') || {}).getAttribute && el.closest('.hizmet-detay-item').getAttribute('data-hid');
+                        var oldVal = origDesc.get.call(this);
+                        console.warn('[TRACER '+sym+'] hid='+hid+' old='+oldVal+' new='+v, {stack:new Error().stack});
+                        origDesc.set.call(this, v);
+                    }
+                });
+            });
+        };
+        setInterval(tryAttach, 300);
+    })();
+
     // DELTA RENDER (v4): Container'i ASLA empty + rebuild etme.
     // Mevcut input'lara DOKUNMA — user edit + default degerler hic bir timer tarafindan
     // override edilemez. Sadece ekle/sil fark operasyonu + birlestir numaralandirmasi.
