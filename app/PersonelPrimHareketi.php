@@ -10,6 +10,7 @@ class PersonelPrimHareketi extends Model
 
     protected $fillable = [
         'personel_id', 'salon_id', 'tarih', 'tip', 'tutar', 'aciklama', 'ekleyen_yetkili_id',
+        'kaynak_randevu_id', 'kaynak_adisyon_hizmet_id', 'kaynak_adisyon_paket_id',
     ];
 
     protected $dates = ['tarih'];

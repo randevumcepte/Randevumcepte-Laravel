@@ -16,6 +16,10 @@ class AdisyonPaketler extends Model
 
     
 
+     public function adisyon()
+    {
+        return $this->belongsTo(Adisyonlar::class,'adisyon_id');
+    }
      public function paket()
     {
         return $this->belongsTo(Paketler::class,'paket_id');

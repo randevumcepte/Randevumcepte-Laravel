@@ -39935,10 +39935,33 @@ DB::raw('
             }
         }
 
-        $hareketler = PersonelPrimHareketi::where('salon_id',$salonId)
+        $hareketlerFlat = PersonelPrimHareketi::where('salon_id',$salonId)
             ->whereBetween('tarih',[$tarih1,$tarih2])
-            ->get()
-            ->groupBy('personel_id');
+            ->get();
+        $hareketler = $hareketlerFlat->groupBy('personel_id');
+
+        // YETIM TELAFI DEVRI korumasi: kaynagi (satis kalemi / paket) silinmis telafi_devir
+        // hareketlerini hak ediste YOK SAY. Boylece bir satis silindiginde -tutar clawback
+        // kendiliginden kalkar (ayri silme koduna gerek kalmaz, manuel DB silmeleri de kapsanir).
+        // Kaynak referansi olmayan (eski) kayitlar aynen sayilir — geriye donuk uyumlu.
+        $yetimTelafiIdler = [];
+        if (\Schema::hasColumn('personel_prim_hareketleri','kaynak_adisyon_hizmet_id')) {
+            $telafiHar = $hareketlerFlat->where('tip','telafi_devir');
+            $ahIdler = $telafiHar->pluck('kaynak_adisyon_hizmet_id')->filter()->unique()->values();
+            $apIdler = $telafiHar->pluck('kaynak_adisyon_paket_id')->filter()->unique()->values();
+            $varAh = $ahIdler->isNotEmpty()
+                ? \DB::table('adisyon_hizmetler')->whereIn('id',$ahIdler->all())->pluck('id')->flip()
+                : collect();
+            $varAp = $apIdler->isNotEmpty()
+                ? \DB::table('adisyon_paketler')->whereIn('id',$apIdler->all())->pluck('id')->flip()
+                : collect();
+            foreach ($telafiHar as $th) {
+                $ahId = $th->kaynak_adisyon_hizmet_id;
+                $apId = $th->kaynak_adisyon_paket_id;
+                if ($ahId && !$varAh->has($ahId))       $yetimTelafiIdler[$th->id] = true;
+                elseif ($apId && !$varAp->has($apId))    $yetimTelafiIdler[$th->id] = true;
+            }
+        }
 
         // Personel bazli PERSONEL GIDERI toplami (masraflar.personel_gideri=1):
         // personel kasadan aldigi tutar. Net hak edisten DUSULUR ve "Masraf" sutununda
@@ -39985,7 +40008,10 @@ DB::raw('
             $persHareketler = $hareketler->get($p->id, collect());
             foreach($persHareketler as $h){
                 if($h->tip === 'bonus')              $bonus += (float)$h->tutar;
-                elseif($h->tip === 'telafi_devir')   $telafiDevri += (float)$h->tutar; // negatif tutar normal
+                elseif($h->tip === 'telafi_devir'){
+                    if(isset($yetimTelafiIdler[$h->id])) continue; // kaynagi silinmis -> yok say
+                    $telafiDevri += (float)$h->tutar; // negatif tutar normal
+                }
                 else                                  $kesinti += (float)$h->tutar;
             }
 

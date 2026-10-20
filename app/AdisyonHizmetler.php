@@ -15,6 +15,10 @@ class AdisyonHizmetler extends Model
        Eski deger: ['hizmet','personel','cihaz'] */
     // protected $connection = 'mysql_source'; // Varsayılan olarak kaynak database
   
+     public function adisyon()
+    {
+        return $this->belongsTo(Adisyonlar::class,'adisyon_id');
+    }
      public function hizmet()
     {
         return $this->belongsTo(Hizmetler::class,'hizmet_id');

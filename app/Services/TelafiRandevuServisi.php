@@ -109,20 +109,25 @@ class TelafiRandevuServisi
         $tarih   = date('Y-m-d');
         $aciklamaBase = 'Telafi randevusu #'.$yeniRandevu->id.' – orijinal randevu #'.$origRH->randevu_id;
 
-        // Fatma'ya bu salonda HERHANGI bir odeme (prim/maas/diger — tipten bagimsiz) yapildi mi?
-        // User'in gercek urun akisinda "Ode" butonu farkli tip (prim yerine maas/diger)
-        // ile kaydedebiliyor; sadece 'prim' tipine bakmak yanlis negatif veriyordu.
-        // Herhangi bir odeme varsa -> telafi devri icin ek -tutar hareketi yazilsin.
-        $odenenPrim = (float) DB::table('personel_maas_odemeleri')
-            ->where('personel_id', $origPersonelId)
-            ->where('salon_id', $salonId)
-            ->sum('tutar');
-        $primOdenmisMi = $odenenPrim > 0;
-        \Log::info('[Telafi primTransfer] odenen prim toplam', [
-            'orig_personel' => $origPersonelId,
-            'toplam_prim_odemesi' => $odenenPrim,
-            'prim_odenmis_mi' => $primOdenmisMi,
-        ]);
+        // KURAL 2 — "Bu hizmetin primi orijinal personele ODENDI mi?"
+        // Yalnizca PRIM tipi odeme + hizmetin ait oldugu DONEM (ay) bazinda bakilir.
+        //  - Prim odenmemis (2a): yalnizca satis kalemi yeni personele devredilir, clawback YOK.
+        //  - Prim odenmis  (2b): satis devredilir + orijinal personele -odenen_prim kadar telafi devri.
+        // (Eski kod "butun zaman + butun odeme tipleri" topluyordu; maas/avans odemesini bile
+        //  "prim odendi" sayip yanlis clawback yaziyordu. Kurala gore duzeltildi.)
+        $primOdenmisMiDonem = function ($donem) use ($origPersonelId, $salonId) {
+            static $cache = [];
+            $donem = (string) $donem;
+            if (!array_key_exists($donem, $cache)) {
+                $cache[$donem] = ((float) DB::table('personel_maas_odemeleri')
+                    ->where('personel_id', $origPersonelId)
+                    ->where('salon_id', $salonId)
+                    ->where('odeme_tipi', 'prim')
+                    ->where('donem', $donem)
+                    ->sum('tutar')) > 0;
+            }
+            return $cache[$donem];
+        };
 
         $islenenKayit = 0;
 
@@ -168,34 +173,40 @@ class TelafiRandevuServisi
         $this->sonTransferOzeti['ah'] = $ahListesi->count();
 
         foreach ($ahListesi as $ah) {
-            $odenmisTutar = (float) DB::table('tahsilat_hizmetler')
-                ->where('adisyon_hizmet_id', $ah->id)
-                ->sum('tutar');
             $islenenKayit++;
-            $yuzdeOrig = $this->primYuzdesi($origPersonelId, (int) $ah->hizmet_id);
-            $yuzdeYeni = $this->primYuzdesi($yeniPersonelId, (int) $ah->hizmet_id);
-            // Yuzde fallback: Anil'da tanimli yoksa Gulsah'ta tanimli olanı kullan
-            // (en azindan Gulsah'in alacagi tutar kadar Anil'dan dusur -> simetri)
-            $yuzde = $yuzdeOrig > 0 ? $yuzdeOrig : $yuzdeYeni;
-            $hesapTaban = $odenmisTutar > 0 ? $odenmisTutar : (float) $ah->fiyat;
-            $tutar = round($hesapTaban * $yuzde / 100, 2);
-            \Log::info('[Telafi primTransfer] AH', [
-                'ah_id'=>$ah->id, 'musteri_odemis'=>$odenmisTutar, 'ah_fiyat'=>$ah->fiyat,
-                'yuzde_orig'=>$yuzdeOrig, 'yuzde_yeni'=>$yuzdeYeni, 'yuzde_used'=>$yuzde,
-                'tutar'=>$tutar, 'personel'=>$ah->personel_id, 'prim_odenmis'=>$primOdenmisMi,
-            ]);
 
-            // HER DURUMDA adisyon.personel_id Ayse'ye devredilsin -> hak edis tablosu
-            // Anil'dan dusup Ayse'ye otomatik yansisin (Hizmet Primi kolonu)
+            // HER DURUMDA satis kalemi yeni personele devredilsin — hem 2a (prim odenmemis:
+            // prim yeni personele gecer) hem 2b (odenmis) icin gerekli. Hak edis tablosunda
+            // Hizmet Primi otomatik orijinalden dusup yeni personele yansir.
             $ah->personel_id = $yeniPersonelId;
             $ah->save();
             $this->sonTransferOzeti['adisyon_degisti']++;
 
-            // EK: Prim ODENMIS ise Anil'a -tutar hareket (haksiz yere aldigi primi gelecek
-            // hak edisten dussun diye bakiye negatife gitsin). Musteri henuz tahsilat
-            // yapmasa bile Anil'a avans/prim odendiyse bu hareket yazilmali.
-            if ($primOdenmisMi && $tutar > 0) {
-                $this->primHareket($origPersonelId, null, $salonId, $tarih, -$tutar, $aciklamaBase.' (telafi: geçmiş prim ödemesi düzeltme)', $kullaniciId);
+            // KURAL 2b: orijinal personel bu hizmetten prim KAZANIP ODENDIYSE, kazandigi
+            // (odenen) prim kadar -tutar telafi devri. Kazanilan prim = MUSTERININ odedigi
+            // tahsilat * ORIJINAL personelin bu hizmetteki yuzdesi.
+            //  - Musteri odemediyse (tahsilat 0): prim kazanilmamis -> clawback YOK.
+            //  - Orijinal personelin yuzdesi 0 ise: kazanilmamis -> clawback YOK.
+            // (Eski fiyat/yuzde fallback'leri KALDIRILDI: kazanilmamis primi geri almak yanlisti.)
+            $odenmisTutar = (float) DB::table('tahsilat_hizmetler')
+                ->where('adisyon_hizmet_id', $ah->id)
+                ->sum('tutar');
+            $donemAh = substr((string) (optional($ah->adisyon)->tarih ?: date('Y-m-d')), 0, 10);
+            $donemAh = substr($donemAh, 0, 7);
+            $yuzde   = $this->primYuzdesi($origPersonelId, (int) $ah->hizmet_id);
+            $tutar   = round($odenmisTutar * $yuzde / 100, 2);
+            $primOdenmis = $primOdenmisMiDonem($donemAh);
+            \Log::info('[Telafi primTransfer] AH', [
+                'ah_id'=>$ah->id, 'musteri_odemis'=>$odenmisTutar, 'donem'=>$donemAh,
+                'yuzde'=>$yuzde, 'tutar'=>$tutar, 'prim_odenmis'=>$primOdenmis,
+            ]);
+
+            if ($primOdenmis && $tutar > 0) {
+                $this->primHareket(
+                    $origPersonelId, $salonId, $tarih, -$tutar,
+                    $aciklamaBase.' (telafi: ödenen prim geri devri)', $kullaniciId,
+                    ['kaynak_randevu_id' => $yeniRandevu->id, 'kaynak_adisyon_hizmet_id' => $ah->id]
+                );
                 $this->sonTransferOzeti['hareket'] += 1;
             }
         }
@@ -213,34 +224,37 @@ class TelafiRandevuServisi
             $ap = \App\AdisyonPaketler::find($aps->adisyon_paket_id);
             if (!$ap) continue;
 
-            $toplamOdenmisPaket = (float) DB::table('tahsilat_paketler')
-                ->where('adisyon_paket_id', $ap->id)
-                ->sum('tutar');
-            if ($toplamOdenmisPaket <= 0) {
-                // Paket tahsilat yok -> APS kaydinin personel'ini degistir
-                $aps->personel_id = $yeniPersonelId;
-                $aps->save();
-                continue;
-            }
-            $toplamSeans = (int) ($ap->seans_sayisi ?: 0);
-            if ($toplamSeans <= 0) continue;
-            $seansBasiOdeme = $toplamOdenmisPaket / max($toplamSeans, 1);
-            $yuzde = $this->primYuzdesi($origPersonelId, (int) $origRH->hizmet_id);
-            $tutar = round($seansBasiOdeme * $yuzde / 100, 2);
-            \Log::info('[Telafi primTransfer] APS prim', [
-                'ap_id'=>$ap->id, 'paket_odenmis'=>$toplamOdenmisPaket,
-                'seans_sayisi'=>$toplamSeans, 'seans_basi'=>$seansBasiOdeme,
-                'yuzde'=>$yuzde, 'tutar'=>$tutar, 'strateji'=>$primOdenmisMi?'hareket':'aps_degistir'
-            ]);
-            if ($tutar <= 0) continue;
-
-            // HER DURUMDA APS.personel_id Ayse'ye
+            // HER DURUMDA APS.personel_id yeni personele (2a + 2b)
             $aps->personel_id = $yeniPersonelId;
             $aps->save();
             $this->sonTransferOzeti['adisyon_degisti']++;
 
-            if ($primOdenmisMi) {
-                $this->primHareket($origPersonelId, null, $salonId, $tarih, -$tutar, $aciklamaBase.' (paket telafi: geçmiş prim ödemesi düzeltme)', $kullaniciId);
+            // KURAL 2b: paket tahsil edilmis + orijinal personelin yuzdesi varsa seans-basi
+            // odenen prim kadar -tutar devri. Tahsilat/yuzde yoksa prim kazanilmamis -> clawback yok.
+            $toplamOdenmisPaket = (float) DB::table('tahsilat_paketler')
+                ->where('adisyon_paket_id', $ap->id)
+                ->sum('tutar');
+            $toplamSeans = (int) ($ap->seans_sayisi ?: 0);
+            if ($toplamOdenmisPaket <= 0 || $toplamSeans <= 0) continue;
+
+            $seansBasiOdeme = $toplamOdenmisPaket / max($toplamSeans, 1);
+            $yuzde = $this->primYuzdesi($origPersonelId, (int) $origRH->hizmet_id);
+            $tutar = round($seansBasiOdeme * $yuzde / 100, 2);
+            $donemAp = substr((string) (optional($ap->adisyon)->tarih ?: date('Y-m-d')), 0, 7);
+            $primOdenmis = $primOdenmisMiDonem($donemAp);
+            \Log::info('[Telafi primTransfer] APS prim', [
+                'ap_id'=>$ap->id, 'paket_odenmis'=>$toplamOdenmisPaket, 'donem'=>$donemAp,
+                'seans_sayisi'=>$toplamSeans, 'seans_basi'=>$seansBasiOdeme,
+                'yuzde'=>$yuzde, 'tutar'=>$tutar, 'prim_odenmis'=>$primOdenmis,
+            ]);
+            if ($tutar <= 0) continue;
+
+            if ($primOdenmis) {
+                $this->primHareket(
+                    $origPersonelId, $salonId, $tarih, -$tutar,
+                    $aciklamaBase.' (paket telafi: ödenen prim geri devri)', $kullaniciId,
+                    ['kaynak_randevu_id' => $yeniRandevu->id, 'kaynak_adisyon_paket_id' => $ap->id]
+                );
                 $this->sonTransferOzeti['hareket'] += 1;
             }
         }
@@ -253,10 +267,14 @@ class TelafiRandevuServisi
         }
     }
 
-    /** Kisa yardimci: tek bir prim hareketi insert. */
-    protected function primHareket($personelId, $_unused, $salonId, $tarih, $tutar, $aciklama, $kullaniciId)
+    /**
+     * Kisa yardimci: tek bir telafi_devir prim hareketi insert.
+     * $kaynak: ['kaynak_randevu_id'=>..,'kaynak_adisyon_hizmet_id'=>..,'kaynak_adisyon_paket_id'=>..]
+     * Kaynak referanslari sayesinde satis silinince hak ediste yetim kalmaz.
+     */
+    protected function primHareket($personelId, $salonId, $tarih, $tutar, $aciklama, $kullaniciId, array $kaynak = [])
     {
-        PersonelPrimHareketi::create([
+        $veri = [
             'personel_id'        => (int) $personelId,
             'salon_id'           => (int) $salonId,
             'tarih'              => $tarih,
@@ -264,7 +282,13 @@ class TelafiRandevuServisi
             'tutar'              => $tutar,
             'aciklama'           => $aciklama,
             'ekleyen_yetkili_id' => (int) $kullaniciId,
-        ]);
+        ];
+        foreach (['kaynak_randevu_id', 'kaynak_adisyon_hizmet_id', 'kaynak_adisyon_paket_id'] as $k) {
+            if (!empty($kaynak[$k]) && \Schema::hasColumn('personel_prim_hareketleri', $k)) {
+                $veri[$k] = (int) $kaynak[$k];
+            }
+        }
+        PersonelPrimHareketi::create($veri);
     }
 
     /**

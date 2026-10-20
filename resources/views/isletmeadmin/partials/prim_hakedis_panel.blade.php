@@ -256,6 +256,7 @@
   }
   .pr-cell-bonus{ color:#059669; font-weight:600; }
   .pr-cell-kesinti{ color:#dc2626; font-weight:600; }
+  .pr-cell-kesinti{ color:#dc2626; font-weight:600; }
   .pr-cell-masraf{ color:#d97706; font-weight:700; background: rgba(245,158,11,.07); }
   .pr-borclu-badge{ display:inline-block; margin-top:3px; padding:1px 8px; border-radius:10px;
     background:#fee2e2; color:#b91c1c; font-size:11px; font-weight:700; }
@@ -859,6 +860,7 @@
           <th>Paket Primi</th>
           <th>Prim Toplam</th>
           <th>Bonus</th>
+          <th title="Personele uygulanan kesintiler (net hak edişten düşülür)">Kesinti</th>
           <th title="Telafi randevusu ile baska personele devredilen prim (ödenmişse)">Telafi Devri</th>
           <th>Masraf</th>
           <th>@if($isGunluk)Günün Primi @else NET Ödenecek @endif</th>
@@ -887,10 +889,20 @@
             <td>{{$_fmt($r['paket_primi'])}} ₺</td>
             <td><strong>{{$_fmt($r['prim_toplam'])}} ₺</strong></td>
             <td class="pr-cell-bonus">+{{$_fmt($r['bonus'])}}@if($r['hareket_sayisi']>0) <small style="color:var(--rmc-muted); font-weight:500">({{$r['hareket_sayisi']}})</small>@endif</td>
+            <td class="pr-cell-kesinti" title="Net hak edişten düşülen kesinti toplamı">
+                @php $_ks = (float) ($r['kesinti'] ?? 0); @endphp
+                @if($_ks > 0)
+                   <span style="color:#dc3545;font-weight:600;">−{{$_fmt($_ks)}} ₺</span>
+                @else
+                   <span style="color:#9ca3af;">0,00 ₺</span>
+                @endif
+            </td>
             <td class="pr-cell-telafi" title="Telafi randevusu ile başka personele devredilen prim (ödenmiş olduğu için gelecekten düşülecek bakiye)">
                 @php $_td = (float) ($r['telafi_devri'] ?? 0); @endphp
                 @if($_td < 0)
                    <span style="color:#dc3545;font-weight:600;">−{{$_fmt(abs($_td))}} ₺</span>
+                @elseif($_td > 0)
+                   <span style="color:#059669;font-weight:600;">+{{$_fmt($_td)}} ₺</span>
                 @else
                    <span style="color:#9ca3af;">0,00 ₺</span>
                 @endif
@@ -1382,13 +1394,13 @@ $(function(){
     pageLength: 50,
     responsive: false,
     autoWidth: false,
-    order: [[8,'desc']],
+    order: [[10,'desc']],
     language: { url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/tr.json' },
     dom: '<"d-flex justify-content-between align-items-center mb-2"<"d-flex"l><"d-flex"B>>frtip',
     buttons: [
-      { extend: 'excelHtml5',  text: '<i class="fa fa-file-excel-o"></i> Excel',  className: 'btn btn-success btn-sm', title: _dosyaAdi, exportOptions: { columns: [0,1,2,3,4,5,6,7,8] } },
-      { extend: 'pdfHtml5',    text: '<i class="fa fa-file-pdf-o"></i> PDF',      className: 'btn btn-danger btn-sm',  title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', orientation: 'landscape', pageSize: 'A4', exportOptions: { columns: [0,1,2,3,4,5,6,7,8] } },
-      { extend: 'print',       text: '<i class="fa fa-print"></i> Yazdır',         className: 'btn btn-secondary btn-sm', title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', exportOptions: { columns: [0,1,2,3,4,5,6,7,8] } }
+      { extend: 'excelHtml5',  text: '<i class="fa fa-file-excel-o"></i> Excel',  className: 'btn btn-success btn-sm', title: _dosyaAdi, exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9,10] } },
+      { extend: 'pdfHtml5',    text: '<i class="fa fa-file-pdf-o"></i> PDF',      className: 'btn btn-danger btn-sm',  title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', orientation: 'landscape', pageSize: 'A4', exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9,10] } },
+      { extend: 'print',       text: '<i class="fa fa-print"></i> Yazdır',         className: 'btn btn-secondary btn-sm', title: _isletmeAdi+' - Prim & Hak Ediş ('+_ayAdi+' '+_yilAdi+')', exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9,10] } }
     ]
   });
 
