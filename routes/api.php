@@ -20,7 +20,7 @@ Route::get('loggedin','AuthController@loggedin');
 Route::get('subeler/{salonid}','ApiController@subeler');
 // Salon temasi (Flutter "Gorunum" -> ayni renk mini web sitesinde)
 Route::get('/salonTemaGet/{salonid}','ApiController@salonTemaGet'); // renk okuma: zararsiz, herkese acik
-Route::post('/salonTemaSet/{salonid}','ApiController@salonTemaSet')->middleware('salon.sahiplik:deny'); // yazma: token + sahiplik zorunlu
+Route::post('/salonTemaSet/{salonid}','ApiController@salonTemaSet')->middleware('salon.sahiplik'); // enforce: token varsa sahiplik dogrulanir, yoksa gecer (sadece renk yazar, hard-401 silent-fail'i onler)
 // Takvim tek renk ayari (tum personel/oda/cihaz + normal randevular tek renk)
 Route::get('/takvimRenkGet/{salonid}','ApiController@takvimRenkGet'); // okuma: zararsiz
 Route::post('/takvimRenkSet/{salonid}','ApiController@takvimRenkSet')->middleware('salon.sahiplik:deny'); // yazma: token + sahiplik
