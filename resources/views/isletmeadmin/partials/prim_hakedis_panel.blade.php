@@ -256,8 +256,17 @@
   }
   .pr-cell-bonus{ color:#059669; font-weight:600; }
   .pr-cell-kesinti{ color:#dc2626; font-weight:600; }
-  .pr-cell-kesinti{ color:#dc2626; font-weight:600; }
   .pr-cell-masraf{ color:#d97706; font-weight:700; background: rgba(245,158,11,.07); }
+  /* Islemler (Ode) sutunu: cok kolonlu tabloda yatay tasma olsa bile SAGDA SABIT kalsin
+     -> Ode/musteri butonlari her zaman gorunur (Kesinti sutunu eklenince tasiyordu). */
+  #primrapor_tablo thead th:last-child,
+  #primrapor_tablo tbody td:last-child{
+    position: sticky; right: 0; z-index: 3;
+    box-shadow: -8px 0 10px -8px rgba(80,40,120,.18);
+  }
+  #primrapor_tablo tbody td:last-child{ background:#fff !important; }
+  #primrapor_tablo tbody tr:hover td:last-child{ background:#fbfaff !important; }
+  #primrapor_tablo thead th:last-child{ background:#fafbfc !important; z-index:4; }
   .pr-borclu-badge{ display:inline-block; margin-top:3px; padding:1px 8px; border-radius:10px;
     background:#fee2e2; color:#b91c1c; font-size:11px; font-weight:700; }
   .pr-cell-net{
