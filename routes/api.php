@@ -692,10 +692,10 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
 | Auth: SANTRAL_SECRET tanimliysa X-Santral-Secret header ile dogrulanir.
 |--------------------------------------------------------------------------
 */
-Route::match(['get', 'post'], '/santral/baslat',              [\App\Http\Controllers\Api\SantralKopruController::class, 'baslat']);
-Route::match(['get', 'post'], '/santral/konus',               [\App\Http\Controllers\Api\SantralKopruController::class, 'konus']);
-Route::match(['get', 'post'], '/santral/bitir',               [\App\Http\Controllers\Api\SantralKopruController::class, 'bitir']);
-Route::match(['get', 'post'], '/santral/aktarma-hedef',       [\App\Http\Controllers\Api\SantralKopruController::class, 'aktarmaHedef']);
-Route::post('/santral/kayit-yukle',                           [\App\Http\Controllers\Api\SantralKopruController::class, 'kayitYukle']);
-Route::match(['get', 'post'], '/santral/geri-arama-bekleyen', [\App\Http\Controllers\Api\SantralKopruController::class, 'geriAramaBekleyen']);
-Route::post('/santral/geri-arama-durum',                      [\App\Http\Controllers\Api\SantralKopruController::class, 'geriAramaDurum']);
+Route::match(['get', 'post'], '/v1/santral/baslat',              [\App\Http\Controllers\Api\SantralKopruController::class, 'baslat']);
+Route::match(['get', 'post'], '/v1/santral/konus',               [\App\Http\Controllers\Api\SantralKopruController::class, 'konus']);
+Route::match(['get', 'post'], '/v1/santral/bitir',               [\App\Http\Controllers\Api\SantralKopruController::class, 'bitir']);
+Route::match(['get', 'post'], '/v1/santral/aktarma-hedef',       [\App\Http\Controllers\Api\SantralKopruController::class, 'aktarmaHedef']);
+Route::post('/v1/santral/kayit-yukle',                           [\App\Http\Controllers\Api\SantralKopruController::class, 'kayitYukle']);
+Route::match(['get', 'post'], '/v1/santral/geri-arama-bekleyen', [\App\Http\Controllers\Api\SantralKopruController::class, 'geriAramaBekleyen']);
+Route::post('/v1/santral/geri-arama-durum',                      [\App\Http\Controllers\Api\SantralKopruController::class, 'geriAramaDurum']);

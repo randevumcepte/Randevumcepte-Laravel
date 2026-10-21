@@ -24,24 +24,24 @@ function form(obj) {
   return p.toString();
 }
 
-// POST /api/santral/baslat -> {oturum_id, karsilama}. geriAramaOturum>0 ise: yarida kalan oturumla devam.
+// POST /api/v1/santral/baslat -> {oturum_id, karsilama}. geriAramaOturum>0 ise: yarida kalan oturumla devam.
 async function baslat(subeId, telefon, hat, geriAramaOturum) {
-  const { data } = await http.post('/api/santral/baslat', form({ sube_id: subeId, telefon, hat, geri_arama_oturum: geriAramaOturum || 0 }));
+  const { data } = await http.post('/api/v1/santral/baslat', form({ sube_id: subeId, telefon, hat, geri_arama_oturum: geriAramaOturum || 0 }));
   return data;
 }
 
 // GERI ARAMA kuyrugu: bekleyenleri al + sonuc bildir (araniyor|basarili|cevapsiz).
 async function geriAramaBekleyen() {
-  try { const { data } = await http.get('/api/santral/geri-arama-bekleyen'); return data; }
+  try { const { data } = await http.get('/api/v1/santral/geri-arama-bekleyen'); return data; }
   catch (e) { log.debug('geri-arama-bekleyen hata:', e.message); return { ok: 0, liste: [] }; }
 }
 async function geriAramaDurum(id, durum) {
-  try { await http.post('/api/santral/geri-arama-durum', form({ id, durum })); } catch (_) {}
+  try { await http.post('/api/v1/santral/geri-arama-durum', form({ id, durum })); } catch (_) {}
 }
 
-// POST /api/santral/konus -> {ok, cevap, aksiyon, veri, bitir}
+// POST /api/v1/santral/konus -> {ok, cevap, aksiyon, veri, bitir}
 async function konus(oturumId, metin) {
-  const { data } = await http.post('/api/santral/konus', form({ oturum_id: oturumId, metin }));
+  const { data } = await http.post('/api/v1/santral/konus', form({ oturum_id: oturumId, metin }));
   return data;
 }
 
@@ -52,7 +52,7 @@ async function sesYukle(oturumId, subeId, tur, filePath) {
     if (!fs.existsSync(filePath)) { log.warn('ses dosyasi yok: ' + filePath); return; }
     const buf = fs.readFileSync(filePath);
     if (!buf || buf.length < 200) { log.warn('ses dosyasi cok kucuk/bos: ' + filePath); return; }
-    await http.post('/api/santral/kayit-yukle', buf, {
+    await http.post('/api/v1/santral/kayit-yukle', buf, {
       params: { oturum_id: oturumId || '', sube_id: subeId || '', tur: tur || 'ai', secret: cfg.laravel.secret || '' },
       headers: { 'Content-Type': 'audio/wav' },
       maxBodyLength: Infinity, maxContentLength: Infinity, timeout: 30000,
@@ -63,10 +63,10 @@ async function sesYukle(oturumId, subeId, tur, filePath) {
   }
 }
 
-// GET /api/santral/aktarma-hedef -> {aktif, dial, zil} (panelden yonetilen aktarma hedefi)
+// GET /api/v1/santral/aktarma-hedef -> {aktif, dial, zil} (panelden yonetilen aktarma hedefi)
 async function aktarmaHedef(subeId) {
   try {
-    const { data } = await http.get('/api/santral/aktarma-hedef', { params: { sube_id: subeId } });
+    const { data } = await http.get('/api/v1/santral/aktarma-hedef', { params: { sube_id: subeId } });
     return data;
   } catch (e) {
     log.warn('aktarma-hedef alinamadi:', e.message);
@@ -74,10 +74,10 @@ async function aktarmaHedef(subeId) {
   }
 }
 
-// POST /api/santral/bitir -> cagriyi cagri_loglari'na sonucla
+// POST /api/v1/santral/bitir -> cagriyi cagri_loglari'na sonucla
 async function bitir(oturumId, ozet) {
   try {
-    const { data } = await http.post('/api/santral/bitir', form({ oturum_id: oturumId, ozet }));
+    const { data } = await http.post('/api/v1/santral/bitir', form({ oturum_id: oturumId, ozet }));
     return data;
   } catch (e) {
     log.warn('bitir hatasi (yok sayiliyor):', e.message);
