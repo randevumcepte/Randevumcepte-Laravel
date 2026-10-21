@@ -68,7 +68,13 @@ $(function()
 {
     $(document).on('hide.bs.dropdown', '#webTelefonDropDown', function(e)
     {
-        if (cagriAktif)
+        // Cagri yoksa normal kapan.
+        if (!cagriAktif) return;
+        // Cagri aktifken: panel ICINE tiklama (dialpad/cagri butonlari) -> ACIK KALSIN.
+        // DISARI tiklama -> KAPAN: arkadaki butonlar/islevler erisilebilir olsun ve
+        // kullanici paneli gerektiginde gizleyebilsin. (Gelen cagri yine zorla acilir.)
+        var ce = e.clickEvent;
+        if (ce && ce.target && $(ce.target).closest('.webphone').length)
         {
             e.preventDefault();
         }
