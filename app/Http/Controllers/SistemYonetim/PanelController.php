@@ -1902,6 +1902,84 @@ class PanelController extends Controller
         );
     }
 
+    /**
+     * Salon Detay > Musterileri Excel'e (xlsx) aktar.
+     * musteri_portfoy + users join, salon_id ile filtreli.
+     */
+    public function musterilerExcel($id)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+
+        $salon = Salonlar::findOrFail($id);
+
+        $musteriler = DB::table('musteri_portfoy')
+            ->join('users', 'musteri_portfoy.user_id', '=', 'users.id')
+            ->where('musteri_portfoy.salon_id', $id)
+            ->select(
+                'users.id as user_id',
+                'users.name',
+                'users.cep_telefon',
+                'users.email',
+                'users.cinsiyet',
+                'users.dogum_tarihi',
+                'users.whatsapp_onay',
+                'musteri_portfoy.musteri_tipi',
+                'musteri_portfoy.kara_liste',
+                'musteri_portfoy.aktif',
+                'musteri_portfoy.created_at as kayit_tarihi'
+            )
+            ->orderBy('musteri_portfoy.id', 'desc')
+            ->get();
+
+        $fmt = function ($v, $f = 'd.m.Y') {
+            if (empty($v) || substr((string) $v, 0, 4) === '0000') return '';
+            try { return \Carbon\Carbon::parse($v)->format($f); } catch (\Throwable $e) { return ''; }
+        };
+
+        $rows = [];
+        foreach ($musteriler as $m) {
+            $cinsiyet = ($m->cinsiyet === null || $m->cinsiyet === '')
+                ? ''
+                : ((int) $m->cinsiyet === 1 ? 'Erkek' : 'Kadın');
+
+            $rows[] = [
+                $m->user_id,
+                $m->name,
+                // Telefonun Excel'de bilimsel gosterime kaymamasi icin metin
+                $m->cep_telefon ? "\xE2\x80\x8B" . $m->cep_telefon : '',
+                $m->email,
+                $cinsiyet,
+                $fmt($m->dogum_tarihi),
+                ((int) $m->whatsapp_onay === 1) ? 'Evet' : 'Hayır',
+                ((int) $m->aktif === 1) ? 'Aktif' : 'Pasif',
+                ((int) $m->kara_liste === 1) ? 'Evet' : 'Hayır',
+                $m->musteri_tipi,
+                $fmt($m->kayit_tarihi, 'd.m.Y H:i'),
+            ];
+        }
+
+        Audit::log('excel_export', 'salon', $id, 'Müşteri listesi (' . count($rows) . ') — ' . $salon->salon_adi);
+
+        $basliklar = ['ID', 'Ad Soyad', 'Cep Telefon', 'E-posta', 'Cinsiyet', 'Doğum Tarihi', 'WhatsApp Onay', 'Durum', 'Kara Liste', 'Müşteri Tipi', 'Kayıt Tarihi'];
+
+        $slug = preg_replace('/[^a-z0-9]+/i', '-', $this->trAsciiKucult($salon->salon_adi));
+        $slug = trim($slug, '-') ?: ('salon-' . $salon->id);
+        $dosya = 'musteriler-' . $slug . '-' . date('Ymd-His') . '.xlsx';
+
+        return \Excel::download(
+            new \App\Exports\SalonMusterileriExport($rows, $basliklar, 'Müşteriler'),
+            $dosya
+        );
+    }
+
+    private function trAsciiKucult($s)
+    {
+        $s = (string) $s;
+        $tr = ['ç','Ç','ğ','Ğ','ı','İ','ö','Ö','ş','Ş','ü','Ü'];
+        $en = ['c','c','g','g','i','i','o','o','s','s','u','u'];
+        return strtolower(str_replace($tr, $en, $s));
+    }
+
     public function ticketCsv(Request $request)
     {
         $this->gerektir(['super_admin', 'yonetici']);

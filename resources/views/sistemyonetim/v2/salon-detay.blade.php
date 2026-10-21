@@ -53,6 +53,11 @@
     </div>
     <div class="sy-flex-row">
         <a href="/sistemyonetim/v2/salonlar" class="sy-btn"><span class="mdi mdi-arrow-left"></span> Liste</a>
+        @if($duzenleyebilir)
+        <a href="/sistemyonetim/v2/salon/{{ $salon->id }}/musteriler/excel" class="sy-btn sy-btn-success">
+            <span class="mdi mdi-microsoft-excel"></span> Müşterileri Excel'e Aktar
+        </a>
+        @endif
         <form method="post" action="/sistemyonetim/v2/salon/{{ $salon->id }}/hesabina-gir" style="display:inline">
             @csrf
             <input type="hidden" name="sebep" value="Destek girişi">
