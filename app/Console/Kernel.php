@@ -36,6 +36,7 @@ class Kernel extends ConsoleKernel
         Commands\AlacakHatirlatmaAramasiYap::class,
         Commands\TekrarAramaHatirlat::class,
         Commands\PlanlaImport::class,
+        Commands\PlanlaSeansRapor::class,
         Commands\DrklinikImport::class,
         Commands\SalonappyImport::class,
         Commands\SalonrandevuImport::class,
