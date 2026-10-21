@@ -8,19 +8,23 @@ use Illuminate\Support\Facades\DB;
 /**
  * Planla.co'dan aktarilan salonlarda seans takibi sistemde tutulmamis;
  * seanslar musteri randevularina yazilan NOTLARA (randevular.personel_notu)
- * gore takip edilmis. Bu komut o notlari okuyup seans takibi raporu uretir.
+ * gore takip edilmis. Bu komut musteri bazli seans takibi raporu uretir.
+ *
+ * ONEMLI: Bu bir lazer epilasyon / cilt klinigi. Notlardaki "40 - 14 - 6"
+ * gibi uclu sayilar CIHAZ AYARIDIR (MS - Joule - Atis), seans numarasi DEGIL.
+ * Bu yuzden rapor iki ayri "seans no" uretir:
+ *   1) Seans Sira No  : Musteri + hizmet grubunda tarih sirasina gore 1,2,3...
+ *                       (Kontrol/ongorusme HARIC). GUVENILIR gercek seans takibi.
+ *   2) Nottan Seans   : Sadece notta ACIKCA "seans" kelimesiyle gecen sayi
+ *                       ("1 seans", "ilk seans", "3. seans"). Cihaz ayarlarina
+ *                       dokunmaz. Cogu notta bos olur, normaldir.
  *
  * Kullanim:
- *   # 1) ONCE notlarin gercek formatini gor (pattern kesfi):
+ *   # Ornek not dokumu (pattern kesfi):
  *   /opt/php74/bin/php artisan planla:seans-rapor --salon=355 --ornek=80
  *
- *   # 2) Tam rapor + CSV (Excel'de acilir):
+ *   # Musteri bazli tam rapor + CSV (Excel):
  *   /opt/php74/bin/php artisan planla:seans-rapor --salon=355 --csv
- *
- * Notlardan cikarilan alanlar:
- *   - seans_no      : "3. seans", "seans 3", "3/10", "3-10" gibi ifadelerden
- *   - seans_toplam  : "3/10" / "3-10" gibi ifadelerdeki ikinci sayi
- *   - seans_notu_mu : notta seans/kez gecen bir ipucu var mi
  */
 class PlanlaSeansRapor extends Command
 {
@@ -28,10 +32,10 @@ class PlanlaSeansRapor extends Command
         {--salon=355 : Hedef salon_id}
         {--ornek= : Sadece N adet ornek not dok (pattern kesfi icin). Rapor uretmez.}
         {--csv : Raporu storage/app/planla-seans/ altina CSV olarak yaz}
-        {--sadece-notlu=1 : Sadece notu dolu randevulari dahil et (0=hepsi)}
+        {--sadece-notlu=0 : 1 ise sadece notu dolu randevulari dahil et}
         {--limit= : (opsiyonel) Islenecek randevu sayisini sinirla (test icin)}';
 
-    protected $description = 'Planla aktarimli salonda randevu notlarindan seans takibi raporu uretir.';
+    protected $description = 'Planla aktarimli salonda randevu notlarindan musteri bazli seans takibi raporu uretir.';
 
     public function handle()
     {
@@ -45,7 +49,7 @@ class PlanlaSeansRapor extends Command
         }
         $this->info("Salon {$salonId}: " . ($salon->salon_adi ?? '-'));
 
-        // --- Randevulari + musteri + hizmet adlari ile cek -------------------
+        // --- Randevulari + musteri ile cek -----------------------------------
         $q = DB::table('randevular as r')
             ->leftJoin('users as u', 'r.user_id', '=', 'u.id')
             ->where('r.salon_id', $salonId);
@@ -73,7 +77,7 @@ class PlanlaSeansRapor extends Command
 
         // Her randevuya bagli hizmet adlarini toplu cek (tek sorgu)
         $randevuIds = $randevular->pluck('id')->all();
-        $hizmetAdlari = []; // randevu_id => "Hizmet A, Hizmet B"
+        $hizmetAdlari = []; // randevu_id => ["Hizmet A", "Hizmet B"]
         foreach (array_chunk($randevuIds, 1000) as $chunk) {
             $rows = DB::table('randevu_hizmetler as rh')
                 ->leftJoin('hizmetler as h', 'rh.hizmet_id', '=', 'h.id')
@@ -90,54 +94,66 @@ class PlanlaSeansRapor extends Command
             return $this->ornekDok($randevular, $hizmetAdlari, (int) $this->option('ornek'));
         }
 
-        // --- Tam rapor: her randevuyu parse et -------------------------------
+        // --- Her randevuyu zenginlestir --------------------------------------
+        // Musteri -> hizmet grubu bazinda seans sira no uretmek icin sayaclar.
+        $seansSayac = []; // "user_id|grup" => int
+
         $detay = [];
-        $patternSayac = ['seans_no' => 0, 'kesirli' => 0, 'anahtar_kelime' => 0, 'bos' => 0];
-
         foreach ($randevular as $r) {
-            $parse = $this->notParse($r->personel_notu);
-            $hizmet = isset($hizmetAdlari[$r->id]) ? implode(', ', array_unique($hizmetAdlari[$r->id])) : '';
+            $hizmetListe = isset($hizmetAdlari[$r->id]) ? array_values(array_unique($hizmetAdlari[$r->id])) : [];
+            $hizmet = implode(', ', $hizmetListe);
 
-            if ($parse['seans_toplam'] !== null) $patternSayac['kesirli']++;
-            elseif ($parse['seans_no'] !== null) $patternSayac['seans_no']++;
-            elseif ($parse['seans_ipucu'])       $patternSayac['anahtar_kelime']++;
-            else                                  $patternSayac['bos']++;
+            $tip  = $this->randevuTipi($hizmetListe); // Seans / Kontrol / Ongorusme
+            $grup = $this->hizmetGrubu($hizmetListe); // kaba kategori (lazer / cilt / diger)
+
+            $siraNo = null;
+            if ($tip === 'Seans') {
+                $key = $r->user_id . '|' . $grup;
+                $seansSayac[$key] = ($seansSayac[$key] ?? 0) + 1;
+                $siraNo = $seansSayac[$key];
+            }
+
+            $nottan = $this->nottanSeans($r->personel_notu);
 
             $detay[] = [
-                'musteri'       => $r->musteri,
-                'telefon'       => $r->telefon,
-                'tarih'         => $r->tarih,
-                'saat'          => substr((string) $r->saat, 0, 5),
-                'hizmet'        => $hizmet,
-                'geldi'         => $this->geldiMetin($r->randevuya_geldi),
-                'seans_no'      => $parse['seans_no'],
-                'seans_toplam'  => $parse['seans_toplam'],
-                'seans_notu_mu' => $parse['seans_ipucu'] ? 'evet' : '',
-                'not'           => $this->tekSatir($r->personel_notu),
+                'user_id'     => $r->user_id,
+                'musteri'     => $r->musteri,
+                'telefon'     => $r->telefon,
+                'tarih'       => $r->tarih,
+                'saat'        => substr((string) $r->saat, 0, 5),
+                'hizmet'      => $hizmet,
+                'grup'        => $grup,
+                'tip'         => $tip,
+                'seans_sira'  => $siraNo,
+                'nottan'      => $nottan,
+                'geldi'       => $this->geldiMetin($r->randevuya_geldi),
+                'not'         => $this->tekSatir($r->personel_notu),
             ];
         }
 
         // --- Musteri bazli ozet ----------------------------------------------
-        $ozet = []; // musteri+tel => ...
+        $ozet = []; // user_id => ...
         foreach ($detay as $d) {
-            $key = $d['musteri'] . '|' . $d['telefon'];
-            if (!isset($ozet[$key])) {
-                $ozet[$key] = [
+            $uid = $d['user_id'];
+            if (!isset($ozet[$uid])) {
+                $ozet[$uid] = [
                     'musteri' => $d['musteri'], 'telefon' => $d['telefon'],
-                    'randevu_sayisi' => 0, 'notlu_randevu' => 0,
-                    'max_seans_no' => null, 'son_toplam' => null,
-                    'hizmetler' => [], 'ilk_tarih' => $d['tarih'], 'son_tarih' => $d['tarih'],
+                    'toplam_randevu' => 0, 'seans' => 0, 'kontrol' => 0, 'ongorusme' => 0,
+                    'gruplar' => [], 'hizmetler' => [],
+                    'ilk_tarih' => $d['tarih'], 'son_tarih' => $d['tarih'],
                 ];
             }
-            $o = &$ozet[$key];
-            $o['randevu_sayisi']++;
-            if ($d['not'] !== '') $o['notlu_randevu']++;
-            if ($d['seans_no'] !== null) {
-                $o['max_seans_no'] = max((int) $o['max_seans_no'], (int) $d['seans_no']);
+            $o = &$ozet[$uid];
+            $o['toplam_randevu']++;
+            if ($d['tip'] === 'Seans')      $o['seans']++;
+            elseif ($d['tip'] === 'Kontrol') $o['kontrol']++;
+            else                             $o['ongorusme']++;
+            if ($d['tip'] === 'Seans') {
+                $o['gruplar'][$d['grup']] = ($o['gruplar'][$d['grup']] ?? 0) + 1;
             }
-            if ($d['seans_toplam'] !== null) $o['son_toplam'] = $d['seans_toplam'];
-            if ($d['hizmet'] !== '') {
-                foreach (explode(', ', $d['hizmet']) as $h) $o['hizmetler'][$h] = true;
+            foreach (explode(', ', $d['hizmet']) as $h) {
+                $h = trim($h);
+                if ($h !== '') $o['hizmetler'][$h] = true;
             }
             if ($d['tarih'] < $o['ilk_tarih']) $o['ilk_tarih'] = $d['tarih'];
             if ($d['tarih'] > $o['son_tarih']) $o['son_tarih'] = $d['tarih'];
@@ -146,30 +162,36 @@ class PlanlaSeansRapor extends Command
 
         // --- Konsol ozeti -----------------------------------------------------
         $this->line('');
-        $this->info("Toplam randevu    : " . count($detay));
-        $this->info("Benzersiz musteri : " . count($ozet));
-        $this->line("Not pattern dagilimi:");
-        $this->line("  - X/Y kesirli seans (seans no + toplam): {$patternSayac['kesirli']}");
-        $this->line("  - Sadece seans no (3. seans / seans 3)  : {$patternSayac['seans_no']}");
-        $this->line("  - Seans ipucu var ama sayi yok          : {$patternSayac['anahtar_kelime']}");
-        $this->line("  - Seansla ilgisiz / bos                 : {$patternSayac['bos']}");
+        $this->info('Toplam randevu    : ' . count($detay));
+        $this->info('Benzersiz musteri : ' . count($ozet));
+        $tipDagilim = array_count_values(array_column($detay, 'tip'));
+        $this->line('Randevu tipi dagilimi:');
+        foreach (['Seans', 'Kontrol', 'Ongorusme'] as $t) {
+            $this->line("  - {$t}: " . ($tipDagilim[$t] ?? 0));
+        }
+        $nottanDolu = count(array_filter($detay, function ($d) { return $d['nottan'] !== null; }));
+        $this->line("Notta ACIKCA 'seans' sayisi gecen randevu: {$nottanDolu}");
 
-        // Ilk birkac musteri ozetini konsolda goster
         $this->line('');
-        $this->info('Musteri ozeti (ilk 20):');
+        $this->info('Musteri ozeti (ilk 25, en cok seanslilar):');
+        $siraliOzet = $ozet;
+        uasort($siraliOzet, function ($a, $b) { return $b['seans'] <=> $a['seans']; });
         $satirlar = [];
         $i = 0;
-        foreach ($ozet as $o) {
-            if ($i++ >= 20) break;
+        foreach ($siraliOzet as $o) {
+            if ($i++ >= 25) break;
             $satirlar[] = [
-                $o['musteri'], $o['telefon'], $o['randevu_sayisi'],
-                $o['max_seans_no'] !== null ? $o['max_seans_no'] : '-',
-                $o['son_toplam'] !== null ? $o['son_toplam'] : '-',
-                mb_substr(implode(', ', array_keys($o['hizmetler'])), 0, 40),
+                mb_substr((string) $o['musteri'], 0, 24),
+                $o['telefon'],
+                $o['seans'],
+                $o['kontrol'],
+                $o['ilk_tarih'],
+                $o['son_tarih'],
+                mb_substr($this->grupOzet($o['gruplar']), 0, 30),
             ];
         }
         $this->table(
-            ['Musteri', 'Telefon', 'Rnd', 'MaxSeans', 'Toplam', 'Hizmetler'],
+            ['Musteri', 'Telefon', 'Seans', 'Kontrol', 'Ilk', 'Son', 'Gruplar'],
             $satirlar
         );
 
@@ -179,32 +201,44 @@ class PlanlaSeansRapor extends Command
             if (!is_dir($dir)) @mkdir($dir, 0775, true);
             $stamp = date('Ymd_His');
 
+            // Detay: musteri + tarih sirali, her randevu bir satir
             $detayDosya = "{$dir}/salon{$salonId}_seans_detay_{$stamp}.csv";
+            $detayRows = [];
+            foreach ($detay as $d) {
+                $detayRows[] = [
+                    $d['musteri'], $d['telefon'], $d['tarih'], $d['saat'],
+                    $d['hizmet'], $d['tip'],
+                    $d['seans_sira'] !== null ? $d['seans_sira'] : '',
+                    $d['nottan'] !== null ? $d['nottan'] : '',
+                    $d['geldi'], $d['not'],
+                ];
+            }
             $this->csvYaz($detayDosya,
-                ['Musteri', 'Telefon', 'Tarih', 'Saat', 'Hizmet', 'Geldi', 'Seans No', 'Seans Toplam', 'Seans Notu mu', 'Not'],
-                array_map('array_values', $detay)
+                ['Musteri', 'Telefon', 'Tarih', 'Saat', 'Hizmet', 'Tip', 'Seans Sira No', 'Nottan Seans', 'Geldi', 'Not'],
+                $detayRows
             );
 
+            // Ozet: musteri bazli
             $ozetDosya = "{$dir}/salon{$salonId}_seans_ozet_{$stamp}.csv";
-            $ozetSatir = [];
+            $ozetRows = [];
             foreach ($ozet as $o) {
-                $ozetSatir[] = [
-                    $o['musteri'], $o['telefon'], $o['randevu_sayisi'], $o['notlu_randevu'],
-                    $o['max_seans_no'] !== null ? $o['max_seans_no'] : '',
-                    $o['son_toplam'] !== null ? $o['son_toplam'] : '',
+                $ozetRows[] = [
+                    $o['musteri'], $o['telefon'],
+                    $o['seans'], $o['kontrol'], $o['ongorusme'], $o['toplam_randevu'],
+                    $this->grupOzet($o['gruplar']),
                     implode(' | ', array_keys($o['hizmetler'])),
                     $o['ilk_tarih'], $o['son_tarih'],
                 ];
             }
             $this->csvYaz($ozetDosya,
-                ['Musteri', 'Telefon', 'Randevu Sayisi', 'Notlu Randevu', 'Max Seans No', 'Son Toplam Seans', 'Hizmetler', 'Ilk Tarih', 'Son Tarih'],
-                $ozetSatir
+                ['Musteri', 'Telefon', 'Toplam Seans', 'Kontrol', 'Ongorusme', 'Toplam Randevu', 'Seans Gruplari', 'Tum Hizmetler', 'Ilk Tarih', 'Son Tarih'],
+                $ozetRows
             );
 
             $this->line('');
-            $this->info("CSV yazildi:");
-            $this->line("  Detay: {$detayDosya}");
-            $this->line("  Ozet : {$ozetDosya}");
+            $this->info('CSV yazildi:');
+            $this->line("  Detay (randevu satirlari): {$detayDosya}");
+            $this->line("  Ozet  (musteri bazli)     : {$ozetDosya}");
         } else {
             $this->line('');
             $this->comment('CSV istiyorsan --csv ekle.');
@@ -213,85 +247,94 @@ class PlanlaSeansRapor extends Command
         return 0;
     }
 
+    // ----------------------------------------------------------------------
+    // Yardimcilar
+    // ----------------------------------------------------------------------
+
     /**
-     * Ornek not dokumu: gercek not formatlarini gormek ve parse'in nasil
-     * cozdugunu dogrulamak icin.
+     * Randevu tipi: hizmet adlarina gore Seans / Kontrol / Ongorusme.
+     * Tedavi hizmeti varsa Seans. Sadece kontrol/ongorusme ise o tip.
      */
-    private function ornekDok($randevular, array $hizmetAdlari, int $n)
+    private function randevuTipi(array $hizmetListe)
     {
-        $this->info("--- {$n} adet ornek not (pattern kesfi) ---");
-        $sayac = 0;
-        foreach ($randevular as $r) {
-            if ($sayac >= $n) break;
-            $not = trim((string) $r->personel_notu);
-            if ($not === '') continue;
-            $sayac++;
-            $parse = $this->notParse($not);
-            $hizmet = isset($hizmetAdlari[$r->id]) ? implode(', ', array_unique($hizmetAdlari[$r->id])) : '-';
-            $this->line(sprintf(
-                "%2d) %s | %s %s | %s\n     parse-> no:%s toplam:%s ipucu:%s\n     NOT : %s",
-                $sayac,
-                $r->musteri ?: '(musteri?)',
-                $r->tarih, substr((string) $r->saat, 0, 5),
-                $hizmet,
-                $parse['seans_no'] !== null ? $parse['seans_no'] : '-',
-                $parse['seans_toplam'] !== null ? $parse['seans_toplam'] : '-',
-                $parse['seans_ipucu'] ? 'E' : '-',
-                $this->tekSatir($not)
-            ));
+        if (empty($hizmetListe)) return 'Seans'; // hizmetsiz randevu -> seans say
+        $hepsiKontrol = true;
+        $hepsiOngorusme = true;
+        $varTedavi = false;
+        foreach ($hizmetListe as $h) {
+            $low = $this->norm($h);
+            $kontrol   = (strpos($low, 'kontrol') !== false);
+            $ongorusme = (strpos($low, 'ongorusme') !== false || strpos($low, 'on gorusme') !== false);
+            if (!$kontrol)   $hepsiKontrol = false;
+            if (!$ongorusme) $hepsiOngorusme = false;
+            if (!$kontrol && !$ongorusme) $varTedavi = true;
         }
-        if ($sayac === 0) $this->warn('Notu dolu randevu bulunamadi.');
-        else $this->info("Toplam {$sayac} ornek gosterildi. Pattern'ler bekledigin gibi degilse soyle, parser'i ona gore guncelleyelim.");
-        return 0;
+        if ($varTedavi) return 'Seans';
+        if ($hepsiOngorusme) return 'Ongorusme';
+        if ($hepsiKontrol)   return 'Kontrol';
+        return 'Kontrol';
     }
 
     /**
-     * Bir nottan seans bilgisini cikarir.
-     * Donus: ['seans_no'=>int|null, 'seans_toplam'=>int|null, 'seans_ipucu'=>bool]
+     * Kaba hizmet grubu (seans sira no'yu bu grup icinde sayariz).
+     * Ornek: lazer-govde, lazer-yuz, cilt, diger
      */
-    private function notParse($not)
+    private function hizmetGrubu(array $hizmetListe)
     {
-        $out = ['seans_no' => null, 'seans_toplam' => null, 'seans_ipucu' => false];
-        $not = trim((string) $not);
-        if ($not === '') return $out;
-
-        // Turkce buyuk I/i normalizasyonu + kucuk harf
-        $low = mb_strtolower(str_replace(['İ', 'I'], ['i', 'i'], $not), 'UTF-8');
-
-        $seansKelime = (strpos($low, 'seans') !== false)
-            || preg_match('/\bkez\b/u', $low)
-            || preg_match('/\bkur\b/u', $low);
-        if ($seansKelime) $out['seans_ipucu'] = true;
-
-        // 1) Kesirli: "3/10", "3 / 10", "3-10" (seans baglamiysa)
-        //    seans/kez kelimesi yaninda ya da tek basina X/Y
-        if (preg_match('#(\d{1,3})\s*[/\-]\s*(\d{1,3})#u', $low, $m)) {
-            $no = (int) $m[1];
-            $top = (int) $m[2];
-            // mantikli aralik: no<=toplam ve toplam makul (<=60)
-            if ($top > 0 && $top <= 60 && $no >= 0 && $no <= $top) {
-                $out['seans_no'] = $no;
-                $out['seans_toplam'] = $top;
-                $out['seans_ipucu'] = true;
-                return $out;
-            }
+        $metin = $this->norm(implode(' ', $hizmetListe));
+        if (strpos($metin, 'lazer') !== false || strpos($metin, 'alex') !== false || strpos($metin, 'epilasyon') !== false) {
+            if (strpos($metin, 'yuz') !== false) return 'lazer-yuz';
+            return 'lazer';
         }
-
-        // 2) "3. seans" / "3.seans" / "3 seans" / "3.kez" / "3. kur"
-        if (preg_match('/(\d{1,3})\s*\.?\s*(seans|kez|kur)\b/u', $low, $m)) {
-            $out['seans_no'] = (int) $m[1];
-            $out['seans_ipucu'] = true;
-            return $out;
+        if (strpos($metin, 'cilt') !== false || strpos($metin, 'hydrafacial') !== false || strpos($metin, 'bakim') !== false) {
+            return 'cilt';
         }
-
-        // 3) "seans 3" / "seans: 3" / "seans no 3"
-        if (preg_match('/(seans|kez|kur)\s*(?:no|:)?\s*(\d{1,3})\b/u', $low, $m)) {
-            $out['seans_no'] = (int) $m[2];
-            $out['seans_ipucu'] = true;
-            return $out;
+        if (strpos($metin, 'g5') !== false || strpos($metin, 'ems') !== false || strpos($metin, 'masaj') !== false) {
+            return 'vucut';
         }
+        return 'diger';
+    }
 
-        return $out;
+    private function grupOzet(array $gruplar)
+    {
+        if (empty($gruplar)) return '';
+        $p = [];
+        foreach ($gruplar as $g => $n) $p[] = "{$g}:{$n}";
+        return implode(', ', $p);
+    }
+
+    /**
+     * Sadece notta ACIKCA "seans" kelimesiyle gecen seans numarasini cikarir.
+     * Cihaz ayari uclulerine (MS-Joule-Atis) DOKUNMAZ.
+     * Donus: int|null
+     */
+    private function nottanSeans($not)
+    {
+        $low = $this->norm($not);
+        if ($low === '') return null;
+
+        // "ilk seans" -> 1
+        if (preg_match('/\bilk\s+seans/u', $low)) return 1;
+
+        // "3. seans" / "3.seans" / "3 seans" / "3 .seans"
+        if (preg_match('/(\d{1,2})\s*\.?\s*seans\b/u', $low, $m)) return (int) $m[1];
+
+        // "seans 3" / "seans: 3" / "seans no 3" / "seans : 3 seans"
+        if (preg_match('/seans\s*(?:no)?\s*:?\s*(\d{1,2})\b/u', $low, $m)) return (int) $m[1];
+
+        return null;
+    }
+
+    /** Turkce buyuk I/i + aksan normalize + kucuk harf. */
+    private function norm($s)
+    {
+        $s = (string) $s;
+        $s = str_replace(
+            ['İ', 'I', 'ı', 'Ş', 'ş', 'Ğ', 'ğ', 'Ü', 'ü', 'Ö', 'ö', 'Ç', 'ç'],
+            ['i', 'i', 'i', 's', 's', 'g', 'g', 'u', 'u', 'o', 'o', 'c', 'c'],
+            $s
+        );
+        return trim(mb_strtolower($s, 'UTF-8'));
     }
 
     private function geldiMetin($v)
@@ -307,11 +350,35 @@ class PlanlaSeansRapor extends Command
         return trim(preg_replace('/\s+/u', ' ', $s));
     }
 
+    private function ornekDok($randevular, array $hizmetAdlari, int $n)
+    {
+        $this->info("--- {$n} adet ornek not ---");
+        $sayac = 0;
+        foreach ($randevular as $r) {
+            if ($sayac >= $n) break;
+            $not = trim((string) $r->personel_notu);
+            if ($not === '') continue;
+            $sayac++;
+            $hizmet = isset($hizmetAdlari[$r->id]) ? implode(', ', array_unique($hizmetAdlari[$r->id])) : '-';
+            $nottan = $this->nottanSeans($not);
+            $this->line(sprintf(
+                "%2d) %s | %s %s | %s\n     nottan-seans: %s\n     NOT : %s",
+                $sayac,
+                $r->musteri ?: '(musteri?)',
+                $r->tarih, substr((string) $r->saat, 0, 5),
+                $hizmet,
+                $nottan !== null ? $nottan : '-',
+                $this->tekSatir($not)
+            ));
+        }
+        if ($sayac === 0) $this->warn('Notu dolu randevu bulunamadi.');
+        return 0;
+    }
+
     private function csvYaz($path, array $header, array $rows)
     {
         $fp = fopen($path, 'w');
-        // Excel'in UTF-8 Turkce karakterleri dogru okumasi icin BOM
-        fwrite($fp, "\xEF\xBB\xBF");
+        fwrite($fp, "\xEF\xBB\xBF"); // Excel UTF-8 BOM
         fputcsv($fp, $header);
         foreach ($rows as $row) fputcsv($fp, $row);
         fclose($fp);
