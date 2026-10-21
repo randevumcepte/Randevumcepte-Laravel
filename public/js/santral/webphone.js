@@ -66,19 +66,32 @@ function webphonePaneliniAc()
 var cagriAktif = false;
 $(function()
 {
+    // Cagri aktifken panel SADECE kullanici panel DISINA tikladiginda gizlensin.
+    // Diger TUM kapanmalar (karsi taraf cevaplayinca, programatik, ESC, Bootstrap ic-olaylari)
+    // ENGELLENIR -> outbound arama yanitlaninca telefon ASLA kaybolmaz.
     $(document).on('hide.bs.dropdown', '#webTelefonDropDown', function(e)
     {
-        // Cagri yoksa normal kapan.
-        if (!cagriAktif) return;
-        // Cagri aktifken panel SADECE kullanici panel DISINA GERCEKTEN TIKLAYINCA gizlensin.
-        // 'Tiklamasiz' kapanmalar (karsi taraf cevaplayinca/programatik/ESC) -> ENGELLE:
-        // boylece outbound arama yanitlaninca telefon KAYBOLMAZ. Panel ICINE tiklama da acik tutar.
-        var ce = e.clickEvent;
-        var disariTik = ce && ce.target && $(ce.target).closest('.webphone').length === 0;
-        if (!disariTik)
+        if (cagriAktif && !window.__webphoneElleGizle)
         {
             e.preventDefault();
         }
+    });
+    $(document).on('hidden.bs.dropdown', '#webTelefonDropDown', function()
+    {
+        window.__webphoneElleGizle = false;
+    });
+    // Panel DISINA mousedown -> gizleme izni ver. Bootstrap'in kendi dis-tiklama
+    // kapatmasi (click->hide.bs.dropdown) bayrak set oldugu icin bu sefer ENGELLENMEZ
+    // -> panel duzgun (state tutarli) kapanir. Guvenlik icin bayrak kisa surede sifirlanir.
+    $(document).on('mousedown', function(e)
+    {
+        if (!cagriAktif) return;
+        var $t = $(e.target);
+        if ($t.closest('.webphone, #webtelefon, #webTelefonDropDown').length) return; // panel/toggle ici
+        var acik = $('#webTelefonDropDown').hasClass('show') || $('.webphone').hasClass('show');
+        if (!acik) return;
+        window.__webphoneElleGizle = true;
+        setTimeout(function() { window.__webphoneElleGizle = false; }, 400);
     });
 });
 /*
