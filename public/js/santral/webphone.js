@@ -70,11 +70,12 @@ $(function()
     {
         // Cagri yoksa normal kapan.
         if (!cagriAktif) return;
-        // Cagri aktifken: panel ICINE tiklama (dialpad/cagri butonlari) -> ACIK KALSIN.
-        // DISARI tiklama -> KAPAN: arkadaki butonlar/islevler erisilebilir olsun ve
-        // kullanici paneli gerektiginde gizleyebilsin. (Gelen cagri yine zorla acilir.)
+        // Cagri aktifken panel SADECE kullanici panel DISINA GERCEKTEN TIKLAYINCA gizlensin.
+        // 'Tiklamasiz' kapanmalar (karsi taraf cevaplayinca/programatik/ESC) -> ENGELLE:
+        // boylece outbound arama yanitlaninca telefon KAYBOLMAZ. Panel ICINE tiklama da acik tutar.
         var ce = e.clickEvent;
-        if (ce && ce.target && $(ce.target).closest('.webphone').length)
+        var disariTik = ce && ce.target && $(ce.target).closest('.webphone').length === 0;
+        if (!disariTik)
         {
             e.preventDefault();
         }
