@@ -31,6 +31,7 @@ class PlanlaSeansRapor extends Command
     protected $signature = 'planla:seans-rapor
         {--salon=355 : Hedef salon_id}
         {--ornek= : Sadece N adet ornek not dok (pattern kesfi icin). Rapor uretmez.}
+        {--hizmetler : Salondaki tum hizmet adlarini, kullanim sayisi ve atandigi grup ile listele (gruplama ayari icin). Rapor uretmez.}
         {--csv : Raporu storage/app/planla-seans/ altina CSV olarak yaz}
         {--sadece-notlu=0 : 1 ise sadece notu dolu randevulari dahil et}
         {--limit= : (opsiyonel) Islenecek randevu sayisini sinirla (test icin)}';
@@ -48,6 +49,11 @@ class PlanlaSeansRapor extends Command
             return 1;
         }
         $this->info("Salon {$salonId}: " . ($salon->salon_adi ?? '-'));
+
+        // --- HIZMET LISTESI modu (gruplama ayari icin) -----------------------
+        if ($this->option('hizmetler')) {
+            return $this->hizmetListesiDok($salonId);
+        }
 
         // --- Randevulari + musteri ile cek -----------------------------------
         $q = DB::table('randevular as r')
@@ -372,6 +378,36 @@ class PlanlaSeansRapor extends Command
             ));
         }
         if ($sayac === 0) $this->warn('Notu dolu randevu bulunamadi.');
+        return 0;
+    }
+
+    /**
+     * Salondaki tum hizmet adlarini randevu_hizmetler uzerinden sayar ve
+     * her birinin hangi gruba / tipe dustugunu gosterir. Gruplamayi
+     * iyilestirmek icin "diger" kovasina ne dustugunu gormek icin.
+     */
+    private function hizmetListesiDok($salonId)
+    {
+        $rows = DB::table('randevu_hizmetler as rh')
+            ->join('randevular as r', 'rh.randevu_id', '=', 'r.id')
+            ->leftJoin('hizmetler as h', 'rh.hizmet_id', '=', 'h.id')
+            ->where('r.salon_id', $salonId)
+            ->groupBy('h.hizmet_adi')
+            ->orderByRaw('COUNT(*) DESC')
+            ->get([DB::raw('h.hizmet_adi as ad'), DB::raw('COUNT(*) as adet')]);
+
+        $this->info("Salon {$salonId} hizmetleri (kullanim adedine gore):");
+        $satir = [];
+        $digerToplam = 0;
+        foreach ($rows as $r) {
+            $ad = $r->ad ?: '(bos)';
+            $grup = $this->hizmetGrubu([$ad]);
+            $tip  = $this->randevuTipi([$ad]);
+            if ($grup === 'diger' && $tip === 'Seans') $digerToplam += $r->adet;
+            $satir[] = [$ad, $r->adet, $grup, $tip];
+        }
+        $this->table(['Hizmet', 'Adet', 'Grup', 'Tip'], $satir);
+        $this->warn("'diger' grubuna dusen seans adedi: {$digerToplam} (bu hizmetleri hizmetGrubu()'na eklersek gruplama netlesir)");
         return 0;
     }
 
