@@ -73,7 +73,7 @@
                         <div class="v2-field">
                             <label class="v2-label"><i class="fa fa-clock-o"></i> Saat</label>
                             <select id="v2_saat" class="form-control v2-input">
-                                @for ($j = strtotime('07:00'); $j < strtotime('23:15'); $j += 15 * 60)
+                                @for ($j = strtotime('07:00'); $j < strtotime('24:00'); $j += 15 * 60)
                                     <option value="{{ date('H:i', $j) }}:00">{{ date('H:i', $j) }}</option>
                                 @endfor
                             </select>

@@ -54,7 +54,7 @@
                                         <div class="col-lg-3 col-md-3 col-sm-12 mb-2">
                                             <label class="form-label" style="font-size: 0.8rem;">Saat</label>
                                             <select name="saat" class="form-control" id="randevuduzenle_saat" style="height: 32px; font-size: 0.85rem;">
-                                                @for($j = strtotime(date('07:00')) ; $j < strtotime(date('23:15')); $j+=(15*60))
+                                                @for($j = strtotime(date('07:00')) ; $j < strtotime(date('24:00')); $j+=(15*60))
                                                 <option value="{{date('H:i',$j)}}:00">{{date('H:i',$j)}}</option>
                                                 @endfor
                                             </select>

@@ -238,7 +238,7 @@
                            <label>Saat <span style="color:#dc2626">*</span></label>
                            <select required id='ongorusme_saati' name="ongorusme_saati" class="form-control">
                               <option value="">Seçiniz</option>
-                              @for($j = strtotime(date('07:00')); $j < strtotime(date('23:15')); $j += (15*60))
+                              @for($j = strtotime(date('07:00')); $j < strtotime(date('24:00')); $j += (15*60))
                                  <option value="{{date('H:i',$j)}}:00">{{date('H:i',$j)}}</option>
                               @endfor
                            </select>
