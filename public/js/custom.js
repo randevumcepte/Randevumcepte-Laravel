@@ -21760,7 +21760,9 @@ $(document).on('click', '.cm-ara-islem', function(e){
 // Randevu Gecmisi: popup ile musterinin tum randevularini yukle
 $(document).on('click', '.rd-gecmis-btn', function(e){
     e.preventDefault();
-    var uid = $(this).data('userid'); var ad = $(this).data('ad') || 'Müşteri';
+    // NOT: .data() ilk degeri CACHE'ler; takvim modali ayni butonu .attr() ile gunceller
+    // (jQuery data cache'i degismez) -> hep ILK musteri gelirdi. .attr() daima guncel okur.
+    var uid = $(this).attr('data-userid'); var ad = $(this).attr('data-ad') || 'Müşteri';
     if(!uid) return;
     var esc = function(s){ return $('<div>').text(s==null?'':s).html(); };
     $('#rd-gecmis-ov').remove();
