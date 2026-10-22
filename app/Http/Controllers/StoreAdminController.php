@@ -4561,8 +4561,12 @@ public function carkverilerigetir(Request $request)
     }
 
     $emptySlots = [];
-    $startDate = Carbon::parse($tarih1 . " 07:00:00");
-    $endDate = Carbon::parse($tarih2 . " 23:00:00");
+    // Bos (tiklanabilir) slotlar TUM gunu kaplasin: maxTime artik daima 24:00
+    // oldugu icin izgaranin her yeri (gece saatleri dahil) bos slotla dolu olmali;
+    // aksi halde randevusuz bolgeye tiklaninca resource/personel alinamiyordu.
+    // minTime calisma saati basi oldugundan erken slotlar gorunmez (zararsiz).
+    $startDate = Carbon::parse($tarih1 . " 00:00:00");
+    $endDate = Carbon::parse($tarih2 . " 23:59:59");
 
     $odalar = Odalar::where('salon_id', $isletmeId)->get()->keyBy('id');
     $personeller = Personeller::where('salon_id', $isletmeId)->get()->keyBy('id');

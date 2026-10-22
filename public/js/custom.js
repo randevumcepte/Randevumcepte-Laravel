@@ -11073,6 +11073,9 @@ function takvimyukle(preload,turdegisti)
                     if (event.title === 'Boş slot') {
                         event.editable = false;
                         event.className += " disabled-event";
+                        // "Boş slot" + saat araligi yazisini GIZLE (metin gorunmesin),
+                        // ama olay kutusu tiklanabilir kalsin (tiklaninca resource alinir).
+                        element.find('.fc-content').empty();
                     }
 
                     // Grup dersi oturumu: surukleme/resize KAPALI (randevu degil)
