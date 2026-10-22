@@ -4907,7 +4907,15 @@ public function carkverilerigetir(Request $request)
         $takvim_bitis_saat = max($bitis_saatleri);
     else
         $takvim_bitis_saat = $calismasaatibitis;
-    
+
+    // Takvim ALT siniri (maxTime) DAIMA gun sonu (24:00 -> son slot 23:45-24:00) olsun.
+    // Sebep: maxTime'i calisma saati bitisine (orn. 18:30) cekince, calisma saati
+    // disinda (18:30'u gecen) iptal edilmemis randevu FullCalendar izgarasinda yer
+    // bulamiyordu. Ayrica maxTime yalnizca ilk init'te okunuyor; refetch/ekleme/
+    // guncelleme/tarih degisiminde yeniden uygulanmadigi icin geç saatli randevu
+    // kayboluyordu. Gun sonuna sabitleyerek tum yollarda gorunur kalir.
+    $takvim_bitis_saat = '24:00:00';
+
     $randevu_sayisi = $randevu_hizmetler->count();
     Log::info('randevu yükleme bitti');
 
