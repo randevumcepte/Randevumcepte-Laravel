@@ -171,7 +171,7 @@ $('#arl_tumu').on('click', function(){ arlTumMod = !arlTumMod; arlModGuncelle();
 $(document).on('click', '#arl_liste .b-ara', function(){
    var id = $(this).data('id');
    var $btn = $(this);
-   var softphoneHazir = (window.webphoneHazir === true && typeof window.webphoneAra === 'function');
+   var softphoneHazir = (typeof window.webphoneBagliMi === "function" ? window.webphoneBagliMi() : (window.webphoneHazir === true)) && typeof window.webphoneAra === "function";
    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Bağlanıyor...');
    $.ajax({ url:'/isletmeyonetim/arama-baslat', method:'POST',
       data:{ aranacak_musteri_id:id, softphone: softphoneHazir ? 1 : 0, sube:arlSube, _token:arlToken },

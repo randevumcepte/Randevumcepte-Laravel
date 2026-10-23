@@ -1033,7 +1033,7 @@ $(document).on('click', '#ag_ara_btn', function(){
    $araBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Bağlanıyor...');
    // Tarayicida kayitli softphone varsa: Bria'yi caldiran santral originate YERINE
    // dogrudan softphone (WebRTC) uzerinden ara. Sunucu numarayi dondurur, burada baglariz.
-   var softphoneHazir = (window.webphoneHazir === true && typeof window.webphoneAra === 'function');
+   var softphoneHazir = (typeof window.webphoneBagliMi === "function" ? window.webphoneBagliMi() : (window.webphoneHazir === true)) && typeof window.webphoneAra === "function";
    $.ajax({
       url:'/isletmeyonetim/arama-baslat', method:'POST',
       data:{ aranacak_musteri_id:id, softphone: softphoneHazir ? 1 : 0, _token:$('input[name="_token"]').val() },

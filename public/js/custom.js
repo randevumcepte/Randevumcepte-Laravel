@@ -21723,8 +21723,10 @@ $(document).on('click', '.rd-ara-btn', function(e){
     e.preventDefault();
     var tel = String($(this).data('telefon') || '').replace(/\D/g,'');
     if(!tel){ return; }
-    if (window.webphoneHazir === true && typeof window.webphoneAra === 'function'){
-        window.webphoneAra(tel);
+    // Softphone BAGLIYSA (gercek SIP durumu webphoneAra icinde kontrol edilir) direkt ondan ara;
+    // webphoneAra false donerse (gercekten bagli degil) originate'e (Bria) dus.
+    if (typeof window.webphoneAra === 'function' && window.webphoneAra(tel)){
+        // webphone ile baslatildi
     } else {
         $.post('/isletmeyonetim/arama-baslat-numara',
             { numara: tel, sube: $('input[name="sube"]').val(), _token: $('input[name="_token"]').val() },
@@ -21744,8 +21746,9 @@ $(document).on('click', '.cm-ara-islem', function(e){
     var $b = $(this);
     var numara = String($b.data('numara') || '').replace(/\D/g,'');
     var userId = $b.data('user') || '';
-    if (numara && numara.length >= 7 && window.webphoneHazir === true && typeof window.webphoneAra === 'function'){
-        window.webphoneAra(numara);
+    // Softphone BAGLIYSA (gercek SIP durumu webphoneAra icinde) direkt ondan ara.
+    // webphoneAra false donerse (gercekten bagli degil / webrtc dahili yok) -> Bria originate.
+    if (numara && numara.length >= 7 && typeof window.webphoneAra === 'function' && window.webphoneAra(numara)){
         return;
     }
     var old = $b.html();

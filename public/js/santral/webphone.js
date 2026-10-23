@@ -562,6 +562,21 @@ makeCall = function (target)
     });
 };
 
+// Softphone GERCEKTEN bagli mi? webphoneHazir bayragina GUVENME (gecici kopma/yeniden
+// baglanmada senkron kalmayabilir); gercek SIP transport durumunu dondurur ve bayragi
+// gercek durumla duzeltir. Diger sayfalar (ARA butonlari) bunu kullanmali.
+window.webphoneBagliMi = function ()
+{
+    try {
+        if (typeof simpleUser !== 'undefined' && simpleUser && typeof simpleUser.isConnected === 'function') {
+            var c = simpleUser.isConnected();
+            window.webphoneHazir = !!c; // self-heal
+            return !!c;
+        }
+    } catch (e) {}
+    return !!window.webphoneHazir;
+};
+
 // Diger ekranlardan (ornegin Cagri Merkezi "ARA" butonu) softphone ile DIREKT dis
 // arama baslatmak icin kullanilir. Panel'i acar, numarayi girer ve aramayi yapar.
 // Donus: arama baslatildi mi (softphone hazir degilse false -> cagiran taraf
@@ -570,7 +585,10 @@ window.webphoneAra = function (numara)
 {
     var tel = ('' + (numara || '')).replace(/\D/g, '');
     if (!tel) return false;
-    if (!window.webphoneHazir) return false;
+    // webphoneHazir bayragina GUVENME: gecici kopma/yeniden-baglanmada gercek durumla
+    // senkron kalmayabilir (panel "Bagli" gosterse de false takilip Bria'ya dusuruyordu).
+    // GERCEK durum = SIP transport bagli mi? Bagliysa ARA webphone ile yapilir.
+    if (!window.webphoneBagliMi()) return false; // gercekten bagli degil -> cagiran originate'e (Bria) dusebilir
     // TR cep: 5 ile baslayan 10 haneli numaranin basina 0 koy (05xxxxxxxxx)
     if (/^5\d{9}$/.test(tel)) { tel = '0' + tel; }
     webphonePaneliniAc();
