@@ -7810,7 +7810,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         });
     })
-    ->when($durum, function($q) use($durum) {
+    // DİKKAT: $durum '0' (Onay bekleyen) gelebilir; PHP'de '0' falsy oldugu icin
+    // when($durum) ile filtre atlanirdi. Bos/null degilse filtre uygula.
+    ->when($durum !== null && $durum !== '', function($q) use($durum) {
         $q->where("durum", $durum);
     })
     ->when($salon_id || $request->musteriMi, function($q) use($request, $salon_id) {
