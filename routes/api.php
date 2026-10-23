@@ -265,6 +265,9 @@ Route::post('alacaklar/{salonid}','ApiController@alacaklar');
 Route::post('/randevugeldiisaretle','ApiController@randevugeldiisaretle');
 Route::post('/randevuyagelmediisaretle','ApiController@randevuyagelmedi');
 Route::post('/randevuTelafiIsaretle','ApiController@randevuTelafiIsaretle');
+// Telafi randevusu (A tipi: ucretsiz duzeltme + personel prim devri) — mobil
+Route::get('/telafi-dropdown-verisi','ApiController@telafiDropdownVerisiApi');
+Route::post('/telafi-randevu-olustur','ApiController@telafiRandevuOlusturApi');
 
 Route::get('/randevuiptalet','ApiController@randevuiptalet');
 

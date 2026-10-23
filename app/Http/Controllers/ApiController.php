@@ -2410,6 +2410,12 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             // TELAFI: bu randevunun seanslarindan biri telafi slotunda (geldi=2) ise
             // durum string'ine 6. segment olarak 1 eklenir (app telafi rozeti icin). Ekstra sorgu yok.
             $_telafiVar = $seansVar->where('geldi', 2)->isNotEmpty() ? 1 : 0;
+            // TELAFI RANDEVUSU (A tipi — ucretsiz duzeltme + prim devri) bayraklari.
+            // 7. segment: bu RH bir telafi randevusu mu (telafi_kaynak_rh_id dolu).
+            // 8. segment: orijinal RH icin telafi olusturulup devir yapildi mi (telafi_devir_yapildi).
+            // Additive — eski app segment[0..5]'i okur, bozulmaz.
+            $_telafiKaynak  = !empty($rh->telafi_kaynak_rh_id) ? 1 : 0;
+            $_telafiVerildi = !empty($rh->telafi_devir_yapildi) ? 1 : 0;
             return [
                 'id' => $rh->randevu_id,
                 '_paketSource' => $_paketSource,
@@ -2434,7 +2440,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 'modal_title' => $modalTitle,
                 'duzenle_buton'=>$duzenleButon,
                 'satis_olustu'=>$satisOlustu,
-                'durum'=>($rh->randevu->durum !==null ? $rh->randevu->durum : "na") ."-".($rh->randevu->randevuya_geldi !== null ? $rh->randevu->randevuya_geldi : "na").'-'.$satisOlustu.'-'.$odemeYapildi.'-'.$rh->id.'-'.$_telafiVar,
+                'durum'=>($rh->randevu->durum !==null ? $rh->randevu->durum : "na") ."-".($rh->randevu->randevuya_geldi !== null ? $rh->randevu->randevuya_geldi : "na").'-'.$satisOlustu.'-'.$odemeYapildi.'-'.$rh->id.'-'.$_telafiVar.'-'.$_telafiKaynak.'-'.$_telafiVerildi,
             ];
         });
 
@@ -16198,6 +16204,73 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         return response()->json(['hata'=>false,'telafi'=>true,'mesaj'=>'Telafi olarak işaretlendi']);
     }
 
+    /**
+     * TELAFI RANDEVUSU (A tipi) — mobil dropdown verisi.
+     * Web karsiligi: StoreAdminController@telafiDropdownVerisi.
+     * Salon izolasyonu: salonid|sube|appBundle (_patronAsistanSalonId).
+     */
+    public function telafiDropdownVerisiApi(Request $request)
+    {
+        $salonId = $this->_patronAsistanSalonId($request);
+        if (!$salonId) return response()->json(['hata' => 'Salon belirlenemedi.'], 400);
+        return response()->json([
+            'personeller' => \DB::table('salon_personelleri')
+                ->where('salon_id', $salonId)->where('aktif', 1)
+                ->orderBy('personel_adi')
+                ->select('id', 'personel_adi as ad')->get(),
+            'odalar' => \Schema::hasTable('odalar')
+                ? \DB::table('odalar')->where('salon_id', $salonId)
+                    ->orderBy('oda_adi')->select('id', 'oda_adi as ad')->get() : [],
+            'cihazlar' => \Schema::hasTable('cihazlar')
+                ? \DB::table('cihazlar')->where('salon_id', $salonId)
+                    ->orderBy('cihaz_adi')->select('id', 'cihaz_adi as ad')->get() : [],
+        ]);
+    }
+
+    /**
+     * TELAFI RANDEVUSU (A tipi) olustur + prim devri — mobil.
+     * Web karsiligi: StoreAdminController@telafiRandevuOlustur. Asil mantik
+     * App\Services\TelafiRandevuServisi icinde (web ile BIREBIR ayni servis).
+     * Fark: auth guard isletmeyonetim-api (fallback user_id), yetki _yetkiYoksaRed.
+     */
+    public function telafiRandevuOlusturApi(Request $request)
+    {
+        $salonId = $this->_patronAsistanSalonId($request);
+        if ($r = $this->_yetkiYoksaRed($request, $salonId, 'randevu.olustur')) return $r;
+
+        $saatRaw = trim((string) $request->saat);
+        if ($saatRaw === '' || !preg_match('/^\d{2}:\d{2}/', $saatRaw)) {
+            return response()->json(['hata' => 'Saat seçilmedi veya geçersiz formatta.'], 400);
+        }
+        $saat = substr($saatRaw, 0, 5);
+        $tarihRaw = trim((string) $request->tarih);
+        if ($tarihRaw === '') return response()->json(['hata' => 'Tarih seçilmedi.'], 400);
+
+        $u = \Auth::guard('isletmeyonetim-api')->user();
+        $kullaniciId = $u ? (int) $u->id : (int) $request->input('user_id');
+
+        try {
+            $svc = app(\App\Services\TelafiRandevuServisi::class);
+            $yeniRH = $svc->olustur(
+                (int) $request->orijinal_rh_id, $tarihRaw, $saat,
+                (int) $request->personel_id,
+                $request->oda_id   ? (int) $request->oda_id   : null,
+                $request->cihaz_id ? (int) $request->cihaz_id : null,
+                (int) $request->sure_dk, (string) $request->not,
+                $kullaniciId
+            );
+            return response()->json([
+                'ok'                => true,
+                'randevu_id'        => $yeniRH->randevu_id,
+                'randevu_hizmet_id' => $yeniRH->id,
+                'prim'              => $svc->sonTransferOzeti ?? null,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('[Telafi API] olustur hata: '.$e->getMessage());
+            return response()->json(['hata' => $e->getMessage()], 400);
+        }
+    }
+
     public function randevuyagelmedi(Request $request)
 
     {
@@ -22478,10 +22551,21 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $hareketler = $primHareketleri->get($p->id, collect([]));
             $bonus = (float)$hareketler->where('tip', 'bonus')->sum('tutar');
             $kesinti = (float)$hareketler->where('tip', 'kesinti')->sum('tutar');
+            // TELAFI DEVRI (web primHakedisVerisi ile ayni): telafi randevusunda orijinal
+            // personele yazilan negatif prim devri. Tutar zaten isaretli (genelde negatif)
+            // oldugundan net'e "+" ile eklenir. Yetim koruma: kaynak satis (adisyon_hizmet/
+            // adisyon_paket) silinmisse o hareket yok sayilir (clawback kendiliginden kalkar).
+            $telafiDevri = (float)$hareketler->where('tip', 'telafi_devir')->sum(function ($h) {
+                $ahId = $h->kaynak_adisyon_hizmet_id ?? null;
+                $apId = $h->kaynak_adisyon_paket_id ?? null;
+                if ($ahId && !\App\AdisyonHizmetler::where('id', $ahId)->exists()) return 0;
+                if ($apId && !\App\AdisyonPaketler::where('id', $apId)->exists()) return 0;
+                return (float)$h->tutar;
+            });
 
             // Personel gideri (kasadan alinan) — net hak edisten dusulur
             $masraf = (float)($masrafGideri[$p->id] ?? 0);
-            $netHakedis = (float)$p->maas + $hizmetHakedis + $urunHakedis + $paketHakedis + $bonus - $kesinti - $masraf;
+            $netHakedis = (float)$p->maas + $hizmetHakedis + $urunHakedis + $paketHakedis + $bonus - $kesinti - $masraf + $telafiDevri;
 
             $row = [
                 'personel_id'        => (string)$p->id,
@@ -22514,6 +22598,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 'odenen_diger'       => $odenenDiger,
                 'bonus'              => $bonus,
                 'kesinti'            => $kesinti,
+                // Telafi randevusu prim devri (genelde negatif) — net'e dahil, tabloda ayri sutun
+                'telafi_devri'       => $telafiDevri,
                 // Personel gideri (personel_gideri=1 masraf toplami) — net'ten dusulur
                 'masraf'             => $masraf,
                 'borclu'             => $netHakedis < 0,
