@@ -43,10 +43,19 @@ class MinifyMiddleware extends BaseMinifyMiddleware
             if (($minified === null || $minified === '') && $output !== '' && $output !== null) {
                 // TESHIS: bu satir log'a dustuyse "beyaz ekran" kok nedeni KESIN
                 // olarak minify'in bos donmesidir (PCRE backtrack_limit asimi).
+                // Tetikleyici boyut DEGIL, kapanmayan bir etiket/yorum ya da kacissiz
+                // '<' karakteri olur (tembel [\s\S]*? desenleri sayfa sonuna kadar
+                // tarar). Dengesiz etiket sayilarini da yaz ki hangi kayit oldugunu
+                // daraltabilelim.
+                $ci = function ($re) use ($output) { return preg_match_all($re, $output); };
                 \Log::warning('[MINIFY-BOS] minify null/bos dondu, orijinal korundu', [
-                    'url'       => $request->fullUrl(),
-                    'html_len'  => strlen($output),
-                    'pcre_err'  => preg_last_error(),
+                    'url'          => $request->fullUrl(),
+                    'html_len'     => strlen($output),
+                    'pcre_err'     => preg_last_error(), // 2 = PREG_BACKTRACK_LIMIT_ERROR
+                    'pre_ac'       => $ci('/<pre\b/i') . '/' . $ci('/<\/pre>/i'),
+                    'script_ac'    => $ci('/<script\b/i') . '/' . $ci('/<\/script>/i'),
+                    'textarea_ac'  => $ci('/<textarea\b/i') . '/' . $ci('/<\/textarea>/i'),
+                    'comment_ac'   => $ci('/<!--/') . '/' . $ci('/-->/'),
                 ]);
                 $minified = $output;
             }
