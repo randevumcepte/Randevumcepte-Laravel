@@ -14,6 +14,7 @@ class Kernel extends ConsoleKernel
      */
     protected $commands = [
         Commands\DBYedekAl::class,
+        Commands\DiskTemizle::class,
         Commands\HizmetMaliyetKolonuEkle::class,
         Commands\GuvenlikBildir::class,
         Commands\GuvenlikDb::class,
@@ -165,6 +166,10 @@ class Kernel extends ConsoleKernel
 
         // Yedek
         $schedule->command('dbyedek:al')->dailyAt('23:59')->withoutOverlapping();
+
+        // Disk sismesi onleme: yedek rotasyonu + eski oturum + sisen log kirpma.
+        // Sisen pm2/whatsapp loglari GB'larca buyuyebildigi icin saat basi kontrol.
+        $schedule->command('disk:temizle')->hourly()->withoutOverlapping();
     }
 
     /**
