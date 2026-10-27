@@ -164,6 +164,17 @@ class DiskTemizle extends Command
             $adaylar[] = $f;
         }
 
+        // Olu whatsapp-service err.log (whatsmeow bridge yerini aldi; 8.3G'ye cikabilir)
+        foreach ([
+            base_path('whatsapp-service/logs'),
+            dirname(base_path()) . '/whatsapp-service/logs',
+            '/var/www/www-root/data/www/randevumcepte/whatsapp-service/logs',
+        ] as $wdir) {
+            foreach (glob($wdir . '/*.log') ?: [] as $f) {
+                $adaylar[$f] = $f;
+            }
+        }
+
         // pm2 + node servis loglari (whatsmeow bridge / olu whatsapp-service dahil)
         $kokler = array_filter([
             getenv('HOME') ?: null,
