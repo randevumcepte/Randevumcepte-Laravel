@@ -34287,6 +34287,12 @@ DB::raw('
         $vardiCallback = ((int) $kayit->durum === 3 && !empty($kayit->tarih) && !empty($kayit->saat)
             && (!$arKolonVar || is_null($kayit->ar_tamamlandi_at)));
         $yeniCallback = ($kayitDurum === 3 && $randevuMu);
+        // Bu kayit TAKVIMDE miydi? (Arama Randevusu=3 / On Gorusme=6 / Satis=7 + zaman + henuz
+        // tamamlanmamis). Gorusme sonucu (gorusuldu/cevapsiz/mesgul/ulasilamadi) isaretlenince
+        // takvimden DUSMESIN diye zaman KORUNUR + 'tamamlandi' isaretlenir (takvimde kalir).
+        $eskiTakvimKaydi = in_array((int) $kayit->durum, [3, 6, 7], true)
+            && !empty($kayit->tarih) && !empty($kayit->saat)
+            && (!$arKolonVar || is_null($kayit->ar_tamamlandi_at));
 
         // Mevcut tablo: tekrar arama randevusu tarih/saat alanlari (TekrarAramaHatirlat bunu okur)
         // BOS not ile mevcut notu (ornegin aktarilan randevu notunu) EZME; sadece dolu not gelince guncelle.
@@ -34296,18 +34302,18 @@ DB::raw('
         }
         $kayit->durum = $kayitDurum;
         if ($randevuMu) {
-            // Yeni zaman verildi (durum 3 veya 6 On Gorusme) -> eski davranis gibi tarih/saat guncelle
+            // Yeni zaman verildi (durum 3 veya 6 On Gorusme) -> tarih/saat guncelle
             $kayit->tarih = $tekrarTarih;
             $kayit->saat  = $tekrarSaat;
-        } elseif (!$vardiCallback && !in_array($kayitDurum, [6, 7], true)) {
-            // Bekleyen callback yok ve yeni zaman da verilmedi -> eski davranis (alanlar bos yazilir)
-            // AMA On Gorusme(6)/Satis(7) kayitlari arama randevu takviminde tarih/saat ile yasar;
-            // yeni zaman verilmediyse mevcut tarih/saat KORUNUR (yoksa takvimden kaybolur).
+        } elseif (empty($kayit->tarih) || empty($kayit->saat)) {
+            // Kayitta zaman YOK + yeni zaman da verilmedi -> eski davranis (form zamani / bos).
             $kayit->tarih = $tekrarTarih;
             $kayit->saat  = $tekrarSaat;
         }
-        // else: bekleyen callback ELLE cozuldu, yeni zaman yok -> onceki randevu zamanini KORU
-        //       ("gec aranan" raporunun ar_tamamlandi_at ile karsilastirabilmesi icin)
+        // else: kayitta tarih/saat VAR + yeni randevu zamani verilmedi -> KORU.
+        //  Arama Randevusu/On Gorusme/Satis kaydina gorusme sonucu isaretlenince takvimden
+        //  DUSMESIN; zaman korunur, asagida ar_tamamlandi ile 'tamamlandi' olarak gorunur.
+        //  (Ayrica "gec aranan" raporu ar_tamamlandi_at ile karsilastirabilir.)
 
         // ARAYACAK PERSONEL secimi (callback olustururken): hedef personel listenin
         // personelinden FARKLIYSA kaydi o personelin "Arama Randevulari (Manuel)" listesine
@@ -34332,8 +34338,10 @@ DB::raw('
                 $kayit->ar_zaman_at = null;
                 $kayit->ar_gecikti = 0;
                 $kayit->ar_tamamlandi_at = null;
-            } elseif ($vardiCallback) {
-                // Bekleyen callback artik islendi (gorusuldu/satis/on gorusme/vb.) -> tamamlandi
+            } elseif ($eskiTakvimKaydi && !in_array($kayitDurum, [3, 6, 7], true)) {
+                // Takvimdeki kayit (callback/on gorusme/satis) GORUSME SONUCU ile tamamlandi ->
+                // takvimden dusmez, 'tamamlandi' (ar_tamamlandi_at) olarak KALIR.
+                // (Yeni durum yine 3/6/7 ise tamamlanmaz; o durumla takvimde zaten gorunur.)
                 $kayit->ar_tamamlandi_at = date('Y-m-d H:i:s');
                 $kayit->ar_gecikti = 0;
             }
