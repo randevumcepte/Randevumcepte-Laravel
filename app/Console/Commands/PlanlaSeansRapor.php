@@ -258,45 +258,76 @@ class PlanlaSeansRapor extends Command
     // ----------------------------------------------------------------------
 
     /**
-     * Randevu tipi: hizmet adlarina gore Seans / Kontrol / Ongorusme.
-     * Tedavi hizmeti varsa Seans. Sadece kontrol/ongorusme ise o tip.
+     * Randevu tipi: hizmet adlarina gore Seans / Kontrol / Ongorusme / Blok.
+     * Tedavi hizmeti varsa Seans. Sadece kontrol/ongorusme/kapali-saat ise o tip.
      */
     private function randevuTipi(array $hizmetListe)
     {
         if (empty($hizmetListe)) return 'Seans'; // hizmetsiz randevu -> seans say
-        $hepsiKontrol = true;
-        $hepsiOngorusme = true;
-        $varTedavi = false;
+        $varTedavi = false; $varKontrol = false; $varOngorusme = false; $varBlok = false;
         foreach ($hizmetListe as $h) {
             $low = $this->norm($h);
-            $kontrol   = (strpos($low, 'kontrol') !== false);
-            $ongorusme = (strpos($low, 'ongorusme') !== false || strpos($low, 'on gorusme') !== false);
-            if (!$kontrol)   $hepsiKontrol = false;
-            if (!$ongorusme) $hepsiOngorusme = false;
-            if (!$kontrol && !$ongorusme) $varTedavi = true;
+            if (strpos($low, 'kontrol') !== false) { $varKontrol = true; continue; }
+            if (strpos($low, 'ongorusme') !== false || strpos($low, 'on gorusme') !== false) { $varOngorusme = true; continue; }
+            if (strpos($low, 'kapali saat') !== false) { $varBlok = true; continue; }
+            $varTedavi = true;
         }
-        if ($varTedavi) return 'Seans';
-        if ($hepsiOngorusme) return 'Ongorusme';
-        if ($hepsiKontrol)   return 'Kontrol';
-        return 'Kontrol';
+        if ($varTedavi)    return 'Seans';
+        if ($varKontrol)   return 'Kontrol';
+        if ($varOngorusme) return 'Ongorusme';
+        if ($varBlok)      return 'Blok';
+        return 'Seans';
     }
 
     /**
-     * Kaba hizmet grubu (seans sira no'yu bu grup icinde sayariz).
-     * Ornek: lazer-govde, lazer-yuz, cilt, diger
+     * Hizmet grubu (seans sira no'yu bu grup icinde sayariz). Ceren Ceviz
+     * Estetik hizmet adlarina gore. Siralama ONEMLI: ozel olan once gelir.
      */
     private function hizmetGrubu(array $hizmetListe)
     {
-        $metin = $this->norm(implode(' ', $hizmetListe));
-        if (strpos($metin, 'lazer') !== false || strpos($metin, 'alex') !== false || strpos($metin, 'epilasyon') !== false) {
-            if (strpos($metin, 'yuz') !== false) return 'lazer-yuz';
+        $m = $this->norm(implode(' ', $hizmetListe));
+        $has = function ($kelimeler) use ($m) {
+            foreach ((array) $kelimeler as $k) {
+                if (strpos($m, $k) !== false) return true;
+            }
+            return false;
+        };
+
+        // 1) Kalici makyaj
+        if ($has(['microblading', 'babyliner', 'eyeliner', 'dipliner', 'diplener', 'pudralama',
+                  'dudak renklendirme', 'dudak pigment', 'pigmentasyon', 'kalici makyaj'])) {
+            return 'kalici-makyaj';
+        }
+        // 2) Kas / Kirpik
+        if ($has(['kirpik', 'laminasyon']) || preg_match('/\bkas\b/u', $m)) {
+            return 'kas-kirpik';
+        }
+        // 3) Tirnak
+        if ($has(['tirnak', 'oje', 'manikur', 'pedikur'])) {
+            return 'tirnak';
+        }
+        // 4) Sac
+        if (preg_match('/\bsac\b/u', $m)) {
+            return 'sac';
+        }
+        // 5) Lazer (yuz ayri alt-grup)
+        if ($has(['lazer', 'alex', 'epilasyon', 'cimbiz'])) {
+            if (strpos($m, 'yuz') !== false) return 'lazer-yuz';
             return 'lazer';
         }
-        if (strpos($metin, 'cilt') !== false || strpos($metin, 'hydrafacial') !== false || strpos($metin, 'bakim') !== false) {
-            return 'cilt';
-        }
-        if (strpos($metin, 'g5') !== false || strpos($metin, 'ems') !== false || strpos($metin, 'masaj') !== false) {
+        // 6) Vucut / zayiflama
+        if ($has(['g5', 'ems', 'masaj', 'heykeltras', 'jimnastik', 'incelme', 'basen',
+                  'sauna', 'ozon', 'simit', 'bolgesel'])) {
             return 'vucut';
+        }
+        // 7) Cilt
+        if ($has(['cilt', 'hydrafacial', 'hydrabubble', 'bakim', 'leke', 'mezoterapi',
+                  'radyofrekans', 'beyazlatma', 'collagen', 'carboxsi', 'peel', 'protokol',
+                  'protukol', 'akne', 'aknre', 'c4', 'giss', 'vtox', 'antiaging', 'ferulic',
+                  'azeleik', 'kakao', 'buberry', 'therapy', 'arc repair', 'repair',
+                  'paris efekt', 'gozenek', 'kirisik', 'catlak', 'yuz germe', 'isilti',
+                  'ispanya', 'diva', 'nem'])) {
+            return 'cilt';
         }
         return 'diger';
     }
