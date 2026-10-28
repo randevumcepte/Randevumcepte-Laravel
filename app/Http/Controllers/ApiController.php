@@ -23045,9 +23045,16 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         // Bu personel "Personel" rolunde mi?
         $personelRolunde = \App\Services\PersonelYetkiServisi::personelRolundeMi($personelId, $salonId);
         $ayarlar = \App\Services\PersonelYetkiServisi::ayarlariGetir($personelId, $salonId);
+        // Bu personel icin GERCEK kayitli yetki satiri var mi? Yoksa ayarlariGetir
+        // yine de 'personel' sablonunun default'unu doner (ekranda butonlar gorunsun
+        // diye) — ama mobil tarafta HICBIR sablon karti "secili" gosterilmemeli.
+        $kayitVar = \App\PersonelYetkiAyari::where('personel_id', $personelId)
+            ->where('salon_id', $salonId)
+            ->exists();
         return response()->json([
             'basarili' => true,
             'personel_rolunde' => $personelRolunde,
+            'kayit_var' => $kayitVar,
             'sablon' => $ayarlar['sablon'],
             'ayarlar' => $ayarlar['ayarlar'],
         ]);
