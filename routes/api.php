@@ -123,6 +123,8 @@ Route::post('/carkAdmin/bildirim-gonder/{salonId}','ApiController@carkBildirimGo
 Route::get('/carkAdmin/kazananlar/{salonId}','ApiController@carkKazananlarApi');
 Route::post('/carkAdmin/kupon-dogrula/{salonId}','ApiController@carkKuponDogrulaApi');
 Route::post('/carkAdmin/kupon-kullan/{salonId}','ApiController@carkKuponKullanApi');
+// App tahsilat: musterinin bu salonda gecerli cark kuponlari (yoksa alan gizli)
+Route::get('/carkAdmin/kuponlar/{salonId}','ApiController@carkKuponlariApi');
 Route::get('/kampanyaAdmin/kodlar/{salonId}','ApiController@kampanyaKodlariApi');
 Route::post('/kampanyaAdmin/kod-kullan/{salonId}','ApiController@kampanyaKodKullanApi');
 Route::get('/carkAdmin/hatirlatma/{salonId}','ApiController@carkHatirlatmaGetirApi');

@@ -6671,14 +6671,89 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $personelId = ($personelId !== null && $personelId !== '') ? (int) $personelId : null;
 
         // Cache: 35+ seri aggregate sorgu her istekte yeniden calistirilmasin.
-        // Key = salon + period + personel. TTL 2 dakika (Laravel 5.6 -> DAKIKA).
+        // Key = salon + period + personel + surum. TTL 2 dakika (Laravel 5.6 -> DAKIKA).
         // Dashboard yenilemelerinde ani F5 fark etmez; 2 dk tolere edilebilir.
-        $cacheKey = 'dashKars_' . $salonId . '_' . $period . '_' . ($personelId ?: 'all');
+        // Surum damgasi: gap kampanyasi olustur/iptal edilince _dashKarsCacheBust()
+        // bu sayiyi artirir -> eski ..._vN anahtarlari terk edilir, kart aninda tazelenir.
+        $cacheVer = (int) \Cache::get('dashKarsVer_' . $salonId, 0);
+        $cacheKey = 'dashKars_' . $salonId . '_' . $period . '_' . ($personelId ?: 'all') . '_v' . $cacheVer;
         $payload = \Cache::remember($cacheKey, 2, function () use ($salonId, $period, $personelId) {
             return $this->_dashboardKarsilastirmaHesapla($salonId, $period, $personelId);
         });
 
         return response()->json($payload);
+    }
+
+    /**
+     * Dashboard karsilastirma (gap kampanya kartlari dahil) cache'ini gecersiz kilar.
+     * Laravel 5.6 file cache tag desteklemedigi icin salon basi bir surum damgasi
+     * tutulur; artirilinca tum period/personel varyantlarinin cache'i aninda duser.
+     * Gap kampanyasi olustur/iptal sonrasi kart "aktif/pasif" durumu bekletmeden gorunsun diye.
+     */
+    private function _dashKarsCacheBust($salonId)
+    {
+        try {
+            $k = 'dashKarsVer_' . $salonId;
+            \Cache::forever($k, ((int) \Cache::get($k, 0)) + 1);
+        } catch (\Throwable $e) {}
+    }
+
+    /**
+     * Gap kampanyasi olustugunda uygulamasi yuklu tum aktif portfoy musterilerine
+     * DISCOUNT push'u gonderir. SMS'ten bagimsizdir (SMS ayri "Musterilere SMS Gonder"
+     * butonundan gider). Binlerce musteride create endpoint'i timeout'a girmesin diye
+     * gonderim response sonrasina (register_shutdown_function) atilir.
+     */
+    private function _gapKampanyaPushGonder($salonId, $kampanyaId, $title, $body)
+    {
+        try {
+            // Hedef: aktif + kara listede olmayan portfoy musterileri.
+            $portfoyIdler = MusteriPortfoy::where('salon_id', $salonId)
+                ->where('aktif', true)
+                ->where(function ($q) {
+                    $q->whereNull('kara_liste')->orWhere('kara_liste', '!=', 1);
+                })
+                ->pluck('user_id')
+                ->unique()
+                ->filter()
+                ->values();
+
+            if ($portfoyIdler->isEmpty()) return;
+
+            // Icinde uygulamasi yuklu (aktif token sahibi) olanlar — bosa dongu donmeyelim.
+            $uygulamaliIdler = BildirimKimlikleri::whereIn('user_id', $portfoyIdler)
+                ->where('aktif', true)
+                ->whereNotNull('bildirim_id')
+                ->where('bildirim_id', '!=', '')
+                ->pluck('user_id')
+                ->unique()
+                ->values()
+                ->toArray();
+
+            if (empty($uygulamaliIdler)) return;
+        } catch (\Throwable $e) {
+            \Log::warning('[GAP-KAMPANYA] hedef musteri cozme hata: ' . $e->getMessage());
+            return;
+        }
+
+        register_shutdown_function(function () use ($uygulamaliIdler, $salonId, $kampanyaId, $title, $body) {
+            @ignore_user_abort(true);
+            @set_time_limit(300);
+            if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
+            foreach ($uygulamaliIdler as $uid) {
+                try {
+                    NotificationService::toCustomer((int) $uid, (int) $salonId)
+                        ->type(NotificationTypes::DISCOUNT)
+                        ->title($title)
+                        ->body($body)
+                        ->popup(true)
+                        ->extra(['kaynak' => 'gap_kampanya', 'kampanya_id' => $kampanyaId])
+                        ->send();
+                } catch (\Throwable $e) {
+                    \Log::warning('[GAP-KAMPANYA] push fail user=' . $uid . ': ' . $e->getMessage());
+                }
+            }
+        });
     }
 
     /**
@@ -7080,6 +7155,12 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         Audit::logApi($salonId, $request, 'kampanya_ekle', 'kampanya', $kampanya->id, $baslik, 'Saat boslugu indirim kampanyasi olusturuldu.');
 
+        // Gap karti aninda "aktif" gorunsun diye dashboard cache'ini dusur.
+        $this->_dashKarsCacheBust($salonId);
+
+        // Kampanya olustugunda uygulamasi yuklu tum aktif musterilere push (SMS'ten bagimsiz).
+        $this->_gapKampanyaPushGonder($salonId, $kampanya->id, $baslik, $aciklama);
+
         return response()->json([
             'status'      => 'success',
             'message'     => $gapLabel . ' için %' . $discount . ' indirimli kampanya oluşturuldu.',
@@ -7373,6 +7454,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $k->save();
 
         Audit::logApi($salonId, $request, 'kampanya_iptal', 'kampanya', $k->id, optional($k)->kampanya_baslik, 'Saat boslugu kampanyasi iptal edildi.');
+
+        // Iptal aninda dashboard'da yansisin diye cache'i dusur (yoksa 2 dk bayat kalirdi).
+        $this->_dashKarsCacheBust($salonId);
 
         return response()->json([
             'status'  => 'success',
@@ -31612,6 +31696,39 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             'kullanildi' => (int) $odul->kullanildi,
             'kullanim_tarihi' => $odul->kullanim_tarihi ? $odul->kullanim_tarihi->format('d.m.Y H:i') : null,
         ]);
+    }
+
+    /**
+     * CARK KUPONU (app) — musterinin bu salonda (sube grubunda) GECERLI, kullanilmamis
+     * cark kuponlari. App tahsilat ekraninda musteri secilince alani gostermek icin;
+     * kupon yoksa alan gizli kalir (kupon kazanildigi sube grubu disinda gorunmez).
+     * Web kullaniciKuponlari muadili — birebir ayni filtre.
+     */
+    public function carkKuponlariApi(Request $request, $salonId)
+    {
+        $bugun = date('Y-m-d');
+        $sube  = (int) $salonId;
+        // Kaba on-filtre: owner kardes sube grubu. Kesin kontrol gecerliSubeler() ile.
+        $kardesler = \App\Personeller::kardesSalonIdler($sube);
+        $adaylar = CarkifelekOdulleri::where('user_id', (int) $request->input('user_id'))
+            ->whereIn('salon_id', $kardesler)
+            ->where('kullanildi', 0)
+            ->whereIn('tip', ['hizmet_indirimi', 'urun_indirimi', 'paket_indirimi'])
+            ->where(function ($q) use ($bugun) {
+                $q->whereNull('gecerlilik_tarihi')->orWhere('gecerlilik_tarihi', '>=', $bugun);
+            })
+            ->orderBy('id', 'desc')
+            ->get();
+        $kuponlar = $adaylar
+            ->filter(function ($k) use ($sube) { return in_array($sube, $k->gecerliSubeler(), true); })
+            ->map(function ($k) {
+                return [
+                    'id' => $k->id, 'kod' => $k->kod, 'tip' => $k->tip,
+                    'deger' => $k->deger, 'baslik' => $k->baslik,
+                    'gecerlilik_tarihi' => $k->gecerlilik_tarihi,
+                ];
+            })->values();
+        return response()->json(['basarili' => true, 'kuponlar' => $kuponlar]);
     }
 
     /**
