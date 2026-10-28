@@ -13968,91 +13968,55 @@ private function ayAdiCevir($ingilizceAy)
                 $kalemler['urun'] = AdisyonUrunler::where('taksitli_tahsilat_id', $taksit_vade->taksitli_tahsilat_id)->get();
                 $kalemler['paket'] = AdisyonPaketler::where('taksitli_tahsilat_id', $taksit_vade->taksitli_tahsilat_id)->get();
 
-                // Her kalem tipi için ödemeyi yap
+                // TUM kalem tiplerini TEK havuzda topla ve kalan borclarini hesapla.
+                // ONEMLI (kacak fix): Eskiden $toplam_kalan_borc her kalem TIPI icin AYRI
+                // hesaplaniyor ve $kismi_odeme her tip icinde (hizmet/urun/paket) AYRI AYRI
+                // TAM dagitiliyordu. Bu yuzden urun+paket ayni taksit planindaysa, tek bir
+                // (or.) 6500 taksit odemesi hem urune 6500 hem pakete 6500 yazilip detay
+                // toplami 13000'e sisiyordu (satis listesinde Odenen>Toplam, Kalan negatif).
+                // Dogrusu: havuz TEK, pay ortak kalan borca oranli ve her pay kendi kalanini
+                // ASAMAZ; dagitilan toplam da gercek kalan borcu asamaz (fazla odeme yazilmaz).
+                $havuz = [];
+                $toplam_kalan_borc = 0;
                 foreach($kalemler as $tip => $items)
                 {
-                    // Önce toplam kalan borcu hesapla
-                    $toplam_kalan_borc = 0;
                     foreach($items as $item)
                     {
                         switch($tip)
                         {
                             case 'hizmet':
                                 $onceki = TahsilatHizmetler::where('adisyon_hizmet_id', $item->id)->sum('tutar');
-                                $kalan = $item->fiyat - $item->indirim_tutari - $onceki;
                                 break;
                             case 'urun':
                                 $onceki = TahsilatUrunler::where('adisyon_urun_id', $item->id)->sum('tutar');
-                                $kalan = $item->fiyat - $item->indirim_tutari - $onceki;
                                 break;
                             case 'paket':
                                 $onceki = TahsilatPaketler::where('adisyon_paket_id', $item->id)->sum('tutar');
-                                $kalan = $item->fiyat - $item->indirim_tutari - $onceki;
                                 break;
                         }
-
-                        $toplam_kalan_borc += $kalan > 0 ? $kalan : 0;
+                        $kalan = (float)$item->fiyat - (float)$item->indirim_tutari - (float)$onceki;
+                        if($kalan <= 0) continue;
+                        $havuz[] = ['tip' => $tip, 'item' => $item, 'kalan' => $kalan];
+                        $toplam_kalan_borc += $kalan;
                     }
+                }
 
-                    // Şimdi kısmi ödemeyi kalan borca oransal dağıt
-                    foreach($items as $item)
-                    {
-                        switch($tip)
-                        {
-                            case 'hizmet':
-                                $onceki = TahsilatHizmetler::where('adisyon_hizmet_id', $item->id)->sum('tutar');
-                                $kalan = $item->fiyat - $item->indirim_tutari - $onceki;
-                                $kalan = $kalan > 0 ? $kalan : 0;
+                // Kismi odemeyi havuzdaki kalan borclara oransal dagit (her pay <= kendi kalani,
+                // dagitilan toplam <= gercek kalan borc).
+                $dagitilacak = min((float)$kismi_odeme, $toplam_kalan_borc);
+                foreach($havuz as $_h)
+                {
+                    if($toplam_kalan_borc <= 0) break;
+                    $odeme_tutari = round(($_h['kalan'] / $toplam_kalan_borc) * $dagitilacak, 2);
+                    if($odeme_tutari > $_h['kalan']) $odeme_tutari = $_h['kalan'];
+                    if($odeme_tutari <= 0) continue;
 
-                                if($kalan > 0 && $toplam_kalan_borc > 0)
-                                {
-                                    $odeme_tutari = ($kalan / $toplam_kalan_borc) * $kismi_odeme;
-
-                                    $odeme = new TahsilatHizmetler();
-                                    $odeme->adisyon_hizmet_id = $item->id;
-                                    $odeme->tahsilat_id = $tahsilat->id;
-                                    $odeme->tutar = $odeme_tutari;
-                                    $odeme->save();
-                                }
-                                break;
-
-                            case 'urun':
-                                $onceki = TahsilatUrunler::where('adisyon_urun_id', $item->id)->sum('tutar');
-                                $kalan = $item->fiyat - $item->indirim_tutari - $onceki;
-                                $kalan = $kalan > 0 ? $kalan : 0;
-
-                                if($kalan > 0 && $toplam_kalan_borc > 0)
-                                {
-                                    $odeme_tutari = ($kalan / $toplam_kalan_borc) * $kismi_odeme;
-
-                                    $odeme = new TahsilatUrunler();
-                                    $odeme->adisyon_urun_id = $item->id;
-                                    $odeme->tahsilat_id = $tahsilat->id;
-                                    $odeme->tutar = $odeme_tutari;
-                                    $odeme->aciklama = "(($item->fiyat - $item->indirim_tutari - $onceki)/$toplam_kalan_borc) * $kismi_odeme";
-                                    $odeme->save();
-                                }
-                                break;
-
-                            case 'paket':
-                                $onceki = TahsilatPaketler::where('adisyon_paket_id', $item->id)->sum('tutar');
-                                $kalan = $item->fiyat - $item->indirim_tutari - $onceki;
-                                $kalan = $kalan > 0 ? $kalan : 0;
-
-                                if($kalan > 0 && $toplam_kalan_borc > 0)
-                                {
-                                    $odeme_tutari = ($kalan / $toplam_kalan_borc) * $kismi_odeme;
-
-                                    $odeme = new TahsilatPaketler();
-                                    $odeme->adisyon_paket_id = $item->id;
-                                    $odeme->tahsilat_id = $tahsilat->id;
-                                    $odeme->tutar = $odeme_tutari;
-                                    $odeme->aciklama = "(($item->fiyat - $item->indirim_tutari - $onceki)/$toplam_kalan_borc) * $kismi_odeme";
-                                    $odeme->save();
-                                }
-                                break;
-                        }
-                    }
+                    if($_h['tip'] == 'hizmet') { $odeme = new TahsilatHizmetler(); $odeme->adisyon_hizmet_id = $_h['item']->id; }
+                    elseif($_h['tip'] == 'urun') { $odeme = new TahsilatUrunler(); $odeme->adisyon_urun_id = $_h['item']->id; }
+                    else { $odeme = new TahsilatPaketler(); $odeme->adisyon_paket_id = $_h['item']->id; }
+                    $odeme->tahsilat_id = $tahsilat->id;
+                    $odeme->tutar = $odeme_tutari;
+                    $odeme->save();
                 }
                 if($taksit_vade->tutar > $tahsilatTutari)
                 {
