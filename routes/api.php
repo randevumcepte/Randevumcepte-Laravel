@@ -90,6 +90,8 @@ Route::post('/saatBosluguKampanyaIptal/{salonId}','ApiController@saatBosluguKamp
 Route::get('/randevuKampanyaKontrol/{salonId}','ApiController@randevuKampanyaKontrol');
 Route::get('/aktifGapKampanyalari/{salonId}','ApiController@aktifGapKampanyalari');
 Route::post('/saatBosluguKampanyaBildirimGonder/{salonId}','ApiController@saatBosluguKampanyaBildirimGonder');
+// Musteri dashboard "Kampanya ve Duyurular" — salonun aktif tum kampanyalari (gap + genel)
+Route::get('/musteriKampanyalari/{salonId}','ApiController@musteriKampanyalari');
 
 // Anket / Reputation Booster — ozet ve gonderim listesi (mobile uygulama icin)
 // trigger4 (route cache temizleme tetikleyici)

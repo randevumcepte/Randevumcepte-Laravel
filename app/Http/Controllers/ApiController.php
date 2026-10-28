@@ -7465,6 +7465,59 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     }
 
     /**
+     * Musteri dashboard "Kampanya ve Duyurular" bolumu — salonun aktif (onayli,
+     * suresi dolmamis) TUM kampanyalari. Gap bosluk kampanyalari + panelden
+     * olusturulan genel kampanyalar birlikte. Ic [gap:KEY] etiketi ve dashboard
+     * otomatik-oneri notu musteriye GONDERILMEZ (sadece temiz baslik/aciklama).
+     * Donus: {count, kampanyalar: [{id, baslik, aciklama, indirim, tip, fiyat,
+     *          normalFiyat, bitisTarihi, kalanGun}]}
+     */
+    public function musteriKampanyalari(Request $request, $salonId)
+    {
+        $now = Carbon::now();
+        $kayitlar = SalonKampanyalar::where('salon_id', $salonId)
+            ->where('onayli', 1)
+            ->where('kampanya_bitis_tarihi', '>=', $now->toDateTimeString())
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get(['id', 'kampanya_baslik', 'kampanya_aciklama', 'kampanya_fiyat',
+                   'hizmet_normal_fiyat', 'kampanya_detay', 'kampanya_bitis_tarihi']);
+
+        $out = [];
+        foreach ($kayitlar as $k) {
+            $tip = (strpos($k->kampanya_detay ?? '', '[gap:') !== false) ? 'gap' : 'genel';
+
+            // Indirim yuzdesi: once aciklama, sonra baslik icinden yakala.
+            $indirim = 0;
+            if (preg_match('/%%?(\d{1,2})\s*indirim/iu', $k->kampanya_aciklama ?? '', $m)) {
+                $indirim = (int) $m[1];
+            } elseif (preg_match('/%%?(\d{1,2})/u', $k->kampanya_baslik ?? '', $m)) {
+                $indirim = (int) $m[1];
+            }
+
+            $bitis = $k->kampanya_bitis_tarihi ? Carbon::parse($k->kampanya_bitis_tarihi) : null;
+            $kalanGun = $bitis ? max(0, (int) $now->diffInDays($bitis, false)) : null;
+
+            $out[] = [
+                'id'          => $k->id,
+                'baslik'      => $k->kampanya_baslik,
+                'aciklama'    => $k->kampanya_aciklama,
+                'indirim'     => $indirim,
+                'tip'         => $tip,
+                'fiyat'       => ($k->kampanya_fiyat !== null && $k->kampanya_fiyat !== '') ? (float) $k->kampanya_fiyat : null,
+                'normalFiyat' => ($k->hizmet_normal_fiyat !== null && $k->hizmet_normal_fiyat !== '') ? (float) $k->hizmet_normal_fiyat : null,
+                'bitisTarihi' => $bitis ? $bitis->format('d.m.Y') : null,
+                'kalanGun'    => $kalanGun,
+            ];
+        }
+
+        return response()->json([
+            'count'       => count($out),
+            'kampanyalar' => $out,
+        ]);
+    }
+
+    /**
      * Alacak toplami — periyot icindeki planlanan_odeme_tarihi araligi.
      * $personelId varsa alacaklar sadece o personelin adisyon kalemlerinden
      * dogan alacaklarla sinirlandirilir (alacaklar.adisyon_id uzerinden
