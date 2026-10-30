@@ -1033,9 +1033,9 @@ console.log("İlk satır hizmet detayları:", <?php echo json_encode($seanslar[0
                   $('#randevu_liste').DataTable({
                                 autoWidth: false,
                                 responsive: true,
-                                "order": [[ 4, "desc" ]],
+                                "order": [[ 0, "desc" ], [ 1, "desc" ]],
                                 columns:[
-                                    { data: 'tarih' },
+                                    { data: 'tarih', render: function(d, type){ if(type === 'sort' || type === 'type'){ var m = String(d || '').match(/(\d{2})\.(\d{2})\.(\d{4})/); return m ? m[3] + m[2] + m[1] : d; } return d; } },
                                     { data: 'saat' },
                                     { data: 'durum' },
                                     { data: 'hizmetler'   },
