@@ -368,6 +368,7 @@ function durStil(kod){
       case 6: return { c:'mavi',    et:'Ön Görüşme' };
       case 7: return { c:'yesil',   et:'Satış' };
       case 8: return { c:'mavi',    et:'Randevu Oluşturuldu' };
+      case 9: return { c:'kirmizi', et:'İptal Edildi' };
       default:return { c:'gri',     et:'Bekliyor' };
    }
 }
@@ -378,6 +379,8 @@ var AG_FILTRELER = [
    { key:'bekleyen',  et:'Bekleyen',  test:function(k){ return k===null || isNaN(k); } },
    { key:'ongorusme', et:'Ön Görüşme', test:function(k){ return k===6; } },
    { key:'satis',     et:'Satış',     test:function(k){ return k===7; } },
+   { key:'randevuolustu', et:'Randevu Oluşturuldu', test:function(k){ return k===8; } },
+   { key:'iptal',     et:'İptal',     test:function(k){ return k===9; } },
    { key:'arandi',    et:'Görüşülen', test:function(k){ return k===1 || k===4; } },
    { key:'olumsuz',   et:'Cevapsız',  test:function(k){ return k===0 || k===2 || k===5; } },
    { key:'randevu',   et:'Tekrar Aranacak', test:function(k){ return k===3; } }
@@ -417,8 +420,9 @@ function agListeleriYukle(){
          }
          // Hero özet
          var top=0, ar=0, ka=0;
-         // "Sırada Bekleyen" = calisma ekraninda GORUNEN kuyruk (arama randevusu olanlar haric).
-         agListeler.forEach(function(k){ top+=+k.toplam||0; ar+=+k.arandi||0; ka+=(k.kuyruk!==undefined?+k.kuyruk:+k.kalan)||0; });
+         // "Sırada Bekleyen" = HIC ARANMAMIS kayit (kalan = toplam - arandi). Kuyruk artik
+         // on gorusme/satis/randevu sonuclarini da listede tuttugu icin sayac icin kullanilmaz.
+         agListeler.forEach(function(k){ top+=+k.toplam||0; ar+=+k.arandi||0; ka+=(+k.kalan)||0; });
          $('#ag_h_liste').text(agListeler.length);
          $('#ag_h_toplam').text(top); $('#ag_h_arandi').text(ar); $('#ag_h_kalan').text(ka);
 
@@ -426,7 +430,7 @@ function agListeleriYukle(){
          agListeler.forEach(function(k){
             var tar = k.aranacak_tarih ? k.aranacak_tarih : 'Tarih yok';
             html += '<div class="ag-liste-chip" data-id="'+agEsc(k.id)+'" data-baslik="'+agEsc(k.baslik)+'" data-tarih="'+agEsc(tar)+'">'+
-                    agEsc(k.baslik)+'<span class="alt">'+agEsc(k.kuyruk!==undefined?k.kuyruk:k.kalan)+' sırada • '+agEsc(tar)+'</span></div>';
+                    agEsc(k.baslik)+'<span class="alt">'+agEsc(k.kalan)+' sırada • '+agEsc(tar)+'</span></div>';
          });
          $l.html(html);
          // İlk listeyi otomatik seç
@@ -789,7 +793,8 @@ $(document).on('cagri:v2-saved', function(){
             if(r && r.success){
                var it = agMusteriler.find(function(m){ return m.aranacak_musteri_id==pr.amId; });
                if(it){ it.randevu_olusturuldu = 1; }
-               agKuyrukCiz(); agGecmisYukle(pr.amId);
+               // Sonuc OTOMATIK yazildi (sunucu durum=8); satir listede kalir, etiketi guncelle.
+               agDurumGuncelle(pr.amId, 8); agGecmisYukle(pr.amId);
             }
             if(typeof swal==='function') swal({ type:'success', title:'Başarılı', text:'Randevu oluşturuldu (müşteri listede kaldı)', timer:3000, showConfirmButton:false });
          });

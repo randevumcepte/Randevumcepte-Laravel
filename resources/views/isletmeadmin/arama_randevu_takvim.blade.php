@@ -423,7 +423,8 @@ $(document).ready(function(){
    $(document).on('cagri:v2-saved', function(){
       if (window.__cagriRandevuPending){
          var am = window.__cagriRandevuPending.amId; window.__cagriRandevuPending = null;
-         $.post('/isletmeyonetim/cagri-randevu-olusturuldu',
+         // randevu-verildi: durum=8 + (bekleyen callback ise) tamamlandi + gecmis satiri (mobille ayni).
+         $.post('/isletmeyonetim/cagri-randevu-verildi',
             { aranacak_musteri_id:am, sube:sube, _token:token },
             function(r){
                if (typeof swal==='function') swal({ type:'success', title:'Başarılı', text:'Randevu başarıyla oluşturuldu', timer:3000, showConfirmButton:false });

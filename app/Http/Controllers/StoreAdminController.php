@@ -33659,12 +33659,13 @@ DB::raw('
             ->get();
 
         // N+1 ONLEME: tum listelerin toplam/arandi sayilari TEK sorguda; personel adlari TEK sorguda.
-        // 'kuyruk' = calisma ekraninda GORUNEN (arama randevusu/islenmis OLMAYAN) kayit sayisi;
-        // arama_liste_detay_getir ile AYNI haric tutma (durum 3/6/7/8/9 ve tamamlanmis callback cikar).
+        // 'kuyruk' = calisma ekraninda GORUNEN kayit sayisi; arama_liste_detay_getir ile AYNI kural:
+        // listeden SADECE bekleyen arama randevusu (durum 3, tamamlanmamis) cikar -> Arama
+        // Randevulari'nda yasar. On gorusme(6)/satis(7)/randevu olusturuldu(8)/iptal(9) LISTEDE KALIR.
         $arVar = Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at');
-        $kuyrukSql = 'SUM(CASE WHEN (durum IS NULL OR durum NOT IN (3,6,7,8,9)) '
-            . ($arVar ? 'AND ar_tamamlandi_at IS NULL ' : '')
-            . 'THEN 1 ELSE 0 END) as kuyruk';
+        $kuyrukSql = 'SUM(CASE WHEN (durum IS NULL OR durum <> 3'
+            . ($arVar ? ' OR ar_tamamlandi_at IS NOT NULL' : '')
+            . ') THEN 1 ELSE 0 END) as kuyruk';
         $listeIdler = $listeler->pluck('id')->all();
         $sayimlar = collect();
         if ($listeIdler) {
@@ -34048,17 +34049,14 @@ DB::raw('
         $query = AranacakMusteriler::where('arama_id', $aramaDetayId)
             ->with('musteri');
 
-        // ARAMA RANDEVUSU OLAN / ISLENMIS kayitlari KUYRUKTAN cikar — bunlar zaten
-        // "Arama Randevu Takvimi" bolumunde gorunur. Kriter:
-        //   durum 3 (tekrar aranacak/callback), 6 (on gorusme), 7 (satis),
-        //   8 (randevu olusturuldu), 9 (iptal)  VEYA  tamamlanmis callback (ar_tamamlandi_at).
-        // Kuyrukta kalan: bekleyen(null)/ulasilamadi(0)/arandi(1)/cevapsiz(2)/gorusuldu(4)/mesgul(5).
-        $query->where(function ($w) {
-            $w->whereNull('durum')->orWhereNotIn('durum', [3, 6, 7, 8, 9]);
+        // Listeden SADECE BEKLEYEN ARAMA RANDEVUSU (durum 3, henuz tamamlanmamis) cikar —
+        // o "Arama Randevulari" takviminde yasar. Diger TUM sonuclar LISTEDE KALIR:
+        // on gorusme(6), telefonda satis(7), randevu olusturuldu(8), iptal(9) dahil.
+        $arVarQ = Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at');
+        $query->where(function ($w) use ($arVarQ) {
+            $w->whereNull('durum')->orWhere('durum', '<>', 3);
+            if ($arVarQ) $w->orWhereNotNull('ar_tamamlandi_at');
         });
-        if (Schema::hasColumn('aranacak_musteriler', 'ar_tamamlandi_at')) {
-            $query->whereNull('ar_tamamlandi_at');
-        }
 
         // SUNUCU-TARAFLI ARAMA: liste 500'den buyuk olabilir; client-side filtre
         // yalnizca yuklenen ilk sayfayi tarardi. Burada TUM liste icinde ara.
@@ -34126,6 +34124,8 @@ DB::raw('
     /** Aranacak musteri durum kodunu metne cevirir. */
     public static function aranacakDurumMetin($kod)
     {
+        // DIKKAT: (int)null === 0 -> null (hic aranmamis) 'Ulaşılamadı' donuyordu (mobil bu metni gosterir).
+        if ($kod === null || $kod === '') return 'Bekliyor';
         switch ((int) $kod) {
             case 1: return 'Arandı';
             case 0: return 'Ulaşılamadı';
@@ -34135,6 +34135,8 @@ DB::raw('
             case 5: return 'Meşgul';
             case 6: return 'Ön Görüşme Randevusu';
             case 7: return 'Telefonda Satış';
+            case 8: return 'Randevu Oluşturuldu';
+            case 9: return 'İptal Edildi';
             default: return is_null($kod) ? 'Bekliyor' : 'Bekliyor';
         }
     }
@@ -35648,10 +35650,37 @@ DB::raw('
         if (Schema::hasColumn('aranacak_musteriler', 'randevu_olusturuldu')) {
             $kayit->randevu_olusturuldu = 1;
         }
+        // Randevu formu KAYDEDILDI -> sonuc OTOMATIK yazilir ("Sonucu Kaydet" gerekmez):
+        // durum=8 (Randevu Olusturuldu). Kayit LISTEDE KALIR (liste yalniz bekleyen callback'i cikarir).
+        // Bekleyen arama randevusuysa (durum 3) tamamlandi damgasi vurulur (hatirlatma susar).
+        if ((int) $kayit->durum === 3 && Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at')
+            && is_null($kayit->ar_tamamlandi_at)) {
+            $kayit->ar_tamamlandi_at = date('Y-m-d H:i:s');
+            $kayit->ar_gecikti = 0;
+        }
+        $kayit->durum = 8;
         if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
             $kayit->son_arama_zamani = date('Y-m-d H:i:s');
         }
         $kayit->save();
+
+        // Gorusme gecmisine sonuc satiri (On gorusme/satis'taki not-ekle ile ayni iz).
+        try {
+            if (Schema::hasTable('gorusme_notlari')) {
+                \App\GorusmeNotlari::create([
+                    'aranacak_musteri_id' => $kayit->id,
+                    'arama_id'            => $kayit->arama_id,
+                    'salon_id'            => $liste->salon_id,
+                    'user_id'             => $kayit->user_id,
+                    'personel_id'         => $this->aktifPersonelId($liste->salon_id),
+                    'not'                 => '',
+                    'sonuc'               => 8,
+                    'ses_kaydi'           => $kayit->ses_kaydi,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('[CAGRI-MERKEZI] randevu verildi gecmis satiri yazilamadi: ' . $e->getMessage());
+        }
         return response()->json(['success' => true]);
     }
 
