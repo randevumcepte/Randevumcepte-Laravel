@@ -74,6 +74,7 @@ class Kernel extends ConsoleKernel
         Commands\FlutterRandevuTeshis::class,
         Commands\CakismaTeshis::class,
         Commands\TahsilatTeshis::class,
+        Commands\V2BildirimIsle::class,
         Commands\AsistanSohbetKaliplari::class,
         Commands\HizmetBilgiKaliplari::class,
         Commands\SeslendirmeOnUret::class,
@@ -115,6 +116,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('randevuarama:yap')->withoutOverlapping()->everyMinute();         // Randevu teyit
         $schedule->command('alacakhatirlatma:aramayap')->withoutOverlapping()->everyMinute(); // Alacak (borç)
         $schedule->command('arama:hatirlat')->withoutOverlapping()->everyMinute();
+        // v2 (Randevumcepte-New-Laravel) randevu bildirim kuyrugu — ~55 sn yoklar, mevcut bildirim koduyla gonderir.
+        $schedule->command('v2:bildirim-isle')->withoutOverlapping()->everyMinute();
         //$schedule->command('kampanyasms:gonder')->withoutOverlapping()->everyMinute();
 
         // Çarkıfelek hatırlatma — her 5 dakikada bir kontrol (saatlerin ±5dk penceresi)

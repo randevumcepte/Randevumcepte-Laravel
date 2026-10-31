@@ -16141,11 +16141,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 ]);
         if ($kvkkAyari && $request->kvkkKodu != $olusturulanOnayKodu && (!$portfoy->kvkk_onay_alindi || $portfoy->kvkk_onay_alindi == null)) {
 
-             $onayMesaji = "Sn. ".$randevu->users->name.", ".$olusturulanOnayKodu." numarali onay kodunu ilgiliye soyleyerek, ".$randevu->salonlar->kvkk_link." kvkk linkinde yer alan KVKK Aydinlatma Metni'ne gore kisisel verilerinizin islenmesine ve sistemlerimizde kayitli iletisim adresleriniz uzerinden SMS, e-posta ve aramalar vasitasiyla ticari elektronik ileti gonderimine izin vermis olacaksiniz";
-            self::sms_gonder_2($request, array(array(
-                "to" => $randevu->users->cep_telefon,
-                "message" => $onayMesaji
-            )), false, 1, true, $randevu->salon_id,false);
+            $this->kvkkOnayKoduGonder($request, $randevu, $olusturulanOnayKodu);
             Log::info('kvkk kodu gidecek uygulamadan ');
             return response()->json([
 
@@ -16503,6 +16499,35 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         }
         $randevu->durum = $request->durum;
         $randevu->save();
+        $this->randevuIptalBildirimleri($request, $randevu, $red);
+
+        try {
+            Audit::logApi(
+                $randevu->salon_id,
+                $request,
+                $red ? 'randevu_red' : 'randevu_iptal',
+                'randevu',
+                $randevu->id,
+                optional($randevu->users)->name,
+                $red ? 'Randevu talebi reddedildi' : 'Randevu iptal edildi'
+            );
+        } catch (\Throwable $e) {}
+
+        return "Başarılı";
+
+    }
+
+    /**
+     * Randevu iptal/red bildirimleri: musteri + personel SMS (WA-first, SMS fallback),
+     * uygulama-ici bildirim (bildirimekle) ve FCM push. randevuiptalet()'ten AYNEN
+     * tasindi (mantik degismedi). v2 kuyruk isleyicisi (v2:bildirim-isle) da bunu
+     * cagirir — TEK KAYNAK, kod tekrari yok.
+     *
+     * $hemen=true: WA/SMS response-sonrasina (shutdown) atilmaz, hemen gonderilir
+     * (CLI isleyicide shutdown ancak surec bitince calisir).
+     */
+    public function randevuIptalBildirimleri(Request $request, $randevu, $red, $hemen = false)
+    {
         $isletme = Salonlar::where("id", $randevu->salon_id)->first();
         $mesajlar = [];
        
@@ -16614,7 +16639,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $_requestForSms = $request;
             $_salonIdForSms = $randevu->salon_id;
             $_randevuIdForSms = $randevu->id;
-            register_shutdown_function(function () use ($mesajlar, $_requestForSms, $_salonIdForSms, $_randevuIdForSms) {
+            $_gonder = function () use ($mesajlar, $_requestForSms, $_salonIdForSms, $_randevuIdForSms) {
                 @ignore_user_abort(true);
                 @set_time_limit(60);
                 if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
@@ -16652,12 +16677,13 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                         \Log::warning('randevuiptalet SMS fallback (shutdown) de hata: ' . $e2->getMessage());
                     }
                 }
-            });
+            };
+            if ($hemen) { $_gonder(); } else { register_shutdown_function($_gonder); }
         }
 
         // Musteri push (red veya salon-iptal durumlarinda — musteri kendi iptal ederse mantiksiz)
         // Bildirim metni SMS metniyle birebir ($musteriRedMesaji / $musteriIptalMesaji yukarida olusturuldu)
-        if ($request->durum != 3) {
+        if ($randevu->durum != 3) {
             try {
                 $musteriBildirimMesaji = $red ? ($musteriRedMesaji ?? '') : ($musteriIptalMesaji ?? '');
                 if($musteriBildirimMesaji && $randevu->user_id){
@@ -16674,21 +16700,168 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 \Log::warning('musteri iptal/red push hata: ' . $e->getMessage());
             }
         }
+    }
 
-        try {
-            Audit::logApi(
-                $randevu->salon_id,
+    /**
+     * Randevu onay bildirimleri (musteri + personel SMS, uygulama-ici bildirim, FCM).
+     * randevuonayla()'dan AYNEN tasindi; onaylayan yetkili eskiden $request->user idi.
+     * v2 kuyruk isleyicisi de bunu cagirir — TEK KAYNAK.
+     */
+    public function randevuOnayBildirimleri(Request $request, $randevu, $onaylayanYetkiliId, $hemen = false)
+    {
+        $isletme = Salonlar::where("id", $randevu->salon_id)->first();
+
+        $mesajlar = [];
+
+        $musteriOnayMesaji = $isletme->salon_adi . " için oluşturduğunuz " . date("d.m.Y", strtotime($randevu->tarih)) . " " . date("H:i", strtotime($randevu->saat)) . " tarihli randevu talebiniz onaylanmıştır. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" . $randevu->salonlar->telefon_1;
+
+        if (SalonSMSAyarlari::where("ayar_id", 2)->where("salon_id", $randevu->salon_id)->value("musteri") == 1) {
+            array_push($mesajlar, ["to" => $randevu->users->cep_telefon, "message" => $musteriOnayMesaji]);
+        }
+
+        foreach ($randevu->hizmetler as $hizmet) {
+
+            $mesaj =
+
+                $randevu->users->name .
+
+                " isimli müşterinin yarın " .
+
+                date("H:i", strtotime($hizmet->saat)) .
+
+                " saatli " .
+
+                $hizmet->hizmetler->hizmet_adi .
+
+                " randevusu " .
+
+                IsletmeYetkilileri::where("id", $onaylayanYetkiliId)->value("name") .
+
+                " tarafından onaylanmıştır.";
+
+            if (
+
+                SalonSMSAyarlari::where("ayar_id", 2)
+
+                    ->where("salon_id", $randevu->salon_id)
+
+                    ->value("personel") == 1
+
+            ) {
+
+                $yetkiliid = Personeller::where(
+
+                    "id",
+
+                    $hizmet->personel_id
+
+                )->value("yetkili_id");
+
+                $randevutarihsaat =
+
+                    date("d.m.Y", strtotime($randevu->tarih)) .
+
+                    " " .
+
+                    date("H:i:s", strtotime($hizmet->saat));
+
+                array_push($mesajlar, [
+
+                    "to" => IsletmeYetkilileri::where("id", $yetkiliid)->value(
+
+                        "gsm1"
+
+                    ),
+
+                    "message" => $mesaj,
+
+                ]);
+
+            }
+
+            self::bildirimekle(
+
                 $request,
-                $red ? 'randevu_red' : 'randevu_iptal',
-                'randevu',
-                $randevu->id,
-                optional($randevu->users)->name,
-                $red ? 'Randevu talebi reddedildi' : 'Randevu iptal edildi'
+
+                $randevu->salon_id,
+
+                $mesaj,
+
+                "#",
+
+                $hizmet->personel_id,
+
+                null,
+
+                IsletmeYetkilileri::where("id", $onaylayanYetkiliId)->value(
+
+                    "profil_resim"
+
+                ),
+
+                $randevu->id
+
             );
-        } catch (\Throwable $e) {}
 
-        return "Başarılı";
+            if($hizmet->personel_id){
+                try {
+                    NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
+                        ->type(NotificationTypes::APPOINTMENT_APPROVED)
+                        ->title('Randevu Onaylandı')
+                        ->body($mesaj)
+                        ->randevu((int)$randevu->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                        ->send();
+                } catch (\Throwable $e) { \Log::warning('api personel onay push: '.$e->getMessage()); }
+            }
 
+        }
+
+        if (count($mesajlar) > 0) {
+            // SMS gonderimi response sonrasina atildi (SMS gateway yavaslarsa
+            // FPM worker tutulmasin). randevuiptalet ile ayni pattern.
+            $_requestForSms = $request;
+            $_salonIdForSms = $randevu->salon_id;
+            $_gonder = function () use ($mesajlar, $_requestForSms, $_salonIdForSms) {
+                @ignore_user_abort(true);
+                @set_time_limit(60);
+                if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
+                try {
+                    self::sms_gonder_2($_requestForSms, $mesajlar, false, 1, false, $_salonIdForSms, false);
+                } catch (\Throwable $e) {
+                    \Log::warning('randevuonayla SMS (shutdown) hata: ' . $e->getMessage());
+                }
+            };
+            if ($hemen) { $_gonder(); } else { register_shutdown_function($_gonder); }
+        }
+
+        // Musteri push: SMS metniyle birebir
+        if($randevu->user_id){
+            try {
+                NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
+                    ->type(NotificationTypes::APPOINTMENT_APPROVED)
+                    ->title('Randevunuz Onaylandı')
+                    ->body($musteriOnayMesaji)
+                    ->randevu((int)$randevu->id)
+                    ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                    ->send();
+            } catch (\Throwable $e) {
+                \Log::warning('randevuonayla push hata: ' . $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * KVKK onay kodu SMS'i (randevugeldiisaretle'den AYNEN tasindi). v2 kuyruk
+     * isleyicisi de bunu cagirir — TEK KAYNAK.
+     */
+    public function kvkkOnayKoduGonder(Request $request, $randevu, $olusturulanOnayKodu)
+    {
+         $onayMesaji = "Sn. ".$randevu->users->name.", ".$olusturulanOnayKodu." numarali onay kodunu ilgiliye soyleyerek, ".$randevu->salonlar->kvkk_link." kvkk linkinde yer alan KVKK Aydinlatma Metni'ne gore kisisel verilerinizin islenmesine ve sistemlerimizde kayitli iletisim adresleriniz uzerinden SMS, e-posta ve aramalar vasitasiyla ticari elektronik ileti gonderimine izin vermis olacaksiniz";
+        self::sms_gonder_2($request, array(array(
+            "to" => $randevu->users->cep_telefon,
+            "message" => $onayMesaji
+        )), false, 1, true, $randevu->salon_id,false);
     }
 
     public function dogrulama_kodu_gonder(Request $request)
@@ -21660,145 +21833,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $randevu->save();
 
-        $isletme = Salonlar::where("id", $randevu->salon_id)->first();
-
-        $mesajlar = [];
-
-        $musteriOnayMesaji = $isletme->salon_adi . " için oluşturduğunuz " . date("d.m.Y", strtotime($randevu->tarih)) . " " . date("H:i", strtotime($randevu->saat)) . " tarihli randevu talebiniz onaylanmıştır. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" . $randevu->salonlar->telefon_1;
-
-        if (SalonSMSAyarlari::where("ayar_id", 2)->where("salon_id", $randevu->salon_id)->value("musteri") == 1) {
-            array_push($mesajlar, ["to" => $randevu->users->cep_telefon, "message" => $musteriOnayMesaji]);
-        }
-
-        foreach ($randevu->hizmetler as $hizmet) {
-
-            $mesaj =
-
-                $randevu->users->name .
-
-                " isimli müşterinin yarın " .
-
-                date("H:i", strtotime($hizmet->saat)) .
-
-                " saatli " .
-
-                $hizmet->hizmetler->hizmet_adi .
-
-                " randevusu " .
-
-                IsletmeYetkilileri::where("id", $request->user)->value("name") .
-
-                " tarafından onaylanmıştır.";
-
-            if (
-
-                SalonSMSAyarlari::where("ayar_id", 2)
-
-                    ->where("salon_id", $randevu->salon_id)
-
-                    ->value("personel") == 1
-
-            ) {
-
-                $yetkiliid = Personeller::where(
-
-                    "id",
-
-                    $hizmet->personel_id
-
-                )->value("yetkili_id");
-
-                $randevutarihsaat =
-
-                    date("d.m.Y", strtotime($randevu->tarih)) .
-
-                    " " .
-
-                    date("H:i:s", strtotime($hizmet->saat));
-
-                array_push($mesajlar, [
-
-                    "to" => IsletmeYetkilileri::where("id", $yetkiliid)->value(
-
-                        "gsm1"
-
-                    ),
-
-                    "message" => $mesaj,
-
-                ]);
-
-            }
-
-            self::bildirimekle(
-
-                $request,
-
-                $randevu->salon_id,
-
-                $mesaj,
-
-                "#",
-
-                $hizmet->personel_id,
-
-                null,
-
-                IsletmeYetkilileri::where("id", $request->user)->value(
-
-                    "profil_resim"
-
-                ),
-
-                $randevu->id
-
-            );
-
-            if($hizmet->personel_id){
-                try {
-                    NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
-                        ->type(NotificationTypes::APPOINTMENT_APPROVED)
-                        ->title('Randevu Onaylandı')
-                        ->body($mesaj)
-                        ->randevu((int)$randevu->id)
-                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
-                        ->send();
-                } catch (\Throwable $e) { \Log::warning('api personel onay push: '.$e->getMessage()); }
-            }
-
-        }
-
-        if (count($mesajlar) > 0) {
-            // SMS gonderimi response sonrasina atildi (SMS gateway yavaslarsa
-            // FPM worker tutulmasin). randevuiptalet ile ayni pattern.
-            $_requestForSms = $request;
-            $_salonIdForSms = $randevu->salon_id;
-            register_shutdown_function(function () use ($mesajlar, $_requestForSms, $_salonIdForSms) {
-                @ignore_user_abort(true);
-                @set_time_limit(60);
-                if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
-                try {
-                    self::sms_gonder_2($_requestForSms, $mesajlar, false, 1, false, $_salonIdForSms, false);
-                } catch (\Throwable $e) {
-                    \Log::warning('randevuonayla SMS (shutdown) hata: ' . $e->getMessage());
-                }
-            });
-        }
-
-        // Musteri push: SMS metniyle birebir
-        if($randevu->user_id){
-            try {
-                NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
-                    ->type(NotificationTypes::APPOINTMENT_APPROVED)
-                    ->title('Randevunuz Onaylandı')
-                    ->body($musteriOnayMesaji)
-                    ->randevu((int)$randevu->id)
-                    ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
-                    ->send();
-            } catch (\Throwable $e) {
-                \Log::warning('randevuonayla push hata: ' . $e->getMessage());
-            }
-        }
+        $this->randevuOnayBildirimleri($request, $randevu, $request->user);
 
         try {
             Audit::logApi($randevu->salon_id, $request, 'randevu_onayla', 'randevu', $randevu->id, optional($randevu->users)->name, 'Randevu onaylandı');
