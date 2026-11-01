@@ -12368,6 +12368,314 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         return DB::table('salon_personelleri')->where('id', $id)->value('personel_adi') ?: 'Personel';
     }
 
+    /**
+     * Randevu olustur/guncelle: tarih basina musteri + personel mesajlarini
+     * hazirlar ($mesajlar'a ekler) ve uygulama-ici bildirimleri yazar.
+     * randevuekleguncelle()'den AYNEN tasindi; v2 kuyruk isleyicisi
+     * (v2:bildirim-isle, tur=randevu_kayit) da bunu cagirir — TEK KAYNAK.
+     * Kullanilan istek alanlari: randevu_tarihi, randevu_saati, randevuKaynak, durum, olusturan.
+     */
+    public function randevuKayitBildirimHazirla(Request $request, $yenirandevu, $guncelleme, $zamanDegisti, $hizmet_degisti, $eskiRandevu, array &$mesajlar)
+    {
+            // --- Bildirim & SMS işlemleri
+            $isletme = Salonlar::where("id", $yenirandevu->salon_id)->first();
+            $musteribilgi = User::where("id", $yenirandevu->user_id)->first();
+            $gsm = $musteribilgi->cep_telefon;
+
+            // Musteri kaynakli (uygulama/web) yeni randevu -> henuz onaylanmamis,
+            // "talep alindi" tonu; salon onayladiginda randevuonayla ayrica bildirim gonderir.
+            $_kaynakStr = $request->randevuKaynak ?: $request->input('randevuKaynak');
+            $_musteriKaynakli = !$guncelleme && (
+                in_array($_kaynakStr, ['uygulama', 'web'], true)
+                || !empty($yenirandevu->uygulama)
+                || !empty($yenirandevu->web)
+                || ((int) $request->durum === 0)
+            );
+            \Log::info('[RND-MUSTERI-MSG] kaynak karar', [
+                'randevu_id' => $yenirandevu->id,
+                'kaynak' => $_kaynakStr,
+                'db_uygulama' => (int) ($yenirandevu->uygulama ?? 0),
+                'db_web' => (int) ($yenirandevu->web ?? 0),
+                'durum' => $request->durum,
+                'guncelleme' => (bool) $guncelleme,
+                'musteri_kaynakli' => $_musteriKaynakli,
+            ]);
+
+            if ($_musteriKaynakli) {
+                $_isyeriKucuk = \App\Services\WhatsAppMesajFormat::klinikMi($isletme) ? 'klinik' : 'salon';
+                $cumleyeek = "randevu talebiniz alınmıştır.";
+                $ekCumle = " Talebiniz " . $_isyeriKucuk . " tarafından onaylandığında ayrıca bilgilendirileceksiniz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
+            } elseif ($guncelleme) {
+                $cumleyeek = "randevunuz güncellenmiştir.";
+                $ekCumle = " Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
+            } else {
+                $cumleyeek = "randevunuz oluşturulmuştur.";
+                $ekCumle = " Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
+            }
+
+            // Müşteri mesajı (SMS)
+            $musteriMesaj = $isletme->salon_adi . " tarafından " . date("d.m.Y", strtotime($request->randevu_tarihi)) . " " . $request->randevu_saati . " olarak " . $cumleyeek . $ekCumle;
+            if ($_musteriKaynakli) {
+                // "salon tarafindan" ifadesi talep akisinda uygunsuz — sade cumle kullan
+                $musteriMesaj = $isletme->salon_adi . " için " . date("d.m.Y", strtotime($request->randevu_tarihi)) . " " . $request->randevu_saati . " tarihli " . $cumleyeek . $ekCumle;
+            }
+
+            // Bildirim ekle (müşteriye)
+            self::bildirimekle($request, $yenirandevu->salon_id, $musteriMesaj, "#", null, $yenirandevu->user_id, IsletmeYetkilileri::where("id", $request->olusturan)->value("profil_resim"), $yenirandevu->id);
+
+            // NOT: Eski musteri push akisi (forTokens raw mod) kaldirildi.
+            // Asagidaki 10250+ register_shutdown_function bloyu zaten
+            // toCustomer (randevu_id + deep_link ile) push'u yapiyor;
+            // burada ikinci push goz atti = duplicate + sizma kaynagiydi.
+
+            $musteriToggle = SalonSMSAyarlari::where("ayar_id", 12)->where("salon_id", $yenirandevu->salon_id)->value("musteri") == 1;
+
+            // Kritik bypass: ERTESI GUN icin + saat 19:00 sonra olusturulan + <24h kala
+            // randevularda toggle KAPALI bile olsa musteriye gitsin
+            $_now = time();
+            $_hour = (int) date('G', $_now);
+            $_yarinTarih = date('Y-m-d', strtotime('+1 day'));
+            $_randevuTarihi = date('Y-m-d', strtotime($request->randevu_tarihi));
+            $_randevuTs = strtotime($request->randevu_tarihi . ' ' . $request->randevu_saati);
+            $_kritikBypass = ($_randevuTarihi === $_yarinTarih)
+                          && ($_hour >= 18) // 1-gun-once penceresi 15:00-18:00; 18 sonrasi olusanlar bypass
+                          && ($_randevuTs - $_now > 0)
+                          && (($_randevuTs - $_now) / 3600 < 24);
+
+            if ($musteriToggle || $_kritikBypass) {
+                if ($zamanDegisti || $hizmet_degisti || $eskiRandevu == null) {
+                    // WA icin zenginlestirilmis format (SMS aynen kisa kalir).
+                    // Sadece YENI olusturmada gonderilir, guncellemede degil
+                    // (kullanicinin talebi bu yonde).
+                    $_waMesaj = $musteriMesaj;
+                    if ($eskiRandevu == null && !$guncelleme) {
+                        $_hizmetAdlari = collect();
+                        foreach ($yenirandevu->hizmetler as $_h) {
+                            $_hAd = optional($_h->hizmetler)->hizmet_adi;
+                            if ($_hAd) $_hizmetAdlari->push($_hAd);
+                        }
+                        $_hizmetlerStr = $_hizmetAdlari->unique()->values()->implode(', ');
+                        if ($_musteriKaynakli) {
+                            $_waMesaj = \App\Services\WhatsAppMesajFormat::randevuTalebiAlindi(
+                                $isletme,
+                                $musteribilgi->name ?? '',
+                                date('d.m.Y', strtotime($request->randevu_tarihi)),
+                                $request->randevu_saati,
+                                $_hizmetlerStr
+                            );
+                        } else {
+                            $_waMesaj = \App\Services\WhatsAppMesajFormat::randevuOlusturuldu(
+                                $isletme,
+                                $musteribilgi->name ?? '',
+                                date('d.m.Y', strtotime($request->randevu_tarihi)),
+                                $request->randevu_saati,
+                                $_hizmetlerStr
+                            );
+                        }
+                        // Uygulaması olmayana WA'da indirme daveti + link ekle
+                        $_waMesaj = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($_waMesaj, $isletme, $musteribilgi->id ?? null);
+                    }
+                    array_push($mesajlar, [
+                        "to" => $gsm,
+                        "message" => $musteriMesaj, // SMS'e giden kisa metin
+                        "wa_message" => $_waMesaj,  // WA'ya giden metin (olusturmada zengin, digerinde ayni)
+                    ]);
+                    if (!$musteriToggle && $_kritikBypass) {
+                        \Log::info('[RND-CREATE-API] kritik bypass (toggle kapali, 19 sonra ertesi gun <24h kala)', [
+                            'salon_id' => $yenirandevu->salon_id,
+                            'randevu_id' => $yenirandevu->id,
+                            'tarih_saat' => $request->randevu_tarihi . ' ' . $request->randevu_saati,
+                        ]);
+                    }
+                }
+            }
+
+            // Personel bildirimleri: SADECE zamanDegisti veya hizmet_degisti ise gönder
+            if ($zamanDegisti || $hizmet_degisti || $eskiRandevu == null) {
+                foreach ($yenirandevu->hizmetler as $hizmet) {
+                    $tarafından = '';
+                    if($yenirandevu->uygulama==true)
+                        $tarafından = ' kendisi ';
+                    if(IsletmeYetkilileri::where("id", $request->olusturan)->first())
+                        $tarafından = IsletmeYetkilileri::where("id", $request->olusturan)->value("name");
+                    $mesaj = $yenirandevu->users->name . " isimli müşterinin " . date("d.m.Y", strtotime($yenirandevu->tarih)) . " - " . date("H:i", strtotime($hizmet->saat)) . " " . $hizmet->hizmetler->hizmet_adi . " randevusu " . $tarafından . " tarafından " . $cumleyeek . ".";
+
+                    if (SalonSMSAyarlari::where("ayar_id", 12)->where("salon_id", $yenirandevu->salon_id)->value("personel") == 1) {
+                        
+                        $yetkiliidler = Personeller::where("id", $hizmet->personel_id)->orWhere(function($q) use($yenirandevu,$request){
+                            if($yenirandevu->salon_id == 257)
+                                $q->where('salon_id',$yenirandevu->salon_id)->where('role_id','<',5);
+
+                        })->pluck("yetkili_id")->toArray();
+                        foreach($yetkiliidler as $yetkiliid)
+                        {
+                            array_push($mesajlar, ["to" => IsletmeYetkilileri::where("id", $yetkiliid)->value("gsm1"), "message" => $mesaj,]);
+                        }
+                        
+                    }
+
+                    self::bildirimekle($request, $yenirandevu->salon_id, $mesaj, "#", $hizmet->personel_id, null, IsletmeYetkilileri::where("id", $request->olusturan)->value("profil_resim"), $yenirandevu->id);
+
+                    // NOT: Eski personel push akisi (forTokens raw mod) kaldirildi.
+                    // 10250+ register_shutdown_function bloyu zaten toStaff
+                    // (randevu_id + deep_link ile) push'u atiyor — bu blok
+                    // duplicate + brand sizmasi (Aleyna Acar -> Vionna cihazi) kaynagiydi.
+                }
+            }
+    }
+
+    /**
+     * Randevu olustur/guncelle sonrasi gonderim: WA-first + SMS fallback ($mesajlar)
+     * ve FCM push (musteri/personel). randevuekleguncelle()'den AYNEN tasindi.
+     * $hemen=true: response-sonrasina (shutdown) atmadan hemen (CLI isleyici).
+     */
+    public function randevuKayitBildirimGonder(Request $_requestForSms, $mesajlar, $salonId, $_finalRandevuId, $_randevuKaynak, $guncelleme, $zamanDegisti, $hemen = false)
+    {
+        $_gonder = function () use ($mesajlar, $_requestForSms, $salonId, $_finalRandevuId, $_randevuKaynak, $guncelleme, $zamanDegisti) {
+            @ignore_user_abort(true);
+            @set_time_limit(60);
+            if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
+
+            if (!empty($mesajlar)) {
+                try {
+                    // WhatsApp-first: salon WA aktif+connected ise once WA dene,
+                    // basarisiz olanlari SMS'e dusur. Paylasilan oturum durumunda
+                    // durum kontrolu ust salonda yapilir (416 -> 246).
+                    $isletme = Salonlar::find($salonId);
+                    $waIsletme = $isletme ? \App\Services\WhatsAppService::resolveWaSalon($isletme) : null;
+                    $waKanaliAcik = $waIsletme
+                        && !empty($waIsletme->whatsapp_aktif)
+                        && ($waIsletme->whatsapp_durum ?? '') === 'connected';
+
+                    $smsKalan = $mesajlar;
+                    if ($waKanaliAcik) {
+                        $wa = app(\App\Services\WhatsAppService::class);
+                        $smsKalan = [];
+                        foreach ($mesajlar as $m) {
+                            $to = $m['to'] ?? null;
+                            $msg = $m['message'] ?? null;
+                            if (!$to || !$msg) { $smsKalan[] = $m; continue; }
+                            $tip = $guncelleme ? 'guncelleme_bildirim' : 'yeni_randevu_bildirim';
+                            // WA icin farkli metin verilmis mi? Yoksa SMS metniyle ayni.
+                            $waMsg = $m['wa_message'] ?? $msg;
+                            $sonuc = $wa->sendReminder($isletme, $to, $waMsg, $_finalRandevuId, null, null, false, $tip);
+                            if (!($sonuc['ok'] ?? false)) {
+                                // WA fail/timeout → SMS fallback'e ekle
+                                $smsKalan[] = $m;
+                            }
+                        }
+                    }
+
+                    if (!empty($smsKalan)) {
+                        $this->sms_gonder_2($_requestForSms, $smsKalan, false, 1, false, $salonId, false);
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('randevuekleguncelle SMS afterResponse hata: ' . $e->getMessage());
+                }
+            }
+
+            try {
+                $finalRandevu = $_finalRandevuId
+                    ? \App\Randevular::with('hizmetler.hizmetler', 'users', 'salonlar')->find($_finalRandevuId)
+                    : null;
+                if ($finalRandevu) {
+                    $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi') ?? 'Salon';
+                    $tarihSaatTxt = date('d.m.Y H:i', strtotime($finalRandevu->tarih . ' ' . $finalRandevu->saat));
+                    $musteriEkledi = in_array($_randevuKaynak, ['uygulama', 'web']);
+
+                    if ($guncelleme) {
+                        // Guncelleme: her durumda musteriye push (zaman degisti veya
+                        // sadece hizmet/detay). Onceden sadece $zamanDegisti dalinda
+                        // musteriye push atiliyordu -> hizmet/detay guncellemesinde
+                        // sessizce guncelleniyordu. Musteri bilgi almali. Personele
+                        // sadece zaman degistiginde push atiyoruz (mevcut politika).
+                        $baslikM = $zamanDegisti ? 'Randevunuzun zamanı değişti' : 'Randevunuz güncellendi';
+                        $bodyM   = $zamanDegisti
+                            ? $salonAdi . ' • Yeni: ' . $tarihSaatTxt
+                            : $salonAdi . ' • ' . $tarihSaatTxt;
+                        try {
+                            NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
+                                ->type($zamanDegisti ? NotificationTypes::APPOINTMENT_TIME_CHANGED : NotificationTypes::APPOINTMENT_CREATED)
+                                ->title($baslikM)
+                                ->body($bodyM)
+                                ->randevu((int)$finalRandevu->id)
+                                ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                ->send();
+                        } catch (\Throwable $e) { \Log::warning('musteri guncelleme push fail: '.$e->getMessage()); }
+
+                        if ($zamanDegisti) {
+                            foreach ($finalRandevu->hizmetler as $h) {
+                                if (!$h->personel_id) continue;
+                                try {
+                                    NotificationService::toStaff((int)$h->personel_id, (int)$salonId)
+                                        ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
+                                        ->title('Randevu zamanı değişti')
+                                        ->body(($finalRandevu->users->name ?? 'Müşteri') . ' • Yeni: ' . $tarihSaatTxt)
+                                        ->randevu((int)$finalRandevu->id)
+                                        ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                        ->send();
+                                } catch (\Throwable $e) { \Log::warning('personel zaman degisti push fail: '.$e->getMessage()); }
+                            }
+                        }
+                    } elseif (!$guncelleme) {
+                        if ($musteriEkledi) {
+                            // Musteri kendi olusturdu:
+                            // (1) Musteriye "Talebiniz alindi" push (onceden yoktu)
+                            // (2) Atanan personel + salon yoneticilerine (role<5) toStaff
+                            try {
+                                NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
+                                    ->type(NotificationTypes::APPOINTMENT_CREATED)
+                                    ->title('Randevu Talebiniz Alındı')
+                                    ->body($salonAdi . ' • ' . $tarihSaatTxt . ' • Onay bekleniyor')
+                                    ->randevu((int)$finalRandevu->id)
+                                    ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                    ->send();
+                            } catch (\Throwable $e) { \Log::warning('musteri talep push fail: '.$e->getMessage()); }
+
+                            $bildirilecekPersonelIdler = [];
+                            foreach ($finalRandevu->hizmetler as $h) {
+                                if ($h->personel_id) $bildirilecekPersonelIdler[] = (int)$h->personel_id;
+                            }
+                            $yoneticiIdler = \App\Personeller::where('salon_id', $salonId)
+                                ->where('role_id', '<', 5)
+                                ->pluck('id')->toArray();
+                            foreach ($yoneticiIdler as $yid) {
+                                $bildirilecekPersonelIdler[] = (int)$yid;
+                            }
+                            $bildirilecekPersonelIdler = array_values(array_unique($bildirilecekPersonelIdler));
+
+                            $musteriAdi = $finalRandevu->users->name ?? 'Müşteri';
+                            foreach ($bildirilecekPersonelIdler as $pid) {
+                                try {
+                                    NotificationService::toStaff($pid, (int)$salonId)
+                                        ->type(NotificationTypes::APPOINTMENT_CREATED)
+                                        ->title('Yeni randevu talebi')
+                                        ->body($musteriAdi . ' • ' . $tarihSaatTxt)
+                                        ->randevu((int)$finalRandevu->id)
+                                        ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                        ->send();
+                                } catch (\Throwable $e) { \Log::warning('personel talep push fail: '.$e->getMessage()); }
+                            }
+                        } else {
+                            try {
+                                NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
+                                    ->type(NotificationTypes::APPOINTMENT_CREATED)
+                                    ->title('Sizin için randevu oluşturuldu')
+                                    ->body($salonAdi . ' • ' . $tarihSaatTxt)
+                                    ->randevu((int)$finalRandevu->id)
+                                    ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                    ->send();
+                            } catch (\Throwable $e) { \Log::warning('musteri olusturuldu push fail: '.$e->getMessage()); }
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('randevuekleguncelle push afterResponse hata: ' . $e->getMessage());
+            }
+        };
+        if ($hemen) { $_gonder(); } else { register_shutdown_function($_gonder); }
+    }
+
     public function randevuekleguncelle(Request $request)
     {
         $salonId = '';
@@ -12912,151 +13220,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     }
                 }
 
-                // --- Bildirim & SMS işlemleri
-                $isletme = Salonlar::where("id", $yenirandevu->salon_id)->first();
-                $musteribilgi = User::where("id", $yenirandevu->user_id)->first();
-                $gsm = $musteribilgi->cep_telefon;
-
-                // Musteri kaynakli (uygulama/web) yeni randevu -> henuz onaylanmamis,
-                // "talep alindi" tonu; salon onayladiginda randevuonayla ayrica bildirim gonderir.
-                $_kaynakStr = $request->randevuKaynak ?: $request->input('randevuKaynak');
-                $_musteriKaynakli = !$guncelleme && (
-                    in_array($_kaynakStr, ['uygulama', 'web'], true)
-                    || !empty($yenirandevu->uygulama)
-                    || !empty($yenirandevu->web)
-                    || ((int) $request->durum === 0)
-                );
-                \Log::info('[RND-MUSTERI-MSG] kaynak karar', [
-                    'randevu_id' => $yenirandevu->id,
-                    'kaynak' => $_kaynakStr,
-                    'db_uygulama' => (int) ($yenirandevu->uygulama ?? 0),
-                    'db_web' => (int) ($yenirandevu->web ?? 0),
-                    'durum' => $request->durum,
-                    'guncelleme' => (bool) $guncelleme,
-                    'musteri_kaynakli' => $_musteriKaynakli,
-                ]);
-
-                if ($_musteriKaynakli) {
-                    $_isyeriKucuk = \App\Services\WhatsAppMesajFormat::klinikMi($isletme) ? 'klinik' : 'salon';
-                    $cumleyeek = "randevu talebiniz alınmıştır.";
-                    $ekCumle = " Talebiniz " . $_isyeriKucuk . " tarafından onaylandığında ayrıca bilgilendirileceksiniz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
-                } elseif ($guncelleme) {
-                    $cumleyeek = "randevunuz güncellenmiştir.";
-                    $ekCumle = " Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
-                } else {
-                    $cumleyeek = "randevunuz oluşturulmuştur.";
-                    $ekCumle = " Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" . $isletme->telefon_1;
-                }
-
-                // Müşteri mesajı (SMS)
-                $musteriMesaj = $isletme->salon_adi . " tarafından " . date("d.m.Y", strtotime($request->randevu_tarihi)) . " " . $request->randevu_saati . " olarak " . $cumleyeek . $ekCumle;
-                if ($_musteriKaynakli) {
-                    // "salon tarafindan" ifadesi talep akisinda uygunsuz — sade cumle kullan
-                    $musteriMesaj = $isletme->salon_adi . " için " . date("d.m.Y", strtotime($request->randevu_tarihi)) . " " . $request->randevu_saati . " tarihli " . $cumleyeek . $ekCumle;
-                }
-
-                // Bildirim ekle (müşteriye)
-                self::bildirimekle($request, $yenirandevu->salon_id, $musteriMesaj, "#", null, $yenirandevu->user_id, IsletmeYetkilileri::where("id", $request->olusturan)->value("profil_resim"), $yenirandevu->id);
-
-                // NOT: Eski musteri push akisi (forTokens raw mod) kaldirildi.
-                // Asagidaki 10250+ register_shutdown_function bloyu zaten
-                // toCustomer (randevu_id + deep_link ile) push'u yapiyor;
-                // burada ikinci push goz atti = duplicate + sizma kaynagiydi.
-
-                $musteriToggle = SalonSMSAyarlari::where("ayar_id", 12)->where("salon_id", $yenirandevu->salon_id)->value("musteri") == 1;
-
-                // Kritik bypass: ERTESI GUN icin + saat 19:00 sonra olusturulan + <24h kala
-                // randevularda toggle KAPALI bile olsa musteriye gitsin
-                $_now = time();
-                $_hour = (int) date('G', $_now);
-                $_yarinTarih = date('Y-m-d', strtotime('+1 day'));
-                $_randevuTarihi = date('Y-m-d', strtotime($request->randevu_tarihi));
-                $_randevuTs = strtotime($request->randevu_tarihi . ' ' . $request->randevu_saati);
-                $_kritikBypass = ($_randevuTarihi === $_yarinTarih)
-                              && ($_hour >= 18) // 1-gun-once penceresi 15:00-18:00; 18 sonrasi olusanlar bypass
-                              && ($_randevuTs - $_now > 0)
-                              && (($_randevuTs - $_now) / 3600 < 24);
-
-                if ($musteriToggle || $_kritikBypass) {
-                    if ($zamanDegisti || $hizmet_degisti || $eskiRandevu == null) {
-                        // WA icin zenginlestirilmis format (SMS aynen kisa kalir).
-                        // Sadece YENI olusturmada gonderilir, guncellemede degil
-                        // (kullanicinin talebi bu yonde).
-                        $_waMesaj = $musteriMesaj;
-                        if ($eskiRandevu == null && !$guncelleme) {
-                            $_hizmetAdlari = collect();
-                            foreach ($yenirandevu->hizmetler as $_h) {
-                                $_hAd = optional($_h->hizmetler)->hizmet_adi;
-                                if ($_hAd) $_hizmetAdlari->push($_hAd);
-                            }
-                            $_hizmetlerStr = $_hizmetAdlari->unique()->values()->implode(', ');
-                            if ($_musteriKaynakli) {
-                                $_waMesaj = \App\Services\WhatsAppMesajFormat::randevuTalebiAlindi(
-                                    $isletme,
-                                    $musteribilgi->name ?? '',
-                                    date('d.m.Y', strtotime($request->randevu_tarihi)),
-                                    $request->randevu_saati,
-                                    $_hizmetlerStr
-                                );
-                            } else {
-                                $_waMesaj = \App\Services\WhatsAppMesajFormat::randevuOlusturuldu(
-                                    $isletme,
-                                    $musteribilgi->name ?? '',
-                                    date('d.m.Y', strtotime($request->randevu_tarihi)),
-                                    $request->randevu_saati,
-                                    $_hizmetlerStr
-                                );
-                            }
-                            // Uygulaması olmayana WA'da indirme daveti + link ekle
-                            $_waMesaj = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($_waMesaj, $isletme, $musteribilgi->id ?? null);
-                        }
-                        array_push($mesajlar, [
-                            "to" => $gsm,
-                            "message" => $musteriMesaj, // SMS'e giden kisa metin
-                            "wa_message" => $_waMesaj,  // WA'ya giden metin (olusturmada zengin, digerinde ayni)
-                        ]);
-                        if (!$musteriToggle && $_kritikBypass) {
-                            \Log::info('[RND-CREATE-API] kritik bypass (toggle kapali, 19 sonra ertesi gun <24h kala)', [
-                                'salon_id' => $yenirandevu->salon_id,
-                                'randevu_id' => $yenirandevu->id,
-                                'tarih_saat' => $request->randevu_tarihi . ' ' . $request->randevu_saati,
-                            ]);
-                        }
-                    }
-                }
-
-                // Personel bildirimleri: SADECE zamanDegisti veya hizmet_degisti ise gönder
-                if ($zamanDegisti || $hizmet_degisti || $eskiRandevu == null) {
-                    foreach ($yenirandevu->hizmetler as $hizmet) {
-                        $tarafından = '';
-                        if($yenirandevu->uygulama==true)
-                            $tarafından = ' kendisi ';
-                        if(IsletmeYetkilileri::where("id", $request->olusturan)->first())
-                            $tarafından = IsletmeYetkilileri::where("id", $request->olusturan)->value("name");
-                        $mesaj = $yenirandevu->users->name . " isimli müşterinin " . date("d.m.Y", strtotime($yenirandevu->tarih)) . " - " . date("H:i", strtotime($hizmet->saat)) . " " . $hizmet->hizmetler->hizmet_adi . " randevusu " . $tarafından . " tarafından " . $cumleyeek . ".";
-
-                        if (SalonSMSAyarlari::where("ayar_id", 12)->where("salon_id", $yenirandevu->salon_id)->value("personel") == 1) {
-                            
-                            $yetkiliidler = Personeller::where("id", $hizmet->personel_id)->orWhere(function($q) use($yenirandevu,$request){
-                                if($yenirandevu->salon_id == 257)
-                                    $q->where('salon_id',$yenirandevu->salon_id)->where('role_id','<',5);
-
-                            })->pluck("yetkili_id")->toArray();
-                            foreach($yetkiliidler as $yetkiliid)
-                            {
-                                array_push($mesajlar, ["to" => IsletmeYetkilileri::where("id", $yetkiliid)->value("gsm1"), "message" => $mesaj,]);
-                            }
-                            
-                        }
-
-                        self::bildirimekle($request, $yenirandevu->salon_id, $mesaj, "#", $hizmet->personel_id, null, IsletmeYetkilileri::where("id", $request->olusturan)->value("profil_resim"), $yenirandevu->id);
-
-                        // NOT: Eski personel push akisi (forTokens raw mod) kaldirildi.
-                        // 10250+ register_shutdown_function bloyu zaten toStaff
-                        // (randevu_id + deep_link ile) push'u atiyor — bu blok
-                        // duplicate + brand sizmasi (Aleyna Acar -> Vionna cihazi) kaynagiydi.
-                    }
-                }
+                // --- Bildirim & SMS (mesaj hazirlama + uygulama-ici bildirim) — v2 kuyruk isleyicisi de ayni metodu cagirir.
+                $this->randevuKayitBildirimHazirla($request, $yenirandevu, $guncelleme, $zamanDegisti, $hizmet_degisti, $eskiRandevu, $mesajlar);
             }
 
             // SMS + yeni nesil push (FCM) — response gonderildikten sonra calistir.
@@ -13066,148 +13231,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $_finalRandevuId = isset($yenirandevu) && $yenirandevu ? $yenirandevu->id : null;
             $_randevuKaynak = $request->randevuKaynak ?? 'salon';
             $_requestForSms = $request;
-            register_shutdown_function(function () use ($mesajlar, $_requestForSms, $salonId, $_finalRandevuId, $_randevuKaynak, $guncelleme, $zamanDegisti) {
-                @ignore_user_abort(true);
-                @set_time_limit(60);
-                if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
-
-                if (!empty($mesajlar)) {
-                    try {
-                        // WhatsApp-first: salon WA aktif+connected ise once WA dene,
-                        // basarisiz olanlari SMS'e dusur. Paylasilan oturum durumunda
-                        // durum kontrolu ust salonda yapilir (416 -> 246).
-                        $isletme = Salonlar::find($salonId);
-                        $waIsletme = $isletme ? \App\Services\WhatsAppService::resolveWaSalon($isletme) : null;
-                        $waKanaliAcik = $waIsletme
-                            && !empty($waIsletme->whatsapp_aktif)
-                            && ($waIsletme->whatsapp_durum ?? '') === 'connected';
-
-                        $smsKalan = $mesajlar;
-                        if ($waKanaliAcik) {
-                            $wa = app(\App\Services\WhatsAppService::class);
-                            $smsKalan = [];
-                            foreach ($mesajlar as $m) {
-                                $to = $m['to'] ?? null;
-                                $msg = $m['message'] ?? null;
-                                if (!$to || !$msg) { $smsKalan[] = $m; continue; }
-                                $tip = $guncelleme ? 'guncelleme_bildirim' : 'yeni_randevu_bildirim';
-                                // WA icin farkli metin verilmis mi? Yoksa SMS metniyle ayni.
-                                $waMsg = $m['wa_message'] ?? $msg;
-                                $sonuc = $wa->sendReminder($isletme, $to, $waMsg, $_finalRandevuId, null, null, false, $tip);
-                                if (!($sonuc['ok'] ?? false)) {
-                                    // WA fail/timeout → SMS fallback'e ekle
-                                    $smsKalan[] = $m;
-                                }
-                            }
-                        }
-
-                        if (!empty($smsKalan)) {
-                            $this->sms_gonder_2($_requestForSms, $smsKalan, false, 1, false, $salonId, false);
-                        }
-                    } catch (\Throwable $e) {
-                        \Log::warning('randevuekleguncelle SMS afterResponse hata: ' . $e->getMessage());
-                    }
-                }
-
-                try {
-                    $finalRandevu = $_finalRandevuId
-                        ? \App\Randevular::with('hizmetler.hizmetler', 'users', 'salonlar')->find($_finalRandevuId)
-                        : null;
-                    if ($finalRandevu) {
-                        $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi') ?? 'Salon';
-                        $tarihSaatTxt = date('d.m.Y H:i', strtotime($finalRandevu->tarih . ' ' . $finalRandevu->saat));
-                        $musteriEkledi = in_array($_randevuKaynak, ['uygulama', 'web']);
-
-                        if ($guncelleme) {
-                            // Guncelleme: her durumda musteriye push (zaman degisti veya
-                            // sadece hizmet/detay). Onceden sadece $zamanDegisti dalinda
-                            // musteriye push atiliyordu -> hizmet/detay guncellemesinde
-                            // sessizce guncelleniyordu. Musteri bilgi almali. Personele
-                            // sadece zaman degistiginde push atiyoruz (mevcut politika).
-                            $baslikM = $zamanDegisti ? 'Randevunuzun zamanı değişti' : 'Randevunuz güncellendi';
-                            $bodyM   = $zamanDegisti
-                                ? $salonAdi . ' • Yeni: ' . $tarihSaatTxt
-                                : $salonAdi . ' • ' . $tarihSaatTxt;
-                            try {
-                                NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
-                                    ->type($zamanDegisti ? NotificationTypes::APPOINTMENT_TIME_CHANGED : NotificationTypes::APPOINTMENT_CREATED)
-                                    ->title($baslikM)
-                                    ->body($bodyM)
-                                    ->randevu((int)$finalRandevu->id)
-                                    ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
-                                    ->send();
-                            } catch (\Throwable $e) { \Log::warning('musteri guncelleme push fail: '.$e->getMessage()); }
-
-                            if ($zamanDegisti) {
-                                foreach ($finalRandevu->hizmetler as $h) {
-                                    if (!$h->personel_id) continue;
-                                    try {
-                                        NotificationService::toStaff((int)$h->personel_id, (int)$salonId)
-                                            ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
-                                            ->title('Randevu zamanı değişti')
-                                            ->body(($finalRandevu->users->name ?? 'Müşteri') . ' • Yeni: ' . $tarihSaatTxt)
-                                            ->randevu((int)$finalRandevu->id)
-                                            ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
-                                            ->send();
-                                    } catch (\Throwable $e) { \Log::warning('personel zaman degisti push fail: '.$e->getMessage()); }
-                                }
-                            }
-                        } elseif (!$guncelleme) {
-                            if ($musteriEkledi) {
-                                // Musteri kendi olusturdu:
-                                // (1) Musteriye "Talebiniz alindi" push (onceden yoktu)
-                                // (2) Atanan personel + salon yoneticilerine (role<5) toStaff
-                                try {
-                                    NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
-                                        ->type(NotificationTypes::APPOINTMENT_CREATED)
-                                        ->title('Randevu Talebiniz Alındı')
-                                        ->body($salonAdi . ' • ' . $tarihSaatTxt . ' • Onay bekleniyor')
-                                        ->randevu((int)$finalRandevu->id)
-                                        ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
-                                        ->send();
-                                } catch (\Throwable $e) { \Log::warning('musteri talep push fail: '.$e->getMessage()); }
-
-                                $bildirilecekPersonelIdler = [];
-                                foreach ($finalRandevu->hizmetler as $h) {
-                                    if ($h->personel_id) $bildirilecekPersonelIdler[] = (int)$h->personel_id;
-                                }
-                                $yoneticiIdler = \App\Personeller::where('salon_id', $salonId)
-                                    ->where('role_id', '<', 5)
-                                    ->pluck('id')->toArray();
-                                foreach ($yoneticiIdler as $yid) {
-                                    $bildirilecekPersonelIdler[] = (int)$yid;
-                                }
-                                $bildirilecekPersonelIdler = array_values(array_unique($bildirilecekPersonelIdler));
-
-                                $musteriAdi = $finalRandevu->users->name ?? 'Müşteri';
-                                foreach ($bildirilecekPersonelIdler as $pid) {
-                                    try {
-                                        NotificationService::toStaff($pid, (int)$salonId)
-                                            ->type(NotificationTypes::APPOINTMENT_CREATED)
-                                            ->title('Yeni randevu talebi')
-                                            ->body($musteriAdi . ' • ' . $tarihSaatTxt)
-                                            ->randevu((int)$finalRandevu->id)
-                                            ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
-                                            ->send();
-                                    } catch (\Throwable $e) { \Log::warning('personel talep push fail: '.$e->getMessage()); }
-                                }
-                            } else {
-                                try {
-                                    NotificationService::toCustomer((int)$finalRandevu->user_id, (int)$salonId)
-                                        ->type(NotificationTypes::APPOINTMENT_CREATED)
-                                        ->title('Sizin için randevu oluşturuldu')
-                                        ->body($salonAdi . ' • ' . $tarihSaatTxt)
-                                        ->randevu((int)$finalRandevu->id)
-                                        ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
-                                        ->send();
-                                } catch (\Throwable $e) { \Log::warning('musteri olusturuldu push fail: '.$e->getMessage()); }
-                            }
-                        }
-                    }
-                } catch (\Throwable $e) {
-                    \Log::warning('randevuekleguncelle push afterResponse hata: ' . $e->getMessage());
-                }
-            });
+            $this->randevuKayitBildirimGonder($_requestForSms, $mesajlar, $salonId, $_finalRandevuId, $_randevuKaynak, $guncelleme, $zamanDegisti);
 
             try {
                 $rTarihSaat = trim(($request->randevu_tarihi ?? '') . ' ' . ($request->randevu_saati ?? ''));

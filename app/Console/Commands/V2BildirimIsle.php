@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\Schema;
  *   kvkk_kodu      → ApiController::kvkkOnayKoduGonder        (portfoy onay_kodu)
  *   seans_kullanim → SeansBildirimService::bilgilendir
  *   randevu_tasindi→ ApiController::randevuTasimaBildirimleri (surukle-birak/boyut)
+ *   randevu_kayit  → ApiController::randevuKayitBildirimHazirla (tarih basina) +
+ *                    randevuKayitBildirimGonder (WA-first/SMS + push)
  *   google_takvim  → GoogleCalendarService sync/remove (payload: sync[], sil[] rh id)
  *                    — eski RandevuHizmetler model event'inin karsiligi (v2 DB'ye
  *                    dogrudan yazdigi icin event tetiklenmez).
@@ -157,6 +159,24 @@ class V2BildirimIsle extends Command
                     throw new \RuntimeException('Portfoy onay_kodu yok');
                 }
                 $api->kvkkOnayKoduGonder($istek, $randevu, $onayKodu);
+                break;
+            case 'randevu_kayit':
+                // payload.istek: randevu_tarihi, randevu_saati, randevuKaynak, durum, olusturan
+                // payload.randevu_idler: olusturulan/guncellenen randevular (tekrarli → birden cok)
+                $kIstek = new Request((array) ($payload['istek'] ?? []));
+                $mesajlar = [];
+                $sonId = null;
+                foreach ((array) ($payload['randevu_idler'] ?? [$randevu->id]) as $rid) {
+                    $r = Randevular::find((int) $rid);
+                    if (!$r) {
+                        continue;
+                    }
+                    $api->randevuKayitBildirimHazirla($kIstek, $r, !empty($payload['guncelleme']), !empty($payload['zaman_degisti']),
+                        !empty($payload['hizmet_degisti']), !empty($payload['guncelleme']) ? true : null, $mesajlar);
+                    $sonId = $r->id;
+                }
+                $api->randevuKayitBildirimGonder($kIstek, $mesajlar, $kayit->salon_id, $sonId,
+                    $kIstek->input('randevuKaynak', 'salon'), !empty($payload['guncelleme']), !empty($payload['zaman_degisti']), true);
                 break;
             case 'randevu_tasindi':
                 $api->randevuTasimaBildirimleri($istek, $randevu, (int) $payload['rh_id'],
