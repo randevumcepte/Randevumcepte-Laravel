@@ -22,6 +22,10 @@ use Illuminate\Support\Facades\Schema;
  *   dogrulama_kodu → ApiController::dogrulama_kodu_gonder    (kodu uretir+kaydeder+gonderir)
  *   kvkk_kodu      → ApiController::kvkkOnayKoduGonder        (portfoy onay_kodu)
  *   seans_kullanim → SeansBildirimService::bilgilendir
+ *   randevu_tasindi→ ApiController::randevuTasimaBildirimleri (surukle-birak/boyut)
+ *   google_takvim  → GoogleCalendarService sync/remove (payload: sync[], sil[] rh id)
+ *                    — eski RandevuHizmetler model event'inin karsiligi (v2 DB'ye
+ *                    dogrudan yazdigi icin event tetiklenmez).
  *
  * Kernel: everyMinute + withoutOverlapping; komut ~55 sn boyunca 2 sn aralikla
  * kuyrugu yoklar → kod SMS'leri pratikte birkac saniyede gider.
@@ -110,6 +114,23 @@ class V2BildirimIsle extends Command
     private function gonder($kayit)
     {
         $payload = $kayit->payload ? (json_decode($kayit->payload, true) ?: []) : [];
+
+        // Google Takvim: randevu silinmis olabilir (kapali saat silme) → randevu sartsiz.
+        if ($kayit->tur === 'google_takvim') {
+            $g = app(\App\Services\GoogleCalendarService::class);
+            foreach ((array) ($payload['sil'] ?? []) as $rhId) {
+                $g->removeRandevuHizmet((int) $rhId);
+            }
+            foreach ((array) ($payload['sync'] ?? []) as $rhId) {
+                $rh = \App\RandevuHizmetler::find((int) $rhId);
+                if ($rh && $rh->personel_id && $rh->randevu_id) {
+                    $g->syncRandevuHizmet($rh);
+                }
+            }
+
+            return;
+        }
+
         $randevu = Randevular::find($kayit->randevu_id);
         if (!$randevu) {
             throw new \RuntimeException('Randevu bulunamadi: ' . $kayit->randevu_id);
@@ -136,6 +157,11 @@ class V2BildirimIsle extends Command
                     throw new \RuntimeException('Portfoy onay_kodu yok');
                 }
                 $api->kvkkOnayKoduGonder($istek, $randevu, $onayKodu);
+                break;
+            case 'randevu_tasindi':
+                $api->randevuTasimaBildirimleri($istek, $randevu, (int) $payload['rh_id'],
+                    $payload['eski_saat'] ?? null, $payload['eski_bitis'] ?? null, $payload['eski_personel_id'] ?? null,
+                    $payload['yeni_saat'], $payload['yeni_bitis'], (int) $payload['takvim_turu'], $payload['resource_id'] ?? null);
                 break;
             case 'seans_kullanim':
                 app(\App\Services\SeansBildirimService::class)->bilgilendir($randevu);

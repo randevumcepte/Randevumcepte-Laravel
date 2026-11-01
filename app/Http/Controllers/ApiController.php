@@ -30553,6 +30553,171 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             'message' => 'Adisyon başarıyla silindi'
         ]);
     }
+    /**
+     * Surukle-birak / boyutlandirma sonrasi bildirimler: musteri + personel push
+     * (zaman / personel degisikligi) ve WA-first SMS (ayar 12 "Randevu Guncellendi").
+     * surukleBirakRandevuGuncelle()'den AYNEN tasindi; v2 kuyruk isleyicisi
+     * (v2:bildirim-isle, tur=randevu_tasindi) da bunu cagirir — TEK KAYNAK.
+     * false = degisen kalem bulunamadi (eski erken-donus davranisi korunur).
+     */
+    public function randevuTasimaBildirimleri(Request $request, $randevu, $rhId, $eskiSaat, $eskiBitis, $eskiPersonelId, $yeniSaat, $yeniBitis, $takvimTuru, $resourceId)
+    {
+        // ============================================================
+        // PUSH BILDIRIMLERI
+        // - Saat degistiyse: musteriye + atanmis personele time-changed push
+        // - Personel degistiyse (takvimTuru=1): eski + yeni personele bilgi
+        // ============================================================
+        try {
+            $randevu = $randevu->fresh(['hizmetler', 'users', 'salonlar']);
+            $degisenHizmet = $randevu->hizmetler->firstWhere('id', $rhId);
+            if (!$degisenHizmet) return false;
+
+            $salonAdi = $randevu->salonlar->salon_adi ?? 'Salon';
+            $musteriAdi = $randevu->users->name ?? 'Müşteri';
+            // Mesajda hem baslangic hem bitis goster: 19.05.2026 10:00-11:30
+            $tarihSaatTxt = date('d.m.Y', strtotime($randevu->tarih))
+                . ' ' . date('H:i', strtotime($yeniSaat))
+                . '-' . date('H:i', strtotime($yeniBitis));
+            $hizmetAdi = $degisenHizmet->hizmetler->hizmet_adi ?? 'Hizmet';
+
+            $saatDegisti = $eskiSaat === null || $eskiSaat !== $yeniSaat;
+            $bitisDegisti = $eskiBitis === null || $eskiBitis !== $yeniBitis;
+            $zamanlamaDegisti = $saatDegisti || $bitisDegisti; // saat veya sure degisti (resize dahil)
+            $personelDegisti = ($takvimTuru == 1) && $eskiPersonelId && $eskiPersonelId != $resourceId;
+
+            // Musteriye zamanlama degisikligi push'u (saat veya sure -resize-)
+            if ($zamanlamaDegisti) {
+                $musteriBaslik = $saatDegisti ? 'Randevunuzun zamanı değişti' : 'Randevunuzun süresi güncellendi';
+                try {
+                    \App\Services\NotificationService::toCustomer((int) $randevu->user_id, (int) $randevu->salon_id)
+                        ->type(\App\Services\NotificationTypes::APPOINTMENT_TIME_CHANGED)
+                        ->title($musteriBaslik)
+                        ->body($salonAdi . ' • ' . $hizmetAdi . ' • Yeni: ' . $tarihSaatTxt)
+                        ->randevu((int) $randevu->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                        ->send();
+                } catch (\Throwable $e) { Log::warning('suruklebirak musteri push fail: ' . $e->getMessage()); }
+
+                // Atanmis personele zamanlama degisikligi push
+                if ($degisenHizmet->personel_id) {
+                    $personelBaslik = $saatDegisti ? 'Randevu zamanı değişti' : 'Randevu süresi güncellendi';
+                    try {
+                        \App\Services\NotificationService::toStaff((int) $degisenHizmet->personel_id, (int) $randevu->salon_id)
+                            ->type(\App\Services\NotificationTypes::APPOINTMENT_TIME_CHANGED)
+                            ->title($personelBaslik)
+                            ->body($musteriAdi . ' • ' . $hizmetAdi . ' • Yeni: ' . $tarihSaatTxt)
+                            ->randevu((int) $randevu->id)
+                            ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                            ->send();
+                    } catch (\Throwable $e) { Log::warning('suruklebirak personel push fail: ' . $e->getMessage()); }
+                }
+            }
+
+            // Personel degistiyse: eski personele "alindi", yeni personele "atandi"
+            if ($personelDegisti) {
+                try {
+                    \App\Services\NotificationService::toStaff((int) $eskiPersonelId, (int) $randevu->salon_id)
+                        ->type(\App\Services\NotificationTypes::STAFF_ASSIGNED)
+                        ->title('Randevu sizden alındı')
+                        ->body($musteriAdi . ' • ' . $hizmetAdi . ' • ' . $tarihSaatTxt)
+                        ->randevu((int) $randevu->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                        ->send();
+                } catch (\Throwable $e) { Log::warning('suruklebirak eski personel push fail: ' . $e->getMessage()); }
+
+                try {
+                    \App\Services\NotificationService::toStaff((int) $resourceId, (int) $randevu->salon_id)
+                        ->type(\App\Services\NotificationTypes::STAFF_ASSIGNED)
+                        ->title('Size yeni randevu atandı')
+                        ->body($musteriAdi . ' • ' . $hizmetAdi . ' • ' . $tarihSaatTxt)
+                        ->randevu((int) $randevu->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                        ->send();
+                } catch (\Throwable $e) { Log::warning('suruklebirak yeni personel push fail: ' . $e->getMessage()); }
+            }
+
+            // ============================================================
+            // SMS / WhatsApp (ayar_id=12 = "Randevu Güncellendi")
+            // Salon WhatsApp connected ise once WA, fail/devre disi ise SMS.
+            // ============================================================
+            if ($zamanlamaDegisti || $personelDegisti) {
+                $ayar = SalonSMSAyarlari::where('salon_id', $randevu->salon_id)->where('ayar_id', 12)->first();
+                $musteriSmsAcik = $ayar && $ayar->musteri == 1;
+                $personelSmsAcik = $ayar && $ayar->personel == 1;
+
+                $waService = app(\App\Services\WhatsAppService::class);
+                // Paylasilan oturum destegi: durum kontrolu ust salonda
+                $waSalonKontrol = $randevu->salonlar
+                    ? \App\Services\WhatsAppService::resolveWaSalon($randevu->salonlar)
+                    : null;
+                $waAcik = $waSalonKontrol
+                    && !empty($waSalonKontrol->whatsapp_aktif)
+                    && ($waSalonKontrol->whatsapp_durum ?? null) === 'connected';
+
+                $smsListesi = [];
+
+                // Musteriye
+                if ($musteriSmsAcik && $randevu->users && !empty($randevu->users->cep_telefon)) {
+                    $musteriMesaj = ($randevu->salonlar->salon_adi ?? 'Salon') . ' tarafından randevunuz ' . $tarihSaatTxt . ' olarak güncellendi.';
+                    // WA metnine uygulama daveti ekle; SMS ($musteriMesaj) sade kalır
+                    $musteriMesajWA = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($musteriMesaj, $randevu->salonlar, $randevu->user_id);
+                    $gonderildi = false;
+                    if ($waAcik) {
+                        try {
+                            $r = $waService->sendReminder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesajWA, $randevu->id, $randevu->user_id, null, false, 'guncelleme_bildirim');
+                            $gonderildi = ($r['ok'] ?? false) === true;
+                        } catch (\Throwable $e) { Log::warning('suruklebirak musteri WA fail: ' . $e->getMessage()); }
+                    }
+                    if (!$gonderildi) {
+                        $smsListesi[] = ['to' => $randevu->users->cep_telefon, 'message' => $musteriMesaj];
+                    }
+                }
+
+                // Etkilenen personellere (zamanlama -> atanmis; personel degisikligi -> eski + yeni)
+                $bilgilendirilecekPersonelIdleri = [];
+                if ($zamanlamaDegisti && $degisenHizmet->personel_id) {
+                    $bilgilendirilecekPersonelIdleri[] = (int) $degisenHizmet->personel_id;
+                }
+                if ($personelDegisti) {
+                    if ($eskiPersonelId) $bilgilendirilecekPersonelIdleri[] = (int) $eskiPersonelId;
+                    if ($resourceId) $bilgilendirilecekPersonelIdleri[] = (int) $resourceId;
+                }
+                $bilgilendirilecekPersonelIdleri = array_values(array_unique($bilgilendirilecekPersonelIdleri));
+
+                if ($personelSmsAcik) {
+                    foreach ($bilgilendirilecekPersonelIdleri as $pid) {
+                        $personel = Personeller::find($pid);
+                        if (!$personel || !$personel->yetkili_id) continue;
+                        $gsm = IsletmeYetkilileri::where('id', $personel->yetkili_id)->value('gsm1');
+                        if (empty($gsm)) continue;
+
+                        $personelMesaj = $musteriAdi . ' isimli müşterinin ' . $hizmetAdi . ' randevusu ' . $tarihSaatTxt . ' olarak güncellendi.';
+                        $gonderildi = false;
+                        if ($waAcik) {
+                            try {
+                                $r = $waService->sendReminder($randevu->salonlar, $gsm, $personelMesaj, $randevu->id, null, null, false, 'guncelleme_bildirim');
+                                $gonderildi = ($r['ok'] ?? false) === true;
+                            } catch (\Throwable $e) { Log::warning('suruklebirak personel WA fail: ' . $e->getMessage()); }
+                        }
+                        if (!$gonderildi) {
+                            $smsListesi[] = ['to' => $gsm, 'message' => $personelMesaj];
+                        }
+                    }
+                }
+
+                if (count($smsListesi) > 0) {
+                    try {
+                        self::sms_gonder_2($request, $smsListesi, false, 1, false, $randevu->salon_id, false);
+                    } catch (\Throwable $e) { Log::warning('suruklebirak sms_gonder_2 fail: ' . $e->getMessage()); }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('suruklebirak push/sms genel hata: ' . $e->getMessage());
+        }
+
+        return true;
+    }
+
      public function surukleBirakRandevuGuncelle(Request $request)
     {
         Log::info('Randevu Id '.$request->randevu_id);
@@ -30625,157 +30790,11 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             }
         }
 
-        // ============================================================
-        // PUSH BILDIRIMLERI
-        // - Saat degistiyse: musteriye + atanmis personele time-changed push
-        // - Personel degistiyse (takvimTuru=1): eski + yeni personele bilgi
-        // ============================================================
-        try {
-            $randevu = $randevu->fresh(['hizmetler', 'users', 'salonlar']);
-            $degisenHizmet = $randevu->hizmetler->firstWhere('id', $request->randevuHizmetId);
-            if (!$degisenHizmet) return 'başarılı';
-
-            $salonAdi = $randevu->salonlar->salon_adi ?? 'Salon';
-            $musteriAdi = $randevu->users->name ?? 'Müşteri';
-            // Mesajda hem baslangic hem bitis goster: 19.05.2026 10:00-11:30
-            $tarihSaatTxt = date('d.m.Y', strtotime($randevu->tarih))
-                . ' ' . date('H:i', strtotime($yeniSaat))
-                . '-' . date('H:i', strtotime($yeniBitis));
-            $hizmetAdi = $degisenHizmet->hizmetler->hizmet_adi ?? 'Hizmet';
-
-            $saatDegisti = !isset($eskiSaatler[$degisenHizmet->id]) || $eskiSaatler[$degisenHizmet->id] !== $yeniSaat;
-            $bitisDegisti = !isset($eskiBitisler[$degisenHizmet->id]) || $eskiBitisler[$degisenHizmet->id] !== $yeniBitis;
-            $zamanlamaDegisti = $saatDegisti || $bitisDegisti; // saat veya sure degisti (resize dahil)
-            $personelDegisti = ($request->takvimTuru == 1) && $eskiPersonelId && $eskiPersonelId != $request->resourceId;
-
-            // Musteriye zamanlama degisikligi push'u (saat veya sure -resize-)
-            if ($zamanlamaDegisti) {
-                $musteriBaslik = $saatDegisti ? 'Randevunuzun zamanı değişti' : 'Randevunuzun süresi güncellendi';
-                try {
-                    \App\Services\NotificationService::toCustomer((int) $randevu->user_id, (int) $randevu->salon_id)
-                        ->type(\App\Services\NotificationTypes::APPOINTMENT_TIME_CHANGED)
-                        ->title($musteriBaslik)
-                        ->body($salonAdi . ' • ' . $hizmetAdi . ' • Yeni: ' . $tarihSaatTxt)
-                        ->randevu((int) $randevu->id)
-                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
-                        ->send();
-                } catch (\Throwable $e) { Log::warning('suruklebirak musteri push fail: ' . $e->getMessage()); }
-
-                // Atanmis personele zamanlama degisikligi push
-                if ($degisenHizmet->personel_id) {
-                    $personelBaslik = $saatDegisti ? 'Randevu zamanı değişti' : 'Randevu süresi güncellendi';
-                    try {
-                        \App\Services\NotificationService::toStaff((int) $degisenHizmet->personel_id, (int) $randevu->salon_id)
-                            ->type(\App\Services\NotificationTypes::APPOINTMENT_TIME_CHANGED)
-                            ->title($personelBaslik)
-                            ->body($musteriAdi . ' • ' . $hizmetAdi . ' • Yeni: ' . $tarihSaatTxt)
-                            ->randevu((int) $randevu->id)
-                            ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
-                            ->send();
-                    } catch (\Throwable $e) { Log::warning('suruklebirak personel push fail: ' . $e->getMessage()); }
-                }
-            }
-
-            // Personel degistiyse: eski personele "alindi", yeni personele "atandi"
-            if ($personelDegisti) {
-                try {
-                    \App\Services\NotificationService::toStaff((int) $eskiPersonelId, (int) $randevu->salon_id)
-                        ->type(\App\Services\NotificationTypes::STAFF_ASSIGNED)
-                        ->title('Randevu sizden alındı')
-                        ->body($musteriAdi . ' • ' . $hizmetAdi . ' • ' . $tarihSaatTxt)
-                        ->randevu((int) $randevu->id)
-                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
-                        ->send();
-                } catch (\Throwable $e) { Log::warning('suruklebirak eski personel push fail: ' . $e->getMessage()); }
-
-                try {
-                    \App\Services\NotificationService::toStaff((int) $request->resourceId, (int) $randevu->salon_id)
-                        ->type(\App\Services\NotificationTypes::STAFF_ASSIGNED)
-                        ->title('Size yeni randevu atandı')
-                        ->body($musteriAdi . ' • ' . $hizmetAdi . ' • ' . $tarihSaatTxt)
-                        ->randevu((int) $randevu->id)
-                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
-                        ->send();
-                } catch (\Throwable $e) { Log::warning('suruklebirak yeni personel push fail: ' . $e->getMessage()); }
-            }
-
-            // ============================================================
-            // SMS / WhatsApp (ayar_id=12 = "Randevu Güncellendi")
-            // Salon WhatsApp connected ise once WA, fail/devre disi ise SMS.
-            // ============================================================
-            if ($zamanlamaDegisti || $personelDegisti) {
-                $ayar = SalonSMSAyarlari::where('salon_id', $randevu->salon_id)->where('ayar_id', 12)->first();
-                $musteriSmsAcik = $ayar && $ayar->musteri == 1;
-                $personelSmsAcik = $ayar && $ayar->personel == 1;
-
-                $waService = app(\App\Services\WhatsAppService::class);
-                // Paylasilan oturum destegi: durum kontrolu ust salonda
-                $waSalonKontrol = $randevu->salonlar
-                    ? \App\Services\WhatsAppService::resolveWaSalon($randevu->salonlar)
-                    : null;
-                $waAcik = $waSalonKontrol
-                    && !empty($waSalonKontrol->whatsapp_aktif)
-                    && ($waSalonKontrol->whatsapp_durum ?? null) === 'connected';
-
-                $smsListesi = [];
-
-                // Musteriye
-                if ($musteriSmsAcik && $randevu->users && !empty($randevu->users->cep_telefon)) {
-                    $musteriMesaj = ($randevu->salonlar->salon_adi ?? 'Salon') . ' tarafından randevunuz ' . $tarihSaatTxt . ' olarak güncellendi.';
-                    // WA metnine uygulama daveti ekle; SMS ($musteriMesaj) sade kalır
-                    $musteriMesajWA = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($musteriMesaj, $randevu->salonlar, $randevu->user_id);
-                    $gonderildi = false;
-                    if ($waAcik) {
-                        try {
-                            $r = $waService->sendReminder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesajWA, $randevu->id, $randevu->user_id, null, false, 'guncelleme_bildirim');
-                            $gonderildi = ($r['ok'] ?? false) === true;
-                        } catch (\Throwable $e) { Log::warning('suruklebirak musteri WA fail: ' . $e->getMessage()); }
-                    }
-                    if (!$gonderildi) {
-                        $smsListesi[] = ['to' => $randevu->users->cep_telefon, 'message' => $musteriMesaj];
-                    }
-                }
-
-                // Etkilenen personellere (zamanlama -> atanmis; personel degisikligi -> eski + yeni)
-                $bilgilendirilecekPersonelIdleri = [];
-                if ($zamanlamaDegisti && $degisenHizmet->personel_id) {
-                    $bilgilendirilecekPersonelIdleri[] = (int) $degisenHizmet->personel_id;
-                }
-                if ($personelDegisti) {
-                    if ($eskiPersonelId) $bilgilendirilecekPersonelIdleri[] = (int) $eskiPersonelId;
-                    if ($request->resourceId) $bilgilendirilecekPersonelIdleri[] = (int) $request->resourceId;
-                }
-                $bilgilendirilecekPersonelIdleri = array_values(array_unique($bilgilendirilecekPersonelIdleri));
-
-                if ($personelSmsAcik) {
-                    foreach ($bilgilendirilecekPersonelIdleri as $pid) {
-                        $personel = Personeller::find($pid);
-                        if (!$personel || !$personel->yetkili_id) continue;
-                        $gsm = IsletmeYetkilileri::where('id', $personel->yetkili_id)->value('gsm1');
-                        if (empty($gsm)) continue;
-
-                        $personelMesaj = $musteriAdi . ' isimli müşterinin ' . $hizmetAdi . ' randevusu ' . $tarihSaatTxt . ' olarak güncellendi.';
-                        $gonderildi = false;
-                        if ($waAcik) {
-                            try {
-                                $r = $waService->sendReminder($randevu->salonlar, $gsm, $personelMesaj, $randevu->id, null, null, false, 'guncelleme_bildirim');
-                                $gonderildi = ($r['ok'] ?? false) === true;
-                            } catch (\Throwable $e) { Log::warning('suruklebirak personel WA fail: ' . $e->getMessage()); }
-                        }
-                        if (!$gonderildi) {
-                            $smsListesi[] = ['to' => $gsm, 'message' => $personelMesaj];
-                        }
-                    }
-                }
-
-                if (count($smsListesi) > 0) {
-                    try {
-                        self::sms_gonder_2($request, $smsListesi, false, 1, false, $randevu->salon_id, false);
-                    } catch (\Throwable $e) { Log::warning('suruklebirak sms_gonder_2 fail: ' . $e->getMessage()); }
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::warning('suruklebirak push/sms genel hata: ' . $e->getMessage());
+        // Bildirimler (push + WA/SMS "Randevu Güncellendi") — v2 kuyruk isleyicisi de ayni metodu cagirir.
+        if ($this->randevuTasimaBildirimleri($request, $randevu, $request->randevuHizmetId,
+                $eskiSaatler[$request->randevuHizmetId] ?? null, $eskiBitisler[$request->randevuHizmetId] ?? null, $eskiPersonelId,
+                $yeniSaat, $yeniBitis, $request->takvimTuru, $request->resourceId) === false) {
+            return 'başarılı';
         }
 
         try {
