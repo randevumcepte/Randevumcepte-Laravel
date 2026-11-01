@@ -145,11 +145,32 @@ class PersonelYetkiServisi
         // aksi halde semaya yeni yetki eklendiginde ayni kisi web'de personel-sade
         // default'a, mobilde kendi sablonuna duser ve iki platform celisirdi).
         if (!array_key_exists($key, $ayarlar)) {
-            $sablonDefault = PersonelYetkiSabitleri::sablonAyarlari($fallbackSablon);
+            $sablonDefault = self::eksikAnahtarDefaultlari($personelId, $salonId, $fallbackSablon);
             return (bool)($sablonDefault[$key] ?? false);
         }
 
         return (bool)$ayarlar[$key];
+    }
+
+    /**
+     * Kayitta OLMAYAN anahtarlar icin default'lar (yetkiVar + ayarlariGetir ORTAK).
+     *
+     * 'ozel' (bilinmeyen) sablon 'personel' default'una duser. Bu, randevu.onayla
+     * gibi SONRADAN eklenen bir AKSIYON kapisinda, eskiden ozel yetkiyle kaydedilmis
+     * Yonetici/Sekreter'i (Personel rolu degil) aniden kilitliyordu: anahtar kayitta
+     * yok -> personel default=false -> takvimde "Onayla" 403 -> hata swal'i.
+     * Anahtar eklenmeden once herkes onaylayabiliyordu; personel rolu olmayan ozel
+     * kayitlar icin randevu.onayla default'u ACIK. Diger anahtarlar degismez
+     * (mobil harita sabit kalsin; randevu.onayla zaten mobilGizliAnahtarlar'da).
+     */
+    private static function eksikAnahtarDefaultlari($personelId, $salonId, string $sablon): array
+    {
+        $sablonDefault = PersonelYetkiSabitleri::sablonAyarlari($sablon);
+        $bilinen = array_merge(array_keys(PersonelYetkiSabitleri::sablonlar()), ['personel_sade', 'personel_tam', 'demo']);
+        if (!in_array($sablon, $bilinen, true) && !self::personelRolundeMi($personelId, $salonId)) {
+            $sablonDefault['randevu.onayla'] = true;
+        }
+        return $sablonDefault;
     }
 
     /**
@@ -516,7 +537,7 @@ class PersonelYetkiServisi
             // Sema'ya yeni yetki eklendiginde, personel hangi sablonda
             // kaydedildiyse o sablonun default'unu alir. Bilinmeyen sablon
             // (ornegin 'ozel') varsa 'personel' default'una duser.
-            $sablonDefault = PersonelYetkiSabitleri::sablonAyarlari($sablon);
+            $sablonDefault = self::eksikAnahtarDefaultlari($personelId, $salonId, $sablon);
             return [
                 'sablon' => $sablon,
                 'ayarlar' => array_merge($sablonDefault, $kayitliAyarlar),

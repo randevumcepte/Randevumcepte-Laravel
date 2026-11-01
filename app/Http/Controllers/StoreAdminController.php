@@ -21141,7 +21141,7 @@ DB::raw('
         }
 
         return response()->json([
-            'eventbuttons' => view('partials.randevuDetayiButonlar', ['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat, 'hasAPS' => $hasAPS, 'adisyonId' => $adisyonId])->render(),
+            'eventbuttons' => view('partials.randevuDetayiButonlar', ['randevu' => $rh, 'hasPaketTahsilat' => $hasPaketTahsilat, 'hasAPS' => $hasAPS, 'adisyonId' => $adisyonId, 'onaylaYetki' => self::randevuOnaylaYetkiVar($request)])->render(),
             'description'  => view('partials.randevuDetayi', ['randevu' => $rh, 'rol' => $rol, 'paketAdi' => $paketAdi])->render(),
             'hoverHtml'    => view('partials.randevuHoverDetayi', ['randevu' => $rh, 'rol' => $rol, 'paketAdi' => $paketAdi])->render(),
         ]);

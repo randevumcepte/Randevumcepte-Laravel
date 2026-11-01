@@ -3248,6 +3248,8 @@ $(document).on('click','.randevuonayla',function(e){
                     timer:1500,
                 }
             );
+            // Popup detay cache'i bayat "Onayla" butonu gostermesin
+            try { if (window._rcDetayCache) window._rcDetayCache = {}; } catch(e){}
             // Acik olan tum modallari kapat (randevu detay popup'i)
             try { $('.modal.show, .modal.in').modal('hide'); } catch(e){}
             try { $('#modal-view-event').modal('hide'); } catch(e){}
@@ -3296,7 +3298,15 @@ $(document).on('click','.randevuonayla',function(e){
         },
         error: function (request, status, error) {
              $btn.prop('disabled', false).html(origHtml);
-             try { swal({ type:'error', title:'Hata', text:'Onaylanırken hata oluştu', timer:2500, showConfirmButton:false }); } catch(e){}
+             // Sunucu sebebini goster (403 yetki / 404 silinmis / oturum dusmus) — genel
+             // "hata olustu" teshisi imkansiz kiliyordu.
+             var _hm = 'Onaylanırken hata oluştu';
+             try {
+                 if (request.status == 403) _hm = (request.responseJSON && request.responseJSON.mesaj) || 'Bu işlem için yetkiniz yok.';
+                 else if (request.status == 404) _hm = 'Randevu bulunamadı (silinmiş olabilir). Takvimi yenileyin.';
+                 else if (request.status == 401 || request.status == 419 || status === 'parsererror') _hm = 'Oturumunuz sona ermiş olabilir. Sayfayı yenileyip tekrar deneyin.';
+             } catch(e){}
+             try { swal({ type:'error', title:'Hata', text:_hm, timer:3500, showConfirmButton:false }); } catch(e){}
              try { document.getElementById('hata').innerHTML = request.responseText; } catch(e){}
         }
     });

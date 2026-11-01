@@ -15,7 +15,9 @@
    </div>
 @elseif($randevu->randevu->durum == 0)
    <div class="rdb-row">
+      @if($onaylaYetki ?? true)
       <button data-value="{{$randevu->randevu_id}}" class="btn btn-success randevuonayla"><i class="fa fa-check"></i> Onayla</button>
+      @endif
       <button class="btn btn-danger randevuiptalet" data-value="{{$randevu->randevu_id}}"><i class="fa fa-times"></i> İptal Et</button>
    </div>
 @else
