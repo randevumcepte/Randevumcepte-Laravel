@@ -1814,10 +1814,12 @@
                   {{-- 3) Randevu Takvimi --}}
                   @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'randevu.takvim_gor'))
                   <li>
+                     {{-- Pilot salonlarda (V2_TAKVIM_SALONLARI) yeni v2 takvimi acilir; eski takvim v2'deki "Klasik takvim" ile. --}}
+                     @php $takvimLink = \App\Http\Controllers\V2KopruController::takvimAcik($isletme->id) ? '/isletmeyonetim/v2-gecis?hedef=takvim&sube='.$isletme->id : '/isletmeyonetim/randevular'.((isset($_GET['sube'])) ? '?sube='.$isletme->id : ''); @endphp
                      @if($pageindex==2)
-                     <a href="/isletmeyonetim/randevular{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
+                     <a href="{{ $takvimLink }}" class="dropdown-toggle no-arrow active">
                      @else
-                     <a href="/isletmeyonetim/randevular{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow">
+                     <a href="{{ $takvimLink }}" class="dropdown-toggle no-arrow">
                      @endif
                      <span class="micon bi bi-calendar4-week"></span
                         ><span class="mtext">Randevu Takvimi</span>
