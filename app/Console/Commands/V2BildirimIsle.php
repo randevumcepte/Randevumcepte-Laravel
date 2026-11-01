@@ -25,6 +25,9 @@ use Illuminate\Support\Facades\Schema;
  *   randevu_tasindi→ ApiController::randevuTasimaBildirimleri (surukle-birak/boyut)
  *   randevu_kayit  → ApiController::randevuKayitBildirimHazirla (tarih basina) +
  *                    randevuKayitBildirimGonder (WA-first/SMS + push)
+ *   personel_sifre → ApiController::personelSifreUretVeGonder (payload: personel_id, yeni_hesap)
+ *   yetki_degisti  → ApiController::personelYetkiDegistiBildir (force_logout push)
+ *   personel_pasif → ApiController::personelPasifOturumSonlandir (token revoke + push)
  *   google_takvim  → GoogleCalendarService sync/remove (payload: sync[], sil[] rh id)
  *                    — eski RandevuHizmetler model event'inin karsiligi (v2 DB'ye
  *                    dogrudan yazdigi icin event tetiklenmez).
@@ -128,6 +131,32 @@ class V2BildirimIsle extends Command
                 if ($rh && $rh->personel_id && $rh->randevu_id) {
                     $g->syncRandevuHizmet($rh);
                 }
+            }
+
+            return;
+        }
+
+        // Personel turleri: randevuya bagli degil (payload.personel_id). v1 uclari da
+        // AYNI ApiController metodlarini cagirir (kod tekrari yok).
+        if (in_array($kayit->tur, ['personel_sifre', 'yetki_degisti', 'personel_pasif'], true)) {
+            $personel = \App\Personeller::find((int) ($payload['personel_id'] ?? 0));
+            if (!$personel) {
+                throw new \RuntimeException('Personel bulunamadi: ' . ($payload['personel_id'] ?? '-'));
+            }
+            $api = app(ApiController::class);
+            switch ($kayit->tur) {
+                case 'personel_sifre':
+                    if (!$personel->yetkili_id) {
+                        throw new \RuntimeException('Personelin giris hesabi yok: ' . $personel->id);
+                    }
+                    $api->personelSifreUretVeGonder(new Request(), $personel, !empty($payload['yeni_hesap']));
+                    break;
+                case 'yetki_degisti':
+                    $api->personelYetkiDegistiBildir($personel->id, $personel->salon_id);
+                    break;
+                case 'personel_pasif':
+                    $api->personelPasifOturumSonlandir($personel);
+                    break;
             }
 
             return;

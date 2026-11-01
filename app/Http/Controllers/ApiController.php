@@ -22248,24 +22248,32 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             Audit::logApi(optional($yetkili)->salon_id, $request, 'personel_pasif', 'personel', $request->personelid, optional($yetkili)->personel_adi, 'Personel pasife alındı');
         } catch (\Throwable $e) {}
 
-        // GUVENLIK: pasife alinan personelin (bagli login kimliginin) BASKA aktif
-        // salonu kalmadiysa oturumunu sonlandir (token revoke + force_logout push).
-        // Baska aktif salonu varsa dokunma -> login'in bugunku davranisiyla birebir.
         try {
-            \App\Services\OturumServisi::personelErisimiKalktiysaSonlandir(
-                (int) $yetkili->id,
-                $yetkili->yetkili_id !== null ? (int) $yetkili->yetkili_id : null,
-                $yetkili->salon_id  !== null ? (int) $yetkili->salon_id  : null,
-                \App\Services\NotificationTypes::PERSONEL_PASIF,
-                'Hesabınız pasife alındı',
-                'Yöneticiniz hesabınızı pasife aldı. Oturumunuz sonlandırıldı, tekrar giriş yapmanız gerekiyor.'
-            );
+            $this->personelPasifOturumSonlandir($yetkili);
         } catch (\Throwable $e) {
             \Log::warning('personelpasif oturum sonlandirma hatasi: ' . $e->getMessage());
         }
 
         return $yetkili;
 
+    }
+
+    /**
+     * GUVENLIK: pasife alinan personelin (bagli login kimliginin) BASKA aktif
+     * salonu kalmadiysa oturumunu sonlandir (token revoke + force_logout push).
+     * Baska aktif salonu varsa dokunma -> login'in bugunku davranisiyla birebir.
+     * Ortak: v1 personelpasifyap + v2 outbox ('personel_pasif', v2:bildirim-isle).
+     */
+    public function personelPasifOturumSonlandir($personel)
+    {
+        \App\Services\OturumServisi::personelErisimiKalktiysaSonlandir(
+            (int) $personel->id,
+            $personel->yetkili_id !== null ? (int) $personel->yetkili_id : null,
+            $personel->salon_id  !== null ? (int) $personel->salon_id  : null,
+            \App\Services\NotificationTypes::PERSONEL_PASIF,
+            'Hesabınız pasife alındı',
+            'Yöneticiniz hesabınızı pasife aldı. Oturumunuz sonlandırıldı, tekrar giriş yapmanız gerekiyor.'
+        );
     }
 
     public function personelsifregonder(Request $request)
@@ -22275,6 +22283,16 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $personel = Personeller::where("id", $request->personelid)->first();
         $this->_yetkiYoksaRed($request, $personel->salon_id ?? null, 'personel.ekle_duzenle');
 
+        return $this->personelSifreUretVeGonder($request, $personel);
+    }
+
+    /**
+     * Personel giris sifresini uret + kaydet + WhatsApp (olmazsa SMS) ile gonder.
+     * Ortak: v1 /personelsifregonder ve v2 outbox ('personel_sifre', v2:bildirim-isle).
+     * $yeniHesap: yeni acilan hesap icin mesaj metni ("Randevu sistemi sifreniz").
+     */
+    public function personelSifreUretVeGonder(Request $request, $personel, $yeniHesap = false)
+    {
         $yetkili = IsletmeYetkilileri::where(
 
             "id",
@@ -22322,17 +22340,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                 "to" => $yetkili->gsm1,
 
-                "message" =>
-
-                    "Sayın " .
-
-                    $yetkili->name .
-
-                    ". Randevumcepte yeni şifreniz : " .
-
-                    $kod .
-
-                    " olarak güncellenmiştir.",
+                "message" => $yeniHesap
+                    ? "Sayın " . $yetkili->name . ". Randevu sistemi şifreniz : " . $kod
+                    : "Sayın " . $yetkili->name . ". Randevumcepte yeni şifreniz : " . $kod . " olarak güncellenmiştir.",
 
             ],
 
@@ -22363,7 +22373,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             );
         }
 
-        Audit::logApi(optional($personel)->salon_id, $request, 'personel_sifre_gonder', 'personel', $personel->id, optional($personel)->personel_adi, 'Personele yeni sifre SMS gonderildi');
+        try {
+            Audit::logApi(optional($personel)->salon_id, $request, 'personel_sifre_gonder', 'personel', $personel->id, optional($personel)->personel_adi, 'Personele yeni sifre SMS gonderildi');
+        } catch (\Throwable $e) {}
 
         return $personel;
 
@@ -23221,15 +23233,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 Audit::logApi($salonId, $request, 'personel_yetki_kaydet', 'personel', $personelId, optional(\App\Personeller::find($personelId))->personel_adi, 'Personel yetkileri güncellendi', ['sablon' => $sablon]);
             } catch (\Throwable $e) {}
 
-            // Personele push gonder — mobile app icindeyse popup + logout
-            // zorlanir; degilse normal bildirim olarak gozukur.
             try {
-                \App\Services\NotificationService::toStaff((int)$personelId, (int)$salonId)
-                    ->type(\App\Services\NotificationTypes::YETKI_DEGISTI)
-                    ->title('Yetkileriniz Güncellendi')
-                    ->body('Yöneticiniz yetkilerinizi güncelledi. Devam etmek için tekrar giriş yapmanız gerekiyor.')
-                    ->extra(['force_logout' => '1'])
-                    ->send();
+                $this->personelYetkiDegistiBildir($personelId, $salonId);
             } catch (\Throwable $e) {
                 \Log::warning('Yetki push hatasi: ' . $e->getMessage());
             }
@@ -23239,6 +23244,21 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             \Log::warning('Api personelYetkiKaydet: ' . $e->getMessage());
             return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * Yetkisi degisen personele push — mobile app icindeyse popup + logout zorlanir;
+     * degilse normal bildirim olarak gorunur.
+     * Ortak: v1 personelYetkiKaydetApi + v2 outbox ('yetki_degisti', v2:bildirim-isle).
+     */
+    public function personelYetkiDegistiBildir($personelId, $salonId)
+    {
+        \App\Services\NotificationService::toStaff((int)$personelId, (int)$salonId)
+            ->type(\App\Services\NotificationTypes::YETKI_DEGISTI)
+            ->title('Yetkileriniz Güncellendi')
+            ->body('Yöneticiniz yetkilerinizi güncelledi. Devam etmek için tekrar giriş yapmanız gerekiyor.')
+            ->extra(['force_logout' => '1'])
+            ->send();
     }
 
     public function hizmet_liste_getir(Request $request, $salon_id)
