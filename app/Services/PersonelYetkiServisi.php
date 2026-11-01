@@ -155,19 +155,20 @@ class PersonelYetkiServisi
     /**
      * Kayitta OLMAYAN anahtarlar icin default'lar (yetkiVar + ayarlariGetir ORTAK).
      *
-     * 'ozel' (bilinmeyen) sablon 'personel' default'una duser. Bu, randevu.onayla
-     * gibi SONRADAN eklenen bir AKSIYON kapisinda, eskiden ozel yetkiyle kaydedilmis
-     * Yonetici/Sekreter'i (Personel rolu degil) aniden kilitliyordu: anahtar kayitta
-     * yok -> personel default=false -> takvimde "Onayla" 403 -> hata swal'i.
-     * Anahtar eklenmeden once herkes onaylayabiliyordu; personel rolu olmayan ozel
-     * kayitlar icin randevu.onayla default'u ACIK. Diger anahtarlar degismez
-     * (mobil harita sabit kalsin; randevu.onayla zaten mobilGizliAnahtarlar'da).
+     * KURAL (randevu.onayla): yetki ayarlanmamissa Personel rolu (5) HARICI herkes
+     * onaylayabilir. Kayit hic yoksa bu zaten rol-bazli dalda saglaniyor; burada
+     * kayit VAR ama anahtar ayarlanmamis (anahtar 17 Eki'de sonradan eklendi) durum
+     * kapsanir. Eskiden sablon default'una (ozel/personel -> false) dusup Yonetici/
+     * Sekreter'e takvimde "Onayla" 403 veriyordu. Acikca KAPATILMIS (kayitta false)
+     * anahtar etkilenmez. Diger anahtarlar degismez (mobil harita sabit kalsin;
+     * randevu.onayla zaten mobilGizliAnahtarlar'da).
      */
     private static function eksikAnahtarDefaultlari($personelId, $salonId, string $sablon): array
     {
         $sablonDefault = PersonelYetkiSabitleri::sablonAyarlari($sablon);
-        $bilinen = array_merge(array_keys(PersonelYetkiSabitleri::sablonlar()), ['personel_sade', 'personel_tam', 'demo']);
-        if (!in_array($sablon, $bilinen, true) && !self::personelRolundeMi($personelId, $salonId)) {
+        // yetkili_id bagi kopuk personel -> rolu bilinemez, ACMA (rol-5 kopuk-bag ile tutarli)
+        $bagli = Personeller::where('id', $personelId)->where('salon_id', $salonId)->value('yetkili_id');
+        if ($bagli && !self::personelRolundeMi($personelId, $salonId)) {
             $sablonDefault['randevu.onayla'] = true;
         }
         return $sablonDefault;
