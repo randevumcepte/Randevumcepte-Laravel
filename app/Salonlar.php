@@ -92,7 +92,7 @@ class Salonlar extends Model
 
     /**
      * Ham secenek listesini temizler: gecerli tus (1-9, tekil), bos olmayan etiket,
-     * yalniz rakam hedef (kuyruk/dahili no). Tusa gore sirali doner.
+     * tip (kuyruk|dahili), yalniz rakam hedef. Tusa gore sirali doner.
      */
     public static function santralOzelMenuNormalize($ham)
     {
@@ -100,11 +100,12 @@ class Salonlar extends Model
         foreach ((array) $ham as $satir) {
             $tus = trim((string) ($satir['tus'] ?? ''));
             $etiket = trim(preg_replace('/\s+/u', ' ', strip_tags((string) ($satir['etiket'] ?? ''))));
+            $tip = ($satir['tip'] ?? '') === 'dahili' ? 'dahili' : 'kuyruk';
             $hedef = preg_replace('/\D/', '', (string) ($satir['hedef'] ?? ''));
             if (!isset(self::SANTRAL_TUS_OKUNUS[$tus]) || isset($temiz[$tus]) || $etiket === '' || strlen($hedef) < 2 || strlen($hedef) > 10) {
                 continue;
             }
-            $temiz[$tus] = ['tus' => $tus, 'etiket' => mb_substr($etiket, 0, 60), 'hedef' => $hedef];
+            $temiz[$tus] = ['tus' => $tus, 'etiket' => mb_substr($etiket, 0, 60), 'tip' => $tip, 'hedef' => $hedef];
         }
         ksort($temiz);
         return array_values($temiz);

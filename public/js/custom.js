@@ -14706,10 +14706,17 @@ $('#santral_ozel_menu_ekle').on('click',function(){
     var yeni = satirlar.first().clone();
     var kullanilan = satirlar.find('select').map(function(){ return this.value; }).get();
     yeni.find('input').val('');
+    yeni.find('.santral-ozel-menu-tip').val('kuyruk').trigger('change');
     var bosTus = yeni.find('select option').filter(function(){ return kullanilan.indexOf(this.value) === -1; }).first().val();
     yeni.find('select').val(bosTus || '1');
     $('#santral_ozel_menu_satirlar').append(yeni);
     santralOzelMenuSiraNo();
+});
+$(document).on('change','.santral-ozel-menu-tip',function(){
+    var dahili = this.value === 'dahili';
+    $(this).closest('.santral-ozel-menu-satir').find('.santral-ozel-menu-hedef')
+        .attr('list', 'santral_ozel_menu_hedefler_' + this.value)
+        .attr('placeholder', dahili ? 'Dahili no, örn: 101' : 'Kuyruk no, örn: 10013');
 });
 $(document).on('click','.santral-ozel-menu-sil',function(){
     var satirlar = $('#santral_ozel_menu_satirlar .santral-ozel-menu-satir');

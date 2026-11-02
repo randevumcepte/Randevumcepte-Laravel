@@ -24760,7 +24760,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $aktif = isset($request->santral_ozel_menu_aktif);
         $secenekler = Salonlar::santralOzelMenuNormalize($request->input('secenekler', []));
         if ($aktif && empty($secenekler)) {
-            return response()->json(['success'=>false,'mesaj'=>'Özel menüyü açmak için en az bir geçerli seçenek (tuş, işlem adı, kuyruk/dahili no) girin.'], 422);
+            return response()->json(['success'=>false,'mesaj'=>'Özel menüyü açmak için en az bir geçerli seçenek (tuş, işlem adı, kuyruk veya dahili no) girin.'], 422);
         }
         $salon = Salonlar::where('id',$request->sube)->first();
         $salon->santral_ozel_menu_aktif = $aktif;
@@ -30014,13 +30014,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             }
         }
 
-        // Ozel karsilama menusu hedef onerileri: operator kuyrugu + personel dahilileri (elle de girilebilir)
-        $santral_hedefler = [];
+        // Ozel karsilama menusu hedef onerileri (elle de girilebilir): kuyruk = operator kuyrugu, dahili = personel dahilileri
+        $santral_hedefler = ['kuyruk'=>[], 'dahili'=>[]];
         if (!empty($isletme->operator_kanali)) {
-            $santral_hedefler[] = ['no'=>$isletme->operator_kanali, 'ad'=>'Operatör kuyruğu'];
+            $santral_hedefler['kuyruk'][] = ['no'=>$isletme->operator_kanali, 'ad'=>'Operatör kuyruğu'];
         }
         foreach (Personeller::where('salon_id',$isletme->id)->whereNotNull('dahili_no')->where('dahili_no','!=','')->get(['personel_adi','dahili_no']) as $p) {
-            $santral_hedefler[] = ['no'=>$p->dahili_no, 'ad'=>$p->personel_adi.' (dahili)'];
+            $santral_hedefler['dahili'][] = ['no'=>$p->dahili_no, 'ad'=>$p->personel_adi];
         }
 
         return view('isletmeadmin.santral',['kullaniciRolu'=>$rol,'bildirimler'=>self::bildirimgetir($request),'paketler'=>$paketler,'sayfa_baslik'=>'Santral Sistemi & Aramalar','pageindex' => 43,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi, 'santral_raporlari'=>$santral_raporlari,
