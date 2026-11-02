@@ -17431,6 +17431,43 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             }
         }
 
+        // Musteri (Aktif/Sadik) sabit indirimi: Flutter musteri_indirimi = musteri% + harici
+        // gonderir, indirim_tutari = sadece harici. Eskiden musteri% kalemlere HIC yazilmiyordu;
+        // odeme indirimli gelince adisyon indirim kadar BORCLU kaliyordu. Sadece daha once
+        // indirim yazilmamis kalemlere (cift uygulama olmasin) fiyata oransal yazilir.
+        $_musteriIndirim = max(0,
+            (float) str_replace(['.',','],['','.'], (string)($request->musteri_indirimi ?? '0'))
+            - (float) str_replace(['.',','],['','.'], (string)($request->indirim_tutari ?? '0')));
+        if ($_musteriIndirim > 0) {
+            try {
+                $_mH = AdisyonHizmetler::whereIn('id', (array)($request->adisyon_hizmet_id ?? []))->whereNull('senet_id')->whereNull('taksitli_tahsilat_id')->get();
+                $_mU = AdisyonUrunler::whereIn('id', (array)($request->adisyon_urun_id ?? []))->whereNull('senet_id')->whereNull('taksitli_tahsilat_id')->get();
+                $_mP = AdisyonPaketler::whereIn('id', (array)($request->adisyon_paket_id ?? []))->whereNull('senet_id')->whereNull('taksitli_tahsilat_id')->get();
+                $_mToplamFiyat = (float)($_mH->sum('fiyat') + $_mU->sum('fiyat') + $_mP->sum('fiyat'));
+                if ($_mToplamFiyat > 0) {
+                    $_mKalemler = [
+                        [$_mH, TahsilatHizmetler::class, 'adisyon_hizmet_id'],
+                        [$_mU, TahsilatUrunler::class, 'adisyon_urun_id'],
+                        [$_mP, TahsilatPaketler::class, 'adisyon_paket_id'],
+                    ];
+                    foreach ($_mKalemler as [$_liste, $_tahsilatModel, $_fk]) {
+                        foreach ($_liste as $_k) {
+                            if ((float)($_k->indirim_tutari ?? 0) > 0) continue;
+                            $_onceki = (float) $_tahsilatModel::where($_fk, $_k->id)->sum('tutar');
+                            $_kalan = (float)$_k->fiyat - $_onceki;
+                            $_pay = round(((float)$_k->fiyat / $_mToplamFiyat) * $_musteriIndirim, 2);
+                            $_pay = max(0, min($_pay, $_kalan));
+                            if ($_pay <= 0) continue;
+                            $_k->indirim_tutari = $_pay;
+                            $_k->save();
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::error('musteri indirimi kaleme yazilamadi (mobil)', ['err' => $e->getMessage(), 'tahsilat_id' => $tahsilat->id]);
+            }
+        }
+
         // Harici indirim (request->indirim_tutari) > 0 ise kalemlere ORANSAL dagit
         // ve mevcut indirim_tutari uzerine EKLE. Kismi tahsilatta indirim, kalan borctan
         // fazla uygulanmaz — boylece adisyon yanlislikla 'tam kapali' gorunmez.
