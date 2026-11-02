@@ -84,6 +84,52 @@ class Salonlar extends Model
             return ['promo' => false, 'iletisim' => $iletisimTel];
         }
     }
+    // Santral ozel karsilama menusu: tus -> TTS'te okunus ("biri, ikiyi ..."). 0 = menuyu tekrar dinle (rezerve).
+    const SANTRAL_TUS_OKUNUS = [
+        '1' => 'biri', '2' => 'ikiyi', '3' => 'üçü', '4' => 'dördü', '5' => 'beşi',
+        '6' => 'altıyı', '7' => 'yediyi', '8' => 'sekizi', '9' => 'dokuzu',
+    ];
+
+    /**
+     * Ham secenek listesini temizler: gecerli tus (1-9, tekil), bos olmayan etiket,
+     * yalniz rakam hedef (kuyruk/dahili no). Tusa gore sirali doner.
+     */
+    public static function santralOzelMenuNormalize($ham)
+    {
+        $temiz = [];
+        foreach ((array) $ham as $satir) {
+            $tus = trim((string) ($satir['tus'] ?? ''));
+            $etiket = trim(preg_replace('/\s+/u', ' ', strip_tags((string) ($satir['etiket'] ?? ''))));
+            $hedef = preg_replace('/\D/', '', (string) ($satir['hedef'] ?? ''));
+            if (!isset(self::SANTRAL_TUS_OKUNUS[$tus]) || isset($temiz[$tus]) || $etiket === '' || strlen($hedef) < 2 || strlen($hedef) > 10) {
+                continue;
+            }
+            $temiz[$tus] = ['tus' => $tus, 'etiket' => mb_substr($etiket, 0, 60), 'hedef' => $hedef];
+        }
+        ksort($temiz);
+        return array_values($temiz);
+    }
+
+    // Aktif degilse bos dizi; santral bu durumda standart akisa duser.
+    public function santralOzelMenuSecenekleri()
+    {
+        if (!$this->santral_ozel_menu_aktif) {
+            return [];
+        }
+        return self::santralOzelMenuNormalize(json_decode((string) $this->santral_ozel_menu, true));
+    }
+
+    public static function santralOzelMenuMetni(array $secenekler)
+    {
+        if (empty($secenekler)) {
+            return '';
+        }
+        $parcalar = array_map(function ($s) {
+            return $s['etiket'] . ' için ' . self::SANTRAL_TUS_OKUNUS[$s['tus']];
+        }, $secenekler);
+        return implode(', ', $parcalar) . ' tuşlayınız. Menüyü tekrar dinlemek için sıfırı tuşlayınız. Operatöre bağlanmak için lütfen bekleyiniz.';
+    }
+
     //protected $with =  ['il', 'ilce', 'salon_turu','calisma_saatleri','mola_saatleri'];
     public function personeller()
     {

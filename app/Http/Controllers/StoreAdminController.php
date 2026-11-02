@@ -24749,6 +24749,34 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
              'personel'=>isset($request->santralayar_1_personel)?1:0]);
         return 'Santral ayarları başarıyla kaydedildi';
     }
+    // Santral ozel karsilama menusu (tus -> kuyruk/dahili). Santral bunu santralkarsilamametni API'sinden okur.
+    public function santral_ozel_menu_kaydet(Request $request)
+    {
+        $yetkili = Auth::guard('isletmeyonetim')->user();
+        $isletmeler = $yetkili ? $yetkili->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray() : [];
+        if (!in_array($request->sube, $isletmeler) || self::kullaniciRolu($request->sube, $yetkili->id) >= 5) {
+            return response()->json(['success'=>false,'mesaj'=>'Bu ayarı değiştirme yetkiniz yok.'], 403);
+        }
+        $aktif = isset($request->santral_ozel_menu_aktif);
+        $secenekler = Salonlar::santralOzelMenuNormalize($request->input('secenekler', []));
+        if ($aktif && empty($secenekler)) {
+            return response()->json(['success'=>false,'mesaj'=>'Özel menüyü açmak için en az bir geçerli seçenek (tuş, işlem adı, kuyruk/dahili no) girin.'], 422);
+        }
+        $salon = Salonlar::where('id',$request->sube)->first();
+        $salon->santral_ozel_menu_aktif = $aktif;
+        $salon->santral_ozel_menu = json_encode($secenekler, JSON_UNESCAPED_UNICODE);
+        $salon->save();
+        SalonAudit::log($request->sube, 'santral_ozel_menu_kaydet', 'santral_ayar', null,
+            'Santral özel karşılama menüsü',
+            'Santral özel karşılama menüsü '.($aktif ? 'açıldı / güncellendi' : 'kapatıldı'),
+            ['aktif'=>$aktif ? 1 : 0, 'secenekler'=>$secenekler]);
+        return response()->json([
+            'success'=>true,
+            'mesaj'=>'Özel karşılama menüsü kaydedildi.',
+            'secenekler'=>$secenekler,
+            'metin'=>Salonlar::santralOzelMenuMetni($secenekler),
+        ]);
+    }
     public function sms_ayar_kaydet(Request $request)
     {
         // ayar_id=1 (yaklaşan randevu hatırlatma) — müşteri SMS'i seçili ise WhatsApp da aynı durumda kaydedilir
@@ -29986,10 +30014,19 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             }
         }
 
+        // Ozel karsilama menusu hedef onerileri: operator kuyrugu + personel dahilileri (elle de girilebilir)
+        $santral_hedefler = [];
+        if (!empty($isletme->operator_kanali)) {
+            $santral_hedefler[] = ['no'=>$isletme->operator_kanali, 'ad'=>'Operatör kuyruğu'];
+        }
+        foreach (Personeller::where('salon_id',$isletme->id)->whereNotNull('dahili_no')->where('dahili_no','!=','')->get(['personel_adi','dahili_no']) as $p) {
+            $santral_hedefler[] = ['no'=>$p->dahili_no, 'ad'=>$p->personel_adi.' (dahili)'];
+        }
+
         return view('isletmeadmin.santral',['kullaniciRolu'=>$rol,'bildirimler'=>self::bildirimgetir($request),'paketler'=>$paketler,'sayfa_baslik'=>'Santral Sistemi & Aramalar','pageindex' => 43,'isletme'=>$isletme,'kalan_uyelik_suresi'=>$kalan_uyelik_suresi, 'santral_raporlari'=>$santral_raporlari,
             'santral_ayarlari' => $santral_ayarlari,'urun_drop'=>self::urundropliste($request),'hizmet_drop'=>self::hizmetdropliste($request),
             'personel_drop'=>self::personeldropliste($request,array()),'yetkiliolunanisletmeler'=>$isletmeler,
-            'dakika'=>$dakika
+            'dakika'=>$dakika,'santral_hedefler'=>$santral_hedefler
     ]);
     }
     public function cdr_rapor_filtre(Request $request)

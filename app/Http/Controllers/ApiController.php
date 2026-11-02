@@ -26718,6 +26718,16 @@ return date('Y')."-$ayNumara-$gun";
             } else {
                 $anaMenu = '';
             }
+            // Isletmeye ozel karsilama menusu aktifse standart menunun yerine gecer:
+            // santral ozel_menu (tus => kuyruk/dahili) ile ozel-karsilama-menu context'ine gider.
+            $ozelSecenekler = $isletme->santralOzelMenuSecenekleri();
+            $ozelMenu = [];
+            foreach ($ozelSecenekler as $secenek) {
+                $ozelMenu[$secenek['tus']] = $secenek['hedef'];
+            }
+            if (!empty($ozelMenu)) {
+                $anaMenu = Salonlar::santralOzelMenuMetni($ozelSecenekler);
+            }
             Log::info('dönen json '. response()->json([
 
                 'success' => true,
@@ -26737,6 +26747,7 @@ return date('Y')."-$ayNumara-$gun";
                 'personelSecimiVar'=>$isletme->randevu_personel_secimi_olsun,
                 'paket'=>$randevuOlusturulmamisPaketAdisyonuVarmi,
                 'enYakinRandevu'=>$enYakinRandevuArr,
+                'ozel_menu'=>$ozelMenu,
 
 
                 //'karsilama_metni'=> $musterihitap.Salonlar::where('id',$salonid)->value('salon_adi').' çağrı merkezine hoşgeldiniz. Size nasıl yardımcı olabilirim?'
@@ -26761,6 +26772,7 @@ return date('Y')."-$ayNumara-$gun";
                 'personelSecimiVar'=>$isletme->randevu_personel_secimi_olsun,
                 'paket'=>$randevuOlusturulmamisPaketAdisyonuVarmi,
                 'enYakinRandevu'=>$enYakinRandevuArr,
+                'ozel_menu'=>$ozelMenu,
 
 
                 //'karsilama_metni'=> $musterihitap.Salonlar::where('id',$salonid)->value('salon_adi').' çağrı merkezine hoşgeldiniz. Size nasıl yardımcı olabilirim?'

@@ -14692,6 +14692,51 @@ $('#santral_ayarlari').on('submit',function(e){
                     }
     });
 });
+// Santral ozel karsilama menusu: satir ekle/sil + kaydet (name index'leri her degisiklikte yeniden siralanir)
+function santralOzelMenuSiraNo(){
+    $('#santral_ozel_menu_satirlar .santral-ozel-menu-satir').each(function(i){
+        $(this).find('select, input').each(function(){
+            this.name = this.name.replace(/secenekler\[\d+\]/, 'secenekler['+i+']');
+        });
+    });
+}
+$('#santral_ozel_menu_ekle').on('click',function(){
+    var satirlar = $('#santral_ozel_menu_satirlar .santral-ozel-menu-satir');
+    if (satirlar.length >= 9) return;
+    var yeni = satirlar.first().clone();
+    var kullanilan = satirlar.find('select').map(function(){ return this.value; }).get();
+    yeni.find('input').val('');
+    var bosTus = yeni.find('select option').filter(function(){ return kullanilan.indexOf(this.value) === -1; }).first().val();
+    yeni.find('select').val(bosTus || '1');
+    $('#santral_ozel_menu_satirlar').append(yeni);
+    santralOzelMenuSiraNo();
+});
+$(document).on('click','.santral-ozel-menu-sil',function(){
+    var satirlar = $('#santral_ozel_menu_satirlar .santral-ozel-menu-satir');
+    if (satirlar.length > 1) $(this).closest('.santral-ozel-menu-satir').remove();
+    else satirlar.find('input').val('');
+    santralOzelMenuSiraNo();
+});
+$('#santral_ozel_menu_form').on('submit',function(e){
+    e.preventDefault();
+    $.ajax({
+        type: "POST",
+        url: '/isletmeyonetim/santral-ozel-menu-kaydet',
+        dataType: "json",
+        data : $(this).serialize(),
+        beforeSend: function() { $("#preloader").show(); },
+        success: function(result) {
+            $("#preloader").hide();
+            $('#santral_ozel_menu_metin').text(result.metin || 'Henüz kayıtlı seçenek yok.');
+            swal({ type: "success", title: result.mesaj, showConfirmButton:false, timer:3000 });
+        },
+        error: function (request) {
+            $("#preloader").hide();
+            var mesaj = (request.responseJSON && request.responseJSON.mesaj) ? request.responseJSON.mesaj : 'Kaydedilemedi.';
+            swal({ type: "warning", title: mesaj });
+        }
+    });
+});
 $('input[name="musteri_telefon"]').change(function(){
     $.ajax({
                     type: "GET",

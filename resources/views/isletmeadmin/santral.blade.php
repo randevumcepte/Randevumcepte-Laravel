@@ -396,8 +396,59 @@
                                        </div>
                                     </div>
                                  </form>
-                                
-                              
+
+                                 @php $ozelSecenekler = \App\Salonlar::santralOzelMenuNormalize(json_decode((string) $isletme->santral_ozel_menu, true)); @endphp
+                                 <form id="santral_ozel_menu_form" method="POST">
+                                    {{csrf_field()}}
+                                    <input type="hidden" name="sube" value="{{$isletme->id}}">
+                                    <div class="pd-20 card-box mb-30">
+                                       <h6>Özel Karşılama Menüsü</h6>
+                                       <p>Açık olduğunda işletmenize gelen çağrılar karşılamadan sonra aşağıdaki tuşlu menüyü dinler. Her tuş seçtiğiniz kuyruğa veya dahiliye bağlanır. Arayan tuşlama yapmazsa çağrı standart akışla operatöre aktarılır; 0 tuşu menüyü tekrarlar.</p>
+                                       <div class="custom-control custom-checkbox mb-15">
+                                          <input type="checkbox" class="custom-control-input" {{$isletme->santral_ozel_menu_aktif ? 'checked' : ''}} name="santral_ozel_menu_aktif" id="santral_ozel_menu_aktif">
+                                          <label class="custom-control-label" for="santral_ozel_menu_aktif">Açık / Kapalı</label>
+                                       </div>
+                                       <div class="row d-none d-md-flex font-14 weight-500 mb-5">
+                                          <div class="col-md-2">Tuş</div>
+                                          <div class="col-md-5">İşlem adı (anonsta okunur)</div>
+                                          <div class="col-md-4">Kuyruk / Dahili No</div>
+                                       </div>
+                                       <div id="santral_ozel_menu_satirlar">
+                                          @foreach(count($ozelSecenekler) ? $ozelSecenekler : [['tus'=>'1','etiket'=>'','hedef'=>'']] as $secenek)
+                                          <div class="row santral-ozel-menu-satir mb-10">
+                                             <div class="col-md-2 col-4 mb-5">
+                                                <select class="form-control" name="secenekler[{{$loop->index}}][tus]">
+                                                   @foreach(\App\Salonlar::SANTRAL_TUS_OKUNUS as $tus => $okunus)
+                                                   <option value="{{$tus}}" {{$secenek['tus'] == $tus ? 'selected' : ''}}>{{$tus}}</option>
+                                                   @endforeach
+                                                </select>
+                                             </div>
+                                             <div class="col-md-5 col-8 mb-5">
+                                                <input type="text" class="form-control" maxlength="60" name="secenekler[{{$loop->index}}][etiket]" value="{{$secenek['etiket']}}" placeholder="Örn: Randevu işlemleri">
+                                             </div>
+                                             <div class="col-md-4 col-9 mb-5">
+                                                <input type="text" class="form-control" inputmode="numeric" list="santral_ozel_menu_hedefler" name="secenekler[{{$loop->index}}][hedef]" value="{{$secenek['hedef']}}" placeholder="Örn: 10013">
+                                             </div>
+                                             <div class="col-md-1 col-3 mb-5">
+                                                <button type="button" class="btn btn-outline-danger btn-block santral-ozel-menu-sil" title="Seçeneği sil"><i class="fa fa-trash"></i></button>
+                                             </div>
+                                          </div>
+                                          @endforeach
+                                       </div>
+                                       <datalist id="santral_ozel_menu_hedefler">
+                                          @foreach($santral_hedefler as $hedef)
+                                          <option value="{{$hedef['no']}}">{{$hedef['ad']}}</option>
+                                          @endforeach
+                                       </datalist>
+                                       <button type="button" class="btn btn-outline-primary btn-sm" id="santral_ozel_menu_ekle"><i class="fa fa-plus"></i> Seçenek Ekle</button>
+                                       <div class="mt-15 p-2" style="background:#f7f7f9;border-radius:4px">
+                                          <div class="font-14 weight-500">Okunacak anons</div>
+                                          <div id="santral_ozel_menu_metin" class="font-14">{{ \App\Salonlar::santralOzelMenuMetni($ozelSecenekler) ?: 'Henüz kayıtlı seçenek yok.' }}</div>
+                                       </div>
+                                       <button type="submit" class="btn btn-success mt-15">Menüyü Kaydet</button>
+                                    </div>
+                                 </form>
+
                               </div>
                               
                                
