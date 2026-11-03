@@ -257,6 +257,14 @@ class V2BildirimIsle extends Command
             case 'seans_kullanim':
                 app(\App\Services\SeansBildirimService::class)->bilgilendir($randevu);
                 break;
+            case 'ongorusme_kayit':
+                // v2 On Gorusme ekle/duzenle: musteri SMS + personel SMS/bildirim/push (ayar_id=12).
+                $og = \App\OnGorusmeler::find((int) ($payload['on_gorusme_id'] ?? $randevu->on_gorusme_id));
+                if (!$og) {
+                    throw new \RuntimeException('On gorusme bulunamadi: ' . ($payload['on_gorusme_id'] ?? '-'));
+                }
+                \App\Services\OnGorusmeBildirimServisi::kayitBildirimi($og, $randevu, $kayit->yetkili_id);
+                break;
             default:
                 throw new \RuntimeException('Bilinmeyen tur: ' . $kayit->tur);
         }
