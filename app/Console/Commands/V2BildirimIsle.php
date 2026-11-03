@@ -34,6 +34,10 @@ use Illuminate\Support\Facades\Schema;
  *   kara_liste_bildirim → MusteriBildirimServisi::karaListeBildirimi (payload: user_id)
  *   form_link      → ApiController::_formLinkGonder (payload: mesajlar[{to,message}], user_id,
  *                    sms_bildirim) — v2 Form Yonetimi form/sozlesme linki; WA bagliysa WA, yoksa SMS
+ *   bildirim_reklam_push → BildirimReklamGonderJob (payload: reklam_id, user_ids) — v2 Bildirim Reklamlari
+ *                    "Push Gonder"; alicilar v2'de cozulur. sync degilse 'hatirlatmalar' kuyruguna (job tries=1)
+ *   cark_duyuru    → CarkDuyuruGonderJob → CarkDuyuruServisi::gonder (payload: baslik, mesaj) — v2 Carkifelek
+ *                    "Musterilere Duyur"; cok alicili → sync degilse 'hatirlatmalar' kuyruguna (tries=1)
  *   whatsapp_mesaj → WhatsAppService::sendReminder (payload: user_id, mesaj, gonderim_tipi) — v2 Cagri Merkezi manuel WA
  *   anket_gonder   → StoreAdminController::varsayilanAnketSablonuGetirYaOlustur + anketGonderimOlustur +
  *                    anketSmsGonder (payload: user_id, personel_id, kanal) — v2 Cagri Merkezi anket
@@ -181,6 +185,39 @@ class V2BildirimIsle extends Command
                 'personel_id' => $payload['personel_id'] ?? null,
             ]);
             StoreAdminController::anketSmsGonder(new Request(), $gonderim, $sablon, $musteri);
+
+            return;
+        }
+
+        // Bildirim reklami push (v2 "Push Gonder"): mevcut BildirimReklamGonderJob ile AYNI gonderim.
+        // Binlerce aliciyi bu dongude gondermek outbox'u dakikalarca kilitler ve 5 dk 'isleniyor'
+        // geri alimi MUKERRER push dogurur → sync degilse kuyruga atilir (job tries=1, retry yok).
+        // Burada istisna yalniz job olusturma/dispatch oncesi olur → yeniden deneme guvenli.
+        if ($kayit->tur === 'bildirim_reklam_push') {
+            $reklamId = (int) ($payload['reklam_id'] ?? 0);
+            if ($reklamId <= 0 || !\App\BildirimReklamlari::where('id', $reklamId)->exists()) {
+                Log::warning('[v2:bildirim-isle] bildirim_reklam_push: reklam yok', ['id' => $kayit->id, 'reklam_id' => $reklamId]);
+                return;
+            }
+            $job = new \App\Jobs\BildirimReklamGonderJob($reklamId, (array) ($payload['user_ids'] ?? []));
+            if (config('queue.default') === 'sync') {
+                $job->handle();
+            } else {
+                dispatch($job);
+            }
+
+            return;
+        }
+
+        // Carkifelek duyurusu (v2 "Musterilere Duyur"): v1 carkBildirimGonder ile AYNI servis. Cok alicili
+        // dongu outbox'u kilitlemesin / 5 dk geri alimda mukerrer push olmasin diye job'a verilir.
+        if ($kayit->tur === 'cark_duyuru') {
+            $job = new \App\Jobs\CarkDuyuruGonderJob((int) $kayit->salon_id, (string) ($payload['baslik'] ?? ''), (string) ($payload['mesaj'] ?? ''));
+            if (config('queue.default') === 'sync') {
+                $job->handle();
+            } else {
+                dispatch($job);
+            }
 
             return;
         }

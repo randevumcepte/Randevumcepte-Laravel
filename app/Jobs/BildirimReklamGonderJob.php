@@ -38,9 +38,17 @@ class BildirimReklamGonderJob implements ShouldQueue
 
     protected $reklamId;
 
-    public function __construct($reklamId)
+    /**
+     * Hazir alici listesi (v2 outbox 'bildirim_reklam_push'): v2 hedef kitleyi kendisi cozer
+     * ve kullaniciya gosterdigi sayiyla AYNI listeye gonderilir. null = burada coz (eski panel).
+     * @var int[]|null
+     */
+    protected $userIds;
+
+    public function __construct($reklamId, ?array $userIds = null)
     {
         $this->reklamId = $reklamId;
+        $this->userIds = $userIds !== null ? array_values(array_unique(array_map('intval', $userIds))) : null;
         $this->onQueue('hatirlatmalar');
     }
 
@@ -54,7 +62,7 @@ class BildirimReklamGonderJob implements ShouldQueue
         // SADECE push alabilecek (aktif FCM token'i olan) kullanicilar.
         // Portfoydeki 5000 kisinin tamamini dolasmak yerine once suzuyoruz;
         // aksi halde her kisi icin bosuna 3-4 sorgu + log kaydi atiliyordu.
-        $userIds = self::alicilar($reklam);
+        $userIds = $this->userIds !== null ? $this->userIds : self::alicilar($reklam);
         if (empty($userIds)) {
             Log::info('[REKLAM-PUSH] hedef bos', ['reklam_id' => $this->reklamId]);
             return 0;
