@@ -243,6 +243,18 @@ class V2BildirimIsle extends Command
             return;
         }
 
+        // Reklam Yonetimi (v2): yeni kampanya → personele "reklam olusturuldu" push'u (eski web
+        // kampanyaekleduzenle ile AYNI metod). Randevuya bagli degil (payload.kampanya_id).
+        if ($kayit->tur === 'kampanya_olustur') {
+            $kampanya = \App\KampanyaYonetimi::find((int) ($payload['kampanya_id'] ?? 0));
+            if (!$kampanya) {
+                throw new \RuntimeException('kampanya_olustur: kampanya yok: ' . ($payload['kampanya_id'] ?? '-'));
+            }
+            \App\KampanyaYonetimi::olusturmaBildirimiGonder($kampanya);
+
+            return;
+        }
+
         // Duz SMS (v2 Kasa: para ekle/cek bildirimi, onay kodlari). Metin v2'de hazirlanir;
         // burada yalnizca mevcut gonderim (dogrulama=true → iletim raporuna yazilmaz).
         if ($kayit->tur === 'sms') {

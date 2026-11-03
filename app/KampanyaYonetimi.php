@@ -77,4 +77,51 @@ class KampanyaYonetimi extends Model
             return mb_substr($w, 0, 1, 'UTF-8') . mb_substr($kucuk, 1, null, 'UTF-8');
         }, (string) $s);
     }
+
+    /**
+     * "Yeni reklam kampanyasi olusturuldu" push'u — salonun personel cihazlarina (web panel +
+     * v2 outbox 'kampanya_olustur' AYNI kod). Kayit akisinin kritik parcasi degil: hata loglanir.
+     */
+    public static function olusturmaBildirimiGonder(self $kampanya)
+    {
+        try {
+            $controller = app(\App\Http\Controllers\BildirimController::class);
+            $personeller = Personeller::where('salon_id', $kampanya->salon_id)->pluck('id')->toArray();
+            $bildirimKimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id', $personeller)->whereNotNull('bildirim_id')
+                ->where('salon_id', $kampanya->salon_id)->get();
+
+            foreach ($bildirimKimlikleri as $token) {
+                $data = [
+                    'category' => 'reklam',
+                    'buttons' => json_encode([]),
+                    'userInfo' => '',
+                    'salonId' => $kampanya->salon_id,
+                    'bildirimlereGitYonetici' => "1",
+                    'kullaniciRolu' => Personeller::where('id', $token->isletme_yetkili_id)->value('role_id'),
+                    'type' => '',
+                ];
+                $controller->bildirimGonder(
+                    'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
+                    $token->bildirim_id,
+                    "Yeni Reklam Kampanyası Oluşturma",
+                    "Sisteme ".$kampanya->paket_isim." ile ilgili reklam kaydını başarıyla olşturdunuz.",
+                    $data,
+                    $kampanya->salon_id,
+                    null,
+                    '/public/yeni_panel/vendors/images/eczane24-icon.jpg',
+                    'kampanya',
+                    null,
+                    null,
+                    null,
+                    null,
+                    $token->isletme_yetkili_id,
+                    $kampanya->id
+                );
+            }
+        } catch (\Throwable $e) {
+            \Log::error('[KAMPANYA-KAYDET-HATA] push bildirim basarisiz (kayit korundu)', [
+                'kampanya_id' => $kampanya->id, 'hata' => $e->getMessage(),
+            ]);
+        }
+    }
 }

@@ -23715,48 +23715,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 ], 500);
             }
         }
-        // Push bildirimi kaydin kritik parcasi DEGIL; patlarsa kampanya/katilimci kaydini bozma, sadece logla.
-        // SADECE yeni kampanyada gonder (duzenlemede "yeni reklam olusturuldu" bildirimi yaniltici).
+        // Push bildirimi kaydin kritik parcasi DEGIL (hata loglanir, kayit korunur). SADECE yeni
+        // kampanyada (duzenlemede "yeni reklam olusturuldu" yaniltici). v2 outbox da ayni metodu cagirir.
         if($_yeniKampanya)
-        try {
-            $controller = app(\App\Http\Controllers\BildirimController::class);
-            $personeller = Personeller::where('salon_id',$kampanya_yonetimi->salon_id)->pluck('id')->toArray();
-            $bildirimKimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$personeller)->whereNotNull('bildirim_id')->where('salon_id',$kampanya_yonetimi->salon_id)->get();
-
-            foreach($bildirimKimlikleri  as $token)
-            {
-                 $data = [
-                        'category' => 'reklam',
-                        'buttons' => json_encode([  ]),
-                        'userInfo'=>'',
-                        'salonId'=>$kampanya_yonetimi->salon_id,
-                        'bildirimlereGitYonetici'=>"1",
-                        'kullaniciRolu'=>Personeller::where('id',$token->isletme_yetkili_id)->value('role_id'),
-                        'type'=>'',
-                ];
-                $controller->bildirimGonder(
-                        'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
-                        $token->bildirim_id,
-                        "Yeni Reklam Kampanyası Oluşturma",
-                        "Sisteme ".$kampanya_yonetimi->paket_isim." ile ilgili reklam kaydını başarıyla olşturdunuz.",
-                        $data,
-                         $kampanya_yonetimi->salon_id,
-                        null,
-                        '/public/yeni_panel/vendors/images/eczane24-icon.jpg',
-                        'kampanya',
-                        null,
-                        null,
-                        null,
-                        null,
-                        $token->isletme_yetkili_id,
-                        $kampanya_yonetimi->id,
-                );
-            }
-        } catch (\Throwable $e) {
-            \Log::error('[KAMPANYA-KAYDET-HATA] push bildirim basarisiz (kayit korundu)', [
-                'kampanya_id' => $kampanya_yonetimi->id, 'hata' => $e->getMessage(),
-            ]);
-        }
+            KampanyaYonetimi::olusturmaBildirimiGonder($kampanya_yonetimi);
 
 
         // Audit
