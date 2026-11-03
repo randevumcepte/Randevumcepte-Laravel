@@ -36,8 +36,6 @@ use Illuminate\Support\Facades\Schema;
  *                    sms_bildirim) — v2 Form Yonetimi form/sozlesme linki; WA bagliysa WA, yoksa SMS
  *   bildirim_reklam_push → BildirimReklamGonderJob (payload: reklam_id, user_ids) — v2 Bildirim Reklamlari
  *                    "Push Gonder"; alicilar v2'de cozulur. sync degilse 'hatirlatmalar' kuyruguna (job tries=1)
- *   cark_duyuru    → CarkDuyuruGonderJob → CarkDuyuruServisi::gonder (payload: baslik, mesaj) — v2 Carkifelek
- *                    "Musterilere Duyur"; cok alicili → sync degilse 'hatirlatmalar' kuyruguna (tries=1)
  *   whatsapp_mesaj → WhatsAppService::sendReminder (payload: user_id, mesaj, gonderim_tipi) — v2 Cagri Merkezi manuel WA
  *   anket_gonder   → StoreAdminController::varsayilanAnketSablonuGetirYaOlustur + anketGonderimOlustur +
  *                    anketSmsGonder (payload: user_id, personel_id, kanal) — v2 Cagri Merkezi anket
@@ -200,19 +198,6 @@ class V2BildirimIsle extends Command
                 return;
             }
             $job = new \App\Jobs\BildirimReklamGonderJob($reklamId, (array) ($payload['user_ids'] ?? []));
-            if (config('queue.default') === 'sync') {
-                $job->handle();
-            } else {
-                dispatch($job);
-            }
-
-            return;
-        }
-
-        // Carkifelek duyurusu (v2 "Musterilere Duyur"): v1 carkBildirimGonder ile AYNI servis. Cok alicili
-        // dongu outbox'u kilitlemesin / 5 dk geri alimda mukerrer push olmasin diye job'a verilir.
-        if ($kayit->tur === 'cark_duyuru') {
-            $job = new \App\Jobs\CarkDuyuruGonderJob((int) $kayit->salon_id, (string) ($payload['baslik'] ?? ''), (string) ($payload['mesaj'] ?? ''));
             if (config('queue.default') === 'sync') {
                 $job->handle();
             } else {
