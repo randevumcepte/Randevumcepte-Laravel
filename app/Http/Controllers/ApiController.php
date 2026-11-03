@@ -31688,107 +31688,19 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
      */
     public function carkBildirimGonder(Request $request, $salonId)
     {
+        // Gonderim mantigi tek kaynakta (v2 'cark_duyuru' outbox'i da ayni servisi kullanir).
         try {
-            $salon = Salonlar::find($salonId);
-            if (!$salon) {
-                return response()->json(['basarili' => false, 'mesaj' => 'Salon bulunamadi'], 404);
+            $s = \App\Services\CarkDuyuruServisi::gonder($salonId, $request->input('baslik', ''), $request->input('mesaj', ''));
+            if (!$s['basarili']) {
+                return response()->json(['basarili' => false, 'mesaj' => $s['mesaj']], $s['kod']);
             }
-
-            $cark = CarkifelekSistemi::where('salon_id', $salonId)->first();
-            if (!$cark || !$cark->aktifmi) {
-                return response()->json(['basarili' => false, 'mesaj' => 'Cark sistemi aktif degil'], 422);
-            }
-
-            $baslik = trim((string) $request->input('baslik', ''));
-            $mesaj  = trim((string) $request->input('mesaj', ''));
-            if ($baslik === '') {
-                $baslik = '🎡 ' . $salon->salon_adi;
-            } elseif (mb_substr($baslik, 0, 1) !== '🎡') {
-                // Kullanıcı kendi başlığını yazdı ama ikon yok — başına ekleyelim
-                $baslik = '🎡 ' . $baslik;
-            }
-            if ($mesaj === '')  $mesaj  = 'Çark-ı Felek\'i çevir, sürpriz ödülü kap! Bugün şansını dene 🎁';
-
-            // Çoklu şube: çark bir grup (gecerli_salonlar) için tanımlıysa duyuru o
-            // gruptaki TÜM şubelerin randevulu müşterilerine gider (tekilleştirilmiş).
-            // Grup yoksa yalnız bu şube (tek şubeli işletme davranışı değişmez).
-            $grup = \App\Personeller::salonIdListesiCoz($cark->gecerli_salonlar ?? null);
-            if (empty($grup)) $grup = [(int) $salonId];
-
-            // Bu grubun müşterileri (randevu sahibi olanlar)
-            $musteriIdleri = Randevular::whereIn('salon_id', $grup)
-                ->whereNotNull('user_id')
-                ->pluck('user_id')
-                ->unique()
-                ->filter()
-                ->values();
-
-            if ($musteriIdleri->isEmpty()) {
-                return response()->json([
-                    'basarili' => true,
-                    'gonderildi' => 0,
-                    'hedef' => 0,
-                    'mesaj' => 'Bu salonda randevulu musteri bulunmuyor',
-                ]);
-            }
-
-            // Bu müşteriler içinde uygulaması yüklü (aktif token sahibi) olanlar
-            $uygulamasiOlanIdleri = BildirimKimlikleri::whereIn('user_id', $musteriIdleri)
-                ->where('aktif', true)
-                ->whereNotNull('bildirim_id')
-                ->where('bildirim_id', '!=', '')
-                ->pluck('user_id')
-                ->unique()
-                ->values();
-
-            if ($uygulamasiOlanIdleri->isEmpty()) {
-                return response()->json([
-                    'basarili' => true,
-                    'gonderildi' => 0,
-                    'hedef' => 0,
-                    'mesaj' => 'Uygulamasi yuklu musteri yok',
-                ]);
-            }
-
-            $toplamSent = 0;
-            $toplamFailed = 0;
-            foreach ($uygulamasiOlanIdleri as $userId) {
-                $user = User::find($userId);
-                if (!$user) continue;
-
-                // Mesajdaki {ad} ve {salon_adi} placeholder'ları
-                $kisiselMesaj = strtr($mesaj, [
-                    '{ad}'        => explode(' ', (string) $user->name)[0] ?? '',
-                    '{salon_adi}' => (string) $salon->salon_adi,
-                ]);
-                $kisiselBaslik = strtr($baslik, [
-                    '{ad}'        => explode(' ', (string) $user->name)[0] ?? '',
-                    '{salon_adi}' => (string) $salon->salon_adi,
-                ]);
-
-                try {
-                    $sonuc = NotificationService::toCustomer((int) $userId, (int) $salon->id)
-                        ->type(NotificationTypes::WHEEL_CHANCE)
-                        ->title($kisiselBaslik)
-                        ->body($kisiselMesaj)
-                        ->popup(true)
-                        ->deepLink('wheel', ['salon_id' => $salon->id])
-                        ->extra(['kaynak' => 'admin_duyuru'])
-                        ->send();
-                    $toplamSent   += (int) ($sonuc['sent']   ?? 0);
-                    $toplamFailed += (int) ($sonuc['failed'] ?? 0);
-                } catch (\Throwable $e) {
-                    Log::warning("Cark duyuru push hatasi user={$userId}: " . $e->getMessage());
-                    $toplamFailed++;
-                }
-            }
-
-            return response()->json([
+            return response()->json(array_filter([
                 'basarili'   => true,
-                'gonderildi' => $toplamSent,
-                'hata'       => $toplamFailed,
-                'hedef'      => $uygulamasiOlanIdleri->count(),
-            ]);
+                'gonderildi' => $s['gonderildi'],
+                'hata'       => $s['hata'],
+                'hedef'      => $s['hedef'],
+                'mesaj'      => $s['mesaj'],
+            ], function ($v) { return $v !== null; }));
         } catch (\Exception $e) {
             Log::error('API carkBildirimGonder: ' . $e->getMessage());
             return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()], 500);
