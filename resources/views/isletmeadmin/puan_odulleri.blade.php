@@ -86,6 +86,19 @@
 .pm-vaz { background:#f3f4f6; color:#374151; }
 .pm-vaz:hover { background:#e5e7eb; }
 
+.pk-kart { background:#fff; border-radius:14px; padding:18px 20px; margin-bottom:22px; border:1px solid #e5e7eb; box-shadow:0 4px 14px rgba(0,0,0,.06); }
+.pk-bas { display:flex; align-items:center; gap:12px; margin-bottom:6px; }
+.pk-bas h3 { margin:0; font-size:16px; font-weight:800; color:#111827; flex:1; }
+.pk-bas label { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#374151; cursor:pointer; margin:0; }
+.pk-ack { font-size:13px; color:#6b7280; margin:0 0 14px; }
+.pk-satir { display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:14px; color:#374151; margin-bottom:10px; }
+.pk-satir input { width:110px; padding:8px 10px; border:2px solid #e5e7eb; border-radius:8px; font-size:14px; }
+.pk-satir input:focus { outline:none; border-color:#3b82f6; }
+.pk-ornek { font-size:12px; color:#065f46; background:#ecfdf5; border-radius:8px; padding:8px 12px; margin:4px 0 12px; }
+.pk-alt { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.pk-alt small { color:#9ca3af; }
+.pk-kapali .pk-satir, .pk-kapali .pk-ornek { opacity:.5; }
+
 #toast { position:fixed; top:20px; right:20px; z-index:11000; padding:14px 20px; background:#10b981; color:#fff; border-radius:10px; font-weight:600; box-shadow:0 10px 30px rgba(0,0,0,.2); display:none; }
 #toast.show { display:block; }
 #toast.err { background:#ef4444; }
@@ -96,6 +109,30 @@
     <div class="po-hero">
         <h1>🎖️ Puan Ödülleri Merdiveni</h1>
         <p>Müşterileriniz puan biriktirir, belirli eşiklere ulaştığında buradaki ödülleri talep eder. Talep edilen ödül kupon olarak oluşur — "Çark Kazananlar" sayfasındaki doğrulama kutusuyla onaylayabilirsiniz.</p>
+    </div>
+
+    <div class="pk-kart {{ $sadakatAyar['aktif'] ? '' : 'pk-kapali' }}" id="pk-kart">
+        <div class="pk-bas">
+            <h3>⭐ Puan Kazanma Kuralı</h3>
+            <label><input type="checkbox" id="pk-aktif" {{ $sadakatAyar['aktif'] ? 'checked' : '' }} onchange="pkGuncelle()"> Açık</label>
+        </div>
+        <p class="pk-ack">Müşteriler ödeme yaptıkça ve randevusuna geldikçe otomatik puan kazanır; biriken puanla aşağıdaki ödülleri alır. Puanlar birkaç dakika içinde hesaba geçer, silinen tahsilatın puanı geri alınır.</p>
+        <div class="pk-satir">
+            Her <input type="number" id="pk-tutar" min="1" step="1" value="{{ (int) $sadakatAyar['harcama_tutari'] }}" oninput="pkGuncelle()"> TL ödemeye
+            <input type="number" id="pk-puan" min="0" step="1" value="{{ $sadakatAyar['harcama_puani'] }}" oninput="pkGuncelle()"> puan
+        </div>
+        <div class="pk-satir">
+            Gelinen her randevuya <input type="number" id="pk-ziyaret" min="0" step="1" value="{{ $sadakatAyar['ziyaret_puani'] }}" oninput="pkGuncelle()"> puan
+        </div>
+        <div class="pk-ornek" id="pk-ornek"></div>
+        <div class="pk-alt">
+            <button class="btn-ekle" id="pk-kaydet" onclick="pkKaydet()">💾 Kuralı Kaydet</button>
+            @if($sadakatAyar['aktif'] && $sadakatAyar['baslangic'])
+                <small>{{ $sadakatAyar['baslangic'] }} tarihinden sonraki ödeme ve randevular puan kazanır.</small>
+            @else
+                <small>Açtığınız andan sonraki ödeme ve randevular puan kazanır; geçmiş kayıtlara puan dağıtılmaz.</small>
+            @endif
+        </div>
     </div>
 
     <div class="po-actions">
@@ -197,6 +234,45 @@ const KAYDET_URL = '{{ url("/isletmeyonetim/puanodulkaydet") }}{{ isset($_GET["s
 const SIL_URL    = '{{ url("/isletmeyonetim/puanodulsil") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}';
 const ORNEK_URL  = '{{ url("/isletmeyonetim/puanorneklerekle-admin") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}';
 const CSRF = '{{ csrf_token() }}';
+const KAZANIM_URL = '{{ url("/isletmeyonetim/puankazanimkaydet") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}';
+
+function pkGuncelle() {
+    const aktif   = document.getElementById('pk-aktif').checked;
+    const tutar   = parseInt(document.getElementById('pk-tutar').value) || 0;
+    const puan    = parseInt(document.getElementById('pk-puan').value) || 0;
+    const ziyaret = parseInt(document.getElementById('pk-ziyaret').value) || 0;
+    document.getElementById('pk-kart').classList.toggle('pk-kapali', !aktif);
+    const ornek = document.getElementById('pk-ornek');
+    if (!puan && !ziyaret) { ornek.textContent = 'Puan vermek için en az bir değer girin.'; return; }
+    const odeme = 1000;
+    const kazanc = (tutar > 0 ? Math.floor(odeme / tutar) * puan : 0) + ziyaret;
+    ornek.textContent = 'Örnek: Randevusuna gelip ' + odeme.toLocaleString('tr-TR') + ' TL ödeyen müşteri ' + kazanc + ' puan kazanır.';
+}
+
+async function pkKaydet() {
+    const btn = document.getElementById('pk-kaydet');
+    const veri = {
+        aktif:          document.getElementById('pk-aktif').checked ? 1 : 0,
+        harcama_tutari: parseInt(document.getElementById('pk-tutar').value) || 0,
+        harcama_puani:  parseInt(document.getElementById('pk-puan').value) || 0,
+        ziyaret_puani:  parseInt(document.getElementById('pk-ziyaret').value) || 0,
+    };
+    if (veri.aktif && veri.harcama_tutari < 1) { showToast('TL tutarı en az 1 olmalı', true); return; }
+    if (veri.aktif && !veri.harcama_puani && !veri.ziyaret_puani) { showToast('Puan değeri girin', true); return; }
+    btn.disabled = true;
+    try {
+        const resp = await fetch(KAZANIM_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+            body: JSON.stringify(veri),
+        });
+        const data = await resp.json();
+        if (!data.success) { showToast(data.message || 'Hata', true); btn.disabled = false; return; }
+        showToast('✓ Kural kaydedildi');
+        setTimeout(() => location.reload(), 600);
+    } catch (e) { showToast('Bağlantı hatası', true); btn.disabled = false; }
+}
+pkGuncelle();
 
 async function ornekleriEkle() {
     try {

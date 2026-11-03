@@ -32241,6 +32241,22 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         return response()->json(['basarili' => true, 'id' => $anaId, 'subeler' => $hedefSubeler]);
     }
 
+    // Puan kazanim kurali (Starbucks tarzi): her X TL'ye Y puan + gelinen randevuya Z puan
+    public function carkAdminPuanKazanimApi(Request $request, $salonId)
+    {
+        return response()->json([
+            'basarili' => true,
+            'ayar'     => \App\Services\SadakatPuanServisi::ayarDizi(\App\Services\SadakatPuanServisi::ayar($salonId)),
+        ]);
+    }
+
+    public function carkAdminPuanKazanimKaydetApi(Request $request, $salonId)
+    {
+        $ayar = \App\Services\SadakatPuanServisi::ayarKaydet($salonId, $request->only(['aktif', 'harcama_tutari', 'harcama_puani', 'ziyaret_puani']));
+        Audit::logApi($salonId, $request, 'sadakat_puan_kazanim', 'sadakat_ayar', $ayar->id, null, 'Puan kazanim kurali guncellendi');
+        return response()->json(['basarili' => true, 'ayar' => \App\Services\SadakatPuanServisi::ayarDizi($ayar)]);
+    }
+
     public function carkAdminPuanOdulSilApi(Request $request, $salonId)
     {
         $id = (int) $request->input('id', 0);

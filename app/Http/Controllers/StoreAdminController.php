@@ -1008,7 +1008,28 @@ public function carkverilerigetir(Request $request)
             'urun_drop'             => self::urundropliste($request),
             'yetkiliolunanisletmeler' => $yetkiler,
             'odulSeviyeleri'        => $odulSeviyeleri,
+            'sadakatAyar'           => \App\Services\SadakatPuanServisi::ayarDizi(\App\Services\SadakatPuanServisi::ayar($salon_id)),
         ]);
+    }
+
+    /**
+     * Admin: Puan kazanım kuralı kaydet (her X TL'ye Y puan + gelinen randevuya Z puan)
+     */
+    public function puanKazanimKaydet(Request $request)
+    {
+        $salon_id = self::mevcutsube($request);
+        if (!in_array($salon_id, $this->yetkiliSubeIdler()) && !Auth::guard('satisortakligi')->check()) {
+            return response()->json(['success' => false, 'message' => 'Yetkisiz.']);
+        }
+        $_eski = \App\Services\SadakatPuanServisi::ayarDizi(\App\Services\SadakatPuanServisi::ayar($salon_id));
+        $ayar  = \App\Services\SadakatPuanServisi::ayarKaydet($salon_id, $request->only(['aktif', 'harcama_tutari', 'harcama_puani', 'ziyaret_puani']));
+        $_yeni = \App\Services\SadakatPuanServisi::ayarDizi($ayar);
+        SalonAudit::log($salon_id, 'sadakat_puan_kazanim', 'sadakat_ayar', $ayar->id,
+            $_yeni['aktif'] ? 'Açık' : 'Kapalı',
+            'Puan kazanım kuralı güncellendi',
+            ['eski' => $_eski, 'yeni' => $_yeni]);
+
+        return response()->json(['success' => true, 'ayar' => $_yeni]);
     }
 
     /**

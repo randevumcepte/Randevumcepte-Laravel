@@ -25,6 +25,7 @@ class Kernel extends ConsoleKernel
         Commands\YetkiTeshis::class,
         Commands\PersonelYetkiliTeshis::class,
         Commands\AramaRandevuAktar::class,
+        Commands\SadakatPuanIsle::class,
 
         Commands\SMSGonder::class,
         Commands\RandevuSMSHatirlatma::class,
@@ -122,6 +123,8 @@ class Kernel extends ConsoleKernel
 
         // Çarkıfelek hatırlatma — her 5 dakikada bir kontrol (saatlerin ±5dk penceresi)
         $schedule->command('cark:hatirlatma-gonder')->withoutOverlapping()->everyFiveMinutes();
+        // Sadakat puani kazanimi (tahsilat + gelinen randevu -> puan; silinene geri al)
+        $schedule->command('sadakat:puan-isle')->withoutOverlapping()->everyFiveMinutes();
 
         // İlaç ve ölçüm hatırlatmaları — kullanıcının belirlediği saatte (HH:i) tetiklenir
         $schedule->command('ilac:hatirlatma-calistir')->withoutOverlapping()->everyMinute();
