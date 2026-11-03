@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Http\Controllers\ApiController;
+use App\Http\Controllers\StoreAdminController;
 use App\Randevular;
 use Illuminate\Console\Command;
 use Illuminate\Http\Request;
@@ -33,6 +34,8 @@ use Illuminate\Support\Facades\Schema;
  *   kara_liste_bildirim → MusteriBildirimServisi::karaListeBildirimi (payload: user_id)
  *   form_link      → ApiController::_formLinkGonder (payload: mesajlar[{to,message}], user_id,
  *                    sms_bildirim) — v2 Form Yonetimi form/sozlesme linki; WA bagliysa WA, yoksa SMS
+ *   anket_gonder   → StoreAdminController::varsayilanAnketSablonuGetirYaOlustur + anketGonderimOlustur +
+ *                    anketSmsGonder (payload: user_id, personel_id, kanal) — v2 Cagri Merkezi anket
  *   google_takvim  → GoogleCalendarService sync/remove (payload: sync[], sil[] rh id)
  *                    — eski RandevuHizmetler model event'inin karsiligi (v2 DB'ye
  *                    dogrudan yazdigi icin event tetiklenmez).
@@ -159,6 +162,24 @@ class V2BildirimIsle extends Command
         // Musteri turleri (v2 Musteri Yonetimi): randevuya bagli degil (payload.user_id).
         if (in_array($kayit->tur, ['musteri_kayit', 'kara_liste_bildirim'], true)) {
             $this->musteriBildirimi($kayit, $payload);
+
+            return;
+        }
+
+        // Memnuniyet anketi (v2 Cagri Merkezi "Anket Gonder"): eski cagri_anket_gonder ile AYNI
+        // mevcut kod — varsayilan sablon (yoksa olusur) + gonderim kaydi + WA-first/SMS. Randevusuz.
+        if ($kayit->tur === 'anket_gonder') {
+            $musteri = \App\User::find((int) ($payload['user_id'] ?? 0));
+            if (!$musteri || empty($musteri->cep_telefon)) {
+                throw new \RuntimeException('anket_gonder: musteri/telefon yok: ' . ($payload['user_id'] ?? '-'));
+            }
+            $sube = (int) $kayit->salon_id;
+            $sablon = StoreAdminController::varsayilanAnketSablonuGetirYaOlustur($sube);
+            $gonderim = StoreAdminController::anketGonderimOlustur($sube, $sablon, $musteri, $musteri->cep_telefon, [
+                'kanal'       => $payload['kanal'] ?? 'manuel',
+                'personel_id' => $payload['personel_id'] ?? null,
+            ]);
+            StoreAdminController::anketSmsGonder(new Request(), $gonderim, $sablon, $musteri);
 
             return;
         }
