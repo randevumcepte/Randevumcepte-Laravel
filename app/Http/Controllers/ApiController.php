@@ -32991,7 +32991,8 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     // bagliysa WhatsAppRouterService isletmeye gore Baileys/Whatsmeow secer.
     // WA bagli degilse veya bir mesaj basarisiz olursa o mesaj SMS'e dusurulur.
     // (Web sms_gonder_bildirimli ve mobil arsivformekleguncelle ile ayni mantik.)
-    private function _formLinkGonder(Request $request, $salonId, array $mesajlar, $userId = null, $smsBildirim = true)
+    // public: v2 outbox (v2:bildirim-isle 'form_link') da AYNI gonderimi kullanir.
+    public function _formLinkGonder(Request $request, $salonId, array $mesajlar, $userId = null, $smsBildirim = true)
     {
         if (count($mesajlar) === 0) return;
         $kalan = $mesajlar;

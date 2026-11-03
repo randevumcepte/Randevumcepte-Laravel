@@ -28,6 +28,8 @@ use Illuminate\Support\Facades\Schema;
  *   personel_sifre → ApiController::personelSifreUretVeGonder (payload: personel_id, yeni_hesap)
  *   yetki_degisti  → ApiController::personelYetkiDegistiBildir (force_logout push)
  *   personel_pasif → ApiController::personelPasifOturumSonlandir (token revoke + push)
+ *   form_link      → ApiController::_formLinkGonder (payload: mesajlar[{to,message}], user_id,
+ *                    sms_bildirim) — v2 Form Yonetimi form/sozlesme linki; WA bagliysa WA, yoksa SMS
  *   google_takvim  → GoogleCalendarService sync/remove (payload: sync[], sil[] rh id)
  *                    — eski RandevuHizmetler model event'inin karsiligi (v2 DB'ye
  *                    dogrudan yazdigi icin event tetiklenmez).
@@ -132,6 +134,21 @@ class V2BildirimIsle extends Command
                     $g->syncRandevuHizmet($rh);
                 }
             }
+
+            return;
+        }
+
+        // Form linki (v2 Form Yonetimi): mesaj metni v2'de (FormLinki) hazirlanir; burada
+        // yalnizca mevcut WA-first/SMS gonderimi calisir. Randevuya bagli degil.
+        if ($kayit->tur === 'form_link') {
+            $mesajlar = array_values(array_filter((array) ($payload['mesajlar'] ?? []), function ($m) {
+                return !empty($m['to']) && !empty($m['message']);
+            }));
+            if (!$mesajlar) {
+                throw new \RuntimeException('form_link: mesaj yok');
+            }
+            app(ApiController::class)->_formLinkGonder(new Request(), (int) $kayit->salon_id, $mesajlar,
+                $payload['user_id'] ?? null, !empty($payload['sms_bildirim']));
 
             return;
         }
