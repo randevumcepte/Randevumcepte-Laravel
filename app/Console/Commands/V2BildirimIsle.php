@@ -34,6 +34,7 @@ use Illuminate\Support\Facades\Schema;
  *   kara_liste_bildirim → MusteriBildirimServisi::karaListeBildirimi (payload: user_id)
  *   form_link      → ApiController::_formLinkGonder (payload: mesajlar[{to,message}], user_id,
  *                    sms_bildirim) — v2 Form Yonetimi form/sozlesme linki; WA bagliysa WA, yoksa SMS
+ *   whatsapp_mesaj → WhatsAppService::sendReminder (payload: user_id, mesaj, gonderim_tipi) — v2 Cagri Merkezi manuel WA
  *   anket_gonder   → StoreAdminController::varsayilanAnketSablonuGetirYaOlustur + anketGonderimOlustur +
  *                    anketSmsGonder (payload: user_id, personel_id, kanal) — v2 Cagri Merkezi anket
  *   google_takvim  → GoogleCalendarService sync/remove (payload: sync[], sil[] rh id)
@@ -180,6 +181,27 @@ class V2BildirimIsle extends Command
                 'personel_id' => $payload['personel_id'] ?? null,
             ]);
             StoreAdminController::anketSmsGonder(new Request(), $gonderim, $sablon, $musteri);
+
+            return;
+        }
+
+        // Manuel WhatsApp (v2 Cagri Merkezi kokpiti): eski cagri_whatsapp_gonder ile AYNI —
+        // WhatsAppService::sendReminder (paylasilan oturum, gunluk tavan, mesai). Kalici hatalar
+        // (gecersiz numara, tavan, mesai disi) tekrar denenmez; yalniz servise ulasilamazsa yeniden dener.
+        if ($kayit->tur === 'whatsapp_mesaj') {
+            $musteri = \App\User::find((int) ($payload['user_id'] ?? 0));
+            $isletme = \App\Salonlar::find((int) $kayit->salon_id);
+            if (!$musteri || empty($musteri->cep_telefon) || !$isletme || trim((string) ($payload['mesaj'] ?? '')) === '') {
+                throw new \RuntimeException('whatsapp_mesaj: musteri/telefon/salon/mesaj yok');
+            }
+            $sonuc = app(\App\Services\WhatsAppService::class)->sendReminder($isletme, $musteri->cep_telefon, (string) $payload['mesaj'],
+                null, $musteri->id, null, false, $payload['gonderim_tipi'] ?? 'manuel_musteri');
+            if (empty($sonuc['ok'])) {
+                if (($sonuc['error'] ?? '') === 'service-unreachable') {
+                    throw new \RuntimeException('whatsapp_mesaj: servis erisilemedi');
+                }
+                Log::warning('[v2:bildirim-isle] whatsapp_mesaj gonderilemedi', ['id' => $kayit->id, 'hata' => $sonuc['error'] ?? 'unknown']);
+            }
 
             return;
         }
