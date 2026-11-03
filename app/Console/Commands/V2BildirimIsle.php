@@ -163,6 +163,21 @@ class V2BildirimIsle extends Command
             return;
         }
 
+        // Duz SMS (v2 Kasa: para ekle/cek bildirimi, onay kodlari). Metin v2'de hazirlanir;
+        // burada yalnizca mevcut gonderim (dogrulama=true → iletim raporuna yazilmaz).
+        if ($kayit->tur === 'sms') {
+            $mesajlar = array_values(array_filter((array) ($payload['mesajlar'] ?? []), function ($m) {
+                return !empty($m['to']) && !empty($m['message']);
+            }));
+            if (!$mesajlar) {
+                throw new \RuntimeException('sms: mesaj yok');
+            }
+            app(ApiController::class)->sms_gonder_bildirimli(new Request(), $mesajlar, false, 1,
+                !empty($payload['dogrulama']), (int) $kayit->salon_id);
+
+            return;
+        }
+
         // Personel turleri: randevuya bagli degil (payload.personel_id). v1 uclari da
         // AYNI ApiController metodlarini cagirir (kod tekrari yok).
         if (in_array($kayit->tur, ['personel_sifre', 'yetki_degisti', 'personel_pasif'], true)) {
