@@ -12741,22 +12741,6 @@ private function ayAdiCevir($ingilizceAy)
             'aktif' => true,
         ])->save();
     }
-    private function musteri_sms_bilgilendir($musteri, $sifre = null, $subeId) {
-        if (!SalonSMSAyarlari::where('salon_id', $subeId)->where('ayar_id', 4)->value('musteri')) return;
-
-        $salon = Salonlar::where('id', $subeId)->first();
-        $mesaj = "Sayın {$musteri->name}. {$salon->salon_adi} tarafından müşteri kaydınız oluşturulmuştur.";
-
-        if ($sifre) {
-            $mesaj .= " Kullanıcı adınız: {$musteri->cep_telefon}, Şifreniz: {$sifre}";
-        }
-
-        if ($salon->uygulamalar_kisa_link) {
-            $mesaj .= " Uygulamamızı indirmek için: {$salon->uygulamalar_kisa_link}";
-        }
-
-        self::sms_gonder_bildirimli(null, [["to" => $musteri->cep_telefon, "message" => $mesaj]], false, 1, false);
-    }
     /**
      * Telefonu kanonik hale getirir.
      * TURKIYE: +90 / 90 / bastaki 0 soyulur -> 10 haneli "5XXXXXXXXX".
@@ -12959,15 +12943,9 @@ private function ayAdiCevir($ingilizceAy)
             $returntext .= '<li><span class="ico"><i class="fa fa-id-card-o"></i></span><div><div class="k">TC Kimlik No</div><div class="v">'.$_tc.'</div></div></li>';
             $returntext .= '<li><span class="ico"><i class="fa fa-venus-mars"></i></span><div><div class="k">Cinsiyet</div><div class="v">'.$_cins.'</div></div></li>';
             $returntext .= '<li class="info-full"><span class="ico"><i class="fa fa-sticky-note-o"></i></span><div><div class="k">Notlar</div><div class="v notlar-box" id="musteriNotlarKutu">'.$_notlar.'</div></div></li>';
-            if(SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',4)->value('musteri')){
-                if($yeniekleme || $portfoyeEkleme){
-                    $mesaj = 'Sayın '.$musteri->name.'. '.Salonlar::where('id',$request->sube)->value('salon_adi')." tarafından müşteri kaydınız oluşturulmuştur.";
-                    if(!$portfoyeEkleme)
-                        $mesaj .= '. Sistem kullanıcı adınız:'.$musteri->cep_telefon.' Şifreniz:'.$olusturulansifre;
-                    if(Salonlar::where('id',$request->sube)->value('uygulamalar_kisa_link'))
-                        $mesaj .=' Uygulamamızı indirmek için linke tıklayın. '.Salonlar::where('id',$request->sube)->value('uygulamalar_kisa_link');
-                    self::sms_gonder_bildirimli($request,array(array("to"=>$musteri->cep_telefon,"message"=>$mesaj)),false,1,false);
-                }
+            // Kayit mesaji (ayar_id=4) — metin + gonderim tek kaynakta (v2 outbox ile ortak).
+            if($yeniekleme || $portfoyeEkleme){
+                \App\Services\MusteriBildirimServisi::kayitBildirimi($request->sube, $musteri, $portfoyeEkleme ? null : $olusturulansifre, $request);
             }
             $returnvar = array(
                 'title' => "Başarılı",
@@ -26259,35 +26237,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         // WA-first + SMS fallback (sms_gonder_bildirimli zaten bu mimariyi uyguluyor) +
         // Push bildirim. Tip 'kara_liste_bildirim' KaraListeServisi::MUAF_TIPLER'de,
         // dolayisiyla musteri az once kara listeye alinmis olsa bile bu mesaj susturulmaz.
-        if ($request->karaliste == 1
-            && SalonSMSAyarlari::where('ayar_id',15)->where('salon_id',$portfoy->salon_id)->value('musteri') == 1)
-        {
-            $_salonTel = Salonlar::where('id',$request->sube)->value('telefon_1');
-            $_mesajMetni = "Sayın " . $portfoy->users->name . ", isteğiniz doğrultusunda telefon numaranız kara listeye alınmıştır. Kampanya ve reklam mesajları gönderilmeyecektir. Detaylı bilgi için bize ulaşınız. 0" . $_salonTel;
-
-            // SMS + WhatsApp (WA-first mimari zaten sms_gonder_bildirimli icinde)
-            $mesaj = [[
-                'to' => $portfoy->users->cep_telefon,
-                'message' => $_mesajMetni,
-                'user_id' => $portfoy->user_id,
-                'gonderim_tipi' => 'kara_liste_bildirim',
-            ]];
-            self::sms_gonder_bildirimli($request, $mesaj, false, 1, false, $portfoy->salon_id, 'kara_liste_bildirim');
-
-            // Push bildirim (uygulamasi olan musteriye) — karaListeMuaf ile kara liste
-            // suzgeci bypass edilir (musteri az once kara listeye alindi, mesaj gidebilir).
-            if ($portfoy->user_id) {
-                try {
-                    \App\Services\NotificationService::toCustomer((int) $portfoy->user_id, (int) $portfoy->salon_id)
-                        ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
-                        ->title('Kara Listeye Alındınız')
-                        ->body($_mesajMetni)
-                        ->karaListeMuaf(true)
-                        ->send();
-                } catch (\Throwable $e) {
-                    \Log::warning('karaliste bildirim push hata: ' . $e->getMessage());
-                }
-            }
+        // Metin + WA/SMS + push tek kaynakta (v2 outbox 'kara_liste_bildirim' ile ortak).
+        if ($request->karaliste == 1) {
+            \App\Services\MusteriBildirimServisi::karaListeBildirimi($portfoy->salon_id, $portfoy->user_id, $request);
         }
         return DB::table('users')->join('musteri_portfoy','musteri_portfoy.user_id','=','users.id')->select(
             'users.name as ad_soyad',

@@ -28,6 +28,9 @@ use Illuminate\Support\Facades\Schema;
  *   personel_sifre → ApiController::personelSifreUretVeGonder (payload: personel_id, yeni_hesap)
  *   yetki_degisti  → ApiController::personelYetkiDegistiBildir (force_logout push)
  *   personel_pasif → ApiController::personelPasifOturumSonlandir (token revoke + push)
+ *   musteri_kayit  → (payload: user_id, yeni_hesap, cinsiyet_tahmin) hatirlatma cache + cinsiyet
+ *                    tahmini + yeni hesapta sifre uret → MusteriBildirimServisi::kayitBildirimi
+ *   kara_liste_bildirim → MusteriBildirimServisi::karaListeBildirimi (payload: user_id)
  *   form_link      → ApiController::_formLinkGonder (payload: mesajlar[{to,message}], user_id,
  *                    sms_bildirim) — v2 Form Yonetimi form/sozlesme linki; WA bagliysa WA, yoksa SMS
  *   google_takvim  → GoogleCalendarService sync/remove (payload: sync[], sil[] rh id)
@@ -153,6 +156,13 @@ class V2BildirimIsle extends Command
             return;
         }
 
+        // Musteri turleri (v2 Musteri Yonetimi): randevuya bagli degil (payload.user_id).
+        if (in_array($kayit->tur, ['musteri_kayit', 'kara_liste_bildirim'], true)) {
+            $this->musteriBildirimi($kayit, $payload);
+
+            return;
+        }
+
         // Personel turleri: randevuya bagli degil (payload.personel_id). v1 uclari da
         // AYNI ApiController metodlarini cagirir (kod tekrari yok).
         if (in_array($kayit->tur, ['personel_sifre', 'yetki_degisti', 'personel_pasif'], true)) {
@@ -234,6 +244,44 @@ class V2BildirimIsle extends Command
                 break;
             default:
                 throw new \RuntimeException('Bilinmeyen tur: ' . $kayit->tur);
+        }
+    }
+
+    /**
+     * musteri_kayit       : v2 musteriyi dogrudan DB'ye yazdigi icin eski MusteriPortfoy
+     *                       'created' hook'u (hatirlatma feed cache) burada calisir; cinsiyet
+     *                       bossa addan tahmin edilir (eski musteriekleguncelle); YENI HESAPTA
+     *                       sifre uretilip kayit mesajiyla gonderilir. Portfoye yeniden
+     *                       eklemede eski panel mesaj gondermiyordu → burada da gonderilmez.
+     * kara_liste_bildirim : MusteriBildirimServisi::karaListeBildirimi (ayar_id=15).
+     */
+    private function musteriBildirimi($kayit, array $payload)
+    {
+        $salonId = (int) $kayit->salon_id;
+        $musteri = \App\User::find((int) ($payload['user_id'] ?? 0));
+        if (!$musteri) {
+            throw new \RuntimeException('Musteri bulunamadi: ' . ($payload['user_id'] ?? '-'));
+        }
+
+        if ($kayit->tur === 'kara_liste_bildirim') {
+            \App\Services\MusteriBildirimServisi::karaListeBildirimi($salonId, $musteri->id);
+
+            return;
+        }
+
+        \Illuminate\Support\Facades\Cache::forget('salon_hatirlatma.' . $salonId);
+
+        if (!empty($payload['cinsiyet_tahmin']) && $musteri->cinsiyet === null) {
+            $tahmin = \App\Helpers\CinsiyetTahmin::tahmin($musteri->name);
+            if ($tahmin !== null) {
+                DB::table('users')->where('id', $musteri->id)->update(['cinsiyet' => $tahmin]);
+            }
+        }
+
+        if (!empty($payload['yeni_hesap'])) {
+            $sifre = substr(str_shuffle('abcdefghjklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ1234567890'), 0, 5);
+            DB::table('users')->where('id', $musteri->id)->update(['password' => \Illuminate\Support\Facades\Hash::make($sifre)]);
+            \App\Services\MusteriBildirimServisi::kayitBildirimi($salonId, $musteri, $sifre);
         }
     }
 }
