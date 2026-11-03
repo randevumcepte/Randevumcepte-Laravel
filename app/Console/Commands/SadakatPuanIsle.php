@@ -25,7 +25,13 @@ class SadakatPuanIsle extends Command
         $q = SalonSadakatAyarlari::where('aktif', 1)->whereNotNull('baslangic');
         if ($this->option('salon')) $q->where('salon_id', (int) $this->option('salon'));
 
-        foreach ($q->get() as $ayar) {
+        $ayarlar = $q->get();
+        if ($ayarlar->isEmpty() && $this->option('salon')) {
+            $this->line('Bu salonda puan kazanma kurali acik degil (Carkifelek > Puan Odulleri > Puan Kazanma Kurali).');
+            return;
+        }
+
+        foreach ($ayarlar as $ayar) {
             try {
                 $s = SadakatPuanServisi::mutabakat($ayar, $dry);
                 if ($s['islem'] > 0 || $this->option('salon')) {
