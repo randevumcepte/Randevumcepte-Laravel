@@ -1416,15 +1416,20 @@
             </div>
             {{-- WhatsApp durum ikonu — tüm üyelik türlerine açık (uyelik_turu kısıtı kaldırıldı) --}}
             @php
-               $waAktif  = (int)($isletme->whatsapp_aktif ?? 0) === 1;
-               $waBagli  = $waAktif && (($isletme->whatsapp_durum ?? '') === 'connected');
-               $waNumara = $isletme->whatsapp_numara ?? '';
-               $waTitle  = $waBagli
+               // Paylasilan oturum (whatsapp_paylasilan_salon_id, ornek 416 -> 246): mesajlar UST salonun
+               // oturumu + kontorunden gider (WhatsAppService::sendReminder) -> rozet de onu gostermeli.
+               $_waSalon = $isletme instanceof \App\Salonlar ? \App\Services\WhatsAppService::resolveWaSalon($isletme) : $isletme;
+               $_waPaylasilan = (int) optional($_waSalon)->id !== (int) $isletme->id;
+               $waAktif  = (int)($_waSalon->whatsapp_aktif ?? 0) === 1;
+               $waBagli  = $waAktif && (($_waSalon->whatsapp_durum ?? '') === 'connected');
+               $waNumara = $_waSalon->whatsapp_numara ?? '';
+               $waTitle  = ($waBagli
                   ? ('WhatsApp Bağlı'.($waNumara ? ' ('.$waNumara.')' : ''))
-                  : 'WhatsApp Bağlı Değil — tıklayın, QR ile bağlayın';
+                  : 'WhatsApp Bağlı Değil — tıklayın, QR ile bağlayın')
+                  . ($_waPaylasilan ? ' · Paylaşılan oturum: '.($_waSalon->salon_adi ?? '') : '');
                // Kontör bakiyesi rozeti: yüklüyse ya da kontörlü dönemdeyse göster
-               $_hdrKontor = (int) ($isletme->whatsapp_kontor ?? 0);
-               $_hdrKontorluDonem = \App\Services\KontorServisi::kontorlusDonemMi($isletme);
+               $_hdrKontor = (int) ($_waSalon->whatsapp_kontor ?? 0);
+               $_hdrKontorluDonem = \App\Services\KontorServisi::kontorlusDonemMi($_waSalon);
                $_hdrKontorGoster = $waBagli && ($_hdrKontor > 0 || $_hdrKontorluDonem);
                $_hdrKontorKritik = $_hdrKontorluDonem && $_hdrKontor <= 0;
             @endphp
