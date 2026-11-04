@@ -46,6 +46,8 @@ use Illuminate\Support\Facades\Schema;
  *                    gonderiminin linkini WA-first/SMS yollar (v2 Memnuniyet Anketi + Cagri Merkezi)
  *   anket_gonder   → (ESKI, gecis kalintisi) StoreAdminController::varsayilanAnketSablonuGetirYaOlustur + anketGonderimOlustur +
  *                    anketSmsGonder (payload: user_id, personel_id, kanal) — v2 Cagri Merkezi anket
+ *   ders_bildirim  → DersBildirimServisi::musteriyeGonder (payload: user_id, mesaj, gonderim_tipi) — v2 grup dersi
+ *                    kayit/bekleme/terfi/iptal/kalan uyarisi; WA-first/SMS
  *   google_takvim  → GoogleCalendarService sync/remove (payload: sync[], sil[] rh id)
  *                    — eski RandevuHizmetler model event'inin karsiligi (v2 DB'ye
  *                    dogrudan yazdigi icin event tetiklenmez).
@@ -239,6 +241,18 @@ class V2BildirimIsle extends Command
             } else {
                 dispatch($job);
             }
+
+            return;
+        }
+
+        // Grup dersi bildirimi (v2 /ders/*): metin v2'de uretilir, gonderim v1 ders uclariyla AYNI servis.
+        if ($kayit->tur === 'ders_bildirim') {
+            $musteri = \App\User::find((int) ($payload['user_id'] ?? 0));
+            $isletme = \App\Salonlar::find((int) $kayit->salon_id);
+            if (!$musteri || !$isletme || trim((string) ($payload['mesaj'] ?? '')) === '') {
+                throw new \RuntimeException('ders_bildirim: musteri/salon/mesaj yok');
+            }
+            \App\Services\DersBildirimServisi::musteriyeGonder($isletme, $musteri, (string) $payload['mesaj'], $payload['gonderim_tipi'] ?? 'ders_bildirim');
 
             return;
         }
