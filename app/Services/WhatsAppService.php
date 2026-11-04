@@ -138,6 +138,9 @@ class WhatsAppService
         // Paylasilan oturum: 416 icin 246'nin session'ina yonlendir.
         // Tum salon check'leri (aktif, durum, cap, saglayici) ve HTTP endpoint'i
         // (POST /session/{id}/send) resolve edilen salon uzerinden yapilir.
+        // LOG ise mesaji gonderen salona yazilir (kaynakSalonId): her isletme yalniz kendi
+        // mesajlarini gorur. Gunluk limit oturumu paylasan salonlarin toplamindan sayilir (canSendToday).
+        $kaynakSalonId = (int) $salon->id;
         $salon = self::resolveWaSalon($salon);
 
         $normalized = $this->normalizePhone($to);
@@ -174,10 +177,10 @@ class WhatsAppService
         $saglayici = $salon->whatsapp_saglayici ?? 'baileys';
 
         if ($saglayici === 'cloud_api') {
-            return $this->sendViaCloudApi($salon, $normalized, $message, $randevuId, $userId, $templateCtx, $gonderimTipi);
+            return $this->sendViaCloudApi($salon, $normalized, $message, $randevuId, $userId, $templateCtx, $gonderimTipi, $kaynakSalonId);
         }
 
-        return $this->sendViaBaileys($salon, $normalized, $message, $randevuId, $userId, $urgent, $gonderimTipi);
+        return $this->sendViaBaileys($salon, $normalized, $message, $randevuId, $userId, $urgent, $gonderimTipi, $kaynakSalonId);
     }
 
     /**
@@ -190,9 +193,9 @@ class WhatsAppService
         return $this->sendReminder($salon, $to, $message, null, $userId, null, true, $gonderimTipi);
     }
 
-    protected function sendViaBaileys(Salonlar $salon, $to, $message, $randevuId, $userId, $urgent = false, $gonderimTipi = null)
+    protected function sendViaBaileys(Salonlar $salon, $to, $message, $randevuId, $userId, $urgent = false, $gonderimTipi = null, $kaynakSalonId = null)
     {
-        $logId = $this->logPending($salon->id, $userId, $randevuId, $to, $message, 'baileys', $gonderimTipi);
+        $logId = $this->logPending($kaynakSalonId ?: $salon->id, $userId, $randevuId, $to, $message, 'baileys', $gonderimTipi);
 
         $response = $this->request('POST', "/session/{$salon->id}/send", [
             'to' => $to,
@@ -256,9 +259,9 @@ class WhatsAppService
         ]);
     }
 
-    protected function sendViaCloudApi(Salonlar $salon, $to, $message, $randevuId, $userId, $templateCtx, $gonderimTipi = null)
+    protected function sendViaCloudApi(Salonlar $salon, $to, $message, $randevuId, $userId, $templateCtx, $gonderimTipi = null, $kaynakSalonId = null)
     {
-        $logId = $this->logPending($salon->id, $userId, $randevuId, $to, $message, 'cloud_api', $gonderimTipi);
+        $logId = $this->logPending($kaynakSalonId ?: $salon->id, $userId, $randevuId, $to, $message, 'cloud_api', $gonderimTipi);
 
         // Template adını salon ayarlarından çöz (key: '1gun', 'yaklasan', 'iptal', 'guncelleme')
         $templateKey = $templateCtx['key'] ?? null;
@@ -311,8 +314,10 @@ class WhatsAppService
         $limit = (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 200));
         if ($limit <= 0) return false;
 
+        // Limit numaranin (oturumun) limiti: oturumu paylasan alt salonlarin mesajlari da sayilir.
+        $oturumSalonlari = DB::table('salonlar')->where('whatsapp_paylasilan_salon_id', $salon->id)->pluck('id')->push($salon->id)->all();
         $sentToday = DB::table('whatsapp_gonderim_loglari')
-            ->where('salon_id', $salon->id)
+            ->whereIn('salon_id', $oturumSalonlari)
             ->where('durum', 1)
             ->whereDate('gonderim_tarihi', Carbon::today())
             ->count();
