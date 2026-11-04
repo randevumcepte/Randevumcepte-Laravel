@@ -38,6 +38,8 @@ use Illuminate\Support\Facades\Schema;
  *                    "Push Gonder"; alicilar v2'de cozulur. sync degilse 'hatirlatmalar' kuyruguna (job tries=1)
  *   cark_duyuru    → CarkDuyuruGonderJob → CarkDuyuruServisi::gonder (payload: baslik, mesaj) — v2 Carkifelek
  *                    "Musterilere Duyur"; cok alicili → sync degilse 'hatirlatmalar' kuyruguna (tries=1)
+ *   sms_toplu      → SmsTopluGonderJob (payload: telefonlar[], mesaj, tur, baslik) — v2 SMS Yonetimi toplu/filtreli
+ *                    gonderim; cok alicili → sync degilse 'hatirlatmalar' kuyruguna (tries=1)
  *   whatsapp_mesaj → WhatsAppService::sendReminder (payload: user_id, mesaj, gonderim_tipi) — v2 Cagri Merkezi manuel WA
  *   anket_gonder   → StoreAdminController::varsayilanAnketSablonuGetirYaOlustur + anketGonderimOlustur +
  *                    anketSmsGonder (payload: user_id, personel_id, kanal) — v2 Cagri Merkezi anket
@@ -251,6 +253,24 @@ class V2BildirimIsle extends Command
                 throw new \RuntimeException('kampanya_olustur: kampanya yok: ' . ($payload['kampanya_id'] ?? '-'));
             }
             \App\KampanyaYonetimi::olusturmaBildirimiGonder($kampanya);
+
+            return;
+        }
+
+        // SMS Yonetimi toplu/filtreli gonderim: alicilar v2'de cozulur; cok alicili + ucretli → sync degilse
+        // kuyruga (job tries=1, retry = mukerrer SMS). Istisna yalniz dispatch oncesi → yeniden deneme guvenli.
+        if ($kayit->tur === 'sms_toplu') {
+            $telefonlar = array_values(array_filter((array) ($payload['telefonlar'] ?? [])));
+            if (!$telefonlar || trim((string) ($payload['mesaj'] ?? '')) === '') {
+                throw new \RuntimeException('sms_toplu: alici/mesaj yok');
+            }
+            $job = new \App\Jobs\SmsTopluGonderJob((int) $kayit->salon_id, $telefonlar, (string) $payload['mesaj'],
+                (int) ($payload['tur'] ?? 4), (string) ($payload['baslik'] ?? 'Toplu SMS'));
+            if (config('queue.default') === 'sync') {
+                $job->handle();
+            } else {
+                dispatch($job);
+            }
 
             return;
         }
