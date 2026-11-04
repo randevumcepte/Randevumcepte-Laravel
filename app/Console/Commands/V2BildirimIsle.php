@@ -40,6 +40,7 @@ use Illuminate\Support\Facades\Schema;
  *                    "Musterilere Duyur"; cok alicili → sync degilse 'hatirlatmalar' kuyruguna (tries=1)
  *   sms_toplu      → SmsTopluGonderJob (payload: telefonlar[], mesaj, tur, baslik) — v2 SMS Yonetimi toplu/filtreli
  *                    gonderim; cok alicili → sync degilse 'hatirlatmalar' kuyruguna (tries=1)
+ *   sistem_bildirim→ SistemBildirim::gonder (payload: mesaj) — sistem sahibine WA+SMS; v2 WhatsApp Yonetimi kontor talebi
  *   whatsapp_mesaj → WhatsAppService::sendReminder (payload: user_id, mesaj, gonderim_tipi) — v2 Cagri Merkezi manuel WA
  *   anket_link     → StoreAdminController::anketSmsGonder (payload: gonderim_id) — v2'de olusan anket
  *                    gonderiminin linkini WA-first/SMS yollar (v2 Memnuniyet Anketi + Cagri Merkezi)
@@ -258,6 +259,17 @@ class V2BildirimIsle extends Command
                     throw new \RuntimeException('whatsapp_mesaj: servis erisilemedi');
                 }
                 Log::warning('[v2:bildirim-isle] whatsapp_mesaj gonderilemedi', ['id' => $kayit->id, 'hata' => $sonuc['error'] ?? 'unknown']);
+            }
+
+            return;
+        }
+
+        // Sistem sahibine bildirim (v2 WhatsApp kontor talebi): metin v2'de hazirlanir. Kanal kapali /
+        // alici yoksa ok=false → hata olarak kalir (talep sessizce kaybolmasin).
+        if ($kayit->tur === 'sistem_bildirim') {
+            $sonuc = \App\Services\SistemBildirim::gonder((string) ($payload['mesaj'] ?? ''));
+            if (empty($sonuc['ok'])) {
+                throw new \RuntimeException('sistem_bildirim: ' . ($sonuc['reason'] ?? 'gonderilemedi'));
             }
 
             return;
