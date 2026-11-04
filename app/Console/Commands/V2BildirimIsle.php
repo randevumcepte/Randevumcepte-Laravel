@@ -38,6 +38,8 @@ use Illuminate\Support\Facades\Schema;
  *                    "Push Gonder"; alicilar v2'de cozulur. sync degilse 'hatirlatmalar' kuyruguna (job tries=1)
  *   cark_duyuru    → CarkDuyuruGonderJob → CarkDuyuruServisi::gonder (payload: baslik, mesaj) — v2 Carkifelek
  *                    "Musterilere Duyur"; cok alicili → sync degilse 'hatirlatmalar' kuyruguna (tries=1)
+ *   sifre_degisti  → OturumServisi token iptali + web oturumu damgasi + force_logout push (payload: yetkili_id,
+ *                    haric_token) — v2 Profil'de kullanici kendi sifresini degistirdi
  *   sms_toplu      → SmsTopluGonderJob (payload: telefonlar[], mesaj, tur, baslik) — v2 SMS Yonetimi toplu/filtreli
  *                    gonderim; cok alicili → sync degilse 'hatirlatmalar' kuyruguna (tries=1)
  *   sistem_bildirim→ SistemBildirim::gonder (payload: mesaj) — sistem sahibine WA+SMS; v2 WhatsApp Yonetimi kontor talebi
@@ -152,6 +154,24 @@ class V2BildirimIsle extends Command
                     $g->syncRandevuHizmet($rh);
                 }
             }
+
+            return;
+        }
+
+        // Kullanici kendi sifresini v2'den degistirdi: diger oturumlar kapatilir (islemi yapan token korunur).
+        if ($kayit->tur === 'sifre_degisti') {
+            $yetkili = \App\IsletmeYetkilileri::find((int) ($payload['yetkili_id'] ?? 0));
+            if (!$yetkili) {
+                throw new \RuntimeException('Yetkili bulunamadi: ' . ($payload['yetkili_id'] ?? '-'));
+            }
+            \App\Services\OturumServisi::tokenlariIptalEt($yetkili, $payload['haric_token'] ?? null);
+            \App\Services\OturumServisi::webOturumlariniGecersizKil((int) $yetkili->id);
+            \App\Services\OturumServisi::yetkiliTumCihazlaraForceLogout(
+                (int) $yetkili->id,
+                \App\Services\NotificationTypes::SIFRE_DEGISTI,
+                'Şifreniz değiştirildi',
+                'Hesabınızın şifresi değiştirildi. Lütfen tekrar giriş yapınız.'
+            );
 
             return;
         }
