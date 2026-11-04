@@ -21066,6 +21066,22 @@ DB::raw('
      * detay/hover/buton HTML'ini tek seferde dondurur. Toplu randevuyukle artik
      * bu agir partial'lari render etmiyor (randevu basina 3 Blade render x poll).
      */
+    /**
+     * Ayni musteri + ayni hizmet + randevu tarihli satisin adisyonu. Randevu disinda (manuel)
+     * acilmis satislarda adisyon_hizmetler.randevu_id bos olabilir.
+     */
+    private static function randevuAyniGunSatisAdisyonu($randevu, array $hizmetIds)
+    {
+        return DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
+            ->where('a.user_id', $randevu->user_id)
+            ->where('a.salon_id', $randevu->salon_id)
+            ->whereIn('ah.hizmet_id', $hizmetIds)
+            ->whereDate('ah.islem_tarihi', date('Y-m-d', strtotime($randevu->tarih)))
+            ->orderBy('ah.id', 'desc')
+            ->value('ah.adisyon_id');
+    }
+
     public function randevuEventDetay(Request $request)
     {
         $rhId = (int) $request->id;
@@ -21121,15 +21137,7 @@ DB::raw('
         $adisyonId = AdisyonHizmetler::where('randevu_id', $rh->randevu_id)->value('adisyon_id');
 
         if (!$adisyonId && $rh->randevu) {
-            $randevuTarih = date('Y-m-d', strtotime($rh->randevu->tarih));
-            $adisyonId = DB::table('adisyon_hizmetler as ah')
-                ->join('adisyonlar as a', 'ah.adisyon_id', '=', 'a.id')
-                ->where('a.user_id', $rh->randevu->user_id)
-                ->where('a.salon_id', $rh->randevu->salon_id)
-                ->where('ah.hizmet_id', $rh->hizmet_id)
-                ->whereDate('ah.islem_tarihi', $randevuTarih)
-                ->orderBy('ah.id', 'desc')
-                ->value('ah.adisyon_id');
+            $adisyonId = self::randevuAyniGunSatisAdisyonu($rh->randevu, [(int) $rh->hizmet_id]);
         }
 
         if (!$adisyonId) {
@@ -28156,6 +28164,13 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if (!$paketAdisyonId) {
             // Dogrudan baglanti (eski kayitlar)
             $paketAdisyonId = \DB::table('adisyon_hizmetler')->where('randevu_id', $randevu_id)->value('adisyon_id');
+        }
+        if (!$paketAdisyonId) {
+            // randevu_id tasimayan ayni-gun satisi: randevu detayindaki Tahsilat butonu
+            // bu adisyonu gorup buraya yonlendiriyor, ayni sekilde cozulmeli (yoksa cikmaz/mukerrer adisyon).
+            $randevuHizmetIds = RandevuHizmetler::where('randevu_id', $randevu_id)
+                ->pluck('hizmet_id')->map(function($v){ return (int)$v; })->toArray();
+            $paketAdisyonId = self::randevuAyniGunSatisAdisyonu($randevu, $randevuHizmetIds);
         }
 
         $rhListesi = RandevuHizmetler::where('randevu_id', $randevu_id)
