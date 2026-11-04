@@ -41,7 +41,9 @@ use Illuminate\Support\Facades\Schema;
  *   sms_toplu      → SmsTopluGonderJob (payload: telefonlar[], mesaj, tur, baslik) — v2 SMS Yonetimi toplu/filtreli
  *                    gonderim; cok alicili → sync degilse 'hatirlatmalar' kuyruguna (tries=1)
  *   whatsapp_mesaj → WhatsAppService::sendReminder (payload: user_id, mesaj, gonderim_tipi) — v2 Cagri Merkezi manuel WA
- *   anket_gonder   → StoreAdminController::varsayilanAnketSablonuGetirYaOlustur + anketGonderimOlustur +
+ *   anket_link     → StoreAdminController::anketSmsGonder (payload: gonderim_id) — v2'de olusan anket
+ *                    gonderiminin linkini WA-first/SMS yollar (v2 Memnuniyet Anketi + Cagri Merkezi)
+ *   anket_gonder   → (ESKI, gecis kalintisi) StoreAdminController::varsayilanAnketSablonuGetirYaOlustur + anketGonderimOlustur +
  *                    anketSmsGonder (payload: user_id, personel_id, kanal) — v2 Cagri Merkezi anket
  *   google_takvim  → GoogleCalendarService sync/remove (payload: sync[], sil[] rh id)
  *                    — eski RandevuHizmetler model event'inin karsiligi (v2 DB'ye
@@ -173,8 +175,24 @@ class V2BildirimIsle extends Command
             return;
         }
 
-        // Memnuniyet anketi (v2 Cagri Merkezi "Anket Gonder"): eski cagri_anket_gonder ile AYNI
-        // mevcut kod — varsayilan sablon (yoksa olusur) + gonderim kaydi + WA-first/SMS. Randevusuz.
+        // Memnuniyet anketi linki (v2 Memnuniyet Anketi / Cagri Merkezi): gonderim kaydi + token v2'de
+        // olusur; link burada MEVCUT anketSmsGonder ile gider (WA-first/SMS, kanali kayda yazar).
+        // Musteri kaydi yoksa (test gonderimi) yalniz ad + numara ile — anketManuelGonder ile ayni.
+        if ($kayit->tur === 'anket_link') {
+            $gonderim = \App\AnketGonderim::find((int) ($payload['gonderim_id'] ?? 0));
+            $sablon = $gonderim ? \App\AnketSablon::find($gonderim->sablon_id) : null;
+            if (!$gonderim || !$sablon) {
+                Log::warning('[v2:bildirim-isle] anket_link: gonderim/sablon yok', ['id' => $kayit->id, 'gonderim_id' => $payload['gonderim_id'] ?? null]);
+                return;
+            }
+            $musteri = ($gonderim->user_id ? \App\User::find($gonderim->user_id) : null)
+                ?: (object) ['id' => null, 'name' => $gonderim->ad_soyad ?: 'Test'];
+            StoreAdminController::anketSmsGonder(new Request(), $gonderim, $sablon, $musteri);
+
+            return;
+        }
+
+        // ESKI: v2 artik 'anket_link' yazar; bu dal yalniz gecis aninda kuyrukta kalan satirlar icin.
         if ($kayit->tur === 'anket_gonder') {
             $musteri = \App\User::find((int) ($payload['user_id'] ?? 0));
             if (!$musteri || empty($musteri->cep_telefon)) {
