@@ -1877,7 +1877,7 @@ $('#randevusistemi').on('submit','#personellisteparametreler' ,function(e){
        $.ajax({
         type: "GET",
         url: '/tarihsaatadiminagec/'+document.getElementById('salonid').value,
-        data: $('#personellisteparametreler').serialize()+'&'+$('#randevuozeti').serialize(),
+        data: $('#personellisteparametreler').serialize()+'&'+$('#randevuozeti').serialize()+'&randevutarihi='+encodeURIComponent($('input[name="randevutarihi"]:checked').val() || ''),
         dataType: "json",
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -1894,9 +1894,8 @@ $('#randevusistemi').on('submit','#personellisteparametreler' ,function(e){
             $('#tarihsaatsecbaslikmobil').addClass('active');
              $("#personelsecimbolumu").attr('style', 'display:none');
               $("#tarihsaatsecimbolumu").attr('style', 'display:block');
-            if(document.getElementById('saatsecimtablosu').innerHTML.trim() == ''){
-                 document.getElementById('saatsecimtablosu').innerHTML = result.tarihsaatbolumu;
-            }
+            // Her zaman yenile: personel degisince onceki personelin saatleri ekranda kalmasin.
+            document.getElementById('saatsecimtablosu').innerHTML = result.tarihsaatbolumu;
               $("#preloader").hide();
              $('html, body').animate({ scrollTop: $("#tarihsaatsecimbolumu").offset().top }, 'slow');
         },

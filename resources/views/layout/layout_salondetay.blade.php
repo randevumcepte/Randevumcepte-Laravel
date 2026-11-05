@@ -308,7 +308,7 @@
       <script src="{{secure_asset('public/js/masonry.pkgd.min.js')}}"></script>
        <script src="{{secure_asset('public/js/icheck.min.js')}}"></script>
       <script src="{{secure_asset('public/js/jquery.validate.min.js')}}"></script>
-      <script src="{{secure_asset('public/js/custom.js?v=1.0.826')}}"></script>
+      <script src="{{secure_asset('public/js/custom.js?v=1.0.827')}}"></script>
       <script src="{{secure_asset('public/js/navigationmobile.js')}}"></script>
       <script src="{{secure_asset('public/js/owl.carousel.min.js')}}"></script>
       <script>

@@ -542,7 +542,7 @@ $salon = Salonlar::where('domain', $domain)->first();
      }
      public function tarihsaatadiminagec(Request $request, $id)
         {
-    $tarih = $request->randevutarihi ?? date('Y-m-d');
+    $tarih = $request->randevutarihi ?: date('Y-m-d');
     $day = date('N', strtotime($tarih));
 
     // Salon çalışma saatlerini kontrol et
@@ -550,12 +550,6 @@ $salon = Salonlar::where('domain', $domain)->first();
         ->where('calisiyor', 1)
         ->where('haftanin_gunu', $day)
         ->first();
-
-    if (!$salonCalisma) {
-        return response()->json([
-            'tarihsaatbolumu' => "<p>Salon seçtiğiniz tarihte kapalı.</p>"
-        ]);
-    }
 
     $salonModel = Salonlar::find($id);
     $takvimTuru = $salonModel->randevu_takvim_turu ?? 1;
@@ -586,6 +580,13 @@ $salon = Salonlar::where('domain', $domain)->first();
             if($key+1 != $personeller->count())
                 $personelBilgi .= ", ";
         }
+    }
+
+    if (!$salonCalisma) {
+        return response()->json([
+            'tarihsaatbolumu' => "<p>Salon seçtiğiniz tarihte kapalı.</p>",
+            'personelbilgi'   => $personelBilgi,
+        ]);
     }
 
     // Personel çalışma saatlerini belirle (sadece gercek personeller; Farketmez fallback'inde aday personellerin UNION'u)
@@ -870,6 +871,16 @@ $salon = Salonlar::where('domain', $domain)->first();
     if (!$salonCalisma) 
         return "<p>Salon seçtiğiniz tarihte kapalı.</p>";     
        
+
+    // Secili personelden biri o gun KAPALIYSA (kayit var, calisiyor!=1) saat listelenmez.
+    // Asagidaki calisiyor=1 sorgusu kapali satiri eledigi icin salon saatlerine dusup tum
+    // gunu acik gosteriyordu. "Kayit yok" = salon saatleri (RandevuMusaitlikTrait ile ayni kural).
+    $personelKapali = PersonelCalismaSaatleri::whereIn('personel_id', (array) $request->secilenpersoneller)
+        ->where('haftanin_gunu', $day)
+        ->get()
+        ->contains(function ($calisma) { return (int) $calisma->calisiyor !== 1; });
+    if ($personelKapali)
+        return "<p>Seçtiğiniz personel bu tarihte çalışmıyor.</p>";
 
     // Personel çalışma saatlerini belirle
     $personelCalismalari = PersonelCalismaSaatleri::whereIn('personel_id', $request->secilenpersoneller)
