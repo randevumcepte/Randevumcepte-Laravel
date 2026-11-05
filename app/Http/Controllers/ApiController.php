@@ -10864,6 +10864,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         }
 
+        if ($request->paket == 1 && !\App\Services\PaketGecerlilik::seansUygun($request->paketId, $request->hizmetId, $seansTarih)) {
+            return response()->json(['hatali' => '1', 'mesaj' => 'Paketin geçerlilik süresi dolmuş veya günlük kullanım limiti aşılmış.']);
+        }
+
         $seans = new AdisyonPaketSeanslar();
         if ($request->paket == 1) {
             $seans->seans_tarih = $seansTarih;
@@ -13172,12 +13176,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                                     $__kul = (int) \DB::table('adisyon_paket_seanslar')
                                         ->where('adisyon_paket_id', $__p->id)
                                         ->where('hizmet_id', $_hzId)->count();
-                                    if ($__kul < (int) $__p->seans_sayisi) { $_paketSecili = $__p; break; }
+                                    if ($__kul < (int) $__p->seans_sayisi && \App\Services\PaketGecerlilik::seansUygun($__p->id, $_hzId, date('Y-m-d', strtotime($tarihler)))) { $_paketSecili = $__p; break; }
                                 }
+                                // Gecerli sinirsiz paket varsa once o (seansli paket bosa tukenmesin)
+                                if ($__sinirsiz = \App\Services\PaketGecerlilik::sinirsizAday($yenirandevu->salon_id, $request->user_id, $_hzId, date('Y-m-d', strtotime($tarihler)))) { $_paketSecili = $__sinirsiz; }
 
                                 $_hizmetIsle = false; $_paketIsle = false;
                                 if ($_hizmetSecili && $_paketSecili) {
-                                    if (date('Y-m-d', strtotime($_hizmetSecili->adisyon_tarih)) < date('Y-m-d', strtotime($_paketSecili->adisyon_tarih))) {
+                                    if (empty($_paketSecili->sinirsiz) && date('Y-m-d', strtotime($_hizmetSecili->adisyon_tarih)) < date('Y-m-d', strtotime($_paketSecili->adisyon_tarih))) {
                                         $_hizmetIsle = true;
                                     } else {
                                         $_paketIsle = true;
@@ -15847,6 +15853,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         foreach ($randevuOlusturulmamisPaketAdisyonuVarmi as $paketSeanslari) {
             foreach ($paketSeanslari->paketler as $paketA) {
                 if (!$paketA->paket) continue;
+                if (\App\Services\PaketGecerlilik::suresiDoldu($paketA->id)) continue; // gecerlilik bitti
                 $hizmetSayisi = $paketA->paket->hizmetler ? count($paketA->paket->hizmetler) : 0;
                 if ($hizmetSayisi <= 0) continue;
                 // KALAN = toplam - adisyon_paket_seanslar KAYIT SAYISI (her kayit 1 seans)

@@ -214,6 +214,8 @@ function formatHizmetDetaylari(hizmetler) {
         var ikonlar = '';
         var gosterilecekIkon = seansDetaylari.length;
         var kalanSeans = Math.max(0, (parseInt(hizmet.toplam_seans) || 0) - gosterilecekIkon);
+        // Sinirsiz: toplam teknik tavan; yuzlerce bos daire yerine tek "yeni kullanim" dairesi.
+        if (hizmet.sinirsiz) kalanSeans = hizmet.suresi_doldu ? 0 : 1;
 
         for (var i = 0; i < gosterilecekIkon; i++) {
             var seans = seansDetaylari[i];
@@ -237,14 +239,14 @@ function formatHizmetDetaylari(hizmetler) {
         var kullanilan = seansDetaylari.filter(function(s){ return s.geldi===1; }).length;
         var gelmedi = seansDetaylari.filter(function(s){ return s.geldi===0; }).length;
         var telafi = seansDetaylari.filter(function(s){ return s.geldi===2; }).length;
-        var kalanS = hizmet.toplam_seans - (kullanilan+gelmedi+telafi);
+        var kalanS = hizmet.sinirsiz ? '∞' : hizmet.toplam_seans - (kullanilan+gelmedi+telafi);
         html += '<input type="hidden" name="paketMusteriAdi" data-value="'+hizmet.id+'" value="'+hizmet.musteriAdi+'">' +
                 '<div class="col-sm-6 col-md-4 col-lg-3 mb-3">' +
                 '<div class="card h-100 shadow-sm" style="border: 1px solid rgba(0,0,0,0.05); border-radius: 12px;">' +
                 '<div class="card-header bg-white border-0 pt-3">' +
                 '<div class="d-flex justify-content-between align-items-center">' +
                 '<h6 name="paketHizmetAdi" data-index-number="'+hizmet.hizmetId+'" data-value="'+hizmet.id+'" class="mb-0 font-weight-bold text-dark" style="font-size: 14px;">' + (hizmet.hizmet_adi || '-') + '</h6>' +
-                '<span class="badge bg-success text-white px-2 py-1" style="border-radius: 20px; font-size: 11px;">' + toplam + ' Seans</span>' +
+                '<span class="badge bg-success text-white px-2 py-1" style="border-radius: 20px; font-size: 11px;">' + (hizmet.sinirsiz ? 'Sınırsız' : toplam + ' Seans') + '</span>' +
                 '</div></div>' +
                 '<div class="card-body pt-0">' +
                 '<div class="mb-2 seans-ikonlari" style="min-height: 45px;">' + ikonlar + '</div>' +

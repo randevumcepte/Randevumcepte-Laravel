@@ -7835,13 +7835,15 @@ private function ayAdiCevir($ingilizceAy)
                                         ->where('adisyon_paket_id', $__p->id)
                                         ->where('hizmet_id', $_hzmtId)
                                         ->count();
-                                    if ($__kul < (int) $__p->seans_sayisi) { $_paketSecili = $__p; break; }
+                                    if ($__kul < (int) $__p->seans_sayisi && \App\Services\PaketGecerlilik::seansUygun($__p->id, $_hzmtId, $yeniRandevuBilgileri['tarih'])) { $_paketSecili = $__p; break; }
                                 }
+                                // Gecerli sinirsiz paket varsa once o (seansli paket bosa tukenmesin)
+                                if ($__sinirsiz = \App\Services\PaketGecerlilik::sinirsizAday($salonId, $userId, $_hzmtId, $yeniRandevuBilgileri['tarih'])) { $_paketSecili = $__sinirsiz; }
 
                                 // Tarih karsilastirma: ikisi de varsa eski tarihliyi sec
                                 $_hizmetIsle = false; $_paketIsle = false;
                                 if ($_hizmetSecili && $_paketSecili) {
-                                    if (date('Y-m-d', strtotime($_hizmetSecili->adisyon_tarih)) < date('Y-m-d', strtotime($_paketSecili->adisyon_tarih))) {
+                                    if (empty($_paketSecili->sinirsiz) && date('Y-m-d', strtotime($_hizmetSecili->adisyon_tarih)) < date('Y-m-d', strtotime($_paketSecili->adisyon_tarih))) {
                                         $_hizmetIsle = true;
                                     } else {
                                         $_paketIsle = true;
@@ -9254,14 +9256,16 @@ private function ayAdiCevir($ingilizceAy)
                                 ->where('adisyon_paket_id', $__p->id)
                                 ->where('hizmet_id', $rHizmet)
                                 ->count();
-                            if ($__kul < (int) $__p->seans_sayisi) { $_paketSecili = $__p; break; }
+                            if ($__kul < (int) $__p->seans_sayisi && \App\Services\PaketGecerlilik::seansUygun($__p->id, $rHizmet, $tarihler)) { $_paketSecili = $__p; break; }
                         }
+                        // Gecerli sinirsiz paket varsa once o (seansli paket bosa tukenmesin)
+                        if ($__sinirsiz = \App\Services\PaketGecerlilik::sinirsizAday($request->sube, $musteriid, $rHizmet, $tarihler)) { $_paketSecili = $__sinirsiz; }
 
                         // Tarih karsilastirma: ikisi de varsa eski tarihli olani sec
                         $hizmetAdisyonundanIsle = false;
                         $paketAdisyonundanIsle = false;
                         if ($_hizmetSecili && $_paketSecili) {
-                            if (date('Y-m-d', strtotime($_hizmetSecili->adisyon_tarih)) < date('Y-m-d', strtotime($_paketSecili->adisyon_tarih))) {
+                            if (empty($_paketSecili->sinirsiz) && date('Y-m-d', strtotime($_hizmetSecili->adisyon_tarih)) < date('Y-m-d', strtotime($_paketSecili->adisyon_tarih))) {
                                 $hizmetAdisyonundanIsle = true;
                             } else {
                                 $paketAdisyonundanIsle = true;
@@ -11691,6 +11695,7 @@ private function ayAdiCevir($ingilizceAy)
         $paket->fiyat = $request->fiyatlar;
         $paket->sure = $request->paketsure;
         $paket->miktar = $request->seanslar;
+        \App\Services\PaketGecerlilik::paketFormunuYaz($paket, $request);
         $paket->save();
         // Audit
         SalonAudit::log($request->sube, $_yeni_paket ? 'paket_ekle' : 'paket_guncelle', 'paket', $paket->id,
@@ -11745,6 +11750,12 @@ private function ayAdiCevir($ingilizceAy)
                 $yeni->fiyat     = $eski->fiyat;
                 $yeni->miktar    = $eski->miktar;
                 $yeni->sure      = $eski->sure;
+                if (\App\Services\PaketGecerlilik::kolonVar()) {
+                    $yeni->sinirsiz         = $eski->sinirsiz;
+                    $yeni->gecerlilik_sayi  = $eski->gecerlilik_sayi;
+                    $yeni->gecerlilik_birim = $eski->gecerlilik_birim;
+                    $yeni->gunluk_limit     = $eski->gunluk_limit;
+                }
                 $yeni->save();
                 $eklenen_paket++;
 
@@ -12120,17 +12131,18 @@ private function ayAdiCevir($ingilizceAy)
         $_seansExpr = $_studyoSeans
             ? 'IF(COALESCE(SUM(paket_hizmetler.seans),0) > 0, GROUP_CONCAT(paket_hizmetler.seans), paketler.miktar) as seanslar'
             : 'COALESCE(CONCAT(GROUP_CONCAT(paket_hizmetler.seans)),paketler.miktar) as seanslar';
+        $_sinirsizKol = \App\Services\PaketGecerlilik::kolonVar() ? 'paketler.sinirsiz as sinirsiz' : DB::raw('0 as sinirsiz');
         if($addition)
             $paket_liste = DB::table('paketler')->join('paket_hizmetler','paketler.id','=','paket_hizmetler.paket_id')->join('hizmetler','paket_hizmetler.hizmet_id','=','hizmetler.id')->select(
                  DB::raw('CONCAT( GROUP_CONCAT(hizmetler.hizmet_adi)) as hizmetler'),
-                        DB::raw($_seansExpr),'paketler.paket_adi as paket_adi',DB::raw('CONCAT(COALESCE(SUM(paket_hizmetler.fiyat),0)) as fiyat'),DB::raw('CONCAT("<button title=\"Ekle\" class=\"btn btn-success\" name=\"satis_formuna_paket_ekle\" data-value=\"",paketler.id,"\"><i class=\"fa fa-plus\"></i> Ekle</a>") AS islemler'))->where('paketler.salon_id',self::mevcutsube($request))->orderBy('paketler.id','desc')->groupBy('paket_hizmetler.paket_id')->get();
+                        DB::raw($_seansExpr),$_sinirsizKol,'paketler.paket_adi as paket_adi',DB::raw('CONCAT(COALESCE(SUM(paket_hizmetler.fiyat),0)) as fiyat'),DB::raw('CONCAT("<button title=\"Ekle\" class=\"btn btn-success\" name=\"satis_formuna_paket_ekle\" data-value=\"",paketler.id,"\"><i class=\"fa fa-plus\"></i> Ekle</a>") AS islemler'))->where('paketler.salon_id',self::mevcutsube($request))->orderBy('paketler.id','desc')->groupBy('paket_hizmetler.paket_id')->get();
         else
             $paket_liste = DB::table('paketler')->join('paket_hizmetler','paketler.id','=','paket_hizmetler.paket_id')->join('hizmetler','paket_hizmetler.hizmet_id','=','hizmetler.id')->
                     select(
                       DB::raw('CONCAT("<div class=\"dt-checkbox\"><input type=\"checkbox\"  class=\"paket-checkbox\" style=\"margin-left:11px;\"  name=\"paket_bilgi[]\" value=\"",paketler.id,"\"><span style=\"margin-left:11px;\" class=\"dt-checkbox-label\"></span></div>") as id'),
                         'paketler.paket_adi as paket_adi',
                         DB::raw('CONCAT(GROUP_CONCAT(hizmetler.hizmet_adi)) as hizmetler'),
-                        DB::raw($_seansExpr),
+                        DB::raw($_seansExpr),$_sinirsizKol,
                         DB::raw('CONCAT(COALESCE(SUM(paket_hizmetler.fiyat),paketler.fiyat)) as fiyat'),
                         DB::raw('CONCAT("<div class=\"dropdown\">
                         <a class=\"btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle\"
@@ -15396,6 +15408,17 @@ private function createDurumButonlari($id, $tip)
     // Telafi da (Gelmedi gibi) kapasiteyi tuketir -> bekleyen'den dusulur.
     $bekleyen = $toplam - $kullanilan - $kullanilmayan - $telafi;
 
+    // Sinirsiz: seans_sayisi teknik tavan, ekranda adet gosterilmez. Sureli pakette bitis yazilir.
+    $gecerlilikNot = '';
+    if ($tip == 'paket') {
+        $_pDurum = \App\Services\PaketGecerlilik::durum($id);
+        if ($_pDurum['sinirsiz']) { $toplam = '∞'; $bekleyen = '∞'; }
+        if ($_pDurum['sure'] !== '') {
+            $gecerlilikNot = '<small style="white-space:nowrap;color:#5C008E;font-weight:600">' . $_pDurum['sure'] . ' · '
+                . ($_pDurum['bitis'] ? 'Bitiş: ' . date('d.m.Y', strtotime($_pDurum['bitis'])) : 'İlk gelişte başlar') . '</small>';
+        }
+    }
+
     // Lazer epilasyon paketi/hizmeti mi? Paket adi VEYA icindeki hizmet adlarindan
     // biri "lazer" iceriyorsa (kart bazli lazer tespitiyle ayni mantik).
     $lazer = false;
@@ -15452,7 +15475,7 @@ private function createDurumButonlari($id, $tip)
            '<button type="button" name="kullanilan_seanslar" data-value="'.$id.'" style="'.$btnStil.'" class="btn btn-success">'.$kullanilan.' <i class="fa fa-check"></i></button>' .
            '<button type="button" name="kullanilmayan_seanslar" data-value="'.$id.'" style="'.$btnStil.'" class="btn btn-danger">'.$kullanilmayan.' <i class="fa fa-times"></i></button>' .
            '<button type="button" name="telafi_seanslar" data-value="'.$id.'" style="'.$btnStil.';background:#FDA172;border-color:#FDA172;color:#fff" class="btn" title="Telafi">'.$telafi.' <i class="fa fa-exclamation-triangle"></i></button>' .
-           $pdfBtn .
+           $pdfBtn . $gecerlilikNot .
            '</span>';
 }
 
@@ -15482,6 +15505,7 @@ private function getPaketDetaylari($paketId)
         ->where('adisyon_paketler.id', $paketId)
         ->value('paketler.paket_adi');
     $paketLazer = self::isimdeLazerVar($paketAdi);
+    $_pDurum = \App\Services\PaketGecerlilik::durum($paketId);
 
     $detaylar = [];
     foreach ($hizmetler as $h) {
@@ -15499,6 +15523,8 @@ private function getPaketDetaylari($paketId)
             'hizmet_adi' => $h->hizmet_adi,
             'seansTuru' => 'PAKET',
             'toplam_seans' => $seansSayisi,
+            'sinirsiz' => $_pDurum['sinirsiz'] ? 1 : 0,
+            'suresi_doldu' => ($_pDurum['bitis'] && date('Y-m-d') > $_pDurum['bitis']) ? 1 : 0,
             'lazer' => ($paketLazer || self::isimdeLazerVar($h->hizmet_adi)) ? 1 : 0,
             'seans_detaylari' => $seanslar->toJson()
         ];
@@ -37999,6 +38025,8 @@ DB::raw('
     foreach($randevuOlusturulmamisPaketAdisyonuVarmi as $paketSeanslari) {
         foreach($paketSeanslari->paketler as $paketA) {
             if (!$paketA->paket) continue;
+            if (\App\Services\PaketGecerlilik::suresiDoldu($paketA->id)) continue; // gecerlilik bitti -> popup'a gelmez
+            $_pDurum = \App\Services\PaketGecerlilik::durum($paketA->id);
             $hizmetSayisi = $paketA->paket->hizmetler ? count($paketA->paket->hizmetler) : 0;
             if ($hizmetSayisi <= 0) continue;
 
@@ -38072,7 +38100,7 @@ DB::raw('
             if (empty($paketHizmetleriArray)) continue;
 
             $onayMetni .= '<div class="package-group mt-2"><strong>📦 ' .
-                         $paketAdi . '</strong> (' . $toplamKalan . ' seans)</div>';
+                         $paketAdi . '</strong> (' . ($_pDurum['sinirsiz'] ? 'Sınırsız' : $toplamKalan . ' seans') . ')</div>';
 
             // Musteriye satilan paket fiyati (adisyon_paketler.fiyat).
             // Randevu ekleme modalinda paket kartinin fiyat input'una default olarak
@@ -38089,6 +38117,8 @@ DB::raw('
                 'type' => 'paket',
                 'adisyon_paket_id' => $paketA->id,
                 'toplamSeans' => $toplamKalan,
+                'sinirsiz' => $_pDurum['sinirsiz'],
+                'seans_etiket' => $_pDurum['sinirsiz'] ? 'Sınırsız' : null,
                 'paket_fiyat' => $paketSatisFiyati,
                 'icerik' => $paketHizmetleriArray
             ];
@@ -38121,6 +38151,9 @@ DB::raw('
             if($gelen && $gelen->format('Y-m-d') === $request->seansTarihi)
                 $seansTarih = $request->seansTarihi;
         }
+
+        if($request->paket==1 && !\App\Services\PaketGecerlilik::seansUygun($request->paketId, $request->hizmetId, $seansTarih))
+            return response('Paketin geçerlilik süresi dolmuş veya günlük kullanım limiti aşılmış.', 422);
 
         $seans = new AdisyonPaketSeanslar();
         if($request->paket==1)

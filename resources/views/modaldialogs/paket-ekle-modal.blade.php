@@ -48,6 +48,8 @@
                             </div>
                         </div>
 
+                        @include('modaldialogs.paket-gecerlilik-alanlari')
+
                         <div class="paket_hizmetler_bolumu" style="margin-left: 20px">
                             <div class="row" data-value="0">
                                 <!-- Hizmet seçimleri buraya gelecek -->

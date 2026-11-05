@@ -11,6 +11,15 @@ class AdisyonPaketler extends Model
 
     protected $table = 'adisyon_paketler';
 
+    protected static function boot()
+    {
+        parent::boot();
+        // Sinirsiz/sureli paket bilgisi satis aninda kopyalanir (6 ayri satis yolu icin tek nokta).
+        static::saving(function ($ap) {
+            \App\Services\PaketGecerlilik::satisaKopyala($ap);
+        });
+    }
+
     /* PERF: Global $with kaldirildi. ->with(['paket','seanslar','personel']) gerektiginde acikca.
        Eski deger: ['paket','seanslar','personel'] */
 

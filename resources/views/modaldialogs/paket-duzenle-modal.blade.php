@@ -47,6 +47,7 @@
                                     <input type="tel" name="fiyatlar" id="paketFiyati" class="form-control">
                                  </div>
                               </div>
+                              @include('modaldialogs.paket-gecerlilik-alanlari')
                         </div>
                      </div>
                      <div class="modal-footer" style="display:block">

@@ -6198,7 +6198,7 @@ $(document).on('submit','#paket_formu,#paket_formu_duzenleme',function(e){
                         {data: 'id'},
                         {data: 'paket_adi'},
                         {data: 'hizmetler'},
-                        {data: 'seanslar'},
+                        {data: 'seanslar', render: function(d,t,row){return row.sinirsiz==1?'Sınırsız':d;}},
                         {data: 'fiyat', visible: !window.STUDYO_MODU},
                         {data: 'islemler'},
                     ],
@@ -6419,7 +6419,7 @@ $('#paket_liste').on('click','a[name="paket_sil"]',function(e){
                            {data:'id'},
                            { data: 'paket_adi' },
                            { data: 'hizmetler' },
-                           { data: 'seanslar' },
+                           { data: 'seanslar', render: function(d,t,row){return row.sinirsiz==1?'Sınırsız':d;} },
                            { data: 'fiyat', visible: !window.STUDYO_MODU },
                            {data : 'islemler'},
                        ],
@@ -6442,6 +6442,18 @@ $('#paket_liste').on('click','a[name="paket_sil"]',function(e){
         }
     });
 });
+// Paket formu: Sinirsiz secilince seans alani gizlenir, sure zorunlu olur (bossa 1 yil), gunluk limit acilir.
+function paketTurGuncelle($form){
+    var sinirsiz = $form.find('[name="sinirsiz"]').val() === '1';
+    $form.find('.paket-limit-alani').toggle(sinirsiz);
+    $form.find('.paket-sure-ipucu').text(sinirsiz ? '*' : '(opsiyonel)');
+    $form.find('[name="seanslar"]').closest('.form-group').parent().toggle(!sinirsiz);
+    if (sinirsiz && !$form.find('[name="gecerlilik_sayi"]').val()) {
+        $form.find('[name="gecerlilik_sayi"]').val(1);
+        $form.find('[name="gecerlilik_birim"]').val('yil');
+    }
+}
+$(document).on('change','[name="sinirsiz"]',function(){ paketTurGuncelle($(this).closest('form')); });
 $('#paket_liste').on('click','a[name="paket_duzenle"]',function(e){
      $.ajax({
                 type: "GET",
@@ -6456,7 +6468,13 @@ $('#paket_liste').on('click','a[name="paket_duzenle"]',function(e){
                     $('#paketad').val(result.paket_adi);
                     $("#paket_id_duzenleme").val(result.id);
                     $('#paketFiyati').val(result.fiyat);
-                    $('#paketSeanslari').val(result.miktar);
+                    $('#paketSeanslari').val(result.sinirsiz == 1 ? '' : result.miktar);
+                    var $pf = $('#paket_formu_duzenleme');
+                    $pf.find('[name="sinirsiz"]').val(result.sinirsiz == 1 ? '1' : '0');
+                    $pf.find('[name="gecerlilik_sayi"]').val(result.gecerlilik_sayi || '');
+                    $pf.find('[name="gecerlilik_birim"]').val(result.gecerlilik_birim || 'ay');
+                    $pf.find('[name="gunluk_limit"]').val(result.gunluk_limit || 1);
+                    paketTurGuncelle($pf);
                     let select = $('#paketHizmetleri');
                     select.empty();
 
@@ -18648,7 +18666,7 @@ $('#secilenpaket_satis_yap').click(function(e){
          // Studyo modu: seans + fiyat paket satirindan otomatik gelsin (cells[3]=seans, cells[4]=fiyat)
          var _seansVal='', _fiyatVal='';
          if(window.STUDYO_MODU){
-             var _st=((row.cells[3]?row.cells[3].innerText:'')||'').match(/\d+/); _seansVal=_st?_st[0]:'';
+             var _st=((row.cells[3]?row.cells[3].innerText:'')||'').match(/\d+/); _seansVal=_st?_st[0]:''; if(/Sınırsız/.test(row.cells[3]?row.cells[3].innerText:'')) _seansVal='Sınırsız';
              _fiyatVal=((row.cells[4]?row.cells[4].innerText:'')||'').replace(/[^\d.,]/g,'').trim();
          }
          // Studyo modu: Fiyat alani gizli (deger korunur), Seans tam genislik
@@ -24198,7 +24216,7 @@ function generateSoftPackageRows(paketDetaylari) {
         if (item.icerik && item.icerik.length > 0) {
             hizmetListesi = '<div class="small text-muted mt-1">';
             item.icerik.forEach(hizmet => {
-                hizmetListesi += `<div>• ${hizmet.text} (${hizmet.seans} seans)</div>`;
+                hizmetListesi += `<div>• ${hizmet.text} (${item.seans_etiket || (hizmet.seans + ' seans')})</div>`;
             });
             hizmetListesi += '</div>';
         }
@@ -24225,7 +24243,7 @@ function generateSoftPackageRows(paketDetaylari) {
                 </td>
                 <td class="py-3" style="border-bottom: 1px solid #eef2f7; color: #475569;">
                     <span class="badge ${typeClass}" style="color:#000;font-size: 12px; padding: 4px 8px;">
-                        ${item.seans} seans
+                        ${item.seans_etiket || (item.seans + ' seans')}
                     </span>
                 </td>
                 <td class="py-3" style="border-bottom: 1px solid #eef2f7; color: #475569;">
@@ -24397,7 +24415,7 @@ function updateSoftSelectedPackagesSummary(result) {
     let totalSeans = 0;
     
     selectedPackages.forEach((paket, index) => {
-        totalSeans += parseInt(paket.seans) || 0;
+        totalSeans += paket.sinirsiz ? 0 : (parseInt(paket.seans) || 0);
         const isPackage = paket.type === 'paket';
         
         listHtml += `

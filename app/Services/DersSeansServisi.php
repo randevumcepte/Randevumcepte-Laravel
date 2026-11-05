@@ -49,7 +49,7 @@ class DersSeansServisi
         $hizmetId = (int) $oturum->hizmet_id;
         if ($hizmetId <= 0) return null; // hizmet bagli degil -> dusum yok
 
-        $aday = self::adaySec($oturum->salon_id, $katilimci->user_id, $hizmetId);
+        $aday = self::adaySec($oturum->salon_id, $katilimci->user_id, $hizmetId, $oturum->tarih);
         if (!$aday) return null;
 
         try {
@@ -124,6 +124,7 @@ class DersSeansServisi
             })
             ->select('adisyon_paketler.id', 'adisyon_paketler.seans_sayisi')->distinct()->get();
         foreach ($paketAdaylar as $p) {
+            if (PaketGecerlilik::suresiDoldu($p->id)) continue;
             $kul = (int) DB::table('adisyon_paket_seanslar')->where('adisyon_paket_id', $p->id)->where('hizmet_id', $hizmetId)->count();
             $toplam += max(0, (int) $p->seans_sayisi - $kul);
         }
@@ -243,7 +244,7 @@ class DersSeansServisi
      * Mevcut StoreAdminController seciminin (6904-6965) birebir uyarlamasi.
      * Donus: {tur:'hizmet'|'paket', id, kullanilan_seans, kullanilmayan_seans, adisyon_tarih} | null
      */
-    private static function adaySec($salonId, $userId, $hizmetId)
+    private static function adaySec($salonId, $userId, $hizmetId, $tarih = null)
     {
         // 1) Tek hizmet satisi (adisyon_hizmetler)
         $hizmetAdaylar = DB::table('adisyon_hizmetler')
@@ -289,12 +290,14 @@ class DersSeansServisi
         foreach ($paketAdaylar as $p) {
             $kul = (int) DB::table('adisyon_paket_seanslar')
                 ->where('adisyon_paket_id', $p->id)->where('hizmet_id', $hizmetId)->count();
-            if ($kul < (int) $p->seans_sayisi) { $paketSecili = $p; break; }
+            if ($kul < (int) $p->seans_sayisi && PaketGecerlilik::seansUygun($p->id, $hizmetId, $tarih)) { $paketSecili = $p; break; }
         }
+        // Gecerli sinirsiz paket varsa once o (seansli paket bosa tukenmesin)
+        if ($sinirsiz = PaketGecerlilik::sinirsizAday($salonId, $userId, $hizmetId, $tarih)) { $paketSecili = $sinirsiz; }
 
         // 3) Ikisi de varsa eski tarihli adisyon kazanir (FIFO)
         if ($hizmetSecili && $paketSecili) {
-            if (date('Y-m-d', strtotime($hizmetSecili->adisyon_tarih)) < date('Y-m-d', strtotime($paketSecili->adisyon_tarih))) {
+            if (empty($paketSecili->sinirsiz) && date('Y-m-d', strtotime($hizmetSecili->adisyon_tarih)) < date('Y-m-d', strtotime($paketSecili->adisyon_tarih))) {
                 return (object) ['tur' => 'hizmet', 'id' => $hizmetSecili->id, 'kullanilan_seans' => $hizmetSecili->kullanilan_seans, 'kullanilmayan_seans' => $hizmetSecili->kullanilmayan_seans, 'adisyon_tarih' => $hizmetSecili->adisyon_tarih];
             }
             return (object) ['tur' => 'paket', 'id' => $paketSecili->id, 'kullanilan_seans' => $paketSecili->kullanilan_seans, 'kullanilmayan_seans' => $paketSecili->kullanilmayan_seans, 'adisyon_tarih' => $paketSecili->adisyon_tarih];
