@@ -1028,6 +1028,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/google/oauth/durum',   'GoogleCalendarController@durum');
 	Route::post('/google/oauth/aktar',  'GoogleCalendarController@aktar');
  	Route::post('/pakettahsilatagit','StoreAdminController@pakettahsilatagit')->name('pakettahsilatagit');
+	Route::get('/paket-satis-hizmetleri','StoreAdminController@paketSatisHizmetleri');
  	
  	Route::post('/uruntahsilatagit','StoreAdminController@uruntahsilatagit')->name('uruntahsilatagit');
  	Route::get('/tahsilat/{musteriid}/{adisyonid}','StoreAdminController@tahsilatekrani');

@@ -18658,6 +18658,17 @@ $('#onOdemeTutari').on('keyup paste change',function (e) {
 
 $('#secilenpaket_satis_yap').click(function(e){
     e.preventDefault();
+    // Hizmet secimi icin paket hizmetleri + salon hizmetleri once alinir, sonra pencere acilir.
+    var _pkIdler = $('input:checkbox[name="paket_bilgi[]"]:checked').map(function(){ return this.value; }).get();
+    if(!window._pkSatisVeri && _pkIdler.length && $('select[name="paket_satis_musteri_id"]').val()!=0){
+        $.getJSON('/isletmeyonetim/paket-satis-hizmetleri',{paket_idler:_pkIdler,sube:$('input[name="sube"]').val()},function(v){
+            window._pkSatisVeri = v;
+            window._pkSecim = {};
+            $('#secilenpaket_satis_yap').click();
+            window._pkSatisVeri = null;
+        });
+        return;
+    }
     var i = 0;
     var html='';
     $('input:checkbox[name="paket_bilgi[]"]:checked').each(function(){
@@ -18675,7 +18686,7 @@ $('#secilenpaket_satis_yap').click(function(e){
              : "<div class='col-md-6'><label>Fiyat</label><input type='tel' class='form-control' name='paket_satis_fiyat[]' value='"+_fiyatVal+"' style='height:38px;margin-bottom:10px'></div>";
          var _seansCol = window.STUDYO_MODU ? 'col-md-12' : 'col-md-6';
          html+= "<div class='row'><div class='col-md-12'><p style='font-size:18px;font-weight:bold;margin-bottom:10px;margin-top:10px'>"+row.cells[1].innerHTML
-+"</p></div>"+
++"</p></div>"+pkHizmetSecimHtml(this.value)+
                 "<div class='"+_seansCol+"'><label>Seans Sayısı</label><input type='tel' class='form-control' name='paket_satis_seans[]' value='"+_seansVal+"' style='height:38px;margin-bottom:10px'></div>"+
                 _fiyatBlok+
                 "</div> ";
@@ -18701,6 +18712,7 @@ $('#secilenpaket_satis_yap').click(function(e){
             $('input[name="paket_satis_fiyat[]"]').each(function(){ formData.append('paket_satis_fiyat[]',$(this).val()); });
             var data1 = $('#paket_satis_form').serializeArray();
             $.each(data1,function(key,input){ formData.append(input.name,input.value); });
+            $.each(window._pkSecim||{},function(pid,hizmetler){ $.each(hizmetler,function(_,hid){ formData.append('paket_hizmet_sec['+pid+'][]',hid); }); });
             $.ajax({
                 type: "POST", url: '/isletmeyonetim/pakettahsilatagit', dataType: "text",
                 data: formData, processData: false, contentType: false,
@@ -18786,6 +18798,38 @@ $('#secilenpaket_satis_yap').click(function(e){
             dateFormat: "yyyy-mm-dd",
         });
      });
+});
+// Satis penceresi: pakete ozel hizmet secimi (katalog degismez).
+function pkHizmetEsc(t){ return $('<div>').text(t).html(); }
+function pkHizmetSatir(pid,h,secili){
+    return "<label style='display:block;margin:0 0 4px;font-weight:normal;cursor:pointer'><input type='checkbox' class='pk-hizmet-sec' data-paket='"+pid+"' value='"+h.id+"' "+(secili?"checked":"")+" style='margin-right:6px'>"+pkHizmetEsc(h.ad)+"</label>";
+}
+function pkHizmetSecimHtml(pid){
+    var veri = window._pkSatisVeri || {};
+    var liste = (veri.paketler && veri.paketler[pid]) || [];
+    window._pkSecim[pid] = liste.map(function(h){ return h.id; });
+    var kalan = (veri.tum||[]).filter(function(h){ return window._pkSecim[pid].indexOf(h.id) < 0; });
+    return "<div class='col-md-12' style='text-align:left;margin-bottom:10px'><label>Hizmetler</label><div class='pk-hizmet-liste' data-paket='"+pid+"'>"+
+        liste.map(function(h){ return pkHizmetSatir(pid,h,true); }).join('')+"</div>"+
+        "<select class='form-control pk-hizmet-ekle' data-paket='"+pid+"' style='height:38px'><option value=''>+ Hizmet ekle</option>"+
+        kalan.map(function(h){ return "<option value='"+h.id+"'>"+pkHizmetEsc(h.ad)+"</option>"; }).join('')+"</select></div>";
+}
+function pkHizmetSecimOku(pid){
+    window._pkSecim[pid] = $('.pk-hizmet-sec[data-paket="'+pid+'"]:checked').map(function(){ return parseInt(this.value,10); }).get();
+}
+$(document).on('change','.pk-hizmet-sec',function(){
+    var pid = $(this).attr('data-paket');
+    // Paket en az bir hizmet icermeli.
+    if(!this.checked && $('.pk-hizmet-sec[data-paket="'+pid+'"]:checked').length===0){ this.checked = true; return; }
+    pkHizmetSecimOku(pid);
+});
+$(document).on('change','.pk-hizmet-ekle',function(){
+    var pid = $(this).attr('data-paket'), $o = $(this).find('option:selected');
+    if(!this.value) return;
+    $('.pk-hizmet-liste[data-paket="'+pid+'"]').append(pkHizmetSatir(pid,{id:parseInt(this.value,10),ad:$o.text()},true));
+    $o.remove();
+    this.value = '';
+    pkHizmetSecimOku(pid);
 });
 $('#paket_hepsini_sec_liste').change(function(e){
     if (this.checked) {
