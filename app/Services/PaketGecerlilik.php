@@ -14,8 +14,9 @@ use Illuminate\Support\Facades\Schema;
  * Boylece "Geldi" geri alinirsa ya da gecmis tarihli seans girilirse kendiliginden duzelir.
  * Hic gelinmemis pakette sure islemez.
  *
- * Sinirsiz pakette seans_sayisi "gun x gunluk limit" yazilir: pratikte asilamaz, ama
- * `seans_sayisi > 0` ve kalan formulu kullanan eski ekran/mobil kod bozulmadan calisir.
+ * Sinirsiz pakette ADET KONTROLU YOKTUR: sure bitene kadar her randevu seansa yazilir, sure
+ * bitince yazilmaz. seans_sayisi yalniz `seans_sayisi > 0` arayan eski sorgular/mobil icin dolu
+ * tutulan teknik bir degerdir; KURAL ICIN KULLANILMAZ, EKRANDA GOSTERILMEZ (bkz. seansAlani).
  */
 class PaketGecerlilik
 {
@@ -50,6 +51,14 @@ class PaketGecerlilik
         return (int) $sayi > 0 ? ((int) $sayi . ' ' . ($birim === 'yil' ? 'Yıl' : 'Ay')) : '';
     }
 
+    /** Seans adedi yerine: sinirsiz pakette rozet, degilse verilen input/metin. */
+    public static function seansAlani($paket, $normalHtml)
+    {
+        if (empty($paket->sinirsiz)) return $normalHtml;
+        $sure = self::sureMetni($paket->gecerlilik_sayi ?? null, $paket->gecerlilik_birim ?? null);
+        return '<span style="display:inline-block;padding:2px 10px;border-radius:999px;background:#f5eefe;color:#5C008E;font-size:12px;font-weight:700;white-space:nowrap">Sınırsız'.($sure ? ' · '.$sure : '').'</span>';
+    }
+
     /** Paket formu (web): alanlari pakete yazar. Sinirsizda sure bossa 1 yil, limit bossa 1. */
     public static function paketFormunuYaz($paket, $request): void
     {
@@ -63,7 +72,8 @@ class PaketGecerlilik
         $paket->sinirsiz = $sinirsiz;
         $paket->gecerlilik_sayi = $sayi > 0 ? $sayi : null;
         $paket->gecerlilik_birim = $sayi > 0 ? $birim : null;
-        $paket->gunluk_limit = $sinirsiz ? min(50, max(1, (int) $request->gunluk_limit)) : null;
+        // Limit opsiyonel: bos = o gun acilan her randevu seansa yazilir.
+        $paket->gunluk_limit = ($sinirsiz && (int) $request->gunluk_limit > 0) ? min(50, (int) $request->gunluk_limit) : null;
         if ($sinirsiz) {
             $paket->miktar = self::ustSinir($sayi, $birim, $paket->gunluk_limit);
         }
@@ -153,8 +163,7 @@ class PaketGecerlilik
                      'adisyonlar.tarih as adisyon_tarih')
             ->distinct()->get();
         foreach ($adaylar as $a) {
-            $kul = (int) DB::table('adisyon_paket_seanslar')->where('adisyon_paket_id', $a->id)->where('hizmet_id', $hizmetId)->count();
-            if ($kul < (int) $a->seans_sayisi && self::seansUygun($a->id, $hizmetId, $tarih)) return $a;
+            if (self::seansUygun($a->id, $hizmetId, $tarih)) return $a;
         }
         return null;
     }

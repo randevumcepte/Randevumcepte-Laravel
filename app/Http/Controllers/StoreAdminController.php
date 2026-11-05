@@ -5465,6 +5465,7 @@ public function carkverilerigetir(Request $request)
         foreach($paketAdisyonlari as $ad){
             foreach($ad->paketler as $p){
                 if(!$p->paket) continue;
+                if(\App\Services\PaketGecerlilik::suresiDoldu($p->id)) continue;
                 $hizmetSayisi = $p->paket->hizmetler ? count($p->paket->hizmetler) : 0;
                 if($hizmetSayisi<=0) continue;
                 $seansPer = (int)($p->seans_sayisi ?? 0);
@@ -5476,7 +5477,7 @@ public function carkverilerigetir(Request $request)
                     $kaynaklar[] = [
                         'etiket'=>$ph->hizmet->hizmet_adi.' — '.$p->paket->paket_adi.' (Paket)',
                         'hizmet_id'=>(int)$ph->hizmet_id,'hizmet_adi'=>$ph->hizmet->hizmet_adi,
-                        'kalan_seans'=>$kalanPer,'adisyon_paket_id'=>(int)$p->id,'adisyon_hizmet_id'=>null,
+                        'kalan_seans'=>$kalanPer,'sinirsiz'=>!empty($p->sinirsiz),'adisyon_paket_id'=>(int)$p->id,'adisyon_hizmet_id'=>null,
                     ];
                 }
             }
@@ -15629,6 +15630,9 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     if (\Schema::hasColumn('adisyon_paketler', 'yukseltme_kaynak_paket_id')) {
         $paketSelectCols[] = 'yukseltme_kaynak_paket_id';
     }
+    if (\App\Services\PaketGecerlilik::kolonVar()) {
+        $paketSelectCols[] = 'sinirsiz';
+    }
 
     $adisyonlar = Adisyonlar::with([
         'musteri:id,name',
@@ -15991,7 +15995,7 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
             }
 
             $paketNetTutar = ($paket->fiyat ?? 0) - ($paket->indirim_tutari ?? 0);
-            $__paketSeansEt = ((int)($paket->seans_sayisi ?? 0) > 0) ? '('.(int)$paket->seans_sayisi.' Seans) ' : '';
+            $__paketSeansEt = !empty($paket->sinirsiz) ? '(Sınırsız) ' : (((int)($paket->seans_sayisi ?? 0) > 0) ? '('.(int)$paket->seans_sayisi.' Seans) ' : '');
             // Paket yukseltildiyse satis takibi + musteri detay "Satis Icerigi" sutununda rozet (+ kaynak paket adi)
             $__yukseltRozet = '';
             if (!empty($paket->yukseltme_kaynak_paket_id)) {
@@ -16790,11 +16794,13 @@ DB::raw('
                                   '.($satisDuzenle ? $saticiSelectYap('paket',$paket->id,$paket->personel_id) : ($paket->personel_id!== null ?  $paket->personel->personel_adi : "")).'
                               </div>
                                <div class="col-md-2 col-5 col-xs-5  col-sm-2">';
-                    if($tahsilatVar == 0)
+                    if(!empty($paket->sinirsiz))
+                        $html .= \App\Services\PaketGecerlilik::seansAlani($paket, '').'<span>';
+                    elseif($tahsilatVar == 0)
                         $html .= '<input type="tel" value="'.$paket->seans_sayisi.'" data-value="'.$paket->id.'" class="form-control" style="height:26px;float:left;width: 60%;" name="paket_seans_girilen[]"><span style="float:left;position:relative;">';
                     else
                         $html .= $paket->seans_sayisi;
-                    $html .= ' seans</span> 
+                    $html .= (!empty($paket->sinirsiz) ? '' : ' seans').'</span> 
                               </div>
                               <div class="col-md-3 col-7 col-xs-7  col-sm-3"  style="text-align:right">
                                  <input type="hidden" name="adisyon_paket_id[]" value="'.$paket->id.'">
@@ -17043,7 +17049,7 @@ DB::raw('
                 $html .= '<div class="tm-item-icon"><i class="fa fa-cubes"></i></div>';
                 $html .= '<div class="tm-item-name">'.e($paketAdi).'</div>';
                 $html .= '<div class="tm-item-meta">'.e($meta).'</div>';
-                $html .= '<div class="tm-item-qty"><input type="tel" value="'.e($paket->seans_sayisi).'" data-value="'.$paket->id.'" class="form-control" name="paket_seans_girilen[]" title="seans"></div>';
+                $html .= '<div class="tm-item-qty">'.\App\Services\PaketGecerlilik::seansAlani($paket, '<input type="tel" value="'.e($paket->seans_sayisi).'" data-value="'.$paket->id.'" class="form-control" name="paket_seans_girilen[]" title="seans">').'</div>';
                 $html .= '<div class="tm-item-amount">';
                 $html .= '<input type="hidden" name="adisyon_paket_id[]" value="'.$paket->id.'">';
                 $html .= '<input type="hidden" name="adisyon_paket_senet_id[]" value="'.e($paket->senet_id).'">';
@@ -17178,7 +17184,7 @@ DB::raw('
                                   '.($paket->personel_id!==null ? $paket->personel->personel_adi : "") .'
                               </div>
                                <div class="col-md-2">
-                                  <input type="tel" value="'.$paket->seans_sayisi.'" data-value="'.$paket->id.'" class="form-control" style="height:26px;float:left;width: 60%;" name="paket_seans_girilen[]"> <span style="float:left;position:relative;">&nbsp;seans</span> 
+                                  '.\App\Services\PaketGecerlilik::seansAlani($paket, '<input type="tel" value="'.$paket->seans_sayisi.'" data-value="'.$paket->id.'" class="form-control" style="height:26px;float:left;width: 60%;" name="paket_seans_girilen[]"> <span style="float:left;position:relative;">&nbsp;seans</span>').' 
                               </div>
                               <div class="col-md-2"  style="text-align:right">
                                      <span name="adisyon_paket_tahsilat_tutari" data-value="'.$paket->id.'">'.number_format($tutar,2,',','.').'</span> ₺
@@ -18278,7 +18284,7 @@ DB::raw('
                                   '.($paket->personel_id!==null ? $paket->personel->personel_adi : "").'
                               </div>
                                <div class="col-md-2">
-                                  <input type="tel" value="'.$paket->seans_sayisi.'" data-value="'.$paket->id.'" class="form-control" style="height:26px;float:left;width: 60%;" name="paket_seans_girilen[]"><span style="float:left;position:relative;">&nbsp;seans</span> 
+                                  '.\App\Services\PaketGecerlilik::seansAlani($paket, '<input type="tel" value="'.$paket->seans_sayisi.'" data-value="'.$paket->id.'" class="form-control" style="height:26px;float:left;width: 60%;" name="paket_seans_girilen[]"><span style="float:left;position:relative;">&nbsp;seans</span>').' 
                               </div>
                               <div class="col-md-2"  style="text-align:right">
                                      <span name="adisyon_paket_tahsilat_tutari" data-value="'.$paket->id.'">'.number_format($paket->fiyat - TahsilatPaketler::where('adisyon_paket_id',$paket->id)->sum('tutar'),2,',','.').'</span> ₺
@@ -22195,6 +22201,7 @@ DB::raw('
                     'adisyon_paket_id' => (int) $s->adisyon_paket_id,
                     'kalan_seans'      => $kalan,
                     'toplam_seans'     => $toplamSeans,
+                    'sinirsiz'         => $ap ? !empty($ap->sinirsiz) : false,
                     'seans_no'         => (int) ($s->seans_no ?? 0),
                     'sure_dk'          => $sureDk,
                     'default_miktar'   => $defaultMiktar,
@@ -31714,7 +31721,7 @@ public function arsivformekleme(Request $request){
                                   '.($paket->personel_id !== null ? $paket->personel->personel_adi : "").'
                               </div>
                                <div class="col-md-2 col-5 col-xs-5  col-sm-2">
-                                 <input type="tel" value="'.$paket->seans_sayisi.'" data-value="'.$paket->id.'" class="form-control" style="height:26px;float:left;width: 60%;" name="paket_seans_girilen[]"><span style="float:left;position:relative;">&nbsp;seans</span> 
+                                 '.\App\Services\PaketGecerlilik::seansAlani($paket, '<input type="tel" value="'.$paket->seans_sayisi.'" data-value="'.$paket->id.'" class="form-control" style="height:26px;float:left;width: 60%;" name="paket_seans_girilen[]"><span style="float:left;position:relative;">&nbsp;seans</span>').' 
                               </div>
                               <div class="col-md-3 col-7 col-xs-7  col-sm-3"  style="text-align:right">
                                  <input type="hidden" name="adisyon_paket_id[]" value="'.$paket->id.'">
@@ -38092,7 +38099,7 @@ DB::raw('
                     continue;
                 }
                 $kullanilan = (int)($kullanilanByHizmet[$hizmetP->hizmet_id] ?? 0);
-                $kalan = max(0, $seansPerHizmet - $kullanilan);
+                $kalan = $_pDurum['sinirsiz'] ? 1 : max(0, $seansPerHizmet - $kullanilan);
                 \Log::info('[paketVarmi/BOLGE]', [
                     'adisyon_paket_id' => $paketA->id,
                     'hizmet_id' => $hizmetP->hizmet_id,
@@ -38449,6 +38456,7 @@ DB::raw('
             $toplam = $seansAdedi;
         }
         $kullanilan = $seanslar->where('geldi', 1)->count();
+        if ($paketMi && $ap && !empty($ap->sinirsiz)) $toplam = 'Sınırsız';
 
         // Baslangic tarihi bozuksa (0000-00-00 vb.) '-' goster
         $baslangicStr = '-';

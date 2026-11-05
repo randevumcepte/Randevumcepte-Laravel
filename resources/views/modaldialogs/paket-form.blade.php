@@ -34,9 +34,9 @@
             <input type="tel" name="seanslar" @if($d) id="paketSeanslari" @endif class="form-control" placeholder="Örn. 8">
         </div>
         <div class="pkf-alan paket-limit-alani" style="display:none">
-            <label>Günlük Limit</label>
-            <input type="number" name="gunluk_limit" class="form-control" min="1" max="50" step="1" value="1">
-            <small>Hizmet başına, günde en fazla</small>
+            <label>Günlük Limit <small>(opsiyonel)</small></label>
+            <input type="number" name="gunluk_limit" class="form-control" min="1" max="50" step="1" placeholder="Limitsiz">
+            <small>Boş bırakılırsa her randevu seansa yazılır</small>
         </div>
         <div class="pkf-alan" @if(!empty($isletme->studyo_modu))style="display:none"@endif>
             <label>Paket Fiyatı (₺)</label>

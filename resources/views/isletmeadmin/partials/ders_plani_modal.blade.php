@@ -84,10 +84,10 @@
       if(dpKaynaklar.length === 1){
          // Tek kaynak: secim gerekmez, duz etiket
          $('#dp_kaynak').hide().html('<option value="0">'+dpKaynaklar[0].etiket+'</option>').val('0');
-         $('#dp_kaynak_tek').show().text(dpKaynaklar[0].etiket + ' • ' + dpKaynaklar[0].kalan_seans + ' seans');
+         $('#dp_kaynak_tek').show().text(dpKaynaklar[0].etiket + ' • ' + (dpKaynaklar[0].sinirsiz ? 'Sınırsız' : dpKaynaklar[0].kalan_seans + ' seans'));
       } else {
          $('#dp_kaynak_tek').hide();
-         $('#dp_kaynak').show().html(dpKaynaklar.map(function(k,i){ return '<option value="'+i+'">'+k.etiket+' • '+k.kalan_seans+' seans</option>'; }).join(''));
+         $('#dp_kaynak').show().html(dpKaynaklar.map(function(k,i){ return '<option value="'+i+'">'+k.etiket+' • '+(k.sinirsiz ? 'Sınırsız' : k.kalan_seans+' seans')+'</option>'; }).join(''));
       }
       dpRenderSlots();
    }

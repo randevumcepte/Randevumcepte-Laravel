@@ -6460,7 +6460,7 @@ $('#paket_liste').on('click','a[name="paket_duzenle"]',function(e){
                     $pf.find('[name="sinirsiz"]').val(result.sinirsiz == 1 ? '1' : '0');
                     $pf.find('[name="gecerlilik_sayi"]').val(result.gecerlilik_sayi || '');
                     $pf.find('[name="gecerlilik_birim"]').val(result.gecerlilik_birim || 'ay');
-                    $pf.find('[name="gunluk_limit"]').val(result.gunluk_limit || 1);
+                    $pf.find('[name="gunluk_limit"]').val(result.gunluk_limit || '');
                     paketTurGuncelle($pf);
                     let select = $('#paketHizmetleri');
                     select.empty();
@@ -12577,7 +12577,7 @@ function paketSeansSecim(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu, 
         html += '    <input type="number" class="paket-seans-miktar" data-id="'+s.id+'" min="1" value="'+ defaultMiktar +'" style="width:65px;height:30px;padding:2px 6px;border:1px solid #ddd;border-radius:4px;text-align:center;font-size:13px;">';
         html += '    <span style="font-size:11px;color:#888;">düşecek</span>';
         html += '  </span>';
-        html += '  <span style="font-size:12px;color:'+kalanRenk+';white-space:nowrap;min-width:60px;text-align:right;">kalan '+ kalan +'/'+ toplam +'</span>';
+        html += '  <span style="font-size:12px;color:'+(s.sinirsiz ? '#5C008E' : kalanRenk)+';white-space:nowrap;min-width:60px;text-align:right;">'+(s.sinirsiz ? 'Sınırsız' : 'kalan '+ kalan +'/'+ toplam)+'</span>';
         html += '</div>';
     });
 
@@ -24536,7 +24536,7 @@ function updateSoftSelectedPackagesSummary(result) {
                     </div>
                     <div class="d-flex align-items-center">
                         <span class="badge badge-soft-secondary mr-2 px-2 py-1" style="background-color: #f3f4f6; color: #4b5563; font-size: 12px;">
-                            <i class="fa fa-calendar-day mr-1"></i>${paket.seans}
+                            <i class="fa fa-calendar-day mr-1"></i>${paket.seans_etiket || paket.seans}
                         </span>
                         <span class="badge badge-soft-success px-2 py-1" style="background-color: #d1fae5; color: #065f46; font-size: 12px;">
                             ${(paket.sure)} 
@@ -25226,7 +25226,7 @@ function seansSecimPopupAc(randevu_id, hizmetid, result, dogrulamaKodu, kvkkKodu
                       '</td>' +
                       '<td style="vertical-align:middle;color:#666;">' + paketAd + '</td>' +
                       '<td style="text-align:center;vertical-align:middle;color:' + kalanRenk + ';font-weight:600;">' +
-                        s.kalan_seans + ' / ' + s.toplam_seans +
+                        (s.sinirsiz ? 'Sınırsız' : s.kalan_seans + ' / ' + s.toplam_seans) +
                       '</td>' +
                     '</tr>';
         });

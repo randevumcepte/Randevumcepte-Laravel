@@ -366,7 +366,11 @@
                               {{($paket->personel_id ? $paket->personel->personel_adi:"")}}
                            </div>
                            <div class="col-md-2 col-5 col-xs-5  col-sm-2">
+                              @if(!empty($paket->sinirsiz))
+                              {!! \App\Services\PaketGecerlilik::seansAlani($paket, '') !!}
+                              @else
                               <input type="tel" value="{{$paket->seans_sayisi}}" data-value="{{$paket->id}}" class="form-control" style="height:26px;float:left;width: 60%;" name="paket_seans_girilen[]"> <span style="float:left;position:relative;">seans</span> 
+                              @endif
                               
                            </div>
                            <div class="col-md-3 col-7 col-xs-7  col-sm-3"  style="text-align:right">
