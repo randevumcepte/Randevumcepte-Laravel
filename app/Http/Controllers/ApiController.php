@@ -1372,23 +1372,25 @@ class ApiController extends Controller
             // acik = odenmemis (odendi != 1), kapali = odenmis (odendi = 1)
             $query->whereRaw('COALESCE(adisyonlar.odendi,0) ' . ($acikKapali == 1 ? '<> 1' : '= 1'));
         } else {
-        $operator = $acikKapali == 1 ? '>' : '=';
+        $operator = $acikKapali == 1 ? '> 0' : '<= 0';
         // NET (fiyat - indirim_tutari) ve personel kapsamı; sayim/formatAdisyonFast ile
         // BIREBIR ayni mantik olmali ki sekme uyeligi ile kart etiketi uyusmasin kalmasin.
+        // ROUND(...,2): bolunmus tahsilatlarda kayan nokta artigi (3799.9999999999995 / 3800)
+        // tam odenmis adisyonu acik gosteriyordu; kuruş altindaki fark yok sayilir.
         $pf = $personelid ? " AND personel_id = ?" : "";
         $query->whereRaw("
-            (
+            ROUND((
                 COALESCE((SELECT SUM(COALESCE(fiyat,0) - COALESCE(indirim_tutari,0)) FROM adisyon_hizmetler WHERE adisyon_id = adisyonlar.id$pf), 0) +
                 COALESCE((SELECT SUM(COALESCE(fiyat,0) - COALESCE(indirim_tutari,0)) FROM adisyon_urunler WHERE adisyon_id = adisyonlar.id$pf), 0) +
                 COALESCE((SELECT SUM(COALESCE(fiyat,0) - COALESCE(indirim_tutari,0)) FROM adisyon_paketler WHERE adisyon_id = adisyonlar.id$pf), 0)
-            ) $operator (
+            ) - (
                 COALESCE((SELECT SUM(t.tutar) FROM tahsilat_hizmetler t
                     WHERE t.adisyon_hizmet_id IN (SELECT id FROM adisyon_hizmetler WHERE adisyon_id = adisyonlar.id$pf)), 0) +
                 COALESCE((SELECT SUM(t.tutar) FROM tahsilat_urunler t
                     WHERE t.adisyon_urun_id IN (SELECT id FROM adisyon_urunler WHERE adisyon_id = adisyonlar.id$pf)), 0) +
                 COALESCE((SELECT SUM(t.tutar) FROM tahsilat_paketler t
                     WHERE t.adisyon_paket_id IN (SELECT id FROM adisyon_paketler WHERE adisyon_id = adisyonlar.id$pf)), 0)
-            )
+            ), 2) $operator
         ", $personelid ? [$personelid, $personelid, $personelid, $personelid, $personelid, $personelid] : []);
         }
     }
@@ -1535,7 +1537,7 @@ class ApiController extends Controller
             SUM(CASE WHEN kalan <= 0 THEN 1 ELSE 0 END) as kapali
          FROM (
             SELECT a.id,
-                (
+                ROUND((
                     COALESCE((SELECT SUM(COALESCE(fiyat,0) - COALESCE(indirim_tutari,0)) FROM adisyon_hizmetler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . "), 0) +
                     COALESCE((SELECT SUM(COALESCE(fiyat,0) - COALESCE(indirim_tutari,0)) FROM adisyon_urunler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . "), 0) +
                     COALESCE((SELECT SUM(COALESCE(fiyat,0) - COALESCE(indirim_tutari,0)) FROM adisyon_paketler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . "), 0)
@@ -1547,7 +1549,7 @@ class ApiController extends Controller
                         WHERE t.adisyon_urun_id IN (SELECT id FROM adisyon_urunler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . ")), 0) +
                     COALESCE((SELECT SUM(t.tutar) FROM tahsilat_paketler t
                         WHERE t.adisyon_paket_id IN (SELECT id FROM adisyon_paketler WHERE adisyon_id = a.id" . ($personelid ? " AND personel_id = ?" : "") . ")), 0)
-                ) as kalan
+                ), 2) as kalan
             FROM adisyonlar a
             WHERE $salonScopeSql AND a.tarih BETWEEN ? AND ?
             $faturaFiltreSayim
@@ -1751,11 +1753,12 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $personellerStr .= ($paket->personel->personel_adi ?? '') . ' ';
     }
     
-    $kalan = $toplamTutar - $odenen;
-    
+    // Acik/kapali SQL'i ile ayni yuvarlama (kayan nokta artigi kart etiketini bozmasin)
+    $kalan = round($toplamTutar - $odenen, 2);
+
     $odenenToplamTutar += $odenen;
     $kalanToplamTutar += $kalan;
-    
+
     $hakedisTutar = $hizmetHakedis + $urunHakedis + $paketHakedis;
     
     $planlananTarih = $alacak && $alacak->planlanan_odeme_tarihi 
@@ -23386,7 +23389,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                   + TahsilatUrunler::whereIn('adisyon_urun_id', $urunIdler)->sum('tutar')
                   + TahsilatPaketler::whereIn('adisyon_paket_id', $paketIdler)->sum('tutar');
 
-        return $tahsilat >= $toplam;
+        // round: bolunmus tahsilatlarda kayan nokta artigi tam odemeyi eksik gostermesin
+        return round($tahsilat, 2) >= round($toplam, 2);
     }
 
     /**
