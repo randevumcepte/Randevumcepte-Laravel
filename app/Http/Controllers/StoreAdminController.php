@@ -15750,7 +15750,7 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         // Personel filtreliysek ve hiç satış yoksa atla
         if ($personel_id && $hizmetler->isEmpty() && $urunler->isEmpty() && $paketler->isEmpty()) continue;
         
-        $kalanTutar = $toplamTutar - $odenenTutar;
+        $kalanTutar = round($toplamTutar - $odenenTutar, 2); // kayan nokta artigi tam odenmisi acik gostermesin
         // Studyo modu: acik/kapali "Ödeme Alındı" bayragina (odendi) baglidir (fiyat gizli).
         $durum = ($_studyo ? ((int) ($adisyon->odendi ?? 0) === 1) : ($kalanTutar <= 0)) ? 'kapali' : 'acik';
 
