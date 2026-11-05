@@ -3428,7 +3428,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     {
 
-        return Paketler::where("salon_id", $salonid)->get();
+        return Paketler::where("salon_id", $salonid)->where("aktif", 1)->get();
 
     }
 
@@ -3837,7 +3837,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ->where('salon_id', $salon_id)->where('aktif', true)
             ->select('id', 'urun_adi as ad', 'fiyat')->orderBy('urun_adi')->get();
         $paketler = DB::table('paketler')
-            ->where('salon_id', $salon_id)
+            ->where('salon_id', $salon_id)->where('aktif', 1)
             ->select('id', 'paket_adi as ad', 'fiyat')->orderBy('paket_adi')->get();
         return response()->json(compact('hizmetler', 'urunler', 'paketler'));
     }
@@ -9624,7 +9624,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $urunler = \App\Urunler::where('salon_id', $salonid)->where('aktif', 1)->get()
             ->map(function ($u) { return ['value' => 'urun-' . $u->id, 'label' => $u->urun_adi]; })->values();
 
-        $paketler = \App\Paketler::where('salon_id', $salonid)->get()
+        $paketler = \App\Paketler::where('salon_id', $salonid)->where('aktif', 1)->get()
             ->map(function ($p) { return ['value' => 'paket-' . $p->id, 'label' => $p->paket_adi]; })->values();
 
         $sablonlar = [];
@@ -14770,7 +14770,7 @@ public function cdrRaporLatest(Request $request)
 
             "urunler" => Urunler::where("salon_id", $salonid)->get(),
 
-            "paketler" => Paketler::where("salon_id", $salonid)->get(),
+            "paketler" => Paketler::where("salon_id", $salonid)->where("aktif", 1)->get(),
 
         ];
 
@@ -20894,7 +20894,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
       // Paketler: salon katalogu
       $paketler = [];
-      foreach(\App\Paketler::where('salon_id',$salonId)->orderBy('paket_adi','asc')->get() as $pk){
+      foreach(\App\Paketler::where('salon_id',$salonId)->where('aktif',1)->orderBy('paket_adi','asc')->get() as $pk){
           $paketler[] = ['id'=>(int)$pk->id, 'ad'=>$pk->paket_adi, 'yuzde'=>$oranlar['paket'][$pk->id] ?? null];
       }
 
@@ -21082,7 +21082,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 foreach($primKalemMap as $tur => $kalemler){
                     if(!is_array($kalemler)) $kalemler = [];
                     // Bu turdeki mevcut kayitlari temizleyip yeniden yaz (idempotent upsert)
-                    \App\PersonelPrimOrani::where('personel_id',$personel->id)->where('tur',$tur)->delete();
+                    \App\PersonelPrimOrani::where('personel_id',$personel->id)->where('tur',$tur)
+                        ->when($tur === 'paket', function($q) use ($personel){ $q->whereNotIn('kalem_id', \App\Services\PaketSurumu::pasifPaketIdler($personel->salon_id)); }) // eski satislarin orani korunur
+                        ->delete();
                     foreach($kalemler as $kalemId => $yuzde){
                         $kalemId = (int)$kalemId;
                         $yuzde = (float)str_replace(',', '.', (string)$yuzde);
@@ -24268,6 +24270,10 @@ if (is_array($request->cihaz_id)) {
                 ? new Paketler()
 
                 : Paketler::where("id", $request->paket_id)->first();
+
+        if ($request->paket_id != 0 && $paket) {
+            \App\Services\PaketSurumu::satilmislariDondur($paket->id, array_column($hizmetler, 'hizmet_id')); // satilmis paketler eski hizmetleriyle kalir
+        }
 
         $paket->paket_adi = $request->adpaket;
 

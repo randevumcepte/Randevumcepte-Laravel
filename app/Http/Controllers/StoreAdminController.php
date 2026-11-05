@@ -6819,7 +6819,9 @@ private function ayAdiCevir($ingilizceAy)
                 foreach($primKalemMap as $tur => $kalemler){
                     if(!is_array($kalemler)) $kalemler = [];
                     // Bu turdeki mevcut kayitlari temizleyip yeniden yaz (en sade upsert)
-                    PersonelPrimOrani::where('personel_id',$personel->id)->where('tur',$tur)->delete();
+                    PersonelPrimOrani::where('personel_id',$personel->id)->where('tur',$tur)
+                        ->when($tur === 'paket', function($q) use ($personel){ $q->whereNotIn('kalem_id', \App\Services\PaketSurumu::pasifPaketIdler($personel->salon_id)); }) // eski satislarin orani korunur
+                        ->delete();
                     foreach($kalemler as $kalemId => $yuzde){
                         $kalemId = (int)$kalemId;
                         $yuzde = (float)str_replace(',', '.', $yuzde);
@@ -10851,7 +10853,7 @@ private function ayAdiCevir($ingilizceAy)
             ->where('salon_id',$isletme->id)->where('aktif',true)
             ->select('id','urun_adi as ad','fiyat')->orderBy('urun_adi')->get();
         $harici_paketler = DB::table('paketler')
-            ->where('salon_id',$isletme->id)
+            ->where('salon_id',$isletme->id)->where('aktif',1)
             ->select('id','paket_adi as ad','fiyat')->orderBy('paket_adi')->get();
 
         return view('isletmeadmin.musteridetay',[
@@ -11687,6 +11689,7 @@ private function ayAdiCevir($ingilizceAy)
         }
         else{
             $paket = Paketler::where('id',$request->paket_id)->first();
+            \App\Services\PaketSurumu::satilmislariDondur($paket->id, (array) $request->hizmetler); // satilmis paketler eski hizmetleriyle kalir
             $returntext = "Paket başarıyla güncellendi";
         }
         $paket->paket_adi = $request->adpaket;
@@ -11729,7 +11732,7 @@ private function ayAdiCevir($ingilizceAy)
             return response()->json(['hata' => 'Gecersiz salon id'], 400);
         }
 
-        $kaynak_paketler = Paketler::where('salon_id', $kaynak_salon_id)->get();
+        $kaynak_paketler = Paketler::where('salon_id', $kaynak_salon_id)->where('aktif', 1)->get();
         if ($kaynak_paketler->isEmpty()) {
             return response()->json(['hata' => "Kaynak salon ($kaynak_salon_id) icin paket bulunamadi"], 404);
         }
@@ -12135,7 +12138,7 @@ private function ayAdiCevir($ingilizceAy)
         if($addition)
             $paket_liste = DB::table('paketler')->join('paket_hizmetler','paketler.id','=','paket_hizmetler.paket_id')->join('hizmetler','paket_hizmetler.hizmet_id','=','hizmetler.id')->select(
                  DB::raw('CONCAT( GROUP_CONCAT(hizmetler.hizmet_adi)) as hizmetler'),
-                        DB::raw($_seansExpr),$_sinirsizKol,'paketler.paket_adi as paket_adi',DB::raw('CONCAT(COALESCE(SUM(paket_hizmetler.fiyat),0)) as fiyat'),DB::raw('CONCAT("<button title=\"Ekle\" class=\"btn btn-success\" name=\"satis_formuna_paket_ekle\" data-value=\"",paketler.id,"\"><i class=\"fa fa-plus\"></i> Ekle</a>") AS islemler'))->where('paketler.salon_id',self::mevcutsube($request))->orderBy('paketler.id','desc')->groupBy('paket_hizmetler.paket_id')->get();
+                        DB::raw($_seansExpr),$_sinirsizKol,'paketler.paket_adi as paket_adi',DB::raw('CONCAT(COALESCE(SUM(paket_hizmetler.fiyat),0)) as fiyat'),DB::raw('CONCAT("<button title=\"Ekle\" class=\"btn btn-success\" name=\"satis_formuna_paket_ekle\" data-value=\"",paketler.id,"\"><i class=\"fa fa-plus\"></i> Ekle</a>") AS islemler'))->where('paketler.aktif',true)->where('paketler.salon_id',self::mevcutsube($request))->orderBy('paketler.id','desc')->groupBy('paket_hizmetler.paket_id')->get();
         else
             $paket_liste = DB::table('paketler')->join('paket_hizmetler','paketler.id','=','paket_hizmetler.paket_id')->join('hizmetler','paket_hizmetler.hizmet_id','=','hizmetler.id')->
                     select(
@@ -27216,7 +27219,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
         // Paketler: salon katalogu
         $paketler = [];
-        foreach(Paketler::where('salon_id',$salonId)->orderBy('paket_adi','asc')->get() as $p){
+        foreach(Paketler::where('salon_id',$salonId)->where('aktif',1)->orderBy('paket_adi','asc')->get() as $p){
             $paketler[] = ['id'=>$p->id, 'ad'=>$p->paket_adi, 'yuzde'=>$oranlar['paket'][$p->id] ?? null];
         }
 
@@ -28864,7 +28867,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $mevcutAdet = count($mevcutHizmetIdler);
 
         $adaylar  = [];
-        $paketler = Paketler::where('salon_id', $salon_id)->with('hizmetler.hizmet')->get();
+        $paketler = Paketler::where('salon_id', $salon_id)->where('aktif', 1)->with('hizmetler.hizmet')->get();
         foreach ($paketler as $p) {
             if ((int)$p->id === (int)$adisyon_paket->paket_id) continue;
 
@@ -33624,7 +33627,7 @@ DB::raw('
             ->where('salon_id', $isletme->id)->where('aktif', true)
             ->select('id', 'urun_adi as ad', 'fiyat')->orderBy('urun_adi')->get();
         $cm_paketler = DB::table('paketler')
-            ->where('salon_id', $isletme->id)
+            ->where('salon_id', $isletme->id)->where('aktif', 1)
             ->select('id', 'paket_adi as ad', 'fiyat')->orderBy('paket_adi')->get();
 
         return view('isletmeadmin.arama_listelerim', [
@@ -33801,7 +33804,7 @@ DB::raw('
             ->where('salon_id', $isletme->id)->where('aktif', true)
             ->select('id', 'urun_adi as ad', 'fiyat')->orderBy('urun_adi')->get();
         $cm_paketler = DB::table('paketler')
-            ->where('salon_id', $isletme->id)
+            ->where('salon_id', $isletme->id)->where('aktif', 1)
             ->select('id', 'paket_adi as ad', 'fiyat')->orderBy('paket_adi')->get();
 
         return view('isletmeadmin.arama_randevu_takvim', [
@@ -35429,7 +35432,7 @@ DB::raw('
             ->where('salon_id', $sube)->where('aktif', true)
             ->select('id', 'urun_adi as ad', 'fiyat')->orderBy('urun_adi')->get();
         $paketler = DB::table('paketler')
-            ->where('salon_id', $sube)
+            ->where('salon_id', $sube)->where('aktif', 1)
             ->select('id', 'paket_adi as ad', 'fiyat')->orderBy('paket_adi')->get();
         $odeme = DB::table('odeme_yontemleri')
             ->select('id', 'odeme_yontemi as ad')->orderBy('id')->get();
