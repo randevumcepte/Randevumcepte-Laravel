@@ -28,9 +28,9 @@
                               </div>
                                 <div class="col-md-4">
                             <div class="form-group">
-                                <label>Süre </label>
+                                <label>Süre (dk)</label>
                                 <div class="input-group">
-                                    <input type="tel" name="paketsure" class="form-control" min="1" placeholder="Süre">
+                                    <input type="tel" name="paketsure" class="form-control" min="1" placeholder="Dakika">
                                   
                             </div>
                         </div>

@@ -1282,16 +1282,7 @@ console.log("İlk satır hizmet detayları:", <?php echo json_encode($seanslar[0
                           autoWidth:false,
                           responsive:true,
                            
-                       columns:[
-                       {data:'id'},
-                           { data: 'paket_adi' },
-                           
-                           { data: 'hizmetler' }, 
-                           { data: 'seanslar' }, 
-                           { data: 'fiyat' },
-                               
-                           {data : 'islemler'},
-                       ],
+                       columns: pkListeKolonlari(),
                        data: <?php echo $paketler["paket_liste"]; ?>,
                         "stateSave": true,
                     "stateSaveParams": function(settings, data) {

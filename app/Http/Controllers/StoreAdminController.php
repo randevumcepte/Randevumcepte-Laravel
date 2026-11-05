@@ -12128,17 +12128,17 @@ private function ayAdiCevir($ingilizceAy)
     }
     public function paket_liste_getir($returntext,$addition,$request){
         $paket_liste = "";
-        // Studyo modu: paket_hizmetler.seans 0 iken paketler.miktar goster (satis swal seans dogru gelsin).
-        // Diger isletmelerde ESKI davranis korunur (GROUP_CONCAT(seans)).
-        $_studyoSeans = (bool) Salonlar::where('id', self::mevcutsube($request))->value('studyo_modu');
-        $_seansExpr = $_studyoSeans
-            ? 'IF(COALESCE(SUM(paket_hizmetler.seans),0) > 0, GROUP_CONCAT(paket_hizmetler.seans), paketler.miktar) as seanslar'
-            : 'COALESCE(CONCAT(GROUP_CONCAT(paket_hizmetler.seans)),paketler.miktar) as seanslar';
-        $_sinirsizKol = \App\Services\PaketGecerlilik::kolonVar() ? 'paketler.sinirsiz as sinirsiz' : DB::raw('0 as sinirsiz');
+        // Hizmet basina seans/fiyat 0 ise paketin kendi degeri gosterilir (v2 PaketTutari ile ayni kural).
+        // Eski sorgu SUM=0'i deger sayip paket fiyatini/seansini gizliyordu ("0,0,0" / "0 TL").
+        $_seansExpr = 'IF(COALESCE(SUM(paket_hizmetler.seans),0) > 0, GROUP_CONCAT(paket_hizmetler.seans), paketler.miktar) as seanslar';
+        $_fiyatExpr = 'CONCAT(IF(COALESCE(SUM(paket_hizmetler.fiyat),0) > 0, SUM(paket_hizmetler.fiyat), COALESCE(paketler.fiyat,0))) as fiyat';
+        $_sinirsizKol = DB::raw('paketler.sure as sure, '.(\App\Services\PaketGecerlilik::kolonVar()
+            ? 'paketler.sinirsiz as sinirsiz, paketler.gecerlilik_sayi as gecerlilik_sayi, paketler.gecerlilik_birim as gecerlilik_birim'
+            : '0 as sinirsiz, NULL as gecerlilik_sayi, NULL as gecerlilik_birim'));
         if($addition)
             $paket_liste = DB::table('paketler')->join('paket_hizmetler','paketler.id','=','paket_hizmetler.paket_id')->join('hizmetler','paket_hizmetler.hizmet_id','=','hizmetler.id')->select(
                  DB::raw('CONCAT( GROUP_CONCAT(hizmetler.hizmet_adi)) as hizmetler'),
-                        DB::raw($_seansExpr),$_sinirsizKol,'paketler.paket_adi as paket_adi',DB::raw('CONCAT(COALESCE(SUM(paket_hizmetler.fiyat),0)) as fiyat'),DB::raw('CONCAT("<button title=\"Ekle\" class=\"btn btn-success\" name=\"satis_formuna_paket_ekle\" data-value=\"",paketler.id,"\"><i class=\"fa fa-plus\"></i> Ekle</a>") AS islemler'))->where('paketler.aktif',true)->where('paketler.salon_id',self::mevcutsube($request))->orderBy('paketler.id','desc')->groupBy('paket_hizmetler.paket_id')->get();
+                        DB::raw($_seansExpr),$_sinirsizKol,'paketler.paket_adi as paket_adi',DB::raw($_fiyatExpr),DB::raw('CONCAT("<button title=\"Ekle\" class=\"btn btn-success\" name=\"satis_formuna_paket_ekle\" data-value=\"",paketler.id,"\"><i class=\"fa fa-plus\"></i> Ekle</a>") AS islemler'))->where('paketler.aktif',true)->where('paketler.salon_id',self::mevcutsube($request))->orderBy('paketler.id','desc')->groupBy('paket_hizmetler.paket_id')->get();
         else
             $paket_liste = DB::table('paketler')->join('paket_hizmetler','paketler.id','=','paket_hizmetler.paket_id')->join('hizmetler','paket_hizmetler.hizmet_id','=','hizmetler.id')->
                     select(
@@ -12146,7 +12146,7 @@ private function ayAdiCevir($ingilizceAy)
                         'paketler.paket_adi as paket_adi',
                         DB::raw('CONCAT(GROUP_CONCAT(hizmetler.hizmet_adi)) as hizmetler'),
                         DB::raw($_seansExpr),$_sinirsizKol,
-                        DB::raw('CONCAT(COALESCE(SUM(paket_hizmetler.fiyat),paketler.fiyat)) as fiyat'),
+                        DB::raw($_fiyatExpr),
                         DB::raw('CONCAT("<div class=\"dropdown\">
                         <a class=\"btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle\"
                                   href=\"#\"
@@ -28636,7 +28636,9 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
 
     public function pakettahsilatagit(Request $request){
-        $bilgi = Paketler::whereIn('id',$request->paket_bilgi)->get();
+        // Seans/fiyat dizileri formdaki sirayla gelir; paketler de ayni sirada okunmali.
+        $_paketSira = implode(',', array_map('intval', (array) $request->paket_bilgi));
+        $bilgi = Paketler::whereIn('id',$request->paket_bilgi)->orderByRaw('FIELD(id,'.$_paketSira.')')->get();
 
         $paketler = self::paket_liste_getir("",true,$request);
         $isletme =Salonlar::where('id',self::mevcutsube($request))->first();

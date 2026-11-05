@@ -6194,14 +6194,7 @@ $(document).on('submit','#paket_formu,#paket_formu_duzenleme',function(e){
                 $('#paket_liste').DataTable({
                     autoWidth: false,
                     responsive: true,
-                    columns: [
-                        {data: 'id'},
-                        {data: 'paket_adi'},
-                        {data: 'hizmetler'},
-                        {data: 'seanslar', render: function(d,t,row){return row.sinirsiz==1?'Sınırsız':d;}},
-                        {data: 'fiyat', visible: !window.STUDYO_MODU},
-                        {data: 'islemler'},
-                    ],
+                    columns: pkListeKolonlari(),
                     data: result.paketler.paket_liste,
                     "language": {
                         "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
@@ -6415,14 +6408,7 @@ $('#paket_liste').on('click','a[name="paket_sil"]',function(e){
                         $('#paket_liste').DataTable({
                           autoWidth:false,
                           responsive:true,
-                       columns:[
-                           {data:'id'},
-                           { data: 'paket_adi' },
-                           { data: 'hizmetler' },
-                           { data: 'seanslar', render: function(d,t,row){return row.sinirsiz==1?'Sınırsız':d;} },
-                           { data: 'fiyat', visible: !window.STUDYO_MODU },
-                           {data : 'islemler'},
-                       ],
+                       columns: pkListeKolonlari(),
                        data: result.paket_liste,
                        "language" : {
                            "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
@@ -6470,6 +6456,7 @@ $('#paket_liste').on('click','a[name="paket_duzenle"]',function(e){
                     $('#paketFiyati').val(result.fiyat);
                     $('#paketSeanslari').val(result.sinirsiz == 1 ? '' : result.miktar);
                     var $pf = $('#paket_formu_duzenleme');
+                    $pf.find('[name="paketsure"]').val(result.sure || '');
                     $pf.find('[name="sinirsiz"]').val(result.sinirsiz == 1 ? '1' : '0');
                     $pf.find('[name="gecerlilik_sayi"]').val(result.gecerlilik_sayi || '');
                     $pf.find('[name="gecerlilik_birim"]').val(result.gecerlilik_birim || 'ay');
@@ -18673,23 +18660,7 @@ $('#secilenpaket_satis_yap').click(function(e){
     var html='';
     $('input:checkbox[name="paket_bilgi[]"]:checked').each(function(){
          i++;
-         var row=$(this).closest("tr")[0];
-         // Studyo modu: seans + fiyat paket satirindan otomatik gelsin (cells[3]=seans, cells[4]=fiyat)
-         var _seansVal='', _fiyatVal='';
-         if(window.STUDYO_MODU){
-             var _st=((row.cells[3]?row.cells[3].innerText:'')||'').match(/\d+/); _seansVal=_st?_st[0]:''; if(/Sınırsız/.test(row.cells[3]?row.cells[3].innerText:'')) _seansVal='Sınırsız';
-             _fiyatVal=((row.cells[4]?row.cells[4].innerText:'')||'').replace(/[^\d.,]/g,'').trim();
-         }
-         // Studyo modu: Fiyat alani gizli (deger korunur), Seans tam genislik
-         var _fiyatBlok = window.STUDYO_MODU
-             ? "<input type='hidden' name='paket_satis_fiyat[]' value='"+_fiyatVal+"'>"
-             : "<div class='col-md-6'><label>Fiyat</label><input type='tel' class='form-control' name='paket_satis_fiyat[]' value='"+_fiyatVal+"' style='height:38px;margin-bottom:10px'></div>";
-         var _seansCol = window.STUDYO_MODU ? 'col-md-12' : 'col-md-6';
-         html+= "<div class='row'><div class='col-md-12'><p style='font-size:18px;font-weight:bold;margin-bottom:10px;margin-top:10px'>"+row.cells[1].innerHTML
-+"</p></div>"+pkHizmetSecimHtml(this.value)+
-                "<div class='"+_seansCol+"'><label>Seans Sayısı</label><input type='tel' class='form-control' name='paket_satis_seans[]' value='"+_seansVal+"' style='height:38px;margin-bottom:10px'></div>"+
-                _fiyatBlok+
-                "</div> ";
+         html += pkSatisKart(this.value, $('#paket_liste').DataTable().row($(this).closest('tr')).data());
     });
     if(i==0 || $('select[name="paket_satis_musteri_id"]').val()==0 )
     {
@@ -18729,8 +18700,8 @@ $('#secilenpaket_satis_yap').click(function(e){
             // Satista secilen paket adlari -> modal sadece bunlari gostersin
             var _adlar = [];
             $('input:checkbox[name="paket_bilgi[]"]:checked').each(function(){
-                var r = $(this).closest('tr')[0];
-                if(r && r.cells[1]) _adlar.push((r.cells[1].innerText||'').trim());
+                var d = $('#paket_liste').DataTable().row($(this).closest('tr')).data();
+                if(d) _adlar.push(String(d.paket_adi||'').trim());
             });
             if(window.dersPlaniModalAc && _mid && _mid != 0){ dersPlaniModalAc(_mid, _url, _adlar); }
             else { window.location.href = _url; }
@@ -18738,7 +18709,9 @@ $('#secilenpaket_satis_yap').click(function(e){
         if(window.STUDYO_MODU){
             // Studyo modu: tutar makinesi yerine dogrudan ikili odeme (adisyon-odeme-isaretle -> tamOde tarih/saat)
             swal({
-                html: "<p style='font-size:18px;font-weight:bold;'>Seans Sayısı</p>"+html,
+                html: pkSatisBaslik()+html,
+                width: 620,
+                customClass: 'rc-pks-swal',
                 showCancelButton: true,
                 confirmButtonText: 'Ödeme Alındı',
                 cancelButtonText: 'Ödeme Alınmadı',
@@ -18767,7 +18740,9 @@ $('#secilenpaket_satis_yap').click(function(e){
             select2YenidenYukle2();
         } else {
             swal({
-                html: "<p style='font-size:18px;font-weight:bold;'>Seans ve gün aralığını belirleyin!</p>"+html,
+                html: pkSatisBaslik()+html,
+                width: 620,
+                customClass: 'rc-pks-swal',
                 showCancelButton: false,
                 confirmButtonColor: '#00bc8c',
                 confirmButtonText: 'Tahsilata Git',
@@ -18799,21 +18774,89 @@ $('#secilenpaket_satis_yap').click(function(e){
         });
      });
 });
-// Satis penceresi: pakete ozel hizmet secimi (katalog degismez).
-function pkHizmetEsc(t){ return $('<div>').text(t).html(); }
+// === PAKET GORUNUM ===
+// Paket listesi kolonlari: ilk acilis + kayit + silme ayni tanimi kullanir.
+function pkHizmetEsc(t){ return $('<div>').text(t == null ? '' : t).html(); }
+function pkSureMetni(row){
+    return parseInt(row.gecerlilik_sayi,10) > 0 ? row.gecerlilik_sayi+' '+(row.gecerlilik_birim === 'yil' ? 'Yıl' : 'Ay') : '';
+}
+function pkSeansSayisi(row){
+    // Satilan paketin seans_sayisi BOLGE BASINA haktir: "8,8,8" = 8 (toplam 24 degil).
+    return String(row.seanslar == null ? '' : row.seanslar).split(',').reduce(function(t,s){ return Math.max(t, parseInt(s,10) || 0); },0);
+}
+function pkHizmetListesi(metin){
+    // Hizmet adindaki parantez icindeki virgul ayirici sayilmaz.
+    return String(metin || '').split(/,(?![^()]*\))/).map(function(s){ return s.trim(); }).filter(Boolean);
+}
+function pkListeKolonlari(){
+    return [
+        {data:'id', orderable:false},
+        {data:'paket_adi', render:function(d,t,row){
+            if(t !== 'display') return d;
+            var alt = [];
+            if(parseInt(row.sure,10) > 0) alt.push('<i class="fa fa-clock-o"></i> '+parseInt(row.sure,10)+' dk');
+            if(pkSureMetni(row)) alt.push('<i class="fa fa-hourglass-half"></i> '+pkSureMetni(row)+' geçerli');
+            return '<div class="rc-pk-ad">'+pkHizmetEsc(d)+'</div>'+(alt.length ? '<div class="rc-pk-alt">'+alt.join('<span>·</span>')+'</div>' : '');
+        }},
+        {data:'hizmetler', render:function(d,t){
+            if(t !== 'display') return d;
+            var liste = pkHizmetListesi(d), gorunen = liste.slice(0,4), kalan = liste.length - gorunen.length;
+            return '<div class="rc-pk-ciplar">'+gorunen.map(function(h){ return '<span class="rc-pk-cip">'+pkHizmetEsc(h)+'</span>'; }).join('')+
+                (kalan > 0 ? '<span class="rc-pk-cip rc-pk-cip-daha" title="'+pkHizmetEsc(liste.slice(4).join(', '))+'">+'+kalan+'</span>' : '')+'</div>';
+        }},
+        {data:'seanslar', render:function(d,t,row){
+            if(t !== 'display') return t === 'sort' ? pkSeansSayisi(row) : d;
+            if(row.sinirsiz == 1) return '<span class="rc-pk-sinirsiz">Sınırsız</span>';
+            var seans = pkSeansSayisi(row);
+            if(!seans) return '<span class="rc-pk-bos">—</span>';
+            // Bolgelerde farkli seans varsa hepsi gorunsun; ayniysa tek sayi.
+            var farkli = String(d).split(',').filter(function(s,i,a){ return a.indexOf(s) === i; });
+            return (farkli.length > 1 ? '<b>'+farkli.join(' / ')+'</b>' : '<b>'+seans+'</b>')+' seans';
+        }},
+        {data:'fiyat', visible:!window.STUDYO_MODU, render:function(d,t){
+            var f = parseFloat(d) || 0;
+            if(t !== 'display') return f;
+            return f > 0 ? f.toLocaleString('tr-TR',{maximumFractionDigits:2})+' ₺' : '<span class="rc-pk-bos">—</span>';
+        }},
+        {data:'islemler', orderable:false},
+    ];
+}
+// Satis penceresi: pakete ozel hizmet secimi (katalog degismez) + varsayilan seans/fiyat.
 function pkHizmetSatir(pid,h,secili){
-    return "<label style='display:block;margin:0 0 4px;font-weight:normal;cursor:pointer'><input type='checkbox' class='pk-hizmet-sec' data-paket='"+pid+"' value='"+h.id+"' "+(secili?"checked":"")+" style='margin-right:6px'>"+pkHizmetEsc(h.ad)+"</label>";
+    return "<label class='rc-pks-hizmet'><input type='checkbox' class='pk-hizmet-sec' data-paket='"+pid+"' value='"+h.id+"' "+(secili?"checked":"")+"><span>"+pkHizmetEsc(h.ad)+"</span></label>";
 }
 function pkHizmetSecimHtml(pid){
     var veri = window._pkSatisVeri || {};
     var liste = (veri.paketler && veri.paketler[pid]) || [];
     window._pkSecim[pid] = liste.map(function(h){ return h.id; });
     var kalan = (veri.tum||[]).filter(function(h){ return window._pkSecim[pid].indexOf(h.id) < 0; });
-    return "<div class='col-md-12' style='text-align:left;margin-bottom:10px'><label>Hizmetler</label><div class='pk-hizmet-liste' data-paket='"+pid+"'>"+
-        liste.map(function(h){ return pkHizmetSatir(pid,h,true); }).join('')+"</div>"+
-        "<select class='form-control pk-hizmet-ekle' data-paket='"+pid+"' style='height:38px'><option value=''>+ Hizmet ekle</option>"+
-        kalan.map(function(h){ return "<option value='"+h.id+"'>"+pkHizmetEsc(h.ad)+"</option>"; }).join('')+"</select></div>";
+    return "<div class='rc-pks-etiket'>Hizmetler <small>Bu satış için çıkarabilir veya ekleyebilirsiniz</small></div>"+
+        "<div class='pk-hizmet-liste rc-pks-hizmetler' data-paket='"+pid+"'>"+liste.map(function(h){ return pkHizmetSatir(pid,h,true); }).join('')+"</div>"+
+        "<select class='form-control pk-hizmet-ekle rc-pks-ekle' data-paket='"+pid+"'><option value=''>+ Hizmet ekle</option>"+
+        kalan.map(function(h){ return "<option value='"+h.id+"'>"+pkHizmetEsc(h.ad)+"</option>"; }).join('')+"</select>";
 }
+function pkSatisKart(pid,row){
+    row = row || {};
+    var seans = pkSeansSayisi(row), fiyat = parseFloat(row.fiyat) || 0, sure = parseInt(row.sure,10) || 0;
+    var alanlar = '';
+    if(row.sinirsiz == 1){
+        alanlar += "<input type='hidden' name='paket_satis_seans[]' value='"+seans+"'>"+
+            "<div class='rc-pks-alan'><label>Paket</label><div class='rc-pks-sabit'><span class='rc-pk-sinirsiz'>Sınırsız</span> "+pkSureMetni(row)+" · ilk gelişte başlar</div></div>";
+    } else {
+        alanlar += "<div class='rc-pks-alan'><label>Seans Sayısı</label><input type='tel' class='form-control' name='paket_satis_seans[]' value='"+(seans || '')+"'></div>";
+    }
+    alanlar += window.STUDYO_MODU
+        ? "<input type='hidden' name='paket_satis_fiyat[]' value='"+fiyat+"'>"
+        : "<div class='rc-pks-alan'><label>Fiyat (₺)</label><input type='tel' class='form-control' name='paket_satis_fiyat[]' value='"+(fiyat || '')+"'></div>";
+    return "<div class='rc-pks-kart'><div class='rc-pks-baslik'><span>"+pkHizmetEsc(row.paket_adi)+"</span>"+
+        (sure > 0 ? "<small><i class='fa fa-clock-o'></i> "+sure+" dk</small>" : "")+"</div>"+
+        pkHizmetSecimHtml(pid)+"<div class='rc-pks-alanlar'>"+alanlar+"</div></div>";
+}
+function pkSatisBaslik(){
+    var ad = $('#paket_satis_musteri_id option:selected').text();
+    return "<div class='rc-pks-ust'><div class='rc-pks-ust-baslik'>Satış Bilgileri</div>"+(ad ? "<div class='rc-pks-musteri'><i class='fa fa-user'></i> "+pkHizmetEsc(ad)+"</div>" : "")+"</div>";
+}
+// === /PAKET GORUNUM ===
 function pkHizmetSecimOku(pid){
     window._pkSecim[pid] = $('.pk-hizmet-sec[data-paket="'+pid+'"]:checked').map(function(){ return parseInt(this.value,10); }).get();
 }
