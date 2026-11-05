@@ -12255,7 +12255,8 @@ private function ayAdiCevir($ingilizceAy)
     public function paketfiyatgetir(Request $request){
         $paketHizmetler = PaketHizmetler::where('paket_id',$request->paket_id)->get();
         $fiyat = (float) $paketHizmetler->sum('fiyat');
-        $seans = (int) $paketHizmetler->sum('seans');
+        // Satilan paketin seans_sayisi BOLGE BASINA haktir: 8,8,8 = 8 (toplam degil).
+        $seans = (int) $paketHizmetler->max('seans');
         // Paket hizmet kayitlari bos ise paketin kendi miktar/fiyat degerine dus
         if($fiyat <= 0 || $seans <= 0){
             $paket = \App\Paketler::where('id',$request->paket_id)->first();
@@ -12266,7 +12267,11 @@ private function ayAdiCevir($ingilizceAy)
         }
         // Backwards-compat: eger 'json' param'i istenmisse JSON don, aksi halde eski davranis (sum fiyat)
         if($request->input('json') == '1' || $request->wantsJson()){
-            return response()->json(['fiyat'=>$fiyat, 'seans'=>$seans]);
+            $_p = \App\Paketler::where('id',$request->paket_id)->first();
+            return response()->json(['fiyat'=>$fiyat, 'seans'=>$seans,
+                'sure'=>$_p ? (int) $_p->sure : 0,
+                'sinirsiz'=>$_p && !empty($_p->sinirsiz),
+                'gecerlilik'=>$_p ? \App\Services\PaketGecerlilik::sureMetni($_p->gecerlilik_sayi, $_p->gecerlilik_birim) : '']);
         }
         return (string) $fiyat;
     }
@@ -18112,6 +18117,12 @@ DB::raw('
     }
    public function paketsatisekle(Request $request){
     if($r = self::satisYetkiYoksa403($request, 'paket.sat')) return $r;
+    // Satista hizmet degistiyse o satisa ozel kopya; katalog paketi degismez.
+    // Adisyondan ONCE: hata olursa geride bos adisyon kalmasin.
+    $satisPaketleri = array();
+    foreach ((array) $request->paketadi as $key => $paketId) {
+        $satisPaketleri[$key] = \App\Services\PaketSurumu::satisPaketi($paketId, $request->input('paket_hizmetleri.'.$key), $request->sube);
+    }
     $adisyon_id = '';
     $hizmete_ait_randevu = array();
     $adisyon_duzenleme = false;
@@ -18125,6 +18136,7 @@ DB::raw('
 
     foreach ($request->paketadi as $key => $paketId) {
 
+        $paketId = $satisPaketleri[$key];
         $paket = Paketler::where('id', $paketId)->first();
 
         $adisyon_paket_id = self::adisyona_paket_ekle(

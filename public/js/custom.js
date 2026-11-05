@@ -5835,6 +5835,7 @@ $(document).on('click','#bir_paket_daha_ekle',function(e) {
         });
     });
      select2YenidenYukle();
+     pkSatirYukle($('.paketler_bolumu > .row').last());
 });
 $(document).on('click','#bir_paket_daha_ekle_adisyon',function(e) {
     e.preventDefault();
@@ -8902,6 +8903,10 @@ $('#paket_satisi').off('submit').on('submit',function(e){
     $.each(other_data,function(key,input){
                 formData.append(input.name,input.value);
     });
+    // Satir sirasi paketadi[] ile ayni: sunucu indeksle eslestirir.
+    $('#paket_satisi .paketler_bolumu > .row').each(function(i){
+        $(this).find('.pk-hizmet-sec:checked').each(function(){ formData.append('paket_hizmetleri['+i+'][]',this.value); });
+    });
     formData.append('musteri_id',$('select[name="musteri_adi_yeni_paket"]').val());
     formData.append('tahsilatekrani',$('#tahsilat_ekrani').val());
     formData.append('adisyonsuz',$('#adisyonsuz').val());
@@ -8947,6 +8952,7 @@ $('#paket_satisi').off('submit').on('submit',function(e){
                     const previousDisabledValue = $('select[name="musteri_adi_yeni_paket"]').val();
 
                     $('#paket_satisi').trigger('reset');
+                    $('#paket_satisi .pk-satir-hizmet').empty();
                     $('select[name="musteri_adi_yeni_paket"]').val(previousDisabledValue).trigger('change.select2');
                     $('#paket_satisi .paketler_bolumu div').each(function(e){
                         if($(this).attr('data-value')>0)
@@ -14364,35 +14370,7 @@ $('#grup_sms_tablo').on('click','a[name="grup_sil"]',function(e){
 $('#grup_olustur_buton').click(function(){
     $('#grup_duzenle_grup_id').val('');
 });
-$(document).on('change', 'select[name="paketadi[]"]', function(e){
-    var $row = $(this).closest('div.row');
-    var fiyat_text = $row.find('input[name="paketfiyat[]"]');
-    var seans_text = $row.find('input[name="paketseans[]"]');
-    var paketid = $(this).val();
-    if(!paketid) return;
-    $.ajax({
-                    type: "GET",
-                    url: '/isletmeyonetim/paketfiyatgetir',
-                    dataType: "json",
-                    data : {paket_id:paketid,sube:$('input[name="sube"]').val(),json:1},
-                    beforeSend: function() {
-                        $("#preloader").show();
-                    },
-                    success: function(result)  {
-                        $("#preloader").hide();
-                        if(result && typeof result === 'object'){
-                            fiyat_text.val(result.fiyat != null ? result.fiyat : '');
-                            if(seans_text.length) seans_text.val(result.seans != null && result.seans > 0 ? result.seans : '');
-                        } else {
-                            fiyat_text.val(result || '');
-                        }
-                    },
-                    error: function (request, status, error) {
-                        $("#preloader").hide();
-                        document.getElementById('hata').innerHTML = request.responseText;
-                    }
-    });
-});
+$(document).on('change', 'select[name="paketadi[]"]', function(e){ pkSatirYukle($(this).closest('div.row')); });
 $(document).on('change', 'select[name="paketadiadisyon[]"]' ,function(e){
     var fiyat_text = $(this).closest('div .row').find('input[name="paketfiyatadisyon[]"]');
     paketid = $(this).val();
@@ -18830,6 +18808,9 @@ function pkHizmetSecimHtml(pid){
     var liste = (veri.paketler && veri.paketler[pid]) || [];
     window._pkSecim[pid] = liste.map(function(h){ return h.id; });
     window._pkHizmetTum = veri.tum || [];
+    return pkHizmetSecimSablon(pid, liste);
+}
+function pkHizmetSecimSablon(pid, liste){
     return "<div class='rc-pks-etiket'>Hizmetler <small>Bu satış için çıkarabilir veya ekleyebilirsiniz</small></div>"+
         "<div class='pk-hizmet-liste rc-pks-hizmetler' data-paket='"+pid+"'>"+liste.map(function(h){ return pkHizmetSatir(pid,h,true); }).join('')+"</div>"+
         "<div class='rc-pks-ara'><i class='fa fa-search'></i><input type='text' class='form-control pk-hizmet-ara' data-paket='"+pid+"' placeholder='Hizmet ekle: aramak için yazın' autocomplete='off'><div class='rc-pks-sonuc' hidden></div></div>";
@@ -18860,6 +18841,34 @@ function pkSatisKart(pid,row){
         (sure > 0 ? "<small><i class='fa fa-clock-o'></i> "+sure+" dk</small>" : "")+"</div>"+
         pkHizmetSecimHtml(pid)+"<div class='rc-pks-alanlar'>"+alanlar+"</div></div>";
 }
+// Yeni Satis / Adisyon Detayi "Paket Ekle" modali: secili paketin seans, fiyat, sure ve hizmetleri satira yuklenir.
+function pkSatirYukle($row){
+    var pid = $row.find('select[name="paketadi[]"]').val();
+    if(!pid) return;
+    var sube = $('input[name="sube"]').val(), istek = ($row.data('pkIstek') || 0) + 1;
+    $row.data('pkIstek', istek);
+    var $seans = $row.find('input[name="paketseans[]"]'), $rozet = $row.find('.pk-seans-rozet'), $alan = $row.find('.pk-satir-hizmet').empty();
+    $.when(
+        $.getJSON('/isletmeyonetim/paketfiyatgetir',{paket_id:pid,sube:sube,json:1}),
+        $.getJSON('/isletmeyonetim/paket-satis-hizmetleri',{paket_idler:[pid],sube:sube})
+    ).done(function(f,h){
+        if($row.data('pkIstek') !== istek) return; // arada baska paket secildi
+        f = f[0]; h = h[0];
+        $row.find('input[name="paketfiyat[]"]').val(f.fiyat > 0 ? f.fiyat : '');
+        $seans.val(f.seans > 0 ? f.seans : '').toggle(!f.sinirsiz);
+        $rozet.toggle(!!f.sinirsiz).html(f.sinirsiz ? '<span class="rc-pk-sinirsiz">Sınırsız'+(f.gecerlilik ? ' · '+pkHizmetEsc(f.gecerlilik) : '')+'</span>' : '');
+        window._pkSecim = window._pkSecim || {};
+        window._pkHizmetTum = h.tum || [];
+        var anahtar = 'satir'+$row.attr('data-value'), liste = (h.paketler && h.paketler[pid]) || [];
+        window._pkSecim[anahtar] = liste.map(function(x){ return x.id; });
+        $alan.html((f.sure > 0 ? "<div class='pk-satir-sure'><i class='fa fa-clock-o'></i> "+f.sure+" dk</div>" : "")+pkHizmetSecimSablon(anahtar, liste));
+    }).fail(function(r){ document.getElementById('hata').innerHTML = r.responseText; });
+}
+$(document).on('shown.bs.modal','#paket_satisi_modal',function(){
+    $('#paket_satisi .paketler_bolumu > .row').each(function(){
+        if(!$(this).find('.pk-satir-hizmet').children().length) pkSatirYukle($(this));
+    });
+});
 function pkSatisBaslik(){
     var ad = $('#paket_satis_musteri_id option:selected').text();
     return "<div class='rc-pks-ust'><div class='rc-pks-ust-baslik'>Satış Bilgileri</div>"+(ad ? "<div class='rc-pks-musteri'><i class='fa fa-user'></i> "+pkHizmetEsc(ad)+"</div>" : "")+"</div>";

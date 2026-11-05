@@ -3175,6 +3175,7 @@
                               <div class="form-group">
                                  <label>Seans Sayısı</label>
                                  <input type="tel" name="paketseans[]" value="{{App\Paketler::where('salon_id',$isletme->id)->where('aktif',true)->value('miktar')}}"  class="form-control" required>
+                                 <div class="pk-seans-rozet" style="display:none"></div>
                               </div>
                            </div>
                            <div class="col-md-3" style="{{ !empty($isletme->studyo_modu) ? 'display:none' : '' }}">
@@ -3216,6 +3217,7 @@
                                     </select>
                               </div>
                            </div>
+                           <div class="col-md-12 pk-satir-hizmet"></div>
                            <div class="col-md-4" style="display: none;">
                               <div class="form-group">
                                    <label>İşlemi Yapacak Cihaz</label>
@@ -5839,8 +5841,8 @@ document.addEventListener('DOMContentLoaded', function() {
       @endif  
       <script src="{{secure_asset('public/js/seansTakibi.js?v=14.0')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
-      <link rel="stylesheet" href="{{secure_asset('public/css/paket-form.css?v=1')}}">
-      <script src="{{secure_asset('public/js/custom.js?v=302.6')}}"></script>
+      <link rel="stylesheet" href="{{secure_asset('public/css/paket-form.css?v=2')}}">
+      <script src="{{secure_asset('public/js/custom.js?v=302.7')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.9')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
