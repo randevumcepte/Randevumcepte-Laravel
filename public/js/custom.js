@@ -18829,11 +18829,19 @@ function pkHizmetSecimHtml(pid){
     var veri = window._pkSatisVeri || {};
     var liste = (veri.paketler && veri.paketler[pid]) || [];
     window._pkSecim[pid] = liste.map(function(h){ return h.id; });
-    var kalan = (veri.tum||[]).filter(function(h){ return window._pkSecim[pid].indexOf(h.id) < 0; });
+    window._pkHizmetTum = veri.tum || [];
     return "<div class='rc-pks-etiket'>Hizmetler <small>Bu satış için çıkarabilir veya ekleyebilirsiniz</small></div>"+
         "<div class='pk-hizmet-liste rc-pks-hizmetler' data-paket='"+pid+"'>"+liste.map(function(h){ return pkHizmetSatir(pid,h,true); }).join('')+"</div>"+
-        "<select class='form-control pk-hizmet-ekle rc-pks-ekle' data-paket='"+pid+"'><option value=''>+ Hizmet ekle</option>"+
-        kalan.map(function(h){ return "<option value='"+h.id+"'>"+pkHizmetEsc(h.ad)+"</option>"; }).join('')+"</select>";
+        "<div class='rc-pks-ara'><i class='fa fa-search'></i><input type='text' class='form-control pk-hizmet-ara' data-paket='"+pid+"' placeholder='Hizmet ekle: aramak için yazın' autocomplete='off'><div class='rc-pks-sonuc' hidden></div></div>";
+}
+function pkHizmetAraCiz($input){
+    var pid = $input.attr('data-paket'), q = $input.val().toLocaleLowerCase('tr').trim();
+    var ekli = $('.pk-hizmet-sec[data-paket="'+pid+'"]').map(function(){ return parseInt(this.value,10); }).get();
+    var liste = (window._pkHizmetTum||[]).filter(function(h){ return ekli.indexOf(h.id) < 0 && h.ad.toLocaleLowerCase('tr').indexOf(q) >= 0; });
+    var html = liste.slice(0,50).map(function(h){ return "<button type='button' class='rc-pks-sonuc-satir' data-id='"+h.id+"'>"+pkHizmetEsc(h.ad)+"</button>"; }).join('');
+    if(!liste.length) html = "<div class='rc-pks-sonuc-not'>Sonuç bulunamadı</div>";
+    else if(liste.length > 50) html += "<div class='rc-pks-sonuc-not'>"+(liste.length-50)+" hizmet daha var, aramayı daraltın</div>";
+    $input.siblings('.rc-pks-sonuc').html(html).prop('hidden',false);
 }
 function pkSatisKart(pid,row){
     row = row || {};
@@ -18866,13 +18874,19 @@ $(document).on('change','.pk-hizmet-sec',function(){
     if(!this.checked && $('.pk-hizmet-sec[data-paket="'+pid+'"]:checked').length===0){ this.checked = true; return; }
     pkHizmetSecimOku(pid);
 });
-$(document).on('change','.pk-hizmet-ekle',function(){
-    var pid = $(this).attr('data-paket'), $o = $(this).find('option:selected');
-    if(!this.value) return;
-    $('.pk-hizmet-liste[data-paket="'+pid+'"]').append(pkHizmetSatir(pid,{id:parseInt(this.value,10),ad:$o.text()},true));
-    $o.remove();
-    this.value = '';
+$(document).on('focus input','.pk-hizmet-ara',function(){ pkHizmetAraCiz($(this)); });
+$(document).on('keydown','.pk-hizmet-ara',function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); $(this).siblings('.rc-pks-sonuc').find('.rc-pks-sonuc-satir').first().click(); }
+});
+$(document).on('click','.rc-pks-sonuc-satir',function(){
+    var $input = $(this).closest('.rc-pks-ara').find('.pk-hizmet-ara'), pid = $input.attr('data-paket');
+    $('.pk-hizmet-liste[data-paket="'+pid+'"]').append(pkHizmetSatir(pid,{id:parseInt($(this).attr('data-id'),10),ad:$(this).text()},true));
     pkHizmetSecimOku(pid);
+    $input.val('').focus();
+    pkHizmetAraCiz($input);
+});
+$(document).on('mousedown',function(e){
+    if(!$(e.target).closest('.rc-pks-ara').length) $('.rc-pks-sonuc').prop('hidden',true);
 });
 $('#paket_hepsini_sec_liste').change(function(e){
     if (this.checked) {

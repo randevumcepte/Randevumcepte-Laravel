@@ -678,7 +678,15 @@
 .rc-pks-hizmet span { display: inline-block; padding: 5px 12px; border: 1px solid #e5e7eb; border-radius: 999px; background: #fff; color: #9ca3af; font-size: 12.5px; font-weight: 500; text-decoration: line-through; transition: background .12s, color .12s; }
 .rc-pks-hizmet input:checked + span { background: #f5eefe; border-color: #ead4ff; color: #5C008E; font-weight: 600; text-decoration: none; }
 .rc-pks-hizmet input:focus-visible + span { outline: 2px solid #9D5DC8; outline-offset: 1px; }
-.rc-pks-swal select.rc-pks-ekle { height: 36px !important; margin-bottom: 12px; border: 1px dashed #d1d5db; border-radius: 8px; color: #5C008E; font-size: 13px; font-weight: 600; }
+.rc-pks-ara { position: relative; margin-bottom: 12px; }
+.rc-pks-ara > i { position: absolute; left: 12px; top: 11px; color: #9D5DC8; font-size: 13px; pointer-events: none; }
+.rc-pks-swal .rc-pks-ara input.pk-hizmet-ara { height: 36px; padding-left: 32px; border: 1px dashed #d1d5db; border-radius: 8px; font-size: 13px; box-shadow: none; }
+.rc-pks-swal .rc-pks-ara input.pk-hizmet-ara:focus { border: 1px solid #9D5DC8; }
+.rc-pks-sonuc { max-height: 190px; overflow-y: auto; margin-top: 4px; border: 1px solid #eef0f4; border-radius: 8px; background: #fff; }
+.rc-pks-sonuc[hidden] { display: none; }
+.rc-pks-sonuc-satir { display: block; width: 100%; padding: 8px 12px; border: 0; background: none; color: #1f2937; font-size: 13px; text-align: left; cursor: pointer; }
+.rc-pks-sonuc-satir:hover, .rc-pks-sonuc-satir:first-child:not(:hover) { background: #f9f5fe; }
+.rc-pks-sonuc-not { padding: 8px 12px; color: #9ca3af; font-size: 12px; }
 .rc-pks-alanlar { display: flex; gap: 10px; }
 .rc-pks-alan { flex: 1 1 0; min-width: 0; }
 .rc-pks-alan label { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 700; color: #374151; }
