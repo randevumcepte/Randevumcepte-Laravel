@@ -178,7 +178,7 @@
         <div class="ozet">
             <span class="k">Toplam Seans: <b>{{ $toplam !== null ? $toplam : '-' }}</b></span>
             <span class="k">Kullanılan: <b>{{ $kullanilan }}</b></span>
-            <span class="k">Kalan: <b>{{ $toplam !== null ? max(0, $toplam - $kullanilan) : '-' }}</b></span>
+            <span class="k">Kalan: <b>{{ is_numeric($toplam) ? max(0, $toplam - $kullanilan) : ($toplam !== null ? $toplam : '-') }}</b></span>
         </div>
     @endif
 
