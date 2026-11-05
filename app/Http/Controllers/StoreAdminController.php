@@ -28642,6 +28642,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
         $paketler = self::paket_liste_getir("",true,$request);
         $isletme =Salonlar::where('id',self::mevcutsube($request))->first();
+        // Satista hizmet degistiyse o satisa ozel kopya; katalog paketi degismez.
+        // Adisyondan ONCE: hata olursa geride bos adisyon kalmasin.
+        $satisPaketleri = array();
+        foreach($bilgi as $paket){
+            $satisPaketleri[$paket->id] = \App\Services\PaketSurumu::satisPaketi($paket->id, $request->input('paket_hizmet_sec.'.$paket->id), $request->sube);
+        }
         $adisyon_id = self::yeni_adisyon_olustur($request->paket_satis_musteri_id,$request->sube,'Paket Satışı',date('Y-m-d'));
         $hizmete_ait_randevu = array();
         $satici_personel_id = !empty($request->paket_satis_personel_id)
@@ -28655,9 +28661,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             {
                 $toplamtutar+=$hizmet->fiyat;
             }*/
-            // Satista hizmet degistiyse o satisa ozel kopya; katalog paketi degismez.
-            $satisPaketId = \App\Services\PaketSurumu::satisPaketi($paket->id, $request->input('paket_hizmet_sec.'.$paket->id), $request->sube);
-            $adisyon_paket_id = self::adisyona_paket_ekle($request,$adisyon_id,$satisPaketId,$toplamtutar,'','',$satici_personel_id,null,null,$request->paket_satis_seans[$key]);
+            $adisyon_paket_id = self::adisyona_paket_ekle($request,$adisyon_id,$satisPaketleri[$paket->id],$toplamtutar,'','',$satici_personel_id,null,null,$request->paket_satis_seans[$key]);
             /*$paket_mevcut = Paketler::where('id',$paket->id)->first();
             $seanstarih = '';
             $yenisaatbaslangic = '';

@@ -89,8 +89,11 @@ class PaketSurumu
             $satir = new \App\PaketHizmetler();
             $satir->paket_id = $kopyaId;
             $satir->hizmet_id = $hizmetId;
-            $satir->seans = $eski->seans ?? null;
-            $satir->fiyat = $eski->fiyat ?? null;
+            // Yeni eklenen hizmette seans/fiyat gonderilmez: kolonlar NULL kabul etmiyor, varsayilan gecerli.
+            if ($eski) {
+                $satir->seans = $eski->seans;
+                $satir->fiyat = $eski->fiyat;
+            }
             $satir->save();
         }
 
