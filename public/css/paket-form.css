@@ -1,0 +1,38 @@
+/* Paket ekle / duzenle modali (modaldialogs/paket-form.blade.php). Baslik rengi acikca verilir: tema koyu zemine koyu yazi koyabiliyor. */
+.pkf-modal .modal-dialog { max-width: 680px; width: calc(100% - 24px); }
+.pkf-modal .modal-content { max-width: none; width: 100%; border: 0; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 64px rgba(30, 10, 60, .28); }
+.pkf-modal form { display: flex; flex-direction: column; max-height: calc(100vh - 48px); margin: 0; }
+.pkf-ust { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 24px 14px !important; background: #fff !important; border-bottom: 1px solid #eef0f4 !important; }
+.pkf-baslik { color: #5C008E !important; font-size: 19px; font-weight: 700; line-height: 1.25; }
+.pkf-alt { margin-top: 3px; color: #6b7280; font-size: 12.5px; }
+.pkf-kapat { flex: 0 0 auto; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: #f3f4f6; color: #6b7280; font-size: 20px; line-height: 1; cursor: pointer; }
+.pkf-kapat:hover { background: #f5eefe; color: #5C008E; }
+.pkf-govde { flex: 1 1 auto; padding: 18px 24px !important; overflow-x: hidden; overflow-y: auto; background: #fff; }
+.pkf-izgara { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 16px; }
+.pkf-tam { grid-column: 1 / -1; }
+.pkf-iki { grid-column: span 2; }
+.pkf-alan { min-width: 0; }
+.pkf-alan > label { display: block; margin: 0 0 5px; color: #374151; font-size: 12.5px; font-weight: 600; }
+.pkf-alan > label small { color: #9ca3af; font-weight: 400; }
+.pkf-alan > small { display: block; margin-top: 4px; color: #9ca3af; font-size: 11.5px; line-height: 1.35; }
+.pkf-zorunlu { color: #dc2626; }
+.pkf-modal .pkf-alan .form-control { height: 40px; padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 10px; background-color: #fff; color: #1f2937; font-size: 14px; box-shadow: none; }
+.pkf-modal .pkf-alan .form-control:focus { border-color: #9D5DC8; box-shadow: 0 0 0 3px rgba(157, 93, 200, .14); }
+.pkf-sure { display: flex; gap: 8px; }
+.pkf-sure input { flex: 1 1 auto; min-width: 0; }
+.pkf-modal .pkf-sure select { flex: 0 0 96px; width: 96px; }
+.pkf-modal .select2-container { width: 100% !important; }
+.pkf-modal .select2-container--default .select2-selection--multiple { min-height: 40px; padding: 2px 6px; border: 1px solid #e5e7eb !important; border-radius: 10px !important; background: #fff; }
+.pkf-modal .select2-container--default.select2-container--focus .select2-selection--multiple { border-color: #9D5DC8 !important; box-shadow: 0 0 0 3px rgba(157, 93, 200, .14); }
+.pkf-modal .select2-container--default .select2-selection--multiple .select2-selection__choice { margin-top: 5px; border: 1px solid #ead4ff; border-radius: 999px; background: #f5eefe; color: #5C008E; font-size: 12.5px; font-weight: 600; }
+.pkf-alt-bar { display: flex !important; justify-content: flex-end; gap: 10px; padding: 14px 24px !important; background: #fafafb !important; border-top: 1px solid #eef0f4 !important; }
+.pkf-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 42px; min-width: 112px; padding: 0 20px; border: 0; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: filter .15s; }
+.pkf-btn-ikincil { background: #eef0f4; color: #374151; }
+.pkf-btn-birincil { background: linear-gradient(135deg, #5C008E 0%, #9D5DC8 100%); color: #fff; }
+.pkf-btn:hover { filter: brightness(.97); }
+@media (max-width: 560px) {
+    .pkf-izgara { grid-template-columns: minmax(0, 1fr); }
+    .pkf-iki { grid-column: auto; }
+    .pkf-ust, .pkf-govde, .pkf-alt-bar { padding-left: 16px !important; padding-right: 16px !important; }
+    .pkf-btn { flex: 1 1 0; min-width: 0; }
+}

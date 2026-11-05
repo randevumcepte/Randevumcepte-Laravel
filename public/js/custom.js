@@ -6433,7 +6433,7 @@ function paketTurGuncelle($form){
     var sinirsiz = $form.find('[name="sinirsiz"]').val() === '1';
     $form.find('.paket-limit-alani').toggle(sinirsiz);
     $form.find('.paket-sure-ipucu').text(sinirsiz ? '*' : '(opsiyonel)');
-    $form.find('[name="seanslar"]').closest('.form-group').parent().toggle(!sinirsiz);
+    $form.find('.pkf-seans').toggle(!sinirsiz);
     if (sinirsiz && !$form.find('[name="gecerlilik_sayi"]').val()) {
         $form.find('[name="gecerlilik_sayi"]').val(1);
         $form.find('[name="gecerlilik_birim"]').val('yil');
