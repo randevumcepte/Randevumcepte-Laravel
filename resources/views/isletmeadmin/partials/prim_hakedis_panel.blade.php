@@ -786,8 +786,8 @@
             </div>
           </div>
 
-          <div id="primOde_masrafInfo" style="display:none; margin-top:10px; padding:10px 14px; border-radius:10px; background:#fff7ed; border:1px solid #fed7aa; color:#b45309; font-size:13px; font-weight:600; line-height:1.4">
-            <i class="fa fa-shopping-basket"></i> Personel gideri (kasadan alınan): <b>−<span id="primOde_masrafTutar">0,00</span> ₺</b> — hak edişten düşüldü, yukarıdaki kalan tutarlar buna göre hesaplandı.
+          <div id="primOde_mahsupInfo" style="display:none; margin-top:10px; margin-bottom:14px; padding:10px 14px; border-radius:10px; background:#fff7ed; border:1px solid #fed7aa; color:#b45309; font-size:13px; font-weight:600; line-height:1.4">
+            <i class="fa fa-info-circle"></i> Kalanlardan düşüldü: <b id="primOde_mahsupMetin"></b>
           </div>
 
           <div class="row">
@@ -994,7 +994,7 @@ $(function(){
     responsive: false,
     autoWidth: false,
     order: [[10,'desc']],
-    language: { url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/tr.json' },
+    language: { url: '//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json' },
     dom: '<"d-flex justify-content-between align-items-center mb-2"<"d-flex"l><"d-flex"B>>frtip',
     buttons: [
       { extend: 'excelHtml5',  text: '<i class="fa fa-file-excel-o"></i> Excel',  className: 'btn btn-success btn-sm', title: _dosyaAdi, exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9,10] } },
@@ -1148,31 +1148,15 @@ $(function(){
     };
   }
 
-  // Maas/prim/avans kalanlarini rapor satirindan hesaplar
+  // Hak edis rakamlari; kalanlar sunucudan gelir (primKalanDagit)
   function _hakedisHesapla(pid){
     var r = _raporIndex[pid] || {};
-    var maas = parseFloat(r.maas)||0;
-    var primToplam = parseFloat(r.prim_toplam)||0;
-    var bonus = parseFloat(r.bonus)||0;
-    var kesinti = parseFloat(r.kesinti)||0;
-    var odenenMaas = parseFloat(r.odenen_maas)||0;
-    var odenenPrim = parseFloat(r.odenen_prim)||0;
-    var odenenDiger = parseFloat(r.odenen_diger)||0;
-    var masraf = parseFloat(r.masraf)||0; // personel gideri (kasadan alinan)
-
-    var kalanMaas = Math.max(0, maas - odenenMaas);
-    var kalanPrim = Math.max(0, primToplam - odenenPrim);
-    // Personel gideri zaten kasadan nakit alinmis; kalanlardan sirayla dusulur
-    // (maas -> prim) ki tum kalanlarin toplami NET hak edise esit olsun.
-    var _mk = masraf;
-    var _d = Math.min(_mk, kalanMaas); kalanMaas -= _d; _mk -= _d;
-    _d = Math.min(_mk, kalanPrim); kalanPrim -= _d;
-
+    var sayi = function(alan){ return parseFloat(r[alan])||0; };
     return {
-      maas: maas, primToplam: primToplam, bonus: bonus, kesinti: kesinti, masraf: masraf,
-      net: parseFloat(r.net_hakedis)||0,
-      odenenMaas: odenenMaas, odenenPrim: odenenPrim, odenenDiger: odenenDiger,
-      kalanMaas: kalanMaas, kalanPrim: kalanPrim
+      maas: sayi('maas'), primToplam: sayi('prim_toplam'), bonus: sayi('bonus'), kesinti: sayi('kesinti'),
+      masraf: sayi('masraf'), telafi: sayi('telafi_devri'), net: sayi('net_hakedis'),
+      odenenMaas: sayi('odenen_maas'), odenenPrim: sayi('odenen_prim'), odenenDiger: sayi('odenen_diger'),
+      kalanMaas: sayi('kalan_maas'), kalanPrim: sayi('kalan_prim')
     };
   }
 
@@ -1199,12 +1183,13 @@ $(function(){
   // Sekme altyazilari + personel gideri bilgisi + sekme degisince kullanilan hak edis verisi
   function _odeRakamlariniDoldur(pid){
     var h = _hakedisHesapla(pid);
-    if(h.masraf > 0){
-      $('#primOde_masrafTutar').text(_formatTL(h.masraf));
-      $('#primOde_masrafInfo').show();
-    } else {
-      $('#primOde_masrafInfo').hide();
-    }
+    var dusulen = [];
+    if(h.odenenDiger > 0) dusulen.push('Avans −'+_formatTL(h.odenenDiger)+' ₺');
+    if(h.kesinti > 0) dusulen.push('Kesinti −'+_formatTL(h.kesinti)+' ₺');
+    if(h.masraf > 0) dusulen.push('Personel gideri −'+_formatTL(h.masraf)+' ₺');
+    if(h.telafi < 0) dusulen.push('Telafi devri −'+_formatTL(-h.telafi)+' ₺');
+    $('#primOde_mahsupMetin').text(dusulen.join(' · '));
+    $('#primOde_mahsupInfo').toggle(dusulen.length > 0);
 
     $('#primOde_maasKalan').text(_formatTL(h.kalanMaas) + ' ₺');
     $('#primOde_primKalan').text(_formatTL(h.kalanPrim) + ' ₺');
@@ -1224,11 +1209,11 @@ $(function(){
     prim:    { tutarLbl:'Ödenecek Tutar', tarihLbl:'Ödeme Tarihi', ph:'Prim tutarı', aciklama:'Ör: Kasım 2026 prim ödemesi',
                ipucu:'Varsayılan, kalan prim tutarıdır.', buton:'Ödemeyi Kaydet', basari:'Ödeme kaydedildi', renk:'#16a34a' },
     diger:   { tutarLbl:'Ödenecek Tutar', tarihLbl:'Ödeme Tarihi', ph:'Avans tutarı', aciklama:'Ör: Ay ortası avans',
-               ipucu:'Avans net hak edişten düşülür ve kasaya gider yazılır.', buton:'Ödemeyi Kaydet', basari:'Ödeme kaydedildi', renk:'#16a34a' },
+               ipucu:'Avans maaş kalanından, maaş biterse prim kalanından düşülür ve kasaya gider yazılır.', buton:'Ödemeyi Kaydet', basari:'Ödeme kaydedildi', renk:'#16a34a' },
     bonus:   { hareket:true, tutarLbl:'Bonus Tutarı', tarihLbl:'Tarih', ph:'Bonus tutarı', aciklama:'Ör: Ay sonu performans bonusu',
                ipucu:'Bonus net hak edişe eklenir, kasaya gider yazılmaz.', buton:'Bonusu Kaydet', basari:'Bonus kaydedildi', renk:'#16a34a' },
     kesinti: { hareket:true, tutarLbl:'Kesinti Tutarı', tarihLbl:'Tarih', ph:'Kesinti tutarı', aciklama:'Ör: Geç gelme kesintisi',
-               ipucu:'Kesinti net hak edişten düşülür, kasaya işlenmez.', buton:'Kesintiyi Kaydet', basari:'Kesinti kaydedildi', renk:'#dc2626' }
+               ipucu:'Kesinti maaş kalanından, maaş biterse prim kalanından düşülür; kasaya işlenmez.', buton:'Kesintiyi Kaydet', basari:'Kesinti kaydedildi', renk:'#dc2626' }
   };
 
   // Bonus/kesinti, tarihine gore doneme yazilir: secili donemin disina dusmesin
@@ -1270,10 +1255,9 @@ $(function(){
     $('#primOde_yontemGrup').toggle(!cfg.hareket);
     if(cfg.hareket) $('#primOdeForm select[name="odeme_yontemi"]').val('');
 
-    // Maas/prim: once kalan, kalan yoksa toplam; digerlerinde tutari kullanici girer
-    var varsayilan = 0;
-    if(tip === 'maas') varsayilan = d.kalanMaas > 0 ? d.kalanMaas : d.maas;
-    if(tip === 'prim') varsayilan = d.kalanPrim > 0 ? d.kalanPrim : d.primToplam;
+    // Maas/prim: kalan tutar onerilir, kalan yoksa bos kalir; digerlerinde tutari kullanici girer
+    var varsayilan = tip === 'maas' ? d.kalanMaas : (tip === 'prim' ? d.kalanPrim : 0);
+    if((tip === 'maas' || tip === 'prim') && !(varsayilan > 0)) $('#primOde_ipucu').text('Bu kalemde ödenecek tutar kalmadı.');
     var $tutar = $('#primOde_tutar');
     $tutar.val(varsayilan > 0 ? varsayilan.toFixed(2) : '').attr('placeholder', cfg.ph);
     if(!(varsayilan > 0)) setTimeout(function(){ $tutar.focus(); }, 100);

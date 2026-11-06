@@ -13,9 +13,9 @@
   $toplamOdenenMaas  = array_sum(array_column($rapor,'odenen_maas'));
   $toplamOdenenPrim  = array_sum(array_column($rapor,'odenen_prim'));
   $toplamOdenenDiger = array_sum(array_column($rapor,'odenen_diger'));
-  // Kart bazinda kalan (toplam - odenen, asagida 0'dan kucukse 0)
-  $toplamKalanMaas = max(0, $toplamMaas - $toplamOdenenMaas);
-  $toplamKalanPrim = max(0, $toplamPrim - $toplamOdenenPrim);
+  // Kart bazinda kalan: avans, kesinti ve personel gideri dusulmus hali
+  $toplamKalanMaas = array_sum(array_column($rapor,'kalan_maas'));
+  $toplamKalanPrim = array_sum(array_column($rapor,'kalan_prim'));
   $odemeYuzde = $toplamNet > 0 ? min(100, round(($toplamOdenen / $toplamNet) * 100, 1)) : 0;
   // Gunluk toplamlar (gun_* alanlari primHakedisVerisi'den gelir)
   $gunToplamPrim   = array_sum(array_column($rapor, 'gun_prim'));

@@ -40135,13 +40135,11 @@ DB::raw('
             $odenenPrim = (float)$persOdemeler->where('odeme_tipi','prim')->sum('tutar');
             $odenenDiger = (float)$persOdemeler->whereNotIn('odeme_tipi',['maas','prim'])->sum('tutar');
 
-            // Net etkili bonus/kesinti tutar (bonus ekler, kesinti dusurur)
-            $bonusKesintiNet = $bonus - $kesinti;
-
-            // Tip bazli kalan
-            $kalanMaas = max(0, $maas - $odenenMaas);
-            $kalanPrim = max(0, $primToplam - $odenenPrim);
-            $kalanDiger = $bonusKesintiNet - $odenenDiger; // negatif olabilir
+            // Tip bazli kalan: avans, kesinti ve personel gideri kalemlerden dusulur
+            list($kalanMaas, $kalanPrim, $kalanDiger) = self::primKalanDagit(
+                $maas, $primToplam, $odenenMaas, $odenenPrim,
+                $odenenDiger + $kesinti + $masraf - $bonus - $telafiDevri
+            );
             $kalan = max(0, $toplam - $odenenToplam);
 
             $sonOdeme = $persOdemeler->first();
@@ -40201,6 +40199,24 @@ DB::raw('
         }
 
         return $sonuc;
+    }
+
+    /**
+     * Kalan maas/prim/diger dagilimi. Toplamlari her zaman net hak edis - odenen'e esittir.
+     * $mahsup: avans + kesinti + personel gideri - bonus - telafi devri.
+     * Pozitif mahsup once maastan, maas biterse primden duser; negatif mahsup
+     * (dusulecekten fazla bonus) "diger" kaleminde kalir. Bir kaleme fazla odenen
+     * tutar da diger kalemden duser.
+     */
+    private static function primKalanDagit($maas, $prim, $odenenMaas, $odenenPrim, $mahsup)
+    {
+        $mahsup += max(0, $odenenMaas - $maas) + max(0, $odenenPrim - $prim);
+        $kalanMaas = max(0, $maas - $odenenMaas);
+        $kalanPrim = max(0, $prim - $odenenPrim);
+        $dusen = min(max(0, $mahsup), $kalanMaas);
+        $kalanMaas -= $dusen;
+        $kalanPrim = max(0, $kalanPrim - (max(0, $mahsup) - $dusen));
+        return [round($kalanMaas, 2), round($kalanPrim, 2), round(max(0, -$mahsup), 2)];
     }
 
     public function primHareketEkle(Request $request)
