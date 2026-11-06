@@ -10716,7 +10716,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         $paketSeanslarById = empty($paketRowIds) ? collect() :
             AdisyonPaketSeanslar::with('hizmet:id,hizmet_adi')
                 ->whereIn('adisyon_paket_id', $paketRowIds)
-                ->select($seansSelect)
+                ->select(array_merge($seansSelect, [DB::raw('(SELECT personel_adi FROM salon_personelleri sp WHERE sp.id = adisyon_paket_seanslar.personel_id) as personel_adi')]))
                 ->get()
                 ->groupBy('adisyon_paket_id');
         $hizmetSeanslarById = empty($hizmetRowIds) ? collect() :
@@ -10749,6 +10749,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     if (($seans->geldi !== null && $seans->geldi === 0) || $seans->iptal) $gelinmeyenSeansSayisi++;
                 }
                 $bekleyenSeansSayisi = $paket->bekleyen_seans - $gelinenSeansSayisi - $gelinmeyenSeansSayisi;
+                $gecerlilik = \App\Services\PaketGecerlilik::durum($paket->id);
+                if ($gecerlilik['sinirsiz']) {
+                    // Adet teknik deger: bekleyen = acilmis ve henuz sonuclanmamis seanslar.
+                    $bekleyenSeansSayisi = $seanslar->count() - $gelinenSeansSayisi - $gelinmeyenSeansSayisi - $seanslar->where('geldi', 2)->count();
+                }
 
                 $result[] = [
                     'adisyon' => $adisyon->id,
@@ -10760,6 +10765,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     'gelinenSeansSayisi' => $gelinenSeansSayisi,
                     'gelinmeyenSeansSayisi' => $gelinmeyenSeansSayisi,
                     'tip' => 'paket',
+                    'sinirsiz' => $gecerlilik['sinirsiz'] ? 1 : 0,
+                    'sure' => $gecerlilik['sure'],
+                    'baslangic' => $gecerlilik['baslangic'],
+                    'bitis' => $gecerlilik['bitis'],
                     'paketHizmetId' => $paket->id,
                     'hizmetler' => $paketHizmetlerByPaketId[$paket->paket_id] ?? collect(),
                 ];
@@ -15863,7 +15872,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                     ->where('adisyon_paket_id', $paketA->id)->count();
                 $bekleyenToplamPaket = $toplamSeansPaket - $kullanilanPaket;
                 $kalanSeansPaket = max(0, (int)floor($bekleyenToplamPaket / $hizmetSayisi));
-                if ($kalanSeansPaket <= 0) continue;
+                $gecerlilik = \App\Services\PaketGecerlilik::durum($paketA->id);
+                if ($kalanSeansPaket <= 0 && !$gecerlilik['sinirsiz']) continue;
+                if ($gecerlilik['sinirsiz']) $kalanSeansPaket = max(1, $kalanSeansPaket); // adet kurali yok
 
                 $paketAdi = $paketA->paket->paket_adi;
                 $paketHizmetleriArray = [];
@@ -15901,6 +15912,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                     'adisyon_paket_id' => $paketA->id,
                     'adisyon_hizmet_id' => null,
                     'toplamSeans' => $kalanSeansPaket,
+                    'sinirsiz' => $gecerlilik['sinirsiz'] ? 1 : 0,
+                    'gecerlilik' => $gecerlilik['sure'],
                     'icerik' => $paketHizmetleriArray,
                 ];
             }
@@ -16231,6 +16244,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                         'adisyon_paket_id' => (int)$s->adisyon_paket_id,
                         'kalan_seans' => $kalan,
                         'toplam_seans' => $toplamSeans,
+                        'sinirsiz' => $ap ? !empty($ap->sinirsiz) : false,
                         'seans_no' => (int)($s->seans_no ?? 0),
                         'sure_dk' => $sureDk,
                         'default_miktar' => $defaultMiktar,
@@ -18424,6 +18438,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     public function adisyonpaketekle(Request $request)
     {
+        // Satista hizmet degistiyse o satisa ozel kopya; katalog paketi degismez.
+        // Adisyondan ONCE: hata olursa geride bos adisyon kalmasin.
+        $satisPaketId = \App\Services\PaketSurumu::satisPaketi($request->paketid, $request->input('paket_hizmetleri'), $request->sube);
         $adisyon_id = "";
         $adisyon_paket_id = "";
         if (isset($request->adisyon_id) && $request->adisyon_id != "") {
@@ -18479,7 +18496,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $adisyon_paket_id = self::paketsatisiekleguncelle(
             $adisyon_id,
             $request->adisyon_paket_id,
-            $request->paketid,
+            $satisPaketId,
             $request->paketfiyat,
             $request->paketbaslangictarihi,
             $request->seansaralikgun,
@@ -18748,13 +18765,19 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $adisyon_paket->taksitli_tahsilat_id = $taksitli_tahsilat_id;
 
-        $effectiveSeans = ($seans_sayisi !== null && $seans_sayisi !== '')
-            ? (int) $seans_sayisi
-            : (int) $paketBilgi->hizmetler->sum('seans');
-        $adisyon_paket->seans_sayisi = $effectiveSeans;
-        $adisyon_paket->kullanilan_seans = 0;
-        $adisyon_paket->bekleyen_seans = $effectiveSeans;
-        $adisyon_paket->kullanilmayan_seans = 0;
+        // Ayni sinirsiz paketin satisi duzenleniyor: adet alanlari teknik deger, dokunulmaz
+        // (hizmet seans toplami 0 oldugundan yazilsa satis Seans Takibi'nden duserdi).
+        $sinirsizDuzenleme = $adisyon_paket->exists && !empty($adisyon_paket->sinirsiz)
+            && (int) $adisyon_paket->getOriginal('paket_id') === (int) $paket_id;
+        if (!$sinirsizDuzenleme) {
+            $effectiveSeans = ($seans_sayisi !== null && $seans_sayisi !== '')
+                ? (int) $seans_sayisi
+                : (int) $paketBilgi->hizmetler->sum('seans');
+            $adisyon_paket->seans_sayisi = $effectiveSeans;
+            $adisyon_paket->kullanilan_seans = 0;
+            $adisyon_paket->bekleyen_seans = $effectiveSeans;
+            $adisyon_paket->kullanilmayan_seans = 0;
+        }
 
         $adisyon_paket->otomatik_randevu_olusturuldu = false;
 
@@ -24297,6 +24320,8 @@ if (is_array($request->cihaz_id)) {
             $paket->sure = $request->paketsure;
 
         }
+
+        \App\Services\PaketGecerlilik::paketFormunuYaz($paket, $request);
 
         $paket->save();
 
@@ -33330,13 +33355,13 @@ SOZLESME_TXT;
                 $seansPer = (int) ($p->seans_sayisi ?? 0);
                 $kullanilanTop = (int) DB::table('adisyon_paket_seanslar')->where('adisyon_paket_id', $p->id)->count();
                 $kalanPer = max(0, (int) floor(($seansPer * $hizmetSayisi - $kullanilanTop) / $hizmetSayisi));
-                if ($kalanPer <= 0) continue;
+                if ($kalanPer <= 0 && empty($p->sinirsiz)) continue;
                 foreach ($p->paket->hizmetler as $ph) {
                     if (!$ph->hizmet) continue;
                     $kaynaklar[] = [
                         'etiket' => $ph->hizmet->hizmet_adi . ' — ' . $p->paket->paket_adi . ' (Paket)',
                         'hizmet_id' => (int) $ph->hizmet_id, 'hizmet_adi' => $ph->hizmet->hizmet_adi,
-                        'kalan_seans' => $kalanPer, 'adisyon_paket_id' => (int) $p->id, 'adisyon_hizmet_id' => null,
+                        'kalan_seans' => $kalanPer, 'sinirsiz' => !empty($p->sinirsiz), 'adisyon_paket_id' => (int) $p->id, 'adisyon_hizmet_id' => null,
                     ];
                 }
             }
