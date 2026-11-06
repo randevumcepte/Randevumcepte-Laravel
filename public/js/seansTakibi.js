@@ -188,6 +188,56 @@ $(document).on('click', '.toggle-paket-detay', function() {
     }
 });
 
+// === YILLIK KART ===
+function ykEsc(t){ return $('<div>').text(t == null ? '' : t).html(); }
+function ykTarih(t){
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t || '');
+    return m ? m[3]+'.'+m[2]+'.'+m[1] : '—';
+}
+// Sinirsiz paket karti. name="paketHizmetAdi" ve paketMusteriAdi, ortak pencereler okudugu icin korunur.
+function yillikKartHtml(h, seanslar, lazer, kartKey){
+    var say = function(g){ return seanslar.filter(function(s){ return s.geldi === g; }).length; };
+    var paket = h.seansTuru === 'PAKET' ? 1 : 0;
+    window._ykDokum = window._ykDokum || {};
+    window._ykDokum[kartKey] = { hizmet: h, seanslar: seanslar, lazer: lazer };
+    var kalanGun = '';
+    if (h.suresi_doldu) kalanGun = '<div class="yk-durum yk-doldu">Süresi doldu</div>';
+    else if (h.bitis) {
+        var gun = Math.ceil((new Date(h.bitis+'T23:59:59') - new Date()) / 86400000);
+        kalanGun = '<div class="yk-durum">'+gun+' gün kaldı</div>';
+    } else kalanGun = '<div class="yk-durum yk-bekliyor">İlk gelişte başlar</div>';
+    return '<input type="hidden" name="paketMusteriAdi" data-value="'+h.id+'" value="'+ykEsc(h.musteriAdi)+'">'+
+        '<div class="col-sm-6 col-md-4 col-lg-3 mb-3"><div class="card h-100 shadow-sm yk-kart">'+
+        '<div class="yk-ust"><h6 name="paketHizmetAdi" data-index-number="'+h.hizmetId+'" data-value="'+h.id+'">'+ykEsc(h.hizmet_adi || '-')+'</h6>'+
+        '<span class="yk-rozet">Sınırsız'+(h.sure ? ' · '+ykEsc(h.sure) : '')+'</span></div>'+
+        '<div class="yk-tarihler"><div><small>Başlangıç</small><b>'+(h.baslangic ? ykTarih(h.baslangic) : '—')+'</b></div>'+
+        '<i class="fa fa-long-arrow-right"></i><div><small>Bitiş</small><b>'+(h.bitis ? ykTarih(h.bitis) : '—')+'</b></div></div>'+kalanGun+
+        '<div class="yk-sayac"><div><small>Kullanıldı</small><strong class="text-success">'+say(1)+'</strong></div>'+
+        '<div><small>Bekleyen</small><strong class="text-warning">'+say(null)+'</strong></div>'+
+        '<div><small>Kullanılmadı</small><strong class="text-danger">'+say(0)+'</strong></div></div>'+
+        '<div class="yk-butonlar"><button type="button" class="yk-btn yk-btn-ana" name="yillikDokum" data-key="'+kartKey+'"><i class="fa fa-list"></i> Seans Dökümü</button>'+
+        (h.suresi_doldu ? '' : '<button type="button" class="yk-btn" name="yeniSeansEkle" data-paket="'+paket+'" data-index-number="'+h.hizmetId+'" data-value="'+h.id+'"><i class="fa fa-plus"></i> Yeni Kullanım</button>')+'</div>'+
+        (lazer ? "<button type='button' name='cihazBilgileriKart' data-key='"+kartKey+"' class='yk-btn yk-btn-cihaz'><i class='fa fa-bolt'></i> Cihaz Bilgileri</button>" : '')+
+        '</div></div>';
+}
+function yillikDokumHtml(k){
+    var etiket = function(g){ return g === 1 ? ['Geldi','yk-geldi'] : g === 0 ? ['Gelmedi','yk-gelmedi'] : g === 2 ? ['Telafi','yk-telafi'] : ['Bekliyor','yk-bekle']; };
+    var satirlar = k.seanslar.slice().reverse().map(function(s){
+        var e = etiket(s.geldi);
+        return '<tr><td>'+ykTarih(s.seans_tarih)+'</td><td>'+ykEsc(s.seans_saat ? String(s.seans_saat).substr(0,5) : '—')+'</td><td>'+ykEsc(s.personel_adi || '—')+'</td>'+
+            '<td><span class="yk-etiket '+e[1]+'">'+e[0]+'</span></td>'+
+            '<td class="yk-sag"><button type="button" class="yk-duzenle" name="seansDetay" title="Düzenle" data-index-number="'+k.hizmet.hizmetId+'" data-tarih="'+ykEsc(s.seans_tarih)+'" data-saat="'+ykEsc(s.seans_saat)+'" data-value="'+k.hizmet.id+'" data-lazer="'+k.lazer+'" data-geldi="'+s.geldi+'" data-seans-id="'+s.id+'"><i class="fa fa-pencil"></i></button></td></tr>';
+    }).join('');
+    return '<div class="yk-dokum-ust"><b>'+ykEsc(k.hizmet.hizmet_adi)+'</b><span>'+k.seanslar.length+' kayıt</span></div>'+
+        (satirlar ? '<div class="yk-dokum-kap"><table class="yk-dokum"><thead><tr><th>Tarih</th><th>Saat</th><th>Personel</th><th>Durum</th><th></th></tr></thead><tbody>'+satirlar+'</tbody></table></div>'
+                  : '<div class="yk-bos">Henüz seans kaydı yok.</div>');
+}
+$(document).on('click','button[name="yillikDokum"]',function(){
+    var k = (window._ykDokum || {})[$(this).attr('data-key')];
+    if (k) swal({ title: 'Seans Dökümü', html: yillikDokumHtml(k), width: 640, showConfirmButton: false, showCloseButton: true });
+});
+// === /YILLIK KART ===
+
 // formatHizmetDetaylari fonksiyonu olduğu gibi korundu
 function formatHizmetDetaylari(hizmetler) {
     var html = '<div class="child-row-wrapper p-3" style="background-color: #f8f9fa; border-radius: 8px; margin: 5px 0;">' +
@@ -210,6 +260,9 @@ function formatHizmetDetaylari(hizmetler) {
         var lazer = hizmet.lazer ? 1 : 0;
         var kartKey = hizmet.id + '_' + hizmet.hizmetId;
         if (lazer) { cihazKartSeanslari[kartKey] = { seanslar: seansDetaylari, bolge: (hizmet.hizmet_adi || '') }; }
+
+        // Sinirsiz/yillik: daire yerine baslangic-bitis + seans dokumu
+        if (hizmet.sinirsiz) { html += yillikKartHtml(hizmet, seansDetaylari, lazer, kartKey); return; }
 
         var ikonlar = '';
         var gosterilecekIkon = seansDetaylari.length;
@@ -288,7 +341,7 @@ function formatHizmetDetaylari(hizmetler) {
 
     return html;
 }
-$(document).on('click','i[name="seansDetay"]',function(e)
+$(document).on('click','i[name="seansDetay"],button[name="seansDetay"]',function(e)
 {       
     e.preventDefault();
     var tarih = $(this).attr('data-tarih');
@@ -548,7 +601,7 @@ $(document).on('click', '#cihazModalKaydet', function(e){
     });
 });
 
-$(document).on('click','i[name="yeniSeansEkle"]',function(e)
+$(document).on('click','i[name="yeniSeansEkle"],button[name="yeniSeansEkle"]',function(e)
 {       
     e.preventDefault();
     

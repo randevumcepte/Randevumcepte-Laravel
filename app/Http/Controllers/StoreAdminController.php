@@ -15352,6 +15352,13 @@ public function personel_listesi_getir(Request $request)
     foreach ($sonuc as $key => $item) {
         // Durum butonlarını oluştur
         $sonuc[$key]->durum = $this->createDurumButonlari($item->id, $item->tip);
+        // Sureli pakette baslangic = ilk gelis (kolon bos, 00.00.0000 gorunuyordu)
+        if ($item->tip == 'paket') {
+            $_pDurum = \App\Services\PaketGecerlilik::durum($item->id);
+            if ($_pDurum['sure'] !== '') {
+                $sonuc[$key]->baslangic_tarihi = $_pDurum['baslangic'] ? date('d.m.Y', strtotime($_pDurum['baslangic'])) : '—';
+            }
+        }
         
         // Hizmet detaylarını getir (sadece bu id için)
         if ($item->tip == 'paket') {
@@ -15518,12 +15525,13 @@ private function getPaketDetaylari($paketId)
 
     $detaylar = [];
     foreach ($hizmetler as $h) {
-        $seanslar = DB::table('adisyon_paket_seanslar')
-            ->where('adisyon_paket_id', $paketId)
-            ->where('hizmet_id', $h->hizmetId)
-            ->orderBy('seans_tarih')
-            ->orderBy('seans_saat')
-            ->get(['id', 'seans_tarih', 'seans_saat', 'geldi']);
+        $seanslar = DB::table('adisyon_paket_seanslar as s')
+            ->leftJoin('salon_personelleri as sp', 'sp.id', '=', 's.personel_id')
+            ->where('s.adisyon_paket_id', $paketId)
+            ->where('s.hizmet_id', $h->hizmetId)
+            ->orderBy('s.seans_tarih')
+            ->orderBy('s.seans_saat')
+            ->get(['s.id', 's.seans_tarih', 's.seans_saat', 's.geldi', 'sp.personel_adi']);
 
         $detaylar[] = [
             'musteriAdi' => $musteriAdi,
@@ -15534,6 +15542,9 @@ private function getPaketDetaylari($paketId)
             'toplam_seans' => $seansSayisi,
             'sinirsiz' => $_pDurum['sinirsiz'] ? 1 : 0,
             'suresi_doldu' => ($_pDurum['bitis'] && date('Y-m-d') > $_pDurum['bitis']) ? 1 : 0,
+            'sure'         => $_pDurum['sure'],
+            'baslangic'    => $_pDurum['baslangic'],
+            'bitis'        => $_pDurum['bitis'],
             'lazer' => ($paketLazer || self::isimdeLazerVar($h->hizmet_adi)) ? 1 : 0,
             'seans_detaylari' => $seanslar->toJson()
         ];

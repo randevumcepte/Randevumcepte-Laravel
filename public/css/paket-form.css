@@ -76,3 +76,41 @@
 .pk-satir-hizmet .rc-pks-ara { margin-bottom: 8px; }
 .pk-satir-hizmet .pk-satir-sure { margin: 0 0 6px; color: #6b7280; font-size: 12px; }
 .pk-seans-rozet { min-height: 38px; display: flex; align-items: center; }
+
+/* Seans Takibi: sinirsiz/yillik paket karti + dokum */
+.yk-kart { padding: 14px; border: 1px solid rgba(0,0,0,.05) !important; border-radius: 12px !important; }
+.yk-ust { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 12px; }
+.yk-ust h6 { margin: 0; color: #212529; font-size: 14px; font-weight: 700; }
+.yk-rozet { flex: 0 0 auto; padding: 3px 10px; border-radius: 999px; background: #f5eefe; color: #5C008E; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.yk-tarihler { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-radius: 10px; background: #f9f5fe; }
+.yk-tarihler small { display: block; color: #6b7280; font-size: 11px; }
+.yk-tarihler b { color: #1f2937; font-size: 13.5px; white-space: nowrap; }
+.yk-tarihler i { color: #9D5DC8; }
+.yk-tarihler div:last-child { text-align: right; }
+.yk-durum { margin: 6px 0 10px; color: #16a34a; font-size: 12px; font-weight: 600; text-align: center; }
+.yk-durum.yk-doldu { color: #dc2626; }
+.yk-durum.yk-bekliyor { color: #6b7280; }
+.yk-sayac { display: flex; justify-content: space-around; margin-bottom: 12px; text-align: center; }
+.yk-sayac small { display: block; color: #6c757d; font-size: 11.5px; }
+.yk-butonlar { display: flex; gap: 8px; margin-top: auto; }
+.yk-btn { flex: 1 1 0; min-height: 36px; padding: 6px 8px; border: 1px solid #ead4ff; border-radius: 8px; background: #fff; color: #5C008E; font-size: 12px; font-weight: 600; cursor: pointer; }
+.yk-btn:hover { background: #f9f5fe; }
+.yk-btn-ana { border-color: transparent; background: #5C008E; color: #fff; }
+.yk-btn-ana:hover { background: #4a0072; }
+.yk-btn-cihaz { display: block; width: 100%; margin-top: 8px; border-color: transparent; background: #4f46e5; color: #fff; }
+.yk-btn-cihaz:hover { background: #4338ca; }
+.yk-dokum-ust { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; text-align: left; }
+.yk-dokum-ust span { color: #6b7280; font-size: 12.5px; }
+.yk-dokum-kap { max-height: 380px; overflow-y: auto; border: 1px solid #eef0f4; border-radius: 10px; }
+.yk-dokum { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+.yk-dokum th { position: sticky; top: 0; padding: 9px 12px; background: #f5eefe; color: #5C008E; font-size: 11.5px; font-weight: 700; }
+.yk-dokum td { padding: 9px 12px; border-top: 1px solid #f1f2f5; color: #1f2937; }
+.yk-sag { text-align: right; }
+.yk-etiket { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+.yk-geldi { background: #dcfce7; color: #15803d; }
+.yk-gelmedi { background: #fee2e2; color: #b91c1c; }
+.yk-telafi { background: #ffedd5; color: #c2410c; }
+.yk-bekle { background: #fef3c7; color: #92400e; }
+.yk-duzenle { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: #f3f4f6; color: #5C008E; cursor: pointer; }
+.yk-duzenle:hover { background: #ead4ff; }
+.yk-bos { padding: 28px; color: #9ca3af; font-size: 13px; }
