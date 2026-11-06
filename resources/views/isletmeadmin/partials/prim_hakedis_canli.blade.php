@@ -110,7 +110,8 @@
     <h3><i class="fa fa-users"></i> @if($isGunluk)Günlük Prim — {{date('d.m.Y', strtotime($gun))}}@else Personel Bazında Hak Ediş @endif</h3>
   </div>
   <div class="pr-table-scroll" style="padding: 0 14px 6px">
-    <table class="data-table table hover nowrap" id="primrapor_tablo" style="width:100%">
+    {{-- "data-table" sinifi verilmez: custom.js sekme geciste o siniftaki tablolari yikip varsayilanla yeniden kurar --}}
+    <table class="table hover nowrap" id="primrapor_tablo" style="width:100%">
       <thead>
         <tr>
           <th>Personel</th>

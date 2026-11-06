@@ -989,7 +989,7 @@ $(function(){
 
   // Tablo her iki modda da 11 kolon (yapi sabit) — siralama NET kolonu (8), export 0-8
   // responsive KAPALI: kolonlar tek sirada kalsin, sigmazsa yatay kaydirma (Islemler alta dusmesin)
-  var _hakEdisTablo = $('#primrapor_tablo').DataTable({
+  $('#primrapor_tablo').DataTable({
     pageLength: 50,
     responsive: false,
     autoWidth: false,
@@ -1332,7 +1332,7 @@ $(function(){
         if(!res || !res.basarili){ _reloadKeepTab(); return; }
         var $yeni = $('<div>').html(res.html);
         $('.pr-stats').replaceWith($yeni.find('.pr-stats'));
-        _hakEdisTablo.clear().rows.add($yeni.find('#primrapor_tablo tbody tr')).draw(false);
+        $('#primrapor_tablo').DataTable().clear().rows.add($yeni.find('#primrapor_tablo tbody tr')).draw(false);
         _raporIndex = {};
         res.rapor.forEach(function(r){ _raporIndex[r.personel_id] = r; });
         if(_aktifPersonel) setAktifPersonel(_aktifPersonel.id);
