@@ -37049,24 +37049,8 @@ DB::raw('
 
         $personeller = self::personel_liste_getir($request);
 
-        // Prim & Hak Edis sekmesi icin veri (ay/yil veya gunluk mod query param'lariyla)
-        $yil = (int)($request->yil ?? date('Y'));
-        $ay  = (int)($request->ay ?? date('n'));
-        if($ay < 1 || $ay > 12) $ay = (int)date('n');
-        $mod = $request->mod === 'gunluk' ? 'gunluk' : 'aylik';
-        $gun = ($mod==='gunluk' && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$request->gun)) ? $request->gun : date('Y-m-d');
-        if($mod==='gunluk'){
-            $tarih1 = $tarih2 = $gun;
-            $rapor  = $this->primHakedisVerisi($isletme->id, $tarih1, $tarih2, $gun);
-        } else {
-            $tarih1 = sprintf('%04d-%02d-01', $yil, $ay);
-            $tarih2 = date('Y-m-t', strtotime($tarih1));
-            $rapor  = $this->primHakedisVerisi($isletme->id, $tarih1, $tarih2);
-        }
-
-        return view('isletmeadmin.personelyonetimi',['bildirimler'=>self::bildirimgetir($request),'sayfa_baslik' => 'Personel Yönetimi','pageindex' => 401,'personeller' => $personeller, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
-            'yetkiliolunanisletmeler'=>$isletmeler,'isletme'=>$isletme,'roller'=>Role::all(),
-            'rapor'=>$rapor,'yil'=>$yil,'ay'=>$ay,'tarih1'=>$tarih1,'tarih2'=>$tarih2,'mod'=>$mod,'gun'=>$gun]);
+        return view('isletmeadmin.personelyonetimi',array_merge($this->primHakedisGorunumVerisi($request, $isletme->id),['bildirimler'=>self::bildirimgetir($request),'sayfa_baslik' => 'Personel Yönetimi','pageindex' => 401,'personeller' => $personeller, 'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),'urun_drop'=>self::urundropliste($request),
+            'yetkiliolunanisletmeler'=>$isletmeler,'isletme'=>$isletme,'roller'=>Role::all()]));
     }
     public function hizmetAlanMusteriler(Request $request)
     {
@@ -39848,6 +39832,22 @@ DB::raw('
             return redirect()->route('isletmeadmin.randevular');
         }
 
+        return view('isletmeadmin.primraporu', array_merge($this->primHakedisGorunumVerisi($request, $isletme->id), [
+            'bildirimler'         => self::bildirimgetir($request),
+            'sayfa_baslik'        => 'Prim & Hak Ediş',
+            'pageindex'           => 402,
+            'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
+            'yetkiliolunanisletmeler' => $isletmeler,
+            'isletme'             => $isletme,
+        ]));
+    }
+
+    /**
+     * Prim & Hak Edis panelinin ay/yil veya gunluk filtreye gore verisi
+     * (personel yonetimi, prim raporu ve ajax tazeleme ortak kullanir).
+     */
+    private function primHakedisGorunumVerisi(Request $request, $salonId)
+    {
         $yil = (int)($request->yil ?? date('Y'));
         $ay  = (int)($request->ay ?? date('n'));
         if($ay < 1 || $ay > 12) $ay = (int)date('n');
@@ -39856,27 +39856,36 @@ DB::raw('
 
         if($mod==='gunluk'){
             $tarih1 = $tarih2 = $gun;
-            $rapor = $this->primHakedisVerisi($isletme->id, $tarih1, $tarih2, $gun);
+            $rapor = $this->primHakedisVerisi($salonId, $tarih1, $tarih2, $gun);
         } else {
             $tarih1 = sprintf('%04d-%02d-01', $yil, $ay);
             $tarih2 = date('Y-m-t', strtotime($tarih1));
-            $rapor = $this->primHakedisVerisi($isletme->id, $tarih1, $tarih2);
+            $rapor = $this->primHakedisVerisi($salonId, $tarih1, $tarih2);
         }
 
-        return view('isletmeadmin.primraporu', [
-            'bildirimler'         => self::bildirimgetir($request),
-            'sayfa_baslik'        => 'Prim & Hak Ediş',
-            'pageindex'           => 402,
-            'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
-            'yetkiliolunanisletmeler' => $isletmeler,
-            'isletme'             => $isletme,
-            'rapor'               => $rapor,
-            'yil'                 => $yil,
-            'ay'                  => $ay,
-            'tarih1'              => $tarih1,
-            'tarih2'              => $tarih2,
-            'mod'                 => $mod,
-            'gun'                 => $gun,
+        // Maas tutar gor yetkisi kapaliysa rakamlar **** ile maskelenir
+        $maasGor = true;
+        $odemeYap = true;
+        try {
+            $uid = Auth::guard('isletmeyonetim')->user()->id ?? null;
+            if($uid){
+                $maasGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($uid, $salonId, 'personel.maas_tutar_gor');
+                $odemeYap = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($uid, $salonId, 'personel.odeme_yap');
+            }
+        } catch (\Throwable $e) { $maasGor = true; $odemeYap = true; }
+
+        return compact('rapor','yil','ay','tarih1','tarih2','mod','gun','maasGor','odemeYap');
+    }
+
+    /** Odeme/bonus/kesinti sonrasi kartlar + tablo + hak edis verisi (sayfa yenilemeden). */
+    public function primHakedisGuncel(Request $request)
+    {
+        if($r = self::yetkiYoksa403($request, 'personel.prim_hakedis_gor')) return $r;
+        $veri = $this->primHakedisGorunumVerisi($request, self::mevcutsube($request));
+        return response()->json([
+            'basarili' => true,
+            'rapor'    => array_values($veri['rapor']),
+            'html'     => view('isletmeadmin.partials.prim_hakedis_canli', $veri)->render(),
         ]);
     }
 

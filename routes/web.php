@@ -1223,6 +1223,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/arama-baslat-numara','StoreAdminController@arama_baslat_numara');
 	Route::get('/raporlar','StoreAdminController@raporlar');
 	Route::get('/primraporu','StoreAdminController@primRaporu')->name('isletmeadmin.primraporu');
+	Route::get('/primhakedisguncel','StoreAdminController@primHakedisGuncel');
 	Route::post('/primhareketekle','StoreAdminController@primHareketEkle');
 	Route::post('/primhareketsil','StoreAdminController@primHareketSil');
 	Route::get('/primhareketlistesi','StoreAdminController@primHareketListesi');
