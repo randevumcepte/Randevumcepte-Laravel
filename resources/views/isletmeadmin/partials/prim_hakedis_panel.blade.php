@@ -441,6 +441,10 @@
   }
   .dataTables_info{ color:var(--rmc-muted) !important; font-size:13px; padding:14px 18px !important; }
 
+  /* Detay modali Ode modalinin ustunde: Ode acik kalir, karartma ikisinin arasinda */
+  #primDetayModal.prim-ust-modal, #primKalemDetayModal.prim-ust-modal, #primOdemeDetayModal.prim-ust-modal{ z-index:10570 !important; }
+  .modal-backdrop.prim-ust-backdrop{ z-index:10560 !important; }
+
   /* ============ MODAL GECIS — backdrop sabit, animasyon yok ============ */
   body.prim-switching .modal-backdrop{
     opacity: .5 !important;
@@ -1054,7 +1058,17 @@ $(function(){
   });
 
   // ============ Quick-action butonlari (tum modallarda ortak) ============
-  var _PRIM_MODAL_IDS = '#primOdeModal,#primDetayModal,#primKalemDetayModal,#primOdemeDetayModal';
+  var _DETAY_MODAL_IDS = '#primDetayModal,#primKalemDetayModal,#primOdemeDetayModal';
+
+  // Ode modali aciksa detay onun ustunde acilir, kapaninca Ode ayni haliyle kalir
+  $(_DETAY_MODAL_IDS).on('show.bs.modal', function(){
+    var usteAc = _isModalOpen('#primOdeModal');
+    $(this).toggleClass('prim-ust-modal', usteAc);
+    if(usteAc) setTimeout(function(){ $('.modal-backdrop').last().addClass('prim-ust-backdrop'); }, 0);
+  }).on('hidden.bs.modal', function(){
+    // Bootstrap kapanista modal-open'i kaldirir; alttaki Ode modali kaymaya devam etsin
+    if(_isModalOpen('#primOdeModal')) $('body').addClass('modal-open');
+  });
 
   function _isModalOpen(sel){
     var el = document.querySelector(sel);
@@ -1065,7 +1079,7 @@ $(function(){
 
   function _switchModal(openFn){
     // Acik modal var mi?
-    var $active = $(_PRIM_MODAL_IDS).filter(function(){
+    var $active = $(_DETAY_MODAL_IDS).filter(function(){
       return $(this).hasClass('show') || $(this).hasClass('in')
           || $(this).css('display') === 'block';
     });
@@ -1085,7 +1099,7 @@ $(function(){
         $('body').removeClass('prim-switching');
         // Safety net: orphan backdrop kalmasin
         if($('.modal.show, .modal.in').length === 1){
-          // Tek bir modal acik — fazla backdrop varsa temizle
+          // Tek bir modal acik — fazla backdrop varsa temizle (Ode + detay ustusteyken 2 backdrop normal)
           var $bds = $('.modal-backdrop');
           if($bds.length > 1){ $bds.slice(1).remove(); }
         }
@@ -1097,7 +1111,10 @@ $(function(){
   $(document).on('click','.pm-quick-ode', function(){
     if(!_aktifPersonel) return;
     var p = _aktifPersonel;
-    if(_isModalOpen('#primOdeModal')) return; // zaten Ode modalindayiz
+    if(_isModalOpen('#primOdeModal')){ // detay Ode'nin ustunde: kapat, Ode kalir
+      $(_DETAY_MODAL_IDS).filter('.show,.in').modal('hide');
+      return;
+    }
     _switchModal(function(){
       // Detaya bakip donunce yazilan form kaybolmasin
       if(String($('#primOde_personelId').val()) === String(p.id)) $('#primOdeModal').modal('show');
@@ -1162,31 +1179,13 @@ $(function(){
   function openOdeModal(pid, adi){
     setAktifPersonel(pid);
     var r = _raporIndex[pid];
-    var h = _hakedisHesapla(pid);
-
-    if(h.masraf > 0){
-      $('#primOde_masrafTutar').text(_formatTL(h.masraf));
-      $('#primOde_masrafInfo').show();
-    } else {
-      $('#primOde_masrafInfo').hide();
-    }
-
     var $m = $('#primOdeModal');
     if($m.parent()[0] !== document.body) $m.appendTo('body');
 
     $('#primOde_personelId').val(pid);
     $('#primOde_personelAdi').text(adi || (r ? r.personel_adi : ''));
 
-    // Tab altyazilari
-    $('#primOde_maasKalan').text(_formatTL(h.kalanMaas) + ' ₺');
-    $('#primOde_primKalan').text(_formatTL(h.kalanPrim) + ' ₺');
-    // Avans: bu ay ne kadar verildi; bonus/kesinti: bu ay ne kadar eklendi
-    $('#primOde_digerKalan').text(h.odenenDiger > 0 ? _formatTL(h.odenenDiger)+' ₺ verildi' : 'Avans Ekle');
-    $('#primOde_bonusOzet').text(h.bonus > 0 ? '+'+_formatTL(h.bonus)+' ₺' : 'Bonus Ekle');
-    $('#primOde_kesintiOzet').text(h.kesinti > 0 ? '−'+_formatTL(h.kesinti)+' ₺' : 'Kesinti Ekle');
-
-    // Cache hak edis verileri (tab degisince ozet update edilir)
-    $m.data('hakedis', h);
+    _odeRakamlariniDoldur(pid);
 
     $('#primOdeForm')[0].reset();
     $('#primOde_personelId').val(pid);
@@ -1195,6 +1194,27 @@ $(function(){
     // Default: Maas tab aktif
     _selectOdeTip('maas');
     $m.modal('show');
+  }
+
+  // Sekme altyazilari + personel gideri bilgisi + sekme degisince kullanilan hak edis verisi
+  function _odeRakamlariniDoldur(pid){
+    var h = _hakedisHesapla(pid);
+    if(h.masraf > 0){
+      $('#primOde_masrafTutar').text(_formatTL(h.masraf));
+      $('#primOde_masrafInfo').show();
+    } else {
+      $('#primOde_masrafInfo').hide();
+    }
+
+    $('#primOde_maasKalan').text(_formatTL(h.kalanMaas) + ' ₺');
+    $('#primOde_primKalan').text(_formatTL(h.kalanPrim) + ' ₺');
+    // Avans: bu ay ne kadar verildi; bonus/kesinti: bu ay ne kadar eklendi
+    $('#primOde_digerKalan').text(h.odenenDiger > 0 ? _formatTL(h.odenenDiger)+' ₺ verildi' : 'Avans Ekle');
+    $('#primOde_bonusOzet').text(h.bonus > 0 ? '+'+_formatTL(h.bonus)+' ₺' : 'Bonus Ekle');
+    $('#primOde_kesintiOzet').text(h.kesinti > 0 ? '−'+_formatTL(h.kesinti)+' ₺' : 'Kesinti Ekle');
+
+    // Cache hak edis verileri (tab degisince ozet update edilir)
+    $('#primOdeModal').data('hakedis', h);
   }
 
   // Ayni form bes tipte de kullanilir: odemeler primode'a, bonus/kesinti primhareketekle'ye gider
@@ -1316,7 +1336,13 @@ $(function(){
         _raporIndex = {};
         res.rapor.forEach(function(r){ _raporIndex[r.personel_id] = r; });
         if(_aktifPersonel) setAktifPersonel(_aktifPersonel.id);
-        $('#primOde_personelId').val(''); // Ode modali sonraki acilista yeni rakamlarla dolsun
+        if(_isModalOpen('#primOdeModal') && _aktifPersonel){
+          // Detayda kayit silindi, Ode altta acik: rakamlar ve onerilen tutar tazelensin
+          _odeRakamlariniDoldur(_aktifPersonel.id);
+          _selectOdeTip($('#primOde_tipi').val());
+        } else {
+          $('#primOde_personelId').val(''); // Ode modali sonraki acilista yeni rakamlarla dolsun
+        }
         if(sonra) sonra();
       },
       error: function(){ _reloadKeepTab(); }
