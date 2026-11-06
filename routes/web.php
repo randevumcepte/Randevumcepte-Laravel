@@ -176,26 +176,26 @@ Route::get('/save-excel', function () {
 	Route::get('/avantajkartodemeadimi','HomeController@avantajkartodemeadimi');
 	Route::get('/smskampanyabildirimiptal','HomeController@smskampanyabildirimiptal');
 	Route::get('/mailkampanyabildirimiptal','HomeController@mailkampanyabildirimiptal');
-   Route::get('/randevual/{hizmet}/{id}','HomeController@randevual');
+   Route::get('/randevual/{hizmet}/{id}','HomeController@randevual')->middleware('salon.site');
    // Grup dersi (Pilates/kurs) online rezervasyon (mini-site)
    // Id'siz: salon domain'den (HTTP_HOST) cozulur — salon kendi sitesinde /grup-dersleri
    // yazinca calisir. Id'li hali test/apptest icin. Id'siz route catch-all'dan
    // ({isletme_adi}-{isletme_id}) ONCE tanimli olmali ki ona takilmasin.
-   Route::get('/grup-dersleri','HomeController@grupDersleriSayfa');
-   Route::get('/grup-dersleri/{salon_id}','HomeController@grupDersleriSayfa');
-   Route::post('/grup-dersi-rezervasyon','HomeController@grupDersiRezervasyonWeb');
-   Route::get('/saatgetir','HomeController@saatgetir');
-   Route::post('/randevuonayla','HomeController@randevuonayla1');
-   Route::post('/randevuonaylaauth','HomeController@randevuonaylaauth');
+   Route::get('/grup-dersleri','HomeController@grupDersleriSayfa')->middleware('salon.site');
+   Route::get('/grup-dersleri/{salon_id}','HomeController@grupDersleriSayfa')->middleware('salon.site');
+   Route::post('/grup-dersi-rezervasyon','HomeController@grupDersiRezervasyonWeb')->middleware('salon.site');
+   Route::get('/saatgetir','HomeController@saatgetir')->middleware('salon.site');
+   Route::post('/randevuonayla','HomeController@randevuonayla1')->middleware('salon.site');
+   Route::post('/randevuonaylaauth','HomeController@randevuonaylaauth')->middleware('salon.site');
    // Yeni: SMS/sifre gerektirmeyen direkt randevu onayi (honeypot + rate-limit korumali)
-   Route::post('/randevuonayla-direkt','HomeController@randevuonaylaDirekt');
-   Route::get('/personelgetir/{id}','HomeController@personeladiminagec');
-	Route::get('/personelgetir-sube/{id}/{subeid}','HomeController@personelgetir');
+   Route::post('/randevuonayla-direkt','HomeController@randevuonaylaDirekt')->middleware('salon.site');
+   Route::get('/personelgetir/{id}','HomeController@personeladiminagec')->middleware('salon.site');
+	Route::get('/personelgetir-sube/{id}/{subeid}','HomeController@personelgetir')->middleware('salon.site');
 
 
-   Route::get('/tarihsaatadiminagec/{id}','HomeController@tarihsaatadiminagec');
-   Route::get('/personelbilgigetir/{id}','HomeController@personelbilgigetir');
-   Route::get('/randevuonayla/{salonno}/{hizmetler}/{personeller}/{randevutarihi}/{randevusaati}','CustomerController@randevuonayla');
+   Route::get('/tarihsaatadiminagec/{id}','HomeController@tarihsaatadiminagec')->middleware('salon.site');
+   Route::get('/personelbilgigetir/{id}','HomeController@personelbilgigetir')->middleware('salon.site');
+   Route::get('/randevuonayla/{salonno}/{hizmetler}/{personeller}/{randevutarihi}/{randevusaati}','CustomerController@randevuonayla')->middleware('salon.site');
    Route::get('/kullanicikontrolet','HomeController@kullanicikontrolet');
    Route::get('/sifregonder','HomeController@sifregonder');
    Route::get('/sifregonder2','HomeController@sifregonder2');
@@ -232,12 +232,12 @@ Route::get('/save-excel', function () {
 		abort_unless(is_file($p), 404);
 		return response()->file($p);
 	})->where('name', '[A-Za-z0-9_\.\-]+');
-	Route::get('/{isletme_adi}-{isletme_id}/personel/{personel_id}', 'HomeController@personelDetayPublic')->where('personel_id','[0-9]+')->name('personeldetay_public');
-	Route::get('/{isletme_adi}-{isletme_id}', 'HomeController@salonDetay_anasayfa')->name('salondetaylari');
-	Route::get('/', 'HomeController@salonDetay');
+	Route::get('/{isletme_adi}-{isletme_id}/personel/{personel_id}', 'HomeController@personelDetayPublic')->middleware('salon.site')->where('personel_id','[0-9]+')->name('personeldetay_public');
+	Route::get('/{isletme_adi}-{isletme_id}', 'HomeController@salonDetay_anasayfa')->middleware('salon.site')->name('salondetaylari');
+	Route::get('/', 'HomeController@salonDetay')->middleware('salon.site');
 	//Route::get('/', 'HomeController@salonDetay_anasayfa'); 
 	Route::get('/avantajsatinal/{kampanyaid}','HomeController@avantajsatinal');
-	Route::get('/{isletme_turu}/{il}/{ilce}/{isletme_id}/{isletme_adi}/{arama_terimi}/{arama_terim_id}', 'HomeController@salonDetay_altsayfa')->name('salondetaylari_altsayfa'); 
+	Route::get('/{isletme_turu}/{il}/{ilce}/{isletme_id}/{isletme_adi}/{arama_terimi}/{arama_terim_id}', 'HomeController@salonDetay_altsayfa')->middleware('salon.site')->name('salondetaylari_altsayfa'); 
 	Route::get('/isletmeyonetim/smspaketleri','HomeController@paketsatinalyukseltmeornek');
 	Route::get('/isletmeyonetim/smspaketsatinal/{paketno}','HomeController@smsPaketOnay');
 	Route::post('/isletmeyonetim/duyuru-paketi-odeme/{paketno}','HomeController@smsPaketOdeme');

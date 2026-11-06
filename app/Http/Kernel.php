@@ -107,6 +107,7 @@ class Kernel extends HttpKernel
         'ai.sidecar' => \App\Http\Middleware\AiSidecarAuth::class,
         'salonappy.cors' => \App\Http\Middleware\SalonappyImportCors::class,
         'salon.sahiplik' => \App\Http\Middleware\SalonSahiplikGate::class,
+        'salon.site' => \App\Http\Middleware\SalonSiteHizmetKontrol::class,
 
     ];
 }
