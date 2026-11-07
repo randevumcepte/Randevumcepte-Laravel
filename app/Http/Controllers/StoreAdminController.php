@@ -8068,6 +8068,10 @@ private function ayAdiCevir($ingilizceAy)
             $hizmet->hizmet_id = $request->yeni_hizmet_id;
         $hizmet->saat = $baslangic[1];
         $hizmet->saat_bitis = $bitis[1];
+        // Boyutlandirmada sure de degisir; aksi halde kayitli sure ile takvimdeki sure ayrisir.
+        $yeniSureDk = (strtotime($bitis[1]) - strtotime($baslangic[1])) / 60;
+        if($yeniSureDk > 0)
+            $hizmet->sure_dk = $yeniSureDk;
         $hizmet->save();
 
         // PAKET RANDEVUSU: paket randevularinda ayni randevu_id altinda birden cok
@@ -9059,7 +9063,6 @@ private function ayAdiCevir($ingilizceAy)
                     if(isset($request->randevuodalariyeni[$key2]) && $request->randevuodalariyeni[$key2] != '') {
                         $oda_id = $request->randevuodalariyeni[$key2];
                     }
-                    $hizmetlerToplami = 0;
                     $rHizmetler = $request->{"randevuhizmetleriyeni_{$key2}"};
                     if(!is_array($rHizmetler) || empty($rHizmetler)) {
                         // Hizmetsiz randevu: hizmet secilmeden, sadece "Paket Süresi (dk)" girilmisse
@@ -9118,28 +9121,15 @@ private function ayAdiCevir($ingilizceAy)
                         
 
                         $birsonraki = $key2+1;
-                        $hizmetlerToplami += $request->{"hizmet_sureleri-$rHizmet"};
 
-
-                        if($_key == count($request->{"randevuhizmetleriyeni_{$key2}"}) - 1)
-                        {
-                            if($key2 == 0){
-                                
-                                //$yenirandevuhizmetpersonel->saat_bitis = date("H:i", strtotime('+'.$request->{"hizmet_sureleri-$rHizmet"}.' minutes', strtotime($request->saat)));
-                                if(!isset($request->{"birlestir{$birsonraki}"}))
-                                    $yenisaatbaslangic = date("H:i", strtotime('+'.$hizmetlerToplami.' minutes', strtotime($yenisaatbaslangic)));
-                            }
-                            else{
-                                $yenirandevuhizmetpersonel->saat = $yenisaatbaslangic;
-                                $yenirandevuhizmetpersonel->saat_bitis = date("H:i", strtotime('+'.$hizmetlerToplami.' minutes', strtotime($yenisaatbaslangic)));
-                                if(!isset($request->{"birlestir{$birsonraki}"}))
-                                    $yenisaatbaslangic = date("H:i", strtotime('+'.$hizmetlerToplami.' minutes', strtotime($yenisaatbaslangic)));
-                            }
-                        }
-                        else
+                        // Saat her hizmette kendi suresi kadar ilerler. Satir toplami kullanilmaz:
+                        // baslangic zaten ilerlemis oldugundan toplam eklemek son hizmetin bitisini
+                        // (ornegin 60 dk hizmeti 210 dk) ve sonraki satirin baslangicini sisiriyordu.
+                        $satirinSonHizmeti = $_key == count($request->{"randevuhizmetleriyeni_{$key2}"}) - 1;
+                        if(!$satirinSonHizmeti || !isset($request->{"birlestir{$birsonraki}"}))
                             $yenisaatbaslangic = date("H:i", strtotime('+'.$request->{"hizmet_sureleri-$rHizmet"}.' minutes', strtotime($yenisaatbaslangic)));
-                       
-                        
+
+
                         $yenirandevuhizmetpersonel->save();
 
                         // [DUSUM-DEBUG] dusum_miktari kaydoluyor mu? (gecici tani)
