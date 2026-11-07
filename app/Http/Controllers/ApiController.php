@@ -2460,7 +2460,9 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $src = $e['_paketSource'] ?? ('single-'.($e['id'] ?? uniqid()));
                 $res = $e['resourceId'] ?? '';
                 $per = $e['personelId'] ?? '';
-                return $src.'|'.$res.'|'.$per;
+                // Randevu kimligi sart: seansli satista ayni kaynak birden cok randevuya
+                // aittir; yoksa ayri seanslar tek bara birlesip sureyi sisirir.
+                return $e['randevu_id'].'|'.$src.'|'.$res.'|'.$per;
             });
             $merged = collect();
             foreach($grouped as $events){

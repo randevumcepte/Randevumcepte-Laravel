@@ -4480,7 +4480,9 @@ public function carkverilerigetir(Request $request)
         $grouped = $randevu_hizmetler->groupBy(function($e){
             $src = $e['_paketSource'] ?? ('single-'.($e['id'] ?? uniqid()));
             $res = $e['resourceId'] ?? '';
-            return $src.'|'.$res;
+            // Randevu kimligi sart: seansli satista ayni kaynak birden cok randevuya
+            // aittir; yoksa ayri seanslar tek bara birlesip sureyi sisirir.
+            return $e['randevuId'].'|'.$src.'|'.$res;
         });
         $merged = collect();
         foreach($grouped as $key => $events){
