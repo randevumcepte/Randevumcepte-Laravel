@@ -1682,6 +1682,14 @@ class PanelController extends Controller
             if ($sorguKolonu && !empty($sunucu->en_yavas_sorgu)) {
                 $neden .= ', en yavaşı '.number_format($sunucu->en_yavas_sorgu_ms / 1000, 1, ',', '.').' sn';
             }
+            // Sure DB'de mi gecti, DB disinda mi (SMS/bildirim/dis servis, PHP dongusu)?
+            if ($sorguKolonu && $sunucu->sorgu_ms !== null) {
+                $dbSn = $sunucu->sorgu_ms / 1000;
+                $disSn = max(0, $sunucu->sure_ms / 1000 - $dbSn);
+                $neden .= '. Veritabanı toplam '.number_format($dbSn, 1, ',', '.').' sn, veritabanı dışı '
+                    .number_format($disSn, 1, ',', '.').' sn'
+                    .($disSn > $dbSn ? ' → süre çoğunlukla sorgu dışında (SMS/bildirim/dış servis veya PHP döngüsü).' : ' → süre çoğunlukla veritabanında.');
+            }
         } else {
             $tip = 'ulasmadi';
             $neden = 'Sunucuda bu isteğe ait kayıt yok: istek PHP\'ye ulaşmadı ya da yolda kaldı (PHP-FPM işçileri dolu / ağ / tarayıcı bağlantısı).';

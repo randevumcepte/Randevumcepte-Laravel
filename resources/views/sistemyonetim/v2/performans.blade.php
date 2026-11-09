@@ -294,7 +294,7 @@
     <div class="sy-card-head"><strong>Son Yavaş İstekler</strong> <span class="sy-text-muted sy-fs-12"> — son 100 kayıt</span></div>
     <div class="sy-card-body tight pf-scroll">
         <table class="sy-table">
-            <thead><tr><th>Zaman</th><th>Uç</th><th>Süre</th><th>Sorgu</th><th>Salon</th>@if($sorguKolonu)<th>En yavaş sorgu</th>@endif</tr></thead>
+            <thead><tr><th>Zaman</th><th>Uç</th><th>Süre</th><th>Sorgu</th>@if($sorguKolonu)<th>DB süresi</th>@endif<th>Salon</th>@if($sorguKolonu)<th>En yavaş sorgu</th>@endif</tr></thead>
             <tbody>
                 @forelse($sonIstekler as $r)
                     <tr>
@@ -305,6 +305,7 @@
                         </td>
                         <td class="sy-fs-13 nowrap"><strong>{{ $sn($r->sure_ms) }}</strong></td>
                         <td class="sy-fs-13">{{ $r->sorgu_sayisi ?? '—' }}</td>
+                        @if($sorguKolonu)<td class="sy-fs-13 nowrap">{{ $r->method === 'TIMEOUT' ? '—' : $sn($r->sorgu_ms) }}</td>@endif
                         <td class="sy-fs-13">{{ $r->salon_id ?: '—' }}</td>
                         @if($sorguKolonu)
                             <td class="pf-sql">@if($r->en_yavas_sorgu)<strong>{{ $sn($r->en_yavas_sorgu_ms) }}</strong> · {{ \Illuminate\Support\Str::limit($r->en_yavas_sorgu, 160) }}@else — @endif</td>
