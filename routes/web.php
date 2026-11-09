@@ -581,6 +581,8 @@ Route::get('/firebase-messaging-sw.js', 'StoreAdminController@firebaseMessagingS
 // Salon paneli — akilli hatirlatmalar (popup + bildirim feed)
 Route::prefix('isletmeyonetim')->group(function() {
     Route::get('/api/hatirlatma-feed', 'SalonHatirlatmaController@feed')->name('isletmeadmin.hatirlatma.feed');
+    // Tarayicida zaman asimina dusen istekler (custom.js bildirir) -> yavas_istekler
+    Route::post('/performans/zaman-asimi', 'PerformansController@istemciZamanAsimi')->middleware('throttle:20,1');
 });
 
 Route::prefix('isletmeyonetim')->group(function() {

@@ -15,15 +15,40 @@ const odenenGizlensin = gizliAlanAdlari.includes(window.location.hostname);
 (function(){
     try {
         $.ajaxSetup({ timeout: 20000 });
-        $(document).ajaxError(function (e, xhr) {
+        $(document).ajaxSend(function (e, xhr) { xhr.__rcBaslangic = Date.now(); });
+        $(document).ajaxError(function (e, xhr, ayar) {
             if (!xhr || xhr.statusText === 'abort') return;   // bilerek iptal edilenleri atla
             $('#preloader').hide();
+            // Zaman asimi / gateway hatasi sunucu loglarinda gorunmez; izleme icin bildir.
+            if (xhr.statusText === 'timeout' || xhr.status === 502 || xhr.status === 504) {
+                rcZamanAsimiBildir(ayar && ayar.url, xhr);
+            }
             // NOT: kullaniciya "Baglanti sorunu" popup'i GOSTERILMIYOR — takvimde arka plan
             // istekleri (iptal/timeout) yuzunden surekli cikiyordu. Sadece preloader kapatilir.
         });
         $(document).ajaxStop(function(){ $('#preloader').hide(); });
     } catch (err) { /* jQuery yoksa sessizce gec */ }
 })();
+// Yavas istek izleme: en fazla 15 sn'de bir bildirim; bildirimin kendisi tekrar bildirilmez.
+var __rcSonZamanAsimiBildirimi = 0;
+function rcZamanAsimiBildir(url, xhr){
+    try {
+        if (!url || url.indexOf('/performans/zaman-asimi') !== -1 || !navigator.sendBeacon) return;
+        var simdi = Date.now();
+        if (simdi - __rcSonZamanAsimiBildirimi < 15000) return;
+        __rcSonZamanAsimiBildirimi = simdi;
+        var token = $('meta[name="csrf-token"]').attr('content');
+        if (!token) return;
+        var fd = new FormData();
+        fd.append('_token', token);
+        fd.append('url', url);
+        fd.append('durum', xhr.statusText === 'timeout' ? 'timeout' : String(xhr.status));
+        fd.append('sure_ms', xhr.__rcBaslangic ? (simdi - xhr.__rcBaslangic) : 0);
+        var sube = $('input[name="sube"]').val() || new URLSearchParams(location.search).get('sube');
+        if (sube) fd.append('sube', sube);
+        navigator.sendBeacon('/isletmeyonetim/performans/zaman-asimi', fd);
+    } catch (err) { /* izleme asla sayfayi bozmasin */ }
+}
 // ===== /Global AJAX guvenlik agi =====
 
 // V2 takvim icin randevu hover tooltip — eventRender'da cagrilir.
