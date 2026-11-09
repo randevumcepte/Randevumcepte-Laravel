@@ -18,6 +18,14 @@ class AppServiceProvider extends ServiceProvider
       ini_set('memory_limit', env('PHP_MEMORY_LIMIT', '1024M'));
       ini_set('max_execution_time', env('PHP_MAX_EXECUTION_TIME', 300)); // 60 saniye varsayılan
 
+      // Hata izleme: istisnasiz Log::error/critical (controller'in yakalayip logladigi hatalar)
+      // Sistem Performansi > Hatalar'a dussun. Istisnali olanlar Handler::report'tan gelir.
+      \Illuminate\Support\Facades\Event::listen(\Illuminate\Log\Events\MessageLogged::class, function ($olay) {
+          if (in_array($olay->level, ['error', 'critical', 'alert', 'emergency'], true)) {
+              \App\Services\HataKaydi::log($olay->level, $olay->message, (array) $olay->context);
+          }
+      });
+
       // ==== Yetki Blade directive'leri ====
       //
       // Kullanim:

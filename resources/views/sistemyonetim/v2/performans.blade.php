@@ -24,12 +24,12 @@
     </div>
     <div class="pf-araliklar">
         @foreach($aralikEtiket as $s => $etiket)
-            <a href="?saat={{ $s }}" class="sy-btn sy-btn-sm {{ $s === $saat ? '' : 'sy-btn-soft' }}">{{ $etiket }}</a>
+            <a href="?saat={{ $s }}{{ $hataTur ? '&tur='.$hataTur : '' }}" class="sy-btn sy-btn-sm {{ $s === $saat ? '' : 'sy-btn-soft' }}">{{ $etiket }}</a>
         @endforeach
     </div>
 </div>
 
-@if(!$tabloVar || !$anlikTablosu)
+@if(!$tabloVar || !$anlikTablosu || !$hataTablosu)
 <div class="sy-card" style="margin-top:12px;border-left:4px solid #d97706">
     <div class="sy-card-body" style="font-size:13px">
         <strong>Tablolar eksik.</strong> Migration çalışmamış: <code>/opt/php74/bin/php artisan migrate --force</code>
@@ -64,6 +64,106 @@
     </div>
 </div>
 
+@php
+    $sunucuHata = ($hataSayilari['istisna'] ?? 0) + ($hataSayilari['http'] ?? 0) + ($hataSayilari['log'] ?? 0) + ($hataSayilari['komut'] ?? 0);
+    $tipRozet = ['hata' => ['sy-badge-danger', 'Sunucu hatası'], 'yavas' => ['sy-badge-warning', 'Sunucu yavaş'], 'ulasmadi' => ['sy-badge-danger', 'Sunucuya ulaşmadı']];
+    $turRozet = ['istisna' => 'sy-badge-danger', 'http' => 'sy-badge-danger', 'log' => 'sy-badge-warning', 'js' => 'sy-badge-warning', 'zaman_asimi' => 'sy-badge-danger', 'komut' => 'sy-badge'];
+@endphp
+<div class="sy-metric-grid" style="margin-top:12px">
+    <div class="sy-metric {{ $sunucuHata ? 'danger' : 'success' }}">
+        <div class="icon-bg mdi mdi-server-off"></div>
+        <div class="label">Sunucu Hatası</div>
+        <div class="value">{{ $sunucuHata }}</div>
+        <div class="delta">İstisna · 5xx · log · komut</div>
+    </div>
+    <div class="sy-metric {{ !empty($hataSayilari['js']) ? 'warning' : 'success' }}">
+        <div class="icon-bg mdi mdi-language-javascript"></div>
+        <div class="label">Tarayıcı JS Hatası</div>
+        <div class="value">{{ $hataSayilari['js'] ?? 0 }}</div>
+        <div class="delta">Form/ekran takılmalarının sık kaynağı</div>
+    </div>
+    <div class="sy-metric {{ !empty($hataSayilari['zaman_asimi']) ? 'danger' : 'success' }}">
+        <div class="icon-bg mdi mdi-lan-disconnect"></div>
+        <div class="label">Zaman Aşımı / Kopma</div>
+        <div class="value">{{ $hataSayilari['zaman_asimi'] ?? 0 }}</div>
+        <div class="delta">Kullanıcı cevap alamadı</div>
+    </div>
+</div>
+
+{{-- Zaman asimi analizi --}}
+<div class="sy-card" style="margin-top:16px">
+    <div class="sy-card-head"><strong>Zaman Aşımı Analizi</strong> <span class="sy-text-muted sy-fs-12"> — her olay o sırada sunucuda olanla eşleştirilir</span></div>
+    <div class="sy-card-body tight pf-scroll">
+        <table class="sy-table">
+            <thead><tr><th>Zaman</th><th>İşletme</th><th>Uç</th><th>Bekleme</th><th>Neden</th></tr></thead>
+            <tbody>
+                @forelse($zamanAsimlari as $z)
+                    <tr>
+                        <td class="nowrap sy-fs-12">{{ \Carbon\Carbon::parse($z->zaman)->format('d.m H:i:s') }}</td>
+                        <td class="sy-fs-13">@if($z->salon_id)<a href="/sistemyonetim/v2/salon/{{ $z->salon_id }}">{{ $z->salon_adi }}</a>@else — @endif</td>
+                        <td class="sy-fs-13" style="word-break:break-all">{{ $z->uc }} <span class="sy-text-muted sy-fs-12">({{ $z->durum }})</span></td>
+                        <td class="sy-fs-13 nowrap">{{ $sn($z->bekleme_ms) }}</td>
+                        <td class="sy-fs-13" style="min-width:320px">
+                            <span class="sy-badge {{ $tipRozet[$z->tip][0] }}">{{ $tipRozet[$z->tip][1] }}</span>
+                            @if($z->ayni_anda > 0)<span class="sy-badge sy-badge-danger" title="±2 dk içinde zaman aşımına düşen diğer işletme sayısı">Genel: +{{ $z->ayni_anda }} işletme</span>@else<span class="sy-badge" title="±2 dk içinde başka işletmede zaman aşımı yok">Yalnız bu işletme</span>@endif
+                            <div style="margin-top:4px">{{ $z->neden }}</div>
+                            @if($z->en_yavas_sorgu)<div class="pf-sql" style="margin-top:3px">{{ \Illuminate\Support\Str::limit($z->en_yavas_sorgu, 220) }}</div>@endif
+                            @if($z->anlik)<div class="sy-fs-12" style="margin-top:3px;color:#dc2626">O sırada takılma anı #{{ $z->anlik->id }}: {{ $z->anlik->nedenler }}</div>@endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5"><div class="sy-empty"><div class="baslik">Bu aralıkta zaman aşımı yok</div></div></td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{-- Hatalar --}}
+<div class="sy-card" style="margin-top:16px">
+    <div class="sy-card-head" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
+        <div><strong>Hatalar</strong> <span class="sy-text-muted sy-fs-12"> — aynı hata tek satırda, bu aralıktaki tekrar sayısıyla</span></div>
+        <div class="pf-araliklar">
+            <a href="?saat={{ $saat }}" class="sy-btn sy-btn-sm {{ $hataTur === '' ? '' : 'sy-btn-soft' }}">Tümü</a>
+            @foreach($hataTurleri as $k => $etiket)
+                <a href="?saat={{ $saat }}&tur={{ $k }}" class="sy-btn sy-btn-sm {{ $hataTur === $k ? '' : 'sy-btn-soft' }}">{{ $etiket }} @if(!empty($hataSayilari[$k]))({{ $hataSayilari[$k] }})@endif</a>
+            @endforeach
+        </div>
+    </div>
+    <div class="sy-card-body tight pf-scroll">
+        <table class="sy-table">
+            <thead><tr><th>Hata</th><th>Tekrar</th><th>Etkilenen</th><th>Son</th><th>Ayrıntı</th></tr></thead>
+            <tbody>
+                @forelse($hatalar as $h)
+                    <tr>
+                        <td style="min-width:320px">
+                            <span class="sy-badge {{ $turRozet[$h->tur] ?? 'sy-badge' }}">{{ $hataTurleri[$h->tur] ?? $h->tur }}</span>
+                            <strong class="sy-fs-13">{{ \Illuminate\Support\Str::limit($h->baslik, 90) }}</strong>
+                            @if($h->mesaj)<div class="sy-fs-13" style="margin-top:3px;word-break:break-word">{{ \Illuminate\Support\Str::limit($h->mesaj, 240) }}</div>@endif
+                            <div class="pf-sql" style="margin-top:3px">{{ $h->uc }}@if($h->konum) · {{ $h->konum }}@endif</div>
+                        </td>
+                        <td class="sy-fs-13 nowrap"><strong>{{ $h->aralik_adet }}</strong><div class="sy-text-muted sy-fs-12">toplam {{ $h->adet }}</div></td>
+                        <td class="sy-fs-12">
+                            {{ $h->salon_sayisi }} işletme · {{ $h->kullanici_sayisi }} kullanıcı
+                            @foreach($h->salonlar as $s)
+                                <div><a href="/sistemyonetim/v2/salon/{{ $s['id'] }}">{{ $s['ad'] }}</a> ({{ $s['adet'] }})</div>
+                            @endforeach
+                        </td>
+                        <td class="nowrap sy-fs-12">{{ \Carbon\Carbon::parse($h->aralik_son)->format('d.m H:i') }}<div class="sy-text-muted">ilk {{ \Carbon\Carbon::parse($h->ilk_gorulme)->format('d.m H:i') }}</div></td>
+                        <td style="min-width:200px">
+                            @if($h->ornek)
+                                <details class="pf-detay"><summary>İz / yığın</summary><pre>{{ $h->ornek }}</pre></details>
+                            @else <span class="sy-text-muted sy-fs-12">—</span> @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5"><div class="sy-empty"><div class="baslik">Bu aralıkta hata yok</div>@if(!$hataTablosu)<div>Hata tabloları henüz oluşmamış (migration).</div>@endif</div></td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
 {{-- Nobetci goruntuleri --}}
 <div class="sy-card" style="margin-top:16px">
     <div class="sy-card-head"><strong>Takılma Anları</strong> <span class="sy-text-muted sy-fs-12"> — o anda çalışan sorgular, bellek ve en yavaş uçlar</span></div>
@@ -93,6 +193,12 @@
                                     <div style="margin-top:8px"><strong class="sy-fs-12">Son 5 dk en yavaş uçlar</strong></div>
                                     @foreach($a->detay['yavaslar'] as $y)
                                         <div class="sy-fs-12" style="margin-top:2px">{{ $y['uc'] }} ({{ $y['method'] }}) · {{ $y['adet'] }} kez · en uzun {{ $sn($y['en_uzun_ms']) }} · salon {{ $y['salonlar'] ?: '—' }}</div>
+                                    @endforeach
+                                @endif
+                                @if(!empty($a->detay['hatalar']))
+                                    <div style="margin-top:8px"><strong class="sy-fs-12">Son 5 dk hatalar</strong></div>
+                                    @foreach($a->detay['hatalar'] as $hh)
+                                        <div class="sy-fs-12" style="margin-top:2px">{{ $hh['adet'] }}× {{ $hh['baslik'] }} @if($hh['mesaj'])— {{ \Illuminate\Support\Str::limit($hh['mesaj'], 120) }}@endif · {{ $hh['uc'] }}</div>
                                     @endforeach
                                 @endif
                                 @if(!empty($a->detay['surecler']))

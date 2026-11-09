@@ -1558,6 +1558,57 @@ class PanelController extends Controller
             }
         }
 
+        // ---- Hatalar (gruplu) ----
+        $hataTablosu = Schema::hasTable('sistem_hatalari') && Schema::hasTable('sistem_hata_kayitlari');
+        $hataTur = (string) $request->get('tur', '');
+        $hataTurleri = ['istisna' => 'Sunucu istisnası', 'http' => 'HTTP 5xx / 419 / 429', 'log' => 'Log hatası',
+                        'js' => 'Tarayıcı JS', 'zaman_asimi' => 'Zaman aşımı / bağlantı', 'komut' => 'Zamanlanmış komut'];
+        if (!isset($hataTurleri[$hataTur])) $hataTur = '';
+        $hataSayilari = [];
+        $hatalar = collect();
+        if ($hataTablosu) {
+            $hataSayilari = DB::table('sistem_hata_kayitlari as k')->join('sistem_hatalari as h', 'h.id', '=', 'k.hata_id')
+                ->where('k.created_at', '>=', $sinir)->selectRaw('h.tur, COUNT(*) as adet')->groupBy('h.tur')
+                ->pluck('adet', 'tur')->all();
+
+            $gruplar = DB::table('sistem_hata_kayitlari as k')->join('sistem_hatalari as h', 'h.id', '=', 'k.hata_id')
+                ->where('k.created_at', '>=', $sinir)
+                ->when($hataTur !== '', function ($q) use ($hataTur) { $q->where('h.tur', $hataTur); })
+                ->selectRaw('k.hata_id, COUNT(*) as aralik_adet, COUNT(DISTINCT k.salon_id) as salon_sayisi,
+                    COUNT(DISTINCT k.user_id) as kullanici_sayisi, MIN(k.created_at) as aralik_ilk, MAX(k.created_at) as aralik_son')
+                ->groupBy('k.hata_id')->orderBy('aralik_adet', 'desc')->limit(60)->get();
+
+            $hataIdleri = $gruplar->pluck('hata_id')->all();
+            $hataSatirlari = DB::table('sistem_hatalari')->whereIn('id', $hataIdleri)->get()->keyBy('id');
+
+            // Her hata icin en cok etkilenen 3 isletme
+            $salonDagilimi = DB::table('sistem_hata_kayitlari')->whereIn('hata_id', $hataIdleri)
+                ->where('created_at', '>=', $sinir)->whereNotNull('salon_id')
+                ->selectRaw('hata_id, salon_id, COUNT(*) as adet')->groupBy('hata_id', 'salon_id')->get();
+            $hataSalonAdlari = DB::table('salonlar')->whereIn('id', $salonDagilimi->pluck('salon_id')->unique()->all())->pluck('salon_adi', 'id');
+
+            foreach ($gruplar as $g) {
+                $h = $hataSatirlari[$g->hata_id] ?? null;
+                if (!$h) continue;
+                foreach ((array) $h as $k => $v) $g->$k = $v;
+                $g->salonlar = $salonDagilimi->where('hata_id', $g->hata_id)->sortByDesc('adet')->take(3)
+                    ->map(function ($s) use ($hataSalonAdlari) { return ['id' => $s->salon_id, 'ad' => $hataSalonAdlari[$s->salon_id] ?? ('#'.$s->salon_id), 'adet' => $s->adet]; })
+                    ->values()->all();
+                $hatalar->push($g);
+            }
+        }
+
+        // ---- Zaman asimi analizi: her olay sunucu tarafiyla eslestirilir ----
+        $zamanAsimlari = collect();
+        if ($tabloVar) {
+            $olaylar = DB::table('yavas_istekler')->where('created_at', '>=', $sinir)->where('method', 'TIMEOUT')
+                ->orderBy('id', 'desc')->limit(40)->get();
+            $tzSalonAdlari = DB::table('salonlar')->whereIn('id', $olaylar->pluck('salon_id')->filter()->unique()->all())->pluck('salon_adi', 'id');
+            foreach ($olaylar as $o) {
+                $zamanAsimlari->push($this->zamanAsimiNedeni($o, $tzSalonAdlari, $sorguKolonu, $hataTablosu, $anlikTablosu));
+            }
+        }
+
         return view('sistemyonetim.v2.performans', [
             'title'        => 'Sistem Performansı',
             'aktifMenu'    => 'sistem-performans',
@@ -1571,7 +1622,86 @@ class PanelController extends Controller
             'saatlik'      => $saatlik,
             'sonIstekler'  => $sonIstekler,
             'anliklar'     => $anliklar,
+            'hataTablosu'  => $hataTablosu,
+            'hataTur'      => $hataTur,
+            'hataTurleri'  => $hataTurleri,
+            'hataSayilari' => $hataSayilari,
+            'hatalar'      => $hatalar,
+            'zamanAsimlari'=> $zamanAsimlari,
         ]);
+    }
+
+    /**
+     * Tarayici zaman asimini sunucuda olanla eslestirip nedenini cikarir. Sunucu kaydi istek BITINCE
+     * yazilir: tarayici vazgectikten sonra (10 dk'ya kadar) bitmis ayni uc aranir.
+     */
+    private function zamanAsimiNedeni($o, $salonAdlari, $sorguKolonu, $hataTablosu, $anlikTablosu)
+    {
+        $t = strtotime($o->created_at);
+        $once = date('Y-m-d H:i:s', $t - 120);
+        $sonra = date('Y-m-d H:i:s', $t + 600);
+        $yol = ltrim((string) $o->uri, '/');
+        $yolEslesir = function ($q, $kolon) use ($yol) {
+            $q->where(function ($w) use ($kolon, $yol) {
+                $w->where($kolon, $yol)->orWhere($kolon, '/'.$yol)->orWhere($kolon, 'like', '/'.$yol.'?%');
+            });
+        };
+
+        $sunucu = DB::table('yavas_istekler')->where('method', '<>', 'TIMEOUT')
+            ->whereBetween('created_at', [$once, $sonra])
+            ->where(function ($q) use ($yolEslesir) { $yolEslesir($q, 'uri'); })
+            ->when($o->salon_id, function ($q) use ($o) { $q->where(function ($w) use ($o) { $w->where('salon_id', $o->salon_id)->orWhereNull('salon_id'); }); })
+            ->orderBy('sure_ms', 'desc')->first();
+
+        $hata = null;
+        if ($hataTablosu) {
+            $hata = DB::table('sistem_hata_kayitlari as k')->join('sistem_hatalari as h', 'h.id', '=', 'k.hata_id')
+                ->whereBetween('k.created_at', [$once, $sonra])->where('h.tur', '<>', 'zaman_asimi')
+                ->where(function ($q) use ($yolEslesir) { $yolEslesir($q, 'k.uri'); })
+                ->select('h.id', 'h.baslik', 'h.mesaj', 'h.konum')->first();
+        }
+
+        $anlik = null;
+        if ($anlikTablosu) {
+            $anlik = DB::table('performans_anliklari')
+                ->whereBetween('created_at', [date('Y-m-d H:i:s', $t - 180), date('Y-m-d H:i:s', $t + 180)])
+                ->orderBy('id', 'desc')->first(['id', 'nedenler', 'en_uzun_sorgu_sn', 'bos_bellek_mb']);
+        }
+
+        // Ayni dakikada baska isletmeler de zaman asimina dustuyse sorun genel (sunucu), degilse yerel.
+        $ayniAnda = (int) DB::table('yavas_istekler')->where('method', 'TIMEOUT')
+            ->whereBetween('created_at', [date('Y-m-d H:i:s', $t - 120), date('Y-m-d H:i:s', $t + 120)])
+            ->where('id', '<>', $o->id)->count(DB::raw('DISTINCT COALESCE(salon_id, 0)'));
+
+        if ($hata) {
+            $tip = 'hata';
+            $neden = 'Sunucu hata verdi: '.$hata->baslik.($hata->mesaj ? ' — '.\Illuminate\Support\Str::limit($hata->mesaj, 140) : '');
+        } elseif ($sunucu) {
+            $tip = 'yavas';
+            $neden = 'Sunucu isteği '.number_format($sunucu->sure_ms / 1000, 1, ',', '.').' sn\'de bitirdi (tarayıcı daha önce vazgeçti) — '.$sunucu->sorgu_sayisi.' sorgu';
+            if ($sorguKolonu && !empty($sunucu->en_yavas_sorgu)) {
+                $neden .= ', en yavaşı '.number_format($sunucu->en_yavas_sorgu_ms / 1000, 1, ',', '.').' sn';
+            }
+        } else {
+            $tip = 'ulasmadi';
+            $neden = 'Sunucuda bu isteğe ait kayıt yok: istek PHP\'ye ulaşmadı ya da yolda kaldı (PHP-FPM işçileri dolu / ağ / tarayıcı bağlantısı).';
+        }
+
+        return (object) [
+            'id'          => $o->id,
+            'zaman'       => $o->created_at,
+            'uc'          => $o->uri,
+            'durum'       => preg_replace('/^istemci:/', '', (string) $o->aksiyon),
+            'bekleme_ms'  => $o->sure_ms,
+            'salon_id'    => $o->salon_id,
+            'salon_adi'   => $o->salon_id ? ($salonAdlari[$o->salon_id] ?? ('#'.$o->salon_id)) : null,
+            'tip'         => $tip,
+            'neden'       => $neden,
+            'en_yavas_sorgu' => ($sorguKolonu && $sunucu) ? ($sunucu->en_yavas_sorgu ?? null) : null,
+            'hata_id'     => $hata->id ?? null,
+            'anlik'       => $anlik,
+            'ayni_anda'   => $ayniAnda,
+        ];
     }
 
     public function guvenlikDuvari()

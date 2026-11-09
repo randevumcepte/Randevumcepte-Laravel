@@ -28,6 +28,7 @@ class PerformansNobetci extends Command
     const YAVAS_ISTEK_ADET   = 8;    // son 5 dk'da bu kadar yavas istek
     const ZAMAN_ASIMI_ADET   = 3;    // son 5 dk'da bu kadar tarayici zaman asimi
     const LOAD_CARPANI       = 3;    // load1 > cekirdek * carpan
+    const SUNUCU_HATA_ADET   = 10;   // son 5 dk'da bu kadar sunucu hatasi (istisna/5xx/log)
     const ALARM_ARALIGI_DK   = 30;   // ayni kisa ariza icin tekrar alarm araligi
     const SAKLAMA_GUN        = 14;
 
@@ -60,6 +61,11 @@ class PerformansNobetci extends Command
         if ($load1 !== null && $load1 > $cekirdek * self::LOAD_CARPANI) {
             $nedenler[] = 'load '.$load1;
         }
+        $sonHatalar = $this->sonHatalar();
+        $sunucuHataAdet = array_sum(array_map(function ($h) { return $h['tur'] !== 'js' && $h['tur'] !== 'zaman_asimi' ? $h['adet'] : 0; }, $sonHatalar));
+        if ($sunucuHataAdet >= self::SUNUCU_HATA_ADET) {
+            $nedenler[] = '5 dk icinde '.$sunucuHataAdet.' sunucu hatasi';
+        }
 
         $this->eskileriTemizle();
 
@@ -84,6 +90,7 @@ class PerformansNobetci extends Command
             'detay'              => json_encode([
                 'sorgular'  => $sorgular,
                 'yavaslar'  => $yavaslar,
+                'hatalar'   => $sonHatalar,
                 'surecler'  => $this->surecler(),
             ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
         ]);
@@ -168,6 +175,29 @@ class PerformansNobetci extends Command
         return [$yavas, $zamanAsimi, $uclar];
     }
 
+    /** Son 5 dk hata gruplari (sistem_hatalari). */
+    private function sonHatalar()
+    {
+        if (!Schema::hasTable('sistem_hata_kayitlari')) {
+            return [];
+        }
+        try {
+            return DB::table('sistem_hata_kayitlari as k')->join('sistem_hatalari as h', 'h.id', '=', 'k.hata_id')
+                ->where('k.created_at', '>=', date('Y-m-d H:i:s', time() - 300))
+                ->selectRaw('h.id, h.tur, h.baslik, h.mesaj, h.uc, COUNT(*) as adet, COUNT(DISTINCT k.salon_id) as salon_sayisi')
+                ->groupBy('h.id', 'h.tur', 'h.baslik', 'h.mesaj', 'h.uc')->orderBy('adet', 'desc')->limit(10)->get()
+                ->map(function ($r) {
+                    $r = (array) $r;
+                    $r['adet'] = (int) $r['adet'];
+                    $r['mesaj'] = mb_substr((string) $r['mesaj'], 0, 300);
+
+                    return $r;
+                })->all();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
     private function bellek()
     {
         $m = [];
@@ -214,6 +244,9 @@ class PerformansNobetci extends Command
         if ($uzunlar) {
             $m .= 'En uzun sorgu: '.$uzunlar[0]['sn'].' sn — '.mb_substr($uzunlar[0]['sql'], 0, 120)."\n";
         }
+        foreach (array_slice($this->sonHatalar(), 0, 2) as $h) {
+            $m .= 'Hata ('.$h['adet'].'x): '.mb_substr($h['baslik'].($h['mesaj'] ? ' — '.$h['mesaj'] : ''), 0, 140)."\n";
+        }
         if ($yavaslar) {
             $m .= 'En yavaş uç: '.$yavaslar[0]['uc'].' ('.round($yavaslar[0]['en_uzun_ms'] / 1000, 1).' sn, salon '.($yavaslar[0]['salonlar'] ?: '-').")\n";
         }
@@ -230,7 +263,12 @@ class PerformansNobetci extends Command
             return;
         }
         try {
-            DB::table('performans_anliklari')->where('created_at', '<', date('Y-m-d H:i:s', time() - self::SAKLAMA_GUN * 86400))->delete();
+            $sinir = date('Y-m-d H:i:s', time() - self::SAKLAMA_GUN * 86400);
+            DB::table('performans_anliklari')->where('created_at', '<', $sinir)->delete();
+            if (Schema::hasTable('sistem_hata_kayitlari')) {
+                DB::table('sistem_hata_kayitlari')->where('created_at', '<', $sinir)->delete();
+                DB::table('sistem_hatalari')->where('son_gorulme', '<', $sinir)->delete();
+            }
         } catch (\Throwable $e) {
         }
     }

@@ -22,6 +22,9 @@ const odenenGizlensin = gizliAlanAdlari.includes(window.location.hostname);
             // Zaman asimi / gateway hatasi sunucu loglarinda gorunmez; izleme icin bildir.
             if (xhr.statusText === 'timeout' || xhr.status === 502 || xhr.status === 504) {
                 rcZamanAsimiBildir(ayar && ayar.url, xhr);
+            } else if (xhr.status === 0 && !window.__rcSayfadanCikiyor && navigator.onLine !== false) {
+                // sayfa degisirken iptal edilenler degil, gercek baglanti kopmasi
+                rcZamanAsimiBildir(ayar && ayar.url, xhr, 'baglanti');
             }
             // NOT: kullaniciya "Baglanti sorunu" popup'i GOSTERILMIYOR — takvimde arka plan
             // istekleri (iptal/timeout) yuzunden surekli cikiyordu. Sadece preloader kapatilir.
@@ -31,7 +34,7 @@ const odenenGizlensin = gizliAlanAdlari.includes(window.location.hostname);
 })();
 // Yavas istek izleme: en fazla 15 sn'de bir bildirim; bildirimin kendisi tekrar bildirilmez.
 var __rcSonZamanAsimiBildirimi = 0;
-function rcZamanAsimiBildir(url, xhr){
+function rcZamanAsimiBildir(url, xhr, durumZorla){
     try {
         if (!url || url.indexOf('/performans/zaman-asimi') !== -1 || !navigator.sendBeacon) return;
         var simdi = Date.now();
@@ -42,13 +45,51 @@ function rcZamanAsimiBildir(url, xhr){
         var fd = new FormData();
         fd.append('_token', token);
         fd.append('url', url);
-        fd.append('durum', xhr.statusText === 'timeout' ? 'timeout' : String(xhr.status));
+        fd.append('durum', durumZorla || (xhr.statusText === 'timeout' ? 'timeout' : String(xhr.status)));
         fd.append('sure_ms', xhr.__rcBaslangic ? (simdi - xhr.__rcBaslangic) : 0);
         var sube = $('input[name="sube"]').val() || new URLSearchParams(location.search).get('sube');
         if (sube) fd.append('sube', sube);
         navigator.sendBeacon('/isletmeyonetim/performans/zaman-asimi', fd);
     } catch (err) { /* izleme asla sayfayi bozmasin */ }
 }
+// JS hata izleme: form takilmasi / kaydirma bozulmasi gibi belirtilerin kaynagi cogu zaman yakalanmamis
+// bir JS hatasidir. Sayfa basina en fazla 5, ayni mesaj bir kez; cross-origin "Script error." ve
+// tarayici eklentisi hatalari atlanir.
+window.addEventListener('beforeunload', function(){ window.__rcSayfadanCikiyor = true; });
+(function(){
+    var gonderilen = {}, adet = 0;
+    function bildir(mesaj, kaynak, satir, sutun, yigin){
+        try {
+            if (!mesaj || adet >= 5 || !navigator.sendBeacon) return;
+            mesaj = String(mesaj).slice(0, 500);
+            if (mesaj === 'Script error.' || gonderilen[mesaj]) return;
+            if (kaynak && /^(chrome|moz|safari)-extension:/.test(kaynak)) return;
+            var token = document.querySelector('meta[name="csrf-token"]');
+            if (!token) return;
+            gonderilen[mesaj] = 1; adet++;
+            var fd = new FormData();
+            fd.append('_token', token.getAttribute('content'));
+            fd.append('mesaj', mesaj);
+            fd.append('kaynak', kaynak || '');
+            fd.append('satir', satir || 0);
+            fd.append('sutun', sutun || 0);
+            fd.append('yigin', yigin ? String(yigin).slice(0, 3000) : '');
+            fd.append('sayfa', location.pathname);
+            var sube = new URLSearchParams(location.search).get('sube');
+            if (!sube) { var s = document.querySelector('input[name="sube"]'); sube = s && s.value; }
+            if (sube) fd.append('sube', sube);
+            navigator.sendBeacon('/isletmeyonetim/performans/js-hata', fd);
+        } catch (e) { /* izleme asla sayfayi bozmasin */ }
+    }
+    window.addEventListener('error', function(e){
+        if (!e || !e.message) return; // kaynak (img/script) yukleme hatalari
+        bildir(e.message, e.filename, e.lineno, e.colno, e.error && e.error.stack);
+    });
+    window.addEventListener('unhandledrejection', function(e){
+        var r = e && e.reason;
+        bildir('Promise: ' + (r && r.message ? r.message : String(r)), r && r.fileName, 0, 0, r && r.stack);
+    });
+})();
 // ===== /Global AJAX guvenlik agi =====
 
 // V2 takvim icin randevu hover tooltip — eventRender'da cagrilir.

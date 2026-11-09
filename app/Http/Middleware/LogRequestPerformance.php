@@ -49,6 +49,14 @@ class LogRequestPerformance
 
         $response = $next($request);
 
+        // Hata izleme: 5xx (controller'in yakalayip dondurdugu dahil), 419 oturum, 429 sinir.
+        try {
+            $durum = method_exists($response, 'getStatusCode') ? (int) $response->getStatusCode() : 200;
+            if ($durum >= 500 || $durum === 419 || $durum === 429) {
+                \App\Services\HataKaydi::http($request, $durum, $durum >= 500 ? mb_substr((string) $response->getContent(), 0, 4000) : null);
+            }
+        } catch (\Throwable $e) {}
+
         try {
             $sure_ms   = (int) round((microtime(true) - $start) * 1000);
             $bellek_mb = (int) round(memory_get_peak_usage(true) / 1048576);
