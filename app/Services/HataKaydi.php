@@ -32,8 +32,11 @@ class HataKaydi
     {
         self::$istisnaKaydedildi = true;
         $konsol = app()->runningInConsole();
+        // Gecersiz/suresi dolmus token: Passport raporlayip 401 doner; sunucu hatasi degil, ayri tur.
+        $oturum = $e instanceof \League\OAuth2\Server\Exception\OAuthServerException
+            || $e instanceof \Illuminate\Auth\AuthenticationException;
         self::yaz([
-            'tur'    => $konsol ? 'komut' : 'istisna',
+            'tur'    => $oturum ? 'oturum' : ($konsol ? 'komut' : 'istisna'),
             'baslik' => get_class($e),
             'mesaj'  => $e->getMessage(),
             'konum'  => self::kisaYol($e->getFile()).':'.$e->getLine(),

@@ -22,7 +22,8 @@ class SalonSiteHizmetKontrol
         if ($salon && self::suresiBitti($salon->uyelik_bitis_tarihi)) {
             return response()
                 ->view('site_hizmet_disi', ['salon' => $salon], 503)
-                ->header('Retry-After', '86400');
+                ->header('Retry-After', '86400')
+                ->header('X-Rc-Kasitli', '1'); // hata izleme bu 503'u sunucu hatasi saymaz
         }
 
         return $next($request);

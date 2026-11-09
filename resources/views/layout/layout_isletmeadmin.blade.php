@@ -279,11 +279,13 @@
       @if(!empty($fbCfg['apiKey']) && !empty($fbCfg['vapidKey']))
       <script type="module">
          import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-         import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js";
+         import { getMessaging, getToken, onMessage, isSupported } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js";
 
          const firebaseConfig = {!! json_encode($fbClientCfg, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) !!};
          const VAPID_KEY = {!! json_encode($fbCfg['vapidKey']) !!};
 
+         // Push desteklemeyen tarayicida (eski Safari/iOS) getMessaging yakalanmamis Promise hatasi birakiyordu.
+         isSupported().then((destek) => { if (!destek) return;
          try {
             const app = initializeApp(firebaseConfig);
             const messaging = getMessaging(app);
@@ -340,6 +342,7 @@
          } catch (e) {
             console.warn('Firebase init hata:', e);
          }
+         }).catch(() => {});
       </script>
       @endif
       <script type="text/javascript">  

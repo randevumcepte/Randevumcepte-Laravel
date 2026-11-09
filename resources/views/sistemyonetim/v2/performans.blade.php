@@ -67,7 +67,7 @@
 @php
     $sunucuHata = ($hataSayilari['istisna'] ?? 0) + ($hataSayilari['http'] ?? 0) + ($hataSayilari['log'] ?? 0) + ($hataSayilari['komut'] ?? 0);
     $tipRozet = ['hata' => ['sy-badge-danger', 'Sunucu hatası'], 'yavas' => ['sy-badge-warning', 'Sunucu yavaş'], 'ulasmadi' => ['sy-badge-danger', 'Sunucuya ulaşmadı']];
-    $turRozet = ['istisna' => 'sy-badge-danger', 'http' => 'sy-badge-danger', 'log' => 'sy-badge-warning', 'js' => 'sy-badge-warning', 'zaman_asimi' => 'sy-badge-danger', 'komut' => 'sy-badge'];
+    $turRozet = ['istisna' => 'sy-badge-danger', 'http' => 'sy-badge-danger', 'log' => 'sy-badge-warning', 'js' => 'sy-badge-warning', 'zaman_asimi' => 'sy-badge-danger', 'komut' => 'sy-badge', 'oturum' => 'sy-badge'];
 @endphp
 <div class="sy-metric-grid" style="margin-top:12px">
     <div class="sy-metric {{ $sunucuHata ? 'danger' : 'success' }}">

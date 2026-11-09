@@ -62,7 +62,7 @@ class PerformansNobetci extends Command
             $nedenler[] = 'load '.$load1;
         }
         $sonHatalar = $this->sonHatalar();
-        $sunucuHataAdet = array_sum(array_map(function ($h) { return $h['tur'] !== 'js' && $h['tur'] !== 'zaman_asimi' ? $h['adet'] : 0; }, $sonHatalar));
+        $sunucuHataAdet = array_sum(array_column($sonHatalar, 'sunucu_adet'));
         if ($sunucuHataAdet >= self::SUNUCU_HATA_ADET) {
             $nedenler[] = '5 dk icinde '.$sunucuHataAdet.' sunucu hatasi';
         }
@@ -184,11 +184,15 @@ class PerformansNobetci extends Command
         try {
             return DB::table('sistem_hata_kayitlari as k')->join('sistem_hatalari as h', 'h.id', '=', 'k.hata_id')
                 ->where('k.created_at', '>=', date('Y-m-d H:i:s', time() - 300))
-                ->selectRaw('h.id, h.tur, h.baslik, h.mesaj, h.uc, COUNT(*) as adet, COUNT(DISTINCT k.salon_id) as salon_sayisi')
+                // sunucu_adet: alarm sayimi. JS, zaman asimi, oturum/token ve 419/429 sunucu hatasi sayilmaz.
+                ->selectRaw("h.id, h.tur, h.baslik, h.mesaj, h.uc, COUNT(*) as adet, COUNT(DISTINCT k.salon_id) as salon_sayisi,
+                    SUM(CASE WHEN h.tur IN ('js', 'zaman_asimi', 'oturum') THEN 0
+                             WHEN k.durum_kodu IN (419, 429) THEN 0 ELSE 1 END) as sunucu_adet")
                 ->groupBy('h.id', 'h.tur', 'h.baslik', 'h.mesaj', 'h.uc')->orderBy('adet', 'desc')->limit(10)->get()
                 ->map(function ($r) {
                     $r = (array) $r;
                     $r['adet'] = (int) $r['adet'];
+                    $r['sunucu_adet'] = (int) $r['sunucu_adet'];
                     $r['mesaj'] = mb_substr((string) $r['mesaj'], 0, 300);
 
                     return $r;
@@ -244,8 +248,12 @@ class PerformansNobetci extends Command
         if ($uzunlar) {
             $m .= 'En uzun sorgu: '.$uzunlar[0]['sn'].' sn — '.mb_substr($uzunlar[0]['sql'], 0, 120)."\n";
         }
-        foreach (array_slice($this->sonHatalar(), 0, 2) as $h) {
-            $m .= 'Hata ('.$h['adet'].'x): '.mb_substr($h['baslik'].($h['mesaj'] ? ' — '.$h['mesaj'] : ''), 0, 140)."\n";
+        // Once sunucu hatalari (alarm nedeni olanlar), sonra digerleri; hangi uc oldugu da yazilir.
+        $hatalar = $this->sonHatalar();
+        usort($hatalar, function ($a, $b) { return [$b['sunucu_adet'], $b['adet']] <=> [$a['sunucu_adet'], $a['adet']]; });
+        foreach (array_slice($hatalar, 0, 3) as $h) {
+            $m .= 'Hata ('.$h['adet'].'x): '.mb_substr($h['baslik'].($h['mesaj'] ? ' — '.$h['mesaj'] : ''), 0, 120)
+                .($h['uc'] ? ' @ '.mb_substr($h['uc'], 0, 60) : '')."\n";
         }
         if ($yavaslar) {
             $m .= 'En yavaş uç: '.$yavaslar[0]['uc'].' ('.round($yavaslar[0]['en_uzun_ms'] / 1000, 1).' sn, salon '.($yavaslar[0]['salonlar'] ?: '-').")\n";

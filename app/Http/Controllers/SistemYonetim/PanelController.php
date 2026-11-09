@@ -1562,7 +1562,8 @@ class PanelController extends Controller
         $hataTablosu = Schema::hasTable('sistem_hatalari') && Schema::hasTable('sistem_hata_kayitlari');
         $hataTur = (string) $request->get('tur', '');
         $hataTurleri = ['istisna' => 'Sunucu istisnası', 'http' => 'HTTP 5xx / 419 / 429', 'log' => 'Log hatası',
-                        'js' => 'Tarayıcı JS', 'zaman_asimi' => 'Zaman aşımı / bağlantı', 'komut' => 'Zamanlanmış komut'];
+                        'js' => 'Tarayıcı JS', 'zaman_asimi' => 'Zaman aşımı / bağlantı', 'komut' => 'Zamanlanmış komut',
+                        'oturum' => 'Oturum / token'];
         if (!isset($hataTurleri[$hataTur])) $hataTur = '';
         $hataSayilari = [];
         $hatalar = collect();

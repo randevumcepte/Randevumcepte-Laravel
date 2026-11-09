@@ -3785,89 +3785,11 @@ $('#randevuekle_musteri_id').on('select2:select', function(e) {
     initSelect2();
     updateRandevuOzeti();
     
-    // Demo AJAX endpoint simülasyonu - Hizmetler
-    $.mockjax({
-        url: '/api/hizmet-ara',
-        responseTime: 300,
-        response: function(settings) {
-            const searchTerm = settings.data.search || '';
-            const page = settings.data.page || 1;
-            const limit = 20;
-            
-            const demoHizmetler = [
-                {id: '1', ad: 'Saç Kesimi', sure: 30, fiyat: 50, kategori: 'Kuaför', renk: '#007bff'},
-                {id: '2', ad: 'Saç Boyama', sure: 60, fiyat: 120, kategori: 'Kuaför', renk: '#dc3545'},
-                {id: '3', ad: 'Cilt Bakımı', sure: 45, fiyat: 80, kategori: 'Estetik', renk: '#28a745'},
-                {id: '4', ad: 'Masaj', sure: 60, fiyat: 100, kategori: 'Spa', renk: '#ffc107'},
-                {id: '5', ad: 'Manikür', sure: 30, fiyat: 40, kategori: 'El & Ayak Bakımı', renk: '#17a2b8'},
-                {id: '6', ad: 'Pedikür', sure: 45, fiyat: 60, kategori: 'El & Ayak Bakımı', renk: '#6f42c1'},
-                {id: '7', ad: 'Epilasyon', sure: 30, fiyat: 70, kategori: 'Estetik', renk: '#e83e8c'},
-                {id: '8', ad: 'Kaş Şekillendirme', sure: 15, fiyat: 25, kategori: 'Estetik', renk: '#fd7e14'},
-                {id: '9', ad: 'Kirpik Lifting', sure: 60, fiyat: 150, kategori: 'Estetik', renk: '#20c997'},
-                {id: '10', ad: 'Makyaj', sure: 45, fiyat: 90, kategori: 'Makyaj', renk: '#6610f2'}
-            ];
-            
-            let filteredResults = demoHizmetler;
-            if (searchTerm) {
-                const searchLower = searchTerm.toLowerCase();
-                filteredResults = demoHizmetler.filter(hizmet => 
-                    hizmet.ad.toLowerCase().includes(searchLower) || 
-                    hizmet.kategori.toLowerCase().includes(searchLower)
-                );
-            }
-            
-            const startIndex = (page - 1) * limit;
-            const endIndex = startIndex + limit;
-            const paginatedResults = filteredResults.slice(startIndex, endIndex);
-            
-            const formattedResults = paginatedResults.map(hizmet => ({
-                id: hizmet.id,
-                text: hizmet.ad,
-                sure: hizmet.sure,
-                fiyat: hizmet.fiyat,
-                kategori: hizmet.kategori,
-                renk: hizmet.renk
-            }));
-            
-            this.responseText = {
-                results: formattedResults,
-                has_more: filteredResults.length > endIndex,
-                total_count: filteredResults.length
-            };
-        }
-    });
-    
-    // Demo AJAX endpoint simülasyonu - Müşteri arama
-    $.mockjax({
-        url: '/api/musteri-ara',
-        responseTime: 300,
-        response: function(settings) {
-            const searchTerm = settings.data.search || '';
-            const page = settings.data.page || 1;
-            
-            const demoMusteriler = [
-                {id: '1', text: 'Ahmet Yılmaz', telefon: '555-123-4567', email: 'ahmet@example.com'},
-                {id: '2', text: 'Ayşe Demir', telefon: '555-234-5678', email: 'ayse@example.com'},
-                {id: '3', text: 'Mehmet Kaya', telefon: '555-345-6789', email: 'mehmet@example.com'},
-                {id: '4', text: 'Fatma Şahin', telefon: '555-456-7890', email: 'fatma@example.com'},
-                {id: '5', text: 'Ali Çelik', telefon: '555-567-8901', email: 'ali@example.com'}
-            ];
-            
-            let filteredResults = demoMusteriler;
-            if (searchTerm) {
-                const searchLower = searchTerm.toLowerCase();
-                filteredResults = demoMusteriler.filter(musteri => 
-                    musteri.text.toLowerCase().includes(searchLower) ||
-                    musteri.telefon.includes(searchTerm)
-                );
-            }
-            
-            this.responseText = {
-                results: filteredResults,
-                has_more: false
-            };
-        }
-    });
+    // $.mockjax (demo sablon kodu) hic yuklenmedigi icin burada her sayfada TypeError atiliyor ve
+    // bu ready blogunun geri kalani CALISMIYORDU. v1 modal (modal-view-event-add) canli layout'ta acilmiyor
+    // (v2 modal kullaniliyor). Davranisi degistirmemek icin ayni noktada sessizce cikilir; asagidaki kod
+    // olu: canlandirmadan once v2 ile cakisan handler'lar ("ikinci handler") ayiklanmali.
+    return;
     
     // Tekrarlayan saat kapama ayarları
     $('#tekrarlayan_saat_kapama').on('change', function() {

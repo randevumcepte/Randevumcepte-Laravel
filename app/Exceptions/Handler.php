@@ -65,12 +65,15 @@ class Handler extends ExceptionHandler
     protected function unauthenticated($request, AuthenticationException $exception)
     {
 
-        if ($request->expectsJson()) {
+        // API/AJAX istegi (Accept: json olmasa da): yonlendirme degil 401.
+        if ($request->expectsJson() || $request->ajax() || $request->is('api/*')) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
-        
+
         $guard = array_get($exception->guards(),0);
-         
+         // Listede olmayan guard (api, web...) 'Undefined variable: login' ile 500 veriyordu.
+         // ('login' adinda rota yok; varsayilan panel girisi.)
+         $login = 'isletmeadmin.login';
          switch ($guard) {
 
             case 'isletmeyonetim':
@@ -82,11 +85,7 @@ class Handler extends ExceptionHandler
              case 'satisortakligi':
                 $login = 'satisortakligi.login';
                 break;
-            case '';
-                $login = 'login';
-                break;
-           
-        } 
+        }
         return redirect()->guest(route($login));
     }
 }
