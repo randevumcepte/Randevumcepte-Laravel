@@ -75,6 +75,7 @@ class Kernel extends HttpKernel
             // Limit IP basinadir (mobil istekler auth'suz gelir). Salonda birden
             // fazla cihaz ayni internet hattini paylastigi icin 60/dk cok dusuktu:
             // arka arkaya tahsilat yapilinca 429 doner, mobil liste yenilenemez.
+            \App\Http\Middleware\LogRequestPerformance::class, // mobil yavas istekler de yavas_istekler'e
             'throttle:300,1',
             'bindings',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,

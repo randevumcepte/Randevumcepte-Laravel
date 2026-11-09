@@ -31,8 +31,21 @@ class LogRequestPerformance
         // N+1 teshisi: istek basina DB sorgu sayisini HAFIF sayac ile say (query log DEGIL,
         // sadece int increment -> minimum overhead). php-fpm'de app her istekte taze boot
         // oldugundan listener birikmez.
+        // Toplam sorgu suresi + en yavas sorgu (SQL parametresiz; bindings tutulmaz -> kisisel veri yok).
         $sorguSayisi = 0;
-        try { \DB::listen(function () use (&$sorguSayisi) { $sorguSayisi++; }); } catch (\Throwable $e) {}
+        $sorguMs = 0.0;
+        $enYavasMs = 0.0;
+        $enYavasSql = null;
+        try {
+            \DB::listen(function ($q) use (&$sorguSayisi, &$sorguMs, &$enYavasMs, &$enYavasSql) {
+                $sorguSayisi++;
+                $sorguMs += (float) $q->time;
+                if ((float) $q->time > $enYavasMs) {
+                    $enYavasMs = (float) $q->time;
+                    $enYavasSql = $q->sql;
+                }
+            });
+        } catch (\Throwable $e) {}
 
         $response = $next($request);
 
@@ -65,11 +78,15 @@ class LogRequestPerformance
             if (!is_numeric($salon_id)) $salon_id = null;
 
             // Kullanici — once panel guard'i, sonra default
+            // API isteginde session yok; session guard'i patlarsa kayit dusmesin diye ayri korunur.
             $user_id = null;
-            foreach (['isletmeyonetim', 'satisortakligi', 'web'] as $g) {
-                if (auth($g)->check()) { $user_id = auth($g)->id(); break; }
-            }
-            if ($user_id === null && auth()->check()) $user_id = auth()->id();
+            try {
+                $guardlar = $request->hasSession() ? ['isletmeyonetim', 'satisortakligi', 'web'] : [];
+                foreach ($guardlar as $g) {
+                    if (auth($g)->check()) { $user_id = auth($g)->id(); break; }
+                }
+                if ($user_id === null && $request->user()) $user_id = $request->user()->id;
+            } catch (\Throwable $e) {}
 
             $uri = $request->getMethod() === 'GET'
                 ? $request->getRequestUri()        // query string dahil (sube=... gorunur)
@@ -87,7 +104,11 @@ class LogRequestPerformance
                 'bellek_mb'  => $bellek_mb,
                 'sorgu_sayisi' => $sorguSayisi,
                 'pid'        => function_exists('getmypid') ? getmypid() : null,
-            ]);
+            ] + (self::sorguKolonlariVar() ? [
+                'sorgu_ms'          => (int) round($sorguMs),
+                'en_yavas_sorgu_ms' => (int) round($enYavasMs),
+                'en_yavas_sorgu'    => $enYavasSql !== null ? mb_substr(preg_replace('/\s+/', ' ', $enYavasSql), 0, 1000) : null,
+            ] : []));
 
             // Tabloyu sinirla: ~%1 ihtimalle 7 gunden eski kayitlari temizle (cron'suz bound).
             if (mt_rand(1, 100) === 1) {
@@ -100,5 +121,13 @@ class LogRequestPerformance
         }
 
         return $response;
+    }
+
+    /** Migration canliya kod yuklenmeden once kosmamissa insert patlamasin (kolonlar 1 saat cache). */
+    private static function sorguKolonlariVar()
+    {
+        return (bool) \Cache::remember('yavas_istekler_sorgu_kolonlari', 60, function () {
+            return Schema::hasColumn('yavas_istekler', 'en_yavas_sorgu') ? 1 : 0;
+        });
     }
 }
