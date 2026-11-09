@@ -19,7 +19,7 @@
 
 <div class="sy-page-head">
     <div>
-        <h2>Performans</h2>
+        <h2>Sistem Performansı</h2>
         <div class="subtitle">Yavaş istekler, tarayıcı zaman aşımları ve nöbetçinin takılma anı görüntüleri · {{ $aralikEtiket[$saat] }}</div>
     </div>
     <div class="pf-araliklar">

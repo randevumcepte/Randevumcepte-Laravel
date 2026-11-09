@@ -1559,8 +1559,8 @@ class PanelController extends Controller
         }
 
         return view('sistemyonetim.v2.performans', [
-            'title'        => 'Performans',
-            'aktifMenu'    => 'performans',
+            'title'        => 'Sistem Performansı',
+            'aktifMenu'    => 'sistem-performans',
             'saat'         => $saat,
             'tabloVar'     => $tabloVar,
             'anlikTablosu' => $anlikTablosu,

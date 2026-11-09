@@ -218,7 +218,7 @@ class PerformansNobetci extends Command
             $m .= 'En yavaş uç: '.$yavaslar[0]['uc'].' ('.round($yavaslar[0]['en_uzun_ms'] / 1000, 1).' sn, salon '.($yavaslar[0]['salonlar'] ?: '-').")\n";
         }
         $m .= 'Boş RAM: '.($bellek['bos_mb'] ?? '?').' MB · Swap: '.($bellek['swap_mb'] ?? '?').' MB · Load: '.($load1 ?? '?')."\n";
-        $m .= date('d.m.Y H:i').' · Ayrıntı: Sistem Yönetimi > Performans';
+        $m .= date('d.m.Y H:i').' · Ayrıntı: Sistem Yönetimi > Sistem Performansı';
 
         return $m;
     }

@@ -472,7 +472,8 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::post('/guvenlik-duvari/blacklist', 'PanelController@guvenlikDuvariBlacklistEkle');
 
     // Performans (yavas istekler + tarayici zaman asimlari + nobetci goruntuleri)
-    Route::get('/performans', 'PanelController@performans')->name('sistemyonetim.v2.performans');
+    // '/performans' AnalizController@ekipPerformansi'nin (asagida); cakismasin.
+    Route::get('/sistem-performans', 'PanelController@performans')->name('sistemyonetim.v2.sistem-performans');
 
     // WhatsApp panel (v2 layout, AJAX endpoint'leri eski controllerda kalir)
     Route::get('/whatsapp', 'PanelController@whatsappPanel');
