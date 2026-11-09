@@ -1499,6 +1499,81 @@ class PanelController extends Controller
      *   - whitelist/blacklist kurallarini YONETIR (watchdog bir sonraki turda uygular).
      * PHP-FPM (www-root) iptables calistiramaz; panel deklaratiftir, watchdog uygular.
      * ============================================================ */
+    /**
+     * Performans: yavas istekler (sunucu + tarayici zaman asimi) ve nobetci goruntuleri.
+     * Kaynaklar: yavas_istekler (LogRequestPerformance + PerformansController), performans_anliklari
+     * (performans:nobetci). Ikisi de kisa saklanir (7 / 14 gun), sorgular created_at indeksli.
+     */
+    public function performans(Request $request)
+    {
+        $this->gerektir(['super_admin', 'yonetici']);
+
+        $saat = (int) $request->get('saat', 24);
+        if (!in_array($saat, [1, 6, 24, 72, 168], true)) $saat = 24;
+        $sinir = date('Y-m-d H:i:s', time() - $saat * 3600);
+
+        $tabloVar = Schema::hasTable('yavas_istekler');
+        $sorguKolonu = $tabloVar && Schema::hasColumn('yavas_istekler', 'en_yavas_sorgu');
+        $anlikTablosu = Schema::hasTable('performans_anliklari');
+
+        $ozet = ['yavas' => 0, 'cok_yavas' => 0, 'zaman_asimi' => 0, 'anlik' => 0];
+        $uclar = $salonlar = $saatlik = $sonIstekler = $anliklar = collect();
+
+        if ($tabloVar) {
+            $temel = function () use ($sinir) { return DB::table('yavas_istekler')->where('created_at', '>=', $sinir); };
+
+            $ozet['yavas'] = (int) $temel()->where('method', '<>', 'TIMEOUT')->count();
+            $ozet['cok_yavas'] = (int) $temel()->where('method', '<>', 'TIMEOUT')->where('sure_ms', '>=', 5000)->count();
+            $ozet['zaman_asimi'] = (int) $temel()->where('method', 'TIMEOUT')->count();
+
+            // Etki = toplam sure: cok sik orta-yavas bir uc, tek seferlik cok yavas uctan once gelir.
+            $uclar = $temel()
+                ->selectRaw("COALESCE(aksiyon, uri) as uc, method, COUNT(*) as adet, SUM(sure_ms) as toplam_ms,
+                    ROUND(AVG(sure_ms)) as ort_ms, MAX(sure_ms) as en_uzun_ms, ROUND(AVG(sorgu_sayisi)) as ort_sorgu,
+                    COUNT(DISTINCT salon_id) as salon_sayisi"
+                    .($sorguKolonu ? ", ROUND(AVG(sorgu_ms)) as ort_sorgu_ms" : ''))
+                ->groupBy('uc', 'method')->orderBy('toplam_ms', 'desc')->limit(30)->get();
+
+            $salonlar = $temel()->whereNotNull('salon_id')
+                ->selectRaw("salon_id, COUNT(*) as adet, SUM(method = 'TIMEOUT') as zaman_asimi, MAX(sure_ms) as en_uzun_ms, SUM(sure_ms) as toplam_ms")
+                ->groupBy('salon_id')->orderBy('toplam_ms', 'desc')->limit(20)->get();
+            $salonAdlari = DB::table('salonlar')->whereIn('id', $salonlar->pluck('salon_id')->all())->pluck('salon_adi', 'id');
+            foreach ($salonlar as $s) {
+                $s->salon_adi = $salonAdlari[$s->salon_id] ?? ('#'.$s->salon_id);
+            }
+
+            $saatlik = $temel()
+                ->selectRaw("DATE_FORMAT(created_at, '%d.%m %H:00') as dilim, MIN(created_at) as ilk, COUNT(*) as adet,
+                    SUM(method = 'TIMEOUT') as zaman_asimi, SUM(sure_ms >= 5000) as cok_yavas")
+                ->groupBy('dilim')->orderBy('ilk', 'desc')->limit(72)->get();
+
+            $sonIstekler = $temel()->orderBy('id', 'desc')->limit(100)->get();
+        }
+
+        if ($anlikTablosu) {
+            $ozet['anlik'] = (int) DB::table('performans_anliklari')->where('created_at', '>=', $sinir)->count();
+            $anliklar = DB::table('performans_anliklari')->where('created_at', '>=', $sinir)->orderBy('id', 'desc')->limit(50)->get();
+            foreach ($anliklar as $a) {
+                $a->detay = json_decode((string) $a->detay, true) ?: [];
+            }
+        }
+
+        return view('sistemyonetim.v2.performans', [
+            'title'        => 'Performans',
+            'aktifMenu'    => 'performans',
+            'saat'         => $saat,
+            'tabloVar'     => $tabloVar,
+            'anlikTablosu' => $anlikTablosu,
+            'sorguKolonu'  => $sorguKolonu,
+            'ozet'         => $ozet,
+            'uclar'        => $uclar,
+            'salonlar'     => $salonlar,
+            'saatlik'      => $saatlik,
+            'sonIstekler'  => $sonIstekler,
+            'anliklar'     => $anliklar,
+        ]);
+    }
+
     public function guvenlikDuvari()
     {
         $this->gerektir(['super_admin', 'yonetici']);

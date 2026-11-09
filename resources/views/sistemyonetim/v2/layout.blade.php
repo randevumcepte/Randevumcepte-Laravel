@@ -124,6 +124,10 @@
                     <span class="icon mdi mdi-shield-lock"></span>
                     Güvenlik Duvarı
                 </a>
+                <a href="/sistemyonetim/v2/performans" class="sy-nav-item {{ $aktifMenu === 'performans' ? 'active' : '' }}">
+                    <span class="icon mdi mdi-speedometer"></span>
+                    Performans
+                </a>
                 <a href="/sistemyonetim/v2/sistem-saglik" class="sy-nav-item {{ $aktifMenu === 'saglik' ? 'active' : '' }}">
                     <span class="icon mdi mdi-pulse"></span>
                     Sistem Sağlık
