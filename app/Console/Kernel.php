@@ -79,6 +79,7 @@ class Kernel extends ConsoleKernel
         Commands\AsistanSohbetKaliplari::class,
         Commands\HizmetBilgiKaliplari::class,
         Commands\SeslendirmeOnUret::class,
+        Commands\PerformansNobetci::class,
     ];
 
     public function __construct(\Illuminate\Contracts\Foundation\Application $app, \Illuminate\Contracts\Events\Dispatcher $events)
@@ -100,6 +101,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
+        // Performans nobetcisi: arka planda, diger dakikalik komutlarin bitmesini beklemesin.
+        $schedule->command('performans:nobetci')->withoutOverlapping()->everyMinute()->runInBackground();
+
         // SMS komutları
         $schedule->command('sms:gonder')->withoutOverlapping()->everyMinute();
         $schedule->command('randevusms:hatirlat')->withoutOverlapping()->everyMinute();
