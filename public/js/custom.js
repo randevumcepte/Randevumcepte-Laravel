@@ -3655,11 +3655,21 @@ function _kaynakSelectAdi(tip){
     if(tip === 'oda')   return 'randevuodalariyeni[]';
     return 'randevupersonelleriyeni[]';
 }
+// Randevu kaydi SMS'i de ayni istekte gonderir; yogun saatte genel 20 sn siniri asilabiliyor.
+var RANDEVU_EKLE_TIMEOUT_MS = 60000;
+// Zaman asimi: istemci beklemeyi biraktı ama sunucu kaydi tamamlamis olabilir. Tekrar gondermeye
+// yonlendirme (mukerrer randevu); takvimi yenileyip kontrol ettir.
+function randevuEkleZamanAsimi(){
+    $('#preloader').hide();
+    swal({type:'warning',title:'Sunucu geç yanıt verdi',
+        html:"<p style='font-size:14px;color:#4b5563;line-height:1.5'>Randevu oluşmuş olabilir. Takvim yenileniyor; tekrar kaydetmeden önce lütfen takvimi kontrol edin.</p>"});
+    if($('#calendar').length) takvimyukle(false,false);
+}
 // EVET: onay bayrağıyla randevuyu kesin oluştur
 function kaynakOnayliGonder(formData){
     formData.append('kaynak_cakisma_onay',1);
     $.ajax({
-        type:'POST', url:'/isletmeyonetim/yenirandevuekle', dataType:'json',
+        type:'POST', url:'/isletmeyonetim/yenirandevuekle', dataType:'json', timeout:RANDEVU_EKLE_TIMEOUT_MS,
         data:formData, processData:false, contentType:false,
         beforeSend:function(){ $('#preloader').show(); },
         success:function(r){
@@ -3670,7 +3680,7 @@ function kaynakOnayliGonder(formData){
             if($('#calendar').length) takvimyukle(false,false);
             if(typeof resetForm==='function') resetForm();
         },
-        error:function(req){ $('#preloader').hide(); document.getElementById('hata').innerHTML=req.responseText; }
+        error:function(req,status){ $('#preloader').hide(); if(status==='timeout'){ randevuEkleZamanAsimi(); return; } document.getElementById('hata').innerHTML=req.responseText; }
     });
 }
 // HAYIR: o saatte müsait kaynakları göster; seçilince ilgili satırı değiştirip tekrar gönder
@@ -3877,6 +3887,7 @@ $(document).on('submit','#yenirandevuekleform',function(e){
             type: "POST",
             //url: '/isletmeyonetim/yenirandevuekle',
             url: '/isletmeyonetim/yenirandevuekle',
+            timeout: RANDEVU_EKLE_TIMEOUT_MS,
             dataType: "json",
             //dataType:'text',
             data : formData,
@@ -3928,6 +3939,7 @@ $(document).on('submit','#yenirandevuekleform',function(e){
                                 type: "POST",
                                 //url: '/isletmeyonetim/yenirandevuekle',
                                 url: '/isletmeyonetim/yenirandevuekle',
+                                timeout: RANDEVU_EKLE_TIMEOUT_MS,
                                 dataType: "json",
                                 //dataType:'text',
                                 data: formData,
@@ -3962,6 +3974,7 @@ $(document).on('submit','#yenirandevuekleform',function(e){
                                 },
                                 error: function (request, status, error) {
                                     $('#preloader').hide();
+                                    if(status === 'timeout'){ randevuEkleZamanAsimi(); return; }
                                     document.getElementById('hata').innerHTML = request.responseText;
                                 }
                             });
@@ -4020,9 +4033,10 @@ $(document).on('submit','#yenirandevuekleform',function(e){
                 }
             },
             error: function (request, status, error) {
+                $('#preloader').hide();
+                if(status === 'timeout'){ randevuEkleZamanAsimi(); return; }
                 document.getElementById('hata').innerHTML = request.responseText;
                 $('button[data-dismiss="modal"]').trigger('click');
-                $('#preloader').hide();
             }
         }).always(function(){
             // Ilk istek bitti (basari/cakisma/hata) -> kilidi ac. Cakisma onayindan

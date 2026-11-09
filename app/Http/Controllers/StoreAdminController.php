@@ -9014,6 +9014,16 @@ private function ayAdiCevir($ingilizceAy)
     {
         if($cakisma_varmi == '' || $request->cakisanrandevuekle==1)
         {
+            // Mukerrer kayit kilidi: sunucu yavasken istemci 20 sn'de zaman asimina dusup
+            // butonu aciyor, PHP ise kaydi tamamliyordu; ikinci tik ayni randevuyu tekrar aciyordu.
+            // Ayni icerikli form 3 dk icinde ikinci kez kaydedilmez. Onay bayraklari parmak izine girmez.
+            $_rndForm = $request->except(['_token', 'kaynak_cakisma_onay', 'cakisanrandevuekle']);
+            ksort($_rndForm);
+            $mukerrerKilit = 'rndekle:'.$request->sube.':'.md5(json_encode($_rndForm));
+            if(!Cache::add($mukerrerKilit, 1, 3)){
+                \Log::info('[yenirandevuekle] mukerrer gonderim engellendi', ['sube' => $request->sube, 'musteri' => $musteriid, 'tarih' => $request->tarih, 'saat' => $request->saat]);
+                return array('success' => '<p>Bu randevu az önce oluşturuldu; tekrar gönderim engellendi.</p>', 'timer' => 4000, 'mukerrer' => 1);
+            }
             foreach($randevu_tarihleri as $tarihler){
                 /*$totalsure = 0;
                 foreach($request->hizmet_suresi as $key => $value)
@@ -9419,6 +9429,8 @@ private function ayAdiCevir($ingilizceAy)
         }
     }
     } catch (\Throwable $e) {
+        // Kayit hatayla bittiyse duzeltilmis tekrar deneme engellenmesin.
+        if(isset($mukerrerKilit)) Cache::forget($mukerrerKilit);
         \Log::error('[yenirandevuekle] istisna', [
             'msg' => $e->getMessage(),
             'file' => $e->getFile(),
