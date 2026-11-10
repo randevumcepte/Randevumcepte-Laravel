@@ -46,6 +46,7 @@ class NotificationService
     /** @var array */ private $extra = [];
     /** @var bool */ private $popup = false;
     /** @var bool */ private $karaListeMuaf = false;
+    /** @var bool */ private $cevaptanSonra = false;
     /** @var string|null */ private $firebaseJsonFile = 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json';
 
     /** @return static */
@@ -108,6 +109,13 @@ class NotificationService
      *  musterinin kendi aksiyonuyla iliskili bildirim push'lari icin. */
     public function karaListeMuaf(bool $on = true): self { $this->karaListeMuaf = $on; return $this; }
 
+    /**
+     * Web isteginde gonderimi cevap kullaniciya gittikten sonraya birakir (terminate). Kullanici push'u
+     * beklemez. send() sonucu {ertelendi:true, sent:0} doner: push ulasti mi'ye gore SMS'e dusen
+     * cagiranlar bunu KULLANMAMALI. Konsolda etkisizdir (hemen gonderir).
+     */
+    public function cevaptanSonra(bool $on = true): self { $this->cevaptanSonra = $on; return $this; }
+
     public function deepLink(string $route, array $params = []): self
     {
         $this->deepLinkRoute = $route;
@@ -129,6 +137,20 @@ class NotificationService
      */
     public function send(): array
     {
+        if ($this->cevaptanSonra && !app()->runningInConsole()) {
+            $kopya = clone $this;
+            $kopya->cevaptanSonra = false;
+            app()->terminating(function () use ($kopya) {
+                try {
+                    $kopya->send();
+                } catch (\Throwable $e) {
+                    Log::warning('[PUSH] cevaptan sonra gonderim hatasi', ['err' => $e->getMessage()]);
+                }
+            });
+
+            return ['sent' => 0, 'failed' => 0, 'total' => 0, 'ertelendi' => true];
+        }
+
         $this->resolveFirebaseProfile();
 
         // KARA LISTE kapisi — sadece MUSTERI hedefli push etkilenir, salon_id bilinir olmali.
@@ -170,27 +192,54 @@ class NotificationService
             return is_scalar($v) ? (string)$v : json_encode($v, JSON_UNESCAPED_UNICODE);
         }, $this->extra));
 
+        // Cihazlara PARALEL gonderim (en fazla 10 es zamanli). Eskiden sirayla, her token icin yeni
+        // HTTPS baglantisiyla gonderiliyordu: randevu kaydi/iptali PHP iscisini 20+ sn kilitleyip
+        // yogun saatte tum isletmelerde zaman asimina yol aciyordu (10 Kas 2026).
+        $satirlar = [];
         foreach ($tokens as $row) {
-            try {
-                // Web tokenini web projesinden gonder. Mobil tokenlari once KENDI
-                // app_bundle'ina gore coz (ortak/genel app); haritada yoksa salon
-                // projesi (mobileFile).
-                if ($row->platform === 'web') {
-                    $this->firebaseJsonFile = $webFile;
-                } else {
-                    $tokenBundle = $row->app_bundle ?? '';
-                    $this->firebaseJsonFile =
-                        (!empty($tokenBundle) && !empty($bundleMap[$tokenBundle]))
-                            ? $bundleMap[$tokenBundle]
-                            : $mobileFile;
-                }
-                $this->sendOne($row->bildirim_id, $payloadExtra, $row->platform);
+            $satirlar[] = $row;
+        }
+        $sonuclar = [];
+        $istekler = function () use ($satirlar, $webFile, $bundleMap, $mobileFile, $payloadExtra) {
+            foreach ($satirlar as $i => $row) {
+                yield $i => function () use ($row, $webFile, $bundleMap, $mobileFile, $payloadExtra) {
+                    // Web tokenini web projesinden gonder. Mobil tokenlari once KENDI
+                    // app_bundle'ina gore coz (ortak/genel app); haritada yoksa salon
+                    // projesi (mobileFile).
+                    if ($row->platform === 'web') {
+                        $this->firebaseJsonFile = $webFile;
+                    } else {
+                        $tokenBundle = $row->app_bundle ?? '';
+                        $this->firebaseJsonFile =
+                            (!empty($tokenBundle) && !empty($bundleMap[$tokenBundle]))
+                                ? $bundleMap[$tokenBundle]
+                                : $mobileFile;
+                    }
+                    try {
+                        return $this->sendOneAsync($row->bildirim_id, $payloadExtra, $row->platform);
+                    } catch (\Throwable $e) {
+                        return \GuzzleHttp\Promise\rejection_for($e);
+                    }
+                };
+            }
+        };
+        (new \GuzzleHttp\Pool(self::httpClient(), $istekler(), [
+            'concurrency' => 10,
+            'fulfilled'   => function ($cevap, $i) use (&$sonuclar) { $sonuclar[$i] = null; },
+            'rejected'    => function ($neden, $i) use (&$sonuclar) {
+                $sonuclar[$i] = $neden instanceof \Throwable ? $neden : new \Exception((string) $neden);
+            },
+        ]))->promise()->wait();
+
+        foreach ($satirlar as $i => $row) {
+            $e = array_key_exists($i, $sonuclar) ? $sonuclar[$i] : new \Exception('FCM sonuc yok');
+            if ($e === null) {
                 $sent++;
                 BildirimKimlikleri::where('id', $row->id)->update([
                     'son_kullanim_tarihi' => now(),
                     'gonderim_hatalari'   => 0,
                 ]);
-            } catch (\Throwable $e) {
+            } else {
                 $failed++;
                 $msg = $e->getMessage();
                 Log::warning('NotificationService send fail', [
@@ -358,10 +407,26 @@ class NotificationService
      * Notification + data kombine: title/body bildirim olarak gözükür,
      * data alanında deep_link/type/image taşınır.
      */
-    private function sendOne(string $deviceToken, array $data, ?string $platform = null): void
+    /** Paylasilan HTTP istemcisi: baglanti yeniden kullanilir; kisa sureler isciyi uzun kilitlemesin. */
+    private static function httpClient(): Client
+    {
+        static $client = null;
+        if ($client === null) {
+            $client = new Client(['connect_timeout' => 3, 'timeout' => 6]);
+        }
+
+        return $client;
+    }
+
+    /** @return \GuzzleHttp\Promise\PromiseInterface */
+    private function sendOneAsync(string $deviceToken, array $data, ?string $platform = null)
     {
         $accessToken = $this->getFcmAccessToken();
-        $projectId = json_decode(file_get_contents(storage_path($this->firebaseJsonFile)), true)['project_id'];
+        static $projeler = [];
+        if (!isset($projeler[$this->firebaseJsonFile])) {
+            $projeler[$this->firebaseJsonFile] = json_decode(file_get_contents(storage_path($this->firebaseJsonFile)), true)['project_id'];
+        }
+        $projectId = $projeler[$this->firebaseJsonFile];
         $url = "https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send";
 
         $highPriority = NotificationTypes::isHighPriority($this->type);
@@ -431,19 +496,20 @@ class NotificationService
             ],
         ];
 
-        $client = new Client(['timeout' => 10]);
-        $response = $client->post($url, [
+        return self::httpClient()->postAsync($url, [
             'headers' => [
                 'Authorization' => 'Bearer ' . $accessToken,
                 'Content-Type'  => 'application/json',
             ],
             'json' => $message,
             'http_errors' => true,
-        ]);
+        ])->then(function ($response) {
+            if ($response->getStatusCode() !== 200) {
+                throw new \Exception('FCM HTTP ' . $response->getStatusCode() . ' - ' . $response->getBody()->getContents());
+            }
 
-        if ($response->getStatusCode() !== 200) {
-            throw new \Exception('FCM HTTP ' . $response->getStatusCode() . ' - ' . $response->getBody()->getContents());
-        }
+            return $response;
+        });
     }
 
     private function androidChannel(): string
@@ -546,6 +612,17 @@ class NotificationService
         if (isset($cache[$key]) && $cache[$key]['exp'] > time() + 60) {
             return $cache[$key]['token'];
         }
+        // Istekler arasi onbellek: php-fpm'de static her istekte sifirlanir; her push'ta Google'dan
+        // yeni token aliniyordu (istek basina fazladan bir HTTPS cagrisi).
+        $onbellekAnahtari = 'fcm_erisim_token:' . md5($key);
+        try {
+            $kayitli = \Illuminate\Support\Facades\Cache::get($onbellekAnahtari);
+            if (is_array($kayitli) && ($kayitli['exp'] ?? 0) > time() + 60) {
+                $cache[$key] = $kayitli;
+                return $kayitli['token'];
+            }
+        } catch (\Throwable $e) {
+        }
 
         $jsonPath = storage_path($this->firebaseJsonFile);
         $json = json_decode(file_get_contents($jsonPath), true);
@@ -566,8 +643,7 @@ class NotificationService
         openssl_sign($data, $signature, $json['private_key'], OPENSSL_ALGO_SHA256);
         $jwt = $data . '.' . $b64($signature);
 
-        $client = new Client(['timeout' => 10]);
-        $response = $client->post($json['token_uri'], [
+        $response = self::httpClient()->post($json['token_uri'], [
             'form_params' => [
                 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                 'assertion'  => $jwt,
@@ -576,6 +652,10 @@ class NotificationService
 
         $body = json_decode($response->getBody()->getContents(), true);
         $cache[$key] = ['token' => $body['access_token'], 'exp' => $now + 3550];
+        try {
+            \Illuminate\Support\Facades\Cache::put($onbellekAnahtari, $cache[$key], 55); // L5.6: dakika
+        } catch (\Throwable $e) {
+        }
         return $body['access_token'];
     }
 }

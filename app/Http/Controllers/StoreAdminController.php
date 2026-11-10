@@ -8264,7 +8264,7 @@ private function ayAdiCevir($ingilizceAy)
                         ->randevu((int)$randevu->id)
                         ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
                         ->extra(['islem' => 'red'])
-                        ->send();
+                        ->cevaptanSonra()->send();
                 } catch (\Throwable $e) { \Log::warning('musteri randevu red push: '.$e->getMessage()); }
             }
 
@@ -8286,7 +8286,7 @@ private function ayAdiCevir($ingilizceAy)
                             ->randevu((int)$randevu->id)
                             ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
                             ->extra(['islem' => 'red'])
-                            ->send();
+                            ->cevaptanSonra()->send();
                     } catch (\Throwable $e) { \Log::warning('randevu red push: '.$e->getMessage()); }
                 }
             }
@@ -8304,7 +8304,7 @@ private function ayAdiCevir($ingilizceAy)
                         ->randevu((int)$randevu->id)
                         ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
                         ->extra(['islem' => 'iptal'])
-                        ->send();
+                        ->cevaptanSonra()->send();
                 } catch (\Throwable $e) { \Log::warning('musteri randevu iptal push: '.$e->getMessage()); }
             }
 
@@ -8326,7 +8326,7 @@ private function ayAdiCevir($ingilizceAy)
                             ->randevu((int)$randevu->id)
                             ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
                             ->extra(['islem' => 'iptal'])
-                            ->send();
+                            ->cevaptanSonra()->send();
                     } catch (\Throwable $e) { \Log::warning('randevu iptal push: '.$e->getMessage()); }
                 }
             }
@@ -9378,7 +9378,7 @@ private function ayAdiCevir($ingilizceAy)
                         ->body($musteriYeniRandevuMesaji)
                         ->randevu((int)$yenirandevu->id)
                         ->deepLink('appointment_detail', ['randevu_id' => $yenirandevu->id])
-                        ->send();
+                        ->cevaptanSonra()->send();
                 } catch (\Throwable $e) { \Log::warning('musteri yeni randevu push: '.$e->getMessage()); }
             }
             
@@ -9400,7 +9400,7 @@ private function ayAdiCevir($ingilizceAy)
                             ->body($mesaj)
                             ->randevu((int)$yenirandevu->id)
                             ->deepLink('appointment_detail', ['randevu_id' => $yenirandevu->id])
-                            ->send();
+                            ->cevaptanSonra()->send();
                     } catch (\Throwable $e) { \Log::warning('yeni randevu push: '.$e->getMessage()); }
                 }
             }
