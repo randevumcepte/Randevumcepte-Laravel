@@ -1267,6 +1267,9 @@ Route::post('/puanodulkaydet',   [StoreAdminController::class, 'puanOdulKaydet']
 Route::post('/puanodulsil',      [StoreAdminController::class, 'puanOdulSil'])->name('isletmeadmin.puanodul.sil');
 Route::post('/puanorneklerekle-admin', [StoreAdminController::class, 'puanOrneklerEkle'])->name('isletmeadmin.puanodul.ornekekle');
 Route::post('/puankazanimkaydet', [StoreAdminController::class, 'puanKazanimKaydet'])->name('isletmeadmin.puankazanim.kaydet');
+Route::post('/damgakartikaydet',  [StoreAdminController::class, 'damgaKartiKaydet'])->name('isletmeadmin.damgakarti.kaydet');
+Route::post('/damgakartisil',     [StoreAdminController::class, 'damgaKartiSil'])->name('isletmeadmin.damgakarti.sil');
+Route::post('/damgakartiuygula',  [StoreAdminController::class, 'damgaKartiUygula'])->name('isletmeadmin.damgakarti.uygula');
 
 /* GEÇİCİ — örnek puan ödülleri ekle (sonra silinecek) */
 Route::get('/puanorneklerekle/{salonId}', function ($salonId) {

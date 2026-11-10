@@ -98,6 +98,16 @@
 .pk-alt { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
 .pk-alt small { color:#9ca3af; }
 .pk-kapali .pk-satir, .pk-kapali .pk-ornek { opacity:.5; }
+.dk-tablo { width:100%; border-collapse:collapse; margin:0 0 14px; font-size:13px; }
+.dk-tablo th { text-align:left; font-size:11px; text-transform:uppercase; color:#6b7280; padding:6px 8px; border-bottom:1px solid #e5e7eb; }
+.dk-tablo td { padding:8px; border-bottom:1px solid #f3f4f6; color:#374151; }
+.dk-tablo tr.dk-pasif td { opacity:.55; }
+.dk-acik { background:#d1fae5; color:#065f46; padding:2px 10px; border-radius:12px; font-weight:700; font-size:11px; }
+.dk-kapali { background:#f3f4f6; color:#6b7280; padding:2px 10px; border-radius:12px; font-weight:700; font-size:11px; }
+.dk-btn { padding:6px 10px; border-radius:7px; border:none; font-size:12px; font-weight:700; cursor:pointer; }
+.dk-select { min-width:200px; padding:8px 10px; border:2px solid #e5e7eb; border-radius:8px; font-size:14px; background:#fff; }
+.pk-satir input#dk-gereken, .pk-satir input#dk-ucretsiz { width:80px; }
+@media (max-width: 600px) { .dk-tablo th:nth-child(4), .dk-tablo td:nth-child(4) { display:none; } .dk-select { min-width:0; width:100%; } }
 
 #toast { position:fixed; top:20px; right:20px; z-index:11000; padding:14px 20px; background:#10b981; color:#fff; border-radius:10px; font-weight:600; box-shadow:0 10px 30px rgba(0,0,0,.2); display:none; }
 #toast.show { display:block; }
@@ -132,6 +142,51 @@
             @else
                 <small>Açtığınız andan sonraki ödeme ve randevular puan kazanır; geçmiş kayıtlara puan dağıtılmaz.</small>
             @endif
+        </div>
+    </div>
+
+    <div class="pk-kart" id="dk-kart">
+        <div class="pk-bas">
+            <h3>🎟️ Damga Kartı (Al-Kazan)</h3>
+        </div>
+        <p class="pk-ack">Bir hizmeti belirlediğiniz sayıda alan müşteriye ücretsiz seans hakkı verin (ör. 4 Cilt Bakımı alana 1 seans ücretsiz). Sayım "Geldi" işaretli randevulara göre yapılır; paket seansları sayılmaz. Hak doğduğunda tahsilat ekranında uyarı çıkar, personel "Ücretsiz Uygula" ile seansı %100 indirimle kapatır ve 0 TL tahsilat olarak kaydeder.</p>
+
+        @if($damgaKurallari->count())
+        <table class="dk-tablo">
+            <thead><tr><th>Hizmet</th><th>Kural</th><th>Durum</th><th>Başlangıç</th><th></th></tr></thead>
+            <tbody>
+            @foreach($damgaKurallari as $k)
+                <tr class="{{ $k->aktif ? '' : 'dk-pasif' }}">
+                    <td><b>{{ $k->hizmet_adi ?? ('Hizmet #'.$k->hizmet_id) }}</b></td>
+                    <td>{{ $k->gereken_adet }} alana {{ $k->ucretsiz_adet }} seans ücretsiz</td>
+                    <td>{!! $k->aktif ? '<span class="dk-acik">Açık</span>' : '<span class="dk-kapali">Kapalı</span>' !!}</td>
+                    <td><small>{{ $k->aktif && $k->baslangic ? date('d.m.Y', strtotime($k->baslangic)) : '—' }}</small></td>
+                    <td style="text-align:right; white-space:nowrap;">
+                        <button class="dk-btn btn-dz" onclick='dkDuzenle({!! json_encode(['id'=>(int)$k->id,'hizmet_id'=>(int)$k->hizmet_id,'gereken_adet'=>(int)$k->gereken_adet,'ucretsiz_adet'=>(int)$k->ucretsiz_adet,'aktif'=>(int)$k->aktif]) !!})'>✏️ Düzenle</button>
+                        <button class="dk-btn btn-sl" onclick="dkSil({{ $k->id }})">🗑️</button>
+                    </td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+        @endif
+
+        <input type="hidden" id="dk-id" value="">
+        <div class="pk-satir">
+            <select id="dk-hizmet" class="dk-select">
+                <option value="">Hizmet seçin…</option>
+                @foreach($damgaHizmetleri as $h)
+                    <option value="{{ $h->id }}">{{ $h->hizmet_adi }}</option>
+                @endforeach
+            </select>
+            hizmetini <input type="number" id="dk-gereken" min="1" max="100" step="1" value="4"> kez alana
+            <input type="number" id="dk-ucretsiz" min="1" max="10" step="1" value="1"> seans ücretsiz
+            <label style="display:flex;align-items:center;gap:6px;font-weight:700;margin:0 0 0 6px;"><input type="checkbox" id="dk-aktif" checked> Açık</label>
+        </div>
+        <div class="pk-alt">
+            <button class="btn-ekle" id="dk-kaydet" onclick="dkKaydet()">💾 <span id="dk-kaydet-yazi">Kuralı Ekle</span></button>
+            <button class="dk-btn btn-pas" id="dk-vazgec" style="display:none" onclick="dkTemizle()">Vazgeç</button>
+            <small>Kuralı açtığınız andan sonraki ziyaretler sayılır; geçmiş randevulara hak dağıtılmaz.</small>
         </div>
     </div>
 
@@ -273,6 +328,70 @@ async function pkKaydet() {
     } catch (e) { showToast('Bağlantı hatası', true); btn.disabled = false; }
 }
 pkGuncelle();
+
+const DAMGA_KAYDET_URL = '{{ url("/isletmeyonetim/damgakartikaydet") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}';
+const DAMGA_SIL_URL    = '{{ url("/isletmeyonetim/damgakartisil") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}';
+
+async function dkIstek(url, veri) {
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+        body: JSON.stringify(veri),
+    });
+    return resp.json();
+}
+
+function dkDuzenle(k) {
+    document.getElementById('dk-id').value = k.id;
+    document.getElementById('dk-hizmet').value = k.hizmet_id;
+    document.getElementById('dk-gereken').value = k.gereken_adet;
+    document.getElementById('dk-ucretsiz').value = k.ucretsiz_adet;
+    document.getElementById('dk-aktif').checked = !!k.aktif;
+    document.getElementById('dk-kaydet-yazi').textContent = 'Değişikliği Kaydet';
+    document.getElementById('dk-vazgec').style.display = '';
+    document.getElementById('dk-kart').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function dkTemizle() {
+    document.getElementById('dk-id').value = '';
+    document.getElementById('dk-hizmet').value = '';
+    document.getElementById('dk-gereken').value = 4;
+    document.getElementById('dk-ucretsiz').value = 1;
+    document.getElementById('dk-aktif').checked = true;
+    document.getElementById('dk-kaydet-yazi').textContent = 'Kuralı Ekle';
+    document.getElementById('dk-vazgec').style.display = 'none';
+}
+
+async function dkKaydet() {
+    const veri = {
+        id:            parseInt(document.getElementById('dk-id').value) || 0,
+        hizmet_id:     parseInt(document.getElementById('dk-hizmet').value) || 0,
+        gereken_adet:  parseInt(document.getElementById('dk-gereken').value) || 0,
+        ucretsiz_adet: parseInt(document.getElementById('dk-ucretsiz').value) || 0,
+        aktif:         document.getElementById('dk-aktif').checked ? 1 : 0,
+    };
+    if (!veri.hizmet_id) { showToast('Hizmet seçin', true); return; }
+    if (veri.gereken_adet < 1) { showToast('Alım adedi en az 1 olmalı', true); return; }
+    if (veri.ucretsiz_adet < 1) { showToast('Ücretsiz seans en az 1 olmalı', true); return; }
+    const btn = document.getElementById('dk-kaydet');
+    btn.disabled = true;
+    try {
+        const data = await dkIstek(DAMGA_KAYDET_URL, veri);
+        if (!data.success) { showToast(data.message || 'Hata', true); btn.disabled = false; return; }
+        showToast('✓ Damga kartı kuralı kaydedildi');
+        setTimeout(() => location.reload(), 600);
+    } catch (e) { showToast('Bağlantı hatası', true); btn.disabled = false; }
+}
+
+async function dkSil(id) {
+    if (!confirm('Bu damga kartı kuralı silinsin mi?')) return;
+    try {
+        const data = await dkIstek(DAMGA_SIL_URL, { id: id });
+        if (!data.success) { showToast(data.message || 'Hata', true); return; }
+        showToast('✓ Kural silindi');
+        setTimeout(() => location.reload(), 600);
+    } catch (e) { showToast('Bağlantı hatası', true); }
+}
 
 async function ornekleriEkle() {
     try {

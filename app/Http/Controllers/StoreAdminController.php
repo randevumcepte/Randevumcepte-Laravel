@@ -1009,6 +1009,8 @@ public function carkverilerigetir(Request $request)
             'yetkiliolunanisletmeler' => $yetkiler,
             'odulSeviyeleri'        => $odulSeviyeleri,
             'sadakatAyar'           => \App\Services\SadakatPuanServisi::ayarDizi(\App\Services\SadakatPuanServisi::ayar($salon_id)),
+            'damgaKurallari'        => \App\Services\DamgaKartiServisi::kurallar($salon_id),
+            'damgaHizmetleri'       => \App\Services\DamgaKartiServisi::hizmetSecenekleri($salon_id),
         ]);
     }
 
@@ -1030,6 +1032,77 @@ public function carkverilerigetir(Request $request)
             ['eski' => $_eski, 'yeni' => $_yeni]);
 
         return response()->json(['success' => true, 'ayar' => $_yeni]);
+    }
+
+    /**
+     * Admin: Damga kartı kuralı kaydet ("X hizmeti N kez alana M seans ücretsiz").
+     */
+    public function damgaKartiKaydet(Request $request)
+    {
+        $salon_id = self::mevcutsube($request);
+        if (!in_array($salon_id, $this->yetkiliSubeIdler()) && !Auth::guard('satisortakligi')->check()) {
+            return response()->json(['success' => false, 'message' => 'Yetkisiz.']);
+        }
+        try {
+            $kural = \App\Services\DamgaKartiServisi::kuralKaydet($salon_id,
+                $request->only(['id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif']));
+        } catch (\RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+        $_hizmet = \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi');
+        SalonAudit::log($salon_id, 'damga_karti_kural', 'damga_karti_kural', $kural->id,
+            $_hizmet . ': ' . $kural->gereken_adet . ' alana ' . $kural->ucretsiz_adet . ' ücretsiz (' . ($kural->aktif ? 'Açık' : 'Kapalı') . ')',
+            'Damga kartı kuralı kaydedildi');
+        return response()->json(['success' => true]);
+    }
+
+    public function damgaKartiSil(Request $request)
+    {
+        $salon_id = self::mevcutsube($request);
+        if (!in_array($salon_id, $this->yetkiliSubeIdler()) && !Auth::guard('satisortakligi')->check()) {
+            return response()->json(['success' => false, 'message' => 'Yetkisiz.']);
+        }
+        $kural = \App\DamgaKartiKurallari::where('id', (int) $request->input('id'))->where('salon_id', $salon_id)->first();
+        if (!$kural) return response()->json(['success' => false, 'message' => 'Kural bulunamadı.']);
+        // Kullanim gecmisi olan kural silinmez (raporda baglantisi kalsin); kapatilir.
+        if (\App\DamgaKartiKullanimlari::where('kural_id', $kural->id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Bu kuralla ücretsiz seans verilmiş; silmek yerine kapatın.']);
+        }
+        SalonAudit::log($salon_id, 'damga_karti_kural_sil', 'damga_karti_kural', $kural->id,
+            \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi'), 'Damga kartı kuralı silindi');
+        $kural->delete();
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Tahsilat ekranı: damga kartı ücretsiz seansını kaleme uygula / geri al.
+     * Kalem %100 indirimle kapanır + 0 TL tahsilat yazılır (DamgaKartiServisi).
+     */
+    public function damgaKartiUygula(Request $request)
+    {
+        if($r = self::satisYetkiYoksa403($request, 'satis.tahsilat_al')) return $r;
+        $salon_id = self::mevcutsube($request);
+        $olusturan = Auth::guard('isletmeyonetim')->check()
+            ? Personeller::where('salon_id', $salon_id)->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)->value('id')
+            : null;
+        try {
+            if ($request->input('aksiyon') === 'geri_al') {
+                $ku = \App\Services\DamgaKartiServisi::geriAl($salon_id, (int) $request->input('kullanim_id'));
+                $_aksiyon = 'damga_karti_geri_al';
+                $_mesaj   = 'Damga kartı ücretsiz seansı geri alındı';
+            } else {
+                $ku = \App\Services\DamgaKartiServisi::uygula($salon_id, (int) $request->input('adisyon_hizmet_id'), $olusturan);
+                $_aksiyon = 'damga_karti_uygula';
+                $_mesaj   = 'Damga kartı ücretsiz seansı uygulandı';
+            }
+        } catch (\RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+        $_musteri = \App\User::where('id', $ku->user_id)->value('name') ?? 'Müşteri #' . $ku->user_id;
+        SalonAudit::log($salon_id, $_aksiyon, 'damga_karti_kullanim', $ku->id,
+            $_musteri . ' — ' . number_format((float) $ku->indirim_tutari, 2, ',', '.') . ' ₺', $_mesaj,
+            ['adisyon_hizmet_id' => $ku->adisyon_hizmet_id, 'tahsilat_id' => $ku->tahsilat_id]);
+        return response()->json(['success' => true]);
     }
 
     /**

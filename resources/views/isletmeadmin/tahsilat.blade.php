@@ -66,6 +66,61 @@
 </div>
 <div class="row">
    <div class="col-md-9">
+      @php
+         // DAMGA KARTI: adisyondaki kurala tabi hizmetlerin ucretsiz seans durumu.
+         // Hata tahsilat ekranini asla bozmasin.
+         try { $_damgaDurum = \App\Services\DamgaKartiServisi::adisyonDurumu($isletme->id, $adisyon_id ?? null); }
+         catch (\Throwable $e) { \Log::warning('damga karti durum', ['err' => $e->getMessage()]); $_damgaDurum = []; }
+      @endphp
+      @if(!empty($_damgaDurum))
+      <div class="card-box pd-5" id="damga-karti-kutu" style="margin-bottom:12px;border-left:4px solid #8b5cf6;">
+         @foreach($_damgaDurum as $_d)
+         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:6px 8px;">
+            <span style="font-size:20px;">🎟️</span>
+            <div style="flex:1;min-width:220px;color:#374151;">
+               <strong>{{ $_d['hizmet_adi'] }}</strong> damga kartı
+               ({{ $_d['gereken'] }} alana {{ $_d['ucretsiz'] }} ücretsiz)
+               @if($_d['kullanim_id'])
+                  — <span style="color:#065f46;font-weight:700;">bu seans ücretsiz olarak işlendi ({{ number_format($_d['kullanim_indirim'],2,',','.') }} ₺ indirim)</span>
+               @elseif($_d['durum']['hak'] > 0)
+                  — <span style="color:#5C008E;font-weight:700;">müşterinin {{ $_d['durum']['hak'] }} ücretsiz seans hakkı var</span>
+               @else
+                  — damga: <strong>{{ $_d['durum']['ilerleme'] }}/{{ $_d['gereken'] }}</strong>
+                  <small style="color:#6b7280;">(bu ziyaret hariç, "Geldi" işaretli önceki ziyaretler)</small>
+               @endif
+            </div>
+            @if($_d['kullanim_id'])
+               <button type="button" class="btn btn-sm btn-outline-secondary damga-karti-islem" data-aksiyon="geri_al" data-kullanim="{{ $_d['kullanim_id'] }}">Geri Al</button>
+            @elseif($_d['uygulanabilir'])
+               <button type="button" class="btn btn-sm btn-success damga-karti-islem" data-aksiyon="uygula" data-kalem="{{ $_d['adisyon_hizmet_id'] }}" data-tutar="{{ number_format($_d['kalan'],2,',','.') }}" data-hizmet="{{ $_d['hizmet_adi'] }}">🎁 Ücretsiz Uygula</button>
+            @endif
+         </div>
+         @endforeach
+      </div>
+      <script>
+      document.addEventListener('click', function (e) {
+         var btn = e.target.closest ? e.target.closest('.damga-karti-islem') : null;
+         if (!btn) return;
+         var geriAl = btn.getAttribute('data-aksiyon') === 'geri_al';
+         var soru = geriAl
+            ? 'Ücretsiz seans geri alınsın mı? İndirim kaldırılır ve 0 TL tahsilat kaydı silinir; müşterinin hakkı geri gelir.'
+            : btn.getAttribute('data-hizmet') + ' bu seans ücretsiz yapılsın mı? ' + btn.getAttribute('data-tutar') + ' ₺ indirim uygulanır ve 0 TL tahsilat olarak kaydedilir.';
+         if (!confirm(soru)) return;
+         btn.disabled = true;
+         var tokenInput = document.querySelector('input[name="_token"]');
+         fetch('/isletmeyonetim/damgakartiuygula?sube={{ $isletme->id }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': tokenInput ? tokenInput.value : '' },
+            body: JSON.stringify(geriAl
+               ? { aksiyon: 'geri_al', kullanim_id: btn.getAttribute('data-kullanim') }
+               : { aksiyon: 'uygula', adisyon_hizmet_id: btn.getAttribute('data-kalem') })
+         }).then(function (r) { return r.json(); }).then(function (d) {
+            if (!d.success) { alert(d.message || 'İşlem yapılamadı.'); btn.disabled = false; return; }
+            location.reload();
+         }).catch(function () { alert('Bağlantı hatası.'); btn.disabled = false; });
+      });
+      </script>
+      @endif
       <div class="card-box pd-5"  style="margin-bottom:20px">
          <form id="adisyon_tahsilat"  method="POST">
             <input type="hidden" name="tahsilat_ekrani" id="tahsilat_ekrani" value="1">
