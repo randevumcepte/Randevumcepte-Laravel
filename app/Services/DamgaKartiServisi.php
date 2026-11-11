@@ -189,6 +189,67 @@ class DamgaKartiServisi
     }
 
     /**
+     * Musterinin bu hizmeti iceren son randevulari ve her birinin damgaya sayilip
+     * sayilmadigi (sayilmadiysa nedeni). Tahsilat ekraninda "hangi ziyaretler sayildi"
+     * dokumu; sayim kurallariyla (ucretliZiyaretSayisi) ayni sirayla karar verir.
+     */
+    public static function ziyaretDokumu($kural, $userId, $buRandevuId = null, $limit = 15)
+    {
+        $hizmetId = (int) $kural->hizmet_id;
+        $sec = ['r.id', 'r.tarih', 'r.durum', 'r.randevuya_geldi'];
+        $q = DB::table('randevular as r')
+            ->join('randevu_hizmetler as rh', 'rh.randevu_id', '=', 'r.id')
+            ->where('r.salon_id', (int) $kural->salon_id)
+            ->where('r.user_id', (int) $userId)
+            ->where('rh.hizmet_id', $hizmetId)
+            ->groupBy('r.id', 'r.tarih', 'r.durum', 'r.randevuya_geldi')
+            ->orderBy('r.tarih', 'desc')->orderBy('r.id', 'desc')
+            ->limit((int) $limit);
+        $q->select($sec);
+        if (self::kolonVar('randevu_hizmetler', 'yardimci_personel')) {
+            $q->addSelect(DB::raw('MIN(COALESCE(rh.yardimci_personel, 0)) as sadece_yardimci'));
+        }
+        if (self::kolonVar('randevu_hizmetler', 'telafi_kaynak_rh_id')) {
+            $q->addSelect(DB::raw('MIN(CASE WHEN rh.telafi_kaynak_rh_id IS NULL THEN 0 ELSE 1 END) as sadece_telafi'));
+        }
+        $satirlar = $q->get();
+        if ($satirlar->isEmpty()) return [];
+
+        $idler = $satirlar->pluck('id')->all();
+        $paket = DB::table('adisyon_paket_seanslar')->whereIn('randevu_id', $idler)
+            ->where('hizmet_id', $hizmetId)->pluck('randevu_id')->map(function ($v) { return (int) $v; })->all();
+        if (self::kolonVar('adisyon_hizmetler', 'seans_sayisi') && self::kolonVar('adisyon_hizmetler', 'randevu_id')) {
+            $paket = array_merge($paket, DB::table('adisyon_hizmetler')->whereIn('randevu_id', $idler)
+                ->where('hizmet_id', $hizmetId)->where('seans_sayisi', '>', 1)
+                ->pluck('randevu_id')->map(function ($v) { return (int) $v; })->all());
+        }
+        $kullanilan = self::gecerliKullanimlar($kural->id, $userId)->pluck('randevu_id')->map(function ($v) { return (int) $v; })->all();
+        $baslangicGun = $kural->baslangic ? date('Y-m-d', strtotime($kural->baslangic)) : null;
+        $bugun = date('Y-m-d');
+
+        $sonuc = [];
+        foreach ($satirlar as $s) {
+            $neden = null;
+            if ((int) $s->durum !== Randevular::ONAYLANDI)          $neden = 'Onaylı değil';
+            elseif ((int) $s->randevuya_geldi !== 1)                 $neden = '"Geldi" işaretli değil';
+            elseif ($s->tarih > $bugun)                              $neden = 'İleri tarihli (günü gelince sayılır)';
+            elseif (!$baslangicGun || $s->tarih < $baslangicGun)     $neden = 'Kural açılmadan önce';
+            elseif (in_array((int) $s->id, $paket, true))            $neden = 'Paket / seanslı satış seansı';
+            elseif (!empty($s->sadece_telafi))                       $neden = 'Telafi seansı';
+            elseif (!empty($s->sadece_yardimci))                     $neden = 'Yardımcı personel kaydı';
+            elseif (in_array((int) $s->id, $kullanilan, true))       $neden = 'Ücretsiz seans olarak kullanıldı';
+            $sonuc[] = [
+                'randevu_id' => (int) $s->id,
+                'tarih'      => date('d.m.Y', strtotime($s->tarih)),
+                'bu_ziyaret' => $buRandevuId && (int) $s->id === (int) $buRandevuId,
+                'sayildi'    => $neden === null,
+                'neden'      => $neden,
+            ];
+        }
+        return $sonuc;
+    }
+
+    /**
      * Cok seanslik satis kalemi (seans_sayisi>1). Tum seanslarin bedelini tasir;
      * %100 indirim tum seanslari bedava yapacagi icin damga uygulanmaz. Seanslari
      * da adisyon_paket_seanslar'da tutuldugundan damga sayimina girmez.
@@ -233,7 +294,16 @@ class DamgaKartiServisi
             $durum = self::durum($kural, $adisyon->user_id, $ah->randevu_id ?? null);
             $kullanim = $kullanimlar->get($ah->id);
             $kalan = self::kalanBorc($ah);
+            $dokum = self::ziyaretDokumu($kural, $adisyon->user_id, $ah->randevu_id ?? null);
+            // Ekranda gosterilen damga BU ZIYARET DAHIL (personel "3 Geldi isaretledim" der);
+            // hak hesabi ise bu ziyareti haric tutar (durum()).
+            $buSayilir = false;
+            foreach ($dokum as $z) { if ($z['bu_ziyaret'] && $z['sayildi']) $buSayilir = true; }
+            $toplam = $durum['ucretli'] + ($buSayilir ? 1 : 0);
             $sonuc[] = [
+                'dokum'             => $dokum,
+                'toplam'            => $toplam,
+                'ilerleme'          => $toplam % max(1, (int) $kural->gereken_adet),
                 'adisyon_hizmet_id' => (int) $ah->id,
                 'hizmet_adi'        => (string) ($hizmetAdlari[$ah->hizmet_id] ?? 'Hizmet'),
                 'gereken'           => (int) $kural->gereken_adet,

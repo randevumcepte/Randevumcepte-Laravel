@@ -85,8 +85,28 @@
                @elseif($_d['durum']['hak'] > 0)
                   — <span style="color:#5C008E;font-weight:700;">müşterinin {{ $_d['durum']['hak'] }} ücretsiz seans hakkı var</span>
                @else
-                  — damga: <strong>{{ $_d['durum']['ilerleme'] }}/{{ $_d['gereken'] }}</strong>
-                  <small style="color:#6b7280;">(bu ziyaret hariç, "Geldi" işaretli önceki ziyaretler)</small>
+                  — damga: <strong>{{ $_d['ilerleme'] }}/{{ $_d['gereken'] }}</strong>
+                  <small style="color:#6b7280;">(bu ziyaret dahil; ücretsiz hak {{ $_d['gereken'] }} ücretli ziyaretten sonraki seansta kullanılır)</small>
+               @endif
+               @if(!empty($_d['dokum']))
+               <details style="margin-top:4px;">
+                  <summary style="cursor:pointer;color:#5C008E;font-size:12px;">Hangi ziyaretler sayıldı?</summary>
+                  <table style="font-size:12px;margin-top:6px;border-collapse:collapse;">
+                     @foreach($_d['dokum'] as $_z)
+                     <tr>
+                        <td style="padding:2px 10px 2px 0;">{{ $_z['tarih'] }}</td>
+                        <td style="padding:2px 10px 2px 0;">#{{ $_z['randevu_id'] }}{{ $_z['bu_ziyaret'] ? ' (bu ziyaret)' : '' }}</td>
+                        <td style="padding:2px 0;">
+                           @if($_z['sayildi'])
+                              <span style="color:#065f46;font-weight:700;">✓ Sayıldı</span>
+                           @else
+                              <span style="color:#9ca3af;">✗ {{ $_z['neden'] }}</span>
+                           @endif
+                        </td>
+                     </tr>
+                     @endforeach
+                  </table>
+               </details>
                @endif
             </div>
             @if($_d['kullanim_id'])
