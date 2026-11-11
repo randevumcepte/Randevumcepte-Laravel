@@ -274,6 +274,62 @@ class DamgaKartiServisi
     }
 
     /**
+     * Musteri paneli: musterinin bu salondaki damga kartlari (ilerleme + hak) ve
+     * damga kuralindan kazanip kullandigi ucretsiz seanslar. Salt okuma; sayim
+     * tahsilat ekraniyla ayni (durum()). Aktif kurallar + musterinin kullanimi
+     * olan kapali kurallar listelenir.
+     */
+    public static function musteriKartlari($salonId, $userId)
+    {
+        if (!self::tabloHazir() || !$userId) return [];
+        $salonId = (int) $salonId;
+        $userId  = (int) $userId;
+
+        $kullanimlar = DB::table('damga_karti_kullanimlari as ku')
+            ->join('adisyon_hizmetler as ah', 'ah.id', '=', 'ku.adisyon_hizmet_id')
+            ->leftJoin('randevular as r', 'r.id', '=', 'ku.randevu_id')
+            ->where('ku.salon_id', $salonId)->where('ku.user_id', $userId)
+            ->orderByDesc('ku.created_at')
+            ->get(['ku.kural_id', 'ku.indirim_tutari', 'ku.created_at', 'r.tarih'])
+            ->groupBy('kural_id');
+
+        $kurallar = DamgaKartiKurallari::where('salon_id', $salonId)
+            ->where(function ($q) use ($kullanimlar) {
+                $q->where('aktif', 1)->orWhereIn('id', $kullanimlar->keys()->all());
+            })->get();
+        if ($kurallar->isEmpty()) return [];
+        $hizmetAdlari = DB::table('hizmetler')->whereIn('id', $kurallar->pluck('hizmet_id')->all())->pluck('hizmet_adi', 'id');
+
+        $sonuc = [];
+        foreach ($kurallar as $k) {
+            $d = self::durum($k, $userId);
+            $sonuc[] = [
+                'kural_id'      => (int) $k->id,
+                'hizmet_adi'    => (string) ($hizmetAdlari[$k->hizmet_id] ?? 'Hizmet'),
+                'gereken_adet'  => (int) $k->gereken_adet,
+                'ucretsiz_adet' => (int) $k->ucretsiz_adet,
+                'aktif'         => (int) $k->aktif,
+                'ilerleme'      => $d['ilerleme'],
+                'ucretli'       => $d['ucretli'],
+                'kazanilan'     => $d['kazanilan'],
+                'kullanilan'    => $d['kullanilan'],
+                'hak'           => $d['hak'],
+                'kullanimlar'   => ($kullanimlar->get($k->id) ?: collect())->map(function ($u) {
+                    return [
+                        'tarih'  => date('Y-m-d', strtotime($u->tarih ?: $u->created_at)),
+                        'tutar'  => (float) $u->indirim_tutari,
+                    ];
+                })->values()->all(),
+            ];
+        }
+        // Hak bekleyen once, sonra ilerlemesi olan, sonra digerleri
+        usort($sonuc, function ($a, $b) {
+            return [$b['hak'], $b['ilerleme'], $b['kullanilan']] <=> [$a['hak'], $a['ilerleme'], $a['kullanilan']];
+        });
+        return $sonuc;
+    }
+
+    /**
      * Tahsilat ekrani: adisyondaki kurala tabi hizmet kalemlerinin damga durumu.
      * Her kalem icin: uygulanabilir mi, uygulandiysa kullanim id (geri alma).
      */

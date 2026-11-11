@@ -307,6 +307,17 @@ class CarkifelekApiController extends Controller
      * Müşterinin salon bazlı puan merdiveni — kazanılabilecek puan ödülleri ve mevcut bakiye.
      * GET/POST: user_id, salon_id (opsiyonel; verilmezse puanı olan ilk salon)
      */
+    /** Damga karti okumasi musteri ekranini asla dusurmesin (tablo yok / hata -> bos liste). */
+    private function damgaKartlariGuvenli($salonId, $userId)
+    {
+        try {
+            return \App\Services\DamgaKartiServisi::musteriKartlari($salonId, $userId);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[damga musteri] ' . $e->getMessage());
+            return [];
+        }
+    }
+
     public function puanOdullerim(Request $request)
     {
         $userId  = (int) ($request->input('user_id')  ?? $request->route('userId'));
@@ -396,6 +407,8 @@ class CarkifelekApiController extends Controller
             'puanKayitlari'  => $puanKayitlariJson,
             // Puanlarin nereden geldigi (kaynak ozeti + hareket listesi). Eski app surumleri yok sayar.
             'puanGecmisi'    => \App\Services\SadakatPuanServisi::gecmis($salonId, $userId, $puanBakiyesi),
+            // Damga kartlari ("N al M ucretsiz"): ilerleme + kazanilan/kullanilan ucretsiz seanslar. Eski app surumleri yok sayar.
+            'damgaKartlari'  => $this->damgaKartlariGuvenli($salonId, $userId),
         ]);
     }
 
