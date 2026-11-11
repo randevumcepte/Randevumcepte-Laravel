@@ -33,10 +33,10 @@ use Illuminate\Support\Facades\Schema;
 class DamgaKartiServisi
 {
     /**
-     * GECICI TEST (11 Kas 2026): true iken ileri tarihli ama "Geldi" isaretli randevular
-     * da damga sayilir. Test bitince false yapilacak (normal kural: gunu gelince sayilir).
+     * Test anahtari: true iken ileri tarihli ama "Geldi" isaretli randevular da damga sayilir.
+     * Normal kural false: randevu gunu gelince sayilir (11 Kas 2026 test bitti, kapatildi).
      */
-    const ILERI_TARIH_SAYILIR = true;
+    const ILERI_TARIH_SAYILIR = false;
 
     private static $kolonOnbellek = [];
 

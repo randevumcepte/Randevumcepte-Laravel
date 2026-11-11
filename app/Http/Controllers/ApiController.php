@@ -32223,6 +32223,60 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         return response()->json(['basarili' => true]);
     }
 
+    // Damga karti ("X hizmetini N kez alana M seans ucretsiz") — mobil yonetim.
+    // Mantik web ile ortak: App\Services\DamgaKartiServisi.
+    public function carkAdminDamgaKartiApi(Request $request, $salonId)
+    {
+        $kurallar = \App\Services\DamgaKartiServisi::kurallar($salonId)->map(function ($k) {
+            return [
+                'id'            => (int) $k->id,
+                'hizmet_id'     => (int) $k->hizmet_id,
+                'hizmet_adi'    => $k->hizmet_adi,
+                'gereken_adet'  => (int) $k->gereken_adet,
+                'ucretsiz_adet' => (int) $k->ucretsiz_adet,
+                'aktif'         => (int) $k->aktif,
+                'baslangic'     => $k->baslangic,
+            ];
+        })->values();
+        $hizmetler = \App\Services\DamgaKartiServisi::hizmetSecenekleri($salonId)->map(function ($h) {
+            return ['id' => (int) $h->id, 'hizmet_adi' => $h->hizmet_adi];
+        })->values();
+        return response()->json([
+            'basarili'  => \App\Services\DamgaKartiServisi::tabloHazir(),
+            'kurallar'  => $kurallar,
+            'hizmetler' => $hizmetler,
+        ]);
+    }
+
+    public function carkAdminDamgaKartiKaydetApi(Request $request, $salonId)
+    {
+        try {
+            $kural = \App\Services\DamgaKartiServisi::kuralKaydet($salonId,
+                $request->only(['id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif']));
+        } catch (\RuntimeException $e) {
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
+        }
+        $hizmet = \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi');
+        Audit::logApi($salonId, $request, 'damga_karti_kural', 'damga_karti_kural', $kural->id,
+            $hizmet . ': ' . $kural->gereken_adet . ' alana ' . $kural->ucretsiz_adet . ' ücretsiz (' . ($kural->aktif ? 'Açık' : 'Kapalı') . ')',
+            'Damga kartı kuralı kaydedildi (mobil)');
+        return response()->json(['basarili' => true, 'id' => (int) $kural->id]);
+    }
+
+    public function carkAdminDamgaKartiSilApi(Request $request, $salonId)
+    {
+        $kural = \App\DamgaKartiKurallari::where('id', (int) $request->input('id'))->where('salon_id', $salonId)->first();
+        if (!$kural) return response()->json(['basarili' => false, 'mesaj' => 'Kural bulunamadı.']);
+        // Kullanim gecmisi olan kural silinmez (web ile ayni kural); kapatilir.
+        if (\App\DamgaKartiKullanimlari::where('kural_id', $kural->id)->exists()) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Bu kuralla ücretsiz seans verilmiş; silmek yerine kapatın.']);
+        }
+        Audit::logApi($salonId, $request, 'damga_karti_kural_sil', 'damga_karti_kural', $kural->id,
+            \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi'), 'Damga kartı kuralı silindi (mobil)');
+        $kural->delete();
+        return response()->json(['basarili' => true]);
+    }
+
     // ============================================================
     // ANKET YONETIMI API (mobil)
     // ============================================================
