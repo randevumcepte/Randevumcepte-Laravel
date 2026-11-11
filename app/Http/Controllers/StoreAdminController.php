@@ -29538,7 +29538,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         return response()->json([
             'durum' => $salon->whatsapp_durum,
             'numara' => $salon->whatsapp_numara,
-            'gunluk_limit' => (int) ($salon->whatsapp_gunluk_limit ?: 150),
+            'gunluk_limit' => \App\Services\WhatsAppService::gunlukLimit($salon),
             'bugun' => ['toplam' => $bugunToplam, 'basari' => $bugunBasari, 'fail' => $bugunFail, 'fallback' => $bugunFallback],
             'hafta' => ['toplam' => $haftaToplam, 'basari' => $haftaBasari],
             'ay' => ['toplam' => $ayToplam, 'basari' => $ayBasari],

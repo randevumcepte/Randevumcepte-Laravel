@@ -146,7 +146,7 @@ class WhatsAppPanelController extends Controller
                 'baglanti_tarihi' => optional($s->whatsapp_baglanti_tarihi)->format('Y-m-d H:i'),
                 'warmup_baslangic' => optional($s->whatsapp_warmup_baslangic)->format('Y-m-d'),
                 'son_hata' => $s->whatsapp_son_hata,
-                'gunluk_limit' => (int) ($s->whatsapp_gunluk_limit ?: 150),
+                'gunluk_limit' => \App\Services\WhatsAppService::gunlukLimit($s),
                 'bugun_basari' => $bugunBasari,
                 'bugun_fail' => $bugunFail,
                 'bugun_fallback' => $bugunFallback,

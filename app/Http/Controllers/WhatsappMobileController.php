@@ -181,7 +181,7 @@ class WhatsappMobileController extends Controller
             return response()->json([
                 'durum' => $salon ? ($salon->whatsapp_durum ?? null) : null,
                 'numara' => $salon ? ($salon->whatsapp_numara ?? null) : null,
-                'gunluk_limit' => (int) ($salon && isset($salon->whatsapp_gunluk_limit) && $salon->whatsapp_gunluk_limit ? $salon->whatsapp_gunluk_limit : 150),
+                'gunluk_limit' => $salon ? \App\Services\WhatsAppService::gunlukLimit($salon) : (int) config('whatsapp.default_daily_limit', 200),
                 'bugun' => ['toplam' => $bugunToplam, 'basari' => $bugunBasari, 'fail' => $bugunFail, 'fallback' => $bugunFallback],
                 'hafta' => ['toplam' => $haftaToplam, 'basari' => $haftaBasari],
                 'ay' => ['toplam' => $ayToplam, 'basari' => $ayBasari],
@@ -204,7 +204,7 @@ class WhatsappMobileController extends Controller
         return [
             'durum' => null,
             'numara' => null,
-            'gunluk_limit' => 150,
+            'gunluk_limit' => (int) config('whatsapp.default_daily_limit', 200),
             'bugun' => ['toplam' => 0, 'basari' => 0, 'fail' => 0, 'fallback' => 0],
             'hafta' => ['toplam' => 0, 'basari' => 0],
             'ay' => ['toplam' => 0, 'basari' => 0],

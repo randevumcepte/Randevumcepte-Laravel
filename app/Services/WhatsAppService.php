@@ -60,6 +60,44 @@ class WhatsAppService
         return $gonderimTipi && in_array($gonderimTipi, self::DAILY_CAP_MUAF_TIPLER, true);
     }
 
+    /**
+     * Randevu bildirim/hatirlatma tipleri. config('whatsapp.randevu_muaf_salonlar')
+     * listesindeki salonlarda bu tipler gunluk limite TAKILMAZ ve limitten SAYILMAZ;
+     * limit yalniz kampanya/diger mesajlar icin isler.
+     */
+    const RANDEVU_LIMIT_MUAF_TIPLER = [
+        'randevu_hatirlatma_1gun',
+        'randevu_hatirlatma',
+        'yeni_randevu_bildirim',
+        'guncelleme_bildirim',
+        'iptal_bildirim',
+        'personel_hatirlatma',
+        'randevu_onay_bildirim',
+        'randevu_bilgi',
+    ];
+
+    /** Salon (veya oturumunu paylastigi ust salon) randevu-muaf listesinde mi? */
+    public static function randevuMuafSalonMu($salon)
+    {
+        if (!$salon) return false;
+        $liste = (array) config('whatsapp.randevu_muaf_salonlar', [236]);
+        if (in_array((int) $salon->id, $liste, true)) return true;
+        $ust = (int) ($salon->whatsapp_paylasilan_salon_id ?? 0);
+        return $ust > 0 && in_array($ust, $liste, true);
+    }
+
+    /**
+     * Salonun gunluk WA limiti — TEK KAYNAK (gonderim kapisi + panel/mobil gosterim).
+     * Randevu-muaf salonlar 250, diger tum salonlar varsayilan 200.
+     */
+    public static function gunlukLimit($salon)
+    {
+        if (self::randevuMuafSalonMu($salon)) {
+            return (int) config('whatsapp.randevu_muaf_daily_limit', 250);
+        }
+        return (int) config('whatsapp.default_daily_limit', 200);
+    }
+
     public function __construct()
     {
         $this->baseUrl = rtrim(config('whatsapp.service_url'), '/');
@@ -141,6 +179,8 @@ class WhatsAppService
         // LOG ise mesaji gonderen salona yazilir (kaynakSalonId): her isletme yalniz kendi
         // mesajlarini gorur. Gunluk limit oturumu paylasan salonlarin toplamindan sayilir (canSendToday).
         $kaynakSalonId = (int) $salon->id;
+        $randevuMuaf = self::randevuMuafSalonMu($salon)
+            && in_array($gonderimTipi, self::RANDEVU_LIMIT_MUAF_TIPLER, true);
         $salon = self::resolveWaSalon($salon);
 
         $normalized = $this->normalizePhone($to);
@@ -158,7 +198,13 @@ class WhatsAppService
 
         // Gunluk limit — guvenlik tipleri (sifre/OTP/cark) MUAF.
         // SMS kredisi yoksa sifre hic ulasmiyordu; kullanici karari.
-        if (!$this->dailyCapMuafMi($gonderimTipi) && !$this->canSendToday($salon)) {
+        // Randevu-muaf salonlarda randevu/hatirlatma tipleri de limite takilmaz;
+        // ama kanal kapaliysa (aktif/connected degil) yine gonderilmez.
+        if ($randevuMuaf) {
+            if (!$this->kanalAcikMi($salon)) {
+                return ['ok' => false, 'error' => 'daily-cap-reached'];
+            }
+        } elseif (!$this->dailyCapMuafMi($gonderimTipi) && !$this->canSendToday($salon)) {
             return ['ok' => false, 'error' => 'daily-cap-reached'];
         }
 
@@ -202,7 +248,7 @@ class WhatsAppService
             'message' => $message,
             'warmupStart' => optional($salon->whatsapp_warmup_baslangic)->toIso8601String()
                 ?: optional($salon->whatsapp_baglanti_tarihi)->toIso8601String(),
-            'dailyLimit' => (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 200)),
+            'dailyLimit' => self::gunlukLimit($salon),
             'logId' => $logId,
             'urgent' => $urgent,
         ]);
@@ -295,43 +341,51 @@ class WhatsAppService
         return ['ok' => false, 'error' => $resp['error'] ?? 'unknown', 'status' => $resp['status'] ?? 0, 'logId' => $logId, 'provider' => 'cloud_api'];
     }
 
+    /** Kanal gonderime acik mi (limitten bagimsiz): cloud_api kimlik / baileys aktif+connected. */
+    protected function kanalAcikMi(Salonlar $salon)
+    {
+        if (($salon->whatsapp_saglayici ?? 'baileys') === 'cloud_api') {
+            return !empty($salon->cloud_api_token) && !empty($salon->cloud_api_phone_number_id);
+        }
+        return $salon->whatsapp_aktif && $salon->whatsapp_durum === 'connected';
+    }
+
     public function canSendToday(Salonlar $salon)
     {
-        $saglayici = $salon->whatsapp_saglayici ?? 'baileys';
-
-        if ($saglayici === 'cloud_api') {
-            // Cloud API'de salon-level aktif/durum/limit kontrolü gevşek (Meta'nın kendi limit'leri var)
-            if (empty($salon->cloud_api_token) || empty($salon->cloud_api_phone_number_id)) {
-                return false;
-            }
+        if (!$this->kanalAcikMi($salon)) {
+            return false;
+        }
+        // Cloud API'de salon-level limit yok (Meta'nın kendi limit'leri var)
+        if (($salon->whatsapp_saglayici ?? 'baileys') === 'cloud_api') {
             return true;
         }
 
-        // Baileys: aktif + connected + gunluk limit
-        if (!$salon->whatsapp_aktif || $salon->whatsapp_durum !== 'connected') {
-            return false;
-        }
-        $limit = (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 200));
+        $limit = self::gunlukLimit($salon);
         if ($limit <= 0) return false;
 
         // Limit numaranin (oturumun) limiti: oturumu paylasan alt salonlarin mesajlari da sayilir.
         $oturumSalonlari = DB::table('salonlar')->where('whatsapp_paylasilan_salon_id', $salon->id)->pluck('id')->push($salon->id)->all();
-        $sentToday = DB::table('whatsapp_gonderim_loglari')
+        $q = DB::table('whatsapp_gonderim_loglari')
             ->whereIn('salon_id', $oturumSalonlari)
             ->where('durum', 1)
-            ->whereDate('gonderim_tarihi', Carbon::today())
-            ->count();
+            ->whereDate('gonderim_tarihi', Carbon::today());
+        // Randevu-muaf salonda randevu/hatirlatma mesajlari limitten SAYILMAZ.
+        // NOT IN tek basina NULL tipli satirlari da elerdi — NULL'lar sayilmaya devam eder.
+        if (self::randevuMuafSalonMu($salon) && \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_gonderim_loglari', 'gonderim_tipi')) {
+            $q->where(function ($w) {
+                $w->whereNull('gonderim_tipi')->orWhereNotIn('gonderim_tipi', self::RANDEVU_LIMIT_MUAF_TIPLER);
+            });
+        }
 
-        return $sentToday < $limit;
+        return $q->count() < $limit;
     }
 
     /**
-     * Warmup ramp kaldirildi — sadece salon.whatsapp_gunluk_limit kullaniliyor.
-     * Geriye uyumluluk icin metod korundu; tum cagrilar gunluk_limit donduruyor.
+     * Warmup ramp kaldirildi — geriye uyumluluk icin korundu; gunlukLimit() doner.
      */
     public function warmupCap(Salonlar $salon)
     {
-        return (int) ($salon->whatsapp_gunluk_limit ?: config('whatsapp.default_daily_limit', 200));
+        return self::gunlukLimit($salon);
     }
 
     public function withinBusinessHours()

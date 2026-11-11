@@ -210,7 +210,7 @@
                 <li><b>İpucu:</b> En az 2 haftadır kullanılan, WhatsApp Business uygulaması yüklü bir numara bağlamak en sağlıklı sonucu verir.</li>
             </ul>
             <div class="wa-meta">
-                <div>Günlük limit: <b id="wa-daily-limit">{{ $isletme->whatsapp_gunluk_limit ?? 150 }}</b></div>
+                <div>Günlük limit: <b id="wa-daily-limit">{{ \App\Services\WhatsAppService::gunlukLimit($isletme) }}</b></div>
                 <div id="wa-last-error-wrap" style="display:none">Son hata: <b id="wa-last-error">-</b></div>
             </div>
         </div>
