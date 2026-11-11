@@ -61,19 +61,13 @@ class WhatsAppService
     }
 
     /**
-     * Randevu bildirim/hatirlatma tipleri. config('whatsapp.randevu_muaf_salonlar')
-     * listesindeki salonlarda bu tipler gunluk limite TAKILMAZ ve limitten SAYILMAZ;
-     * limit yalniz kampanya/diger mesajlar icin isler.
+     * Randevu HATIRLATMA tipleri. config('whatsapp.randevu_muaf_salonlar') listesindeki
+     * salonlarda bu tipler gunluk limite TAKILMAZ ve limitten SAYILMAZ.
+     * (Yeni randevu/guncelleme/iptal bildirimleri muaf DEGIL — limitten sayilir.)
      */
     const RANDEVU_LIMIT_MUAF_TIPLER = [
         'randevu_hatirlatma_1gun',
         'randevu_hatirlatma',
-        'yeni_randevu_bildirim',
-        'guncelleme_bildirim',
-        'iptal_bildirim',
-        'personel_hatirlatma',
-        'randevu_onay_bildirim',
-        'randevu_bilgi',
     ];
 
     /** Salon (veya oturumunu paylastigi ust salon) randevu-muaf listesinde mi? */
@@ -88,13 +82,10 @@ class WhatsAppService
 
     /**
      * Salonun gunluk WA limiti — TEK KAYNAK (gonderim kapisi + panel/mobil gosterim).
-     * Randevu-muaf salonlar 250, diger tum salonlar varsayilan 200.
+     * Tum salonlar config default_daily_limit (200).
      */
     public static function gunlukLimit($salon)
     {
-        if (self::randevuMuafSalonMu($salon)) {
-            return (int) config('whatsapp.randevu_muaf_daily_limit', 250);
-        }
         return (int) config('whatsapp.default_daily_limit', 200);
     }
 
@@ -198,7 +189,7 @@ class WhatsAppService
 
         // Gunluk limit — guvenlik tipleri (sifre/OTP/cark) MUAF.
         // SMS kredisi yoksa sifre hic ulasmiyordu; kullanici karari.
-        // Randevu-muaf salonlarda randevu/hatirlatma tipleri de limite takilmaz;
+        // Randevu-muaf salonlarda hatirlatma tipleri de limite takilmaz;
         // ama kanal kapaliysa (aktif/connected degil) yine gonderilmez.
         if ($randevuMuaf) {
             if (!$this->kanalAcikMi($salon)) {
@@ -369,7 +360,7 @@ class WhatsAppService
             ->whereIn('salon_id', $oturumSalonlari)
             ->where('durum', 1)
             ->whereDate('gonderim_tarihi', Carbon::today());
-        // Randevu-muaf salonda randevu/hatirlatma mesajlari limitten SAYILMAZ.
+        // Randevu-muaf salonda hatirlatma mesajlari limitten SAYILMAZ.
         // NOT IN tek basina NULL tipli satirlari da elerdi — NULL'lar sayilmaya devam eder.
         if (self::randevuMuafSalonMu($salon) && \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_gonderim_loglari', 'gonderim_tipi')) {
             $q->where(function ($w) {

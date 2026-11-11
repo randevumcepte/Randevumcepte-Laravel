@@ -10,11 +10,9 @@ return [
     'webhook_secret' => env('WHATSAPP_WEBHOOK_SECRET', ''),
     'request_timeout' => (int) env('WHATSAPP_REQUEST_TIMEOUT', 10),
     'default_daily_limit' => (int) env('WHATSAPP_DEFAULT_DAILY_LIMIT', 200),
-    // Randevu mesajlari gunluk limitten MUAF tutulan salonlar (virgullu id listesi).
-    // Bu salonlarin limiti randevu_muaf_daily_limit'tir ve randevu/hatirlatma
-    // mesajlari ne limite takilir ne de limitten sayilir (limit = kampanya/diger mesajlar).
+    // Randevu HATIRLATMALARI gunluk limitten MUAF tutulan salonlar (virgullu id listesi).
+    // Limit (200) bu salonlarda da ayni; yalniz hatirlatmalar limite takilmaz ve sayilmaz.
     'randevu_muaf_salonlar' => array_values(array_filter(array_map('intval', explode(',', (string) env('WHATSAPP_RANDEVU_MUAF_SALONLAR', '236'))))),
-    'randevu_muaf_daily_limit' => (int) env('WHATSAPP_RANDEVU_MUAF_DAILY_LIMIT', 250),
     'business_hours' => [
         // 'enforce' = false ise saat kontrolü tamamen atlanır (24/7 gönderim).
         // Test ve sürekli akış için default kapalı bırakıldı.
