@@ -32,6 +32,12 @@ use Illuminate\Support\Facades\Schema;
  */
 class DamgaKartiServisi
 {
+    /**
+     * GECICI TEST (11 Kas 2026): true iken ileri tarihli ama "Geldi" isaretli randevular
+     * da damga sayilir. Test bitince false yapilacak (normal kural: gunu gelince sayilir).
+     */
+    const ILERI_TARIH_SAYILIR = true;
+
     private static $kolonOnbellek = [];
 
     private static function kolonVar($tablo, $kolon)
@@ -136,13 +142,15 @@ class DamgaKartiServisi
             ->where('r.durum', Randevular::ONAYLANDI)
             ->where('r.randevuya_geldi', 1)
             ->where('r.tarih', '>=', date('Y-m-d', strtotime($kural->baslangic)))
-            ->where('r.tarih', '<=', date('Y-m-d'))
             ->where('rh.hizmet_id', $hizmetId)
             ->whereNotExists(function ($s) {
                 $s->select(DB::raw(1))->from('adisyon_paket_seanslar as aps')
                     ->whereColumn('aps.randevu_id', 'r.id')
                     ->whereColumn('aps.hizmet_id', 'rh.hizmet_id');
             });
+        if (!self::ILERI_TARIH_SAYILIR) {
+            $q->where('r.tarih', '<=', date('Y-m-d'));
+        }
         if (self::kolonVar('randevu_hizmetler', 'yardimci_personel')) {
             $q->whereRaw('COALESCE(rh.yardimci_personel, 0) != 1');
         }
@@ -232,7 +240,7 @@ class DamgaKartiServisi
             $neden = null;
             if ((int) $s->durum !== Randevular::ONAYLANDI)          $neden = 'Onaylı değil';
             elseif ((int) $s->randevuya_geldi !== 1)                 $neden = '"Geldi" işaretli değil';
-            elseif ($s->tarih > $bugun)                              $neden = 'İleri tarihli (günü gelince sayılır)';
+            elseif (!self::ILERI_TARIH_SAYILIR && $s->tarih > $bugun)                              $neden = 'İleri tarihli (günü gelince sayılır)';
             elseif (!$baslangicGun || $s->tarih < $baslangicGun)     $neden = 'Kural açılmadan önce';
             elseif (in_array((int) $s->id, $paket, true))            $neden = 'Paket / seanslı satış seansı';
             elseif (!empty($s->sadece_telafi))                       $neden = 'Telafi seansı';
