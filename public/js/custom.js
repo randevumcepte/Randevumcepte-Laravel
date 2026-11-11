@@ -18098,7 +18098,7 @@ $('#personel_rapor_tablo').DataTable().destroy()
                 personelRaporTablo.columns.adjust().responsive.recalc();
              }
     }
-    else if(url != '' && satisTablo)
+    else if(url != '' && satisTablo && !window.ADISYON_SAYFA_TABLO_YONETIMI)
     {
       
          var namesType = $.fn.dataTable.absoluteOrder( [

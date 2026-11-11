@@ -1149,7 +1149,13 @@
 </style>
 
 <script>
+    // Bu sayfa adisyon tablolarini kendisi yonetir; custom.js'teki genel sekme isleyicisi dokunmaz.
+    window.ADISYON_SAYFA_TABLO_YONETIMI = true;
     var dataTablesInstances = {};
+    // Tablo basina guncel filtre (ajax data fonksiyonu her istekte buradan okur)
+    var tabloFiltre = {};
+    // Kurulumu (Turkish.json + ilk istek) bitmemis tabloya gelen yenileme istegi
+    var bekleyenYenileme = {};
     var activeTableId = null;
     var tumAdisyonAcikSayisi = 0;
     var tumAdisyonKapaliSayisi = 0;
@@ -1352,27 +1358,18 @@
                 break;
         }
 
-        // Tablo zaten başlatılmış mı kontrol et ve temizle
+        // Tablo zaten kuruluysa yikip yeniden kurma: filtreyi guncelle ve yeniden yukle.
+        // (Kurulumu bitmemis tabloyu destroy etmek "parentNode of null" hatasi verip tabloyu bos birakiyordu.)
         if (dataTablesInstances[tableId]) {
-            try {
-                // Önce responsive'yi temizle
-                if (dataTablesInstances[tableId].responsive) {
-                    dataTablesInstances[tableId].responsive.destroy();
-                }
-
-                // DataTable instance'ını tamamen yok et
-                dataTablesInstances[tableId].clear().destroy();
-            } catch (e) {
-                console.log('Temizleme hatası:', e);
+            tabloFiltre[tableId] = filtreDurumu(tur, personelId, startDate, endDate, satisDurumu);
+            var inst = dataTablesInstances[tableId];
+            var ayar = inst.settings()[0];
+            if (ayar && ayar.nTableWrapper) {
+                inst.ajax.reload();
+            } else {
+                bekleyenYenileme[tableId] = true;
             }
-
-            delete dataTablesInstances[tableId];
-
-            // Tabloyu tamamen temizle
-            $(tableId).empty();
-
-            // Orijinal HTML yapısını geri yükle
-            restoreTableHTML(tableId);
+            return;
         }
 
         // Yeni instance oluştur
@@ -1447,12 +1444,7 @@
             }
         }
 
-        var tarihAraligi = startDate + ' / ' + endDate;
-        if (!startDate || !endDate) {
-            var today = new Date();
-            var defaultDate = today.toISOString().split('T')[0];
-            tarihAraligi = defaultDate + ' / ' + defaultDate;
-        }
+        tabloFiltre[tableId] = filtreDurumu(tur, personelId, startDate, endDate, satisDurumu);
 
         var urlParams = new URLSearchParams(window.location.search);
         var sube = urlParams.get('sube') || '';
@@ -1479,12 +1471,13 @@
                 url: ajaxUrl,
                 type: "GET",
                 data: function(d) {
+                    var f = tabloFiltre[tableId] || {};
                     var data = {
                         sube: sube,
-                        tur: tur,
+                        tur: f.tur,
                         musteri_id: '',
-                        tariharaligi: tarihAraligi,
-                        personel_id: personelId,
+                        tariharaligi: f.tariharaligi,
+                        personel_id: f.personelId,
                         draw: d.draw,
                         start: d.start,
                         length: d.length,
@@ -1493,8 +1486,8 @@
                     };
 
                     // Adisyon durumu parametresini ekle (sadece adisyon tabloları için)
-                    if (!isTaksitTable && satisDurumu) {
-                        data.adisyondurumu = satisDurumu;
+                    if (!isTaksitTable && f.satisDurumu) {
+                        data.adisyondurumu = f.satisDurumu;
                     }
 
                     return data;
@@ -1558,6 +1551,10 @@
             },
             initComplete: function(settings, json) {
                 console.log(tableId + ' tablosu başarıyla yüklendi');
+                if (bekleyenYenileme[tableId]) {
+                    delete bekleyenYenileme[tableId];
+                    this.api().ajax.reload();
+                }
             }
         });
 
@@ -1565,6 +1562,14 @@
         return table;
         }
 
+    }
+    function filtreDurumu(tur, personelId, startDate, endDate, satisDurumu) {
+        var tarihAraligi = startDate + ' / ' + endDate;
+        if (!startDate || !endDate) {
+            var defaultDate = new Date().toISOString().split('T')[0];
+            tarihAraligi = defaultDate + ' / ' + defaultDate;
+        }
+        return { tur: tur, personelId: personelId || '', tariharaligi: tarihAraligi, satisDurumu: satisDurumu || '' };
     }
     // Tarih formatını kontrol eden yardımcı fonksiyon
     function isValidDate(dateString) {
