@@ -188,6 +188,16 @@ class DamgaKartiServisi
         ];
     }
 
+    /**
+     * Cok seanslik satis kalemi (seans_sayisi>1). Tum seanslarin bedelini tasir;
+     * %100 indirim tum seanslari bedava yapacagi icin damga uygulanmaz. Seanslari
+     * da adisyon_paket_seanslar'da tutuldugundan damga sayimina girmez.
+     */
+    private static function seansliKalem($ah)
+    {
+        return (int) ($ah->seans_sayisi ?? 0) > 1;
+    }
+
     private static function kalanBorc($ah)
     {
         $odenen = (float) TahsilatHizmetler::where('adisyon_hizmet_id', $ah->id)->sum('tutar');
@@ -208,7 +218,8 @@ class DamgaKartiServisi
         if ($kurallar->isEmpty()) return [];
 
         $kalemler = AdisyonHizmetler::where('adisyon_id', $adisyon->id)
-            ->whereIn('hizmet_id', $kurallar->keys()->all())->orderBy('id')->get();
+            ->whereIn('hizmet_id', $kurallar->keys()->all())->orderBy('id')->get()
+            ->filter(function ($ah) { return !self::seansliKalem($ah); })->values();
         if ($kalemler->isEmpty()) return [];
 
         $kullanimlar = DamgaKartiKullanimlari::whereIn('adisyon_hizmet_id', $kalemler->pluck('id')->all())
@@ -253,6 +264,9 @@ class DamgaKartiServisi
                 throw new \RuntimeException('Senetli/taksitli kaleme ücretsiz seans uygulanamaz.');
             }
             if ($ah->hediye) throw new \RuntimeException('Bu kalem zaten hediye olarak işaretli.');
+            if (self::seansliKalem($ah)) {
+                throw new \RuntimeException('Seanslı satışa ücretsiz seans uygulanamaz; tek seanslık kaleme uygulayın.');
+            }
             if (DamgaKartiKullanimlari::where('adisyon_hizmet_id', $ah->id)->exists()) {
                 throw new \RuntimeException('Bu kaleme ücretsiz seans zaten uygulanmış.');
             }
