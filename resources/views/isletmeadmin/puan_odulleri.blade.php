@@ -105,9 +105,13 @@
 .dk-acik { background:#d1fae5; color:#065f46; padding:2px 10px; border-radius:12px; font-weight:700; font-size:11px; }
 .dk-kapali { background:#f3f4f6; color:#6b7280; padding:2px 10px; border-radius:12px; font-weight:700; font-size:11px; }
 .dk-btn { padding:6px 10px; border-radius:7px; border:none; font-size:12px; font-weight:700; cursor:pointer; }
+.dk-select-kap { display:inline-block; min-width:260px; }
+.dk-select-kap .select2-container .select2-selection--single { height:40px; border:2px solid #e5e7eb; border-radius:8px; }
+.dk-select-kap .select2-container .select2-selection__rendered { line-height:36px; padding-left:10px; }
+.dk-select-kap .select2-container .select2-selection__arrow { height:38px; }
 .dk-select { min-width:200px; padding:8px 10px; border:2px solid #e5e7eb; border-radius:8px; font-size:14px; background:#fff; }
 .pk-satir input#dk-gereken, .pk-satir input#dk-ucretsiz { width:80px; }
-@media (max-width: 600px) { .dk-tablo th:nth-child(4), .dk-tablo td:nth-child(4) { display:none; } .dk-select { min-width:0; width:100%; } }
+@media (max-width: 600px) { .dk-tablo th:nth-child(4), .dk-tablo td:nth-child(4) { display:none; } .dk-select, .dk-select-kap { min-width:0; width:100%; } }
 
 #toast { position:fixed; top:20px; right:20px; z-index:11000; padding:14px 20px; background:#10b981; color:#fff; border-radius:10px; font-weight:600; box-shadow:0 10px 30px rgba(0,0,0,.2); display:none; }
 #toast.show { display:block; }
@@ -173,12 +177,12 @@
 
         <input type="hidden" id="dk-id" value="">
         <div class="pk-satir">
-            <select id="dk-hizmet" class="dk-select">
+            <span class="dk-select-kap"><select id="dk-hizmet" class="dk-select">
                 <option value="">Hizmet seçin…</option>
                 @foreach($damgaHizmetleri as $h)
                     <option value="{{ $h->id }}">{{ $h->hizmet_adi }}</option>
                 @endforeach
-            </select>
+            </select></span>
             hizmetini <input type="number" id="dk-gereken" min="1" max="100" step="1" value="4"> kez alana
             <input type="number" id="dk-ucretsiz" min="1" max="10" step="1" value="1"> seans ücretsiz
             <label style="display:flex;align-items:center;gap:6px;font-weight:700;margin:0 0 0 6px;"><input type="checkbox" id="dk-aktif" checked> Açık</label>
@@ -343,6 +347,21 @@ function onayla(baslik, metin) {
     }).then(function (r) { return !!(r && r.value); }, function () { return false; });
 }
 
+/* Hizmet secimi aranabilir (select2, panelde yuklu). Yoksa duz select kalir. */
+function dkHizmetSec(deger) {
+    const el = document.getElementById('dk-hizmet');
+    el.value = deger;
+    if (window.jQuery && jQuery.fn.select2 && jQuery(el).hasClass('select2-hidden-accessible')) jQuery(el).trigger('change');
+}
+document.addEventListener('DOMContentLoaded', function () {
+    if (!window.jQuery || !jQuery.fn.select2) return;
+    jQuery('#dk-hizmet').select2({
+        width: '100%',
+        placeholder: 'Hizmet ara veya seçin…',
+        language: { noResults: function () { return 'Hizmet bulunamadı'; } },
+    });
+});
+
 async function dkIstek(url, veri) {
     const resp = await fetch(url, {
         method: 'POST',
@@ -354,7 +373,7 @@ async function dkIstek(url, veri) {
 
 function dkDuzenle(k) {
     document.getElementById('dk-id').value = k.id;
-    document.getElementById('dk-hizmet').value = k.hizmet_id;
+    dkHizmetSec(k.hizmet_id);
     document.getElementById('dk-gereken').value = k.gereken_adet;
     document.getElementById('dk-ucretsiz').value = k.ucretsiz_adet;
     document.getElementById('dk-aktif').checked = !!k.aktif;
@@ -365,7 +384,7 @@ function dkDuzenle(k) {
 
 function dkTemizle() {
     document.getElementById('dk-id').value = '';
-    document.getElementById('dk-hizmet').value = '';
+    dkHizmetSec('');
     document.getElementById('dk-gereken').value = 4;
     document.getElementById('dk-ucretsiz').value = 1;
     document.getElementById('dk-aktif').checked = true;

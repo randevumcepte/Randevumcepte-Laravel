@@ -118,6 +118,24 @@
          @endforeach
       </div>
       <script>
+      /* Sayfayi yenilemeden: ayni sayfanin guncel HTML'inden damga kutusu, kalemler ve
+         gecmis odemeler alinip yerine konur (blade tek kaynak, ayri render kodu yok),
+         ardindan tutarlar tahsilatyenidenhesapla() ile yeniden hesaplanir. */
+      function ekraniYenile() {
+         return fetch(location.href, { credentials: 'same-origin', headers: { 'Accept': 'text/html' } })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+            .then(function (html) {
+               var doc = new DOMParser().parseFromString(html, 'text/html');
+               ['damga-karti-kutu', 'tum_tahsilatlar', 'tahsilat_listesi'].forEach(function (id) {
+                  var yeni = doc.getElementById(id), eski = document.getElementById(id);
+                  if (!eski) return;
+                  if (!yeni) { if (id === 'damga-karti-kutu') eski.remove(); return; }
+                  if (window.jQuery) jQuery(eski).html(yeni.innerHTML); else eski.innerHTML = yeni.innerHTML;
+               });
+               if (typeof tahsilatyenidenhesapla === 'function') tahsilatyenidenhesapla();
+            })
+            .catch(function () { location.reload(); });
+      }
       document.addEventListener('click', function (e) {
          var btn = e.target.closest ? e.target.closest('.damga-karti-islem') : null;
          if (!btn) return;
@@ -152,10 +170,9 @@
                   : { aksiyon: 'uygula', adisyon_hizmet_id: btn.getAttribute('data-kalem') })
             }).then(function (r) { return r.json(); }).then(function (d) {
                if (!d.success) { hata(d.message || 'İşlem yapılamadı.'); return; }
-               if (window.swal) {
-                  swal({ title: geriAl ? 'Geri alındı' : 'Ücretsiz seans uygulandı', type: 'success', timer: 1200, showConfirmButton: false })
-                     .then(function () { location.reload(); }, function () { location.reload(); });
-               } else location.reload();
+               ekraniYenile().then(function () {
+                  if (window.swal) swal({ title: geriAl ? 'Geri alındı' : 'Ücretsiz seans uygulandı', type: 'success', timer: 1200, showConfirmButton: false });
+               });
             }).catch(function () { hata('Bağlantı hatası. Lütfen tekrar deneyin.'); });
          };
          if (!window.swal) { if (confirm(btn.getAttribute('data-hizmet') + ' — devam edilsin mi?')) gonder(); return; }
