@@ -26,6 +26,7 @@ class Kernel extends ConsoleKernel
         Commands\PersonelYetkiliTeshis::class,
         Commands\AramaRandevuAktar::class,
         Commands\SadakatPuanIsle::class,
+        Commands\DamgaKartiBildirim::class,
 
         Commands\SMSGonder::class,
         Commands\RandevuSMSHatirlatma::class,
@@ -129,6 +130,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('cark:hatirlatma-gonder')->withoutOverlapping()->everyFiveMinutes();
         // Sadakat puani kazanimi (tahsilat + gelinen randevu -> puan; silinene geri al)
         $schedule->command('sadakat:puan-isle')->withoutOverlapping()->everyFiveMinutes();
+        $schedule->command('damga:bildirim')->withoutOverlapping()->everyTenMinutes();
 
         // İlaç ve ölçüm hatırlatmaları — kullanıcının belirlediği saatte (HH:i) tetiklenir
         $schedule->command('ilac:hatirlatma-calistir')->withoutOverlapping()->everyMinute();

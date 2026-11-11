@@ -41,6 +41,9 @@ class NotificationTypes
     public const DISCOUNT                  = 'discount';
     public const WHEEL_CHANCE              = 'wheel_chance';
     public const BIRTHDAY                  = 'birthday';
+    // Damga karti doldu: musteri ucretsiz seans kazandi (Flutter: Puan Odullerim acilir;
+    // tipi bilmeyen eski app surumleri varsayilan olarak Bildirimler ekranini acar).
+    public const DAMGA_KAZANILDI           = 'stamp_reward';
 
     // Geri besleme
     public const SURVEY                    = 'survey';

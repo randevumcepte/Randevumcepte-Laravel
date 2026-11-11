@@ -724,7 +724,19 @@ class CarkifelekMusteriController extends Controller
             'odulSeviyeleri' => $odulSeviyeleri,
             'puanKayitlari'  => $puanKayitlari,
             'tumSalonlar'    => $tumSalonlar,
+            'damgaKartlari'  => $this->damgaKartlariGuvenli($salonId, $userId),
         ]));
+    }
+
+    /** Damga karti okumasi sayfayi asla dusurmesin (tablo yok / hata -> bos liste). */
+    private function damgaKartlariGuvenli($salonId, $userId)
+    {
+        try {
+            return \App\Services\DamgaKartiServisi::musteriKartlari($salonId, $userId);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[damga musteri web] ' . $e->getMessage());
+            return [];
+        }
     }
 
     /**

@@ -113,6 +113,24 @@
 .ts-box .kupon-lbl { display:block; font-size:12px; color:#6b7280; margin-bottom:4px; font-family: inherit; letter-spacing: normal; font-weight:500; }
 .ts-kap { margin-top:14px; padding:12px 32px; background:#6c5ce7; color:#fff; border:none; border-radius:50px; font-weight:700; cursor:pointer; }
 
+.dk-kutu { background:#fff; border-radius:16px; padding:18px 20px; box-shadow:0 4px 18px rgba(0,0,0,.06); margin-top:14px; }
+.dk-kutu h2 { margin:0 0 4px; font-size:17px; font-weight:800; color:#111827; }
+.dk-kutu .dk-alt { font-size:13px; color:#6b7280; margin:0 0 6px; }
+.dk-kart { padding:14px 0; border-top:1px solid #f3f4f6; }
+.dk-kart:first-of-type { border-top:none; }
+.dk-bas { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; }
+.dk-bas b { font-size:15px; color:#374151; }
+.dk-bas span { font-size:13px; font-weight:700; color:#8b5cf6; }
+.dk-damgalar { display:flex; flex-wrap:wrap; gap:7px; margin:10px 0 8px; align-items:center; }
+.dk-damga { width:32px; height:32px; border-radius:50%; border:1.5px solid rgba(139,92,246,.35); color:rgba(139,92,246,.6); display:flex; align-items:center; justify-content:center; font-size:12px; }
+.dk-damga.dolu { background:#8b5cf6; border-color:#8b5cf6; color:#fff; font-weight:800; }
+.dk-hediye { height:32px; padding:0 12px; border-radius:16px; background:#ecfdf5; border:1px solid rgba(16,185,129,.5); color:#047857; font-size:12px; font-weight:800; display:flex; align-items:center; }
+.dk-hak { background:#ecfdf5; color:#047857; border-radius:12px; padding:10px 12px; font-size:13px; font-weight:700; }
+.dk-not { font-size:13px; color:#6b7280; }
+.dk-ozet { font-size:13px; font-weight:600; color:#374151; margin-top:8px; }
+.dk-kul { display:flex; justify-content:space-between; font-size:13px; color:#6b7280; margin-top:5px; }
+.dk-kul b { color:#059669; }
+
 #toast { position:fixed; top:20px; right:20px; z-index:10000; padding:14px 20px; background:#10b981; color:#fff; border-radius:10px; font-weight:600; box-shadow:0 10px 30px rgba(0,0,0,.2); display:none; }
 #toast.show { display:block; }
 #toast.err { background:#ef4444; }
@@ -139,6 +157,49 @@
                         {{ $s->salon_adi }} ({{ (int) $pk->puan }})
                     </a>
                 @endif
+            @endforeach
+        </div>
+    @endif
+
+    @if(!empty($damgaKartlari))
+        <div class="dk-kutu">
+            <h2>🎟️ Damga Kartlarım</h2>
+            <p class="dk-alt">Hizmeti aldıkça damga toplarsınız; kart dolunca sonraki seansınız ücretsiz.</p>
+            @foreach($damgaKartlari as $dk)
+                <div class="dk-kart">
+                    <div class="dk-bas">
+                        <b>{{ $dk['hizmet_adi'] }}</b>
+                        <span>{{ $dk['gereken_adet'] }} al, {{ $dk['ucretsiz_adet'] }} ücretsiz</span>
+                    </div>
+                    @if($dk['aktif'])
+                        <div class="dk-damgalar">
+                            @for($i = 0; $i < $dk['gereken_adet']; $i++)
+                                @if($i < $dk['ilerleme'])
+                                    <div class="dk-damga dolu">✓</div>
+                                @else
+                                    <div class="dk-damga">{{ $i + 1 }}</div>
+                                @endif
+                            @endfor
+                            <div class="dk-hediye">🎁 Ücretsiz</div>
+                        </div>
+                    @endif
+                    @if($dk['hak'] > 0)
+                        <div class="dk-hak">🎉 {{ $dk['hak'] }} ücretsiz seans hakkınız var! Bir sonraki {{ $dk['hizmet_adi'] }} seansınızda kullanabilirsiniz.</div>
+                    @elseif($dk['aktif'])
+                        <div class="dk-not">{{ $dk['gereken_adet'] - $dk['ilerleme'] }} seans sonra ücretsiz seans kazanırsınız.</div>
+                    @else
+                        <div class="dk-not" style="color:#9ca3af;">Bu kampanya sona erdi.</div>
+                    @endif
+                    @if($dk['kazanilan'] > 0 || $dk['kullanilan'] > 0)
+                        <div class="dk-ozet">Bu karttan kazanılan: {{ $dk['kazanilan'] }} ücretsiz seans · kullanılan: {{ $dk['kullanilan'] }}</div>
+                    @endif
+                    @foreach($dk['kullanimlar'] as $ku)
+                        <div class="dk-kul">
+                            <span>🎁 Ücretsiz seans · {{ date('d.m.Y', strtotime($ku['tarih'])) }}</span>
+                            @if($ku['tutar'] > 0)<b>{{ number_format($ku['tutar'], $ku['tutar'] == floor($ku['tutar']) ? 0 : 2, ',', '.') }} ₺ kazanç</b>@endif
+                        </div>
+                    @endforeach
+                </div>
             @endforeach
         </div>
     @endif
