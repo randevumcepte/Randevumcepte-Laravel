@@ -122,22 +122,47 @@
          var btn = e.target.closest ? e.target.closest('.damga-karti-islem') : null;
          if (!btn) return;
          var geriAl = btn.getAttribute('data-aksiyon') === 'geri_al';
-         var soru = geriAl
-            ? 'Ücretsiz seans geri alınsın mı? İndirim kaldırılır ve 0 TL tahsilat kaydı silinir; müşterinin hakkı geri gelir.'
-            : btn.getAttribute('data-hizmet') + ' bu seans ücretsiz yapılsın mı? ' + btn.getAttribute('data-tutar') + ' ₺ indirim uygulanır ve 0 TL tahsilat olarak kaydedilir.';
-         if (!confirm(soru)) return;
-         btn.disabled = true;
-         var tokenInput = document.querySelector('input[name="_token"]');
-         fetch('/isletmeyonetim/damgakartiuygula?sube={{ $isletme->id }}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': tokenInput ? tokenInput.value : '' },
-            body: JSON.stringify(geriAl
-               ? { aksiyon: 'geri_al', kullanim_id: btn.getAttribute('data-kullanim') }
-               : { aksiyon: 'uygula', adisyon_hizmet_id: btn.getAttribute('data-kalem') })
-         }).then(function (r) { return r.json(); }).then(function (d) {
-            if (!d.success) { alert(d.message || 'İşlem yapılamadı.'); btn.disabled = false; return; }
-            location.reload();
-         }).catch(function () { alert('Bağlantı hatası.'); btn.disabled = false; });
+         var esc = function (s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
+         var hizmet = esc(btn.getAttribute('data-hizmet')), tutar = esc(btn.getAttribute('data-tutar'));
+         var secenek = geriAl ? {
+            title: 'Ücretsiz seans geri alınsın mı?',
+            html: '<div style="color:#4b5563;font-size:15px;line-height:1.6;">İndirim kaldırılır, 0 TL tahsilat kaydı silinir.<br>Müşterinin ücretsiz seans hakkı geri gelir.</div>',
+            type: 'warning', confirmButtonText: 'Evet, geri al', confirmButtonColor: '#5C008E'
+         } : {
+            title: '🎁 Ücretsiz seans',
+            html: '<div style="color:#4b5563;font-size:15px;line-height:1.6;"><b style="color:#111827;">' + hizmet + '</b> bu seans ücretsiz yapılacak.'
+               + '<div style="display:flex;justify-content:space-between;background:#f5f3ff;border-radius:10px;padding:10px 14px;margin-top:12px;text-align:left;">'
+               + '<span>Uygulanacak indirim</span><b style="color:#5C008E;">' + tutar + ' ₺</b></div>'
+               + '<div style="font-size:13px;color:#6b7280;margin-top:8px;">Satışa 0 TL tahsilat olarak kaydedilir.</div></div>',
+            type: 'question', confirmButtonText: 'Ücretsiz Uygula', confirmButtonColor: '#16a34a'
+         };
+         var hata = function (msg) {
+            btn.disabled = false;
+            if (window.swal) swal({ title: 'İşlem yapılamadı', text: msg, type: 'error', confirmButtonColor: '#5C008E', confirmButtonText: 'Tamam' });
+            else alert(msg);
+         };
+         var gonder = function () {
+            btn.disabled = true;
+            var tokenInput = document.querySelector('input[name="_token"]');
+            fetch('/isletmeyonetim/damgakartiuygula?sube={{ $isletme->id }}', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': tokenInput ? tokenInput.value : '' },
+               body: JSON.stringify(geriAl
+                  ? { aksiyon: 'geri_al', kullanim_id: btn.getAttribute('data-kullanim') }
+                  : { aksiyon: 'uygula', adisyon_hizmet_id: btn.getAttribute('data-kalem') })
+            }).then(function (r) { return r.json(); }).then(function (d) {
+               if (!d.success) { hata(d.message || 'İşlem yapılamadı.'); return; }
+               if (window.swal) {
+                  swal({ title: geriAl ? 'Geri alındı' : 'Ücretsiz seans uygulandı', type: 'success', timer: 1200, showConfirmButton: false })
+                     .then(function () { location.reload(); }, function () { location.reload(); });
+               } else location.reload();
+            }).catch(function () { hata('Bağlantı hatası. Lütfen tekrar deneyin.'); });
+         };
+         if (!window.swal) { if (confirm(btn.getAttribute('data-hizmet') + ' — devam edilsin mi?')) gonder(); return; }
+         swal(Object.assign({
+            showCancelButton: true, cancelButtonText: 'Vazgeç', cancelButtonColor: '#9ca3af',
+            reverseButtons: true, focusCancel: true
+         }, secenek)).then(function (sonuc) { if (sonuc && sonuc.value) gonder(); });
       });
       </script>
       @endif

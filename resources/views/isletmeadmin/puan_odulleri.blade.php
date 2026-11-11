@@ -332,6 +332,17 @@ pkGuncelle();
 const DAMGA_KAYDET_URL = '{{ url("/isletmeyonetim/damgakartikaydet") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}';
 const DAMGA_SIL_URL    = '{{ url("/isletmeyonetim/damgakartisil") }}{{ isset($_GET["sube"]) ? "?sube=".$isletme->id : "" }}';
 
+/** Modern onay penceresi (SweetAlert2 v7); yoksa tarayici confirm'ine duser. */
+function onayla(baslik, metin) {
+    if (!window.swal) return Promise.resolve(confirm(baslik + ' ' + metin));
+    return swal({
+        title: baslik, text: metin, type: 'warning',
+        showCancelButton: true, reverseButtons: true, focusCancel: true,
+        confirmButtonText: 'Evet, sil', confirmButtonColor: '#dc2626',
+        cancelButtonText: 'Vazgeç', cancelButtonColor: '#9ca3af',
+    }).then(function (r) { return !!(r && r.value); }, function () { return false; });
+}
+
 async function dkIstek(url, veri) {
     const resp = await fetch(url, {
         method: 'POST',
@@ -384,7 +395,7 @@ async function dkKaydet() {
 }
 
 async function dkSil(id) {
-    if (!confirm('Bu damga kartı kuralı silinsin mi?')) return;
+    if (!(await onayla('Kural silinsin mi?', 'Bu damga kartı kuralı silinecek.'))) return;
     try {
         const data = await dkIstek(DAMGA_SIL_URL, { id: id });
         if (!data.success) { showToast(data.message || 'Hata', true); return; }
@@ -498,7 +509,7 @@ async function kaydet() {
 }
 
 async function sil(id) {
-    if (!confirm('Bu puan ödülünü silmek istediğinize emin misiniz?')) return;
+    if (!(await onayla('Ödül silinsin mi?', 'Bu puan ödülü merdivenden kaldırılacak.'))) return;
     try {
         const resp = await fetch(SIL_URL, {
             method: 'POST',
