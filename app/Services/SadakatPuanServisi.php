@@ -193,6 +193,142 @@ class SadakatPuanServisi
         });
     }
 
+    /** Musteri ekraninda kaynak etiketleri (sira = ozet sirasi). */
+    const KAYNAK_ETIKET = [
+        'tahsilat' => 'Ödemeler',
+        'randevu'  => 'Gelinen randevular',
+        'cark'     => 'Çarkıfelek',
+        'anket'    => 'Memnuniyet anketi',
+        'google'   => 'Google yorumu',
+        'harcama'  => 'Ödüle çevrilen',
+        'diger'    => 'Diğer / önceki işlemler',
+    ];
+
+    /**
+     * Musterinin bir salondaki puanlarinin NEREDEN geldigi (ve nereye harcandigi).
+     *
+     * Bakiyeyi yazan 5+ yol var (cark v1/v2, anket, Google yorumu, kazanim cron'u,
+     * odul talebi) ve yalniz kazanim defterlidir. Bu yuzden gecmis OKUMA aninda kaynak
+     * tablolardan kurulur; hicbir yazma yoluna dokunulmaz, eski puanlar da gorunur.
+     *  - cark: carkifelek_cevirme_loglari (tip=puan) — kesin tutar.
+     *  - tahsilat/randevu: sadakat_puan_hareketleri — kesin tutar.
+     *  - anket / google: verilen tutar saklanmiyor -> sablonun / salonun GUNCEL puani.
+     *  - harcama: puan odulu basligiyla eslesen kupon -> odulun GUNCEL esigi.
+     * Bakiye ile toplam arasindaki fark "diger" satiriyla kapatilir (ozet daima bakiyeye esit).
+     *
+     * @return array ['ozet' => [[kaynak, etiket, puan]], 'hareketler' => [[tarih, kaynak, etiket, aciklama, puan]]]
+     */
+    public static function gecmis($salonId, $userId, $bakiye, $limit = 100)
+    {
+        $salonId = (int) $salonId;
+        $userId  = (int) $userId;
+        $h = [];
+        $ekle = function ($tarih, $kaynak, $aciklama, $puan) use (&$h) {
+            if ((float) $puan == 0) return;
+            $h[] = [
+                'tarih'    => $tarih ? date('Y-m-d H:i:s', strtotime($tarih)) : null,
+                'kaynak'   => $kaynak,
+                'etiket'   => self::KAYNAK_ETIKET[$kaynak],
+                'aciklama' => (string) $aciklama,
+                'puan'     => (int) round((float) $puan),
+            ];
+        };
+        // Her kaynak bagimsiz: biri patlarsa (eksik kolon vb.) digerleri yine gelir.
+        $guvenli = function (callable $f) {
+            try { $f(); } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[sadakat gecmis] ' . $e->getMessage());
+            }
+        };
+
+        $guvenli(function () use ($salonId, $userId, $ekle) {
+            DB::table('carkifelek_cevirme_loglari')
+                ->where('salon_id', $salonId)->where('user_id', $userId)
+                ->where('tip', 'puan')->where('deger', '>', 0)
+                ->get(['deger', 'dilim_ismi', 'created_at'])
+                ->each(function ($r) use ($ekle) {
+                    $ekle($r->created_at, 'cark', $r->dilim_ismi ?: 'Çark çevirme ödülü', $r->deger);
+                });
+        });
+
+        $guvenli(function () use ($salonId, $userId, $ekle) {
+            DB::table('sadakat_puan_hareketleri as h')
+                ->leftJoin('tahsilatlar as t', function ($j) {
+                    $j->on('t.id', '=', 'h.kaynak_id')->where('h.kaynak', '=', 'tahsilat');
+                })
+                ->leftJoin('randevular as r', function ($j) {
+                    $j->on('r.id', '=', 'h.kaynak_id')->where('h.kaynak', '=', 'randevu');
+                })
+                ->where('h.salon_id', $salonId)->where('h.user_id', $userId)->where('h.puan', '>', 0)
+                ->get(['h.kaynak', 'h.puan', 'h.created_at', 't.tutar', 't.odeme_tarihi', 'r.tarih'])
+                ->each(function ($r) use ($ekle) {
+                    if ($r->kaynak === 'tahsilat') {
+                        $acik = $r->tutar !== null
+                            ? number_format((float) $r->tutar, 2, ',', '.') . ' TL ödeme'
+                            : 'Ödeme';
+                        $ekle($r->odeme_tarihi ?: $r->created_at, 'tahsilat', $acik, $r->puan);
+                    } elseif ($r->kaynak === 'randevu') {
+                        $acik = $r->tarih ? date('d.m.Y', strtotime($r->tarih)) . ' tarihli randevu' : 'Randevu';
+                        $ekle($r->tarih ?: $r->created_at, 'randevu', $acik, $r->puan);
+                    }
+                });
+        });
+
+        $guvenli(function () use ($salonId, $userId, $ekle) {
+            DB::table('anket_gonderimleri as g')
+                ->join('anket_sablonlari as s', 's.id', '=', 'g.sablon_id')
+                ->where('g.salon_id', $salonId)->where('g.user_id', $userId)
+                ->where('g.odul_verildi', 1)->whereNull('g.odul_kupon_id')
+                ->where('s.odul_tipi', 'puan')->where('s.odul_puan', '>', 0)
+                ->get(['s.odul_puan', 'g.cevap_zamani', 'g.updated_at'])
+                ->each(function ($r) use ($ekle) {
+                    $ekle($r->cevap_zamani ?: $r->updated_at, 'anket', 'Anketi yanıtladınız', $r->odul_puan);
+                });
+        });
+
+        $guvenli(function () use ($salonId, $userId, $ekle) {
+            $salon = DB::table('salonlar')->where('id', $salonId)->first(['google_odul_tipi', 'google_odul_puan']);
+            if (!$salon || $salon->google_odul_tipi !== 'puan' || (float) $salon->google_odul_puan <= 0) return;
+            DB::table('anket_gonderimleri')
+                ->where('salon_id', $salonId)->where('user_id', $userId)
+                ->where('google_odul_verildi', 1)->whereNull('google_odul_kupon_id')
+                ->get(['updated_at'])
+                ->each(function ($r) use ($ekle, $salon) {
+                    $ekle($r->updated_at, 'google', 'Google’da yorum yaptınız', $salon->google_odul_puan);
+                });
+        });
+
+        $guvenli(function () use ($salonId, $userId, $ekle) {
+            $esikler = DB::table('salon_puan_odulleri')->where('salon_id', $salonId)
+                ->orderBy('id')->get(['baslik', 'puan_esigi'])
+                ->unique('baslik')->pluck('puan_esigi', 'baslik')->all();
+            if (!$esikler) return;
+            DB::table('carkifelek_odulleri')
+                ->where('salon_id', $salonId)->where('user_id', $userId)
+                ->whereNull('log_id')->whereIn('baslik', array_keys($esikler))
+                ->get(['baslik', 'created_at'])
+                ->each(function ($r) use ($ekle, $esikler) {
+                    $ekle($r->created_at, 'harcama', $r->baslik . ' ödülü alındı', -((float) $esikler[$r->baslik]));
+                });
+        });
+
+        // Ozet: kaynak bazli toplam + bakiyeye esitleyen fark satiri.
+        $toplam = [];
+        foreach ($h as $x) {
+            $toplam[$x['kaynak']] = ($toplam[$x['kaynak']] ?? 0) + $x['puan'];
+        }
+        $fark = (int) round((float) $bakiye) - array_sum($toplam);
+        if ($fark != 0) $toplam['diger'] = $fark;
+
+        $ozet = [];
+        foreach (self::KAYNAK_ETIKET as $k => $etiket) {
+            if (!empty($toplam[$k])) $ozet[] = ['kaynak' => $k, 'etiket' => $etiket, 'puan' => (int) $toplam[$k]];
+        }
+
+        usort($h, function ($a, $b) { return strcmp((string) $b['tarih'], (string) $a['tarih']); });
+
+        return ['ozet' => $ozet, 'hareketler' => array_slice($h, 0, $limit)];
+    }
+
     /** Atomik bakiye degisimi (puan talebiyle yaris olmasin diye read-modify-write yok). */
     private static function bakiyeEkle($salonId, $userId, $delta)
     {

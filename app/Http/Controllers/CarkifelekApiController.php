@@ -394,6 +394,8 @@ class CarkifelekApiController extends Controller
             'puanBakiyesi'   => $puanBakiyesi,
             'odulSeviyeleri' => $odulSeviyeleri,
             'puanKayitlari'  => $puanKayitlariJson,
+            // Puanlarin nereden geldigi (kaynak ozeti + hareket listesi). Eski app surumleri yok sayar.
+            'puanGecmisi'    => \App\Services\SadakatPuanServisi::gecmis($salonId, $userId, $puanBakiyesi),
         ]);
     }
 
