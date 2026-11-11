@@ -17881,6 +17881,18 @@ $('#on_gorusme_liste').on('click','a[name="satisyapilmamasebep"]',function(e){
          showConfirmButton:false,
      });
 });
+// Satis Takibi sekmeleri: tablo kurulumu (Turkish.json/ajax) bitmeden destroy edilirse
+// nTableWrapper null -> "Cannot read properties of null (reading 'parentNode')". Yarim kurulumu atla.
+function adisyonTablosuYokEt(sec){
+    var el = $(sec)[0];
+    if(!el) return false;
+    if(!$.fn.dataTable.isDataTable(el)) return true;
+    var api = $(el).DataTable();
+    var ayar = api.settings()[0];
+    if(!ayar || !ayar.nTableWrapper || !ayar.nTableWrapper.parentNode) return false; // kurulum suruyor
+    try { api.destroy(); } catch(e){ return false; }
+    return true;
+}
 //Datatable içeren tablar tıklandığında çalışacak olan kod
 $('.tab-pane,.tab-content, button[data-toggle="tab"],a[data-toggle="tab"]').on('shown.bs.tab',function(event){
     var url = '';
@@ -18093,7 +18105,7 @@ $('#personel_rapor_tablo').DataTable().destroy()
                      { value: null, position: 'bottom' }
                      ] );
                  $.fn.dataTable.moment('DD.MM.YYYY');
-               $('#adisyon_liste').DataTable().destroy();
+               if(adisyonTablosuYokEt('#adisyon_liste'))
                $('#adisyon_liste').DataTable({
                        autoWidth: false,
                        responsive: true,
@@ -18148,7 +18160,7 @@ $('#personel_rapor_tablo').DataTable().destroy()
                            }
                        }, 
                });
-               $('#adisyon_liste_musteri').DataTable().destroy();
+               if(adisyonTablosuYokEt('#adisyon_liste_musteri'))
                $('#adisyon_liste_musteri').DataTable({
                        autoWidth: false,
                        responsive: true,
@@ -18207,7 +18219,7 @@ $('#personel_rapor_tablo').DataTable().destroy()
                            }
                        }, 
                });
-                $('#adisyon_liste_hizmet').DataTable().destroy();
+                if(adisyonTablosuYokEt('#adisyon_liste_hizmet'))
                $('#adisyon_liste_hizmet').DataTable({
                        autoWidth: false,
                        responsive: true,
@@ -18262,7 +18274,7 @@ $('#personel_rapor_tablo').DataTable().destroy()
                            }
                        }, 
                });
-                $('#adisyon_liste_urun').DataTable().destroy();
+                if(adisyonTablosuYokEt('#adisyon_liste_urun'))
                 $('#adisyon_liste_urun').DataTable({
                        autoWidth: false,
                        responsive: true,
@@ -18317,7 +18329,7 @@ $('#personel_rapor_tablo').DataTable().destroy()
                            }
                        }, 
                });
-                $('#adisyon_liste_paket').DataTable().destroy();
+                if(adisyonTablosuYokEt('#adisyon_liste_paket'))
                  $('#adisyon_liste_paket').DataTable({
                        autoWidth: false,
                        responsive: true,
