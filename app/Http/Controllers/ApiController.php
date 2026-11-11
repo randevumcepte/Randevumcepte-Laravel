@@ -7516,6 +7516,31 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             ];
         }
 
+        // Aktif damga karti kurallari ("N al M ucretsiz") da kampanya olarak listelenir (en ustte).
+        // Ayni alanlar doldurulur; eski app surumleri bunlari genel kampanya karti gibi gosterir.
+        try {
+            $damga = [];
+            foreach (\App\Services\DamgaKartiServisi::kurallar($salonId, true) as $dk) {
+                $hizmet = $dk->hizmet_adi ?: 'Hizmet';
+                $damga[] = [
+                    'id'          => (int) $dk->id,
+                    'baslik'      => "🎟️ {$hizmet}: {$dk->gereken_adet} al, {$dk->ucretsiz_adet} ücretsiz",
+                    'aciklama'    => "{$hizmet} hizmetini {$dk->gereken_adet} kez alana {$dk->ucretsiz_adet} seans ücretsiz! Damgalarınızı Puan Ödüllerim'den takip edebilirsiniz.",
+                    'indirim'     => 0,
+                    'tip'         => 'damga',
+                    'fiyat'       => null,
+                    'normalFiyat' => null,
+                    'bitisTarihi' => null,
+                    'kalanGun'    => null,
+                    'gereken'     => (int) $dk->gereken_adet,
+                    'ucretsiz'    => (int) $dk->ucretsiz_adet,
+                ];
+            }
+            $out = array_merge($damga, $out);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[musteriKampanyalari damga] ' . $e->getMessage());
+        }
+
         return response()->json([
             'count'       => count($out),
             'kampanyalar' => $out,
