@@ -1455,7 +1455,7 @@
         console.log('Tabloyu başlatıyorum:', {
             tableId: tableId,
             tur: tur,
-            tarihAraligi: tarihAraligi,
+            tarihAraligi: tabloFiltre[tableId].tariharaligi,
             personelId: personelId,
             satisDurumu: satisDurumu
         });
