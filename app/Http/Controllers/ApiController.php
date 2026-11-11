@@ -32277,6 +32277,40 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         return response()->json(['basarili' => true]);
     }
 
+    // Mobil tahsilat: adisyondaki kurala tabi kalemlerin damga durumu (web tahsilat kutusu ile ayni veri).
+    public function carkAdminDamgaKartiAdisyonApi(Request $request, $salonId)
+    {
+        $kalemler = \App\Services\DamgaKartiServisi::adisyonDurumu($salonId, (int) $request->input('adisyon_id'));
+        return response()->json(['basarili' => true, 'kalemler' => $kalemler]);
+    }
+
+    // Mobil tahsilat: ucretsiz seansi uygula / geri al (%100 indirim + 0 TL tahsilat).
+    // olusturan_id = giris yapan yetkili (Kullanici.id) -> bu subedeki personel.
+    public function carkAdminDamgaKartiUygulaApi(Request $request, $salonId)
+    {
+        $yetkiliId = (int) $request->input('olusturan_id');
+        $olusturan = $yetkiliId > 0
+            ? \App\Personeller::where('salon_id', $salonId)->where('yetkili_id', $yetkiliId)->value('id')
+            : null;
+        try {
+            if ($request->input('aksiyon') === 'geri_al') {
+                $ku = \App\Services\DamgaKartiServisi::geriAl($salonId, (int) $request->input('kullanim_id'));
+                $aksiyon = 'damga_karti_geri_al';
+                $mesaj   = 'Damga kartı ücretsiz seansı geri alındı (mobil)';
+            } else {
+                $ku = \App\Services\DamgaKartiServisi::uygula($salonId, (int) $request->input('adisyon_hizmet_id'), $olusturan);
+                $aksiyon = 'damga_karti_uygula';
+                $mesaj   = 'Damga kartı ücretsiz seansı uygulandı (mobil)';
+            }
+        } catch (\RuntimeException $e) {
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
+        }
+        $musteri = \App\User::where('id', $ku->user_id)->value('name') ?? 'Müşteri #' . $ku->user_id;
+        Audit::logApi($salonId, $request, $aksiyon, 'damga_karti_kullanim', $ku->id,
+            $musteri . ' — ' . number_format((float) $ku->indirim_tutari, 2, ',', '.') . ' ₺', $mesaj);
+        return response()->json(['basarili' => true]);
+    }
+
     // ============================================================
     // ANKET YONETIMI API (mobil)
     // ============================================================
