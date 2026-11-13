@@ -3234,6 +3234,32 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
      * Genel yetki check (kaydetme/silme/odeme gibi aksiyonlar icin).
      * Yetkili yoksa true doner (auth katmani engellesin).
      */
+    /**
+     * Mobil ekle uclari: istekteki adisyon_id hala yasiyorsa onu dondurur, yoksa "".
+     * Uygulama ekranda eski adisyon_id'yi tutuyor; o arada son kalem silinip adisyon
+     * da silinmisse (tahsilat-*-sil bos adisyonu siler) yeni kalem/tahsilat olmayan
+     * adisyona yaziliyordu (#762806). "" donunce cagiran ayni gun birlestirme / yeni
+     * adisyon akisina duser. musteri_id yoksa eski davranis (gelen id) korunur.
+     */
+    private function _yasayanAdisyonId(Request $request): string
+    {
+        $id = $request->adisyon_id;
+        if ($id === null || $id === '') return '';
+        if (Adisyonlar::where('id', $id)->exists()) return (string) $id;
+        if (empty($request->musteri_id)) return (string) $id;
+        \Log::warning('[MOBIL-ADISYON] silinmis adisyon_id ile kalem ekleme; yeni/ayni gun adisyona yonlendirildi', [
+            'adisyon_id' => $id, 'musteri_id' => $request->musteri_id, 'sube' => $request->sube, 'uri' => $request->path(),
+        ]);
+        return '';
+    }
+
+    /** Kalemin bagli oldugu adisyonun salon_id'si (Flutter sil uclari sube gondermiyor). */
+    private function _kalemSalonId(string $model, $kalemId)
+    {
+        $adisyonId = $kalemId ? $model::where('id', $kalemId)->value('adisyon_id') : null;
+        return $adisyonId ? Adisyonlar::where('id', $adisyonId)->value('salon_id') : null;
+    }
+
     private function _yetkiVar(Request $request, $salonId, string $key): bool
     {
         if (!$salonId) return true;
@@ -18185,7 +18211,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         // Debugging output
         error_log("Received adisyon_id: " . $request->adisyon_id);
 
-        if (isset($request->adisyon_id) && $request->adisyon_id !== "") {
+        if ($this->_yasayanAdisyonId($request) !== "") {
 
             $adisyon_id = $request->adisyon_id;
 
@@ -18337,7 +18363,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         $adisyon_urun = "";
 
-        if (isset($request->adisyon_id) && $request->adisyon_id !== "") {
+        if ($this->_yasayanAdisyonId($request) !== "") {
 
             $adisyon_id = $request->adisyon_id;
 
@@ -18470,7 +18496,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         $satisPaketId = \App\Services\PaketSurumu::satisPaketi($request->paketid, $request->input('paket_hizmetleri'), $request->sube);
         $adisyon_id = "";
         $adisyon_paket_id = "";
-        if (isset($request->adisyon_id) && $request->adisyon_id != "") {
+        if ($this->_yasayanAdisyonId($request) !== "") {
             $adisyon_id = $request->adisyon_id;
         } else {
             // AYNI GUN AYNI MUSTERI ADISYON BIRLESTIRMESI — satis tarihi ile
@@ -18818,7 +18844,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     {
         // Yetki: satis.tahsilat_sil
-        if (!$this->_yetkiVar($request, $request->sube ?? $request->salonid, 'satis.tahsilat_sil')) {
+        if (!$this->_yetkiVar($request, $request->sube ?? $request->salonid ?? $this->_kalemSalonId(AdisyonUrunler::class, $request->adisyonurunid), 'satis.tahsilat_sil')) {
             abort(403, 'Bu işlem için yetkiniz yok.');
         }
 
@@ -18881,6 +18907,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             $adet = $adisyonurun->adet;
 
             $adisyon_id = $adisyonurun->adisyon_id;
+            $_logSalonId = Adisyonlar::where('id', $adisyon_id)->value('salon_id');
 
             $adisyonurun->delete();
 
@@ -18901,7 +18928,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             }
 
             try {
-                Audit::logApi(optional($urun)->salon_id ?? $request->sube ?? $request->salonid, $request, 'satis_urun_sil', 'adisyon_urun', $request->adisyonurunid, optional(optional($adisyonurun)->urun)->urun, 'Satıştan ürün kaldırıldı', ['adisyon_id' => $adisyon_id]);
+                Audit::logApi($_logSalonId ?? $request->sube ?? $request->salonid, $request, 'satis_urun_sil', 'adisyon_urun', $request->adisyonurunid, optional(optional($adisyonurun)->urun)->urun, 'Satıştan ürün kaldırıldı', ['adisyon_id' => $adisyon_id]);
             } catch (\Throwable $e) {}
 
             return [
@@ -18921,7 +18948,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     public function tahsilat_paket_sil(Request $request)
     {
         // Yetki: satis.tahsilat_sil
-        if (!$this->_yetkiVar($request, $request->sube ?? $request->salonid, 'satis.tahsilat_sil')) {
+        if (!$this->_yetkiVar($request, $request->sube ?? $request->salonid ?? $this->_kalemSalonId(AdisyonPaketler::class, $request->adisyonpaketid), 'satis.tahsilat_sil')) {
             abort(403, 'Bu işlem için yetkiniz yok.');
         }
         return $this->_tahsilat_paket_silImpl($request);
@@ -18939,6 +18966,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         )->first();
 
         $adisyon_id = $adisyonpaket->adisyon_id;
+        $_logSalonId = Adisyonlar::where('id', $adisyon_id)->value('salon_id');
 
         $musteriid = Adisyonlar::where("id", $adisyon_id)->value("user_id");
 
@@ -19059,7 +19087,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             }
 
             try {
-                Audit::logApi(optional($adisyonpaket)->salon_id ?? $request->sube ?? $request->salonid, $request, 'satis_paket_sil', 'adisyon_paket', $request->adisyonpaketid, optional(optional($adisyonpaket)->paket)->paket_adi, 'Satıştan paket kaldırıldı', ['adisyon_id' => $adisyon_id]);
+                Audit::logApi($_logSalonId ?? $request->sube ?? $request->salonid, $request, 'satis_paket_sil', 'adisyon_paket', $request->adisyonpaketid, optional(optional($adisyonpaket)->paket)->paket_adi, 'Satıştan paket kaldırıldı', ['adisyon_id' => $adisyon_id]);
             } catch (\Throwable $e) {}
 
             return [
@@ -19084,13 +19112,14 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
     {
         // Yetki: satis.tahsilat_sil
-        if (!$this->_yetkiVar($request, $request->sube ?? $request->salonid, 'satis.tahsilat_sil')) {
+        if (!$this->_yetkiVar($request, $request->sube ?? $request->salonid ?? $this->_kalemSalonId(AdisyonHizmetler::class, $request->hizmet_id), 'satis.tahsilat_sil')) {
             abort(403, 'Bu işlem için yetkiniz yok.');
         }
 
         $hizmet = AdisyonHizmetler::where("id", $request->hizmet_id)->first();
 
         $adisyon_id = $hizmet->adisyon_id;
+        $_logSalonId = Adisyonlar::where('id', $adisyon_id)->value('salon_id');
 
         $musteriid = Adisyonlar::where("id", $adisyon_id)->value("user_id");
 
@@ -19137,7 +19166,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         } else {
 
             try {
-                Audit::logApi(optional($hizmet)->salon_id ?? $request->sube ?? $request->salonid, $request, 'satis_hizmet_sil', 'adisyon_hizmet', $request->hizmet_id, optional(optional($hizmet)->hizmet)->hizmet_adi, 'Satıştan hizmet kaldırıldı', ['adisyon_id' => $adisyon_id]);
+                Audit::logApi($_logSalonId ?? $request->sube ?? $request->salonid, $request, 'satis_hizmet_sil', 'adisyon_hizmet', $request->hizmet_id, optional(optional($hizmet)->hizmet)->hizmet_adi, 'Satıştan hizmet kaldırıldı', ['adisyon_id' => $adisyon_id]);
             } catch (\Throwable $e) {}
 
             $hizmet->delete();
