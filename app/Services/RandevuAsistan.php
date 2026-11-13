@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use App\MusteriPortfoy;
+use App\Http\Controllers\ApiController;
 use App\Http\Controllers\Api\AiAsistanController;
 
 /**
@@ -25,6 +28,9 @@ class RandevuAsistan
     protected ?string $telefon;
     protected array $salon = [];        // ad, karsilama, hizmetler[]
     protected ?string $musteriAd = null;
+    protected ?int $musteriId = null;    // bu salonun portfoyunde AKTIF musteri (karsilama ile ayni kural)
+    /** Arayan numarasi gizli/gecersizdi ve kayitta telefon alindiysa: oturuma yazilsin diye kopru controller'i okur. */
+    public ?string $yeniTelefon = null;
     protected AiAsistanController $ctrl;
 
     public function __construct(int $salonId, ?string $telefon = null)
@@ -37,14 +43,30 @@ class RandevuAsistan
     }
 
     // ---------------------------------------------------------------- public
+    /**
+     * Kayitli musteri: "Merhaba Ad Soyad, <isletme> hoş geldiniz. ..." (isim SORULMAZ).
+     * Kayitsiz: karsilamada ad soyad (numara gizliyse telefon da) istenir -> musteri_kaydet.
+     */
     public function karsilama(): string
     {
-        if (!empty($this->salon['karsilama'])) return $this->salon['karsilama'];
-        $ad = $this->salon['ad'] ?? 'randevu hattı';
+        $hosgeldin = $this->hosgeldinMetni();
         if ($this->musteriAd) {
-            return "Merhaba {$this->musteriAd}, {$ad}. Size nasıl yardımcı olabilirim?";
+            return "Merhaba {$this->musteriAd}, {$hosgeldin}. Size nasıl yardımcı olabilirim?";
         }
-        return "Merhaba, {$ad}. Randevu için size nasıl yardımcı olabilirim?";
+        if ($this->telNorm($this->telefon)) {
+            return "Merhaba, {$hosgeldin}. Size yardımcı olabilmem için adınızı ve soyadınızı öğrenebilir miyim?";
+        }
+        return "Merhaba, {$hosgeldin}. Size yardımcı olabilmem için adınızı, soyadınızı ve telefon numaranızı öğrenebilir miyim?";
+    }
+
+    /** Salonun karsilama telaffuzu (eski santralla ayni: "<telaffuz> hoşgeldiniz"), yoksa salon adi. */
+    protected function hosgeldinMetni(): string
+    {
+        $t = trim((string) ($this->salon['karsilama'] ?? ''), " \t\n\r.");
+        if ($t !== '') {
+            return preg_match('/ho[şs]\s*geldiniz/iu', $t) ? $t : "{$t} hoş geldiniz";
+        }
+        return ($this->salon['ad'] ?? 'randevu hattımız') . ' randevu hattına hoş geldiniz';
     }
 
     public function taninanMusteri(): ?string { return $this->musteriAd; }
@@ -158,12 +180,20 @@ class RandevuAsistan
                     'salon_id' => $this->salonId, 'telefon' => $this->telefon,
                 ]), null, null, false];
 
+            case 'musteri_kaydet':
+                return [$this->musteriKaydet((string) ($in['ad_soyad'] ?? ''), (string) ($in['telefon'] ?? '')), null, null, false];
+
             case 'randevu_olustur':
+                // Kayitsiz musteriye randevu YOK: once normal musteri kaydi (ad soyad + telefon).
+                // (Aksi halde randevuOlustur "Telefon Müşterisi" adli kayit acar.)
+                if (!$this->musteriId) {
+                    return [['ok' => false, 'hata' => 'Müşteri kayıtlı değil. Önce adını ve soyadını alıp musteri_kaydet aracını çağır, sonra randevuyu oluştur.'], null, null, false];
+                }
                 $d = $this->ctrlCagir('randevuOlustur', [
                     'salon_id' => $this->salonId,
                     'telefon' => $this->telefon,
                     'tarih_saat' => (string) ($in['tarih_saat'] ?? ''),
-                    'ad_soyad' => $in['ad_soyad'] ?? null,
+                    'ad_soyad' => $this->musteriAd,
                     'hizmet_id' => $this->intId($in['hizmet_id'] ?? null),
                     'notlar' => $in['notlar'] ?? null,
                 ]);
@@ -221,12 +251,19 @@ class RandevuAsistan
                 'input_schema' => ['type' => 'object', 'properties' => $bos],
             ],
             [
+                'name' => 'musteri_kaydet',
+                'description' => 'Kayıtlı OLMAYAN arayanı işletmenin normal müşteri kaydıyla kaydeder (müşteri kartı + uygulama şifresi mesajı). Müşteri adını ve soyadını söyler söylemez çağır. Kayıtlı müşteride ÇAĞIRMA.',
+                'input_schema' => ['type' => 'object', 'properties' => [
+                    'ad_soyad' => ['type' => 'string', 'description' => 'Yalnız ad ve soyad, söylendiği gibi ("benim adım" gibi ekler olmadan). Örn: "Ayşe Yılmaz"'],
+                    'telefon' => ['type' => 'string', 'description' => 'SADECE arayan numarası bilinmiyorsa: müşterinin söylediği cep numarası (rakamlarla, örn 05321234567)'],
+                ], 'required' => ['ad_soyad']],
+            ],
+            [
                 'name' => 'randevu_olustur',
-                'description' => 'Yeni randevu oluşturur. SADECE müşteri açıkça onayladıktan sonra çağır (onay adımını atlama).',
+                'description' => 'Yeni randevu oluşturur. SADECE müşteri açıkça onayladıktan sonra çağır (onay adımını atlama). Müşteri kayıtlı değilse önce musteri_kaydet.',
                 'input_schema' => ['type' => 'object', 'properties' => [
                     'tarih_saat' => ['type' => 'string', 'description' => 'ISO 8601, örn 2026-05-07T14:30:00'],
                     'hizmet_id' => ['type' => 'integer', 'description' => 'hizmet_eslestir’den gelen id'],
-                    'ad_soyad' => ['type' => 'string'],
                     'notlar' => ['type' => 'string'],
                 ], 'required' => ['tarih_saat']],
             ],
@@ -313,16 +350,28 @@ class RandevuAsistan
         }
         if ($hizmetSatir === '') $hizmetSatir = "(hizmet listesi boş — müşteriyi operatöre aktar)\n";
 
-        $musteriSatir = $this->musteriAd
-            ? "Arayan tanınan müşteri: {$this->musteriAd}. Uygun yerde ismiyle hitap et."
-            : 'Arayan ilk kez/isimsiz olabilir; gerekmedikçe isim sorma.';
-        $telSatir = $this->telefon ? $this->telefon : 'bilinmiyor';
+        $telBilinen = (bool) $this->telNorm($this->telefon);
+        if ($this->musteriAd) {
+            $musteriSatir = "Arayan bu işletmenin KAYITLI müşterisi: {$this->musteriAd}. Adını/soyadını/telefonunu SORMA; uygun yerde ismiyle hitap et.";
+        } else {
+            $musteriSatir = "Arayan bu işletmede KAYITLI DEĞİL. Karşılamada adı ve soyadı "
+                . ($telBilinen ? '' : 've telefon numarası ')
+                . "soruldu. KAYIT ADIMI (randevudan ÖNCE, atlanamaz):\n"
+                . "- Müşteri ad ve soyadını söyleyince HEMEN musteri_kaydet çağır.\n"
+                . "- Sadece ad söylerse soyadını da iste; ad soyad yerine doğrudan isteğini söylerse kibarca önce adını ve soyadını iste.\n"
+                . ($telBilinen
+                    ? "- Arayan numarası biliniyor, telefon SORMA.\n"
+                    : "- Arayan numarası GİZLİ: cep telefonunu da iste, musteri_kaydet'e telefon olarak ver. Numarayı rakam rakam teyit et.\n")
+                . "- Kayıt olunca \"Teşekkürler [ad soyad], kaydınızı oluşturdum.\" de; müşteri isteğini zaten söylediyse ona devam et, söylemediyse nasıl yardımcı olabileceğini sor.\n"
+                . "- musteri_kaydet ok=false dönerse hatadaki eksik bilgiyi iste. Kayıt tamamlanmadan randevu_olustur ÇAĞIRMA.";
+        }
+        $telSatir = $telBilinen ? $this->telefon : 'bilinmiyor (gizli numara)';
 
         return <<<PROMPT
 Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal Türkçe konuşuyorsun. Çıktın düz metindir (TTS ile okunur): emoji, madde işareti, markdown KULLANMA. Her yanıt 1-2 cümle.
 
 # AKIŞ (adımları atlama)
-1. SELAMLAMA zaten TTS ile çalındı — TEKRAR ETME. İşletme adına "-da/-de/-a/-e/-ye" eki EKLEME. Doğrudan niyete geç.
+1. SELAMLAMA zaten TTS ile çalındı — TEKRAR ETME. İşletme adına "-da/-de/-a/-e/-ye" eki EKLEME. Arayan KAYITLI DEĞİLSE önce BAĞLAM'daki KAYIT ADIMI'nı tamamla; kayıtlıysa doğrudan niyete geç.
 2. NİYET: yeni randevu mu, iptal mi, güncelleme mi, başka bir şey mi?
 3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise onaylatmadan devam et; coklu ise seçenekleri kısaca oku ve seçtir; yok ise "o hizmetimiz yok" de ve dönen önerileri sun.
 4. TARİH: "TARİH HARİTASI" tablosundan kesin ISO tarihi AL, kendin hesaplama. Belirsizse tek cümleyle teyit et.
@@ -387,11 +436,98 @@ PROMPT;
         ];
     }
 
+    /**
+     * Arayan bu salonun AKTIF portfoy musterisi mi? (santralkarsilamametni / eski santral ile AYNI kural.)
+     * Yalniz users tablosunda olup bu salonda portfoyu olmayan kisi = kayitsiz -> musteri_kaydet.
+     */
     protected function musteriYukle(): void
     {
-        if (!$this->telefon) return;
-        $d = $this->ctrlCagir('musteriBilgi', ['salon_id' => $this->salonId, 'telefon' => $this->telefon]);
-        $this->musteriAd = !empty($d['ad']) ? $d['ad'] : null;
+        $this->musteriId = null; $this->musteriAd = null;
+        $tel = $this->telNorm($this->telefon);
+        if (!$tel) return;
+        try {
+            $mp = MusteriPortfoy::where('aktif', 1)->where('salon_id', $this->salonId)
+                ->whereHas('users', function ($q) use ($tel) { $q->where('cep_telefon', $tel); })
+                ->with('users')->first();
+        } catch (\Throwable $e) {
+            Log::warning('RandevuAsistan musteriYukle: ' . $e->getMessage());
+            return;
+        }
+        if ($mp && $mp->users) {
+            $this->musteriId = (int) $mp->users->id;
+            $ad = trim((string) $mp->users->name);
+            $this->musteriAd = $ad !== '' ? $this->adDuzelt($ad) : null;
+        }
+    }
+
+    /**
+     * Normal musteri kaydi: ApiController@yenimusteridanisankaydi (uygulama/panel ve eski santral ile
+     * AYNI yol: users + bu salonun portfoyu + isletmeye ozel sifre WA/SMS + audit). santraldenkayit=1.
+     */
+    protected function musteriKaydet(string $adSoyad, string $telefonSozlu): array
+    {
+        if ($this->musteriId) return ['ok' => true, 'mesaj' => 'Müşteri zaten kayıtlı', 'ad_soyad' => $this->musteriAd];
+
+        $adSoyad = $this->adDuzelt(preg_replace('/[^\p{L}\s\'-]/u', ' ', $adSoyad));
+        if (count(array_filter(explode(' ', $adSoyad), function ($w) { return mb_strlen($w, 'UTF-8') >= 2; })) < 2) {
+            return ['ok' => false, 'hata' => 'Ad ve soyad birlikte gerekli. Müşteriden soyadını da iste.'];
+        }
+
+        $tel = $this->telNorm($this->telefon);
+        if (!$tel) {
+            $tel = $this->telNorm($telefonSozlu);
+            if (!$tel) return ['ok' => false, 'hata' => 'Geçerli bir cep telefonu gerekli (05 ile başlayan 11 hane). Müşteriden numarasını iste.'];
+        }
+
+        try {
+            $req = Request::create('/api/yenimusteridanisankaydi', 'POST', [
+                'salonidler' => (string) $this->salonId,
+                'name' => $adSoyad,
+                'cep_telefon' => $tel,
+                'isletmeadi' => $this->salonAdi(),
+                'santraldenkayit' => '1',
+            ]);
+            $resp = app(ApiController::class)->yenimusteridanisankaydi($req);
+            $raw = is_object($resp) && method_exists($resp, 'getContent') ? $resp->getContent() : (string) $resp;
+        } catch (\Throwable $e) {
+            Log::error('RandevuAsistan musteriKaydet: ' . $e->getMessage());
+            return ['ok' => false, 'hata' => 'Kayıt şu an oluşturulamadı. Müşteriye özür dileyip yetkiliye aktarmayı teklif et.'];
+        }
+
+        // Numara gizliydi ve sozlu alindiysa: bu oturumun telefonu artik o (sonraki turlar + randevu bununla).
+        if (!$this->telNorm($this->telefon)) { $this->telefon = '0' . $tel; $this->yeniTelefon = $this->telefon; }
+
+        $this->musteriYukle(); // "exists" (zaten portfoyde) dahil: yeniden tani
+        if (!$this->musteriId) {
+            Log::warning('RandevuAsistan musteriKaydet: kayit sonrasi musteri bulunamadi', ['salon' => $this->salonId, 'yanit' => mb_substr($raw, 0, 300)]);
+            return ['ok' => false, 'hata' => 'Kayıt şu an oluşturulamadı. Müşteriye özür dileyip yetkiliye aktarmayı teklif et.'];
+        }
+        return ['ok' => true, 'mesaj' => 'Müşteri kaydı oluşturuldu', 'ad_soyad' => $this->musteriAd];
+    }
+
+    /** Cep no -> DB formati 5xxxxxxxxx (users.cep_telefon). Gecersizse null. */
+    protected function telNorm(?string $t): ?string
+    {
+        $d = preg_replace('/\D/', '', (string) $t);
+        if (strlen($d) === 14 && substr($d, 0, 4) === '0090') $d = substr($d, 4);
+        if (strlen($d) === 12 && substr($d, 0, 2) === '90') $d = substr($d, 2);
+        if (strlen($d) === 11 && $d[0] === '0') $d = substr($d, 1);
+        return (strlen($d) === 10 && $d[0] === '5') ? $d : null;
+    }
+
+    /** "AYŞE YILMAZ" / "ayşe yılmaz" -> "Ayşe Yılmaz" (Turkce I/İ dogru). */
+    protected function adDuzelt(string $s): string
+    {
+        $s = trim(preg_replace('/\s+/u', ' ', $s));
+        if ($s === '') return '';
+        $out = [];
+        foreach (explode(' ', $s) as $k) {
+            $low = mb_strtolower(strtr($k, ['I' => 'ı', 'İ' => 'i']), 'UTF-8');
+            $ilk = mb_substr($low, 0, 1, 'UTF-8');
+            $ilk = $ilk === 'i' ? 'İ' : ($ilk === 'ı' ? 'I' : mb_strtoupper($ilk, 'UTF-8'));
+            $out[] = $ilk . mb_substr($low, 1, null, 'UTF-8');
+        }
+        return implode(' ', $out);
     }
 
     /** AiAsistanController metodunu dahili cagir, JSON govdesini dizi dondur. */
@@ -445,7 +581,9 @@ PROMPT;
             if (!$role || $c === '') continue;
             $out[] = ['role' => $role, 'content' => $c];
         }
-        while (!empty($out) && $out[0]['role'] !== 'user') array_shift($out); // Anthropic: ilk mesaj user
+        // Anthropic: ilk mesaj user olmali. Karsilamayi (ad soyad sorusu dahil) ATMA: model ilk cevabin
+        // isim oldugunu bilsin diye basina yapay bir "arama baglandi" turu ekle.
+        if (!empty($out) && $out[0]['role'] !== 'user') array_unshift($out, ['role' => 'user', 'content' => '(arama bağlandı)']);
         return $out;
     }
 }

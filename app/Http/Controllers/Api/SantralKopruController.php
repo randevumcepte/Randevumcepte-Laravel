@@ -114,6 +114,8 @@ class SantralKopruController extends Controller
         $gecmis = array_slice($gecmis, -40);
 
         $guncelle = ['gecmis' => json_encode($gecmis, JSON_UNESCAPED_UNICODE), 'updated_at' => now()];
+        // Gizli numarayla arayan kayitta telefonunu soyledi: sonraki turlar (tanima/randevu) bu numarayla yurusun
+        if ($as->yeniTelefon) $guncelle['telefon'] = $as->yeniTelefon;
         $aksiyon = $d['aksiyon'] ?? null;
         if (in_array($aksiyon, ['randevu', 'iptal', 'guncelle', 'aktar'], true)) $guncelle['sonuc'] = $aksiyon;
         if (!empty($d['veri']['randevu_id'])) $guncelle['randevu_id'] = (int) $d['veri']['randevu_id'];
