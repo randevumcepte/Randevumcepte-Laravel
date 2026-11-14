@@ -30,6 +30,16 @@ function seansTarihUyar() {
     $inp.focus();
 }
 
+// Seans ekle/guncelle reddedilirse (sure doldu, gunluk limit, sunucu hatasi) kullanici gormeli.
+// Onceden yanit sayfadaki gizli #hata kutusuna yaziliyordu: buton tepkisiz gorunuyordu.
+function seansIslemHatasi(request) {
+    $('#preloader').hide();
+    var metin = $.trim(request && request.responseText || '');
+    // Kisa duz metin sunucunun kendi mesajidir; HTML/uzun yanit ise genel hata.
+    if (!metin || metin.length > 300 || metin.charAt(0) === '<') metin = 'İşlem kaydedilemedi. Lütfen tekrar deneyin.';
+    swal({ type: 'warning', title: 'Seans kaydedilmedi', text: metin, confirmButtonText: 'Tamam' });
+}
+
 function seansTarihUyariTemizle() {
     $('#seansTarihiYeni').css({'border':'','background':'#fff'});
     $('.seans-tarih-hata').remove();
@@ -716,7 +726,7 @@ $(document).on('click','#seansKullanildiYeni',function(e){
                      
                 },
                 error: function (request, status, error) {
-                     document.getElementById('hata').innerHTML =request.responseText;
+                     seansIslemHatasi(request);
                      $('#preloader').hide();
                 }
             });
@@ -761,7 +771,7 @@ $(document).on('click','#seansKullanilmadiYeni',function(e){
 
                 },
                 error: function (request, status, error) {
-                     document.getElementById('hata').innerHTML =request.responseText;
+                     seansIslemHatasi(request);
                      $('#preloader').hide();
                 }
             });
@@ -804,7 +814,7 @@ $(document).on('click','#seansTelafiYeni',function(e){
 
                 },
                 error: function (request, status, error) {
-                     document.getElementById('hata').innerHTML =request.responseText;
+                     seansIslemHatasi(request);
                      $('#preloader').hide();
                 }
             });
@@ -845,7 +855,7 @@ $(document).on('click','#seansKullanildi',function(e){
                      
                 },
                 error: function (request, status, error) {
-                     document.getElementById('hata').innerHTML =request.responseText;
+                     seansIslemHatasi(request);
                      $('#preloader').hide();
                 }
             });
@@ -881,7 +891,7 @@ $(document).on('click','#seansKullanilmadi',function(e){
                     
                 },
                 error: function (request, status, error) {
-                     document.getElementById('hata').innerHTML =request.responseText;
+                     seansIslemHatasi(request);
                      $('#preloader').hide();
                 }
             });
@@ -921,7 +931,7 @@ $(document).on('click','#seansTelafiKullanildi',function(e){
 
                 },
                 error: function (request, status, error) {
-                     document.getElementById('hata').innerHTML =request.responseText;
+                     seansIslemHatasi(request);
                      $('#preloader').hide();
                 }
             });
@@ -957,7 +967,7 @@ $(document).on('click','#seansTelafi',function(e){
 
                 },
                 error: function (request, status, error) {
-                     document.getElementById('hata').innerHTML =request.responseText;
+                     seansIslemHatasi(request);
                      $('#preloader').hide();
                 }
             });
@@ -994,7 +1004,7 @@ $(document).on('click','#seansBeklemede',function(e){
                      
                 },
                 error: function (request, status, error) {
-                     document.getElementById('hata').innerHTML =request.responseText;
+                     seansIslemHatasi(request);
                      $('#preloader').hide();
                 }
             });

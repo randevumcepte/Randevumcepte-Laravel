@@ -5842,7 +5842,7 @@ document.addEventListener('DOMContentLoaded', function() {
          <script src="{{secure_asset('public/yeni_panel/src/plugins/jquery-steps/jquery.steps.js')}}"></script>
          <script src="{{secure_asset('public/yeni_panel/vendors/scripts/steps-setting.js')}}"></script>
       @endif  
-      <script src="{{secure_asset('public/js/seansTakibi.js?v=14.1')}}"></script>
+      <script src="{{secure_asset('public/js/seansTakibi.js?v=14.2')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
       <link rel="stylesheet" href="{{secure_asset('public/css/paket-form.css?v=3')}}">
       <script src="{{secure_asset('public/js/custom.js?v=303.2')}}"></script>
