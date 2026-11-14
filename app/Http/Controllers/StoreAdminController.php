@@ -13833,6 +13833,35 @@ private function ayAdiCevir($ingilizceAy)
             'tahsilat_tutari'                  => number_format($_adjustedTahsilatTutari, 2, ',', '.'),
         ]);
 
+        // KALEM KALAN SNAPSHOT (dagitim agirligi): kalem paylari eskiden formdaki
+        // adisyon_hizmet_id[$key] <-> himzet_tahsilat_tutari_girilen[$key] SIRA eslesmesine
+        // guveniyordu; sira kayinca tutarlar kalemler arasinda YER DEGISTIRIYORDU
+        // (or. adisyon 761478: 1200'luk kaleme 1600, 1600'luk kaleme 1200 yazildi ->
+        // personel hakedisi yanlis). Agirlik artik kalem ID'si ile DB'den alinir.
+        // Harici indirim asagida kaleme yazilmadan ONCE alinir (form degeriyle ayni anlam).
+        // Satir tutari elle degistirilince hizmettahsilattutaridegistir fiyati zaten DB'ye yazar.
+        $_kalemKalanSnap = ['hizmet' => [], 'urun' => [], 'paket' => []];
+        try {
+            $_snapKaynak = [
+                'hizmet' => [AdisyonHizmetler::class, TahsilatHizmetler::class, 'adisyon_hizmet_id', (array)($request->adisyon_hizmet_id ?? [])],
+                'urun'   => [AdisyonUrunler::class,   TahsilatUrunler::class,   'adisyon_urun_id',   (array)($request->adisyon_urun_id ?? [])],
+                'paket'  => [AdisyonPaketler::class,  TahsilatPaketler::class,  'adisyon_paket_id',  (array)($request->adisyon_paket_id ?? [])],
+            ];
+            foreach ($_snapKaynak as $_tip => [$_kalemModel, $_tahsilatModel, $_fk, $_ids]) {
+                $_ids = array_values(array_filter($_ids, function ($v) { return $v !== null && $v !== ''; }));
+                if (empty($_ids)) continue;
+                $_odenen = $_tahsilatModel::whereIn($_fk, $_ids)->groupBy($_fk)
+                    ->select($_fk, DB::raw('SUM(tutar) as t'))->pluck('t', $_fk);
+                foreach ($_kalemModel::whereIn('id', $_ids)->get(['id', 'fiyat', 'indirim_tutari']) as $_k) {
+                    $_kalemKalanSnap[$_tip][$_k->id] = max(0, round(
+                        (float)$_k->fiyat - (float)$_k->indirim_tutari - (float)($_odenen[$_k->id] ?? 0), 2));
+                }
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('tahsilat kalem kalan snapshot hata: '.$e->getMessage());
+            $_kalemKalanSnap = null; // eski (form) davranisina dus
+        }
+
         $tahsilat = new Tahsilatlar();
         $tahsilat->adisyon_id = $request->adisyon_id;
         $tahsilat->tutar = $_adisyonPayment;
@@ -14024,6 +14053,32 @@ private function ayAdiCevir($ingilizceAy)
                         ?? $request->adisyon_paket_tahsilat_tutari[$key3] ?? null;
                     if($paket_tahsilat_tutar === null || $paket_tahsilat_tutar === '') continue;
                     $_dagitim[] = ['tip'=>'paket','id'=>$paket_id,'raw'=>(float) str_replace(['.',','],['','.'],$paket_tahsilat_tutar),'taban'=>$_taban];
+                }
+            }
+            // Agirligi kalem ID'si ile DB kalanindan al (form sirasina guvenme).
+            // Taban = agirliklar toplami -> paylar toplami yine birebir hedef.
+            if ($_kalemKalanSnap !== null && count($_dagitim) > 0) {
+                $_snapTamam = true;
+                foreach ($_dagitim as $_d) {
+                    if (!array_key_exists($_d['id'], $_kalemKalanSnap[$_d['tip']])) { $_snapTamam = false; break; }
+                }
+                if ($_snapTamam) {
+                    $_snapTaban = 0.0;
+                    foreach ($_dagitim as $_d) $_snapTaban += $_kalemKalanSnap[$_d['tip']][$_d['id']];
+                    if ($_snapTaban > 0) {
+                        foreach ($_dagitim as $_i => $_d) {
+                            $_formRaw = $_d['raw'];
+                            $_dagitim[$_i]['raw']   = $_kalemKalanSnap[$_d['tip']][$_d['id']];
+                            $_dagitim[$_i]['taban'] = $_snapTaban;
+                            if (abs($_formRaw - $_dagitim[$_i]['raw']) >= 0.01) {
+                                \Log::warning('[TAHSILAT-SIRA-KAYMASI] form tutari kalem kalaniyla uyusmuyor', [
+                                    'tip' => $_d['tip'], 'kalem_id' => $_d['id'],
+                                    'form_tutar' => $_formRaw, 'db_kalan' => $_dagitim[$_i]['raw'],
+                                    'adisyon_id' => $request->adisyon_id, 'sube' => $request->sube,
+                                ]);
+                            }
+                        }
+                    }
                 }
             }
             $_paylar = self::tahsilatPaylariReconcile($_dagitim, $_hedef);
@@ -32297,9 +32352,13 @@ public function musteriportfoydropliste(Request $request)
     public function islemsonrasinotekleme(Request $request){
          if($r = self::yetkiYoksa403($request, 'musteri.not_yaz')) return $r;
          $randevu = Randevular::where('id',$request->randevu_id)->first();
+         if(!$randevu)
+             return response()->json(['basarili' => false, 'mesaj' => 'Randevu bulunamadı'], 404);
          $randevu->randevu_sonrasi_not=$request->islemsonrasinot;
          $randevu->save();
-        return self::randevu_liste_getir($request,'','','','','','',self::mevcutsube($request),'');
+        // Eskiden tarih filtresiz randevu_liste_getir donuyordu: salonun TUM randevu gecmisi agir alt
+        // sorgularla hesaplaniyor (yogun salonda 20-33 sn), cevap ise JS'te hic kullanilmiyordu.
+        return response()->json(['basarili' => true]);
     }
    public function islemdetayigetir(Request $request){
         $islem=Islemler::where('id',$request->islem_id)->first();
