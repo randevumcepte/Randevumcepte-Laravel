@@ -153,7 +153,12 @@ class SantralKopruController extends Controller
     // Ileride salon bazli panele cekilebilir.
     public function aktarmaHedef(Request $r)
     {
-        $dial = (string) env('SANTRAL_AKTARMA_DIAL', '');
+        if (!$this->yetkiVar($r)) return $this->j(['ok' => 0, 'hata' => 'Yetkisiz santral isteği'], 401);
+        // Hedef = ILGILI SALONUN operator_kanali kuyrugu (dialplan [operator-bagla] ile ayni:
+        // Dial(Local/<operator_kanali>@from-queue/n)). Salonda tanimli degilse env yedegi.
+        $salonId = (int) $r->input('sube_id');
+        $kanal = $salonId ? preg_replace('/[^0-9]/', '', (string) DB::table('salonlar')->where('id', $salonId)->value('operator_kanali')) : '';
+        $dial = $kanal !== '' ? "Local/{$kanal}@from-queue/n" : (string) env('SANTRAL_AKTARMA_DIAL', '');
         $aktif = $dial !== '' ? 1 : 0;
         return $this->j([
             'ok' => 1,

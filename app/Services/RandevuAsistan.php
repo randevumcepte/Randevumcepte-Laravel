@@ -5,6 +5,12 @@ namespace App\Services;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\MusteriPortfoy;
+use App\Personeller;
+use App\PersonelHizmetler;
+use App\Randevular;
+use App\RandevuHizmetler;
+use App\SalonHizmetler;
+use App\Services\SesliRandevuCozService;
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\Api\AiAsistanController;
 
@@ -31,6 +37,7 @@ class RandevuAsistan
     protected ?int $musteriId = null;    // bu salonun portfoyunde AKTIF musteri (karsilama ile ayni kural)
     /** Arayan numarasi gizli/gecersizdi ve kayitta telefon alindiysa: oturuma yazilsin diye kopru controller'i okur. */
     public ?string $yeniTelefon = null;
+    protected ?array $_personeller = null;
     protected AiAsistanController $ctrl;
 
     public function __construct(int $salonId, ?string $telefon = null)
@@ -170,51 +177,32 @@ class RandevuAsistan
                 ]), null, null, false];
 
             case 'musait_saatler':
-                return [$this->ctrlCagir('musaitSaatler', [
-                    'salon_id' => $this->salonId,
-                    'tarih' => (string) ($in['tarih'] ?? ''),
-                    'zaman_dilimi' => $in['zaman_dilimi'] ?? null,
-                    'hizmet_id' => $this->intId($in['hizmet_id'] ?? null),
-                ]), null, null, false];
+                return [$this->musaitSaatlerPersonelli($in), null, null, false];
 
             case 'mevcut_randevular':
-                return [$this->ctrlCagir('mevcutRandevular', [
-                    'salon_id' => $this->salonId, 'telefon' => $this->telefon,
-                ]), null, null, false];
+                return [$this->randevularim(), null, null, false];
 
             case 'musteri_kaydet':
                 return [$this->musteriKaydet((string) ($in['ad_soyad'] ?? ''), (string) ($in['telefon'] ?? '')), null, null, false];
 
             case 'randevu_olustur':
-                // Kayitsiz musteriye randevu YOK: once normal musteri kaydi (ad soyad + telefon).
-                // (Aksi halde randevuOlustur "Telefon Müşterisi" adli kayit acar.)
-                if (!$this->musteriId) {
-                    return [['ok' => false, 'hata' => 'Müşteri kayıtlı değil. Önce adını ve soyadını alıp musteri_kaydet aracını çağır, sonra randevuyu oluştur.'], null, null, false];
-                }
-                $d = $this->ctrlCagir('randevuOlustur', [
-                    'salon_id' => $this->salonId,
-                    'telefon' => $this->telefon,
-                    'tarih_saat' => (string) ($in['tarih_saat'] ?? ''),
-                    'ad_soyad' => $this->musteriAd,
-                    'hizmet_id' => $this->intId($in['hizmet_id'] ?? null),
-                    'notlar' => $in['notlar'] ?? null,
-                ]);
+                $d = $this->randevuOlusturPersonelli($in);
                 $ok = !empty($d['ok']);
                 return [$d, $ok ? 'randevu' : null, $ok ? ($d['randevu_id'] ?? null) : null, false];
 
             case 'randevu_iptal':
-                $d = $this->ctrlCagir('randevuIptal', [
-                    'salon_id' => $this->salonId, 'randevu_id' => $this->intId($in['randevu_id'] ?? null),
-                ]);
+                $rid = $this->intId($in['randevu_id'] ?? null);
+                // SAHIPLIK: yalniz ARAYANIN kendi randevusu (model yanlis/uydurma id verirse baskasininki iptal olmasin)
+                if (!$this->randevuSahibiMi($rid)) return [$this->sahipDegilHata(), null, null, false];
+                $d = $this->ctrlCagir('randevuIptal', ['salon_id' => $this->salonId, 'randevu_id' => $rid]);
                 return [$d, !empty($d['ok']) ? 'iptal' : null, null, false];
 
             case 'randevu_guncelle':
-                $d = $this->ctrlCagir('randevuGuncelle', [
-                    'salon_id' => $this->salonId,
-                    'randevu_id' => $this->intId($in['randevu_id'] ?? null),
-                    'yeni_tarih_saat' => (string) ($in['yeni_tarih_saat'] ?? ''),
-                ]);
+                $d = $this->randevuGuncellePersonelli($in);
                 return [$d, !empty($d['ok']) ? 'guncelle' : null, null, false];
+
+            case 'yol_tarifi_gonder':
+                return [$this->yolTarifiGonder(), null, null, false];
 
             case 'aktar':
                 return [['ok' => true, 'mesaj' => 'operatöre aktarılıyor'], 'aktar', null, false];
@@ -240,16 +228,23 @@ class RandevuAsistan
             ],
             [
                 'name' => 'musait_saatler',
-                'description' => 'Verilen tarih için boş randevu saatlerini getirir. Dönen saatlerden müşteriye yalnızca 2 tanesini öner, hepsini sıralama.',
+                'description' => 'Personelin çalışma saati ve dolu randevularına göre boş saat bulur (en fazla 2 seçenek döner; her seçenekte tarih, saat, personel_id, personel). Müşteri bir personel söylediyse personel_id MUTLAKA ver; söylemediyse verme (hizmeti veren uygun personel otomatik seçilir). İstenen gün doluysa en yakın uygun gün döner (istenen_gun_dolu=true).',
                 'input_schema' => ['type' => 'object', 'properties' => [
-                    'tarih' => ['type' => 'string', 'description' => 'YYYY-MM-DD biçiminde tarih (TARİH HARİTASI tablosundan al)'],
+                    'hizmet_id' => ['type' => 'integer', 'description' => 'hizmet_eslestir’den gelen id (ZORUNLU)'],
+                    'tarih' => ['type' => 'string', 'description' => 'YYYY-MM-DD (TARİH HARİTASI tablosundan al)'],
+                    'saat' => ['type' => 'string', 'description' => 'opsiyonel: müşterinin istediği saat HH:MM (bu saatten itibaren aranır)'],
                     'zaman_dilimi' => ['type' => 'string', 'enum' => ['sabah', 'ogle', 'ogleden_sonra', 'aksam'], 'description' => 'opsiyonel gün dilimi'],
-                    'hizmet_id' => ['type' => 'integer', 'description' => 'opsiyonel hizmet id'],
-                ], 'required' => ['tarih']],
+                    'personel_id' => ['type' => 'integer', 'description' => 'opsiyonel: PERSONELLER listesindeki id (sadece müşteri personel söylediyse)'],
+                ], 'required' => ['hizmet_id', 'tarih']],
             ],
             [
                 'name' => 'mevcut_randevular',
-                'description' => 'Arayan müşterinin gelecekteki randevularını listeler (iptal/güncelleme için önce bunu çağır).',
+                'description' => 'Arayan müşterinin gelecekteki randevularını listeler (id, tarih, saat, hizmet, personel, hizmet_id, personel_id). İptal/güncelleme için önce bunu çağır.',
+                'input_schema' => ['type' => 'object', 'properties' => $bos],
+            ],
+            [
+                'name' => 'yol_tarifi_gonder',
+                'description' => 'Müşteri adres, konum ya da yol tarifi sorduğunda çağır: işletmenin yol tarifini müşterinin telefonuna mesaj (WhatsApp/SMS) olarak gönderir ve adresi döner. Adresi kısaca söyle, tarifi mesajla ilettiğini belirt. Bunun için AKTARMA.',
                 'input_schema' => ['type' => 'object', 'properties' => $bos],
             ],
             [
@@ -262,12 +257,13 @@ class RandevuAsistan
             ],
             [
                 'name' => 'randevu_olustur',
-                'description' => 'Yeni randevu oluşturur. SADECE müşteri açıkça onayladıktan sonra çağır (onay adımını atlama). Müşteri kayıtlı değilse önce musteri_kaydet.',
+                'description' => 'Yeni randevu oluşturur. SADECE müşteri açıkça onayladıktan sonra çağır (onay adımını atlama). Müşteri kayıtlı değilse önce musteri_kaydet. tarih_saat ve personel_id, musait_saatler’in döndüğü seçenekten AYNEN alınır.',
                 'input_schema' => ['type' => 'object', 'properties' => [
                     'tarih_saat' => ['type' => 'string', 'description' => 'ISO 8601, örn 2026-05-07T14:30:00'],
                     'hizmet_id' => ['type' => 'integer', 'description' => 'hizmet_eslestir’den gelen id'],
+                    'personel_id' => ['type' => 'integer', 'description' => 'seçilen seçeneğin personel_id’si'],
                     'notlar' => ['type' => 'string'],
-                ], 'required' => ['tarih_saat']],
+                ], 'required' => ['tarih_saat', 'hizmet_id', 'personel_id']],
             ],
             [
                 'name' => 'randevu_iptal',
@@ -278,7 +274,7 @@ class RandevuAsistan
             ],
             [
                 'name' => 'randevu_guncelle',
-                'description' => 'Randevu tarih/saatini değiştirir. Önce mevcut_randevular ile id öğren ve müsait saati teyit et.',
+                'description' => 'Randevu tarih/saatini değiştirir (personel ve hizmet aynı kalır). Önce mevcut_randevular ile randevuyu bul, sonra musait_saatler’i o randevunun hizmet_id ve personel_id’si ile çağırıp yeni saati müşteriye onaylat.',
                 'input_schema' => ['type' => 'object', 'properties' => [
                     'randevu_id' => ['type' => 'integer'],
                     'yeni_tarih_saat' => ['type' => 'string', 'description' => 'ISO 8601'],
@@ -369,6 +365,11 @@ class RandevuAsistan
         }
         $telSatir = $telBilinen ? $this->telefon : 'bilinmiyor (gizli numara)';
 
+        $personelSatir = '';
+        foreach ($this->personelListesi() as $pid => $pad) $personelSatir .= "- {$pad} (personel_id {$pid})\n";
+        if ($personelSatir === '') $personelSatir = "(randevu takvimi açık personel yok — randevu verilemez, müşteriyi operatöre aktar)\n";
+        $adresSatir = trim((string) ($this->salon['adres'] ?? '')) ?: 'kayıtlı değil';
+
         return <<<PROMPT
 Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal Türkçe konuşuyorsun. Çıktın düz metindir (TTS ile okunur): emoji, madde işareti, markdown KULLANMA. Her yanıt 1-2 cümle.
 
@@ -377,13 +378,16 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal
 2. NİYET: yeni randevu mu, iptal mi, güncelleme mi, başka bir şey mi?
 3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise onaylatmadan devam et; coklu ise seçenekleri kısaca oku ve seçtir; yok ise "o hizmetimiz yok" de ve dönen önerileri sun.
 4. TARİH: "TARİH HARİTASI" tablosundan kesin ISO tarihi AL, kendin hesaplama. Belirsizse tek cümleyle teyit et.
-5. MÜSAİT SAAT: "musait_saatler" aracını çağır (müşteri gün dilimi dediyse zaman_dilimi ver). Dönen saatlerden müşteriye SADECE 2 tanesini öner; yoksa başka gün/dilim öner.
-6. SAAT SEÇİMİ.
-7. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te [hizmet] için randevu, onaylıyor musunuz?"
-8. Onay gelince "randevu_olustur" (hizmet_eslestir'den gelen hizmet_id ile).
-9. SONUÇ: "Randevunuz oluşturuldu, [gün] saat [saat]'te bekliyoruz."
+5. PERSONEL: müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") PERSONELLER listesinden eşleştir ve personel_id'yi kullan; listede yoksa "o isimde personelimiz yok" de ve listeden say. Söylemediyse personel SORMA (uygun personel otomatik seçilir).
+6. MÜSAİT SAAT: "musait_saatler" aracını hizmet_id + tarih ile çağır (saat/gün dilimi söylendiyse ver; personel söylendiyse personel_id ver). Dönen seçenekleri (en fazla 2) personel adıyla öner: "[saat]'te [personel] ile ya da [saat]'te ...". istenen_gun_dolu=true ise önce o günün dolu olduğunu söyle. Seçenek yoksa başka gün/dilim öner.
+7. SAAT SEÇİMİ.
+8. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te [personel] ile [hizmet] için randevu, onaylıyor musunuz?"
+9. Onay gelince "randevu_olustur" (seçilen seçeneğin tarih_saat ve personel_id'si + hizmet_id). ok=false ve saat dolu derse yeniden musait_saatler çağır ve yeni saat öner.
+10. SONUÇ: "Randevunuz oluşturuldu, [gün] saat [saat]'te bekliyoruz."
 
-İPTAL/GÜNCELLEME: önce "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat, sonra "randevu_iptal" / "randevu_guncelle".
+İPTAL/GÜNCELLEME: önce "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat. İptalde "randevu_iptal". Güncellemede yeni gün/saat için "musait_saatler"i o randevunun hizmet_id ve personel_id'si ile çağır, onay al, sonra "randevu_guncelle". Yalnız mevcut_randevular'ın döndüğü id'leri kullan.
+
+ADRES / YOL TARİFİ: müşteri adres, konum, "nasıl gelirim" sorarsa "yol_tarifi_gonder" çağır; adresi kısaca söyle ve yol tarifini mesajla gönderdiğini belirt. Bunun için aktarma yapma.
 
 # ONAY KELİMELERİ
 evet, tabii, olur, olsun, tamam, ok, okey, kabul, onaylıyorum, uygundur, peki, he, aynen, oldu = ONAY.
@@ -400,14 +404,17 @@ Saat kestirimi: "on dörtte"=14:00, "on dört buçukta"=14:30, "ikide/saat ikide
 Müşteri açıkça operatör/insan/yetkili isterse YA DA randevu/iptal/güncelleme dışı konu (şikayet, fatura, ödeme) olursa. Hizmet bulunamadı diye AKTARMA — sormaya devam et.
 
 # KIRMIZI ÇİZGİLER
-Hizmeti kendin tahmin etme (daima hizmet_eslestir). coklu'da kendin seçme. 7. adım onayı almadan randevu_olustur çağırma. Tüm saatleri sıralama (2 tane öner). Bilgi uydurma.
+Hizmeti kendin tahmin etme (daima hizmet_eslestir). coklu'da kendin seçme. 8. adım onayı almadan randevu_olustur çağırma. Saat ve personeli kendin uydurma (yalnız musait_saatler sonucundan). Tüm saatleri sıralama (2 tane öner). Bilgi uydurma.
 
 # BAĞLAM
 İşletme: {$ad}
+Adres: {$adresSatir}
 Müşteri telefonu: {$telSatir}
 {$musteriSatir}
 Hizmetler (yalnızca bağlam; eşleştirmeyi SEN yapma, hizmet_eslestir kullan):
 {$hizmetSatir}
+PERSONELLER (randevu takvimi açık olanlar):
+{$personelSatir}
 PROMPT;
     }
 
@@ -434,6 +441,7 @@ PROMPT;
         $this->salon = [
             'ad' => $d['ad'] ?? ('Salon ' . $this->salonId),
             'karsilama' => $d['karsilama_telaffuz'] ?? '',
+            'adres' => $d['adres'] ?? '',
             'hizmetler' => is_array($d['hizmetler'] ?? null) ? $d['hizmetler'] : [],
         ];
     }
@@ -505,6 +513,263 @@ PROMPT;
             return ['ok' => false, 'hata' => 'Kayıt şu an oluşturulamadı. Müşteriye özür dileyip yetkiliye aktarmayı teklif et.'];
         }
         return ['ok' => true, 'mesaj' => 'Müşteri kaydı oluşturuldu', 'ad_soyad' => $this->musteriAd];
+    }
+
+    // ------------------------------------------------ personel / musaitlik / randevu
+    // Eski santral (randevu_ai) ve uygulama ile AYNI kaynaklar: SesliRandevuCozService::musaitlikBul
+    // (personelin calisma saati + dolu araliklari) ve ApiController@randevuekleguncelle (panel/app yolu).
+
+    /** Randevu takvimi ACIK personeller: [id => ad] (takvimde_gorunsun=1, arsivli degil). */
+    protected function personelListesi(): array
+    {
+        if ($this->_personeller !== null) return $this->_personeller;
+        $out = [];
+        try {
+            $q = Personeller::where('salon_id', $this->salonId)
+                ->where(function ($w) { $w->whereNull('arsivli')->orWhere('arsivli', '!=', 1); })
+                ->where('takvimde_gorunsun', 1)->orderBy('id')->get(['id', 'personel_adi']);
+            foreach ($q as $p) {
+                $ad = trim((string) $p->personel_adi);
+                if ($ad !== '') $out[(int) $p->id] = $ad;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('RandevuAsistan personelListesi: ' . $e->getMessage());
+        }
+        return $this->_personeller = $out;
+    }
+
+    /** Hizmeti veren (personel_sunulan_hizmetler) ve takvimi acik personeller; yoksa takvimi acik HERKES (online randevu mantigi). */
+    protected function hizmetPersonelleri(int $hizmetId): array
+    {
+        $acik = $this->personelListesi();
+        $veren = PersonelHizmetler::where('hizmet_id', $hizmetId)->whereIn('personel_id', array_keys($acik) ?: [0])
+            ->pluck('personel_id')->map(function ($v) { return (int) $v; })->unique()->values()->all();
+        return array_slice($veren ?: array_keys($acik), 0, 8);
+    }
+
+    protected function musaitSaatlerPersonelli(array $in): array
+    {
+        $hizmetId = $this->intId($in['hizmet_id'] ?? null);
+        if (!$hizmetId) return ['ok' => false, 'hata' => 'Önce hizmet_eslestir ile hizmeti netleştir ve hizmet_id ver.'];
+        $tarih = (string) ($in['tarih'] ?? '');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tarih)) return ['ok' => false, 'hata' => 'tarih YYYY-MM-DD olmalı (TARİH HARİTASI).'];
+        $saat = preg_match('/^(\d{1,2}):(\d{2})/', (string) ($in['saat'] ?? ''), $sm) ? sprintf('%02d:%02d', $sm[1], $sm[2]) : null;
+        $vakitMap = ['sabah' => 'sabah', 'ogle' => 'ogleden_sonra', 'ogleden_sonra' => 'ogleden_sonra', 'aksam' => 'aksam'];
+        $vakit = $saat ? null : ($vakitMap[$in['zaman_dilimi'] ?? ''] ?? null);
+
+        $plist = $this->personelListesi();
+        $personelId = $this->intId($in['personel_id'] ?? null);
+        if ($personelId) {
+            if (!isset($plist[$personelId])) return ['ok' => false, 'hata' => 'Bu personelin randevu takvimi kapalı ya da bulunamadı. Müşteriye PERSONELLER listesinden başka biri olabileceğini söyle.'];
+            $adaylar = [$personelId];
+        } else {
+            $adaylar = $this->hizmetPersonelleri($hizmetId);
+        }
+        if (!$adaylar) return ['ok' => false, 'hata' => 'Randevu takvimi açık personel yok. Müşteriyi operatöre aktar.'];
+
+        $servis = app(SesliRandevuCozService::class);
+        $bul = function ($pid, $t, $s, $v, $ufuk = 14) use ($servis, $hizmetId) {
+            try { $m = $servis->musaitlikBul($this->salonId, $pid, $hizmetId, $t, $s, $v, $ufuk); }
+            catch (\Throwable $e) { Log::warning('RandevuAsistan musaitlikBul: ' . $e->getMessage()); return null; }
+            return !empty($m['bulundu']) ? $m : null;
+        };
+        $sonraki = function ($m) { // ayni personelin ayni gundeki bir sonraki slotu icin baslangic saati
+            [$h, $d] = array_map('intval', explode(':', $m['saat']));
+            $dk = $h * 60 + $d + max(15, (int) ($m['sure_dk'] ?? 30));
+            return sprintf('%02d:%02d', intdiv($dk, 60), $dk % 60);
+        };
+
+        $secenek = [];
+        foreach ($adaylar as $pid) {
+            $m = $bul($pid, $tarih, $saat, $vakit);
+            if ($m) $secenek[] = ['tarih' => $m['tarih'], 'saat' => $m['saat'], 'personel_id' => $pid, 'personel' => $plist[$pid] ?? '', '_m' => $m, '_tam' => !empty($m['tam_istek'])];
+        }
+        // tam istenen saat > en erken; ayni saatte tek secenek kalsin (farkli personel ayni saat = ayni oneri)
+        usort($secenek, function ($a, $b) { return [$a['_tam'] ? 0 : 1, $a['tarih'], $a['saat']] <=> [$b['_tam'] ? 0 : 1, $b['tarih'], $b['saat']]; });
+        $sec = []; $gorulen = [];
+        foreach ($secenek as $s) {
+            $k = $s['tarih'] . ' ' . $s['saat'];
+            if (isset($gorulen[$k])) continue;
+            $gorulen[$k] = 1; $sec[] = $s;
+            if (count($sec) === 2) break;
+        }
+        // Tek secenek varsa: ayni personelin ayni gunku sonraki bos saatini ikinci secenek yap
+        if (count($sec) === 1) {
+            $m2 = $bul($sec[0]['personel_id'], $sec[0]['tarih'], $sonraki($sec[0]['_m']), null, 1);
+            if ($m2 && $m2['tarih'] === $sec[0]['tarih'] && $m2['saat'] > $sec[0]['saat']) {
+                $sec[] = ['tarih' => $m2['tarih'], 'saat' => $m2['saat'], 'personel_id' => $sec[0]['personel_id'], 'personel' => $sec[0]['personel']];
+            }
+        }
+        $sec = array_map(function ($s) { unset($s['_m'], $s['_tam']); return $s; }, $sec);
+        if (!$sec) return ['ok' => true, 'secenekler' => [], 'mesaj' => 'Önümüzdeki 14 günde uygun saat bulunamadı. Başka gün/dilim ya da başka personel öner.'];
+        return [
+            'ok' => true,
+            'istenen_tarih' => $tarih,
+            'istenen_gun_dolu' => $sec[0]['tarih'] !== $tarih,
+            'secenekler' => $sec,
+        ];
+    }
+
+    /** Arayanin kendi gelecek randevulari (bekleyen + onayli), personel/hizmet bilgisiyle. */
+    protected function randevularim(): array
+    {
+        if (!$this->musteriId) return ['ok' => true, 'randevular' => [], 'not' => 'Arayan bu işletmede kayıtlı değil; randevusu yok.'];
+        $liste = [];
+        $rs = Randevular::where('user_id', $this->musteriId)->where('salon_id', $this->salonId)
+            ->whereDate('tarih', '>=', now('Europe/Istanbul')->toDateString())
+            ->whereIn('durum', [Randevular::BEKLENIYOR, Randevular::ONAYLANDI])
+            ->orderBy('tarih')->orderBy('saat')->limit(5)->get(['id', 'tarih', 'saat']);
+        foreach ($rs as $r) {
+            $rh = RandevuHizmetler::where('randevu_id', $r->id)->with(['hizmetler', 'personeller'])->get();
+            $ilk = $rh->first();
+            $liste[] = [
+                'id' => (int) $r->id,
+                'tarih' => substr((string) $r->tarih, 0, 10),
+                'saat' => substr((string) $r->saat, 0, 5),
+                'hizmet' => $rh->map(function ($x) { return optional($x->hizmetler)->hizmet_adi; })->filter()->implode(', '),
+                'personel' => $ilk ? optional($ilk->personeller)->personel_adi : null,
+                'hizmet_id' => $ilk ? (int) $ilk->hizmet_id : null,
+                'personel_id' => $ilk && $ilk->personel_id ? (int) $ilk->personel_id : null,
+            ];
+        }
+        return ['ok' => true, 'randevular' => $liste];
+    }
+
+    /** Randevu bu salonda ve ARAYANIN mi? (iptal/guncelle oncesi zorunlu) */
+    protected function randevuSahibiMi(?int $randevuId): bool
+    {
+        if (!$randevuId || !$this->musteriId) return false;
+        return Randevular::where('id', $randevuId)->where('salon_id', $this->salonId)
+            ->where('user_id', $this->musteriId)->exists();
+    }
+
+    protected function sahipDegilHata(): array
+    {
+        return ['ok' => false, 'hata' => 'Bu randevu arayan müşteriye ait değil ya da bulunamadı. Yalnız mevcut_randevular’ın döndüğü id’leri kullan.'];
+    }
+
+    /** ISO tarih_saat -> [Y-m-d, H:i] ya da null */
+    protected function tarihSaatAyir(string $iso): ?array
+    {
+        if (!preg_match('/^(\d{4}-\d{2}-\d{2})[T ](\d{1,2}):(\d{2})/', trim($iso), $m)) return null;
+        return [$m[1], sprintf('%02d:%02d', $m[2], $m[3])];
+    }
+
+    /** Slot hala bos mu? (personelin o anki dolu araliklarina gore, tam o saat) */
+    protected function slotHalaBos(int $personelId, int $hizmetId, string $tarih, string $saat): bool
+    {
+        try {
+            $m = app(SesliRandevuCozService::class)->musaitlikBul($this->salonId, $personelId, $hizmetId, $tarih, $saat, null, 1);
+        } catch (\Throwable $e) { return false; }
+        return !empty($m['bulundu']) && $m['tarih'] === $tarih && $m['saat'] === $saat;
+    }
+
+    /** ApiController@randevuekleguncelle (panel/uygulama/eski santral ile ayni randevu yolu) */
+    protected function randevuEkleGuncelleCagir(array $payload)
+    {
+        $r = app(ApiController::class)->randevuekleguncelle(Request::create('/api/randevuekleguncelle', 'POST', $payload));
+        if (is_object($r) && method_exists($r, 'getContent')) $r = json_decode($r->getContent(), true);
+        return is_array($r) ? $r : [];
+    }
+
+    protected function randevuOlusturPersonelli(array $in): array
+    {
+        // Kayitsiz musteriye randevu YOK: once normal musteri kaydi (ad soyad + telefon).
+        if (!$this->musteriId) return ['ok' => false, 'hata' => 'Müşteri kayıtlı değil. Önce adını ve soyadını alıp musteri_kaydet aracını çağır, sonra randevuyu oluştur.'];
+        $ts = $this->tarihSaatAyir((string) ($in['tarih_saat'] ?? ''));
+        $hizmetId = $this->intId($in['hizmet_id'] ?? null);
+        $personelId = $this->intId($in['personel_id'] ?? null);
+        if (!$ts || !$hizmetId || !$personelId) return ['ok' => false, 'hata' => 'tarih_saat, hizmet_id ve personel_id gerekli (musait_saatler seçeneğinden al).'];
+        [$tarih, $saat] = $ts;
+        if (!isset($this->personelListesi()[$personelId])) return ['ok' => false, 'hata' => 'Bu personelin takvimi kapalı. musait_saatler ile yeniden ara.'];
+        if (!$this->slotHalaBos($personelId, $hizmetId, $tarih, $saat)) {
+            return ['ok' => false, 'hata' => 'Bu saat bu personel için artık dolu. musait_saatler ile yeni saat bulup müşteriye öner.'];
+        }
+
+        $sh = SalonHizmetler::where('salon_id', $this->salonId)->where('hizmet_id', $hizmetId)->first();
+        $sure = ($sh && (int) $sh->sure_dk > 0) ? (int) $sh->sure_dk : 30;
+        $fiyat = $sh ? ($sh->baslangic_fiyat ?? $sh->son_fiyat ?? 0) : 0;
+        try {
+            $r = $this->randevuEkleGuncelleCagir([
+                'salonid' => $this->salonId, 'randevu_id' => '', 'user_id' => $this->musteriId,
+                'randevu_tarihi' => $tarih, 'randevu_saati' => $saat,
+                'hizmetler' => [['hizmet_id' => $hizmetId, 'personel_id' => $personelId, 'oda_id' => '', 'cihaz_id' => '', 'yardimci_personel' => '', 'sure_dk' => $sure, 'fiyat' => $fiyat, 'birlestir' => '']],
+                'yardimcipersoneller' => [],
+                'notlar' => trim('Sesli asistan (telefon) ' . (string) ($in['notlar'] ?? '')),
+                'cakisma_varmi' => '', 'cakisanrandevuekle' => '', 'olusturan' => null, 'olusturanMusteri' => null,
+                'randevuKaynak' => 'salon', 'easistan' => '1', 'durum' => (string) Randevular::ONAYLANDI,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('RandevuAsistan randevuOlustur: ' . $e->getMessage());
+            return ['ok' => false, 'hata' => 'Randevu şu an oluşturulamadı. Müşteriye özür dile, yetkiliye aktarmayı teklif et.'];
+        }
+        if ((string) ($r['cakismavar'] ?? '') === '1') {
+            return ['ok' => false, 'hata' => 'Bu saat çakışıyor. musait_saatler ile yeni saat bulup müşteriye öner.'];
+        }
+        $rid = Randevular::where('user_id', $this->musteriId)->where('salon_id', $this->salonId)
+            ->whereDate('tarih', $tarih)->where('saat', 'like', $saat . '%')->orderByDesc('id')->value('id');
+        if (!$rid) {
+            Log::warning('RandevuAsistan randevuOlustur: kayit bulunamadi', ['yanit' => $r]);
+            return ['ok' => false, 'hata' => 'Randevu şu an oluşturulamadı. Müşteriye özür dile, yetkiliye aktarmayı teklif et.'];
+        }
+        return ['ok' => true, 'randevu_id' => (int) $rid, 'tarih' => $tarih, 'saat' => $saat, 'personel' => $this->personelListesi()[$personelId] ?? null];
+    }
+
+    protected function randevuGuncellePersonelli(array $in): array
+    {
+        $rid = $this->intId($in['randevu_id'] ?? null);
+        if (!$this->randevuSahibiMi($rid)) return $this->sahipDegilHata();
+        $ts = $this->tarihSaatAyir((string) ($in['yeni_tarih_saat'] ?? ''));
+        if (!$ts) return ['ok' => false, 'hata' => 'yeni_tarih_saat ISO 8601 olmalı.'];
+        [$tarih, $saat] = $ts;
+
+        $rv = Randevular::find($rid);
+        $satirlar = RandevuHizmetler::where('randevu_id', $rid)->orderBy('id')->get();
+        $ilk = $satirlar->first();
+        if (!$ilk || !$ilk->personel_id) {
+            // Personelsiz eski kayit: eski yol (salon geneli)
+            return $this->ctrlCagir('randevuGuncelle', ['salon_id' => $this->salonId, 'randevu_id' => $rid, 'yeni_tarih_saat' => "{$tarih}T{$saat}:00"]);
+        }
+        if (!$this->slotHalaBos((int) $ilk->personel_id, (int) $ilk->hizmet_id, $tarih, $saat)) {
+            return ['ok' => false, 'hata' => 'Bu saat bu personel için dolu. musait_saatler ile (randevunun hizmet_id ve personel_id’si) yeni saat bulup öner.'];
+        }
+        try {
+            $r = $this->randevuEkleGuncelleCagir([
+                'salonid' => $this->salonId, 'randevu_id' => $rid, 'user_id' => $this->musteriId,
+                'randevu_tarihi' => $tarih, 'randevu_saati' => $saat,
+                'hizmetler' => $satirlar->map(function ($x) {
+                    return ['hizmet_id' => $x->hizmet_id, 'personel_id' => $x->personel_id, 'oda_id' => $x->oda_id ?: '', 'cihaz_id' => $x->cihaz_id ?: '',
+                        'yardimci_personel' => '', 'sure_dk' => $x->sure_dk ?: 30, 'fiyat' => $x->fiyat ?: 0, 'birlestir' => ''];
+                })->all(),
+                'yardimcipersoneller' => [],
+                'notlar' => $rv->personel_notu,
+                'cakisma_varmi' => '', 'cakisanrandevuekle' => '', 'olusturan' => null, 'olusturanMusteri' => null,
+                'randevuKaynak' => 'salon', 'easistan' => '1', 'durum' => (string) $rv->durum,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('RandevuAsistan randevuGuncelle: ' . $e->getMessage());
+            return ['ok' => false, 'hata' => 'Randevu şu an güncellenemedi. Müşteriye özür dile, yetkiliye aktarmayı teklif et.'];
+        }
+        if ((string) ($r['cakismavar'] ?? '') === '1') return ['ok' => false, 'hata' => 'Bu saat çakışıyor. Yeni saat öner.'];
+        return ['ok' => true, 'randevu_id' => $rid, 'tarih' => $tarih, 'saat' => $saat];
+    }
+
+    /** ApiController@yolTarifiGonder (eski santral ile ayni: WhatsApp once, olmazsa SMS) + adres. */
+    protected function yolTarifiGonder(): array
+    {
+        $tel = $this->telNorm($this->telefon);
+        if (!$tel) return ['ok' => false, 'adres' => $this->salon['adres'] ?? '', 'hata' => 'Arayan numarası yok; mesaj gönderilemedi. Adresi söyle.'];
+        try {
+            $r = app(ApiController::class)->yolTarifiGonder(Request::create('/api/yolTarifiGonder', 'POST', [
+                'salonid' => $this->salonId, 'userid' => $this->musteriId ?: '', 'cep_telefon' => $tel,
+            ]));
+            $d = is_object($r) && method_exists($r, 'getContent') ? json_decode($r->getContent(), true) : null;
+            $ok = !empty($d['success']);
+        } catch (\Throwable $e) {
+            Log::warning('RandevuAsistan yolTarifi: ' . $e->getMessage());
+            $ok = false;
+        }
+        return ['ok' => $ok, 'adres' => $this->salon['adres'] ?? '', 'mesaj' => $ok ? 'Yol tarifi mesajla gönderildi' : 'Mesaj gönderilemedi; adresi söyle'];
     }
 
     /** Cep no -> DB formati 5xxxxxxxxx (users.cep_telefon). Gecersizse null. */
