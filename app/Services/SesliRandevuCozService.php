@@ -645,6 +645,22 @@ class SesliRandevuCozService
                     $bit = $sbit;
                 }
             }
+            // ISLETME SAATI DE GECERLI: personel ayni gun calisiyor gorunse bile isletme kapaliysa
+            // randevu YOK; aciksa personel saati ile isletme saatinin KESISIMI. Isletme satiri
+            // yok/saat gecersizse (00:00-00:00) yalniz personel saati (eksik ayarli salon bos kalmasin).
+            if ($calisiyor && $sch) {
+                if ((int) $sch->calisiyor !== 1) {
+                    $calisiyor = false;
+                } else {
+                    $sbas = $this->hiToDk($sch->baslangic_saati);
+                    $sbit = $this->hiToDk($sch->bitis_saati);
+                    if ($sbas !== null && $sbit !== null && $sbit > $sbas && $bas !== null && $bit !== null) {
+                        $bas = max($bas, $sbas);
+                        $bit = min($bit, $sbit);
+                        if ($bit <= $bas) $calisiyor = false; // saatler hic ortusmuyor
+                    }
+                }
+            }
             return ['calisiyor' => $calisiyor, 'baslangic' => $bas, 'bitis' => $bit];
         }
 
