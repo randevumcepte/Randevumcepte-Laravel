@@ -567,6 +567,12 @@ PROMPT;
     {
         $m = preg_replace('/[*_`#>\-]+/u', ' ', $m);          // markdown
         $m = preg_replace('/[\x{1F000}-\x{1FFFF}\x{2600}-\x{27BF}]/u', '', $m); // emoji
+        // TELEFON NUMARASI (restaurant SantralAsistan::ttsTemizle ile ayni): 10+ haneli numarayi
+        // rakam rakam okut ("beş yüz otuz iki milyar..." olmasin). Tarih/saat/fiyat etkilenmez.
+        $m = preg_replace_callback('/\d[\d \-\.\(\)]{6,}\d/u', function ($x) {
+            $d = preg_replace('/\D/', '', $x[0]);
+            return strlen($d) < 10 ? $x[0] : implode(' ', str_split($d));
+        }, $m);
         $m = preg_replace('/\s+/u', ' ', $m);
         return trim($m);
     }
