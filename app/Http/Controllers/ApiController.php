@@ -10926,8 +10926,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             }
         }
 
-        if ($request->paket == 1 && !\App\Services\PaketGecerlilik::seansUygun($request->paketId, $request->hizmetId, $seansTarih)) {
-            return response()->json(['hatali' => '1', 'mesaj' => 'Paketin geçerlilik süresi dolmuş veya günlük kullanım limiti aşılmış.']);
+        if ($request->paket == 1 && ($engel = \App\Services\PaketGecerlilik::seansEngeli($request->paketId, $request->hizmetId, $seansTarih))) {
+            return response()->json(['hatali' => '1', 'mesaj' => $engel]);
         }
 
         $seans = new AdisyonPaketSeanslar();

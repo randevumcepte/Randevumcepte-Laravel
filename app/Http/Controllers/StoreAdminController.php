@@ -38331,8 +38331,8 @@ DB::raw('
                 $seansTarih = $request->seansTarihi;
         }
 
-        if($request->paket==1 && !\App\Services\PaketGecerlilik::seansUygun($request->paketId, $request->hizmetId, $seansTarih))
-            return response('Paketin geçerlilik süresi dolmuş veya günlük kullanım limiti aşılmış.', 422);
+        if($request->paket==1 && ($engel = \App\Services\PaketGecerlilik::seansEngeli($request->paketId, $request->hizmetId, $seansTarih)))
+            return response($engel, 422);
 
         $seans = new AdisyonPaketSeanslar();
         if($request->paket==1)

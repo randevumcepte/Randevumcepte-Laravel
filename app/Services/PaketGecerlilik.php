@@ -133,15 +133,26 @@ class PaketGecerlilik
     /** Bu tarihte bu hizmet icin YENI seans acilabilir mi? (sure + gunluk limit; seans adedi cagirana ait) */
     public static function seansUygun($adisyonPaketId, $hizmetId, $tarih): bool
     {
+        return self::seansEngeli($adisyonPaketId, $hizmetId, $tarih) === null;
+    }
+
+    /** Yeni seans acilamiyorsa kullaniciya gosterilecek sebep; acilabiliyorsa null. */
+    public static function seansEngeli($adisyonPaketId, $hizmetId, $tarih): ?string
+    {
         $d = self::durum($adisyonPaketId);
         $gun = date('Y-m-d', strtotime($tarih ?: 'today'));
-        if ($d['bitis'] !== null && $gun > $d['bitis']) return false;
+        if ($d['bitis'] !== null && $gun > $d['bitis']) {
+            return 'Paketin geçerlilik süresi '.date('d.m.Y', strtotime($d['bitis'])).' tarihinde doldu.';
+        }
         if ($d['sinirsiz'] && $d['gunluk_limit'] > 0) {
             $bugunku = DB::table('adisyon_paket_seanslar')->where('adisyon_paket_id', $adisyonPaketId)
                 ->where('hizmet_id', $hizmetId)->whereDate('seans_tarih', $gun)->count();
-            if ($bugunku >= $d['gunluk_limit']) return false;
+            if ($bugunku >= $d['gunluk_limit']) {
+                return 'Bu pakette bu hizmet için günlük kullanım limiti '.$d['gunluk_limit'].'. '
+                    .date('d.m.Y', strtotime($gun)).' tarihinde '.$bugunku.' kullanım zaten kayıtlı.';
+            }
         }
-        return true;
+        return null;
     }
 
     /**
