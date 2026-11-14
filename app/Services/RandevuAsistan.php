@@ -52,7 +52,7 @@ class RandevuAsistan
         // Restoran santrali ile ayni kalip: "<isletme> hoş geldiniz, ben yapay zeka asistanınızım. ..."
         $hosgeldin = $this->hosgeldinMetni();
         if ($this->musteriAd) {
-            return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım, size nasıl yardımcı olabilirim?";
+            return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?";
         }
         $ilk = mb_strtoupper(mb_substr($hosgeldin, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($hosgeldin, 1, null, 'UTF-8');
         if ($this->telNorm($this->telefon)) {
