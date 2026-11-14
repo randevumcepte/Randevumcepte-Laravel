@@ -44,19 +44,21 @@ class RandevuAsistan
 
     // ---------------------------------------------------------------- public
     /**
-     * Kayitli musteri: "Merhaba Ad Soyad, <isletme> hoş geldiniz. ..." (isim SORULMAZ).
+     * Kayitli musteri: "Sayın Ad Soyad, <isletme> hoş geldiniz. Ben yapay zeka asistanınızım, ..." (isim SORULMAZ).
      * Kayitsiz: karsilamada ad soyad (numara gizliyse telefon da) istenir -> musteri_kaydet.
      */
     public function karsilama(): string
     {
+        // Restoran santrali ile ayni kalip: "<isletme> hoş geldiniz, ben yapay zeka asistanınızım. ..."
         $hosgeldin = $this->hosgeldinMetni();
         if ($this->musteriAd) {
-            return "Merhaba {$this->musteriAd}, {$hosgeldin}. Size nasıl yardımcı olabilirim?";
+            return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım, size nasıl yardımcı olabilirim?";
         }
+        $ilk = mb_strtoupper(mb_substr($hosgeldin, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($hosgeldin, 1, null, 'UTF-8');
         if ($this->telNorm($this->telefon)) {
-            return "Merhaba, {$hosgeldin}. Size yardımcı olabilmem için adınızı ve soyadınızı öğrenebilir miyim?";
+            return "{$ilk}, ben yapay zeka asistanınızım. Size yardımcı olabilmem için adınızı ve soyadınızı öğrenebilir miyim?";
         }
-        return "Merhaba, {$hosgeldin}. Size yardımcı olabilmem için adınızı, soyadınızı ve telefon numaranızı öğrenebilir miyim?";
+        return "{$ilk}, ben yapay zeka asistanınızım. Size yardımcı olabilmem için adınızı, soyadınızı ve telefon numaranızı öğrenebilir miyim?";
     }
 
     /** Salonun karsilama telaffuzu (eski santralla ayni: "<telaffuz> hoşgeldiniz"), yoksa salon adi. */
