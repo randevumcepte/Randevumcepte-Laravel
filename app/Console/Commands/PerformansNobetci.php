@@ -26,7 +26,8 @@ class PerformansNobetci extends Command
     const BOS_BELLEK_MB      = 400;  // MemAvailable bunun altina inerse
     const YAVAS_ISTEK_MS     = 5000; // yavas istek esigi (sayim icin)
     const YAVAS_ISTEK_ADET   = 8;    // son 5 dk'da bu kadar yavas istek
-    const ZAMAN_ASIMI_ADET   = 3;    // son 5 dk'da bu kadar tarayici zaman asimi
+    const ZAMAN_ASIMI_SALON  = 3;    // son 5 dk'da bu kadar FARKLI isletmede tarayici zaman asimi
+    const ZAMAN_ASIMI_ADET   = 10;   // ya da toplamda bu kadar zaman asimi
     const LOAD_CARPANI       = 3;    // load1 > cekirdek * carpan
     const SUNUCU_HATA_ADET   = 10;   // son 5 dk'da bu kadar sunucu hatasi (istisna/5xx/log)
     const ALARM_ARALIGI_DK   = 30;   // ayni kisa ariza icin tekrar alarm araligi
@@ -42,8 +43,16 @@ class PerformansNobetci extends Command
         $load1 = $this->load1();
         $cekirdek = $this->cekirdekSayisi();
         $sorgular = $this->calisanSorgular();
-        $uzunlar = array_values(array_filter($sorgular, function ($s) { return $s['sn'] >= self::UZUN_SORGU_SN; }));
-        list($yavasAdet, $zamanAsimiAdet, $yavaslar) = $this->sonYavasIstekler();
+        // Gece yedegi (dbyedek:al, ifsnop) her tabloyu "SELECT kolonlar FROM `tablo`" ile okur; buyuk
+        // tablolarda 15 sn+ surmesi beklenir, alarm degildir.
+        $yedekCalisiyor = $this->yedekCalisiyor();
+        $uzunlar = array_values(array_filter($sorgular, function ($s) use ($yedekCalisiyor) {
+            if ($yedekCalisiyor && preg_match('/^SELECT [^()]+ FROM `[\w]+`$/i', trim($s['sql']))) {
+                return false;
+            }
+            return $s['sn'] >= self::UZUN_SORGU_SN;
+        }));
+        list($yavasAdet, $zamanAsimiAdet, $yavaslar, $zamanAsimiSalon) = $this->sonYavasIstekler();
 
         $nedenler = [];
         if ($uzunlar) {
@@ -55,8 +64,9 @@ class PerformansNobetci extends Command
         if ($yavasAdet >= self::YAVAS_ISTEK_ADET) {
             $nedenler[] = '5 dk icinde '.$yavasAdet.' yavas istek';
         }
-        if ($zamanAsimiAdet >= self::ZAMAN_ASIMI_ADET) {
-            $nedenler[] = '5 dk icinde '.$zamanAsimiAdet.' tarayici zaman asimi';
+        // Tek kullanicinin tekrar denemesi degil: ayni anda birden cok isletme takildiysa genel sorun.
+        if ($zamanAsimiSalon >= self::ZAMAN_ASIMI_SALON || $zamanAsimiAdet >= self::ZAMAN_ASIMI_ADET) {
+            $nedenler[] = '5 dk icinde '.$zamanAsimiAdet.' tarayici zaman asimi ('.$zamanAsimiSalon.' isletme)';
         }
         if ($load1 !== null && $load1 > $cekirdek * self::LOAD_CARPANI) {
             $nedenler[] = 'load '.$load1;
@@ -156,23 +166,38 @@ class PerformansNobetci extends Command
     private function sonYavasIstekler()
     {
         if (!Schema::hasTable('yavas_istekler')) {
-            return [0, 0, []];
+            return [0, 0, [], 0];
         }
         $sinir = date('Y-m-d H:i:s', time() - 300);
         try {
             $yavas = (int) DB::table('yavas_istekler')->where('created_at', '>=', $sinir)
                 ->where('method', '<>', 'TIMEOUT')->where('sure_ms', '>=', self::YAVAS_ISTEK_MS)->count();
-            $zamanAsimi = (int) DB::table('yavas_istekler')->where('created_at', '>=', $sinir)
-                ->where('method', 'TIMEOUT')->count();
+            // 'istemci:baglanti' = kullanicinin kendi agi koptu; sunucu sorunu sayilmaz.
+            $zaman = DB::table('yavas_istekler')->where('created_at', '>=', $sinir)
+                ->where('method', 'TIMEOUT')->where('aksiyon', '<>', 'istemci:baglanti')
+                ->selectRaw('COUNT(*) as adet, COUNT(DISTINCT salon_id) as salon')->first();
+            $zamanAsimi = (int) ($zaman->adet ?? 0);
+            $zamanAsimiSalon = (int) ($zaman->salon ?? 0);
             $uclar = DB::table('yavas_istekler')->where('created_at', '>=', $sinir)
                 ->selectRaw("COALESCE(aksiyon, uri) as uc, method, COUNT(*) as adet, MAX(sure_ms) as en_uzun_ms, GROUP_CONCAT(DISTINCT salon_id) as salonlar")
                 ->groupBy('uc', 'method')->orderBy('en_uzun_ms', 'desc')->limit(10)->get()
                 ->map(function ($r) { return (array) $r; })->all();
         } catch (\Throwable $e) {
-            return [0, 0, []];
+            return [0, 0, [], 0];
         }
 
-        return [$yavas, $zamanAsimi, $uclar];
+        return [$yavas, $zamanAsimi, $uclar, $zamanAsimiSalon];
+    }
+
+    /** Gece yedegi (artisan dbyedek:al) su an calisiyor mu? */
+    private function yedekCalisiyor()
+    {
+        if (!function_exists('shell_exec')) {
+            return false;
+        }
+        $cikti = @shell_exec("pgrep -f 'artisan dbyedek:al' 2>/dev/null");
+
+        return is_string($cikti) && trim($cikti) !== '';
     }
 
     /** Son 5 dk hata gruplari (sistem_hatalari). */
@@ -249,7 +274,8 @@ class PerformansNobetci extends Command
             $m .= 'En uzun sorgu: '.$uzunlar[0]['sn'].' sn — '.mb_substr($uzunlar[0]['sql'], 0, 120)."\n";
         }
         // Once sunucu hatalari (alarm nedeni olanlar), sonra digerleri; hangi uc oldugu da yazilir.
-        $hatalar = $this->sonHatalar();
+        // Oturum/token (gecersiz mobil token) mesaji kalabaliklastirir; alarm nedeni degildir.
+        $hatalar = array_values(array_filter($this->sonHatalar(), function ($h) { return $h['tur'] !== 'oturum'; }));
         usort($hatalar, function ($a, $b) { return [$b['sunucu_adet'], $b['adet']] <=> [$a['sunucu_adet'], $a['adet']]; });
         foreach (array_slice($hatalar, 0, 3) as $h) {
             $m .= 'Hata ('.$h['adet'].'x): '.mb_substr($h['baslik'].($h['mesaj'] ? ' — '.$h['mesaj'] : ''), 0, 120)
