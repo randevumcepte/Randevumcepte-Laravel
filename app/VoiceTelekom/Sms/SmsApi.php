@@ -44,7 +44,10 @@
 				curl_setopt($ch, CURLOPT_URL, $this->host.'user/credit');
 				curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
 				curl_setopt($ch, CURLOPT_POSTFIELDS, "");
-				curl_setopt($ch, CURLOPT_TIMEOUT, 120); 
+				// Bakiye her panel sayfasinda (layout) sorgulaniyordu: 120 sn'lik bekleme saglayici yavaslayinca
+				// PHP iscilerini kilitleyip tum isletmeleri dondurdu (14 Kas, musteridetay 67 sn / DB 0,4 sn).
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+				curl_setopt($ch, CURLOPT_TIMEOUT, 5);
 				curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
 				curl_setopt($ch, CURLOPT_RETURNTRANSFER,1);
@@ -123,6 +126,7 @@
 				curl_setopt($ch, CURLOPT_URL, $this->host.'sms/list-sender');
 				curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
 				curl_setopt($ch, CURLOPT_POSTFIELDS, "");
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // saglayiciya ulasilamazsa isci dakikalarca kilitlenmesin
 				curl_setopt($ch, CURLOPT_TIMEOUT, 120); 
 				curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
@@ -218,6 +222,7 @@
 				curl_setopt($ch, CURLOPT_URL, $this->host.'sms/list-gateway');
 				curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
 				curl_setopt($ch, CURLOPT_POSTFIELDS, "");
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // saglayiciya ulasilamazsa isci dakikalarca kilitlenmesin
 				curl_setopt($ch, CURLOPT_TIMEOUT, 120); 
 				curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
@@ -317,6 +322,7 @@
 				curl_setopt($ch, CURLOPT_URL, $this->host.'sms/cancel');
 				curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
 				curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // saglayiciya ulasilamazsa isci dakikalarca kilitlenmesin
 				curl_setopt($ch, CURLOPT_TIMEOUT, 120); 
 				curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
@@ -399,6 +405,7 @@
 				curl_setopt($ch, CURLOPT_URL, $this->host.'sms/cancel');
 				curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
 				curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // saglayiciya ulasilamazsa isci dakikalarca kilitlenmesin
 				curl_setopt($ch, CURLOPT_TIMEOUT, 120); 
 				curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
@@ -480,6 +487,7 @@
 				curl_setopt($ch, CURLOPT_URL, $this->host.'sms/create-otp');
 				curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
 				curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // saglayiciya ulasilamazsa isci dakikalarca kilitlenmesin
 				curl_setopt($ch, CURLOPT_TIMEOUT, 120); 
 				curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
@@ -561,6 +569,7 @@
 				curl_setopt($ch, CURLOPT_URL, $this->host.'sms/create');
 				curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
 				curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // saglayiciya ulasilamazsa isci dakikalarca kilitlenmesin
 				curl_setopt($ch, CURLOPT_TIMEOUT, 120); 
 				curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
@@ -642,6 +651,7 @@
 				curl_setopt($ch, CURLOPT_URL, $this->host.'sms/create');
 				curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
 				curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // saglayiciya ulasilamazsa isci dakikalarca kilitlenmesin
 				curl_setopt($ch, CURLOPT_TIMEOUT, 120); 
 				curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
@@ -726,6 +736,7 @@
 				curl_setopt($ch, CURLOPT_URL, $this->host.'sms/create');
 				curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
 				curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // saglayiciya ulasilamazsa isci dakikalarca kilitlenmesin
 				curl_setopt($ch, CURLOPT_TIMEOUT, 120); 
 				curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
@@ -817,6 +828,7 @@
 				curl_setopt($ch, CURLOPT_URL, $this->host.'sms/list');
 				curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
 				curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // saglayiciya ulasilamazsa isci dakikalarca kilitlenmesin
 				curl_setopt($ch, CURLOPT_TIMEOUT, 120); 
 				curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
@@ -947,6 +959,7 @@
 				curl_setopt($ch, CURLOPT_URL, $this->host.'sms/list-item');
 				curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
 				curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // saglayiciya ulasilamazsa isci dakikalarca kilitlenmesin
 				curl_setopt($ch, CURLOPT_TIMEOUT, 120); 
 				curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);

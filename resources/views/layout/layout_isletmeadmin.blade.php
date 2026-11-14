@@ -1267,6 +1267,9 @@
          require_once app_path('VoiceTelekom/Sms/SmsApi.php');
          require_once app_path('VoiceTelekom/Sms/SendMultiSms.php');
          require_once app_path('VoiceTelekom/Sms/PeriodicSettings.php');
+         // SMS bakiyesi her panel sayfasinda saglayicidan sorgulaniyordu (saglayici yavaslayinca tum sayfalar
+         // takiliyordu). Salon basina 5 dk onbellek; hata/bos cevap da 5 dk tutulur, saglayici zorlanmaz.
+         $kalan_sms_miktar = \Cache::remember('sms_bakiye:'.$isletme->id, 5, function () use ($isletme) {
          $kalan_sms_miktar = 0;
          if($isletme->yeni_sms){
    
@@ -1294,6 +1297,7 @@
             $ch=curl_init();         
             curl_setopt($ch,CURLOPT_URL,'https://api.efetech.net.tr/v2/get/balance');        
             curl_setopt($ch,CURLOPT_POST,1);
+            curl_setopt($ch,CURLOPT_CONNECTTIMEOUT,3);
             curl_setopt($ch,CURLOPT_TIMEOUT,5);
             curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
             curl_setopt($ch,CURLOPT_HTTPHEADER,$headers);
@@ -1317,6 +1321,8 @@
                 $kalan_sms_miktar = 0; // veya null
             }
          }
+         return $kalan_sms_miktar;
+         });
          
 
          $day=0;

@@ -8404,11 +8404,18 @@ private function ayAdiCevir($ingilizceAy)
                 }
             }
         }
-        if(count($mesajlar)>0)
+        if(count($mesajlar)>0) {
             // salon_id ACIKCA gec — multi-branch kullanicida mevcutsube
             // yanlis salon (kullanicinin ilk yetkili sube'si) donerdi.
             // 'iptal_bildirim' toplu tip: kontor kapisi ucretsiz sayar.
-            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false,$randevu->salon_id,'iptal_bildirim');
+            // SMS saglayicisi yavaslayinca kullanici bekliyor, tarayici vazgecip tekrar gonderiyordu: cevap
+            // kullaniciya gittikten sonra (terminate) gonderilir. Sonucu kullaniciya gosterilmiyor.
+            $__smsSalon = $randevu->salon_id;
+            app()->terminating(function () use ($request, $mesajlar, $__smsSalon) {
+                try { self::sms_gonder_bildirimli($request,$mesajlar,false,1,false,$__smsSalon,'iptal_bildirim'); }
+                catch (\Throwable $e) { \Log::error('[SMS] cevaptan sonra gonderim hatasi (iptal_bildirim)', ['salon_id' => $__smsSalon, 'hata' => $e->getMessage()]); }
+            });
+        }
         if(is_numeric($request->musteriid))
         {
             return self::randevu_liste_getir($request, date('Y-m-d'), // tarih1: bugün
@@ -9478,12 +9485,18 @@ private function ayAdiCevir($ingilizceAy)
                 }
             }
             
-            if(count($mesajlar)>0)
+            if(count($mesajlar)>0) {
                 // salon_id ACIKCA gec — multi-branch kullanicida mevcutsube
                 // yanlis salon (kullanicinin ilk yetkili sube'si) donerdi.
                 // 'yeni_randevu_bildirim' toplu tip: kontor kapisi ucretsiz sayar.
-                self::sms_gonder_bildirimli($request,$mesajlar,false,1,false,$yenirandevu->salon_id,'yeni_randevu_bildirim');
-
+                // SMS saglayicisi yavaslayinca kullanici bekliyor, tarayici vazgecip tekrar gonderiyordu: cevap
+                // kullaniciya gittikten sonra (terminate) gonderilir. Sonucu kullaniciya gosterilmiyor.
+                $__smsSalon = $yenirandevu->salon_id;
+                app()->terminating(function () use ($request, $mesajlar, $__smsSalon) {
+                    try { self::sms_gonder_bildirimli($request,$mesajlar,false,1,false,$__smsSalon,'yeni_randevu_bildirim'); }
+                    catch (\Throwable $e) { \Log::error('[SMS] cevaptan sonra gonderim hatasi (yeni_randevu_bildirim)', ['salon_id' => $__smsSalon, 'hata' => $e->getMessage()]); }
+                });
+            }
             $butonlar = '';
             $randevu = array();
             if(!isset($request->takvim_sayfasi) ){
