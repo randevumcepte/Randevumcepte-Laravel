@@ -20,7 +20,7 @@ class SantralKopruController extends Controller
     {
         if (!Schema::hasTable('santral_oturumlari')) {
             Schema::create('santral_oturumlari', function ($t) {
-                $t->id();
+                $t->bigIncrements('id'); // Laravel 5.6: id() yok (L7+)
                 $t->unsignedBigInteger('sube_id');              // = salon_id
                 $t->string('telefon', 30)->nullable();
                 $t->unsignedBigInteger('musteri_id')->nullable();
@@ -35,7 +35,7 @@ class SantralKopruController extends Controller
         }
         if (!Schema::hasTable('santral_ses_kayit')) {
             Schema::create('santral_ses_kayit', function ($t) {
-                $t->id();
+                $t->bigIncrements('id'); // Laravel 5.6: id() yok (L7+)
                 $t->unsignedBigInteger('oturum_id')->nullable();
                 $t->unsignedBigInteger('sube_id')->nullable();
                 $t->string('tur', 12)->default('ai');           // ai | aktarma
