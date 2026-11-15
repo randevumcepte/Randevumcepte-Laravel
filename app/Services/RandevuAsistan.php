@@ -61,7 +61,7 @@ class RandevuAsistan
         // Restoran santrali ile ayni kalip: "<isletme> hoş geldiniz, ben yapay zeka asistanınızım. ..."
         $hosgeldin = $this->hosgeldinMetni();
         if ($this->musteriAd) {
-            $paketCumle = $this->paketTeklifCumlesi();
+            $paketCumle = $this->paketTeklifCumlesi() ?: $this->kampanyaTeklifCumlesi();
             if ($paketCumle !== '') {
                 return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım. {$paketCumle} Ya da size nasıl yardımcı olabilirim?";
             }
@@ -317,22 +317,94 @@ class RandevuAsistan
         }
     }
 
-    /** Aktif (onayli, bitmemis) kampanyalarin BASLIKLARI; fiyat/oran verilmez (fiyat sorusu aktarilir). */
+    protected ?array $_kampanyalar = null;
+    /**
+     * Aktif kampanyalar (kampanya_yonetimi; bugun baslangic..bitis arasinda) + ARAYANIN durumu:
+     * davetli_bekliyor (listede, durum_asistan NULL) | katildi (1) | katilmadi (0) | listede_degil.
+     * Fiyat/oran verilmez (fiyat sorusu isletmeye aktarilir).
+     */
+    protected function kampanyalar(): array
+    {
+        if ($this->_kampanyalar !== null) return $this->_kampanyalar;
+        $out = [];
+        try {
+            $bugun = now('Europe/Istanbul')->toDateString();
+            $q = \App\KampanyaYonetimi::without(['kampanya_katilimcilari', 'salon'])->where('salon_id', $this->salonId)
+                ->where(function ($w) use ($bugun) { $w->whereNull('baslangic_tarihi')->orWhereDate('baslangic_tarihi', '<=', $bugun); })
+                ->where(function ($w) use ($bugun) { $w->whereNull('bitis_tarihi')->orWhereDate('bitis_tarihi', '>=', $bugun); });
+            if (\Schema::hasColumn('kampanya_yonetimi', 'aktif')) $q->where(function ($w) { $w->whereNull('aktif')->orWhere('aktif', 1); });
+            foreach ($q->orderByDesc('id')->limit(6)->get() as $k) {
+                $ad = trim((string) ($k->paket_isim ?: ($k->hizmet_adi ?? '') ?: 'Kampanya'));
+                $durum = 'listede_degil'; $katId = null;
+                if ($this->musteriId) {
+                    $kat = \App\KampanyaKatilimcilari::without('musteri')->where('kampanya_id', $k->id)->where('user_id', $this->musteriId)->first(['id', 'durum_asistan']);
+                    if ($kat) {
+                        $katId = (int) $kat->id;
+                        $durum = $kat->durum_asistan === null ? 'davetli_bekliyor' : ((int) $kat->durum_asistan === 1 ? 'katildi' : 'katilmadi');
+                    }
+                }
+                $out[] = ['kampanya_id' => (int) $k->id, 'ad' => $ad, 'bitis' => $k->bitis_tarihi ? substr((string) $k->bitis_tarihi, 0, 10) : null,
+                          'durum' => $durum, 'katilimci_id' => $katId, 'randevu_gerekli' => !empty($k->randevu_olustur)];
+            }
+        } catch (\Throwable $e) {
+            Log::warning('RandevuAsistan kampanyalar: ' . $e->getMessage());
+        }
+        return $this->_kampanyalar = $out;
+    }
+
     protected function kampanyaMetni(): string
     {
-        try {
-            $rs = \DB::table('kampanyalar')->where('salon_id', $this->salonId)->where('onayli', 1)
-                ->where('kampanya_bitis_tarihi', '>=', now()->toDateTimeString())
-                ->orderBy('kampanya_bitis_tarihi')->limit(5)->get(['kampanya_baslik', 'kampanya_bitis_tarihi']);
-            $out = '';
-            foreach ($rs as $k) {
-                $b = trim(preg_replace('/\[[^\]]*\]/u', '', (string) $k->kampanya_baslik));
-                if ($b !== '') $out .= "\n- {$b} (son gün: " . $this->tarihSoz(substr((string) $k->kampanya_bitis_tarihi, 0, 10)) . ')';
-            }
-            return $out ?: ' yok';
-        } catch (\Throwable $e) {
-            return ' yok';
+        $etiket = ['davetli_bekliyor' => 'müşteri DAVETLİ, henüz cevap vermedi', 'katildi' => 'müşteri katıldı', 'katilmadi' => 'müşteri daha önce katılmayacağını söyledi', 'listede_degil' => 'müşteri listede değil (isterse katılabilir)'];
+        $out = '';
+        foreach ($this->kampanyalar() as $k) {
+            $out .= "\n- kampanya_id {$k['kampanya_id']} | {$k['ad']}" . ($k['bitis'] ? ' | son gün ' . $this->tarihSoz($k['bitis']) : '') . ' | ' . $etiket[$k['durum']];
         }
+        return $out ?: ' yok';
+    }
+
+    /** Davetli ama cevap vermemis kampanya teklifi (karsilama icin) */
+    protected function kampanyaTeklifCumlesi(): string
+    {
+        foreach ($this->kampanyalar() as $k) {
+            if ($k['durum'] === 'davetli_bekliyor') {
+                return "{$k['ad']} kampanyamıza davetlisiniz, katılmak ister misiniz?";
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Kampanyaya katilim talebi: listedeyse isaretle, degilse listeye ekle; sonra mevcut
+     * ApiController@kampanyaKatilinacak ile katildi=1 + indirim kodu (WA-first, SMS yedek) gonderilir.
+     */
+    protected function kampanyaKatil(?int $kampanyaId): array
+    {
+        if (!$this->musteriId) return ['ok' => false, 'hata' => 'Önce müşteri kaydı gerekli (musteri_kaydet).'];
+        $k = null;
+        foreach ($this->kampanyalar() as $x) if ($x['kampanya_id'] === $kampanyaId) $k = $x;
+        if (!$k) return ['ok' => false, 'hata' => 'Bu kampanya aktif değil ya da bulunamadı. Yalnız BAĞLAM’daki kampanya_id’leri kullan.'];
+        if ($k['durum'] === 'katildi') return ['ok' => true, 'zaten_katildi' => true, 'mesaj' => 'Müşteri bu kampanyaya zaten katılmış.'];
+        try {
+            $katId = $k['katilimci_id'];
+            if (!$katId) {
+                $kodu = \DB::table('kampanya_yonetimi')->where('id', $k['kampanya_id'])->value('indirim_kodu')
+                    ?: \App\KampanyaKatilimcilari::without('musteri')->where('kampanya_id', $k['kampanya_id'])->value('indirim_kodu')
+                    ?: substr(str_shuffle('1234567890'), 0, 4);
+                $yeni = new \App\KampanyaKatilimcilari();
+                $yeni->kampanya_id = $k['kampanya_id'];
+                $yeni->user_id = $this->musteriId;
+                $yeni->indirim_kodu = $kodu;
+                $yeni->save();
+                $katId = (int) $yeni->id;
+            }
+            app(ApiController::class)->kampanyaKatilinacak(Request::create('/api/kampanyaKatilinacak', 'POST', ['katilimci_id' => $katId, 'katilacak' => 1]));
+        } catch (\Throwable $e) {
+            Log::error('RandevuAsistan kampanyaKatil: ' . $e->getMessage());
+            return ['ok' => false, 'hata' => 'Katılım şu an kaydedilemedi. Müşteriye özür dile, yetkiliye aktarmayı teklif et.'];
+        }
+        $this->_kampanyalar = null;
+        Log::info('[SANTRAL-KAMPANYA] katilim', ['salon' => $this->salonId, 'musteri' => $this->musteriId, 'kampanya' => $k['kampanya_id'], 'katilimci' => $katId]);
+        return ['ok' => true, 'mesaj' => 'Katılım kaydedildi; indirim kodu ve yol tarifi müşteriye mesajla gönderildi.', 'randevu_gerekli' => $k['randevu_gerekli']];
     }
 
     /** Isletmenin santral SSS tablosu (panel > Santral > Sık Sorulan Sorular). Yoksa olusturur. */
@@ -492,6 +564,9 @@ class RandevuAsistan
                 $d = $this->randevuGuncellePersonelli($in); $this->_randevularim = null;
                 return [$d, !empty($d['ok']) ? 'guncelle' : null, null, false];
 
+            case 'kampanya_katil':
+                return [$this->kampanyaKatil($this->intId($in['kampanya_id'] ?? null)), null, null, false];
+
             case 'yol_tarifi_gonder':
                 return [$this->yolTarifiGonder(), null, null, false];
 
@@ -577,6 +652,13 @@ class RandevuAsistan
                 'input_schema' => ['type' => 'object', 'properties' => [
                     'sebep' => ['type' => 'string'],
                 ], 'required' => ['sebep']],
+            ],
+            [
+                'name' => 'kampanya_katil',
+                'description' => 'Müşteri bir kampanyaya katılmak istediğini söyleyince (davetliyse ya da listede değilse) çağır: katılımı kaydeder ve indirim kodunu mesajla gönderir. kampanya_id BAĞLAM’daki AKTİF KAMPANYALAR listesinden.',
+                'input_schema' => ['type' => 'object', 'properties' => [
+                    'kampanya_id' => ['type' => 'integer'],
+                ], 'required' => ['kampanya_id']],
             ],
             [
                 'name' => 'veda',
@@ -706,6 +788,8 @@ PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada "paketiniz bulunmaktadı
 BEKLETME YOK: "Bir moment", "bir saniye", "biraz bekleteceğim", "kontrol ediyorum", "bakıyorum" gibi bekletme cümleleri ASLA kurma. Bilgi gerekiyorsa aracı HEMEN çağır ve sonucu doğrudan söyle (ör. "Pazartesi 16 Kasım saat 14:00'te Saç Kesimi randevunuz var, bunu iptal edeyim mi?").
 
 İPTAL/GÜNCELLEME: Talep (onay bekleyen) randevular da onaylılar gibi iptal edilebilir ve güncellenebilir. Randevular BAĞLAM'daki MÜŞTERİNİN MEVCUT RANDEVULARI listesinde: müşteri onaylayınca (evet/olur/onaylıyorum) HEMEN randevu_iptal çağır, başka soru sorma. Liste boşsa ya da emin değilsen "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat. İptalde "randevu_iptal". Güncellemede yeni gün/saat için "musait_saatler"i o randevunun hizmet_id ve personel_id'si ile çağır, onay al, sonra "randevu_guncelle". Yalnız mevcut_randevular'ın döndüğü id'leri kullan.
+
+KAMPANYA KATILIMI: Karşılamada kampanya teklif edildiyse ya da müşteri bir kampanyaya katılmak isterse ("katılmak istiyorum", "evet katılırım", "o kampanyadan yararlanmak istiyorum") → onay sorma, HEMEN "kampanya_katil" çağır. ok=true ise "Kampanyaya katılımınızı aldım, indirim kodunuzu mesaj olarak ilettim." de; randevu_gerekli=true ise randevu oluşturmak isteyip istemediğini sor, değilse "Başka yardımcı olabileceğim bir konu var mı?". Müşteri "hayır/istemiyorum" derse ısrar etme, normal akışa geç. Birden fazla kampanya varsa hangisi olduğunu sor.
 
 İŞLETME BİLGİSİ: Çalışma saati ("kaçta açıksınız", "pazar açık mısınız"), kampanya ("kampanyanız var mı") ve işletmenin sık sorulan sorularına BAĞLAM'daki bilgilerle kısa cevap ver, sonra "Başka yardımcı olabileceğim bir konu var mı?" diye sor. BAĞLAM'da olmayan bir bilgi sorulursa UYDURMA: "Bu konuda sizi işletmemize bağlayayım mı?" diye sor; evet derse "aktar".
 
