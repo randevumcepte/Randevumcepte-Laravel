@@ -186,6 +186,16 @@ class RandevuAsistan
             // derse (araci hic cagirmadi ya da hata aldi) musteriye yanlis bilgi gitmesin: bir duzeltme turu.
             $sahteBasari = !in_array($aksiyon, ['randevu', 'guncelle'], true)
                 && preg_match('/randevu(nuz|nuzu)?\s+(talebiniz\s+)?(başarıyla\s+)?(oluşturul|güncellen|kaydedil|alın)/iu', $cevap);
+            // BEKLETME CUMLESI: "bir moment / bekleteceğim / kontrol ediyorum" -> cumleyi at; geriye bir sey
+            // kalmadiysa (model araci cagirmadan bekletip turu bitirdi) duzeltme turu: araci simdi cagirsin.
+            $cevap = $this->bekletmeTemizle($cevap);
+            $bekletti = ($cevap === '' && !$bitir && !in_array($aksiyon, ['aktar', 'veda'], true));
+            if ($bekletti && $deneme === 0) {
+                Log::warning('[SANTRAL-BEKLETME] model bekletme cumlesiyle turu bitirdi', ['salon' => $this->salonId, 'metin' => $metin]);
+                $messages[] = ['role' => 'assistant', 'content' => 'Bir moment.'];
+                $messages[] = ['role' => 'user', 'content' => '[SİSTEM — müşteri bunu duymadı] Müşteriyi bekletme. Gereken aracı (ör. mevcut_randevular, musait_saatler) ŞİMDİ çağır ve sonucu doğrudan söyle.'];
+                continue;
+            }
             if (!$sahteBasari || $deneme > 0 || $bitir) break;
             Log::warning('[SANTRAL-SAHTE-BASARI] model arac basarisi olmadan olusturuldu dedi', [
                 'salon' => $this->salonId, 'musteri' => $this->musteriId, 'cevap' => $cevap, 'hata' => $randevuHatasi,
@@ -263,6 +273,19 @@ class RandevuAsistan
         return $gunAd[(int) date('w', $ts)] . ', ' . (int) date('j', $ts) . ' ' . $ayAd[(int) date('n', $ts)] . $yil;
     }
 
+    /** "Bir moment", "biraz bekleteceğim", "kontrol ediyorum" gibi kisa bekletme cumlelerini cevaptan atar. */
+    protected function bekletmeTemizle(string $c): string
+    {
+        $re = '/(\b(bir|1)\s*(moment|dakika|saniye|dk)\b|beklet|lütfen bekle|biraz bekle|hatta kalın.*kontrol|kontrol ediyorum|kontrol edeyim|hemen bakıyorum|bakıyorum|bakayım|sorguluyorum)/iu';
+        $parcalar = preg_split('/(?<=[.!?…])\s+/u', trim($c)) ?: [];
+        $kalan = [];
+        foreach ($parcalar as $p) {
+            if (mb_strlen($p) <= 70 && preg_match($re, $p)) continue; // kisa bekletme cumlesi
+            $kalan[] = $p;
+        }
+        return trim(implode(' ', $kalan));
+    }
+
     /** Musteri acikca bir insana/isletmeye baglanmak istiyor mu? */
     protected function aktarmaIstegiMi(string $m): bool
     {
@@ -297,7 +320,7 @@ class RandevuAsistan
                 $rid = $this->intId($in['randevu_id'] ?? null);
                 // SAHIPLIK: yalniz ARAYANIN kendi randevusu (model yanlis/uydurma id verirse baskasininki iptal olmasin)
                 if (!$this->randevuSahibiMi($rid)) return [$this->sahipDegilHata(), null, null, false];
-                $d = $this->ctrlCagir('randevuIptal', ['salon_id' => $this->salonId, 'randevu_id' => $rid]);
+                $d = $this->randevuIptalEt($rid);
                 return [$d, !empty($d['ok']) ? 'iptal' : null, null, false];
 
             case 'randevu_guncelle':
@@ -370,7 +393,7 @@ class RandevuAsistan
             ],
             [
                 'name' => 'randevu_iptal',
-                'description' => 'Randevu iptal eder. Önce mevcut_randevular ile id öğren ve müşteriye onaylat.',
+                'description' => 'Randevu iptal eder (talep/onay bekleyen ya da onaylı). Önce mevcut_randevular ile id öğren ve müşteriye onaylat.',
                 'input_schema' => ['type' => 'object', 'properties' => [
                     'randevu_id' => ['type' => 'integer'],
                 ], 'required' => ['randevu_id']],
@@ -498,7 +521,9 @@ PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada "paketiniz bulunmaktadı
 - Sonra normal akış: tarih → musait_saatler (paket hizmet_id + seçilen personel_id) → saat → onay → randevu_olustur. Seans pakete otomatik bağlanır; sonuçta paket_seansi=true ise "paketinizden" de.
 - Hayır derse ya da başka bir şey isterse paketi bırak, normal akışa geç.
 
-İPTAL/GÜNCELLEME: önce "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat. İptalde "randevu_iptal". Güncellemede yeni gün/saat için "musait_saatler"i o randevunun hizmet_id ve personel_id'si ile çağır, onay al, sonra "randevu_guncelle". Yalnız mevcut_randevular'ın döndüğü id'leri kullan.
+BEKLETME YOK: "Bir moment", "bir saniye", "biraz bekleteceğim", "kontrol ediyorum", "bakıyorum" gibi bekletme cümleleri ASLA kurma. Bilgi gerekiyorsa aracı HEMEN çağır ve sonucu doğrudan söyle (ör. "Pazartesi 16 Kasım saat 14:00'te Saç Kesimi randevunuz var, bunu iptal edeyim mi?").
+
+İPTAL/GÜNCELLEME: Talep (onay bekleyen) randevular da onaylılar gibi iptal edilebilir ve güncellenebilir. Önce "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat. İptalde "randevu_iptal". Güncellemede yeni gün/saat için "musait_saatler"i o randevunun hizmet_id ve personel_id'si ile çağır, onay al, sonra "randevu_guncelle". Yalnız mevcut_randevular'ın döndüğü id'leri kullan.
 
 ADRES / YOL TARİFİ: müşteri yol tarifi, adres, konum, "konum gönderir misiniz", "nasıl gelirim", "neredesiniz" derse İLK SEFERDE, teyit sormadan HEMEN "yol_tarifi_gonder" çağır. Gönderilince yalnızca "Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?" de (adresi okuma). Gönderilemezse (ok=false) adresi kısaca söyle ve aynı soruyu sor. Bunun için aktarma yapma.
 
@@ -857,13 +882,15 @@ PROMPT;
         $rs = Randevular::where('user_id', $this->musteriId)->where('salon_id', $this->salonId)
             ->whereDate('tarih', '>=', now('Europe/Istanbul')->toDateString())
             ->whereIn('durum', [Randevular::BEKLENIYOR, Randevular::ONAYLANDI])
-            ->orderBy('tarih')->orderBy('saat')->limit(5)->get(['id', 'tarih', 'saat']);
+            ->orderBy('tarih')->orderBy('saat')->limit(5)->get(['id', 'tarih', 'saat', 'durum']);
         foreach ($rs as $r) {
             $rh = RandevuHizmetler::where('randevu_id', $r->id)->with(['hizmetler', 'personeller'])->get();
             $ilk = $rh->first();
             $liste[] = [
                 'id' => (int) $r->id,
+                'durum' => (int) $r->durum === Randevular::BEKLENIYOR ? 'talep (onay bekliyor) — iptal/güncelleme yapılabilir' : 'onaylı',
                 'tarih' => substr((string) $r->tarih, 0, 10),
+                'gun' => $this->tarihSoz(substr((string) $r->tarih, 0, 10)),
                 'saat' => substr((string) $r->saat, 0, 5),
                 'hizmet' => $rh->map(function ($x) { return optional($x->hizmetler)->hizmet_adi; })->filter()->implode(', '),
                 'personel' => $ilk ? optional($ilk->personeller)->personel_adi : null,
@@ -880,6 +907,36 @@ PROMPT;
         if (!$randevuId || !$this->musteriId) return false;
         return Randevular::where('id', $randevuId)->where('salon_id', $this->salonId)
             ->where('user_id', $this->musteriId)->exists();
+    }
+
+    /**
+     * Musteri kendi randevusunu iptal eder (TALEP/bekleyen ya da onayli farketmez).
+     * Panel/uygulama iptaliyle ayni etkiler: paket seansi silinir (seans pakete geri doner), durum=IPTAL,
+     * iptal bildirimi (ayar 3: "randevu iptal") WA-first/SMS ile. Uygulamanin randevuiptalet'i bekleyen
+     * randevuyu "isletme reddetti" sayip "talebiniz reddedildi" yazdigi icin dogrudan kullanilmadi.
+     */
+    protected function randevuIptalEt(int $rid): array
+    {
+        $r = Randevular::where('id', $rid)->where('salon_id', $this->salonId)->first();
+        if (!$r) return ['ok' => false, 'hata' => 'Randevu bulunamadı.'];
+        if ((int) $r->durum === Randevular::IPTAL_EDILDI) return ['ok' => true, 'mesaj' => 'Randevu zaten iptal edilmiş.'];
+        try {
+            \App\AdisyonPaketSeanslar::where('randevu_id', $r->id)->delete();
+            $r->durum = Randevular::IPTAL_EDILDI;
+            $r->save();
+        } catch (\Throwable $e) {
+            Log::error('RandevuAsistan randevuIptalEt: ' . $e->getMessage());
+            return ['ok' => false, 'hata' => 'İptal şu an yapılamadı. Müşteriye özür dile, yetkiliye aktarmayı teklif et.'];
+        }
+        try {
+            app(ApiController::class)->randevuIptalBildirimleri(
+                Request::create('/api/randevuiptalet', 'POST', ['salonid' => $this->salonId, 'sube' => $this->salonId, 'randevuid' => $r->id, 'durum' => Randevular::IPTAL_EDILDI]),
+                $r->fresh(), false
+            );
+        } catch (\Throwable $e) {
+            Log::warning('RandevuAsistan iptal bildirimi: ' . $e->getMessage()); // iptal yapildi; bildirim hatasi akisi bozmasin
+        }
+        return ['ok' => true, 'mesaj' => 'Randevu iptal edildi', 'randevu_id' => (int) $r->id];
     }
 
     protected function sahipDegilHata(): array
