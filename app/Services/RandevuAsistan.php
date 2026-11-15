@@ -112,6 +112,7 @@ class RandevuAsistan
 
         $aksiyon = null; $bitir = false; $randevuId = null; $cevap = '';
         $isTamamlandi = false; // randevu/iptal/guncelleme/yol tarifi tamamlandi -> "Başka yardımcı olabileceğim..." sorulmali
+        $yolTarifiGitti = false; // yol tarifi mesaji basariyla gonderildi -> sabit cumle
 
         for ($tur = 0; $tur < 6; $tur++) {
             $resp = $this->cagir($messages, $key);
@@ -144,6 +145,7 @@ class RandevuAsistan
                 if ($rid) $randevuId = $rid;
                 if ($bit) $bitir = true;
                 if (in_array($aks, ['randevu', 'iptal', 'guncelle'], true) || ($tu['name'] ?? '') === 'yol_tarifi_gonder') $isTamamlandi = true;
+                if (($tu['name'] ?? '') === 'yol_tarifi_gonder' && !empty($sonuc['ok'])) $yolTarifiGitti = true;
             }
             $messages[] = ['role' => 'user', 'content' => $sonuclar];
 
@@ -165,6 +167,10 @@ class RandevuAsistan
         }
 
         if ($cevap === '') $cevap = $this->garantiCevap($aksiyon);
+        // Yol tarifi gonderildiyse (ayni turda baska bir is yoksa) sabit, net cumle:
+        if ($yolTarifiGitti && $aksiyon === null && !$bitir) {
+            $cevap = 'Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?';
+        }
         if ($isTamamlandi && !$bitir && $aksiyon !== 'aktar') $cevap = $this->baskaYardimEkle($cevap);
         return [
             'cevap' => $this->ttsTemizle($cevap),
@@ -266,7 +272,7 @@ class RandevuAsistan
             ],
             [
                 'name' => 'yol_tarifi_gonder',
-                'description' => 'Müşteri adres, konum ya da yol tarifi sorduğunda çağır: işletmenin yol tarifini müşterinin telefonuna mesaj (WhatsApp/SMS) olarak gönderir ve adresi döner. Adresi kısaca söyle, tarifi mesajla ilettiğini belirt. Bunun için AKTARMA.',
+                'description' => 'Müşteri adres, konum ya da yol tarifi sorduğunda HEMEN çağır: işletmenin yol tarifini müşterinin telefonuna mesaj (WhatsApp/SMS) olarak gönderir. ok=true ise "Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?" de; ok=false ise adresi söyle. Bunun için AKTARMA.',
                 'input_schema' => ['type' => 'object', 'properties' => $bos],
             ],
             [
@@ -417,7 +423,7 @@ PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada "paketiniz bulunmaktadı
 
 İPTAL/GÜNCELLEME: önce "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat. İptalde "randevu_iptal". Güncellemede yeni gün/saat için "musait_saatler"i o randevunun hizmet_id ve personel_id'si ile çağır, onay al, sonra "randevu_guncelle". Yalnız mevcut_randevular'ın döndüğü id'leri kullan.
 
-ADRES / YOL TARİFİ: müşteri yol tarifi, adres, konum, "konum gönderir misiniz", "nasıl gelirim", "neredesiniz" derse İLK SEFERDE, teyit sormadan HEMEN "yol_tarifi_gonder" çağır. Sonra adresi kısaca söyle, yol tarifini telefonuna mesajla gönderdiğini belirt ve "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Bunun için aktarma yapma.
+ADRES / YOL TARİFİ: müşteri yol tarifi, adres, konum, "konum gönderir misiniz", "nasıl gelirim", "neredesiniz" derse İLK SEFERDE, teyit sormadan HEMEN "yol_tarifi_gonder" çağır. Gönderilince yalnızca "Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?" de (adresi okuma). Gönderilemezse (ok=false) adresi kısaca söyle ve aynı soruyu sor. Bunun için aktarma yapma.
 
 İŞ TAMAMLANINCA: Bir istek bittiğinde (randevu oluşturuldu, iptal edildi, güncellendi, yol tarifi gönderildi, sorusu cevaplandı) daima "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Karşılamadan sonra "Size nasıl yardımcı olabilirim?" cümlesini bir daha KULLANMA.
 
