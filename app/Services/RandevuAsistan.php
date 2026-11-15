@@ -332,7 +332,8 @@ class RandevuAsistan
             $q = \App\KampanyaYonetimi::without(['kampanya_katilimcilari', 'salon'])->where('salon_id', $this->salonId)
                 ->where(function ($w) use ($bugun) { $w->whereNull('baslangic_tarihi')->orWhereDate('baslangic_tarihi', '<=', $bugun); })
                 ->where(function ($w) use ($bugun) { $w->whereNull('bitis_tarihi')->orWhereDate('bitis_tarihi', '>=', $bugun); });
-            if (\Schema::hasColumn('kampanya_yonetimi', 'aktif')) $q->where(function ($w) { $w->whereNull('aktif')->orWhere('aktif', 1); });
+            // Panelde kapatilan (aktifmi=0) kampanya asistanda GORUNMEZ (giden arama komutuyla ayni kural).
+            if (\Schema::hasColumn('kampanya_yonetimi', 'aktifmi')) $q->where('aktifmi', 1);
             foreach ($q->orderByDesc('id')->limit(6)->get() as $k) {
                 $ad = trim((string) ($k->paket_isim ?: ($k->hizmet_adi ?? '') ?: 'Kampanya'));
                 $durum = 'listede_degil'; $katId = null;
