@@ -1,0 +1,261 @@
+<?php
+/**
+ * SANTRAL SESLI ASISTAN — BAGIMSIZ BIRIM TESTLERI (phpunit / Laravel / DB / LLM GEREKMEZ)
+ * ------------------------------------------------------------------------------------
+ * RandevuAsistan'in KODLA verilen kararlarini sinar (LLM'e birakilmayan her sey):
+ *   zaman cozumu, kesin aktarma, fiyat sorusu, iptal/degistirme girisi, bekletme temizligi,
+ *   "Başka yardımcı..." garantisi, sahte basari yakalama, SSS eslesmesi, karsilama varyantlari,
+ *   musaitlikte tam eslesme kisayolu, kampanya/paket teklifi.
+ * Bugun SABIT: 2026-11-15 Pazar (tarih beklentileri buna gore).
+ *
+ * Calistir:  php tests/santral_asistan_standalone.php
+ */
+namespace Carbon {
+    class Carbon extends \DateTime {
+        const SUNDAY = 0, MONDAY = 1, TUESDAY = 2, WEDNESDAY = 3, THURSDAY = 4, FRIDAY = 5, SATURDAY = 6;
+        static $bugun = '2026-11-15';
+        static function today() { return new self(self::$bugun . ' 00:00:00'); }
+        static function createFromDate($y, $m, $d) { return new self(sprintf('%04d-%02d-%02d', $y, $m, $d)); }
+        static function parse($t) { return new self($t); }
+        function copy() { return clone $this; }
+        function startOfDay() { $this->setTime(0, 0); return $this; }
+        function startOfWeek() { return $this->modify('monday this week'); }
+        function addDay() { return $this->modify('+1 day'); }
+        function addDays($n) { return $this->modify("+$n day"); }
+        function addWeek() { return $this->modify('+7 day'); }
+        function addWeeks($n) { return $this->modify('+' . (7 * $n) . ' day'); }
+        function addYear() { return $this->modify('+1 year'); }
+        function next($dow) { $n = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][$dow]; return $this->modify("next $n"); }
+        function lt($o) { return $this < $o; }
+        function toDateString() { return $this->format('Y-m-d'); }
+        function toDateTimeString() { return $this->format('Y-m-d H:i:s'); }
+        function diffInDays($o) { return (int) $this->diff($o)->days; }
+        function __get($k) { if ($k === 'year') return (int) $this->format('Y'); if ($k === 'month') return (int) $this->format('n'); }
+    }
+}
+namespace Illuminate\Support\Facades {
+    class Log { static $satirlar = []; static function __callStatic($m, $a) { self::$satirlar[] = [$m, $a[0] ?? '']; } }
+}
+namespace Illuminate\Http { class Request { static function create() { return new self; } } }
+namespace App\Http\Controllers\Api { class AiAsistanController {} }
+namespace App\Http\Controllers { class ApiController {} }
+namespace {
+    error_reporting(E_ALL & ~E_DEPRECATED);
+    function now($tz = null) { return \Carbon\Carbon::today(); }
+    function config($k = null, $d = null) { return $d; }
+    function env($k, $d = null) { return $d; }
+    $GLOBALS['_app'] = [];
+    function app($c = null) { return $GLOBALS['_app'][$c] ?? null; }
+
+    require __DIR__ . '/../app/Services/SesliRandevuCozService.php';
+    require __DIR__ . '/../app/Services/RandevuAsistan.php';
+
+    $servis = (new ReflectionClass(App\Services\SesliRandevuCozService::class))->newInstanceWithoutConstructor();
+    $GLOBALS['_app'][App\Services\SesliRandevuCozService::class] = $servis;
+
+    // ---- mini test cercevesi
+    $gecen = 0; $kalan = 0; $hatalar = [];
+    function bolum($ad) { echo "\n\033[1m== $ad\033[0m\n"; }
+    function esit($ad, $beklenen, $gercek) {
+        global $gecen, $kalan, $hatalar;
+        if ($beklenen === $gercek) { $gecen++; echo "  \033[32m✓\033[0m $ad\n"; return; }
+        $kalan++; $hatalar[] = $ad;
+        echo "  \033[31m✗ $ad\033[0m\n     beklenen: " . var_export($beklenen, true) . "\n     gelen   : " . var_export($gercek, true) . "\n";
+    }
+    function icerir($ad, $parca, $metin) { esit($ad . "  [içerir: $parca]", true, mb_stripos((string) $metin, $parca) !== false); }
+    function icermez($ad, $parca, $metin) { esit($ad . "  [içermez: $parca]", false, mb_stripos((string) $metin, $parca) !== false); }
+
+    /** Constructor'siz asistan (DB yok); korunan alanlari dogrudan ayarla. */
+    function asistan(array $alan = []) {
+        $rc = new ReflectionClass(App\Services\RandevuAsistan::class);
+        $a = $rc->newInstanceWithoutConstructor();
+        $v = array_merge(['salonId' => 20, 'telefon' => '5321112233', 'salon' => ['ad' => 'Randevumcepte', 'karsilama' => "Randevumcepte'ye", 'adres' => 'Alsancak İzmir', 'hizmetler' => []],
+            'musteriAd' => 'Anıl Orbey', 'musteriId' => 123244, '_personeller' => [21 => 'Gülşah', 34 => 'berkcan'], '_paketler' => [], '_kampanyalar' => [], '_sss' => [], '_randevularim' => ['ok' => true, 'randevular' => []]], $alan);
+        foreach ($v as $k => $val) { $p = $rc->getProperty($k); $p->setAccessible(true); $p->setValue($a, $val); }
+        return $a;
+    }
+    function cagir($nesne, $metot, ...$arg) { $m = new ReflectionMethod($nesne, $metot); $m->setAccessible(true); return $m->invoke($nesne, ...$arg); }
+    $rv1 = ['id' => 901, 'durum' => 'talep (onay bekliyor) — iptal/güncelleme yapılabilir', 'tarih' => '2026-11-17', 'gun' => 'Salı, 17 Kasım', 'saat' => '14:00', 'hizmet' => 'Saç Kesimi', 'personel' => 'Gülşah', 'hizmet_id' => 5, 'personel_id' => 21];
+    $rv2 = ['id' => 902, 'durum' => 'onaylı', 'tarih' => '2026-11-20', 'gun' => 'Cuma, 20 Kasım', 'saat' => '10:00', 'hizmet' => 'Lazer Epilasyon', 'personel' => 'berkcan', 'hizmet_id' => 9, 'personel_id' => 34];
+
+    // =====================================================================================
+    bolum('Zaman çözümü (bugün 15 Kasım 2026 Pazar)');
+    foreach ([
+        ['Yarın saç kesimi için randevu almak istiyorum', '2026-11-16', null],
+        ['Çarşamba 14', '2026-11-18', '14:00'],
+        ['Perşembe 10', '2026-11-19', '10:00'],
+        ["Çarşamba saat 14'te", '2026-11-18', '14:00'],
+        ['Önümüzdeki hafta çarşamba 14', '2026-11-18', '14:00'],
+        ['Önümüzdeki hafta', '2026-11-16', null],
+        ['Haftaya salı 11', '2026-11-17', '11:00'],
+        ['10 Aralık', '2026-12-10', null],
+        ['5 Şubat saat 15', '2027-02-05', '15:00'],
+        ['10 Aralık 14', '2026-12-10', '14:00'],
+        ['Yarın 3', '2026-11-16', '15:00'],
+        ['Çarşamba 2 buçukta', '2026-11-18', '14:30'],
+        ['Perşembe sabah 10', '2026-11-19', '10:00'],
+        ['Randevumu iptal etmek istiyorum', null, null],
+    ] as [$t, $tar, $sa]) {
+        $z = $servis->zamanCoz($t);
+        esit("\"$t\" → tarih", $tar, $z['tarih']);
+        esit("\"$t\" → saat", $sa, $z['saat']);
+    }
+    \Carbon\Carbon::$bugun = '2026-11-17'; // Salı
+    $z = $servis->zamanCoz('Önümüzdeki hafta çarşamba 14');
+    esit('Salı günü "önümüzdeki hafta çarşamba" → 25 Kasım', '2026-11-25', $z['tarih']);
+    \Carbon\Carbon::$bugun = '2026-11-15';
+
+    // =====================================================================================
+    $a = asistan();
+    bolum('Kesin aktarma (bağlanma isteği)');
+    foreach (['Beni işletmeye bağlar mısın' => true, 'Beni genişletmeye bağlar mısın' => true, 'Operatörle görüşmek istiyorum' => true,
+              'Yetkiliye bağlayın lütfen' => true, 'Biriyle görüşmek istiyorum' => true, 'Beni bağlayabilir misiniz' => true,
+              'Yarın saç kesimi için randevu almak istiyorum' => false, 'Randevumu iptal etmek istiyorum' => false, 'Lazer paketim var mı' => false] as $t => $b) {
+        esit("\"$t\"", $b, cagir($a, 'aktarmaIstegiMi', $t));
+    }
+
+    bolum('Fiyat sorusu → aktarma');
+    foreach (['Saç kesimi ne kadar?' => true, 'Lazer epilasyonun fiyatı nedir' => true, 'Kaç lira' => true, 'Ücret ne kadar' => true, 'Taksit yapıyor musunuz' => true,
+              'Saç kesimi ne kadar sürer' => false, 'Ne kadar erken gelmeliyim' => false, 'Kampanyanız var mı' => false, 'İndirim var mı' => false,
+              'Saat kaçta açıksınız' => false, 'Randevumu iptal etmek istiyorum' => false] as $t => $b) {
+        esit("\"$t\"", $b, cagir($a, 'fiyatSorusuMu', $t));
+    }
+
+    // =====================================================================================
+    bolum('konus(): LLM\'den ÖNCE kodla cevaplananlar');
+    $d = $a->konus('Saç kesimi ne kadar?', []);
+    esit('fiyat → aksiyon aktar', 'aktar', $d['aksiyon']);
+    icerir('fiyat → cümle', 'Fiyat bilgisi için', $d['cevap']);
+    $d = $a->konus('Beni işletmeye bağlar mısın', []);
+    esit('bağlanma → aksiyon aktar', 'aktar', $d['aksiyon']);
+    icerir('bağlanma → cümle', 'yetkili bir arkadaşımıza', $d['cevap']);
+    $d = $a->konus('', []);
+    icerir('boş metin', 'dinliyorum', $d['cevap']);
+
+    $a1 = asistan(['_randevularim' => ['ok' => true, 'randevular' => [$rv1]]]);
+    $d = $a1->konus('İptal etmek istiyorum', []);
+    esit('iptal (tek randevu) → aksiyon yok (onay bekler)', null, $d['aksiyon']);
+    icerir('iptal (tek randevu) → randevuyu okur', 'Salı, 17 Kasım saat 14:00', $d['cevap']);
+    icerir('iptal (tek randevu) → personel+hizmet', 'Gülşah ile Saç Kesimi', $d['cevap']);
+    icerir('iptal (tek randevu) → onay sorar', 'iptal etmemi onaylıyor musunuz', $d['cevap']);
+    icermez('iptal → bekletme yok', 'moment', $d['cevap']);
+    $a2 = asistan(['_randevularim' => ['ok' => true, 'randevular' => [$rv1, $rv2]]]);
+    $d = $a2->konus('Randevumu iptal etmek istiyorum', []);
+    icerir('iptal (iki randevu) → sayı', '2 randevunuz var', $d['cevap']);
+    icerir('iptal (iki randevu) → ikincisi', 'Cuma, 20 Kasım', $d['cevap']);
+    icerir('iptal (iki randevu) → seçtirir', 'Hangisini iptal edelim', $d['cevap']);
+    $d = $a2->konus('Randevumu ertelemek istiyorum', []);
+    icerir('değiştirme (iki randevu)', 'Hangisini değiştirelim', $d['cevap']);
+    $d = $a1->konus('Randevumun saatini değiştirmek istiyorum', []);
+    icerir('değiştirme (tek) → yeni zaman sorar', 'Hangi gün ve saate', $d['cevap']);
+    $a0 = asistan();
+    $d = $a0->konus('Randevumu iptal etmek istiyorum', []);
+    icerir('iptal (randevu yok)', 'randevu görünmüyor', $d['cevap']);
+    icerir('iptal (randevu yok) → kapanış sorusu', 'Başka yardımcı olabileceğim', $d['cevap']);
+    $gecmis = [['role' => 'assistant', 'content' => 'Salı, 17 Kasım saat 14:00\'te Gülşah ile Saç Kesimi randevunuz var. Bu randevuyu iptal etmemi onaylıyor musunuz?']];
+    esit('liste zaten okunduysa tekrar etmez (modele bırakır)', null, cagir($a1, 'iptalGuncelleGiris', 'iptal etmek istiyorum', $gecmis));
+    esit('tarih verilmiş iptal → modele bırakır', null, cagir($a1, 'iptalGuncelleGiris', 'çarşamba 14teki randevumu iptal et', []));
+    esit('kayıtsız arayan → modele bırakır', null, cagir(asistan(['musteriId' => null, 'musteriAd' => null]), 'iptalGuncelleGiris', 'randevumu iptal et', []));
+
+    bolum('SSS (işletmenin kendi cevapları)');
+    $as = asistan(['_sss' => [['tet' => 'otopark, park yeri', 'cevap' => 'Binamızın önünde ücretsiz otopark var.'], ['tet' => 'kredi kartı, kart geçiyor', 'cevap' => 'Tüm kartlar geçerlidir.']]]);
+    $d = $as->konus('Otoparkınız var mı?', []);
+    icerir('tetikleyici "otopark" (ekli: otoparkınız)', 'ücretsiz otopark', $d['cevap']);
+    icerir('SSS sonrası kapanış sorusu', 'Başka yardımcı olabileceğim', $d['cevap']);
+    $d = $as->konus('Kredi kartı geçiyor mu', []);
+    icerir('ikinci SSS', 'Tüm kartlar', $d['cevap']);
+    esit('alakasız cümle SSS\'ye düşmez', null, cagir($as, 'sssCevap', 'Yarın saç kesimi istiyorum'));
+    $d = $as->konus('Otopark ücreti ne kadar', []);
+    esit('SSS kelimesi geçse de fiyat sorusu → aktar', 'aktar', $d['aksiyon']);
+
+    // =====================================================================================
+    bolum('Bekletme cümlesi temizliği');
+    foreach ([
+        'Bir moment, sizi biraz bekleteceğim.' => '',
+        'Bir moment lütfen, randevularınızı kontrol ediyorum.' => '',
+        'Hemen bakıyorum. Pazartesi 14:00\'te randevunuz var, iptal edeyim mi?' => 'Pazartesi 14:00\'te randevunuz var, iptal edeyim mi?',
+        'Randevunuz iptal edildi. Başka yardımcı olabileceğim bir konu var mı?' => 'Randevunuz iptal edildi. Başka yardımcı olabileceğim bir konu var mı?',
+    ] as $g => $b) esit("\"$g\"", $b, cagir($a, 'bekletmeTemizle', $g));
+
+    bolum('"Başka yardımcı olabileceğim..." garantisi');
+    foreach ([
+        'Yol tarifini gönderdim. Size nasıl yardımcı olabilirim?' => 'Yol tarifini gönderdim. Başka yardımcı olabileceğim bir konu var mı?',
+        'Yol tarifini gönderdim, size başka nasıl yardımcı olabilirim?' => 'Yol tarifini gönderdim. Başka yardımcı olabileceğim bir konu var mı?',
+        'Randevu talebiniz oluşturuldu' => 'Randevu talebiniz oluşturuldu. Başka yardımcı olabileceğim bir konu var mı?',
+        'Randevunuz iptal edildi. Başka yardımcı olabileceğim bir konu var mı?' => 'Randevunuz iptal edildi. Başka yardımcı olabileceğim bir konu var mı?',
+    ] as $g => $b) esit("\"$g\"", $b, cagir($a, 'baskaYardimEkle', $g));
+
+    bolum('Sahte başarı yakalama kalıbı (araç başarısı olmadan "oluşturuldu")');
+    $re = '/randevu(nuz|nuzu)?\s+(talebiniz\s+)?(başarıyla\s+)?(oluşturul|güncellen|kaydedil|alın)/iu';
+    $kaynak = file_get_contents(__DIR__ . '/../app/Services/RandevuAsistan.php');
+    esit('kalıp kodda 2 yerde aynı', 2, substr_count($kaynak, "preg_match('" . $re . "'"));
+    foreach (['Randevunuz oluşturuldu, bekliyoruz.' => 1, 'Randevu talebiniz oluşturuldu.' => 1, 'Randevunuz başarıyla güncellendi.' => 1,
+              'Randevunuz iptal edildi.' => 0, 'Pazartesi 12de randevunuz var.' => 0, 'Randevu talebi oluşturayım mı?' => 0] as $t => $b) {
+        esit("\"$t\"", $b, preg_match($re, $t));
+    }
+
+    // =====================================================================================
+    bolum('Karşılama varyantları');
+    icerir('kayıtlı', 'Sayın Anıl Orbey', $a->karsilama());
+    icerir('kayıtlı → yardım sorusu', 'Size nasıl yardımcı olabilirim?', $a->karsilama());
+    $kp = asistan(['_paketler' => [['adisyon_paket_id' => 1, 'paket_adi' => 'Lazer', 'hizmetler' => [['hizmet_id' => 9, 'ad' => 'Lazer Epilasyon', 'kalan_seans' => 4, 'personeller' => []]]]]]);
+    icerir('paket → teklif', 'Lazer paketiniz bulunmaktadır', $kp->karsilama());
+    icerir('paket → yardım sorusu da var', 'Ya da size nasıl yardımcı olabilirim?', $kp->karsilama());
+    $kp2 = asistan(['_paketler' => [['adisyon_paket_id' => 1, 'paket_adi' => '10 Seans Lazer Paketi', 'hizmetler' => [['hizmet_id' => 9, 'ad' => 'Lazer', 'kalan_seans' => 4, 'personeller' => []]]]]]);
+    icerir('adında "Paketi" geçen paket (tekrar yok)', '10 Seans Lazer Paketi bulunmaktadır', $kp2->karsilama());
+    $kk = asistan(['_kampanyalar' => [['kampanya_id' => 5, 'ad' => 'Yaz Bakım', 'bitis' => '2026-12-01', 'durum' => 'davetli_bekliyor', 'katilimci_id' => 77, 'randevu_gerekli' => false]]]);
+    icerir('davetli kampanya → teklif', 'Yaz Bakım kampanyamıza davetlisiniz', $kk->karsilama());
+    $kk2 = asistan(['_kampanyalar' => [['kampanya_id' => 5, 'ad' => 'Yaz Bakım', 'bitis' => null, 'durum' => 'katildi', 'katilimci_id' => 77, 'randevu_gerekli' => false]]]);
+    icermez('zaten katılmış kampanya teklif edilmez', 'davetlisiniz', $kk2->karsilama());
+    $kpk = asistan(['_paketler' => $kp->karsilama() ? cagir($kp, 'paketler') : [], '_kampanyalar' => $kk->karsilama() ? cagir($kk, 'kampanyalar') : []]);
+    icermez('paket + kampanya → yalnız paket teklif edilir', 'davetlisiniz', $kpk->karsilama());
+    $ky = asistan(['musteriAd' => null, 'musteriId' => null]);
+    icerir('kayıtsız → ad soyad ister', 'adınızı ve soyadınızı', $ky->karsilama());
+    $kg = asistan(['musteriAd' => null, 'musteriId' => null, 'telefon' => null]);
+    icerir('gizli numara → telefon da ister', 'telefon numaranızı', $kg->karsilama());
+
+    bolum('Kampanya katılımı (DB\'siz korumalar)');
+    $kx = asistan(['_kampanyalar' => [['kampanya_id' => 5, 'ad' => 'Yaz Bakım', 'bitis' => null, 'durum' => 'katildi', 'katilimci_id' => 77, 'randevu_gerekli' => false]]]);
+    esit('zaten katılmış → zaten_katildi', true, cagir($kx, 'kampanyaKatil', 5)['zaten_katildi'] ?? null);
+    esit('listede olmayan kampanya id → hata', false, cagir($kx, 'kampanyaKatil', 999)['ok']);
+    esit('kayıtsız müşteri → hata', false, cagir(asistan(['musteriId' => null]), 'kampanyaKatil', 5)['ok']);
+
+    // =====================================================================================
+    bolum('Müsaitlik: istenen saat boşsa alternatif YOK, doluysa 2 seçenek');
+    $sahteServis = new class {
+        public $bos = true;
+        function musaitlikBul($salon, $pid, $hizmet, $tarih, $saat, $vakit, $ufuk = 14) {
+            if ($saat && $this->bos) return ['bulundu' => true, 'tarih' => $tarih, 'saat' => $saat, 'sure_dk' => 30, 'tam_istek' => true];
+            if ($saat) return ['bulundu' => true, 'tarih' => $tarih, 'saat' => $pid == 21 ? '15:00' : '16:00', 'sure_dk' => 30, 'tam_istek' => false];
+            return ['bulundu' => true, 'tarih' => $tarih, 'saat' => '10:00', 'sure_dk' => 30, 'tam_istek' => false];
+        }
+    };
+    $GLOBALS['_app'][App\Services\SesliRandevuCozService::class] = $sahteServis;
+    $am = asistan();
+    $r = cagir($am, 'musaitSaatlerPersonelli', ['hizmet_id' => 5, 'tarih' => '2026-11-18', 'saat' => '14:00', 'personel_id' => 21]);
+    esit('boş saat → tam_eslesme', true, $r['tam_eslesme'] ?? false);
+    esit('boş saat → tek seçenek', 1, count($r['secenekler']));
+    esit('boş saat → gün metni', 'Çarşamba, 18 Kasım', $r['secenekler'][0]['gun']);
+    $sahteServis->bos = false;
+    $r = cagir($am, 'musaitSaatlerPersonelli', ['hizmet_id' => 5, 'tarih' => '2026-11-18', 'saat' => '14:00', 'personel_id' => 21]);
+    esit('dolu saat → tam_eslesme yok', false, $r['tam_eslesme'] ?? false);
+    esit('dolu saat → istenen_saat_dolu', true, $r['istenen_saat_dolu'] ?? null);
+    esit('dolu saat → seçenekte gün metni', 'Çarşamba, 18 Kasım', $r['secenekler'][0]['gun'] ?? null);
+    $r = cagir($am, 'musaitSaatlerPersonelli', ['hizmet_id' => 5, 'tarih' => '2026-11-18', 'personel_id' => 99]);
+    esit('takvimde görünmeyen personel → hata', false, $r['ok']);
+    $r = cagir($am, 'musaitSaatlerPersonelli', ['hizmet_id' => 5, 'tarih' => '18 Kasım']);
+    esit('ISO olmayan tarih → hata', false, $r['ok']);
+    $GLOBALS['_app'][App\Services\SesliRandevuCozService::class] = $servis;
+
+    bolum('Zaman notu (modele giden [SİSTEM zaman çözümü])');
+    icerir('"çarşamba 14"', 'tarih=2026-11-18 (Çarşamba, 18 Kasım), saat=14:00', cagir($a, 'zamanNotu', 'çarşamba 14'));
+    icerir('"5 şubat" (yıl eklenir)', 'Cuma, 5 Şubat 2027', cagir($a, 'zamanNotu', '5 şubat'));
+    esit('zaman yoksa not yok', '', cagir($a, 'zamanNotu', 'randevumu iptal etmek istiyorum'));
+
+    bolum('TTS temizliği');
+    icerir('uzun numara rakam rakam', '5 3 2', cagir($a, 'ttsTemizle', 'Numaranız 5321112233 doğru mu?'));
+
+    // =====================================================================================
+    echo "\n\033[1mSONUÇ: $gecen geçti, $kalan kaldı\033[0m\n";
+    if ($kalan) { echo "Kalanlar:\n - " . implode("\n - ", $hatalar) . "\n"; exit(1); }
+}
