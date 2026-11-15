@@ -11,11 +11,13 @@ const client = new speech.SpeechClient();
 // Google streaming tek akista ~305sn siniri koyar -> uzun cagrida akisi periyodik yenile.
 const AKIS_YENILEME_MS = 240000;
 
-// STT kelime ipuclari (speech context) — restoran/telefon alanina ozgu kelimeler tanima dogrulugunu artirir.
+// STT kelime ipuclari (speech context) — SALON/RANDEVU alanina ozgu kelimeler.
+// DIKKAT: restorandan kalan 'masa/kişi/kişilik/porsiyon' ipuclari "saç kesimi"ni "kişi" diye duyuruyordu -> kaldirildi.
 const KELIME_IPUCLARI = [
-  'rezervasyon', 'sipariş', 'paket sipariş', 'masa', 'kişi', 'kişilik', 'saat', 'akşam', 'öğle',
-  'bu akşam', 'yarın', 'bugün', 'adres', 'teslimat', 'telefon numaram', 'porsiyon', 'adet',
-  'menü', 'hesap', 'rica ediyorum', 'istiyorum', 'ayırtmak', 'iptal', 'değiştirmek',
+  'randevu', 'randevu almak istiyorum', 'saç kesimi', 'saç boyama', 'fön', 'manikür', 'pedikür',
+  'cilt bakımı', 'kaş', 'ağda', 'lazer', 'epilasyon', 'masaj', 'sakal', 'tıraş', 'makyaj', 'kalıcı oje',
+  'saat', 'sabah', 'öğleden sonra', 'akşam', 'yarın', 'bugün', 'haftaya', 'adres', 'yol tarifi',
+  'iptal', 'değiştirmek', 'ertelemek', 'hanım', 'bey', 'telefon numaram', 'istiyorum',
   'adım', 'ismim', 'benim adım',
 ];
 
