@@ -19,6 +19,7 @@ const KELIME_IPUCLARI = [
   'saat', 'sabah', 'öğleden sonra', 'akşam', 'yarın', 'bugün', 'haftaya', 'adres', 'yol tarifi',
   'iptal', 'değiştirmek', 'ertelemek', 'hanım', 'bey', 'telefon numaram', 'istiyorum',
   'adım', 'ismim', 'benim adım',
+  'işletmeye bağlar mısınız', 'beni bağlar mısınız', 'yetkiliye bağlayın', 'operatör', 'yetkili', 'biriyle görüşmek istiyorum',
 ];
 
 // Yaygin Turkce isim/soyadlari -> STT ismi tanisin ("Ferdi"yi "saati" diye duymasin). Ayri context, yuksek boost.

@@ -100,6 +100,13 @@ class RandevuAsistan
         if ($metin === '') {
             return ['cevap' => 'Buyurun, sizi dinliyorum.', 'aksiyon' => null, 'veri' => [], 'bitir' => false];
         }
+        // KESIN AKTARMA: "beni işletmeye/yetkiliye bağlar mısın", "operatör", "biriyle görüşmek istiyorum" ->
+        // LLM'e sormadan aktar (STT "işletmeye"yi "genişletme" duysa bile "bağlar mısın" yakalanir).
+        if ($this->aktarmaIstegiMi($metin)) {
+            Log::info('[SANTRAL-TUR] kesin aktarma', ['salon' => $this->salonId, 'metin' => $metin]);
+            $this->teshis = 'aktar';
+            return ['cevap' => 'Sizi hemen yetkili bir arkadaşımıza bağlıyorum, lütfen hatta kalın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
+        }
 
         $key = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
         if (!$key) {
@@ -224,6 +231,12 @@ class RandevuAsistan
             $c = rtrim($c, " ,") . ($c !== '' && !preg_match('/[.!?]$/u', $c) ? '.' : '') . ' Başka yardımcı olabileceğim bir konu var mı?';
         }
         return trim($c);
+    }
+
+    /** Musteri acikca bir insana/isletmeye baglanmak istiyor mu? */
+    protected function aktarmaIstegiMi(string $m): bool
+    {
+        return (bool) preg_match('/(bağla(r|rmısın|yın|yınız|yabilir|yar mısın|sana)|bağlanmak|bağlanabilir|aktar(ır|ırmısın|ın|ınız|abilir)\s*(mı|mi|mısın|mısınız)?\s*$|operatör|yetkili(ye|yle|lerle)?\s+(bağla|görüş|konuş|ver)|canlı destek|müşteri temsilci|biriyle\s+(görüş|konuş)|insanla\s+(görüş|konuş)|gerçek\s+(biri|bir kişi|insan))/iu', $m);
     }
 
     // ---------------------------------------------------------------- tools
@@ -471,7 +484,7 @@ Saat kestirimi: "on dörtte"=14:00, "on dört buçukta"=14:30, "ikide/saat ikide
 {$harita}
 
 # AKTARMA (sadece bunlarda "aktar")
-Müşteri açıkça operatör/insan/yetkili isterse YA DA randevu/iptal/güncelleme dışı konu (şikayet, fatura, ödeme) olursa. Hizmet bulunamadı diye AKTARMA — sormaya devam et.
+Müşteri açıkça operatör/insan/yetkili/işletmeye bağlanmak isterse ("beni bağlar mısınız", "işletmeye bağlayın", "biriyle görüşmek istiyorum") HİÇ SORU SORMADAN hemen "aktar" çağır — bunu hizmet sanma, hizmet_eslestir ÇAĞIRMA. YA DA randevu/iptal/güncelleme dışı konu (şikayet, fatura, ödeme) olursa. Hizmet bulunamadı diye AKTARMA — sormaya devam et.
 
 # KIRMIZI ÇİZGİLER
 Burası restoran DEĞİL, randevu hattı: kişi sayısı, masa, rezervasyon, sipariş SORMA. Her randevu arayan kişi içindir. Anlamsız/alakasız bir ifade duyarsan (ses tanıma hatası olabilir) tahmin yürütme, ne istediğini kısaca tekrar sor.
