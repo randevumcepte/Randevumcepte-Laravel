@@ -39,6 +39,7 @@ class RandevuAsistan
     public ?string $yeniTelefon = null;
     protected ?array $_personeller = null;
     protected ?array $_paketler = null;
+    protected ?array $_randevularim = null; // tur icinde onbellek (prompt her model cagrisinda yeniden kurulur)
     protected AiAsistanController $ctrl;
 
     public function __construct(int $salonId, ?string $telefon = null)
@@ -107,6 +108,13 @@ class RandevuAsistan
             $this->teshis = 'aktar';
             return ['cevap' => 'Sizi hemen yetkili bir arkadaşımıza bağlıyorum, lütfen hatta kalın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
         }
+        // IPTAL / DEGISTIRME NIYETI -> randevulari KOD soyler (restoran "mevcut rezervasyon" kalibi; LLM/arac turu yok,
+        // "sunalım..." deyip susma olmaz). Liste zaten okunduysa (son asistan mesajinda) tekrar etme, modele birak.
+        $direkt = $this->iptalGuncelleGiris($metin, $gecmis);
+        if ($direkt !== null) {
+            Log::info('[SANTRAL-TUR] iptal/guncelle girisi (kod)', ['salon' => $this->salonId, 'metin' => $metin, 'cevap' => $direkt]);
+            return ['cevap' => $this->ttsTemizle($direkt), 'aksiyon' => null, 'veri' => [], 'bitir' => false];
+        }
 
         $key = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
         if (!$key) {
@@ -125,7 +133,12 @@ class RandevuAsistan
         for ($deneme = 0; $deneme < 2; $deneme++) {
         for ($tur = 0; $tur < 6; $tur++) {
             $resp = $this->cagir($messages, $key);
-            if (!$resp) { if ($this->teshis === 'ok') $this->teshis = 'cevap_yok'; break; }
+            if (!$resp) {
+                if ($this->teshis === 'ok') $this->teshis = 'cevap_yok';
+                // Arac sonrasi cevap alinamadiysa elde kalan on-cumle ("sunalım...") anlamsiz: guvenli cumle
+                if ($tur > 0 && !$aksiyon) $cevap = 'Kusura bakmayın, sizi tam anlayamadım. Tekrar söyler misiniz?';
+                break;
+            }
 
             $content = $resp['content'] ?? [];
             $metinler = []; $toolUse = [];
@@ -215,7 +228,7 @@ class RandevuAsistan
         }
 
         if ($cevap === '') $cevap = $this->garantiCevap($aksiyon);
-        Log::info('[SANTRAL-TUR]', ['salon' => $this->salonId, 'musteri' => $this->musteriId, 'metin' => $metin, 'cevap' => $cevap, 'aksiyon' => $aksiyon]);
+        Log::info('[SANTRAL-TUR]', ['salon' => $this->salonId, 'musteri' => $this->musteriId, 'metin' => $metin, 'cevap' => $cevap, 'aksiyon' => $aksiyon, 'teshis' => $this->teshis]);
         // Yol tarifi gonderildiyse (ayni turda baska bir is yoksa) sabit, net cumle:
         if ($yolTarifiGitti && $aksiyon === null && !$bitir) {
             $cevap = 'Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?';
@@ -273,6 +286,49 @@ class RandevuAsistan
         return $gunAd[(int) date('w', $ts)] . ', ' . (int) date('j', $ts) . ' ' . $ayAd[(int) date('n', $ts)] . $yil;
     }
 
+    /** Randevunun konusmada okunacak hali: "Pazartesi, 16 Kasım saat 14:00'te Gülşah ile Saç Kesimi" */
+    protected function randevuSoz(array $r): string
+    {
+        $s = "{$r['gun']} saat {$r['saat']}'te";
+        if (!empty($r['personel'])) $s .= " {$r['personel']} ile";
+        if (!empty($r['hizmet'])) $s .= " {$r['hizmet']}";
+        return $s;
+    }
+
+    /** Musteri iptal/degistirme istiyorsa randevularini dogrudan soyleyen cumle; uygun degilse null (LLM devam eder). */
+    protected function iptalGuncelleGiris(string $metin, array $gecmis): ?string
+    {
+        if (!$this->musteriId) return null;
+        $f = mb_strtolower(strtr($metin, ['İ' => 'i', 'I' => 'ı']), 'UTF-8'); // Turkce I/İ (mb "İ"->"i̇" yapar)
+        $iptal = (bool) preg_match('/iptal|vazgeç|gelemeyece|gelemiyorum|sil(in|ebilir|er misiniz)/u', $f);
+        $degis = !$iptal && preg_match('/değiştir|ertele|güncelle|kaydır|başka (bir )?(güne|saate|zamana)|saatini değiş|gününü değiş/u', $f)
+            && preg_match('/randevu/u', $f);
+        if (!$iptal && !$degis) return null;
+        // Liste bu konusmada zaten okunduysa (asistan randevuyu sordu) model devam etsin
+        $son = '';
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') === 'assistant') { $son = (string) ($gecmis[$i]['content'] ?? ''); break; }
+        }
+        if (preg_match('/randevunuz var|randevunuz bulunuyor|hangisini/iu', $son)) return null;
+        // Mesajda tarih/saat de verildiyse ("çarşamba 14'teki randevumu iptal et") modelin eslestirmesine birak
+        $z = app(SesliRandevuCozService::class)->zamanCoz($metin);
+        if (!empty($z['tarih']) || !empty($z['saat'])) return null;
+
+        $liste = $this->randevularim()['randevular'] ?? [];
+        if (!$liste) {
+            return 'Adınıza kayıtlı ileri tarihli bir randevu görünmüyor. Başka yardımcı olabileceğim bir konu var mı?';
+        }
+        if (count($liste) === 1) {
+            $r = $liste[0];
+            return $iptal
+                ? $this->randevuSoz($r) . ' randevunuz var. Bu randevuyu iptal etmemi onaylıyor musunuz?'
+                : $this->randevuSoz($r) . ' randevunuz var. Hangi gün ve saate almak istersiniz?';
+        }
+        $parca = [];
+        foreach (array_slice($liste, 0, 4) as $i => $r) $parca[] = ($i + 1) . '. ' . $this->randevuSoz($r);
+        return count($liste) . ' randevunuz var: ' . implode(', ', $parca) . '. Hangisini ' . ($iptal ? 'iptal edelim?' : 'değiştirelim?');
+    }
+
     /** "Bir moment", "biraz bekleteceğim", "kontrol ediyorum" gibi kisa bekletme cumlelerini cevaptan atar. */
     protected function bekletmeTemizle(string $c): string
     {
@@ -313,6 +369,7 @@ class RandevuAsistan
 
             case 'randevu_olustur':
                 $d = $this->randevuOlusturPersonelli($in);
+                $this->_randevularim = null;
                 $ok = !empty($d['ok']);
                 return [$d, $ok ? 'randevu' : null, $ok ? ($d['randevu_id'] ?? null) : null, false];
 
@@ -320,11 +377,11 @@ class RandevuAsistan
                 $rid = $this->intId($in['randevu_id'] ?? null);
                 // SAHIPLIK: yalniz ARAYANIN kendi randevusu (model yanlis/uydurma id verirse baskasininki iptal olmasin)
                 if (!$this->randevuSahibiMi($rid)) return [$this->sahipDegilHata(), null, null, false];
-                $d = $this->randevuIptalEt($rid);
+                $d = $this->randevuIptalEt($rid); $this->_randevularim = null;
                 return [$d, !empty($d['ok']) ? 'iptal' : null, null, false];
 
             case 'randevu_guncelle':
-                $d = $this->randevuGuncellePersonelli($in);
+                $d = $this->randevuGuncellePersonelli($in); $this->_randevularim = null;
                 return [$d, !empty($d['ok']) ? 'guncelle' : null, null, false];
 
             case 'yol_tarifi_gonder':
@@ -422,7 +479,7 @@ class RandevuAsistan
     }
 
     // ---------------------------------------------------------------- LLM
-    protected function cagir(array $messages, string $key): ?array
+    protected function cagir(array $messages, string $key, int $tekrar = 0): ?array
     {
         $body = [
             'model' => config('services.anthropic.model', 'claude-haiku-4-5'),
@@ -455,6 +512,12 @@ class RandevuAsistan
 
         if ($raw === false || $code !== 200) {
             $this->teshis = 'http_' . $code . ':' . substr((string) ($raw ?: $err), 0, 160);
+            Log::warning('[SANTRAL-LLM-HATA] ' . $this->teshis, ['salon' => $this->salonId, 'deneme' => $tekrar]);
+            // 429/5xx/zaman asimi: bir kez daha dene (yoksa turda yalniz on-cumle kalip musteri sessizlikte kaliyor)
+            if ($tekrar === 0 && ($raw === false || $code === 0 || $code === 429 || $code >= 500)) {
+                usleep(400000);
+                return $this->cagir($messages, $key, 1);
+            }
             return null;
         }
         $j = json_decode($raw, true);
@@ -496,6 +559,12 @@ class RandevuAsistan
         if ($personelSatir === '') $personelSatir = "(randevu takvimi açık personel yok — randevu verilemez, müşteriyi operatöre aktar)\n";
         $adresSatir = trim((string) ($this->salon['adres'] ?? '')) ?: 'kayıtlı değil';
         $paketSatir = $this->paketSatirlari();
+        $rvSatir = '';
+        foreach (($this->randevularim()['randevular'] ?? []) as $r) {
+            $rvSatir .= "\n- randevu_id {$r['id']} | {$r['gun']} {$r['saat']} | " . ($r['hizmet'] ?: '-') . ' | ' . ($r['personel'] ?: '-')
+                . " | hizmet_id {$r['hizmet_id']} | personel_id " . ($r['personel_id'] ?: '-') . " | {$r['durum']}";
+        }
+        $rvSatir = $rvSatir ?: ' yok';
 
         return <<<PROMPT
 Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal Türkçe konuşuyorsun. Çıktın düz metindir (TTS ile okunur): emoji, madde işareti, markdown KULLANMA. Her yanıt 1-2 cümle.
@@ -523,7 +592,7 @@ PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada "paketiniz bulunmaktadı
 
 BEKLETME YOK: "Bir moment", "bir saniye", "biraz bekleteceğim", "kontrol ediyorum", "bakıyorum" gibi bekletme cümleleri ASLA kurma. Bilgi gerekiyorsa aracı HEMEN çağır ve sonucu doğrudan söyle (ör. "Pazartesi 16 Kasım saat 14:00'te Saç Kesimi randevunuz var, bunu iptal edeyim mi?").
 
-İPTAL/GÜNCELLEME: Talep (onay bekleyen) randevular da onaylılar gibi iptal edilebilir ve güncellenebilir. Önce "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat. İptalde "randevu_iptal". Güncellemede yeni gün/saat için "musait_saatler"i o randevunun hizmet_id ve personel_id'si ile çağır, onay al, sonra "randevu_guncelle". Yalnız mevcut_randevular'ın döndüğü id'leri kullan.
+İPTAL/GÜNCELLEME: Talep (onay bekleyen) randevular da onaylılar gibi iptal edilebilir ve güncellenebilir. Randevular BAĞLAM'daki MÜŞTERİNİN MEVCUT RANDEVULARI listesinde: müşteri onaylayınca (evet/olur/onaylıyorum) HEMEN randevu_iptal çağır, başka soru sorma. Liste boşsa ya da emin değilsen "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat. İptalde "randevu_iptal". Güncellemede yeni gün/saat için "musait_saatler"i o randevunun hizmet_id ve personel_id'si ile çağır, onay al, sonra "randevu_guncelle". Yalnız mevcut_randevular'ın döndüğü id'leri kullan.
 
 ADRES / YOL TARİFİ: müşteri yol tarifi, adres, konum, "konum gönderir misiniz", "nasıl gelirim", "neredesiniz" derse İLK SEFERDE, teyit sormadan HEMEN "yol_tarifi_gonder" çağır. Gönderilince yalnızca "Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?" de (adresi okuma). Gönderilemezse (ok=false) adresi kısaca söyle ve aynı soruyu sor. Bunun için aktarma yapma.
 
@@ -557,6 +626,7 @@ Hizmetler (yalnızca bağlam; eşleştirmeyi SEN yapma, hizmet_eslestir kullan):
 PERSONELLER (randevu takvimi açık olanlar):
 {$personelSatir}
 PAKETLER (kullanılabilir): {$paketSatir}
+MÜŞTERİNİN MEVCUT RANDEVULARI (iptal/güncellemede bunları kullan; mevcut_randevular çağırmana GEREK YOK):{$rvSatir}
 PROMPT;
     }
 
@@ -878,6 +948,7 @@ PROMPT;
     protected function randevularim(): array
     {
         if (!$this->musteriId) return ['ok' => true, 'randevular' => [], 'not' => 'Arayan bu işletmede kayıtlı değil; randevusu yok.'];
+        if ($this->_randevularim !== null) return $this->_randevularim;
         $liste = [];
         $rs = Randevular::where('user_id', $this->musteriId)->where('salon_id', $this->salonId)
             ->whereDate('tarih', '>=', now('Europe/Istanbul')->toDateString())
@@ -898,7 +969,7 @@ PROMPT;
                 'personel_id' => $ilk && $ilk->personel_id ? (int) $ilk->personel_id : null,
             ];
         }
-        return ['ok' => true, 'randevular' => $liste];
+        return $this->_randevularim = ['ok' => true, 'randevular' => $liste];
     }
 
     /** Randevu bu salonda ve ARAYANIN mi? (iptal/guncelle oncesi zorunlu) */
