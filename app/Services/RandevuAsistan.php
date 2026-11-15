@@ -113,7 +113,9 @@ class RandevuAsistan
         $aksiyon = null; $bitir = false; $randevuId = null; $cevap = '';
         $isTamamlandi = false; // randevu/iptal/guncelleme/yol tarifi tamamlandi -> "Başka yardımcı olabileceğim..." sorulmali
         $yolTarifiGitti = false; // yol tarifi mesaji basariyla gonderildi -> sabit cumle
+        $randevuHatasi = null;   // bu turda randevu_olustur/guncelle ok=false dondu (sebep)
 
+        for ($deneme = 0; $deneme < 2; $deneme++) {
         for ($tur = 0; $tur < 6; $tur++) {
             $resp = $this->cagir($messages, $key);
             if (!$resp) { if ($this->teshis === 'ok') $this->teshis = 'cevap_yok'; break; }
@@ -151,6 +153,9 @@ class RandevuAsistan
                 if ($bit) $bitir = true;
                 if (in_array($aks, ['randevu', 'iptal', 'guncelle'], true) || ($tu['name'] ?? '') === 'yol_tarifi_gonder') $isTamamlandi = true;
                 if (($tu['name'] ?? '') === 'yol_tarifi_gonder' && !empty($sonuc['ok'])) $yolTarifiGitti = true;
+                if (in_array($tu['name'] ?? '', ['randevu_olustur', 'randevu_guncelle'], true) && empty($sonuc['ok'])) {
+                    $randevuHatasi = (string) ($sonuc['hata'] ?? 'bilinmeyen hata');
+                }
             }
             $messages[] = ['role' => 'user', 'content' => $sonuclar];
 
@@ -169,6 +174,27 @@ class RandevuAsistan
                 break;
             }
             // query/commit araclari -> dongu devam (LLM sonucu gorup kapanis cumlesi/soru uretsin)
+        }
+            // SAHTE BASARI KORUMASI: model randevu_olustur/guncelle ok=true OLMADAN "oluşturuldu/güncellendi"
+            // derse (araci hic cagirmadi ya da hata aldi) musteriye yanlis bilgi gitmesin: bir duzeltme turu.
+            $sahteBasari = !in_array($aksiyon, ['randevu', 'guncelle'], true)
+                && preg_match('/randevu(nuz|nuzu)?\s+(başarıyla\s+)?(oluşturul|güncellen|kaydedil|alın)/iu', $cevap);
+            if (!$sahteBasari || $deneme > 0 || $bitir) break;
+            Log::warning('[SANTRAL-SAHTE-BASARI] model arac basarisi olmadan olusturuldu dedi', [
+                'salon' => $this->salonId, 'musteri' => $this->musteriId, 'cevap' => $cevap, 'hata' => $randevuHatasi,
+            ]);
+            $messages[] = ['role' => 'assistant', 'content' => $cevap];
+            $messages[] = ['role' => 'user', 'content' => '[SİSTEM — müşteri bunu duymadı] Randevu KAYDEDİLMEDİ: '
+                . ($randevuHatasi ? "randevu_olustur hata döndü: {$randevuHatasi}" : 'randevu_olustur aracı çağrılmadı.')
+                . ' Müşteri onay verdiyse şimdi randevu_olustur çağır (seçilen seçeneğin tarih_saat, personel_id, hizmet_id). '
+                . 'Hata sürerse müşteriye randevunun oluşturulamadığını dürüstçe söyle ve yeni saat ya da yetkiliye aktarma öner. '
+                . 'ok=true dönmeden "oluşturuldu" DEME.'];
+            $cevap = '';
+        }
+        // Ikinci denemede de arac basarisi yoksa ve hala "olusturuldu" diyorsa: kesin dogru cumle
+        if (!in_array($aksiyon, ['randevu', 'guncelle'], true)
+            && preg_match('/randevu(nuz|nuzu)?\s+(başarıyla\s+)?(oluşturul|güncellen|kaydedil|alın)/iu', $cevap)) {
+            $cevap = 'Üzgünüm, randevunuzu şu an kaydedemedim. Başka bir saat deneyelim mi, yoksa sizi bir yetkiliye aktarayım mı?';
         }
 
         if ($cevap === '') $cevap = $this->garantiCevap($aksiyon);
