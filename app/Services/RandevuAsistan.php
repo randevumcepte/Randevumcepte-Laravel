@@ -221,7 +221,7 @@ class RandevuAsistan
             // SAHTE BASARI KORUMASI: model randevu_olustur/guncelle ok=true OLMADAN "oluşturuldu/güncellendi"
             // derse (araci hic cagirmadi ya da hata aldi) musteriye yanlis bilgi gitmesin: bir duzeltme turu.
             $sahteBasari = !in_array($aksiyon, ['randevu', 'guncelle'], true)
-                && preg_match('/randevu(nuz|nuzu)?\s+(talebiniz\s+)?(başarıyla\s+)?(oluşturul|güncellen|kaydedil|alın)/iu', $cevap);
+                && $this->sahteBasariMetni($cevap);
             // BEKLETME CUMLESI: "bir moment / bekleteceğim / kontrol ediyorum" -> cumleyi at; geriye bir sey
             // kalmadiysa (model araci cagirmadan bekletip turu bitirdi) duzeltme turu: araci simdi cagirsin.
             $cevap = $this->bekletmeTemizle($cevap);
@@ -246,7 +246,7 @@ class RandevuAsistan
         }
         // Ikinci denemede de arac basarisi yoksa ve hala "olusturuldu" diyorsa: kesin dogru cumle
         if (!in_array($aksiyon, ['randevu', 'guncelle'], true)
-            && preg_match('/randevu(nuz|nuzu)?\s+(talebiniz\s+)?(başarıyla\s+)?(oluşturul|güncellen|kaydedil|alın)/iu', $cevap)) {
+            && $this->sahteBasariMetni($cevap)) {
             $cevap = 'Üzgünüm, randevunuzu şu an kaydedemedim. Başka bir saat deneyelim mi, yoksa sizi bir yetkiliye aktarayım mı?';
         }
 
@@ -301,13 +301,23 @@ class RandevuAsistan
         return '';
     }
 
+    /**
+     * Cevap randevunun KAYDEDILDIGINI iddia ediyor mu? (randevu/randevunuz/randevusu + talebi/talebiniz + oluşturuldu/kaydedildi...)
+     * "oluşturayım mı" gibi SORULAR iddia sayilmaz.
+     */
+    protected function sahteBasariMetni(string $c): bool
+    {
+        return (bool) preg_match('/randevu\w*\s+(talebi\w*\s+)?(talep olarak\s+)?(başarıyla\s+)?(oluşturuldu|oluşturulmuştur|güncellendi|kaydedildi|alındı|alınmıştır)/iu', $c);
+    }
+
     /** Son asistan mesaji randevu onay sorusu muydu? ("... randevu talebi oluşturayım mı?") */
     protected function onayBekleniyorMu(array $gecmis): bool
     {
         for ($i = count($gecmis) - 1; $i >= 0; $i--) {
             if (($gecmis[$i]['role'] ?? '') === 'assistant') {
                 $c = (string) ($gecmis[$i]['content'] ?? '');
-                return (bool) preg_match('/randevu talebi oluşturayım mı|randevu(yu)? oluşturayım mı|randevu, onaylıyor musunuz|için randevu.*onaylıyor musunuz/iu', $c);
+                return (bool) (preg_match('/randevu/iu', $c) && preg_match('/oluşturayım mı|oluşturalım mı|kaydedeyim mi|onaylıyor musunuz/iu', $c)
+                    && !preg_match('/iptal/iu', $c));
             }
         }
         return false;

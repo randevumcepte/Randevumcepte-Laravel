@@ -203,13 +203,13 @@ namespace {
         'Randevunuz iptal edildi. Başka yardımcı olabileceğim bir konu var mı?' => 'Randevunuz iptal edildi. Başka yardımcı olabileceğim bir konu var mı?',
     ] as $g => $b) esit("\"$g\"", $b, cagir($a, 'baskaYardimEkle', $g));
 
-    bolum('Sahte başarı yakalama kalıbı (araç başarısı olmadan "oluşturuldu")');
-    $re = '/randevu(nuz|nuzu)?\s+(talebiniz\s+)?(başarıyla\s+)?(oluşturul|güncellen|kaydedil|alın)/iu';
-    $kaynak = file_get_contents(__DIR__ . '/../app/Services/RandevuAsistan.php');
-    esit('kalıp kodda 2 yerde aynı', 2, substr_count($kaynak, "preg_match('" . $re . "'"));
-    foreach (['Randevunuz oluşturuldu, bekliyoruz.' => 1, 'Randevu talebiniz oluşturuldu.' => 1, 'Randevunuz başarıyla güncellendi.' => 1,
-              'Randevunuz iptal edildi.' => 0, 'Pazartesi 12de randevunuz var.' => 0, 'Randevu talebi oluşturayım mı?' => 0] as $t => $b) {
-        esit("\"$t\"", $b, preg_match($re, $t));
+    bolum('Sahte başarı yakalama (araç başarısı olmadan "oluşturuldu")');
+    foreach (['Randevunuz oluşturuldu, bekliyoruz.' => true, 'Randevu talebiniz oluşturuldu.' => true, 'Randevunuz başarıyla güncellendi.' => true,
+              'Saç Kesimi randevusu talebiniz oluşturuldu, işletmemiz onayladığında...' => true, 'Randevunuz talep olarak oluşturuldu.' => true,
+              'Randevunuz kaydedildi.' => true,
+              'Randevunuz iptal edildi.' => false, 'Pazartesi 12de randevunuz var.' => false, 'Randevu talebi oluşturayım mı?' => false,
+              'Saç Kesimi randevusu talebi oluşturayım mı?' => false] as $t => $b) {
+        esit("\"$t\"", $b, cagir($a, 'sahteBasariMetni', $t));
     }
 
     // =====================================================================================
@@ -321,6 +321,8 @@ namespace {
     $onaySoru = [['role' => 'assistant', 'content' => "Perşembe, 19 Kasım saat 11:00'te Gülşah ile Saç Kesimi için randevu talebi oluşturayım mı?"]];
     esit('onay sorusu algılanır', true, cagir($a, 'onayBekleniyorMu', $onaySoru));
     esit('başka soru onay değil', false, cagir($a, 'onayBekleniyorMu', [['role' => 'assistant', 'content' => 'Hangi saat uygun olur?']]));
+    esit('ekli varyant ("randevusu talebi oluşturayım mı") algılanır', true, cagir($a, 'onayBekleniyorMu', [['role' => 'assistant', 'content' => "Perşembe 11:00'te Gülşah ile Saç Kesimi randevusu talebi oluşturayım mı?"]]));
+    esit('iptal onayı randevu onayı sayılmaz', false, cagir($a, 'onayBekleniyorMu', [['role' => 'assistant', 'content' => 'Bu randevuyu iptal etmemi onaylıyor musunuz?']]));
     foreach (['Evet' => true, 'Evet, olsun' => true, 'Tamam onaylıyorum' => true, 'Olur' => true, 'Hayır' => false, 'Evet ama başka saat olsun' => false, 'Yok vazgeçtim' => false] as $t => $b) {
         esit("onay cevabı \"$t\"", $b, cagir($a, 'onayMi', $t));
     }
