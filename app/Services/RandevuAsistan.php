@@ -383,7 +383,8 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal
 7. SAAT SEÇİMİ.
 8. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te [personel] ile [hizmet] için randevu, onaylıyor musunuz?"
 9. Onay gelince "randevu_olustur" (seçilen seçeneğin tarih_saat ve personel_id'si + hizmet_id). ok=false ve saat dolu derse yeniden musait_saatler çağır ve yeni saat öner.
-10. SONUÇ: "Randevunuz oluşturuldu, [gün] saat [saat]'te bekliyoruz. Randevu bilgilerinizi mesaj olarak da gönderiyorum." (Güncellemede de bilgilerin mesajla gönderildiğini söyle.)
+10. SONUÇ: "Randevunuz oluşturuldu, [gün] saat [saat]'te bekliyoruz." randevu_olustur sonucunda bilgilendirme_gonderildi=true ise ardından "Size bilgilendirme mesajı ilettim." ekle; false ise mesajdan HİÇ bahsetme. En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde (güncellemede bilgilendirme_gonderildi'ye göre) bu soruyu sor.
+11. KAPANIŞ: Müşteri "yok, teşekkürler" derse "veda" çağır; yeni bir isteği varsa 2. adımdan devam et.
 
 İPTAL/GÜNCELLEME: önce "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat. İptalde "randevu_iptal". Güncellemede yeni gün/saat için "musait_saatler"i o randevunun hizmet_id ve personel_id'si ile çağır, onay al, sonra "randevu_guncelle". Yalnız mevcut_randevular'ın döndüğü id'leri kullan.
 
@@ -713,7 +714,13 @@ PROMPT;
             Log::warning('RandevuAsistan randevuOlustur: kayit bulunamadi', ['yanit' => $r]);
             return ['ok' => false, 'hata' => 'Randevu şu an oluşturulamadı. Müşteriye özür dile, yetkiliye aktarmayı teklif et.'];
         }
-        return ['ok' => true, 'randevu_id' => (int) $rid, 'tarih' => $tarih, 'saat' => $saat, 'personel' => $this->personelListesi()[$personelId] ?? null];
+        return ['ok' => true, 'randevu_id' => (int) $rid, 'tarih' => $tarih, 'saat' => $saat, 'personel' => $this->personelListesi()[$personelId] ?? null, 'bilgilendirme_gonderildi' => $this->bilgilendirmeAcik()];
+    }
+
+    /** Panel > SMS ayarlari > "Randevu Oluşturulduğunda" (ayar 12) musteri acik mi? Aciksa randevuekleguncelle WA-first/SMS gonderir. */
+    protected function bilgilendirmeAcik(): bool
+    {
+        return (int) \App\SalonSMSAyarlari::where('ayar_id', 12)->where('salon_id', $this->salonId)->value('musteri') === 1;
     }
 
     protected function randevuGuncellePersonelli(array $in): array
@@ -752,7 +759,7 @@ PROMPT;
             return ['ok' => false, 'hata' => 'Randevu şu an güncellenemedi. Müşteriye özür dile, yetkiliye aktarmayı teklif et.'];
         }
         if ((string) ($r['cakismavar'] ?? '') === '1') return ['ok' => false, 'hata' => 'Bu saat çakışıyor. Yeni saat öner.'];
-        return ['ok' => true, 'randevu_id' => $rid, 'tarih' => $tarih, 'saat' => $saat];
+        return ['ok' => true, 'randevu_id' => $rid, 'tarih' => $tarih, 'saat' => $saat, 'bilgilendirme_gonderildi' => $this->bilgilendirmeAcik()];
     }
 
     /** ApiController@yolTarifiGonder (eski santral ile ayni: WhatsApp once, olmazsa SMS) + adres. */

@@ -12511,11 +12511,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                           && ($_randevuTs - $_now > 0)
                           && (($_randevuTs - $_now) / 3600 < 24);
 
-            // Sesli asistan (santral, easistan=1) ile alinan/degistirilen randevuda musteri telefonda
-            // yazili teyit bekler: SMS ayari kapali olsa bile bilgilendirme MUTLAKA gider (WA-first, SMS yedek).
-            $_santralRandevu = ((string) $request->input('easistan') === '1');
-
-            if ($musteriToggle || $_kritikBypass || $_santralRandevu) {
+            if ($musteriToggle || $_kritikBypass) {
                 if ($zamanDegisti || $hizmet_degisti || $eskiRandevu == null) {
                     // WA icin zenginlestirilmis format (SMS aynen kisa kalir).
                     // Sadece YENI olusturmada gonderilir, guncellemede degil
