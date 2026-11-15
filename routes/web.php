@@ -958,6 +958,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/sms-ayar-kaydet','StoreAdminController@sms_ayar_kaydet');
 	Route::post('/santral-ayar-kaydet','StoreAdminController@santral_ayar_kaydet');
 	Route::post('/santral-ozel-menu-kaydet','StoreAdminController@santral_ozel_menu_kaydet');
+	Route::post('/santral-sss-kaydet','StoreAdminController@santral_sss_kaydet');
 	Route::post('/ongorusmesatisyapilmadi','StoreAdminController@ongorusmesatisyapilmadi');
 	 
 	Route::post('/grupsil','StoreAdminController@grup_sil');

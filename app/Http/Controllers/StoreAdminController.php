@@ -24952,6 +24952,36 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'metin'=>Salonlar::santralOzelMenuMetni($secenekler),
         ]);
     }
+    // Santral sesli asistan: isletmenin Sik Sorulan Sorular cevaplari (tetikleyici -> cevap). Tum liste yeniden yazilir.
+    public function santral_sss_kaydet(Request $request)
+    {
+        $yetkili = Auth::guard('isletmeyonetim')->user();
+        $isletmeler = $yetkili ? $yetkili->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray() : [];
+        if (!in_array($request->sube, $isletmeler) || self::kullaniciRolu($request->sube, $yetkili->id) >= 5) {
+            return response()->json(['success'=>false,'mesaj'=>'Bu ayarı değiştirme yetkiniz yok.'], 403);
+        }
+        \App\Services\RandevuAsistan::sssTablo();
+        $satirlar = [];
+        foreach ((array) $request->input('sss', []) as $r) {
+            $tet = trim(implode(', ', array_filter(array_map('trim', explode(',', (string) ($r['tetikleyiciler'] ?? ''))))));
+            $cevap = trim((string) ($r['cevap'] ?? ''));
+            if ($tet === '' && $cevap === '') continue;
+            if ($tet === '' || $cevap === '') {
+                return response()->json(['success'=>false,'mesaj'=>'Her satırda hem soru kelimeleri hem cevap dolu olmalı.'], 422);
+            }
+            $satirlar[] = ['salon_id'=>(int) $request->sube, 'aktif'=>1, 'tetikleyiciler'=>mb_substr($tet,0,500), 'cevap'=>mb_substr($cevap,0,600), 'created_at'=>now()];
+        }
+        if (count($satirlar) > 40) {
+            return response()->json(['success'=>false,'mesaj'=>'En fazla 40 soru-cevap eklenebilir.'], 422);
+        }
+        \DB::transaction(function () use ($request, $satirlar) {
+            \DB::table('santral_sss')->where('salon_id', (int) $request->sube)->delete();
+            if ($satirlar) \DB::table('santral_sss')->insert($satirlar);
+        });
+        SalonAudit::log($request->sube, 'santral_sss_kaydet', 'santral_ayar', null,
+            'Santral sık sorulan sorular', 'Sesli asistan sık sorulan soruları güncellendi', ['adet'=>count($satirlar)]);
+        return response()->json(['success'=>true,'mesaj'=>'Sık sorulan sorular kaydedildi ('.count($satirlar).' adet).']);
+    }
     public function sms_ayar_kaydet(Request $request)
     {
         // ayar_id=1 (yaklaşan randevu hatırlatma) — müşteri SMS'i seçili ise WhatsApp da aynı durumda kaydedilir

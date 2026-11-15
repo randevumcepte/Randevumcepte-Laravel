@@ -458,6 +458,63 @@
                                     </div>
                                  </form>
 
+                                 @php
+                                    try { \App\Services\RandevuAsistan::sssTablo(); $sssListe = \DB::table('santral_sss')->where('salon_id', $isletme->id)->orderBy('id')->get(); }
+                                    catch (\Throwable $e) { $sssListe = collect(); }
+                                 @endphp
+                                 <form id="santral_sss_form" method="POST">
+                                    {{csrf_field()}}
+                                    <input type="hidden" name="sube" value="{{$isletme->id}}">
+                                    <div class="pd-20 card-box mb-30">
+                                       <h6>Sesli Asistan — Sık Sorulan Sorular</h6>
+                                       <p>Telefondaki yapay zeka asistanı, müşteri burada yazdığınız kelimelerden birini söylediğinde cevabınızı <b>aynen</b> okur. Kelimeleri virgülle ayırın (ör. <i>otopark, park yeri, araba</i>). Fiyat soruları bu listede olsa bile işletmeye aktarılır.</p>
+                                       <div class="row d-none d-md-flex font-14 weight-500 mb-5">
+                                          <div class="col-md-4">Soru kelimeleri (virgülle)</div>
+                                          <div class="col-md-7">Asistanın okuyacağı cevap</div>
+                                       </div>
+                                       <div id="santral_sss_satirlar">
+                                          @foreach(count($sssListe) ? $sssListe : [(object)['tetikleyiciler'=>'','cevap'=>'']] as $sss)
+                                          <div class="row santral-sss-satir mb-10">
+                                             <div class="col-md-4 mb-5"><input type="text" class="form-control" maxlength="500" data-alan="tetikleyiciler" value="{{$sss->tetikleyiciler}}" placeholder="Örn: otopark, park yeri"></div>
+                                             <div class="col-md-7 mb-5"><textarea class="form-control" rows="2" maxlength="600" data-alan="cevap" placeholder="Örn: Binamızın önünde ücretsiz otopark bulunmaktadır.">{{$sss->cevap}}</textarea></div>
+                                             <div class="col-md-1 mb-5"><button type="button" class="btn btn-outline-danger btn-block santral-sss-sil" title="Sil"><i class="fa fa-trash"></i></button></div>
+                                          </div>
+                                          @endforeach
+                                       </div>
+                                       <button type="button" class="btn btn-outline-primary btn-sm" id="santral_sss_ekle"><i class="fa fa-plus"></i> Soru Ekle</button>
+                                       <br><button type="submit" class="btn btn-success mt-15">Soruları Kaydet</button>
+                                    </div>
+                                 </form>
+                                 <script>
+                                 window.addEventListener('load', function () {
+                                    var $ = window.jQuery; if (!$) return;
+                                    function adlandir() {
+                                       $('#santral_sss_satirlar .santral-sss-satir').each(function (i) {
+                                          $(this).find('[data-alan]').each(function () { $(this).attr('name', 'sss[' + i + '][' + $(this).data('alan') + ']'); });
+                                       });
+                                    }
+                                    adlandir();
+                                    $('#santral_sss_ekle').on('click', function () {
+                                       var $y = $('#santral_sss_satirlar .santral-sss-satir:first').clone();
+                                       $y.find('input,textarea').val('');
+                                       $('#santral_sss_satirlar').append($y); adlandir();
+                                    });
+                                    $(document).on('click', '.santral-sss-sil', function () {
+                                       var $s = $('#santral_sss_satirlar .santral-sss-satir');
+                                       if ($s.length > 1) $(this).closest('.santral-sss-satir').remove(); else $s.find('input,textarea').val('');
+                                       adlandir();
+                                    });
+                                    $('#santral_sss_form').on('submit', function (e) {
+                                       e.preventDefault(); adlandir();
+                                       $.ajax({ type: 'POST', url: '/isletmeyonetim/santral-sss-kaydet', dataType: 'json', data: $(this).serialize(),
+                                          beforeSend: function () { $('#preloader').show(); },
+                                          success: function (r) { $('#preloader').hide(); swal({ type: 'success', title: r.mesaj, showConfirmButton: false, timer: 3000 }); },
+                                          error: function (q) { $('#preloader').hide(); swal({ type: 'warning', title: (q.responseJSON && q.responseJSON.mesaj) ? q.responseJSON.mesaj : 'Kaydedilemedi.' }); }
+                                       });
+                                    });
+                                 });
+                                 </script>
+
                               </div>
                               
                                

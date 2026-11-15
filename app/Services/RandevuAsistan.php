@@ -115,6 +115,12 @@ class RandevuAsistan
         // IPTAL / DEGISTIRME NIYETI -> randevulari KOD soyler (restoran "mevcut rezervasyon" kalibi; LLM/arac turu yok,
         // "sunalım..." deyip susma olmaz). Liste zaten okunduysa (son asistan mesajinda) tekrar etme, modele birak.
         $direkt = $this->iptalGuncelleGiris($metin, $gecmis);
+        if ($direkt === null && ($sss = $this->sssCevap($metin)) !== null) {
+            // ISLETMENIN KENDI CEVABI (panel > Santral > Sık Sorulan Sorular): LLM'siz, aynen okunur.
+            Log::info('[SANTRAL-TUR] sss', ['salon' => $this->salonId, 'metin' => $metin]);
+            $this->teshis = 'sss';
+            return ['cevap' => $this->baskaYardimEkle($this->ttsTemizle($sss)), 'aksiyon' => null, 'veri' => [], 'bitir' => false];
+        }
         if ($direkt !== null) {
             Log::info('[SANTRAL-TUR] iptal/guncelle girisi (kod)', ['salon' => $this->salonId, 'metin' => $metin, 'cevap' => $direkt]);
             return ['cevap' => $this->ttsTemizle($direkt), 'aksiyon' => null, 'veri' => [], 'bitir' => false];
@@ -290,6 +296,96 @@ class RandevuAsistan
         return $gunAd[(int) date('w', $ts)] . ', ' . (int) date('j', $ts) . ' ' . $ayAd[(int) date('n', $ts)] . $yil;
     }
 
+    // ------------------------------------------------ isletme bilgisi (calisma saati / kampanya / SSS)
+    /** "Pazartesi 09:00-19:00, ..., Pazar kapalı" (salon_calisma_saatleri; haftanin_gunu 1=Pzt..7=Paz) */
+    protected function calismaSaatleriMetni(): string
+    {
+        try {
+            $ad = [1 => 'Pazartesi', 2 => 'Salı', 3 => 'Çarşamba', 4 => 'Perşembe', 5 => 'Cuma', 6 => 'Cumartesi', 7 => 'Pazar'];
+            $rows = \App\SalonCalismaSaatleri::where('salon_id', $this->salonId)->get()->keyBy('haftanin_gunu');
+            if ($rows->isEmpty()) return 'tanımlı değil';
+            $out = [];
+            foreach ($ad as $g => $gAd) {
+                $r = $rows->get($g);
+                if (!$r || (int) $r->calisiyor !== 1) { $out[] = "{$gAd} kapalı"; continue; }
+                $b = substr((string) $r->baslangic_saati, 0, 5); $e = substr((string) $r->bitis_saati, 0, 5);
+                $out[] = ($b && $e && $b !== $e) ? "{$gAd} {$b}-{$e}" : "{$gAd} açık (saat tanımsız)";
+            }
+            return implode(', ', $out);
+        } catch (\Throwable $e) {
+            return 'tanımlı değil';
+        }
+    }
+
+    /** Aktif (onayli, bitmemis) kampanyalarin BASLIKLARI; fiyat/oran verilmez (fiyat sorusu aktarilir). */
+    protected function kampanyaMetni(): string
+    {
+        try {
+            $rs = \DB::table('kampanyalar')->where('salon_id', $this->salonId)->where('onayli', 1)
+                ->where('kampanya_bitis_tarihi', '>=', now()->toDateTimeString())
+                ->orderBy('kampanya_bitis_tarihi')->limit(5)->get(['kampanya_baslik', 'kampanya_bitis_tarihi']);
+            $out = '';
+            foreach ($rs as $k) {
+                $b = trim(preg_replace('/\[[^\]]*\]/u', '', (string) $k->kampanya_baslik));
+                if ($b !== '') $out .= "\n- {$b} (son gün: " . $this->tarihSoz(substr((string) $k->kampanya_bitis_tarihi, 0, 10)) . ')';
+            }
+            return $out ?: ' yok';
+        } catch (\Throwable $e) {
+            return ' yok';
+        }
+    }
+
+    /** Isletmenin santral SSS tablosu (panel > Santral > Sık Sorulan Sorular). Yoksa olusturur. */
+    public static function sssTablo(): void
+    {
+        if (!\Schema::hasTable('santral_sss')) {
+            \Schema::create('santral_sss', function ($t) {
+                $t->increments('id');
+                $t->unsignedBigInteger('salon_id');
+                $t->boolean('aktif')->default(1);
+                $t->text('tetikleyiciler');   // virgulle ayrilmis kelime/ifadeler
+                $t->text('cevap');
+                $t->timestamp('created_at')->useCurrent();
+                $t->index(['salon_id', 'aktif']);
+            });
+        }
+    }
+
+    protected ?array $_sss = null;
+    protected function sssKayitlari(): array
+    {
+        if ($this->_sss !== null) return $this->_sss;
+        try {
+            self::sssTablo();
+            return $this->_sss = \DB::table('santral_sss')->where('salon_id', $this->salonId)->where('aktif', 1)
+                ->orderBy('id')->limit(40)->get(['tetikleyiciler', 'cevap'])
+                ->map(function ($r) { return ['tet' => (string) $r->tetikleyiciler, 'cevap' => (string) $r->cevap]; })->all();
+        } catch (\Throwable $e) {
+            return $this->_sss = [];
+        }
+    }
+
+    /** Turkce harfleri sadelestirip kucult; noktalama at (STT varyasyonlarina toleransli eslesme). */
+    protected function sade(string $s): string
+    {
+        $s = strtr($s, ['İ' => 'i', 'I' => 'i', 'ı' => 'i', 'Ş' => 's', 'ş' => 's', 'Ğ' => 'g', 'ğ' => 'g', 'Ü' => 'u', 'ü' => 'u', 'Ö' => 'o', 'ö' => 'o', 'Ç' => 'c', 'ç' => 'c']);
+        $s = mb_strtolower($s, 'UTF-8');
+        return trim(preg_replace('/\s+/u', ' ', preg_replace('/[^a-z0-9\s]/u', ' ', $s)));
+    }
+
+    /** Musterinin cumlesinde bir SSS tetikleyicisi geciyorsa isletmenin cevabi; yoksa null. */
+    protected function sssCevap(string $metin): ?string
+    {
+        $m = ' ' . $this->sade($metin) . ' ';
+        foreach ($this->sssKayitlari() as $r) {
+            foreach (explode(',', $r['tet']) as $t) {
+                $t = $this->sade($t);
+                if (mb_strlen($t) >= 3 && strpos($m, ' ' . $t) !== false) return $r['cevap']; // kelime basindan eslesme (ek toleransli)
+            }
+        }
+        return null;
+    }
+
     /** Randevunun konusmada okunacak hali: "Pazartesi, 16 Kasım saat 14:00'te Gülşah ile Saç Kesimi" */
     protected function randevuSoz(array $r): string
     {
@@ -351,7 +447,7 @@ class RandevuAsistan
     {
         $f = mb_strtolower(strtr($m, ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
         if (preg_match('/ne kadar (sür|zaman|vakit|bekle|erken|önce)/u', $f)) return false; // sure sorusu, fiyat degil
-        return (bool) preg_match('/fiyat|ücret|kaç (para|lira|tl|tele)|ne kadar(\s|$|\?)|kaça (yapıyorsunuz|oluyor|olur|yapılıyor)|indirim|kampanya|taksit|kaç taksit/u', $f);
+        return (bool) preg_match('/fiyat|ücret|kaç (para|lira|tl|tele)|ne kadar(\s|$|\?)|kaça (yapıyorsunuz|oluyor|olur|yapılıyor)|taksit/u', $f);
     }
 
     /** Musteri acikca bir insana/isletmeye baglanmak istiyor mu? */
@@ -577,6 +673,11 @@ class RandevuAsistan
                 . " | hizmet_id {$r['hizmet_id']} | personel_id " . ($r['personel_id'] ?: '-') . " | {$r['durum']}";
         }
         $rvSatir = $rvSatir ?: ' yok';
+        $calismaSatir = $this->calismaSaatleriMetni();
+        $kampanyaSatir = $this->kampanyaMetni();
+        $sssSatir = '';
+        foreach ($this->sssKayitlari() as $r) $sssSatir .= "\n- Soru ({$r['tet']}): {$r['cevap']}";
+        $sssSatir = $sssSatir ?: ' yok';
 
         return <<<PROMPT
 Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal Türkçe konuşuyorsun. Çıktın düz metindir (TTS ile okunur): emoji, madde işareti, markdown KULLANMA. Her yanıt 1-2 cümle.
@@ -605,6 +706,8 @@ PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada "paketiniz bulunmaktadı
 BEKLETME YOK: "Bir moment", "bir saniye", "biraz bekleteceğim", "kontrol ediyorum", "bakıyorum" gibi bekletme cümleleri ASLA kurma. Bilgi gerekiyorsa aracı HEMEN çağır ve sonucu doğrudan söyle (ör. "Pazartesi 16 Kasım saat 14:00'te Saç Kesimi randevunuz var, bunu iptal edeyim mi?").
 
 İPTAL/GÜNCELLEME: Talep (onay bekleyen) randevular da onaylılar gibi iptal edilebilir ve güncellenebilir. Randevular BAĞLAM'daki MÜŞTERİNİN MEVCUT RANDEVULARI listesinde: müşteri onaylayınca (evet/olur/onaylıyorum) HEMEN randevu_iptal çağır, başka soru sorma. Liste boşsa ya da emin değilsen "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat. İptalde "randevu_iptal". Güncellemede yeni gün/saat için "musait_saatler"i o randevunun hizmet_id ve personel_id'si ile çağır, onay al, sonra "randevu_guncelle". Yalnız mevcut_randevular'ın döndüğü id'leri kullan.
+
+İŞLETME BİLGİSİ: Çalışma saati ("kaçta açıksınız", "pazar açık mısınız"), kampanya ("kampanyanız var mı") ve işletmenin sık sorulan sorularına BAĞLAM'daki bilgilerle kısa cevap ver, sonra "Başka yardımcı olabileceğim bir konu var mı?" diye sor. BAĞLAM'da olmayan bir bilgi sorulursa UYDURMA: "Bu konuda sizi işletmemize bağlayayım mı?" diye sor; evet derse "aktar".
 
 ADRES / YOL TARİFİ: müşteri yol tarifi, adres, konum, "konum gönderir misiniz", "nasıl gelirim", "neredesiniz" derse İLK SEFERDE, teyit sormadan HEMEN "yol_tarifi_gonder" çağır. Gönderilince yalnızca "Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?" de (adresi okuma). Gönderilemezse (ok=false) adresi kısaca söyle ve aynı soruyu sor. Bunun için aktarma yapma.
 
@@ -639,6 +742,9 @@ PERSONELLER (randevu takvimi açık olanlar):
 {$personelSatir}
 PAKETLER (kullanılabilir): {$paketSatir}
 MÜŞTERİNİN MEVCUT RANDEVULARI (iptal/güncellemede bunları kullan; mevcut_randevular çağırmana GEREK YOK):{$rvSatir}
+ÇALIŞMA SAATLERİ: {$calismaSatir}
+AKTİF KAMPANYALAR (yalnız adını ve son gününü söyle; indirim oranı/fiyat sorulursa aktar):{$kampanyaSatir}
+İŞLETMENİN SIK SORULAN SORU CEVAPLARI (benzer sorularda bu cevabı kullan, değiştirme):{$sssSatir}
 PROMPT;
     }
 
