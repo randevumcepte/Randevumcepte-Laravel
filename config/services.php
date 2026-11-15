@@ -53,6 +53,13 @@ return [
         'model' => env('ANTHROPIC_MODEL', 'claude-haiku-4-5'),
     ],
 
+    // Santral yapay zeka asistani (randevu-santral-ai): randevu (1 gun once) ve alacak (2 gun once)
+    // HATIRLATMA aramalari hangi salonlarda yeni asistanla yapilir. "20,35" ya da "*" (hepsi).
+    // Listede olmayan salonlar eski tuslamali IVR'da kalir. Varsayilan: yalniz test salonu 20.
+    'santral_ai' => [
+        'hatirlatma_salonlar' => env('SANTRAL_AI_HATIRLATMA_SALONLAR', '20'),
+    ],
+
     // Google Cloud Text-to-Speech — SADECE iOS icin bulut ses (Android cihaz sesi
     // zaten bedava/iyi). Anahtar YOKSA sistem cihaz TTS'ine duser (regresyon yok).
     // Cevaplar sunucuda MP3 olarak ONBELLEGE alinir -> ayni cumle tekrar uretilmez.

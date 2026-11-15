@@ -49,9 +49,9 @@ function kontrol($ad, $kosul, $detay = '') {
 /** Bir oturum: karsilama + sira ile cumleler. Her adim: [metin, function($cevap,$aksiyon,$tur):void] */
 class Oturum {
     public $id; public $karsilama = ''; public $gecmis = [];
-    function __construct($tel) {
+    function __construct($tel, $hatirlatma = null) {
         global $SALON;
-        $d = api('baslat', ['sube_id' => $SALON, 'telefon' => $tel]);
+        $d = api('baslat', ['sube_id' => $SALON, 'telefon' => $tel] + ($hatirlatma ? ['hatirlatma' => $hatirlatma] : []));
         $this->id = $d['oturum_id'] ?? null;
         $this->karsilama = (string) ($d['karsilama'] ?? ($d['hata'] ?? ''));
         echo "    \033[2mAI: {$this->karsilama}\033[0m\n";
@@ -61,7 +61,7 @@ class Oturum {
         $d = api('konus', ['oturum_id' => $this->id, 'metin' => $metin]);
         $c = (string) ($d['cevap'] ?? ($d['hata'] ?? ''));
         echo "    \033[2mAI: $c" . (!empty($d['aksiyon']) ? "  [aksiyon: {$d['aksiyon']}]" : '') . "  ({$d['_ms']} ms, teşhis: " . ($d['teshis'] ?? '-') . ")\033[0m\n";
-        return ['cevap' => $c, 'aksiyon' => $d['aksiyon'] ?? null, 'teshis' => $d['teshis'] ?? null, 'ms' => $d['_ms']];
+        return ['cevap' => $c, 'aksiyon' => $d['aksiyon'] ?? null, 'teshis' => $d['teshis'] ?? null, 'ms' => $d['_ms'], 'randevu_id' => $d['randevu_id'] ?? null];
     }
     function bitir() { if ($this->id) api('bitir', ['oturum_id' => $this->id, 'ozet' => 'e2e-test']); }
 }
@@ -197,6 +197,34 @@ if ($TEL) {
         $r = $o2->soyle('Hayır teşekkürler, iyi günler');
         kontrol('veda ile kapanır', $r['aksiyon'] === 'veda', (string) $r['aksiyon']);
         $o2->bitir();
+    });
+
+    senaryo('T6 Randevu hatırlatma araması (yeni asistan) → gelemem → iptal (temizlik)', function () use ($TEL) {
+        // Hatirlatilacak randevuyu olustur (T5 ile ayni yol)
+        $o = new Oturum($TEL);
+        $r = $o->soyle('Önümüzdeki hafta cuma 15 için saç kesimi randevusu almak istiyorum');
+        for ($i = 0; $i < 4 && $r['aksiyon'] !== 'randevu'; $i++) {
+            if (preg_match('/oluşturayım mı|onaylıyor musunuz/iu', $r['cevap'])) $r = $o->soyle('Evet');
+            elseif (preg_match('/hangisini|ya da/iu', $r['cevap'])) $r = $o->soyle('İlkini');
+            else break;
+        }
+        $o->bitir();
+        $rid = (int) ($r['randevu_id'] ?? 0);
+        if (!kontrol('hatırlatılacak randevu oluştu', $r['aksiyon'] === 'randevu' && $rid > 0, (string) $r['aksiyon'])) return;
+        // Cron'un yaptigi arama: kopru baslat(hatirlatma=randevu:ID). Telefon BOS gonderilir -> Laravel kayittan bulmali.
+        $h = new Oturum('', "randevu:$rid");
+        kontrol('karşılama hatırlatma metni', var_mi($h->karsilama, 'hatırlatmak için arıyorum'), $h->karsilama);
+        kontrol('müşteri adıyla hitap (telefon kayıttan)', var_mi($h->karsilama, 'Sayın'), $h->karsilama);
+        kontrol('randevu gün/saat okunur', var_mi($h->karsilama, '15:00'), $h->karsilama);
+        kontrol('soru: gelebilecek misiniz', var_mi($h->karsilama, 'gelebilecek misiniz'), $h->karsilama);
+        $r = $h->soyle('Hayır, gelemeyeceğim');
+        kontrol('gelemem → ertele mi iptal mi (kod, hızlı)', $r['teshis'] === 'hatirlatma' && var_mi($r['cevap'], 'iptal etmemi mi'), $r['cevap']);
+        $r = $h->soyle('İptal edin');
+        kontrol('iptal → randevuyu adıyla onaylatır', var_mi($r['cevap'], 'iptal etmemi onaylıyor musunuz') && var_mi($r['cevap'], '15:00'), $r['cevap']);
+        $r = $h->soyle('Evet');
+        kontrol('iptal aksiyonu (doğru randevu)', $r['aksiyon'] === 'iptal', (string) $r['aksiyon']);
+        kontrol('kapanış sorusu', var_mi($r['cevap'], 'Başka yardımcı olabileceğim'), $r['cevap']);
+        $h->bitir();
     });
 }
 

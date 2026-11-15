@@ -42,11 +42,17 @@ namespace App\Http\Controllers { class ApiController {} }
 namespace App {
     class SahteKoleksiyon { public $d; function __construct($d) { $this->d = $d; } function get($k = null) { return $k === null ? $this : ($this->d[$k] ?? null); } function keyBy($k) { $o = []; foreach ($this->d as $r) $o[$r->$k] = $r; return new self($o); } function isEmpty() { return !$this->d; } }
     class SalonCalismaSaatleri { static $satirlar = []; static function where() { return new SahteKoleksiyon(self::$satirlar); } }
+    // Hatirlatma testleri icin sahte modeller (zincir: where/whereIn -> first/update)
+    class SahteSorgu { public $sinif; function __construct($s) { $this->sinif = $s; } function where() { return $this; } function whereIn($k, $v) { $c = $this->sinif; $c::$sonIdler = $v; return $this; } function first() { $c = $this->sinif; return $c::$kayit; } function update($a) { $c = $this->sinif; $c::$guncelleme = $a; return count($c::$sonIdler ?? []); } }
+    class Randevular { const BEKLENIYOR = 0, ONAYLANDI = 1, IPTAL_EDILDI = 2; static $kayit; static $sonIdler; static $guncelleme; public $durum = 1; public $randevuya_gelecek = null; public $kaydedildi = false;
+        static function where() { return new SahteSorgu(self::class); } function save() { $this->kaydedildi = true; } }
+    class Alacaklar { static $kayit; static $sonIdler; static $guncelleme; static function whereIn($k, $v) { return (new SahteSorgu(self::class))->whereIn($k, $v); } }
 }
 namespace {
     error_reporting(E_ALL & ~E_DEPRECATED);
     function now($tz = null) { return \Carbon\Carbon::today(); }
-    function config($k = null, $d = null) { return $d; }
+    $GLOBALS['_config'] = [];
+    function config($k = null, $d = null) { return $GLOBALS['_config'][$k] ?? $d; }
     function env($k, $d = null) { return $d; }
     $GLOBALS['_app'] = [];
     function app($c = null) { return $GLOBALS['_app'][$c] ?? null; }
@@ -369,6 +375,68 @@ namespace {
     icerir('uzun numara rakam rakam', '5 3 2', cagir($a, 'ttsTemizle', 'Numaranız 5321112233 doğru mu?'));
 
     // =====================================================================================
+    bolum('Hatırlatma araması (randevu 1 gün önce / alacak 2 gün önce)');
+    $GLOBALS['_config']['services.santral_ai.hatirlatma_salonlar'] = '20, 35';
+    esit('salon listede → yeni asistan', true, App\Services\RandevuAsistan::aiHatirlatmaAcik(35));
+    esit('salon listede değil → eski IVR', false, App\Services\RandevuAsistan::aiHatirlatmaAcik(7));
+    $GLOBALS['_config']['services.santral_ai.hatirlatma_salonlar'] = '*';
+    esit('* → tüm salonlar', true, App\Services\RandevuAsistan::aiHatirlatmaAcik(7));
+    $GLOBALS['_config']['services.santral_ai.hatirlatma_salonlar'] = '';
+    esit('boş → kapalı', false, App\Services\RandevuAsistan::aiHatirlatmaAcik(20));
+
+    $hm = ['tur' => 'randevu', 'randevu_id' => 901, 'soz' => "yarın, Pazartesi, 16 Kasım saat 14:00'te Gülşah ile Saç Kesimi"];
+    $hk = ['role' => 'assistant', 'content' => "Sayın Anıl Orbey, ben Randevumcepte yapay zeka asistanıyım. {$hm['soz']} randevunuzu hatırlatmak için arıyorum. Randevunuza gelebilecek misiniz?", 'hatirlatma' => $hm];
+    $h = asistan();
+    esit('ilk soru → cevap bekleniyor', 'soru', cagir($h, 'hatirlatmaBekleyen', [$hk])['adim'] ?? null);
+    esit('iş bittikten sonra → bekleme yok', null, cagir($h, 'hatirlatmaBekleyen', [$hk, ['role' => 'user', 'content' => 'evet'], ['role' => 'assistant', 'content' => 'Teşekkür ederiz. Başka yardımcı olabileceğim bir konu var mı?']]));
+    esit('normal (gelen) arama → bekleme yok', null, cagir($h, 'hatirlatmaBekleyen', [['role' => 'assistant', 'content' => 'Randevunuza gelebilecek misiniz?']]));
+
+    $yeniRandevu = function ($durum = 1) { $r = new App\Randevular(); $r->durum = $durum; App\Randevular::$kayit = $r; return $r; };
+    $soru = ['adim' => 'soru'] + $hm;
+    $r = $yeniRandevu();
+    $c = cagir($h, 'hatirlatmaCevap', 'Evet geleceğim', $soru);
+    esit('"Evet geleceğim" → teyit', 'teyit', $c['aksiyon'] ?? null);
+    esit('randevuya_gelecek işaretlenir', [1, true], [$r->randevuya_gelecek, $r->kaydedildi]);
+    icerir('teyit cümlesi', 'sizi bekliyoruz', $c['cevap']);
+    icerir('teyit sonrası kapanış sorusu', 'Başka yardımcı olabileceğim', $c['cevap']);
+    $c = cagir($h, 'hatirlatmaCevap', 'Tabii ki gelirim', $soru);
+    esit('"Tabii ki gelirim" → teyit', 'teyit', $c['aksiyon'] ?? null);
+    $r = $yeniRandevu();
+    $c = cagir($h, 'hatirlatmaCevap', 'Hayır gelemeyeceğim', $soru);
+    icerir('"gelemeyeceğim" → ertele mi iptal mi', 'ertelemek mi istersiniz, yoksa iptal etmemi mi istersiniz?', $c['cevap'] ?? '');
+    esit('olumsuzda gelecek işaretlenmez', null, $r->randevuya_gelecek);
+    esit('ertele/iptal sorusu → sonraki adım', 'ertele_iptal', cagir($h, 'hatirlatmaBekleyen', [$hk, ['role' => 'user', 'content' => 'hayır'], ['role' => 'assistant', 'content' => $c['cevap']]])['adim'] ?? null);
+    $c = cagir($h, 'hatirlatmaCevap', 'İptal edin', $soru);
+    esit('"İptal edin" → randevuyu adıyla onaylatır', $hm['soz'] . ' randevunuzu iptal etmemi onaylıyor musunuz?', $c['cevap'] ?? null);
+    icerir('iptal için randevu id modele taşınır', 'randevu_id=901', $c['baglam'] ?? '');
+    $c = cagir($h, 'hatirlatmaCevap', 'Ertelemek istiyorum', $soru);
+    esit('"Ertelemek istiyorum" → hangi gün', 'Tabii, randevunuzu hangi gün ve saate almak istersiniz?', $c['cevap'] ?? null);
+    esit('"perşembe 14e erteleyelim" → model (müsaitlik + güncelle)', null, cagir($h, 'hatirlatmaCevap', "Perşembe 14'e erteleyelim", $soru));
+    $c = cagir($h, 'hatirlatmaCevap', 'ertele', ['adim' => 'ertele_iptal'] + $hm);
+    esit('2. adım "ertele" → hangi gün', 'Tabii, randevunuzu hangi gün ve saate almak istersiniz?', $c['cevap'] ?? null);
+    esit('anlaşılmayan cevap → model', null, cagir($h, 'hatirlatmaCevap', 'Kim arıyor', $soru));
+    $yeniRandevu(2);
+    esit('randevu bu arada iptal edilmişse → model', null, cagir($h, 'hatirlatmaCevap', 'Evet', $soru));
+
+    $r = $yeniRandevu();
+    $k = $h->konus('Evet, geleceğim', [$hk]);
+    esit('konus: hatırlatma cevabı LLM\'siz', ['teyit', 'hatirlatma'], [$k['aksiyon'], $h->teshis]);
+    $k = $h->konus('Beni işletmeye bağlar mısın', [$hk]);
+    esit('konus: aktarma isteği hatırlatmada da çalışır', 'aktar', $k['aksiyon']);
+
+    $am = ['adim' => 'soru', 'tur' => 'alacak', 'alacak_idler' => [7, 8], 'tutar' => '1.250 lira', 'tarih' => 'Salı, 17 Kasım'];
+    App\Alacaklar::$guncelleme = null;
+    $c = cagir($h, 'hatirlatmaCevap', 'Evet öderim', $am);
+    esit('alacak "Evet öderim" → odeme', 'odeme', $c['aksiyon'] ?? null);
+    esit('alacaklar odenecek=1', [['odenecek' => 1], [7, 8]], [App\Alacaklar::$guncelleme, App\Alacaklar::$sonIdler]);
+    esit('alacak "vadesini uzatabilir miyiz" → aktar', 'aktar', cagir($h, 'hatirlatmaCevap', 'Vadesini uzatabilir miyiz', $am)['aksiyon'] ?? null);
+    esit('alacak "hayır ödeyemem" → aktar', 'aktar', cagir($h, 'hatirlatmaCevap', 'Hayır ödeyemem', $am)['aksiyon'] ?? null);
+    esit('alacak anlaşılmayan → model', null, cagir($h, 'hatirlatmaCevap', 'Hangi borç', $am));
+    icerir('alacak gizli notu: vade konusu → aktar', 'aktar', cagir($h, 'hatirlatmaNotu', $am));
+    $gm = cagir($h, 'gecmisMesajlari', [$hk]);
+    icerir('hatırlatma notu modele gider', 'randevu_id=901', $gm[1]['content']);
+    esit('hatırlatma notu seslendirilmez', 'Tamam.', cagir($h, 'ttsTemizle', 'Tamam. [SİSTEM — Bu arama İŞLETMENİN ...]'));
+
     echo "\n\033[1mSONUÇ: $gecen geçti, $kalan kaldı\033[0m\n";
     if ($kalan) { echo "Kalanlar:\n - " . implode("\n - ", $hatalar) . "\n"; exit(1); }
 }

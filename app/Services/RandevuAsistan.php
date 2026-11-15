@@ -86,6 +86,165 @@ class RandevuAsistan
 
     public function taninanMusteri(): ?string { return $this->musteriAd; }
 
+    // ============================================================ GIDEN HATIRLATMA ARAMASI
+    /**
+     * Kopru "hatirlatma,<hedef>" ile baslatir. Hedef: "randevu:<id>" | "alacak:<id>-<id>".
+     * Kaydin salonu + musterinin telefonu (oturum bu bilgilerle kurulur).
+     * @return array{salon_id:int,telefon:?string}|null
+     */
+    public static function hatirlatmaHedefi(string $hedef): ?array
+    {
+        if (preg_match('/^randevu:(\d+)$/', $hedef, $m)) {
+            $r = Randevular::with('users')->find((int) $m[1]);
+            return $r ? ['salon_id' => (int) $r->salon_id, 'telefon' => optional($r->users)->cep_telefon] : null;
+        }
+        if (preg_match('/^alacak:([\d\-]+)$/', $hedef, $m)) {
+            $ids = array_values(array_filter(array_map('intval', explode('-', $m[1]))));
+            $a = $ids ? \App\Alacaklar::with('musteri')->find($ids[0]) : null;
+            return $a ? ['salon_id' => (int) $a->salon_id, 'telefon' => optional($a->musteri)->cep_telefon] : null;
+        }
+        return null;
+    }
+
+    /** Bu salonda hatirlatma aramalari yeni asistanla mi yapilir? (.env SANTRAL_AI_HATIRLATMA_SALONLAR="20,35" | "*") */
+    public static function aiHatirlatmaAcik($salonId): bool
+    {
+        $l = trim((string) config('services.santral_ai.hatirlatma_salonlar', ''));
+        if ($l === '') return false;
+        if ($l === '*') return true;
+        return in_array((int) $salonId, array_map('intval', preg_split('/[\s,;]+/', $l)), true);
+    }
+
+    /**
+     * Hatirlatma karsilamasi + gecmise yazilacak meta. Kayit artik gecerli degilse (iptal/odendi) null.
+     * Ayrica "ulasildi" isaretler (eski ulasildi.php / asistanUlasti ile ayni alanlar).
+     * @return array{0:string,1:array}|null
+     */
+    public function hatirlatmaKarsilama(string $hedef): ?array
+    {
+        $ad = $this->musteriAd;
+        $isletme = $this->hatirlatmaIsletmeAdi();
+        if (preg_match('/^randevu:(\d+)$/', $hedef, $m)) {
+            $r = Randevular::with('users')->where('id', (int) $m[1])->where('salon_id', $this->salonId)->first();
+            if (!$r || !in_array((int) $r->durum, [Randevular::BEKLENIYOR, Randevular::ONAYLANDI], true)) return null;
+            try { $r->hatirlatma_ulasilamadi = false; $r->tekrar_aranacak = 0; $r->tekrar_arandi = 0; $r->save(); } catch (\Throwable $e) {}
+            $ad = $ad ?: optional($r->users)->name;
+            $satir = $this->randevuSatiri($r);
+            $gun = $satir['tarih'] === now('Europe/Istanbul')->addDay()->toDateString() ? 'yarın, ' . $satir['gun'] : $satir['gun'];
+            $soz = $this->randevuSoz(['gun' => $gun] + $satir);
+            $k = ($ad ? "Sayın {$ad}, " : 'Merhaba, ') . "ben {$isletme} yapay zeka asistanıyım. "
+                . "{$soz} randevunuzu hatırlatmak için arıyorum. Randevunuza gelebilecek misiniz?";
+            return [$k, ['tur' => 'randevu', 'randevu_id' => (int) $r->id, 'soz' => $soz]];
+        }
+        if (preg_match('/^alacak:([\d\-]+)$/', $hedef, $m)) {
+            $ids = array_values(array_filter(array_map('intval', explode('-', $m[1]))));
+            $as = \App\Alacaklar::with('musteri')->whereIn('id', $ids)->where('salon_id', $this->salonId)->get();
+            if ($as->isEmpty()) return null;
+            $ad = $ad ?: optional($as->first()->musteri)->name;
+            $toplam = (float) $as->sum('tutar');
+            $tarihler = $as->pluck('planlanan_odeme_tarihi')->filter()->map(function ($t) { return substr((string) $t, 0, 10); })->unique()->sort()->values();
+            foreach ($as as $a) { try { $a->hatirlatma_ulasilamadi = false; $a->tekrar_aranacak = 0; $a->tekrar_arandi = 0; $a->save(); } catch (\Throwable $e) {} }
+            $tarihSoz = $tarihler->map(function ($t) { return $this->tarihSoz($t); })->implode(' ve ');
+            $tutar = number_format($toplam, floor($toplam) == $toplam ? 0 : 2, ',', '.') . ' lira';
+            $k = ($ad ? "Sayın {$ad}, " : 'Merhaba, ') . "ben {$isletme} yapay zeka asistanıyım. "
+                . ($tarihSoz !== '' ? "{$tarihSoz} tarihinde ödemeniz gereken" : 'Ödemeniz gereken')
+                . " toplam {$tutar} borcunuz bulunmaktadır. Ödemenizi bu tarihte yapabilecek misiniz?";
+            return [$k, ['tur' => 'alacak', 'alacak_idler' => $as->pluck('id')->map(function ($v) { return (int) $v; })->all(), 'tutar' => $tutar, 'tarih' => $tarihSoz]];
+        }
+        return null;
+    }
+
+    /** "X için ..." kalibi: eski hatirlatma ile ayni (santral_telaffuz_2), yoksa salon adi. */
+    protected function hatirlatmaIsletmeAdi(): string
+    {
+        $t = '';
+        try { $t = trim((string) \App\Salonlar::where('id', $this->salonId)->value('santral_telaffuz_2')); } catch (\Throwable $e) {}
+        return $t !== '' ? $t : $this->salonAdi();
+    }
+
+    /** LLM'e giden gizli not (musteri duymaz). */
+    protected function hatirlatmaNotu(array $h): string
+    {
+        if (($h['tur'] ?? '') === 'randevu') {
+            return "Bu arama İŞLETMENİN müşteriyi aradığı randevu HATIRLATMA aramasıdır. Hatırlatılan randevu: randevu_id={$h['randevu_id']} ({$h['soz']}). "
+                . 'Müşteri gelemeyecekse başka gün/saate ertelemeyi (musait_saatler + randevu_guncelle, bu randevu_id ile) ya da iptali (randevu_iptal) öner.';
+        }
+        return "Bu arama İŞLETMENİN müşteriyi aradığı ÖDEME HATIRLATMA aramasıdır ({$h['tarih']} tarihli toplam {$h['tutar']}). "
+            . 'Borç tutarı, taksit, vade değişikliği gibi konuları sen konuşma: müşteriyi işletmeye aktar.';
+    }
+
+    /** Asistanin son sorusu hatirlatma sorusuysa (cevap bekleniyor) o aramanin meta'si; degilse null. */
+    protected function hatirlatmaBekleyen(array $gecmis): ?array
+    {
+        $meta = null; $son = '';
+        foreach ($gecmis as $g) {
+            if (($g['role'] ?? '') !== 'assistant') continue;
+            if (!empty($g['hatirlatma']) && $meta === null) $meta = $g['hatirlatma'];
+            $son = (string) ($g['content'] ?? '');
+        }
+        if (!$meta) return null;
+        $adim = null;
+        if (preg_match('/gelebilecek misiniz\?$/u', $son)) $adim = 'soru';
+        elseif (preg_match('/yapabilecek misiniz\?$/u', $son)) $adim = 'soru';
+        elseif (preg_match('/ertelemek mi istersiniz, yoksa iptal etmemi mi istersiniz\?$/u', $son)) $adim = 'ertele_iptal';
+        return $adim ? ['adim' => $adim] + $meta : null;
+    }
+
+    /**
+     * Hatirlatma sorusuna cevap. Anlasilmayan / tarihli ("perşembe 14'e alalım") cevapta null -> normal akis (LLM, gizli notla).
+     * @return array{cevap:string,aksiyon:?string,baglam?:string}|null
+     */
+    protected function hatirlatmaCevap(string $metin, array $h): ?array
+    {
+        $f = mb_strtolower(strtr($metin, ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
+        $iptal = (bool) preg_match('/iptal|vazgeç|sil(in|ebilir)/u', $f);
+        $ertele = (bool) preg_match('/ertele|değiştir|kaydır|başka (bir )?(gün|saat|zaman|tarih)|ileri (bir )?(tarih|gün)|güncelle/u', $f);
+        $olumsuz = $iptal || $ertele || (bool) preg_match('/\bhayır|gelemem|gelemeyece|gelemiyorum|gelmeyece|yetişeme|müsait değil|uygun değil|işim çıktı|yapamam|yapamayaca|ödeyemem|ödeyemeyece|ödeyemiyorum|öde(ye)?mi?yeceğim|vade|taksit|sonra öde/u', $f);
+        $olumlu = !$olumsuz && ($this->onayMi($metin) || preg_match('/geleceğim|gelirim|geliyorum|gelicem|oradayım|orada olacağım|ödeyeceğim|öderim|ödüyorum|ödeyebilirim|yapacağım|yaparım|yapabilirim|ödedim|ödeme yaptım/u', $f));
+        $tarihVar = function () use ($metin) {
+            $z = app(SesliRandevuCozService::class)->zamanCoz($metin);
+            return !empty($z['tarih']) || !empty($z['saat']);
+        };
+
+        if (($h['tur'] ?? '') === 'alacak') {
+            if ($olumlu) {
+                $ids = array_map('intval', $h['alacak_idler'] ?? []);
+                $n = \App\Alacaklar::whereIn('id', $ids)->where('salon_id', $this->salonId)->update(['odenecek' => 1]);
+                Log::info('[SANTRAL-HATIRLATMA] alacak odenecek', ['salon' => $this->salonId, 'alacaklar' => $ids, 'guncellenen' => $n]);
+                return ['cevap' => 'Teşekkür ederiz, ödemenizi yapacağınızı işletmemize ilettim. Başka yardımcı olabileceğim bir konu var mı?', 'aksiyon' => 'odeme'];
+            }
+            if ($olumsuz) {
+                return ['cevap' => 'Ödemenizle ilgili görüşmek için sizi hemen işletmemize bağlıyorum, lütfen hatta kalın.', 'aksiyon' => 'aktar'];
+            }
+            return null; // anlasilmadi -> LLM (gizli not: vade/tutar konusu -> aktar)
+        }
+
+        // ---- randevu hatirlatma
+        $rid = (int) ($h['randevu_id'] ?? 0);
+        $r = $rid ? Randevular::where('id', $rid)->where('salon_id', $this->salonId)->first() : null;
+        if (!$r || !in_array((int) $r->durum, [Randevular::BEKLENIYOR, Randevular::ONAYLANDI], true)) return null;
+        $soz = (string) ($h['soz'] ?? '');
+        $baglam = "hatırlatılan randevu_id={$rid}";
+
+        if ($h['adim'] === 'soru' && $olumlu) {
+            $r->randevuya_gelecek = 1;
+            $r->save();
+            Log::info('[SANTRAL-HATIRLATMA] randevuya gelecek', ['salon' => $this->salonId, 'randevu' => $rid]);
+            return ['cevap' => 'Teşekkür ederiz, sizi bekliyoruz. Randevunuza on beş dakika önce gelmenizi rica ederiz. Başka yardımcı olabileceğim bir konu var mı?', 'aksiyon' => 'teyit', 'baglam' => $baglam];
+        }
+        if ($iptal) {
+            return ['cevap' => "{$soz} randevunuzu iptal etmemi onaylıyor musunuz?", 'aksiyon' => null, 'baglam' => $baglam];
+        }
+        if ($ertele || ($h['adim'] === 'ertele_iptal' && preg_match('/^(ertele|ertelemek|ertelensin|erteleyelim|başka gün)/u', $f))) {
+            if ($tarihVar()) return null; // "perşembe 14'e alalım" -> model musaitlik + randevu_guncelle
+            return ['cevap' => 'Tabii, randevunuzu hangi gün ve saate almak istersiniz?', 'aksiyon' => null, 'baglam' => $baglam];
+        }
+        if ($h['adim'] === 'soru' && $olumsuz) {
+            return ['cevap' => 'Anlıyorum. Randevunuzu başka bir gün ve saate ertelemek mi istersiniz, yoksa iptal etmemi mi istersiniz?', 'aksiyon' => null, 'baglam' => $baglam];
+        }
+        return null;
+    }
+
     public function hizmetSayisi(): int { return count($this->salon['hizmetler'] ?? []); }
 
     public function salonAdi(): string { return $this->salon['ad'] ?? ('Salon ' . $this->salonId); }
@@ -111,6 +270,14 @@ class RandevuAsistan
                 ? 'Fiyat bilgisi için sizi hemen işletmemize bağlıyorum, lütfen hatta kalın.'
                 : 'Sizi hemen yetkili bir arkadaşımıza bağlıyorum, lütfen hatta kalın.';
             return ['cevap' => $cevap, 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
+        }
+        // GIDEN HATIRLATMA ARAMASI (randevu 1 gun once / alacak 2 gun once): asistanin hatirlatma sorusuna
+        // verilen cevap KODLA islenir (gelecek/odeyecek isaretle, ertele/iptal sor, vade -> isletmeye aktar).
+        if (($h = $this->hatirlatmaBekleyen($gecmis)) !== null && ($hc = $this->hatirlatmaCevap($metin, $h)) !== null) {
+            Log::info('[SANTRAL-HATIRLATMA] cevap', ['salon' => $this->salonId, 'tur' => $h['tur'], 'metin' => $metin, 'aksiyon' => $hc['aksiyon']]);
+            $this->teshis = 'hatirlatma';
+            $hc['cevap'] = $this->ttsTemizle($hc['cevap']);
+            return $hc + ['veri' => [], 'bitir' => false];
         }
         // IPTAL / DEGISTIRME NIYETI -> randevulari KOD soyler (restoran "mevcut rezervasyon" kalibi; LLM/arac turu yok,
         // "sunalım..." deyip susma olmaz). Liste zaten okunduysa (son asistan mesajinda) tekrar etme, modele birak.
@@ -1317,22 +1484,26 @@ PROMPT;
             ->whereDate('tarih', '>=', now('Europe/Istanbul')->toDateString())
             ->whereIn('durum', [Randevular::BEKLENIYOR, Randevular::ONAYLANDI])
             ->orderBy('tarih')->orderBy('saat')->limit(5)->get(['id', 'tarih', 'saat', 'durum']);
-        foreach ($rs as $r) {
-            $rh = RandevuHizmetler::where('randevu_id', $r->id)->with(['hizmetler', 'personeller'])->get();
-            $ilk = $rh->first();
-            $liste[] = [
-                'id' => (int) $r->id,
-                'durum' => (int) $r->durum === Randevular::BEKLENIYOR ? 'talep (onay bekliyor) — iptal/güncelleme yapılabilir' : 'onaylı',
-                'tarih' => substr((string) $r->tarih, 0, 10),
-                'gun' => $this->tarihSoz(substr((string) $r->tarih, 0, 10)),
-                'saat' => substr((string) $r->saat, 0, 5),
-                'hizmet' => $rh->map(function ($x) { return optional($x->hizmetler)->hizmet_adi; })->filter()->implode(', '),
-                'personel' => $ilk ? optional($ilk->personeller)->personel_adi : null,
-                'hizmet_id' => $ilk ? (int) $ilk->hizmet_id : null,
-                'personel_id' => $ilk && $ilk->personel_id ? (int) $ilk->personel_id : null,
-            ];
-        }
+        foreach ($rs as $r) $liste[] = $this->randevuSatiri($r);
         return $this->_randevularim = ['ok' => true, 'randevular' => $liste];
+    }
+
+    /** Tek randevunun konusma/arac icin ozeti (randevularim + hatirlatma ortak). */
+    protected function randevuSatiri($r): array
+    {
+        $rh = RandevuHizmetler::where('randevu_id', $r->id)->with(['hizmetler', 'personeller'])->get();
+        $ilk = $rh->first();
+        return [
+            'id' => (int) $r->id,
+            'durum' => (int) $r->durum === Randevular::BEKLENIYOR ? 'talep (onay bekliyor) — iptal/güncelleme yapılabilir' : 'onaylı',
+            'tarih' => substr((string) $r->tarih, 0, 10),
+            'gun' => $this->tarihSoz(substr((string) $r->tarih, 0, 10)),
+            'saat' => substr((string) $r->saat, 0, 5),
+            'hizmet' => $rh->map(function ($x) { return optional($x->hizmetler)->hizmet_adi; })->filter()->implode(', '),
+            'personel' => $ilk ? optional($ilk->personeller)->personel_adi : null,
+            'hizmet_id' => $ilk ? (int) $ilk->hizmet_id : null,
+            'personel_id' => $ilk && $ilk->personel_id ? (int) $ilk->personel_id : null,
+        ];
     }
 
     /** Randevu bu salonda ve ARAYANIN mi? (iptal/guncelle oncesi zorunlu) */
@@ -1596,6 +1767,9 @@ PROMPT;
             $role = ($m['role'] ?? '') === 'assistant' ? 'assistant' : (($m['role'] ?? '') === 'user' ? 'user' : null);
             $c = trim((string) ($m['content'] ?? ''));
             if (!$role || $c === '') continue;
+            if ($role === 'assistant' && !empty($m['hatirlatma'])) {
+                $c .= "\n[SİSTEM — " . $this->hatirlatmaNotu($m['hatirlatma']) . ']';
+            }
             if ($role === 'assistant' && !empty($m['baglam'])) {
                 $c .= "\n[SİSTEM — bu turdaki araç sonuçları, müşteri duymadı: " . $m['baglam'] . ']';
             }

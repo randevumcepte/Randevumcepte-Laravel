@@ -117,6 +117,12 @@ function ariHandlerKur(c) {
       await aktarmaHedefiCevapladi(channel, event.args[1]);
       return;
     }
+    // HATIRLATMA ARAMASI (Laravel cron -> AMI Originate -> dialplan exten 8/9 -> Stasis):
+    // args: ['hatirlatma', 'randevu:123' | 'alacak:4-5', 'SUBE=20']. Musteri ACTI; konusmayi asistan yurutur.
+    if (event.args && event.args[0] === 'hatirlatma') {
+      await cagriBasla(channel, event, { hatirlatma: event.args[1] || '' });
+      return;
+    }
     // GERI ARAMA: disari aradigimiz musteri ACTI -> yarida kalan oturumla devam.
     if (event.args && event.args[0] === 'geri_arama') {
       const geriId = parseInt(event.args[1], 10) || 0;
@@ -209,7 +215,7 @@ async function cagriBasla(channel, event, opts = {}) {
     return;
   }
 
-  log.info(`${opts.geriAramaId ? 'GERI ARAMA (musteriye)' : 'Yeni cagri'}: kanal=${channel.id} tel=${telefon || '-'} sube=${subeId} rtpPort=${port}`);
+  log.info(`${opts.hatirlatma ? 'HATIRLATMA ARAMASI (' + opts.hatirlatma + ')' : opts.geriAramaId ? 'GERI ARAMA (musteriye)' : 'Yeni cagri'}: kanal=${channel.id} tel=${telefon || '-'} sube=${subeId} rtpPort=${port}`);
 
   let adim = 'answer';
   try {
@@ -244,6 +250,7 @@ async function cagriBasla(channel, event, opts = {}) {
       subeId,
       rtpPort: port,
       geriAramaOturum: opts.geriAramaOturum || 0, // >0: yarida kalan oturumla devam
+      hatirlatma: opts.hatirlatma || '',          // giden hatirlatma aramasi hedefi (randevu:ID | alacak:ID-ID)
       onAktar: (kid) => insanaAktar(kid, subeId),
       onBitir: (kid) => { client.Channel(kid).hangup().catch(() => {}); },
     });

@@ -183,7 +183,10 @@ class AlacakHatirlatmaAramasiYap extends Command
             'mesaj' => $mesaj,
             'tel' => $ilk->musteri->cep_telefon,
             'salonId' => $salonId,
-            'exten' => 1,
+            // 2 = [alacak-hatirlatma] (eskiden yanlislikla 1 = randevu hatirlatma akisina gidiyordu: 1'e basinca
+            // "sistemde sorun" deyip operatore dusuyordu). Yeni asistan acik salonlarda 9 -> Stasis(randevu-santral-ai).
+            'exten' => \App\Services\RandevuAsistan::aiHatirlatmaAcik($salonId) ? 9 : 2,
+            'aiHedef' => 'alacak:' . implode('-', array_map('intval', (array) $alacakIdler)),
         ];
     }
 

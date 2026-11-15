@@ -19,3 +19,15 @@ exten => s,1,NoOp(Randevu AI cagri geldi: ${CALLERID(num)} DID=${FROM_DID})
 ; karsilamaRouter.php zaten DID'e gore ROUTED_CONTEXT setliyor; randevu DID'leri icin:
 ;   $agi->exec("Set", "ROUTED_CONTEXT=sesli-asistan");
 ; veya FreePBX Inbound Route -> Custom Destination: sesli-asistan,s,1
+
+; ---------------------------------------------------------------------------
+; GIDEN HATIRLATMA ARAMALARI (randevu 1 gun once / alacak 2 gun once)
+; Laravel cron (randevuarama:yap / alacakhatirlatma:aramayap) AMI Originate ile
+; [randevumcepte-cikis] exten 8 (randevu) / 9 (alacak) cevirir; musteri acinca:
+;   Stasis(randevu-santral-ai,hatirlatma,${aihedef},SUBE=${salonid})
+; aihedef = "randevu:<id>" | "alacak:<id>-<id>". Kopru bunu /api/v1/santral/baslat'a
+; hatirlatma=... olarak gecirir; karsilama = hatirlatma metni, cevabi asistan isler.
+; Hangi salonlar: Laravel .env SANTRAL_AI_HATIRLATMA_SALONLAR ("20,35" | "*").
+; Kopru ayakta degilse STASISSTATUS=FAILED -> eski tuslamali akisa duser.
+; Tam tanim: santral-freepbx etc/asterisk/extensions_custom.conf [randevumcepte-cikis].
+; ---------------------------------------------------------------------------

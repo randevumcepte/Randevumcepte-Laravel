@@ -496,6 +496,9 @@ class Controller extends BaseController
                         $originateRequest .= "Variable: randevuid=" . $parametre["randevuid"] . "\r\n";
                         $originateRequest .= "Variable: telefon=" . $parametre["tel"] . "\r\n";
                         $originateRequest .= "Variable: sabitno=" . $sabitno->numara . "\r\n";
+                        // Yeni asistan (exten 8/9): Stasis(randevu-santral-ai,hatirlatma,<aihedef>,SUBE=<salonid>)
+                        $originateRequest .= "Variable: aihedef=" . ($parametre["aiHedef"] ?? '') . "\r\n";
+                        $originateRequest .= "Variable: salonid=" . $parametre["salonId"] . "\r\n";
 
                         $originateRequest .= "Priority: 1\r\n";  // İlk öncelik
                         $originateRequest .= "Async: yes\r\n\r\n";  // Asenkron çağrı
@@ -533,13 +536,13 @@ class Controller extends BaseController
                                 
                                
                                 if($parametre["alacakIdler"] != "")
-                                    self::alacakHatırlatmaAramasiYapildiIsaretle($alacakIdler,0);
+                                    self::alacakHatırlatmaAramasiYapildiIsaretle($parametre["alacakIdler"],0);
                                 elseif($parametre["kampanyaKatilimci"] != ""){
                                     self::kampanyaTanitimYapildiIsaretle($parametre["kampanyaKatilimci"],0);
                                     self::kampanyaHatirlatmaAramasiYapildiIsaretle($parametre["kampanyaKatilimci"],0);
                                 }
                                 else{
-                                    self::randevuHatirlatmaAramasiYapildiIsaretle($randevu->id,0);
+                                    self::randevuHatirlatmaAramasiYapildiIsaretle($parametre["randevuid"],0);
                                 } 
                             }
                         } 
@@ -548,13 +551,13 @@ class Controller extends BaseController
                            
                            
                             if($parametre["alacakIdler"] != "")
-                                self::alacakHatırlatmaAramasiYapildiIsaretle($alacakIdler,0);
+                                self::alacakHatırlatmaAramasiYapildiIsaretle($parametre["alacakIdler"],0);
                             elseif($parametre["kampanyaKatilimci"] != ""){
                                 self::kampanyaTanitimYapildiIsaretle($parametre["kampanyaKatilimci"],0);
                                 self::kampanyaHatirlatmaAramasiYapildiIsaretle($parametre["kampanyaKatilimci"],0);
                             }
                             else{
-                                self::randevuHatirlatmaAramasiYapildiIsaretle($randevu->id,0);
+                                self::randevuHatirlatmaAramasiYapildiIsaretle($parametre["randevuid"],0);
                             }
                             
                         }

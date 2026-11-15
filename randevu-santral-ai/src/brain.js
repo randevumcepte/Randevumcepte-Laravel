@@ -25,8 +25,9 @@ function form(obj) {
 }
 
 // POST /api/v1/santral/baslat -> {oturum_id, karsilama}. geriAramaOturum>0 ise: yarida kalan oturumla devam.
-async function baslat(subeId, telefon, hat, geriAramaOturum) {
-  const { data } = await http.post('/api/v1/santral/baslat', form({ sube_id: subeId, telefon, hat, geri_arama_oturum: geriAramaOturum || 0 }));
+// hatirlatma: giden hatirlatma aramasi hedefi ('randevu:ID' | 'alacak:ID-ID'); Laravel salonu/musteriyi kayittan alir.
+async function baslat(subeId, telefon, hat, geriAramaOturum, hatirlatma) {
+  const { data } = await http.post('/api/v1/santral/baslat', form({ sube_id: subeId, telefon, hat, geri_arama_oturum: geriAramaOturum || 0, hatirlatma: hatirlatma || undefined }));
   return data;
 }
 

@@ -122,7 +122,10 @@ class RandevuHatirlatmaAramasiYap extends Command
                             ' randevunuzu hatırlatmak isteriz. Randevuya gelecekseniz biri, randevunuzu başka bir tarihe ertelemek istiyorsanız ikiyi tuşlayınız.',
                         'tel' => $value->users->cep_telefon,
                         'salonId' => $value->salon_id,
-                        'exten' => 1,
+                        // Yeni asistan (Google TTS + konusarak cevap) acik salonlarda exten 8 -> Stasis(randevu-santral-ai);
+                        // kopru ayakta degilse dialplan eski IVR'a (exten 1 akisi) duser, mesaj ayni kalir.
+                        'exten' => \App\Services\RandevuAsistan::aiHatirlatmaAcik($value->salon_id) ? 8 : 1,
+                        'aiHedef' => 'randevu:' . $value->id,
                     ];
                     $salonIdList[$value->salon_id] = true;
 

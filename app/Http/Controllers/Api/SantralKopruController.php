@@ -69,16 +69,34 @@ class SantralKopruController extends Controller
         $salonId = (int) ($r->input('sube_id') ?: (DB::table('salonlar')->min('id') ?: 1));
         $telefon = trim((string) $r->input('telefon'));
 
+        // GIDEN HATIRLATMA ARAMASI (kopru: Stasis hatirlatma,<hedef>): salon + musteri telefonu KAYITTAN alinir
+        // (giden cagride kanal caller-id'si isletmenin numarasidir, musteri degil).
+        $hedef = trim((string) $r->input('hatirlatma'));
+        $hMeta = null;
+        if ($hedef !== '' && ($hh = RandevuAsistan::hatirlatmaHedefi($hedef))) {
+            $salonId = $hh['salon_id'];
+            if (!empty($hh['telefon'])) $telefon = (string) $hh['telefon'];
+        }
+
         $as = new RandevuAsistan($salonId, $telefon ?: null);
-        $karsilama = $as->karsilama();
+        $ilkMesaj = null;
+        if ($hedef !== '' && ($hk = $as->hatirlatmaKarsilama($hedef))) {
+            [$karsilama, $hMeta] = $hk;
+            $ilkMesaj = ['role' => 'assistant', 'content' => $karsilama, 'hatirlatma' => $hMeta];
+            \Log::info('[SANTRAL-HATIRLATMA] arama acildi', ['salon' => $salonId, 'hedef' => $hedef]);
+        } else {
+            if ($hedef !== '') \Log::warning('[SANTRAL-HATIRLATMA] hedef gecersiz/iptal, normal karsilama', ['hedef' => $hedef]);
+            $karsilama = $as->karsilama();
+            $ilkMesaj = ['role' => 'assistant', 'content' => $karsilama];
+        }
 
         $oid = DB::table('santral_oturumlari')->insertGetId([
             'sube_id' => $salonId,
             'telefon' => $telefon ?: null,
-            'gecmis' => json_encode([['role' => 'assistant', 'content' => $karsilama]], JSON_UNESCAPED_UNICODE),
+            'gecmis' => json_encode([$ilkMesaj], JSON_UNESCAPED_UNICODE),
             'durum' => 'acik',
             'created_at' => now(),
-        ]);
+        ] + ($hMeta && !empty($hMeta['randevu_id']) ? ['randevu_id' => (int) $hMeta['randevu_id']] : []));
 
         return $this->j([
             'ok' => 1,
@@ -119,7 +137,7 @@ class SantralKopruController extends Controller
         // Gizli numarayla arayan kayitta telefonunu soyledi: sonraki turlar (tanima/randevu) bu numarayla yurusun
         if ($as->yeniTelefon) $guncelle['telefon'] = $as->yeniTelefon;
         $aksiyon = $d['aksiyon'] ?? null;
-        if (in_array($aksiyon, ['randevu', 'iptal', 'guncelle', 'aktar'], true)) $guncelle['sonuc'] = $aksiyon;
+        if (in_array($aksiyon, ['randevu', 'iptal', 'guncelle', 'aktar', 'teyit', 'odeme'], true)) $guncelle['sonuc'] = $aksiyon;
         if (!empty($d['veri']['randevu_id'])) $guncelle['randevu_id'] = (int) $d['veri']['randevu_id'];
         if (!empty($d['bitir'])) $guncelle['durum'] = 'kapandi';
         DB::table('santral_oturumlari')->where('id', $oid)->update($guncelle);
@@ -130,6 +148,7 @@ class SantralKopruController extends Controller
             'aksiyon' => $aksiyon,
             'bitir' => (bool) ($d['bitir'] ?? false),
             'teshis' => $as->teshis,
+            'randevu_id' => $d['veri']['randevu_id'] ?? null,   // teshis/e2e (kopru kullanmaz)
         ]);
     }
 
