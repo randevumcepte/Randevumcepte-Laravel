@@ -39,6 +39,10 @@ namespace Illuminate\Support\Facades {
 namespace Illuminate\Http { class Request { static function create() { return new self; } } }
 namespace App\Http\Controllers\Api { class AiAsistanController {} }
 namespace App\Http\Controllers { class ApiController {} }
+namespace App {
+    class SahteKoleksiyon { public $d; function __construct($d) { $this->d = $d; } function get($k = null) { return $k === null ? $this : ($this->d[$k] ?? null); } function keyBy($k) { $o = []; foreach ($this->d as $r) $o[$r->$k] = $r; return new self($o); } function isEmpty() { return !$this->d; } }
+    class SalonCalismaSaatleri { static $satirlar = []; static function where() { return new SahteKoleksiyon(self::$satirlar); } }
+}
 namespace {
     error_reporting(E_ALL & ~E_DEPRECATED);
     function now($tz = null) { return \Carbon\Carbon::today(); }
@@ -251,6 +255,40 @@ namespace {
     icerir('"çarşamba 14"', 'tarih=2026-11-18 (Çarşamba, 18 Kasım), saat=14:00', cagir($a, 'zamanNotu', 'çarşamba 14'));
     icerir('"5 şubat" (yıl eklenir)', 'Cuma, 5 Şubat 2027', cagir($a, 'zamanNotu', '5 şubat'));
     esit('zaman yoksa not yok', '', cagir($a, 'zamanNotu', 'randevumu iptal etmek istiyorum'));
+
+    bolum('Çalışma saatleri metni');
+    $o = function ($g, $c, $b, $e) { return (object) ['haftanin_gunu' => $g, 'calisiyor' => $c, 'baslangic_saati' => $b, 'bitis_saati' => $e]; };
+    App\SalonCalismaSaatleri::$satirlar = [$o(1, 1, '09:00:00', '19:00:00'), $o(2, 1, '09:00:00', '19:00:00'), $o(3, 1, '09:00:00', '19:00:00'),
+        $o(4, 1, '09:00:00', '19:00:00'), $o(5, 1, '09:00:00', '19:00:00'), $o(6, 1, '10:00:00', '17:00:00'), $o(7, 0, '00:00:00', '00:00:00')];
+    $cs = cagir($a, 'calismaSaatleriMetni');
+    icerir('hafta içi saat', 'Pazartesi 09:00-19:00', $cs);
+    icerir('cumartesi farklı saat', 'Cumartesi 10:00-17:00', $cs);
+    icerir('pazar kapalı', 'Pazar kapalı', $cs);
+    App\SalonCalismaSaatleri::$satirlar = [];
+    esit('saat girilmemişse', 'tanımlı değil', cagir($a, 'calismaSaatleriMetni'));
+
+    bolum('Kampanya ve paket bağlamı (modele giden satırlar)');
+    $kb = asistan(['_kampanyalar' => [
+        ['kampanya_id' => 5, 'ad' => 'Yaz Bakım', 'bitis' => '2026-12-01', 'durum' => 'davetli_bekliyor', 'katilimci_id' => 77, 'randevu_gerekli' => true],
+        ['kampanya_id' => 6, 'ad' => 'Kış Lazer', 'bitis' => null, 'durum' => 'listede_degil', 'katilimci_id' => null, 'randevu_gerekli' => false],
+        ['kampanya_id' => 7, 'ad' => 'Bayram', 'bitis' => null, 'durum' => 'katilmadi', 'katilimci_id' => 78, 'randevu_gerekli' => false]]]);
+    $km = cagir($kb, 'kampanyaMetni');
+    icerir('davetli etiketi', 'kampanya_id 5 | Yaz Bakım | son gün Salı, 1 Aralık | müşteri DAVETLİ', $km);
+    icerir('listede değil etiketi', 'kampanya_id 6 | Kış Lazer | müşteri listede değil', $km);
+    icerir('katılmadı etiketi', 'katılmayacağını söyledi', $km);
+    icermez('kampanya bağlamında fiyat/oran yok', '%', $km);
+    esit('kampanya yoksa', ' yok', cagir(asistan(), 'kampanyaMetni'));
+    $kaynak2 = file_get_contents(__DIR__ . '/../app/Services/RandevuAsistan.php');
+    icerir('pasif kampanya filtresi (aktifmi=1)', "->where('aktifmi', 1)", $kaynak2);
+    icermez('hizmet listesinde fiyat verilmiyor', "\$h['fiyat'] . ' TL'", $kaynak2);
+    $pb = asistan(['_paketler' => [['adisyon_paket_id' => 1, 'paket_adi' => 'Lazer', 'hizmetler' => [
+        ['hizmet_id' => 9, 'ad' => 'Lazer Epilasyon', 'kalan_seans' => 4, 'personeller' => [['personel_id' => 21, 'ad' => 'Gülşah']]],
+        ['hizmet_id' => 10, 'ad' => 'Cilt Bakımı', 'kalan_seans' => null, 'personeller' => []]]]]]);
+    $ps = cagir($pb, 'paketSatirlari');
+    icerir('paket: kalan seans', 'Lazer Epilasyon (hizmet_id 9, 4 seans kaldı)', $ps);
+    icerir('paket: uygun personel', 'Gülşah (personel_id 21)', $ps);
+    icerir('paket: süreli/sınırsız', 'süreli/sınırsız', $ps);
+    icerir('paket: personel tanımsız', 'takvimi açık tüm personel uygun', $ps);
 
     bolum('TTS temizliği');
     icerir('uzun numara rakam rakam', '5 3 2', cagir($a, 'ttsTemizle', 'Numaranız 5321112233 doğru mu?'));

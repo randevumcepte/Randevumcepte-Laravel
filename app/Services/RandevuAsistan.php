@@ -723,8 +723,9 @@ class RandevuAsistan
 
         $hizmetSatir = '';
         foreach (array_slice($this->salon['hizmetler'] ?? [], 0, 40) as $h) {
-            // Fiyat BILEREK verilmez: fiyat sorulari isletmeye aktarilir (isletme talebi).
-            $hizmetSatir .= '- ' . ($h['ad'] ?? '') . "\n";
+            // Fiyat BILEREK verilmez: fiyat sorulari isletmeye aktarilir (isletme talebi). Sure verilir.
+            $sure = (int) ($h['sure_dk'] ?? 0);
+            $hizmetSatir .= '- ' . ($h['ad'] ?? '') . ($sure > 0 ? " (yaklaşık {$sure} dk)" : '') . "\n";
         }
         if ($hizmetSatir === '') $hizmetSatir = "(hizmet listesi boş — müşteriyi operatöre aktar)\n";
 
@@ -821,7 +822,7 @@ randevu_olustur ok=true DÖNMEDEN asla "randevunuz oluşturuldu" deme; ok=false 
 Adres: {$adresSatir}
 Müşteri telefonu: {$telSatir}
 {$musteriSatir}
-Hizmetler (yalnızca bağlam; eşleştirmeyi SEN yapma, hizmet_eslestir kullan):
+Hizmetler (yalnızca bağlam; eşleştirmeyi SEN yapma, hizmet_eslestir kullan; "ne kadar sürer" sorusuna buradaki süreyle cevap ver, süre yazmıyorsa "kesin süreyi bilmiyorum" de — ASLA tahmini süre uydurma, bunun için aktarma yapma):
 {$hizmetSatir}
 PERSONELLER (randevu takvimi açık olanlar):
 {$personelSatir}

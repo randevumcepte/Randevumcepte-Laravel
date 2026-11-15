@@ -48,7 +48,8 @@ class AiAsistanController extends Controller
             ->select(
                 'sh.hizmet_id as id',
                 'h.hizmet_adi as ad',
-                'sh.son_fiyat as fiyat'
+                'sh.son_fiyat as fiyat',
+                'sh.sure_dk as sure_dk'   // ek alan (sesli asistan "ne kadar sürer" icin); mevcut tuketicileri etkilemez
             )
             ->orderBy('h.hizmet_adi')
             ->get();

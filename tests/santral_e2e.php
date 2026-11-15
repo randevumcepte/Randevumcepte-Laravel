@@ -111,6 +111,19 @@ senaryo('G4 Kesin aktarma kod tarafından, hızlı (LLM\'siz)', function () {
     $o->bitir();
 });
 
+senaryo('G5 Fiyat varyantları → aktarma, fiyat dışı "ne kadar" aktarılmaz', function () {
+    foreach (['Lazer epilasyonun fiyatı nedir' => 'aktar', 'Kaç lira' => 'aktar', 'Taksit yapıyor musunuz' => 'aktar'] as $t => $b) {
+        $o = new Oturum('');
+        $r = $o->soyle($t);
+        kontrol("\"$t\" → aktar", $r['aksiyon'] === $b, (string) $r['aksiyon']);
+        $o->bitir();
+    }
+    $o = new Oturum('');
+    $r = $o->soyle('Saç kesimi ne kadar sürer');
+    kontrol('"ne kadar sürer" aktarılmaz', $r['aksiyon'] !== 'aktar', (string) $r['aksiyon']);
+    $o->bitir();
+});
+
 // ======================================================================== TAM (kayitli musteri numarasi)
 if ($TEL) {
     senaryo('T1 Kayıtlı müşteri karşılaması', function () use ($TEL) {
@@ -126,6 +139,18 @@ if ($TEL) {
         kontrol('aktarmaz', $r['aksiyon'] !== 'aktar', (string) $r['aksiyon']);
         kontrol('saat söyler (rakam var)', (bool) preg_match('/\d{1,2}[:.]\d{2}|\b\d{1,2}\b/u', $r['cevap']));
         kontrol('bekletme cümlesi yok', bekletme_yok($r));
+        $o->bitir();
+    });
+    senaryo('T2b İşletme bilgisi: pazar / kampanya / fiyat', function () use ($TEL) {
+        $o = new Oturum($TEL);
+        $r = $o->soyle('Pazar günü açık mısınız?');
+        kontrol('pazar sorusu aktarılmaz', $r['aksiyon'] !== 'aktar', (string) $r['aksiyon']);
+        kontrol('bilgi uydurmaz/bekletmez', bekletme_yok($r));
+        $r = $o->soyle('Kampanyanız var mı?');
+        kontrol('kampanya sorusu aktarılmaz', $r['aksiyon'] !== 'aktar', (string) $r['aksiyon']);
+        kontrol('kampanyada fiyat/oran söylemez', !preg_match('/%\s*\d|\d+\s*(tl|lira)|yüzde/iu', $r['cevap']), $r['cevap']);
+        $r = $o->soyle('Saç kesimi ne kadar?');
+        kontrol('kayıtlı müşteride de fiyat → aktar', $r['aksiyon'] === 'aktar', (string) $r['aksiyon']);
         $o->bitir();
     });
     senaryo('T3 Yol tarifi', function () use ($TEL) {
