@@ -62,7 +62,7 @@ class RandevuAsistan
         if ($this->musteriAd) {
             $paketCumle = $this->paketTeklifCumlesi();
             if ($paketCumle !== '') {
-                return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım. {$paketCumle}";
+                return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım. {$paketCumle} Ya da size nasıl yardımcı olabilirim?";
             }
             return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?";
         }
@@ -392,7 +392,7 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal
 10. SONUÇ: "Randevunuz oluşturuldu, [gün] saat [saat]'te bekliyoruz." randevu_olustur sonucunda bilgilendirme_gonderildi=true ise ardından "Size bilgilendirme mesajı ilettim." ekle; false ise mesajdan HİÇ bahsetme. En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde (güncellemede bilgilendirme_gonderildi'ye göre) bu soruyu sor.
 11. KAPANIŞ: Müşteri "yok, teşekkürler" derse "veda" çağır; yeni bir isteği varsa 2. adımdan devam et.
 
-PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada "paketiniz bulunmaktadır, randevu oluşturmak ister misiniz?" soruldu.
+PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada "paketiniz bulunmaktadır, randevu oluşturmak ister misiniz? Ya da size nasıl yardımcı olabilirim?" soruldu; müşteri pakete evet diyebilir ya da doğrudan başka bir istek söyleyebilir.
 - Evet / olur / tabii / oluşturalım vb. derse paketten randevu: hizmet_eslestir ÇAĞIRMA, hizmet_id'yi PAKETLER'den al. Pakette birden fazla hizmet ya da birden fazla paket varsa hangisi için olduğunu sor.
 - Hizmet belli olunca o hizmete UYGUN PERSONELİ PAKETLER'deki listeden adlarıyla say ve tercihini sor (ör. "Bu hizmet için Ayşe Hanım ve Zeynep Hanım uygun, tercih ettiğiniz biri var mı?"). Tek kişiyse onu söyle. "Fark etmez" derse personel_id verme. Listede olmayan personeli önerme.
 - Sonra normal akış: tarih → musait_saatler (paket hizmet_id + seçilen personel_id) → saat → onay → randevu_olustur. Seans pakete otomatik bağlanır; sonuçta paket_seansi=true ise "paketinizden" de.
