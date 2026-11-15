@@ -181,7 +181,8 @@ if ($TEL) {
         }
         kontrol('randevu aksiyonu', $r['aksiyon'] === 'randevu', (string) $r['aksiyon']);
         kontrol('model çağrısı hatasız (http_4xx yok)', strpos((string) $r['teshis'], 'http_') !== 0, (string) $r['teshis']);
-        kontrol('TALEP olarak bildirir', var_mi($r['cevap'], 'talebiniz oluşturuldu'), $r['cevap']);
+        kontrol('TALEP olarak bildirir', (bool) preg_match('/talebiniz oluşturuldu|talep olarak oluşturuldu/iu', $r['cevap']), $r['cevap']);
+        kontrol('uydurma gerekçe yok ("sistem kapasitesi" vb.)', !preg_match('/kapasite|doğrudan randevuyu oluşturamıyorum/iu', $r['cevap']), $r['cevap']);
         kontrol('kapanış sorusu', var_mi($r['cevap'], 'Başka yardımcı olabileceğim'));
         $o->bitir();
         // ---- temizlik: ayni test iptal akisini da sinar

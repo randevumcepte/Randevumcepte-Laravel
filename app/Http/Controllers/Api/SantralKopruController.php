@@ -110,7 +110,9 @@ class SantralKopruController extends Controller
 
         // gecmisi guncelle (son 40)
         $gecmis[] = ['role' => 'user', 'content' => $metin];
-        $gecmis[] = ['role' => 'assistant', 'content' => $d['cevap']];
+        $asistanMsj = ['role' => 'assistant', 'content' => $d['cevap']];
+        if (!empty($d['baglam'])) $asistanMsj['baglam'] = $d['baglam']; // gizli arac ozeti (id'ler) -> sonraki tur
+        $gecmis[] = $asistanMsj;
         $gecmis = array_slice($gecmis, -40);
 
         $guncelle = ['gecmis' => json_encode($gecmis, JSON_UNESCAPED_UNICODE), 'updated_at' => now()];

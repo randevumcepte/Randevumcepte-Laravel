@@ -145,6 +145,8 @@ class RandevuAsistan
         $isTamamlandi = false; // randevu/iptal/guncelleme/yol tarifi tamamlandi -> "Başka yardımcı olabileceğim..." sorulmali
         $yolTarifiGitti = false; // yol tarifi mesaji basariyla gonderildi -> sabit cumle
         $randevuHatasi = null;   // bu turda randevu_olustur/guncelle ok=false dondu (sebep)
+        $randevuDenendi = false; // bu turda randevu_olustur cagrildi mi
+        $baglam = [];            // bu turun arac sonuc ozeti -> gecmise gizli not (sonraki tur id'leri bilsin)
 
         for ($deneme = 0; $deneme < 2; $deneme++) {
         for ($tur = 0; $tur < 6; $tur++) {
@@ -191,6 +193,9 @@ class RandevuAsistan
                 if ($bit) $bitir = true;
                 if (in_array($aks, ['randevu', 'iptal', 'guncelle'], true) || ($tu['name'] ?? '') === 'yol_tarifi_gonder') $isTamamlandi = true;
                 if (($tu['name'] ?? '') === 'yol_tarifi_gonder' && !empty($sonuc['ok'])) $yolTarifiGitti = true;
+                $not = $this->baglamNotu($tu['name'] ?? '', $tu['input'] ?? [], $sonuc);
+                if ($not !== '') $baglam[] = $not;
+                if (($tu['name'] ?? '') === 'randevu_olustur') $randevuDenendi = true;
                 if (in_array($tu['name'] ?? '', ['randevu_olustur', 'randevu_guncelle'], true) && empty($sonuc['ok'])) {
                     $randevuHatasi = (string) ($sonuc['hata'] ?? 'bilinmeyen hata');
                 }
@@ -245,6 +250,18 @@ class RandevuAsistan
             $cevap = 'Üzgünüm, randevunuzu şu an kaydedemedim. Başka bir saat deneyelim mi, yoksa sizi bir yetkiliye aktarayım mı?';
         }
 
+        // ZORLA RANDEVU (restoran "zorla aksiyon" guvenlik agi): asistan onay sordu, musteri EVET dedi ama model
+        // randevu_olustur'u hic cagirmadi (ör. "sistem kapasitesi nedeniyle..." uydurdu) -> tool_choice ile zorla.
+        if ($aksiyon === null && !$randevuDenendi && !$bitir && $this->onayBekleniyorMu($gecmis) && $this->onayMi($metin)) {
+            $zorla = $this->zorlaRandevu($messages, $key);
+            if ($zorla !== null) {
+                [$cevap, $aksiyon, $randevuId, $zNot] = $zorla;
+                if ($zNot !== '') $baglam[] = $zNot;
+                if ($aksiyon === 'randevu') $isTamamlandi = true;
+                $this->teshis = 'zorla_randevu';
+            }
+        }
+
         if ($cevap === '') $cevap = $this->garantiCevap($aksiyon);
         Log::info('[SANTRAL-TUR]', ['salon' => $this->salonId, 'musteri' => $this->musteriId, 'metin' => $metin, 'cevap' => $cevap, 'aksiyon' => $aksiyon, 'teshis' => $this->teshis]);
         // Yol tarifi gonderildiyse (ayni turda baska bir is yoksa) sabit, net cumle:
@@ -261,7 +278,71 @@ class RandevuAsistan
             'aksiyon' => $aksiyon,
             'veri' => ['randevu_id' => $randevuId],
             'bitir' => (bool) $bitir,
+            // Gecmise GIZLI not (musteri duymaz): sonraki turda model hizmet/personel/saat id'lerini bilsin
+            'baglam' => $baglam ? mb_substr(implode(' | ', $baglam), 0, 1200) : null,
         ];
+    }
+
+    /** Arac sonucunun sonraki tura tasinacak kisa ozeti (id'ler). */
+    protected function baglamNotu(string $ad, array $in, array $sonuc): string
+    {
+        if ($ad === 'musait_saatler' && !empty($sonuc['secenekler'])) {
+            $sec = array_map(function ($x) {
+                return ($x['tarih'] ?? '') . 'T' . ($x['saat'] ?? '') . ' personel_id=' . ($x['personel_id'] ?? '') . ' (' . ($x['personel'] ?? '') . ')';
+            }, $sonuc['secenekler']);
+            return 'musait_saatler hizmet_id=' . ($in['hizmet_id'] ?? '?') . ' seçenekler: ' . implode('; ', $sec);
+        }
+        if ($ad === 'hizmet_eslestir') {
+            return 'hizmet_eslestir("' . ($in['metin'] ?? '') . '") → ' . mb_substr(json_encode($sonuc, JSON_UNESCAPED_UNICODE), 0, 300);
+        }
+        if ($ad === 'randevu_olustur' && !empty($sonuc['ok'])) {
+            return 'randevu_olustur OK randevu_id=' . ($sonuc['randevu_id'] ?? '') . ' ' . ($sonuc['tarih'] ?? '') . ' ' . ($sonuc['saat'] ?? '');
+        }
+        return '';
+    }
+
+    /** Son asistan mesaji randevu onay sorusu muydu? ("... randevu talebi oluşturayım mı?") */
+    protected function onayBekleniyorMu(array $gecmis): bool
+    {
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') === 'assistant') {
+                $c = (string) ($gecmis[$i]['content'] ?? '');
+                return (bool) preg_match('/randevu talebi oluşturayım mı|randevu(yu)? oluşturayım mı|randevu, onaylıyor musunuz|için randevu.*onaylıyor musunuz/iu', $c);
+            }
+        }
+        return false;
+    }
+
+    /** Musteri cevabi onay mi? (ret/kosul icermeyen evet turevleri) */
+    protected function onayMi(string $m): bool
+    {
+        $f = mb_strtolower(strtr($m, ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
+        if (preg_match('/hayır|istemiyorum|olmaz|vazgeç|başka|değil|ama |fakat|iptal/u', $f)) return false;
+        return (bool) preg_match('/\b(evet|tamam|olur|olsun|tabii|tabi|onaylıyorum|onayla|uygun|peki|aynen|oluştur|kabul)\b/u', $f);
+    }
+
+    /**
+     * tool_choice ile randevu_olustur'u ZORLA cagir; sonucu deterministik cumleye cevir.
+     * @return array{0:string,1:?string,2:?int,3:string}|null [cevap, aksiyon, randevuId, baglamNotu]
+     */
+    protected function zorlaRandevu(array $messages, string $key): ?array
+    {
+        $son = end($messages);
+        if (($son['role'] ?? '') !== 'user') return null; // tool_choice icin son mesaj user olmali
+        $resp = $this->cagir($messages, $key, 0, ['tool_choice' => ['type' => 'tool', 'name' => 'randevu_olustur']]);
+        $tu = null;
+        foreach (($resp['content'] ?? []) as $b) if (($b['type'] ?? '') === 'tool_use') { $tu = $b; break; }
+        if (!$tu) return null;
+        $in = is_array($tu['input'] ?? null) ? $tu['input'] : [];
+        [$d] = $this->toolCalistir('randevu_olustur', $in);
+        Log::warning('[SANTRAL-ZORLA-RANDEVU]', ['salon' => $this->salonId, 'girdi' => $in, 'sonuc' => mb_substr(json_encode($d, JSON_UNESCAPED_UNICODE), 0, 600)]);
+        if (empty($d['ok'])) {
+            return ['Üzgünüm, randevu talebinizi şu an kaydedemedim. ' . (preg_match('/çakış|dolu/iu', (string) ($d['hata'] ?? '')) ? 'O saat az önce doldu. Başka bir saat önermemi ister misiniz?' : 'Başka bir saat deneyelim mi, yoksa sizi bir yetkiliye aktarayım mı?'), null, null, ''];
+        }
+        $gun = $this->tarihSoz((string) ($d['tarih'] ?? ''));
+        $c = "{$gun} saat {$d['saat']}'te" . (!empty($d['personel']) ? " {$d['personel']} ile" : '') . ' randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz.';
+        if (!empty($d['bilgilendirme_gonderildi'])) $c .= ' Size bilgilendirme mesajı ilettim.';
+        return [$c, 'randevu', (int) ($d['randevu_id'] ?? 0) ?: null, $this->baglamNotu('randevu_olustur', $in, $d)];
     }
 
     /**
@@ -723,7 +804,7 @@ class RandevuAsistan
     }
 
     // ---------------------------------------------------------------- LLM
-    protected function cagir(array $messages, string $key, int $tekrar = 0): ?array
+    protected function cagir(array $messages, string $key, int $tekrar = 0, array $ek = []): ?array
     {
         $body = [
             'model' => config('services.anthropic.model', 'claude-haiku-4-5'),
@@ -735,7 +816,7 @@ class RandevuAsistan
             ]],
             'tools' => $this->toolTanimlari(),
             'messages' => $messages,
-        ];
+        ] + $ek;
 
         $ch = curl_init('https://api.anthropic.com/v1/messages');
         curl_setopt_array($ch, [
@@ -760,7 +841,7 @@ class RandevuAsistan
             // 429/5xx/zaman asimi: bir kez daha dene (yoksa turda yalniz on-cumle kalip musteri sessizlikte kaliyor)
             if ($tekrar === 0 && ($raw === false || $code === 0 || $code === 429 || $code >= 500)) {
                 usleep(400000);
-                return $this->cagir($messages, $key, 1);
+                return $this->cagir($messages, $key, 1, $ek);
             }
             return null;
         }
@@ -1469,6 +1550,7 @@ PROMPT;
 
     protected function ttsTemizle(string $m): string
     {
+        $m = preg_replace('/\[SİSTEM[^\]]*\]/u', '', $m);   // gizli notu model taklit ederse SESLENDIRME
         $m = preg_replace('/[*_`#>\-]+/u', ' ', $m);          // markdown
         $m = preg_replace('/[\x{1F000}-\x{1FFFF}\x{2600}-\x{27BF}]/u', '', $m); // emoji
         // TELEFON NUMARASI (restaurant SantralAsistan::ttsTemizle ile ayni): 10+ haneli numarayi
@@ -1489,6 +1571,9 @@ PROMPT;
             $role = ($m['role'] ?? '') === 'assistant' ? 'assistant' : (($m['role'] ?? '') === 'user' ? 'user' : null);
             $c = trim((string) ($m['content'] ?? ''));
             if (!$role || $c === '') continue;
+            if ($role === 'assistant' && !empty($m['baglam'])) {
+                $c .= "\n[SİSTEM — bu turdaki araç sonuçları, müşteri duymadı: " . $m['baglam'] . ']';
+            }
             $out[] = ['role' => $role, 'content' => $c];
         }
         // Anthropic: ilk mesaj user olmali. Karsilamayi (ad soyad sorusu dahil) ATMA: model ilk cevabin

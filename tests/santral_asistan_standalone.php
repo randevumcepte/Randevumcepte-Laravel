@@ -317,6 +317,45 @@ namespace {
     esit('cümle içi küçük harf', "Perşembe 11:00'te randevu talebiniz oluşturuldu.", cagir($a, 'talepIfadesi', "Perşembe 11:00'te randevunuz başarıyla oluşturuldu."));
     esit('"talebiniz" zaten varsa dokunmaz', 'Randevu talebiniz oluşturuldu.', cagir($a, 'talepIfadesi', 'Randevu talebiniz oluşturuldu.'));
 
+    bolum('Onay turu: zorla randevu güvenlik ağı');
+    $onaySoru = [['role' => 'assistant', 'content' => "Perşembe, 19 Kasım saat 11:00'te Gülşah ile Saç Kesimi için randevu talebi oluşturayım mı?"]];
+    esit('onay sorusu algılanır', true, cagir($a, 'onayBekleniyorMu', $onaySoru));
+    esit('başka soru onay değil', false, cagir($a, 'onayBekleniyorMu', [['role' => 'assistant', 'content' => 'Hangi saat uygun olur?']]));
+    foreach (['Evet' => true, 'Evet, olsun' => true, 'Tamam onaylıyorum' => true, 'Olur' => true, 'Hayır' => false, 'Evet ama başka saat olsun' => false, 'Yok vazgeçtim' => false] as $t => $b) {
+        esit("onay cevabı \"$t\"", $b, cagir($a, 'onayMi', $t));
+    }
+    $zr = new class extends App\Services\RandevuAsistan {
+        public $sahteYanit; public $sahteSonuc;
+        public function __construct() {}
+        protected function cagir(array $m, string $k, int $t = 0, array $e = []): ?array { $this->sonEk = $e; return $this->sahteYanit; }
+        protected function randevuOlusturPersonelli(array $in): array { $this->sonGirdi = $in; return $this->sahteSonuc; }
+    };
+    foreach (['salonId' => 20, 'musteriId' => 123244, 'musteriAd' => 'Anıl Orbey', '_personeller' => [21 => 'Gülşah'], 'salon' => ['hizmetler' => []]] as $k => $v) { $p = new ReflectionProperty(App\Services\RandevuAsistan::class, $k); $p->setAccessible(true); $p->setValue($zr, $v); }
+    $zr->sahteYanit = ['content' => [['type' => 'tool_use', 'id' => 'x', 'name' => 'randevu_olustur', 'input' => ['tarih_saat' => '2026-11-19T11:00', 'hizmet_id' => 5, 'personel_id' => 21]]]];
+    $zr->sahteSonuc = ['ok' => true, 'randevu_id' => 555, 'tarih' => '2026-11-19', 'saat' => '11:00', 'personel' => 'Gülşah', 'bilgilendirme_gonderildi' => true];
+    $z = cagir($zr, 'zorlaRandevu', [['role' => 'user', 'content' => 'Evet']], 'k');
+    esit('tool_choice ile randevu_olustur zorlanır', ['type' => 'tool', 'name' => 'randevu_olustur'], $zr->sonEk['tool_choice'] ?? null);
+    esit('modelin verdiği id\'ler kullanılır', 21, $zr->sonGirdi['personel_id'] ?? null);
+    esit('aksiyon randevu', 'randevu', $z[1]);
+    esit('randevu id', 555, $z[2]);
+    icerir('deterministik talep cümlesi', "Perşembe, 19 Kasım saat 11:00'te Gülşah ile randevu talebiniz oluşturuldu", $z[0]);
+    icerir('bilgilendirme ayarı açık', 'bilgilendirme mesajı ilettim', $z[0]);
+    $zr->sahteSonuc = ['ok' => false, 'hata' => 'Bu saat çakışıyor.'];
+    $z = cagir($zr, 'zorlaRandevu', [['role' => 'user', 'content' => 'Evet']], 'k');
+    esit('kayıt başarısız → aksiyon yok', null, $z[1]);
+    icerir('kayıt başarısız → dürüst cümle', 'kaydedemedim', $z[0]);
+    icerir('çakışma → yeni saat önerir', 'az önce doldu', $z[0]);
+    esit('son mesaj user değilse zorlamaz', null, cagir($zr, 'zorlaRandevu', [['role' => 'assistant', 'content' => 'x']], 'k'));
+
+    bolum('Turlar arası araç bağlamı (gizli not)');
+    $bn = cagir($a, 'baglamNotu', 'musait_saatler', ['hizmet_id' => 5], ['ok' => true, 'secenekler' => [['tarih' => '2026-11-19', 'saat' => '11:00', 'personel_id' => 21, 'personel' => 'Gülşah']]]);
+    esit('müsaitlik notu id\'leri taşır', 'musait_saatler hizmet_id=5 seçenekler: 2026-11-19T11:00 personel_id=21 (Gülşah)', $bn);
+    esit('bilgi aracı olmayan → not yok', '', cagir($a, 'baglamNotu', 'yol_tarifi_gonder', [], ['ok' => true]));
+    $gm = cagir($a, 'gecmisMesajlari', [['role' => 'assistant', 'content' => 'Oluşturayım mı?', 'baglam' => $bn], ['role' => 'user', 'content' => 'Evet']]);
+    esit('ilk mesaj user', 'user', $gm[0]['role']);
+    icerir('gizli not modele gider', 'personel_id=21', $gm[1]['content']);
+    esit('gizli not seslendirilmez', 'Tamam.', cagir($a, 'ttsTemizle', 'Tamam. [SİSTEM — bu turdaki araç sonuçları, müşteri duymadı: x=1]'));
+
     bolum('TTS temizliği');
     icerir('uzun numara rakam rakam', '5 3 2', cagir($a, 'ttsTemizle', 'Numaranız 5321112233 doğru mu?'));
 
