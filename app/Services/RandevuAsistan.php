@@ -581,7 +581,7 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal
 7. SAAT SEÇİMİ (yalnız seçenek sunulduysa).
 8. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te [personel] ile [hizmet] için randevu talebi oluşturayım mı?" ([gün] = seçeneğin "gun" alanı, ör. "Çarşamba, 18 Kasım")
 9. Onay gelince "randevu_olustur" (seçilen seçeneğin tarih_saat ve personel_id'si + hizmet_id). ok=false ve saat dolu derse yeniden musait_saatler çağır ve yeni saat öner.
-10. SONUÇ: Randevu TALEP olarak oluşturulur (işletme onaylar): "[gün] saat [saat] için [personel] ile randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz." randevu_olustur sonucunda bilgilendirme_gonderildi=true ise ardından "Size bilgilendirme mesajı ilettim." ekle; false ise mesajdan HİÇ bahsetme. En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde (güncellemede bilgilendirme_gonderildi'ye göre) bu soruyu sor.
+10. SONUÇ: Randevu TALEP olarak oluşturulur (işletme onaylar): "[gün] saat [saat] için [personel] ile randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz." randevu_olustur sonucunda bilgilendirme_gonderildi=true ise ardından "Size bilgilendirme mesajı ilettim." ekle; false ise mesajdan HİÇ bahsetme. En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde bu soruyu sor; iptalde "Randevunuz iptal edildi." de, randevu_iptal sonucunda bilgilendirme_gonderildi=true ise "Size bilgilendirme mesajı ilettim." ekle (güncellemede de aynı alan).
 11. KAPANIŞ: Müşteri "yok, teşekkürler" derse "veda" çağır; yeni bir isteği varsa 2. adımdan devam et.
 
 PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada "paketiniz bulunmaktadır, randevu oluşturmak ister misiniz? Ya da size nasıl yardımcı olabilirim?" soruldu; müşteri pakete evet diyebilir ya da doğrudan başka bir istek söyleyebilir.
@@ -1007,7 +1007,10 @@ PROMPT;
         } catch (\Throwable $e) {
             Log::warning('RandevuAsistan iptal bildirimi: ' . $e->getMessage()); // iptal yapildi; bildirim hatasi akisi bozmasin
         }
-        return ['ok' => true, 'mesaj' => 'Randevu iptal edildi', 'randevu_id' => (int) $r->id];
+        // Panel > SMS ayarlari > "Aktif Randevu İptalinde" (ayar 3) musteri acik mi? Kapaliysa musteriye WA/SMS GITMEZ.
+        $ayarAcik = (int) \App\SalonSMSAyarlari::where('ayar_id', 3)->where('salon_id', $this->salonId)->value('musteri') === 1;
+        Log::info('[SANTRAL-IPTAL]', ['salon' => $this->salonId, 'randevu' => $r->id, 'musteri_tel' => optional($r->users)->cep_telefon, 'iptal_sms_ayari_acik' => $ayarAcik]);
+        return ['ok' => true, 'mesaj' => 'Randevu iptal edildi', 'randevu_id' => (int) $r->id, 'bilgilendirme_gonderildi' => $ayarAcik];
     }
 
     protected function sahipDegilHata(): array
