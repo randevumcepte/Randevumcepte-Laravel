@@ -111,6 +111,7 @@ class RandevuAsistan
         $messages[] = ['role' => 'user', 'content' => $metin];
 
         $aksiyon = null; $bitir = false; $randevuId = null; $cevap = '';
+        $isTamamlandi = false; // randevu/iptal/guncelleme/yol tarifi tamamlandi -> "Başka yardımcı olabileceğim..." sorulmali
 
         for ($tur = 0; $tur < 6; $tur++) {
             $resp = $this->cagir($messages, $key);
@@ -142,6 +143,7 @@ class RandevuAsistan
                 if ($aks) $aksiyon = $aks;
                 if ($rid) $randevuId = $rid;
                 if ($bit) $bitir = true;
+                if (in_array($aks, ['randevu', 'iptal', 'guncelle'], true) || ($tu['name'] ?? '') === 'yol_tarifi_gonder') $isTamamlandi = true;
             }
             $messages[] = ['role' => 'user', 'content' => $sonuclar];
 
@@ -163,12 +165,27 @@ class RandevuAsistan
         }
 
         if ($cevap === '') $cevap = $this->garantiCevap($aksiyon);
+        if ($isTamamlandi && !$bitir && $aksiyon !== 'aktar') $cevap = $this->baskaYardimEkle($cevap);
         return [
             'cevap' => $this->ttsTemizle($cevap),
             'aksiyon' => $aksiyon,
             'veri' => ['randevu_id' => $randevuId],
             'bitir' => (bool) $bitir,
         ];
+    }
+
+    /**
+     * Bir is tamamlandiginda kapanis sorusu GARANTI: "Size nasıl yardımcı olabilirim?" (karsilama sorusu)
+     * tekrar edilmez, yerine "Başka yardımcı olabileceğim bir konu var mı?" sorulur.
+     */
+    protected function baskaYardimEkle(string $cevap): string
+    {
+        $c = preg_replace('/\s*(Peki,?\s*|Ya da\s*)?(size|sizlere)\s+(başka\s+)?(nasıl|ne konuda)\s+(yardımcı olabilirim|yardımcı olayım)\s*\??/iu', ' ', $cevap);
+        $c = trim(preg_replace('/\s{2,}/u', ' ', $c));
+        if (!preg_match('/başka\s+(bir\s+)?(konu|yardımcı|isteğiniz|bir şey)/iu', $c)) {
+            $c = rtrim($c, " ,") . ($c !== '' && !preg_match('/[.!?]$/u', $c) ? '.' : '') . ' Başka yardımcı olabileceğim bir konu var mı?';
+        }
+        return trim($c);
     }
 
     // ---------------------------------------------------------------- tools
@@ -400,7 +417,9 @@ PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada "paketiniz bulunmaktadı
 
 İPTAL/GÜNCELLEME: önce "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat. İptalde "randevu_iptal". Güncellemede yeni gün/saat için "musait_saatler"i o randevunun hizmet_id ve personel_id'si ile çağır, onay al, sonra "randevu_guncelle". Yalnız mevcut_randevular'ın döndüğü id'leri kullan.
 
-ADRES / YOL TARİFİ: müşteri adres, konum, "nasıl gelirim" sorarsa "yol_tarifi_gonder" çağır; adresi kısaca söyle ve yol tarifini mesajla gönderdiğini belirt. Bunun için aktarma yapma.
+ADRES / YOL TARİFİ: müşteri yol tarifi, adres, konum, "konum gönderir misiniz", "nasıl gelirim", "neredesiniz" derse İLK SEFERDE, teyit sormadan HEMEN "yol_tarifi_gonder" çağır. Sonra adresi kısaca söyle, yol tarifini telefonuna mesajla gönderdiğini belirt ve "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Bunun için aktarma yapma.
+
+İŞ TAMAMLANINCA: Bir istek bittiğinde (randevu oluşturuldu, iptal edildi, güncellendi, yol tarifi gönderildi, sorusu cevaplandı) daima "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Karşılamadan sonra "Size nasıl yardımcı olabilirim?" cümlesini bir daha KULLANMA.
 
 # ONAY KELİMELERİ
 evet, tabii, olur, olsun, tamam, ok, okey, kabul, onaylıyorum, uygundur, peki, he, aynen, oldu = ONAY.
