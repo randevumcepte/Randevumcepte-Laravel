@@ -349,6 +349,13 @@ namespace {
     icerir('çakışma → yeni saat önerir', 'az önce doldu', $z[0]);
     esit('son mesaj user değilse zorlamaz', null, cagir($zr, 'zorlaRandevu', [['role' => 'assistant', 'content' => 'x']], 'k'));
 
+    bolum('Randevu onay cümlesi koddan (model atlasa da)');
+    $oc = cagir($zr, 'randevuOnayCumlesi', ['ok' => true, 'tarih' => '2026-11-26', 'saat' => '11:00:00', 'personel' => 'Gülşah', 'bilgilendirme_gonderildi' => true]);
+    esit('tam cümle', "Perşembe, 26 Kasım saat 11:00'te Gülşah ile randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz. Size bilgilendirme mesajı ilettim.", $oc);
+    $oc = cagir($zr, 'randevuOnayCumlesi', ['ok' => true, 'tarih' => '2026-11-26', 'saat' => '11:00', 'personel' => 'Gülşah', 'paket_seansi' => true, 'bilgilendirme_gonderildi' => false]);
+    icerir('paket seansı belirtilir', 'Gülşah ile paketinizden randevu talebiniz', $oc);
+    esit('ayar kapalı → bilgilendirme denmez', false, mb_stripos($oc, 'bilgilendirme mesajı') !== false);
+
     bolum('Turlar arası araç bağlamı (gizli not)');
     $bn = cagir($a, 'baglamNotu', 'musait_saatler', ['hizmet_id' => 5], ['ok' => true, 'secenekler' => [['tarih' => '2026-11-19', 'saat' => '11:00', 'personel_id' => 21, 'personel' => 'Gülşah']]]);
     esit('müsaitlik notu id\'leri taşır', 'musait_saatler hizmet_id=5 seçenekler: 2026-11-19T11:00 personel_id=21 (Gülşah)', $bn);

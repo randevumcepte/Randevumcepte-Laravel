@@ -146,6 +146,7 @@ class RandevuAsistan
         $yolTarifiGitti = false; // yol tarifi mesaji basariyla gonderildi -> sabit cumle
         $randevuHatasi = null;   // bu turda randevu_olustur/guncelle ok=false dondu (sebep)
         $randevuDenendi = false; // bu turda randevu_olustur cagrildi mi
+        $randevuSonuc = null;    // bu turda randevu_olustur ok=true sonucu (onay cumlesi koddan kurulur)
         $baglam = [];            // bu turun arac sonuc ozeti -> gecmise gizli not (sonraki tur id'leri bilsin)
 
         for ($deneme = 0; $deneme < 2; $deneme++) {
@@ -196,6 +197,7 @@ class RandevuAsistan
                 $not = $this->baglamNotu($tu['name'] ?? '', $tu['input'] ?? [], $sonuc);
                 if ($not !== '') $baglam[] = $not;
                 if (($tu['name'] ?? '') === 'randevu_olustur') $randevuDenendi = true;
+                if (($tu['name'] ?? '') === 'randevu_olustur' && !empty($sonuc['ok'])) $randevuSonuc = $sonuc;
                 if (in_array($tu['name'] ?? '', ['randevu_olustur', 'randevu_guncelle'], true) && empty($sonuc['ok'])) {
                     $randevuHatasi = (string) ($sonuc['hata'] ?? 'bilinmeyen hata');
                 }
@@ -268,8 +270,11 @@ class RandevuAsistan
         if ($yolTarifiGitti && $aksiyon === null && !$bitir) {
             $cevap = 'Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?';
         }
-        // Randevu TALEP olarak olusur: model "randevunuz kaydedildi/oluşturuldu" dese de "randevu talebiniz" de
-        if ($aksiyon === 'randevu') {
+        // Randevu olustuysa onay cumlesi KODDAN (restoran kalibi): model cumleyi atlasa / eksik kursa da
+        // musteri gun-saat-personel + talep ifadesini mutlaka duyar.
+        if ($aksiyon === 'randevu' && $randevuSonuc) {
+            $cevap = $this->randevuOnayCumlesi($randevuSonuc);
+        } elseif ($aksiyon === 'randevu') {
             $cevap = $this->talepIfadesi($cevap);
         }
         if ($isTamamlandi && !$bitir && $aksiyon !== 'aktar') $cevap = $this->baskaYardimEkle($cevap);
@@ -349,10 +354,20 @@ class RandevuAsistan
         if (empty($d['ok'])) {
             return ['Üzgünüm, randevu talebinizi şu an kaydedemedim. ' . (preg_match('/çakış|dolu/iu', (string) ($d['hata'] ?? '')) ? 'O saat az önce doldu. Başka bir saat önermemi ister misiniz?' : 'Başka bir saat deneyelim mi, yoksa sizi bir yetkiliye aktarayım mı?'), null, null, ''];
         }
-        $gun = $this->tarihSoz((string) ($d['tarih'] ?? ''));
-        $c = "{$gun} saat {$d['saat']}'te" . (!empty($d['personel']) ? " {$d['personel']} ile" : '') . ' randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz.';
-        if (!empty($d['bilgilendirme_gonderildi'])) $c .= ' Size bilgilendirme mesajı ilettim.';
+        $c = $this->randevuOnayCumlesi($d);
         return [$c, 'randevu', (int) ($d['randevu_id'] ?? 0) ?: null, $this->baglamNotu('randevu_olustur', $in, $d)];
+    }
+
+    /** randevu_olustur ok=true sonucundan deterministik onay cumlesi. */
+    protected function randevuOnayCumlesi(array $d): string
+    {
+        $gun = $this->tarihSoz((string) ($d['tarih'] ?? ''));
+        $saat = substr((string) ($d['saat'] ?? ''), 0, 5);
+        $c = trim("{$gun} saat {$saat}'te" . (!empty($d['personel']) ? " {$d['personel']} ile" : ''))
+            . (!empty($d['paket_seansi']) ? ' paketinizden' : '')
+            . ' randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz.';
+        if (!empty($d['bilgilendirme_gonderildi'])) $c .= ' Size bilgilendirme mesajı ilettim.';
+        return $c;
     }
 
     /**
