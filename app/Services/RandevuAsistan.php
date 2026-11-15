@@ -115,7 +115,7 @@ class RandevuAsistan
         }
 
         $messages = $this->gecmisMesajlari($gecmis);
-        $messages[] = ['role' => 'user', 'content' => $metin];
+        $messages[] = ['role' => 'user', 'content' => $metin . $this->zamanNotu($metin)];
 
         $aksiyon = null; $bitir = false; $randevuId = null; $cevap = '';
         $isTamamlandi = false; // randevu/iptal/guncelleme/yol tarifi tamamlandi -> "Başka yardımcı olabileceğim..." sorulmali
@@ -231,6 +231,36 @@ class RandevuAsistan
             $c = rtrim($c, " ,") . ($c !== '' && !preg_match('/[.!?]$/u', $c) ? '.' : '') . ' Başka yardımcı olabileceğim bir konu var mı?';
         }
         return trim($c);
+    }
+
+    /**
+     * Musterinin cumlesindeki tarih/saat ifadesini KODLA coz ("çarşamba 14", "önümüzdeki hafta perşembe 10",
+     * "10 aralık", "5 şubat saat 3") ve modele not olarak ver: model tarih hesaplamaz, bu ISO degerleri kullanir.
+     */
+    protected function zamanNotu(string $metin): string
+    {
+        try {
+            $z = app(SesliRandevuCozService::class)->zamanCoz($metin);
+        } catch (\Throwable $e) {
+            return '';
+        }
+        $parca = [];
+        if (!empty($z['tarih'])) $parca[] = "tarih={$z['tarih']} ({$this->tarihSoz($z['tarih'])})";
+        if (!empty($z['saat'])) $parca[] = "saat={$z['saat']}";
+        if (!empty($z['vakit']) && empty($z['saat'])) $parca[] = "zaman_dilimi={$z['vakit']}";
+        if (!$parca) return '';
+        return "\n[SİSTEM zaman çözümü — müşteri duymaz: " . implode(', ', $parca) . ']';
+    }
+
+    /** 2026-11-18 -> "Çarşamba, 18 Kasım" (yil farkliysa yil da eklenir). */
+    protected function tarihSoz(string $iso): string
+    {
+        $ts = strtotime($iso);
+        if (!$ts) return $iso;
+        $gunAd = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+        $ayAd = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+        $yil = date('Y', $ts) !== now('Europe/Istanbul')->format('Y') ? ' ' . date('Y', $ts) : '';
+        return $gunAd[(int) date('w', $ts)] . ', ' . (int) date('j', $ts) . ' ' . $ayAd[(int) date('n', $ts)] . $yil;
     }
 
     /** Musteri acikca bir insana/isletmeye baglanmak istiyor mu? */
@@ -451,11 +481,13 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal
 1. SELAMLAMA zaten TTS ile çalındı — TEKRAR ETME. İşletme adına "-da/-de/-a/-e/-ye" eki EKLEME. Arayan KAYITLI DEĞİLSE önce BAĞLAM'daki KAYIT ADIMI'nı tamamla; kayıtlıysa doğrudan niyete geç.
 2. NİYET: yeni randevu mu, iptal mi, güncelleme mi, başka bir şey mi? (Müşterinin paketi varsa karşılamada paket teklif edildi: aşağıdaki PAKET AKIŞI'na bak.)
 3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise onaylatmadan devam et; coklu ise seçenekleri kısaca oku ve seçtir; yok ise "o hizmetimiz yok" de ve dönen önerileri sun.
-4. TARİH: "TARİH HARİTASI" tablosundan kesin ISO tarihi AL, kendin hesaplama. Belirsizse tek cümleyle teyit et.
+4. TARİH/SAAT: Müşteri mesajının sonunda "[SİSTEM zaman çözümü ...]" notu varsa tarih ve saati AYNEN oradan al (kendin hesaplama; "çarşamba 14", "önümüzdeki hafta perşembe 10", "10 aralık", "5 şubat" hepsi orada çözülmüş gelir). Not yoksa TARİH HARİTASI'nı kullan. Müşteri gün ve saati söylediyse saati TEKRAR SORMA, sabah/öğleden sonra diye SORMA.
 5. PERSONEL: müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") PERSONELLER listesinden eşleştir ve personel_id'yi kullan; listede yoksa "o isimde personelimiz yok" de ve listeden say. Söylemediyse personel SORMA (uygun personel otomatik seçilir) — İSTİSNA: paketten randevuda uygun personeli say ve tercih sor (PAKET AKIŞI).
-6. MÜSAİT SAAT: "musait_saatler" aracını hizmet_id + tarih ile çağır (saat/gün dilimi söylendiyse ver; personel söylendiyse personel_id ver). Dönen seçenekleri (en fazla 2) personel adıyla öner: "[saat]'te [personel] ile ya da [saat]'te ...". istenen_gun_dolu=true ise önce o günün dolu olduğunu söyle. Seçenek yoksa başka gün/dilim öner.
-7. SAAT SEÇİMİ.
-8. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te [personel] ile [hizmet] için randevu, onaylıyor musunuz?"
+6. MÜSAİT SAAT: "musait_saatler" aracını hizmet_id + tarih ile çağır (müşteri saat söylediyse saat'i MUTLAKA ver; gün dilimi söylendiyse zaman_dilimi; personel söylendiyse personel_id).
+   - tam_eslesme=true dönerse: istenen saat uygun → ALTERNATİF SUNMA, seçenek okuma; doğrudan 8. adımdaki onay cümlesine geç (gün için seçeneğin "gun" alanını kullan).
+   - Aksi halde: müşteri saat söylediyse önce "O saat dolu" de, sonra dönen seçenekleri (en fazla 2) "gun" alanı ve personel adıyla öner. istenen_gun_dolu=true ise o günün dolu olduğunu söyle. Seçenek yoksa başka gün/dilim öner.
+7. SAAT SEÇİMİ (yalnız seçenek sunulduysa).
+8. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te [personel] ile [hizmet] için randevu talebi oluşturayım mı?" ([gün] = seçeneğin "gun" alanı, ör. "Çarşamba, 18 Kasım")
 9. Onay gelince "randevu_olustur" (seçilen seçeneğin tarih_saat ve personel_id'si + hizmet_id). ok=false ve saat dolu derse yeniden musait_saatler çağır ve yeni saat öner.
 10. SONUÇ: Randevu TALEP olarak oluşturulur (işletme onaylar): "[gün] saat [saat] için [personel] ile randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz." randevu_olustur sonucunda bilgilendirme_gonderildi=true ise ardından "Size bilgilendirme mesajı ilettim." ekle; false ise mesajdan HİÇ bahsetme. En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde (güncellemede bilgilendirme_gonderildi'ye göre) bu soruyu sor.
 11. KAPANIŞ: Müşteri "yok, teşekkürler" derse "veda" çağır; yeni bir isteği varsa 2. adımdan devam et.
@@ -510,9 +542,12 @@ PROMPT;
         $ayAd = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
         $out = '';
         $t = now('Europe/Istanbul')->startOfDay();
-        for ($i = 0; $i < 15; $i++) {
+        $buPzt = (clone $t)->startOfWeek(); // Pazartesi
+        for ($i = 0; $i < 22; $i++) {
             $g = (clone $t)->addDays($i);
-            $etiket = $i === 0 ? ' (BUGÜN)' : ($i === 1 ? ' (YARIN)' : ($i >= 7 ? ' (haftaya)' : ''));
+            $hafta = intdiv($buPzt->diffInDays($g), 7);
+            $hEt = $hafta === 0 ? 'bu hafta' : ($hafta === 1 ? 'önümüzdeki hafta' : "{$hafta} hafta sonra");
+            $etiket = ' (' . ($i === 0 ? 'BUGÜN, ' : ($i === 1 ? 'YARIN, ' : '')) . $hEt . ')';
             $out .= $gunAd[(int) $g->format('w')] . ' ' . (int) $g->format('d') . ' ' . $ayAd[(int) $g->format('n')]
                 . ' = ' . $g->format('Y-m-d') . $etiket . "\n";
         }
@@ -793,12 +828,23 @@ PROMPT;
                 $sec[] = ['tarih' => $m2['tarih'], 'saat' => $m2['saat'], 'personel_id' => $sec[0]['personel_id'], 'personel' => $sec[0]['personel']];
             }
         }
-        $sec = array_map(function ($s) { unset($s['_m'], $s['_tam']); return $s; }, $sec);
+        // Musteri GUN+SAAT verdi ve o saat (o gun) bos: alternatif YOK, dogrudan onay.
+        if ($saat && $sec && $sec[0]['_tam'] && $sec[0]['tarih'] === $tarih) {
+            $t = $sec[0];
+            return [
+                'ok' => true,
+                'tam_eslesme' => true,
+                'talimat' => 'İstenen gün ve saat UYGUN. Alternatif SUNMA, saat SORMA: doğrudan onay cümlesini söyle.',
+                'secenekler' => [['tarih' => $t['tarih'], 'gun' => $this->tarihSoz($t['tarih']), 'saat' => $t['saat'], 'personel_id' => $t['personel_id'], 'personel' => $t['personel']]],
+            ];
+        }
+        $sec = array_map(function ($s) { unset($s['_m'], $s['_tam']); $s['gun'] = $this->tarihSoz($s['tarih']); return $s; }, $sec);
         if (!$sec) return ['ok' => true, 'secenekler' => [], 'mesaj' => 'Önümüzdeki 14 günde uygun saat bulunamadı. Başka gün/dilim ya da başka personel öner.'];
         return [
             'ok' => true,
             'istenen_tarih' => $tarih,
             'istenen_gun_dolu' => $sec[0]['tarih'] !== $tarih,
+            'istenen_saat_dolu' => (bool) $saat,
             'secenekler' => $sec,
         ];
     }

@@ -366,15 +366,34 @@ class SesliRandevuCozService
         foreach ($this->gunler as $ad => $dow) {
             if (preg_match('/\b' . $ad . '\b/u', $fold)) {
                 $hedef = $bugun->copy()->next($dow);            // her zaman ILERI tarih
-                // "haftaya / gelecek hafta / onumuzdeki hafta carsamba" -> gelecek haftaya kaydir.
+                // "haftaya / gelecek hafta / onumuzdeki hafta carsamba" -> GELECEK TAKVIM HAFTASI (Pzt-Paz)
+                // icindeki o gun. (Pazar gunu "onumuzdeki hafta carsamba" = 3 gun sonra, 10 gun sonra degil.)
                 if (preg_match('/\bhaftaya\b|\b(gelecek|onumuzdeki|onumuzdaki) hafta\b/u', $fold)) {
-                    $hedef->addWeek();
+                    $pzt = $bugun->copy()->next(Carbon::MONDAY);
+                    $hedef = $dow === Carbon::MONDAY ? $pzt : $pzt->copy()->next($dow);
                 }
                 return $hedef->toDateString();
             }
         }
 
+        // 5) Gunsuz hafta ifadesi: "haftaya bugun" -> +7 gun; "onumuzdeki/gelecek hafta", "haftaya" -> gelecek Pazartesi
+        if (preg_match('/\bhaftaya bugun\b/u', $fold)) return $bugun->copy()->addWeek()->toDateString();
+        if (preg_match('/\bhaftaya\b|\b(gelecek|onumuzdeki|onumuzdaki) hafta/u', $fold)) {
+            return $bugun->copy()->next(Carbon::MONDAY)->toDateString();
+        }
+
         return null;
+    }
+
+    /**
+     * Yalniz zaman cozumu (sesli santral asistani icin): serbest cumleden tarih (Y-m-d), saat (H:i), vakit.
+     * Musteri/hizmet aramasi YAPMAZ (DB'siz, hizli).
+     * @return array{tarih:?string, saat:?string, vakit:?string}
+     */
+    public function zamanCoz($metin)
+    {
+        $fold = $this->fold($metin);
+        return ['tarih' => $this->tarihCoz($fold), 'saat' => $this->saatCoz($fold), 'vakit' => $this->vakitBul($fold)];
     }
 
     /* ------------------------------------------------------------------ */
@@ -416,6 +435,14 @@ class SesliRandevuCozService
             || preg_match('/\b(?:ogleden sonra|aksam|sabah)\s+(\d{1,2})\b/u', $fold, $m)
             || preg_match('/\b(\d{1,2})\s*(?:gibi|sularinda|civari|civarinda|dolaylarinda)\b/u', $fold, $m)
             || preg_match('/\b(\d{1,2})[\'’]?\s*[ae]\s+dogru\b/u', $fold, $m)) {
+            return $this->saatFormat((int) $m[1], 0, $ogledenSonra, $sabah, false);
+        }
+
+        // 4) Yalin saat gun/tarih ifadesinin hemen ardindan: "carsamba 14", "persembe 10",
+        //    "yarin 3", "10 aralik 15" (sonrasinda ay/gun/hafta gelmiyorsa saat sayilir).
+        $ayRe = implode('|', array_keys($this->aylar));
+        if (preg_match('/\b(?:pazartesi|sali|carsamba|persembe|cuma|cumartesi|pazar|yarin|bugun)\s+(\d{1,2})\b(?!\s*(?:' . $ayRe . '|gun|hafta|ay)\b)/u', $fold, $m)
+            || preg_match('/\b\d{1,2}\s+(?:' . $ayRe . ')\s+(\d{1,2})\b(?!\s*(?:' . $ayRe . '|gun|hafta|ay)\b)/u', $fold, $m)) {
             return $this->saatFormat((int) $m[1], 0, $ogledenSonra, $sabah, false);
         }
 
