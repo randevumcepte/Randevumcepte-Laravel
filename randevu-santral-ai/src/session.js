@@ -67,8 +67,9 @@ class CagriOturumu {
     // BARGE-IN: musteri GERCEKTEN konusunca (>=2 kelime) AI'nin sesini kes.
     // >=2 kelime sarti: tek kelimelik gurultu/eko blip'i AI'yi bosuna kesmesin.
     const kelime = (metin || '').trim().split(/\s+/).filter(Boolean).length;
-    if (cfg.bargeIn && this.rtp.sesVarMi && kelime >= 2) {
-      log.debug('barge-in: AI susturuluyor (gercek konusma)');
+    if (cfg.bargeIn && (this.rtp.sesVarMi || this._seslendiriyor) && kelime >= 2) {
+      log.info(`barge-in: musteri araya girdi, AI susturuluyor ("${metin}")`);
+      this._kesmeNo = (this._kesmeNo || 0) + 1; // devam eden _seslendir dongusu kalan cumleleri CALMASIN
       this.rtp.sustur();
     }
     this._sessizlikSifirla();
@@ -141,11 +142,20 @@ class CagriOturumu {
 
   async _seslendir(metin) {
     // Cumle-cumle seslendir: ilk cumle hemen calar, sonrakiler o calariken uretilir (algilanan gecikme duser).
+    // BARGE-IN: musteri araya girince (_kesmeNo artar) kalan cumleler URETILMEZ/CALINMAZ.
+    // (Eskiden sustur() yalniz kuyrugu bosaltiyordu; dongu sonraki cumleyi yine calip AI'yi "devam ettiriyordu".)
+    const kesme = this._kesmeNo || 0;
     const cumleler = this._cumlelereBol(metin);
-    for (const c of cumleler) {
-      if (this.kapali) break;
-      const ses = await tts.seslendir(c);
-      if (ses && ses.length) this.rtp.oynat(ses);
+    this._seslendiriyor = true;
+    try {
+      for (const c of cumleler) {
+        if (this.kapali || (this._kesmeNo || 0) !== kesme) break;
+        const ses = await tts.seslendir(c);
+        if (this.kapali || (this._kesmeNo || 0) !== kesme) break; // TTS beklerken kesildiyse calma
+        if (ses && ses.length) this.rtp.oynat(ses);
+      }
+    } finally {
+      this._seslendiriyor = false;
     }
   }
 
