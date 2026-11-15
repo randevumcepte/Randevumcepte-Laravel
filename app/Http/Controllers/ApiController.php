@@ -2284,7 +2284,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     $title .= "Müşteri (Web)";
                     $olusturanText = 'Müşteri (Web)';
                 }
-                if($rh->randevu->salon ==true){
+                if($rh->randevu->salon ==true && !$rh->randevu->easistan){
                     $title .= $rh->randevu->olusturan_personel->name ?? "Belirtilmemiş";
                     $olusturanText = $rh->randevu->olusturan_personel_id !== null
     ? ($rh->randevu->olusturan_personel->name ?? "Belirtilmemiş")
@@ -8159,7 +8159,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
                 DB::raw(
 
-                    'CASE WHEN randevular.web=1 THEN "Web" WHEN randevular.uygulama=1 THEN "Uygulama" ELSE y1.name END as olusturan'
+                    'CASE WHEN randevular.easistan=1 THEN "Asistan" WHEN randevular.web=1 THEN "Web" WHEN randevular.uygulama=1 THEN "Uygulama" ELSE y1.name END as olusturan'
 
                 ),
 

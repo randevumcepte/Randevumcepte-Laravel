@@ -3170,8 +3170,10 @@ public function carkverilerigetir(Request $request)
             $html.="Web";
         if($randevu->uygulama)
             $html.="Uygulama";
-        if($randevu->salon)
-            $html.= "Salon (".$randevu->olusturan_personel->name.")";
+        if($randevu->easistan)
+            $html.="Asistan";
+        elseif($randevu->salon)
+            $html.= "Salon (".(optional($randevu->olusturan_personel)->name ?? '').")";
         $html .= '
             </td></tr>
             <tr><td>Geldi mi?</td><td>:</td><td>';
@@ -4465,8 +4467,8 @@ public function carkverilerigetir(Request $request)
             $title .= "\nOluşturan:";
             if($rh->randevu->web == true)
                 $title .= "Web";
-            if($rh->randevu->salon == true) 
-                $title .= $rh->randevu->olusturan_personel_id !== null ? $rh->randevu->olusturan_personel->name : "";
+            if($rh->randevu->salon == true && !$rh->randevu->easistan) 
+                $title .= $rh->randevu->olusturan_personel_id !== null ? optional($rh->randevu->olusturan_personel)->name : "";
             if($rh->randevu->uygulama == true)
                 $title .= "Uygulama";
             if($rh->randevu->easistan == true)
@@ -14807,8 +14809,8 @@ private function ayAdiCevir($ingilizceAy)
                 $title .= "\nOluşturan:";
                 if($rh->randevu->web)
                     $title .= "Web";
-                if($rh->randevu->salon)
-                    $title .= $rh->randevu->olusturan_personel->name;
+                if($rh->randevu->salon && !$rh->randevu->easistan)
+                    $title .= optional($rh->randevu->olusturan_personel)->name;
                 if($rh->randevu->uygulama)
                     $title .= "Uygulama";
                 if($rh->randevu->easistan)
@@ -19346,7 +19348,7 @@ DB::raw('
         'cihazlar.cihaz_adi as cihaz_adi',
         DB::raw('DATE_FORMAT(randevular.saat, "%H:%i") as saat'),
         DB::raw('CONCAT(COALESCE(SUM(randevu_hizmetler.fiyat),0) ," ₺") as toplam'),
-        DB::raw('CASE WHEN randevular.web=1 THEN "Web" WHEN randevular.uygulama=1 THEN "Uygulama" ELSE y1.name END as olusturan'),
+        DB::raw('CASE WHEN randevular.easistan=1 THEN "Asistan" WHEN randevular.web=1 THEN "Web" WHEN randevular.uygulama=1 THEN "Uygulama" ELSE y1.name END as olusturan'),
         DB::raw('CONCAT("<span style=\"display:none\">",UNIX_TIMESTAMP(randevular.created_at),"</span>",DATE_FORMAT(randevular.created_at, "%d.%m.%Y %H:%i")) as olusturulma'),
         DB::raw('CASE
             WHEN randevular.randevuya_geldi = 1 AND EXISTS(SELECT 1 FROM adisyon_paket_seanslar aps_h WHERE aps_h.randevu_id = randevular.id) THEN
