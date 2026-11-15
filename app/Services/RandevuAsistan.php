@@ -169,7 +169,9 @@ class RandevuAsistan
             if (empty($toolUse)) break; // duz dialog cevabi -> tur bitti
 
             // assistant turunu (tool_use bloklariyla) ekle
-            $messages[] = ['role' => 'assistant', 'content' => $content];
+            // KRITIK: json_decode(assoc) parametresiz aracin input'unu {} -> [] yapar; API geri gonderilen
+            // tool_use.input'un NESNE olmasini ister (yoksa 400 -> tur yarim kalir, "sunalım..." deyip susar).
+            $messages[] = ['role' => 'assistant', 'content' => $this->aracGirdisiNesne($content)];
 
             $sonuclar = [];
             foreach ($toolUse as $tu) {
@@ -248,6 +250,10 @@ class RandevuAsistan
         // Yol tarifi gonderildiyse (ayni turda baska bir is yoksa) sabit, net cumle:
         if ($yolTarifiGitti && $aksiyon === null && !$bitir) {
             $cevap = 'Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?';
+        }
+        // Randevu TALEP olarak olusur: model "randevunuz kaydedildi/oluşturuldu" dese de "randevu talebiniz" de
+        if ($aksiyon === 'randevu') {
+            $cevap = preg_replace('/\brandevunuz\s+(başarıyla\s+)?(kaydedildi|oluşturuldu|alındı)/iu', 'randevu talebiniz oluşturuldu', $cevap);
         }
         if ($isTamamlandi && !$bitir && $aksiyon !== 'aktar') $cevap = $this->baskaYardimEkle($cevap);
         return [
@@ -527,6 +533,18 @@ class RandevuAsistan
         $parca = [];
         foreach (array_slice($liste, 0, 4) as $i => $r) $parca[] = ($i + 1) . '. ' . $this->randevuSoz($r);
         return count($liste) . ' randevunuz var: ' . implode(', ', $parca) . '. Hangisini ' . ($iptal ? 'iptal edelim?' : 'değiştirelim?');
+    }
+
+    /** tool_use bloklarinda bos/dizi input'u JSON nesnesine cevir ({} olarak gitsin). */
+    protected function aracGirdisiNesne(array $content): array
+    {
+        foreach ($content as $i => $b) {
+            if (($b['type'] ?? '') === 'tool_use') {
+                $in = $b['input'] ?? [];
+                $content[$i]['input'] = (is_array($in) && $in !== []) ? $in : new \stdClass();
+            }
+        }
+        return $content;
     }
 
     /** "Bir moment", "biraz bekleteceğim", "kontrol ediyorum" gibi kisa bekletme cumlelerini cevaptan atar. */

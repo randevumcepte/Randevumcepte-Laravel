@@ -157,6 +157,7 @@ if ($TEL) {
         $o = new Oturum($TEL);
         $r = $o->soyle('Yol tarifi almak istiyorum, konum gönderebilir misiniz');
         kontrol('ilk istekte gönderir', var_mi($r['cevap'], 'mesaj olarak ilettim'), $r['cevap']);
+        kontrol('model çağrısı hatasız (http_4xx yok)', strpos((string) $r['teshis'], 'http_') !== 0, (string) $r['teshis']);
         kontrol('kapanış sorusu', var_mi($r['cevap'], 'Başka yardımcı olabileceğim'));
         kontrol('"Size nasıl yardımcı olabilirim" tekrar etmez', !var_mi($r['cevap'], 'Size nasıl yardımcı'));
         $o->bitir();
@@ -179,6 +180,7 @@ if ($TEL) {
             else break;
         }
         kontrol('randevu aksiyonu', $r['aksiyon'] === 'randevu', (string) $r['aksiyon']);
+        kontrol('model çağrısı hatasız (http_4xx yok)', strpos((string) $r['teshis'], 'http_') !== 0, (string) $r['teshis']);
         kontrol('TALEP olarak bildirir', var_mi($r['cevap'], 'talebiniz oluşturuldu'), $r['cevap']);
         kontrol('kapanış sorusu', var_mi($r['cevap'], 'Başka yardımcı olabileceğim'));
         $o->bitir();

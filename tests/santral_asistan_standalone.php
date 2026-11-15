@@ -304,6 +304,14 @@ namespace {
     icerir('paket: süreli/sınırsız', 'süreli/sınırsız', $ps);
     icerir('paket: personel tanımsız', 'takvimi açık tüm personel uygun', $ps);
 
+    bolum('API uyumu: parametresiz aracın girdisi JSON nesnesi gider');
+    $icerik = json_decode('{"content":[{"type":"text","text":"Bakıyorum"},{"type":"tool_use","id":"t1","name":"mevcut_randevular","input":{}},{"type":"tool_use","id":"t2","name":"musait_saatler","input":{"hizmet_id":5}}]}', true)['content'];
+    esit('json_decode sonrası (hata kaynağı) dizi olur', '[]', json_encode($icerik[1]['input']));
+    $duz = cagir($a, 'aracGirdisiNesne', $icerik);
+    esit('boş girdi {} olarak gider', '{}', json_encode($duz[1]['input']));
+    esit('dolu girdi korunur', '{"hizmet_id":5}', json_encode($duz[2]['input']));
+    esit('metin bloğu dokunulmaz', 'Bakıyorum', $duz[0]['text']);
+
     bolum('TTS temizliği');
     icerir('uzun numara rakam rakam', '5 3 2', cagir($a, 'ttsTemizle', 'Numaranız 5321112233 doğru mu?'));
 
