@@ -38,6 +38,7 @@ class RandevuAsistan
     /** Arayan numarasi gizli/gecersizdi ve kayitta telefon alindiysa: oturuma yazilsin diye kopru controller'i okur. */
     public ?string $yeniTelefon = null;
     protected ?array $_personeller = null;
+    protected ?array $_paketler = null;
     protected AiAsistanController $ctrl;
 
     public function __construct(int $salonId, ?string $telefon = null)
@@ -59,6 +60,10 @@ class RandevuAsistan
         // Restoran santrali ile ayni kalip: "<isletme> hoş geldiniz, ben yapay zeka asistanınızım. ..."
         $hosgeldin = $this->hosgeldinMetni();
         if ($this->musteriAd) {
+            $paketCumle = $this->paketTeklifCumlesi();
+            if ($paketCumle !== '') {
+                return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım. {$paketCumle}";
+            }
             return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?";
         }
         $ilk = mb_strtoupper(mb_substr($hosgeldin, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($hosgeldin, 1, null, 'UTF-8');
@@ -369,22 +374,29 @@ class RandevuAsistan
         foreach ($this->personelListesi() as $pid => $pad) $personelSatir .= "- {$pad} (personel_id {$pid})\n";
         if ($personelSatir === '') $personelSatir = "(randevu takvimi açık personel yok — randevu verilemez, müşteriyi operatöre aktar)\n";
         $adresSatir = trim((string) ($this->salon['adres'] ?? '')) ?: 'kayıtlı değil';
+        $paketSatir = $this->paketSatirlari();
 
         return <<<PROMPT
 Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal Türkçe konuşuyorsun. Çıktın düz metindir (TTS ile okunur): emoji, madde işareti, markdown KULLANMA. Her yanıt 1-2 cümle.
 
 # AKIŞ (adımları atlama)
 1. SELAMLAMA zaten TTS ile çalındı — TEKRAR ETME. İşletme adına "-da/-de/-a/-e/-ye" eki EKLEME. Arayan KAYITLI DEĞİLSE önce BAĞLAM'daki KAYIT ADIMI'nı tamamla; kayıtlıysa doğrudan niyete geç.
-2. NİYET: yeni randevu mu, iptal mi, güncelleme mi, başka bir şey mi?
+2. NİYET: yeni randevu mu, iptal mi, güncelleme mi, başka bir şey mi? (Müşterinin paketi varsa karşılamada paket teklif edildi: aşağıdaki PAKET AKIŞI'na bak.)
 3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise onaylatmadan devam et; coklu ise seçenekleri kısaca oku ve seçtir; yok ise "o hizmetimiz yok" de ve dönen önerileri sun.
 4. TARİH: "TARİH HARİTASI" tablosundan kesin ISO tarihi AL, kendin hesaplama. Belirsizse tek cümleyle teyit et.
-5. PERSONEL: müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") PERSONELLER listesinden eşleştir ve personel_id'yi kullan; listede yoksa "o isimde personelimiz yok" de ve listeden say. Söylemediyse personel SORMA (uygun personel otomatik seçilir).
+5. PERSONEL: müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") PERSONELLER listesinden eşleştir ve personel_id'yi kullan; listede yoksa "o isimde personelimiz yok" de ve listeden say. Söylemediyse personel SORMA (uygun personel otomatik seçilir) — İSTİSNA: paketten randevuda uygun personeli say ve tercih sor (PAKET AKIŞI).
 6. MÜSAİT SAAT: "musait_saatler" aracını hizmet_id + tarih ile çağır (saat/gün dilimi söylendiyse ver; personel söylendiyse personel_id ver). Dönen seçenekleri (en fazla 2) personel adıyla öner: "[saat]'te [personel] ile ya da [saat]'te ...". istenen_gun_dolu=true ise önce o günün dolu olduğunu söyle. Seçenek yoksa başka gün/dilim öner.
 7. SAAT SEÇİMİ.
 8. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te [personel] ile [hizmet] için randevu, onaylıyor musunuz?"
 9. Onay gelince "randevu_olustur" (seçilen seçeneğin tarih_saat ve personel_id'si + hizmet_id). ok=false ve saat dolu derse yeniden musait_saatler çağır ve yeni saat öner.
 10. SONUÇ: "Randevunuz oluşturuldu, [gün] saat [saat]'te bekliyoruz." randevu_olustur sonucunda bilgilendirme_gonderildi=true ise ardından "Size bilgilendirme mesajı ilettim." ekle; false ise mesajdan HİÇ bahsetme. En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde (güncellemede bilgilendirme_gonderildi'ye göre) bu soruyu sor.
 11. KAPANIŞ: Müşteri "yok, teşekkürler" derse "veda" çağır; yeni bir isteği varsa 2. adımdan devam et.
+
+PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada "paketiniz bulunmaktadır, randevu oluşturmak ister misiniz?" soruldu.
+- Evet / olur / tabii / oluşturalım vb. derse paketten randevu: hizmet_eslestir ÇAĞIRMA, hizmet_id'yi PAKETLER'den al. Pakette birden fazla hizmet ya da birden fazla paket varsa hangisi için olduğunu sor.
+- Hizmet belli olunca o hizmete UYGUN PERSONELİ PAKETLER'deki listeden adlarıyla say ve tercihini sor (ör. "Bu hizmet için Ayşe Hanım ve Zeynep Hanım uygun, tercih ettiğiniz biri var mı?"). Tek kişiyse onu söyle. "Fark etmez" derse personel_id verme. Listede olmayan personeli önerme.
+- Sonra normal akış: tarih → musait_saatler (paket hizmet_id + seçilen personel_id) → saat → onay → randevu_olustur. Seans pakete otomatik bağlanır; sonuçta paket_seansi=true ise "paketinizden" de.
+- Hayır derse ya da başka bir şey isterse paketi bırak, normal akışa geç.
 
 İPTAL/GÜNCELLEME: önce "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat. İptalde "randevu_iptal". Güncellemede yeni gün/saat için "musait_saatler"i o randevunun hizmet_id ve personel_id'si ile çağır, onay al, sonra "randevu_guncelle". Yalnız mevcut_randevular'ın döndüğü id'leri kullan.
 
@@ -417,6 +429,7 @@ Hizmetler (yalnızca bağlam; eşleştirmeyi SEN yapma, hizmet_eslestir kullan):
 {$hizmetSatir}
 PERSONELLER (randevu takvimi açık olanlar):
 {$personelSatir}
+PAKETLER (kullanılabilir): {$paketSatir}
 PROMPT;
     }
 
@@ -520,6 +533,114 @@ PROMPT;
     // ------------------------------------------------ personel / musaitlik / randevu
     // Eski santral (randevu_ai) ve uygulama ile AYNI kaynaklar: SesliRandevuCozService::musaitlikBul
     // (personelin calisma saati + dolu araliklari) ve ApiController@randevuekleguncelle (panel/app yolu).
+
+    // ------------------------------------------------ paket
+    /**
+     * Musterinin KULLANILABILIR paketleri. Secim mantigi ApiController@randevuekleguncelle'deki
+     * otomatik seans baglama ile AYNI (adisyon_paketler.seans_sayisi > 0, otomatik_randevu_olusturuldu != 1,
+     * hizmet bazinda acilmis seans < seans_sayisi, gecerlilik suresi dolmamis; sinirsiz paket = sure/limit uygunsa).
+     * Boylece paket hizmetiyle randevu_olustur cagrilinca seans pakete KENDILIGINDEN baglanir.
+     * @return array<int, array{adisyon_paket_id:int, paket_adi:string, hizmetler:array}>
+     */
+    protected function paketler(): array
+    {
+        if ($this->_paketler !== null) return $this->_paketler;
+        $out = [];
+        if (!$this->musteriId) return $this->_paketler = [];
+        try {
+            $sinirsizKolon = PaketGecerlilik::kolonVar();
+            $sec = ['adisyon_paketler.id', 'adisyon_paketler.paket_id', 'adisyon_paketler.seans_sayisi', 'paketler.paket_adi'];
+            if ($sinirsizKolon) $sec[] = 'adisyon_paketler.sinirsiz';
+            $satirlar = \DB::table('adisyon_paketler')
+                ->join('adisyonlar', 'adisyon_paketler.adisyon_id', '=', 'adisyonlar.id')
+                ->join('paketler', 'paketler.id', '=', 'adisyon_paketler.paket_id')
+                ->where('adisyonlar.user_id', $this->musteriId)
+                ->where('adisyonlar.salon_id', $this->salonId)
+                ->where(function ($q) use ($sinirsizKolon) {
+                    $q->where('adisyon_paketler.seans_sayisi', '>', 0);
+                    if ($sinirsizKolon) $q->orWhere('adisyon_paketler.sinirsiz', 1);
+                })
+                ->where(function ($q) {
+                    $q->whereNull('adisyon_paketler.otomatik_randevu_olusturuldu')
+                      ->orWhere('adisyon_paketler.otomatik_randevu_olusturuldu', '!=', 1);
+                })
+                ->orderBy('adisyonlar.tarih', 'asc')->select($sec)->get();
+
+            $bugun = now('Europe/Istanbul')->format('Y-m-d');
+            $acik = $this->personelListesi();
+            foreach ($satirlar as $ap) {
+                if (PaketGecerlilik::suresiDoldu($ap->id, $bugun)) continue;
+                $sinirsiz = !empty($ap->sinirsiz);
+                $hizmetler = [];
+                $ph = \DB::table('paket_hizmetler')->join('hizmetler', 'hizmetler.id', '=', 'paket_hizmetler.hizmet_id')
+                    ->where('paket_hizmetler.paket_id', $ap->paket_id)->get(['paket_hizmetler.hizmet_id', 'hizmetler.hizmet_adi']);
+                foreach ($ph as $h) {
+                    $hid = (int) $h->hizmet_id;
+                    $kalan = null;
+                    if (!$sinirsiz) {
+                        $acilan = (int) \DB::table('adisyon_paket_seanslar')->where('adisyon_paket_id', $ap->id)->where('hizmet_id', $hid)->count();
+                        $kalan = (int) $ap->seans_sayisi - $acilan;
+                        if ($kalan <= 0) continue;
+                    } elseif (!PaketGecerlilik::seansUygun($ap->id, $hid, $bugun)) {
+                        continue;
+                    }
+                    // Paket hizmetini VEREN ve takvimi acik personel (yalniz eslesenler; liste bossa "tum personel")
+                    $veren = PersonelHizmetler::where('hizmet_id', $hid)->whereIn('personel_id', array_keys($acik) ?: [0])
+                        ->pluck('personel_id')->map(function ($v) { return (int) $v; })->unique()->values()->all();
+                    $personel = [];
+                    foreach ($veren as $pid) if (isset($acik[$pid])) $personel[] = ['personel_id' => $pid, 'ad' => $acik[$pid]];
+                    $hizmetler[] = ['hizmet_id' => $hid, 'ad' => trim((string) $h->hizmet_adi), 'kalan_seans' => $kalan, 'personeller' => $personel];
+                }
+                if ($hizmetler) {
+                    $out[] = ['adisyon_paket_id' => (int) $ap->id, 'paket_adi' => trim((string) $ap->paket_adi), 'hizmetler' => $hizmetler];
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('RandevuAsistan paketler: ' . $e->getMessage());
+            $out = [];
+        }
+        return $this->_paketler = $out;
+    }
+
+    /** "X paketiniz bulunmaktadır, bu paket için randevu oluşturmak ister misiniz?" (paket yoksa ''). */
+    protected function paketTeklifCumlesi(): string
+    {
+        $p = $this->paketler();
+        if (!$p) return '';
+        $adlar = [];
+        foreach ($p as $x) $adlar[$x['paket_adi']] = $this->paketAdiSoz($x['paket_adi']);
+        $adlar = array_values($adlar);
+        if (count($adlar) === 1) {
+            return "{$adlar[0]} bulunmaktadır, bu paket için randevu oluşturmak ister misiniz?";
+        }
+        $son = array_pop($adlar);
+        return implode(', ', $adlar) . " ve {$son} bulunmaktadır, bu paketlerden biri için randevu oluşturmak ister misiniz?";
+    }
+
+    /** "Lazer" -> "Lazer paketiniz"; adinda zaten "paket" geciyorsa ("Lazer Paketi") -> "Lazer Paketi". */
+    protected function paketAdiSoz(string $ad): string
+    {
+        return preg_match('/paket/iu', $ad) ? $ad : "{$ad} paketiniz";
+    }
+
+    /** Prompt BAGLAM satirlari. */
+    protected function paketSatirlari(): string
+    {
+        $p = $this->paketler();
+        if (!$p) return 'yok';
+        $out = '';
+        foreach ($p as $x) {
+            $out .= "\n- Paket: {$x['paket_adi']}";
+            foreach ($x['hizmetler'] as $h) {
+                $kalan = $h['kalan_seans'] === null ? 'süreli/sınırsız' : "{$h['kalan_seans']} seans kaldı";
+                $pers = $h['personeller']
+                    ? implode(', ', array_map(function ($q) { return "{$q['ad']} (personel_id {$q['personel_id']})"; }, $h['personeller']))
+                    : 'hizmete özel personel tanımlı değil (takvimi açık tüm personel uygun)';
+                $out .= "\n  * {$h['ad']} (hizmet_id {$h['hizmet_id']}, {$kalan}) — uygun personel: {$pers}";
+            }
+        }
+        return $out;
+    }
 
     /** Randevu takvimi ACIK personeller: [id => ad] (takvimde_gorunsun=1, arsivli degil). */
     protected function personelListesi(): array
@@ -714,7 +835,9 @@ PROMPT;
             Log::warning('RandevuAsistan randevuOlustur: kayit bulunamadi', ['yanit' => $r]);
             return ['ok' => false, 'hata' => 'Randevu şu an oluşturulamadı. Müşteriye özür dile, yetkiliye aktarmayı teklif et.'];
         }
-        return ['ok' => true, 'randevu_id' => (int) $rid, 'tarih' => $tarih, 'saat' => $saat, 'personel' => $this->personelListesi()[$personelId] ?? null, 'bilgilendirme_gonderildi' => $this->bilgilendirmeAcik()];
+        return ['ok' => true, 'randevu_id' => (int) $rid, 'tarih' => $tarih, 'saat' => $saat, 'personel' => $this->personelListesi()[$personelId] ?? null, 'bilgilendirme_gonderildi' => $this->bilgilendirmeAcik(),
+            // randevuekleguncelle paket seansini kendisi baglar; baglandiysa asistan "paketinizden" diyebilsin
+            'paket_seansi' => \App\AdisyonPaketSeanslar::where('randevu_id', $rid)->whereNotNull('adisyon_paket_id')->exists()];
     }
 
     /** Panel > SMS ayarlari > "Randevu Oluşturulduğunda" (ayar 12) musteri acik mi? Aciksa randevuekleguncelle WA-first/SMS gonderir. */
