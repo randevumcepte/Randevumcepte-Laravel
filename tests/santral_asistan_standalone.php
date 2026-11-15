@@ -312,6 +312,11 @@ namespace {
     esit('dolu girdi korunur', '{"hizmet_id":5}', json_encode($duz[2]['input']));
     esit('metin bloğu dokunulmaz', 'Bakıyorum', $duz[0]['text']);
 
+    bolum('Randevu TALEP ifadesi');
+    esit('cümle başı büyük harf korunur', 'Randevu talebiniz oluşturuldu. Bilgilendirme mesajı ilettim.', cagir($a, 'talepIfadesi', 'Randevunuz kaydedildi. Bilgilendirme mesajı ilettim.'));
+    esit('cümle içi küçük harf', "Perşembe 11:00'te randevu talebiniz oluşturuldu.", cagir($a, 'talepIfadesi', "Perşembe 11:00'te randevunuz başarıyla oluşturuldu."));
+    esit('"talebiniz" zaten varsa dokunmaz', 'Randevu talebiniz oluşturuldu.', cagir($a, 'talepIfadesi', 'Randevu talebiniz oluşturuldu.'));
+
     bolum('TTS temizliği');
     icerir('uzun numara rakam rakam', '5 3 2', cagir($a, 'ttsTemizle', 'Numaranız 5321112233 doğru mu?'));
 

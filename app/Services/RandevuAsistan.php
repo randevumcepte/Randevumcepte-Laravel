@@ -253,7 +253,7 @@ class RandevuAsistan
         }
         // Randevu TALEP olarak olusur: model "randevunuz kaydedildi/oluşturuldu" dese de "randevu talebiniz" de
         if ($aksiyon === 'randevu') {
-            $cevap = preg_replace('/\brandevunuz\s+(başarıyla\s+)?(kaydedildi|oluşturuldu|alındı)/iu', 'randevu talebiniz oluşturuldu', $cevap);
+            $cevap = $this->talepIfadesi($cevap);
         }
         if ($isTamamlandi && !$bitir && $aksiyon !== 'aktar') $cevap = $this->baskaYardimEkle($cevap);
         return [
@@ -533,6 +533,14 @@ class RandevuAsistan
         $parca = [];
         foreach (array_slice($liste, 0, 4) as $i => $r) $parca[] = ($i + 1) . '. ' . $this->randevuSoz($r);
         return count($liste) . ' randevunuz var: ' . implode(', ', $parca) . '. Hangisini ' . ($iptal ? 'iptal edelim?' : 'değiştirelim?');
+    }
+
+    /** "Randevunuz kaydedildi/oluşturuldu" -> "Randevu talebiniz oluşturuldu" (buyuk/kucuk harf korunur). */
+    protected function talepIfadesi(string $c): string
+    {
+        return preg_replace_callback('/\b(r|R)andevunuz\s+(başarıyla\s+)?(kaydedildi|oluşturuldu|alındı)/u', function ($m) {
+            return ($m[1] === 'R' ? 'R' : 'r') . 'andevu talebiniz oluşturuldu';
+        }, $c);
     }
 
     /** tool_use bloklarinda bos/dizi input'u JSON nesnesine cevir ({} olarak gitsin). */
