@@ -103,10 +103,14 @@ class RandevuAsistan
         }
         // KESIN AKTARMA: "beni işletmeye/yetkiliye bağlar mısın", "operatör", "biriyle görüşmek istiyorum" ->
         // LLM'e sormadan aktar (STT "işletmeye"yi "genişletme" duysa bile "bağlar mısın" yakalanir).
-        if ($this->aktarmaIstegiMi($metin)) {
-            Log::info('[SANTRAL-TUR] kesin aktarma', ['salon' => $this->salonId, 'metin' => $metin]);
+        $fiyatSorusu = !$this->aktarmaIstegiMi($metin) && $this->fiyatSorusuMu($metin);
+        if ($fiyatSorusu || $this->aktarmaIstegiMi($metin)) {
+            Log::info('[SANTRAL-TUR] kesin aktarma', ['salon' => $this->salonId, 'metin' => $metin, 'fiyat' => $fiyatSorusu]);
             $this->teshis = 'aktar';
-            return ['cevap' => 'Sizi hemen yetkili bir arkadaşımıza bağlıyorum, lütfen hatta kalın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
+            $cevap = $fiyatSorusu
+                ? 'Fiyat bilgisi için sizi hemen işletmemize bağlıyorum, lütfen hatta kalın.'
+                : 'Sizi hemen yetkili bir arkadaşımıza bağlıyorum, lütfen hatta kalın.';
+            return ['cevap' => $cevap, 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
         }
         // IPTAL / DEGISTIRME NIYETI -> randevulari KOD soyler (restoran "mevcut rezervasyon" kalibi; LLM/arac turu yok,
         // "sunalım..." deyip susma olmaz). Liste zaten okunduysa (son asistan mesajinda) tekrar etme, modele birak.
@@ -342,6 +346,14 @@ class RandevuAsistan
         return trim(implode(' ', $kalan));
     }
 
+    /** Fiyat/ucret sorusu mu? ("saç kesimi ne kadar", "fiyatı nedir", "kaç lira") -> isletmeye aktarilir. */
+    protected function fiyatSorusuMu(string $m): bool
+    {
+        $f = mb_strtolower(strtr($m, ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
+        if (preg_match('/ne kadar (sür|zaman|vakit|bekle|erken|önce)/u', $f)) return false; // sure sorusu, fiyat degil
+        return (bool) preg_match('/fiyat|ücret|kaç (para|lira|tl|tele)|ne kadar(\s|$|\?)|kaça (yapıyorsunuz|oluyor|olur|yapılıyor)|indirim|kampanya|taksit|kaç taksit/u', $f);
+    }
+
     /** Musteri acikca bir insana/isletmeye baglanmak istiyor mu? */
     protected function aktarmaIstegiMi(string $m): bool
     {
@@ -532,8 +544,8 @@ class RandevuAsistan
 
         $hizmetSatir = '';
         foreach (array_slice($this->salon['hizmetler'] ?? [], 0, 40) as $h) {
-            $f = isset($h['fiyat']) && $h['fiyat'] ? ' (' . $h['fiyat'] . ' TL)' : '';
-            $hizmetSatir .= '- ' . ($h['ad'] ?? '') . $f . "\n";
+            // Fiyat BILEREK verilmez: fiyat sorulari isletmeye aktarilir (isletme talebi).
+            $hizmetSatir .= '- ' . ($h['ad'] ?? '') . "\n";
         }
         if ($hizmetSatir === '') $hizmetSatir = "(hizmet listesi boş — müşteriyi operatöre aktar)\n";
 
@@ -610,7 +622,7 @@ Saat kestirimi: "on dörtte"=14:00, "on dört buçukta"=14:30, "ikide/saat ikide
 {$harita}
 
 # AKTARMA (sadece bunlarda "aktar")
-Müşteri açıkça operatör/insan/yetkili/işletmeye bağlanmak isterse ("beni bağlar mısınız", "işletmeye bağlayın", "biriyle görüşmek istiyorum") HİÇ SORU SORMADAN hemen "aktar" çağır — bunu hizmet sanma, hizmet_eslestir ÇAĞIRMA. YA DA randevu/iptal/güncelleme dışı konu (şikayet, fatura, ödeme) olursa. Hizmet bulunamadı diye AKTARMA — sormaya devam et.
+FİYAT/ÜCRET/İNDİRİM/KAMPANYA soruları ("ne kadar", "fiyatı nedir", "kaç lira") → fiyat SÖYLEME, "Fiyat bilgisi için sizi işletmemize bağlıyorum" deyip "aktar" çağır. Müşteri açıkça operatör/insan/yetkili/işletmeye bağlanmak isterse ("beni bağlar mısınız", "işletmeye bağlayın", "biriyle görüşmek istiyorum") HİÇ SORU SORMADAN hemen "aktar" çağır — bunu hizmet sanma, hizmet_eslestir ÇAĞIRMA. YA DA randevu/iptal/güncelleme dışı konu (şikayet, fatura, ödeme) olursa. Hizmet bulunamadı diye AKTARMA — sormaya devam et.
 
 # KIRMIZI ÇİZGİLER
 Burası restoran DEĞİL, randevu hattı: kişi sayısı, masa, rezervasyon, sipariş SORMA. Her randevu arayan kişi içindir. Anlamsız/alakasız bir ifade duyarsan (ses tanıma hatası olabilir) tahmin yürütme, ne istediğini kısaca tekrar sor.
