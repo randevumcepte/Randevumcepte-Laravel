@@ -173,6 +173,20 @@ namespace {
     esit('SSS kelimesi geçse de fiyat sorusu → aktar', 'aktar', $d['aksiyon']);
 
     // =====================================================================================
+    bolum('Hizmet süresi sorusu (kodla, gerçek süre)');
+    $ah = asistan(['salon' => ['ad' => 'Randevumcepte', 'karsilama' => '', 'adres' => '', 'hizmetler' => [
+        ['id' => 5, 'ad' => 'Saç Kesimi', 'fiyat' => 300, 'sure_dk' => 30], ['id' => 9, 'ad' => 'Lazer Epilasyon', 'fiyat' => 900, 'sure_dk' => 0],
+        ['id' => 11, 'ad' => 'Saç Kesimi Erkek', 'fiyat' => 200, 'sure_dk' => 20]]]]);
+    $d = $ah->konus('Saç kesimi ne kadar sürer?', []);
+    esit('aktarmaz', null, $d['aksiyon']);
+    icerir('gerçek süre', 'Saç Kesimi yaklaşık 30 dakika', $d['cevap']);
+    icerir('kapanış sorusu', 'Başka yardımcı olabileceğim', $d['cevap']);
+    icerir('en uzun ad eşleşir', 'Saç Kesimi Erkek yaklaşık 20 dakika', cagir($ah, 'sureCevabi', 'Erkek saç kesimi değil, saç kesimi erkek kaç dakika'));
+    icerir('süre girilmemiş → uydurmaz', 'kesin süre bilgisi bende kayıtlı değil', cagir($ah, 'sureCevabi', 'Lazer epilasyon ne kadar sürer'));
+    esit('hizmet adı yoksa modele bırakır', null, cagir($ah, 'sureCevabi', 'Ne kadar sürer'));
+    esit('süre sorusu değilse null', null, cagir($ah, 'sureCevabi', 'Saç kesimi randevusu istiyorum'));
+    esit('fiyat sorusu yine aktar', 'aktar', $ah->konus('Saç kesimi ne kadar', [])['aksiyon']);
+
     bolum('Bekletme cümlesi temizliği');
     foreach ([
         'Bir moment, sizi biraz bekleteceğim.' => '',

@@ -115,6 +115,12 @@ class RandevuAsistan
         // IPTAL / DEGISTIRME NIYETI -> randevulari KOD soyler (restoran "mevcut rezervasyon" kalibi; LLM/arac turu yok,
         // "sunalım..." deyip susma olmaz). Liste zaten okunduysa (son asistan mesajinda) tekrar etme, modele birak.
         $direkt = $this->iptalGuncelleGiris($metin, $gecmis);
+        // HIZMET SURESI ("saç kesimi ne kadar sürer") -> gercek sure_dk ile KOD cevaplar (model sure uydurmasin/aktarmasin)
+        if ($direkt === null && ($sureCevap = $this->sureCevabi($metin)) !== null) {
+            Log::info('[SANTRAL-TUR] sure sorusu', ['salon' => $this->salonId, 'metin' => $metin, 'cevap' => $sureCevap]);
+            $this->teshis = 'sure';
+            return ['cevap' => $this->baskaYardimEkle($sureCevap), 'aksiyon' => null, 'veri' => [], 'bitir' => false];
+        }
         if ($direkt === null && ($sss = $this->sssCevap($metin)) !== null) {
             // ISLETMENIN KENDI CEVABI (panel > Santral > Sık Sorulan Sorular): LLM'siz, aynen okunur.
             Log::info('[SANTRAL-TUR] sss', ['salon' => $this->salonId, 'metin' => $metin]);
@@ -436,6 +442,27 @@ class RandevuAsistan
         } catch (\Throwable $e) {
             return $this->_sss = [];
         }
+    }
+
+    /**
+     * Hizmet suresi sorusu mu? Evetse hizmeti salon listesinden bulup gercek sureyi soyleyen cumle.
+     * Hizmet adi gecmiyorsa ya da soru sure sorusu degilse null (model devam eder).
+     */
+    protected function sureCevabi(string $metin): ?string
+    {
+        $m = ' ' . $this->sade($metin) . ' ';
+        if (!preg_match('/ne kadar sur|kac dakika|kac saat sur|suresi ne|ne kadar zaman al|ne kadar vakit al/u', $m)) return null;
+        $bul = null; $uzun = 0;
+        foreach (($this->salon['hizmetler'] ?? []) as $h) {
+            $ad = $this->sade((string) ($h['ad'] ?? ''));
+            if (mb_strlen($ad) >= 3 && strpos($m, ' ' . $ad) !== false && mb_strlen($ad) > $uzun) { $bul = $h; $uzun = mb_strlen($ad); }
+        }
+        if (!$bul) return null;
+        $sure = (int) ($bul['sure_dk'] ?? 0);
+        $ad = trim((string) $bul['ad']);
+        return $sure > 0
+            ? "{$ad} yaklaşık {$sure} dakika sürüyor."
+            : "{$ad} için kesin süre bilgisi bende kayıtlı değil, işletmemiz size net bilgi verebilir.";
     }
 
     /** Turkce harfleri sadelestirip kucult; noktalama at (STT varyasyonlarina toleransli eslesme). */
