@@ -178,7 +178,7 @@ class RandevuAsistan
             // SAHTE BASARI KORUMASI: model randevu_olustur/guncelle ok=true OLMADAN "oluşturuldu/güncellendi"
             // derse (araci hic cagirmadi ya da hata aldi) musteriye yanlis bilgi gitmesin: bir duzeltme turu.
             $sahteBasari = !in_array($aksiyon, ['randevu', 'guncelle'], true)
-                && preg_match('/randevu(nuz|nuzu)?\s+(başarıyla\s+)?(oluşturul|güncellen|kaydedil|alın)/iu', $cevap);
+                && preg_match('/randevu(nuz|nuzu)?\s+(talebiniz\s+)?(başarıyla\s+)?(oluşturul|güncellen|kaydedil|alın)/iu', $cevap);
             if (!$sahteBasari || $deneme > 0 || $bitir) break;
             Log::warning('[SANTRAL-SAHTE-BASARI] model arac basarisi olmadan olusturuldu dedi', [
                 'salon' => $this->salonId, 'musteri' => $this->musteriId, 'cevap' => $cevap, 'hata' => $randevuHatasi,
@@ -193,7 +193,7 @@ class RandevuAsistan
         }
         // Ikinci denemede de arac basarisi yoksa ve hala "olusturuldu" diyorsa: kesin dogru cumle
         if (!in_array($aksiyon, ['randevu', 'guncelle'], true)
-            && preg_match('/randevu(nuz|nuzu)?\s+(başarıyla\s+)?(oluşturul|güncellen|kaydedil|alın)/iu', $cevap)) {
+            && preg_match('/randevu(nuz|nuzu)?\s+(talebiniz\s+)?(başarıyla\s+)?(oluşturul|güncellen|kaydedil|alın)/iu', $cevap)) {
             $cevap = 'Üzgünüm, randevunuzu şu an kaydedemedim. Başka bir saat deneyelim mi, yoksa sizi bir yetkiliye aktarayım mı?';
         }
 
@@ -444,7 +444,7 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal
 7. SAAT SEÇİMİ.
 8. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te [personel] ile [hizmet] için randevu, onaylıyor musunuz?"
 9. Onay gelince "randevu_olustur" (seçilen seçeneğin tarih_saat ve personel_id'si + hizmet_id). ok=false ve saat dolu derse yeniden musait_saatler çağır ve yeni saat öner.
-10. SONUÇ: "Randevunuz oluşturuldu, [gün] saat [saat]'te bekliyoruz." randevu_olustur sonucunda bilgilendirme_gonderildi=true ise ardından "Size bilgilendirme mesajı ilettim." ekle; false ise mesajdan HİÇ bahsetme. En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde (güncellemede bilgilendirme_gonderildi'ye göre) bu soruyu sor.
+10. SONUÇ: Randevu TALEP olarak oluşturulur (işletme onaylar): "[gün] saat [saat] için [personel] ile randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz." randevu_olustur sonucunda bilgilendirme_gonderildi=true ise ardından "Size bilgilendirme mesajı ilettim." ekle; false ise mesajdan HİÇ bahsetme. En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde (güncellemede bilgilendirme_gonderildi'ye göre) bu soruyu sor.
 11. KAPANIŞ: Müşteri "yok, teşekkürler" derse "veda" çağır; yeni bir isteği varsa 2. adımdan devam et.
 
 PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada "paketiniz bulunmaktadır, randevu oluşturmak ister misiniz? Ya da size nasıl yardımcı olabilirim?" soruldu; müşteri pakete evet diyebilir ya da doğrudan başka bir istek söyleyebilir.
@@ -877,7 +877,8 @@ PROMPT;
                 'yardimcipersoneller' => [],
                 'notlar' => trim('Sesli asistan (telefon) ' . (string) ($in['notlar'] ?? '')),
                 'cakisma_varmi' => '', 'cakisanrandevuekle' => '', 'olusturan' => null, 'olusturanMusteri' => null,
-                'randevuKaynak' => 'salon', 'easistan' => '1', 'durum' => (string) Randevular::ONAYLANDI,
+                // TALEP olarak (BEKLENIYOR): isletme panelden onaylar. Bildirim de "randevu talebiniz alınmıştır" tonunda gider.
+                'randevuKaynak' => 'salon', 'easistan' => '1', 'durum' => (string) Randevular::BEKLENIYOR,
             ]);
         } catch (\Throwable $e) {
             Log::error('RandevuAsistan randevuOlustur: ' . $e->getMessage());
@@ -894,7 +895,8 @@ PROMPT;
         }
         return ['ok' => true, 'randevu_id' => (int) $rid, 'tarih' => $tarih, 'saat' => $saat, 'personel' => $this->personelListesi()[$personelId] ?? null, 'bilgilendirme_gonderildi' => $this->bilgilendirmeAcik(),
             // randevuekleguncelle paket seansini kendisi baglar; baglandiysa asistan "paketinizden" diyebilsin
-            'paket_seansi' => \App\AdisyonPaketSeanslar::where('randevu_id', $rid)->whereNotNull('adisyon_paket_id')->exists()];
+            'paket_seansi' => \App\AdisyonPaketSeanslar::where('randevu_id', $rid)->whereNotNull('adisyon_paket_id')->exists(),
+            'durum' => 'talep (işletme onayı bekliyor)'];
     }
 
     /** Panel > SMS ayarlari > "Randevu Oluşturulduğunda" (ayar 12) musteri acik mi? Aciksa randevuekleguncelle WA-first/SMS gonderir. */
@@ -1009,7 +1011,7 @@ PROMPT;
     protected function garantiCevap(?string $aksiyon): string
     {
         switch ($aksiyon) {
-            case 'randevu': return 'Randevunuz oluşturuldu, sizi bekliyoruz. İyi günler dilerim.';
+            case 'randevu': return 'Randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz.';
             case 'iptal': return 'Randevunuz iptal edildi. Başka bir arzunuz var mı?';
             case 'guncelle': return 'Randevunuz güncellendi. Başka bir arzunuz var mı?';
             case 'aktar': return 'Sizi bir yetkiliye aktarıyorum, lütfen hatta kalın.';
