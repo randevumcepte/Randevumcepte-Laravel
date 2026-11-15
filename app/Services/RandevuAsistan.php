@@ -136,6 +136,11 @@ class RandevuAsistan
             $sonuclar = [];
             foreach ($toolUse as $tu) {
                 [$sonuc, $aks, $rid, $bit] = $this->toolCalistir($tu['name'] ?? '', $tu['input'] ?? []);
+                // Teshis: her arac cagrisi + sonucu (randevu neden olusmadi vb. sorulari loglardan cevaplamak icin)
+                Log::info('[SANTRAL-ARAC] ' . ($tu['name'] ?? '?'), [
+                    'salon' => $this->salonId, 'musteri' => $this->musteriId, 'tel' => $this->telefon,
+                    'girdi' => $tu['input'] ?? [], 'sonuc' => mb_substr(json_encode($sonuc, JSON_UNESCAPED_UNICODE), 0, 1500),
+                ]);
                 $sonuclar[] = [
                     'type' => 'tool_result',
                     'tool_use_id' => $tu['id'] ?? '',
@@ -167,6 +172,7 @@ class RandevuAsistan
         }
 
         if ($cevap === '') $cevap = $this->garantiCevap($aksiyon);
+        Log::info('[SANTRAL-TUR]', ['salon' => $this->salonId, 'musteri' => $this->musteriId, 'metin' => $metin, 'cevap' => $cevap, 'aksiyon' => $aksiyon]);
         // Yol tarifi gonderildiyse (ayni turda baska bir is yoksa) sabit, net cumle:
         if ($yolTarifiGitti && $aksiyon === null && !$bitir) {
             $cevap = 'Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?';
@@ -443,7 +449,7 @@ Müşteri açıkça operatör/insan/yetkili isterse YA DA randevu/iptal/güncell
 
 # KIRMIZI ÇİZGİLER
 Burası restoran DEĞİL, randevu hattı: kişi sayısı, masa, rezervasyon, sipariş SORMA. Her randevu arayan kişi içindir. Anlamsız/alakasız bir ifade duyarsan (ses tanıma hatası olabilir) tahmin yürütme, ne istediğini kısaca tekrar sor.
-Hizmeti kendin tahmin etme (daima hizmet_eslestir). coklu'da kendin seçme. 8. adım onayı almadan randevu_olustur çağırma. Saat ve personeli kendin uydurma (yalnız musait_saatler sonucundan). Tüm saatleri sıralama (2 tane öner). Bilgi uydurma.
+randevu_olustur ok=true DÖNMEDEN asla "randevunuz oluşturuldu" deme; ok=false ise hatayı müşteriye dürüstçe söyle. Hizmeti kendin tahmin etme (daima hizmet_eslestir). coklu'da kendin seçme. 8. adım onayı almadan randevu_olustur çağırma. Saat ve personeli kendin uydurma (yalnız musait_saatler sonucundan). Tüm saatleri sıralama (2 tane öner). Bilgi uydurma.
 
 # BAĞLAM
 İşletme: {$ad}
