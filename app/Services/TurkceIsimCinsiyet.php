@@ -19,6 +19,23 @@ class TurkceIsimCinsiyet
     protected static ?array $veri = null;
 
     /**
+     * ISLETME DUZELTMESI (2026-11-17, Ferdi): veride iki cinsiyetli cikan yaygin adlar icin karar. HER SEYIN ONUNDE
+     * (sozluk yeniden uretilse de kaybolmaz). Anahtar Turkce karaktersiz. Veriyle guclu celisen Kamer, İmran, Sunay
+     * (veride ~%80 kadin) ve Evren, Mutlu (veride ~%82 erkek) teyit bekliyor -> eklenmedi, hitapsiz kalir.
+     */
+    const DUZELTME = [
+        'yuksel' => 1, 'dursun' => 1, 'hikmet' => 1, 'servet' => 1, 'serif' => 1, 'hidayet' => 1, 'gunay' => 1,
+        'ilkay' => 1, 'sefa' => 1, 'olcay' => 1, 'gungor' => 1, 'emir' => 1, 'senel' => 1, 'gursel' => 1,
+        'omur' => 1, 'rusen' => 1, 'garip' => 1, 'gorkem' => 1, 'armagan' => 1, 'berat' => 1, 'zulfu' => 1,
+        'ozay' => 1, 'bilgin' => 1, 'eser' => 1, 'askin' => 1, 'gurcan' => 1, 'bahtiyar' => 1, 'seckin' => 1,
+        'safak' => 1, 'saffet' => 1, 'ergul' => 1,
+        'deniz' => 0, 'seyhan' => 0, 'sirin' => 0, 'kudret' => 0, 'durdu' => 0, 'sureyya' => 0, 'guner' => 0,
+        'elvan' => 0, 'bircan' => 0, 'ozden' => 0, 'kamuran' => 0, 'sezer' => 0, 'burcin' => 0, 'muhterem' => 0,
+        'aycan' => 0, 'ferhan' => 0, 'masallah' => 0, 'ceyhan' => 0, 'ikram' => 0, 'tuna' => 0, 'devrim' => 0,
+        'evrim' => 0, 'gokcen' => 0, 'nedret' => 0,
+    ];
+
+    /**
      * ELLE LISTELER yalniz buyuk veride OLMAYAN adlarda kullanilir (veri her zaman once gelir; cakismada veri hakli,
      * Ayhan, Yaşar, Ufuk kadinlarda da kullaniliyor). Iki cinsiyette yaygin: asla tahmin etme.
      */
@@ -94,13 +111,14 @@ class TurkceIsimCinsiyet
         return self::deger($ad) === self::IKI_CINSIYET;
     }
 
-    /** 1 / 0 / 2 (iki cinsiyet) / null (bilinmiyor). Once buyuk veri, yoksa elle listeler. */
+    /** 1 / 0 / 2 (iki cinsiyet) / null (bilinmiyor). Once isletme duzeltmesi, sonra buyuk veri, yoksa elle listeler. */
     protected static function deger(string $ad): ?int
     {
         $ilk = self::ilkAd($ad);
         if ($ilk === '') return null;
-        if (self::$veri === null) self::$veri = require __DIR__ . '/veri/turkce_isim_cinsiyet.php';
         $anahtar = strtr($ilk, ['ı' => 'i', 'ş' => 's', 'ğ' => 'g', 'ü' => 'u', 'ö' => 'o', 'ç' => 'c', 'â' => 'a', 'î' => 'i', 'û' => 'u']);
+        if (isset(self::DUZELTME[$anahtar])) return self::DUZELTME[$anahtar];
+        if (self::$veri === null) self::$veri = require __DIR__ . '/veri/turkce_isim_cinsiyet.php';
         if (isset(self::$veri[$anahtar])) return self::$veri[$anahtar];
         if (in_array($ilk, self::BELIRSIZ, true)) return self::IKI_CINSIYET;
         if (in_array($ilk, self::ERKEK_ADLAR, true)) return self::ERKEK;
