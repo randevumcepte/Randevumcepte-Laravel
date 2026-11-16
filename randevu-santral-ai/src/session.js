@@ -96,7 +96,7 @@ class CagriOturumu {
     // Her yeni interim timer'i sifirlar; yani sure, musteri SUSTUKTAN sonra sayilir.
     this._sonInterim = (metin || '').trim();
     const kelimeSayisi = this._sonInterim ? this._sonInterim.split(/\s+/).length : 0;
-    const bekle = kelimeSayisi <= 3 ? 1200 : 2400;
+    const bekle = kelimeSayisi <= 3 ? cfg.endpointKisaMs : cfg.endpointUzunMs;
     clearTimeout(this._interimZ);
     this._interimZ = setTimeout(() => this._interimZorla(), bekle);
   }

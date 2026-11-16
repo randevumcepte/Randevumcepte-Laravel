@@ -45,6 +45,10 @@ const cfg = {
   // Bekleme cumlesi: beyin cevabi bu kadar ms icinde gelmezse "Hemen bakıyorum." gibi kisa bir cumle cal
   // (musteri sessizlikte kalmasin). 0 = kapali.
   dolguMs: num(process.env.DOLGU_MS, 1800),
+  // Musteri sustuktan sonra cumleyi BITMIS sayma suresi (Google final'i gecikirse). Eskiden 1200/2400 ms idi:
+  // uzun cumlelerde her turda 2,4 sn bosuna bekleniyordu (kayit #56: kod cevabi bile 2,4 sn'de basliyordu).
+  endpointKisaMs: num(process.env.ENDPOINT_KISA_MS, 900),   // <=3 kelime ("evet", "fark etmez")
+  endpointUzunMs: num(process.env.ENDPOINT_UZUN_MS, 1400),  // uzun cumle (ad/adres icin biraz sabirli)
   logLevel: process.env.LOG_LEVEL || 'info',
   recording: {
     aktif: bool(process.env.KAYIT_AKTIF, true),
