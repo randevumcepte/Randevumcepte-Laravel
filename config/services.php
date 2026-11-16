@@ -51,6 +51,10 @@ return [
     'anthropic' => [
         'key'   => env('ANTHROPIC_API_KEY', ''),
         'model' => env('ANTHROPIC_MODEL', 'claude-haiku-4-5'),
+        // Yalniz telefon asistani (RandevuAsistan). Diger ozellikler (patron/uygulama asistani) 'model'i kullanir.
+        // Geri donus: .env ANTHROPIC_SANTRAL_MODEL=claude-haiku-4-5
+        'santral_model' => env('ANTHROPIC_SANTRAL_MODEL', 'claude-haiku-5-5'),
+        'santral_effort' => env('ANTHROPIC_SANTRAL_EFFORT', 'medium'),
     ],
 
     // Santral yapay zeka asistani (randevu-santral-ai): randevu (1 gun once) ve alacak (2 gun once)

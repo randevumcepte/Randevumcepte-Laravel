@@ -332,6 +332,9 @@ class RandevuAsistan
                 break;
             }
 
+            if (($resp['stop_reason'] ?? '') === 'refusal') {
+                return ['cevap' => 'Bu konuda size en doğru bilgiyi işletmemiz verecektir, sizi hemen bağlıyorum, lütfen hatta kalın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
+            }
             $content = $resp['content'] ?? [];
             $metinler = []; $toolUse = [];
             foreach ($content as $b) {
@@ -1180,8 +1183,9 @@ class RandevuAsistan
     // ---------------------------------------------------------------- LLM
     protected function cagir(array $messages, string $key, int $tekrar = 0, array $ek = []): ?array
     {
+        $model = (string) (config('services.anthropic.santral_model') ?: 'claude-haiku-5-5');
         $body = [
-            'model' => config('services.anthropic.model', 'claude-haiku-4-5'),
+            'model' => $model,
             'max_tokens' => 1000,
             'system' => [[
                 'type' => 'text',
@@ -1191,6 +1195,14 @@ class RandevuAsistan
             'tools' => $this->toolTanimlari(),
             'messages' => $messages,
         ] + $ek;
+        // Haiku 5.5 (ve yeni nesil): dusunme varsayilan ACIK gelir -> telefonda gecikme. Kapat ve effort'u ayarla.
+        // (disabled yalniz low/medium/high effort ile gecerli.) Haiku 4.5'te bu alanlar yok -> gonderme.
+        if (strpos($model, 'claude-haiku-4') !== 0) {
+            $effort = (string) (config('services.anthropic.santral_effort') ?: 'medium');
+            if (!in_array($effort, ['low', 'medium', 'high'], true)) $effort = 'medium';
+            $body['thinking'] = ['type' => 'disabled'];
+            $body['output_config'] = ['effort' => $effort];
+        }
 
         $ch = curl_init('https://api.anthropic.com/v1/messages');
         curl_setopt_array($ch, [
@@ -1220,6 +1232,11 @@ class RandevuAsistan
             return null;
         }
         $j = json_decode($raw, true);
+        if (is_array($j) && ($j['stop_reason'] ?? '') === 'refusal') {
+            // Guvenlik filtresi istegi reddetti (Haiku 5.5'te yeni; sunucu tarafi yedek model yok) -> tur isletmeye aktarilir
+            $this->teshis = 'refusal';
+            Log::warning('[SANTRAL-LLM-RED] model istegi reddetti', ['salon' => $this->salonId, 'model' => $model ?? '', 'kategori' => $j['stop_details']['category'] ?? null]);
+        }
         return is_array($j) ? $j : null;
     }
 
