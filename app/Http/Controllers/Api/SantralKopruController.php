@@ -123,6 +123,12 @@ class SantralKopruController extends Controller
         if (!$o) return $this->j(['ok' => 0, 'hata' => 'oturum_yok'], 404);
 
         $gecmis = json_decode($o->gecmis ?: '[]', true) ?: [];
+        // Kopru bir onceki cevabi CALMADI (musteri o sirada yeni bir sey soyledi, cevap is yapmamisti):
+        // musterinin duymadigi o asistan cevabini gecmisten dusur (ilk karsilama/hatirlatma mesaji asla dusmez).
+        if ($r->input('onceki_duyulmadi') && count($gecmis) > 1) {
+            $son = end($gecmis);
+            if (($son['role'] ?? '') === 'assistant' && empty($son['hatirlatma'])) array_pop($gecmis);
+        }
 
         $as = new RandevuAsistan((int) $o->sube_id, $o->telefon);
         $d = $as->konus($metin, $gecmis);

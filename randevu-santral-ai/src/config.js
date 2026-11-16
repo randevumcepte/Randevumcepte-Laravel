@@ -42,6 +42,9 @@ const cfg = {
   },
   bargeIn: bool(process.env.BARGE_IN, true),
   sessizlikMs: num(process.env.SESSIZLIK_MS, 15000),
+  // Bekleme cumlesi: beyin cevabi bu kadar ms icinde gelmezse "Hemen bakıyorum." gibi kisa bir cumle cal
+  // (musteri sessizlikte kalmasin). 0 = kapali.
+  dolguMs: num(process.env.DOLGU_MS, 1100),
   logLevel: process.env.LOG_LEVEL || 'info',
   recording: {
     aktif: bool(process.env.KAYIT_AKTIF, true),

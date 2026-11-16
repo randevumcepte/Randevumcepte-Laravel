@@ -452,6 +452,9 @@ namespace {
     esit('"kaç" kısa ad "Kaş" ile eşleşmez', '', $hd->hizmetDuzeltmeNotu('Kaç para tutuyor'));
     esit('"bir masaj" tek başına → not yok', '', $hd->hizmetDuzeltmeNotu('Bir masaj yaptırmak istiyorum'));
     icerir('"saç kesim" → Saç Kesimi değil (zaten doğru) / "sac kesimi" eki', '', $hd->hizmetDuzeltmeNotu('Saç kesimi'));
+    $ady = cagir($hd, 'hizmetAdaylari', 'tay makajı');
+    esit('hizmetAdaylari: "tay makajı" → ilk aday Tay Masajı (id 1)', [1, 'Tay Masajı'], [$ady[0]['id'] ?? null, $ady[0]['ad'] ?? null]);
+    esit('hizmetAdaylari: doğru ad → boş', [], cagir($hd, 'hizmetAdaylari', 'aromaterapi masajı'));
     esit('STT ipuçları hizmet adlarını verir', ['Tay Masajı', 'Aromaterapi Masajı'], array_slice($hd->sttIpuclari(), 0, 2));
 
     echo "\n\033[1mSONUÇ: $gecen geçti, $kalan kaldı\033[0m\n";

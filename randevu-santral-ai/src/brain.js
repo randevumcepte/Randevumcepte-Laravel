@@ -41,8 +41,9 @@ async function geriAramaDurum(id, durum) {
 }
 
 // POST /api/v1/santral/konus -> {ok, cevap, aksiyon, veri, bitir}
-async function konus(oturumId, metin) {
-  const { data } = await http.post('/api/v1/santral/konus', form({ oturum_id: oturumId, metin }));
+async function konus(oturumId, metin, ek) {
+  // ek.onceki_duyulmadi=1: bir onceki cevap musteri yeni bir sey soyledigi icin CALINMADI -> Laravel gecmisten dusurur
+  const { data } = await http.post('/api/v1/santral/konus', form(Object.assign({ oturum_id: oturumId, metin }, ek || {})));
   return data;
 }
 

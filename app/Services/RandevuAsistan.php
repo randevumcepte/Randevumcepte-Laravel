@@ -759,9 +759,23 @@ class RandevuAsistan
      */
     public function hizmetDuzeltmeNotu(string $metin): string
     {
+        $adaylar = $this->hizmetAdaylari($metin);
+        if (!$adaylar) return '';
+        $adlar = array_column(array_slice($adaylar, 0, 2), 'ad');
+        Log::info('[SANTRAL-HIZMET-DUZELTME]', ['salon' => $this->salonId, 'metin' => $metin, 'adaylar' => $adaylar]);
+        $liste = implode("' veya '", $adlar);
+        return "\n[SİSTEM hizmet eşleştirme — müşteri duymaz: Ses tanıma hizmet adını yanlış duymuş olabilir; müşteri büyük ihtimalle '{$liste}' hizmetini kastediyor. Bu hizmet listede VAR: 'yok' deme. Tek aday varsa o hizmetle devam et; emin değilsen '{$adlar[0]} mı demek istediniz?' diye kısaca teyit et.]";
+    }
+
+    /**
+     * Cumlede yanlis duyulmus olabilecek hizmet adlari: [['id','ad','oran'], ...] (yuksekten dusuge).
+     * Bir hizmet adi cumlede zaten (ekli haliyle) geciyorsa ya da benzer yoksa bos dizi.
+     */
+    protected function hizmetAdaylari(string $metin): array
+    {
         $hizmetler = $this->salon['hizmetler'] ?? [];
         $m = $this->sade($metin);
-        if (!$hizmetler || $m === '') return '';
+        if (!$hizmetler || $m === '') return [];
         $kelimeler = explode(' ', $m);
         $ara = ' ' . $m . ' ';
         $adaylar = [];
@@ -769,7 +783,7 @@ class RandevuAsistan
             $ad = trim((string) ($h['ad'] ?? ''));
             $sa = $this->sade($ad);
             if ($sa === '') continue;
-            if (strpos($ara, ' ' . $sa) !== false) return ''; // hizmet adi dogru duyulmus (ek toleransli)
+            if (strpos($ara, ' ' . $sa) !== false) return []; // hizmet adi dogru duyulmus (ek toleransli)
             $hk = explode(' ', $sa);
             $n = count($hk);
             if ($n === 1 && strlen($sa) < 5) continue;   // "kaş", "fön", "masaj" gibi kisa tek kelime -> yanlis pozitif riski
@@ -786,16 +800,14 @@ class RandevuAsistan
                 }
                 $oran = 1 - $mesafe / max(1, strlen(str_replace(' ', '', $sa)));
                 if ($oran >= $esik && $mesafe > 0) {
-                    $adaylar[$ad] = max($adaylar[$ad] ?? 0, $oran);
+                    $k = (int) ($h['id'] ?? 0) . '|' . $ad;
+                    if (!isset($adaylar[$k]) || $adaylar[$k]['oran'] < $oran) $adaylar[$k] = ['id' => (int) ($h['id'] ?? 0), 'ad' => $ad, 'oran' => round($oran, 3)];
                 }
             }
         }
-        if (!$adaylar) return '';
-        arsort($adaylar);
-        $adlar = array_slice(array_keys($adaylar), 0, 2);
-        Log::info('[SANTRAL-HIZMET-DUZELTME]', ['salon' => $this->salonId, 'metin' => $metin, 'adaylar' => $adaylar]);
-        $liste = implode("' veya '", $adlar);
-        return "\n[SİSTEM hizmet eşleştirme — müşteri duymaz: Ses tanıma hizmet adını yanlış duymuş olabilir; müşteri büyük ihtimalle '{$liste}' hizmetini kastediyor. Bu hizmet listede VAR: 'yok' deme. Tek aday varsa o hizmetle devam et; emin değilsen '{$adlar[0]} mı demek istediniz?' diye kısaca teyit et.]";
+        $adaylar = array_values($adaylar);
+        usort($adaylar, function ($a, $b) { return $b['oran'] <=> $a['oran']; });
+        return $adaylar;
     }
 
     /** STT ipucu: salonun hizmet adlari (Google speechContexts; kopru baslatta alir). */
@@ -919,9 +931,19 @@ class RandevuAsistan
     {
         switch ($ad) {
             case 'hizmet_eslestir':
-                return [$this->ctrlCagir('hizmetEslestir', [
+                $d = $this->ctrlCagir('hizmetEslestir', [
                     'salon_id' => $this->salonId, 'metin' => (string) ($in['metin'] ?? ''),
-                ]), null, null, false];
+                ]);
+                // Kelime eslesmesi bulamadiysa ses tanima hatasi olabilir ("tay makajı" -> Tay Masajı): benzerlikle dene.
+                if (($d['eslesme'] ?? '') === 'yok' && ($ad = $this->hizmetAdaylari((string) ($in['metin'] ?? '')))) {
+                    Log::info('[SANTRAL-HIZMET-DUZELTME] hizmet_eslestir', ['salon' => $this->salonId, 'metin' => $in['metin'] ?? '', 'adaylar' => $ad]);
+                    $d = (count($ad) === 1 || $ad[0]['oran'] - $ad[1]['oran'] >= 0.05)
+                        ? ['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => $ad[0]['id'], 'ad' => $ad[0]['ad']],
+                           'not' => 'Ses tanıma kelimeyi yanlış duymuş olabilir; en yakın hizmet bu. Hizmet adını doğru haliyle söyleyerek devam et.']
+                        : ['ok' => true, 'eslesme' => 'coklu', 'ortak' => (string) ($in['metin'] ?? ''),
+                           'secenekler' => array_map(function ($x) { return ['id' => $x['id'], 'ad' => $x['ad']]; }, array_slice($ad, 0, 2))];
+                }
+                return [$d, null, null, false];
 
             case 'musait_saatler':
                 return [$this->musaitSaatlerPersonelli($in), null, null, false];
@@ -1170,6 +1192,8 @@ PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada "paketiniz bulunmaktadı
 - Hizmet belli olunca o hizmete UYGUN PERSONELİ PAKETLER'deki listeden adlarıyla say ve tercihini sor (ör. "Bu hizmet için Ayşe Hanım ve Zeynep Hanım uygun, tercih ettiğiniz biri var mı?"). Tek kişiyse onu söyle. "Fark etmez" derse personel_id verme. Listede olmayan personeli önerme.
 - Sonra normal akış: tarih → musait_saatler (paket hizmet_id + seçilen personel_id) → saat → onay → randevu_olustur. Seans pakete otomatik bağlanır; sonuçta paket_seansi=true ise "paketinizden" de.
 - Hayır derse ya da başka bir şey isterse paketi bırak, normal akışa geç.
+
+HİZMET LİSTESİ SORULURSA ("hangi hizmetleriniz var"): listenin tamamını OKUMA. En fazla 5 örnek say (farklı türlerden), "ve daha birçok hizmetimiz var" de, sonra "Hangisiyle ilgileniyorsunuz?" diye sor. Telefonda uzun liste dinlenmez.
 
 BEKLETME YOK: "Bir moment", "bir saniye", "biraz bekleteceğim", "kontrol ediyorum", "bakıyorum" gibi bekletme cümleleri ASLA kurma. Bilgi gerekiyorsa aracı HEMEN çağır ve sonucu doğrudan söyle (ör. "Pazartesi 16 Kasım saat 14:00'te Saç Kesimi randevunuz var, bunu iptal edeyim mi?").
 

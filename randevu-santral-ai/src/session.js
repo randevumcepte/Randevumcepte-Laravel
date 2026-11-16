@@ -8,6 +8,15 @@ const tts = require('./tts');
 const { SttOturumu } = require('./stt');
 const { RtpOturumu } = require('./rtp');
 
+// Bekleme cumleleri (beyin gec cevap verince, sirayla; ayni cumle ust uste gelmez). Ilk cagride seslendirilip
+// tts onbellegine girer -> sonraki turlarda aninda calar.
+const DOLGU = ['Hemen bakıyorum.', 'Bir saniye lütfen.', 'Tamam, kontrol ediyorum.'];
+
+// Tekrar karsilastirmasi icin: kucuk harf + noktalama/bosluk sadelestirme ("Tay makajı." == "tay makajı")
+function sadeMetin(s) {
+  return String(s || '').toLocaleLowerCase('tr').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+
 class CagriOturumu {
   constructor({ kanalId, telefon, subeId, rtpPort, onAktar, onBitir, geriAramaOturum, hatirlatma }) {
     this.kanalId = kanalId;
@@ -56,6 +65,8 @@ class CagriOturumu {
       if (d.menu_adet === 0) log.warn('DIKKAT: bu subede aktif urun YOK -> AI menuyu tanitamaz (DEFAULT_SUBE_ID dogru mu? urunler.aktif=1 mi?)');
       if (d.musteri) log.info(`musteri taninID: ${d.musteri}${d.son_siparis ? ' | gecen siparis: ' + d.son_siparis : ' | gecen siparis YOK'}`);
       await this._seslendir(d.karsilama || 'Merhaba, size nasıl yardımcı olabilirim?');
+      // Bekleme cumlelerini onceden seslendir (onbellege al) -> gerektiginde aninda calsin
+      if (cfg.dolguMs > 0) for (const c of DOLGU) tts.seslendir(c).catch(() => {});
     } catch (e) {
       log.error('Beyin baslat hatasi:', e.message);
       await this._seslendir('Sizi yetkiliye bağlıyorum, lütfen hatta kalın.');
@@ -97,18 +108,28 @@ class CagriOturumu {
   async _finalMetin(metin) {
     if (this.kapali || this._kapaniyor) return; // kapanis sirasinda yeni tur baslatma
     clearTimeout(this._interimZ); this._sonInterim = '';
-    const n = (metin || '').toLowerCase().trim();
+    const n = sadeMetin(metin);
     if (n.length < 1) return;
-    // Yineleme onle: zorla-final ile islenen cumle, Google'in gercek final'iyle ikinci kez gelmesin
+    // Yineleme onle: zorla-final (interim) ile islenen cumle, Google'in gercek final'iyle ("Tay makajı." gibi
+    // noktalamali / biraz uzamis haliyle) ikinci kez TUR olmasin. Eskiden noktalama farki ayri tur yapiyordu ->
+    // asistan ayni soruya iki cevap ust uste okuyordu (2026-11-16 kayit #51).
     const simdi = Date.now();
-    if (this._sonIslenen && this._sonIslenen.n === n && (simdi - this._sonIslenen.t) < 5000) {
-      log.debug('yinelenen final atlandi');
-      return;
+    const onceki = this._sonIslenen;
+    if (onceki && (simdi - onceki.t) < 5000) {
+      if (onceki.n === n || onceki.n.startsWith(n)) { log.debug('yinelenen final atlandi'); return; }
+      if (n.startsWith(onceki.n) && this.mesgul && !this._bekleyen) {
+        // Final, islenmekte olan interim'in DEVAMI: onceki cevabi calma, tam cumleyle yeniden sor
+        log.info(`> musteri (devami): ${metin}`);
+        this._sonIslenen = { n, t: simdi };
+        this._eskidi = true; this._bekleyen = metin;
+        return;
+      }
     }
     this._sonIslenen = { n, t: simdi };
     log.info(`> musteri: ${metin}`);
-    // Ust uste final gelirse sirala (beyin tek tur)
-    if (this.mesgul) { this._bekleyen = metin; return; }
+    // Beyin dusunurken musteri yeni bir sey soyledi: onceki cevap ESKIDI (calinmayacak, aksiyon yoksa);
+    // bekleyen cumleler birlestirilip tek turda sorulur.
+    if (this.mesgul) { this._bekleyen = this._bekleyen ? this._bekleyen + ' ' + metin : metin; this._eskidi = true; return; }
     await this._isle(metin);
     while (this._bekleyen && !this.kapali) {
       const m = this._bekleyen; this._bekleyen = null;
@@ -116,10 +137,33 @@ class CagriOturumu {
     }
   }
 
+  _dolguCal() {
+    if (this.kapali || this._kapaniyor || !this.mesgul) return;
+    if (this.rtp.sesVarMi) return; // AI hala onceki cumleyi okuyor
+    this._dolguNo = ((this._dolguNo || 0) + 1) % DOLGU.length;
+    const c = DOLGU[this._dolguNo];
+    tts.seslendir(c).then((ses) => {
+      if (this.kapali || !this.mesgul || this.rtp.sesVarMi) return;
+      if (ses && ses.length) { log.info(`~ bekleme: ${c}`); this.rtp.oynat(ses); }
+    }).catch(() => {});
+  }
+
   async _isle(metin) {
     this.mesgul = true;
+    this._eskidi = false;
+    const ek = this._oncekiDuyulmadi ? { onceki_duyulmadi: 1 } : {};
+    this._oncekiDuyulmadi = false;
+    const dolguZ = cfg.dolguMs > 0 ? setTimeout(() => this._dolguCal(), cfg.dolguMs) : null;
     try {
-      const d = await brain.konus(this.oturumId, metin);
+      const d = await brain.konus(this.oturumId, metin, ek);
+      clearTimeout(dolguZ);
+      // Musteri bu arada yeni bir sey soyledi ve bu cevap bir is yapmadiysa (randevu/iptal/aktarma/kapanis yok):
+      // CALMA -> bekleyen cumleyle yeni tur sorulur; Laravel bu calinmayan cevabi gecmisten duser.
+      if (this._eskidi && this._bekleyen && d && d.ok !== false && !d.aksiyon && !d.bitir) {
+        log.info(`< asistan (CALINMADI, musteri yeni sey soyledi): ${d.cevap}`);
+        this._oncekiDuyulmadi = true;
+        return;
+      }
       if (!d || d.ok === false) {
         await this._seslendir('Kusura bakmayın, sizi yetkiliye aktarıyorum.');
         this.onAktar(this.kanalId);
@@ -134,6 +178,7 @@ class CagriOturumu {
       if (d.aksiyon === 'aktar') { this.onAktar(this.kanalId); return; }
       if (kapanis) { await this._kapatSirasi(); return; }
     } catch (e) {
+      clearTimeout(dolguZ);
       log.error('Beyin konus hatasi:', e.message);
       await this._seslendir('Bir sorun oluştu, sizi yetkiliye bağlıyorum.');
       this.onAktar(this.kanalId);
