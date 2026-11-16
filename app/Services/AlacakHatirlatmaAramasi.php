@@ -6,7 +6,6 @@ use App\Alacaklar;
 use App\MusteriPortfoy;
 use App\SalonEAsistanAyarlari;
 use App\Jobs\HatirlatmaAramaJob;
-use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -15,26 +14,102 @@ use Illuminate\Support\Facades\Log;
  * (eskiden ayri `alacakhatirlatma:aramayap` komutu her dakika alacaklar tablosunu
  * `LIKE` ile tariyordu -> indeks kullanilamiyor, her dakika full scan).
  *
- * Secim ZAMAN ARALIGI esaslidir: son islenen dakikadan (cache) su ana kadar olan
- * aralik. Boylece cron bir dakikayi kacirsa (onceki komut uzun surdu) arama kacmaz,
- * ayni dakika iki kez islenmez (withoutOverlapping + aralik ilerler).
- *   - Ilk hatirlatma: aralik bugun 10:00'i iceriyorsa, odeme tarihi 2 gun sonra olanlar.
- *   - Tekrar arama: tekrar_arama_tarih_saat araliga dusenler (sargable range).
- * Ayni musterinin birden fazla alacagi TEK aramada birlestirilir.
+ *  - ILK ARAMA: odeme tarihinden 2 gun once, 12:00'den sonra. Pencere icinde her
+ *    ceyrek saatin ilk turunda (12:00, 12:15, ...) aranmamis alacaklar taranir; musteri
+ *    basina TEK arama, aramalar SIRAYLA kuyruga girer (her biri ARAMA_ARALIGI_SN arayla).
+ *    Sonradan vadesi 2 gun sonraya cekilen alacak da bir sonraki ceyrekte yakalanir.
+ *    Mukerrer koruma: musteri+odeme tarihi bazinda cache claim.
+ *  - TEKRAR ARAMA: tekrar_arama_tarih_saat, son islenen dakikadan (cache) su ana kadarki
+ *    araliga dusenler (sargable range; kacan dakika olmaz). Pencere disindaysa 12:00'ye ertelenir.
  */
 class AlacakHatirlatmaAramasi
 {
     const SON_DAKIKA_ANAHTARI = 'alacak_hatirlatma_aramasi_son_dk';
     /** ayar_id = 1: alacak hatirlatma aramasi acik/kapali. */
     const AYAR_ID_ALACAK = 1;
-    const ILK_HATIRLATMA_SAATI = '10:00:00';
+    /** Alacak aramalari bu saatler arasinda yapilir. */
+    const PENCERE_BASI = '12:00';
+    const PENCERE_SONU = '19:30';
+    /** Siradaki iki arama arasindaki sure (sn) — santrale tek tek, yigilmadan. */
+    const ARAMA_ARALIGI_SN = 20;
     /** Kesinti sonrasi en fazla bu kadar geriye bakilir (birikmis aramalar bir anda yagmasin). */
     const EN_FAZLA_GERI_DK = 120;
 
-    protected $chunkSize = 50;
-    protected $callDuration = 35;
-
     public function calistir()
+    {
+        $liste = array_merge($this->tekrarAramalari(), $this->ilkAramalar());
+        if (empty($liste)) {
+            return;
+        }
+        // Sirali kuyruk: her arama ayri job, ARAMA_ARALIGI_SN arayla.
+        foreach (array_values($liste) as $i => $parametre) {
+            $job = new HatirlatmaAramaJob([$parametre], $parametre['salonId'], null);
+            if ($i > 0) {
+                $job->delay(now()->addSeconds($i * self::ARAMA_ARALIGI_SN));
+            }
+            dispatch($job);
+        }
+        Log::info('[ALACAK-ARAMA] ' . count($liste) . ' musteri sirayla kuyruga eklendi (' . self::ARAMA_ARALIGI_SN . ' sn arayla).');
+    }
+
+    protected function pencereIcinde(): bool
+    {
+        $s = date('H:i');
+        return $s >= self::PENCERE_BASI && $s < self::PENCERE_SONU;
+    }
+
+    protected function bekleyenFiltre($q)
+    {
+        return $q->where(function ($q3) {
+                $q3->whereNull('hatirlatma_aramasi_yapildi')->orWhere('hatirlatma_aramasi_yapildi', '!=', 1);
+            })
+            ->where(function ($q3) {
+                $q3->whereNull('hatirlatma_gorevi_iptal')->orWhere('hatirlatma_gorevi_iptal', '!=', 1);
+            })
+            ->where(function ($q3) {
+                $q3->whereNull('tekrar_arandi')->orWhere('tekrar_arandi', '!=', 1);
+            });
+    }
+
+    /** Odeme tarihinden 2 gun once ilk aramalar (12:00 sonrasi, ceyrek saatte bir tarama). */
+    protected function ilkAramalar(): array
+    {
+        if (!$this->pencereIcinde()) {
+            return [];
+        }
+        // Ceyrek saatte bir tarama (dakika kacsa da o ceyregin ilk turunda calisir).
+        $ceyrek = date('Y-m-d H') . ':' . intdiv((int) date('i'), 15);
+        if (!Cache::add('alacak_ilk_tarama:' . $ceyrek, 1, 30)) {
+            return [];
+        }
+
+        $odemeTarihi = date('Y-m-d', strtotime('+2 days'));
+        $alacaklar = $this->bekleyenFiltre(Alacaklar::where('planlanan_odeme_tarihi', $odemeTarihi))->get();
+        if ($alacaklar->isEmpty()) {
+            return [];
+        }
+
+        $liste = [];
+        $ayarCache = [];
+        foreach ($this->grupla($alacaklar) as $anahtar => $grup) {
+            $parametre = $this->grupParametresi($grup, $ayarCache);
+            if ($parametre === null) {
+                continue;
+            }
+            // Musteri + odeme tarihi basina bir kez (3 gun sakla).
+            if (!Cache::add('alacak_ilk_arama:' . $anahtar . ':' . $odemeTarihi, 1, 4320)) {
+                continue;
+            }
+            $liste[] = $parametre;
+        }
+        if ($liste) {
+            Log::info('[ALACAK-ARAMA] ilk hatirlatma: ' . count($liste) . ' musteri (odeme ' . $odemeTarihi . ').');
+        }
+        return $liste;
+    }
+
+    /** Ulasilamayan aramalarin tekrari: son islenen dakikadan su ana kadar planlananlar. */
+    protected function tekrarAramalari(): array
     {
         $simdi = now();
         $bitis = $simdi->format('Y-m-d H:i:59');
@@ -42,92 +117,66 @@ class AlacakHatirlatmaAramasi
         $son = Cache::get(self::SON_DAKIKA_ANAHTARI);
         $baslangic = ($son && $son > $enEski) ? $son : $simdi->copy()->subMinute()->format('Y-m-d H:i:59');
         if ($baslangic >= $bitis) {
-            return; // bu dakika zaten islendi
+            return []; // bu dakika zaten islendi
         }
 
-        $ilkSaat = $simdi->format('Y-m-d') . ' ' . self::ILK_HATIRLATMA_SAATI;
-        $ilkHatirlatma = ($ilkSaat > $baslangic && $ilkSaat <= $bitis);
-
-        $alacaklar = Alacaklar::where(function ($q) use ($ilkHatirlatma, $baslangic, $bitis) {
-                $q->where(function ($q2) use ($baslangic, $bitis) {
-                    $q2->where('tekrar_arama_tarih_saat', '>', $baslangic)
-                       ->where('tekrar_arama_tarih_saat', '<=', $bitis)
-                       ->where(function ($q3) {
-                           $q3->whereNull('hatirlatma_aramasi_yapildi')
-                              ->orWhere('hatirlatma_aramasi_yapildi', '!=', 1);
-                       });
-                });
-                if ($ilkHatirlatma) {
-                    $q->orWhere(function ($q2) {
-                        $q2->where('planlanan_odeme_tarihi', date('Y-m-d', strtotime('+2 days')))
-                           ->where(function ($q3) {
-                               $q3->whereNull('hatirlatma_aramasi_yapildi')
-                                  ->orWhere('hatirlatma_aramasi_yapildi', '!=', 1);
-                           });
-                    });
-                }
-            })
+        // Ilk arama Originate edilince Controller hatirlatma_aramasi_yapildi=1 + tekrar_aranacak=1 yazar;
+        // musteri acarsa (ulasildi / asistan) tekrar_aranacak=0 olur. Bu yuzden burada
+        // hatirlatma_aramasi_yapildi filtresi YOK (eskiden vardi -> tekrar arama hic calismiyordu).
+        $alacaklar = Alacaklar::where('tekrar_arama_tarih_saat', '>', $baslangic)
+            ->where('tekrar_arama_tarih_saat', '<=', $bitis)
+            ->where('tekrar_aranacak', 1)
             ->where(function ($q) {
                 $q->whereNull('hatirlatma_gorevi_iptal')->orWhere('hatirlatma_gorevi_iptal', '!=', 1);
             })
             ->where(function ($q) {
                 $q->whereNull('tekrar_arandi')->orWhere('tekrar_arandi', '!=', 1);
             })
-            ->get();
+            ->get()
+            // Salon tekrar arama suresi 0 ise tekrar yok (yoksa ilk aramanin hemen ardindan tekrar arardi).
+            ->filter(function ($a) {
+                return !empty(optional($a->salon)->e_asistan_hatirlatma);
+            });
 
         // Aralik islendi: hata olsa da ayni dakikalari tekrar isleyip mukerrer arama yapmayalim.
         Cache::forever(self::SON_DAKIKA_ANAHTARI, $bitis);
 
         if ($alacaklar->isEmpty()) {
-            return;
+            return [];
         }
 
-        $controller = app()->make(Controller::class);
-
-        // Hatirlatma saatleri (10:00–19:30) disindaysa: arama, tekrar saatine ertele.
-        if (!$controller->hatirlatmaSaatiIcinde(date('H:i'))) {
-            $tekrarSaat = (date('H:i') >= '19:30')
-                ? date('Y-m-d', strtotime('+1 days')) . ' 10:00:00'
-                : date('Y-m-d') . ' 10:00:00';
+        // Pencere (12:00–19:30) disindaysa: pencere basina ertele.
+        if (!$this->pencereIcinde()) {
+            $tekrarSaat = (date('H:i') >= self::PENCERE_SONU)
+                ? date('Y-m-d', strtotime('+1 days')) . ' ' . self::PENCERE_BASI . ':00'
+                : date('Y-m-d') . ' ' . self::PENCERE_BASI . ':00';
             foreach ($alacaklar as $alacak) {
                 $alacak->tekrar_arama_tarih_saat = $tekrarSaat;
                 $alacak->save();
             }
             Log::info('[ALACAK-ARAMA] saat disinda, ' . $alacaklar->count() . ' alacak ' . $tekrarSaat . '\'e ertelendi.');
-            return;
+            return [];
         }
 
-        $gruplar = [];
-        foreach ($alacaklar as $alacak) {
-            $gruplar[$alacak->user_id . '_' . $alacak->salon_id][] = $alacak;
-        }
-
+        $liste = [];
         $ayarCache = [];
-        $aramaListesi = [];
-        foreach ($gruplar as $grup) {
+        foreach ($this->grupla($alacaklar) as $grup) {
             $parametre = $this->grupParametresi($grup, $ayarCache);
             if ($parametre !== null) {
-                $aramaListesi[] = $parametre;
+                $liste[] = $parametre;
             }
         }
+        return $liste;
+    }
 
-        if (empty($aramaListesi)) {
-            Log::info('[ALACAK-ARAMA] filtre sonrasi aranacak musteri kalmadi.');
-            return;
+    /** Musteri (salon + user) bazinda grupla — tek aramada tum borclar. */
+    protected function grupla($alacaklar): array
+    {
+        $gruplar = [];
+        foreach ($alacaklar as $alacak) {
+            $gruplar[$alacak->salon_id . '_' . $alacak->user_id][] = $alacak;
         }
-
-        $chunks = array_chunk($aramaListesi, $this->chunkSize);
-        foreach ($chunks as $i => $chunk) {
-            $job = new HatirlatmaAramaJob($chunk, null, null);
-            $gecikme = $i * $this->callDuration;
-            if ($gecikme > 0) {
-                $job->delay(now()->addSeconds($gecikme));
-            }
-            dispatch($job);
-        }
-
-        Log::info('[ALACAK-ARAMA] ' . count($aramaListesi) . ' musteri ' . count($chunks) . ' chunk halinde kuyruga eklendi.'
-            . ($ilkHatirlatma ? ' (ilk-hatirlatma)' : ''));
+        return $gruplar;
     }
 
     /**

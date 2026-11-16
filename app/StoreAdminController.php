@@ -11753,7 +11753,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if(date('Y-m-d',strtotime($vade->vade_tarih))==date('Y-m-d',strtotime('+2 days',strtotime(date('Y-m-d')))))
             $alacak->arama_saat = date('H:i',strtotime('+2 hours',strtotime('H:i')));
         else
-            $alacak->arama_saat = "10:00";
+            $alacak->arama_saat = "12:00"; // alacak aramalari 12:00 sonrasi (AlacakHatirlatmaAramasi)
         $alacak->hatirlatma_ulasilamadi = null;
         $alacak->hatirlatma_gorevi_iptal = null;
         $alacak->tekrar_arandi = null;
@@ -11807,7 +11807,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if(date('Y-m-d',strtotime($vade->vade_tarih))==date('Y-m-d',strtotime('+2 days',strtotime(date('Y-m-d')))))
             $alacak->arama_saat = date('H:i',strtotime('+2 hours',strtotime('H:i')));
         else
-            $alacak->arama_saat = "10:00";
+            $alacak->arama_saat = "12:00"; // alacak aramalari 12:00 sonrasi (AlacakHatirlatmaAramasi)
         $alacak->save();
          
         $vade->vade_tarih = $request->planlanan_odeme_tarihi;
