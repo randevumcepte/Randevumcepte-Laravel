@@ -34919,6 +34919,18 @@ DB::raw('
         // Son 10 hane (90 / 0 onekleri temizlenir) -> originate icin 0<no> formatina cevrilir.
         $tel = substr($numara, -10);
 
+        // SOFTPHONE (WebRTC) modu: arama_baslat ile AYNI — originate yerine numara
+        // cihazdaki softphone'a verilir ('0<no>', outbound route formati).
+        // Parametre gelmezse (web + eski mobil) davranis degismez.
+        if (filter_var($request->input('softphone'), FILTER_VALIDATE_BOOLEAN)) {
+            return response()->json([
+                'success'    => true,
+                'softphone'  => true,
+                'numara_ara' => '0' . $tel,
+                'message'    => 'Softphone üzerinden aranıyor...',
+            ]);
+        }
+
         // Arayan kullanicinin (personel/yonetici) dahilisi — Bria bu dahiliye kayitli.
         $dahili = \App\Personeller::where('yetkili_id', $this->cmAuthId())
             ->where('salon_id', $salonId)->value('dahili_no');
