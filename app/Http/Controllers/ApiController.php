@@ -32334,7 +32334,15 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     // Mobil tahsilat: adisyondaki kurala tabi kalemlerin damga durumu (web tahsilat kutusu ile ayni veri).
     public function carkAdminDamgaKartiAdisyonApi(Request $request, $salonId)
     {
-        $kalemler = \App\Services\DamgaKartiServisi::adisyonDurumu($salonId, (int) $request->input('adisyon_id'));
+        // adisyon_ids: takvimden acilan tahsilat tek adisyona bagli degil (musterinin tum acik
+        // kalemleri); app, ekrandaki kalemlerin adisyonlarini gonderir. Yoksa tek adisyon_id.
+        $idler = $request->input('adisyon_ids');
+        $idler = is_array($idler) ? $idler : [$request->input('adisyon_id')];
+        $idler = array_values(array_unique(array_filter(array_map('intval', $idler))));
+        $kalemler = [];
+        foreach (array_slice($idler, 0, 50) as $adisyonId) {
+            $kalemler = array_merge($kalemler, \App\Services\DamgaKartiServisi::adisyonDurumu($salonId, $adisyonId));
+        }
         return response()->json(['basarili' => true, 'kalemler' => $kalemler]);
     }
 
