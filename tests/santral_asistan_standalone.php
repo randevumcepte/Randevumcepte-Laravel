@@ -437,6 +437,23 @@ namespace {
     icerir('hatırlatma notu modele gider', 'randevu_id=901', $gm[1]['content']);
     esit('hatırlatma notu seslendirilmez', 'Tamam.', cagir($h, 'ttsTemizle', 'Tamam. [SİSTEM — Bu arama İŞLETMENİN ...]'));
 
+    // --- STT hizmet adi duzeltme (2026-11-16: "tay masajı" -> "dayı"/"tay makajı" duyuldu, model "yok" dedi)
+    $hd = asistan(['salon' => ['ad' => 'Randevumcepte', 'karsilama' => '', 'adres' => '', 'hizmetler' => [
+        ['id' => 1, 'ad' => 'Tay Masajı'], ['id' => 2, 'ad' => 'Aromaterapi Masajı'], ['id' => 3, 'ad' => 'Botoks'],
+        ['id' => 4, 'ad' => 'Kaş'], ['id' => 5, 'ad' => 'Lazer Epilasyon'], ['id' => 6, 'ad' => 'Saç Kesimi'], ['id' => 7, 'ad' => 'Antistres Masajı'],
+    ]]]);
+    icerir('"tay makajı" → Tay Masajı notu', "'Tay Masajı'", $hd->hizmetDuzeltmeNotu('O zaman ben bir tay makajı randevu almak istiyorum.'));
+    icerir('"dayı masajı" → Tay Masajı notu', "'Tay Masajı'", $hd->hizmetDuzeltmeNotu('Dayı masajı istiyorum'));
+    icerir('"thai masajı" → Tay Masajı notu', "'Tay Masajı'", $hd->hizmetDuzeltmeNotu('Thai masajı için randevu'));
+    esit('doğru duyulan "tay masajı" → not yok', '', $hd->hizmetDuzeltmeNotu('Tay masajı randevusu almak istiyorum'));
+    esit('ekli hali "tay masajına" → not yok', '', $hd->hizmetDuzeltmeNotu('Tay masajına randevu'));
+    esit('"botoksu" (ek) → not yok', '', $hd->hizmetDuzeltmeNotu('Botoksu yaptırmak istiyorum'));
+    esit('alakasız cümle → not yok', '', $hd->hizmetDuzeltmeNotu('Yarın saat üçe randevu almak istiyorum'));
+    esit('"kaç" kısa ad "Kaş" ile eşleşmez', '', $hd->hizmetDuzeltmeNotu('Kaç para tutuyor'));
+    esit('"bir masaj" tek başına → not yok', '', $hd->hizmetDuzeltmeNotu('Bir masaj yaptırmak istiyorum'));
+    icerir('"saç kesim" → Saç Kesimi değil (zaten doğru) / "sac kesimi" eki', '', $hd->hizmetDuzeltmeNotu('Saç kesimi'));
+    esit('STT ipuçları hizmet adlarını verir', ['Tay Masajı', 'Aromaterapi Masajı'], array_slice($hd->sttIpuclari(), 0, 2));
+
     echo "\n\033[1mSONUÇ: $gecen geçti, $kalan kaldı\033[0m\n";
     if ($kalan) { echo "Kalanlar:\n - " . implode("\n - ", $hatalar) . "\n"; exit(1); }
 }

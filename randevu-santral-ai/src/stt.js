@@ -49,6 +49,7 @@ class SttOturumu {
     this.stream = null;
     this.kapali = false;
     this.yenilemeZ = null;
+    this.ekIpuclari = [];
     this._baslat();
   }
 
@@ -64,6 +65,9 @@ class SttOturumu {
         { phrases: ISIM_IPUCLARI, boost: 20 },      // isimler -> 'Ferdi' 'saati' olmasin (daha yuksek boost)
       ],
     };
+    // Salonun hizmet adlari ("Tay Masajı" -> 'dayı'/'tay makajı' olmasin). ORTA boost: restoranda urun adlarina
+    // yuksek boost her cumleyi urun adina zorlamisti; burada 10 yeterli ve guvenli.
+    if (this.ekIpuclari && this.ekIpuclari.length) conf.speechContexts.push({ phrases: this.ekIpuclari, boost: 10 });
     // Model secimi:
     //  - 'latest_long','latest_short','default','command_and_search' -> COK DILLI (tr-TR dahil), her dilde gonder
     //  - 'phone_call','video' -> enhanced, cogu dilde SADECE en-* destekli; tr-TR'de gonderirsek API hata verir
@@ -126,6 +130,16 @@ class SttOturumu {
     clearTimeout(this.yenilemeZ);
     if (bekle && bekle > 0) this.yenilemeZ = setTimeout(() => this._baslat(), bekle);
     else this._baslat();
+  }
+
+  /** Salona ozel ipuclarini (hizmet adlari) ekle ve akisi yeni config ile yeniden ac (karsilama sirasinda). */
+  ipucuEkle(liste) {
+    const temiz = (Array.isArray(liste) ? liste : [])
+      .map((x) => String(x || '').trim()).filter((x) => x && x.length <= 100).slice(0, 400);
+    if (!temiz.length) return;
+    this.ekIpuclari = temiz;
+    log.info(`STT ipucu: ${temiz.length} hizmet adi eklendi`);
+    this._yenile(0);
   }
 
   // Asterisk'ten gelen ham ses karesi (RTP payload'i, header'siz)

@@ -306,7 +306,7 @@ class RandevuAsistan
         }
 
         $messages = $this->gecmisMesajlari($gecmis);
-        $messages[] = ['role' => 'user', 'content' => $metin . $this->zamanNotu($metin)];
+        $messages[] = ['role' => 'user', 'content' => $metin . $this->zamanNotu($metin) . $this->hizmetDuzeltmeNotu($metin)];
 
         $aksiyon = null; $bitir = false; $randevuId = null; $cevap = '';
         $isTamamlandi = false; // randevu/iptal/guncelleme/yol tarifi tamamlandi -> "Başka yardımcı olabileceğim..." sorulmali
@@ -750,6 +750,64 @@ class RandevuAsistan
         $s = strtr($s, ['İ' => 'i', 'I' => 'i', 'ı' => 'i', 'Ş' => 's', 'ş' => 's', 'Ğ' => 'g', 'ğ' => 'g', 'Ü' => 'u', 'ü' => 'u', 'Ö' => 'o', 'ö' => 'o', 'Ç' => 'c', 'ç' => 'c']);
         $s = mb_strtolower($s, 'UTF-8');
         return trim(preg_replace('/\s+/u', ' ', preg_replace('/[^a-z0-9\s]/u', ' ', $s)));
+    }
+
+    /**
+     * Ses tanima (STT) hizmet adini yanlis duyduysa ("tay makajı", "dayı masajı" -> Tay Masajı) KODLA yakala ve
+     * modele gizli not ver: aksi halde model "boyle bir hizmetimiz yok" diyor (2026-11-16 canli cagri).
+     * Cumlede bir hizmet adi zaten (ekli haliyle) geciyorsa not uretmez.
+     */
+    public function hizmetDuzeltmeNotu(string $metin): string
+    {
+        $hizmetler = $this->salon['hizmetler'] ?? [];
+        $m = $this->sade($metin);
+        if (!$hizmetler || $m === '') return '';
+        $kelimeler = explode(' ', $m);
+        $ara = ' ' . $m . ' ';
+        $adaylar = [];
+        foreach ($hizmetler as $h) {
+            $ad = trim((string) ($h['ad'] ?? ''));
+            $sa = $this->sade($ad);
+            if ($sa === '') continue;
+            if (strpos($ara, ' ' . $sa) !== false) return ''; // hizmet adi dogru duyulmus (ek toleransli)
+            $hk = explode(' ', $sa);
+            $n = count($hk);
+            if ($n === 1 && strlen($sa) < 5) continue;   // "kaş", "fön", "masaj" gibi kisa tek kelime -> yanlis pozitif riski
+            $esik = $n === 1 ? 0.85 : 0.75;
+            for ($i = 0; $i + $n <= count($kelimeler); $i++) {
+                // Kelime kelime karsilastir; Turkce ek toleransi icin uzun kelimeyi hedef uzunluga da kirpip
+                // iyi olani al ("masajini"~"masaji", "dayi"~"tay").
+                $mesafe = 0;
+                foreach ($hk as $j => $hw) {
+                    $w = $kelimeler[$i + $j];
+                    $d = levenshtein($w, $hw);
+                    if (strlen($w) > strlen($hw)) $d = min($d, levenshtein(substr($w, 0, strlen($hw)), $hw));
+                    $mesafe += $d;
+                }
+                $oran = 1 - $mesafe / max(1, strlen(str_replace(' ', '', $sa)));
+                if ($oran >= $esik && $mesafe > 0) {
+                    $adaylar[$ad] = max($adaylar[$ad] ?? 0, $oran);
+                }
+            }
+        }
+        if (!$adaylar) return '';
+        arsort($adaylar);
+        $adlar = array_slice(array_keys($adaylar), 0, 2);
+        Log::info('[SANTRAL-HIZMET-DUZELTME]', ['salon' => $this->salonId, 'metin' => $metin, 'adaylar' => $adaylar]);
+        $liste = implode("' veya '", $adlar);
+        return "\n[SİSTEM hizmet eşleştirme — müşteri duymaz: Ses tanıma hizmet adını yanlış duymuş olabilir; müşteri büyük ihtimalle '{$liste}' hizmetini kastediyor. Bu hizmet listede VAR: 'yok' deme. Tek aday varsa o hizmetle devam et; emin değilsen '{$adlar[0]} mı demek istediniz?' diye kısaca teyit et.]";
+    }
+
+    /** STT ipucu: salonun hizmet adlari (Google speechContexts; kopru baslatta alir). */
+    public function sttIpuclari(): array
+    {
+        $out = [];
+        foreach (($this->salon['hizmetler'] ?? []) as $h) {
+            $ad = trim((string) ($h['ad'] ?? ''));
+            if ($ad !== '' && mb_strlen($ad) <= 100) $out[$ad] = true;
+            if (count($out) >= 400) break;
+        }
+        return array_keys($out);
     }
 
     /** Musterinin cumlesinde bir SSS tetikleyicisi geciyorsa isletmenin cevabi; yoksa null. */

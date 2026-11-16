@@ -107,6 +107,7 @@ class SantralKopruController extends Controller
             'geri_arama' => 0,
             'musteri' => $as->taninanMusteri(),
             'son_siparis' => '',
+            'stt_ipuclari' => $as->sttIpuclari(), // kopru: Google STT speechContexts (hizmet adlari dogru duyulsun)
         ]);
     }
 
