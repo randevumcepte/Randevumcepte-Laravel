@@ -24,6 +24,8 @@ class RandevuSMSHatirlatma extends Command
 
     /** Bu turda kuyruga eklenecek hatirlatma aramalari (handle sonunda chunk'li dispatch). */
     protected $aramaListesi = [];
+    /** aramaListesi ile ayni sirada 'ilk' / 'tekrar' (ozet log icin) */
+    protected $aramaEtiketleri = [];
     /** salon_id => e-asistan randevu hatirlatma aramasi (ayar_id=4) acik mi */
     protected $aramaAyarCache = [];
     /** Ayni anda santrale verilecek arama sayisi / chunk'lar arasi bekleme (sn) */
@@ -709,16 +711,16 @@ class RandevuSMSHatirlatma extends Command
         return $this->aramaAyarCache[$salonId];
     }
 
-    /** Randevu bu musteri icin aranabilir mi (ayar, telefon, iptal edilmis gorev, kara liste). */
-    protected function aranabilir($r): bool
+    /** Randevu aranamazsa nedeni, aranabilirse null (ayar, telefon, iptal edilmis gorev, kara liste). */
+    protected function aranamamaNedeni($r)
     {
-        if (!$r->salon_id || !$this->aramaAcik($r->salon_id)) return false;
-        if (empty(optional($r->users)->cep_telefon)) return false;
-        if (!empty($r->hatirlatma_gorevi_iptal)) return false;
+        if (!$r->salon_id || !$this->aramaAcik($r->salon_id)) return 'e-asistan randevu aramasi kapali';
+        if (empty(optional($r->users)->cep_telefon)) return 'musteri telefonu yok';
+        if (!empty($r->hatirlatma_gorevi_iptal)) return 'gorev iptal edilmis';
         $karaListe = MusteriPortfoy::where('user_id', $r->user_id)
             ->where('salon_id', $r->salon_id)
             ->value('kara_liste');
-        return !$karaListe;
+        return $karaListe ? 'kara listede' : null;
     }
 
     /**
@@ -728,8 +730,18 @@ class RandevuSMSHatirlatma extends Command
      */
     protected function ilkHatirlatmaAramasi($r)
     {
-        if (!$r || !empty($r->arama_saat) || !empty($r->tekrar_arandi)) return;
-        if (!$this->aranabilir($r)) return;
+        if (!$r) return;
+        if (!empty($r->arama_saat) || !empty($r->tekrar_arandi)) {
+            Log::info('[RND-ARAMA] ilk arama atlandi: bu randevu zaten arandi', ['randevu_id' => $r->id, 'salon_id' => $r->salon_id]);
+            return;
+        }
+        if (($neden = $this->aranamamaNedeni($r)) !== null) {
+            // Ayar kapali salonlar her gun cok satir uretir; yalniz digerlerini logla.
+            if ($neden !== 'e-asistan randevu aramasi kapali') {
+                Log::info('[RND-ARAMA] ilk arama atlandi: ' . $neden, ['randevu_id' => $r->id, 'salon_id' => $r->salon_id]);
+            }
+            return;
+        }
         $this->aramaEkle($r, 'ilk');
     }
 
@@ -752,7 +764,12 @@ class RandevuSMSHatirlatma extends Command
             if (empty(optional($r->salonlar)->e_asistan_hatirlatma)) continue;
             // Randevuya 1 saatten az kaldiysa / gectiyse hatirlatma anlamsiz.
             if (strtotime($r->tarih . ' ' . $r->saat) - $simdi < 3600) continue;
-            if (!$this->aranabilir($r)) continue;
+            if (($neden = $this->aranamamaNedeni($r)) !== null) {
+                if ($neden !== 'e-asistan randevu aramasi kapali') {
+                    Log::info('[RND-ARAMA] tekrar arama atlandi: ' . $neden, ['randevu_id' => $r->id, 'salon_id' => $r->salon_id]);
+                }
+                continue;
+            }
 
             $claimed = \Illuminate\Support\Facades\DB::table('randevular')
                 ->where('id', $r->id)
@@ -788,7 +805,11 @@ class RandevuSMSHatirlatma extends Command
             'exten' => \App\Services\RandevuAsistan::aiHatirlatmaAcik($r->salon_id) ? 8 : 1,
             'aiHedef' => 'randevu:' . $r->id,
         ];
-        Log::info('[RND-ARAMA] kuyruga alinacak', ['etiket' => $etiket, 'randevu_id' => $r->id, 'salon_id' => $r->salon_id]);
+        $this->aramaEtiketleri[] = $etiket;
+        Log::info('[RND-ARAMA] kuyruga alinacak', [
+            'etiket' => $etiket, 'randevu_id' => $r->id, 'salon_id' => $r->salon_id,
+            'randevu' => date('d.m.Y H:i', $rTs), 'yeni_asistan' => $this->aramaListesi[count($this->aramaListesi) - 1]['exten'] == 8,
+        ]);
     }
 
     protected function aramalariKuyrugaGonder()
@@ -799,8 +820,11 @@ class RandevuSMSHatirlatma extends Command
             if ($i > 0) $job->delay(now()->addSeconds($i * $this->aramaChunkArasi));
             dispatch($job);
         }
-        Log::info('[RND-ARAMA] ' . count($this->aramaListesi) . ' hatirlatma aramasi kuyruga eklendi.');
+        $sayac = array_count_values($this->aramaEtiketleri);
+        Log::info('[RND-ARAMA] ' . count($this->aramaListesi) . ' hatirlatma aramasi kuyruga eklendi'
+            . ' (ilk: ' . ($sayac['ilk'] ?? 0) . ', tekrar: ' . ($sayac['tekrar'] ?? 0) . ').');
         $this->aramaListesi = [];
+        $this->aramaEtiketleri = [];
     }
 
     /**
