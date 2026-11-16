@@ -62,6 +62,7 @@ namespace {
     class Cache { static function remember($k, $t, $f) { return $f(); } }
     class DB { static $sayim = []; static function selectOne($q, $b) { return (object) (self::$sayim[$b[1]] ?? ['e' => 0, 'k' => 0]); } }
 
+    require __DIR__ . '/../app/Services/TurkceIsimCinsiyet.php';
     require __DIR__ . '/../app/Services/SesliRandevuCozService.php';
     require __DIR__ . '/../app/Services/RandevuAsistan.php';
 
@@ -521,13 +522,18 @@ namespace {
     $v = $hl->konus('Yok, teşekkür ederim. Sağ olun.', $sor);
     esit('konus: hızlı veda aksiyon/bitir', ['veda', true], [$v['aksiyon'], $v['bitir']]);
 
-    bolum('Hitap: kayıttaki cinsiyet, yoksa aynı adlı kayıtların istatistiği');
-    DB::$sayim = ['Ferdi' => ['e' => 40, 'k' => 0], 'Ayşe' => ['e' => 1, 'k' => 120], 'Deniz' => ['e' => 30, 'k' => 45], 'Nadir' => ['e' => 3, 'k' => 0]];
-    esit('kayıt boş, "Ferdi" hep erkek → Ferdi Bey', 'Ferdi Bey', cagir(asistan(['musteriAd' => 'Ferdi Korkmaz']), 'hitap'));
-    esit('kayıt boş, "Ayşe" %99 kadın → Ayşe Hanım', 'Ayşe Hanım', cagir(asistan(['musteriAd' => 'Ayşe Yılmaz']), 'hitap'));
-    esit('"Deniz" iki cinsiyet → hitap yok', null, cagir(asistan(['musteriAd' => 'Deniz Kaya']), 'hitap'));
-    esit('az veri (3 kayıt) → hitap yok', null, cagir(asistan(['musteriAd' => 'Nadir Ak']), 'hitap'));
-    esit('kayıt istatistiği ezer (Ferdi ama kayıtta kadın)', 'Ferdi Hanım', cagir(asistan(['musteriAd' => 'Ferdi Korkmaz', 'musteriCinsiyet' => 0]), 'hitap'));
+    bolum('Hitap: kayıt → isim sözlüğü (7.413 ad) → elle liste → müşteri istatistiği');
+    esit('sözlük: Ferdi → Ferdi Bey', 'Ferdi Bey', cagir(asistan(['musteriAd' => 'Ferdi Korkmaz']), 'hitap'));
+    esit('sözlük: Ayşe Nur → Ayşe Hanım', 'Ayşe Hanım', cagir(asistan(['musteriAd' => 'Ayşe Nur Yılmaz']), 'hitap'));
+    esit('sözlük: İSMAİL (büyük harf) → İsmail Bey', 'İsmail Bey', cagir(asistan(['musteriAd' => 'İsmail Kaya']), 'hitap'));
+    foreach (['Deniz Kaya', 'Ümit Ak', 'Özgür Can', 'Ayhan Er'] as $iki) esit("iki cinsiyetli: $iki → hitap yok", null, cagir(asistan(['musteriAd' => $iki]), 'hitap'));
+    esit('sözlükte yok, elle listede: Ecrin → Ecrin Hanım', 'Ecrin Hanım', cagir(asistan(['musteriAd' => 'Ecrin Su']), 'hitap'));
+    DB::$sayim = ['Orbeyhan' => ['e' => 40, 'k' => 0], 'Zirvan' => ['e' => 3, 'k' => 0]];
+    esit('hiçbir listede yok, müşteri verisi erkek → Bey', 'Orbeyhan Bey', cagir(asistan(['musteriAd' => 'Orbeyhan Ak']), 'hitap'));
+    esit('hiçbir listede yok, az veri → hitap yok', null, cagir(asistan(['musteriAd' => 'Zirvan Ak']), 'hitap'));
+    DB::$sayim = ['Deniz' => ['e' => 100, 'k' => 0]];
+    esit('iki cinsiyetli ad müşteri verisine bakmaz', null, cagir(asistan(['musteriAd' => 'Deniz Kaya']), 'hitap'));
+    esit('kayıt her şeyi ezer (Ferdi ama kayıtta kadın)', 'Ferdi Hanım', cagir(asistan(['musteriAd' => 'Ferdi Korkmaz', 'musteriCinsiyet' => 0]), 'hitap'));
     DB::$sayim = [];
     esit('erkek (1) → Anıl Bey', 'Anıl Bey', cagir(asistan(['musteriCinsiyet' => 1]), 'hitap'));
     esit('kadın (0) → Anıl Hanım', 'Anıl Hanım', cagir(asistan(['musteriCinsiyet' => 0]), 'hitap'));

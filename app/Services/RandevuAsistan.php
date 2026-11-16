@@ -1497,7 +1497,9 @@ PROMPT;
         if (!$this->musteriAd) return null;
         $ilkAd = explode(' ', trim($this->musteriAd))[0];
         if ($ilkAd === '') return null;
-        $c = $this->musteriCinsiyet ?? $this->adCinsiyeti($ilkAd);
+        // Sira: kayit -> iki cinsiyetli ad ise DUR -> hazir ad listesi (sorgusuz) -> kendi verimizin istatistigi
+        $c = $this->musteriCinsiyet;
+        if ($c === null && !TurkceIsimCinsiyet::belirsizMi($ilkAd)) $c = TurkceIsimCinsiyet::bul($ilkAd) ?? $this->adCinsiyeti($ilkAd);
         return $c === null ? null : $ilkAd . ($c === 1 ? ' Bey' : ' Hanım');
     }
 
