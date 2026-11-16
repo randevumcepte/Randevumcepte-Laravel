@@ -20,15 +20,15 @@ class TurkceIsimCinsiyet
 
     /**
      * ISLETME DUZELTMESI (2026-11-17, Ferdi): veride iki cinsiyetli cikan yaygin adlar icin karar. HER SEYIN ONUNDE
-     * (sozluk yeniden uretilse de kaybolmaz). Anahtar Turkce karaktersiz. Veriyle guclu celisen Kamer, İmran, Sunay
-     * (veride ~%80 kadin) ve Evren, Mutlu (veride ~%82 erkek) teyit bekliyor -> eklenmedi, hitapsiz kalir.
+     * (sozluk yeniden uretilse de kaybolmaz). Anahtar Turkce karaktersiz. Kamer, İmran, Sunay, Evren, Mutlu
+     * veriyle celisse de isletme karariyla ERKEK.
      */
     const DUZELTME = [
         'yuksel' => 1, 'dursun' => 1, 'hikmet' => 1, 'servet' => 1, 'serif' => 1, 'hidayet' => 1, 'gunay' => 1,
         'ilkay' => 1, 'sefa' => 1, 'olcay' => 1, 'gungor' => 1, 'emir' => 1, 'senel' => 1, 'gursel' => 1,
         'omur' => 1, 'rusen' => 1, 'garip' => 1, 'gorkem' => 1, 'armagan' => 1, 'berat' => 1, 'zulfu' => 1,
         'ozay' => 1, 'bilgin' => 1, 'eser' => 1, 'askin' => 1, 'gurcan' => 1, 'bahtiyar' => 1, 'seckin' => 1,
-        'safak' => 1, 'saffet' => 1, 'ergul' => 1,
+        'safak' => 1, 'saffet' => 1, 'ergul' => 1, 'kamer' => 1, 'imran' => 1, 'sunay' => 1, 'evren' => 1, 'mutlu' => 1,
         'deniz' => 0, 'seyhan' => 0, 'sirin' => 0, 'kudret' => 0, 'durdu' => 0, 'sureyya' => 0, 'guner' => 0,
         'elvan' => 0, 'bircan' => 0, 'ozden' => 0, 'kamuran' => 0, 'sezer' => 0, 'burcin' => 0, 'muhterem' => 0,
         'aycan' => 0, 'ferhan' => 0, 'masallah' => 0, 'ceyhan' => 0, 'ikram' => 0, 'tuna' => 0, 'devrim' => 0,
