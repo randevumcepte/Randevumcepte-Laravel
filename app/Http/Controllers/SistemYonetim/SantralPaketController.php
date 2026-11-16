@@ -120,7 +120,7 @@ class SantralPaketController extends Controller
         $salon = Salonlar::findOrFail((int) $salonId);
         DB::table(SantralPaket::TABLO)->where('salon_id', $salon->id)->delete();
         SantralPaket::onbellekSil($salon->id);
-        Audit::log('santral_paket_sil', 'salon', $salon->id, $salon->salon_adi, 'Asistan paketi kaldırıldı (sınırsız)');
+        Audit::log('santral_paket_sil', 'salon', $salon->id, $salon->salon_adi, 'Asistan paketi kaldırıldı (asistan kapalı)');
         return redirect()->back()->with('basari', $salon->salon_adi . ' için asistan paketi kaldırıldı.');
     }
 }

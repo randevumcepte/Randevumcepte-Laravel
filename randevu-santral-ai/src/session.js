@@ -71,6 +71,13 @@ class CagriOturumu {
       // Bekleme cumlelerini onceden seslendir (onbellege al) -> gerektiginde aninda calsin
       if (cfg.dolguMs > 0) for (const c of DOLGU) tts.seslendir(c).catch(() => {});
     } catch (e) {
+      const neden = e.response && e.response.data && e.response.data.hata;
+      if (neden === 'paket_yok' || neden === 'paket_bitti') {
+        // Salonun asistan paketi yok/bitti: anons YAPMADAN dogrudan isletmeye (operator_kanali) aktar
+        log.info(`Asistan kapali (${neden}, sube ${this.subeId}) -> dogrudan isletmeye aktariliyor`);
+        this.onAktar(this.kanalId);
+        return;
+      }
       log.error('Beyin baslat hatasi:', e.message);
       await this._seslendir('Sizi yetkiliye bağlıyorum, lütfen hatta kalın.');
       this.onAktar(this.kanalId);

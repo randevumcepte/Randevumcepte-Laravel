@@ -319,6 +319,13 @@ async function insanaAktar(kanalId, subeId) {
   try { if (kayit.oturum) await kayit.oturum.kapat('aktar'); } catch (_) {}
   portBirak(kayit.port); kayit.port = null;
 
+  // Hedef acana kadar arayan sessizlik degil ZIL sesi duysun (cevap verilince durdurulur)
+  try {
+    const pb = client.Playback();
+    kayit.zilPb = pb;
+    await kayit.bridge.play({ media: 'tone:ring', playbackId: pb.id });
+  } catch (e) { log.debug('zil sesi calinamadi: ' + e.message); }
+
   kayit.hedefAdaylar = new Set();
   kayit.hedefBagli = false;
   kayit.hedefChanId = null;
@@ -386,6 +393,7 @@ async function aktarmaHedefiCevapladi(hedefChan, callerId) {
   kayit.hedefBagli = true;
   kayit.hedefChanId = hedefChan.id;
   log.info(`aktarma hedefi cevapladi -> ${callerId} ile birlestiriliyor`);
+  if (kayit.zilPb) { try { await kayit.zilPb.stop(); } catch (_) {} kayit.zilPb = null; }
   try { await kayit.bridge.addChannel({ channel: hedefChan.id }); }
   catch (e) { log.warn('bridge birlestirme hatasi:', e.message); }
 

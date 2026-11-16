@@ -97,7 +97,7 @@
                             <div class="sp-ad">{{ $p->paket_adi ?: 'Özel' }}</div>
                             <div class="sp-alt">{{ $tl($p->dahil_dakika) }} dk · {{ $tl($p->aylik_ucret) }} ₺ · aşım {{ $tl($p->asim_dk_ucret, 2) }} ₺/dk</div>
                         @else
-                            <span class="sp-rozet yok">Paket yok (sınırsız)</span>
+                            <span class="sp-rozet kapali">Paket yok · asistan kapalı</span>
                         @endif
                     </td>
                     <td class="r">{{ $tl($s['gelen_dk'], 1) }} dk<div class="sp-alt">{{ $s['gelen_adet'] }} görüşme</div></td>
@@ -121,7 +121,7 @@
                     <td class="r">{{ $p ? $tl($s['fatura_tl']) . ' ₺' : '—' }}</td>
                     <td class="r {{ $s['kar_tl'] >= 0 ? 'sp-yesil' : 'sp-kirmizi' }}">{{ $p ? $tl($s['kar_tl']) . ' ₺' : '—' }}</td>
                     <td>
-                        @if(!$p) <span class="sp-rozet yok">—</span>
+                        @if(!$p) <span class="sp-rozet yok">Doğrudan işletmeye</span>
                         @elseif($buAy && $s['kapali']) <span class="sp-rozet kapali">Asistan durdu</span>
                         @elseif($p->asim_davranis === 'durdur') <span class="sp-rozet durdur">Durdur</span>
                         @else <span class="sp-rozet devam">Devam (ücretli)</span>
@@ -146,6 +146,7 @@
         <div class="sp-not">
             <b>Nasıl hesaplanır:</b> Dakika, asistanın hatta kaldığı süredir (operatöre aktarıldıktan sonraki konuşma dahil değil); dönem takvim ayıdır.
             Aşım tam dakikaya yuvarlanır. Maliyet = Claude (gerçek token) + Google STT (dakika × {{ config('services.santral_ai.stt_usd_dk') }} $) + Wavenet TTS (karakter, tahmini), kur {{ $tl($kur, 2) }} ₺ (AI Kredi sayfasından).
+            <b>Paketi olmayan salonda asistan çalışmaz:</b> gelen çağrı doğrudan işletmenin operatör kanalına çalar, hatırlatmalar klasik tuşlamalı mesajla yapılır.
             <b>Aşımda durdur:</b> paket bitince gelen çağrılar asistan yerine operatöre aktarılır, hatırlatmalar klasik tuşlamalı sesli mesajla yapılır.
             Token/süre kaydı bu güncellemeden itibaren tutulur; önceki görüşmelerde token 0 görünür.
         </div>
@@ -236,7 +237,7 @@
     });
     $('spSil').addEventListener('click', function(){
         var id = $('spSalonId').value;
-        if (!id || !confirm('Bu salonun asistan paketi kaldırılsın mı? Asistan sınırsız çalışmaya devam eder.')) return;
+        if (!id || !confirm('Bu salonun asistan paketi kaldırılsın mı? Asistan bu salonda kapanır, çağrılar doğrudan işletmeye çalar.')) return;
         var f = $('spSilForm'); f.action = '/sistemyonetim/v2/santral-paket/' + id + '/sil'; f.submit();
     });
     // Salon arama (yeni paket)

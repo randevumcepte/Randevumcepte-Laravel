@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\Schema;
  *   *_token  : o gorusmedeki Claude token kullanimi, maliyet_usd = Claude maliyeti
  *   tts_karakter : seslendirilen karakter (Wavenet maliyet tahmini icin)
  *
- * Donem = takvim ayi. Paket yoksa sinir YOK (eski davranis). asim_davranis:
+ * Donem = takvim ayi. Paket TANIMSIZ salonda asistan CALISMAZ (gelen cagri dogrudan operator_kanali'na,
+ * hatirlatmalar klasik IVR). asim_davranis:
  *   devam  -> paket bitse de asistan calisir, asan dakika asim ucretiyle faturalanir
  *   durdur -> paket bitince gelen cagri operatore aktarilir, hatirlatmalar klasik tuslamali IVR ile yapilir
  */
@@ -207,22 +208,30 @@ class SantralPaket
     }
 
     /**
-     * Paket bitti ve "asimda durdur" secili mi? (gelen: operatore aktar, giden: klasik IVR)
-     * Her cagride calisir -> 60 sn onbellek; paket kaydedilince panel onbellegi siler.
+     * Asistan bu salonda neden calismiyor? null = calisir | 'paket_yok' | 'paket_bitti' (asimda durdur).
+     * (gelen: operatore aktar, giden: klasik IVR). Her cagride calisir -> 60 sn onbellek; panel kaydinda silinir.
      */
-    public static function asistanKapali(int $salonId): bool
+    public static function kapaliNedeni(int $salonId): ?string
     {
         try {
-            return (bool) Cache::remember('santral_paket_kapali:' . $salonId, 1, function () use ($salonId) {
+            $n = Cache::remember('santral_paket_kapali:' . $salonId, 1, function () use ($salonId) {
                 $p = self::paket($salonId);
-                if (!$p || $p->asim_davranis !== 'durdur') return 0;
+                if (!$p) return 'paket_yok';
+                if ($p->asim_davranis !== 'durdur') return '-';
                 [, $bas, $bit] = self::donem();
                 $k = self::kullanimlar($bas, $bit, [$salonId])[$salonId] ?? null;
-                return self::hesapla($p, $k, self::kur())['kapali'] ? 1 : 0;
+                return self::hesapla($p, $k, self::kur())['kapali'] ? 'paket_bitti' : '-';
             });
+            return ($n && $n !== '-') ? $n : null;
         } catch (\Throwable $e) {
-            return false; // hesap hatasinda asistani KAPATMA
+            Log::warning('[SANTRAL-PAKET] durum hesaplanamadi: ' . $e->getMessage());
+            return null; // hesap/DB hatasinda asistani KAPATMA (tanimli paketli salonlar magdur olmasin)
         }
+    }
+
+    public static function asistanKapali(int $salonId): bool
+    {
+        return self::kapaliNedeni($salonId) !== null;
     }
 
     public static function onbellekSil(int $salonId): void

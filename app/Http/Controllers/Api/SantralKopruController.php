@@ -86,11 +86,11 @@ class SantralKopruController extends Controller
             if (!empty($hh['telefon'])) $telefon = (string) $hh['telefon'];
         }
 
-        // Asistan paketi bitti + "asimda durdur": GELEN cagriyi AI karsilamaz. Hata kodu -> kopru
-        // "Sizi yetkiliye bağlıyorum" deyip operatore aktarir (kopruda degisiklik gerekmez).
-        if ($hedef === '' && SantralPaket::asistanKapali($salonId)) {
-            \Log::info('[SANTRAL-PAKET] paket bitti, gelen cagri operatore', ['salon' => $salonId]);
-            return $this->j(['ok' => 0, 'hata' => 'paket_bitti'], 402);
+        // Asistan paketi YOK ya da bitti (+ "asimda durdur"): GELEN cagriyi AI karsilamaz. Hata kodu ->
+        // kopru cagriyi salonun operator_kanali'na aktarir (paket_yok/paket_bitti'de anons yapmadan, zil sesiyle).
+        if ($hedef === '' && ($neden = SantralPaket::kapaliNedeni($salonId))) {
+            \Log::info('[SANTRAL-PAKET] asistan kapali, gelen cagri operatore', ['salon' => $salonId, 'neden' => $neden]);
+            return $this->j(['ok' => 0, 'hata' => $neden], 402);
         }
 
         $as = new RandevuAsistan($salonId, $telefon ?: null);
