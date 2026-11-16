@@ -137,17 +137,24 @@ function ariHandlerKur(c) {
   // Kanal Stasis'ten cikinca (hangup) StasisEnd gelir; ChannelDestroyed ULASMAYABILIR -> ikisini de dinle.
   c.on('StasisEnd', async (event, channel) => { log.debug(`StasisEnd: ${channel.id}`); await kanalDustu(channel.id); });
   c.on('WebSocketError', (err) => log.warn('ARI WS hata:', err && err.message));
+  // WS kapandi ve kendi denemeleri bitti -> saglik kontrolunu hemen calistir (25 sn bekleme).
+  c.on('WebSocketMaxRetries', () => { log.warn('ARI WS yeniden deneme bitti, yeniden baglaniliyor'); ariSaglikKontrol(); });
 }
 
 let _ariYenileniyor = false;
 async function ariSaglikKontrol() {
   try {
     await client.asterisk.getInfo(); // hafif ping: baglanti canli mi + WS'i sicak tutar
+    // Asterisk yeniden baslatilinca (fwconsole stop/start) REST tekrar cevap verir ama WS olmustur
+    // ve Stasis app kayitsiz kalir ("Stasis app ... not registered" -> cagrilar eski IVR'a duser).
+    // App kayitli degilse applications.get 404 atar -> asagida yeniden baglanilir.
+    await client.applications.get({ applicationName: cfg.ari.app });
   } catch (e) {
     if (_ariYenileniyor) return;
     _ariYenileniyor = true;
     log.warn('ARI baglantisi kopuk olabilir, yeniden baglaniliyor:', e && e.message);
     try {
+      try { client.stop(); } catch (_) {} // eski (olu) WS'i kapat
       client = await ariClient.connect(cfg.ari.url, cfg.ari.user, cfg.ari.pass);
       ariHandlerKur(client);
       await client.start(cfg.ari.app);
