@@ -95,7 +95,7 @@ class DamgaKartiServisi
 
         if ($hizmetId <= 0) throw new \RuntimeException('Hizmet seçin.');
         if ($gereken < 1 || $gereken > 100) throw new \RuntimeException('Alım adedi 1 ile 100 arasında olmalı.');
-        if ($ucretsiz < 1 || $ucretsiz > 10) throw new \RuntimeException('Ücretsiz seans 1 ile 10 arasında olmalı.');
+        if ($ucretsiz < 1 || $ucretsiz > 10) throw new \RuntimeException('İkram adedi 1 ile 10 arasında olmalı.');
 
         $kural = $id
             ? DamgaKartiKurallari::where('id', $id)->where('salon_id', $salonId)->first()
@@ -245,7 +245,7 @@ class DamgaKartiServisi
             elseif (in_array((int) $s->id, $paket, true))            $neden = 'Paket / seanslı satış seansı';
             elseif (!empty($s->sadece_telafi))                       $neden = 'Telafi seansı';
             elseif (!empty($s->sadece_yardimci))                     $neden = 'Yardımcı personel kaydı';
-            elseif (in_array((int) $s->id, $kullanilan, true))       $neden = 'Ücretsiz seans olarak kullanıldı';
+            elseif (in_array((int) $s->id, $kullanilan, true))       $neden = 'İkram olarak kullanıldı';
             $sonuc[] = [
                 'randevu_id' => (int) $s->id,
                 'tarih'      => date('d.m.Y', strtotime($s->tarih)),
@@ -271,6 +271,57 @@ class DamgaKartiServisi
     {
         $odenen = (float) TahsilatHizmetler::where('adisyon_hizmet_id', $ah->id)->sum('tutar');
         return round((float) $ah->fiyat - (float) $ah->indirim_tutari - $odenen, 2);
+    }
+
+    /**
+     * Yonetim (Ikram Hizmet sayfasi): ikram kazanmis musteriler, kural basina.
+     * Aday = kural acildiktan sonra o hizmette en az "gereken" kadar Geldi randevusu olan
+     * musteriler (tek gruplu sorgu); kesin sayim her aday icin durum() ile (tahsilatla ayni).
+     * @return array [[user_id, ad, telefon, hizmet_adi, kural, ucretli, kazanilan, kullanilan, hak]]
+     */
+    public static function yonetimOzet($salonId, $limit = 300)
+    {
+        if (!self::tabloHazir()) return [];
+        $sonuc = [];
+        foreach (DamgaKartiKurallari::where('salon_id', (int) $salonId)->whereNotNull('baslangic')->get() as $k) {
+            $adaylar = DB::table('randevular as r')
+                ->join('randevu_hizmetler as rh', 'rh.randevu_id', '=', 'r.id')
+                ->where('r.salon_id', (int) $salonId)
+                ->where('rh.hizmet_id', (int) $k->hizmet_id)
+                ->where('r.randevuya_geldi', 1)
+                ->whereNotNull('r.user_id')
+                ->where('r.tarih', '>=', date('Y-m-d', strtotime($k->baslangic)))
+                ->groupBy('r.user_id')
+                ->havingRaw('COUNT(DISTINCT r.id) >= ?', [max(1, (int) $k->gereken_adet)])
+                ->limit($limit)
+                ->pluck('r.user_id');
+            $kullananlar = DB::table('damga_karti_kullanimlari')->where('kural_id', $k->id)->distinct()->pluck('user_id');
+            $idler = $adaylar->merge($kullananlar)->map(function ($v) { return (int) $v; })->unique()->values();
+            if ($idler->isEmpty()) continue;
+
+            $hizmet = DB::table('hizmetler')->where('id', $k->hizmet_id)->value('hizmet_adi') ?: 'Hizmet';
+            $kisiler = DB::table('users')->whereIn('id', $idler->all())->get(['id', 'name', 'cep_telefon'])->keyBy('id');
+            foreach ($idler as $uid) {
+                $d = self::durum($k, $uid);
+                if ($d['kazanilan'] < 1 && $d['kullanilan'] < 1) continue;
+                $kisi = $kisiler->get($uid);
+                $sonuc[] = [
+                    'user_id'    => $uid,
+                    'ad'         => $kisi->name ?? ('Müşteri #' . $uid),
+                    'telefon'    => $kisi->cep_telefon ?? '',
+                    'hizmet_adi' => $hizmet,
+                    'kural'      => (int) $k->gereken_adet . ' al, ' . (int) $k->ucretsiz_adet . ' ikram',
+                    'ucretli'    => $d['ucretli'],
+                    'kazanilan'  => $d['kazanilan'],
+                    'kullanilan' => $d['kullanilan'],
+                    'hak'        => $d['hak'],
+                ];
+            }
+        }
+        usort($sonuc, function ($a, $b) {
+            return [$b['hak'], $b['kazanilan']] <=> [$a['hak'], $a['kazanilan']];
+        });
+        return $sonuc;
     }
 
     /**
@@ -395,23 +446,23 @@ class DamgaKartiServisi
             $adisyon = Adisyonlar::where('id', $ah->adisyon_id)->where('salon_id', (int) $salonId)->first();
             if (!$adisyon || !$adisyon->user_id) throw new \RuntimeException('Adisyon bulunamadı.');
             if ($ah->senet_id !== null || $ah->taksitli_tahsilat_id !== null) {
-                throw new \RuntimeException('Senetli/taksitli kaleme ücretsiz seans uygulanamaz.');
+                throw new \RuntimeException('Senetli/taksitli kaleme ikram uygulanamaz.');
             }
             if ($ah->hediye) throw new \RuntimeException('Bu kalem zaten hediye olarak işaretli.');
             if (self::seansliKalem($ah)) {
-                throw new \RuntimeException('Seanslı satışa ücretsiz seans uygulanamaz; tek seanslık kaleme uygulayın.');
+                throw new \RuntimeException('Seanslı satışa ikram uygulanamaz; tek seanslık kaleme uygulayın.');
             }
             if (DamgaKartiKullanimlari::where('adisyon_hizmet_id', $ah->id)->exists()) {
-                throw new \RuntimeException('Bu kaleme ücretsiz seans zaten uygulanmış.');
+                throw new \RuntimeException('Bu kaleme ikram zaten uygulanmış.');
             }
 
             // Kural satiri kilitlenir: ayni musteriye iki ekrandan ayni hakkin cift kullanimi olmasin.
             $kural = DamgaKartiKurallari::where('salon_id', (int) $salonId)->where('hizmet_id', $ah->hizmet_id)
                 ->where('aktif', 1)->lockForUpdate()->first();
-            if (!$kural) throw new \RuntimeException('Bu hizmet için açık damga kartı kuralı yok.');
+            if (!$kural) throw new \RuntimeException('Bu hizmet için açık ikram kuralı yok.');
 
             $durum = self::durum($kural, $adisyon->user_id, $ah->randevu_id ?? null);
-            if ($durum['hak'] < 1) throw new \RuntimeException('Müşterinin bu hizmette ücretsiz seans hakkı yok.');
+            if ($durum['hak'] < 1) throw new \RuntimeException('Müşterinin bu hizmette ikram hakkı yok.');
 
             $kalan = self::kalanBorc($ah);
             if ($kalan <= 0) throw new \RuntimeException('Bu kalemin ödenecek tutarı kalmamış.');
@@ -429,8 +480,8 @@ class DamgaKartiServisi
             $tahsilat->odeme_tarihi     = date('Y-m-d');
             $tahsilat->olusturan_id     = $olusturanId;
             $tahsilat->odeme_yontemi_id = \App\OdemeYontemleri::where('odeme_yontemi', 'like', '%Nakit%')->value('id');
-            $tahsilat->notlar           = 'Damga kartı: ' . $kural->gereken_adet . ' ' . $hizmetAdi . ' alımına '
-                . $kural->ucretsiz_adet . ' ücretsiz seans (' . number_format($kalan, 2, ',', '.') . ' ₺ indirim)';
+            $tahsilat->notlar           = 'İkram hizmet: ' . $kural->gereken_adet . ' ' . $hizmetAdi . ' alımına '
+                . $kural->ucretsiz_adet . ' ikram (' . number_format($kalan, 2, ',', '.') . ' ₺ indirim)';
             $tahsilat->save();
 
             TahsilatHizmetler::create([

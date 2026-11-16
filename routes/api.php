@@ -141,6 +141,7 @@ Route::post('/carkAdmin/damga-karti/{salonId}',     'ApiController@carkAdminDamg
 Route::post('/carkAdmin/damga-karti-sil/{salonId}', 'ApiController@carkAdminDamgaKartiSilApi');
 Route::post('/carkAdmin/damga-karti-adisyon/{salonId}', 'ApiController@carkAdminDamgaKartiAdisyonApi');
 Route::post('/carkAdmin/damga-karti-uygula/{salonId}',  'ApiController@carkAdminDamgaKartiUygulaApi');
+Route::get ('/musteri/ikram-hizmetleri',                'ApiController@musteriIkramHizmetleri');
 
 // WhatsApp Mobil (ayri controller, defensive, izole)
 Route::post('/whatsapp/baslat/{salonId}','WhatsappMobileController@baslat');

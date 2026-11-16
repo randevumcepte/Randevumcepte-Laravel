@@ -2008,6 +2008,18 @@
                   @endif
                   {{-- Çark Kazananlar ve Puan Ödülleri linkleri Çarkıfelek sayfasına tab olarak entegre edildi --}}
 
+                  {{-- İkram Hizmet ("N kez alana M ikram") — Çarkıfelek'ten bağımsız --}}
+                  @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.kampanya_yonet'))
+                  <li>
+                     <a href="/isletmeyonetim/ikramhizmet{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow {{ ($pageindex ?? 0) == 520 ? 'active' : '' }}">
+                     <span class="micon fa fa-gift" style="color:#7c3aed"></span
+                        ><span class="mtext">İkram Hizmet</span>
+                     </a>
+                  </li>
+                  @endif
+                  @endif
+
                   {{-- Uygulama İndirme Afişi — yetkisi ayarlanmamis personel GORMEZ
                        (personel default pazarlama.kampanya_yonet=false; yonetici/sekreter=true). --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")

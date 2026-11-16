@@ -1009,8 +1009,34 @@ public function carkverilerigetir(Request $request)
             'yetkiliolunanisletmeler' => $yetkiler,
             'odulSeviyeleri'        => $odulSeviyeleri,
             'sadakatAyar'           => \App\Services\SadakatPuanServisi::ayarDizi(\App\Services\SadakatPuanServisi::ayar($salon_id)),
-            'damgaKurallari'        => \App\Services\DamgaKartiServisi::kurallar($salon_id),
-            'damgaHizmetleri'       => \App\Services\DamgaKartiServisi::hizmetSecenekleri($salon_id),
+        ]);
+    }
+
+    /**
+     * Admin: Ikram Hizmet sayfasi ("N kez alana M ikram"; Carkifelek'ten bagimsiz).
+     * Kurallar + ikram kazanmis musteriler. Mantik DamgaKartiServisi'nde (ic adi damga).
+     */
+    public function ikramHizmet(Request $request)
+    {
+        $salon_id = self::mevcutsube($request);
+        $isletme  = Salonlar::where('id', $salon_id)->first();
+        if (!in_array($salon_id, $this->yetkiliSubeIdler()) && !Auth::guard('satisortakligi')->check()) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        try { $musteriler = \App\Services\DamgaKartiServisi::yonetimOzet($salon_id); }
+        catch (\Throwable $e) { \Log::warning('[ikram yonetim] ' . $e->getMessage()); $musteriler = []; }
+
+        return view('isletmeadmin.ikram_hizmet', [
+            'bildirimler'           => self::bildirimgetir($request),
+            'paketler'              => self::paket_liste_getir('', true, $request),
+            'sayfa_baslik'          => 'İkram Hizmet',
+            'pageindex'             => 520,
+            'isletme'               => $isletme,
+            'kalan_uyelik_suresi'   => self::lisans_sure_kontrol($request),
+            'urun_drop'             => self::urundropliste($request),
+            'ikramKurallari'        => \App\Services\DamgaKartiServisi::kurallar($salon_id),
+            'ikramHizmetleri'       => \App\Services\DamgaKartiServisi::hizmetSecenekleri($salon_id),
+            'ikramMusterileri'      => $musteriler,
         ]);
     }
 
@@ -1051,8 +1077,8 @@ public function carkverilerigetir(Request $request)
         }
         $_hizmet = \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi');
         SalonAudit::log($salon_id, 'damga_karti_kural', 'damga_karti_kural', $kural->id,
-            $_hizmet . ': ' . $kural->gereken_adet . ' alana ' . $kural->ucretsiz_adet . ' ücretsiz (' . ($kural->aktif ? 'Açık' : 'Kapalı') . ')',
-            'Damga kartı kuralı kaydedildi');
+            $_hizmet . ': ' . $kural->gereken_adet . ' alana ' . $kural->ucretsiz_adet . ' ikram (' . ($kural->aktif ? 'Açık' : 'Kapalı') . ')',
+            'İkram hizmet kuralı kaydedildi');
         return response()->json(['success' => true]);
     }
 
@@ -1069,7 +1095,7 @@ public function carkverilerigetir(Request $request)
             return response()->json(['success' => false, 'message' => 'Bu kuralla ücretsiz seans verilmiş; silmek yerine kapatın.']);
         }
         SalonAudit::log($salon_id, 'damga_karti_kural_sil', 'damga_karti_kural', $kural->id,
-            \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi'), 'Damga kartı kuralı silindi');
+            \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi'), 'İkram hizmet kuralı silindi');
         $kural->delete();
         return response()->json(['success' => true]);
     }
@@ -1089,11 +1115,11 @@ public function carkverilerigetir(Request $request)
             if ($request->input('aksiyon') === 'geri_al') {
                 $ku = \App\Services\DamgaKartiServisi::geriAl($salon_id, (int) $request->input('kullanim_id'));
                 $_aksiyon = 'damga_karti_geri_al';
-                $_mesaj   = 'Damga kartı ücretsiz seansı geri alındı';
+                $_mesaj   = 'İkram hizmet geri alındı';
             } else {
                 $ku = \App\Services\DamgaKartiServisi::uygula($salon_id, (int) $request->input('adisyon_hizmet_id'), $olusturan);
                 $_aksiyon = 'damga_karti_uygula';
-                $_mesaj   = 'Damga kartı ücretsiz seansı uygulandı';
+                $_mesaj   = 'İkram hizmet kullanıldı';
             }
         } catch (\RuntimeException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()]);

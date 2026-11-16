@@ -96,6 +96,7 @@ Route::group(['middleware' => ['auth']],function(){
 
 	/* Puan ödülleri — müşteri tarafı */
 	Route::get('/puanodullerim/{salonId?}', 'CarkifelekMusteriController@puanOdullerim')->name('cark.puanodullerim');
+	Route::get('/ikramhizmetlerim/{salonId?}', 'CarkifelekMusteriController@ikramHizmetlerim')->name('ikram.hizmetlerim');
 	Route::post('/puanodultalep',           'CarkifelekMusteriController@puanOdulTalep')->name('cark.puanodul.talep');
 
 	/* Sadakat hub — birleşik puan + kupon sayfası */
@@ -1268,6 +1269,7 @@ Route::post('/puanodulkaydet',   [StoreAdminController::class, 'puanOdulKaydet']
 Route::post('/puanodulsil',      [StoreAdminController::class, 'puanOdulSil'])->name('isletmeadmin.puanodul.sil');
 Route::post('/puanorneklerekle-admin', [StoreAdminController::class, 'puanOrneklerEkle'])->name('isletmeadmin.puanodul.ornekekle');
 Route::post('/puankazanimkaydet', [StoreAdminController::class, 'puanKazanimKaydet'])->name('isletmeadmin.puankazanim.kaydet');
+Route::get('/ikramhizmet',       [StoreAdminController::class, 'ikramHizmet'])->name('isletmeadmin.ikramhizmet');
 Route::post('/damgakartikaydet',  [StoreAdminController::class, 'damgaKartiKaydet'])->name('isletmeadmin.damgakarti.kaydet');
 Route::post('/damgakartisil',     [StoreAdminController::class, 'damgaKartiSil'])->name('isletmeadmin.damgakarti.sil');
 Route::post('/damgakartiuygula',  [StoreAdminController::class, 'damgaKartiUygula'])->name('isletmeadmin.damgakarti.uygula');

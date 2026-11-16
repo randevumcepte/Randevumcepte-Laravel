@@ -70,7 +70,7 @@
          // DAMGA KARTI: adisyondaki kurala tabi hizmetlerin ucretsiz seans durumu.
          // Hata tahsilat ekranini asla bozmasin.
          try { $_damgaDurum = \App\Services\DamgaKartiServisi::adisyonDurumu($isletme->id, $adisyon_id ?? null); }
-         catch (\Throwable $e) { \Log::warning('damga karti durum', ['err' => $e->getMessage()]); $_damgaDurum = []; }
+         catch (\Throwable $e) { \Log::warning('ikram hizmet durum', ['err' => $e->getMessage()]); $_damgaDurum = []; }
       @endphp
       @if(!empty($_damgaDurum))
       <div class="card-box pd-5" id="damga-karti-kutu" style="margin-bottom:12px;border-left:4px solid #8b5cf6;">
@@ -78,15 +78,16 @@
          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:6px 8px;">
             <span style="font-size:20px;">🎟️</span>
             <div style="flex:1;min-width:220px;color:#374151;">
-               <strong>{{ $_d['hizmet_adi'] }}</strong> damga kartı
-               ({{ $_d['gereken'] }} alana {{ $_d['ucretsiz'] }} ücretsiz)
+               <strong>{{ $_d['hizmet_adi'] }}</strong> ikram hizmet
+               ({{ $_d['gereken'] }} alana {{ $_d['ucretsiz'] }} ikram)
                @if($_d['kullanim_id'])
-                  — <span style="color:#065f46;font-weight:700;">bu seans ücretsiz olarak işlendi ({{ number_format($_d['kullanim_indirim'],2,',','.') }} ₺ indirim)</span>
+                  — <span style="color:#065f46;font-weight:700;">bu seans ikram olarak işlendi ({{ number_format($_d['kullanim_indirim'],2,',','.') }} ₺ indirim)</span>
                @elseif($_d['durum']['hak'] > 0)
-                  — <span style="color:#5C008E;font-weight:700;">müşterinin {{ $_d['durum']['hak'] }} ücretsiz seans hakkı var</span>
+                  — <span style="color:#5C008E;font-weight:700;">müşterinin {{ $_d['durum']['hak'] }} ikram hakkı var</span>
+                  <small style="color:#6b7280;">(müşteri isterse bu seansta kullanır; istemezse hakkı saklanır)</small>
                @else
-                  — damga: <strong>{{ $_d['ilerleme'] }}/{{ $_d['gereken'] }}</strong>
-                  <small style="color:#6b7280;">(bu ziyaret dahil; ücretsiz hak {{ $_d['gereken'] }} ücretli ziyaretten sonraki seansta kullanılır)</small>
+                  — ikram ilerlemesi: <strong>{{ $_d['ilerleme'] }}/{{ $_d['gereken'] }}</strong>
+                  <small style="color:#6b7280;">(bu ziyaret dahil; {{ $_d['gereken'] }} ücretli alımda {{ $_d['ucretsiz'] }} ikram kazanılır)</small>
                @endif
                @if(!empty($_d['dokum']))
                <details style="margin-top:4px;">
@@ -112,7 +113,7 @@
             @if($_d['kullanim_id'])
                <button type="button" class="btn btn-sm btn-outline-secondary damga-karti-islem" data-aksiyon="geri_al" data-kullanim="{{ $_d['kullanim_id'] }}">Geri Al</button>
             @elseif($_d['uygulanabilir'])
-               <button type="button" class="btn btn-sm btn-success damga-karti-islem" data-aksiyon="uygula" data-kalem="{{ $_d['adisyon_hizmet_id'] }}" data-tutar="{{ number_format($_d['kalan'],2,',','.') }}" data-hizmet="{{ $_d['hizmet_adi'] }}">🎁 Ücretsiz Uygula</button>
+               <button type="button" class="btn btn-sm btn-success damga-karti-islem" data-aksiyon="uygula" data-kalem="{{ $_d['adisyon_hizmet_id'] }}" data-tutar="{{ number_format($_d['kalan'],2,',','.') }}" data-hizmet="{{ $_d['hizmet_adi'] }}">🎁 Müşteri İkramını Kullansın</button>
             @endif
          </div>
          @endforeach
@@ -143,16 +144,16 @@
          var esc = function (s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
          var hizmet = esc(btn.getAttribute('data-hizmet')), tutar = esc(btn.getAttribute('data-tutar'));
          var secenek = geriAl ? {
-            title: 'Ücretsiz seans geri alınsın mı?',
-            html: '<div style="color:#4b5563;font-size:15px;line-height:1.6;">İndirim kaldırılır, 0 TL tahsilat kaydı silinir.<br>Müşterinin ücretsiz seans hakkı geri gelir.</div>',
+            title: 'İkram geri alınsın mı?',
+            html: '<div style="color:#4b5563;font-size:15px;line-height:1.6;">İndirim kaldırılır, 0 TL tahsilat kaydı silinir.<br>Müşterinin ikram hakkı geri gelir.</div>',
             type: 'warning', confirmButtonText: 'Evet, geri al', confirmButtonColor: '#5C008E'
          } : {
-            title: '🎁 Ücretsiz seans',
-            html: '<div style="color:#4b5563;font-size:15px;line-height:1.6;"><b style="color:#111827;">' + hizmet + '</b> bu seans ücretsiz yapılacak.'
+            title: '🎁 İkram kullanılsın mı?',
+            html: '<div style="color:#4b5563;font-size:15px;line-height:1.6;">Müşteri <b style="color:#111827;">' + hizmet + '</b> ikram hakkını bu seansta kullanmak istiyor mu?'
                + '<div style="display:flex;justify-content:space-between;background:#f5f3ff;border-radius:10px;padding:10px 14px;margin-top:12px;text-align:left;">'
                + '<span>Uygulanacak indirim</span><b style="color:#5C008E;">' + tutar + ' ₺</b></div>'
                + '<div style="font-size:13px;color:#6b7280;margin-top:8px;">Satışa 0 TL tahsilat olarak kaydedilir.</div></div>',
-            type: 'question', confirmButtonText: 'Ücretsiz Uygula', confirmButtonColor: '#16a34a'
+            type: 'question', confirmButtonText: 'Evet, müşteri kullanmak istiyor', confirmButtonColor: '#16a34a'
          };
          var hata = function (msg) {
             btn.disabled = false;
@@ -171,7 +172,7 @@
             }).then(function (r) { return r.json(); }).then(function (d) {
                if (!d.success) { hata(d.message || 'İşlem yapılamadı.'); return; }
                ekraniYenile().then(function () {
-                  if (window.swal) swal({ title: geriAl ? 'Geri alındı' : 'Ücretsiz seans uygulandı', type: 'success', timer: 1200, showConfirmButton: false });
+                  if (window.swal) swal({ title: geriAl ? 'Geri alındı' : 'İkram kullanıldı', type: 'success', timer: 1200, showConfirmButton: false });
                });
             }).catch(function () { hata('Bağlantı hatası. Lütfen tekrar deneyin.'); });
          };

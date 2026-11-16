@@ -728,6 +728,26 @@ class CarkifelekMusteriController extends Controller
         ]));
     }
 
+    /**
+     * Musteri: Ikram Hizmetlerim (Carkifelek'ten bagimsiz). Salon verilmezse musterinin
+     * son randevusunun salonu.
+     */
+    public function ikramHizmetlerim(Request $request, $salonId = null)
+    {
+        if (!Auth::check()) return redirect('/login');
+        $userId = Auth::id();
+        $salonId = $salonId ? (int) $salonId
+            : (int) \Illuminate\Support\Facades\DB::table('randevular')->where('user_id', $userId)->orderByDesc('tarih')->value('salon_id');
+        $salon = $salonId ? Salonlar::find($salonId) : null;
+        if (!$salon) abort(404);
+
+        return view('carkifelek.ikram_hizmetlerim', array_merge($this->layoutData(), [
+            'salon'         => $salon,
+            'salonId'       => $salonId,
+            'ikramKartlari' => $this->damgaKartlariGuvenli($salonId, $userId),
+        ]));
+    }
+
     /** Damga karti okumasi sayfayi asla dusurmesin (tablo yok / hata -> bos liste). */
     private function damgaKartlariGuvenli($salonId, $userId)
     {

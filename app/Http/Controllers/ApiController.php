@@ -7550,8 +7550,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $hizmet = $dk->hizmet_adi ?: 'Hizmet';
                 $damga[] = [
                     'id'          => (int) $dk->id,
-                    'baslik'      => "🎟️ {$hizmet}: {$dk->gereken_adet} al, {$dk->ucretsiz_adet} ücretsiz",
-                    'aciklama'    => "{$hizmet} hizmetini {$dk->gereken_adet} kez alana {$dk->ucretsiz_adet} seans ücretsiz! Damgalarınızı Puan Ödüllerim'den takip edebilirsiniz.",
+                    'baslik'      => "🎁 İkram Hizmet: {$dk->gereken_adet} {$hizmet} alana {$dk->ucretsiz_adet} ikram",
+                    'aciklama'    => "{$hizmet} hizmetini {$dk->gereken_adet} kez alana {$dk->ucretsiz_adet} seans ikram! Kazandığınız ikramları uygulamanızdan takip edip dilediğiniz zaman kullanabilirsiniz.",
                     'indirim'     => 0,
                     'tip'         => 'damga',
                     'fiyat'       => null,
@@ -32312,8 +32312,8 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         }
         $hizmet = \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi');
         Audit::logApi($salonId, $request, 'damga_karti_kural', 'damga_karti_kural', $kural->id,
-            $hizmet . ': ' . $kural->gereken_adet . ' alana ' . $kural->ucretsiz_adet . ' ücretsiz (' . ($kural->aktif ? 'Açık' : 'Kapalı') . ')',
-            'Damga kartı kuralı kaydedildi (mobil)');
+            $hizmet . ': ' . $kural->gereken_adet . ' alana ' . $kural->ucretsiz_adet . ' ikram (' . ($kural->aktif ? 'Açık' : 'Kapalı') . ')',
+            'İkram hizmet kuralı kaydedildi (mobil)');
         return response()->json(['basarili' => true, 'id' => (int) $kural->id]);
     }
 
@@ -32326,9 +32326,34 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             return response()->json(['basarili' => false, 'mesaj' => 'Bu kuralla ücretsiz seans verilmiş; silmek yerine kapatın.']);
         }
         Audit::logApi($salonId, $request, 'damga_karti_kural_sil', 'damga_karti_kural', $kural->id,
-            \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi'), 'Damga kartı kuralı silindi (mobil)');
+            \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi'), 'İkram hizmet kuralı silindi (mobil)');
         $kural->delete();
         return response()->json(['basarili' => true]);
+    }
+
+    // Musteri app: Ikram Hizmetlerim (ana sayfa sayaci + detay). Ic ad damga karti.
+    // { basarili, toplam_hak, toplam_kazanilan, kartlar: [{hizmet_adi, gereken_adet, ucretsiz_adet,
+    //   ucretli, kazanilan, kullanilan, hak, ilerleme, aktif, kullanimlar:[{tarih,tutar}]}] }
+    public function musteriIkramHizmetleri(Request $request)
+    {
+        $userId  = (int) $request->input('user_id');
+        $salonId = (int) $request->input('salon_id');
+        if ($userId <= 0 || $salonId <= 0) {
+            return response()->json(['basarili' => false, 'toplam_hak' => 0, 'kartlar' => []]);
+        }
+        try {
+            $kartlar = \App\Services\DamgaKartiServisi::musteriKartlari($salonId, $userId);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[ikram musteri] ' . $e->getMessage());
+            $kartlar = [];
+        }
+        $c = collect($kartlar);
+        return response()->json([
+            'basarili'         => true,
+            'toplam_hak'       => (int) $c->sum('hak'),
+            'toplam_kazanilan' => (int) $c->sum('kazanilan'),
+            'kartlar'          => $kartlar,
+        ]);
     }
 
     // Mobil tahsilat: adisyondaki kurala tabi kalemlerin damga durumu (web tahsilat kutusu ile ayni veri).
@@ -32358,11 +32383,11 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             if ($request->input('aksiyon') === 'geri_al') {
                 $ku = \App\Services\DamgaKartiServisi::geriAl($salonId, (int) $request->input('kullanim_id'));
                 $aksiyon = 'damga_karti_geri_al';
-                $mesaj   = 'Damga kartı ücretsiz seansı geri alındı (mobil)';
+                $mesaj   = 'İkram hizmet geri alındı (mobil)';
             } else {
                 $ku = \App\Services\DamgaKartiServisi::uygula($salonId, (int) $request->input('adisyon_hizmet_id'), $olusturan);
                 $aksiyon = 'damga_karti_uygula';
-                $mesaj   = 'Damga kartı ücretsiz seansı uygulandı (mobil)';
+                $mesaj   = 'İkram hizmet kullanıldı (mobil)';
             }
         } catch (\RuntimeException $e) {
             return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);

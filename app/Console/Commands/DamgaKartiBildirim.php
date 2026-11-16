@@ -79,10 +79,10 @@ class DamgaKartiBildirim extends Command
                         try {
                             NotificationService::toCustomer($userId, (int) $kural->salon_id)
                                 ->type(NotificationTypes::DAMGA_KAZANILDI)
-                                ->title('🎟️ ' . ($salon->salon_adi ?? 'Damga kartınız doldu'))
+                                ->title('🎁 ' . ($salon->salon_adi ?? 'İkram hizmet kazandınız'))
                                 ->body(($ad !== '' ? "Tebrikler {$ad}! " : 'Tebrikler! ')
-                                    . "{$hizmetAdi} damga kartınız doldu, bir sonraki seansınız ücretsiz 🎁")
-                                ->deepLink('loyalty_points', ['salon_id' => $kural->salon_id])
+                                    . "{$hizmetAdi} hizmetinden ikram kazandınız. Dilediğiniz bir seansınızda kullanabilirsiniz 🎁")
+                                ->deepLink('ikram_hizmet', ['salon_id' => $kural->salon_id])
                                 ->extra(['kural_id' => $kural->id])
                                 ->send();
                             $gonderilen++;

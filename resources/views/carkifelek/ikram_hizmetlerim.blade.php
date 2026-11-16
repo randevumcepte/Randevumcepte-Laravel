@@ -1,0 +1,95 @@
+@extends('layout.layout_cark')
+
+@section('title', 'İkram Hizmetlerim')
+@section('content')
+{{-- Musteri: kazandigi ikram hizmetler (hizmet bazinda ucretli alim / kazanilan / kullanilan / kalan).
+     Veri DamgaKartiServisi::musteriKartlari (tahsilat ekraniyla ayni sayim). --}}
+<style>
+.ih-page { max-width: 860px; margin: 40px auto; padding: 0 16px 80px; }
+.ih-hero { background: linear-gradient(135deg,#7c3aed 0%,#a855f7 55%,#10b981 100%); color:#fff; border-radius:22px; padding:26px; box-shadow:0 14px 36px rgba(124,58,237,.22); display:flex; align-items:center; gap:22px; flex-wrap:wrap; }
+.ih-hero h1 { margin:0 0 4px; font-size:20px; font-weight:800; color:#fff; }
+.ih-hero .salon { font-size:14px; opacity:.92; }
+.ih-sayi { font-size:60px; font-weight:800; line-height:1; letter-spacing:-2px; }
+.ih-sayi-alt { font-size:14px; opacity:.92; margin-top:4px; }
+.ih-bilgi { background:#fff; border-radius:16px; padding:16px 20px; margin-top:14px; box-shadow:0 4px 18px rgba(0,0,0,.06); font-size:13px; color:#4b5563; line-height:1.6; }
+.ih-kart { background:#fff; border-radius:16px; padding:18px 20px; box-shadow:0 4px 18px rgba(0,0,0,.06); margin-top:14px; }
+.ih-bas { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; }
+.ih-bas b { font-size:16px; color:#111827; }
+.ih-bas span { font-size:13px; font-weight:700; color:#7c3aed; }
+.ih-istat { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:12px 0; }
+.ih-istat div { background:#f9fafb; border-radius:12px; padding:10px; text-align:center; }
+.ih-istat b { display:block; font-size:20px; color:#111827; }
+.ih-istat small { font-size:11px; color:#6b7280; }
+.ih-istat .kalan { background:#f5f3ff; } .ih-istat .kalan b { color:#7c3aed; }
+.ih-cizgi { display:flex; flex-wrap:wrap; gap:7px; margin:6px 0 8px; align-items:center; }
+.ih-n { width:30px; height:30px; border-radius:50%; border:1.5px solid rgba(124,58,237,.35); color:rgba(124,58,237,.6); display:flex; align-items:center; justify-content:center; font-size:12px; }
+.ih-n.dolu { background:#7c3aed; border-color:#7c3aed; color:#fff; font-weight:800; }
+.ih-hediye { height:30px; padding:0 12px; border-radius:15px; background:#ecfdf5; border:1px solid rgba(16,185,129,.5); color:#047857; font-size:12px; font-weight:800; display:flex; align-items:center; }
+.ih-not { font-size:13px; color:#6b7280; }
+.ih-gecmis { margin-top:10px; border-top:1px solid #f3f4f6; padding-top:8px; }
+.ih-gecmis div { display:flex; justify-content:space-between; font-size:13px; color:#6b7280; padding:3px 0; }
+.ih-gecmis b { color:#059669; }
+.ih-bos { text-align:center; color:#9ca3af; padding:40px 10px; }
+@media (max-width:560px) { .ih-istat { grid-template-columns:repeat(2,1fr); } }
+</style>
+
+@php
+    $_kartlar = collect($ikramKartlari);
+    $_hak = $_kartlar->sum('hak');
+@endphp
+<div class="ih-page">
+    <div class="ih-hero">
+        <div>
+            <div class="ih-sayi">🎁 {{ $_hak }}</div>
+            <div class="ih-sayi-alt">ikram hizmetiniz var</div>
+        </div>
+        <div style="flex:1;min-width:200px;">
+            <h1>İkram Hizmetlerim</h1>
+            <div class="salon">{{ $salon->salon_adi }}</div>
+        </div>
+    </div>
+
+    <div class="ih-bilgi">
+        Hizmetleri ücretli aldıkça ikram kazanırsınız. Kazandığınız ikramı <b>dilediğiniz bir seansınızda</b> kullanabilirsiniz;
+        kullanmak istediğinizi ödeme sırasında salona söylemeniz yeterli. İstemezseniz hakkınız saklı kalır.
+    </div>
+
+    @forelse($_kartlar as $k)
+        <div class="ih-kart">
+            <div class="ih-bas">
+                <b>{{ $k['hizmet_adi'] }}</b>
+                <span>{{ $k['gereken_adet'] }} alana {{ $k['ucretsiz_adet'] }} ikram</span>
+            </div>
+            <div class="ih-istat">
+                <div><b>{{ $k['ucretli'] }}</b><small>Ücretli alım</small></div>
+                <div><b>{{ $k['kazanilan'] }}</b><small>Kazanılan ikram</small></div>
+                <div><b>{{ $k['kullanilan'] }}</b><small>Kullanılan</small></div>
+                <div class="kalan"><b>{{ $k['hak'] }}</b><small>Kalan ikram</small></div>
+            </div>
+            @if($k['aktif'])
+                <div class="ih-cizgi">
+                    @for($i = 0; $i < $k['gereken_adet']; $i++)
+                        @if($i < $k['ilerleme'])<div class="ih-n dolu">✓</div>@else<div class="ih-n">{{ $i + 1 }}</div>@endif
+                    @endfor
+                    <div class="ih-hediye">🎁 İkram</div>
+                </div>
+                <div class="ih-not">Sonraki ikrama {{ $k['gereken_adet'] - $k['ilerleme'] }} ücretli alım kaldı.</div>
+            @else
+                <div class="ih-not" style="color:#9ca3af;">Bu ikram kampanyası sona erdi; kalan ikramınızı kullanabilirsiniz.</div>
+            @endif
+            @if(!empty($k['kullanimlar']))
+                <div class="ih-gecmis">
+                    @foreach($k['kullanimlar'] as $ku)
+                        <div>
+                            <span>🎁 İkram kullanıldı · {{ date('d.m.Y', strtotime($ku['tarih'])) }}</span>
+                            @if($ku['tutar'] > 0)<b>{{ number_format($ku['tutar'], $ku['tutar'] == floor($ku['tutar']) ? 0 : 2, ',', '.') }} ₺ kazanç</b>@endif
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    @empty
+        <div class="ih-kart ih-bos">Bu salonda şu an ikram hizmet kampanyası yok.</div>
+    @endforelse
+</div>
+@endsection
