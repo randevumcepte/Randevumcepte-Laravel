@@ -224,16 +224,16 @@ namespace {
     icerir('kayıtlı', 'Sayın Anıl Orbey', $a->karsilama());
     icerir('kayıtlı → yardım sorusu', 'Size nasıl yardımcı olabilirim?', $a->karsilama());
     $kp = asistan(['_paketler' => [['adisyon_paket_id' => 1, 'paket_adi' => 'Lazer', 'hizmetler' => [['hizmet_id' => 9, 'ad' => 'Lazer Epilasyon', 'kalan_seans' => 4, 'personeller' => []]]]]]);
-    icerir('paket → teklif', 'Lazer paketiniz bulunmaktadır', $kp->karsilama());
-    icerir('paket → yardım sorusu da var', 'Ya da size nasıl yardımcı olabilirim?', $kp->karsilama());
-    $kp2 = asistan(['_paketler' => [['adisyon_paket_id' => 1, 'paket_adi' => '10 Seans Lazer Paketi', 'hizmetler' => [['hizmet_id' => 9, 'ad' => 'Lazer', 'kalan_seans' => 4, 'personeller' => []]]]]]);
-    icerir('adında "Paketi" geçen paket (tekrar yok)', '10 Seans Lazer Paketi bulunmaktadır', $kp2->karsilama());
+    // 2026-11-17: paket karsilamada SOYLENMEZ; musteri isteyince asistan getirir (PAKET AKIŞI)
+    icermez('paket → karşılamada söylenmez', 'paket', $kp->karsilama());
+    icerir('paket → kısa karşılama', 'Ben yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?', $kp->karsilama());
     $kk = asistan(['_kampanyalar' => [['kampanya_id' => 5, 'ad' => 'Yaz Bakım', 'bitis' => '2026-12-01', 'durum' => 'davetli_bekliyor', 'katilimci_id' => 77, 'randevu_gerekli' => false]]]);
     icerir('davetli kampanya → teklif', 'Yaz Bakım kampanyamıza davetlisiniz', $kk->karsilama());
     $kk2 = asistan(['_kampanyalar' => [['kampanya_id' => 5, 'ad' => 'Yaz Bakım', 'bitis' => null, 'durum' => 'katildi', 'katilimci_id' => 77, 'randevu_gerekli' => false]]]);
     icermez('zaten katılmış kampanya teklif edilmez', 'davetlisiniz', $kk2->karsilama());
     $kpk = asistan(['_paketler' => $kp->karsilama() ? cagir($kp, 'paketler') : [], '_kampanyalar' => $kk->karsilama() ? cagir($kk, 'kampanyalar') : []]);
-    icermez('paket + kampanya → yalnız paket teklif edilir', 'davetlisiniz', $kpk->karsilama());
+    icerir('paket + kampanya → yalnız kampanya daveti', 'davetlisiniz', $kpk->karsilama());
+    icermez('paket + kampanya → paket söylenmez', 'paketiniz', $kpk->karsilama());
     $ky = asistan(['musteriAd' => null, 'musteriId' => null]);
     icerir('kayıtsız → ad soyad ister', 'adınızı ve soyadınızı', $ky->karsilama());
     $kg = asistan(['musteriAd' => null, 'musteriId' => null, 'telefon' => null]);
@@ -310,6 +310,18 @@ namespace {
     icerir('paket: uygun personel', 'Gülşah (personel_id 21)', $ps);
     icerir('paket: süreli/sınırsız', 'süreli/sınırsız', $ps);
     icerir('paket: personel tanımsız', 'takvimi açık tüm personel uygun', $ps);
+    // Paketi asistan getirir: toplam/kullanilan/kalan seans
+    $pt = asistan(['_paketler' => [['adisyon_paket_id' => 1, 'paket_adi' => 'Lazer', 'hizmetler' => [
+        ['hizmet_id' => 9, 'ad' => 'Lazer Epilasyon', 'kalan_seans' => 4, 'toplam_seans' => 10, 'kullanilan_seans' => 6, 'personeller' => []],
+        ['hizmet_id' => 10, 'ad' => 'Cilt Bakımı', 'kalan_seans' => null, 'toplam_seans' => null, 'kullanilan_seans' => null, 'personeller' => []]]]]]);
+    icerir('paket: toplam/kullanılan bağlamda', 'toplam 10 seans, kullanılan 6, 4 seans kaldı', cagir($pt, 'paketSatirlari'));
+    esit('paketBilgisi: sayılı paket', ['paket_adi' => 'Lazer', 'hizmet' => 'Lazer Epilasyon', 'sinirsiz' => false, 'toplam_seans' => 10, 'kullanilan_seans' => 6, 'kalan_seans' => 4], cagir($pt, 'paketBilgisi', 9));
+    esit('paketBilgisi: sınırsız pakette sayı yok', ['paket_adi' => 'Lazer', 'hizmet' => 'Cilt Bakımı', 'sinirsiz' => true], cagir($pt, 'paketBilgisi', 10));
+    esit('paketBilgisi: pakette olmayan hizmet → null', null, cagir($pt, 'paketBilgisi', 99));
+    esit('"Paketimde ne kadar seans kaldı" fiyat sorusu DEĞİL', false, cagir($pt, 'fiyatSorusuMu', 'Paketimde ne kadar seans kaldı?'));
+    esit('"Ne kadar hakkım kaldı" fiyat sorusu DEĞİL', false, cagir($pt, 'fiyatSorusuMu', 'Ne kadar hakkım kaldı'));
+    esit('"Seans ücreti ne kadar" hâlâ fiyat sorusu', true, cagir($pt, 'fiyatSorusuMu', 'Seans ücreti ne kadar'));
+    esit('"Lazer ne kadar" hâlâ fiyat sorusu', true, cagir($pt, 'fiyatSorusuMu', 'Lazer ne kadar'));
 
     bolum('API uyumu: parametresiz aracın girdisi JSON nesnesi gider');
     $icerik = json_decode('{"content":[{"type":"text","text":"Bakıyorum"},{"type":"tool_use","id":"t1","name":"mevcut_randevular","input":{}},{"type":"tool_use","id":"t2","name":"musait_saatler","input":{"hizmet_id":5}}]}', true)['content'];

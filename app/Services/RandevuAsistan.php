@@ -63,9 +63,11 @@ class RandevuAsistan
         // Restoran santrali ile ayni kalip: "<isletme> hoş geldiniz, ben yapay zeka asistanınızım. ..."
         $hosgeldin = $this->hosgeldinMetni();
         if ($this->musteriAd) {
-            $paketCumle = $this->paketTeklifCumlesi() ?: $this->kampanyaTeklifCumlesi();
-            if ($paketCumle !== '') {
-                return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım. {$paketCumle} Ya da size nasıl yardımcı olabilirim?";
+            // Paket karsilamada SOYLENMEZ (uzun + dogal degil): musteri ne istedigini soyler ("lazer paketim vardı",
+            // "lazer randevusu alacaktım"), asistan paketi o an bulup getirir (PAKET AKIŞI). Kampanya daveti kalir.
+            $kampanyaCumle = $this->kampanyaTeklifCumlesi();
+            if ($kampanyaCumle !== '') {
+                return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım. {$kampanyaCumle} Ya da size nasıl yardımcı olabilirim?";
             }
             return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?";
         }
@@ -1049,6 +1051,7 @@ class RandevuAsistan
     {
         $f = mb_strtolower(strtr($m, ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
         if (preg_match('/ne kadar (sür|zaman|vakit|bekle|erken|önce)/u', $f)) return false; // sure sorusu, fiyat degil
+        if (preg_match('/seans|ne kadar (hak|kald)/u', $f) && !preg_match('/fiyat|ücret|lira|tl\b|para/u', $f)) return false; // "paketimde ne kadar seans kaldı"
         return (bool) preg_match('/fiyat|ücret|kaç (para|lira|tl|tele)|ne kadar(\s|$|\?)|kaça (yapıyorsunuz|oluyor|olur|yapılıyor)|taksit/u', $f);
     }
 
@@ -1094,6 +1097,8 @@ class RandevuAsistan
                     $okunur = array_values(array_filter($adlar, function ($a) { return mb_strlen($a) >= 2 && preg_match('/[aeıioöuüAEIİOÖUÜ]/u', $a); }));
                     $d['personeller'] = array_slice($okunur, 0, 4);
                     if (count($okunur) > 4) $d['personel_sayisi'] = count($okunur);
+                    // Bu hizmet musterinin paketinde -> asistan paketi kendisi getirir (PAKET AKIŞI)
+                    if ($pb = $this->paketBilgisi((int) $d['hizmet']['id'])) $d['paket'] = $pb;
                 }
                 return [$d, null, null, false];
 
@@ -1348,7 +1353,7 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal
 
 # AKIŞ (adımları atlama)
 1. SELAMLAMA zaten TTS ile çalındı — TEKRAR ETME. İşletme adına "-da/-de/-a/-e/-ye" eki EKLEME. Arayan KAYITLI DEĞİLSE önce BAĞLAM'daki KAYIT ADIMI'nı tamamla; kayıtlıysa doğrudan niyete geç.
-2. NİYET: yeni randevu mu, iptal mi, güncelleme mi, başka bir şey mi? (Müşterinin paketi varsa karşılamada paket teklif edildi: aşağıdaki PAKET AKIŞI'na bak.)
+2. NİYET: yeni randevu mu, iptal mi, güncelleme mi, başka bir şey mi? (Müşterinin paketi varsa aşağıdaki PAKET AKIŞI'na bak.)
 3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise TEYİT SORMADAN ("bunu onaylıyor musunuz" DEME) doğrudan sonraki adıma geç; eşleştirmenin iç işleyişinden (kayıt, seçenek sayısı, "eşleştirebildim") müşteriye ASLA bahsetme; coklu ise seçenekleri kısaca oku ve seçtir; yok ise "o hizmetimiz yok" de ve dönen önerileri sun.
 4. TARİH/SAAT: Müşteri mesajının sonunda "[SİSTEM zaman çözümü ...]" notu varsa tarih ve saati AYNEN oradan al (kendin hesaplama; "çarşamba 14", "önümüzdeki hafta perşembe 10", "10 aralık", "5 şubat" hepsi orada çözülmüş gelir). Not yoksa TARİH HARİTASI'nı kullan. Müşteri gün ve saati söylediyse saati TEKRAR SORMA, sabah/öğleden sonra diye SORMA. Tarih/saat ÖNCEKİ bir mesajda söylendiyse (ör. hizmeti teyit ettirdikten sonra) o mesajdaki zaman çözümü geçerlidir: yeniden sorma, kendin hesaplama.
 5. PERSONEL TERCİHİ (hizmet netleşir netleşmez, tarih/saat sormadan ÖNCE): müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") PERSONELLER listesinden eşleştir ve personel_id'yi kullan; listede yoksa "o isimde personelimiz yok" de ve hizmeti verenleri say. Söylemediyse BİR KEZ sor: "[hizmet] için tercih ettiğiniz bir uzmanımız var mı, yoksa fark etmez mi?" Müşteri "kimler var"/"hangi uzmanlarınız var" derse hizmet_eslestir sonucundaki "personeller" adlarını say (en fazla 4; "personel_sayisi" varsa sonuna "ve diğer uzmanlarımız" ekle) — hizmet listesi OKUMA. "Fark etmez" derse personel_id vermeden devam et. hizmet_eslestir sonucunda personeller tek kişiyse sormadan o kişiyle devam et. Müşteri tarih/saati zaten söylediyse personel cevabından sonra TARİHİ YENİDEN SORMA, doğrudan 6. adıma geç.
@@ -1361,8 +1366,11 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal
 10. SONUÇ: Randevu TALEP olarak oluşturulur (işletme onaylar): "[gün] saat [saat] için [personel] ile randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz." randevu_olustur sonucunda bilgilendirme_gonderildi=true ise ardından "Size bilgilendirme mesajı ilettim." ekle; false ise mesajdan HİÇ bahsetme. En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde bu soruyu sor; iptalde "Randevunuz iptal edildi." de, randevu_iptal sonucunda bilgilendirme_gonderildi=true ise "Size bilgilendirme mesajı ilettim." ekle (güncellemede de aynı alan).
 11. KAPANIŞ: Müşteri "yok, teşekkürler" derse "veda" çağır; yeni bir isteği varsa 2. adımdan devam et.
 
-PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada "paketiniz bulunmaktadır, randevu oluşturmak ister misiniz? Ya da size nasıl yardımcı olabilirim?" soruldu; müşteri pakete evet diyebilir ya da doğrudan başka bir istek söyleyebilir.
-- Evet / olur / tabii / oluşturalım vb. derse paketten randevu: hizmet_eslestir ÇAĞIRMA, hizmet_id'yi PAKETLER'den al. Pakette birden fazla hizmet ya da birden fazla paket varsa hangisi için olduğunu sor.
+PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada paketten BAHSEDİLMEDİ. Paketi müşteriye kendiliğinden hatırlatma; müşteri ne istediğini söyler, paketi o an sen bul ve getir.
+- Müşteri paketinden bahsederse ("lazer paketim vardı", "paketimden randevu alacağım", "paketimi kullanmak istiyorum") paketi PAKETLER'den bul: hizmet_eslestir ÇAĞIRMA, hizmet_id'yi PAKETLER'den al. Birden fazla paket ya da hizmet uyuyorsa hangisi olduğunu sor.
+- Müşteri bir hizmet söylerse ("lazer randevusu alacaktım") ve hizmet_eslestir sonucunda "paket" alanı gelirse bu hizmet müşterinin paketindedir.
+- Paket bulununca TEK cümlede durumu söyle. Sayılı pakette (toplam_seans/kullanilan_seans varsa): "[paket adı] paketinizde toplam [toplam] seansın [kullanılan] seansı kullanılmış, [kalan] seansınız kalmış görünüyor; randevuyu paketinizden oluşturuyorum." Yalnız kalan varsa yalnız kalanı söyle. Süreli/sınırsız pakette seans sayısı SÖYLEME: "[paket adı] paketinizden randevu oluşturuyorum." Sayıları YALNIZ BAĞLAM'dan/araç sonucundan al, ASLA tahmin etme.
+- ANLAŞMAZLIK: Müşteri seans sayısına itiraz ederse ("ben 3 seans kullandım", "yanlış", "daha fazla seansım olmalı", "bu paketim yoktu") ya da paketi bulamazsan veya emin değilsen TARTIŞMA, sayıyı düzeltmeye/değiştirmeye çalışma. Kibarca: "Kayıtlarımızda bu şekilde görünüyor; seans bilginizi en doğru işletmemiz netleştirecektir. Sizi işletmemize bağlayayım mı?" Evet derse "aktar" çağır. Müşteri önce randevusunu almak isterse randevu akışına devam et.
 - Hizmet belli olunca o hizmete UYGUN PERSONELİ PAKETLER'deki listeden adlarıyla say ve tercihini sor (ör. "Bu hizmet için Ayşe Hanım ve Zeynep Hanım uygun, tercih ettiğiniz biri var mı?"). Tek kişiyse onu söyle. "Fark etmez" derse personel_id verme. Listede olmayan personeli önerme.
 - Sonra normal akış: tarih → musait_saatler (paket hizmet_id + seçilen personel_id) → saat → onay → randevu_olustur. Seans pakete otomatik bağlanır; sonuçta paket_seansi=true ise "paketinizden" de.
 - Hayır derse ya da başka bir şey isterse paketi bırak, normal akışa geç.
@@ -1575,7 +1583,9 @@ PROMPT;
                         ->pluck('personel_id')->map(function ($v) { return (int) $v; })->unique()->values()->all();
                     $personel = [];
                     foreach ($veren as $pid) if (isset($acik[$pid])) $personel[] = ['personel_id' => $pid, 'ad' => $acik[$pid]];
-                    $hizmetler[] = ['hizmet_id' => $hid, 'ad' => trim((string) $h->hizmet_adi), 'kalan_seans' => $kalan, 'personeller' => $personel];
+                    $hizmetler[] = ['hizmet_id' => $hid, 'ad' => trim((string) $h->hizmet_adi), 'kalan_seans' => $kalan,
+                        'toplam_seans' => $sinirsiz ? null : (int) $ap->seans_sayisi, 'kullanilan_seans' => $sinirsiz ? null : $acilan,
+                        'personeller' => $personel];
                 }
                 if ($hizmetler) {
                     $out[] = ['adisyon_paket_id' => (int) $ap->id, 'paket_adi' => trim((string) $ap->paket_adi), 'hizmetler' => $hizmetler];
@@ -1588,25 +1598,22 @@ PROMPT;
         return $this->_paketler = $out;
     }
 
-    /** "X paketiniz bulunmaktadır, bu paket için randevu oluşturmak ister misiniz?" (paket yoksa ''). */
-    protected function paketTeklifCumlesi(): string
+    /**
+     * Hizmet musterinin kullanilabilir bir paketinde mi? hizmet_eslestir sonucuna eklenir: musteri "lazer randevusu
+     * alacaktım" deyince asistan paketi (toplam/kullanilan/kalan seans) kendisi getirir. Yoksa null.
+     */
+    protected function paketBilgisi(int $hizmetId): ?array
     {
-        $p = $this->paketler();
-        if (!$p) return '';
-        $adlar = [];
-        foreach ($p as $x) $adlar[$x['paket_adi']] = $this->paketAdiSoz($x['paket_adi']);
-        $adlar = array_values($adlar);
-        if (count($adlar) === 1) {
-            return "{$adlar[0]} bulunmaktadır, bu paket için randevu oluşturmak ister misiniz?";
+        foreach ($this->paketler() as $p) {
+            foreach ($p['hizmetler'] as $h) {
+                if ((int) $h['hizmet_id'] !== $hizmetId) continue;
+                $sinirsiz = $h['kalan_seans'] === null;
+                return ['paket_adi' => $p['paket_adi'], 'hizmet' => $h['ad'], 'sinirsiz' => $sinirsiz]
+                    + ($sinirsiz ? [] : array_filter(['toplam_seans' => $h['toplam_seans'] ?? null, 'kullanilan_seans' => $h['kullanilan_seans'] ?? null], 'is_int')
+                        + ['kalan_seans' => (int) $h['kalan_seans']]);
+            }
         }
-        $son = array_pop($adlar);
-        return implode(', ', $adlar) . " ve {$son} bulunmaktadır, bu paketlerden biri için randevu oluşturmak ister misiniz?";
-    }
-
-    /** "Lazer" -> "Lazer paketiniz"; adinda zaten "paket" geciyorsa ("Lazer Paketi") -> "Lazer Paketi". */
-    protected function paketAdiSoz(string $ad): string
-    {
-        return preg_match('/paket/iu', $ad) ? $ad : "{$ad} paketiniz";
+        return null;
     }
 
     /** Prompt BAGLAM satirlari. */
@@ -1618,7 +1625,8 @@ PROMPT;
         foreach ($p as $x) {
             $out .= "\n- Paket: {$x['paket_adi']}";
             foreach ($x['hizmetler'] as $h) {
-                $kalan = $h['kalan_seans'] === null ? 'süreli/sınırsız' : "{$h['kalan_seans']} seans kaldı";
+                $kalan = $h['kalan_seans'] === null ? 'süreli/sınırsız'
+                    : (isset($h['toplam_seans'], $h['kullanilan_seans']) ? "toplam {$h['toplam_seans']} seans, kullanılan {$h['kullanilan_seans']}, " : '') . "{$h['kalan_seans']} seans kaldı";
                 $pers = $h['personeller']
                     ? implode(', ', array_map(function ($q) { return "{$q['ad']} (personel_id {$q['personel_id']})"; }, $h['personeller']))
                     : 'hizmete özel personel tanımlı değil (takvimi açık tüm personel uygun)';
