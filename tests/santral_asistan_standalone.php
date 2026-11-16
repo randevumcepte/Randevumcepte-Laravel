@@ -526,8 +526,8 @@ namespace {
     esit('sözlük: Ferdi → Ferdi Bey', 'Ferdi Bey', cagir(asistan(['musteriAd' => 'Ferdi Korkmaz']), 'hitap'));
     esit('sözlük: Ayşe Nur → Ayşe Hanım', 'Ayşe Hanım', cagir(asistan(['musteriAd' => 'Ayşe Nur Yılmaz']), 'hitap'));
     esit('sözlük: İSMAİL (büyük harf) → İsmail Bey', 'İsmail Bey', cagir(asistan(['musteriAd' => 'İsmail Kaya']), 'hitap'));
-    foreach (['Aksel Kaya', 'Candan Ak', 'Baran Er'] as $iki) esit("iki cinsiyetli: $iki → hitap yok", null, cagir(asistan(['musteriAd' => $iki]), 'hitap'));
-    foreach (['Emir Ak' => 'Emir Bey', 'Görkem Can' => 'Görkem Bey', 'Yüksel Er' => 'Yüksel Bey', 'Deniz Kaya' => 'Deniz Hanım', 'Tuna Su' => 'Tuna Hanım', 'Kamer Ak' => 'Kamer Bey', 'İmran Ak' => 'İmran Bey', 'Sunay Ak' => 'Sunay Bey', 'Evren Ak' => 'Evren Bey', 'Mutlu Ak' => 'Mutlu Bey'] as $ad => $bek) esit("işletme düzeltmesi: $ad → $bek", $bek, cagir(asistan(['musteriAd' => $ad]), 'hitap'));
+    foreach (['Aksel Kaya', 'Candan Ak', 'Baran Er', 'Deniz Kaya'] as $iki) esit("iki cinsiyetli: $iki → hitap yok", null, cagir(asistan(['musteriAd' => $iki]), 'hitap'));
+    foreach (['Emir Ak' => 'Emir Bey', 'Görkem Can' => 'Görkem Bey', 'Yüksel Er' => 'Yüksel Bey', 'Tuna Su' => 'Tuna Hanım', 'Kamer Ak' => 'Kamer Bey', 'İmran Ak' => 'İmran Bey', 'Sunay Ak' => 'Sunay Bey', 'Evren Ak' => 'Evren Bey', 'Mutlu Ak' => 'Mutlu Bey'] as $ad => $bek) esit("işletme düzeltmesi: $ad → $bek", $bek, cagir(asistan(['musteriAd' => $ad]), 'hitap'));
     foreach (['Ümit Ak' => 'Ümit Bey', 'Özgür Can' => 'Özgür Bey', 'Anıl Orbey' => 'Anıl Bey', 'Ayhan Er' => 'Ayhan Bey'] as $ad => $bek) esit("çoğunlukla erkek (%85+): $ad → $bek", $bek, cagir(asistan(['musteriAd' => $ad]), 'hitap'));
     esit('sözlükte yok, elle listede: Ecrin → Ecrin Hanım', 'Ecrin Hanım', cagir(asistan(['musteriAd' => 'Ecrin Su']), 'hitap'));
     DB::$sayim = ['Orbeyhan' => ['e' => 40, 'k' => 0], 'Zirvan' => ['e' => 3, 'k' => 0]];

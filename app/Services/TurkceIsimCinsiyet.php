@@ -29,7 +29,7 @@ class TurkceIsimCinsiyet
         'omur' => 1, 'rusen' => 1, 'garip' => 1, 'gorkem' => 1, 'armagan' => 1, 'berat' => 1, 'zulfu' => 1,
         'ozay' => 1, 'bilgin' => 1, 'eser' => 1, 'askin' => 1, 'gurcan' => 1, 'bahtiyar' => 1, 'seckin' => 1,
         'safak' => 1, 'saffet' => 1, 'ergul' => 1, 'kamer' => 1, 'imran' => 1, 'sunay' => 1, 'evren' => 1, 'mutlu' => 1,
-        'deniz' => 0, 'seyhan' => 0, 'sirin' => 0, 'kudret' => 0, 'durdu' => 0, 'sureyya' => 0, 'guner' => 0,
+        'deniz' => 2, 'seyhan' => 0, 'sirin' => 0, 'kudret' => 0, 'durdu' => 0, 'sureyya' => 0, 'guner' => 0,
         'elvan' => 0, 'bircan' => 0, 'ozden' => 0, 'kamuran' => 0, 'sezer' => 0, 'burcin' => 0, 'muhterem' => 0,
         'aycan' => 0, 'ferhan' => 0, 'masallah' => 0, 'ceyhan' => 0, 'ikram' => 0, 'tuna' => 0, 'devrim' => 0,
         'evrim' => 0, 'gokcen' => 0, 'nedret' => 0,
