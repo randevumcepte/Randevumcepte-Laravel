@@ -4,8 +4,8 @@ namespace App\Services;
 
 /**
  * Turkce addan cinsiyet (santral hitabi: "Ferdi Bey" / "Ayşe Hanım"). Sorgusuz, aninda.
- * 1) veri/turkce_isim_cinsiyet.php: 7.413 ad, 49,6 milyon kisiden (trnames, MIT); %95 esigi altindaki adlar
- *    IKI CINSIYETLI (Deniz, Ümit, Anıl, Görkem...) -> tahmin edilmez (yanlis hitap musteriyi kirar).
+ * 1) veri/turkce_isim_cinsiyet.php: 7.413 ad, 49,6 milyon kisiden (trnames, MIT); %85 esigi altindaki adlar
+ *    IKI CINSIYETLI (Deniz, Emir, Görkem, Seçkin...) -> tahmin edilmez (yanlis hitap musteriyi kirar).
  * 2) Veride olmayan (cogunlukla 1991 sonrasi yeni) adlar icin asagidaki elle listeler.
  * Hicbirinde yoksa null (cagiran kendi musteri istatistigine bakar ya da hitapsiz konusur).
  * Bilesik adlarda ilk ad kullanilir ("Ayşe Nur" -> ayşe, "Ömer Faruk" -> ömer).
@@ -19,7 +19,7 @@ class TurkceIsimCinsiyet
     protected static ?array $veri = null;
 
     /**
-     * ELLE LISTELER yalniz buyuk veride OLMAYAN adlarda kullanilir (veri her zaman once gelir; cakismada veri hakli:
+     * ELLE LISTELER yalniz buyuk veride OLMAYAN adlarda kullanilir (veri her zaman once gelir; cakismada veri hakli,
      * Ayhan, Yaşar, Ufuk kadinlarda da kullaniliyor). Iki cinsiyette yaygin: asla tahmin etme.
      */
     const BELIRSIZ = [

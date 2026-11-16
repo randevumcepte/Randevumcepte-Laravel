@@ -526,7 +526,8 @@ namespace {
     esit('sözlük: Ferdi → Ferdi Bey', 'Ferdi Bey', cagir(asistan(['musteriAd' => 'Ferdi Korkmaz']), 'hitap'));
     esit('sözlük: Ayşe Nur → Ayşe Hanım', 'Ayşe Hanım', cagir(asistan(['musteriAd' => 'Ayşe Nur Yılmaz']), 'hitap'));
     esit('sözlük: İSMAİL (büyük harf) → İsmail Bey', 'İsmail Bey', cagir(asistan(['musteriAd' => 'İsmail Kaya']), 'hitap'));
-    foreach (['Deniz Kaya', 'Ümit Ak', 'Özgür Can', 'Ayhan Er'] as $iki) esit("iki cinsiyetli: $iki → hitap yok", null, cagir(asistan(['musteriAd' => $iki]), 'hitap'));
+    foreach (['Deniz Kaya', 'Emir Ak', 'Görkem Can', 'Seçkin Er'] as $iki) esit("iki cinsiyetli: $iki → hitap yok", null, cagir(asistan(['musteriAd' => $iki]), 'hitap'));
+    foreach (['Ümit Ak' => 'Ümit Bey', 'Özgür Can' => 'Özgür Bey', 'Anıl Orbey' => 'Anıl Bey', 'Ayhan Er' => 'Ayhan Bey'] as $ad => $bek) esit("çoğunlukla erkek (%85+): $ad → $bek", $bek, cagir(asistan(['musteriAd' => $ad]), 'hitap'));
     esit('sözlükte yok, elle listede: Ecrin → Ecrin Hanım', 'Ecrin Hanım', cagir(asistan(['musteriAd' => 'Ecrin Su']), 'hitap'));
     DB::$sayim = ['Orbeyhan' => ['e' => 40, 'k' => 0], 'Zirvan' => ['e' => 3, 'k' => 0]];
     esit('hiçbir listede yok, müşteri verisi erkek → Bey', 'Orbeyhan Bey', cagir(asistan(['musteriAd' => 'Orbeyhan Ak']), 'hitap'));
@@ -537,11 +538,11 @@ namespace {
     DB::$sayim = [];
     esit('erkek (1) → Anıl Bey', 'Anıl Bey', cagir(asistan(['musteriCinsiyet' => 1]), 'hitap'));
     esit('kadın (0) → Anıl Hanım', 'Anıl Hanım', cagir(asistan(['musteriCinsiyet' => 0]), 'hitap'));
-    esit('belirtilmemiş → hitap yok', null, cagir(asistan(), 'hitap'));
+    esit('belirtilmemiş + iki cinsiyetli ad → hitap yok', null, cagir(asistan(['musteriAd' => 'Deniz Kaya']), 'hitap'));
     esit('kayıtsız müşteri → hitap yok', null, cagir(asistan(['musteriAd' => null, 'musteriId' => null, 'musteriCinsiyet' => 1]), 'hitap'));
     icerir('hızlı veda hitaplı', 'Rica ederiz Anıl Bey,', asistan(['musteriCinsiyet' => 1])->konus('Yok teşekkürler', $sor)['cevap']);
-    icerir('hızlı veda cinsiyet yoksa hitapsız', 'Rica ederiz, bizi', asistan()->konus('Yok teşekkürler', $sor)['cevap']);
-    icerir('prompt: cinsiyet yoksa tahmin yasağı', 'isimden cinsiyet TAHMİN ETME', cagir(asistan(), 'sistemPromptu'));
+    icerir('hızlı veda cinsiyet yoksa hitapsız', 'Rica ederiz, bizi', asistan(['musteriAd' => 'Deniz Kaya'])->konus('Yok teşekkürler', $sor)['cevap']);
+    icerir('prompt: cinsiyet yoksa tahmin yasağı', 'isimden cinsiyet TAHMİN ETME', cagir(asistan(['musteriAd' => 'Deniz Kaya']), 'sistemPromptu'));
     icerir('prompt: cinsiyet varsa hitap', '"Anıl Bey" diye hitap et', cagir(asistan(['musteriCinsiyet' => 1]), 'sistemPromptu'));
 
     echo "\n\033[1mSONUÇ: $gecen geçti, $kalan kaldı\033[0m\n";
