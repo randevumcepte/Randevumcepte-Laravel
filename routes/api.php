@@ -633,6 +633,17 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
      | guard. Metotlar StoreAdminController'dan miras alinir (CagriMerkeziApiController).
      | Kimlik (personel/dahili/KVKK rolu) ve click-to-call guvenligi icin auth ZORUNLU.
      */
+    // Mobil softphone iOS VoIP push (SoftphoneApiController). Mobil uclar dahili+sifre,
+    // santral uclari SOFTPHONE_SANTRAL_ANAHTAR ile dogrulanir (auth guard YOK, bilerek).
+    Route::prefix('softphone')->group(function () {
+        Route::post('/voip-token',        'SoftphoneApiController@voipTokenKaydet');
+        Route::post('/voip-token-sil',    'SoftphoneApiController@voipTokenSil');
+        Route::post('/hazir',             'SoftphoneApiController@hazir');
+        Route::post('/santral/hedefler',  'SoftphoneApiController@santralHedefler');
+        Route::post('/santral/hazir-mi',  'SoftphoneApiController@santralHazirMi');
+        Route::post('/santral/token-sil', 'SoftphoneApiController@santralTokenSil');
+    });
+
     Route::prefix('cagri-merkezi')->middleware('auth:isletmeyonetim-api')->group(function () {
         // Arama ekrani (dialer) — personel + yonetici
         Route::get ('/arama-kartlarim',          'CagriMerkeziApiController@arama_kartlarim');

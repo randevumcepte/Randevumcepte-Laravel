@@ -74,4 +74,9 @@ return [
         'rate'  => (float) env('GOOGLE_TTS_RATE', 0.95),
     ],
 
+    // Mobil softphone iOS VoIP push: santral (softphoneVoipPush.php) <-> SoftphoneApiController.
+    'softphone' => [
+        'santral_anahtar' => env('SOFTPHONE_SANTRAL_ANAHTAR', ''),
+    ],
+
 ];
