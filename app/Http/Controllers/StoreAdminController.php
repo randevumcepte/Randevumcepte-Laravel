@@ -1071,7 +1071,7 @@ public function carkverilerigetir(Request $request)
         }
         try {
             $kural = \App\Services\DamgaKartiServisi::kuralKaydet($salon_id,
-                $request->only(['id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif']));
+                $request->only(['id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif', 'gecerlilik_deger', 'gecerlilik_birim']));
         } catch (\RuntimeException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()]);
         }

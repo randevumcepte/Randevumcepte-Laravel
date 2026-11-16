@@ -57,20 +57,21 @@
 
     <div class="ik-kart" id="ik-kart">
         <h3>İkram Kuralları</h3>
-        <p class="ik-ack">Her hizmet için bir kural tanımlayabilirsiniz. Kuralı açtığınız andan sonraki ziyaretler sayılır; geçmiş randevulara ikram dağıtılmaz.</p>
+        <p class="ik-ack">Her hizmet için bir kural tanımlayabilirsiniz. Kuralı açtığınız andan sonraki ziyaretler sayılır; geçmiş randevulara ikram dağıtılmaz. Geçerlilik süresi boş bırakılırsa ikram süresizdir; süre girilirse ikram, kazanıldığı günden itibaren o süre içinde kullanılmazsa düşer.</p>
 
         @if($ikramKurallari->count())
         <table class="ik-tablo">
-            <thead><tr><th>Hizmet</th><th>Kural</th><th>Durum</th><th class="ik-gizle">Başlangıç</th><th></th></tr></thead>
+            <thead><tr><th>Hizmet</th><th>Kural</th><th>Geçerlilik</th><th>Durum</th><th class="ik-gizle">Başlangıç</th><th></th></tr></thead>
             <tbody>
             @foreach($ikramKurallari as $k)
                 <tr class="{{ $k->aktif ? '' : 'ik-pasif' }}">
                     <td><b>{{ $k->hizmet_adi ?? ('Hizmet #'.$k->hizmet_id) }}</b></td>
                     <td>{{ $k->gereken_adet }} kez alana {{ $k->ucretsiz_adet }} ikram</td>
+                    <td>{{ \App\Services\DamgaKartiServisi::gecerlilikYazi($k) ?: 'Süresiz' }}</td>
                     <td>{!! $k->aktif ? '<span class="ik-acik">Açık</span>' : '<span class="ik-kapali">Kapalı</span>' !!}</td>
                     <td class="ik-gizle"><small>{{ $k->aktif && $k->baslangic ? date('d.m.Y', strtotime($k->baslangic)) : '—' }}</small></td>
                     <td style="text-align:right; white-space:nowrap;">
-                        <button class="ik-btn ik-dz" onclick='ikDuzenle({!! json_encode(['id'=>(int)$k->id,'hizmet_id'=>(int)$k->hizmet_id,'gereken_adet'=>(int)$k->gereken_adet,'ucretsiz_adet'=>(int)$k->ucretsiz_adet,'aktif'=>(int)$k->aktif]) !!})'>✏️ Düzenle</button>
+                        <button class="ik-btn ik-dz" onclick='ikDuzenle({!! json_encode(['id'=>(int)$k->id,'hizmet_id'=>(int)$k->hizmet_id,'gereken_adet'=>(int)$k->gereken_adet,'ucretsiz_adet'=>(int)$k->ucretsiz_adet,'aktif'=>(int)$k->aktif,'gecerlilik_deger'=>isset($k->gecerlilik_deger) ? (int)$k->gecerlilik_deger : 0,'gecerlilik_birim'=>$k->gecerlilik_birim ?? 'ay']) !!})'>✏️ Düzenle</button>
                         <button class="ik-btn ik-sl" onclick="ikSil({{ $k->id }})">🗑️</button>
                     </td>
                 </tr>
@@ -88,7 +89,9 @@
                 @endforeach
             </select></span>
             hizmetini <input type="number" id="ik-gereken" min="1" max="100" step="1" value="4"> kez alana
-            <input type="number" id="ik-ucretsiz" min="1" max="10" step="1" value="1"> ikram
+            <input type="number" id="ik-ucretsiz" min="1" max="10" step="1" value="1"> ikram,
+            kazanıldığı günden itibaren <input type="number" id="ik-gecerlilik" min="0" step="1" value="" placeholder="süresiz">
+            <select id="ik-birim" class="ik-select" style="min-width:0;width:auto;"><option value="ay">ay</option><option value="gun">gün</option></select> geçerli
             <label style="display:flex;align-items:center;gap:6px;font-weight:700;margin:0 0 0 6px;"><input type="checkbox" id="ik-aktif" checked> Açık</label>
         </div>
         <div class="ik-alt">
@@ -111,7 +114,8 @@
                     <td class="ik-gizle">{{ $m['ucretli'] }}</td>
                     <td class="ik-gizle">{{ $m['kazanilan'] }}</td>
                     <td class="ik-gizle">{{ $m['kullanilan'] }}</td>
-                    <td>@if($m['hak'] > 0)<span class="ik-hak">🎁 {{ $m['hak'] }}</span>@else<span style="color:#9ca3af;">—</span>@endif</td>
+                    <td>@if($m['hak'] > 0)<span class="ik-hak">🎁 {{ $m['hak'] }}</span>@if(!empty($m['son_kullanma']))<br><small style="color:#9ca3af;">son: {{ date('d.m.Y', strtotime($m['son_kullanma'])) }}</small>@endif @else<span style="color:#9ca3af;">—</span>@endif
+                        @if(!empty($m['suresi_dolan']))<br><small style="color:#dc2626;">{{ $m['suresi_dolan'] }} süresi doldu</small>@endif</td>
                 </tr>
             @endforeach
             </tbody>
@@ -178,6 +182,8 @@ function ikDuzenle(k) {
     document.getElementById('ik-gereken').value = k.gereken_adet;
     document.getElementById('ik-ucretsiz').value = k.ucretsiz_adet;
     document.getElementById('ik-aktif').checked = !!k.aktif;
+    document.getElementById('ik-gecerlilik').value = k.gecerlilik_deger > 0 ? k.gecerlilik_deger : '';
+    document.getElementById('ik-birim').value = k.gecerlilik_birim === 'gun' ? 'gun' : 'ay';
     document.getElementById('ik-kaydet-yazi').textContent = 'Değişikliği Kaydet';
     document.getElementById('ik-vazgec').style.display = '';
     document.getElementById('ik-kart').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -189,6 +195,8 @@ function ikTemizle() {
     document.getElementById('ik-gereken').value = 4;
     document.getElementById('ik-ucretsiz').value = 1;
     document.getElementById('ik-aktif').checked = true;
+    document.getElementById('ik-gecerlilik').value = '';
+    document.getElementById('ik-birim').value = 'ay';
     document.getElementById('ik-kaydet-yazi').textContent = 'Kuralı Ekle';
     document.getElementById('ik-vazgec').style.display = 'none';
 }
@@ -200,6 +208,8 @@ async function ikKaydet() {
         gereken_adet:  parseInt(document.getElementById('ik-gereken').value) || 0,
         ucretsiz_adet: parseInt(document.getElementById('ik-ucretsiz').value) || 0,
         aktif:         document.getElementById('ik-aktif').checked ? 1 : 0,
+        gecerlilik_deger: parseInt(document.getElementById('ik-gecerlilik').value) || 0,
+        gecerlilik_birim: document.getElementById('ik-birim').value,
     };
     if (!veri.hizmet_id) { showToast('Hizmet seçin', true); return; }
     if (veri.gereken_adet < 1) { showToast('Alım adedi en az 1 olmalı', true); return; }

@@ -29,6 +29,7 @@
 .ih-gecmis { margin-top:10px; border-top:1px solid #f3f4f6; padding-top:8px; }
 .ih-gecmis div { display:flex; justify-content:space-between; font-size:13px; color:#6b7280; padding:3px 0; }
 .ih-gecmis b { color:#059669; }
+.ih-son { background:#fffbeb; color:#92400e; border-radius:10px; padding:8px 12px; font-size:13px; margin:0 0 8px; }
 .ih-bos { text-align:center; color:#9ca3af; padding:40px 10px; }
 @media (max-width:560px) { .ih-istat { grid-template-columns:repeat(2,1fr); } }
 </style>
@@ -51,14 +52,14 @@
 
     <div class="ih-bilgi">
         Hizmetleri ücretli aldıkça ikram kazanırsınız. Kazandığınız ikramı <b>dilediğiniz bir seansınızda</b> kullanabilirsiniz;
-        kullanmak istediğinizi ödeme sırasında salona söylemeniz yeterli. İstemezseniz hakkınız saklı kalır.
+        kullanmak istediğinizi ödeme sırasında salona söylemeniz yeterli. İstemezseniz hakkınız geçerlilik süresi boyunca saklı kalır.
     </div>
 
     @forelse($_kartlar as $k)
         <div class="ih-kart">
             <div class="ih-bas">
                 <b>{{ $k['hizmet_adi'] }}</b>
-                <span>{{ $k['gereken_adet'] }} alana {{ $k['ucretsiz_adet'] }} ikram</span>
+                <span>{{ $k['gereken_adet'] }} alana {{ $k['ucretsiz_adet'] }} ikram @if(!empty($k['gecerlilik']))· {{ $k['gecerlilik'] }} geçerli @endif</span>
             </div>
             <div class="ih-istat">
                 <div><b>{{ $k['ucretli'] }}</b><small>Ücretli alım</small></div>
@@ -66,6 +67,12 @@
                 <div><b>{{ $k['kullanilan'] }}</b><small>Kullanılan</small></div>
                 <div class="kalan"><b>{{ $k['hak'] }}</b><small>Kalan ikram</small></div>
             </div>
+            @if(!empty($k['son_kullanma']))
+                <div class="ih-son">⏳ {{ count($k['gecerli_ikramlar']) > 1 ? 'En yakın ikramınızın' : 'İkramınızın' }} son kullanma tarihi: <b>{{ date('d.m.Y', strtotime($k['son_kullanma'])) }}</b></div>
+            @endif
+            @if(!empty($k['suresi_dolan']))
+                <div class="ih-not" style="color:#dc2626;">{{ $k['suresi_dolan'] }} ikramın süresi doldu.</div>
+            @endif
             @if($k['aktif'])
                 <div class="ih-cizgi">
                     @for($i = 0; $i < $k['gereken_adet']; $i++)

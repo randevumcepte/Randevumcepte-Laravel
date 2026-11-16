@@ -32290,6 +32290,8 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 'ucretsiz_adet' => (int) $k->ucretsiz_adet,
                 'aktif'         => (int) $k->aktif,
                 'baslangic'     => $k->baslangic,
+                'gecerlilik_deger' => isset($k->gecerlilik_deger) ? (int) $k->gecerlilik_deger : null,
+                'gecerlilik_birim' => $k->gecerlilik_birim ?? 'ay',
             ];
         })->values();
         $hizmetler = \App\Services\DamgaKartiServisi::hizmetSecenekleri($salonId)->map(function ($h) {
@@ -32312,7 +32314,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     {
         try {
             $kural = \App\Services\DamgaKartiServisi::kuralKaydet($salonId,
-                $request->only(['id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif']));
+                $request->only(['id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif', 'gecerlilik_deger', 'gecerlilik_birim']));
         } catch (\RuntimeException $e) {
             return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
         }

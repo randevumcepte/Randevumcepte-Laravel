@@ -84,7 +84,7 @@
                   — <span style="color:#065f46;font-weight:700;">bu seans ikram olarak işlendi ({{ number_format($_d['kullanim_indirim'],2,',','.') }} ₺ indirim)</span>
                @elseif($_d['durum']['hak'] > 0)
                   — <span style="color:#5C008E;font-weight:700;">müşterinin {{ $_d['durum']['hak'] }} ikram hakkı var</span>
-                  <small style="color:#6b7280;">(müşteri isterse bu seansta kullanır; istemezse hakkı saklanır)</small>
+                  <small style="color:#6b7280;">(müşteri isterse bu seansta kullanır; istemezse hakkı saklanır @if(!empty($_d['durum']['gecerli_ikramlar']))· en yakın son kullanma {{ date('d.m.Y', strtotime($_d['durum']['gecerli_ikramlar'][0])) }}@endif)</small>
                @else
                   — ikram ilerlemesi: <strong>{{ $_d['ilerleme'] }}/{{ $_d['gereken'] }}</strong>
                   <small style="color:#6b7280;">(bu ziyaret dahil; {{ $_d['gereken'] }} ücretli alımda {{ $_d['ucretsiz'] }} ikram kazanılır)</small>
