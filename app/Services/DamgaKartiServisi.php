@@ -137,7 +137,7 @@ class DamgaKartiServisi
             ->join('adisyon_hizmetler as ah', 'ah.id', '=', 'ku.adisyon_hizmet_id')
             ->where('ku.kural_id', (int) $kuralId)
             ->where('ku.user_id', (int) $userId)
-            ->get(['ku.id', 'ku.randevu_id', 'ku.created_at']);
+            ->get(['ku.id', 'ku.randevu_id', 'ku.created_at', 'ku.indirim_tutari']);
     }
 
     private static function ucretliZiyaretSayisi($kural, $userId, array $haricRandevuIdler)
@@ -210,58 +210,64 @@ class DamgaKartiServisi
         $gereken    = max(1, (int) $kural->gereken_adet);
         $kullanilan = $kullanimlar->count();
         $gecerlilik = self::gecerlilik($kural);
+        $sonsuz     = '9999-12-31';
 
-        if (!$gecerlilik) {
-            // Suresiz ikram: eski hesap
-            $ucretli   = self::ucretliZiyaretSayisi($kural, $userId, $haric);
-            $kazanilan = intdiv($ucretli, $gereken) * (int) $kural->ucretsiz_adet;
-            return [
-                'ucretli'          => $ucretli,
-                'ilerleme'         => $ucretli % $gereken,
-                'gereken'          => $gereken,
-                'kazanilan'        => $kazanilan,
-                'kullanilan'       => $kullanilan,
-                'suresi_dolan'     => 0,
-                'hak'              => max(0, $kazanilan - $kullanilan),
-                'gecerli_ikramlar' => [],
-            ];
-        }
-
-        // Sureli ikram: her ikram, kartini dolduran ucretli ziyaretin tarihinde kazanilir ve
-        // [kazanma, kazanma + sure] araliginda gecerlidir. Kullanimlar (tarih sirasiyla) o an
-        // gecerli olan ve suresi EN YAKIN dolacak ikramdan dusulur (FIFO); kalanlardan suresi
-        // gecmis olanlar "suresi_dolan", digerleri kullanilabilir hak.
-        $tarihler  = self::ucretliZiyaretTarihleri($kural, $userId, $haric);
-        $ucretli   = count($tarihler);
-        $birimler  = [];
+        // Her ikram, kartini dolduran ucretli ziyaretin tarihinde kazanilir; sureli kuralda
+        // [kazanma, kazanma + sure] araliginda gecerlidir (suresizde bitis yok). Kullanimlar
+        // (tarih sirasiyla) o an gecerli ve suresi EN YAKIN dolacak ikramdan dusulur (FIFO);
+        // kalanlardan suresi gecmis olanlar "suresi_dolan", digerleri kullanilabilir hak.
+        $tarihler = self::ucretliZiyaretTarihleri($kural, $userId, $haric);
+        $ucretli  = count($tarihler);
+        $birimler = [];
         for ($b = 1; $b * $gereken <= $ucretli; $b++) {
             $kazanma = $tarihler[$b * $gereken - 1];
-            $bitis   = self::bitisTarihi($kazanma, $gecerlilik);
+            $bitis   = $gecerlilik ? self::bitisTarihi($kazanma, $gecerlilik) : $sonsuz;
             for ($u = 0; $u < (int) $kural->ucretsiz_adet; $u++) {
-                $birimler[] = ['kazanma' => $kazanma, 'bitis' => $bitis, 'kullanildi' => false];
+                $birimler[] = ['kazanma' => $kazanma, 'bitis' => $bitis, 'kullanim' => null];
             }
         }
-        $kullanimTarihleri = $kullanimlar->map(function ($k) {
-            return $k->created_at ? date('Y-m-d', strtotime($k->created_at)) : date('Y-m-d');
-        })->sort()->values()->all();
-        foreach ($kullanimTarihleri as $kt) {
+        $kullanimSirali = $kullanimlar->map(function ($k) {
+            return [
+                'tarih' => $k->created_at ? date('Y-m-d', strtotime($k->created_at)) : date('Y-m-d'),
+                'tutar' => (float) ($k->indirim_tutari ?? 0),
+            ];
+        })->sortBy('tarih')->values()->all();
+        foreach ($kullanimSirali as $ku) {
+            $kt = $ku['tarih'];
             $sec = null;
             foreach ($birimler as $i => $b) {
-                if ($b['kullanildi'] || $b['kazanma'] > $kt || $b['bitis'] < $kt) continue;
+                if ($b['kullanim'] || $b['kazanma'] > $kt || $b['bitis'] < $kt) continue;
                 if ($sec === null || $b['bitis'] < $birimler[$sec]['bitis']) $sec = $i;
             }
             if ($sec === null) {
                 // Veri tutarsizligi (or. sure sonradan kisaltildi): en eski kullanilmamis birimi dus
-                foreach ($birimler as $i => $b) { if (!$b['kullanildi']) { $sec = $i; break; } }
+                foreach ($birimler as $i => $b) { if (!$b['kullanim']) { $sec = $i; break; } }
             }
-            if ($sec !== null) $birimler[$sec]['kullanildi'] = true;
+            if ($sec !== null) $birimler[$sec]['kullanim'] = $ku;
         }
         $bugun = date('Y-m-d');
         $gecerli = [];
         $dolan = 0;
+        $hak = 0;
+        $ikramlar = [];
         foreach ($birimler as $b) {
-            if ($b['kullanildi']) continue;
-            if ($b['bitis'] < $bugun) $dolan++; else $gecerli[] = $b['bitis'];
+            if ($b['kullanim']) {
+                $d = 'kullanildi';
+            } elseif ($b['bitis'] < $bugun) {
+                $d = 'suresi_doldu';
+                $dolan++;
+            } else {
+                $d = 'gecerli';
+                $hak++;
+                if ($b['bitis'] !== $sonsuz) $gecerli[] = $b['bitis'];
+            }
+            $ikramlar[] = [
+                'kazanma'         => $b['kazanma'],
+                'bitis'           => $b['bitis'] === $sonsuz ? null : $b['bitis'],
+                'durum'           => $d,
+                'kullanim_tarihi' => $b['kullanim']['tarih'] ?? null,
+                'tutar'           => $b['kullanim']['tutar'] ?? null,
+            ];
         }
         sort($gecerli);
 
@@ -272,8 +278,9 @@ class DamgaKartiServisi
             'kazanilan'        => count($birimler),
             'kullanilan'       => $kullanilan,
             'suresi_dolan'     => $dolan,
-            'hak'              => count($gecerli),
-            'gecerli_ikramlar' => $gecerli, // kullanilabilir ikramlarin son gecerlilik tarihleri (yakindan uzaga)
+            'hak'              => $hak,
+            'gecerli_ikramlar' => $gecerli, // kullanilabilir ikramlarin son gecerlilik tarihleri (yakindan uzaga; suresizde bos)
+            'ikramlar'         => $ikramlar, // kazanilan her ikram: kazanma, bitis, durum (kullanildi|gecerli|suresi_doldu)
         ];
     }
 
@@ -480,6 +487,8 @@ class DamgaKartiServisi
                 'suresi_dolan'     => $d['suresi_dolan'],
                 'gecerli_ikramlar' => $d['gecerli_ikramlar'],
                 'son_kullanma'     => $d['gecerli_ikramlar'][0] ?? null,
+                // Ikram gecmisi (en yeni ustte): her ikram icin kazanma/bitis/durum/kullanim
+                'ikramlar'         => array_reverse($d['ikramlar']),
                 'kullanimlar'   => ($kullanimlar->get($k->id) ?: collect())->map(function ($u) {
                     return [
                         'tarih'  => date('Y-m-d', strtotime($u->tarih ?: $u->created_at)),

@@ -29,6 +29,13 @@
 .ih-gecmis { margin-top:10px; border-top:1px solid #f3f4f6; padding-top:8px; }
 .ih-gecmis div { display:flex; justify-content:space-between; font-size:13px; color:#6b7280; padding:3px 0; }
 .ih-gecmis b { color:#059669; }
+.ih-gbas { font-size:13px; font-weight:800; color:#374151; margin-bottom:4px; }
+.ih-gecmis .ih-satir { align-items:center; gap:10px; padding:7px 0; border-bottom:1px dashed #f3f4f6; line-height:1.45; }
+.ih-gecmis .ih-satir small { color:#9ca3af; }
+.ih-rozet { flex-shrink:0; font-size:11px; font-weight:800; padding:3px 10px; border-radius:12px; white-space:nowrap; }
+.ih-kullanildi { background:#ecfdf5; color:#047857; }
+.ih-gecerli { background:#ede9fe; color:#6d28d9; }
+.ih-suresi_doldu { background:#fef2f2; color:#dc2626; }
 .ih-son { background:#fffbeb; color:#92400e; border-radius:10px; padding:8px 12px; font-size:13px; margin:0 0 8px; }
 .ih-bos { text-align:center; color:#9ca3af; padding:40px 10px; }
 @media (max-width:560px) { .ih-istat { grid-template-columns:repeat(2,1fr); } }
@@ -84,12 +91,23 @@
             @else
                 <div class="ih-not" style="color:#9ca3af;">Bu ikram kampanyası sona erdi; kalan ikramınızı kullanabilirsiniz.</div>
             @endif
-            @if(!empty($k['kullanimlar']))
+            @if(!empty($k['ikramlar']))
                 <div class="ih-gecmis">
-                    @foreach($k['kullanimlar'] as $ku)
-                        <div>
-                            <span>🎁 İkram kullanıldı · {{ date('d.m.Y', strtotime($ku['tarih'])) }}</span>
-                            @if($ku['tutar'] > 0)<b>{{ number_format($ku['tutar'], $ku['tutar'] == floor($ku['tutar']) ? 0 : 2, ',', '.') }} ₺ kazanç</b>@endif
+                    <div class="ih-gbas">İkram geçmişi</div>
+                    @foreach($k['ikramlar'] as $ik)
+                        <div class="ih-satir">
+                            <span>
+                                <small>{{ date('d.m.Y', strtotime($ik['kazanma'])) }} tarihinde kazanıldı</small>
+                                @if($ik['durum'] === 'kullanildi')
+                                    <br>{{ date('d.m.Y', strtotime($ik['kullanim_tarihi'])) }} tarihinde kullanıldı
+                                    @if($ik['tutar'] > 0) · <b>{{ number_format($ik['tutar'], $ik['tutar'] == floor($ik['tutar']) ? 0 : 2, ',', '.') }} ₺ kazanç</b> @endif
+                                @elseif($ik['durum'] === 'gecerli')
+                                    <br>{{ $ik['bitis'] ? date('d.m.Y', strtotime($ik['bitis'])).' tarihine kadar kullanılabilir' : 'Süresiz, dilediğiniz zaman kullanılabilir' }}
+                                @else
+                                    <br>{{ date('d.m.Y', strtotime($ik['bitis'])) }} tarihinde süresi doldu
+                                @endif
+                            </span>
+                            <span class="ih-rozet ih-{{ $ik['durum'] }}">{{ ['kullanildi' => 'Kullanıldı', 'gecerli' => 'Kullanılabilir', 'suresi_doldu' => 'Süresi doldu'][$ik['durum']] ?? '' }}</span>
                         </div>
                     @endforeach
                 </div>
