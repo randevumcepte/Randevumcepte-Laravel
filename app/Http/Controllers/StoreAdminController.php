@@ -30288,11 +30288,18 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $etiketler = [
             'randevu' => 'Randevu talebi', 'iptal' => 'Randevu iptal', 'guncelle' => 'Randevu güncellendi',
             'aktar' => 'İşletmeye aktarıldı', 'bilgi' => 'Bilgi verildi', 'teyit' => 'Randevuya gelecek',
-            'odeme' => 'Ödeme sözü', 'veda' => 'Görüşme tamamlandı',
+            'odeme' => 'Ödeme sözü', 'veda' => 'Görüşme tamamlandı', 'kapandi' => 'Görüşme tamamlandı',
         ];
         if ($sonuc && isset($etiketler[$sonuc])) return $etiketler[$sonuc];
         if ($sonuc) return $sonuc;
-        return $durum === 'acik' ? 'Devam ediyor / yarıda kaldı' : 'Sonuçsuz kapandı';
+        return $durum === 'acik' ? 'Yarıda kaldı' : 'Görüşme tamamlandı';
+    }
+
+    /** Rozet rengi (panel CSS sinifi): randevu | teyit | iptal | aktar | guncelle | none */
+    protected static function asistanSonucRengi($sonuc)
+    {
+        $r = ['randevu' => 'randevu', 'teyit' => 'teyit', 'odeme' => 'teyit', 'iptal' => 'iptal', 'aktar' => 'aktar', 'guncelle' => 'guncelle'];
+        return $r[$sonuc] ?? 'none';
     }
 
     /** Gecmis JSON'undan musteri/asistan konusma satirlari (arac cagrilari ve bos satirlar haric). */
@@ -30362,6 +30369,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 'telefon' => $o->telefon ? ('0' . ($t10 ?: $o->telefon)) : 'Gizli numara',
                 'musteri' => $o->r_musteri ?: ($t10 && isset($adlar[$t10]) ? $adlar[$t10] : ''),
                 'sonuc' => self::asistanSonucEtiketi($o->sonuc, $o->durum),
+                'renk' => self::asistanSonucRengi($o->sonuc),
                 'randevu' => $o->r_tarih ? date('d.m.Y', strtotime($o->r_tarih)) . ' ' . substr((string) $o->r_saat, 0, 5) : '',
                 'tur' => count(array_filter($satirlar, function ($x) { return $x['rol'] === 'musteri'; })),
                 'sure' => $sure !== null ? sprintf('%d:%02d', intdiv($sure, 60), $sure % 60) : '',
@@ -30376,22 +30384,41 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     {
         $salonId = $this->asistanGorusmeSalon($request);
         if (!$salonId) return response()->json(['ok' => 0, 'hata' => 'Bu kayıtları görüntüleme yetkiniz yok.'], 403);
-        $o = DB::table('santral_oturumlari')->where('id', (int) $id)->where('sube_id', $salonId)->first();
+        $o = DB::table('santral_oturumlari as o')
+            ->leftJoin('randevular as r', 'r.id', '=', 'o.randevu_id')
+            ->leftJoin('users as ru', 'ru.id', '=', 'r.user_id')
+            ->where('o.id', (int) $id)->where('o.sube_id', $salonId)
+            ->first(['o.*', 'r.tarih as r_tarih', 'r.saat as r_saat', 'ru.name as r_musteri']);
         if (!$o) return response()->json(['ok' => 0, 'hata' => 'Görüşme bulunamadı.'], 404);
+        $musteri = $o->r_musteri;
+        $d10 = preg_replace('/\D/', '', (string) $o->telefon);
+        $d10 = strlen($d10) >= 10 ? substr($d10, -10) : null;
+        if (!$musteri && $d10) {
+            $musteri = DB::table('users')->join('musteri_portfoy', 'musteri_portfoy.user_id', '=', 'users.id')
+                ->where('musteri_portfoy.salon_id', $salonId)->where('users.cep_telefon', $d10)->value('users.name');
+        }
 
         $sesler = Schema::hasTable('santral_ses_kayit')
             ? DB::table('santral_ses_kayit')->where('oturum_id', $o->id)->orderBy('id')->get(['id', 'tur', 'boyut', 'created_at'])
                 ->map(function ($s) use ($salonId) {
-                    return ['id' => (int) $s->id, 'tur' => $s->tur === 'aktarma' ? 'İşletmeye aktarılan kısım' : 'Asistan görüşmesi',
+                    return ['id' => (int) $s->id, 'aktarma' => $s->tur === 'aktarma', 'tur' => $s->tur === 'aktarma' ? 'İşletmeye aktarılan kısım' : 'Asistan görüşmesi',
                         'url' => '/isletmeyonetim/santral-asistan-ses/' . $s->id . '?sube=' . $salonId];
                 })->all()
             : [];
 
-        $satirlar = array_map(function ($x) { return ['rol' => $x['rol'], 'metin' => $x['metin']]; }, self::asistanKonusmaSatirlari($o->gecmis));
+        $ham = self::asistanKonusmaSatirlari($o->gecmis);
+        $h = $ham[0]['hatirlatma'] ?? null;
+        $satirlar = array_map(function ($x) { return ['rol' => $x['rol'], 'metin' => $x['metin']]; }, $ham);
+        $sure = ($o->updated_at && $o->created_at) ? max(0, strtotime($o->updated_at) - strtotime($o->created_at)) : null;
         return response()->json(['ok' => 1, 'kayit' => [
             'id' => (int) $o->id,
             'tarih' => date('d.m.Y H:i', strtotime($o->created_at)),
-            'telefon' => $o->telefon,
+            'telefon' => $o->telefon ? ('0' . ($d10 ?: $o->telefon)) : 'Gizli numara',
+            'musteri' => $musteri ?: '',
+            'tip' => $h ? (($h['tur'] ?? '') === 'alacak' ? 'Ödeme hatırlatma' : 'Randevu hatırlatma') : 'Gelen arama',
+            'sure' => $sure !== null ? sprintf('%d:%02d', intdiv($sure, 60), $sure % 60) : '',
+            'randevu' => $o->r_tarih ? date('d.m.Y', strtotime($o->r_tarih)) . ' ' . substr((string) $o->r_saat, 0, 5) : '',
+            'renk' => self::asistanSonucRengi($o->sonuc),
             'sonuc' => self::asistanSonucEtiketi($o->sonuc, $o->durum),
             'randevu_id' => $o->randevu_id ? (int) $o->randevu_id : null,
             'konusma' => $satirlar,
