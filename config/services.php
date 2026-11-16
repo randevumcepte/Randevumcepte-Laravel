@@ -62,6 +62,12 @@ return [
     // Listede olmayan salonlar eski tuslamali IVR'da kalir. Varsayilan: yalniz test salonu 20.
     'santral_ai' => [
         'hatirlatma_salonlar' => env('SANTRAL_AI_HATIRLATMA_SALONLAR', '20'),
+        // Asistan paket yonetimi maliyet hesabi (USD). Claude: Haiku 5.5 fiyati / 1M token;
+        // cache okuma = girdi x0.1, cache yazma = girdi x1.25. STT: Google streaming dakika basi; TTS: Wavenet / 1M karakter.
+        'girdi_usd_m' => env('SANTRAL_GIRDI_USD_M', 0.10),
+        'cikti_usd_m' => env('SANTRAL_CIKTI_USD_M', 0.50),
+        'stt_usd_dk'  => env('SANTRAL_STT_USD_DK', 0.016),
+        'tts_usd_m'   => env('SANTRAL_TTS_USD_M', 4.0),
     ],
 
     // Google Cloud Text-to-Speech — SADECE iOS icin bulut ses (Android cihaz sesi

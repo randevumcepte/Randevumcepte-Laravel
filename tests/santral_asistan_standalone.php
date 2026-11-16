@@ -39,6 +39,7 @@ namespace Illuminate\Support\Facades {
 namespace Illuminate\Http { class Request { static function create() { return new self; } } }
 namespace App\Http\Controllers\Api { class AiAsistanController {} }
 namespace App\Http\Controllers { class ApiController {} }
+namespace App\Services { class SantralPaket { static $kapali = []; static function asistanKapali(int $id): bool { return !empty(self::$kapali[$id]); } } }
 namespace App {
     class SahteKoleksiyon { public $d; function __construct($d) { $this->d = $d; } function get($k = null) { return $k === null ? $this : ($this->d[$k] ?? null); } function keyBy($k) { $o = []; foreach ($this->d as $r) $o[$r->$k] = $r; return new self($o); } function isEmpty() { return !$this->d; } }
     class SalonCalismaSaatleri { static $satirlar = []; static function where() { return new SahteKoleksiyon(self::$satirlar); } }
@@ -381,6 +382,9 @@ namespace {
     esit('salon listede değil → eski IVR', false, App\Services\RandevuAsistan::aiHatirlatmaAcik(7));
     $GLOBALS['_config']['services.santral_ai.hatirlatma_salonlar'] = '*';
     esit('* → tüm salonlar', true, App\Services\RandevuAsistan::aiHatirlatmaAcik(7));
+    App\Services\SantralPaket::$kapali[7] = true;
+    esit('paket bitti + durdur → klasik IVR', false, App\Services\RandevuAsistan::aiHatirlatmaAcik(7));
+    App\Services\SantralPaket::$kapali = [];
     $GLOBALS['_config']['services.santral_ai.hatirlatma_salonlar'] = '';
     esit('boş → kapalı', false, App\Services\RandevuAsistan::aiHatirlatmaAcik(20));
 

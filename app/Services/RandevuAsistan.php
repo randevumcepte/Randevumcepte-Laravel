@@ -29,6 +29,8 @@ use App\Http\Controllers\Api\AiAsistanController;
 class RandevuAsistan
 {
     public ?string $teshis = null;
+    /** Bu nesnenin yaptigi Claude cagrilarinin toplam token kullanimi (paket/maliyet takibi; kopru controller'i oturuma yazar). */
+    public array $kullanim = ['girdi' => 0, 'cikti' => 0, 'cache_okuma' => 0, 'cache_yazma' => 0, 'cagri' => 0];
 
     protected int $salonId;
     protected ?string $telefon;
@@ -111,8 +113,9 @@ class RandevuAsistan
     {
         $l = trim((string) config('services.santral_ai.hatirlatma_salonlar', ''));
         if ($l === '') return false;
-        if ($l === '*') return true;
-        return in_array((int) $salonId, array_map('intval', preg_split('/[\s,;]+/', $l)), true);
+        if ($l !== '*' && !in_array((int) $salonId, array_map('intval', preg_split('/[\s,;]+/', $l)), true)) return false;
+        // Asistan paketi bitti + "asimda durdur" ayari: AI ile arama yapma (klasik tuslamali IVR'a duser, AI maliyeti yok)
+        return !SantralPaket::asistanKapali((int) $salonId);
     }
 
     /**
@@ -1240,6 +1243,14 @@ class RandevuAsistan
             return null;
         }
         $j = json_decode($raw, true);
+        if (is_array($j) && isset($j['usage']) && is_array($j['usage'])) {
+            $u = $j['usage'];
+            $this->kullanim['girdi'] += (int) ($u['input_tokens'] ?? 0);
+            $this->kullanim['cikti'] += (int) ($u['output_tokens'] ?? 0);
+            $this->kullanim['cache_okuma'] += (int) ($u['cache_read_input_tokens'] ?? 0);
+            $this->kullanim['cache_yazma'] += (int) ($u['cache_creation_input_tokens'] ?? 0);
+            $this->kullanim['cagri']++;
+        }
         if (is_array($j) && ($j['stop_reason'] ?? '') === 'refusal') {
             // Guvenlik filtresi istegi reddetti (Haiku 5.5'te yeni; sunucu tarafi yedek model yok) -> tur isletmeye aktarilir
             $this->teshis = 'refusal';

@@ -25,7 +25,7 @@ class AiKullanimLog
     }
 
     /** Bir AI cagrisini logla (hatalari yut; ana akisi asla bozma). */
-    public static function yaz($salonId, $tur, $girdi = 0, $cikti = 0, $model = null, $cache = false, $basarili = true)
+    public static function yaz($salonId, $tur, $girdi = 0, $cikti = 0, $model = null, $cache = false, $basarili = true, $maliyetUsd = null)
     {
         try {
             if (!\Schema::hasTable('ai_kullanim')) return;
@@ -35,7 +35,7 @@ class AiKullanimLog
                 'model'       => $model ? mb_substr((string) $model, 0, 40) : null,
                 'girdi_token' => (int) $girdi,
                 'cikti_token' => (int) $cikti,
-                'maliyet_usd' => $cache ? 0 : self::maliyet($girdi, $cikti),
+                'maliyet_usd' => $cache ? 0 : ($maliyetUsd !== null ? (float) $maliyetUsd : self::maliyet($girdi, $cikti)), // farkli model (santral Haiku 5.5) kendi maliyetini verir
                 'cache'       => $cache ? 1 : 0,
                 'basarili'    => $basarili ? 1 : 0,
                 'created_at'  => date('Y-m-d H:i:s'),

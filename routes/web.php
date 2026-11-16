@@ -420,6 +420,11 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::get('/dakika', 'PanelController@dakika')->name('sistemyonetim.v2.dakika');
     Route::post('/salon/{id}/dakika', 'PanelController@dakikaKaydet');
 
+    // Santral Asistan Paketleri (salon bazli aylik AI dakika paketi + kullanim/maliyet/asim)
+    Route::get('/santral-paket', 'SantralPaketController@index')->name('sistemyonetim.v2.santral-paket');
+    Route::post('/santral-paket', 'SantralPaketController@kaydet');
+    Route::post('/santral-paket/{salonId}/sil', 'SantralPaketController@sil')->where('salonId', '[0-9]+');
+
     // AI Kredi & Kullanim paneli (Patron Asistani Haiku harcamasi)
     Route::get('/ai-kredi', 'AiKrediController@index')->name('sistemyonetim.v2.aikredi');
     Route::post('/ai-kredi/kredi-yukle', 'AiKrediController@krediYukle');

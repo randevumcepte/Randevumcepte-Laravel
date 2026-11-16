@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\RandevuAsistan;
+use App\Services\SantralPaket;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -45,6 +46,13 @@ class SantralKopruController extends Controller
                 $t->index('oturum_id');
             });
         }
+        SantralPaket::semaGaranti(); // paket tablosu + oturum kullanim kolonlari (yon/sure/token/maliyet)
+    }
+
+    /** Kullanim kolonlari hazir mi (sema garantisi basarisizsa insert/update bozulmasin). */
+    protected function kullanimKolonlari(): bool
+    {
+        return (bool) \Cache::get('santral_paket_sema_v1');
     }
 
     protected function yetkiVar(Request $r): bool
@@ -78,6 +86,13 @@ class SantralKopruController extends Controller
             if (!empty($hh['telefon'])) $telefon = (string) $hh['telefon'];
         }
 
+        // Asistan paketi bitti + "asimda durdur": GELEN cagriyi AI karsilamaz. Hata kodu -> kopru
+        // "Sizi yetkiliye bağlıyorum" deyip operatore aktarir (kopruda degisiklik gerekmez).
+        if ($hedef === '' && SantralPaket::asistanKapali($salonId)) {
+            \Log::info('[SANTRAL-PAKET] paket bitti, gelen cagri operatore', ['salon' => $salonId]);
+            return $this->j(['ok' => 0, 'hata' => 'paket_bitti'], 402);
+        }
+
         $as = new RandevuAsistan($salonId, $telefon ?: null);
         $ilkMesaj = null;
         if ($hedef !== '' && ($hk = $as->hatirlatmaKarsilama($hedef))) {
@@ -96,7 +111,8 @@ class SantralKopruController extends Controller
             'gecmis' => json_encode([$ilkMesaj], JSON_UNESCAPED_UNICODE),
             'durum' => 'acik',
             'created_at' => now(),
-        ] + ($hMeta && !empty($hMeta['randevu_id']) ? ['randevu_id' => (int) $hMeta['randevu_id']] : []));
+        ] + ($this->kullanimKolonlari() ? ['yon' => $hedef !== '' ? 'giden' : 'gelen', 'tts_karakter' => mb_strlen($karsilama)] : [])
+          + ($hMeta && !empty($hMeta['randevu_id']) ? ['randevu_id' => (int) $hMeta['randevu_id']] : []));
 
         return $this->j([
             'ok' => 1,
@@ -148,6 +164,7 @@ class SantralKopruController extends Controller
         if (!empty($d['veri']['randevu_id'])) $guncelle['randevu_id'] = (int) $d['veri']['randevu_id'];
         if (!empty($d['bitir'])) $guncelle['durum'] = 'kapandi';
         DB::table('santral_oturumlari')->where('id', $oid)->update($guncelle);
+        if ($this->kullanimKolonlari()) SantralPaket::turKaydet($oid, (int) $o->sube_id, $as->kullanim, mb_strlen((string) $d['cevap']));
 
         return $this->j([
             'ok' => 1,
@@ -170,7 +187,12 @@ class SantralKopruController extends Controller
         if ($oid) {
             $o = DB::table('santral_oturumlari')->where('id', $oid)->first();
             $upd = ['durum' => 'kapandi', 'updated_at' => now()];
-            if ($o && !$o->sonuc) $upd['sonuc'] = $sonuc;   // onceki aksiyonu (randevu/aktar) ezme
+            if ($o && !$o->sonuc) $upd['sonuc'] = $sonuc;
+            // AI'nin hatta kaldigi sure (aktarmada kopru bitir'i aktarmadan ONCE cagirir -> operator suresi dahil degil)
+            if ($o && $this->kullanimKolonlari() && empty($o->sure_sn)) {
+                $upd['bitis_at'] = now();
+                $upd['sure_sn'] = max(0, min(3600, time() - strtotime($o->created_at)));
+            }   // onceki aksiyonu (randevu/aktar) ezme
             DB::table('santral_oturumlari')->where('id', $oid)->update($upd);
         }
         return $this->j(['ok' => 1]);
