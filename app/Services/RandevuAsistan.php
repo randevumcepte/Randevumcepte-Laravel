@@ -909,14 +909,16 @@ class RandevuAsistan
         if (count($ornek) < 5) {
             foreach ($gruplar as $adlar) foreach ($adlar as $a) { if (count($ornek) >= 5) break 2; if (!in_array($a, $ornek, true)) $ornek[] = $a; }
         }
-        // Geri kalan hizmetlerin benzersiz kategorileri (en fazla 8)
+        // Orneklerde HIC gecmeyen kategoriler (en fazla 4). Ornegi okunan kategori tekrar sayilmaz: eskiden
+        // "lazer epilasyon, saç kesimi, cilt bakımı gibi... Ayrıca lazer epilasyon, saç, cilt bakımı... alanlarında"
+        // diye 16 sn tekrar okunuyordu (2026-11-17 kayit).
         $kalanKat = [];
         foreach ($gruplar as $kat => $adlar) {
-            if ($kat === '' || count($kalanKat) >= 8) continue;
-            if (array_diff($adlar, $ornek)) $kalanKat[] = $kucuk($kat);
+            if ($kat === '' || count($kalanKat) >= 4) continue;
+            if (!array_intersect($adlar, $ornek)) $kalanKat[] = $kucuk($kat);
         }
         $c = $listele($ornek) . ' gibi hizmetlerimiz var.';
-        if ($kalanKat) $c .= ' Ayrıca ' . $listele($kalanKat) . ' alanlarında başka seçeneklerimiz de var.';
+        if ($kalanKat) $c .= ' Ayrıca ' . $listele($kalanKat) . (count($kalanKat) > 1 ? ' alanlarında' : ' alanında') . ' başka seçeneklerimiz de var.';
         elseif (count($hizmetler) > count($ornek)) $c .= ' Bunların dışında da birçok hizmetimiz var.';
         return $c . ' Hangisiyle ilgileniyorsunuz?';
     }

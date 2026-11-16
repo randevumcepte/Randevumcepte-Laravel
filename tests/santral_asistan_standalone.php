@@ -470,7 +470,9 @@ namespace {
     ]]]);
     $c = $hl->hizmetListesiCevabi('Hangi hizmetleri veriyorsunuz?');
     echo "     → $c\n";
-    icerir('liste: kalan kategoriler sayılır', 'alanlarında başka seçeneklerimiz de var', $c);
+    icerir('liste: örneklenmeyen kategori sayılır', 'medikal estetik alanında başka seçeneklerimiz de var', $c);
+    icermez('liste: örneği okunan kategori tekrar edilmez (masaj)', 'masaj alan', $c);
+    icermez('liste: örneği okunan kategori tekrar edilmez (cilt)', 'cilt bakımı alan', $c);
     icerir('liste: kapanış sorusu', 'Hangisiyle ilgileniyorsunuz?', $c);
     esit('liste: en fazla 5 örnek (ilk cümlede 4 virgül/ve)', 5, count(preg_split('/, | ve /u', explode(' gibi', $c)[0])));
     icerir('"Hangi işlemleri yapıyorsunuz" → liste', 'gibi hizmetlerimiz var', (string) $hl->hizmetListesiCevabi('Hangi işlemleri yapıyorsunuz?'));
