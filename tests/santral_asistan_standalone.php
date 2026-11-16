@@ -58,6 +58,10 @@ namespace {
     $GLOBALS['_app'] = [];
     function app($c = null) { return $GLOBALS['_app'][$c] ?? null; }
 
+    // Ad -> cinsiyet istatistigi (adCinsiyeti) icin: Cache closure'i calistirir, DB sahte sayimlari dondurur
+    class Cache { static function remember($k, $t, $f) { return $f(); } }
+    class DB { static $sayim = []; static function selectOne($q, $b) { return (object) (self::$sayim[$b[1]] ?? ['e' => 0, 'k' => 0]); } }
+
     require __DIR__ . '/../app/Services/SesliRandevuCozService.php';
     require __DIR__ . '/../app/Services/RandevuAsistan.php';
 
@@ -516,6 +520,23 @@ namespace {
     esit('vedaMi: "Bir de saat kaçta açıksınız" → hayır', false, cagir($hl, 'vedaMi', 'Bir de saat kaçta açıksınız'));
     $v = $hl->konus('Yok, teşekkür ederim. Sağ olun.', $sor);
     esit('konus: hızlı veda aksiyon/bitir', ['veda', true], [$v['aksiyon'], $v['bitir']]);
+
+    bolum('Hitap: kayıttaki cinsiyet, yoksa aynı adlı kayıtların istatistiği');
+    DB::$sayim = ['Ferdi' => ['e' => 40, 'k' => 0], 'Ayşe' => ['e' => 1, 'k' => 120], 'Deniz' => ['e' => 30, 'k' => 45], 'Nadir' => ['e' => 3, 'k' => 0]];
+    esit('kayıt boş, "Ferdi" hep erkek → Ferdi Bey', 'Ferdi Bey', cagir(asistan(['musteriAd' => 'Ferdi Korkmaz']), 'hitap'));
+    esit('kayıt boş, "Ayşe" %99 kadın → Ayşe Hanım', 'Ayşe Hanım', cagir(asistan(['musteriAd' => 'Ayşe Yılmaz']), 'hitap'));
+    esit('"Deniz" iki cinsiyet → hitap yok', null, cagir(asistan(['musteriAd' => 'Deniz Kaya']), 'hitap'));
+    esit('az veri (3 kayıt) → hitap yok', null, cagir(asistan(['musteriAd' => 'Nadir Ak']), 'hitap'));
+    esit('kayıt istatistiği ezer (Ferdi ama kayıtta kadın)', 'Ferdi Hanım', cagir(asistan(['musteriAd' => 'Ferdi Korkmaz', 'musteriCinsiyet' => 0]), 'hitap'));
+    DB::$sayim = [];
+    esit('erkek (1) → Anıl Bey', 'Anıl Bey', cagir(asistan(['musteriCinsiyet' => 1]), 'hitap'));
+    esit('kadın (0) → Anıl Hanım', 'Anıl Hanım', cagir(asistan(['musteriCinsiyet' => 0]), 'hitap'));
+    esit('belirtilmemiş → hitap yok', null, cagir(asistan(), 'hitap'));
+    esit('kayıtsız müşteri → hitap yok', null, cagir(asistan(['musteriAd' => null, 'musteriId' => null, 'musteriCinsiyet' => 1]), 'hitap'));
+    icerir('hızlı veda hitaplı', 'Rica ederiz Anıl Bey,', asistan(['musteriCinsiyet' => 1])->konus('Yok teşekkürler', $sor)['cevap']);
+    icerir('hızlı veda cinsiyet yoksa hitapsız', 'Rica ederiz, bizi', asistan()->konus('Yok teşekkürler', $sor)['cevap']);
+    icerir('prompt: cinsiyet yoksa tahmin yasağı', 'isimden cinsiyet TAHMİN ETME', cagir(asistan(), 'sistemPromptu'));
+    icerir('prompt: cinsiyet varsa hitap', '"Anıl Bey" diye hitap et', cagir(asistan(['musteriCinsiyet' => 1]), 'sistemPromptu'));
 
     echo "\n\033[1mSONUÇ: $gecen geçti, $kalan kaldı\033[0m\n";
     if ($kalan) { echo "Kalanlar:\n - " . implode("\n - ", $hatalar) . "\n"; exit(1); }

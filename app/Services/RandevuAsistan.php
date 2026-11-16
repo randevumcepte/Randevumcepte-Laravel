@@ -37,6 +37,7 @@ class RandevuAsistan
     protected array $salon = [];        // ad, karsilama, hizmetler[]
     protected ?string $musteriAd = null;
     protected ?int $musteriId = null;    // bu salonun portfoyunde AKTIF musteri (karsilama ile ayni kural)
+    protected ?int $musteriCinsiyet = null; // users.cinsiyet: 0=Kadın, 1=Erkek, null=belirtilmemis (hitap icin)
     /** Arayan numarasi gizli/gecersizdi ve kayitta telefon alindiysa: oturuma yazilsin diye kopru controller'i okur. */
     public ?string $yeniTelefon = null;
     protected ?array $_personeller = null;
@@ -281,7 +282,8 @@ class RandevuAsistan
         if ($this->baskaYardimSoruldu($gecmis) && $this->vedaMi($metin)) {
             Log::info('[SANTRAL-TUR] hizli veda', ['salon' => $this->salonId, 'metin' => $metin]);
             $this->teshis = 'veda';
-            return ['cevap' => 'Rica ederiz, bizi aradığınız için teşekkür ederiz. İyi günler dileriz.', 'aksiyon' => 'veda', 'veri' => [], 'bitir' => true];
+            $h = $this->hitap();
+            return ['cevap' => 'Rica ederiz' . ($h ? " {$h}" : '') . ', bizi aradığınız için teşekkür ederiz. İyi günler dileriz.', 'aksiyon' => 'veda', 'veri' => [], 'bitir' => true];
         }
         // GIDEN HATIRLATMA ARAMASI (randevu 1 gun once / alacak 2 gun once): asistanin hatirlatma sorusuna
         // verilen cevap KODLA islenir (gelecek/odeyecek isaretle, ertele/iptal sor, vade -> isletmeye aktar).
@@ -1316,7 +1318,10 @@ class RandevuAsistan
 
         $telBilinen = (bool) $this->telNorm($this->telefon);
         if ($this->musteriAd) {
-            $musteriSatir = "Arayan bu işletmenin KAYITLI müşterisi: {$this->musteriAd}. Adını/soyadını/telefonunu SORMA; uygun yerde ismiyle hitap et.";
+            $musteriSatir = "Arayan bu işletmenin KAYITLI müşterisi: {$this->musteriAd}. Adını/soyadını/telefonunu SORMA; "
+                . (($h = $this->hitap())
+                    ? "uygun yerlerde (onay, teşekkür, veda) \"{$h}\" diye hitap et; her cümlede tekrarlama."
+                    : "bu ad için cinsiyet belirsiz: \"Bey\"/\"Hanım\" KULLANMA, isimden cinsiyet TAHMİN ETME; gerekirse \"Sayın {$this->musteriAd}\" de ya da hitapsız konuş.");
         } else {
             $musteriSatir = "Arayan bu işletmede KAYITLI DEĞİL. Karşılamada adı ve soyadı "
                 . ($telBilinen ? '' : 've telefon numarası ')
@@ -1327,7 +1332,8 @@ class RandevuAsistan
                     ? "- Arayan numarası biliniyor, telefon SORMA.\n"
                     : "- Arayan numarası GİZLİ: cep telefonunu da iste, musteri_kaydet'e telefon olarak ver. Numarayı rakam rakam teyit et.\n")
                 . "- Kayıt olunca \"Teşekkürler [ad soyad], kaydınızı oluşturdum.\" de; müşteri isteğini zaten söylediyse ona devam et, söylemediyse nasıl yardımcı olabileceğini sor.\n"
-                . "- musteri_kaydet ok=false dönerse hatadaki eksik bilgiyi iste. Kayıt tamamlanmadan randevu_olustur ÇAĞIRMA.";
+                . "- musteri_kaydet ok=false dönerse hatadaki eksik bilgiyi iste. Kayıt tamamlanmadan randevu_olustur ÇAĞIRMA.\n"
+                . "- Cinsiyet bilinmiyor: \"Bey\"/\"Hanım\" KULLANMA, isimden cinsiyet TAHMİN ETME; adıyla ya da hitapsız konuş.";
         }
         $telSatir = $telBilinen ? $this->telefon : 'bilinmiyor (gizli numara)';
 
@@ -1476,6 +1482,48 @@ PROMPT;
             $this->musteriId = (int) $mp->users->id;
             $ad = trim((string) $mp->users->name);
             $this->musteriAd = $ad !== '' ? $this->adDuzelt($ad) : null;
+            $c = $mp->users->cinsiyet;
+            $this->musteriCinsiyet = ($c === 0 || $c === 1 || $c === '0' || $c === '1') ? (int) $c : null;
+        }
+    }
+
+    /**
+     * "Ferdi Bey" / "Ayşe Hanım". Once kayittaki cinsiyet (users.cinsiyet); bos ise (eski kayitlarin cogu)
+     * AYNI ADLI ve cinsiyeti girilmis musterilerin istatistigi (adCinsiyeti). Emin degilse null -> hitapsiz
+     * (Deniz, Ümit, Derya, Özgür gibi iki cinsiyette kullanilan adlarda yanlis hitap musteriyi kirar).
+     */
+    protected function hitap(): ?string
+    {
+        if (!$this->musteriAd) return null;
+        $ilkAd = explode(' ', trim($this->musteriAd))[0];
+        if ($ilkAd === '') return null;
+        $c = $this->musteriCinsiyet ?? $this->adCinsiyeti($ilkAd);
+        return $c === null ? null : $ilkAd . ($c === 1 ? ' Bey' : ' Hanım');
+    }
+
+    /**
+     * Ad -> cinsiyet (1 Erkek / 0 Kadın) TUM sistemdeki cinsiyeti girilmis kayitlardan: en az 5 kayit ve %95 ayni
+     * cinsiyet sartiyla; aksi halde null. 30 gun onbellek (ad basina 1 sorgu); sorgu 400 ms'yi gecerse null
+     * (telefonda bekletmez). Tahmin kayda YAZILMAZ.
+     */
+    protected function adCinsiyeti(string $ilkAd): ?int
+    {
+        $ad = mb_strtolower(strtr(trim($ilkAd), ['I' => 'ı', 'İ' => 'i']), 'UTF-8');
+        if (mb_strlen($ad) < 2) return null;
+        try {
+            $v = \Cache::remember('santral_ad_cinsiyet_' . md5($ad), 60 * 24 * 30, function () use ($ilkAd) {
+                $satir = \DB::selectOne('SELECT /*+ MAX_EXECUTION_TIME(400) */ SUM(cinsiyet = 1) AS e, SUM(cinsiyet = 0) AS k
+                    FROM users WHERE cinsiyet IN (0, 1) AND (name LIKE ? OR name = ?)', [$ilkAd . ' %', $ilkAd]);
+                $e = (int) ($satir->e ?? 0); $k = (int) ($satir->k ?? 0); $t = $e + $k;
+                if ($t < 5) return 'x';
+                if ($e / $t >= 0.95) return 1;
+                if ($k / $t >= 0.95) return 0;
+                return 'x';
+            });
+            return $v === 1 || $v === 0 ? $v : null;
+        } catch (\Throwable $e) {
+            Log::info('RandevuAsistan adCinsiyeti: ' . $e->getMessage());
+            return null;
         }
     }
 
