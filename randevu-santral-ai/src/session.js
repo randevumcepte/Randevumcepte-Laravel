@@ -235,15 +235,21 @@ class CagriOturumu {
   _sessizlikSifirla(ikinci) {
     clearTimeout(this.sessizlikZ);
     if (this.kapali || this._kapaniyor) return;
-    this.sessizlikZ = setTimeout(async () => {
-      if (this.kapali) return;
-      // AI hala konusuyor ya da beyin dusunuyorsa: sessizlik SAYMA, pencereyi yeniden baslat
-      if (this.mesgul || this.rtp.sesVarMi) { this._sessizlikSifirla(ikinci); return; }
+    // Sessizlik AI SUSTUKTAN sonra sayilir: AI konusurken / beyin dusunurken / musterinin bitmemis ara-sonucu
+    // varken sayac sifirlanir. Eskiden pencere tur donunce basliyordu; 12 sn'lik onay cumlesinden sonra musteriye
+    // 3 sn kaliyor, "yok teşekkürler" derken "Orada mısınız?" calıyordu (2026-11-17 kayit).
+    let sessiz = 0;
+    const tik = async () => {
+      if (this.kapali || this._kapaniyor) return;
+      if (this.mesgul || this.rtp.sesVarMi || this._seslendiriyor || this._sonInterim) sessiz = 0;
+      else sessiz += 500;
+      if (sessiz < cfg.sessizlikMs) { this.sessizlikZ = setTimeout(tik, 500); return; }
       if (ikinci) { log.debug('ikinci sessizlik -> kapat'); this._kapatSirasi(); return; }
       log.debug('sessizlik zaman asimi -> orada misiniz');
       await this._seslendir('Orada mısınız? Yardımcı olabileceğim başka bir şey var mı?');
       this._sessizlikSifirla(true); // ikinci pencere; yine sessizse kapat
-    }, cfg.sessizlikMs);
+    };
+    this.sessizlikZ = setTimeout(tik, 500);
   }
 
   async _kapatSirasi() {

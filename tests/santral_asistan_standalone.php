@@ -483,6 +483,26 @@ namespace {
     esit('kategorisiz salon da çalışır', true, strpos((string) $hd->hizmetListesiCevabi('Hangi hizmetleriniz var'), 'gibi hizmetlerimiz var') !== false);
     esit('STT ipuçları hizmet adlarını verir', ['Tay Masajı', 'Aromaterapi Masajı'], array_slice($hd->sttIpuclari(), 0, 2));
 
+    // --- 2026-11-17 kayit: "hangi uzmanlarınız var" hizmet listesi okutuyordu
+    bolum('Uzman sorusu / ad okunuşu / hızlı veda (2026-11-17 kayıt)');
+    esit('"Hangi uzmanlarınız var" → liste değil', null, $hl->hizmetListesiCevabi('Hangi uzmanlarınız var?'));
+    esit('"Protez tırnakta hangi uzmanlarınız var" → liste değil', null, $hl->hizmetListesiCevabi('Protez tırnakta hangi uzmanlarınız var?'));
+    esit('"Hangi personelleriniz var" → liste değil', null, $hl->hizmetListesiCevabi('Hangi personelleriniz var'));
+    icerir('"Hangi masajlarınız var" hâlâ kategori', 'masaj hizmetlerimiz var', (string) $hl->hizmetListesiCevabi('Hangi masajlarınız var?'));
+    esit('adSesli: ORBEY → Orbey', 'Orbey', cagir($hl, 'adSesli', 'ORBEY'));
+    esit('adSesli: GÜLŞAH İNCE → Gülşah İnce', 'Gülşah İnce', cagir($hl, 'adSesli', 'GÜLŞAH İNCE'));
+    esit('adSesli: IŞIL → Işıl', 'Işıl', cagir($hl, 'adSesli', 'IŞIL'));
+    esit('adSesli: karışık harf dokunulmaz', 'Elif YILMAZ', cagir($hl, 'adSesli', 'Elif YILMAZ'));
+    $sor = [['role' => 'assistant', 'content' => 'Randevu talebiniz oluşturuldu. Başka yardımcı olabileceğim bir konu var mı?']];
+    esit('baskaYardimSoruldu: evet', true, cagir($hl, 'baskaYardimSoruldu', $sor));
+    esit('baskaYardimSoruldu: onay sorusunda hayır', false, cagir($hl, 'baskaYardimSoruldu', [['role' => 'assistant', 'content' => 'Randevu talebi oluşturayım mı?']]));
+    esit('vedaMi: "Yok, teşekkür ederim. Sağ olun."', true, cagir($hl, 'vedaMi', 'Yok, teşekkür ederim. Sağ olun.'));
+    esit('vedaMi: "Teşekkürler, bu kadar"', true, cagir($hl, 'vedaMi', 'Teşekkürler, bu kadar'));
+    esit('vedaMi: "Yok ama randevumu iptal etmek istiyorum" → hayır', false, cagir($hl, 'vedaMi', 'Yok ama randevumu iptal etmek istiyorum'));
+    esit('vedaMi: "Bir de saat kaçta açıksınız" → hayır', false, cagir($hl, 'vedaMi', 'Bir de saat kaçta açıksınız'));
+    $v = $hl->konus('Yok, teşekkür ederim. Sağ olun.', $sor);
+    esit('konus: hızlı veda aksiyon/bitir', ['veda', true], [$v['aksiyon'], $v['bitir']]);
+
     echo "\n\033[1mSONUÇ: $gecen geçti, $kalan kaldı\033[0m\n";
     if ($kalan) { echo "Kalanlar:\n - " . implode("\n - ", $hatalar) . "\n"; exit(1); }
 }

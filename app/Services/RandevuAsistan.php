@@ -274,6 +274,13 @@ class RandevuAsistan
                 : 'Sizi hemen yetkili bir arkadaşımıza bağlıyorum, lütfen hatta kalın.';
             return ['cevap' => $cevap, 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
         }
+        // HIZLI VEDA: "Başka yardımcı olabileceğim bir konu var mı?" -> "yok, teşekkürler" ise KODLA kapat.
+        // LLM'li veda (arac + kapanis cumlesi = 2 cagri) 5,5 sn suruyordu (2026-11-17 kayit).
+        if ($this->baskaYardimSoruldu($gecmis) && $this->vedaMi($metin)) {
+            Log::info('[SANTRAL-TUR] hizli veda', ['salon' => $this->salonId, 'metin' => $metin]);
+            $this->teshis = 'veda';
+            return ['cevap' => 'Rica ederiz, bizi aradığınız için teşekkür ederiz. İyi günler dileriz.', 'aksiyon' => 'veda', 'veri' => [], 'bitir' => true];
+        }
         // GIDEN HATIRLATMA ARAMASI (randevu 1 gun once / alacak 2 gun once): asistanin hatirlatma sorusuna
         // verilen cevap KODLA islenir (gelecek/odeyecek isaretle, ertele/iptal sor, vade -> isletmeye aktar).
         if (($h = $this->hatirlatmaBekleyen($gecmis)) !== null && ($hc = $this->hatirlatmaCevap($metin, $h)) !== null) {
@@ -505,6 +512,25 @@ class RandevuAsistan
             }
         }
         return false;
+    }
+
+    /** Son asistan mesaji "Başka yardımcı olabileceğim bir konu var mı?" (ya da "başka bir arzunuz var mı") muydu? */
+    protected function baskaYardimSoruldu(array $gecmis): bool
+    {
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') === 'assistant') {
+                return (bool) preg_match('/başka\s+(bir\s+)?(konu|yardımcı|isteğiniz|arzunuz|bir şey)[^.?!]*var mı/iu', (string) ($gecmis[$i]['content'] ?? ''));
+            }
+        }
+        return false;
+    }
+
+    /** Musteri kapanis mi soyluyor? ("yok teşekkürler", "sağ olun", "bu kadar") — yeni bir istek iceriyorsa hayir. */
+    protected function vedaMi(string $m): bool
+    {
+        $f = ' ' . $this->sade($m) . ' ';
+        if (preg_match('/ (ama|fakat|bir de|var mi) | (randevu|iptal|degis|ertele|saat|soru|ogren|istiyor|bir sey daha)/u', $f)) return false;
+        return (bool) preg_match('/ (yok|hayir|tesekkur|sag ?ol|eyvallah|iyi gunler|iyi aksamlar|bu kadar|o kadar|gerek yok)/u', $f);
     }
 
     /** Musteri cevabi onay mi? (ret/kosul icermeyen evet turevleri) */
@@ -838,6 +864,9 @@ class RandevuAsistan
             || preg_match('/ neler yapiyorsunuz | ne yapiyorsunuz /u', $m)
             || preg_match('/ hangi \w+(lar|ler)\w* (var|mevcut)/u', $m);   // "hangi masajlariniz var"
         if (!$soru) return null;
+        // KISI sorusu hizmet listesi DEGIL: "hangi uzmanlarınız var" son kaliba ("hangi X-lar var") uyup hizmet
+        // listesi okutuyordu (2026-11-17 kayit: "protez tırnakta hangi uzmanlarınız var" -> "cilt bakımı, makyaj...").
+        if (preg_match('/ (uzman|personel|calisan|eleman|usta|kuafor|estetisyen|doktor|hoca|kimler )/u', $m)) return null;
         // Belirli bir hizmet adi geciyorsa ("kalıcı oje hizmetiniz var mı") liste degil -> normal akis
         foreach ($hizmetler as $h) {
             $sa = $this->sade((string) $h['ad']);
@@ -1056,8 +1085,13 @@ class RandevuAsistan
                 // Personel tercihi sorusu icin: bu hizmeti veren (takvimi acik) personelin adlari
                 if (($d['eslesme'] ?? '') === 'tek' && !empty($d['hizmet']['id'])) {
                     $plist = $this->personelListesi();
-                    $d['personeller'] = array_values(array_filter(array_map(function ($pid) use ($plist) { return $plist[$pid] ?? null; },
+                    $adlar = array_values(array_filter(array_map(function ($pid) use ($plist) { return $plist[$pid] ?? null; },
                         $this->hizmetPersonelleri((int) $d['hizmet']['id']))));
+                    // Telefonda en fazla 4 isim (2026-11-17 kayit: 12 isim + "G, F, F, F, F" gibi test kaydi 10 sn okundu).
+                    // Okunamayan (sesli harfsiz/tek harf) adlar sayilmaz; musteri listede olmayan birini sorarsa PERSONELLER'den eslesir.
+                    $okunur = array_values(array_filter($adlar, function ($a) { return mb_strlen($a) >= 2 && preg_match('/[aeıioöuüAEIİOÖUÜ]/u', $a); }));
+                    $d['personeller'] = array_slice($okunur, 0, 4);
+                    if (count($okunur) > 4) $d['personel_sayisi'] = count($okunur);
                 }
                 return [$d, null, null, false];
 
@@ -1315,7 +1349,7 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal
 2. NİYET: yeni randevu mu, iptal mi, güncelleme mi, başka bir şey mi? (Müşterinin paketi varsa karşılamada paket teklif edildi: aşağıdaki PAKET AKIŞI'na bak.)
 3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise TEYİT SORMADAN ("bunu onaylıyor musunuz" DEME) doğrudan sonraki adıma geç; eşleştirmenin iç işleyişinden (kayıt, seçenek sayısı, "eşleştirebildim") müşteriye ASLA bahsetme; coklu ise seçenekleri kısaca oku ve seçtir; yok ise "o hizmetimiz yok" de ve dönen önerileri sun.
 4. TARİH/SAAT: Müşteri mesajının sonunda "[SİSTEM zaman çözümü ...]" notu varsa tarih ve saati AYNEN oradan al (kendin hesaplama; "çarşamba 14", "önümüzdeki hafta perşembe 10", "10 aralık", "5 şubat" hepsi orada çözülmüş gelir). Not yoksa TARİH HARİTASI'nı kullan. Müşteri gün ve saati söylediyse saati TEKRAR SORMA, sabah/öğleden sonra diye SORMA. Tarih/saat ÖNCEKİ bir mesajda söylendiyse (ör. hizmeti teyit ettirdikten sonra) o mesajdaki zaman çözümü geçerlidir: yeniden sorma, kendin hesaplama.
-5. PERSONEL TERCİHİ (hizmet netleşir netleşmez, tarih/saat sormadan ÖNCE): müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") PERSONELLER listesinden eşleştir ve personel_id'yi kullan; listede yoksa "o isimde personelimiz yok" de ve hizmeti verenleri say. Söylemediyse BİR KEZ sor: "[hizmet] için tercih ettiğiniz bir uzmanımız var mı, yoksa fark etmez mi?" Müşteri "kimler var" derse hizmet_eslestir sonucundaki "personeller" adlarını say. "Fark etmez" derse personel_id vermeden devam et. hizmet_eslestir sonucunda personeller tek kişiyse sormadan o kişiyle devam et. Müşteri tarih/saati zaten söylediyse personel cevabından sonra TARİHİ YENİDEN SORMA, doğrudan 6. adıma geç.
+5. PERSONEL TERCİHİ (hizmet netleşir netleşmez, tarih/saat sormadan ÖNCE): müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") PERSONELLER listesinden eşleştir ve personel_id'yi kullan; listede yoksa "o isimde personelimiz yok" de ve hizmeti verenleri say. Söylemediyse BİR KEZ sor: "[hizmet] için tercih ettiğiniz bir uzmanımız var mı, yoksa fark etmez mi?" Müşteri "kimler var"/"hangi uzmanlarınız var" derse hizmet_eslestir sonucundaki "personeller" adlarını say (en fazla 4; "personel_sayisi" varsa sonuna "ve diğer uzmanlarımız" ekle) — hizmet listesi OKUMA. "Fark etmez" derse personel_id vermeden devam et. hizmet_eslestir sonucunda personeller tek kişiyse sormadan o kişiyle devam et. Müşteri tarih/saati zaten söylediyse personel cevabından sonra TARİHİ YENİDEN SORMA, doğrudan 6. adıma geç.
 6. MÜSAİT SAAT: "musait_saatler" aracını hizmet_id + tarih ile çağır (müşteri saat söylediyse saat'i MUTLAKA ver; gün dilimi söylendiyse zaman_dilimi; personel söylendiyse personel_id).
    - tam_eslesme=true dönerse: istenen saat uygun → ALTERNATİF SUNMA, seçenek okuma; doğrudan 8. adımdaki onay cümlesine geç (gün için seçeneğin "gun" alanını kullan).
    - Aksi halde: müşteri saat söylediyse önce "O saat dolu" de, sonra dönen seçenekleri (en fazla 2) "gun" alanı ve personel adıyla öner. istenen_gun_dolu=true ise o günün dolu olduğunu söyle. Seçenek yoksa başka gün/dilim öner.
@@ -1602,13 +1636,26 @@ PROMPT;
                 ->where(function ($w) { $w->whereNull('arsivli')->orWhere('arsivli', '!=', 1); })
                 ->where('takvimde_gorunsun', 1)->orderBy('id')->get(['id', 'personel_adi']);
             foreach ($q as $p) {
-                $ad = trim((string) $p->personel_adi);
+                $ad = $this->adSesli(trim((string) $p->personel_adi));
                 if ($ad !== '') $out[(int) $p->id] = $ad;
             }
         } catch (\Throwable $e) {
             Log::warning('RandevuAsistan personelListesi: ' . $e->getMessage());
         }
         return $this->_personeller = $out;
+    }
+
+    /**
+     * TAMAMI BUYUK HARF ad ("ORBEY", "GÜLŞAH İNCE") TTS'te harf harf okunuyordu ("O, R, B, E, Y") -> Turkce
+     * bas harf buyuk ("Orbey", "Gülşah İnce"). Kucuk harf iceren adlara dokunulmaz.
+     */
+    protected function adSesli(string $ad): string
+    {
+        if ($ad === '' || !preg_match('/\p{Lu}{2}/u', $ad) || preg_match('/\p{Ll}/u', $ad)) return $ad;
+        $kucuk = mb_strtolower(strtr($ad, ['I' => 'ı', 'İ' => 'i']), 'UTF-8');
+        return preg_replace_callback('/(^|[\s\-])(\p{L})/u', function ($x) {
+            return $x[1] . mb_strtoupper(strtr($x[2], ['i' => 'İ', 'ı' => 'I']), 'UTF-8');
+        }, $kucuk);
     }
 
     /** Hizmeti veren (personel_sunulan_hizmetler) ve takvimi acik personeller; yoksa takvimi acik HERKES (online randevu mantigi). */
