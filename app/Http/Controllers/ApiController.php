@@ -32295,11 +32295,17 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         $hizmetler = \App\Services\DamgaKartiServisi::hizmetSecenekleri($salonId)->map(function ($h) {
             return ['id' => (int) $h->id, 'hizmet_adi' => $h->hizmet_adi];
         })->values();
-        return response()->json([
+        $cevap = [
             'basarili'  => \App\Services\DamgaKartiServisi::tabloHazir(),
             'kurallar'  => $kurallar,
             'hizmetler' => $hizmetler,
-        ]);
+        ];
+        // Ikram Hizmet sayfasi: ikram kazanmis musteriler (istenirse; Carkifelek sekmesi istemez)
+        if (filter_var($request->input('musteriler'), FILTER_VALIDATE_BOOLEAN)) {
+            try { $cevap['musteriler'] = \App\Services\DamgaKartiServisi::yonetimOzet($salonId); }
+            catch (\Throwable $e) { $cevap['musteriler'] = []; }
+        }
+        return response()->json($cevap);
     }
 
     public function carkAdminDamgaKartiKaydetApi(Request $request, $salonId)
