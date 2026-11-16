@@ -30267,6 +30267,152 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'dakika'=>$dakika,'santral_hedefler'=>$santral_hedefler
     ]);
     }
+    // ===================== AI SANTRAL ASISTAN GORUSMELERI (ses kaydi + yazili dokum) =====================
+    // Kayitlar randevu-santral-ai koprusunden /api/v1/santral/kayit-yukle ile gelir
+    // (storage/app/santral_ses + santral_ses_kayit). Yalnizca o salonun yoneticileri (rol < 5) gorur/dinler.
+
+    /** Oturumdaki yetkili bu salona erisebiliyor ve yonetici (rol < 5) ise salon id, degilse null. */
+    protected function asistanGorusmeSalon(Request $request)
+    {
+        if (!Auth::guard('isletmeyonetim')->check()) return null;
+        $salonId = (int) self::mevcutsube($request);
+        $yetkili = Auth::guard('isletmeyonetim')->user();
+        $salonlar = array_map('intval', $yetkili->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray());
+        if (!$salonId || !in_array($salonId, $salonlar, true)) return null;
+        if (self::kullaniciRolu($salonId, $yetkili->id) >= 5) return null;
+        return $salonId;
+    }
+
+    protected static function asistanSonucEtiketi($sonuc, $durum)
+    {
+        $etiketler = [
+            'randevu' => 'Randevu talebi', 'iptal' => 'Randevu iptal', 'guncelle' => 'Randevu güncellendi',
+            'aktar' => 'İşletmeye aktarıldı', 'bilgi' => 'Bilgi verildi', 'teyit' => 'Randevuya gelecek',
+            'odeme' => 'Ödeme sözü', 'veda' => 'Görüşme tamamlandı',
+        ];
+        if ($sonuc && isset($etiketler[$sonuc])) return $etiketler[$sonuc];
+        if ($sonuc) return $sonuc;
+        return $durum === 'acik' ? 'Devam ediyor / yarıda kaldı' : 'Sonuçsuz kapandı';
+    }
+
+    /** Gecmis JSON'undan musteri/asistan konusma satirlari (arac cagrilari ve bos satirlar haric). */
+    protected static function asistanKonusmaSatirlari($gecmisJson)
+    {
+        $g = json_decode($gecmisJson ?: '[]', true) ?: [];
+        $satirlar = [];
+        foreach ($g as $m) {
+            $rol = $m['role'] ?? '';
+            if ($rol !== 'user' && $rol !== 'assistant') continue;
+            $c = $m['content'] ?? '';
+            if (is_array($c)) {
+                $parca = [];
+                foreach ($c as $b) { if (is_array($b) && ($b['type'] ?? '') === 'text') $parca[] = $b['text'] ?? ''; }
+                $c = implode(' ', $parca);
+            }
+            if (!is_string($c) || trim($c) === '') continue;
+            $satirlar[] = ['rol' => $rol === 'user' ? 'musteri' : 'asistan', 'metin' => $c, 'hatirlatma' => $m['hatirlatma'] ?? null];
+        }
+        return $satirlar;
+    }
+
+    public function santralAsistanGorusmeler(Request $request)
+    {
+        $salonId = $this->asistanGorusmeSalon($request);
+        if (!$salonId) return response()->json(['ok' => 0, 'hata' => 'Bu kayıtları görüntüleme yetkiniz yok.'], 403);
+        if (!Schema::hasTable('santral_oturumlari')) return response()->json(['ok' => 1, 'liste' => []]);
+
+        $bas = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->input('baslangic')) ? $request->input('baslangic') : date('Y-m-d', strtotime('-6 days'));
+        $bit = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->input('bitis')) ? $request->input('bitis') : date('Y-m-d');
+
+        $rows = DB::table('santral_oturumlari as o')
+            ->leftJoin('randevular as r', 'r.id', '=', 'o.randevu_id')
+            ->leftJoin('users as ru', 'ru.id', '=', 'r.user_id')
+            ->where('o.sube_id', $salonId)
+            ->whereBetween('o.created_at', [$bas . ' 00:00:00', $bit . ' 23:59:59'])
+            ->orderByDesc('o.id')->limit(300)
+            ->get(['o.id', 'o.telefon', 'o.sonuc', 'o.durum', 'o.randevu_id', 'o.created_at', 'o.updated_at', 'o.gecmis',
+                   'r.tarih as r_tarih', 'r.saat as r_saat', 'ru.name as r_musteri']);
+
+        // Musteri adi: telefonun son 10 hanesiyle bu salonun portfoyunden (tek sorgu)
+        $tel10 = function ($t) { $d = preg_replace('/\D/', '', (string) $t); return strlen($d) >= 10 ? substr($d, -10) : null; };
+        $teller = array_values(array_unique(array_filter($rows->map(function ($o) use ($tel10) { return $tel10($o->telefon); })->all())));
+        $adlar = $teller ? DB::table('users')->join('musteri_portfoy', 'musteri_portfoy.user_id', '=', 'users.id')
+            ->where('musteri_portfoy.salon_id', $salonId)->whereIn('users.cep_telefon', $teller)
+            ->pluck('users.name', 'users.cep_telefon')->all() : [];
+
+        $sesSayi = Schema::hasTable('santral_ses_kayit') && $rows->count()
+            ? DB::table('santral_ses_kayit')->whereIn('oturum_id', $rows->pluck('id')->all())
+                ->groupBy('oturum_id')->select('oturum_id', DB::raw('COUNT(*) as n'))->pluck('n', 'oturum_id')->all()
+            : [];
+
+        $liste = [];
+        foreach ($rows as $o) {
+            $satirlar = self::asistanKonusmaSatirlari($o->gecmis);
+            $ilk = $satirlar[0] ?? null;
+            $h = $ilk['hatirlatma'] ?? null;
+            $tip = $h ? (($h['tur'] ?? '') === 'alacak' ? 'Ödeme hatırlatma' : 'Randevu hatırlatma') : 'Gelen arama';
+            $sonMusteri = '';
+            for ($i = count($satirlar) - 1; $i >= 0; $i--) { if ($satirlar[$i]['rol'] === 'musteri') { $sonMusteri = $satirlar[$i]['metin']; break; } }
+            $t10 = $tel10($o->telefon);
+            $sure = ($o->updated_at && $o->created_at) ? max(0, strtotime($o->updated_at) - strtotime($o->created_at)) : null;
+            $liste[] = [
+                'id' => (int) $o->id,
+                'tarih' => date('d.m.Y H:i', strtotime($o->created_at)),
+                'tip' => $tip,
+                'telefon' => $o->telefon ? ('0' . ($t10 ?: $o->telefon)) : 'Gizli numara',
+                'musteri' => $o->r_musteri ?: ($t10 && isset($adlar[$t10]) ? $adlar[$t10] : ''),
+                'sonuc' => self::asistanSonucEtiketi($o->sonuc, $o->durum),
+                'randevu' => $o->r_tarih ? date('d.m.Y', strtotime($o->r_tarih)) . ' ' . substr((string) $o->r_saat, 0, 5) : '',
+                'tur' => count(array_filter($satirlar, function ($x) { return $x['rol'] === 'musteri'; })),
+                'sure' => $sure !== null ? sprintf('%d:%02d', intdiv($sure, 60), $sure % 60) : '',
+                'son_musteri' => mb_substr($sonMusteri, 0, 80),
+                'ses' => (int) ($sesSayi[$o->id] ?? 0),
+            ];
+        }
+        return response()->json(['ok' => 1, 'liste' => $liste], 200, ['Cache-Control' => 'no-store'], JSON_UNESCAPED_UNICODE);
+    }
+
+    public function santralAsistanGorusme(Request $request, $id)
+    {
+        $salonId = $this->asistanGorusmeSalon($request);
+        if (!$salonId) return response()->json(['ok' => 0, 'hata' => 'Bu kayıtları görüntüleme yetkiniz yok.'], 403);
+        $o = DB::table('santral_oturumlari')->where('id', (int) $id)->where('sube_id', $salonId)->first();
+        if (!$o) return response()->json(['ok' => 0, 'hata' => 'Görüşme bulunamadı.'], 404);
+
+        $sesler = Schema::hasTable('santral_ses_kayit')
+            ? DB::table('santral_ses_kayit')->where('oturum_id', $o->id)->orderBy('id')->get(['id', 'tur', 'boyut', 'created_at'])
+                ->map(function ($s) use ($salonId) {
+                    return ['id' => (int) $s->id, 'tur' => $s->tur === 'aktarma' ? 'İşletmeye aktarılan kısım' : 'Asistan görüşmesi',
+                        'url' => '/isletmeyonetim/santral-asistan-ses/' . $s->id . '?sube=' . $salonId];
+                })->all()
+            : [];
+
+        $satirlar = array_map(function ($x) { return ['rol' => $x['rol'], 'metin' => $x['metin']]; }, self::asistanKonusmaSatirlari($o->gecmis));
+        return response()->json(['ok' => 1, 'kayit' => [
+            'id' => (int) $o->id,
+            'tarih' => date('d.m.Y H:i', strtotime($o->created_at)),
+            'telefon' => $o->telefon,
+            'sonuc' => self::asistanSonucEtiketi($o->sonuc, $o->durum),
+            'randevu_id' => $o->randevu_id ? (int) $o->randevu_id : null,
+            'konusma' => $satirlar,
+            'sesler' => $sesler,
+        ]], 200, ['Cache-Control' => 'no-store'], JSON_UNESCAPED_UNICODE);
+    }
+
+    public function santralAsistanSes(Request $request, $id)
+    {
+        $salonId = $this->asistanGorusmeSalon($request);
+        if (!$salonId) abort(403);
+        $k = DB::table('santral_ses_kayit')->where('id', (int) $id)->first();
+        if (!$k) abort(404);
+        // Salon kontrolu oturum uzerinden (kopruden gelen sube_id varsayilan sube olabilir)
+        $sube = $k->oturum_id ? DB::table('santral_oturumlari')->where('id', $k->oturum_id)->value('sube_id') : $k->sube_id;
+        if ((int) $sube !== $salonId) abort(404);
+        $path = storage_path('app/santral_ses/' . basename((string) $k->dosya));
+        if (!is_file($path)) abort(404);
+        return response()->file($path, ['Content-Type' => 'audio/wav', 'Cache-Control' => 'private, max-age=3600']);
+    }
+
     public function cdr_rapor_filtre(Request $request)
     {
         $baslangic = date('Y-m-d');
@@ -32691,7 +32837,16 @@ public function musteriportfoydropliste(Request $request)
             ->get();
 
 
-        $formattedRandevular = $randevular->map(function($randevu){
+        // AI asistan hatirlatma gorusmesinin ses kaydi (varsa) -> "Dinle". Tek sorgu.
+        $sesMap = [];
+        if ($randevular->count() && Schema::hasTable('santral_oturumlari') && Schema::hasTable('santral_ses_kayit')) {
+            $sesRows = DB::table('santral_ses_kayit as s')->join('santral_oturumlari as o', 'o.id', '=', 's.oturum_id')
+                ->where('o.sube_id', $isletmeId)->whereIn('o.randevu_id', $randevular->pluck('id')->all())
+                ->where('s.tur', 'ai')->orderBy('s.id')->get(['s.id', 'o.randevu_id']);
+            foreach ($sesRows as $sr) $sesMap[(int) $sr->randevu_id] = (int) $sr->id; // en son kayit
+        }
+
+        $formattedRandevular = $randevular->map(function($randevu) use ($sesMap, $isletmeId){
             $baslik = $randevu->users->name." isimli ";
             $sonuc = "";
             $islemler = "";
@@ -32731,10 +32886,14 @@ public function musteriportfoydropliste(Request $request)
            
 
             if($randevu->hatirlatma_aramasi_yapildi === null)
-                $saat = date('H:i',strtotime($randevu->saat));
+                // Planlanan arama: 1 gun once 15:00 + musteri basina dagitilmis dakika
+                // (RandevuSMSHatirlatma::birGunOnceGrupluGonder ile ayni formul).
+                $saat = date('H:i', strtotime('15:00') + ((((int) $randevu->salon_id * 31) + ((int) $randevu->user_id * 7)) % 180) * 60);
             else
                 $saat = date('H:i',strtotime($randevu->arama_saat));
-             
+
+            if (isset($sesMap[(int) $randevu->id]))
+                $islemler .= '<audio controls preload="none" style="height:34px;max-width:280px;vertical-align:middle" src="/isletmeyonetim/santral-asistan-ses/'.$sesMap[(int) $randevu->id].'?sube='.$isletmeId.'" title="Asistan görüşmesini dinle"></audio>';
 
 
             return [

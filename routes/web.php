@@ -1074,6 +1074,10 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/taksitsenetkontrol','StoreAdminController@taksitsenetkontrol');
 	Route::get('/santral','StoreAdminController@santral');
 	Route::get('/santral-token','StoreAdminController@santral_token_al');
+	// AI asistan gorusmeleri: liste, yazili dokum + ses kaydi (yalniz salon yoneticileri)
+	Route::get('/santral-asistan-gorusmeler','StoreAdminController@santralAsistanGorusmeler');
+	Route::get('/santral-asistan-gorusme/{id}','StoreAdminController@santralAsistanGorusme')->where('id','[0-9]+');
+	Route::get('/santral-asistan-ses/{id}','StoreAdminController@santralAsistanSes')->where('id','[0-9]+');
 	Route::get('/arsivyonetimi','StoreAdminController@arsivyonetimi')->name('isletmeadmin.arsivyonetimi');
 	Route::get('/formolusturma','StoreAdminController@formolusturma')->name('isletmeadmin.formolusturma');
 	Route::get('/form-sablonlari','StoreAdminController@formSablonlari')->name('isletmeadmin.formSablonlari');

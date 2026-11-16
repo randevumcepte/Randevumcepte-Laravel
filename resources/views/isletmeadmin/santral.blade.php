@@ -196,6 +196,17 @@
                                     >Cevapsız Arama</button
                                  >
                               </li>
+                              <li class="nav-item" style="margin-left: 20px;display: inline-block;">
+                                 <button
+                                    class="btn btn-outline-primary"
+                                    data-toggle="tab"
+                                    href="#asistan-gorusmeleri"
+                                    role="tab"
+                                    aria-selected="false"
+                                    id="asistan_gorusmeleri_tab"
+                                    >Asistan Görüşmeleri</button
+                                 >
+                              </li>
                               @endif
                               {{-- "Arama Listesi" sekmesi Çağrı Merkezi paneline taşındı (oradan yönetilir). --}}
                               @if($kullaniciRolu < 5)
@@ -341,6 +352,105 @@
                                 
                               
                               </div>
+                              @if($kullaniciRolu < 5)
+                              {{-- AI asistan gorusmeleri: yazili dokum + ses kaydi (restoran santral-kayitlar karsiligi) --}}
+                              <div class="tab-pane fade" id="asistan-gorusmeleri" role="tabpanel" style="margin-top: 20px;">
+                                 <div class="row mb-10">
+                                    <div class="col-md-3 col-6"><label>Başlangıç</label><input type="date" class="form-control" id="ag_baslangic" value="{{date('Y-m-d', strtotime('-6 days'))}}"></div>
+                                    <div class="col-md-3 col-6"><label>Bitiş</label><input type="date" class="form-control" id="ag_bitis" value="{{date('Y-m-d')}}"></div>
+                                    <div class="col-md-3 col-6"><label>Tür</label>
+                                       <select class="form-control" id="ag_tip">
+                                          <option value="">Tümü</option>
+                                          <option>Gelen arama</option>
+                                          <option>Randevu hatırlatma</option>
+                                          <option>Ödeme hatırlatma</option>
+                                       </select>
+                                    </div>
+                                    <div class="col-md-3 col-6"><label style="visibility:hidden">Listele</label><button type="button" class="btn btn-primary btn-block" id="ag_listele"><i class="fa fa-search"></i> Listele</button></div>
+                                 </div>
+                                 <p class="text-muted font-14 mb-10">Yapay zeka asistanının yaptığı ve karşıladığı görüşmeler. Satıra tıklayarak konuşmanın yazılı dökümünü okuyabilir ve ses kaydını dinleyebilirsiniz.</p>
+                                 <div style="overflow-x:auto">
+                                    <table class="table stripe hover" id="asistan_gorusme_tablo">
+                                       <thead>
+                                          <th>Tarih</th><th>Tür</th><th>Müşteri</th><th>Telefon</th><th>Sonuç</th><th>Randevu</th><th>Süre</th><th>Son söylenen</th><th></th>
+                                       </thead>
+                                       <tbody><tr><td colspan="9" class="text-center text-muted">Yükleniyor…</td></tr></tbody>
+                                    </table>
+                                 </div>
+                              </div>
+
+                              <div class="modal fade" id="asistan_gorusme_modal" tabindex="-1" role="dialog">
+                                 <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                                    <div class="modal-content">
+                                       <div class="modal-header">
+                                          <h5 class="modal-title" id="ag_modal_baslik">Asistan görüşmesi</h5>
+                                          <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                       </div>
+                                       <div class="modal-body">
+                                          <div id="ag_modal_sesler" class="mb-15"></div>
+                                          <div id="ag_modal_konusma" style="max-height:55vh;overflow-y:auto"></div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                              <style>
+                                 #asistan_gorusme_tablo tbody tr[data-id]{cursor:pointer}
+                                 .ag-balon{padding:8px 12px;border-radius:12px;margin:6px 0;max-width:85%;white-space:pre-wrap;line-height:1.45}
+                                 .ag-asistan{background:#eef3ff;margin-right:auto}
+                                 .ag-musteri{background:#e9f8ef;margin-left:auto;text-align:right}
+                                 .ag-kim{font-size:11px;color:#888;margin-bottom:2px}
+                                 .ag-ses{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+                                 .ag-ses audio{height:36px;max-width:100%}
+                              </style>
+                              <script>
+                              window.addEventListener('load', function () {
+                                 var $ = window.jQuery; if (!$) return;
+                                 var sube = '{{$isletme->id}}', yuklendi = false;
+                                 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+                                 function listele(){
+                                    var $tb = $('#asistan_gorusme_tablo tbody').html('<tr><td colspan="9" class="text-center text-muted">Yükleniyor…</td></tr>');
+                                    $.ajax({ url: '/isletmeyonetim/santral-asistan-gorusmeler', dataType: 'json', cache: false,
+                                       data: { sube: sube, baslangic: $('#ag_baslangic').val(), bitis: $('#ag_bitis').val() },
+                                       success: function (r) {
+                                          var tip = $('#ag_tip').val(), html = '';
+                                          (r.liste || []).forEach(function (x) {
+                                             if (tip && x.tip !== tip) return;
+                                             html += '<tr data-id="' + x.id + '"><td>' + esc(x.tarih) + '</td><td>' + esc(x.tip) + '</td><td>' + esc(x.musteri) + '</td><td>' + esc(x.telefon) + '</td><td>' + esc(x.sonuc) + '</td><td>' + esc(x.randevu) + '</td><td>' + esc(x.sure) + '</td><td>' + esc(x.son_musteri) + '</td><td>' + (x.ses ? '<i class="fa fa-volume-up text-primary" title="Ses kaydı var"></i>' : '') + '</td></tr>';
+                                          });
+                                          $tb.html(html || '<tr><td colspan="9" class="text-center text-muted">Bu aralıkta asistan görüşmesi yok.</td></tr>');
+                                       },
+                                       error: function (q) { $tb.html('<tr><td colspan="9" class="text-center text-danger">' + esc((q.responseJSON && q.responseJSON.hata) || 'Liste alınamadı.') + '</td></tr>'); }
+                                    });
+                                 }
+                                 $('#asistan_gorusmeleri_tab').on('shown.bs.tab click', function () { if (!yuklendi) { yuklendi = true; listele(); } });
+                                 $('#ag_listele').on('click', listele);
+                                 $('#ag_tip').on('change', listele);
+                                 $('#asistan_gorusme_tablo').on('click', 'tr[data-id]', function () {
+                                    var id = $(this).data('id');
+                                    $('#ag_modal_sesler').html(''); $('#ag_modal_konusma').html('<p class="text-muted">Yükleniyor…</p>');
+                                    $('#asistan_gorusme_modal').modal('show');
+                                    $.ajax({ url: '/isletmeyonetim/santral-asistan-gorusme/' + id, data: { sube: sube }, dataType: 'json', cache: false,
+                                       success: function (r) {
+                                          var k = r.kayit || {};
+                                          $('#ag_modal_baslik').text(k.tarih + ' · ' + k.sonuc);
+                                          var s = '';
+                                          (k.sesler || []).forEach(function (a) { s += '<div class="ag-ses"><b>' + esc(a.tur) + ':</b><audio controls preload="metadata" src="' + esc(a.url) + '"></audio></div>'; });
+                                          $('#ag_modal_sesler').html(s || '<p class="text-muted">Bu görüşmenin ses kaydı yok.</p>');
+                                          var c = '';
+                                          (k.konusma || []).forEach(function (m) {
+                                             var a = m.rol === 'asistan';
+                                             c += '<div style="display:flex"><div class="ag-balon ' + (a ? 'ag-asistan' : 'ag-musteri') + '"><div class="ag-kim">' + (a ? 'Asistan' : 'Müşteri') + '</div>' + esc(m.metin) + '</div></div>';
+                                          });
+                                          $('#ag_modal_konusma').html(c || '<p class="text-muted">Konuşma kaydı boş.</p>');
+                                       },
+                                       error: function (q) { $('#ag_modal_konusma').html('<p class="text-danger">' + esc((q.responseJSON && q.responseJSON.hata) || 'Kayıt alınamadı.') + '</p>'); }
+                                    });
+                                 });
+                                 // Modal kapaninca sesi durdur
+                                 $('#asistan_gorusme_modal').on('hidden.bs.modal', function () { $(this).find('audio').each(function () { this.pause(); }); });
+                              });
+                              </script>
+                              @endif
                               {{-- "Arama Listesi" sekme içeriği Çağrı Merkezi paneline taşındı. --}}
                               <div
                                  class="tab-pane fade"
