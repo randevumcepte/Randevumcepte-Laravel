@@ -17116,6 +17116,19 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 })
                 ->get();
             Log::info('Adisyon bilgi : '. $request->adisyon_id.' - '.json_encode($adisyonlar));
+        // Ikram Hizmet: BUGUN ikram uygulanan kalem borcu 0 olsa da listede kalir (0 TL gorunsun,
+        // kaybolmasin). Yalniz bugun: takvim tahsilati musterinin tum adisyonlarini tarar, eski
+        // ikramlar her tahsilatta birikmesin.
+        $ikramBugun = [];
+        try {
+            if (\App\Services\DamgaKartiServisi::tabloHazir()) {
+                $ikramBugun = DB::table('damga_karti_kullanimlari')
+                    ->where('salon_id', $request->salon_id)->where('user_id', $request->musteri_id)
+                    ->whereDate('created_at', date('Y-m-d'))
+                    ->pluck('adisyon_hizmet_id')->map(function ($v) { return (int) $v; })->all();
+            }
+        } catch (\Throwable $e) { $ikramBugun = []; }
+
         foreach ( $adisyonlar as $adisyon
 
         ) {
@@ -17138,7 +17151,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
                         0 ||
 
-                        $hizmet->hediye) &&
+                        $hizmet->hediye ||
+
+                        in_array((int) $hizmet->id, $ikramBugun, true)) &&
 
                     $hizmet->senet_id === null &&
 
@@ -17189,6 +17204,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                         "indirim_tutari" => $hizmet->indirim_tutari,
 
                         "hediye" => $hizmet->hediye,
+
+                        "ikram" => in_array((int) $hizmet->id, $ikramBugun, true) ? 1 : 0,
 
                         "adisyon_id" => $hizmet->adisyon_id,
 
