@@ -27530,7 +27530,7 @@ return date('Y')."-$ayNumara-$gun";
 
                       DB::raw('CONCAT(users.name) as baslik'),
 
-                       DB::raw('CASE WHEN randevular.hatirlatma_aramasi_yapildi = 0 OR randevular.hatirlatma_aramasi_yapildi IS NULL THEN DATE_FORMAT(randevular.saat, "%H:%i") ELSE DATE_FORMAT(randevular.arama_saat, "%H:%i") END as saat'),
+                       DB::raw('CASE WHEN randevular.hatirlatma_aramasi_yapildi = 0 OR randevular.hatirlatma_aramasi_yapildi IS NULL THEN DATE_FORMAT(ADDTIME("15:00:00", SEC_TO_TIME(MOD(randevular.salon_id * 31 + randevular.user_id * 7, 180) * 60)), "%H:%i") ELSE DATE_FORMAT(randevular.arama_saat, "%H:%i") END as saat'), // planlanan arama: 1 gun once 15:00 + RandevuSMSHatirlatma stagger'i
 
 
 
@@ -27797,7 +27797,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
 
                       DB::raw('"Randevu Hatırlatması" as baslik'),
 
-                       DB::raw('CASE WHEN randevular.hatirlatma_aramasi_yapildi = 0 OR randevular.hatirlatma_aramasi_yapildi IS NULL THEN DATE_FORMAT(randevular.saat, "%H:%i") ELSE DATE_FORMAT(randevular.arama_saat, "%H:%i") END as saat'),
+                       DB::raw('CASE WHEN randevular.hatirlatma_aramasi_yapildi = 0 OR randevular.hatirlatma_aramasi_yapildi IS NULL THEN DATE_FORMAT(ADDTIME("15:00:00", SEC_TO_TIME(MOD(randevular.salon_id * 31 + randevular.user_id * 7, 180) * 60)), "%H:%i") ELSE DATE_FORMAT(randevular.arama_saat, "%H:%i") END as saat'), // planlanan arama: 1 gun once 15:00 + RandevuSMSHatirlatma stagger'i
 
 
 

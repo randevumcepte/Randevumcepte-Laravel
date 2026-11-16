@@ -13,11 +13,22 @@ use App\Http\Controllers\Controller;
 use App\Services\WhatsAppService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use App\MusteriPortfoy;
+use App\SalonEAsistanAyarlari;
+use App\Jobs\HatirlatmaAramaJob;
 
 class RandevuSMSHatirlatma extends Command
 {
     protected $signature = 'randevusms:hatirlat';
-    protected $description = 'Randevu WhatsApp/SMS ve bildirim hatırlatmaları';
+    protected $description = 'Randevu WhatsApp/SMS, bildirim ve sesli asistan hatırlatmaları';
+
+    /** Bu turda kuyruga eklenecek hatirlatma aramalari (handle sonunda chunk'li dispatch). */
+    protected $aramaListesi = [];
+    /** salon_id => e-asistan randevu hatirlatma aramasi (ayar_id=4) acik mi */
+    protected $aramaAyarCache = [];
+    /** Ayni anda santrale verilecek arama sayisi / chunk'lar arasi bekleme (sn) */
+    protected $aramaChunk = 50;
+    protected $aramaChunkArasi = 35;
 
     public function handle()
     {
@@ -78,6 +89,17 @@ class RandevuSMSHatirlatma extends Command
         // Bir musterinin yarinki tum randevulari TEK mesajda toplanir; eskiden
         // her randevu icin ayri ayri mesaj atiliyordu (4 randevu = 4 SMS).
         $this->birGunOnceGrupluGonder($randevular, $wa, $controller);
+
+        // Ulasilamayan hatirlatma aramalarinin tekrari (salon "tekrar arama" saati sonra).
+        // Ilk arama birGunOnceGrupluGonder icinde WA/SMS ile ayni dakikada kuyruga girer.
+        // Eskiden ayri `randevuarama:yap` komutu her dakika randevular tablosunu tariyordu;
+        // artik zaten yuklenen bugun+yarin listesi kullanilir (ek sorgu yok).
+        try {
+            $this->tekrarAramalari($randevular, $controller);
+        } catch (\Throwable $e) {
+            Log::error('[RND-ARAMA] tekrar arama hatasi: ' . $e->getMessage());
+        }
+        $this->aramalariKuyrugaGonder();
 
         foreach ($randevular as $value) {
             if ($value->salon_id === null || $value->salon_id == 0) {
@@ -588,6 +610,14 @@ class RandevuSMSHatirlatma extends Command
                 continue;
             }
 
+            // Sesli asistan hatirlatma aramasi: WA/SMS ile ayni (dagitilmis) dakikada,
+            // musteri basina TEK arama (en erken randevu uzerinden). Hata WA/SMS'i etkilemez.
+            try {
+                $this->ilkHatirlatmaAramasi($grup->sortBy('saat')->first());
+            } catch (\Throwable $e) {
+                Log::error('[RND-ARAMA] ilk arama hatasi: ' . $e->getMessage(), ['randevu_idler' => $randevuIdler]);
+            }
+
             if (!$ayar || !$ayar->musteri) {
                 Log::info('[RND-SMS] 1 gun once GRUP: SMS/WA toggle kapali — sadece push', [
                     'salon_id' => $salon->id, 'user_id' => $musteri->id,
@@ -666,6 +696,111 @@ class RandevuSMSHatirlatma extends Command
                 catch (\Throwable $e) { Log::warning('[RND-PUSH] 1gun push fail', ['randevu_id' => $r->id, 'err' => $e->getMessage()]); }
             }
         }
+    }
+
+    /** E-asistan randevu hatirlatma aramasi (ayar_id=4) salonda acik mi (tur ici cache). */
+    protected function aramaAcik($salonId): bool
+    {
+        if (!array_key_exists($salonId, $this->aramaAyarCache)) {
+            $this->aramaAyarCache[$salonId] = (bool) SalonEAsistanAyarlari::where('salon_id', $salonId)
+                ->where('ayar_id', 4)
+                ->value('acik_kapali');
+        }
+        return $this->aramaAyarCache[$salonId];
+    }
+
+    /** Randevu bu musteri icin aranabilir mi (ayar, telefon, iptal edilmis gorev, kara liste). */
+    protected function aranabilir($r): bool
+    {
+        if (!$r->salon_id || !$this->aramaAcik($r->salon_id)) return false;
+        if (empty(optional($r->users)->cep_telefon)) return false;
+        if (!empty($r->hatirlatma_gorevi_iptal)) return false;
+        $karaListe = MusteriPortfoy::where('user_id', $r->user_id)
+            ->where('salon_id', $r->salon_id)
+            ->value('kara_liste');
+        return !$karaListe;
+    }
+
+    /**
+     * 1 gun once ilk hatirlatma aramasi. Idempotency: cagiran birGunOnceGrupluGonder'in
+     * hatirlatma_gunonce_gonderildi atomik claim'i. Gecis gunu korumasi: eski komut bu
+     * randevuyu zaten aradiysa (arama_saat dolu) tekrar arama.
+     */
+    protected function ilkHatirlatmaAramasi($r)
+    {
+        if (!$r || !empty($r->arama_saat) || !empty($r->tekrar_arandi)) return;
+        if (!$this->aranabilir($r)) return;
+        $this->aramaEkle($r, 'ilk');
+    }
+
+    /**
+     * Ulasilamayan aramanin tekrari. Arama Originate edilince Controller
+     * tekrar_aranacak=1 + tekrar_arama_tarih_saat = simdi + salon.e_asistan_hatirlatma saat
+     * yazar; musteri acarsa (ulasildi / asistan) tekrar_aranacak=0 olur.
+     * Atomik claim: tekrar_arandi=1 (ikinci kez tekrar yok).
+     */
+    protected function tekrarAramalari($randevular, $controller)
+    {
+        if (!$controller->hatirlatmaSaatiIcinde(date('H:i'))) return; // 10:00–19:30 disi: pencere acilinca
+        $simdi = time();
+        foreach ($randevular as $r) {
+            if ((int) $r->tekrar_aranacak !== 1 || !empty($r->tekrar_arandi)) continue;
+            if (empty($r->tekrar_arama_tarih_saat)) continue;
+            $t = strtotime($r->tekrar_arama_tarih_saat);
+            if ($t === false || $t <= 0 || $t > $simdi) continue; // '0000-00-00' (ertelemede sifirlanir) dahil
+            // Salon tekrar arama suresi tanimlamadiysa (0) tekrar yok — yoksa ilk aramanin hemen ardindan tekrar arardi.
+            if (empty(optional($r->salonlar)->e_asistan_hatirlatma)) continue;
+            // Randevuya 1 saatten az kaldiysa / gectiyse hatirlatma anlamsiz.
+            if (strtotime($r->tarih . ' ' . $r->saat) - $simdi < 3600) continue;
+            if (!$this->aranabilir($r)) continue;
+
+            $claimed = \Illuminate\Support\Facades\DB::table('randevular')
+                ->where('id', $r->id)
+                ->where('tekrar_aranacak', 1)
+                ->where(function ($q) {
+                    $q->whereNull('tekrar_arandi')->orWhere('tekrar_arandi', 0);
+                })
+                ->update(['tekrar_arandi' => 1]);
+            if ($claimed !== 1) continue;
+
+            $this->aramaEkle($r, 'tekrar');
+        }
+    }
+
+    protected function aramaEkle($r, string $etiket)
+    {
+        // Eski IVR (yeni asistan kapali salon / kopru ayakta degil) mesaji: Turkce tarih + net saat.
+        $rTs = strtotime($r->tarih . ' ' . $r->saat);
+        $aylarTR = [1=>'Ocak',2=>'Şubat',3=>'Mart',4=>'Nisan',5=>'Mayıs',6=>'Haziran',7=>'Temmuz',8=>'Ağustos',9=>'Eylül',10=>'Ekim',11=>'Kasım',12=>'Aralık'];
+        $tarihMetin = date('j', $rTs) . ' ' . ($aylarTR[(int) date('n', $rTs)] ?? '');
+        $telaffuz = optional($r->salonlar)->santral_telaffuz_2 ?: optional($r->salonlar)->salon_adi;
+
+        $this->aramaListesi[] = [
+            'alacakIdler' => '',
+            'randevuid' => $r->id,
+            'kampanyaKatilimci' => '',
+            'katilimci' => '',
+            'mesaj' => 'Sayın ' . $r->users->name . '. ' . $telaffuz . ' için ' . $tarihMetin . ' saat ' . date('H:i', $rTs) .
+                ' randevunuzu hatırlatmak isteriz. Randevuya gelecekseniz biri, randevunuzu başka bir tarihe ertelemek istiyorsanız ikiyi tuşlayınız.',
+            'tel' => $r->users->cep_telefon,
+            'salonId' => $r->salon_id,
+            // Yeni asistan acik salonlarda exten 8 -> Stasis(randevu-santral-ai); kopru yoksa dialplan exten 1 akisina duser.
+            'exten' => \App\Services\RandevuAsistan::aiHatirlatmaAcik($r->salon_id) ? 8 : 1,
+            'aiHedef' => 'randevu:' . $r->id,
+        ];
+        Log::info('[RND-ARAMA] kuyruga alinacak', ['etiket' => $etiket, 'randevu_id' => $r->id, 'salon_id' => $r->salon_id]);
+    }
+
+    protected function aramalariKuyrugaGonder()
+    {
+        if (empty($this->aramaListesi)) return;
+        foreach (array_chunk($this->aramaListesi, $this->aramaChunk) as $i => $chunk) {
+            $job = new HatirlatmaAramaJob($chunk, null, null);
+            if ($i > 0) $job->delay(now()->addSeconds($i * $this->aramaChunkArasi));
+            dispatch($job);
+        }
+        Log::info('[RND-ARAMA] ' . count($this->aramaListesi) . ' hatirlatma aramasi kuyruga eklendi.');
+        $this->aramaListesi = [];
     }
 
     /**

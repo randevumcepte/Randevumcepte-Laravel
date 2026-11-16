@@ -760,7 +760,9 @@ class Controller extends BaseController
    
      public function hatirlatmaSaatiIcinde($date)
     {
-        if(date('H:i',strtotime($date)) < date('H:i',strtotime('19:30')) || date('H:i',strtotime($date)) < date('H:i',strtotime('10:00'))){
+        // 10:00 <= saat < 19:30 (eskiden '||' ile yazildigi icin sabah siniri hic uygulanmiyordu).
+        $s = date('H:i', strtotime($date));
+        if ($s >= '10:00' && $s < '19:30') {
             return true;
         }
         else{ 

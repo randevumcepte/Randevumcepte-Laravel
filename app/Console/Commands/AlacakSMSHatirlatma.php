@@ -20,6 +20,14 @@ class AlacakSMSHatirlatma extends Command
 
     public function handle()
     {
+        // Alacak hatirlatma ARAMALARI (2 gun once 10:00 + tekrar aramalar) — eskiden ayri
+        // `alacakhatirlatma:aramayap` komutuydu. Hata SMS/WA akisini etkilemesin.
+        try {
+            app(\App\Services\AlacakHatirlatmaAramasi::class)->calistir();
+        } catch (\Throwable $e) {
+            Log::error('[ALACAK-ARAMA] hata: ' . $e->getMessage());
+        }
+
         if (date('H:i') != '14:10') {
             return;
         }

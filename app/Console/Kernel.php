@@ -119,8 +119,12 @@ class Kernel extends ConsoleKernel
         //
         // randevuarama:yap N+1 (2026-06-29) salon ayar/bilgi cache'lenerek giderildi.
         $schedule->command('kampanyaarama:yap')->withoutOverlapping()->everyMinute();        // Reklam (kampanya)
-        $schedule->command('randevuarama:yap')->withoutOverlapping()->everyMinute();         // Randevu teyit
-        $schedule->command('alacakhatirlatma:aramayap')->withoutOverlapping()->everyMinute(); // Alacak (borç)
+        // randevuarama:yap ve alacakhatirlatma:aramayap ZAMANLAYICIDAN CIKARILDI (2026-11-16):
+        // randevu aramasi randevusms:hatirlat icinde (1 gun once 15:00-18:00, WA/SMS ile ayni
+        // dagitilmis dakikada), alacak aramasi alacaksms:hatirlat icinde (2 gun once 10:00).
+        // Siniflar elle calistirma / geri donus icin duruyor.
+        // $schedule->command('randevuarama:yap')->withoutOverlapping()->everyMinute();
+        // $schedule->command('alacakhatirlatma:aramayap')->withoutOverlapping()->everyMinute();
         $schedule->command('arama:hatirlat')->withoutOverlapping()->everyMinute();
         // v2 (Randevumcepte-New-Laravel) randevu bildirim kuyrugu — ~55 sn yoklar, mevcut bildirim koduyla gonderir.
         $schedule->command('v2:bildirim-isle')->withoutOverlapping()->everyMinute();
