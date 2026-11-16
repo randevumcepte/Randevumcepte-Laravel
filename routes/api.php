@@ -643,6 +643,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::post('/santral/hedefler',  'SoftphoneApiController@santralHedefler');
         Route::post('/santral/hazir-mi',  'SoftphoneApiController@santralHazirMi');
         Route::post('/santral/token-sil', 'SoftphoneApiController@santralTokenSil');
+        Route::post('/santral/android-push', 'SoftphoneApiController@santralAndroidPush');
     });
 
     Route::prefix('cagri-merkezi')->middleware('auth:isletmeyonetim-api')->group(function () {

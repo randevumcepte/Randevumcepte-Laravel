@@ -43,9 +43,12 @@ class SoftphoneApiController extends Controller
         if (!$personel) {
             return response()->json(['ok' => false, 'mesaj' => 'Dahili dogrulanamadi'], 401);
         }
-        $token = preg_replace('/[^0-9a-fA-F]/', '', (string) $request->input('token'));
+        $platform = $request->input('platform') === 'android' ? 'android' : 'ios';
+        $token = $this->tokenTemizle((string) $request->input('token'));
         $bundle = substr(trim((string) $request->input('bundle')), 0, 150);
-        if (strlen($token) < 32 || $bundle === '') {
+        // iOS: bundle zorunlu (APNs topic). Android: bos olabilir (FCM projesi
+        // bildirim_kimlikleri.app_bundle / salon firebase_profile'dan cozulur).
+        if (strlen($token) < 32 || ($platform === 'ios' && $bundle === '')) {
             return response()->json(['ok' => false, 'mesaj' => 'Token/bundle eksik'], 422);
         }
         $dahili = (string) $personel->dahili_no_webrtc;
@@ -59,7 +62,7 @@ class SoftphoneApiController extends Controller
             'personel_id' => $personel->id,
             'token' => $token,
             'bundle' => $bundle,
-            'platform' => substr((string) $request->input('platform', 'ios'), 0, 10),
+            'platform' => $platform,
             'created_at' => $simdi,
             'updated_at' => $simdi,
         ]);
@@ -79,7 +82,7 @@ class SoftphoneApiController extends Controller
         if (!$personel) {
             return response()->json(['ok' => false], 401);
         }
-        $token = preg_replace('/[^0-9a-fA-F]/', '', (string) $request->input('token'));
+        $token = $this->tokenTemizle((string) $request->input('token'));
         DB::table('softphone_voip_tokenlar')
             ->where('dahili', (string) $personel->dahili_no_webrtc)
             ->where('token', $token)->delete();
@@ -117,7 +120,7 @@ class SoftphoneApiController extends Controller
         $hedefler = DB::table('softphone_voip_tokenlar')
             ->where('dahili', $dahili)
             ->where('updated_at', '>', date('Y-m-d H:i:s', strtotime('-60 days')))
-            ->select('token', 'bundle')->get();
+            ->select('token', 'bundle', 'platform')->get();
         return response()->json(['ok' => true, 'hedefler' => $hedefler]);
     }
 
@@ -139,13 +142,144 @@ class SoftphoneApiController extends Controller
         if (!$this->santralDogrula($request)) {
             return response()->json(['ok' => false], 403);
         }
-        $token = preg_replace('/[^0-9a-fA-F]/', '', (string) $request->input('token'));
+        $token = $this->tokenTemizle((string) $request->input('token'));
         $silinen = DB::table('softphone_voip_tokenlar')->where('token', $token)->delete();
         Log::info('softphone voip token silindi (APNs gecersiz)', ['silinen' => $silinen]);
         return response()->json(['ok' => true, 'silinen' => $silinen]);
     }
 
+    /**
+     * Android gelen cagri: dahilinin Android token'larina data-only, HIGH
+     * oncelikli FCM yollar (bildirim blogu YOK: uygulamanin arka plan
+     * handler'i tam ekran gelen cagriyi kendisi gosterir).
+     */
+    public function santralAndroidPush(Request $request)
+    {
+        if (!$this->santralDogrula($request)) {
+            return response()->json(['ok' => false], 403);
+        }
+        $dahili = preg_replace('/[^0-9]/', '', (string) $request->input('dahili'));
+        $uuid = strtolower((string) $request->input('uuid'));
+        if ($dahili === '' || !preg_match('/^[0-9a-f-]{36}$/', $uuid)) {
+            return response()->json(['ok' => false], 422);
+        }
+        $satirlar = DB::table('softphone_voip_tokenlar')
+            ->where('dahili', $dahili)->where('platform', 'android')->get();
+
+        $veri = [
+            'kaynak' => 'softphone_cagri',
+            'uuid' => $uuid,
+            'numara' => substr((string) $request->input('numara'), 0, 40),
+            'arayan' => substr((string) $request->input('arayan'), 0, 80),
+        ];
+        $gonderilen = 0;
+        $sonuclar = [];
+        foreach ($satirlar as $r) {
+            try {
+                $dosya = $this->firebaseDosyasi($r);
+                $proje = json_decode(file_get_contents(storage_path($dosya)), true)['project_id'];
+                $yanit = $this->http()->post(
+                    "https://fcm.googleapis.com/v1/projects/{$proje}/messages:send",
+                    [
+                        'headers' => [
+                            'Authorization' => 'Bearer ' . $this->fcmErisim($dosya),
+                            'Content-Type' => 'application/json',
+                        ],
+                        'json' => ['message' => [
+                            'token' => $r->token,
+                            'data' => $veri,
+                            'android' => ['priority' => 'HIGH', 'ttl' => '30s'],
+                        ]],
+                        'http_errors' => false,
+                    ]
+                );
+                $kod = $yanit->getStatusCode();
+                $govde = (string) $yanit->getBody();
+                if ($kod === 200) {
+                    $gonderilen++;
+                } elseif ($kod === 404 || strpos($govde, 'UNREGISTERED') !== false
+                    || strpos($govde, 'SENDER_ID_MISMATCH') !== false) {
+                    DB::table('softphone_voip_tokenlar')->where('id', $r->id)->delete();
+                }
+                $sonuclar[] = ['kod' => $kod, 'neden' => $kod === 200 ? '' : substr($govde, 0, 200)];
+            } catch (\Throwable $e) {
+                $sonuclar[] = ['kod' => 0, 'neden' => $e->getMessage()];
+            }
+        }
+        if ($gonderilen === 0 && count($satirlar)) {
+            Log::warning('softphone android push gonderilemedi', ['dahili' => $dahili, 'sonuclar' => $sonuclar]);
+        }
+        return response()->json(['ok' => true, 'gonderilen' => $gonderilen, 'sonuclar' => $sonuclar]);
+    }
+
     // ------------------------------------------------------------------
+
+    /** iOS hex, Android FCM token (harf/rakam : _ -). */
+    private function tokenTemizle($t)
+    {
+        return substr(preg_replace('/[^0-9A-Za-z:_\-]/', '', $t), 0, 200);
+    }
+
+    /**
+     * Token'in Firebase projesi: NotificationService ile ayni kural.
+     * 1) token'in bildirim_kimlikleri.app_bundle'i firebase_bundle_projects'te varsa o,
+     * 2) salonun firebase_profile'i, 3) varsayilan.
+     */
+    private function firebaseDosyasi($r)
+    {
+        $bundleMap = config('firebase_bundle_projects', []);
+        $bundle = $r->bundle ?: DB::table('bildirim_kimlikleri')->where('bildirim_id', $r->token)->value('app_bundle');
+        if ($bundle && !empty($bundleMap[$bundle])) {
+            return $bundleMap[$bundle];
+        }
+        if ($r->salon_id) {
+            $profil = DB::table('salonlar')->where('id', $r->salon_id)->value('firebase_profile');
+            if ($profil && config("firebase_projects.{$profil}")) {
+                return config("firebase_projects.{$profil}");
+            }
+        }
+        return config('firebase_projects.default', 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json');
+    }
+
+    private function http()
+    {
+        static $c = null;
+        if ($c === null) {
+            $c = new \GuzzleHttp\Client(['connect_timeout' => 3, 'timeout' => 6]);
+        }
+        return $c;
+    }
+
+    /** FCM OAuth erisim token'i; NotificationService ile ayni cache anahtari (paylasilir). */
+    private function fcmErisim($dosya)
+    {
+        $anahtar = 'fcm_erisim_token:' . md5($dosya);
+        $kayitli = Cache::get($anahtar);
+        if (is_array($kayitli) && ($kayitli['exp'] ?? 0) > time() + 60) {
+            return $kayitli['token'];
+        }
+        $json = json_decode(file_get_contents(storage_path($dosya)), true);
+        $b64 = function ($d) {
+            return rtrim(strtr(base64_encode($d), '+/', '-_'), '=');
+        };
+        $simdi = time();
+        $veri = $b64(json_encode(['alg' => 'RS256', 'typ' => 'JWT'])) . '.' . $b64(json_encode([
+            'iss' => $json['client_email'],
+            'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
+            'aud' => $json['token_uri'],
+            'iat' => $simdi,
+            'exp' => $simdi + 3600,
+        ]));
+        openssl_sign($veri, $imza, $json['private_key'], OPENSSL_ALGO_SHA256);
+        $yanit = $this->http()->post($json['token_uri'], ['form_params' => [
+            'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            'assertion' => $veri . '.' . $b64($imza),
+        ]]);
+        $govde = json_decode((string) $yanit->getBody(), true);
+        $deger = ['token' => $govde['access_token'], 'exp' => $simdi + 3550];
+        Cache::put($anahtar, $deger, 55); // L5.6: dakika
+        return $deger['token'];
+    }
 
     private function dahiliDogrula(Request $request)
     {
