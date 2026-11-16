@@ -504,7 +504,13 @@
                                        error: function (q) { $('#ag_detay').html('<div class="ag-bos">' + esc((q.responseJSON && q.responseJSON.hata) || 'Kayıt alınamadı.') + '</div>'); }
                                     });
                                  }
-                                 $('#asistan_gorusmeleri_tab').on('shown.bs.tab click', function () { if (!yuklendi) { yuklendi = true; listele(); } });
+                                 // Sekme tiklanarak da, sayfa son acik sekmeyi geri yukleyerek de (tiklama olmadan) acilabilir:
+                                 // her iki durumda da listeyi bir kez yukle.
+                                 function gerekirseYukle() { if (!yuklendi && $('#asistan-gorusmeleri').is(':visible')) { yuklendi = true; listele(); } }
+                                 $(document).on('shown.bs.tab click', '[href="#asistan-gorusmeleri"]', function () { setTimeout(gerekirseYukle, 50); });
+                                 gerekirseYukle();
+                                 setTimeout(gerekirseYukle, 600);
+                                 setTimeout(gerekirseYukle, 1500);
                                  $('#ag_listele').on('click', listele);
                                  $('#ag_tip, #ag_baslangic, #ag_bitis').on('change', listele);
                                  $('#ag_q').on('input', filtrele);
