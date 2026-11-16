@@ -12,6 +12,9 @@ const { RtpOturumu } = require('./rtp');
 // tts onbellegine girer -> sonraki turlarda aninda calar.
 const DOLGU = ['Hemen bakıyorum.', 'Bir saniye lütfen.', 'Tamam, kontrol ediyorum.'];
 
+// Bu cumlelerde bekleme cumlesi CALMA (vedalasma/tesekkur/ret: "Hemen bakıyorum. Hoşçakalın" sacmaligi, kayit #55)
+const DOLGUSUZ = /(teşekkür|tesekkur|sağ ?ol|sag ?ol|iyi günler|iyi akşamlar|iyi aksamlar|hoşça|hosca|görüşürüz|gorusuruz|gerek yok|başka (bir )?(şey|sey|konu)? ?yok|bu kadar|o kadar|kapat)/i;
+
 // Tekrar karsilastirmasi icin: kucuk harf + noktalama/bosluk sadelestirme ("Tay makajı." == "tay makajı")
 function sadeMetin(s) {
   return String(s || '').toLocaleLowerCase('tr').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
@@ -153,7 +156,7 @@ class CagriOturumu {
     this._eskidi = false;
     const ek = this._oncekiDuyulmadi ? { onceki_duyulmadi: 1 } : {};
     this._oncekiDuyulmadi = false;
-    const dolguZ = cfg.dolguMs > 0 ? setTimeout(() => this._dolguCal(), cfg.dolguMs) : null;
+    const dolguZ = (cfg.dolguMs > 0 && !DOLGUSUZ.test(metin || '')) ? setTimeout(() => this._dolguCal(), cfg.dolguMs) : null;
     try {
       const d = await brain.konus(this.oturumId, metin, ek);
       clearTimeout(dolguZ);

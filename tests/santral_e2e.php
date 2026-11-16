@@ -173,8 +173,9 @@ if ($TEL) {
     senaryo('T5 Randevu talebi oluştur → sonra iptal et (temizlik)', function () use ($TEL) {
         $o = new Oturum($TEL);
         $r = $o->soyle('Önümüzdeki hafta perşembe 11 için saç kesimi randevusu almak istiyorum');
-        for ($i = 0; $i < 4 && $r['aksiyon'] !== 'randevu'; $i++) {
+        for ($i = 0; $i < 5 && $r['aksiyon'] !== 'randevu'; $i++) {
             if (preg_match('/oluşturayım mı|onaylıyor musunuz/iu', $r['cevap'])) $r = $o->soyle('Evet');
+            elseif (preg_match('/fark etmez|tercih ettiğiniz|uzman/iu', $r['cevap'])) $r = $o->soyle('Fark etmez');
             elseif (preg_match('/hangisini|ya da/iu', $r['cevap'])) $r = $o->soyle('İlkini');
             elseif (preg_match('/hangi hizmet|saç kesimi/iu', $r['cevap']) && $i === 0) $r = $o->soyle('Saç kesimi');
             else break;
@@ -203,8 +204,9 @@ if ($TEL) {
         // Hatirlatilacak randevuyu olustur (T5 ile ayni yol)
         $o = new Oturum($TEL);
         $r = $o->soyle('Önümüzdeki hafta cuma 15 için saç kesimi randevusu almak istiyorum');
-        for ($i = 0; $i < 4 && $r['aksiyon'] !== 'randevu'; $i++) {
+        for ($i = 0; $i < 5 && $r['aksiyon'] !== 'randevu'; $i++) {
             if (preg_match('/oluşturayım mı|onaylıyor musunuz/iu', $r['cevap'])) $r = $o->soyle('Evet');
+            elseif (preg_match('/fark etmez|tercih ettiğiniz|uzman/iu', $r['cevap'])) $r = $o->soyle('Fark etmez');
             elseif (preg_match('/hangisini|ya da/iu', $r['cevap'])) $r = $o->soyle('İlkini');
             else break;
         }

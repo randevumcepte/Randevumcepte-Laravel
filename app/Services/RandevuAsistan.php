@@ -849,9 +849,12 @@ class RandevuAsistan
         // Kategori gruplari (hizmet sayisina gore buyukten kucuge); kategorisi olmayanlar '' grubunda
         $gruplar = [];
         foreach ($hizmetler as $h) $gruplar[trim((string) ($h['kategori'] ?? ''))][] = trim((string) $h['ad']);
-        foreach ($gruplar as &$g) usort($g, function ($a, $b) { return mb_strlen($a) <=> mb_strlen($b) ?: strcmp($a, $b); }); // kisa (genel) ad once
+        // Siralama: en cok randevu alinan hizmet once (son 180 gun); veri yoksa kisa (genel) ad once.
+        $pop = $this->hizmetPopulerlik();
+        foreach ($gruplar as &$g) usort($g, function ($a, $b) use ($pop) { return ($pop[$b] ?? 0) <=> ($pop[$a] ?? 0) ?: (mb_strlen($a) <=> mb_strlen($b)) ?: strcmp($a, $b); });
         unset($g);
-        uksort($gruplar, function ($a, $b) use ($gruplar) { return count($gruplar[$b]) <=> count($gruplar[$a]) ?: strcmp($a, $b); });
+        $katPop = function ($adlar) use ($pop) { $t = 0; foreach ($adlar as $a) $t += $pop[$a] ?? 0; return $t; };
+        uksort($gruplar, function ($a, $b) use ($gruplar, $katPop) { return $katPop($gruplar[$b]) <=> $katPop($gruplar[$a]) ?: count($gruplar[$b]) <=> count($gruplar[$a]) ?: strcmp($a, $b); });
 
         // Kategori soruldu mu? ("masajlarınız" -> "Masaj"/"Masaj Hizmetleri")
         foreach ($gruplar as $kat => $adlar) {
@@ -881,6 +884,26 @@ class RandevuAsistan
         if ($kalanKat) $c .= ' Ayrıca ' . $listele($kalanKat) . ' alanlarında başka seçeneklerimiz de var.';
         elseif (count($hizmetler) > count($ornek)) $c .= ' Bunların dışında da birçok hizmetimiz var.';
         return $c . ' Hangisiyle ilgileniyorsunuz?';
+    }
+
+    /** Hizmet adi => son 180 gundeki randevu sayisi (salon basina 12 saat onbellek). Hata/veri yoksa bos. */
+    protected function hizmetPopulerlik(): array
+    {
+        try {
+            $salonId = (int) $this->salonId;
+            return \Cache::remember('santral_hizmet_pop_' . $salonId, 720, function () use ($salonId) {
+                return \DB::table('randevu_hizmetler as rh')
+                    ->join('randevular as r', 'r.id', '=', 'rh.randevu_id')
+                    ->join('hizmetler as h', 'h.id', '=', 'rh.hizmet_id')
+                    ->where('r.salon_id', $salonId)
+                    ->where('r.tarih', '>=', date('Y-m-d', strtotime('-180 days')))
+                    ->groupBy('h.hizmet_adi')
+                    ->pluck(\DB::raw('COUNT(*) as n'), 'h.hizmet_adi')
+                    ->map(function ($v) { return (int) $v; })->all();
+            });
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
     /** STT ipucu: salonun hizmet adlari (Google speechContexts; kopru baslatta alir). */
@@ -1015,6 +1038,12 @@ class RandevuAsistan
                            'not' => 'Ses tanıma kelimeyi yanlış duymuş olabilir; en yakın hizmet bu. Hizmet adını doğru haliyle söyleyerek devam et.']
                         : ['ok' => true, 'eslesme' => 'coklu', 'ortak' => (string) ($in['metin'] ?? ''),
                            'secenekler' => array_map(function ($x) { return ['id' => $x['id'], 'ad' => $x['ad']]; }, array_slice($ad, 0, 2))];
+                }
+                // Personel tercihi sorusu icin: bu hizmeti veren (takvimi acik) personelin adlari
+                if (($d['eslesme'] ?? '') === 'tek' && !empty($d['hizmet']['id'])) {
+                    $plist = $this->personelListesi();
+                    $d['personeller'] = array_values(array_filter(array_map(function ($pid) use ($plist) { return $plist[$pid] ?? null; },
+                        $this->hizmetPersonelleri((int) $d['hizmet']['id']))));
                 }
                 return [$d, null, null, false];
 
@@ -1249,8 +1278,8 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal
 1. SELAMLAMA zaten TTS ile çalındı — TEKRAR ETME. İşletme adına "-da/-de/-a/-e/-ye" eki EKLEME. Arayan KAYITLI DEĞİLSE önce BAĞLAM'daki KAYIT ADIMI'nı tamamla; kayıtlıysa doğrudan niyete geç.
 2. NİYET: yeni randevu mu, iptal mi, güncelleme mi, başka bir şey mi? (Müşterinin paketi varsa karşılamada paket teklif edildi: aşağıdaki PAKET AKIŞI'na bak.)
 3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise onaylatmadan devam et; coklu ise seçenekleri kısaca oku ve seçtir; yok ise "o hizmetimiz yok" de ve dönen önerileri sun.
-4. TARİH/SAAT: Müşteri mesajının sonunda "[SİSTEM zaman çözümü ...]" notu varsa tarih ve saati AYNEN oradan al (kendin hesaplama; "çarşamba 14", "önümüzdeki hafta perşembe 10", "10 aralık", "5 şubat" hepsi orada çözülmüş gelir). Not yoksa TARİH HARİTASI'nı kullan. Müşteri gün ve saati söylediyse saati TEKRAR SORMA, sabah/öğleden sonra diye SORMA.
-5. PERSONEL: müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") PERSONELLER listesinden eşleştir ve personel_id'yi kullan; listede yoksa "o isimde personelimiz yok" de ve listeden say. Söylemediyse personel SORMA (uygun personel otomatik seçilir) — İSTİSNA: paketten randevuda uygun personeli say ve tercih sor (PAKET AKIŞI).
+4. TARİH/SAAT: Müşteri mesajının sonunda "[SİSTEM zaman çözümü ...]" notu varsa tarih ve saati AYNEN oradan al (kendin hesaplama; "çarşamba 14", "önümüzdeki hafta perşembe 10", "10 aralık", "5 şubat" hepsi orada çözülmüş gelir). Not yoksa TARİH HARİTASI'nı kullan. Müşteri gün ve saati söylediyse saati TEKRAR SORMA, sabah/öğleden sonra diye SORMA. Tarih/saat ÖNCEKİ bir mesajda söylendiyse (ör. hizmeti teyit ettirdikten sonra) o mesajdaki zaman çözümü geçerlidir: yeniden sorma, kendin hesaplama.
+5. PERSONEL TERCİHİ (hizmet netleşir netleşmez, tarih/saat sormadan ÖNCE): müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") PERSONELLER listesinden eşleştir ve personel_id'yi kullan; listede yoksa "o isimde personelimiz yok" de ve hizmeti verenleri say. Söylemediyse BİR KEZ sor: "[hizmet] için tercih ettiğiniz bir uzmanımız var mı, yoksa fark etmez mi?" Müşteri "kimler var" derse hizmet_eslestir sonucundaki "personeller" adlarını say. "Fark etmez" derse personel_id vermeden devam et. hizmet_eslestir sonucunda personeller tek kişiyse sormadan o kişiyle devam et. Müşteri tarih/saati zaten söylediyse personel cevabından sonra TARİHİ YENİDEN SORMA, doğrudan 6. adıma geç.
 6. MÜSAİT SAAT: "musait_saatler" aracını hizmet_id + tarih ile çağır (müşteri saat söylediyse saat'i MUTLAKA ver; gün dilimi söylendiyse zaman_dilimi; personel söylendiyse personel_id).
    - tam_eslesme=true dönerse: istenen saat uygun → ALTERNATİF SUNMA, seçenek okuma; doğrudan 8. adımdaki onay cümlesine geç (gün için seçeneğin "gun" alanını kullan).
    - Aksi halde: müşteri saat söylediyse önce "O saat dolu" de, sonra dönen seçenekleri (en fazla 2) "gun" alanı ve personel adıyla öner. istenen_gun_dolu=true ise o günün dolu olduğunu söyle. Seçenek yoksa başka gün/dilim öner.
@@ -1928,6 +1957,10 @@ PROMPT;
             if ($role === 'assistant' && !empty($m['baglam'])) {
                 $c .= "\n[SİSTEM — bu turdaki araç sonuçları, müşteri duymadı: " . $m['baglam'] . ']';
             }
+            // Onceki musteri cumlelerindeki tarih/saat de KODLA cozulmus gitsin: aksi halde hizmet teyidi gibi
+            // ara bir turdan sonra model gunu kendisi hesaplayip yaniliyordu ("cumartesi saat 2" -> "Cuma 20 Kasım",
+            // saati de yeniden soruyordu; 2026-11-16 kayit #55).
+            if ($role === 'user' && strpos($c, '[SİSTEM') === false) $c .= $this->zamanNotu($c);
             $out[] = ['role' => $role, 'content' => $c];
         }
         // Anthropic: ilk mesaj user olmali. Karsilamayi (ad soyad sorusu dahil) ATMA: model ilk cevabin
