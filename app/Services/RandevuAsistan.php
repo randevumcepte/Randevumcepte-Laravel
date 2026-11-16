@@ -1042,6 +1042,14 @@ class RandevuAsistan
                         : ['ok' => true, 'eslesme' => 'coklu', 'ortak' => (string) ($in['metin'] ?? ''),
                            'secenekler' => array_map(function ($x) { return ['id' => $x['id'], 'ad' => $x['ad']]; }, array_slice($ad, 0, 2))];
                 }
+                // Ayni ADLI birden fazla hizmet kaydi (salonda mukerrer "Saç Kesimi"): musteriye secenek gibi sunma,
+                // tek hizmet say (Haiku 5.5 "iki secenek var ama ikisi de ayni" deyip randevuyu kuramiyordu).
+                if (($d['eslesme'] ?? '') === 'coklu' && !empty($d['secenekler'])) {
+                    $tekil = [];
+                    foreach ($d['secenekler'] as $sc) { $k = $this->sade((string) ($sc['ad'] ?? '')); if (!isset($tekil[$k])) $tekil[$k] = $sc; }
+                    if (count($tekil) === 1) $d = ['ok' => true, 'eslesme' => 'tek', 'hizmet' => array_values($tekil)[0]];
+                    else $d['secenekler'] = array_values($tekil);
+                }
                 // Personel tercihi sorusu icin: bu hizmeti veren (takvimi acik) personelin adlari
                 if (($d['eslesme'] ?? '') === 'tek' && !empty($d['hizmet']['id'])) {
                     $plist = $this->personelListesi();
@@ -1294,7 +1302,7 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal
 # AKIŞ (adımları atlama)
 1. SELAMLAMA zaten TTS ile çalındı — TEKRAR ETME. İşletme adına "-da/-de/-a/-e/-ye" eki EKLEME. Arayan KAYITLI DEĞİLSE önce BAĞLAM'daki KAYIT ADIMI'nı tamamla; kayıtlıysa doğrudan niyete geç.
 2. NİYET: yeni randevu mu, iptal mi, güncelleme mi, başka bir şey mi? (Müşterinin paketi varsa karşılamada paket teklif edildi: aşağıdaki PAKET AKIŞI'na bak.)
-3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise onaylatmadan devam et; coklu ise seçenekleri kısaca oku ve seçtir; yok ise "o hizmetimiz yok" de ve dönen önerileri sun.
+3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise TEYİT SORMADAN ("bunu onaylıyor musunuz" DEME) doğrudan sonraki adıma geç; eşleştirmenin iç işleyişinden (kayıt, seçenek sayısı, "eşleştirebildim") müşteriye ASLA bahsetme; coklu ise seçenekleri kısaca oku ve seçtir; yok ise "o hizmetimiz yok" de ve dönen önerileri sun.
 4. TARİH/SAAT: Müşteri mesajının sonunda "[SİSTEM zaman çözümü ...]" notu varsa tarih ve saati AYNEN oradan al (kendin hesaplama; "çarşamba 14", "önümüzdeki hafta perşembe 10", "10 aralık", "5 şubat" hepsi orada çözülmüş gelir). Not yoksa TARİH HARİTASI'nı kullan. Müşteri gün ve saati söylediyse saati TEKRAR SORMA, sabah/öğleden sonra diye SORMA. Tarih/saat ÖNCEKİ bir mesajda söylendiyse (ör. hizmeti teyit ettirdikten sonra) o mesajdaki zaman çözümü geçerlidir: yeniden sorma, kendin hesaplama.
 5. PERSONEL TERCİHİ (hizmet netleşir netleşmez, tarih/saat sormadan ÖNCE): müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") PERSONELLER listesinden eşleştir ve personel_id'yi kullan; listede yoksa "o isimde personelimiz yok" de ve hizmeti verenleri say. Söylemediyse BİR KEZ sor: "[hizmet] için tercih ettiğiniz bir uzmanımız var mı, yoksa fark etmez mi?" Müşteri "kimler var" derse hizmet_eslestir sonucundaki "personeller" adlarını say. "Fark etmez" derse personel_id vermeden devam et. hizmet_eslestir sonucunda personeller tek kişiyse sormadan o kişiyle devam et. Müşteri tarih/saati zaten söylediyse personel cevabından sonra TARİHİ YENİDEN SORMA, doğrudan 6. adıma geç.
 6. MÜSAİT SAAT: "musait_saatler" aracını hizmet_id + tarih ile çağır (müşteri saat söylediyse saat'i MUTLAKA ver; gün dilimi söylendiyse zaman_dilimi; personel söylendiyse personel_id).
