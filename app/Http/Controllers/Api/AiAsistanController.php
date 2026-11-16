@@ -44,12 +44,14 @@ class AiAsistanController extends Controller
         // ve fiyat bilgisi join ile hizmetler tablosundan.
         $hizmetler = DB::table('salon_sunulan_hizmetler as sh')
             ->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')
+            ->leftJoin('hizmet_kategorisi as hk', 'hk.id', '=', 'h.hizmet_kategori_id')
             ->where('sh.salon_id', $salonId)
             ->select(
                 'sh.hizmet_id as id',
                 'h.hizmet_adi as ad',
                 'sh.son_fiyat as fiyat',
-                'sh.sure_dk as sure_dk'   // ek alan (sesli asistan "ne kadar sürer" icin); mevcut tuketicileri etkilemez
+                'sh.sure_dk as sure_dk',  // ek alan (sesli asistan "ne kadar sürer" icin); mevcut tuketicileri etkilemez
+                'hk.hizmet_kategorisi_adi as kategori' // ek alan (sesli asistan hizmet listesi: 5 ornek + kategoriler)
             )
             ->orderBy('h.hizmet_adi')
             ->get();

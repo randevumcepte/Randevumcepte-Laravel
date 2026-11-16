@@ -294,6 +294,12 @@ class RandevuAsistan
             $this->teshis = 'sss';
             return ['cevap' => $this->baskaYardimEkle($this->ttsTemizle($sss)), 'aksiyon' => null, 'veri' => [], 'bitir' => false];
         }
+        // HIZMET LISTESI ("hangi hizmetleriniz var") -> KOD: 5 ornek hizmet + kalanlarin kategorileri (model 13 sn liste okuyordu)
+        if ($direkt === null && ($hl = $this->hizmetListesiCevabi($metin)) !== null) {
+            Log::info('[SANTRAL-TUR] hizmet listesi', ['salon' => $this->salonId, 'metin' => $metin, 'cevap' => $hl]);
+            $this->teshis = 'hizmet_liste';
+            return ['cevap' => $this->ttsTemizle($hl), 'aksiyon' => null, 'veri' => [], 'bitir' => false];
+        }
         if ($direkt !== null) {
             Log::info('[SANTRAL-TUR] iptal/guncelle girisi (kod)', ['salon' => $this->salonId, 'metin' => $metin, 'cevap' => $direkt]);
             return ['cevap' => $this->ttsTemizle($direkt), 'aksiyon' => null, 'veri' => [], 'bitir' => false];
@@ -808,6 +814,73 @@ class RandevuAsistan
         $adaylar = array_values($adaylar);
         usort($adaylar, function ($a, $b) { return $b['oran'] <=> $a['oran']; });
         return $adaylar;
+    }
+
+    /**
+     * "Hangi hizmetleriniz var / hangi işlemleri yapıyorsunuz / neler yapıyorsunuz" sorusuna KOD cevabi:
+     * farkli kategorilerden en fazla 5 ornek hizmet, sonra geri kalan hizmetlerin BENZERSIZ kategorileri.
+     * "Hangi masajlarınız var" gibi bir kategori soruluyorsa o kategoriden 5 ornek + toplam sayi.
+     * Soru degilse ya da cumlede belirli bir hizmet adi geciyorsa null (normal akis).
+     */
+    public function hizmetListesiCevabi(string $metin): ?string
+    {
+        $hizmetler = array_values(array_filter($this->salon['hizmetler'] ?? [], function ($h) { return trim((string) ($h['ad'] ?? '')) !== ''; }));
+        if (!$hizmetler) return null;
+        $m = ' ' . $this->sade($metin) . ' ';
+        $soru = preg_match('/ (hangi|ne gibi|neler|nelerdir|ne tur|ne cesit) .*(hizmet|islem)/u', $m)
+            || preg_match('/ (hizmet|islem)\w* .*(neler|nelerdir|ne var|ne yapiyor)/u', $m)
+            || preg_match('/ neler yapiyorsunuz | ne yapiyorsunuz /u', $m)
+            || preg_match('/ hangi \w+(lar|ler)\w* (var|mevcut)/u', $m);   // "hangi masajlariniz var"
+        if (!$soru) return null;
+        // Belirli bir hizmet adi geciyorsa ("kalıcı oje hizmetiniz var mı") liste degil -> normal akis
+        foreach ($hizmetler as $h) {
+            $sa = $this->sade((string) $h['ad']);
+            if ($sa !== '' && mb_strlen($sa) >= 4 && strpos($m, ' ' . $sa) !== false) return null;
+        }
+        if ($this->hizmetAdaylari($metin)) return null;
+
+        $kucuk = function ($s) { return mb_strtolower(strtr(trim((string) $s), ['I' => 'ı', 'İ' => 'i']), 'UTF-8'); };
+        $listele = function (array $adlar) {
+            $adlar = array_values($adlar);
+            if (count($adlar) <= 1) return implode('', $adlar);
+            $son = array_pop($adlar);
+            return implode(', ', $adlar) . ' ve ' . $son;
+        };
+        // Kategori gruplari (hizmet sayisina gore buyukten kucuge); kategorisi olmayanlar '' grubunda
+        $gruplar = [];
+        foreach ($hizmetler as $h) $gruplar[trim((string) ($h['kategori'] ?? ''))][] = trim((string) $h['ad']);
+        foreach ($gruplar as &$g) usort($g, function ($a, $b) { return mb_strlen($a) <=> mb_strlen($b) ?: strcmp($a, $b); }); // kisa (genel) ad once
+        unset($g);
+        uksort($gruplar, function ($a, $b) use ($gruplar) { return count($gruplar[$b]) <=> count($gruplar[$a]) ?: strcmp($a, $b); });
+
+        // Kategori soruldu mu? ("masajlarınız" -> "Masaj"/"Masaj Hizmetleri")
+        foreach ($gruplar as $kat => $adlar) {
+            if ($kat === '') continue;
+            $kk = explode(' ', $this->sade($kat))[0] ?? '';
+            if (strlen($kk) >= 4 && strpos($m, ' ' . $kk) !== false) {
+                $ornek = array_slice($adlar, 0, 5);
+                $c = $listele($ornek) . (count($adlar) > 1 ? ' gibi' : '') . ' ' . $kucuk($kat) . ' hizmetlerimiz var.';
+                if (count($adlar) > 5) $c .= ' Bu alanda toplam ' . count($adlar) . ' çeşit hizmetimiz bulunuyor.';
+                return $c . ' Hangisiyle ilgileniyorsunuz?';
+            }
+        }
+
+        // 5 ornek: once her kategoriden bir tane (cesitlilik), eksik kalirsa siradaki hizmetler
+        $ornek = [];
+        foreach ($gruplar as $adlar) { if (count($ornek) >= 5) break; $ornek[] = $adlar[0]; }
+        if (count($ornek) < 5) {
+            foreach ($gruplar as $adlar) foreach ($adlar as $a) { if (count($ornek) >= 5) break 2; if (!in_array($a, $ornek, true)) $ornek[] = $a; }
+        }
+        // Geri kalan hizmetlerin benzersiz kategorileri (en fazla 8)
+        $kalanKat = [];
+        foreach ($gruplar as $kat => $adlar) {
+            if ($kat === '' || count($kalanKat) >= 8) continue;
+            if (array_diff($adlar, $ornek)) $kalanKat[] = $kucuk($kat);
+        }
+        $c = $listele($ornek) . ' gibi hizmetlerimiz var.';
+        if ($kalanKat) $c .= ' Ayrıca ' . $listele($kalanKat) . ' alanlarında başka seçeneklerimiz de var.';
+        elseif (count($hizmetler) > count($ornek)) $c .= ' Bunların dışında da birçok hizmetimiz var.';
+        return $c . ' Hangisiyle ilgileniyorsunuz?';
     }
 
     /** STT ipucu: salonun hizmet adlari (Google speechContexts; kopru baslatta alir). */

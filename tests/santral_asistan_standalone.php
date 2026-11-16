@@ -455,6 +455,28 @@ namespace {
     $ady = cagir($hd, 'hizmetAdaylari', 'tay makajı');
     esit('hizmetAdaylari: "tay makajı" → ilk aday Tay Masajı (id 1)', [1, 'Tay Masajı'], [$ady[0]['id'] ?? null, $ady[0]['ad'] ?? null]);
     esit('hizmetAdaylari: doğru ad → boş', [], cagir($hd, 'hizmetAdaylari', 'aromaterapi masajı'));
+    // --- Hizmet listesi: 5 ornek + kalan kategoriler
+    $hl = asistan(['salon' => ['ad' => 'X', 'karsilama' => '', 'adres' => '', 'hizmetler' => [
+        ['id' => 1, 'ad' => 'Tay Masajı', 'kategori' => 'Masaj'], ['id' => 2, 'ad' => 'Aromaterapi Masajı', 'kategori' => 'Masaj'],
+        ['id' => 3, 'ad' => 'Antistres Masajı', 'kategori' => 'Masaj'], ['id' => 4, 'ad' => 'Manikür', 'kategori' => 'El Ayak Bakımı'],
+        ['id' => 5, 'ad' => 'Pedikür', 'kategori' => 'El Ayak Bakımı'], ['id' => 6, 'ad' => 'Botoks', 'kategori' => 'Medikal Estetik'],
+        ['id' => 7, 'ad' => 'Lazer Epilasyon', 'kategori' => 'Epilasyon'], ['id' => 8, 'ad' => 'Ağda', 'kategori' => 'Epilasyon'],
+        ['id' => 9, 'ad' => 'Cilt Bakımı', 'kategori' => 'Cilt Bakımı'], ['id' => 10, 'ad' => 'Hydrafacial', 'kategori' => 'Cilt Bakımı'],
+        ['id' => 11, 'ad' => 'Saç Kesimi', 'kategori' => 'Saç'], ['id' => 12, 'ad' => 'Fön', 'kategori' => 'Saç'],
+    ]]]);
+    $c = $hl->hizmetListesiCevabi('Hangi hizmetleri veriyorsunuz?');
+    echo "     → $c\n";
+    icerir('liste: kalan kategoriler sayılır', 'alanlarında başka seçeneklerimiz de var', $c);
+    icerir('liste: kapanış sorusu', 'Hangisiyle ilgileniyorsunuz?', $c);
+    esit('liste: en fazla 5 örnek (ilk cümlede 4 virgül/ve)', 5, count(preg_split('/, | ve /u', explode(' gibi', $c)[0])));
+    icerir('"Hangi işlemleri yapıyorsunuz" → liste', 'gibi hizmetlerimiz var', (string) $hl->hizmetListesiCevabi('Hangi işlemleri yapıyorsunuz?'));
+    icerir('"Hangi işlemlerimiz var" → liste', 'gibi hizmetlerimiz var', (string) $hl->hizmetListesiCevabi('Hangi işlemlerimiz var?'));
+    $mc = (string) $hl->hizmetListesiCevabi('Hangi masajlarınız var?');
+    echo "     → $mc\n";
+    icerir('"Hangi masajlarınız var" → masaj kategorisi', 'masaj hizmetlerimiz var', $mc);
+    esit('"Randevu almak istiyorum" → liste değil', null, $hl->hizmetListesiCevabi('Randevu almak istiyorum'));
+    esit('"Manikür hizmetiniz var mı" → liste değil', null, $hl->hizmetListesiCevabi('Manikür hizmetiniz var mı'));
+    esit('kategorisiz salon da çalışır', true, strpos((string) $hd->hizmetListesiCevabi('Hangi hizmetleriniz var'), 'gibi hizmetlerimiz var') !== false);
     esit('STT ipuçları hizmet adlarını verir', ['Tay Masajı', 'Aromaterapi Masajı'], array_slice($hd->sttIpuclari(), 0, 2));
 
     echo "\n\033[1mSONUÇ: $gecen geçti, $kalan kaldı\033[0m\n";
