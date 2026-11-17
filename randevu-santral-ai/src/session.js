@@ -70,6 +70,20 @@ class CagriOturumu {
         if (this._ornek === 250) log.info(`SES ENERJI: ort dolu-oran ${(this._enerjiTop / 250).toFixed(2)} (0'a yakin=SESSIZLIK/sesin gelmiyor, >0.3=gercek ses var)`);
       }
       this._vad(payload);
+      // STT MALIYETI: AI konusurken musteri sesi Google'a GONDERILMEZ (akis kapanir; ucret islenen ses suresine gore).
+      // Musteri araya girerse (VAD) akis aninda yeniden acilir ve son ~0,8 sn ses de verilir -> barge-in korunur.
+      const aiKon = this.rtp && (this.rtp.sesVarMi || this._seslendiriyor);
+      if (!aiKon) this._bargeAcik = false;
+      if (cfg.sttDuraklat && cfg.mediaFormat !== 'slin16' && aiKon && !this._bargeAcik) {
+        if (!this._sttDurdu) { this._sttDurdu = true; this.stt.durdur(); log.debug('STT duraklatildi (AI konusuyor)'); }
+        return;
+      }
+      if (this._sttDurdu) {
+        this._sttDurdu = false;
+        const simdi = Date.now();
+        this.stt.devam((this._tampon || []).filter((x) => x.t >= simdi - 800).map((x) => x.b)); // bu kare dahil
+        return;
+      }
       this.stt.yaz(payload);
     });
     this.stt = new SttOturumu(
@@ -118,6 +132,13 @@ class CagriOturumu {
     for (let i = 0; i < payload.length; i++) top += ULAW_ABS[payload[i]];
     const konusma = top / payload.length > VAD_ESIK;
     const aiKonusuyor = this.rtp && (this.rtp.sesVarMi || this._seslendiriyor);
+    // AI konusurken musteri sesi: araya girme adayi -> STT akisini ac (asil barge-in karari STT ara-sonucuyla verilir)
+    if (konusma && aiKonusuyor && !this._bargeAcik) {
+      if (simdi - (this._bargeSon || 0) > 400) this._bargeKare = 0;
+      this._bargeKare = (this._bargeKare || 0) + 1;
+      this._bargeSon = simdi;
+      if (this._bargeKare >= 5) { this._bargeAcik = true; log.info('musteri AI konusurken konusuyor -> STT acildi'); }
+    }
     if (konusma && !aiKonusuyor) {
       if (simdi - (this._vadSon || 0) > 400) { this._vadKare = 0; this._vadIlk = simdi; }
       this._vadKare = (this._vadKare || 0) + 1;

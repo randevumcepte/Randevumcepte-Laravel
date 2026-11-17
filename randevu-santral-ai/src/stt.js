@@ -127,6 +127,7 @@ class SttOturumu {
     this.stream = null;
     if (eski) { try { eski.end(); } catch (_) {} }
     if (this.kapali) return;
+    if (this.duraklatildi) { clearTimeout(this.yenilemeZ); return; } // duraklatilmis: devam() yeni config ile acar
     clearTimeout(this.yenilemeZ);
     if (bekle && bekle > 0) this.yenilemeZ = setTimeout(() => this._baslat(), bekle);
     else this._baslat();
@@ -140,6 +141,25 @@ class SttOturumu {
     this.ekIpuclari = temiz;
     log.info(`STT ipucu: ${temiz.length} hizmet adi eklendi`);
     this._yenile(0);
+  }
+
+  /** AI konusurken akisi kapat (ses gonderilmez -> ucretlenmez). */
+  durdur() {
+    if (this.kapali || this.duraklatildi) return;
+    this.duraklatildi = true;
+    clearTimeout(this.yenilemeZ);
+    const eski = this.stream;
+    this.stream = null;
+    if (eski) { try { eski.end(); } catch (_) {} }
+  }
+
+  /** Akisi yeniden ac ve tampondaki son kareleri ilk olarak yaz (konusmanin basi kaybolmasin). */
+  devam(parcalar) {
+    if (this.kapali) return;
+    this.duraklatildi = false;
+    if (!this.stream) this._baslat();
+    if (!this.stream) return;
+    for (const p of (parcalar || [])) { try { this.stream.write(p); } catch (_) { break; } }
   }
 
   /** Kor nokta kurtarma: akisi yeniden ac ve tampondaki son konusmayi yeni akisa ver (gercek zamandan hizli yazilir). */
