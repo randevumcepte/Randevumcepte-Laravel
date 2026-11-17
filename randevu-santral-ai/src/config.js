@@ -72,6 +72,7 @@ const cfg = {
   // 1,2-1,9 sn bekletiyordu (kayit #78: her turda ~3,5-4,5 sn bosluk). Musterinin sesi GERCEKTEN bu kadar ms
   // kesilince + ara-metin 250 ms sabit kalinca cumle bitmis sayilir. Ustteki sureler yedek olarak kalir. 0 = kapali.
   vadBitisKisaMs: num(process.env.VAD_BITIS_KISA_MS, 550),   // <=3 kelime
+  vadBitisKapaliMs: num(process.env.VAD_BITIS_KAPALI_MS, 380), // 'evet', 'olur', 'fark etmez', '13' gibi kapali cevap
   vadBitisUzunMs: num(process.env.VAD_BITIS_UZUN_MS, 850),   // uzun cumle (cumle arasi nefes ~0,5 sn kesmesin)
   logLevel: process.env.LOG_LEVEL || 'info',
   recording: {

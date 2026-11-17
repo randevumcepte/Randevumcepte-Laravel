@@ -41,6 +41,8 @@ const ULAW_ABS = (() => {
 })();
 const VAD_ESIK = 300;          // 20 ms kare ortalama genligi bunun ustu = konusma (kayit #70: sessizlik 15-50, "Fark etmez" 500-4900)
 const VAD_MIN_KARE = 6;        // araliksiz olmasa da (400 ms'den kisa bosluklarla) en az 6 konusma karesi = ~120 ms
+// Kapali kisa cevaplar (tum ifade bunlardan olusur): evet/hayir/olur/tamam/fark etmez/siralama/saat rakami
+const KAPALI_CEVAP = /^\s*(evet|hayır|hayir|olur|olmaz|tamam(dır)?|uygun|aynen|kesinlikle|fark etmez|farketmez|birincisi|ikincisi|üçüncüsü|ilki|ikincisi|sonuncusu|onaylıyorum|onayladım|\d{1,2}([:.]\d{2})?|on( bir| iki| üç| dört| beş| altı| yedi| sekiz| dokuz)?|dokuz|sekiz|yedi)\s*(olsun|lütfen|efendim)?\s*[.!?]?\s*$/i;
 const KOR_NOKTA_MS = 1500;     // konusma bitti + bu kadar surede STT'den HIC sonuc yok -> kurtar
 const TAMPON_MS = 6000;        // son 6 sn musteri sesi (kurtarmada STT'ye yeniden verilir)
 
@@ -166,7 +168,10 @@ class CagriOturumu {
     if (this._sonInterim && !aiKonusuyor && !this.mesgul && !this.kapali && !this._kapaniyor
         && (this._vadSon || 0) >= (this._ifadeBasT || 0) - 1500) {
       const kelime = this._sonInterim.split(/\s+/).length;
-      const esik = kelime <= 3 ? cfg.vadBitisKisaMs : cfg.vadBitisUzunMs;
+      // Kapali kisa cevap ("evet", "olur", "fark etmez", "birincisi", "13", "on dört") cumlenin devami olasiligi dusuk
+      // -> daha erken bitir. Devam ederse paralel tur mekanizmasi tam cumleyle yeniden sorar.
+      const esik = (kelime <= 3 && KAPALI_CEVAP.test(this._sonInterim)) ? cfg.vadBitisKapaliMs
+        : (kelime <= 3 ? cfg.vadBitisKisaMs : cfg.vadBitisUzunMs);
       const sessiz = simdi - (this._vadSon || 0);
       if (esik > 0 && sessiz >= esik && simdi - (this._interimT || 0) >= 250) {
         log.debug(`endpointing (VAD ${sessiz} ms sessiz): ${this._sonInterim}`);
