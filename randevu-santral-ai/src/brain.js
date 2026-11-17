@@ -52,6 +52,12 @@ async function konus(oturumId, metin, ek) {
   return data;
 }
 
+// POST /api/v1/santral/tur-iptal -> cevabi CALINMAYAN turun mesajlari gecmisten dusulur (paralel tur)
+async function turIptal(oturumId, tur) {
+  try { await http.post('/api/v1/santral/tur-iptal', form({ oturum_id: oturumId, tur })); }
+  catch (e) { log.warn('tur-iptal hatasi (yok sayiliyor):', e.message); }
+}
+
 // Ses kaydini Laravel'e yukler (ham wav govdesi; oturum_id/tur query ile)
 async function sesYukle(oturumId, subeId, tur, filePath) {
   try {
@@ -92,4 +98,4 @@ async function bitir(oturumId, ozet) {
   }
 }
 
-module.exports = { baslat, konus, bitir, aktarmaHedef, sesYukle, geriAramaBekleyen, geriAramaDurum };
+module.exports = { baslat, konus, turIptal, bitir, aktarmaHedef, sesYukle, geriAramaBekleyen, geriAramaDurum };

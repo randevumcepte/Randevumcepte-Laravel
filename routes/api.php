@@ -722,6 +722,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
 Route::match(['get', 'post'], '/v1/santral/baslat',              [\App\Http\Controllers\Api\SantralKopruController::class, 'baslat']);
 Route::match(['get', 'post'], '/v1/santral/konus',               [\App\Http\Controllers\Api\SantralKopruController::class, 'konus']);
 Route::match(['get', 'post'], '/v1/santral/bitir',               [\App\Http\Controllers\Api\SantralKopruController::class, 'bitir']);
+Route::post('/v1/santral/tur-iptal',                             [\App\Http\Controllers\Api\SantralKopruController::class, 'turIptal']);
 Route::match(['get', 'post'], '/v1/santral/aktarma-hedef',       [\App\Http\Controllers\Api\SantralKopruController::class, 'aktarmaHedef']);
 Route::post('/v1/santral/kayit-yukle',                           [\App\Http\Controllers\Api\SantralKopruController::class, 'kayitYukle']);
 Route::match(['get', 'post'], '/v1/santral/geri-arama-bekleyen', [\App\Http\Controllers\Api\SantralKopruController::class, 'geriAramaBekleyen']);

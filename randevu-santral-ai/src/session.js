@@ -223,7 +223,8 @@ class CagriOturumu {
         // Final, islenmekte olan interim'in DEVAMI: onceki cevabi calma, tam cumleyle yeniden sor
         log.info(`> musteri (devami): ${metin}`);
         this._sonIslenen = { n, t: simdi };
-        this._eskidi = true; this._bekleyen = metin;
+        this._eskidi = true;
+        if (!this._paralelBaslat(metin)) this._bekleyen = metin;
         return;
       }
     }
@@ -231,7 +232,12 @@ class CagriOturumu {
     log.info(`> musteri: ${metin}`);
     // Beyin dusunurken musteri yeni bir sey soyledi: onceki cevap ESKIDI (calinmayacak, aksiyon yoksa);
     // bekleyen cumleler birlestirilip tek turda sorulur.
-    if (this.mesgul) { this._bekleyen = this._bekleyen ? this._bekleyen + ' ' + metin : metin; this._eskidi = true; return; }
+    if (this.mesgul) {
+      this._eskidi = true;
+      if (!this._bekleyen && this._aktifTur && this._paralelBaslat(this._aktifTur.metin + ' ' + metin)) return;
+      this._bekleyen = this._bekleyen ? this._bekleyen + ' ' + metin : metin;
+      return;
+    }
     await this._isle(metin);
     while (this._bekleyen && !this.kapali) {
       const m = this._bekleyen; this._bekleyen = null;
@@ -250,17 +256,57 @@ class CagriOturumu {
     }).catch(() => {});
   }
 
+  // PARALEL TUR (gecikme, 2026-11-17 log): musteri "Randevu" deyip duraksayinca tur erken basliyor, "...almak
+  // istiyorum" gelince eski cevap calinmiyordu ama yeni tur ESKI TURUN BITMESINI bekliyordu -> her cevapta iki beyin
+  // turu arka arkaya (1,6 + 1,5 sn). Artik devami gelir gelmez yeni tur hemen sorulur; eski tur is yapmadiysa
+  // cevabi atilir (Laravel gecmisten duser), is yaptiysa (randevu/aktar) o calinir ve yeni cumle sirayla sorulur.
+  _paralelBaslat(metin) {
+    if (!this._beyinBekliyor || this._spek || !this._aktifTur || this.kapali || this._kapaniyor) return false;
+    const tur = (this._turNo = (this._turNo || 0) + 1);
+    const p = brain.konus(this.oturumId, metin, { tur, paralel_onceki: this._aktifTur.tur })
+      .then((d) => ({ d }), (e) => ({ e }));
+    this._spek = { tur, metin, p, t0: Date.now() };
+    log.info(`  (paralel tur: eski cevap beklenmeden soruluyor)`);
+    return true;
+  }
+
   async _isle(metin) {
     this.mesgul = true;
     this._eskidi = false;
-    const ek = this._oncekiDuyulmadi ? { onceki_duyulmadi: 1 } : {};
+    const tur = (this._turNo = (this._turNo || 0) + 1);
+    const ek = Object.assign({ tur }, this._oncekiDuyulmadi ? { onceki_duyulmadi: 1 } : {});
     this._oncekiDuyulmadi = false;
+    this._aktifTur = { tur, metin };
     const dolguZ = (cfg.dolguMs > 0 && DOLGULU.test(metin || '') && !DOLGUSUZ.test(metin || '')) ? setTimeout(() => this._dolguCal(), cfg.dolguMs) : null;
     const t0 = Date.now();
     try {
-      const d = await brain.konus(this.oturumId, metin, ek);
+      this._beyinBekliyor = true;
+      let d = await brain.konus(this.oturumId, metin, ek);
+      this._beyinBekliyor = false;
       clearTimeout(dolguZ);
       log.info(`  (beyin ${Date.now() - t0} ms)`); // gecikme teshisi: musteri sustu -> cevap metni hazir
+      if (this._spek) {
+        const spek = this._spek;
+        if (!d || d.ok === false || (!d.aksiyon && !d.bitir)) {
+          log.info(`< asistan (CALINMADI, devami paralel soruldu): ${d ? d.cevap : '-'}`);
+          brain.turIptal(this.oturumId, tur);
+          const r = await spek.p;
+          this._spek = null;
+          log.info(`  (beyin paralel ${Date.now() - spek.t0} ms, ilk turdan beri ${Date.now() - t0} ms)`);
+          if (r.e) throw r.e;
+          if (!r.d || r.d.iptal_edildi) { // olmamali (eski tur is yapmadi); guvenli yol: cumleyi sirayla sor
+            this._bekleyen = this._bekleyen ? spek.metin + ' ' + this._bekleyen : spek.metin;
+            return;
+          }
+          d = r.d;
+        } else {
+          // Eski tur is yapti (randevu/aktar/veda): o calinir; paralel tur bunu bilmeden kuruldu -> iptal,
+          // musterinin cumlesi bu isin ardindan sirayla sorulur (eski davranis).
+          this._spek = null;
+          brain.turIptal(this.oturumId, spek.tur);
+          this._bekleyen = this._bekleyen ? spek.metin + ' ' + this._bekleyen : spek.metin;
+        }
+      }
       // Musteri bu arada yeni bir sey soyledi ve bu cevap bir is yapmadiysa (randevu/iptal/aktarma/kapanis yok):
       // CALMA -> bekleyen cumleyle yeni tur sorulur; Laravel bu calinmayan cevabi gecmisten duser.
       if (this._eskidi && this._bekleyen && d && d.ok !== false && !d.aksiyon && !d.bitir) {
@@ -287,6 +333,8 @@ class CagriOturumu {
       await this._seslendir('Bir sorun oluştu, sizi yetkiliye bağlıyorum.');
       this.onAktar(this.kanalId);
     } finally {
+      this._beyinBekliyor = false;
+      this._spek = null;
       this.mesgul = false;
       this._sessizlikSifirla();
     }

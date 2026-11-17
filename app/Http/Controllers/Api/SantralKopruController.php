@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\RandevuAsistan;
 use App\Services\SantralPaket;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -138,23 +139,51 @@ class SantralKopruController extends Controller
         $o = DB::table('santral_oturumlari')->where('id', $oid)->first();
         if (!$o) return $this->j(['ok' => 0, 'hata' => 'oturum_yok'], 404);
 
-        $gecmis = json_decode($o->gecmis ?: '[]', true) ?: [];
-        // Kopru bir onceki cevabi CALMADI (musteri o sirada yeni bir sey soyledi, cevap is yapmamisti):
-        // musterinin duymadigi o asistan cevabini gecmisten dusur (ilk karsilama/hatirlatma mesaji asla dusmez).
-        if ($r->input('onceki_duyulmadi') && count($gecmis) > 1) {
-            $son = end($gecmis);
-            if (($son['role'] ?? '') === 'assistant' && empty($son['hatirlatma'])) array_pop($gecmis);
+        // tur: kopru tur kimligi. paralel_onceki: musteri cumlesine devam etti, kopru eski turun bitmesini BEKLEMEDEN
+        // bu turu acti (eski tur = paralel_onceki; is yapmadiysa cevabi calinmaz, gecmisten dusurulur).
+        $tur = (int) $r->input('tur');
+        $paralelOnceki = (int) $r->input('paralel_onceki');
+        $gecmisHazirla = function ($json) use ($r, $oid, $paralelOnceki) {
+            $g = $this->iptalTurlariDus($oid, json_decode($json ?: '[]', true) ?: [], $paralelOnceki);
+            // Kopru bir onceki cevabi CALMADI (musteri o sirada yeni bir sey soyledi, cevap is yapmamisti):
+            // musterinin duymadigi o asistan cevabini gecmisten dusur (ilk karsilama/hatirlatma mesaji asla dusmez).
+            if ($r->input('onceki_duyulmadi') && count($g) > 1) {
+                $son = end($g);
+                if (($son['role'] ?? '') === 'assistant' && empty($son['hatirlatma'])) array_pop($g);
+            }
+            return $g;
+        };
+        $gecmis = $gecmisHazirla($o->gecmis);
+
+        // Paralel turda eski tur bir ONAYI isliyor olabilir ("Evet" -> randevu olusturma): ayni anda ikinci bir
+        // randevu olusmasin diye bu durumda eski turun bitmesi beklenir; eski tur is yaptiysa bu tur hic calismaz.
+        if ($paralelOnceki > 0 && $this->onayBekleyenSoru($gecmis)) {
+            $bitti = null;
+            for ($i = 0; $i < 120 && $bitti === null; $i++) {
+                $bitti = Cache::get("santral_tur_bitti_{$oid}_{$paralelOnceki}");
+                if ($bitti === null) usleep(100000);
+            }
+            if ($bitti !== null && $bitti !== '-') {
+                return $this->j(['ok' => 1, 'cevap' => '', 'aksiyon' => null, 'bitir' => false, 'iptal_edildi' => 1]);
+            }
+            $gecmis = $gecmisHazirla(DB::table('santral_oturumlari')->where('id', $oid)->value('gecmis'));
         }
 
         $as = new RandevuAsistan((int) $o->sube_id, $o->telefon);
         $d = $as->konus($metin, $gecmis);
 
+        // PARALEL TUR: bu tur dusunurken diger tur gecmise yazmis olabilir -> gecmisi TAZE oku, ustune ekle
+        // (eski kopyanin ustune yazilirsa o tur silinirdi). Kopru bu turu iptal ettiyse gecmise yazilmaz.
+        if ($tur > 0) $gecmis = $gecmisHazirla(DB::table('santral_oturumlari')->where('id', $oid)->value('gecmis'));
+
         // gecmisi guncelle (son 40)
-        $gecmis[] = ['role' => 'user', 'content' => $metin];
-        $asistanMsj = ['role' => 'assistant', 'content' => $d['cevap']];
+        $isaret = $tur > 0 ? ['tur' => $tur] : [];
+        $gecmis[] = ['role' => 'user', 'content' => $metin] + $isaret;
+        $asistanMsj = ['role' => 'assistant', 'content' => $d['cevap']] + $isaret;
         if (!empty($d['baglam'])) $asistanMsj['baglam'] = $d['baglam']; // gizli arac ozeti (id'ler) -> sonraki tur
         $gecmis[] = $asistanMsj;
         $gecmis = array_slice($gecmis, -40);
+        if ($tur > 0) $gecmis = $this->iptalTurlariDus($oid, $gecmis);
 
         $guncelle = ['gecmis' => json_encode($gecmis, JSON_UNESCAPED_UNICODE), 'updated_at' => now()];
         // Gizli numarayla arayan kayitta telefonunu soyledi: sonraki turlar (tanima/randevu) bu numarayla yurusun
@@ -164,6 +193,8 @@ class SantralKopruController extends Controller
         if (!empty($d['veri']['randevu_id'])) $guncelle['randevu_id'] = (int) $d['veri']['randevu_id'];
         if (!empty($d['bitir'])) $guncelle['durum'] = 'kapandi';
         DB::table('santral_oturumlari')->where('id', $oid)->update($guncelle);
+        // Paralel tur bu turun bittigini (ve is yapip yapmadigini) buradan gorur; gecmis yazildiktan SONRA
+        if ($tur > 0) Cache::put("santral_tur_bitti_{$oid}_{$tur}", $aksiyon ?: (!empty($d['bitir']) ? 'bitir' : '-'), 10); // L5.6: dakika
         if ($this->kullanimKolonlari()) SantralPaket::turKaydet($oid, (int) $o->sube_id, $as->kullanim, mb_strlen((string) $d['cevap']));
 
         return $this->j([
@@ -174,6 +205,59 @@ class SantralKopruController extends Controller
             'teshis' => $as->teshis,
             'randevu_id' => $d['veri']['randevu_id'] ?? null,   // teshis/e2e (kopru kullanmaz)
         ]);
+    }
+
+    // ---------------------------------------------------------- /tur-iptal
+    // Kopru bir turun cevabini CALMADI (paralel turda yenisi kullanildi): o turun mesajlari gecmisten dusulur;
+    // tur henuz bitmediyse bittiginde gecmise yazilmaz (Cache isareti).
+    public function turIptal(Request $r)
+    {
+        if (!$this->yetkiVar($r)) return $this->j(['ok' => 0, 'hata' => 'Yetkisiz santral isteği'], 401);
+        $oid = (int) $r->input('oturum_id');
+        $tur = (int) $r->input('tur');
+        if (!$oid || !$tur) return $this->j(['ok' => 0]);
+        Cache::put("santral_tur_iptal_{$oid}_{$tur}", 1, 10); // L5.6: dakika
+        $json = DB::table('santral_oturumlari')->where('id', $oid)->value('gecmis');
+        $g = json_decode($json ?: '[]', true) ?: [];
+        $yeni = $this->iptalTurlariDus($oid, $g);
+        if (count($yeni) !== count($g)) {
+            DB::table('santral_oturumlari')->where('id', $oid)->update(['gecmis' => json_encode($yeni, JSON_UNESCAPED_UNICODE)]);
+        }
+        return $this->j(['ok' => 1]);
+    }
+
+    /**
+     * Iptal edilmis turlarin mesajlarini dusur. $paralelOnceki: bu turun yerine gectigi eski tur; is yapmadan
+     * bittiyse (santral_tur_bitti = '-') onun mesajlari da dusulur (musteri o cevabi hic duymadi).
+     */
+    protected function iptalTurlariDus(int $oid, array $gecmis, int $paralelOnceki = 0): array
+    {
+        $durum = [];
+        $out = [];
+        foreach ($gecmis as $m) {
+            $t = (int) ($m['tur'] ?? 0);
+            if ($t > 0) {
+                if (!isset($durum[$t])) {
+                    $durum[$t] = Cache::has("santral_tur_iptal_{$oid}_{$t}")
+                        || ($t === $paralelOnceki && Cache::get("santral_tur_bitti_{$oid}_{$t}") === '-');
+                }
+                if ($durum[$t]) continue;
+            }
+            $out[] = $m;
+        }
+        return $out;
+    }
+
+    /** Musterinin duydugu son asistan cumlesi bir islem onayi/bilgisi mi soruyordu (cevap randevu/kayit yapabilir)? */
+    protected function onayBekleyenSoru(array $gecmis): bool
+    {
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') !== 'assistant') continue;
+            $c = mb_strtolower((string) ($gecmis[$i]['content'] ?? ''), 'UTF-8');
+            return (bool) (preg_match('/(?<!\p{L})(mı|mi|mu|mü|musunuz|müsünüz|mısınız|misiniz|mıyım|miyim|muyum|müyüm)(?!\p{L})/u', $c)
+                && preg_match('/randevu|iptal|kaydet|kayd|taşı|değiştir|güncelle|oluştur|onay|ad(ınız|ı ve)|soyad/u', $c));
+        }
+        return false;
     }
 
     // ---------------------------------------------------------- /bitir
