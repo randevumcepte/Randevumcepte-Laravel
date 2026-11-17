@@ -143,7 +143,10 @@ class CagriOturumu {
       if (simdi - (this._vadSon || 0) > 400) { this._vadKare = 0; this._vadIlk = simdi; }
       this._vadKare = (this._vadKare || 0) + 1;
       this._vadSon = simdi;
-      if (this._vadKare >= VAD_MIN_KARE && !this._konusmaBas) this._konusmaBas = this._vadIlk;
+      if (this._vadKare >= VAD_MIN_KARE && !this._konusmaBas) {
+        this._konusmaBas = this._vadIlk;
+        tts.isit(); // musteri konusuyor: cevap gelince TTS baglantisi hazir olsun
+      }
       if (this._konusmaBas) this._konusmaSon = simdi;
     }
     // HIZLI CUMLE SONU (VAD): ara-metin var, musterinin sesi gercekten kesildi, metin 250 ms sabit -> bitti say.

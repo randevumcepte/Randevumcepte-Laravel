@@ -19,6 +19,7 @@ require('dns').setDefaultResultOrder('ipv4first');
 const ariClient = require('ari-client');
 const cfg = require('./config');
 const log = require('./log');
+const tts = require('./tts');
 const brain = require('./brain');
 const { CagriOturumu } = require('./session');
 
@@ -92,6 +93,15 @@ async function main() {
 
   await client.start(cfg.ari.app);
   log.info('AI Santral kopru hazir. Cagri bekleniyor.');
+  // SIK KALIP CUMLELER: acilista bir kez seslendirilip onbellege alinir -> cagrida beklemeden calar
+  // (cumle bolme ile birebir ayni metin olmali). Maliyet: acilis basina ~300 karakter.
+  (async () => {
+    for (const c of ['Başka yardımcı olabileceğim bir konu var mı?', 'Hangisini tercih edersiniz?', 'Hemen bakıyorum.',
+      'Tamam, kontrol ediyorum.', 'Randevunuz onaylandığında size bilgi verilecektir.', 'Lütfen hatta kalın.']) {
+      try { await tts.seslendir(c); } catch (_) {}
+    }
+    log.info('kalip cumleler onbellege alindi');
+  })();
   await sahipsizSesKanallariniKapat(true);
 
   // BAGLANTIYI SICAK TUT + koptuysa yeniden baglan: idle'da WS bayatlayip ILK CAGRIYI

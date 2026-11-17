@@ -2,8 +2,23 @@
 // Google Cloud TTS (REST + API anahtari — mevcut GOOGLE_TTS_API_KEY kullanilabilir).
 // Cikti: telefon native ses (ulaw@8k) veya slin16@16k — RTP'ye dogrudan paketlenir.
 const axios = require('axios');
+const https = require('https');
 const cfg = require('./config');
 const log = require('./log');
+
+// BAGLANTI KORUMA: eskiden her cumlede yeni TLS baglantisi aciliyordu (+100-300 ms). Tek ajan, acik soketler.
+const ajan = new https.Agent({ keepAlive: true, keepAliveMsecs: 10000, maxSockets: 20 });
+
+// ISINDIRMA: musteri konusmaya baslayinca TTS sunucusuna bos bir istek -> cevap hazir oldugunda TLS zaten acik.
+// (Bekleme sirasinda sunucu bosta kalan baglantiyi kapatmis olabilir.) 8 sn'de en fazla bir kez.
+let _sonIsitma = 0;
+function isit() {
+  const simdi = Date.now();
+  if (simdi - _sonIsitma < 8000) return;
+  _sonIsitma = simdi;
+  const url = akisli() ? 'https://api.elevenlabs.io/' : 'https://texttospeech.googleapis.com/';
+  axios.get(url, { httpsAgent: ajan, timeout: 4000, validateStatus: () => true }).catch(() => {});
+}
 
 // Basit metin -> ses onbellek (ayni cumle tekrar seslendirilmesin; ozellikle karsilama/sabit yanitlar)
 const cache = new Map();
@@ -67,6 +82,7 @@ async function elevenlabs(t) {
   // Flash/Turbo v2.5 dil zorlamasini destekler (Turkce kelimeyi Ingilizce okumasin)
   if (e.dil && /v2_5|v3|v4/.test(e.model)) govde.language_code = e.dil; // Turkce zorla (ELEVENLABS_DIL=, bos = model kendi secer)
   const { data } = await axios.post(url, govde, {
+    httpsAgent: ajan,
     timeout: 12000,
     responseType: 'arraybuffer',
     headers: { 'xi-api-key': e.apiKey, 'Content-Type': 'application/json', Accept: 'audio/basic' },
@@ -107,7 +123,7 @@ async function seslendir(metin) {
   };
 
   try {
-    const { data } = await axios.post(url, body, { timeout: 12000 });
+    const { data } = await axios.post(url, body, { timeout: 12000, httpsAgent: ajan });
     let buf = Buffer.from(data.audioContent, 'base64');
     if (cfg.mediaFormat === 'slin16') buf = stripWavHeader(buf);
     // ulaw ciktisi da WAV header'li gelebilir -> ayikla
@@ -144,7 +160,7 @@ async function seslendirAkis(metin, onParca) {
   let artik = Buffer.alloc(0), geldi = false;
   try {
     const res = await axios.post(url, govde, {
-      timeout: 15000, responseType: 'stream',
+      httpsAgent: ajan, timeout: 15000, responseType: 'stream',
       headers: { 'xi-api-key': e.apiKey, 'Content-Type': 'application/json' },
     });
     await new Promise((coz, red) => {
@@ -174,4 +190,4 @@ async function seslendirAkis(metin, onParca) {
   }
 }
 
-module.exports = { seslendir, seslendirAkis, akisli, elYazim };
+module.exports = { seslendir, seslendirAkis, akisli, elYazim, isit };
