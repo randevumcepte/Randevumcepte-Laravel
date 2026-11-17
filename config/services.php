@@ -69,6 +69,8 @@ return [
         'stt_usd_dk'  => env('SANTRAL_STT_USD_DK', 0.016),
         'tts_usd_m'   => env('SANTRAL_TTS_USD_M', 30.0), // Chirp3-HD; kopru Wavenet kullaniyorsa .env'de 4
         'stt_oran'    => env('SANTRAL_STT_ORAN', 0.52),   // STT'nin ucretlenen kismi (kopru AI konusurken akisi kapatir); kapaliysa 1
+        // Arac sonucu belirliyse cumleyi kod kurar, son Claude cagrisi atlanir (gecikme). 0 = kapali.
+        'kod_cevap' => (bool) env('SANTRAL_KOD_CEVAP', true),
     ],
 
     // Google Cloud Text-to-Speech — SADECE iOS icin bulut ses (Android cihaz sesi

@@ -521,6 +521,26 @@ namespace {
     esit('uzman: erkek → Bey', 'Ferdi Bey', cagir($hp, 'personelHitap', 22));
     esit('uzman: zaten Hanım → değişmez', 'Elif Hanım', cagir($hp, 'personelHitap', 23));
     esit('uzman: cinsiyet bilinmiyor → yalnız ad', 'Zxq', cagir($hp, 'personelHitap', 24));
+    // GECIKME: arac sonrasi cumle koddan (son Claude cagrisi atlanir)
+    $iki = ['ok' => true, 'istenen_tarih' => '2026-11-20', 'istenen_gun_dolu' => false, 'secenekler' => [
+        ['tarih' => '2026-11-20', 'saat' => '10:00', 'personel_id' => 32, 'personel' => 'Anıl Bey', 'gun' => 'Cuma, 20 Kasım'],
+        ['tarih' => '2026-11-20', 'saat' => '11:40', 'personel_id' => 32, 'personel' => 'Anıl Bey', 'gun' => 'Cuma, 20 Kasım']]];
+    esit('kod cevap: iki seçenek aynı gün/uzman', 'Cuma, 20 Kasım için uzmanımız Anıl Bey ile saat 10:00 ya da 11:40 uygun. Hangisini tercih edersiniz?',
+        cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', $iki]]));
+    $farkli = $iki; $farkli['secenekler'][1] = ['tarih' => '2026-11-21', 'saat' => '12:00', 'personel_id' => 21, 'personel' => 'Gülşah Hanım', 'gun' => 'Cumartesi, 21 Kasım'];
+    esit('kod cevap: farklı gün/uzman', 'Size Cuma, 20 Kasım saat 10:00 uzmanımız Anıl Bey ile ya da Cumartesi, 21 Kasım saat 12:00 uzmanımız Gülşah Hanım ile önerebilirim. Hangisini tercih edersiniz?',
+        cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', $farkli]]));
+    $gunDolu = $iki; $gunDolu['istenen_tarih'] = '2026-11-19'; $gunDolu['istenen_gun_dolu'] = true;
+    icerir('kod cevap: istenen gün dolu', 'Perşembe, 19 Kasım için uygun saat kalmadı.', cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', $gunDolu]]));
+    esit('kod cevap: dolu + öneri cümlesi aynen', 'X', cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', ['ok' => true, 'onerilen_cumle' => 'X', 'secenekler' => []]]]));
+    esit('kod cevap YOK: tam eşleşme (bağlama göre model)', null, cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', ['ok' => true, 'tam_eslesme' => true, 'secenekler' => [$iki['secenekler'][0]]]]]));
+    esit('kod cevap YOK: boş sonuç', null, cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', ['ok' => true, 'secenekler' => [], 'mesaj' => 'yok']]]));
+    esit('kod cevap YOK: hata', null, cagir($hp, 'aracSonrasiKodCevabi', [['randevu_guncelle', ['ok' => false, 'hata' => 'dolu']]]));
+    esit('kod cevap YOK: başka araç', null, cagir($hp, 'aracSonrasiKodCevabi', [['hizmet_eslestir', ['ok' => true]]]));
+    esit('kod cevap: iptal', 'Randevunuz iptal edildi. Size bilgilendirme mesajı ilettim.',
+        cagir($hp, 'aracSonrasiKodCevabi', [['randevu_iptal', ['ok' => true, 'mesaj' => 'Randevu iptal edildi', 'bilgilendirme_gonderildi' => true]]]));
+    icerir('kod cevap: randevu oluştu', 'randevu talebinizi oluşturdum', cagir($hp, 'aracSonrasiKodCevabi', [['randevu_olustur', ['ok' => true, 'tarih' => '2026-11-20', 'saat' => '10:00', 'personel' => 'Anıl Bey']]]));
+
     // kayit #120: guncellemede uzman degisebilir; onay cumlesi koddan (yeni uzman adiyla)
     esit('güncelleme onayı (yeni uzman)', "Perşembe, 19 Kasım saat 14:00'te uzmanımız Gülşen Hanım ile randevunuzu güncelledim ve size bilgilendirme mesajı gönderdim.",
         cagir($hp, 'guncelleOnayCumlesi', ['tarih' => '2026-11-19', 'saat' => '14:00', 'personel' => 'Gülşen Hanım', 'bilgilendirme_gonderildi' => true]));

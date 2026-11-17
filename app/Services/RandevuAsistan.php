@@ -380,6 +380,7 @@ class RandevuAsistan
             $messages[] = ['role' => 'assistant', 'content' => $this->aracGirdisiNesne($content)];
 
             $sonuclar = [];
+            $turAraclari = []; // bu turdaki [arac adi, sonuc] -> araç sonrasi cumle koddan kurulabilir mi
             foreach ($toolUse as $tu) {
                 [$sonuc, $aks, $rid, $bit] = $this->toolCalistir($tu['name'] ?? '', $tu['input'] ?? []);
                 // Teshis: her arac cagrisi + sonucu (randevu neden olusmadi vb. sorulari loglardan cevaplamak icin)
@@ -387,6 +388,7 @@ class RandevuAsistan
                     'salon' => $this->salonId, 'musteri' => $this->musteriId, 'tel' => $this->telefon,
                     'girdi' => $tu['input'] ?? [], 'sonuc' => mb_substr(json_encode($sonuc, JSON_UNESCAPED_UNICODE), 0, 1500),
                 ]);
+                $turAraclari[] = [$tu['name'] ?? '', $sonuc];
                 $sonuclar[] = [
                     'type' => 'tool_result',
                     'tool_use_id' => $tu['id'] ?? '',
@@ -409,6 +411,13 @@ class RandevuAsistan
             }
             $messages[] = ['role' => 'user', 'content' => $sonuclar];
 
+            // GECIKME: arac sonucu belirliyse (randevu oldu / guncellendi / iptal / iki secenek / dolu+oneri) cumleyi
+            // KOD kurar, son Claude cagrisi yapilmaz (~0,7-0,9 sn). Baglama gore degisen durumlar modele kalir.
+            if ($aksiyon !== 'aktar' && $aksiyon !== 'veda' && ($kc = $this->aracSonrasiKodCevabi($turAraclari)) !== null) {
+                Log::info('[SANTRAL-KOD-CEVAP]', ['salon' => $this->salonId, 'araclar' => array_column($turAraclari, 0), 'cevap' => $kc]);
+                $cevap = $kc;
+                break;
+            }
             // Terminal aksiyon: aktar/veda -> kapanis cumlesi icin bir tur daha don, sonra bitir.
             if ($aksiyon === 'aktar' || $aksiyon === 'veda') {
                 // Model ayni cevapta bir cumle soylediyse onu kullan; yoksa SABIT kapanis cumlesi (garantiCevap).
@@ -592,6 +601,58 @@ class RandevuAsistan
         }
         $c = $this->randevuOnayCumlesi($d);
         return [$c, 'randevu', (int) ($d['randevu_id'] ?? 0) ?: null, $this->baglamNotu('randevu_olustur', $in, $d)];
+    }
+
+    /**
+     * Arac sonrasi cumle KODDAN (son LLM cagrisi atlanir). Yalniz sonucun cumlesi belli olan durumlar:
+     * randevu_olustur/guncelle/iptal ok=true, musait_saatler dolu+oneri ya da 1-2 secenek. Tam eslesme (onay sorusu
+     * baglama gore: olustur/guncelle), bos sonuc, hata ve baska araclar -> null (model kurar).
+     */
+    protected function aracSonrasiKodCevabi(array $araclar): ?string
+    {
+        if (!$araclar || !config('services.santral_ai.kod_cevap', true)) return null;
+        $izinli = ['musait_saatler', 'randevu_olustur', 'randevu_guncelle', 'randevu_iptal'];
+        foreach ($araclar as [$ad, $sonuc]) {
+            if (!in_array($ad, $izinli, true) || !is_array($sonuc) || empty($sonuc['ok'])) return null;
+        }
+        foreach ($araclar as [$ad, $sonuc]) {
+            if ($ad === 'randevu_olustur') return $this->randevuOnayCumlesi($sonuc);
+            if ($ad === 'randevu_guncelle') return $this->guncelleOnayCumlesi($sonuc);
+            if ($ad === 'randevu_iptal') {
+                if (($sonuc['mesaj'] ?? '') !== 'Randevu iptal edildi') return null;
+                return 'Randevunuz iptal edildi.' . (!empty($sonuc['bilgilendirme_gonderildi']) ? ' Size bilgilendirme mesajı ilettim.' : '');
+            }
+        }
+        if (count($araclar) !== 1) return null; // birden fazla musait sorgusu: model birlestirsin
+        $m = $araclar[0][1];
+        if (!empty($m['onerilen_cumle'])) return (string) $m['onerilen_cumle'];
+        if (!empty($m['tam_eslesme']) || empty($m['secenekler'])) return null;
+        return $this->secenekCumlesi($m);
+    }
+
+    /** musait_saatler 1-2 secenek -> "Cuma, 20 Kasım için uzmanımız Anıl Bey ile saat 10:00 ya da 11:40 uygun. Hangisini tercih edersiniz?" */
+    protected function secenekCumlesi(array $m): string
+    {
+        $sec = array_values(array_slice($m['secenekler'], 0, 2));
+        $gun = function ($s) { return $s['gun'] ?? $this->tarihSoz((string) $s['tarih']); };
+        $ile = function ($s) { return !empty($s['personel']) ? " uzmanımız {$s['personel']} ile" : ''; };
+        $on = '';
+        if (!empty($m['istenen_gun_dolu']) && !empty($m['istenen_tarih']) && ($sec[0]['tarih'] ?? '') !== $m['istenen_tarih']) {
+            $on = $this->tarihSoz((string) $m['istenen_tarih']) . ' için uygun saat kalmadı. ';
+        }
+        if (count($sec) === 1) {
+            return $on . $gun($sec[0]) . ' saat ' . $sec[0]['saat'] . $ile($sec[0]) . ' uygun. Bu saat olur mu?';
+        }
+        $ayniGun = $sec[0]['tarih'] === $sec[1]['tarih'];
+        $ayniKisi = ($sec[0]['personel_id'] ?? null) === ($sec[1]['personel_id'] ?? null);
+        if ($ayniGun && $ayniKisi) {
+            return $on . $gun($sec[0]) . ' için' . $ile($sec[0]) . ' saat ' . $sec[0]['saat'] . ' ya da ' . $sec[1]['saat'] . ' uygun. Hangisini tercih edersiniz?';
+        }
+        $p = [];
+        foreach ($sec as $i => $s) {
+            $p[] = (($i === 0 || !$ayniGun) ? $gun($s) . ' ' : '') . 'saat ' . $s['saat'] . $ile($s);
+        }
+        return $on . 'Size ' . implode(' ya da ', $p) . ' önerebilirim. Hangisini tercih edersiniz?';
     }
 
     /** randevu_guncelle ok=true sonucundan onay cumlesi: "Perşembe, 19 Kasım saat 14:00'te uzmanımız Gülşen Hanım ile randevunuzu güncelledim..." */
