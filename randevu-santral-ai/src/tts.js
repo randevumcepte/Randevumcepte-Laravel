@@ -48,7 +48,7 @@ async function elevenlabs(t) {
     voice_settings: { stability: e.stability, similarity_boost: e.similarity, speed: e.speed },
   };
   // Flash/Turbo v2.5 dil zorlamasini destekler (Turkce kelimeyi Ingilizce okumasin)
-  if (/v2_5|v3/.test(e.model)) govde.language_code = 'tr'; // Turkce zorla: Ingilizce ses "size"yi "sayz" okumasin
+  if (e.dil && /v2_5|v3/.test(e.model)) govde.language_code = e.dil; // Turkce zorla (ELEVENLABS_DIL=, bos = model kendi secer)
   const { data } = await axios.post(url, govde, {
     timeout: 12000,
     responseType: 'arraybuffer',
@@ -121,7 +121,7 @@ async function seslendirAkis(metin, onParca) {
   const bicim = cfg.mediaFormat === 'slin16' ? 'pcm_16000' : 'ulaw_8000';
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(e.voiceId)}/stream?output_format=${bicim}`;
   const govde = { text: t, model_id: e.model, voice_settings: { stability: e.stability, similarity_boost: e.similarity, speed: e.speed } };
-  if (/v2_5|v3/.test(e.model)) govde.language_code = 'tr'; // Turkce zorla: Ingilizce ses "size"yi "sayz" okumasin
+  if (e.dil && /v2_5|v3/.test(e.model)) govde.language_code = e.dil; // Turkce zorla (ELEVENLABS_DIL=, bos = model kendi secer)
   const kare = cfg.audio.bytesPerFrame;
   const parcalar = [];
   let artik = Buffer.alloc(0), geldi = false;

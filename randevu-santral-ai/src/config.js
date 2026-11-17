@@ -50,6 +50,7 @@ const cfg = {
     stability: parseFloat(process.env.ELEVENLABS_STABILITY || '0.5'),
     similarity: parseFloat(process.env.ELEVENLABS_SIMILARITY || '0.75'),
     speed: parseFloat(process.env.ELEVENLABS_SPEED || '1.0'),
+    dil: process.env.ELEVENLABS_DIL !== undefined ? process.env.ELEVENLABS_DIL.trim() : 'tr', // bos = dil kodu gonderilmez
   },
   bargeIn: bool(process.env.BARGE_IN, true),
   sessizlikMs: num(process.env.SESSIZLIK_MS, 15000),
