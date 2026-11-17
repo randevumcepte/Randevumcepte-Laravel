@@ -1283,8 +1283,12 @@ class RandevuAsistan
             $body['output_config'] = ['effort' => $effort];
         }
 
-        $ch = curl_init('https://api.anthropic.com/v1/messages');
+        // GECIKME: ayni istekteki 2.+ cagri ayni TLS baglantisini kullansin (her cagrida yeni el sikisma ~200-400 ms).
+        static $ch = null;
+        if ($ch === null) $ch = curl_init();
         curl_setopt_array($ch, [
+            CURLOPT_URL => 'https://api.anthropic.com/v1/messages',
+            CURLOPT_TCP_KEEPALIVE => 1,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
             CURLOPT_TIMEOUT => 20,
@@ -1300,7 +1304,6 @@ class RandevuAsistan
         $this->llmMs[] = (int) round((microtime(true) - $t0) * 1000);
         $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
-        curl_close($ch);
 
         if ($raw === false || $code !== 200) {
             $this->teshis = 'http_' . $code . ':' . substr((string) ($raw ?: $err), 0, 160);
@@ -1481,7 +1484,15 @@ PROMPT;
     // ---------------------------------------------------------------- helpers
     protected function salonYukle(): void
     {
-        $d = $this->ctrlCagir('salonBilgi', ['salon_id' => $this->salonId]);
+        // GECIKME: nesne her konusma TURUNDA yeniden kurulur; salon/hizmet bilgisi 2 dk onbellekte (her turda DB yok)
+        $sid = $this->salonId;
+        try {
+            $d = \Cache::remember('santral_salon_bilgi:' . $sid, 2, function () use ($sid) {
+                return $this->ctrlCagir('salonBilgi', ['salon_id' => $sid]);
+            });
+        } catch (\Throwable $e) {
+            $d = $this->ctrlCagir('salonBilgi', ['salon_id' => $sid]);
+        }
         $this->salon = [
             'ad' => $d['ad'] ?? ('Salon ' . $this->salonId),
             'karsilama' => $d['karsilama_telaffuz'] ?? '',

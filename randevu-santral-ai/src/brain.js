@@ -5,9 +5,14 @@ const axios = require('axios');
 const cfg = require('./config');
 const log = require('./log');
 
+// GECIKME: Laravel'e her turda yeni TCP+TLS baglantisi acmak yerine baglantiyi acik tut (keep-alive)
+const httpMod = require('http');
+const httpsMod = require('https');
 const http = axios.create({
   baseURL: cfg.laravel.baseUrl,
   timeout: 16000,
+  httpAgent: new httpMod.Agent({ keepAlive: true, maxSockets: 50 }),
+  httpsAgent: new httpsMod.Agent({ keepAlive: true, maxSockets: 50 }),
   headers: {
     'Accept': 'application/json',
     'Content-Type': 'application/x-www-form-urlencoded',
