@@ -268,7 +268,27 @@ class CagriOturumu {
     this._spek = { tur, metin, p, t0: Date.now() };
     this._turBas = this._spek.t0;
     log.info(`  (paralel tur: eski cevap beklenmeden soruluyor)`);
+    if (this._spekHaber) this._spekHaber(); // _yaris'i uyandir: artik paralel tur da yarista
     return true;
+  }
+
+  // Eski tur ile paralel tur yarisir: paralel tur ONCE ve basariyla biterse beklemeden o kullanilir (kayit 106:
+  // "beni" -> eski tur 2,5 sn surerken "beni salona bağlar mısınız" aktarmasi kodla hemen hazirdi, 4,6 sn bekledi).
+  async _yaris(eskiP) {
+    for (;;) {
+      const yaris = [eskiP.then((r) => ({ kim: 'eski', r }))];
+      const spek = this._spek;
+      if (spek) {
+        yaris.push(spek.p.then((r) => (r.d && r.d.ok !== false && !r.d.iptal_edildi
+          ? { kim: 'spek', r }
+          : eskiP.then((r2) => ({ kim: 'eski', r: r2 })))));
+      } else {
+        yaris.push(new Promise((res) => { this._spekHaber = res; }).then(() => ({ kim: 'yeni' })));
+      }
+      const s = await Promise.race(yaris);
+      this._spekHaber = null;
+      if (s.kim !== 'yeni') return s;
+    }
   }
 
   async _isle(metin) {
@@ -283,11 +303,27 @@ class CagriOturumu {
     this._turBas = t0;
     try {
       this._beyinBekliyor = true;
-      let d = await brain.konus(this.oturumId, metin, ek);
+      const eskiP = brain.konus(this.oturumId, metin, ek).then((x) => ({ d: x }), (e) => ({ e }));
+      const s = await this._yaris(eskiP);
       this._beyinBekliyor = false;
       clearTimeout(dolguZ);
-      log.info(`  (beyin ${Date.now() - t0} ms)`); // gecikme teshisi: musteri sustu -> cevap metni hazir
-      if (this._spek) {
+      let d;
+      if (s.kim === 'spek') {
+        const spek = this._spek;
+        this._spek = null;
+        d = s.r.d;
+        log.info(`  (paralel tur ONCE bitti: ${Date.now() - spek.t0} ms, ilk turdan beri ${Date.now() - t0} ms; eski tur beklenmedi)`);
+        eskiP.then((r) => {
+          // Eski tur is yaptiysa gecmisi silinmez (onay sorularinda Laravel zaten sirali calistirir; burasi nadir)
+          if (r.d && (r.d.aksiyon || r.d.bitir)) log.warn(`eski tur paralelden sonra is yapti (${r.d.aksiyon || 'bitir'}): ${r.d.cevap}`);
+          else brain.turIptal(this.oturumId, tur);
+        });
+      } else {
+        if (s.r.e) throw s.r.e;
+        d = s.r.d;
+        log.info(`  (beyin ${Date.now() - t0} ms)`); // gecikme teshisi: musteri sustu -> cevap metni hazir
+      }
+      if (s.kim === 'eski' && this._spek) {
         const spek = this._spek;
         if (!d || d.ok === false || (!d.aksiyon && !d.bitir)) {
           log.info(`< asistan (CALINMADI, devami paralel soruldu): ${d ? d.cevap : '-'}`);
@@ -343,6 +379,7 @@ class CagriOturumu {
     } finally {
       this._beyinBekliyor = false;
       this._spek = null;
+      this._spekHaber = null;
       this.mesgul = false;
       this._sessizlikSifirla();
     }

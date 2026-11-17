@@ -31,8 +31,14 @@ function stripWavHeader(buf) {
   return buf;
 }
 
+// Ek ayiran kesme isareti seste duraklama/harf okumaya donuyor (kayit 106: "Gülşah Hanım'ı" -> "Gülşah Hanım, I").
+// Yalniz harf'harf arasi kaldirilir ("Hanımı"); "15.20'de" gibi rakamli olanlar dogru okunur, dokunulmaz.
+function okunur(metin) {
+  return String(metin || '').replace(/(\p{L})['’](\p{L})/gu, '$1$2');
+}
+
 async function seslendir(metin) {
-  const t = (metin || '').trim();
+  const t = okunur(metin).trim();
   if (!t) return Buffer.alloc(0);
   if (cache.has(t)) return cache.get(t);
 
