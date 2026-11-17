@@ -27,9 +27,10 @@ class SantralPaket
 
     /** Hazir paket onerileri (modal'da tek tikla doldurma). */
     const HAZIR = [
-        ['ad' => 'Başlangıç',   'dk' => 300,  'ucret' => 990,  'asim' => 3.0],
-        ['ad' => 'Standart',    'dk' => 1000, 'ucret' => 2490, 'asim' => 2.75],
-        ['ad' => 'Profesyonel', 'dk' => 2500, 'ucret' => 4990, 'asim' => 2.5],
+        // Chirp3-HD seslendirme ile (maliyet ~1 TL/dk, STT AI konusurken kapali): 2026-11-17 isletme karari
+        ['ad' => 'Başlangıç',   'dk' => 500,  'ucret' => 1590, 'asim' => 3.5],
+        ['ad' => 'Standart',    'dk' => 1000, 'ucret' => 2790, 'asim' => 3.5],
+        ['ad' => 'Profesyonel', 'dk' => 2500, 'ucret' => 5990, 'asim' => 3.5],
     ];
 
     // ------------------------------------------------------------------ sema
@@ -172,8 +173,8 @@ class SantralPaket
         $asimFaturaDk = (int) ceil($asimDk - 1e-9); // asim tam dakikaya yuvarlanir
 
         $claudeUsd = (float) ($k->claude_usd ?? 0);
-        $sttUsd = $toplamDk * (float) config('services.santral_ai.stt_usd_dk', 0.016);
-        $ttsUsd = (int) ($k->tts ?? 0) / 1000000 * (float) config('services.santral_ai.tts_usd_m', 4.0);
+        $sttUsd = $toplamDk * (float) config('services.santral_ai.stt_usd_dk', 0.016) * (float) config('services.santral_ai.stt_oran', 0.52);
+        $ttsUsd = (int) ($k->tts ?? 0) / 1000000 * (float) config('services.santral_ai.tts_usd_m', 30.0);
         $maliyetTl = ($claudeUsd + $sttUsd + $ttsUsd) * $kur;
 
         $fatura = $paket ? (float) $paket->aylik_ucret + $asimFaturaDk * (float) $paket->asim_dk_ucret : 0.0;

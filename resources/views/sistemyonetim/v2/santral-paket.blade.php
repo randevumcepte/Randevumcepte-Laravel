@@ -145,7 +145,7 @@
 
         <div class="sp-not">
             <b>Nasıl hesaplanır:</b> Dakika, asistanın hatta kaldığı süredir (operatöre aktarıldıktan sonraki konuşma dahil değil); dönem takvim ayıdır.
-            Aşım tam dakikaya yuvarlanır. Maliyet = Claude (gerçek token) + Google STT (dakika × {{ config('services.santral_ai.stt_usd_dk') }} $) + Wavenet TTS (karakter, tahmini), kur {{ $tl($kur, 2) }} ₺ (AI Kredi sayfasından).
+            Aşım tam dakikaya yuvarlanır. Maliyet = Claude (gerçek token) + Google STT (dakika × {{ config('services.santral_ai.stt_usd_dk') }} $ × %{{ round(config('services.santral_ai.stt_oran') * 100) }} ücretlenen kısım; asistan konuşurken STT kapalı) + TTS (karakter × {{ config('services.santral_ai.tts_usd_m') }} $ / 1M, Chirp3-HD), kur {{ $tl($kur, 2) }} ₺ (AI Kredi sayfasından).
             <b>Paketi olmayan salonda asistan çalışmaz:</b> gelen çağrı doğrudan işletmenin operatör kanalına çalar, hatırlatmalar klasik tuşlamalı mesajla yapılır.
             <b>Aşımda durdur:</b> paket bitince gelen çağrılar asistan yerine operatöre aktarılır, hatırlatmalar klasik tuşlamalı sesli mesajla yapılır.
             Token/süre kaydı bu güncellemeden itibaren tutulur; önceki görüşmelerde token 0 görünür.
