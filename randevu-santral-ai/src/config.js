@@ -50,6 +50,9 @@ const cfg = {
     stability: parseFloat(process.env.ELEVENLABS_STABILITY || '0.5'),
     similarity: parseFloat(process.env.ELEVENLABS_SIMILARITY || '0.75'),
     speed: parseFloat(process.env.ELEVENLABS_SPEED || '1.0'),
+    // "başka=bashka;lazer=lazır" -> [['başka','bashka'],['lazer','lazır']]
+    yazim: String(process.env.ELEVENLABS_YAZIM || '').split(';').map((x) => x.split('=').map((y) => y.trim()))
+      .filter((x) => x.length === 2 && x[0] && x[1]),
     dil: process.env.ELEVENLABS_DIL !== undefined ? process.env.ELEVENLABS_DIL.trim() : 'tr', // bos = dil kodu gonderilmez
   },
   bargeIn: bool(process.env.BARGE_IN, true),

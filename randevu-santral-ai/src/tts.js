@@ -37,13 +37,30 @@ function okunur(metin) {
   return String(metin || '').replace(/(\p{L})['’](\p{L})/gu, '$1$2');
 }
 
+// ElevenLabs'e ozel YAZIM DUZELTME: Ingilizce kokenli ses bazi Turkce kelimeleri kaydiriyor ("başka" -> "beşka",
+// "lazer" -> "leyzer"). ELEVENLABS_YAZIM="başka=bashka;lazer=lazır" -> kelime basinda tam eslesme, buyuk harf
+// korunur, ekler kalir ("Başka" -> "Bashka", "lazerle" -> "lazırle"). Google'a giden metin degismez.
+function elYazim(t) {
+  const liste = cfg.elevenlabs.yazim;
+  if (!liste.length) return t;
+  let out = t;
+  for (const [kaynak, hedef] of liste) {
+    const re = new RegExp(`(^|[^\\p{L}])(${kaynak.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'giu');
+    out = out.replace(re, (m, on, kelime) => {
+      const buyuk = kelime[0] !== kelime[0].toLocaleLowerCase('tr');
+      return on + (buyuk ? hedef[0].toLocaleUpperCase('tr') + hedef.slice(1) : hedef);
+    });
+  }
+  return out;
+}
+
 // ElevenLabs: ciktiyi dogrudan telefon bicimindeki ham sesle ister (ulaw_8000 / pcm_16000; WAV basligi yok).
 async function elevenlabs(t) {
   const e = cfg.elevenlabs;
   const bicim = cfg.mediaFormat === 'slin16' ? 'pcm_16000' : 'ulaw_8000';
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(e.voiceId)}?output_format=${bicim}`;
   const govde = {
-    text: t,
+    text: elYazim(t),
     model_id: e.model,
     voice_settings: { stability: e.stability, similarity_boost: e.similarity, speed: e.speed },
   };
@@ -120,7 +137,7 @@ async function seslendirAkis(metin, onParca) {
   const e = cfg.elevenlabs;
   const bicim = cfg.mediaFormat === 'slin16' ? 'pcm_16000' : 'ulaw_8000';
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(e.voiceId)}/stream?output_format=${bicim}`;
-  const govde = { text: t, model_id: e.model, voice_settings: { stability: e.stability, similarity_boost: e.similarity, speed: e.speed } };
+  const govde = { text: elYazim(t), model_id: e.model, voice_settings: { stability: e.stability, similarity_boost: e.similarity, speed: e.speed } };
   if (e.dil && /v2_5|v3/.test(e.model)) govde.language_code = e.dil; // Turkce zorla (ELEVENLABS_DIL=, bos = model kendi secer)
   const kare = cfg.audio.bytesPerFrame;
   const parcalar = [];
@@ -157,4 +174,4 @@ async function seslendirAkis(metin, onParca) {
   }
 }
 
-module.exports = { seslendir, seslendirAkis, akisli };
+module.exports = { seslendir, seslendirAkis, akisli, elYazim };
