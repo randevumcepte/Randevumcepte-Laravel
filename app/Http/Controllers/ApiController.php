@@ -12497,6 +12497,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             // toCustomer (randevu_id + deep_link ile) push'u yapiyor;
             // burada ikinci push goz atti = duplicate + sizma kaynagiydi.
 
+            // Sesli asistan (santral) randevusu: bilgilendirme mesajina salonun yol tarifi linki eklenir (isletme istegi)
+            $_easistanYol = ((string) ($request->easistan ?? $request->input('easistan')) === '1' && !$guncelleme)
+                ? trim((string) ($isletme->yol_tarifi ?? '')) : '';
+            if ($_easistanYol !== '') $musteriMesaj .= " Yol tarifi: " . $_easistanYol;
+
             $musteriToggle = SalonSMSAyarlari::where("ayar_id", 12)->where("salon_id", $yenirandevu->salon_id)->value("musteri") == 1;
 
             // Kritik bypass: ERTESI GUN icin + saat 19:00 sonra olusturulan + <24h kala
@@ -12541,6 +12546,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                                 $_hizmetlerStr
                             );
                         }
+                        if ($_easistanYol !== '') $_waMesaj .= "\n\n📍 *Yol tarifi:* " . $_easistanYol;
                         // Uygulaması olmayana WA'da indirme daveti + link ekle
                         $_waMesaj = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($_waMesaj, $isletme, $musteribilgi->id ?? null);
                     }

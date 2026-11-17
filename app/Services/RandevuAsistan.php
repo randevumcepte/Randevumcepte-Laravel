@@ -594,12 +594,15 @@ class RandevuAsistan
     /** randevu_olustur ok=true sonucundan deterministik onay cumlesi. */
     protected function randevuOnayCumlesi(array $d): string
     {
+        // Isletme istegi: "... randevu talebinizi oluşturdum ve size bilgilendirme mesajı gönderdim. Randevunuz
+        // onaylandığında size bilgi verilecektir." (once yapilan is, SONRA onay bilgisi)
         $gun = $this->tarihSoz((string) ($d['tarih'] ?? ''));
         $saat = substr((string) ($d['saat'] ?? ''), 0, 5);
         $c = trim("{$gun} saat " . $this->saatEkli($saat) . (!empty($d['personel']) ? " uzmanımız {$d['personel']} ile" : ''))
             . (!empty($d['paket_seansi']) ? ' paketinizden' : '')
-            . ' randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz.';
-        if (!empty($d['bilgilendirme_gonderildi'])) $c .= ' Size bilgilendirme mesajı ilettim.';
+            . ' randevu talebinizi oluşturdum'
+            . (!empty($d['bilgilendirme_gonderildi']) ? ' ve size bilgilendirme mesajı gönderdim.' : '.')
+            . ' Randevunuz onaylandığında size bilgi verilecektir.';
         return $c;
     }
 
@@ -2367,7 +2370,7 @@ PROMPT;
     protected function garantiCevap(?string $aksiyon): string
     {
         switch ($aksiyon) {
-            case 'randevu': return 'Randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz.';
+            case 'randevu': return 'Randevu talebinizi oluşturdum. Randevunuz onaylandığında size bilgi verilecektir.';
             case 'iptal': return 'Randevunuz iptal edildi. Başka bir arzunuz var mı?';
             case 'guncelle': return 'Randevunuz güncellendi. Başka bir arzunuz var mı?';
             case 'aktar': return 'Sizi bir yetkiliye aktarıyorum, lütfen hatta kalın.';

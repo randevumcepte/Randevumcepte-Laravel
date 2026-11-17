@@ -380,8 +380,8 @@ namespace {
     esit('modelin verdiği id\'ler kullanılır', 21, $zr->sonGirdi['personel_id'] ?? null);
     esit('aksiyon randevu', 'randevu', $z[1]);
     esit('randevu id', 555, $z[2]);
-    icerir('deterministik talep cümlesi', "Perşembe, 19 Kasım saat 11:00'de uzmanımız Gülşah ile randevu talebiniz oluşturuldu", $z[0]);
-    icerir('bilgilendirme ayarı açık', 'bilgilendirme mesajı ilettim', $z[0]);
+    icerir('deterministik talep cümlesi', "Perşembe, 19 Kasım saat 11:00'de uzmanımız Gülşah ile randevu talebinizi oluşturdum", $z[0]);
+    icerir('bilgilendirme ayarı açık', 've size bilgilendirme mesajı gönderdim. Randevunuz onaylandığında', $z[0]);
     $zr->sahteSonuc = ['ok' => false, 'hata' => 'Bu saat çakışıyor.'];
     $z = cagir($zr, 'zorlaRandevu', [['role' => 'user', 'content' => 'Evet']], 'k');
     esit('kayıt başarısız → aksiyon yok', null, $z[1]);
@@ -391,7 +391,7 @@ namespace {
 
     bolum('Randevu onay cümlesi koddan (model atlasa da)');
     $oc = cagir($zr, 'randevuOnayCumlesi', ['ok' => true, 'tarih' => '2026-11-26', 'saat' => '11:00:00', 'personel' => 'Gülşah', 'bilgilendirme_gonderildi' => true]);
-    esit('tam cümle', "Perşembe, 26 Kasım saat 11:00'de uzmanımız Gülşah ile randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz. Size bilgilendirme mesajı ilettim.", $oc);
+    esit('tam cümle', "Perşembe, 26 Kasım saat 11:00'de uzmanımız Gülşah ile randevu talebinizi oluşturdum ve size bilgilendirme mesajı gönderdim. Randevunuz onaylandığında size bilgi verilecektir.", $oc);
     $oc = cagir($zr, 'randevuOnayCumlesi', ['ok' => true, 'tarih' => '2026-11-26', 'saat' => '11:00', 'personel' => 'Gülşah', 'paket_seansi' => true, 'bilgilendirme_gonderildi' => false]);
     icerir('paket seansı belirtilir', 'Gülşah ile paketinizden randevu talebiniz', $oc);
     esit('ayar kapalı → bilgilendirme denmez', false, mb_stripos($oc, 'bilgilendirme mesajı') !== false);
