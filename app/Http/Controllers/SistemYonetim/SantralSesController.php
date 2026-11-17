@@ -116,21 +116,27 @@ class SantralSesController extends Controller
     private function elSesleri(): array
     {
         if ($this->elKey() === '') throw new \RuntimeException('ELEVENLABS_API_KEY tanımlı değil (Laravel .env)');
-        return Cache::remember('santral_ses_el', 10, function () {
-            $out = [];
+        return Cache::remember('santral_ses_el_v2', 10, function () {
+            $out = []; $hesapta = [];
             $d = $this->httpJson('GET', 'https://api.elevenlabs.io/v1/voices', ['xi-api-key: ' . $this->elKey()]);
             foreach (($d['voices'] ?? []) as $v) {
                 $l = $v['labels'] ?? [];
+                // Kutuphaneden hesaba eklenen sesler 'professional': ucretsiz planda API ile seslendirilemez (402)
+                $kutuphane = ($v['category'] ?? '') === 'professional';
                 $out[] = [
-                    'id' => $v['voice_id'], 'ad' => preg_replace('/\s*-.*$/', '', (string) $v['name']), 'tur' => 'Hesaptaki',
+                    'id' => $v['voice_id'], 'ad' => preg_replace('/\s*[-|].*$/', '', (string) $v['name']),
+                    'tur' => $kutuphane ? 'Türkçe kütüphane' : 'Hesaptaki',
                     'cinsiyet' => ($l['gender'] ?? '') === 'female' ? 'kadın' : (($l['gender'] ?? '') === 'male' ? 'erkek' : ''),
-                    'not' => trim(($l['accent'] ?? '') . ' ' . ($l['language'] ?? '')) . (($l['language'] ?? '') === 'tr' ? '' : ' · Türkçe anadili değil'),
+                    'not' => trim(($l['accent'] ?? '') . ' ' . ($l['language'] ?? '')) . (($l['language'] ?? '') === 'tr' ? '' : ' · Türkçe anadili değil')
+                        . ($kutuphane ? ' · ücretli plan gerekir' : ''),
                 ];
+                $hesapta[$v['voice_id']] = 1;
             }
             // Turkce kutuphane sesleri (ucretsiz planda API ile seslendirilemez; ucretli planda acilir)
             try {
                 $k = $this->httpJson('GET', 'https://api.elevenlabs.io/v1/shared-voices?language=tr&page_size=40&sort=usage_character_count_1y', ['xi-api-key: ' . $this->elKey()]);
                 foreach (($k['voices'] ?? []) as $v) {
+                    if (isset($hesapta[$v['voice_id']])) continue; // hesaba eklenmis olan zaten listede
                     $out[] = [
                         'id' => $v['voice_id'], 'ad' => preg_replace('/\s*-.*$/', '', (string) $v['name']), 'tur' => 'Türkçe kütüphane',
                         'cinsiyet' => ($v['gender'] ?? '') === 'female' ? 'kadın' : (($v['gender'] ?? '') === 'male' ? 'erkek' : ''),
@@ -174,7 +180,8 @@ class SantralSesController extends Controller
                 ? $this->googleUret($ses, $metin, $telefon, $hiz)
                 : $this->elUret($ses, $metin, $telefon, $model, $stab, $hiz);
         } catch (\Throwable $e) {
-            return response()->json(['ok' => false, 'hata' => $e->getMessage()], 502);
+            // 422: 502 donulurse on katman (Cloudflare/nginx) kendi hata sayfasini koyup mesaji yutuyordu
+            return response()->json(['ok' => false, 'hata' => $e->getMessage()], 422);
         }
         $ms = (int) round((microtime(true) - $t0) * 1000);
         $disk->put(self::ONBELLEK_DIZIN . "/{$anahtar}.{$uz}", $veri);
@@ -239,6 +246,11 @@ class SantralSesController extends Controller
         return 'RIFF' . pack('V', 36 + $boy) . 'WAVE' . 'fmt ' . pack('VvvVVvv', 16, 1, 1, 8000, 16000, 2, 16) . 'data' . pack('V', $boy) . $pcm;
     }
 
+    private function hataAt(string $m)
+    {
+        throw new \RuntimeException($m);
+    }
+
     private function httpJson(string $yontem, string $url, array $basliklar = [], ?array $govde = null): array
     {
         $ham = $this->httpHam($yontem, $url, array_merge($basliklar, $govde !== null ? ['Content-Type: application/json'] : []),
@@ -265,7 +277,9 @@ class SantralSesController extends Controller
             $j = json_decode($ham, true);
             $m = $j['detail']['message'] ?? ($j['error']['message'] ?? ($j['detail'] ?? substr($ham, 0, 200)));
             if (is_array($m)) $m = json_encode($m, JSON_UNESCAPED_UNICODE);
-            if (stripos((string) $m, 'library voices') !== false) $m = 'Bu kütüphane sesi ücretsiz planda API ile kullanılamıyor (ElevenLabs ücretli plan gerekir).';
+            if (stripos((string) $m, 'library voices') !== false || stripos((string) $m, 'paid_plan') !== false) {
+                return $this->hataAt('Bu Türkçe kütüphane sesi ücretsiz planda kullanılamıyor. ElevenLabs Starter (ücretli) plana geçince dinlenebilir ve santralde kullanılabilir.');
+            }
             throw new \RuntimeException("HTTP {$kod}: {$m}");
         }
         return $ham;
