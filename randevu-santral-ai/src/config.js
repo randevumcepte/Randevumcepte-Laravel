@@ -40,6 +40,16 @@ const cfg = {
     voice: process.env.TTS_VOICE || 'tr-TR-Wavenet-E',
     speakingRate: parseFloat(process.env.TTS_SPEAKING_RATE || '1.05'),
     profil: process.env.TTS_PROFIL !== undefined ? process.env.TTS_PROFIL : 'telephony-class-application',
+    // Saglayici: 'google' (varsayilan) | 'elevenlabs'. ElevenLabs hata verirse o cumle Google ile okunur.
+    saglayici: (process.env.TTS_SAGLAYICI || 'google').toLowerCase(),
+  },
+  elevenlabs: {
+    apiKey: process.env.ELEVENLABS_API_KEY || '',
+    voiceId: process.env.ELEVENLABS_VOICE_ID || '',
+    model: process.env.ELEVENLABS_MODEL || 'eleven_flash_v2_5', // dusuk gecikme; daha dogal: eleven_multilingual_v2
+    stability: parseFloat(process.env.ELEVENLABS_STABILITY || '0.5'),
+    similarity: parseFloat(process.env.ELEVENLABS_SIMILARITY || '0.75'),
+    speed: parseFloat(process.env.ELEVENLABS_SPEED || '1.0'),
   },
   bargeIn: bool(process.env.BARGE_IN, true),
   sessizlikMs: num(process.env.SESSIZLIK_MS, 15000),

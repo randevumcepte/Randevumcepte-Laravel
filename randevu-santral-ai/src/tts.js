@@ -37,10 +37,45 @@ function okunur(metin) {
   return String(metin || '').replace(/(\p{L})['’](\p{L})/gu, '$1$2');
 }
 
+// ElevenLabs: ciktiyi dogrudan telefon bicimindeki ham sesle ister (ulaw_8000 / pcm_16000; WAV basligi yok).
+async function elevenlabs(t) {
+  const e = cfg.elevenlabs;
+  const bicim = cfg.mediaFormat === 'slin16' ? 'pcm_16000' : 'ulaw_8000';
+  const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(e.voiceId)}?output_format=${bicim}`;
+  const govde = {
+    text: t,
+    model_id: e.model,
+    voice_settings: { stability: e.stability, similarity_boost: e.similarity, speed: e.speed },
+  };
+  // Flash/Turbo v2.5 dil zorlamasini destekler (Turkce kelimeyi Ingilizce okumasin)
+  if (/v2_5/.test(e.model)) govde.language_code = 'tr';
+  const { data } = await axios.post(url, govde, {
+    timeout: 12000,
+    responseType: 'arraybuffer',
+    headers: { 'xi-api-key': e.apiKey, 'Content-Type': 'application/json', Accept: 'audio/basic' },
+  });
+  return Buffer.from(data);
+}
+
 async function seslendir(metin) {
   const t = okunur(metin).trim();
   if (!t) return Buffer.alloc(0);
   if (cache.has(t)) return cache.get(t);
+
+  if (cfg.tts.saglayici === 'elevenlabs' && cfg.elevenlabs.apiKey && cfg.elevenlabs.voiceId) {
+    try {
+      const buf = await elevenlabs(t);
+      if (buf.length) {
+        if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
+        cache.set(t, buf);
+        return buf;
+      }
+    } catch (e) {
+      let m = e.message;
+      try { m = Buffer.from(e.response.data).toString('utf8').slice(0, 200); } catch (_) {}
+      log.error('ElevenLabs TTS hatasi -> Google ile okunuyor:', m);
+    }
+  }
 
   if (!cfg.tts.apiKey) {
     log.error('GOOGLE_TTS_API_KEY yok — seslendirilemiyor');
