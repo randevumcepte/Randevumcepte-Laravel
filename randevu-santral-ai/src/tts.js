@@ -105,4 +105,56 @@ async function seslendir(metin) {
   }
 }
 
-module.exports = { seslendir };
+// ---- AKISLI SESLENDIRME (ElevenLabs /stream): ses geldikce calinir; v3 gibi yavas modelde cumlenin tamamini
+// beklemek 1-2 sn ekliyordu, akisla ilk ses ~0,8 sn'de baslar. Parcalar 20 ms kareye hizalanir (yarim kare
+// sessizlikle doldurulursa parca aralarinda citirti olur). Onbellekteki / Google'a dusen cumle tek parca gelir.
+function akisli() {
+  return cfg.tts.saglayici === 'elevenlabs' && !!cfg.elevenlabs.apiKey && !!cfg.elevenlabs.voiceId;
+}
+
+async function seslendirAkis(metin, onParca) {
+  const t = okunur(metin).trim();
+  if (!t) return;
+  if (cache.has(t) || !akisli()) { const b = await seslendir(metin); if (b && b.length) onParca(b); return; }
+
+  const e = cfg.elevenlabs;
+  const bicim = cfg.mediaFormat === 'slin16' ? 'pcm_16000' : 'ulaw_8000';
+  const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(e.voiceId)}/stream?output_format=${bicim}`;
+  const govde = { text: t, model_id: e.model, voice_settings: { stability: e.stability, similarity_boost: e.similarity, speed: e.speed } };
+  if (/v2_5/.test(e.model)) govde.language_code = 'tr';
+  const kare = cfg.audio.bytesPerFrame;
+  const parcalar = [];
+  let artik = Buffer.alloc(0), geldi = false;
+  try {
+    const res = await axios.post(url, govde, {
+      timeout: 15000, responseType: 'stream',
+      headers: { 'xi-api-key': e.apiKey, 'Content-Type': 'application/json' },
+    });
+    await new Promise((coz, red) => {
+      res.data.on('data', (c) => {
+        geldi = true;
+        parcalar.push(c);
+        artik = artik.length ? Buffer.concat([artik, c]) : c;
+        const tam = artik.length - (artik.length % kare);
+        if (tam > 0) { onParca(artik.slice(0, tam)); artik = artik.slice(tam); }
+      });
+      res.data.on('end', coz);
+      res.data.on('error', red);
+    });
+    if (artik.length) onParca(artik);
+    const tum = Buffer.concat(parcalar);
+    if (tum.length) {
+      if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
+      cache.set(t, tum);
+    }
+  } catch (err) {
+    let m = err.message;
+    try { if (err.response && err.response.data && err.response.data.read) m = String(err.response.data.read() || m).slice(0, 200); } catch (_) {}
+    if (geldi) { log.error('ElevenLabs akis yarida kesildi:', m); return; }
+    log.error('ElevenLabs akis hatasi -> Google ile okunuyor:', m);
+    const ds = cfg.tts.saglayici; cfg.tts.saglayici = 'google';
+    try { const b = await seslendir(metin); if (b && b.length) onParca(b); } finally { cfg.tts.saglayici = ds; }
+  }
+}
+
+module.exports = { seslendir, seslendirAkis, akisli };

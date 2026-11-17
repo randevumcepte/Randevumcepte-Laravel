@@ -395,20 +395,34 @@ class CagriOturumu {
     try {
       for (const c of cumleler) {
         if (this.kapali || (this._kesmeNo || 0) !== kesme) break;
+        let ilkSes = false;
+        if (tts.akisli()) {
+          // ElevenLabs: ses geldikce cal (kesildiyse gelen parcalar calinmaz)
+          await tts.seslendirAkis(c, (parca) => {
+            if (this.kapali || (this._kesmeNo || 0) !== kesme) return;
+            this.rtp.oynat(parca);
+            if (!ilkSes) { ilkSes = true; this._gecikmeOlcumu(c); }
+          });
+          if (this.kapali || (this._kesmeNo || 0) !== kesme) break;
+          continue;
+        }
         const ses = await tts.seslendir(c);
         if (this.kapali || (this._kesmeNo || 0) !== kesme) break; // TTS beklerken kesildiyse calma
         if (ses && ses.length) this.rtp.oynat(ses);
-        if (this._olcum) {
-          // GECIKME DOKUMU: musterinin sesi kesildi -> asistanin ilk sesi (bitis bekleme + beyin + seslendirme)
-          const o = this._olcum; this._olcum = null;
-          const simdi = Date.now(), sesSon = Math.min(this._vadSon || this._turBas, this._turBas);
-          log.info(`  (GECIKME musteri sustu -> asistan sesi ${simdi - sesSon} ms = bitis ${this._turBas - sesSon}`
-            + ` + beyin ${o.beyinHazir - this._turBas} + ses ${simdi - o.beyinHazir} [${c.length} harf])`);
-        }
+        this._gecikmeOlcumu(c);
       }
     } finally {
       this._seslendiriyor = false;
     }
+  }
+
+  // GECIKME DOKUMU: musterinin sesi kesildi -> asistanin ilk sesi (bitis bekleme + beyin + seslendirme)
+  _gecikmeOlcumu(c) {
+    if (!this._olcum) return;
+    const o = this._olcum; this._olcum = null;
+    const simdi = Date.now(), sesSon = Math.min(this._vadSon || this._turBas, this._turBas);
+    log.info(`  (GECIKME musteri sustu -> asistan sesi ${simdi - sesSon} ms = bitis ${this._turBas - sesSon}`
+      + ` + beyin ${o.beyinHazir - this._turBas} + ses ${simdi - o.beyinHazir} [${c.length} harf])`);
   }
 
   _cumlelereBol(metin) {
