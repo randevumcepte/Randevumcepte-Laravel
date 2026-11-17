@@ -92,6 +92,7 @@ async function main() {
 
   await client.start(cfg.ari.app);
   log.info('AI Santral kopru hazir. Cagri bekleniyor.');
+  await sahipsizSesKanallariniKapat(true);
 
   // BAGLANTIYI SICAK TUT + koptuysa yeniden baglan: idle'da WS bayatlayip ILK CAGRIYI
   // dusurmesini onler ("ilk arama kapaniyor, ikinci aciliyor" sorunu). 25sn'de bir saglik kontrolu.
@@ -141,6 +142,35 @@ function ariHandlerKur(c) {
   c.on('WebSocketMaxRetries', () => { log.warn('ARI WS yeniden deneme bitti, yeniden baglaniliyor'); ariSaglikKontrol(); });
 }
 
+// SAHIPSIZ SES BACAGI SUPURME: bu koprunun RTP port araligina giden UnicastRTP kanallarindan aktif bir
+// cagriya ait olmayanlari kapatir (eski surumden kalan / beklenmedik kopmada asili kalan bacaklar).
+// Baslangicta hepsi sahipsizdir; calisirken yalniz 60 sn'den eski olanlar (kurulmakta olan cagriya dokunmaz).
+async function sahipsizSesKanallariniKapat(baslangic) {
+  try {
+    const sahipli = new Set();
+    for (const k of aktif.values()) if (k.extChan) sahipli.add(k.extChan.id);
+    const ust = cfg.rtp.portBase + cfg.rtp.portCount * 2;
+    const kanallar = await client.channels.list();
+    let n = 0;
+    for (const ch of kanallar) {
+      const m = /^UnicastRTP\/([^:]+):(\d+)-/.exec(ch.name || '');
+      if (!m || m[1] !== cfg.rtp.host) continue;
+      const port = parseInt(m[2], 10);
+      if (port < cfg.rtp.portBase || port >= ust) continue;
+      if (sahipli.has(ch.id)) continue;
+      if (!baslangic) {
+        const yas = Date.now() - Date.parse(ch.creationtime || '');
+        if (!(yas > 60000)) continue;
+      }
+      try { await client.Channel(ch.id).hangup(); n++; } catch (_) {}
+      extMediaKanallari.delete(ch.id);
+    }
+    if (n) log.warn(`sahipsiz ses bacagi kapatildi: ${n} UnicastRTP kanali`);
+  } catch (e) {
+    log.debug('sahipsiz kanal supurme hatasi: ' + (e && e.message));
+  }
+}
+
 let _ariYenileniyor = false;
 async function ariSaglikKontrol() {
   try {
@@ -149,6 +179,7 @@ async function ariSaglikKontrol() {
     // ve Stasis app kayitsiz kalir ("Stasis app ... not registered" -> cagrilar eski IVR'a duser).
     // App kayitli degilse applications.get 404 atar -> asagida yeniden baglanilir.
     await client.applications.get({ applicationName: cfg.ari.app });
+    await sahipsizSesKanallariniKapat(false);
   } catch (e) {
     if (_ariYenileniyor) return;
     _ariYenileniyor = true;
@@ -225,6 +256,7 @@ async function cagriBasla(channel, event, opts = {}) {
   log.info(`${opts.hatirlatma ? 'HATIRLATMA ARAMASI (' + opts.hatirlatma + ')' : opts.geriAramaId ? 'GERI ARAMA (musteriye)' : 'Yeni cagri'}: kanal=${channel.id} tel=${telefon || '-'} sube=${subeId} rtpPort=${port}`);
 
   let adim = 'answer';
+  let yarimBridge = null, yarimExt = null; // kurulum yarida kalirsa temizlenecekler
   try {
     if (aktif.has(channel.id)) { log.warn('cift StasisStart, atlandi: ' + channel.id); portBirak(port); return; }
     await channel.answer();
@@ -232,6 +264,7 @@ async function cagriBasla(channel, event, opts = {}) {
     adim = 'bridge.create';
     const bridge = client.Bridge();
     await bridge.create({ type: 'mixing' });
+    yarimBridge = bridge;
 
     // ONEMLI: Arayani HEMEN ekle (o kesin Stasis'te). externalMedia (UnicastRTP) bacagi
     // Stasis'e ASENKRON girer; hemen addChannel yaparsak "Channel not in Stasis application"
@@ -247,6 +280,7 @@ async function cagriBasla(channel, event, opts = {}) {
       format: cfg.mediaFormat === 'slin16' ? 'slin16' : 'ulaw',
     });
     extMediaKanallari.add(extChan.id);
+    yarimExt = extChan;
 
     adim = 'addChannel(externalMedia)';
     await bridgeKanalEkleRetry(bridge, extChan.id);
@@ -268,6 +302,7 @@ async function cagriBasla(channel, event, opts = {}) {
       rec: null,
     };
     aktif.set(channel.id, kayit);
+    yarimBridge = null; yarimExt = null; // artik temizle() sorumlu
     // SES KAYDI (AI fazi): bridge'i kaydet (musteri + AI sesi). Hata olsa cagri bozulmaz.
     await sesKayitBasla(kayit, channel.id, 'ai');
     await oturum.basla();
@@ -275,6 +310,8 @@ async function cagriBasla(channel, event, opts = {}) {
     if (opts.geriAramaId) { geriBasarili.add(opts.geriAramaId); brain.geriAramaDurum(opts.geriAramaId, 'basarili'); }
   } catch (e) {
     log.error(`cagriBasla hatasi [adim=${adim}]:`, e.message);
+    if (yarimExt) { try { await yarimExt.hangup(); } catch (_) {} extMediaKanallari.delete(yarimExt.id); }
+    if (yarimBridge) { try { await yarimBridge.destroy(); } catch (_) {} }
     portBirak(port);
     try { await channel.hangup(); } catch (_) {}
   }
@@ -316,6 +353,7 @@ async function insanaAktar(kanalId, subeId) {
   // AI ses bacagini + oturumu kapat AMA bridge + arayani KORU (insan devralacak)
   kayit.aktarmaModu = true;
   try { if (kayit.extChan) await kayit.extChan.hangup(); } catch (_) {}
+  if (kayit.extChan) { extMediaKanallari.delete(kayit.extChan.id); kayit.extChan = null; }
   try { if (kayit.oturum) await kayit.oturum.kapat('aktar'); } catch (_) {}
   portBirak(kayit.port); kayit.port = null;
 
@@ -447,6 +485,12 @@ async function temizle(kanalId, sonuc) {
     for (const cid of kayit.hedefAdaylar) { try { await client.Channel(cid).hangup(); } catch (_) {} }
   }
   try { if (kayit.oturum) await kayit.oturum.kapat(sonuc); } catch (_) {}
+  // AI ses bacagi (externalMedia/UnicastRTP) da KAPATILMALI: eskiden yalniz bridge yok ediliyordu, bacak
+  // Asterisk'te asili kaliyordu (2026-11-17 sunucuda 22 sahipsiz UnicastRTP kanali birikmisti).
+  if (kayit.extChan) {
+    try { await kayit.extChan.hangup(); } catch (_) {}
+    extMediaKanallari.delete(kayit.extChan.id);
+  }
   try { if (kayit.bridge) await kayit.bridge.destroy(); } catch (_) {}
   portBirak(kayit.port);
 }
