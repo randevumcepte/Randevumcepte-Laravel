@@ -266,6 +266,7 @@ class CagriOturumu {
     const p = brain.konus(this.oturumId, metin, { tur, paralel_onceki: this._aktifTur.tur })
       .then((d) => ({ d }), (e) => ({ e }));
     this._spek = { tur, metin, p, t0: Date.now() };
+    this._turBas = this._spek.t0;
     log.info(`  (paralel tur: eski cevap beklenmeden soruluyor)`);
     return true;
   }
@@ -279,6 +280,7 @@ class CagriOturumu {
     this._aktifTur = { tur, metin };
     const dolguZ = (cfg.dolguMs > 0 && DOLGULU.test(metin || '') && !DOLGUSUZ.test(metin || '')) ? setTimeout(() => this._dolguCal(), cfg.dolguMs) : null;
     const t0 = Date.now();
+    this._turBas = t0;
     try {
       this._beyinBekliyor = true;
       let d = await brain.konus(this.oturumId, metin, ek);
@@ -323,7 +325,9 @@ class CagriOturumu {
       // KAPANIS ise: kapanis cumlesi barge-in ile KESILMESIN + yeni tur baslamasin (askida kalmasin)
       const kapanis = (d.aksiyon === 'veda' || d.bitir);
       if (kapanis) this._kapaniyor = true;
+      this._olcum = { beyinHazir: Date.now() };
       if (d.cevap) await this._seslendir(d.cevap);
+      this._olcum = null;
 
       if (d.aksiyon === 'aktar') { this.onAktar(this.kanalId); return; }
       if (kapanis) { await this._kapatSirasi(); return; }
@@ -353,6 +357,13 @@ class CagriOturumu {
         const ses = await tts.seslendir(c);
         if (this.kapali || (this._kesmeNo || 0) !== kesme) break; // TTS beklerken kesildiyse calma
         if (ses && ses.length) this.rtp.oynat(ses);
+        if (this._olcum) {
+          // GECIKME DOKUMU: musterinin sesi kesildi -> asistanin ilk sesi (bitis bekleme + beyin + seslendirme)
+          const o = this._olcum; this._olcum = null;
+          const simdi = Date.now(), sesSon = Math.min(this._vadSon || this._turBas, this._turBas);
+          log.info(`  (GECIKME musteri sustu -> asistan sesi ${simdi - sesSon} ms = bitis ${this._turBas - sesSon}`
+            + ` + beyin ${o.beyinHazir - this._turBas} + ses ${simdi - o.beyinHazir} [${c.length} harf])`);
+        }
       }
     } finally {
       this._seslendiriyor = false;
