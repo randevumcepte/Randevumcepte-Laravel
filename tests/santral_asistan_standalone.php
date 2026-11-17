@@ -320,9 +320,25 @@ namespace {
         ['hizmet_id' => 9, 'ad' => 'Lazer Epilasyon', 'kalan_seans' => 4, 'toplam_seans' => 10, 'kullanilan_seans' => 6, 'personeller' => []],
         ['hizmet_id' => 10, 'ad' => 'Cilt Bakımı', 'kalan_seans' => null, 'toplam_seans' => null, 'kullanilan_seans' => null, 'personeller' => []]]]]]);
     icerir('paket: toplam/kullanılan bağlamda', 'toplam 10 seans, kullanılan 6, 4 seans kaldı', cagir($pt, 'paketSatirlari'));
-    esit('paketBilgisi: sayılı paket', ['paket_adi' => 'Lazer', 'hizmet' => 'Lazer Epilasyon', 'sinirsiz' => false, 'toplam_seans' => 10, 'kullanilan_seans' => 6, 'kalan_seans' => 4], cagir($pt, 'paketBilgisi', 9));
-    esit('paketBilgisi: sınırsız pakette sayı yok', ['paket_adi' => 'Lazer', 'hizmet' => 'Cilt Bakımı', 'sinirsiz' => true], cagir($pt, 'paketBilgisi', 10));
-    esit('paketBilgisi: pakette olmayan hizmet → null', null, cagir($pt, 'paketBilgisi', 99));
+    esit('paketlerHizmet: sayılı paket', [['adisyon_paket_id' => 1, 'paket_adi' => 'Lazer', 'hizmet' => 'Lazer Epilasyon', 'hizmet_id' => 9, 'sinirsiz' => false, 'toplam_seans' => 10, 'kullanilan_seans' => 6, 'kalan_seans' => 4]], cagir($pt, 'paketlerHizmet', 9));
+    esit('paketlerHizmet: sınırsız pakette sayı yok', [['adisyon_paket_id' => 1, 'paket_adi' => 'Lazer', 'hizmet' => 'Cilt Bakımı', 'hizmet_id' => 10, 'sinirsiz' => true]], cagir($pt, 'paketlerHizmet', 10));
+    esit('paketlerHizmet: pakette olmayan hizmet → boş', [], cagir($pt, 'paketlerHizmet', 99));
+    icerir('bağlamda adisyon_paket_id', 'Paket: Lazer (adisyon_paket_id 1)', cagir($pt, 'paketSatirlari'));
+
+    bolum('Paket tespiti (müşteri paketten bahsetmese de)');
+    $pc = asistan(['_paketler' => [
+        ['adisyon_paket_id' => 11, 'paket_adi' => 'Lazer 10', 'hizmetler' => [['hizmet_id' => 9, 'ad' => 'Lazer Epilasyon', 'kalan_seans' => 4, 'toplam_seans' => 10, 'kullanilan_seans' => 6, 'personeller' => []]]],
+        ['adisyon_paket_id' => 12, 'paket_adi' => 'Yaz Kampanyası', 'hizmetler' => [['hizmet_id' => 9, 'ad' => 'Lazer Epilasyon', 'kalan_seans' => 2, 'toplam_seans' => 5, 'kullanilan_seans' => 3, 'personeller' => []]]],
+        ['adisyon_paket_id' => 13, 'paket_adi' => 'Cilt', 'hizmetler' => [['hizmet_id' => 10, 'ad' => 'Cilt Bakımı', 'kalan_seans' => 3, 'toplam_seans' => 3, 'kullanilan_seans' => 0, 'personeller' => []]]]]]);
+    $n = cagir($pc, 'paketNotu', 'Yarın lazer epilasyon randevusu almak istiyorum', []);
+    icerir('çoklu paket: iki paket sayılır', "'Lazer 10' (adisyon_paket_id 11, toplam 10, kullanılan 6, kalan 4 seans); 'Yaz Kampanyası' (adisyon_paket_id 12", $n);
+    icerir('çoklu paket: hangi paket sorusu', 'Hangi paketinizden randevu oluşturalım?', $n);
+    $n1 = cagir($pc, 'paketNotu', 'cilt bakımı için randevu', []);
+    icerir('tek paket: oluşturalım mı sorusu', 'Randevuyu bu paketinizden oluşturmak ister misiniz?', $n1);
+    icermez('tek pakette diğer paketler yok', 'Lazer 10', $n1);
+    esit('paketsiz hizmet → not yok', '', cagir($pc, 'paketNotu', 'saç kesimi istiyorum', []));
+    esit('daha önce sorulduysa tekrar yok', '', cagir($pc, 'paketNotu', 'cilt bakımı evet', [['role' => 'assistant', 'content' => 'Cilt paketinizde 3 seans kalmış, bu paketten oluşturalım mı?']]));
+    esit('paketi olmayan müşteri → not yok', '', cagir(asistan(['_paketler' => []]), 'paketNotu', 'lazer epilasyon', []));
     esit('"Paketimde ne kadar seans kaldı" fiyat sorusu DEĞİL', false, cagir($pt, 'fiyatSorusuMu', 'Paketimde ne kadar seans kaldı?'));
     esit('"Ne kadar hakkım kaldı" fiyat sorusu DEĞİL', false, cagir($pt, 'fiyatSorusuMu', 'Ne kadar hakkım kaldı'));
     esit('"Seans ücreti ne kadar" hâlâ fiyat sorusu', true, cagir($pt, 'fiyatSorusuMu', 'Seans ücreti ne kadar'));
