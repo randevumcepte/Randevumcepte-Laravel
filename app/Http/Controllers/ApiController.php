@@ -32862,6 +32862,10 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 if ($request->has('kotu_puan_uyari_esik_csat') && Schema::hasColumn('salonlar', 'kotu_puan_uyari_esik_csat')) {
                     $salon->kotu_puan_uyari_esik_csat = max(1, min(5, (float) $request->input('kotu_puan_uyari_esik_csat')));
                 }
+                // Anket daveti ilk kanali (isletmeye ozel): whatsapp | sms
+                if ($request->has('anket_gonderim_kanali') && Schema::hasColumn('salonlar', 'anket_gonderim_kanali')) {
+                    $salon->anket_gonderim_kanali = $request->input('anket_gonderim_kanali') === 'sms' ? 'sms' : 'whatsapp';
+                }
                 // Google yorumu odulu (tiklayana kupon/puan)
                 if ($request->has('google_odul_tipi') && Schema::hasColumn('salonlar', 'google_odul_tipi')) {
                     $gTip = in_array($request->input('google_odul_tipi'), ['kupon','puan']) ? $request->input('google_odul_tipi') : 'yok';
@@ -32893,6 +32897,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
 
         return response()->json([
             'google_url' => $salon->google_review_url ?? '',
+            'anket_gonderim_kanali' => ($salon->anket_gonderim_kanali ?? 'whatsapp') === 'sms' ? 'sms' : 'whatsapp',
             'google_review_esik_nps' => $salon->google_review_esik_nps ?? 9,
             'google_review_esik_csat' => $salon->google_review_esik_csat ?? 4.5,
             'kotu_puan_uyari_esik_nps' => $salon->kotu_puan_uyari_esik_nps ?? 6,

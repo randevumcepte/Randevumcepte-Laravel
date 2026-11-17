@@ -39832,14 +39832,24 @@ DB::raw('
                 ."Değerli geri bildiriminiz için şimdiden teşekkür eder, sizi yeniden ağırlamaktan mutluluk duyarız.";
         }
 
-        // 1) WhatsApp-first — salon WA aktif+connected ise once WA dene
-        // Paylasilan oturum: 416 icin 246'nin durumu kontrol edilir.
+        // Kanal sirasi isletmeye ozel: salonlar.anket_gonderim_kanali
+        //   'whatsapp' (varsayilan) = WA-first, SMS yedek | 'sms' = SMS-first, WA yedek.
+        // Paylasilan oturum: 416 icin 246'nin WA durumu kontrol edilir.
+        $smsOnce = ($salon->anket_gonderim_kanali ?? 'whatsapp') === 'sms';
         $waSalonKontrol = $salon ? \App\Services\WhatsAppService::resolveWaSalon($salon) : null;
         $waKanaliAcik = $waSalonKontrol
             && !empty($waSalonKontrol->whatsapp_aktif)
             && ($waSalonKontrol->whatsapp_durum ?? null) === 'connected';
 
-        if ($waKanaliAcik) {
+        $kanalYaz = function ($kanal) use ($gonderim) {
+            try {
+                $gonderim->gonderim_kanali = $kanal;
+                $gonderim->save();
+            } catch (\Throwable $e) { /* yoksay */ }
+        };
+
+        // WA dene: kuyruga girdiyse true
+        $waDene = function () use ($salon, $gonderim, $musteri, $mesaj, $kanalYaz) {
             try {
                 $wa = app(\App\Services\WhatsAppService::class);
                 $sonuc = $wa->sendReminder(
@@ -39853,11 +39863,7 @@ DB::raw('
                     'anket'
                 );
                 if (!empty($sonuc['ok'])) {
-                    // WA kuyruğa girdi/iletildi — kanal alanını güncelle
-                    try {
-                        $gonderim->gonderim_kanali = 'whatsapp';
-                        $gonderim->save();
-                    } catch (\Throwable $e) { /* yoksay */ }
+                    $kanalYaz('whatsapp');
                     \Log::info('[ANKET-WA] gonderildi', [
                         'salon_id' => $salon->id,
                         'gonderim_id' => $gonderim->id,
@@ -39865,30 +39871,46 @@ DB::raw('
                         'provider' => $sonuc['provider'] ?? null,
                         'logId' => $sonuc['logId'] ?? null,
                     ]);
-                    return;
+                    return true;
                 }
-                \Log::warning('[ANKET-WA] basarisiz → SMS fallback', [
+                \Log::warning('[ANKET-WA] basarisiz', [
                     'salon_id' => $salon->id,
                     'gonderim_id' => $gonderim->id,
                     'err' => $sonuc['error'] ?? 'unknown',
                 ]);
             } catch (\Throwable $e) {
-                \Log::warning('[ANKET-WA] istisna → SMS fallback: '.$e->getMessage(), [
+                \Log::warning('[ANKET-WA] istisna: '.$e->getMessage(), [
                     'salon_id' => $salon->id ?? null,
                     'gonderim_id' => $gonderim->id ?? null,
                 ]);
             }
+            return false;
+        };
+
+        // SMS gonder: istisna olmadiysa true (saglayici hatasi sms_gonder icinde loglanir)
+        $smsGonder = function () use ($gonderim, $mesaj) {
+            $mesajlar = [['to'=>$gonderim->telefon, 'message'=>$mesaj]];
+            try {
+                // Base Controller::sms_gonder($salon_id, $mesajlar) — request gerektirmez, cron'dan da çağrılabilir
+                $ctrl = app()->make(\App\Http\Controllers\Controller::class);
+                $ctrl->sms_gonder($gonderim->salon_id, $mesajlar);
+                return true; // kanal alani olusturuldugu gibi kalir (sms/manuel)
+            } catch (\Throwable $e) {
+                \Log::error('anketSmsGonder hata: '.$e->getMessage());
+                return false;
+            }
+        };
+
+        if ($smsOnce) {
+            // SMS-first; SMS istisna verirse ve WA bagliysa WA yedek
+            if ($smsGonder()) return;
+            if ($waKanaliAcik) $waDene();
+            return;
         }
 
-        // 2) SMS fallback (WA kapali veya basarisiz)
-        $mesajlar = [['to'=>$gonderim->telefon, 'message'=>$mesaj]];
-        try {
-            // Base Controller::sms_gonder($salon_id, $mesajlar) — request gerektirmez, cron'dan da çağrılabilir
-            $ctrl = app()->make(\App\Http\Controllers\Controller::class);
-            $ctrl->sms_gonder($gonderim->salon_id, $mesajlar);
-        } catch(\Exception $e){
-            \Log::error('anketSmsGonder hata: '.$e->getMessage());
-        }
+        // WA-first; WA kapali veya basarisizsa SMS yedek
+        if ($waKanaliAcik && $waDene()) return;
+        $smsGonder();
     }
 
     /**
