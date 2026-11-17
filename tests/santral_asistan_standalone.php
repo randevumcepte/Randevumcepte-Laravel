@@ -521,6 +521,11 @@ namespace {
     esit('uzman: erkek → Bey', 'Ferdi Bey', cagir($hp, 'personelHitap', 22));
     esit('uzman: zaten Hanım → değişmez', 'Elif Hanım', cagir($hp, 'personelHitap', 23));
     esit('uzman: cinsiyet bilinmiyor → yalnız ad', 'Zxq', cagir($hp, 'personelHitap', 24));
+    // kayit #120: guncellemede uzman degisebilir; onay cumlesi koddan (yeni uzman adiyla)
+    esit('güncelleme onayı (yeni uzman)', "Perşembe, 19 Kasım saat 14:00'te uzmanımız Gülşen Hanım ile randevunuzu güncelledim ve size bilgilendirme mesajı gönderdim.",
+        cagir($hp, 'guncelleOnayCumlesi', ['tarih' => '2026-11-19', 'saat' => '14:00', 'personel' => 'Gülşen Hanım', 'bilgilendirme_gonderildi' => true]));
+    esit('güncelleme onayı (mesaj yok)', "Perşembe, 19 Kasım saat 14:00'te uzmanımız Ferdi Bey ile randevunuzu güncelledim.",
+        cagir($hp, 'guncelleOnayCumlesi', ['tarih' => '2026-11-19', 'saat' => '14:00', 'personel' => 'Ferdi Bey', 'bilgilendirme_gonderildi' => false]));
     icerir('onay cümlesi: uzmanımız X Hanım ile', 'uzmanımız Gülşah Hanım ile paketinizden randevu talebiniz', cagir($hp, 'randevuOnayCumlesi', ['tarih' => '2026-11-20', 'saat' => '10:00', 'personel' => 'Gülşah Hanım', 'paket_seansi' => true]));
     $hk = asistan(['_paketler' => [['adisyon_paket_id' => 77, 'paket_adi' => '5 Seans Lazer', 'hizmetler' => [['hizmet_id' => 5, 'ad' => 'Lazer Epilasyon', 'kalan_seans' => 3, 'personeller' => []]]]]]);
     $g72 = [['role' => 'assistant', 'content' => 'Anıl Bey, 5 seans lazer paketiniz var. 3 seansınız kalmış görünüyor. Randevuyu bu paketinizden oluşturmak ister misiniz?']];

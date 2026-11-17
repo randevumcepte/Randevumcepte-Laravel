@@ -344,6 +344,7 @@ class RandevuAsistan
         $randevuHatasi = null;   // bu turda randevu_olustur/guncelle ok=false dondu (sebep)
         $randevuDenendi = false; // bu turda randevu_olustur cagrildi mi
         $randevuSonuc = null;    // bu turda randevu_olustur ok=true sonucu (onay cumlesi koddan kurulur)
+        $guncelleSonuc = null;   // bu turda randevu_guncelle ok=true sonucu (onay cumlesi koddan kurulur)
         $doluSonuc = null;       // bu turda musait_saatler "istenen saat dolu + oneriler" dondu (cumle koddan garanti)
         $baglam = [];            // bu turun arac sonuc ozeti -> gecmise gizli not (sonraki tur id'leri bilsin)
         if ($onNot !== '' && $this->_onBaglam !== '') $baglam[] = $this->_onBaglam;
@@ -401,6 +402,7 @@ class RandevuAsistan
                 if (($tu['name'] ?? '') === 'randevu_olustur') $randevuDenendi = true;
                 if (($tu['name'] ?? '') === 'musait_saatler') $doluSonuc = !empty($sonuc['onerilen_cumle']) ? $sonuc : null;
                 if (($tu['name'] ?? '') === 'randevu_olustur' && !empty($sonuc['ok'])) $randevuSonuc = $sonuc;
+                if (($tu['name'] ?? '') === 'randevu_guncelle' && !empty($sonuc['ok'])) $guncelleSonuc = $sonuc;
                 if (in_array($tu['name'] ?? '', ['randevu_olustur', 'randevu_guncelle'], true) && empty($sonuc['ok'])) {
                     $randevuHatasi = (string) ($sonuc['hata'] ?? 'bilinmeyen hata');
                 }
@@ -491,6 +493,7 @@ class RandevuAsistan
         } elseif ($aksiyon === 'randevu') {
             $cevap = $this->talepIfadesi($cevap);
         }
+        if ($aksiyon === 'guncelle' && $guncelleSonuc) $cevap = $this->guncelleOnayCumlesi($guncelleSonuc);
         if ($isTamamlandi && !$bitir && $aksiyon !== 'aktar') $cevap = $this->baskaYardimEkle($cevap);
         return [
             'cevap' => $this->ttsTemizle($cevap),
@@ -589,6 +592,15 @@ class RandevuAsistan
         }
         $c = $this->randevuOnayCumlesi($d);
         return [$c, 'randevu', (int) ($d['randevu_id'] ?? 0) ?: null, $this->baglamNotu('randevu_olustur', $in, $d)];
+    }
+
+    /** randevu_guncelle ok=true sonucundan onay cumlesi: "Perşembe, 19 Kasım saat 14:00'te uzmanımız Gülşen Hanım ile randevunuzu güncelledim..." */
+    protected function guncelleOnayCumlesi(array $d): string
+    {
+        $gun = $this->tarihSoz((string) ($d['tarih'] ?? ''));
+        $saat = substr((string) ($d['saat'] ?? ''), 0, 5);
+        return trim("{$gun} saat " . $this->saatEkli($saat) . (!empty($d['personel']) ? " uzmanımız {$d['personel']} ile" : ''))
+            . ' randevunuzu güncelledim' . (!empty($d['bilgilendirme_gonderildi']) ? ' ve size bilgilendirme mesajı gönderdim.' : '.');
     }
 
     /** randevu_olustur ok=true sonucundan deterministik onay cumlesi. */
@@ -1290,10 +1302,11 @@ class RandevuAsistan
             ],
             [
                 'name' => 'randevu_guncelle',
-                'description' => 'Randevu tarih/saatini değiştirir (personel ve hizmet aynı kalır). Önce mevcut_randevular ile randevuyu bul, sonra musait_saatler’i o randevunun hizmet_id ve personel_id’si ile çağırıp yeni saati müşteriye onaylat.',
+                'description' => 'Randevu tarih/saatini (ve istenirse uzmanını) değiştirir; hizmet aynı kalır. Önce mevcut_randevular ile randevuyu bul, sonra musait_saatler’i o randevunun hizmet_id’si ile çağırıp yeni saati müşteriye onaylat. Müşteri BAŞKA UZMAN istediyse ve musait_saatler o uzman için uygun dediyse yeni_personel_id MUTLAKA ver (yoksa eski uzmanın takvimine bakılır, "dolu" çıkar).',
                 'input_schema' => ['type' => 'object', 'properties' => [
                     'randevu_id' => ['type' => 'integer'],
                     'yeni_tarih_saat' => ['type' => 'string', 'description' => 'ISO 8601'],
+                    'yeni_personel_id' => ['type' => 'integer', 'description' => 'Uzman değişiyorsa musait_saatler’in döndürdüğü personel_id. Aynı uzmansa verme.'],
                 ], 'required' => ['randevu_id', 'yeni_tarih_saat']],
             ],
             [
@@ -1480,7 +1493,7 @@ HİZMET LİSTESİ SORULURSA ("hangi hizmetleriniz var"): listenin tamamını OKU
 
 BEKLETME YOK: "Bir moment", "bir saniye", "biraz bekleteceğim", "kontrol ediyorum", "bakıyorum" gibi bekletme cümleleri ASLA kurma. Bilgi gerekiyorsa aracı HEMEN çağır ve sonucu doğrudan söyle (ör. "Pazartesi 16 Kasım saat 14:00'te Saç Kesimi randevunuz var, bunu iptal edeyim mi?").
 
-İPTAL/GÜNCELLEME: Talep (onay bekleyen) randevular da onaylılar gibi iptal edilebilir ve güncellenebilir. Randevular BAĞLAM'daki MÜŞTERİNİN MEVCUT RANDEVULARI listesinde: müşteri onaylayınca (evet/olur/onaylıyorum) HEMEN randevu_iptal çağır, başka soru sorma. Liste boşsa ya da emin değilsen "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat. İptalde "randevu_iptal". Güncellemede yeni gün/saat için "musait_saatler"i o randevunun hizmet_id ve personel_id'si ile çağır, onay al, sonra "randevu_guncelle". Yalnız mevcut_randevular'ın döndüğü id'leri kullan.
+İPTAL/GÜNCELLEME: Talep (onay bekleyen) randevular da onaylılar gibi iptal edilebilir ve güncellenebilir. Randevular BAĞLAM'daki MÜŞTERİNİN MEVCUT RANDEVULARI listesinde: müşteri onaylayınca (evet/olur/onaylıyorum) HEMEN randevu_iptal çağır, başka soru sorma. Liste boşsa ya da emin değilsen "mevcut_randevular" ile randevuyu bul, müşteriye hangisini kastettiğini onaylat. İptalde "randevu_iptal". Güncellemede yeni gün/saat için "musait_saatler"i o randevunun hizmet_id ve personel_id'si ile çağır, onay al, sonra "randevu_guncelle". Müşteri BAŞKA UZMAN isterse musait_saatler'i o uzmanın personel_id'si ile çağır ve randevu_guncelle'ye yeni_personel_id olarak ver; "dolu" dönerse aynı saati tekrar "uygun" diye SÖYLEME. Yalnız mevcut_randevular'ın döndüğü id'leri kullan.
 
 KAMPANYA KATILIMI: Karşılamada kampanya teklif edildiyse ya da müşteri bir kampanyaya katılmak isterse ("katılmak istiyorum", "evet katılırım", "o kampanyadan yararlanmak istiyorum") → onay sorma, HEMEN "kampanya_katil" çağır. ok=true ise "Kampanyaya katılımınızı aldım, indirim kodunuzu mesaj olarak ilettim." de; randevu_gerekli=true ise randevu oluşturmak isteyip istemediğini sor, değilse "Başka yardımcı olabileceğim bir konu var mı?". Müşteri "hayır/istemiyorum" derse ısrar etme, normal akışa geç. Birden fazla kampanya varsa hangisi olduğunu sor.
 
@@ -2174,7 +2187,8 @@ PROMPT;
             'gun' => $this->tarihSoz(substr((string) $r->tarih, 0, 10)),
             'saat' => substr((string) $r->saat, 0, 5),
             'hizmet' => $rh->map(function ($x) { return optional($x->hizmetler)->hizmet_adi; })->filter()->implode(', '),
-            'personel' => $ilk ? optional($ilk->personeller)->personel_adi : null,
+            // "Ferdi Bey" / "Gülşah Hanım" (kayit #120: liste "Ferdi ile", "Anıl ORBEY ile" okuyordu)
+            'personel' => $ilk && $ilk->personel_id ? ($this->personelHitap((int) $ilk->personel_id) ?: optional($ilk->personeller)->personel_adi) : null,
             'hizmet_id' => $ilk ? (int) $ilk->hizmet_id : null,
             'personel_id' => $ilk && $ilk->personel_id ? (int) $ilk->personel_id : null,
         ];
@@ -2320,15 +2334,25 @@ PROMPT;
             // Personelsiz eski kayit: eski yol (salon geneli)
             return $this->ctrlCagir('randevuGuncelle', ['salon_id' => $this->salonId, 'randevu_id' => $rid, 'yeni_tarih_saat' => "{$tarih}T{$saat}:00"]);
         }
-        if (!$this->slotHalaBos((int) $ilk->personel_id, (int) $ilk->hizmet_id, $tarih, $saat)) {
-            return ['ok' => false, 'hata' => 'Bu saat bu personel için dolu. musait_saatler ile (randevunun hizmet_id ve personel_id’si) yeni saat bulup öner.'];
+        // UZMAN DEGISIMI (kayit #120): musteri "Gülşen Hanım uygunsa ona alalım" dedi; musait_saatler Gülşen icin
+        // "uygun" dedi ama guncelleme ESKI uzmanin (Ferdi) takvimine bakip "dolu" diyordu -> 3 tur dongu. Yeni uzman
+        // verilirse kontrol ve kayit onunla yapilir (eski uzmanin satirlari yeni uzmana tasinir).
+        $eskiPid = (int) $ilk->personel_id;
+        $yeniPid = $this->intId($in['yeni_personel_id'] ?? null) ?: 0;
+        if ($yeniPid && $yeniPid !== $eskiPid && !isset($this->personelListesi()[$yeniPid])) {
+            return ['ok' => false, 'hata' => 'yeni_personel_id bu işletmenin uzmanı değil. musait_saatler’in döndürdüğü personel_id’yi ver.'];
+        }
+        $pid = ($yeniPid && $yeniPid !== $eskiPid) ? $yeniPid : $eskiPid;
+        if (!$this->slotHalaBos($pid, (int) $ilk->hizmet_id, $tarih, $saat)) {
+            return ['ok' => false, 'hata' => 'Bu saat ' . ($this->personelHitap($pid) ?: 'bu personel') . ' için dolu. musait_saatler ile yeni saat bulup öner'
+                . ($pid === $eskiPid ? ' (müşteri başka uzman istediyse randevu_guncelle’ye yeni_personel_id ver).' : '.')];
         }
         try {
             $r = $this->randevuEkleGuncelleCagir([
                 'salonid' => $this->salonId, 'randevu_id' => $rid, 'user_id' => $this->musteriId,
                 'randevu_tarihi' => $tarih, 'randevu_saati' => $saat,
-                'hizmetler' => $satirlar->map(function ($x) {
-                    return ['hizmet_id' => $x->hizmet_id, 'personel_id' => $x->personel_id, 'oda_id' => $x->oda_id ?: '', 'cihaz_id' => $x->cihaz_id ?: '',
+                'hizmetler' => $satirlar->map(function ($x) use ($eskiPid, $pid) {
+                    return ['hizmet_id' => $x->hizmet_id, 'personel_id' => ((int) $x->personel_id === $eskiPid) ? $pid : $x->personel_id, 'oda_id' => $x->oda_id ?: '', 'cihaz_id' => $x->cihaz_id ?: '',
                         'yardimci_personel' => '', 'sure_dk' => $x->sure_dk ?: 30, 'fiyat' => $x->fiyat ?: 0, 'birlestir' => ''];
                 })->all(),
                 'yardimcipersoneller' => [],
@@ -2341,7 +2365,8 @@ PROMPT;
             return ['ok' => false, 'hata' => 'Randevu şu an güncellenemedi. Müşteriye özür dile, yetkiliye aktarmayı teklif et.'];
         }
         if ((string) ($r['cakismavar'] ?? '') === '1') return ['ok' => false, 'hata' => 'Bu saat çakışıyor. Yeni saat öner.'];
-        return ['ok' => true, 'randevu_id' => $rid, 'tarih' => $tarih, 'saat' => $saat, 'bilgilendirme_gonderildi' => $this->bilgilendirmeAcik()];
+        return ['ok' => true, 'randevu_id' => $rid, 'tarih' => $tarih, 'saat' => $saat, 'personel' => $this->personelHitap($pid),
+            'personel_degisti' => $pid !== $eskiPid, 'bilgilendirme_gonderildi' => $this->bilgilendirmeAcik()];
     }
 
     /** ApiController@yolTarifiGonder (eski santral ile ayni: WhatsApp once, olmazsa SMS) + adres. */
