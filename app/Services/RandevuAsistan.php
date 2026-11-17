@@ -841,6 +841,10 @@ class RandevuAsistan
             if ($sa === '') continue;
             if (strpos($ara, ' ' . $sa) !== false) return []; // hizmet adi dogru duyulmus (ek toleransli)
             $hk = explode(' ', $sa);
+            // Hizmet adinin ILK en az 2 kelimesi cumlede aynen geciyorsa ("lazer epilasyon" -> "Lazer Epilasyon Tüm Vücut")
+            // dogru duyulmustur, sadece hangi alt hizmet oldugu belirsiz: yanlis-duyma notu URETME (kayit #70'te model
+            // "Lazer epilasyon hizmetini mi kastettiniz?" diye bosuna teyit soruyordu). Secimi hizmet_eslestir yapar.
+            if (count($hk) >= 2 && strpos($ara, ' ' . $hk[0] . ' ' . $hk[1]) !== false) return [];
             $n = count($hk);
             if ($n === 1 && strlen($sa) < 5) continue;   // "kaş", "fön", "masaj" gibi kisa tek kelime -> yanlis pozitif riski
             $esik = $n === 1 ? 0.85 : 0.75;

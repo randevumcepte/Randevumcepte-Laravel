@@ -142,6 +142,14 @@ class SttOturumu {
     this._yenile(0);
   }
 
+  /** Kor nokta kurtarma: akisi yeniden ac ve tampondaki son konusmayi yeni akisa ver (gercek zamandan hizli yazilir). */
+  kurtar(parcalar) {
+    if (this.kapali) return;
+    this._yenile(0);
+    if (!this.stream || !Array.isArray(parcalar) || !parcalar.length) return;
+    for (const p of parcalar) { try { this.stream.write(p); } catch (_) { break; } }
+  }
+
   // Asterisk'ten gelen ham ses karesi (RTP payload'i, header'siz)
   yaz(buf) {
     if (this.kapali || !this.stream) { this._yazDus = (this._yazDus || 0) + 1; return; }

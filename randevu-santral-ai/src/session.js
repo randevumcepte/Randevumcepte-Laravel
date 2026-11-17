@@ -20,6 +20,20 @@ const DOLGULU = /(randevu|müsait|musait|uygun|boş|bos\b|saat|yarın|yarin|bug�
 // Bu cumlelerde bekleme cumlesi CALMA (vedalasma/tesekkur/ret: "Hemen bakıyorum. Hoşçakalın" sacmaligi, kayit #55)
 const DOLGUSUZ = /(teşekkür|tesekkur|sağ ?ol|sag ?ol|iyi günler|iyi akşamlar|iyi aksamlar|hoşça|hosca|görüşürüz|gorusuruz|gerek yok|başka (bir )?(şey|sey|konu)? ?yok|bu kadar|o kadar|kapat)/i;
 
+// u-law bayt -> mutlak genlik (16 bit olcek) tablosu: ses aktivitesi (VAD) icin
+const ULAW_ABS = (() => {
+  const t = new Int16Array(256);
+  for (let i = 0; i < 256; i++) {
+    const u = ~i & 0xFF, exp = (u >> 4) & 7, man = u & 0x0F;
+    t[i] = (((man << 3) + 0x84) << exp) - 0x84;
+  }
+  return t;
+})();
+const VAD_ESIK = 300;          // 20 ms kare ortalama genligi bunun ustu = konusma (kayit #70: sessizlik 15-50, "Fark etmez" 500-4900)
+const VAD_MIN_KARE = 6;        // araliksiz olmasa da (400 ms'den kisa bosluklarla) en az 6 konusma karesi = ~120 ms
+const KOR_NOKTA_MS = 1500;     // konusma bitti + bu kadar surede STT'den HIC sonuc yok -> kurtar
+const TAMPON_MS = 6000;        // son 6 sn musteri sesi (kurtarmada STT'ye yeniden verilir)
+
 // Tekrar karsilastirmasi icin: kucuk harf + noktalama/bosluk sadelestirme ("Tay makajı." == "tay makajı")
 function sadeMetin(s) {
   return String(s || '').toLocaleLowerCase('tr').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
@@ -55,6 +69,7 @@ class CagriOturumu {
         this._enerjiTop = (this._enerjiTop || 0) + (payload.length ? dolu / payload.length : 0);
         if (this._ornek === 250) log.info(`SES ENERJI: ort dolu-oran ${(this._enerjiTop / 250).toFixed(2)} (0'a yakin=SESSIZLIK/sesin gelmiyor, >0.3=gercek ses var)`);
       }
+      this._vad(payload);
       this.stt.yaz(payload);
     });
     this.stt = new SttOturumu(
@@ -90,7 +105,41 @@ class CagriOturumu {
     this._sessizlikSifirla();
   }
 
+  // ---- STT KOR NOKTA KURTARMA (kayit #70: musteri "Fark etmez" dedi, Google HIC sonuc dondurmedi -> asistan
+  // 15 sn sessiz kalip "Orada mısınız?" dedi). Musteri sesi enerjiyle algilanir; konusma bittikten 1,5 sn sonra
+  // hala ara/son sonuc yoksa STT akisi yeniden acilir ve son konusmanin sesi yeni akisa YENIDEN verilir.
+  _vad(payload) {
+    const simdi = Date.now();
+    this._tampon = this._tampon || [];
+    this._tampon.push({ t: simdi, b: payload });
+    while (this._tampon.length && simdi - this._tampon[0].t > TAMPON_MS) this._tampon.shift();
+    if (cfg.mediaFormat === 'slin16' || !payload.length) return; // genlik tablosu u-law icin
+    let top = 0;
+    for (let i = 0; i < payload.length; i++) top += ULAW_ABS[payload[i]];
+    const konusma = top / payload.length > VAD_ESIK;
+    const aiKonusuyor = this.rtp && (this.rtp.sesVarMi || this._seslendiriyor);
+    if (konusma && !aiKonusuyor) {
+      if (simdi - (this._vadSon || 0) > 400) { this._vadKare = 0; this._vadIlk = simdi; }
+      this._vadKare = (this._vadKare || 0) + 1;
+      this._vadSon = simdi;
+      if (this._vadKare >= VAD_MIN_KARE && !this._konusmaBas) this._konusmaBas = this._vadIlk;
+      if (this._konusmaBas) this._konusmaSon = simdi;
+    }
+    if (this._konusmaBas && this._konusmaSon && simdi - this._konusmaSon > KOR_NOKTA_MS) {
+      const bas = this._konusmaBas;
+      this._konusmaBas = null; this._konusmaSon = null;
+      if ((this._sttSon || 0) >= bas) return;                      // STT duydu, sorun yok
+      if (this.mesgul || this.kapali || this._kapaniyor || aiKonusuyor) return;
+      if (simdi - (this._sonKurtarma || 0) < 8000) return;         // ard arda kurtarma yapma
+      this._sonKurtarma = simdi;
+      const parcalar = this._tampon.filter((x) => x.t >= bas - 700).map((x) => x.b);
+      log.warn(`STT KOR NOKTA: musteri ~${Math.round((simdi - bas - KOR_NOKTA_MS) / 100) / 10} sn konustu ama metin gelmedi -> akis yenilenip ses yeniden veriliyor (${parcalar.length} kare)`);
+      try { this.stt.kurtar(parcalar); } catch (e) { log.warn('STT kurtarma hatasi: ' + e.message); }
+    }
+  }
+
   _interim(metin) {
+    this._sttSon = Date.now();
     if (this.kapali || this._kapaniyor) return; // kapanis sirasinda dinleme/barge-in yok
     log.debug(`ara-sonuc: ${metin}`);
     // BARGE-IN: musteri GERCEKTEN konusunca (>=2 kelime) AI'nin sesini kes.
@@ -121,6 +170,7 @@ class CagriOturumu {
   }
 
   async _finalMetin(metin) {
+    this._sttSon = Date.now();
     if (this.kapali || this._kapaniyor) return; // kapanis sirasinda yeni tur baslatma
     clearTimeout(this._interimZ); this._sonInterim = '';
     const n = sadeMetin(metin);

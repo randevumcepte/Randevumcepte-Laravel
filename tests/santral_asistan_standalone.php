@@ -483,6 +483,10 @@ namespace {
     icerir('"dayı masajı" → Tay Masajı notu', "'Tay Masajı'", $hd->hizmetDuzeltmeNotu('Dayı masajı istiyorum'));
     icerir('"thai masajı" → Tay Masajı notu', "'Tay Masajı'", $hd->hizmetDuzeltmeNotu('Thai masajı için randevu'));
     esit('doğru duyulan "tay masajı" → not yok', '', $hd->hizmetDuzeltmeNotu('Tay masajı randevusu almak istiyorum'));
+    $hl = asistan(['salon' => ['ad' => 'X', 'karsilama' => '', 'adres' => '', 'hizmetler' => [
+        ['id' => 31, 'ad' => 'Lazer Epilasyon Tüm Vücut'], ['id' => 32, 'ad' => 'Lazer Epilasyon Bacak'], ['id' => 33, 'ad' => 'Lazer Epilasyonu Yüz']]]]);
+    esit('"lazer epilasyon" (alt hizmet belirsiz) → yanlış-duyma notu yok (kayıt #70)', '', $hl->hizmetDuzeltmeNotu('Lazer epilasyon olabilir.'));
+    esit('ön eşleştirme: birden çok/eksik ad → yok', '', $hl->onEslestirmeNotu('Lazer epilasyon olabilir.'));
     esit('ekli hali "tay masajına" → not yok', '', $hd->hizmetDuzeltmeNotu('Tay masajına randevu'));
     esit('"botoksu" (ek) → not yok', '', $hd->hizmetDuzeltmeNotu('Botoksu yaptırmak istiyorum'));
     esit('alakasız cümle → not yok', '', $hd->hizmetDuzeltmeNotu('Yarın saat üçe randevu almak istiyorum'));
