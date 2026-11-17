@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-git@github-santral:randevumcepte/Randevumcepte-Laravel.git}"
+REPO_URL="${REPO_URL:-https://github.com/randevumcepte/Randevumcepte-Laravel.git}"
 BRANCH="${BRANCH:-main}"
 KAYNAK="${KAYNAK:-/opt/randevu-santral-ai-git}"     # sparse git kopyasi
 HEDEF="${HEDEF:-/opt/randevu-santral-ai}"           # calisan kopru
