@@ -380,7 +380,7 @@ namespace {
     esit('modelin verdiği id\'ler kullanılır', 21, $zr->sonGirdi['personel_id'] ?? null);
     esit('aksiyon randevu', 'randevu', $z[1]);
     esit('randevu id', 555, $z[2]);
-    icerir('deterministik talep cümlesi', "Perşembe, 19 Kasım saat 11:00'te uzmanımız Gülşah ile randevu talebiniz oluşturuldu", $z[0]);
+    icerir('deterministik talep cümlesi', "Perşembe, 19 Kasım saat 11:00'de uzmanımız Gülşah ile randevu talebiniz oluşturuldu", $z[0]);
     icerir('bilgilendirme ayarı açık', 'bilgilendirme mesajı ilettim', $z[0]);
     $zr->sahteSonuc = ['ok' => false, 'hata' => 'Bu saat çakışıyor.'];
     $z = cagir($zr, 'zorlaRandevu', [['role' => 'user', 'content' => 'Evet']], 'k');
@@ -391,7 +391,7 @@ namespace {
 
     bolum('Randevu onay cümlesi koddan (model atlasa da)');
     $oc = cagir($zr, 'randevuOnayCumlesi', ['ok' => true, 'tarih' => '2026-11-26', 'saat' => '11:00:00', 'personel' => 'Gülşah', 'bilgilendirme_gonderildi' => true]);
-    esit('tam cümle', "Perşembe, 26 Kasım saat 11:00'te uzmanımız Gülşah ile randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz. Size bilgilendirme mesajı ilettim.", $oc);
+    esit('tam cümle', "Perşembe, 26 Kasım saat 11:00'de uzmanımız Gülşah ile randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz. Size bilgilendirme mesajı ilettim.", $oc);
     $oc = cagir($zr, 'randevuOnayCumlesi', ['ok' => true, 'tarih' => '2026-11-26', 'saat' => '11:00', 'personel' => 'Gülşah', 'paket_seansi' => true, 'bilgilendirme_gonderildi' => false]);
     icerir('paket seansı belirtilir', 'Gülşah ile paketinizden randevu talebiniz', $oc);
     esit('ayar kapalı → bilgilendirme denmez', false, mb_stripos($oc, 'bilgilendirme mesajı') !== false);
@@ -508,6 +508,23 @@ namespace {
     icerir('sonraki turlarda da hatırlatılır', 'TEKRAR SORMA', cagir($hk, 'paketKarariNotu', $g72, 'Fark etmez.'));
     icerir('"hayır paketten olmasın" → paketsiz', 'paketsiz=true', cagir($hk, 'paketKarariNotu', [$g72[0]], 'Hayır paketten olmasın'));
     esit('soru sorulmadıysa → not yok', '', cagir($hk, 'paketKarariNotu', [], 'evet'));
+
+    bolum('Çakışma: istenen saat dolu → uygun değil + 2 öneri');
+    esit('saat eki 13:00', "13:00'te", cagir($a, 'saatEkli', '13:00'));
+    esit('saat eki 10:00', "10:00'da", cagir($a, 'saatEkli', '10:00'));
+    esit('saat eki 12:00', "12:00'de", cagir($a, 'saatEkli', '12:00'));
+    esit('saat eki 12:30', "12:30'da", cagir($a, 'saatEkli', '12:30'));
+    esit('saat eki 14:40', "14:40'ta", cagir($a, 'saatEkli', '14:40'));
+    $sec2 = [['tarih' => '2026-11-20', 'saat' => '13:00', 'personel' => 'Gülşah Hanım'], ['tarih' => '2026-11-20', 'saat' => '14:30', 'personel' => 'Ferdi Bey']];
+    $dc = cagir($a, 'doluOneriCumlesi', '2026-11-20', '12:00', $sec2);
+    icerir('dolu: önce uygun değil', "Cuma, 20 Kasım saat 12:00 uygun değil.", $dc);
+    icerir('dolu: iki öneri', "aynı gün saat 13:00'te uzmanımız Gülşah Hanım ile ya da saat 14:30'da uzmanımız Ferdi Bey ile önerebilirim, hangisi uygun olur?", $dc);
+    $dc2 = cagir($a, 'doluOneriCumlesi', '2026-11-20', '12:00', [['tarih' => '2026-11-20', 'saat' => '10:00', 'personel' => 'Gülşah Hanım'], ['tarih' => '2026-11-21', 'saat' => '12:00', 'personel' => 'Gülşah Hanım']]);
+    icerir('dolu: ertesi gün önerisi gün adıyla', "Cumartesi, 21 Kasım saat 12:00'de", $dc2);
+    $ds = ['secenekler' => $sec2];
+    esit('model "dolu" demeden saat önerdi → eksik', false, cagir($a, 'doluCevabiTamMi', "Cuma saat 13:00'te Gülşah Hanım ile oluşturayım mı?", $ds));
+    esit('model tek öneri söyledi → eksik', false, cagir($a, 'doluCevabiTamMi', "12 dolu, 13:00 uygun mu?", $ds));
+    esit('model iki öneri + dolu → tamam', true, cagir($a, 'doluCevabiTamMi', "Saat 12 dolu. 13'te Gülşah Hanım ya da 14.30'da Ferdi Bey uygun.", $ds));
     esit('ekli hali "tay masajına" → not yok', '', $hd->hizmetDuzeltmeNotu('Tay masajına randevu'));
     esit('"botoksu" (ek) → not yok', '', $hd->hizmetDuzeltmeNotu('Botoksu yaptırmak istiyorum'));
     esit('alakasız cümle → not yok', '', $hd->hizmetDuzeltmeNotu('Yarın saat üçe randevu almak istiyorum'));

@@ -344,6 +344,7 @@ class RandevuAsistan
         $randevuHatasi = null;   // bu turda randevu_olustur/guncelle ok=false dondu (sebep)
         $randevuDenendi = false; // bu turda randevu_olustur cagrildi mi
         $randevuSonuc = null;    // bu turda randevu_olustur ok=true sonucu (onay cumlesi koddan kurulur)
+        $doluSonuc = null;       // bu turda musait_saatler "istenen saat dolu + oneriler" dondu (cumle koddan garanti)
         $baglam = [];            // bu turun arac sonuc ozeti -> gecmise gizli not (sonraki tur id'leri bilsin)
         if ($onNot !== '' && $this->_onBaglam !== '') $baglam[] = $this->_onBaglam;
 
@@ -398,6 +399,7 @@ class RandevuAsistan
                 $not = $this->baglamNotu($tu['name'] ?? '', $tu['input'] ?? [], $sonuc);
                 if ($not !== '') $baglam[] = $not;
                 if (($tu['name'] ?? '') === 'randevu_olustur') $randevuDenendi = true;
+                if (($tu['name'] ?? '') === 'musait_saatler') $doluSonuc = !empty($sonuc['onerilen_cumle']) ? $sonuc : null;
                 if (($tu['name'] ?? '') === 'randevu_olustur' && !empty($sonuc['ok'])) $randevuSonuc = $sonuc;
                 if (in_array($tu['name'] ?? '', ['randevu_olustur', 'randevu_guncelle'], true) && empty($sonuc['ok'])) {
                     $randevuHatasi = (string) ($sonuc['hata'] ?? 'bilinmeyen hata');
@@ -467,6 +469,12 @@ class RandevuAsistan
             }
         }
 
+        // ISTENEN SAAT DOLU (talep/onayli randevuyla cakisma): model "uygun değil" demeden ya da iki oneriyi
+        // eksik okuyarak gecerse (kayit #72: "Cuma 12" -> aciklamasiz 10) cumleyi KOD kurar.
+        if ($doluSonuc && $aksiyon === null && !$bitir && !$this->doluCevabiTamMi($cevap, $doluSonuc)) {
+            Log::info('[SANTRAL-DOLU-ONERI] cevap kodla kuruldu', ['salon' => $this->salonId, 'model' => $cevap, 'kod' => $doluSonuc['onerilen_cumle']]);
+            $cevap = $doluSonuc['onerilen_cumle'];
+        }
         if ($cevap === '') $cevap = $this->garantiCevap($aksiyon);
         Log::info('[SANTRAL-TUR]', ['salon' => $this->salonId, 'musteri' => $this->musteriId, 'metin' => $metin, 'cevap' => $cevap, 'aksiyon' => $aksiyon, 'teshis' => $this->teshis]);
         // Gecikme teshisi: tur toplami + her LLM cagrisi (ms). Arac (DB) suresi = toplam - LLM toplami.
@@ -588,7 +596,7 @@ class RandevuAsistan
     {
         $gun = $this->tarihSoz((string) ($d['tarih'] ?? ''));
         $saat = substr((string) ($d['saat'] ?? ''), 0, 5);
-        $c = trim("{$gun} saat {$saat}'te" . (!empty($d['personel']) ? " uzmanımız {$d['personel']} ile" : ''))
+        $c = trim("{$gun} saat " . $this->saatEkli($saat) . (!empty($d['personel']) ? " uzmanımız {$d['personel']} ile" : ''))
             . (!empty($d['paket_seansi']) ? ' paketinizden' : '')
             . ' randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz.';
         if (!empty($d['bilgilendirme_gonderildi'])) $c .= ' Size bilgilendirme mesajı ilettim.';
@@ -1019,7 +1027,7 @@ class RandevuAsistan
     /** Randevunun konusmada okunacak hali: "Pazartesi, 16 Kasım saat 14:00'te Gülşah ile Saç Kesimi" */
     protected function randevuSoz(array $r): string
     {
-        $s = "{$r['gun']} saat {$r['saat']}'te";
+        $s = "{$r['gun']} saat " . $this->saatEkli((string) $r['saat']);
         if (!empty($r['personel'])) $s .= " {$r['personel']} ile";
         if (!empty($r['hizmet'])) $s .= " {$r['hizmet']}";
         return $s;
@@ -2019,6 +2027,18 @@ PROMPT;
                 $sec[] = ['tarih' => $m2['tarih'], 'saat' => $m2['saat'], 'personel_id' => $sec[0]['personel_id'], 'personel' => $sec[0]['personel']];
             }
         }
+        // Hala tek secenek: ayni gunun EN ERKEN bos saati, o da yoksa sonraki gunlerden ilk bos saat (2 oneri garanti)
+        if (count($sec) === 1 && $saat) {
+            $p0 = $sec[0]['personel_id'];
+            foreach ([[$tarih, null], [date('Y-m-d', strtotime($sec[0]['tarih'] . ' +1 day')), null]] as [$t2, $s2]) {
+                $m3 = $bul($p0, $t2, $s2, null, $t2 === $tarih ? 1 : 14);
+                if ($m3 && ($m3['tarih'] . ' ' . $m3['saat']) !== ($sec[0]['tarih'] . ' ' . $sec[0]['saat'])) {
+                    $sec[] = ['tarih' => $m3['tarih'], 'saat' => $m3['saat'], 'personel_id' => $p0, 'personel' => $sec[0]['personel']];
+                    break;
+                }
+            }
+            usort($sec, function ($a, $b) { return [$a['tarih'], $a['saat']] <=> [$b['tarih'], $b['saat']]; });
+        }
         // Musteri GUN+SAAT verdi ve o saat (o gun) bos: alternatif YOK, dogrudan onay.
         if ($saat && $sec && $sec[0]['_tam'] && $sec[0]['tarih'] === $tarih) {
             $t = $sec[0];
@@ -2031,13 +2051,57 @@ PROMPT;
         }
         $sec = array_map(function ($s) { unset($s['_m'], $s['_tam']); $s['gun'] = $this->tarihSoz($s['tarih']); return $s; }, $sec);
         if (!$sec) return ['ok' => true, 'secenekler' => [], 'mesaj' => 'Önümüzdeki 14 günde uygun saat bulunamadı. Başka gün/dilim ya da başka personel öner.'];
-        return [
+        $sonuc = [
             'ok' => true,
             'istenen_tarih' => $tarih,
             'istenen_gun_dolu' => $sec[0]['tarih'] !== $tarih,
             'istenen_saat_dolu' => (bool) $saat,
             'secenekler' => $sec,
         ];
+        if ($saat) {
+            // Istenen saat dolu (onayli ya da talep randevusuyla cakisiyor): once "uygun değil", sonra 2 oneri
+            $sonuc['onerilen_cumle'] = $this->doluOneriCumlesi($tarih, $saat, $sec);
+            $sonuc['talimat'] = 'İstenen saat DOLU. Müşteriye AYNEN onerilen_cumle\'yi söyle (önce uygun olmadığını, sonra iki seçeneği).';
+        }
+        return $sonuc;
+    }
+
+    /** "13:00" -> "13:00'te", "10:00" -> "10:00'da", "12:30" -> "12:30'da" (okunan son kelimeye gore bulunma eki). */
+    protected function saatEkli(string $saat): string
+    {
+        if (!preg_match('/^(\d{1,2}):(\d{2})/', $saat, $m)) return $saat . "'te";
+        $n = (int) $m[2] !== 0 ? (int) $m[2] : (int) $m[1];
+        $birler = ['', 'de', 'de', 'te', 'te', 'te', 'da', 'de', 'de', 'da'];
+        $onlar = ['da', 'da', 'de', 'da', 'ta', 'de'];   // sıfır, on, yirmi, otuz, kırk, elli
+        $ek = $n % 10 !== 0 ? $birler[$n % 10] : $onlar[intdiv($n, 10)] ?? 'de';
+        return $m[1] . ':' . $m[2] . "'" . $ek;
+    }
+
+    /** "Cuma, 20 Kasım saat 12:00 uygun değil. Aynı gün saat 13:00'te uzmanımız Gülşah Hanım ile ya da ... önerebilirim, hangisi uygun olur?" */
+    protected function doluOneriCumlesi(string $tarih, string $saat, array $sec): string
+    {
+        $c = $this->tarihSoz($tarih) . ' saat ' . $saat . ' uygun değil.';
+        if (!$sec) return $c . ' Başka bir gün ya da saat söyler misiniz?';
+        $parca = [];
+        foreach (array_slice($sec, 0, 2) as $i => $s) {
+            $gun = $s['tarih'] === $tarih ? ($i === 0 || $sec[0]['tarih'] !== $tarih ? 'aynı gün' : '') : $this->tarihSoz($s['tarih']);
+            $parca[] = trim($gun . ' saat ' . $this->saatEkli($s['saat']) . (!empty($s['personel']) ? ' uzmanımız ' . $s['personel'] . ' ile' : ''));
+        }
+        $c .= ' Size ' . implode(' ya da ', $parca) . (count($parca) > 1 ? ' önerebilirim, hangisi uygun olur?' : ' önerebilirim, uygun olur mu?');
+        return $c;
+    }
+
+    /** Model cevabi "dolu/uygun değil" diyor VE tum onerilen saatleri iceriyor mu? */
+    protected function doluCevabiTamMi(string $cevap, array $sonuc): bool
+    {
+        $f = mb_strtolower($cevap, 'UTF-8');
+        if (!preg_match('/dolu|uygun değil|müsait değil|boş değil|uygun olmadığı/u', $f)) return false;
+        foreach (array_slice($sonuc['secenekler'] ?? [], 0, 2) as $s) {
+            [$h, $d] = array_map('intval', explode(':', $s['saat']));
+            $kalip = $d === 0 ? '/\b0?' . $h . '(\b|[:.\']|\s)/u' : '/\b0?' . $h . '[:.]' . sprintf('%02d', $d) . '/u';
+            if (!preg_match($kalip, $cevap)) return false;
+        }
+        return true;
     }
 
     /** Arayanin kendi gelecek randevulari (bekleyen + onayli), personel/hizmet bilgisiyle. */
