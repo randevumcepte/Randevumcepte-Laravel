@@ -31,6 +31,9 @@ class RandevuAsistan
     public ?string $teshis = null;
     /** Bu nesnenin yaptigi Claude cagrilarinin toplam token kullanimi (paket/maliyet takibi; kopru controller'i oturuma yazar). */
     public array $kullanim = ['girdi' => 0, 'cikti' => 0, 'cache_okuma' => 0, 'cache_yazma' => 0, 'cagri' => 0];
+    /** Bu turdaki her Claude cagrisinin suresi (ms) -> [SANTRAL-SURE] logu (gecikme teshisi). */
+    public array $llmMs = [];
+    protected string $_onBaglam = '';
 
     protected int $salonId;
     protected ?string $telefon;
@@ -327,7 +330,11 @@ class RandevuAsistan
         }
 
         $messages = $this->gecmisMesajlari($gecmis);
-        $messages[] = ['role' => 'user', 'content' => $metin . $this->zamanNotu($metin) . $this->hizmetDuzeltmeNotu($metin) . $this->paketNotu($metin, $gecmis)];
+        $turBas = microtime(true);
+        $onNot = $this->onEslestirmeNotu($metin, $onPaketli);
+        $messages[] = ['role' => 'user', 'content' => $metin . $this->zamanNotu($metin)
+            . ($onNot !== '' ? $onNot : $this->hizmetDuzeltmeNotu($metin))
+            . ($onPaketli ? '' : $this->paketNotu($metin, $gecmis))];
 
         $aksiyon = null; $bitir = false; $randevuId = null; $cevap = '';
         $isTamamlandi = false; // randevu/iptal/guncelleme/yol tarifi tamamlandi -> "Başka yardımcı olabileceğim..." sorulmali
@@ -336,6 +343,7 @@ class RandevuAsistan
         $randevuDenendi = false; // bu turda randevu_olustur cagrildi mi
         $randevuSonuc = null;    // bu turda randevu_olustur ok=true sonucu (onay cumlesi koddan kurulur)
         $baglam = [];            // bu turun arac sonuc ozeti -> gecmise gizli not (sonraki tur id'leri bilsin)
+        if ($onNot !== '' && $this->_onBaglam !== '') $baglam[] = $this->_onBaglam;
 
         for ($deneme = 0; $deneme < 2; $deneme++) {
         for ($tur = 0; $tur < 6; $tur++) {
@@ -397,7 +405,9 @@ class RandevuAsistan
 
             // Terminal aksiyon: aktar/veda -> kapanis cumlesi icin bir tur daha don, sonra bitir.
             if ($aksiyon === 'aktar' || $aksiyon === 'veda') {
-                $resp2 = $this->cagir($messages, $key);
+                // Model ayni cevapta bir cumle soylediyse onu kullan; yoksa SABIT kapanis cumlesi (garantiCevap).
+                // Eskiden yalniz kapanis cumlesi icin bir LLM turu daha yapiliyordu (~1-1,5 sn ek bekleme).
+                $resp2 = null;
                 if ($resp2) {
                     $t2 = [];
                     foreach (($resp2['content'] ?? []) as $b) {
@@ -457,6 +467,9 @@ class RandevuAsistan
 
         if ($cevap === '') $cevap = $this->garantiCevap($aksiyon);
         Log::info('[SANTRAL-TUR]', ['salon' => $this->salonId, 'musteri' => $this->musteriId, 'metin' => $metin, 'cevap' => $cevap, 'aksiyon' => $aksiyon, 'teshis' => $this->teshis]);
+        // Gecikme teshisi: tur toplami + her LLM cagrisi (ms). Arac (DB) suresi = toplam - LLM toplami.
+        Log::info('[SANTRAL-SURE]', ['salon' => $this->salonId, 'toplam_ms' => (int) round((microtime(true) - $turBas) * 1000),
+            'llm_ms' => $this->llmMs, 'llm_toplam_ms' => array_sum($this->llmMs), 'on_eslestirme' => $onNot !== '']);
         // Yol tarifi gonderildiyse (ayni turda baska bir is yoksa) sabit, net cumle:
         if ($yolTarifiGitti && $aksiyon === null && !$bitir) {
             $cevap = 'Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?';
@@ -1278,7 +1291,9 @@ class RandevuAsistan
             ],
             CURLOPT_POSTFIELDS => json_encode($body, JSON_UNESCAPED_UNICODE),
         ]);
+        $t0 = microtime(true);
         $raw = curl_exec($ch);
+        $this->llmMs[] = (int) round((microtime(true) - $t0) * 1000);
         $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
         curl_close($ch);
@@ -1679,6 +1694,39 @@ PROMPT;
             }
         }
         return $out;
+    }
+
+    /**
+     * GECIKME: Musteri cumlesinde salonun TEK bir hizmet adi (ekli haliyle) aciktan geciyorsa hizmet_eslestir'i KOD
+     * onceden calistirir ve sonucu gizli notla verir -> model eslestirme icin ayri bir tur (~1-1,5 sn) harcamaz.
+     * Birden fazla hizmet / belirsiz / yanlis duyulmus ad -> bos (model normal akista hizmet_eslestir cagirir).
+     * $paketli: sonuc paket bilgisi iceriyorsa true (paketNotu ayrica eklenmesin).
+     */
+    public function onEslestirmeNotu(string $metin, &$paketli = false): string
+    {
+        $paketli = false;
+        $m = ' ' . $this->sade($metin) . ' ';
+        $bulunan = [];
+        foreach ($this->salon['hizmetler'] ?? [] as $h) {
+            $ad = trim((string) ($h['ad'] ?? ''));
+            $sa = $this->sade($ad);
+            if ($sa === '' || strlen($sa) < 3) continue;
+            if (strpos($m, ' ' . $sa) !== false) $bulunan[$sa] = $ad;
+        }
+        // "Lazer" ve "Lazer Epilasyon" ayni anda: uzun olan kazanir (kisa olan uzunun parcasi)
+        foreach (array_keys($bulunan) as $k) foreach (array_keys($bulunan) as $k2) {
+            if ($k !== $k2 && isset($bulunan[$k]) && strpos(' ' . $k2 . ' ', ' ' . $k . ' ') !== false) unset($bulunan[$k]);
+        }
+        if (count($bulunan) !== 1) return '';
+        try {
+            [$d] = $this->toolCalistir('hizmet_eslestir', ['metin' => array_values($bulunan)[0]]);
+        } catch (\Throwable $e) { return ''; }
+        if (!is_array($d) || ($d['eslesme'] ?? '') !== 'tek') return '';
+        $paketli = !empty($d['paketler']);
+        $this->_onBaglam = $this->baglamNotu('hizmet_eslestir', ['metin' => array_values($bulunan)[0]], $d); // sonraki tur id'yi bilsin
+        Log::info('[SANTRAL-ON-ESLESTIRME]', ['salon' => $this->salonId, 'metin' => $metin, 'hizmet' => $d['hizmet'] ?? null, 'paketli' => $paketli]);
+        return "\n[SİSTEM — müşteri duymaz: hizmet_eslestir bu cümle için ZATEN çalıştırıldı, TEKRAR ÇAĞIRMA. Sonuç: "
+            . json_encode($d, JSON_UNESCAPED_UNICODE) . ']';
     }
 
     /**

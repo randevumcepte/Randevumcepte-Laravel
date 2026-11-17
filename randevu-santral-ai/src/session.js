@@ -10,7 +10,12 @@ const { RtpOturumu } = require('./rtp');
 
 // Bekleme cumleleri (beyin gec cevap verince, sirayla; ayni cumle ust uste gelmez). Ilk cagride seslendirilip
 // tts onbellegine girer -> sonraki turlarda aninda calar.
-const DOLGU = ['Hemen bakıyorum.', 'Bir saniye lütfen.', 'Tamam, kontrol ediyorum.'];
+// "Bir saniye lütfen" cikarildi: konusma arasinda anlamsiz geliyordu (2026-11-17 geri bildirim).
+const DOLGU = ['Hemen bakıyorum.', 'Tamam, kontrol ediyorum.'];
+
+// Bekleme cumlesi YALNIZ kayit/takvim aranan isteklerde calar (randevu, saat, gun, iptal, paket...).
+// "Evet", "fark etmez", isim soyleme gibi kisa cevaplarda "Hemen bakıyorum" anlamsiz kaciyordu.
+const DOLGULU = /(randevu|müsait|musait|uygun|boş|bos\b|saat|yarın|yarin|bugün|bugun|haftaya|pazartesi|salı|sali|çarşamba|carsamba|perşembe|persembe|cuma|pazar|iptal|ertele|değiştir|degistir|kaydır|kaydir|paket|seans|kontrol)/i;
 
 // Bu cumlelerde bekleme cumlesi CALMA (vedalasma/tesekkur/ret: "Hemen bakıyorum. Hoşçakalın" sacmaligi, kayit #55)
 const DOLGUSUZ = /(teşekkür|tesekkur|sağ ?ol|sag ?ol|iyi günler|iyi akşamlar|iyi aksamlar|hoşça|hosca|görüşürüz|gorusuruz|gerek yok|başka (bir )?(şey|sey|konu)? ?yok|bu kadar|o kadar|kapat)/i;
@@ -163,10 +168,12 @@ class CagriOturumu {
     this._eskidi = false;
     const ek = this._oncekiDuyulmadi ? { onceki_duyulmadi: 1 } : {};
     this._oncekiDuyulmadi = false;
-    const dolguZ = (cfg.dolguMs > 0 && !DOLGUSUZ.test(metin || '')) ? setTimeout(() => this._dolguCal(), cfg.dolguMs) : null;
+    const dolguZ = (cfg.dolguMs > 0 && DOLGULU.test(metin || '') && !DOLGUSUZ.test(metin || '')) ? setTimeout(() => this._dolguCal(), cfg.dolguMs) : null;
+    const t0 = Date.now();
     try {
       const d = await brain.konus(this.oturumId, metin, ek);
       clearTimeout(dolguZ);
+      log.info(`  (beyin ${Date.now() - t0} ms)`); // gecikme teshisi: musteri sustu -> cevap metni hazir
       // Musteri bu arada yeni bir sey soyledi ve bu cevap bir is yapmadiysa (randevu/iptal/aktarma/kapanis yok):
       // CALMA -> bekleyen cumleyle yeni tur sorulur; Laravel bu calinmayan cevabi gecmisten duser.
       if (this._eskidi && this._bekleyen && d && d.ok !== false && !d.aksiyon && !d.bitir) {
