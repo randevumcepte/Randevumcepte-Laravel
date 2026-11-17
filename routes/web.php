@@ -424,6 +424,9 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::get('/santral-paket', 'SantralPaketController@index')->name('sistemyonetim.v2.santral-paket');
     Route::post('/santral-paket', 'SantralPaketController@kaydet');
     Route::post('/santral-paket/{salonId}/sil', 'SantralPaketController@sil')->where('salonId', '[0-9]+');
+    Route::get('/santral-ses', 'SantralSesController@index')->name('sistemyonetim.v2.santral-ses');
+    Route::get('/santral-ses/sesler', 'SantralSesController@sesler');
+    Route::post('/santral-ses/uret', 'SantralSesController@uret');
 
     // İsim Sözlüğü (santral hitabi: asistanin tanimadigi adlar + Erkek/Kadın/Hitapsız karari)
     Route::get('/isim-sozluk', 'IsimSozlukController@index')->name('sistemyonetim.v2.isim-sozluk');

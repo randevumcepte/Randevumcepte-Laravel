@@ -76,6 +76,11 @@ return [
     // Google Cloud Text-to-Speech — SADECE iOS icin bulut ses (Android cihaz sesi
     // zaten bedava/iyi). Anahtar YOKSA sistem cihaz TTS'ine duser (regresyon yok).
     // Cevaplar sunucuda MP3 olarak ONBELLEGE alinir -> ayni cumle tekrar uretilmez.
+    // Santral ses onizleme (Sistem Yonetimi). Kopru (santral sunucusu) kendi .env'indeki anahtari kullanir.
+    'elevenlabs' => [
+        'key' => env('ELEVENLABS_API_KEY', ''),
+    ],
+
     'google_tts' => [
         'key'   => env('GOOGLE_TTS_API_KEY', ''),
         // Chirp3-HD = Google'in en dogal/insansi sesleri (erkek: Charon/Puck/Fenrir/Orus).
