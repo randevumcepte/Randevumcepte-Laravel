@@ -110,6 +110,13 @@ namespace {
         ['Yarın 3', '2026-11-16', '15:00'],
         ['Çarşamba 2 buçukta', '2026-11-18', '14:30'],
         ['Perşembe sabah 10', '2026-11-19', '10:00'],
+        // kayit #78: STT saati sozcukle yazinca ("öğleden sonra iki")
+        ['Perşembe öğleden sonra iki', '2026-11-19', '14:00'],
+        ['Perşembe öğleden sonra ikide', '2026-11-19', '14:00'],
+        ['Yarın saat üçte', '2026-11-16', '15:00'],
+        ['Cuma on dört buçukta', '2026-11-20', '14:30'],
+        ['Bir randevu almak istiyorum', null, null],
+        ['Onda var mı', null, null],
         ['Randevumu iptal etmek istiyorum', null, null],
     ] as [$t, $tar, $sa]) {
         $z = $servis->zamanCoz($t);

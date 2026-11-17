@@ -51,6 +51,11 @@ const cfg = {
   // uzun cumlelerde her turda 2,4 sn bosuna bekleniyordu (kayit #56: kod cevabi bile 2,4 sn'de basliyordu).
   endpointKisaMs: num(process.env.ENDPOINT_KISA_MS, 900),   // <=3 kelime ("evet", "fark etmez")
   endpointUzunMs: num(process.env.ENDPOINT_UZUN_MS, 1400),  // uzun cumle (ad/adres icin biraz sabirli)
+  // SES ENERJISIYLE (VAD) bitis: ara-metin Google'dan ~0,3-0,5 sn gec geldiginden yukaridaki sureler fiilen
+  // 1,2-1,9 sn bekletiyordu (kayit #78: her turda ~3,5-4,5 sn bosluk). Musterinin sesi GERCEKTEN bu kadar ms
+  // kesilince + ara-metin 250 ms sabit kalinca cumle bitmis sayilir. Ustteki sureler yedek olarak kalir. 0 = kapali.
+  vadBitisKisaMs: num(process.env.VAD_BITIS_KISA_MS, 550),   // <=3 kelime
+  vadBitisUzunMs: num(process.env.VAD_BITIS_UZUN_MS, 850),   // uzun cumle (cumle arasi nefes ~0,5 sn kesmesin)
   logLevel: process.env.LOG_LEVEL || 'info',
   recording: {
     aktif: bool(process.env.KAYIT_AKTIF, true),

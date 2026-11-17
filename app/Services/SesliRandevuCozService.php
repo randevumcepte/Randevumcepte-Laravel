@@ -400,8 +400,37 @@ class SesliRandevuCozService
     /* SAAT                                                               */
     /* ------------------------------------------------------------------ */
 
+    /**
+     * Saat SOZCUKLE soylenince rakama cevirir (yalniz saat baglaminda): Google STT "öğleden sonra iki",
+     * "ikide", "on dört buçukta" yazabiliyor; eskiden saat bulunamiyor, asistan alakasiz saat oneriyordu
+     * (kayit #78). Baglam: once saat/sabah/aksam/sonra/gun adi gelir YA DA bulunma/yonelme eki (ikide, ikiye)
+     * YA DA ardindan buçuk/gibi/civari/çeyrek gelir. "bir randevu", "iki hafta sonra" gibi ifadelere dokunmaz.
+     */
+    protected function saatSozcukRakam($fold)
+    {
+        $birler = ['bir' => 1, 'iki' => 2, 'uc' => 3, 'dort' => 4, 'bes' => 5, 'alti' => 6, 'yedi' => 7, 'sekiz' => 8, 'dokuz' => 9, 'dord' => 4];
+        $once = '(?:saat|sabah|aksam|sonra|once|pazartesi|sali|carsamba|persembe|cuma|cumartesi|pazar|yarin|bugun)';
+        $re = '/(?<onc>\b' . $once . '\s+)?\b(?<on>on|yirmi)?(?:\s*(?<bir>bir|iki|uc|dord|dort|bes|alti|yedi|sekiz|dokuz))?(?<ek>de|da|te|ta|ye|ya|e|a)?\b'
+            . '(?<son>\s+(?:bucuk\w*|gibi|civar\w*|sular\w*|ceyrek\w*|dolay\w*))?(?!\s+(?:gun|hafta|ay|kisi|seans|tane|dakika|saat)\b)/u';
+        return preg_replace_callback($re, function ($m) use ($birler) {
+            $on = $m['on'] ?? ''; $bir = $m['bir'] ?? '';
+            if ($on === '' && $bir === '') return $m[0];
+            $deger = ($on === 'on' ? 10 : ($on === 'yirmi' ? 20 : 0)) + ($bir !== '' ? $birler[$bir] : 0);
+            $ek = $m['ek'] ?? '';
+            // Baglam yoksa dokunma ("bir randevu", "on gun", "iki kisi")
+            if (($m['onc'] ?? '') === '' && $ek === '' && ($m['son'] ?? '') === '') return $m[0];
+            // Yalin "onda" / "ona" (zamir: "onda var mı") baglam kelimesi olmadan saat sayilmaz
+            if ($on === 'on' && $bir === '' && ($m['onc'] ?? '') === '' && ($m['son'] ?? '') === '') return $m[0];
+            if ($deger < 1 || $deger > 24) return $m[0];
+            // Ek: bulunma (de/da/te/ta) -> "2'de"; yonelme (e/a/ye/ya) -> "2'e" (desen 3'teki "'a/'e dogru")
+            $ekYaz = $ek === '' ? '' : (in_array($ek, ['de', 'da', 'te', 'ta'], true) ? "'" . $ek : "'" . substr($ek, -1));
+            return ($m['onc'] ?? '') . $deger . $ekYaz . ($m['son'] ?? '');
+        }, $fold);
+    }
+
     protected function saatCoz($fold)
     {
+        $fold = $this->saatSozcukRakam($fold);
         $ogledenSonra = (bool) preg_match('/\bogleden sonra\b|\baksam\b|\bgece\b/u', $fold);
         $sabah        = (bool) preg_match('/\bsabah\b|\bogleden once\b/u', $fold);
 

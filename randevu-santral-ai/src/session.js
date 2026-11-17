@@ -146,6 +146,20 @@ class CagriOturumu {
       if (this._vadKare >= VAD_MIN_KARE && !this._konusmaBas) this._konusmaBas = this._vadIlk;
       if (this._konusmaBas) this._konusmaSon = simdi;
     }
+    // HIZLI CUMLE SONU (VAD): ara-metin var, musterinin sesi gercekten kesildi, metin 250 ms sabit -> bitti say.
+    // Sesi esigin altinda kalan (kisik) arayanda VAD konusmayi hic gormez -> bu yol devreye GIRMEZ
+    // (_vadSon bu cumleden eski), yedek zamanlayici calisir; yani kisik seste cumle ortasinda kesmez.
+    if (this._sonInterim && !aiKonusuyor && !this.mesgul && !this.kapali && !this._kapaniyor
+        && (this._vadSon || 0) >= (this._ifadeBasT || 0) - 1500) {
+      const kelime = this._sonInterim.split(/\s+/).length;
+      const esik = kelime <= 3 ? cfg.vadBitisKisaMs : cfg.vadBitisUzunMs;
+      const sessiz = simdi - (this._vadSon || 0);
+      if (esik > 0 && sessiz >= esik && simdi - (this._interimT || 0) >= 250) {
+        log.debug(`endpointing (VAD ${sessiz} ms sessiz): ${this._sonInterim}`);
+        clearTimeout(this._interimZ);
+        this._interimZorla();
+      }
+    }
     if (this._konusmaBas && this._konusmaSon && simdi - this._konusmaSon > KOR_NOKTA_MS) {
       const bas = this._konusmaBas;
       this._konusmaBas = null; this._konusmaSon = null;
@@ -176,7 +190,9 @@ class CagriOturumu {
     //  - KISA cevap (<=3 kelime: 'kartla olsun','evet','margarita') -> 1.2sn (snappy)
     //  - UZUN cumle (adres/isim, cok kelime) -> 2.4sn SABIRLI (duraklamada kesme, musteri tamamlasin)
     // Her yeni interim timer'i sifirlar; yani sure, musteri SUSTUKTAN sonra sayilir.
+    if (!this._sonInterim) this._ifadeBasT = Date.now(); // bu cumlenin ilk ara-metni
     this._sonInterim = (metin || '').trim();
+    this._interimT = Date.now();
     const kelimeSayisi = this._sonInterim ? this._sonInterim.split(/\s+/).length : 0;
     const bekle = kelimeSayisi <= 3 ? cfg.endpointKisaMs : cfg.endpointUzunMs;
     clearTimeout(this._interimZ);
