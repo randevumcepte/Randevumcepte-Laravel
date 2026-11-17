@@ -53,10 +53,16 @@ for f in "$KAYNAK"/randevu-santral-ai/src/*.js; do
 done
 
 # 4) Aktif asistan gorusmesi varsa bekle (cron bir sonraki calismada tekrar dener)
-if command -v asterisk >/dev/null 2>&1; then
-  AKTIF=$(asterisk -rx "core show channels concise" 2>/dev/null | grep -c "Stasis!${ARI_APP}" || true)
+#    Yalniz GERCEK telefon kanallari sayilir (PJSIP/SIP/IAX2/DAHDI). Kopru ses icin UnicastRTP/Snoop
+#    kanallari da acar; onlar (ozellikle asili kalanlar) sayilirsa guncelleme hic yapilamaz.
+#    Elle zorlamak icin: ZORLA=1 /usr/local/bin/santral-guncelle.sh
+if [ "${ZORLA:-0}" != "1" ] && command -v asterisk >/dev/null 2>&1; then
+  KANALLAR=$(asterisk -rx "core show channels concise" 2>/dev/null | grep "Stasis!${ARI_APP}" || true)
+  AKTIF=$(printf '%s\n' "$KANALLAR" | grep -cE '^(PJSIP|SIP|IAX2|DAHDI)/' || true)
+  DIGER=$(printf '%s\n' "$KANALLAR" | grep -cE '^(UnicastRTP|Snoop)/' || true)
+  [ "${DIGER:-0}" -gt 0 ] && [ "${AKTIF:-0}" -eq 0 ] && log "not: $DIGER yardimci kanal (UnicastRTP/Snoop) var, gercek gorusme yok"
   if [ "${AKTIF:-0}" -gt 0 ]; then
-    log "aktif gorusme var ($AKTIF kanal) -> yeniden baslatma ertelendi"
+    log "aktif gorusme var ($AKTIF telefon kanali) -> yeniden baslatma ertelendi"
     exit 0
   fi
 fi
