@@ -10,11 +10,14 @@ const cache = new Map();
 const CACHE_MAX = 200;
 
 // Google TTS ulaw -> MULAW/8000, LINEAR16 -> LINEAR16/16000 (sampleRateHertz zorunlu degil ama netlik icin)
+// effectsProfileId 'telephony-class-application': Google sesi telefon hattina (dar bant) gore optimize eder
+// (8 kHz'de daha net/anlasilir). TTS_PROFIL= (bos) ile kapatilir.
 function audioConfig() {
-  if (cfg.mediaFormat === 'slin16') {
-    return { audioEncoding: 'LINEAR16', sampleRateHertz: 16000, speakingRate: cfg.tts.speakingRate };
-  }
-  return { audioEncoding: 'MULAW', sampleRateHertz: 8000, speakingRate: cfg.tts.speakingRate };
+  const ac = cfg.mediaFormat === 'slin16'
+    ? { audioEncoding: 'LINEAR16', sampleRateHertz: 16000, speakingRate: cfg.tts.speakingRate }
+    : { audioEncoding: 'MULAW', sampleRateHertz: 8000, speakingRate: cfg.tts.speakingRate };
+  if (cfg.tts.profil) ac.effectsProfileId = [cfg.tts.profil];
+  return ac;
 }
 
 // LINEAR16 cikisinda 44 baytlik WAV header'i atlanmali (RTP ham PCM ister)

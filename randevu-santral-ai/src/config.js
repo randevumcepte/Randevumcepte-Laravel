@@ -39,6 +39,7 @@ const cfg = {
     apiKey: process.env.GOOGLE_TTS_API_KEY || '',
     voice: process.env.TTS_VOICE || 'tr-TR-Wavenet-E',
     speakingRate: parseFloat(process.env.TTS_SPEAKING_RATE || '1.05'),
+    profil: process.env.TTS_PROFIL !== undefined ? process.env.TTS_PROFIL : 'telephony-class-application',
   },
   bargeIn: bool(process.env.BARGE_IN, true),
   sessizlikMs: num(process.env.SESSIZLIK_MS, 15000),

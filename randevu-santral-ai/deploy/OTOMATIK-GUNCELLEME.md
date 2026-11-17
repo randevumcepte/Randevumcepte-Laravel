@@ -16,7 +16,7 @@ chmod +x /usr/local/bin/santral-guncelle.sh
 
 `crontab -e`:
 ```
-*/5 * * * * /usr/local/bin/santral-guncelle.sh >> /var/log/santral-guncelle.log 2>&1
+* * * * * /usr/local/bin/santral-guncelle.sh >> /var/log/santral-guncelle.log 2>&1
 ```
 
 ## Kontrol
