@@ -81,10 +81,9 @@ fi
 # push'ta otomatik senkron edilir. GUVENLIK: yalnizca ayni GitHub repo'yu takip
 # eden gercek bir git checkout ise reset uygulanir; aksi halde dokunulmaz.
 #
-# GECICI OLARAK KAPALI: Su an yalnizca TEST (apptest) deploy edilir; CANLI (app)
-# otomatik senkronu durduruldu, canli mevcut commit'te DONAR. Tekrar acmak icin
-# asagidaki DEPLOY_PROD degerini 1 yap.
-DEPLOY_PROD=0
+# ACIK (17 Kas 2026 tekrar acildi): TEST (apptest) + CANLI (app) birlikte deploy edilir.
+# Canliyi dondurmak icin asagidaki DEPLOY_PROD degerini 0 yap.
+DEPLOY_PROD=1
 PROD_DIR="/var/www/www-root/data/www/randevumcepte"
 EXPECTED_REPO="randevumcepte/Randevumcepte-Laravel"
 if [ "$DEPLOY_PROD" -eq 1 ] && [ -d "$PROD_DIR/.git" ]; then
