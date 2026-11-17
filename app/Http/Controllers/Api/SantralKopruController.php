@@ -20,6 +20,9 @@ class SantralKopruController extends Controller
     // ---------------------------------------------------------- tablolar
     protected function tabloGaranti(): void
     {
+        // GECIKME: her turda 2 Schema::hasTable (information_schema sorgusu) yapiliyordu. Tablolar bir kez
+        // dogrulaninca bayrak onbellekte tutulur (paket semasi zaten boyle).
+        if (\Cache::get('santral_tablo_v1') && \Cache::get('santral_paket_sema_v1')) return;
         if (!Schema::hasTable('santral_oturumlari')) {
             Schema::create('santral_oturumlari', function ($t) {
                 $t->bigIncrements('id'); // Laravel 5.6: id() yok (L7+)
@@ -48,6 +51,7 @@ class SantralKopruController extends Controller
             });
         }
         SantralPaket::semaGaranti(); // paket tablosu + oturum kullanim kolonlari (yon/sure/token/maliyet)
+        \Cache::forever('santral_tablo_v1', 1);
     }
 
     /** Kullanim kolonlari hazir mi (sema garantisi basarisizsa insert/update bozulmasin). */
@@ -132,6 +136,9 @@ class SantralKopruController extends Controller
     public function konus(Request $r)
     {
         if (!$this->yetkiVar($r)) return $this->j(['ok' => 0, 'hata' => 'Yetkisiz santral isteği'], 401);
+        // GECIKME DOKUMU (Laravel ici): acilis (PHP+Laravel boot) / hazirlik / asistan kurulum / konus / yazma
+        $sGir = microtime(true);
+        $sIstek = (float) ($_SERVER['REQUEST_TIME_FLOAT'] ?? $sGir);
         $this->tabloGaranti();
 
         $oid = (int) $r->input('oturum_id');
@@ -169,8 +176,11 @@ class SantralKopruController extends Controller
             $gecmis = $gecmisHazirla(DB::table('santral_oturumlari')->where('id', $oid)->value('gecmis'));
         }
 
+        $sHazir = microtime(true);
         $as = new RandevuAsistan((int) $o->sube_id, $o->telefon);
+        $sKur = microtime(true);
         $d = $as->konus($metin, $gecmis);
+        $sKonus = microtime(true);
 
         // PARALEL TUR: bu tur dusunurken diger tur gecmise yazmis olabilir -> gecmisi TAZE oku, ustune ekle
         // (eski kopyanin ustune yazilirsa o tur silinirdi). Kopru bu turu iptal ettiyse gecmise yazilmaz.
@@ -196,6 +206,10 @@ class SantralKopruController extends Controller
         // Paralel tur bu turun bittigini (ve is yapip yapmadigini) buradan gorur; gecmis yazildiktan SONRA
         if ($tur > 0) Cache::put("santral_tur_bitti_{$oid}_{$tur}", $aksiyon ?: (!empty($d['bitir']) ? 'bitir' : '-'), 10); // L5.6: dakika
         if ($this->kullanimKolonlari()) SantralPaket::turKaydet($oid, (int) $o->sube_id, $as->kullanim, mb_strlen((string) $d['cevap']));
+        $ms = function ($a, $b) { return (int) round(($b - $a) * 1000); };
+        $sSon = microtime(true);
+        \Log::info('[SANTRAL-LARAVEL-SURE]', ['oturum' => $oid, 'acilis_ms' => $ms($sIstek, $sGir), 'hazirlik_ms' => $ms($sGir, $sHazir),
+            'asistan_kur_ms' => $ms($sHazir, $sKur), 'konus_ms' => $ms($sKur, $sKonus), 'yazma_ms' => $ms($sKonus, $sSon), 'toplam_ms' => $ms($sIstek, $sSon)]);
 
         return $this->j([
             'ok' => 1,
