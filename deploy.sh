@@ -44,6 +44,9 @@ fi
 log "=== Deploy basladi (LOCAL=$LOCAL REMOTE=$REMOTE LAST=$LAST) ==="
 
 # 3) Zorla remote main'e esitle
+# Iki adim (bkz. CANLI bolumu, 17 Kas 2026): once --mixed (calisma agacina
+# dokunmaz) sonra --hard -> yerel commit'teki takipsiz kalan dosyalar SILINMEZ.
+git reset -q origin/main >/dev/null 2>&1
 RESET_OUT=$(git reset --hard origin/main 2>&1)
 log "git reset --hard origin/main: $RESET_OUT"
 
@@ -92,22 +95,17 @@ if [ "$DEPLOY_PROD" -eq 1 ] && [ -d "$PROD_DIR/.git" ]; then
         *"$EXPECTED_REPO"*)
             log "--- CANLI (app) deploy basliyor: $PROD_DIR (remote=$PROD_REMOTE) ---"
             git -C "$PROD_DIR" fetch origin main >/dev/null 2>&1
-            # GUVENLIK (17 Kas 2026 olayi): canlida yerel commit'te takip edilen ama
-            # origin'de olmayan dosyalari reset --hard SILER (16:22'de 12.910 dosya:
-            # whatsmeow-bridge programi + tum WA oturum DB'leri gitti). Reset'ten once
-            # silinecek dosyalari yedekle; varsa resetten sonra TAKIPSIZ olarak geri koy
-            # (takipsiz dosyaya reset --hard dokunmaz).
-            SILINECEK=$(git -C "$PROD_DIR" diff --name-only --diff-filter=D HEAD origin/main 2>/dev/null)
-            if [ -n "$SILINECEK" ]; then
-                YEDEK="/root/deploy-silinecek-yedek-$(date +%Y%m%d-%H%M%S).tar"
-                (cd "$PROD_DIR" && printf '%s\n' "$SILINECEK" | tar -cf "$YEDEK" --ignore-failed-read -T - 2>/dev/null)
-                log "UYARI: reset $(printf '%s\n' "$SILINECEK" | wc -l) takipli dosyayi silecekti -> yedek: $YEDEK (reset sonrasi geri konuyor)"
-            fi
+            # GUVENLIK (17 Kas 2026 — ikinci olay): sunucuda yerel commit'e girmis ama
+            # origin'de olmayan dosyalari (whatsmeow-bridge programi + WA oturum DB'leri)
+            # 'reset --hard' SILIYORDU; acik SQLite dosyasi silinince tum salonlarda
+            # "readonly database". Iki adimli esitleme HICBIR dosyayi silmez:
+            #  1) reset --mixed: HEAD+index origin/main olur, calisma agacina DOKUNMAZ
+            #     (eski commit'teki fazla dosyalar takipsiz kalir)
+            #  2) reset --hard: artik yalniz origin/main'deki takipli dosyalari esitler
+            # Bedeli: origin'den kasten silinen kod dosyalari canlida takipsiz artik
+            # olarak kalir (zararsiz). ASLA tek adimli reset --hard'a donme.
+            git -C "$PROD_DIR" reset -q origin/main >/dev/null 2>&1
             PROD_RESET=$(git -C "$PROD_DIR" reset --hard origin/main 2>&1)
-            if [ -n "$SILINECEK" ] && [ -f "$YEDEK" ]; then
-                tar -xf "$YEDEK" -C "$PROD_DIR" 2>/dev/null
-                log "reset sonrasi takipsiz olarak geri kondu: $YEDEK"
-            fi
             log "prod reset: $PROD_RESET"
             # DIKKAT: Canlida OTOMATIK migration YOK. Kod + cache senkronu yapilir;
             # DB sema degisikligi (migrate) bilincli olarak ELLE calistirilir (mevcut
