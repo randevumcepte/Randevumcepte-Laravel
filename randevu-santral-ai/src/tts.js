@@ -24,6 +24,39 @@ function isit() {
 const cache = new Map();
 const CACHE_MAX = 200;
 
+// DISK ONBELLEGI: bellek onbellegi her yeniden baslatmada (cron guncellemesi) siliniyordu -> kalip cumleler
+// ("Başka yardımcı olabileceğim...") her seferinde yeniden ucretlendiriliyordu (ElevenLabs kredisi, 2026-11-17).
+// Anahtar = saglayici + ses + model + ayarlar + metin; ses/ayar degisince eski dosya kullanilmaz.
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const DISK_DIZIN = process.env.TTS_ONBELLEK_DIZIN || path.resolve(__dirname, '..', 'tts-onbellek');
+try { fs.mkdirSync(DISK_DIZIN, { recursive: true }); } catch (_) {}
+function diskAnahtar(t) {
+  const e = cfg.elevenlabs;
+  const ayar = akisli()
+    ? ['el', e.voiceId, e.model, e.stability, e.similarity, e.speed, e.dil, JSON.stringify(e.yazim), cfg.mediaFormat]
+    : ['g', cfg.tts.voice, cfg.tts.speakingRate, cfg.tts.profil, cfg.mediaFormat];
+  return path.join(DISK_DIZIN, crypto.createHash('md5').update(JSON.stringify(ayar) + '|' + t).digest('hex') + '.ses');
+}
+function onbellekAl(t) {
+  if (cache.has(t + '|' + (akisli() ? 'el' : 'g'))) return cache.get(t + '|' + (akisli() ? 'el' : 'g'));
+  try {
+    const b = fs.readFileSync(diskAnahtar(t));
+    if (b && b.length) { onbellekBellek(t, b); return b; }
+  } catch (_) {}
+  return null;
+}
+function onbellekBellek(t, buf) {
+  if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
+  cache.set(t + '|' + (akisli() ? 'el' : 'g'), buf);
+}
+function onbellekKoy(t, buf) {
+  if (!buf || !buf.length) return;
+  onbellekBellek(t, buf);
+  fs.writeFile(diskAnahtar(t), buf, () => {});
+}
+
 // Google TTS ulaw -> MULAW/8000, LINEAR16 -> LINEAR16/16000 (sampleRateHertz zorunlu degil ama netlik icin)
 // effectsProfileId 'telephony-class-application': Google sesi telefon hattina (dar bant) gore optimize eder
 // (8 kHz'de daha net/anlasilir). TTS_PROFIL= (bos) ile kapatilir.
@@ -93,20 +126,22 @@ async function elevenlabs(t) {
 async function seslendir(metin) {
   const t = okunur(metin).trim();
   if (!t) return Buffer.alloc(0);
-  if (cache.has(t)) return cache.get(t);
+  const onb = onbellekAl(t);
+  if (onb) return onb;
 
+  let elHata = false; // ElevenLabs basarisiz -> Google sesi ElevenLabs anahtariyla ONBELLEGE YAZILMAZ (kalici yanlis ses olmasin)
   if (cfg.tts.saglayici === 'elevenlabs' && cfg.elevenlabs.apiKey && cfg.elevenlabs.voiceId) {
     try {
       const buf = await elevenlabs(t);
       if (buf.length) {
-        if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
-        cache.set(t, buf);
+        onbellekKoy(t, buf);
         return buf;
       }
     } catch (e) {
       let m = e.message;
       try { m = Buffer.from(e.response.data).toString('utf8').slice(0, 200); } catch (_) {}
       log.error('ElevenLabs TTS hatasi -> Google ile okunuyor:', m);
+      elHata = true;
     }
   }
 
@@ -129,8 +164,7 @@ async function seslendir(metin) {
     // ulaw ciktisi da WAV header'li gelebilir -> ayikla
     else buf = stripWavHeader(buf);
 
-    if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
-    cache.set(t, buf);
+    if (!elHata) onbellekKoy(t, buf);
     return buf;
   } catch (e) {
     log.error('TTS hatasi:', e.response?.data?.error?.message || e.message);
@@ -148,7 +182,7 @@ function akisli() {
 async function seslendirAkis(metin, onParca) {
   const t = okunur(metin).trim();
   if (!t) return;
-  if (cache.has(t) || !akisli()) { const b = await seslendir(metin); if (b && b.length) onParca(b); return; }
+  if (!akisli() || onbellekAl(t)) { const b = await seslendir(metin); if (b && b.length) onParca(b); return; }
 
   const e = cfg.elevenlabs;
   const bicim = cfg.mediaFormat === 'slin16' ? 'pcm_16000' : 'ulaw_8000';
@@ -176,10 +210,7 @@ async function seslendirAkis(metin, onParca) {
     });
     if (artik.length) onParca(artik);
     const tum = Buffer.concat(parcalar);
-    if (tum.length) {
-      if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
-      cache.set(t, tum);
-    }
+    if (tum.length) onbellekKoy(t, tum);
   } catch (err) {
     let m = err.message;
     try { if (err.response && err.response.data && err.response.data.read) m = String(err.response.data.read() || m).slice(0, 200); } catch (_) {}

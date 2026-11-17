@@ -4,3 +4,4 @@ node_modules/
 google-stt.json
 *.log
 npm-debug.log*
+tts-onbellek/
