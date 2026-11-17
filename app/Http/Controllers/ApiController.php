@@ -12656,7 +12656,12 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 if ($finalRandevu) {
                     $salonAdi = \App\Salonlar::where('id', $salonId)->value('salon_adi') ?? 'Salon';
                     $tarihSaatTxt = date('d.m.Y H:i', strtotime($finalRandevu->tarih . ' ' . $finalRandevu->saat));
-                    $musteriEkledi = in_array($_randevuKaynak, ['uygulama', 'web']);
+                    // Sesli asistan (santral) talebi de MUSTERI talebidir: musteriye "talebiniz alindi", personel +
+                    // yoneticilere "yeni talep" push'u (isletme istegi 2026-11-17: ayarlardan bagimsiz mutlaka gitsin).
+                    $_asistan = (string) $_requestForSms->input('easistan') === '1';
+                    $musteriEkledi = in_array($_randevuKaynak, ['uygulama', 'web']) || $_asistan;
+                    $_asistanEk = $_asistan ? ' (sesli asistan)' : '';
+                    $_yoneticiler = \App\Personeller::where('salon_id', $salonId)->where('role_id', '<', 5)->pluck('id')->map(function ($v) { return (int) $v; })->all();
 
                     if ($guncelleme) {
                         // Guncelleme: her durumda musteriye push (zaman degisti veya
@@ -12678,19 +12683,20 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                                 ->send();
                         } catch (\Throwable $e) { \Log::warning('musteri guncelleme push fail: '.$e->getMessage()); }
 
-                        if ($zamanDegisti) {
-                            foreach ($finalRandevu->hizmetler as $h) {
-                                if (!$h->personel_id) continue;
-                                try {
-                                    NotificationService::toStaff((int)$h->personel_id, (int)$salonId)
-                                        ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
-                                        ->title('Randevu zamanı değişti')
-                                        ->body(($finalRandevu->users->name ?? 'Müşteri') . ' • Yeni: ' . $tarihSaatTxt)
-                                        ->randevu((int)$finalRandevu->id)
-                                        ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
-                                        ->send();
-                                } catch (\Throwable $e) { \Log::warning('personel zaman degisti push fail: '.$e->getMessage()); }
-                            }
+                        // Personel + yoneticilere HER guncellemede push (eskiden yalniz zaman degisince, yoneticisiz).
+                        $_gPid = [];
+                        foreach ($finalRandevu->hizmetler as $h) { if ($h->personel_id) $_gPid[] = (int) $h->personel_id; }
+                        $_gPid = array_values(array_unique(array_merge($_gPid, $_yoneticiler)));
+                        foreach ($_gPid as $_pid) {
+                            try {
+                                NotificationService::toStaff($_pid, (int)$salonId)
+                                    ->type($zamanDegisti ? NotificationTypes::APPOINTMENT_TIME_CHANGED : NotificationTypes::APPOINTMENT_CREATED)
+                                    ->title(($zamanDegisti ? 'Randevu zamanı değişti' : 'Randevu güncellendi') . $_asistanEk)
+                                    ->body(($finalRandevu->users->name ?? 'Müşteri') . ($zamanDegisti ? ' • Yeni: ' : ' • ') . $tarihSaatTxt)
+                                    ->randevu((int)$finalRandevu->id)
+                                    ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
+                                    ->send();
+                            } catch (\Throwable $e) { \Log::warning('personel guncelleme push fail: '.$e->getMessage()); }
                         }
                     } elseif (!$guncelleme) {
                         if ($musteriEkledi) {
@@ -12711,9 +12717,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                             foreach ($finalRandevu->hizmetler as $h) {
                                 if ($h->personel_id) $bildirilecekPersonelIdler[] = (int)$h->personel_id;
                             }
-                            $yoneticiIdler = \App\Personeller::where('salon_id', $salonId)
-                                ->where('role_id', '<', 5)
-                                ->pluck('id')->toArray();
+                            $yoneticiIdler = $_yoneticiler;
                             foreach ($yoneticiIdler as $yid) {
                                 $bildirilecekPersonelIdler[] = (int)$yid;
                             }
@@ -12724,7 +12728,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                                 try {
                                     NotificationService::toStaff($pid, (int)$salonId)
                                         ->type(NotificationTypes::APPOINTMENT_CREATED)
-                                        ->title('Yeni randevu talebi')
+                                        ->title('Yeni randevu talebi' . $_asistanEk)
                                         ->body($musteriAdi . ' • ' . $tarihSaatTxt)
                                         ->randevu((int)$finalRandevu->id)
                                         ->deepLink('appointment_detail', ['randevu_id' => $finalRandevu->id])
@@ -16705,6 +16709,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 $mesaj = ''; 
                 if($randevu->durum == 3)
                     $mesaj =$randevu->users->name ." ".date('d.m.Y', strtotime($randevu->tarih))." " .date("H:i", strtotime($hizmet->saat)) . " " .$hizmet->hizmetler->hizmet_adi ." randevusunu iptal etmiştir.";
+                elseif ((string) $request->input('easistan') === '1')
+                    // Sesli asistan iptali: iptal eden musterinin kendisi (telefonda); "... tarafından" adi bos kaliyordu
+                    $mesaj =$randevu->users->name ." isimli müşteri ".date('d.m.Y', strtotime($randevu->tarih))." " .date("H:i", strtotime($hizmet->saat)) . " " .$hizmet->hizmetler->hizmet_adi ." randevusunu sesli asistan üzerinden iptal etti.";
                 else
                     $mesaj =$randevu->users->name ." isimli müşterinin ".date('d.m.Y', strtotime($randevu->tarih))." " .date("H:i", strtotime($hizmet->saat)) . " " .$hizmet->hizmetler->hizmet_adi ." randevusu " .IsletmeYetkilileri::where("id",$randevu->olusturan_personel_id)->value("name") ." tarafından iptal edilmiştir.";
                 if (SalonSMSAyarlari::where("salon_id", $randevu->salon_id)->where("ayar_id", 3)->value("personel") == 1 ) {
@@ -16786,6 +16793,34 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 }
             };
             if ($hemen) { $_gonder(); } else { register_shutdown_function($_gonder); }
+        }
+
+        // YONETICI push (isletme istegi 2026-11-17: iptal/red ayarlardan bagimsiz mutlaka bildirilsin). Atanan personel
+        // yukarida bildirildi; ayni kisiye ikinci kez gitmez.
+        try {
+            $_atanan = [];
+            foreach ($randevu->hizmetler as $_h) { if ($_h->personel_id) $_atanan[] = (int) $_h->personel_id; }
+            $_ilkHizmet = $randevu->hizmetler->first();
+            $_yBody = ($randevu->users->name ?? 'Müşteri') . ' • ' . date('d.m.Y', strtotime($randevu->tarih)) . ' ' . date('H:i', strtotime($randevu->saat))
+                . ($_ilkHizmet && $_ilkHizmet->hizmetler ? ' • ' . $_ilkHizmet->hizmetler->hizmet_adi : '');
+            $_yTitle = $red ? 'Randevu Reddedildi'
+                : ($randevu->durum == 3 ? 'Müşteri Randevuyu İptal Etti'
+                    : ((string) $request->input('easistan') === '1' ? 'Randevu İptal Edildi (sesli asistan)' : 'Randevu İptal Edildi'));
+            foreach (Personeller::where('salon_id', $randevu->salon_id)->where('role_id', '<', 5)->pluck('id') as $_yid) {
+                if (in_array((int) $_yid, $_atanan, true)) continue;
+                try {
+                    NotificationService::toStaff((int) $_yid, (int) $randevu->salon_id)
+                        ->type(NotificationTypes::APPOINTMENT_CANCELLED)
+                        ->title($_yTitle)
+                        ->body($_yBody)
+                        ->randevu((int) $randevu->id)
+                        ->deepLink('appointment_detail', ['randevu_id' => $randevu->id])
+                        ->extra(['islem' => $red ? 'red' : 'iptal'])
+                        ->send();
+                } catch (\Throwable $e) { \Log::warning('yonetici iptal push: ' . $e->getMessage()); }
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('yonetici iptal push hata: ' . $e->getMessage());
         }
 
         // Musteri push (red veya salon-iptal durumlarinda — musteri kendi iptal ederse mantiksiz)

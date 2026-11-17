@@ -2284,7 +2284,7 @@ PROMPT;
         }
         try {
             app(ApiController::class)->randevuIptalBildirimleri(
-                Request::create('/api/randevuiptalet', 'POST', ['salonid' => $this->salonId, 'sube' => $this->salonId, 'randevuid' => $r->id, 'durum' => Randevular::IPTAL_EDILDI]),
+                Request::create('/api/randevuiptalet', 'POST', ['salonid' => $this->salonId, 'sube' => $this->salonId, 'randevuid' => $r->id, 'durum' => Randevular::IPTAL_EDILDI, 'easistan' => '1']),
                 $r->fresh(), false
             );
         } catch (\Throwable $e) {
