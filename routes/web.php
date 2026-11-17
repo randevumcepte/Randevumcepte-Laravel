@@ -425,6 +425,10 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::post('/santral-paket', 'SantralPaketController@kaydet');
     Route::post('/santral-paket/{salonId}/sil', 'SantralPaketController@sil')->where('salonId', '[0-9]+');
 
+    // İsim Sözlüğü (santral hitabi: asistanin tanimadigi adlar + Erkek/Kadın/Hitapsız karari)
+    Route::get('/isim-sozluk', 'IsimSozlukController@index')->name('sistemyonetim.v2.isim-sozluk');
+    Route::post('/isim-sozluk', 'IsimSozlukController@kaydet');
+
     // AI Kredi & Kullanim paneli (Patron Asistani Haiku harcamasi)
     Route::get('/ai-kredi', 'AiKrediController@index')->name('sistemyonetim.v2.aikredi');
     Route::post('/ai-kredi/kredi-yukle', 'AiKrediController@krediYukle');

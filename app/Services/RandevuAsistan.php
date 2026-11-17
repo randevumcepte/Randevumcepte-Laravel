@@ -38,6 +38,7 @@ class RandevuAsistan
     protected ?string $musteriAd = null;
     protected ?int $musteriId = null;    // bu salonun portfoyunde AKTIF musteri (karsilama ile ayni kural)
     protected ?int $musteriCinsiyet = null; // users.cinsiyet: 0=Kadın, 1=Erkek, null=belirtilmemis (hitap icin)
+    protected bool $_isimOgrenildi = false; // sozlukte olmayan ad bu nesnede panele bir kez yazilsin
     /** Arayan numarasi gizli/gecersizdi ve kayitta telefon alindiysa: oturuma yazilsin diye kopru controller'i okur. */
     public ?string $yeniTelefon = null;
     protected ?array $_personeller = null;
@@ -1499,34 +1500,37 @@ PROMPT;
         if ($ilkAd === '') return null;
         // Sira: kayit -> iki cinsiyetli ad ise DUR -> hazir ad listesi (sorgusuz) -> kendi verimizin istatistigi
         $c = $this->musteriCinsiyet;
-        if ($c === null && !TurkceIsimCinsiyet::belirsizMi($ilkAd)) $c = TurkceIsimCinsiyet::bul($ilkAd) ?? $this->adCinsiyeti($ilkAd);
+        if ($c === null && !TurkceIsimCinsiyet::belirsizMi($ilkAd)) {
+            $c = TurkceIsimCinsiyet::bul($ilkAd);
+            if ($c === null) {
+                // Sozlukte yok: panelde karar icin "bekliyor" listesine + bu arada istatistik. Nesne her TURDA yeniden
+                // kurulur -> ayni arayan+ad 2 saatte bir kez sayilsin (gorulme = arama sayisi, tur sayisi degil).
+                if (!$this->_isimOgrenildi) {
+                    $this->_isimOgrenildi = true;
+                    try {
+                        if (\Cache::add('santral_isim_ogren_' . md5($this->telefon . '|' . $ilkAd), 1, 120)) TurkceIsimCinsiyet::ogren($ilkAd);
+                    } catch (\Throwable $e) {}
+                }
+                $c = $this->adCinsiyeti($ilkAd);
+            }
+        }
         return $c === null ? null : $ilkAd . ($c === 1 ? ' Bey' : ' Hanım');
     }
 
     /**
      * Ad -> cinsiyet (1 Erkek / 0 Kadın) TUM sistemdeki cinsiyeti girilmis kayitlardan: en az 5 kayit ve %95 ayni
-     * cinsiyet sartiyla; aksi halde null. 30 gun onbellek (ad basina 1 sorgu); sorgu 400 ms'yi gecerse null
-     * (telefonda bekletmez). Tahmin kayda YAZILMAZ.
+     * cinsiyet sartiyla; aksi halde null. Sayim TurkceIsimCinsiyet::istatistik (1 gun onbellek, 400 ms sinir;
+     * panel ekrani da ayni sayimi oneri olarak gosterir). Tahmin kayda YAZILMAZ.
      */
     protected function adCinsiyeti(string $ilkAd): ?int
     {
-        $ad = mb_strtolower(strtr(trim($ilkAd), ['I' => 'ı', 'İ' => 'i']), 'UTF-8');
-        if (mb_strlen($ad) < 2) return null;
-        try {
-            $v = \Cache::remember('santral_ad_cinsiyet_' . md5($ad), 60 * 24 * 30, function () use ($ilkAd) {
-                $satir = \DB::selectOne('SELECT /*+ MAX_EXECUTION_TIME(400) */ SUM(cinsiyet = 1) AS e, SUM(cinsiyet = 0) AS k
-                    FROM users WHERE cinsiyet IN (0, 1) AND (name LIKE ? OR name = ?)', [$ilkAd . ' %', $ilkAd]);
-                $e = (int) ($satir->e ?? 0); $k = (int) ($satir->k ?? 0); $t = $e + $k;
-                if ($t < 5) return 'x';
-                if ($e / $t >= 0.95) return 1;
-                if ($k / $t >= 0.95) return 0;
-                return 'x';
-            });
-            return $v === 1 || $v === 0 ? $v : null;
-        } catch (\Throwable $e) {
-            Log::info('RandevuAsistan adCinsiyeti: ' . $e->getMessage());
-            return null;
-        }
+        $s = TurkceIsimCinsiyet::istatistik($ilkAd);
+        if (!$s) return null;
+        $t = $s['e'] + $s['k'];
+        if ($t < 5) return null;
+        if ($s['e'] / $t >= 0.95) return 1;
+        if ($s['k'] / $t >= 0.95) return 0;
+        return null;
     }
 
     /**

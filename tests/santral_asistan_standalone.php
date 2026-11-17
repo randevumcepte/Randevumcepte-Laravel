@@ -536,6 +536,12 @@ namespace {
     DB::$sayim = ['Aksel' => ['e' => 100, 'k' => 0]];
     esit('iki cinsiyetli ad müşteri verisine bakmaz', null, cagir(asistan(['musteriAd' => 'Aksel Kaya']), 'hitap'));
     esit('kayıt her şeyi ezer (Ferdi ama kayıtta kadın)', 'Ferdi Hanım', cagir(asistan(['musteriAd' => 'Ferdi Korkmaz', 'musteriCinsiyet' => 0]), 'hitap'));
+    $pk = new ReflectionProperty(App\Services\TurkceIsimCinsiyet::class, 'panel'); $pk->setAccessible(true);
+    $pk->setValue(null, ['ferdi' => 0, 'orbeyhan' => 2]);
+    esit('panel kararı sözlüğü ezer (Ferdi → Kadın)', 'Ferdi Hanım', cagir(asistan(['musteriAd' => 'Ferdi Korkmaz']), 'hitap'));
+    esit('panel Hitapsız → müşteri verisine bakılmaz', null, cagir(asistan(['musteriAd' => 'Orbeyhan Ak']), 'hitap'));
+    $pk->setValue(null, null);
+    esit('anahtar: Türkçe karaktersiz ilk ad', 'gulsah', App\Services\TurkceIsimCinsiyet::anahtar('GÜLŞAH İnce'));
     DB::$sayim = [];
     esit('erkek (1) → Anıl Bey', 'Anıl Bey', cagir(asistan(['musteriCinsiyet' => 1]), 'hitap'));
     esit('kadın (0) → Anıl Hanım', 'Anıl Hanım', cagir(asistan(['musteriCinsiyet' => 0]), 'hitap'));

@@ -111,24 +111,133 @@ class TurkceIsimCinsiyet
         return self::deger($ad) === self::IKI_CINSIYET;
     }
 
-    /** 1 / 0 / 2 (iki cinsiyet) / null (bilinmiyor). Once isletme duzeltmesi, sonra buyuk veri, yoksa elle listeler. */
+    /**
+     * 1 / 0 / 2 (iki cinsiyet) / null (bilinmiyor). Sira: panel karari (Sistem Yonetimi > İsim Sözlüğü) ->
+     * kod duzeltmesi -> buyuk veri -> elle listeler.
+     */
     protected static function deger(string $ad): ?int
     {
-        $ilk = self::ilkAd($ad);
-        if ($ilk === '') return null;
-        $anahtar = strtr($ilk, ['ı' => 'i', 'ş' => 's', 'ğ' => 'g', 'ü' => 'u', 'ö' => 'o', 'ç' => 'c', 'â' => 'a', 'î' => 'i', 'û' => 'u']);
+        $anahtar = self::anahtar($ad);
+        if ($anahtar === '') return null;
+        $panel = self::panelKararlari();
+        if (isset($panel[$anahtar])) return $panel[$anahtar];
+        return self::sozlukDegeri($anahtar, self::ilkAd($ad));
+    }
+
+    /** Panel haric (kod + veri + elle liste). Panel ekrani "sözlükte ne diyor" gostermek icin de kullanir. */
+    public static function sozlukDegeri(string $anahtar, ?string $ilk = null): ?int
+    {
         if (isset(self::DUZELTME[$anahtar])) return self::DUZELTME[$anahtar];
         if (self::$veri === null) self::$veri = require __DIR__ . '/veri/turkce_isim_cinsiyet.php';
         if (isset(self::$veri[$anahtar])) return self::$veri[$anahtar];
+        if ($ilk === null) return null;
         if (in_array($ilk, self::BELIRSIZ, true)) return self::IKI_CINSIYET;
         if (in_array($ilk, self::ERKEK_ADLAR, true)) return self::ERKEK;
         if (in_array($ilk, self::KADIN_ADLAR, true)) return self::KADIN;
         return null;
     }
 
+    /** "Ayşe Nur" -> "ayse" (ilk ad, Turkce karaktersiz kucuk harf). */
+    public static function anahtar(string $ad): string
+    {
+        return strtr(self::ilkAd($ad), ['ı' => 'i', 'ş' => 's', 'ğ' => 'g', 'ü' => 'u', 'ö' => 'o', 'ç' => 'c', 'â' => 'a', 'î' => 'i', 'û' => 'u']);
+    }
+
     protected static function ilkAd(string $ad): string
     {
         $ilk = explode(' ', trim($ad))[0] ?? '';
         return mb_strtolower(strtr($ilk, ['I' => 'ı', 'İ' => 'i']), 'UTF-8');
+    }
+
+    // ------------------------------------------------------------------ OGRENEN SOZLUK (panel)
+    // Sozlukte olmayan bir ad aramada gecince "karar bekliyor" olarak kaydedilir (gorulme sayilir);
+    // Sistem Yonetimi > İsim Sözlüğü'nde Erkek / Kadın / Hitapsız secilince bir sonraki aramada kullanilir.
+
+    const TABLO = 'santral_isim_sozluk';
+    const ONBELLEK = 'santral_isim_sozluk_kararlar';
+    protected static ?array $panel = null;
+
+    /** Tablo yoksa olusturur (migrate gerekmez; SantralPaket ile ayni kalip). */
+    public static function semaGaranti(): void
+    {
+        if (\Cache::get('santral_isim_sozluk_sema_v1')) return;
+        if (!\Schema::hasTable(self::TABLO)) {
+            \Schema::create(self::TABLO, function ($t) {
+                $t->increments('id');
+                $t->string('anahtar', 60)->unique();          // Turkce karaktersiz ilk ad
+                $t->string('ad', 60);                          // ilk goruldugu yazilis ("Orbey")
+                $t->tinyInteger('cinsiyet')->nullable();       // 1 Erkek, 0 Kadın, 2 Hitapsız, null = karar bekliyor
+                $t->unsignedInteger('gorulme')->default(0);    // kac aramada gecti
+                $t->timestamp('son_gorulme')->nullable();
+                $t->string('karar_veren', 100)->nullable();
+                $t->timestamps();
+                $t->index('cinsiyet');
+            });
+        }
+        \Cache::forever('santral_isim_sozluk_sema_v1', 1);
+    }
+
+    /** Panelde karar verilmis adlar [anahtar => 1/0/2]. 10 dk onbellek; hata/tablo yoksa bos. */
+    public static function panelKararlari(): array
+    {
+        if (self::$panel !== null) return self::$panel;
+        try {
+            self::$panel = \Cache::remember(self::ONBELLEK, 10, function () {
+                if (!\Schema::hasTable(self::TABLO)) return [];
+                return \DB::table(self::TABLO)->whereNotNull('cinsiyet')->pluck('cinsiyet', 'anahtar')
+                    ->map(function ($v) { return (int) $v; })->all();
+            });
+        } catch (\Throwable $e) {
+            self::$panel = [];
+        }
+        return self::$panel;
+    }
+
+    /**
+     * Ayni adli ve cinsiyeti girilmis musteri sayilari (tum sistem): ['e' => erkek, 'k' => kadin]; hata/zaman asimi null.
+     * Ad basina 1 gun onbellek, sorgu 400 ms siniri (MySQL).
+     */
+    public static function istatistik(string $ilkAd): ?array
+    {
+        $ilkAd = trim($ilkAd);
+        if (mb_strlen($ilkAd) < 2) return null;
+        try {
+            return \Cache::remember('santral_ad_istatistik_' . md5(self::anahtar($ilkAd)), 60 * 24, function () use ($ilkAd) {
+                $s = \DB::selectOne('SELECT /*+ MAX_EXECUTION_TIME(400) */ SUM(cinsiyet = 1) AS e, SUM(cinsiyet = 0) AS k
+                    FROM users WHERE cinsiyet IN (0, 1) AND (name LIKE ? OR name = ?)', [$ilkAd . ' %', $ilkAd]);
+                return ['e' => (int) ($s->e ?? 0), 'k' => (int) ($s->k ?? 0)];
+            });
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    public static function onbellekSil(): void
+    {
+        self::$panel = null;
+        try { \Cache::forget(self::ONBELLEK); } catch (\Throwable $e) {}
+    }
+
+    /**
+     * Ad sozlukte (panel/kod/veri/elle liste) YOKSA "karar bekliyor" listesine yaz, gorulmeyi artir.
+     * Telefonu bekletmesin diye tek kucuk sorgu; hata olursa sessiz gecer.
+     */
+    public static function ogren(string $ad): void
+    {
+        $anahtar = self::anahtar($ad);
+        if (mb_strlen($anahtar) < 2 || mb_strlen($anahtar) > 60 || !preg_match('/^[a-z]+$/', $anahtar)) return;
+        if (self::deger($ad) !== null) return;
+        try {
+            self::semaGaranti();
+            $ilk = self::ilkAd($ad);
+            $gorunen = mb_strtoupper(strtr(mb_substr($ilk, 0, 1, 'UTF-8'), ['i' => 'İ', 'ı' => 'I']), 'UTF-8') . mb_substr($ilk, 1, null, 'UTF-8');
+            $n = \DB::table(self::TABLO)->where('anahtar', $anahtar)->increment('gorulme', 1, ['son_gorulme' => now(), 'updated_at' => now()]);
+            if (!$n) {
+                \DB::table(self::TABLO)->insert(['anahtar' => $anahtar, 'ad' => $gorunen, 'gorulme' => 1,
+                    'son_gorulme' => now(), 'created_at' => now(), 'updated_at' => now()]);
+            }
+        } catch (\Throwable $e) {
+            // ayni anda iki arama ayni adi eklerse unique hatasi -> onemsiz
+        }
     }
 }

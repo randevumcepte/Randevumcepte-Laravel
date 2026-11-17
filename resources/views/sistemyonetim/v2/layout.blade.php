@@ -57,6 +57,10 @@
                 <span class="icon mdi mdi-headset"></span>
                 Santral Asistan Paketleri
             </a>
+            <a href="/sistemyonetim/v2/isim-sozluk" class="sy-nav-item {{ $aktifMenu === 'isimsozluk' ? 'active' : '' }}">
+                <span class="icon mdi mdi-account-voice"></span>
+                İsim Sözlüğü
+            </a>
             <a href="/sistemyonetim/v2/ai-kredi" class="sy-nav-item {{ $aktifMenu === 'aikredi' ? 'active' : '' }}">
                 <span class="icon mdi mdi-robot-happy"></span>
                 AI Kredi &amp; Kullanım
