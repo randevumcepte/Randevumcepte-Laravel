@@ -60,6 +60,8 @@ const cfg = {
   // Bekleme cumlesi: beyin cevabi bu kadar ms icinde gelmezse "Hemen bakıyorum." gibi kisa bir cumle cal
   // (musteri sessizlikte kalmasin). 0 = kapali.
   dolguMs: num(process.env.DOLGU_MS, 1800),
+  // Kisa tepki ('Tamam.', 'Bir bakayım.'): musteri sustuktan sonra cevap bu kadar ms'de gelmezse calar. 0 = kapali.
+  tepkiMs: num(process.env.TEPKI_MS, 350),
   // AI konusurken STT akisini kapat (maliyet ~%40-50 duser); 0 = eski davranis (surekli acik)
   sttDuraklat: (process.env.STT_DURAKLAT || '1') !== '0',
   // Musteri sustuktan sonra cumleyi BITMIS sayma suresi (Google final'i gecikirse). Eskiden 1200/2400 ms idi:

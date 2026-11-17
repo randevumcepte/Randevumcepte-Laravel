@@ -13,6 +13,16 @@ const { RtpOturumu } = require('./rtp');
 // "Bir saniye lütfen" cikarildi: konusma arasinda anlamsiz geliyordu (2026-11-17 geri bildirim).
 const DOLGU = ['Hemen bakıyorum.', 'Tamam, kontrol ediyorum.'];
 
+// KISA TEPKI (algilanan gecikme): musteri sustuktan ~350 ms sonra cevap hala hazir degilse onbellekten aninda
+// dogal bir tepki calar (Callivo kalibi). Sorgu gerektiren istek -> "bakiyorum"; kisa cevap/secim -> "Tamam.";
+// tesekkur/veda -> hicbir sey. Asistan cevabi ayni kelimeyle basliyorsa o kelime atilir (iki kez "Tamam" olmasin).
+const TEPKI_SORGU = ['Tabii, hemen bakıyorum.', 'Bir bakayım.', 'Hemen bakıyorum.'];
+const TEPKI_KISA = ['Tamam.', 'Peki.'];
+const TEPKI_GENEL = ['Tabii.'];
+// "bakiyorum" yalniz gercekten takvim/kayit sorgusu gerektiren isteklerde (gun/saat/musaitlik/iptal/degisiklik)
+const SORGULU = /(müsait|musait|uygun|boş|bos\b|saat|yarın|yarin|bugün|bugun|haftaya|pazartesi|salı|sali|çarşamba|carsamba|perşembe|persembe|cuma|pazar|iptal|ertele|değiştir|degistir|kaydır|kaydir|güncelle|guncelle)/i;
+const TEPKI_BAS = /^\s*(tamamdır|tamam|tabii ki|tabii|tabi|peki|anladım|elbette|hemen bakıyorum|bakıyorum)\s*[,.!]?\s+(?=\S)/i;
+
 // Bekleme cumlesi YALNIZ kayit/takvim aranan isteklerde calar (randevu, saat, gun, iptal, paket...).
 // "Evet", "fark etmez", isim soyleme gibi kisa cevaplarda "Hemen bakıyorum" anlamsiz kaciyordu.
 const DOLGULU = /(randevu|müsait|musait|uygun|boş|bos\b|saat|yarın|yarin|bugün|bugun|haftaya|pazartesi|salı|sali|çarşamba|carsamba|perşembe|persembe|cuma|pazar|iptal|ertele|değiştir|degistir|kaydır|kaydir|paket|seans|kontrol)/i;
@@ -104,6 +114,7 @@ class CagriOturumu {
       await this._seslendir(d.karsilama || 'Merhaba, size nasıl yardımcı olabilirim?');
       // Bekleme cumlelerini onceden seslendir (onbellege al) -> gerektiginde aninda calsin
       if (cfg.dolguMs > 0) for (const c of DOLGU) tts.seslendir(c).catch(() => {});
+      if (cfg.tepkiMs > 0) for (const c of TEPKI_SORGU.concat(TEPKI_KISA, TEPKI_GENEL)) tts.seslendir(c).catch(() => {});
     } catch (e) {
       const neden = e.response && e.response.data && e.response.data.hata;
       if (neden === 'paket_yok' || neden === 'paket_bitti') {
@@ -248,6 +259,26 @@ class CagriOturumu {
     }
   }
 
+  // Bu musteri cumlesine hangi kisa tepki uygun? (null = tepki yok)
+  _tepkiSec(metin) {
+    const m = (metin || '').trim();
+    if (!m || DOLGUSUZ.test(m)) return null;
+    if (SORGULU.test(m)) { this._tepkiNo = ((this._tepkiNo || 0) + 1) % TEPKI_SORGU.length; return TEPKI_SORGU[this._tepkiNo]; }
+    if (DOLGULU.test(m)) return TEPKI_GENEL[0]; // "randevu almak istiyorum" -> "Tabii." (ardindan soru gelecek)
+    if (m.split(/\s+/).length <= 3) { this._tepkiNo = ((this._tepkiNo || 0) + 1) % TEPKI_KISA.length; return TEPKI_KISA[this._tepkiNo]; }
+    return null;
+  }
+
+  _tepkiCal(c) {
+    if (this.kapali || this._kapaniyor || !this.mesgul || this.rtp.sesVarMi) return;
+    tts.seslendir(c).then((ses) => {
+      if (this.kapali || !this.mesgul || this.rtp.sesVarMi || !ses || !ses.length) return;
+      this._tepkiCaldi = true;
+      log.info(`~ tepki: ${c}`);
+      this.rtp.oynat(ses);
+    }).catch(() => {});
+  }
+
   _dolguCal() {
     if (this.kapali || this._kapaniyor || !this.mesgul) return;
     if (this.rtp.sesVarMi) return; // AI hala onceki cumleyi okuyor
@@ -301,7 +332,11 @@ class CagriOturumu {
     const ek = Object.assign({ tur }, this._oncekiDuyulmadi ? { onceki_duyulmadi: 1 } : {});
     this._oncekiDuyulmadi = false;
     this._aktifTur = { tur, metin };
-    const dolguZ = (cfg.dolguMs > 0 && DOLGULU.test(metin || '') && !DOLGUSUZ.test(metin || '')) ? setTimeout(() => this._dolguCal(), cfg.dolguMs) : null;
+    this._tepkiCaldi = false;
+    const tepki = cfg.tepkiMs > 0 ? this._tepkiSec(metin) : null;
+    const dolguZ = tepki
+      ? setTimeout(() => this._tepkiCal(tepki), cfg.tepkiMs)
+      : ((cfg.dolguMs > 0 && DOLGULU.test(metin || '') && !DOLGUSUZ.test(metin || '')) ? setTimeout(() => this._dolguCal(), cfg.dolguMs) : null);
     const t0 = Date.now();
     this._turBas = t0;
     try {
@@ -369,6 +404,11 @@ class CagriOturumu {
       const kapanis = (d.aksiyon === 'veda' || d.bitir);
       if (kapanis) this._kapaniyor = true;
       this._olcum = { beyinHazir: Date.now() };
+      // Kisa tepki caldiysa cevabin basindaki ayni turden kelimeyi at ("Tamam. Tamam, ..." olmasin)
+      if (this._tepkiCaldi && d.cevap && TEPKI_BAS.test(d.cevap)) {
+        const yeni = d.cevap.replace(TEPKI_BAS, '');
+        d.cevap = yeni.charAt(0).toLocaleUpperCase('tr') + yeni.slice(1);
+      }
       if (d.cevap) await this._seslendir(d.cevap);
       this._olcum = null;
 
