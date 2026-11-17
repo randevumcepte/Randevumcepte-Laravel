@@ -431,7 +431,7 @@ class RandevuAsistan
                 && $this->sahteBasariMetni($cevap);
             // BEKLETME CUMLESI: "bir moment / bekleteceğim / kontrol ediyorum" -> cumleyi at; geriye bir sey
             // kalmadiysa (model araci cagirmadan bekletip turu bitirdi) duzeltme turu: araci simdi cagirsin.
-            $cevap = $this->bekletmeTemizle($cevap);
+            $cevap = $this->bekletmeTemizle($this->icSesTemizle($cevap));
             $bekletti = ($cevap === '' && !$bitir && !in_array($aksiyon, ['aktar', 'veda'], true));
             if ($bekletti && $deneme === 0) {
                 Log::warning('[SANTRAL-BEKLETME] model bekletme cumlesiyle turu bitirdi', ['salon' => $this->salonId, 'metin' => $metin]);
@@ -1103,6 +1103,25 @@ class RandevuAsistan
         return trim(implode(' ', $kalan));
     }
 
+    /**
+     * Modelin IC SESI musteriye okunmasin (canli 2026-11-17: "Müşteri 13.40 dedi; seçeneklerde 13:40 var, tarih ise
+     * önceki konuşmadaki Çarşamba... olarak kalmalı. Onay soruyorum. Çarşamba..." telefonda okundu). Musteriden
+     * ucuncu sahis diye bahseden / kendi adimini anlatan / arac-sistem adi gecen cumleler atilir.
+     */
+    protected function icSesTemizle(string $c): string
+    {
+        $re = '/^müşteri(nin|ye|yi|den)?\s|(onay|teyit)\s+(soruyorum|istiyorum)|söylemiştim|önceki konuşma|olarak kalmal|seçeneklerde\s|araç sonu|\[SİSTEM|BAĞLAM|\b[a-z]+_[a-z_]+\b/iu';
+        $parcalar = preg_split('/(?<=[.!?…])\s+/u', trim($c)) ?: [];
+        $kalan = [];
+        foreach ($parcalar as $p) {
+            if (preg_match($re, $p)) continue;
+            $kalan[] = $p;
+        }
+        $temiz = trim(implode(' ', $kalan));
+        if ($temiz !== trim($c)) Log::warning('[SANTRAL-IC-SES] modelin ic sesi atildi', ['salon' => $this->salonId, 'ham' => $c, 'temiz' => $temiz]);
+        return $temiz;
+    }
+
     /** Fiyat/ucret sorusu mu? ("saç kesimi ne kadar", "fiyatı nedir", "kaç lira") -> isletmeye aktarilir. */
     protected function fiyatSorusuMu(string $m): bool
     {
@@ -1425,7 +1444,7 @@ class RandevuAsistan
         $sssSatir = $sssSatir ?: ' yok';
 
         return <<<PROMPT
-Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal Türkçe konuşuyorsun. Çıktın düz metindir (TTS ile okunur): emoji, madde işareti, markdown KULLANMA. Her yanıt 1-2 cümle.
+Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal Türkçe konuşuyorsun. Çıktın düz metindir (TTS ile okunur): emoji, madde işareti, markdown KULLANMA. Her yanıt 1-2 cümle. Çıktının TAMAMI müşteriye okunur: düşünceni, akıl yürütmeni, ne yapacağını ("Müşteri ... dedi", "Onay soruyorum") ASLA yazma; yalnız müşteriye söyleyeceğin cümleyi yaz.
 
 # AKIŞ (adımları atlama)
 1. SELAMLAMA zaten TTS ile çalındı — TEKRAR ETME. İşletme adına "-da/-de/-a/-e/-ye" eki EKLEME. Arayan KAYITLI DEĞİLSE önce BAĞLAM'daki KAYIT ADIMI'nı tamamla; kayıtlıysa doğrudan niyete geç.

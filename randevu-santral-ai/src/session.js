@@ -304,9 +304,13 @@ class CagriOturumu {
         } else {
           // Eski tur is yapti (randevu/aktar/veda): o calinir; paralel tur bunu bilmeden kuruldu -> iptal,
           // musterinin cumlesi bu isin ardindan sirayla sorulur (eski davranis).
+          // Aktarma/kapanista cumle YENIDEN SORULMAZ (canli 2026-11-17: "İşletme ile görüşmek istiyorum" iki kez
+          // aktar cumlesi okuttu: "sizi işletmeye bağlıyorum" + "sizi bir yetkiliye aktarıyorum").
           this._spek = null;
           brain.turIptal(this.oturumId, spek.tur);
-          this._bekleyen = this._bekleyen ? spek.metin + ' ' + this._bekleyen : spek.metin;
+          if (d.aksiyon !== 'aktar' && d.aksiyon !== 'veda' && !d.bitir) {
+            this._bekleyen = this._bekleyen ? spek.metin + ' ' + this._bekleyen : spek.metin;
+          }
         }
       }
       // Musteri bu arada yeni bir sey soyledi ve bu cevap bir is yapmadiysa (randevu/iptal/aktarma/kapanis yok):
@@ -329,8 +333,8 @@ class CagriOturumu {
       if (d.cevap) await this._seslendir(d.cevap);
       this._olcum = null;
 
-      if (d.aksiyon === 'aktar') { this.onAktar(this.kanalId); return; }
-      if (kapanis) { await this._kapatSirasi(); return; }
+      if (d.aksiyon === 'aktar') { this._bekleyen = null; this.onAktar(this.kanalId); return; }
+      if (kapanis) { this._bekleyen = null; await this._kapatSirasi(); return; }
     } catch (e) {
       clearTimeout(dolguZ);
       log.error('Beyin konus hatasi:', e.message);

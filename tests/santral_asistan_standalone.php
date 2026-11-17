@@ -214,6 +214,16 @@ namespace {
         'Randevunuz iptal edildi. Başka yardımcı olabileceğim bir konu var mı?' => 'Randevunuz iptal edildi. Başka yardımcı olabileceğim bir konu var mı?',
     ] as $g => $b) esit("\"$g\"", $b, cagir($a, 'bekletmeTemizle', $g));
 
+    bolum('Modelin iç sesi okunmaz (canlı 2026-11-17)');
+    foreach ([
+        'Müşteri 13.40 dedi; seçeneklerde 13:40 var, tarih ise önceki konuşmadaki Çarşamba, 25 Kasım olarak kalmalı. Onay soruyorum. Çarşamba, 25 Kasım saat 13:40\'ta Gülşah Hanım ile randevu talebi oluşturayım mı?'
+            => 'Çarşamba, 25 Kasım saat 13:40\'ta Gülşah Hanım ile randevu talebi oluşturayım mı?',
+        'Müşterinin iki paketi olduğunu söylemiştim. Hangi paketinizden randevu oluşturalım?' => 'Hangi paketinizden randevu oluşturalım?',
+        'musait_saatler sonucuna göre 14:00 uygun. Saat 14:00 olur mu?' => 'Saat 14:00 olur mu?',
+        'Müşterimiz olduğunuz için teşekkürler. Hangi gün uygun?' => 'Müşterimiz olduğunuz için teşekkürler. Hangi gün uygun?',
+        'Saat 13.40 uygun, oluşturayım mı?' => 'Saat 13.40 uygun, oluşturayım mı?',
+    ] as $g => $b) esit("\"" . mb_substr($g, 0, 50) . "…\"", $b, cagir($a, 'icSesTemizle', $g));
+
     bolum('"Başka yardımcı olabileceğim..." garantisi');
     foreach ([
         'Yol tarifini gönderdim. Size nasıl yardımcı olabilirim?' => 'Yol tarifini gönderdim. Başka yardımcı olabileceğim bir konu var mı?',
