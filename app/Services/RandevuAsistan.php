@@ -45,6 +45,7 @@ class RandevuAsistan
     /** Arayan numarasi gizli/gecersizdi ve kayitta telefon alindiysa: oturuma yazilsin diye kopru controller'i okur. */
     public ?string $yeniTelefon = null;
     protected ?array $_personeller = null;
+    protected array $_personelCins = []; // personel_id => kayittaki cinsiyet (0 Bayan / 1 Bay / null)
     protected ?array $_paketler = null;
     protected ?array $_randevularim = null; // tur icinde onbellek (prompt her model cagrisinda yeniden kurulur)
     protected AiAsistanController $ctrl;
@@ -266,7 +267,7 @@ class RandevuAsistan
     public function konus(string $metin, array $gecmis = []): array
     {
         $this->teshis = 'ok';
-        $metin = trim($metin);
+        $metin = $this->sttDuzelt(trim($metin));
         if ($metin === '') {
             return ['cevap' => 'Buyurun, sizi dinliyorum.', 'aksiyon' => null, 'veri' => [], 'bitir' => false];
         }
@@ -334,7 +335,8 @@ class RandevuAsistan
         $onNot = $this->onEslestirmeNotu($metin, $onPaketli);
         $messages[] = ['role' => 'user', 'content' => $metin . $this->zamanNotu($metin)
             . ($onNot !== '' ? $onNot : $this->hizmetDuzeltmeNotu($metin))
-            . ($onPaketli ? '' : $this->paketNotu($metin, $gecmis))];
+            . ($onPaketli ? '' : $this->paketNotu($metin, $gecmis))
+            . $this->paketKarariNotu($gecmis, $metin)];
 
         $aksiyon = null; $bitir = false; $randevuId = null; $cevap = '';
         $isTamamlandi = false; // randevu/iptal/guncelleme/yol tarifi tamamlandi -> "Başka yardımcı olabileceğim..." sorulmali
@@ -586,7 +588,7 @@ class RandevuAsistan
     {
         $gun = $this->tarihSoz((string) ($d['tarih'] ?? ''));
         $saat = substr((string) ($d['saat'] ?? ''), 0, 5);
-        $c = trim("{$gun} saat {$saat}'te" . (!empty($d['personel']) ? " {$d['personel']} ile" : ''))
+        $c = trim("{$gun} saat {$saat}'te" . (!empty($d['personel']) ? " uzmanımız {$d['personel']} ile" : ''))
             . (!empty($d['paket_seansi']) ? ' paketinizden' : '')
             . ' randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz.';
         if (!empty($d['bilgilendirme_gonderildi'])) $c .= ' Size bilgilendirme mesajı ilettim.';
@@ -800,6 +802,18 @@ class RandevuAsistan
             : "{$ad} için kesin süre bilgisi bende kayıtlı değil, işletmemiz size net bilgi verebilir.";
     }
 
+    /**
+     * Ses tanimanin SALON alaninda sik yanlis duydugu kelimeleri duzelt (kayit #72: "lazer epilasyon" ->
+     * "lazer et plakson"; model bu adi musteriye aynen geri okuyordu ve hizmeti bulamayip tekrar sordu).
+     */
+    public function sttDuzelt(string $m): string
+    {
+        static $harita = [
+            '/\b(e[tp]{1,2} ?p?la[ksyz]{1,3}[iıo]?on|epi ?la[sz]yon|ebi ?lasyon|e ?pilasyon)(\p{L}*)/iu' => 'epilasyon$2',
+        ];
+        return preg_replace(array_keys($harita), array_values($harita), $m) ?? $m;
+    }
+
     /** Turkce harfleri sadelestirip kucult; noktalama at (STT varyasyonlarina toleransli eslesme). */
     protected function sade(string $s): string
     {
@@ -847,6 +861,18 @@ class RandevuAsistan
             if (count($hk) >= 2 && strpos($ara, ' ' . $hk[0] . ' ' . $hk[1]) !== false) return [];
             $n = count($hk);
             if ($n === 1 && strlen($sa) < 5) continue;   // "kaş", "fön", "masaj" gibi kisa tek kelime -> yanlis pozitif riski
+            // Kelime SAYISI tutmasa da (STT bir kelimeyi ikiye bolmus: "epilasyon" -> "et plakson") bosluksuz karsilastir
+            $saBitisik = str_replace(' ', '', $sa);
+            if (strlen($saBitisik) >= 12) {
+                foreach ([$n, $n + 1] as $pn) for ($i = 0; $i + $pn <= count($kelimeler); $i++) {
+                    $w = implode('', array_slice($kelimeler, $i, $pn));
+                    $oran = 1 - levenshtein($w, $saBitisik) / strlen($saBitisik);
+                    if ($oran >= 0.7 && $w !== $saBitisik) {
+                        $k = (int) ($h['id'] ?? 0) . '|' . $ad;
+                        if (!isset($adaylar[$k]) || $adaylar[$k]['oran'] < $oran) $adaylar[$k] = ['id' => (int) ($h['id'] ?? 0), 'ad' => $ad, 'oran' => round($oran, 3)];
+                    }
+                }
+            }
             $esik = $n === 1 ? 0.85 : 0.75;
             for ($i = 0; $i + $n <= count($kelimeler); $i++) {
                 // Kelime kelime karsilastir; Turkce ek toleransi icin uzun kelimeyi hedef uzunluga da kirpip
@@ -1110,7 +1136,7 @@ class RandevuAsistan
                 // Personel tercihi sorusu icin: bu hizmeti veren (takvimi acik) personelin adlari
                 if (($d['eslesme'] ?? '') === 'tek' && !empty($d['hizmet']['id'])) {
                     $plist = $this->personelListesi();
-                    $adlar = array_values(array_filter(array_map(function ($pid) use ($plist) { return $plist[$pid] ?? null; },
+                    $adlar = array_values(array_filter(array_map(function ($pid) use ($plist) { return isset($plist[$pid]) ? $this->personelHitap((int) $pid) : null; },
                         $this->hizmetPersonelleri((int) $d['hizmet']['id']))));
                     // Telefonda en fazla 4 isim (2026-11-17 kayit: 12 isim + "G, F, F, F, F" gibi test kaydi 10 sn okundu).
                     // Okunamayan (sesli harfsiz/tek harf) adlar sayilmaz; musteri listede olmayan birini sorarsa PERSONELLER'den eslesir.
@@ -1368,7 +1394,10 @@ class RandevuAsistan
         $telSatir = $telBilinen ? $this->telefon : 'bilinmiyor (gizli numara)';
 
         $personelSatir = '';
-        foreach ($this->personelListesi() as $pid => $pad) $personelSatir .= "- {$pad} (personel_id {$pid})\n";
+        foreach ($this->personelListesi() as $pid => $pad) {
+            $ph = $this->personelHitap((int) $pid);
+            $personelSatir .= "- {$ph} (personel_id {$pid}" . ($ph !== $pad ? ", kayıtlı adı {$pad}" : '') . ")\n";
+        }
         if ($personelSatir === '') $personelSatir = "(randevu takvimi açık personel yok — randevu verilemez, müşteriyi operatöre aktar)\n";
         $adresSatir = trim((string) ($this->salon['adres'] ?? '')) ?: 'kayıtlı değil';
         $paketSatir = $this->paketSatirlari();
@@ -1392,12 +1421,13 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal
 2. NİYET: yeni randevu mu, iptal mi, güncelleme mi, başka bir şey mi? (Müşterinin paketi varsa aşağıdaki PAKET AKIŞI'na bak.)
 3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise TEYİT SORMADAN ("bunu onaylıyor musunuz" DEME) doğrudan sonraki adıma geç; eşleştirmenin iç işleyişinden (kayıt, seçenek sayısı, "eşleştirebildim") müşteriye ASLA bahsetme; coklu ise seçenekleri kısaca oku ve seçtir; yok ise "o hizmetimiz yok" de ve dönen önerileri sun.
 4. TARİH/SAAT: Müşteri mesajının sonunda "[SİSTEM zaman çözümü ...]" notu varsa tarih ve saati AYNEN oradan al (kendin hesaplama; "çarşamba 14", "önümüzdeki hafta perşembe 10", "10 aralık", "5 şubat" hepsi orada çözülmüş gelir). Not yoksa TARİH HARİTASI'nı kullan. Müşteri gün ve saati söylediyse saati TEKRAR SORMA, sabah/öğleden sonra diye SORMA. Tarih/saat ÖNCEKİ bir mesajda söylendiyse (ör. hizmeti teyit ettirdikten sonra) o mesajdaki zaman çözümü geçerlidir: yeniden sorma, kendin hesaplama.
+UZMAN ADLARI: Uzmanı her zaman araç sonucundaki / PERSONELLER'deki gibi "Hanım"/"Bey" ile söyle (ör. "uzmanımız Gülşah Hanım", "Ferdi Bey ve Gülşah Hanım uygun"); çıplak ad ("Gülşah ile") KULLANMA.
 5. PERSONEL TERCİHİ (hizmet netleşir netleşmez, tarih/saat sormadan ÖNCE): müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") PERSONELLER listesinden eşleştir ve personel_id'yi kullan; listede yoksa "o isimde personelimiz yok" de ve hizmeti verenleri say. Söylemediyse BİR KEZ sor: "[hizmet] için tercih ettiğiniz bir uzmanımız var mı, yoksa fark etmez mi?" Müşteri "kimler var"/"hangi uzmanlarınız var" derse hizmet_eslestir sonucundaki "personeller" adlarını say (en fazla 4; "personel_sayisi" varsa sonuna "ve diğer uzmanlarımız" ekle) — hizmet listesi OKUMA. "Fark etmez" derse personel_id vermeden devam et. hizmet_eslestir sonucunda personeller tek kişiyse sormadan o kişiyle devam et. Müşteri tarih/saati zaten söylediyse personel cevabından sonra TARİHİ YENİDEN SORMA, doğrudan 6. adıma geç.
 6. MÜSAİT SAAT: "musait_saatler" aracını hizmet_id + tarih ile çağır (müşteri saat söylediyse saat'i MUTLAKA ver; gün dilimi söylendiyse zaman_dilimi; personel söylendiyse personel_id).
    - tam_eslesme=true dönerse: istenen saat uygun → ALTERNATİF SUNMA, seçenek okuma; doğrudan 8. adımdaki onay cümlesine geç (gün için seçeneğin "gun" alanını kullan).
    - Aksi halde: müşteri saat söylediyse önce "O saat dolu" de, sonra dönen seçenekleri (en fazla 2) "gun" alanı ve personel adıyla öner. istenen_gun_dolu=true ise o günün dolu olduğunu söyle. Seçenek yoksa başka gün/dilim öner.
 7. SAAT SEÇİMİ (yalnız seçenek sunulduysa).
-8. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te [personel] ile [hizmet] için randevu talebi oluşturayım mı?" ([gün] = seçeneğin "gun" alanı, ör. "Çarşamba, 18 Kasım")
+8. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te uzmanımız [personel] ile [hizmet] için randevu talebi oluşturayım mı?" ([gün] = seçeneğin "gun" alanı, ör. "Çarşamba, 18 Kasım")
 9. Onay gelince "randevu_olustur" (seçilen seçeneğin tarih_saat ve personel_id'si + hizmet_id). ok=false ve saat dolu derse yeniden musait_saatler çağır ve yeni saat öner.
 10. SONUÇ: Randevu TALEP olarak oluşturulur (işletme onaylar): "[gün] saat [saat] için [personel] ile randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz." randevu_olustur sonucunda bilgilendirme_gonderildi=true ise ardından "Size bilgilendirme mesajı ilettim." ekle; false ise mesajdan HİÇ bahsetme. En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde bu soruyu sor; iptalde "Randevunuz iptal edildi." de, randevu_iptal sonucunda bilgilendirme_gonderildi=true ise "Size bilgilendirme mesajı ilettim." ekle (güncellemede de aynı alan).
 11. KAPANIŞ: Müşteri "yok, teşekkürler" derse "veda" çağır; yeni bir isteği varsa 2. adımdan devam et.
@@ -1675,7 +1705,7 @@ PROMPT;
                     $veren = PersonelHizmetler::where('hizmet_id', $hid)->whereIn('personel_id', array_keys($acik) ?: [0])
                         ->pluck('personel_id')->map(function ($v) { return (int) $v; })->unique()->values()->all();
                     $personel = [];
-                    foreach ($veren as $pid) if (isset($acik[$pid])) $personel[] = ['personel_id' => $pid, 'ad' => $acik[$pid]];
+                    foreach ($veren as $pid) if (isset($acik[$pid])) $personel[] = ['personel_id' => $pid, 'ad' => $this->personelHitap((int) $pid)];
                     $hizmetler[] = ['hizmet_id' => $hid, 'ad' => trim((string) $h->hizmet_adi), 'kalan_seans' => $kalan,
                         'toplam_seans' => $sinirsiz ? null : (int) $ap->seans_sayisi, 'kullanilan_seans' => $sinirsiz ? null : $acilan,
                         'personeller' => $personel];
@@ -1788,6 +1818,45 @@ PROMPT;
     }
 
     /**
+     * Asistan "bu paketinizden oluşturmak ister misiniz / hangi paketinizden" diye sordu ve musteri cevap verdiyse
+     * KARARI her sonraki turda modele hatirlat (kayit #72: "Tabi ki" dedikten sonra onay cumlesinde paketi yeniden
+     * sordu). Musteri bu turda cevapliyorsa ($metin) o da sayilir. Karar yoksa bos.
+     */
+    public function paketKarariNotu(array $gecmis, string $metin = ''): string
+    {
+        $paketler = $this->paketler();
+        if (!$paketler) return '';
+        $dizi = array_values($gecmis);
+        if ($metin !== '') $dizi[] = ['role' => 'user', 'content' => $metin];
+        $karar = null; $soru = null;
+        foreach ($dizi as $i => $g) {
+            if (($g['role'] ?? '') !== 'assistant') continue;
+            $c = (string) ($g['content'] ?? '');
+            if (!preg_match('/paketiniz(den)?\b[^?]*\?/u', $c) || !preg_match('/ister misiniz|oluşturalım|kullanmak|kullanalım/u', $c)) continue;
+            $cevap = null;
+            for ($j = $i + 1; $j < count($dizi); $j++) if (($dizi[$j]['role'] ?? '') === 'user') { $cevap = (string) ($dizi[$j]['content'] ?? ''); break; }
+            if ($cevap === null) continue;
+            $soru = $c;
+            $f = mb_strtolower(strtr($cevap, ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
+            $secilen = null;
+            foreach ($paketler as $p) { $a = $this->sade($p['paket_adi']); if ($a !== '' && strpos(' ' . $this->sade($cevap) . ' ', ' ' . $a) !== false) $secilen = $p; }
+            if (preg_match('/hayır|istemiyorum|olmasın|kullanma|düşme|ücretli|gerek yok/u', $f)) $karar = ['paketsiz'];
+            elseif ($secilen) $karar = ['paket', $secilen];
+            elseif ($this->onayMi($cevap)) {
+                $anilan = array_values(array_filter($paketler, function ($p) use ($c) { $a = $this->sade($p['paket_adi']); return $a !== '' && strpos($this->sade($c), $a) !== false; }));
+                $karar = ['paket', count($anilan) === 1 ? $anilan[0] : (count($paketler) === 1 ? $paketler[0] : null)];
+            }
+        }
+        if (!$karar) return '';
+        if ($karar[0] === 'paketsiz') {
+            return "\n[SİSTEM paket kararı — müşteri duymaz: Müşteri randevunun paketinden KULLANILMAMASINI istedi. Paketi TEKRAR SORMA; randevu_olustur'da paketsiz=true ver.]";
+        }
+        $p = $karar[1];
+        return "\n[SİSTEM paket kararı — müşteri duymaz: Müşteri randevunun " . ($p ? "'{$p['paket_adi']}' paketinden (adisyon_paket_id {$p['adisyon_paket_id']})" : 'paketinden')
+            . " oluşturulmasını ONAYLADI. Paketi TEKRAR SORMA; onay cümlesinde \"paketinizden\" de" . ($p ? ", randevu_olustur'da adisyon_paket_id {$p['adisyon_paket_id']} ver" : '') . '.]';
+    }
+
+    /**
      * randevuekleguncelle seansi otomatik olarak EN ESKI uygun pakete baglar. Musteri baska bir paket sectiyse seansi
      * o pakete tasir; paketten istemediyse paket seansini kaldirir (seans pakete geri doner). Hata yutar.
      */
@@ -1845,10 +1914,10 @@ PROMPT;
         try {
             $q = Personeller::where('salon_id', $this->salonId)
                 ->where(function ($w) { $w->whereNull('arsivli')->orWhere('arsivli', '!=', 1); })
-                ->where('takvimde_gorunsun', 1)->orderBy('id')->get(['id', 'personel_adi']);
+                ->where('takvimde_gorunsun', 1)->orderBy('id')->get(['id', 'personel_adi', 'cinsiyet']);
             foreach ($q as $p) {
                 $ad = $this->adSesli(trim((string) $p->personel_adi));
-                if ($ad !== '') $out[(int) $p->id] = $ad;
+                if ($ad !== '') { $out[(int) $p->id] = $ad; $this->_personelCins[(int) $p->id] = $p->cinsiyet === null ? null : (int) $p->cinsiyet; }
             }
         } catch (\Throwable $e) {
             Log::warning('RandevuAsistan personelListesi: ' . $e->getMessage());
@@ -1867,6 +1936,25 @@ PROMPT;
         return preg_replace_callback('/(^|[\s\-])(\p{L})/u', function ($x) {
             return $x[1] . mb_strtoupper(strtr($x[2], ['i' => 'İ', 'ı' => 'I']), 'UTF-8');
         }, $kucuk);
+    }
+
+    /**
+     * Uzmanin musteriye soylenecek adi: "Gülşah Hanım", "Ferdi Bey" (isletme istegi 2026-11-17: uzman adi ön ekle).
+     * Cinsiyet: once isim sozlugu (net adlar), sonra personel kaydi (kayitta ayarlanmamis cinsiyet 0=Bayan
+     * gorunebildigi icin sozluk once), ikisi de yoksa yalniz ad. Ad zaten Hanım/Bey ile bitiyorsa dokunulmaz.
+     */
+    protected function personelHitap(int $pid): string
+    {
+        $ad = $this->personelListesi()[$pid] ?? '';
+        if ($ad === '' || preg_match('/\s(Hanım|Bey)$/u', $ad)) return $ad;
+        $ilk = explode(' ', $ad)[0];
+        $c = null;
+        try {
+            if (!TurkceIsimCinsiyet::belirsizMi($ilk)) $c = TurkceIsimCinsiyet::bul($ilk);
+        } catch (\Throwable $e) {}
+        if ($c === null) $c = $this->_personelCins[$pid] ?? null;
+        if ($c === null) return $ad;
+        return $ilk . ((int) $c === 1 ? ' Bey' : ' Hanım');
     }
 
     /** Hizmeti veren (personel_sunulan_hizmetler) ve takvimi acik personeller; yoksa takvimi acik HERKES (online randevu mantigi). */
@@ -1913,7 +2001,7 @@ PROMPT;
         $secenek = [];
         foreach ($adaylar as $pid) {
             $m = $bul($pid, $tarih, $saat, $vakit);
-            if ($m) $secenek[] = ['tarih' => $m['tarih'], 'saat' => $m['saat'], 'personel_id' => $pid, 'personel' => $plist[$pid] ?? '', '_m' => $m, '_tam' => !empty($m['tam_istek'])];
+            if ($m) $secenek[] = ['tarih' => $m['tarih'], 'saat' => $m['saat'], 'personel_id' => $pid, 'personel' => isset($plist[$pid]) ? $this->personelHitap((int) $pid) : '', '_m' => $m, '_tam' => !empty($m['tam_istek'])];
         }
         // tam istenen saat > en erken; ayni saatte tek secenek kalsin (farkli personel ayni saat = ayni oneri)
         usort($secenek, function ($a, $b) { return [$a['_tam'] ? 0 : 1, $a['tarih'], $a['saat']] <=> [$b['_tam'] ? 0 : 1, $b['tarih'], $b['saat']]; });
@@ -2097,7 +2185,7 @@ PROMPT;
         }
         // randevuekleguncelle seansi EN ESKI uygun pakete kendisi baglar; musterinin secimi (baska paket / paketsiz) uygulanir
         $this->paketSeciminiUygula((int) $rid, $hizmetId, $in);
-        return ['ok' => true, 'randevu_id' => (int) $rid, 'tarih' => $tarih, 'saat' => $saat, 'personel' => $this->personelListesi()[$personelId] ?? null, 'bilgilendirme_gonderildi' => $this->bilgilendirmeAcik(),
+        return ['ok' => true, 'randevu_id' => (int) $rid, 'tarih' => $tarih, 'saat' => $saat, 'personel' => isset($this->personelListesi()[$personelId]) ? $this->personelHitap($personelId) : null, 'bilgilendirme_gonderildi' => $this->bilgilendirmeAcik(),
             // baglandiysa asistan "paketinizden" diyebilsin
             'paket_seansi' => \App\AdisyonPaketSeanslar::where('randevu_id', $rid)->whereNotNull('adisyon_paket_id')->exists(),
             'durum' => 'talep (işletme onayı bekliyor)'];
@@ -2256,6 +2344,7 @@ PROMPT;
             // Onceki musteri cumlelerindeki tarih/saat de KODLA cozulmus gitsin: aksi halde hizmet teyidi gibi
             // ara bir turdan sonra model gunu kendisi hesaplayip yaniliyordu ("cumartesi saat 2" -> "Cuma 20 Kasım",
             // saati de yeniden soruyordu; 2026-11-16 kayit #55).
+            if ($role === 'user') $c = $this->sttDuzelt($c);
             if ($role === 'user' && strpos($c, '[SİSTEM') === false) $c .= $this->zamanNotu($c);
             $out[] = ['role' => $role, 'content' => $c];
         }

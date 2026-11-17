@@ -380,7 +380,7 @@ namespace {
     esit('modelin verdiği id\'ler kullanılır', 21, $zr->sonGirdi['personel_id'] ?? null);
     esit('aksiyon randevu', 'randevu', $z[1]);
     esit('randevu id', 555, $z[2]);
-    icerir('deterministik talep cümlesi', "Perşembe, 19 Kasım saat 11:00'te Gülşah ile randevu talebiniz oluşturuldu", $z[0]);
+    icerir('deterministik talep cümlesi', "Perşembe, 19 Kasım saat 11:00'te uzmanımız Gülşah ile randevu talebiniz oluşturuldu", $z[0]);
     icerir('bilgilendirme ayarı açık', 'bilgilendirme mesajı ilettim', $z[0]);
     $zr->sahteSonuc = ['ok' => false, 'hata' => 'Bu saat çakışıyor.'];
     $z = cagir($zr, 'zorlaRandevu', [['role' => 'user', 'content' => 'Evet']], 'k');
@@ -391,7 +391,7 @@ namespace {
 
     bolum('Randevu onay cümlesi koddan (model atlasa da)');
     $oc = cagir($zr, 'randevuOnayCumlesi', ['ok' => true, 'tarih' => '2026-11-26', 'saat' => '11:00:00', 'personel' => 'Gülşah', 'bilgilendirme_gonderildi' => true]);
-    esit('tam cümle', "Perşembe, 26 Kasım saat 11:00'te Gülşah ile randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz. Size bilgilendirme mesajı ilettim.", $oc);
+    esit('tam cümle', "Perşembe, 26 Kasım saat 11:00'te uzmanımız Gülşah ile randevu talebiniz oluşturuldu, işletmemiz onayladığında bilgilendirileceksiniz. Size bilgilendirme mesajı ilettim.", $oc);
     $oc = cagir($zr, 'randevuOnayCumlesi', ['ok' => true, 'tarih' => '2026-11-26', 'saat' => '11:00', 'personel' => 'Gülşah', 'paket_seansi' => true, 'bilgilendirme_gonderildi' => false]);
     icerir('paket seansı belirtilir', 'Gülşah ile paketinizden randevu talebiniz', $oc);
     esit('ayar kapalı → bilgilendirme denmez', false, mb_stripos($oc, 'bilgilendirme mesajı') !== false);
@@ -487,6 +487,27 @@ namespace {
         ['id' => 31, 'ad' => 'Lazer Epilasyon Tüm Vücut'], ['id' => 32, 'ad' => 'Lazer Epilasyon Bacak'], ['id' => 33, 'ad' => 'Lazer Epilasyonu Yüz']]]]);
     esit('"lazer epilasyon" (alt hizmet belirsiz) → yanlış-duyma notu yok (kayıt #70)', '', $hl->hizmetDuzeltmeNotu('Lazer epilasyon olabilir.'));
     esit('ön eşleştirme: birden çok/eksik ad → yok', '', $hl->onEslestirmeNotu('Lazer epilasyon olabilir.'));
+
+    bolum('Kayıt #72: STT düzeltme, uzman hitabı, paket kararı');
+    esit('"et plakson" → epilasyon', 'Bir lazer epilasyon randevusu almak istedim.', $hl->sttDuzelt('Bir lazer et plakson randevusu almak istedim.'));
+    esit('"epilasyonu" eki korunur', 'lazer epilasyonu', $hl->sttDuzelt('lazer et plaksonu'));
+    esit('doğru kelimeye dokunmaz', 'lazer epilasyon', $hl->sttDuzelt('lazer epilasyon'));
+    $hb = asistan(['salon' => ['ad' => 'X', 'karsilama' => '', 'adres' => '', 'hizmetler' => [['id' => 5, 'ad' => 'Lazer Epilasyon']]]]);
+    $ad72 = cagir($hb, 'hizmetAdaylari', 'lazer et plakson');
+    esit('bitişik benzerlik: "lazer et plakson" → Lazer Epilasyon', 5, $ad72[0]['id'] ?? null);
+    $hp = asistan(['_personeller' => [21 => 'Gülşah', 22 => 'Ferdi', 23 => 'Elif Hanım', 24 => 'Zxq'], '_personelCins' => [21 => 0, 22 => 1, 23 => 0, 24 => null]]);
+    esit('uzman: kadın → Hanım', 'Gülşah Hanım', cagir($hp, 'personelHitap', 21));
+    esit('uzman: erkek → Bey', 'Ferdi Bey', cagir($hp, 'personelHitap', 22));
+    esit('uzman: zaten Hanım → değişmez', 'Elif Hanım', cagir($hp, 'personelHitap', 23));
+    esit('uzman: cinsiyet bilinmiyor → yalnız ad', 'Zxq', cagir($hp, 'personelHitap', 24));
+    icerir('onay cümlesi: uzmanımız X Hanım ile', 'uzmanımız Gülşah Hanım ile paketinizden randevu talebiniz', cagir($hp, 'randevuOnayCumlesi', ['tarih' => '2026-11-20', 'saat' => '10:00', 'personel' => 'Gülşah Hanım', 'paket_seansi' => true]));
+    $hk = asistan(['_paketler' => [['adisyon_paket_id' => 77, 'paket_adi' => '5 Seans Lazer', 'hizmetler' => [['hizmet_id' => 5, 'ad' => 'Lazer Epilasyon', 'kalan_seans' => 3, 'personeller' => []]]]]]);
+    $g72 = [['role' => 'assistant', 'content' => 'Anıl Bey, 5 seans lazer paketiniz var. 3 seansınız kalmış görünüyor. Randevuyu bu paketinizden oluşturmak ister misiniz?']];
+    icerir('"Tabi ki" (bu tur) → onaylandı + id', 'adisyon_paket_id 77 ver', cagir($hk, 'paketKarariNotu', $g72, 'Tabi ki.'));
+    $g72[] = ['role' => 'user', 'content' => 'Tabi ki.'];
+    icerir('sonraki turlarda da hatırlatılır', 'TEKRAR SORMA', cagir($hk, 'paketKarariNotu', $g72, 'Fark etmez.'));
+    icerir('"hayır paketten olmasın" → paketsiz', 'paketsiz=true', cagir($hk, 'paketKarariNotu', [$g72[0]], 'Hayır paketten olmasın'));
+    esit('soru sorulmadıysa → not yok', '', cagir($hk, 'paketKarariNotu', [], 'evet'));
     esit('ekli hali "tay masajına" → not yok', '', $hd->hizmetDuzeltmeNotu('Tay masajına randevu'));
     esit('"botoksu" (ek) → not yok', '', $hd->hizmetDuzeltmeNotu('Botoksu yaptırmak istiyorum'));
     esit('alakasız cümle → not yok', '', $hd->hizmetDuzeltmeNotu('Yarın saat üçe randevu almak istiyorum'));
