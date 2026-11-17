@@ -61,7 +61,7 @@ class RandevuAsistan
 
     // ---------------------------------------------------------------- public
     /**
-     * Kayitli musteri: "Sayın Ad Soyad, <isletme> hoş geldiniz. Ben yapay zeka asistanınızım, ..." (isim SORULMAZ).
+     * Kayitli musteri: "Merhaba Anıl Bey, <isletme> hoş geldiniz. Ben yapay zeka asistanınızım, ..." (isim SORULMAZ).
      * Kayitsiz: karsilamada ad soyad (numara gizliyse telefon da) istenir -> musteri_kaydet.
      */
     public function karsilama(): string
@@ -73,9 +73,9 @@ class RandevuAsistan
             // "lazer randevusu alacaktım"), asistan paketi o an bulup getirir (PAKET AKIŞI). Kampanya daveti kalir.
             $kampanyaCumle = $this->kampanyaTeklifCumlesi();
             if ($kampanyaCumle !== '') {
-                return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım. {$kampanyaCumle} Ya da size nasıl yardımcı olabilirim?";
+                return "{$this->acilisHitap($this->musteriAd)}, {$hosgeldin}. Ben yapay zeka asistanınızım. {$kampanyaCumle} Ya da size nasıl yardımcı olabilirim?";
             }
-            return "Sayın {$this->musteriAd}, {$hosgeldin}. Ben yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?";
+            return "{$this->acilisHitap($this->musteriAd)}, {$hosgeldin}. Ben yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?";
         }
         $ilk = mb_strtoupper(mb_substr($hosgeldin, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($hosgeldin, 1, null, 'UTF-8');
         if ($this->telNorm($this->telefon)) {
@@ -143,7 +143,7 @@ class RandevuAsistan
             $satir = $this->randevuSatiri($r);
             $gun = $satir['tarih'] === now('Europe/Istanbul')->addDay()->toDateString() ? 'yarın, ' . $satir['gun'] : $satir['gun'];
             $soz = $this->randevuSoz(['gun' => $gun] + $satir);
-            $k = ($ad ? "Sayın {$ad}, " : 'Merhaba, ') . "ben {$isletme} yapay zeka asistanıyım. "
+            $k = $this->acilisHitap($ad) . ", ben {$isletme} yapay zeka asistanıyım. "
                 . "{$soz} randevunuzu hatırlatmak için arıyorum. Randevunuza gelebilecek misiniz?";
             return [$k, ['tur' => 'randevu', 'randevu_id' => (int) $r->id, 'soz' => $soz]];
         }
@@ -157,7 +157,7 @@ class RandevuAsistan
             foreach ($as as $a) { try { $a->hatirlatma_ulasilamadi = false; $a->tekrar_aranacak = 0; $a->tekrar_arandi = 0; $a->save(); } catch (\Throwable $e) {} }
             $tarihSoz = $tarihler->map(function ($t) { return $this->tarihSoz($t); })->implode(' ve ');
             $tutar = number_format($toplam, floor($toplam) == $toplam ? 0 : 2, ',', '.') . ' lira';
-            $k = ($ad ? "Sayın {$ad}, " : 'Merhaba, ') . "ben {$isletme} yapay zeka asistanıyım. "
+            $k = $this->acilisHitap($ad) . ", ben {$isletme} yapay zeka asistanıyım. "
                 . ($tarihSoz !== '' ? "{$tarihSoz} tarihinde ödemeniz gereken" : 'Ödemeniz gereken')
                 . " toplam {$tutar} borcunuz bulunmaktadır. Ödemenizi bu tarihte yapabilecek misiniz?";
             return [$k, ['tur' => 'alacak', 'alacak_idler' => $as->pluck('id')->map(function ($v) { return (int) $v; })->all(), 'tutar' => $tutar, 'tarih' => $tarihSoz]];
@@ -1595,6 +1595,18 @@ PROMPT;
      * AYNI ADLI ve cinsiyeti girilmis musterilerin istatistigi (adCinsiyeti). Emin degilse null -> hitapsiz
      * (Deniz, Ümit, Derya, Özgür gibi iki cinsiyette kullanilan adlarda yanlis hitap musteriyi kirar).
      */
+    /**
+     * Acilis hitabi: "Merhaba Anıl Bey" (cinsiyet biliniyorsa). Eskiden "Sayın Anıl Orbey" deniyordu: resmi/anons gibi
+     * (2026-11-17 isletme istegi). Cinsiyet belirsizse yanlis Bey/Hanım riski yerine "Sayın Ad Soyad" kalir; ad yoksa "Merhaba".
+     */
+    protected function acilisHitap(?string $ad): string
+    {
+        $ad = trim((string) $ad);
+        if ($ad === '') return 'Merhaba';
+        $h = ($ad === trim((string) $this->musteriAd)) ? $this->hitap() : null;
+        return $h ? "Merhaba {$h}" : "Sayın {$ad}";
+    }
+
     protected function hitap(): ?string
     {
         if (!$this->musteriAd) return null;

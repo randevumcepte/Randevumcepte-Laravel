@@ -243,7 +243,11 @@ namespace {
 
     // =====================================================================================
     bolum('Karşılama varyantları');
-    icerir('kayıtlı', 'Sayın Anıl Orbey', $a->karsilama());
+    // 2026-11-17: "Sayın Anıl Orbey" yerine "Merhaba Anıl Bey" (cinsiyet biliniyorsa); belirsizse "Sayın Ad Soyad"
+    icerir('kayıtlı → Merhaba Anıl Bey', 'Merhaba Anıl Bey,', asistan(['musteriCinsiyet' => 1])->karsilama());
+    icerir('kayıtlı kadın → Hanım', 'Merhaba Gülşah Hanım,', asistan(['musteriAd' => 'Gülşah Yılmaz', 'musteriCinsiyet' => 0])->karsilama());
+    icerir('cinsiyet belirsiz → Sayın Ad Soyad', 'Sayın Deniz Kaya,', asistan(['musteriAd' => 'Deniz Kaya', 'musteriCinsiyet' => null])->karsilama());
+    icermez('kayıtlı → soyadı söylenmez', 'Orbey', asistan(['musteriCinsiyet' => 1])->karsilama());
     icerir('kayıtlı → yardım sorusu', 'Size nasıl yardımcı olabilirim?', $a->karsilama());
     $kp = asistan(['_paketler' => [['adisyon_paket_id' => 1, 'paket_adi' => 'Lazer', 'hizmetler' => [['hizmet_id' => 9, 'ad' => 'Lazer Epilasyon', 'kalan_seans' => 4, 'personeller' => []]]]]]);
     // 2026-11-17: paket karsilamada SOYLENMEZ; musteri isteyince asistan getirir (PAKET AKIŞI)
