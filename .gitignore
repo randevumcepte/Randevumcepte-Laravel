@@ -29,6 +29,10 @@
 .DS_Store
 Thumbs.db
 
+# WhatsApp kopruleri: calisma verisi/oturumlar ASLA git'e girmez
+# (17 Kas 2026: canlida commit'lenmis oturumlari deploy reset'i sildi)
+whatsmeow-bridge/
+
 # PHPUnit
 .phpunit.result.cache
 

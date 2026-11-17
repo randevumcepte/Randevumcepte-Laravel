@@ -92,7 +92,22 @@ if [ "$DEPLOY_PROD" -eq 1 ] && [ -d "$PROD_DIR/.git" ]; then
         *"$EXPECTED_REPO"*)
             log "--- CANLI (app) deploy basliyor: $PROD_DIR (remote=$PROD_REMOTE) ---"
             git -C "$PROD_DIR" fetch origin main >/dev/null 2>&1
+            # GUVENLIK (17 Kas 2026 olayi): canlida yerel commit'te takip edilen ama
+            # origin'de olmayan dosyalari reset --hard SILER (16:22'de 12.910 dosya:
+            # whatsmeow-bridge programi + tum WA oturum DB'leri gitti). Reset'ten once
+            # silinecek dosyalari yedekle; varsa resetten sonra TAKIPSIZ olarak geri koy
+            # (takipsiz dosyaya reset --hard dokunmaz).
+            SILINECEK=$(git -C "$PROD_DIR" diff --name-only --diff-filter=D HEAD origin/main 2>/dev/null)
+            if [ -n "$SILINECEK" ]; then
+                YEDEK="/root/deploy-silinecek-yedek-$(date +%Y%m%d-%H%M%S).tar"
+                (cd "$PROD_DIR" && printf '%s\n' "$SILINECEK" | tar -cf "$YEDEK" --ignore-failed-read -T - 2>/dev/null)
+                log "UYARI: reset $(printf '%s\n' "$SILINECEK" | wc -l) takipli dosyayi silecekti -> yedek: $YEDEK (reset sonrasi geri konuyor)"
+            fi
             PROD_RESET=$(git -C "$PROD_DIR" reset --hard origin/main 2>&1)
+            if [ -n "$SILINECEK" ] && [ -f "$YEDEK" ]; then
+                tar -xf "$YEDEK" -C "$PROD_DIR" 2>/dev/null
+                log "reset sonrasi takipsiz olarak geri kondu: $YEDEK"
+            fi
             log "prod reset: $PROD_RESET"
             # DIKKAT: Canlida OTOMATIK migration YOK. Kod + cache senkronu yapilir;
             # DB sema degisikligi (migrate) bilincli olarak ELLE calistirilir (mevcut
