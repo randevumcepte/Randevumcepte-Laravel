@@ -132,6 +132,13 @@ class WhatsAppRouterService extends WhatsAppService
         });
     }
 
+    public function sendAsistanCevap(\App\Salonlar $salon, $hedef, $mesaj, $telefon = null)
+    {
+        return $this->withRouting($salon->id, function () use ($salon, $hedef, $mesaj, $telefon) {
+            return parent::sendAsistanCevap($salon, $hedef, $mesaj, $telefon);
+        });
+    }
+
     public function sendUrgent(\App\Salonlar $salon, $to, $message, $userId = null, $gonderimTipi = 'sifre_kodu')
     {
         return $this->withRouting($salon->id, function () use ($salon, $to, $message, $userId, $gonderimTipi) {

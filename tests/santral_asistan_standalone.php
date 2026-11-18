@@ -686,6 +686,35 @@ namespace {
     icerir('prompt: cinsiyet yoksa tahmin yasağı', 'isimden cinsiyet TAHMİN ETME', cagir(asistan(['musteriAd' => 'Aksel Kaya']), 'sistemPromptu'));
     icerir('prompt: cinsiyet varsa hitap', '"Anıl Bey" hitabını YALNIZ', cagir(asistan(['musteriCinsiyet' => 1]), 'sistemPromptu'));
 
+    // ---- WhatsApp kanali (WaAsistan): ayni beyin, yazili cikis
+    $wa = asistan(['kanal' => 'whatsapp', 'musteriCinsiyet' => 1]);
+    esit('WA: numara rakam rakam AYRILMAZ', 'Numaranız 5321112233 doğru mu?', cagir($wa, 'ttsTemizle', 'Numaranız 5321112233 doğru mu?'));
+    esit('WA: satır sonları korunur', "Seçenekler:\n1) 14:00\n2) 15:30", cagir($wa, 'ttsTemizle', "Seçenekler:\n1) 14:00\n2) 15:30"));
+    esit('WA: gizli not gönderilmez', 'Tamam.', cagir($wa, 'ttsTemizle', 'Tamam. [SİSTEM — x=1]'));
+    icerir('WA: prompt kanal bölümü', 'KANAL: WHATSAPP YAZIŞMASI', cagir($wa, 'sistemPromptu'));
+    esit('santral: prompt kanal bölümü YOK', false, strpos(cagir(asistan(), 'sistemPromptu'), 'KANAL: WHATSAPP') !== false);
+    esit('WA: ilk yapay tur', "(müşteri WhatsApp'tan yazdı)", cagir($wa, 'gecmisMesajlari', [['role' => 'assistant', 'content' => 'Merhaba']])[0]['content']);
+    esit('santral: ilk yapay tur', '(arama bağlandı)', cagir(asistan(), 'gecmisMesajlari', [['role' => 'assistant', 'content' => 'Merhaba']])[0]['content']);
+    icerir('WA: personel mesajı modele işaretli', 'işletme personeli elle yazdı', cagir($wa, 'gecmisMesajlari', [['role' => 'user', 'content' => 'x'], ['role' => 'assistant', 'content' => 'Ben bakarım', 'personel' => 1]])[1]['content']);
+    icerir('WA karşılama: kayıtlı müşteri hitap', 'Merhaba Anıl Bey, Randevumcepte WhatsApp hattına hoş geldiniz', $wa->waKarsilama());
+    icerir('WA karşılama: kayıtsız → ad soyad', 'adınızı ve soyadınızı yazar mısınız?', asistan(['kanal' => 'whatsapp', 'musteriAd' => null, 'musteriId' => null])->waKarsilama());
+    icerir('WA karşılama: gizli numara → telefon da', 'cep telefonu numaranızı', asistan(['kanal' => 'whatsapp', 'musteriAd' => null, 'musteriId' => null, 'telefon' => null])->waKarsilama());
+    esit('WA selam: hitaplı', 'Merhaba Anıl Bey.', $wa->waSelam());
+    esit('WA selam: cinsiyet yok', 'Merhaba, Sayın Aksel Kaya.', asistan(['kanal' => 'whatsapp', 'musteriAd' => 'Aksel Kaya'])->waSelam());
+    $waH = ['role' => 'assistant', 'content' => 'Sayın Anıl, yarın 14:00 randevunuzu hatırlatırız.', 'hatirlatma' => ['tur' => 'randevu', 'randevu_id' => 5, 'soz' => 'yarın 14:00', 'wa' => 1]];
+    esit('WA hatırlatma mesajı → cevap bekleniyor', 'soru', cagir($wa, 'hatirlatmaBekleyen', [$waH])['adim'] ?? null);
+    esit('WA hatırlatma, sonraki tur → bekleme yok', null, cagir($wa, 'hatirlatmaBekleyen', [$waH, ['role' => 'user', 'content' => 'evet'], ['role' => 'assistant', 'content' => 'Teşekkürler, sizi bekliyoruz.']]));
+
+    require_once __DIR__ . '/../app/Services/WaAsistan.php';
+    $wc = function ($m, ...$a) { $r = new ReflectionMethod(App\Services\WaAsistan::class, $m); $r->setAccessible(true); return $r->invoke(null, ...$a); };
+    foreach (['Merhaba', 'merhabalar', 'Selam', 'iyi günler', 'Günaydın', 'slm', 'Merhaba iyi günler'] as $x) esit("WA selam mı: $x", true, $wc('selamMi', $x));
+    foreach (['Merhaba yarın saç kesimi için randevu alabilir miyim', 'yarın 3te', 'iptal etmek istiyorum'] as $x) esit("WA selam değil: $x", false, $wc('selamMi', $x));
+    foreach (['Mesajınız alınmıştır, en kısa sürede dönüş yapılacaktır.', 'Bu bir otomatik yanıttır.', 'Mesai saatlerimiz dışında yazdınız', 'Auto-reply: I am away'] as $x) esit("WA otomatik yanıt: $x", true, $wc('otomatikYanitMi', $x));
+    foreach (['Yarın randevum var mı?', 'Saat 3 uygun mu', 'tamam teşekkürler'] as $x) esit("WA otomatik yanıt değil: $x", false, $wc('otomatikYanitMi', $x));
+    esit('WA telefon ifadesi: hatta kalın', 'Sizi işletmemize yönlendiriyorum.', $wc('telefonIfadeleri', 'Sizi işletmemize yönlendiriyorum, lütfen hatta kalın.'));
+    icerir('WA telefon ifadesi: aradığınız → yazdığınız', 'bize yazdığınız için teşekkür', $wc('telefonIfadeleri', 'Rica ederiz, bizi aradığınız için teşekkür ederiz.'));
+    esit('WA döngü sadeleştirme', 'merhaba nasılsınız', $wc('sade', '  Merhaba,   nasılsınız?? '));
+
     echo "\n\033[1mSONUÇ: $gecen geçti, $kalan kaldı\033[0m\n";
     if ($kalan) { echo "Kalanlar:\n - " . implode("\n - ", $hatalar) . "\n"; exit(1); }
 }

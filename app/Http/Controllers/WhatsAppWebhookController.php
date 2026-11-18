@@ -20,6 +20,11 @@ class WhatsAppWebhookController extends Controller
             return response()->json(['error' => 'unauthorized'], 401);
         }
         $event = $request->input('event');
+        // Gelen mesaj AI cevabi + WhatsApp gonderimi tetikler: sir tanimli degilse yalniz ayni sunucudaki kopruden kabul
+        if (!$secret && in_array($event, ['message.received', 'message.manual'], true)
+            && !in_array($request->ip(), ['127.0.0.1', '::1'], true)) {
+            return response()->json(['error' => 'unauthorized (WHATSAPP_WEBHOOK_SECRET tanimlayin)'], 401);
+        }
         $salonId = $request->input('salonId');
         if (!$salonId) return response()->json(['error' => 'salon-id-eksik'], 400);
 
@@ -56,6 +61,23 @@ class WhatsAppWebhookController extends Controller
                 break;
             case 'message.failed':
                 $this->onMessageFailed($salon, $request);
+                break;
+            // WhatsApp asistani (WA_ASISTAN_SALONLAR'da acik salonlar): gelen mesaja AI cevabi.
+            // Cevap, bu istek kopruye donduktan SONRA uretilir (kopru beklemez/yeniden denemez).
+            case 'message.received':
+                try {
+                    return response()->json(['ok' => true] + \App\Services\WaAsistan::gelen($request->all()));
+                } catch (\Throwable $e) {
+                    Log::error('[WA-ASISTAN] gelen mesaj hatasi: ' . $e->getMessage(), ['salon_id' => $salon->id]);
+                }
+                break;
+            // Personel kendi telefonundan musteriye yazdi -> o sohbette AI susar
+            case 'message.manual':
+                try {
+                    return response()->json(['ok' => true] + \App\Services\WaAsistan::manuel($request->all()));
+                } catch (\Throwable $e) {
+                    Log::error('[WA-ASISTAN] manuel mesaj hatasi: ' . $e->getMessage(), ['salon_id' => $salon->id]);
+                }
                 break;
         }
 

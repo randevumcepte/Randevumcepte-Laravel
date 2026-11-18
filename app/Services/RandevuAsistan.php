@@ -49,9 +49,12 @@ class RandevuAsistan
     protected ?array $_paketler = null;
     protected ?array $_randevularim = null; // tur icinde onbellek (prompt her model cagrisinda yeniden kurulur)
     protected AiAsistanController $ctrl;
+    /** 'santral' (sesli, varsayilan) | 'whatsapp' (yazili: WaAsistan). Santral akisi kanal verilmezse birebir ayni. */
+    protected string $kanal = 'santral';
 
-    public function __construct(int $salonId, ?string $telefon = null)
+    public function __construct(int $salonId, ?string $telefon = null, string $kanal = 'santral')
     {
+        $this->kanal = $kanal === 'whatsapp' ? 'whatsapp' : 'santral';
         $this->salonId = $salonId;
         $this->telefon = $telefon ? preg_replace('/\D/', '', $telefon) : null;
         $this->ctrl = new AiAsistanController();
@@ -95,6 +98,46 @@ class RandevuAsistan
     }
 
     public function taninanMusteri(): ?string { return $this->musteriAd; }
+
+    public function whatsappMi(): bool { return $this->kanal === 'whatsapp'; }
+
+    /**
+     * WhatsApp karsilamasi (yazili). Santral telaffuzu (karsilama alani) DEGIL salon adi kullanilir.
+     * Kayitsiz: ad soyad (numara gizliyse telefon da) istenir -> musteri_kaydet (santral ile ayni kayit adimi).
+     */
+    public function waKarsilama(): string
+    {
+        $salon = $this->salonAdi();
+        if ($this->musteriAd) {
+            $k = $this->kampanyaTeklifCumlesi();
+            return "{$this->acilisHitap($this->musteriAd)}, {$salon} WhatsApp hattına hoş geldiniz. Ben yapay zeka asistanınızım; randevu alma, değiştirme ve iptal işlemlerinizde yardımcı olabilirim."
+                . ($k !== '' ? "\n\n{$k}" : '') . "\n\nSize nasıl yardımcı olabilirim?";
+        }
+        return "Merhaba, {$salon} WhatsApp hattına hoş geldiniz. Ben yapay zeka asistanınızım. Size yardımcı olabilmem için "
+            . ($this->telNorm($this->telefon) ? 'adınızı ve soyadınızı' : 'adınızı, soyadınızı ve cep telefonu numaranızı')
+            . ' yazar mısınız?';
+    }
+
+    /** Kayitli musteri dogrudan istegini yazdiysa cevabin basina konan kisa selam. */
+    public function waSelam(): string
+    {
+        if (!$this->musteriAd) return 'Merhaba.';
+        $h = $this->acilisHitap($this->musteriAd);
+        return (mb_strpos($h, 'Merhaba') === 0 ? $h : "Merhaba, {$h}") . '.';
+    }
+
+    /**
+     * WhatsApp'tan giden randevu hatirlatmasina gelen cevap icin gecmis meta'si (santral hatirlatma akisi ile ayni
+     * kod yolu: gelecek/ertele/iptal). Randevu artik gecerli degilse null.
+     */
+    public function waHatirlatmaMeta(int $randevuId): ?array
+    {
+        $r = Randevular::with('users')->where('id', $randevuId)->where('salon_id', $this->salonId)->first();
+        if (!$r || !in_array((int) $r->durum, [Randevular::BEKLENIYOR, Randevular::ONAYLANDI], true)) return null;
+        $satir = $this->randevuSatiri($r);
+        $gun = $satir['tarih'] === now('Europe/Istanbul')->addDay()->toDateString() ? 'yarın, ' . $satir['gun'] : $satir['gun'];
+        return ['tur' => 'randevu', 'randevu_id' => (int) $r->id, 'soz' => $this->randevuSoz(['gun' => $gun] + $satir), 'wa' => 1];
+    }
 
     // ============================================================ GIDEN HATIRLATMA ARAMASI
     /**
@@ -187,15 +230,17 @@ class RandevuAsistan
     /** Asistanin son sorusu hatirlatma sorusuysa (cevap bekleniyor) o aramanin meta'si; degilse null. */
     protected function hatirlatmaBekleyen(array $gecmis): ?array
     {
-        $meta = null; $son = '';
+        $meta = null; $son = ''; $sonWa = false;
         foreach ($gecmis as $g) {
             if (($g['role'] ?? '') !== 'assistant') continue;
             if (!empty($g['hatirlatma']) && $meta === null) $meta = $g['hatirlatma'];
             $son = (string) ($g['content'] ?? '');
+            $sonWa = !empty($g['hatirlatma']['wa']); // WhatsApp hatirlatma sablonu (soru kalibi yok)
         }
         if (!$meta) return null;
         $adim = null;
-        if (preg_match('/gelebilecek misiniz\?$/u', $son)) $adim = 'soru';
+        if ($sonWa) $adim = 'soru';
+        elseif (preg_match('/gelebilecek misiniz\?$/u', $son)) $adim = 'soru';
         elseif (preg_match('/yapabilecek misiniz\?$/u', $son)) $adim = 'soru';
         elseif (preg_match('/ertelemek mi istersiniz, yoksa iptal etmemi mi istersiniz\?$/u', $son)) $adim = 'ertele_iptal';
         return $adim ? ['adim' => $adim] + $meta : null;
@@ -1564,7 +1609,8 @@ class RandevuAsistan
         $kimlik = $this->asistanAdi() !== ''
             ? " Adın {$this->asistanAdi()}; kendini bu adla tanıt. \"Robot musun / yapay zeka mısın\" diye sorulursa dürüstçe yapay zeka asistanı olduğunu söyle."
             : '';
-        return <<<PROMPT
+        $waBolum = $this->kanal === 'whatsapp' ? $this->waPromptBolumu() : '';
+        return $waBolum . <<<PROMPT
 Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın.{$kimlik} Telefonda, kısa ve doğal Türkçe konuşuyorsun. Çıktın düz metindir (TTS ile okunur): emoji, madde işareti, markdown KULLANMA. Her yanıt 1-2 cümle. Çıktının TAMAMI müşteriye okunur: düşünceni, akıl yürütmeni, ne yapacağını ("Müşteri ... dedi", "Onay soruyorum") ASLA yazma; yalnız müşteriye söyleyeceğin cümleyi yaz.
 
 # KONUŞMA ÜSLUBU (sıcak, insan gibi)
@@ -1648,6 +1694,23 @@ MÜŞTERİNİN MEVCUT RANDEVULARI (iptal/güncellemede bunları kullan; mevcut_r
 AKTİF KAMPANYALAR (yalnız adını ve son gününü söyle; indirim oranı/fiyat sorulursa aktar):{$kampanyaSatir}
 İŞLETMENİN SIK SORULAN SORU CEVAPLARI (benzer sorularda bu cevabı kullan, değiştirme):{$sssSatir}
 PROMPT;
+    }
+
+    /** WhatsApp kanali: asagidaki (sesli kanal icin yazilmis) kurallarin yaziya uyarlanmasi. ONCELIKLIDIR. */
+    protected function waPromptBolumu(): string
+    {
+        return <<<WA
+# KANAL: WHATSAPP YAZIŞMASI (bu bölüm aşağıdaki tüm kurallardan ÖNCELİKLİDİR)
+Bu bir telefon görüşmesi DEĞİL; müşteri WhatsApp'tan yazıyor ve cevabın WhatsApp mesajı olarak gider. Aşağıdaki "sesli", "telefonda", "TTS", "okunur", "duyar", "söyle" ifadelerini "yaz/yazışma" olarak uygula.
+- Kısa ve net yaz (çoğunlukla 1-3 cümle). Tarih ve saati rakamla yaz (ör. "Perşembe 20 Kasım, 14:30"). Seçenek sunarken her birini ayrı satıra yaz (ör. "1) Perşembe 20 Kasım 14:00 – Ayşe Hanım").
+- Emoji en fazla bir tane ve yalnız uygun yerde; markdown başlık/kalın yazı KULLANMA.
+- "Hatta kalın", "sizi bağlıyorum", "bizi aradığınız için", "arama" gibi telefon ifadeleri KULLANMA. "aktar" çağırdığında müşteriye talebinin işletmeye iletildiğini ve buradan dönüş yapılacağını yaz.
+- Karşılama mesajı zaten gönderildi ya da müşteri doğrudan isteğini yazdı: tekrar "hoş geldiniz" deme.
+- Yazım hatalı/kısaltmalı mesajları (ör. "yarn 3te", "sac kesimi") anlamaya çalış; gerçekten anlaşılmıyorsa kısaca ne istediğini sor.
+- Müşteri sesli mesaj/fotoğraf gönderdiğini söylerse yalnız yazılı mesajları okuyabildiğini belirt.
+- Geçmişte "[SİSTEM — bu mesajı işletme personeli elle yazdı]" notlu mesajlar işletme personelinindir; onların verdiği bilgi ve sözlerle çelişme.
+
+WA;
     }
 
     /** Bugün + 14 gün: "GünAdı DD Ay = YYYY-MM-DD" (İstanbul, deterministik). */
@@ -2586,6 +2649,13 @@ PROMPT;
 
     protected function ttsTemizle(string $m): string
     {
+        if ($this->kanal === 'whatsapp') {
+            // Yazili kanal: satir sonlari, rakamlar, telefon numarasi oldugu gibi; yalniz gizli not + fazla bosluk
+            $m = preg_replace('/\[SİSTEM[^\]]*\]/u', '', $m);
+            $m = preg_replace('/[ \t]+/u', ' ', $m);
+            $m = preg_replace('/\n{3,}/u', "\n\n", $m);
+            return trim($m);
+        }
         $m = preg_replace('/\[SİSTEM[^\]]*\]/u', '', $m);   // gizli notu model taklit ederse SESLENDIRME
         $m = preg_replace('/[*_`#>\-]+/u', ' ', $m);          // markdown
         $m = preg_replace('/[\x{1F000}-\x{1FFFF}\x{2600}-\x{27BF}]/u', '', $m); // emoji
@@ -2610,6 +2680,9 @@ PROMPT;
             if ($role === 'assistant' && !empty($m['hatirlatma'])) {
                 $c .= "\n[SİSTEM — " . $this->hatirlatmaNotu($m['hatirlatma']) . ']';
             }
+            if ($role === 'assistant' && !empty($m['personel'])) {
+                $c = "[SİSTEM — bu mesajı işletme personeli elle yazdı] " . $c;
+            }
             if ($role === 'assistant' && !empty($m['baglam'])) {
                 $c .= "\n[SİSTEM — bu turdaki araç sonuçları, müşteri duymadı: " . $m['baglam'] . ']';
             }
@@ -2622,7 +2695,7 @@ PROMPT;
         }
         // Anthropic: ilk mesaj user olmali. Karsilamayi (ad soyad sorusu dahil) ATMA: model ilk cevabin
         // isim oldugunu bilsin diye basina yapay bir "arama baglandi" turu ekle.
-        if (!empty($out) && $out[0]['role'] !== 'user') array_unshift($out, ['role' => 'user', 'content' => '(arama bağlandı)']);
+        if (!empty($out) && $out[0]['role'] !== 'user') array_unshift($out, ['role' => 'user', 'content' => $this->kanal === 'whatsapp' ? '(müşteri WhatsApp\'tan yazdı)' : '(arama bağlandı)']);
         return $out;
     }
 }

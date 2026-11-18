@@ -60,6 +60,18 @@ return [
     // Santral yapay zeka asistani (randevu-santral-ai): randevu (1 gun once) ve alacak (2 gun once)
     // HATIRLATMA aramalari hangi salonlarda yeni asistanla yapilir. "20,35" ya da "*" (hepsi).
     // Listede olmayan salonlar eski tuslamali IVR'da kalir. Varsayilan: yalniz test salonu 20.
+    // WhatsApp asistani (gelen WhatsApp mesajina RandevuAsistan ile cevap). Bkz App\Services\WaAsistan.
+    'wa_asistan' => [
+        'salonlar'        => env('WA_ASISTAN_SALONLAR', ''),          // "20,236" | "*" (bos = kapali)
+        'haric'           => env('WA_ASISTAN_HARIC', ''),             // cevap verilmeyecek numaralar (virgullu)
+        'birlestir_sn'    => (int) env('WA_ASISTAN_BIRLESTIR_SN', 4), // art arda mesajlari tek mesaj say
+        'oturum_dk'       => (int) env('WA_ASISTAN_OTURUM_DK', 30),   // bu kadar sessizlik -> yeni yazisma
+        'insan_esik_dk'   => (int) env('WA_ASISTAN_INSAN_ESIK_DK', 10), // personel elle yazdiysa AI bu kadar susar
+        'aktar_sessiz_dk' => (int) env('WA_ASISTAN_AKTAR_SESSIZ_DK', 120), // isletmeye aktarilan sohbette AI susar
+        'numara_10dk'     => (int) env('WA_ASISTAN_NUMARA_10DK', 15), // numara basi 10 dk'da en fazla bot cevabi
+        'gunluk_tavan'    => (int) env('WA_ASISTAN_GUNLUK_TAVAN', 300), // hat basi gunluk bot cevabi tavani
+    ],
+
     'santral_ai' => [
         'hatirlatma_salonlar' => env('SANTRAL_AI_HATIRLATMA_SALONLAR', '20'),
         // Asistan paket yonetimi maliyet hesabi (USD). Claude: Haiku 5.5 fiyati / 1M token;
