@@ -96,7 +96,7 @@ const cfg = {
   // Ofis ambiyansi (comfort noise): TTS altinda kisik surekli arka ses (UCRETSIZ).
   ambiyans: {
     aktif: bool(process.env.AMBIYANS, true),
-    seviye: parseFloat(process.env.AMBIYANS_SEVIYE || '0.25'),   // AI KONUSURKEN ambiyans seviyesi
+    seviye: parseFloat(process.env.AMBIYANS_SEVIYE || '0.35'),   // AI KONUSURKEN ambiyans seviyesi (0.25 idi; 2026-11-18 isletme: biraz daha duyulsun)
     dinleme: parseFloat(process.env.AMBIYANS_DINLEME || '0.3'),  // AI DINLERKEN carpan (0=kapali..1=ayni); dusuk=STT'yi az etkiler
     dosya: process.env.AMBIYANS_DOSYA || require('path').resolve(__dirname, '..', 'assets', 'ofis-ambiyans.sln'),
   },
