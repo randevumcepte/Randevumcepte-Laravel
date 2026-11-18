@@ -304,7 +304,19 @@ async function cagriBasla(channel, event, opts = {}) {
       geriAramaOturum: opts.geriAramaOturum || 0, // >0: yarida kalan oturumla devam
       hatirlatma: opts.hatirlatma || '',          // giden hatirlatma aramasi hedefi (randevu:ID | alacak:ID-ID)
       onAktar: (kid) => insanaAktar(kid, subeId),
-      onBitir: (kid) => { client.Channel(kid).hangup().catch(() => {}); },
+      // Veda sonrasi kapatma. Hata ESKIDEN sessizce yutuluyordu: hat acik kaliyor, temizle hic calismadigi
+      // icin ses kaydi da yuklenmiyordu (canli 2026-11-18 22:59). Simdi loglanir, 1 sn sonra tekrar denenir
+      // ve temizle (kayit yukleme) her durumda calisir.
+      onBitir: async (kid) => {
+        log.info(`kapanis: hat kapatiliyor (${kid})`);
+        try {
+          await client.Channel(kid).hangup();
+        } catch (e) {
+          log.warn(`kapanis: hangup hatasi (${e.message}) -> 1 sn sonra tekrar, temizle calisiyor`);
+          setTimeout(() => { client.Channel(kid).hangup().catch((e2) => log.error(`kapanis: hangup 2. deneme de basarisiz: ${e2.message}`)); }, 1000);
+          if (aktif.has(kid)) await temizle(kid, 'veda');
+        }
+      },
     });
 
     const kayit = {

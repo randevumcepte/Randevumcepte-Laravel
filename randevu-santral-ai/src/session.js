@@ -552,14 +552,24 @@ class CagriOturumu {
   }
 
   async _kapatSirasi() {
-    // Kapanis cumlesi TAM calinip bitene kadar bekle (yarida kesme), sonra hatti kapat. Max ~18sn guvenlik.
-    let gecen = 0;
+    // Kapanis cumlesi TAM calinip bitene kadar bekle (yarida kesme), sonra hatti kapat. Max cfg.kapanisMaxMs
+    // (7 sn; 18 sn idi: veda sonrasi hat uzun sure acik kaliyordu, 2026-11-18 isletme istegi).
+    let gecen = 700;
     const tik = () => {
       if (this.kapali) return;
       gecen += 300;
-      if (this.rtp && this.rtp.sesVarMi && gecen < 18000) { this._kapatZ = setTimeout(tik, 300); return; }
-      this._kapatZ = setTimeout(() => this.onBitir(this.kanalId), 600); // son kareler de gitsin
+      if (this.rtp && this.rtp.sesVarMi && gecen < cfg.kapanisMaxMs) { this._kapatZ = setTimeout(tik, 300); return; }
+      this._kapatZ = setTimeout(() => {
+        this.onBitir(this.kanalId); // son kareler de gitsin
+        // Guvenlik: 3 sn sonra hat hala acik (oturum kapanmadi) ise bir kez daha kapat
+        this._kapatZ = setTimeout(() => {
+          if (this.kapali) return;
+          log.warn('kapanis: hat 3 sn sonra hala acik -> tekrar kapatiliyor');
+          this.onBitir(this.kanalId);
+        }, 3000);
+      }, 600);
     };
+    log.info(`kapanis: veda sesi bitince hat kapanacak (en gec ${cfg.kapanisMaxMs} ms)`);
     // once seslendirmenin kuyruga girmesine firsat ver, sonra beklemeye basla
     this._kapatZ = setTimeout(tik, 700);
   }

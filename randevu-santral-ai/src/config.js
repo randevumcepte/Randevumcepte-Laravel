@@ -60,6 +60,8 @@ const cfg = {
   },
   bargeIn: bool(process.env.BARGE_IN, true),
   sessizlikMs: num(process.env.SESSIZLIK_MS, 15000),
+  // Veda cumlesinden sonra hat en gec bu kadar ms'de kapanir (ses bitince daha erken). Eskiden 18 sn idi.
+  kapanisMaxMs: num(process.env.KAPANIS_MAX_MS, 7000),
   // Bekleme cumlesi: beyin cevabi bu kadar ms icinde gelmezse "Hemen bakıyorum." gibi kisa bir cumle cal
   // (musteri sessizlikte kalmasin). 0 = kapali.
   dolguMs: num(process.env.DOLGU_MS, 1800),
