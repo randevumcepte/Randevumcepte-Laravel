@@ -166,6 +166,9 @@ namespace {
     $d = $a2->konus('Randevumu iptal etmek istiyorum', []);
     icerir('iptal (iki randevu) → sayı', '2 randevunuz var', $d['cevap']);
     icerir('iptal (iki randevu) → ikincisi', 'Cuma, 20 Kasım', $d['cevap']);
+    icerir('iptal (iki randevu) → "Birinci randevunuz"', 'Birinci randevunuz Salı', $d['cevap']);
+    icerir('iptal (iki randevu) → "İkinci randevunuz"', 'İkinci randevunuz Cuma', $d['cevap']);
+    icermez('iptal → "1." numara okunmaz', '1. ', $d['cevap']);
     icerir('iptal (iki randevu) → seçtirir', 'Hangisini iptal edelim', $d['cevap']);
     $d = $a2->konus('Randevumu ertelemek istiyorum', []);
     icerir('değiştirme (iki randevu)', 'Hangisini değiştirelim', $d['cevap']);

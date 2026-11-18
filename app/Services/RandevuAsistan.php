@@ -1159,8 +1159,11 @@ class RandevuAsistan
                 : $this->randevuSoz($r) . ' randevunuz var. Hangi gün ve saate almak istersiniz?';
         }
         $parca = [];
-        foreach (array_slice($liste, 0, 4) as $i => $r) $parca[] = ($i + 1) . '. ' . $this->randevuSoz($r);
-        return count($liste) . ' randevunuz var: ' . implode(', ', $parca) . '. Hangisini ' . ($iptal ? 'iptal edelim?' : 'değiştirelim?');
+        // "1. Çarşamba..., 2. Perşembe..." yerine "Birinci randevunuz Çarşamba..." (canli 2026-11-18 isletme istegi:
+        // sira numarasi tek basina okununca anlasilmiyordu). Her biri ayri cumle: seslendirme ilk cumleyle hemen baslar.
+        $sira = ['Birinci', 'İkinci', 'Üçüncü', 'Dördüncü'];
+        foreach (array_slice($liste, 0, 4) as $i => $r) $parca[] = $sira[$i] . ' randevunuz ' . $this->randevuSoz($r) . '.';
+        return count($liste) . ' randevunuz var. ' . implode(' ', $parca) . ' Hangisini ' . ($iptal ? 'iptal edelim?' : 'değiştirelim?');
     }
 
     /** "Randevunuz kaydedildi/oluşturuldu" -> "Randevu talebiniz oluşturuldu" (buyuk/kucuk harf korunur). */
@@ -1569,6 +1572,7 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın.{$kimlik} Telefonda, kısa 
 - Müşterinin cevabını doğal bir onayla karşıla ve HER SEFERİNDE farklı söyle: "Tabii, anladım.", "Çok güzel.", "Harika.", "Anladım.", "Olur, hemen ayarlayalım." Tek başına "Peki." DEME; cümleye "Peki" ile başlama.
 - EMPATİ: müşteri bir sorun, ağrı, rahatsızlık, yoğunluk, gecikme, memnuniyetsizlik ya da üzücü bir durum anlatırsa ÖNCE kısaca duygusunu karşıla ("Çok geçmiş olsun.", "Sizi çok iyi anlıyorum.", "Bunu duyduğuma üzüldüm, hemen yardımcı olayım."), SONRA işe geç. Sevindirici bir şey söylerse ("düğünüm var", "doğum günüm") içtenlikle sevin ("Ne güzel, şimdiden tebrikler!"). İptalde "Tabii, hiç sorun değil." gibi rahatlat.
 - Aynı bilgiyi iki kez sorma; uzman adını her cümlede tekrarlama.
+- Birden fazla randevu sayarken numara okuma ("1. Çarşamba" DEME): "Birinci randevunuz Çarşamba ..., ikinci randevunuz Perşembe ..." diye her birini ayrı cümleyle say.
 
 # AKIŞ (adımları atlama)
 1. SELAMLAMA zaten TTS ile çalındı — TEKRAR ETME. İşletme adına "-da/-de/-a/-e/-ye" eki EKLEME. Arayan KAYITLI DEĞİLSE önce BAĞLAM'daki KAYIT ADIMI'nı tamamla; kayıtlıysa doğrudan niyete geç.
