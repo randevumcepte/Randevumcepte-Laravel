@@ -278,6 +278,21 @@ namespace {
     esit('tercih sorusu yoksa dokunulmaz', $tek, cagir($pz, 'uzmanListesiKes', $tek, 'yarın'));
     icerir('prompt: anlamadığında kısa soru', 'Kusura bakmayın, tam duyamadım. Hangi hizmet için arıyorsunuz?', cagir($pz, 'sistemPromptu'));
 
+    bolum('Kayıt 176: önce söylenen tarih/saat unutulmaz, doğru söylenen hizmete teyit sorulmaz');
+    $g176 = [
+        ['role' => 'assistant', 'content' => 'Merhaba, size nasıl yardımcı olabilirim?'],
+        ['role' => 'user', 'content' => 'Yarın saat 18.30 Melis Hanım boş mu?'],
+        ['role' => 'assistant', 'content' => 'Hangi hizmet için randevu almak istiyorsunuz?'],
+    ];
+    $zn = cagir($pz, 'oncekiZamanNotu', 'Jel güçlendirme', $g176);
+    icerir('önceki saat hatırlatılır', 'saat=18:30', $zn);
+    icerir('tarih tekrar sorulmaz notu', 'TEKRAR SORMA', $zn);
+    esit('bu cümlede zaman varsa not yok', '', cagir($pz, 'oncekiZamanNotu', 'perşembe 14', $g176));
+    $g176b = array_merge($g176, [['role' => 'user', 'content' => 'Lazer'], ['role' => 'assistant', 'content' => 'Tamamdır, randevu talebinizi oluşturdum.']]);
+    esit('randevu oluştuysa eski saat hatırlatılmaz', '', cagir($pz, 'oncekiZamanNotu', 'bir randevu daha', $g176b));
+    $kj = cagir(asistan(['salon' => ['ad' => 'X', 'hizmetler' => [['id' => 7, 'ad' => 'Jel Güçlendirmesi']]]]), 'kelimeDuzeltme', 'Jel güçlendirme');
+    esit('kelime düzeltme id\'li seçenek verir', [['id' => 7, 'ad' => 'Jel Güçlendirmesi']], $kj['secenekler'] ?? null);
+
     bolum('"Başka yardımcı olabileceğim..." garantisi');
     foreach ([
         'Yol tarifini gönderdim. Size nasıl yardımcı olabilirim?' => 'Yol tarifini gönderdim. Başka yardımcı olabileceğim bir konu var mı?',

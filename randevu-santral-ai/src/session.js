@@ -20,6 +20,12 @@ const TEPKI_SORGU = ['Tabii, hemen bakıyorum.', 'Bir bakayım.', 'Hemen bakıyo
 // Tek basina "Peki." havada kaliyordu (kayit 166) -> "Tabii, anladım."
 const TEPKI_KISA = ['Tabii, anladım.', 'Anladım.', 'Tamam.'];
 const TEPKI_GENEL = ['Tabii.'];
+// Cevap hazirlanirken gelen BOS TEKRAR ("evet" ikinci kez, "alo", "duyuyor musunuz"): yeni bilgi yok -> hazirlanan
+// cevap COPE ATILMAZ (canli 2026-11-18 kayit 176: ikinci "evet" neredeyse hazir cevabi iptal ettirip ayni isi
+// bastan yaptirdi, 9 sn sessizlik; musteri sikilip kapatti). "alo" turlerine kisa "buradayim" sozu calar.
+const BOS_TEKRAR = /^(evet|evet evet|evet efendim|tamam|tamamdır|tamam tamam|olur|olsun|peki|aynen|he|hı hı|hıhı|ıhı|alo|alo alo|efendim|duyuyor musunuz|beni duyuyor musunuz|orada mısınız|hala orada mısınız|hâlâ orada mısınız|ses gelmiyor|sesiniz gelmiyor)$/;
+const BURADA_MI = /(alo|duyuyor|orada|ses gelmiyor|sesiniz gelmiyor)/;
+const TEPKI_BURADA = 'Buradayım, hemen bakıyorum.';
 // "bakiyorum" yalniz gercekten takvim/kayit sorgusu gerektiren isteklerde (gun/saat/musaitlik/iptal/degisiklik)
 const SORGULU = /(müsait|musait|uygun|boş|bos\b|saat|yarın|yarin|bugün|bugun|haftaya|pazartesi|salı|sali|çarşamba|carsamba|perşembe|persembe|cuma|pazar|iptal|ertele|değiştir|degistir|kaydır|kaydir|güncelle|guncelle)/i;
 const TEPKI_BAS = /^\s*(tabii,? anladım|harika|çok güzel|süper|tamamdır|tamam|tabii ki|tabii|tabi|peki|anladım|elbette|hemen bakıyorum|bakıyorum)\s*[,.!]?\s+(?=\S)/i;
@@ -124,7 +130,7 @@ class CagriOturumu {
       await this._seslendir(d.karsilama || 'Merhaba, size nasıl yardımcı olabilirim?');
       // Bekleme cumlelerini onceden seslendir (onbellege al) -> gerektiginde aninda calsin
       if (cfg.dolguMs > 0) for (const c of DOLGU) this._tts(c).then((r) => this._ttsKaydet(c, r.kaynak, false)).catch(() => {});
-      if (cfg.tepkiMs > 0) for (const c of TEPKI_SORGU.concat(TEPKI_KISA, TEPKI_GENEL)) this._tts(c).then((r) => this._ttsKaydet(c, r.kaynak, false)).catch(() => {});
+      if (cfg.tepkiMs > 0) for (const c of TEPKI_SORGU.concat(TEPKI_KISA, TEPKI_GENEL, [TEPKI_BURADA])) this._tts(c).then((r) => this._ttsKaydet(c, r.kaynak, false)).catch(() => {});
     } catch (e) {
       const neden = e.response && e.response.data && e.response.data.hata;
       if (neden === 'paket_yok' || neden === 'paket_bitti') {
@@ -246,6 +252,12 @@ class CagriOturumu {
     const onceki = this._sonIslenen;
     if (onceki && (simdi - onceki.t) < 5000) {
       if (onceki.n === n || onceki.n.startsWith(n)) { log.debug('yinelenen final atlandi'); return; }
+      if (n.startsWith(onceki.n) && this.mesgul && !this._bekleyen && BOS_TEKRAR.test(n.slice(onceki.n.length).trim())) {
+        // "Evet" -> "Evet evet": devami ama yeni bilgi yok -> mevcut tur surer (yeniden sorulmaz)
+        log.info(`> musteri (devami, bos tekrar -> yok sayildi): ${metin}`);
+        this._sonIslenen = { n, t: simdi };
+        return;
+      }
       if (n.startsWith(onceki.n) && this.mesgul && !this._bekleyen) {
         // Final, islenmekte olan interim'in DEVAMI: onceki cevabi calma, tam cumleyle yeniden sor
         log.info(`> musteri (devami): ${metin}`);
@@ -259,6 +271,11 @@ class CagriOturumu {
     log.info(`> musteri: ${metin}`);
     // Beyin dusunurken musteri yeni bir sey soyledi: onceki cevap ESKIDI (calinmayacak, aksiyon yoksa);
     // bekleyen cumleler birlestirilip tek turda sorulur.
+    if (this.mesgul && BOS_TEKRAR.test(n)) {
+      log.info('  (bos tekrar: hazirlanan cevap korunuyor, yeniden sorulmadi)');
+      if (BURADA_MI.test(n)) this._tepkiCal(TEPKI_BURADA);
+      return;
+    }
     if (this.mesgul) {
       this._eskidi = true;
       if (!this._bekleyen && this._aktifTur && this._paralelBaslat(this._aktifTur.metin + ' ' + metin)) return;
@@ -276,6 +293,8 @@ class CagriOturumu {
   _tepkiSec(metin) {
     const m = (metin || '').trim();
     if (!m || DOLGUSUZ.test(m)) return null;
+    // Selamlasmaya "Anladım." denmez (kayit 176: "Merhabalar" -> "Anladım. Merhaba...")
+    if (/^(merhaba|merhabalar|selam|selamlar|iyi günler|günaydın|iyi akşamlar|alo)[\s.,!?]*$/i.test(m)) return null;
     if (SORGULU.test(m)) { this._tepkiNo = ((this._tepkiNo || 0) + 1) % TEPKI_SORGU.length; return TEPKI_SORGU[this._tepkiNo]; }
     if (DOLGULU.test(m)) return TEPKI_GENEL[0]; // "randevu almak istiyorum" -> "Tabii." (ardindan soru gelecek)
     if (m.split(/\s+/).length <= 3) { this._tepkiNo = ((this._tepkiNo || 0) + 1) % TEPKI_KISA.length; return TEPKI_KISA[this._tepkiNo]; }

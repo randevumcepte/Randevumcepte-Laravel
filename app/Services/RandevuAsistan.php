@@ -378,7 +378,7 @@ class RandevuAsistan
         $messages = $this->gecmisMesajlari($gecmis);
         $turBas = microtime(true);
         $onNot = $this->onEslestirmeNotu($metin, $onPaketli);
-        $messages[] = ['role' => 'user', 'content' => $metin . $this->zamanNotu($metin)
+        $messages[] = ['role' => 'user', 'content' => $metin . $this->zamanNotu($metin) . $this->oncekiZamanNotu($metin, $gecmis)
             . ($onNot !== '' ? $onNot : $this->hizmetDuzeltmeNotu($metin))
             . ($onPaketli ? '' : $this->paketNotu($metin, $gecmis))
             . $this->paketKarariNotu($gecmis, $metin)];
@@ -775,6 +775,29 @@ class RandevuAsistan
         if (!empty($z['vakit']) && empty($z['saat'])) $parca[] = "zaman_dilimi={$z['vakit']}";
         if (!$parca) return '';
         return "\n[SİSTEM zaman çözümü — müşteri duymaz: " . implode(', ', $parca) . ']';
+    }
+
+    /**
+     * Musteri tarih/saati DAHA ONCE soyledi, simdi baska bir sey (hizmet, "evet") konusuluyor: model bunu unutup
+     * "Hangi gün sizin için uygun?" diye soruyordu (canli 2026-11-18 kayit 176: ilk cumlede "yarın 18.30" denmisti).
+     * Bu cumlede zaman yoksa, son randevu islemi SONRASINDAKI en yeni zamanli musteri cumlesi hatirlatilir.
+     */
+    protected function oncekiZamanNotu(string $metin, array $gecmis): string
+    {
+        if ($this->zamanNotu($metin) !== '') return '';
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            $g = $gecmis[$i];
+            $c = (string) ($g['content'] ?? '');
+            if (($g['role'] ?? '') === 'assistant'
+                && preg_match('/talebinizi oluşturdum|randevunuzu güncelledim|iptal edildi/iu', $c)) return ''; // o randevu bitti
+            if (($g['role'] ?? '') !== 'user' || strpos($c, '[SİSTEM') !== false) continue;
+            $not = $this->zamanNotu($c);
+            if ($not === '') continue;
+            $cozum = trim(preg_replace('/^.*?: /u', '', trim($not)), " ]\n");
+            return "\n[SİSTEM — müşteri duymaz: müşteri tarih/saati DAHA ÖNCE söyledi (\"" . mb_substr($c, 0, 80) . "\" → {$cozum}). "
+                . 'Tarih/saati TEKRAR SORMA; hizmet (ve varsa uzman) netleşince musait_saatler\'i bu tarih/saatle çağır.]';
+        }
+        return '';
     }
 
     /** 2026-11-18 -> "Çarşamba, 18 Kasım" (yil farkliysa yil da eklenir). */
@@ -1184,10 +1207,13 @@ class RandevuAsistan
             }
         }
         if (!$enIyi) return null;
-        $adlar = [];
+        $adlar = []; $secenekler = [];
         foreach ($hizmetler as $h) {
             $ad = trim((string) ($h['ad'] ?? ''));
-            if (in_array($enIyi['hk'], explode(' ', $this->sade($ad)), true)) $adlar[$this->sade($ad)] = $ad;
+            if (in_array($enIyi['hk'], explode(' ', $this->sade($ad)), true) && !isset($adlar[$this->sade($ad)])) {
+                $adlar[$this->sade($ad)] = $ad;
+                $secenekler[] = ['id' => (int) ($h['id'] ?? 0), 'ad' => $ad];
+            }
         }
         $adlar = array_values($adlar);
         if (!$adlar) return null;
@@ -1200,7 +1226,7 @@ class RandevuAsistan
         }
         $o = mb_strtolower(strtr(implode(' ', $ortak) ?: $adlar[0], ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
         $ilk = mb_substr($o, 0, 1, 'UTF-8');
-        return ['ortak' => ($ilk === 'i' ? 'İ' : mb_strtoupper($ilk, 'UTF-8')) . mb_substr($o, 1, null, 'UTF-8'), 'adaylar' => $adlar, 'oran' => round($enIyi['oran'], 2)];
+        return ['ortak' => ($ilk === 'i' ? 'İ' : mb_strtoupper($ilk, 'UTF-8')) . mb_substr($o, 1, null, 'UTF-8'), 'adaylar' => $adlar, 'secenekler' => $secenekler, 'oran' => round($enIyi['oran'], 2)];
     }
 
     /** Soru eki unlu uyumuyla: "tırnak" -> mı, "kirpik" -> mi, "boyun" -> mu, "gül" -> mü. */
@@ -1396,9 +1422,17 @@ class RandevuAsistan
                 // istediniz?" sorulur (el/ayak gibi alt secenekler sayilmaz; "evet" gelince ortak adla yeniden eslesir).
                 if (($d['eslesme'] ?? '') === 'yok' && ($kd = $this->kelimeDuzeltme((string) ($in['metin'] ?? '')))) {
                     Log::info('[SANTRAL-HIZMET-DUZELTME] kelime', ['salon' => $this->salonId, 'metin' => $in['metin'] ?? '', 'sonuc' => $kd]);
-                    $d = ['ok' => true, 'eslesme' => 'yok', 'oneriler' => [], 'ortak' => $kd['ortak'],
-                          'soru' => $kd['ortak'] . ' ' . $this->soruEki($kd['ortak']) . ' demek istediniz?',
-                          'not' => 'Ses tanıma kelimeyi yanlış duymuş olabilir. Müşteriye YALNIZ "soru" alanını sor; alt seçenekleri sayma. "Evet" derse hizmet_eslestir\'i "ortak" metniyle çağır.'];
+                    // Musteri ortak adi zaten DOGRU soyledi (canli kayit 176: "Jel güçlendirme" dedi, bosuna "Jel
+                    // güçlendirme mi demek istediniz?" soruldu): teyit sorma; tek ise o hizmet, coklu ise secenekler.
+                    if (strpos(' ' . $this->sade((string) ($in['metin'] ?? '')) . ' ', ' ' . $this->sade($kd['ortak'])) !== false) {
+                        $d = count($kd['secenekler']) === 1
+                            ? ['ok' => true, 'eslesme' => 'tek', 'hizmet' => $kd['secenekler'][0]]
+                            : ['ok' => true, 'eslesme' => 'coklu', 'ortak' => $kd['ortak'], 'secenekler' => $kd['secenekler']];
+                    } else {
+                        $d = ['ok' => true, 'eslesme' => 'yok', 'oneriler' => [], 'ortak' => $kd['ortak'],
+                              'soru' => $kd['ortak'] . ' ' . $this->soruEki($kd['ortak']) . ' demek istediniz?',
+                              'not' => 'Ses tanıma kelimeyi yanlış duymuş olabilir. Müşteriye YALNIZ "soru" alanını sor; alt seçenekleri sayma. "Evet" derse hizmet_eslestir\'i "ortak" metniyle çağır.'];
+                    }
                 }
                 // Ayni ADLI birden fazla hizmet kaydi (salonda mukerrer "Saç Kesimi"): musteriye secenek gibi sunma,
                 // tek hizmet say (Haiku 5.5 "iki secenek var ama ikisi de ayni" deyip randevuyu kuramiyordu).
