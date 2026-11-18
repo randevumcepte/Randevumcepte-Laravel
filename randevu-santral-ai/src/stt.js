@@ -77,7 +77,14 @@ class SttOturumu {
     };
     // Salonun hizmet adlari ("Tay Masajı" -> 'dayı'/'tay makajı' olmasin). ORTA boost: restoranda urun adlarina
     // yuksek boost her cumleyi urun adina zorlamisti; burada 10 yeterli ve guvenli.
-    if (this.ekIpuclari && this.ekIpuclari.length) conf.speechContexts.push({ phrases: this.ekIpuclari, boost: 10 });
+    // Tek kelimeler ("protez", "kirpik") 15: musteri cogu zaman tam adi degil tek kelimeyi soyler ("protez" ->
+    // "protest" duyuluyordu, canli 2026-11-18).
+    if (this.ekIpuclari && this.ekIpuclari.length) {
+      const coklu = this.ekIpuclari.filter((x) => /\s/.test(x));
+      const tek = this.ekIpuclari.filter((x) => !/\s/.test(x));
+      if (coklu.length) conf.speechContexts.push({ phrases: coklu, boost: 10 });
+      if (tek.length) conf.speechContexts.push({ phrases: tek, boost: 15 });
+    }
     // Model secimi:
     //  - 'latest_long','latest_short','default','command_and_search' -> COK DILLI (tr-TR dahil), her dilde gonder
     //  - 'phone_call','video' -> enhanced, cogu dilde SADECE en-* destekli; tr-TR'de gonderirsek API hata verir
@@ -162,7 +169,7 @@ class SttOturumu {
   /** Salona ozel ipuclarini (hizmet adlari) ekle ve akisi yeni config ile yeniden ac (karsilama sirasinda). */
   ipucuEkle(liste) {
     const temiz = (Array.isArray(liste) ? liste : [])
-      .map((x) => String(x || '').trim()).filter((x) => x && x.length <= 100).slice(0, 400);
+      .map((x) => String(x || '').trim()).filter((x) => x && x.length <= 100).slice(0, 500);
     if (!temiz.length) return;
     this.ekIpuclari = temiz;
     log.info(`STT ipucu: ${temiz.length} hizmet adi eklendi`);

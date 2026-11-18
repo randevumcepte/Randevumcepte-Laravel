@@ -487,7 +487,7 @@ class RandevuAsistan
                 && $this->sahteBasariMetni($cevap);
             // BEKLETME CUMLESI: "bir moment / bekleteceğim / kontrol ediyorum" -> cumleyi at; geriye bir sey
             // kalmadiysa (model araci cagirmadan bekletip turu bitirdi) duzeltme turu: araci simdi cagirsin.
-            $cevap = $this->dogalBaslangic($this->bekletmeTemizle($this->icSesTemizle($cevap)));
+            $cevap = $this->dogalBaslangic($this->uzmanListesiKes($this->bekletmeTemizle($this->icSesTemizle($cevap)), $metin));
             $bekletti = ($cevap === '' && !$bitir && !in_array($aksiyon, ['aktar', 'veda'], true));
             if ($bekletti && $deneme === 0) {
                 Log::warning('[SANTRAL-BEKLETME] model bekletme cumlesiyle turu bitirdi', ['salon' => $this->salonId, 'metin' => $metin]);
@@ -1144,12 +1144,71 @@ class RandevuAsistan
     public function sttIpuclari(): array
     {
         $out = [];
+        $kelimeler = [];
         foreach (($this->salon['hizmetler'] ?? []) as $h) {
             $ad = trim((string) ($h['ad'] ?? ''));
             if ($ad !== '' && mb_strlen($ad) <= 100) $out[$ad] = true;
+            // Hizmet adindaki ayirt edici TEK kelimeler de ipucu ("protez", "kirpik", "epilasyon"): musteri cogu
+            // zaman tam adi degil tek kelimeyi soyler; tam ad ipucu "protez"i "protest" duymaktan kurtarmiyordu
+            // (canli 2026-11-18 22:59). Kopru tek kelimelere daha yuksek boost verir.
+            foreach (preg_split('/[\s\/,()\-]+/u', $ad) as $k) {
+                $k = mb_strtolower(trim($k), 'UTF-8');
+                if (mb_strlen($k) >= 4 && !preg_match('/\d/u', $k)) $kelimeler[$k] = true;
+            }
             if (count($out) >= 400) break;
         }
-        return array_keys($out);
+        return array_slice(array_merge(array_keys($out), array_keys($kelimeler)), 0, 500);
+    }
+
+    /**
+     * KELIME bazli yanlis-duyma duzeltmesi: musterinin bir kelimesi bir hizmet adindaki ayirt edici kelimeye
+     * benziyorsa ("protest" ~ "protez", "prot" ~ "protez") o kelimeyi iceren hizmetlerin ORTAK adini dondurur
+     * ("El Protez Tırnak" + "Ayak Protez Tırnak" -> "Protez tırnak"). Yoksa null.
+     */
+    protected function kelimeDuzeltme(string $metin): ?array
+    {
+        $hizmetler = $this->salon['hizmetler'] ?? [];
+        $kelimeler = array_filter(explode(' ', $this->sade($metin)), function ($w) { return strlen($w) >= 4; });
+        if (!$hizmetler || !$kelimeler) return null;
+        $enIyi = null; // ['hk' => sade hizmet kelimesi, 'oran' => ...]
+        foreach ($hizmetler as $h) {
+            foreach (explode(' ', $this->sade((string) ($h['ad'] ?? ''))) as $hw) {
+                if (strlen($hw) < 5) continue;
+                foreach ($kelimeler as $w) {
+                    if ($w === $hw || substr($w, 0, 2) !== substr($hw, 0, 2)) continue; // ayni ise zaten dogru duyulmus
+                    $mes = levenshtein($w, $hw);
+                    if (strlen($w) > strlen($hw)) $mes = min($mes, levenshtein(substr($w, 0, strlen($hw)), $hw));
+                    $oran = 1 - $mes / strlen($hw);
+                    if ($oran >= 0.65 && (!$enIyi || $oran > $enIyi['oran'])) $enIyi = ['hk' => $hw, 'oran' => $oran];
+                }
+            }
+        }
+        if (!$enIyi) return null;
+        $adlar = [];
+        foreach ($hizmetler as $h) {
+            $ad = trim((string) ($h['ad'] ?? ''));
+            if (in_array($enIyi['hk'], explode(' ', $this->sade($ad)), true)) $adlar[$this->sade($ad)] = $ad;
+        }
+        $adlar = array_values($adlar);
+        if (!$adlar) return null;
+        // Ortak ad: ilk adin kelimelerinden TUM adlarda gecenler (sirasi korunur)
+        $ortak = [];
+        foreach (preg_split('/\s+/u', $adlar[0]) as $k) {
+            $hepsinde = true;
+            foreach ($adlar as $ad) if (!in_array($this->sade($k), explode(' ', $this->sade($ad)), true)) { $hepsinde = false; break; }
+            if ($hepsinde) $ortak[] = $k;
+        }
+        $o = mb_strtolower(strtr(implode(' ', $ortak) ?: $adlar[0], ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
+        $ilk = mb_substr($o, 0, 1, 'UTF-8');
+        return ['ortak' => ($ilk === 'i' ? 'İ' : mb_strtoupper($ilk, 'UTF-8')) . mb_substr($o, 1, null, 'UTF-8'), 'adaylar' => $adlar, 'oran' => round($enIyi['oran'], 2)];
+    }
+
+    /** Soru eki unlu uyumuyla: "tırnak" -> mı, "kirpik" -> mi, "boyun" -> mu, "gül" -> mü. */
+    protected function soruEki(string $s): string
+    {
+        preg_match_all('/[aıoueiöü]/u', mb_strtolower(strtr($s, ['İ' => 'i', 'I' => 'ı']), 'UTF-8'), $m);
+        $u = end($m[0]) ?: 'a';
+        return ['a' => 'mı', 'ı' => 'mı', 'o' => 'mu', 'u' => 'mu', 'e' => 'mi', 'i' => 'mi', 'ö' => 'mü', 'ü' => 'mü'][$u];
     }
 
     /** Musterinin cumlesinde bir SSS tetikleyicisi geciyorsa isletmenin cevabi; yoksa null. */
@@ -1267,6 +1326,24 @@ class RandevuAsistan
      * Cumle basindaki "Peki." ve "Ferdi Bey," atilir (canli 2026-11-18 kayit 166): her tur "Ferdi Bey, hangi..." diye
      * baslamak robotik, tek basina "Peki." havada kaliyordu. Hitap tesekkur/veda cumlesinde kalir ("Rica ederiz Ferdi Bey").
      */
+    /**
+     * Uzman tercihi sorulurken kendiliginden okunan ad listesi atilir (canli 2026-11-18: "El protez tırnak için uygun
+     * uzmanlarımız arasında Sümeyra Hanım, Melis Hanım, Fatma Hanım ve Berfin Hanım var. Tercih ettiğiniz..." —
+     * prompt yasagina ragmen). Musteri uzmanlari sorduysa ("kimler var") liste kalir.
+     */
+    protected function uzmanListesiKes(string $c, string $metin): string
+    {
+        if (!preg_match('/tercih ettiğiniz (bir )?uzman/iu', $c)) return $c;
+        if (preg_match('/kim(ler)?\b|hangi (uzman|personel|çalışan)|uzmanlar|personeller|isim/iu', $metin)) return $c;
+        $parca = preg_split('/(?<=[.!?])\s+/u', trim($c)) ?: [];
+        $kalan = [];
+        foreach ($parca as $p) {
+            if (!preg_match('/tercih ettiğiniz/iu', $p) && preg_match_all('/\b(Hanım|Bey)\b/u', $p) >= 2) continue;
+            $kalan[] = $p;
+        }
+        return $kalan ? implode(' ', $kalan) : $c;
+    }
+
     protected function dogalBaslangic(string $c): string
     {
         $c = trim($c);
@@ -1313,6 +1390,15 @@ class RandevuAsistan
                            'not' => 'Ses tanıma kelimeyi yanlış duymuş olabilir; en yakın hizmet bu. Müşteriye TEYİT SORMA ("... için mi?" DEME): hizmeti doğru adıyla kullanarak doğrudan sonraki adıma geç.']
                         : ['ok' => true, 'eslesme' => 'coklu', 'ortak' => (string) ($in['metin'] ?? ''),
                            'secenekler' => array_map(function ($x) { return ['id' => $x['id'], 'ad' => $x['ad']]; }, array_slice($ad, 0, 2))];
+                }
+                // Tam ad benzemiyorsa KELIME benzerligi: "protest"/"prot"/"Protestanlık" -> "protez" (canli 2026-11-18
+                // 22:59: hizmet 5 turda anlasildi). Kesin degil -> musteriye yalniz "Protez tırnak mı demek
+                // istediniz?" sorulur (el/ayak gibi alt secenekler sayilmaz; "evet" gelince ortak adla yeniden eslesir).
+                if (($d['eslesme'] ?? '') === 'yok' && ($kd = $this->kelimeDuzeltme((string) ($in['metin'] ?? '')))) {
+                    Log::info('[SANTRAL-HIZMET-DUZELTME] kelime', ['salon' => $this->salonId, 'metin' => $in['metin'] ?? '', 'sonuc' => $kd]);
+                    $d = ['ok' => true, 'eslesme' => 'yok', 'oneriler' => [], 'ortak' => $kd['ortak'],
+                          'soru' => $kd['ortak'] . ' ' . $this->soruEki($kd['ortak']) . ' demek istediniz?',
+                          'not' => 'Ses tanıma kelimeyi yanlış duymuş olabilir. Müşteriye YALNIZ "soru" alanını sor; alt seçenekleri sayma. "Evet" derse hizmet_eslestir\'i "ortak" metniyle çağır.'];
                 }
                 // Ayni ADLI birden fazla hizmet kaydi (salonda mukerrer "Saç Kesimi"): musteriye secenek gibi sunma,
                 // tek hizmet say (Haiku 5.5 "iki secenek var ama ikisi de ayni" deyip randevuyu kuramiyordu).
@@ -1623,7 +1709,7 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın.{$kimlik} Telefonda, kısa 
 # AKIŞ (adımları atlama)
 1. SELAMLAMA zaten TTS ile çalındı — TEKRAR ETME. İşletme adına "-da/-de/-a/-e/-ye" eki EKLEME. Arayan KAYITLI DEĞİLSE önce BAĞLAM'daki KAYIT ADIMI'nı tamamla; kayıtlıysa doğrudan niyete geç.
 2. NİYET: yeni randevu mu, iptal mi, güncelleme mi, başka bir şey mi? (Müşterinin paketi varsa aşağıdaki PAKET AKIŞI'na bak.)
-3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise TEYİT SORMADAN ("bunu onaylıyor musunuz" DEME) doğrudan sonraki adıma geç; eşleştirmenin iç işleyişinden (kayıt, seçenek sayısı, "eşleştirebildim") müşteriye ASLA bahsetme; coklu ise seçenekleri kısaca oku ve seçtir; yok ise "o hizmetimiz yok" de ve dönen önerileri sun.
+3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise TEYİT SORMADAN ("bunu onaylıyor musunuz" DEME) doğrudan sonraki adıma geç; eşleştirmenin iç işleyişinden (kayıt, seçenek sayısı, "eşleştirebildim") müşteriye ASLA bahsetme; coklu ise seçenekleri kısaca oku ve seçtir; sonuçta "soru" alanı varsa müşteriye YALNIZ o soruyu AYNEN sor (seçenek sayma), müşteri "evet" derse hizmet_eslestir'i "ortak" metniyle yeniden çağır; yok ise "o hizmetimiz yok" de ve dönen önerileri sun. Müşterinin ne dediğini ANLAYAMADIYSAN (anlamsız/yarım cümle, öneri de yoksa) yalnız "Kusura bakmayın, tam duyamadım. Hangi hizmet için arıyorsunuz?" de — örnek hizmet SAYMA, uzun açıklama yapma.
 4. TARİH/SAAT: Müşteri mesajının sonunda "[SİSTEM zaman çözümü ...]" notu varsa tarih ve saati AYNEN oradan al (kendin hesaplama; "çarşamba 14", "önümüzdeki hafta perşembe 10", "10 aralık", "5 şubat" hepsi orada çözülmüş gelir). Not yoksa TARİH HARİTASI'nı kullan. Müşteri gün ve saati söylediyse saati TEKRAR SORMA, sabah/öğleden sonra diye SORMA. Tarih/saat ÖNCEKİ bir mesajda söylendiyse (ör. hizmeti teyit ettirdikten sonra) o mesajdaki zaman çözümü geçerlidir: yeniden sorma, kendin hesaplama.
 UZMAN ADLARI: Uzmanı her zaman araç sonucundaki / PERSONELLER'deki gibi "Hanım"/"Bey" ile söyle (ör. "uzmanımız Gülşah Hanım", "Ferdi Bey ve Gülşah Hanım uygun"); çıplak ad ("Gülşah ile") KULLANMA.
 5. PERSONEL TERCİHİ (hizmet netleşir netleşmez, tarih/saat sormadan ÖNCE): müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") personel_id'yi hizmet_eslestir sonucundaki "personeller" listesinden (ad + personel_id), yoksa PERSONELLER listesinden AYNEN al (id uydurma); listede yoksa "o isimde personelimiz yok" de ve hizmeti verenleri say. Söylemediyse BİR KEZ, uzman adlarını SAYMADAN yalnız şunu sor: "Tercih ettiğiniz bir uzmanımız var mı, yoksa fark etmez mi?" (kayıt 172: kendiliğinden 4 uzmanı saymak 13 sn sürdü). Müşteri "kimler var"/"hangi uzmanlarınız var" derse hizmet_eslestir sonucundaki "personeller" adlarını say (en fazla 4; "personel_sayisi" varsa sonuna "ve diğer uzmanlarımız" ekle) — hizmet listesi OKUMA. "Fark etmez" derse personel_id vermeden devam et ve yalnız "Hangi gün sizin için uygun?" diye sor ("uygun ilk uzmanımızı ayarlayalım" gibi açıklama yapma). hizmet_eslestir sonucunda personeller tek kişiyse sormadan o kişiyle devam et. Müşteri tarih/saati zaten söylediyse personel cevabından sonra TARİHİ YENİDEN SORMA, doğrudan 6. adıma geç.

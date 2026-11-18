@@ -254,6 +254,30 @@ namespace {
         esit("hızlı veda yine çalışır: \"$v\"", true, cagir($ay, 'baskaYardimSoruldu', [['role' => 'assistant', 'content' => $v]]));
     }
 
+    bolum('Yanlış duyulan hizmet kelimesi + uzman listesi + STT ipucu (canlı 2026-11-18 22:59)');
+    $hz = ['hizmetler' => [['id' => 1, 'ad' => 'El Protez Tırnak'], ['id' => 2, 'ad' => 'Ayak Protez Tırnak'], ['id' => 3, 'ad' => 'Kirpik Lifting'], ['id' => 4, 'ad' => 'Kaş Alma']]];
+    $pz = asistan(['salon' => ['ad' => 'X', 'karsilama' => "X'e"] + $hz]);
+    foreach (['protest' => 'Protez tırnak', 'prot' => 'Protez tırnak', 'el Protestanlık' => 'Protez tırnak', 'protest tırnak' => 'Protez tırnak', 'kirpik liftink' => 'Kirpik lifting'] as $g => $b) {
+        $kd = cagir($pz, 'kelimeDuzeltme', $g);
+        esit("kelime düzeltme \"$g\"", $b, $kd['ortak'] ?? null);
+    }
+    esit('"protest" → iki aday', 2, count(cagir($pz, 'kelimeDuzeltme', 'protest')['adaylar'] ?? []));
+    esit('"Olmak istiyorum" → düzeltme yok', null, cagir($pz, 'kelimeDuzeltme', 'Olmak istiyorum'));
+    esit('"kirpk" → Kirpik lifting', 'Kirpik lifting', cagir($pz, 'kelimeDuzeltme', 'kirpk')['ortak'] ?? null);
+    esit('soru eki: tırnak → mı', 'mı', cagir($pz, 'soruEki', 'Protez tırnak'));
+    esit('soru eki: lifting → mi', 'mi', cagir($pz, 'soruEki', 'Kirpik lifting'));
+    esit('soru eki: boyun → mu', 'mu', cagir($pz, 'soruEki', 'Boyun'));
+    $ip = cagir($pz, 'sttIpuclari');
+    icerir('STT ipucu: tam ad', 'El Protez Tırnak', implode('|', $ip));
+    esit('STT ipucu: tek kelime "protez"', true, in_array('protez', $ip, true));
+    esit('STT ipucu: kısa kelime ("el", "kaş") yok', false, in_array('el', $ip, true) || in_array('kaş', $ip, true));
+    $uz = 'Tabii, El protez tırnak için uygun uzmanlarımız arasında Sümeyra Hanım, Melis Hanım, Fatma Hanım ve Berfin Hanım var. Tercih ettiğiniz bir uzmanımız var mı, yoksa fark etmez mi?';
+    esit('uzman listesi kesilir', 'Tercih ettiğiniz bir uzmanımız var mı, yoksa fark etmez mi?', cagir($pz, 'uzmanListesiKes', $uz, 'el protez'));
+    esit('müşteri "kimler var" dediyse liste kalır', $uz, cagir($pz, 'uzmanListesiKes', $uz, 'kimler var'));
+    $tek = 'Saat 14:00 uzmanımız Sümeyra Hanım ile uygun. Bu saat olur mu?';
+    esit('tercih sorusu yoksa dokunulmaz', $tek, cagir($pz, 'uzmanListesiKes', $tek, 'yarın'));
+    icerir('prompt: anlamadığında kısa soru', 'Kusura bakmayın, tam duyamadım. Hangi hizmet için arıyorsunuz?', cagir($pz, 'sistemPromptu'));
+
     bolum('"Başka yardımcı olabileceğim..." garantisi');
     foreach ([
         'Yol tarifini gönderdim. Size nasıl yardımcı olabilirim?' => 'Yol tarifini gönderdim. Başka yardımcı olabileceğim bir konu var mı?',
