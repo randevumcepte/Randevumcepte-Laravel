@@ -71,9 +71,10 @@ return [
         // Isletme bazli secilebilen sesler (Sistem Yonetimi > Santral Asistan Paketleri). usd_m = 1M karakter fiyati.
         // Ilk eleman varsayilan (paketinde ses secilmemis salon).
         'tts_sesler' => [
-            'tr-TR-Wavenet-E'       => ['ad' => 'WaveNet E (standart)', 'usd_m' => (float) env('SANTRAL_TTS_WAVENET_USD_M', 4.0)],
-            'tr-TR-Chirp3-HD-Kore'  => ['ad' => 'Chirp3-HD Kore (premium)', 'usd_m' => (float) env('SANTRAL_TTS_CHIRP3_USD_M', 30.0)],
-            'tr-TR-Chirp3-HD-Achernar' => ['ad' => 'Chirp3-HD Achernar · kadın (premium, en doğal)', 'usd_m' => (float) env('SANTRAL_TTS_CHIRP3_USD_M', 30.0)],
+            // asistan_adi: karsilamada "Ben Ayşe, ..." (sesin cinsiyetine uygun ad); bos = "ben yapay zeka asistanınızım"
+            'tr-TR-Wavenet-E'       => ['ad' => 'WaveNet E (standart)', 'usd_m' => (float) env('SANTRAL_TTS_WAVENET_USD_M', 4.0), 'asistan_adi' => env('SANTRAL_ASISTAN_ADI_ERKEK', '')],
+            'tr-TR-Chirp3-HD-Kore'  => ['ad' => 'Chirp3-HD Kore (premium)', 'usd_m' => (float) env('SANTRAL_TTS_CHIRP3_USD_M', 30.0), 'asistan_adi' => env('SANTRAL_ASISTAN_ADI', 'Ayşe')],
+            'tr-TR-Chirp3-HD-Achernar' => ['ad' => 'Chirp3-HD Achernar · kadın (premium, en doğal)', 'usd_m' => (float) env('SANTRAL_TTS_CHIRP3_USD_M', 30.0), 'asistan_adi' => env('SANTRAL_ASISTAN_ADI', 'Ayşe')],
         ],
         'stt_oran'    => env('SANTRAL_STT_ORAN', 0.52),   // STT'nin ucretlenen kismi (kopru AI konusurken akisi kapatir); kapaliysa 1
         // Arac sonucu belirliyse cumleyi kod kurar, son Claude cagrisi atlanir (gecikme). 0 = kapali.

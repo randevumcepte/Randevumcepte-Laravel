@@ -22,7 +22,7 @@ const TEPKI_KISA = ['Tabii, anladım.', 'Anladım.', 'Tamam.'];
 const TEPKI_GENEL = ['Tabii.'];
 // "bakiyorum" yalniz gercekten takvim/kayit sorgusu gerektiren isteklerde (gun/saat/musaitlik/iptal/degisiklik)
 const SORGULU = /(müsait|musait|uygun|boş|bos\b|saat|yarın|yarin|bugün|bugun|haftaya|pazartesi|salı|sali|çarşamba|carsamba|perşembe|persembe|cuma|pazar|iptal|ertele|değiştir|degistir|kaydır|kaydir|güncelle|guncelle)/i;
-const TEPKI_BAS = /^\s*(tabii,? anladım|tamamdır|tamam|tabii ki|tabii|tabi|peki|anladım|elbette|hemen bakıyorum|bakıyorum)\s*[,.!]?\s+(?=\S)/i;
+const TEPKI_BAS = /^\s*(tabii,? anladım|harika|çok güzel|süper|tamamdır|tamam|tabii ki|tabii|tabi|peki|anladım|elbette|hemen bakıyorum|bakıyorum)\s*[,.!]?\s+(?=\S)/i;
 
 // Bekleme cumlesi YALNIZ kayit/takvim aranan isteklerde calar (randevu, saat, gun, iptal, paket...).
 // "Evet", "fark etmez", isim soyleme gibi kisa cevaplarda "Hemen bakıyorum" anlamsiz kaciyordu.
@@ -522,6 +522,12 @@ class CagriOturumu {
       if (tampon.trim().length >= 20 || /[.!?]\s*$/.test(tampon)) { out.push(tampon.trim()); tampon = ''; }
     }
     if (tampon.trim()) out.push(tampon.trim());
+    // UZUN ILK CUMLE: Google cumlenin TAMAMINI uretmeden calmaz; 9 sn'lik ilk cumle "Anladım."dan sonra 1-1,5 sn
+    // sessizlik birakiyordu (kayit 172). Ilk virgulde bol: kisa parca hemen calar, kalani o calarken uretilir.
+    if (out.length && out[0].length > 60) {
+      const v = out[0].indexOf(', ', 12);
+      if (v > 0 && v < 60) out.splice(0, 1, out[0].slice(0, v + 1), out[0].slice(v + 2));
+    }
     return out.length ? out : [t];
   }
 

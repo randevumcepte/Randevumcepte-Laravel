@@ -187,6 +187,8 @@ class SantralKopruController extends Controller
         // PARALEL TUR: bu tur dusunurken diger tur gecmise yazmis olabilir -> gecmisi TAZE oku, ustune ekle
         // (eski kopyanin ustune yazilirsa o tur silinirdi). Kopru bu turu iptal ettiyse gecmise yazilmaz.
         if ($tur > 0) $gecmis = $gecmisHazirla(DB::table('santral_oturumlari')->where('id', $oid)->value('gecmis'));
+        // Kalip "Başka yardımcı olabileceğim bir konu var mı?" -> sirayla dogal soru (kayit 172)
+        if (!empty($d['cevap'])) $d['cevap'] = $as->kapanisDogallastir((string) $d['cevap'], $gecmis);
 
         // gecmisi guncelle (son 40)
         $isaret = $tur > 0 ? ['tur' => $tur] : [];

@@ -235,6 +235,22 @@ namespace {
         'Pekişmiş bir randevunuz var.' => 'Pekişmiş bir randevunuz var.',
     ] as $g => $b) esit("\"$g\"", $b, cagir($ab, 'dogalBaslangic', $g));
 
+    bolum('Karşılama "Ben Ayşe" + doğal kapanış sorusu (kayıt 172)');
+    $ay = asistan(['musteriAd' => 'Anıl Orbey', 'musteriCinsiyet' => 1, '_asistanAdi' => 'Ayşe', 'salon' => ['ad' => 'Randevumcepte', 'karsilama' => "Randevumcepte'ye", 'hizmetler' => []], '_kampanyalar' => []]);
+    icerir('kayıtlı → Ben Ayşe', "Merhaba Anıl Bey, Randevumcepte'ye hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?", $ay->karsilama());
+    icerir('kayıtsız → ben Ayşe', ', ben Ayşe. Size yardımcı olabilmem için adınızı', asistan(['musteriAd' => null, 'musteriId' => null, '_asistanAdi' => 'Ayşe', '_kampanyalar' => []])->karsilama());
+    icerir('ad tanımsız (erkek ses) → eski kalıp', 'Ben yapay zeka asistanınızım.', asistan(['_asistanAdi' => '', '_kampanyalar' => []])->karsilama());
+    icerir('prompt: adın Ayşe', 'Adın Ayşe', cagir($ay, 'sistemPromptu'));
+    $kal = 'Randevunuz iptal edildi. Başka yardımcı olabileceğim bir konu var mı?';
+    esit('kapanış 1. kez', 'Randevunuz iptal edildi. Sizin için yapabileceğim başka bir şey var mı?', $ay->kapanisDogallastir($kal, []));
+    $g1 = [['role' => 'assistant', 'content' => 'Sizin için yapabileceğim başka bir şey var mı?']];
+    esit('kapanış 2. kez (hitaplı)', 'Randevunuz iptal edildi. Başka bir isteğiniz var mı, Anıl Bey?', $ay->kapanisDogallastir($kal, $g1));
+    $g2 = array_merge($g1, [['role' => 'assistant', 'content' => 'Başka bir isteğiniz var mı, Anıl Bey?']]);
+    esit('kapanış 3. kez', 'Randevunuz iptal edildi. Başka merak ettiğiniz bir şey var mı?', $ay->kapanisDogallastir($kal, $g2));
+    foreach (['Sizin için yapabileceğim başka bir şey var mı?', 'Başka bir isteğiniz var mı, Anıl Bey?', 'Başka merak ettiğiniz bir şey var mı?'] as $v) {
+        esit("hızlı veda yine çalışır: \"$v\"", true, cagir($ay, 'baskaYardimSoruldu', [['role' => 'assistant', 'content' => $v]]));
+    }
+
     bolum('"Başka yardımcı olabileceğim..." garantisi');
     foreach ([
         'Yol tarifini gönderdim. Size nasıl yardımcı olabilirim?' => 'Yol tarifini gönderdim. Başka yardımcı olabileceğim bir konu var mı?',
@@ -412,8 +428,8 @@ namespace {
     esit('modelin verdiği id\'ler kullanılır', 21, $zr->sonGirdi['personel_id'] ?? null);
     esit('aksiyon randevu', 'randevu', $z[1]);
     esit('randevu id', 555, $z[2]);
-    icerir('deterministik talep cümlesi', "Perşembe, 19 Kasım saat 11:00'de uzmanımız Gülşah ile randevu talebinizi oluşturdum", $z[0]);
-    icerir('bilgilendirme ayarı açık', 've size bilgilendirme mesajı gönderdim. Randevunuz onaylandığında', $z[0]);
+    icerir('kısa talep cümlesi (gün/saat/uzman tekrar edilmez, kayıt 172)', 'Tamamdır, randevu talebinizi oluşturdum', $z[0]);
+    icerir('bilgilendirme ayarı açık', 've bilgilendirme mesajını telefonunuza gönderdim. Onaylandığında size haber vereceğiz.', $z[0]);
     $zr->sahteSonuc = ['ok' => false, 'hata' => 'Bu saat çakışıyor.'];
     $z = cagir($zr, 'zorlaRandevu', [['role' => 'user', 'content' => 'Evet']], 'k');
     esit('kayıt başarısız → aksiyon yok', null, $z[1]);
@@ -423,9 +439,9 @@ namespace {
 
     bolum('Randevu onay cümlesi koddan (model atlasa da)');
     $oc = cagir($zr, 'randevuOnayCumlesi', ['ok' => true, 'tarih' => '2026-11-26', 'saat' => '11:00:00', 'personel' => 'Gülşah', 'bilgilendirme_gonderildi' => true]);
-    esit('tam cümle', "Perşembe, 26 Kasım saat 11:00'de uzmanımız Gülşah ile randevu talebinizi oluşturdum ve size bilgilendirme mesajı gönderdim. Randevunuz onaylandığında size bilgi verilecektir.", $oc);
+    esit('tam cümle', 'Tamamdır, randevu talebinizi oluşturdum ve bilgilendirme mesajını telefonunuza gönderdim. Onaylandığında size haber vereceğiz.', $oc);
     $oc = cagir($zr, 'randevuOnayCumlesi', ['ok' => true, 'tarih' => '2026-11-26', 'saat' => '11:00', 'personel' => 'Gülşah', 'paket_seansi' => true, 'bilgilendirme_gonderildi' => false]);
-    icerir('paket seansı belirtilir', 'Gülşah ile paketinizden randevu talebiniz', $oc);
+    icerir('paket seansı belirtilir', 'paketinizden randevu talebinizi', $oc);
     esit('ayar kapalı → bilgilendirme denmez', false, mb_stripos($oc, 'bilgilendirme mesajı') !== false);
 
     bolum('Turlar arası araç bağlamı (gizli not)');
@@ -557,7 +573,7 @@ namespace {
         cagir($hp, 'guncelleOnayCumlesi', ['tarih' => '2026-11-19', 'saat' => '14:00', 'personel' => 'Gülşen Hanım', 'bilgilendirme_gonderildi' => true]));
     esit('güncelleme onayı (mesaj yok)', "Perşembe, 19 Kasım saat 14:00'te uzmanımız Ferdi Bey ile randevunuzu güncelledim.",
         cagir($hp, 'guncelleOnayCumlesi', ['tarih' => '2026-11-19', 'saat' => '14:00', 'personel' => 'Ferdi Bey', 'bilgilendirme_gonderildi' => false]));
-    icerir('onay cümlesi: uzmanımız X Hanım ile', 'uzmanımız Gülşah Hanım ile paketinizden randevu talebiniz', cagir($hp, 'randevuOnayCumlesi', ['tarih' => '2026-11-20', 'saat' => '10:00', 'personel' => 'Gülşah Hanım', 'paket_seansi' => true]));
+    icerir('onay cümlesi: paketinizden', 'Tamamdır, paketinizden randevu talebinizi oluşturdum', cagir($hp, 'randevuOnayCumlesi', ['tarih' => '2026-11-20', 'saat' => '10:00', 'personel' => 'Gülşah Hanım', 'paket_seansi' => true]));
     $hk = asistan(['_paketler' => [['adisyon_paket_id' => 77, 'paket_adi' => '5 Seans Lazer', 'hizmetler' => [['hizmet_id' => 5, 'ad' => 'Lazer Epilasyon', 'kalan_seans' => 3, 'personeller' => []]]]]]);
     $g72 = [['role' => 'assistant', 'content' => 'Anıl Bey, 5 seans lazer paketiniz var. 3 seansınız kalmış görünüyor. Randevuyu bu paketinizden oluşturmak ister misiniz?']];
     icerir('"Tabi ki" (bu tur) → onaylandı + id', 'adisyon_paket_id 77 ver', cagir($hk, 'paketKarariNotu', $g72, 'Tabi ki.'));

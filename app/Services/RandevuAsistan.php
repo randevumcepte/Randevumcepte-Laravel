@@ -73,15 +73,15 @@ class RandevuAsistan
             // "lazer randevusu alacaktım"), asistan paketi o an bulup getirir (PAKET AKIŞI). Kampanya daveti kalir.
             $kampanyaCumle = $this->kampanyaTeklifCumlesi();
             if ($kampanyaCumle !== '') {
-                return "{$this->acilisHitap($this->musteriAd)}, {$hosgeldin}. Ben yapay zeka asistanınızım. {$kampanyaCumle} Ya da size nasıl yardımcı olabilirim?";
+                return "{$this->acilisHitap($this->musteriAd)}, {$hosgeldin}. {$this->benKimim()}. {$kampanyaCumle} Ya da size nasıl yardımcı olabilirim?";
             }
-            return "{$this->acilisHitap($this->musteriAd)}, {$hosgeldin}. Ben yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?";
+            return "{$this->acilisHitap($this->musteriAd)}, {$hosgeldin}. " . ($this->asistanAdi() ? "Ben {$this->asistanAdi()}, size nasıl yardımcı olabilirim?" : 'Ben yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?');
         }
         $ilk = mb_strtoupper(mb_substr($hosgeldin, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($hosgeldin, 1, null, 'UTF-8');
         if ($this->telNorm($this->telefon)) {
-            return "{$ilk}, ben yapay zeka asistanınızım. Size yardımcı olabilmem için adınızı ve soyadınızı öğrenebilir miyim?";
+            return "{$ilk}, " . $this->benKimim(false) . ". Size yardımcı olabilmem için adınızı ve soyadınızı öğrenebilir miyim?";
         }
-        return "{$ilk}, ben yapay zeka asistanınızım. Size yardımcı olabilmem için adınızı, soyadınızı ve telefon numaranızı öğrenebilir miyim?";
+        return "{$ilk}, " . $this->benKimim(false) . ". Size yardımcı olabilmem için adınızı, soyadınızı ve telefon numaranızı öğrenebilir miyim?";
     }
 
     /** Salonun karsilama telaffuzu (eski santralla ayni: "<telaffuz> hoşgeldiniz"), yoksa salon adi. */
@@ -143,7 +143,7 @@ class RandevuAsistan
             $satir = $this->randevuSatiri($r);
             $gun = $satir['tarih'] === now('Europe/Istanbul')->addDay()->toDateString() ? 'yarın, ' . $satir['gun'] : $satir['gun'];
             $soz = $this->randevuSoz(['gun' => $gun] + $satir);
-            $k = $this->acilisHitap($ad) . ", ben {$isletme} yapay zeka asistanıyım. "
+            $k = $this->acilisHitap($ad) . ", ben " . ($this->asistanAdi() ? "{$isletme} asistanı {$this->asistanAdi()}" : "{$isletme} yapay zeka asistanıyım") . ". "
                 . "{$soz} randevunuzu hatırlatmak için arıyorum. Randevunuza gelebilecek misiniz?";
             return [$k, ['tur' => 'randevu', 'randevu_id' => (int) $r->id, 'soz' => $soz]];
         }
@@ -157,7 +157,7 @@ class RandevuAsistan
             foreach ($as as $a) { try { $a->hatirlatma_ulasilamadi = false; $a->tekrar_aranacak = 0; $a->tekrar_arandi = 0; $a->save(); } catch (\Throwable $e) {} }
             $tarihSoz = $tarihler->map(function ($t) { return $this->tarihSoz($t); })->implode(' ve ');
             $tutar = number_format($toplam, floor($toplam) == $toplam ? 0 : 2, ',', '.') . ' lira';
-            $k = $this->acilisHitap($ad) . ", ben {$isletme} yapay zeka asistanıyım. "
+            $k = $this->acilisHitap($ad) . ", ben " . ($this->asistanAdi() ? "{$isletme} asistanı {$this->asistanAdi()}" : "{$isletme} yapay zeka asistanıyım") . ". "
                 . ($tarihSoz !== '' ? "{$tarihSoz} tarihinde ödemeniz gereken" : 'Ödemeniz gereken')
                 . " toplam {$tutar} borcunuz bulunmaktadır. Ödemenizi bu tarihte yapabilecek misiniz?";
             return [$k, ['tur' => 'alacak', 'alacak_idler' => $as->pluck('id')->map(function ($v) { return (int) $v; })->all(), 'tutar' => $tutar, 'tarih' => $tarihSoz]];
@@ -496,7 +496,7 @@ class RandevuAsistan
             $cevap = 'Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?';
         }
         // Randevu olustuysa onay cumlesi KODDAN (restoran kalibi): model cumleyi atlasa / eksik kursa da
-        // musteri gun-saat-personel + talep ifadesini mutlaka duyar.
+        // musteri talep ifadesini mutlaka duyar (gun/saat/uzman onay sorusunda okundu, tekrar edilmez).
         if ($aksiyon === 'randevu' && $randevuSonuc) {
             $cevap = $this->randevuOnayCumlesi($randevuSonuc);
         } elseif ($aksiyon === 'randevu') {
@@ -559,7 +559,7 @@ class RandevuAsistan
     {
         for ($i = count($gecmis) - 1; $i >= 0; $i--) {
             if (($gecmis[$i]['role'] ?? '') === 'assistant') {
-                return (bool) preg_match('/başka\s+(bir\s+)?(konu|yardımcı|isteğiniz|arzunuz|bir şey)[^.?!]*var mı/iu', (string) ($gecmis[$i]['content'] ?? ''));
+                return (bool) preg_match('/başka\s+(bir\s+)?(konu|yardımcı|isteğiniz|arzunuz|bir şey|merak)[^.?!]*var mı/iu', (string) ($gecmis[$i]['content'] ?? ''));
             }
         }
         return false;
@@ -669,14 +669,11 @@ class RandevuAsistan
     {
         // Isletme istegi: "... randevu talebinizi oluşturdum ve size bilgilendirme mesajı gönderdim. Randevunuz
         // onaylandığında size bilgi verilecektir." (once yapilan is, SONRA onay bilgisi)
-        $gun = $this->tarihSoz((string) ($d['tarih'] ?? ''));
-        $saat = substr((string) ($d['saat'] ?? ''), 0, 5);
-        $c = trim("{$gun} saat " . $this->saatEkli($saat) . (!empty($d['personel']) ? " uzmanımız {$d['personel']} ile" : ''))
-            . (!empty($d['paket_seansi']) ? ' paketinizden' : '')
-            . ' randevu talebinizi oluşturdum'
-            . (!empty($d['bilgilendirme_gonderildi']) ? ' ve size bilgilendirme mesajı gönderdim.' : '.')
-            . ' Randevunuz onaylandığında size bilgi verilecektir.';
-        return $c;
+        // Gun/saat/uzman TEKRAR EDILMEZ (kayit 172: onay sorusunda zaten okunmustu, "evet"ten sonra hepsi yeniden
+        // sayiliyordu: 9 sn'lik cumle + uzun seslendirme beklemesi).
+        return 'Tamamdır, ' . (!empty($d['paket_seansi']) ? 'paketinizden ' : '') . 'randevu talebinizi oluşturdum'
+            . (!empty($d['bilgilendirme_gonderildi']) ? ' ve bilgilendirme mesajını telefonunuza gönderdim.' : '.')
+            . ' Onaylandığında size haber vereceğiz.';
     }
 
     /**
@@ -687,10 +684,32 @@ class RandevuAsistan
     {
         $c = preg_replace('/\s*(Peki,?\s*|Ya da\s*)?(size|sizlere)\s+(başka\s+)?(nasıl|ne konuda)\s+(yardımcı olabilirim|yardımcı olayım)\s*\??/iu', ' ', $cevap);
         $c = trim(preg_replace('/\s{2,}/u', ' ', $c));
-        if (!preg_match('/başka\s+(bir\s+)?(konu|yardımcı|isteğiniz|bir şey)/iu', $c)) {
+        if (!preg_match('/başka\s+(bir\s+)?(konu|yardımcı|isteğiniz|bir şey|merak)/iu', $c)) {
             $c = rtrim($c, " ,") . ($c !== '' && !preg_match('/[.!?]$/u', $c) ? '.' : '') . ' Başka yardımcı olabileceğim bir konu var mı?';
         }
         return trim($c);
+    }
+
+    /**
+     * Kalip kapanis sorusu ("Başka yardımcı olabileceğim bir konu var mı?") robotik (kayit 172): musteriye giden
+     * cumlede sirayla dogal bir soruyla degistirilir (ayni gorusmede ust uste ayni soru gelmez). Kod ve prompt
+     * kalibi kullanmaya devam eder; degisim yalniz en sonda (kopru controller'inda) yapilir.
+     */
+    public function kapanisDogallastir(string $cevap, array $gecmis): string
+    {
+        $kalip = 'Başka yardımcı olabileceğim bir konu var mı?';
+        if (mb_strpos($cevap, $kalip) === false) return $cevap;
+        $n = 0;
+        foreach ($gecmis as $g) {
+            if (($g['role'] ?? '') === 'assistant' && preg_match('/başka\s+(bir\s+)?(konu|yardımcı|isteğiniz|arzunuz|bir şey|merak)[^.?!]*var mı/iu', (string) ($g['content'] ?? ''))) $n++;
+        }
+        $h = $this->hitap();
+        $secenek = [
+            'Sizin için yapabileceğim başka bir şey var mı?',
+            'Başka bir isteğiniz var mı' . ($h ? ", {$h}" : '') . '?',
+            'Başka merak ettiğiniz bir şey var mı?',
+        ];
+        return str_replace($kalip, $secenek[$n % count($secenek)], $cevap);
     }
 
     /**
@@ -1538,8 +1557,11 @@ class RandevuAsistan
         foreach ($this->sssKayitlari() as $r) $sssSatir .= "\n- Soru ({$r['tet']}): {$r['cevap']}";
         $sssSatir = $sssSatir ?: ' yok';
 
+        $kimlik = $this->asistanAdi() !== ''
+            ? " Adın {$this->asistanAdi()}; kendini bu adla tanıt. \"Robot musun / yapay zeka mısın\" diye sorulursa dürüstçe yapay zeka asistanı olduğunu söyle."
+            : '';
         return <<<PROMPT
-Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal Türkçe konuşuyorsun. Çıktın düz metindir (TTS ile okunur): emoji, madde işareti, markdown KULLANMA. Her yanıt 1-2 cümle. Çıktının TAMAMI müşteriye okunur: düşünceni, akıl yürütmeni, ne yapacağını ("Müşteri ... dedi", "Onay soruyorum") ASLA yazma; yalnız müşteriye söyleyeceğin cümleyi yaz.
+Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın.{$kimlik} Telefonda, kısa ve doğal Türkçe konuşuyorsun. Çıktın düz metindir (TTS ile okunur): emoji, madde işareti, markdown KULLANMA. Her yanıt 1-2 cümle. Çıktının TAMAMI müşteriye okunur: düşünceni, akıl yürütmeni, ne yapacağını ("Müşteri ... dedi", "Onay soruyorum") ASLA yazma; yalnız müşteriye söyleyeceğin cümleyi yaz.
 
 # KONUŞMA ÜSLUBU (sıcak, insan gibi)
 - Güler yüzlü, sıcak ve samimi bir resepsiyonist gibi konuş; resmi anons ya da robot gibi değil. Cümleleri kısa ve akıcı kur.
@@ -1553,14 +1575,14 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal
 3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise TEYİT SORMADAN ("bunu onaylıyor musunuz" DEME) doğrudan sonraki adıma geç; eşleştirmenin iç işleyişinden (kayıt, seçenek sayısı, "eşleştirebildim") müşteriye ASLA bahsetme; coklu ise seçenekleri kısaca oku ve seçtir; yok ise "o hizmetimiz yok" de ve dönen önerileri sun.
 4. TARİH/SAAT: Müşteri mesajının sonunda "[SİSTEM zaman çözümü ...]" notu varsa tarih ve saati AYNEN oradan al (kendin hesaplama; "çarşamba 14", "önümüzdeki hafta perşembe 10", "10 aralık", "5 şubat" hepsi orada çözülmüş gelir). Not yoksa TARİH HARİTASI'nı kullan. Müşteri gün ve saati söylediyse saati TEKRAR SORMA, sabah/öğleden sonra diye SORMA. Tarih/saat ÖNCEKİ bir mesajda söylendiyse (ör. hizmeti teyit ettirdikten sonra) o mesajdaki zaman çözümü geçerlidir: yeniden sorma, kendin hesaplama.
 UZMAN ADLARI: Uzmanı her zaman araç sonucundaki / PERSONELLER'deki gibi "Hanım"/"Bey" ile söyle (ör. "uzmanımız Gülşah Hanım", "Ferdi Bey ve Gülşah Hanım uygun"); çıplak ad ("Gülşah ile") KULLANMA.
-5. PERSONEL TERCİHİ (hizmet netleşir netleşmez, tarih/saat sormadan ÖNCE): müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") personel_id'yi hizmet_eslestir sonucundaki "personeller" listesinden (ad + personel_id), yoksa PERSONELLER listesinden AYNEN al (id uydurma); listede yoksa "o isimde personelimiz yok" de ve hizmeti verenleri say. Söylemediyse BİR KEZ sor: "[hizmet] için tercih ettiğiniz bir uzmanımız var mı, yoksa fark etmez mi?" Müşteri "kimler var"/"hangi uzmanlarınız var" derse hizmet_eslestir sonucundaki "personeller" adlarını say (en fazla 4; "personel_sayisi" varsa sonuna "ve diğer uzmanlarımız" ekle) — hizmet listesi OKUMA. "Fark etmez" derse personel_id vermeden devam et. hizmet_eslestir sonucunda personeller tek kişiyse sormadan o kişiyle devam et. Müşteri tarih/saati zaten söylediyse personel cevabından sonra TARİHİ YENİDEN SORMA, doğrudan 6. adıma geç.
+5. PERSONEL TERCİHİ (hizmet netleşir netleşmez, tarih/saat sormadan ÖNCE): müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") personel_id'yi hizmet_eslestir sonucundaki "personeller" listesinden (ad + personel_id), yoksa PERSONELLER listesinden AYNEN al (id uydurma); listede yoksa "o isimde personelimiz yok" de ve hizmeti verenleri say. Söylemediyse BİR KEZ, uzman adlarını SAYMADAN yalnız şunu sor: "Tercih ettiğiniz bir uzmanımız var mı, yoksa fark etmez mi?" (kayıt 172: kendiliğinden 4 uzmanı saymak 13 sn sürdü). Müşteri "kimler var"/"hangi uzmanlarınız var" derse hizmet_eslestir sonucundaki "personeller" adlarını say (en fazla 4; "personel_sayisi" varsa sonuna "ve diğer uzmanlarımız" ekle) — hizmet listesi OKUMA. "Fark etmez" derse personel_id vermeden devam et ve yalnız "Hangi gün sizin için uygun?" diye sor ("uygun ilk uzmanımızı ayarlayalım" gibi açıklama yapma). hizmet_eslestir sonucunda personeller tek kişiyse sormadan o kişiyle devam et. Müşteri tarih/saati zaten söylediyse personel cevabından sonra TARİHİ YENİDEN SORMA, doğrudan 6. adıma geç.
 6. MÜSAİT SAAT: "musait_saatler" aracını hizmet_id + tarih ile çağır (müşteri saat söylediyse saat'i MUTLAKA ver; gün dilimi söylendiyse zaman_dilimi; personel söylendiyse personel_id).
    - tam_eslesme=true dönerse: istenen saat uygun → ALTERNATİF SUNMA, seçenek okuma; doğrudan 8. adımdaki onay cümlesine geç (gün için seçeneğin "gun" alanını kullan).
    - Aksi halde: müşteri saat söylediyse önce "O saat dolu" de, sonra dönen seçenekleri (en fazla 2) "gun" alanı ve personel adıyla öner. istenen_gun_dolu=true ise o günün dolu olduğunu söyle. Seçenek yoksa başka gün/dilim öner.
 7. SAAT SEÇİMİ (yalnız seçenek sunulduysa).
 8. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te uzmanımız [personel] ile [hizmet] için randevu talebi oluşturayım mı?" ([gün] = seçeneğin "gun" alanı, ör. "Çarşamba, 18 Kasım")
 9. Onay gelince "randevu_olustur" (seçilen seçeneğin tarih_saat ve personel_id'si + hizmet_id). ok=false ve saat dolu derse yeniden musait_saatler çağır ve yeni saat öner.
-10. SONUÇ: Randevu TALEP olarak oluşturulur (işletme onaylar): "[gün] saat [saat] uzmanımız [personel] ile randevu talebinizi oluşturdum ve size bilgilendirme mesajı gönderdim. Randevunuz onaylandığında size bilgi verilecektir." (bilgilendirme_gonderildi=false ise "ve size bilgilendirme mesajı gönderdim" kısmını SÖYLEME.) En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde bu soruyu sor; iptalde "Randevunuz iptal edildi." de, randevu_iptal sonucunda bilgilendirme_gonderildi=true ise "Size bilgilendirme mesajı ilettim." ekle (güncellemede de aynı alan).
+10. SONUÇ: Randevu TALEP olarak oluşturulur (işletme onaylar). Gün/saat/uzmanı TEKRAR SAYMA (onay sorusunda söylendi): "Tamamdır, randevu talebinizi oluşturdum ve bilgilendirme mesajını telefonunuza gönderdim. Onaylandığında size haber vereceğiz." (bilgilendirme_gonderildi=false ise "ve bilgilendirme mesajını telefonunuza gönderdim" kısmını SÖYLEME.) En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde bu soruyu sor; iptalde "Randevunuz iptal edildi." de, randevu_iptal sonucunda bilgilendirme_gonderildi=true ise "Size bilgilendirme mesajı ilettim." ekle (güncellemede de aynı alan).
 11. KAPANIŞ: Müşteri "yok, teşekkürler" derse "veda" çağır; yeni bir isteği varsa 2. adımdan devam et.
 
 PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada paketten BAHSEDİLMEDİ. Paketi müşteriye kendiliğinden hatırlatma; müşteri ne istediğini söyler, paketi o an sen bul ve getir.
@@ -1697,6 +1719,33 @@ PROMPT;
      * Acilis hitabi: "Merhaba Anıl Bey" (cinsiyet biliniyorsa). Eskiden "Sayın Anıl Orbey" deniyordu: resmi/anons gibi
      * (2026-11-17 isletme istegi). Cinsiyet belirsizse yanlis Bey/Hanım riski yerine "Sayın Ad Soyad" kalir; ad yoksa "Merhaba".
      */
+    /** @var string|null Asistanin adi (null = henuz okunmadi). Testler dogrudan atar. */
+    protected $_asistanAdi = null;
+
+    /**
+     * Asistanin adi: isletmenin sectigi sese gore (config services.santral_ai.tts_sesler.*.asistan_adi; kadin
+     * Chirp3 -> "Ayşe"). Erkek seste ad tanimli degilse '' -> eski "yapay zeka asistanınızım" kalibi.
+     */
+    public function asistanAdi(): string
+    {
+        if ($this->_asistanAdi === null) {
+            try {
+                $ses = SantralPaket::salonSesi((int) $this->salonId);
+                $this->_asistanAdi = trim((string) config("services.santral_ai.tts_sesler.{$ses}.asistan_adi", ''));
+            } catch (\Throwable $e) {
+                $this->_asistanAdi = '';
+            }
+        }
+        return $this->_asistanAdi;
+    }
+
+    /** Karsilamadaki tanitim: "Ben Ayşe" (2026-11-18 isletme istegi) ya da "Ben yapay zeka asistanınızım". */
+    protected function benKimim(bool $buyuk = true): string
+    {
+        $c = $this->asistanAdi() !== '' ? 'ben ' . $this->asistanAdi() : 'ben yapay zeka asistanınızım';
+        return $buyuk ? 'B' . substr($c, 1) : $c;
+    }
+
     protected function acilisHitap(?string $ad): string
     {
         $ad = trim((string) $ad);
