@@ -54,6 +54,20 @@ const KOR_NOKTA_MS = 1500;     // konusma bitti + bu kadar surede STT'den HIC so
 const TAMPON_MS = 6000;        // son 6 sn musteri sesi (kurtarmada STT'ye yeniden verilir)
 
 // Tekrar karsilastirmasi icin: kucuk harf + noktalama/bosluk sadelestirme ("Tay makajı." == "tay makajı")
+// "Evet" -> "Evet, oluşturalım": eski cumleye yalniz onay/dolgu kelimeleri eklenmis mi? (yeni bilgi yok)
+const ONAY_KELIME = new Set(['evet', 'tamam', 'tamamdır', 'olur', 'olsun', 'oluşturalım', 'oluşturun', 'oluştur', 'oluşturabilirsiniz',
+  'lütfen', 'kaydet', 'kaydedin', 'kaydedelim', 'onaylıyorum', 'onayla', 'aynen', 'peki', 'tabii', 'tabi', 'efendim', 'yapalım', 'alalım',
+  'hı', 'he', 'öyle', 'uygun', 'olabilir', 'ok', 'okey']);
+function onayUzantisi(eski, yeni) {
+  const e = sadeMetin(eski).split(' ').filter(Boolean);
+  const y = sadeMetin(yeni).split(' ').filter(Boolean);
+  let i = 0;
+  while (i < e.length && y[i] === e[i]) i++;
+  // eski cumle yeni cumlenin basinda degilse (paralel = eski + yeni ek) yeni kisim eski cumleden sonrasidir
+  const ek = (i === e.length ? y.slice(i) : y);
+  return ek.length > 0 && ek.every((w) => ONAY_KELIME.has(w));
+}
+
 function sadeMetin(s) {
   return String(s || '').toLocaleLowerCase('tr').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
@@ -285,6 +299,8 @@ class CagriOturumu {
     await this._isle(metin);
     while (this._bekleyen && !this.kapali) {
       const m = this._bekleyen; this._bekleyen = null;
+      // Is yapan turun ("Evet" -> randevu) yalniz onay uzantisi ("Evet, oluşturalım") ayrica sorulmaz (kayit 177)
+      if (this._sonIsMetni && onayUzantisi(this._sonIsMetni, m)) { log.info(`  (bekleyen yalniz onay uzantisi, sorulmadi): ${m}`); continue; }
       await this._isle(m);
     }
   }
@@ -417,8 +433,12 @@ class CagriOturumu {
           // aktar cumlesi okuttu: "sizi işletmeye bağlıyorum" + "sizi bir yetkiliye aktarıyorum").
           this._spek = null;
           brain.turIptal(this.oturumId, spek.tur);
-          if (d.aksiyon !== 'aktar' && d.aksiyon !== 'veda' && !d.bitir) {
+          // Paralel cumle eski cumlenin yalniz ONAY uzantisiysa ("Evet" -> "Evet, oluşturalım") yeniden SORULMAZ:
+          // is zaten yapildi (canli 2026-11-19 kayit 177: randevudan sonra "Randevunuz zaten oluşturuldu..." okundu).
+          if (d.aksiyon !== 'aktar' && d.aksiyon !== 'veda' && !d.bitir && !onayUzantisi(metin, spek.metin)) {
             this._bekleyen = this._bekleyen ? spek.metin + ' ' + this._bekleyen : spek.metin;
+          } else if (onayUzantisi(metin, spek.metin)) {
+            log.info(`  (paralel cumle yalniz onay uzantisi, yeniden sorulmadi): ${spek.metin}`);
           }
         }
       }
@@ -437,6 +457,7 @@ class CagriOturumu {
       log.info(`< asistan: ${d.cevap}${d.aksiyon ? '  [aksiyon: ' + d.aksiyon + ']' : ''}`);
       // KAPANIS ise: kapanis cumlesi barge-in ile KESILMESIN + yeni tur baslamasin (askida kalmasin)
       const kapanis = (d.aksiyon === 'veda' || d.bitir);
+      this._sonIsMetni = d.aksiyon ? metin : null;
       if (kapanis) this._kapaniyor = true;
       this._olcum = { beyinHazir: Date.now() };
       // Kisa tepki caldiysa cevabin basindaki ayni turden kelimeyi at ("Tamam. Tamam, ..." olmasin)
