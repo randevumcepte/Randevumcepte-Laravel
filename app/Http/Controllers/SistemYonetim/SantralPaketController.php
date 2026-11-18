@@ -78,6 +78,7 @@ class SantralPaketController extends Controller
             'buAy'      => $ay === date('Y-m'),
             'q'         => $q,
             'kur'       => $kur,
+            'kurBilgi'  => \App\Services\DovizKuru::usdBilgi(),
             'hazir'     => SantralPaket::HAZIR,
             'sesler'    => SantralPaket::sesler(),
             'varsayilanSes' => SantralPaket::varsayilanSes(),

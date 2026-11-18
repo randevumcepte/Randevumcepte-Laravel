@@ -149,7 +149,9 @@
         <div class="sp-not">
             <b>Nasıl hesaplanır:</b> Dakika, asistanın hatta kaldığı süredir (operatöre aktarıldıktan sonraki konuşma dahil değil); dönem takvim ayıdır.
             Aşım tam dakikaya yuvarlanır. Maliyet = Claude (gerçek token) + Google STT (köprünün ölçtüğü, Google'a gerçekten akan ses süresi × {{ config('services.santral_ai.stt_usd_dk') }} $/dk; asistan konuşurken STT kapalı)
-            + TTS (Google'a gerçekten gönderilen karakter × görüşmenin sesinin fiyatı: {{ implode(', ', array_map(function ($b) { return $b['ad'] . ' ' . $b['usd_m'] . ' $/1M'; }, $sesler)) }}; önbellekten çalınan cümleler ücretsiz), kur {{ $tl($kur, 2) }} ₺ (AI Kredi sayfasından).
+            + TTS (Google'a gerçekten gönderilen karakter × görüşmenin sesinin fiyatı: {{ implode(', ', array_map(function ($b) { return $b['ad'] . ' ' . $b['usd_m'] . ' $/1M'; }, $sesler)) }}; önbellekten çalınan cümleler ücretsiz).
+            <b>Kur:</b> her görüşme bittiği günün TCMB USD döviz satış kuruyla TL'ye çevrilir (geçmiş aylar sonradan değişmez); kuru olmayan eski görüşmelerde güncel kur.
+            Güncel kur {{ $tl($kur, 4) }} ₺ @if(($kurBilgi['kaynak'] ?? '') === 'tcmb') (TCMB {{ $kurBilgi['tarih'] ? date('d.m.Y', strtotime($kurBilgi['tarih'])) : '' }}) @elseif(($kurBilgi['kaynak'] ?? '') === 'tcmb-son') (TCMB'ye ulaşılamadı, son alınan kur {{ $kurBilgi['tarih'] ? date('d.m.Y', strtotime($kurBilgi['tarih'])) : '' }}) @else (TCMB'ye ulaşılamadı, AI Kredi sayfasındaki elle girilen kur) @endif.
             Ölçüm öncesi görüşmelerde STT = süre × %{{ round(config('services.santral_ai.stt_oran') * 100) }}, TTS = söylenen karakter × {{ config('services.santral_ai.tts_usd_m') }} $/1M (tahmini). Google'ın aylık ücretsiz kotaları düşülmez (liste fiyatı); sunucu ve hat ücretleri dahil değildir.
             <b>Paketi olmayan salonda asistan çalışmaz:</b> gelen çağrı doğrudan işletmenin operatör kanalına çalar, hatırlatmalar klasik tuşlamalı mesajla yapılır.
             <b>Aşımda durdur:</b> paket bitince gelen çağrılar asistan yerine operatöre aktarılır, hatırlatmalar klasik tuşlamalı sesli mesajla yapılır.

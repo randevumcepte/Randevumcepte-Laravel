@@ -298,6 +298,10 @@ class SantralKopruController extends Controller
                 if (is_numeric($r->input('tts_ucretli_karakter'))) $upd['tts_ucretli_karakter'] = max(0, min(4000000, (int) $r->input('tts_ucretli_karakter')));
                 if (is_numeric($r->input('stt_sn'))) $upd['stt_sn'] = round(max(0, min(36000, (float) $r->input('stt_sn'))), 1);
                 if ($ses = SantralPaket::sesGecerli($r->input('tts_ses'))) $upd['tts_ses'] = $ses;
+                // Gorusmenin kuru (TCMB doviz satis) -> TL maliyeti o gunun kuruyla sabitlenir.
+                // Ag istegi YOK (aktarma bitir'i bekliyor); onbellek cevap gittikten sonra tazelenir.
+                $upd['kur'] = \App\Services\DovizKuru::usdHizli();
+                app()->terminating(function () { try { \App\Services\DovizKuru::usd(); } catch (\Throwable $e) {} });
             }
             DB::table('santral_oturumlari')->where('id', $oid)->update($upd);
         }
