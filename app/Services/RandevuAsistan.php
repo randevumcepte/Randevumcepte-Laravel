@@ -442,7 +442,7 @@ class RandevuAsistan
                 && $this->sahteBasariMetni($cevap);
             // BEKLETME CUMLESI: "bir moment / bekleteceğim / kontrol ediyorum" -> cumleyi at; geriye bir sey
             // kalmadiysa (model araci cagirmadan bekletip turu bitirdi) duzeltme turu: araci simdi cagirsin.
-            $cevap = $this->bekletmeTemizle($this->icSesTemizle($cevap));
+            $cevap = $this->dogalBaslangic($this->bekletmeTemizle($this->icSesTemizle($cevap)));
             $bekletti = ($cevap === '' && !$bitir && !in_array($aksiyon, ['aktar', 'veda'], true));
             if ($bekletti && $deneme === 0) {
                 Log::warning('[SANTRAL-BEKLETME] model bekletme cumlesiyle turu bitirdi', ['salon' => $this->salonId, 'metin' => $metin]);
@@ -1195,6 +1195,24 @@ class RandevuAsistan
         return $temiz;
     }
 
+    /**
+     * Cumle basindaki "Peki." ve "Ferdi Bey," atilir (canli 2026-11-18 kayit 166): her tur "Ferdi Bey, hangi..." diye
+     * baslamak robotik, tek basina "Peki." havada kaliyordu. Hitap tesekkur/veda cumlesinde kalir ("Rica ederiz Ferdi Bey").
+     */
+    protected function dogalBaslangic(string $c): string
+    {
+        $c = trim($c);
+        $once = $c;
+        $c = preg_replace('/^peki\s*[,.!]?\s+(?=\S)/iu', '', $c);
+        $h = $this->hitap();
+        if ($h && !preg_match('/rica|teşekkür|iyi günler|iyi akşamlar|hoşça|görüşmek üzere/iu', $c)) {
+            $c = preg_replace('/^' . preg_quote($h, '/') . '\s*[,.!]?\s+(?=\S)/u', '', $c);
+        }
+        if ($c === $once) return $c;
+        $ilk = mb_substr($c, 0, 1, 'UTF-8');
+        return ($ilk === 'i' ? 'İ' : mb_strtoupper($ilk, 'UTF-8')) . mb_substr($c, 1, null, 'UTF-8');
+    }
+
     /** Fiyat/ucret sorusu mu? ("saç kesimi ne kadar", "fiyatı nedir", "kaç lira") -> isletmeye aktarilir. */
     protected function fiyatSorusuMu(string $m): bool
     {
@@ -1224,7 +1242,7 @@ class RandevuAsistan
                     Log::info('[SANTRAL-HIZMET-DUZELTME] hizmet_eslestir', ['salon' => $this->salonId, 'metin' => $in['metin'] ?? '', 'adaylar' => $ad]);
                     $d = (count($ad) === 1 || $ad[0]['oran'] - $ad[1]['oran'] >= 0.05)
                         ? ['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => $ad[0]['id'], 'ad' => $ad[0]['ad']],
-                           'not' => 'Ses tanıma kelimeyi yanlış duymuş olabilir; en yakın hizmet bu. Hizmet adını doğru haliyle söyleyerek devam et.']
+                           'not' => 'Ses tanıma kelimeyi yanlış duymuş olabilir; en yakın hizmet bu. Müşteriye TEYİT SORMA ("... için mi?" DEME): hizmeti doğru adıyla kullanarak doğrudan sonraki adıma geç.']
                         : ['ok' => true, 'eslesme' => 'coklu', 'ortak' => (string) ($in['metin'] ?? ''),
                            'secenekler' => array_map(function ($x) { return ['id' => $x['id'], 'ad' => $x['ad']]; }, array_slice($ad, 0, 2))];
                 }
@@ -1483,7 +1501,7 @@ class RandevuAsistan
         if ($this->musteriAd) {
             $musteriSatir = "Arayan bu işletmenin KAYITLI müşterisi: {$this->musteriAd}. Adını/soyadını/telefonunu SORMA; "
                 . (($h = $this->hitap())
-                    ? "uygun yerlerde (onay, teşekkür, veda) \"{$h}\" diye hitap et; her cümlede tekrarlama."
+                    ? "\"{$h}\" hitabını YALNIZ teşekkür/vedada kullan (görüşme ortasında en fazla bir kez, cümle SONUNDA: \"... uygun mu {$h}?\"); cümleye ASLA hitapla BAŞLAMA."
                     : "bu ad için cinsiyet belirsiz: \"Bey\"/\"Hanım\" KULLANMA, isimden cinsiyet TAHMİN ETME; gerekirse \"Sayın {$this->musteriAd}\" de ya da hitapsız konuş.");
         } else {
             $musteriSatir = "Arayan bu işletmede KAYITLI DEĞİL. Karşılamada adı ve soyadı "
@@ -1522,6 +1540,12 @@ class RandevuAsistan
 
         return <<<PROMPT
 Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın. Telefonda, kısa ve doğal Türkçe konuşuyorsun. Çıktın düz metindir (TTS ile okunur): emoji, madde işareti, markdown KULLANMA. Her yanıt 1-2 cümle. Çıktının TAMAMI müşteriye okunur: düşünceni, akıl yürütmeni, ne yapacağını ("Müşteri ... dedi", "Onay soruyorum") ASLA yazma; yalnız müşteriye söyleyeceğin cümleyi yaz.
+
+# KONUŞMA ÜSLUBU (sıcak, insan gibi)
+- Güler yüzlü, sıcak ve samimi bir resepsiyonist gibi konuş; resmi anons ya da robot gibi değil. Cümleleri kısa ve akıcı kur.
+- Müşterinin cevabını doğal bir onayla karşıla ve HER SEFERİNDE farklı söyle: "Tabii, anladım.", "Çok güzel.", "Harika.", "Anladım.", "Olur, hemen ayarlayalım." Tek başına "Peki." DEME; cümleye "Peki" ile başlama.
+- EMPATİ: müşteri bir sorun, ağrı, rahatsızlık, yoğunluk, gecikme, memnuniyetsizlik ya da üzücü bir durum anlatırsa ÖNCE kısaca duygusunu karşıla ("Çok geçmiş olsun.", "Sizi çok iyi anlıyorum.", "Bunu duyduğuma üzüldüm, hemen yardımcı olayım."), SONRA işe geç. Sevindirici bir şey söylerse ("düğünüm var", "doğum günüm") içtenlikle sevin ("Ne güzel, şimdiden tebrikler!"). İptalde "Tabii, hiç sorun değil." gibi rahatlat.
+- Aynı bilgiyi iki kez sorma; uzman adını her cümlede tekrarlama.
 
 # AKIŞ (adımları atlama)
 1. SELAMLAMA zaten TTS ile çalındı — TEKRAR ETME. İşletme adına "-da/-de/-a/-e/-ye" eki EKLEME. Arayan KAYITLI DEĞİLSE önce BAĞLAM'daki KAYIT ADIMI'nı tamamla; kayıtlıysa doğrudan niyete geç.

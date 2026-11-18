@@ -17,11 +17,12 @@ const DOLGU = ['Hemen bakıyorum.', 'Tamam, kontrol ediyorum.'];
 // dogal bir tepki calar (Callivo kalibi). Sorgu gerektiren istek -> "bakiyorum"; kisa cevap/secim -> "Tamam.";
 // tesekkur/veda -> hicbir sey. Asistan cevabi ayni kelimeyle basliyorsa o kelime atilir (iki kez "Tamam" olmasin).
 const TEPKI_SORGU = ['Tabii, hemen bakıyorum.', 'Bir bakayım.', 'Hemen bakıyorum.'];
-const TEPKI_KISA = ['Tamam.', 'Peki.'];
+// Tek basina "Peki." havada kaliyordu (kayit 166) -> "Tabii, anladım."
+const TEPKI_KISA = ['Tabii, anladım.', 'Anladım.', 'Tamam.'];
 const TEPKI_GENEL = ['Tabii.'];
 // "bakiyorum" yalniz gercekten takvim/kayit sorgusu gerektiren isteklerde (gun/saat/musaitlik/iptal/degisiklik)
 const SORGULU = /(müsait|musait|uygun|boş|bos\b|saat|yarın|yarin|bugün|bugun|haftaya|pazartesi|salı|sali|çarşamba|carsamba|perşembe|persembe|cuma|pazar|iptal|ertele|değiştir|degistir|kaydır|kaydir|güncelle|guncelle)/i;
-const TEPKI_BAS = /^\s*(tamamdır|tamam|tabii ki|tabii|tabi|peki|anladım|elbette|hemen bakıyorum|bakıyorum)\s*[,.!]?\s+(?=\S)/i;
+const TEPKI_BAS = /^\s*(tabii,? anladım|tamamdır|tamam|tabii ki|tabii|tabi|peki|anladım|elbette|hemen bakıyorum|bakıyorum)\s*[,.!]?\s+(?=\S)/i;
 
 // Bekleme cumlesi YALNIZ kayit/takvim aranan isteklerde calar (randevu, saat, gun, iptal, paket...).
 // "Evet", "fark etmez", isim soyleme gibi kisa cevaplarda "Hemen bakıyorum" anlamsiz kaciyordu.

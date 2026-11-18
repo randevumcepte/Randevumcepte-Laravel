@@ -224,6 +224,17 @@ namespace {
         'Saat 13.40 uygun, oluşturayım mı?' => 'Saat 13.40 uygun, oluşturayım mı?',
     ] as $g => $b) esit("\"" . mb_substr($g, 0, 50) . "…\"", $b, cagir($a, 'icSesTemizle', $g));
 
+    bolum('Cümle başı "Peki." / hitap atılır (canlı 2026-11-18 kayıt 166)');
+    $ab = asistan(['musteriAd' => 'Anıl Orbey', 'musteriCinsiyet' => 1]);
+    foreach ([
+        'Anıl Bey, hangi hizmet için randevu almak istiyorsunuz?' => 'Hangi hizmet için randevu almak istiyorsunuz?',
+        'Peki. Protez tırnak için hangi gün uygun?' => 'Protez tırnak için hangi gün uygun?',
+        'Peki, Anıl Bey, iptal ediyorum.' => 'İptal ediyorum.',
+        'Rica ederiz Anıl Bey. İyi günler dileriz.' => 'Rica ederiz Anıl Bey. İyi günler dileriz.',
+        'Anıl Bey, bizi aradığınız için teşekkür ederiz.' => 'Anıl Bey, bizi aradığınız için teşekkür ederiz.',
+        'Pekişmiş bir randevunuz var.' => 'Pekişmiş bir randevunuz var.',
+    ] as $g => $b) esit("\"$g\"", $b, cagir($ab, 'dogalBaslangic', $g));
+
     bolum('"Başka yardımcı olabileceğim..." garantisi');
     foreach ([
         'Yol tarifini gönderdim. Size nasıl yardımcı olabilirim?' => 'Yol tarifini gönderdim. Başka yardımcı olabileceğim bir konu var mı?',
@@ -654,7 +665,7 @@ namespace {
     icerir('hızlı veda hitaplı', 'Rica ederiz Anıl Bey,', asistan(['musteriCinsiyet' => 1])->konus('Yok teşekkürler', $sor)['cevap']);
     icerir('hızlı veda cinsiyet yoksa hitapsız', 'Rica ederiz, bizi', asistan(['musteriAd' => 'Aksel Kaya'])->konus('Yok teşekkürler', $sor)['cevap']);
     icerir('prompt: cinsiyet yoksa tahmin yasağı', 'isimden cinsiyet TAHMİN ETME', cagir(asistan(['musteriAd' => 'Aksel Kaya']), 'sistemPromptu'));
-    icerir('prompt: cinsiyet varsa hitap', '"Anıl Bey" diye hitap et', cagir(asistan(['musteriCinsiyet' => 1]), 'sistemPromptu'));
+    icerir('prompt: cinsiyet varsa hitap', '"Anıl Bey" hitabını YALNIZ', cagir(asistan(['musteriCinsiyet' => 1]), 'sistemPromptu'));
 
     echo "\n\033[1mSONUÇ: $gecen geçti, $kalan kaldı\033[0m\n";
     if ($kalan) { echo "Kalanlar:\n - " . implode("\n - ", $hatalar) . "\n"; exit(1); }
