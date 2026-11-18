@@ -89,7 +89,11 @@ class SoftphoneApiController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    /** Uygulama santrale register oldu ("hazir") ya da cagriyi reddetti ("red"). */
+    /**
+     * Uygulama santrale register oldu ("hazir"), kullanici cagriyi reddetti
+     * ("red" -> santral aramayi tamamen sonlandirir) ya da cihaz baska
+     * gorusmede oldugu icin otomatik reddetti ("mesgul" -> arayan kuyrukta bekler).
+     */
     public function hazir(Request $request)
     {
         $personel = $this->dahiliDogrula($request);
@@ -97,7 +101,8 @@ class SoftphoneApiController extends Controller
             return response()->json(['ok' => false], 401);
         }
         $uuid = strtolower((string) $request->input('uuid'));
-        $durum = $request->input('durum') === 'red' ? 'red' : 'hazir';
+        $gelen = (string) $request->input('durum');
+        $durum = in_array($gelen, ['red', 'mesgul'], true) ? $gelen : 'hazir';
         if (!preg_match('/^[0-9a-f-]{36}$/', $uuid)) {
             return response()->json(['ok' => false], 422);
         }
