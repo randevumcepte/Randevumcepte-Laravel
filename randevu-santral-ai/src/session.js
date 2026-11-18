@@ -58,6 +58,8 @@ const TAMPON_MS = 6000;        // son 6 sn musteri sesi (kurtarmada STT'ye yenid
 const ONAY_KELIME = new Set(['evet', 'tamam', 'tamamdır', 'olur', 'olsun', 'oluşturalım', 'oluşturun', 'oluştur', 'oluşturabilirsiniz',
   'lütfen', 'kaydet', 'kaydedin', 'kaydedelim', 'onaylıyorum', 'onayla', 'aynen', 'peki', 'tabii', 'tabi', 'efendim', 'yapalım', 'alalım',
   'hı', 'he', 'öyle', 'uygun', 'olabilir', 'ok', 'okey']);
+// Onay fiilleri her ekle: oluştur(alım|dum|un|abilirsiniz), kaydet/kayded, onayla, ayarla; soru ekleri
+const ONAY_KOK = /^(oluştur|olustur|kaydet|kayded|onayl|ayarla|tamam|evet|alalım|alabilir|yapalım|yapabilir|olabilir|m[ıiuü]s[ıiuü]n[ıiuü]z|m[ıiuü]y[ıiuü]m)/;
 function onayUzantisi(eski, yeni) {
   const e = sadeMetin(eski).split(' ').filter(Boolean);
   const y = sadeMetin(yeni).split(' ').filter(Boolean);
@@ -65,7 +67,8 @@ function onayUzantisi(eski, yeni) {
   while (i < e.length && y[i] === e[i]) i++;
   // eski cumle yeni cumlenin basinda degilse (paralel = eski + yeni ek) yeni kisim eski cumleden sonrasidir
   const ek = (i === e.length ? y.slice(i) : y);
-  return ek.length > 0 && ek.every((w) => ONAY_KELIME.has(w));
+  // Kelime listesi yetmez: ses tanima "oluşturalım"i "oluşturdum" duydu (kayit 180) -> kokten de bak
+  return ek.length > 0 && ek.every((w) => ONAY_KELIME.has(w) || ONAY_KOK.test(w));
 }
 
 function sadeMetin(s) {

@@ -293,6 +293,16 @@ namespace {
     $kj = cagir(asistan(['salon' => ['ad' => 'X', 'hizmetler' => [['id' => 7, 'ad' => 'Jel Güçlendirmesi']]]]), 'kelimeDuzeltme', 'Jel güçlendirme');
     esit('kelime düzeltme id\'li seçenek verir', [['id' => 7, 'ad' => 'Jel Güçlendirmesi']], $kj['secenekler'] ?? null);
 
+    bolum('Kayıt 180: randevu oluştuktan sonra gelen boş onay modele sorulmaz');
+    $g180 = [['role' => 'user', 'content' => 'Evet'], ['role' => 'assistant', 'content' => 'Tamamdır, randevu talebinizi oluşturdum. Sizin için yapabileceğim başka bir şey var mı?']];
+    foreach (['Evet oluşturdum.' => true, 'Evet, oluşturalım' => true, 'Evet' => true, 'Tamam lütfen' => true, 'Evet bir de kaş randevusu' => false, 'Yarın da olur mu' => false] as $m => $b) {
+        esit("boş onay? \"$m\"", $b, cagir($pz, 'isBittiOnayiMi', $m, $g180));
+    }
+    esit('randevu yeni oluşmadıysa boş onay sayılmaz', false, cagir($pz, 'isBittiOnayiMi', 'Evet', [['role' => 'assistant', 'content' => 'Saat 14 olur mu?']]));
+    $d = $pz->konus('Evet oluşturdum.', $g180);
+    esit('onay tekrarı → modelsiz kısa cevap', 'Randevunuz oluşturuldu, merak etmeyin. Sizin için yapabileceğim başka bir şey var mı?', $pz->kapanisDogallastir($d['cevap'], []));
+    esit('yalın "evet" → dinliyorum', 'Tabii, sizi dinliyorum.', $pz->konus('Evet', $g180)['cevap']);
+
     bolum('"Başka yardımcı olabileceğim..." garantisi');
     foreach ([
         'Yol tarifini gönderdim. Size nasıl yardımcı olabilirim?' => 'Yol tarifini gönderdim. Başka yardımcı olabileceğim bir konu var mı?',

@@ -337,6 +337,18 @@ class RandevuAsistan
             $h = $this->hitap();
             return ['cevap' => 'Rica ederiz' . ($h ? " {$h}" : '') . ', bizi aradığınız için teşekkür ederiz. İyi günler dileriz.', 'aksiyon' => 'veda', 'veri' => [], 'bitir' => true];
         }
+        // IS BITTIKTEN SONRA GELEN BOS ONAY: randevu az once olustu/guncellendi ve musteri yalniz onay sozu soyluyor
+        // ("Evet oluşturdum" — ayni "evet"in gec gelen tam hali). Modele sorulursa "Özür dilerim, bir karışıklık oldu,
+        // randevunuzu zaten oluşturmuştum..." diye 15 sn konusuyordu (canli 2026-11-19 kayit 177/180).
+        if ($this->isBittiOnayiMi($metin, $gecmis)) {
+            Log::info('[SANTRAL-TUR] is sonrasi bos onay', ['salon' => $this->salonId, 'metin' => $metin]);
+            $this->teshis = 'bos_onay';
+            // "Evet oluşturalım" = onayin tekrari; yalin "evet" = "baska bir sey var mi?" sorusuna EVET (istegi var)
+            $cevap = preg_match('/olustur|kayde|onayl|ayarla/', $this->sade($metin))
+                ? 'Randevunuz oluşturuldu, merak etmeyin. Başka yardımcı olabileceğim bir konu var mı?'
+                : 'Tabii, sizi dinliyorum.';
+            return ['cevap' => $cevap, 'aksiyon' => null, 'veri' => [], 'bitir' => false];
+        }
         // GIDEN HATIRLATMA ARAMASI (randevu 1 gun once / alacak 2 gun once): asistanin hatirlatma sorusuna
         // verilen cevap KODLA islenir (gelecek/odeyecek isaretle, ertele/iptal sor, vade -> isletmeye aktar).
         if (($h = $this->hatirlatmaBekleyen($gecmis)) !== null && ($hc = $this->hatirlatmaCevap($metin, $h)) !== null) {
@@ -610,6 +622,22 @@ class RandevuAsistan
             }
         }
         return false;
+    }
+
+    /** Son asistan mesaji bir isi bitirdi (randevu olustu/guncellendi) ve musteri yalniz onay sozu mu soyluyor? */
+    protected function isBittiOnayiMi(string $metin, array $gecmis): bool
+    {
+        $son = '';
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') === 'assistant') { $son = (string) ($gecmis[$i]['content'] ?? ''); break; }
+        }
+        if (!preg_match('/talebinizi oluşturdum|randevunuzu güncelledim/iu', $son)) return false;
+        $k = array_filter(explode(' ', $this->sade($metin)));
+        if (!$k) return false;
+        foreach ($k as $w) {
+            if (!preg_match('/^(evet|tamam|olur|olsun|lutfen|aynen|peki|tabi|tabii|efendim|ok|okey|he|hi|olustur|kayded|kaydet|onayl|ayarla|yapalim|alalim|olabilir|m[iu]s[iu]n[iu]z)/', $w)) return false;
+        }
+        return true;
     }
 
     /** Musteri kapanis mi soyluyor? ("yok teşekkürler", "sağ olun", "bu kadar") — yeni bir istek iceriyorsa hayir. */
