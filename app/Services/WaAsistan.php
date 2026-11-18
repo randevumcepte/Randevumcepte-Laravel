@@ -220,7 +220,7 @@ class WaAsistan
     // ------------------------------------------------------------------ isleme
     protected static function isle(int $salonId, string $anahtar, int $gelenId): void
     {
-        $bek = max(0, min(15, (int) self::ayar('birlestir_sn', 4)));
+        $bek = max(0, min(15, (int) self::ayar('birlestir_sn', 2)));
         if ($bek > 0) sleep($bek);
         // Bu arada musteri yeni mesaj yazdiysa onu isleyen istek hepsini birlikte cevaplar
         $yeniVar = DB::table('wa_asistan_gelen')->where('salon_id', $salonId)->where('anahtar', $anahtar)
