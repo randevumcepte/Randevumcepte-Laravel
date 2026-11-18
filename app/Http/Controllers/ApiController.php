@@ -12497,9 +12497,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             // toCustomer (randevu_id + deep_link ile) push'u yapiyor;
             // burada ikinci push goz atti = duplicate + sizma kaynagiydi.
 
-            // Sesli asistan (santral) randevusu: bilgilendirme mesajina salonun yol tarifi linki eklenir (isletme istegi)
-            $_easistanYol = ((string) ($request->easistan ?? $request->input('easistan')) === '1' && !$guncelleme)
-                ? trim((string) ($isletme->yol_tarifi ?? '')) : '';
+            // Yol tarifi: RANDEVU TALEBI mesajinda (uygulama/web/sesli asistan) MUTLAKA (panel linki, yoksa adresten
+            // harita linki); sesli asistanin dogrudan olusturdugu randevuda da eklenir (isletme istegi).
+            $_easistanYol = '';
+            if ($_musteriKaynakli && !$guncelleme) {
+                $_easistanYol = \App\Services\WhatsAppMesajFormat::yolTarifiLinki($isletme);
+            } elseif ((string) ($request->easistan ?? $request->input('easistan')) === '1' && !$guncelleme) {
+                $_easistanYol = trim((string) ($isletme->yol_tarifi ?? ''));
+            }
             if ($_easistanYol !== '') $musteriMesaj .= " Yol tarifi: " . $_easistanYol;
 
             $musteriToggle = SalonSMSAyarlari::where("ayar_id", 12)->where("salon_id", $yenirandevu->salon_id)->value("musteri") == 1;
@@ -12546,7 +12551,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                                 $_hizmetlerStr
                             );
                         }
-                        if ($_easistanYol !== '') $_waMesaj .= "\n\n📍 *Yol tarifi:* " . $_easistanYol;
+                        // Talep formatinda yol tarifi satiri zaten var (randevuTalebiAlindi)
+                        if ($_easistanYol !== '' && !$_musteriKaynakli) $_waMesaj .= "\n\n📍 *Yol tarifi:* " . $_easistanYol;
                         // Uygulaması olmayana WA'da indirme daveti + link ekle
                         $_waMesaj = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($_waMesaj, $isletme, $musteribilgi->id ?? null);
                     }
@@ -27164,7 +27170,7 @@ return date('Y')."-$ayNumara-$gun";
             }
             $mesajlar = array(); 
             //if(SalonSMSAyarlari::where('salon_id',$randevu->salon_id)->where('ayar_id',11)->value('musteri')==1){ 
-                array_push($mesajlar,array("to"=>$randevu->users->cep_telefon,"message"=>$randevu->salonlar->salon_adi." için ".date('d.m.Y',strtotime($randevu->tarih)) ." saat ". date('H:i',strtotime($randevu->saat)) ." randevu talebiniz alınmıştır. İletişim: 0".$randevu->salonlar->telefon_1.($randevu->salonlar->yol_tarifi ? " Yol tarifi: ".$randevu->salonlar->yol_tarifi:"" ))); 
+                array_push($mesajlar,array("to"=>$randevu->users->cep_telefon,"message"=>$randevu->salonlar->salon_adi." için ".date('d.m.Y',strtotime($randevu->tarih)) ." saat ". date('H:i',strtotime($randevu->saat)) ." randevu talebiniz alınmıştır. İletişim: 0".$randevu->salonlar->telefon_1.(($_yolT = \App\Services\WhatsAppMesajFormat::yolTarifiLinki($randevu->salonlar)) !== '' ? " Yol tarifi: ".$_yolT : ""))); 
             //} 
             foreach($randevu->hizmetler as $hizmet)
 

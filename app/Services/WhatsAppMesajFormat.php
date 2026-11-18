@@ -116,6 +116,20 @@ class WhatsAppMesajFormat
      * Randevu TALEBI ALINDI bildirimi (WA) — musterinin uygulama/web'den olusturdugu
      * talep henuz onaylanmamis. Salon onayladiginda ayrica randevuOnaylandi mesaji gider.
      */
+    /**
+     * Salonun yol tarifi linki: panelde girilen yol_tarifi; yoksa adresten Google Haritalar linki.
+     * Ikisi de yoksa ''. (Randevu talep mesajlarinda MUTLAKA gonderilir — isletme istegi 2026-11-18.)
+     */
+    public static function yolTarifiLinki($salon)
+    {
+        if (!$salon) return '';
+        $yol = trim((string) ($salon->yol_tarifi ?? ''));
+        if ($yol !== '') return $yol;
+        $adres = trim((string) ($salon->adres ?? ''));
+        if ($adres === '') return '';
+        return 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode(trim(($salon->salon_adi ?? '') . ' ' . $adres));
+    }
+
     public static function randevuTalebiAlindi($salon, $musteriAdi, $tarihStr, $saatStr, $hizmetlerStr = '')
     {
         $hizmetIkon = self::hizmetIkon($salon);
@@ -135,6 +149,9 @@ class WhatsAppMesajFormat
                 $tel = '0' . $tel;
             }
             $mesaj .= "📞 *İletişim:* " . $tel . "\n";
+        }
+        if (($yol = self::yolTarifiLinki($salon)) !== '') {
+            $mesaj .= "📍 *Yol tarifi:* " . $yol . "\n";
         }
         $mesaj .= "\nİlginiz için teşekkür ederiz. 💐";
         return $mesaj;

@@ -241,6 +241,8 @@ class CustomerController extends Controller
 
             $isletme = Salonlar::where('id',$request->salonno)->first();
             $mesaj = $isletme->salon_adi." için oluşturduğunuz ".date('d.m.Y',strtotime($randevu->tarih)) ." - ". date('H:i',strtotime($randevu->saat)) ." tarihli randevu talebiniz alınmıştır. Talebiniz kısa sürede sonuçlanacaktır. İlginiz için teşekkür ederiz.";
+            // Randevu talebi mesajinda yol tarifi MUTLAKA (panel linki, yoksa adresten harita linki)
+            if (($_yolT = \App\Services\WhatsAppMesajFormat::yolTarifiLinki($isletme)) !== '') $mesaj .= " Yol tarifi: " . $_yolT;
             $mesaj_isletme = Auth::user()->name .' isimli müşteri '.date('d.m.Y',strtotime($randevu->tarih)) ." - ". date('H:i',strtotime($randevu->saat)) ." için randevu oluşturmuş olup onayınızı bekliyor.";
             
             $mesaj_isletme_bildirim = Auth::user()->name .' '.date('d.m.Y',strtotime($randevu->tarih)) ." - ". date('H:i',strtotime($randevu->saat)) ." için randevu oluşturmuştur";
