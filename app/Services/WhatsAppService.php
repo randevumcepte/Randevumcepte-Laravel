@@ -38,6 +38,9 @@ class WhatsAppService
         'ders_kalan_uyari',          // "N dersiniz kaldi" paket bitis/yeniden satis uyarisi
     ];
 
+    /** WhatsApp asistaninin (gelen mesaja AI cevabi) gonderim tipi. Kontor DUSER; gunluk limitten sayilmaz. */
+    const ASISTAN_TIPI = 'wa_asistan';
+
     /** Bu gönderim tipi kontörden muaf (ücretsiz) mi? */
     protected function kontorUcretsizMi($gonderimTipi)
     {
@@ -61,13 +64,18 @@ class WhatsAppService
     }
 
     /**
-     * Randevu HATIRLATMA tipleri. config('whatsapp.randevu_muaf_salonlar') listesindeki
+     * Randevu HATIRLATMA + TALEP tipleri. config('whatsapp.randevu_muaf_salonlar') listesindeki
      * salonlarda bu tipler gunluk limite TAKILMAZ ve limitten SAYILMAZ.
-     * (Yeni randevu/guncelleme/iptal bildirimleri muaf DEGIL — limitten sayilir.)
+     *  - yeni_randevu_bildirim: "randevu talebiniz alindi" (uygulama/web talebi) — panelden
+     *    olusturulan randevunun bildirimi de AYNI tiple gider, o da muaf.
+     *  - randevu_onay_bildirim: "randevu talebiniz onaylandi".
+     * (Guncelleme/iptal bildirimleri muaf DEGIL — limitten sayilir.)
      */
     const RANDEVU_LIMIT_MUAF_TIPLER = [
         'randevu_hatirlatma_1gun',
         'randevu_hatirlatma',
+        'yeni_randevu_bildirim',
+        'randevu_onay_bildirim',
     ];
 
     /** Salon (veya oturumunu paylastigi ust salon) randevu-muaf listesinde mi? */
@@ -221,6 +229,47 @@ class WhatsAppService
     }
 
     /**
+     * WhatsApp asistani cevabi: musterinin yazdigi sohbete ANINDA (urgent) cevap.
+     * $hedef: tam JID ("<lid>@lid" gizli numara / "<pn>@s.whatsapp.net") ya da numara -> kopru oldugu gibi gonderir.
+     * Kapilar: kanal acik, kara liste, kontor (1 mesaj = 1 kontor). Gunluk limit YOK (WaAsistan'in kendi tavani var).
+     */
+    public function sendAsistanCevap(Salonlar $salon, $hedef, $mesaj, $telefon = null)
+    {
+        $kaynakSalonId = (int) $salon->id;
+        $salon = self::resolveWaSalon($salon);
+        if (!$this->kanalAcikMi($salon)) return ['ok' => false, 'error' => 'kanal-kapali'];
+        $hedef = (string) $hedef;
+        if (strpos($hedef, '@') === false) {
+            $hedef = $this->normalizePhone($hedef);
+            if (!$hedef) return ['ok' => false, 'error' => 'invalid-phone'];
+        }
+        $tel = $telefon ? $this->normalizePhone($telefon) : (strpos($hedef, '@') === false ? $hedef : null);
+        if ($tel && \App\Services\KaraListeServisi::engelliMi($salon->id, $tel, null, self::ASISTAN_TIPI)) {
+            return ['ok' => false, 'error' => 'kara-liste'];
+        }
+        if (\App\Services\KontorServisi::kontorlusDonemMi($salon) && !\App\Services\KontorServisi::yeterliMi($salon, 1)) {
+            return ['ok' => false, 'error' => 'kontor-yetersiz'];
+        }
+        $logId = $this->logPending($kaynakSalonId, null, null, $tel ?: mb_substr($hedef, 0, 30), $mesaj, 'baileys', self::ASISTAN_TIPI);
+        $response = $this->request('POST', "/session/{$salon->id}/send", [
+            'to' => $hedef,
+            'message' => $mesaj,
+            'warmupStart' => null,
+            'dailyLimit' => 9999,
+            'logId' => $logId,
+            'urgent' => true,
+        ]);
+        if (($response['status'] ?? 0) === 202) {
+            \App\Services\KontorServisi::dus($salon, 1, 'whatsapp:' . self::ASISTAN_TIPI);
+            return ['ok' => true, 'queued' => true, 'logId' => $logId];
+        }
+        $err = $response['error'] ?? ($response['body']['error'] ?? 'unknown');
+        $this->markFailed($logId, $err);
+        $this->markSessionLostIfNeeded($salon, $err);
+        return ['ok' => false, 'error' => $err, 'logId' => $logId];
+    }
+
+    /**
      * Anlik WhatsApp gonderimi — sifre/OTP gibi acil mesajlar icin.
      * Anti-ban delay (60-120s), typing simulation ve business hours kontrolu atlanir.
      * Ban riski yuksek oldugundan sadece zorunlu durumlarda kullanilmali.
@@ -362,6 +411,13 @@ class WhatsAppService
             ->whereDate('gonderim_tarihi', Carbon::today());
         // Randevu-muaf salonda hatirlatma mesajlari limitten SAYILMAZ.
         // NOT IN tek basina NULL tipli satirlari da elerdi — NULL'lar sayilmaya devam eder.
+        // WhatsApp asistaninin gelen mesaja verdigi cevaplar limitten SAYILMAZ (kendi tavani var: WaAsistan);
+        // yoksa yogun yazisma gunu hatirlatma/bildirimleri durdururdu.
+        if (\Illuminate\Support\Facades\Schema::hasColumn('whatsapp_gonderim_loglari', 'gonderim_tipi')) {
+            $q->where(function ($w) {
+                $w->whereNull('gonderim_tipi')->orWhere('gonderim_tipi', '<>', self::ASISTAN_TIPI);
+            });
+        }
         if (self::randevuMuafSalonMu($salon) && \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_gonderim_loglari', 'gonderim_tipi')) {
             $q->where(function ($w) {
                 $w->whereNull('gonderim_tipi')->orWhereNotIn('gonderim_tipi', self::RANDEVU_LIMIT_MUAF_TIPLER);
