@@ -106,6 +106,27 @@ class SoftphoneApiController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Uygulama: bu push cagrisi hala suruyor mu? Gec gelen (cihaz cevrimdisiyken
+     * bekleyip sonradan dusen) push'lar icin. durum: bitti | hazir | red | null
+     */
+    public function durum(Request $request)
+    {
+        $personel = $this->dahiliDogrula($request);
+        if (!$personel) {
+            return response()->json(['ok' => false], 401);
+        }
+        $uuid = strtolower((string) $request->input('uuid'));
+        if (!preg_match('/^[0-9a-f-]{36}$/', $uuid)) {
+            return response()->json(['ok' => false], 422);
+        }
+        if (Cache::get('sp_bitti_' . $uuid)) {
+            return response()->json(['ok' => true, 'durum' => 'bitti']);
+        }
+        $deger = Cache::get('sp_hazir_' . $uuid);
+        return response()->json(['ok' => true, 'durum' => $deger ? explode('|', $deger)[0] : null]);
+    }
+
     // ------------------------------------------------------------------
     // Santral uclari (paylasilan anahtar)
     // ------------------------------------------------------------------
@@ -179,6 +200,46 @@ class SoftphoneApiController extends Controller
         if ($musteri !== '') {
             $veri['arayan'] = substr($musteri, 0, 80);
         }
+        // Santralin bekleme suresi kadar gecerli: cihaz cevrimdisiyken bekleyen
+        // push'lar cagri bittikten sonra toplu dusmesin.
+        $ttl = max(5, min(60, (int) ($request->input('ttl') ?: 25)));
+        $veri['gonderim'] = (string) round(microtime(true) * 1000);
+        list($gonderilen, $sonuclar) = $this->fcmGonder($satirlar, $veri, $ttl);
+        if ($gonderilen === 0 && count($satirlar)) {
+            Log::warning('softphone android push gonderilemedi', ['dahili' => $dahili, 'sonuclar' => $sonuclar]);
+        }
+        return response()->json(['ok' => true, 'gonderilen' => $gonderilen, 'sonuclar' => $sonuclar]);
+    }
+
+    /**
+     * Santral: dahiliye yonlendirilen cagri bitti (arayan kapatti, kuyruk
+     * denemesi doldu, cevaplanan gorusme bitti). [softphone-push-bitti]
+     * hangup handler'indan gelir. Android cihazlara iptal push'u gider
+     * (acik gelen cagri ekrani kapanir); iOS uygulamasi "durum" ile sorar.
+     */
+    public function santralBitti(Request $request)
+    {
+        if (!$this->santralDogrula($request)) {
+            return response()->json(['ok' => false], 403);
+        }
+        $dahili = preg_replace('/[^0-9]/', '', (string) $request->input('dahili'));
+        $uuid = strtolower((string) $request->input('uuid'));
+        if ($dahili === '' || !preg_match('/^[0-9a-f-]{36}$/', $uuid)) {
+            return response()->json(['ok' => false], 422);
+        }
+        Cache::put('sp_bitti_' . $uuid, 1, 10); // L5.6: dakika
+        $satirlar = DB::table('softphone_voip_tokenlar')
+            ->where('dahili', $dahili)->where('platform', 'android')->get();
+        list($gonderilen) = $this->fcmGonder($satirlar, [
+            'kaynak' => 'softphone_iptal',
+            'uuid' => $uuid,
+        ], 60);
+        return response()->json(['ok' => true, 'gonderilen' => $gonderilen]);
+    }
+
+    /** Android token'larina data-only HIGH FCM; gecersiz token'lari siler. */
+    private function fcmGonder($satirlar, array $veri, $ttl)
+    {
         $gonderilen = 0;
         $sonuclar = [];
         foreach ($satirlar as $r) {
@@ -195,7 +256,7 @@ class SoftphoneApiController extends Controller
                         'json' => ['message' => [
                             'token' => $r->token,
                             'data' => $veri,
-                            'android' => ['priority' => 'HIGH', 'ttl' => '30s'],
+                            'android' => ['priority' => 'HIGH', 'ttl' => $ttl . 's'],
                         ]],
                         'http_errors' => false,
                     ]
@@ -213,10 +274,7 @@ class SoftphoneApiController extends Controller
                 $sonuclar[] = ['kod' => 0, 'neden' => $e->getMessage()];
             }
         }
-        if ($gonderilen === 0 && count($satirlar)) {
-            Log::warning('softphone android push gonderilemedi', ['dahili' => $dahili, 'sonuclar' => $sonuclar]);
-        }
-        return response()->json(['ok' => true, 'gonderilen' => $gonderilen, 'sonuclar' => $sonuclar]);
+        return [$gonderilen, $sonuclar];
     }
 
     // ------------------------------------------------------------------
