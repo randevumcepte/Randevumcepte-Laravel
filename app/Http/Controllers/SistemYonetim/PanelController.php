@@ -907,6 +907,12 @@ class PanelController extends Controller
             return redirect()->back()->with('hata', 'Bu salona bağlı yetkili-personel kaydı yok. Önce salon detayından yetkili ekleyin.');
         }
 
+        // Onceki salondan "Panele Don" denmeden gelindiyse once o oturumu komple kapat;
+        // yoksa eski salon sekmesinin istekleri yeni girisi eski hesapla ezebiliyor.
+        if (session()->has('sysadmin_impersonation_id') || session()->has(Auth::guard('isletmeyonetim')->getName())) {
+            $this->salonOturumunuKapat();
+        }
+
         $sebep = $request->get('sebep') ?: 'Destek girişi';
         $ticketId = $request->get('ticket_id');
 
@@ -996,6 +1002,21 @@ class PanelController extends Controller
             return redirect('/sistemyonetim/v2/dashboard');
         }
 
+        $this->salonOturumunuKapat();
+        return redirect('/sistemyonetim/v2/dashboard')->with('basari', 'Salon hesabından çıkıldı.');
+    }
+
+    /**
+     * Salon (isletmeyonetim) oturumunu KOMPLE kapatir; sistemyonetim girisi korunur.
+     *
+     * Eskiden yalniz anahtarlar silinip oturum ID'si sabit birakiliyordu. Acik kalan
+     * eski salon sekmesinin arka-plan istekleri (bildirim/poll) ayni oturumu eski
+     * hesapla GERI YAZIYORDU -> sonraki salona girince onceki hesap kaliyor ve
+     * "bu sayfaya yetkiniz yok" cikiyordu. Simdi oturum ID'si yenileniyor (eski oturum
+     * imha); eski sekmeler yeni oturumda salon girisi bulamayip giris ekranina duser.
+     */
+    private function salonOturumunuKapat()
+    {
         $logId = session('sysadmin_impersonation_id');
         if ($logId) {
             $log = ImpersonationLog::find($logId);
@@ -1004,17 +1025,18 @@ class PanelController extends Controller
                 $log->save();
             }
         }
-        session()->forget(['sysadmin_impersonation_id', 'sysadmin_impersonation_uid']);
-        // isletmeyonetim cikisi — MIGRATE ETMEDEN (login gibi; oturum ID sabit kalsin,
-        // sekmeler arasi kopma olmasin). logout() migrate edebiliyor; onun yerine sadece
-        // guard oturum anahtarini + hash'i sil.
-        session()->forget(Auth::guard('isletmeyonetim')->getName());
-        // AuthenticateSession hash anahtarini da temizle ki bir sonraki impersonation'da
-        // bu salonun eski hash'i kalip yeni salona girerken oturumu flush etmesin.
-        session()->forget('password_hash_isletmeyonetim');
+        $iyGuard = Auth::guard('isletmeyonetim');
+        // logout() KULLANMA: salon kullanicisinin remember_token'ini cevirip kendi
+        // cihazlarindaki "beni hatirla" oturumlarini dusurur. Elle temizle.
+        session()->forget([
+            'sysadmin_impersonation_id', 'sysadmin_impersonation_uid',
+            $iyGuard->getName(), 'password_hash_isletmeyonetim',
+            'isletmeyonetim_user', 'whatsapp_authenticated',
+        ]);
+        \Cookie::queue(\Cookie::forget($iyGuard->getRecallerName()));
         // Dayanikli impersonation cookie'sini de sil ki self-heal tekrar kurmasin.
         \Cookie::queue(\Cookie::forget('imp_iy'));
-        return redirect('/sistemyonetim/v2/dashboard')->with('basari', 'Salon hesabından çıkıldı.');
+        session()->migrate(true);
     }
 
     /* ============================================================
