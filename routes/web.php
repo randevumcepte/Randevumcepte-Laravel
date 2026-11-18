@@ -424,6 +424,9 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::get('/santral-paket', 'SantralPaketController@index')->name('sistemyonetim.v2.santral-paket');
     Route::post('/santral-paket', 'SantralPaketController@kaydet');
     Route::post('/santral-paket/{salonId}/sil', 'SantralPaketController@sil')->where('salonId', '[0-9]+');
+    Route::get('/wa-paket', 'WaPaketController@index')->name('sistemyonetim.v2.wa-paket');
+    Route::post('/wa-paket', 'WaPaketController@kaydet');
+    Route::post('/wa-paket/{salonId}/sil', 'WaPaketController@sil')->where('salonId', '[0-9]+');
     Route::get('/santral-ses', 'SantralSesController@index')->name('sistemyonetim.v2.santral-ses');
     Route::get('/santral-ses/sesler', 'SantralSesController@sesler');
     Route::post('/santral-ses/uret', 'SantralSesController@uret');
@@ -1090,6 +1093,19 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/santral-asistan-gorusmeler','StoreAdminController@santralAsistanGorusmeler');
 	Route::get('/santral-asistan-gorusme/{id}','StoreAdminController@santralAsistanGorusme')->where('id','[0-9]+');
 	Route::get('/santral-asistan-ses/{id}','StoreAdminController@santralAsistanSes')->where('id','[0-9]+');
+	// WhatsApp Asistanı: kazandirdiklari, sohbetler (devral/geri ver), geri kazanma, fotograf fiyat kurallari, ogrenilen, ayarlar
+	Route::get('/whatsapp-asistan','WaAsistanPanelController@sayfa');
+	Route::get('/whatsapp-asistan/ozet','WaAsistanPanelController@ozet');
+	Route::get('/whatsapp-asistan/sohbetler','WaAsistanPanelController@sohbetler');
+	Route::get('/whatsapp-asistan/sohbet/{id}','WaAsistanPanelController@sohbet')->where('id','[0-9]+');
+	Route::post('/whatsapp-asistan/sohbet/{id}/devral','WaAsistanPanelController@devral')->where('id','[0-9]+');
+	Route::post('/whatsapp-asistan/sohbet/{id}/geri-ver','WaAsistanPanelController@geriVer')->where('id','[0-9]+');
+	Route::get('/whatsapp-asistan/geri-kazanim','WaAsistanPanelController@geriKazanimListe');
+	Route::post('/whatsapp-asistan/ayar','WaAsistanPanelController@ayarKaydet');
+	Route::post('/whatsapp-asistan/kurallar','WaAsistanPanelController@kuralKaydet');
+	Route::get('/whatsapp-asistan/gorsel/{id}','WaAsistanPanelController@gorsel')->where('id','[0-9]+');
+	Route::get('/whatsapp-asistan/ogrenilen','WaAsistanPanelController@ogrenilenler');
+	Route::post('/whatsapp-asistan/ogrenilen/{id}/sil','WaAsistanPanelController@ogrenilenSil')->where('id','[0-9]+');
 	Route::get('/arsivyonetimi','StoreAdminController@arsivyonetimi')->name('isletmeadmin.arsivyonetimi');
 	Route::get('/formolusturma','StoreAdminController@formolusturma')->name('isletmeadmin.formolusturma');
 	Route::get('/form-sablonlari','StoreAdminController@formSablonlari')->name('isletmeadmin.formSablonlari');

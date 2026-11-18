@@ -70,6 +70,12 @@ return [
         'aktar_sessiz_dk' => (int) env('WA_ASISTAN_AKTAR_SESSIZ_DK', 120), // isletmeye aktarilan sohbette AI susar
         'numara_10dk'     => (int) env('WA_ASISTAN_NUMARA_10DK', 15), // numara basi 10 dk'da en fazla bot cevabi
         'gunluk_tavan'    => (int) env('WA_ASISTAN_GUNLUK_TAVAN', 300), // hat basi gunluk bot cevabi tavani
+        // AI Gorsel Danisman (model fotografi -> fiyat). Bkz App\Services\WaGorselDanisman.
+        'gorsel_model'       => env('WA_GORSEL_MODEL', 'claude-sonnet-5-5'),
+        'gorsel_girdi_usd_m' => (float) env('WA_GORSEL_GIRDI_USD_M', 2.0),   // Sonnet 5.5 / 1M token
+        'gorsel_cikti_usd_m' => (float) env('WA_GORSEL_CIKTI_USD_M', 10.0),
+        'gorsel_max_mb'      => (float) env('WA_GORSEL_MAX_MB', 5),
+        'gorsel_saglayici'   => env('WA_GORSEL_SAGLAYICI'),                // bos = Claude (GorselSaglayici arayuzu)
     ],
 
     'santral_ai' => [

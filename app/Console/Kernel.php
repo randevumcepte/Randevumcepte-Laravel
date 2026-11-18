@@ -79,6 +79,7 @@ class Kernel extends ConsoleKernel
         Commands\V2BildirimIsle::class,
         Commands\AsistanSohbetKaliplari::class,
         Commands\HizmetBilgiKaliplari::class,
+        Commands\WaGeriKazanimCalistir::class,
         Commands\SeslendirmeOnUret::class,
         Commands\PerformansNobetci::class,
     ];
@@ -179,6 +180,9 @@ class Kernel extends ConsoleKernel
         // elle "artisan asistan:*-kaliplari" calistirmaya GEREK KALMAZ.
         $schedule->command('asistan:sohbet-kaliplari --quiet-noop')->withoutOverlapping()->everyTenMinutes();
         $schedule->command('asistan:hizmet-kaliplari --quiet-noop')->withoutOverlapping()->everyTenMinutes();
+
+        // WhatsApp asistani: kacan musteriyi geri kazanma (10:00-20:00, mesai icinde gonderir) + takip + eski fotograf silme
+        $schedule->command('wa:geri-kazanim')->withoutOverlapping()->hourlyAt(17);
 
         // Yedek
         $schedule->command('dbyedek:al')->dailyAt('23:59')->withoutOverlapping();

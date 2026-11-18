@@ -101,9 +101,12 @@ class WaAsistan
     /** Bu salonun WhatsApp hattinda asistan acik mi? (.env WA_ASISTAN_SALONLAR="20,236" | "*") */
     public static function acikMi(int $salonId): bool
     {
+        if ($salonId <= 0) return false;
         $l = trim((string) self::ayar('salonlar', ''));
-        if ($l === '' || $salonId <= 0) return false;
-        return $l === '*' || in_array($salonId, array_map('intval', preg_split('/[\s,;]+/', $l)), true);
+        if ($l !== '' && ($l === '*' || in_array($salonId, array_map('intval', preg_split('/[\s,;]+/', $l)), true))) return true;
+        // Sistem Yonetimi > WhatsApp Asistan Paketleri'nde paketi tanimli hat da acik
+        $p = WaPaket::paket($salonId);
+        return $p && (int) $p->dahil_mesaj > 0;
     }
 
     protected static function tel(?string $t): ?string
@@ -140,7 +143,9 @@ class WaAsistan
         $salonId = (int) ($p['salonId'] ?? 0);
         if (!self::acikMi($salonId)) return ['tip' => 'kapali'];
         $metin = trim((string) ($p['text'] ?? ''));
-        if ($metin === '') return ['tip' => 'bos'];
+        // Fotograf (kopru: type=image, image=base64, text=fotograf aciklamasi): Gorsel Danisman
+        $resim = ($p['type'] ?? '') === 'image' && !empty($p['image']) ? (string) $p['image'] : '';
+        if ($metin === '' && $resim === '') return ['tip' => 'bos'];
         $metin = mb_substr($metin, 0, 1000);
         $jid = (string) ($p['fromJid'] ?? '');
         $lid = !empty($p['fromLid']) || substr($jid, -4) === '@lid';
@@ -156,10 +161,19 @@ class WaAsistan
             return ['tip' => 'haric'];
         }
 
-        $id = DB::table('wa_asistan_gelen')->insertGetId([
+        $gorselId = null;
+        if ($resim !== '' && WaAsistanVeri::semaGaranti()) {
+            try { $gorselId = WaGorselDanisman::fotografKaydet($salonId, $anahtar, $resim); }
+            catch (\Throwable $e) { Log::warning('[WA-GORSEL] fotograf kaydedilemedi: ' . $e->getMessage()); }
+            if (!$gorselId && $metin === '') return ['tip' => 'gorsel_gecersiz'];
+        }
+        $satir = [
             'salon_id' => $salonId, 'anahtar' => $anahtar, 'jid' => $jid ?: null, 'telefon' => $tel,
-            'ad' => mb_substr((string) ($p['pushName'] ?? ''), 0, 100) ?: null, 'metin' => $metin, 'created_at' => now(),
-        ]);
+            'ad' => mb_substr((string) ($p['pushName'] ?? ''), 0, 100) ?: null, 'metin' => $gorselId ? trim('[fotoğraf] ' . $metin) : $metin,
+            'created_at' => now(),
+        ];
+        if ($gorselId) $satir['gorsel_id'] = $gorselId;
+        $id = DB::table('wa_asistan_gelen')->insertGetId($satir);
         app()->terminating(function () use ($salonId, $anahtar, $id) {
             try { self::isle($salonId, $anahtar, $id); }
             catch (\Throwable $e) { Log::error('[WA-ASISTAN] isleme hatasi: ' . $e->getMessage(), ['salon' => $salonId, 'anahtar' => $anahtar]); }
@@ -203,7 +217,9 @@ class WaAsistan
         $taze = $o->son_mesaj_at && strtotime($o->son_mesaj_at) >= time() - $dk * 60;
         $sessiz = $o->sessiz_bitis && strtotime($o->sessiz_bitis) > time();
         $insan = $o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - max(1, (int) self::ayar('insan_esik_dk', 10)) * 60;
-        if ($taze || $sessiz || $insan) return $o;
+        // Geri kazanma mesaji gonderilmis sohbet: musteri 2 gun icinde cevap verirse ayni sohbette devam (baglam: onerilen saatler)
+        $gk = !empty($o->geri_kazanim_id) && $o->son_mesaj_at && strtotime($o->son_mesaj_at) >= time() - 48 * 3600;
+        if ($taze || $sessiz || $insan || $gk) return $o;
         DB::table('wa_asistan_oturumlari')->where('id', $o->id)->update(['durum' => 'kapandi', 'updated_at' => now()]);
         return null;
     }
@@ -227,6 +243,7 @@ class WaAsistan
             ->whereNull('islem')->where('id', '>', $gelenId)->exists();
         if ($yeniVar) return;
 
+        WaAsistanVeri::semaGaranti(); // ek kolonlar (isaretler, memnuniyet, geri kazanma) + cevap kaydi tablosu
         $ilk = DB::table('wa_asistan_gelen')->where('id', $gelenId)->first();
         $o = self::aktifOturum($salonId, $anahtar)
             ?: self::yeniOturum($salonId, $anahtar, $ilk->jid ?? null, $ilk->telefon ?? null, $ilk->ad ?? null);
@@ -330,23 +347,68 @@ class WaAsistan
             return;
         }
 
+        // 7) PAKET BITTI (Sistem Yonetimi > WhatsApp Asistan Paketleri; asimda durdur): ay sonuna kadar cevap yok
+        if (WaPaket::kapali((int) $o->salon_id)) {
+            $sus('paket_bitti');
+            return;
+        }
+
         $salon = Salonlar::find($o->salon_id);
         if (!$salon) return;
 
         // ---- cevap
         $selam = null; $d = null; $cevap = '';
+        $kaynak = 'kod';           // wa_asistan_cevaplar.kaynak (rapor); 'ai' = Claude cagrildi (paketten duser)
+        $ekUsd = 0.0;              // Claude disi AI maliyeti (gorsel analiz)
+        $baglamEk = '';            // gecmise gizli not (gorsel analiz)
         $hatirlatma = null;
         if (empty($gecmis) && $tel && ($hatirlatma = self::sonHatirlatma($oturumSalonlari, $tel))) {
             // WhatsApp hatirlatmasina cevap: hatirlatmanin salonu asistanin salonu olur (paylasilan hat)
             $upd['isletme_id'] = $hatirlatma['salon_id'];
             $o->isletme_id = $hatirlatma['salon_id'];
         }
+        $ayar = WaAsistanVeri::ayarlar((int) $o->isletme_id);
         $as = new RandevuAsistan((int) $o->isletme_id, $o->musteri_tel ?: $tel, 'whatsapp');
-        if ($hatirlatma && ($meta = $as->waHatirlatmaMeta($hatirlatma['randevu_id']))) {
+        $as->waFiyatSoyle = !empty($ayar['fiyat_soyle']);
+        $musteriMesajVar = (bool) array_filter($gecmis, function ($m) { return ($m['role'] ?? '') === 'user'; });
+        $gorselId = (int) ($satirlar->pluck('gorsel_id')->filter()->last() ?: 0);
+        $gkCevap = (!empty($o->geri_kazanim_id) && !$musteriMesajVar) ? WaGeriKazanim::cevapGeldi((int) $o->geri_kazanim_id, $metin) : null;
+        $on = null;
+
+        if ($gkCevap !== null) {
+            $cevap = $gkCevap; $kaynak = 'geri_kazanim';
+        } elseif ($gorselId) {
+            // MODEL FOTOGRAFI -> ozellik analizi + isletme kurallariyla fiyat (AI fiyat uydurmaz)
+            $yazi = trim(preg_replace('/\[fotoğraf\]\s*/u', '', $metin));
+            $g = WaGorselDanisman::isle($gorselId, (int) $o->isletme_id, (int) $o->id, $as->hizmetler(), $yazi);
+            $ekUsd = (float) $g['maliyet_usd'];
+            $kaynak = $g['ai'] ? 'gorsel' : 'gorsel_onbellek';
+            $upd['gorsel_sayisi'] = DB::raw('gorsel_sayisi + 1');
+            if (!empty($g['hizmet']['id'])) { $upd['son_hizmet_id'] = (int) $g['hizmet']['id']; $upd['son_hizmet_ad'] = $g['hizmet']['ad']; }
+            if ($g['durum'] === 'fiyat') $upd['fiyat_verildi'] = 1;
+            $baglamEk = (string) $g['baglam'];
+            if ($g['aksiyon'] === 'aktar') {
+                $d = ['cevap' => 'model fiyat', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false]; // asagidaki aktarma akisi
+                $metin = trim($metin . ' ' . ($g['tarif'] ?? ''));
+            } else {
+                $cevap = $g['cevap'];
+                if (empty($gecmis) && $as->taninanMusteri()) $cevap = $as->waSelam() . ' ' . $cevap;
+            }
+        } elseif ($hatirlatma && ($meta = $as->waHatirlatmaMeta($hatirlatma['randevu_id']))) {
             $gecmis[] = ['role' => 'assistant', 'content' => $hatirlatma['mesaj'], 'hatirlatma' => $meta];
             $d = $as->konus($metin, $gecmis);
         } elseif (empty($gecmis) && (self::selamMi($metin) || !$as->taninanMusteri())) {
             $cevap = $as->waKarsilama(); // kayitsiz musteri: once ad soyad (isteği gecmiste kalir, kayittan sonra devam)
+            $kaynak = 'karsilama';
+        } elseif ($on = WaBedavaKatman::onCevap((int) $o->isletme_id, $as, $metin, $gecmis, $o, $ayar)) {
+            // BEDAVA KATMAN: fiyat / SSS / hizmet bilgisi / ogrenilen / tesekkur (Claude'a gitmez, paketten dusmez)
+            $cevap = (string) $on['cevap'];
+            $kaynak = (string) $on['kaynak'];
+            if ($cevap !== '' && empty($gecmis)) $cevap = $as->waSelam() . ' ' . $cevap;
+            if (!empty($on['hizmet']['id'])) { $upd['son_hizmet_id'] = (int) $on['hizmet']['id']; $upd['son_hizmet_ad'] = $on['hizmet']['ad']; }
+            if (!empty($on['isaret']['fiyat'])) $upd['fiyat_verildi'] = 1;
+            if (!empty($on['isaret']['bilgi'])) $upd['bilgi_verildi'] = 1;
+            if (isset($on['memnuniyet'])) $upd['memnuniyet'] = (int) $on['memnuniyet'];
         } elseif (empty($gecmis)) {
             $selam = $as->waSelam();
             $d = $as->konus($metin, []);
@@ -373,21 +435,36 @@ class WaAsistan
             if (!empty($d['bitir'])) $upd['durum'] = 'kapandi';
             if (in_array($aksiyon, ['randevu', 'iptal', 'guncelle', 'aktar', 'teyit', 'odeme'], true)) $upd['sonuc'] = $aksiyon;
             if (!empty($d['veri']['randevu_id'])) $upd['randevu_id'] = (int) $d['veri']['randevu_id'];
+            if (($as->kullanim['cagri'] ?? 0) > 0) $kaynak = 'ai';
+            elseif (!$gorselId) $kaynak = 'kod';
+            self::isaretler($upd, $metin, $d, $as, $aksiyon);
+            // OGRENEN ONBELLEK: baglamsiz bilgi sorusuna AI'nin tek cagrili, aracsiz cevabi -> bu isletmede sonra bedava
+            if ($kaynak === 'ai' && WaBedavaKatman::cevapOgrenilebilir($metin, $d, $as->kullanim, $as->taninanMusteri())) {
+                WaBedavaKatman::ogren((int) $o->isletme_id, $metin, $cevap);
+            }
         }
         if ($as->yeniTelefon) $upd['musteri_tel'] = $as->yeniTelefon;
+        // Musteri acikca vazgecti: bu sohbet icin geri kazanma mesaji gitmesin
+        if (preg_match('/\b(istemiyorum|vazgeçtim|vazgectim|ilgilenmiyorum|gerek yok)\b/iu', $metin)) $upd['ret'] = 1;
+        // Randevudan sonra tek seferlik memnuniyet sorusu (cevap bedava katmanda kaydedilir)
+        if ($aksiyon === 'randevu' && !empty($ayar['memnuniyet_sor']) && empty($o->memnuniyet_soruldu) && $cevap !== '') {
+            $cevap .= "\n\nYazışmamızdan memnun kaldıysanız 👍, kalmadıysanız 👎 gönderebilirsiniz.";
+            $upd['memnuniyet_soruldu'] = 1;
+        }
 
         // Maliyet (Claude token) -> oturum + AI kullanim kaydi
         $k = $as->kullanim;
+        $usd = 0.0;
         if (($k['cagri'] ?? 0) > 0) {
             $usd = SantralPaket::claudeMaliyetUsd($k);
             $upd['girdi_token'] = DB::raw('girdi_token + ' . (int) $k['girdi']);
             $upd['cikti_token'] = DB::raw('cikti_token + ' . (int) $k['cikti']);
             $upd['cache_okuma_token'] = DB::raw('cache_okuma_token + ' . (int) $k['cache_okuma']);
             $upd['cache_yazma_token'] = DB::raw('cache_yazma_token + ' . (int) $k['cache_yazma']);
-            $upd['maliyet_usd'] = DB::raw('maliyet_usd + ' . sprintf('%.6F', $usd));
             AiKullanimLog::yaz((int) $o->isletme_id, 'wa_asistan', (int) $k['girdi'], (int) $k['cikti'],
                 (string) (config('services.anthropic.santral_model') ?: 'claude-haiku-5-5'), false, true, $usd);
         }
+        if ($usd + $ekUsd > 0) $upd['maliyet_usd'] = DB::raw('maliyet_usd + ' . sprintf('%.6F', $usd + $ekUsd));
 
         $gecmis[] = ['role' => 'user', 'content' => $metin];
         $gonderildi = false;
@@ -399,7 +476,8 @@ class WaAsistan
         // Musteri gormediyse cevap gecmise yazilmaz (islem yapildiysa yazilir: model bilsin)
         if ($gonderildi || in_array($aksiyon, ['randevu', 'iptal', 'guncelle', 'teyit', 'odeme'], true)) {
             $asistanMsj = ['role' => 'assistant', 'content' => $cevap];
-            if ($d && !empty($d['baglam'])) $asistanMsj['baglam'] = $d['baglam'];
+            $b = trim(($d && !empty($d['baglam']) ? $d['baglam'] : '') . ($baglamEk !== '' ? ' ' . $baglamEk : ''));
+            if ($b !== '') $asistanMsj['baglam'] = $b;
             $gecmis[] = $asistanMsj;
         }
         if ($gonderildi) {
@@ -408,8 +486,41 @@ class WaAsistan
             $upd['cevap_sayisi'] = DB::raw('cevap_sayisi + 1');
         }
         $kaydet($gecmis);
+        // OLCUM: gonderilen her cevap (kaynak, AI mi, cevap suresi, mesai disi, randevu) -> "Kazandirdiklari" + paket sayaci
+        $yapayZeka = $kaynak === 'ai' || $kaynak === 'gorsel';
+        if ($gonderildi || ($yapayZeka && in_array($aksiyon, ['randevu', 'iptal', 'guncelle', 'teyit', 'odeme'], true))) {
+            $ilkAn = strtotime((string) ($satirlar->first()->created_at ?? '')) ?: time();
+            WaAsistanVeri::cevapKaydet([
+                'salon_id' => (int) $o->salon_id, 'isletme_id' => (int) $o->isletme_id, 'oturum_id' => (int) $o->id,
+                'kaynak' => $kaynak, 'ai' => $yapayZeka, 'sure_sn' => time() - $ilkAn, 'aksiyon' => $aksiyon,
+                'randevu_id' => !empty($d['veri']['randevu_id']) ? (int) $d['veri']['randevu_id'] : null, 'maliyet_usd' => $usd + $ekUsd,
+            ]);
+            if ($yapayZeka) WaPaket::esikKontrol((int) $o->salon_id);
+        }
         Log::info('[WA-ASISTAN] tur', ['oturum' => $o->id, 'salon' => $o->isletme_id, 'metin' => $metin, 'cevap' => $cevap,
-            'aksiyon' => $aksiyon, 'teshis' => $as->teshis, 'gonderildi' => $gonderildi]);
+            'aksiyon' => $aksiyon, 'kaynak' => $kaynak, 'teshis' => $as->teshis, 'gonderildi' => $gonderildi]);
+    }
+
+    /**
+     * AI turundan geri kazanma / rapor isaretleri: fiyat verildi, musait saat onerildi, bilgi verildi, son konusulan hizmet.
+     * Hizmet: arac baglamindaki hizmet_id ya da mesajda gecen hizmet adi.
+     */
+    protected static function isaretler(array &$upd, string $metin, array $d, RandevuAsistan $as, ?string $aksiyon): void
+    {
+        $baglam = is_array($d['baglam'] ?? null) ? implode(' ', $d['baglam']) : (string) ($d['baglam'] ?? '');
+        if ($aksiyon !== 'aktar' && $as->waFiyatSoyle && WaBedavaKatman::fiyatSorusuMu($metin) && preg_match('/\d[\d.,]*\s*(TL|₺)/u', (string) ($d['cevap'] ?? ''))) {
+            $upd['fiyat_verildi'] = 1;
+        }
+        if (strpos($baglam, 'musait_saatler') !== false) $upd['saat_onerildi'] = 1;
+        if (!$aksiyon && WaBedavaKatman::bilgiSorusuMu($metin)) $upd['bilgi_verildi'] = 1;
+        $hizmetler = $as->hizmetler();
+        $hid = preg_match('/hizmet_id=(\d+)/', $baglam, $m) ? (int) $m[1] : null;
+        if (!$hid && ($b = WaBedavaKatman::hizmetBul($metin, $hizmetler))) $hid = (int) $b[0]['id'];
+        if ($hid) {
+            foreach ($hizmetler as $h) {
+                if ((int) $h['id'] === $hid) { $upd['son_hizmet_id'] = $hid; $upd['son_hizmet_ad'] = mb_substr((string) $h['ad'], 0, 150); break; }
+            }
+        }
     }
 
     // ------------------------------------------------------------------ yardimcilar

@@ -2303,6 +2303,16 @@
                      <span class="mtext">WhatsApp Yönetimi</span>
                      </a>
                   </li>
+                  {{-- 19b) WhatsApp Asistanı (AI) — yalniz asistani acik isletmeler --}}
+                  @php try { $_waAsistanAcik = \App\Services\WaAsistan::acikMi((int) $isletme->id); } catch (\Throwable $e) { $_waAsistanAcik = false; } @endphp
+                  @if($_waAsistanAcik)
+                  <li>
+                     <a href="/isletmeyonetim/whatsapp-asistan{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow {{ $pageindex==652 ? 'active' : '' }}">
+                     <span class="micon bi bi-robot" style="color:#25D366;"></span>
+                     <span class="mtext">WhatsApp Asistanı</span>
+                     </a>
+                  </li>
+                  @endif
                   @endif
                   @endif
 

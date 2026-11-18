@@ -51,6 +51,8 @@ class RandevuAsistan
     protected AiAsistanController $ctrl;
     /** 'santral' (sesli, varsayilan) | 'whatsapp' (yazili: WaAsistan). Santral akisi kanal verilmezse birebir ayni. */
     protected string $kanal = 'santral';
+    /** Yalniz WhatsApp: isletme ayari "fiyat söylensin" acik -> fiyat sorusu aktarilmaz, liste fiyati soylenir (WaAsistan atar). */
+    public bool $waFiyatSoyle = false;
 
     public function __construct(int $salonId, ?string $telefon = null, string $kanal = 'santral')
     {
@@ -320,7 +322,7 @@ class RandevuAsistan
         }
         // KESIN AKTARMA: "beni işletmeye/yetkiliye bağlar mısın", "operatör", "biriyle görüşmek istiyorum" ->
         // LLM'e sormadan aktar (STT "işletmeye"yi "genişletme" duysa bile "bağlar mısın" yakalanir).
-        $fiyatSorusu = !$this->aktarmaIstegiMi($metin) && $this->fiyatSorusuMu($metin);
+        $fiyatSorusu = !$this->waFiyatAcik() && !$this->aktarmaIstegiMi($metin) && $this->fiyatSorusuMu($metin);
         if ($fiyatSorusu || $this->aktarmaIstegiMi($metin)) {
             Log::info('[SANTRAL-TUR] kesin aktarma', ['salon' => $this->salonId, 'metin' => $metin, 'fiyat' => $fiyatSorusu]);
             $this->teshis = 'aktar';
@@ -1710,8 +1712,11 @@ class RandevuAsistan
         $hizmetSatir = '';
         foreach (array_slice($this->salon['hizmetler'] ?? [], 0, 40) as $h) {
             // Fiyat BILEREK verilmez: fiyat sorulari isletmeye aktarilir (isletme talebi). Sure verilir.
+            // Istisna: WhatsApp + isletme "fiyat söylensin" dedi -> liste fiyati da yazilir (waPromptBolumu kurali).
             $sure = (int) ($h['sure_dk'] ?? 0);
-            $hizmetSatir .= '- ' . ($h['ad'] ?? '') . ($sure > 0 ? " (yaklaşık {$sure} dk)" : '') . "\n";
+            $fiyat = $this->waFiyatAcik() ? (float) ($h['fiyat'] ?? 0) : 0;
+            $hizmetSatir .= '- ' . ($h['ad'] ?? '') . ($sure > 0 ? " (yaklaşık {$sure} dk)" : '')
+                . ($fiyat > 0 ? ' – ' . number_format($fiyat, 0, ',', '.') . ' TL' : '') . "\n";
         }
         if ($hizmetSatir === '') $hizmetSatir = "(hizmet listesi boş — müşteriyi operatöre aktar)\n";
 
@@ -1859,8 +1864,52 @@ Bu bir telefon görüşmesi DEĞİL; müşteri WhatsApp'tan yazıyor ve cevabın
 - Yazım hatalı/kısaltmalı mesajları (ör. "yarn 3te", "sac kesimi") anlamaya çalış; gerçekten anlaşılmıyorsa kısaca ne istediğini sor.
 - Müşteri sesli mesaj/fotoğraf gönderdiğini söylerse yalnız yazılı mesajları okuyabildiğini belirt.
 - Geçmişte "[SİSTEM — bu mesajı işletme personeli elle yazdı]" notlu mesajlar işletme personelinindir; onların verdiği bilgi ve sözlerle çelişme.
+- Geçmişte "[SİSTEM görsel ...]" notlu mesaj müşterinin gönderdiği model fotoğrafının analizidir: hizmet_id oradaysa randevuya o hizmetle devam et.
 
-WA;
+WA
+            . ($this->waFiyatAcik() ? <<<FIYAT
+- FİYAT (aşağıdaki AKTARMA kuralının yerine geçer): müşteri fiyat sorarsa Hizmetler listesindeki fiyatı AYNEN yaz (ör. "Protez Tırnak 800 TL"); bunun için AKTARMA YAPMA. Listede fiyatı yazmayan hizmet, indirim/pazarlık ya da kişiye özel fiyat istenirse "aktar". Fiyat UYDURMA, liste dışı fiyat söyleme. Fiyattan sonra randevu oluşturmayı teklif et.
+
+FIYAT
+            : '');
+    }
+
+    /** WhatsApp kanalinda ve isletme fiyat soylenmesine izin verdiyse true (santralde her zaman false). */
+    protected function waFiyatAcik(): bool
+    {
+        return $this->kanal === 'whatsapp' && $this->waFiyatSoyle;
+    }
+
+    /** Salonun hizmetleri [['id','ad','fiyat','sure_dk','kategori'], ...] (WaBedavaKatman / gorsel danisman icin). */
+    public function hizmetler(): array
+    {
+        return array_values(array_filter($this->salon['hizmetler'] ?? [], function ($h) { return trim((string) ($h['ad'] ?? '')) !== ''; }));
+    }
+
+    public function fiyatSorusu(string $m): bool
+    {
+        return $this->fiyatSorusuMu($m);
+    }
+
+    /** Isletmenin kendi SSS cevabi (WhatsApp bedava katmani, ortak kaliptan ONCE bakar). */
+    public function sssCevabi(string $m): ?string
+    {
+        return $this->sssCevap($m);
+    }
+
+    /**
+     * Geri kazanma mesaji icin hizmetin en yakin 2 bos saati (yarindan itibaren, mesai saatinde). Hata/bos -> [].
+     * Donus: [['tarih','gun','saat','personel_id','personel'], ...]
+     */
+    public function geriKazanimSecenekleri(int $hizmetId): array
+    {
+        try {
+            $r = $this->musaitSaatlerPersonelli(['hizmet_id' => $hizmetId, 'tarih' => date('Y-m-d', strtotime('+1 day'))]);
+        } catch (\Throwable $e) {
+            Log::warning('[WA-GERI-KAZANIM] musait saat alinamadi: ' . $e->getMessage(), ['salon' => $this->salonId, 'hizmet' => $hizmetId]);
+            return [];
+        }
+        return (!empty($r['ok']) && !empty($r['secenekler'])) ? array_slice($r['secenekler'], 0, 2) : [];
     }
 
     /** Bugün + 14 gün: "GünAdı DD Ay = YYYY-MM-DD" (İstanbul, deterministik). */
