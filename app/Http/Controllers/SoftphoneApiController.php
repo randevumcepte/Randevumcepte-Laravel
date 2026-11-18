@@ -121,7 +121,9 @@ class SoftphoneApiController extends Controller
             ->where('dahili', $dahili)
             ->where('updated_at', '>', date('Y-m-d H:i:s', strtotime('-60 days')))
             ->select('token', 'bundle', 'platform')->get();
-        return response()->json(['ok' => true, 'hedefler' => $hedefler]);
+        // Arayan kayitli musteriyse adi (CallKit/iOS push ve Dial callerid adi icin).
+        $arayan = $this->musteriAdi((string) $request->input('numara'), $dahili);
+        return response()->json(['ok' => true, 'hedefler' => $hedefler, 'arayan' => $arayan]);
     }
 
     /** Santral bekleme dongusu: uygulama "hazir"/"red" dedi mi? */
@@ -172,6 +174,11 @@ class SoftphoneApiController extends Controller
             'numara' => substr((string) $request->input('numara'), 0, 40),
             'arayan' => substr((string) $request->input('arayan'), 0, 80),
         ];
+        // Kayitli musteri adi santralin gonderdigi callerid adindan onceliklidir.
+        $musteri = $this->musteriAdi($veri['numara'], $dahili);
+        if ($musteri !== '') {
+            $veri['arayan'] = substr($musteri, 0, 80);
+        }
         $gonderilen = 0;
         $sonuclar = [];
         foreach ($satirlar as $r) {
@@ -213,6 +220,41 @@ class SoftphoneApiController extends Controller
     }
 
     // ------------------------------------------------------------------
+
+    /**
+     * Arayan numara, dahilinin calistigi salon(lar)da kayitli musteriyse adi;
+     * degilse ''. Numara son 10 hane ile eslesir (0532.., 90532.., +90532..).
+     */
+    private function musteriAdi($numara, $dahili)
+    {
+        $hane = preg_replace('/[^0-9]/', '', (string) $numara);
+        if (strlen($hane) < 10) {
+            return '';
+        }
+        $son10 = substr($hane, -10);
+        try {
+            return (string) Cache::remember('sp_musteri_adi_' . $dahili . '_' . $son10, 5, function () use ($dahili, $son10) {
+                $salonlar = DB::table('softphone_voip_tokenlar')->where('dahili', $dahili)
+                    ->whereNotNull('salon_id')->distinct()->pluck('salon_id')->all();
+                if (!$salonlar) {
+                    $salonlar = Personeller::where('dahili_no_webrtc', $dahili)->pluck('salon_id')->all();
+                }
+                if (!$salonlar) {
+                    return '';
+                }
+                $ad = DB::table('musteri_portfoy')
+                    ->join('users', 'musteri_portfoy.user_id', '=', 'users.id')
+                    ->whereIn('musteri_portfoy.salon_id', $salonlar)
+                    ->where('users.cep_telefon', 'like', '%' . $son10)
+                    ->orderBy('musteri_portfoy.id', 'desc')
+                    ->value('users.name');
+                return trim((string) $ad);
+            });
+        } catch (\Throwable $e) {
+            Log::warning('softphone musteri adi cozulemedi', ['hata' => $e->getMessage()]);
+            return '';
+        }
+    }
 
     /** iOS hex, Android FCM token (harf/rakam : _ -). */
     private function tokenTemizle($t)
