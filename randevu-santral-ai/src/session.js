@@ -76,7 +76,9 @@ function sadeMetin(s) {
 }
 
 class CagriOturumu {
-  constructor({ kanalId, telefon, subeId, rtpPort, onAktar, onBitir, geriAramaOturum, hatirlatma }) {
+  constructor({ kanalId, telefon, subeId, rtpPort, onAktar, onBitir, geriAramaOturum, hatirlatma, baslatP }) {
+    this.baslatP = baslatP || null; // index.js hat kurulurken baslatti (karsilama TTS'i de uretiliyor)
+    this._onKaynak = null;           // on-seslendirilen karsilama parcalari: metin -> Promise<kaynak> (maliyet dogru sayilsin)
     this.kanalId = kanalId;
     this.telefon = telefon || null;
     this.subeId = subeId || cfg.laravel.defaultSubeId;
@@ -136,7 +138,15 @@ class CagriOturumu {
 
   async basla() {
     try {
-      const d = await brain.baslat(this.subeId, this.telefon, 'santral', this.geriAramaOturum, this.hatirlatma);
+      let d;
+      if (this.baslatP) {
+        const r = await this.baslatP;
+        if (r.e) throw r.e;
+        d = r.d;
+        this._onKaynak = r.onKaynak || null;
+      } else {
+        d = await brain.baslat(this.subeId, this.telefon, 'santral', this.geriAramaOturum, this.hatirlatma);
+      }
       this.oturumId = d.oturum_id;
       if (d.tts_ses) this.ttsSes = String(d.tts_ses);
       // Salonun hizmet adlari -> STT ipucu (karsilama calarken akis yeni config ile yeniden acilir)
@@ -491,6 +501,8 @@ class CagriOturumu {
   async _tts(c) {
     const opt = { ses: this.ttsSes, olcum: this.olcum };
     const ses = await tts.seslendir(c, opt);
+    // Karsilama parcasi hat kurulurken on-seslendirildiyse ucreti o uretimindir ('yeni'), burada 'onbellek' gorunur
+    if (this._onKaynak && this._onKaynak[c]) { const k = await this._onKaynak[c]; delete this._onKaynak[c]; if (k) opt.kaynak = k; }
     return { ses, kaynak: ses && ses.length ? (opt.kaynak || 'yeni') : null };
   }
 

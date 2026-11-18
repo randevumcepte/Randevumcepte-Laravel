@@ -270,6 +270,22 @@ async function cagriBasla(channel, event, opts = {}) {
   let yarimBridge = null, yarimExt = null; // kurulum yarida kalirsa temizlenecekler
   try {
     if (aktif.has(channel.id)) { log.warn('cift StasisStart, atlandi: ' + channel.id); portBirak(port); return; }
+    // HIZLI KARSILAMA: Laravel baslat + karsilama seslendirmesi hat kurulumuyla AYNI ANDA baslar. Eskiden hepsi
+    // sirayla (answer -> bridge -> externalMedia -> kayit -> baslat -> TTS) yapiliyordu: telefon acildiktan sonra
+    // ~5 sn yalniz ofis sesi geliyordu (2026-11-19 isletme sikayeti).
+    const t0 = Date.now();
+    const baslatP = brain.baslat(subeId, telefon, 'santral', opts.geriAramaOturum || 0, opts.hatirlatma || '').then((d) => {
+      log.info(`  (baslat ${Date.now() - t0} ms)`);
+      const onKaynak = {};
+      if (d && d.karsilama) {
+        // karsilama parcalarini simdiden seslendir (oturum ayni parcalari istediginde hazir/uretilmekte olur)
+        for (const c of CagriOturumu.prototype._cumlelereBol(d.karsilama)) {
+          const opt = { ses: d.tts_ses };
+          onKaynak[c] = tts.seslendir(c, opt).then(() => opt.kaynak, () => null);
+        }
+      }
+      return { d, onKaynak };
+    }, (e) => ({ e }));
     await channel.answer();
 
     adim = 'bridge.create';
@@ -303,6 +319,7 @@ async function cagriBasla(channel, event, opts = {}) {
       rtpPort: port,
       geriAramaOturum: opts.geriAramaOturum || 0, // >0: yarida kalan oturumla devam
       hatirlatma: opts.hatirlatma || '',          // giden hatirlatma aramasi hedefi (randevu:ID | alacak:ID-ID)
+      baslatP,                                     // hat kurulurken baslamis Laravel baslat (+ karsilama TTS)
       onAktar: (kid) => insanaAktar(kid, subeId),
       // Veda sonrasi kapatma. Hata ESKIDEN sessizce yutuluyordu: hat acik kaliyor, temizle hic calismadigi
       // icin ses kaydi da yuklenmiyordu (canli 2026-11-18 22:59). Simdi loglanir, 1 sn sonra tekrar denenir
