@@ -735,8 +735,8 @@ namespace {
     esit('WA: ilk yapay tur', "(müşteri WhatsApp'tan yazdı)", cagir($wa, 'gecmisMesajlari', [['role' => 'assistant', 'content' => 'Merhaba']])[0]['content']);
     esit('santral: ilk yapay tur', '(arama bağlandı)', cagir(asistan(), 'gecmisMesajlari', [['role' => 'assistant', 'content' => 'Merhaba']])[0]['content']);
     icerir('WA: personel mesajı modele işaretli', 'işletme personeli elle yazdı', cagir($wa, 'gecmisMesajlari', [['role' => 'user', 'content' => 'x'], ['role' => 'assistant', 'content' => 'Ben bakarım', 'personel' => 1]])[1]['content']);
-    icerir('WA karşılama: kayıtlı müşteri hitap', 'Merhaba Anıl Bey, Randevumcepte WhatsApp hattına hoş geldiniz', $wa->waKarsilama());
-    icerir('WA karşılama: kayıtsız → ad soyad', 'adınızı ve soyadınızı yazar mısınız?', asistan(['kanal' => 'whatsapp', 'musteriAd' => null, 'musteriId' => null])->waKarsilama());
+    icerir('WA karşılama: kayıtlı müşteri hitap', 'Merhaba Anıl Bey, tekrar hoş geldiniz', $wa->waKarsilama());
+    icerir('WA karşılama: kayıtsız → ad soyad', 'Başlamadan önce adınızı ve soyadınızı öğrenebilir miyim?', asistan(['kanal' => 'whatsapp', 'musteriAd' => null, 'musteriId' => null])->waKarsilama());
     icerir('WA karşılama: gizli numara → telefon da', 'cep telefonu numaranızı', asistan(['kanal' => 'whatsapp', 'musteriAd' => null, 'musteriId' => null, 'telefon' => null])->waKarsilama());
     esit('WA selam: hitaplı', 'Merhaba Anıl Bey.', $wa->waSelam());
     esit('WA selam: cinsiyet yok', 'Merhaba, Sayın Aksel Kaya.', asistan(['kanal' => 'whatsapp', 'musteriAd' => 'Aksel Kaya'])->waSelam());

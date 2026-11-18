@@ -110,12 +110,14 @@ class RandevuAsistan
         $salon = $this->salonAdi();
         if ($this->musteriAd) {
             $k = $this->kampanyaTeklifCumlesi();
-            return "{$this->acilisHitap($this->musteriAd)}, {$salon} WhatsApp hattına hoş geldiniz. Ben yapay zeka asistanınızım; randevu alma, değiştirme ve iptal işlemlerinizde yardımcı olabilirim."
+            // Salon adina ek (-e/-ye, -in/-nin) getirilmez: ek ada gore degisir, cumle eksiz kurulur
+            return "{$this->acilisHitap($this->musteriAd)}, tekrar hoş geldiniz 😊\n\n{$salon} randevu asistanı olarak randevu almak, değiştirmek ya da iptal etmek için size buradan yardımcı olabilirim."
                 . ($k !== '' ? "\n\n{$k}" : '') . "\n\nSize nasıl yardımcı olabilirim?";
         }
-        return "Merhaba, {$salon} WhatsApp hattına hoş geldiniz. Ben yapay zeka asistanınızım. Size yardımcı olabilmem için "
-            . ($this->telNorm($this->telefon) ? 'adınızı ve soyadınızı' : 'adınızı, soyadınızı ve cep telefonu numaranızı')
-            . ' yazar mısınız?';
+        return "Merhaba, hoş geldiniz 😊\n\nBen {$salon} sanal asistanıyım. Randevu almak, randevunuzu değiştirmek ya da hizmetlerimiz hakkında bilgi almak için bana buradan yazabilirsiniz.\n\n"
+            . ($this->telNorm($this->telefon)
+                ? 'Başlamadan önce adınızı ve soyadınızı öğrenebilir miyim?'
+                : 'Başlamadan önce adınızı, soyadınızı ve size ulaşabileceğimiz cep telefonu numaranızı öğrenebilir miyim?');
     }
 
     /** Kayitli musteri dogrudan istegini yazdiysa cevabin basina konan kisa selam. */
