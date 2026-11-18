@@ -347,6 +347,14 @@ async function bridgeKanalEkleRetry(bridge, chanId, deneme = 10, bekleMs = 100) 
 async function insanaAktar(kanalId, subeId) {
   const kayit = aktif.get(kanalId);
   if (!kayit) return;
+  // Oturum aktarmayi ayni turda birden fazla yerden tetikleyebiliyor. Ikinci
+  // cagri kuyrugu IKINCI kez arar: iki bacak ayni bridge'e girer, birinin
+  // calma sesi gorusme boyunca duyulur, temizlikte digeri unutulur. Tek sefer.
+  if (kayit.aktarmaBasladi) {
+    log.info(`insana aktar: kanal=${kanalId} zaten aktariliyor, tekrar yok sayildi`);
+    return;
+  }
+  kayit.aktarmaBasladi = true;
   log.info(`insana aktar: kanal=${kanalId}`);
 
   const h = await brain.aktarmaHedef(subeId);
@@ -492,9 +500,9 @@ async function temizle(kanalId, sonuc) {
   aktif.delete(kanalId);
   // Aktif ses kaydini kapat+yukle (bridge destroy'dan ONCE; ai veya aktarma fazi)
   await sesKayitBitir(kayit);
-  if (kayit.hedefAdaylar) {
-    for (const cid of kayit.hedefAdaylar) { try { await client.Channel(cid).hangup(); } catch (_) {} }
-  }
+  const kapatilacak = new Set(kayit.hedefAdaylar || []);
+  if (kayit.hedefChanId) kapatilacak.add(kayit.hedefChanId);
+  for (const cid of kapatilacak) { try { await client.Channel(cid).hangup(); } catch (_) {} }
   try { if (kayit.oturum) await kayit.oturum.kapat(sonuc); } catch (_) {}
   // AI ses bacagi (externalMedia/UnicastRTP) da KAPATILMALI: eskiden yalniz bridge yok ediliyordu, bacak
   // Asterisk'te asili kaliyordu (2026-11-17 sunucuda 22 sahipsiz UnicastRTP kanali birikmisti).
