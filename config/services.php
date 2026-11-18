@@ -73,6 +73,7 @@ return [
         'tts_sesler' => [
             'tr-TR-Wavenet-E'       => ['ad' => 'WaveNet E (standart)', 'usd_m' => (float) env('SANTRAL_TTS_WAVENET_USD_M', 4.0)],
             'tr-TR-Chirp3-HD-Kore'  => ['ad' => 'Chirp3-HD Kore (premium)', 'usd_m' => (float) env('SANTRAL_TTS_CHIRP3_USD_M', 30.0)],
+            'tr-TR-Chirp3-HD-Achernar' => ['ad' => 'Chirp3-HD Achernar · kadın (premium, en doğal)', 'usd_m' => (float) env('SANTRAL_TTS_CHIRP3_USD_M', 30.0)],
         ],
         'stt_oran'    => env('SANTRAL_STT_ORAN', 0.52),   // STT'nin ucretlenen kismi (kopru AI konusurken akisi kapatir); kapaliysa 1
         // Arac sonucu belirliyse cumleyi kod kurar, son Claude cagrisi atlanir (gecikme). 0 = kapali.

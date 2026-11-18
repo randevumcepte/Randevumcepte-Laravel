@@ -40,7 +40,7 @@ const cfg = {
     voice: process.env.TTS_VOICE || 'tr-TR-Wavenet-E', // varsayilan; isletmenin sesi Laravel'den (paket ayari) gelir
     // Acilista kalip cumleleri onbellege alinacak sesler (Laravel config santral_ai.tts_sesler ile ayni liste)
     sesler: Array.from(new Set([process.env.TTS_VOICE || 'tr-TR-Wavenet-E'].concat(
-      (process.env.TTS_SESLER || 'tr-TR-Wavenet-E,tr-TR-Chirp3-HD-Kore').split(',').map((x) => x.trim()).filter(Boolean)))),
+      (process.env.TTS_SESLER || 'tr-TR-Wavenet-E,tr-TR-Chirp3-HD-Kore,tr-TR-Chirp3-HD-Achernar').split(',').map((x) => x.trim()).filter(Boolean)))),
     speakingRate: parseFloat(process.env.TTS_SPEAKING_RATE || '1.05'),
     profil: process.env.TTS_PROFIL !== undefined ? process.env.TTS_PROFIL : 'telephony-class-application',
     // Saglayici: 'google' (varsayilan) | 'elevenlabs'. ElevenLabs hata verirse o cumle Google ile okunur.
