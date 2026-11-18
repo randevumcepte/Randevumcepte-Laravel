@@ -23,6 +23,14 @@
 .wsi-badge.fail { background:#f8d7da; color:#721c24; }
 .wsi-badge.fallback { background:#fff3cd; color:#856404; }
 .wsi-badge.queued { background:#cce5ff; color:#004085; }
+.wsi-gunluk { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.wsi-gunluk-ana { display:flex; align-items:center; gap:14px; padding:12px 18px; border-radius:10px; color:#fff; background:linear-gradient(135deg,#1faa55,#25D366); box-shadow:0 4px 14px rgba(37,211,102,.28); }
+.wsi-gunluk-ana .sayi { font-size:32px; font-weight:700; line-height:1; }
+.wsi-gunluk-ana .etiket { font-size:13px; font-weight:600; opacity:.95; line-height:1.3; }
+.wsi-gunluk-kucuk { display:flex; flex-direction:column; justify-content:center; padding:10px 16px; border-radius:10px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.06); min-width:96px; }
+.wsi-gunluk-kucuk .sayi { font-size:20px; font-weight:700; line-height:1.1; }
+.wsi-gunluk-kucuk .etiket { font-size:11px; color:#666; font-weight:600; }
+.wsi-sira { color:#999; font-size:12px; font-weight:600; white-space:nowrap; }
 .wsi-filter { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; align-items:flex-end; }
 .wsi-filter input, .wsi-filter select { padding:7px 10px; border:1px solid #ced4da; border-radius:5px; font-size:13px; }
 .wsi-filter label { display:block; font-size:11px; color:#666; margin-bottom:3px; font-weight:600; }
@@ -748,6 +756,9 @@
 </div>
 
 <div class="wsi-section" id="wsi-section-loglar">
+    <div class="wsi-gunluk" id="wsiGunlukSayac">
+        <div class="wsi-gunluk-ana"><span class="sayi">—</span><span class="etiket">Bugün gönderilen<br>toplam mesaj</span></div>
+    </div>
     <div class="wsi-filter">
         <div><label>Durum</label><select id="wsiLogDurum"><option value="">Tümü</option><option value="0">Kuyrukta</option><option value="1">Gönderildi</option><option value="2">Başarısız</option><option value="3">SMS'e Düştü</option></select></div>
         <div><label>Telefon</label><input type="text" id="wsiLogTelefon" placeholder="905..."></div>
@@ -759,8 +770,8 @@
     </div>
     <div style="overflow-x:auto;">
         <table class="wsi-table" id="wsiLogTable">
-            <thead><tr><th>Tarih</th><th>Müşteri</th><th>Telefon</th><th>Durum</th><th>Mesaj</th><th>Hata</th></tr></thead>
-            <tbody><tr><td colspan="6">Yükleniyor...</td></tr></tbody>
+            <thead><tr><th>#</th><th>Tarih</th><th>Müşteri</th><th>Telefon</th><th>Durum</th><th>Mesaj</th><th>Hata</th></tr></thead>
+            <tbody><tr><td colspan="7">Yükleniyor...</td></tr></tbody>
         </table>
     </div>
     <div class="wsi-pagination" id="wsiLogPagination"></div>
@@ -859,15 +870,18 @@
             if (v) params.set(key, v);
         });
         var tbody = document.querySelector('#wsiLogTable tbody');
-        tbody.innerHTML = '<tr><td colspan="6"><span class="wsi-spinner"></span> Yükleniyor...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7"><span class="wsi-spinner"></span> Yükleniyor...</td></tr>';
+        yukleGunlukSayac();
         fetchJson('/isletmeyonetim/whatsapp/loglar-data?' + params.toString()).then(function(d){
-            if (d.error) { tbody.innerHTML = '<tr><td colspan="6" style="color:#dc3545;">' + d.error + '</td></tr>'; return; }
+            if (d.error) { tbody.innerHTML = '<tr><td colspan="7" style="color:#dc3545;">' + d.error + '</td></tr>'; return; }
             var rows = d.rows || [];
-            if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;padding:30px;">Kayıt yok</td></tr>'; }
+            if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;padding:30px;">Kayıt yok</td></tr>'; }
             else {
-                tbody.innerHTML = rows.map(function(r){
+                var siraBas = ((d.page || 1) - 1) * 50;
+                tbody.innerHTML = rows.map(function(r, i){
                     var badge = DURUM_BADGE[r.durum] || 'gri';
                     return '<tr style="cursor:pointer;" data-id="' + r.id + '" data-mesaj="' + escHtml(r.mesaj || '') + '" data-hata="' + escHtml(r.hata || '') + '" data-tarih="' + escHtml(fmtDate(r.created_at)) + '" data-musteri="' + escHtml(r.musteri_adi || '') + '" data-telefon="' + escHtml(r.telefon) + '" data-durum="' + (DURUM_LABEL[r.durum] || r.durum) + '">'
+                        + '<td class="wsi-sira">' + (siraBas + i + 1) + '</td>'
                         + '<td>' + escHtml(fmtDate(r.created_at)) + '</td>'
                         + '<td>' + escHtml(r.musteri_adi || '—') + '</td>'
                         + '<td>' + escHtml(r.telefon) + '</td>'
@@ -896,6 +910,22 @@
                 + '<span style="padding:0 12px;color:#666;font-size:12px;">Toplam ' + d.toplam + ' — Sayfa ' + d.page + '/' + (d.son_sayfa || 1) + '</span>'
                 + '<button ' + (d.page>=d.son_sayfa?'disabled':'') + ' onclick="window.__wsiLogP(' + (d.page+1) + ')">Sonraki →</button>';
         });
+    }
+    // Mesajlarim ustu: bugun giden toplam mesaj (ozet-data'nin "bugun" sayaci)
+    function yukleGunlukSayac(){
+        fetchJson('/isletmeyonetim/whatsapp/ozet-data' + qs2).then(function(d){
+            if (!d || d.error || !d.bugun) return;
+            var b = d.bugun;
+            var kucuk = function(sayi, etiket, renk){
+                return '<div class="wsi-gunluk-kucuk"><span class="sayi" style="color:' + renk + ';">' + sayi + '</span><span class="etiket">' + etiket + '</span></div>';
+            };
+            document.getElementById('wsiGunlukSayac').innerHTML =
+                '<div class="wsi-gunluk-ana"><span class="sayi">' + b.toplam + '</span><span class="etiket">Bugün gönderilen<br>toplam mesaj</span></div>'
+                + kucuk(b.basari, 'Başarılı', '#1faa55')
+                + kucuk(b.fail, 'Başarısız', '#dc3545')
+                + kucuk(b.fallback, "SMS'e Düştü", '#e0951c')
+                + (d.gunluk_limit ? kucuk(d.gunluk_limit, 'Günlük Limit', '#555') : '');
+        }).catch(function(){});
     }
     window.__wsiLogP = yukleLog;
     document.getElementById('wsiLogFiltreUygula').addEventListener('click', function(){ yukleLog(1); });
