@@ -670,9 +670,10 @@ class RandevuAsistan
         // Isletme istegi: "... randevu talebinizi oluşturdum ve size bilgilendirme mesajı gönderdim. Randevunuz
         // onaylandığında size bilgi verilecektir." (once yapilan is, SONRA onay bilgisi)
         // Gun/saat/uzman TEKRAR EDILMEZ (kayit 172: onay sorusunda zaten okunmustu, "evet"ten sonra hepsi yeniden
-        // sayiliyordu: 9 sn'lik cumle + uzun seslendirme beklemesi).
+        // sayiliyordu: 9 sn'lik cumle + uzun seslendirme beklemesi). Yol tarifi randevu bilgilendirme mesajinin
+        // icinde gider (isletme bilgisi 2026-11-18).
         return 'Tamamdır, ' . (!empty($d['paket_seansi']) ? 'paketinizden ' : '') . 'randevu talebinizi oluşturdum'
-            . (!empty($d['bilgilendirme_gonderildi']) ? ' ve bilgilendirme mesajını telefonunuza gönderdim.' : '.')
+            . (!empty($d['bilgilendirme_gonderildi']) ? '; bilgilendirme mesajını ve yol tarifini telefonunuza gönderdim.' : '.')
             . ' Onaylandığında size haber vereceğiz.';
     }
 
@@ -1582,7 +1583,7 @@ UZMAN ADLARI: Uzmanı her zaman araç sonucundaki / PERSONELLER'deki gibi "Hanı
 7. SAAT SEÇİMİ (yalnız seçenek sunulduysa).
 8. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te uzmanımız [personel] ile [hizmet] için randevu talebi oluşturayım mı?" ([gün] = seçeneğin "gun" alanı, ör. "Çarşamba, 18 Kasım")
 9. Onay gelince "randevu_olustur" (seçilen seçeneğin tarih_saat ve personel_id'si + hizmet_id). ok=false ve saat dolu derse yeniden musait_saatler çağır ve yeni saat öner.
-10. SONUÇ: Randevu TALEP olarak oluşturulur (işletme onaylar). Gün/saat/uzmanı TEKRAR SAYMA (onay sorusunda söylendi): "Tamamdır, randevu talebinizi oluşturdum ve bilgilendirme mesajını telefonunuza gönderdim. Onaylandığında size haber vereceğiz." (bilgilendirme_gonderildi=false ise "ve bilgilendirme mesajını telefonunuza gönderdim" kısmını SÖYLEME.) En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde bu soruyu sor; iptalde "Randevunuz iptal edildi." de, randevu_iptal sonucunda bilgilendirme_gonderildi=true ise "Size bilgilendirme mesajı ilettim." ekle (güncellemede de aynı alan).
+10. SONUÇ: Randevu TALEP olarak oluşturulur (işletme onaylar). Gün/saat/uzmanı TEKRAR SAYMA (onay sorusunda söylendi): "Tamamdır, randevu talebinizi oluşturdum; bilgilendirme mesajını ve yol tarifini telefonunuza gönderdim. Onaylandığında size haber vereceğiz." (bilgilendirme_gonderildi=false ise "; bilgilendirme mesajını ve yol tarifini telefonunuza gönderdim" kısmını SÖYLEME.) En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde bu soruyu sor; iptalde "Randevunuz iptal edildi." de, randevu_iptal sonucunda bilgilendirme_gonderildi=true ise "Size bilgilendirme mesajı ilettim." ekle (güncellemede de aynı alan).
 11. KAPANIŞ: Müşteri "yok, teşekkürler" derse "veda" çağır; yeni bir isteği varsa 2. adımdan devam et.
 
 PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada paketten BAHSEDİLMEDİ. Paketi müşteriye kendiliğinden hatırlatma; müşteri ne istediğini söyler, paketi o an sen bul ve getir.

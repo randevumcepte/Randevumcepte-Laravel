@@ -429,7 +429,7 @@ namespace {
     esit('aksiyon randevu', 'randevu', $z[1]);
     esit('randevu id', 555, $z[2]);
     icerir('kısa talep cümlesi (gün/saat/uzman tekrar edilmez, kayıt 172)', 'Tamamdır, randevu talebinizi oluşturdum', $z[0]);
-    icerir('bilgilendirme ayarı açık', 've bilgilendirme mesajını telefonunuza gönderdim. Onaylandığında size haber vereceğiz.', $z[0]);
+    icerir('bilgilendirme ayarı açık', '; bilgilendirme mesajını ve yol tarifini telefonunuza gönderdim. Onaylandığında size haber vereceğiz.', $z[0]);
     $zr->sahteSonuc = ['ok' => false, 'hata' => 'Bu saat çakışıyor.'];
     $z = cagir($zr, 'zorlaRandevu', [['role' => 'user', 'content' => 'Evet']], 'k');
     esit('kayıt başarısız → aksiyon yok', null, $z[1]);
@@ -439,7 +439,7 @@ namespace {
 
     bolum('Randevu onay cümlesi koddan (model atlasa da)');
     $oc = cagir($zr, 'randevuOnayCumlesi', ['ok' => true, 'tarih' => '2026-11-26', 'saat' => '11:00:00', 'personel' => 'Gülşah', 'bilgilendirme_gonderildi' => true]);
-    esit('tam cümle', 'Tamamdır, randevu talebinizi oluşturdum ve bilgilendirme mesajını telefonunuza gönderdim. Onaylandığında size haber vereceğiz.', $oc);
+    esit('tam cümle', 'Tamamdır, randevu talebinizi oluşturdum; bilgilendirme mesajını ve yol tarifini telefonunuza gönderdim. Onaylandığında size haber vereceğiz.', $oc);
     $oc = cagir($zr, 'randevuOnayCumlesi', ['ok' => true, 'tarih' => '2026-11-26', 'saat' => '11:00', 'personel' => 'Gülşah', 'paket_seansi' => true, 'bilgilendirme_gonderildi' => false]);
     icerir('paket seansı belirtilir', 'paketinizden randevu talebinizi', $oc);
     esit('ayar kapalı → bilgilendirme denmez', false, mb_stripos($oc, 'bilgilendirme mesajı') !== false);
