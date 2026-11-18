@@ -69,7 +69,10 @@ class CagriOturumu {
     this._sesGeldi = false; // ilk ses karesi STT'ye ulasti mi (tani icin)
     // ISLETMENIN SESI (Laravel baslat -> tts_ses) + NET MALIYET OLCUMU (bitir'de Laravel'e gider)
     this.ttsSes = null;
-    this.olcum = { ttsKarakter: 0, elKarakter: 0 };
+    this.olcum = { ttsKarakter: 0, elKarakter: 0, soylenen: 0, onbellek: 0 };
+    // Her seslendirme islemi isaretlenir: kaynak (y=yeni uretim / o=onbellek) + calindi mi -> bitir'de Laravel'e
+    this.ttsDetay = [];
+    this._basT = Date.now();
 
     this.rtp = new RtpOturumu(rtpPort, (payload) => {
       // YARI-DUPLEKS: barge-in kapaliyken AI konusurken mikrofonu STT'ye VERME.
@@ -119,8 +122,8 @@ class CagriOturumu {
       if (d.musteri) log.info(`musteri taninID: ${d.musteri}${d.son_siparis ? ' | gecen siparis: ' + d.son_siparis : ' | gecen siparis YOK'}`);
       await this._seslendir(d.karsilama || 'Merhaba, size nasıl yardımcı olabilirim?');
       // Bekleme cumlelerini onceden seslendir (onbellege al) -> gerektiginde aninda calsin
-      if (cfg.dolguMs > 0) for (const c of DOLGU) this._tts(c).catch(() => {});
-      if (cfg.tepkiMs > 0) for (const c of TEPKI_SORGU.concat(TEPKI_KISA, TEPKI_GENEL)) this._tts(c).catch(() => {});
+      if (cfg.dolguMs > 0) for (const c of DOLGU) this._tts(c).then((r) => this._ttsKaydet(c, r.kaynak, false)).catch(() => {});
+      if (cfg.tepkiMs > 0) for (const c of TEPKI_SORGU.concat(TEPKI_KISA, TEPKI_GENEL)) this._tts(c).then((r) => this._ttsKaydet(c, r.kaynak, false)).catch(() => {});
     } catch (e) {
       const neden = e.response && e.response.data && e.response.data.hata;
       if (neden === 'paket_yok' || neden === 'paket_bitti') {
@@ -280,11 +283,12 @@ class CagriOturumu {
 
   _tepkiCal(c) {
     if (this.kapali || this._kapaniyor || !this.mesgul || this.rtp.sesVarMi) return;
-    this._tts(c).then((ses) => {
-      if (this.kapali || !this.mesgul || this.rtp.sesVarMi || !ses || !ses.length) return;
+    this._tts(c).then(({ ses, kaynak }) => {
+      if (this.kapali || !this.mesgul || this.rtp.sesVarMi || !ses || !ses.length) { this._ttsKaydet(c, kaynak, false); return; }
       this._tepkiCaldi = true;
       log.info(`~ tepki: ${c}`);
       this.rtp.oynat(ses);
+      this._ttsKaydet(c, kaynak, true);
     }).catch(() => {});
   }
 
@@ -293,9 +297,11 @@ class CagriOturumu {
     if (this.rtp.sesVarMi) return; // AI hala onceki cumleyi okuyor
     this._dolguNo = ((this._dolguNo || 0) + 1) % DOLGU.length;
     const c = DOLGU[this._dolguNo];
-    this._tts(c).then((ses) => {
-      if (this.kapali || !this.mesgul || this.rtp.sesVarMi) return;
-      if (ses && ses.length) { log.info(`~ bekleme: ${c}`); this.rtp.oynat(ses); }
+    this._tts(c).then(({ ses, kaynak }) => {
+      if (this.kapali || !this.mesgul || this.rtp.sesVarMi || !ses || !ses.length) { this._ttsKaydet(c, kaynak, false); return; }
+      log.info(`~ bekleme: ${c}`);
+      this.rtp.oynat(ses);
+      this._ttsKaydet(c, kaynak, true);
     }).catch(() => {});
   }
 
@@ -437,9 +443,28 @@ class CagriOturumu {
     }
   }
 
-  /** Isletmenin sesiyle seslendir; Google'a giden karakter bu cagriya yazilir. */
-  _tts(c) {
-    return tts.seslendir(c, { ses: this.ttsSes, olcum: this.olcum });
+  /** Isletmenin sesiyle seslendir -> {ses, kaynak}. Google'a giden karakter bu cagriya yazilir. */
+  async _tts(c) {
+    const opt = { ses: this.ttsSes, olcum: this.olcum };
+    const ses = await tts.seslendir(c, opt);
+    return { ses, kaynak: ses && ses.length ? (opt.kaynak || 'yeni') : null };
+  }
+
+  /**
+   * SESLENDIRME ISARETI: her islem kaynak (y=yeni uretim, ucretli / o=onbellek, ucretsiz) + calindi mi.
+   * Maliyet = calinan + uretilen her karakter liste fiyatiyla (onbellek yokmus gibi); onbellek = kazanc (kar).
+   * Onbellekten gelip calinmayan islem maliyetsiz -> kaydedilmez.
+   */
+  _ttsKaydet(c, kaynak, calindi) {
+    if (!kaynak || (!calindi && kaynak !== 'yeni')) return;
+    const k = Array.from(String(c || '').trim()).length;
+    if (!k) return;
+    if (calindi) this.olcum.soylenen += k;
+    if (calindi && kaynak === 'onbellek') this.olcum.onbellek += k;
+    if (this.ttsDetay.length < 400) {
+      this.ttsDetay.push({ m: String(c).trim().slice(0, 160), k, src: kaynak === 'yeni' ? 'y' : 'o', c: calindi ? 1 : 0,
+        sn: Math.round((Date.now() - this._basT) / 100) / 10 });
+    }
   }
 
   async _seslendir(metin) {
@@ -455,17 +480,19 @@ class CagriOturumu {
         let ilkSes = false;
         if (tts.akisli()) {
           // ElevenLabs: ses geldikce cal (kesildiyse gelen parcalar calinmaz)
+          const aOpt = { ses: this.ttsSes, olcum: this.olcum };
           await tts.seslendirAkis(c, (parca) => {
             if (this.kapali || (this._kesmeNo || 0) !== kesme) return;
             this.rtp.oynat(parca);
             if (!ilkSes) { ilkSes = true; this._gecikmeOlcumu(c); }
-          }, { ses: this.ttsSes, olcum: this.olcum });
+          }, aOpt);
+          this._ttsKaydet(c, aOpt.kaynak || 'yeni', ilkSes);
           if (this.kapali || (this._kesmeNo || 0) !== kesme) break;
           continue;
         }
-        const ses = await this._tts(c);
-        if (this.kapali || (this._kesmeNo || 0) !== kesme) break; // TTS beklerken kesildiyse calma
-        if (ses && ses.length) this.rtp.oynat(ses);
+        const { ses, kaynak } = await this._tts(c);
+        if (this.kapali || (this._kesmeNo || 0) !== kesme) { this._ttsKaydet(c, kaynak, false); break; } // TTS beklerken kesildiyse calma
+        if (ses && ses.length) { this.rtp.oynat(ses); this._ttsKaydet(c, kaynak, true); }
         this._gecikmeOlcumu(c);
       }
     } finally {
@@ -540,11 +567,15 @@ class CagriOturumu {
     this.rtp.kapat();
     if (this.oturumId) {
       const sttSn = this.stt.ucretliSaniye();
-      log.info(`Oturum #${this.oturumId} maliyet olcumu: STT ${sttSn} sn, TTS ${this.olcum.ttsKarakter} karakter (${this.ttsSes || cfg.tts.voice})`
+      log.info(`Oturum #${this.oturumId} maliyet olcumu: STT ${sttSn} sn, TTS calinan ${this.olcum.soylenen} karakter`
+        + ` (onbellek ${this.olcum.onbellek}, yeni uretim ${this.olcum.ttsKarakter}) ses ${this.ttsSes || cfg.tts.voice}`
         + (this.olcum.elKarakter ? `, ElevenLabs ${this.olcum.elKarakter} karakter` : ''));
       await brain.bitir(this.oturumId, sonuc || 'kapandi', {
         stt_sn: sttSn,
         tts_ucretli_karakter: this.olcum.ttsKarakter,
+        tts_onbellek_karakter: this.olcum.onbellek,
+        tts_soylenen_karakter: this.olcum.soylenen,
+        tts_detay: this.ttsDetay,
         tts_ses: this.ttsSes || cfg.tts.voice,
       });
     }

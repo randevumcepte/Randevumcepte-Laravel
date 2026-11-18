@@ -135,15 +135,17 @@ async function elevenlabs(t) {
 
 // opt.ses: Google ses adi (isletmeye gore); opt.olcum: cagri sayaci {ttsKarakter, elKarakter} — yalniz GERCEKTEN
 // saglayiciya giden (onbellekte olmayan) metin sayilir -> net maliyet.
+// opt.kaynak (CIKTI): 'onbellek' (bellek/disk ya da ayni anda uretilen ayni cumle) | 'yeni' (saglayicidan uretildi, ucretli)
 async function seslendir(metin, opt) {
   const t = okunur(metin).trim();
   if (!t) return Buffer.alloc(0);
   const ses = (opt && opt.ses) || cfg.tts.voice;
   const olcum = opt && opt.olcum;
   const onb = onbellekAl(t, ses);
-  if (onb) return onb;
+  if (onb) { if (opt) opt.kaynak = 'onbellek'; return onb; }
   const anahtar = bellekAnahtar(t, ses);
-  if (_suren.has(anahtar)) return _suren.get(anahtar); // ayni cumle zaten uretiliyor -> ikinci ucret yok
+  if (_suren.has(anahtar)) { if (opt) opt.kaynak = 'onbellek'; return _suren.get(anahtar); } // ayni cumle zaten uretiliyor -> ikinci ucret yok
+  if (opt) opt.kaynak = 'yeni';
   const is = _seslendirGercek(t, ses, olcum);
   _suren.set(anahtar, is);
   try { return await is; } finally { _suren.delete(anahtar); }
@@ -207,6 +209,7 @@ async function seslendirAkis(metin, onParca, opt) {
   if (!t) return;
   if (!akisli() || onbellekAl(t)) { const b = await seslendir(metin, opt); if (b && b.length) onParca(b); return; }
   const olcum = opt && opt.olcum;
+  if (opt) opt.kaynak = 'yeni';
 
   const e = cfg.elevenlabs;
   const bicim = cfg.mediaFormat === 'slin16' ? 'pcm_16000' : 'ulaw_8000';

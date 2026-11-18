@@ -60,9 +60,9 @@
     <div class="sp-kutu"><div class="e">Gelen</div><div class="d">{{ $tl($top['gelen_dk'], 1) }} dk</div><div class="a">{{ $top['gelen_adet'] }} görüşme</div></div>
     <div class="sp-kutu"><div class="e">Giden (hatırlatma)</div><div class="d">{{ $tl($top['giden_dk'], 1) }} dk</div><div class="a">{{ $top['giden_adet'] }} görüşme</div></div>
     <div class="sp-kutu"><div class="e">Token (girdi / çıktı)</div><div class="d">{{ $tl($top['girdi_token'] / 1000) }}K / {{ $tl($top['cikti_token'] / 1000) }}K</div><div class="a">Claude</div></div>
-    <div class="sp-kutu"><div class="e">Maliyet</div><div class="d">{{ $tl($top['maliyet_tl']) }} ₺</div><div class="a">Claude + STT + TTS · {{ $top['olculen_adet'] }}/{{ $top['gelen_adet'] + $top['giden_adet'] }} görüşme ölçülen</div></div>
+    <div class="sp-kutu"><div class="e">Maliyet</div><div class="d">{{ $tl($top['maliyet_tl']) }} ₺</div><div class="a">Claude + STT + TTS (önbelleksiz liste fiyatı) · {{ $top['olculen_adet'] }}/{{ $top['gelen_adet'] + $top['giden_adet'] }} ölçülen</div></div>
     <div class="sp-kutu"><div class="e">Faturalanacak</div><div class="d">{{ $tl($top['fatura_tl']) }} ₺</div><div class="a">paket + aşım</div></div>
-    <div class="sp-kutu"><div class="e">Kâr</div><div class="d {{ $top['kar_tl'] >= 0 ? 'sp-yesil' : 'sp-kirmizi' }}">{{ $tl($top['kar_tl']) }} ₺</div><div class="a">fatura − maliyet</div></div>
+    <div class="sp-kutu"><div class="e">Kâr</div><div class="d {{ $top['toplam_kar_tl'] >= 0 ? 'sp-yesil' : 'sp-kirmizi' }}">{{ $tl($top['toplam_kar_tl']) }} ₺</div><div class="a">fatura − maliyet {{ $tl($top['kar_tl']) }} ₺ + önbellek {{ $tl($top['onbellek_tl'], 2) }} ₺</div></div>
 </div>
 
 <div class="sy-card">
@@ -120,9 +120,11 @@
                     <td class="r">{{ $tl($s['girdi_token'] / 1000, 1) }}K<div class="sp-alt">{{ $tl($s['cikti_token'] / 1000, 1) }}K çıktı</div></td>
                     <td class="r" title="STT {{ $tl($s['stt_dk'], 1) }} dk akış · TTS {{ $tl($s['tts_olculen']) }} ücretli karakter (ölçülen) · {{ $s['olculen_adet'] }}/{{ $s['toplam_adet'] }} görüşme ölçülen, kalanı tahmini">{{ $tl($s['maliyet_tl'], 2) }} ₺
                         <div class="sp-alt">Claude {{ $tl($s['claude_tl'], 2) }} · STT {{ $tl($s['stt_tl'], 2) }} · TTS {{ $tl($s['tts_tl'], 2) }} ₺</div>
-                        <div class="sp-alt">{{ $tl($s['dk_maliyet_tl'], 2) }} ₺/dk · ölçülen {{ $s['olculen_adet'] }}/{{ $s['toplam_adet'] }}</div></td>
+                        <div class="sp-alt">{{ $tl($s['dk_maliyet_tl'], 2) }} ₺/dk · ölçülen {{ $s['olculen_adet'] }}/{{ $s['toplam_adet'] }}</div>
+                        @if($s['onbellek_tl'] > 0)<div class="sp-alt sp-yesil">önbellek kazancı {{ $tl($s['onbellek_tl'], 2) }} ₺ ({{ $tl($s['tts_onbellek']) }} kr.)</div>@endif</td>
                     <td class="r">{{ $p ? $tl($s['fatura_tl']) . ' ₺' : '—' }}</td>
-                    <td class="r {{ $s['kar_tl'] >= 0 ? 'sp-yesil' : 'sp-kirmizi' }}">{{ $p ? $tl($s['kar_tl']) . ' ₺' : '—' }}</td>
+                    <td class="r {{ $s['toplam_kar_tl'] >= 0 ? 'sp-yesil' : 'sp-kirmizi' }}">{{ $p ? $tl($s['toplam_kar_tl']) . ' ₺' : '—' }}
+                        @if($p && $s['onbellek_tl'] > 0)<div class="sp-alt">paket {{ $tl($s['kar_tl']) }} + önbellek {{ $tl($s['onbellek_tl'], 2) }}</div>@endif</td>
                     <td>
                         @if(!$p) <span class="sp-rozet yok">Doğrudan işletmeye</span>
                         @elseif($buAy && $s['kapali']) <span class="sp-rozet kapali">Asistan durdu</span>
@@ -149,7 +151,7 @@
         <div class="sp-not">
             <b>Nasıl hesaplanır:</b> Dakika, asistanın hatta kaldığı süredir (operatöre aktarıldıktan sonraki konuşma dahil değil); dönem takvim ayıdır.
             Aşım tam dakikaya yuvarlanır. Maliyet = Claude (gerçek token) + Google STT (köprünün ölçtüğü, Google'a gerçekten akan ses süresi × {{ config('services.santral_ai.stt_usd_dk') }} $/dk; asistan konuşurken STT kapalı)
-            + TTS (Google'a gerçekten gönderilen karakter × görüşmenin sesinin fiyatı: {{ implode(', ', array_map(function ($b) { return $b['ad'] . ' ' . $b['usd_m'] . ' $/1M'; }, $sesler)) }}; önbellekten çalınan cümleler ücretsiz).
+            + TTS (önbellek YOKMUŞ gibi: yeni üretilen + önbellekten çalınan her karakter × görüşmenin sesinin fiyatı: {{ implode(', ', array_map(function ($b) { return $b['ad'] . ' ' . $b['usd_m'] . ' $/1M'; }, $sesler)) }}; köprü her seslendirmeyi "yeni üretim" / "önbellek" diye işaretler). <b>Önbellek kazancı</b> = önbellekten çalınan karakter × ses fiyatı; Google'a ödenmez, kâra eklenir (Kâr = fatura − maliyet + önbellek kazancı).
             <b>Kur:</b> her görüşme bittiği günün TCMB USD döviz satış kuruyla TL'ye çevrilir (geçmiş aylar sonradan değişmez); kuru olmayan eski görüşmelerde güncel kur.
             Güncel kur {{ $tl($kur, 4) }} ₺ @if(($kurBilgi['kaynak'] ?? '') === 'tcmb') (TCMB {{ $kurBilgi['tarih'] ? date('d.m.Y', strtotime($kurBilgi['tarih'])) : '' }}) @elseif(($kurBilgi['kaynak'] ?? '') === 'tcmb-son') (TCMB'ye ulaşılamadı, son alınan kur {{ $kurBilgi['tarih'] ? date('d.m.Y', strtotime($kurBilgi['tarih'])) : '' }}) @else (TCMB'ye ulaşılamadı, AI Kredi sayfasındaki elle girilen kur) @endif.
             Ölçüm öncesi görüşmelerde STT = süre × %{{ round(config('services.santral_ai.stt_oran') * 100) }}, TTS = söylenen karakter × {{ config('services.santral_ai.tts_usd_m') }} $/1M (tahmini). Google'ın aylık ücretsiz kotaları düşülmez (liste fiyatı); sunucu ve hat ücretleri dahil değildir.

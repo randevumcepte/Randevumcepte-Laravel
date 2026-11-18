@@ -298,6 +298,20 @@ class SantralKopruController extends Controller
                 if (is_numeric($r->input('tts_ucretli_karakter'))) $upd['tts_ucretli_karakter'] = max(0, min(4000000, (int) $r->input('tts_ucretli_karakter')));
                 if (is_numeric($r->input('stt_sn'))) $upd['stt_sn'] = round(max(0, min(36000, (float) $r->input('stt_sn'))), 1);
                 if ($ses = SantralPaket::sesGecerli($r->input('tts_ses'))) $upd['tts_ses'] = $ses;
+                foreach (['tts_onbellek_karakter', 'tts_soylenen_karakter'] as $alan) {
+                    if (is_numeric($r->input($alan))) $upd[$alan] = max(0, min(4000000, (int) $r->input($alan)));
+                }
+                // Islem islem seslendirme isareti (y=yeni uretim / o=onbellek, calindi mi) — denetim icin
+                $detay = json_decode((string) $r->input('tts_detay'), true);
+                if (is_array($detay)) {
+                    $temiz = [];
+                    foreach (array_slice($detay, 0, 400) as $d) {
+                        if (!is_array($d)) continue;
+                        $temiz[] = ['m' => mb_substr((string) ($d['m'] ?? ''), 0, 160), 'k' => (int) ($d['k'] ?? 0),
+                            'src' => ($d['src'] ?? '') === 'y' ? 'y' : 'o', 'c' => !empty($d['c']) ? 1 : 0, 'sn' => (float) ($d['sn'] ?? 0)];
+                    }
+                    $upd['tts_detay'] = json_encode($temiz, JSON_UNESCAPED_UNICODE);
+                }
                 // Gorusmenin kuru (TCMB doviz satis) -> TL maliyeti o gunun kuruyla sabitlenir.
                 // Ag istegi YOK (aktarma bitir'i bekliyor); onbellek cevap gittikten sonra tazelenir.
                 $upd['kur'] = \App\Services\DovizKuru::usdHizli();

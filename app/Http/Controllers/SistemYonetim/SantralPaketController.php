@@ -48,7 +48,7 @@ class SantralPaketController extends Controller
 
         $satirlar = [];
         $top = ['gelen_dk' => 0, 'giden_dk' => 0, 'toplam_dk' => 0, 'girdi_token' => 0, 'cikti_token' => 0,
-                'maliyet_tl' => 0, 'fatura_tl' => 0, 'kar_tl' => 0, 'gelen_adet' => 0, 'giden_adet' => 0, 'olculen_adet' => 0];
+                'maliyet_tl' => 0, 'fatura_tl' => 0, 'kar_tl' => 0, 'gelen_adet' => 0, 'giden_adet' => 0, 'olculen_adet' => 0, 'onbellek_tl' => 0, 'toplam_kar_tl' => 0];
         foreach ($salonlar as $s) {
             $p = $paketler[$s->id] ?? null;
             $h = SantralPaket::hesapla($p, $kullanimlar[$s->id] ?? null, $kur);

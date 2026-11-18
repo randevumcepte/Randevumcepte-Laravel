@@ -19,6 +19,10 @@ use Illuminate\Support\Facades\Schema;
  *     tts_ses              : gorusmede kullanilan ses (fiyat buna gore, config santral_ai.tts_sesler)
  *     tts_ucretli_karakter : Google'a GERCEKTEN gonderilen karakter (onbellekten calinan cumleler haric)
  *     stt_sn               : STT'ye GERCEKTEN akan ses suresi (AI konusurken akis kapali; akis basina yuvarlanmis)
+ *     tts_onbellek_karakter: musteriye ONBELLEKTEN calinan karakter (Google'a gitmedi = bizim kazancimiz)
+ *     tts_soylenen_karakter: musteriye calinan toplam karakter; tts_detay: islem islem isaret (src y/o, calindi)
+ *   MALIYET (panel) = onbellek YOKMUS gibi liste fiyati: (yeni uretim + onbellekten calinan) x ses fiyati.
+ *   ONBELLEK KAZANCI = onbellekten calinan x ses fiyati -> kara eklenir (toplam kar = fatura - maliyet + kazanc).
  *   kur : gorusme bittigindeki USD/TRY (TCMB doviz satis) -> gecmis aylar sonradan degisen kurla yeniden hesaplanmaz
  *
  * Donem = takvim ayi. Paket TANIMSIZ salonda asistan CALISMAZ (gelen cagri dogrudan operator_kanali'na,
@@ -29,7 +33,7 @@ use Illuminate\Support\Facades\Schema;
 class SantralPaket
 {
     const TABLO = 'santral_asistan_paketleri';
-    const SEMA = 'santral_paket_sema_v3'; // kolon eklenince artir (sunucuda migrate yok)
+    const SEMA = 'santral_paket_sema_v4'; // kolon eklenince artir (sunucuda migrate yok)
 
     /** Hazir paket onerileri (modal'da tek tikla doldurma). */
     const HAZIR = [
@@ -66,7 +70,7 @@ class SantralPaket
             if (!Schema::hasTable('santral_oturumlari')) return; // kopru ilk cagride olusturur; flag set ETME
             $eksik = [];
             foreach (['yon', 'sure_sn', 'bitis_at', 'girdi_token', 'cikti_token', 'cache_okuma_token', 'cache_yazma_token', 'tts_karakter', 'maliyet_usd',
-                      'tts_ses', 'tts_ucretli_karakter', 'stt_sn', 'kur'] as $k) {
+                      'tts_ses', 'tts_ucretli_karakter', 'stt_sn', 'kur', 'tts_onbellek_karakter', 'tts_soylenen_karakter', 'tts_detay'] as $k) {
                 if (!Schema::hasColumn('santral_oturumlari', $k)) $eksik[] = $k;
             }
             if ($eksik) {
@@ -82,6 +86,9 @@ class SantralPaket
                     if (in_array('tts_ucretli_karakter', $eksik)) $t->unsignedInteger('tts_ucretli_karakter')->nullable();
                     if (in_array('stt_sn', $eksik)) $t->decimal('stt_sn', 10, 1)->nullable();
                     if (in_array('kur', $eksik)) $t->decimal('kur', 10, 4)->nullable();
+                    if (in_array('tts_onbellek_karakter', $eksik)) $t->unsignedInteger('tts_onbellek_karakter')->nullable();
+                    if (in_array('tts_soylenen_karakter', $eksik)) $t->unsignedInteger('tts_soylenen_karakter')->nullable();
+                    if (in_array('tts_detay', $eksik)) $t->mediumText('tts_detay')->nullable();
                 });
                 // Eski kayitlar: yon'u gecmisteki hatirlatma isaretinden cikar
                 if (in_array('yon', $eksik)) {
@@ -198,6 +205,9 @@ class SantralPaket
         $k = 'COALESCE(kur, ' . sprintf('%.4F', DovizKuru::usdHizli()) . ')'; // ag istegi yok (baslat'taki paket kontrolu de cagirir)
         $sttFiyat = sprintf('%.6F', (float) config('services.santral_ai.stt_usd_dk', 0.016));
         $sttOran = sprintf('%.4F', (float) config('services.santral_ai.stt_oran', 0.52));
+        // Liste maliyeti karakteri: olcumlu gorusmede yeni uretim + onbellekten calinan (onbellek yokmus gibi); yoksa eski tahmin
+        $ttsKar = 'CASE WHEN tts_ucretli_karakter IS NOT NULL THEN tts_ucretli_karakter + COALESCE(tts_onbellek_karakter, 0) ELSE tts_karakter END';
+        $fiyat = self::ttsFiyatSql();
         if (!Schema::hasTable('santral_oturumlari')) return [];
         // Kapanmamis (kopru coktu) oturumda sure: son guncellemeye kadar, en fazla 30 dk
         $sure = 'COALESCE(sure_sn, LEAST(TIMESTAMPDIFF(SECOND, created_at, COALESCE(updated_at, created_at)), 1800))';
@@ -212,14 +222,16 @@ class SantralPaket
                 DB::raw('SUM(cache_okuma_token) as cache_okuma'), DB::raw('SUM(cache_yazma_token) as cache_yazma'),
                 DB::raw('SUM(tts_karakter) as tts'), DB::raw('SUM(maliyet_usd) as claude_usd'),
                 // TTS: olculen karakter (yoksa eski tahmin) x gorusmenin sesinin fiyati -> "USD x 1M"
-                DB::raw('SUM(COALESCE(tts_ucretli_karakter, tts_karakter) * ' . self::ttsFiyatSql() . ') as tts_usd_mk'),
+                DB::raw("SUM(($ttsKar) * $fiyat) as tts_usd_mk"),
+                DB::raw('SUM(COALESCE(tts_onbellek_karakter, 0)) as tts_onbellek'),
+                DB::raw("SUM(COALESCE(tts_onbellek_karakter, 0) * $fiyat * $k) / 1000000 as onbellek_tl"),
                 DB::raw('SUM(COALESCE(tts_ucretli_karakter, 0)) as tts_olculen'),
                 // STT: olculen saniye; olcum yoksa sure x stt_oran (tahmin)
                 DB::raw('SUM(COALESCE(stt_sn, 0)) as stt_olculen_sn'),
                 DB::raw("SUM(CASE WHEN stt_sn IS NULL THEN $sure ELSE 0 END) as stt_tahmini_sn"),
                 DB::raw('SUM(CASE WHEN stt_sn IS NOT NULL THEN 1 ELSE 0 END) as olculen_adet'),
                 DB::raw("SUM(maliyet_usd * $k) as claude_tl"),
-                DB::raw("SUM(COALESCE(tts_ucretli_karakter, tts_karakter) * " . self::ttsFiyatSql() . " * $k) / 1000000 as tts_tl"),
+                DB::raw("SUM(($ttsKar) * $fiyat * $k) / 1000000 as tts_tl"),
                 DB::raw("SUM(COALESCE(stt_sn, $sure * $sttOran) / 60 * $sttFiyat * $k) as stt_tl"))
             ->groupBy('sube_id');
         if ($salonIdler !== null) $q->whereIn('sube_id', $salonIdler ?: [0]);
@@ -282,6 +294,8 @@ class SantralPaket
             'olculen_adet' => (int) ($k->olculen_adet ?? 0),
             'toplam_adet'  => $adet,
             'dk_maliyet_tl' => $toplamDk > 0 ? round($maliyetTl / $toplamDk, 2) : 0.0,
+            'onbellek_tl'=> round((float) ($k->onbellek_tl ?? 0), 2),
+            'tts_onbellek' => (int) ($k->tts_onbellek ?? 0),
             'claude_tl'  => round($claudeTl, 2),
             'stt_tl'     => round($sttTl, 2),
             'tts_tl'     => round($ttsTl, 2),
@@ -289,6 +303,8 @@ class SantralPaket
             'maliyet_tl' => round($maliyetTl, 2),
             'fatura_tl'  => round($fatura, 2),
             'kar_tl'     => round($fatura - $maliyetTl, 2),
+            // Toplam kar = paket kari + onbellek kazanci (maliyet onbellek yokmus gibi hesaplandi)
+            'toplam_kar_tl' => round($fatura - $maliyetTl + (float) ($k->onbellek_tl ?? 0), 2),
             'kapali'     => $paket && $paket->asim_davranis === 'durdur' && $kalan <= 0,
         ];
     }
@@ -298,13 +314,16 @@ class SantralPaket
     {
         $sure = (int) ($o->sure_sn ?? 0);
         $sttSn = isset($o->stt_sn) && $o->stt_sn !== null ? (float) $o->stt_sn : $sure * (float) config('services.santral_ai.stt_oran', 0.52);
-        $kar = isset($o->tts_ucretli_karakter) && $o->tts_ucretli_karakter !== null ? (int) $o->tts_ucretli_karakter : (int) ($o->tts_karakter ?? 0);
+        $olcumlu = isset($o->tts_ucretli_karakter) && $o->tts_ucretli_karakter !== null;
+        $onb = $olcumlu ? (int) ($o->tts_onbellek_karakter ?? 0) : 0;
+        $kar = $olcumlu ? (int) $o->tts_ucretli_karakter + $onb : (int) ($o->tts_karakter ?? 0);
         $l = self::sesler();
         $fiyat = isset($l[$o->tts_ses ?? '']) ? (float) $l[$o->tts_ses]['usd_m'] : (float) config('services.santral_ai.tts_usd_m', 30.0);
         $r = [
             'claude' => (float) ($o->maliyet_usd ?? 0),
             'stt' => $sttSn / 60 * (float) config('services.santral_ai.stt_usd_dk', 0.016),
-            'tts' => $kar / 1000000 * $fiyat,
+            'tts' => $kar / 1000000 * $fiyat,          // liste fiyati (onbellek yokmus gibi)
+            'onbellek_kazanc' => $onb / 1000000 * $fiyat,
             'olculen' => isset($o->stt_sn) && $o->stt_sn !== null,
         ];
         $r['toplam'] = $r['claude'] + $r['stt'] + $r['tts'];
