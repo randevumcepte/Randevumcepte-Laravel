@@ -328,15 +328,7 @@
    <body>
       {{-- embed (iframe/sekme) modunda banner GOSTERME — dis sayfa zaten gosteriyor, cift cikmasin --}}
       @if(session('sysadmin_impersonation_id') && (int) request()->embed !== 1)
-      {{-- Sabit alt bant sayfanin en altini (sayfalama vb.) ortmesin --}}
-      <style>body{padding-bottom:56px !important}</style>
-      <div style="background: linear-gradient(90deg, #d99a1f, #d04d5e); color: #fff; padding: 10px 20px; text-align: center; font-size: 13px; font-weight: 600; position: fixed; bottom: 0; left: 0; right: 0; z-index: 99999; box-shadow: 0 -4px 20px rgba(208, 77, 94, 0.35);">
-         <span>⚠ Bu hesaba <strong>sistem yöneticisi olarak</strong> giriş yaptınız. Yapacağınız tüm işlemler loglanmaktadır.</span>
-         <form method="post" action="/sistemyonetim/v2/impersonation-bitir" style="display:inline; margin-left: 14px;">
-            @csrf
-            <button type="submit" style="background:none; border:0; color:#fff; text-decoration:underline; font-weight:700; cursor:pointer; padding:0; font-size:inherit; font-family:inherit;">↩ Yönetim Paneline Dön</button>
-         </form>
-      </div>
+      @include('isletmeadmin._sysadmin_imp_rozet')
       @endif
 
       {{-- Sistem yonetimi duyurulari --}}
