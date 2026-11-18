@@ -48,7 +48,7 @@ class SantralPaketController extends Controller
 
         $satirlar = [];
         $top = ['gelen_dk' => 0, 'giden_dk' => 0, 'toplam_dk' => 0, 'girdi_token' => 0, 'cikti_token' => 0,
-                'maliyet_tl' => 0, 'fatura_tl' => 0, 'kar_tl' => 0, 'gelen_adet' => 0, 'giden_adet' => 0];
+                'maliyet_tl' => 0, 'fatura_tl' => 0, 'kar_tl' => 0, 'gelen_adet' => 0, 'giden_adet' => 0, 'olculen_adet' => 0];
         foreach ($salonlar as $s) {
             $p = $paketler[$s->id] ?? null;
             $h = SantralPaket::hesapla($p, $kullanimlar[$s->id] ?? null, $kur);
@@ -79,6 +79,8 @@ class SantralPaketController extends Controller
             'q'         => $q,
             'kur'       => $kur,
             'hazir'     => SantralPaket::HAZIR,
+            'sesler'    => SantralPaket::sesler(),
+            'varsayilanSes' => SantralPaket::varsayilanSes(),
             'yetkili'   => in_array($this->rol(), ['super_admin', 'yonetici'], true),
         ]);
     }
@@ -95,6 +97,7 @@ class SantralPaketController extends Controller
             'aylik_ucret'   => max(0, (float) str_replace(',', '.', (string) $request->input('aylik_ucret'))),
             'asim_dk_ucret' => max(0, (float) str_replace(',', '.', (string) $request->input('asim_dk_ucret'))),
             'asim_davranis' => $request->input('asim_davranis') === 'durdur' ? 'durdur' : 'devam',
+            'tts_ses'       => SantralPaket::sesGecerli($request->input('tts_ses')) ?: SantralPaket::varsayilanSes(),
             'notlar'        => trim((string) $request->input('notlar')) ?: null,
             'guncelleyen'   => optional(Auth::guard('sistemyonetim')->user())->name,
             'updated_at'    => now(),
@@ -108,7 +111,7 @@ class SantralPaketController extends Controller
         SantralPaket::onbellekSil($salon->id);
 
         Audit::log('santral_paket_kaydet', 'salon', $salon->id, $salon->salon_adi,
-            ($veri['paket_adi'] ?: 'Paket') . ': ' . $veri['dahil_dakika'] . ' dk, ' . $veri['aylik_ucret'] . ' TL, aşımda ' . $veri['asim_davranis'],
+            ($veri['paket_adi'] ?: 'Paket') . ': ' . $veri['dahil_dakika'] . ' dk, ' . $veri['aylik_ucret'] . ' TL, aşımda ' . $veri['asim_davranis'] . ', ses ' . $veri['tts_ses'],
             ['eski' => $eski ? (array) $eski : null, 'yeni' => $veri]);
 
         return redirect()->back()->with('basari', $salon->salon_adi . ' için asistan paketi kaydedildi.');

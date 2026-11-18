@@ -60,7 +60,7 @@
     <div class="sp-kutu"><div class="e">Gelen</div><div class="d">{{ $tl($top['gelen_dk'], 1) }} dk</div><div class="a">{{ $top['gelen_adet'] }} görüşme</div></div>
     <div class="sp-kutu"><div class="e">Giden (hatırlatma)</div><div class="d">{{ $tl($top['giden_dk'], 1) }} dk</div><div class="a">{{ $top['giden_adet'] }} görüşme</div></div>
     <div class="sp-kutu"><div class="e">Token (girdi / çıktı)</div><div class="d">{{ $tl($top['girdi_token'] / 1000) }}K / {{ $tl($top['cikti_token'] / 1000) }}K</div><div class="a">Claude</div></div>
-    <div class="sp-kutu"><div class="e">Maliyet</div><div class="d">{{ $tl($top['maliyet_tl']) }} ₺</div><div class="a">Claude + STT + TTS (tahmini)</div></div>
+    <div class="sp-kutu"><div class="e">Maliyet</div><div class="d">{{ $tl($top['maliyet_tl']) }} ₺</div><div class="a">Claude + STT + TTS · {{ $top['olculen_adet'] }}/{{ $top['gelen_adet'] + $top['giden_adet'] }} görüşme ölçülen</div></div>
     <div class="sp-kutu"><div class="e">Faturalanacak</div><div class="d">{{ $tl($top['fatura_tl']) }} ₺</div><div class="a">paket + aşım</div></div>
     <div class="sp-kutu"><div class="e">Kâr</div><div class="d {{ $top['kar_tl'] >= 0 ? 'sp-yesil' : 'sp-kirmizi' }}">{{ $tl($top['kar_tl']) }} ₺</div><div class="a">fatura − maliyet</div></div>
 </div>
@@ -96,6 +96,7 @@
                         @if($p)
                             <div class="sp-ad">{{ $p->paket_adi ?: 'Özel' }}</div>
                             <div class="sp-alt">{{ $tl($p->dahil_dakika) }} dk · {{ $tl($p->aylik_ucret) }} ₺ · aşım {{ $tl($p->asim_dk_ucret, 2) }} ₺/dk</div>
+                            <div class="sp-alt">Ses: {{ \App\Services\SantralPaket::sesAdi(\App\Services\SantralPaket::sesGecerli($p->tts_ses ?? null) ?: $varsayilanSes) }}</div>
                         @else
                             <span class="sp-rozet kapali">Paket yok · asistan kapalı</span>
                         @endif
@@ -117,7 +118,9 @@
                         @else — @endif
                     </td>
                     <td class="r">{{ $tl($s['girdi_token'] / 1000, 1) }}K<div class="sp-alt">{{ $tl($s['cikti_token'] / 1000, 1) }}K çıktı</div></td>
-                    <td class="r" title="Claude {{ $tl($s['claude_tl'], 2) }} ₺ · STT {{ $tl($s['stt_tl'], 2) }} ₺ · TTS {{ $tl($s['tts_tl'], 2) }} ₺">{{ $tl($s['maliyet_tl'], 2) }} ₺<div class="sp-alt">Claude {{ $tl($s['claude_tl'], 2) }} ₺</div></td>
+                    <td class="r" title="STT {{ $tl($s['stt_dk'], 1) }} dk akış · TTS {{ $tl($s['tts_olculen']) }} ücretli karakter (ölçülen) · {{ $s['olculen_adet'] }}/{{ $s['toplam_adet'] }} görüşme ölçülen, kalanı tahmini">{{ $tl($s['maliyet_tl'], 2) }} ₺
+                        <div class="sp-alt">Claude {{ $tl($s['claude_tl'], 2) }} · STT {{ $tl($s['stt_tl'], 2) }} · TTS {{ $tl($s['tts_tl'], 2) }} ₺</div>
+                        <div class="sp-alt">{{ $tl($s['dk_maliyet_tl'], 2) }} ₺/dk · ölçülen {{ $s['olculen_adet'] }}/{{ $s['toplam_adet'] }}</div></td>
                     <td class="r">{{ $p ? $tl($s['fatura_tl']) . ' ₺' : '—' }}</td>
                     <td class="r {{ $s['kar_tl'] >= 0 ? 'sp-yesil' : 'sp-kirmizi' }}">{{ $p ? $tl($s['kar_tl']) . ' ₺' : '—' }}</td>
                     <td>
@@ -131,7 +134,7 @@
                         @if($yetkili)
                         <button type="button" class="sy-btn sy-btn-soft sy-btn-sm sp-duzenle"
                             data-id="{{ $s['salon_id'] }}" data-ad="{{ $s['salon_adi'] }}"
-                            data-paket="{{ $p ? json_encode(['ad' => $p->paket_adi, 'dk' => (int) $p->dahil_dakika, 'ucret' => (float) $p->aylik_ucret, 'asim' => (float) $p->asim_dk_ucret, 'davranis' => $p->asim_davranis, 'not' => $p->notlar]) : '' }}">
+                            data-paket="{{ $p ? json_encode(['ad' => $p->paket_adi, 'dk' => (int) $p->dahil_dakika, 'ucret' => (float) $p->aylik_ucret, 'asim' => (float) $p->asim_dk_ucret, 'davranis' => $p->asim_davranis, 'not' => $p->notlar, 'ses' => \App\Services\SantralPaket::sesGecerli($p->tts_ses ?? null) ?: $varsayilanSes]) : '' }}">
                             <span class="mdi mdi-pencil"></span> {{ $p ? 'Düzenle' : 'Paket tanımla' }}
                         </button>
                         @endif
@@ -145,7 +148,9 @@
 
         <div class="sp-not">
             <b>Nasıl hesaplanır:</b> Dakika, asistanın hatta kaldığı süredir (operatöre aktarıldıktan sonraki konuşma dahil değil); dönem takvim ayıdır.
-            Aşım tam dakikaya yuvarlanır. Maliyet = Claude (gerçek token) + Google STT (dakika × {{ config('services.santral_ai.stt_usd_dk') }} $ × %{{ round(config('services.santral_ai.stt_oran') * 100) }} ücretlenen kısım; asistan konuşurken STT kapalı) + TTS (karakter × {{ config('services.santral_ai.tts_usd_m') }} $ / 1M, Chirp3-HD), kur {{ $tl($kur, 2) }} ₺ (AI Kredi sayfasından).
+            Aşım tam dakikaya yuvarlanır. Maliyet = Claude (gerçek token) + Google STT (köprünün ölçtüğü, Google'a gerçekten akan ses süresi × {{ config('services.santral_ai.stt_usd_dk') }} $/dk; asistan konuşurken STT kapalı)
+            + TTS (Google'a gerçekten gönderilen karakter × görüşmenin sesinin fiyatı: {{ implode(', ', array_map(function ($b) { return $b['ad'] . ' ' . $b['usd_m'] . ' $/1M'; }, $sesler)) }}; önbellekten çalınan cümleler ücretsiz), kur {{ $tl($kur, 2) }} ₺ (AI Kredi sayfasından).
+            Ölçüm öncesi görüşmelerde STT = süre × %{{ round(config('services.santral_ai.stt_oran') * 100) }}, TTS = söylenen karakter × {{ config('services.santral_ai.tts_usd_m') }} $/1M (tahmini). Google'ın aylık ücretsiz kotaları düşülmez (liste fiyatı); sunucu ve hat ücretleri dahil değildir.
             <b>Paketi olmayan salonda asistan çalışmaz:</b> gelen çağrı doğrudan işletmenin operatör kanalına çalar, hatırlatmalar klasik tuşlamalı mesajla yapılır.
             <b>Aşımda durdur:</b> paket bitince gelen çağrılar asistan yerine operatöre aktarılır, hatırlatmalar klasik tuşlamalı sesli mesajla yapılır.
             Token/süre kaydı bu güncellemeden itibaren tutulur; önceki görüşmelerde token 0 görünür.
@@ -183,6 +188,15 @@
             <div><label>Aşım ücreti (₺ / dk)</label><input type="number" name="asim_dk_ucret" id="spAsim" class="sy-input" min="0" step="0.01" required></div>
         </div>
 
+        <label>Asistan sesi</label>
+        <select name="tts_ses" id="spSes" class="sy-input">
+            @foreach($sesler as $sAd => $sB)
+                <option value="{{ $sAd }}">{{ $sB['ad'] }} · {{ $sB['usd_m'] }} $ / 1M karakter</option>
+            @endforeach
+        </select>
+        <div class="ac">Değişiklik bir sonraki çağrıdan itibaren geçerlidir. Sesleri Santral Ses Önizleme sayfasından dinleyebilirsiniz.</div>
+        <div style="height:12px"></div>
+
         <label>Paket bitince</label>
         <div class="sp-secim">
             <label><input type="radio" name="asim_davranis" value="devam" id="spDevam"><div><b>Asistan çalışmaya devam etsin</b><span>Aşan dakikalar aşım ücretiyle faturalanır.</span></div></label>
@@ -211,6 +225,7 @@
         $('spUcret').value = p.ucret != null ? p.ucret : ''; $('spAsim').value = p.asim != null ? p.asim : '';
         if (p.davranis !== undefined) { $(p.davranis === 'durdur' ? 'spDurdur' : 'spDevam').checked = true; }
         if (p.not !== undefined) $('spNot').value = p.not || '';
+        if (p.ses !== undefined) $('spSes').value = p.ses || @json($varsayilanSes);
     }
     function ac(id, ad, p){
         $('spSalonId').value = id || '';
@@ -218,7 +233,7 @@
         $('spSalonSec').style.display = id ? 'none' : 'block';
         $('spSalonAra').value = '';
         $('spSil').style.display = p ? '' : 'none';
-        doldur(p || { ad: '', dk: '', ucret: '', asim: '', davranis: 'devam', not: '' });
+        doldur(p || { ad: '', dk: '', ucret: '', asim: '', davranis: 'devam', not: '', ses: @json($varsayilanSes) });
         bg.classList.add('acik');
     }
     function kapat(){ bg.classList.remove('acik'); }

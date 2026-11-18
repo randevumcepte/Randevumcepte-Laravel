@@ -98,7 +98,8 @@ async function main() {
   (async () => {
     for (const c of ['Başka yardımcı olabileceğim bir konu var mı?', 'Hangisini tercih edersiniz?', 'Hemen bakıyorum.',
       'Tamam, kontrol ediyorum.', 'Randevunuz onaylandığında size bilgi verilecektir.', 'Lütfen hatta kalın.']) {
-      try { await tts.seslendir(c); } catch (_) {}
+      // Isletmelerin secebildigi her ses icin (disk onbellegi kalici -> ses basina tek seferlik ~300 karakter)
+      for (const ses of cfg.tts.sesler) { try { await tts.seslendir(c, { ses }); } catch (_) {} }
     }
     log.info('kalip cumleler onbellege alindi');
   })();

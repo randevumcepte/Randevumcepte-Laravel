@@ -22,7 +22,7 @@ class SantralKopruController extends Controller
     {
         // GECIKME: her turda 2 Schema::hasTable (information_schema sorgusu) yapiliyordu. Tablolar bir kez
         // dogrulaninca bayrak onbellekte tutulur (paket semasi zaten boyle).
-        if (\Cache::get('santral_tablo_v1') && \Cache::get('santral_paket_sema_v1')) return;
+        if (\Cache::get('santral_tablo_v1') && SantralPaket::semaHazir()) return;
         if (!Schema::hasTable('santral_oturumlari')) {
             Schema::create('santral_oturumlari', function ($t) {
                 $t->bigIncrements('id'); // Laravel 5.6: id() yok (L7+)
@@ -57,7 +57,7 @@ class SantralKopruController extends Controller
     /** Kullanim kolonlari hazir mi (sema garantisi basarisizsa insert/update bozulmasin). */
     protected function kullanimKolonlari(): bool
     {
-        return (bool) \Cache::get('santral_paket_sema_v1');
+        return (bool) SantralPaket::semaHazir();
     }
 
     protected function yetkiVar(Request $r): bool
@@ -99,6 +99,7 @@ class SantralKopruController extends Controller
         }
 
         $as = new RandevuAsistan($salonId, $telefon ?: null);
+        $ttsSes = SantralPaket::salonSesi($salonId); // isletmenin paketinde secilen ses (kopru bununla okur)
         $ilkMesaj = null;
         if ($hedef !== '' && ($hk = $as->hatirlatmaKarsilama($hedef))) {
             [$karsilama, $hMeta] = $hk;
@@ -116,7 +117,7 @@ class SantralKopruController extends Controller
             'gecmis' => json_encode([$ilkMesaj], JSON_UNESCAPED_UNICODE),
             'durum' => 'acik',
             'created_at' => now(),
-        ] + ($this->kullanimKolonlari() ? ['yon' => $hedef !== '' ? 'giden' : 'gelen', 'tts_karakter' => mb_strlen($karsilama)] : [])
+        ] + ($this->kullanimKolonlari() ? ['yon' => $hedef !== '' ? 'giden' : 'gelen', 'tts_karakter' => mb_strlen($karsilama), 'tts_ses' => $ttsSes] : [])
           + ($hMeta && !empty($hMeta['randevu_id']) ? ['randevu_id' => (int) $hMeta['randevu_id']] : []));
 
         return $this->j([
@@ -129,6 +130,7 @@ class SantralKopruController extends Controller
             'musteri' => $as->taninanMusteri(),
             'son_siparis' => '',
             'stt_ipuclari' => $as->sttIpuclari(), // kopru: Google STT speechContexts (hizmet adlari dogru duyulsun)
+            'tts_ses' => $ttsSes,
         ]);
     }
 
@@ -291,6 +293,12 @@ class SantralKopruController extends Controller
                 $upd['bitis_at'] = now();
                 $upd['sure_sn'] = max(0, min(3600, time() - strtotime($o->created_at)));
             }   // onceki aksiyonu (randevu/aktar) ezme
+            // KOPRU OLCUMU (net maliyet): Google'a giden karakter + STT'ye akan saniye + kullanilan ses
+            if ($o && $this->kullanimKolonlari()) {
+                if (is_numeric($r->input('tts_ucretli_karakter'))) $upd['tts_ucretli_karakter'] = max(0, min(4000000, (int) $r->input('tts_ucretli_karakter')));
+                if (is_numeric($r->input('stt_sn'))) $upd['stt_sn'] = round(max(0, min(36000, (float) $r->input('stt_sn'))), 1);
+                if ($ses = SantralPaket::sesGecerli($r->input('tts_ses'))) $upd['tts_ses'] = $ses;
+            }
             DB::table('santral_oturumlari')->where('id', $oid)->update($upd);
         }
         return $this->j(['ok' => 1]);

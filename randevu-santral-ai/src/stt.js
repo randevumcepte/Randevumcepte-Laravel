@@ -11,6 +11,14 @@ const client = new speech.SpeechClient();
 // Google streaming tek akista ~305sn siniri koyar -> uzun cagrida akisi periyodik yenile.
 const AKIS_YENILEME_MS = 240000;
 
+// MALIYET OLCUMU: Google STT, akisa GONDERILEN ses suresine gore ucretlendirir; her akis (request) ayri yuvarlanir.
+// STT_YUVARLAMA_SN: akis basina yuvarlama birimi (V1 faturasinda gorulen birime gore; varsayilan 1 sn).
+const YUVARLAMA_SN = Math.max(0, parseFloat(process.env.STT_YUVARLAMA_SN || '1') || 0);
+function saniyeBayt() {
+  // ulaw 8 kHz = 8000 B/sn, LINEAR16 = ornek hizi x 2
+  return /LINEAR16/i.test(cfg.audio.sttEncoding || '') ? cfg.audio.sampleRate * 2 : cfg.audio.sampleRate;
+}
+
 // STT kelime ipuclari (speech context) — SALON/RANDEVU alanina ozgu kelimeler.
 // DIKKAT: restorandan kalan 'masa/kişi/kişilik/porsiyon' ipuclari "saç kesimi"ni "kişi" diye duyuruyordu -> kaldirildi.
 const KELIME_IPUCLARI = [
@@ -50,6 +58,8 @@ class SttOturumu {
     this.kapali = false;
     this.yenilemeZ = null;
     this.ekIpuclari = [];
+    this.faturaSn = 0;   // kapanan akislarin ucretlenen toplami (yuvarlanmis)
+    this._akisBayt = 0;  // acik akisa yazilan ses
     this._baslat();
   }
 
@@ -122,9 +132,25 @@ class SttOturumu {
     this.yenilemeZ = setTimeout(() => this._yenile(0), AKIS_YENILEME_MS);
   }
 
+  /** Acik akisin ses suresini faturaya isle (akis kapanirken). */
+  _akisSay() {
+    if (!this._akisBayt) return;
+    let sn = this._akisBayt / saniyeBayt();
+    if (YUVARLAMA_SN > 0) sn = Math.ceil(sn / YUVARLAMA_SN - 1e-9) * YUVARLAMA_SN;
+    this.faturaSn += sn;
+    this._akisBayt = 0;
+  }
+
+  /** Bu cagride STT'ye akan (ucretlenen) toplam saniye — acik akis dahil. */
+  ucretliSaniye() {
+    this._akisSay();
+    return Math.round(this.faturaSn * 10) / 10;
+  }
+
   _yenile(bekle) {
     const eski = this.stream;
     this.stream = null;
+    this._akisSay();
     if (eski) { try { eski.end(); } catch (_) {} }
     if (this.kapali) return;
     if (this.duraklatildi) { clearTimeout(this.yenilemeZ); return; } // duraklatilmis: devam() yeni config ile acar
@@ -150,6 +176,7 @@ class SttOturumu {
     clearTimeout(this.yenilemeZ);
     const eski = this.stream;
     this.stream = null;
+    this._akisSay();
     if (eski) { try { eski.end(); } catch (_) {} }
   }
 
@@ -159,7 +186,7 @@ class SttOturumu {
     this.duraklatildi = false;
     if (!this.stream) this._baslat();
     if (!this.stream) return;
-    for (const p of (parcalar || [])) { try { this.stream.write(p); } catch (_) { break; } }
+    for (const p of (parcalar || [])) { try { this.stream.write(p); this._akisBayt += p.length; } catch (_) { break; } }
   }
 
   /** Kor nokta kurtarma: akisi yeniden ac ve tampondaki son konusmayi yeni akisa ver (gercek zamandan hizli yazilir). */
@@ -167,7 +194,7 @@ class SttOturumu {
     if (this.kapali) return;
     this._yenile(0);
     if (!this.stream || !Array.isArray(parcalar) || !parcalar.length) return;
-    for (const p of parcalar) { try { this.stream.write(p); } catch (_) { break; } }
+    for (const p of parcalar) { try { this.stream.write(p); this._akisBayt += p.length; } catch (_) { break; } }
   }
 
   // Asterisk'ten gelen ham ses karesi (RTP payload'i, header'siz)
@@ -175,6 +202,7 @@ class SttOturumu {
     if (this.kapali || !this.stream) { this._yazDus = (this._yazDus || 0) + 1; return; }
     try {
       this.stream.write(buf);
+      this._akisBayt += buf.length;
       this._yazSay = (this._yazSay || 0) + 1;
       if (this._yazSay === 1 || this._yazSay === 150) log.info(`STT'ye ${this._yazSay} kare yazildi (ses akiyor)`);
     } catch (e) {
@@ -186,6 +214,7 @@ class SttOturumu {
   kapat() {
     this.kapali = true;
     clearTimeout(this.yenilemeZ);
+    this._akisSay();
     if (this.stream) { try { this.stream.end(); } catch (_) {} this.stream = null; }
   }
 }

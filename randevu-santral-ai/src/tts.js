@@ -32,30 +32,40 @@ const path = require('path');
 const crypto = require('crypto');
 const DISK_DIZIN = process.env.TTS_ONBELLEK_DIZIN || path.resolve(__dirname, '..', 'tts-onbellek');
 try { fs.mkdirSync(DISK_DIZIN, { recursive: true }); } catch (_) {}
-function diskAnahtar(t) {
+// ses: Google ses adi (isletmeye gore Laravel baslat'tan gelir; yoksa TTS_VOICE). Anahtar sese gore ayrilir.
+function diskAnahtar(t, ses) {
   const e = cfg.elevenlabs;
   const ayar = akisli()
     ? ['el', e.voiceId, e.model, e.stability, e.similarity, e.speed, e.dil, JSON.stringify(e.yazim), cfg.mediaFormat]
-    : ['g', cfg.tts.voice, cfg.tts.speakingRate, cfg.tts.profil, cfg.mediaFormat];
+    : ['g', ses || cfg.tts.voice, cfg.tts.speakingRate, cfg.tts.profil, cfg.mediaFormat];
   return path.join(DISK_DIZIN, crypto.createHash('md5').update(JSON.stringify(ayar) + '|' + t).digest('hex') + '.ses');
 }
-function onbellekAl(t) {
-  if (cache.has(t + '|' + (akisli() ? 'el' : 'g'))) return cache.get(t + '|' + (akisli() ? 'el' : 'g'));
+function bellekAnahtar(t, ses) {
+  return t + '|' + (akisli() ? 'el' : 'g:' + (ses || cfg.tts.voice));
+}
+function onbellekAl(t, ses) {
+  const k = bellekAnahtar(t, ses);
+  if (cache.has(k)) return cache.get(k);
   try {
-    const b = fs.readFileSync(diskAnahtar(t));
-    if (b && b.length) { onbellekBellek(t, b); return b; }
+    const b = fs.readFileSync(diskAnahtar(t, ses));
+    if (b && b.length) { onbellekBellek(t, b, ses); return b; }
   } catch (_) {}
   return null;
 }
-function onbellekBellek(t, buf) {
+function onbellekBellek(t, buf, ses) {
   if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
-  cache.set(t + '|' + (akisli() ? 'el' : 'g'), buf);
+  cache.set(bellekAnahtar(t, ses), buf);
 }
-function onbellekKoy(t, buf) {
+function onbellekKoy(t, buf, ses) {
   if (!buf || !buf.length) return;
-  onbellekBellek(t, buf);
-  fs.writeFile(diskAnahtar(t), buf, () => {});
+  onbellekBellek(t, buf, ses);
+  fs.writeFile(diskAnahtar(t, ses), buf, () => {});
 }
+
+// MALIYET OLCUMU: Google ayni anda gelen ayni cumleyi iki kez ucretlendirmesin (tepki/dolgu on-seslendirme yarisi)
+const _suren = new Map();
+// Google karakter sayimi: bosluk/noktalama dahil her karakter (kod noktasi)
+function karakterSay(t) { return Array.from(t).length; }
 
 // Google TTS ulaw -> MULAW/8000, LINEAR16 -> LINEAR16/16000 (sampleRateHertz zorunlu degil ama netlik icin)
 // effectsProfileId 'telephony-class-application': Google sesi telefon hattina (dar bant) gore optimize eder
@@ -123,18 +133,30 @@ async function elevenlabs(t) {
   return Buffer.from(data);
 }
 
-async function seslendir(metin) {
+// opt.ses: Google ses adi (isletmeye gore); opt.olcum: cagri sayaci {ttsKarakter, elKarakter} — yalniz GERCEKTEN
+// saglayiciya giden (onbellekte olmayan) metin sayilir -> net maliyet.
+async function seslendir(metin, opt) {
   const t = okunur(metin).trim();
   if (!t) return Buffer.alloc(0);
-  const onb = onbellekAl(t);
+  const ses = (opt && opt.ses) || cfg.tts.voice;
+  const olcum = opt && opt.olcum;
+  const onb = onbellekAl(t, ses);
   if (onb) return onb;
+  const anahtar = bellekAnahtar(t, ses);
+  if (_suren.has(anahtar)) return _suren.get(anahtar); // ayni cumle zaten uretiliyor -> ikinci ucret yok
+  const is = _seslendirGercek(t, ses, olcum);
+  _suren.set(anahtar, is);
+  try { return await is; } finally { _suren.delete(anahtar); }
+}
 
+async function _seslendirGercek(t, ses, olcum) {
   let elHata = false; // ElevenLabs basarisiz -> Google sesi ElevenLabs anahtariyla ONBELLEGE YAZILMAZ (kalici yanlis ses olmasin)
   if (cfg.tts.saglayici === 'elevenlabs' && cfg.elevenlabs.apiKey && cfg.elevenlabs.voiceId) {
     try {
       const buf = await elevenlabs(t);
       if (buf.length) {
-        onbellekKoy(t, buf);
+        if (olcum) olcum.elKarakter = (olcum.elKarakter || 0) + karakterSay(t);
+        onbellekKoy(t, buf, ses);
         return buf;
       }
     } catch (e) {
@@ -153,7 +175,7 @@ async function seslendir(metin) {
   const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${cfg.tts.apiKey}`;
   const body = {
     input: { text: t },
-    voice: { languageCode: 'tr-TR', name: cfg.tts.voice },
+    voice: { languageCode: 'tr-TR', name: ses },
     audioConfig: audioConfig(),
   };
 
@@ -164,7 +186,8 @@ async function seslendir(metin) {
     // ulaw ciktisi da WAV header'li gelebilir -> ayikla
     else buf = stripWavHeader(buf);
 
-    if (!elHata) onbellekKoy(t, buf);
+    if (olcum) olcum.ttsKarakter = (olcum.ttsKarakter || 0) + karakterSay(t);
+    if (!elHata) onbellekKoy(t, buf, ses);
     return buf;
   } catch (e) {
     log.error('TTS hatasi:', e.response?.data?.error?.message || e.message);
@@ -179,10 +202,11 @@ function akisli() {
   return cfg.tts.saglayici === 'elevenlabs' && !!cfg.elevenlabs.apiKey && !!cfg.elevenlabs.voiceId;
 }
 
-async function seslendirAkis(metin, onParca) {
+async function seslendirAkis(metin, onParca, opt) {
   const t = okunur(metin).trim();
   if (!t) return;
-  if (!akisli() || onbellekAl(t)) { const b = await seslendir(metin); if (b && b.length) onParca(b); return; }
+  if (!akisli() || onbellekAl(t)) { const b = await seslendir(metin, opt); if (b && b.length) onParca(b); return; }
+  const olcum = opt && opt.olcum;
 
   const e = cfg.elevenlabs;
   const bicim = cfg.mediaFormat === 'slin16' ? 'pcm_16000' : 'ulaw_8000';
@@ -193,6 +217,7 @@ async function seslendirAkis(metin, onParca) {
   const parcalar = [];
   let artik = Buffer.alloc(0), geldi = false;
   try {
+    if (olcum) olcum.elKarakter = (olcum.elKarakter || 0) + karakterSay(t);
     const res = await axios.post(url, govde, {
       httpsAgent: ajan, timeout: 15000, responseType: 'stream',
       headers: { 'xi-api-key': e.apiKey, 'Content-Type': 'application/json' },
@@ -217,7 +242,7 @@ async function seslendirAkis(metin, onParca) {
     if (geldi) { log.error('ElevenLabs akis yarida kesildi:', m); return; }
     log.error('ElevenLabs akis hatasi -> Google ile okunuyor:', m);
     const ds = cfg.tts.saglayici; cfg.tts.saglayici = 'google';
-    try { const b = await seslendir(metin); if (b && b.length) onParca(b); } finally { cfg.tts.saglayici = ds; }
+    try { const b = await seslendir(metin, opt); if (b && b.length) onParca(b); } finally { cfg.tts.saglayici = ds; }
   }
 }
 

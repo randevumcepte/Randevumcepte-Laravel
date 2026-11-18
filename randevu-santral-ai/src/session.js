@@ -67,6 +67,9 @@ class CagriOturumu {
     this.sessizlikZ = null;
 
     this._sesGeldi = false; // ilk ses karesi STT'ye ulasti mi (tani icin)
+    // ISLETMENIN SESI (Laravel baslat -> tts_ses) + NET MALIYET OLCUMU (bitir'de Laravel'e gider)
+    this.ttsSes = null;
+    this.olcum = { ttsKarakter: 0, elKarakter: 0 };
 
     this.rtp = new RtpOturumu(rtpPort, (payload) => {
       // YARI-DUPLEKS: barge-in kapaliyken AI konusurken mikrofonu STT'ye VERME.
@@ -108,6 +111,7 @@ class CagriOturumu {
     try {
       const d = await brain.baslat(this.subeId, this.telefon, 'santral', this.geriAramaOturum, this.hatirlatma);
       this.oturumId = d.oturum_id;
+      if (d.tts_ses) this.ttsSes = String(d.tts_ses);
       // Salonun hizmet adlari -> STT ipucu (karsilama calarken akis yeni config ile yeniden acilir)
       if (Array.isArray(d.stt_ipuclari) && d.stt_ipuclari.length) { try { this.stt.ipucuEkle(d.stt_ipuclari); } catch (e) { log.warn('STT ipucu eklenemedi: ' + e.message); } }
       log.info(`Oturum #${this.oturumId} basladi (kanal ${this.kanalId}, tel ${this.telefon || '-'}, sube ${d.sube_id ?? this.subeId}, menu ${d.menu_adet ?? '?'} urun, musteri ${d.musteri || 'YENI'})`);
@@ -115,8 +119,8 @@ class CagriOturumu {
       if (d.musteri) log.info(`musteri taninID: ${d.musteri}${d.son_siparis ? ' | gecen siparis: ' + d.son_siparis : ' | gecen siparis YOK'}`);
       await this._seslendir(d.karsilama || 'Merhaba, size nasıl yardımcı olabilirim?');
       // Bekleme cumlelerini onceden seslendir (onbellege al) -> gerektiginde aninda calsin
-      if (cfg.dolguMs > 0) for (const c of DOLGU) tts.seslendir(c).catch(() => {});
-      if (cfg.tepkiMs > 0) for (const c of TEPKI_SORGU.concat(TEPKI_KISA, TEPKI_GENEL)) tts.seslendir(c).catch(() => {});
+      if (cfg.dolguMs > 0) for (const c of DOLGU) this._tts(c).catch(() => {});
+      if (cfg.tepkiMs > 0) for (const c of TEPKI_SORGU.concat(TEPKI_KISA, TEPKI_GENEL)) this._tts(c).catch(() => {});
     } catch (e) {
       const neden = e.response && e.response.data && e.response.data.hata;
       if (neden === 'paket_yok' || neden === 'paket_bitti') {
@@ -276,7 +280,7 @@ class CagriOturumu {
 
   _tepkiCal(c) {
     if (this.kapali || this._kapaniyor || !this.mesgul || this.rtp.sesVarMi) return;
-    tts.seslendir(c).then((ses) => {
+    this._tts(c).then((ses) => {
       if (this.kapali || !this.mesgul || this.rtp.sesVarMi || !ses || !ses.length) return;
       this._tepkiCaldi = true;
       log.info(`~ tepki: ${c}`);
@@ -289,7 +293,7 @@ class CagriOturumu {
     if (this.rtp.sesVarMi) return; // AI hala onceki cumleyi okuyor
     this._dolguNo = ((this._dolguNo || 0) + 1) % DOLGU.length;
     const c = DOLGU[this._dolguNo];
-    tts.seslendir(c).then((ses) => {
+    this._tts(c).then((ses) => {
       if (this.kapali || !this.mesgul || this.rtp.sesVarMi) return;
       if (ses && ses.length) { log.info(`~ bekleme: ${c}`); this.rtp.oynat(ses); }
     }).catch(() => {});
@@ -433,6 +437,11 @@ class CagriOturumu {
     }
   }
 
+  /** Isletmenin sesiyle seslendir; Google'a giden karakter bu cagriya yazilir. */
+  _tts(c) {
+    return tts.seslendir(c, { ses: this.ttsSes, olcum: this.olcum });
+  }
+
   async _seslendir(metin) {
     // Cumle-cumle seslendir: ilk cumle hemen calar, sonrakiler o calariken uretilir (algilanan gecikme duser).
     // BARGE-IN: musteri araya girince (_kesmeNo artar) kalan cumleler URETILMEZ/CALINMAZ.
@@ -450,11 +459,11 @@ class CagriOturumu {
             if (this.kapali || (this._kesmeNo || 0) !== kesme) return;
             this.rtp.oynat(parca);
             if (!ilkSes) { ilkSes = true; this._gecikmeOlcumu(c); }
-          });
+          }, { ses: this.ttsSes, olcum: this.olcum });
           if (this.kapali || (this._kesmeNo || 0) !== kesme) break;
           continue;
         }
-        const ses = await tts.seslendir(c);
+        const ses = await this._tts(c);
         if (this.kapali || (this._kesmeNo || 0) !== kesme) break; // TTS beklerken kesildiyse calma
         if (ses && ses.length) this.rtp.oynat(ses);
         this._gecikmeOlcumu(c);
@@ -529,7 +538,16 @@ class CagriOturumu {
     clearTimeout(this._interimZ);
     this.stt.kapat();
     this.rtp.kapat();
-    if (this.oturumId) await brain.bitir(this.oturumId, sonuc || 'kapandi');
+    if (this.oturumId) {
+      const sttSn = this.stt.ucretliSaniye();
+      log.info(`Oturum #${this.oturumId} maliyet olcumu: STT ${sttSn} sn, TTS ${this.olcum.ttsKarakter} karakter (${this.ttsSes || cfg.tts.voice})`
+        + (this.olcum.elKarakter ? `, ElevenLabs ${this.olcum.elKarakter} karakter` : ''));
+      await brain.bitir(this.oturumId, sonuc || 'kapandi', {
+        stt_sn: sttSn,
+        tts_ucretli_karakter: this.olcum.ttsKarakter,
+        tts_ses: this.ttsSes || cfg.tts.voice,
+      });
+    }
     log.info(`Oturum #${this.oturumId || '-'} kapandi (kanal ${this.kanalId})`);
   }
 }

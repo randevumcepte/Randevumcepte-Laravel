@@ -67,7 +67,13 @@ return [
         'girdi_usd_m' => env('SANTRAL_GIRDI_USD_M', 0.10),
         'cikti_usd_m' => env('SANTRAL_CIKTI_USD_M', 0.50),
         'stt_usd_dk'  => env('SANTRAL_STT_USD_DK', 0.016),
-        'tts_usd_m'   => env('SANTRAL_TTS_USD_M', 30.0), // Chirp3-HD; kopru Wavenet kullaniyorsa .env'de 4
+        'tts_usd_m'   => env('SANTRAL_TTS_USD_M', 30.0), // YALNIZ ses kaydi olmayan ESKI gorusmeler icin (o donem Chirp3-HD)
+        // Isletme bazli secilebilen sesler (Sistem Yonetimi > Santral Asistan Paketleri). usd_m = 1M karakter fiyati.
+        // Ilk eleman varsayilan (paketinde ses secilmemis salon).
+        'tts_sesler' => [
+            'tr-TR-Wavenet-E'       => ['ad' => 'WaveNet E (standart)', 'usd_m' => (float) env('SANTRAL_TTS_WAVENET_USD_M', 4.0)],
+            'tr-TR-Chirp3-HD-Kore'  => ['ad' => 'Chirp3-HD Kore (premium)', 'usd_m' => (float) env('SANTRAL_TTS_CHIRP3_USD_M', 30.0)],
+        ],
         'stt_oran'    => env('SANTRAL_STT_ORAN', 0.52),   // STT'nin ucretlenen kismi (kopru AI konusurken akisi kapatir); kapaliysa 1
         // Arac sonucu belirliyse cumleyi kod kurar, son Claude cagrisi atlanir (gecikme). 0 = kapali.
         'kod_cevap' => (bool) env('SANTRAL_KOD_CEVAP', true),

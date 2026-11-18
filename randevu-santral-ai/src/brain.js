@@ -88,9 +88,10 @@ async function aktarmaHedef(subeId) {
 }
 
 // POST /api/v1/santral/bitir -> cagriyi cagri_loglari'na sonucla
-async function bitir(oturumId, ozet) {
+// ek: kopru maliyet olcumu {stt_sn, tts_ucretli_karakter, tts_ses}
+async function bitir(oturumId, ozet, ek) {
   try {
-    const { data } = await http.post('/api/v1/santral/bitir', form({ oturum_id: oturumId, ozet }));
+    const { data } = await http.post('/api/v1/santral/bitir', form(Object.assign({ oturum_id: oturumId, ozet }, ek || {})));
     return data;
   } catch (e) {
     log.warn('bitir hatasi (yok sayiliyor):', e.message);
