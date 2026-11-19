@@ -234,6 +234,8 @@ class WaAsistanRapor
         foreach ($otr as $o) if (isset($gorselOturum[(int) $o['id']]) && !empty($o['randevu_id'])) $gorselRandevu++;
         $saatler = [];
         foreach ($cev as $c) { $h = (int) date('G', strtotime($c['created_at'])); $saatler[$h] = ($saatler[$h] ?? 0) + 1; }
+        $saatDagilim = array_fill(0, 24, 0);
+        foreach ($saatler as $h => $n) $saatDagilim[$h] = $n;
         arsort($saatler);
 
         // --- kazanc / geri donus
@@ -288,6 +290,7 @@ class WaAsistanRapor
             ],
             'populer_hizmet' => array_slice($hizmetSay, 0, 5, true),
             'yogun_saat' => array_slice($saatler, 0, 3, true),
+            'saat_dagilim' => $saatDagilim,
             'kacan' => array_map(function ($o) {
                 return ['oturum_id' => (int) $o['id'], 'ad' => $o['ad'], 'telefon' => $o['musteri_tel'] ?: $o['telefon'], 'hizmet' => $o['son_hizmet_ad'],
                     'neden' => (int) $o['gorsel_sayisi'] > 0 ? 'Fotoğrafa fiyat aldı' : (!empty($o['fiyat_verildi']) ? 'Fiyat aldı' : (!empty($o['saat_onerildi']) ? 'Saatlere baktı' : 'Bilgi aldı')),

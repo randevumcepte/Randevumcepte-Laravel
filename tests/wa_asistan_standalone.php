@@ -399,6 +399,7 @@ namespace {
     esit('kart: kendi bitirdiği (aktar hariç)', ['tutar' => 2000.0, 'mesaj' => 6], $o['kart']['cozulen']);
     esit('kart: fotoğraflı sohbetler', ['tutar' => 800.0, 'mesaj' => 3], $o['kart']['gorsel']);
     esit('kart: geri kazanma sohbetleri', ['tutar' => 800.0, 'mesaj' => 2], $o['kart']['geri_kazanim']);
+    esit('saat dağılımı: 24 saat, 14:00 = 2 mesaj', [24, 2, 1], [count($o['saat_dagilim']), $o['saat_dagilim'][14], $o['saat_dagilim'][23]]);
     esit('boş veri çökmez', 0,WaAsistanRapor::ozetHesapla(['cevaplar' => [], 'oturumlar' => [], 'randevular' => [], 'geri_kazanim' => []])['cevap']['toplam']);
 
     baslik('Genel bakış: dönem, trend, seri');
