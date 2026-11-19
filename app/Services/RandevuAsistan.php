@@ -147,6 +147,17 @@ class RandevuAsistan
         }, $k));
     }
 
+    /**
+     * WhatsApp: cevap bir kontrol/islem SOZU ile bitiyor ve musteriye soru/secenek sunmuyor mu?
+     * "Fatma Hanım ile uygun mu bir bakayım." / "Berfin Hanım'ı not aldım." -> true. "Hangisi olsun?" -> false.
+     */
+    public static function sozVeripBirakti(string $cevap): bool
+    {
+        $c = trim($cevap);
+        if ($c === '' || mb_strpos($c, '?') !== false) return false;
+        return (bool) preg_match('/\b(bir )?bak(ay[ıi]m|ar[ıi]m|[ıi]yorum|al[ıi]m)\b|kontrol (edeyim|ediyorum|ederim|edelim|edip)|deneyebilirim|deneyeyim|not (ald[ıi]m|ettim|aldım)|(ileteyim|ayarlayay[ıi]m|ayarl[ıi]yorum|hemen d[öo]n[üu]yorum|birazdan (yaz|d[öo]n|bildir))/iu', $c);
+    }
+
     /** Yalniz WhatsApp: Gece Denetcisi'nin bu isletme icin test edip onayladigi davranis dersleri (WaDenetci::aktifDersler). */
     public function waDersleriAyarla(array $dersler): void
     {
@@ -571,6 +582,15 @@ class RandevuAsistan
                 Log::warning('[SANTRAL-BEKLETME] model bekletme cumlesiyle turu bitirdi', ['salon' => $this->salonId, 'metin' => $metin]);
                 $messages[] = ['role' => 'assistant', 'content' => 'Bir moment.'];
                 $messages[] = ['role' => 'user', 'content' => '[SİSTEM — müşteri bunu duymadı] Müşteriyi bekletme. Gereken aracı (ör. mevcut_randevular, musait_saatler) ŞİMDİ çağır ve sonucu doğrudan söyle.'];
+                continue;
+            }
+            // WHATSAPP: "bir bakayım / kontrol edeyim / not aldım" deyip kontrol yapmadan mesaji bitirdi (yazisma havada
+            // kalir: musteri cevap bekler, asistan bir sonraki mesaji bekler; canli 2026-11-19 songul). Kontrolu simdi yaptir.
+            if ($this->kanal === 'whatsapp' && $deneme === 0 && $aksiyon === null && !$bitir && self::sozVeripBirakti($cevap)) {
+                Log::warning('[WA-SOZ-BIRAKTI] model kontrol sozu verip turu bitirdi', ['salon' => $this->salonId, 'metin' => $metin, 'cevap' => $cevap]);
+                $messages[] = ['role' => 'assistant', 'content' => $cevap];
+                $messages[] = ['role' => 'user', 'content' => '[SİSTEM — müşteri bunu görmedi] Söz verip bırakma. Müşterinin istediği hizmet/personel/gün/saat için gereken aracı (ör. musait_saatler) ŞİMDİ çağır ve sonucu yaz: uygunsa onay sor, değilse en yakın seçenekleri sun. Mesajın müşteriye net bir seçenek ya da soru sunsun.'];
+                $cevap = '';
                 continue;
             }
             if (!$sahteBasari || $deneme > 0 || $bitir) break;
@@ -2004,6 +2024,7 @@ Bu bir telefon görüşmesi DEĞİL; müşteri WhatsApp'tan yazıyor ve cevabın
 - Müşteri sesli mesaj/fotoğraf gönderdiğini söylerse yalnız yazılı mesajları okuyabildiğini belirt.
 - Geçmişte "[SİSTEM — bu mesajı işletme personeli elle yazdı]" notlu mesajlar işletme personelinindir; onların verdiği bilgi ve sözlerle çelişme.
 - Geçmişte "[SİSTEM görsel ...]" notlu mesaj müşterinin gönderdiği model fotoğrafının analizidir: hizmet_id oradaysa randevuya o hizmetle devam et.
+- SÖZ VERİP BIRAKMA: "bir bakayım", "kontrol edeyim", "not aldım", "deneyebilirim" deyip mesajı BİTİRME. Kontrolü aynı cevapta araçla yap ve sonucu yaz. Müşteri bir personel adı söylerse hemen o personel için musait_saatler çağır. Her mesajın müşteriye net bir sonraki adım (seçenek ya da soru) sunsun; müşteri "pardon/tamam" gibi kısa bir şey yazarsa da son konuya dönüp sonraki adımı sor.
 - HIZ: müşteri hizmet, personel, gün ya da saat yazdıysa bunları HEMEN kullan (hizmet_eslestir + musait_saatler) ve ilk cevabında uygun saati sun; bildiği bir şeyi tekrar sorma. Eksik bilgileri tek mesajda topla. Hedef: randevu en fazla 2-3 mesajda.
 - KAYIT: kayıtsız müşteride "önce kaydınızı oluşturmam gerekiyor" DEME ve kayıt adımını sohbetin başında YAPMA; BAĞLAM'daki kayıt kuralına uy (kayıt yalnız randevu onayı sırasında). Bu kural aşağıdaki "önce KAYIT ADIMI'nı tamamla" kuralının yerine geçer.
 

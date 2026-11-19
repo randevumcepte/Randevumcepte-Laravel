@@ -791,6 +791,12 @@ namespace {
     esit('WA dersleri: santralde yok', false, strpos(cagir(asistan(), 'sistemPromptu'), 'ÖĞRENİLENLER') !== false);
     $dn = $waD->waDenemeIstegi([['role' => 'user', 'content' => 'yarın 3te protez']]);
     esit('deneme isteği: canlı model + araçlar + müşteri mesajı', [true, 'user'], [count($dn['tools']) > 3, $dn['messages'][0]['role']]);
+    $RA = App\Services\RandevuAsistan::class;
+    esit('söz verip bıraktı: "bir bakayım."', true, $RA::sozVeripBirakti('Tabii, Fatma Hanım\'ı deneyebilirim. Perşembe 19 Kasım saat 17:30\'da uzmanımız Fatma Hanım ile uygun mu bir bakayım.'));
+    esit('söz verip bıraktı: "not aldım."', true, $RA::sozVeripBirakti('Harika, Berfin Hanım\'ı not aldım.'));
+    esit('soru soruyor → bırakmadı', false, $RA::sozVeripBirakti('Kontrol ettim: 17:30 Fatma Hanım uygun. Oluşturayım mı?'));
+    esit('net bilgi → bırakmadı', false, $RA::sozVeripBirakti('Randevunuz Perşembe 17:30 Fatma Hanım ile oluşturuldu.'));
+    icerir('WA prompt: söz verip bırakma kuralı', 'SÖZ VERİP BIRAKMA', cagir($waD, 'sistemPromptu'));
     esit('WA selam: hitaplı', 'Merhaba Anıl Bey.', $wa->waSelam());
     esit('WA selam: cinsiyet yok', 'Merhaba, Sayın Aksel Kaya.', asistan(['kanal' => 'whatsapp', 'musteriAd' => 'Aksel Kaya'])->waSelam());
     $waH = ['role' => 'assistant', 'content' => 'Sayın Anıl, yarın 14:00 randevunuzu hatırlatırız.', 'hatirlatma' => ['tur' => 'randevu', 'randevu_id' => 5, 'soz' => 'yarın 14:00', 'wa' => 1]];
