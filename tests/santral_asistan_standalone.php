@@ -308,6 +308,18 @@ namespace {
     esit('ilk anlamama aktarılmaz', false, $pz->ikinciAnlamama($anla, [['role' => 'assistant', 'content' => 'Merhaba, size nasıl yardımcı olabilirim?'], ['role' => 'user', 'content' => 'şey']]));
     esit('ikinci anlamama aktarılır', true, $pz->ikinciAnlamama($anla, [['role' => 'assistant', 'content' => $anla], ['role' => 'user', 'content' => 'hmm']]));
     esit('"mı demek istediniz" de anlamama sayılır', true, $pz->ikinciAnlamama('Protez tırnak mı demek istediniz?', [['role' => 'assistant', 'content' => 'Sizi tam anlayamadım. Tekrar söyler misiniz?'], ['role' => 'user', 'content' => 'protest']]));
+    $ola = asistan(['salon' => ['ad' => 'Ola Nail', 'hizmetler' => [
+        ['id' => 1, 'ad' => 'Kalıcı Oje', 'kategori' => 'Tırnak'], ['id' => 2, 'ad' => 'Jel Tırnak', 'kategori' => 'Tırnak'],
+        ['id' => 3, 'ad' => 'İpek Kirpik', 'kategori' => 'Kirpik'], ['id' => 4, 'ad' => 'El Protez Tırnak', 'kategori' => 'Tırnak'],
+        ['id' => 5, 'ad' => 'Fullset', 'kategori' => 'Tırnak']]]]);
+    $u = $ola->uydurmaHizmetKes('Kusura bakmayın, tam eşleştiremedim. Kalıcı oje, jel tırnak, ipek kirpik ya da cilt bakımı gibi hizmetlerimizden hangisini istersiniz?');
+    esit('uydurma "cilt bakımı" çıkar', false, mb_stripos($u, 'cilt') !== false);
+    icerir('gerçek örneklerle değişir + soru korunur', 'Hangisiyle ilgileniyorsunuz?', $u);
+    icerir('ilk cümle korunur', 'Kusura bakmayın, tam eşleştiremedim.', $u);
+    $u2 = $ola->uydurmaHizmetKes('Hangi hizmetle ilgilendiğinizi öğrenirsem bakabilirim. Örneğin kalıcı oje, jel tırnak ya da cist bakımı gibi hizmetlerimiz var. Hangisi için randevu almak istersiniz?');
+    esit('"Örneğin ..." listesinde de uydurma çıkar', false, mb_stripos($u2, 'cist') !== false);
+    $dogru = 'Tırnak için jel tırnak, fullset ya da kalıcı oje gibi bir hizmet mi istersiniz?';
+    esit('listede olan hizmetler dokunulmaz', $dogru, $ola->uydurmaHizmetKes($dogru));
     esit('anladıysa aktarılmaz', false, $pz->ikinciAnlamama('Hangi gün sizin için uygun?', [['role' => 'assistant', 'content' => $anla], ['role' => 'user', 'content' => 'manikür']]));
 
     bolum('"Başka yardımcı olabileceğim..." garantisi');

@@ -503,7 +503,7 @@ class RandevuAsistan
                 && $this->sahteBasariMetni($cevap);
             // BEKLETME CUMLESI: "bir moment / bekleteceğim / kontrol ediyorum" -> cumleyi at; geriye bir sey
             // kalmadiysa (model araci cagirmadan bekletip turu bitirdi) duzeltme turu: araci simdi cagirsin.
-            $cevap = $this->dogalBaslangic($this->uzmanListesiKes($this->bekletmeTemizle($this->icSesTemizle($cevap)), $metin));
+            $cevap = $this->dogalBaslangic($this->uydurmaHizmetKes($this->uzmanListesiKes($this->bekletmeTemizle($this->icSesTemizle($cevap)), $metin)));
             $bekletti = ($cevap === '' && !$bitir && !in_array($aksiyon, ['aktar', 'veda'], true));
             if ($bekletti && $deneme === 0) {
                 Log::warning('[SANTRAL-BEKLETME] model bekletme cumlesiyle turu bitirdi', ['salon' => $this->salonId, 'metin' => $metin]);
@@ -1043,6 +1043,52 @@ class RandevuAsistan
         $s = strtr($s, ['İ' => 'i', 'I' => 'i', 'ı' => 'i', 'Ş' => 's', 'ş' => 's', 'Ğ' => 'g', 'ğ' => 'g', 'Ü' => 'u', 'ü' => 'u', 'Ö' => 'o', 'ö' => 'o', 'Ç' => 'c', 'ç' => 'c']);
         $s = mb_strtolower($s, 'UTF-8');
         return trim(preg_replace('/\s+/u', ' ', preg_replace('/[^a-z0-9\s]/u', ' ', $s)));
+    }
+
+    /**
+     * Model ornek hizmet sayarken salonda OLMAYAN hizmet uydurabiliyor (kayit 178, Ola Nail: "kalıcı oje, jel tırnak,
+     * ipek kirpik ya da cilt bakımı gibi hizmetlerimiz var" -> salonda cilt bakimi yok). "X, Y ya da Z gibi hizmet..."
+     * cumlesindeki adlardan biri salon listesinde (hizmet adi/kategori) yoksa cumle KODUN gercek ornekleriyle degisir.
+     */
+    public function uydurmaHizmetKes(string $c): string
+    {
+        if (!preg_match('/gibi\s+(bir\s+)?(hizmet|işlem|seçenek)/iu', $c) || empty($this->salon['hizmetler'])) return $c;
+        $cumleler = preg_split('/(?<=[.!?])\s+/u', trim($c));
+        $out = [];
+        $degisti = false;
+        foreach ($cumleler as $s) {
+            if (!preg_match('/^(.*?)\s+gibi\s+(bir\s+)?(hizmet|işlem|seçenek)/iu', $s, $m)) { $out[] = $s; continue; }
+            $liste = preg_replace('/^.*?(?:örneğin|mesela|örnek olarak)[,:]?\s*/iu', '', $m[1]);
+            $uydurma = [];
+            foreach (preg_split('/\s*,\s*|\s+(?:ya da|veya|ve)\s+/u', $liste) as $p) {
+                if (!$this->hizmetAdiVarMi($p)) $uydurma[] = trim($p);
+            }
+            if (!$uydurma) { $out[] = $s; continue; }
+            if ($degisti) continue; // ikinci uydurma liste cumlesi atilir (gercek liste bir kez okunur)
+            $gercek = (string) $this->hizmetListesiCevabi('hangi hizmetleriniz var'); // kodun 5 ornekli listesi
+            $gercek = trim(preg_replace('/\s*Hangisiyle ilgileniyorsunuz\?$/u', '', $gercek));
+            if ($gercek === '') { $out[] = $s; continue; }
+            Log::warning('[SANTRAL-UYDURMA-HIZMET] model listede olmayan hizmet saydi', ['salon' => $this->salonId, 'uydurma' => $uydurma, 'cumle' => $s]);
+            $out[] = $gercek . (substr(rtrim($s), -1) === '?' ? ' Hangisiyle ilgileniyorsunuz?' : '');
+            $degisti = true;
+        }
+        return $degisti ? implode(' ', $out) : $c;
+    }
+
+    /** "jel tırnak" / "tırnak için jel tırnak" / "manikür" salonun bir hizmet adinda ya da kategorisinde geciyor mu? */
+    protected function hizmetAdiVarMi(string $p): bool
+    {
+        $p = $this->sade(preg_replace('/\b(hizmetler\w*|hizmet\w*|işlem\w*)\b/iu', '', $p));
+        if (mb_strlen($p) < 3) return true; // anlamsiz parca -> karar verme
+        foreach ($this->salon['hizmetler'] as $h) {
+            foreach ([(string) ($h['ad'] ?? ''), (string) ($h['kategori'] ?? '')] as $ad) {
+                $a = $this->sade($ad);
+                if ($a === '') continue;
+                if (strpos(' ' . $a . ' ', ' ' . $p) !== false || strpos(' ' . $p . ' ', ' ' . $a . ' ') !== false) return true;
+                if (1 - levenshtein($p, $a) / max(strlen($p), strlen($a)) >= 0.8) return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -1821,6 +1867,7 @@ PAKET AKIŞI (BAĞLAM'da PAKETLER varsa): Karşılamada paketten BAHSEDİLMEDİ.
 - Sonra normal akış: tarih → musait_saatler (paket hizmet_id + seçilen personel_id) → saat → onay → randevu_olustur. Seans pakete otomatik bağlanır; sonuçta paket_seansi=true ise "paketinizden" de.
 - Hayır derse randevuyu paketsiz=true ile normal akışta oluştur; başka bir şey isterse paketi bırak, normal akışa geç.
 
+ÖRNEK HİZMET sayacaksan YALNIZ yukarıdaki hizmet listesindeki adları kullan; listede OLMAYAN bir hizmeti (genel salon hizmeti bile olsa) ASLA söyleme, "var" deme.
 HİZMET LİSTESİ SORULURSA ("hangi hizmetleriniz var"): listenin tamamını OKUMA. En fazla 5 örnek say (farklı türlerden), "ve daha birçok hizmetimiz var" de, sonra "Hangisiyle ilgileniyorsunuz?" diye sor. Telefonda uzun liste dinlenmez.
 
 BEKLETME YOK: "Bir moment", "bir saniye", "biraz bekleteceğim", "kontrol ediyorum", "bakıyorum" gibi bekletme cümleleri ASLA kurma. Bilgi gerekiyorsa aracı HEMEN çağır ve sonucu doğrudan söyle (ör. "Pazartesi 16 Kasım saat 14:00'te Saç Kesimi randevunuz var, bunu iptal edeyim mi?").
