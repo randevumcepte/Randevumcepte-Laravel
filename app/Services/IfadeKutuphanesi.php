@@ -13,6 +13,15 @@ namespace App\Services;
 class IfadeKutuphanesi
 {
     protected static $veri = null;
+    protected static $ek = [];
+
+    /** Ogrenilmis ortak ifadeler [kavram_id => [ifade...]]; degistiyse motor yeniden kurulur. */
+    public static function ekIfadeler(array $ek): void
+    {
+        if ($ek === self::$ek) return;
+        self::$ek = $ek;
+        self::$veri = null;
+    }
     const YUMUSAMA = ['t' => 'd', 'k' => 'g', 'p' => 'b', 'c' => 'c'];
     /** Kisa koklerde izin verilen ekler (sadelestirilmis): cogul + iyelik + hal. "kaslarimi", "boyasini", "sacimin". */
     const EK = '/^(l[ae]r)?([iu]m|[iu]n|[iu]|s[iu]|[iu]m[iu]z|[iu]n[iu]z|m|n|m[iu]z|n[iu]z)?(n?[iuea]|y[iuea]|n?d[ae]|n?d[ae]n|n?l[ae]|n[iu]n)?$/';
@@ -33,6 +42,11 @@ class IfadeKutuphanesi
                 $k['_haric'] = array_values(array_filter(array_map([self::class, 'kelimeler'], (array) ($k['haric'] ?? []))));
                 $kavram[$k['id']] = $k;
             }
+        }
+        // ogrenme dongusunden gelen ortak ifadeler (IfadeOgrenme: 3+ salonda dogrulanmis)
+        foreach (self::$ek as $id => $ifadeler) {
+            if (!isset($kavram[$id])) continue;
+            foreach ((array) $ifadeler as $i) if ($w = self::kelimeler((string) $i)) { $kavram[$id]['_ifade'][] = $w; $kavram[$id]['ogrenilen'][] = $i; }
         }
         $korunan = [];
         foreach ($kavram as $k) foreach ($k['_ifade'] as $w) foreach ($w as $x) $korunan[$x] = 1;

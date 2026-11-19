@@ -39,7 +39,8 @@ namespace Illuminate\Support\Facades {
 namespace Illuminate\Http { class Request { static function create() { return new self; } } }
 namespace App\Http\Controllers\Api { class AiAsistanController {} }
 namespace App\Http\Controllers { class ApiController {} }
-namespace App\Services { class SantralPaket { static $kapali = []; static function asistanKapali(int $id): bool { return !empty(self::$kapali[$id]); } } }
+namespace App\Services { class IfadeOgrenme { static $sayac = []; static function say($s, $k, $kat) { self::$sayac[] = $kat; } static function __callStatic($m, $a) {} }
+    class SantralPaket { static $kapali = []; static function asistanKapali(int $id): bool { return !empty(self::$kapali[$id]); } } }
 namespace App {
     class SahteKoleksiyon { public $d; function __construct($d) { $this->d = $d; } function get($k = null) { return $k === null ? $this : ($this->d[$k] ?? null); } function keyBy($k) { $o = []; foreach ($this->d as $r) $o[$r->$k] = $r; return new self($o); } function isEmpty() { return !$this->d; } }
     class SalonCalismaSaatleri { static $satirlar = []; static function where() { return new SahteKoleksiyon(self::$satirlar); } }

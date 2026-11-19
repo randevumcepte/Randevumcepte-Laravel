@@ -327,6 +327,8 @@ class WaAsistanPanelController extends StoreAdminController
             // salon yalniz kendi bilgi sorularini gorur; egitim (ders/puan/inceleme) sistem yoneticisinin
             $p = ['biz' => 0, 'hizmetler' => $p['hizmetler'], 'dersler' => array_values(array_filter($p['dersler'], function ($d) { return $d->tur === 'bilgi' && $d->durum === 'oneri'; }))];
         }
+        // ifade kutuphanesi sayaci (hangi katman cozuyor) yalniz sistem yoneticisine
+        if ($biz) $p['ifade'] = ['salon' => \App\Services\IfadeOgrenme::ozet($sid), 'tum' => \App\Services\IfadeOgrenme::ozet(null)];
         return response()->json(['ok' => 1, 'biz' => $biz ? 1 : 0] + $p);
     }
 

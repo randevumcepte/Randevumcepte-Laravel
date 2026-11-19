@@ -920,15 +920,17 @@ class SesliRandevuCozService
         // Merkezi ifade kutuphanesi (WhatsApp/santral ile ortak): halk dili ("oje kaldirma", "protez takma").
         // Eski eslesme varsa dokunulmaz; yalniz hic bulunamadiysa ya da en ust skorda beraberlik varsa devreye girer.
         $beraber = count($tekil) > 1 && $tekil[0]['skor'] === $tekil[1]['skor'];
+        $katmanS = $tekil ? 'kelime' : 'yok';
         if (!$tekil || $beraber) {
             try {
                 $adlar = [];
                 foreach ($liste as $sh) if ($ad = optional($sh->hizmetler)->hizmet_adi) $adlar[(int) $sh->hizmet_id] = $ad;
+                \App\Services\IfadeOgrenme::hazirla();
                 $s = \App\Services\IfadeKutuphanesi::secim($fold, $adlar);
                 $this->dbg['ifade_kutuphanesi'] = ['durum' => $s['durum'], 'hizmetler' => $s['hizmetler'], 'kavramlar' => array_slice($s['kavramlar'], 0, 5)];
                 if ($s['durum'] === 'tek' && $beraber) {
                     $sec = array_values(array_filter($tekil, function ($h) use ($s) { return (int) $h['hizmet_id'] === (int) $s['hizmetler'][0]; }));
-                    if ($sec) $tekil = $sec;
+                    if ($sec) { $tekil = $sec; $katmanS = 'kutuphane'; }
                 } elseif (!$tekil && $s['durum'] !== 'yok') {
                     foreach ($liste as $sh) {
                         if (!in_array((int) $sh->hizmet_id, $s['hizmetler'], true)) continue;
@@ -940,11 +942,13 @@ class SesliRandevuCozService
                         $metinler[] = $this->fold((string) optional($sh->hizmetler)->hizmet_adi);
                     }
                     if ($s['durum'] === 'tek') array_splice($tekil, 1); // ayni hizmet iki kayit -> ilki
+                    if ($tekil) $katmanS = 'kutuphane';
                 }
             } catch (\Throwable $e) {
                 $this->dbg['ifade_kutuphanesi_hata'] = $e->getMessage();
             }
         }
+        \App\Services\IfadeOgrenme::say((int) $this->salonId, 'sesli', $katmanS);
 
         return [$tekil, $metinler];
     }

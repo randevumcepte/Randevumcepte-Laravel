@@ -1407,6 +1407,19 @@
          h += '<div class="wa-kart"><div class="wk-bos"><b>Henüz incelenen sohbet yok.</b> Denetçi her gece 03:00\'te, son 3 günde biten sohbetleri inceler. Hemen başlatmak için yukarıdaki <b>Şimdi incele</b> düğmesine basın; sonuçlar genellikle 1 saat içinde burada görünür. (En az bir müşteri mesajı ve bir cevap olan sohbetler incelenir.)</div></div>';
          return h;
       }
+      if (r.ifade) {
+         var IK = { kutuphane: ['Merkezi kütüphane', '#0d9488'], salon: ['Salonun öğrettiği', '#7c3aed'], tam_ad: ['Hizmetin tam adı', '#2563eb'], kelime: ['Eski kelime eşleştirme', '#64748b'], benzerlik: ['Ses/benzerlik düzeltmesi', '#d97706'], yok: ['Bulunamadı (yapay zekâ seçti)', '#dc2626'] };
+         var ikSatir = function (o) {
+            var t = o.toplam || 0;
+            if (!t) return '<div class="wa-alt">Henüz kayıt yok.</div>';
+            return Object.keys(IK).filter(function (k) { return o.katman[k]; }).map(function (k) {
+               var y = Math.round(o.katman[k] / t * 100);
+               return '<div class="gl-tur"><span>' + IK[k][0] + '</span><div class="bar"><i style="width:' + y + '%;background:' + IK[k][1] + '"></i></div><b>%' + y + '</b></div>';
+            }).join('') + '<div class="wa-alt" style="margin-top:6px">' + sayi(t) + ' hizmet arama · bedava çözülen %' + Math.round((t - (o.katman.yok || 0)) / t * 100) + '</div>';
+         };
+         h += '<div class="gl-iki" style="margin-bottom:18px"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-translate" style="color:#0d9488"></i>Hizmet anlama · bu salon (30 gün)</h4><span class="wa-alt">öğrenilen ifade: ' + sayi(r.ifade.salon.ogrenilen || 0) + '</span></div>' + ikSatir(r.ifade.salon) + '</div>'
+            + '<div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-globe2" style="color:#0d9488"></i>Hizmet anlama · tüm salonlar (30 gün)</h4><span class="wa-alt">ortak kütüphaneye giren: ' + sayi(r.ifade.tum.ortak || 0) + '</span></div>' + ikSatir(r.ifade.tum) + '</div></div>';
+      }
       if (r.rapor && r.rapor.metin) {
          h += '<div class="wa-kart gl-rapor" style="margin-bottom:18px"><div class="wa-kart-bas"><h4><i class="bi bi-chat-square-text-fill" style="color:#0d9488"></i>Denetçinin raporu</h4><span class="wa-alt">' + tarih(r.rapor.created_at) + '</span></div>'
             + '<div class="gl-rapor-metin">' + esc(r.rapor.metin) + '</div></div>';

@@ -585,8 +585,10 @@ class PatronAsistanServisi
             $liste = \Illuminate\Support\Facades\DB::table('salon_sunulan_hizmetler as sh')->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')
                 ->where('sh.salon_id', $salonId)->pluck('h.hizmet_adi', 'sh.hizmet_id')->all();
             if (!$liste) return null;
+            IfadeOgrenme::hazirla();
             $sec = IfadeKutuphanesi::secim($metin, $liste);
             if ($sec['durum'] === 'yok') return null;
+            IfadeOgrenme::say($salonId, 'patron', 'kutuphane');
             return ['ids' => array_map('intval', $sec['hizmetler']), 'adlar' => array_values(array_intersect_key($liste, array_flip($sec['hizmetler'])))];
         } catch (\Throwable $e) {
             return null;

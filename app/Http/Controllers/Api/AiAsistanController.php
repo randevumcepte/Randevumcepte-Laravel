@@ -553,14 +553,14 @@ class AiAsistanController extends Controller
                 ->filter(function ($e) use ($ara) { return $e->ifade !== '' && strpos($ara, ' ' . $e->ifade . ' ') !== false; })
                 ->sortByDesc(function ($e) { return strlen($e->ifade); })->first();
             if ($esan && ($h = $hizmetler->firstWhere('id', (int) $esan->hizmet_id))) {
-                return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => (int) $h->id, 'ad' => $h->ad]]);
+                return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => (int) $h->id, 'ad' => $h->ad], 'kaynak' => 'salon']);
             }
         } catch (\Throwable $e) {} // tablo henuz yok
 
         // 0b) Musteri hizmetin tam adini yazdiysa dogrudan o (kutuphane bunu degistirmesin)
         $tamAd = $hizmetler->filter(function ($h) use ($normMetin) { return self::halkDili(self::normalizeTr($h->ad)) === $normMetin; })->values();
         if (count($tamAd) === 1) {
-            return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => (int) $tamAd[0]->id, 'ad' => $tamAd[0]->ad]]);
+            return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => (int) $tamAd[0]->id, 'ad' => $tamAd[0]->ad], 'kaynak' => 'tam_ad']);
         }
 
         // 0c) Merkezi ifade kutuphanesi (database/ifade_kutuphanesi): halk dili -> kavram -> bu salonun hizmeti.
@@ -629,25 +629,25 @@ class AiAsistanController extends Controller
 
         // 1) Tam eşleşme
         if (count($tamListe) === 1) {
-            return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => $tamListe[0]]);
+            return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => $tamListe[0], 'kaynak' => 'kelime']);
         }
         if (count($tamListe) > 1) {
-            return response()->json(['ok' => true, 'eslesme' => 'coklu', 'ortak' => $metin, 'secenekler' => $tamListe]);
+            return response()->json(['ok' => true, 'eslesme' => 'coklu', 'ortak' => $metin, 'secenekler' => $tamListe, 'kaynak' => 'kelime']);
         }
 
         // 2) Genel terim: tüm kelimeler eşleşiyor
         if (count($iceren) === 1) {
-            return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => $iceren[0]['id'], 'ad' => $iceren[0]['ad']]]);
+            return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => $iceren[0]['id'], 'ad' => $iceren[0]['ad']], 'kaynak' => 'kelime']);
         }
         if (count($iceren) > 1) {
             $iceren = self::anaHizmetler($iceren, $metinKelime);
             if (count($iceren) === 1) {
-                return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => $iceren[0]['id'], 'ad' => $iceren[0]['ad']]]);
+                return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => $iceren[0]['id'], 'ad' => $iceren[0]['ad']], 'kaynak' => 'kelime']);
             }
             $secenekler = array_map(function ($x) {
                 return ['id' => $x['id'], 'ad' => $x['ad']];
             }, $iceren);
-            return response()->json(['ok' => true, 'eslesme' => 'coklu', 'ortak' => $metin, 'secenekler' => $secenekler]);
+            return response()->json(['ok' => true, 'eslesme' => 'coklu', 'ortak' => $metin, 'secenekler' => $secenekler, 'kaynak' => 'kelime']);
         }
 
         // 3) Fallback: en yüksek kelime örtüşmesi
@@ -660,7 +660,7 @@ class AiAsistanController extends Controller
         if (count($skorlu) >= 1 && $skorlu[0]['skor'] >= 0.6) {
             $ikinciFarkli = !isset($skorlu[1]) || ($skorlu[0]['ortak'] > $skorlu[1]['ortak']);
             if ($ikinciFarkli) {
-                return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => $skorlu[0]['id'], 'ad' => $skorlu[0]['ad']]]);
+                return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => $skorlu[0]['id'], 'ad' => $skorlu[0]['ad']], 'kaynak' => 'kelime']);
             }
         }
 
@@ -669,7 +669,7 @@ class AiAsistanController extends Controller
             return ['id' => $x['id'], 'ad' => $x['ad']];
         }, array_slice($skorlu, 0, 3));
 
-        $yok = ['ok' => true, 'eslesme' => 'yok', 'oneriler' => $oneriler];
+        $yok = ['ok' => true, 'eslesme' => 'yok', 'oneriler' => $oneriler, 'kaynak' => 'yok'];
         // Kutuphane hizmeti tanidi ama salonda yok ("saç kesimi" tirnak salonunda): asistan benzer hizmet uydurmasin
         if ($kut && $kut['durum'] === 'yok' && $kut['kavramlar'] && count($kut['kavramlar']) <= 3) {
             $kv = \App\Services\IfadeKutuphanesi::yukle()['kavram'];
@@ -686,6 +686,7 @@ class AiAsistanController extends Controller
     protected static function kutuphaneSecim(int $salonId, string $metin, $hizmetler): ?array
     {
         try {
+            \App\Services\IfadeOgrenme::hazirla(); // 3+ salonda dogrulanmis ogrenilen ifadeler
             $liste = $hizmetler->pluck('ad', 'id')->all();
             $anahtar = 'ifade_katalog_' . $salonId . '_' . md5(json_encode($liste) . \App\Services\IfadeKutuphanesi::surum());
             $katalog = \Illuminate\Support\Facades\Cache::remember($anahtar, 60, function () use ($liste) { return \App\Services\IfadeKutuphanesi::katalog($liste); });

@@ -1760,6 +1760,11 @@ class RandevuAsistan
                             : 'Bu hizmet müşterinin ' . count($pl) . ' paketinde var: her paketi kalan seansıyla say, hangi paketten randevu oluşturmak istediğini SOR.';
                     }
                 }
+                // Ifade kutuphanesi sayaci + ogrenme: bulunamadiysa ifade hatirlanir, randevu olusursa secilen hizmetle ogrenilir
+                $katman = ($d['eslesme'] ?? '') === 'yok' ? 'yok' : (string) ($d['kaynak'] ?? 'kelime');
+                if ($katman === 'yok' && ($d['eslesme'] ?? '') !== 'yok') $katman = 'benzerlik'; // ses tanima / kelime duzeltme kurtardi
+                \App\Services\IfadeOgrenme::say($this->salonId, $this->kanal ?? 'santral', $katman);
+                if (($d['eslesme'] ?? '') === 'yok') \App\Services\IfadeOgrenme::bulunamadi($this->salonId, $this->telefon ?? null, (string) ($in['metin'] ?? ''));
                 return [$d, null, null, false];
 
             case 'musait_saatler':
@@ -1775,6 +1780,7 @@ class RandevuAsistan
                 $d = $this->randevuOlusturPersonelli($in);
                 $this->_randevularim = null;
                 $ok = !empty($d['ok']);
+                if ($ok) \App\Services\IfadeOgrenme::randevuOlustu($this->salonId, $this->telefon ?? null, $this->intId($in['hizmet_id'] ?? null));
                 return [$d, $ok ? 'randevu' : null, $ok ? ($d['randevu_id'] ?? null) : null, false];
 
             case 'randevu_iptal':
