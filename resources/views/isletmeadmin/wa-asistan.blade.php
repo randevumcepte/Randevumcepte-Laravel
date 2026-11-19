@@ -665,10 +665,18 @@
    function el(id) { return document.getElementById(id); }
    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
    function url(yol, p) { p = p || {}; if (SUBE) p.sube = SUBE; var q = Object.keys(p).map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(p[k]); }).join('&'); return KOK + yol + (q ? '?' + q : ''); }
-   function al(yol, p) { return fetch(url(yol, p), { credentials: 'same-origin', headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); }); }
+   // Sunucu hatasi / oturum dusmesi (HTML doner) sessizce kaybolmasin: {ok:0, hata} olarak ekrana yazilir
+   function yanit(r) {
+      return r.text().then(function (t) {
+         try { return JSON.parse(t); } catch (e) {
+            return { ok: 0, hata: r.status === 401 || r.status === 419 || /<form|giris|login/i.test(t) ? 'Oturumunuz kapanmış görünüyor; sayfayı yenileyip tekrar giriş yapın.' : 'Sunucu hatası (' + r.status + '). Sayfayı yenileyip tekrar deneyin.' };
+         }
+      });
+   }
+   function al(yol, p) { return fetch(url(yol, p), { credentials: 'same-origin', headers: { 'Accept': 'application/json' } }).then(yanit); }
    function gonder(yol, veri) {
       return fetch(url(yol), { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: JSON.stringify(veri || {}) })
-         .then(function (r) { return r.json(); });
+         .then(yanit);
    }
    function tl(x) { x = Number(x || 0); return x.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' TL'; }
    function sayi(x) { return Number(x || 0).toLocaleString('tr-TR'); }
@@ -1043,7 +1051,11 @@
          if (!r.ok) { el('waSohbetListe').innerHTML = '<div class="wa-bos">' + esc(r.hata || '') + '</div>'; return; }
          if (!r.liste.length) { el('waSohbetListe').innerHTML = '<div class="wa-bos">Bu tarihlerde sohbet yok.</div>'; return; }
          el('waSohbetListe').innerHTML = r.liste.map(function (x) { return konusmaSatiri(x); }).join('');
-      }).catch(hata);
+         // Acik sohbet yoksa en sonuncusu acilir (sag taraf bos kalmasin); aciksa listede secili gorunur
+         var acik = el('waSohbetDetay').dataset.acik, satir = acik && document.querySelector('#waSohbetListe [data-sohbet="' + acik + '"]');
+         if (satir) satir.classList.add('secili');
+         else if (!acik) { var ilk = document.querySelector('#waSohbetListe [data-sohbet]'); if (ilk) { ilk.classList.add('secili'); sohbetAc(ilk.dataset.sohbet); } }
+      }).catch(function () { el('waSohbetListe').innerHTML = '<div class="wa-bos">Sohbetler yüklenemedi. Sayfayı yenileyip tekrar deneyin.</div>'; });
    }
    el('waSohbetListe').addEventListener('click', function (e) {
       var o = e.target.closest('[data-sohbet]'); if (!o) return;
@@ -1051,6 +1063,7 @@
       sohbetAc(o.dataset.sohbet);
    });
    function sohbetAc(id) {
+      el('waSohbetDetay').dataset.acik = id;
       if (!yuklendi.sohbet) { yuklendi.sohbet = 1; sohbetListe(); }
       el('waSohbetDetay').innerHTML = '<div class="wa-bos">Yükleniyor…</div>';
       al('/sohbet/' + id).then(function (r) {
@@ -1068,7 +1081,7 @@
             return '<div class="wa-balon ' + m.rol + '"><span class="r">' + r + '</span>' + esc(m.metin) + '</div>'; }).join('') + '</div>';
          h += '<div class="wa-alt" style="margin-top:10px">Devraldığınızda asistan bu sohbette 24 saat ya da siz geri verene kadar cevap vermez. Telefonunuzdan müşteriye yazdığınızda da asistan otomatik susar.</div>';
          el('waSohbetDetay').innerHTML = h;
-      }).catch(hata);
+      }).catch(function (e) { el('waSohbetDetay').innerHTML = '<div class="wa-bos">Sohbet gösterilemedi' + (e && e.message ? ' (' + esc(e.message) + ')' : '') + '. Sayfayı yenileyip tekrar deneyin.</div>'; });
    }
    // Isletmeye sorulan konunun sonucu: ne zaman soruldu, kime bildirildi, hatirlatma, asistanin donusu, kim cevapladi
    function saatKisa(s) { if (!s) return ''; var d = new Date(String(s).replace(' ', 'T')); return isNaN(d) ? '' : d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) + (d.toDateString() !== new Date().toDateString() ? ' · ' + d.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' }) : ''); }
