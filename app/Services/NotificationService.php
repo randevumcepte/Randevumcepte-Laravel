@@ -411,6 +411,8 @@ class NotificationService
                 return $base . '/isletmeyonetim/anketler' . $sube;
             case 'assistant_calls':
                 return $base . '/isletmeyonetim/santral' . $sube . '#asistan-gorusmeleri';
+            case 'wa_assistant':
+                return $base . '/isletmeyonetim/whatsapp-asistan' . $sube . (!empty($p['oturum_id']) ? ($sube ? '&' : '?') . 'sohbet=' . (int) $p['oturum_id'] : '');
             default:
                 return $base . '/isletmeyonetim' . $sube;
         }

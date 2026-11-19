@@ -255,7 +255,7 @@ class WaAsistanPanelController extends StoreAdminController
         $alanlar = ['fiyat_soyle', 'geri_kazanim', 'gk_bekle_saat', 'gk_kampanya', 'memnuniyet_sor', 'gorsel_fiyat', 'gorsel_sektor', 'gorsel_not', 'denetci', 'denetci_oto'];
         $veri = [];
         foreach ($alanlar as $a) if ($request->has($a)) $veri[$a] = $request->input($a);
-        WaAsistanVeri::ayarKaydet($sid, $veri, optional(Auth::guard('isletmeyonetim')->user())->name);
+        WaAsistanVeri::ayarKaydet($sid, $veri, optional($this->asistanGorusmeYetkili())->name);
         return response()->json(['ok' => 1, 'ayar' => WaAsistanVeri::ayarlar($sid)]);
     }
 
@@ -273,7 +273,7 @@ class WaAsistanPanelController extends StoreAdminController
             $kurallar[$anahtar] = ['hizmet_id' => $hid, 'fiyat' => $r['fiyat'] ?? null];
         }
         WaGorselDanisman::kurallariKaydet($sid, $sektor, $kurallar);
-        WaAsistanVeri::ayarKaydet($sid, ['gorsel_sektor' => $sektor], optional(Auth::guard('isletmeyonetim')->user())->name);
+        WaAsistanVeri::ayarKaydet($sid, ['gorsel_sektor' => $sektor], optional($this->asistanGorusmeYetkili())->name);
         return response()->json(['ok' => 1, 'kurallar' => WaGorselDanisman::kurallar($sid, $sektor)]);
     }
 
@@ -586,7 +586,7 @@ class WaAsistanPanelController extends StoreAdminController
         $sid = $this->salon($request);
         if (!$sid) return $this->yok();
         if (!DB::table('wa_asistan_oturumlari')->where('id', (int) $id)->where('isletme_id', $sid)->exists()) return response()->json(['ok' => 0], 404);
-        $n = WaTalep::cevaplandi((int) $id, (optional(Auth::guard('isletmeyonetim')->user())->name ?: 'Panel') . ' (panelden işaretlendi)');
+        $n = WaTalep::cevaplandi((int) $id, (optional($this->asistanGorusmeYetkili())->name ?: 'Panel') . ' (panelden işaretlendi)');
         return response()->json(['ok' => $n ? 1 : 0]);
     }
 

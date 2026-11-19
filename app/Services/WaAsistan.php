@@ -663,13 +663,15 @@ class WaAsistan
             Log::warning('[WA-ASISTAN] panel bildirimi yazilamadi: ' . $e->getMessage());
         }
         $adlar = [];
+        $oturumId = $url && preg_match('/[?&]sohbet=(\d+)/', $url, $mm) ? (int) $mm[1] : 0;
         try {
             $yoneticiler = \App\Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
                 ->where('salon_personelleri.salon_id', $salonId)->where('model_has_roles.role_id', '<', 5)
                 ->pluck('salon_personelleri.personel_adi', 'salon_personelleri.id')->toArray();
             foreach ($yoneticiler as $pid => $ad) {
+                // Mobil: bildirime tiklayinca WhatsApp Asistani ekrani (varsa ilgili sohbet) acilir
                 $r = NotificationService::toStaff((int) $pid, $salonId)->type(NotificationTypes::WA_ASISTAN_TALEP)
-                    ->title('WhatsApp Asistanı')->body($mesaj)->send();
+                    ->title('WhatsApp Asistanı')->body($mesaj)->deepLink('wa_assistant', ['salon_id' => $salonId, 'oturum_id' => $oturumId])->send();
                 // Gercekten ulasti mi: kayitli cihazina (uygulama / tarayici bildirimi) en az bir push gitti mi
                 if (trim((string) $ad) !== '') $adlar[] = ['ad' => trim((string) $ad), 'ulasti' => (int) ($r['sent'] ?? 0) > 0, 'pid' => (int) $pid, 'hata' => $r['hatalar'][0] ?? null];
             }

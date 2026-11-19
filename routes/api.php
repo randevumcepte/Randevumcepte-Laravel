@@ -656,6 +656,34 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::post('/geri-arandi/{id}',    'StoreAdminController@santralAsistanGeriArandi')->where('id', '[0-9]+');
     });
 
+    // WhatsApp Asistani (mobil: Diger > WhatsApp Asistani; web /isletmeyonetim/whatsapp-asistan ile ayni metodlar, sube zorunlu, rol < 5)
+    Route::prefix('wa-asistan')->middleware('auth:isletmeyonetim-api')->group(function () {
+        Route::get ('/durum',                 'WaAsistanMobilController@durum');
+        Route::get ('/baslangic',             'WaAsistanMobilController@baslangic');
+        Route::get ('/ozet',                  'WaAsistanMobilController@ozet');
+        Route::get ('/grafik',                'WaAsistanMobilController@grafik');
+        Route::get ('/sohbetler',             'WaAsistanMobilController@sohbetler');
+        Route::get ('/sohbet/{id}',           'WaAsistanMobilController@sohbet')->where('id', '[0-9]+');
+        Route::post('/sohbet/{id}/devral',    'WaAsistanMobilController@devral')->where('id', '[0-9]+');
+        Route::post('/sohbet/{id}/geri-ver',  'WaAsistanMobilController@geriVer')->where('id', '[0-9]+');
+        Route::post('/sohbet/{id}/cevaplandi','WaAsistanMobilController@cevaplandi')->where('id', '[0-9]+');
+        Route::post('/sohbet/{id}/devam',     'WaAsistanMobilController@devamEttir')->where('id', '[0-9]+');
+        Route::post('/sohbet/{id}/yol-tarifi','WaAsistanMobilController@yolTarifi')->where('id', '[0-9]+');
+        Route::get ('/geri-kazanim',          'WaAsistanMobilController@geriKazanimListe');
+        Route::post('/ayar',                  'WaAsistanMobilController@ayarKaydet');
+        Route::post('/kurallar',              'WaAsistanMobilController@kuralKaydet');
+        Route::get ('/gorsel/{id}',           'WaAsistanMobilController@gorsel')->where('id', '[0-9]+');
+        Route::get ('/avatar/{id}',           'WaAsistanMobilController@avatar')->where('id', '[0-9]+');
+        Route::get ('/ogrenilen',             'WaAsistanMobilController@ogrenilenler');
+        Route::post('/ogrenilen/{id}/sil',    'WaAsistanMobilController@ogrenilenSil')->where('id', '[0-9]+');
+        Route::get ('/gelisim',               'WaAsistanMobilController@gelisim');
+        Route::post('/ders/{id}/durum',       'WaAsistanMobilController@dersDurum')->where('id', '[0-9]+');
+        Route::post('/ders/{id}/cevap',       'WaAsistanMobilController@bilgiCevapla')->where('id', '[0-9]+');
+        Route::post('/denetim-baslat',        'WaAsistanMobilController@denetimBaslat');
+        Route::post('/test-bildirim',         'WaAsistanMobilController@testBildirim');
+        Route::get ('/numara-kontrol',        'WaAsistanMobilController@numaraKontrol');
+    });
+
     Route::prefix('cagri-merkezi')->middleware('auth:isletmeyonetim-api')->group(function () {
         // Arama ekrani (dialer) — personel + yonetici
         Route::get ('/arama-kartlarim',          'CagriMerkeziApiController@arama_kartlarim');
