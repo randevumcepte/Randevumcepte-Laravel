@@ -668,6 +668,15 @@ class RandevuAsistan
                 $this->teshis = 'zorla_randevu';
             }
         }
+        // ZORLA IPTAL: musteri iptali onayladi ya da "iptal ettiğimi söylemiştim" diye TEKRARLADI ama model yine onay soruyor
+        // (canli 2026-11-19 Zeynep: hatirlatmadan sonra iptal dedi, asistan iki kez onay istedi) -> randevuyu kod iptal eder.
+        if ($aksiyon === null && !$bitir && $this->iptalOnayiMi($metin, $gecmis)) {
+            $z = $this->zorlaIptal($gecmis, $cevap);
+            if ($z !== null) {
+                [$cevap, $aksiyon] = $z;
+                $this->teshis = 'zorla_iptal';
+            }
+        }
 
         // ISTENEN SAAT DOLU (talep/onayli randevuyla cakisma): model "uygun değil" demeden ya da iki oneriyi
         // eksik okuyarak gecerse (kayit #72: "Cuma 12" -> aciklamasiz 10) cumleyi KOD kurar.
@@ -786,6 +795,57 @@ class RandevuAsistan
         $f = mb_strtolower(strtr($m, ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
         if (preg_match('/hayır|istemiyorum|olmaz|vazgeç|başka|değil|ama |fakat|iptal/u', $f)) return false;
         return (bool) preg_match('/\b(evet|tamam|olur|olsun|tabii|tabi|onaylıyorum|onayla|uygun|peki|aynen|oluştur|kabul)\b/u', $f);
+    }
+
+    /**
+     * Musteri iptali onayliyor mu (saf; $gecmis'teki son asistan mesajina gore)?
+     *  - Asistan "iptal etmemi onaylıyor musunuz / iptal edeyim mi" sordu, musteri evet/tamam/iptal dedi;
+     *  - ya da musteri iptali TEKRARLIYOR: "iptal ettiğimi söylemiştim", "iptal et dedim".
+     * "hayır", "vazgeçtim", "iptal etme", "kalsın", "geleceğim", "erteleyelim/değiştir" -> hayir.
+     */
+    public static function iptalOnayiMi(string $metin, array $gecmis): bool
+    {
+        $f = mb_strtolower(strtr($metin, ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
+        if (preg_match('/hay[ıi]r|vazge[çc]|iptal etme(yin|y[ie]lim)?\b|iptal etmeyin|kals[ıi]n|gelece[ğg]im|gelirim|gelicem|ertele|de[ğg]i[şs]tir|ba[şs]ka (g[üu]n|saat)|ta[şs][ıi]/u', $f)) return false;
+        $son = '';
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') === 'assistant') { $son = mb_strtolower((string) ($gecmis[$i]['content'] ?? ''), 'UTF-8'); break; }
+        }
+        $iptalSorusu = preg_match('/iptal/u', $son) && preg_match('/onayl[ıi]yor musunuz|iptal edeyim mi|iptal etmemi|iptal edelim mi|ister misiniz|emin misiniz/u', $son);
+        if ($iptalSorusu && preg_match('/\b(evet|evt|tamam|tmm|olur|onayl[ıi]yorum|onayla|aynen|l[üu]tfen|iptal|kesin|eminim)\b/u', $f)) return true;
+        // Tekrar: "iptal ettiğimi söylemiştim" / "iptal et dedim" / "iptal etmiştim"
+        return (bool) preg_match('/iptal\s*(et|ed|olsun|edil)\p{L}*/u', $f) && preg_match('/s[öo]ylemi[şs]tim|demi[şs]tim|dedim|etmi[şs]tim|etti[ğg]imi|ettim|yazm[ıi][şs]t[ıi]m/u', $f);
+    }
+
+    /**
+     * Iptal edilecek randevuyu son asistan mesajindaki gun/saatten (ya da tek randevudan) bulup kod iptal eder.
+     * Belirsizse (birden fazla randevu, eslesme yok) null: model cevabi kalir.
+     * @return array{0:string,1:string}|null [cevap, 'iptal']
+     */
+    protected function zorlaIptal(array $gecmis, string $modelCevabi): ?array
+    {
+        $liste = $this->randevularim()['randevular'] ?? [];
+        if (!$liste) return null;
+        $metinler = $modelCevabi;
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') === 'assistant') { $metinler .= ' ' . (string) ($gecmis[$i]['content'] ?? ''); break; }
+        }
+        $aday = $liste;
+        if (count($liste) > 1) {
+            $aday = array_values(array_filter($liste, function ($r) use ($metinler) {
+                $gun = (int) substr((string) $r['tarih'], 8, 2);
+                return mb_strpos($metinler, (string) $r['saat']) !== false && preg_match('/\b' . $gun . '\s+(ocak|şubat|mart|nisan|mayıs|haziran|temmuz|ağustos|eylül|ekim|kasım|aralık)/iu', $metinler);
+            }));
+        }
+        if (count($aday) !== 1) return null;
+        $r = $aday[0];
+        [$d] = $this->toolCalistir('randevu_iptal', ['randevu_id' => (int) $r['id']]);
+        $this->_randevularim = null;
+        Log::warning('[ASISTAN-ZORLA-IPTAL]', ['salon' => $this->salonId, 'randevu' => $r['id'], 'sonuc' => mb_substr(json_encode($d, JSON_UNESCAPED_UNICODE), 0, 300)]);
+        if (empty($d['ok'])) return null;
+        $ne = trim(($r['gun'] ?? '') . ' saat ' . $r['saat'] . (!empty($r['hizmet']) ? ' ' . $r['hizmet'] : ''));
+        return ["{$ne} randevunuzu iptal ettim." . (!empty($d['bilgilendirme_gonderildi']) ? ' Size bilgilendirme mesajı da ilettim.' : '')
+            . ' Dilediğiniz zaman yeni randevu için buradan yazabilirsiniz. İyi günler dileriz 🌸', 'iptal'];
     }
 
     /**
