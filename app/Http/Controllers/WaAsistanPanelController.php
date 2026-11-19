@@ -437,6 +437,18 @@ class WaAsistanPanelController extends StoreAdminController
         return $out;
     }
 
+    /** "Test bildirimi gönder": talep bildirimiyle ayni yoldan (zil + yoneticilerin telefonu) deneme gonderir, kime ulastigini dondurur. */
+    public function testBildirim(Request $request)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        if (!\Illuminate\Support\Facades\Cache::add('wa_test_bildirim_' . $sid, 1, 60)) {
+            return response()->json(['ok' => 0, 'hata' => 'Az önce test bildirimi gönderildi; 1 dakika sonra tekrar deneyin.']);
+        }
+        $liste = WaAsistan::bildir($sid, '🔔 Test bildirimi: WhatsApp Asistanı talep bildirimleri bu telefona böyle gelir.');
+        return response()->json(['ok' => 1, 'liste' => $liste]);
+    }
+
     /** "Yol tarifi gönder": salonun adresi + Google Haritalar linki bu sohbete yazilir (personel istegi; asistan susmus olsa da). */
     public function yolTarifi(Request $request, $id)
     {

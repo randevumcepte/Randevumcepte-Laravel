@@ -655,6 +655,11 @@
          <textarea id="waKampanya" class="wa-girdi" rows="2" maxlength="500" placeholder="Örn. Bu haftaya özel protez tırnakta %10 indirimimiz var."></textarea>
          <div style="margin-top:14px"><button class="wa-btn" id="waAyarKaydet"><i class="bi bi-check2"></i> Ayarları kaydet</button></div>
       </div>
+      <div class="wa-kart" style="margin-top:14px">
+         <div class="wa-anahtar"><div class="t"><b>Bildirimler telefonunuza geliyor mu?</b><div>Asistan işletmeye bir şey sorduğunda yöneticilerin telefonuna (Randevumcepte uygulaması) ve paneldeki zile bildirim gider. Deneme bildirimi gönderip kimin telefonuna ulaştığını görün.</div></div>
+            <button class="wa-btn ikincil" id="waTestBildirim" style="flex:0 0 auto"><i class="bi bi-bell"></i> Test bildirimi gönder</button></div>
+         <div id="waTestSonuc" style="font-size:13.5px;line-height:1.6;margin-top:6px"></div>
+      </div>
    </div>
 </div>
 <div class="wa-toast" id="waToast" role="status"></div>
@@ -1431,6 +1436,20 @@
    document.querySelectorAll('[data-ayar]').forEach(function (c) { c.checked = Number(AYAR[c.dataset.ayar]) === 1; });
    el('waBekle').value = AYAR.gk_bekle_saat || 24;
    el('waKampanya').value = AYAR.gk_kampanya || '';
+   el('waTestBildirim').addEventListener('click', function () {
+      var b = this, k = el('waTestSonuc'); b.disabled = true; k.innerHTML = 'Gönderiliyor…';
+      gonder('/test-bildirim').then(function (d) {
+         b.disabled = false;
+         if (!d.ok) { k.innerHTML = '<span style="color:#b91c1c">' + esc(d.hata || 'Gönderilemedi.') + '</span>'; return; }
+         var ok = [], yok = [];
+         (d.liste || []).forEach(function (x) { (x.ulasti ? ok : yok).push(esc(x.ad)); });
+         k.innerHTML = (ok.length ? '<div style="color:#15803d"><b>✓ Telefonuna ulaştı:</b> ' + ok.join(', ') + '</div>' : '')
+            + (yok.length ? '<div style="color:#b45309"><b>Ulaşmadı:</b> ' + yok.join(', ') + '<br><span style="color:#64748b">Bu kişiler Randevumcepte uygulamasına bu işletmedeki kendi hesabıyla giriş yapıp bildirim iznini açmalı.</span></div>' : '')
+            + (!ok.length && !yok.length ? '<div>Yönetici yetkisinde personel bulunamadı.</div>' : '')
+            + '<div style="color:#64748b">Panelin sağ üstündeki zilde de görünür.</div>';
+      }).catch(function () { b.disabled = false; k.innerHTML = ''; hata(); });
+   });
+
    el('waAyarKaydet').addEventListener('click', function () {
       var v = { gk_bekle_saat: el('waBekle').value, gk_kampanya: el('waKampanya').value }, b = this; b.disabled = true;
       document.querySelectorAll('[data-ayar]').forEach(function (c) { v[c.dataset.ayar] = c.checked ? 1 : 0; });
