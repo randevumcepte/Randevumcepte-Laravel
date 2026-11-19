@@ -690,6 +690,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::post('/arama-liste-detay',        'CagriMerkeziApiController@arama_liste_detay_getir');
         Route::post('/arama-baslat',             'CagriMerkeziApiController@arama_baslat');
         Route::post('/arama-baslat-numara',      'CagriMerkeziApiController@arama_baslat_numara');
+        Route::post('/dakika-durum',             'CagriMerkeziApiController@dakika_durum');
         Route::post('/not-ekle',                 'CagriMerkeziApiController@santral_not_ekle');
         Route::post('/musteri-gecmisi',          'CagriMerkeziApiController@cagri_musteri_gecmisi');
         Route::get ('/yaklasan-randevular',      'CagriMerkeziApiController@cagri_yaklasan_randevular');

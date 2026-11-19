@@ -70,6 +70,28 @@ class DakikaHesap
     }
 
     /**
+     * Santral uzerinden (softphone / Bria originate) arama yapilabilir mi?
+     * Tanimli dakika girilmis ve kalan <= 0 ise kullaniciya gosterilecek uyari
+     * metnini, aksi halde null doner.
+     *  - Tanimli dakika girilmemis (0)  -> engel YOK (olculmeyen isletme).
+     *  - CDR API'sine ulasilamadi (hata) -> engel YOK (santral arizasi aramayi kesmesin).
+     */
+    public static function aramaEngeli($salonId)
+    {
+        if (!$salonId) return null;
+        try {
+            $d = self::hesapla((int) $salonId);
+        } catch (\Throwable $e) {
+            Log::warning('DakikaHesap aramaEngeli: ' . $e->getMessage());
+            return null;
+        }
+        if ($d['hata'] || $d['tanimli'] <= 0 || $d['kalan'] > 0) return null;
+        return 'Santral konuşma dakikanız bitti (tanımlı ' . $d['tanimli'] . ' dk, kullanılan '
+            . number_format($d['kullanilan'], 1, ',', '.') . ' dk). Arama başlatılmadı; '
+            . 'dakika yüklemesi için işletme yöneticinize / RandevumCepte\'ye başvurun.';
+    }
+
+    /**
      * Sayim baslangic tarihi: paket ozel tarihi > salon created_at > sabit.
      */
     public static function sayimBaslangic($salon, $paket = null)
@@ -127,7 +149,8 @@ class DakikaHesap
             'adet'   => (int) ($d['giden_cevaplanan_adet'] ?? 0),
             'hata'   => false,
         ];
-        Cache::put($cacheKey, $sonuc, self::CACHE_SN);
+        // Laravel 5.6: sayi verilirse DAKIKA sayilir (300 -> 5 saat bayat kaliyordu); bitis zamani ver.
+        Cache::put($cacheKey, $sonuc, now()->addSeconds(self::CACHE_SN));
         return $sonuc;
     }
 }
