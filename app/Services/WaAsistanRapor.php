@@ -110,7 +110,7 @@ class WaAsistanRapor
         $bos = array_fill_keys(array_keys($kova), 0);
         $mesaj = $bos; $randevu = $bos; $yeni = $bos; $memnun = $bos; $memnunDegil = $bos; $sureler = array_fill_keys(array_keys($kova), []);
         // Kazandirdiklari kartlarinin mini grafikleri
-        $tutar = array_fill_keys(array_keys($kova), 0.0); $mesaiTutar = $tutar; $cevap = $bos; $yazisma = $bos; $aktar = $bos; $gorsel = $bos; $gk = $bos;
+        $tutar = array_fill_keys(array_keys($kova), 0.0); $mesaiTutar = $tutar; $cevap = $bos; $mesaiCevap = $bos; $yazisma = $bos; $aktar = $bos; $gorsel = $bos; $gk = $bos;
         $rnd = $v['randevular'] ?? [];
         foreach ($v['oturumlar'] as $o) {
             $k = date($fmt, strtotime($o['created_at']));
@@ -129,7 +129,7 @@ class WaAsistanRapor
                 $rGun[(int) $c['randevu_id']] = ['k' => $k, 'mesai' => (int) $c['mesai_disi'] === 1];
             }
             if (!isset($bos[$k])) continue;
-            if ($c['kaynak'] !== 'geri_kazanim') $cevap[$k]++;
+            if ($c['kaynak'] !== 'geri_kazanim') { $cevap[$k]++; if ((int) $c['mesai_disi'] === 1) $mesaiCevap[$k]++; }
             if ($c['kaynak'] !== 'geri_kazanim' && $c['sure_sn'] !== null) $sureler[$k][] = (int) $c['sure_sn'];
         }
         foreach ($v['oturumlar'] as $o) {
@@ -163,7 +163,7 @@ class WaAsistanRapor
         foreach ($yazisma as $k => $n) $cozulen[$k] = $n ? (int) round(($n - $aktar[$k]) / $n * 100) : null;
         return ['etiket' => array_keys($kova), 'mesaj' => array_values($mesaj), 'randevu' => array_values($randevu), 'yeni' => array_values($yeni),
             'memnun' => array_values($memnun), 'memnun_degil' => array_values($memnunDegil), 'sure' => array_values($sure),
-            'tutar' => array_values($tutar), 'mesai_tutar' => array_values($mesaiTutar), 'cevap' => array_values($cevap),
+            'tutar' => array_values($tutar), 'mesai_tutar' => array_values($mesaiTutar), 'cevap' => array_values($cevap), 'mesai_cevap' => array_values($mesaiCevap),
             'cozulen' => array_values($cozulen), 'gorsel' => array_values($gorsel), 'geri_kazanim' => array_values($gk)];
     }
 

@@ -424,6 +424,7 @@ namespace {
     esit('kart serisi: randevu tutarı', [1200.0, 0.0, 800.0], $s['tutar']);
     esit('kart serisi: mesai dışı tutar', [400.0, 0.0, 0.0], $s['mesai_tutar']);
     esit('kart serisi: cevap (geri kazanma hariç)', [3, 1, 1], $s['cevap']);
+    esit('kart serisi: mesai dışı yazışma', [1, 0, 0], $s['mesai_cevap']);
     esit('kart serisi: tek başına çözülen %', [100, 50, 100], $s['cozulen']);
     esit('kart serisi: geri kazanılan', [0, 0, 1], $s['geri_kazanim']);
     esit('kart serisi: fotoğrafa fiyat (tarihsiz kayıt sayılmaz)', [0, 0, 0], $s['gorsel']);

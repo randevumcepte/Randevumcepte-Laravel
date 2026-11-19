@@ -481,10 +481,10 @@
          ne: 'Fiyat ya da bilgi alıp randevu oluşturmadan giden ("kaçan") müşterilerden asistanın tekrar yazmasıyla geri dönüp randevu alanlar.',
          nasil: 'Asistan, ayarladığınız süre sonra (varsayılan 24 saat) bu müşterilere mesai saatinde bir kez nazik bir mesaj ve gerçek boş saatlerinizi yollar. Mesajdan sonraki 7 gün içinde alınan randevu "geri kazanılmış" sayılır.',
          neden: 'Kaybolacak müşteriyi hiçbir personel emeği olmadan geri getirir. Müşteri "dur" yazarsa bir daha yazılmaz.' },
-      'bi-hourglass-split': { b: 'Personele Kazandırılan Zaman',
-         ne: 'Asistanın cevapladığı mesajları personelinizin yazmak zorunda kalsaydı harcayacağı tahmini süre.',
-         nasil: 'Asistanın gönderdiği her cevap, personelin okuyup yazması için ortalama 1,5 dakika sayılır ve toplanır.',
-         neden: 'Bu süre personelinizin müşteriye, hizmete ve satışa ayırabildiği zamandır.' },
+      'bi-chat-dots-fill': { b: 'Mesai Dışı Yazışma',
+         ne: 'Salonunuz kapalıyken (akşam, gece, kapalı günler) asistanın müşterilerinize cevapladığı mesaj sayısı.',
+         nasil: 'Asistanın gönderdiği her cevap, işletme ayarlarınızdaki çalışma saatlerinin dışındaysa bu karta yazılır. Kartın açıklamasındaki saat ise asistanın tüm cevaplarının personelinize kazandırdığı süredir (her cevap ortalama 1,5 dakika).',
+         neden: 'Bu müşteriler sabaha kadar cevap beklemedi; personeliniz yokken bile sorularına anında cevap alıp randevuya geçebildiler.' },
       'bi-shield-fill-check': { b: 'Tek Başına Çözdüğü',
          ne: 'WhatsApp yazışmalarının yüzde kaçını asistanın personele aktarmadan sonuçlandırdığı.',
          nasil: '(Toplam yazışma − işletmeye aktarılan yazışma) ÷ toplam yazışma. Müşteri "yetkiliyle görüşmek istiyorum" dediğinde ya da asistan cevaplayamadığında yazışma aktarılmış sayılır.',
@@ -551,7 +551,7 @@
             + kaz('wa-k-mor', 'bi-wallet-fill', tl(kz.gerceklesen > 0 ? kz.gerceklesen : kz.beklenen), kz.gerceklesen > 0 ? 'Gerçekleşen kazanç' : 'Randevu tutarı', kz.kat ? 'Pakete ödediğinizin <b>' + String(kz.kat).replace('.', ',') + ' katı</b>' : (kz.gerceklesen > 0 ? 'salona gelen müşterilerden' : 'gelişler "geldi" işaretlenince kesinleşir'), s.tutar, '#7c3aed')
             + kaz('wa-k-lila', 'bi-moon-stars-fill', tl(kz.mesai_disi), 'Mesai dışı kazanç', sayi(o.randevu.mesai_disi) + ' randevu personel yokken alındı', s.mesai_tutar, '#4f46e5')
             + kaz('wa-k-tur', 'bi-arrow-repeat', sayi(o.geri_kazanim.randevu), 'Geri kazanılan müşteri', sayi(o.geri_kazanim.yazildi) + ' kaçan müşteriye yazıldı · ' + tl(o.geri_kazanim.tutar), s.geri_kazanim, '#f97316')
-            + kaz('wa-k-mavi', 'bi-hourglass-split', String(o.cevap.personel_saat).replace('.', ',') + ' saat', 'Personele kazandırılan zaman', sayi(o.cevap.toplam) + ' mesaj cevaplandı · ' + sayi(o.cevap.mesai_disi) + ' mesai dışı', s.cevap, '#2563eb')
+            + kaz('wa-k-mavi', 'bi-chat-dots-fill', sayi(o.cevap.mesai_disi) + ' mesaj', 'Mesai dışı yazışma', 'Salon kapalıyken cevaplandı · personele toplam ' + String(o.cevap.personel_saat).replace('.', ',') + ' saat zaman kazancı', s.mesai_cevap, '#2563eb')
             + kaz('wa-k-yesil', 'bi-shield-fill-check', o.sohbet.cozulen_orani == null ? '—' : '%' + o.sohbet.cozulen_orani, 'Tek başına çözdüğü', 'personele aktarılmadan biten yazışmalar', s.cozulen, '#16a34a')
             + kaz('wa-k-pembe', 'bi-camera-fill', sayi(o.gorsel.fiyat_verildi), 'Fotoğrafa fiyat verildi', sayi(o.gorsel.randevu) + ' tanesi randevuya döndü', s.gorsel, '#db2777')
             + '</div>';
