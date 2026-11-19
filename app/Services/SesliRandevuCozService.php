@@ -553,6 +553,8 @@ class SesliRandevuCozService
         }
         $tercihDk = $tercihSaat ? $this->hiToDk($tercihSaat) : null;
         $simdiDk = (int) Carbon::now()->format('H') * 60 + (int) Carbon::now()->format('i');
+        // Bugun icin en erken: en az 15 dk sonrasi, ceyrek saate yuvarli (18:31 -> 19:00; "18:31 / 20:01" gibi saatler onerilmez)
+        $simdiDk = (int) ceil(($simdiDk + 15) / 15) * 15;
 
         $dbg = [ // GECICI teshis
             'personel_id' => $personelId, 'sure_dk' => $sureDk, 'adim' => $adim,

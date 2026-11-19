@@ -43,6 +43,9 @@ namespace App\Services { class SantralPaket { static $kapali = []; static functi
 namespace App {
     class SahteKoleksiyon { public $d; function __construct($d) { $this->d = $d; } function get($k = null) { return $k === null ? $this : ($this->d[$k] ?? null); } function keyBy($k) { $o = []; foreach ($this->d as $r) $o[$r->$k] = $r; return new self($o); } function isEmpty() { return !$this->d; } }
     class SalonCalismaSaatleri { static $satirlar = []; static function where() { return new SahteKoleksiyon(self::$satirlar); } }
+    // Hizmet-personel eslestirmesi: test verisi yok -> isletme eslestirme kullanmiyor (herkes verir)
+    class PersonelHizmetler { static function __callStatic($m, $a) { return new self; } function __call($m, $a) { return $m === "exists" ? false : ($m === "pluck" ? new PhKoleksiyon : $this); } }
+    class PhKoleksiyon { function __call($m, $a) { return $m === "all" ? [] : $this; } }
     // Hatirlatma testleri icin sahte modeller (zincir: where/whereIn -> first/update)
     class SahteSorgu { public $sinif; function __construct($s) { $this->sinif = $s; } function where() { return $this; } function whereIn($k, $v) { $c = $this->sinif; $c::$sonIdler = $v; return $this; } function first() { $c = $this->sinif; return $c::$kayit; } function update($a) { $c = $this->sinif; $c::$guncelleme = $a; return count($c::$sonIdler ?? []); } }
     class Randevular { const BEKLENIYOR = 0, ONAYLANDI = 1, IPTAL_EDILDI = 2; static $kayit; static $sonIdler; static $guncelleme; public $durum = 1; public $randevuya_gelecek = null; public $kaydedildi = false;

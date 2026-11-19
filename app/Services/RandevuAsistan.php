@@ -2607,7 +2607,19 @@ FIYAT
         $acik = $this->personelListesi();
         $veren = PersonelHizmetler::where('hizmet_id', $hizmetId)->whereIn('personel_id', array_keys($acik) ?: [0])
             ->pluck('personel_id')->map(function ($v) { return (int) $v; })->unique()->values()->all();
+        // Isletme hizmet-personel eslestirmesi kullaniyorsa (personellere hizmet tanimli) bu hizmeti veren yok demektir:
+        // herkese acilmaz (canli 2026-11-19: protez tirnak yapmayan uzmana randevu onerildi). Hic tanim yoksa eski mantik (herkes).
+        if (!$veren && $acik && PersonelHizmetler::whereIn('personel_id', array_keys($acik))->exists()) return [];
         return array_slice($veren ?: array_keys($acik), 0, 8);
+    }
+
+    /** Personel bu hizmeti veriyor mu (isletme eslestirme kullanmiyorsa herkes verir). */
+    protected function personelHizmetVerirMi(int $personelId, int $hizmetId): bool
+    {
+        $acik = array_keys($this->personelListesi());
+        if (PersonelHizmetler::where('personel_id', $personelId)->where('hizmet_id', $hizmetId)->exists()) return true;
+        if (PersonelHizmetler::where('hizmet_id', $hizmetId)->whereIn('personel_id', $acik ?: [0])->exists()) return false;
+        return !PersonelHizmetler::whereIn('personel_id', $acik ?: [0])->exists();
     }
 
     protected function musaitSaatlerPersonelli(array $in): array
@@ -2631,11 +2643,16 @@ FIYAT
                 return ['ok' => false, 'hata' => "personel_id {$personelId} geçersiz. Bu hizmetin personelleri: " . implode(', ', $dogru)
                     . '. Müşterinin seçtiği kişinin personel_id\'si ile musait_saatler\'i HEMEN yeniden çağır; müşteriye "uygun değil" DEME. Seçtiği kişi listede yoksa o isimde personel olmadığını söyle.'];
             }
+            if (!$this->personelHizmetVerirMi($personelId, $hizmetId)) {
+                $veren = array_map(function ($pid) { return $this->personelHitap((int) $pid) . " = personel_id {$pid}"; }, $this->hizmetPersonelleri($hizmetId));
+                return ['ok' => false, 'hata' => $this->personelHitap($personelId) . ' bu hizmeti vermiyor. '
+                    . ($veren ? 'Bu hizmeti verenler: ' . implode(', ', $veren) . '. Müşteriye bunu kısaca söyle ve bu uzmanlardan biriyle saat öner.' : 'Bu hizmeti veren uzman tanımlı değil; müşteriyi aktar.')];
+            }
             $adaylar = [$personelId];
         } else {
             $adaylar = $this->hizmetPersonelleri($hizmetId);
         }
-        if (!$adaylar) return ['ok' => false, 'hata' => 'Randevu takvimi açık personel yok. Müşteriyi operatöre aktar.'];
+        if (!$adaylar) return ['ok' => false, 'hata' => 'Bu hizmeti veren (randevu takvimi açık) uzman tanımlı değil. Uzman UYDURMA; müşteriye işletmenin dönüş yapacağını söyle ve aktar.'];
 
         $servis = app(SesliRandevuCozService::class);
         $bul = function ($pid, $t, $s, $v, $ufuk = 14) use ($servis, $hizmetId) {
@@ -2861,6 +2878,9 @@ FIYAT
         if (!$ts || !$hizmetId || !$personelId) return ['ok' => false, 'hata' => 'tarih_saat, hizmet_id ve personel_id gerekli (musait_saatler seçeneğinden al).'];
         [$tarih, $saat] = $ts;
         if (!isset($this->personelListesi()[$personelId])) return ['ok' => false, 'hata' => 'Bu personelin takvimi kapalı. musait_saatler ile yeniden ara.'];
+        if (!$this->personelHizmetVerirMi($personelId, $hizmetId)) {
+            return ['ok' => false, 'hata' => 'Bu personel bu hizmeti vermiyor. musait_saatler\'i personel_id VERMEDEN yeniden çağır ve hizmeti veren uzmanla saat öner.'];
+        }
         if (!$this->slotHalaBos($personelId, $hizmetId, $tarih, $saat)) {
             return ['ok' => false, 'hata' => 'Bu saat bu personel için artık dolu. musait_saatler ile yeni saat bulup müşteriye öner.'];
         }
