@@ -202,6 +202,11 @@
    .ts-adim > div { flex:1; min-width:0; } .ts-adim b { font-size:14px; display:block; } .ts-adim small { display:block; font-size:12.5px; color:#4b4563; margin-top:2px; line-height:1.45; }
    .ts-z { flex:0 0 auto; font-size:12px; color:var(--gri); white-space:nowrap; }
    .ts-kart.ts-yarim { background:#fef2f2; border-color:#fecaca; }
+   .ng-kart { border:1px solid #e9e2f5; border-radius:14px; padding:8px 14px; margin:4px 0 14px; background:#fbfaff; }
+   .ng-kart summary { cursor:pointer; font-size:13.5px; font-weight:700; color:#3a3154; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+   .ng-ic { margin-top:8px; display:flex; flex-direction:column; gap:8px; max-height:320px; overflow:auto; }
+   .ng-s { background:#fff7ed; border-radius:10px; padding:8px 10px; font-size:13px; } .ng-s.a { background:#f3ecff; } .ng-s.o { background:#eef2f7; }
+   .ng-s b { font-size:12.5px; } .ng-s div { margin-top:3px; white-space:pre-wrap; color:#3a3154; } .ng-s .wa-tumu { margin-top:6px; padding:5px 10px; font-size:12px; }
    .ts-adim.bekle b { color:#b91c1c; } .ts-adim.bekle .wa-btn { padding:8px 14px; font-size:13px; flex:0 0 auto; }
    .wa-konusma.liste { align-items:flex-start; gap:12px; padding:12px 10px; border-radius:14px; border-top:none; margin-bottom:2px; }
    .wa-konusma.liste .ust { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
@@ -698,7 +703,7 @@
       var src = foto || (id ? url('/avatar/' + id) : '');
       return '<div class="wa-avatar" style="background:' + RENK[h % RENK.length] + '">' + esc(bas)
          + (src ? '<img src="' + esc(src) + '" alt="" loading="lazy" onerror="this.remove()">' : '') + '</div>'; }
-   function hapSinif(s) { if (/Dönüş bekliyor|dönmedi/.test(s)) return 'k'; if (/cevapladı/.test(s)) return 'y'; return /Randevu alındı|Randevu Alındı|Oluşturuldu|teyit|değişti/.test(s) ? 'y' : (/Fiyat/.test(s) ? 'm' : (/aktarıldı|Personelde/.test(s) ? 's' : (/iptal|durduruldu|Bot/.test(s) ? 'k' : 'g'))); }
+   function hapSinif(s) { if (/Dönüş bekliyor|dönmedi|Yanlış numara/.test(s)) return 'k'; if (/cevapladı/.test(s)) return 'y'; return /Randevu alındı|Randevu Alındı|Oluşturuldu|teyit|değişti/.test(s) ? 'y' : (/Fiyat/.test(s) ? 'm' : (/aktarıldı|Personelde/.test(s) ? 's' : (/iptal|durduruldu|Bot/.test(s) ? 'k' : 'g'))); }
 
    // ---------- sekmeler
    var yuklendi = {}, SEKME_YUKLE = { sohbet: sohbetListe, gk: gkYukle, ogr: ogrYukle, gel: gelisimYukle };
@@ -1075,6 +1080,15 @@
             + (s.yarim === 'sozde' ? 'Asistan "bakayım" deyip sonucu yazmamış.' : 'Müşterinin son mesajı cevapsız kalmış.') + ' Asistan birkaç dakika içinde kendiliğinden tamamlar; beklemeden hemen tamamlatabilirsiniz.</small></div>'
             + '<button class="wa-btn" data-devam="' + s.id + '"><i class="bi bi-robot"></i> Asistan tamamlasın</button></div></div>';
          if ((s.talepler || []).length) h += talepSeridi(s);
+         // "Bu mesaji kim atti?": bu numaraya sistemden giden mesajlar (turuyle) + ayni numaranin onceki sohbetleri
+         var sistemGiden = (s.giden || []).filter(function (x) { return !x.asistan; });
+         if ((s.giden || []).length || (s.onceki || []).length) {
+            h += '<details class="ng-kart"' + (sistemGiden.length ? ' open' : '') + '><summary><i class="bi bi-clock-history"></i> Bu numaraya giden mesajlar ve önceki sohbetler'
+               + (sistemGiden.length ? ' <span class="wa-hap s">' + sistemGiden.length + ' sistem mesajı</span>' : '') + '</summary><div class="ng-ic">'
+               + (s.giden || []).map(function (x) { return '<div class="ng-s' + (x.asistan ? ' a' : '') + '"><b>' + esc(x.tip) + '</b> <span class="wa-alt">' + tarih(x.tarih) + (x.durum === 2 ? ' · gönderilemedi' : '') + '</span><div>' + esc(x.mesaj) + '</div></div>'; }).join('')
+               + (s.onceki || []).map(function (x) { return '<div class="ng-s o"><b>Önceki sohbet</b> <span class="wa-alt">' + tarih(x.tarih) + ' · ' + x.mesaj + ' mesaj</span><div>' + esc(x.ilk) + '</div><button class="wa-tumu" data-onceki="' + x.id + '">Aç <i class="bi bi-arrow-right"></i></button></div>'; }).join('')
+               + '</div></details>';
+         }
          if (s.gorseller.length) {
             h += '<div class="wa-gorseller">' + s.gorseller.map(function (g) {
                return '<figure>' + (g.dosya ? '<img loading="lazy" alt="Müşterinin gönderdiği model" src="' + url('/gorsel/' + g.id) + '">' : '<div class="wa-bos" style="padding:10px">Fotoğraf silindi</div>')
@@ -1103,6 +1117,7 @@
       }).join('');
    }
    el('waSohbetDetay').addEventListener('click', function (e) {
+      var on = e.target.closest('[data-onceki]'); if (on) { sohbetAc(on.dataset.onceki); return; }
       var dv = e.target.closest('[data-devam]');
       if (dv) {
          dv.disabled = true; dv.innerHTML = '<i class="bi bi-hourglass-split"></i> Asistan yazıyor…';

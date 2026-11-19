@@ -17,7 +17,8 @@ class WaTalep
 {
     const SEMA = 'wa_talep_sema_v1';
     const KONU = ['fiyat' => 'Fiyat sorusu', 'fotograf' => 'Fotoğraftaki modelin fiyatı', 'fotograf_ek' => 'Fotoğraftaki ek uygulamanın ücreti',
-        'yetkili' => 'Yetkiliyle görüşmek istiyor', 'sikayet' => 'Şikâyet', 'diger' => 'Asistanın cevaplayamadığı konu'];
+        'yetkili' => 'Yetkiliyle görüşmek istiyor', 'sikayet' => 'Şikâyet', 'diger' => 'Asistanın cevaplayamadığı konu',
+        'yanlis_numara' => 'Yanlış numara / mesaj istemiyor (müşteri kartını kontrol edin)'];
     const HATIRLAT_DK = 15;
     const ASISTAN_DON_DK = 45;
     const CEVAPSIZ_SAAT = 24;
@@ -118,6 +119,10 @@ class WaTalep
 
     protected static function bildirimMetni($o, string $konu, string $ozet, bool $hatirlatma = false): string
     {
+        if ($konu === 'yanlis_numara') {
+            return ($hatirlatma ? 'HATIRLATMA: ' : '') . 'Bir kişi WhatsApp\'tan "yanlış numara / mesaj atmayın" yazdı (' . ($o->musteri_tel ?: $o->telefon ?: 'gizli numara') . '). '
+                . mb_substr($ozet, 0, 220) . ' Asistan özür diledi ve bu numaraya artık yazmıyor.';
+        }
         $kisi = trim(($o->ad && $o->ad !== '.' ? $o->ad : 'Bir müşteri') . (($o->musteri_tel ?: $o->telefon) ? ' (' . ($o->musteri_tel ?: $o->telefon) . ')' : ''));
         return ($hatirlatma ? 'HATIRLATMA: ' : '') . "WhatsApp asistanı {$kisi} için sizden dönüş bekliyor. Konu: " . self::KONU[$konu] . '. Müşteri: "'
             . mb_substr($ozet, 0, 160) . '". Asistan müşteriyle ilgilenmeye devam ediyor; cevabınızı WhatsApp\'tan yazın, sohbet panelde.';
@@ -152,7 +157,7 @@ class WaTalep
                 DB::table('wa_asistan_talepler')->where('id', $t->id)->update(['hatirlatma_at' => now(), 'updated_at' => now()]);
                 $r['hatirlatma']++;
             }
-            if (!$t->asistan_dondu_at && $yas >= self::ASISTAN_DON_DK * 60 && $gunduz) {
+            if (!$t->asistan_dondu_at && $yas >= self::ASISTAN_DON_DK * 60 && $gunduz && $t->konu !== 'yanlis_numara') {
                 if (WaAsistan::oturumaYaz((int) $t->oturum_id, self::takipMetni($t->konu, !empty($o->randevu_id)), 'takip')) $r['asistan']++;
                 DB::table('wa_asistan_talepler')->where('id', $t->id)->update(['asistan_dondu_at' => now(), 'updated_at' => now()]);
             }

@@ -14,6 +14,7 @@ use App\Services\WaGeriKazanim;
 use App\Services\WaGorselDanisman;
 use App\Services\WaTalep;
 use App\Services\WaPaket;
+use App\Services\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -196,8 +197,9 @@ class WaAsistanPanelController extends StoreAdminController
             }
         }
         $talepler = WaTalep::oturumTalepleri((int) $o->id);
+        [$giden, $onceki] = self::numaraGecmisi($o, $sid);
         return response()->json(['ok' => 1, 'sohbet' => [
-            'talepler' => $talepler,
+            'talepler' => $talepler, 'giden' => $giden, 'onceki' => $onceki,
             'yarim' => WaAsistan::yarimMi(json_decode($o->gecmis ?: '[]', true) ?: []),
             'id' => (int) $o->id, 'ad' => $o->ad, 'telefon' => $o->musteri_tel ?: $o->telefon, 'durum' => self::durumEtiket($o, $talepler ? end($talepler) : null),
             'devralindi' => self::devralindiMi($o), 'randevu_id' => $o->randevu_id, 'satirlar' => $satirlar, 'gorseller' => $gorseller,
@@ -349,6 +351,51 @@ class WaAsistanPanelController extends StoreAdminController
             || ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - 10 * 60);
     }
 
+    const GIDEN_TIP = [
+        'wa_asistan' => 'Asistan cevabı', 'randevu_hatirlatma' => 'Randevu hatırlatması', 'yeni_randevu_bildirim' => 'Yeni randevu bildirimi',
+        'guncelleme_bildirim' => 'Randevu değişiklik bildirimi', 'iptal_bildirim' => 'Randevu iptal bildirimi', 'dogum_gunu' => 'Doğum günü mesajı',
+        'kampanya' => 'Kampanya mesajı', 'sifre_kodu' => 'Uygulama şifresi', 'sifre_sifirlama' => 'Şifre sıfırlama', 'manuel_musteri' => 'Panelden elle gönderilen mesaj',
+        'seans_bildirim' => 'Seans bildirimi', 'yol_tarifi' => 'Yol tarifi', 'randevu_bilgi' => 'Randevu bilgisi', 'personel_hatirlatma' => 'Personel hatırlatması',
+        'kara_liste_bildirim' => 'Kara liste bildirimi', 'mesaj' => 'Sistem mesajı',
+    ];
+
+    /**
+     * "Bu mesaji kim atti?": bu numaraya son 14 gunde sistemden giden WhatsApp mesajlari (turuyle) + ayni numaranin onceki asistan sohbetleri.
+     * @return array [giden[], onceki[]]
+     */
+    protected static function numaraGecmisi($o, int $sid): array
+    {
+        $giden = []; $onceki = [];
+        $tel = preg_replace('/\D/', '', (string) ($o->musteri_tel ?: $o->telefon));
+        try {
+            $salonlar = DB::table('salonlar')->where('whatsapp_paylasilan_salon_id', $o->salon_id)->pluck('id')->push($o->salon_id)->push($sid)->unique()->values()->all();
+            if (strlen($tel) >= 10) {
+                $tipVar = \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_gonderim_loglari', 'gonderim_tipi');
+                $rows = DB::table('whatsapp_gonderim_loglari')->whereIn('salon_id', $salonlar)->where('telefon', 'like', '%' . substr($tel, -10))
+                    ->where('created_at', '>=', now()->subDays(14))->orderByDesc('id')->limit(20)->get();
+                foreach ($rows as $l) {
+                    $tip = $tipVar ? (string) ($l->gonderim_tipi ?? '') : '';
+                    $giden[] = ['tarih' => $l->created_at, 'tip' => self::GIDEN_TIP[$tip] ?? ($tip !== '' ? ucfirst(str_replace('_', ' ', $tip)) : 'Sistem mesajı'),
+                        'asistan' => $tip === WhatsAppService::ASISTAN_TIPI, 'mesaj' => mb_substr((string) $l->mesaj, 0, 400), 'durum' => (int) $l->durum];
+                }
+            }
+            $q = DB::table('wa_asistan_oturumlari')->where('isletme_id', $sid)->where('id', '<>', $o->id)
+                ->where(function ($w) use ($o, $tel) {
+                    $w->where('anahtar', $o->anahtar);
+                    if (strlen($tel) >= 10) $w->orWhere('telefon', 'like', '%' . substr($tel, -10))->orWhere('musteri_tel', 'like', '%' . substr($tel, -10));
+                });
+            foreach ($q->orderByDesc('id')->limit(5)->get(['id', 'created_at', 'son_mesaj_at', 'gecmis']) as $x) {
+                $g = json_decode($x->gecmis ?: '[]', true) ?: [];
+                $ilk = $g ? $g[0] : null;
+                $onceki[] = ['id' => (int) $x->id, 'tarih' => $x->created_at, 'son' => $x->son_mesaj_at, 'mesaj' => count($g),
+                    'ilk' => $ilk ? ((($ilk['role'] ?? '') === 'user' ? 'Müşteri: ' : 'Asistan: ') . mb_substr((string) ($ilk['content'] ?? ''), 0, 140)) : ''];
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[WA-PANEL] numara gecmisi: ' . $e->getMessage());
+        }
+        return [$giden, $onceki];
+    }
+
     /** "Asistan tamamlasın": yarim kalan sohbeti asistan simdi surdurur (cevapsiz mesaj / sozde kalan cevap). */
     public function devamEttir(Request $request, $id)
     {
@@ -382,7 +429,7 @@ class WaAsistanPanelController extends StoreAdminController
         $randevu = in_array($o->sonuc, ['randevu', 'guncelle', 'teyit'], true);
         if ($talep && $talep['durum'] === 'cevaplandi' && !$randevu) return 'İşletme cevapladı';
         if ($o->sessiz_bitis && strtotime($o->sessiz_bitis) > time() && $o->sessiz_neden !== 'aktar') {
-            return ['aktar' => 'İşletmeye aktarıldı', 'hiz_siniri' => 'Geçici durduruldu', 'dongu' => 'Geçici durduruldu', 'otomatik_yanit' => 'Bot algılandı'][$o->sessiz_neden] ?? 'Asistan beklemede';
+            return ['aktar' => 'İşletmeye aktarıldı', 'yanlis_numara' => 'Yanlış numara · yazılmıyor', 'hiz_siniri' => 'Geçici durduruldu', 'dongu' => 'Geçici durduruldu', 'otomatik_yanit' => 'Bot algılandı'][$o->sessiz_neden] ?? 'Asistan beklemede';
         }
         $s = ['randevu' => 'Randevu alındı', 'iptal' => 'Randevu iptal', 'guncelle' => 'Randevu değişti', 'aktar' => 'İşletmeye aktarıldı', 'teyit' => 'Randevuyu teyit etti', 'odeme' => 'Ödeme sözü'];
         if ($o->sonuc && isset($s[$o->sonuc])) return $s[$o->sonuc];

@@ -389,7 +389,16 @@ class WaAsistan
         $gkCevap = (!empty($o->geri_kazanim_id) && !$musteriMesajVar) ? WaGeriKazanim::cevapGeldi((int) $o->geri_kazanim_id, $metin) : null;
         $on = null;
 
-        if ($gkCevap !== null) {
+        if (self::yanlisNumaraMi($metin, $as->taninanMusteri())) {
+            // YANLIS NUMARA / "bana mesaj atmayin": AI'ya birakilmaz (bilgi uydurmasin, tutulamayacak soz vermesin).
+            // Ozur + isletmeye talep (musteri kartindaki numara yanlis olabilir) + bu numaraya asistan 30 gun yazmaz.
+            $cevap = "Kusura bakmayın, rahatsızlık için özür dileriz 🙏 Numaranız işletmemizin kayıtlarında yanlışlıkla başka birine ait görünüyor olabilir. Durumu işletmemize ilettim, kayıt düzeltilecek. Bu sohbette size tekrar yazmayacağız.";
+            $kaynak = 'kod';
+            $upd['ret'] = 1; $upd['sessiz_bitis'] = now()->addDays(30); $upd['sessiz_neden'] = 'yanlis_numara';
+            $kayitli = $as->taninanMusteri();
+            WaTalep::ac($o, 'yanlis_numara', 'Müşteri: "' . mb_substr($metin, 0, 200) . '".'
+                . ($kayitli ? " Bu numara sistemde \"{$kayitli}\" adına kayıtlı; müşteri kartındaki telefonu kontrol edin." : ' Bu numaraya mesaj gönderilmemesini istiyor.'));
+        } elseif ($gkCevap !== null) {
             $cevap = $gkCevap; $kaynak = 'geri_kazanim';
         } elseif ($gorselId) {
             // MODEL FOTOGRAFI -> ozellik analizi + isletme kurallariyla fiyat (AI fiyat uydurmaz)
@@ -656,6 +665,22 @@ class WaAsistan
         return $n;
     }
 
+    /**
+     * "Ben Leyla Ahmet değilim, yanlış numara" / "numaramı nereden buldunuz" / "bana mesaj atmayın" (saf).
+     * "ben müsait değilim" gibi cumleler yakalanmaz: "ben <Ad> değilim" icin ad buyuk harfle ya da kayitli musteri adi olmali.
+     */
+    public static function yanlisNumaraMi(string $metin, ?string $kayitliAd = null): bool
+    {
+        $s = mb_strtolower(strtr($metin, ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
+        if (preg_match('/yan[lı]{1,2}[sş] ?numara|numaram[ıi]? ner(e)?den|atmay[ıi]n bana mesaj|numaram[ıi] (kim|nas[ıi]l) (verdi|buldu)|bana (bir daha |art[ıi]k )?mesaj (atmay[ıi]n|atma|g[öo]ndermeyin)|mesaj atmay[ıi]n|rahats[ıi]z etmeyin|numaram[ıi] silin|listeden [çc][ıi]kar/u', $s)) return true;
+        if (preg_match('/\b[Bb]en\s+([A-ZÇĞİÖŞÜ][\p{L}]+(\s+[A-ZÇĞİÖŞÜ][\p{L}]+){0,2})\s+de[ğg]il(im)?\b/u', $metin)) return true;
+        if ($kayitliAd) {
+            $ilk = mb_strtolower(strtok(trim($kayitliAd), ' ') ?: '', 'UTF-8');
+            if ($ilk !== '' && mb_strlen($ilk) >= 3 && preg_match('/\bben\s+' . preg_quote($ilk, '/') . '[\p{L}\s]*de[ğg]il/u', $s)) return true;
+        }
+        return false;
+    }
+
     /** Sohbet yarim mi: son mesaj cevapsiz musteri mesaji ya da asistanin sozde kalan mesaji (panel "Asistan tamamlasın"). */
     public static function yarimMi(array $g): ?string
     {
@@ -756,7 +781,8 @@ class WaAsistan
         if (!$o || trim($metin) === '') return false;
         $devral = ($o->sessiz_neden === 'devral' && $o->sessiz_bitis && strtotime($o->sessiz_bitis) > time())
             || ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - 30 * 60);
-        if ($devral || WaPaket::kapali((int) $o->salon_id)) return false;
+        $sessiz = $o->sessiz_bitis && strtotime($o->sessiz_bitis) > time() && $o->sessiz_neden !== 'aktar'; // yanlis numara / hiz siniri vb.
+        if ($devral || $sessiz || WaPaket::kapali((int) $o->salon_id)) return false;
         $salon = Salonlar::find($o->salon_id);
         $hedef = $o->jid ?: $o->telefon;
         if (!$salon || !$hedef) return false;

@@ -546,6 +546,18 @@ namespace {
     esit('takip: randevu varsa teklif yok', false, mb_strpos($TL::takipMetni('fotograf', true), 'oluşturabilirim') !== false);
     esit('süre metni', ['7 dk', '2 sa', '1 gün'], [$TL::sureMetni(420), $TL::sureMetni(7300), $TL::sureMetni(90000)]);
 
+    baslik('Yanlış numara / kapanış mesajı (saf)');
+    require_once $kok . 'Services/WaAsistan.php';
+    $WA = App\Services\WaAsistan::class;
+    esit('yanlış numara: "Ben Leyla Ahmet değilim"', true, $WA::yanlisNumaraMi('Ben Leyla Ahmet değilim yalnis numara'));
+    esit('yanlış numara: "numaramı nerden buldunuz"', true, $WA::yanlisNumaraMi('İstemiyorum benim numaramı nerden buldunuz'));
+    esit('yanlış numara: "atmayın bana mesaj"', true, $WA::yanlisNumaraMi('Sizi şikayet edicem atmayın bana mesaj'));
+    esit('yanlış numara: kayıtlı ad "ben leyla değilim"', true, $WA::yanlisNumaraMi('ben leyla değilim', 'Leyla Ahmet'));
+    esit('yanlış numara değil: "Ben müsait değilim"', false, $WA::yanlisNumaraMi('Ben müsait değilim yarın olur mu'));
+    esit('yanlış numara değil: "Ben Ayşe, yarın 3te"', false, $WA::yanlisNumaraMi('Ben Ayşe, yarın 3te gelebilir miyim'));
+    esit('kapanış: tamam / teşekkürler / 👍', [true, true, true], [$WA::kapanisMi('tamam'), $WA::kapanisMi('Teşekkür ederim 🙏'), $WA::kapanisMi('👍')]);
+    esit('kapanış değil: soru', false, $WA::kapanisMi('Fatma hanım olabilir mi'));
+
     baslik('Gece Denetçisi (saf)');
     require_once $kok . 'Services/WaDenetci.php';
     $D = App\Services\WaDenetci::class;
