@@ -173,6 +173,7 @@ T;
         }
         $kalem = [[$s['ana'][$analiz['ana']], $anaT]];
         $toplam = $anaT;
+        $eksik = []; // fotografta var ama ek ucreti tanimli degil (fiyat "-den baslar", isletmeye sorulur)
         foreach ($s['ozellikler'] as $k => $o) {
             $v = $analiz['ozellikler'][$k] ?? null;
             if ($o['tip'] === 'secim' && $v) {
@@ -180,13 +181,75 @@ T;
                 if ($t) { $kalem[] = [$o['ad'] . ' (' . $o['secenek'][$v] . ')', $t]; $toplam += $t; }
             } elseif ($o['tip'] === 'bool' && $v) {
                 $t = $tutar($k);
-                if ($t) { $kalem[] = [$o['ad'], $t]; $toplam += $t; }
+                if ($t) { $kalem[] = [$o['ad'], $t]; $toplam += $t; } else $eksik[] = $o['ad'];
             } elseif ($o['tip'] === 'adet' && $v > 0) {
                 $t = $tutar($k);
-                if ($t) { $kalem[] = [$o['ad'] . " × {$v}", $t * $v]; $toplam += $t * $v; }
+                if ($t) { $kalem[] = [$o['ad'] . " × {$v}", $t * $v]; $toplam += $t * $v; } else $eksik[] = preg_replace('/\s*\([^)]*\)/u', '', $o['ad']);
             }
         }
-        return ['durum' => 'fiyat', 'toplam' => round($toplam, 2), 'kalemler' => $kalem, 'hizmet' => $hizmet];
+        return ['durum' => 'fiyat', 'toplam' => round($toplam, 2), 'kalemler' => $kalem, 'hizmet' => $hizmet, 'eksik' => $eksik];
+    }
+
+    /** ["French","Krom"] -> "French ve krom" */
+    public static function listeMetni(array $l): string
+    {
+        $l = array_values($l);
+        foreach ($l as $i => $x) if ($i > 0) $l[$i] = mb_strtolower(str_replace(['I', 'İ'], ['ı', 'i'], $x), 'UTF-8');
+        if (count($l) <= 1) return (string) ($l[0] ?? '');
+        $son = array_pop($l);
+        return implode(', ', $l) . ' ve ' . $son;
+    }
+
+    /** Ana islem -> hizmet listesinde aranacak kelimeler / dislanacaklar (otomatik eslestirme). */
+    const OTO_ESLES = [
+        'tirnak' => [
+            'protez' => [['protez'], ['dolum', 'bakım', 'bakim', 'söküm', 'sokum', 'çıkar', 'cikar', 'tamir', 'onarım', 'onarim', 'ayak', 'pedikür', 'pedikur', 'tek tırnak', 'tek tirnak']],
+            'kalici_oje' => [['kalıcı oje', 'kalici oje', 'kalıcı', 'kalici', 'gel polish', 'semi'], ['ayak', 'pedikür', 'pedikur', 'söküm', 'sokum', 'çıkar', 'cikar']],
+            'jel_guclendirme' => [['jel güçlendirme', 'jel guclendirme', 'güçlendirme', 'guclendirme', 'jel'], ['söküm', 'sokum', 'ayak', 'pedikür', 'pedikur']],
+            'klasik_oje' => [['manikür', 'manikur', 'klasik oje', 'oje'], ['kalıcı', 'kalici', 'pedikür', 'pedikur', 'ayak', 'protez', 'jel']],
+        ],
+        'sac' => [
+            'komple_boya' => [['komple boya', 'saç boya', 'sac boya', 'boya'], ['dip']],
+            'dip_boya' => [['dip boya'], []],
+            'balyaj' => [['balyaj'], []],
+            'ombre' => [['ombre'], []],
+            'rofle' => [['röfle', 'rofle'], []],
+            'kesim' => [['kesim'], ['erkek', 'çocuk', 'cocuk', 'sakal']],
+            'fon' => [['fön', 'fon'], []],
+        ],
+    ];
+
+    /**
+     * Isletme kural girmediyse ana islem hizmet listesinden OTOMATIK eslesir (fiyati sistemde olan hizmet):
+     * kelimeyi iceren, dislanan kelimeyi icermeyen, fiyati > 0 olan; birden coksa en kisa adli (en genel) hizmet.
+     * @return array ['ana:kalici_oje' => ['hizmet_id' => 12, 'oto' => 1], ...]
+     */
+    public static function otomatikKurallar(array $hizmetler, string $sektor): array
+    {
+        $kucuk = function ($s) { return mb_strtolower(str_replace(['I', 'İ'], ['ı', 'i'], (string) $s), 'UTF-8'); };
+        $out = [];
+        foreach (self::OTO_ESLES[$sektor] ?? [] as $ana => $kural) {
+            [$ara, $dis] = $kural;
+            $aday = null;
+            foreach ($hizmetler as $h) {
+                $ad = $kucuk($h['ad'] ?? '');
+                if ((float) ($h['fiyat'] ?? 0) <= 0 || $ad === '') continue;
+                $var = false; foreach ($ara as $k) if (mb_strpos($ad, $k) !== false) { $var = true; break; }
+                if (!$var) continue;
+                foreach ($dis as $k) if (mb_strpos($ad, $k) !== false) continue 2;
+                if (!$aday || mb_strlen($ad) < mb_strlen($kucuk($aday['ad']))) $aday = $h;
+            }
+            if ($aday) $out['ana:' . $ana] = ['hizmet_id' => (int) $aday['id'], 'oto' => 1];
+        }
+        return $out;
+    }
+
+    /** Kayitli kurallar + eksik ana islemler icin otomatik eslesme (kayitli kural her zaman onceliklidir). */
+    public static function etkinKurallar(int $isletmeId, string $sektor, array $hizmetler): array
+    {
+        $k = self::kurallar($isletmeId, $sektor);
+        foreach (self::otomatikKurallar($hizmetler, $sektor) as $a => $v) if (!isset($k[$a])) $k[$a] = $v;
+        return $k;
     }
 
     /** Musteriye gidecek cevap (saf). */
@@ -200,14 +263,18 @@ T;
                 return ($tarif !== '' ? "Modelinizi inceledim: {$tarif}\n\n" : '')
                     . ($analiz['soru'] ?: 'Fiyatı doğru hesaplayabilmem için hangi uygulamayı düşündüğünüzü yazar mısınız?');
             case 'kural_yok':
-                return ''; // isletmeye aktarilir (WaAsistan)
+                // Fiyat bilinmiyor: isletmeye sorulur (WaTalep) ama musteri bekletilmez, randevuya devam edilir
+                return 'Modelinizi inceledim 😊' . ($tarif !== '' ? "\n{$tarif}" : '')
+                    . "\n\nBu modelin fiyatını işletmemize sordum, kısa sürede buradan bildirecekler. Bu arada randevunuzu ayarlayalım mı? Hangi gün ve saat size uygun?";
         }
+        $eksik = (array) ($fiyat['eksik'] ?? []);
         $belirsizlik = ($analiz['guven'] ?? 1) < 0.75 ? 'Fotoğraftan anladığım kadarıyla' : 'Modelinizi inceledim';
         $out = "{$belirsizlik} 😊" . ($tarif !== '' ? "\n{$tarif}" : '');
-        $out .= "\n\nBu model için fiyatımız: " . WaBedavaKatman::tl($fiyat['toplam']);
+        $out .= "\n\nBu model için fiyatımız: " . WaBedavaKatman::tl($fiyat['toplam']) . ($eksik ? "'den başlıyor" : '');
         if (count($fiyat['kalemler']) > 1) {
             $out .= "\n(" . implode(' + ', array_map(function ($k) { return $k[0] . ' ' . WaBedavaKatman::tl($k[1]); }, $fiyat['kalemler'])) . ')';
         }
+        if ($eksik) $out .= "\n" . self::listeMetni($eksik) . ' için ek ücret olabilir; işletmemize sordum, netleşince buradan bildireceğiz.';
         if (trim((string) $not) !== '') $out .= "\n" . trim($not);
         if (!empty($analiz['soru']) && ($analiz['guven'] ?? 1) < 0.75) $out .= "\n\n" . $analiz['soru'];
         return $out . "\n\nSize uygun bir gün için randevu oluşturalım mı?";
@@ -365,8 +432,9 @@ T;
             'ai' => false, 'maliyet_usd' => 0.0, 'aksiyon' => null, 'hizmet' => null, 'baglam' => '', 'durum' => 'hata'];
         if (!$g) return $bos;
         if (empty($ayar['gorsel_fiyat'])) {
+            // Isletme fotograftan fiyat vermeyi kapatti: fiyat isletmeye sorulur, musteri bekletilmez
             DB::table('wa_gorsel_analizler')->where('id', $gorselId)->update(['durum' => 'kural_yok', 'isletme_id' => $isletmeId, 'oturum_id' => $oturumId, 'updated_at' => now()]);
-            return ['cevap' => '', 'aksiyon' => 'aktar', 'durum' => 'kural_yok'] + $bos;
+            return ['cevap' => self::cevapMetni([], ['durum' => 'kural_yok'], null), 'aksiyon' => null, 'durum' => 'kural_yok', 'talep' => 'fotograf'] + $bos;
         }
 
         // Ayni fotograf bu isletmede daha once analiz edildiyse: BEDAVA
@@ -394,7 +462,7 @@ T;
                 return ['ai' => $ai, 'maliyet_usd' => $usd] + $bos;
             }
         }
-        $fiyat = self::fiyatHesapla($analiz, self::kurallar($isletmeId, $sektor), $hizmetler, $sektor);
+        $fiyat = self::fiyatHesapla($analiz, self::etkinKurallar($isletmeId, $sektor, $hizmetler), $hizmetler, $sektor);
         DB::table('wa_gorsel_analizler')->where('id', $gorselId)->update([
             'isletme_id' => $isletmeId, 'oturum_id' => $oturumId, 'sektor' => $sektor, 'onbellek' => $onceki ? 1 : 0,
             'analiz' => json_encode($analiz, JSON_UNESCAPED_UNICODE), 'fiyat' => json_encode($fiyat, JSON_UNESCAPED_UNICODE),
@@ -403,7 +471,9 @@ T;
         return [
             'cevap' => self::cevapMetni($analiz, $fiyat, $ayar['gorsel_not'] ?? null),
             'ai' => $ai, 'maliyet_usd' => $usd,
-            'aksiyon' => $fiyat['durum'] === 'kural_yok' ? 'aktar' : null,
+            'aksiyon' => null,
+            // Isletmeye sorulacak konu (WaTalep): fiyat hic yok / ek ucret tanimsiz. Asistan susmaz.
+            'talep' => $fiyat['durum'] === 'kural_yok' ? 'fotograf' : (!empty($fiyat['eksik']) ? 'fotograf_ek' : null),
             'hizmet' => $fiyat['hizmet'], 'baglam' => self::baglamNotu($analiz, $fiyat), 'durum' => $fiyat['durum'],
             'tarif' => $analiz['aciklama'] ?? '',
         ];

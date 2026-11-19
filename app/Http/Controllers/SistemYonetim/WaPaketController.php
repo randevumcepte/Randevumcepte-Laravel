@@ -31,6 +31,19 @@ class WaPaketController extends Controller
         return $u->admin == 1 ? 'super_admin' : 'destek';
     }
 
+    /** Tum salonlarda WhatsApp asistaninin isletmeye sordugu konular: kim bekletiyor, ne kadar, sonuc ne oldu. */
+    public function talepler(Request $request)
+    {
+        $liste = \App\Services\WaTalep::sistemListesi(max(1, min(60, (int) $request->get('gun', 7))));
+        if ($this->rol() === 'destek') {
+            $izinli = Salonlar::where('musteri_yetkili_id', Auth::guard('sistemyonetim')->user()->id)->pluck('id')->map(function ($x) { return (int) $x; })->all();
+            $liste = array_values(array_filter($liste, function ($t) use ($izinli) { return in_array($t['isletme_id'], $izinli, true); }));
+        }
+        $say = ['bekliyor' => 0, 'cevaplandi' => 0, 'cevapsiz' => 0];
+        foreach ($liste as $t) $say[$t['durum']] = ($say[$t['durum']] ?? 0) + 1;
+        return view('sistemyonetim.v2.wa-talepler', ['title' => 'WhatsApp Asistan Talepleri', 'aktifMenu' => 'watalep', 'liste' => $liste, 'say' => $say, 'gun' => (int) $request->get('gun', 7)]);
+    }
+
     public function index(Request $request)
     {
         WaPaket::semaGaranti();

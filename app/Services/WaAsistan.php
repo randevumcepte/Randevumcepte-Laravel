@@ -204,6 +204,8 @@ class WaAsistan
             'gecmis' => json_encode(array_slice($g, -40), JSON_UNESCAPED_UNICODE),
             'insan_devraldi' => 1, 'son_insan_at' => now(), 'son_mesaj_at' => now(), 'updated_at' => now(),
         ]);
+        // Isletme musteriye dondu: bekleyen talepler "cevaplandi" (panelde sonuc gorunur, takip/hatirlatma durur)
+        if ($metin !== '') { try { WaTalep::cevaplandi((int) $o->id, 'İşletme (WhatsApp\'tan yazdı)'); } catch (\Throwable $e) {} }
         Log::info('[WA-ASISTAN] personel devraldi', ['salon' => $salonId, 'oturum' => $o->id]);
         return ['tip' => 'insan_devraldi'];
     }
@@ -303,8 +305,9 @@ class WaAsistan
             }
             $upd['insan_devraldi'] = 0;
         }
-        // 2) SUSTURULMUS SOHBET (isletmeye aktarildi / hiz siniri / dongu / otomatik yanit)
-        if ($o->sessiz_bitis && strtotime($o->sessiz_bitis) > time()) {
+        // 2) SUSTURULMUS SOHBET (personel devraldi / hiz siniri / dongu / otomatik yanit).
+        //    'aktar' artik susturmaz (eski kayitlar dahil): asistan talebi isletmeye iletir, sohbete devam eder (WaTalep).
+        if ($o->sessiz_bitis && strtotime($o->sessiz_bitis) > time() && $o->sessiz_neden !== 'aktar') {
             $sus('sessiz:' . $o->sessiz_neden);
             return;
         }
@@ -398,13 +401,13 @@ class WaAsistan
             if (!empty($g['hizmet']['id'])) { $upd['son_hizmet_id'] = (int) $g['hizmet']['id']; $upd['son_hizmet_ad'] = $g['hizmet']['ad']; }
             if ($g['durum'] === 'fiyat') $upd['fiyat_verildi'] = 1;
             $baglamEk = (string) $g['baglam'];
-            if ($g['aksiyon'] === 'aktar') {
-                $d = ['cevap' => 'model fiyat', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false]; // asagidaki aktarma akisi
-                $metin = trim($metin . ' ' . ($g['tarif'] ?? ''));
-            } else {
-                $cevap = $g['cevap'];
-                if (empty($gecmis) && $as->taninanMusteri()) $cevap = $as->waSelam() . ' ' . $cevap;
+            // Fiyat (ya da ek ucret) kurali yok: isletmeye sorulur (talep) ama asistan SUSMAZ, randevuya devam eder
+            $cevap = $g['cevap'];
+            if (!empty($g['talep'])) {
+                WaTalep::ac($o, $g['talep'], trim('[fotoğraf] ' . ($g['tarif'] ?? '') . ($yazi !== '' ? ' — müşteri: ' . $yazi : '')));
+                $upd['sonuc'] = 'aktar';
             }
+            if (empty($gecmis) && $as->taninanMusteri()) $cevap = $as->waSelam() . ' ' . $cevap;
         } elseif ($hatirlatma && ($meta = $as->waHatirlatmaMeta($hatirlatma['randevu_id']))) {
             $gecmis[] = ['role' => 'assistant', 'content' => $hatirlatma['mesaj'], 'hatirlatma' => $meta];
             $d = $as->konus($metin, $gecmis);
@@ -434,14 +437,11 @@ class WaAsistan
             $cevap = trim((string) ($d['cevap'] ?? ''));
             $aksiyon = $d['aksiyon'] ?? null;
             if ($aksiyon === 'aktar') {
-                $fiyat = mb_stripos($cevap, 'fiyat') !== false;
-                $cevap = ($fiyat ? 'Fiyat bilgisi için talebinizi' : 'Talebinizi')
-                    . ' işletmemize ilettim; yetkili arkadaşımız en kısa sürede buradan size dönüş yapacak. 🙏';
-                $upd['sessiz_bitis'] = now()->addMinutes(max(5, (int) self::ayar('aktar_sessiz_dk', 120)));
-                $upd['sessiz_neden'] = 'aktar';
-                self::isletmeyeBildir((int) $o->isletme_id, $o, 'WhatsApp asistanı bir müşteriyi size yönlendirdi ('
-                    . ($o->ad ?: $son->ad ?: 'müşteri') . ', ' . ($o->musteri_tel ?: $tel ?: 'gizli numara') . '). Mesajı: "'
-                    . mb_substr($metin, 0, 200) . '". Lütfen WhatsApp\'tan dönüş yapın.');
+                // Isletmeye sorulur (talep + bildirim + takip) ama asistan SUSMAZ: musteri sonraki mesajinda cevap alir
+                $konu = WaTalep::konuBul($metin, (string) ($d['veri']['sebep'] ?? '') . ' ' . $cevap);
+                $t = WaTalep::ac($o, $konu, $metin);
+                $cevap = WaTalep::iletildiMetni($konu, !$t['yeni']);
+                if ($o->sessiz_neden === 'aktar') { $upd['sessiz_bitis'] = null; $upd['sessiz_neden'] = null; }
             }
             $cevap = self::telefonIfadeleri($cevap);
             if ($selam) $cevap = $selam . ' ' . $cevap;
@@ -588,29 +588,59 @@ class WaAsistan
     }
 
     /** Salon yoneticilerine panel bildirimi + push (Gece Denetcisi haftalik ozeti de kullanir). */
-    public static function bildir(int $salonId, string $mesaj, ?string $url = null): void
+    /** @return string[] bildirim (push) giden yoneticilerin adlari (panelde "kime bildirildi") */
+    public static function bildir(int $salonId, string $mesaj, ?string $url = null): array
     {
         try {
             $b = new \App\Bildirimler();
             $b->aciklama = $mesaj;
             $b->salon_id = $salonId;
-            $b->url = $url ?: '/isletmeyonetim/whatsapp?sube=' . $salonId;
+            $b->url = $url ?: '/isletmeyonetim/whatsapp-asistan?sube=' . $salonId;
             $b->tarih_saat = date('Y-m-d H:i:s');
             $b->okundu = false;
             $b->save();
         } catch (\Throwable $e) {
             Log::warning('[WA-ASISTAN] panel bildirimi yazilamadi: ' . $e->getMessage());
         }
+        $adlar = [];
         try {
             $yoneticiler = \App\Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
                 ->where('salon_personelleri.salon_id', $salonId)->where('model_has_roles.role_id', '<', 5)
-                ->pluck('salon_personelleri.id')->toArray();
-            foreach ($yoneticiler as $pid) {
+                ->pluck('salon_personelleri.personel_adi', 'salon_personelleri.id')->toArray();
+            foreach ($yoneticiler as $pid => $ad) {
                 NotificationService::toStaff((int) $pid, $salonId)->type(NotificationTypes::SYSTEM_ANNOUNCEMENT)
                     ->title('WhatsApp Asistanı')->body($mesaj)->send();
+                if (trim((string) $ad) !== '') $adlar[] = trim((string) $ad);
             }
         } catch (\Throwable $e) {
             Log::warning('[WA-ASISTAN] push gonderilemedi: ' . $e->getMessage());
         }
+        return array_values(array_unique($adlar));
+    }
+
+    /**
+     * Asistanin sohbete kendiliginden yazmasi (talep takibi: "isletmemiz henuz donemedi"). Personel devraldiysa yazmaz.
+     * Gecmise eklenir ve cevap olcumune (kaynak) yazilir; AI degil, paketten dusmez.
+     */
+    public static function oturumaYaz(int $oturumId, string $metin, string $kaynak = 'takip'): bool
+    {
+        $o = DB::table('wa_asistan_oturumlari')->where('id', $oturumId)->first();
+        if (!$o || trim($metin) === '') return false;
+        $devral = ($o->sessiz_neden === 'devral' && $o->sessiz_bitis && strtotime($o->sessiz_bitis) > time())
+            || ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - 30 * 60);
+        if ($devral || WaPaket::kapali((int) $o->salon_id)) return false;
+        $salon = Salonlar::find($o->salon_id);
+        $hedef = $o->jid ?: $o->telefon;
+        if (!$salon || !$hedef) return false;
+        $r = app(WhatsAppService::class)->sendAsistanCevap($salon, $hedef, $metin, $o->telefon);
+        if (empty($r['ok'])) return false;
+        $g = json_decode($o->gecmis ?: '[]', true) ?: [];
+        $g[] = ['role' => 'assistant', 'content' => $metin];
+        DB::table('wa_asistan_oturumlari')->where('id', $o->id)->update(['gecmis' => json_encode(array_slice($g, -40), JSON_UNESCAPED_UNICODE),
+            'cevap_sayisi' => DB::raw('cevap_sayisi + 1'), 'updated_at' => now()]);
+        try {
+            WaAsistanVeri::cevapKaydet(['salon_id' => (int) $o->salon_id, 'isletme_id' => (int) $o->isletme_id, 'oturum_id' => (int) $o->id, 'kaynak' => $kaynak, 'ai' => false]);
+        } catch (\Throwable $e) {}
+        return true;
     }
 }

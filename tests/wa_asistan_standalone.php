@@ -475,7 +475,9 @@ namespace {
     esit('aynı fotoğraf: önbellek işaretli', 1, (int) $T['wa_gorsel_analizler'][$gid2]['onbellek']);
     SahteGorselSaglayici::$json = ['uygun' => true, 'ana' => 'jel_guclendirme', 'ozellikler' => [], 'aciklama' => 'Jel', 'guven' => 0.9, 'soru' => ''];
     $gid3 = G::fotografKaydet(300, 'x', base64_encode("\x89PNG\r\n\x1A\n" . 'farkli'));
-    esit('kural yok → işletmeye aktar', 'aktar', G::isle($gid3, 300, 79, $H)['aksiyon']);
+    $rk = G::isle($gid3, 300, 79, $H);
+    esit('kural yok → işletmeye sorulur (talep), asistan susmaz', ['fotograf', null, 'kural_yok'], [$rk['talep'], $rk['aksiyon'], $rk['durum']]);
+    icerir('kural yok → müşteriye cevap + randevuya devam', 'Bu arada randevunuzu ayarlayalım mı', $rk['cevap']);
     SahteGorselSaglayici::$json = null;
     $gid4 = G::fotografKaydet(300, 'x', base64_encode("\x89PNG\r\n\x1A\n" . 'baska'));
     $r4 = G::isle($gid4, 300, 80, $H);
@@ -486,7 +488,8 @@ namespace {
     WaAsistanVeri::ayarKaydet(301, ['gorsel_fiyat' => 0]);
     $gid5 = G::fotografKaydet(301, 'x', base64_encode($jpeg . 'y'));
     $once = SahteGorselSaglayici::$cagri;
-    esit('fotoğraf fiyatı kapalı → aktar, AI çağrılmaz', ['aktar', $once], [G::isle($gid5, 301, 81, $H)['aksiyon'], SahteGorselSaglayici::$cagri]);
+    $rk5 = G::isle($gid5, 301, 81, $H);
+    esit('fotoğraf fiyatı kapalı → talep, cevap var, AI çağrılmaz', ['fotograf', true, $once], [$rk5['talep'], $rk5['cevap'] !== '', SahteGorselSaglayici::$cagri]);
 
     baslik('Entegrasyon: geri kazanma cevabı');
     Illuminate\Support\Facades\Cache::$d[GK::SEMA] = 1;
@@ -509,6 +512,39 @@ namespace {
     WaAsistanVeri::cevapKaydet(['salon_id' => 20, 'isletme_id' => 20, 'kaynak' => 'ai', 'ai' => 1]);
     esit('yalnız AI cevapları sayılır (bu salon)', 3, WaPaket::kullanilan(236));
     esit('başka salonun kullanımı karışmaz', 1, WaPaket::kullanilan(20));
+
+    baslik('Fotoğraf: hizmet listesinden otomatik eşleştirme + eksik ek ücret');
+    $oto = G::otomatikKurallar($H, 'tirnak');
+    esit('oto: protez → "Protez Tırnak" (bakım değil)', 1, $oto['ana:protez']['hizmet_id']);
+    esit('oto: kalıcı oje / manikür eşleşti', [3, 4], [$oto['ana:kalici_oje']['hizmet_id'], $oto['ana:klasik_oje']['hizmet_id']]);
+    esit('oto: listede jel yok → eşleşme yok', false, isset($oto['ana:jel_guclendirme']));
+    $otoS = G::otomatikKurallar($H, 'sac');
+    esit('oto saç: boya / kesim', [8, 7], [$otoS['ana:komple_boya']['hizmet_id'], $otoS['ana:kesim']['hizmet_id']]);
+    esit('oto: fiyatı 0 olan hizmet seçilmez', [], G::otomatikKurallar([['id' => 9, 'ad' => 'Kalıcı Oje', 'fiyat' => 0]], 'tirnak'));
+    $fe = G::fiyatHesapla(['uygun' => true, 'ana' => 'kalici_oje', 'ozellikler' => ['french' => true, 'krom' => true, 'tas' => 2]], ['ana:kalici_oje' => ['hizmet_id' => 3], 'french' => ['fiyat' => 100]], $H, 'tirnak');
+    esit('eksik ek: krom + taş ücreti tanımsız', [500.0, ['Krom / ayna efekti', 'Taş süsleme']], [$fe['toplam'], $fe['eksik']]);
+    $ce = G::cevapMetni(['aciklama' => 'Krom efektli kalıcı oje', 'guven' => 0.9], $fe, null);
+    icerir('eksik ek: fiyat "-den başlıyor"', "500 TL'den başlıyor", $ce);
+    icerir('eksik ek: işletmeye soruldu notu', 'Krom / ayna efekti ve taş süsleme için ek ücret olabilir; işletmemize sordum', $ce);
+    esit('liste metni', 'French, krom ve taş', G::listeMetni(['French', 'Krom', 'Taş']));
+    SahteGorselSaglayici::$json = ['uygun' => true, 'ana' => 'kalici_oje', 'ozellikler' => [], 'aciklama' => 'Kalıcı oje', 'guven' => 0.95, 'soru' => ''];
+    $gid6 = G::fotografKaydet(302, 'x', base64_encode("\x89PNG\r\n\x1A\n" . 'oto-esles'));
+    $r6 = G::isle($gid6, 302, 82, $H);
+    esit('kural girilmemiş işletme: listeden otomatik fiyat, talep yok', ['fiyat', 400.0, null], [$r6['durum'], (float) $T['wa_gorsel_analizler'][$gid6]['toplam'], $r6['talep']]);
+    SahteGorselSaglayici::$json = null;
+
+    baslik('Talep (işletmeye sorulan konu) — saf');
+    require_once $kok . 'Services/WaTalep.php';
+    $TL = App\Services\WaTalep::class;
+    esit('konu: fiyat', 'fiyat', $TL::konuBul('protez tırnak ne kadar'));
+    esit('konu: yetkili', 'yetkili', $TL::konuBul('yetkili biriyle görüşmek istiyorum'));
+    esit('konu: şikâyet', 'sikayet', $TL::konuBul('dün yaptırdım rezalet oldu'));
+    esit('konu: diğer', 'diger', $TL::konuBul('otopark var mı'));
+    icerir('iletildi: susmaz, devam eder', 'Bu arada randevu ya da başka bir konuda yardımcı olabilirim', $TL::iletildiMetni('fiyat', false));
+    icerir('iletildi: tekrar talepte yeni bildirim yok', 'iletmiştim', $TL::iletildiMetni('yetkili', true));
+    icerir('takip: randevu yoksa randevu teklifi', 'randevunuzu oluşturabilirim', $TL::takipMetni('fotograf', false));
+    esit('takip: randevu varsa teklif yok', false, mb_strpos($TL::takipMetni('fotograf', true), 'oluşturabilirim') !== false);
+    esit('süre metni', ['7 dk', '2 sa', '1 gün'], [$TL::sureMetni(420), $TL::sureMetni(7300), $TL::sureMetni(90000)]);
 
     baslik('Gece Denetçisi (saf)');
     require_once $kok . 'Services/WaDenetci.php';

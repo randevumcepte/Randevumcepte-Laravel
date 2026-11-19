@@ -12,6 +12,7 @@ use App\Services\WaBedavaKatman;
 use App\Services\WaDenetci;
 use App\Services\WaGeriKazanim;
 use App\Services\WaGorselDanisman;
+use App\Services\WaTalep;
 use App\Services\WaPaket;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -47,8 +48,7 @@ class WaAsistanPanelController extends StoreAdminController
         WaAsistanVeri::semaGaranti();
         WaGeriKazanim::semaGaranti();
         WaGorselDanisman::semaGaranti();
-        $hizmetler = DB::table('salon_sunulan_hizmetler as sh')->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')
-            ->where('sh.salon_id', $isletme->id)->orderBy('h.hizmet_adi')->get(['sh.hizmet_id as id', 'h.hizmet_adi as ad', 'sh.son_fiyat as fiyat']);
+        $hizmetler = self::hizmetListesi((int) $isletme->id);
         $ayar = WaAsistanVeri::ayarlar($isletme->id);
 
         return view('isletmeadmin.wa-asistan', [
@@ -64,7 +64,17 @@ class WaAsistanPanelController extends StoreAdminController
             'waSektorler' => WaGorselDanisman::sektorler(),
             'waKurallar' => WaGorselDanisman::kurallar($isletme->id, (string) $ayar['gorsel_sektor']),
             'waHizmetler' => $hizmetler,
+            // Kural girilmemis ana islemler hizmet listesinden otomatik eslesir (asistan da ayni eslesmeyi kullanir)
+            'waOtoKurallar' => array_map(function ($s) use ($hizmetler) {
+                return WaGorselDanisman::otomatikKurallar($hizmetler->map(function ($h) { return (array) $h; })->all(), $s);
+            }, array_combine(array_keys(WaGorselDanisman::sektorler()), array_keys(WaGorselDanisman::sektorler()))),
         ]);
+    }
+
+    protected static function hizmetListesi(int $sid)
+    {
+        return DB::table('salon_sunulan_hizmetler as sh')->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')
+            ->where('sh.salon_id', $sid)->orderBy('h.hizmet_adi')->get(['sh.hizmet_id as id', 'h.hizmet_adi as ad', 'sh.son_fiyat as fiyat']);
     }
 
     /** Genel bakis: secilen donem raporu + onceki doneme gore trend + gunluk seriler (mini grafikler) + paket + asistan durumu. */
@@ -89,7 +99,12 @@ class WaAsistanPanelController extends StoreAdminController
             'kazanc' => $t($o['kazanc']['beklenen'], $once['kazanc']['beklenen']),
         ];
         $ayar = WaAsistanVeri::ayarlar($sid);
-        $kuralVar = (bool) WaGorselDanisman::kurallar($sid, (string) $ayar['gorsel_sektor']);
+        $kuralVar = (bool) WaGorselDanisman::kurallar($sid, (string) $ayar['gorsel_sektor'])
+            || (bool) WaGorselDanisman::otomatikKurallar(self::hizmetListesi($sid)->map(function ($h) { return (array) $h; })->all(), (string) $ayar['gorsel_sektor']);
+        // "Sizden dönüş bekleyen" = acik talepler (WaTalep); asistan artik susmuyor, eski sessiz-aktar sayimi yerine
+        $bekleyen = WaTalep::bekleyenler($sid);
+        $o['aktar_bekleyen'] = array_map(function ($t) { return ['oturum_id' => $t['oturum_id'], 'ad' => $t['ad'], 'telefon' => $t['telefon'], 'tarih' => $t['tarih'], 'konu' => $t['konu_ad'], 'sure' => $t['sure']]; }, $bekleyen);
+        $o['sohbet']['aktar_bekleyen'] = count($bekleyen);
         return response()->json(['ok' => 1, 'donem' => $donem, 'ozet' => $o, 'trend' => $trend,
             'seri' => WaAsistanRapor::seri($v, $bas, $bit, 'gun'),
             'paket' => WaPaket::hesapla($paketSatir, WaPaket::kullanilan($sid)),
@@ -130,6 +145,7 @@ class WaAsistanPanelController extends StoreAdminController
         $rows = $q->get();
         // Profil fotografi: sistemde yuklu musteri fotografi; yoksa panel WhatsApp fotografini /avatar/{id}'den ister
         $fotolar = WaAvatar::sistemFotolari($sid, $rows->map(function ($o) { return $o->musteri_tel ?: $o->telefon; })->all());
+        $talepler = WaTalep::oturumlarIcin($rows->pluck('id')->map(function ($x) { return (int) $x; })->all());
         foreach ($rows as $o) {
             $t10 = substr(preg_replace('/\D/', '', (string) ($o->musteri_tel ?: $o->telefon)), -10);
             $g = json_decode($o->gecmis ?: '[]', true) ?: [];
@@ -138,7 +154,7 @@ class WaAsistanPanelController extends StoreAdminController
             $liste[] = [
                 'id' => (int) $o->id, 'ad' => $o->ad, 'telefon' => $o->musteri_tel ?: $o->telefon, 'son_mesaj' => mb_substr($sonMus, 0, 120),
                 'tarih' => $o->son_mesaj_at, 'mesaj' => (int) $o->mesaj_sayisi, 'cevap' => (int) $o->cevap_sayisi,
-                'sonuc' => $o->sonuc, 'randevu_id' => $o->randevu_id, 'durum' => self::durumEtiket($o),
+                'sonuc' => $o->sonuc, 'randevu_id' => $o->randevu_id, 'durum' => self::durumEtiket($o, $talepler[(int) $o->id] ?? null),
                 'fiyat' => (int) $o->fiyat_verildi, 'gorsel' => (int) $o->gorsel_sayisi, 'memnuniyet' => $o->memnuniyet === null ? null : (int) $o->memnuniyet,
                 'geri_kazanim' => $o->geri_kazanim_id ? 1 : 0, 'devralindi' => self::devralindiMi($o),
                 'foto' => $fotolar[$t10] ?? null,
@@ -179,8 +195,10 @@ class WaAsistanPanelController extends StoreAdminController
                     'tarif' => $an['aciklama'] ?? null, 'onbellek' => (int) $g->onbellek];
             }
         }
+        $talepler = WaTalep::oturumTalepleri((int) $o->id);
         return response()->json(['ok' => 1, 'sohbet' => [
-            'id' => (int) $o->id, 'ad' => $o->ad, 'telefon' => $o->musteri_tel ?: $o->telefon, 'durum' => self::durumEtiket($o),
+            'talepler' => $talepler,
+            'id' => (int) $o->id, 'ad' => $o->ad, 'telefon' => $o->musteri_tel ?: $o->telefon, 'durum' => self::durumEtiket($o, $talepler ? end($talepler) : null),
             'devralindi' => self::devralindiMi($o), 'randevu_id' => $o->randevu_id, 'satirlar' => $satirlar, 'gorseller' => $gorseller,
             'maliyet_usd' => (float) $o->maliyet_usd,
         ]]);
@@ -330,10 +348,25 @@ class WaAsistanPanelController extends StoreAdminController
             || ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - 10 * 60);
     }
 
-    protected static function durumEtiket($o): string
+    /** "Cevapladım": isletme musteriye dondu (panelden isaret) -> bekleyen talepler kapanir, takip durur. */
+    public function cevaplandi(Request $request, $id)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        if (!DB::table('wa_asistan_oturumlari')->where('id', (int) $id)->where('isletme_id', $sid)->exists()) return response()->json(['ok' => 0], 404);
+        $n = WaTalep::cevaplandi((int) $id, (optional(Auth::guard('isletmeyonetim')->user())->name ?: 'Panel') . ' (panelden işaretlendi)');
+        return response()->json(['ok' => $n ? 1 : 0]);
+    }
+
+    protected static function durumEtiket($o, ?array $talep = null): string
     {
         if (self::devralindiMi($o)) return 'Personelde';
-        if ($o->sessiz_bitis && strtotime($o->sessiz_bitis) > time()) {
+        // Isletmeye sorulan konu: sonucu gorunur (bekliyor ne kadar / cevaplandi / cevapsiz)
+        if ($talep && $talep['durum'] === 'bekliyor') return 'Dönüş bekliyor · ' . $talep['sure'];
+        if ($talep && $talep['durum'] === 'cevapsiz') return 'İşletme dönmedi';
+        $randevu = in_array($o->sonuc, ['randevu', 'guncelle', 'teyit'], true);
+        if ($talep && $talep['durum'] === 'cevaplandi' && !$randevu) return 'İşletme cevapladı';
+        if ($o->sessiz_bitis && strtotime($o->sessiz_bitis) > time() && $o->sessiz_neden !== 'aktar') {
             return ['aktar' => 'İşletmeye aktarıldı', 'hiz_siniri' => 'Geçici durduruldu', 'dongu' => 'Geçici durduruldu', 'otomatik_yanit' => 'Bot algılandı'][$o->sessiz_neden] ?? 'Asistan beklemede';
         }
         $s = ['randevu' => 'Randevu alındı', 'iptal' => 'Randevu iptal', 'guncelle' => 'Randevu değişti', 'aktar' => 'İşletmeye aktarıldı', 'teyit' => 'Randevuyu teyit etti', 'odeme' => 'Ödeme sözü'];

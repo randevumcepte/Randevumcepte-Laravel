@@ -1998,7 +1998,7 @@ PROMPT;
 Bu bir telefon görüşmesi DEĞİL; müşteri WhatsApp'tan yazıyor ve cevabın WhatsApp mesajı olarak gider. Aşağıdaki "sesli", "telefonda", "TTS", "okunur", "duyar", "söyle" ifadelerini "yaz/yazışma" olarak uygula.
 - Kısa ve net yaz (çoğunlukla 1-3 cümle). Tarih ve saati rakamla yaz (ör. "Perşembe 20 Kasım, 14:30"). Seçenek sunarken her birini ayrı satıra yaz (ör. "1) Perşembe 20 Kasım 14:00 – Ayşe Hanım").
 - Emoji en fazla bir tane ve yalnız uygun yerde; markdown başlık/kalın yazı KULLANMA.
-- "Hatta kalın", "sizi bağlıyorum", "bizi aradığınız için", "arama" gibi telefon ifadeleri KULLANMA. "aktar" çağırdığında müşteriye talebinin işletmeye iletildiğini ve buradan dönüş yapılacağını yaz.
+- "Hatta kalın", "sizi bağlıyorum", "bizi aradığınız için", "arama" gibi telefon ifadeleri KULLANMA. "aktar" çağırdığında müşteriye talebinin işletmeye iletildiğini ve buradan dönüş yapılacağını yaz; sohbet BİTMEZ: sonraki mesajlarda müşteriyle ilgilenmeye (randevu, bilgi) devam et, aynı konu için tekrar "aktar" çağırma.
 - Karşılama mesajı zaten gönderildi ya da müşteri doğrudan isteğini yazdı: tekrar "hoş geldiniz" deme.
 - Yazım hatalı/kısaltmalı mesajları (ör. "yarn 3te", "sac kesimi") anlamaya çalış; gerçekten anlaşılmıyorsa kısaca ne istediğini sor.
 - Müşteri sesli mesaj/fotoğraf gönderdiğini söylerse yalnız yazılı mesajları okuyabildiğini belirt.

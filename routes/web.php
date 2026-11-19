@@ -425,6 +425,7 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::post('/santral-paket', 'SantralPaketController@kaydet');
     Route::post('/santral-paket/{salonId}/sil', 'SantralPaketController@sil')->where('salonId', '[0-9]+');
     Route::get('/wa-paket', 'WaPaketController@index')->name('sistemyonetim.v2.wa-paket');
+    Route::get('/wa-talepler', 'WaPaketController@talepler')->name('sistemyonetim.v2.wa-talepler');
     Route::post('/wa-paket', 'WaPaketController@kaydet');
     Route::post('/wa-paket/{salonId}/sil', 'WaPaketController@sil')->where('salonId', '[0-9]+');
     Route::get('/santral-ses', 'SantralSesController@index')->name('sistemyonetim.v2.santral-ses');
@@ -1102,6 +1103,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/whatsapp-asistan/sohbet/{id}','WaAsistanPanelController@sohbet')->where('id','[0-9]+');
 	Route::post('/whatsapp-asistan/sohbet/{id}/devral','WaAsistanPanelController@devral')->where('id','[0-9]+');
 	Route::post('/whatsapp-asistan/sohbet/{id}/geri-ver','WaAsistanPanelController@geriVer')->where('id','[0-9]+');
+	Route::post('/whatsapp-asistan/sohbet/{id}/cevaplandi','WaAsistanPanelController@cevaplandi')->where('id','[0-9]+');
 	Route::get('/whatsapp-asistan/geri-kazanim','WaAsistanPanelController@geriKazanimListe');
 	Route::post('/whatsapp-asistan/ayar','WaAsistanPanelController@ayarKaydet');
 	Route::post('/whatsapp-asistan/kurallar','WaAsistanPanelController@kuralKaydet');

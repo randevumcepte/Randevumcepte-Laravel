@@ -61,6 +61,10 @@
                 <span class="icon mdi mdi-whatsapp"></span>
                 WhatsApp Asistan Paketleri
             </a>
+            <a href="/sistemyonetim/v2/wa-talepler" class="sy-nav-item {{ $aktifMenu === 'watalep' ? 'active' : '' }}">
+                <span class="icon mdi mdi-account-clock"></span>
+                WhatsApp Asistan Talepleri
+            </a>
             <a href="/sistemyonetim/v2/santral-ses" class="sy-nav-item {{ $aktifMenu === 'santralses' ? 'active' : '' }}">
                 <span class="icon mdi mdi-account-tie-voice"></span>
                 Santral Ses Önizleme
