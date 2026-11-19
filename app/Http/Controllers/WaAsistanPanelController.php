@@ -198,6 +198,7 @@ class WaAsistanPanelController extends StoreAdminController
         $talepler = WaTalep::oturumTalepleri((int) $o->id);
         return response()->json(['ok' => 1, 'sohbet' => [
             'talepler' => $talepler,
+            'yarim' => WaAsistan::yarimMi(json_decode($o->gecmis ?: '[]', true) ?: []),
             'id' => (int) $o->id, 'ad' => $o->ad, 'telefon' => $o->musteri_tel ?: $o->telefon, 'durum' => self::durumEtiket($o, $talepler ? end($talepler) : null),
             'devralindi' => self::devralindiMi($o), 'randevu_id' => $o->randevu_id, 'satirlar' => $satirlar, 'gorseller' => $gorseller,
             'maliyet_usd' => (float) $o->maliyet_usd,
@@ -346,6 +347,20 @@ class WaAsistanPanelController extends StoreAdminController
     {
         return ($o->sessiz_neden === 'devral' && $o->sessiz_bitis && strtotime($o->sessiz_bitis) > time())
             || ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - 10 * 60);
+    }
+
+    /** "Asistan tamamlasın": yarim kalan sohbeti asistan simdi surdurur (cevapsiz mesaj / sozde kalan cevap). */
+    public function devamEttir(Request $request, $id)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        if (!DB::table('wa_asistan_oturumlari')->where('id', (int) $id)->where('isletme_id', $sid)->exists()) return response()->json(['ok' => 0], 404);
+        try {
+            return response()->json(WaAsistan::devamEttir((int) $id));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('[WA-DEVAM] ' . $e->getMessage(), ['oturum' => $id]);
+            return response()->json(['ok' => 0, 'hata' => 'Asistan şu an devam edemedi; birazdan tekrar deneyin.']);
+        }
     }
 
     /** "Cevapladım": isletme musteriye dondu (panelden isaret) -> bekleyen talepler kapanir, takip durur. */

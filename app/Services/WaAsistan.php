@@ -656,6 +656,30 @@ class WaAsistan
         return $n;
     }
 
+    /** Sohbet yarim mi: son mesaj cevapsiz musteri mesaji ya da asistanin sozde kalan mesaji (panel "Asistan tamamlasın"). */
+    public static function yarimMi(array $g): ?string
+    {
+        $son = end($g);
+        if (!$son || !empty($son['personel'])) return null;
+        if (($son['role'] ?? '') === 'user') return self::kapanisMi((string) ($son['content'] ?? '')) ? null : 'cevapsiz';
+        return RandevuAsistan::sozVeripBirakti((string) ($son['content'] ?? '')) ? 'sozde' : null;
+    }
+
+    /** Panelden "Asistan tamamlasın": yarim kalan sohbeti asistan simdi surdurur. @return ['ok', 'hata'?] */
+    public static function devamEttir(int $oturumId): array
+    {
+        $o = DB::table('wa_asistan_oturumlari')->where('id', $oturumId)->first();
+        if (!$o) return ['ok' => 0, 'hata' => 'Sohbet bulunamadı.'];
+        if (WaPaket::kapali((int) $o->salon_id)) return ['ok' => 0, 'hata' => 'Paket doldu; asistan bu ay cevap vermiyor.'];
+        $g = json_decode($o->gecmis ?: '[]', true) ?: [];
+        $durum = self::yarimMi($g);
+        if (!$durum) return ['ok' => 0, 'hata' => 'Bu sohbette yarım kalan bir şey yok; son mesaj asistanın sonuçlu cevabı.'];
+        // Personel devraldiysa: devam isteyen isletme -> asistana geri verilir
+        DB::table('wa_asistan_oturumlari')->where('id', $o->id)->update(['insan_devraldi' => 0, 'sessiz_bitis' => null, 'sessiz_neden' => null, 'durum' => 'acik', 'updated_at' => now()]);
+        $o = DB::table('wa_asistan_oturumlari')->where('id', $o->id)->first();
+        return self::tamamla($o, $g, $durum === 'sozde') ? ['ok' => 1] : ['ok' => 0, 'hata' => 'Mesaj gönderilemedi (WhatsApp bağlantısını kontrol edin).'];
+    }
+
     /** Kisa onay / tesekkur / veda / emoji: cevap beklemeyen mesaj (saf). */
     public static function kapanisMi(string $m): bool
     {

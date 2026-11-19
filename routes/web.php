@@ -1104,6 +1104,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/whatsapp-asistan/sohbet/{id}/devral','WaAsistanPanelController@devral')->where('id','[0-9]+');
 	Route::post('/whatsapp-asistan/sohbet/{id}/geri-ver','WaAsistanPanelController@geriVer')->where('id','[0-9]+');
 	Route::post('/whatsapp-asistan/sohbet/{id}/cevaplandi','WaAsistanPanelController@cevaplandi')->where('id','[0-9]+');
+	Route::post('/whatsapp-asistan/sohbet/{id}/devam','WaAsistanPanelController@devamEttir')->where('id','[0-9]+');
 	Route::get('/whatsapp-asistan/geri-kazanim','WaAsistanPanelController@geriKazanimListe');
 	Route::post('/whatsapp-asistan/ayar','WaAsistanPanelController@ayarKaydet');
 	Route::post('/whatsapp-asistan/kurallar','WaAsistanPanelController@kuralKaydet');

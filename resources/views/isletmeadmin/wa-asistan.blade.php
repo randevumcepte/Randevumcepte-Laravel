@@ -201,6 +201,7 @@
    .ts-ik { flex:0 0 auto; width:30px; height:30px; border-radius:10px; color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; }
    .ts-adim > div { flex:1; min-width:0; } .ts-adim b { font-size:14px; display:block; } .ts-adim small { display:block; font-size:12.5px; color:#4b4563; margin-top:2px; line-height:1.45; }
    .ts-z { flex:0 0 auto; font-size:12px; color:var(--gri); white-space:nowrap; }
+   .ts-kart.ts-yarim { background:#fef2f2; border-color:#fecaca; }
    .ts-adim.bekle b { color:#b91c1c; } .ts-adim.bekle .wa-btn { padding:8px 14px; font-size:13px; flex:0 0 auto; }
    .wa-konusma.liste { align-items:flex-start; gap:12px; padding:12px 10px; border-radius:14px; border-top:none; margin-bottom:2px; }
    .wa-konusma.liste .ust { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
@@ -1070,6 +1071,9 @@
          if (!r.ok) { el('waSohbetDetay').innerHTML = '<div class="wa-bos">' + esc(r.hata || '') + '</div>'; return; }
          var s = r.sohbet, h = '<div class="wa-kart-bas"><div style="display:flex;align-items:center;gap:12px">' + avatar(s.ad || s.telefon, s.id, null) + '<div><b style="font-size:16px">' + esc(s.ad || 'Müşteri') + '</b><div class="wa-alt">' + esc(s.telefon || 'gizli numara') + '</div></div><span class="wa-hap ' + hapSinif(s.durum) + '">' + esc(s.durum) + '</span></div>'
             + (s.devralindi ? '<button class="wa-btn" data-geriver="' + s.id + '"><i class="bi bi-robot"></i> Asistana geri ver</button>' : '<button class="wa-btn ikincil" data-devral="' + s.id + '"><i class="bi bi-person"></i> Devral (asistan sussun)</button>') + '</div>';
+         if (s.yarim) h += '<div class="ts-kart ts-yarim"><div class="ts-adim bekle"><span class="ts-ik" style="background:#dc2626"><i class="bi bi-exclamation-triangle-fill"></i></span><div><b>Bu sohbet yarım kalmış</b><small>'
+            + (s.yarim === 'sozde' ? 'Asistan "bakayım" deyip sonucu yazmamış.' : 'Müşterinin son mesajı cevapsız kalmış.') + ' Asistan birkaç dakika içinde kendiliğinden tamamlar; beklemeden hemen tamamlatabilirsiniz.</small></div>'
+            + '<button class="wa-btn" data-devam="' + s.id + '"><i class="bi bi-robot"></i> Asistan tamamlasın</button></div></div>';
          if ((s.talepler || []).length) h += talepSeridi(s);
          if (s.gorseller.length) {
             h += '<div class="wa-gorseller">' + s.gorseller.map(function (g) {
@@ -1099,6 +1103,13 @@
       }).join('');
    }
    el('waSohbetDetay').addEventListener('click', function (e) {
+      var dv = e.target.closest('[data-devam]');
+      if (dv) {
+         dv.disabled = true; dv.innerHTML = '<i class="bi bi-hourglass-split"></i> Asistan yazıyor…';
+         gonder('/sohbet/' + dv.dataset.devam + '/devam').then(function (r) { toast(r.ok ? 'Asistan sohbeti tamamladı ve müşteriye yazdı.' : (r.hata || 'Yapılamadı.')); sohbetAc(dv.dataset.devam); sohbetListe(); })
+            .catch(function () { dv.disabled = false; hata(); });
+         return;
+      }
       var c = e.target.closest('[data-cevapladim]');
       if (c) { c.disabled = true; gonder('/sohbet/' + c.dataset.cevapladim + '/cevaplandi').then(function (r) { toast(r.ok ? 'İşaretlendi: işletme cevapladı.' : 'İşlem yapılamadı.'); sohbetAc(c.dataset.cevapladim); sohbetListe(); }).catch(hata); return; }
       var b = e.target.closest('[data-devral],[data-geriver]'); if (!b) return;
