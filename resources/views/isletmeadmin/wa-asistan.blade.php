@@ -96,6 +96,17 @@
    .wa-konusma .sa { font-size:12.5px; color:var(--gri); flex:0 0 auto; }
    .wa-konusma .bi-chevron-right { color:#9b92b3; }
    .wa-hap { flex:0 0 auto; font-size:12px; font-weight:700; padding:6px 12px; border-radius:999px; white-space:nowrap; }
+   /* Genel Bakis "Son WhatsApp Konusmalari" (tasarimdaki satir) */
+   .wa-konusma.ozet { gap:16px; padding:12px 4px; }
+   .wa-konusma.ozet .wa-avatar { width:52px; height:52px; font-size:17px; box-shadow:0 3px 8px rgba(31,22,56,.15); }
+   .wa-konusma.ozet .ad { font-size:16px; color:#1e1b4b; }
+   .wa-konusma.ozet .mt { font-size:14px; color:#1e1b4b; }
+   .wa-konusma.ozet .sa { font-size:14px; color:#1e1b4b; }
+   .wa-konusma.ozet .wa-hap { font-size:13.5px; font-weight:600; padding:9px 16px; min-width:150px; text-align:center; }
+   .wa-konusma.ozet .wa-hap.y { background:#dcfce7; color:#15803d; }
+   .wa-konusma.ozet .wa-hap.m { background:#f3e8ff; color:#7e22ce; }
+   .wa-konusma.ozet .wa-hap.g { background:#e9e7fb; color:#3730a3; }
+   .wa-konusma.ozet .bi-chevron-right { color:#1e1b4b; font-size:18px; -webkit-text-stroke:1px #1e1b4b; }
    .wa-hap.y { background:var(--yesil-acik); color:#15803d; } .wa-hap.m { background:#f1e8ff; color:#7c3aed; }
    .wa-hap.g { background:#eef2f7; color:#475569; } .wa-hap.s { background:#fef3c7; color:#92400e; } .wa-hap.k { background:#fee2e2; color:#b91c1c; }
 
@@ -334,7 +345,7 @@
       var src = foto || (id ? url('/avatar/' + id) : '');
       return '<div class="wa-avatar" style="background:' + RENK[h % RENK.length] + '">' + esc(bas)
          + (src ? '<img src="' + esc(src) + '" alt="" loading="lazy" onerror="this.remove()">' : '') + '</div>'; }
-   function hapSinif(s) { return /Randevu alındı|Oluşturuldu|teyit|değişti/.test(s) ? 'y' : (/Fiyat/.test(s) ? 'm' : (/aktarıldı|Personelde/.test(s) ? 's' : (/iptal|durduruldu|Bot/.test(s) ? 'k' : 'g'))); }
+   function hapSinif(s) { return /Randevu alındı|Randevu Alındı|Oluşturuldu|teyit|değişti/.test(s) ? 'y' : (/Fiyat/.test(s) ? 'm' : (/aktarıldı|Personelde/.test(s) ? 's' : (/iptal|durduruldu|Bot/.test(s) ? 'k' : 'g'))); }
 
    // ---------- sekmeler
    var yuklendi = {}, SEKME_YUKLE = { sohbet: sohbetListe, gk: gkYukle, ogr: ogrYukle };
@@ -471,12 +482,13 @@
          var hedef = el('waSonKonusmalar'); if (!hedef) return;
          if (!r.ok || !r.liste.length) { hedef.innerHTML = '<div class="wa-bos">Son 30 günde WhatsApp konuşması yok.</div>'; return; }
          // Tasarimdaki durum etiketleri: Randevu Oluşturuldu / Fiyat Verildi / Bilgi Verildi
-         var etk = { 'Randevu alındı': 'Randevu Oluşturuldu', 'Fiyat aldı': 'Fiyat Verildi', 'Tamamlandı': 'Bilgi Verildi', 'Devam ediyor': 'Yazışıyor' };
-         hedef.innerHTML = r.liste.slice(0, 5).map(function (x) { return konusmaSatiri(Object.assign({}, x, { durum: etk[x.durum] || x.durum })); }).join('');
+         // Tasarimdaki 4 etiket: Randevu Oluşturuldu / Randevu Alındı / Fiyat Verildi / Bilgi Verildi
+         var etiket4 = function (x) { if (x.durum === 'Randevu alındı') return 'Randevu Oluşturuldu'; if (/teyit|değişti/.test(x.durum)) return 'Randevu Alındı'; return Number(x.fiyat) ? 'Fiyat Verildi' : 'Bilgi Verildi'; };
+         hedef.innerHTML = r.liste.slice(0, 5).map(function (x) { return konusmaSatiri(Object.assign({}, x, { durum: etiket4(x) }), true); }).join('');
       }).catch(function () {});
    }
-   function konusmaSatiri(x) {
-      return '<div class="wa-konusma" data-sohbet="' + x.id + '" tabindex="0">' + avatar(x.ad || x.telefon, x.id, x.foto) + '<div class="ic"><div class="ad">' + esc(x.ad || x.telefon || 'Müşteri') + '</div><div class="mt">' + esc(x.son_mesaj || '…') + '</div></div>'
+   function konusmaSatiri(x, ozet) {
+      return '<div class="wa-konusma' + (ozet ? ' ozet' : '') + '" data-sohbet="' + x.id + '" tabindex="0">' + avatar(x.ad || x.telefon, x.id, x.foto) + '<div class="ic"><div class="ad">' + esc(x.ad || x.telefon || 'Müşteri') + '</div><div class="mt">' + esc(x.son_mesaj || '…') + '</div></div>'
          + '<div class="sa">' + saat(x.tarih) + '</div><span class="wa-hap ' + hapSinif(x.durum) + '">' + esc(x.durum) + '</span><i class="bi bi-chevron-right"></i></div>';
    }
 
