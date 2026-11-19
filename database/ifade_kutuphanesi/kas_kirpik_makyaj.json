@@ -1,0 +1,41 @@
+{
+  "sektor": "kas_kirpik_makyaj",
+  "kavramlar": [
+    {"id": "rc_kas_alma", "ad": "Kaş alma", "ifadeler": ["kaş alma", "kaş alımı", "kaşlarımı alma", "kaş arası alma", "kaş temizleme", "kaş incelme", "kaşlarımı inceltme", "kaş"], "haric": ["laminasyon", "boyama", "boya", "kontür", "microblading", "kıl tekniği", "pudralama", "ağda", "lazer", "şekillendirme", "tasarım", "kalıcı", "geliştirme", "kütle", "ağrı", "antrenman", "ayı", "ayında"]},
+    {"id": "rc_kas_sekillendirme", "ad": "Kaş şekillendirme", "ifadeler": ["kaş şekillendirme", "kaş şekli", "kaşlarıma şekil", "kaş düzeltme", "kaşlarımı düzeltme"], "haric": ["kalıcı", "laminasyon"]},
+    {"id": "rc_kas_tasarimi", "ad": "Kaş tasarımı", "ifadeler": ["kaş tasarımı", "kaş tasarlama", "kaş dizaynı"], "haric": ["kalıcı"]},
+    {"id": "rc_kas_boyama", "ad": "Kaş boyama", "ifadeler": ["kaş boyama", "kaş boya", "kaşlarımı boyama", "kaş rengi koyulaştırma", "kaş kınası", "henna kaş"], "haric": ["kalıcı", "pudralama", "kıl tekniği"]},
+    {"id": "rc_kas_laminasyonu", "ad": "Kaş laminasyonu", "ifadeler": ["kaş laminasyonu", "kaş laminasyon", "kaş lamine", "kaş kaldırma", "kaş lifting", "brow lamination"], "haric": ["kirpik"]},
+    {"id": "rc_kas_sabitleme", "ad": "Kaş sabitleme", "ifadeler": ["kaş sabitleme", "kaşları sabitleme"]},
+    {"id": "rc_microblading", "ad": "Microblading / kıl tekniği", "ifadeler": ["microblading", "mikroblading", "kıl tekniği", "kaşa kıl çizimi", "kıl kıl kaş"]},
+    {"id": "rc_pudralama_kas", "ad": "Pudralama kaş", "ifadeler": ["pudralama", "kaş pudralama", "powder brows", "pudra kaş"], "haric": ["makyaj pudrası", "yüz pudrası"]},
+    {"id": "rc_kas_konturu", "ad": "Kaş kontürü", "ifadeler": ["kaş kontürü", "kaş kontur", "kalıcı kaş", "kaş dövmesi"]},
+
+    {"id": "rc_biyik_alma", "ad": "Bıyık alma", "ifadeler": ["bıyık alma", "bıyık alımı", "üst dudak alma", "dudak üstü alma"], "haric": ["lazer", "ağda", "sakal", "erkek"]},
+    {"id": "rc_kas_biyik", "ad": "Kaş + bıyık", "ifadeler": ["kaş bıyık", "kaş ve bıyık", "kaş bıyık alma"], "haric": ["lazer", "ağda"]},
+    {"id": "rc_yuz_alimi", "ad": "Yüz alımı (ip)", "ifadeler": ["yüz alımı", "yüz alma", "ipe alma", "iple alma", "yüz ip", "ip ile yüz", "yüzümü ipe", "yüz kılı alma"], "haric": ["lazer", "ağda", "temizliği", "bakımı"]},
+
+    {"id": "rc_kirpik_lifting", "ad": "Kirpik lifting", "ifadeler": ["kirpik lifting", "kirpik lifti", "kirpik kıvırma", "kendi kirpiklerime lifting", "kirpiklerimi lifting", "lash lift"], "haric": ["ipek", "takma", "çıkarma", "dolgu"]},
+    {"id": "rc_kirpik_laminasyonu", "ad": "Kirpik laminasyonu", "ifadeler": ["kirpik laminasyonu", "kirpik laminasyon", "kirpik lamine"]},
+    {"id": "rc_kirpik_boyama", "ad": "Kirpik boyama", "ifadeler": ["kirpik boyama", "kirpik boya", "kirpiklerimi boyama"], "haric": ["ipek", "lifting"]},
+    {"id": "rc_ipek_kirpik", "ad": "İpek kirpik", "ifadeler": ["ipek kirpik", "kirpik uzatma", "tek tek kirpik", "volume kirpik", "hacimli kirpik", "lash extension", "ipek"], "haric": ["çıkarma", "dolgu", "lifting", "bant"]},
+    {"id": "rc_kirpik_dolgu", "ad": "Kirpik dolgu", "ifadeler": ["kirpik dolgu", "kirpik dolgusu", "ipek kirpik dolgu", "kirpik tamamlama"]},
+    {"id": "rc_ipek_kirpik_cikarma", "ad": "İpek kirpik çıkarma", "ifadeler": ["ipek kirpik çıkarma", "takma kirpik çıkarma", "kirpik çıkarma", "ipeklerimi çıkarma"]},
+    {"id": "rc_bant_kirpik", "ad": "Bant (takma) kirpik", "ifadeler": ["bant kirpik", "takma kirpik", "kirpik takma", "tek seferlik kirpik", "şerit kirpik"], "haric": ["ipek", "çıkarma"]},
+    {"id": "rc_kirpik_bakim", "ad": "Kirpik bakımı", "ifadeler": ["kirpik bakımı", "kirpik besleme", "kirpik serumu"], "haric": ["ipek", "lifting"]},
+
+    {"id": "rc_gunluk_makyaj", "ad": "Günlük makyaj", "ifadeler": ["günlük makyaj", "hafif makyaj", "sade makyaj", "doğal makyaj"]},
+    {"id": "rc_gece_makyaji", "ad": "Gece makyajı", "ifadeler": ["gece makyajı", "parti makyajı", "akşam makyajı", "davet makyajı", "düğün davetlisi makyajı", "düğüne gideceğim makyaj"]},
+    {"id": "rc_profesyonel_makyaj", "ad": "Profesyonel makyaj", "ifadeler": ["profesyonel makyaj", "özel gün makyajı", "fotoğraf makyajı", "çekim makyajı", "mezuniyet makyajı", "porselen makyaj", "dumanlı göz makyajı"]},
+    {"id": "rc_gelin_makyaji", "ad": "Gelin makyajı", "ifadeler": ["gelin makyajı", "nikah makyajı", "gelin başı makyaj"], "haric": ["arkadaşımın düğünü", "davetli", "düğüne gideceğim"]},
+    {"id": "rc_nisan_makyaji", "ad": "Nişan makyajı", "ifadeler": ["nişan makyajı", "söz makyajı"]},
+    {"id": "rc_kina_makyaji", "ad": "Kına makyajı", "ifadeler": ["kına makyajı", "kına gecesi makyajı"]},
+    {"id": "rc_makyaj_danismanligi", "ad": "Makyaj danışmanlığı", "ifadeler": ["makyaj danışmanlığı", "makyaj dersi", "makyaj eğitimi", "makyaj öğrenmek"]},
+    {"id": "rc_kalici_eyeliner", "ad": "Kalıcı eyeliner", "ifadeler": ["kalıcı eyeliner", "kalıcı göz kalemi", "eyeliner dövmesi", "kalıcı göz çizgisi"], "haric": ["dipliner"]},
+    {"id": "rc_dipliner", "ad": "Dipliner", "ifadeler": ["dipliner", "dip liner", "kirpik dibi çizgisi"]},
+    {"id": "rc_dudak_renklendirme", "ad": "Dudak renklendirme", "ifadeler": ["dudak renklendirme", "dudak pigment", "dudak rengi"], "haric": ["dolgu", "ruj"]},
+    {"id": "rc_kalici_dudak_makyaji", "ad": "Kalıcı dudak makyajı", "ifadeler": ["kalıcı dudak makyajı", "kalıcı dudak", "lip blush", "dudak kontürü"], "haric": ["dolgu"]},
+    {"id": "rc_kalici_makyaj_silme", "ad": "Kalıcı makyaj silme", "ifadeler": ["kalıcı makyaj çıkarma", "kalıcı makyaj silme", "pigment silme", "pigment çıkarma", "kaş kontürü silme", "kalıcı kaş çıkarma"]},
+    {"id": "rc_kalici_makyaj_rotusu", "ad": "Kalıcı makyaj rötuşu", "ifadeler": ["kalıcı makyaj rötuşu", "kalıcı makyaj rötuş", "kontür rötuşu", "microblading rötuşu", "pigment yenileme", "kalıcı makyaj tazeleme"]}
+  ]
+}

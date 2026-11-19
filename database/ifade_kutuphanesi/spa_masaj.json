@@ -1,0 +1,32 @@
+{
+  "sektor": "spa_masaj",
+  "kavramlar": [
+    {"id": "rc_klasik_masaj", "ad": "Klasik masaj", "ifadeler": ["klasik masaj", "rahatlama masajı", "rahatlatıcı masaj", "dinlendirici masaj", "relax masaj", "tüm vücut masajı", "vücut masajı", "masaj"], "haric": ["g5", "selülit", "lenf", "spor", "thai", "tay", "derin doku", "taş", "bali", "isveç", "aroma", "ayak", "baş", "sırt", "boyun", "omuz", "hamile", "çift", "köpük", "kese", "yüz", "bambu", "shiatsu", "paket", "incelme", "zayıflama", "vakum", "refleks"]},
+    {"id": "rc_isvec_masaji", "ad": "İsveç masajı", "ifadeler": ["isveç masajı", "isveç", "swedish"]},
+    {"id": "rc_derin_doku_masaji", "ad": "Derin doku masajı", "ifadeler": ["derin doku", "deep tissue", "derin kas masajı", "sert masaj", "medikal masaj"]},
+    {"id": "rc_aromaterapi_masaji", "ad": "Aromaterapi masajı", "ifadeler": ["aromaterapi", "aroma masajı", "yağ masajı", "esansiyel yağ masajı"]},
+    {"id": "rc_thai_masaji", "ad": "Thai masajı", "ifadeler": ["thai masajı", "tay masajı", "tayland masajı", "thai"], "haric": ["yemek", "restoran"]},
+    {"id": "rc_spor_masaji", "ad": "Spor masajı", "ifadeler": ["spor masajı", "sporcu masajı", "sportif masaj"]},
+    {"id": "rc_sicak_tas_masaji", "ad": "Sıcak taş masajı", "ifadeler": ["sıcak taş", "taş masajı", "hot stone"]},
+    {"id": "rc_bali_masaji", "ad": "Bali masajı", "ifadeler": ["bali masajı", "bali"], "haric": ["tatil"]},
+    {"id": "rc_bambu_masaji", "ad": "Bambu masajı", "ifadeler": ["bambu masajı", "bambu"]},
+    {"id": "rc_shiatsu", "ad": "Shiatsu", "ifadeler": ["shiatsu", "şiatsu"]},
+    {"id": "rc_anti_stres_masaji", "ad": "Anti-stres masajı", "ifadeler": ["anti stres masajı", "antistres", "stres masajı"]},
+    {"id": "rc_hamile_masaji", "ad": "Hamile masajı", "ifadeler": ["hamile masajı", "hamilelik masajı", "gebelik masajı", "hamileyim masaj"]},
+    {"id": "rc_yuz_masaji", "ad": "Yüz masajı / kobido", "ifadeler": ["yüz masajı", "kobido", "japon yüz masajı", "gua sha"]},
+    {"id": "rc_refleksoloji", "ad": "Refleksoloji", "ifadeler": ["refleksoloji", "ayak tabanı masajı", "refleks"], "haric": ["test"]},
+    {"id": "rc_ayak_masaji", "ad": "Ayak masajı", "ifadeler": ["ayak masajı", "ayaklarıma masaj"], "haric": ["refleksoloji"]},
+    {"id": "rc_bas_masaji", "ad": "Baş masajı", "ifadeler": ["baş masajı", "kafa masajı", "saç derisi masajı"]},
+    {"id": "rc_sirt_masaji", "ad": "Sırt masajı", "ifadeler": ["sırt masajı", "sırtıma masaj", "sırt bel masajı", "bel masajı"], "haric": ["fıtık"]},
+    {"id": "rc_boyun_omuz_masaji", "ad": "Boyun / omuz masajı", "ifadeler": ["boyun masajı", "omuz masajı", "boyun omuz masajı", "ense masajı"], "haric": ["fıtık"]},
+    {"id": "rc_cift_masaji", "ad": "Çift masajı", "ifadeler": ["çift masajı", "eşli masaj", "iki kişilik masaj", "couple"]},
+    {"id": "rc_turk_hamami", "ad": "Türk hamamı", "ifadeler": ["hamam", "türk hamamı"], "haric": ["ev"]},
+    {"id": "rc_kese", "ad": "Kese", "ifadeler": ["kese", "kese köpük"], "haric": ["satın"]},
+    {"id": "rc_kopuk_masaji", "ad": "Köpük masajı", "ifadeler": ["köpük masajı", "köpük"], "haric": ["saç köpüğü"]},
+    {"id": "rc_sauna", "ad": "Sauna", "ifadeler": ["sauna"], "haric": ["battaniye"]},
+    {"id": "rc_buhar_odasi", "ad": "Buhar odası", "ifadeler": ["buhar odası", "buhar banyosu", "steam"]},
+    {"id": "rc_jakuzi", "ad": "Jakuzi", "ifadeler": ["jakuzi"]},
+    {"id": "rc_spa_paketi", "ad": "Spa paketi", "ifadeler": ["spa paketi", "spa günü", "spa", "spa programı"], "haric": ["pedikür"]},
+    {"id": "rc_masaj_paketi", "ad": "Masaj paketi", "ifadeler": ["masaj paketi", "masaj üyeliği", "masaj kampanyası"]}
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "sektor": "fitness_spor",
+  "kavramlar": [
+    {"id": "rc_fitness_antrenmani", "ad": "Fitness antrenmanı", "ifadeler": ["fitness", "spor salonu", "salon antrenmanı", "ağırlık çalışması", "gym", "antrenman"], "haric": ["kişisel", "birebir", "pt", "pilates", "yoga", "boks", "yüzme", "ems"]},
+    {"id": "rc_kisisel_antrenman", "ad": "Kişisel antrenman (PT)", "ifadeler": ["kişisel antrenman", "pt", "pt dersi", "personal trainer", "özel hoca", "birebir antrenman", "özel antrenör", "kişisel antrenör"]},
+    {"id": "rc_fitness_baslangic_degerlendirmesi", "ad": "Başlangıç değerlendirmesi", "ifadeler": ["başlangıç değerlendirmesi", "deneme dersi", "deneme antrenmanı", "ücretsiz deneme", "tanışma dersi"]},
+    {"id": "rc_postur_degerlendirmesi", "ad": "Postür değerlendirmesi", "ifadeler": ["postür", "duruş bozukluğu", "duruş analizi"]},
+    {"id": "rc_reformer_pilates", "ad": "Reformer pilates", "ifadeler": ["reformer", "reformer pilates", "aletli pilates", "reform pilates"]},
+    {"id": "rc_mat_pilates", "ad": "Mat pilates", "ifadeler": ["mat pilates", "minder pilates", "yer pilatesi"]},
+    {"id": "rc_birebir_pilates", "ad": "Birebir pilates", "ifadeler": ["birebir pilates", "özel pilates", "kişisel pilates"]},
+    {"id": "rc_grup_pilates_dersi", "ad": "Grup pilates", "ifadeler": ["grup pilates", "pilates grup dersi"]},
+    {"id": "rc_pilates", "ad": "Pilates", "ifadeler": ["pilates"], "haric": ["reformer", "mat", "birebir", "özel", "grup", "hamile"]},
+    {"id": "rc_hamile_pilatesi", "ad": "Hamile pilatesi", "ifadeler": ["hamile pilatesi", "gebelik pilatesi", "hamile egzersizi", "hamile yogası"]},
+    {"id": "rc_yoga_dersi", "ad": "Yoga", "ifadeler": ["yoga", "yoga dersi", "grup yoga", "birebir yoga", "meditasyon"], "haric": ["hamile"]},
+    {"id": "rc_zumba_dersi", "ad": "Zumba", "ifadeler": ["zumba"]},
+    {"id": "rc_spinning_dersi", "ad": "Spinning", "ifadeler": ["spinning", "bisiklet dersi", "cycling"]},
+    {"id": "rc_fonksiyonel_antrenman", "ad": "Fonksiyonel antrenman", "ifadeler": ["fonksiyonel antrenman", "fonksiyonel", "crossfit", "hiit", "trx"]},
+    {"id": "rc_kardiyo_antrenmani", "ad": "Kardiyo", "ifadeler": ["kardiyo", "koşu bandı", "yağ yakım antrenmanı"]},
+    {"id": "rc_esneme_dersi", "ad": "Esneme / mobilite", "ifadeler": ["esneme", "stretching", "mobilite", "esneklik"]},
+    {"id": "rc_ems_antrenmani", "ad": "EMS antrenmanı", "ifadeler": ["ems antrenmanı", "ems spor", "elektrikli antrenman"]},
+    {"id": "rc_yuzme_dersi", "ad": "Yüzme dersi", "ifadeler": ["yüzme", "yüzme dersi", "özel yüzme dersi", "havuz dersi"], "haric": ["çocuk"]},
+    {"id": "rc_cocuk_yuzme_dersi", "ad": "Çocuk yüzme dersi", "ifadeler": ["çocuk yüzme", "çocuğuma yüzme", "çocuk yüzme dersi"]},
+    {"id": "rc_tenis_dersi", "ad": "Tenis", "ifadeler": ["tenis", "tenis dersi", "kort"]},
+    {"id": "rc_boks_antrenmani", "ad": "Boks / kick boks", "ifadeler": ["boks", "kick boks", "kickboks", "muay thai", "dövüş sporu"]},
+    {"id": "rc_dans_dersi", "ad": "Dans dersi", "ifadeler": ["dans", "dans dersi", "salsa", "tango", "bachata", "latin dans"]},
+    {"id": "rc_rehabilitatif_egzersiz", "ad": "Rehabilitasyon egzersizi", "ifadeler": ["rehabilitasyon egzersizi", "ameliyat sonrası egzersiz", "sakatlık sonrası antrenman", "bel fıtığı egzersizi", "rehabilitatif", "rehabilitasyon"]},
+    {"id": "rc_spor_uyelik", "ad": "Üyelik", "ifadeler": ["üyelik", "aylık üyelik", "salon üyeliği", "kayıt olmak"], "haric": ["masaj"]}
+  ]
+}

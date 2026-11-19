@@ -1,0 +1,33 @@
+{
+  "sektor": "incelme_vucut",
+  "kavramlar": [
+    {"id": "rc_bolgesel_incelme", "ad": "Bölgesel incelme", "ifadeler": ["bölgesel incelme", "bölge inceltme", "bölgesel zayıflama", "incelme", "zayıflama", "inceltme", "basen eritme", "yağ eritme", "yağ yakma"], "haric": ["paket", "masaj", "mezoterapi", "lipoliz", "kavitasyon", "diyet", "karın", "göbek"]},
+    {"id": "rc_karin_bolgesi_incelme", "ad": "Karın / göbek incelme", "ust": "rc_bolgesel_incelme", "ifadeler": ["karın incelme", "göbek incelme", "göbek eritme", "karın inceltme", "göbeğimi eritme", "göbek yağı"], "haric": ["ağrı", "mide", "hamile"]},
+    {"id": "rc_basen_bolgesi_incelme", "ad": "Basen incelme", "ust": "rc_bolgesel_incelme", "ifadeler": ["basen incelme", "basen inceltme", "kalça incelme"]},
+    {"id": "rc_bacak_incelme", "ad": "Bacak incelme", "ust": "rc_bolgesel_incelme", "ifadeler": ["bacak incelme", "bacak inceltme", "basen bacak incelme"]},
+    {"id": "rc_vucut_sekillendirme", "ad": "Vücut şekillendirme", "ifadeler": ["vücut şekillendirme", "body shaping", "vücut kontürleme", "vücut şekli"], "haric": ["paket"]},
+    {"id": "rc_selulit_bakimi", "ad": "Selülit bakımı", "ifadeler": ["selülit", "selülit bakımı", "selülit uygulaması", "portakal kabuğu"], "haric": ["krem", "g5"]},
+    {"id": "rc_cilt_sikilastirma_vucut", "ad": "Vücut sıkılaştırma", "ifadeler": ["vücut sıkılaştırma", "vücut toparlama", "sıkılaşma", "sıkılaştırma", "karın toparlama", "karın sıkılaştırma", "kol sıkılaştırma", "rf lifting", "vücut radyofrekans", "radyofrekans vücut", "rf vücut"], "haric": ["yüz", "boyun", "dekolte", "kirpik", "kaş"]},
+    {"id": "rc_kavitasyon", "ad": "Kavitasyon", "ifadeler": ["kavitasyon", "ultrasonik kavitasyon"]},
+    {"id": "rc_g5_masaji", "ad": "G5 masajı", "ifadeler": ["g5", "g5 masajı", "selülit masajı", "titreşimli masaj", "mekanik masaj"], "haric": ["telefon"]},
+    {"id": "rc_lenf_drenaj", "ad": "Lenf drenaj", "ifadeler": ["lenf drenaj", "lenfatik drenaj", "lenf masajı", "manuel lenf drenaj", "lenfatik masaj"], "haric": ["muayene", "doktor"]},
+    {"id": "rc_pressoterapi", "ad": "Pressoterapi", "ifadeler": ["pressoterapi", "presoterapi", "basınç terapisi", "kompresyon terapisi"], "haric": ["tansiyon"]},
+    {"id": "rc_vakum_terapi", "ad": "Vakum terapi", "ifadeler": ["vakum terapi", "vakum masajı", "vakumlu incelme", "vakum"], "haric": ["yüz", "hydrafacial", "temizliği"]},
+    {"id": "rc_soguk_lipoliz", "ad": "Soğuk lipoliz", "ifadeler": ["soğuk lipoliz", "cold lipoliz", "yağ dondurma", "cool sculpting", "coolsculpting"]},
+    {"id": "rc_lazer_lipoliz", "ad": "Lazer lipoliz", "ifadeler": ["lazer lipoliz", "lipolazer", "lipo lazer"]},
+    {"id": "rc_ems_vucut_uygulamasi", "ad": "EMS / Emslim", "ifadeler": ["ems", "emslim", "emsculpt", "kas uyarımı", "elektromanyetik"], "haric": ["antrenman", "fitness", "fizyoterapi"]},
+    {"id": "rc_bolgesel_mezoterapi", "ad": "Bölgesel mezoterapi", "ifadeler": ["bölgesel mezoterapi", "yağ yakıcı iğne", "yağ eritici iğne", "lipolitik"], "haric": ["saç", "yüz", "cilt"]},
+    {"id": "rc_bandaj_sargi_incelme", "ad": "Bandaj / sargı", "ifadeler": ["bandaj", "sargı", "incelme bandajı", "vücut bandajı"], "haric": ["yara", "ameliyat", "burkulma", "ortopedik"]},
+    {"id": "rc_infrared_termal_battaniye", "ad": "İnfrared / termal battaniye", "ifadeler": ["infrared", "termal battaniye", "sauna battaniyesi", "ısı battaniyesi"], "haric": ["ev"]},
+    {"id": "rc_odem_atma", "ad": "Ödem atma", "ifadeler": ["ödem atma", "ödem", "ödem giderme", "şişkinlik"], "haric": ["ilaç", "doktor"]},
+    {"id": "rc_pasif_jimnastik", "ad": "Pasif jimnastik", "ifadeler": ["pasif jimnastik", "pasif egzersiz"]},
+    {"id": "rc_lpg_endermoloji", "ad": "LPG / endermoloji", "ifadeler": ["lpg", "endermoloji"], "haric": ["araç", "yakıt", "tüp"]},
+    {"id": "rc_roll_shape", "ad": "Roll Shape", "ifadeler": ["roll shape", "rollshape"]},
+    {"id": "rc_catlak_bakimi", "ad": "Çatlak bakımı", "ifadeler": ["çatlak bakımı", "vücut çatlağı", "gebelik çatlağı", "çatlaklarım"], "haric": ["tırnak", "topuk", "diş"]},
+    {"id": "rc_vucut_peelingi", "ad": "Vücut peelingi", "ifadeler": ["vücut peelingi", "body scrub", "vücut scrub", "tuz peelingi", "şeker peelingi"]},
+    {"id": "rc_vucut_maskesi", "ad": "Vücut maskesi", "ifadeler": ["vücut maskesi", "body mask", "çamur maskesi", "çamur banyosu", "vücut nem bakımı"]},
+    {"id": "rc_vucut_analizi", "ad": "Vücut analizi / ölçüm", "ifadeler": ["vücut analizi", "ölçüm", "tartı", "yağ ölçümü", "bölge ölçümü"]},
+    {"id": "rc_zayiflama_danismanligi", "ad": "Zayıflama danışmanlığı", "ifadeler": ["zayıflama danışmanlığı", "kilo verme danışmanlığı", "kilo vermek"], "haric": ["diyetisyen"]},
+    {"id": "rc_incelme_paketi", "ad": "İncelme paketi", "ifadeler": ["incelme paketi", "zayıflama paketi", "incelme programı", "vücut şekillendirme paketi"]}
+  ]
+}

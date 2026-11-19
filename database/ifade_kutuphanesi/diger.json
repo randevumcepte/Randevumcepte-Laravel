@@ -1,0 +1,12 @@
+{
+  "sektor": "diger_randevu",
+  "kavramlar": [
+    {"id": "rc_on_gorusme", "ad": "Ön görüşme / danışma", "ifadeler": ["ön görüşme", "ücretsiz görüşme", "danışma", "danışmanlık görüşmesi", "bilgi almak için gelmek", "yüz yüze bilgi", "konsültasyon", "işlem öncesi görüşme", "tanışma seansı", "cihaz bilgilendirme"]},
+    {"id": "rc_paket_bilgilendirmesi", "ad": "Paket bilgilendirmesi", "ifadeler": ["paket bilgisi", "paketler hakkında", "kampanya bilgisi", "paket bilgilendirme"]},
+    {"id": "rc_takip_randevusu", "ad": "Takip / seans devamı", "ifadeler": ["takip randevusu", "seans devamı", "sonraki seans", "paketimden seans", "kalan seansım", "seans değerlendirme"]},
+    {"id": "rc_rotus_randevusu", "ad": "Rötuş", "ifadeler": ["rötuş"], "haric": ["lazer", "kalıcı makyaj", "kontür", "microblading", "saç"]},
+    {"id": "rc_deneme_seansi", "ad": "Deneme seansı", "ifadeler": ["deneme seansı", "test seansı", "prova"], "haric": ["dersi"]},
+    {"id": "rc_olcu_alma", "ad": "Ölçü alma", "ifadeler": ["ölçü alma", "ölçü aldırma"]},
+    {"id": "rc_fotograf_cekimi", "ad": "Fotoğraf çekimi", "ifadeler": ["fotoğraf çekimi", "çekim randevusu"], "haric": ["makyaj"]}
+  ]
+}
