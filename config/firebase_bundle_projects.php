@@ -25,4 +25,7 @@ return [
     // iOS GoogleService-Info + Android google-services AYNI projeden olmalı
     // (project_id = randevumcepte-uygulamalar), yoksa SENDER_ID_MISMATCH olur.
     'com.randevumcepte.randevumcepte' => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+    // Ola Nail marka app'i (Android google-services.json'da bu projede: com.randevumcepte.olanail).
+    // config/firebase_projects'te 'olanail' profili yoktu -> varsayilan (5ff4d) projeden gidip reddediliyordu (2026-11-19).
+    'com.randevumcepte.olanail' => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
 ];

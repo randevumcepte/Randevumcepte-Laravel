@@ -45,6 +45,7 @@ return [
     'edasavut'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
     'fizyofly'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
     'clinaravip'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
+    'olanail'  => 'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
 
     'aydangurece'  => 'app/firebase/egekobi-893bd4d005ff.json',
     'aydangurecce'  => 'app/firebase/egekobi-893bd4d005ff.json', // DB'de firebase_profile bu yazimla (cift c) kayitli
