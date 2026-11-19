@@ -917,6 +917,35 @@ class SesliRandevuCozService
             $tekil[] = $h;
         }
 
+        // Merkezi ifade kutuphanesi (WhatsApp/santral ile ortak): halk dili ("oje kaldirma", "protez takma").
+        // Eski eslesme varsa dokunulmaz; yalniz hic bulunamadiysa ya da en ust skorda beraberlik varsa devreye girer.
+        $beraber = count($tekil) > 1 && $tekil[0]['skor'] === $tekil[1]['skor'];
+        if (!$tekil || $beraber) {
+            try {
+                $adlar = [];
+                foreach ($liste as $sh) if ($ad = optional($sh->hizmetler)->hizmet_adi) $adlar[(int) $sh->hizmet_id] = $ad;
+                $s = \App\Services\IfadeKutuphanesi::secim($fold, $adlar);
+                $this->dbg['ifade_kutuphanesi'] = ['durum' => $s['durum'], 'hizmetler' => $s['hizmetler'], 'kavramlar' => array_slice($s['kavramlar'], 0, 5)];
+                if ($s['durum'] === 'tek' && $beraber) {
+                    $sec = array_values(array_filter($tekil, function ($h) use ($s) { return (int) $h['hizmet_id'] === (int) $s['hizmetler'][0]; }));
+                    if ($sec) $tekil = $sec;
+                } elseif (!$tekil && $s['durum'] !== 'yok') {
+                    foreach ($liste as $sh) {
+                        if (!in_array((int) $sh->hizmet_id, $s['hizmetler'], true)) continue;
+                        $tekil[] = [
+                            'hizmet_id' => $sh->hizmet_id, 'salon_hizmet_id' => $sh->id, 'hizmet_adi' => optional($sh->hizmetler)->hizmet_adi,
+                            'sure_dk' => ((int) $sh->sure_dk > 0 ? (int) $sh->sure_dk : 30), 'fiyat' => $sh->son_fiyat ?: $sh->baslangic_fiyat,
+                            'skor' => $s['durum'] === 'tek' ? 0.8 : 0.6, 'eslesen_kelime' => 0, 'kaynak' => 'kutuphane',
+                        ];
+                        $metinler[] = $this->fold((string) optional($sh->hizmetler)->hizmet_adi);
+                    }
+                    if ($s['durum'] === 'tek') array_splice($tekil, 1); // ayni hizmet iki kayit -> ilki
+                }
+            } catch (\Throwable $e) {
+                $this->dbg['ifade_kutuphanesi_hata'] = $e->getMessage();
+            }
+        }
+
         return [$tekil, $metinler];
     }
 

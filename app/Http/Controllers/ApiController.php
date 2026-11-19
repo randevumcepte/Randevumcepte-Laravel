@@ -2959,6 +2959,12 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // opsiyonel Haiku'ya dus -> boylece AI acik olsa bile maliyet neredeyse sifir
         // (sorularin buyuk cogunlugu Haiku'ya hic gitmez). Anahtar yoksa zaten kural kalir.
         $niyet = $asistan->niyetCoz($metin);
+        // Hizmete ozel rapor ("bu ay kac oje cikarma yaptik", "protezden ne kazandik"): hizmet merkezi ifade
+        // kutuphanesiyle bulunur (WhatsApp/santral ile ortak halk dili). Kasa/personel gibi genel sorulara dokunmaz.
+        if (in_array($niyet['intent'] ?? 'bilinmiyor', ['bilinmiyor', 'hizmet', 'bugun', 'ozet'], true) && ($ho = $asistan->hizmetOzelSoru($metin, (int) $salonId))) {
+            $niyet['intent'] = 'hizmet_ozel';
+            $niyet['hizmetOzel'] = $ho;
+        }
         if (($niyet['intent'] ?? 'bilinmiyor') === 'bilinmiyor') {
             // Net KAPANIS/TESEKKUR ("tesekkurler kapat", "tamam yeter") -> AI'ya GITMEDEN
             // sohbet. Yoksa konusma bellegi yuzunden onceki konu (oneri) devam ediyor sanilir.
@@ -3053,6 +3059,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $sonuc = $asistan->cevapPersonel($veriSrv->personel($salonId, $t1, $t2), $niyet); break;
             case 'hizmet':
                 $sonuc = $asistan->cevapHizmet($veriSrv->hizmet($salonId, $t1, $t2), $niyet); break;
+            case 'hizmet_ozel':
+                $sonuc = $asistan->cevapHizmetOzel($veriSrv->hizmetOzel($salonId, $t1, $t2, $niyet['hizmetOzel']['ids']), $niyet); break;
             case 'urun':
                 $sonuc = $asistan->cevapUrun($veriSrv->urun($salonId, $t1, $t2), $niyet); break;
             case 'musteri':

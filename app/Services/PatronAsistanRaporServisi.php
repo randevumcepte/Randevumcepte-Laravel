@@ -107,6 +107,21 @@ class PatronAsistanRaporServisi
         return ['hizmetler' => $this->objToArr($rows)];
     }
 
+    /** Tek hizmet (ya da ayni kavramdaki birkac hizmet) icin donem raporu: adet, ciro, personel kirilimi. */
+    public function hizmetOzel($salonId, $t1, $t2, array $hizmetIds)
+    {
+        $q = DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)
+            ->whereIn('ah.hizmet_id', $hizmetIds ?: [0])
+            ->whereBetween('a.created_at', [$t1 . ' 00:00:00', $t2 . ' 23:59:59']);
+        $top = (clone $q)->select(DB::raw('COUNT(*) as adet'), DB::raw('SUM(ah.fiyat - COALESCE(ah.indirim_tutari,0)) as ciro'))->first();
+        $pers = (clone $q)->leftJoin('salon_personelleri as p', 'p.id', '=', 'ah.personel_id')->whereNotNull('ah.personel_id')
+            ->select('p.personel_adi', DB::raw('COUNT(*) as adet'), DB::raw('SUM(ah.fiyat - COALESCE(ah.indirim_tutari,0)) as ciro'))
+            ->groupBy('ah.personel_id', 'p.personel_adi')->orderByDesc('adet')->limit(10)->get();
+        return ['adet' => (int) ($top->adet ?? 0), 'ciro' => (float) ($top->ciro ?? 0), 'personeller' => $this->objToArr($pers)];
+    }
+
     /** Urun satis (isletmeRaporlariUrun ile ayni). */
     public function urun($salonId, $t1, $t2)
     {

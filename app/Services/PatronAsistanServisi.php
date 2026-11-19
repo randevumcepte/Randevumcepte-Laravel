@@ -572,6 +572,47 @@ class PatronAsistanServisi
         return $yorum . '.';
     }
 
+    /**
+     * Hizmete ozel rapor sorusu mu ("bu ay kac oje cikarma yaptik", "protezden ne kazandik")?
+     * Hizmet merkezi ifade kutuphanesiyle (halk dili) bu salonun hizmet listesinde bulunur. Degilse null.
+     * @return array|null ['ids' => [hizmet_id...], 'adlar' => [ad...]]
+     */
+    public function hizmetOzelSoru(string $metin, int $salonId)
+    {
+        $s = IfadeKutuphanesi::sade($metin);
+        if (!preg_match('/\b(kac|ciro\w*|kazan\w*|getir\w*|gelir\w*|hasilat\w*|satil\w*|sattik|sattim|yapil\w*|yaptik|yaptim|yapmis\w*|adet|tane|kez|kere)\b/', $s)) return null;
+        try {
+            $liste = \Illuminate\Support\Facades\DB::table('salon_sunulan_hizmetler as sh')->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')
+                ->where('sh.salon_id', $salonId)->pluck('h.hizmet_adi', 'sh.hizmet_id')->all();
+            if (!$liste) return null;
+            $sec = IfadeKutuphanesi::secim($metin, $liste);
+            if ($sec['durum'] === 'yok') return null;
+            return ['ids' => array_map('intval', $sec['hizmetler']), 'adlar' => array_values(array_intersect_key($liste, array_flip($sec['hizmetler'])))];
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /** Hizmete ozel rapor cevabi. $veri = PatronAsistanRaporServisi::hizmetOzel. */
+    public function cevapHizmetOzel(array $veri, array $niyet)
+    {
+        $ad = implode(' ve ', array_slice($niyet['hizmetOzel']['adlar'] ?? [], 0, 3)) ?: 'Bu hizmet';
+        $donem = ucfirst($niyet['donemAdi']);
+        if ((int) ($veri['adet'] ?? 0) === 0) {
+            return $this->basitCevap('hizmet_ozel', "$donem $ad hiç yapılmamış görünüyor.", $niyet);
+        }
+        $cevap = "$donem $ad " . (int) $veri['adet'] . ' kez yapıldı ve ' . $this->tl($veri['ciro'] ?? 0) . ' ciro getirdi.';
+        $p = $veri['personeller'] ?? [];
+        if ($p) $cevap .= ' En çok ' . $p[0]['personel_adi'] . ' yaptı, ' . (int) $p[0]['adet'] . ' kez.';
+        return [
+            'basarili' => true, 'intent' => 'hizmet_ozel', 'cevap' => $cevap, 'seslendir' => true,
+            'kart' => ['tip' => 'personel', 'baslik' => $ad . ' · ' . $donem, 'satirlar' => array_map(function ($x) {
+                return ['personel_adi' => $x['personel_adi'], 'hizmet_say' => (int) $x['adet'], 'ciro' => (float) $x['ciro'], 'randevu_say' => (int) $x['adet']];
+            }, $p)],
+            'niyet' => $niyet,
+        ];
+    }
+
     /** Kisa/veri-yok cevaplari icin ortak sarmalayici. */
     protected function basitCevap($intent, $metin, array $niyet)
     {
