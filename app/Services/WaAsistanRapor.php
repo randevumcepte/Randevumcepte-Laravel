@@ -255,7 +255,7 @@ class WaAsistanRapor
             'sohbet' => [
                 'yazisma' => $yazisma, 'bilgi_aldi' => $bilgiAldi,
                 'gelen_mesaj' => array_sum(array_map(function ($o) { return (int) ($o['mesaj_sayisi'] ?? 0); }, $otr)), 'fiyat_aldi' => $fiyatAlip, 'fiyattan_randevu' => $fiyatRandevu,
-                'cozulen_orani' => $yazisma ? (int) round($cozulen / $yazisma * 100) : null,
+                'cozulen' => $cozulen, 'cozulen_orani' => $yazisma ? (int) round($cozulen / $yazisma * 100) : null,
                 'memnun' => $memnun, 'memnun_degil' => $memnunDegil,
                 'memnuniyet_orani' => ($memnun + $memnunDegil) ? (int) round($memnun / ($memnun + $memnunDegil) * 100) : null,
                 'aktar_bekleyen' => count($aktarBekleyen),

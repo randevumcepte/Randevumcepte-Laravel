@@ -485,10 +485,10 @@
          ne: 'Salonunuz kapalıyken (akşam, gece, kapalı günler) asistanın müşterilerinize cevapladığı mesaj sayısı.',
          nasil: 'Asistanın gönderdiği her cevap, işletme ayarlarınızdaki çalışma saatlerinin dışındaysa bu karta yazılır. Kartın açıklamasındaki saat ise asistanın tüm cevaplarının personelinize kazandırdığı süredir (her cevap ortalama 1,5 dakika).',
          neden: 'Bu müşteriler sabaha kadar cevap beklemedi; personeliniz yokken bile sorularına anında cevap alıp randevuya geçebildiler.' },
-      'bi-shield-fill-check': { b: 'Tek Başına Çözdüğü',
-         ne: 'WhatsApp yazışmalarının yüzde kaçını asistanın personele aktarmadan sonuçlandırdığı.',
-         nasil: '(Toplam yazışma − işletmeye aktarılan yazışma) ÷ toplam yazışma. Müşteri "yetkiliyle görüşmek istiyorum" dediğinde ya da asistan cevaplayamadığında yazışma aktarılmış sayılır.',
-         neden: 'Oran yükseldikçe personelinize daha az iş kalır. Düşükse "Öğrenilen Cevaplar" ve Sık Sorulan Sorular ile asistanı güçlendirebilirsiniz.' },
+      'bi-shield-fill-check': { b: 'Asistanın Kendi Bitirdiği Sohbetler',
+         ne: 'WhatsApp\'tan yazan müşterilerin kaçıyla asistanın <b>baştan sona tek başına</b> ilgilendiği. Müşteri ne sorduysa asistan cevapladı; sizin ya da personelinizin araya girmesi gerekmedi. Örnek: %92, 100 müşteriden 92\'siyle hiç uğraşmadınız demektir.',
+         nasil: 'Asistan yalnızca birkaç durumda sohbeti size bırakır: müşteri "yetkiliyle görüşmek istiyorum" derse, şikâyet / ödeme gibi bir konu açılırsa ya da fiyatı sistemde girilmemiş bir hizmet sorulursa. O zaman size bildirim gelir ve o müşteriye siz dönersiniz. Size bırakılmayan bütün sohbetler bu kartta "kendi bitirdiği" sayılır.',
+         neden: 'Oran ne kadar yüksekse personeliniz WhatsApp ile o kadar az uğraşır. Oran düşükse fiyatı eksik hizmetleri tamamlayın ve "Öğrenilen Cevaplar" sekmesine bakın; asistan ne kadar çok şey bilirse size o kadar az sohbet bırakır.' },
       'bi-camera-fill': { b: 'Fotoğrafa Fiyat Verildi',
          ne: 'Müşterilerin WhatsApp\'tan gönderdiği model fotoğraflarından kaçına asistanın fiyat verdiği.',
          nasil: 'Asistan fotoğraftaki uygulamaları tanır (protez, french, taş sayısı…); fiyatı "Fotoğraf Fiyatları" sekmesindeki kurallarınızdan sistem hesaplar. Asistan fiyat uydurmaz.',
@@ -552,7 +552,7 @@
             + kaz('wa-k-lila', 'bi-moon-stars-fill', tl(kz.mesai_disi), 'Mesai dışı kazanç', sayi(o.randevu.mesai_disi) + ' randevu personel yokken alındı', s.mesai_tutar, '#4f46e5')
             + kaz('wa-k-tur', 'bi-arrow-repeat', sayi(o.geri_kazanim.randevu), 'Geri kazanılan müşteri', sayi(o.geri_kazanim.yazildi) + ' kaçan müşteriye yazıldı · ' + tl(o.geri_kazanim.tutar), s.geri_kazanim, '#f97316')
             + kaz('wa-k-mavi', 'bi-chat-dots-fill', sayi(o.cevap.mesai_disi) + ' mesaj', 'Mesai dışı yazışma', 'Salon kapalıyken cevaplandı · personele toplam ' + String(o.cevap.personel_saat).replace('.', ',') + ' saat zaman kazancı', s.mesai_cevap, '#2563eb')
-            + kaz('wa-k-yesil', 'bi-shield-fill-check', o.sohbet.cozulen_orani == null ? '—' : '%' + o.sohbet.cozulen_orani, 'Tek başına çözdüğü', 'personele aktarılmadan biten yazışmalar', s.cozulen, '#16a34a')
+            + kaz('wa-k-yesil', 'bi-shield-fill-check', o.sohbet.cozulen_orani == null ? '—' : '%' + o.sohbet.cozulen_orani, 'Kendi bitirdiği sohbetler', o.sohbet.yazisma && o.sohbet.cozulen != null ? (o.sohbet.yazisma + ' sohbetin ' + o.sohbet.cozulen + ' tanesi personele gerek kalmadan bitti') : 'personele gerek kalmadan biten sohbetler', s.cozulen, '#16a34a')
             + kaz('wa-k-pembe', 'bi-camera-fill', sayi(o.gorsel.fiyat_verildi), 'Fotoğrafa fiyat verildi', sayi(o.gorsel.randevu) + ' tanesi randevuya döndü', s.gorsel, '#db2777')
             + '</div>';
          // grafik + son konusmalar
