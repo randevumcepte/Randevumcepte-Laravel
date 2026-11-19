@@ -203,20 +203,6 @@
                   aria-selected="false"
                   >Randevular</a>
             </li>
-            @if((int)($isletme->uyelik_turu ?? 0) === 3)
-            {{-- Cagri merkezi paketi: arama randevulari + gorusme notlari + santral cagrilari --}}
-            <li class="nav-item" style="margin:5px">
-               <a
-                  class="btn btn-outline-primary"
-                  data-toggle="tab"
-                  href="#arama_gecmisi"
-                  role="tab"
-                  style="width: 150px;"
-                  aria-selected="false"
-                  onclick="maYukle()"
-                  ><i class="fa fa-phone"></i> Arama Geçmişi</a>
-            </li>
-            @endif
             @if(!empty($isletme->studyo_modu))
             <li class="nav-item" style="margin:5px">
                <a
@@ -255,6 +241,20 @@
                   >Satışlar</a>
             </li>
             @endyetki
+            @endif
+            @if((int)($isletme->uyelik_turu ?? 0) === 3)
+            {{-- Cagri merkezi paketi: arama randevulari + gorusme notlari + santral cagrilari --}}
+            <li class="nav-item" style="margin:5px">
+               <a
+                  class="btn btn-outline-primary"
+                  data-toggle="tab"
+                  href="#arama_gecmisi"
+                  role="tab"
+                  style="width: 150px;"
+                  aria-selected="false"
+                  onclick="maYukle()"
+                  ><i class="fa fa-phone"></i> Arama Geçmişi</a>
+            </li>
             @endif
             @if(!$is_personel_rolu)
             <li class="nav-item" style="margin:5px;display: none;">
