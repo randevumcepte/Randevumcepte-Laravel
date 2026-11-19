@@ -557,48 +557,53 @@ class AiAsistanController extends Controller
             }
         } catch (\Throwable $e) {} // tablo henuz yok
 
-        $metinKelime =array_values(array_filter(explode(' ', $normMetin), function ($w) {
-            return mb_strlen($w) >= 2; // "ve", "de" gibi çok kısa parçaları atma dışında filtre
-        }));
-
-        $tamListe = [];      // normSvc === normMetin
-        $iceren = [];        // müşterinin tüm kelimeleri hizmet adında geçiyor (genel terim)
-        $skorlu = [];        // kelime örtüşmesine göre puanlı fallback
-
-        foreach ($hizmetler as $h) {
-            $normSvc = self::halkDili(self::normalizeTr($h->ad));
-            $svcKelime = array_values(array_filter(explode(' ', $normSvc), function ($w) {
-                return $w !== '';
+        // Once cumle aynen; tam/genel eslesme yoksa is fiilleri atilarak tekrar ("protez takma", "kaş yaptırmak istiyorum").
+        // Aynen deneme once: "Kirpik Takma" gibi adinda fiil gecen hizmetler bozulmasin.
+        foreach (array_unique([$normMetin, self::fiilAt($normMetin)]) as $normMetin) {
+            $metinKelime =array_values(array_filter(explode(' ', $normMetin), function ($w) {
+                return mb_strlen($w) >= 2; // "ve", "de" gibi çok kısa parçaları atma dışında filtre
             }));
 
-            if ($normSvc === $normMetin) {
-                $tamListe[] = ['id' => (int) $h->id, 'ad' => $h->ad];
-                continue;
-            }
+            $tamListe = [];      // normSvc === normMetin
+            $iceren = [];        // müşterinin tüm kelimeleri hizmet adında geçiyor (genel terim)
+            $skorlu = [];        // kelime örtüşmesine göre puanlı fallback
 
-            // Müşterinin söylediği TÜM kelimeler hizmet adında var mı?
-            // ("lazer epilasyon" → "Lazer Epilasyon Kol" ✓)
-            $hepsiVar = count($metinKelime) > 0;
-            foreach ($metinKelime as $mk) {
-                if (!in_array($mk, $svcKelime, true) && mb_strpos($normSvc, $mk) === false) {
-                    $hepsiVar = false;
-                    break;
+            foreach ($hizmetler as $h) {
+                $normSvc = self::halkDili(self::normalizeTr($h->ad));
+                $svcKelime = array_values(array_filter(explode(' ', $normSvc), function ($w) {
+                    return $w !== '';
+                }));
+
+                if ($normSvc === $normMetin) {
+                    $tamListe[] = ['id' => (int) $h->id, 'ad' => $h->ad];
+                    continue;
+                }
+
+                // Müşterinin söylediği TÜM kelimeler hizmet adında var mı?
+                // ("lazer epilasyon" → "Lazer Epilasyon Kol" ✓)
+                $hepsiVar = count($metinKelime) > 0;
+                foreach ($metinKelime as $mk) {
+                    if (!in_array($mk, $svcKelime, true) && mb_strpos($normSvc, $mk) === false && !self::ekliVar($mk, $svcKelime)) {
+                        $hepsiVar = false;
+                        break;
+                    }
+                }
+                if ($hepsiVar) {
+                    $iceren[] = ['id' => (int) $h->id, 'ad' => $h->ad, 'ek' => trim(str_ireplace($normMetin, '', $normSvc))];
+                }
+
+                // Kelime örtüşme skoru (fallback için)
+                $ortak = count(array_filter($metinKelime, function ($mk) use ($svcKelime) { return in_array($mk, $svcKelime, true) || self::ekliVar($mk, $svcKelime); }));
+                if ($ortak > 0) {
+                    $skorlu[] = [
+                        'id' => (int) $h->id,
+                        'ad' => $h->ad,
+                        'skor' => $ortak / max(1, count($svcKelime)),
+                        'ortak' => $ortak,
+                    ];
                 }
             }
-            if ($hepsiVar) {
-                $iceren[] = ['id' => (int) $h->id, 'ad' => $h->ad, 'ek' => trim(str_ireplace($normMetin, '', $normSvc))];
-            }
-
-            // Kelime örtüşme skoru (fallback için)
-            $ortak = count(array_intersect($metinKelime, $svcKelime));
-            if ($ortak > 0) {
-                $skorlu[] = [
-                    'id' => (int) $h->id,
-                    'ad' => $h->ad,
-                    'skor' => $ortak / max(1, count($svcKelime)),
-                    'ortak' => $ortak,
-                ];
-            }
+            if ($tamListe || $iceren) break;
         }
 
         // 1) Tam eşleşme
@@ -614,6 +619,10 @@ class AiAsistanController extends Controller
             return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => $iceren[0]['id'], 'ad' => $iceren[0]['ad']]]);
         }
         if (count($iceren) > 1) {
+            $iceren = self::anaHizmetler($iceren, $metinKelime);
+            if (count($iceren) === 1) {
+                return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => $iceren[0]['id'], 'ad' => $iceren[0]['ad']]]);
+            }
             $secenekler = array_map(function ($x) {
                 return ['id' => $x['id'], 'ad' => $x['ad']];
             }, $iceren);
@@ -728,6 +737,44 @@ class AiAsistanController extends Controller
      * hizmet "Kalıcı Oje Çıkarma" bulunamadi. Tirnak baglaminda kaldir/sil/sok/aldir = cikarma; "kas aldirma" gibi
      * baska hizmetlere dokunmaz (yalniz oje/jel/protez/tirnak... geciyorsa).
      */
+    /** Is fiilleri / dolgu kelimeler (takma, yaptirma, istiyorum...) metinden atilir; geriye bir sey kalmazsa metin aynen doner. */
+    public static function fiilAt(string $norm): string
+    {
+        $k = array_values(array_filter(explode(' ', $norm), function ($w) {
+            return $w !== '' && !preg_match('/^(takma|takmak|takil|taktir|yaptir|yapma|yapmak|yapil|attir|koydur|uygulat|istiyor|isterim|istedim|olsun|lazim|randevu|icin|bir|tane)/', $w);
+        }));
+        return $k ? implode(' ', $k) : $norm;
+    }
+
+    /** Ekli kelime hizmet kelimesine uyuyor mu: "tirnagimi" ~ "tirnak", "kalicimi" ~ "kalici" (ortak kok >= 4 harf). */
+    public static function ekliVar(string $mk, array $svcKelime): bool
+    {
+        if (strlen($mk) < 4) return false;
+        foreach ($svcKelime as $sk) {
+            if (strlen($sk) < 4) continue;
+            $n = 0; $max = min(strlen($mk), strlen($sk));
+            while ($n < $max && $mk[$n] === $sk[$n]) $n++;
+            if ($n >= 4 && $n >= strlen($sk) - 1) return true; // tirnag|imi ~ tirnak, kalici|mi ~ kalici
+        }
+        return false;
+    }
+
+    /**
+     * Coklu eslesmede ikincil islemler (cikarma, dolgu, tamir...) musteri soylemediyse elenir:
+     * "protez" -> "Protez Tırnak" (Protez Tırnak Çıkarma / Dolgu degil). Hepsi ikincilse liste aynen kalir.
+     */
+    public static function anaHizmetler(array $secenekler, array $metinKelime): array
+    {
+        $ikincil = ['cikarma', 'dolgu', 'tamir', 'onarim', 'sokum'];
+        $soyledi = array_intersect($ikincil, $metinKelime);
+        $ana = array_values(array_filter($secenekler, function ($s) use ($ikincil, $soyledi) {
+            $sk = explode(' ', self::halkDili(self::normalizeTr($s['ad'])));
+            foreach ($ikincil as $w) if (!in_array($w, $soyledi, true) && in_array($w, $sk, true)) return false;
+            return true;
+        }));
+        return $ana ?: $secenekler;
+    }
+
     /** wa_hizmet_esanlam anahtari: musterinin ifadesi, hizmetEslestir'deki ayni normalizasyonla. */
     public static function esanlamAnahtar(string $s): string
     {
