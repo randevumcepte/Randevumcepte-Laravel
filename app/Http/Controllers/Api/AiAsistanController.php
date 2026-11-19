@@ -557,6 +557,27 @@ class AiAsistanController extends Controller
             }
         } catch (\Throwable $e) {} // tablo henuz yok
 
+        // 0b) Musteri hizmetin tam adini yazdiysa dogrudan o (kutuphane bunu degistirmesin)
+        $tamAd = $hizmetler->filter(function ($h) use ($normMetin) { return self::halkDili(self::normalizeTr($h->ad)) === $normMetin; })->values();
+        if (count($tamAd) === 1) {
+            return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => (int) $tamAd[0]->id, 'ad' => $tamAd[0]->ad]]);
+        }
+
+        // 0c) Merkezi ifade kutuphanesi (database/ifade_kutuphanesi): halk dili -> kavram -> bu salonun hizmeti.
+        // Bulamazsa asagidaki kelime eslestirmesi aynen devam eder (eski davranis yedek).
+        $kut = self::kutuphaneSecim($salonId, $metin, $hizmetler);
+        if ($kut && $kut['durum'] === 'tek') {
+            $h = $hizmetler->firstWhere('id', $kut['hizmetler'][0]);
+            if ($h) return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => (int) $h->id, 'ad' => $h->ad], 'kaynak' => 'kutuphane']);
+        }
+        if ($kut && $kut['durum'] === 'coklu') {
+            $sec = $hizmetler->whereIn('id', $kut['hizmetler'])->map(function ($h) { return ['id' => (int) $h->id, 'ad' => $h->ad]; })->values()->all();
+            if (count($sec) > 1) {
+                return response()->json(['ok' => true, 'eslesme' => 'coklu', 'ortak' => $metin, 'secenekler' => $sec, 'kaynak' => 'kutuphane']
+                    + ($kut['soru'] ? ['soru' => $kut['soru'], 'not' => 'Müşterinin isteği bu seçenekler arasında net değil. Seçenekleri tek tek sayma; "soru"yu kendi cümlenle, yalnız bu salondaki seçenekleri anarak sor.'] : []));
+            }
+        }
+
         // Once cumle aynen; tam/genel eslesme yoksa is fiilleri atilarak tekrar ("protez takma", "kaş yaptırmak istiyorum").
         // Aynen deneme once: "Kirpik Takma" gibi adinda fiil gecen hizmetler bozulmasin.
         foreach (array_unique([$normMetin, self::fiilAt($normMetin)]) as $normMetin) {
@@ -648,7 +669,33 @@ class AiAsistanController extends Controller
             return ['id' => $x['id'], 'ad' => $x['ad']];
         }, array_slice($skorlu, 0, 3));
 
-        return response()->json(['ok' => true, 'eslesme' => 'yok', 'oneriler' => $oneriler]);
+        $yok = ['ok' => true, 'eslesme' => 'yok', 'oneriler' => $oneriler];
+        // Kutuphane hizmeti tanidi ama salonda yok ("saç kesimi" tirnak salonunda): asistan benzer hizmet uydurmasin
+        if ($kut && $kut['durum'] === 'yok' && $kut['kavramlar'] && count($kut['kavramlar']) <= 3) {
+            $kv = \App\Services\IfadeKutuphanesi::yukle()['kavram'];
+            $yok['istenen'] = implode(', ', array_map(function ($k) use ($kv) { return $kv[$k]['ad'] ?? $k; }, $kut['kavramlar']));
+            $yok['not'] = 'Müşteri "' . $yok['istenen'] . '" istiyor; bu hizmet bu salonun listesinde YOK. Listede gerçekten aynı işi gören bir hizmet varsa onu öner, yoksa bu hizmetin yapılmadığını kibarca söyle. Uydurma.';
+        }
+        return response()->json($yok);
+    }
+
+    /**
+     * Merkezi ifade kutuphanesi karari (App\Services\IfadeKutuphanesi::secim). Salon katalogu (hizmet adi -> kavram)
+     * hizmet listesi degismedikce 60 dk onbellekte. Hata olursa null (eski eslestirme devam eder).
+     */
+    protected static function kutuphaneSecim(int $salonId, string $metin, $hizmetler): ?array
+    {
+        try {
+            $liste = $hizmetler->pluck('ad', 'id')->all();
+            $anahtar = 'ifade_katalog_' . $salonId . '_' . md5(json_encode($liste) . \App\Services\IfadeKutuphanesi::surum());
+            $katalog = \Illuminate\Support\Facades\Cache::remember($anahtar, 60, function () use ($liste) { return \App\Services\IfadeKutuphanesi::katalog($liste); });
+            $s = \App\Services\IfadeKutuphanesi::secim($metin, $liste, $katalog);
+            \Illuminate\Support\Facades\Log::info('[IFADE] hizmet_eslestir', ['salon' => $salonId, 'metin' => mb_substr($metin, 0, 120), 'durum' => $s['durum'], 'hizmetler' => $s['hizmetler'], 'kavramlar' => array_slice($s['kavramlar'], 0, 6)]);
+            return $s;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[IFADE] kutuphane hatasi: ' . $e->getMessage());
+            return null;
+        }
     }
 
     /* ─────────────────────────────────────────────────────────────

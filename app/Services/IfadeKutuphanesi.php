@@ -44,6 +44,15 @@ class IfadeKutuphanesi
         return self::$veri = $v;
     }
 
+    /** Kutuphane surumu + dosya degisiklik zamani (onbellek anahtari icin). */
+    public static function surum(): string
+    {
+        $d = dirname(__DIR__, 2) . '/database/ifade_kutuphanesi';
+        $t = 0;
+        foreach (glob($d . '/*.json') as $f) $t = max($t, (int) @filemtime($f));
+        return (self::yukle()['genel']['surum'] ?? '0') . '-' . $t;
+    }
+
     // ------------------------------------------------------------------ metin
     /** kucuk harf + Turkce karakter sadelestirme + noktalama -> bosluk */
     public static function sade(string $s): string

@@ -1732,9 +1732,10 @@ class RandevuAsistan
                 }
                 // Kelimeyle hic bulunamadi: musteri halk dili / baska kelime kullanmis olabilir ("oje kaldırma" = Kalıcı
                 // Oje Çıkarma, canli 2026-11-20). Model salonun hizmet listesinden ANLAMCA secsin; secince id ile devam eder.
+                // Ifade kutuphanesi hizmeti tanidi ve salonda YOK dediyse ($d['istenen']): kendi notu kalir, anlamca secim yaptirilmaz.
                 if (($d['eslesme'] ?? '') === 'yok' && empty($d['soru']) && ($liste = $this->salon['hizmetler'] ?? [])) {
                     $d['tum_hizmetler'] = array_map(function ($h) { return ['id' => (int) $h['id'], 'ad' => $h['ad']]; }, array_slice($liste, 0, 80));
-                    $d['not'] = 'Kelime eşleşmesi yok ama müşteri halk dili ya da farklı bir kelime kullanmış olabilir. tum_hizmetler listesinden ANLAMCA açıkça uyan '
+                    if (empty($d['istenen'])) $d['not'] = 'Kelime eşleşmesi yok ama müşteri halk dili ya da farklı bir kelime kullanmış olabilir. tum_hizmetler listesinden ANLAMCA açıkça uyan '
                         . 'hizmeti seç (ör. "oje kaldırma/sildirme" = Kalıcı Oje Çıkarma, "kaş aldırma" = Kaş Alma) ve müşteriye sormadan o id ile devam et. '
                         . 'Anlamca 2-3 hizmet uyuyorsa yalnız onları seçenek olarak sun. Hiçbiri uymuyorsa hizmetin listede olmadığını söyle; uydurma.';
                 }
