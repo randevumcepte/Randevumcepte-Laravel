@@ -9,9 +9,6 @@
    .wa { --mor:#5b1fa8; --mor2:#7c3aed; --mor3:#a855f7; --lav:#f3eefc; --lav2:#e9dffb; --metin:#1f1638; --gri:#6b6483; --cizgi:#ece6f6;
          --yesil:#16a34a; --yesil-acik:#dcfce7; --golge:0 6px 24px rgba(76,29,149,.07); color:var(--metin); background:#f7f4fc; margin:-6px -6px 0; padding:18px; border-radius:18px; }
    .wa * { box-sizing:border-box; }
-   /* Mini sol menu (masaustu >1300px) uzerine gelince 74px -> 250px acilir: sayfa altinda kalmasin, daralsin */
-   .wa { transition:margin-left .2s ease-in-out; }
-   @media (min-width:1301px) { body:has(.left-side-bar:hover) .wa { margin-left:170px; } }
    .wa-ust { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
    .wa-sekmeler { display:flex; gap:4px; background:#fff; border-radius:16px; padding:6px; box-shadow:var(--golge); overflow-x:auto; max-width:100%; scrollbar-width:none; }
    .wa-sekmeler::-webkit-scrollbar { display:none; }

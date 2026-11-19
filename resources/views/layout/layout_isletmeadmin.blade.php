@@ -260,6 +260,12 @@
          .left-side-bar:hover .sidebar-menu .dropdown-toggle .micon{ left:10px; transform:translate(0,-50%); }
          .left-side-bar:hover .sidebar-menu .dropdown-toggle .mtext{ opacity:1; visibility:visible; }
          .left-side-bar:hover .sidebar-menu .dropdown-toggle:after{ opacity:1; }
+
+         /* Menu acilinca icerik ALTINDA kalmasin: sayfa ve ust bar saga kayip daralsin */
+         .main-container{ transition:padding-left .2s ease-in-out; }
+         .header{ transition:width .2s ease-in-out; }
+         body:has(.left-side-bar:hover) .main-container{ padding-left:270px; }
+         body:has(.left-side-bar:hover) .header{ width:calc(100% - 250px); }
       }
       </style>
 
