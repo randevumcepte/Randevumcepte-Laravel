@@ -338,6 +338,13 @@
    .gl-soru b { display:block; font-size:14.5px; } .gl-soru small { display:block; font-size:12.5px; color:var(--gri); margin:2px 0 8px; }
    .gl-soru .sat { display:flex; gap:8px; flex-wrap:wrap; } .gl-soru textarea { flex:1 1 260px; font-family:inherit; }
    .gl-soru .wa-btn { padding:8px 14px; font-size:13px; }
+   .gl-soru q { font-weight:800; color:#7c2d12; }
+   .gl-fiyatlar { display:grid; gap:6px; margin:6px 0 10px; max-width:560px; }
+   .gl-fsat { display:flex; align-items:center; gap:8px; margin:0; font-weight:600; font-size:14px; }
+   .gl-fsat span { flex:1 1 auto; min-width:0; } .gl-fsat span i { font-style:normal; font-weight:500; font-size:12px; }
+   .gl-fsat .gl-fiyat { width:110px; flex:0 0 110px; text-align:right; font-size:15px; font-weight:700; padding:7px 10px; }
+   .gl-fsat.yok em { font-style:normal; font-size:12.5px; color:var(--gri); } .gl-fsat.yok span { color:var(--gri); }
+   .gl-soru select.gl-hizmet { flex:1 1 260px; max-width:420px; }
    .gl-grafik { display:flex; align-items:flex-end; gap:6px; height:150px; padding-top:20px; }
    .gl-grafik .c { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%; position:relative; }
    .gl-grafik .c i { display:block; width:100%; max-width:26px; border-radius:7px 7px 3px 3px; min-height:3px; background:linear-gradient(180deg,#5eead4,#14b8a6); }
@@ -1346,11 +1353,31 @@
       var h = '<div class="wa-kart gl-bekle"><div class="wa-kart-bas"><h4><i class="bi bi-question-circle-fill" style="color:#d97706"></i>Asistan size soruyor' + (bilgi.length ? ' <small class="wa-alt" style="font-weight:600">' + bilgi.length + '</small>' : '') + '</h4></div>'
          + '<div class="wa-alt" style="margin-bottom:6px">Müşterileriniz bu soruları sordu ama asistan cevabını bilmiyordu. Cevabı bir kez yazın, asistan bundan sonra kendisi cevaplasın.</div>';
       if (!bilgi.length) return h + '<div class="wk-bos"><b>Şu an bekleyen soru yok.</b> Müşteriler asistanın bilmediği bir şey sorarsa (otopark, ödeme yöntemi, bir uzmanın çalıştığı günler gibi) burada size sorulur.</div></div>';
-      bilgi.forEach(function (d) {
-         h += '<div class="gl-soru" data-bilgi-id="' + d.id + '"><b>"' + esc(d.metin) + '"</b>' + (d.gerekce ? '<small>' + esc(d.gerekce) + '</small>' : '')
-            + '<div class="sat"><textarea class="wa-girdi" rows="2" maxlength="1000" placeholder="Cevabınız (müşteriye aynen gider)"></textarea><button class="wa-btn" data-bilgi-kaydet>Kaydet</button><button class="wa-btn ikincil" data-bilgi-yoksay>Yoksay</button></div></div>';
-      });
+      bilgi.forEach(function (d) { h += soruKart(d); });
       return h + '</div>';
+   }
+   // Tek soru karti: cevap tipine gore en kisa cevap yolu (fiyat kutusu / evet-hayir / hizmet secimi / kisa metin)
+   function soruKart(d) {
+      var f = d.form || { tip: 'metin' }, ic = '';
+      var yoksay = '<button class="wa-btn ikincil" data-bilgi-yoksay>Yoksay</button>';
+      if (f.tip === 'fiyat') {
+         ic = '<div class="gl-fiyatlar">' + (f.kalemler || []).map(function (k) {
+            if (!k.hizmet_id) return '<div class="gl-fsat yok"><span>' + esc(k.ad) + '</span><em>Hizmet listenizde yok · <a href="/isletmeyonetim/hizmet-yonetimi' + (SUBE ? '?sube=' + encodeURIComponent(SUBE) : '') + '" target="_blank">Hizmet ekle</a></em></div>';
+            var deger = k.oneri_fiyat || k.mevcut || '';
+            return '<label class="gl-fsat"><span>' + esc(k.ad) + (k.oneri_fiyat ? ' <i class="wa-alt">(personeliniz ' + k.oneri_fiyat + ' TL dedi)</i>' : '') + '</span>'
+               + '<input class="wa-girdi gl-fiyat" data-hid="' + k.hizmet_id + '" inputmode="numeric" placeholder="0" value="' + esc(String(deger)) + '"><b>TL</b></label>';
+         }).join('') + '</div><div class="sat"><button class="wa-btn" data-fiyat-kaydet>Fiyatları kaydet</button>' + yoksay + '</div>';
+      } else if (f.tip === 'evet_hayir') {
+         ic = '<div class="sat"><button class="wa-btn" data-eh="' + esc(f.evet) + '"><i class="bi bi-check-lg"></i> Evet</button><button class="wa-btn" data-eh="' + esc(f.hayir) + '"><i class="bi bi-x-lg"></i> Hayır</button>' + yoksay + '</div>'
+            + '<small>Evet derseniz müşteriye: "' + esc(f.evet) + '" · Hayır derseniz: "' + esc(f.hayir) + '"</small>';
+      } else if (f.tip === 'hizmet_sec') {
+         ic = '<div class="sat"><select class="wa-girdi gl-hizmet"><option value="">Hangi hizmetiniz? Seçin…</option>' + ((sonGelisim && sonGelisim.hizmetler) || []).map(function (x) { return '<option value="' + x.id + '">' + esc(x.ad) + '</option>'; }).join('')
+            + '</select><button class="wa-btn" data-hizmet-kaydet>Kaydet</button>' + yoksay + '</div>';
+      } else {
+         ic = '<div class="sat"><textarea class="wa-girdi" rows="2" maxlength="1000" placeholder="Kısa cevabınız (müşteriye aynen gider)"></textarea><button class="wa-btn" data-bilgi-kaydet>Kaydet</button>' + yoksay + '</div>';
+      }
+      var baslik = f.tip === 'hizmet_sec' ? 'Müşteriler <q>' + esc(f.ifade) + '</q> diyor. Bu hangi hizmetiniz?' : esc(d.metin);
+      return '<div class="gl-soru" data-bilgi-id="' + d.id + '"><b>' + baslik + '</b>' + (d.gerekce ? '<small>' + esc(d.gerekce) + '</small>' : '') + ic + '</div>';
    }
    function puanSinif(p) { return p >= 85 ? 'i' : (p >= 70 ? 'o' : 'k'); }
    function fark(simdi, once, tersIyi) {
@@ -1387,10 +1414,7 @@
       // 2) Sizden beklenenler
       if (bilgi.length || onay.length) {
          h += '<div class="wa-kart gl-bekle" style="margin-bottom:18px"><div class="wa-kart-bas"><h4><i class="bi bi-question-circle-fill" style="color:#d97706"></i>Sizden beklenenler <small class="wa-alt" style="font-weight:600">' + (bilgi.length + onay.length) + '</small></h4></div>';
-         bilgi.forEach(function (d) {
-            h += '<div class="gl-soru" data-bilgi-id="' + d.id + '"><b>Müşteriler soruyor: "' + esc(d.metin) + '"</b><small>' + esc(d.gerekce || 'Asistan bu bilgiyi bilmediği için cevaplayamadı.') + ' Cevabınızı yazarsanız asistan bundan sonra bunu kendisi cevaplar.</small>'
-               + '<div class="sat"><textarea class="wa-girdi" rows="2" maxlength="1000" placeholder="Cevabınız (müşteriye aynen gider)"></textarea><button class="wa-btn" data-bilgi-kaydet>Kaydet</button><button class="wa-btn ikincil" data-bilgi-yoksay>Yoksay</button></div></div>';
-         });
+         bilgi.forEach(function (d) { h += soruKart(d); });
          onay.forEach(function (d) {
             h += '<div class="gl-soru"><b>Önerilen ders: ' + esc(d.metin) + '</b><small>' + esc((d.test && d.test.not) || d.gerekce || '') + '</small><div class="sat"><button class="wa-btn" data-ders="' + d.id + '" data-durum="aktif">Uygula</button><button class="wa-btn ikincil" data-ders="' + d.id + '" data-durum="kapali">Uygulama</button></div></div>';
          });
@@ -1450,6 +1474,22 @@
          return;
       }
       if (kk) { gonder('/ders/' + kk.dataset.bilgiIdKapat + '/cevap', { cevap: '' }).then(function () { gelisimYukle(); }).catch(hata); return; }
+      var fk = t.closest('[data-fiyat-kaydet]'), eh = t.closest('[data-eh]'), hk = t.closest('[data-hizmet-kaydet]');
+      if (fk || eh || hk) {
+         var kart = t.closest('[data-bilgi-id]'), veri;
+         if (fk) {
+            veri = { tip: 'fiyat', fiyatlar: [].map.call(kart.querySelectorAll('.gl-fiyat'), function (i) { return { hizmet_id: i.dataset.hid, fiyat: i.value.replace(/[^\d,.]/g, '') }; }).filter(function (x) { return x.fiyat; }) };
+            if (!veri.fiyatlar.length) { toast('En az bir fiyat yazın.'); return; }
+         } else if (eh) {
+            veri = { cevap: eh.dataset.eh };
+         } else {
+            var sec = kart.querySelector('.gl-hizmet').value;
+            if (!sec) { toast('Önce hizmeti seçin.'); return; }
+            veri = { tip: 'hizmet_sec', hizmet_id: sec };
+         }
+         gonder('/ders/' + kart.dataset.bilgiId + '/cevap', veri).then(function (r) { toast(r.ok ? (r.mesaj || 'Kaydedildi. Asistan bunu artık kendisi cevaplar.') : (r.hata || 'Kaydedilemedi.')); if (r.ok) gelisimYukle(); }).catch(hata);
+         return;
+      }
       var sh = t.closest('[data-gl-sohbet]');
       if (sh) { sekmeAc('sohbet'); sohbetAc(sh.dataset.glSohbet); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
       var g = t.closest('[data-git]'); if (g) { e.preventDefault(); sekmeAc(g.dataset.git); return; }

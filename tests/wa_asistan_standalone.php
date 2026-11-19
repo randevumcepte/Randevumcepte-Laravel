@@ -598,6 +598,19 @@ namespace {
     esit('kesit: son eleman müşteri', 'user', $D::kesit($g, 4)[2]['role']);
     esit('kesit: müşteri mesaj no → o mesaj dahil', 3, count($D::kesit($g, 3)));
     esit('kesit: geçersiz → boş', [], $D::kesit([], 2));
+
+    // Asistan size soruyor: kolay cevap formu
+    $hz = [['id' => 10, 'ad' => 'Kalıcı Oje Çıkarma', 'fiyat' => 0], ['id' => 11, 'ad' => 'Medikal Pedikür', 'fiyat' => 990], ['id' => 12, 'ad' => 'Manikür', 'fiyat' => 500]];
+    $ft = $D::formTemizle(['tip' => 'fiyat', 'kalemler' => [['ad' => 'Kalıcı oje çıkarma', 'hizmet_id' => 10, 'oneri_fiyat' => 400], ['ad' => 'Kedi gözü', 'hizmet_id' => 0, 'oneri_fiyat' => -5], ['ad' => '', 'hizmet_id' => 3, 'oneri_fiyat' => 1]]]);
+    esit('form: fiyat kalemleri temizlenir (boş ad atılır, negatif fiyat 0)', [2, 400, 0], [count($ft['kalemler']), $ft['kalemler'][0]['oneri_fiyat'], $ft['kalemler'][1]['oneri_fiyat']]);
+    esit('form: evet/hayır cümlesi eksikse metin', 'metin', $D::formTemizle(['tip' => 'evet_hayir', 'evet_cevap' => 'Evet var.', 'hayir_cevap' => ''])['tip']);
+    esit('form: hizmet_sec ifadesiz → metin', 'metin', $D::formTemizle(['tip' => 'hizmet_sec', 'ifade' => ' '])['tip']);
+    esit('form: geçersiz tip → metin', 'metin', $D::formTemizle(['tip' => 'xyz'])['tip']);
+    $sf = $D::soruFormu('x', json_encode($ft), $hz);
+    esit('soruFormu: salondaki ad + güncel fiyat, salonda olmayan id sıfırlanır', ['Kalıcı Oje Çıkarma', 0, 0], [$sf['kalemler'][0]['ad'], $sf['kalemler'][0]['mevcut'], $sf['kalemler'][1]['hizmet_id']]);
+    $eski = $D::soruFormu('Medikal pedikür fiyatı nedir?', null, $hz);
+    esit('soruFormu: formsuz eski fiyat sorusu → fiyat formu (mevcut fiyatla)', ['fiyat', 11, 990], [$eski['tip'], $eski['kalemler'][0]['hizmet_id'], $eski['kalemler'][0]['mevcut']]);
+    esit('soruFormu: formsuz bilgi sorusu → metin', 'metin', $D::soruFormu('Otopark var mı?', null, $hz)['tip']);
     esit('ders güvenli: davranış', true, $D::dersGuvenliMi('Müşteri ilk mesajda gün ve saat yazdıysa önce o saate bak, karşılama yazma.'));
     esit('ders güvensiz: fiyat', false, $D::dersGuvenliMi('Protez tırnak için 750 TL söyle ve indirim teklif et.'));
     esit('ders güvensiz: kampanya', false, $D::dersGuvenliMi('Her müşteriye kampanyadan bahset ve kapora iste.'));

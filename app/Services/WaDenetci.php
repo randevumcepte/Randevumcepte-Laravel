@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\Schema;
  */
 class WaDenetci
 {
-    const SEMA = 'wa_denetci_sema_v2';
+    const SEMA = 'wa_denetci_sema_v3';
     /** ORTAK BEYIN: davranis dersleri tum salonlarin sohbetlerinden uretilir, isletme_id=0 ile tutulur ve HER salonda uygulanir. */
     const ORTAK = 0;
     const SORUN_TURLERI = ['istek_atlandi', 'gereksiz_soru', 'uzun_akis', 'yanlis_bilgi', 'anlamadi', 'ton', 'bilgi_eksik', 'gereksiz_aktarma', 'teknik_hata', 'diger'];
@@ -95,6 +95,21 @@ class WaDenetci
             }
             // v2: salon basina uretilmis davranis dersleri ortak beyne tasinir
             DB::table('wa_asistan_dersler')->where('tur', 'davranis')->where('isletme_id', '<>', self::ORTAK)->update(['isletme_id' => self::ORTAK]);
+            // v3: bilgi sorusunun kolay cevap formu (fiyat kutulari / evet-hayir / hizmet secimi)
+            if (!Schema::hasColumn('wa_asistan_dersler', 'form')) {
+                Schema::table('wa_asistan_dersler', function ($t) { $t->text('form')->nullable(); });
+            }
+            // salonun ogrettigi halk dili: "oje kaldırma" -> hizmet (AiAsistanController::hizmetEslestir once buna bakar)
+            if (!Schema::hasTable('wa_hizmet_esanlam')) {
+                Schema::create('wa_hizmet_esanlam', function ($t) {
+                    $t->bigIncrements('id');
+                    $t->unsignedBigInteger('salon_id');
+                    $t->string('ifade', 120);                          // normalize (AiAsistanController::normalizeTr)
+                    $t->unsignedBigInteger('hizmet_id');
+                    $t->timestamps();
+                    $t->unique(['salon_id', 'ifade'], 'wa_esanlam_salon_ifade_uq');
+                });
+            }
             Cache::forever(self::SEMA, 1);
             return true;
         } catch (\Throwable $e) {
@@ -468,26 +483,42 @@ T;
             ->where('created_at', '>=', now()->subDays(60))->get(['tur', 'metin', 'durum']);
         $sema = ['type' => 'object', 'additionalProperties' => false, 'required' => ['rapor', 'bilgi', 'kod'], 'properties' => [
             'rapor' => ['type' => 'string'],
-            'bilgi' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['soru', 'not'], 'properties' => ['soru' => ['type' => 'string'], 'not' => ['type' => 'string']]]],
+            'bilgi' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false,
+                'required' => ['soru', 'not', 'tip', 'kalemler', 'evet_cevap', 'hayir_cevap', 'ifade'], 'properties' => [
+                'soru' => ['type' => 'string'], 'not' => ['type' => 'string'],
+                'tip' => ['type' => 'string', 'enum' => ['fiyat', 'evet_hayir', 'hizmet_sec', 'metin']],
+                'kalemler' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['ad', 'hizmet_id', 'oneri_fiyat'],
+                    'properties' => ['ad' => ['type' => 'string'], 'hizmet_id' => ['type' => 'integer'], 'oneri_fiyat' => ['type' => 'integer']]]],
+                'evet_cevap' => ['type' => 'string'], 'hayir_cevap' => ['type' => 'string'], 'ifade' => ['type' => 'string'],
+            ]]],
             'kod' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['baslik', 'aciklama', 'oturum_id'], 'properties' => ['baslik' => ['type' => 'string'], 'aciklama' => ['type' => 'string'], 'oturum_id' => ['type' => 'integer']]]],
         ]];
         $sistem = "Bir salonun WhatsApp randevu asistanının son 7 günlük denetim bulgularını özetliyorsun. "
             . "(Asistanın davranış hataları ayrıca tüm salonların ortak asistan beynine iletilip düzeltiliyor; burada yalnız bu salona özel olanlar çıkarılır.)\n"
-            . "- bilgi: müşterilerin sorduğu ama işletmenin sisteme girmesi gereken bilgiler (tekrarları birleştir, en fazla 5).\n"
+            . "- bilgi: müşterilerin sorduğu ama işletmenin sisteme girmesi gereken bilgiler (tekrarları birleştir, en fazla 5). Salon sahibi bunu "
+            . "telefonda İKİ SANİYEDE cevaplayabilmeli; soruyu kısa yaz (en fazla 10 kelime) ve en kolay cevap tipini seç:\n"
+            . "  * tip=fiyat: fiyatı eksik/sorulan hizmetler. kalemler: her hizmet ayrı satır; HİZMETLER listesindeyse hizmet_id ile, listede yoksa hizmet_id=0. "
+            . "oneri_fiyat: yazışmada personelin söylediği fiyat (TL, sayı), yoksa 0. Fiyat uydurma.\n"
+            . "  * tip=evet_hayir: 'otopark var mı', 'kartla ödeme olur mu' gibi. evet_cevap ve hayir_cevap: müşteriye gidecek tam, kısa, kibar cümle.\n"
+            . "  * tip=hizmet_sec: müşteri bir hizmeti farklı/halk diliyle söyledi ve asistan anlayamadı ('oje kaldırma' gibi). ifade: müşterinin kullandığı ifade (aynen, kısa).\n"
+            . "  * tip=metin: yukarıdakilere uymuyorsa (kısa serbest cevap).\n"
+            . "  Kullanılmayan alanlar: boş dizi / boş metin.\n"
             . "- kod: sistem/araç hatası gibi görünen bulgular (en fazla 3).\n"
             . "- rapor: işletme sahibine, birinci ağızdan ('inceledim', 'düzelteceğim') sade Türkçe kısa rapor. Teknik terim, kod, oturum numarası YOK. "
             . "Satır başı '• ' ile 4-8 madde: kaç sohbet incelediğin ve genel durum; yakaladığın en önemli sorunlar (müşteri adıyla, ne oldu, doğrusu neydi); "
             . "asistanın davranış hatalarını tüm salonlar için ortak beyinde düzelteceğin (her biri sade bir cümle); işletmeden ne beklediğin (bilgi soruları, elle bakılması gereken müşteri). Bulgu yoksa uydurma.";
         $ozetler = $yeni->take(40)->map(function ($d) use ($adlar) { return '- ' . ($adlar[$d->oturum_id] ?? 'Müşteri') . " (puan {$d->puan}): " . $d->ozet; })->all();
         $metin = '# BU İNCELEME: ' . $yeni->count() . " yeni sohbet\n" . implode("\n", $ozetler) . "\n\n# MEVCUT DERSLER (tekrarlama)\n" . ($mevcut->count() ? implode("\n", $mevcut->map(function ($x) { return "- [{$x->durum}/{$x->tur}] {$x->metin}"; })->all()) : '- yok')
+            . "\n\n# HİZMETLER (id: ad = fiyat; 0 = fiyat yok)\n" . implode("\n", array_map(function ($h) { return "{$h['id']}: {$h['ad']} = " . (int) $h['fiyat']; }, array_slice(self::salonHizmetleri($isletmeId), 0, 150)))
             . "\n\n# BULGULAR\n" . json_encode(array_slice($girdi, 0, 150), JSON_UNESCAPED_UNICODE);
-        [$j] = self::tekCagri($sistem, $metin, $sema, 5000);
+        [$j] = self::tekCagri($sistem, $metin, $sema, 6000);
         if (!$j) return;
         if (trim((string) ($j['rapor'] ?? '')) !== '') self::raporYaz($isletmeId, (string) $j['rapor']);
         foreach (array_slice((array) ($j['bilgi'] ?? []), 0, 5) as $b) {
             $soru = trim((string) ($b['soru'] ?? ''));
             if ($soru === '' || DB::table('wa_asistan_dersler')->where('isletme_id', $isletmeId)->where('tur', 'bilgi')->where('metin', $soru)->exists()) continue;
-            DB::table('wa_asistan_dersler')->insert(['isletme_id' => $isletmeId, 'tur' => 'bilgi', 'metin' => mb_substr($soru, 0, 300), 'gerekce' => mb_substr((string) ($b['not'] ?? ''), 0, 1000), 'durum' => 'oneri', 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('wa_asistan_dersler')->insert(['isletme_id' => $isletmeId, 'tur' => 'bilgi', 'metin' => mb_substr($soru, 0, 300), 'gerekce' => mb_substr((string) ($b['not'] ?? ''), 0, 1000),
+                'form' => json_encode(self::formTemizle($b), JSON_UNESCAPED_UNICODE), 'durum' => 'oneri', 'created_at' => now(), 'updated_at' => now()]);
         }
         foreach (array_slice((array) ($j['kod'] ?? []), 0, 3) as $k) {
             $bas = trim((string) ($k['baslik'] ?? ''));
@@ -550,6 +581,64 @@ T;
             Log::info('[WA-DENETCI] ortak ders', ['ders' => $metinD, 'durum' => $durum]);
         }
         Cache::forget('wa_dersler_' . self::ORTAK);
+    }
+
+    /** Salonun hizmetleri [['id','ad','fiyat']] (hizmet basina tek satir). */
+    public static function salonHizmetleri(int $salonId): array
+    {
+        $out = [];
+        foreach (DB::table('salon_sunulan_hizmetler as sh')->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')->where('sh.salon_id', $salonId)
+                     ->orderBy('h.hizmet_adi')->get(['sh.hizmet_id as id', 'h.hizmet_adi as ad', 'sh.son_fiyat as fiyat']) as $h) {
+            if (!isset($out[(int) $h->id])) $out[(int) $h->id] = ['id' => (int) $h->id, 'ad' => (string) $h->ad, 'fiyat' => (float) $h->fiyat];
+        }
+        return array_values($out);
+    }
+
+    /** Denetcinin bilgi sorusu cevap formu (saf). */
+    public static function formTemizle(array $b): array
+    {
+        $tip = in_array($b['tip'] ?? '', ['fiyat', 'evet_hayir', 'hizmet_sec', 'metin'], true) ? $b['tip'] : 'metin';
+        $kalem = [];
+        foreach (array_slice((array) ($b['kalemler'] ?? []), 0, 8) as $k) {
+            $ad = trim(mb_substr((string) ($k['ad'] ?? ''), 0, 120));
+            if ($ad === '') continue;
+            $f = (int) ($k['oneri_fiyat'] ?? 0);
+            $kalem[] = ['ad' => $ad, 'hizmet_id' => max(0, (int) ($k['hizmet_id'] ?? 0)), 'oneri_fiyat' => ($f > 0 && $f < 1000000) ? $f : 0];
+        }
+        $f = ['tip' => $tip];
+        if ($tip === 'fiyat') $f['kalemler'] = $kalem;
+        if ($tip === 'evet_hayir') { $f['evet'] = trim(mb_substr((string) ($b['evet_cevap'] ?? ''), 0, 300)); $f['hayir'] = trim(mb_substr((string) ($b['hayir_cevap'] ?? ''), 0, 300)); }
+        if ($tip === 'hizmet_sec') $f['ifade'] = trim(mb_substr((string) ($b['ifade'] ?? ''), 0, 60));
+        if (($tip === 'fiyat' && !$kalem) || ($tip === 'evet_hayir' && ($f['evet'] === '' || $f['hayir'] === '')) || ($tip === 'hizmet_sec' && $f['ifade'] === '')) $f = ['tip' => 'metin'];
+        return $f;
+    }
+
+    /**
+     * Panelde gosterilecek form (saf). Denetci formu yoksa (eski sorular) fiyat sorusu tahminle fiyat formuna cevrilir.
+     * Fiyat kalemine salondaki guncel fiyat eklenir; salonda olmayan hizmet_id sifirlanir.
+     */
+    public static function soruFormu(string $metin, ?string $formJson, array $hizmetler): array
+    {
+        $f = json_decode((string) $formJson, true);
+        if (!is_array($f) || empty($f['tip'])) {
+            $f = ['tip' => 'metin'];
+            if (WaBedavaKatman::fiyatSorusuMu($metin) || preg_match('/fiyat|ücret|ucret/iu', $metin)) {
+                $bul = WaBedavaKatman::hizmetBul($metin, $hizmetler);
+                if ($bul) $f = ['tip' => 'fiyat', 'kalemler' => array_map(function ($h) { return ['ad' => $h['ad'], 'hizmet_id' => (int) $h['id'], 'oneri_fiyat' => 0]; }, $bul)];
+            }
+        }
+        if ($f['tip'] === 'fiyat') {
+            $idx = [];
+            foreach ($hizmetler as $h) $idx[(int) $h['id']] = $h;
+            foreach ($f['kalemler'] as &$k) {
+                $h = $idx[(int) $k['hizmet_id']] ?? null;
+                if (!$h) { $k['hizmet_id'] = 0; $k['mevcut'] = 0; continue; }
+                $k['ad'] = $h['ad'];
+                $k['mevcut'] = (int) round((float) $h['fiyat']);
+            }
+            unset($k);
+        }
+        return $f;
     }
 
     /** Denetcinin isletmeye sade anlatimi (panelde "Denetçinin raporu"); dersler tablosunda tur=rapor, son 10 tutulur. */
@@ -660,7 +749,8 @@ T;
         $dersler = DB::table('wa_asistan_dersler')->where(function ($q) use ($isletmeId, $dersDurum) {
                 $q->where(function ($q) use ($isletmeId) { $q->where('isletme_id', $isletmeId)->whereIn('tur', ['bilgi', 'kod'])->whereIn('durum', ['oneri', 'kapali']); })
                   ->orWhere(function ($q) use ($dersDurum) { $q->where('isletme_id', self::ORTAK)->where('tur', 'davranis')->whereIn('durum', $dersDurum); });
-            })->orderByDesc('id')->limit(80)->get(['id', 'tur', 'metin', 'gerekce', 'durum', 'test', 'created_at']);
+            })->orderByDesc('id')->limit(80)->get(['id', 'tur', 'metin', 'gerekce', 'durum', 'test', 'form', 'created_at']);
+        $hiz = self::salonHizmetleri($isletmeId);
         return [
             'acik' => (int) ($ayar['denetci'] ?? 1), 'oto' => 1, // ortak beyin her zaman otomatik
             'puan' => $ort($bu, function ($d) { return (int) $d->puan; }), 'puan_once' => $ort($once, function ($d) { return (int) $d->puan; }),
@@ -674,7 +764,12 @@ T;
                     'sorunlar' => array_map(function ($s) { return ['tur' => self::SORUN_AD[$s['tur'] ?? ''] ?? '', 'aciklama' => $s['aciklama'] ?? '', 'dogrusu' => $s['daha_iyi_cevap'] ?? '']; }, (array) json_decode($d->sorunlar ?: '[]', true)),
                     'tarih' => $d->created_at];
             })->values()->all(),
-            'dersler' => $dersler->map(function ($x) { $x->test = json_decode($x->test ?: 'null', true); return $x; })->values()->all(),
+            'dersler' => $dersler->map(function ($x) use ($hiz) {
+                $x->test = json_decode($x->test ?: 'null', true);
+                $x->form = $x->tur === 'bilgi' ? self::soruFormu((string) $x->metin, $x->form, $hiz) : null;
+                return $x;
+            })->values()->all(),
+            'hizmetler' => array_map(function ($h) { return ['id' => $h['id'], 'ad' => $h['ad']]; }, $hiz),
             'rapor' => DB::table('wa_asistan_dersler')->where('isletme_id', $isletmeId)->where('tur', 'rapor')->orderByDesc('id')->first(['metin', 'created_at']),
             'bekleyen_is' => DB::table('wa_denetim')->where('isletme_id', $isletmeId)->where('durum', 'bekliyor')->count(),
         ];

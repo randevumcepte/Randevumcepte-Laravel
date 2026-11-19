@@ -325,7 +325,7 @@ class WaAsistanPanelController extends StoreAdminController
         $p = WaDenetci::panel($sid, $biz);
         if (!$biz) {
             // salon yalniz kendi bilgi sorularini gorur; egitim (ders/puan/inceleme) sistem yoneticisinin
-            $p = ['biz' => 0, 'dersler' => array_values(array_filter($p['dersler'], function ($d) { return $d->tur === 'bilgi' && $d->durum === 'oneri'; }))];
+            $p = ['biz' => 0, 'hizmetler' => $p['hizmetler'], 'dersler' => array_values(array_filter($p['dersler'], function ($d) { return $d->tur === 'bilgi' && $d->durum === 'oneri'; }))];
         }
         return response()->json(['ok' => 1, 'biz' => $biz ? 1 : 0] + $p);
     }
@@ -352,13 +352,36 @@ class WaAsistanPanelController extends StoreAdminController
         return response()->json(['ok' => $n ? 1 : 0]);
     }
 
-    /** Bilgi eksigi: isletmenin cevabi "Öğrenilen Cevaplar"a yazilir (asistan sonra bedava cevaplar); bos = yoksay. */
+    /**
+     * Bilgi eksigi cevabi. tip=fiyat: fiyatlar [{hizmet_id, fiyat}] dogrudan hizmet listesine (son_fiyat) yazilir;
+     * tip=hizmet_sec: musterinin ifadesi o hizmete baglanir (wa_hizmet_esanlam); digerleri "Öğrenilen Cevaplar"a. bos = yoksay.
+     */
     public function bilgiCevapla(Request $request, $id)
     {
         $sid = $this->salon($request);
         if (!$sid) return $this->yok();
         $d = DB::table('wa_asistan_dersler')->where('id', (int) $id)->where('isletme_id', $sid)->whereIn('tur', ['bilgi', 'kod'])->first();
         if (!$d) return response()->json(['ok' => 0]);
+        if ($d->tur === 'bilgi' && $request->input('tip') === 'fiyat') {
+            $n = 0;
+            foreach ((array) $request->input('fiyatlar', []) as $x) {
+                $hid = (int) ($x['hizmet_id'] ?? 0); $fiyat = (float) str_replace(',', '.', (string) ($x['fiyat'] ?? ''));
+                if ($hid < 1 || $fiyat <= 0 || $fiyat >= 1000000) continue;
+                $n += DB::table('salon_sunulan_hizmetler')->where('salon_id', $sid)->where('hizmet_id', $hid)->update(['son_fiyat' => $fiyat]);
+            }
+            if (!$n) return response()->json(['ok' => 0, 'hata' => 'En az bir fiyat yazın.']);
+            \Illuminate\Support\Facades\Cache::forget('santral_salon_bilgi:' . $sid);
+            DB::table('wa_asistan_dersler')->where('id', $d->id)->update(['durum' => 'cevaplandi', 'updated_at' => now()]);
+            return response()->json(['ok' => 1, 'mesaj' => 'Fiyatlar hizmet listenize kaydedildi. Asistan artık bu fiyatları söyler.']);
+        }
+        if ($d->tur === 'bilgi' && $request->input('tip') === 'hizmet_sec') {
+            $hid = (int) $request->input('hizmet_id');
+            $ifade = \App\Http\Controllers\Api\AiAsistanController::esanlamAnahtar((string) (json_decode($d->form ?: '{}', true)['ifade'] ?? ''));
+            if ($ifade === '' || !DB::table('salon_sunulan_hizmetler')->where('salon_id', $sid)->where('hizmet_id', $hid)->exists()) return response()->json(['ok' => 0, 'hata' => 'Bir hizmet seçin.']);
+            DB::table('wa_hizmet_esanlam')->updateOrInsert(['salon_id' => $sid, 'ifade' => mb_substr($ifade, 0, 120)], ['hizmet_id' => $hid, 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('wa_asistan_dersler')->where('id', $d->id)->update(['durum' => 'cevaplandi', 'updated_at' => now()]);
+            return response()->json(['ok' => 1, 'mesaj' => 'Öğrendim. Müşteri bunu yazınca bu hizmetten randevu veririm.']);
+        }
         $cevap = trim(mb_substr((string) $request->input('cevap', ''), 0, 1000));
         if ($d->tur === 'bilgi' && $cevap !== '') WaBedavaKatman::ogren($sid, (string) $d->metin, $cevap);
         DB::table('wa_asistan_dersler')->where('id', $d->id)->update(['durum' => $cevap !== '' ? 'cevaplandi' : 'kapali', 'updated_at' => now()]);

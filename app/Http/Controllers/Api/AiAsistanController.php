@@ -545,7 +545,19 @@ class AiAsistanController extends Controller
         }
 
         $normMetin = self::halkDili(self::normalizeTr($metin));
-        $metinKelime = array_values(array_filter(explode(' ', $normMetin), function ($w) {
+
+        // 0) Salonun ogrettigi ifade ("Asistan size soruyor" > hizmet secimi): en uzun eslesen ifade kazanir
+        try {
+            $ara = ' ' . $normMetin . ' ';
+            $esan = DB::table('wa_hizmet_esanlam')->where('salon_id', $salonId)->get(['ifade', 'hizmet_id'])
+                ->filter(function ($e) use ($ara) { return $e->ifade !== '' && strpos($ara, ' ' . $e->ifade . ' ') !== false; })
+                ->sortByDesc(function ($e) { return strlen($e->ifade); })->first();
+            if ($esan && ($h = $hizmetler->firstWhere('id', (int) $esan->hizmet_id))) {
+                return response()->json(['ok' => true, 'eslesme' => 'tek', 'hizmet' => ['id' => (int) $h->id, 'ad' => $h->ad]]);
+            }
+        } catch (\Throwable $e) {} // tablo henuz yok
+
+        $metinKelime =array_values(array_filter(explode(' ', $normMetin), function ($w) {
             return mb_strlen($w) >= 2; // "ve", "de" gibi çok kısa parçaları atma dışında filtre
         }));
 
@@ -716,6 +728,12 @@ class AiAsistanController extends Controller
      * hizmet "Kalıcı Oje Çıkarma" bulunamadi. Tirnak baglaminda kaldir/sil/sok/aldir = cikarma; "kas aldirma" gibi
      * baska hizmetlere dokunmaz (yalniz oje/jel/protez/tirnak... geciyorsa).
      */
+    /** wa_hizmet_esanlam anahtari: musterinin ifadesi, hizmetEslestir'deki ayni normalizasyonla. */
+    public static function esanlamAnahtar(string $s): string
+    {
+        return self::halkDili(self::normalizeTr($s));
+    }
+
     public static function halkDili(string $norm): string
     {
         $k = explode(' ', $norm);
