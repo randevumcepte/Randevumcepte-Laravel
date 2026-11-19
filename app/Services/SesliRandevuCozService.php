@@ -737,22 +737,27 @@ class SesliRandevuCozService
         if (!$personelId) {
             return [];
         }
+        // 2 = salon iptal, 3 = musteri iptal / kabul edilmedi: ikisi de saati DOLDURMAZ (eskiden yalniz 2 haricti;
+        // iptal edilen/reddedilen randevu bos saati "dolu" gosteriyordu, asistan istenen saati vermiyordu — 2026-11-19).
+        // Aralik personelin KENDI hizmet satirindan (rh.saat/saat_bitis): cok hizmetli randevuda baska uzmanin
+        // hizmet suresi bu uzmani dolu gostermesin; satirda saat yoksa randevunun saati.
         $rows = DB::table('randevu_hizmetler as rh')
             ->join('randevular as r', 'rh.randevu_id', '=', 'r.id')
             ->where('rh.personel_id', $personelId)
             ->where('r.tarih', $tarih)
-            ->where('r.durum', '!=', 2) // 2 = iptal
-            ->select('r.saat', 'r.saat_bitis', 'rh.sure_dk')
+            ->whereNotIn('r.durum', [2, 3])
+            ->select('r.saat', 'r.saat_bitis', 'rh.saat as rh_saat', 'rh.saat_bitis as rh_saat_bitis', 'rh.sure_dk')
             ->get();
 
         $araliklar = [];
         foreach ($rows as $row) {
-            $bas = $this->hiToDk($row->saat);
+            $kendi = $this->hiToDk($row->rh_saat);
+            $bas = $kendi !== null ? $kendi : $this->hiToDk($row->saat);
             if ($bas === null) {
                 continue;
             }
-            $bit = $this->hiToDk($row->saat_bitis);
-            if ($bit === null) {
+            $bit = $kendi !== null ? $this->hiToDk($row->rh_saat_bitis) : $this->hiToDk($row->saat_bitis);
+            if ($bit === null || $bit <= $bas) {
                 $bit = $bas + ((int) $row->sure_dk ?: 30);
             }
             $araliklar[] = [$bas, $bit];
