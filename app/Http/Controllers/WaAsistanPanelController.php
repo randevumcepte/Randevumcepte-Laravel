@@ -22,13 +22,20 @@ use Illuminate\Support\Facades\DB;
 /**
  * Isletme paneli > WhatsApp Asistanı: Kazandirdiklari raporu, sohbetler (devral / asistana geri ver),
  * kacan & geri kazanilan musteriler, fotograf fiyat kurallari, ogrenilen cevaplar, ayarlar.
- * Yalniz salon yoneticileri (rol < 5) — StoreAdminController::asistanGorusmeSalon ile ayni kapi.
+ * Yalniz rol 1, 2, 3 (kullanici_rolu / model_has_roles.role_id) — isletme istegi 2026-11-19. Web + mobil ayni kapi.
  */
 class WaAsistanPanelController extends StoreAdminController
 {
+    /** WhatsApp Asistani sayfasini gorebilen roller (web + mobil). */
+    const IZINLI_ROLLER = [1, 2, 3];
+
     protected function salon(Request $request): ?int
     {
-        return $this->asistanGorusmeSalon($request);
+        $sid = $this->asistanGorusmeSalon($request);
+        if (!$sid) return null;
+        $yetkili = $this->asistanGorusmeYetkili();
+        if (!$yetkili || !in_array((int) self::kullaniciRolu($sid, $yetkili->id), self::IZINLI_ROLLER, true)) return null;
+        return $sid;
     }
 
     protected function yok()
@@ -44,7 +51,7 @@ class WaAsistanPanelController extends StoreAdminController
         if (str_contains(self::lisans_sure_kontrol($request), '-')) return view('isletmeadmin.lisanssurebitti', ['isletme' => $isletme]);
         if (count($isletmeler) > 1 && !isset($_GET['sube'])) return view('isletmeadmin.isletmesec', ['isletmeler' => $isletmeler, 'isletme' => $isletme]);
         $rol = self::kullaniciRolu($isletme->id, Auth::guard('isletmeyonetim')->user()->id);
-        if ($rol >= 5) return view('isletmeadmin.yetkisizerisim');
+        if (!in_array((int) $rol, self::IZINLI_ROLLER, true)) return view('isletmeadmin.yetkisizerisim');
 
         WaAsistanVeri::semaGaranti();
         WaGeriKazanim::semaGaranti();

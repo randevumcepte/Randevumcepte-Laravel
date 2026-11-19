@@ -2304,7 +2304,8 @@
                      </a>
                   </li>
                   {{-- 19b) WhatsApp Asistanı (AI) — yalniz asistani acik isletmeler --}}
-                  @php try { $_waAsistanAcik = \App\Services\WaAsistan::acikMi((int) $isletme->id); } catch (\Throwable $e) { $_waAsistanAcik = false; } @endphp
+                  @php try { $_waAsistanAcik = \App\Services\WaAsistan::acikMi((int) $isletme->id)
+                        && in_array((int) \DB::table('model_has_roles')->where('model_id', Auth::guard('isletmeyonetim')->id())->where('salon_id', $isletme->id)->value('role_id'), \App\Http\Controllers\WaAsistanPanelController::IZINLI_ROLLER, true); } catch (\Throwable $e) { $_waAsistanAcik = false; } @endphp
                   @if($_waAsistanAcik)
                   <li>
                      <a href="/isletmeyonetim/whatsapp-asistan{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow {{ $pageindex==652 ? 'active' : '' }}">

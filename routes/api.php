@@ -656,7 +656,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::post('/geri-arandi/{id}',    'StoreAdminController@santralAsistanGeriArandi')->where('id', '[0-9]+');
     });
 
-    // WhatsApp Asistani (mobil: Diger > WhatsApp Asistani; web /isletmeyonetim/whatsapp-asistan ile ayni metodlar, sube zorunlu, rol < 5)
+    // WhatsApp Asistani (mobil: Diger > WhatsApp Asistani; web /isletmeyonetim/whatsapp-asistan ile ayni metodlar, sube zorunlu, yalniz rol 1-2-3)
     Route::prefix('wa-asistan')->middleware('auth:isletmeyonetim-api')->group(function () {
         Route::get ('/durum',                 'WaAsistanMobilController@durum');
         Route::get ('/baslangic',             'WaAsistanMobilController@baslangic');

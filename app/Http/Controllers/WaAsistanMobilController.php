@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 
 /**
  * Mobil uygulama (Bearer, auth:isletmeyonetim-api) > WhatsApp Asistanı.
- * Web paneliyle (WaAsistanPanelController) AYNI metodlar ve ayni yetki kapisi (asistanGorusmeSalon: rol < 5, sube zorunlu).
+ * Web paneliyle (WaAsistanPanelController) AYNI metodlar ve ayni yetki kapisi (salon(): yalniz rol 1-2-3, sube zorunlu).
  *
  * Constructor bilerek BOS: StoreAdminController::__construct web oturum (session) kapisi kurar; api grubunda session
  * olmadigi icin her istek 401 session_expired yerdi. Kimligi route'taki auth:isletmeyonetim-api dogrular.
