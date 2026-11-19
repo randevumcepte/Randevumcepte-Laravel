@@ -36,9 +36,10 @@ class WhatsAppService
         'ders_bekleme_terfi',        // bekleme listesinden yer acildi bildirimi
         'ders_bildirim',             // ders genel bildirim (varsayilan tip)
         'ders_kalan_uyari',          // "N dersiniz kaldi" paket bitis/yeniden satis uyarisi
+        'wa_asistan',                // WhatsApp asistani (AI chatbot) cevaplari: WhatsApp kredisi kapsami disi
     ];
 
-    /** WhatsApp asistaninin (gelen mesaja AI cevabi) gonderim tipi. Kontor DUSER; gunluk limitten sayilmaz. */
+    /** WhatsApp asistaninin (gelen mesaja AI cevabi) gonderim tipi. Kontorden MUAF; gunluk limitten sayilmaz. */
     const ASISTAN_TIPI = 'wa_asistan';
 
     /** Bu gönderim tipi kontörden muaf (ücretsiz) mi? */
@@ -259,9 +260,8 @@ class WhatsAppService
         if ($tel && \App\Services\KaraListeServisi::engelliMi($salon->id, $tel, null, self::ASISTAN_TIPI)) {
             return ['ok' => false, 'error' => 'kara-liste'];
         }
-        if (\App\Services\KontorServisi::kontorlusDonemMi($salon) && !\App\Services\KontorServisi::yeterliMi($salon, 1)) {
-            return ['ok' => false, 'error' => 'kontor-yetersiz'];
-        }
+        // WhatsApp kredisi (kontor) kapsami DISI: asistan cevaplari kontor istemez/dusmez
+        // (asistanin kendi paketi WaPaket ile sayilir).
         $logId = $this->logPending($kaynakSalonId, null, null, $tel ?: mb_substr($hedef, 0, 30), $mesaj, 'baileys', self::ASISTAN_TIPI);
         $response = $this->request('POST', "/session/{$salon->id}/send", [
             'to' => $hedef,
@@ -272,7 +272,6 @@ class WhatsAppService
             'urgent' => true,
         ]);
         if (($response['status'] ?? 0) === 202) {
-            \App\Services\KontorServisi::dus($salon, 1, 'whatsapp:' . self::ASISTAN_TIPI);
             return ['ok' => true, 'queued' => true, 'logId' => $logId];
         }
         $err = $response['error'] ?? ($response['body']['error'] ?? 'unknown');
