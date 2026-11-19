@@ -117,23 +117,34 @@ class WaAsistan
     /** Asistanin cevap vermeyecegi numaralar: personel, yetkili, .env listesi. */
     protected static function haricMi(int $salonId, string $tel): bool
     {
-        $liste = Cache::remember("wa_asistan_haric_{$salonId}", 10, function () use ($salonId) {
-            $out = [];
-            foreach (preg_split('/[\s,;]+/', (string) self::ayar('haric', '')) as $n) {
-                if ($n = self::tel($n)) $out[] = $n;
-            }
-            try {
-                $salonlar = DB::table('salonlar')->where('whatsapp_paylasilan_salon_id', $salonId)->pluck('id')->push($salonId)->all();
-                foreach (DB::table('salon_personelleri')->whereIn('salon_id', $salonlar)->pluck('cep_telefon') as $n) {
-                    if ($n = self::tel($n)) $out[] = $n;
-                }
-                foreach (DB::table('salonlar')->whereIn('id', $salonlar)->pluck('yetkili_telefon') as $n) {
-                    if ($n = self::tel($n)) $out[] = $n;
-                }
-            } catch (\Throwable $e) {}
-            return array_values(array_unique($out));
+        $liste = Cache::remember("wa_asistan_haric2_{$salonId}", 10, function () use ($salonId) {
+            return array_keys(self::haricListesi($salonId));
         });
         return in_array($tel, $liste, true);
+    }
+
+    /**
+     * [telefon => neden] — asistanin cevap vermedigi numaralar. Yalniz AKTIF personel (isten ayrilan personelin numarasi
+     * musteri olarak yazabilir; eskiden pasif personel de haricti ve mesaj hic kaydedilmiyordu — 2026-11-19).
+     */
+    public static function haricListesi(int $salonId): array
+    {
+        $out = [];
+        foreach (preg_split('/[\s,;]+/', (string) self::ayar('haric', '')) as $n) {
+            if ($n = self::tel($n)) $out[$n] = 'Asistan ayarlarındaki hariç numara listesinde';
+        }
+        try {
+            $salonlar = DB::table('salonlar')->where('whatsapp_paylasilan_salon_id', $salonId)->pluck('id')->push($salonId)->all();
+            $pq = DB::table('salon_personelleri')->whereIn('salon_id', $salonlar);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('salon_personelleri', 'aktif')) $pq->where('aktif', 1);
+            foreach ($pq->get(['cep_telefon', 'personel_adi']) as $p) {
+                if ($n = self::tel($p->cep_telefon)) $out[$n] = 'Personel numarası (' . trim((string) $p->personel_adi) . ')';
+            }
+            foreach (DB::table('salonlar')->whereIn('id', $salonlar)->get(['yetkili_telefon', 'salon_adi']) as $s) {
+                if ($n = self::tel($s->yetkili_telefon)) $out[$n] = 'İşletme yetkili telefonu (' . trim((string) $s->salon_adi) . ')';
+            }
+        } catch (\Throwable $e) {}
+        return $out;
     }
 
     // ------------------------------------------------------------------ webhook girisleri
@@ -184,6 +195,11 @@ class WaAsistan
         if ($mid !== '' && !Cache::add('wa_asistan_mid_' . $mid, 1, 60)) return ['tip' => 'tekrar'];
         if ($tel && self::haricMi($salonId, $tel)) {
             Log::info('[WA-ASISTAN] haric numara, cevap yok', ['salon' => $salonId, 'tel' => $tel]);
+            // Teshis icin iz (panel "Numara kontrol"): islenmez, 7 gunde silinir
+            try {
+                DB::table('wa_asistan_gelen')->insert(['salon_id' => $salonId, 'anahtar' => $anahtar, 'jid' => $jid ?: null, 'telefon' => $tel,
+                    'ad' => mb_substr((string) ($p['pushName'] ?? ''), 0, 100) ?: null, 'metin' => mb_substr($metin, 0, 1000), 'islem' => 'haric', 'created_at' => now()]);
+            } catch (\Throwable $e) {}
             return ['tip' => 'haric'];
         }
 

@@ -1065,7 +1065,20 @@
       el('waSohbetListe').innerHTML = '<div class="wa-bos">Yükleniyor…</div>';
       al('/sohbetler', { baslangic: el('waBas').value, bitis: el('waBit').value, q: el('waAra').value }).then(function (r) {
          if (!r.ok) { el('waSohbetListe').innerHTML = '<div class="wa-bos">' + esc(r.hata || '') + '</div>'; return; }
-         if (!r.liste.length) { el('waSohbetListe').innerHTML = '<div class="wa-bos">Bu tarihlerde sohbet yok.</div>'; return; }
+         if (!r.liste.length) {
+            var araT = el('waAra').value.replace(/\D/g, '');
+            el('waSohbetListe').innerHTML = '<div class="wa-bos">' + (el('waAra').value ? 'Bu aramayla sohbet bulunamadı.' : 'Bu tarihlerde sohbet yok.') + '</div>';
+            // Telefonla aranip bulunamadiysa: neden? (hariç numara / mesaj hic gelmedi / islenemedi)
+            if (araT.length >= 10) al('/numara-kontrol', { tel: araT }).then(function (k) {
+               if (!k.ok) return;
+               el('waSohbetListe').innerHTML = '<div class="wa-kart" style="box-shadow:none;border:1px solid #eadff7;padding:12px;font-size:13.5px;line-height:1.55">'
+                  + '<b>Numara kontrolü</b><ul style="margin:6px 0 6px 18px;padding:0">' + k.neden.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>'
+                  + (k.gelen.length ? '<div style="color:#64748b">Son gelen mesajlar:</div>' + k.gelen.map(function (g) { return '<div style="color:#475569">' + tarih(g.tarih) + ' — ' + esc(g.metin) + ' <i>(' + esc(g.durum) + ')</i></div>'; }).join('') : '')
+                  + (k.giden_14g ? '<div style="color:#64748b;margin-top:4px">Son 14 günde bu numaraya sistemden ' + k.giden_14g + ' mesaj gitti.</div>' : '')
+                  + '</div>';
+            }).catch(function () {});
+            return;
+         }
          el('waSohbetListe').innerHTML = r.liste.map(function (x) { return konusmaSatiri(x); }).join('');
          // Acik sohbet yoksa en sonuncusu acilir (sag taraf bos kalmasin); aciksa listede secili gorunur
          var acik = el('waSohbetDetay').dataset.acik, satir = acik && document.querySelector('#waSohbetListe [data-sohbet="' + acik + '"]');

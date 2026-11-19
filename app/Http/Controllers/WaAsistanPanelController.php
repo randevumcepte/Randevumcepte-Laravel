@@ -446,6 +446,47 @@ class WaAsistanPanelController extends StoreAdminController
         return $out;
     }
 
+    /**
+     * "Bu numara yazdı ama cevap yok / görünmüyor": numaranin asistandaki izini cikarir.
+     * Hariç mi (personel/yetkili), son 7 gunde gelen mesaj var mi (islendi mi), sohbeti var mi, giden mesajlar.
+     */
+    public function numaraKontrol(Request $request)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        $rak = preg_replace('/\D/', '', (string) $request->input('tel'));
+        if (strlen($rak) < 10) return response()->json(['ok' => 0, 'hata' => 'Telefon numarasını tam yazın (ör. 0546 691 73 93).']);
+        $son10 = substr($rak, -10);
+        $salonlar = DB::table('salonlar')->where('whatsapp_paylasilan_salon_id', $sid)->pluck('id')->push($sid)->unique()->values()->all();
+        $haric = null;
+        foreach (WaAsistan::haricListesi($sid) as $n => $neden) if (substr($n, -10) === $son10) { $haric = $neden; break; }
+        $gelen = DB::table('wa_asistan_gelen')->whereIn('salon_id', $salonlar)->where('telefon', 'like', '%' . $son10)
+            ->orderByDesc('id')->limit(15)->get(['metin', 'islem', 'created_at', 'anahtar']);
+        $oturumlar = DB::table('wa_asistan_oturumlari')->where('isletme_id', $sid)
+            ->where(function ($w) use ($son10) { $w->where('telefon', 'like', '%' . $son10)->orWhere('musteri_tel', 'like', '%' . $son10)->orWhere('anahtar', 'like', '%' . $son10 . '%'); })
+            ->orderByDesc('id')->limit(5)->get(['id', 'son_mesaj_at', 'insan_devraldi', 'sessiz_bitis', 'sessiz_neden', 'durum']);
+        $giden = DB::table('whatsapp_gonderim_loglari')->whereIn('salon_id', $salonlar)->where('telefon', 'like', '%' . $son10)
+            ->where('created_at', '>=', now()->subDays(14))->count();
+
+        $neden = [];
+        if ($haric) $neden[] = "Bu numara asistanın cevap vermediği listede: {$haric}. Asistan personel/yetkili numaralarına cevap vermez ve bu yazışmalar panelde sohbet olarak görünmez.";
+        if ($oturumlar->count()) {
+            $o = $oturumlar->first();
+            if ($o->sessiz_bitis && strtotime($o->sessiz_bitis) > time()) $neden[] = 'Sohbet var ama asistan susturulmuş (' . ($o->sessiz_neden ?: '—') . ', ' . $o->sessiz_bitis . '\'e kadar).';
+            elseif ($o->insan_devraldi) $neden[] = 'Sohbet var; personel WhatsApp\'tan yazdığı için asistan o sohbette susmuştu.';
+            else $neden[] = 'Sohbet panelde var (son mesaj ' . $o->son_mesaj_at . '). Sohbetler\'de arayınca açılır.';
+        }
+        $bekleyen = $gelen->filter(function ($g) { return $g->islem === null && strtotime($g->created_at) < time() - 120; })->count();
+        if ($bekleyen) $neden[] = "{$bekleyen} mesaj geldi ama işlenemedi (sunucu hatası). Bize iletin.";
+        if (!$haric && !$oturumlar->count() && !$gelen->count()) {
+            $neden[] = 'Son 7 günde bu numaradan sisteme HİÇ mesaj ulaşmadı. Olası nedenler: müşteri sesli mesaj / video / belge gönderdi (köprü güncellenene kadar bu mesajlar iletilmiyor), '
+                . 'başka bir WhatsApp numaranıza yazdı ya da numara gizli kimlikle (LID) geldi ve adıyla kayıtlı olabilir — Sohbetler\'de adıyla arayın.';
+        }
+        return response()->json(['ok' => 1, 'neden' => $neden, 'giden_14g' => $giden,
+            'gelen' => $gelen->map(function ($g) { return ['tarih' => $g->created_at, 'metin' => mb_substr((string) $g->metin, 0, 140), 'durum' => $g->islem === 'haric' ? 'hariç (cevap yok)' : ($g->islem ? 'işlendi' : 'bekliyor')]; })->values(),
+            'oturumlar' => $oturumlar->pluck('id')]);
+    }
+
     /** "Test bildirimi gönder": talep bildirimiyle ayni yoldan (zil + yoneticilerin telefonu) deneme gonderir, kime ulastigini dondurur. */
     public function testBildirim(Request $request)
     {
