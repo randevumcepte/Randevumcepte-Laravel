@@ -35137,12 +35137,9 @@ DB::raw('
         }
 
         // TELEFON modu (mobil): kullanicinin ne Bria dahilisi ne uygulama softphone'u var ->
-        // numara cihazin kendi telefon uygulamasiyla aranir. Numara cihaza GIDECEGI icin
-        // 'musteri.telefon_gor' yetkisi sart (maskeli personel numarayi bu yolla goremez).
+        // numara SISTEMDEN alinip cihazin kendi telefon uygulamasiyla aranir. Ekrandaki
+        // telefon maskelemesi (musteri.telefon_gor) aramayi ENGELLEMEZ (bilincli karar).
         if (filter_var($request->input('telefon_ile'), FILTER_VALIDATE_BOOLEAN)) {
-            if (!\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($this->cmAuthId(), $salonId, 'musteri.telefon_gor')) {
-                return response()->json(['success' => false, 'message' => 'Müşteri numarası size gizli; arama için yöneticinizden dahili tanımlamasını isteyin.'], 403);
-            }
             if ((int) $kayit->durum === 3) {
                 if (Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at')) {
                     $kayit->ar_tamamlandi_at = date('Y-m-d H:i:s');
@@ -35247,12 +35244,9 @@ DB::raw('
             ]);
         }
 
-        // TELEFON modu (mobil, dahilisi olmayan kullanici): numara cihazin telefon
-        // uygulamasina verilir -> 'musteri.telefon_gor' yetkisi sart (KVKK).
+        // TELEFON modu (mobil, dahilisi olmayan kullanici): numara SISTEMDEN (user_id)
+        // alinip cihazin telefon uygulamasina verilir; maskeleme aramayi engellemez.
         if (filter_var($request->input('telefon_ile'), FILTER_VALIDATE_BOOLEAN)) {
-            if (!\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($this->cmAuthId(), $salonId, 'musteri.telefon_gor')) {
-                return response()->json(['success' => false, 'message' => 'Müşteri numarası size gizli; arama için yöneticinizden dahili tanımlamasını isteyin.'], 403);
-            }
             return response()->json([
                 'success'     => true,
                 'telefon_ile' => true,
