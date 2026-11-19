@@ -427,6 +427,12 @@ namespace {
     esit('kart serisi: tek başına çözülen %', [100, 50, 100], $s['cozulen']);
     esit('kart serisi: geri kazanılan', [0, 0, 1], $s['geri_kazanim']);
     esit('kart serisi: fotoğrafa fiyat (tarihsiz kayıt sayılmaz)', [0, 0, 0], $s['gorsel']);
+    // Olcum kaydi olmayan (eski) randevu: sohbetin randevu_id'sinden, son mesaj gunune
+    $v2 = $v; $v2['cevaplar'] = []; $v2['oturumlar'] = [['randevu_id' => 100, 'son_mesaj_at' => '2026-11-11 15:00:00'] + $v['oturumlar'][0]];
+    $s2 = WaAsistanRapor::seri($v2, '2026-11-10 00:00:00', '2026-11-13 00:00:00', 'gun');
+    esit('cevap kaydı olmayan randevu da grafikte', [0.0, 800.0, 0.0], $s2['tutar']);
+    esit('cevap kaydı olmayan randevu: randevu sayısı', [0, 1, 0], $s2['randevu']);
+    esit('kart ile grafik aynı toplam', WaAsistanRapor::ozetHesapla($v2)['randevu']['tutar'], array_sum($s2['tutar']));
 
     baslik('Entegrasyon: ayarlar');
     $T = &Illuminate\Support\Facades\DB::$t;

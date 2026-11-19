@@ -120,22 +120,32 @@ class WaAsistanRapor
             if (($o['sonuc'] ?? null) === 'aktar') $aktar[$k]++;
             if ($o['memnuniyet'] !== null && $o['memnuniyet'] !== '') { if ((int) $o['memnuniyet'] === 1) $memnun[$k]++; else $memnunDegil[$k]++; }
         }
-        $sayilan = [];
+        // Asistanin aldigi randevular ozetHesapla ile AYNI kaynaktan: cevap kaydi (aksiyon=randevu) + sohbetin randevu_id'si.
+        // Cevap kaydi olmayan (olcum oncesi) randevu sohbetin son mesaj gunune yazilir (kartta var, grafikte de olsun).
+        $rGun = [];
         foreach ($v['cevaplar'] as $c) {
             $k = date($fmt, strtotime($c['created_at']));
+            if ($c['aksiyon'] === 'randevu' && !empty($c['randevu_id']) && !isset($rGun[(int) $c['randevu_id']])) {
+                $rGun[(int) $c['randevu_id']] = ['k' => $k, 'mesai' => (int) $c['mesai_disi'] === 1];
+            }
             if (!isset($bos[$k])) continue;
             if ($c['kaynak'] !== 'geri_kazanim') $cevap[$k]++;
             if ($c['kaynak'] !== 'geri_kazanim' && $c['sure_sn'] !== null) $sureler[$k][] = (int) $c['sure_sn'];
-            if ($c['aksiyon'] === 'randevu' && !empty($c['randevu_id']) && !isset($sayilan[$c['randevu_id']])) {
-                $sayilan[$c['randevu_id']] = 1;
-                $x = $rnd[(int) $c['randevu_id']] ?? null;
-                if ($x && !empty($x['iptal'])) continue;
-                $randevu[$k]++;
-                if ($x && !empty($x['yeni'])) $yeni[$k]++;
-                $tl = $x ? (float) $x['tutar'] : 0.0;
-                $tutar[$k] += $tl;
-                if ((int) $c['mesai_disi'] === 1) $mesaiTutar[$k] += $tl;
-            }
+        }
+        foreach ($v['oturumlar'] as $o) {
+            if (empty($o['randevu_id']) || isset($rGun[(int) $o['randevu_id']])) continue;
+            $rGun[(int) $o['randevu_id']] = ['k' => date($fmt, strtotime($o['son_mesaj_at'] ?: $o['created_at'])), 'mesai' => false];
+        }
+        foreach ($rGun as $rid => $g) {
+            $k = $g['k'];
+            if (!isset($bos[$k])) continue;
+            $x = $rnd[$rid] ?? null;
+            if ($x && !empty($x['iptal'])) continue;
+            $randevu[$k]++;
+            if ($x && !empty($x['yeni'])) $yeni[$k]++;
+            $tl = $x ? (float) $x['tutar'] : 0.0;
+            $tutar[$k] += $tl;
+            if ($g['mesai']) $mesaiTutar[$k] += $tl;
         }
         foreach ($v['gorseller'] ?? [] as $g) {
             if (empty($g['created_at']) || ($g['durum'] ?? '') !== 'fiyat') continue;
