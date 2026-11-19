@@ -243,6 +243,19 @@ class WaAsistanRapor
         $roiTaban = $kazanc > 0 ? $kazanc : $beklenen;
         $cozulen = $yazisma ? $yazisma - count(array_filter($otr, function ($o) { return $o['sonuc'] === 'aktar'; })) : 0;
 
+        // --- kartlar: her kartin TL'si (sohbetlerden alinan, iptal olmayan randevular) + asistanin yazdigi mesaj sayisi
+        $otTutar = []; $otMesaj = [];
+        foreach ($asistanRandevu as $rid => $oid) {
+            $x = $rnd[$rid] ?? null;
+            if ($x && !$x['iptal']) $otTutar[$oid] = ($otTutar[$oid] ?? 0) + (float) $x['tutar'];
+        }
+        foreach ($cev as $c) if (!empty($c['oturum_id'])) $otMesaj[(int) $c['oturum_id']] = ($otMesaj[(int) $c['oturum_id']] ?? 0) + 1;
+        $kartTopla = function ($kosul) use ($otr, $otTutar, $otMesaj) {
+            $t = 0.0; $m = 0;
+            foreach ($otr as $o) if ($kosul($o)) { $t += $otTutar[(int) $o['id']] ?? 0; $m += $otMesaj[(int) $o['id']] ?? 0; }
+            return ['tutar' => round($t, 2), 'mesaj' => $m];
+        };
+
         return [
             'cevap' => [
                 'toplam' => $toplamCevap, 'ucretsiz' => $toplamCevap - $ai, 'ai' => $ai,
@@ -266,6 +279,12 @@ class WaAsistanRapor
             'kazanc' => [
                 'gerceklesen' => round($kazanc, 2), 'beklenen' => round($beklenen, 2), 'mesai_disi' => round($r['mesai_disi_tutar'], 2),
                 'paket_ucret' => $paketUcret, 'kat' => ($paketUcret > 0 && $roiTaban > 0) ? round($roiTaban / $paketUcret, 1) : null,
+            ],
+            'kart' => [
+                'geri_kazanim' => $kartTopla(function ($o) { return !empty($o['geri_kazanim_id']); }),
+                'fiyat' => $kartTopla(function ($o) { return !empty($o['fiyat_verildi']); }),
+                'cozulen' => $kartTopla(function ($o) { return $o['sonuc'] !== 'aktar'; }),
+                'gorsel' => $kartTopla(function ($o) use ($gorselOturum) { return isset($gorselOturum[(int) $o['id']]); }),
             ],
             'populer_hizmet' => array_slice($hizmetSay, 0, 5, true),
             'yogun_saat' => array_slice($saatler, 0, 3, true),

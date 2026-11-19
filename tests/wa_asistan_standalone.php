@@ -395,7 +395,11 @@ namespace {
     esit('görsel: fiyat verilen / randevu / önbellek', [2, 1, 1], [$o['gorsel']['fiyat_verildi'], $o['gorsel']['randevu'], $o['gorsel']['onbellek']]);
     esit('huni', ['yazdi' => 5, 'bilgi' => 4, 'randevu' => 3, 'geldi' => 2], $o['huni']);
     esit('popüler hizmet', ['Protez Tırnak' => 3, 'Kalıcı Oje' => 1], $o['populer_hizmet']);
-    esit('boş veri çökmez', 0, WaAsistanRapor::ozetHesapla(['cevaplar' => [], 'oturumlar' => [], 'randevular' => [], 'geri_kazanim' => []])['cevap']['toplam']);
+    esit('kart: fiyat verilen sohbetler (TL + mesaj)', ['tutar' => 800.0, 'mesaj' => 3], $o['kart']['fiyat']);
+    esit('kart: kendi bitirdiği (aktar hariç)', ['tutar' => 2000.0, 'mesaj' => 6], $o['kart']['cozulen']);
+    esit('kart: fotoğraflı sohbetler', ['tutar' => 800.0, 'mesaj' => 3], $o['kart']['gorsel']);
+    esit('kart: geri kazanma sohbetleri', ['tutar' => 800.0, 'mesaj' => 2], $o['kart']['geri_kazanim']);
+    esit('boş veri çökmez', 0,WaAsistanRapor::ozetHesapla(['cevaplar' => [], 'oturumlar' => [], 'randevular' => [], 'geri_kazanim' => []])['cevap']['toplam']);
 
     baslik('Genel bakış: dönem, trend, seri');
     $n = strtotime('2026-11-19 14:00');

@@ -74,6 +74,8 @@
    .wa-kaz .d { font-size:22px; font-weight:800; letter-spacing:-.3px; }
    .wa-kaz .e { font-size:13px; font-weight:600; color:#3a3154; margin-top:2px; }
    .wa-kaz .a { font-size:12px; color:var(--gri); margin-top:4px; line-height:1.35; }
+   .wa-kaz .m { display:inline-flex; align-items:center; gap:4px; margin-top:5px; padding:2px 8px; border-radius:20px; background:rgba(255,255,255,.65); font-size:11px; font-weight:600; color:#5b5570; white-space:nowrap; }
+   .wa-kaz .m i { font-size:11px; }
    /* Kazanc kartlari: her biri kendi renginde yumusak gradyan + ince renkli cerceve + beyaz ikon kutusu */
    .wa-kaz { position:relative; overflow:hidden; border:1px solid transparent; transition:transform .15s, box-shadow .15s; }
    .wa-kaz:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(91,33,182,.12); }
@@ -474,33 +476,35 @@
          nasil: 'Asistanın oluşturduğu ve iptal edilmeyen randevuların hizmet fiyatları toplanır. Randevu panelde "geldi" işaretlenince tutar <b>gerçekleşen kazanç</b> olarak sayılır; işaretlenene kadar "randevu tutarı" olarak görünür.',
          neden: 'Asistanın size ne kadar iş getirdiğini doğrudan gösterir. Pakete ödediğiniz ücretle kıyaslayıp yatırımınızın kaç katını geri aldığınızı görürsünüz.' },
       'bi-moon-stars-fill': { b: 'Mesai Dışı Kazanç',
-         ne: 'Salonunuz kapalıyken (akşam, gece, kapalı günler) asistanın aldığı randevuların tutarı.',
-         nasil: 'Randevunun alındığı an, işletme ayarlarınızdaki çalışma saatlerinin dışındaysa bu karta yazılır.',
+         ne: 'Salonunuz kapalıyken (akşam, gece, kapalı günler) asistanın aldığı randevuların tutarı. Küçük yazı, asistanın bu saatlerde müşterilerinize kaç mesaj yazdığını gösterir.',
+         nasil: 'Randevunun alındığı an, işletme ayarlarınızdaki çalışma saatlerinin dışındaysa tutarı bu karta yazılır. Bu saatlerde gönderilen her cevap da mesaj sayısına eklenir.',
          neden: 'Bu müşteriler normalde size ulaşamayıp başka salona gidecekti. Personel yokken kazanılan, tamamen ekstra gelirdir.' },
       'bi-arrow-repeat': { b: 'Geri Kazanılan Müşteri',
-         ne: 'Fiyat ya da bilgi alıp randevu oluşturmadan giden ("kaçan") müşterilerden asistanın tekrar yazmasıyla geri dönüp randevu alanlar.',
+         ne: 'Fiyat ya da bilgi alıp randevu oluşturmadan giden ("kaçan") müşterilere asistan tekrar yazar; geri dönüp randevu alanların tutarı bu kartta görünür. Küçük yazı, bu müşterilerle kaç mesaj yazışıldığını gösterir.',
          nasil: 'Asistan, ayarladığınız süre sonra (varsayılan 24 saat) bu müşterilere mesai saatinde bir kez nazik bir mesaj ve gerçek boş saatlerinizi yollar. Mesajdan sonraki 7 gün içinde alınan randevu "geri kazanılmış" sayılır.',
          neden: 'Kaybolacak müşteriyi hiçbir personel emeği olmadan geri getirir. Müşteri "dur" yazarsa bir daha yazılmaz.' },
-      'bi-chat-dots-fill': { b: 'Mesai Dışı Yazışma',
-         ne: 'Salonunuz kapalıyken (akşam, gece, kapalı günler) asistanın müşterilerinize cevapladığı mesaj sayısı.',
-         nasil: 'Asistanın gönderdiği her cevap, işletme ayarlarınızdaki çalışma saatlerinin dışındaysa bu karta yazılır. Kartın açıklamasındaki saat ise asistanın tüm cevaplarının personelinize kazandırdığı süredir (her cevap ortalama 1,5 dakika).',
-         neden: 'Bu müşteriler sabaha kadar cevap beklemedi; personeliniz yokken bile sorularına anında cevap alıp randevuya geçebildiler.' },
+      'bi-tag-fill': { b: 'Fiyat Verip Randevu Aldırdığı',
+         ne: 'Asistanın fiyat söylediği müşterilerden randevu alanların toplam tutarı. Küçük yazı, bu müşterilere kaç mesaj yazıldığını gösterir.',
+         nasil: 'Asistan, sistemde kayıtlı hizmet fiyatlarınızı müşteriye söyler. O sohbette alınan ve iptal edilmeyen randevuların tutarı bu karta yazılır.',
+         neden: 'Fiyat soran müşteri çoğu zaman cevap gecikince başka salona yazar. Asistan fiyatı anında verip randevuya bağladığı için bu tutar kaçmadan size kalır.' },
       'bi-shield-fill-check': { b: 'Asistanın Kendi Bitirdiği Sohbetler',
-         ne: 'WhatsApp\'tan yazan müşterilerin kaçıyla asistanın <b>baştan sona tek başına</b> ilgilendiği. Müşteri ne sorduysa asistan cevapladı; sizin ya da personelinizin araya girmesi gerekmedi. Örnek: %92, 100 müşteriden 92\'siyle hiç uğraşmadınız demektir.',
+         ne: 'Asistanın <b>baştan sona tek başına</b> ilgilendiği sohbetlerden gelen randevu tutarı. Müşteri ne sorduysa asistan cevapladı; sizin ya da personelinizin araya girmesi gerekmedi. Küçük yazı bu sohbetlerde kaç mesaj yazıldığını, alt satırdaki yüzde ise oranı gösterir: %92, 100 müşteriden 92\'siyle hiç uğraşmadınız demektir.',
          nasil: 'Asistan yalnızca birkaç durumda sohbeti size bırakır: müşteri "yetkiliyle görüşmek istiyorum" derse, şikâyet / ödeme gibi bir konu açılırsa ya da fiyatı sistemde girilmemiş bir hizmet sorulursa. O zaman size bildirim gelir ve o müşteriye siz dönersiniz. Size bırakılmayan bütün sohbetler bu kartta "kendi bitirdiği" sayılır.',
          neden: 'Oran ne kadar yüksekse personeliniz WhatsApp ile o kadar az uğraşır. Oran düşükse fiyatı eksik hizmetleri tamamlayın ve "Öğrenilen Cevaplar" sekmesine bakın; asistan ne kadar çok şey bilirse size o kadar az sohbet bırakır.' },
       'bi-camera-fill': { b: 'Fotoğrafa Fiyat Verildi',
-         ne: 'Müşterilerin WhatsApp\'tan gönderdiği model fotoğraflarından kaçına asistanın fiyat verdiği.',
+         ne: 'Müşterinin WhatsApp\'tan gönderdiği model fotoğrafına asistan fiyat verir; bu sohbetlerden alınan randevuların tutarı bu kartta görünür. Küçük yazı, bu sohbetlerde kaç mesaj yazıldığını gösterir.',
          nasil: 'Asistan fotoğraftaki uygulamaları tanır (protez, french, taş sayısı…); fiyatı "Fotoğraf Fiyatları" sekmesindeki kurallarınızdan sistem hesaplar. Asistan fiyat uydurmaz.',
          neden: 'Uzmanınızın fotoğrafa bakıp fiyat yazma işini üstlenir; müşteri anında fiyat alır ve randevuya geçer.' }
    };
-   function kaz(sinif, ikon, d, e, a, seri, renk) {
-      // Tasarimdaki kart: solda buyuk ikon, yaninda rakam + altinda kart adi, en altta mini grafik; sag ustte "i" (bilgi penceresi)
+   function kaz(sinif, ikon, d, e, a, seri, renk, mesaj) {
+      // Tasarimdaki kart: solda buyuk ikon, yaninda TL (buyuk) + kart adi + mesaj sayisi (kucuk), en altta mini grafik; sag ustte "i" (bilgi penceresi)
       var detay = a ? String(a).replace(/<[^>]+>/g, '') : '';
+      var m = mesaj != null ? '<div class="m"><i class="bi bi-chat-dots"></i>' + sayi(mesaj) + ' mesaj yazıldı</div>' : '';
+      if (mesaj != null) detay = sayi(mesaj) + ' mesaj yazıldı' + (detay ? ' · ' + detay : '');
       return '<div class="wa-kaz ' + sinif + '">'
          + (KART_BILGI[ikon] ? '<button type="button" class="wa-i" data-bilgi="' + ikon + '" data-sinif="' + sinif + '" data-deger="' + esc(String(d).replace(/<[^>]+>/g, '')) + '" data-detay="' + esc(detay) + '" aria-label="' + esc(e) + ' nedir?"><i class="bi bi-info-lg"></i></button>' : '')
          + '<div class="wa-kaz-ust"><div class="wa-kpi-ikon"><i class="bi ' + ikon + '"></i></div>'
-         + '<div class="wa-kaz-ic"><div class="d">' + d + '</div><div class="e">' + e + '</div></div></div>' + (seri ? spark(seri, renk) : '') + '</div>';
+         + '<div class="wa-kaz-ic"><div class="d">' + d + '</div><div class="e">' + e + '</div>' + m + '</div></div>' + (seri ? spark(seri, renk) : '') + '</div>';
    }
    // Bilgi penceresi (body'ye eklenir, ekran ortasinda)
    function bilgiAc(btn) {
@@ -530,7 +534,7 @@
    function genelYukle() {
       al('/ozet', { donem: donemSec.value }).then(function (r) {
          if (!r.ok) { el('waGenel').innerHTML = '<div class="wa-bos">' + esc(r.hata || 'Yüklenemedi') + '</div>'; return; }
-         sonOzet = r.ozet; var o = r.ozet, t = r.trend, s = r.seri, p = r.paket, a = r.asistan, kz = o.kazanc, h = '';
+         sonOzet = r.ozet; var o = r.ozet, t = r.trend, s = r.seri, p = r.paket, a = r.asistan, kz = o.kazanc, kt = o.kart || {}, h = '';
          var toplamRandevu = o.randevu.adet + o.geri_kazanim.randevu, k = '';
          // ===== GENEL BAKIS (tasarimla birebir): hero, 5 kart, grafik + son konusmalar, hizli islemler + AI kart
          h += '<div class="wa-hero"><div class="wa-hero-ikon"><i class="bi bi-whatsapp"></i></div>'
@@ -548,12 +552,12 @@
          if (u) k += '<div class="wa-uyari" style="margin-top:0">' + u + '</div>';
          // kazandirdiklari kartlari (mor bannerin hemen altinda)
          h += '<div class="wa-bolum-baslik"><i class="bi bi-graph-up-arrow"></i>Asistanın size kazandırdıkları</div><div class="wa-kazanclar">'
-            + kaz('wa-k-mor', 'bi-wallet-fill', tl(kz.gerceklesen > 0 ? kz.gerceklesen : kz.beklenen), kz.gerceklesen > 0 ? 'Gerçekleşen kazanç' : 'Randevu tutarı', kz.kat ? 'Pakete ödediğinizin <b>' + String(kz.kat).replace('.', ',') + ' katı</b>' : (kz.gerceklesen > 0 ? 'salona gelen müşterilerden' : 'gelişler "geldi" işaretlenince kesinleşir'), s.tutar, '#7c3aed')
-            + kaz('wa-k-lila', 'bi-moon-stars-fill', tl(kz.mesai_disi), 'Mesai dışı kazanç', sayi(o.randevu.mesai_disi) + ' randevu personel yokken alındı', s.mesai_tutar, '#4f46e5')
-            + kaz('wa-k-tur', 'bi-arrow-repeat', sayi(o.geri_kazanim.randevu), 'Geri kazanılan müşteri', sayi(o.geri_kazanim.yazildi) + ' kaçan müşteriye yazıldı · ' + tl(o.geri_kazanim.tutar), s.geri_kazanim, '#f97316')
-            + kaz('wa-k-mavi', 'bi-chat-dots-fill', sayi(o.cevap.mesai_disi) + ' mesaj', 'Mesai dışı yazışma', 'Salon kapalıyken cevaplandı · personele toplam ' + String(o.cevap.personel_saat).replace('.', ',') + ' saat zaman kazancı', s.mesai_cevap, '#2563eb')
-            + kaz('wa-k-yesil', 'bi-shield-fill-check', o.sohbet.cozulen_orani == null ? '—' : '%' + o.sohbet.cozulen_orani, 'Kendi bitirdiği sohbetler', o.sohbet.yazisma && o.sohbet.cozulen != null ? (o.sohbet.yazisma + ' sohbetin ' + o.sohbet.cozulen + ' tanesi personele gerek kalmadan bitti') : 'personele gerek kalmadan biten sohbetler', s.cozulen, '#16a34a')
-            + kaz('wa-k-pembe', 'bi-camera-fill', sayi(o.gorsel.fiyat_verildi), 'Fotoğrafa fiyat verildi', sayi(o.gorsel.randevu) + ' tanesi randevuya döndü', s.gorsel, '#db2777')
+            + kaz('wa-k-mor', 'bi-wallet-fill', tl(kz.gerceklesen > 0 ? kz.gerceklesen : kz.beklenen), kz.gerceklesen > 0 ? 'Gerçekleşen kazanç' : 'Randevu tutarı', kz.kat ? 'Pakete ödediğinizin <b>' + String(kz.kat).replace('.', ',') + ' katı</b>' : (kz.gerceklesen > 0 ? 'salona gelen müşterilerden' : 'gelişler "geldi" işaretlenince kesinleşir'), s.tutar, '#7c3aed', o.cevap.toplam)
+            + kaz('wa-k-lila', 'bi-moon-stars-fill', tl(kz.mesai_disi), 'Mesai dışı kazanç', sayi(o.randevu.mesai_disi) + ' randevu salon kapalıyken alındı', s.mesai_tutar, '#4f46e5', o.cevap.mesai_disi)
+            + kaz('wa-k-tur', 'bi-arrow-repeat', tl(o.geri_kazanim.tutar > 0 ? o.geri_kazanim.tutar : o.geri_kazanim.beklenen_tutar), 'Geri kazanılan müşteri', sayi(o.geri_kazanim.randevu) + ' kaçan müşteri geri döndü · ' + sayi(o.geri_kazanim.yazildi) + ' müşteriye yazıldı', s.geri_kazanim, '#f97316', kt.geri_kazanim ? kt.geri_kazanim.mesaj : o.geri_kazanim.yazildi)
+            + kaz('wa-k-mavi', 'bi-tag-fill', tl(kt.fiyat ? kt.fiyat.tutar : 0), 'Fiyat verip randevu aldırdığı', sayi(o.sohbet.fiyat_aldi) + ' müşteriye fiyat verildi, ' + sayi(o.sohbet.fiyattan_randevu) + ' tanesi randevu aldı', s.tutar, '#2563eb', kt.fiyat ? kt.fiyat.mesaj : null)
+            + kaz('wa-k-yesil', 'bi-shield-fill-check', tl(kt.cozulen ? kt.cozulen.tutar : 0), 'Kendi bitirdiği sohbetler', o.sohbet.yazisma && o.sohbet.cozulen != null ? ('%' + o.sohbet.cozulen_orani + ' · ' + o.sohbet.yazisma + ' sohbetin ' + o.sohbet.cozulen + ' tanesi personele gerek kalmadan bitti') : 'personele gerek kalmadan biten sohbetler', s.cozulen, '#16a34a', kt.cozulen ? kt.cozulen.mesaj : null)
+            + kaz('wa-k-pembe', 'bi-camera-fill', tl(kt.gorsel ? kt.gorsel.tutar : 0), 'Fotoğrafa fiyat verildi', sayi(o.gorsel.fiyat_verildi) + ' fotoğrafa fiyat verildi, ' + sayi(o.gorsel.randevu) + ' tanesi randevuya döndü', s.gorsel, '#db2777', kt.gorsel ? kt.gorsel.mesaj : null)
             + '</div>';
          // grafik + son konusmalar
          h += '<div class="wa-orta"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-bar-chart-fill" style="color:#7c3aed"></i>Performans Grafiği</h4>'
