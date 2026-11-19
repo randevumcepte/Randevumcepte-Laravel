@@ -169,6 +169,8 @@
    .wa-liste-ok li { display:flex; align-items:center; gap:8px; }
    .wa-liste-ok i { font-size:19px; color:var(--yesil); }
    .wa-liste-ok li.kapali i { color:#cbd5e1; } .wa-liste-ok li.kapali { color:#9ca3af; }
+   .wa-liste-ok li.kapali[data-git] { cursor:pointer; }
+   .wa-ac { font-size:11.5px; font-weight:700; color:#6d28d9; background:#efe6fd; border-radius:999px; padding:2px 8px; margin-left:4px; }
    .wa-paketbar { margin-top:10px; font-size:12.5px; color:#3a3154; }
    .wa-bar { height:9px; background:#e7defa; border-radius:99px; overflow:hidden; margin-top:5px; }
    .wa-bar > i { display:block; height:100%; background:linear-gradient(90deg,#7c3aed,#4c1d95); border-radius:99px; }
@@ -465,7 +467,8 @@
             + '<div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-whatsapp" style="color:#25D366"></i>Son WhatsApp Konuşmaları</h4><button class="wa-tumu" data-git="sohbet">Tümünü Gör <i class="bi bi-arrow-right"></i></button></div>'
             + '<div id="waSonKonusmalar"><div class="wa-bos">Yükleniyor…</div></div></div></div>';
          // hizli islemler (panelin gercek sayfalari) + AI kart
-         var ok = function (acik, metin) { return '<li class="' + (acik ? '' : 'kapali') + '"><i class="bi bi-check-circle-fill"></i>' + metin + '</li>'; };
+         // Kapali ozellik soluk: ustune gelince nedeni, tiklayinca acilacagi sekme
+         var ok = function (acik, metin, git, neden) { return '<li class="' + (acik ? '' : 'kapali') + '"' + (!acik && git ? ' data-git="' + git + '" title="' + esc(neden) + '"' : '') + '><i class="bi bi-check-circle-fill"></i>' + metin + (!acik && git ? ' <span class="wa-ac">Aç</span>' : '') + '</li>'; };
          var panel = function (yol) { return '/isletmeyonetim/' + yol + (SUBE ? '?sube=' + encodeURIComponent(SUBE) : ''); };
          h += '<div class="wa-alt-sira"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-lightning-charge-fill" style="color:#f59e0b"></i>Hızlı İşlemler</h4></div><div class="wa-hizli">'
             + '<a class="wa-h1" href="' + panel('randevular') + '"><i class="bi bi-calendar-plus"></i>Yeni Randevu Oluştur</a>'
@@ -474,7 +477,7 @@
             + '<a class="wa-h4" href="' + panel('raporlar') + '"><i class="bi bi-bar-chart-line"></i>Raporları Görüntüle</a></div></div>'
             + '<div class="wa-kart wa-ai">' + ROBOT + '<div class="orta-ic"><h4>RandevumCepte AI Asistan <span class="wa-aktif ' + (a.acik && !(p && p.kapali) ? '' : 'kapali') + '"><i class="bi bi-check-circle-fill"></i>' + (a.acik ? (p && p.kapali ? 'Paket doldu' : 'Aktif') : 'Kapalı') + '</span></h4>'
             + '<p>Tüm müşterilerinize akıllı, hızlı ve kişiselleştirilmiş hizmet sunun.</p><button class="wa-btn" data-git="ayar">Ayarları Düzenle <i class="bi bi-arrow-right"></i></button></div>'
-            + '<ul class="wa-liste-ok">' + ok(a.gorsel, 'Görsel Analiz (Fotoğraf)') + ok(a.fiyat, 'Akıllı Fiyatlandırma') + ok(true, 'Randevu Yönetimi') + ok(true, 'Müşteri Desteği') + '</ul></div></div>';
+            + '<ul class="wa-liste-ok">' + ok(a.gorsel, 'Görsel Analiz (Fotoğraf)', 'gorsel', 'Kapalı: Fotoğraf Fiyatları sekmesinden fiyat kurallarını girince (ve Ayarlar > Fotoğraftan fiyat versin açıkken) açılır.') + ok(a.fiyat, 'Akıllı Fiyatlandırma', 'ayar', 'Kapalı: Ayarlar > Fiyat sorularını cevaplasın açılınca çalışır.') + ok(true, 'Randevu Yönetimi') + ok(true, 'Müşteri Desteği') + '</ul></div></div>';
          // paket (Kazandirdiklari sekmesi)
          if (p && p.var) { var cls = p.kapali ? 'dolu' : (p.seviye ? 'uyari' : '');
             k += '<div class="wa-kart" style="margin-bottom:18px"><div class="wa-kart-bas"><h4><i class="bi bi-box-seam" style="color:#7c3aed"></i>Paket Kullanımı</h4></div>'
