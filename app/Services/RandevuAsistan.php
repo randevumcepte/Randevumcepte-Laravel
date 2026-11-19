@@ -158,6 +158,23 @@ class RandevuAsistan
         return (bool) preg_match('/\b(bir )?bak(ay[ıi]m|ar[ıi]m|[ıi]yorum|al[ıi]m)\b|kontrol (edeyim|ediyorum|ederim|edelim|edip)|deneyebilirim|deneyeyim|not (ald[ıi]m|ettim|aldım)|(ileteyim|ayarlayay[ıi]m|ayarl[ıi]yorum|hemen d[öo]n[üu]yorum|birazdan (yaz|d[öo]n|bildir))/iu', $c);
     }
 
+    /**
+     * Model araci cagirmak yerine kendine teknik not yazdi mi (saf)? Canli 2026-11-19 Besna:
+     * "(Kalıcı oje çıkarma) tarih=2026-11-21 saat=13:30 — çağrı yapılmalı]" musteriye gitti.
+     */
+    public static function icNotMu(string $cevap): bool
+    {
+        return (bool) preg_match('/\b(tarih|saat|tarih_saat|hizmet_id|personel_id|musteri_id|randevu_id)\s*=\s*\S|[çc]a[ğg]r[ıi] yap[ıi]lmal[ıi]|\b(musait_saatler|randevu_olustur|hizmet_eslestir|mevcut_randevular|musteri_kaydet|randevu_guncelle|yol_tarifi_gonder)\b|\[S[İI]STEM|ara[çc][ıi] [çc]a[ğg][ıi]r/iu', $cevap);
+    }
+
+    /** Teknik not satirlarini atar (son care; duzeltme turu da ise yaramadiysa). */
+    public static function icNotTemizle(string $cevap): string
+    {
+        $satirlar = preg_split('/\R/u', $cevap);
+        $kalan = array_filter($satirlar, function ($s) { return !self::icNotMu($s); });
+        return trim(implode("\n", $kalan));
+    }
+
     /** "Tercih ettiğiniz bir uzmanımız var mı?" / "Hangi uzmanımızı tercih edersiniz?" — saat sunmadan uzman soruyor mu (saf). */
     public static function uzmanSorusuMu(string $cevap): bool
     {
@@ -602,6 +619,14 @@ class RandevuAsistan
                 $cevap = '';
                 continue;
             }
+            // IC NOT: model araci cagirmak yerine "tarih=... saat=... — çağrı yapılmalı" gibi teknik not yazdi -> araci simdi cagirsin
+            if ($deneme === 0 && !$bitir && self::icNotMu($cevap)) {
+                Log::warning('[ASISTAN-IC-NOT] teknik not musteriye gidecekti', ['salon' => $this->salonId, 'kanal' => $this->kanal, 'metin' => $metin, 'cevap' => $cevap]);
+                $messages[] = ['role' => 'assistant', 'content' => $cevap];
+                $messages[] = ['role' => 'user', 'content' => '[SİSTEM — müşteri bunu görmedi] Son mesajın teknik bir iç nottu; müşteriye böyle yazılmaz. Gereken aracı (ör. musait_saatler, randevu_olustur) metin olarak YAZMA, gerçekten ŞİMDİ çağır ve sonucu müşteriye doğal bir cümleyle yaz (uygunsa onay sor, değilse seçenek sun). Mesajda "tarih=", "saat=", araç adı ya da köşeli parantez OLMASIN.'];
+                $cevap = '';
+                continue;
+            }
             if ($this->kanal === 'whatsapp' && $deneme === 0 && $aksiyon === null && !$bitir && self::sozVeripBirakti($cevap)) {
                 Log::warning('[WA-SOZ-BIRAKTI] model kontrol sozu verip turu bitirdi', ['salon' => $this->salonId, 'metin' => $metin, 'cevap' => $cevap]);
                 $messages[] = ['role' => 'assistant', 'content' => $cevap];
@@ -620,6 +645,11 @@ class RandevuAsistan
                 . 'Hata sürerse müşteriye randevunun oluşturulamadığını dürüstçe söyle ve yeni saat ya da yetkiliye aktarma öner. '
                 . 'ok=true dönmeden "oluşturuldu" DEME.'];
             $cevap = '';
+        }
+        // Duzeltme turundan sonra hala teknik not varsa: o satirlar musteriye gitmez
+        if (self::icNotMu($cevap)) {
+            $cevap = self::icNotTemizle($cevap);
+            if ($cevap === '') $cevap = 'Talebinizi aldım, bir bakayım; uygun seçeneği birazdan yazıyorum.'; // havada kalmaz: 5 dk takip (sozde) tamamlar
         }
         // Ikinci denemede de arac basarisi yoksa ve hala "olusturuldu" diyorsa: kesin dogru cumle
         if (!in_array($aksiyon, ['randevu', 'guncelle'], true)
