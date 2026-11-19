@@ -74,13 +74,20 @@
    .wa-kaz { position:relative; overflow:hidden; border:1px solid transparent; transition:transform .15s, box-shadow .15s; }
    .wa-kaz:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(91,33,182,.12); }
    .wa-kaz::after { content:''; position:absolute; right:-28px; top:-28px; width:96px; height:96px; border-radius:50%; background:rgba(255,255,255,.45); }
-   .wa-kaz .wa-kpi-ikon { background:#fff !important; box-shadow:0 4px 10px rgba(31,22,56,.08); position:relative; z-index:1; }
+   /* Ikon kutusu: kartin renginde koyu tonlu gradyan (beyaz degil) + dolgulu ikon */
+   .wa-kaz .wa-kpi-ikon { position:relative; z-index:1; box-shadow:0 6px 14px rgba(31,22,56,.10); }
+   .wa-kaz.wa-k-mor .wa-kpi-ikon { background:linear-gradient(140deg,#e7dafd,#cdb4fb); color:#5b21b6; }
+   .wa-kaz.wa-k-lila .wa-kpi-ikon { background:linear-gradient(140deg,#e2e3ff,#c3c4fb); color:#4338ca; }
+   .wa-kaz.wa-k-tur .wa-kpi-ikon { background:linear-gradient(140deg,#ffe6cc,#fdc48d); color:#ea580c; }
+   .wa-kaz.wa-k-mavi .wa-kpi-ikon { background:linear-gradient(140deg,#dbeaff,#b4d2fd); color:#1d4ed8; }
+   .wa-kaz.wa-k-yesil .wa-kpi-ikon { background:linear-gradient(140deg,#d6f7e2,#a8e9c0); color:#15803d; }
+   .wa-kaz.wa-k-pembe .wa-kpi-ikon { background:linear-gradient(140deg,#ffdcec,#fbb1d1); color:#be185d; }
    .wa-kaz.wa-k-mor { background:linear-gradient(140deg,#f4ecff 0%,#e6d7ff 100%); border-color:#dccbfd; }
-   .wa-kaz.wa-k-lila { background:linear-gradient(140deg,#eef0ff 0%,#dcdcff 100%); border-color:#cfd0fb; } .wa-kaz.wa-k-lila .wa-kpi-ikon { color:#4f46e5; }
+   .wa-kaz.wa-k-lila { background:linear-gradient(140deg,#eef0ff 0%,#dcdcff 100%); border-color:#cfd0fb; }
    .wa-kaz.wa-k-tur { background:linear-gradient(140deg,#fff4e8 0%,#ffe1c2 100%); border-color:#fdd3a6; }
    .wa-kaz.wa-k-mavi { background:linear-gradient(140deg,#ebf4ff 0%,#d6e7ff 100%); border-color:#c3dafd; }
    .wa-kaz.wa-k-yesil { background:linear-gradient(140deg,#eafbf0 0%,#d0f4de 100%); border-color:#b9ebcb; }
-   .wa-kaz.wa-k-pembe { background:linear-gradient(140deg,#fff0f7 0%,#ffd9ea 100%); border-color:#fcc6dd; } .wa-kaz.wa-k-pembe .wa-kpi-ikon { color:#db2777; }
+   .wa-kaz.wa-k-pembe { background:linear-gradient(140deg,#fff0f7 0%,#ffd9ea 100%); border-color:#fcc6dd; }
    .wa-kaz .a { color:#4b4563; }
    .wa-kaz svg.spark { display:block; width:100%; height:40px; margin-top:10px; position:relative; z-index:1; }
    .wa-kaz .d, .wa-kaz .e, .wa-kaz .a { position:relative; z-index:1; }
@@ -444,12 +451,12 @@
          if (u) k += '<div class="wa-uyari" style="margin-top:0">' + u + '</div>';
          // kazandirdiklari kartlari (mor bannerin hemen altinda)
          h += '<div class="wa-bolum-baslik"><i class="bi bi-graph-up-arrow"></i>Asistanın size kazandırdıkları</div><div class="wa-kazanclar">'
-            + kaz('wa-k-mor', 'bi-cash-coin', tl(kz.gerceklesen > 0 ? kz.gerceklesen : kz.beklenen), kz.gerceklesen > 0 ? 'Gerçekleşen kazanç' : 'Randevu tutarı', kz.kat ? 'Pakete ödediğinizin <b>' + String(kz.kat).replace('.', ',') + ' katı</b>' : (kz.gerceklesen > 0 ? 'salona gelen müşterilerden' : 'gelişler "geldi" işaretlenince kesinleşir'), s.tutar, '#7c3aed')
-            + kaz('wa-k-lila', 'bi-moon-stars', tl(kz.mesai_disi), 'Mesai dışı kazanç', sayi(o.randevu.mesai_disi) + ' randevu personel yokken alındı', s.mesai_tutar, '#4f46e5')
+            + kaz('wa-k-mor', 'bi-wallet-fill', tl(kz.gerceklesen > 0 ? kz.gerceklesen : kz.beklenen), kz.gerceklesen > 0 ? 'Gerçekleşen kazanç' : 'Randevu tutarı', kz.kat ? 'Pakete ödediğinizin <b>' + String(kz.kat).replace('.', ',') + ' katı</b>' : (kz.gerceklesen > 0 ? 'salona gelen müşterilerden' : 'gelişler "geldi" işaretlenince kesinleşir'), s.tutar, '#7c3aed')
+            + kaz('wa-k-lila', 'bi-moon-stars-fill', tl(kz.mesai_disi), 'Mesai dışı kazanç', sayi(o.randevu.mesai_disi) + ' randevu personel yokken alındı', s.mesai_tutar, '#4f46e5')
             + kaz('wa-k-tur', 'bi-arrow-repeat', sayi(o.geri_kazanim.randevu), 'Geri kazanılan müşteri', sayi(o.geri_kazanim.yazildi) + ' kaçan müşteriye yazıldı · ' + tl(o.geri_kazanim.tutar), s.geri_kazanim, '#f97316')
             + kaz('wa-k-mavi', 'bi-hourglass-split', String(o.cevap.personel_saat).replace('.', ',') + ' saat', 'Personele kazandırılan zaman', sayi(o.cevap.toplam) + ' mesaj cevaplandı · ' + sayi(o.cevap.mesai_disi) + ' mesai dışı', s.cevap, '#2563eb')
-            + kaz('wa-k-yesil', 'bi-shield-check', o.sohbet.cozulen_orani == null ? '—' : '%' + o.sohbet.cozulen_orani, 'Tek başına çözdüğü', 'personele aktarılmadan biten yazışmalar', s.cozulen, '#16a34a')
-            + kaz('wa-k-pembe', 'bi-camera', sayi(o.gorsel.fiyat_verildi), 'Fotoğrafa fiyat verildi', sayi(o.gorsel.randevu) + ' tanesi randevuya döndü', s.gorsel, '#db2777')
+            + kaz('wa-k-yesil', 'bi-shield-fill-check', o.sohbet.cozulen_orani == null ? '—' : '%' + o.sohbet.cozulen_orani, 'Tek başına çözdüğü', 'personele aktarılmadan biten yazışmalar', s.cozulen, '#16a34a')
+            + kaz('wa-k-pembe', 'bi-camera-fill', sayi(o.gorsel.fiyat_verildi), 'Fotoğrafa fiyat verildi', sayi(o.gorsel.randevu) + ' tanesi randevuya döndü', s.gorsel, '#db2777')
             + '</div>';
          // grafik + son konusmalar
          h += '<div class="wa-orta"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-bar-chart-fill" style="color:#7c3aed"></i>Performans Grafiği</h4>'
