@@ -53,6 +53,8 @@ class RandevuAsistan
     protected string $kanal = 'santral';
     /** Yalniz WhatsApp: isletme ayari "fiyat söylensin" acik -> fiyat sorusu aktarilmaz, liste fiyati soylenir (WaAsistan atar). */
     public bool $waFiyatSoyle = false;
+    /** Yalniz WhatsApp: profil adi gercek bir "Ad Soyad" ise (waProfilAdiAyarla) kayitsiz musteriye ad SORULMAZ, kayit bununla yapilir. */
+    protected ?string $waProfilAdi = null;
 
     public function __construct(int $salonId, ?string $telefon = null, string $kanal = 'santral')
     {
@@ -116,10 +118,38 @@ class RandevuAsistan
             return "{$this->acilisHitap($this->musteriAd)}, tekrar hoş geldiniz 😊\n\n{$salon} randevu asistanı olarak randevu almak, değiştirmek ya da iptal etmek için size buradan yardımcı olabilirim."
                 . ($k !== '' ? "\n\n{$k}" : '') . "\n\nSize nasıl yardımcı olabilirim?";
         }
-        return "Merhaba, hoş geldiniz 😊\n\nBen {$salon} sanal asistanıyım. Randevu almak, randevunuzu değiştirmek ya da hizmetlerimiz hakkında bilgi almak için bana buradan yazabilirsiniz.\n\n"
-            . ($this->telNorm($this->telefon)
-                ? 'Başlamadan önce adınızı ve soyadınızı öğrenebilir miyim?'
-                : 'Başlamadan önce adınızı, soyadınızı ve size ulaşabileceğimiz cep telefonu numaranızı öğrenebilir miyim?');
+        // Kayit randevudan hemen once alinir (ad/telefon gerekiyorsa onay mesajinda istenir): karsilamada soru yok
+        return "Merhaba, hoş geldiniz 😊\n\nBen {$salon} sanal asistanıyım. Randevu almak, randevunuzu değiştirmek ya da hizmetlerimiz hakkında bilgi almak için bana buradan yazabilirsiniz.\n\nSize nasıl yardımcı olabilirim?";
+    }
+
+    /**
+     * WhatsApp profil adi (pushName) gercek bir ad soyad gibi gorunuyorsa saklanir: emoji/rakam/isletme adi/tek kelime -> null.
+     * Ornek: "Feyza Musabeyoğlu" -> kabul; "Htc~K", "Ayşe 💅", "Nail Studio Ece" -> red (ad sorulur).
+     */
+    public function waProfilAdiAyarla(?string $ad): ?string
+    {
+        $this->waProfilAdi = self::profilAdSoyad($ad);
+        return $this->waProfilAdi;
+    }
+
+    public static function profilAdSoyad(?string $ad): ?string
+    {
+        $s = trim(preg_replace('/\s+/u', ' ', (string) $ad));
+        if ($s === '' || mb_strlen($s, 'UTF-8') > 40 || !preg_match('/^[\p{L}\s\'.-]+$/u', $s)) return null;
+        if (preg_match('/\b(nail|beauty|güzellik|guzellik|salon|kuaför|kuafor|studio|stüdyo|shop|store|cafe|official|admin|estetik|clinic|klinik|merkezi|ltd|şti)\b/iu', $s)) return null;
+        $k = array_values(array_filter(explode(' ', str_replace('.', ' ', $s)), function ($w) { return $w !== ''; }));
+        if (count($k) < 2 || count($k) > 4) return null;
+        foreach ($k as $w) if (mb_strlen($w, 'UTF-8') < 2) return null;
+        return implode(' ', array_map(function ($w) {
+            return mb_strtoupper(mb_substr($w, 0, 1, 'UTF-8'), 'UTF-8') . mb_strtolower(mb_substr($w, 1, null, 'UTF-8'), 'UTF-8');
+        }, $k));
+    }
+
+    /** WhatsApp: kayitsiz musteri randevu/kampanya adiminda; profil adi + numara biliniyorsa sormadan kayit (fazladan arac turu yok). */
+    protected function waOtomatikKayit(): void
+    {
+        if ($this->kanal !== 'whatsapp' || $this->musteriId || !$this->waProfilAdi || !$this->telNorm($this->telefon)) return;
+        $this->musteriKaydet($this->waProfilAdi, '');
     }
 
     /** Kayitli musteri dogrudan istegini yazdiysa cevabin basina konan kisa selam. */
@@ -946,6 +976,7 @@ class RandevuAsistan
      */
     protected function kampanyaKatil(?int $kampanyaId): array
     {
+        $this->waOtomatikKayit();
         if (!$this->musteriId) return ['ok' => false, 'hata' => 'Önce müşteri kaydı gerekli (musteri_kaydet).'];
         $k = null;
         foreach ($this->kampanyalar() as $x) if ($x['kampanya_id'] === $kampanyaId) $k = $x;
@@ -1791,6 +1822,16 @@ class RandevuAsistan
                 . (($h = $this->hitap())
                     ? "\"{$h}\" hitabını YALNIZ teşekkür/vedada kullan (görüşme ortasında en fazla bir kez, cümle SONUNDA: \"... uygun mu {$h}?\"); cümleye ASLA hitapla BAŞLAMA."
                     : "bu ad için cinsiyet belirsiz: \"Bey\"/\"Hanım\" KULLANMA, isimden cinsiyet TAHMİN ETME; gerekirse \"Sayın {$this->musteriAd}\" de ya da hitapsız konuş.");
+        } elseif ($this->kanal === 'whatsapp') {
+            // WhatsApp: kayit randevudan hemen once; sohbetin basinda ad/telefon istenmez (hiz)
+            $musteriSatir = "Müşteri bu işletmede henüz KAYITLI DEĞİL. Kayıt yalnız randevu oluşturmadan hemen önce gerekir: sohbetin başında ad, soyad ya da telefon İSTEME; önce isteğiyle ilgilen (hizmet, personel, gün/saat, uygun saatler).\n"
+                . ($this->waProfilAdi
+                    ? "- WhatsApp profil adı: {$this->waProfilAdi}. Ad soyad SORMA. Randevu onayını isterken \"{$this->waProfilAdi} adına oluşturuyorum\" diye belirt; müşteri başka bir ad verirse musteri_kaydet'i o adla çağır, vermezse doğrudan randevu_olustur çağır (kayıt otomatik yapılır).\n"
+                    : "- Randevu onayını isterken ad ve soyadını da AYNI mesajda iste (ör. \"Onaylıyorsanız adınızı ve soyadınızı yazar mısınız?\"); gelince musteri_kaydet, sonra randevu_olustur çağır.\n")
+                . ($telBilinen
+                    ? "- Müşterinin numarası biliniyor, telefon SORMA.\n"
+                    : "- Müşterinin numarası görünmüyor: onay mesajında cep telefonunu da iste ve musteri_kaydet'e telefon olarak ver.\n")
+                . "- Cinsiyet bilinmiyor: \"Bey\"/\"Hanım\" KULLANMA, isimden cinsiyet TAHMİN ETME; adıyla ya da hitapsız yaz.";
         } else {
             $musteriSatir = "Arayan bu işletmede KAYITLI DEĞİL. Karşılamada adı ve soyadı "
                 . ($telBilinen ? '' : 've telefon numarası ')
@@ -1931,6 +1972,8 @@ Bu bir telefon görüşmesi DEĞİL; müşteri WhatsApp'tan yazıyor ve cevabın
 - Müşteri sesli mesaj/fotoğraf gönderdiğini söylerse yalnız yazılı mesajları okuyabildiğini belirt.
 - Geçmişte "[SİSTEM — bu mesajı işletme personeli elle yazdı]" notlu mesajlar işletme personelinindir; onların verdiği bilgi ve sözlerle çelişme.
 - Geçmişte "[SİSTEM görsel ...]" notlu mesaj müşterinin gönderdiği model fotoğrafının analizidir: hizmet_id oradaysa randevuya o hizmetle devam et.
+- HIZ: müşteri hizmet, personel, gün ya da saat yazdıysa bunları HEMEN kullan (hizmet_eslestir + musait_saatler) ve ilk cevabında uygun saati sun; bildiği bir şeyi tekrar sorma. Eksik bilgileri tek mesajda topla. Hedef: randevu en fazla 2-3 mesajda.
+- KAYIT: kayıtsız müşteride "önce kaydınızı oluşturmam gerekiyor" DEME ve kayıt adımını sohbetin başında YAPMA; BAĞLAM'daki kayıt kuralına uy (kayıt yalnız randevu onayı sırasında). Bu kural aşağıdaki "önce KAYIT ADIMI'nı tamamla" kuralının yerine geçer.
 
 WA
             . ($this->waFiyatAcik() ? <<<FIYAT
@@ -2734,6 +2777,7 @@ FIYAT
     protected function randevuOlusturPersonelli(array $in): array
     {
         // Kayitsiz musteriye randevu YOK: once normal musteri kaydi (ad soyad + telefon).
+        $this->waOtomatikKayit();
         if (!$this->musteriId) return ['ok' => false, 'hata' => 'Müşteri kayıtlı değil. Önce adını ve soyadını alıp musteri_kaydet aracını çağır, sonra randevuyu oluştur.'];
         $ts = $this->tarihSaatAyir((string) ($in['tarih_saat'] ?? ''));
         $hizmetId = $this->intId($in['hizmet_id'] ?? null);

@@ -87,3 +87,29 @@ func avatarHandler(w http.ResponseWriter, r *http.Request, sess *Session) {
 
 Eski whatsmeow sürümünde `GetProfilePictureInfo` bağlam almıyorsa `sess.Client.GetProfilePictureInfo(jid, &whatsmeow.GetProfilePictureParams{Preview: true})`.
 Sonra sunucuda: `go build -o whatsmeow-bridge . && pm2 restart <köprü>`.
+
+---
+
+# Gizli kimlik (LID) ile yazan müşterinin gerçek numarası (`fromPn`)
+
+WhatsApp bazı müşterileri numara yerine gizli kimlikle (`...@lid`) gönderiyor. Bu durumda Laravel numarayı bilmediği için
+kayıtlı müşteriyi tanıyamıyor ve telefon numarasını soruyor. whatsmeow çoğu zaman gerçek numarayı bilir; köprü bunu
+`fromPn` alanında gönderirse asistan müşteriyi tanır ve telefon sormaz (Laravel tarafı hazır).
+
+```go
+// message.received payload'ini kurdugun yerde (fromJid'in yanina):
+if evt.Info.Sender.Server == types.HiddenUserServer { // "@lid"
+    pn := evt.Info.SenderAlt // yeni whatsmeow surumlerinde dogrudan gelir
+    if pn.IsEmpty() {
+        if p, err := sess.Client.Store.LIDs.GetPNForLID(context.Background(), evt.Info.Sender); err == nil {
+            pn = p
+        }
+    }
+    if !pn.IsEmpty() {
+        payload["fromPn"] = pn.User // ornek: "905321112233"
+    }
+}
+```
+
+Eski sürümde `SenderAlt` alanı yoksa yalnız `GetPNForLID` satırını kullanın (bağlam almıyorsa `GetPNForLID(evt.Info.Sender)`).
+Sonra: `go build -o whatsmeow-bridge . && pm2 restart <köprü>`.

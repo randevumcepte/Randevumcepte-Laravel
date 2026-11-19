@@ -151,6 +151,8 @@ class WaAsistan
         $lid = !empty($p['fromLid']) || substr($jid, -4) === '@lid';
         $tel = $lid ? null : self::tel((string) ($p['from'] ?? ''));
         $anahtar = $lid ? $jid : (string) $tel;
+        // Gizli kimlik (LID): kopru gercek numarayi biliyorsa (fromPn) musteri tanınır, telefon sorulmaz (anahtar LID kalir)
+        if ($lid && !empty($p['fromPn'])) $tel = self::tel((string) $p['fromPn']);
         if ($anahtar === '') return ['tip' => 'gecersiz'];
         if (!self::semaGaranti()) return ['tip' => 'sema_yok'];
 
@@ -368,8 +370,16 @@ class WaAsistan
             $o->isletme_id = $hatirlatma['salon_id'];
         }
         $ayar = WaAsistanVeri::ayarlar((int) $o->isletme_id);
-        $as = new RandevuAsistan((int) $o->isletme_id, $o->musteri_tel ?: $tel, 'whatsapp');
+        // Numara gizli (LID) ama bu kisi daha once numarasini verdiyse: onceki sohbetten (her seferinde tekrar sorulmasin)
+        $musteriTel = $o->musteri_tel ?: $tel;
+        if (!$musteriTel) {
+            $musteriTel = DB::table('wa_asistan_oturumlari')->where('salon_id', $o->salon_id)->where('anahtar', $o->anahtar)
+                ->whereNotNull('musteri_tel')->orderByDesc('id')->value('musteri_tel');
+            if ($musteriTel) $upd['musteri_tel'] = $musteriTel;
+        }
+        $as = new RandevuAsistan((int) $o->isletme_id, $musteriTel, 'whatsapp');
         $as->waFiyatSoyle = !empty($ayar['fiyat_soyle']);
+        $as->waProfilAdiAyarla($son->ad ?: $o->ad);
         $musteriMesajVar = (bool) array_filter($gecmis, function ($m) { return ($m['role'] ?? '') === 'user'; });
         $gorselId = (int) ($satirlar->pluck('gorsel_id')->filter()->last() ?: 0);
         $gkCevap = (!empty($o->geri_kazanim_id) && !$musteriMesajVar) ? WaGeriKazanim::cevapGeldi((int) $o->geri_kazanim_id, $metin) : null;
@@ -397,8 +407,10 @@ class WaAsistan
         } elseif ($hatirlatma && ($meta = $as->waHatirlatmaMeta($hatirlatma['randevu_id']))) {
             $gecmis[] = ['role' => 'assistant', 'content' => $hatirlatma['mesaj'], 'hatirlatma' => $meta];
             $d = $as->konus($metin, $gecmis);
-        } elseif (empty($gecmis) && (self::selamMi($metin) || !$as->taninanMusteri())) {
-            $cevap = $as->waKarsilama(); // kayitsiz musteri: once ad soyad (isteği gecmiste kalir, kayittan sonra devam)
+        } elseif (empty($gecmis) && self::selamMi($metin)) {
+            // Yalniz selam: karsilama. Ilk mesajda istek varsa (kayitsiz da olsa) karsilama YOK, istege dogrudan cevap
+            // (kayit randevu onayinda; RandevuAsistan WA kayit kurali)
+            $cevap = $as->waKarsilama();
             $kaynak = 'karsilama';
         } elseif ($on = WaBedavaKatman::onCevap((int) $o->isletme_id, $as, $metin, $gecmis, $o, $ayar)) {
             // BEDAVA KATMAN: fiyat / SSS / hizmet bilgisi / ogrenilen / tesekkur (Claude'a gitmez, paketten dusmez)
