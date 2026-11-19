@@ -495,6 +495,19 @@ class WaAsistanPanelController extends StoreAdminController
         if (!\Illuminate\Support\Facades\Cache::add('wa_test_bildirim_' . $sid, 1, 1)) {
             return response()->json(['ok' => 0, 'hata' => 'Az önce test bildirimi gönderildi; 1 dakika sonra tekrar deneyin.']);
         }
+        // Test bilerek yapiliyor: bu isletmenin yoneticilerinin hata yuzunden PASIFE dusmus
+        // telefon kayitlarini yeniden dene (orn. APNs anahtari sonradan yuklendi). Gecersiz
+        // token ise gonderim zaten siler; hata devam ederse sayac yeniden birikir.
+        try {
+            $pidler = DB::table('salon_personelleri as p')->join('model_has_roles as m', 'p.yetkili_id', '=', 'm.model_id')
+                ->where('p.salon_id', $sid)->where('m.role_id', '<', 5)->pluck('p.id');
+            if ($pidler->count()) {
+                DB::table('bildirim_kimlikleri')->whereIn('isletme_yetkili_id', $pidler)->where('aktif', 0)
+                    ->update(['aktif' => 1, 'gonderim_hatalari' => 0]);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[WA-TEST-BILDIRIM] pasif yeniden: ' . $e->getMessage());
+        }
         // Gondermeden ONCE teshis (gonderim gecersiz tokenlari siler)
         $teshis = $this->bildirimTeshis($sid);
         $liste = WaAsistan::bildir($sid, '🔔 Test bildirimi: WhatsApp Asistanı talep bildirimleri bu telefona böyle gelir.');

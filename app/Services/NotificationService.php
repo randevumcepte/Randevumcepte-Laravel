@@ -268,7 +268,16 @@ class NotificationService
                 foreach ($invalidPatterns as $p) {
                     if (stripos($msg, $p) !== false) { $invalid = true; break; }
                 }
-                if ($invalid) {
+                // Firebase PROJE ayar hatalari (APNs anahtari yok/gecersiz, yetki): token saglam,
+                // sorun Console'da. Bunlari token hatasi sayip pasiflestirirsek anahtar yuklendikten
+                // sonra da o iPhone'lara hic denenmez (2026-11-19 Ola Nail).
+                $ayarHatasi = false;
+                foreach (['THIRD_PARTY_AUTH_ERROR', 'InvalidApnsCredential', 'Invalid APNs credential', 'APNS_AUTH_ERROR'] as $p) {
+                    if (stripos($msg . ' ' . $govde, $p) !== false) { $ayarHatasi = true; break; }
+                }
+                if ($ayarHatasi) {
+                    // sayaci artirma, aktif kalsin
+                } elseif ($invalid) {
                     BildirimKimlikleri::where('id', $row->id)->delete();
                 } else {
                     $errCount = ($row->gonderim_hatalari ?? 0) + 1;
