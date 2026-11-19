@@ -262,6 +262,7 @@ class WaAsistanPanelController extends StoreAdminController
         $alanlar = ['fiyat_soyle', 'geri_kazanim', 'gk_bekle_saat', 'gk_kampanya', 'memnuniyet_sor', 'gorsel_fiyat', 'gorsel_sektor', 'gorsel_not', 'denetci', 'denetci_oto'];
         $veri = [];
         foreach ($alanlar as $a) if ($request->has($a)) $veri[$a] = $request->input($a);
+        if (!self::sistemYoneticisiMi()) unset($veri['denetci'], $veri['denetci_oto']); // denetci bizim ayarimiz
         WaAsistanVeri::ayarKaydet($sid, $veri, optional($this->asistanGorusmeYetkili())->name);
         return response()->json(['ok' => 1, 'ayar' => WaAsistanVeri::ayarlar($sid)]);
     }
@@ -320,21 +321,34 @@ class WaAsistanPanelController extends StoreAdminController
         $sid = $this->salon($request);
         if (!$sid) return $this->yok();
         if (!WaDenetci::semaGaranti()) return response()->json(['ok' => 0, 'hata' => 'Veri tabloları hazırlanamadı.']);
-        return response()->json(['ok' => 1] + WaDenetci::panel($sid));
+        $biz = self::sistemYoneticisiMi();
+        $p = WaDenetci::panel($sid, $biz);
+        if (!$biz) {
+            // salon yalniz kendi bilgi sorularini gorur; egitim (ders/puan/inceleme) sistem yoneticisinin
+            $p = ['biz' => 0, 'dersler' => array_values(array_filter($p['dersler'], function ($d) { return $d->tur === 'bilgi' && $d->durum === 'oneri'; }))];
+        }
+        return response()->json(['ok' => 1, 'biz' => $biz ? 1 : 0] + $p);
     }
 
-    /** Davranis dersi: aktif <-> kapali (geri al) ya da bekleyen oneriyi onayla. */
+    /** Asistan egitimi (ortak beyin) yalniz sistem yoneticisine: panelden "salona gir" ile gelen oturum. */
+    protected static function sistemYoneticisiMi(): bool
+    {
+        return session()->has('sysadmin_impersonation_id') || \Illuminate\Support\Facades\Auth::guard('sistemyonetim')->check();
+    }
+
+    /** ORTAK BEYIN davranis dersi: aktif <-> kapali (geri al / yine de uygula). Yalniz sistem yoneticisi; tum salonlari etkiler. */
     public function dersDurum(Request $request, $id)
     {
         $sid = $this->salon($request);
         if (!$sid) return $this->yok();
+        if (!self::sistemYoneticisiMi()) return response()->json(['ok' => 0, 'hata' => 'Bu işlem yalnız sistem yöneticisine açık.'], 403);
         $durum = $request->input('durum') === 'aktif' ? 'aktif' : 'kapali';
-        $q = DB::table('wa_asistan_dersler')->where('id', (int) $id)->where('isletme_id', $sid)->where('tur', 'davranis');
-        if ($durum === 'aktif' && DB::table('wa_asistan_dersler')->where('isletme_id', $sid)->where('tur', 'davranis')->where('durum', 'aktif')->count() >= WaDenetci::MAX_AKTIF_DERS) {
+        $q = DB::table('wa_asistan_dersler')->where('id', (int) $id)->where('isletme_id', WaDenetci::ORTAK)->where('tur', 'davranis');
+        if ($durum === 'aktif' && DB::table('wa_asistan_dersler')->where('isletme_id', WaDenetci::ORTAK)->where('tur', 'davranis')->where('durum', 'aktif')->count() >= WaDenetci::MAX_AKTIF_DERS) {
             return response()->json(['ok' => 0, 'hata' => 'En fazla ' . WaDenetci::MAX_AKTIF_DERS . ' ders aynı anda açık olabilir. Önce birini kapatın.']);
         }
         $n = $q->update(['durum' => $durum, 'updated_at' => now()]);
-        \Illuminate\Support\Facades\Cache::forget("wa_dersler_{$sid}");
+        \Illuminate\Support\Facades\Cache::forget('wa_dersler_' . WaDenetci::ORTAK);
         return response()->json(['ok' => $n ? 1 : 0]);
     }
 
@@ -356,6 +370,7 @@ class WaAsistanPanelController extends StoreAdminController
     {
         $sid = $this->salon($request);
         if (!$sid) return $this->yok();
+        if (!self::sistemYoneticisiMi()) return response()->json(['ok' => 0, 'hata' => 'Bu işlem yalnız sistem yöneticisine açık.'], 403);
         if (!\Illuminate\Support\Facades\Cache::add("wa_denetim_elle_{$sid}", 1, 360)) {
             return response()->json(['ok' => 0, 'hata' => 'İnceleme kısa süre önce başlatıldı. Sonuçlar genellikle 1 saat içinde gelir.']);
         }

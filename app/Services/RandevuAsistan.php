@@ -181,7 +181,7 @@ class RandevuAsistan
         return (bool) preg_match('/tercih etti[ğg]iniz (bir )?(uzman|personel)|(hangi|bir) (uzman|personel)[ıi]?(m[ıi]z)?[ıi]? (tercih|ister)|uzman tercihiniz|fark etmez mi/iu', $cevap);
     }
 
-    /** Yalniz WhatsApp: Gece Denetcisi'nin bu isletme icin test edip onayladigi davranis dersleri (WaDenetci::aktifDersler). */
+    /** Yalniz WhatsApp: Gece Denetcisi ortak beyninin (tum salonlar) test edip uyguladigi davranis dersleri (WaDenetci::aktifDersler). */
     public function waDersleriAyarla(array $dersler): void
     {
         $this->waDersler = array_values(array_filter(array_map(function ($d) { return trim((string) $d); }, $dersler), 'strlen'));
@@ -2146,7 +2146,7 @@ WA
 FIYAT
             : '')
             . ($this->waDersler
-                ? "# BU İŞLETMEDE GEÇMİŞ SOHBETLERDEN ÖĞRENİLENLER (test edildi; uy)\n- " . implode("\n- ", $this->waDersler) . "\n\n"
+                ? "# TÜM SALONLARIN GEÇMİŞ SOHBETLERİNDEN ÖĞRENİLENLER (test edildi; uy)\n- " . implode("\n- ", $this->waDersler) . "\n\n"
                 : '');
     }
 

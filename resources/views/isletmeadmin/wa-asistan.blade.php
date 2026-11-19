@@ -549,7 +549,11 @@
          <button class="wa-sekme" data-p="sohbet"><i class="bi bi-whatsapp"></i>Sohbetler</button>
          <button class="wa-sekme" data-p="gk"><i class="bi bi-arrow-repeat"></i>Kaçan & Geri Kazanılan</button>
          <button class="wa-sekme" data-p="gorsel"><i class="bi bi-camera"></i>Fotoğraftan Fiyat</button>
+         @if(session('sysadmin_impersonation_id'))
          <button class="wa-sekme" data-p="gel"><i class="bi bi-mortarboard-fill"></i>Asistan Gelişimi</button>
+         @else
+         <button class="wa-sekme" data-p="gel"><i class="bi bi-question-circle-fill"></i>Asistan size soruyor</button>
+         @endif
          <button class="wa-sekme" data-p="ogr"><i class="bi bi-lightbulb"></i>Öğrenilen Cevaplar</button>
          <button class="wa-sekme" data-p="ayar"><i class="bi bi-gear"></i>Ayarlar</button>
       </div>
@@ -649,8 +653,9 @@
          <div class="wa-anahtar"><div class="t"><b>Fiyat sorularını cevaplasın</b><div>"Protez tırnak ne kadar?" gibi sorulara hizmet listenizdeki fiyatla cevap verir. Kapalıysa fiyat soran müşteriye fiyatı işletmeye sorduğunu söyler ve size bildirir.</div></div><input type="checkbox" data-ayar="fiyat_soyle" aria-label="Fiyat sorularını cevaplasın"></div>
          <div class="wa-anahtar"><div class="t"><b>Fotoğraftan fiyat versin</b><div>Müşterinin gönderdiği model fotoğrafına, "Fotoğraftan Fiyat" sekmesindeki eşleşmelerle fiyat verir.</div></div><input type="checkbox" data-ayar="gorsel_fiyat" aria-label="Fotoğraftan fiyat versin"></div>
          <div class="wa-anahtar"><div class="t"><b>Randevudan sonra memnuniyet sorsun</b><div>Randevu oluşturulunca tek satırlık 👍 / 👎 sorusu eklenir.</div></div><input type="checkbox" data-ayar="memnuniyet_sor" aria-label="Memnuniyet sorsun"></div>
-         <div class="wa-anahtar"><div class="t"><b>Gece denetçisi sohbetleri incelesin</b><div>Her gece biten sohbetleri inceler, sorunları ve "doğrusu buydu" cevabını "Asistan Gelişimi" sekmesine yazar. (Paketinizden düşmez.)</div></div><input type="checkbox" data-ayar="denetci" aria-label="Gece denetçisi"></div>
-         <div class="wa-anahtar"><div class="t"><b>Test edilen dersleri kendisi uygulasın</b><div>Denetçinin önerdiği davranış dersi, geçmiş sohbetlerde yeniden denenip daha iyi sonuç verirse asistan hemen uygular. Kapalıysa her ders sizin onayınızı bekler. Fiyat, kampanya ve kurallarınız asla kendiliğinden değişmez.</div></div><input type="checkbox" data-ayar="denetci_oto" aria-label="Dersleri otomatik uygula"></div>
+         @if(session('sysadmin_impersonation_id'))
+         <div class="wa-anahtar"><div class="t"><b>Gece denetçisi bu salonun sohbetlerini incelesin <small class="wa-alt">(yalnız sistem yöneticisi görür)</small></b><div>Her gece biten sohbetleri inceler; davranış dersleri tüm salonların ortak beynine gider, salona özel bilgi soruları "Asistan size soruyor" sekmesine düşer.</div></div><input type="checkbox" data-ayar="denetci" aria-label="Gece denetçisi"></div>
+         @endif
          <div class="wa-anahtar"><div class="t"><b>Kaçan müşteriye tekrar yazsın</b><div>Fiyat/bilgi alıp randevu oluşturmayan müşteriye belirlediğiniz süre sonunda, mesai saatinde bir kez yazar ve gerçek boş saatlerinizi önerir. Müşteri "dur" yazarsa bir daha yazılmaz.</div></div><input type="checkbox" data-ayar="geri_kazanim" aria-label="Kaçan müşteriye tekrar yazsın"></div>
          <div class="wa-satir" style="margin-top:14px">
             <label class="wa-alt" for="waBekle">Kaç saat sonra yazsın</label>
@@ -1332,8 +1337,20 @@
    function gelisimYukle() {
       al('/gelisim').then(function (r) {
          if (!r.ok) { el('waGelisim').innerHTML = '<div class="wa-bos">' + esc(r.hata || 'Yüklenemedi.') + '</div>'; return; }
-         sonGelisim = r; el('waGelisim').innerHTML = gelisimHtml(r);
+         sonGelisim = r; el('waGelisim').innerHTML = r.biz ? gelisimHtml(r) : soruHtml(r);
       }).catch(function () { el('waGelisim').innerHTML = '<div class="wa-bos">Yüklenemedi.</div>'; });
+   }
+   // Salonun gordugu: yalniz asistanin bilmedigi icin salona sordugu bilgiler (egitim kismi sistem yoneticisinde)
+   function soruHtml(r) {
+      var bilgi = r.dersler || [];
+      var h = '<div class="wa-kart gl-bekle"><div class="wa-kart-bas"><h4><i class="bi bi-question-circle-fill" style="color:#d97706"></i>Asistan size soruyor' + (bilgi.length ? ' <small class="wa-alt" style="font-weight:600">' + bilgi.length + '</small>' : '') + '</h4></div>'
+         + '<div class="wa-alt" style="margin-bottom:6px">Müşterileriniz bu soruları sordu ama asistan cevabını bilmiyordu. Cevabı bir kez yazın, asistan bundan sonra kendisi cevaplasın.</div>';
+      if (!bilgi.length) return h + '<div class="wk-bos"><b>Şu an bekleyen soru yok.</b> Müşteriler asistanın bilmediği bir şey sorarsa (otopark, ödeme yöntemi, bir uzmanın çalıştığı günler gibi) burada size sorulur.</div></div>';
+      bilgi.forEach(function (d) {
+         h += '<div class="gl-soru" data-bilgi-id="' + d.id + '"><b>"' + esc(d.metin) + '"</b>' + (d.gerekce ? '<small>' + esc(d.gerekce) + '</small>' : '')
+            + '<div class="sat"><textarea class="wa-girdi" rows="2" maxlength="1000" placeholder="Cevabınız (müşteriye aynen gider)"></textarea><button class="wa-btn" data-bilgi-kaydet>Kaydet</button><button class="wa-btn ikincil" data-bilgi-yoksay>Yoksay</button></div></div>';
+      });
+      return h + '</div>';
    }
    function puanSinif(p) { return p >= 85 ? 'i' : (p >= 70 ? 'o' : 'k'); }
    function fark(simdi, once, tersIyi) {
@@ -1399,7 +1416,7 @@
             + (d.gerekce ? '<small>' + esc(d.gerekce) + '</small>' : '') + etk + '<small>' + tarih(d.created_at) + '</small></div>'
             + '<div class="islem">' + (d.durum === 'aktif' ? '<button data-ders="' + d.id + '" data-durum="kapali">Geri al</button>' : (d.durum === 'kapali' || d.durum === 'reddedildi' ? '<button class="ana" data-ders="' + d.id + '" data-durum="aktif">Yine de uygula</button>' : '')) + '</div></div>';
       };
-      h += '<div class="wa-kart" style="margin-bottom:18px"><div class="wa-kart-bas"><h4><i class="bi bi-mortarboard-fill" style="color:#0d9488"></i>Asistanın öğrendikleri</h4><span class="wa-alt">' + aktif.length + ' ders uygulanıyor</span></div>'
+      h += '<div class="wa-kart" style="margin-bottom:18px"><div class="wa-kart-bas"><h4><i class="bi bi-mortarboard-fill" style="color:#0d9488"></i>Ortak beyin dersleri <small class="wa-alt" style="font-weight:600">tüm salonlarda geçerli</small></h4><span class="wa-alt">' + aktif.length + ' ders uygulanıyor</span></div>'
          + (aktif.length || diger.length ? aktif.concat(diger).map(dersSatir).join('') : '<div class="wk-bos">Henüz ders yok. Denetçi tekrarlayan bir sorun gördüğünde ders önerir, test eder ve burada gösterir.</div>') + '</div>';
       // 5) Son incelenen sohbetler
       h += '<div class="wa-kart" style="margin-bottom:18px"><div class="wa-kart-bas"><h4><i class="bi bi-chat-quote-fill" style="color:#7c3aed"></i>Son incelenen sohbetler</h4><span class="wa-alt">tıklayınca sorunlar ve doğrusu açılır</span></div>'

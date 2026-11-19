@@ -13,8 +13,10 @@ use Illuminate\Support\Facades\Schema;
  *  1) gonder(): bitmis sohbetler (son 3 gun, henuz incelenmemis) Anthropic Batch API'ye (yari fiyat) yollanir.
  *     Denetci modeli (Sonnet) her sohbete puan verir, sorunlari (istek atlandi, gereksiz soru, uzun akis...) ve
  *     "dogrusu buydu" cevabini yazar.
- *  2) topla(): batch bitince sonuclar wa_denetim'e yazilir; isletme basina dersUret():
- *     - davranis dersi: yeniden oynatma testinden GECERSE asistanin talimatina eklenir (RandevuAsistan waDersler).
+ *  2) topla(): batch bitince sonuclar wa_denetim'e yazilir; isletme basina dersUret() (rapor + bilgi + kod),
+ *     ardindan ortakDersUret() TUM salonlarin bulgularindan davranis dersi cikarir (ORTAK BEYIN, isletme_id=0):
+ *     - davranis dersi: yeniden oynatma testinden GECERSE otomatik olarak HER salonun asistan talimatina eklenir
+ *       (RandevuAsistan waDersler); A salonunda gorulen hata B salonunda tekrarlanmaz.
  *       Test: sorunlu sohbetlerin o ani + iyi giden sohbetler, ders OLMADAN ve ILE yeniden uretilir (araclar
  *       CALISTIRILMAZ: randevu olusmaz), denetci hangisinin daha iyi oldugunu kor degerlendirir.
  *     - bilgi eksigi (isletmeye ozel bilgi: "Damla Hanım hangi gün?"): panelde isletmenin cevabini bekler.
@@ -24,7 +26,9 @@ use Illuminate\Support\Facades\Schema;
  */
 class WaDenetci
 {
-    const SEMA = 'wa_denetci_sema_v1';
+    const SEMA = 'wa_denetci_sema_v2';
+    /** ORTAK BEYIN: davranis dersleri tum salonlarin sohbetlerinden uretilir, isletme_id=0 ile tutulur ve HER salonda uygulanir. */
+    const ORTAK = 0;
     const SORUN_TURLERI = ['istek_atlandi', 'gereksiz_soru', 'uzun_akis', 'yanlis_bilgi', 'anlamadi', 'ton', 'bilgi_eksik', 'gereksiz_aktarma', 'teknik_hata', 'diger'];
     const SORUN_AD = [
         'istek_atlandi' => 'Müşterinin isteği atlandı', 'gereksiz_soru' => 'Bilinen bilgi tekrar soruldu', 'uzun_akis' => 'Randevu gereğinden uzun sürdü',
@@ -89,6 +93,8 @@ class WaDenetci
                     Schema::table('wa_asistan_ayarlar', function ($t) use ($kolon, $vars) { $t->tinyInteger($kolon)->default($vars); });
                 }
             }
+            // v2: salon basina uretilmis davranis dersleri ortak beyne tasinir
+            DB::table('wa_asistan_dersler')->where('tur', 'davranis')->where('isletme_id', '<>', self::ORTAK)->update(['isletme_id' => self::ORTAK]);
             Cache::forever(self::SEMA, 1);
             return true;
         } catch (\Throwable $e) {
@@ -383,6 +389,14 @@ T;
         foreach (array_keys($isletmeler) as $iid) {
             try { self::dersUret($iid); } catch (\Throwable $e) { Log::error('[WA-DENETCI] ders uretilemedi: ' . $e->getMessage(), ['isletme' => $iid]); }
         }
+        if ($isletmeler || Cache::pull('wa_ortak_ders_bekliyor')) {
+            // saatte en fazla bir kez; kilitliyse sonraki toplamaya birak
+            if (Cache::add('wa_ortak_ders_kilit', 1, 60)) {
+                try { self::ortakDersUret(); } catch (\Throwable $e) { Log::error('[WA-DENETCI] ortak ders uretilemedi: ' . $e->getMessage()); }
+            } else {
+                Cache::put('wa_ortak_ders_bekliyor', 1, 24 * 60);
+            }
+        }
         return ['ok' => true, 'islenen' => $islenen, 'isletme' => count($isletmeler)];
     }
 
@@ -426,8 +440,9 @@ T;
     public static function aktifDersler(int $isletmeId): array
     {
         if (!self::semaGaranti()) return [];
-        return Cache::remember("wa_dersler_{$isletmeId}", 10, function () use ($isletmeId) {
-            return DB::table('wa_asistan_dersler')->where('isletme_id', $isletmeId)->where('tur', 'davranis')->where('durum', 'aktif')
+        // ortak beyin: $isletmeId'den bagimsiz, her salon ayni dersleri alir
+        return Cache::remember('wa_dersler_' . self::ORTAK, 10, function () {
+            return DB::table('wa_asistan_dersler')->where('isletme_id', self::ORTAK)->where('tur', 'davranis')->where('durum', 'aktif')
                 ->orderBy('id')->limit(self::MAX_AKTIF_DERS)->pluck('metin')->all();
         });
     }
@@ -451,44 +466,24 @@ T;
         }
         $mevcut =DB::table('wa_asistan_dersler')->where('isletme_id', $isletmeId)->whereIn('durum', ['aktif', 'oneri', 'reddedildi', 'kapali', 'cevaplandi'])
             ->where('created_at', '>=', now()->subDays(60))->get(['tur', 'metin', 'durum']);
-        $sema = ['type' => 'object', 'additionalProperties' => false, 'required' => ['rapor', 'dersler', 'bilgi', 'kod'], 'properties' => [
+        $sema = ['type' => 'object', 'additionalProperties' => false, 'required' => ['rapor', 'bilgi', 'kod'], 'properties' => [
             'rapor' => ['type' => 'string'],
-            'dersler' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['metin', 'gerekce', 'kanitlar'], 'properties' => [
-                'metin' => ['type' => 'string'], 'gerekce' => ['type' => 'string'],
-                'kanitlar' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['oturum_id', 'mesaj_no'], 'properties' => ['oturum_id' => ['type' => 'integer'], 'mesaj_no' => ['type' => 'integer']]]],
-            ]]],
             'bilgi' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['soru', 'not'], 'properties' => ['soru' => ['type' => 'string'], 'not' => ['type' => 'string']]]],
             'kod' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['baslik', 'aciklama', 'oturum_id'], 'properties' => ['baslik' => ['type' => 'string'], 'aciklama' => ['type' => 'string'], 'oturum_id' => ['type' => 'integer']]]],
         ]];
-        $sistem = "WhatsApp randevu asistanının son 7 günlük denetim bulgularını, asistanın talimatına eklenecek DERSLERE dönüştürüyorsun.\n"
-            . "- dersler: en fazla 3, en çok tekrarlanan ve randevuyu en çok etkileyen sorunlardan. Her ders tek cümle, emir kipinde, genel (müşteri adı yok), 220 karakteri geçmez. "
-            . "Fiyat, indirim, kampanya, ödeme ya da işletme politikası içeren ders YAZMA. Zaten var olan, reddedilmiş ya da kapatılmış derslerin aynısını/benzerini YAZMA. "
-            . "kanitlar: dersin düzelteceği sorunun görüldüğü (oturum_id, mesaj_no) çiftleri (en fazla 4, girdiden aynen al).\n"
+        $sistem = "Bir salonun WhatsApp randevu asistanının son 7 günlük denetim bulgularını özetliyorsun. "
+            . "(Asistanın davranış hataları ayrıca tüm salonların ortak asistan beynine iletilip düzeltiliyor; burada yalnız bu salona özel olanlar çıkarılır.)\n"
             . "- bilgi: müşterilerin sorduğu ama işletmenin sisteme girmesi gereken bilgiler (tekrarları birleştir, en fazla 5).\n"
             . "- kod: sistem/araç hatası gibi görünen bulgular (en fazla 3).\n"
             . "- rapor: işletme sahibine, birinci ağızdan ('inceledim', 'düzelteceğim') sade Türkçe kısa rapor. Teknik terim, kod, oturum numarası YOK. "
             . "Satır başı '• ' ile 4-8 madde: kaç sohbet incelediğin ve genel durum; yakaladığın en önemli sorunlar (müşteri adıyla, ne oldu, doğrusu neydi); "
-            . "neleri düzelteceğin (yukarıdaki dersler, her biri sade bir cümle); işletmeden ne beklediğin (bilgi soruları, elle bakılması gereken müşteri). Bulgu yoksa uydurma.";
+            . "asistanın davranış hatalarını tüm salonlar için ortak beyinde düzelteceğin (her biri sade bir cümle); işletmeden ne beklediğin (bilgi soruları, elle bakılması gereken müşteri). Bulgu yoksa uydurma.";
         $ozetler = $yeni->take(40)->map(function ($d) use ($adlar) { return '- ' . ($adlar[$d->oturum_id] ?? 'Müşteri') . " (puan {$d->puan}): " . $d->ozet; })->all();
         $metin = '# BU İNCELEME: ' . $yeni->count() . " yeni sohbet\n" . implode("\n", $ozetler) . "\n\n# MEVCUT DERSLER (tekrarlama)\n" . ($mevcut->count() ? implode("\n", $mevcut->map(function ($x) { return "- [{$x->durum}/{$x->tur}] {$x->metin}"; })->all()) : '- yok')
             . "\n\n# BULGULAR\n" . json_encode(array_slice($girdi, 0, 150), JSON_UNESCAPED_UNICODE);
         [$j] = self::tekCagri($sistem, $metin, $sema, 5000);
         if (!$j) return;
         if (trim((string) ($j['rapor'] ?? '')) !== '') self::raporYaz($isletmeId, (string) $j['rapor']);
-        $aktifSay =DB::table('wa_asistan_dersler')->where('isletme_id', $isletmeId)->where('tur', 'davranis')->where('durum', 'aktif')->count();
-        $oto = (int) (WaAsistanVeri::ayarlar($isletmeId)['denetci_oto'] ?? 1) === 1;
-        foreach (array_slice((array) ($j['dersler'] ?? []), 0, 3) as $ders) {
-            $metinD = trim((string) ($ders['metin'] ?? ''));
-            if ($metinD === '') continue;
-            $kanit = array_slice((array) ($ders['kanitlar'] ?? []), 0, 4);
-            $id = DB::table('wa_asistan_dersler')->insertGetId(['isletme_id' => $isletmeId, 'tur' => 'davranis', 'metin' => mb_substr($metinD, 0, 300),
-                'gerekce' => mb_substr((string) ($ders['gerekce'] ?? ''), 0, 1000), 'kanit' => json_encode($kanit), 'durum' => 'oneri', 'created_at' => now(), 'updated_at' => now()]);
-            if (!self::dersGuvenliMi($metinD)) { DB::table('wa_asistan_dersler')->where('id', $id)->update(['test' => json_encode(['not' => 'Fiyat/politika içerdiği için otomatik uygulanmadı; onayınızı bekliyor.'])]); continue; }
-            $t = self::testEt($isletmeId, $metinD, $kanit);
-            $durum = $t['gecti'] ? (($oto && $aktifSay < self::MAX_AKTIF_DERS) ? 'aktif' : 'oneri') : 'reddedildi';
-            if ($durum === 'aktif') $aktifSay++;
-            DB::table('wa_asistan_dersler')->where('id', $id)->update(['durum' => $durum, 'test' => json_encode($t, JSON_UNESCAPED_UNICODE), 'updated_at' => now()]);
-        }
         foreach (array_slice((array) ($j['bilgi'] ?? []), 0, 5) as $b) {
             $soru = trim((string) ($b['soru'] ?? ''));
             if ($soru === '' || DB::table('wa_asistan_dersler')->where('isletme_id', $isletmeId)->where('tur', 'bilgi')->where('metin', $soru)->exists()) continue;
@@ -501,7 +496,60 @@ T;
                 'kanit' => json_encode([['oturum_id' => (int) ($k['oturum_id'] ?? 0), 'mesaj_no' => 0]]), 'durum' => 'oneri', 'created_at' => now(), 'updated_at' => now()]);
             Log::warning('[WA-DENETCI] gelistirici bulgusu', ['isletme' => $isletmeId, 'baslik' => $bas, 'aciklama' => $k['aciklama'] ?? '']);
         }
-        Cache::forget("wa_dersler_{$isletmeId}");
+    }
+
+    /**
+     * ORTAK BEYIN: tum salonlarin son 7 gunluk bulgularindan davranis dersi uretir. Testi gecen ders insan onayi
+     * beklemeden aktif olur ve her salonda uygulanir; fiyat/politika iceren ders otomatik uygulanmaz (dersGuvenliMi).
+     */
+    public static function ortakDersUret(): void
+    {
+        $denetimler = DB::table('wa_denetim')->where('durum', 'tamam')->where('created_at', '>=', now()->subDays(7))->orderByDesc('id')->limit(300)->get();
+        $girdi = []; $iyi = [];
+        foreach ($denetimler as $d) {
+            foreach ((array) json_decode($d->sorunlar ?: '[]', true) as $s) {
+                if (($s['tur'] ?? '') === 'bilgi_eksik') continue; // salona ozel bilgi, ortak derse girmez
+                $girdi[] = ['salon' => (int) $d->isletme_id, 'oturum_id' => (int) $d->oturum_id, 'mesaj_no' => (int) ($s['mesaj_no'] ?? 0), 'tur' => $s['tur'] ?? '', 'aciklama' => $s['aciklama'] ?? '', 'dogrusu' => $s['daha_iyi_cevap'] ?? ''];
+            }
+            $on = (array) json_decode($d->oneriler ?: '{}', true);
+            foreach ((array) ($on['dersler'] ?? []) as $x) if (($x['tur'] ?? 'davranis') === 'davranis') $girdi[] = ['salon' => (int) $d->isletme_id, 'oturum_id' => (int) $d->oturum_id, 'oneri' => $x['metin'] ?? $x];
+            if ((int) $d->puan >= 90 && count($iyi) < 20) $iyi[] = '- (puan ' . (int) $d->puan . ') ' . $d->ozet;
+        }
+        if (!$girdi) return;
+        $mevcut = DB::table('wa_asistan_dersler')->where('isletme_id', self::ORTAK)->where('tur', 'davranis')
+            ->where('created_at', '>=', now()->subDays(90))->get(['metin', 'durum']);
+        $sema = ['type' => 'object', 'additionalProperties' => false, 'required' => ['dersler'], 'properties' => [
+            'dersler' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['metin', 'gerekce', 'kanitlar'], 'properties' => [
+                'metin' => ['type' => 'string'], 'gerekce' => ['type' => 'string'],
+                'kanitlar' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['oturum_id', 'mesaj_no'], 'properties' => ['oturum_id' => ['type' => 'integer'], 'mesaj_no' => ['type' => 'integer']]]],
+            ]]],
+        ]];
+        $sistem = "Birçok güzellik salonunun ORTAK kullandığı WhatsApp randevu asistanının son 7 günlük denetim bulgularını (tüm salonlar), asistanın talimatına eklenecek DERSLERE dönüştürüyorsun. "
+            . "Bir ders eklendiğinde TÜM salonlarda uygulanır; amaç bir salonda görülen hatanın başka salonda tekrarlanmaması.\n"
+            . "- dersler: en fazla 3, en çok tekrarlanan (tercihen birden fazla salonda görülen) ve randevuyu en çok etkileyen sorunlardan. "
+            . "İyi giden sohbetlerde işe yarayan bir davranış da ders olabilir. Her ders tek cümle, emir kipinde, genel (müşteri, personel, salon ya da hizmet adı YOK), 220 karakteri geçmez. "
+            . "Fiyat, indirim, kampanya, ödeme ya da işletme politikası içeren ders YAZMA. Mevcut listedeki derslerin (aktif, reddedilmiş, kapatılmış) aynısını/benzerini YAZMA. "
+            . "kanitlar: dersin düzelteceği sorunun görüldüğü (oturum_id, mesaj_no) çiftleri (en fazla 6, girdiden aynen al; mümkünse farklı salonlardan).";
+        $metin = "# MEVCUT DERSLER (tekrarlama)\n" . ($mevcut->count() ? implode("\n", $mevcut->map(function ($x) { return "- [{$x->durum}] {$x->metin}"; })->all()) : '- yok')
+            . "\n\n# İYİ GİDEN SOHBETLER\n" . ($iyi ? implode("\n", $iyi) : '- yok')
+            . "\n\n# BULGULAR\n" . json_encode(array_slice($girdi, 0, 200), JSON_UNESCAPED_UNICODE);
+        [$j] = self::tekCagri($sistem, $metin, $sema, 4000);
+        if (!$j) return;
+        $aktifSay = DB::table('wa_asistan_dersler')->where('isletme_id', self::ORTAK)->where('tur', 'davranis')->where('durum', 'aktif')->count();
+        foreach (array_slice((array) ($j['dersler'] ?? []), 0, 3) as $ders) {
+            $metinD = trim((string) ($ders['metin'] ?? ''));
+            if ($metinD === '') continue;
+            $kanit = array_slice((array) ($ders['kanitlar'] ?? []), 0, 6);
+            $id = DB::table('wa_asistan_dersler')->insertGetId(['isletme_id' => self::ORTAK, 'tur' => 'davranis', 'metin' => mb_substr($metinD, 0, 300),
+                'gerekce' => mb_substr((string) ($ders['gerekce'] ?? ''), 0, 1000), 'kanit' => json_encode($kanit), 'durum' => 'oneri', 'created_at' => now(), 'updated_at' => now()]);
+            if (!self::dersGuvenliMi($metinD)) { DB::table('wa_asistan_dersler')->where('id', $id)->update(['test' => json_encode(['not' => 'Fiyat/politika içerdiği için otomatik uygulanmadı.'])]); continue; }
+            $t = self::testEt($metinD, $kanit);
+            $durum = $t['gecti'] ? ($aktifSay < self::MAX_AKTIF_DERS ? 'aktif' : 'oneri') : 'reddedildi';
+            if ($durum === 'aktif') $aktifSay++;
+            DB::table('wa_asistan_dersler')->where('id', $id)->update(['durum' => $durum, 'test' => json_encode($t, JSON_UNESCAPED_UNICODE), 'updated_at' => now()]);
+            Log::info('[WA-DENETCI] ortak ders', ['ders' => $metinD, 'durum' => $durum]);
+        }
+        Cache::forget('wa_dersler_' . self::ORTAK);
     }
 
     /** Denetcinin isletmeye sade anlatimi (panelde "Denetçinin raporu"); dersler tablosunda tur=rapor, son 10 tutulur. */
@@ -516,28 +564,29 @@ T;
      * Yeniden oynatma: sorunlu anlar (kanit) + iyi giden sohbetlerin ilk cevabi; ders OLMADAN ve ILE asistan cevabi uretilir
      * (araclar calistirilmaz), denetci kor karsilastirir.
      */
-    public static function testEt(int $isletmeId, string $ders, array $kanitlar): array
+    public static function testEt(string $ders, array $kanitlar): array
     {
+        // her ornek kendi salonunun bilgileriyle (hizmet, personel, saat) yeniden oynatilir
         $ornek = [];
         foreach ($kanitlar as $k) {
-            $o = DB::table('wa_asistan_oturumlari')->where('id', (int) ($k['oturum_id'] ?? 0))->where('isletme_id', $isletmeId)->first();
+            $o = DB::table('wa_asistan_oturumlari')->where('id', (int) ($k['oturum_id'] ?? 0))->first();
             if (!$o) continue;
             $kes = self::kesit(json_decode($o->gecmis ?: '[]', true) ?: [], (int) ($k['mesaj_no'] ?? 0));
-            if ($kes) $ornek[] = ['grup' => 'kanit', 'gecmis' => $kes, 'tel' => $o->musteri_tel ?: $o->telefon, 'ad' => $o->ad];
+            if ($kes) $ornek[] = ['grup' => 'kanit', 'iid' => (int) $o->isletme_id, 'gecmis' => $kes, 'tel' => $o->musteri_tel ?: $o->telefon, 'ad' => $o->ad];
         }
-        $iyiler = DB::table('wa_denetim as d')->join('wa_asistan_oturumlari as o', 'o.id', '=', 'd.oturum_id')->where('d.isletme_id', $isletmeId)
-            ->where('d.durum', 'tamam')->where('d.puan', '>=', 85)->orderByDesc('d.id')->limit(3)->get(['o.gecmis', 'o.musteri_tel', 'o.telefon', 'o.ad']);
+        $iyiler = DB::table('wa_denetim as d')->join('wa_asistan_oturumlari as o', 'o.id', '=', 'd.oturum_id')
+            ->where('d.durum', 'tamam')->where('d.puan', '>=', 85)->orderByDesc('d.id')->limit(4)->get(['o.isletme_id', 'o.gecmis', 'o.musteri_tel', 'o.telefon', 'o.ad']);
         foreach ($iyiler as $o) {
             $g = json_decode($o->gecmis ?: '[]', true) ?: [];
             $ilk = []; foreach ($g as $m) { $ilk[] = $m; if (($m['role'] ?? '') === 'user') break; }
-            if ($ilk && (end($ilk)['role'] ?? '') === 'user') $ornek[] = ['grup' => 'iyi', 'gecmis' => $ilk, 'tel' => $o->musteri_tel ?: $o->telefon, 'ad' => $o->ad];
+            if ($ilk && (end($ilk)['role'] ?? '') === 'user') $ornek[] = ['grup' => 'iyi', 'iid' => (int) $o->isletme_id, 'gecmis' => $ilk, 'tel' => $o->musteri_tel ?: $o->telefon, 'ad' => $o->ad];
         }
         if (!array_filter($ornek, function ($x) { return $x['grup'] === 'kanit'; })) return self::testKarari([]) + ['not' => 'Test için örnek bulunamadı.'];
-        $eski = self::aktifDersler($isletmeId);
+        $eski = self::aktifDersler(self::ORTAK);
         $ciftler = []; $usd = 0.0;
         foreach ($ornek as $n => $x) {
-            [$a, $ua] = self::denemeCevabi($isletmeId, $x, $eski);
-            [$b, $ub] = self::denemeCevabi($isletmeId, $x, array_merge($eski, [$ders]));
+            [$a, $ua] = self::denemeCevabi($x['iid'], $x, $eski);
+            [$b, $ub] = self::denemeCevabi($x['iid'], $x, array_merge($eski, [$ders]));
             $usd += $ua + $ub;
             if ($a === null || $b === null) continue;
             $ters = mt_rand(0, 1) === 1; // konum yanliligi olmasin
@@ -589,7 +638,7 @@ T;
     }
 
     // ------------------------------------------------------------------ 4) haftalik ozet + panel
-    public static function panel(int $isletmeId): array
+    public static function panel(int $isletmeId, bool $biz = false): array
     {
         self::semaGaranti();
         $ayar = WaAsistanVeri::ayarlar($isletmeId);
@@ -606,10 +655,14 @@ T;
         for ($i = 13; $i >= 0; $i--) $gunluk[date('Y-m-d', strtotime("-{$i} days"))] = [];
         foreach ($d14 as $d) { $g = substr($d->created_at, 0, 10); if (isset($gunluk[$g])) $gunluk[$g][] = (int) $d->puan; }
         $adlar = DB::table('wa_asistan_oturumlari')->whereIn('id', $bu->pluck('oturum_id')->take(30)->all())->pluck('ad', 'id');
-        $dersler = DB::table('wa_asistan_dersler')->where('isletme_id', $isletmeId)->whereIn('durum', ['aktif', 'oneri', 'reddedildi', 'kapali'])
-            ->orderByDesc('id')->limit(80)->get(['id', 'tur', 'metin', 'gerekce', 'durum', 'test', 'created_at']);
+        // salonun bilgi sorulari / notlari + ortak beynin dersleri (sistem yoneticisi tum durumlari, digerleri yalniz uygulananlari)
+        $dersDurum = $biz ? ['aktif', 'oneri', 'reddedildi', 'kapali'] : ['aktif'];
+        $dersler = DB::table('wa_asistan_dersler')->where(function ($q) use ($isletmeId, $dersDurum) {
+                $q->where(function ($q) use ($isletmeId) { $q->where('isletme_id', $isletmeId)->whereIn('tur', ['bilgi', 'kod'])->whereIn('durum', ['oneri', 'kapali']); })
+                  ->orWhere(function ($q) use ($dersDurum) { $q->where('isletme_id', self::ORTAK)->where('tur', 'davranis')->whereIn('durum', $dersDurum); });
+            })->orderByDesc('id')->limit(80)->get(['id', 'tur', 'metin', 'gerekce', 'durum', 'test', 'created_at']);
         return [
-            'acik' => (int) ($ayar['denetci'] ?? 1), 'oto' => (int) ($ayar['denetci_oto'] ?? 1),
+            'acik' => (int) ($ayar['denetci'] ?? 1), 'oto' => 1, // ortak beyin her zaman otomatik
             'puan' => $ort($bu, function ($d) { return (int) $d->puan; }), 'puan_once' => $ort($once, function ($d) { return (int) $d->puan; }),
             'randevu_mesaj' => $randevuMesaj($bu), 'randevu_mesaj_once' => $randevuMesaj($once),
             'incelenen' => $bu->count(), 'sorunlu' => $bu->filter(function ($d) { return (int) $d->puan < 70; })->count(),
@@ -633,13 +686,12 @@ T;
         if (!self::semaGaranti()) return 0;
         $n = 0;
         foreach (DB::table('wa_denetim')->where('durum', 'tamam')->where('created_at', '>=', now()->subDays(7))->distinct()->pluck('isletme_id') as $iid) {
+            // salona egitim dili yok: yalniz ne is yapildi + bekleyen sorulari
             $p = self::panel((int) $iid);
-            $yeni = collect($p['dersler'])->filter(function ($d) { return strtotime($d->created_at) >= strtotime('-7 days'); });
-            $metin = 'WhatsApp asistanı bu hafta ' . $p['incelenen'] . ' sohbeti kendi kendine inceledi. Kalite puanı: ' . ($p['puan'] ?? '-')
-                . ($p['puan_once'] !== null ? ' (önceki hafta ' . $p['puan_once'] . ')' : '') . '. '
-                . $yeni->where('tur', 'davranis')->where('durum', 'aktif')->count() . ' yeni ders öğrendi'
-                . ($p['randevu_mesaj'] !== null ? ', randevu ortalama ' . str_replace('.', ',', (string) $p['randevu_mesaj']) . ' mesajda alındı' : '') . '.'
-                . (($b = $yeni->where('tur', 'bilgi')->where('durum', 'oneri')->count()) ? " {$b} soru cevabınızı bekliyor (WhatsApp Asistanı > Asistan Gelişimi)." : '');
+            $randevu = DB::table('wa_denetim')->where('isletme_id', $iid)->where('durum', 'tamam')->where('created_at', '>=', now()->subDays(7))->where('randevu', 1)->count();
+            $b = collect($p['dersler'])->where('tur', 'bilgi')->where('durum', 'oneri')->count();
+            $metin = 'WhatsApp asistanınız bu hafta ' . $p['incelenen'] . ' müşteriyle yazıştı' . ($randevu ? " ve {$randevu} randevu oluşturdu" : '') . '.'
+                . ($b ? " Asistanın size sorduğu {$b} soru cevabınızı bekliyor (WhatsApp Asistanı > Asistan size soruyor)." : '');
             WaAsistan::bildir((int) $iid, $metin, '/isletmeyonetim/whatsapp-asistan?sube=' . $iid);
             $n++;
         }

@@ -790,7 +790,7 @@ namespace {
     icerir('Santral değişmedi: kayıt adımı başta', 'KAYIT ADIMI (randevudan ÖNCE, atlanamaz)', $pS);
     $waD = asistan(['kanal' => 'whatsapp']);
     $waD->waDersleriAyarla(['İlk mesajdaki saati hemen kontrol et.', '  ']);
-    icerir('WA dersleri: talimata eklenir', 'GEÇMİŞ SOHBETLERDEN ÖĞRENİLENLER (test edildi; uy)' . "\n" . '- İlk mesajdaki saati hemen kontrol et.', cagir($waD, 'sistemPromptu'));
+    icerir('WA dersleri: talimata eklenir', 'SOHBETLERİNDEN ÖĞRENİLENLER (test edildi; uy)' . "\n" . '- İlk mesajdaki saati hemen kontrol et.', cagir($waD, 'sistemPromptu'));
     esit('WA dersleri: santralde yok', false, strpos(cagir(asistan(), 'sistemPromptu'), 'ÖĞRENİLENLER') !== false);
     $dn = $waD->waDenemeIstegi([['role' => 'user', 'content' => 'yarın 3te protez']]);
     esit('deneme isteği: canlı model + araçlar + müşteri mesajı', [true, 'user'], [count($dn['tools']) > 3, $dn['messages'][0]['role']]);
