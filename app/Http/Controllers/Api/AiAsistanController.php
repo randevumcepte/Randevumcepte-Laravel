@@ -544,7 +544,7 @@ class AiAsistanController extends Controller
             return response()->json(['ok' => true, 'eslesme' => 'yok', 'oneriler' => []]);
         }
 
-        $normMetin = self::normalizeTr($metin);
+        $normMetin = self::halkDili(self::normalizeTr($metin));
         $metinKelime = array_values(array_filter(explode(' ', $normMetin), function ($w) {
             return mb_strlen($w) >= 2; // "ve", "de" gibi çok kısa parçaları atma dışında filtre
         }));
@@ -554,7 +554,7 @@ class AiAsistanController extends Controller
         $skorlu = [];        // kelime örtüşmesine göre puanlı fallback
 
         foreach ($hizmetler as $h) {
-            $normSvc = self::normalizeTr($h->ad);
+            $normSvc = self::halkDili(self::normalizeTr($h->ad));
             $svcKelime = array_values(array_filter(explode(' ', $normSvc), function ($w) {
                 return $w !== '';
             }));
@@ -711,6 +711,30 @@ class AiAsistanController extends Controller
      * Türkçe metni eşleştirme için normalize et: küçült, aksanları sadeleştir,
      * noktalama/fazla boşlukları temizle. ("Lazer Epilasyon (Kol)" → "lazer epilasyon kol")
      */
+    /**
+     * Halk dili -> hizmet dili (normalize edilmis metin uzerinde). Canli 2026-11-20: musteri "oje kaldırma" yazdi,
+     * hizmet "Kalıcı Oje Çıkarma" bulunamadi. Tirnak baglaminda kaldir/sil/sok/aldir = cikarma; "kas aldirma" gibi
+     * baska hizmetlere dokunmaz (yalniz oje/jel/protez/tirnak... geciyorsa).
+     */
+    public static function halkDili(string $norm): string
+    {
+        $k = explode(' ', $norm);
+        $tirnak = (bool) array_filter($k, function ($w) {
+            return (bool) preg_match('/^(oje|kalici|jel|protez|tirnak|kaplama|akrilik|nail|gel|manikur|pedikur|cilali|kroms?|kalicim)/', $w);
+        });
+        if ($tirnak) {
+            $k = array_map(function ($w) {
+                return preg_match('/^(kaldir|sil(me|mek|e|)$|silin|sildir|aldir|cikar|cikart|sokme|soktur|sokul|sokum|temizlet)/', $w) ? 'cikarma' : $w;
+            }, $k);
+        } else {
+            // "kaş aldırma", "bıyık aldırmak" -> Kaş Alma / Bıyık Alma
+            $k = array_map(function ($w) { return preg_match('/^aldir(ma|mak|ta|)$/', $w) ? 'alma' : $w; }, $k);
+        }
+        // iyelik/hal ekleri: "ojemi", "ojeyi", "ojeleri" -> oje
+        $k = array_map(function ($w) { return preg_match('/^oje(m|mi|yi|ler|leri|lerimi|nin|lerin)$/', $w) ? 'oje' : $w; }, $k);
+        return implode(' ', $k);
+    }
+
     private static function normalizeTr($s)
     {
         $s = (string) $s;
