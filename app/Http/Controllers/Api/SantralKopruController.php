@@ -183,6 +183,13 @@ class SantralKopruController extends Controller
         $sKur = microtime(true);
         // Yetkiliye ulasilamadi / mesai disi -> asistan "konuyu söyleyin, notuma ekleyeyim" dediyse bu cumle NOTTUR
         $d = $this->geriAraNotTuru($oid, $metin, $gecmis) ?? $as->konus($metin, $gecmis);
+        // Ust uste IKINCI kez anlasilamadi: musteriyi uzatma, isletmeye aktar (2026-11-19 isletme istegi, kayit 178)
+        if (empty($d['aksiyon']) && empty($d['bitir']) && $as->ikinciAnlamama((string) ($d['cevap'] ?? ''), $gecmis)) {
+            \Log::info('[SANTRAL-TUR] iki kez anlasilamadi -> aktar', ['oturum' => $oid, 'metin' => $metin, 'cevap' => $d['cevap'] ?? '']);
+            $as->teshis = 'anlasilamadi_aktar';
+            $d = ['cevap' => 'Kusura bakmayın, size daha iyi yardımcı olabilmesi için sizi hemen yetkili arkadaşıma bağlıyorum, lütfen hatta kalın.',
+                  'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
+        }
         // Aktarma yerine not: mesai disi ya da bu aramada yetkiliye zaten ulasilamadi (tekrar caldirmak bosuna)
         if (($d['aksiyon'] ?? null) === 'aktar' && ($gNeden = $this->aktarmaYerineNot($o))) {
             $this->geriAraKaydet($o, $gNeden);

@@ -768,6 +768,25 @@ class RandevuAsistan
         return trim($c);
     }
 
+    /** Asistan musteriyi anlamadigini mi soyluyor ("tam duyamadım", "tekrar söyler misiniz", "... mı demek istediniz?")? */
+    public function anlamadiCevabi(string $c): bool
+    {
+        return (bool) preg_match('/duyamadım|anlayamadım|anlamadım|tekrar (söyler|eder|tekrarlar) mis[iı]n[iı]z|demek istediniz|ne demek istediğinizi/iu', $c);
+    }
+
+    /**
+     * Ust uste ikinci anlamama: bu cevap da, musterinin duydugu bir onceki asistan cevabi da "anlamadım" ise true
+     * -> kopru soruyu uzatmadan isletmeye aktarir (kayit 178: musteri anlasilamadi, asistan defalarca sordu).
+     */
+    public function ikinciAnlamama(string $cevap, array $gecmis): bool
+    {
+        if (!$this->anlamadiCevabi($cevap)) return false;
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') === 'assistant') return $this->anlamadiCevabi((string) ($gecmis[$i]['content'] ?? ''));
+        }
+        return false;
+    }
+
     /**
      * Kalip kapanis sorusu ("Başka yardımcı olabileceğim bir konu var mı?") robotik (kayit 172): musteriye giden
      * cumlede sirayla dogal bir soruyla degistirilir (ayni gorusmede ust uste ayni soru gelmez). Kod ve prompt

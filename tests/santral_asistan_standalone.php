@@ -303,6 +303,13 @@ namespace {
     esit('onay tekrarı → modelsiz kısa cevap', 'Randevunuz oluşturuldu, merak etmeyin. Sizin için yapabileceğim başka bir şey var mı?', $pz->kapanisDogallastir($d['cevap'], []));
     esit('yalın "evet" → dinliyorum', 'Tabii, sizi dinliyorum.', $pz->konus('Evet', $g180)['cevap']);
 
+    bolum('Kayıt 178: üst üste iki kez anlaşılamazsa uzatmadan aktar');
+    $anla = 'Kusura bakmayın, tam duyamadım. Hangi hizmet için arıyorsunuz?';
+    esit('ilk anlamama aktarılmaz', false, $pz->ikinciAnlamama($anla, [['role' => 'assistant', 'content' => 'Merhaba, size nasıl yardımcı olabilirim?'], ['role' => 'user', 'content' => 'şey']]));
+    esit('ikinci anlamama aktarılır', true, $pz->ikinciAnlamama($anla, [['role' => 'assistant', 'content' => $anla], ['role' => 'user', 'content' => 'hmm']]));
+    esit('"mı demek istediniz" de anlamama sayılır', true, $pz->ikinciAnlamama('Protez tırnak mı demek istediniz?', [['role' => 'assistant', 'content' => 'Sizi tam anlayamadım. Tekrar söyler misiniz?'], ['role' => 'user', 'content' => 'protest']]));
+    esit('anladıysa aktarılmaz', false, $pz->ikinciAnlamama('Hangi gün sizin için uygun?', [['role' => 'assistant', 'content' => $anla], ['role' => 'user', 'content' => 'manikür']]));
+
     bolum('"Başka yardımcı olabileceğim..." garantisi');
     foreach ([
         'Yol tarifini gönderdim. Size nasıl yardımcı olabilirim?' => 'Yol tarifini gönderdim. Başka yardımcı olabileceğim bir konu var mı?',
