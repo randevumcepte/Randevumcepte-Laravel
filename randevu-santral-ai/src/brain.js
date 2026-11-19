@@ -87,6 +87,17 @@ async function aktarmaHedef(subeId) {
   }
 }
 
+// POST /api/v1/santral/aktarma-cevapsiz -> {cevap}: yetkili acmadi, asistan geri donup not alir (Laravel isaretler+bildirir)
+async function aktarmaCevapsiz(oturumId, neden) {
+  try {
+    const { data } = await http.post('/api/v1/santral/aktarma-cevapsiz', form({ oturum_id: oturumId, neden }));
+    return data;
+  } catch (e) {
+    log.warn('aktarma-cevapsiz hatasi:', e.message);
+    return null;
+  }
+}
+
 // POST /api/v1/santral/bitir -> cagriyi cagri_loglari'na sonucla
 // ek: kopru maliyet olcumu {stt_sn, tts_ucretli_karakter, tts_ses}
 async function bitir(oturumId, ozet, ek) {
@@ -99,4 +110,4 @@ async function bitir(oturumId, ozet, ek) {
   }
 }
 
-module.exports = { baslat, konus, turIptal, bitir, aktarmaHedef, sesYukle, geriAramaBekleyen, geriAramaDurum };
+module.exports = { baslat, konus, turIptal, bitir, aktarmaHedef, aktarmaCevapsiz, sesYukle, geriAramaBekleyen, geriAramaDurum };

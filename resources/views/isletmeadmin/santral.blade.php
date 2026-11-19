@@ -362,6 +362,10 @@
                                        <div class="ag-stat"><div class="n" id="ag_s_hat">—</div><div class="l"><span class="dot b-teyit"></span>Hatırlatma araması</div></div>
                                        <div class="ag-stat"><div class="n" id="ag_s_akt">—</div><div class="l"><span class="dot b-aktar"></span>İşletmeye aktarılan</div></div>
                                     </div>
+                                    <div class="ag-geribant" id="ag_geribant" style="display:none">
+                                       📞 <b id="ag_geri_say">0</b> müşteri geri aranmayı bekliyor <span class="ag-kucuk">(yetkiliye ulaşılamadı / mesai dışı — asistan not aldı)</span>
+                                       <button type="button" id="ag_geri_goster">Göster</button>
+                                    </div>
                                     <div class="ag-filtre">
                                        <input type="date" id="ag_baslangic" value="{{date('Y-m-d', strtotime('-6 days'))}}">
                                        <span style="color:#94a3b8">—</span>
@@ -371,6 +375,7 @@
                                           <option>Gelen arama</option>
                                           <option>Randevu hatırlatma</option>
                                           <option>Ödeme hatırlatma</option>
+                                          <option value="geri_ara">Geri aranacaklar</option>
                                        </select>
                                        <button type="button" id="ag_listele"><i class="fa fa-refresh"></i> Yenile</button>
                                     </div>
@@ -418,6 +423,14 @@
                                  .c-aktar{background:rgba(245,158,11,.16);color:#d97706}.b-aktar{background:#f59e0b}
                                  .c-guncelle{background:rgba(99,102,241,.14);color:#4f46e5}.b-guncelle{background:#6366f1}
                                  .c-none{background:rgba(100,116,139,.14);color:#475569}.b-none{background:#64748b}
+                                 .c-geriara{background:rgba(225,29,72,.13);color:#e11d48}.b-geriara{background:#e11d48}
+                                 .ag-geribant{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff1f2;border:1px solid #fecdd3;color:#9f1239;border-radius:12px;padding:11px 14px;margin-bottom:14px;font-size:14px}
+                                 .ag-geribant button{margin-left:auto;border:none;background:#e11d48;color:#fff;border-radius:9px;padding:7px 14px;font-weight:700;font-size:12.5px;cursor:pointer}
+                                 .ag-gerikutu{background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13.5px;color:#881337}
+                                 .ag-gerikutu.ok{background:#f0fdf4;border-color:#bbf7d0;color:#14532d}
+                                 .ag-gerikutu .bas{font-weight:700;margin-bottom:4px}
+                                 .ag-gerikutu .not{background:#fff;border:1px solid #fecdd3;border-radius:9px;padding:8px 10px;margin-top:6px;color:#0f172a;white-space:pre-wrap}
+                                 .ag-gerikutu button{margin-top:10px;border:none;background:#16a34a;color:#fff;border-radius:9px;padding:8px 14px;font-weight:700;font-size:12.5px;cursor:pointer}
                                  .ag-detay{padding:18px;max-height:74vh;overflow:auto}
                                  .ag-meta{background:var(--p2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
                                  .ag-meta .ln1{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-weight:800;font-size:16px;color:#0f172a}
@@ -437,7 +450,7 @@
                               window.addEventListener('load', function () {
                                  var $ = window.jQuery; if (!$) return;
                                  var sube = '{{$isletme->id}}', yuklendi = false, hepsi = [], dokumMetni = '';
-                                 var IKON = {randevu:'📅', teyit:'✅', iptal:'✖️', aktar:'↪️', guncelle:'🔁', none:'📞'};
+                                 var IKON = {randevu:'📅', teyit:'✅', iptal:'✖️', aktar:'↪️', guncelle:'🔁', geriara:'📞', none:'📞'};
                                  var TIP_IKON = {'Gelen arama':'📞', 'Randevu hatırlatma':'⏰', 'Ödeme hatırlatma':'💳'};
                                  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
                                  function rozet(x){ return '<span class="ag-rozet c-' + x.renk + '">' + (IKON[x.renk] || '•') + ' ' + esc(x.sonuc) + '</span>'; }
@@ -448,7 +461,9 @@
                                        data: { sube: sube, baslangic: $('#ag_baslangic').val(), bitis: $('#ag_bitis').val() },
                                        success: function (r) {
                                           var tip = $('#ag_tip').val();
-                                          hepsi = (r.liste || []).filter(function (x) { return !tip || x.tip === tip; });
+                                          hepsi = (r.liste || []).filter(function (x) { return !tip || (tip === 'geri_ara' ? x.geri_ara === 1 : x.tip === tip); });
+                                          $('#ag_geri_say').text(r.bekleyen_geri_ara || 0);
+                                          $('#ag_geribant').toggle((r.bekleyen_geri_ara || 0) > 0);
                                           $('#ag_s_top').text(hepsi.length);
                                           $('#ag_s_rnd').text(hepsi.filter(function (x) { return x.renk === 'randevu'; }).length);
                                           $('#ag_s_hat').text(hepsi.filter(function (x) { return x.tip !== 'Gelen arama'; }).length);
@@ -492,6 +507,14 @@
                                              k.sesler.forEach(function (a) { m += '<div class="ag-ses"><div class="et">' + (a.aktarma ? '↪️ ' : '🤖 ') + esc(a.tur) + '</div><audio controls preload="none" src="' + esc(a.url) + '"></audio></div>'; });
                                           } else m += '<div style="margin-top:10px;font-size:12px;color:#94a3b8">🎙️ Ses kaydı yok</div>';
                                           m += '</div>';
+                                          if (k.geri_ara) {
+                                             m += '<div class="ag-gerikutu' + (k.geri_ara === 2 ? ' ok' : '') + '">' +
+                                                  '<div class="bas">' + (k.geri_ara === 2 ? '✅ Geri arandı' + (k.geri_arandi ? ' — ' + esc(k.geri_arandi) : '') : '📞 Bu müşteri geri aranmayı bekliyor') + '</div>' +
+                                                  (k.geri_ara_neden ? '<div>' + esc(k.geri_ara_neden) + ', asistan müşteriye geri aranacağını söyledi.</div>' : '') +
+                                                  '<div class="not">' + (k.geri_ara_not ? '📝 Müşterinin notu: ' + esc(k.geri_ara_not) : 'Müşteri not bırakmadı — konuşma dökümüne bakabilirsiniz.') + '</div>' +
+                                                  (k.geri_ara === 1 ? '<button type="button" class="ag-geri-arandi" data-id="' + k.id + '">✔ Aradım, tamamlandı</button>' : '') +
+                                                  '</div>';
+                                          }
                                           var c = '';
                                           dokumMetni = (k.tarih || '') + ' | ' + (k.musteri || '') + ' ' + (k.telefon || '') + ' | ' + (k.sonuc || '') + '\n';
                                           (k.konusma || []).forEach(function (x) {
@@ -515,6 +538,23 @@
                                  $('#ag_tip, #ag_baslangic, #ag_bitis').on('change', listele);
                                  $('#ag_q').on('input', filtrele);
                                  $('#ag_liste').on('click', '.ag-kayit', function () { detay($(this).data('id')); });
+                                 $('#ag_geri_goster').on('click', function () {
+                                    $('#ag_tip').val('geri_ara');
+                                    $('#ag_baslangic').val('{{date('Y-m-d', strtotime('-30 days'))}}');
+                                    listele();
+                                 });
+                                 $('#ag_detay').on('click', '.ag-geri-arandi', function () {
+                                    var id = $(this).data('id'), $b = $(this).prop('disabled', true);
+                                    $.ajax({ url: '/isletmeyonetim/santral-asistan-geri-arandi/' + id, type: 'POST', dataType: 'json',
+                                       data: { sube: sube, _token: '{{ csrf_token() }}' },
+                                       success: function (r) {
+                                          if (!r.ok) { $b.prop('disabled', false); swal({ type: 'warning', title: r.hata || 'İşaretlenemedi' }); return; }
+                                          swal({ type: 'success', title: 'Geri arandı olarak işaretlendi', showConfirmButton: false, timer: 1400 });
+                                          listele();
+                                       },
+                                       error: function () { $b.prop('disabled', false); swal({ type: 'error', title: 'İşaretlenemedi' }); }
+                                    });
+                                 });
                                  $('#ag_detay').on('click', '#ag_kopyala', function () {
                                     if (navigator.clipboard) navigator.clipboard.writeText(dokumMetni).then(function () { swal({ type: 'success', title: 'Döküm kopyalandı', showConfirmButton: false, timer: 1500 }); });
                                  });

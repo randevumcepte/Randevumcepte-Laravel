@@ -726,6 +726,7 @@ Route::match(['get', 'post'], '/v1/santral/konus',               [\App\Http\Cont
 Route::match(['get', 'post'], '/v1/santral/bitir',               [\App\Http\Controllers\Api\SantralKopruController::class, 'bitir']);
 Route::post('/v1/santral/tur-iptal',                             [\App\Http\Controllers\Api\SantralKopruController::class, 'turIptal']);
 Route::match(['get', 'post'], '/v1/santral/aktarma-hedef',       [\App\Http\Controllers\Api\SantralKopruController::class, 'aktarmaHedef']);
+Route::post('/v1/santral/aktarma-cevapsiz',                      [\App\Http\Controllers\Api\SantralKopruController::class, 'aktarmaCevapsiz']);
 Route::post('/v1/santral/kayit-yukle',                           [\App\Http\Controllers\Api\SantralKopruController::class, 'kayitYukle']);
 Route::match(['get', 'post'], '/v1/santral/geri-arama-bekleyen', [\App\Http\Controllers\Api\SantralKopruController::class, 'geriAramaBekleyen']);
 Route::post('/v1/santral/geri-arama-durum',                      [\App\Http\Controllers\Api\SantralKopruController::class, 'geriAramaDurum']);

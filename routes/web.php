@@ -1093,6 +1093,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/santral-asistan-gorusmeler','StoreAdminController@santralAsistanGorusmeler');
 	Route::get('/santral-asistan-gorusme/{id}','StoreAdminController@santralAsistanGorusme')->where('id','[0-9]+');
 	Route::get('/santral-asistan-ses/{id}','StoreAdminController@santralAsistanSes')->where('id','[0-9]+');
+	Route::post('/santral-asistan-geri-arandi/{id}','StoreAdminController@santralAsistanGeriArandi')->where('id','[0-9]+');
 	// WhatsApp Asistanı: kazandirdiklari, sohbetler (devral/geri ver), geri kazanma, fotograf fiyat kurallari, ogrenilen, ayarlar
 	Route::get('/whatsapp-asistan','WaAsistanPanelController@sayfa');
 	Route::get('/whatsapp-asistan/ozet','WaAsistanPanelController@ozet');

@@ -30289,6 +30289,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'randevu' => 'Randevu talebi', 'iptal' => 'Randevu iptal', 'guncelle' => 'Randevu güncellendi',
             'aktar' => 'İşletmeye aktarıldı', 'bilgi' => 'Bilgi verildi', 'teyit' => 'Randevuya gelecek',
             'odeme' => 'Ödeme sözü', 'veda' => 'Görüşme tamamlandı', 'kapandi' => 'Görüşme tamamlandı',
+            'geri_ara' => 'Geri aranacak', 'geri_arandi' => 'Geri arandı',
         ];
         if ($sonuc && isset($etiketler[$sonuc])) return $etiketler[$sonuc];
         if ($sonuc) return $sonuc;
@@ -30298,7 +30299,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     /** Rozet rengi (panel CSS sinifi): randevu | teyit | iptal | aktar | guncelle | none */
     protected static function asistanSonucRengi($sonuc)
     {
-        $r = ['randevu' => 'randevu', 'teyit' => 'teyit', 'odeme' => 'teyit', 'iptal' => 'iptal', 'aktar' => 'aktar', 'guncelle' => 'guncelle'];
+        $r = ['randevu' => 'randevu', 'teyit' => 'teyit', 'odeme' => 'teyit', 'iptal' => 'iptal', 'aktar' => 'aktar', 'guncelle' => 'guncelle',
+              'geri_ara' => 'geriara', 'geri_arandi' => 'teyit'];
         return $r[$sonuc] ?? 'none';
     }
 
@@ -30337,8 +30339,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             ->where('o.sube_id', $salonId)
             ->whereBetween('o.created_at', [$bas . ' 00:00:00', $bit . ' 23:59:59'])
             ->orderByDesc('o.id')->limit(300)
-            ->get(['o.id', 'o.telefon', 'o.sonuc', 'o.durum', 'o.randevu_id', 'o.created_at', 'o.updated_at', 'o.gecmis',
-                   'r.tarih as r_tarih', 'r.saat as r_saat', 'ru.name as r_musteri']);
+            ->get(array_merge(['o.id', 'o.telefon', 'o.sonuc', 'o.durum', 'o.randevu_id', 'o.created_at', 'o.updated_at', 'o.gecmis',
+                   'r.tarih as r_tarih', 'r.saat as r_saat', 'ru.name as r_musteri'], self::asistanGeriAraKolonVar() ? ['o.geri_ara'] : []));
+        // Tarih araligindan bagimsiz: son 30 gunde geri aranmayi bekleyenler (panel ust bandi)
+        $bekleyenGeriAra = self::asistanGeriAraKolonVar()
+            ? DB::table('santral_oturumlari')->where('sube_id', $salonId)->where('geri_ara', 1)->where('created_at', '>=', date('Y-m-d', strtotime('-30 days')))->count()
+            : 0;
 
         // Musteri adi: telefonun son 10 hanesiyle bu salonun portfoyunden (tek sorgu)
         $tel10 = function ($t) { $d = preg_replace('/\D/', '', (string) $t); return strlen($d) >= 10 ? substr($d, -10) : null; };
@@ -30362,14 +30368,16 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             for ($i = count($satirlar) - 1; $i >= 0; $i--) { if ($satirlar[$i]['rol'] === 'musteri') { $sonMusteri = $satirlar[$i]['metin']; break; } }
             $t10 = $tel10($o->telefon);
             $sure = ($o->updated_at && $o->created_at) ? max(0, strtotime($o->updated_at) - strtotime($o->created_at)) : null;
+            $sonucKod = self::asistanSonucKodu($o);
             $liste[] = [
                 'id' => (int) $o->id,
                 'tarih' => date('d.m.Y H:i', strtotime($o->created_at)),
                 'tip' => $tip,
                 'telefon' => $o->telefon ? ('0' . ($t10 ?: $o->telefon)) : 'Gizli numara',
                 'musteri' => $o->r_musteri ?: ($t10 && isset($adlar[$t10]) ? $adlar[$t10] : ''),
-                'sonuc' => self::asistanSonucEtiketi($o->sonuc, $o->durum),
-                'renk' => self::asistanSonucRengi($o->sonuc),
+                'sonuc' => self::asistanSonucEtiketi($sonucKod, $o->durum),
+                'renk' => self::asistanSonucRengi($sonucKod),
+                'geri_ara' => (int) ($o->geri_ara ?? 0),
                 'randevu' => $o->r_tarih ? date('d.m.Y', strtotime($o->r_tarih)) . ' ' . substr((string) $o->r_saat, 0, 5) : '',
                 'tur' => count(array_filter($satirlar, function ($x) { return $x['rol'] === 'musteri'; })),
                 'sure' => $sure !== null ? sprintf('%d:%02d', intdiv($sure, 60), $sure % 60) : '',
@@ -30377,7 +30385,36 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 'ses' => (int) ($sesSayi[$o->id] ?? 0),
             ];
         }
-        return response()->json(['ok' => 1, 'liste' => $liste], 200, ['Cache-Control' => 'no-store'], JSON_UNESCAPED_UNICODE);
+        return response()->json(['ok' => 1, 'liste' => $liste, 'bekleyen_geri_ara' => $bekleyenGeriAra], 200, ['Cache-Control' => 'no-store'], JSON_UNESCAPED_UNICODE);
+    }
+
+    /** Geri arama kolonlari (kopru /aktarma-cevapsiz ile olusur) var mi? */
+    protected static function asistanGeriAraKolonVar(): bool
+    {
+        static $var = null;
+        if ($var === null) {
+            try { $var = Schema::hasTable('santral_oturumlari') && Schema::hasColumn('santral_oturumlari', 'geri_ara'); }
+            catch (\Throwable $e) { $var = false; }
+        }
+        return $var;
+    }
+
+    /** Rozet icin sonuc: geri aranacak oturum arandiysa 'geri_arandi'. */
+    protected static function asistanSonucKodu($o)
+    {
+        if ($o->sonuc === 'geri_ara' && (int) ($o->geri_ara ?? 0) === 2) return 'geri_arandi';
+        return $o->sonuc;
+    }
+
+    /** Panel: "Aradım" -> geri aranacak musteri arandi olarak isaretlenir (kim, ne zaman). */
+    public function santralAsistanGeriArandi(Request $request, $id)
+    {
+        $salonId = $this->asistanGorusmeSalon($request);
+        if (!$salonId) return response()->json(['ok' => 0, 'hata' => 'Bu işlem için yetkiniz yok.'], 403);
+        if (!self::asistanGeriAraKolonVar()) return response()->json(['ok' => 0, 'hata' => 'Kayıt bulunamadı.'], 404);
+        $n = DB::table('santral_oturumlari')->where('id', (int) $id)->where('sube_id', $salonId)->where('geri_ara', 1)
+            ->update(['geri_ara' => 2, 'geri_arandi_at' => now(), 'geri_arayan' => mb_substr((string) Auth::guard('isletmeyonetim')->user()->name, 0, 100)]);
+        return response()->json(['ok' => $n ? 1 : 0, 'hata' => $n ? null : 'Bu görüşme zaten işaretlenmiş.'], 200, [], JSON_UNESCAPED_UNICODE);
     }
 
     public function santralAsistanGorusme(Request $request, $id)
@@ -30418,8 +30455,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'tip' => $h ? (($h['tur'] ?? '') === 'alacak' ? 'Ödeme hatırlatma' : 'Randevu hatırlatma') : 'Gelen arama',
             'sure' => $sure !== null ? sprintf('%d:%02d', intdiv($sure, 60), $sure % 60) : '',
             'randevu' => $o->r_tarih ? date('d.m.Y', strtotime($o->r_tarih)) . ' ' . substr((string) $o->r_saat, 0, 5) : '',
-            'renk' => self::asistanSonucRengi($o->sonuc),
-            'sonuc' => self::asistanSonucEtiketi($o->sonuc, $o->durum),
+            'renk' => self::asistanSonucRengi(self::asistanSonucKodu($o)),
+            'sonuc' => self::asistanSonucEtiketi(self::asistanSonucKodu($o), $o->durum),
+            'geri_ara' => (int) ($o->geri_ara ?? 0),
+            'geri_ara_neden' => ['cevapsiz' => 'Yetkiliye ulaşılamadı', 'hedef_yok' => 'Aktarma hattı tanımlı değil', 'mesai_disi' => 'Mesai dışı'][$o->geri_ara_neden ?? ''] ?? '',
+            'geri_ara_not' => (string) ($o->geri_ara_not ?? ''),
+            'geri_arandi' => !empty($o->geri_arandi_at) ? date('d.m.Y H:i', strtotime($o->geri_arandi_at)) . ($o->geri_arayan ? ' · ' . $o->geri_arayan : '') : '',
             'randevu_id' => $o->randevu_id ? (int) $o->randevu_id : null,
             'konusma' => $satirlar,
             'sesler' => $sesler,

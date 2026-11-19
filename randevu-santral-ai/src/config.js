@@ -62,6 +62,13 @@ const cfg = {
   sessizlikMs: num(process.env.SESSIZLIK_MS, 15000),
   // Veda cumlesinden sonra hat en gec bu kadar ms'de kapanir (ses bitince daha erken). Eskiden 18 sn idi.
   kapanisMaxMs: num(process.env.KAPANIS_MAX_MS, 7000),
+  // AKTARMA: yetkili bu kadar ms icinde acmazsa asistan geri doner ("not aldım, sizi arayacağız" + konu notu).
+  // 0 = eski davranis (kimse acmazsa hat kapanir). Ara anons: beklerken bir kez "ulaşmaya çalışıyorum".
+  // Oto-cevap: kuyruk (Local/...@from-queue) cagriyi bu kadar ms icinde "acarsa" bu gercek kisi degil (kuyruk
+  // muzik/zil caliyor) -> kuyruktaki biri gercekten acana kadar beklenir.
+  aktarmaBekleMs: num(process.env.AKTARMA_BEKLE_MS, 25000),
+  aktarmaAraAnonsMs: num(process.env.AKTARMA_ARA_ANONS_MS, 12000),
+  aktarmaOtoCevapMs: num(process.env.AKTARMA_OTO_CEVAP_MS, 2500),
   // Bekleme cumlesi: beyin cevabi bu kadar ms icinde gelmezse "Hemen bakıyorum." gibi kisa bir cumle cal
   // (musteri sessizlikte kalmasin). 0 = kapali.
   dolguMs: num(process.env.DOLGU_MS, 1800),

@@ -71,6 +71,8 @@ async function sesKayitBitir(kayit) {
 // callerKanalId -> {oturum,bridge,extChan,port,telefon,subeId,aktarmaModu,hedefAdaylar:Set,hedefBagli,hedefChanId,aktarSira}
 const aktif = new Map();
 const extMediaKanallari = new Set();
+const yerelYari = new Map();        // aktarma kuyruk bacaginin (Local ;2) id'si -> {callerId, hedefId}
+const ARA_ANONS = 'Yetkili arkadaşımıza ulaşmaya çalışıyorum, lütfen hatta kalın.';
 const geriBasarili = new Set();     // callee acip oturum baslayan geri-arama id'leri (cevapsiz yanlis raporlanmasin)
 let _geriDongudeMi = false;
 
@@ -97,7 +99,7 @@ async function main() {
   // (cumle bolme ile birebir ayni metin olmali). Maliyet: acilis basina ~300 karakter.
   (async () => {
     for (const c of ['Başka yardımcı olabileceğim bir konu var mı?', 'Hangisini tercih edersiniz?', 'Hemen bakıyorum.',
-      'Tamam, kontrol ediyorum.', 'Randevunuz onaylandığında size bilgi verilecektir.', 'Lütfen hatta kalın.']) {
+      'Tamam, kontrol ediyorum.', 'Randevunuz onaylandığında size bilgi verilecektir.', 'Lütfen hatta kalın.', ARA_ANONS]) {
       // Isletmelerin secebildigi her ses icin (disk onbellegi kalici -> ses basina tek seferlik ~300 karakter)
       for (const ses of cfg.tts.sesler) { try { await tts.seslendir(c, { ses }); } catch (_) {} }
     }
@@ -146,6 +148,9 @@ function ariHandlerKur(c) {
     await cagriBasla(channel, event);
   });
   c.on('ChannelDestroyed', async (event, channel) => { await kanalDustu(channel.id); });
+  // Aktarma: kuyrukta (Local ;2) bir yetkili gercekten acti -> kuyruk bacagi bridge'e girer / Dial ANSWER
+  c.on('ChannelEnteredBridge', (event) => { const id = event.channel && event.channel.id; if (id && yerelYari.has(id)) insanCevapladi(id, 'bridge'); });
+  c.on('Dial', (event) => { if (event.dialstatus === 'ANSWER' && event.caller && yerelYari.has(event.caller.id)) insanCevapladi(event.caller.id, 'dial'); });
   // Kanal Stasis'ten cikinca (hangup) StasisEnd gelir; ChannelDestroyed ULASMAYABILIR -> ikisini de dinle.
   c.on('StasisEnd', async (event, channel) => { log.debug(`StasisEnd: ${channel.id}`); await kanalDustu(channel.id); });
   c.on('WebSocketError', (err) => log.warn('ARI WS hata:', err && err.message));
@@ -338,7 +343,7 @@ async function cagriBasla(channel, event, opts = {}) {
 
     const kayit = {
       oturum, bridge, extChan, port, telefon, subeId,
-      aktarmaModu: false, hedefAdaylar: null, hedefBagli: false, hedefChanId: null, aktarSira: null,
+      aktarmaModu: false, hedefAdaylar: null, adayBilgi: null, hedefBagli: false, hedefChanId: null, aktarSira: null,
       rec: null,
     };
     aktif.set(channel.id, kayit);
@@ -373,6 +378,11 @@ async function bridgeKanalEkleRetry(bridge, chanId, deneme = 10, bekleMs = 100) 
 }
 
 // "insana aktar" (dialplan'SIZ, coklu hedef + strateji)
+// YETKILI ACMAZSA: asistan oturumu KAPANMAZ, beklemeye alinir (zil calar, cfg.aktarmaAraAnonsMs'de bir kez
+// "ulaşmaya çalışıyorum" der). cfg.aktarmaBekleMs icinde gercek bir kisi acmazsa adaylar kapatilir, asistan geri
+// doner: "not aldım, sizi arayacağız" + konuyu sorar (Laravel /aktarma-cevapsiz isaretler + isletmeye bildirir).
+// Eskiden kuyruk (Local/...@from-queue) cagriyi hemen "aciyordu": kopru yetkili acti sanip zil suresini birakiyor,
+// musteri kimse acmayan hatta sonsuza kadar caliyordu (2026-11-19 isletme sikayeti).
 async function insanaAktar(kanalId, subeId) {
   const kayit = aktif.get(kanalId);
   if (!kayit) return;
@@ -385,75 +395,152 @@ async function insanaAktar(kanalId, subeId) {
   }
   kayit.aktarmaBasladi = true;
   log.info(`insana aktar: kanal=${kanalId}`);
+  // Asistan geri donebilir mi? (paket yok / baslat hatasi -> oturum yok: eski davranis, kimse acmazsa kapanir)
+  const aiDonebilir = cfg.aktarmaBekleMs > 0 && !!(kayit.oturum && kayit.oturum.oturumId);
+  kayit.aiDonebilir = aiDonebilir;
+  if (aiDonebilir) kayit.oturum.aktarmaBekle();
 
   const h = await brain.aktarmaHedef(subeId);
   const hedefler = (h && Array.isArray(h.hedefler) && h.hedefler.length) ? h.hedefler : (h && h.dial ? [h.dial] : []);
   if (!h || !h.aktif || !hedefler.length) {
-    log.warn(`aktarma hedefi panelde tanimli degil (sube ${subeId}) -> cagri kapaniyor. /santral-ayar'dan ayarlayin.`);
+    log.warn(`aktarma hedefi panelde tanimli degil (sube ${subeId}). /santral-ayar'dan ayarlayin.`);
+    if (aiDonebilir) { await aktarmaCevapsiz(kanalId, 'hedef_yok'); return; }
     try { await client.Channel(kanalId).hangup(); } catch (_) {}
     await temizle(kanalId, 'aktar');
     return;
   }
 
-  // AI fazi ses kaydini kapat+yukle (aktarma oncesi)
-  await sesKayitBitir(kayit);
-
-  // AI ses bacagini + oturumu kapat AMA bridge + arayani KORU (insan devralacak)
   kayit.aktarmaModu = true;
-  try { if (kayit.extChan) await kayit.extChan.hangup(); } catch (_) {}
-  if (kayit.extChan) { extMediaKanallari.delete(kayit.extChan.id); kayit.extChan = null; }
-  try { if (kayit.oturum) await kayit.oturum.kapat('aktar'); } catch (_) {}
-  portBirak(kayit.port); kayit.port = null;
+  // Asistan geri donemiyorsa AI fazi simdi kapanir (eski davranis); donebiliyorsa yetkili acinca kapanir
+  if (!aiDonebilir) await aiFaziKapat(kayit);
 
   // Hedef acana kadar arayan sessizlik degil ZIL sesi duysun (cevap verilince durdurulur)
-  try {
-    const pb = client.Playback();
-    kayit.zilPb = pb;
-    await kayit.bridge.play({ media: 'tone:ring', playbackId: pb.id });
-  } catch (e) { log.debug('zil sesi calinamadi: ' + e.message); }
+  await zilBasla(kayit);
 
   kayit.hedefAdaylar = new Set();
+  kayit.adayBilgi = new Map();
   kayit.hedefBagli = false;
   kayit.hedefChanId = null;
   const zil = h.zil || 30;
+  if (aiDonebilir) {
+    kayit.araAnonsZ = setTimeout(() => araAnons(kanalId), cfg.aktarmaAraAnonsMs);
+    kayit.aktarZ = setTimeout(() => aktarmaCevapsiz(kanalId, 'cevapsiz'), cfg.aktarmaBekleMs);
+  }
 
   if (h.strateji === 'sirali') {
     kayit.aktarSira = { list: hedefler, idx: 0, zil };
     log.info(`aktarma (sirali): ${hedefler.join(' -> ')} (her biri ${zil}s)`);
     await siraliDenemesi(kanalId);
   } else {
-    log.info(`aktarma (hepsi ayni anda): ${hedefler.join(', ')} (zil ${zil}s)`);
-    for (const dial of hedefler) await originateHedef(kanalId, dial, zil);
+    // Bekleme suresini kopru yonetir: hedef zili ondan once bitmesin
+    const z = aiDonebilir ? Math.max(zil, Math.ceil(cfg.aktarmaBekleMs / 1000) + 5) : zil;
+    log.info(`aktarma (hepsi ayni anda): ${hedefler.join(', ')} (zil ${z}s${aiDonebilir ? ', asistan ' + Math.round(cfg.aktarmaBekleMs / 1000) + ' sn sonra geri doner' : ''})`);
+    for (const dial of hedefler) await originateHedef(kanalId, dial, z);
   }
+}
+
+async function zilBasla(kayit) {
+  try {
+    const pb = client.Playback();
+    kayit.zilPb = pb;
+    await kayit.bridge.play({ media: 'tone:ring', playbackId: pb.id });
+  } catch (e) { log.debug('zil sesi calinamadi: ' + e.message); }
+}
+
+async function zilDur(kayit) {
+  const pb = kayit.zilPb;
+  kayit.zilPb = null;
+  if (pb) { try { await pb.stop(); } catch (_) {} }
+}
+
+// AI fazini kapat: AI ses bacagi + ses kaydi (yuklenir) + oturum. Bridge + arayan KORUNUR (insan devralir).
+async function aiFaziKapat(kayit) {
+  if (kayit.aiKapandi) return;
+  kayit.aiKapandi = true;
+  if (kayit.extChan) {
+    try { await kayit.extChan.hangup(); } catch (_) {}
+    extMediaKanallari.delete(kayit.extChan.id);
+    kayit.extChan = null;
+  }
+  await sesKayitBitir(kayit);
+  try { if (kayit.oturum) await kayit.oturum.kapat('aktar'); } catch (_) {}
+  portBirak(kayit.port); kayit.port = null;
+}
+
+// Beklerken bir kez: zil durur, asistan "ulaşmaya çalışıyorum" der, zil yeniden baslar
+async function araAnons(callerId) {
+  const kayit = aktif.get(callerId);
+  if (!kayit || kayit.hedefBagli || !kayit.aktarmaModu || kayit.aiKapandi) return;
+  await zilDur(kayit);
+  log.info('aktarma: ara anons (yetkili henuz acmadi)');
+  try { await kayit.oturum.aktarmaAnons(ARA_ANONS); } catch (_) {}
+  if (aktif.get(callerId) === kayit && !kayit.hedefBagli && kayit.aktarmaModu && !kayit.aiKapandi) await zilBasla(kayit);
+}
+
+// Yetkili acmadi (sure doldu / herkes mesgul / hedef yok): adaylar kapatilir, asistan geri doner ve not alir
+async function aktarmaCevapsiz(callerId, neden) {
+  const kayit = aktif.get(callerId);
+  if (!kayit || kayit.hedefBagli || kayit.aiKapandi || kayit.aiDonuyor) return;
+  kayit.aiDonuyor = true;
+  clearTimeout(kayit.aktarZ); clearTimeout(kayit.araAnonsZ);
+  log.info(`aktarma: ${neden === 'hedef_yok' ? 'hedef tanimli degil' : 'yetkili acmadi'} -> asistan geri donuyor (${callerId})`);
+  kayit.aktarmaModu = false;
+  kayit.aktarSira = null;
+  const adaylar = Array.from(kayit.hedefAdaylar || []);
+  kayit.hedefAdaylar = new Set();
+  for (const cid of adaylar) { try { await client.Channel(cid).hangup(); } catch (_) {} }
+  if (kayit.adayBilgi) { for (const b of kayit.adayBilgi.values()) if (b.digerId) yerelYari.delete(b.digerId); kayit.adayBilgi = null; }
+  await zilDur(kayit);
+  const r = await brain.aktarmaCevapsiz(kayit.oturum.oturumId, neden);
+  if (aktif.get(callerId) !== kayit) return;
+  // Musteri yine aktarma isterse Laravel aktarma yerine not alir; kopru hatasi tekrar tetiklerse yeniden denenir
+  kayit.aktarmaBasladi = false;
+  kayit.aiDonuyor = false;
+  await kayit.oturum.aktarmaDon((r && r.cevap) || 'Efendim, yetkili arkadaşlarımız şu an diğer misafirlerimizle ilgileniyor. Aradığınızı not aldım, en kısa sürede sizi geri arayacaklar. İsterseniz konuyu kısaca söyleyin, notuma ekleyeyim.');
 }
 
 // Tek bir hedefi ara (aday olarak izle)
 async function originateHedef(callerId, dial, zil) {
   const kayit = aktif.get(callerId);
-  if (!kayit || kayit.hedefBagli) return;
+  if (!kayit || kayit.hedefBagli || !kayit.aktarmaModu) return;
+  const hedefChan = client.Channel();
+  // Kuyruk (Local/...) cagriyi hemen "acabilir" (kuyruk muzigi/zili): Local'in diger yarisi (;2) izlenir; kuyrukta
+  // biri gercekten acinca o yari bir bridge'e girer / Dial ANSWER gelir -> o zaman baglanilir.
+  const local = /^Local\//i.test(dial);
+  const digerId = local ? hedefChan.id + '-q' : null;
+  kayit.hedefAdaylar.add(hedefChan.id);
+  if (kayit.adayBilgi) kayit.adayBilgi.set(hedefChan.id, { t0: Date.now(), local, digerId, insan: false, chan: null });
+  if (digerId) yerelYari.set(digerId, { callerId, hedefId: hedefChan.id });
   try {
-    const hedefChan = client.Channel();
-    kayit.hedefAdaylar.add(hedefChan.id);
     await hedefChan.originate({
-      endpoint: dial,                    // or. SIP/101 veya SIP/trunk/05xx (panelden)
+      endpoint: dial,                    // or. SIP/101 veya Local/<kuyruk>@from-queue/n (panelden)
       app: cfg.ari.app,
       appArgs: `aktarma,${callerId}`,
       timeout: zil,
       callerId: kayit.telefon || undefined,
+      ...(digerId ? { otherChannelId: digerId } : {}),
     });
+    if (digerId) {
+      client.applications.subscribe({ applicationName: cfg.ari.app, eventSource: 'channel:' + digerId })
+        .catch((e) => log.warn('kuyruk bacagi izlenemedi (' + e.message + ') -> kuyruk acisi oto-cevap suresine gore ayirt edilir'));
+    }
   } catch (e) {
     log.warn(`originate hatasi (${dial}):`, e.message);
+    kayit.hedefAdaylar.delete(hedefChan.id);
+    if (digerId) yerelYari.delete(digerId);
     // aday olusmadi; sirali ise sonrakine gecmek icin kanalDustu tetiklenmez -> burada dene
     if (kayit.aktarSira) await siraliDenemesi(callerId);
+    else if (kayit.aiDonebilir && kayit.hedefAdaylar.size === 0) await aktarmaCevapsiz(callerId, 'cevapsiz');
   }
 }
 
-// Sirali strateji: siradaki hedefi dene; liste biterse arayani kapat
+// Sirali strateji: siradaki hedefi dene; liste biterse asistan geri doner (donemiyorsa arayan kapanir)
 async function siraliDenemesi(callerId) {
   const kayit = aktif.get(callerId);
   if (!kayit || kayit.hedefBagli) return;
   const s = kayit.aktarSira;
   if (!s || s.idx >= s.list.length) {
+    if (kayit.aiDonebilir) { await aktarmaCevapsiz(callerId, 'cevapsiz'); return; }
     log.info('sirali aktarma: kimse acmadi -> arayan kapaniyor');
     try { await client.Channel(callerId).hangup(); } catch (_) {}
     await temizle(callerId, 'aktar');
@@ -464,7 +551,7 @@ async function siraliDenemesi(callerId) {
   await originateHedef(callerId, dial, s.zil);
 }
 
-// Hedef (dahili/cep) cevapladi -> arayanla birlestir; hepsi modunda digerlerini iptal et
+// Hedef bacagi cevapladi (Stasis'e girdi). Kuyruk cok hizli "actiysa" gercek kisi beklenir.
 async function aktarmaHedefiCevapladi(hedefChan, callerId) {
   const kayit = aktif.get(callerId);
   if (!kayit || !kayit.bridge) {
@@ -472,14 +559,51 @@ async function aktarmaHedefiCevapladi(hedefChan, callerId) {
     try { await hedefChan.hangup(); } catch (_) {}
     return;
   }
-  if (kayit.hedefBagli) { // baska hedef daha once acti -> bu fazlalik
+  // Baska hedef daha once acti / asistan geri dondu (gec kalan aday) -> fazlalik
+  if (kayit.hedefBagli || !kayit.aktarmaModu || !(kayit.hedefAdaylar && kayit.hedefAdaylar.has(hedefChan.id))) {
     try { await hedefChan.hangup(); } catch (_) {}
     return;
   }
+  const b = kayit.adayBilgi && kayit.adayBilgi.get(hedefChan.id);
+  if (b) {
+    b.chan = hedefChan;
+    const sure = Date.now() - b.t0;
+    if (b.local && !b.insan && kayit.aiDonebilir && sure < cfg.aktarmaOtoCevapMs) {
+      log.info(`aktarma: kuyruk cagriyi ${sure} ms'de otomatik acti -> yetkilinin gercekten acmasi bekleniyor`);
+      return;
+    }
+    log.info(`aktarma: hedef ${sure} ms'de acti${b.insan ? ' (kuyrukta yetkili acti)' : ''}`);
+  }
+  await baglan(kayit, hedefChan, callerId);
+}
+
+// Kuyruk bacaginin (Local ;2) gercek cevabi: kuyruk bir uyeyi bagladi
+async function insanCevapladi(digerId, kaynak) {
+  const y = yerelYari.get(digerId);
+  if (!y) return;
+  const kayit = aktif.get(y.callerId);
+  if (!kayit || !kayit.adayBilgi || kayit.hedefBagli) return;
+  const b = kayit.adayBilgi.get(y.hedefId);
+  if (!b || b.insan) return;
+  b.insan = true;
+  log.info(`aktarma: kuyrukta yetkili acti (${kaynak}, ${Date.now() - b.t0} ms)`);
+  if (b.chan) await baglan(kayit, b.chan, y.callerId);
+}
+
+// Arayanla birlestir; hepsi modunda digerlerini iptal et; AI fazini kapat
+async function baglan(kayit, hedefChan, callerId) {
+  if (kayit.hedefBagli) { try { await hedefChan.hangup(); } catch (_) {} return; }
   kayit.hedefBagli = true;
   kayit.hedefChanId = hedefChan.id;
+  clearTimeout(kayit.aktarZ); clearTimeout(kayit.araAnonsZ);
   log.info(`aktarma hedefi cevapladi -> ${callerId} ile birlestiriliyor`);
-  if (kayit.zilPb) { try { await kayit.zilPb.stop(); } catch (_) {} kayit.zilPb = null; }
+  await zilDur(kayit);
+  // AI sesi hemen kesilsin (ara anons caliyor olabilir); kayit/oturum kapanisi birlestirmeden sonra
+  if (kayit.extChan) {
+    try { await kayit.extChan.hangup(); } catch (_) {}
+    extMediaKanallari.delete(kayit.extChan.id);
+    kayit.extChan = null;
+  }
   try { await kayit.bridge.addChannel({ channel: hedefChan.id }); }
   catch (e) { log.warn('bridge birlestirme hatasi:', e.message); }
 
@@ -489,12 +613,14 @@ async function aktarmaHedefiCevapladi(hedefChan, callerId) {
   }
   kayit.hedefAdaylar = new Set([hedefChan.id]);
 
+  await aiFaziKapat(kayit);
   // AKTARMA fazi ses kaydini baslat (musteri + yetkili)
   await sesKayitBasla(kayit, callerId, 'aktarma');
 }
 
 // Herhangi bir kanal yok oldu (cevapsiz/kapandi)
 async function kanalDustu(chanId) {
+  yerelYari.delete(chanId);
   // 1) Aktarma aday bacagi mi?
   for (const [cid, k] of aktif) {
     if (k.hedefAdaylar && k.hedefAdaylar.has(chanId)) {
@@ -511,6 +637,7 @@ async function kanalDustu(chanId) {
       // Henuz kimse baglanmadi (cevapsiz/mesgul)
       if (k.aktarSira) { await siraliDenemesi(cid); }        // sirali -> sonraki
       else if (k.hedefAdaylar.size === 0) {                   // hepsi -> hepsi dustu
+        if (k.aiDonebilir) { await aktarmaCevapsiz(cid, 'cevapsiz'); return; }
         log.info(`aktarma: kimse acmadi -> arayan ${cid} kapaniyor`);
         try { await client.Channel(cid).hangup(); } catch (_) {}
         await temizle(cid, 'aktar');
@@ -527,6 +654,8 @@ async function temizle(kanalId, sonuc) {
   if (!kayit) { log.debug(`temizle: kayit yok (${kanalId})`); return; }
   log.info(`temizle: kanal=${kanalId} sonuc=${sonuc} rec=${kayit.rec ? kayit.rec.ad : 'YOK'}`);
   aktif.delete(kanalId);
+  clearTimeout(kayit.aktarZ); clearTimeout(kayit.araAnonsZ);
+  if (kayit.adayBilgi) for (const b of kayit.adayBilgi.values()) if (b.digerId) yerelYari.delete(b.digerId);
   // Aktif ses kaydini kapat+yukle (bridge destroy'dan ONCE; ai veya aktarma fazi)
   await sesKayitBitir(kayit);
   const kapatilacak = new Set(kayit.hedefAdaylar || []);

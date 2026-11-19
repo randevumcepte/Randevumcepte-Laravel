@@ -181,7 +181,13 @@ class SantralKopruController extends Controller
         $sHazir = microtime(true);
         $as = new RandevuAsistan((int) $o->sube_id, $o->telefon);
         $sKur = microtime(true);
-        $d = $as->konus($metin, $gecmis);
+        // Yetkiliye ulasilamadi / mesai disi -> asistan "konuyu söyleyin, notuma ekleyeyim" dediyse bu cumle NOTTUR
+        $d = $this->geriAraNotTuru($oid, $metin, $gecmis) ?? $as->konus($metin, $gecmis);
+        // Aktarma yerine not: mesai disi ya da bu aramada yetkiliye zaten ulasilamadi (tekrar caldirmak bosuna)
+        if (($d['aksiyon'] ?? null) === 'aktar' && ($gNeden = $this->aktarmaYerineNot($o))) {
+            $this->geriAraKaydet($o, $gNeden);
+            $d = ['cevap' => $this->geriAraCumlesi($gNeden, $o->telefon), 'aksiyon' => null, 'veri' => [], 'bitir' => false, 'geri_ara_soru' => 1];
+        }
         $sKonus = microtime(true);
 
         // PARALEL TUR: bu tur dusunurken diger tur gecmise yazmis olabilir -> gecmisi TAZE oku, ustune ekle
@@ -195,6 +201,7 @@ class SantralKopruController extends Controller
         $gecmis[] = ['role' => 'user', 'content' => $metin] + $isaret;
         $asistanMsj = ['role' => 'assistant', 'content' => $d['cevap']] + $isaret;
         if (!empty($d['baglam'])) $asistanMsj['baglam'] = $d['baglam']; // gizli arac ozeti (id'ler) -> sonraki tur
+        if (!empty($d['geri_ara_soru'])) $asistanMsj['geri_ara_soru'] = 1; // sonraki musteri cumlesi = geri arama notu
         $gecmis[] = $asistanMsj;
         $gecmis = array_slice($gecmis, -40);
         if ($tur > 0) $gecmis = $this->iptalTurlariDus($oid, $gecmis);
@@ -322,6 +329,178 @@ class SantralKopruController extends Controller
             DB::table('santral_oturumlari')->where('id', $oid)->update($upd);
         }
         return $this->j(['ok' => 1]);
+    }
+
+    // ---------------------------------------------------------- geri aranacak (yetkiliye ulasilamadi)
+    // Kopru aktarmada ~25 sn kimse acmazsa /aktarma-cevapsiz cagirir: asistan geri doner, "not aldım, sizi arayacağız"
+    // der, konuyu sorar; musterinin cevabi nota yazilir. Panel > Asistan görüşmeleri'nde "Geri aranacak" olarak durur.
+
+    /** santral_oturumlari geri arama kolonlari (runtime; sunucuda migrate gerekmez). */
+    protected function geriAraSemasi(): bool
+    {
+        if (Cache::get('santral_geri_ara_v1')) return true;
+        try {
+            if (!Schema::hasTable('santral_oturumlari')) return false;
+            $eksik = [];
+            foreach (['geri_ara', 'geri_ara_neden', 'geri_ara_not', 'geri_arandi_at', 'geri_arayan'] as $k) {
+                if (!Schema::hasColumn('santral_oturumlari', $k)) $eksik[] = $k;
+            }
+            if ($eksik) {
+                Schema::table('santral_oturumlari', function ($t) use ($eksik) {
+                    if (in_array('geri_ara', $eksik, true)) $t->tinyInteger('geri_ara')->default(0);          // 0 yok | 1 bekliyor | 2 arandi
+                    if (in_array('geri_ara_neden', $eksik, true)) $t->string('geri_ara_neden', 20)->nullable(); // cevapsiz | hedef_yok | mesai_disi
+                    if (in_array('geri_ara_not', $eksik, true)) $t->text('geri_ara_not')->nullable();
+                    if (in_array('geri_arandi_at', $eksik, true)) $t->timestamp('geri_arandi_at')->nullable();
+                    if (in_array('geri_arayan', $eksik, true)) $t->string('geri_arayan', 100)->nullable();
+                });
+            }
+            Cache::forever('santral_geri_ara_v1', 1);
+            return true;
+        } catch (\Throwable $e) {
+            \Log::warning('[SANTRAL-GERI-ARA] sema hatasi: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function aktarmaCevapsiz(Request $r)
+    {
+        if (!$this->yetkiVar($r)) return $this->j(['ok' => 0, 'hata' => 'Yetkisiz santral isteği'], 401);
+        $this->tabloGaranti();
+        $oid = (int) $r->input('oturum_id');
+        $o = DB::table('santral_oturumlari')->where('id', $oid)->first();
+        if (!$o) return $this->j(['ok' => 0, 'hata' => 'oturum_yok'], 404);
+        $neden = in_array($r->input('neden'), ['cevapsiz', 'hedef_yok'], true) ? $r->input('neden') : 'cevapsiz';
+        $this->geriAraKaydet($o, $neden);
+        $cevap = $this->geriAraCumlesi($neden, $o->telefon);
+
+        // Gecmis: "sizi bağlıyorum" cumlesinin ardina eklenir (art arda iki asistan mesaji olmasin)
+        $g = json_decode($o->gecmis ?: '[]', true) ?: [];
+        $n = count($g);
+        if ($n && ($g[$n - 1]['role'] ?? '') === 'assistant') {
+            $g[$n - 1]['content'] = trim(($g[$n - 1]['content'] ?? '') . ' ' . $cevap);
+            $g[$n - 1]['geri_ara_soru'] = 1;
+        } else {
+            $g[] = ['role' => 'assistant', 'content' => $cevap, 'geri_ara_soru' => 1];
+        }
+        DB::table('santral_oturumlari')->where('id', $oid)->update(['gecmis' => json_encode($g, JSON_UNESCAPED_UNICODE), 'updated_at' => now()]);
+        \Log::info('[SANTRAL-GERI-ARA] yetkiliye ulasilamadi, asistan geri dondu', ['oturum' => $oid, 'salon' => $o->sube_id, 'neden' => $neden]);
+        return $this->j(['ok' => 1, 'cevap' => $cevap]);
+    }
+
+    /** Aktarma yerine not alinacak mi: 'mesai_disi' | 'cevapsiz' (bu aramada zaten ulasilamadi) | null */
+    protected function aktarmaYerineNot($o): ?string
+    {
+        if ((int) ($o->geri_ara ?? 0) === 1) return 'cevapsiz';
+        return $this->mesaiDisi((int) $o->sube_id) ? 'mesai_disi' : null;
+    }
+
+    /** Salon calisma saatleri tanimliysa ve su an kapaliysa true (tanimsizsa aktarma denenir). */
+    protected function mesaiDisi(int $salonId): bool
+    {
+        try {
+            $simdi = now('Europe/Istanbul');
+            $r = \App\SalonCalismaSaatleri::where('salon_id', $salonId)->where('haftanin_gunu', (int) $simdi->format('N'))->first();
+            if (!$r) return false;
+            if ((int) $r->calisiyor !== 1) return true;
+            $b = substr((string) $r->baslangic_saati, 0, 5);
+            $e = substr((string) $r->bitis_saati, 0, 5);
+            if (!$b || !$e || $b === $e) return false;
+            $s = $simdi->format('H:i');
+            return $s < $b || $s >= $e;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    protected function geriAraCumlesi(string $neden, $telefon): string
+    {
+        $bas = $neden === 'mesai_disi'
+            ? 'Şu an mesai saatlerimiz dışındayız, yetkili arkadaşlarımıza ulaşamıyorum. Aradığınızı not aldım, mesai başladığında sizi '
+            : 'Efendim, yetkili arkadaşlarımız şu an diğer misafirlerimizle ilgileniyor. Aradığınızı not aldım, en kısa sürede sizi ';
+        return trim((string) $telefon) !== ''
+            ? $bas . 'bu numaradan geri arayacaklar. İsterseniz konuyu kısaca söyleyin, notuma ekleyeyim.'
+            : $bas . 'geri arayacaklar. Telefon numaranızı ve konuyu kısaca söyler misiniz?';
+    }
+
+    /** Oturumu "geri aranacak" isaretle; ilk kez isaretleniyorsa isletmeye panel bildirimi + push. */
+    protected function geriAraKaydet($o, string $neden): void
+    {
+        if (!$this->geriAraSemasi()) return;
+        $ilk = (int) ($o->geri_ara ?? 0) !== 1;
+        DB::table('santral_oturumlari')->where('id', $o->id)->update(['sonuc' => 'geri_ara', 'geri_ara' => 1, 'geri_ara_neden' => $neden, 'updated_at' => now()]);
+        $o->geri_ara = 1;
+        if (!$ilk) return;
+        $salonId = (int) $o->sube_id;
+        $kim = $this->musteriAdi($salonId, $o->telefon) ?: ($o->telefon ? '0' . substr(preg_replace('/\D/', '', $o->telefon), -10) : 'Gizli numaralı bir müşteri');
+        $mesaj = "📞 Geri aranacak: {$kim} aradı, " . ($neden === 'mesai_disi' ? 'mesai dışıydı' : 'yetkiliye ulaşılamadı')
+            . '. Asistan not aldı; Santral > Asistan Görüşmeleri\'nden bakabilirsiniz.';
+        try {
+            $b = new \App\Bildirimler();
+            $b->aciklama = $mesaj;
+            $b->salon_id = $salonId;
+            $b->url = '/isletmeyonetim/santral?sube=' . $salonId . '#asistan-gorusmeleri';
+            $b->tarih_saat = date('Y-m-d H:i:s');
+            $b->okundu = false;
+            $b->save();
+        } catch (\Throwable $e) {
+            \Log::warning('[SANTRAL-GERI-ARA] panel bildirimi yazilamadi: ' . $e->getMessage());
+        }
+        try {
+            $yoneticiler = \App\Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
+                ->where('salon_personelleri.salon_id', $salonId)->where('model_has_roles.role_id', '<', 5)
+                ->pluck('salon_personelleri.id')->toArray();
+            foreach ($yoneticiler as $pid) {
+                \App\Services\NotificationService::toStaff((int) $pid, $salonId)->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                    ->title('Geri aranacak müşteri')->body($mesaj)->send();
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('[SANTRAL-GERI-ARA] push gonderilemedi: ' . $e->getMessage());
+        }
+    }
+
+    protected function musteriAdi(int $salonId, $telefon): ?string
+    {
+        $d = preg_replace('/\D/', '', (string) $telefon);
+        if (strlen($d) < 10) return null;
+        try {
+            return DB::table('users')->join('musteri_portfoy', 'musteri_portfoy.user_id', '=', 'users.id')
+                ->where('musteri_portfoy.salon_id', $salonId)->where('users.cep_telefon', substr($d, -10))->value('users.name') ?: null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Asistan "konuyu söyleyin, notuma ekleyeyim" dediyse musterinin cevabi: not -> kaydet + veda.
+     * "Yok, teşekkürler" -> notsuz veda; "Evet" -> "Buyurun, dinliyorum"; randevu/iptal konusu -> normal akis (null).
+     */
+    protected function geriAraNotTuru(int $oid, string $metin, array $gecmis): ?array
+    {
+        $son = null;
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') === 'assistant') { $son = $gecmis[$i]; break; }
+        }
+        if (!$son || empty($son['geri_ara_soru'])) return null;
+        $m = trim($metin);
+        $kucuk = mb_strtolower($m, 'UTF-8');
+        if ($m === '' || preg_match('/randevu|iptal|değiştir|ertele|kampanya/u', $kucuk)) return null;
+        $kelimeler = preg_split('/[^\p{L}]+/u', $kucuk, -1, PREG_SPLIT_NO_EMPTY);
+        $ret = ['hayır', 'yok', 'gerek', 'istemiyorum', 'teşekkürler', 'teşekkür', 'ederim', 'sağ', 'sağol', 'olun', 'tamam', 'tamamdır',
+            'peki', 'iyi', 'günler', 'akşamlar', 'görüşürüz', 'anladım', 'kolay', 'gelsin', 'hoşça', 'kalın'];
+        $evet = ['evet', 'tabii', 'tabi', 'olur', 'söyleyeyim', 'şöyle', 'şey'];
+        if ($kelimeler && !array_diff($kelimeler, $evet)) {
+            return ['cevap' => 'Buyurun, sizi dinliyorum.', 'aksiyon' => null, 'veri' => [], 'bitir' => false, 'geri_ara_soru' => 1];
+        }
+        $not = ($kelimeler && !array_diff($kelimeler, $ret)) ? '' : $m;
+        if ($not !== '' && $this->geriAraSemasi()) {
+            $eski = (string) DB::table('santral_oturumlari')->where('id', $oid)->value('geri_ara_not');
+            DB::table('santral_oturumlari')->where('id', $oid)->update(['geri_ara_not' => mb_substr(trim($eski . ' ' . $not), 0, 2000)]);
+        }
+        \Log::info('[SANTRAL-GERI-ARA] not', ['oturum' => $oid, 'not' => $not]);
+        $cevap = $not !== ''
+            ? 'Notunuzu ilettim, arkadaşlarımız en kısa sürede sizi arayacak. İyi günler dilerim.'
+            : 'Tabii, arkadaşlarımız en kısa sürede sizi arayacak. İyi günler dilerim.';
+        return ['cevap' => $cevap, 'aksiyon' => 'veda', 'veri' => [], 'bitir' => true];
     }
 
     // ---------------------------------------------------------- /aktarma-hedef

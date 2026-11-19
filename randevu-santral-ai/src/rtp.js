@@ -92,7 +92,12 @@ class RtpOturumu {
       try {
         const tts = this.kuyruk.shift();               // Buffer | undefined
         const amb = this.amb.kare(this.spf);           // Int16Array (gain uygulanmis)
-        if (tts) {
+        if (tts && this.ambiyansKapali) {
+          amb.fill(0);                                   // aktarma beklemesi: yalniz anons (ofis sesi zile karismasin)
+          this._gonder(this._karistir(amb, tts));
+        } else if (this.ambiyansKapali) {
+          // aktarma beklemesi: hicbir sey gonderme (musteri bridge'deki zil sesini duyar)
+        } else if (tts) {
           // AI KONUSUYOR: tam ambiyans + TTS karisimi (ses zaten ambiyansi bastirir)
           this._gonder(this._karistir(amb, tts));
         } else if (this.dinlemeOran > 0) {

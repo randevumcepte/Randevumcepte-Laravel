@@ -104,6 +104,11 @@ class CagriOturumu {
       // YARI-DUPLEKS: barge-in kapaliyken AI konusurken mikrofonu STT'ye VERME.
       // Boylece hat yankisi (AI'nin kendi sesi) STT'ye dusup AI'yi kesmez / kendini dinlemez.
       if (!cfg.bargeIn && this.rtp && this.rtp.sesVarMi) return;
+      // AKTARMA BEKLEMESI: musteri zil dinliyor; sesi STT'ye verme (ucret + zil sesi yanlis tur acmasin)
+      if (this._aktarmada) {
+        if (!this._sttDurdu) { this._sttDurdu = true; this.stt.durdur(); }
+        return;
+      }
       if (!this._sesGeldi) { this._sesGeldi = true; log.info('ilk ses karesi STT ye ulasti (mikrofon calisiyor)'); }
       // ENERJI TESHISI: giden ses gercek mi sessizlik mi? (ulaw sessizlik ~0xFF/0x7F)
       this._ornek = (this._ornek || 0) + 1;
@@ -268,7 +273,7 @@ class CagriOturumu {
 
   async _finalMetin(metin) {
     this._sttSon = Date.now();
-    if (this.kapali || this._kapaniyor) return; // kapanis sirasinda yeni tur baslatma
+    if (this.kapali || this._kapaniyor || this._aktarmada) return; // kapanis/aktarma beklemesinde yeni tur baslatma
     clearTimeout(this._interimZ); this._sonInterim = '';
     const n = sadeMetin(metin);
     if (n.length < 1) return;
@@ -588,13 +593,13 @@ class CagriOturumu {
 
   _sessizlikSifirla(ikinci) {
     clearTimeout(this.sessizlikZ);
-    if (this.kapali || this._kapaniyor) return;
+    if (this.kapali || this._kapaniyor || this._aktarmada) return;
     // Sessizlik AI SUSTUKTAN sonra sayilir: AI konusurken / beyin dusunurken / musterinin bitmemis ara-sonucu
     // varken sayac sifirlanir. Eskiden pencere tur donunce basliyordu; 12 sn'lik onay cumlesinden sonra musteriye
     // 3 sn kaliyor, "yok teşekkürler" derken "Orada mısınız?" calıyordu (2026-11-17 kayit).
     let sessiz = 0;
     const tik = async () => {
-      if (this.kapali || this._kapaniyor) return;
+      if (this.kapali || this._kapaniyor || this._aktarmada) return;
       if (this.mesgul || this.rtp.sesVarMi || this._seslendiriyor || this._sonInterim) sessiz = 0;
       else sessiz += 500;
       if (sessiz < cfg.sessizlikMs) { this.sessizlikZ = setTimeout(tik, 500); return; }
@@ -627,6 +632,37 @@ class CagriOturumu {
     log.info(`kapanis: veda sesi bitince hat kapanacak (en gec ${cfg.kapanisMaxMs} ms)`);
     // once seslendirmenin kuyruga girmesine firsat ver, sonra beklemeye basla
     this._kapatZ = setTimeout(tik, 700);
+  }
+
+  // ---- AKTARMA BEKLEMESI: oturum kapanmaz, beklemeye alinir. Yetkili acarsa index.js kapatir; acmazsa
+  // aktarmaDon ile asistan geri gelir ("not aldım, sizi arayacağız") ve konusma surer.
+  aktarmaBekle() {
+    if (this.kapali) return;
+    this._aktarmada = true;
+    this._bekleyen = null;
+    clearTimeout(this.sessizlikZ);
+    clearTimeout(this._interimZ);
+    this._sonInterim = '';
+    if (this.rtp) this.rtp.ambiyansKapali = true;
+  }
+
+  /** Beklerken tek cumlelik anons (zil durdurulmus olmali); ses bitince doner. */
+  async aktarmaAnons(metin) {
+    if (this.kapali) return;
+    await this._seslendir(metin);
+    for (let i = 0; i < 100 && !this.kapali && this.rtp && this.rtp.sesVarMi; i++) await new Promise((r) => setTimeout(r, 100));
+  }
+
+  /** Yetkili acmadi: asistan geri doner, cumleyi soyler ve musteriyi yeniden dinler. */
+  async aktarmaDon(cevap) {
+    if (this.kapali) return;
+    this._aktarmada = false;
+    if (this.rtp) this.rtp.ambiyansKapali = false;
+    this._sonIslenen = null;
+    this._sonIsMetni = null;
+    log.info(`< asistan (yetkili acmadi): ${cevap}`);
+    await this._seslendir(cevap);
+    this._sessizlikSifirla();
   }
 
   async kapat(sonuc) {
