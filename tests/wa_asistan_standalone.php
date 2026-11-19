@@ -420,6 +420,13 @@ namespace {
     $s = WaAsistanRapor::seri($v, '2026-09-01 00:00:00', '2026-12-01 00:00:00', 'ay');
     esit('seri: ay kovaları', ['2026-09', '2026-10', '2026-11'], $s['etiket']);
     esit('seri: ay toplam randevu', [0, 0, 3], $s['randevu']);
+    $s = WaAsistanRapor::seri($v, '2026-11-10 00:00:00', '2026-11-13 00:00:00', 'gun');
+    esit('kart serisi: randevu tutarı', [1200.0, 0.0, 800.0], $s['tutar']);
+    esit('kart serisi: mesai dışı tutar', [400.0, 0.0, 0.0], $s['mesai_tutar']);
+    esit('kart serisi: cevap (geri kazanma hariç)', [3, 1, 1], $s['cevap']);
+    esit('kart serisi: tek başına çözülen %', [100, 50, 100], $s['cozulen']);
+    esit('kart serisi: geri kazanılan', [0, 0, 1], $s['geri_kazanim']);
+    esit('kart serisi: fotoğrafa fiyat (tarihsiz kayıt sayılmaz)', [0, 0, 0], $s['gorsel']);
 
     baslik('Entegrasyon: ayarlar');
     $T = &Illuminate\Support\Facades\DB::$t;

@@ -82,6 +82,16 @@
    .wa-kaz.wa-k-yesil { background:linear-gradient(140deg,#eafbf0 0%,#d0f4de 100%); border-color:#b9ebcb; }
    .wa-kaz.wa-k-pembe { background:linear-gradient(140deg,#fff0f7 0%,#ffd9ea 100%); border-color:#fcc6dd; } .wa-kaz.wa-k-pembe .wa-kpi-ikon { color:#db2777; }
    .wa-kaz .a { color:#4b4563; }
+   .wa-kaz svg.spark { display:block; width:100%; height:40px; margin-top:10px; position:relative; z-index:1; }
+   .wa-kaz .d, .wa-kaz .e, .wa-kaz .a { position:relative; z-index:1; }
+   /* Kart ici duzen (tasarim): buyuk ikon | rakam + ad ; altta grafik */
+   .wa-kaz { padding:18px 18px 10px; display:flex; flex-direction:column; }
+   .wa-kaz-ust { display:flex; align-items:center; gap:14px; position:relative; z-index:1; }
+   .wa-kaz-ic { min-width:0; }
+   .wa-kaz .wa-kpi-ikon { width:56px; height:56px; font-size:28px; border-radius:16px; margin:0; flex:0 0 auto; }
+   .wa-kaz .d { font-size:26px; line-height:1.1; letter-spacing:-.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+   .wa-kaz .e { font-size:13.5px; font-weight:500; color:#3a3154; margin-top:3px; }
+   .wa-kaz svg.spark { margin-top:auto; padding-top:12px; height:52px; }
 
    /* kartlar */
    .wa-kart { background:#fff; border-radius:22px; padding:20px 22px; box-shadow:var(--golge); min-width:0; }
@@ -398,8 +408,10 @@
       return '<div class="wa-kpi ' + sinif + '"><div class="wa-kpi-ust"><div class="wa-kpi-ikon"><i class="bi ' + ikon + '"></i></div><div><div class="wa-kpi-d">' + d + '</div><div class="wa-kpi-e">' + e + '</div></div></div>'
          + trend + spark(seri, renk) + '</div>';
    }
-   function kaz(sinif, ikon, d, e, a) {
-      return '<div class="wa-kaz ' + sinif + '"><div class="wa-kpi-ikon"><i class="bi ' + ikon + '"></i></div><div class="d">' + d + '</div><div class="e">' + e + '</div>' + (a ? '<div class="a">' + a + '</div>' : '') + '</div>';
+   function kaz(sinif, ikon, d, e, a, seri, renk) {
+      // Tasarimdaki kart: solda buyuk ikon, yaninda rakam + altinda kart adi, en altta mini grafik (aciklama ustune gelince)
+      return '<div class="wa-kaz ' + sinif + '"' + (a ? ' title="' + esc(String(a).replace(/<[^>]+>/g, '')) + '"' : '') + '><div class="wa-kaz-ust"><div class="wa-kpi-ikon"><i class="bi ' + ikon + '"></i></div>'
+         + '<div class="wa-kaz-ic"><div class="d">' + d + '</div><div class="e">' + e + '</div></div></div>' + (seri ? spark(seri, renk) : '') + '</div>';
    }
    // Mor alandaki slogan arkasi yaprak (lotus) deseni: tabandan acilan 5 yaprak + 2 kucuk yan yaprak
    var YAPRAK = '<svg class="wa-hero-yaprak" viewBox="0 0 150 150" aria-hidden="true"><defs><linearGradient id="yp" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#fff"/></linearGradient></defs><g fill="url(#yp)">'      + [-58, -30, 0, 30, 58].map(function (a, i) { var u = i === 2 ? 118 : (i % 4 === 0 ? 78 : 100); return '<path transform="rotate(' + a + ' 75 145)" d="M75 145 C' + (75 - 22) + ' ' + (145 - u * .45) + ' ' + (75 - 14) + ' ' + (145 - u * .85) + ' 75 ' + (145 - u) + ' C' + (75 + 14) + ' ' + (145 - u * .85) + ' ' + (75 + 22) + ' ' + (145 - u * .45) + ' 75 145Z"/>'; }).join('')      + '</g><g fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1.2">' + [-30, 0, 30].map(function (a) { return '<path transform="rotate(' + a + ' 75 145)" d="M75 140 L75 ' + (a ? 55 : 35) + '"/>'; }).join('') + '</g></svg>';
@@ -432,12 +444,12 @@
          if (u) k += '<div class="wa-uyari" style="margin-top:0">' + u + '</div>';
          // kazandirdiklari kartlari (mor bannerin hemen altinda)
          h += '<div class="wa-bolum-baslik"><i class="bi bi-graph-up-arrow"></i>Asistanın size kazandırdıkları</div><div class="wa-kazanclar">'
-            + kaz('wa-k-mor', 'bi-cash-coin', tl(kz.gerceklesen > 0 ? kz.gerceklesen : kz.beklenen), kz.gerceklesen > 0 ? 'Gerçekleşen kazanç' : 'Randevu tutarı', kz.kat ? 'Pakete ödediğinizin <b>' + String(kz.kat).replace('.', ',') + ' katı</b>' : (kz.gerceklesen > 0 ? 'salona gelen müşterilerden' : 'gelişler "geldi" işaretlenince kesinleşir'))
-            + kaz('wa-k-lila', 'bi-moon-stars', tl(kz.mesai_disi), 'Mesai dışı kazanç', sayi(o.randevu.mesai_disi) + ' randevu personel yokken alındı')
-            + kaz('wa-k-tur', 'bi-arrow-repeat', sayi(o.geri_kazanim.randevu), 'Geri kazanılan müşteri', sayi(o.geri_kazanim.yazildi) + ' kaçan müşteriye yazıldı · ' + tl(o.geri_kazanim.tutar))
-            + kaz('wa-k-mavi', 'bi-hourglass-split', String(o.cevap.personel_saat).replace('.', ',') + ' saat', 'Personele kazandırılan zaman', sayi(o.cevap.toplam) + ' mesaj cevaplandı · ' + sayi(o.cevap.mesai_disi) + ' mesai dışı')
-            + kaz('wa-k-yesil', 'bi-shield-check', o.sohbet.cozulen_orani == null ? '—' : '%' + o.sohbet.cozulen_orani, 'Tek başına çözdüğü', 'personele aktarılmadan biten yazışmalar')
-            + kaz('wa-k-pembe', 'bi-camera', sayi(o.gorsel.fiyat_verildi), 'Fotoğrafa fiyat verildi', sayi(o.gorsel.randevu) + ' tanesi randevuya döndü')
+            + kaz('wa-k-mor', 'bi-cash-coin', tl(kz.gerceklesen > 0 ? kz.gerceklesen : kz.beklenen), kz.gerceklesen > 0 ? 'Gerçekleşen kazanç' : 'Randevu tutarı', kz.kat ? 'Pakete ödediğinizin <b>' + String(kz.kat).replace('.', ',') + ' katı</b>' : (kz.gerceklesen > 0 ? 'salona gelen müşterilerden' : 'gelişler "geldi" işaretlenince kesinleşir'), s.tutar, '#7c3aed')
+            + kaz('wa-k-lila', 'bi-moon-stars', tl(kz.mesai_disi), 'Mesai dışı kazanç', sayi(o.randevu.mesai_disi) + ' randevu personel yokken alındı', s.mesai_tutar, '#4f46e5')
+            + kaz('wa-k-tur', 'bi-arrow-repeat', sayi(o.geri_kazanim.randevu), 'Geri kazanılan müşteri', sayi(o.geri_kazanim.yazildi) + ' kaçan müşteriye yazıldı · ' + tl(o.geri_kazanim.tutar), s.geri_kazanim, '#f97316')
+            + kaz('wa-k-mavi', 'bi-hourglass-split', String(o.cevap.personel_saat).replace('.', ',') + ' saat', 'Personele kazandırılan zaman', sayi(o.cevap.toplam) + ' mesaj cevaplandı · ' + sayi(o.cevap.mesai_disi) + ' mesai dışı', s.cevap, '#2563eb')
+            + kaz('wa-k-yesil', 'bi-shield-check', o.sohbet.cozulen_orani == null ? '—' : '%' + o.sohbet.cozulen_orani, 'Tek başına çözdüğü', 'personele aktarılmadan biten yazışmalar', s.cozulen, '#16a34a')
+            + kaz('wa-k-pembe', 'bi-camera', sayi(o.gorsel.fiyat_verildi), 'Fotoğrafa fiyat verildi', sayi(o.gorsel.randevu) + ' tanesi randevuya döndü', s.gorsel, '#db2777')
             + '</div>';
          // grafik + son konusmalar
          h += '<div class="wa-orta"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-bar-chart-fill" style="color:#7c3aed"></i>Performans Grafiği</h4>'

@@ -57,7 +57,7 @@ class WaAsistanRapor
         if (WaGorselDanisman::semaGaranti()) {
             $v['gorseller'] = DB::table('wa_gorsel_analizler')->where('isletme_id', $isletmeId)
                 ->where('created_at', '>=', $bas)->where('created_at', '<', $bit)
-                ->get(['id', 'oturum_id', 'durum', 'toplam', 'onbellek'])->map(function ($r) { return (array) $r; })->all();
+                ->get(['id', 'oturum_id', 'durum', 'toplam', 'onbellek', 'created_at'])->map(function ($r) { return (array) $r; })->all();
         }
         return $v;
     }
@@ -109,30 +109,52 @@ class WaAsistanRapor
         for ($t = strtotime($bas); $t < strtotime($bit); $t = strtotime($birim === 'ay' ? '+1 month' : '+1 day', $t)) $kova[date($fmt, $t)] = 1;
         $bos = array_fill_keys(array_keys($kova), 0);
         $mesaj = $bos; $randevu = $bos; $yeni = $bos; $memnun = $bos; $memnunDegil = $bos; $sureler = array_fill_keys(array_keys($kova), []);
+        // Kazandirdiklari kartlarinin mini grafikleri
+        $tutar = array_fill_keys(array_keys($kova), 0.0); $mesaiTutar = $tutar; $cevap = $bos; $yazisma = $bos; $aktar = $bos; $gorsel = $bos; $gk = $bos;
         $rnd = $v['randevular'] ?? [];
         foreach ($v['oturumlar'] as $o) {
             $k = date($fmt, strtotime($o['created_at']));
             if (!isset($bos[$k])) continue;
             $mesaj[$k] += (int) ($o['mesaj_sayisi'] ?? 0);
+            $yazisma[$k]++;
+            if (($o['sonuc'] ?? null) === 'aktar') $aktar[$k]++;
             if ($o['memnuniyet'] !== null && $o['memnuniyet'] !== '') { if ((int) $o['memnuniyet'] === 1) $memnun[$k]++; else $memnunDegil[$k]++; }
         }
         $sayilan = [];
         foreach ($v['cevaplar'] as $c) {
             $k = date($fmt, strtotime($c['created_at']));
             if (!isset($bos[$k])) continue;
+            if ($c['kaynak'] !== 'geri_kazanim') $cevap[$k]++;
+            if ($c['kaynak'] !== 'geri_kazanim' && $c['sure_sn'] !== null) $sureler[$k][] = (int) $c['sure_sn'];
             if ($c['aksiyon'] === 'randevu' && !empty($c['randevu_id']) && !isset($sayilan[$c['randevu_id']])) {
                 $sayilan[$c['randevu_id']] = 1;
                 $x = $rnd[(int) $c['randevu_id']] ?? null;
                 if ($x && !empty($x['iptal'])) continue;
                 $randevu[$k]++;
                 if ($x && !empty($x['yeni'])) $yeni[$k]++;
+                $tl = $x ? (float) $x['tutar'] : 0.0;
+                $tutar[$k] += $tl;
+                if ((int) $c['mesai_disi'] === 1) $mesaiTutar[$k] += $tl;
             }
-            if ($c['kaynak'] !== 'geri_kazanim' && $c['sure_sn'] !== null) $sureler[$k][] = (int) $c['sure_sn'];
+        }
+        foreach ($v['gorseller'] ?? [] as $g) {
+            if (empty($g['created_at']) || ($g['durum'] ?? '') !== 'fiyat') continue;
+            $k = date($fmt, strtotime($g['created_at']));
+            if (isset($bos[$k])) $gorsel[$k]++;
+        }
+        foreach ($v['geri_kazanim'] ?? [] as $x) {
+            if (empty($x['randevu_id']) || empty($x['gonderildi_at'])) continue;
+            $k = date($fmt, strtotime($x['gonderildi_at']));
+            if (isset($bos[$k])) $gk[$k]++;
         }
         $sure = [];
         foreach ($sureler as $k => $l) { sort($l); $sure[$k] = $l ? $l[(int) floor((count($l) - 1) / 2)] : null; }
+        $cozulen = [];
+        foreach ($yazisma as $k => $n) $cozulen[$k] = $n ? (int) round(($n - $aktar[$k]) / $n * 100) : null;
         return ['etiket' => array_keys($kova), 'mesaj' => array_values($mesaj), 'randevu' => array_values($randevu), 'yeni' => array_values($yeni),
-            'memnun' => array_values($memnun), 'memnun_degil' => array_values($memnunDegil), 'sure' => array_values($sure)];
+            'memnun' => array_values($memnun), 'memnun_degil' => array_values($memnunDegil), 'sure' => array_values($sure),
+            'tutar' => array_values($tutar), 'mesai_tutar' => array_values($mesaiTutar), 'cevap' => array_values($cevap),
+            'cozulen' => array_values($cozulen), 'gorsel' => array_values($gorsel), 'geri_kazanim' => array_values($gk)];
     }
 
     /** SAF. $v = veriYukle cikisi; $paket = wa_asistan_paketleri satiri (nesne) ya da null. */
