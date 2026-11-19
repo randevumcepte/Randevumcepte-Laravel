@@ -138,10 +138,19 @@ class WaAsistanPanelController extends StoreAdminController
         WaAsistanVeri::semaGaranti();
         $bas = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->input('baslangic')) ? $request->input('baslangic') : date('Y-m-d', strtotime('-6 days'));
         $bit = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->input('bitis')) ? $request->input('bitis') : date('Y-m-d');
-        $q = DB::table('wa_asistan_oturumlari')->where('isletme_id', $sid)
-            ->whereBetween('son_mesaj_at', [$bas . ' 00:00:00', $bit . ' 23:59:59'])->orderByDesc('son_mesaj_at')->limit(300);
+        $q = DB::table('wa_asistan_oturumlari')->where('isletme_id', $sid)->orderByDesc('son_mesaj_at')->limit(300);
         $ara = trim((string) $request->input('q'));
-        if ($ara !== '') $q->where(function ($w) use ($ara) { $w->where('ad', 'like', "%$ara%")->orWhere('telefon', 'like', "%$ara%")->orWhere('musteri_tel', 'like', "%$ara%"); });
+        if ($ara !== '') {
+            // Ad/telefon aramasi TUM tarihlerde (eski sohbet "gorunmuyor" sanilmasin); telefon 0/90 ile de bulunur
+            $rak = preg_replace('/\D/', '', $ara);
+            $rak = strlen($rak) >= 7 ? substr($rak, -10) : '';
+            $q->where(function ($w) use ($ara, $rak) {
+                $w->where('ad', 'like', "%$ara%")->orWhere('telefon', 'like', "%$ara%")->orWhere('musteri_tel', 'like', "%$ara%");
+                if ($rak !== '') $w->orWhere('telefon', 'like', "%$rak%")->orWhere('musteri_tel', 'like', "%$rak%")->orWhere('anahtar', 'like', "%$rak%");
+            });
+        } else {
+            $q->whereBetween('son_mesaj_at', [$bas . ' 00:00:00', $bit . ' 23:59:59']);
+        }
         $liste = [];
         $rows = $q->get();
         // Profil fotografi: sistemde yuklu musteri fotografi; yoksa panel WhatsApp fotografini /avatar/{id}'den ister

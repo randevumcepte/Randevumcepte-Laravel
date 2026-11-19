@@ -137,6 +137,25 @@ class WaAsistan
     }
 
     // ------------------------------------------------------------------ webhook girisleri
+    /** Kopru type -> gecmise yazilan etiket (icerigi okunamayan mesajlar). */
+    const MEDYA = [
+        'audio' => '[🎤 Sesli mesaj]', 'ptt' => '[🎤 Sesli mesaj]', 'voice' => '[🎤 Sesli mesaj]',
+        'video' => '[🎬 Video]', 'document' => '[📄 Belge]', 'sticker' => '[Çıkartma]',
+        'location' => '[📍 Konum]', 'contact' => '[👤 Kişi kartı]', 'contacts' => '[👤 Kişi kartı]',
+    ];
+
+    /** Yalniz okunamayan medya mi? -> sabit cevap (AI'a gitmez). null = degil. */
+    public static function medyaCevabi(string $metin): ?array
+    {
+        $t = trim($metin);
+        if (!preg_match('/^(\[[^\]]+\]\s*)+$/u', $t) || !preg_match('/Sesli mesaj|Video|Belge|Çıkartma|Konum|Kişi kartı|açılamadı/u', $t)) return null;
+        if (preg_match('/^(\[Çıkartma\]\s*)+$/u', $t)) return ['cevap' => null]; // emoji gibi: cevap gerekmez
+        if (preg_match('/Sesli mesaj|Video/u', $t)) return ['cevap' => 'Sesli mesaj ve videoları şu an dinleyemiyorum 🙏 İsteğinizi kısaca yazar mısınız? Hemen yardımcı olayım.'];
+        if (preg_match('/açılamadı/u', $t)) return ['cevap' => 'Gönderdiğiniz fotoğrafı açamadım 🙏 Tekrar gönderebilir ya da ne istediğinizi kısaca yazabilir misiniz?'];
+        if (preg_match('/Konum/u', $t)) return ['cevap' => 'Konumunuzu aldım 🙏 Size nasıl yardımcı olabilirim? Randevu, fiyat ya da yol tarifi için yazabilirsiniz.'];
+        return ['cevap' => 'Gönderdiğiniz dosyayı aldım ve işletmemize ilettim 🙏 Size nasıl yardımcı olabilirim?', 'talep' => true];
+    }
+
     /** message.received: mesaji kuyruga yaz, isi cevap gonderildikten sonra yap. */
     public static function gelen(array $p): array
     {
@@ -145,6 +164,11 @@ class WaAsistan
         $metin = trim((string) ($p['text'] ?? ''));
         // Fotograf (kopru: type=image, image=base64, text=fotograf aciklamasi): Gorsel Danisman
         $resim = ($p['type'] ?? '') === 'image' && !empty($p['image']) ? (string) $p['image'] : '';
+        // Sesli mesaj / video / belge / cikartma / konum / kisi karti: icerik okunamaz ama mesaj KAYBOLMAZ
+        // (eskiden 'bos' deyip atiliyordu: panelde gorunmuyor, musteri cevapsiz kaliyordu — 2026-11-19 Ola Nail)
+        $medya = self::MEDYA[(string) ($p['type'] ?? '')] ?? null;
+        if ($metin === '' && $resim === '' && $medya) $metin = $medya;
+        elseif ($medya && $resim === '') $metin = $medya . ' ' . $metin;
         if ($metin === '' && $resim === '') return ['tip' => 'bos'];
         $metin = mb_substr($metin, 0, 1000);
         $jid = (string) ($p['fromJid'] ?? '');
@@ -167,7 +191,7 @@ class WaAsistan
         if ($resim !== '' && WaAsistanVeri::semaGaranti()) {
             try { $gorselId = WaGorselDanisman::fotografKaydet($salonId, $anahtar, $resim); }
             catch (\Throwable $e) { Log::warning('[WA-GORSEL] fotograf kaydedilemedi: ' . $e->getMessage()); }
-            if (!$gorselId && $metin === '') return ['tip' => 'gorsel_gecersiz'];
+            if (!$gorselId && $metin === '') $metin = '[📷 Fotoğraf — açılamadı]'; // atilmaz: panelde gorunur, asistan tarif ister
         }
         $satir = [
             'salon_id' => $salonId, 'anahtar' => $anahtar, 'jid' => $jid ?: null, 'telefon' => $tel,
@@ -319,6 +343,11 @@ class WaAsistan
             $sus('otomatik_yanit');
             return;
         }
+        // Yalniz cikartma: kayda gecer, cevap gerekmez (kapanisMi: havada sayilmaz)
+        if (($mc = self::medyaCevabi($metin)) && $mc['cevap'] === null) {
+            $sus('cikartma');
+            return;
+        }
         // 4) DONGU: ayni mesaj ust uste 3. kez
         $oncekiler = array_values(array_filter($gecmis, function ($m) { return ($m['role'] ?? '') === 'user'; }));
         $n = count($oncekiler);
@@ -400,6 +429,10 @@ class WaAsistan
             $kayitli = $as->taninanMusteri();
             WaTalep::ac($o, 'yanlis_numara', 'Müşteri: "' . mb_substr($metin, 0, 200) . '".'
                 . ($kayitli ? " Bu numara sistemde \"{$kayitli}\" adına kayıtlı; müşteri kartındaki telefonu kontrol edin." : ' Bu numaraya mesaj gönderilmemesini istiyor.'));
+        } elseif (($mc = self::medyaCevabi($metin)) !== null && $mc['cevap'] !== null) {
+            // Sesli mesaj / video / belge / konum: icerik okunamaz -> sabit, kisa cevap (AI'ya gitmez, uydurmaz)
+            $cevap = $mc['cevap']; $kaynak = 'kod';
+            if (!empty($mc['talep'])) WaTalep::ac($o, 'diger', 'Müşteri bir dosya/kişi kartı gönderdi: ' . mb_substr($metin, 0, 100) . ' (WhatsApp\'tan bakın).');
         } elseif ($gkCevap !== null) {
             $cevap = $gkCevap; $kaynak = 'geri_kazanim';
         } elseif ($gorselId) {
@@ -754,6 +787,7 @@ class WaAsistan
     /** Kisa onay / tesekkur / veda / emoji: cevap beklemeyen mesaj (saf). */
     public static function kapanisMi(string $m): bool
     {
+        if (preg_match('/^(\[Çıkartma\]\s*)+$/u', trim($m))) return true;
         $s = strtr(self::sade($m), ['ç' => 'c', 'ş' => 's', 'ğ' => 'g', 'ü' => 'u', 'ö' => 'o', 'ı' => 'i']);
         if ($s === '') return (bool) preg_match('/^[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\s]+$/u', trim($m));
         return (bool) preg_match('/^((tamam|tamamdir|ok|okey|peki|anladim|anlasildi|tmm|olur|super|harika|tesekkur\w*|tsk\w*|sagol\w*|sag ol\w*|eyvallah|iyi gunler|iyi aksamlar|iyi geceler|gorusuruz|kolay gelsin|rica ederim|size de|sizlere de|ederim|ederiz|cok)\s*)+$/u', $s);

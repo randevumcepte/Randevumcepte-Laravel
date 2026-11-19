@@ -113,3 +113,40 @@ if evt.Info.Sender.Server == types.HiddenUserServer { // "@lid"
 
 Eski sürümde `SenderAlt` alanı yoksa yalnız `GetPNForLID` satırını kullanın (bağlam almıyorsa `GetPNForLID(evt.Info.Sender)`).
 Sonra: `go build -o whatsmeow-bridge . && pm2 restart <köprü>`.
+
+## Sesli mesaj / video / belge / çıkartma / konum da iletilsin (2026-11-19)
+
+Sorun: köprü yalnız yazı + fotoğrafı iletiyor; yukarıdaki `if text == "" ... return` satırı **sesli mesaj, video,
+belge, çıkartma, kişi kartını ATIYOR**. Bu mesajlar panelde görünmüyor, asistan cevap vermiyor (Ola Nail: "bazı
+müşterilerin yazışması görünmüyor"). Laravel artık bunları kabul ediyor: içerik indirilmez, yalnız `type` yeter.
+
+`if text == "" && payload["type"] != "location" { return }` satırını şununla DEĞİŞTİRİN:
+
+```go
+// --- YENI: okunamayan medya da iletilsin (Laravel "[🎤 Sesli mesaj]" vb. yazar, musteriye kisa cevap verir) ---
+if payload["type"] != "image" {
+    switch {
+    case evt.Message.GetAudioMessage() != nil:
+        payload["type"] = "audio"
+    case evt.Message.GetVideoMessage() != nil:
+        payload["type"] = "video"
+        payload["text"] = evt.Message.GetVideoMessage().GetCaption()
+    case evt.Message.GetDocumentMessage() != nil:
+        payload["type"] = "document"
+        payload["text"] = evt.Message.GetDocumentMessage().GetCaption()
+    case evt.Message.GetStickerMessage() != nil:
+        payload["type"] = "sticker"
+    case evt.Message.GetContactMessage() != nil || evt.Message.GetContactsArrayMessage() != nil:
+        payload["type"] = "contact"
+    case evt.Message.GetLocationMessage() != nil:
+        payload["type"] = "location"
+    }
+}
+if text == "" && (payload["type"] == nil || payload["type"] == "text") {
+    return // tepki (reaction), protokol mesaji vb. -> atla
+}
+// --- /YENI ---
+```
+
+Sonra: `go build -o whatsmeow-bridge . && pm2 restart <köprü>`. (Laravel tarafı canlıda; köprü güncellenene
+kadar bu mesajlar eskisi gibi gelmez.)

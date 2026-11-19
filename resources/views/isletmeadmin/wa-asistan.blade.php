@@ -585,7 +585,7 @@
          <div class="wa-satir" style="margin:0">
             <input type="date" id="waBas" class="wa-girdi" style="width:auto">
             <input type="date" id="waBit" class="wa-girdi" style="width:auto">
-            <input type="text" id="waAra" class="wa-girdi" style="width:240px;max-width:100%" placeholder="Ad veya telefon ara">
+            <input type="text" id="waAra" class="wa-girdi" style="width:240px;max-width:100%" placeholder="Ad veya telefon ara (tüm tarihler)">
             <button class="wa-btn ikincil" id="waSohbetYukle"><i class="bi bi-search"></i> Listele</button>
          </div>
       </div>
