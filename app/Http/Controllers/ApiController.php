@@ -9216,6 +9216,15 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             $salonId = $request->salonid;
 
+            // Yetki: randevu.kapanis_blok_ekle (personel varsayilaninda KAPALI).
+            // Mobil token yollamaz; cagiran = user_id ya da olusturan_personel_id
+            // (mobilde users.id). Hic biri yoksa eski davranis (eski build kirilmasin).
+            $__u = \Auth::guard('isletmeyonetim-api')->user();
+            $__callerId = $__u ? $__u->id : ($request->input('user_id') ?: $request->input('olusturan_personel_id'));
+            if ($__callerId && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar((int)$__callerId, $salonId, 'randevu.kapanis_blok_ekle')) {
+                return response()->json(['error' => 'Kapanış / blok ekleme yetkiniz yok.'], 403);
+            }
+
             $randevu_tarihleri = [];
             array_push($randevu_tarihleri, $request->tarih);
             $eklenecek_tarih = $request->tarih;
