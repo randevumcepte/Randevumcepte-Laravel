@@ -1442,9 +1442,9 @@
          b.disabled = false;
          if (!d.ok) { k.innerHTML = '<span style="color:#b91c1c">' + esc(d.hata || 'Gönderilemedi.') + '</span>'; return; }
          var ok = [], yok = [];
-         (d.liste || []).forEach(function (x) { (x.ulasti ? ok : yok).push(esc(x.ad)); });
+         (d.liste || []).forEach(function (x) { if (x.ulasti) ok.push(esc(x.ad)); else yok.push('<li><b>' + esc(x.ad) + '</b> — ' + esc(x.neden || 'Ulaşmadı.') + '</li>'); });
          k.innerHTML = (ok.length ? '<div style="color:#15803d"><b>✓ Telefonuna ulaştı:</b> ' + ok.join(', ') + '</div>' : '')
-            + (yok.length ? '<div style="color:#b45309"><b>Ulaşmadı:</b> ' + yok.join(', ') + '<br><span style="color:#64748b">Bu kişiler Randevumcepte uygulamasına bu işletmedeki kendi hesabıyla giriş yapıp bildirim iznini açmalı.</span></div>' : '')
+            + (yok.length ? '<div style="color:#b45309"><b>Ulaşmadı:</b><ul style="margin:4px 0 4px 18px;padding:0;color:#475569">' + yok.join('') + '</ul></div>' : '')
             + (!ok.length && !yok.length ? '<div>Yönetici yetkisinde personel bulunamadı.</div>' : '')
             + '<div style="color:#64748b">Panelin sağ üstündeki zilde de görünür.</div>';
       }).catch(function () { b.disabled = false; k.innerHTML = ''; hata(); });

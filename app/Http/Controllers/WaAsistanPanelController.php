@@ -445,8 +445,47 @@ class WaAsistanPanelController extends StoreAdminController
         if (!\Illuminate\Support\Facades\Cache::add('wa_test_bildirim_' . $sid, 1, 60)) {
             return response()->json(['ok' => 0, 'hata' => 'Az önce test bildirimi gönderildi; 1 dakika sonra tekrar deneyin.']);
         }
+        // Gondermeden ONCE teshis (gonderim gecersiz tokenlari siler)
+        $teshis = $this->bildirimTeshis($sid);
         $liste = WaAsistan::bildir($sid, '🔔 Test bildirimi: WhatsApp Asistanı talep bildirimleri bu telefona böyle gelir.');
+        foreach ($liste as &$x) {
+            if (empty($x['ulasti'])) $x['neden'] = $teshis[$x['pid'] ?? 0] ?? null;
+            unset($x['pid']);
+        }
+        unset($x);
         return response()->json(['ok' => 1, 'liste' => $liste]);
+    }
+
+    /**
+     * Push neden ulasmadi: personelin bu isletmeye bagli cihaz kaydi var mi, varsa hangi uygulamada,
+     * yoksa ayni kisinin telefonu baska isletme / baska uygulama icin mi kayitli. [pid => metin]
+     */
+    private function bildirimTeshis(int $sid): array
+    {
+        $out = [];
+        try {
+            $bundle = (string) Salonlar::where('id', $sid)->value('app_bundle');
+            $kisiler = DB::table('salon_personelleri as p')->join('model_has_roles as m', 'p.yetkili_id', '=', 'm.model_id')
+                ->where('p.salon_id', $sid)->where('m.role_id', '<', 5)->get(['p.id', 'p.yetkili_id']);
+            foreach ($kisiler as $k) {
+                $tum = DB::table('bildirim_kimlikleri')->where('isletme_yetkili_id', $k->id)
+                    ->whereNotNull('bildirim_id')->where('bildirim_id', '!=', '')->get();
+                $uygun = $tum->filter(function ($t) use ($bundle) { return $bundle === '' || $t->app_bundle === $bundle; });
+                if ($uygun->where('aktif', 1)->count()) { $out[$k->id] = 'Telefon kaydı var ama gönderim hata verdi (Firebase).'; continue; }
+                if ($uygun->count()) { $out[$k->id] = 'Telefon kaydı çok hata verdiği için pasif; uygulamadan çıkış yapıp tekrar giriş yapmalı.'; continue; }
+                if ($tum->count()) { $out[$k->id] = 'Telefonu başka bir uygulamada kayıtlı (' . $tum->pluck('app_bundle')->unique()->implode(', ') . '); bu işletmenin uygulaması: ' . ($bundle ?: '—') . '.'; continue; }
+                // Ayni kisi (yetkili) baska isletmenin personeli olarak mi kayitli?
+                $baska = $k->yetkili_id ? DB::table('bildirim_kimlikleri as b')->join('salon_personelleri as p2', 'p2.id', '=', 'b.isletme_yetkili_id')
+                    ->join('salonlar as s', 's.id', '=', 'p2.salon_id')->where('p2.yetkili_id', $k->yetkili_id)->where('p2.salon_id', '!=', $sid)
+                    ->distinct()->pluck('s.salon_adi')->filter()->values() : collect();
+                $out[$k->id] = $baska->count()
+                    ? 'Telefonu başka işletme için kayıtlı (' . $baska->take(3)->implode(', ') . '). Uygulamada bu işletmeyi seçip çıkış yapıp tekrar giriş yapmalı.'
+                    : 'Bu kişiye kayıtlı telefon yok (uygulamaya hiç giriş yapılmamış ya da bildirim izni verilmemiş).';
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[WA-TEST-BILDIRIM] teshis: ' . $e->getMessage());
+        }
+        return $out;
     }
 
     /** "Yol tarifi gönder": salonun adresi + Google Haritalar linki bu sohbete yazilir (personel istegi; asistan susmus olsa da). */
