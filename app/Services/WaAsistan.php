@@ -651,6 +651,12 @@ class WaAsistan
                 $son = end($g);
                 // yarim: cevapsiz / sozde / tekrar (dongu) / sikayet ("boş mesaj, gelmedi"); kapanis mesajlari ("tamam, 👍") haric
                 $mod = self::yarimMi($g);
+                // Asistan soru/onay sordu, musteri 5 dk'dir sessiz -> bir kez nazikce hatirlatir (gece yazmaz)
+                if (!$mod && self::cevapBekliyorMu($g)) {
+                    $h = (int) date('G');
+                    if ($h < 9 || $h >= 22) continue;
+                    $mod = 'hatirlat';
+                }
                 if (!$mod) continue;
                 $rol = $son['role'] ?? '';
                 // Bilerek cevapsiz birakilanlar: gunluk tavan dolu hat
@@ -712,6 +718,21 @@ class WaAsistan
         return null;
     }
 
+    /**
+     * Son mesaj asistanin musteriden cevap bekleyen sorusu mu (onay / saat secimi / bilgi) (saf).
+     * "Başka bir konuda yardımcı olabilir miyim?" gibi kapanis sorulari ve zaten bir kez hatirlatilmis mesajlar haric.
+     */
+    public static function cevapBekliyorMu(array $g): bool
+    {
+        $son = end($g);
+        if (!$son || ($son['role'] ?? '') !== 'assistant' || !empty($son['personel']) || !empty($son['gozden'])) return false;
+        $c = trim((string) ($son['content'] ?? ''));
+        if (!preg_match_all('/[^.!?\n]*\?/u', $c, $m)) return false;
+        $soru = mb_strtolower(trim(end($m[0])), 'UTF-8');
+        if (preg_match('/ba[şs]ka (bir )?(konu|[şs]ey|iste|sorunuz)|yard[ıi]mc[ıi] olabilir|sorunuz var m[ıi]|memnun (kald|musunuz)/u', $soru)) return false;
+        return true;
+    }
+
     /** Panelden "Asistan tamamlasın": yarim kalan sohbeti asistan simdi surdurur. @return ['ok', 'hata'?] */
     public static function devamEttir(int $oturumId): array
     {
@@ -748,6 +769,12 @@ class WaAsistan
             $metin = '[SİSTEM — müşteri bunu yazmadı] Son mesajında yapacağını söylediğin kontrolü yapmadın ve müşteri bekliyor. '
                 . 'Gereken aracı (ör. musait_saatler) ŞİMDİ çağır ve sonucu müşteriye net bir seçenek ya da soruyla yaz. Özür dileme, doğrudan sonucu yaz.';
             $once = $g;
+        } elseif ($mod === 'hatirlat') {
+            // Musteri soruya 5 dk'dir cevap vermedi: tek kisa hatirlatma (yeni islem yok)
+            $metin = '[SİSTEM — müşteri bunu yazmadı] Müşteri son sorunuza birkaç dakikadır cevap vermedi. '
+                . 'Tek, kısa ve nazik bir hatırlatma mesajı yaz: bekleyen soruyu/onayı seçenekleriyle (gün, saat, uzman) koruyarak yeniden sor; '
+                . 'müşteri kısa cevapla (ör. "evet" ya da saat) tamamlayabilsin. Araç çağırma, yeni işlem yapma, önceki mesajı kelimesi kelimesine tekrarlama.';
+            $once = $g;
         } elseif ($mod === 'tekrar' || $mod === 'sikayet') {
             // Yazisma takildi (ayni cevap tekrarlandi / musteri "boş mesaj, gelmedi" dedi): bastan oku, asil istegi coz
             $metin = '[SİSTEM — müşteri bunu yazmadı] Yazışmayı baştan oku. Müşterinin asıl isteği karşılanmadı: '
@@ -769,6 +796,8 @@ class WaAsistan
             $cevap = WaTalep::iletildiMetni($konu, !$t['yeni']);
         }
         $cevap = self::telefonIfadeleri($cevap);
+        // Hatirlatma uretilemediyse yazilmaz (musteri zaten soruyu gordu; isletmeye talep acmaya gerek yok)
+        if ($mod === 'hatirlat' && $aksiyon !== 'aktar' && ($cevap === '' || RandevuAsistan::sozVeripBirakti($cevap))) return false;
         if ($cevap === '' || RandevuAsistan::sozVeripBirakti($cevap)) {
             // Ikinci kez de sonuc yok: musteri bekletilmez, isletmeye sorulur
             $t = WaTalep::ac($o, 'diger', 'Asistan müşterinin isteğini sonuçlandıramadı: "' . mb_substr($metin, 0, 160) . '"');
