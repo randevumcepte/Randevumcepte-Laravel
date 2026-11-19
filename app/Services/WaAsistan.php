@@ -727,9 +727,12 @@ class WaAsistan
         $son = end($g);
         if (!$son || ($son['role'] ?? '') !== 'assistant' || !empty($son['personel']) || !empty($son['gozden'])) return false;
         $c = trim((string) ($son['content'] ?? ''));
+        // Islem zaten tamamlandi (randevu olustu / iptal / guncellendi): kapanis mesajidir, hatirlatma yok
+        // (canli 2026-11-19 Ebrar: olusan randevudan sonra "hâlâ bekliyor, oluşturalım mı?" yazildi)
+        if (preg_match('/olu[şs]turdum|olu[şs]turuldu|olu[şs]turulmu[şs]|kaydettim|kaydedildi|iptal ettim|iptal edildi|g[üu]ncelledim|g[üu]ncellendi|ta[şs][ıi]nd[ıi]|ta[şs][ıi]d[ıi]m/iu', $c)) return false;
         if (!preg_match_all('/[^.!?\n]*\?/u', $c, $m)) return false;
         $soru = mb_strtolower(trim(end($m[0])), 'UTF-8');
-        if (preg_match('/ba[şs]ka (bir )?(konu|[şs]ey|iste|sorunuz)|yard[ıi]mc[ıi] olabilir|sorunuz var m[ıi]|memnun (kald|musunuz)/u', $soru)) return false;
+        if (preg_match('/ba[şs]ka (bir )?(konu|[şs]ey|iste|sorunuz|yard)|yard[ıi]mc[ıi] ol(abil|ay[ıi]m|mam)|sorunuz var m[ıi]|memnun (kald|musunuz)|yeterli mi/u', $soru)) return false;
         return true;
     }
 
@@ -773,7 +776,8 @@ class WaAsistan
             // Musteri soruya 5 dk'dir cevap vermedi: tek kisa hatirlatma (yeni islem yok)
             $metin = '[SİSTEM — müşteri bunu yazmadı] Müşteri son sorunuza birkaç dakikadır cevap vermedi. '
                 . 'Tek, kısa ve nazik bir hatırlatma mesajı yaz: bekleyen soruyu/onayı seçenekleriyle (gün, saat, uzman) koruyarak yeniden sor; '
-                . 'müşteri kısa cevapla (ör. "evet" ya da saat) tamamlayabilsin. Araç çağırma, yeni işlem yapma, önceki mesajı kelimesi kelimesine tekrarlama.';
+                . 'müşteri kısa cevapla (ör. "evet" ya da saat) tamamlayabilsin. Araç çağırma, yeni işlem yapma, önceki mesajı kelimesi kelimesine tekrarlama. '
+                . 'Yazışmada randevu zaten oluşturulduysa / işlem tamamlandıysa onu yeniden oluşturmayı SORMA, "bekliyor" DEME.';
             $once = $g;
         } elseif ($mod === 'tekrar' || $mod === 'sikayet') {
             // Yazisma takildi (ayni cevap tekrarlandi / musteri "boş mesaj, gelmedi" dedi): bastan oku, asil istegi coz
