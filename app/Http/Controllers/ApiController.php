@@ -28321,7 +28321,14 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
             else
                 $telefon = $user->cep_telefon;
             Log::info("Telefon no ".$telefon);
-            $mesajlar = array(array("to"=>$telefon,"message"=>$isletme->salon_adi." için yol tarifi: ".($isletme->yol_tarifi ? " Yol tarifi: ".$isletme->yol_tarifi : "")));
+            // Yol tarifi alani bossa adresten Google Haritalar linki (eskiden "X için yol tarifi:" diye BOS gidiyordu).
+            // Ne adres ne link varsa gonderilmez, success=false (asistan adresi bilmedigini soyler).
+            $_yolLink = \App\Services\WhatsAppMesajFormat::yolTarifiLinki($isletme);
+            $_yolAdres = trim((string) ($isletme->adres ?? ''));
+            if ($_yolLink === '' && $_yolAdres === '') {
+                return response()->json(['success' => false, 'message' => 'İşletmenin adresi ve yol tarifi kayıtlı değil.'], 200);
+            }
+            $mesajlar = array(array("to"=>$telefon,"message"=>$isletme->salon_adi.($_yolAdres !== '' ? "\nAdres: ".$_yolAdres : "").($_yolLink !== '' ? "\nYol tarifi (harita): ".$_yolLink : "")));
 
             // WhatsApp-first: salon WA aktif+connected ise ONCE WhatsApp dene, basarisizlari SMS'e dus.
             // (Diger bildirimlerle ayni mantik; sms_gonder_2 tek basina WA'yi atliyordu.)

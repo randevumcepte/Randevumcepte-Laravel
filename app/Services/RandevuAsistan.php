@@ -57,6 +57,8 @@ class RandevuAsistan
     protected ?string $waProfilAdi = null;
     /** @var string[] Yalniz WhatsApp: gecmis sohbetlerden ogrenilen, test edilmis dersler (waPromptBolumu sonuna eklenir). */
     protected array $waDersler = [];
+    /** WhatsApp: bu turda yol_tarifi_gonder -> sohbete yazilacak adres + harita linki. */
+    protected ?string $waYolMetni = null;
 
     public function __construct(int $salonId, ?string $telefon = null, string $kanal = 'santral')
     {
@@ -636,7 +638,9 @@ class RandevuAsistan
             'llm_ms' => $this->llmMs, 'llm_toplam_ms' => array_sum($this->llmMs), 'on_eslestirme' => $onNot !== '']);
         // Yol tarifi gonderildiyse (ayni turda baska bir is yoksa) sabit, net cumle:
         if ($yolTarifiGitti && $aksiyon === null && !$bitir) {
-            $cevap = 'Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?';
+            $cevap = ($this->kanal === 'whatsapp' && $this->waYolMetni)
+                ? $this->waYolMetni . "\n\nBaşka yardımcı olabileceğim bir konu var mı?"
+                : 'Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?';
         }
         // Randevu olustuysa onay cumlesi KODDAN (restoran kalibi): model cumleyi atlasa / eksik kursa da
         // musteri talep ifadesini mutlaka duyar (gun/saat/uzman onay sorusunda okundu, tekrar edilmez).
@@ -2940,6 +2944,16 @@ FIYAT
     /** ApiController@yolTarifiGonder (eski santral ile ayni: WhatsApp once, olmazsa SMS) + adres. */
     protected function yolTarifiGonder(): array
     {
+        // WHATSAPP: musteri zaten bu sohbette -> ayri mesaj atilmaz, adres + harita linki cevaba yazilir (konus: waYolMetni).
+        // (Ayri mesaj yol_tarifi alani bossa "X için yol tarifi:" diye BOS gidiyordu; canli 2026-11-19.)
+        if ($this->kanal === 'whatsapp') {
+            $s = \App\Salonlar::find($this->salonId);
+            $link = \App\Services\WhatsAppMesajFormat::yolTarifiLinki($s);
+            $adres = trim((string) ($s->adres ?? ''));
+            if ($link === '' && $adres === '') return ['ok' => false, 'adres' => '', 'hata' => 'İşletmenin adresi sistemde kayıtlı değil. Adresi bilmediğini söyle ve işletmeye aktar.'];
+            $this->waYolMetni = '📍 ' . ($s->salon_adi ?? $this->salonAdi()) . ($adres !== '' ? "\n" . $adres : '') . ($link !== '' ? "\n\nYol tarifi (harita): " . $link : '');
+            return ['ok' => true, 'adres' => $adres, 'mesaj' => 'Adres ve harita bağlantısı bu sohbete yazılıyor.'];
+        }
         $tel = $this->telNorm($this->telefon);
         if (!$tel) return ['ok' => false, 'adres' => $this->salon['adres'] ?? '', 'hata' => 'Arayan numarası yok; mesaj gönderilemedi. Adresi söyle.'];
         try {
