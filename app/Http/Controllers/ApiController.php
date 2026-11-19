@@ -23370,6 +23370,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 // Mobil-gizli yeni anahtarlari cikar ki yayindaki build sahte
                 // "yetki degisti -> zorla cikis" tetiklemesin (bkz. mobilGizliAnahtarlar).
                 'ayarlar'          => \Illuminate\Support\Arr::except($tum, \App\PersonelYetkiSabitleri::mobilGizliAnahtarlar()),
+                // Gizlenen anahtarlarin GERCEK degeri ayri alanda (eski build okumaz,
+                // yeni build Yetki.varMi'de buraya da bakar).
+                'gizli_ayarlar'    => \Illuminate\Support\Arr::only($tum, \App\PersonelYetkiSabitleri::mobilGizliAnahtarlar()),
             ]);
         }
 
@@ -23394,6 +23397,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                 'sablon'           => 'tam_yetki',
                 // Mobil-gizli yeni anahtarlari cikar (sahte zorla-cikis engeli).
                 'ayarlar'          => \Illuminate\Support\Arr::except($tum, \App\PersonelYetkiSabitleri::mobilGizliAnahtarlar()),
+                // Gizlenen anahtarlarin GERCEK degeri ayri alanda (eski build okumaz,
+                // yeni build Yetki.varMi'de buraya da bakar).
+                'gizli_ayarlar'    => \Illuminate\Support\Arr::only($tum, \App\PersonelYetkiSabitleri::mobilGizliAnahtarlar()),
             ]);
         }
 
@@ -23408,6 +23414,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             'sablon'           => $ayarlar['sablon'],
             // Mobil-gizli yeni anahtarlari cikar (sahte zorla-cikis engeli).
             'ayarlar'          => \Illuminate\Support\Arr::except($ayarlar['ayarlar'], \App\PersonelYetkiSabitleri::mobilGizliAnahtarlar()),
+            // Gizlenen anahtarlarin gercek degeri (kayitta acik -> mobilde buton gorunur).
+            'gizli_ayarlar'    => \Illuminate\Support\Arr::only($ayarlar['ayarlar'], \App\PersonelYetkiSabitleri::mobilGizliAnahtarlar()),
             'personel_id'      => $personelId,
         ]);
     }
