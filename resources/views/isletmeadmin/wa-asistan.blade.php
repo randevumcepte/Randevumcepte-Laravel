@@ -360,8 +360,6 @@
    @media (max-width: 760px) { .gl-hero { padding:22px 18px; } .gl-tile { grid-template-columns:repeat(2,minmax(0,1fr)); } .gl-ders { flex-wrap:wrap; } .gl-sohbet .detay { margin-left:0; } .gl-tur { grid-template-columns:minmax(0,1fr) 90px auto; } }
 
    /* ===== FOTOGRAF FIYATLARI sekmesi ===== */
-   .fg-ayar-kart { display:flex; align-items:center; gap:14px; margin-bottom:16px; flex-wrap:wrap; } .fg-ayar-kart .ic { flex:1; min-width:220px; } .fg-ayar-kart b { font-size:15px; }
-   .fg-geri { border:none; background:transparent; color:#6d28d9; font-size:13.5px; font-weight:700; cursor:pointer; padding:4px 2px; margin-bottom:8px; display:inline-flex; align-items:center; gap:6px; }
    .fg-ust { background:#fff; border-radius:20px; padding:18px 20px; box-shadow:var(--golge); margin-bottom:16px; display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:16px; align-items:start; }
    .fg-ust-ik { width:48px; height:48px; border-radius:15px; display:flex; align-items:center; justify-content:center; font-size:22px; color:#fff; background:linear-gradient(135deg,#be185d,#7c3aed); }
    .fg-ust h3 { margin:0 0 4px; font-size:19px; font-weight:800; color:var(--metin); }
@@ -537,6 +535,7 @@
          <button class="wa-sekme" data-p="kaz"><i class="bi bi-graph-up-arrow"></i>Kazandırdıkları</button>
          <button class="wa-sekme" data-p="sohbet"><i class="bi bi-whatsapp"></i>Sohbetler</button>
          <button class="wa-sekme" data-p="gk"><i class="bi bi-arrow-repeat"></i>Kaçan & Geri Kazanılan</button>
+         <button class="wa-sekme" data-p="gorsel"><i class="bi bi-camera"></i>Fotoğraftan Fiyat</button>
          <button class="wa-sekme" data-p="gel"><i class="bi bi-mortarboard-fill"></i>Asistan Gelişimi</button>
          <button class="wa-sekme" data-p="ogr"><i class="bi bi-lightbulb"></i>Öğrenilen Cevaplar</button>
          <button class="wa-sekme" data-p="ayar"><i class="bi bi-gear"></i>Ayarlar</button>
@@ -601,7 +600,6 @@
    {{-- ================= FOTOGRAF FIYATLARI ================= --}}
    <div class="wa-panel" id="p-gorsel">
       {{-- Ayar sayfasi: bir kez kurulur. Ana islemler hizmet listesinden OTOMATIK eslesir; yalniz eksikler isaretlenir. --}}
-      <button class="fg-geri" data-git="ayar"><i class="bi bi-arrow-left"></i> Ayarlar</button>
       <div class="fg-ust">
          <div class="fg-ust-ik"><i class="bi bi-camera-fill"></i></div>
          <div class="fg-ust-ic"><h3>Fotoğraftan fiyat ayarları</h3>
@@ -634,10 +632,9 @@
    <div class="wa-panel" id="p-gel"><div id="waGelisim"><div class="wa-iskelet" style="height:200px"></div></div></div>
 
    <div class="wa-panel" id="p-ayar">
-      <div class="wa-kart fg-ayar-kart"><span class="fg-ust-ik"><i class="bi bi-camera-fill"></i></span><div class="ic"><b>Fotoğraftan fiyat</b><div class="wa-alt" id="fgAyarOzet">Müşterinin gönderdiği model fotoğrafına verilecek fiyatların eşleşmeleri.</div></div><button class="wa-btn ikincil" data-git="gorsel">Fiyat eşleşmelerini düzenle <i class="bi bi-arrow-right"></i></button></div>
       <div class="wa-kart">
          <div class="wa-anahtar"><div class="t"><b>Fiyat sorularını cevaplasın</b><div>"Protez tırnak ne kadar?" gibi sorulara hizmet listenizdeki fiyatla cevap verir. Kapalıysa fiyat soran müşteriye fiyatı işletmeye sorduğunu söyler ve size bildirir.</div></div><input type="checkbox" data-ayar="fiyat_soyle" aria-label="Fiyat sorularını cevaplasın"></div>
-         <div class="wa-anahtar"><div class="t"><b>Fotoğraftan fiyat versin</b><div>Müşterinin gönderdiği model fotoğrafına, yukarıdaki "Fotoğraftan fiyat" eşleşmeleriyle fiyat verir.</div></div><input type="checkbox" data-ayar="gorsel_fiyat" aria-label="Fotoğraftan fiyat versin"></div>
+         <div class="wa-anahtar"><div class="t"><b>Fotoğraftan fiyat versin</b><div>Müşterinin gönderdiği model fotoğrafına, "Fotoğraftan Fiyat" sekmesindeki eşleşmelerle fiyat verir.</div></div><input type="checkbox" data-ayar="gorsel_fiyat" aria-label="Fotoğraftan fiyat versin"></div>
          <div class="wa-anahtar"><div class="t"><b>Randevudan sonra memnuniyet sorsun</b><div>Randevu oluşturulunca tek satırlık 👍 / 👎 sorusu eklenir.</div></div><input type="checkbox" data-ayar="memnuniyet_sor" aria-label="Memnuniyet sorsun"></div>
          <div class="wa-anahtar"><div class="t"><b>Gece denetçisi sohbetleri incelesin</b><div>Her gece biten sohbetleri inceler, sorunları ve "doğrusu buydu" cevabını "Asistan Gelişimi" sekmesine yazar. (Paketinizden düşmez.)</div></div><input type="checkbox" data-ayar="denetci" aria-label="Gece denetçisi"></div>
          <div class="wa-anahtar"><div class="t"><b>Test edilen dersleri kendisi uygulasın</b><div>Denetçinin önerdiği davranış dersi, geçmiş sohbetlerde yeniden denenip daha iyi sonuç verirse asistan hemen uygular. Kapalıysa her ders sizin onayınızı bekler. Fiyat, kampanya ve kurallarınız asla kendiliğinden değişmez.</div></div><input type="checkbox" data-ayar="denetci_oto" aria-label="Dersleri otomatik uygula"></div>
