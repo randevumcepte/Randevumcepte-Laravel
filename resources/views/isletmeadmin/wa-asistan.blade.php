@@ -4,7 +4,7 @@
    $J = function ($v) { return json_encode($v, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); };
 @endphp
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <style>
    .wa { --mor:#5b1fa8; --mor2:#7c3aed; --mor3:#a855f7; --lav:#f3eefc; --lav2:#e9dffb; --metin:#1f1638; --gri:#6b6483; --cizgi:#ece6f6;
          --yesil:#16a34a; --yesil-acik:#dcfce7; --golge:0 6px 24px rgba(76,29,149,.07); color:var(--metin); background:#f7f4fc; margin:-6px -6px 0; padding:18px; border-radius:18px; }
@@ -186,90 +186,6 @@
       .wa-ai .robot { width:84px; }
    }
    @media (max-width: 360px) { .wa-kpiler, .wa-kazanclar { grid-template-columns:minmax(0,1fr); } }
-
-   /* ================= v2 gorunum (tasarim: "Randevum Cepte Modern SaaS Paneli") ================= */
-   .wa { font-family:'Poppins',system-ui,-apple-system,'Segoe UI',sans-serif; background:linear-gradient(180deg,#f8f4ff 0%,#f4f1fb 100%); --golge:0 10px 30px rgba(91,33,182,.07); }
-   .wa button, .wa input, .wa select, .wa textarea { font-family:inherit; }
-   .wa b, .wa strong { font-weight:600; }
-   .wa-sekmeler { background:transparent; box-shadow:none; padding:4px 2px; gap:10px; }
-   .wa-sekme { background:#fff; border:1px solid #efe9fb; border-radius:14px; padding:11px 18px; font-size:14.5px; font-weight:500; color:#1e1b4b; box-shadow:0 4px 14px rgba(91,33,182,.07); }
-   .wa-sekme i { color:#4c1d95; font-size:17px; }
-   .wa-sekme:hover { background:#faf7ff; }
-   .wa-sekme.aktif { background:linear-gradient(135deg,#5b21b6,#7c3aed); border-color:transparent; font-weight:600; box-shadow:0 8px 20px rgba(109,40,217,.35); }
-   .wa-donem { border:1px solid #efe9fb; border-radius:14px; padding:6px 8px 6px 16px; }
-   .wa-donem select { font-weight:500; color:#1e1b4b; font-size:14.5px; }
-
-   .wa-hero { background:linear-gradient(100deg,#4c1d95 0%,#5b21b6 28%,#6d28d9 58%,#8b5cf6 84%,#a78bfa 100%); border-radius:20px; padding:22px 34px; min-height:116px; box-shadow:0 18px 40px rgba(91,33,182,.33); }
-   .wa-hero::before { right:-60px; top:-150px; width:460px; height:460px; background:radial-gradient(circle,rgba(255,255,255,.22),rgba(255,255,255,0) 62%); }
-   .wa-hero::after { right:150px; bottom:-170px; width:380px; height:280px; border:2px solid rgba(255,255,255,.14); }
-   .wa-hero-ikon { width:84px; height:84px; background:linear-gradient(150deg,#5ee28d,#22c55e 45%,#15a34a); border:4px solid #fff; box-shadow:0 10px 26px rgba(0,0,0,.28); }
-   .wa-hero-ikon i { font-size:44px; }
-   .wa-hero-bolum { padding:0 26px; border-left:1px solid rgba(255,255,255,.28); }
-   .wa-hero-bolum > i { font-size:50px; opacity:1; }
-   .wa-hero-e { font-size:17px; font-weight:400; opacity:.96; }
-   .wa-hero-d { font-size:32px; font-weight:600; letter-spacing:-.3px; }
-   .wa-hero-d small { font-size:21px; font-weight:500; }
-   .wa-hero .wa-trend { background:rgba(4,120,87,.78); color:#d1fae5; font-size:13px; font-weight:600; padding:4px 11px; }
-   .wa-hero .wa-trend.dus { background:rgba(185,28,28,.75); color:#fee2e2; }
-   .wa-hero-yazi { font-size:33px; }
-
-   .wa-kpi { border-radius:18px; padding:18px 20px 12px; border:1px solid #f1ecfb; box-shadow:var(--golge); min-height:156px; }
-   .wa-kpi-ust { gap:14px; }
-   .wa-kpi-ikon { width:56px; height:56px; border-radius:16px; font-size:28px; }
-   .wa-kpi-d { font-size:30px; font-weight:600; color:#1e1b4b; letter-spacing:-.3px; }
-   .wa-kpi-e { font-size:15px; font-weight:500; color:#3f3a5a; margin-top:4px; }
-   .wa-kpi-ic { flex:1; min-width:0; }
-   .wa-kpi-alt { display:flex; justify-content:space-between; align-items:center; gap:8px; }
-   .wa-kpi .wa-trend { position:static; flex:0 0 auto; font-size:14px; font-weight:600; padding:0; margin-top:4px; white-space:nowrap; }
-   .wa-kpi .wa-trend.tur { color:#f97316; }
-   .wa-kpi .wa-trend .bi-check-circle-fill { font-size:19px; color:#16a34a; }
-   .wa-k-mor .wa-kpi-ikon { background:linear-gradient(135deg,#f1e8ff,#e0d0fd); color:#6d28d9; }
-   .wa-k-lila .wa-kpi-ikon { background:linear-gradient(135deg,#efe9ff,#ddd3fd); color:#6d28d9; }
-   .wa-k-mavi .wa-kpi-ikon { background:linear-gradient(135deg,#e3f1ff,#d4e5fe); color:#2563eb; }
-   .wa-k-tur .wa-kpi-ikon { background:linear-gradient(135deg,#fff1e2,#fed9b0); color:#f97316; }
-   .wa-k-yesil .wa-kpi-ikon { background:linear-gradient(135deg,#e2fbe9,#c3f2d3); color:#16a34a; }
-
-   .wa-kart { border-radius:20px; border:1px solid #f1ecfb; box-shadow:var(--golge); }
-   .wa-kart-bas h4 { font-size:19px; font-weight:600; color:#1e1b4b; }
-   .wa-kart-bas h4 i { font-size:22px; }
-   .wa-toggle { background:#fff; border:1px solid #ece6f6; border-radius:14px; }
-   .wa-toggle button { font-weight:500; font-size:14px; padding:7px 18px; border-radius:11px; }
-   .wa-toggle button.aktif { background:linear-gradient(135deg,#5b21b6,#7c3aed); box-shadow:0 6px 14px rgba(109,40,217,.3); }
-   .wa-lejant { font-size:13px; color:#4b4563; }
-   .wa-tumu { background:#f3ecff; color:#4c1d95; font-weight:600; border-radius:999px; padding:8px 16px; }
-   .wa-konusma { padding:13px 4px; }
-   .wa-konusma .ad { font-size:15.5px; font-weight:600; color:#1e1b4b; }
-   .wa-konusma .mt { font-size:13.5px; color:#4b5563; }
-   .wa-avatar { width:48px; height:48px; font-weight:600; box-shadow:0 4px 10px rgba(0,0,0,.12); border:2px solid #fff; }
-   .wa-hap { font-size:12.5px; font-weight:600; padding:7px 14px; }
-   .wa-hap.y { background:#dcfce7; color:#15803d; } .wa-hap.m { background:#f3e8ff; color:#7c3aed; } .wa-hap.g { background:#e0e7ff; color:#3730a3; }
-   .wa-konusma .bi-chevron-right { color:#1e1b4b; font-size:16px; }
-
-   .wa-hizli { gap:16px; }
-   .wa-hizli a { border-radius:18px; padding:24px 10px; font-size:15px; font-weight:500; color:#1e1b4b; box-shadow:0 6px 16px rgba(91,33,182,.06); min-height:120px; }
-   .wa-hizli i { font-size:36px; }
-   .wa-h1 { background:linear-gradient(135deg,#f5edff,#e7dbff); } .wa-h1 i { color:#7c3aed; }
-   .wa-h2 { background:linear-gradient(135deg,#e3fbea,#cff5df); } .wa-h2 i { color:#16a34a; }
-   .wa-h3 { background:linear-gradient(135deg,#fff3e6,#fee0c4); } .wa-h3 i { color:#f97316; }
-   .wa-h4 { background:linear-gradient(135deg,#e6efff,#d9e4ff); } .wa-h4 i { color:#2563eb; }
-   .wa-ai { background:linear-gradient(120deg,#f6f0ff 0%,#eadffd 60%,#e2d3fc 100%); border-color:#eadffd; }
-   .wa-ai .robot { width:150px; filter:drop-shadow(0 12px 18px rgba(91,33,182,.25)); }
-   .wa-ai h4 { font-size:18px; font-weight:600; color:#1e1b4b; }
-   .wa-ai p { font-size:14.5px; color:#3f3a5a; }
-   .wa-aktif { font-weight:600; padding:5px 12px; }
-   .wa-liste-ok { font-size:14.5px; font-weight:500; color:#1e1b4b; gap:12px; }
-   .wa-liste-ok i { font-size:22px; color:#16a34a; }
-   .wa-btn { background:linear-gradient(135deg,#4c1d95,#6d28d9); font-weight:600; border-radius:12px; padding:11px 20px; box-shadow:0 8px 18px rgba(76,29,149,.3); }
-   .wa-btn.ikincil { box-shadow:none; }
-   @media (max-width: 900px) { .wa-hero-d { font-size:28px; } .wa-ai .robot { width:110px; } }
-   @media (max-width: 700px) {
-      .wa-kpi-ust { flex-direction:column; align-items:flex-start; gap:10px; }
-      .wa-kpi-ic { width:100%; }
-      .wa-kpi-alt { flex-wrap:wrap; gap:2px 8px; }
-      .wa-kpi-d { font-size:24px; } .wa-kpi-e { font-size:13.5px; }
-      .wa-kpi-ikon { width:44px; height:44px; font-size:22px; border-radius:14px; }
-      .wa-hizli a { min-height:100px; }
-   }
 </style>
 
 <div class="wa">
@@ -408,7 +324,7 @@
    function trendHtml(v, tersIyi, puan) {
       if (v == null) return '';
       var iyi = tersIyi ? v <= 0 : v >= 0;
-      return '<span class="wa-trend ' + (iyi ? '' : 'dus') + '"><i class="bi bi-arrow-' + (v >= 0 ? 'up' : 'down') + '"></i>' + (puan ? (v >= 0 ? '+' : '') + v + ' puan' : '%' + Math.abs(v)) + '</span>';
+      return '<span class="wa-trend ' + (iyi ? '' : 'dus') + '">' + (v >= 0 ? '↑' : '↓') + ' ' + (puan ? (v >= 0 ? '+' : '') + v + ' puan' : '%' + Math.abs(v)) + '</span>';
    }
    var RENK = ['#7c3aed', '#ec4899', '#f97316', '#0ea5e9', '#16a34a', '#8b5cf6', '#e11d48', '#0891b2'];
    function avatar(ad) { var s = String(ad || '?').trim(), h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
@@ -448,8 +364,8 @@
    // ---------- GENEL BAKIS
    var sonOzet = null, sonGrafik = null, grafikTur = 'ay';
    function kpi(sinif, ikon, d, e, trend, seri, renk) {
-      return '<div class="wa-kpi ' + sinif + '"><div class="wa-kpi-ust"><div class="wa-kpi-ikon"><i class="bi ' + ikon + '"></i></div><div class="wa-kpi-ic"><div class="wa-kpi-d">' + d + '</div><div class="wa-kpi-alt"><div class="wa-kpi-e">' + e + '</div>' + trend + '</div></div></div>'
-         + spark(seri, renk) + '</div>';
+      return '<div class="wa-kpi ' + sinif + '"><div class="wa-kpi-ust"><div class="wa-kpi-ikon"><i class="bi ' + ikon + '"></i></div><div><div class="wa-kpi-d">' + d + '</div><div class="wa-kpi-e">' + e + '</div></div></div>'
+         + trend + spark(seri, renk) + '</div>';
    }
    function kaz(sinif, ikon, d, e, a) {
       return '<div class="wa-kaz ' + sinif + '"><div class="wa-kpi-ikon"><i class="bi ' + ikon + '"></i></div><div class="d">' + d + '</div><div class="e">' + e + '</div>' + (a ? '<div class="a">' + a + '</div>' : '') + '</div>';
@@ -470,7 +386,7 @@
          // ===== GENEL BAKIS (tasarimla birebir): hero, 5 kart, grafik + son konusmalar, hizli islemler + AI kart
          h += '<div class="wa-hero"><div class="wa-hero-ikon"><i class="bi bi-whatsapp"></i></div>'
             + '<div class="wa-hero-bolum ilk"><div><div class="wa-hero-e">WhatsApp üzerinden toplam</div><div class="wa-hero-d">' + sayi(o.sohbet.gelen_mesaj) + ' <small>mesaj aldınız</small>' + trendHtml(t.mesaj) + '</div></div></div>'
-            + '<div class="wa-hero-bolum"><i class="bi bi-calendar2-week"></i><div><div class="wa-hero-e">Toplam Randevu</div><div class="wa-hero-d">' + sayi(toplamRandevu) + trendHtml(t.randevu) + '</div></div></div>'
+            + '<div class="wa-hero-bolum"><i class="bi bi-calendar-check"></i><div><div class="wa-hero-e">Toplam Randevu</div><div class="wa-hero-d">' + sayi(toplamRandevu) + trendHtml(t.randevu) + '</div></div></div>'
             + '<div class="wa-hero-bolum"><i class="bi bi-people-fill"></i><div><div class="wa-hero-e">Yeni Müşteri</div><div class="wa-hero-d">' + sayi(o.randevu.yeni_musteri) + trendHtml(t.yeni) + '</div></div></div>'
             + '<div class="wa-hero-yazi">Daha fazla müşteri,<br>daha fazla randevu!<svg width="150" height="12" viewBox="0 0 150 12"><path d="M4 8 Q75 -2 146 6" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg></div></div>';
          // ===== KAZANDIRDIKLARI sekmesi: uyari seridi + kazanc kartlari + paket + yolculuk + sorular
@@ -482,11 +398,11 @@
          // kpi
          var memSeri = s.memnun.map(function (m, i) { var tt = m + s.memnun_degil[i]; return tt ? m / tt * 100 : null; });
          h += '<div class="wa-kpiler">'
-            + kpi('wa-k-mor', 'bi-calendar2-week-fill', sayi(toplamRandevu), 'Toplam Randevu', trendHtml(t.randevu), s.randevu, '#7c3aed')
-            + kpi('wa-k-lila', 'bi-people-fill', sayi(o.randevu.yeni_musteri), 'Yeni Müşteri', trendHtml(t.yeni), s.yeni, '#16a34a')
-            + kpi('wa-k-mavi', 'bi-chat-dots-fill', sayi(o.sohbet.gelen_mesaj), 'WhatsApp Mesajı', trendHtml(t.mesaj), s.mesaj, '#2563eb')
-            + kpi('wa-k-tur', 'bi-star-fill', o.sohbet.memnuniyet_orani == null ? '—' : '%' + o.sohbet.memnuniyet_orani, 'Müşteri Memnuniyeti', trendHtml(t.memnuniyet, false, true).replace('wa-trend ', 'wa-trend tur '), memSeri, '#ec4899')
-            + kpi('wa-k-yesil', 'bi-clock', sure(o.cevap.medyan_sure_sn), 'Ortalama Yanıt Süresi', (t.sure != null && t.sure <= 0 ? '<span class="wa-trend"><i class="bi bi-check-circle-fill"></i></span>' : trendHtml(t.sure, true)), s.sure, '#16a34a')
+            + kpi('wa-k-mor', 'bi-calendar-check', sayi(toplamRandevu), 'Toplam Randevu', trendHtml(t.randevu), s.randevu, '#7c3aed')
+            + kpi('wa-k-lila', 'bi-people', sayi(o.randevu.yeni_musteri), 'Yeni Müşteri', trendHtml(t.yeni), s.yeni, '#16a34a')
+            + kpi('wa-k-mavi', 'bi-chat-square-text', sayi(o.sohbet.gelen_mesaj), 'WhatsApp Mesajı', trendHtml(t.mesaj), s.mesaj, '#2563eb')
+            + kpi('wa-k-tur', 'bi-star-fill', o.sohbet.memnuniyet_orani == null ? '—' : '%' + o.sohbet.memnuniyet_orani, 'Müşteri Memnuniyeti', trendHtml(t.memnuniyet, false, true), memSeri, '#ec4899')
+            + kpi('wa-k-yesil', 'bi-clock-history', sure(o.cevap.medyan_sure_sn), 'Ortalama Yanıt Süresi', trendHtml(t.sure, true), s.sure, '#16a34a')
             + '</div>';
          // kazandirdiklari (ayri sekme)
          k += '<div class="wa-bolum-baslik" style="margin-top:0"><i class="bi bi-graph-up-arrow"></i>Asistanın size kazandırdıkları</div><div class="wa-kazanclar">'
@@ -507,10 +423,10 @@
          var ok = function (acik, metin) { return '<li class="' + (acik ? '' : 'kapali') + '"><i class="bi bi-check-circle-fill"></i>' + metin + '</li>'; };
          var panel = function (yol) { return '/isletmeyonetim/' + yol + (SUBE ? '?sube=' + encodeURIComponent(SUBE) : ''); };
          h += '<div class="wa-alt-sira"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-lightning-charge-fill" style="color:#f59e0b"></i>Hızlı İşlemler</h4></div><div class="wa-hizli">'
-            + '<a class="wa-h1" href="' + panel('randevular') + '"><i class="bi bi-calendar-plus-fill"></i>Yeni Randevu Oluştur</a>'
+            + '<a class="wa-h1" href="' + panel('randevular') + '"><i class="bi bi-calendar-plus"></i>Yeni Randevu Oluştur</a>'
             + '<a class="wa-h2" href="' + panel('musteriler') + '"><i class="bi bi-people-fill"></i>Müşteri Ekle</a>'
-            + '<a class="wa-h3" href="' + panel('kampanya_yonetimi') + '"><i class="bi bi-megaphone-fill"></i>Kampanya Yayınla</a>'
-            + '<a class="wa-h4" href="' + panel('raporlar') + '"><i class="bi bi-bar-chart-fill"></i>Raporları Görüntüle</a></div></div>'
+            + '<a class="wa-h3" href="' + panel('kampanya_yonetimi') + '"><i class="bi bi-megaphone"></i>Kampanya Yayınla</a>'
+            + '<a class="wa-h4" href="' + panel('raporlar') + '"><i class="bi bi-bar-chart-line"></i>Raporları Görüntüle</a></div></div>'
             + '<div class="wa-kart wa-ai">' + ROBOT + '<div class="orta-ic"><h4>RandevumCepte AI Asistan <span class="wa-aktif ' + (a.acik && !(p && p.kapali) ? '' : 'kapali') + '"><i class="bi bi-check-circle-fill"></i>' + (a.acik ? (p && p.kapali ? 'Paket doldu' : 'Aktif') : 'Kapalı') + '</span></h4>'
             + '<p>Tüm müşterilerinize akıllı, hızlı ve kişiselleştirilmiş hizmet sunun.</p><button class="wa-btn" data-git="ayar">Ayarları Düzenle <i class="bi bi-arrow-right"></i></button></div>'
             + '<ul class="wa-liste-ok">' + ok(a.gorsel, 'Görsel Analiz (Fotoğraf)') + ok(a.fiyat, 'Akıllı Fiyatlandırma') + ok(true, 'Randevu Yönetimi') + ok(true, 'Müşteri Desteği') + '</ul></div></div>';
@@ -581,7 +497,7 @@
       var bw = gw / n, svg = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
       for (var i = 0; i <= cizgi; i++) { var y = ust + gh - i / cizgi * gh;
          svg += '<line x1="' + sol + '" x2="' + (W - sag) + '" y1="' + y + '" y2="' + y + '" stroke="#efeaf7"/>'
-            + '<text x="' + (sol - 8) + '" y="' + (y + 4) + '" text-anchor="end" font-size="12.5" fill="#4b4563">' + sayi(Math.round(om.ust * i / cizgi)) + '</text>'
+            + '<text x="' + (sol - 8) + '" y="' + (y + 4) + '" text-anchor="end" font-size="11" fill="#8a82a3">' + sayi(Math.round(om.ust * i / cizgi)) + '</text>'
             ; }
       var yv = function (v) { return ust + gh - v / om.ust * gh; }, yr = function (v) { return ust + gh - v / or.ust * gh; };
       r.mesaj.forEach(function (v, i) { var x = sol + i * bw + bw * 0.18, w = Math.max(2, bw * 0.64), y = yv(v);
@@ -592,7 +508,7 @@
       r.randevu.forEach(function (v, i) { var cx = sol + i * bw + bw / 2;
          if (n <= 31) svg += '<circle cx="' + cx.toFixed(1) + '" cy="' + yr(v).toFixed(1) + '" r="' + (i === n - 1 ? 5 : 3) + '" fill="' + (i === n - 1 ? '#fff' : '#6d28d9') + '" stroke="#6d28d9" stroke-width="2"/>';
          // Etiket: her N gunde bir; son gun yalniz bir oncekiyle cakismiyorsa (N/2'den uzaksa)
-         if (i % her === 0 || (i === n - 1 && i % her >= her / 2)) svg += '<text x="' + cx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="12.5" fill="#4b4563">' + etiketYaz(r.etiket[i], r.birim) + '</text>';
+         if (i % her === 0 || (i === n - 1 && i % her >= her / 2)) svg += '<text x="' + cx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11.5" fill="#6b6483">' + etiketYaz(r.etiket[i], r.birim) + '</text>';
          svg += '<rect class="wa-hit" data-i="' + i + '" x="' + (sol + i * bw).toFixed(1) + '" y="' + ust + '" width="' + bw.toFixed(1) + '" height="' + gh + '" fill="transparent"/>'; });
       // Son noktada sabit etiket (tasarimdaki "30 Kasım · 892 Randevu" kutusu)
       var sx = sol + (n - 1) * bw + bw / 2, sy = yr(r.randevu[n - 1]);
