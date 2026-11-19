@@ -599,7 +599,7 @@ class WaAsistan
     }
 
     /** Salon yoneticilerine panel bildirimi + push (Gece Denetcisi haftalik ozeti de kullanir). */
-    /** @return string[] bildirim (push) giden yoneticilerin adlari (panelde "kime bildirildi") */
+    /** @return array[] [[ad, ulasti]] bildirim gonderilen yoneticiler; ulasti = telefon/tarayicisina push gercekten gitti (panelde "kime bildirildi") */
     public static function bildir(int $salonId, string $mesaj, ?string $url = null): array
     {
         try {
@@ -619,14 +619,15 @@ class WaAsistan
                 ->where('salon_personelleri.salon_id', $salonId)->where('model_has_roles.role_id', '<', 5)
                 ->pluck('salon_personelleri.personel_adi', 'salon_personelleri.id')->toArray();
             foreach ($yoneticiler as $pid => $ad) {
-                NotificationService::toStaff((int) $pid, $salonId)->type(NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                $r = NotificationService::toStaff((int) $pid, $salonId)->type(NotificationTypes::SYSTEM_ANNOUNCEMENT)
                     ->title('WhatsApp Asistanı')->body($mesaj)->send();
-                if (trim((string) $ad) !== '') $adlar[] = trim((string) $ad);
+                // Gercekten ulasti mi: kayitli cihazina (uygulama / tarayici bildirimi) en az bir push gitti mi
+                if (trim((string) $ad) !== '') $adlar[] = ['ad' => trim((string) $ad), 'ulasti' => (int) ($r['sent'] ?? 0) > 0];
             }
         } catch (\Throwable $e) {
             Log::warning('[WA-ASISTAN] push gonderilemedi: ' . $e->getMessage());
         }
-        return array_values(array_unique($adlar));
+        return $adlar;
     }
 
     /**

@@ -1107,9 +1107,21 @@
    // Isletmeye sorulan konunun sonucu: ne zaman soruldu, kime bildirildi, hatirlatma, asistanin donusu, kim cevapladi
    function saatKisa(s) { if (!s) return ''; var d = new Date(String(s).replace(' ', 'T')); return isNaN(d) ? '' : d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) + (d.toDateString() !== new Date().toDateString() ? ' · ' + d.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' }) : ''); }
    function talepSeridi(s) {
+      // Kime bildirildi: telefonuna/tarayicisina push GERCEKTEN ulasanlar ve ulasmayanlar ayri (eski kayit: yalniz ad)
+      var bildirimMetni = function (b) {
+         b = b || [];
+         var ulasti = b.filter(function (x) { return typeof x === 'object' && x.ulasti; }).map(function (x) { return x.ad; });
+         var ulasmadi = b.filter(function (x) { return typeof x === 'object' && !x.ulasti; }).map(function (x) { return x.ad; });
+         var eski = b.filter(function (x) { return typeof x !== 'object'; });
+         var p = ['Panelde zil bildirimi olarak görünür.'];
+         if (ulasti.length) p.unshift('<span style="color:#15803d;font-weight:700">Telefonuna ulaştı:</span> ' + esc(ulasti.join(', ')));
+         if (ulasmadi.length) p.push('<span style="color:#b45309;font-weight:700">Ulaşmadı</span> (Randevumcepte uygulamasında oturum yok ya da bildirim izni kapalı): ' + esc(ulasmadi.join(', ')));
+         if (eski.length) p.push('Bildirim gönderilenler: ' + esc(eski.join(', ')));
+         return p.join('<br>');
+      };
       return s.talepler.map(function (t) {
          var adim = function (ik, renk, baslik, alt, zaman) { return '<div class="ts-adim"><span class="ts-ik" style="background:' + renk + '"><i class="bi ' + ik + '"></i></span><div><b>' + baslik + '</b>' + (alt ? '<small>' + alt + '</small>' : '') + '</div><span class="ts-z">' + saatKisa(zaman) + '</span></div>'; };
-         var h = adim('bi-send-fill', '#f59e0b', 'İşletmeye soruldu: ' + esc(t.konu_ad), 'Bildirim gitti: ' + (t.bildirilen.length ? esc(t.bildirilen.join(', ')) : 'panel bildirimi (yönetici telefonu kayıtlı değil)')
+         var h = adim('bi-send-fill', '#f59e0b', 'İşletmeye soruldu: ' + esc(t.konu_ad), bildirimMetni(t.bildirilen)
             + (t.ozet ? '<br>Müşteri: “' + esc(String(t.ozet).slice(0, 160)) + '”' : ''), t.acildi);
          if (t.hatirlatma_at) h += adim('bi-bell-fill', '#fb923c', 'Hatırlatma gönderildi', 'Henüz kimse dönmediği için yöneticilere tekrar bildirildi.', t.hatirlatma_at);
          if (t.asistan_dondu_at) h += adim('bi-robot', '#7c3aed', 'Asistan müşteriye döndü', 'Müşteri bekletilmesin diye nazikçe bilgi verdi ve randevuya devam etti.', t.asistan_dondu_at);

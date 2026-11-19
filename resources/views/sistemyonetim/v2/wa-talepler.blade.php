@@ -48,7 +48,7 @@
                 <td><b>{{ $t['salon'] }}</b><div class="wt-alt">#{{ $t['isletme_id'] }}</div></td>
                 <td>{{ $t['ad'] && $t['ad'] !== '.' ? $t['ad'] : 'Müşteri' }}<div class="wt-alt">{{ $t['telefon'] ?: 'gizli numara' }}</div></td>
                 <td>{{ $t['konu_ad'] }}<div class="wt-alt">{{ \Illuminate\Support\Str::limit((string) $t['ozet'], 110) }}</div></td>
-                <td>{{ $t['bildirilen'] ? implode(', ', $t['bildirilen']) : '— (yalnız panel bildirimi)' }}</td>
+                <td>@forelse($t['bildirilen'] as $b)@if(is_array($b))<span style="color:{{ $b['ulasti'] ? '#21835a' : '#b45309' }}">{{ $b['ad'] }}{{ $b['ulasti'] ? ' ✓' : ' (ulaşmadı)' }}</span>@else{{ $b }}@endif{{ $loop->last ? '' : ', ' }}@empty— (yalnız panel bildirimi)@endforelse</td>
                 <td style="white-space:nowrap">{{ date('d.m H:i', strtotime($t['acildi'])) }}</td>
                 <td style="white-space:nowrap">{{ $t['sure'] }}</td>
                 <td>
