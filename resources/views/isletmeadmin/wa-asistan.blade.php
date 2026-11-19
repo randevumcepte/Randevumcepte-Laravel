@@ -420,14 +420,6 @@
             + kaz('wa-k-yesil', 'bi-shield-check', o.sohbet.cozulen_orani == null ? '—' : '%' + o.sohbet.cozulen_orani, 'Tek başına çözdüğü', 'personele aktarılmadan biten yazışmalar')
             + kaz('wa-k-mor', 'bi-camera', sayi(o.gorsel.fiyat_verildi), 'Fotoğrafa fiyat verildi', sayi(o.gorsel.randevu) + ' tanesi randevuya döndü')
             + '</div>';
-         // kpi
-         var memSeri = s.memnun.map(function (m, i) { var tt = m + s.memnun_degil[i]; return tt ? m / tt * 100 : null; });
-         h += '<div class="wa-kpiler">'
-            + kpi('wa-k-mor', 'bi-calendar-check', sayi(toplamRandevu), 'Toplam Randevu', trendHtml(t.randevu), s.randevu, '#7c3aed')
-            + kpi('wa-k-lila', 'bi-people', sayi(o.randevu.yeni_musteri), 'Yeni Müşteri', trendHtml(t.yeni), s.yeni, '#16a34a')
-            + kpi('wa-k-mavi', 'bi-chat-square-text', sayi(o.sohbet.gelen_mesaj), 'WhatsApp Mesajı', trendHtml(t.mesaj), s.mesaj, '#2563eb')
-            + kpi('wa-k-tur', 'bi-star-fill', o.sohbet.memnuniyet_orani == null ? '—' : '%' + o.sohbet.memnuniyet_orani, 'Müşteri Memnuniyeti', trendHtml(t.memnuniyet, false, true), memSeri, '#ec4899')
-            + '</div>';
          // grafik + son konusmalar
          h += '<div class="wa-orta"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-bar-chart-fill" style="color:#7c3aed"></i>Performans Grafiği</h4>'
             + '<div class="wa-toggle" id="waGrafikTur"><button data-g="hafta">Hafta</button><button data-g="ay">Ay</button><button data-g="yil">Yıl</button></div></div>'
