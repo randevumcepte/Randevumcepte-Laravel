@@ -7,6 +7,7 @@ use App\Services\SantralPaket;
 use App\Services\WaAsistan;
 use App\Services\WaAsistanRapor;
 use App\Services\WaAsistanVeri;
+use App\Services\WaAvatar;
 use App\Services\WaGeriKazanim;
 use App\Services\WaGorselDanisman;
 use App\Services\WaPaket;
@@ -124,7 +125,11 @@ class WaAsistanPanelController extends StoreAdminController
         $ara = trim((string) $request->input('q'));
         if ($ara !== '') $q->where(function ($w) use ($ara) { $w->where('ad', 'like', "%$ara%")->orWhere('telefon', 'like', "%$ara%")->orWhere('musteri_tel', 'like', "%$ara%"); });
         $liste = [];
-        foreach ($q->get() as $o) {
+        $rows = $q->get();
+        // Profil fotografi: sistemde yuklu musteri fotografi; yoksa panel WhatsApp fotografini /avatar/{id}'den ister
+        $fotolar = WaAvatar::sistemFotolari($sid, $rows->map(function ($o) { return $o->musteri_tel ?: $o->telefon; })->all());
+        foreach ($rows as $o) {
+            $t10 = substr(preg_replace('/\D/', '', (string) ($o->musteri_tel ?: $o->telefon)), -10);
             $g = json_decode($o->gecmis ?: '[]', true) ?: [];
             $sonMus = '';
             for ($i = count($g) - 1; $i >= 0; $i--) if (($g[$i]['role'] ?? '') === 'user') { $sonMus = (string) $g[$i]['content']; break; }
@@ -134,9 +139,22 @@ class WaAsistanPanelController extends StoreAdminController
                 'sonuc' => $o->sonuc, 'randevu_id' => $o->randevu_id, 'durum' => self::durumEtiket($o),
                 'fiyat' => (int) $o->fiyat_verildi, 'gorsel' => (int) $o->gorsel_sayisi, 'memnuniyet' => $o->memnuniyet === null ? null : (int) $o->memnuniyet,
                 'geri_kazanim' => $o->geri_kazanim_id ? 1 : 0, 'devralindi' => self::devralindiMi($o),
+                'foto' => $fotolar[$t10] ?? null,
             ];
         }
         return response()->json(['ok' => 1, 'liste' => $liste]);
+    }
+
+    /** Musterinin WhatsApp profil fotografi (yalniz bu isletmenin sohbeti; yoksa 404 -> panel bas harf gosterir). */
+    public function avatar(Request $request, $id)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) abort(403);
+        $o = DB::table('wa_asistan_oturumlari')->where('id', (int) $id)->where('isletme_id', $sid)->first(['salon_id', 'jid', 'telefon']);
+        if (!$o) abort(404);
+        $yol = WaAvatar::dosya((int) $o->salon_id, $o->jid, $o->telefon);
+        if (!$yol) abort(404);
+        return response()->file($yol, ['Content-Type' => 'image/jpeg', 'Cache-Control' => 'private, max-age=86400']);
     }
 
     public function sohbet(Request $request, $id)

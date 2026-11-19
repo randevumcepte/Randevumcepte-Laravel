@@ -63,3 +63,27 @@ Webhook gövdesi büyüyeceği için nginx/PHP `client_max_body_size` / `post_ma
 2. Personel OLMAYAN bir numaradan işletmenin hattına bir model fotoğrafı gönderin.
 3. Laravel log: `[WA-ASISTAN] tur ... "kaynak":"gorsel"` ve müşteriye fiyatlı cevap.
 4. Panel > Sohbetler'de fotoğraf, asistanın tarifi ve verdiği fiyat görünür.
+
+---
+
+# Profil fotoğrafı (panel > WhatsApp Asistanı > Son konuşmalar)
+
+Laravel, müşterinin WhatsApp profil fotoğrafını köprüden `GET /session/{salonId}/avatar?jid=<jid>` ile ister
+(`X-Service-Token` başlığı, diğer uçlarla aynı). Cevap: `{"url":"https://..."}` — foto yoksa/gizliyse **404**.
+Laravel fotoğrafı indirip 7 gün saklar; uç yoksa panel baş harfleri gösterir (hata vermez).
+
+```go
+// Router'a (diger /session/{id}/... uclarinin yanina):
+// GET /session/{id}/avatar?jid=905321112233@s.whatsapp.net  (ya da <lid>@lid)
+func avatarHandler(w http.ResponseWriter, r *http.Request, sess *Session) {
+    jid, err := types.ParseJID(r.URL.Query().Get("jid"))
+    if err != nil { http.Error(w, `{"error":"jid"}`, 400); return }
+    info, err := sess.Client.GetProfilePictureInfo(context.Background(), jid, &whatsmeow.GetProfilePictureParams{Preview: true})
+    if err != nil || info == nil || info.URL == "" { http.Error(w, `{"error":"yok"}`, 404); return }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{"url": info.URL})
+}
+```
+
+Eski whatsmeow sürümünde `GetProfilePictureInfo` bağlam almıyorsa `sess.Client.GetProfilePictureInfo(jid, &whatsmeow.GetProfilePictureParams{Preview: true})`.
+Sonra sunucuda: `go build -o whatsmeow-bridge . && pm2 restart <köprü>`.

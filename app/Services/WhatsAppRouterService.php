@@ -132,6 +132,14 @@ class WhatsAppRouterService extends WhatsAppService
         });
     }
 
+    public function profilFotoUrl(\App\Salonlar $salon, string $jid): ?string
+    {
+        $hat = self::resolveWaSalon($salon);
+        return $this->withRouting($hat->id, function () use ($salon, $jid) {
+            return parent::profilFotoUrl($salon, $jid);
+        });
+    }
+
     public function sendAsistanCevap(\App\Salonlar $salon, $hedef, $mesaj, $telefon = null)
     {
         return $this->withRouting($salon->id, function () use ($salon, $hedef, $mesaj, $telefon) {

@@ -43,7 +43,7 @@
    .wa-uyari a { display:inline-flex; align-items:center; gap:8px; background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; border-radius:12px; padding:8px 12px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; }
 
    /* kpi */
-   .wa-kpiler { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:16px; margin-bottom:18px; }
+   .wa-kpiler { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:18px; }
    .wa-kpi { background:#fff; border-radius:20px; padding:18px 18px 10px; box-shadow:var(--golge); position:relative; overflow:hidden; min-height:150px; }
    .wa-kpi-ust { display:flex; align-items:center; gap:12px; }
    .wa-kpi-ikon { flex:0 0 auto; width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; }
@@ -88,7 +88,8 @@
    .wa-konusma { display:flex; align-items:center; gap:14px; padding:12px 4px; border-top:1px solid #f1edf8; cursor:pointer; }
    .wa-konusma:first-child { border-top:none; }
    .wa-konusma:hover { background:#faf7ff; border-radius:12px; }
-   .wa-avatar { flex:0 0 auto; width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; color:#fff; }
+   .wa-avatar { flex:0 0 auto; width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; color:#fff; position:relative; overflow:hidden; }
+   .wa-avatar img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#fff; }
    .wa-konusma .ic { flex:1; min-width:0; }
    .wa-konusma .ad { font-weight:700; font-size:15px; }
    .wa-konusma .mt { font-size:13.5px; color:var(--gri); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -162,7 +163,7 @@
    @keyframes waIs { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
 
    @media (max-width: 1400px) { .wa-kazanclar { grid-template-columns:repeat(3,minmax(0,1fr)); } .wa-hero-yazi { display:none; } }
-   @media (max-width: 1280px) { .wa-kpiler { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+   @media (max-width: 1280px) { .wa-kpiler { grid-template-columns:repeat(2,minmax(0,1fr)); } }
    @media (max-width: 1100px) { .wa-orta, .wa-alt-sira { grid-template-columns:minmax(0,1fr); } }
    @media (max-width: 900px) {
       .wa-hero { flex-direction:column; align-items:flex-start; padding:22px; gap:16px; }
@@ -327,9 +328,12 @@
       return '<span class="wa-trend ' + (iyi ? '' : 'dus') + '">' + (v >= 0 ? '↑' : '↓') + ' ' + (puan ? (v >= 0 ? '+' : '') + v + ' puan' : '%' + Math.abs(v)) + '</span>';
    }
    var RENK = ['#7c3aed', '#ec4899', '#f97316', '#0ea5e9', '#16a34a', '#8b5cf6', '#e11d48', '#0891b2'];
-   function avatar(ad) { var s = String(ad || '?').trim(), h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+   // Profil fotografi: sistemdeki musteri fotografi, yoksa WhatsApp fotografi (/avatar/{sohbet}); yuklenemezse bas harfler kalir
+   function avatar(ad, id, foto) { var s = String(ad || '?').trim(), h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
       var p = s.split(/\s+/), bas = ((p[0] || '?')[0] + (p.length > 1 ? p[p.length - 1][0] : '')).toLocaleUpperCase('tr-TR');
-      return '<div class="wa-avatar" style="background:' + RENK[h % RENK.length] + '">' + esc(bas) + '</div>'; }
+      var src = foto || (id ? url('/avatar/' + id) : '');
+      return '<div class="wa-avatar" style="background:' + RENK[h % RENK.length] + '">' + esc(bas)
+         + (src ? '<img src="' + esc(src) + '" alt="" loading="lazy" onerror="this.remove()">' : '') + '</div>'; }
    function hapSinif(s) { return /Randevu alındı|Oluşturuldu|teyit|değişti/.test(s) ? 'y' : (/Fiyat/.test(s) ? 'm' : (/aktarıldı|Personelde/.test(s) ? 's' : (/iptal|durduruldu|Bot/.test(s) ? 'k' : 'g'))); }
 
    // ---------- sekmeler
@@ -388,6 +392,7 @@
             + '<div class="wa-hero-bolum ilk"><div><div class="wa-hero-e">WhatsApp üzerinden toplam</div><div class="wa-hero-d">' + sayi(o.sohbet.gelen_mesaj) + ' <small>mesaj aldınız</small>' + trendHtml(t.mesaj) + '</div></div></div>'
             + '<div class="wa-hero-bolum"><i class="bi bi-calendar-check"></i><div><div class="wa-hero-e">Toplam Randevu</div><div class="wa-hero-d">' + sayi(toplamRandevu) + trendHtml(t.randevu) + '</div></div></div>'
             + '<div class="wa-hero-bolum"><i class="bi bi-people-fill"></i><div><div class="wa-hero-e">Yeni Müşteri</div><div class="wa-hero-d">' + sayi(o.randevu.yeni_musteri) + trendHtml(t.yeni) + '</div></div></div>'
+            + '<div class="wa-hero-bolum"><i class="bi bi-clock-history"></i><div><div class="wa-hero-e">Ortalama Yanıt Süresi</div><div class="wa-hero-d">' + sure(o.cevap.medyan_sure_sn) + trendHtml(t.sure, true) + '</div></div></div>'
             + '<div class="wa-hero-yazi">Daha fazla müşteri,<br>daha fazla randevu!<svg width="150" height="12" viewBox="0 0 150 12"><path d="M4 8 Q75 -2 146 6" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg></div></div>';
          // ===== KAZANDIRDIKLARI sekmesi: uyari seridi + kazanc kartlari + paket + yolculuk + sorular
          var u = '';
@@ -411,7 +416,6 @@
             + kpi('wa-k-lila', 'bi-people', sayi(o.randevu.yeni_musteri), 'Yeni Müşteri', trendHtml(t.yeni), s.yeni, '#16a34a')
             + kpi('wa-k-mavi', 'bi-chat-square-text', sayi(o.sohbet.gelen_mesaj), 'WhatsApp Mesajı', trendHtml(t.mesaj), s.mesaj, '#2563eb')
             + kpi('wa-k-tur', 'bi-star-fill', o.sohbet.memnuniyet_orani == null ? '—' : '%' + o.sohbet.memnuniyet_orani, 'Müşteri Memnuniyeti', trendHtml(t.memnuniyet, false, true), memSeri, '#ec4899')
-            + kpi('wa-k-yesil', 'bi-clock-history', sure(o.cevap.medyan_sure_sn), 'Ortalama Yanıt Süresi', trendHtml(t.sure, true), s.sure, '#16a34a')
             + '</div>';
          // grafik + son konusmalar
          h += '<div class="wa-orta"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-bar-chart-fill" style="color:#7c3aed"></i>Performans Grafiği</h4>'
@@ -472,7 +476,7 @@
       }).catch(function () {});
    }
    function konusmaSatiri(x) {
-      return '<div class="wa-konusma" data-sohbet="' + x.id + '" tabindex="0">' + avatar(x.ad || x.telefon) + '<div class="ic"><div class="ad">' + esc(x.ad || x.telefon || 'Müşteri') + '</div><div class="mt">' + esc(x.son_mesaj || '…') + '</div></div>'
+      return '<div class="wa-konusma" data-sohbet="' + x.id + '" tabindex="0">' + avatar(x.ad || x.telefon, x.id, x.foto) + '<div class="ic"><div class="ad">' + esc(x.ad || x.telefon || 'Müşteri') + '</div><div class="mt">' + esc(x.son_mesaj || '…') + '</div></div>'
          + '<div class="sa">' + saat(x.tarih) + '</div><span class="wa-hap ' + hapSinif(x.durum) + '">' + esc(x.durum) + '</span><i class="bi bi-chevron-right"></i></div>';
    }
 
@@ -555,7 +559,7 @@
       el('waSohbetDetay').innerHTML = '<div class="wa-bos">Yükleniyor…</div>';
       al('/sohbet/' + id).then(function (r) {
          if (!r.ok) { el('waSohbetDetay').innerHTML = '<div class="wa-bos">' + esc(r.hata || '') + '</div>'; return; }
-         var s = r.sohbet, h = '<div class="wa-kart-bas"><div style="display:flex;align-items:center;gap:12px">' + avatar(s.ad || s.telefon) + '<div><b style="font-size:16px">' + esc(s.ad || 'Müşteri') + '</b><div class="wa-alt">' + esc(s.telefon || 'gizli numara') + '</div></div><span class="wa-hap ' + hapSinif(s.durum) + '">' + esc(s.durum) + '</span></div>'
+         var s = r.sohbet, h = '<div class="wa-kart-bas"><div style="display:flex;align-items:center;gap:12px">' + avatar(s.ad || s.telefon, s.id, null) + '<div><b style="font-size:16px">' + esc(s.ad || 'Müşteri') + '</b><div class="wa-alt">' + esc(s.telefon || 'gizli numara') + '</div></div><span class="wa-hap ' + hapSinif(s.durum) + '">' + esc(s.durum) + '</span></div>'
             + (s.devralindi ? '<button class="wa-btn" data-geriver="' + s.id + '"><i class="bi bi-robot"></i> Asistana geri ver</button>' : '<button class="wa-btn ikincil" data-devral="' + s.id + '"><i class="bi bi-person"></i> Devral (asistan sussun)</button>') + '</div>';
          if (s.gorseller.length) {
             h += '<div class="wa-gorseller">' + s.gorseller.map(function (g) {

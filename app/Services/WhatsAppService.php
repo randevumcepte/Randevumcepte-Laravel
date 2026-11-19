@@ -233,6 +233,18 @@ class WhatsAppService
      * $hedef: tam JID ("<lid>@lid" gizli numara / "<pn>@s.whatsapp.net") ya da numara -> kopru oldugu gibi gonderir.
      * Kapilar: kanal acik, kara liste, kontor (1 mesaj = 1 kontor). Gunluk limit YOK (WaAsistan'in kendi tavani var).
      */
+    /**
+     * Kisinin WhatsApp profil fotografi URL'i (kopru: GET /session/{id}/avatar?jid=...). Kopruda uc yoksa / gizliyse null.
+     * URL WhatsApp CDN'inde kisa omurludur: cagiran indirip saklamali (WaAvatar).
+     */
+    public function profilFotoUrl(Salonlar $salon, string $jid): ?string
+    {
+        $salon = self::resolveWaSalon($salon);
+        $r = $this->request('GET', "/session/{$salon->id}/avatar?jid=" . rawurlencode($jid));
+        $u = (string) ($r['body']['url'] ?? '');
+        return (!empty($r['ok']) && preg_match('#^https://#', $u)) ? $u : null;
+    }
+
     public function sendAsistanCevap(Salonlar $salon, $hedef, $mesaj, $telefon = null)
     {
         $kaynakSalonId = (int) $salon->id;
