@@ -99,8 +99,8 @@
    .wa-hap.g { background:#eef2f7; color:#475569; } .wa-hap.s { background:#fef3c7; color:#92400e; } .wa-hap.k { background:#fee2e2; color:#b91c1c; }
 
    .wa-hizli { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
-   .wa-hizli button { border:none; border-radius:18px; padding:22px 10px; display:flex; flex-direction:column; align-items:center; gap:12px; font-size:14.5px; font-weight:700; color:var(--metin); cursor:pointer; transition:transform .15s; }
-   .wa-hizli button:hover { transform:translateY(-2px); }
+   .wa-hizli a { border:none; border-radius:18px; padding:22px 10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; font-size:14.5px; font-weight:700; color:var(--metin); text-align:center; text-decoration:none; cursor:pointer; transition:transform .15s; }
+   .wa-hizli a:hover { transform:translateY(-2px); color:var(--metin); text-decoration:none; }
    .wa-hizli i { font-size:30px; }
    .wa-h1 { background:#f1e8ff; } .wa-h1 i { color:#7c3aed; }
    .wa-h2 { background:#dff7ef; } .wa-h2 i { color:#0f9d6e; }
@@ -192,6 +192,7 @@
    <div class="wa-ust">
       <div class="wa-sekmeler" id="waSekmeler" role="tablist">
          <button class="wa-sekme aktif" data-p="kazanc"><i class="bi bi-bar-chart-fill"></i>Genel Bakış</button>
+         <button class="wa-sekme" data-p="kaz"><i class="bi bi-graph-up-arrow"></i>Kazandırdıkları</button>
          <button class="wa-sekme" data-p="sohbet"><i class="bi bi-whatsapp"></i>Sohbetler</button>
          <button class="wa-sekme" data-p="gk"><i class="bi bi-arrow-repeat"></i>Kaçan & Geri Kazanılan</button>
          <button class="wa-sekme" data-p="gorsel"><i class="bi bi-camera"></i>Fotoğraf Fiyatları</button>
@@ -222,6 +223,11 @@
    </div>
 
    {{-- ================= SOHBETLER ================= --}}
+   {{-- ================= KAZANDIRDIKLARI ================= --}}
+   <div class="wa-panel" id="p-kaz">
+      <div id="waKazanc"><div class="wa-iskelet" style="height:160px"></div></div>
+   </div>
+
    <div class="wa-panel" id="p-sohbet">
       <div class="wa-kart" style="margin-bottom:18px">
          <div class="wa-satir" style="margin:0">
@@ -324,7 +330,7 @@
    function avatar(ad) { var s = String(ad || '?').trim(), h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
       var p = s.split(/\s+/), bas = ((p[0] || '?')[0] + (p.length > 1 ? p[p.length - 1][0] : '')).toLocaleUpperCase('tr-TR');
       return '<div class="wa-avatar" style="background:' + RENK[h % RENK.length] + '">' + esc(bas) + '</div>'; }
-   function hapSinif(s) { return /Randevu alındı|teyit|değişti/.test(s) ? 'y' : (/Fiyat/.test(s) ? 'm' : (/aktarıldı|Personelde/.test(s) ? 's' : (/iptal|durduruldu|Bot/.test(s) ? 'k' : 'g'))); }
+   function hapSinif(s) { return /Randevu alındı|Oluşturuldu|teyit|değişti/.test(s) ? 'y' : (/Fiyat/.test(s) ? 'm' : (/aktarıldı|Personelde/.test(s) ? 's' : (/iptal|durduruldu|Bot/.test(s) ? 'k' : 'g'))); }
 
    // ---------- sekmeler
    var yuklendi = {}, SEKME_YUKLE = { sohbet: sohbetListe, gk: gkYukle, ogr: ogrYukle };
@@ -376,19 +382,19 @@
       al('/ozet', { donem: donemSec.value }).then(function (r) {
          if (!r.ok) { el('waGenel').innerHTML = '<div class="wa-bos">' + esc(r.hata || 'Yüklenemedi') + '</div>'; return; }
          sonOzet = r.ozet; var o = r.ozet, t = r.trend, s = r.seri, p = r.paket, a = r.asistan, kz = o.kazanc, h = '';
-         var toplamRandevu = o.randevu.adet + o.geri_kazanim.randevu;
-         // hero
+         var toplamRandevu = o.randevu.adet + o.geri_kazanim.randevu, k = '';
+         // ===== GENEL BAKIS (tasarimla birebir): hero, 5 kart, grafik + son konusmalar, hizli islemler + AI kart
          h += '<div class="wa-hero"><div class="wa-hero-ikon"><i class="bi bi-whatsapp"></i></div>'
             + '<div class="wa-hero-bolum ilk"><div><div class="wa-hero-e">WhatsApp üzerinden toplam</div><div class="wa-hero-d">' + sayi(o.sohbet.gelen_mesaj) + ' <small>mesaj aldınız</small>' + trendHtml(t.mesaj) + '</div></div></div>'
-            + '<div class="wa-hero-bolum"><i class="bi bi-calendar-check"></i><div><div class="wa-hero-e">Asistanın aldığı randevu</div><div class="wa-hero-d">' + sayi(toplamRandevu) + trendHtml(t.randevu) + '</div></div></div>'
-            + '<div class="wa-hero-bolum"><i class="bi bi-people"></i><div><div class="wa-hero-e">Yeni Müşteri</div><div class="wa-hero-d">' + sayi(o.randevu.yeni_musteri) + trendHtml(t.yeni) + '</div></div></div>'
+            + '<div class="wa-hero-bolum"><i class="bi bi-calendar-check"></i><div><div class="wa-hero-e">Toplam Randevu</div><div class="wa-hero-d">' + sayi(toplamRandevu) + trendHtml(t.randevu) + '</div></div></div>'
+            + '<div class="wa-hero-bolum"><i class="bi bi-people-fill"></i><div><div class="wa-hero-e">Yeni Müşteri</div><div class="wa-hero-d">' + sayi(o.randevu.yeni_musteri) + trendHtml(t.yeni) + '</div></div></div>'
             + '<div class="wa-hero-yazi">Daha fazla müşteri,<br>daha fazla randevu!<svg width="150" height="12" viewBox="0 0 150 12"><path d="M4 8 Q75 -2 146 6" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg></div></div>';
-         // uyari seridi
+         // ===== KAZANDIRDIKLARI sekmesi: uyari seridi + kazanc kartlari + paket + yolculuk + sorular
          var u = '';
          if (o.aktar_bekleyen.length) u += '<a data-git="sohbet"><i class="bi bi-hourglass-split"></i>' + o.aktar_bekleyen.length + ' müşteri sizden dönüş bekliyor</a>';
          if (o.kacan.length) u += '<a data-git="gk"><i class="bi bi-person-plus"></i>' + o.kacan.length + ' müşteri bilgi alıp randevu almadı</a>';
-         if (p && p.var && p.seviye) u += '<a data-git="kazanc"><i class="bi bi-exclamation-triangle"></i>' + (p.kapali ? 'Paket doldu: asistan cevap vermiyor' : 'Paketin %' + p.yuzde + '\'i kullanıldı') + '</a>';
-         if (u) h += '<div class="wa-uyari">' + u + '</div>';
+         if (p && p.var && p.seviye) u += '<a data-git="kaz"><i class="bi bi-exclamation-triangle"></i>' + (p.kapali ? 'Paket doldu: asistan cevap vermiyor' : 'Paketin %' + p.yuzde + '\'i kullanıldı') + '</a>';
+         if (u) k += '<div class="wa-uyari" style="margin-top:0">' + u + '</div>';
          // kpi
          var memSeri = s.memnun.map(function (m, i) { var tt = m + s.memnun_degil[i]; return tt ? m / tt * 100 : null; });
          h += '<div class="wa-kpiler">'
@@ -398,8 +404,8 @@
             + kpi('wa-k-tur', 'bi-star-fill', o.sohbet.memnuniyet_orani == null ? '—' : '%' + o.sohbet.memnuniyet_orani, 'Müşteri Memnuniyeti', trendHtml(t.memnuniyet, false, true), memSeri, '#ec4899')
             + kpi('wa-k-yesil', 'bi-clock-history', sure(o.cevap.medyan_sure_sn), 'Ortalama Yanıt Süresi', trendHtml(t.sure, true), s.sure, '#16a34a')
             + '</div>';
-         // kazandirdiklari
-         h += '<div class="wa-bolum-baslik"><i class="bi bi-graph-up-arrow"></i>Asistanın size kazandırdıkları</div><div class="wa-kazanclar">'
+         // kazandirdiklari (ayri sekme)
+         k += '<div class="wa-bolum-baslik" style="margin-top:0"><i class="bi bi-graph-up-arrow"></i>Asistanın size kazandırdıkları</div><div class="wa-kazanclar">'
             + kaz('wa-k-mor', 'bi-cash-coin', tl(kz.gerceklesen > 0 ? kz.gerceklesen : kz.beklenen), kz.gerceklesen > 0 ? 'Gerçekleşen kazanç' : 'Randevu tutarı', kz.kat ? 'Pakete ödediğinizin <b>' + String(kz.kat).replace('.', ',') + ' katı</b>' : (kz.gerceklesen > 0 ? 'salona gelen müşterilerden' : 'gelişler "geldi" işaretlenince kesinleşir'))
             + kaz('wa-k-lila', 'bi-moon-stars', tl(kz.mesai_disi), 'Mesai dışı kazanç', sayi(o.randevu.mesai_disi) + ' randevu personel yokken alındı')
             + kaz('wa-k-tur', 'bi-arrow-repeat', sayi(o.geri_kazanim.randevu), 'Geri kazanılan müşteri', sayi(o.geri_kazanim.yazildi) + ' kaçan müşteriye yazıldı · ' + tl(o.geri_kazanim.tutar))
@@ -410,26 +416,30 @@
          // grafik + son konusmalar
          h += '<div class="wa-orta"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-bar-chart-fill" style="color:#7c3aed"></i>Performans Grafiği</h4>'
             + '<div class="wa-toggle" id="waGrafikTur"><button data-g="hafta">Hafta</button><button data-g="ay">Ay</button><button data-g="yil">Yıl</button></div></div>'
-            + '<div class="wa-lejant"><span class="r">Randevu Sayısı (sağ eksen)</span><span class="m">Mesaj Sayısı (sol eksen)</span></div><div class="wa-grafik" id="waGrafik"><div class="wa-ipucu" id="waIpucu"></div></div></div>'
+            + '<div class="wa-lejant"><span class="r">Randevu Sayısı</span><span class="m">Mesaj Sayısı</span></div><div class="wa-grafik" id="waGrafik"><div class="wa-ipucu" id="waIpucu"></div></div></div>'
             + '<div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-whatsapp" style="color:#25D366"></i>Son WhatsApp Konuşmaları</h4><button class="wa-tumu" data-git="sohbet">Tümünü Gör <i class="bi bi-arrow-right"></i></button></div>'
             + '<div id="waSonKonusmalar"><div class="wa-bos">Yükleniyor…</div></div></div></div>';
-         // hizli islemler + AI kart
+         // hizli islemler (panelin gercek sayfalari) + AI kart
          var ok = function (acik, metin) { return '<li class="' + (acik ? '' : 'kapali') + '"><i class="bi bi-check-circle-fill"></i>' + metin + '</li>'; };
-         var paketHtml = '';
-         if (p && p.var) { var cls = p.kapali ? 'dolu' : (p.seviye ? 'uyari' : '');
-            paketHtml = '<div class="wa-paketbar">Bu ay <b>' + sayi(p.kullanilan) + ' / ' + sayi(p.dahil) + '</b> yapay zekâ mesajı · ' + sayi(o.cevap.ucretsiz) + ' ücretsiz cevap<div class="wa-bar ' + cls + '"><i style="width:' + p.yuzde + '%"></i></div></div>'; }
+         var panel = function (yol) { return '/isletmeyonetim/' + yol + (SUBE ? '?sube=' + encodeURIComponent(SUBE) : ''); };
          h += '<div class="wa-alt-sira"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-lightning-charge-fill" style="color:#f59e0b"></i>Hızlı İşlemler</h4></div><div class="wa-hizli">'
-            + '<button class="wa-h1" data-git="sohbet"><i class="bi bi-chat-dots"></i>Sohbetler</button>'
-            + '<button class="wa-h2" data-git="gorsel"><i class="bi bi-camera"></i>Fotoğraf Fiyatları</button>'
-            + '<button class="wa-h3" data-git="gk"><i class="bi bi-person-plus"></i>Kaçan Müşteriler</button>'
-            + '<button class="wa-h4" data-git="ogr"><i class="bi bi-lightbulb"></i>Öğrenilen Cevaplar</button></div></div>'
+            + '<a class="wa-h1" href="' + panel('randevular') + '"><i class="bi bi-calendar-plus"></i>Yeni Randevu Oluştur</a>'
+            + '<a class="wa-h2" href="' + panel('musteriler') + '"><i class="bi bi-people-fill"></i>Müşteri Ekle</a>'
+            + '<a class="wa-h3" href="' + panel('kampanya_yonetimi') + '"><i class="bi bi-megaphone"></i>Kampanya Yayınla</a>'
+            + '<a class="wa-h4" href="' + panel('raporlar') + '"><i class="bi bi-bar-chart-line"></i>Raporları Görüntüle</a></div></div>'
             + '<div class="wa-kart wa-ai">' + ROBOT + '<div class="orta-ic"><h4>RandevumCepte AI Asistan <span class="wa-aktif ' + (a.acik && !(p && p.kapali) ? '' : 'kapali') + '"><i class="bi bi-check-circle-fill"></i>' + (a.acik ? (p && p.kapali ? 'Paket doldu' : 'Aktif') : 'Kapalı') + '</span></h4>'
-            + '<p>Müşterilerinize WhatsApp\'tan anında, akıllı ve kişiselleştirilmiş hizmet sunar.</p><button class="wa-btn" data-git="ayar">Ayarları Düzenle <i class="bi bi-arrow-right"></i></button>' + paketHtml + '</div>'
-            + '<ul class="wa-liste-ok">' + ok(a.gorsel, 'Görsel Analiz (Fotoğraf)') + ok(a.fiyat, 'Akıllı Fiyatlandırma') + ok(true, 'Randevu Yönetimi') + ok(a.geri_kazanim, 'Kaçan Müşteri Geri Kazanma') + ok(true, 'Müşteri Desteği') + '</ul></div></div>';
-         // yolculuk + ilgi alanlari
+            + '<p>Tüm müşterilerinize akıllı, hızlı ve kişiselleştirilmiş hizmet sunun.</p><button class="wa-btn" data-git="ayar">Ayarları Düzenle <i class="bi bi-arrow-right"></i></button></div>'
+            + '<ul class="wa-liste-ok">' + ok(a.gorsel, 'Görsel Analiz (Fotoğraf)') + ok(a.fiyat, 'Akıllı Fiyatlandırma') + ok(true, 'Randevu Yönetimi') + ok(true, 'Müşteri Desteği') + '</ul></div></div>';
+         // paket (Kazandirdiklari sekmesi)
+         if (p && p.var) { var cls = p.kapali ? 'dolu' : (p.seviye ? 'uyari' : '');
+            k += '<div class="wa-kart" style="margin-bottom:18px"><div class="wa-kart-bas"><h4><i class="bi bi-box-seam" style="color:#7c3aed"></i>Paket Kullanımı</h4></div>'
+               + '<div class="wa-paketbar" style="margin:0">Bu ay <b>' + sayi(p.kullanilan) + ' / ' + sayi(p.dahil) + '</b> yapay zekâ mesajı kullanıldı · kalan ' + sayi(p.kalan) + ' · ' + sayi(o.cevap.ucretsiz) + ' ücretsiz cevap (paketten düşmez)'
+               + '<div class="wa-bar ' + cls + '"><i style="width:' + p.yuzde + '%"></i></div></div>'
+               + (p.kapali ? '<div class="wa-alt" style="color:#dc2626;margin-top:8px"><b>Paket doldu:</b> asistan ay sonuna kadar cevap vermiyor.</div>' : '') + '</div>'; }
+         // yolculuk + ilgi alanlari (Kazandirdiklari sekmesi)
          var hu = o.huni, mx = Math.max(1, hu.yazdi);
-         var etiket = function (obj, f) { var k = Object.keys(obj || {}); return k.length ? '<div class="wa-etiketler">' + k.map(function (x) { return '<span>' + f(x, obj[x]) + '</span>'; }).join('') + '</div>' : '<div class="wa-alt">Henüz veri yok.</div>'; };
-         h += '<div class="wa-alt-sira"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-funnel" style="color:#7c3aed"></i>Müşteri Yolculuğu</h4></div><div class="wa-huni">'
+         var etiket = function (obj, f) { var ks = Object.keys(obj || {}); return ks.length ? '<div class="wa-etiketler">' + ks.map(function (x) { return '<span>' + f(x, obj[x]) + '</span>'; }).join('') + '</div>' : '<div class="wa-alt">Henüz veri yok.</div>'; };
+         k += '<div class="wa-alt-sira"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-funnel" style="color:#7c3aed"></i>Müşteri Yolculuğu</h4></div><div class="wa-huni">'
             + [['Yazdı', hu.yazdi], ['Bilgi / fiyat aldı', hu.bilgi], ['Randevu aldı', hu.randevu], ['Salona geldi', hu.geldi]].map(function (x) {
                return '<div class="s"><span>' + x[0] + '</span><div class="wa-bar"><i style="width:' + Math.round(x[1] / mx * 100) + '%"></i></div><b>' + sayi(x[1]) + '</b></div>'; }).join('')
             + '</div><div class="wa-alt" style="margin-top:10px">"Salona geldi" panelde randevuya "geldi" işaretlendikçe güncellenir.</div></div>'
@@ -437,10 +447,14 @@
             + '<b style="font-size:14px">En çok sorulan hizmetler</b>' + etiket(o.populer_hizmet, function (k, v) { return esc(k) + ' · ' + v; })
             + '<div style="height:14px"></div><b style="font-size:14px">En yoğun saatler</b>' + etiket(o.yogun_saat, function (k, v) { return String(k).padStart(2, '0') + ':00 · ' + v + ' mesaj'; }) + '</div></div>';
          el('waGenel').innerHTML = h;
+         el('waKazanc').innerHTML = k;
          grafikYukle(grafikTur);
          sonKonusmalar();
       }).catch(function () { el('waGenel').innerHTML = '<div class="wa-bos">Rapor yüklenemedi.</div>'; });
    }
+   el('waKazanc').addEventListener('click', function (e) {
+      var g = e.target.closest('[data-git]'); if (g) { sekmeAc(g.dataset.git); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+   });
    el('waGenel').addEventListener('click', function (e) {
       var g = e.target.closest('[data-git]'); if (g) { sekmeAc(g.dataset.git); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
       var gt = e.target.closest('#waGrafikTur button'); if (gt) { grafikYukle(gt.dataset.g); return; }
@@ -452,7 +466,9 @@
       al('/sohbetler', { baslangic: o.toISOString().slice(0, 10), bitis: b.toISOString().slice(0, 10) }).then(function (r) {
          var hedef = el('waSonKonusmalar'); if (!hedef) return;
          if (!r.ok || !r.liste.length) { hedef.innerHTML = '<div class="wa-bos">Son 30 günde WhatsApp konuşması yok.</div>'; return; }
-         hedef.innerHTML = r.liste.slice(0, 5).map(konusmaSatiri).join('');
+         // Tasarimdaki durum etiketleri: Randevu Oluşturuldu / Fiyat Verildi / Bilgi Verildi
+         var etk = { 'Randevu alındı': 'Randevu Oluşturuldu', 'Fiyat aldı': 'Fiyat Verildi', 'Tamamlandı': 'Bilgi Verildi', 'Devam ediyor': 'Yazışıyor' };
+         hedef.innerHTML = r.liste.slice(0, 5).map(function (x) { return konusmaSatiri(Object.assign({}, x, { durum: etk[x.durum] || x.durum })); }).join('');
       }).catch(function () {});
    }
    function konusmaSatiri(x) {
@@ -462,7 +478,8 @@
 
    // ---------- performans grafigi (bar: randevu, cizgi: mesaj)
    var AYLAR = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-   function etiketYaz(e, birim) { var p = e.split('-'); return birim === 'ay' ? AYLAR[+p[1] - 1] : (+p[2]) + ' ' + AYLAR[+p[1] - 1]; }
+   var AYLAR_UZUN = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+   function etiketYaz(e, birim, uzun) { var p = e.split('-'), a = (uzun ? AYLAR_UZUN : AYLAR)[+p[1] - 1]; return birim === 'ay' ? a + (uzun ? ' ' + p[0] : '') : (+p[2]) + ' ' + a; }
    function grafikYukle(g) {
       grafikTur = g;
       document.querySelectorAll('#waGrafikTur button').forEach(function (b) { b.classList.toggle('aktif', b.dataset.g === g); });
@@ -470,7 +487,7 @@
    }
    function grafikCiz() {
       var kap = el('waGrafik'); if (!kap || !sonGrafik || !kap.clientWidth) return;
-      var r = sonGrafik, W = kap.clientWidth, H = kap.clientHeight, sol = 40, sag = 34, ust = 12, alt = 28;
+      var r = sonGrafik, W = kap.clientWidth, H = kap.clientHeight, sol = 40, sag = 14, ust = 12, alt = 28;
       var n = r.etiket.length, gw = W - sol - sag, gh = H - ust - alt;
       // Iki eksen: mesaj (cizgi, sol) ve randevu (cubuk, sag) cok farkli buyuklukte -> her biri kendi olceginde
       // 4 esit, yuvarlak adim (1, 2, 2.5, 5 x 10^k; tam sayi): 0-40-80-120-160 gibi
@@ -481,7 +498,7 @@
       for (var i = 0; i <= cizgi; i++) { var y = ust + gh - i / cizgi * gh;
          svg += '<line x1="' + sol + '" x2="' + (W - sag) + '" y1="' + y + '" y2="' + y + '" stroke="#efeaf7"/>'
             + '<text x="' + (sol - 8) + '" y="' + (y + 4) + '" text-anchor="end" font-size="11" fill="#8a82a3">' + sayi(Math.round(om.ust * i / cizgi)) + '</text>'
-            + '<text x="' + (W - sag + 8) + '" y="' + (y + 4) + '" font-size="11" fill="#7c3aed">' + sayi(Math.round(or.ust * i / cizgi)) + '</text>'; }
+            ; }
       var yv = function (v) { return ust + gh - v / om.ust * gh; }, yr = function (v) { return ust + gh - v / or.ust * gh; };
       r.mesaj.forEach(function (v, i) { var x = sol + i * bw + bw * 0.18, w = Math.max(2, bw * 0.64), y = yv(v);
          svg += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + (ust + gh - y).toFixed(1) + '" rx="' + Math.min(5, w / 2) + '" fill="' + (i === n - 1 ? '#6d28d9' : '#d8c8f7') + '"/>'; });
@@ -493,16 +510,22 @@
          // Etiket: her N gunde bir; son gun yalniz bir oncekiyle cakismiyorsa (N/2'den uzaksa)
          if (i % her === 0 || (i === n - 1 && i % her >= her / 2)) svg += '<text x="' + cx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11.5" fill="#6b6483">' + etiketYaz(r.etiket[i], r.birim) + '</text>';
          svg += '<rect class="wa-hit" data-i="' + i + '" x="' + (sol + i * bw).toFixed(1) + '" y="' + ust + '" width="' + bw.toFixed(1) + '" height="' + gh + '" fill="transparent"/>'; });
-      kap.innerHTML = svg + '</svg><div class="wa-ipucu" id="waIpucu"></div>';
+      // Son noktada sabit etiket (tasarimdaki "30 Kasım · 892 Randevu" kutusu)
+      var sx = sol + (n - 1) * bw + bw / 2, sy = yr(r.randevu[n - 1]);
+      var sabit = '<div class="wa-ipucu wa-sabit" id="waSabit" style="display:block;right:' + Math.max(0, W - sx - 10) + 'px;top:' + Math.max(0, sy - 62) + 'px"><b>'
+         + etiketYaz(r.etiket[n - 1], r.birim, true) + '</b><span style="color:#6d28d9">●</span> ' + sayi(r.randevu[n - 1]) + ' Randevu</div>';
+      kap.innerHTML = svg + '</svg>' + sabit + '<div class="wa-ipucu" id="waIpucu"></div>';
       kap.onmousemove = function (e) {
-         var h = e.target.closest('.wa-hit'), ip = el('waIpucu'); if (!h) { ip.style.display = 'none'; return; }
+         var h = e.target.closest('.wa-hit'), ip = el('waIpucu'), sb = el('waSabit');
+         if (sb) sb.style.display = h ? 'none' : 'block';
+         if (!h) { ip.style.display = 'none'; return; }
          var i = +h.dataset.i, b = kap.getBoundingClientRect();
          ip.innerHTML = '<b>' + etiketYaz(r.etiket[i], r.birim) + '</b><span style="color:#6d28d9">●</span> ' + sayi(r.randevu[i]) + ' randevu<br><span style="color:#c4b5fd">●</span> ' + sayi(r.mesaj[i]) + ' mesaj';
          ip.style.display = 'block';
          var x = e.clientX - b.left + 14; if (x + ip.offsetWidth > W) x = e.clientX - b.left - ip.offsetWidth - 14;
          ip.style.left = x + 'px'; ip.style.top = Math.max(0, e.clientY - b.top - 40) + 'px';
       };
-      kap.onmouseleave = function () { var ip = el('waIpucu'); if (ip) ip.style.display = 'none'; };
+      kap.onmouseleave = function () { var ip = el('waIpucu'), sb = el('waSabit'); if (ip) ip.style.display = 'none'; if (sb) sb.style.display = 'block'; };
    }
    var rz; window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(grafikCiz, 150); });
    genelYukle();
