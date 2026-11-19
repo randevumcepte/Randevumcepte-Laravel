@@ -648,6 +648,14 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::post('/durum',             'SoftphoneApiController@durum');
     });
 
+    // AI santral asistan gorusmeleri (mobil: Asistanim > Asistan Gorusmeleri; web paneliyle ayni mantik, sube parametresi zorunlu)
+    Route::prefix('santral-asistan')->middleware('auth:isletmeyonetim-api')->group(function () {
+        Route::get ('/gorusmeler',          'StoreAdminController@santralAsistanGorusmeler');
+        Route::get ('/gorusme/{id}',        'StoreAdminController@santralAsistanGorusme')->where('id', '[0-9]+');
+        Route::get ('/ses/{id}',            'StoreAdminController@santralAsistanSes')->where('id', '[0-9]+');
+        Route::post('/geri-arandi/{id}',    'StoreAdminController@santralAsistanGeriArandi')->where('id', '[0-9]+');
+    });
+
     Route::prefix('cagri-merkezi')->middleware('auth:isletmeyonetim-api')->group(function () {
         // Arama ekrani (dialer) — personel + yonetici
         Route::get ('/arama-kartlarim',          'CagriMerkeziApiController@arama_kartlarim');

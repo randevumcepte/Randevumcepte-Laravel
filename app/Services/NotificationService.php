@@ -397,6 +397,8 @@ class NotificationService
                 return $base . '/isletmeyonetim/tahsilatlar' . $sube;
             case 'survey':
                 return $base . '/isletmeyonetim/anketler' . $sube;
+            case 'assistant_calls':
+                return $base . '/isletmeyonetim/santral' . $sube . '#asistan-gorusmeleri';
             default:
                 return $base . '/isletmeyonetim' . $sube;
         }

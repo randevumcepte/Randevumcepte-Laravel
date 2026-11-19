@@ -440,7 +440,7 @@ class SantralKopruController extends Controller
         $salonId = (int) $o->sube_id;
         $kim = $this->musteriAdi($salonId, $o->telefon) ?: ($o->telefon ? '0' . substr(preg_replace('/\D/', '', $o->telefon), -10) : 'Gizli numaralı bir müşteri');
         $mesaj = "📞 Geri aranacak: {$kim} aradı, " . ($neden === 'mesai_disi' ? 'mesai dışıydı' : 'yetkiliye ulaşılamadı')
-            . '. Asistan not aldı; Santral > Asistan Görüşmeleri\'nden bakabilirsiniz.';
+            . '. Asistan not aldı; Asistan Görüşmeleri\'nden bakabilirsiniz.';
         try {
             $b = new \App\Bildirimler();
             $b->aciklama = $mesaj;
@@ -458,7 +458,9 @@ class SantralKopruController extends Controller
                 ->pluck('salon_personelleri.id')->toArray();
             foreach ($yoneticiler as $pid) {
                 \App\Services\NotificationService::toStaff((int) $pid, $salonId)->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
-                    ->title('Geri aranacak müşteri')->body($mesaj)->send();
+                    ->title('Geri aranacak müşteri')->body($mesaj)
+                    // Mobil: tiklaninca Asistanim > Asistan Gorusmeleri (eski uygulama surumu yok sayar -> Bildirimler)
+                    ->deepLink('assistant_calls', ['salon_id' => $salonId, 'oturum_id' => (int) $o->id])->send();
             }
         } catch (\Throwable $e) {
             \Log::warning('[SANTRAL-GERI-ARA] push gonderilemedi: ' . $e->getMessage());

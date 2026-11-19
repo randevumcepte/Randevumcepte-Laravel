@@ -30274,13 +30274,21 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     /** Oturumdaki yetkili bu salona erisebiliyor ve yonetici (rol < 5) ise salon id, degilse null. */
     protected function asistanGorusmeSalon(Request $request)
     {
-        if (!Auth::guard('isletmeyonetim')->check()) return null;
-        $salonId = (int) self::mevcutsube($request);
-        $yetkili = Auth::guard('isletmeyonetim')->user();
+        $yetkili = $this->asistanGorusmeYetkili();
+        if (!$yetkili) return null;
+        // Mobil (Bearer) istekte sube parametresi zorunlu; web'de oturumdaki sube
+        $salonId = (int) ($request->has('sube') ? $request->input('sube') : self::mevcutsube($request));
         $salonlar = array_map('intval', $yetkili->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray());
         if (!$salonId || !in_array($salonId, $salonlar, true)) return null;
         if (self::kullaniciRolu($salonId, $yetkili->id) >= 5) return null;
         return $salonId;
+    }
+
+    /** Web paneli (isletmeyonetim) ya da mobil uygulama (isletmeyonetim-api, Bearer) yetkilisi. */
+    protected function asistanGorusmeYetkili()
+    {
+        if (Auth::guard('isletmeyonetim')->check()) return Auth::guard('isletmeyonetim')->user();
+        try { return Auth::guard('isletmeyonetim-api')->user(); } catch (\Throwable $e) { return null; }
     }
 
     protected static function asistanSonucEtiketi($sonuc, $durum)
@@ -30333,12 +30341,15 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $bas = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->input('baslangic')) ? $request->input('baslangic') : date('Y-m-d', strtotime('-6 days'));
         $bit = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->input('bitis')) ? $request->input('bitis') : date('Y-m-d');
 
+        // geri_ara=1: yalniz geri aranmayi bekleyenler (son 30 gun, tarih araligindan bagimsiz; mobil push'tan acilis)
+        $sadeceGeriAra = $request->input('geri_ara') === '1' && self::asistanGeriAraKolonVar();
         $rows = DB::table('santral_oturumlari as o')
             ->leftJoin('randevular as r', 'r.id', '=', 'o.randevu_id')
             ->leftJoin('users as ru', 'ru.id', '=', 'r.user_id')
-            ->where('o.sube_id', $salonId)
-            ->whereBetween('o.created_at', [$bas . ' 00:00:00', $bit . ' 23:59:59'])
-            ->orderByDesc('o.id')->limit(300)
+            ->where('o.sube_id', $salonId);
+        if ($sadeceGeriAra) $rows->where('o.geri_ara', 1)->where('o.created_at', '>=', date('Y-m-d', strtotime('-30 days')));
+        else $rows->whereBetween('o.created_at', [$bas . ' 00:00:00', $bit . ' 23:59:59']);
+        $rows = $rows->orderByDesc('o.id')->limit(300)
             ->get(array_merge(['o.id', 'o.telefon', 'o.sonuc', 'o.durum', 'o.randevu_id', 'o.created_at', 'o.updated_at', 'o.gecmis',
                    'r.tarih as r_tarih', 'r.saat as r_saat', 'ru.name as r_musteri'], self::asistanGeriAraKolonVar() ? ['o.geri_ara'] : []));
         // Tarih araligindan bagimsiz: son 30 gunde geri aranmayi bekleyenler (panel ust bandi)
@@ -30413,7 +30424,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if (!$salonId) return response()->json(['ok' => 0, 'hata' => 'Bu işlem için yetkiniz yok.'], 403);
         if (!self::asistanGeriAraKolonVar()) return response()->json(['ok' => 0, 'hata' => 'Kayıt bulunamadı.'], 404);
         $n = DB::table('santral_oturumlari')->where('id', (int) $id)->where('sube_id', $salonId)->where('geri_ara', 1)
-            ->update(['geri_ara' => 2, 'geri_arandi_at' => now(), 'geri_arayan' => mb_substr((string) Auth::guard('isletmeyonetim')->user()->name, 0, 100)]);
+            ->update(['geri_ara' => 2, 'geri_arandi_at' => now(), 'geri_arayan' => mb_substr((string) optional($this->asistanGorusmeYetkili())->name, 0, 100)]);
         return response()->json(['ok' => $n ? 1 : 0, 'hata' => $n ? null : 'Bu görüşme zaten işaretlenmiş.'], 200, [], JSON_UNESCAPED_UNICODE);
     }
 
@@ -30439,7 +30450,8 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             ? DB::table('santral_ses_kayit')->where('oturum_id', $o->id)->orderBy('id')->get(['id', 'tur', 'boyut', 'created_at'])
                 ->map(function ($s) use ($salonId) {
                     return ['id' => (int) $s->id, 'aktarma' => $s->tur === 'aktarma', 'tur' => $s->tur === 'aktarma' ? 'İşletmeye aktarılan kısım' : 'Asistan görüşmesi',
-                        'url' => '/isletmeyonetim/santral-asistan-ses/' . $s->id . '?sube=' . $salonId];
+                        'url' => '/isletmeyonetim/santral-asistan-ses/' . $s->id . '?sube=' . $salonId,
+                        'api_url' => '/api/v1/santral-asistan/ses/' . $s->id . '?sube=' . $salonId];
                 })->all()
             : [];
 
