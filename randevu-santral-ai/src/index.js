@@ -399,6 +399,11 @@ async function insanaAktar(kanalId, subeId) {
   const aiDonebilir = cfg.aktarmaBekleMs > 0 && !!(kayit.oturum && kayit.oturum.oturumId);
   kayit.aiDonebilir = aiDonebilir;
   if (aiDonebilir) kayit.oturum.aktarmaBekle();
+  // ONCE ANONS (aktarmaBekle yeni tur acilmasini zaten durdurdu), SONRA YONLENDIRME: "sizi yetkiliye bağlıyorum" bitmeden zil calmasin / yetkili aranmasin
+  if (kayit.oturum && typeof kayit.oturum.sesBitsin === 'function') {
+    try { await kayit.oturum.sesBitsin(); } catch (_) {}
+    if (aktif.get(kanalId) !== kayit) return; // musteri anons sirasinda kapattiysa
+  }
 
   const h = await brain.aktarmaHedef(subeId);
   const hedefler = (h && Array.isArray(h.hedefler) && h.hedefler.length) ? h.hedefler : (h && h.dial ? [h.dial] : []);

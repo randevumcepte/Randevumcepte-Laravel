@@ -646,6 +646,18 @@ class CagriOturumu {
     if (this.rtp) this.rtp.ambiyansKapali = true;
   }
 
+  /**
+   * Calan/kuyruktaki asistan sesi BITENE kadar bekle (en fazla maxMs). Aktarmada "sizi yetkiliye bağlıyorum"
+   * anonsu bitmeden zil + yetkili aramasi baslamasin diye (2026-11-19: ikisi ayni anda duyuluyordu).
+   */
+  async sesBitsin(maxMs = 15000) {
+    const son = Date.now() + maxMs;
+    while (!this.kapali && Date.now() < son && (this._seslendiriyor || (this.rtp && this.rtp.sesVarMi))) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    if (!this.kapali) await new Promise((r) => setTimeout(r, 300)); // son kareler hattan ciksin
+  }
+
   /** Beklerken tek cumlelik anons (zil durdurulmus olmali); ses bitince doner. */
   async aktarmaAnons(metin) {
     if (this.kapali) return;
