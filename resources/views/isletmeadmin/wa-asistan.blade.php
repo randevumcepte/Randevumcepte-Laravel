@@ -191,9 +191,17 @@
    .wa-tablo th { text-align:left; color:var(--gri); font-weight:600; padding:10px 8px; border-bottom:1px solid var(--cizgi); white-space:nowrap; }
    .wa-tablo td { padding:10px 8px; border-bottom:1px solid #f4f0f8; vertical-align:top; }
    .wa-tablo-sar { overflow-x:auto; }
-   .wa-iki { display:grid; grid-template-columns:minmax(260px,380px) minmax(0,1fr); gap:18px; }
+   .wa-iki { display:grid; grid-template-columns:minmax(280px,360px) minmax(0,1fr); gap:18px; }
    .wa-liste { max-height:640px; overflow:auto; display:flex; flex-direction:column; gap:2px; }
    .wa-liste .wa-konusma.secili { background:#f3ecff; border-radius:12px; }
+   .wa-konusma.liste { align-items:flex-start; gap:12px; padding:12px 10px; border-radius:14px; border-top:none; margin-bottom:2px; }
+   .wa-konusma.liste .ust { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+   .wa-konusma.liste .ad { font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+   .wa-konusma.liste .sa { font-size:12px; }
+   .wa-konusma.liste .mt { font-size:13px; margin-top:2px; }
+   .wa-konusma.liste .mt i { color:#db2777; }
+   .wa-konusma.liste .wa-hap { display:inline-block; margin-top:7px; font-size:11.5px; font-weight:700; padding:3px 10px; }
+   .wa-konusma.liste.secili { background:linear-gradient(135deg,#f3ecff,#ebe2fd); box-shadow:inset 3px 0 0 #7c3aed; }
    .wa-sohbet { display:flex; flex-direction:column; gap:8px; max-height:560px; overflow:auto; padding:6px 2px; }
    .wa-balon { max-width:82%; padding:9px 12px; border-radius:14px; font-size:14px; white-space:pre-wrap; word-wrap:break-word; line-height:1.45; }
    .wa-balon.musteri { align-self:flex-start; background:#f1f5f9; border-top-left-radius:4px; }
@@ -285,6 +293,78 @@
    .wa-bm-alt { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px 22px 20px; flex-wrap:wrap; }
    .wa-bm-alt span { font-size:12.5px; color:#6b6483; }
    .wa-bm .wa-btn { border:none; border-radius:12px; padding:10px 22px; font-size:14px; font-weight:700; cursor:pointer; background:linear-gradient(135deg,#3b0f80,#6d28d9); color:#fff; }
+
+   /* ===== FOTOGRAF FIYATLARI sekmesi ===== */
+   .fg-hero { position:relative; overflow:hidden; border-radius:24px; padding:26px 30px; margin-bottom:16px; color:#fff; display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:24px; align-items:center;
+      background:radial-gradient(circle at 90% 10%,rgba(255,255,255,.22),rgba(255,255,255,0) 40%),linear-gradient(120deg,#831843 0%,#be185d 35%,#7c3aed 100%); box-shadow:0 16px 36px rgba(190,24,93,.28); }
+   .fg-hero::after { content:''; position:absolute; left:45%; bottom:-170px; width:380px; height:280px; border-radius:50%; border:2px solid rgba(255,255,255,.12); }
+   .fg-hero > * { position:relative; z-index:1; }
+   .fg-rozet { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; letter-spacing:.3px; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.3); padding:6px 12px; border-radius:999px; }
+   .fg-hero h3 { margin:14px 0 18px; font-size:26px; font-weight:800; line-height:1.25; color:#fff; }
+   .fg-adimlar { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+   .fg-adimlar div { display:flex; gap:10px; align-items:flex-start; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); border-radius:16px; padding:12px; }
+   .fg-adimlar i { flex:0 0 auto; width:36px; height:36px; border-radius:11px; background:#fff; color:#be185d; display:flex; align-items:center; justify-content:center; font-size:17px; }
+   .fg-adimlar span { font-size:12.5px; line-height:1.4; color:rgba(255,255,255,.88); } .fg-adimlar b { display:block; font-size:14px; color:#fff; margin-bottom:2px; }
+   .fg-hero-sag { background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); border-radius:20px; padding:18px; display:flex; gap:16px; align-items:center; backdrop-filter:blur(6px); }
+   .fg-hero-sag svg { width:104px; height:104px; flex:0 0 auto; }
+   .fg-hero-sag .y { font-size:22px; font-weight:800; fill:#fff; } .fg-hero-sag .ye { font-size:10px; fill:rgba(255,255,255,.8); }
+   .fg-hero-sag b { display:block; font-size:16px; } .fg-hero-sag p { margin:4px 0 0; font-size:13px; color:rgba(255,255,255,.85); line-height:1.45; }
+   .fg-sayilar { display:flex; gap:14px; margin-top:10px; flex-wrap:wrap; } .fg-sayilar span { font-size:12.5px; color:rgba(255,255,255,.85); } .fg-sayilar strong { display:block; font-size:19px; color:#fff; }
+   .fg-sektor { display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+   .fg-sektor > span { font-size:13px; font-weight:700; color:var(--gri); }
+   #fgSektorler { display:flex; gap:8px; flex-wrap:wrap; }
+   #fgSektorler button { border:1px solid #e3d8f5; background:#fff; color:#3a3154; border-radius:999px; padding:9px 16px; font-size:14px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:7px; }
+   #fgSektorler button.aktif { background:linear-gradient(135deg,#be185d,#7c3aed); border-color:transparent; color:#fff; box-shadow:0 6px 16px rgba(190,24,93,.3); }
+   .fg-duzen { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:18px; align-items:start; }
+   .fg-yan { display:flex; flex-direction:column; gap:18px; position:sticky; top:84px; }
+   .fg-bas { display:flex; align-items:center; gap:10px; font-size:17px; font-weight:800; margin:0 0 4px; }
+   .fg-bas small { font-size:13px; font-weight:600; color:var(--gri); }
+   .fg-alt { font-size:13px; color:var(--gri); margin-bottom:12px; }
+   .fg-ana { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-bottom:22px; }
+   .fg-ana-k { background:#fff; border-radius:20px; padding:16px; box-shadow:var(--golge); border:2px solid transparent; transition:border-color .2s; }
+   .fg-ana-k.hazir { border-color:#bbf7d0; }
+   .fg-ana-ust { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+   .fg-ana-ust .ik { flex:0 0 auto; width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:21px; background:linear-gradient(140deg,#ffdcec,#fbb1d1); color:#be185d; }
+   .fg-ana-ust b { flex:1; font-size:15.5px; }
+   .fg-durum { font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px; background:#fef3c7; color:#92400e; white-space:nowrap; }
+   .fg-ana-k.hazir .fg-durum { background:#dcfce7; color:#15803d; }
+   .fg-sec { display:flex; background:#f4f1fa; border-radius:11px; padding:3px; margin-bottom:10px; }
+   .fg-sec button { flex:1; border:none; background:transparent; border-radius:9px; padding:7px 8px; font-size:12.5px; font-weight:600; color:#5b5570; cursor:pointer; }
+   .fg-sec button.aktif { background:#fff; color:#6d28d9; box-shadow:0 2px 6px rgba(31,22,56,.1); }
+   .fg-ana-k select, .fg-ana-k input { width:100%; max-width:none !important; }
+   .fg-tl { position:relative; } .fg-tl input { padding-right:38px; } .fg-tl::after { content:'TL'; position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:12.5px; font-weight:700; color:#9b92b3; pointer-events:none; }
+   .fg-ekler { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; align-items:start; }
+   .fg-yan textarea { font-family:inherit; resize:vertical; }
+   .fg-ek-k { background:#fff; border-radius:20px; padding:16px; box-shadow:var(--golge); }
+   .fg-ek-k h5 { margin:0 0 10px; font-size:14.5px; font-weight:700; display:flex; align-items:center; gap:8px; }
+   .fg-ek-k h5 i { color:#7c3aed; }
+   .fg-ek-k h5 small { margin-left:auto; font-size:11.5px; font-weight:600; color:var(--gri); background:#f4f1fa; padding:3px 8px; border-radius:999px; }
+   .fg-ek-s { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px dashed #eee8f7; }
+   .fg-ek-s:first-of-type { border-top:none; }
+   .fg-ek-s span { font-size:13.5px; color:#3a3154; }
+   .fg-ek-s .fg-tl { width:128px; flex:0 0 auto; } .fg-ek-s input { padding:7px 34px 7px 10px; font-size:13.5px; }
+   .fg-ek-s.dolu span { color:#1f1638; font-weight:600; } .fg-ek-s.dolu input { border-color:#c4b5fd; background:#faf7ff; }
+   .fg-hesap .fg-h-s { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px 0; font-size:13.5px; }
+   .fg-hesap select, .fg-hesap input[type=number] { padding:6px 8px; font-size:13px; border-radius:9px; }
+   .fg-hesap input[type=number] { width:70px; }
+   .fg-hesap label { display:flex; align-items:center; gap:8px; cursor:pointer; }
+   .fg-hesap input[type=checkbox] { width:17px; height:17px; accent-color:#db2777; }
+   .fg-balon { margin-top:14px; background:#e7fbe9; border-radius:14px 14px 14px 4px; padding:12px 14px; font-size:13.5px; line-height:1.5; white-space:pre-wrap; color:#1f2937; position:relative; box-shadow:0 2px 6px rgba(0,0,0,.05); }
+   .fg-balon::before { content:'Asistanın cevabı (örnek)'; display:block; font-size:11px; font-weight:700; color:#15803d; margin-bottom:4px; }
+   .fg-balon.uyari { background:#fff7ed; } .fg-balon.uyari::before { content:'Dikkat'; color:#c2410c; }
+   .fg-toplam { display:flex; justify-content:space-between; align-items:baseline; margin-top:10px; padding-top:10px; border-top:2px solid #f1edf8; }
+   .fg-toplam span { font-size:13px; color:var(--gri); } .fg-toplam b { font-size:26px; font-weight:800; color:#be185d; }
+   .fg-kaydet { position:sticky; bottom:12px; z-index:5; margin-top:18px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+      background:rgba(255,255,255,.92); backdrop-filter:blur(8px); border-radius:18px; padding:12px 16px; box-shadow:0 10px 30px rgba(31,22,56,.14); border:1px solid #eee8f7; }
+   .fg-kaydet span { font-size:13.5px; color:var(--gri); display:flex; align-items:center; gap:8px; }
+   .fg-kaydet.degisti { border-color:#f9a8d4; } .fg-kaydet.degisti span { color:#be185d; font-weight:700; }
+   @media (max-width: 1280px) { .fg-duzen { grid-template-columns:minmax(0,1fr); } .fg-yan { position:static; } }
+   @media (max-width: 1100px) { .fg-hero { grid-template-columns:minmax(0,1fr); } }
+   @media (max-width: 760px) {
+      .fg-hero { padding:22px 18px; } .fg-hero h3 { font-size:21px; }
+      .fg-adimlar, .fg-ana, .fg-ekler { grid-template-columns:minmax(0,1fr); }
+      .fg-hero-sag { flex-wrap:wrap; justify-content:center; text-align:center; } .fg-sayilar { justify-content:center; }
+   }
 
    /* ===== KAZANDIRDIKLARI sekmesi ===== */
    .wk-hero { position:relative; overflow:hidden; border-radius:24px; padding:28px 30px; margin-bottom:18px; color:#fff;
@@ -464,17 +544,31 @@
 
    {{-- ================= FOTOGRAF FIYATLARI ================= --}}
    <div class="wa-panel" id="p-gorsel">
-      <div class="wa-bilgi">Müşteri WhatsApp'tan model fotoğrafı gönderdiğinde asistan fotoğraftaki uygulamaları tanır; <b>fiyatı aşağıdaki kurallarınızdan sistem hesaplar</b> (asistan fiyat uydurmaz). Ana işlem için bir hizmetinizi seçin ya da sabit fiyat yazın; ekler için fiyat yazın. Boş bıraktığınız ekler fiyata eklenmez. Ana işlemin kuralı yoksa müşteri size aktarılır.</div>
-      <div class="wa-kart">
-         <div class="wa-satir">
-            <label class="wa-alt" for="waSektor">Sektör</label>
-            <select id="waSektor" class="wa-girdi" style="width:auto"></select>
+      <div class="fg-hero">
+         <div class="fg-hero-sol">
+            <span class="fg-rozet"><i class="bi bi-camera-fill"></i>AI Görsel Danışman</span>
+            <h3>Müşteri fotoğraf gönderir,<br>asistan saniyeler içinde fiyat verir.</h3>
+            <div class="fg-adimlar">
+               <div><i class="bi bi-image"></i><span><b>1. Fotoğraf</b>Müşteri modeli WhatsApp'tan yollar</span></div>
+               <div><i class="bi bi-eye-fill"></i><span><b>2. Tanıma</b>Asistan uygulamaları tanır (protez, french, taş…)</span></div>
+               <div><i class="bi bi-calculator-fill"></i><span><b>3. Fiyat</b>Fiyatı <u>sizin kurallarınızdan</u> sistem hesaplar</span></div>
+            </div>
          </div>
-         <div class="wa-tablo-sar" id="waKuralForm"></div>
-         <div style="margin-top:14px"><label class="wa-alt" for="waGorselNot">Fiyatın altına eklenecek not (isteğe bağlı)</label>
-            <textarea id="waGorselNot" class="wa-girdi" rows="2" maxlength="500" placeholder="Örn. Mevcut protezin sökümü 150 TL eklenir."></textarea></div>
-         <div style="margin-top:14px"><button class="wa-btn" id="waKuralKaydet"><i class="bi bi-check2"></i> Kuralları kaydet</button></div>
+         <div class="fg-hero-sag" id="fgDurum"></div>
       </div>
+      <div class="fg-sektor"><span>Sektör</span><div id="fgSektorler"></div><select id="waSektor" hidden></select></div>
+      <div class="fg-duzen">
+         <div id="waKuralForm"></div>
+         <aside class="fg-yan">
+            <div class="wa-kart fg-hesap"><div class="wa-kart-bas"><h4><i class="bi bi-calculator-fill" style="color:#db2777"></i>Fiyat deneme</h4></div>
+               <div class="wa-alt" style="margin:-6px 0 12px">Bir model seçin, asistanın müşteriye yazacağı fiyatı görün. (Kaydetmeden de çalışır.)</div>
+               <div id="fgHesap"></div></div>
+            <div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-chat-left-text-fill" style="color:#7c3aed"></i>Fiyatın altına not</h4></div>
+               <textarea id="waGorselNot" class="wa-girdi" rows="3" maxlength="500" placeholder="Örn. Mevcut protezin sökümü 150 TL eklenir."></textarea>
+               <div class="wa-alt" style="margin-top:6px">İsteğe bağlı; her fotoğraf fiyatının altına eklenir.</div></div>
+         </aside>
+      </div>
+      <div class="fg-kaydet" id="fgKaydetBar"><span id="fgKaydetYazi"><i class="bi bi-info-circle"></i> Boş bıraktığınız ekler fiyata eklenmez.</span><button class="wa-btn" id="waKuralKaydet"><i class="bi bi-check2-circle"></i> Kuralları kaydet</button></div>
    </div>
 
    {{-- ================= OGRENILEN ================= --}}
@@ -788,7 +882,7 @@
             + '<p>Tüm müşterilerinize akıllı, hızlı ve kişiselleştirilmiş hizmet sunun.</p><button class="wa-btn" data-git="ayar">Ayarları Düzenle <i class="bi bi-arrow-right"></i></button></div>'
             + '<ul class="wa-liste-ok">' + ok(a.gorsel, 'Görsel Analiz (Fotoğraf)', 'gorsel', 'Kapalı: Fotoğraf Fiyatları sekmesinden fiyat kurallarını girince (ve Ayarlar > Fotoğraftan fiyat versin açıkken) açılır.') + ok(a.fiyat, 'Akıllı Fiyatlandırma', 'ayar', 'Kapalı: Ayarlar > Fiyat sorularını cevaplasın açılınca çalışır.') + ok(true, 'Randevu Yönetimi') + ok(true, 'Müşteri Desteği') + '</ul></div></div>';
          el('waGenel').innerHTML = h;
-         el('waKazanc').innerHTML = kazandirdiklariHtml(o, p); kazancCanlandir();
+         el('waKazanc').innerHTML = kazandirdiklariHtml(o, p); kazancCanlandir(); fgYenile();
          grafikYukle(grafikTur);
          sonKonusmalar();
       }).catch(function () { el('waGenel').innerHTML = '<div class="wa-bos">Rapor yüklenemedi.</div>'; });
@@ -815,6 +909,13 @@
       }).catch(function () {});
    }
    function konusmaSatiri(x, ozet) {
+      if (!ozet) {
+         // Sohbetler listesi (dar sutun): ad + saat ust satirda, mesaj, altta durum etiketi (cakisma olmaz)
+         return '<div class="wa-konusma liste" data-sohbet="' + x.id + '" tabindex="0">' + avatar(x.ad || x.telefon, x.id, x.foto)
+            + '<div class="ic"><div class="ust"><span class="ad">' + esc(x.ad || x.telefon || 'Müşteri') + '</span><span class="sa">' + saat(x.tarih) + '</span></div>'
+            + '<div class="mt">' + (x.gorsel ? '<i class="bi bi-camera-fill"></i> ' : '') + esc(String(x.son_mesaj || '…').replace(/^\[fotoğraf\]\s*/, '')) + '</div>'
+            + '<span class="wa-hap ' + hapSinif(x.durum) + '">' + esc(x.durum) + '</span></div></div>';
+      }
       return '<div class="wa-konusma' + (ozet ? ' ozet' : '') + '" data-sohbet="' + x.id + '" tabindex="0">' + avatar(x.ad || x.telefon, x.id, x.foto) + '<div class="ic"><div class="ad">' + esc(x.ad || x.telefon || 'Müşteri') + '</div><div class="mt">' + esc(x.son_mesaj || '…') + '</div></div>'
          + '<div class="sa">' + saat(x.tarih) + '</div><span class="wa-hap ' + hapSinif(x.durum) + '">' + esc(x.durum) + '</span><i class="bi bi-chevron-right"></i></div>';
    }
@@ -885,7 +986,7 @@
       al('/sohbetler', { baslangic: el('waBas').value, bitis: el('waBit').value, q: el('waAra').value }).then(function (r) {
          if (!r.ok) { el('waSohbetListe').innerHTML = '<div class="wa-bos">' + esc(r.hata || '') + '</div>'; return; }
          if (!r.liste.length) { el('waSohbetListe').innerHTML = '<div class="wa-bos">Bu tarihlerde sohbet yok.</div>'; return; }
-         el('waSohbetListe').innerHTML = r.liste.map(konusmaSatiri).join('');
+         el('waSohbetListe').innerHTML = r.liste.map(function (x) { return konusmaSatiri(x); }).join('');
       }).catch(hata);
    }
    el('waSohbetListe').addEventListener('click', function (e) {
@@ -940,42 +1041,129 @@
    }
 
    // ---------- FOTOGRAF FIYATLARI
-   var sektorSec = el('waSektor');
+   // Kart duzeni: ana islem kartlari (hizmetimden / sabit fiyat), ek gruplari, canli "fiyat deneme" (WaGorselDanisman::fiyatHesapla + cevapMetni ile ayni hesap)
+   var sektorSec = el('waSektor'), fgDegisti = false;
    Object.keys(SEKTORLER).forEach(function (k) { sektorSec.insertAdjacentHTML('beforeend', '<option value="' + esc(k) + '">' + esc(SEKTORLER[k].ad) + '</option>'); });
    sektorSec.value = AYAR.gorsel_sektor || 'tirnak';
    el('waGorselNot').value = AYAR.gorsel_not || '';
-   function hizmetSecim(secili) {
-      return '<select class="wa-girdi" data-hizmet style="max-width:260px"><option value="">— hizmet seçin —</option>' + HIZMETLER.map(function (h) {
-         return '<option value="' + h.id + '"' + (String(h.id) === String(secili || '') ? ' selected' : '') + '>' + esc(h.ad) + (Number(h.fiyat) > 0 ? ' (' + tl(h.fiyat) + ')' : '') + '</option>'; }).join('') + '</select>';
+   var FG_IKON = { tirnak: 'bi-hand-index-thumb-fill', sac: 'bi-scissors' };
+   function sektorCiz() {
+      el('fgSektorler').innerHTML = Object.keys(SEKTORLER).map(function (k) { return '<button type="button" data-sektor="' + esc(k) + '" class="' + (k === sektorSec.value ? 'aktif' : '') + '"><i class="bi ' + (FG_IKON[k] || 'bi-stars') + '"></i>' + esc(SEKTORLER[k].ad) + '</button>'; }).join('');
    }
-   function fiyatGirdi(deger, ph) { return '<input type="number" min="0" step="0.01" class="wa-girdi" data-fiyat style="width:130px" placeholder="' + (ph || 'TL') + '" value="' + (deger != null ? esc(deger) : '') + '">'; }
+   el('fgSektorler').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-sektor]'); if (!b || b.dataset.sektor === sektorSec.value) return;
+      if (fgDegisti && !confirm('Kaydedilmemiş değişiklikleriniz var. Sektörü değiştirirseniz kaybolur. Devam edilsin mi?')) return;
+      sektorSec.value = b.dataset.sektor; fgDegisti = false; sektorCiz(); kuralCiz();
+   });
+   function hizmetSecim(secili) {
+      return '<select class="wa-girdi" data-hizmet><option value="">— hizmet seçin —</option>' + HIZMETLER.map(function (h) {
+         return '<option value="' + h.id + '"' + (String(h.id) === String(secili || '') ? ' selected' : '') + '>' + esc(h.ad) + (Number(h.fiyat) > 0 ? ' (' + tl(h.fiyat) + ')' : ' (fiyatsız)') + '</option>'; }).join('') + '</select>';
+   }
+   function fiyatGirdi(deger, ph) { return '<div class="fg-tl"><input type="number" min="0" step="0.01" class="wa-girdi" data-fiyat placeholder="' + (ph || '0') + '" value="' + (deger != null ? esc(deger) : '') + '"></div>'; }
+   function hizmetFiyat(id) { var h = HIZMETLER.filter(function (x) { return String(x.id) === String(id); })[0]; return h ? Number(h.fiyat) || 0 : 0; }
+   // Formdaki (kaydedilmemis dahil) kurallar; ana islemde yalniz secili mod (hizmet ya da sabit) kaydedilir
+   function formKurallari() {
+      var kur = {};
+      document.querySelectorAll('#waKuralForm [data-anahtar]').forEach(function (k) {
+         var mod = k.dataset.mod, hs = k.querySelector('[data-hizmet]'), f = k.querySelector('[data-fiyat]');
+         var hid = hs && mod !== 'sabit' ? hs.value : '', fy = f && (mod !== 'hizmet' || !hs) ? f.value : '';
+         if (hid || fy !== '') kur[k.dataset.anahtar] = { hizmet_id: hid || null, fiyat: fy !== '' ? fy : null };
+      });
+      return kur;
+   }
+   function kuralTutar(kur, k) {
+      var r = kur[k]; if (!r) return null;
+      if (r.hizmet_id && hizmetFiyat(r.hizmet_id) > 0) return hizmetFiyat(r.hizmet_id);
+      return r.fiyat != null && r.fiyat !== '' ? Number(r.fiyat) : null;
+   }
    function kuralCiz() {
       var s = SEKTORLER[sektorSec.value], k = sektorSec.value === (AYAR.gorsel_sektor || 'tirnak') ? KURALLAR : {}, h = '';
-      h += '<b style="font-size:15px">Ana işlem</b><table class="wa-tablo" style="margin:6px 0 18px"><thead><tr><th>İşlem</th><th>Hizmetiniz (fiyatı listeden)</th><th>ya da sabit fiyat</th></tr></thead><tbody>';
-      Object.keys(s.ana).forEach(function (a) { var r = k['ana:' + a] || {};
-         h += '<tr data-anahtar="ana:' + a + '"><td>' + esc(s.ana[a]) + '</td><td>' + hizmetSecim(r.hizmet_id) + '</td><td>' + fiyatGirdi(r.fiyat) + '</td></tr>'; });
-      h += '</tbody></table><b style="font-size:15px">Ekler</b><table class="wa-tablo" style="margin-top:6px"><thead><tr><th>Ek</th><th>Ek fiyat</th></tr></thead><tbody>';
-      Object.keys(s.ozellikler).forEach(function (o) { var oz = s.ozellikler[o];
-         if (oz.tip === 'bilgi') return;
-         if (oz.tip === 'secim') Object.keys(oz.secenek).forEach(function (v) { var r = k[o + ':' + v] || {};
-            h += '<tr data-anahtar="' + o + ':' + v + '"><td>' + esc(oz.ad) + ': ' + esc(oz.secenek[v]) + '</td><td>' + fiyatGirdi(r.fiyat, '+ TL') + '</td></tr>'; });
-         else { var r = k[o] || {};
-            h += '<tr data-anahtar="' + o + '"><td>' + esc(oz.ad) + (oz.tip === 'adet' ? ' <span class="wa-alt">(' + esc(oz.birim) + ' başı)</span>' : '') + '</td><td>' + fiyatGirdi(r.fiyat, oz.tip === 'adet' ? 'TL / ' + oz.birim : '+ TL') + '</td></tr>'; }
+      h += '<div class="fg-bas"><i class="bi bi-1-circle-fill" style="color:#be185d"></i>Ana işlem fiyatları</div><div class="fg-alt">Fotoğraftaki temel uygulama. Hizmet listenizden seçerseniz fiyat oradan gelir; hizmetin fiyatı değişince burası da kendiliğinden güncellenir.</div><div class="fg-ana">';
+      Object.keys(s.ana).forEach(function (a) { var r = k['ana:' + a] || {}, mod = r.hizmet_id ? 'hizmet' : (r.fiyat != null && r.fiyat !== '' ? 'sabit' : 'hizmet');
+         h += '<div class="fg-ana-k" data-anahtar="ana:' + a + '" data-mod="' + mod + '"><div class="fg-ana-ust"><span class="ik"><i class="bi ' + (FG_IKON[sektorSec.value] || 'bi-stars') + '"></i></span><b>' + esc(s.ana[a]) + '</b><span class="fg-durum"></span></div>'
+            + '<div class="fg-sec"><button type="button" data-mod-sec="hizmet">Hizmetimden al</button><button type="button" data-mod-sec="sabit">Sabit fiyat yaz</button></div>'
+            + '<div data-alan="hizmet">' + hizmetSecim(r.hizmet_id) + '</div><div data-alan="sabit">' + fiyatGirdi(r.fiyat, 'Örn. 800') + '</div></div>'; });
+      h += '</div><div class="fg-bas"><i class="bi bi-2-circle-fill" style="color:#7c3aed"></i>Ek fiyatlar <small>— ana fiyata eklenir</small></div><div class="fg-alt">Boş bıraktığınız ek fiyata eklenmez.</div><div class="fg-ekler">';
+      // Secimli ozellik (uzunluk) kendi kartinda; var/yok ekler "Efekt ve uygulamalar", adetli ekler "Parmak başı süslemeler" kartinda
+      var efekt = '', adet = '';
+      Object.keys(s.ozellikler).forEach(function (o) { var oz = s.ozellikler[o], r = k[o] || {}, satir = '';
+         if (oz.tip === 'secim') {
+            Object.keys(oz.secenek).forEach(function (v) { var rv = k[o + ':' + v] || {};
+               satir += '<div class="fg-ek-s" data-anahtar="' + o + ':' + v + '"><span>' + esc(oz.secenek[v]) + '</span>' + fiyatGirdi(rv.fiyat, '+ 0') + '</div>'; });
+            h += '<div class="fg-ek-k"><h5><i class="bi bi-arrows-expand"></i>' + esc(oz.ad) + '<small>birini seçer</small></h5>' + satir + '</div>';
+         } else if (oz.tip === 'bool') efekt += '<div class="fg-ek-s" data-anahtar="' + o + '"><span>' + esc(oz.ad) + '</span>' + fiyatGirdi(r.fiyat, '+ 0') + '</div>';
+         else if (oz.tip === 'adet') adet += '<div class="fg-ek-s" data-anahtar="' + o + '"><span>' + esc(oz.ad.replace(/\s*\([^)]*\)/, '')) + ' <small class="wa-alt">/ ' + esc(oz.birim) + '</small></span>' + fiyatGirdi(r.fiyat, '+ 0') + '</div>';
       });
-      el('waKuralForm').innerHTML = h + '</tbody></table>';
+      if (efekt) h += '<div class="fg-ek-k"><h5><i class="bi bi-magic"></i>Efekt ve uygulamalar<small>varsa eklenir</small></h5>' + efekt + '</div>';
+      if (adet) h += '<div class="fg-ek-k"><h5><i class="bi bi-gem"></i>Parmak başı süslemeler<small>adet × fiyat</small></h5>' + adet + '</div>';
+      el('waKuralForm').innerHTML = h + '</div>';
+      fgYenile(); hesapCiz();
    }
-   sektorSec.addEventListener('change', kuralCiz); kuralCiz();
-   el('waKuralKaydet').addEventListener('click', function () {
-      var kur = {}, b = this; b.disabled = true;
-      document.querySelectorAll('#waKuralForm tr[data-anahtar]').forEach(function (tr) {
-         var hs = tr.querySelector('[data-hizmet]'), f = tr.querySelector('[data-fiyat]');
-         var hid = hs ? hs.value : '', fy = f ? f.value : '';
-         if (hid || fy !== '') kur[tr.dataset.anahtar] = { hizmet_id: hid || null, fiyat: fy !== '' ? fy : null };
+   // Kart durumlari + hero ozeti
+   function fgYenile() {
+      var kur = formKurallari(), anaHazir = 0, anaTop = 0, ekDolu = 0;
+      document.querySelectorAll('#waKuralForm .fg-ana-k').forEach(function (kk) {
+         var mod = kk.dataset.mod; anaTop++;
+         kk.querySelectorAll('[data-mod-sec]').forEach(function (b) { b.classList.toggle('aktif', b.dataset.modSec === mod); });
+         kk.querySelector('[data-alan="hizmet"]').hidden = mod !== 'hizmet'; kk.querySelector('[data-alan="sabit"]').hidden = mod !== 'sabit';
+         var t = kuralTutar(kur, kk.dataset.anahtar), hs = kk.querySelector('[data-hizmet]'), d = kk.querySelector('.fg-durum');
+         kk.classList.toggle('hazir', t != null);
+         if (t != null) { anaHazir++; d.textContent = '✓ ' + tl(t); }
+         else d.textContent = mod === 'hizmet' && hs.value ? 'Hizmetin fiyatı yok' : 'Fiyat yok → size aktarılır';
       });
+      document.querySelectorAll('#waKuralForm .fg-ek-s').forEach(function (x) { var dolu = x.querySelector('[data-fiyat]').value !== ''; x.classList.toggle('dolu', dolu); if (dolu) ekDolu++; });
+      var y = anaTop ? Math.round(anaHazir / anaTop * 100) : 0, g = (sonOzet && sonOzet.gorsel) || null;
+      el('fgDurum').innerHTML = halka(y, '#fff', anaHazir + '/' + anaTop, 'hazır').replace('stroke="#f1edf8"', 'stroke="rgba(255,255,255,.22)"')
+         + '<div><b>' + (anaHazir === anaTop ? 'Hepsi hazır 🎉' : (anaHazir ? 'Neredeyse hazır' : 'Henüz fiyat girilmedi')) + '</b><p>' + (anaHazir === anaTop
+            ? 'Asistan bu sektördeki tüm modellere fiyat verebilir. ' + ekDolu + ' ek fiyat tanımlı.'
+            : (anaTop - anaHazir) + ' ana işlemin fiyatı yok; bu modellerde müşteri size aktarılır.') + '</p>'
+         + (g ? '<div class="fg-sayilar"><span><strong>' + sayi(g.toplam) + '</strong>fotoğraf geldi</span><span><strong>' + sayi(g.fiyat_verildi) + '</strong>fiyat verildi</span><span><strong>' + sayi(g.randevu) + '</strong>randevu</span></div>' : '') + '</div>';
+   }
+   function hesapCiz() {
+      var s = SEKTORLER[sektorSec.value], h = '<div class="fg-h-s"><span>Model</span><select class="wa-girdi" data-h-ana style="width:auto">'
+         + Object.keys(s.ana).map(function (a) { return '<option value="' + a + '">' + esc(s.ana[a]) + '</option>'; }).join('') + '</select></div>';
+      Object.keys(s.ozellikler).forEach(function (o) { var oz = s.ozellikler[o];
+         if (oz.tip === 'secim') h += '<div class="fg-h-s"><span>' + esc(oz.ad) + '</span><select class="wa-girdi" data-h-oz="' + o + '" style="width:auto"><option value="">—</option>' + Object.keys(oz.secenek).map(function (v) { return '<option value="' + v + '">' + esc(oz.secenek[v]) + '</option>'; }).join('') + '</select></div>';
+         else if (oz.tip === 'bool') h += '<div class="fg-h-s"><label><input type="checkbox" data-h-oz="' + o + '">' + esc(oz.ad) + '</label></div>';
+         else if (oz.tip === 'adet') h += '<div class="fg-h-s"><span>' + esc(oz.ad) + '</span><input type="number" min="0" max="10" class="wa-girdi" data-h-oz="' + o + '" placeholder="0"></div>';
+      });
+      el('fgHesap').innerHTML = h + '<div id="fgSonuc"></div>';
+      hesapla();
+   }
+   function hesapla() {
+      var s = SEKTORLER[sektorSec.value], kur = formKurallari(), anaSec = document.querySelector('#fgHesap [data-h-ana]'); if (!anaSec) return;
+      var anaT = kuralTutar(kur, 'ana:' + anaSec.value), sonuc = el('fgSonuc');
+      if (anaT == null) { sonuc.innerHTML = '<div class="fg-balon uyari">"' + esc(s.ana[anaSec.value]) + '" için fiyat girilmedi. Bu modelde asistan fiyat vermez; müşteriyi size aktarır.</div>'; return; }
+      var kalem = [[s.ana[anaSec.value], anaT]], top = anaT;
+      Object.keys(s.ozellikler).forEach(function (o) { var oz = s.ozellikler[o], g = document.querySelector('#fgHesap [data-h-oz="' + o + '"]'), t; if (!g) return;
+         if (oz.tip === 'secim' && g.value) { t = kuralTutar(kur, o + ':' + g.value); if (t) { kalem.push([oz.ad + ' (' + oz.secenek[g.value] + ')', t]); top += t; } }
+         else if (oz.tip === 'bool' && g.checked) { t = kuralTutar(kur, o); if (t) { kalem.push([oz.ad, t]); top += t; } }
+         else if (oz.tip === 'adet' && Number(g.value) > 0) { t = kuralTutar(kur, o); if (t) { kalem.push([oz.ad + ' × ' + Number(g.value), t * Number(g.value)]); top += t * Number(g.value); } }
+      });
+      var not = el('waGorselNot').value.trim();
+      var msj = 'Modelinizi inceledim 😊\n\nBu model için fiyatımız: ' + tl(top) + (kalem.length > 1 ? '\n(' + kalem.map(function (x) { return x[0] + ' ' + tl(x[1]); }).join(' + ') + ')' : '')
+         + (not ? '\n' + not : '') + '\n\nSize uygun bir gün için randevu oluşturalım mı?';
+      sonuc.innerHTML = '<div class="fg-toplam"><span>Müşteriye söylenecek fiyat</span><b>' + tl(top) + '</b></div><div class="fg-balon">' + esc(msj) + '</div>';
+   }
+   function fgIsaretle() { fgDegisti = true; el('fgKaydetBar').classList.add('degisti'); el('fgKaydetYazi').innerHTML = '<i class="bi bi-exclamation-circle-fill"></i> Kaydedilmemiş değişiklikler var'; }
+   el('waKuralForm').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-mod-sec]'); if (!b) return;
+      b.closest('[data-anahtar]').dataset.mod = b.dataset.modSec; fgIsaretle(); fgYenile(); hesapla();
+   });
+   el('waKuralForm').addEventListener('input', function () { fgIsaretle(); fgYenile(); hesapla(); });
+   el('waKuralForm').addEventListener('change', function () { fgIsaretle(); fgYenile(); hesapla(); });
+   el('fgHesap').addEventListener('input', hesapla); el('fgHesap').addEventListener('change', hesapla);
+   el('waGorselNot').addEventListener('input', function () { fgIsaretle(); hesapla(); });
+   sektorCiz(); kuralCiz();
+   el('waKuralKaydet').addEventListener('click', function () {
+      var kur = formKurallari(), b = this; b.disabled = true;
       Promise.all([gonder('/kurallar', { sektor: sektorSec.value, kurallar: kur }), gonder('/ayar', { gorsel_not: el('waGorselNot').value })]).then(function (r) {
          b.disabled = false;
-         if (r[0].ok) { KURALLAR = r[0].kurallar; AYAR.gorsel_sektor = sektorSec.value; AYAR.gorsel_not = el('waGorselNot').value; toast('Fotoğraf fiyat kuralları kaydedildi.'); kuralCiz(); }
-         else toast(r[0].hata || 'Kaydedilemedi.');
+         if (r[0].ok) {
+            KURALLAR = r[0].kurallar; AYAR.gorsel_sektor = sektorSec.value; AYAR.gorsel_not = el('waGorselNot').value; fgDegisti = false;
+            el('fgKaydetBar').classList.remove('degisti'); el('fgKaydetYazi').innerHTML = '<i class="bi bi-check-circle-fill" style="color:#16a34a"></i> Kaydedildi. Asistan yeni fiyatları hemen kullanır.';
+            toast('Fotoğraf fiyat kuralları kaydedildi.'); kuralCiz();
+         } else toast(r[0].hata || 'Kaydedilemedi.');
       }).catch(function () { b.disabled = false; hata(); });
    });
 
