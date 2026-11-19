@@ -193,6 +193,9 @@
    .wa-tablo-sar { overflow-x:auto; }
    .wa-iki { display:grid; grid-template-columns:minmax(280px,360px) minmax(0,1fr); gap:18px; }
    .wa-liste { max-height:640px; overflow:auto; display:flex; flex-direction:column; gap:2px; }
+   /* Liste sagdaki sohbet kadar uzar (alti bos kalmaz); kendi icinde kayar. Yukseklige katki vermez (flex-basis 0). */
+   .wa-liste-kart { display:flex; flex-direction:column; min-height:640px; }
+   .wa-liste-kart .wa-liste { flex:1 1 0; min-height:0; max-height:none; }
    .wa-liste .wa-konusma.secili { background:#f3ecff; border-radius:12px; }
    /* Isletmeye sorulan konu: sonuc seridi */
    .ts-kart { border-radius:16px; padding:6px 14px; margin:4px 0 14px; background:#fffbeb; border:1px solid #fde68a; }
@@ -587,7 +590,7 @@
          </div>
       </div>
       <div class="wa-iki">
-         <div class="wa-kart" style="padding:12px"><div class="wa-liste" id="waSohbetListe"><div class="wa-bos">Yükleniyor…</div></div></div>
+         <div class="wa-kart wa-liste-kart" style="padding:12px"><div class="wa-liste" id="waSohbetListe"><div class="wa-bos">Yükleniyor…</div></div></div>
          <div class="wa-kart" id="waSohbetDetay"><div class="wa-bos">Soldan bir sohbet seçin.</div></div>
       </div>
    </div>
