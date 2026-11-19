@@ -221,6 +221,8 @@
    .wa-balon.musteri { align-self:flex-start; background:#f1f5f9; border-top-left-radius:4px; }
    .wa-balon.asistan { align-self:flex-end; background:#efe6fd; border-top-right-radius:4px; }
    .wa-balon.personel { align-self:flex-end; background:#dcfce7; border-top-right-radius:4px; }
+   .wa-balon .bz { display:block; text-align:right; font-size:11px; color:#8a8399; margin-top:3px; }
+   .wa-bas-btn { display:flex; gap:8px; flex-wrap:wrap; }
    .wa-balon .r { display:block; font-size:11px; font-weight:700; color:var(--gri); margin-bottom:2px; }
    .wa-girdi { border:1px solid #ddd3ea; border-radius:11px; padding:9px 12px; font-size:14px; width:100%; background:#fff; }
    .wa-satir { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
@@ -1075,9 +1077,10 @@
       al('/sohbet/' + id).then(function (r) {
          if (!r.ok) { el('waSohbetDetay').innerHTML = '<div class="wa-bos">' + esc(r.hata || '') + '</div>'; return; }
          var s = r.sohbet, h = '<div class="wa-kart-bas"><div style="display:flex;align-items:center;gap:12px">' + avatar(s.ad || s.telefon, s.id, null) + '<div><b style="font-size:16px">' + esc(s.ad || 'Müşteri') + '</b><div class="wa-alt">' + esc(s.telefon || 'gizli numara') + '</div></div><span class="wa-hap ' + hapSinif(s.durum) + '">' + esc(s.durum) + '</span></div>'
-            + (s.devralindi ? '<button class="wa-btn" data-geriver="' + s.id + '"><i class="bi bi-robot"></i> Asistana geri ver</button>' : '<button class="wa-btn ikincil" data-devral="' + s.id + '"><i class="bi bi-person"></i> Devral (asistan sussun)</button>') + '</div>';
+            + '<div class="wa-bas-btn"><button class="wa-btn ikincil" data-yol="' + s.id + '" title="Salonun adresini ve Google Haritalar bağlantısını bu müşteriye gönderir"><i class="bi bi-geo-alt-fill"></i> Yol tarifi gönder</button>'
+            + (s.devralindi ? '<button class="wa-btn" data-geriver="' + s.id + '"><i class="bi bi-robot"></i> Asistana geri ver</button>' : '<button class="wa-btn ikincil" data-devral="' + s.id + '"><i class="bi bi-person"></i> Devral (asistan sussun)</button>') + '</div></div>';
          if (s.yarim) h += '<div class="ts-kart ts-yarim"><div class="ts-adim bekle"><span class="ts-ik" style="background:#dc2626"><i class="bi bi-exclamation-triangle-fill"></i></span><div><b>Bu sohbet yarım kalmış</b><small>'
-            + (s.yarim === 'sozde' ? 'Asistan "bakayım" deyip sonucu yazmamış.' : 'Müşterinin son mesajı cevapsız kalmış.') + ' Asistan birkaç dakika içinde kendiliğinden tamamlar; beklemeden hemen tamamlatabilirsiniz.</small></div>'
+            + ({ sozde: 'Asistan "bakayım" deyip sonucu yazmamış.', tekrar: 'Asistan aynı cevabı tekrar etmiş; müşterinin isteği karşılanmamış.', sikayet: 'Müşteri bir şeyin olmadığını / gelmediğini yazmış; istek karşılanmamış.' }[s.yarim] || 'Müşterinin son mesajı cevapsız kalmış.') + ' Asistan birkaç dakika içinde kendiliğinden tamamlar; beklemeden hemen tamamlatabilirsiniz.</small></div>'
             + '<button class="wa-btn" data-devam="' + s.id + '"><i class="bi bi-robot"></i> Asistan tamamlasın</button></div></div>';
          if ((s.talepler || []).length) h += talepSeridi(s);
          // "Bu mesaji kim atti?": bu numaraya sistemden giden mesajlar (turuyle) + ayni numaranin onceki sohbetleri
@@ -1096,7 +1099,7 @@
          }
          h += '<div class="wa-sohbet">' + s.satirlar.map(function (m) {
             var r = m.rol === 'musteri' ? 'Müşteri' : (m.rol === 'personel' ? 'Personel' : (m.geri_kazanim ? 'Asistan · geri kazanma' : (m.hatirlatma ? 'Hatırlatma' : 'Asistan')));
-            return '<div class="wa-balon ' + m.rol + '"><span class="r">' + r + '</span>' + esc(m.metin) + '</div>'; }).join('') + '</div>';
+            return '<div class="wa-balon ' + m.rol + '"><span class="r">' + r + '</span>' + esc(m.metin) + (m.at ? '<span class="bz">' + saatKisa(m.at) + '</span>' : '') + '</div>'; }).join('') + '</div>';
          h += '<div class="wa-alt" style="margin-top:10px">Devraldığınızda asistan bu sohbette 24 saat ya da siz geri verene kadar cevap vermez. Telefonunuzdan müşteriye yazdığınızda da asistan otomatik susar.</div>';
          el('waSohbetDetay').innerHTML = h;
       }).catch(function (e) { el('waSohbetDetay').innerHTML = '<div class="wa-bos">Sohbet gösterilemedi' + (e && e.message ? ' (' + esc(e.message) + ')' : '') + '. Sayfayı yenileyip tekrar deneyin.</div>'; });
@@ -1118,6 +1121,14 @@
    }
    el('waSohbetDetay').addEventListener('click', function (e) {
       var on = e.target.closest('[data-onceki]'); if (on) { sohbetAc(on.dataset.onceki); return; }
+      var yl = e.target.closest('[data-yol]');
+      if (yl) {
+         if (!confirm('Salonun adresi ve Google Haritalar bağlantısı bu müşteriye WhatsApp\'tan gönderilsin mi?')) return;
+         yl.disabled = true;
+         gonder('/sohbet/' + yl.dataset.yol + '/yol-tarifi').then(function (r) { toast(r.ok ? 'Yol tarifi gönderildi.' : (r.hata || 'Gönderilemedi.')); sohbetAc(yl.dataset.yol); })
+            .catch(function () { yl.disabled = false; hata(); });
+         return;
+      }
       var dv = e.target.closest('[data-devam]');
       if (dv) {
          dv.disabled = true; dv.innerHTML = '<i class="bi bi-hourglass-split"></i> Asistan yazıyor…';

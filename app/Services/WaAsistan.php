@@ -199,7 +199,7 @@ class WaAsistan
         $o = self::aktifOturum($salonId, $anahtar) ?: self::yeniOturum($salonId, $anahtar, $jid ?: null, $tel, null);
         $g = json_decode($o->gecmis ?: '[]', true) ?: [];
         $metin = mb_substr(trim((string) ($p['text'] ?? '')), 0, 1000);
-        if ($metin !== '') $g[] = ['role' => 'assistant', 'content' => $metin, 'personel' => 1];
+        if ($metin !== '') $g[] = ['role' => 'assistant', 'content' => $metin, 'personel' => 1, 'at' => date('Y-m-d H:i:s')];
         DB::table('wa_asistan_oturumlari')->where('id', $o->id)->update([
             'gecmis' => json_encode(array_slice($g, -40), JSON_UNESCAPED_UNICODE),
             'insan_devraldi' => 1, 'son_insan_at' => now(), 'son_mesaj_at' => now(), 'updated_at' => now(),
@@ -285,14 +285,16 @@ class WaAsistan
         $upd = ['son_mesaj_at' => now(), 'updated_at' => now(), 'mesaj_sayisi' => DB::raw('mesaj_sayisi + ' . count($satirlar))];
         if ($son->jid) $upd['jid'] = $son->jid;
         if ($son->ad && !$o->ad) $upd['ad'] = $son->ad;
-
+        if ($son->ad && !$o->ad) $upd['ad'] = $son->ad;
+        // Mesaj saati (panelde balonun altinda): musteri mesaji = ilk gelen satirin zamani
+        $musteriAn = (string) ($satirlar->first()->created_at ?? date('Y-m-d H:i:s'));
         $kaydet = function (array $g) use ($o, &$upd) {
             $upd['gecmis'] = json_encode(array_slice($g, -40), JSON_UNESCAPED_UNICODE);
             DB::table('wa_asistan_oturumlari')->where('id', $o->id)->update($upd);
         };
         // Cevap verilmeyecekse mesaj yine gecmise yazilir (panel + AI geri dondugunde baglam)
-        $sus = function (string $neden) use (&$gecmis, $metin, $kaydet, $o) {
-            $gecmis[] = ['role' => 'user', 'content' => $metin];
+        $sus = function (string $neden) use (&$gecmis, $metin, $kaydet, $o, $musteriAn) {
+            $gecmis[] = ['role' => 'user', 'content' => $metin, 'at' => $musteriAn];
             $kaydet($gecmis);
             Log::info('[WA-ASISTAN] cevap verilmedi: ' . $neden, ['oturum' => $o->id, 'salon' => $o->salon_id]);
         };
@@ -488,7 +490,7 @@ class WaAsistan
         }
         if ($usd + $ekUsd > 0) $upd['maliyet_usd'] = DB::raw('maliyet_usd + ' . sprintf('%.6F', $usd + $ekUsd));
 
-        $gecmis[] = ['role' => 'user', 'content' => $metin];
+        $gecmis[] = ['role' => 'user', 'content' => $metin, 'at' => $musteriAn];
         $gonderildi = false;
         if ($cevap !== '' && $hedef) {
             $r = app(WhatsAppService::class)->sendAsistanCevap($salon, $hedef, $cevap, $tel);
@@ -497,7 +499,7 @@ class WaAsistan
         }
         // Musteri gormediyse cevap gecmise yazilmaz (islem yapildiysa yazilir: model bilsin)
         if ($gonderildi || in_array($aksiyon, ['randevu', 'iptal', 'guncelle', 'teyit', 'odeme'], true)) {
-            $asistanMsj = ['role' => 'assistant', 'content' => $cevap];
+            $asistanMsj = ['role' => 'assistant', 'content' => $cevap, 'at' => date('Y-m-d H:i:s')];
             $b = trim(($d && !empty($d['baglam']) ? $d['baglam'] : '') . ($baglamEk !== '' ? ' ' . $baglamEk : ''));
             if ($b !== '') $asistanMsj['baglam'] = $b;
             $gecmis[] = $asistanMsj;
@@ -638,7 +640,7 @@ class WaAsistan
         if (!self::semaGaranti()) return 0;
         $n = 0;
         $adaylar = DB::table('wa_asistan_oturumlari')->where('durum', 'acik')
-            ->whereBetween('son_mesaj_at', [now()->subMinutes(60), now()->subMinutes(3)])->orderBy('id')->limit(50)->get();
+            ->whereBetween('son_mesaj_at', [now()->subMinutes(60), now()->subMinutes(5)])->orderBy('id')->limit(50)->get();
         foreach ($adaylar as $o) {
             try {
                 if (!self::acikMi((int) $o->salon_id) || WaPaket::kapali((int) $o->salon_id)) continue;
@@ -646,18 +648,17 @@ class WaAsistan
                 if ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - 60 * 60) continue;
                 $g = json_decode($o->gecmis ?: '[]', true) ?: [];
                 $son = end($g);
-                if (!$son || !empty($son['personel'])) continue;
+                // yarim: cevapsiz / sozde / tekrar (dongu) / sikayet ("boş mesaj, gelmedi"); kapanis mesajlari ("tamam, 👍") haric
+                $mod = self::yarimMi($g);
+                if (!$mod) continue;
                 $rol = $son['role'] ?? '';
-                $sozde = $rol === 'assistant' && RandevuAsistan::sozVeripBirakti((string) ($son['content'] ?? ''));
-                if ($rol !== 'user' && !$sozde) continue;
-                // Bilerek cevapsiz birakilanlar: "tamam / 👍 / teşekkürler" (bedava katman 'sessiz'), gunluk tavan dolu hat
-                if ($rol === 'user' && self::kapanisMi((string) ($son['content'] ?? ''))) continue;
+                // Bilerek cevapsiz birakilanlar: gunluk tavan dolu hat
                 if (Cache::get("wa_asistan_tavan_{$o->salon_id}_" . date('Ymd'))) continue;
                 // isleme hala suruyor olabilir (mesaj birlestirme / AI cagrisi): islenmemis gelen kayit varsa bekle
                 if ($rol === 'user' && DB::table('wa_asistan_gelen')->where('salon_id', $o->salon_id)->where('anahtar', $o->anahtar)
                     ->where('created_at', '>=', now()->subMinutes(2))->exists()) continue;
                 if (!Cache::add('wa_havada_' . $o->id . '_' . md5(json_encode($son)), 1, 120)) continue;
-                if (self::tamamla($o, $g, $sozde)) $n++;
+                if (self::tamamla($o, $g, $mod)) $n++;
             } catch (\Throwable $e) {
                 Log::warning('[WA-HAVADA] tamamlanamadi: ' . $e->getMessage(), ['oturum' => $o->id]);
             }
@@ -681,13 +682,33 @@ class WaAsistan
         return false;
     }
 
-    /** Sohbet yarim mi: son mesaj cevapsiz musteri mesaji ya da asistanin sozde kalan mesaji (panel "Asistan tamamlasın"). */
+    /**
+     * Sohbet yarim mi (saf; guvenlik agi + panel "Asistan tamamlasın"):
+     *  'cevapsiz' = son mesaj cevapsiz musteri mesaji; 'sozde' = asistan "bir bakayım" deyip birakti;
+     *  'tekrar'   = asistan ayni cevabi tekrarladi (dongu: istek karsilanmadi);
+     *  'sikayet'  = musteri son mesajlarinda "boş mesaj / gelmedi / acil / hâlâ" dedi ama asistan cozemedi.
+     * Bir kez gozden gecirilmis (gozden=1 asistan mesaji) noktadan oncesine bakilmaz: ayni sohbet tekrar tekrar yazilmaz.
+     */
     public static function yarimMi(array $g): ?string
     {
         $son = end($g);
-        if (!$son || !empty($son['personel'])) return null;
+        if (!$son || !empty($son['personel']) || !empty($son['gozden'])) return null;
         if (($son['role'] ?? '') === 'user') return self::kapanisMi((string) ($son['content'] ?? '')) ? null : 'cevapsiz';
-        return RandevuAsistan::sozVeripBirakti((string) ($son['content'] ?? '')) ? 'sozde' : null;
+        if (RandevuAsistan::sozVeripBirakti((string) ($son['content'] ?? ''))) return 'sozde';
+        // son gozden gecirmeden sonraki kisim: son 4 asistan + son 2 musteri mesaji
+        $asistan = []; $musteri = [];
+        for ($i = count($g) - 1; $i >= 0; $i--) {
+            $m = $g[$i];
+            if (!empty($m['gozden']) || !empty($m['personel'])) break;
+            $c = mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) ($m['content'] ?? ''))), 'UTF-8');
+            if (($m['role'] ?? '') === 'assistant' && count($asistan) < 4) $asistan[] = $c;
+            if (($m['role'] ?? '') === 'user' && count($musteri) < 2) $musteri[] = $c;
+        }
+        if (count($asistan) >= 2 && count(array_unique($asistan)) < count($asistan)) return 'tekrar';
+        foreach ($musteri as $c) {
+            if (preg_match('/bo[şs] (mesaj|geldi|gitti)|gelmedi|gitmedi|ula[şs]mad[ıi]|h[âa]l[âa]|acil|cevap ver|anlam[ıi]yor|sa[çc]ma|olmad[ıi]|yine ayn[ıi]|ka[çc] kere/u', $c)) return 'sikayet';
+        }
+        return null;
     }
 
     /** Panelden "Asistan tamamlasın": yarim kalan sohbeti asistan simdi surdurur. @return ['ok', 'hata'?] */
@@ -702,7 +723,7 @@ class WaAsistan
         // Personel devraldiysa: devam isteyen isletme -> asistana geri verilir
         DB::table('wa_asistan_oturumlari')->where('id', $o->id)->update(['insan_devraldi' => 0, 'sessiz_bitis' => null, 'sessiz_neden' => null, 'durum' => 'acik', 'updated_at' => now()]);
         $o = DB::table('wa_asistan_oturumlari')->where('id', $o->id)->first();
-        return self::tamamla($o, $g, $durum === 'sozde') ? ['ok' => 1] : ['ok' => 0, 'hata' => 'Mesaj gönderilemedi (WhatsApp bağlantısını kontrol edin).'];
+        return self::tamamla($o, $g, $durum) ? ['ok' => 1] : ['ok' => 0, 'hata' => 'Mesaj gönderilemedi (WhatsApp bağlantısını kontrol edin).'];
     }
 
     /** Kisa onay / tesekkur / veda / emoji: cevap beklemeyen mesaj (saf). */
@@ -713,8 +734,10 @@ class WaAsistan
         return (bool) preg_match('/^((tamam|tamamdir|ok|okey|peki|anladim|anlasildi|tmm|olur|super|harika|tesekkur\w*|tsk\w*|sagol\w*|sag ol\w*|eyvallah|iyi gunler|iyi aksamlar|iyi geceler|gorusuruz|kolay gelsin|rica ederim|size de|sizlere de|ederim|ederiz|cok)\s*)+$/u', $s);
     }
 
-    protected static function tamamla($o, array $g, bool $sozde): bool
+    /** @param string $mod cevapsiz | sozde | tekrar | sikayet (yarimMi) */
+    protected static function tamamla($o, array $g, string $mod): bool
     {
+        $sozde = $mod === 'sozde';
         $ayar = WaAsistanVeri::ayarlar((int) $o->isletme_id);
         $as = new RandevuAsistan((int) $o->isletme_id, $o->musteri_tel ?: $o->telefon, 'whatsapp');
         $as->waFiyatSoyle = !empty($ayar['fiyat_soyle']);
@@ -723,6 +746,13 @@ class WaAsistan
         if ($sozde) {
             $metin = '[SİSTEM — müşteri bunu yazmadı] Son mesajında yapacağını söylediğin kontrolü yapmadın ve müşteri bekliyor. '
                 . 'Gereken aracı (ör. musait_saatler) ŞİMDİ çağır ve sonucu müşteriye net bir seçenek ya da soruyla yaz. Özür dileme, doğrudan sonucu yaz.';
+            $once = $g;
+        } elseif ($mod === 'tekrar' || $mod === 'sikayet') {
+            // Yazisma takildi (ayni cevap tekrarlandi / musteri "boş mesaj, gelmedi" dedi): bastan oku, asil istegi coz
+            $metin = '[SİSTEM — müşteri bunu yazmadı] Yazışmayı baştan oku. Müşterinin asıl isteği karşılanmadı: '
+                . ($mod === 'tekrar' ? 'aynı cevap tekrar tekrar gönderildi. ' : 'müşteri bir şeyin olmadığını / gelmediğini söyledi. ')
+                . 'Müşterinin asıl isteğini belirle ve ŞİMDİ çöz; gerekiyorsa ilgili aracı yeniden çağır (ör. yol_tarifi_gonder, musait_saatler). '
+                . 'Önceki cevabını tekrarlama. Kısaca özür dile ve sonucu doğrudan yaz; çözemiyorsan aktar.';
             $once = $g;
         } else {
             $sonUser = array_pop($g);
@@ -750,7 +780,7 @@ class WaAsistan
         if (empty($r['ok'])) return false;
         $taze = DB::table('wa_asistan_oturumlari')->where('id', $o->id)->first();
         $g2 = json_decode($taze->gecmis ?: '[]', true) ?: [];
-        $msj = ['role' => 'assistant', 'content' => $cevap];
+        $msj = ['role' => 'assistant', 'content' => $cevap, 'at' => date('Y-m-d H:i:s'), 'gozden' => 1]; // bir kez gozden gecirildi: tekrar tetiklenmez
         if (!empty($d['baglam'])) $msj['baglam'] = $d['baglam'];
         $g2[] = $msj;
         $upd = ['gecmis' => json_encode(array_slice($g2, -40), JSON_UNESCAPED_UNICODE), 'cevap_sayisi' => DB::raw('cevap_sayisi + 1'), 'updated_at' => now()];
@@ -775,21 +805,22 @@ class WaAsistan
      * Asistanin sohbete kendiliginden yazmasi (talep takibi: "isletmemiz henuz donemedi"). Personel devraldiysa yazmaz.
      * Gecmise eklenir ve cevap olcumune (kaynak) yazilir; AI degil, paketten dusmez.
      */
-    public static function oturumaYaz(int $oturumId, string $metin, string $kaynak = 'takip'): bool
+    public static function oturumaYaz(int $oturumId, string $metin, string $kaynak = 'takip', bool $personelIstegi = false): bool
     {
         $o = DB::table('wa_asistan_oturumlari')->where('id', $oturumId)->first();
         if (!$o || trim($metin) === '') return false;
         $devral = ($o->sessiz_neden === 'devral' && $o->sessiz_bitis && strtotime($o->sessiz_bitis) > time())
             || ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - 30 * 60);
         $sessiz = $o->sessiz_bitis && strtotime($o->sessiz_bitis) > time() && $o->sessiz_neden !== 'aktar'; // yanlis numara / hiz siniri vb.
-        if ($devral || $sessiz || WaPaket::kapali((int) $o->salon_id)) return false;
+        // Personel panelden gonderdiyse (yol tarifi vb.) devral/sessizlik engellemez
+        if (!$personelIstegi && ($devral || $sessiz || WaPaket::kapali((int) $o->salon_id))) return false;
         $salon = Salonlar::find($o->salon_id);
         $hedef = $o->jid ?: $o->telefon;
         if (!$salon || !$hedef) return false;
         $r = app(WhatsAppService::class)->sendAsistanCevap($salon, $hedef, $metin, $o->telefon);
         if (empty($r['ok'])) return false;
         $g = json_decode($o->gecmis ?: '[]', true) ?: [];
-        $g[] = ['role' => 'assistant', 'content' => $metin];
+        $g[] = ['role' => 'assistant', 'content' => $metin, 'at' => date('Y-m-d H:i:s')] + ($personelIstegi ? ['personel' => 1] : []);
         DB::table('wa_asistan_oturumlari')->where('id', $o->id)->update(['gecmis' => json_encode(array_slice($g, -40), JSON_UNESCAPED_UNICODE),
             'cevap_sayisi' => DB::raw('cevap_sayisi + 1'), 'updated_at' => now()]);
         try {

@@ -226,7 +226,7 @@ class WaGeriKazanim
         $yeni = DB::table('wa_asistan_oturumlari')->insertGetId([
             'salon_id' => $o->salon_id, 'isletme_id' => $isletme, 'anahtar' => $o->anahtar, 'jid' => $o->jid,
             'telefon' => $o->telefon, 'musteri_tel' => $o->musteri_tel, 'ad' => $o->ad,
-            'gecmis' => json_encode([['role' => 'assistant', 'content' => $mesaj, 'geri_kazanim' => 1, 'baglam' => self::baglamNotu($hizmetId, $secenek)]], JSON_UNESCAPED_UNICODE),
+            'gecmis' => json_encode([['role' => 'assistant', 'content' => $mesaj, 'geri_kazanim' => 1, 'at' => date('Y-m-d H:i:s'), 'baglam' => self::baglamNotu($hizmetId, $secenek)]], JSON_UNESCAPED_UNICODE),
             'durum' => 'acik', 'son_mesaj_at' => now(), 'geri_kazanim_id' => $gkId,
             'son_hizmet_id' => $hizmetId, 'son_hizmet_ad' => $o->son_hizmet_ad,
             'created_at' => now(), 'updated_at' => now(),

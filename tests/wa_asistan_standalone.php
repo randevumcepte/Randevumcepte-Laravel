@@ -78,6 +78,12 @@ namespace App\Services {
         public $h; public $sss;
         function __construct($h = [], $sss = []) { $this->h = $h; $this->sss = $sss; }
         function hizmetler(): array { return $this->h; }
+        // Gercek kalip santral testinde sinanir; burada WaAsistan::yarimMi icin ayni kalip
+        static function sozVeripBirakti(string $c): bool {
+            $c = trim($c);
+            if ($c === '' || mb_strpos($c, '?') !== false) return false;
+            return (bool) preg_match('/\b(bir )?bak(ay[ıi]m|ar[ıi]m|[ıi]yorum|al[ıi]m)\b|kontrol (edeyim|ediyorum|ederim|edelim|edip)|deneyebilirim|deneyeyim|not (ald[ıi]m|ettim)/iu', $c);
+        }
         function sssCevabi(string $m): ?string {
             foreach ($this->sss as $tet => $c) if (strpos(WaBedavaKatman::sade($m), $tet) !== false) return $c;
             return null;
@@ -557,6 +563,15 @@ namespace {
     esit('yanlış numara değil: "Ben Ayşe, yarın 3te"', false, $WA::yanlisNumaraMi('Ben Ayşe, yarın 3te gelebilir miyim'));
     esit('kapanış: tamam / teşekkürler / 👍', [true, true, true], [$WA::kapanisMi('tamam'), $WA::kapanisMi('Teşekkür ederim 🙏'), $WA::kapanisMi('👍')]);
     esit('kapanış değil: soru', false, $WA::kapanisMi('Fatma hanım olabilir mi'));
+    $yt = 'Yol tarifini size mesaj olarak ilettim. Başka yardımcı olabileceğim bir konu var mı?';
+    $dongu = [['role' => 'user', 'content' => 'Konum'], ['role' => 'assistant', 'content' => $yt], ['role' => 'user', 'content' => 'Boş mesaj bu'], ['role' => 'assistant', 'content' => $yt],
+              ['role' => 'user', 'content' => '[fotoğraf]'], ['role' => 'assistant', 'content' => 'Fotoğrafta modeli göremedim. Tekrar gönderir misiniz?']];
+    esit('yarım: aynı cevap tekrarlandı → tekrar', 'tekrar', $WA::yarimMi($dongu));
+    esit('yarım: bir kez gözden geçirildi → tekrar tetiklenmez', null, $WA::yarimMi(array_merge($dongu, [['role' => 'assistant', 'content' => 'Adres...', 'gozden' => 1]])));
+    esit('yarım: müşteri "gelmedi hâlâ" → şikayet', 'sikayet', $WA::yarimMi([['role' => 'user', 'content' => 'mesaj gelmedi hala'], ['role' => 'assistant', 'content' => 'Hangi gün uygun?']]));
+    esit('yarım değil: sonuçlu cevap', null, $WA::yarimMi([['role' => 'user', 'content' => 'yarın 3'], ['role' => 'assistant', 'content' => 'Yarın 15:00 uygun, oluşturayım mı?']]));
+    esit('yarım: cevapsız müşteri mesajı', 'cevapsiz', $WA::yarimMi([['role' => 'user', 'content' => 'Fatma hanım olabilir mi']]));
+    esit('yarım değil: "tamam"', null, $WA::yarimMi([['role' => 'assistant', 'content' => 'Randevunuz oluşturuldu.'], ['role' => 'user', 'content' => 'tamam']]));
 
     baslik('Gece Denetçisi (saf)');
     require_once $kok . 'Services/WaDenetci.php';

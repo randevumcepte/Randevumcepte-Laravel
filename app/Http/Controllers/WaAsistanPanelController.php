@@ -183,10 +183,12 @@ class WaAsistanPanelController extends StoreAdminController
         $o = DB::table('wa_asistan_oturumlari')->where('id', (int) $id)->where('isletme_id', $sid)->first();
         if (!$o) return response()->json(['ok' => 0, 'hata' => 'Sohbet bulunamadı.'], 404);
         $satirlar = [];
-        foreach (json_decode($o->gecmis ?: '[]', true) ?: [] as $m) {
+        $gecmis = json_decode($o->gecmis ?: '[]', true) ?: [];
+        $saatler = self::mesajSaatleri($o, $gecmis);
+        foreach ($gecmis as $i => $m) {
             $rol = ($m['role'] ?? '') === 'user' ? 'musteri' : (!empty($m['personel']) ? 'personel' : 'asistan');
             $satirlar[] = ['rol' => $rol, 'metin' => (string) ($m['content'] ?? ''), 'geri_kazanim' => !empty($m['geri_kazanim']),
-                'hatirlatma' => !empty($m['hatirlatma'])];
+                'hatirlatma' => !empty($m['hatirlatma']), 'at' => $saatler[$i] ?? null];
         }
         $gorseller = [];
         if (WaGorselDanisman::semaGaranti()) {
@@ -394,6 +396,60 @@ class WaAsistanPanelController extends StoreAdminController
             \Illuminate\Support\Facades\Log::warning('[WA-PANEL] numara gecmisi: ' . $e->getMessage());
         }
         return [$giden, $onceki];
+    }
+
+    /**
+     * Her mesajin saati: yeni kayitlarda gecmis 'at'; eski kayitlarda gelen mesaj (wa_asistan_gelen, 7 gun) ve
+     * asistan gonderim kaydi (whatsapp_gonderim_loglari) metinle sirayla eslenir. Bulunamayan null (saat gosterilmez).
+     */
+    protected static function mesajSaatleri($o, array $gecmis): array
+    {
+        $out = [];
+        foreach ($gecmis as $i => $m) if (!empty($m['at'])) $out[$i] = $m['at'];
+        if (count($out) === count($gecmis)) return $out;
+        $bas = date('Y-m-d H:i:s', strtotime((string) $o->created_at) - 300);
+        $norm = function ($s) { return mb_substr(trim(preg_replace('/\s+/u', ' ', (string) $s)), 0, 120); };
+        try {
+            $gelen = DB::table('wa_asistan_gelen')->where('salon_id', $o->salon_id)->where('anahtar', $o->anahtar)
+                ->where('created_at', '>=', $bas)->orderBy('id')->get(['metin', 'created_at'])->all();
+            $tel = substr(preg_replace('/\D/', '', (string) ($o->telefon ?: $o->musteri_tel)), -10);
+            $giden = strlen($tel) === 10 ? DB::table('whatsapp_gonderim_loglari')->where('telefon', 'like', '%' . $tel)
+                ->where('created_at', '>=', $bas)->orderBy('id')->limit(300)->get(['mesaj', 'created_at'])->all() : [];
+        } catch (\Throwable $e) {
+            return $out;
+        }
+        $gi = 0; $ci = 0;
+        foreach ($gecmis as $i => $m) {
+            if (isset($out[$i])) continue;
+            $c = $norm($m['content'] ?? '');
+            if (($m['role'] ?? '') === 'user') {
+                // birlestirilmis mesaj: gecmisteki metin, gelen satirlarin ilkiyle baslar
+                for ($k = $gi; $k < count($gelen); $k++) {
+                    $g = $norm($gelen[$k]->metin);
+                    if ($g !== '' && mb_strpos($c, $g) === 0) { $out[$i] = $gelen[$k]->created_at; $gi = $k + 1; break; }
+                }
+            } else {
+                for ($k = $ci; $k < count($giden); $k++) {
+                    if ($norm($giden[$k]->mesaj) === $c) { $out[$i] = $giden[$k]->created_at; $ci = $k + 1; break; }
+                }
+            }
+        }
+        return $out;
+    }
+
+    /** "Yol tarifi gönder": salonun adresi + Google Haritalar linki bu sohbete yazilir (personel istegi; asistan susmus olsa da). */
+    public function yolTarifi(Request $request, $id)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        if (!DB::table('wa_asistan_oturumlari')->where('id', (int) $id)->where('isletme_id', $sid)->exists()) return response()->json(['ok' => 0], 404);
+        $s = Salonlar::find($sid);
+        $link = \App\Services\WhatsAppMesajFormat::yolTarifiLinki($s);
+        $adres = trim((string) ($s->adres ?? ''));
+        if ($link === '' && $adres === '') return response()->json(['ok' => 0, 'hata' => 'İşletmenin adresi kayıtlı değil. Önce işletme ayarlarından adresi girin.']);
+        $metin = '📍 ' . $s->salon_adi . ($adres !== '' ? "\n" . $adres : '') . ($link !== '' ? "\n\nYol tarifi (harita): " . $link : '');
+        $ok = WaAsistan::oturumaYaz((int) $id, $metin, 'yol_tarifi', true);
+        return response()->json(['ok' => $ok ? 1 : 0, 'hata' => $ok ? null : 'Mesaj gönderilemedi (WhatsApp bağlantısını kontrol edin).']);
     }
 
     /** "Asistan tamamlasın": yarim kalan sohbeti asistan simdi surdurur (cevapsiz mesaj / sozde kalan cevap). */
