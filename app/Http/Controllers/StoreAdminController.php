@@ -221,6 +221,8 @@ class StoreAdminController extends Controller
             // Mobil (Bearer/Passport) dogum gunu uclari — web session guard'ina takilmasin,
             // route'un auth:isletmeyonetim-api middleware'i kimligi zaten dogruluyor.
             'apiBugunDogumGunu', 'apiDogumGunuGonder', 'apiDogumGunuAtla',
+            // Mobil Asistanim > Gorusmeler (/api/v1/santral-asistan/*): yetki asistanGorusmeSalon'da (web + api guard)
+            'santralAsistanGorusmeler', 'santralAsistanGorusme', 'santralAsistanSes', 'santralAsistanGeriArandi',
         ]); // uygulamaIndir: QR public; seansDokumuPdf + apiDogumGunu*: mobil API (oturumsuz) erisir
 
     }
@@ -30521,6 +30523,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if ($d === '') return null;
         return Personeller::where(function ($q) use ($d) {
             $q->where('dahili_no', $d)->orWhere('dahili_no_webrtc', $d);
+            if (self::mobilDahiliKolonVar()) $q->orWhere('dahili_no_webrtc_mobil', $d);
         })->first();
     }
 
@@ -30558,13 +30561,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         // Personel WebRTC (dahili_no_webrtc) VEYA normal dahili (dahili_no) ile gorusebilir;
         // WebRTC uzerinden gelen/giden aramalar PJSIP/<dahili_no_webrtc> kanalinda oldugundan
         // HER iki dahili de sorguya katilmali, aksi halde o aramalar raporda gorunmez.
-        $dahiliRows = Personeller::where('salon_id',$salon_id)
-            ->where(function($q){ $q->whereNotNull('dahili_no')->orWhereNotNull('dahili_no_webrtc'); })
-            ->get(['dahili_no','dahili_no_webrtc']);
+        $dahiliRows = Personeller::where('salon_id',$salon_id)->get(self::dahiliKolonlari());
         $dahililer = [];
         foreach ($dahiliRows as $r) {
-            if (!empty($r->dahili_no)) $dahililer[] = $r->dahili_no;
-            if (!empty($r->dahili_no_webrtc)) $dahililer[] = $r->dahili_no_webrtc;
+            foreach (self::dahiliKolonlari() as $k) if (!empty($r->$k)) $dahililer[] = $r->$k;
         }
         $dahililer = array_values(array_unique($dahililer));
         $trunk = SabitNumaralar::where('salon_id',$salon_id)->value('numara');
@@ -34680,6 +34680,29 @@ DB::raw('
             ->value('id');
     }
 
+    /** salon_personelleri.dahili_no_webrtc_mobil kolonu var mi (migration calistirildi mi)? */
+    public static function mobilDahiliKolonVar(): bool
+    {
+        static $var = null;
+        if ($var === null) {
+            try { $var = Schema::hasColumn('salon_personelleri', 'dahili_no_webrtc_mobil'); }
+            catch (\Throwable $e) { $var = false; }
+        }
+        return $var;
+    }
+
+    /**
+     * Bir personelin santralde gorunebilecegi TUM dahili kolonlari: fiziksel/Bria (dahili_no),
+     * web softphone (dahili_no_webrtc) ve varsa uygulama softphone'u (dahili_no_webrtc_mobil).
+     * Raporlar/ses kayitlari bu dahililerin hepsini taramali.
+     */
+    public static function dahiliKolonlari(): array
+    {
+        return self::mobilDahiliKolonVar()
+            ? ['dahili_no', 'dahili_no_webrtc', 'dahili_no_webrtc_mobil']
+            : ['dahili_no', 'dahili_no_webrtc'];
+    }
+
     /**
      * Giris yapan kullanicinin bu salonda ATANMIS bir dahilisi var mi?
      * (dahili_no VEYA dahili_no_webrtc). 'Ara' butonlari yalnizca dahili varsa
@@ -35113,6 +35136,34 @@ DB::raw('
             ]);
         }
 
+        // TELEFON modu (mobil): kullanicinin ne Bria dahilisi ne uygulama softphone'u var ->
+        // numara cihazin kendi telefon uygulamasiyla aranir. Numara cihaza GIDECEGI icin
+        // 'musteri.telefon_gor' yetkisi sart (maskeli personel numarayi bu yolla goremez).
+        if (filter_var($request->input('telefon_ile'), FILTER_VALIDATE_BOOLEAN)) {
+            if (!\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($this->cmAuthId(), $salonId, 'musteri.telefon_gor')) {
+                return response()->json(['success' => false, 'message' => 'Müşteri numarası size gizli; arama için yöneticinizden dahili tanımlamasını isteyin.'], 403);
+            }
+            if ((int) $kayit->durum === 3) {
+                if (Schema::hasColumn('aranacak_musteriler', 'ar_5dk_at')) {
+                    $kayit->ar_tamamlandi_at = date('Y-m-d H:i:s');
+                    $kayit->ar_gecikti = 0;
+                }
+                $kayit->durum = 1;
+            }
+            if (Schema::hasColumn('aranacak_musteriler', 'son_arama_zamani')) {
+                $kayit->son_arama_zamani = date('Y-m-d H:i:s');
+            }
+            $kayit->save();
+
+            return response()->json([
+                'success'      => true,
+                'telefon_ile'  => true,
+                'numara_ara'   => '0' . $tel,
+                'message'      => 'Telefon ile aranıyor...',
+                'aramaListeId' => $kayit->arama_id,
+            ]);
+        }
+
         // Arayan kullanicinin (personel/yonetici) dahilisi — Bria bu dahiliye kayitli.
         $dahili = \App\Personeller::where('yetkili_id', $this->cmAuthId())
             ->where('salon_id', $salonId)->value('dahili_no');
@@ -35193,6 +35244,20 @@ DB::raw('
                 'softphone'  => true,
                 'numara_ara' => '0' . $tel,
                 'message'    => 'Softphone üzerinden aranıyor...',
+            ]);
+        }
+
+        // TELEFON modu (mobil, dahilisi olmayan kullanici): numara cihazin telefon
+        // uygulamasina verilir -> 'musteri.telefon_gor' yetkisi sart (KVKK).
+        if (filter_var($request->input('telefon_ile'), FILTER_VALIDATE_BOOLEAN)) {
+            if (!\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($this->cmAuthId(), $salonId, 'musteri.telefon_gor')) {
+                return response()->json(['success' => false, 'message' => 'Müşteri numarası size gizli; arama için yöneticinizden dahili tanımlamasını isteyin.'], 403);
+            }
+            return response()->json([
+                'success'     => true,
+                'telefon_ile' => true,
+                'numara_ara'  => '0' . $tel,
+                'message'     => 'Telefon ile aranıyor...',
             ]);
         }
 
@@ -35389,16 +35454,10 @@ DB::raw('
         // Bu musterinin kayit adaylari — salonun TUM dahilileri (normal + webrtc) uzerinden, TEK sefer.
         $adaylar = [];
         if ($musteriSon10 !== '') {
-            $tumDahililer = Personeller::where('salon_id', $salonId)
-                ->where(function ($q) {
-                    $q->where(function ($a) { $a->whereNotNull('dahili_no')->where('dahili_no', '!=', ''); })
-                      ->orWhere(function ($b) { $b->whereNotNull('dahili_no_webrtc')->where('dahili_no_webrtc', '!=', ''); });
-                })
-                ->get(['dahili_no', 'dahili_no_webrtc']);
+            $tumDahililer = Personeller::where('salon_id', $salonId)->get(self::dahiliKolonlari());
             $dset = [];
             foreach ($tumDahililer as $p) {
-                if (!empty($p->dahili_no)) $dset[] = $p->dahili_no;
-                if (!empty($p->dahili_no_webrtc)) $dset[] = $p->dahili_no_webrtc;
+                foreach (self::dahiliKolonlari() as $k) if (!empty($p->$k)) $dset[] = $p->$k;
             }
             if (!empty($dset)) {
                 $adaylar = $this->cagriMerkeziKayitAdaylari($salonId, $dset, $musteriSon10);
@@ -35755,20 +35814,16 @@ DB::raw('
         // taranmali, aksi halde o cagrilarin ses kayitlari gelmez/yanlis eslesir.
         if ($personelMi) {
             $myPid = $this->aktifPersonelId($salonId);
-            $per = Personeller::where('id', $myPid)->first(['dahili_no', 'dahili_no_webrtc']);
+            $per = Personeller::where('id', $myPid)->first(self::dahiliKolonlari());
             $dahililer = [];
             if ($per) {
-                if (!empty($per->dahili_no)) $dahililer[] = $per->dahili_no;
-                if (!empty($per->dahili_no_webrtc)) $dahililer[] = $per->dahili_no_webrtc;
+                foreach (self::dahiliKolonlari() as $k) if (!empty($per->$k)) $dahililer[] = $per->$k;
             }
         } else {
-            $rows = Personeller::where('salon_id', $salonId)
-                ->where(function ($q) { $q->whereNotNull('dahili_no')->orWhereNotNull('dahili_no_webrtc'); })
-                ->get(['dahili_no', 'dahili_no_webrtc']);
+            $rows = Personeller::where('salon_id', $salonId)->get(self::dahiliKolonlari());
             $dahililer = [];
             foreach ($rows as $rr) {
-                if (!empty($rr->dahili_no)) $dahililer[] = $rr->dahili_no;
-                if (!empty($rr->dahili_no_webrtc)) $dahililer[] = $rr->dahili_no_webrtc;
+                foreach (self::dahiliKolonlari() as $k) if (!empty($rr->$k)) $dahililer[] = $rr->$k;
             }
         }
         $dahililer = array_values(array_unique(array_filter($dahililer, 'strlen')));

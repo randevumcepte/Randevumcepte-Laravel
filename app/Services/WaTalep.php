@@ -123,7 +123,8 @@ class WaTalep
             return ($hatirlatma ? 'HATIRLATMA: ' : '') . 'Bir kişi WhatsApp\'tan "yanlış numara / mesaj atmayın" yazdı (' . ($o->musteri_tel ?: $o->telefon ?: 'gizli numara') . '). '
                 . mb_substr($ozet, 0, 220) . ' Asistan özür diledi ve bu numaraya artık yazmıyor.';
         }
-        $kisi = trim(($o->ad && $o->ad !== '.' ? $o->ad : 'Bir müşteri') . (($o->musteri_tel ?: $o->telefon) ? ' (' . ($o->musteri_tel ?: $o->telefon) . ')' : ''));
+        // Ad yalniz noktalama ise ('.', '..', '-') ad yok sayilir (bildirimde "asistanı .. için" cikiyordu)
+        $kisi = trim(($o->ad && preg_match('/[\p{L}\p{N}]/u', (string) $o->ad) ? $o->ad : 'Bir müşteri') . (($o->musteri_tel ?: $o->telefon) ? ' (' . ($o->musteri_tel ?: $o->telefon) . ')' : ''));
         return ($hatirlatma ? 'HATIRLATMA: ' : '') . "WhatsApp asistanı {$kisi} için sizden dönüş bekliyor. Konu: " . self::KONU[$konu] . '. Müşteri: "'
             . mb_substr($ozet, 0, 160) . '". Asistan müşteriyle ilgilenmeye devam ediyor; cevabınızı WhatsApp\'tan yazın, sohbet panelde.';
     }

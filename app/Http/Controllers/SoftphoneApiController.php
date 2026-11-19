@@ -21,7 +21,8 @@ use Illuminate\Support\Facades\Log;
  *  4. Santral (santral/hazir-mi) cevabi gorunce dahiliyi Dial eder.
  *
  * Kimlik:
- *  - Mobil uclar: salon_personelleri.dahili_no_webrtc + dahili_sifre_webrtc
+ *  - Mobil uclar: salon_personelleri.dahili_no_webrtc_mobil + dahili_sifre_webrtc_mobil
+ *    (uygulama softphone'u; eski surumler icin dahili_no_webrtc + dahili_sifre_webrtc de kabul edilir)
  *    (uygulama bunlarla zaten santrale register oluyor; mobil token yok).
  *  - Santral uclari: SOFTPHONE_SANTRAL_ANAHTAR (.env) paylasilan anahtar.
  *
@@ -51,7 +52,7 @@ class SoftphoneApiController extends Controller
         if (strlen($token) < 32 || ($platform === 'ios' && $bundle === '')) {
             return response()->json(['ok' => false, 'mesaj' => 'Token/bundle eksik'], 422);
         }
-        $dahili = (string) $personel->dahili_no_webrtc;
+        $dahili = $this->spDahili;
         $simdi = date('Y-m-d H:i:s');
 
         // Token tekil: cihaz baska dahiliyle giris yaptiysa kayit ona tasinir.
@@ -84,7 +85,7 @@ class SoftphoneApiController extends Controller
         }
         $token = $this->tokenTemizle((string) $request->input('token'));
         DB::table('softphone_voip_tokenlar')
-            ->where('dahili', (string) $personel->dahili_no_webrtc)
+            ->where('dahili', $this->spDahili)
             ->where('token', $token)->delete();
         return response()->json(['ok' => true]);
     }
@@ -107,7 +108,7 @@ class SoftphoneApiController extends Controller
             return response()->json(['ok' => false], 422);
         }
         // Laravel 5.6: 3. parametre DAKIKA.
-        Cache::put('sp_hazir_' . $uuid, $durum . '|' . $personel->dahili_no_webrtc, 2);
+        Cache::put('sp_hazir_' . $uuid, $durum . '|' . $this->spDahili, 2);
         return response()->json(['ok' => true]);
     }
 
@@ -300,7 +301,10 @@ class SoftphoneApiController extends Controller
                 $salonlar = DB::table('softphone_voip_tokenlar')->where('dahili', $dahili)
                     ->whereNotNull('salon_id')->distinct()->pluck('salon_id')->all();
                 if (!$salonlar) {
-                    $salonlar = Personeller::where('dahili_no_webrtc', $dahili)->pluck('salon_id')->all();
+                    $salonlar = Personeller::where(function ($q) use ($dahili) {
+                        $q->where('dahili_no_webrtc', $dahili);
+                        if (StoreAdminController::mobilDahiliKolonVar()) $q->orWhere('dahili_no_webrtc_mobil', $dahili);
+                    })->pluck('salon_id')->all();
                 }
                 if (!$salonlar) {
                     return '';
@@ -386,6 +390,13 @@ class SoftphoneApiController extends Controller
         return $deger['token'];
     }
 
+    /** dahiliDogrula'nin eslestirdigi dahili (mobil ya da web WebRTC). */
+    private $spDahili = '';
+
+    /**
+     * Uygulamanin gonderdigi dahili+sifreyi dogrular. Once uygulama softphone'u
+     * (dahili_no_webrtc_mobil), yoksa eski surumlerin kullandigi web WebRTC dahilisi.
+     */
     private function dahiliDogrula(Request $request)
     {
         $dahili = trim((string) $request->input('dahili'));
@@ -393,14 +404,24 @@ class SoftphoneApiController extends Controller
         if ($dahili === '' || $sifre === '') {
             return null;
         }
-        $personel = Personeller::where('dahili_no_webrtc', $dahili)
-            ->whereNotNull('dahili_sifre_webrtc')
-            ->where('dahili_sifre_webrtc', '!=', '')
-            ->get()
-            ->first(function ($p) use ($sifre) {
-                return hash_equals((string) $p->dahili_sifre_webrtc, $sifre);
-            });
-        return $personel;
+        $ciftler = [['dahili_no_webrtc', 'dahili_sifre_webrtc']];
+        if (StoreAdminController::mobilDahiliKolonVar()) {
+            array_unshift($ciftler, ['dahili_no_webrtc_mobil', 'dahili_sifre_webrtc_mobil']);
+        }
+        foreach ($ciftler as list($noK, $sifreK)) {
+            $personel = Personeller::where($noK, $dahili)
+                ->whereNotNull($sifreK)
+                ->where($sifreK, '!=', '')
+                ->get()
+                ->first(function ($p) use ($sifre, $sifreK) {
+                    return hash_equals((string) $p->$sifreK, $sifre);
+                });
+            if ($personel) {
+                $this->spDahili = $dahili;
+                return $personel;
+            }
+        }
+        return null;
     }
 
     private function santralDogrula(Request $request)
