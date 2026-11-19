@@ -510,6 +510,52 @@ namespace {
     esit('yalnız AI cevapları sayılır (bu salon)', 3, WaPaket::kullanilan(236));
     esit('başka salonun kullanımı karışmaz', 1, WaPaket::kullanilan(20));
 
+    baslik('Gece Denetçisi (saf)');
+    require_once $kok . 'Services/WaDenetci.php';
+    $D = App\Services\WaDenetci::class;
+    $g = [
+        ['role' => 'user', 'content' => 'Merhaba damla hanımdan randevu almak istiyorum'],
+        ['role' => 'assistant', 'content' => 'Merhaba, hoş geldiniz. Adınızı ve soyadınızı öğrenebilir miyim?'],
+        ['role' => 'user', 'content' => 'Cumartesi günü saat 12 uygun mu'],
+        ['role' => 'assistant', 'content' => 'Adınızı ve soyadınızı öğrenebilir miyim?', 'baglam' => 'musait_saatler: 12:00 boş'],
+        ['role' => 'user', 'content' => 'Feyza Musabeyoğlu, demiştim zaten'],
+        ['role' => 'assistant', 'content' => 'Ben bakarım', 'personel' => 1],
+        ['role' => 'assistant', 'content' => 'Randevunuzu oluşturdum: Cumartesi 12:00.'],
+        ['role' => 'user', 'content' => ''],
+    ];
+    $tr = $D::transkript($g);
+    esit('transkript: boş mesaj atlanır, numaralı', [7, 'PERSONEL', 6], [count($tr), $tr[5]['rol'], $tr[5]['no']]);
+    icerir('transkript metni: araç sonucu notu', 'asistanın araç sonucu', $D::transkriptMetni($tr));
+    $mt = $D::metrikler($g, 'randevu');
+    esit('metrik: müşteri/asistan/personel', [3, 3, 1], [$mt['musteri_mesaj'], $mt['asistan_mesaj'], $mt['personel_mesaj']]);
+    esit('metrik: tekrar soru yakalandı', 1, $mt['tekrar_soru']);
+    esit('metrik: "demiştim/zaten" → anlamadı sinyali', 1, $mt['anlamadi']);
+    esit('metrik: randevuya kadar 3 müşteri mesajı', [true, 3], [$mt['randevu'], $mt['randevuya_kadar']]);
+    esit('kesit: 4 numaralı asistan cevabından önce (müşteriyle biter)', 3, count($D::kesit($g, 4)));
+    esit('kesit: son eleman müşteri', 'user', $D::kesit($g, 4)[2]['role']);
+    esit('kesit: müşteri mesaj no → o mesaj dahil', 3, count($D::kesit($g, 3)));
+    esit('kesit: geçersiz → boş', [], $D::kesit([], 2));
+    esit('ders güvenli: davranış', true, $D::dersGuvenliMi('Müşteri ilk mesajda gün ve saat yazdıysa önce o saate bak, karşılama yazma.'));
+    esit('ders güvensiz: fiyat', false, $D::dersGuvenliMi('Protez tırnak için 750 TL söyle ve indirim teklif et.'));
+    esit('ders güvensiz: kampanya', false, $D::dersGuvenliMi('Her müşteriye kampanyadan bahset ve kapora iste.'));
+    esit('ders güvensiz: çok kısa', false, $D::dersGuvenliMi('Kısa yaz.'));
+    $k = function ($g, $kz) { return ['grup' => $g, 'kazanan' => $kz]; };
+    esit('test: yeni sorunlu anlarda kazandı, iyiler bozulmadı → geçti', true, $D::testKarari([$k('kanit', 'yeni'), $k('kanit', 'yeni'), $k('kanit', 'esit'), $k('iyi', 'esit'), $k('iyi', 'yeni'), $k('iyi', 'eski')])['gecti']);
+    esit('test: yarıdan azında kazandı → kaldı', false, $D::testKarari([$k('kanit', 'yeni'), $k('kanit', 'esit'), $k('kanit', 'esit'), $k('kanit', 'eski')])['gecti']);
+    esit('test: iyi sohbetlerin çoğu bozuldu → kaldı', false, $D::testKarari([$k('kanit', 'yeni'), $k('kanit', 'yeni'), $k('iyi', 'eski'), $k('iyi', 'eski'), $k('iyi', 'esit')])['gecti']);
+    esit('test: örnek yok → kaldı', false, $D::testKarari([])['gecti']);
+    $ss = $D::sonucSatiri(['puan' => 140, 'ozet' => 'İstek atlandı', 'sorunlar' => [['tur' => 'istek_atlandi', 'mesaj_no' => 2, 'aciklama' => 'x', 'daha_iyi_cevap' => 'y'], ['tur' => 'uydurma', 'mesaj_no' => 1]], 'ders_onerileri' => [], 'bilgi_eksikleri' => []]);
+    esit('sonuç: puan 0-100 arası', 100, $ss['puan']);
+    esit('sonuç: bilinmeyen sorun türü atılır', 1, count(json_decode($ss['sorunlar'], true)));
+    $jl = $D::jsonlCoz("{\"custom_id\":\"oturum-5\",\"result\":{\"type\":\"succeeded\"}}\n\nbozuk\n{\"custom_id\":\"oturum-7\",\"result\":{\"type\":\"errored\"}}\n");
+    esit('batch sonuç JSONL', ['oturum-5' => 'succeeded', 'oturum-7' => 'errored'], array_map(function ($r) { return $r['type']; }, $jl));
+    $sm = $D::denetimSemasi();
+    esit('şema: tüm nesneler kapalı (structured outputs)', [false, false], [$sm['additionalProperties'], $sm['properties']['sorunlar']['items']['additionalProperties']]);
+    esit('şema: tüm alanlar zorunlu', ['puan', 'ozet', 'sorunlar', 'ders_onerileri', 'bilgi_eksikleri'], $sm['required']);
+    $pr = $D::denetimParametreleri($g, $mt, 'Salon: Ola Nail');
+    esit('batch isteği: denetçi modeli + şema', ['claude-sonnet-5-5', 'json_schema'], [$pr['model'], $pr['output_config']['format']['type']]);
+    icerir('batch isteği: işletme bağlamı + yazışma', 'Salon: Ola Nail', $pr['messages'][0]['content']);
+
     @array_map('unlink', glob(storage_path('app/wa_gorsel/*/*')) ?: []);
 
     echo "\n\033[1mSONUÇ: $gecti geçti, $kaldi kaldı\033[0m\n";

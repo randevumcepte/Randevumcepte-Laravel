@@ -294,6 +294,63 @@
    .wa-bm-alt span { font-size:12.5px; color:#6b6483; }
    .wa-bm .wa-btn { border:none; border-radius:12px; padding:10px 22px; font-size:14px; font-weight:700; cursor:pointer; background:linear-gradient(135deg,#3b0f80,#6d28d9); color:#fff; }
 
+   /* ===== ASISTAN GELISIMI sekmesi (Gece Denetcisi) ===== */
+   .gl-hero { position:relative; overflow:hidden; border-radius:24px; padding:26px 30px; margin-bottom:18px; color:#fff; display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:26px; align-items:center;
+      background:radial-gradient(circle at 85% 0%,rgba(94,234,212,.28),rgba(94,234,212,0) 45%),linear-gradient(125deg,#0f172a 0%,#1e1b4b 45%,#3b0f80 100%); box-shadow:0 18px 40px rgba(30,27,75,.35); }
+   .gl-hero::after { content:''; position:absolute; right:-90px; bottom:-160px; width:420px; height:300px; border-radius:50%; border:2px solid rgba(255,255,255,.07); }
+   .gl-hero > * { position:relative; z-index:1; }
+   .gl-halka svg { width:150px; height:150px; display:block; }
+   .gl-halka .y { font-size:30px; font-weight:800; fill:#fff; } .gl-halka .ye { font-size:10.5px; fill:rgba(255,255,255,.75); }
+   .gl-rozet { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:#5eead4; background:rgba(94,234,212,.12); border:1px solid rgba(94,234,212,.3); padding:6px 12px; border-radius:999px; }
+   .gl-hero h3 { margin:12px 0 6px; font-size:25px; font-weight:800; color:#fff; line-height:1.25; }
+   .gl-hero p { margin:0; font-size:14px; color:rgba(255,255,255,.8); line-height:1.5; max-width:620px; }
+   .gl-tile { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:16px; }
+   .gl-tile div { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:12px; }
+   .gl-tile b { display:block; font-size:22px; font-weight:800; line-height:1.15; }
+   .gl-tile span { font-size:12.5px; color:rgba(255,255,255,.75); }
+   .gl-tile em { font-style:normal; font-size:12px; font-weight:700; color:#5eead4; margin-left:4px; } .gl-tile em.k { color:#fca5a5; }
+   .gl-hero .wa-btn { background:linear-gradient(135deg,#14b8a6,#0d9488); box-shadow:0 8px 20px rgba(20,184,166,.35); white-space:nowrap; }
+   .gl-hero .gl-not { display:block; font-size:12px; color:rgba(255,255,255,.65); margin-top:8px; text-align:center; max-width:190px; }
+   .gl-iki { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:18px; margin-bottom:18px; }
+   .gl-bekle { border:2px solid #fde68a; background:linear-gradient(135deg,#fffbeb,#fff); }
+   .gl-soru { padding:12px 0; border-top:1px dashed #f3e3a6; } .gl-soru:first-of-type { border-top:none; }
+   .gl-soru b { display:block; font-size:14.5px; } .gl-soru small { display:block; font-size:12.5px; color:var(--gri); margin:2px 0 8px; }
+   .gl-soru .sat { display:flex; gap:8px; flex-wrap:wrap; } .gl-soru textarea { flex:1 1 260px; font-family:inherit; }
+   .gl-soru .wa-btn { padding:8px 14px; font-size:13px; }
+   .gl-grafik { display:flex; align-items:flex-end; gap:6px; height:150px; padding-top:20px; }
+   .gl-grafik .c { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%; position:relative; }
+   .gl-grafik .c i { display:block; width:100%; max-width:26px; border-radius:7px 7px 3px 3px; min-height:3px; background:linear-gradient(180deg,#5eead4,#14b8a6); }
+   .gl-grafik .c.dusuk i { background:linear-gradient(180deg,#fdba74,#f97316); } .gl-grafik .c.bos i { background:#eee8f7; }
+   .gl-grafik .c em { position:absolute; top:-18px; font-style:normal; font-size:11px; font-weight:700; color:#0f766e; }
+   .gl-x { display:flex; gap:6px; margin-top:6px; } .gl-x span { flex:1; min-width:0; text-align:center; font-size:10.5px; color:var(--gri); }
+   .gl-tur { display:grid; grid-template-columns:minmax(0,1fr) 140px auto; gap:10px; align-items:center; padding:7px 0; font-size:13.5px; }
+   .gl-tur .bar { height:9px; border-radius:99px; background:#f1edf8; overflow:hidden; } .gl-tur .bar i { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#f97316,#ef4444); }
+   .gl-ders { display:flex; gap:14px; align-items:flex-start; padding:14px; border-radius:16px; background:#faf7ff; margin-bottom:10px; border:1px solid transparent; }
+   .gl-ders.aktif { background:linear-gradient(135deg,#f0fdfa,#fff); border-color:#99f6e4; }
+   .gl-ders .ik { flex:0 0 auto; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:19px; background:#ede9fe; color:#6d28d9; }
+   .gl-ders.aktif .ik { background:#ccfbf1; color:#0f766e; }
+   .gl-ders .ic { flex:1; min-width:0; } .gl-ders .ic b { display:block; font-size:14.5px; line-height:1.4; } .gl-ders .ic small { display:block; font-size:12.5px; color:var(--gri); margin-top:4px; line-height:1.45; }
+   .gl-etk { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:999px; margin-top:7px; margin-right:6px; }
+   .gl-etk.y { background:#ccfbf1; color:#0f766e; } .gl-etk.s { background:#fef3c7; color:#92400e; } .gl-etk.k { background:#fee2e2; color:#b91c1c; } .gl-etk.g { background:#eef2f7; color:#475569; }
+   .gl-ders .islem { display:flex; gap:6px; flex:0 0 auto; }
+   .gl-ders .islem button { border:1px solid #e3d8f5; background:#fff; color:#3a3154; border-radius:10px; padding:7px 12px; font-size:12.5px; font-weight:700; cursor:pointer; }
+   .gl-ders .islem button.ana { background:linear-gradient(135deg,#14b8a6,#0d9488); color:#fff; border-color:transparent; }
+   .gl-sohbet { border-top:1px solid #f1edf8; padding:12px 2px; }
+   .gl-sohbet:first-child { border-top:none; }
+   .gl-sohbet .ust { display:flex; align-items:center; gap:12px; cursor:pointer; }
+   .gl-puan { flex:0 0 auto; width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:800; }
+   .gl-puan.i { background:#ccfbf1; color:#0f766e; } .gl-puan.o { background:#fef3c7; color:#92400e; } .gl-puan.k { background:#fee2e2; color:#b91c1c; }
+   .gl-sohbet .ic { flex:1; min-width:0; } .gl-sohbet .ic b { font-size:14.5px; } .gl-sohbet .ic div { font-size:13px; color:var(--gri); }
+   .gl-sohbet .detay { display:none; margin:10px 0 0 58px; }
+   .gl-sohbet.acik .detay { display:block; }
+   .gl-sorun { background:#fff7ed; border-radius:12px; padding:10px 12px; margin-bottom:8px; font-size:13.5px; }
+   .gl-sorun b { color:#c2410c; font-size:12.5px; display:block; margin-bottom:2px; }
+   .gl-sorun .dogru { margin-top:6px; background:#e7fbe9; border-radius:10px; padding:8px 10px; white-space:pre-wrap; }
+   .gl-sorun .dogru::before { content:'Doğrusu: '; font-weight:700; color:#15803d; }
+   .gl-kod summary { cursor:pointer; font-weight:700; font-size:14px; color:#475569; }
+   @media (max-width: 1100px) { .gl-hero { grid-template-columns:minmax(0,1fr); justify-items:start; } .gl-iki { grid-template-columns:minmax(0,1fr); } }
+   @media (max-width: 760px) { .gl-hero { padding:22px 18px; } .gl-tile { grid-template-columns:repeat(2,minmax(0,1fr)); } .gl-ders { flex-wrap:wrap; } .gl-sohbet .detay { margin-left:0; } .gl-tur { grid-template-columns:minmax(0,1fr) 90px auto; } }
+
    /* ===== FOTOGRAF FIYATLARI sekmesi ===== */
    .fg-hero { position:relative; overflow:hidden; border-radius:24px; padding:26px 30px; margin-bottom:16px; color:#fff; display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:24px; align-items:center;
       background:radial-gradient(circle at 90% 10%,rgba(255,255,255,.22),rgba(255,255,255,0) 40%),linear-gradient(120deg,#831843 0%,#be185d 35%,#7c3aed 100%); box-shadow:0 16px 36px rgba(190,24,93,.28); }
@@ -482,6 +539,7 @@
          <button class="wa-sekme" data-p="sohbet"><i class="bi bi-whatsapp"></i>Sohbetler</button>
          <button class="wa-sekme" data-p="gk"><i class="bi bi-arrow-repeat"></i>Kaçan & Geri Kazanılan</button>
          <button class="wa-sekme" data-p="gorsel"><i class="bi bi-camera"></i>Fotoğraf Fiyatları</button>
+         <button class="wa-sekme" data-p="gel"><i class="bi bi-mortarboard-fill"></i>Asistan Gelişimi</button>
          <button class="wa-sekme" data-p="ogr"><i class="bi bi-lightbulb"></i>Öğrenilen Cevaplar</button>
          <button class="wa-sekme" data-p="ayar"><i class="bi bi-gear"></i>Ayarlar</button>
       </div>
@@ -578,11 +636,16 @@
    </div>
 
    {{-- ================= AYARLAR ================= --}}
+   {{-- ================= ASISTAN GELISIMI (Gece Denetcisi) ================= --}}
+   <div class="wa-panel" id="p-gel"><div id="waGelisim"><div class="wa-iskelet" style="height:200px"></div></div></div>
+
    <div class="wa-panel" id="p-ayar">
       <div class="wa-kart">
          <div class="wa-anahtar"><div class="t"><b>Fiyat sorularını cevaplasın</b><div>"Protez tırnak ne kadar?" gibi sorulara hizmet listenizdeki fiyatla cevap verir. Kapalıysa fiyat soran müşteri size aktarılır.</div></div><input type="checkbox" data-ayar="fiyat_soyle" aria-label="Fiyat sorularını cevaplasın"></div>
          <div class="wa-anahtar"><div class="t"><b>Fotoğraftan fiyat versin</b><div>Model fotoğrafına "Fotoğraf Fiyatları" kurallarınızla fiyat verir.</div></div><input type="checkbox" data-ayar="gorsel_fiyat" aria-label="Fotoğraftan fiyat versin"></div>
          <div class="wa-anahtar"><div class="t"><b>Randevudan sonra memnuniyet sorsun</b><div>Randevu oluşturulunca tek satırlık 👍 / 👎 sorusu eklenir.</div></div><input type="checkbox" data-ayar="memnuniyet_sor" aria-label="Memnuniyet sorsun"></div>
+         <div class="wa-anahtar"><div class="t"><b>Gece denetçisi sohbetleri incelesin</b><div>Her gece biten sohbetleri inceler, sorunları ve "doğrusu buydu" cevabını "Asistan Gelişimi" sekmesine yazar. (Paketinizden düşmez.)</div></div><input type="checkbox" data-ayar="denetci" aria-label="Gece denetçisi"></div>
+         <div class="wa-anahtar"><div class="t"><b>Test edilen dersleri kendisi uygulasın</b><div>Denetçinin önerdiği davranış dersi, geçmiş sohbetlerde yeniden denenip daha iyi sonuç verirse asistan hemen uygular. Kapalıysa her ders sizin onayınızı bekler. Fiyat, kampanya ve kurallarınız asla kendiliğinden değişmez.</div></div><input type="checkbox" data-ayar="denetci_oto" aria-label="Dersleri otomatik uygula"></div>
          <div class="wa-anahtar"><div class="t"><b>Kaçan müşteriye tekrar yazsın</b><div>Fiyat/bilgi alıp randevu oluşturmayan müşteriye belirlediğiniz süre sonunda, mesai saatinde bir kez yazar ve gerçek boş saatlerinizi önerir. Müşteri "dur" yazarsa bir daha yazılmaz.</div></div><input type="checkbox" data-ayar="geri_kazanim" aria-label="Kaçan müşteriye tekrar yazsın"></div>
          <div class="wa-satir" style="margin-top:14px">
             <label class="wa-alt" for="waBekle">Kaç saat sonra yazsın</label>
@@ -636,7 +699,7 @@
    function hapSinif(s) { return /Randevu alındı|Randevu Alındı|Oluşturuldu|teyit|değişti/.test(s) ? 'y' : (/Fiyat/.test(s) ? 'm' : (/aktarıldı|Personelde/.test(s) ? 's' : (/iptal|durduruldu|Bot/.test(s) ? 'k' : 'g'))); }
 
    // ---------- sekmeler
-   var yuklendi = {}, SEKME_YUKLE = { sohbet: sohbetListe, gk: gkYukle, ogr: ogrYukle };
+   var yuklendi = {}, SEKME_YUKLE = { sohbet: sohbetListe, gk: gkYukle, ogr: ogrYukle, gel: gelisimYukle };
    function sekmeAc(p) {
       document.querySelectorAll('.wa-sekme').forEach(function (x) { x.classList.toggle('aktif', x.dataset.p === p); });
       document.querySelectorAll('.wa-panel').forEach(function (x) { x.classList.toggle('aktif', x.id === 'p-' + p); });
@@ -1165,6 +1228,114 @@
             toast('Fotoğraf fiyat kuralları kaydedildi.'); kuralCiz();
          } else toast(r[0].hata || 'Kaydedilemedi.');
       }).catch(function () { b.disabled = false; hata(); });
+   });
+
+   // ---------- ASISTAN GELISIMI (Gece Denetcisi: inceleme, dersler, bekleyen sorular)
+   var sonGelisim = null;
+   function gelisimYukle() {
+      al('/gelisim').then(function (r) {
+         if (!r.ok) { el('waGelisim').innerHTML = '<div class="wa-bos">' + esc(r.hata || 'Yüklenemedi.') + '</div>'; return; }
+         sonGelisim = r; el('waGelisim').innerHTML = gelisimHtml(r);
+      }).catch(function () { el('waGelisim').innerHTML = '<div class="wa-bos">Yüklenemedi.</div>'; });
+   }
+   function puanSinif(p) { return p >= 85 ? 'i' : (p >= 70 ? 'o' : 'k'); }
+   function fark(simdi, once, tersIyi) {
+      if (simdi == null || once == null) return '';
+      var d = Math.round((simdi - once) * 10) / 10; if (!d) return '';
+      var iyi = tersIyi ? d < 0 : d > 0;
+      return '<em class="' + (iyi ? '' : 'k') + '">' + (d > 0 ? '▲ ' : '▼ ') + String(Math.abs(d)).replace('.', ',') + '</em>';
+   }
+   function gelisimHtml(r) {
+      var h = '', dersler = r.dersler || [], aktif = dersler.filter(function (d) { return d.tur === 'davranis' && d.durum === 'aktif'; });
+      var bilgi = dersler.filter(function (d) { return d.tur === 'bilgi' && d.durum === 'oneri'; });
+      var onay = dersler.filter(function (d) { return d.tur === 'davranis' && d.durum === 'oneri'; });
+      var diger = dersler.filter(function (d) { return d.tur === 'davranis' && (d.durum === 'kapali' || d.durum === 'reddedildi'); });
+      var kod = dersler.filter(function (d) { return d.tur === 'kod' && d.durum === 'oneri'; });
+      // 1) Hero
+      h += '<div class="gl-hero"><div class="gl-halka">' + halka(r.puan || 0, '#5eead4', r.puan != null ? Math.round(r.puan) : '–', 'kalite puanı').replace('stroke="#f1edf8"', 'stroke="rgba(255,255,255,.12)"') + '</div>'
+         + '<div><span class="gl-rozet"><i class="bi bi-moon-stars-fill"></i>Gece Denetçisi · ' + (r.acik ? (r.oto ? 'Kendini geliştiriyor' : 'Önerileri onayınıza sunuyor') : 'Kapalı') + '</span>'
+         + '<h3>Asistan her gece sohbetlerini inceleyip<br>kendini geliştiriyor.</h3>'
+         + '<p>Sorunlu cevapları bulur, "doğrusu buydu" cevabını yazar ve dersi geçmiş sohbetlerde yeniden deneyip <b>daha iyi sonuç verirse</b> uygular. Fiyatlarınız ve kurallarınız kendiliğinden değişmez.</p>'
+         + '<div class="gl-tile"><div><b>' + sayi(r.incelenen) + '</b><span>sohbet incelendi (7 gün)</span></div>'
+         + '<div><b>' + (r.randevu_mesaj != null ? String(r.randevu_mesaj).replace('.', ',') : '–') + fark(r.randevu_mesaj, r.randevu_mesaj_once, true) + '</b><span>mesajda randevu (ortalama)</span></div>'
+         + '<div><b>' + aktif.length + '</b><span>ders uygulanıyor</span></div>'
+         + '<div><b>' + sayi(r.sorunlu) + '</b><span>sorunlu sohbet (puan &lt; 70)</span></div></div></div>'
+         + '<div><button class="wa-btn" id="glBaslat"><i class="bi bi-play-circle-fill"></i> Şimdi incele</button><span class="gl-not">' + (r.bekleyen_is ? sayi(r.bekleyen_is) + ' sohbet incelemede; sonuç genellikle 1 saat içinde gelir.' : 'Otomatik inceleme her gece 03:00\'te.') + '</span></div></div>';
+      if (!r.acik) h += '<div class="wa-bilgi">Gece denetçisi kapalı. Açmak için <a href="#" data-git="ayar">Ayarlar</a> sekmesinden "Gece denetçisi sohbetleri incelesin" seçeneğini açın.</div>';
+      if (!r.incelenen && !dersler.length) {
+         h += '<div class="wa-kart"><div class="wk-bos"><b>Henüz incelenen sohbet yok.</b> Denetçi her gece 03:00\'te, son 3 günde biten sohbetleri inceler. Hemen başlatmak için yukarıdaki <b>Şimdi incele</b> düğmesine basın; sonuçlar genellikle 1 saat içinde burada görünür. (En az bir müşteri mesajı ve bir cevap olan sohbetler incelenir.)</div></div>';
+         return h;
+      }
+      // 2) Sizden beklenenler
+      if (bilgi.length || onay.length) {
+         h += '<div class="wa-kart gl-bekle" style="margin-bottom:18px"><div class="wa-kart-bas"><h4><i class="bi bi-question-circle-fill" style="color:#d97706"></i>Sizden beklenenler <small class="wa-alt" style="font-weight:600">' + (bilgi.length + onay.length) + '</small></h4></div>';
+         bilgi.forEach(function (d) {
+            h += '<div class="gl-soru" data-bilgi-id="' + d.id + '"><b>Müşteriler soruyor: "' + esc(d.metin) + '"</b><small>' + esc(d.gerekce || 'Asistan bu bilgiyi bilmediği için cevaplayamadı.') + ' Cevabınızı yazarsanız asistan bundan sonra bunu kendisi cevaplar.</small>'
+               + '<div class="sat"><textarea class="wa-girdi" rows="2" maxlength="1000" placeholder="Cevabınız (müşteriye aynen gider)"></textarea><button class="wa-btn" data-bilgi-kaydet>Kaydet</button><button class="wa-btn ikincil" data-bilgi-yoksay>Yoksay</button></div></div>';
+         });
+         onay.forEach(function (d) {
+            h += '<div class="gl-soru"><b>Önerilen ders: ' + esc(d.metin) + '</b><small>' + esc((d.test && d.test.not) || d.gerekce || '') + '</small><div class="sat"><button class="wa-btn" data-ders="' + d.id + '" data-durum="aktif">Uygula</button><button class="wa-btn ikincil" data-ders="' + d.id + '" data-durum="kapali">Uygulama</button></div></div>';
+         });
+         h += '</div>';
+      }
+      // 3) Puan grafigi + sorun turleri
+      var g = r.gunluk || [];
+      h += '<div class="gl-iki"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-activity" style="color:#14b8a6"></i>Kalite puanı (son 14 gün)</h4>' + (r.puan_once != null && r.puan != null ? '<span class="wa-alt">önceki hafta ' + String(r.puan_once).replace('.', ',') + ' → bu hafta <b>' + String(r.puan).replace('.', ',') + '</b></span>' : '') + '</div>'
+         + '<div class="gl-grafik">' + g.map(function (x) { return '<div class="c' + (x.puan == null ? ' bos' : (x.puan < 70 ? ' dusuk' : '')) + '" title="' + esc(x.gun) + ' · ' + (x.puan == null ? 'inceleme yok' : 'puan ' + x.puan + ' · ' + x.adet + ' sohbet') + '">' + (x.puan != null ? '<em>' + x.puan + '</em>' : '') + '<i style="height:' + (x.puan == null ? 3 : Math.max(4, x.puan)) + '%"></i></div>'; }).join('') + '</div>'
+         + '<div class="gl-x">' + g.map(function (x, i) { return '<span>' + (i % 2 === 0 ? (+x.gun.slice(8)) + ' ' + AYLAR[+x.gun.slice(5, 7) - 1] : '') + '</span>'; }).join('') + '</div></div>';
+      var tmx = Math.max.apply(null, (r.turlar || []).map(function (t) { return t.adet; }).concat([1]));
+      h += '<div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-bug-fill" style="color:#f97316"></i>En sık görülen sorunlar</h4></div>'
+         + ((r.turlar || []).length ? r.turlar.slice(0, 7).map(function (t) { return '<div class="gl-tur"><span>' + esc(t.ad) + '</span><div class="bar"><i style="width:' + Math.round(t.adet / tmx * 100) + '%"></i></div><b>' + t.adet + '</b></div>'; }).join('')
+            : '<div class="wk-bos"><b>Bu hafta sorun bulunmadı.</b> Asistanın cevapları denetçiden tam not aldı.</div>') + '</div></div>';
+      // 4) Asistanin ogrendikleri
+      var dersSatir = function (d) {
+         var t = d.test || {}, k = t.kanit || null, etk = '';
+         if (d.durum === 'aktif') etk += '<span class="gl-etk y"><i class="bi bi-check-circle-fill"></i>Uygulanıyor</span>';
+         if (d.durum === 'reddedildi') etk += '<span class="gl-etk k"><i class="bi bi-x-circle-fill"></i>Testi geçemedi, uygulanmadı</span>';
+         if (d.durum === 'kapali') etk += '<span class="gl-etk g">Kapatıldı</span>';
+         if (k && (k.yeni + k.eski + k.esit)) etk += '<span class="gl-etk s"><i class="bi bi-clipboard2-check-fill"></i>Testte ' + k.yeni + '/' + (k.yeni + k.eski + k.esit) + ' sorunlu sohbette daha iyi</span>';
+         return '<div class="gl-ders ' + (d.durum === 'aktif' ? 'aktif' : '') + '"><span class="ik"><i class="bi ' + (d.durum === 'aktif' ? 'bi-patch-check-fill' : 'bi-lightbulb-fill') + '"></i></span><div class="ic"><b>' + esc(d.metin) + '</b>'
+            + (d.gerekce ? '<small>' + esc(d.gerekce) + '</small>' : '') + etk + '<small>' + tarih(d.created_at) + '</small></div>'
+            + '<div class="islem">' + (d.durum === 'aktif' ? '<button data-ders="' + d.id + '" data-durum="kapali">Geri al</button>' : (d.durum === 'kapali' || d.durum === 'reddedildi' ? '<button class="ana" data-ders="' + d.id + '" data-durum="aktif">Yine de uygula</button>' : '')) + '</div></div>';
+      };
+      h += '<div class="wa-kart" style="margin-bottom:18px"><div class="wa-kart-bas"><h4><i class="bi bi-mortarboard-fill" style="color:#0d9488"></i>Asistanın öğrendikleri</h4><span class="wa-alt">' + aktif.length + ' ders uygulanıyor</span></div>'
+         + (aktif.length || diger.length ? aktif.concat(diger).map(dersSatir).join('') : '<div class="wk-bos">Henüz ders yok. Denetçi tekrarlayan bir sorun gördüğünde ders önerir, test eder ve burada gösterir.</div>') + '</div>';
+      // 5) Son incelenen sohbetler
+      h += '<div class="wa-kart" style="margin-bottom:18px"><div class="wa-kart-bas"><h4><i class="bi bi-chat-quote-fill" style="color:#7c3aed"></i>Son incelenen sohbetler</h4><span class="wa-alt">tıklayınca sorunlar ve doğrusu açılır</span></div>'
+         + ((r.son || []).length ? r.son.map(function (s) {
+            return '<div class="gl-sohbet"><div class="ust" data-gl-ac><span class="gl-puan ' + puanSinif(s.puan) + '">' + s.puan + '</span><div class="ic"><b>' + esc(s.ad || 'Müşteri') + '</b> <span class="wa-alt">' + tarih(s.tarih) + '</span><div>' + esc(s.ozet || '') + '</div></div>'
+               + (s.sorunlar.length ? '<span class="gl-etk s">' + s.sorunlar.length + ' sorun</span>' : '<span class="gl-etk y">Sorunsuz</span>') + '<i class="bi bi-chevron-down"></i></div>'
+               + '<div class="detay">' + s.sorunlar.map(function (x) { return '<div class="gl-sorun"><b>' + esc(x.tur) + '</b>' + esc(x.aciklama) + (x.dogrusu ? '<div class="dogru">' + esc(x.dogrusu) + '</div>' : '') + '</div>'; }).join('')
+               + '<button class="wa-tumu" data-gl-sohbet="' + s.oturum_id + '">Sohbeti aç <i class="bi bi-arrow-right"></i></button></div></div>';
+         }).join('') : '<div class="wk-bos">Bu hafta incelenen sohbet yok.</div>') + '</div>';
+      if (kod.length) {
+         h += '<div class="wa-kart gl-kod"><details><summary><i class="bi bi-bug-fill"></i> Geliştirici notları (' + kod.length + ')</summary><div style="margin-top:10px">'
+            + kod.map(function (d) { return '<div class="gl-sorun"><b>' + esc(d.metin) + '</b>' + esc(d.gerekce || '') + '<div style="margin-top:6px"><button class="wa-btn ikincil" style="padding:5px 10px;font-size:12px" data-bilgi-id-kapat="' + d.id + '">Okundu</button></div></div>'; }).join('')
+            + '<div class="wa-alt">Bu notlar sistemsel sorunlardır; destek ekibimiz de görür.</div></div></details></div>';
+      }
+      return h;
+   }
+   el('waGelisim').addEventListener('click', function (e) {
+      var t = e.target;
+      if (t.closest('#glBaslat')) {
+         var b = t.closest('#glBaslat'); b.disabled = true;
+         gonder('/denetim-baslat', {}).then(function (r) { b.disabled = false; toast(r.ok ? (r.adet ? r.adet + ' sohbet incelemeye gönderildi. Sonuçlar genellikle 1 saat içinde gelir.' : 'İncelenecek yeni sohbet yok.') : (r.hata || 'Başlatılamadı.')); if (r.ok) gelisimYukle(); }).catch(function () { b.disabled = false; hata(); });
+         return;
+      }
+      var d = t.closest('[data-ders]');
+      if (d) { gonder('/ders/' + d.dataset.ders + '/durum', { durum: d.dataset.durum }).then(function (r) { toast(r.ok ? (d.dataset.durum === 'aktif' ? 'Ders uygulanıyor.' : 'Ders kapatıldı.') : (r.hata || 'Kaydedilemedi.')); gelisimYukle(); }).catch(hata); return; }
+      var bk = t.closest('[data-bilgi-kaydet]'), by = t.closest('[data-bilgi-yoksay]'), kk = t.closest('[data-bilgi-id-kapat]');
+      if (bk || by) {
+         var s = t.closest('[data-bilgi-id]'), cevap = by ? '' : s.querySelector('textarea').value.trim();
+         if (bk && !cevap) { toast('Önce cevabınızı yazın.'); return; }
+         gonder('/ders/' + s.dataset.bilgiId + '/cevap', { cevap: cevap }).then(function (r) { toast(r.ok ? (cevap ? 'Kaydedildi. Asistan bu soruyu artık kendisi cevaplar.' : 'Yoksayıldı.') : 'Kaydedilemedi.'); gelisimYukle(); }).catch(hata);
+         return;
+      }
+      if (kk) { gonder('/ders/' + kk.dataset.bilgiIdKapat + '/cevap', { cevap: '' }).then(function () { gelisimYukle(); }).catch(hata); return; }
+      var sh = t.closest('[data-gl-sohbet]');
+      if (sh) { sekmeAc('sohbet'); sohbetAc(sh.dataset.glSohbet); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+      var g = t.closest('[data-git]'); if (g) { e.preventDefault(); sekmeAc(g.dataset.git); return; }
+      var ac = t.closest('[data-gl-ac]'); if (ac) ac.parentNode.classList.toggle('acik');
    });
 
    // ---------- OGRENILEN

@@ -55,6 +55,8 @@ class RandevuAsistan
     public bool $waFiyatSoyle = false;
     /** Yalniz WhatsApp: profil adi gercek bir "Ad Soyad" ise (waProfilAdiAyarla) kayitsiz musteriye ad SORULMAZ, kayit bununla yapilir. */
     protected ?string $waProfilAdi = null;
+    /** @var string[] Yalniz WhatsApp: gecmis sohbetlerden ogrenilen, test edilmis dersler (waPromptBolumu sonuna eklenir). */
+    protected array $waDersler = [];
 
     public function __construct(int $salonId, ?string $telefon = null, string $kanal = 'santral')
     {
@@ -143,6 +145,36 @@ class RandevuAsistan
         return implode(' ', array_map(function ($w) {
             return mb_strtoupper(mb_substr($w, 0, 1, 'UTF-8'), 'UTF-8') . mb_strtolower(mb_substr($w, 1, null, 'UTF-8'), 'UTF-8');
         }, $k));
+    }
+
+    /** Yalniz WhatsApp: Gece Denetcisi'nin bu isletme icin test edip onayladigi davranis dersleri (WaDenetci::aktifDersler). */
+    public function waDersleriAyarla(array $dersler): void
+    {
+        $this->waDersler = array_values(array_filter(array_map(function ($d) { return trim((string) $d); }, $dersler), 'strlen'));
+    }
+
+    /** Denetciye isletme baglami (salt okunur). */
+    public function waDenetimBaglami(): array
+    {
+        return ['salon' => $this->salonAdi(), 'hizmetler' => $this->hizmetler(), 'personeller' => array_values($this->personelListesi()),
+            'calisma' => $this->calismaSaatleriMetni()];
+    }
+
+    /**
+     * Denetci yeniden oynatma testi: bu gecmise canli asistanin gonderecegi istek govdesi (ayni model, talimat, araclar).
+     * Yalniz govde doner; araclar CALISTIRILMAZ (randevu olusmaz). Gecmis musteri mesajiyla bitmeli.
+     */
+    public function waDenemeIstegi(array $gecmis): array
+    {
+        $model = (string) (config('services.anthropic.santral_model') ?: 'claude-haiku-5-5');
+        $body = ['model' => $model, 'max_tokens' => 1000, 'system' => $this->sistemPromptu(), 'tools' => $this->toolTanimlari(),
+            'messages' => $this->gecmisMesajlari($gecmis)];
+        if (strpos($model, 'claude-haiku-4') !== 0) {
+            $effort = (string) (config('services.anthropic.santral_effort') ?: 'medium');
+            $body['thinking'] = ['type' => 'disabled'];
+            $body['output_config'] = ['effort' => in_array($effort, ['low', 'medium', 'high'], true) ? $effort : 'medium'];
+        }
+        return $body;
     }
 
     /** WhatsApp: kayitsiz musteri randevu/kampanya adiminda; profil adi + numara biliniyorsa sormadan kayit (fazladan arac turu yok). */
@@ -1980,7 +2012,10 @@ WA
 - FİYAT (aşağıdaki AKTARMA kuralının yerine geçer): müşteri fiyat sorarsa Hizmetler listesindeki fiyatı AYNEN yaz (ör. "Protez Tırnak 800 TL"); bunun için AKTARMA YAPMA. Listede fiyatı yazmayan hizmet, indirim/pazarlık ya da kişiye özel fiyat istenirse "aktar". Fiyat UYDURMA, liste dışı fiyat söyleme. Fiyattan sonra randevu oluşturmayı teklif et.
 
 FIYAT
-            : '');
+            : '')
+            . ($this->waDersler
+                ? "# BU İŞLETMEDE GEÇMİŞ SOHBETLERDEN ÖĞRENİLENLER (test edildi; uy)\n- " . implode("\n- ", $this->waDersler) . "\n\n"
+                : '');
     }
 
     /** WhatsApp kanalinda ve isletme fiyat soylenmesine izin verdiyse true (santralde her zaman false). */

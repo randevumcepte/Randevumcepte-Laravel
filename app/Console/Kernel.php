@@ -80,6 +80,7 @@ class Kernel extends ConsoleKernel
         Commands\AsistanSohbetKaliplari::class,
         Commands\HizmetBilgiKaliplari::class,
         Commands\WaGeriKazanimCalistir::class,
+        Commands\WaDenetciCalistir::class,
         Commands\SeslendirmeOnUret::class,
         Commands\PerformansNobetci::class,
     ];
@@ -183,6 +184,11 @@ class Kernel extends ConsoleKernel
 
         // WhatsApp asistani: kacan musteriyi geri kazanma (10:00-20:00, mesai icinde gonderir) + takip + eski fotograf silme
         $schedule->command('wa:geri-kazanim')->withoutOverlapping()->hourlyAt(17);
+
+        // WhatsApp asistani Gece Denetcisi: sohbetleri incele (Batch API) -> sonuclari isle + ders uret/test -> haftalik ozet
+        $schedule->command('wa:denetci gonder')->withoutOverlapping()->dailyAt('03:00');
+        $schedule->command('wa:denetci topla')->withoutOverlapping()->everyThirtyMinutes();
+        $schedule->command('wa:denetci ozet')->withoutOverlapping()->weeklyOn(1, '09:30');
 
         // Yedek
         $schedule->command('dbyedek:al')->dailyAt('23:59')->withoutOverlapping();

@@ -380,6 +380,7 @@ class WaAsistan
         $as = new RandevuAsistan((int) $o->isletme_id, $musteriTel, 'whatsapp');
         $as->waFiyatSoyle = !empty($ayar['fiyat_soyle']);
         $as->waProfilAdiAyarla($son->ad ?: $o->ad);
+        try { $as->waDersleriAyarla(WaDenetci::aktifDersler((int) $o->isletme_id)); } catch (\Throwable $e) {} // Gece Denetcisi dersleri
         $musteriMesajVar = (bool) array_filter($gecmis, function ($m) { return ($m['role'] ?? '') === 'user'; });
         $gorselId = (int) ($satirlar->pluck('gorsel_id')->filter()->last() ?: 0);
         $gkCevap = (!empty($o->geri_kazanim_id) && !$musteriMesajVar) ? WaGeriKazanim::cevapGeldi((int) $o->geri_kazanim_id, $metin) : null;
@@ -583,11 +584,17 @@ class WaAsistan
     /** Panel bildirimi + yoneticilere push (WhatsAppWebhookController ban uyarisi ile ayni kanal). */
     protected static function isletmeyeBildir(int $salonId, $o, string $mesaj): void
     {
+        self::bildir($salonId, $mesaj);
+    }
+
+    /** Salon yoneticilerine panel bildirimi + push (Gece Denetcisi haftalik ozeti de kullanir). */
+    public static function bildir(int $salonId, string $mesaj, ?string $url = null): void
+    {
         try {
             $b = new \App\Bildirimler();
             $b->aciklama = $mesaj;
             $b->salon_id = $salonId;
-            $b->url = '/isletmeyonetim/whatsapp?sube=' . $salonId;
+            $b->url = $url ?: '/isletmeyonetim/whatsapp?sube=' . $salonId;
             $b->tarih_saat = date('Y-m-d H:i:s');
             $b->okundu = false;
             $b->save();

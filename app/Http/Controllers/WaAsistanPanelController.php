@@ -8,6 +8,8 @@ use App\Services\WaAsistan;
 use App\Services\WaAsistanRapor;
 use App\Services\WaAsistanVeri;
 use App\Services\WaAvatar;
+use App\Services\WaBedavaKatman;
+use App\Services\WaDenetci;
 use App\Services\WaGeriKazanim;
 use App\Services\WaGorselDanisman;
 use App\Services\WaPaket;
@@ -218,7 +220,7 @@ class WaAsistanPanelController extends StoreAdminController
     {
         $sid = $this->salon($request);
         if (!$sid) return $this->yok();
-        $alanlar = ['fiyat_soyle', 'geri_kazanim', 'gk_bekle_saat', 'gk_kampanya', 'memnuniyet_sor', 'gorsel_fiyat', 'gorsel_sektor', 'gorsel_not'];
+        $alanlar = ['fiyat_soyle', 'geri_kazanim', 'gk_bekle_saat', 'gk_kampanya', 'memnuniyet_sor', 'gorsel_fiyat', 'gorsel_sektor', 'gorsel_not', 'denetci', 'denetci_oto'];
         $veri = [];
         foreach ($alanlar as $a) if ($request->has($a)) $veri[$a] = $request->input($a);
         WaAsistanVeri::ayarKaydet($sid, $veri, optional(Auth::guard('isletmeyonetim')->user())->name);
@@ -271,6 +273,55 @@ class WaAsistanPanelController extends StoreAdminController
         if (!$sid) return $this->yok();
         $n = DB::table('wa_asistan_ogrenilen')->where('id', (int) $id)->where('salon_id', $sid)->update(['aktif' => 0, 'updated_at' => now()]);
         return response()->json(['ok' => $n ? 1 : 0]);
+    }
+
+    // ------------------------------------------------------------------ Asistan Gelisimi (Gece Denetcisi)
+    public function gelisim(Request $request)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        if (!WaDenetci::semaGaranti()) return response()->json(['ok' => 0, 'hata' => 'Veri tabloları hazırlanamadı.']);
+        return response()->json(['ok' => 1] + WaDenetci::panel($sid));
+    }
+
+    /** Davranis dersi: aktif <-> kapali (geri al) ya da bekleyen oneriyi onayla. */
+    public function dersDurum(Request $request, $id)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        $durum = $request->input('durum') === 'aktif' ? 'aktif' : 'kapali';
+        $q = DB::table('wa_asistan_dersler')->where('id', (int) $id)->where('isletme_id', $sid)->where('tur', 'davranis');
+        if ($durum === 'aktif' && DB::table('wa_asistan_dersler')->where('isletme_id', $sid)->where('tur', 'davranis')->where('durum', 'aktif')->count() >= WaDenetci::MAX_AKTIF_DERS) {
+            return response()->json(['ok' => 0, 'hata' => 'En fazla ' . WaDenetci::MAX_AKTIF_DERS . ' ders aynı anda açık olabilir. Önce birini kapatın.']);
+        }
+        $n = $q->update(['durum' => $durum, 'updated_at' => now()]);
+        \Illuminate\Support\Facades\Cache::forget("wa_dersler_{$sid}");
+        return response()->json(['ok' => $n ? 1 : 0]);
+    }
+
+    /** Bilgi eksigi: isletmenin cevabi "Öğrenilen Cevaplar"a yazilir (asistan sonra bedava cevaplar); bos = yoksay. */
+    public function bilgiCevapla(Request $request, $id)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        $d = DB::table('wa_asistan_dersler')->where('id', (int) $id)->where('isletme_id', $sid)->whereIn('tur', ['bilgi', 'kod'])->first();
+        if (!$d) return response()->json(['ok' => 0]);
+        $cevap = trim(mb_substr((string) $request->input('cevap', ''), 0, 1000));
+        if ($d->tur === 'bilgi' && $cevap !== '') WaBedavaKatman::ogren($sid, (string) $d->metin, $cevap);
+        DB::table('wa_asistan_dersler')->where('id', $d->id)->update(['durum' => $cevap !== '' ? 'cevaplandi' : 'kapali', 'updated_at' => now()]);
+        return response()->json(['ok' => 1]);
+    }
+
+    /** "Şimdi incele": bu isletmenin bitmis sohbetlerini hemen denetime yollar (6 saatte bir). */
+    public function denetimBaslat(Request $request)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        if (!\Illuminate\Support\Facades\Cache::add("wa_denetim_elle_{$sid}", 1, 360)) {
+            return response()->json(['ok' => 0, 'hata' => 'İnceleme kısa süre önce başlatıldı. Sonuçlar genellikle 1 saat içinde gelir.']);
+        }
+        $r = WaDenetci::gonder($sid);
+        return response()->json(['ok' => $r['ok'] ? 1 : 0, 'adet' => $r['adet'] ?? 0, 'hata' => $r['ok'] ? null : 'İnceleme başlatılamadı.']);
     }
 
     protected static function devralindiMi($o): bool
