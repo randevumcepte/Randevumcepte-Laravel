@@ -28,13 +28,13 @@
    .wa-hero::after { content:''; position:absolute; right:120px; bottom:-160px; width:360px; height:260px; border-radius:50%; border:2px solid rgba(255,255,255,.12); }
    .wa-hero-ikon { flex:0 0 auto; width:78px; height:78px; border-radius:50%; background:#25D366; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 6px rgba(255,255,255,.18); position:relative; z-index:1; }
    .wa-hero-ikon i { font-size:42px; color:#fff; }
-   .wa-hero-bolum { position:relative; z-index:1; display:flex; align-items:center; gap:16px; padding:0 22px; border-left:1px solid rgba(255,255,255,.22); }
+   .wa-hero-bolum { position:relative; z-index:1; flex:1 1 0; min-width:0; display:flex; align-items:center; gap:16px; padding:0 22px; border-left:1px solid rgba(255,255,255,.22); }
    .wa-hero-bolum.ilk { border-left:none; padding-left:4px; }
    .wa-hero-bolum > i { font-size:40px; opacity:.92; }
    .wa-hero-e { font-size:15px; opacity:.92; }
    .wa-hero-d { font-size:34px; font-weight:800; line-height:1.1; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
    .wa-hero-d small { font-size:18px; font-weight:600; }
-   .wa-hero-yazi { margin-left:auto; position:relative; z-index:1; font-family:'Caveat',cursive; font-size:30px; line-height:1.05; transform:rotate(-6deg); text-align:center; padding-right:6px; }
+   .wa-hero-yazi { flex:0 0 auto; margin-left:auto; position:relative; z-index:1; font-family:'Caveat',cursive; font-size:30px; line-height:1.05; transform:rotate(-6deg); text-align:center; padding-right:6px; }
    .wa-hero-yazi svg { display:block; margin:2px auto 0; }
    .wa-trend { display:inline-flex; align-items:center; gap:3px; font-size:12.5px; font-weight:700; padding:3px 9px; border-radius:999px; }
    .wa-hero .wa-trend { background:rgba(22,163,74,.85); color:#fff; }
