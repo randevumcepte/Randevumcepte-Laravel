@@ -764,9 +764,9 @@ namespace {
     esit('WA: ilk yapay tur', "(müşteri WhatsApp'tan yazdı)", cagir($wa, 'gecmisMesajlari', [['role' => 'assistant', 'content' => 'Merhaba']])[0]['content']);
     esit('santral: ilk yapay tur', '(arama bağlandı)', cagir(asistan(), 'gecmisMesajlari', [['role' => 'assistant', 'content' => 'Merhaba']])[0]['content']);
     icerir('WA: personel mesajı modele işaretli', 'işletme personeli elle yazdı', cagir($wa, 'gecmisMesajlari', [['role' => 'user', 'content' => 'x'], ['role' => 'assistant', 'content' => 'Ben bakarım', 'personel' => 1]])[1]['content']);
-    icerir('WA karşılama: kayıtlı müşteri hitap', 'Merhaba Anıl Bey, tekrar hoş geldiniz', $wa->waKarsilama());
+    esit('WA karşılama: kayıtlı müşteri hitap (işletme metni)', 'Merhabalar Anıl Bey, hoş geldiniz! 🌸 Nasıl yardımcı olabilirim size?', $wa->waKarsilama());
     $waK = asistan(['kanal' => 'whatsapp', 'musteriAd' => null, 'musteriId' => null]);
-    icerir('WA karşılama: kayıtsız → ad/telefon SORMAZ, ne istediğini sorar', 'Size nasıl yardımcı olabilirim?', $waK->waKarsilama());
+    esit('WA karşılama: kayıtsız → işletme metni (ad/telefon sormaz)', 'Merhabalar, hoş geldiniz! 🌸 Nasıl yardımcı olabilirim size?', $waK->waKarsilama());
     esit('WA karşılama: kayıtsız → ad sorusu yok', false, mb_strpos($waK->waKarsilama(), 'adınızı') !== false);
     esit('WA profil adı: gerçek ad soyad', 'Feyza Musabeyoğlu', App\Services\RandevuAsistan::profilAdSoyad('feyza  MUSABEYOĞLU'));
     esit('WA profil adı: tek kelime → yok', null, App\Services\RandevuAsistan::profilAdSoyad('Zeynep'));

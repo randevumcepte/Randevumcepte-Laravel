@@ -115,15 +115,13 @@ class RandevuAsistan
      */
     public function waKarsilama(): string
     {
-        $salon = $this->salonAdi();
-        if ($this->musteriAd) {
-            $k = $this->kampanyaTeklifCumlesi();
-            // Salon adina ek (-e/-ye, -in/-nin) getirilmez: ek ada gore degisir, cumle eksiz kurulur
-            return "{$this->acilisHitap($this->musteriAd)}, tekrar hoş geldiniz 😊\n\n{$salon} randevu asistanı olarak randevu almak, değiştirmek ya da iptal etmek için size buradan yardımcı olabilirim."
-                . ($k !== '' ? "\n\n{$k}" : '') . "\n\nSize nasıl yardımcı olabilirim?";
-        }
+        // Isletme metni (2026-11-19): kisa ve sicak. Kayitli musteride adiyla ("Merhabalar Ayşe Hanım, ...").
         // Kayit randevudan hemen once alinir (ad/telefon gerekiyorsa onay mesajinda istenir): karsilamada soru yok
-        return "Merhaba, hoş geldiniz 😊\n\nBen {$salon} sanal asistanıyım. Randevu almak, randevunuzu değiştirmek ya da hizmetlerimiz hakkında bilgi almak için bana buradan yazabilirsiniz.\n\nSize nasıl yardımcı olabilirim?";
+        if ($this->musteriAd) {
+            $h = preg_replace('/^Merhaba\b,?\s*/u', '', $this->acilisHitap($this->musteriAd));
+            return 'Merhabalar' . ($h !== '' ? " {$h}" : '') . ', hoş geldiniz! 🌸 Nasıl yardımcı olabilirim size?';
+        }
+        return 'Merhabalar, hoş geldiniz! 🌸 Nasıl yardımcı olabilirim size?';
     }
 
     /**
