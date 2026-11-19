@@ -492,7 +492,7 @@ class WaAsistanPanelController extends StoreAdminController
     {
         $sid = $this->salon($request);
         if (!$sid) return $this->yok();
-        if (!\Illuminate\Support\Facades\Cache::add('wa_test_bildirim_' . $sid, 1, 60)) {
+        if (!\Illuminate\Support\Facades\Cache::add('wa_test_bildirim_' . $sid, 1, 1)) {
             return response()->json(['ok' => 0, 'hata' => 'Az önce test bildirimi gönderildi; 1 dakika sonra tekrar deneyin.']);
         }
         // Gondermeden ONCE teshis (gonderim gecersiz tokenlari siler)
