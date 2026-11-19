@@ -35900,6 +35900,188 @@ DB::raw('
     }
 
     /**
+     * Musteri detay > "Arama Gecmisi" sekmesi (JSON): bir musterinin TUM telefon temasi tek yerde.
+     *  - randevular : arama randevulari (aranacak_musteriler durum=3, tarih/saat dolu) + durumu
+     *                 (bekliyor / gecikti / tamamlandi) — hangi liste, hangi personel arayacak.
+     *  - gecmis     : gorusme_notlari (ne zaman, kim, sonuc, kategori, not, ses kaydi) + nota
+     *                 baglanmamis santral cagrilari (CDR, son 120 gun; gelen/giden, sure, ses).
+     * Personel (rol 5) yalniz kendi listelerini/notlarini ve kendi dahililerinin cagrilarini gorur
+     * (Cagri Kayitlari ekrani ile AYNI kapsam kurali).
+     */
+    public function musteri_arama_gecmisi(Request $request)
+    {
+        $salonId = self::mevcutsube($request);
+        $bos = ['randevular' => [], 'gecmis' => [], 'ozet' => ['gorusme' => 0, 'kayitli' => 0, 'bekleyen' => 0, 'gelen' => 0, 'giden' => 0]];
+        if ((int) optional(Salonlar::where('id', $salonId)->first())->uyelik_turu !== 3) {
+            return response()->json($bos);
+        }
+        $userId = (int) $request->user_id;
+        $musteri = User::where('id', $userId)->first(['id', 'cep_telefon']);
+        if (!$musteri) return response()->json($bos);
+        $son10 = substr(preg_replace('/\D/', '', (string) $musteri->cep_telefon), -10);
+
+        $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
+        $personelMi = ((int) $rol === 5);
+        $myPid = $personelMi ? $this->aktifPersonelId($salonId) : null;
+
+        $listeQ = AramaListesi::where('salon_id', $salonId);
+        if ($personelMi) $listeQ->where('personel_id', $myPid);
+        $listeler = $listeQ->get(['id', 'arama_baslik', 'personel_id'])->keyBy('id');
+
+        $perAd = Personeller::where('salon_id', $salonId)->pluck('personel_adi', 'id')->all();
+
+        // ---- Arama randevulari ----
+        $randevular = [];
+        $ozet = $bos['ozet'];
+        if ($listeler->count()) {
+            $satirlar = AranacakMusteriler::whereIn('arama_id', $listeler->keys()->all())
+                ->where('user_id', $userId)->where('durum', 3)
+                ->whereNotNull('tarih')->whereNotNull('saat')
+                ->orderBy('tarih', 'desc')->orderBy('saat', 'desc')->limit(50)->get();
+            $simdi = time();
+            foreach ($satirlar as $s) {
+                $zTs = strtotime($s->tarih . ' ' . $s->saat);
+                $l = $listeler->get($s->arama_id);
+                if (!empty($s->ar_tamamlandi_at)) {
+                    $durum = 'tamamlandi';
+                } elseif ($zTs && $zTs < $simdi - 600) {
+                    $durum = 'gecikti';
+                } else {
+                    $durum = 'bekliyor';
+                    $ozet['bekleyen']++;
+                }
+                $randevular[] = [
+                    'tarih'    => $zTs ? date('d.m.Y', $zTs) : '',
+                    'saat'     => $zTs ? date('H:i', $zTs) : '',
+                    'durum'    => $durum,
+                    'liste'    => $l ? (string) $l->arama_baslik : '',
+                    'personel' => ($l && isset($perAd[$l->personel_id])) ? $perAd[$l->personel_id] : '',
+                    'aranan'   => !empty($s->ar_tamamlandi_at) ? date('d.m.Y H:i', strtotime($s->ar_tamamlandi_at)) : '',
+                ];
+            }
+        }
+
+        // ---- Gorusme notlari ----
+        $gecmis = [];
+        $notSesleri = [];
+        if (Schema::hasTable('gorusme_notlari')) {
+            $nq = \App\GorusmeNotlari::where('salon_id', $salonId)->where('user_id', $userId);
+            if ($personelMi) $nq->where('personel_id', $myPid);
+            $notlar = $nq->orderBy('id', 'desc')->limit(200)->get();
+
+            $katAd = [];
+            if (Schema::hasTable('cagri_kategorileri')) {
+                $kIds = $notlar->pluck('kategori_id')->merge($notlar->pluck('alt_kategori_id'))->filter()->unique()->values()->all();
+                if ($kIds) $katAd = DB::table('cagri_kategorileri')->whereIn('id', $kIds)->pluck('ad', 'id')->all();
+            }
+            // Randevu tarih/saat (sonuc 3/6) icin bagli aranacak_musteriler kaydi
+            $amIds = $notlar->pluck('aranacak_musteri_id')->filter()->unique()->values()->all();
+            $amMap = $amIds ? AranacakMusteriler::whereIn('id', $amIds)->get(['id', 'tarih', 'saat'])->keyBy('id') : collect();
+
+            foreach ($notlar as $n) {
+                $kod = is_null($n->sonuc) ? null : (int) $n->sonuc;
+                $ts = $n->created_at ? strtotime($n->created_at) : 0;
+                $ses = self::sesKaydiUrl($n->ses_kaydi);
+                if ($ses !== '') $notSesleri[basename(parse_url($ses, PHP_URL_PATH))] = true;
+                $kat = [];
+                if (!empty($n->kategori_id) && isset($katAd[$n->kategori_id])) $kat[] = $katAd[$n->kategori_id];
+                if (!empty($n->alt_kategori_id) && isset($katAd[$n->alt_kategori_id])) $kat[] = $katAd[$n->alt_kategori_id];
+                $am = $n->aranacak_musteri_id ? $amMap->get($n->aranacak_musteri_id) : null;
+                $rTar = ($am && ($kod === 3 || $kod === 6) && $am->tarih)
+                    ? date('d.m.Y', strtotime($am->tarih)) . ($am->saat ? ' ' . date('H:i', strtotime($am->saat)) : '') : '';
+                $gecmis[] = [
+                    '_ts'       => $ts,
+                    'tip'       => 'not',
+                    'tarih'     => $ts ? date('d.m.Y H:i', $ts) : '',
+                    'sonuc_kod' => $kod,
+                    'sonuc'     => self::aranacakDurumMetin($n->sonuc),
+                    'personel'  => isset($perAd[$n->personel_id]) ? $perAd[$n->personel_id] : '',
+                    'kategori'  => implode(' › ', $kat),
+                    'not'       => (string) ($n->not ?? ''),
+                    'sure_sn'   => ((int) ($n->sure_dk ?? 0)) * 60,
+                    'ses'       => $ses,
+                    'yon'       => '',
+                    'randevu'   => $rTar,
+                    'satis'     => ($kod === 7 && isset($n->satis_tutari) && $n->satis_tutari !== null) ? (float) $n->satis_tutari : null,
+                ];
+                $ozet['gorusme']++;
+                if ($ses !== '') $ozet['kayitli']++;
+            }
+        }
+
+        // ---- Santral cagrilari (nota baglanmamis olanlar) ----
+        if ($son10 !== '') {
+            $pq = Personeller::where('salon_id', $salonId);
+            if ($personelMi) $pq->where('id', $myPid);
+            $dset = [];
+            foreach ($pq->get(['dahili_no', 'dahili_no_webrtc']) as $p) {
+                if (!empty($p->dahili_no)) $dset[] = $p->dahili_no;
+                if (!empty($p->dahili_no_webrtc)) $dset[] = $p->dahili_no_webrtc;
+            }
+            $dset = array_values(array_unique(array_filter(array_map('strval', $dset), 'strlen')));
+            if ($dset) {
+                $trunk = \App\SabitNumaralar::where('salon_id', $salonId)->value('numara');
+                $qs = '?offset=0&limit=500';
+                foreach ($dset as $d) $qs .= '&dahililer[]=' . urlencode($d);
+                $qs .= '&tarih1=' . date('Y-m-d', strtotime('-120 days'));
+                $qs .= '&tarih2=' . date('Y-m-d', strtotime('+1 day'));
+                if ($trunk) $qs .= '&did=' . urlencode($trunk);
+                try {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, 'https://santral.randevumcepte.com.tr/monitor/api/freepbxapi.php' . $qs);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+                    $raw = curl_exec($ch);
+                    curl_close($ch);
+                    $res = json_decode($raw, true);
+                    $rows = (isset($res['data']) && is_array($res['data'])) ? $res['data'] : (is_array($res) ? $res : []);
+                    $gorulen = [];
+                    foreach ($rows as $r) {
+                        if (!is_array($r)) continue;
+                        // musteri_ses_kayitlari ile AYNI lenient esleme: numara herhangi bir kanalda
+                        $saman = preg_replace('/\D/', '', ($r['channel'] ?? '') . '|' . ($r['dstchannel'] ?? '') . '|' . ($r['src'] ?? '') . '|' . ($r['dst'] ?? ''));
+                        if (strpos($saman, $son10) === false) continue;
+                        $ts = !empty($r['calldate']) ? strtotime($r['calldate']) : 0;
+                        if (isset($gorulen[$ts])) continue; // ayni cagri birden fazla CDR satiri
+                        $gorulen[$ts] = true;
+                        $url = trim((string) ($r['recording_path'] ?? ''));
+                        if ($url !== '' && isset($notSesleri[basename($url)])) continue; // zaten bir notta
+                        if ($url !== '' && stripos($url, 'http') !== 0) {
+                            $url = 'https://voicerecords.randevumcepte.com.tr' . (substr($url, 0, 1) === '/' ? '' : '/') . $url;
+                        }
+                        $yon = (($r['dcontext'] ?? '') === 'from-internal') ? 'giden' : 'gelen';
+                        $gecmis[] = [
+                            '_ts'       => $ts,
+                            'tip'       => 'cagri',
+                            'tarih'     => $ts ? date('d.m.Y H:i', $ts) : '',
+                            'sonuc_kod' => null,
+                            'sonuc'     => ((int) ($r['billsec'] ?? 0) > 0) ? 'Görüşüldü' : 'Cevapsız',
+                            'personel'  => '',
+                            'kategori'  => '',
+                            'not'       => '',
+                            'sure_sn'   => (int) ($r['billsec'] ?? $r['duration'] ?? 0),
+                            'ses'       => $url,
+                            'yon'       => $yon,
+                            'randevu'   => '',
+                            'satis'     => null,
+                        ];
+                        if ($url !== '') $ozet['kayitli']++;
+                        if ($yon === 'gelen') $ozet['gelen']++; else $ozet['giden']++;
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('[MUSTERI-ARAMA-GECMISI] freepbxapi hata: ' . $e->getMessage());
+                }
+            }
+        }
+
+        usort($gecmis, function ($a, $b) { return $b['_ts'] <=> $a['_ts']; });
+        foreach ($gecmis as $i => &$g) { $g['id'] = $i; unset($g['_ts']); }
+        unset($g);
+
+        return response()->json(['randevular' => $randevular, 'gecmis' => array_values($gecmis), 'ozet' => $ozet]);
+    }
+
+    /**
      * Ön Görüşme Randevusu için müşteri bilgisi (user_id + GERÇEK ad + telefon).
      * KVKK: agent normalde maskeli görür; ön görüşme randevusu OLUSTURMAK icin gercek bilgi gerekir
      * (kullanici bu davranisi acikca sececek). Sadece kendi salonunun listesindeki musteri icin.

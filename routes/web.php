@@ -1260,6 +1260,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	// Cagri Kayitlari (tum cagrilarin dokumu + ses kayitlari)
 	Route::get('/arama-cagri-kayitlari','StoreAdminController@arama_cagri_kayitlari_sayfa');
 	Route::get('/arama-cagri-kayitlari-veri','StoreAdminController@arama_cagri_kayitlari');
+	Route::get('/musteri-arama-gecmisi','StoreAdminController@musteri_arama_gecmisi');
 	// Cagri Merkezi — Faz 5: liste segmentasyonu (sonuca gore ayikla, indir, personele tasi)
 	Route::get('/cagri-liste-segmentler','StoreAdminController@cagri_liste_segmentler');
 	Route::get('/cagri-segment-indir','StoreAdminController@cagri_segment_indir');
