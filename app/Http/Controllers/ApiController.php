@@ -551,6 +551,9 @@ class ApiController extends Controller
                 // Kisa OTP formati Meta tarafindan spam (463) sayilir; dogal cumle riskini azaltir.
                 $msg = $m['wa_message'] ?? $m['message'] ?? null;
                 if (!$to || !$msg) { $hepsiBasarili = false; continue; }
+                // Sifre mesajinin altina isletmenin telefonu + yol tarifi (diger musteri mesajlari gibi)
+                $iletisim = \App\Services\WhatsAppMesajFormat::iletisimBlogu($salon);
+                if ($iletisim !== '') $msg = rtrim($msg) . "\n\n" . $iletisim;
                 // Sifremi unuttum kontorden bagimsiz ve ucretsiz: 'sifre_sifirlama' tipi
                 // KONTOR_UCRETSIZ_TIPLER'de oldugundan kontor kapisi/bakiye engeli calismaz,
                 // bakiye 0 veya deneme bitmis olsa bile WA'dan gonderilir, kontor dusmez.

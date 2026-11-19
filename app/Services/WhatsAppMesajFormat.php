@@ -120,6 +120,25 @@ class WhatsAppMesajFormat
      * Salonun yol tarifi linki: panelde girilen yol_tarifi; yoksa adresten Google Haritalar linki.
      * Ikisi de yoksa ''. (Randevu talep mesajlarinda MUTLAKA gonderilir — isletme istegi 2026-11-18.)
      */
+    /**
+     * Mesaj sonuna isletme iletisim blogu: "📞 İletişim: tel" + "📍 Yol tarifi: link" (olanlar).
+     * Ikisi de yoksa ''. Sifre mesajinda kullanilir (diger mesajlarla ayni bicim).
+     */
+    public static function iletisimBlogu($salon)
+    {
+        if (!$salon) return '';
+        $satir = '';
+        $tel = ltrim((string) ($salon->telefon_1 ?? ''));
+        if ($tel !== '') {
+            if (ctype_digit($tel[0]) && $tel[0] !== '0') $tel = '0' . $tel;
+            $satir .= "📞 *İletişim:* " . $tel . "\n";
+        }
+        if (($yol = self::yolTarifiLinki($salon)) !== '') {
+            $satir .= "📍 *Yol tarifi:* " . $yol . "\n";
+        }
+        return rtrim($satir);
+    }
+
     public static function yolTarifiLinki($salon)
     {
         if (!$salon) return '';
