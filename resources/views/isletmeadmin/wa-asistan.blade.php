@@ -331,6 +331,8 @@
    .gl-hero .wa-btn { background:linear-gradient(135deg,#14b8a6,#0d9488); box-shadow:0 8px 20px rgba(20,184,166,.35); white-space:nowrap; }
    .gl-hero .gl-not { display:block; font-size:12px; color:rgba(255,255,255,.65); margin-top:8px; text-align:center; max-width:190px; }
    .gl-iki { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:18px; margin-bottom:18px; }
+   .gl-rapor { border:2px solid #99f6e4; background:linear-gradient(135deg,#f0fdfa,#fff); }
+   .gl-rapor-metin { white-space:pre-line; font-size:14.5px; line-height:1.65; color:#1f2937; }
    .gl-bekle { border:2px solid #fde68a; background:linear-gradient(135deg,#fffbeb,#fff); }
    .gl-soru { padding:12px 0; border-top:1px dashed #f3e3a6; } .gl-soru:first-of-type { border-top:none; }
    .gl-soru b { display:block; font-size:14.5px; } .gl-soru small { display:block; font-size:12.5px; color:var(--gri); margin:2px 0 8px; }
@@ -1360,6 +1362,10 @@
       if (!r.incelenen && !dersler.length) {
          h += '<div class="wa-kart"><div class="wk-bos"><b>Henüz incelenen sohbet yok.</b> Denetçi her gece 03:00\'te, son 3 günde biten sohbetleri inceler. Hemen başlatmak için yukarıdaki <b>Şimdi incele</b> düğmesine basın; sonuçlar genellikle 1 saat içinde burada görünür. (En az bir müşteri mesajı ve bir cevap olan sohbetler incelenir.)</div></div>';
          return h;
+      }
+      if (r.rapor && r.rapor.metin) {
+         h += '<div class="wa-kart gl-rapor" style="margin-bottom:18px"><div class="wa-kart-bas"><h4><i class="bi bi-chat-square-text-fill" style="color:#0d9488"></i>Denetçinin raporu</h4><span class="wa-alt">' + tarih(r.rapor.created_at) + '</span></div>'
+            + '<div class="gl-rapor-metin">' + esc(r.rapor.metin) + '</div></div>';
       }
       // 2) Sizden beklenenler
       if (bilgi.length || onay.length) {

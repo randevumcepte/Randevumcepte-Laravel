@@ -436,6 +436,7 @@ T;
     {
         $denetimler = DB::table('wa_denetim')->where('isletme_id', $isletmeId)->where('durum', 'tamam')->where('created_at', '>=', now()->subDays(7))
             ->orderByDesc('id')->limit(80)->get();
+        $adlar = DB::table('wa_asistan_oturumlari')->whereIn('id', $denetimler->pluck('oturum_id')->all())->pluck('ad', 'id');
         $girdi = [];
         foreach ($denetimler as $d) {
             foreach ((array) json_decode($d->sorunlar ?: '[]', true) as $s) $girdi[] = ['oturum_id' => (int) $d->oturum_id, 'mesaj_no' => (int) ($s['mesaj_no'] ?? 0), 'tur' => $s['tur'] ?? '', 'aciklama' => $s['aciklama'] ?? '', 'dogrusu' => $s['daha_iyi_cevap'] ?? ''];
@@ -443,10 +444,15 @@ T;
             foreach ((array) ($on['dersler'] ?? []) as $x) $girdi[] = ['oturum_id' => (int) $d->oturum_id, 'oneri' => $x];
             foreach ((array) ($on['bilgi'] ?? []) as $x) $girdi[] = ['oturum_id' => (int) $d->oturum_id, 'bilgi' => $x];
         }
-        if (!$girdi) return;
-        $mevcut = DB::table('wa_asistan_dersler')->where('isletme_id', $isletmeId)->whereIn('durum', ['aktif', 'oneri', 'reddedildi', 'kapali', 'cevaplandi'])
+        $yeni = $denetimler->filter(function ($d) { return strtotime($d->updated_at) >= time() - 3 * 3600; });
+        if (!$girdi) {
+            if ($yeni->count()) self::raporYaz($isletmeId, $yeni->count() . ' sohbeti inceledim ve hiçbirinde sorun bulmadım. Asistan müşterilere doğru ve hızlı cevap vermiş; şu an düzeltmem gereken bir şey yok.');
+            return;
+        }
+        $mevcut =DB::table('wa_asistan_dersler')->where('isletme_id', $isletmeId)->whereIn('durum', ['aktif', 'oneri', 'reddedildi', 'kapali', 'cevaplandi'])
             ->where('created_at', '>=', now()->subDays(60))->get(['tur', 'metin', 'durum']);
-        $sema = ['type' => 'object', 'additionalProperties' => false, 'required' => ['dersler', 'bilgi', 'kod'], 'properties' => [
+        $sema = ['type' => 'object', 'additionalProperties' => false, 'required' => ['rapor', 'dersler', 'bilgi', 'kod'], 'properties' => [
+            'rapor' => ['type' => 'string'],
             'dersler' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['metin', 'gerekce', 'kanitlar'], 'properties' => [
                 'metin' => ['type' => 'string'], 'gerekce' => ['type' => 'string'],
                 'kanitlar' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['oturum_id', 'mesaj_no'], 'properties' => ['oturum_id' => ['type' => 'integer'], 'mesaj_no' => ['type' => 'integer']]]],
@@ -459,12 +465,17 @@ T;
             . "Fiyat, indirim, kampanya, ödeme ya da işletme politikası içeren ders YAZMA. Zaten var olan, reddedilmiş ya da kapatılmış derslerin aynısını/benzerini YAZMA. "
             . "kanitlar: dersin düzelteceği sorunun görüldüğü (oturum_id, mesaj_no) çiftleri (en fazla 4, girdiden aynen al).\n"
             . "- bilgi: müşterilerin sorduğu ama işletmenin sisteme girmesi gereken bilgiler (tekrarları birleştir, en fazla 5).\n"
-            . "- kod: sistem/araç hatası gibi görünen bulgular (en fazla 3).";
-        $metin = "# MEVCUT DERSLER (tekrarlama)\n" . ($mevcut->count() ? implode("\n", $mevcut->map(function ($x) { return "- [{$x->durum}/{$x->tur}] {$x->metin}"; })->all()) : '- yok')
+            . "- kod: sistem/araç hatası gibi görünen bulgular (en fazla 3).\n"
+            . "- rapor: işletme sahibine, birinci ağızdan ('inceledim', 'düzelteceğim') sade Türkçe kısa rapor. Teknik terim, kod, oturum numarası YOK. "
+            . "Satır başı '• ' ile 4-8 madde: kaç sohbet incelediğin ve genel durum; yakaladığın en önemli sorunlar (müşteri adıyla, ne oldu, doğrusu neydi); "
+            . "neleri düzelteceğin (yukarıdaki dersler, her biri sade bir cümle); işletmeden ne beklediğin (bilgi soruları, elle bakılması gereken müşteri). Bulgu yoksa uydurma.";
+        $ozetler = $yeni->take(40)->map(function ($d) use ($adlar) { return '- ' . ($adlar[$d->oturum_id] ?? 'Müşteri') . " (puan {$d->puan}): " . $d->ozet; })->all();
+        $metin = '# BU İNCELEME: ' . $yeni->count() . " yeni sohbet\n" . implode("\n", $ozetler) . "\n\n# MEVCUT DERSLER (tekrarlama)\n" . ($mevcut->count() ? implode("\n", $mevcut->map(function ($x) { return "- [{$x->durum}/{$x->tur}] {$x->metin}"; })->all()) : '- yok')
             . "\n\n# BULGULAR\n" . json_encode(array_slice($girdi, 0, 150), JSON_UNESCAPED_UNICODE);
-        [$j] = self::tekCagri($sistem, $metin, $sema);
+        [$j] = self::tekCagri($sistem, $metin, $sema, 5000);
         if (!$j) return;
-        $aktifSay = DB::table('wa_asistan_dersler')->where('isletme_id', $isletmeId)->where('tur', 'davranis')->where('durum', 'aktif')->count();
+        if (trim((string) ($j['rapor'] ?? '')) !== '') self::raporYaz($isletmeId, (string) $j['rapor']);
+        $aktifSay =DB::table('wa_asistan_dersler')->where('isletme_id', $isletmeId)->where('tur', 'davranis')->where('durum', 'aktif')->count();
         $oto = (int) (WaAsistanVeri::ayarlar($isletmeId)['denetci_oto'] ?? 1) === 1;
         foreach (array_slice((array) ($j['dersler'] ?? []), 0, 3) as $ders) {
             $metinD = trim((string) ($ders['metin'] ?? ''));
@@ -491,6 +502,14 @@ T;
             Log::warning('[WA-DENETCI] gelistirici bulgusu', ['isletme' => $isletmeId, 'baslik' => $bas, 'aciklama' => $k['aciklama'] ?? '']);
         }
         Cache::forget("wa_dersler_{$isletmeId}");
+    }
+
+    /** Denetcinin isletmeye sade anlatimi (panelde "Denetçinin raporu"); dersler tablosunda tur=rapor, son 10 tutulur. */
+    public static function raporYaz(int $isletmeId, string $metin): void
+    {
+        DB::table('wa_asistan_dersler')->insert(['isletme_id' => $isletmeId, 'tur' => 'rapor', 'metin' => mb_substr(trim($metin), 0, 3000), 'durum' => 'rapor', 'created_at' => now(), 'updated_at' => now()]);
+        $eski = DB::table('wa_asistan_dersler')->where('isletme_id', $isletmeId)->where('tur', 'rapor')->orderByDesc('id')->skip(10)->take(100)->pluck('id')->all();
+        if ($eski) DB::table('wa_asistan_dersler')->whereIn('id', $eski)->delete();
     }
 
     /**
@@ -603,6 +622,7 @@ T;
                     'tarih' => $d->created_at];
             })->values()->all(),
             'dersler' => $dersler->map(function ($x) { $x->test = json_decode($x->test ?: 'null', true); return $x; })->values()->all(),
+            'rapor' => DB::table('wa_asistan_dersler')->where('isletme_id', $isletmeId)->where('tur', 'rapor')->orderByDesc('id')->first(['metin', 'created_at']),
             'bekleyen_is' => DB::table('wa_denetim')->where('isletme_id', $isletmeId)->where('durum', 'bekliyor')->count(),
         ];
     }
