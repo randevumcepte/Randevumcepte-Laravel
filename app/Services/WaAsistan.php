@@ -622,7 +622,7 @@ class WaAsistan
                 $r = NotificationService::toStaff((int) $pid, $salonId)->type(NotificationTypes::SYSTEM_ANNOUNCEMENT)
                     ->title('WhatsApp Asistanı')->body($mesaj)->send();
                 // Gercekten ulasti mi: kayitli cihazina (uygulama / tarayici bildirimi) en az bir push gitti mi
-                if (trim((string) $ad) !== '') $adlar[] = ['ad' => trim((string) $ad), 'ulasti' => (int) ($r['sent'] ?? 0) > 0, 'pid' => (int) $pid];
+                if (trim((string) $ad) !== '') $adlar[] = ['ad' => trim((string) $ad), 'ulasti' => (int) ($r['sent'] ?? 0) > 0, 'pid' => (int) $pid, 'hata' => $r['hatalar'][0] ?? null];
             }
         } catch (\Throwable $e) {
             Log::warning('[WA-ASISTAN] push gonderilemedi: ' . $e->getMessage());

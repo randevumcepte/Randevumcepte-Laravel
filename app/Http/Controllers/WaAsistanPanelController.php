@@ -449,8 +449,8 @@ class WaAsistanPanelController extends StoreAdminController
         $teshis = $this->bildirimTeshis($sid);
         $liste = WaAsistan::bildir($sid, '🔔 Test bildirimi: WhatsApp Asistanı talep bildirimleri bu telefona böyle gelir.');
         foreach ($liste as &$x) {
-            if (empty($x['ulasti'])) $x['neden'] = $teshis[$x['pid'] ?? 0] ?? null;
-            unset($x['pid']);
+            if (empty($x['ulasti'])) $x['neden'] = trim(($teshis[$x['pid'] ?? 0] ?? '') . (!empty($x['hata']) ? ' Firebase cevabı: ' . $x['hata'] : ''));
+            unset($x['pid'], $x['hata']);
         }
         unset($x);
         return response()->json(['ok' => 1, 'liste' => $liste]);

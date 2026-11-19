@@ -165,7 +165,7 @@ class NotificationService
         }
 
         $tokens = $this->findTokens();
-        $sent = 0; $failed = 0;
+        $sent = 0; $failed = 0; $hatalar = [];
 
         // Mobil (iOS/Android) tokenlar salonun firebase_profile projesinde uretilir;
         // WEB tokenlari ise DAIMA tek web projesinde (config/firebase_web.php -> .env,
@@ -242,6 +242,9 @@ class NotificationService
             } else {
                 $failed++;
                 $msg = $e->getMessage();
+                // Teshis icin FCM'in tam cevabi (Guzzle mesaji govdeyi kirpar)
+                $govde = ($e instanceof \GuzzleHttp\Exception\RequestException && $e->getResponse()) ? (string) $e->getResponse()->getBody() : '';
+                $hatalar[] = mb_substr($govde !== '' ? $govde : $msg, 0, 400) . ' [' . ($row->platform ?? '?') . ' ' . ($row->app_bundle ?? '') . ']';
                 Log::warning('NotificationService send fail', [
                     'token_id' => $row->id,
                     'err'      => $msg,
@@ -279,7 +282,7 @@ class NotificationService
 
         $this->logToDb($deepLink);
 
-        return ['sent' => $sent, 'failed' => $failed, 'total' => count($tokens)];
+        return ['sent' => $sent, 'failed' => $failed, 'total' => count($tokens), 'hatalar' => $hatalar];
     }
 
     /**
