@@ -801,6 +801,9 @@ namespace {
     esit('uzman sorusu: "hangi uzmanımızı tercih edersiniz" (saat olsa da)', true, $RA::uzmanSorusuMu('Tabii, 17:30 için bakabiliriz. Hangi uzmanımızı tercih edersiniz: Melis Hanım ya da Fatma Hanım?'));
     esit('uzman sorusu değil: saat sunuyor', false, $RA::uzmanSorusuMu('Pazar 22 Kasım 11:00 Kübra Hanım ile uygun. Oluşturayım mı?'));
     icerir('WA prompt: personel sorma kuralı', 'PERSONEL SORMA', cagir($waD, 'sistemPromptu'));
+    $pSan = cagir(asistan(), 'sistemPromptu');
+    icerir('Santral prompt: uzman tercihi sorulmaz', 'uzman tercihi SORMA', $pSan);
+    esit('Santral prompt: eski uzman sorusu kalmadı', false, mb_strpos($pSan, 'Söylemediyse BİR KEZ') !== false);
     esit('WA selam: hitaplı', 'Merhaba Anıl Bey.', $wa->waSelam());
     esit('WA selam: cinsiyet yok', 'Merhaba, Sayın Aksel Kaya.', asistan(['kanal' => 'whatsapp', 'musteriAd' => 'Aksel Kaya'])->waSelam());
     $waH = ['role' => 'assistant', 'content' => 'Sayın Anıl, yarın 14:00 randevunuzu hatırlatırız.', 'hatirlatma' => ['tur' => 'randevu', 'randevu_id' => 5, 'soz' => 'yarın 14:00', 'wa' => 1]];
