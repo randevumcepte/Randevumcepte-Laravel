@@ -160,6 +160,12 @@ class RandevuAsistan
         return (bool) preg_match('/\b(bir )?bak(ay[ıi]m|ar[ıi]m|[ıi]yorum|al[ıi]m)\b|kontrol (edeyim|ediyorum|ederim|edelim|edip)|deneyebilirim|deneyeyim|not (ald[ıi]m|ettim|aldım)|(ileteyim|ayarlayay[ıi]m|ayarl[ıi]yorum|hemen d[öo]n[üu]yorum|birazdan (yaz|d[öo]n|bildir))/iu', $c);
     }
 
+    /** "Tercih ettiğiniz bir uzmanımız var mı?" / "Hangi uzmanımızı tercih edersiniz?" — saat sunmadan uzman soruyor mu (saf). */
+    public static function uzmanSorusuMu(string $cevap): bool
+    {
+        return (bool) preg_match('/tercih etti[ğg]iniz (bir )?(uzman|personel)|(hangi|bir) (uzman|personel)[ıi]?(m[ıi]z)?[ıi]? (tercih|ister)|uzman tercihiniz|fark etmez mi/iu', $cevap);
+    }
+
     /** Yalniz WhatsApp: Gece Denetcisi'nin bu isletme icin test edip onayladigi davranis dersleri (WaDenetci::aktifDersler). */
     public function waDersleriAyarla(array $dersler): void
     {
@@ -588,6 +594,16 @@ class RandevuAsistan
             }
             // WHATSAPP: "bir bakayım / kontrol edeyim / not aldım" deyip kontrol yapmadan mesaji bitirdi (yazisma havada
             // kalir: musteri cevap bekler, asistan bir sonraki mesaji bekler; canli 2026-11-19 songul). Kontrolu simdi yaptir.
+            // WHATSAPP: musteri uzman sormadi/soylemedi ama asistan "tercih ettiğiniz bir uzman var mı" diye sordu ->
+            // sormadan bos uzmanla saat sundur (isletme istegi 2026-11-19: randevuyu bekletme/kacirtma)
+            if ($this->kanal === 'whatsapp' && $deneme === 0 && $aksiyon === null && !$bitir && self::uzmanSorusuMu($cevap)
+                && !preg_match('/\b(kim(ler)?|uzman|personel|çalışan|hanım|bey|hanim)\b/iu', $metin)) {
+                Log::warning('[WA-UZMAN-SORUSU] gereksiz uzman sorusu engellendi', ['salon' => $this->salonId, 'metin' => $metin, 'cevap' => $cevap]);
+                $messages[] = ['role' => 'assistant', 'content' => $cevap];
+                $messages[] = ['role' => 'user', 'content' => '[SİSTEM — müşteri bunu görmedi] Uzman tercihi SORMA. musait_saatler aracını personel_id VERMEDEN şimdi çağır ve müşterinin istediği gün/saat için boş olan uzmanla en yakın seçeneği sun (uzmanın adını belirt, onay sor). Gün ya da saat eksikse yalnız onu sor.'];
+                $cevap = '';
+                continue;
+            }
             if ($this->kanal === 'whatsapp' && $deneme === 0 && $aksiyon === null && !$bitir && self::sozVeripBirakti($cevap)) {
                 Log::warning('[WA-SOZ-BIRAKTI] model kontrol sozu verip turu bitirdi', ['salon' => $this->salonId, 'metin' => $metin, 'cevap' => $cevap]);
                 $messages[] = ['role' => 'assistant', 'content' => $cevap];
@@ -2029,6 +2045,7 @@ Bu bir telefon görüşmesi DEĞİL; müşteri WhatsApp'tan yazıyor ve cevabın
 - Geçmişte "[SİSTEM — bu mesajı işletme personeli elle yazdı]" notlu mesajlar işletme personelinindir; onların verdiği bilgi ve sözlerle çelişme.
 - Geçmişte "[SİSTEM görsel ...]" notlu mesaj müşterinin gönderdiği model fotoğrafının analizidir: hizmet_id oradaysa randevuya o hizmetle devam et.
 - UYDURMA AÇIKLAMA YOK: numaranın/verinin nereden alındığı, kime ait olduğu, neden mesaj gittiği gibi konularda açıklama UYDURMA ve "bir daha yazılmayacak" gibi SÖZ VERME; özür dile ve "aktar" çağır.
+- PERSONEL SORMA (aşağıdaki 5. adım "PERSONEL TERCİHİ" ve PAKET AKIŞI'ndaki uzman sorusu WhatsApp'ta UYGULANMAZ): "tercih ettiğiniz bir uzman var mı" diye SORMA, uzman adlarını SAYMA. Hizmet ve gün belli olunca musait_saatler'i personel_id VERMEDEN hemen çağır; müşterinin istediği saatte kim boşsa o uzmanla en yakın seçeneği sun (saat söylediyse o saati; doluysa en yakın 2 saati). Onay mesajında uzmanın adını belirt. Yalnız müşteri bir personel adı söylerse o personelle ara; "kimler var / hangi uzmanlar" diye sorarsa o zaman adları say. Gün ya da saat eksikse yalnız onu sor ("Hangi gün ve saat size uygun?"). Amaç: randevuyu bekletmeden, kaçırmadan vermek.
 - SÖZ VERİP BIRAKMA: "bir bakayım", "kontrol edeyim", "not aldım", "deneyebilirim" deyip mesajı BİTİRME. Kontrolü aynı cevapta araçla yap ve sonucu yaz. Müşteri bir personel adı söylerse hemen o personel için musait_saatler çağır. Her mesajın müşteriye net bir sonraki adım (seçenek ya da soru) sunsun; müşteri "pardon/tamam" gibi kısa bir şey yazarsa da son konuya dönüp sonraki adımı sor.
 - HIZ: müşteri hizmet, personel, gün ya da saat yazdıysa bunları HEMEN kullan (hizmet_eslestir + musait_saatler) ve ilk cevabında uygun saati sun; bildiği bir şeyi tekrar sorma. Eksik bilgileri tek mesajda topla. Hedef: randevu en fazla 2-3 mesajda.
 - KAYIT: kayıtsız müşteride "önce kaydınızı oluşturmam gerekiyor" DEME ve kayıt adımını sohbetin başında YAPMA; BAĞLAM'daki kayıt kuralına uy (kayıt yalnız randevu onayı sırasında). Bu kural aşağıdaki "önce KAYIT ADIMI'nı tamamla" kuralının yerine geçer.
