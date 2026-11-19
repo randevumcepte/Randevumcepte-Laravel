@@ -100,7 +100,7 @@
    .wa-kaz-ust { display:flex; align-items:center; gap:14px; position:relative; z-index:1; }
    .wa-kaz-ic { min-width:0; }
    .wa-kaz .wa-kpi-ikon { width:56px; height:56px; font-size:28px; border-radius:16px; margin:0; flex:0 0 auto; }
-   .wa-kaz .d { font-size:26px; line-height:1.1; letter-spacing:-.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+   .wa-kaz .d { font-size:24px; line-height:1.1; letter-spacing:-.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
    .wa-kaz .e { font-size:13.5px; font-weight:500; color:#3a3154; margin-top:3px; }
    .wa-kaz svg.spark { margin-top:auto; padding-top:12px; height:52px; }
 
@@ -238,6 +238,51 @@
       .wa-ai .robot { width:120px; margin-bottom:-16px; }
    }
    @media (max-width: 360px) { .wa-kpiler, .wa-kazanclar { grid-template-columns:minmax(0,1fr); } }
+   /* Kart "i" dugmesi (sag ust) */
+   .wa-i { position:absolute; top:8px; right:8px; z-index:3; width:24px; height:24px; border-radius:50%; border:none; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; font-size:14px; background:rgba(255,255,255,.85); color:#5b21b6;
+      box-shadow:0 2px 6px rgba(31,22,56,.12); transition:transform .15s, background .15s; }
+   .wa-i:hover, .wa-i:focus-visible { transform:scale(1.12); background:#fff; outline:none; }
+   .wa-k-lila .wa-i { color:#4338ca; } .wa-k-tur .wa-i { color:#ea580c; } .wa-k-mavi .wa-i { color:#1d4ed8; }
+   .wa-k-yesil .wa-i { color:#15803d; } .wa-k-pembe .wa-i { color:#be185d; }
+   .wa-kaz .wa-kaz-ust { padding-right:4px; }
+
+   /* Bilgi penceresi (body'ye eklenir; ekran ortasi) */
+   .wa-bm-bg { position:fixed; inset:0; z-index:100100; display:none; align-items:center; justify-content:center; padding:16px;
+      background:rgba(20,12,40,.45); backdrop-filter:blur(3px); }
+   .wa-bm-bg.acik { display:flex; animation:waBmA .18s ease-out; }
+   @keyframes waBmA { from { opacity:0; } to { opacity:1; } }
+   .wa-bm { width:100%; max-width:480px; max-height:90vh; overflow:auto; background:#fff; border-radius:22px; color:#1f1638;
+      box-shadow:0 30px 70px rgba(20,12,40,.35); animation:waBmK .22s cubic-bezier(.2,.9,.3,1.2); }
+   @keyframes waBmK { from { transform:translateY(14px) scale(.97); } to { transform:none; } }
+   .wa-bm-bas { display:flex; align-items:center; gap:14px; padding:20px 20px 18px; border-radius:22px 22px 0 0; position:relative; }
+   .wa-bm.wa-k-mor .wa-bm-bas { background:linear-gradient(140deg,#f4ecff,#e6d7ff); }
+   .wa-bm.wa-k-lila .wa-bm-bas { background:linear-gradient(140deg,#eef0ff,#dcdcff); }
+   .wa-bm.wa-k-tur .wa-bm-bas { background:linear-gradient(140deg,#fff4e8,#ffe1c2); }
+   .wa-bm.wa-k-mavi .wa-bm-bas { background:linear-gradient(140deg,#ebf4ff,#d6e7ff); }
+   .wa-bm.wa-k-yesil .wa-bm-bas { background:linear-gradient(140deg,#eafbf0,#d0f4de); }
+   .wa-bm.wa-k-pembe .wa-bm-bas { background:linear-gradient(140deg,#fff0f7,#ffd9ea); }
+   .wa-bm .wa-kpi-ikon { width:52px; height:52px; border-radius:16px; font-size:26px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; box-shadow:0 6px 14px rgba(31,22,56,.10); }
+   .wa-bm.wa-k-mor .wa-kpi-ikon { background:linear-gradient(140deg,#e7dafd,#cdb4fb); color:#5b21b6; }
+   .wa-bm.wa-k-lila .wa-kpi-ikon { background:linear-gradient(140deg,#e2e3ff,#c3c4fb); color:#4338ca; }
+   .wa-bm.wa-k-tur .wa-kpi-ikon { background:linear-gradient(140deg,#ffe6cc,#fdc48d); color:#ea580c; }
+   .wa-bm.wa-k-mavi .wa-kpi-ikon { background:linear-gradient(140deg,#dbeaff,#b4d2fd); color:#1d4ed8; }
+   .wa-bm.wa-k-yesil .wa-kpi-ikon { background:linear-gradient(140deg,#d6f7e2,#a8e9c0); color:#15803d; }
+   .wa-bm.wa-k-pembe .wa-kpi-ikon { background:linear-gradient(140deg,#ffdcec,#fbb1d1); color:#be185d; }
+   .wa-bm-t { font-size:18px; font-weight:800; line-height:1.2; padding-right:30px; }
+   .wa-bm-d { font-size:15px; font-weight:700; color:#3a3154; margin-top:4px; }
+   .wa-bm-d span { font-weight:500; color:#5b5574; font-size:13px; }
+   .wa-bm-x { position:absolute; top:14px; right:14px; width:32px; height:32px; border-radius:50%; border:none; cursor:pointer; background:rgba(255,255,255,.8); color:#3a3154; font-size:14px; }
+   .wa-bm-x:hover { background:#fff; }
+   .wa-bm-ic { padding:8px 22px 4px; }
+   .wa-bm-b { display:flex; gap:12px; padding:14px 0; border-bottom:1px solid #f1edf8; }
+   .wa-bm-b:last-child { border-bottom:none; }
+   .wa-bm-bi { flex:0 0 auto; width:34px; height:34px; border-radius:11px; background:#f3ecff; color:#6d28d9; display:flex; align-items:center; justify-content:center; font-size:16px; }
+   .wa-bm-b b { font-size:14.5px; font-weight:700; }
+   .wa-bm-b p { margin:4px 0 0; font-size:14px; line-height:1.55; color:#3f3a5a; }
+   .wa-bm-alt { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px 22px 20px; flex-wrap:wrap; }
+   .wa-bm-alt span { font-size:12.5px; color:#6b6483; }
+   .wa-bm .wa-btn { border:none; border-radius:12px; padding:10px 22px; font-size:14px; font-weight:700; cursor:pointer; background:linear-gradient(135deg,#3b0f80,#6d28d9); color:#fff; }
 </style>
 
 <div class="wa">
@@ -422,10 +467,60 @@
       return '<div class="wa-kpi ' + sinif + '"><div class="wa-kpi-ust"><div class="wa-kpi-ikon"><i class="bi ' + ikon + '"></i></div><div><div class="wa-kpi-d">' + d + '</div><div class="wa-kpi-e">' + e + '</div></div></div>'
          + trend + spark(seri, renk) + '</div>';
    }
+   // Kart bilgi penceresi metinleri ("i" dugmesi): ne gosterir / nasil hesaplanir / ne ise yarar
+   var KART_BILGI = {
+      'bi-wallet-fill': { b: 'Asistanın Getirdiği Kazanç',
+         ne: 'WhatsApp asistanının sizin yerinize aldığı randevuların toplam hizmet tutarı.',
+         nasil: 'Asistanın oluşturduğu ve iptal edilmeyen randevuların hizmet fiyatları toplanır. Randevu panelde "geldi" işaretlenince tutar <b>gerçekleşen kazanç</b> olarak sayılır; işaretlenene kadar "randevu tutarı" olarak görünür.',
+         neden: 'Asistanın size ne kadar iş getirdiğini doğrudan gösterir. Pakete ödediğiniz ücretle kıyaslayıp yatırımınızın kaç katını geri aldığınızı görürsünüz.' },
+      'bi-moon-stars-fill': { b: 'Mesai Dışı Kazanç',
+         ne: 'Salonunuz kapalıyken (akşam, gece, kapalı günler) asistanın aldığı randevuların tutarı.',
+         nasil: 'Randevunun alındığı an, işletme ayarlarınızdaki çalışma saatlerinin dışındaysa bu karta yazılır.',
+         neden: 'Bu müşteriler normalde size ulaşamayıp başka salona gidecekti. Personel yokken kazanılan, tamamen ekstra gelirdir.' },
+      'bi-arrow-repeat': { b: 'Geri Kazanılan Müşteri',
+         ne: 'Fiyat ya da bilgi alıp randevu oluşturmadan giden ("kaçan") müşterilerden asistanın tekrar yazmasıyla geri dönüp randevu alanlar.',
+         nasil: 'Asistan, ayarladığınız süre sonra (varsayılan 24 saat) bu müşterilere mesai saatinde bir kez nazik bir mesaj ve gerçek boş saatlerinizi yollar. Mesajdan sonraki 7 gün içinde alınan randevu "geri kazanılmış" sayılır.',
+         neden: 'Kaybolacak müşteriyi hiçbir personel emeği olmadan geri getirir. Müşteri "dur" yazarsa bir daha yazılmaz.' },
+      'bi-hourglass-split': { b: 'Personele Kazandırılan Zaman',
+         ne: 'Asistanın cevapladığı mesajları personelinizin yazmak zorunda kalsaydı harcayacağı tahmini süre.',
+         nasil: 'Asistanın gönderdiği her cevap, personelin okuyup yazması için ortalama 1,5 dakika sayılır ve toplanır.',
+         neden: 'Bu süre personelinizin müşteriye, hizmete ve satışa ayırabildiği zamandır.' },
+      'bi-shield-fill-check': { b: 'Tek Başına Çözdüğü',
+         ne: 'WhatsApp yazışmalarının yüzde kaçını asistanın personele aktarmadan sonuçlandırdığı.',
+         nasil: '(Toplam yazışma − işletmeye aktarılan yazışma) ÷ toplam yazışma. Müşteri "yetkiliyle görüşmek istiyorum" dediğinde ya da asistan cevaplayamadığında yazışma aktarılmış sayılır.',
+         neden: 'Oran yükseldikçe personelinize daha az iş kalır. Düşükse "Öğrenilen Cevaplar" ve Sık Sorulan Sorular ile asistanı güçlendirebilirsiniz.' },
+      'bi-camera-fill': { b: 'Fotoğrafa Fiyat Verildi',
+         ne: 'Müşterilerin WhatsApp\'tan gönderdiği model fotoğraflarından kaçına asistanın fiyat verdiği.',
+         nasil: 'Asistan fotoğraftaki uygulamaları tanır (protez, french, taş sayısı…); fiyatı "Fotoğraf Fiyatları" sekmesindeki kurallarınızdan sistem hesaplar. Asistan fiyat uydurmaz.',
+         neden: 'Uzmanınızın fotoğrafa bakıp fiyat yazma işini üstlenir; müşteri anında fiyat alır ve randevuya geçer.' }
+   };
    function kaz(sinif, ikon, d, e, a, seri, renk) {
-      // Tasarimdaki kart: solda buyuk ikon, yaninda rakam + altinda kart adi, en altta mini grafik (aciklama ustune gelince)
-      return '<div class="wa-kaz ' + sinif + '"' + (a ? ' title="' + esc(String(a).replace(/<[^>]+>/g, '')) + '"' : '') + '><div class="wa-kaz-ust"><div class="wa-kpi-ikon"><i class="bi ' + ikon + '"></i></div>'
+      // Tasarimdaki kart: solda buyuk ikon, yaninda rakam + altinda kart adi, en altta mini grafik; sag ustte "i" (bilgi penceresi)
+      var detay = a ? String(a).replace(/<[^>]+>/g, '') : '';
+      return '<div class="wa-kaz ' + sinif + '">'
+         + (KART_BILGI[ikon] ? '<button type="button" class="wa-i" data-bilgi="' + ikon + '" data-sinif="' + sinif + '" data-deger="' + esc(String(d).replace(/<[^>]+>/g, '')) + '" data-detay="' + esc(detay) + '" aria-label="' + esc(e) + ' nedir?"><i class="bi bi-info-lg"></i></button>' : '')
+         + '<div class="wa-kaz-ust"><div class="wa-kpi-ikon"><i class="bi ' + ikon + '"></i></div>'
          + '<div class="wa-kaz-ic"><div class="d">' + d + '</div><div class="e">' + e + '</div></div></div>' + (seri ? spark(seri, renk) : '') + '</div>';
+   }
+   // Bilgi penceresi (body'ye eklenir, ekran ortasinda)
+   function bilgiAc(btn) {
+      var k = KART_BILGI[btn.dataset.bilgi]; if (!k) return;
+      var bg = document.getElementById('waBilgiBg');
+      if (!bg) {
+         bg = document.createElement('div'); bg.id = 'waBilgiBg'; bg.className = 'wa-bm-bg';
+         bg.addEventListener('click', function (e) { if (e.target === bg || e.target.closest('[data-kapat]')) bg.classList.remove('acik'); });
+         document.addEventListener('keydown', function (e) { if (e.key === 'Escape') bg.classList.remove('acik'); });
+         document.body.appendChild(bg);
+      }
+      var bolum = function (ikon, baslik, metin) { return '<div class="wa-bm-b"><div class="wa-bm-bi"><i class="bi ' + ikon + '"></i></div><div><b>' + baslik + '</b><p>' + metin + '</p></div></div>'; };
+      bg.innerHTML = '<div class="wa-bm ' + esc(btn.dataset.sinif) + '" role="dialog" aria-modal="true" aria-label="' + esc(k.b) + '">'
+         + '<div class="wa-bm-bas"><div class="wa-kpi-ikon"><i class="bi ' + esc(btn.dataset.bilgi) + '"></i></div><div><div class="wa-bm-t">' + esc(k.b) + '</div>'
+         + '<div class="wa-bm-d">' + esc(btn.dataset.deger) + (btn.dataset.detay ? ' <span>· ' + esc(btn.dataset.detay) + '</span>' : '') + '</div></div>'
+         + '<button type="button" class="wa-bm-x" data-kapat aria-label="Kapat"><i class="bi bi-x-lg"></i></button></div>'
+         + '<div class="wa-bm-ic">' + bolum('bi-eye', 'Ne gösterir?', k.ne) + bolum('bi-calculator', 'Nasıl hesaplanır?', k.nasil) + bolum('bi-lightbulb', 'Size ne kazandırır?', k.neden) + '</div>'
+         + '<div class="wa-bm-alt"><span>Seçili dönem: ' + esc(donemSec.options[donemSec.selectedIndex].text) + '</span><button type="button" class="wa-btn" data-kapat>Anladım</button></div></div>';
+      bg.classList.add('acik');
+      var x = bg.querySelector('.wa-bm-x'); if (x) x.focus();
    }
    // Mor alandaki slogan arkasi yaprak (lotus) deseni: tabandan acilan 5 yaprak + 2 kucuk yan yaprak
    var YAPRAK = '<svg class="wa-hero-yaprak" viewBox="0 0 150 150" aria-hidden="true"><defs><linearGradient id="yp" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#fff"/></linearGradient></defs><g fill="url(#yp)">'      + [-58, -30, 0, 30, 58].map(function (a, i) { var u = i === 2 ? 118 : (i % 4 === 0 ? 78 : 100); return '<path transform="rotate(' + a + ' 75 145)" d="M75 145 C' + (75 - 22) + ' ' + (145 - u * .45) + ' ' + (75 - 14) + ' ' + (145 - u * .85) + ' 75 ' + (145 - u) + ' C' + (75 + 14) + ' ' + (145 - u * .85) + ' ' + (75 + 22) + ' ' + (145 - u * .45) + ' 75 145Z"/>'; }).join('')      + '</g><g fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1.2">' + [-30, 0, 30].map(function (a) { return '<path transform="rotate(' + a + ' 75 145)" d="M75 140 L75 ' + (a ? 55 : 35) + '"/>'; }).join('') + '</g></svg>';
@@ -504,6 +599,7 @@
       var g = e.target.closest('[data-git]'); if (g) { sekmeAc(g.dataset.git); window.scrollTo({ top: 0, behavior: 'smooth' }); }
    });
    el('waGenel').addEventListener('click', function (e) {
+      var ib = e.target.closest('[data-bilgi]'); if (ib) { bilgiAc(ib); return; }
       var g = e.target.closest('[data-git]'); if (g) { sekmeAc(g.dataset.git); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
       var gt = e.target.closest('#waGrafikTur button'); if (gt) { grafikYukle(gt.dataset.g); return; }
       var k = e.target.closest('[data-sohbet]'); if (k) { sekmeAc('sohbet'); sohbetAc(k.dataset.sohbet); }
