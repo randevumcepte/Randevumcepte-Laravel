@@ -384,19 +384,24 @@ class WaAsistan
                 . ' ile yazışmada çok sık mesaj aldığı için bu sohbette 1 saat cevap vermeyecek. Gerekirse müşteriye siz dönün.');
             return;
         }
-        // 6) HAT BASI GUNLUK TAVAN
+        // 6) HAT BASI GUNLUK TAVAN — varsayilan KAPALI (0). Asistan yalniz kendisine yazan musteriye cevap verir;
+        // Meta riski toplu/istenmeyen gonderimde (geri kazanma kendi tavanini korur). Ayni numara dongusu 5) ile sinirli.
+        // Gerekirse .env WA_ASISTAN_GUNLUK_TAVAN=600 ile acilir.
+        $tavan = (int) self::ayar('gunluk_tavan', 0);
+        if ($tavan > 0) {
         $oturumSalonlari = DB::table('salonlar')->where('whatsapp_paylasilan_salon_id', $o->salon_id)->pluck('id')->push($o->salon_id)->all();
         $bugun = 0;
         try {
             $bugun = DB::table('whatsapp_gonderim_loglari')->whereIn('salon_id', $oturumSalonlari)
                 ->where('gonderim_tipi', WhatsAppService::ASISTAN_TIPI)->where('created_at', '>=', now()->startOfDay())->count();
         } catch (\Throwable $e) {}
-        if ($bugun >= max(10, (int) self::ayar('gunluk_tavan', 300))) {
+        if ($bugun >= max(10, $tavan)) {
             $sus('gunluk_tavan');
             if (Cache::add("wa_asistan_tavan_{$o->salon_id}_" . date('Ymd'), 1, 1440)) {
                 self::isletmeyeBildir((int) $o->isletme_id, $o, 'WhatsApp asistanı bugünkü cevap sınırına ulaştı; bugün gelen yeni mesajlara cevap vermeyecek.');
             }
             return;
+        }
         }
 
         // 7) PAKET BITTI (Sistem Yonetimi > WhatsApp Asistan Paketleri; asimda durdur): ay sonuna kadar cevap yok
@@ -711,7 +716,7 @@ class WaAsistan
                 if (!$mod) continue;
                 $rol = $son['role'] ?? '';
                 // Bilerek cevapsiz birakilanlar: gunluk tavan dolu hat
-                if (Cache::get("wa_asistan_tavan_{$o->salon_id}_" . date('Ymd'))) continue;
+                if ((int) self::ayar('gunluk_tavan', 0) > 0 && Cache::get("wa_asistan_tavan_{$o->salon_id}_" . date('Ymd'))) continue;
                 // isleme hala suruyor olabilir (mesaj birlestirme / AI cagrisi): islenmemis gelen kayit varsa bekle
                 if ($rol === 'user' && DB::table('wa_asistan_gelen')->where('salon_id', $o->salon_id)->where('anahtar', $o->anahtar)
                     ->where('created_at', '>=', now()->subMinutes(2))->exists()) continue;
