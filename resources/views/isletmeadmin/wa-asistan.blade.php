@@ -36,6 +36,10 @@
    .wa-hero-d small { font-size:18px; font-weight:600; }
    .wa-hero-yazi { flex:0 0 auto; margin-left:auto; position:relative; z-index:1; font-family:'Caveat',cursive; font-size:30px; line-height:1.05; transform:rotate(-6deg); text-align:center; padding-right:6px; }
    .wa-hero-yazi svg { display:block; margin:2px auto 0; }
+   /* Sag taraf: daha koyu katman + slogan arkasinda yaprak (lotus) deseni */
+   .wa-hero-katman { position:absolute; top:0; right:0; bottom:0; width:34%; z-index:0; pointer-events:none; border-radius:60% 0 0 60% / 100% 0 0 100%;
+      background:linear-gradient(90deg,rgba(46,16,101,0) 0%,rgba(46,16,101,.38) 35%,rgba(38,10,88,.55) 100%); }
+   .wa-hero-yaprak { position:absolute; right:175px; bottom:-14px; width:150px; height:150px; z-index:0; pointer-events:none; opacity:.22; filter:drop-shadow(0 0 14px rgba(255,255,255,.35)); }
    .wa-trend { display:inline-flex; align-items:center; gap:3px; font-size:12.5px; font-weight:700; padding:3px 9px; border-radius:999px; }
    .wa-hero .wa-trend { background:rgba(22,163,74,.85); color:#fff; }
    .wa-hero .wa-trend.dus { background:rgba(220,38,38,.85); }
@@ -66,6 +70,18 @@
    .wa-kaz .d { font-size:22px; font-weight:800; letter-spacing:-.3px; }
    .wa-kaz .e { font-size:13px; font-weight:600; color:#3a3154; margin-top:2px; }
    .wa-kaz .a { font-size:12px; color:var(--gri); margin-top:4px; line-height:1.35; }
+   /* Kazanc kartlari: her biri kendi renginde yumusak gradyan + ince renkli cerceve + beyaz ikon kutusu */
+   .wa-kaz { position:relative; overflow:hidden; border:1px solid transparent; transition:transform .15s, box-shadow .15s; }
+   .wa-kaz:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(91,33,182,.12); }
+   .wa-kaz::after { content:''; position:absolute; right:-28px; top:-28px; width:96px; height:96px; border-radius:50%; background:rgba(255,255,255,.45); }
+   .wa-kaz .wa-kpi-ikon { background:#fff !important; box-shadow:0 4px 10px rgba(31,22,56,.08); position:relative; z-index:1; }
+   .wa-kaz.wa-k-mor { background:linear-gradient(140deg,#f4ecff 0%,#e6d7ff 100%); border-color:#dccbfd; }
+   .wa-kaz.wa-k-lila { background:linear-gradient(140deg,#eef0ff 0%,#dcdcff 100%); border-color:#cfd0fb; } .wa-kaz.wa-k-lila .wa-kpi-ikon { color:#4f46e5; }
+   .wa-kaz.wa-k-tur { background:linear-gradient(140deg,#fff4e8 0%,#ffe1c2 100%); border-color:#fdd3a6; }
+   .wa-kaz.wa-k-mavi { background:linear-gradient(140deg,#ebf4ff 0%,#d6e7ff 100%); border-color:#c3dafd; }
+   .wa-kaz.wa-k-yesil { background:linear-gradient(140deg,#eafbf0 0%,#d0f4de 100%); border-color:#b9ebcb; }
+   .wa-kaz.wa-k-pembe { background:linear-gradient(140deg,#fff0f7 0%,#ffd9ea 100%); border-color:#fcc6dd; } .wa-kaz.wa-k-pembe .wa-kpi-ikon { color:#db2777; }
+   .wa-kaz .a { color:#4b4563; }
 
    /* kartlar */
    .wa-kart { background:#fff; border-radius:22px; padding:20px 22px; box-shadow:var(--golge); min-width:0; }
@@ -173,7 +189,7 @@
    .wa-iskelet { background:linear-gradient(90deg,#f1ecfa,#faf7ff,#f1ecfa); background-size:200% 100%; animation:waIs 1.2s infinite; border-radius:18px; }
    @keyframes waIs { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
 
-   @media (max-width: 1400px) { .wa-kazanclar { grid-template-columns:repeat(3,minmax(0,1fr)); } .wa-hero-yazi { display:none; } }
+   @media (max-width: 1400px) { .wa-kazanclar { grid-template-columns:repeat(3,minmax(0,1fr)); } .wa-hero-yazi, .wa-hero-katman, .wa-hero-yaprak { display:none; } }
    @media (max-width: 1280px) { .wa-kpiler { grid-template-columns:repeat(2,minmax(0,1fr)); } }
    @media (max-width: 1100px) { .wa-orta, .wa-alt-sira { grid-template-columns:minmax(0,1fr); } }
    @media (max-width: 900px) {
@@ -385,6 +401,8 @@
    function kaz(sinif, ikon, d, e, a) {
       return '<div class="wa-kaz ' + sinif + '"><div class="wa-kpi-ikon"><i class="bi ' + ikon + '"></i></div><div class="d">' + d + '</div><div class="e">' + e + '</div>' + (a ? '<div class="a">' + a + '</div>' : '') + '</div>';
    }
+   // Mor alandaki slogan arkasi yaprak (lotus) deseni: tabandan acilan 5 yaprak + 2 kucuk yan yaprak
+   var YAPRAK = '<svg class="wa-hero-yaprak" viewBox="0 0 150 150" aria-hidden="true"><defs><linearGradient id="yp" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#fff"/></linearGradient></defs><g fill="url(#yp)">'      + [-58, -30, 0, 30, 58].map(function (a, i) { var u = i === 2 ? 118 : (i % 4 === 0 ? 78 : 100); return '<path transform="rotate(' + a + ' 75 145)" d="M75 145 C' + (75 - 22) + ' ' + (145 - u * .45) + ' ' + (75 - 14) + ' ' + (145 - u * .85) + ' 75 ' + (145 - u) + ' C' + (75 + 14) + ' ' + (145 - u * .85) + ' ' + (75 + 22) + ' ' + (145 - u * .45) + ' 75 145Z"/>'; }).join('')      + '</g><g fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1.2">' + [-30, 0, 30].map(function (a) { return '<path transform="rotate(' + a + ' 75 145)" d="M75 140 L75 ' + (a ? 55 : 35) + '"/>'; }).join('') + '</g></svg>';
    var ROBOT = '<svg class="robot" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="rb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#e9ddff"/></linearGradient></defs>'
       + '<circle cx="60" cy="16" r="6" fill="#7c3aed"/><rect x="57" y="18" width="6" height="12" rx="3" fill="#a78bfa"/>'
       + '<rect x="14" y="44" width="14" height="30" rx="7" fill="#6d28d9"/><rect x="92" y="44" width="14" height="30" rx="7" fill="#6d28d9"/>'
@@ -404,6 +422,7 @@
             + '<div class="wa-hero-bolum"><i class="bi bi-calendar-check"></i><div><div class="wa-hero-e">Toplam Randevu</div><div class="wa-hero-d">' + sayi(toplamRandevu) + trendHtml(t.randevu) + '</div></div></div>'
             + '<div class="wa-hero-bolum"><i class="bi bi-people-fill"></i><div><div class="wa-hero-e">Yeni Müşteri</div><div class="wa-hero-d">' + sayi(o.randevu.yeni_musteri) + trendHtml(t.yeni) + '</div></div></div>'
             + '<div class="wa-hero-bolum"><i class="bi bi-clock-history"></i><div><div class="wa-hero-e">Ortalama Yanıt Süresi</div><div class="wa-hero-d">' + sure(o.cevap.medyan_sure_sn) + trendHtml(t.sure, true) + '</div></div></div>'
+            + '<div class="wa-hero-katman"></div>' + YAPRAK
             + '<div class="wa-hero-yazi">Daha fazla müşteri,<br>daha fazla randevu!<svg width="150" height="12" viewBox="0 0 150 12"><path d="M4 8 Q75 -2 146 6" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg></div></div>';
          // ===== KAZANDIRDIKLARI sekmesi: uyari seridi + kazanc kartlari + paket + yolculuk + sorular
          var u = '';
@@ -418,7 +437,7 @@
             + kaz('wa-k-tur', 'bi-arrow-repeat', sayi(o.geri_kazanim.randevu), 'Geri kazanılan müşteri', sayi(o.geri_kazanim.yazildi) + ' kaçan müşteriye yazıldı · ' + tl(o.geri_kazanim.tutar))
             + kaz('wa-k-mavi', 'bi-hourglass-split', String(o.cevap.personel_saat).replace('.', ',') + ' saat', 'Personele kazandırılan zaman', sayi(o.cevap.toplam) + ' mesaj cevaplandı · ' + sayi(o.cevap.mesai_disi) + ' mesai dışı')
             + kaz('wa-k-yesil', 'bi-shield-check', o.sohbet.cozulen_orani == null ? '—' : '%' + o.sohbet.cozulen_orani, 'Tek başına çözdüğü', 'personele aktarılmadan biten yazışmalar')
-            + kaz('wa-k-mor', 'bi-camera', sayi(o.gorsel.fiyat_verildi), 'Fotoğrafa fiyat verildi', sayi(o.gorsel.randevu) + ' tanesi randevuya döndü')
+            + kaz('wa-k-pembe', 'bi-camera', sayi(o.gorsel.fiyat_verildi), 'Fotoğrafa fiyat verildi', sayi(o.gorsel.randevu) + ' tanesi randevuya döndü')
             + '</div>';
          // grafik + son konusmalar
          h += '<div class="wa-orta"><div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-bar-chart-fill" style="color:#7c3aed"></i>Performans Grafiği</h4>'
