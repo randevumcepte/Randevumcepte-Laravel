@@ -404,8 +404,8 @@
             + kpi('wa-k-tur', 'bi-star-fill', o.sohbet.memnuniyet_orani == null ? '—' : '%' + o.sohbet.memnuniyet_orani, 'Müşteri Memnuniyeti', trendHtml(t.memnuniyet, false, true), memSeri, '#ec4899')
             + kpi('wa-k-yesil', 'bi-clock-history', sure(o.cevap.medyan_sure_sn), 'Ortalama Yanıt Süresi', trendHtml(t.sure, true), s.sure, '#16a34a')
             + '</div>';
-         // kazandirdiklari (ayri sekme)
-         k += '<div class="wa-bolum-baslik" style="margin-top:0"><i class="bi bi-graph-up-arrow"></i>Asistanın size kazandırdıkları</div><div class="wa-kazanclar">'
+         // kazandirdiklari kartlari (Genel Bakis'ta, 5 kartin altinda)
+         h += '<div class="wa-bolum-baslik"><i class="bi bi-graph-up-arrow"></i>Asistanın size kazandırdıkları</div><div class="wa-kazanclar">'
             + kaz('wa-k-mor', 'bi-cash-coin', tl(kz.gerceklesen > 0 ? kz.gerceklesen : kz.beklenen), kz.gerceklesen > 0 ? 'Gerçekleşen kazanç' : 'Randevu tutarı', kz.kat ? 'Pakete ödediğinizin <b>' + String(kz.kat).replace('.', ',') + ' katı</b>' : (kz.gerceklesen > 0 ? 'salona gelen müşterilerden' : 'gelişler "geldi" işaretlenince kesinleşir'))
             + kaz('wa-k-lila', 'bi-moon-stars', tl(kz.mesai_disi), 'Mesai dışı kazanç', sayi(o.randevu.mesai_disi) + ' randevu personel yokken alındı')
             + kaz('wa-k-tur', 'bi-arrow-repeat', sayi(o.geri_kazanim.randevu), 'Geri kazanılan müşteri', sayi(o.geri_kazanim.yazildi) + ' kaçan müşteriye yazıldı · ' + tl(o.geri_kazanim.tutar))
