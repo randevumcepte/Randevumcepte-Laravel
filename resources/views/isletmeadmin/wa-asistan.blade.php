@@ -28,7 +28,11 @@
    .wa-hero::after { content:''; position:absolute; right:120px; bottom:-160px; width:360px; height:260px; border-radius:50%; border:2px solid rgba(255,255,255,.12); }
    .wa-hero-ikon { flex:0 0 auto; width:78px; height:78px; border-radius:50%; background:#25D366; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 6px rgba(255,255,255,.18); position:relative; z-index:1; }
    .wa-hero-ikon i { font-size:42px; color:#fff; }
-   .wa-hero-bolum { position:relative; z-index:1; flex:1 1 0; min-width:0; display:flex; align-items:center; gap:16px; padding:0 22px; border-left:1px solid rgba(255,255,255,.22); }
+   .wa-hero-bolum { position:relative; z-index:1; flex:1 1 0; min-width:0; display:flex; align-items:center; gap:16px; padding:0 22px; }
+   /* Bolum ayirici: belirgin, ortasi parlak uclari yumusak dikey cizgi */
+   .wa-hero-bolum::before { content:""; position:absolute; left:0; top:-6px; bottom:-6px; width:2px; border-radius:2px;
+      background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,.75) 25%,rgba(255,255,255,.75) 75%,rgba(255,255,255,0)); box-shadow:0 0 8px rgba(255,255,255,.35); }
+   .wa-hero-bolum.ilk::before { display:none; }
    .wa-hero-bolum.ilk { border-left:none; padding-left:4px; }
    .wa-hero-bolum > i { font-size:40px; opacity:.92; }
    .wa-hero-e { font-size:15px; opacity:.92; }
@@ -152,7 +156,7 @@
    .wa-h3 { background:#ffeedd; } .wa-h3 i { color:#f97316; }
    .wa-h4 { background:#e3edff; } .wa-h4 i { color:#2563eb; }
    .wa-ai { background:linear-gradient(120deg,#f3ecff,#ebe2fd); display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
-   .wa-ai .robot { flex:0 0 auto; width:120px; }
+   .wa-ai .robot { flex:0 0 auto; width:170px; height:auto; align-self:flex-end; margin:-6px 0 -20px -8px; -webkit-mask-image:radial-gradient(ellipse 62% 66% at 50% 58%, #000 58%, transparent 98%); mask-image:radial-gradient(ellipse 62% 66% at 50% 58%, #000 58%, transparent 98%); }
    .wa-ai .orta-ic { flex:1; min-width:200px; }
    .wa-ai h4 { margin:0; font-size:18px; font-weight:800; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
    .wa-aktif { background:var(--yesil); color:#fff; font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; display:inline-flex; align-items:center; gap:5px; }
@@ -211,7 +215,8 @@
    @media (max-width: 1100px) { .wa-orta, .wa-alt-sira { grid-template-columns:minmax(0,1fr); } }
    @media (max-width: 900px) {
       .wa-hero { flex-direction:column; align-items:flex-start; padding:22px; gap:16px; }
-      .wa-hero-bolum { border-left:none; padding:0; border-top:1px solid rgba(255,255,255,.2); padding-top:14px; width:100%; }
+      .wa-hero-bolum { border-left:none; padding:0; border-top:2px solid rgba(255,255,255,.45); padding-top:14px; width:100%; }
+      .wa-hero-bolum::before { display:none; }
       .wa-hero-bolum.ilk { border-top:none; padding-top:0; }
       .wa-hero-ikon { width:60px; height:60px; } .wa-hero-ikon i { font-size:32px; }
       .wa-hero-d { font-size:28px; }
@@ -228,7 +233,7 @@
       .wa-konusma .wa-hap { display:none; }
       .wa-ust { flex-direction:column; align-items:stretch; }
       .wa-donem { align-self:flex-start; }
-      .wa-ai .robot { width:84px; }
+      .wa-ai .robot { width:120px; margin-bottom:-16px; }
    }
    @media (max-width: 360px) { .wa-kpiler, .wa-kazanclar { grid-template-columns:minmax(0,1fr); } }
 </style>
@@ -422,13 +427,8 @@
    }
    // Mor alandaki slogan arkasi yaprak (lotus) deseni: tabandan acilan 5 yaprak + 2 kucuk yan yaprak
    var YAPRAK = '<svg class="wa-hero-yaprak" viewBox="0 0 150 150" aria-hidden="true"><defs><linearGradient id="yp" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#fff"/></linearGradient></defs><g fill="url(#yp)">'      + [-58, -30, 0, 30, 58].map(function (a, i) { var u = i === 2 ? 118 : (i % 4 === 0 ? 78 : 100); return '<path transform="rotate(' + a + ' 75 145)" d="M75 145 C' + (75 - 22) + ' ' + (145 - u * .45) + ' ' + (75 - 14) + ' ' + (145 - u * .85) + ' 75 ' + (145 - u) + ' C' + (75 + 14) + ' ' + (145 - u * .85) + ' ' + (75 + 22) + ' ' + (145 - u * .45) + ' 75 145Z"/>'; }).join('')      + '</g><g fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1.2">' + [-30, 0, 30].map(function (a) { return '<path transform="rotate(' + a + ' 75 145)" d="M75 140 L75 ' + (a ? 55 : 35) + '"/>'; }).join('') + '</g></svg>';
-   var ROBOT = '<svg class="robot" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="rb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#e9ddff"/></linearGradient></defs>'
-      + '<circle cx="60" cy="16" r="6" fill="#7c3aed"/><rect x="57" y="18" width="6" height="12" rx="3" fill="#a78bfa"/>'
-      + '<rect x="14" y="44" width="14" height="30" rx="7" fill="#6d28d9"/><rect x="92" y="44" width="14" height="30" rx="7" fill="#6d28d9"/>'
-      + '<rect x="22" y="28" width="76" height="64" rx="30" fill="url(#rb)" stroke="#c4b5fd" stroke-width="2"/>'
-      + '<rect x="32" y="42" width="56" height="34" rx="17" fill="#1f1638"/><ellipse cx="48" cy="58" rx="6" ry="7" fill="#7dd3fc"/><ellipse cx="72" cy="58" rx="6" ry="7" fill="#7dd3fc"/>'
-      + '<path d="M50 68 Q60 74 70 68" stroke="#7dd3fc" stroke-width="3" fill="none" stroke-linecap="round"/>'
-      + '<path d="M40 100 Q60 88 80 100 L84 118 L36 118 Z" fill="#7c3aed"/><circle cx="92" cy="98" r="14" fill="#16a34a"/><path d="M85 98 l5 5 l9 -10" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+   // AI asistan karti robotu: tasarimdaki 3D robot gorseli (public/isletmeyonetim_assets/img/wa-ai-robot.png)
+   var ROBOT = '<img class="robot" src="/public/isletmeyonetim_assets/img/wa-ai-robot.png" alt="RandevumCepte AI Asistan" width="186" height="160">';
 
    function genelYukle() {
       al('/ozet', { donem: donemSec.value }).then(function (r) {
