@@ -1096,6 +1096,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	// WhatsApp Asistanı: kazandirdiklari, sohbetler (devral/geri ver), geri kazanma, fotograf fiyat kurallari, ogrenilen, ayarlar
 	Route::get('/whatsapp-asistan','WaAsistanPanelController@sayfa');
 	Route::get('/whatsapp-asistan/ozet','WaAsistanPanelController@ozet');
+	Route::get('/whatsapp-asistan/grafik','WaAsistanPanelController@grafik');
 	Route::get('/whatsapp-asistan/sohbetler','WaAsistanPanelController@sohbetler');
 	Route::get('/whatsapp-asistan/sohbet/{id}','WaAsistanPanelController@sohbet')->where('id','[0-9]+');
 	Route::post('/whatsapp-asistan/sohbet/{id}/devral','WaAsistanPanelController@devral')->where('id','[0-9]+');

@@ -29,7 +29,7 @@ class WaAsistanRapor
             ->map(function ($r) { return (array) $r; })->all();
         $v['oturumlar'] = DB::table('wa_asistan_oturumlari')->where('isletme_id', $isletmeId)
             ->where('created_at', '>=', $bas)->where('created_at', '<', $bit)
-            ->get(['id', 'anahtar', 'ad', 'telefon', 'musteri_tel', 'sonuc', 'randevu_id', 'fiyat_verildi', 'bilgi_verildi', 'saat_onerildi',
+            ->get(['id', 'anahtar', 'ad', 'telefon', 'musteri_tel', 'sonuc', 'randevu_id', 'mesaj_sayisi', 'fiyat_verildi', 'bilgi_verildi', 'saat_onerildi',
                    'gorsel_sayisi', 'son_hizmet_ad', 'memnuniyet', 'ret', 'sessiz_bitis', 'sessiz_neden', 'geri_kazanim_id', 'son_mesaj_at', 'created_at'])
             ->map(function ($r) { return (array) $r; })->all();
         $rids = array_values(array_unique(array_filter(array_merge(
@@ -60,6 +60,79 @@ class WaAsistanRapor
                 ->get(['id', 'oturum_id', 'durum', 'toplam', 'onbellek'])->map(function ($r) { return (array) $r; })->all();
         }
         return $v;
+    }
+
+    /**
+     * SAF. Panel donem secimi -> [bas, bit, oncekiBas, oncekiBit] ('Y-m-d H:i:s', bit haric). Onceki donem = ayni uzunlukta
+     * hemen onceki aralik (trend yuzdeleri icin). donem: 7g | 30g | 90g | bu_ay | gecen_ay
+     */
+    public static function donemAraligi(string $donem, ?int $now = null): array
+    {
+        $now = $now ?: time();
+        $yarin = strtotime(date('Y-m-d', $now) . ' +1 day');
+        switch ($donem) {
+            case 'bu_ay':
+                $bas = strtotime(date('Y-m-01', $now)); $bit = $yarin;
+                $oBas = strtotime(date('Y-m-01', $bas) . ' -1 month'); $oBit = $oBas + ($bit - $bas);
+                break;
+            case 'gecen_ay':
+                $bit = strtotime(date('Y-m-01', $now)); $bas = strtotime(date('Y-m-01', $bit) . ' -1 month');
+                $oBas = strtotime(date('Y-m-01', $bas) . ' -1 month'); $oBit = $bas;
+                break;
+            default:
+                $gun = ['7g' => 7, '90g' => 90][$donem] ?? 30;
+                $bit = $yarin; $bas = strtotime(date('Y-m-d', $bit) . " -{$gun} days");
+                $oBit = $bas; $oBas = strtotime(date('Y-m-d', $bas) . " -{$gun} days");
+        }
+        $f = function ($t) { return date('Y-m-d H:i:s', $t); };
+        return [$f($bas), $f($bit), $f($oBas), $f($oBit)];
+    }
+
+    /** SAF. Onceki doneme gore yuzde degisim (onceki 0 ise null: "yeni"). */
+    public static function trend($simdi, $once): ?int
+    {
+        if ($simdi === null || $once === null) return null;
+        $once = (float) $once; $simdi = (float) $simdi;
+        if ($once <= 0) return null;
+        return (int) round(($simdi - $once) / $once * 100);
+    }
+
+    /**
+     * SAF. Grafik serisi: [bas, bit) araligini gun ('gun') ya da ay ('ay') kovalarina boler.
+     * mesaj = musterinin gonderdigi mesaj (sohbet baslangic gunune), randevu = asistanin aldigi randevu,
+     * yeni = yeni musteri randevusu, memnun/memnun_degil, sure = o gunun medyan cevap suresi (sn).
+     */
+    public static function seri(array $v, string $bas, string $bit, string $birim = 'gun'): array
+    {
+        $fmt = $birim === 'ay' ? 'Y-m' : 'Y-m-d';
+        $kova = [];
+        for ($t = strtotime($bas); $t < strtotime($bit); $t = strtotime($birim === 'ay' ? '+1 month' : '+1 day', $t)) $kova[date($fmt, $t)] = 1;
+        $bos = array_fill_keys(array_keys($kova), 0);
+        $mesaj = $bos; $randevu = $bos; $yeni = $bos; $memnun = $bos; $memnunDegil = $bos; $sureler = array_fill_keys(array_keys($kova), []);
+        $rnd = $v['randevular'] ?? [];
+        foreach ($v['oturumlar'] as $o) {
+            $k = date($fmt, strtotime($o['created_at']));
+            if (!isset($bos[$k])) continue;
+            $mesaj[$k] += (int) ($o['mesaj_sayisi'] ?? 0);
+            if ($o['memnuniyet'] !== null && $o['memnuniyet'] !== '') { if ((int) $o['memnuniyet'] === 1) $memnun[$k]++; else $memnunDegil[$k]++; }
+        }
+        $sayilan = [];
+        foreach ($v['cevaplar'] as $c) {
+            $k = date($fmt, strtotime($c['created_at']));
+            if (!isset($bos[$k])) continue;
+            if ($c['aksiyon'] === 'randevu' && !empty($c['randevu_id']) && !isset($sayilan[$c['randevu_id']])) {
+                $sayilan[$c['randevu_id']] = 1;
+                $x = $rnd[(int) $c['randevu_id']] ?? null;
+                if ($x && !empty($x['iptal'])) continue;
+                $randevu[$k]++;
+                if ($x && !empty($x['yeni'])) $yeni[$k]++;
+            }
+            if ($c['kaynak'] !== 'geri_kazanim' && $c['sure_sn'] !== null) $sureler[$k][] = (int) $c['sure_sn'];
+        }
+        $sure = [];
+        foreach ($sureler as $k => $l) { sort($l); $sure[$k] = $l ? $l[(int) floor((count($l) - 1) / 2)] : null; }
+        return ['etiket' => array_keys($kova), 'mesaj' => array_values($mesaj), 'randevu' => array_values($randevu), 'yeni' => array_values($yeni),
+            'memnun' => array_values($memnun), 'memnun_degil' => array_values($memnunDegil), 'sure' => array_values($sure)];
     }
 
     /** SAF. $v = veriYukle cikisi; $paket = wa_asistan_paketleri satiri (nesne) ya da null. */
@@ -148,7 +221,8 @@ class WaAsistanRapor
             'randevu' => $r + ['guncelle' => $aksiyonSay('guncelle'), 'iptal_islem' => $aksiyonSay('iptal'), 'teyit' => $aksiyonSay('teyit')],
             'geri_kazanim' => $g,
             'sohbet' => [
-                'yazisma' => $yazisma, 'bilgi_aldi' => $bilgiAldi, 'fiyat_aldi' => $fiyatAlip, 'fiyattan_randevu' => $fiyatRandevu,
+                'yazisma' => $yazisma, 'bilgi_aldi' => $bilgiAldi,
+                'gelen_mesaj' => array_sum(array_map(function ($o) { return (int) ($o['mesaj_sayisi'] ?? 0); }, $otr)), 'fiyat_aldi' => $fiyatAlip, 'fiyattan_randevu' => $fiyatRandevu,
                 'cozulen_orani' => $yazisma ? (int) round($cozulen / $yazisma * 100) : null,
                 'memnun' => $memnun, 'memnun_degil' => $memnunDegil,
                 'memnuniyet_orani' => ($memnun + $memnunDegil) ? (int) round($memnun / ($memnun + $memnunDegil) * 100) : null,

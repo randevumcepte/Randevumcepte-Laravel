@@ -64,14 +64,52 @@ class WaAsistanPanelController extends StoreAdminController
         ]);
     }
 
-    /** Kazandirdiklari raporu (ay: Y-m) */
+    /** Genel bakis: secilen donem raporu + onceki doneme gore trend + gunluk seriler (mini grafikler) + paket + asistan durumu. */
     public function ozet(Request $request)
     {
         $sid = $this->salon($request);
         if (!$sid) return $this->yok();
-        [$ay, $bas, $bit] = SantralPaket::donem($request->input('ay'));
-        return response()->json(['ok' => 1, 'ay' => $ay, 'ozet' => WaAsistanRapor::ozet($sid, $bas, $bit),
-            'paket' => WaPaket::hesapla(WaPaket::paket($sid), WaPaket::kullanilan($sid, $ay))]);
+        $donem = (string) $request->input('donem', '30g');
+        [$bas, $bit, $oBas, $oBit] = WaAsistanRapor::donemAraligi($donem);
+        $v = WaAsistanRapor::veriYukle($sid, $bas, $bit);
+        $paketSatir = WaPaket::paket($sid);
+        $o = WaAsistanRapor::ozetHesapla($v, $paketSatir);
+        $once = WaAsistanRapor::ozetHesapla(WaAsistanRapor::veriYukle($sid, $oBas, $oBit), $paketSatir);
+        $t = function ($a, $b) { return WaAsistanRapor::trend($a, $b); };
+        $trend = [
+            'mesaj' => $t($o['sohbet']['gelen_mesaj'], $once['sohbet']['gelen_mesaj']),
+            'randevu' => $t($o['randevu']['adet'] + $o['geri_kazanim']['randevu'], $once['randevu']['adet'] + $once['geri_kazanim']['randevu']),
+            'yeni' => $t($o['randevu']['yeni_musteri'], $once['randevu']['yeni_musteri']),
+            'memnuniyet' => ($o['sohbet']['memnuniyet_orani'] !== null && $once['sohbet']['memnuniyet_orani'] !== null)
+                ? $o['sohbet']['memnuniyet_orani'] - $once['sohbet']['memnuniyet_orani'] : null, // puan farki
+            'sure' => $t($o['cevap']['medyan_sure_sn'], $once['cevap']['medyan_sure_sn']),
+            'kazanc' => $t($o['kazanc']['beklenen'], $once['kazanc']['beklenen']),
+        ];
+        $ayar = WaAsistanVeri::ayarlar($sid);
+        $kuralVar = (bool) WaGorselDanisman::kurallar($sid, (string) $ayar['gorsel_sektor']);
+        return response()->json(['ok' => 1, 'donem' => $donem, 'ozet' => $o, 'trend' => $trend,
+            'seri' => WaAsistanRapor::seri($v, $bas, $bit, 'gun'),
+            'paket' => WaPaket::hesapla($paketSatir, WaPaket::kullanilan($sid)),
+            'asistan' => ['acik' => WaAsistan::acikMi($sid), 'fiyat' => (int) $ayar['fiyat_soyle'], 'gorsel' => (int) $ayar['gorsel_fiyat'] && $kuralVar,
+                'geri_kazanim' => (int) $ayar['geri_kazanim'], 'memnuniyet' => (int) $ayar['memnuniyet_sor']]]);
+    }
+
+    /** Performans grafigi: hafta (7 gun) | ay (30 gun) | yil (12 ay) -> randevu + mesaj serileri */
+    public function grafik(Request $request)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        $g = (string) $request->input('g', 'ay');
+        if ($g === 'yil') {
+            $bas = date('Y-m-01 00:00:00', strtotime(date('Y-m-01') . ' -11 months'));
+            $bit = date('Y-m-01 00:00:00', strtotime(date('Y-m-01') . ' +1 month'));
+            $birim = 'ay';
+        } else {
+            [$bas, $bit] = WaAsistanRapor::donemAraligi($g === 'hafta' ? '7g' : '30g');
+            $birim = 'gun';
+        }
+        $s = WaAsistanRapor::seri(WaAsistanRapor::veriYukle($sid, $bas, $bit), $bas, $bit, $birim);
+        return response()->json(['ok' => 1, 'birim' => $birim, 'etiket' => $s['etiket'], 'randevu' => $s['randevu'], 'mesaj' => $s['mesaj']]);
     }
 
     public function sohbetler(Request $request)
@@ -152,7 +190,7 @@ class WaAsistanPanelController extends StoreAdminController
         $sid = $this->salon($request);
         if (!$sid) return $this->yok();
         if (!WaGeriKazanim::semaGaranti()) return response()->json(['ok' => 1, 'liste' => []]);
-        [, $bas, $bit] = SantralPaket::donem($request->input('ay'));
+        [$bas, $bit] = WaAsistanRapor::donemAraligi((string) $request->input('donem', '30g'));
         $liste = DB::table(WaGeriKazanim::TABLO)->where('isletme_id', $sid)->where('gonderildi_at', '>=', $bas)->where('gonderildi_at', '<', $bit)
             ->orderByDesc('id')->limit(300)->get(['id', 'yeni_oturum_id', 'ad', 'telefon', 'hizmet_ad', 'neden', 'durum', 'gonderildi_at', 'cevap_at', 'randevu_tarih', 'tutar', 'geldi', 'mesaj']);
         return response()->json(['ok' => 1, 'liste' => $liste]);

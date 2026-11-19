@@ -397,6 +397,30 @@ namespace {
     esit('popüler hizmet', ['Protez Tırnak' => 3, 'Kalıcı Oje' => 1], $o['populer_hizmet']);
     esit('boş veri çökmez', 0, WaAsistanRapor::ozetHesapla(['cevaplar' => [], 'oturumlar' => [], 'randevular' => [], 'geri_kazanim' => []])['cevap']['toplam']);
 
+    baslik('Genel bakış: dönem, trend, seri');
+    $n = strtotime('2026-11-19 14:00');
+    esit('son 30 gün (bugün dahil)', ['2026-10-21 00:00:00', '2026-11-20 00:00:00', '2026-09-21 00:00:00', '2026-10-21 00:00:00'], WaAsistanRapor::donemAraligi('30g', $n));
+    esit('son 7 gün', ['2026-11-13 00:00:00', '2026-11-20 00:00:00', '2026-11-06 00:00:00', '2026-11-13 00:00:00'], WaAsistanRapor::donemAraligi('7g', $n));
+    esit('bu ay (önceki = geçen ayın aynı uzunluğu)', ['2026-11-01 00:00:00', '2026-11-20 00:00:00', '2026-10-01 00:00:00', '2026-10-20 00:00:00'], WaAsistanRapor::donemAraligi('bu_ay', $n));
+    esit('geçen ay', ['2026-10-01 00:00:00', '2026-11-01 00:00:00', '2026-09-01 00:00:00', '2026-10-01 00:00:00'], WaAsistanRapor::donemAraligi('gecen_ay', $n));
+    esit('bilinmeyen dönem → 30 gün', WaAsistanRapor::donemAraligi('30g', $n), WaAsistanRapor::donemAraligi('xyz', $n));
+    esit('trend artış', 24, WaAsistanRapor::trend(124, 100));
+    esit('trend düşüş', -50, WaAsistanRapor::trend(5, 10));
+    esit('trend önceki 0 → null', null, WaAsistanRapor::trend(5, 0));
+    esit('trend veri yok → null', null, WaAsistanRapor::trend(null, 3));
+    $v['oturumlar'][0]['mesaj_sayisi'] = 6; $v['oturumlar'][1]['mesaj_sayisi'] = 4; $v['oturumlar'][2]['mesaj_sayisi'] = 2;
+    esit('gelen mesaj toplamı', 12, WaAsistanRapor::ozetHesapla($v)['sohbet']['gelen_mesaj']);
+    $s = WaAsistanRapor::seri($v, '2026-11-10 00:00:00', '2026-11-13 00:00:00', 'gun');
+    esit('seri: gün etiketleri', ['2026-11-10', '2026-11-11', '2026-11-12'], $s['etiket']);
+    esit('seri: mesaj (sohbet başlangıç günü)', [10, 2, 0], $s['mesaj']);
+    esit('seri: randevu (iptal hariç, tekil)', [2, 0, 1], $s['randevu']);
+    esit('seri: yeni müşteri', [1, 0, 0], $s['yeni']);
+    esit('seri: memnuniyet', [[1, 0, 0], [1, 0, 0]], [$s['memnun'], $s['memnun_degil']]);
+    esit('seri: medyan cevap süresi', [5, 2, 6], $s['sure']);
+    $s = WaAsistanRapor::seri($v, '2026-09-01 00:00:00', '2026-12-01 00:00:00', 'ay');
+    esit('seri: ay kovaları', ['2026-09', '2026-10', '2026-11'], $s['etiket']);
+    esit('seri: ay toplam randevu', [0, 0, 3], $s['randevu']);
+
     baslik('Entegrasyon: ayarlar');
     $T = &Illuminate\Support\Facades\DB::$t;
     esit('ayar: varsayılanlar', 1, WaAsistanVeri::ayarlar(236)['fiyat_soyle']);
