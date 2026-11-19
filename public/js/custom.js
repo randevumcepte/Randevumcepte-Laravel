@@ -9964,17 +9964,24 @@ $('#hizmetRaporPersonelFiltre').change(function(e){
     hizmetRaporFiltre($('#hizmet_rapor_baslangic_tarihi').val(),$('#hizmet_rapor_bitis_tarihi').val());
 });
 
-$(document).on('click','a[name="hizmeti_alan_musteriler"]', function(e){
+// Raporlar: her satirin "Detayli Bilgi" butonu -> kalem kalem satis detayi
+// (musteri, personel, fiyat/odenen/kalan). tur: hizmet|urun|paket; kaynak: filtrenin
+// okunacagi sekme (Tumu sekmesindeki butonlar 'tum' filtrelerini kullanir).
+$(document).on('click','a[name="rapor_kalem_detay"], a[name="hizmeti_alan_musteriler"]', function(e){
     e.preventDefault();
     var hizmetId = $(this).data('value');
     var hizmetAdi = $(this).data('adi') || '';
+    var detayTur = $(this).data('tur') || 'hizmet';
+    var kaynak = $(this).data('kaynak') || detayTur;
     if(!hizmetId) return;
+    var turEtiket = {hizmet:'Hizmet', urun:'Ürün', paket:'Paket'}[detayTur] || '';
+    var urunMu = detayTur === 'urun';
 
     var $hamModal = $('#hizmetiAlanMusterilerModal');
     if($hamModal.parent()[0] !== document.body){
         $hamModal.appendTo('body');
     }
-    $('#hizmetiAlanMusteriler_hizmetAdi').text(hizmetAdi);
+    $('#hizmetiAlanMusteriler_hizmetAdi').text(turEtiket + ': ' + hizmetAdi);
     $('#hizmetiAlanMusteriler_icerik').html('<div class="ham-loading"><div class="ham-spinner"></div><div style="margin-top:14px; font-weight:500;">Yükleniyor...</div></div>');
     $hamModal.modal('show');
 
@@ -9987,11 +9994,12 @@ $(document).on('click','a[name="hizmeti_alan_musteriler"]', function(e){
         dataType: 'json',
         data: {
             salonId: $('input[name="sube"]').val(),
+            tur: detayTur,
             hizmetId: hizmetId,
-            zaman: $('#hizmet_rapor_zamana_gore_filtre').val(),
-            baslangicTarihi: $('#hizmet_rapor_baslangic_tarihi').val(),
-            bitisTarihi: $('#hizmet_rapor_bitis_tarihi').val(),
-            personel: $('#hizmetRaporPersonelFiltre').val()
+            zaman: $('#'+kaynak+'_rapor_zamana_gore_filtre').val(),
+            baslangicTarihi: $('#'+kaynak+'_rapor_baslangic_tarihi').val(),
+            bitisTarihi: $('#'+kaynak+'_rapor_bitis_tarihi').val(),
+            personel: $('#'+kaynak+'RaporPersonelFiltre').val()
         },
         success: function(result){
             if(!result || result.length === 0){
@@ -10005,8 +10013,9 @@ $(document).on('click','a[name="hizmeti_alan_musteriler"]', function(e){
                 return;
             }
 
-            var toplamFiyat = 0, toplamOdenen = 0, toplamKalan = 0;
+            var toplamFiyat = 0, toplamOdenen = 0, toplamKalan = 0, toplamAdet = 0;
             result.forEach(function(r){
+                toplamAdet   += parseInt(r.adet, 10) || 1;
                 toplamFiyat  += parseFloat(String(r.fiyat).replace(/\./g,'').replace(',','.'))  || 0;
                 toplamOdenen += parseFloat(String(r.odenen).replace(/\./g,'').replace(',','.')) || 0;
                 toplamKalan  += parseFloat(String(r.kalan).replace(/\./g,'').replace(',','.'))  || 0;
@@ -10016,6 +10025,7 @@ $(document).on('click','a[name="hizmeti_alan_musteriler"]', function(e){
             var html = '';
             html += '<div class="ham-summary">';
             html += '  <div class="ham-chip">Kayıt Sayısı <strong>'+result.length+'</strong></div>';
+            if(urunMu) html += '  <div class="ham-chip">Toplam Adet <strong>'+toplamAdet+'</strong></div>';
             html += '  <div class="ham-chip">Toplam Fiyat <strong>'+tl(toplamFiyat)+' ₺</strong></div>';
             html += '  <div class="ham-chip ham-chip-success">Toplam Ödenen <strong>'+tl(toplamOdenen)+' ₺</strong></div>';
             html += '  <div class="ham-chip ham-chip-danger">Toplam Kalan <strong>'+tl(toplamKalan)+' ₺</strong></div>';
@@ -10027,7 +10037,8 @@ $(document).on('click','a[name="hizmeti_alan_musteriler"]', function(e){
             html += '<th>Tarih</th>';
             html += '<th>Müşteri</th>';
             html += '<th>Telefon</th>';
-            html += '<th>Personel</th>';
+            html += '<th>'+(detayTur === 'hizmet' ? 'Personel' : 'Satan Personel')+'</th>';
+            if(urunMu) html += '<th style="text-align:right;">Adet</th>';
             html += '<th style="text-align:right;">Fiyat ₺</th>';
             html += '<th style="text-align:right;">Ödenen ₺</th>';
             html += '<th style="text-align:right;">Kalan ₺</th>';
@@ -10038,6 +10049,7 @@ $(document).on('click','a[name="hizmeti_alan_musteriler"]', function(e){
                 html += '<td class="ham-musteri">'+hamFmt(r.musteri_adi)+'</td>';
                 html += '<td class="ham-tel">'+hamFmt(r.telefon)+'</td>';
                 html += '<td><span class="ham-personel-badge">'+hamFmt(r.personel)+'</span></td>';
+                if(urunMu) html += '<td class="ham-amount">'+hamFmt(r.adet)+'</td>';
                 html += '<td class="ham-amount ham-fiyat">'+hamFmt(r.fiyat)+'</td>';
                 html += '<td class="ham-amount ham-odenen">'+hamFmt(r.odenen)+'</td>';
                 html += '<td class="ham-amount ham-kalan">'+hamFmt(r.kalan)+'</td>';
@@ -10054,6 +10066,25 @@ $(document).on('click','a[name="hizmeti_alan_musteriler"]', function(e){
                 '<div style="margin-top:6px; font-size:13px;">Veriler yüklenirken hata. Lütfen tekrar deneyin.</div>'+
                 '</div>'
             );
+        }
+    });
+});
+// Raporlar: acik gelen "Tumu" sekmesinin tablosu yalniz sekme tiklaninca
+// DataTable oluyordu -> ilk acilista tasarimsiz/ham tablo gorunuyordu.
+$(function(){
+    var $t = $('#tum_rapor_tablo');
+    if(!$t.length || $.fn.DataTable.isDataTable($t)) return;
+    $t.DataTable({
+        ordering: false,
+        autoWidth: false,
+        pageLength: 100,
+        "language" : {
+            "url" : "//cdn.datatables.net/plug-ins/1.10.20/i18n/Turkish.json",
+            searchPlaceholder: "Ara",
+            paginate: {
+                next: '<i class="ion-chevron-right"></i>',
+                previous: '<i class="ion-chevron-left"></i>'
+            }
         }
     });
 });
@@ -10108,6 +10139,7 @@ function tumRaporFiltre(baslangic_tarihi,bitis_tarihi)
                            { data: 'toplam_tutar' },
                            { data: 'toplamKazanc' },
                            { data: 'borc' },
+                           { data: 'islemler', orderable: false },
                         ],
                         data: result,
                         "language" : {

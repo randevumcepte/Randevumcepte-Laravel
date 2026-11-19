@@ -341,6 +341,7 @@
                      <th>Gelir ₺</th>
                      <th>Toplam Kazanç ₺</th>
                      <th>Kalan Alacak ₺</th>
+                     <th>İşlemler</th>
                   </thead>
                   <tbody>
                   @foreach($tumRaporlari as $rapor)
@@ -351,6 +352,7 @@
                         <td>{{ $rapor->toplam_tutar }}</td>
                         <td>{{ $rapor->toplamKazanc }}</td>
                         <td>{{ $rapor->borc }}</td>
+                        <td>{!! $rapor->islemler !!}</td>
                      </tr>
                   @endforeach
                   </tbody>
@@ -456,9 +458,7 @@
                         <td>{{ $rapor->toplamMaliyet ?? '0,00' }}</td>
                         <td style="font-weight:600;color:{{ $_karNum >= 0 ? '#1fbf6f' : '#c62828' }};">{{ $rapor->kar ?? '0,00' }}</td>
                         <td>
-                           <a title="Detaylı Bilgi" name="hizmeti_alan_musteriler" data-value="{{ $rapor->id }}" data-adi="{{ $rapor->hizmet_adi }}" href="javascript:void(0)" class="btn btn-info">
-                              <i class='dw dw-eye'></i>
-                           </a>
+                           {!! $rapor->islemler !!}
                         </td>
                      </tr>
                   @endforeach
@@ -544,9 +544,7 @@
                         <td>{{ $rapor->toplamKazanc }}</td>
                         <td>{{ $rapor->borc }}</td>
                         <td>
-                           <a title="Detaylı Bilgi" href='' class='btn btn-info'>
-                              <i class='dw dw-eye'></i>
-                           </a>
+                           {!! $rapor->islemler !!}
                         </td>
                      </tr>
                   @endforeach
@@ -632,9 +630,7 @@
                         <td>{{ $rapor->toplamKazanc }}</td>
                         <td>{{ $rapor->borc }}</td>
                         <td>
-                           <a title="Detaylı Bilgi" href='' class='btn btn-info'>
-                              <i class='dw dw-eye'></i>
-                           </a>
+                           {!! $rapor->islemler !!}
                         </td>
                      </tr>
                   @endforeach
@@ -856,7 +852,7 @@
             <div style="display:flex; align-items:center; gap:16px; flex:1; min-width:0;">
                <div class="ham-icon"><i class="dw dw-eye"></i></div>
                <div style="flex:1; min-width:0;">
-                  <h4 id="hizmetiAlanMusterilerModalLabel">Hizmeti Alan Müşteriler</h4>
+                  <h4 id="hizmetiAlanMusterilerModalLabel">Satış Detayı</h4>
                   <div class="ham-sub" id="hizmetiAlanMusteriler_hizmetAdi"></div>
                </div>
             </div>

@@ -37168,11 +37168,17 @@ DB::raw('
                 'birimMaliyetNumeric' => $birimMaliyet,
                 'toplamMaliyetNumeric' => $toplamMaliyet,
                 'karNumeric' => $kar,
-                'islemler'=> ' <a title="Detaylı Bilgi" name="hizmeti_alan_musteriler" data-value="'.($items->first()->hizmet_id).'" data-adi="'.htmlspecialchars($items->first()->hizmet->hizmet_adi ?? '', ENT_QUOTES).'" href="javascript:void(0)" class="btn btn-info"><i class="dw dw-eye"></i> </a>'
+                'islemler'=> self::raporDetayButon('hizmet', $items->first()->hizmet_id, $items->first()->hizmet->hizmet_adi ?? '')
             ];
         })->values();
 
         return $raporlar;
+    }
+
+    // Raporlar ekrani "Detayli Bilgi" butonu. kaynak = filtrenin okunacagi sekme (hizmet|urun|paket|tum)
+    public static function raporDetayButon($tur, $id, $ad, $kaynak = null)
+    {
+        return '<a title="Detaylı Bilgi" name="rapor_kalem_detay" data-tur="'.$tur.'" data-kaynak="'.($kaynak ?: $tur).'" data-value="'.(int) $id.'" data-adi="'.htmlspecialchars((string) $ad, ENT_QUOTES).'" href="javascript:void(0)" class="btn btn-info"><i class="dw dw-eye"></i></a>';
     }
 
     public function hizmetiAlanMusteriler(Request $request)
@@ -37209,36 +37215,63 @@ DB::raw('
             return response()->json(['hata'=>'Yetkisiz erişim'], 403);
         }
 
-        $adisyonlar = Adisyonlar::with(['musteri'])
+        // tur: hizmet | urun | paket — Raporlar ekranindaki her kalemin satis detayi
+        // (hangi musteriye, hangi personel, kalem kalem fiyat/odenen/kalan).
+        $tur = in_array($request->tur, ['hizmet','urun','paket']) ? $request->tur : 'hizmet';
+        $ayar = [
+            'hizmet' => ['iliski'=>'hizmetler', 'kolon'=>'hizmet_id', 'tahsilat'=>TahsilatHizmetler::class, 'fk'=>'adisyon_hizmet_id'],
+            'urun'   => ['iliski'=>'urunler',   'kolon'=>'urun_id',   'tahsilat'=>TahsilatUrunler::class,   'fk'=>'adisyon_urun_id'],
+            'paket'  => ['iliski'=>'paketler',  'kolon'=>'paket_id',  'tahsilat'=>TahsilatPaketler::class,  'fk'=>'adisyon_paket_id'],
+        ][$tur];
+        $iliski = $ayar['iliski'];
+        $kolon  = $ayar['kolon'];
+
+        // Rapor tablosuyla ayni kapsam: adisyon.tarih araligi + (varsa) personel
+        $adisyonlar = Adisyonlar::with(['musteri', $iliski.'.personel'])
             ->where('salon_id', $salonId)
             ->whereBetween('tarih', [$tarih1, $tarih2])
-            ->whereHas('hizmetler', function($q) use($hizmetId, $personel){
-                $q->where('hizmet_id', $hizmetId);
+            ->whereHas($iliski, function($q) use($kolon, $hizmetId, $personel){
+                $q->where($kolon, $hizmetId);
                 if($personel != '') $q->where('personel_id', $personel);
             })
             ->get();
 
-        $sonuc = collect();
+        $kalemler = collect();
         foreach($adisyonlar as $adisyon){
-            $kalemler = $adisyon->hizmetler->where('hizmet_id', $hizmetId);
-            if($personel != ''){
-                $kalemler = $kalemler->where('personel_id', $personel);
-            }
-            foreach($kalemler as $h){
-                $odenen = TahsilatHizmetler::where('adisyon_hizmet_id', $h->id)->sum('tutar');
-                $tarihRaw = $h->islem_tarihi ?: $adisyon->tarih;
-                $personelAdi = optional($h->personel)->personel_adi ?: '-';
-                $sonuc->push([
-                    'tarih_sirala' => $tarihRaw,
-                    'tarih'        => $tarihRaw ? date('d.m.Y', strtotime($tarihRaw)) : '-',
-                    'musteri_adi'  => optional($adisyon->musteri)->name ?: '-',
-                    'telefon'      => optional($adisyon->musteri)->cep_telefon ?: '-',
-                    'personel'     => $personelAdi,
-                    'fiyat'        => number_format($h->fiyat, 2, ',', '.'),
-                    'odenen'       => number_format($odenen, 2, ',', '.'),
-                    'kalan'        => number_format($h->fiyat - $odenen, 2, ',', '.'),
-                ]);
-            }
+            $k = $adisyon->{$iliski}->where($kolon, $hizmetId);
+            if($personel != '') $k = $k->where('personel_id', $personel);
+            foreach($k as $h){ $kalemler->push([$adisyon, $h]); }
+        }
+
+        // Odenenler tek sorguda (kalem basina sorgu yerine)
+        $kalemIdleri = $kalemler->map(function($x){ return $x[1]->id; })->all();
+        $odenenMap = [];
+        if(!empty($kalemIdleri)){
+            $tahsilatSinifi = $ayar['tahsilat'];
+            $odenenMap = $tahsilatSinifi::whereIn($ayar['fk'], $kalemIdleri)
+                ->groupBy($ayar['fk'])
+                ->selectRaw($ayar['fk'].' as kid, SUM(tutar) as toplam')
+                ->pluck('toplam','kid')->toArray();
+        }
+
+        $sonuc = collect();
+        foreach($kalemler as $x){
+            list($adisyon, $h) = $x;
+            $odenen = (float) ($odenenMap[$h->id] ?? 0);
+            $fiyat  = (float) $h->fiyat;
+            $tarihRaw = ($tur != 'paket' && !empty($h->islem_tarihi)) ? $h->islem_tarihi : $adisyon->tarih;
+            $sonuc->push([
+                'tarih_sirala' => $tarihRaw,
+                'tarih'        => $tarihRaw ? date('d.m.Y', strtotime($tarihRaw)) : '-',
+                'musteri_id'   => $adisyon->user_id,
+                'musteri_adi'  => optional($adisyon->musteri)->name ?: '-',
+                'telefon'      => optional($adisyon->musteri)->cep_telefon ?: '-',
+                'personel'     => optional($h->personel)->personel_adi ?: '-',
+                'adet'         => $tur == 'urun' ? (int) ($h->adet ?: 1) : 1,
+                'fiyat'        => number_format($fiyat, 2, ',', '.'),
+                'odenen'       => number_format($odenen, 2, ',', '.'),
+                'kalan'        => number_format($fiyat - $odenen, 2, ',', '.'),
+            ]);
         }
 
         $sonuc = $sonuc->sortByDesc('tarih_sirala')->values()->map(function($r){
@@ -37287,7 +37320,7 @@ DB::raw('
                 'urun_adi' => $items->first()->urun->urun_adi ?? null,
                  'toplamKazanc' => number_format($toplamKazanc,'2',',','.'),
                 'borc' => number_format($items->sum('fiyat') - $toplamKazanc,'2',',','.'),
-                'islemler'=> ' <a title="Detaylı Bilgi" name="urunu_alan_musteriler" data-value""  href="" class="btn btn-info"><i class="dw dw-eye"></i> </a>',
+                'islemler'=> self::raporDetayButon('urun', $items->first()->urun_id, $items->first()->urun->urun_adi ?? ''),
                  'toplamTutarNumeric'=>$items->sum('fiyat'),
                 'toplamKazancNumeric'=>$toplamKazanc,
                 'borcNumeric'=>$items->sum('fiyat') - $toplamKazanc,
@@ -37333,7 +37366,7 @@ DB::raw('
                 'paket_adi' => $items->first()->paket->paket_adi ?? null,
                  'toplamKazanc' => number_format($toplamKazanc,'2',',','.'),
                 'borc' => number_format($items->sum('fiyat') - $toplamKazanc,'2',',','.'),
-                'islemler'=> ' <a title="Detaylı Bilgi" name="paketi_alan_musteriler" data-value""  href="" class="btn btn-info"><i class="dw dw-eye"></i> </a>',
+                'islemler'=> self::raporDetayButon('paket', $items->first()->paket_id, $items->first()->paket->paket_adi ?? ''),
                  'toplamTutarNumeric'=>$items->sum('fiyat'),
                 'toplamKazancNumeric'=>$toplamKazanc,
                 'borcNumeric'=>$items->sum('fiyat') - $toplamKazanc,
@@ -37345,9 +37378,11 @@ DB::raw('
     // Hizmet + Urun + Paket satislarini tek listede birlestirir (Tumu sekmesi)
     public function tumRaporlari($salonId,$tarih1,$tarih2,$personel='')
     {
-        $birlestir = function($koleksiyon,$tur,$adAnahtar){
-            return $koleksiyon->map(function($r) use($tur,$adAnahtar){
+        $birlestir = function($koleksiyon,$tur,$adAnahtar,$detayTur){
+            return $koleksiyon->map(function($r) use($tur,$adAnahtar,$detayTur){
                 return (object)[
+                    'id'                 => $r->id,
+                    'islemler'           => self::raporDetayButon($detayTur, $r->id, $r->{$adAnahtar} ?? '', 'tum'),
                     'tur'                => $tur,
                     'ad'                 => $r->{$adAnahtar} ?? '-',
                     'adet'               => $r->adet,
@@ -37361,9 +37396,9 @@ DB::raw('
             });
         };
 
-        $hizmet = $birlestir(self::hizmetRaporlari2($salonId,$tarih1,$tarih2,$personel),'Hizmet','hizmet_adi');
-        $urun   = $birlestir(self::urunRaporlari($salonId,$tarih1,$tarih2,$personel),'Ürün','urun_adi');
-        $paket  = $birlestir(self::paketRaporlari($salonId,$tarih1,$tarih2,$personel),'Paket','paket_adi');
+        $hizmet = $birlestir(self::hizmetRaporlari2($salonId,$tarih1,$tarih2,$personel),'Hizmet','hizmet_adi','hizmet');
+        $urun   = $birlestir(self::urunRaporlari($salonId,$tarih1,$tarih2,$personel),'Ürün','urun_adi','urun');
+        $paket  = $birlestir(self::paketRaporlari($salonId,$tarih1,$tarih2,$personel),'Paket','paket_adi','paket');
 
         return $hizmet->concat($urun)->concat($paket)->values();
     }
