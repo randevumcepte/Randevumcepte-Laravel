@@ -668,7 +668,7 @@ class WaAsistan
                 ->where('salon_personelleri.salon_id', $salonId)->where('model_has_roles.role_id', '<', 5)
                 ->pluck('salon_personelleri.personel_adi', 'salon_personelleri.id')->toArray();
             foreach ($yoneticiler as $pid => $ad) {
-                $r = NotificationService::toStaff((int) $pid, $salonId)->type(NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                $r = NotificationService::toStaff((int) $pid, $salonId)->type(NotificationTypes::WA_ASISTAN_TALEP)
                     ->title('WhatsApp Asistanı')->body($mesaj)->send();
                 // Gercekten ulasti mi: kayitli cihazina (uygulama / tarayici bildirimi) en az bir push gitti mi
                 if (trim((string) $ad) !== '') $adlar[] = ['ad' => trim((string) $ad), 'ulasti' => (int) ($r['sent'] ?? 0) > 0, 'pid' => (int) $pid, 'hata' => $r['hatalar'][0] ?? null];

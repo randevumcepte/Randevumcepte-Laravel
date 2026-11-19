@@ -51,6 +51,8 @@ class NotificationTypes
     // Sistem
     public const MEMBERSHIP_EXPIRING       = 'membership_expiring';
     public const SYSTEM_ANNOUNCEMENT       = 'system_announcement';
+    // WhatsApp Asistani isletmeye soruyor (talep): yuksek oncelik + sesli kanal (bekletilmesin)
+    public const WA_ASISTAN_TALEP          = 'wa_asistan_talep';
     // Personelin yetkileri yonetici tarafindan guncellendi.
     // Flutter tarafi alinca: Yetki.tazele + popup + logout zorlamasi.
     public const YETKI_DEGISTI             = 'yetki_degisti';
@@ -83,6 +85,7 @@ class NotificationTypes
     {
         return in_array($type, [
             self::APPOINTMENT_REMINDER,
+            self::WA_ASISTAN_TALEP,
             self::APPOINTMENT_REMINDER_HOUR,
             self::APPOINTMENT_TIME_CHANGED,
             self::APPOINTMENT_CANCELLED,
