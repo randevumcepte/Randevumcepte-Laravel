@@ -40276,6 +40276,10 @@ DB::raw('
                 ."Değerli geri bildiriminiz için şimdiden teşekkür eder, sizi yeniden ağırlamaktan mutluluk duyarız.";
         }
 
+        // SMS'e kisa metin: Turkce karakter/emoji SMS'i UCS-2'ye (70 kr/parca) cevirip cok parcaya boluyor;
+        // ASCII + tek cumle ile genelde tek parca (160 kr). WhatsApp uzun/emojili $mesaj'i kullanmaya devam eder.
+        $smsMesaj = self::anketSmsKisaMetin($ilkAd, $salonAd, $link, $odulIfade);
+
         // Kanal sirasi isletmeye ozel: salonlar.anket_gonderim_kanali
         //   'whatsapp' (varsayilan) = WA-first, SMS yedek | 'sms' = SMS-first, WA yedek.
         // Paylasilan oturum: 416 icin 246'nin WA durumu kontrol edilir.
@@ -40332,8 +40336,8 @@ DB::raw('
         };
 
         // SMS gonder: saglayici kabul ettiyse true (Controller::$sonSmsBasarili); red/bakiye/baslik hatasinda false
-        $smsGonder = function () use ($gonderim, $mesaj) {
-            $mesajlar = [['to'=>$gonderim->telefon, 'message'=>$mesaj]];
+        $smsGonder = function () use ($gonderim, $smsMesaj) {
+            $mesajlar = [['to'=>$gonderim->telefon, 'message'=>$smsMesaj]];
             try {
                 // Base Controller::sms_gonder($salon_id, $mesajlar) — request gerektirmez, cron'dan da çağrılabilir
                 $ctrl = app()->make(\App\Http\Controllers\Controller::class);
@@ -40359,6 +40363,18 @@ DB::raw('
         // WA-first; WA kapali veya basarisizsa SMS yedek
         if ($waKanaliAcik && $waDene()) return true;
         return $smsGonder();
+    }
+
+    /**
+     * Anket davetinin SMS metni: kisa, Turkce karaktersiz (GSM 7-bit, tek parca hedefi).
+     * v2 AnketLinkGonderici::smsMesaji ile ayni metin.
+     */
+    public static function anketSmsKisaMetin($ilkAd, $salonAd, $link, $odulIfade = null){
+        $metin = $odulIfade
+            ? 'Sn. '.$ilkAd.', '.$salonAd.' anketimizi doldurun, '.str_replace('₺', 'TL', $odulIfade).' kazanin: '.$link
+            : 'Sn. '.$ilkAd.', '.$salonAd.' deneyiminizi degerlendirir misiniz? '.$link;
+        $metin = strtr($metin, ['ç'=>'c','Ç'=>'C','ğ'=>'g','Ğ'=>'G','ı'=>'i','İ'=>'I','ö'=>'o','Ö'=>'O','ş'=>'s','Ş'=>'S','ü'=>'u','Ü'=>'U','â'=>'a','Â'=>'A','î'=>'i','û'=>'u']);
+        return preg_replace('/\s+/', ' ', trim(preg_replace('/[^\x20-\x7E]/', '', $metin)));
     }
 
     /**
