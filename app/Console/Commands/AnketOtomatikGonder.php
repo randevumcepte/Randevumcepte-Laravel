@@ -64,6 +64,10 @@ class AnketOtomatikGonder extends Command
             }
             if (!$salonAyarCache[$salonId]) continue;
 
+            // Stagger + dakika limiti yalniz WhatsApp ban korumasi icin; SMS-first salonda (anket_gonderim_kanali=sms)
+            // anket tam gonderim aninda ve limitsiz gider.
+            $smsOnce = DB::table('salonlar')->where('id', $salonId)->value('anket_gonderim_kanali') === 'sms';
+
             // Bugün veya dün tarihli, aktif (durum=1) randevular.
             // user_id zorunlu; randevuya_geldi durumuna bakılmaz.
             $randevular = Randevular::where('salon_id', $sablon->salon_id)
@@ -141,13 +145,13 @@ class AnketOtomatikGonder extends Command
 
                 // STAGGER: gonderim anindan sonra randevu id'sine gore 0..STAGGER-1 dk geciktir.
                 // Hedef an gelmediyse atla (ayni anda tetiklenen randevular dakikalara yayilir).
-                $hedefAn = $gonderimAni->copy()->addMinutes(((int) $rnd->id) % $STAGGER_MINUTES);
+                $hedefAn = $smsOnce ? $gonderimAni->copy() : $gonderimAni->copy()->addMinutes(((int) $rnd->id) % $STAGGER_MINUTES);
                 if ($now->lt($hedefAn)) continue;
                 // 4) 26 saatten eski randevuya da gönderme (geç kalmış cron için makul üst sınır)
                 if ($bitis->diffInHours($now, false) > 26) continue;
 
                 // 5) Dakika başına salon limiti — burst engeli. Doluysa bu randevu sonraki tikte gider.
-                if (($salonGonderimSayac[$salonId] ?? 0) >= $MAX_PER_MINUTE) continue;
+                if (!$smsOnce && ($salonGonderimSayac[$salonId] ?? 0) >= $MAX_PER_MINUTE) continue;
 
                 // 6) Onceki deneme basarisizsa: bekleme suresi dolmadan veya deneme hakki bittiyse atla
                 $denemeKey = 'anket_oto_deneme_' . $rnd->id;
