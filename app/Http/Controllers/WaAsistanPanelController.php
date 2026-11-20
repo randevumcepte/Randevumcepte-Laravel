@@ -342,6 +342,14 @@ class WaAsistanPanelController extends StoreAdminController
         return session()->has('sysadmin_impersonation_id') || \Illuminate\Support\Facades\Auth::guard('sistemyonetim')->check();
     }
 
+    /** Asistanin son isleme hatalari (mesaj geldi, cevap uretilemedi). Yalniz sistem yoneticisi. */
+    public function sonHata(Request $request)
+    {
+        if (!self::sistemYoneticisiMi()) return $this->yok();
+        return response()->json(['ok' => 1, 'hatalar' => \Illuminate\Support\Facades\Cache::get('wa_asistan_son_hatalar', [])],
+            200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    }
+
     /** ORTAK BEYIN davranis dersi: aktif <-> kapali (geri al / yine de uygula). Yalniz sistem yoneticisi; tum salonlari etkiler. */
     public function dersDurum(Request $request, $id)
     {

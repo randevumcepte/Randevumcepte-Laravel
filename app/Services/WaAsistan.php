@@ -218,12 +218,28 @@ class WaAsistan
         $id = DB::table('wa_asistan_gelen')->insertGetId($satir);
         app()->terminating(function () use ($salonId, $anahtar, $id) {
             try { self::isle($salonId, $anahtar, $id); }
-            catch (\Throwable $e) { Log::error('[WA-ASISTAN] isleme hatasi: ' . $e->getMessage(), ['salon' => $salonId, 'anahtar' => $anahtar]); }
+            catch (\Throwable $e) {
+                Log::error('[WA-ASISTAN] isleme hatasi: ' . $e->getMessage(), ['salon' => $salonId, 'anahtar' => $anahtar, 'yer' => $e->getFile() . ':' . $e->getLine()]);
+                self::hataSakla($salonId, $anahtar, $e);
+            }
         });
         if (mt_rand(1, 200) === 1) {
             try { DB::table('wa_asistan_gelen')->where('created_at', '<', now()->subDays(7))->delete(); } catch (\Throwable $e) {}
         }
         return ['tip' => 'kuyruk'];
+    }
+
+    /** Isleme hatasi: son 20 hata 1 gun saklanir (panel /whatsapp-asistan/son-hata, sistem yoneticisi; sunucu loguna gerek kalmaz). */
+    public static function hataSakla(int $salonId, string $anahtar, \Throwable $e): void
+    {
+        try {
+            $l = Cache::get('wa_asistan_son_hatalar', []);
+            $iz = [];
+            foreach (array_slice($e->getTrace(), 0, 6) as $t) $iz[] = basename($t['file'] ?? '?') . ':' . ($t['line'] ?? '?') . ' ' . ($t['class'] ?? '') . ($t['type'] ?? '') . ($t['function'] ?? '');
+            array_unshift($l, ['at' => date('Y-m-d H:i:s'), 'salon' => $salonId, 'anahtar' => $anahtar, 'hata' => mb_substr($e->getMessage(), 0, 500),
+                'yer' => basename($e->getFile()) . ':' . $e->getLine(), 'iz' => $iz]);
+            Cache::put('wa_asistan_son_hatalar', array_slice($l, 0, 20), 1440);
+        } catch (\Throwable $x) {}
     }
 
     /** message.manual: personel kendi telefonundan yazdi -> o sohbette AI susar (insan_esik_dk boyunca). */
