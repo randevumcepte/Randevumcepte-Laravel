@@ -68,7 +68,7 @@ return [
         'oturum_dk'       => (int) env('WA_ASISTAN_OTURUM_DK', 30),   // bu kadar sessizlik -> yeni yazisma
         'insan_esik_dk'   => (int) env('WA_ASISTAN_INSAN_ESIK_DK', 5), // personel elle yazdiysa AI bu kadar susar (sonra musteriye kendisi doner)
         'aktar_sessiz_dk' => (int) env('WA_ASISTAN_AKTAR_SESSIZ_DK', 120), // isletmeye aktarilan sohbette AI susar
-        'numara_10dk'     => (int) env('WA_ASISTAN_NUMARA_10DK', 15), // numara basi 10 dk'da en fazla bot cevabi
+        'numara_10dk'     => (int) env('WA_ASISTAN_NUMARA_10DK', 15), // KULLANILMIYOR: numara basi hiz siniri 2026-11-20 kaldirildi
         'gunluk_tavan'    => (int) env('WA_ASISTAN_GUNLUK_TAVAN', 0), // hat basi gunluk bot cevabi tavani (0 = sinirsiz)
         // AI Gorsel Danisman (model fotografi -> fiyat). Bkz App\Services\WaGorselDanisman.
         'gorsel_model'       => env('WA_GORSEL_MODEL', 'claude-sonnet-5-5'),

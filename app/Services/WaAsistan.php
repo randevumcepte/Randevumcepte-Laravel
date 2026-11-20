@@ -373,17 +373,8 @@ class WaAsistan
             $sus('dongu');
             return;
         }
-        // 5) NUMARA BASI HIZ SINIRI
-        $zamanlar = array_values(array_filter(json_decode($o->cevap_zamanlari ?: '[]', true) ?: [], function ($t) {
-            return (int) $t > time() - 600;
-        }));
-        if (count($zamanlar) >= max(3, (int) self::ayar('numara_10dk', 15))) {
-            $upd['sessiz_bitis'] = now()->addMinutes(60); $upd['sessiz_neden'] = 'hiz_siniri';
-            $sus('hiz_siniri');
-            self::isletmeyeBildir((int) $o->isletme_id, $o, 'WhatsApp asistanı ' . ($tel ?: 'gizli numara')
-                . ' ile yazışmada çok sık mesaj aldığı için bu sohbette 1 saat cevap vermeyecek. Gerekirse müşteriye siz dönün.');
-            return;
-        }
+        // 5) NUMARA BASI HIZ SINIRI kaldirildi (2026-11-20, kullanici karari): hizli yazan musteri susturulmaz.
+        //    Bot/dongu korumasi 3) ve 4) ile devam eder.
         // 6) HAT BASI GUNLUK TAVAN — varsayilan KAPALI (0). Asistan yalniz kendisine yazan musteriye cevap verir;
         // Meta riski toplu/istenmeyen gonderimde (geri kazanma kendi tavanini korur). Ayni numara dongusu 5) ile sinirli.
         // Gerekirse .env WA_ASISTAN_GUNLUK_TAVAN=600 ile acilir.
@@ -559,8 +550,6 @@ class WaAsistan
             $gecmis[] = $asistanMsj;
         }
         if ($gonderildi) {
-            $zamanlar[] = time();
-            $upd['cevap_zamanlari'] = json_encode(array_slice($zamanlar, -50));
             $upd['cevap_sayisi'] = DB::raw('cevap_sayisi + 1');
         }
         $kaydet($gecmis);
