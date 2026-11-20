@@ -1120,6 +1120,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/whatsapp-asistan/test-bildirim','WaAsistanPanelController@testBildirim');
 	Route::get('/whatsapp-asistan/numara-kontrol','WaAsistanPanelController@numaraKontrol');
 	Route::get('/whatsapp-asistan/son-hata','WaAsistanPanelController@sonHata');
+	Route::get('/whatsapp-asistan/maliyet','WaAsistanPanelController@maliyetRaporu');
 	Route::get('/arsivyonetimi','StoreAdminController@arsivyonetimi')->name('isletmeadmin.arsivyonetimi');
 	Route::get('/formolusturma','StoreAdminController@formolusturma')->name('isletmeadmin.formolusturma');
 	Route::get('/form-sablonlari','StoreAdminController@formSablonlari')->name('isletmeadmin.formSablonlari');

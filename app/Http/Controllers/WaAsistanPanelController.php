@@ -342,6 +342,73 @@ class WaAsistanPanelController extends StoreAdminController
         return session()->has('sysadmin_impersonation_id') || \Illuminate\Support\Facades\Auth::guard('sistemyonetim')->check();
     }
 
+    /**
+     * Salonun GERCEK WhatsApp asistani AI maliyeti (ay): Paketler sayfasindaki rakam yalniz gonderilen cevaplardir;
+     * burada gonderilemeyen cevaplar, Gece Denetcisi incelemesi, ders testleri (ortak beyin payi) ve fotograf analizi de var.
+     * Yalniz sistem yoneticisi. ?sube=236&ay=2026-11
+     */
+    public function maliyetRaporu(Request $request)
+    {
+        if (!self::sistemYoneticisiMi()) return $this->yok();
+        $sid = (int) $request->get('sube');
+        if ($sid <= 0) return response()->json(['ok' => 0, 'hata' => 'sube gerekli']);
+        [$ay, $bas, $bit] = \App\Services\SantralPaket::donem($request->get('ay'));
+        $kur = \App\Services\SantralPaket::kur();
+        $ara = function ($q) use ($bas, $bit) { return $q->where('created_at', '>=', $bas)->where('created_at', '<', $bit); };
+        $guvenli = function (callable $f, $vars = null) { try { return $f(); } catch (\Throwable $e) { return $vars; } };
+        $tl = function ($usd) use ($kur) { return round((float) $usd * $kur, 2); };
+
+        // A) Gonderilen cevaplar (Paketler sayfasindaki rakam)
+        $c = $guvenli(function () use ($sid, $ara) {
+            return $ara(DB::table('wa_asistan_cevaplar')->where('salon_id', $sid))
+                ->selectRaw('COUNT(*) n, SUM(ai) ai, SUM(maliyet_usd) usd')->first();
+        });
+        // B) Sohbetlerdeki toplam Claude harcamasi (gonderilemeyen cevaplar dahil)
+        $o = $guvenli(function () use ($sid, $ara) {
+            return $ara(DB::table('wa_asistan_oturumlari')->where('salon_id', $sid))
+                ->selectRaw('COUNT(*) n, SUM(maliyet_usd) usd, SUM(girdi_token) gi, SUM(cikti_token) ci, SUM(cache_okuma_token) co, SUM(cache_yazma_token) cy')->first();
+        });
+        // C) Fotograf analizi (A'nin icinde; bilgi icin ayri)
+        $g = $guvenli(function () use ($sid, $ara) {
+            return $ara(DB::table('wa_gorsel_analizler')->where('salon_id', $sid))->selectRaw('COUNT(*) n, SUM(onbellek) onb, SUM(maliyet_usd) usd')->first();
+        });
+        // D) Gece Denetcisi: bu salonun sohbet incelemeleri (Sonnet, batch)
+        $d = $guvenli(function () use ($sid, $ara) {
+            return $ara(DB::table('wa_denetim')->where('isletme_id', $sid))->selectRaw('COUNT(*) n, SUM(maliyet_usd) usd, COUNT(DISTINCT DATE(created_at)) gun')->first();
+        });
+        // E) Ortak beyin ders testleri: toplam maliyet, salonun denetim payina gore bolunur
+        $testUsd = 0.0;
+        foreach ($guvenli(function () use ($ara) { return $ara(DB::table('wa_asistan_dersler')->where('isletme_id', \App\Services\WaDenetci::ORTAK))->pluck('test'); }, []) as $t) {
+            $testUsd += (float) ((json_decode((string) $t, true) ?: [])['maliyet_usd'] ?? 0);
+        }
+        $tumDenetim = (int) $guvenli(function () use ($ara) { return $ara(DB::table('wa_denetim'))->count(); }, 0);
+        $pay = $tumDenetim > 0 ? (int) ($d->n ?? 0) / $tumDenetim : 0;
+        // F) Ders uretimi (salon raporu + ortak ders): maliyeti KAYDEDILMIYORDU -> tahmin (gun basina 1 Sonnet cagrisi + ortak payi)
+        $dersTahminUsd = (int) ($d->gun ?? 0) * 0.05 * (1 + $pay);
+
+        $cevapUsd = (float) ($c->usd ?? 0);
+        $sohbetUsd = max($cevapUsd, (float) ($o->usd ?? 0));
+        $denetimUsd = (float) ($d->usd ?? 0);
+        $testPayUsd = $testUsd * $pay;
+        $toplamUsd = $sohbetUsd + $denetimUsd + $testPayUsd + $dersTahminUsd;
+        $ai = (int) ($c->ai ?? 0);
+
+        return response()->json([
+            'ok' => 1, 'salon' => $sid, 'ay' => $ay, 'kur' => round($kur, 4),
+            'kalemler' => [
+                ['kalem' => 'Gönderilen cevaplar (Paketler sayfasındaki rakam)', 'adet' => (int) ($c->n ?? 0), 'ai_cevap' => $ai, 'usd' => round($cevapUsd, 4), 'tl' => $tl($cevapUsd)],
+                ['kalem' => 'Sohbetlerin tamamı (gönderilemeyenler dahil)', 'sohbet' => (int) ($o->n ?? 0), 'usd' => round($sohbetUsd, 4), 'tl' => $tl($sohbetUsd),
+                    'token' => ['girdi' => (int) ($o->gi ?? 0), 'cikti' => (int) ($o->ci ?? 0), 'onbellek_okuma' => (int) ($o->co ?? 0), 'onbellek_yazma' => (int) ($o->cy ?? 0)]],
+                ['kalem' => '  içinde: fotoğraf analizi', 'adet' => (int) ($g->n ?? 0), 'onbellekten' => (int) ($g->onb ?? 0), 'usd' => round((float) ($g->usd ?? 0), 4), 'tl' => $tl($g->usd ?? 0)],
+                ['kalem' => 'Gece Denetçisi sohbet incelemesi', 'adet' => (int) ($d->n ?? 0), 'gun' => (int) ($d->gun ?? 0), 'usd' => round($denetimUsd, 4), 'tl' => $tl($denetimUsd)],
+                ['kalem' => 'Ortak beyin ders testleri (salon payı %' . round($pay * 100) . ')', 'usd' => round($testPayUsd, 4), 'tl' => $tl($testPayUsd)],
+                ['kalem' => 'Ders üretimi (KAYDEDİLMİYORDU — tahmin)', 'usd' => round($dersTahminUsd, 4), 'tl' => $tl($dersTahminUsd)],
+            ],
+            'toplam_usd' => round($toplamUsd, 4), 'toplam_tl' => $tl($toplamUsd),
+            'ai_cevap_basina_tl' => $ai > 0 ? round($toplamUsd * $kur / $ai, 3) : null,
+        ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    }
+
     /** Asistanin son isleme hatalari (mesaj geldi, cevap uretilemedi). Yalniz sistem yoneticisi. */
     public function sonHata(Request $request)
     {
