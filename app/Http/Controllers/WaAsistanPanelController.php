@@ -175,6 +175,9 @@ class WaAsistanPanelController extends StoreAdminController
                 'fiyat' => (int) $o->fiyat_verildi, 'gorsel' => (int) $o->gorsel_sayisi, 'memnuniyet' => $o->memnuniyet === null ? null : (int) $o->memnuniyet,
                 'geri_kazanim' => $o->geri_kazanim_id ? 1 : 0, 'devralindi' => self::devralindiMi($o),
                 'foto' => $fotolar[$t10] ?? null,
+                // mobil "Bekleyen" sekmesi: isletmeye sorulan konu bekliyor ya da musteri mesaji cevapsiz
+                'bekleyen' => (($talepler[(int) $o->id]['durum'] ?? '') === 'bekliyor' || WaAsistan::yarimMi($g) === 'cevapsiz') ? 1 : 0,
+                'talep' => isset($talepler[(int) $o->id]) && $talepler[(int) $o->id]['durum'] === 'bekliyor' ? ($talepler[(int) $o->id]['ozet'] ?: $talepler[(int) $o->id]['konu_ad']) : null,
             ];
         }
         return response()->json(['ok' => 1, 'liste' => $liste]);
@@ -204,7 +207,7 @@ class WaAsistanPanelController extends StoreAdminController
         foreach ($gecmis as $i => $m) {
             $rol = ($m['role'] ?? '') === 'user' ? 'musteri' : (!empty($m['personel']) ? 'personel' : 'asistan');
             $satirlar[] = ['rol' => $rol, 'metin' => (string) ($m['content'] ?? ''), 'geri_kazanim' => !empty($m['geri_kazanim']),
-                'hatirlatma' => !empty($m['hatirlatma']), 'at' => $saatler[$i] ?? null];
+                'hatirlatma' => !empty($m['hatirlatma']), 'at' => $saatler[$i] ?? null, 'yazan' => $rol === 'personel' ? ($m['yazan'] ?? null) : null];
         }
         $gorseller = [];
         if (WaGorselDanisman::semaGaranti()) {
@@ -221,6 +224,7 @@ class WaAsistanPanelController extends StoreAdminController
             'yarim' => WaAsistan::yarimMi(json_decode($o->gecmis ?: '[]', true) ?: []),
             'id' => (int) $o->id, 'ad' => $o->ad, 'telefon' => $o->musteri_tel ?: $o->telefon, 'durum' => self::durumEtiket($o, $talepler ? end($talepler) : null),
             'devralindi' => self::devralindiMi($o), 'randevu_id' => $o->randevu_id, 'satirlar' => $satirlar, 'gorseller' => $gorseller,
+            'asistan_durum' => self::asistanDurum($o, $gecmis),
             'maliyet_usd' => (float) $o->maliyet_usd,
         ]]);
     }
@@ -406,7 +410,30 @@ class WaAsistanPanelController extends StoreAdminController
     protected static function devralindiMi($o): bool
     {
         return ($o->sessiz_neden === 'devral' && $o->sessiz_bitis && strtotime($o->sessiz_bitis) > time())
-            || ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - 10 * 60);
+            || ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - WaAsistan::insanEsikDk() * 60);
+    }
+
+    /**
+     * Sohbetin altindaki durum satiri (mobil): kim yazdi, asistan ne kadar bekliyor.
+     * @return array ['kod' => asistan|personel|devral|sessiz|kapali, 'metin' => string, 'kalan_dk' => ?int]
+     */
+    protected static function asistanDurum($o, array $gecmis): array
+    {
+        if ($o->sessiz_neden === 'devral' && $o->sessiz_bitis && strtotime($o->sessiz_bitis) > time()) {
+            return ['kod' => 'devral', 'metin' => 'Uzun süre devralındı · asistana geri verene kadar susuyor', 'kalan_dk' => null];
+        }
+        $esik = WaAsistan::insanEsikDk();
+        if ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - $esik * 60) {
+            $yazan = 'Personel';
+            for ($i = count($gecmis) - 1; $i >= 0; $i--) if (!empty($gecmis[$i]['personel'])) { $yazan = (string) ($gecmis[$i]['yazan'] ?? 'Personel'); break; }
+            $kalan = max(1, (int) ceil((strtotime($o->son_insan_at) + $esik * 60 - time()) / 60));
+            return ['kod' => 'personel', 'metin' => "$yazan yazdı · cevap vermezseniz asistan $kalan dk sonra devam eder", 'kalan_dk' => $kalan];
+        }
+        if ($o->sessiz_bitis && strtotime($o->sessiz_bitis) > time() && $o->sessiz_neden !== 'aktar') {
+            return ['kod' => 'sessiz', 'metin' => self::durumEtiket($o), 'kalan_dk' => null];
+        }
+        try { if (!WaAsistan::acikMi((int) $o->salon_id)) return ['kod' => 'kapali', 'metin' => 'Asistan kapalı', 'kalan_dk' => null]; } catch (\Throwable $e) {}
+        return ['kod' => 'asistan', 'metin' => 'Asistan cevaplıyor', 'kalan_dk' => null];
     }
 
     const GIDEN_TIP = [

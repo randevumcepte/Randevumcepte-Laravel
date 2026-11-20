@@ -656,7 +656,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::post('/geri-arandi/{id}',    'StoreAdminController@santralAsistanGeriArandi')->where('id', '[0-9]+');
     });
 
-    // WhatsApp Asistani (mobil: Diger > WhatsApp Asistani; web /isletmeyonetim/whatsapp-asistan ile ayni metodlar, sube zorunlu, yalniz rol 1-2-3)
+    // WhatsApp Asistani (mobil; web ile ayni metodlar, sube zorunlu). Sohbet uclari personel yetkisi (whatsapp.sohbet_gor / sohbet_yaz), digerleri rol 1-2-3
     Route::prefix('wa-asistan')->middleware('auth:isletmeyonetim-api')->group(function () {
         Route::get ('/durum',                 'WaAsistanMobilController@durum');
         Route::get ('/baslangic',             'WaAsistanMobilController@baslangic');
@@ -664,6 +664,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::get ('/grafik',                'WaAsistanMobilController@grafik');
         Route::get ('/sohbetler',             'WaAsistanMobilController@sohbetler');
         Route::get ('/sohbet/{id}',           'WaAsistanMobilController@sohbet')->where('id', '[0-9]+');
+        Route::post('/sohbet/{id}/yaz',       'WaAsistanMobilController@yaz')->where('id', '[0-9]+');
         Route::post('/sohbet/{id}/devral',    'WaAsistanMobilController@devral')->where('id', '[0-9]+');
         Route::post('/sohbet/{id}/geri-ver',  'WaAsistanMobilController@geriVer')->where('id', '[0-9]+');
         Route::post('/sohbet/{id}/cevaplandi','WaAsistanMobilController@cevaplandi')->where('id', '[0-9]+');

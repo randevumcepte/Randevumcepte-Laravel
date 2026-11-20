@@ -95,6 +95,10 @@ class PersonelYetkiSabitleri
             ['key' => 'pazarlama.cark_yonet',        'kategori' => 'pazarlama', 'label' => 'Çark-ı Felek yönet',          'aciklama' => 'Çark ayarları ve kuponlar'],
             ['key' => 'pazarlama.anket_yonet',       'kategori' => 'pazarlama', 'label' => 'Anket / değerlendirme',       'aciklama' => 'Anket şablonları ve sonuçları'],
 
+            // === WHATSAPP ASISTANI (AI sohbetleri: panel + mobil) ===
+            ['key' => 'whatsapp.sohbet_gor',         'kategori' => 'whatsapp', 'label' => 'WhatsApp sohbetlerini görsün', 'aciklama' => 'Asistanın müşteri sohbetlerini okur, "asistan yardım istiyor" bildirimini alır'],
+            ['key' => 'whatsapp.sohbet_yaz',         'kategori' => 'whatsapp', 'label' => 'WhatsApp sohbetine katılsın', 'aciklama' => 'Uygulamadan müşteriye yazar; yazınca asistan 5 dk susar, cevap vermezse asistan devam eder'],
+
             // === ON GORUSME & FORM ===
             ['key' => 'gorusme.liste_gor',           'kategori' => 'gorusme', 'label' => 'Ön görüşme listesi',            'aciklama' => 'Ön görüşmeler sayfasına erişebilir'],
             ['key' => 'gorusme.ekle_duzenle',        'kategori' => 'gorusme', 'label' => 'Ön görüşme ekle / düzenle',     'aciklama' => 'Görüşme kaydı oluşturup düzenleyebilir'],
@@ -120,6 +124,7 @@ class PersonelYetkiSabitleri
             'rapor'      => ['ad' => 'Raporlar',              'ikon' => 'bar_chart'],
             'finans'     => ['ad' => 'Finans / Kasa',         'ikon' => 'account_balance_wallet'],
             'pazarlama'  => ['ad' => 'Pazarlama',             'ikon' => 'campaign'],
+            'whatsapp'   => ['ad' => 'WhatsApp Asistanı',     'ikon' => 'chat'],
             'gorusme'    => ['ad' => 'Ön Görüşme & Form',     'ikon' => 'phone_in_talk'],
             'ayar'       => ['ad' => 'Ayarlar',               'ikon' => 'settings'],
         ];
@@ -174,6 +179,7 @@ class PersonelYetkiSabitleri
                     'finans.masraf_gor' => true, 'finans.alacak_yonet' => true,
                     // Pazarlama — hepsi açık
                     'pazarlama.sms_gonder' => true, 'pazarlama.whatsapp_gonder' => true,
+                    'whatsapp.sohbet_gor' => true, 'whatsapp.sohbet_yaz' => true,
                     'pazarlama.toplu_sms' => true, 'pazarlama.kampanya_yonet' => true,
                     'pazarlama.cark_yonet' => true, 'pazarlama.anket_yonet' => true,
                     // Görüşme & Form — hepsi açık
@@ -224,6 +230,7 @@ class PersonelYetkiSabitleri
                     'finans.masraf_gor' => true, 'finans.alacak_yonet' => true,
                     // Pazarlama — hepsi açık
                     'pazarlama.sms_gonder' => true, 'pazarlama.whatsapp_gonder' => true,
+                    'whatsapp.sohbet_gor' => true, 'whatsapp.sohbet_yaz' => true,
                     'pazarlama.toplu_sms' => true, 'pazarlama.kampanya_yonet' => true,
                     'pazarlama.cark_yonet' => true, 'pazarlama.anket_yonet' => true,
                     // Görüşme & Form
@@ -266,6 +273,7 @@ class PersonelYetkiSabitleri
                     'finans.kasa_giris_cikis' => false, 'finans.masraf_ekle' => false,
                     'finans.masraf_gor' => false, 'finans.alacak_yonet' => false,
                     'pazarlama.sms_gonder' => false, 'pazarlama.whatsapp_gonder' => false,
+                    'whatsapp.sohbet_gor' => false, 'whatsapp.sohbet_yaz' => false,
                     'pazarlama.toplu_sms' => false, 'pazarlama.kampanya_yonet' => false,
                     'pazarlama.cark_yonet' => false, 'pazarlama.anket_yonet' => false,
                     'gorusme.liste_gor' => true, 'gorusme.ekle_duzenle' => true,
@@ -322,6 +330,7 @@ class PersonelYetkiSabitleri
     {
         return [
             'randevu.onayla',
+            'whatsapp.sohbet_gor', 'whatsapp.sohbet_yaz',
         ];
     }
 

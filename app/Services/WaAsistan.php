@@ -670,9 +670,17 @@ class WaAsistan
         $adlar = [];
         $oturumId = $url && preg_match('/[?&]sohbet=(\d+)/', $url, $mm) ? (int) $mm[1] : 0;
         try {
-            $yoneticiler = \App\Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
-                ->where('salon_personelleri.salon_id', $salonId)->where('model_has_roles.role_id', '<', 5)
-                ->pluck('salon_personelleri.personel_adi', 'salon_personelleri.id')->toArray();
+            // Alicilar: "WhatsApp sohbetlerini gorsun" yetkisi olanlar (sahip her zaman; yonetici/sekreter varsayilan acik,
+            // personel rolunde salon sahibi acarsa). Yetki okunamazsa eski kural: rol < 5.
+            $yoneticiler = [];
+            foreach (\App\Personeller::where('salon_id', $salonId)->whereNotNull('yetkili_id')->get(['id', 'personel_adi', 'yetkili_id']) as $p) {
+                try {
+                    $izin = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar((int) $p->yetkili_id, $salonId, 'whatsapp.sohbet_gor');
+                } catch (\Throwable $e) {
+                    $izin = (int) DB::table('model_has_roles')->where('model_id', $p->yetkili_id)->min('role_id') < 5;
+                }
+                if ($izin) $yoneticiler[(int) $p->id] = $p->personel_adi;
+            }
             foreach ($yoneticiler as $pid => $ad) {
                 // Mobil: bildirime tiklayinca WhatsApp Asistani ekrani (varsa ilgili sohbet) acilir
                 $r = NotificationService::toStaff((int) $pid, $salonId)->type(NotificationTypes::WA_ASISTAN_TALEP)
@@ -908,7 +916,7 @@ class WaAsistan
      * Asistanin sohbete kendiliginden yazmasi (talep takibi: "isletmemiz henuz donemedi"). Personel devraldiysa yazmaz.
      * Gecmise eklenir ve cevap olcumune (kaynak) yazilir; AI degil, paketten dusmez.
      */
-    public static function oturumaYaz(int $oturumId, string $metin, string $kaynak = 'takip', bool $personelIstegi = false): bool
+    public static function oturumaYaz(int $oturumId, string $metin, string $kaynak = 'takip', bool $personelIstegi = false, ?string $yazan = null): bool
     {
         $o = DB::table('wa_asistan_oturumlari')->where('id', $oturumId)->first();
         if (!$o || trim($metin) === '') return false;
@@ -923,12 +931,35 @@ class WaAsistan
         $r = app(WhatsAppService::class)->sendAsistanCevap($salon, $hedef, $metin, $o->telefon);
         if (empty($r['ok'])) return false;
         $g = json_decode($o->gecmis ?: '[]', true) ?: [];
-        $g[] = ['role' => 'assistant', 'content' => $metin, 'at' => date('Y-m-d H:i:s')] + ($personelIstegi ? ['personel' => 1] : []);
+        $g[] = ['role' => 'assistant', 'content' => $metin, 'at' => date('Y-m-d H:i:s')] + ($personelIstegi ? ['personel' => 1] : []) + ($yazan ? ['yazan' => $yazan] : []);
         DB::table('wa_asistan_oturumlari')->where('id', $o->id)->update(['gecmis' => json_encode(array_slice($g, -40), JSON_UNESCAPED_UNICODE),
             'cevap_sayisi' => DB::raw('cevap_sayisi + 1'), 'updated_at' => now()]);
         try {
             WaAsistanVeri::cevapKaydet(['salon_id' => (int) $o->salon_id, 'isletme_id' => (int) $o->isletme_id, 'oturum_id' => (int) $o->id, 'kaynak' => $kaynak, 'ai' => false]);
         } catch (\Throwable $e) {}
         return true;
+    }
+
+    /** Personel yazinca asistanin sustugu sure (dk). */
+    public static function insanEsikDk(): int
+    {
+        return max(1, (int) self::ayar('insan_esik_dk', 5));
+    }
+
+    /**
+     * Personel uygulamadan musteriye yazdi (mobil > WhatsApp sohbetleri). Musteriye ISIMSIZ gider (salon numarasi);
+     * gecmiste kimin yazdigi ('yazan') tutulur. Personelin kendi telefonundan yazmasiyla (manuel) ayni etki: asistan
+     * insan_esik_dk (5) susar; personel sonra cevap vermezse asistan musteriye doner (wa:insan-devam). Bekleyen talep cevaplandi olur.
+     * @return array ['ok' => bool, 'hata' => ?string]
+     */
+    public static function personelYazdi(int $oturumId, string $metin, string $yazan): array
+    {
+        $metin = mb_substr(trim($metin), 0, 2000);
+        if ($metin === '') return ['ok' => false, 'hata' => 'Mesaj boş.'];
+        if (!self::oturumaYaz($oturumId, $metin, 'personel', true, $yazan)) return ['ok' => false, 'hata' => 'Mesaj gönderilemedi (WhatsApp bağlantısını kontrol edin).'];
+        DB::table('wa_asistan_oturumlari')->where('id', $oturumId)->update(['insan_devraldi' => 1, 'son_insan_at' => now(), 'son_mesaj_at' => now(), 'durum' => 'acik', 'updated_at' => now()]);
+        try { WaTalep::cevaplandi($oturumId, $yazan . ' (uygulamadan yazdı)'); } catch (\Throwable $e) {}
+        Log::info('[WA-ASISTAN] personel uygulamadan yazdi', ['oturum' => $oturumId, 'yazan' => $yazan]);
+        return ['ok' => true, 'hata' => null];
     }
 }
