@@ -72,6 +72,7 @@ return [
         'gunluk_tavan'    => (int) env('WA_ASISTAN_GUNLUK_TAVAN', 0), // hat basi gunluk bot cevabi tavani (0 = sinirsiz)
         // AI Gorsel Danisman (model fotografi -> fiyat). Bkz App\Services\WaGorselDanisman.
         'gorsel_model'       => env('WA_GORSEL_MODEL', 'claude-sonnet-5-5'),
+        'denetci_gece'       => (bool) env('WA_DENETCI_GECE', false),       // her gece 03:00 otomatik denetim (2026-11-20 kapatildi)
         'denetci_model'      => env('WA_DENETCI_MODEL', 'claude-sonnet-5-5'),   // Gece Denetcisi (sohbet inceleme + ders + test hakemi)
         'gorsel_girdi_usd_m' => (float) env('WA_GORSEL_GIRDI_USD_M', 2.0),   // Sonnet 5.5 / 1M token
         'gorsel_cikti_usd_m' => (float) env('WA_GORSEL_CIKTI_USD_M', 10.0),

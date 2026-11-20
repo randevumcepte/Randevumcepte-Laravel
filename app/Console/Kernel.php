@@ -188,9 +188,14 @@ class Kernel extends ConsoleKernel
         $schedule->command('wa:geri-kazanim')->withoutOverlapping()->hourlyAt(17);
 
         // WhatsApp asistani Gece Denetcisi: sohbetleri incele (Batch API) -> sonuclari isle + ders uret/test -> haftalik ozet
-        $schedule->command('wa:denetci gonder')->withoutOverlapping()->dailyAt('03:00');
+        // 2026-11-20 KAPALI (kullanici karari: Sonnet incelemesi bosa token; sohbetleri panelden kendisi izliyor).
+        // Ogrenilmis dersler kullanilmaya devam eder; elle "Denetimi baslat" (sistem yoneticisi) calisir. Acmak: .env WA_DENETCI_GECE=1
+        if (config('services.wa_asistan.denetci_gece')) {
+            $schedule->command('wa:denetci gonder')->withoutOverlapping()->dailyAt('03:00');
+            $schedule->command('wa:denetci ozet')->withoutOverlapping()->weeklyOn(1, '09:30');
+        }
+        // topla acik kalir: elle baslatilan / yolda olan denetimin sonucu islenir (yeni denetim gondermez)
         $schedule->command('wa:denetci topla')->withoutOverlapping()->everyThirtyMinutes();
-        $schedule->command('wa:denetci ozet')->withoutOverlapping()->weeklyOn(1, '09:30');
         // Isletmeye sorulan konular: 15 dk hatirlatma, 45 dk asistan musteriye doner, 24 saat cevapsiz (musteri havada kalmaz)
         $schedule->command('wa:talep-takip')->withoutOverlapping()->everyFiveMinutes();
         // Personel yazdi ama sonra sustu: 5 dk sonra asistan musteriye doner (her dakika kontrol)
