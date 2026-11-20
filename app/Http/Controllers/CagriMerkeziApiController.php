@@ -33,8 +33,9 @@ class CagriMerkeziApiController extends StoreAdminController
     // ------------------------------------------------------------------
     // SANTRAL DAKIKA KAPISI (yalniz mobil; web arama_baslat'a dokunulmaz)
     // Softphone ve Bria (originate) aramalari salonun santral dakikasini harcar;
-    // dakika bittiyse arama BASLATILMAZ, uyari doner. Cihazin kendi telefonuyla
-    // arama (telefon_ile=1) santral kullanmadigi icin engellenmez.
+    // tanimli dakika yoksa (0) ya da bittiyse santral aramasi BASLATILMAZ, uyari
+    // doner. Yeni uygulama bunu once dakika-durum ile sorup kendisi telefon
+    // moduna (telefon_ile=1) duser; telefon modu santral kullanmadigi icin engellenmez.
     // ------------------------------------------------------------------
 
     public function arama_baslat(Request $request)
@@ -117,6 +118,7 @@ class CagriMerkeziApiController extends StoreAdminController
     /** 200 + success=false: uygulama mesaji alt bantta (kirmizi) gosterir. */
     private function dakikaBittiCevabi(string $uyari)
     {
-        return response()->json(['success' => false, 'dakika_bitti' => true, 'message' => $uyari]);
+        return response()->json(['success' => false, 'dakika_bitti' => true,
+            'message' => $uyari . ' Santral araması başlatılmadı; telefonunuzun kendi arama uygulamasını kullanın.']);
     }
 }

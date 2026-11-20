@@ -71,14 +71,20 @@ class DakikaHesap
 
     /**
      * Santral uzerinden (softphone / Bria originate) arama yapilabilir mi?
-     * Tanimli dakika girilmis ve kalan <= 0 ise kullaniciya gosterilecek uyari
-     * metnini, aksi halde null doner.
-     *  - Tanimli dakika girilmemis (0)  -> engel YOK (olculmeyen isletme).
-     *  - CDR API'sine ulasilamadi (hata) -> engel YOK (santral arizasi aramayi kesmesin).
+     * Engel varsa kisa gerekce metnini, yoksa null doner.
+     *  - Tanimli dakika yok (0 / paket kaydi yok) -> ENGEL (santral aramasi yalniz
+     *    dakika tanimli isletmede; uygulama normal telefon aramasina duser).
+     *  - Tanimli > 0 ve kalan <= 0               -> ENGEL.
+     *  - CDR API'sine ulasilamadi (hata)         -> engel YOK (santral arizasi aramayi kesmesin).
      */
     public static function aramaEngeli($salonId)
     {
-        if (!$salonId) return null;
+        if (!$salonId) return 'İşletme bilgisi bulunamadı.';
+        // Once paket: dakika tanimli degilse CDR'a hic gitme
+        $tanimli = (int) SalonDakikaPaketi::where('salon_id', (int) $salonId)->value('tanimli_dakika');
+        if ($tanimli <= 0) {
+            return 'İşletmenize tanımlı santral konuşma dakikası yok.';
+        }
         try {
             $d = self::hesapla((int) $salonId);
         } catch (\Throwable $e) {
@@ -87,8 +93,7 @@ class DakikaHesap
         }
         if ($d['hata'] || $d['tanimli'] <= 0 || $d['kalan'] > 0) return null;
         return 'Santral konuşma dakikanız bitti (tanımlı ' . $d['tanimli'] . ' dk, kullanılan '
-            . number_format($d['kullanilan'], 1, ',', '.') . ' dk). Arama başlatılmadı; '
-            . 'dakika yüklemesi için işletme yöneticinize / RandevumCepte\'ye başvurun.';
+            . number_format($d['kullanilan'], 1, ',', '.') . ' dk).';
     }
 
     /**
