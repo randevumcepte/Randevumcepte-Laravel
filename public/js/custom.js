@@ -24332,6 +24332,7 @@ function convertAllPackagesToServiceData(paketDetaylari) {
                     tur: packageDetail.type === 'paket' ? 'paket' : 'hizmet',
                     sure: hizmet.sure || 0,
                     paket_adi: packageDetail.type === 'paket' ? packageDetail.adi : null,
+                    paket_sure: packageDetail.type === 'paket' ? (parseInt(packageDetail.sure) || 0) : 0,
                     original_seans: hizmet.seans,
                     hizmet_id: hizmet.id,
                     paket_id: packageDetail.paket_id || null,
@@ -24709,6 +24710,42 @@ function updateSoftSelectedPackagesSummary(result) {
     }
 }
 
+// Randevu modali paket karti sureleri (ekle + duzenle v2 ortak).
+// Paketin kendi suresi (paketler.sure) girilmisse kart toplami O'dur; hizmetlere
+// salon varsayilan sureleri oraninda (hepsi 0 ise esit) bolunur, toplam birebir korunur.
+// Paket suresi yoksa: her hizmetin kendi suresi (paket hizmet suresi, yoksa salon varsayilani) toplanir.
+function paketKartSureleri(hizmetler, paketSure) {
+    var cache = window.hizmetDataCache || {};
+    var liste = (hizmetler || []).map(function (h) {
+        var d = cache[h.id] || null;
+        return {
+            id: String(h.id),
+            hSure: parseFloat(h.sure || 0) || 0,
+            dSure: parseFloat((d && d.sure) || 0) || 0,
+            fiyat: parseFloat((d && d.fiyat) || 0) || 0
+        };
+    });
+    paketSure = parseInt(paketSure, 10) || 0;
+    if (paketSure > 0 && liste.length) {
+        var agirlikToplam = liste.reduce(function (t, x) { return t + x.dSure; }, 0);
+        var dagitilan = 0;
+        liste.forEach(function (x) {
+            var oran = agirlikToplam > 0 ? x.dSure / agirlikToplam : 1 / liste.length;
+            x.sure = Math.floor(paketSure * oran);
+            dagitilan += x.sure;
+        });
+        // Yuvarlama artigi bastan birer dakika dagitilir; toplam = paket suresi
+        for (var i = 0; dagitilan < paketSure; i = (i + 1) % liste.length) { liste[i].sure++; dagitilan++; }
+    } else {
+        liste.forEach(function (x) { x.sure = x.hSure > 0 ? x.hSure : x.dSure; });
+    }
+    return {
+        liste: liste.map(function (x) { return { id: x.id, sure: x.sure, fiyat: x.fiyat }; }),
+        toplamSure: liste.reduce(function (t, x) { return t + x.sure; }, 0),
+        toplamFiyat: liste.reduce(function (t, x) { return t + x.fiyat; }, 0)
+    };
+}
+
 // Soft paketleri hizmet verisine dönüştür
 function convertSoftPackagesToServiceData(selectedPackages, result) {
     const hizmetData = [];
@@ -24746,6 +24783,7 @@ function convertSoftPackagesToServiceData(selectedPackages, result) {
                     tur: isPaket ? 'paket' : 'hizmet',
                     sure: hizmetSuresi,
                     paket_adi: isPaket ? packageDetail.adi : null,
+                    paket_sure: isPaket ? toplamSure : 0,
                     original_seans: hizmet.seans,
                     hizmet_id: hizmet.id,
                     paket_id: packageDetail.paket_id || null,

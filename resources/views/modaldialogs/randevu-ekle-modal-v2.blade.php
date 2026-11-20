@@ -1634,6 +1634,7 @@
                     paketler[key] = {
                         adi: h.paket_adi || ('Paket #'+h.paket_id),
                         paket_id: h.paket_id,
+                        paket_sure: parseInt(h.paket_sure, 10) || 0, // paketler.sure; 0 = hizmet sureleri toplanir
                         hizmetler: [],
                         v1Indices: []
                     };
@@ -1742,17 +1743,7 @@
             // Summary icin paketin tum hizmet ID'lerini sakla (paket card'da .v2-hizmet yok)
             $card.data('hizmetIds', grp.hizmetler.map(function(h){ return String(h.id); }));
             // Orijinal sure/fiyat hizmet detaylari (submit'te orantili dagilim icin)
-            var origDetails = grp.hizmetler.map(function(h){
-                var d = window.hizmetDataCache ? window.hizmetDataCache[h.id] : null;
-                // Paket suresi oncelikli (buildPaketCardHTML ile ayni mantik)
-                var hSure = parseFloat(h.sure || 0) || 0;
-                var dSure = parseFloat((d && d.sure) || 0) || 0;
-                return {
-                    id: String(h.id),
-                    sure: hSure > 0 ? hSure : dSure,
-                    fiyat: parseFloat((d && d.fiyat) || 0) || 0
-                };
-            });
+            var origDetails = paketKartSureleri(grp.hizmetler, grp.paket_sure).liste; // buildPaketCardHTML ile ayni kural (custom.js)
             $card.data('origHizmetler', origDetails);
             $card.data('origTotalSure', parseFloat($card.attr('data-orig-sure')) || 0);
             $card.data('origTotalFiyat', parseFloat($card.attr('data-orig-fiyat')) || 0);
@@ -1823,20 +1814,11 @@
     }
 
     function buildPaketCardHTML(grp, idx){
-        var totalSure = 0, totalFiyat = 0;
-        // Orijinal hizmet bilgilerini topla (submit'te orantili dagilim icin gerekli)
-        var origHizmetler = [];
-        var hizmetListHTML = grp.hizmetler.map(function(h){
-            var d = window.hizmetDataCache ? window.hizmetDataCache[h.id] : null;
-            // PAKET SURESI: paketin kendi h.sure degeri (adisyon_paket/hizmet.sure) oncelikli;
-            // yoksa salon default d.sure. Aksi halde salon default (ornek 60) paket suresini (30) eziyordu.
-            var hSure = parseFloat(h.sure || 0) || 0;
-            var dSure = parseFloat((d && d.sure) || 0) || 0;
-            var sure = hSure > 0 ? hSure : dSure;
-            var fiyat = parseFloat((d && d.fiyat) || 0) || 0;
-            totalSure += sure;
-            totalFiyat += fiyat;
-            origHizmetler.push({ id: String(h.id), sure: sure, fiyat: fiyat });
+        // Paket suresi (paketler.sure) varsa kart toplami odur; yoksa hizmet sureleri toplanir (custom.js paketKartSureleri)
+        var _sureler = paketKartSureleri(grp.hizmetler, grp.paket_sure);
+        var totalSure = _sureler.toplamSure, totalFiyat = _sureler.toplamFiyat;
+        var hizmetListHTML = grp.hizmetler.map(function(h, _i){
+            var sure = _sureler.liste[_i].sure;
             var seansTxt = h.seans ? ' <span class="v2-seans-badge">'+h.seans+' seans</span>' : '';
             return '<li><span class="v2-paket-hizmet-ad">'+escapeHtml(h.text)+'</span>'+seansTxt+'<span class="v2-paket-hizmet-sure">'+sure+' dk</span></li>';
         }).join('');
