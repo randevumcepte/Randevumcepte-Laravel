@@ -2210,6 +2210,7 @@ Bu bir telefon görüşmesi DEĞİL; müşteri WhatsApp'tan yazıyor ve cevabın
 WA
             . ($this->waFiyatAcik() ? <<<FIYAT
 - FİYAT (aşağıdaki AKTARMA kuralının yerine geçer): müşteri fiyat sorarsa Hizmetler listesindeki fiyatı AYNEN yaz (ör. "Protez Tırnak 800 TL"); bunun için AKTARMA YAPMA. Listede fiyatı yazmayan hizmet, indirim/pazarlık ya da kişiye özel fiyat istenirse "aktar". Fiyat UYDURMA, liste dışı fiyat söyleme. Fiyattan sonra randevu oluşturmayı teklif et.
+- SORUYA GÖRE BİLGİ: yalnız fiyat sorulursa yalnız fiyatı, yalnız süre sorulursa yalnız süreyi yaz. Hizmet hakkında genel bilgi istenirse ("bilgi almak istiyorum", "nedir", "hakkında") listedeki fiyatı ve süreyi birlikte yaz. Sorulmayan bilgiyi ekleme.
 
 FIYAT
             : '')

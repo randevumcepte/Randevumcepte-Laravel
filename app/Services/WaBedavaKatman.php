@@ -225,8 +225,9 @@ class WaBedavaKatman
         $ilk = $fiyatli[0];
         if (count($fiyatli) === 1) {
             $cevap = "{$ilk['ad']} fiyatımız " . self::tl($ilk['fiyat']) . '.';
+            // Soruya gore: sure yalniz sorulduysa eklenir ("fiyatı ve süresi ne?"); yalniz fiyat sorusunda eklenmez
             $sure = (int) ($ilk['sure_dk'] ?? 0);
-            if ($sure > 0) $cevap .= " İşlem yaklaşık {$sure} dakika sürüyor.";
+            if ($sure > 0 && preg_match('/sür|dakika|saat|zaman|vakit/iu', $metin)) $cevap .= " İşlem yaklaşık {$sure} dakika sürüyor.";
             $cevap .= "\n\nSize uygun bir gün için randevu oluşturmamı ister misiniz? 😊";
         } else {
             $satir = array_map(function ($h) { return '• ' . $h['ad'] . ' – ' . self::tl($h['fiyat']); }, array_slice($fiyatli, 0, 5));

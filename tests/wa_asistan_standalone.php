@@ -166,7 +166,9 @@ namespace {
     esit('tl: kuruşlu', '99,50 TL', K::tl(99.5));
     $f = K::fiyatCevabi('protez tırnak ne kadar', $H);
     icerir('tek hizmet fiyatı', 'Protez Tırnak fiyatımız 800 TL.', $f['cevap']);
-    icerir('tek hizmet: süre', 'yaklaşık 90 dakika', $f['cevap']);
+    esit('yalnız fiyat sorusunda süre eklenmez', false, mb_strpos($f['cevap'], 'dakika') !== false);
+    $f2 = K::fiyatCevabi('protez tırnak fiyatı ve süresi ne', $H);
+    icerir('fiyat + süre sorusu: süre', 'yaklaşık 90 dakika', $f2['cevap']);
     icerir('tek hizmet: randevu teklifi', 'randevu oluşturmamı', $f['cevap']);
     esit('tek hizmet: işaret', ['fiyat' => 1], $f['isaret']);
     esit('tek hizmet: hizmet', ['id' => 1, 'ad' => 'Protez Tırnak'], $f['hizmet']);
