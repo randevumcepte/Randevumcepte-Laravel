@@ -82,7 +82,7 @@ class WaAsistanPanelController extends StoreAdminController
     protected static function hizmetListesi(int $sid)
     {
         return DB::table('salon_sunulan_hizmetler as sh')->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')
-            ->where('sh.salon_id', $sid)->where('sh.aktif', 1)->orderBy('h.hizmet_adi')->get(['sh.hizmet_id as id', 'h.hizmet_adi as ad', \Illuminate\Support\Facades\DB::raw('COALESCE(NULLIF(sh.son_fiyat, 0), NULLIF(sh.baslangic_fiyat, 0)) as fiyat')]);
+            ->where('sh.salon_id', $sid)->where('sh.aktif', 1)->orderBy('h.hizmet_adi')->get(['sh.hizmet_id as id', 'h.hizmet_adi as ad', \Illuminate\Support\Facades\DB::raw('NULLIF(sh.baslangic_fiyat, 0) as fiyat')]);
     }
 
     /** Genel bakis: secilen donem raporu + onceki doneme gore trend + gunluk seriler (mini grafikler) + paket + asistan durumu. */
@@ -499,7 +499,7 @@ class WaAsistanPanelController extends StoreAdminController
     }
 
     /**
-     * Bilgi eksigi cevabi. tip=fiyat: fiyatlar [{hizmet_id, fiyat}] dogrudan hizmet listesine (son_fiyat) yazilir;
+     * Bilgi eksigi cevabi. tip=fiyat: fiyatlar [{hizmet_id, fiyat}] dogrudan hizmet listesine (baslangic_fiyat) yazilir;
      * tip=hizmet_sec: musterinin ifadesi o hizmete baglanir (wa_hizmet_esanlam); digerleri "Öğrenilen Cevaplar"a. bos = yoksay.
      */
     public function bilgiCevapla(Request $request, $id)
@@ -513,7 +513,7 @@ class WaAsistanPanelController extends StoreAdminController
             foreach ((array) $request->input('fiyatlar', []) as $x) {
                 $hid = (int) ($x['hizmet_id'] ?? 0); $fiyat = (float) str_replace(',', '.', (string) ($x['fiyat'] ?? ''));
                 if ($hid < 1 || $fiyat <= 0 || $fiyat >= 1000000) continue;
-                $n += DB::table('salon_sunulan_hizmetler')->where('salon_id', $sid)->where('hizmet_id', $hid)->update(['son_fiyat' => $fiyat]);
+                $n += DB::table('salon_sunulan_hizmetler')->where('salon_id', $sid)->where('hizmet_id', $hid)->where('aktif', 1)->update(['baslangic_fiyat' => $fiyat]);
             }
             if (!$n) return response()->json(['ok' => 0, 'hata' => 'En az bir fiyat yazın.']);
             \Illuminate\Support\Facades\Cache::forget('santral_salon_bilgi:' . $sid);

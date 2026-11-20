@@ -50,8 +50,8 @@ class AiAsistanController extends Controller
             ->select(
                 'sh.hizmet_id as id',
                 'h.hizmet_adi as ad',
-                // Panel fiyati cogunlukla baslangic_fiyat'a yazar (son_fiyat bos): ikisinden dolu olan (Ola Nail 236: "Manikür (E)" fiyatsiz sanildi)
-                DB::raw('COALESCE(NULLIF(sh.son_fiyat, 0), NULLIF(sh.baslangic_fiyat, 0)) as fiyat'),
+                // Hizmet fiyati baslangic_fiyat'ta (son_fiyat sistemde kullanilmiyor; Ola Nail 236: "Manikür (E)" fiyatsiz saniliyordu)
+                DB::raw('NULLIF(sh.baslangic_fiyat, 0) as fiyat'),
                 'sh.sure_dk as sure_dk',  // ek alan (sesli asistan "ne kadar sürer" icin); mevcut tuketicileri etkilemez
                 'hk.hizmet_kategorisi_adi as kategori' // ek alan (sesli asistan hizmet listesi: 5 ornek + kategoriler)
             )
