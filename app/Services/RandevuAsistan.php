@@ -2806,7 +2806,8 @@ FIYAT
             usort($sec, function ($a, $b) { return [$a['tarih'], $a['saat']] <=> [$b['tarih'], $b['saat']]; });
         }
         // Musteri GUN+SAAT verdi ve o saat (o gun) bos: alternatif YOK, dogrudan onay.
-        if ($saat && $sec && $sec[0]['_tam'] && $sec[0]['tarih'] === $tarih) {
+        // (eklenen 2./3. secenekte '_tam' yok; usort sonrasi basa gecebilir -> !empty, yoksa canlida ErrorException ve cevap gitmez)
+        if ($saat && $sec && !empty($sec[0]['_tam']) && $sec[0]['tarih'] === $tarih) {
             $t = $sec[0];
             return [
                 'ok' => true,
