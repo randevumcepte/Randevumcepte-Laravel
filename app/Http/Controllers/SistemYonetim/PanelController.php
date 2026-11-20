@@ -1987,8 +1987,12 @@ class PanelController extends Controller
     {
         $q = trim($request->get('q', ''));
         if (mb_strlen($q) < 2) return response()->json([]);
-        $list = Salonlar::where('salon_adi', 'like', '%' . $q . '%')
-            ->orderBy('salon_adi')
+        // Salon numarasiyla da aranir ("20" -> #20)
+        $list = Salonlar::where(function ($w) use ($q) {
+                $w->where('salon_adi', 'like', '%' . $q . '%');
+                if (ctype_digit($q)) $w->orWhere('id', (int) $q);
+            })
+            ->orderByRaw(ctype_digit($q) ? 'id = ' . (int) $q . ' DESC, salon_adi' : 'salon_adi')
             ->limit(20)
             ->get(['id', 'salon_adi']);
         return response()->json($list);
