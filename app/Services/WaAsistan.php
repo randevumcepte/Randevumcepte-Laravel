@@ -473,7 +473,13 @@ class WaAsistan
             }
         } catch (\Throwable $e) { Log::warning('[WA-REKLAM] hazirlik: ' . $e->getMessage()); }
         $musteriMesajVar = (bool) array_filter($gecmis, function ($m) { return ($m['role'] ?? '') === 'user'; });
-        $gorselId = (int) ($satirlar->pluck('gorsel_id')->filter()->last() ?: 0);
+        $gorselIdler = $satirlar->pluck('gorsel_id')->filter()->map(function ($x) { return (int) $x; })->values()->all();
+        $gorselId = (int) (end($gorselIdler) ?: 0);
+        // Art arda gelen fotograflar birlesir, sonuncusu analiz edilir; DIGERLERI de sohbete baglanir (panelde gorunsun;
+        // eskiden yalniz analiz edilen sohbete baglaniyordu, ikinci fotograf panelde yoktu — canli 2026-11-20)
+        if (count($gorselIdler) > 1) {
+            try { DB::table('wa_gorsel_analizler')->whereIn('id', $gorselIdler)->whereNull('oturum_id')->update(['oturum_id' => (int) $o->id, 'isletme_id' => (int) $o->isletme_id]); } catch (\Throwable $e) {}
+        }
         $gkCevap = (!empty($o->geri_kazanim_id) && !$musteriMesajVar) ? WaGeriKazanim::cevapGeldi((int) $o->geri_kazanim_id, $metin) : null;
         $on = null;
 
@@ -508,6 +514,11 @@ class WaAsistan
             $baglamEk = (string) $g['baglam'];
             // Fiyat (ya da ek ucret) kurali yok: isletmeye sorulur (talep) ama asistan SUSMAZ, randevuya devam eder
             $cevap = $g['cevap'];
+            if (count($gorselIdler) > 1) {
+                // Birden fazla fotograf: musteri hangisinin incelendigini bilsin; model de bilsin (sonraki tur)
+                $cevap = '📷 ' . count($gorselIdler) . ' fotoğrafınızı aldım; son gönderdiğiniz modeli inceledim. Diğer modeli de isterseniz onu ayrıca tek gönderin.' . "\n\n" . $cevap;
+                $baglamEk = trim($baglamEk . ' Müşteri ' . count($gorselIdler) . ' fotoğraf gönderdi; yalnız sonuncusu analiz edildi.');
+            }
             if (!empty($g['talep'])) {
                 WaTalep::ac($o, $g['talep'], trim('[fotoğraf] ' . ($g['tarif'] ?? '') . ($yazi !== '' ? ' — müşteri: ' . $yazi : '')));
                 $upd['sonuc'] = 'aktar';
