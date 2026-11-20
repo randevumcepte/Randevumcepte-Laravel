@@ -40366,13 +40366,11 @@ DB::raw('
     }
 
     /**
-     * Anket davetinin SMS metni: kisa, Turkce karaktersiz (GSM 7-bit, tek parca hedefi).
-     * v2 AnketLinkGonderici::smsMesaji ile ayni metin.
+     * Anket davetinin SMS metni: SABIT (sablon/odul metnine bagli degil), kisa, Turkce karaktersiz (GSM 7-bit, tek parca).
+     * v2 AnketLinkGonderici::smsMesaji ile ayni metin. $odulIfade geriye uyum icin kabul edilir, kullanilmaz.
      */
     public static function anketSmsKisaMetin($ilkAd, $salonAd, $link, $odulIfade = null){
-        $metin = $odulIfade
-            ? 'Sn. '.$ilkAd.', '.$salonAd.' anketimizi doldurun, '.str_replace('₺', 'TL', $odulIfade).' kazanin: '.$link
-            : 'Sn. '.$ilkAd.', '.$salonAd.' deneyiminizi degerlendirir misiniz? '.$link;
+        $metin = 'Sn. '.$ilkAd.', '.$salonAd.' deneyiminizi degerlendirir misiniz? '.$link;
         $metin = strtr($metin, ['ç'=>'c','Ç'=>'C','ğ'=>'g','Ğ'=>'G','ı'=>'i','İ'=>'I','ö'=>'o','Ö'=>'O','ş'=>'s','Ş'=>'S','ü'=>'u','Ü'=>'U','â'=>'a','Â'=>'A','î'=>'i','û'=>'u']);
         return preg_replace('/\s+/', ' ', trim(preg_replace('/[^\x20-\x7E]/', '', $metin)));
     }
