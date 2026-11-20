@@ -874,8 +874,9 @@ class WaAsistan
             // Musteri soruya 5 dk'dir cevap vermedi: tek kisa hatirlatma (yeni islem yok)
             // Amac SONUC: musteriyi randevuya dondurmek (2026-11-20 kullanici: "5 dk sonra hemen yazmali, bir sonuc almali")
             $metin = '[SİSTEM — müşteri bunu yazmadı] Müşteri son sorunuza 5 dakikadır cevap vermedi. Amaç randevuyu sonuçlandırmak. '
-                . 'Tek, kısa ve sıcak bir mesaj yaz: seçenek sunduysan en erken/ilk seçeneği öner ve onun için ayırmayı teklif et '
-                . '(ör. "10:00\'ı sizin için ayırayım mı? \'Evet\' yazmanız yeterli; diğer saat isterseniz onu yazın."), '
+                . 'Tek, kısa ve sıcak bir mesaj yaz: seçenek sunduysan en erken/ilk seçeneği öner ve randevuyu oluşturmayı teklif et '
+                . '(ör. "Yarın 10:00 için randevunuzu oluşturayım mı? \'Evet\' yazmanız yeterli; diğer saati isterseniz onu yazın."). '
+                . '"ayırayım mı" deme, "randevunuzu oluşturayım mı" de. '
                 . 'saatler doluyor diye uydurma baskı yapma. Onay bekliyorsan tek kelimeyle onaylayabileceğini söyle. '
                 . 'Araç çağırma, yeni işlem yapma, önceki mesajı kelimesi kelimesine tekrarlama. '
                 . 'Yazışmada randevu zaten oluşturulduysa / işlem tamamlandıysa onu yeniden oluşturmayı SORMA, "bekliyor" DEME.';
