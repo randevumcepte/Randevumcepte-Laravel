@@ -1133,7 +1133,7 @@
                   + '<figcaption>' + esc(g.tarif || '') + (g.toplam != null ? '<br><b>' + tl(g.toplam) + '</b>' : ' <span class="wa-hap g">' + esc(({ kural_yok: 'fiyat işletmeye soruldu', hata: 'incelenemedi', belirsiz: 'model soruldu', uygun_degil: 'model görünmedi' })[g.durum] || g.durum) + '</span>') + '</figcaption></figure>'; }).join('') + '</div>';
          }
          h += '<div class="wa-sohbet">' + s.satirlar.map(function (m) {
-            var r = m.rol === 'musteri' ? 'Müşteri' : (m.rol === 'personel' ? 'Personel' : (m.geri_kazanim ? 'Asistan · geri kazanma' : (m.hatirlatma ? 'Hatırlatma' : 'Asistan')));
+            var r = m.rol === 'musteri' ? 'Müşteri' : (m.rol === 'personel' ? (m.yazan || 'Personel') : (m.geri_kazanim ? 'Asistan · geri kazanma' : (m.hatirlatma ? 'Hatırlatma' : 'Asistan')));
             return '<div class="wa-balon ' + m.rol + '"><span class="r">' + r + '</span>' + esc(m.metin) + (m.at ? '<span class="bz">' + saatKisa(m.at) + '</span>' : '') + '</div>'; }).join('') + '</div>';
          h += '<div class="wa-alt" style="margin-top:10px">Devraldığınızda asistan bu sohbette 24 saat ya da siz geri verene kadar cevap vermez. Telefonunuzdan müşteriye yazdığınızda da asistan otomatik susar.</div>';
          el('waSohbetDetay').innerHTML = h;

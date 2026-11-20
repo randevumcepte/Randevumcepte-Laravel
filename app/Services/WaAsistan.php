@@ -266,13 +266,15 @@ class WaAsistan
         $o = self::aktifOturum($salonId, $anahtar) ?: self::yeniOturum($salonId, $anahtar, $jid ?: null, $tel, null);
         $g = json_decode($o->gecmis ?: '[]', true) ?: [];
         $metin = mb_substr(trim((string) ($p['text'] ?? '')), 0, 1000);
-        if ($metin !== '') $g[] = ['role' => 'assistant', 'content' => $metin, 'personel' => 1, 'at' => date('Y-m-d H:i:s')];
+        // Hangi cihazdan: kopru 'cihaz' gonderir (0 = isletmenin telefonu, >0 = WhatsApp Web / bagli cihaz). Hesap bilgisi WhatsApp'ta yok.
+        $yazan = !isset($p['cihaz']) || $p['cihaz'] === '' ? 'İşletme WhatsApp\'ı' : ((int) $p['cihaz'] === 0 ? 'İşletme telefonu' : 'WhatsApp Web / bağlı cihaz');
+        if ($metin !== '') $g[] = ['role' => 'assistant', 'content' => $metin, 'personel' => 1, 'yazan' => $yazan, 'at' => date('Y-m-d H:i:s')];
         DB::table('wa_asistan_oturumlari')->where('id', $o->id)->update([
             'gecmis' => json_encode(array_slice($g, -40), JSON_UNESCAPED_UNICODE),
             'insan_devraldi' => 1, 'son_insan_at' => now(), 'son_mesaj_at' => now(), 'updated_at' => now(),
         ]);
         // Isletme musteriye dondu: bekleyen talepler "cevaplandi" (panelde sonuc gorunur, takip/hatirlatma durur)
-        if ($metin !== '') { try { WaTalep::cevaplandi((int) $o->id, 'İşletme (WhatsApp\'tan yazdı)'); } catch (\Throwable $e) {} }
+        if ($metin !== '') { try { WaTalep::cevaplandi((int) $o->id, $yazan . ' (WhatsApp\'tan yazdı)'); } catch (\Throwable $e) {} }
         Log::info('[WA-ASISTAN] personel devraldi', ['salon' => $salonId, 'oturum' => $o->id]);
         return ['tip' => 'insan_devraldi'];
     }
