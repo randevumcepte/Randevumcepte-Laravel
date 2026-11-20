@@ -65,6 +65,8 @@ class RandevuAsistan
     protected bool $waReklamGonderilebilir = false;
     /** Bu turda reklam_gonder ile secilen reklam (WaAsistan cevaptan sonra ayri mesajla gonderir). */
     public ?int $waReklamId = null;
+    /** Bu nesnede hizmet_eslestir'in buldugu hizmet id'leri (tek + secenekler). */
+    public array $turHizmetIdleri = [];
 
     public function __construct(int $salonId, ?string $telefon = null, string $kanal = 'santral')
     {
@@ -1752,6 +1754,9 @@ class RandevuAsistan
                         . 'hizmeti seç (ör. "oje kaldırma/sildirme" = Kalıcı Oje Çıkarma, "kaş aldırma" = Kaş Alma) ve müşteriye sormadan o id ile devam et. '
                         . 'Anlamca 2-3 hizmet uyuyorsa yalnız onları seçenek olarak sun. Hiçbiri uymuyorsa hizmetin listede olmadığını söyle; uydurma.';
                 }
+                // Bu turda eslesen hizmet(ler): WaAsistan salon reklami icin (fiyat/bilgi sorusu + ilgili kampanya)
+                if (!empty($d['hizmet']['id'])) $this->turHizmetIdleri[] = (int) $d['hizmet']['id'];
+                foreach ((array) ($d['secenekler'] ?? []) as $sc) if (!empty($sc['id'])) $this->turHizmetIdleri[] = (int) $sc['id'];
                 // Personel tercihi sorusu icin: bu hizmeti veren (takvimi acik) personelin adlari
                 if (($d['eslesme'] ?? '') === 'tek' && !empty($d['hizmet']['id'])) {
                     $plist = $this->personelListesi();

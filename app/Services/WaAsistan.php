@@ -467,6 +467,8 @@ class WaAsistan
                 if ($reklamlar = WaReklam::aktifler((int) $o->isletme_id)) {
                     $reklamGonderilebilir = !$reklamRet && WaReklam::gonderilebilirMi((int) $o->isletme_id, $o);
                     $as->waReklamlarAyarla($reklamlar, $reklamGonderilebilir);
+                } else {
+                    WaReklam::kararYaz((int) $o->isletme_id, (int) $o->id, 'gonderilmedi:yayinda_kampanya_yok (tarih/aktif kontrol edin)', ['metin' => mb_substr($metin, 0, 80)]);
                 }
             }
         } catch (\Throwable $e) { Log::warning('[WA-REKLAM] hazirlik: ' . $e->getMessage()); }
@@ -598,18 +600,28 @@ class WaAsistan
         }
         // SALON REKLAMI: asistan reklam_gonder dediyse ya da (bedava katman) ilgili hizmetin fiyati/bilgisi verildiyse,
         // cevabin ardindan ayri mesaj (sohbet basina 1). Aktarma / islem turunda gonderilmez.
-        if ($gonderildi && $reklamGonderilebilir && !in_array($aksiyon, ['aktar', 'randevu', 'iptal', 'guncelle'], true)) {
-            try {
-                $rek = $as->waReklamId ? WaReklam::bul($reklamlar, $as->waReklamId) : null;
-                $tetik = 'ai';
-                if (!$rek && $on && !empty($on['hizmet']['id'])) { $rek = WaReklam::sec($reklamlar, (int) $on['hizmet']['id']); $tetik = 'fiyat'; }
-                if ($rek) {
+        if ($reklamlar) {
+            // Karar: 1) model reklam_gonder dedi  2) bedava katman ilgili hizmetin fiyat/bilgisini verdi
+            //        3) musteri fiyat/kampanya sordu ve bu turda eslesen hizmet bir kampanyaya bagli (model cagirmasa da; canli 2026-11-20)
+            //        4) "kampanya / indirim var mi" + tek kampanya -> o kampanya
+            $rek = null; $tetik = null;
+            $turHiz = array_merge($as->turHizmetIdleri, $on && !empty($on['hizmet']['id']) ? [(int) $on['hizmet']['id']] : []);
+            if ($as->waReklamId) { $rek = WaReklam::bul($reklamlar, $as->waReklamId); $tetik = 'ai'; }
+            if (!$rek && $on && !empty($on['hizmet']['id'])) { $rek = WaReklam::sec($reklamlar, (int) $on['hizmet']['id']); $tetik = 'fiyat'; }
+            if (!$rek && WaReklam::fiyatSorusuMu($metin)) { $rek = WaReklam::secListe($reklamlar, $turHiz); $tetik = 'fiyat_sorusu'; }
+            if (!$rek && WaReklam::kampanyaSorusuMu($metin) && count($reklamlar) === 1) { $rek = $reklamlar[0]; $tetik = 'kampanya_sorusu'; }
+            $engel = !$gonderildi ? 'cevap_gitmedi' : (!$reklamGonderilebilir ? ($reklamRet ? 'musteri_istemiyor' : 'bu_sohbette_gonderildi_ya_da_ret')
+                : (in_array($aksiyon, ['aktar', 'randevu', 'iptal', 'guncelle'], true) ? 'islem_turu:' . $aksiyon : (!$rek ? 'ilgili_kampanya_yok' : null)));
+            WaReklam::kararYaz((int) $o->isletme_id, (int) $o->id, $engel ? 'gonderilmedi:' . $engel : 'gonderildi:' . $tetik,
+                ['metin' => mb_substr($metin, 0, 80), 'hizmetler' => array_values(array_unique($turHiz)), 'kampanya' => $rek['id'] ?? null]);
+            if (!$engel) {
+                try {
                     [$rMetin, $gid] = WaReklam::hazirla($rek, $o, $tetik);
                     $rr = app(WhatsAppService::class)->sendAsistanCevap($salon, $hedef, $rMetin, $tel);
                     if (!empty($rr['ok'])) $gecmis[] = ['role' => 'assistant', 'content' => $rMetin, 'reklam' => (int) $rek['id'], 'at' => date('Y-m-d H:i:s')];
                     else WaReklam::geriAl($gid);
-                }
-            } catch (\Throwable $e) { Log::warning('[WA-REKLAM] gonderim: ' . $e->getMessage(), ['oturum' => $o->id]); }
+                } catch (\Throwable $e) { Log::warning('[WA-REKLAM] gonderim: ' . $e->getMessage(), ['oturum' => $o->id]); }
+            }
         }
         // Reklam gosterilen musteri randevu aldi -> reklamin sonucu (7 gun icinde)
         if ($aksiyon === 'randevu' && !empty($d['veri']['randevu_id']) && $reklamlar) {

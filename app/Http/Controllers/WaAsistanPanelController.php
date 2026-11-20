@@ -477,7 +477,8 @@ class WaAsistanPanelController extends StoreAdminController
     public function sonHata(Request $request)
     {
         if (!self::sistemYoneticisiMi()) return $this->yok();
-        return response()->json(['ok' => 1, 'hatalar' => \Illuminate\Support\Facades\Cache::get('wa_asistan_son_hatalar', [])],
+        return response()->json(['ok' => 1, 'hatalar' => \Illuminate\Support\Facades\Cache::get('wa_asistan_son_hatalar', []),
+            'reklam_kararlari' => \Illuminate\Support\Facades\Cache::get('wa_reklam_kararlar', [])],
             200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
 

@@ -585,6 +585,17 @@ namespace {
     esit('reklam ret: "İndirim mesajları gelmesin"', true, $RK::retMi('İndirim mesajları gelmesin'));
     esit('reklam ret değil: "randevu istemiyorum"', false, $RK::retMi('randevu istemiyorum artık'));
     esit('reklam ret değil: "kampanya var mı"', false, $RK::retMi('kampanya var mı'));
+    esit('fiyat sorusu: "Lazer epilasyon ne kadar" (canlı)', true, $RK::fiyatSorusuMu('Lazer epilasyon ne kadar'));
+    // (tek basina "kaça" fiyat sayilmaz: "saat kaça kadar açıksınız" — ortak kural WaBedavaKatman::fiyatSorusuMu)
+    esit('fiyat sorusu: "protez kaça yapıyorsunuz", "ücreti nedir", "indirim var mı"', [true, true, true],
+        [$RK::fiyatSorusuMu('protez kaça yapıyorsunuz'), $RK::fiyatSorusuMu('Ücreti nedir'), $RK::fiyatSorusuMu('indirim var mı')]);
+    esit('reklam tetiklemez: "saat kaça kadar açıksınız"', false, $RK::fiyatSorusuMu('saat kaça kadar açıksınız'));
+    esit('fiyat sorusu değil: "yarın 3te olur mu"', false, $RK::fiyatSorusuMu('yarın 3te olur mu'));
+    esit('reklam tetiklemez: "işlem ne kadar sürer", "paketimde ne kadar seans kaldı"', [false, false],
+        [$RK::fiyatSorusuMu('işlem ne kadar sürer'), $RK::fiyatSorusuMu('paketimde ne kadar seans kaldı')]);
+    esit('kampanya sorusu: "Kampanyanız var mı"', true, $RK::kampanyaSorusuMu('Kampanyanız var mı'));
+    esit('secListe: eşleşen hizmetlerden ilk kampanya', 8, ($RK::secListe($rkl, [99, 30, 12]) ?? [])['id'] ?? null);
+    esit('secListe: hiçbiri uymuyor', null, $RK::secListe($rkl, [99]));
     $rm = $RK::mesaj($rkl[0], 'https://x/k/abc?g=5');
     esit('reklam mesajı: başlık + metin + link + ret bilgisi', [true, true, true, true],
         [strpos($rm, 'Protez kampanyası') !== false, strpos($rm, '950 TL') !== false, strpos($rm, 'https://x/k/abc?g=5') !== false, strpos($rm, 'kampanya istemiyorum') !== false]);

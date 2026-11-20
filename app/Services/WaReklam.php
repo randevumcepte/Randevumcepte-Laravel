@@ -142,6 +142,38 @@ class WaReklam
         } catch (\Throwable $e) {}
     }
 
+    /**
+     * Musteri fiyat / kampanya soruyor mu (saf) — reklamin dogal yeri. Fiyat tanima bedava katmaninkiyle AYNI
+     * ("ne kadar sürer / ne kadar seans kaldı" fiyat degil).
+     */
+    public static function fiyatSorusuMu(string $metin): bool
+    {
+        return WaBedavaKatman::fiyatSorusuMu($metin) || self::kampanyaSorusuMu($metin);
+    }
+
+    public static function kampanyaSorusuMu(string $metin): bool
+    {
+        $s = mb_strtolower(strtr($metin, ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
+        return (bool) preg_match('/kampanya|indirim|f[ıi]rsat|promosyon/u', $s);
+    }
+
+    /** Hizmet id listesinden ilk uyan reklam (saf). */
+    public static function secListe(array $reklamlar, array $hizmetIdler): ?array
+    {
+        foreach (array_unique(array_map('intval', $hizmetIdler)) as $h) if ($r = self::sec($reklamlar, $h)) return $r;
+        return null;
+    }
+
+    /** Teshis: son 30 reklam karari (neden gitti / gitmedi), 1 gun (panel son-hata). */
+    public static function kararYaz(int $salonId, int $oturumId, string $karar, array $ek = []): void
+    {
+        try {
+            $l = Cache::get('wa_reklam_kararlar', []);
+            array_unshift($l, ['at' => date('Y-m-d H:i:s'), 'salon' => $salonId, 'oturum' => $oturumId, 'karar' => $karar] + $ek);
+            Cache::put('wa_reklam_kararlar', array_slice($l, 0, 30), 1440);
+        } catch (\Throwable $e) {}
+    }
+
     /** Hizmete uyan ilk reklam (saf). $hizmetId yoksa null. */
     public static function sec(array $reklamlar, ?int $hizmetId): ?array
     {
