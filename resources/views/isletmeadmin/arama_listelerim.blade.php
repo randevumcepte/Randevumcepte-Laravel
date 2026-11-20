@@ -65,6 +65,13 @@
 .ag-panel-head{ padding:14px 16px; border-bottom:1px solid #eef0f5; display:flex; align-items:center; gap:10px; }
 .ag-panel-head h5{ margin:0; font-weight:700; font-size:15px; color:#1f2433; }
 .ag-panel-head .say{ margin-left:auto; background:#f1edfb; color:#6d28d9; font-weight:700; border-radius:20px; padding:3px 11px; font-size:12px; }
+.ag-sms-btn{ border:1px solid #ddd6fe; background:#f5f3ff; color:#6d28d9; font-weight:700; border-radius:20px; padding:3px 11px; font-size:12px; cursor:pointer; }
+.ag-sms-btn:hover{ background:#6d28d9; color:#fff; }
+.sms-fil{ display:flex; flex-wrap:wrap; gap:7px; }
+.sms-fil .chip{ border:1px solid #e7e9f0; background:#fff; color:#5b6172; border-radius:20px; padding:6px 12px; font-size:12.5px; font-weight:600; cursor:pointer; user-select:none; }
+.sms-fil .chip.aktif{ background:#6d28d9; border-color:#6d28d9; color:#fff; }
+.sms-fil .chip.bos{ opacity:.45; }
+.sms-etiket{ font-size:11px; font-weight:700; letter-spacing:.04em; color:#7a7f93; text-transform:uppercase; margin:14px 0 7px; }
 
 /* Liste seçici çipleri */
 .ag-listeler{ display:flex; gap:8px; flex-wrap:wrap; align-content:flex-start; padding:12px 16px 8px; overflow-y:auto; max-height:34vh; }
@@ -257,6 +264,9 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
          <div class="ag-panel-head">
             <h5><i class="fa fa-list-ul" style="color:#8b5cf6;"></i> Müşteri Kuyruğu</h5>
             <span class="say" id="ag_kuyruk_say">0</span>
+            @yetki('pazarlama.toplu_sms')
+            <button type="button" class="ag-sms-btn" id="ag_sms_ac" title="Listeye SMS gönder"><i class="fa fa-envelope"></i> SMS Gönder</button>
+            @endyetki
          </div>
          <div class="ag-listeler" id="ag_listeler"><span class="text-muted" style="font-size:12px;padding:4px;">Listeler yükleniyor...</span></div>
          <div class="ag-ara-kutu"><i class="fa fa-search"></i><input type="text" id="ag_ara" placeholder="Müşteri ara..."></div>
@@ -276,6 +286,35 @@ select.ag-not-alani{ min-height:auto; padding:10px 12px; background:#fff; }
          <div id="ag_detay_icerik" style="display:none;"></div>
       </div>
 
+   </div>
+</div>
+
+{{-- Arama listesine özel SMS (görüşme sonucuna göre filtreli) --}}
+<div id="ag_sms_modal" class="modal fade" role="dialog">
+   <div class="modal-dialog modal-dialog-centered" role="document" style="max-width:560px;">
+      <div class="modal-content" style="border:none;border-radius:16px;overflow:hidden;">
+         <div class="modal-header" style="background:linear-gradient(120deg,#5b21b6,#7c3aed);border:none;">
+            <h5 class="modal-title" style="font-weight:700;color:#fff;"><i class="fa fa-envelope"></i> Arama Listesine SMS</h5>
+            <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9;"><span>&times;</span></button>
+         </div>
+         <div class="modal-body" style="padding:16px 20px;background:#fff;">
+            <div class="sms-etiket" style="margin-top:0;">Liste</div>
+            <select id="ag_sms_liste" class="form-control"></select>
+            <div class="sms-etiket">Kimlere gönderilsin? <span style="text-transform:none;font-weight:500;">(birden fazla seçebilirsiniz)</span></div>
+            <div class="sms-fil" id="ag_sms_filtreler"></div>
+            <div class="sms-etiket">Mesaj</div>
+            <textarea id="ag_sms_mesaj" class="form-control" rows="5" placeholder="Göndermek istediğiniz SMS metnini yazın..."></textarea>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:#7a7f93;margin-top:6px;">
+               <span id="ag_sms_karakter">0 karakter · 0 SMS</span>
+               <span>Kara listedekiler ve telefonu olmayanlar hariç tutulur.</span>
+            </div>
+         </div>
+         <div class="modal-footer" style="border-top:1px solid #eef0f5;background:#fff;">
+            <span id="ag_sms_alici" style="margin-right:auto;font-weight:700;color:#5b21b6;">0 alıcı</span>
+            <button type="button" class="btn btn-light" data-dismiss="modal">Vazgeç</button>
+            <button type="button" class="btn" id="ag_sms_gonder" style="background:#6d28d9;color:#fff;font-weight:700;"><i class="fa fa-paper-plane"></i> Gönder</button>
+         </div>
+      </div>
    </div>
 </div>
 
@@ -1188,6 +1227,97 @@ function agRandevuKontrol(){
 $(document).on('click', '#ag_ajanda_ac', function(){
    var s = $('input[name="sube"]').val();
    window.location.href = '/isletmeyonetim/arama-randevularim' + (s ? ('?sube=' + s) : '');
+});
+
+// ---- Arama listesine özel SMS ----
+var AG_SMS_FILTRELER = [
+   { key:'hepsi', et:'Tümü' }, { key:'bekleyen', et:'Bekleyen' }, { key:'gorusulen', et:'Görüşülen' },
+   { key:'cevapsiz', et:'Cevapsız / Meşgul / Ulaşılamadı' }, { key:'satis', et:'Satış' },
+   { key:'ongorusme', et:'Ön Görüşme' }, { key:'randevuolustu', et:'Randevu Oluşturuldu' },
+   { key:'tekrar', et:'Tekrar Aranacak' }, { key:'iptal', et:'İptal' }
+];
+var agSmsSecili = ['hepsi'];
+var agSmsSayilar = {};
+
+function agSmsSeciliFiltreler(){
+   return agSmsSecili.indexOf('hepsi') > -1 ? ['hepsi'] : agSmsSecili.slice();
+}
+function agSmsFiltreCiz(){
+   var html = '';
+   AG_SMS_FILTRELER.forEach(function(f){
+      var n = agSmsSayilar[f.key]; n = (n===undefined) ? '…' : n;
+      html += '<span class="chip '+(agSmsSecili.indexOf(f.key)>-1?'aktif ':'')+(n===0?'bos':'')+'" data-k="'+f.key+'">'+agEsc(f.et)+' ('+n+')</span>';
+   });
+   $('#ag_sms_filtreler').html(html);
+}
+function agSmsOnizle(){
+   $('#ag_sms_alici').text('Hesaplanıyor...');
+   var listeId = $('#ag_sms_liste').val();
+   $.ajax({
+      url:'/isletmeyonetim/arama-listesi-sms', method:'POST',
+      data:{ sube:$('input[name="sube"]').val(), _token:$('input[name="_token"]').val(),
+             arama_id:listeId, filtreler:agSmsSeciliFiltreler(), onizleme:1 },
+      success:function(res){
+         if (String(listeId) !== String($('#ag_sms_liste').val())) return;
+         agSmsSayilar = (res && res.sayilar) ? res.sayilar : {};
+         agSmsFiltreCiz();
+         $('#ag_sms_alici').text(((res && res.alici) || 0) + ' alıcı');
+      },
+      error:function(x){
+         $('#ag_sms_alici').text('—');
+         var t = (x.responseJSON && (x.responseJSON.text || x.responseJSON.mesaj)) || 'Alıcılar hesaplanamadı.';
+         swal({ type:'error', title:'Hata', text:t });
+      }
+   });
+}
+function agSmsKarakter(){
+   var n = ($('#ag_sms_mesaj').val() || '').length;
+   var adet = n === 0 ? 0 : (n <= 155 ? 1 : Math.ceil(n / 149));
+   $('#ag_sms_karakter').text(n + ' karakter · ' + adet + ' SMS');
+}
+$(document).on('click', '#ag_sms_ac', function(){
+   if (!agListeler.length){ swal({ type:'info', title:'Liste yok', text:'SMS gönderilecek aktif liste bulunmuyor.' }); return; }
+   var opt = '';
+   agListeler.forEach(function(k){ opt += '<option value="'+agEsc(k.id)+'">'+agEsc(k.baslik)+' ('+agEsc(k.toplam)+')</option>'; });
+   $('#ag_sms_liste').html(opt).val(agAktifListe || agListeler[0].id);
+   agSmsSecili = ['hepsi']; agSmsSayilar = {};
+   agSmsFiltreCiz(); agSmsKarakter(); agSmsOnizle();
+   $('#ag_sms_modal').modal('show');
+});
+$(document).on('change', '#ag_sms_liste', function(){ agSmsSayilar = {}; agSmsFiltreCiz(); agSmsOnizle(); });
+$(document).on('input', '#ag_sms_mesaj', agSmsKarakter);
+$(document).on('click', '#ag_sms_filtreler .chip', function(){
+   var k = $(this).data('k');
+   if (k === 'hepsi'){ agSmsSecili = ['hepsi']; }
+   else {
+      agSmsSecili = agSmsSecili.filter(function(x){ return x !== 'hepsi'; });
+      var i = agSmsSecili.indexOf(k);
+      if (i > -1) agSmsSecili.splice(i, 1); else agSmsSecili.push(k);
+      if (!agSmsSecili.length) agSmsSecili = ['hepsi'];
+   }
+   agSmsFiltreCiz(); agSmsOnizle();
+});
+$(document).on('click', '#ag_sms_gonder', function(){
+   var mesaj = $.trim($('#ag_sms_mesaj').val() || '');
+   if (!mesaj){ swal({ type:'warning', title:'Uyarı', text:'Lütfen SMS metnini yazınız.' }); return; }
+   var aliciMetin = $('#ag_sms_alici').text();
+   if (!confirm(aliciMetin + ' kişiye SMS gönderilecek. Onaylıyor musunuz?')) return;
+   var $b = $(this).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Gönderiliyor...');
+   $.ajax({
+      url:'/isletmeyonetim/arama-listesi-sms', method:'POST',
+      data:{ sube:$('input[name="sube"]').val(), _token:$('input[name="_token"]').val(),
+             arama_id:$('#ag_sms_liste').val(), filtreler:agSmsSeciliFiltreler(), mesaj:mesaj },
+      success:function(res){
+         res = res || {};
+         swal({ type:res.status||'info', title:res.title||'Bilgi', text:res.text||'' });
+         if (res.status === 'success'){ $('#ag_sms_mesaj').val(''); $('#ag_sms_modal').modal('hide'); }
+      },
+      error:function(x){
+         var t = (x.responseJSON && (x.responseJSON.text || x.responseJSON.mesaj)) || 'SMS gönderilemedi.';
+         swal({ type:'error', title:'Hata', text:t });
+      },
+      complete:function(){ $b.prop('disabled', false).html('<i class="fa fa-paper-plane"></i> Gönder'); }
+   });
 });
 
 $(document).ready(function(){

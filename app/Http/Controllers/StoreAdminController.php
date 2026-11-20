@@ -34231,6 +34231,131 @@ DB::raw('
     }
 
     /**
+     * Cagri Merkezi — Arama listesine SMS. Kuyruk filtreleriyle AYNI durum gruplari
+     * (aranacak_musteriler.durum): bekleyen=NULL, gorusulen=1/4, cevapsiz=0/2/5,
+     * tekrar=3, ongorusme=6, satis=7, randevuolustu=8, iptal=9. Birden fazla filtre
+     * secilebilir (birlesim). 'hepsi' tum liste.
+     * onizleme=1 -> sadece filtre bazli alici sayilari doner (gonderim yok).
+     * Gonderim saf SMS (Toplu SMS ile ayni yol; WhatsApp'a dusmez), kara liste ve
+     * telefonu olmayanlar haric, ayni kisi tek SMS. Personel (rol 5) yalniz kendi listesine.
+     */
+    const ARAMA_SMS_FILTRELERI = [
+        'hepsi'         => null,
+        'bekleyen'      => 'NULL',
+        'gorusulen'     => [1, 4],
+        'cevapsiz'      => [0, 2, 5],
+        'tekrar'        => [3],
+        'ongorusme'     => [6],
+        'satis'         => [7],
+        'randevuolustu' => [8],
+        'iptal'         => [9],
+    ];
+
+    public function arama_listesi_sms(Request $request)
+    {
+        if ($r = self::yetkiYoksa403($request, 'pazarlama.toplu_sms')) return $r;
+        $salonId = self::mevcutsube($request);
+        $isletme = Salonlar::where('id', $salonId)->first();
+        if (!$isletme || (int) $isletme->uyelik_turu !== 3) {
+            return response()->json(['status' => 'error', 'title' => 'Hata', 'text' => 'Bu özellik paketinizde yok.'], 403);
+        }
+
+        $liste = AramaListesi::where('id', (int) $request->input('arama_id'))->where('salon_id', $salonId)->first();
+        if (!$liste) {
+            return response()->json(['status' => 'error', 'title' => 'Hata', 'text' => 'Arama listesi bulunamadı.'], 404);
+        }
+        $rol = self::kullaniciRolu($salonId, $this->cmAuthId());
+        if ((int) $rol === 5 && (int) $liste->personel_id !== (int) $this->aktifPersonelId($salonId)) {
+            return response()->json(['status' => 'error', 'title' => 'Hata', 'text' => 'Bu liste size atanmamış.'], 403);
+        }
+
+        // Listedeki gonderilebilir alicilar: telefonu dolu, kara listede degil.
+        $satirlar = DB::table('aranacak_musteriler as am')
+            ->join('users as u', 'u.id', '=', 'am.user_id')
+            ->leftJoin('musteri_portfoy as mp', function ($j) use ($salonId) {
+                $j->on('mp.user_id', '=', 'am.user_id')->where('mp.salon_id', '=', $salonId);
+            })
+            ->where('am.arama_id', $liste->id)
+            ->whereNotNull('u.cep_telefon')->where('u.cep_telefon', '!=', '')
+            ->where(function ($w) { $w->whereNull('mp.kara_liste')->orWhere('mp.kara_liste', '!=', 1); })
+            ->select('am.user_id', 'am.durum', 'u.cep_telefon')
+            ->get();
+
+        $grupla = function ($durum) {
+            $anahtarlar = ['hepsi'];
+            foreach (self::ARAMA_SMS_FILTRELERI as $k => $kodlar) {
+                if ($kodlar === null) continue;
+                if ($kodlar === 'NULL' ? $durum === null : ($durum !== null && in_array((int) $durum, $kodlar, true))) {
+                    $anahtarlar[] = $k;
+                }
+            }
+            return $anahtarlar;
+        };
+
+        // Filtre bazli tekil alici (user_id) sayilari
+        $sayilar = array_fill_keys(array_keys(self::ARAMA_SMS_FILTRELERI), []);
+        foreach ($satirlar as $s) {
+            foreach ($grupla($s->durum) as $k) { $sayilar[$k][$s->user_id] = true; }
+        }
+        $sayilar = array_map('count', $sayilar);
+
+        $secili = array_values(array_intersect(
+            array_keys(self::ARAMA_SMS_FILTRELERI),
+            (array) $request->input('filtreler', [])
+        ));
+
+        $alicilar = []; // user_id => telefon
+        if ($secili) {
+            foreach ($satirlar as $s) {
+                if (array_intersect($secili, $grupla($s->durum))) {
+                    $alicilar[$s->user_id] = $s->cep_telefon;
+                }
+            }
+        }
+
+        if (filter_var($request->input('onizleme'), FILTER_VALIDATE_BOOLEAN)) {
+            return response()->json(['sayilar' => $sayilar, 'alici' => count($alicilar)]);
+        }
+
+        $mesaj = trim((string) $request->input('mesaj', ''));
+        if ($mesaj === '') {
+            return response()->json(['status' => 'warning', 'title' => 'Uyarı', 'text' => 'Lütfen mesaj yazınız.']);
+        }
+        if (!$secili) {
+            return response()->json(['status' => 'warning', 'title' => 'Uyarı', 'text' => 'Lütfen en az bir filtre seçiniz.']);
+        }
+        if (!$alicilar) {
+            return response()->json(['status' => 'warning', 'title' => 'Uyarı', 'text' => 'Seçilen filtrelerde SMS gönderilebilecek müşteri yok.']);
+        }
+
+        SalonAudit::log($salonId, 'arama_listesi_sms', 'arama_listesi', $liste->id,
+            count($alicilar) . ' alıcı',
+            'Arama listesine SMS gönderildi: ' . $liste->arama_baslik,
+            ['filtreler' => $secili, 'alici_sayisi' => count($alicilar), 'mesaj_ozet' => mb_substr($mesaj, 0, 140)]);
+
+        try {
+            if ((int) $isletme->yeni_sms === 1) {
+                $sonuc = app()->make(SMSController::class)
+                    ->cokluSMSGonderVoiceTelekom(array_values($alicilar), $mesaj, $salonId, 'Toplu SMS');
+                if ($sonuc === 'başarılı') {
+                    return response()->json(['status' => 'success', 'title' => 'Başarılı',
+                        'text' => count($alicilar) . ' müşteriye SMS gönderildi.']);
+                }
+                return response()->json(['status' => 'error', 'title' => 'Hata',
+                    'text' => 'SMS gönderilemedi. ' . (is_string($sonuc) ? $sonuc : '')]);
+            }
+            $mesajlar = [];
+            foreach ($alicilar as $uid => $tel) {
+                $mesajlar[] = ['to' => $tel, 'message' => $mesaj, 'user_id' => $uid];
+            }
+            return response()->json(self::sms_gonder_bildirimli($request, $mesajlar, true, 4, false, $salonId));
+        } catch (\Throwable $e) {
+            \Log::error('[CAGRI-MERKEZI] arama_listesi_sms: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+            return response()->json(['status' => 'error', 'title' => 'Hata', 'text' => 'SMS gönderilirken hata oluştu.'], 500);
+        }
+    }
+
+    /**
      * Cagri Merkezi — Sahip/Yonetici Dashboard. Arama yapan tum personelleri kart
      * halinde gosterir (atanan data, aranan, cevapsiz, konusulan, randevu, toplam dk).
      * Sadece yonetici (rol < 5).

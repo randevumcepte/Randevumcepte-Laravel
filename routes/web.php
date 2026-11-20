@@ -1233,6 +1233,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	// Cagri Merkezi — Faz 2: personel calisma alani + KVKK uyumlu arama baslatma
 	Route::get('/arama-listelerim','StoreAdminController@arama_listelerim');
 	Route::get('/arama-kartlarim','StoreAdminController@arama_kartlarim');
+	Route::post('/arama-listesi-sms','StoreAdminController@arama_listesi_sms');
 	Route::post('/arama-baslat','StoreAdminController@arama_baslat');
 	// Cagri Merkezi — Faz 3: sahip dashboard (personel performans takibi)
 	Route::get('/arama-dashboard','StoreAdminController@arama_dashboard');
