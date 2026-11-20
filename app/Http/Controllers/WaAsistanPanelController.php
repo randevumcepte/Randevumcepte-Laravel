@@ -353,6 +353,12 @@ class WaAsistanPanelController extends StoreAdminController
         $sid = (int) $request->get('sube');
         if ($sid <= 0) return response()->json(['ok' => 0, 'hata' => 'sube gerekli']);
         [$ay, $bas, $bit] = \App\Services\SantralPaket::donem($request->get('ay'));
+        // ?bas=2026-11-19 (&bit=2026-11-20): gun araligi (bit dahil); verilmezse ay
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->get('bas'))) {
+            $bas = $request->get('bas') . ' 00:00:00';
+            $bit = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->get('bit')) ? date('Y-m-d 00:00:00', strtotime($request->get('bit') . ' +1 day')) : date('Y-m-d H:i:s', time() + 60);
+            $ay = substr($bas, 0, 10) . ' → ' . date('Y-m-d H:i', strtotime($bit) - 60);
+        }
         $kur = \App\Services\SantralPaket::kur();
         $ara = function ($q) use ($bas, $bit) { return $q->where('created_at', '>=', $bas)->where('created_at', '<', $bit); };
         $guvenli = function (callable $f, $vars = null) { try { return $f(); } catch (\Throwable $e) { return $vars; } };
