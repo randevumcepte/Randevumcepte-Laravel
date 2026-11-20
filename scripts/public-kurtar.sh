@@ -29,14 +29,14 @@ head -5 "$L/commitler" | xargs -r -n1 git log -1 --format='  %h %ci %s'
 # O commit'te olup origin/main'de olmayan dosyalar (tek git diff), diskte yoksa eksik;
 # her dosya icin EN YENI commit kazanir
 while read -r c; do
-    git diff --name-only --no-renames --diff-filter=D "$c" origin/main -- $KLASOR \
+    git -c core.quotepath=off diff --name-only --no-renames --diff-filter=D "$c" origin/main -- $KLASOR \
       | awk -v c="$c" '{print c "\t" $0}'
 done < "$L/commitler" | awk -F'\t' '!g[$2]++' \
   | while IFS=$'\t' read -r c f; do [ -e "$f" ] || printf '%s\t%s\n' "$c" "$f"; done > "$L/eksik.tsv"
 
 N=$(wc -l < "$L/eksik.tsv")
 echo "Diskte olmayan dosya: $N  (liste: $L/eksik.tsv)"
-cut -f2 "$L/eksik.tsv" | cut -d/ -f1-3 | sort | uniq -c | sort -rn | head -30
+cut -f2 "$L/eksik.tsv" | cut -d/ -f1-2 | sort | uniq -c | sort -rn | head -40
 [ "$N" -eq 0 ] && { echo "Geri yuklenecek bir sey yok (dosyalar hic commit'lenmemis olabilir -> yedekten donulmeli)"; exit 0; }
 
 if [ "$MOD" != "uygula" ]; then
