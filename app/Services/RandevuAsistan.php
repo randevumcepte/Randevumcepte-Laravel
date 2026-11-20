@@ -3066,7 +3066,7 @@ FIYAT
             return ['ok' => false, 'hata' => 'Bu saat bu personel için artık dolu. musait_saatler ile yeni saat bulup müşteriye öner.'];
         }
 
-        $sh = SalonHizmetler::where('salon_id', $this->salonId)->where('hizmet_id', $hizmetId)->first();
+        $sh = SalonHizmetler::where('salon_id', $this->salonId)->where('hizmet_id', $hizmetId)->orderByDesc('aktif')->first(); // pasif eski satirin fiyati/suresi alinmasin
         $sure = ($sh && (int) $sh->sure_dk > 0) ? (int) $sh->sure_dk : 30;
         $fiyat = $sh ? ($sh->baslangic_fiyat ?? $sh->son_fiyat ?? 0) : 0;
         try {

@@ -46,6 +46,7 @@ class AiAsistanController extends Controller
             ->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')
             ->leftJoin('hizmet_kategorisi as hk', 'hk.id', '=', 'h.hizmet_kategori_id')
             ->where('sh.salon_id', $salonId)
+            ->where('sh.aktif', 1) // panelden kaldirilan (pasif) hizmetler asistana gitmesin (eski ad/fiyat okunuyordu)
             ->select(
                 'sh.hizmet_id as id',
                 'h.hizmet_adi as ad',
@@ -300,6 +301,7 @@ class AiAsistanController extends Controller
         if ($hizmetId) {
             $sure = SalonHizmetler::where('salon_id', $salonId)
                 ->where('hizmet_id', $hizmetId)
+                ->orderByDesc('aktif') // ayni hizmetin pasif eski satiri varsa aktif olan
                 ->value('sure_dk');
             if ($sure) $sureDk = (int) $sure;
         }
@@ -536,6 +538,7 @@ class AiAsistanController extends Controller
         $hizmetler = DB::table('salon_sunulan_hizmetler as sh')
             ->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')
             ->where('sh.salon_id', $salonId)
+            ->where('sh.aktif', 1)
             ->select('sh.hizmet_id as id', 'h.hizmet_adi as ad')
             ->orderBy('h.hizmet_adi')
             ->get();

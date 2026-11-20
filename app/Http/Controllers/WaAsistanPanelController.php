@@ -82,7 +82,7 @@ class WaAsistanPanelController extends StoreAdminController
     protected static function hizmetListesi(int $sid)
     {
         return DB::table('salon_sunulan_hizmetler as sh')->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')
-            ->where('sh.salon_id', $sid)->orderBy('h.hizmet_adi')->get(['sh.hizmet_id as id', 'h.hizmet_adi as ad', 'sh.son_fiyat as fiyat']);
+            ->where('sh.salon_id', $sid)->where('sh.aktif', 1)->orderBy('h.hizmet_adi')->get(['sh.hizmet_id as id', 'h.hizmet_adi as ad', 'sh.son_fiyat as fiyat']);
     }
 
     /** Genel bakis: secilen donem raporu + onceki doneme gore trend + gunluk seriler (mini grafikler) + paket + asistan durumu. */
