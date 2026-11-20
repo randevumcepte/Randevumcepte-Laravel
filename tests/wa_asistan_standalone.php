@@ -571,6 +571,10 @@ namespace {
     esit('yarım: müşteri "gelmedi hâlâ" → şikayet', 'sikayet', $WA::yarimMi([['role' => 'user', 'content' => 'mesaj gelmedi hala'], ['role' => 'assistant', 'content' => 'Hangi gün uygun?']]));
     esit('yarım değil: sonuçlu cevap', null, $WA::yarimMi([['role' => 'user', 'content' => 'yarın 3'], ['role' => 'assistant', 'content' => 'Yarın 15:00 uygun, oluşturayım mı?']]));
     esit('yarım: cevapsız müşteri mesajı', 'cevapsiz', $WA::yarimMi([['role' => 'user', 'content' => 'Fatma hanım olabilir mi']]));
+    esit('selam: model selamladıysa tekrar eklenmez', 'Merhaba Rabia Hanım, pazar 12:00-22:00 açığız.', $WA::selamEkle('Merhaba Rabia Hanım.', 'Merhaba Rabia Hanım, pazar 12:00-22:00 açığız.'));
+    esit('selam: emoji + "merhabalar" da selam sayılır', '🌸 Merhabalar! Buyurun.', $WA::selamEkle('Merhaba.', '🌸 Merhabalar! Buyurun.'));
+    esit('selam: model selamlamadıysa eklenir', 'Merhaba Rabia Hanım. Pazar 12:00-22:00 açığız.', $WA::selamEkle('Merhaba Rabia Hanım.', 'Pazar 12:00-22:00 açığız.'));
+    esit('selam: "İyi günler" (büyük İ) selam sayılır', 'İyi günler, yardımcı olayım.', $WA::selamEkle('Merhaba.', 'İyi günler, yardımcı olayım.'));
     esit('yarım değil: "tamam"', null, $WA::yarimMi([['role' => 'assistant', 'content' => 'Randevunuz oluşturuldu.'], ['role' => 'user', 'content' => 'tamam']]));
 
     baslik('Gece Denetçisi (saf)');

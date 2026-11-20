@@ -229,6 +229,17 @@ class WaAsistan
         return ['tip' => 'kuyruk'];
     }
 
+    /**
+     * Ilk cevabin basina selam: model zaten selamla basladiysa eklenmez ("Merhaba Rabia Hanım. Merhaba Rabia Hanım, ..."
+     * cift selami — 2026-11-20 Ola Nail).
+     */
+    public static function selamEkle(string $selam, string $cevap): string
+    {
+        $bas = mb_strtolower(strtr(ltrim(preg_replace('/^[^\p{L}]+/u', '', $cevap)), ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
+        if ($cevap === '' || preg_match('/^(merhaba|merhabalar|selam|selamlar|iyi günler|iyi akşamlar|günaydın|hoş geldiniz|hoşgeldiniz)\b/u', $bas)) return $cevap;
+        return trim($selam . ' ' . $cevap);
+    }
+
     /** Isleme hatasi: son 20 hata 1 gun saklanir (panel /whatsapp-asistan/son-hata, sistem yoneticisi; sunucu loguna gerek kalmaz). */
     public static function hataSakla(int $salonId, string $anahtar, \Throwable $e): void
     {
@@ -482,7 +493,7 @@ class WaAsistan
                 WaTalep::ac($o, $g['talep'], trim('[fotoğraf] ' . ($g['tarif'] ?? '') . ($yazi !== '' ? ' — müşteri: ' . $yazi : '')));
                 $upd['sonuc'] = 'aktar';
             }
-            if (empty($gecmis) && $as->taninanMusteri()) $cevap = $as->waSelam() . ' ' . $cevap;
+            if (empty($gecmis) && $as->taninanMusteri()) $cevap = self::selamEkle($as->waSelam(), $cevap);
         } elseif ($hatirlatma && ($meta = $as->waHatirlatmaMeta($hatirlatma['randevu_id']))) {
             $gecmis[] = ['role' => 'assistant', 'content' => $hatirlatma['mesaj'], 'hatirlatma' => $meta];
             $d = $as->konus($metin, $gecmis);
@@ -495,7 +506,7 @@ class WaAsistan
             // BEDAVA KATMAN: fiyat / SSS / hizmet bilgisi / ogrenilen / tesekkur (Claude'a gitmez, paketten dusmez)
             $cevap = (string) $on['cevap'];
             $kaynak = (string) $on['kaynak'];
-            if ($cevap !== '' && empty($gecmis)) $cevap = $as->waSelam() . ' ' . $cevap;
+            if ($cevap !== '' && empty($gecmis)) $cevap = self::selamEkle($as->waSelam(), $cevap);
             if (!empty($on['hizmet']['id'])) { $upd['son_hizmet_id'] = (int) $on['hizmet']['id']; $upd['son_hizmet_ad'] = $on['hizmet']['ad']; }
             if (!empty($on['isaret']['fiyat'])) $upd['fiyat_verildi'] = 1;
             if (!empty($on['isaret']['bilgi'])) $upd['bilgi_verildi'] = 1;
@@ -519,7 +530,7 @@ class WaAsistan
                 if ($o->sessiz_neden === 'aktar') { $upd['sessiz_bitis'] = null; $upd['sessiz_neden'] = null; }
             }
             $cevap = self::telefonIfadeleri($cevap);
-            if ($selam) $cevap = $selam . ' ' . $cevap;
+            if ($selam) $cevap = self::selamEkle($selam, $cevap);
             if (!empty($d['bitir'])) $upd['durum'] = 'kapandi';
             if (in_array($aksiyon, ['randevu', 'iptal', 'guncelle', 'aktar', 'teyit', 'odeme'], true)) $upd['sonuc'] = $aksiyon;
             if (!empty($d['veri']['randevu_id'])) $upd['randevu_id'] = (int) $d['veri']['randevu_id'];
