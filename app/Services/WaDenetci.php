@@ -588,7 +588,7 @@ T;
     {
         $out = [];
         foreach (DB::table('salon_sunulan_hizmetler as sh')->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')->where('sh.salon_id', $salonId)->where('sh.aktif', 1)
-                     ->orderBy('h.hizmet_adi')->get(['sh.hizmet_id as id', 'h.hizmet_adi as ad', 'sh.son_fiyat as fiyat']) as $h) {
+                     ->orderBy('h.hizmet_adi')->get(['sh.hizmet_id as id', 'h.hizmet_adi as ad', DB::raw('COALESCE(NULLIF(sh.son_fiyat, 0), NULLIF(sh.baslangic_fiyat, 0)) as fiyat')]) as $h) {
             if (!isset($out[(int) $h->id])) $out[(int) $h->id] = ['id' => (int) $h->id, 'ad' => (string) $h->ad, 'fiyat' => (float) $h->fiyat];
         }
         return array_values($out);
