@@ -97,7 +97,8 @@ class WaPaketController extends Controller
     {
         if (!in_array($this->rol(), ['super_admin', 'yonetici'], true)) abort(403, 'Bu işlem için yetkiniz yok.');
         WaPaket::semaGaranti();
-        $salon = Salonlar::findOrFail((int) $request->input('salon_id'));
+        $salon = Salonlar::find((int) $request->input('salon_id'));
+        if (!$salon) return redirect()->back()->with('hata', 'Salon #' . (int) $request->input('salon_id') . ' bulunamadı. Salon numarasını kontrol edin.');
         $veri = [
             'paket_adi' => mb_substr(trim((string) $request->input('paket_adi')), 0, 60) ?: null,
             'dahil_mesaj' => max(0, (int) $request->input('dahil_mesaj')),

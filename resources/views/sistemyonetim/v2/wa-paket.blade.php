@@ -135,7 +135,7 @@
         <div class="alt" id="wpSalonAd">—</div>
         <div class="wp-oneri" id="wpSalonSec" style="margin-bottom:14px;display:none">
             <label>Salon</label>
-            <input type="text" class="sy-input" id="wpSalonAra" placeholder="Salon adı yazın..." autocomplete="off">
+            <input type="text" class="sy-input" id="wpSalonAra" placeholder="Salon adı ya da numarası (ör. 20)" autocomplete="off">
             <div class="wp-oneri-liste" id="wpOneri"></div>
         </div>
         <label>Hazır paketler</label>
@@ -192,7 +192,12 @@
     g('wpIptal').addEventListener('click', kapat);
     bg.addEventListener('click', function(e){ if (e.target === bg) kapat(); });
     document.addEventListener('keydown', function(e){ if (e.key === 'Escape') kapat(); });
-    g('wpForm').addEventListener('submit', function(e){ if (!g('wpSalonId').value) { e.preventDefault(); alert('Lütfen bir salon seçin.'); } });
+    g('wpForm').addEventListener('submit', function(e){
+        // Listeden secilmediyse: yazilan salon numarasi dogrudan kullanilir (ör. "20" ya da "#20")
+        var yazi = g('wpSalonAra').value.trim().replace(/^#/, '');
+        if (!g('wpSalonId').value && /^\d+$/.test(yazi)) g('wpSalonId').value = yazi;
+        if (!g('wpSalonId').value) { e.preventDefault(); alert('Salonu listeden seçin ya da salon numarasını yazın (ör. 20).'); }
+    });
     g('wpSil').addEventListener('click', function(){
         var id = g('wpSalonId').value;
         if (!id || !confirm('Bu salonun WhatsApp asistan paketi kaldırılsın mı? Salon sunucu listesinde değilse asistan bu hatta kapanır.')) return;
