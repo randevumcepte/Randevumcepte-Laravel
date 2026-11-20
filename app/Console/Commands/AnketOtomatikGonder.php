@@ -10,6 +10,7 @@ use App\SalonSMSAyarlari;
 use App\User;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -47,6 +48,11 @@ class AnketOtomatikGonder extends Command
         $STAGGER_MINUTES = 10;    // randevu id'sine göre dakikalara yayma genişliği
         $MAX_PER_MINUTE  = 5;     // salon başına dakikada en fazla anket
         $salonGonderimSayac = []; // salon_id => bu cron tikinde gönderilen anket sayısı
+
+        // Basarisiz gonderim (SMS reddi + WA yok/basarisiz): kayit silinir, randevu DENEME_ARALIK dk sonra
+        // tekrar aday olur; en fazla MAX_DENEME kez. Sayaclar cache'te (L5.6: TTL dakika).
+        $MAX_DENEME    = 3;
+        $DENEME_ARALIK = 10;
 
         foreach ($aktifSablonlar as $sablon) {
             // SMS Ayarları → "Randevu Sonrası Değerlendirme" (ayar_id=13, musteri=1) açık değilse atla.
@@ -143,6 +149,11 @@ class AnketOtomatikGonder extends Command
                 // 5) Dakika başına salon limiti — burst engeli. Doluysa bu randevu sonraki tikte gider.
                 if (($salonGonderimSayac[$salonId] ?? 0) >= $MAX_PER_MINUTE) continue;
 
+                // 6) Onceki deneme basarisizsa: bekleme suresi dolmadan veya deneme hakki bittiyse atla
+                $denemeKey = 'anket_oto_deneme_' . $rnd->id;
+                if (Cache::has('anket_oto_bekle_' . $rnd->id)) continue;
+                if ((int) Cache::get($denemeKey, 0) >= $MAX_DENEME) continue;
+
                 $musteri = $userMap->get($rnd->user_id);
                 if (!$musteri) continue;
                 $tel = trim($musteri->cep_telefon ?? '');
@@ -161,9 +172,20 @@ class AnketOtomatikGonder extends Command
                         ]
                     );
 
-                    StoreAdminController::anketSmsGonder(null, $gonderim, $sablon, $musteri);
-                    $toplam++;
+                    $gitti = StoreAdminController::anketSmsGonder(null, $gonderim, $sablon, $musteri);
                     $salonGonderimSayac[$salonId] = ($salonGonderimSayac[$salonId] ?? 0) + 1;
+                    if (!$gitti) {
+                        // Hicbir kanal kabul etmedi: kaydi sil ki randevu tekrar aday olsun (cevapsiz, yeni olusturuldu)
+                        $deneme = (int) Cache::get($denemeKey, 0) + 1;
+                        Cache::put($denemeKey, $deneme, 60 * 27);
+                        Cache::put('anket_oto_bekle_' . $rnd->id, 1, $DENEME_ARALIK);
+                        try { $gonderim->delete(); } catch (\Throwable $e) { /* yoksay */ }
+                        Log::warning('[ANKET-OTO] gonderilemedi' . ($deneme >= $MAX_DENEME ? ', deneme hakki bitti' : ', tekrar denenecek'), [
+                            'randevu_id' => $rnd->id, 'salon_id' => $sablon->salon_id, 'deneme' => $deneme, 'tel' => $tel,
+                        ]);
+                        continue;
+                    }
+                    $toplam++;
 
                     Log::info('[ANKET-OTO] gönderim', [
                         'randevu_id'  => $rnd->id,

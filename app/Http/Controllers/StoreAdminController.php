@@ -40349,16 +40349,16 @@ DB::raw('
             }
         };
 
+        // Donus: herhangi bir kanal kabul ettiyse true (cron basarisizda tekrar dener; diger cagiranlar yok sayar)
         if ($smsOnce) {
             // SMS-first; SMS gonderilemezse (istisna/saglayici reddi) ve WA bagliysa WA yedek
-            if ($smsGonder()) return;
-            if ($waKanaliAcik) $waDene();
-            return;
+            if ($smsGonder()) return true;
+            return $waKanaliAcik ? $waDene() : false;
         }
 
         // WA-first; WA kapali veya basarisizsa SMS yedek
-        if ($waKanaliAcik && $waDene()) return;
-        $smsGonder();
+        if ($waKanaliAcik && $waDene()) return true;
+        return $smsGonder();
     }
 
     /**
