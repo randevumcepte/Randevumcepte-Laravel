@@ -207,7 +207,7 @@ class WaAsistanPanelController extends StoreAdminController
         foreach ($gecmis as $i => $m) {
             $rol = ($m['role'] ?? '') === 'user' ? 'musteri' : (!empty($m['personel']) ? 'personel' : 'asistan');
             $satirlar[] = ['rol' => $rol, 'metin' => (string) ($m['content'] ?? ''), 'geri_kazanim' => !empty($m['geri_kazanim']),
-                'hatirlatma' => !empty($m['hatirlatma']), 'at' => $saatler[$i] ?? null, 'yazan' => $rol === 'personel' ? ($m['yazan'] ?? null) : null];
+                'hatirlatma' => !empty($m['hatirlatma']), 'at' => $saatler[$i] ?? null, 'yazan' => $rol === 'personel' ? WaAsistan::yazanKisa($m['yazan'] ?? null) : null];
         }
         $gorseller = [];
         if (WaGorselDanisman::semaGaranti()) {
@@ -506,7 +506,7 @@ class WaAsistanPanelController extends StoreAdminController
         $esik = WaAsistan::insanEsikDk();
         if ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - $esik * 60) {
             $yazan = 'Personel';
-            for ($i = count($gecmis) - 1; $i >= 0; $i--) if (!empty($gecmis[$i]['personel'])) { $yazan = (string) ($gecmis[$i]['yazan'] ?? 'Personel'); break; }
+            for ($i = count($gecmis) - 1; $i >= 0; $i--) if (!empty($gecmis[$i]['personel'])) { $yazan = WaAsistan::yazanKisa($gecmis[$i]['yazan'] ?? null) ?: 'Personel'; break; }
             $kalan = max(1, (int) ceil((strtotime($o->son_insan_at) + $esik * 60 - time()) / 60));
             return ['kod' => 'personel', 'metin' => "$yazan yazdı · cevap vermezseniz asistan $kalan dk sonra devam eder", 'kalan_dk' => $kalan];
         }

@@ -964,6 +964,14 @@ class WaAsistan
         return true;
     }
 
+    /** Sohbette personel yalniz ilk adiyla gorunur ("Nazira Yilmaz" -> "Nazira"); cihaz etiketleri aynen kalir. */
+    public static function yazanKisa(?string $y): ?string
+    {
+        $y = trim((string) $y);
+        if ($y === '' || in_array($y, ['Personel', 'İşletme telefonu', 'İşletme WhatsApp\'ı', 'WhatsApp Web / bağlı cihaz'], true)) return $y === '' ? null : $y;
+        return preg_split('/\s+/u', $y)[0];
+    }
+
     /** Personel yazinca asistanin sustugu sure (dk). */
     public static function insanEsikDk(): int
     {

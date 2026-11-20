@@ -71,7 +71,7 @@ class WaAsistanMobilController extends WaAsistanPanelController
         if (!$o) return response()->json(['ok' => 0, 'hata' => 'Sohbet bulunamadı.'], 404);
         $y = $this->asistanGorusmeYetkili();
         $yazan = \App\Personeller::where('yetkili_id', $y->id)->where('salon_id', $sid)->value('personel_adi') ?: ($y->name ?? 'Personel');
-        $r = WaAsistan::personelYazdi((int) $o->id, (string) $request->input('metin', ''), trim((string) $yazan) ?: 'Personel');
+        $r = WaAsistan::personelYazdi((int) $o->id, (string) $request->input('metin', ''), WaAsistan::yazanKisa($yazan) ?: 'Personel');
         return response()->json(['ok' => $r['ok'] ? 1 : 0, 'hata' => $r['hata']], $r['ok'] ? 200 : 422);
     }
 
