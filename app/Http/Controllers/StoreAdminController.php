@@ -40331,14 +40331,18 @@ DB::raw('
             return false;
         };
 
-        // SMS gonder: istisna olmadiysa true (saglayici hatasi sms_gonder icinde loglanir)
+        // SMS gonder: saglayici kabul ettiyse true (Controller::$sonSmsBasarili); red/bakiye/baslik hatasinda false
         $smsGonder = function () use ($gonderim, $mesaj) {
             $mesajlar = [['to'=>$gonderim->telefon, 'message'=>$mesaj]];
             try {
                 // Base Controller::sms_gonder($salon_id, $mesajlar) — request gerektirmez, cron'dan da çağrılabilir
                 $ctrl = app()->make(\App\Http\Controllers\Controller::class);
                 $ctrl->sms_gonder($gonderim->salon_id, $mesajlar);
-                return true; // kanal alani olusturuldugu gibi kalir (sms/manuel)
+                $ok = \App\Http\Controllers\Controller::$sonSmsBasarili === true;
+                \Log::info('[ANKET-SMS] '.($ok ? 'saglayici kabul etti' : 'GONDERILEMEDI'), [
+                    'salon_id' => $gonderim->salon_id, 'gonderim_id' => $gonderim->id, 'to' => $gonderim->telefon,
+                ]);
+                return $ok; // kanal alani olusturuldugu gibi kalir (sms/manuel)
             } catch (\Throwable $e) {
                 \Log::error('anketSmsGonder hata: '.$e->getMessage());
                 return false;
@@ -40346,7 +40350,7 @@ DB::raw('
         };
 
         if ($smsOnce) {
-            // SMS-first; SMS istisna verirse ve WA bagliysa WA yedek
+            // SMS-first; SMS gonderilemezse (istisna/saglayici reddi) ve WA bagliysa WA yedek
             if ($smsGonder()) return;
             if ($waKanaliAcik) $waDene();
             return;

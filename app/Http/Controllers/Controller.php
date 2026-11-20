@@ -774,8 +774,15 @@ class Controller extends BaseController
     * override edebilsin diye PHP method-incompatibility warning'ini onler.
     * Cagri kontrati: ilk arg salon id, ikinci arg mesaj dizisi.
     */
+   /**
+    * Son sms_gonder cagrisinin sonucu: true=saglayici kabul etti, false=gonderilmedi/reddedildi.
+    * Donus degeri eski kontrat geregi degismedi; kanal yedegi gereken yerler (anket SMS-first) bunu okur.
+    */
+   public static $sonSmsBasarili = null;
+
    public function sms_gonder(...$args)
     {
+        self::$sonSmsBasarili = false;
         $salonid = $args[0] ?? null;
         $mesajlar = $args[1] ?? [];
 
@@ -874,6 +881,7 @@ class Controller extends BaseController
                 return;
             }
 
+            self::$sonSmsBasarili = ($response->err == null && !empty($response->pkgID));
             if($response->err == null){
                 Log::info("MessageId: ".$response->pkgID."\n");
             }else{
@@ -924,6 +932,7 @@ class Controller extends BaseController
             if($salonid!="")
             {
                 if($decoded != null && isset($decoded['response']) && count($decoded['response'])!=0){
+                    self::$sonSmsBasarili = !empty($decoded['response']['message']['id']);
                     $rapor = new SMSIletimRaporlari();
                     $rapor->salon_id = $salonid;
                     $rapor->tur = 1;
