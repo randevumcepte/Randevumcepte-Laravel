@@ -191,10 +191,20 @@ class WaReklam
     /** Musteriye giden reklam mesaji (saf). */
     public static function mesaj(array $r, string $link): string
     {
-        $m = '🎁 ' . trim($r['baslik']);
-        if (trim((string) $r['metin']) !== '') $m .= "\n" . trim($r['metin']);
-        if ($link !== '') $m .= "\n\nDetaylar ve görsel: " . $link;
-        return $m . "\n\n(Kampanya mesajı istemezseniz \"kampanya istemiyorum\" yazmanız yeterli.)";
+        // Sablon (kullanici onayi 2026-11-20): baslik kalin, metin satir satir ✨, son gun, hizmetler, link, net cagri
+        $m = '🎁 *' . trim($r['baslik']) . "*\n";
+        $satirlar = array_values(array_filter(array_map('trim', preg_split('/\R/u', trim((string) ($r['metin'] ?? '')))), 'strlen'));
+        $ek = [];
+        foreach ($satirlar as $s) $ek[] = '✨ ' . $s;
+        if (!empty($r['hizmet_adlari'])) $ek[] = '💆 ' . implode(', ', array_slice($r['hizmet_adlari'], 0, 4));
+        if (!empty($r['bitis']) && ($ts = strtotime((string) $r['bitis']))) {
+            $ay = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+            $ek[] = '📅 Son gün: *' . (int) date('j', $ts) . ' ' . $ay[(int) date('n', $ts)] . '*';
+        }
+        if ($ek) $m .= "\n" . implode("\n", $ek) . "\n";
+        if ($link !== '') $m .= "\n👉 Detaylar ve afiş:\n" . $link . "\n";
+        return $m . "\nKampanyadan yararlanmak için *\"evet\"* yazmanız yeterli, randevunuzu hemen oluşturalım 🙂"
+            . "\n\n_Kampanya mesajı istemezseniz \"kampanya istemiyorum\" yazın._";
     }
 
     /**

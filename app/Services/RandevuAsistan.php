@@ -949,6 +949,16 @@ class RandevuAsistan
     /** randevu_olustur ok=true sonucundan deterministik onay cumlesi. */
     protected function randevuOnayCumlesi(array $d): string
     {
+        // WhatsApp: okunur kart (kullanici sablonu 2026-11-20); santral sesli cumle asagida (degismedi)
+        if ($this->kanal === 'whatsapp' && !empty($d['tarih']) && !empty($d['saat'])) {
+            return '✅ *Randevu talebiniz oluşturuldu*' . (!empty($d['paket_seansi']) ? ' (paketinizden)' : '') . "\n\n"
+                . (!empty($d['hizmet']) ? '💅 ' . $d['hizmet'] . "\n" : '')
+                . '📅 ' . $this->tarihSoz((string) $d['tarih']) . "\n"
+                . '🕒 ' . substr((string) $d['saat'], 0, 5) . "\n"
+                . (!empty($d['personel']) ? '👤 ' . $d['personel'] . "\n" : '')
+                . "\n" . (!empty($d['bilgilendirme_gonderildi']) ? 'Bilgilendirme mesajını ve yol tarifini gönderdim. ' : '')
+                . 'Onaylandığında size haber vereceğiz.';
+        }
         // Isletme istegi: "... randevu talebinizi oluşturdum ve size bilgilendirme mesajı gönderdim. Randevunuz
         // onaylandığında size bilgi verilecektir." (once yapilan is, SONRA onay bilgisi)
         // Gun/saat/uzman TEKRAR EDILMEZ (kayit 172: onay sorusunda zaten okunmustu, "evet"ten sonra hepsi yeniden
@@ -965,10 +975,12 @@ class RandevuAsistan
      */
     protected function baskaYardimEkle(string $cevap): string
     {
-        $c = preg_replace('/\s*(Peki,?\s*|Ya da\s*)?(size|sizlere)\s+(başka\s+)?(nasıl|ne konuda)\s+(yardımcı olabilirim|yardımcı olayım)\s*\??/iu', ' ', $cevap);
-        $c = trim(preg_replace('/\s{2,}/u', ' ', $c));
+        $c = preg_replace('/[ \t]*(Peki,?\s*|Ya da\s*)?(size|sizlere)\s+(başka\s+)?(nasıl|ne konuda)\s+(yardımcı olabilirim|yardımcı olayım)\s*\??/iu', ' ', $cevap);
+        // WhatsApp: satir sonlari (sablon) korunur, soru alt satira; santral: tek satir (eskisi gibi)
+        $wa = $this->kanal === 'whatsapp';
+        $c = trim($wa ? preg_replace('/[ \t]{2,}/u', ' ', $c) : preg_replace('/\s{2,}/u', ' ', $c));
         if (!preg_match('/başka\s+(bir\s+)?(konu|yardımcı|isteğiniz|bir şey|merak)/iu', $c)) {
-            $c = rtrim($c, " ,") . ($c !== '' && !preg_match('/[.!?]$/u', $c) ? '.' : '') . ' Başka yardımcı olabileceğim bir konu var mı?';
+            $c = rtrim($c, " ,") . ($c !== '' && !preg_match('/[.!?)]$/u', $c) ? '.' : '') . ($wa ? "\n\n" : ' ') . 'Başka yardımcı olabileceğim bir konu var mı?';
         }
         return trim($c);
     }
@@ -2171,8 +2183,15 @@ PROMPT;
         return <<<WA
 # KANAL: WHATSAPP YAZIŞMASI (bu bölüm aşağıdaki tüm kurallardan ÖNCELİKLİDİR)
 Bu bir telefon görüşmesi DEĞİL; müşteri WhatsApp'tan yazıyor ve cevabın WhatsApp mesajı olarak gider. Aşağıdaki "sesli", "telefonda", "TTS", "okunur", "duyar", "söyle" ifadelerini "yaz/yazışma" olarak uygula.
-- Kısa ve net yaz (çoğunlukla 1-3 cümle). Tarih ve saati rakamla yaz (ör. "Perşembe 20 Kasım, 14:30"). Seçenek sunarken her birini ayrı satıra yaz (ör. "1) Perşembe 20 Kasım 14:00 – Ayşe Hanım").
-- Emoji en fazla bir tane ve yalnız uygun yerde; markdown başlık/kalın yazı KULLANMA.
+- Kısa ve net yaz. Tarih ve saati rakamla yaz (ör. "Perşembe 20 Kasım, 14:30").
+- MESAJ DÜZENİ (WhatsApp biçimi): kısa cevap ("tamam", teşekkür, tek bilgi) tek satır kalır. Birden fazla bilgi / seçenek / paket / fiyat içeren mesajı ASLA tek paragraf yazma:
+  · önemli bilgiyi (hizmet adı, tarih, saat, fiyat, seans) *tek yıldız* arasında kalın yaz (markdown ** ve # KULLANMA);
+  · seçenekleri ayrı satırlarda 1️⃣ 2️⃣ 3️⃣ ile numarala (müşteri numarayla seçebilir);
+  · bloklar arasında boş satır bırak; soruyu en sona, ayrı satıra yaz;
+  · mesaj başına en fazla 3-4 uygun emoji (📅 🕒 💅 💆 ✨ ✅ 🎁), süs için emoji yağdırma.
+  Örnek (paket): "💆 *Lazer Epilasyon* için hesabınızda 2 paket var:\\n\\n1️⃣ *Deneme 2'li paket* — 4 seans kaldı\\n2️⃣ *Deneme 2'li paket* — 3 seans kaldı\\n\\nRandevuyu hangi paketinizden oluşturalım? Paketsiz (ücretli) de alabilirsiniz."
+  Örnek (saat): "📅 *Cumartesi, 21 Kasım* için boş saatler:\\n\\n1️⃣ *10:00* — Berfin Hanım\\n2️⃣ *11:30* — Sümeyra Hanım\\n\\nHangisi size uygun?"
+  Örnek (fiyat): "💆 *Lazer Epilasyon* — *1.200 TL*\\n\\nRandevu oluşturmamı ister misiniz? Gün ve saat yazmanız yeterli 🙂"
 - "Hatta kalın", "sizi bağlıyorum", "bizi aradığınız için", "arama" gibi telefon ifadeleri KULLANMA. "aktar" çağırdığında müşteriye talebinin işletmeye iletildiğini ve buradan dönüş yapılacağını yaz; sohbet BİTMEZ: sonraki mesajlarda müşteriyle ilgilenmeye (randevu, bilgi) devam et, aynı konu için tekrar "aktar" çağırma.
 - Karşılama mesajı zaten gönderildi ya da müşteri doğrudan isteğini yazdı: tekrar "hoş geldiniz" deme.
 - Yazım hatalı/kısaltmalı mesajları (ör. "yarn 3te", "sac kesimi") anlamaya çalış; gerçekten anlaşılmıyorsa kısaca ne istediğini sor.
@@ -2207,6 +2226,11 @@ FIYAT
             $s .= "- reklam_id {$r['id']} | {$r['baslik']}" . ($r['hizmet_adlari'] ? ' | ilgili hizmetler: ' . implode(', ', $r['hizmet_adlari']) : '')
                 . (trim($r['metin']) !== '' ? ' | ' . mb_substr(preg_replace('/\s+/u', ' ', $r['metin']), 0, 200) : '') . "\n";
         }
+        // Kampanyayi isteyen musteri = satis: aktarma yok, dogrudan randevu (canli 2026-11-20: "bana da uygular misiniz" -> "bilemiyorum, bağlayayım mı" dedi)
+        $s .= "- KAMPANYAYI İSTEYEN MÜŞTERİ (bu kural FİYAT ve AKTARMA kurallarının önündedir): müşteri kampanyadan yararlanmak isterse (\"bana da uygular mısınız\", \"evet\", \"kampanyadan randevu\", \"indirimli olsun\") SEVE SEVE kabul et ve randevuya götür; "
+            . "ör. \"Seve seve! 🎉 Kampanyamızdan yararlanarak randevunuzu hemen oluşturalım. Hangi gün ve saat size uygun?\" (hizmet ve gün belliyse doğrudan musait_saatler çağır). "
+            . "Bunun için ASLA \"aktar\" çağırma, \"bilemiyorum / işletmeye bağlayayım\" DEME. Kampanya fiyatı/oranı yukarıdaki metinde yazıyorsa onu söyle; yazmıyorsa \"kampanya avantajı randevunuza uygulanacak\" de, rakam UYDURMA. "
+            . "randevu_olustur'da notlar alanına \"Kampanya: <kampanya başlığı>\" yaz.\n";
         $s .= $this->waReklamGonderilebilir
             ? "- Müşteri kampanya/indirim sorarsa ya da yukarıdaki ilgili bir hizmetin fiyatını/bilgisini sorarsa önce sorusunu cevapla, sonra \"reklam_gonder\" çağır ve cevabının sonuna kampanyayı tek cümleyle ekle (ör. \"Bu arada bu ay protez tırnakta kampanyamız var, detayını gönderiyorum 👇\"). Randevu adımları sürerken (saat seçimi, onay) kampanyaya girme. İlgisiz hizmette kampanyadan bahsetme. Kampanya bilgisini UYDURMA, yalnız buradaki metni kullan.\n\n"
             : "- Kampanya bu sohbette zaten gönderildi ya da müşteri istemiyor: tekrar gönderme; müşteri sorarsa yalnız buradaki bilgiyle kısaca cevapla. Müşteri kampanyadan randevu isterse normal randevu akışına geç.\n\n";
@@ -3069,7 +3093,8 @@ FIYAT
         }
         // randevuekleguncelle seansi EN ESKI uygun pakete kendisi baglar; musterinin secimi (baska paket / paketsiz) uygulanir
         $this->paketSeciminiUygula((int) $rid, $hizmetId, $in);
-        return ['ok' => true, 'randevu_id' => (int) $rid, 'tarih' => $tarih, 'saat' => $saat, 'personel' => isset($this->personelListesi()[$personelId]) ? $this->personelHitap($personelId) : null, 'bilgilendirme_gonderildi' => $this->bilgilendirmeAcik(),
+        $hizAd = null; foreach ((array) ($this->salon['hizmetler'] ?? []) as $h) if ((int) ($h['id'] ?? 0) === (int) $hizmetId) { $hizAd = $h['ad'] ?? null; break; }
+        return ['ok' => true, 'randevu_id' => (int) $rid, 'tarih' => $tarih, 'saat' => $saat, 'hizmet' => $hizAd, 'personel' => isset($this->personelListesi()[$personelId]) ? $this->personelHitap($personelId) : null, 'bilgilendirme_gonderildi' => $this->bilgilendirmeAcik(),
             // baglandiysa asistan "paketinizden" diyebilsin
             'paket_seansi' => \App\AdisyonPaketSeanslar::where('randevu_id', $rid)->whereNotNull('adisyon_paket_id')->exists(),
             'durum' => 'talep (işletme onayı bekliyor)'];

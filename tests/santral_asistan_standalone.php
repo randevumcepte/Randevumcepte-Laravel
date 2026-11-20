@@ -655,6 +655,14 @@ namespace {
     $rkS = asistan(['kanal' => 'santral']);
     $rkS->waReklamlarAyarla($rkR, true);
     esit('santralde reklam yok (yalnız WhatsApp)', [false, ''], [in_array('reklam_gonder', array_column(cagir($rkS, 'toolTanimlari'), 'name'), true), cagir($rkS, 'waReklamBolumu')]);
+    // WhatsApp sablonu: randevu onayi kart + "Başka..." alt satirda (satir sonlari ezilmez); santral eskisi gibi tek cumle
+    $waOnay = cagir($rkA, 'baskaYardimEkle', cagir($rkA, 'randevuOnayCumlesi', ['tarih' => '2026-11-21', 'saat' => '10:00:00', 'hizmet' => 'Jel Güçlendirme', 'personel' => 'Berfin Hanım', 'bilgilendirme_gonderildi' => true]));
+    icerir('WA randevu onayı: kart başlığı', '✅ *Randevu talebiniz oluşturuldu*', $waOnay);
+    icerir('WA randevu onayı: satır satır', "💅 Jel Güçlendirme\n📅 Cumartesi, 21 Kasım\n🕒 10:00\n👤 Berfin Hanım", $waOnay);
+    icerir('WA randevu onayı: soru ayrı satırda', "haber vereceğiz.\n\nBaşka yardımcı olabileceğim bir konu var mı?", $waOnay);
+    $snOnay = cagir(asistan(), 'baskaYardimEkle', cagir(asistan(), 'randevuOnayCumlesi', ['tarih' => '2026-11-21', 'saat' => '10:00', 'bilgilendirme_gonderildi' => true]));
+    esit('santral onayı değişmedi (tek cümle)', 'Tamamdır, randevu talebinizi oluşturdum; bilgilendirme mesajını ve yol tarifini telefonunuza gönderdim. Onaylandığında size haber vereceğiz. Başka yardımcı olabileceğim bir konu var mı?', $snOnay);
+    icerir('kampanyayı isteyen müşteri kuralı', 'SEVE SEVE', cagir($rkA, 'waReklamBolumu'));
     $rkG = asistan(['kanal' => 'whatsapp']);
     $rkG->waReklamlarAyarla($rkR, false);
     esit('bu sohbette gönderildi: araç yok ama kampanya bilinir', [false, true],

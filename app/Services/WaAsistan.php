@@ -923,7 +923,7 @@ class WaAsistan
             // Amac SONUC: musteriyi randevuya dondurmek (2026-11-20 kullanici: "5 dk sonra hemen yazmali, bir sonuc almali")
             $metin = '[SİSTEM — müşteri bunu yazmadı] Müşteri son sorunuza 5 dakikadır cevap vermedi. Amaç randevuyu sonuçlandırmak. '
                 . 'Tek, kısa ve sıcak bir mesaj yaz: seçenek sunduysan en erken/ilk seçeneği öner ve randevuyu oluşturmayı teklif et '
-                . '(ör. "Yarın 10:00 için randevunuzu oluşturayım mı? \'Evet\' yazmanız yeterli; diğer saati isterseniz onu yazın."). '
+                . '(biçim: "Selin Hanım, yarın *10:00* için randevunuzu oluşturayım mı? 🙂\n\n✅ Onay için *\"evet\"* yazın\n🔄 11:30\'u tercih ederseniz *\"11:30\"* yazın"). '
                 . '"ayırayım mı" deme, "randevunuzu oluşturayım mı" de. '
                 . 'saatler doluyor diye uydurma baskı yapma. Onay bekliyorsan tek kelimeyle onaylayabileceğini söyle. '
                 . 'Araç çağırma, yeni işlem yapma, önceki mesajı kelimesi kelimesine tekrarlama. '
