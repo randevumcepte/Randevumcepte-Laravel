@@ -17,6 +17,9 @@ class WaInsanDevam extends Command
     public function handle()
     {
         $this->info('Asistanin geri dondugu sohbet: ' . WaAsistan::havadaKalanlariTamamla(true));
+        // Yarim kalan / musterinin 5 dk'dir cevap vermedigi sohbetler de her dakika: hatirlatma 5-10 dk degil tam 5. dk'da gider
+        // (wa:talep-takip 5 dk'da bir ayni isi yapar; ayni sohbet iki kez yazilmaz: Cache wa_havada_ kilidi)
+        $this->info('Tamamlanan / hatirlatilan sohbet: ' . WaAsistan::havadaKalanlariTamamla());
         return 0;
     }
 }

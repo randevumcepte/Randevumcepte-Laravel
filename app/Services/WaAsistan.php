@@ -872,9 +872,12 @@ class WaAsistan
             $once = $g;
         } elseif ($mod === 'hatirlat') {
             // Musteri soruya 5 dk'dir cevap vermedi: tek kisa hatirlatma (yeni islem yok)
-            $metin = '[SİSTEM — müşteri bunu yazmadı] Müşteri son sorunuza birkaç dakikadır cevap vermedi. '
-                . 'Tek, kısa ve nazik bir hatırlatma mesajı yaz: bekleyen soruyu/onayı seçenekleriyle (gün, saat, uzman) koruyarak yeniden sor; '
-                . 'müşteri kısa cevapla (ör. "evet" ya da saat) tamamlayabilsin. Araç çağırma, yeni işlem yapma, önceki mesajı kelimesi kelimesine tekrarlama. '
+            // Amac SONUC: musteriyi randevuya dondurmek (2026-11-20 kullanici: "5 dk sonra hemen yazmali, bir sonuc almali")
+            $metin = '[SİSTEM — müşteri bunu yazmadı] Müşteri son sorunuza 5 dakikadır cevap vermedi. Amaç randevuyu sonuçlandırmak. '
+                . 'Tek, kısa ve sıcak bir mesaj yaz: seçenek sunduysan en erken/ilk seçeneği öner ve onun için ayırmayı teklif et '
+                . '(ör. "10:00\'ı sizin için ayırayım mı? \'Evet\' yazmanız yeterli; diğer saat isterseniz onu yazın."), '
+                . 'saatler doluyor diye uydurma baskı yapma. Onay bekliyorsan tek kelimeyle onaylayabileceğini söyle. '
+                . 'Araç çağırma, yeni işlem yapma, önceki mesajı kelimesi kelimesine tekrarlama. '
                 . 'Yazışmada randevu zaten oluşturulduysa / işlem tamamlandıysa onu yeniden oluşturmayı SORMA, "bekliyor" DEME.';
             $once = $g;
         } elseif ($mod === 'tekrar' || $mod === 'sikayet') {
