@@ -70,7 +70,8 @@ class WaBedavaKatman
         // 6) ogrenilen
         if (self::ogrenilebilirSoru($metin)) {
             $o = self::ogrenilenGetir($salonId, $metin);
-            if ($o !== null) return ['cevap' => $o, 'kaynak' => 'ogrenilen', 'isaret' => ['bilgi' => 1]];
+            // Eskiden ogrenilmis fiyat/sure cevaplari kullanilmaz (hizmet/fiyat panelde degismis olabilir; Ola Nail 236)
+            if ($o !== null && !self::fiyatSureIcerir($o)) return ['cevap' => $o, 'kaynak' => 'ogrenilen', 'isaret' => ['bilgi' => 1]];
         }
         return null;
     }
@@ -290,7 +291,14 @@ class WaBedavaKatman
             foreach (explode(' ', $musteriAd) as $p) if (mb_strlen($p) >= 3 && mb_stripos($c, $p) !== false) return false;
         }
         if (preg_match('/aktar|ilettim|dönüş yapacak/u', $c)) return false;
+        if (self::fiyatSureIcerir($c)) return false; // fiyat/sure degisir: kalici ogrenilirse eski bilgi okunur
         return true;
+    }
+
+    /** Cevapta fiyat ya da sure var mi ("400 TL", "₺350", "150 dakika")? Bunlar ogrenilmez / ogrenilmisse kullanilmaz. */
+    public static function fiyatSureIcerir(string $c): bool
+    {
+        return (bool) preg_match('/\d[\d.,]*\s*(TL|₺|lira|dakika|dk\b|saat sürer)|₺\s*\d|fiyat/iu', $c);
     }
 
     public static function ogrenilenAnahtar(string $metin): string
