@@ -459,6 +459,17 @@ class WaAsistan
         $as->waFiyatSoyle = !empty($ayar['fiyat_soyle']);
         $as->waProfilAdiAyarla($son->ad ?: $o->ad);
         try { $as->waDersleriAyarla(WaDenetci::aktifDersler((int) $o->isletme_id)); } catch (\Throwable $e) {} // Gece Denetcisi dersleri
+        // SALON REKLAMI (WaReklam): ozellik kapali / aktif reklam yok -> asistan bugunku gibi (arac + bolum eklenmez)
+        $reklamlar = []; $reklamGonderilebilir = false; $reklamRet = false;
+        try {
+            if (WaReklam::acikMi((int) $o->isletme_id)) {
+                if (WaReklam::retMi($metin)) { WaReklam::retEt((int) $o->isletme_id, (string) $o->anahtar); $reklamRet = true; }
+                if ($reklamlar = WaReklam::aktifler((int) $o->isletme_id)) {
+                    $reklamGonderilebilir = !$reklamRet && WaReklam::gonderilebilirMi((int) $o->isletme_id, $o);
+                    $as->waReklamlarAyarla($reklamlar, $reklamGonderilebilir);
+                }
+            }
+        } catch (\Throwable $e) { Log::warning('[WA-REKLAM] hazirlik: ' . $e->getMessage()); }
         $musteriMesajVar = (bool) array_filter($gecmis, function ($m) { return ($m['role'] ?? '') === 'user'; });
         $gorselId = (int) ($satirlar->pluck('gorsel_id')->filter()->last() ?: 0);
         $gkCevap = (!empty($o->geri_kazanim_id) && !$musteriMesajVar) ? WaGeriKazanim::cevapGeldi((int) $o->geri_kazanim_id, $metin) : null;
@@ -473,6 +484,10 @@ class WaAsistan
             $kayitli = $as->taninanMusteri();
             WaTalep::ac($o, 'yanlis_numara', 'Müşteri: "' . mb_substr($metin, 0, 200) . '".'
                 . ($kayitli ? " Bu numara sistemde \"{$kayitli}\" adına kayıtlı; müşteri kartındaki telefonu kontrol edin." : ' Bu numaraya mesaj gönderilmemesini istiyor.'));
+        } elseif ($reklamRet && mb_strlen($metin) <= 80) {
+            // "kampanya istemiyorum": sabit cevap (AI'ya gitmez); bu numaraya bir daha reklam gitmez
+            $cevap = 'Tamam, size bir daha kampanya mesajı göndermeyeceğiz 🙏 Randevu ya da bilgi için buradan her zaman yazabilirsiniz.';
+            $kaynak = 'kod';
         } elseif (($mc = self::medyaCevabi($metin)) !== null && $mc['cevap'] !== null) {
             // Sesli mesaj / video / belge / konum: icerik okunamaz -> sabit, kisa cevap (AI'ya gitmez, uydurmaz)
             $cevap = $mc['cevap']; $kaynak = 'kod';
@@ -580,6 +595,25 @@ class WaAsistan
             $b = trim(($d && !empty($d['baglam']) ? $d['baglam'] : '') . ($baglamEk !== '' ? ' ' . $baglamEk : ''));
             if ($b !== '') $asistanMsj['baglam'] = $b;
             $gecmis[] = $asistanMsj;
+        }
+        // SALON REKLAMI: asistan reklam_gonder dediyse ya da (bedava katman) ilgili hizmetin fiyati/bilgisi verildiyse,
+        // cevabin ardindan ayri mesaj (sohbet basina 1). Aktarma / islem turunda gonderilmez.
+        if ($gonderildi && $reklamGonderilebilir && !in_array($aksiyon, ['aktar', 'randevu', 'iptal', 'guncelle'], true)) {
+            try {
+                $rek = $as->waReklamId ? WaReklam::bul($reklamlar, $as->waReklamId) : null;
+                $tetik = 'ai';
+                if (!$rek && $on && !empty($on['hizmet']['id'])) { $rek = WaReklam::sec($reklamlar, (int) $on['hizmet']['id']); $tetik = 'fiyat'; }
+                if ($rek) {
+                    [$rMetin, $gid] = WaReklam::hazirla($rek, $o, $tetik);
+                    $rr = app(WhatsAppService::class)->sendAsistanCevap($salon, $hedef, $rMetin, $tel);
+                    if (!empty($rr['ok'])) $gecmis[] = ['role' => 'assistant', 'content' => $rMetin, 'reklam' => (int) $rek['id'], 'at' => date('Y-m-d H:i:s')];
+                    else WaReklam::geriAl($gid);
+                }
+            } catch (\Throwable $e) { Log::warning('[WA-REKLAM] gonderim: ' . $e->getMessage(), ['oturum' => $o->id]); }
+        }
+        // Reklam gosterilen musteri randevu aldi -> reklamin sonucu (7 gun icinde)
+        if ($aksiyon === 'randevu' && !empty($d['veri']['randevu_id']) && $reklamlar) {
+            WaReklam::randevuOldu((int) $o->isletme_id, (string) $o->anahtar, (int) $d['veri']['randevu_id']);
         }
         if ($gonderildi) {
             $upd['cevap_sayisi'] = DB::raw('cevap_sayisi + 1');
@@ -795,6 +829,7 @@ class WaAsistan
      */
     public static function yarimMi(array $g): ?string
     {
+        while ($g && !empty(end($g)['reklam'])) array_pop($g); // reklam mesaji sohbetin akisi degil
         $son = end($g);
         if (!$son || !empty($son['personel']) || !empty($son['gozden'])) return null;
         if (($son['role'] ?? '') === 'user') return self::kapanisMi((string) ($son['content'] ?? '')) ? null : 'cevapsiz';
@@ -821,6 +856,7 @@ class WaAsistan
      */
     public static function cevapBekliyorMu(array $g): bool
     {
+        while ($g && !empty(end($g)['reklam'])) array_pop($g); // reklamdan onceki soru bekleniyor
         $son = end($g);
         if (!$son || ($son['role'] ?? '') !== 'assistant' || !empty($son['personel']) || !empty($son['gozden'])) return false;
         $c = trim((string) ($son['content'] ?? ''));

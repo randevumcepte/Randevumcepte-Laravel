@@ -537,6 +537,21 @@
    .wk-saat-lej .g::before { background:#a78bfa; } .wk-saat-lej .n::before { background:#4f46e5; } .wk-saat-lej .t::before { background:#db2777; }
 
    @media (max-width: 1280px) { .wk-uc { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+   /* ===== REKLAMLARIM ===== */
+   .rk-duzen { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:18px; align-items:start; }
+   .rk-satir { display:flex; gap:14px; align-items:flex-start; padding:14px 0; border-top:1px solid #f0eaf7; }
+   .rk-satir:first-child { border-top:none; }
+   .rk-afis { width:84px; height:84px; flex:0 0 84px; border-radius:14px; background:#f3e8ff center/cover no-repeat; display:flex; align-items:center; justify-content:center; color:#a78bfa; font-size:26px; }
+   .rk-ic { flex:1; min-width:0; }
+   .rk-ic b { font-size:15px; } .rk-ic .wa-alt { margin-top:3px; }
+   .rk-say { display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; font-size:12.5px; color:#475569; }
+   .rk-say span b { color:#1f1530; font-size:14px; }
+   .rk-btnlar { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+   .rk-btnlar .wa-btn { padding:6px 12px; font-size:12.5px; }
+   .rk-hizmetler { max-height:200px; overflow:auto; border:1px solid #ddd3ea; border-radius:11px; padding:6px 10px; }
+   .rk-hizmetler label { display:flex; gap:8px; align-items:center; padding:4px 0; font-size:13.5px; cursor:pointer; }
+   .rk-on { margin-top:6px; border-radius:12px; max-width:100%; max-height:220px; display:block; }
+   @media (max-width: 1100px) { .rk-duzen { grid-template-columns:minmax(0,1fr); } }
    @media (max-width: 1100px) { .wk-hero, .wk-iki { grid-template-columns:minmax(0,1fr); } }
    @media (max-width: 760px) {
       .wk-uc { grid-template-columns:minmax(0,1fr); }
@@ -556,6 +571,9 @@
          <button class="wa-sekme" data-p="sohbet"><i class="bi bi-whatsapp"></i>Sohbetler</button>
          <button class="wa-sekme" data-p="gk"><i class="bi bi-arrow-repeat"></i>Kaçan & Geri Kazanılan</button>
          <button class="wa-sekme" data-p="gorsel"><i class="bi bi-camera"></i>Fotoğraftan Fiyat</button>
+         @if(session('sysadmin_impersonation_id') || !empty($waAyar['reklam']))
+         <button class="wa-sekme" data-p="reklam"><i class="bi bi-megaphone-fill"></i>Reklamlarım</button>
+         @endif
          @if(session('sysadmin_impersonation_id'))
          <button class="wa-sekme" data-p="gel"><i class="bi bi-mortarboard-fill"></i>Asistan Gelişimi</button>
          @else
@@ -651,6 +669,18 @@
       <div class="wa-kart"><div class="wa-tablo-sar" id="waOgrListe"><div class="wa-bos">Yükleniyor…</div></div></div>
    </div>
 
+   {{-- ================= REKLAMLARIM (WaReklam) ================= --}}
+   <div class="wa-panel" id="p-reklam">
+      <div class="wa-bilgi">Kampanyanızı bir kez girin; asistan, müşteri <b>ilgili hizmeti sorduğunda</b> ya da "kampanya var mı" dediğinde kampanyanızı afişiyle birlikte <b>aynı sohbette</b> gönderir. Sohbet başına en fazla bir kez gider, ilgisiz hizmette gönderilmez, "kampanya istemiyorum" diyen müşteriye bir daha gitmez.</div>
+      <div id="rkKapali" class="wa-bilgi" style="display:none;background:#fef3c7;color:#92400e"><b>Reklam özelliği bu işletmede kapalı.</b> Reklamlarınızı şimdiden hazırlayabilirsiniz; özellik açılınca asistan göndermeye başlar.</div>
+      <div class="rk-duzen">
+         <div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-megaphone-fill" style="color:#db2777"></i>Kampanyalarım</h4>
+            <button class="wa-btn ikincil" id="rkYeni"><i class="bi bi-plus-lg"></i> Yeni kampanya</button></div>
+            <div id="rkListe"><div class="wa-bos">Yükleniyor…</div></div></div>
+         <div class="wa-kart" id="rkForm" style="display:none"></div>
+      </div>
+   </div>
+
    {{-- ================= AYARLAR ================= --}}
    {{-- ================= ASISTAN GELISIMI (Gece Denetcisi) ================= --}}
    <div class="wa-panel" id="p-gel"><div id="waGelisim"><div class="wa-iskelet" style="height:200px"></div></div></div>
@@ -662,6 +692,7 @@
          <div class="wa-anahtar"><div class="t"><b>Randevudan sonra memnuniyet sorsun</b><div>Randevu oluşturulunca tek satırlık 👍 / 👎 sorusu eklenir.</div></div><input type="checkbox" data-ayar="memnuniyet_sor" aria-label="Memnuniyet sorsun"></div>
          @if(session('sysadmin_impersonation_id'))
          <div class="wa-anahtar"><div class="t"><b>Gece denetçisi bu salonun sohbetlerini incelesin <small class="wa-alt">(yalnız sistem yöneticisi görür)</small></b><div>Her gece biten sohbetleri inceler; davranış dersleri tüm salonların ortak beynine gider, salona özel bilgi soruları "Asistan size soruyor" sekmesine düşer.</div></div><input type="checkbox" data-ayar="denetci" aria-label="Gece denetçisi"></div>
+         <div class="wa-anahtar"><div class="t"><b>Asistan salonun kampanyalarını göndersin (Reklamlarım) <small class="wa-alt">(yalnız sistem yöneticisi görür)</small></b><div>Açıkken "Reklamlarım" sekmesi salona görünür; asistan ilgili hizmet sorulunca salonun kampanyasını sohbette bir kez gönderir. Kapalıyken asistan hiç değişmez.</div></div><input type="checkbox" data-ayar="reklam" aria-label="Kampanya reklamları"></div>
          @endif
          <div class="wa-anahtar"><div class="t"><b>Kaçan müşteriye tekrar yazsın</b><div>Fiyat/bilgi alıp randevu oluşturmayan müşteriye belirlediğiniz süre sonunda, mesai saatinde bir kez yazar ve gerçek boş saatlerinizi önerir. Müşteri "dur" yazarsa bir daha yazılmaz.</div></div><input type="checkbox" data-ayar="geri_kazanim" aria-label="Kaçan müşteriye tekrar yazsın"></div>
          <div class="wa-satir" style="margin-top:14px">
@@ -730,7 +761,7 @@
    function hapSinif(s) { if (/Dönüş bekliyor|dönmedi|Yanlış numara/.test(s)) return 'k'; if (/cevapladı/.test(s)) return 'y'; return /Randevu alındı|Randevu Alındı|Oluşturuldu|teyit|değişti/.test(s) ? 'y' : (/Fiyat/.test(s) ? 'm' : (/aktarıldı|Personelde/.test(s) ? 's' : (/iptal|durduruldu|Bot/.test(s) ? 'k' : 'g'))); }
 
    // ---------- sekmeler
-   var yuklendi = {}, SEKME_YUKLE = { sohbet: sohbetListe, gk: gkYukle, ogr: ogrYukle, gel: gelisimYukle };
+   var yuklendi = {}, SEKME_YUKLE = { sohbet: sohbetListe, gk: gkYukle, ogr: ogrYukle, gel: gelisimYukle, reklam: function () { reklamYukle(); } };
    function sekmeAc(p) {
       document.querySelectorAll('.wa-sekme').forEach(function (x) { x.classList.toggle('aktif', x.dataset.p === p); });
       document.querySelectorAll('.wa-panel').forEach(function (x) { x.classList.toggle('aktif', x.id === 'p-' + p); });
@@ -1522,6 +1553,82 @@
       var b = e.target.closest('[data-sil]'); if (!b) return;
       if (!confirm('Bu öğrenilmiş cevap silinsin mi? Asistan bu soruya bir dahaki sefere yeniden cevap üretir.')) return;
       gonder('/ogrenilen/' + b.dataset.sil + '/sil').then(function (r) { toast(r.ok ? 'Silindi.' : 'Silinemedi.'); ogrYukle(); }).catch(hata);
+   });
+
+   // ---------- REKLAMLARIM (salonun kendi kampanyalari; asistan ilgili hizmette sohbette bir kez gonderir)
+   var REKLAMLAR = [];
+   function rkTarih(s) { if (!s) return ''; var p = String(s).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '.' + p[1] + '.' + p[0] : esc(s); }
+   function reklamYukle() {
+      al('/reklamlar').then(function (r) {
+         if (!r.ok) { el('rkListe').innerHTML = '<div class="wa-bos">' + esc(r.hata || 'Yüklenemedi.') + '</div>'; return; }
+         el('rkKapali').style.display = r.acik ? 'none' : 'block';
+         REKLAMLAR = r.liste || []; reklamCiz();
+      }).catch(hata);
+   }
+   function reklamCiz() {
+      if (!REKLAMLAR.length) { el('rkListe').innerHTML = '<div class="wa-bos">Henüz kampanya yok. "Yeni kampanya" ile ilkini ekleyin.</div>'; return; }
+      var adlar = {}; HIZMETLER.forEach(function (h) { adlar[h.id] = h.ad; });
+      el('rkListe').innerHTML = REKLAMLAR.map(function (x) {
+         var bugun = new Date().toISOString().slice(0, 10), bitti = x.bitis && String(x.bitis).slice(0, 10) < bugun;
+         var durum = !x.aktif ? '<span class="wa-hap g">Kapalı</span>' : (bitti ? '<span class="wa-hap k">Süresi bitti</span>' : '<span class="wa-hap y">Yayında</span>');
+         return '<div class="rk-satir"><div class="rk-afis"' + (x.gorsel ? ' style="background-image:url(\'' + esc(x.gorsel) + '\')"' : '') + '>' + (x.gorsel ? '' : '<i class="bi bi-image"></i>') + '</div>'
+            + '<div class="rk-ic"><b>' + esc(x.baslik) + '</b> ' + durum
+            + '<div class="wa-alt">' + (x.hizmetler || []).map(function (i) { return esc(adlar[i] || ('#' + i)); }).join(', ')
+            + (x.bitis ? ' · son gün ' + rkTarih(x.bitis) : '') + '</div>'
+            + '<div class="rk-say"><span><b>' + sayi(x.gosterim) + '</b> kişiye gönderildi</span><span><b>' + sayi(x.tiklama) + '</b> açtı</span><span><b>' + sayi(x.randevu) + '</b> randevu</span><span class="wa-alt">(son 30 gün)</span></div>'
+            + '<div class="rk-btnlar"><button class="wa-btn ikincil" data-rk-duzenle="' + x.id + '"><i class="bi bi-pencil"></i> Düzenle</button>'
+            + '<button class="wa-btn ikincil" data-rk-ac="' + x.id + '">' + (x.aktif ? '<i class="bi bi-pause"></i> Durdur' : '<i class="bi bi-play"></i> Yayına al') + '</button>'
+            + '<a class="wa-btn ikincil" href="' + esc(x.link) + '" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> Sayfayı gör</a>'
+            + '<button class="wa-btn ikincil" data-rk-sil="' + x.id + '" style="color:#b91c1c"><i class="bi bi-trash"></i></button></div></div></div>';
+      }).join('');
+   }
+   function reklamForm(x) {
+      x = x || { aktif: 1, hizmetler: [] };
+      var f = el('rkForm'); f.style.display = 'block';
+      f.innerHTML = '<div class="wa-kart-bas"><h4><i class="bi bi-pencil-square" style="color:#7c3aed"></i>' + (x.id ? 'Kampanyayı düzenle' : 'Yeni kampanya') + '</h4></div>'
+         + '<label class="wa-alt">Başlık</label><input class="wa-girdi" id="rkBaslik" maxlength="120" placeholder="Örn. Kasım\'a özel protez tırnak + manikür 950 TL" value="' + esc(x.baslik || '') + '">'
+         + '<label class="wa-alt" style="display:block;margin-top:10px">Açıklama (müşteriye giden metin)</label><textarea class="wa-girdi" id="rkMetin" rows="3" maxlength="700" placeholder="Örn. 1.200 TL yerine 950 TL. Ay sonuna kadar geçerli.">' + esc(x.metin || '') + '</textarea>'
+         + '<label class="wa-alt" style="display:block;margin-top:10px">Hangi hizmetler sorulunca gönderilsin?</label><div class="rk-hizmetler">'
+         + HIZMETLER.map(function (h) { return '<label><input type="checkbox" value="' + h.id + '"' + ((x.hizmetler || []).indexOf(Number(h.id)) >= 0 ? ' checked' : '') + '> ' + esc(h.ad) + '</label>'; }).join('') + '</div>'
+         + '<div class="wa-satir" style="margin-top:10px;gap:10px"><div><label class="wa-alt">Başlangıç</label><input type="date" class="wa-girdi" id="rkBas" value="' + esc(String(x.baslangic || '').slice(0, 10)) + '"></div>'
+         + '<div><label class="wa-alt">Bitiş</label><input type="date" class="wa-girdi" id="rkBit" value="' + esc(String(x.bitis || '').slice(0, 10)) + '"></div></div>'
+         + '<label class="wa-alt" style="display:block;margin-top:10px">Afiş görseli (JPG/PNG, en fazla 4 MB)</label><input type="file" id="rkGorsel" accept="image/jpeg,image/png,image/webp">'
+         + (x.gorsel ? '<img class="rk-on" id="rkOn" src="' + esc(x.gorsel) + '" alt="">' : '<img class="rk-on" id="rkOn" alt="" style="display:none">')
+         + '<label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:14px"><input type="checkbox" id="rkAktif"' + (x.aktif ? ' checked' : '') + '> Yayında</label>'
+         + '<div style="display:flex;gap:8px;margin-top:14px"><button class="wa-btn" id="rkKaydet"><i class="bi bi-check2"></i> Kaydet</button><button class="wa-btn ikincil" id="rkVazgec">Vazgeç</button></div>';
+      el('rkGorsel').addEventListener('change', function () { var d = this.files && this.files[0]; if (d) { var o = el('rkOn'); o.src = URL.createObjectURL(d); o.style.display = 'block'; } });
+      el('rkVazgec').addEventListener('click', function () { f.style.display = 'none'; });
+      el('rkKaydet').addEventListener('click', function () {
+         var b = this, fd = new FormData();
+         if (x.id) fd.append('id', x.id);
+         fd.append('baslik', el('rkBaslik').value); fd.append('metin', el('rkMetin').value);
+         fd.append('baslangic', el('rkBas').value); fd.append('bitis', el('rkBit').value); fd.append('aktif', el('rkAktif').checked ? 1 : 0);
+         f.querySelectorAll('.rk-hizmetler input:checked').forEach(function (c) { fd.append('hizmetler[]', c.value); });
+         var g = el('rkGorsel').files[0]; if (g) fd.append('gorsel', g);
+         b.disabled = true;
+         fetch(url('/reklam'), { method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: fd }).then(yanit).then(function (r) {
+            b.disabled = false;
+            if (!r.ok) { toast(r.hata || 'Kaydedilemedi.'); return; }
+            REKLAMLAR = r.liste || []; reklamCiz(); f.style.display = 'none'; toast('Kampanya kaydedildi.');
+         }).catch(function () { b.disabled = false; hata(); });
+      });
+      f.scrollIntoView({ behavior: 'smooth', block: 'start' });
+   }
+   el('rkYeni').addEventListener('click', function () { reklamForm(null); });
+   el('rkListe').addEventListener('click', function (e) {
+      var d = e.target.closest('[data-rk-duzenle]'), a = e.target.closest('[data-rk-ac]'), s = e.target.closest('[data-rk-sil]');
+      var bul = function (id) { return REKLAMLAR.filter(function (x) { return String(x.id) === String(id); })[0]; };
+      if (d) reklamForm(bul(d.dataset.rkDuzenle));
+      if (a) {
+         var x = bul(a.dataset.rkAc), fd = new FormData();
+         fd.append('id', x.id); fd.append('baslik', x.baslik); fd.append('metin', x.metin || ''); fd.append('baslangic', String(x.baslangic || '').slice(0, 10));
+         fd.append('bitis', String(x.bitis || '').slice(0, 10)); fd.append('aktif', x.aktif ? 0 : 1); (x.hizmetler || []).forEach(function (h) { fd.append('hizmetler[]', h); });
+         fetch(url('/reklam'), { method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: fd }).then(yanit)
+            .then(function (r) { if (r.ok) { REKLAMLAR = r.liste || []; reklamCiz(); } else toast(r.hata || 'Kaydedilemedi.'); }).catch(hata);
+      }
+      if (s && confirm('Bu kampanya silinsin mi?')) {
+         gonder('/reklam/' + s.dataset.rkSil + '/sil').then(function (r) { if (r.ok) { REKLAMLAR = r.liste || []; reklamCiz(); toast('Silindi.'); } }).catch(hata);
+      }
    });
 
    // ---------- AYARLAR

@@ -638,6 +638,27 @@ namespace {
     esit('kod cevap YOK: tam eşleşme (bağlama göre model)', null, cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', ['ok' => true, 'tam_eslesme' => true, 'secenekler' => [$iki['secenekler'][0]]]]]));
     esit('kod cevap YOK: boş sonuç', null, cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', ['ok' => true, 'secenekler' => [], 'mesaj' => 'yok']]]));
     esit('kod cevap YOK: hata', null, cagir($hp, 'aracSonrasiKodCevabi', [['randevu_guncelle', ['ok' => false, 'hata' => 'dolu']]]));
+
+    // SALON REKLAMI: reklam yoksa / ozellik kapaliysa asistan BIREBIR ayni (arac + prompt bolumu yok)
+    require_once __DIR__ . '/../app/Services/WaReklam.php';
+    $rkA = asistan(['kanal' => 'whatsapp']);
+    $araclarOnce = array_column(cagir($rkA, 'toolTanimlari'), 'name');
+    esit('reklam yok: reklam_gonder aracı yok', false, in_array('reklam_gonder', $araclarOnce, true));
+    esit('reklam yok: prompt bölümü boş', '', cagir($rkA, 'waReklamBolumu'));
+    $rkR = [['id' => 7, 'baslik' => 'Protez kampanyası', 'metin' => '950 TL', 'hizmetler' => [11], 'hizmet_adlari' => ['Protez Tırnak'], 'token' => 'abc']];
+    $rkA->waReklamlarAyarla($rkR, true);
+    esit('reklam var: araç eklendi, diğerleri aynı', array_merge($araclarOnce, ['reklam_gonder']), array_column(cagir($rkA, 'toolTanimlari'), 'name'));
+    icerir('reklam var: prompt kampanyayı listeler', 'reklam_id 7 | Protez kampanyası | ilgili hizmetler: Protez Tırnak', cagir($rkA, 'waReklamBolumu'));
+    esit('reklam_gonder: geçersiz id reddedilir', false, cagir($rkA, 'toolCalistir', 'reklam_gonder', ['reklam_id' => 99])[0]['ok']);
+    esit('reklam_gonder: geçerli id seçilir', [true, 7], [cagir($rkA, 'toolCalistir', 'reklam_gonder', ['reklam_id' => 7])[0]['ok'], $rkA->waReklamId]);
+    esit('reklam_gonder: aynı turda ikinci kez yok', false, cagir($rkA, 'toolCalistir', 'reklam_gonder', ['reklam_id' => 7])[0]['ok']);
+    $rkS = asistan(['kanal' => 'santral']);
+    $rkS->waReklamlarAyarla($rkR, true);
+    esit('santralde reklam yok (yalnız WhatsApp)', [false, ''], [in_array('reklam_gonder', array_column(cagir($rkS, 'toolTanimlari'), 'name'), true), cagir($rkS, 'waReklamBolumu')]);
+    $rkG = asistan(['kanal' => 'whatsapp']);
+    $rkG->waReklamlarAyarla($rkR, false);
+    esit('bu sohbette gönderildi: araç yok ama kampanya bilinir', [false, true],
+        [in_array('reklam_gonder', array_column(cagir($rkG, 'toolTanimlari'), 'name'), true), mb_strpos(cagir($rkG, 'waReklamBolumu'), 'tekrar gönderme') !== false]);
     esit('kod cevap YOK: başka araç', null, cagir($hp, 'aracSonrasiKodCevabi', [['hizmet_eslestir', ['ok' => true]]]));
     esit('kod cevap: iptal', 'Randevunuz iptal edildi. Size bilgilendirme mesajı ilettim.',
         cagir($hp, 'aracSonrasiKodCevabi', [['randevu_iptal', ['ok' => true, 'mesaj' => 'Randevu iptal edildi', 'bilgilendirme_gonderildi' => true]]]));

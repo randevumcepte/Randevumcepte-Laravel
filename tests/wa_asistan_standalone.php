@@ -571,6 +571,27 @@ namespace {
     esit('yarım: müşteri "gelmedi hâlâ" → şikayet', 'sikayet', $WA::yarimMi([['role' => 'user', 'content' => 'mesaj gelmedi hala'], ['role' => 'assistant', 'content' => 'Hangi gün uygun?']]));
     esit('yarım değil: sonuçlu cevap', null, $WA::yarimMi([['role' => 'user', 'content' => 'yarın 3'], ['role' => 'assistant', 'content' => 'Yarın 15:00 uygun, oluşturayım mı?']]));
     esit('yarım: cevapsız müşteri mesajı', 'cevapsiz', $WA::yarimMi([['role' => 'user', 'content' => 'Fatma hanım olabilir mi']]));
+    // ---- SALON REKLAMI (WaReklam, saf)
+    require_once $kok . 'Services/WaReklam.php';
+    $RK = App\Services\WaReklam::class;
+    $rkl = [['id' => 7, 'baslik' => 'Protez kampanyası', 'metin' => '1.200 yerine 950 TL', 'hizmetler' => [11, 12], 'token' => 'abc'],
+            ['id' => 8, 'baslik' => 'Saç bakım', 'metin' => '', 'hizmetler' => [30], 'token' => 'def']];
+    esit('reklam: ilgili hizmette seçilir', 7, ($RK::sec($rkl, 12) ?? [])['id'] ?? null);
+    esit('reklam: ilgisiz hizmette seçilmez', null, $RK::sec($rkl, 99));
+    esit('reklam: hizmet yoksa seçilmez', null, $RK::sec($rkl, null));
+    esit('reklam: id ile bul', 'Saç bakım', ($RK::bul($rkl, 8) ?? [])['baslik'] ?? null);
+    esit('reklam ret: "kampanya istemiyorum"', true, $RK::retMi('Kampanya istemiyorum'));
+    esit('reklam ret: "reklam mesajı göndermeyin"', true, $RK::retMi('reklam mesajı göndermeyin lütfen'));
+    esit('reklam ret: "İndirim mesajları gelmesin"', true, $RK::retMi('İndirim mesajları gelmesin'));
+    esit('reklam ret değil: "randevu istemiyorum"', false, $RK::retMi('randevu istemiyorum artık'));
+    esit('reklam ret değil: "kampanya var mı"', false, $RK::retMi('kampanya var mı'));
+    $rm = $RK::mesaj($rkl[0], 'https://x/k/abc?g=5');
+    esit('reklam mesajı: başlık + metin + link + ret bilgisi', [true, true, true, true],
+        [strpos($rm, 'Protez kampanyası') !== false, strpos($rm, '950 TL') !== false, strpos($rm, 'https://x/k/abc?g=5') !== false, strpos($rm, 'kampanya istemiyorum') !== false]);
+    $soruReklam = [['role' => 'user', 'content' => 'protez kaç para'], ['role' => 'assistant', 'content' => 'Protez Tırnak 1.200 TL. Randevu oluşturmamı ister misiniz?'],
+        ['role' => 'assistant', 'content' => $rm, 'reklam' => 7]];
+    esit('reklam sonrası: önceki soru hâlâ cevap bekliyor (5 dk hatırlatma çalışır)', true, $WA::cevapBekliyorMu($soruReklam));
+    esit('reklam sonrası: yarım sayılmaz (reklam mesajı akış değil)', null, $WA::yarimMi($soruReklam));
     esit('cevap bekliyor: saat seçimi sorusu (canlı Selin Aktaş)', true, $WA::cevapBekliyorMu([['role' => 'user', 'content' => 'Sadece bu saatler mi bos'],
         ['role' => 'assistant', 'content' => 'Şu an yarın için bu iki saat boş görünüyor: 10:00 ve 11:30. Hangisi size uygun olur?']]));
     esit('selam: model selamladıysa tekrar eklenmez', 'Merhaba Rabia Hanım, pazar 12:00-22:00 açığız.', $WA::selamEkle('Merhaba Rabia Hanım.', 'Merhaba Rabia Hanım, pazar 12:00-22:00 açığız.'));

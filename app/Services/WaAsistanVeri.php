@@ -108,6 +108,7 @@ class WaAsistanVeri
         'fiyat_soyle' => 1, 'geri_kazanim' => 1, 'gk_bekle_saat' => 24, 'gk_kampanya' => null,
         'memnuniyet_sor' => 1, 'gorsel_fiyat' => 1, 'gorsel_sektor' => 'tirnak', 'gorsel_not' => null,
         'denetci' => 1, 'denetci_oto' => 1,   // Gece Denetcisi (kolonlar WaDenetci::semaGaranti)
+        'reklam' => 0,                        // salon reklami (WaReklam; kolon WaReklam::semaGaranti; yalniz sistem yoneticisi acar)
     ];
 
     public static function ayarlar(int $salonId): array
@@ -123,7 +124,7 @@ class WaAsistanVeri
         }
         if (!is_object($r)) return $v;
         foreach ($v as $k => $_) if (property_exists($r, $k)) $v[$k] = $r->$k;
-        foreach (['fiyat_soyle', 'geri_kazanim', 'gk_bekle_saat', 'memnuniyet_sor', 'gorsel_fiyat', 'denetci', 'denetci_oto'] as $k) $v[$k] = (int) $v[$k];
+        foreach (['fiyat_soyle', 'geri_kazanim', 'gk_bekle_saat', 'memnuniyet_sor', 'gorsel_fiyat', 'denetci', 'denetci_oto', 'reklam'] as $k) $v[$k] = (int) $v[$k];
         return $v;
     }
 
@@ -132,7 +133,8 @@ class WaAsistanVeri
         self::semaGaranti();
         $temiz = [];
         if (array_key_exists('denetci', $veri) || array_key_exists('denetci_oto', $veri)) WaDenetci::semaGaranti();
-        foreach (['fiyat_soyle', 'geri_kazanim', 'memnuniyet_sor', 'gorsel_fiyat', 'denetci', 'denetci_oto'] as $k) {
+        if (array_key_exists('reklam', $veri)) WaReklam::semaGaranti();
+        foreach (['fiyat_soyle', 'geri_kazanim', 'memnuniyet_sor', 'gorsel_fiyat', 'denetci', 'denetci_oto', 'reklam'] as $k) {
             if (array_key_exists($k, $veri)) $temiz[$k] = $veri[$k] ? 1 : 0;
         }
         if (array_key_exists('gk_bekle_saat', $veri)) $temiz['gk_bekle_saat'] = max(2, min(168, (int) $veri['gk_bekle_saat']));

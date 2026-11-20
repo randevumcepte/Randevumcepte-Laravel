@@ -24,6 +24,10 @@ Auth::routes();
 // Akilli uygulama indirme yonlendirmesi (QR hedefi) — cihaza gore magazaya atar (public)
 Route::get('/indir/{salon}', 'StoreAdminController@uygulamaIndir');
 
+// WhatsApp asistani salon kampanyasi (public): afis + "WhatsApp'tan randevu al" (WaReklam)
+Route::get('/k/{token}', 'WaReklamSayfaController@sayfa')->where('token', '[a-f0-9]{8,24}');
+Route::get('/k/{token}/afis', 'WaReklamSayfaController@afis')->where('token', '[a-f0-9]{8,24}');
+
 // Firebase Cloud Messaging Web Service Worker.
 // Root scope'tan servis edilmeli ki SW tum site'a hakim olabilsin.
 // JS icerigi dinamik render edilir, config/firebase_web.php degerleri yedirilir.
@@ -1121,6 +1125,9 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/whatsapp-asistan/numara-kontrol','WaAsistanPanelController@numaraKontrol');
 	Route::get('/whatsapp-asistan/son-hata','WaAsistanPanelController@sonHata');
 	Route::get('/whatsapp-asistan/maliyet','WaAsistanPanelController@maliyetRaporu');
+	Route::get('/whatsapp-asistan/reklamlar','WaAsistanPanelController@reklamlar');
+	Route::post('/whatsapp-asistan/reklam','WaAsistanPanelController@reklamKaydet');
+	Route::post('/whatsapp-asistan/reklam/{id}/sil','WaAsistanPanelController@reklamSil')->where('id','[0-9]+');
 	Route::get('/arsivyonetimi','StoreAdminController@arsivyonetimi')->name('isletmeadmin.arsivyonetimi');
 	Route::get('/formolusturma','StoreAdminController@formolusturma')->name('isletmeadmin.formolusturma');
 	Route::get('/form-sablonlari','StoreAdminController@formSablonlari')->name('isletmeadmin.formSablonlari');

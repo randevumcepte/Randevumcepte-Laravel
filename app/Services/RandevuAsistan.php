@@ -59,6 +59,12 @@ class RandevuAsistan
     protected array $waDersler = [];
     /** WhatsApp: bu turda yol_tarifi_gonder -> sohbete yazilacak adres + harita linki. */
     protected ?string $waYolMetni = null;
+    /** WhatsApp salon reklamlari (WaReklam::aktifler); bos = asistan bugunku gibi (arac + bolum yok). */
+    protected array $waReklamlar = [];
+    /** Bu sohbette reklam gonderilebilir mi (ozellik acik, numara ret etmemis, sohbette gonderilmemis). */
+    protected bool $waReklamGonderilebilir = false;
+    /** Bu turda reklam_gonder ile secilen reklam (WaAsistan cevaptan sonra ayri mesajla gonderir). */
+    public ?int $waReklamId = null;
 
     public function __construct(int $salonId, ?string $telefon = null, string $kanal = 'santral')
     {
@@ -164,7 +170,7 @@ class RandevuAsistan
      */
     public static function icNotMu(string $cevap): bool
     {
-        return (bool) preg_match('/\b(tarih|saat|tarih_saat|hizmet_id|personel_id|musteri_id|randevu_id)\s*=\s*\S|[çc]a[ğg]r[ıi] yap[ıi]lmal[ıi]|\b(musait_saatler|randevu_olustur|hizmet_eslestir|mevcut_randevular|musteri_kaydet|randevu_guncelle|yol_tarifi_gonder)\b|\[S[İI]STEM|ara[çc][ıi] [çc]a[ğg][ıi]r/iu', $cevap);
+        return (bool) preg_match('/\b(tarih|saat|tarih_saat|hizmet_id|personel_id|musteri_id|randevu_id)\s*=\s*\S|[çc]a[ğg]r[ıi] yap[ıi]lmal[ıi]|\b(musait_saatler|randevu_olustur|hizmet_eslestir|mevcut_randevular|musteri_kaydet|randevu_guncelle|yol_tarifi_gonder|reklam_gonder)\b|\[S[İI]STEM|ara[çc][ıi] [çc]a[ğg][ıi]r/iu', $cevap);
     }
 
     /** Teknik not satirlarini atar (son care; duzeltme turu da ise yaramadiysa). */
@@ -185,6 +191,13 @@ class RandevuAsistan
     public function waDersleriAyarla(array $dersler): void
     {
         $this->waDersler = array_values(array_filter(array_map(function ($d) { return trim((string) $d); }, $dersler), 'strlen'));
+    }
+
+    /** Yalniz WhatsApp: salonun yayindaki kampanya reklamlari (WaReklam). $gonderilebilir=false: asistan kampanyayi bilir ama yeniden gondermez. */
+    public function waReklamlarAyarla(array $reklamlar, bool $gonderilebilir): void
+    {
+        $this->waReklamlar = $this->kanal === 'whatsapp' ? array_values($reklamlar) : [];
+        $this->waReklamGonderilebilir = $gonderilebilir && $this->waReklamlar;
     }
 
     /** Denetciye isletme baglami (salt okunur). */
@@ -1800,6 +1813,14 @@ class RandevuAsistan
             case 'yol_tarifi_gonder':
                 return [$this->yolTarifiGonder(), null, null, false];
 
+            case 'reklam_gonder':
+                $rid = $this->intId($in['reklam_id'] ?? null);
+                if (!$this->waReklamGonderilebilir) return [['ok' => false, 'hata' => 'Bu sohbette kampanya zaten gönderildi ya da müşteri istemiyor. Kampanyayı yalnız sözle kısaca anlatabilirsin.'], null, null, false];
+                if (!$rid || !\App\Services\WaReklam::bul($this->waReklamlar, $rid)) return [['ok' => false, 'hata' => 'Geçersiz reklam_id; KAMPANYALAR listesinden seç.'], null, null, false];
+                $this->waReklamId = $rid;
+                $this->waReklamGonderilebilir = false;
+                return [['ok' => true, 'mesaj' => 'Kampanyanın detayı (görsel + link) bu cevabın hemen ardından ayrı mesaj olarak gidecek. Cevabında kampanyayı en fazla bir cümleyle an; linki ve uzun detayı YAZMA.'], null, null, false];
+
             case 'aktar':
                 return [['ok' => true, 'mesaj' => 'operatöre aktarılıyor'], 'aktar', null, false];
 
@@ -1814,7 +1835,7 @@ class RandevuAsistan
     protected function toolTanimlari(): array
     {
         $bos = new \stdClass();
-        return [
+        return array_merge([
             [
                 'name' => 'hizmet_eslestir',
                 'description' => 'Müşterinin söylediği hizmet ifadesini sistemde eşleştirir. Hizmeti ASLA kendin tahmin etme; müşteri bir hizmet söyler söylemez bunu çağır. Dönüş eslesme=tek (netleşti), coklu (seçenek sun), yok (öneri sun).',
@@ -1898,7 +1919,13 @@ class RandevuAsistan
                 'description' => 'Müşteri görüşmeyi bitirmek istediğinde (teşekkür/hoşça kal) çağır; çağrı kapanır.',
                 'input_schema' => ['type' => 'object', 'properties' => $bos],
             ],
-        ];
+        ], $this->waReklamGonderilebilir ? [[
+            'name' => 'reklam_gonder',
+            'description' => 'Yalnız WhatsApp: salonun KAMPANYALAR listesindeki bir kampanyanın görselini ve detay linkini müşteriye ayrı mesajla gönderir. Müşteri kampanya/indirim sorarsa ya da listede ilgili hizmeti olan bir kampanyanın hizmetini sorduysa (fiyat, bilgi) çağır. Randevu adımları sürerken (saat seçimi, onay) ÇAĞIRMA; sohbet başına bir kez.',
+            'input_schema' => ['type' => 'object', 'properties' => [
+                'reklam_id' => ['type' => 'integer', 'description' => 'KAMPANYALAR listesindeki reklam_id'],
+            ], 'required' => ['reklam_id']],
+        ]] : []);
     }
 
     // ---------------------------------------------------------------- LLM
@@ -2160,9 +2187,25 @@ WA
 
 FIYAT
             : '')
+            . $this->waReklamBolumu()
             . ($this->waDersler
                 ? "# TÜM SALONLARIN GEÇMİŞ SOHBETLERİNDEN ÖĞRENİLENLER (test edildi; uy)\n- " . implode("\n- ", $this->waDersler) . "\n\n"
                 : '');
+    }
+
+    /** Salonun yayindaki kampanya reklamlari (WaReklam). Reklam yoksa bos: prompt bugunku gibi kalir. */
+    protected function waReklamBolumu(): string
+    {
+        if (!$this->waReklamlar) return '';
+        $s = "# KAMPANYALAR (salonun kendi reklamları)\n";
+        foreach ($this->waReklamlar as $r) {
+            $s .= "- reklam_id {$r['id']} | {$r['baslik']}" . ($r['hizmet_adlari'] ? ' | ilgili hizmetler: ' . implode(', ', $r['hizmet_adlari']) : '')
+                . (trim($r['metin']) !== '' ? ' | ' . mb_substr(preg_replace('/\s+/u', ' ', $r['metin']), 0, 200) : '') . "\n";
+        }
+        $s .= $this->waReklamGonderilebilir
+            ? "- Müşteri kampanya/indirim sorarsa ya da yukarıdaki ilgili bir hizmetin fiyatını/bilgisini sorarsa önce sorusunu cevapla, sonra \"reklam_gonder\" çağır ve cevabının sonuna kampanyayı tek cümleyle ekle (ör. \"Bu arada bu ay protez tırnakta kampanyamız var, detayını gönderiyorum 👇\"). Randevu adımları sürerken (saat seçimi, onay) kampanyaya girme. İlgisiz hizmette kampanyadan bahsetme. Kampanya bilgisini UYDURMA, yalnız buradaki metni kullan.\n\n"
+            : "- Kampanya bu sohbette zaten gönderildi ya da müşteri istemiyor: tekrar gönderme; müşteri sorarsa yalnız buradaki bilgiyle kısaca cevapla. Müşteri kampanyadan randevu isterse normal randevu akışına geç.\n\n";
+        return $s;
     }
 
     /** WhatsApp kanalinda ve isletme fiyat soylenmesine izin verdiyse true (santralde her zaman false). */

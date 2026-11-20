@@ -263,10 +263,10 @@ class WaAsistanPanelController extends StoreAdminController
     {
         $sid = $this->salon($request);
         if (!$sid) return $this->yok();
-        $alanlar = ['fiyat_soyle', 'geri_kazanim', 'gk_bekle_saat', 'gk_kampanya', 'memnuniyet_sor', 'gorsel_fiyat', 'gorsel_sektor', 'gorsel_not', 'denetci', 'denetci_oto'];
+        $alanlar = ['fiyat_soyle', 'geri_kazanim', 'gk_bekle_saat', 'gk_kampanya', 'memnuniyet_sor', 'gorsel_fiyat', 'gorsel_sektor', 'gorsel_not', 'denetci', 'denetci_oto', 'reklam'];
         $veri = [];
         foreach ($alanlar as $a) if ($request->has($a)) $veri[$a] = $request->input($a);
-        if (!self::sistemYoneticisiMi()) unset($veri['denetci'], $veri['denetci_oto']); // denetci bizim ayarimiz
+        if (!self::sistemYoneticisiMi()) unset($veri['denetci'], $veri['denetci_oto'], $veri['reklam']); // denetci + reklam ozelligi bizim ayarimiz
         WaAsistanVeri::ayarKaydet($sid, $veri, optional($this->asistanGorusmeYetkili())->name);
         return response()->json(['ok' => 1, 'ayar' => WaAsistanVeri::ayarlar($sid)]);
     }
@@ -413,6 +413,64 @@ class WaAsistanPanelController extends StoreAdminController
             'toplam_usd' => round($toplamUsd, 4), 'toplam_tl' => $tl($toplamUsd),
             'ai_cevap_basina_tl' => $ai > 0 ? round($toplamUsd * $kur / $ai, 3) : null,
         ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    }
+
+    // ------------------------------------------------------------------ SALON REKLAMLARI (WaReklam)
+    public function reklamlar(Request $request)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        if (!\App\Services\WaReklam::semaGaranti()) return response()->json(['ok' => 0, 'hata' => 'Reklam tabloları hazırlanamadı.']);
+        return response()->json(['ok' => 1, 'acik' => \App\Services\WaReklam::acikMi($sid), 'liste' => \App\Services\WaReklam::liste($sid)]);
+    }
+
+    public function reklamKaydet(Request $request)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        if (!\App\Services\WaReklam::semaGaranti()) return response()->json(['ok' => 0, 'hata' => 'Reklam tabloları hazırlanamadı.']);
+        $baslik = mb_substr(trim((string) $request->input('baslik')), 0, 120);
+        if ($baslik === '') return response()->json(['ok' => 0, 'hata' => 'Kampanya başlığını yazın.'], 422);
+        $gecerli = DB::table('salon_sunulan_hizmetler')->where('salon_id', $sid)->pluck('hizmet_id')->map(function ($x) { return (int) $x; })->all();
+        $hiz = array_values(array_intersect(array_map('intval', (array) $request->input('hizmetler', [])), $gecerli));
+        if (!$hiz) return response()->json(['ok' => 0, 'hata' => 'Kampanyanın ilgili olduğu en az bir hizmet seçin (asistan reklamı yalnız bu hizmetler sorulunca gönderir).'], 422);
+        $tarih = function ($x) { return preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $x) ? (string) $x : null; };
+        $veri = ['baslik' => $baslik, 'metin' => mb_substr(trim((string) $request->input('metin')), 0, 700) ?: null,
+            'hizmetler' => json_encode($hiz), 'baslangic' => $tarih($request->input('baslangic')), 'bitis' => $tarih($request->input('bitis')),
+            'aktif' => $request->input('aktif', 1) ? 1 : 0, 'updated_at' => now()];
+        $id = (int) $request->input('id');
+        $eski = $id ? DB::table('wa_reklamlar')->where('id', $id)->where('salon_id', $sid)->first() : null;
+        if ($id && !$eski) return response()->json(['ok' => 0, 'hata' => 'Reklam bulunamadı.'], 404);
+        $token = $eski->token ?? substr(bin2hex(random_bytes(8)), 0, 12);
+        $f = $request->file('gorsel');
+        if ($f) {
+            $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'][$f->getMimeType()] ?? null;
+            if (!$ext) return response()->json(['ok' => 0, 'hata' => 'Görsel JPG, PNG ya da WEBP olmalı.'], 422);
+            if ($f->getSize() > 4 * 1024 * 1024) return response()->json(['ok' => 0, 'hata' => 'Görsel en fazla 4 MB olabilir.'], 422);
+            $klasor = "wa_reklam/{$sid}";
+            @mkdir(storage_path('app/' . $klasor), 0775, true);
+            $ad = $token . '_' . time() . '.' . $ext;
+            $f->move(storage_path('app/' . $klasor), $ad);
+            if ($eski && $eski->gorsel) @unlink(storage_path('app/' . $eski->gorsel));
+            $veri['gorsel'] = $klasor . '/' . $ad;
+        }
+        if ($eski) DB::table('wa_reklamlar')->where('id', $eski->id)->update($veri);
+        else DB::table('wa_reklamlar')->insert($veri + ['salon_id' => $sid, 'token' => $token, 'created_at' => now()]);
+        \App\Services\WaReklam::onbellekSil($sid);
+        return response()->json(['ok' => 1, 'liste' => \App\Services\WaReklam::liste($sid)]);
+    }
+
+    public function reklamSil(Request $request, $id)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        $r = DB::table('wa_reklamlar')->where('id', (int) $id)->where('salon_id', $sid)->first();
+        if ($r) {
+            if ($r->gorsel) @unlink(storage_path('app/' . $r->gorsel));
+            DB::table('wa_reklamlar')->where('id', $r->id)->delete();
+            \App\Services\WaReklam::onbellekSil($sid);
+        }
+        return response()->json(['ok' => 1, 'liste' => \App\Services\WaReklam::liste($sid)]);
     }
 
     /** Asistanin son isleme hatalari (mesaj geldi, cevap uretilemedi). Yalniz sistem yoneticisi. */
