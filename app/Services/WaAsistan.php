@@ -349,7 +349,8 @@ class WaAsistan
         }
         // 2) SUSTURULMUS SOHBET (personel devraldi / hiz siniri / dongu / otomatik yanit).
         //    'aktar' artik susturmaz (eski kayitlar dahil): asistan talebi isletmeye iletir, sohbete devam eder (WaTalep).
-        if ($o->sessiz_bitis && strtotime($o->sessiz_bitis) > time() && $o->sessiz_neden !== 'aktar') {
+        //    'hiz_siniri' de artik susturmaz (kural 2026-11-20 kaldirildi; onceden susturulmus sohbetler hemen acilir).
+        if ($o->sessiz_bitis && strtotime($o->sessiz_bitis) > time() && !in_array($o->sessiz_neden, ['aktar', 'hiz_siniri'], true)) {
             $sus('sessiz:' . $o->sessiz_neden);
             return;
         }
