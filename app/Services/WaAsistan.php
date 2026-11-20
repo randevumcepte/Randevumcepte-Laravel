@@ -260,7 +260,7 @@ class WaAsistan
         $dk = max(5, (int) self::ayar('oturum_dk', 30));
         $taze = $o->son_mesaj_at && strtotime($o->son_mesaj_at) >= time() - $dk * 60;
         $sessiz = $o->sessiz_bitis && strtotime($o->sessiz_bitis) > time();
-        $insan = $o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - max(1, (int) self::ayar('insan_esik_dk', 10)) * 60;
+        $insan = $o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - max(1, (int) self::ayar('insan_esik_dk', 5)) * 60;
         // Geri kazanma mesaji gonderilmis sohbet: musteri 2 gun icinde cevap verirse ayni sohbette devam (baglam: onerilen saatler)
         $gk = !empty($o->geri_kazanim_id) && $o->son_mesaj_at && strtotime($o->son_mesaj_at) >= time() - 48 * 3600;
         if ($taze || $sessiz || $insan || $gk) return $o;
@@ -341,7 +341,7 @@ class WaAsistan
 
         // 1) PERSONEL DEVRALDI: esik dolana kadar AI susar; personel sustuysa AI geri alir
         if ($o->insan_devraldi) {
-            if ($o->son_insan_at && strtotime($o->son_insan_at) > time() - max(1, (int) self::ayar('insan_esik_dk', 10)) * 60) {
+            if ($o->son_insan_at && strtotime($o->son_insan_at) > time() - max(1, (int) self::ayar('insan_esik_dk', 5)) * 60) {
                 $sus('insan_devralmada');
                 return;
             }
@@ -690,19 +690,31 @@ class WaAsistan
      * GUVENLIK AGI (5 dk'da bir, wa:talep-takip): havada kalan sohbeti asistan tamamlar.
      *  - Son mesaj musterinin ve 3+ dk cevapsiz (isleme hatasi / zaman asimi)  -> o mesaja yeniden cevap.
      *  - Son mesaj asistanin "bir bakayım / not aldım" sozu (soru/secenek yok)   -> kontrolu yaptirip sonucu yazar.
-     * Personel devraldiysa, sohbet susturulduysa, paket bittiyse ya da 60 dk'yi gectiyse dokunulmaz. Her durum bir kez denenir.
+     * Personel insan_esik_dk icinde yazdiysa, sohbet susturulduysa, paket bittiyse ya da 60 dk'yi gectiyse dokunulmaz. Her durum bir kez denenir.
+     *
+     * $insanSustu = true (her dakika, wa:insan-devam): personel yazdi, musteri SONRA yazdi ve personel insan_esik_dk (5) boyunca
+     * cevap vermedi -> asistan musteriye hemen doner (musteri beklemez). 5 dk yasi beklenmez.
      */
-    public static function havadaKalanlariTamamla(): int
+    public static function havadaKalanlariTamamla(bool $insanSustu = false): int
     {
         if (!self::semaGaranti()) return 0;
         $n = 0;
-        $adaylar = DB::table('wa_asistan_oturumlari')->where('durum', 'acik')
-            ->whereBetween('son_mesaj_at', [now()->subMinutes(60), now()->subMinutes(5)])->orderBy('id')->limit(50)->get();
+        $esik = max(1, (int) self::ayar('insan_esik_dk', 5));
+        $adaylar = $insanSustu
+            ? DB::table('wa_asistan_oturumlari')->where('durum', 'acik')->where('insan_devraldi', 1)
+                ->whereBetween('son_insan_at', [now()->subMinutes(60), now()->subMinutes($esik)])
+                ->whereColumn('son_mesaj_at', '>', 'son_insan_at')->orderBy('id')->limit(50)->get()
+            : DB::table('wa_asistan_oturumlari')->where('durum', 'acik')
+                ->whereBetween('son_mesaj_at', [now()->subMinutes(60), now()->subMinutes(5)])->orderBy('id')->limit(50)->get();
         foreach ($adaylar as $o) {
             try {
                 if (!self::acikMi((int) $o->salon_id) || WaPaket::kapali((int) $o->salon_id)) continue;
                 if ($o->sessiz_bitis && strtotime($o->sessiz_bitis) > time() && $o->sessiz_neden !== 'aktar') continue;
-                if ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - 60 * 60) continue;
+                if ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - $esik * 60) continue;
+                if ($insanSustu) {
+                    // personel sustu: sohbet asistana doner (sonraki musteri mesajlari da normal cevaplanir)
+                    DB::table('wa_asistan_oturumlari')->where('id', $o->id)->update(['insan_devraldi' => 0, 'updated_at' => now()]);
+                }
                 $g = json_decode($o->gecmis ?: '[]', true) ?: [];
                 $son = end($g);
                 // yarim: cevapsiz / sozde / tekrar (dongu) / sikayet ("boş mesaj, gelmedi"); kapanis mesajlari ("tamam, 👍") haric
@@ -719,7 +731,7 @@ class WaAsistan
                 if ((int) self::ayar('gunluk_tavan', 0) > 0 && Cache::get("wa_asistan_tavan_{$o->salon_id}_" . date('Ymd'))) continue;
                 // isleme hala suruyor olabilir (mesaj birlestirme / AI cagrisi): islenmemis gelen kayit varsa bekle
                 if ($rol === 'user' && DB::table('wa_asistan_gelen')->where('salon_id', $o->salon_id)->where('anahtar', $o->anahtar)
-                    ->where('created_at', '>=', now()->subMinutes(2))->exists()) continue;
+                    ->where('created_at', '>=', $insanSustu ? now()->subSeconds(30) : now()->subMinutes(2))->exists()) continue;
                 if (!Cache::add('wa_havada_' . $o->id . '_' . md5(json_encode($son)), 1, 120)) continue;
                 if (self::tamamla($o, $g, $mod)) $n++;
             } catch (\Throwable $e) {
@@ -901,7 +913,7 @@ class WaAsistan
         $o = DB::table('wa_asistan_oturumlari')->where('id', $oturumId)->first();
         if (!$o || trim($metin) === '') return false;
         $devral = ($o->sessiz_neden === 'devral' && $o->sessiz_bitis && strtotime($o->sessiz_bitis) > time())
-            || ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - 30 * 60);
+            || ($o->insan_devraldi && $o->son_insan_at && strtotime($o->son_insan_at) > time() - max(1, (int) self::ayar('insan_esik_dk', 5)) * 60);
         $sessiz = $o->sessiz_bitis && strtotime($o->sessiz_bitis) > time() && $o->sessiz_neden !== 'aktar'; // yanlis numara / hiz siniri vb.
         // Personel panelden gonderdiyse (yol tarifi vb.) devral/sessizlik engellemez
         if (!$personelIstegi && ($devral || $sessiz || WaPaket::kapali((int) $o->salon_id))) return false;

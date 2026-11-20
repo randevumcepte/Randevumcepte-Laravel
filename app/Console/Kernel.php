@@ -82,6 +82,7 @@ class Kernel extends ConsoleKernel
         Commands\WaGeriKazanimCalistir::class,
         Commands\WaDenetciCalistir::class,
         Commands\WaTalepTakip::class,
+        Commands\WaInsanDevam::class,
         Commands\SeslendirmeOnUret::class,
         Commands\PerformansNobetci::class,
     ];
@@ -192,6 +193,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('wa:denetci ozet')->withoutOverlapping()->weeklyOn(1, '09:30');
         // Isletmeye sorulan konular: 15 dk hatirlatma, 45 dk asistan musteriye doner, 24 saat cevapsiz (musteri havada kalmaz)
         $schedule->command('wa:talep-takip')->withoutOverlapping()->everyFiveMinutes();
+        // Personel yazdi ama sonra sustu: 5 dk sonra asistan musteriye doner (her dakika kontrol)
+        $schedule->command('wa:insan-devam')->withoutOverlapping()->everyMinute();
 
         // Yedek
         $schedule->command('dbyedek:al')->dailyAt('23:59')->withoutOverlapping();
