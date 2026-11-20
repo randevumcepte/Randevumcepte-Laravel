@@ -1588,14 +1588,36 @@
       f.innerHTML = '<div class="wa-kart-bas"><h4><i class="bi bi-pencil-square" style="color:#7c3aed"></i>' + (x.id ? 'Kampanyayı düzenle' : 'Yeni kampanya') + '</h4></div>'
          + '<label class="wa-alt">Başlık</label><input class="wa-girdi" id="rkBaslik" maxlength="120" placeholder="Örn. Kasım\'a özel protez tırnak + manikür 950 TL" value="' + esc(x.baslik || '') + '">'
          + '<label class="wa-alt" style="display:block;margin-top:10px">Açıklama (müşteriye giden metin)</label><textarea class="wa-girdi" id="rkMetin" rows="3" maxlength="700" placeholder="Örn. 1.200 TL yerine 950 TL. Ay sonuna kadar geçerli.">' + esc(x.metin || '') + '</textarea>'
-         + '<label class="wa-alt" style="display:block;margin-top:10px">Hangi hizmetler sorulunca gönderilsin?</label><div class="rk-hizmetler">'
-         + HIZMETLER.map(function (h) { return '<label><input type="checkbox" value="' + h.id + '"' + ((x.hizmetler || []).indexOf(Number(h.id)) >= 0 ? ' checked' : '') + '> ' + esc(h.ad) + '</label>'; }).join('') + '</div>'
+         + '<label class="wa-alt" style="display:block;margin-top:10px">Hangi hizmetler sorulunca gönderilsin? <b id="rkSecSay"></b></label>'
+         + '<input class="wa-girdi" id="rkHizAra" placeholder="🔍 Hizmet ara (ör. manikür, protez)" autocomplete="off" style="margin-bottom:6px">'
+         + '<div class="rk-hizmetler" id="rkHizListe">'
+         // secili hizmetler en ustte; arama ad uzerinden (Turkce buyuk/kucuk harf duyarsiz)
+         + HIZMETLER.slice().sort(function (a, b) { var sa = (x.hizmetler || []).indexOf(Number(a.id)) >= 0, sb = (x.hizmetler || []).indexOf(Number(b.id)) >= 0; return sa === sb ? 0 : (sa ? -1 : 1); })
+            .map(function (h) { return '<label data-ad="' + esc(String(h.ad).toLocaleLowerCase('tr-TR')) + '"><input type="checkbox" value="' + h.id + '"' + ((x.hizmetler || []).indexOf(Number(h.id)) >= 0 ? ' checked' : '') + '> ' + esc(h.ad) + '</label>'; }).join('')
+         + '<div class="wa-alt" id="rkHizYok" style="display:none;padding:6px 0">Bu adla hizmet bulunamadı.</div></div>'
          + '<div class="wa-satir" style="margin-top:10px;gap:10px"><div><label class="wa-alt">Başlangıç</label><input type="date" class="wa-girdi" id="rkBas" value="' + esc(String(x.baslangic || '').slice(0, 10)) + '"></div>'
          + '<div><label class="wa-alt">Bitiş</label><input type="date" class="wa-girdi" id="rkBit" value="' + esc(String(x.bitis || '').slice(0, 10)) + '"></div></div>'
          + '<label class="wa-alt" style="display:block;margin-top:10px">Afiş görseli (JPG/PNG, en fazla 4 MB)</label><input type="file" id="rkGorsel" accept="image/jpeg,image/png,image/webp">'
          + (x.gorsel ? '<img class="rk-on" id="rkOn" src="' + esc(x.gorsel) + '" alt="">' : '<img class="rk-on" id="rkOn" alt="" style="display:none">')
          + '<label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:14px"><input type="checkbox" id="rkAktif"' + (x.aktif ? ' checked' : '') + '> Yayında</label>'
          + '<div style="display:flex;gap:8px;margin-top:14px"><button class="wa-btn" id="rkKaydet"><i class="bi bi-check2"></i> Kaydet</button><button class="wa-btn ikincil" id="rkVazgec">Vazgeç</button></div>';
+      var secSay = function () { var n = f.querySelectorAll('#rkHizListe input:checked').length; el('rkSecSay').textContent = n ? '(' + n + ' seçili)' : ''; };
+      secSay();
+      el('rkHizListe').addEventListener('change', secSay);
+      el('rkHizAra').addEventListener('input', function () {
+         var q = this.value.trim().toLocaleLowerCase('tr-TR'), gorunen = 0;
+         f.querySelectorAll('#rkHizListe label').forEach(function (l) {
+            var uy = !q || l.dataset.ad.indexOf(q) >= 0 || l.querySelector('input').checked;
+            l.style.display = uy ? '' : 'none'; if (uy) gorunen++;
+         });
+         el('rkHizYok').style.display = gorunen ? 'none' : 'block';
+      });
+      el('rkHizAra').addEventListener('keydown', function (e) {
+         // Enter: aramada tek hizmet kaldiysa onu isaretle
+         if (e.key !== 'Enter') return; e.preventDefault();
+         var acik = Array.prototype.filter.call(f.querySelectorAll('#rkHizListe label'), function (l) { return l.style.display !== 'none' && !l.querySelector('input').checked; });
+         if (acik.length === 1) { acik[0].querySelector('input').checked = true; secSay(); this.value = ''; this.dispatchEvent(new Event('input')); }
+      });
       el('rkGorsel').addEventListener('change', function () { var d = this.files && this.files[0]; if (d) { var o = el('rkOn'); o.src = URL.createObjectURL(d); o.style.display = 'block'; } });
       el('rkVazgec').addEventListener('click', function () { f.style.display = 'none'; });
       el('rkKaydet').addEventListener('click', function () {
