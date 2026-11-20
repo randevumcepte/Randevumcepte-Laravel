@@ -183,11 +183,20 @@ class WaReklam
         try { DB::table('wa_reklam_gosterim')->where('id', $gosterimId)->delete(); } catch (\Throwable $e) {}
     }
 
+    /**
+     * Musteriye giden link: sabit https alan adi (APP_URL'e guvenilmez: http / farkli alan adi olabiliyor ->
+     * panelde afis yuklenmiyordu, 2026-11-20). Gerekirse .env WA_REKLAM_KOK.
+     */
     public static function link(string $token, ?int $gosterimId = null): string
     {
-        $kok = rtrim((string) (config('app.url') ?: 'https://app.randevumcepte.com.tr'), '/');
-        if (strpos($kok, 'localhost') !== false) $kok = 'https://app.randevumcepte.com.tr';
+        $kok = rtrim((string) (env('WA_REKLAM_KOK') ?: 'https://app.randevumcepte.com.tr'), '/');
         return $kok . '/k/' . $token . ($gosterimId ? '?g=' . $gosterimId : '');
+    }
+
+    /** Afis adresi, sayfanin kendi alan adina gore (goreli): panel + kampanya sayfasi. */
+    public static function afisYolu(string $token, $guncelleme = null): string
+    {
+        return '/k/' . $token . '/afis' . ($guncelleme ? '?v=' . strtotime((string) $guncelleme) : '');
     }
 
     /** Randevu olustu: bu musteriye son 7 gunde gosterilen reklam randevuya donustu say (ilk eslesen). */
@@ -213,7 +222,7 @@ class WaReklam
             $s = $say[$r->id] ?? null;
             $out[] = ['id' => (int) $r->id, 'baslik' => $r->baslik, 'metin' => $r->metin, 'hizmetler' => self::idler($r->hizmetler),
                 'baslangic' => $r->baslangic, 'bitis' => $r->bitis, 'aktif' => (int) $r->aktif, 'token' => $r->token,
-                'link' => self::link($r->token), 'gorsel' => $r->gorsel ? self::link($r->token) . '/afis?v=' . strtotime((string) $r->updated_at) : null,
+                'link' => '/k/' . $r->token, 'gorsel' => $r->gorsel ? self::afisYolu($r->token, $r->updated_at) : null,
                 'gosterim' => (int) ($s->gosterim ?? 0), 'tiklama' => (int) ($s->tiklama ?? 0), 'randevu' => (int) ($s->randevu ?? 0)];
         }
         return $out;

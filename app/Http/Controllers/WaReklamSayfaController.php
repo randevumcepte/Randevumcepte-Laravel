@@ -32,8 +32,10 @@ class WaReklamSayfaController extends Controller
         $waLink = $wa !== '' ? 'https://wa.me/' . $wa . '?text=' . rawurlencode('Merhaba, "' . $r->baslik . '" kampanyası için randevu almak istiyorum.') : null;
         return response()->view('wa-reklam-sayfa', [
             'r' => $r, 'salon' => $salon, 'bitti' => $bitti, 'waLink' => $waLink,
-            'afis' => $r->gorsel ? WaReklam::link($r->token) . '/afis?v=' . strtotime((string) $r->updated_at) : null,
-            'link' => WaReklam::link($r->token),
+            'afis' => $r->gorsel ? WaReklam::afisYolu($r->token, $r->updated_at) : null,
+            // og:image / og:url tam adres ister (WhatsApp onizlemesi)
+            'afisTam' => $r->gorsel ? $request->getSchemeAndHttpHost() . WaReklam::afisYolu($r->token, $r->updated_at) : null,
+            'link' => $request->getSchemeAndHttpHost() . '/k/' . $r->token,
         ])->header('Cache-Control', 'no-store');
     }
 

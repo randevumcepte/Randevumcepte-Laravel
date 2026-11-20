@@ -9,7 +9,7 @@
 <meta property="og:description" content="{{ \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/u', ' ', (string) $r->metin)), 150) }}">
 <meta property="og:site_name" content="{{ $salon->salon_adi ?? '' }}">
 <meta property="og:url" content="{{ $link }}">
-@if($afis)<meta property="og:image" content="{{ $afis }}">@endif
+@if($afisTam)<meta property="og:image" content="{{ $afisTam }}">@endif
 <style>
    :root { --mor1:#5C008E; --mor2:#7B2FB8; --mor3:#9D5DC9; --zemin:#f6f3fb; --yazi:#1f1530; --soluk:#6b6080; }
    * { box-sizing:border-box; }
