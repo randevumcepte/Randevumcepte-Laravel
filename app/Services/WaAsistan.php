@@ -395,9 +395,11 @@ class WaAsistan
         // 6) HAT BASI GUNLUK TAVAN — varsayilan KAPALI (0). Asistan yalniz kendisine yazan musteriye cevap verir;
         // Meta riski toplu/istenmeyen gonderimde (geri kazanma kendi tavanini korur). Ayni numara dongusu 5) ile sinirli.
         // Gerekirse .env WA_ASISTAN_GUNLUK_TAVAN=600 ile acilir.
+        // $oturumSalonlari tavan blogunun DISINDA: asagida hatirlatma aramasi da kullanir (blok icindeyken tavan=0'da
+        // tanimsiz kaliyordu -> ErrorException, yeni sohbetlerde asistan hic cevap vermiyordu — 2026-11-20 Ola Nail)
+        $oturumSalonlari = DB::table('salonlar')->where('whatsapp_paylasilan_salon_id', $o->salon_id)->pluck('id')->push($o->salon_id)->all();
         $tavan = (int) self::ayar('gunluk_tavan', 0);
         if ($tavan > 0) {
-        $oturumSalonlari = DB::table('salonlar')->where('whatsapp_paylasilan_salon_id', $o->salon_id)->pluck('id')->push($o->salon_id)->all();
         $bugun = 0;
         try {
             $bugun = DB::table('whatsapp_gonderim_loglari')->whereIn('salon_id', $oturumSalonlari)
