@@ -23467,6 +23467,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
+        // 2026-11-21: yetki kaydi YOKSA Sekreter/Personel (4-5) reklam yonetimine giremez (menu ile ayni kural)
+        if ($_authUser && !session()->has('sysadmin_impersonation_id')
+            && \App\Services\PersonelYetkiServisi::kayitsizRoldeMi($_authUser->id, self::mevcutsube($request), [4, 5])) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
         if(!Auth::guard('satisortakligi')->check()){
              if(self::personelmi($request, 'pazarlama.kampanya_yonet'))
             {
@@ -24016,6 +24021,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
         // SADECE hesap sahibi gorebilir
         if (!self::bildirimReklamSahipMi($request))
+            return view('isletmeadmin.yetkisizerisim');
+        // 2026-11-21: yetki kaydi YOKSA Sekreter/Personel (4-5) kapali (menu ile ayni kural)
+        if (!session()->has('sysadmin_impersonation_id')
+            && \App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->id(), self::mevcutsube($request), [4, 5]))
             return view('isletmeadmin.yetkisizerisim');
 
         if (str_contains(self::lisans_sure_kontrol($request), '-'))

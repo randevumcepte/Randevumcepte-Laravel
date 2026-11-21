@@ -1924,7 +1924,9 @@
 
                   {{-- 8a) Bildirim Reklamlari — pazarlama modulu; yetkisi ayarlanmamis personel GORMEZ
                        (personel default pazarlama.kampanya_yonet=false; yonetici/sekreter=true). --}}
-                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.kampanya_yonet'))
+                  {{-- 2026-11-21: yetki kaydi YOKSA yalniz rol 1-2-3 (Sekreter/Personel kapali); kayit varsa anahtar karar verir --}}
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.kampanya_yonet')
+                      && !\App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, [4, 5]))
                   <li>
                      @if($pageindex==122)
                      <a href="/isletmeyonetim/bildirim-reklamlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -1940,7 +1942,9 @@
                   {{-- 8) Reklam Yönetimi (test modu - menude acik; santral tarafi hardcoded, DB-okur AGI + Faz3 deploy bekliyor) --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
                   @if($isletme->uyelik_turu>2)
-                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.kampanya_yonet'))
+                  {{-- 2026-11-21: Bildirim Reklamlari ile ayni kural — kayitsizken yalniz rol 1-2-3 --}}
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'pazarlama.kampanya_yonet')
+                      && !\App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, [4, 5]))
                   <li>
                      @if($pageindex==22)
                      <a href="/isletmeyonetim/kampanya_yonetimi{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">

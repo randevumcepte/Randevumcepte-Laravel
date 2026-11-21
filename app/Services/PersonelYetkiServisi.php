@@ -131,8 +131,8 @@ class PersonelYetkiServisi
             if (!self::$_personelRoluCache[$roluKey]) {
                 return true;
             }
-            // Personel rolu + kayit yok → sade sablon default'u
-            $ayarlar = PersonelYetkiSabitleri::sablonAyarlari('personel');
+            // Personel rolu + kayit yok → personel sablonu + kayitsiz rol varsayilanlari
+            $ayarlar = PersonelYetkiSabitleri::kayitsizPersonelAyarlari();
             $fallbackSablon = 'personel';
         } else {
             // 2. Ozel yetki kaydi var → rolden bagimsiz bu kaydi uygula
@@ -172,6 +172,55 @@ class PersonelYetkiServisi
             $sablonDefault['randevu.onayla'] = true;
         }
         return $sablonDefault;
+    }
+
+    /**
+     * Kullanicinin bu salondaki rolu (model_has_roles.role_id). Birden fazla rol
+     * varsa en yetkilisi (en kucuk id) doner. Yoksa null.
+     */
+    private static $_kullaniciRoluCache = [];
+    public static function kullaniciRolu($yetkiliId, $salonId): ?int
+    {
+        if (!$yetkiliId || !$salonId) return null;
+        $k = $yetkiliId.'|'.$salonId;
+        if (!array_key_exists($k, self::$_kullaniciRoluCache)) {
+            $r = DB::table('model_has_roles')
+                ->where('model_id', $yetkiliId)
+                ->where('salon_id', $salonId)
+                ->min('role_id');
+            self::$_kullaniciRoluCache[$k] = $r !== null ? (int) $r : null;
+        }
+        return self::$_kullaniciRoluCache[$k];
+    }
+
+    /** Yetkili kullanicinin bu salonda ozel yetki kaydi (personel_yetki_ayarlari) var mi? */
+    private static $_yetkiKaydiCache = [];
+    public static function yetkiKaydiVarMi($yetkiliId, $salonId): bool
+    {
+        if (!$yetkiliId || !$salonId) return false;
+        $k = $yetkiliId.'|'.$salonId;
+        if (!array_key_exists($k, self::$_yetkiKaydiCache)) {
+            self::tabloyuHazirla();
+            $personelId = Personeller::where('yetkili_id', $yetkiliId)
+                ->where('salon_id', $salonId)
+                ->value('id');
+            self::$_yetkiKaydiCache[$k] = $personelId
+                ? PersonelYetkiAyari::where('personel_id', $personelId)->where('salon_id', $salonId)->exists()
+                : false;
+        }
+        return self::$_yetkiKaydiCache[$k];
+    }
+
+    /**
+     * Rol bazli varsayilan kisit (2026-11-21): yetki kaydi YOKSA ve kullanicinin
+     * rolu $roller icindeyse true. Ornek: Sekreter (4) kayitsizken reklam/rapor
+     * menuleri kapali. Kayit VARSA false doner — o zaman yetki anahtari karar verir.
+     */
+    public static function kayitsizRoldeMi($yetkiliId, $salonId, array $roller): bool
+    {
+        $rol = self::kullaniciRolu($yetkiliId, $salonId);
+        if ($rol === null || !in_array($rol, $roller, true)) return false;
+        return !self::yetkiKaydiVarMi($yetkiliId, $salonId);
     }
 
     /**
@@ -272,7 +321,7 @@ class PersonelYetkiServisi
                 ->where('role_id', 5)
                 ->exists();
             if ($personelRolunde) {
-                $sade = PersonelYetkiSabitleri::sablonAyarlari('personel');
+                $sade = PersonelYetkiSabitleri::kayitsizPersonelAyarlari();
                 return self::$_yetkiliYetkiVarCache[$cacheKey] = (bool)($sade[$key] ?? false);
             }
             // Gercekten personel rolu degil (salon sahibi / direk yetkili) → tam yetki
@@ -547,7 +596,7 @@ class PersonelYetkiServisi
         // Hic kayit yoksa → personel default
         return [
             'sablon' => 'personel',
-            'ayarlar' => PersonelYetkiSabitleri::sablonAyarlari('personel'),
+            'ayarlar' => PersonelYetkiSabitleri::kayitsizPersonelAyarlari(),
         ];
     }
 

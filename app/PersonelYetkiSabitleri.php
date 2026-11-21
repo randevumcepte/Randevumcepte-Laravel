@@ -300,6 +300,24 @@ class PersonelYetkiSabitleri
         return $sablonlar[$sablon]['ayarlar'] ?? $sablonlar['personel']['ayarlar'];
     }
 
+    /**
+     * Yetki kaydi OLMAYAN Personel (rol 5) icin gecerli ayarlar: personel sablonu +
+     * rol bazli varsayilanlar. Sablonun kendisi (UI'dan secilen "Personel") DEGISMEZ;
+     * bu fark yalniz kayitsiz personel icindir.
+     *
+     * 2026-11-21: Kayitsiz personel WhatsApp Asistani'ndaki MUSTERI sohbetlerini
+     * gorur ve cevaplar (asistan raporu / isletme ekrani yine kapali, rol 1-3).
+     * Iki anahtar da mobilGizliAnahtarlar'da -> mobil 'ayarlar' haritasi degismez,
+     * eski build'lerde sahte "yetkiniz degisti" cikisi olmaz.
+     */
+    public static function kayitsizPersonelAyarlari(): array
+    {
+        $a = self::sablonAyarlari('personel');
+        $a['whatsapp.sohbet_gor'] = true;
+        $a['whatsapp.sohbet_yaz'] = true;
+        return $a;
+    }
+
     /** Tum yetki anahtarlarinin listesi */
     public static function tumAnahtarlar(): array
     {

@@ -23359,6 +23359,16 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             ]);
         }
 
+        // EK ALANLAR (2026-11-21, yalniz yeni build okur; eski build'ler bilmedigi
+        // alani yok sayar ve degisiklik kiyasina katmaz -> davranislari DEGISMEZ):
+        //  kullanici_rolu  : model_has_roles rolu (1 sahip, 2 supervizor, 3 yonetici, 4 sekreter, 5 personel)
+        //  yetki_kaydi_var : ozel yetki kaydi var mi. YOKSA yeni build rol bazli
+        //                    varsayilan kisitlari uygular (or. sekreter: rapor/kasa/ayar kapali).
+        $ekAlanlar = [
+            'kullanici_rolu'  => \App\Services\PersonelYetkiServisi::kullaniciRolu($userIsletme->id, $salonId),
+            'yetki_kaydi_var' => \App\Services\PersonelYetkiServisi::yetkiKaydiVarMi($userIsletme->id, $salonId),
+        ];
+
         // Bu yetkili'nin baglandigi personel_id
         $personelId = Personeller::where('yetkili_id', $userIsletme->id)
             ->where('salon_id', $salonId)
@@ -23370,7 +23380,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             foreach (\App\PersonelYetkiSabitleri::tumAnahtarlar() as $k) {
                 $tum[$k] = true;
             }
-            return response()->json([
+            return response()->json($ekAlanlar + [
                 'basarili'         => true,
                 'personel_rolunde' => false,
                 'salon_sahibi'     => true,
@@ -23398,7 +23408,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             foreach (\App\PersonelYetkiSabitleri::tumAnahtarlar() as $k) {
                 $tum[$k] = true;
             }
-            return response()->json([
+            return response()->json($ekAlanlar + [
                 'basarili'         => true,
                 'personel_rolunde' => false,
                 'salon_sahibi'     => false,
@@ -23413,7 +23423,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         // Personel rolunde YA DA ozel yetki kaydi var -> gercek ayarlar
         $ayarlar = \App\Services\PersonelYetkiServisi::ayarlariGetir($personelId, $salonId);
-        return response()->json([
+        return response()->json($ekAlanlar + [
             'basarili'         => true,
             // Not: personel_rolunde=true doner ki Flutter Yetki.varMi() gercek
             // ayarlara baksin (ozel kayit varsa Sekreter/Yonetici icin de kisit).
