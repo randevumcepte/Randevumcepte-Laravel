@@ -935,6 +935,13 @@ class PanelController extends Controller
             'sysadmin_impersonation_id'   => $log->id,
             'sysadmin_impersonation_uid'  => $this->user()->id,
         ]);
+        // Gorunum modu: ?gorunum=kullanici -> "Kullanici gibi gor" (yetkiler gercekten
+        // uygulanir); yoksa varsayilan destek modu (tam yetki). Panelde rozetten degisir.
+        if ($request->get('gorunum') === 'kullanici') {
+            session(['sysadmin_impersonation_kullanici_gibi' => 1]);
+        } else {
+            session()->forget('sysadmin_impersonation_kullanici_gibi');
+        }
 
         // DAYANIKLI impersonation cookie'si (yetkili|log). Oturum-race iy login'i silerse
         // salon paneli middleware'i bundan ANINDA geri kurar. 600 dk. (Sifreli — EncryptCookies.)
@@ -1029,7 +1036,7 @@ class PanelController extends Controller
         // logout() KULLANMA: salon kullanicisinin remember_token'ini cevirip kendi
         // cihazlarindaki "beni hatirla" oturumlarini dusurur. Elle temizle.
         session()->forget([
-            'sysadmin_impersonation_id', 'sysadmin_impersonation_uid',
+            'sysadmin_impersonation_id', 'sysadmin_impersonation_uid', 'sysadmin_impersonation_kullanici_gibi',
             $iyGuard->getName(), 'password_hash_isletmeyonetim',
             'isletmeyonetim_user', 'whatsapp_authenticated',
         ]);

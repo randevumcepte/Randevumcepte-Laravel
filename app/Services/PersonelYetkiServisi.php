@@ -71,6 +71,23 @@ class PersonelYetkiServisi
     }
 
     /**
+     * Sistem yoneticisi "Hesabina Gir" (impersonation) ile girmis VE "Destek modu"nda
+     * mi? Destek modunda yetki anahtarlari yok sayilir (403'e takilmadan destek).
+     * "Kullanici gibi gor" modunda (session sysadmin_impersonation_kullanici_gibi)
+     * false doner -> sayfalar, filtreler, maskeleme kullanicinin GERCEK yetkisiyle
+     * calisir; yetki sorunlari inspect ile birebir test edilebilir (2026-11-21).
+     */
+    public static function impersonationBypass(): bool
+    {
+        try {
+            return session()->has('sysadmin_impersonation_id')
+                && !session('sysadmin_impersonation_kullanici_gibi');
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Yetki kontrolu.
      *
      * @param int|string $personelId  salon_personelleri.id
@@ -99,7 +116,7 @@ class PersonelYetkiServisi
 
         // Impersonation (sistem yoneticisi salona girdi) — tam yetki, kisitlama yok.
         // SADECE aksiyon/sayfa yolunda (bypass=true); menu gorunurlugunde UYGULANMAZ.
-        if ($impersonationBypass && session()->has('sysadmin_impersonation_id')) return true;
+        if ($impersonationBypass && self::impersonationBypass()) return true;
 
         // Hesap Sahibi (role_id=1) HER ZAMAN tam yetki — ozel yetki kaydi olsa bile
         // kisitlanamaz. Ozel yetki mekanizmasi (asagidaki $ozelAyar dali) yalnizca
@@ -237,7 +254,7 @@ class PersonelYetkiServisi
     {
         if (!$yetkiliId || !$salonId) return false;
         try {
-            if (session()->has('sysadmin_impersonation_id')) return false;
+            if (self::impersonationBypass()) return false;
         } catch (\Throwable $e) {}
         // Hesap Sahibi istisnasi kisitlamayaTabiMi icinde.
         if (!self::kisitlamayaTabiMi($yetkiliId, $salonId)) return false;
@@ -342,7 +359,7 @@ class PersonelYetkiServisi
         // kisitlamalarina TAKILMASIN — tam yetkili gibi davran (403 yetkisiz-erisim
         // sayfasi cikmasin). SADECE aksiyon/sayfa kontrolunde (bypass=true); menu
         // gorunurlugunde (menuYetki, bypass=false) UYGULANMAZ.
-        if ($impersonationBypass && session()->has('sysadmin_impersonation_id')) return true;
+        if ($impersonationBypass && self::impersonationBypass()) return true;
 
         $cacheKey = $yetkiliId.'|'.$salonId.'|'.$key.'|'.($impersonationBypass ? '1' : '0');
         if (array_key_exists($cacheKey, self::$_yetkiliYetkiVarCache)) {

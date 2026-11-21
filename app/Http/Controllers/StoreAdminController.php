@@ -1915,7 +1915,7 @@ public function carkverilerigetir(Request $request)
     {
         // 2026-11-21: yetki kaydi OLMAYAN Sekreter (rol 4) bu sayfayi goremez (menu ile
         // ayni kural; kayit varsa asagidaki anahtar kontrolleri karar verir).
-        if (Auth::guard('isletmeyonetim')->check() && !session()->has('sysadmin_impersonation_id')
+        if (Auth::guard('isletmeyonetim')->check() && !\App\Services\PersonelYetkiServisi::impersonationBypass()
             && \App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->id(), self::mevcutsube($request), [4])) {
             return view('isletmeadmin.yetkisizerisim');
         }
@@ -3824,7 +3824,7 @@ public function carkverilerigetir(Request $request)
     public function ayarlar(Request $request){
         // 2026-11-21: yetki kaydi OLMAYAN Sekreter/Personel (rol 4-5) bu sayfayi goremez (menu ile
         // ayni kural; kayit varsa asagidaki anahtar kontrolleri karar verir).
-        if (Auth::guard('isletmeyonetim')->check() && !session()->has('sysadmin_impersonation_id')
+        if (Auth::guard('isletmeyonetim')->check() && !\App\Services\PersonelYetkiServisi::impersonationBypass()
             && \App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->id(), self::mevcutsube($request), [4, 5])) {
             return view('isletmeadmin.yetkisizerisim');
         }
@@ -5785,7 +5785,7 @@ public function carkverilerigetir(Request $request)
     public function kasadefteri(Request $request){
         // 2026-11-21: yetki kaydi OLMAYAN Sekreter (rol 4) bu sayfayi goremez (menu ile
         // ayni kural; kayit varsa asagidaki anahtar kontrolleri karar verir).
-        if (Auth::guard('isletmeyonetim')->check() && !session()->has('sysadmin_impersonation_id')
+        if (Auth::guard('isletmeyonetim')->check() && !\App\Services\PersonelYetkiServisi::impersonationBypass()
             && \App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->id(), self::mevcutsube($request), [4])) {
             return view('isletmeadmin.yetkisizerisim');
         }
@@ -23513,7 +23513,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             exit(0);
         }
         // 2026-11-21: yetki kaydi YOKSA Sekreter/Personel (4-5) reklam yonetimine giremez (menu ile ayni kural)
-        if ($_authUser && !session()->has('sysadmin_impersonation_id')
+        if ($_authUser && !\App\Services\PersonelYetkiServisi::impersonationBypass()
             && \App\Services\PersonelYetkiServisi::kayitsizRoldeMi($_authUser->id, self::mevcutsube($request), [4, 5])) {
             return view('isletmeadmin.yetkisizerisim');
         }
@@ -24068,7 +24068,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         if (!self::bildirimReklamSahipMi($request))
             return view('isletmeadmin.yetkisizerisim');
         // 2026-11-21: yetki kaydi YOKSA Sekreter/Personel (4-5) kapali (menu ile ayni kural)
-        if (!session()->has('sysadmin_impersonation_id')
+        if (!\App\Services\PersonelYetkiServisi::impersonationBypass()
             && \App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->id(), self::mevcutsube($request), [4, 5]))
             return view('isletmeadmin.yetkisizerisim');
 
@@ -32881,6 +32881,30 @@ public function musteriportfoydropliste(Request $request)
      *   if(self::personelmi($request))                         // eski (rol)
      *   if(self::personelmi($request, 'randevu.tum_personel_gor')) // yeni (yetki bypass)
      */
+    /**
+     * Sistem yoneticisi taklit (Hesabina Gir) gorunum modu (2026-11-21):
+     *  mod=kullanici -> "Kullanici gibi gor": yetki anahtarlari GERCEKTEN uygulanir
+     *  mod=destek    -> varsayilan destek modu: tam yetki (bypass)
+     * Yalniz aktif taklit oturumunda calisir; normal kullaniciya etkisi yok.
+     */
+    public function impersonationGorunum(Request $request)
+    {
+        if (!session()->has('sysadmin_impersonation_id')) {
+            return redirect()->back();
+        }
+        $kullaniciGibi = $request->input('mod') === 'kullanici';
+        if ($kullaniciGibi) {
+            session()->put('sysadmin_impersonation_kullanici_gibi', 1);
+        } else {
+            session()->forget('sysadmin_impersonation_kullanici_gibi');
+        }
+        try {
+            \App\SistemYonetim\Audit::log('impersonation_gorunum', 'impersonation', (int) session('sysadmin_impersonation_id'), null,
+                $kullaniciGibi ? 'Kullanıcı gibi gör moduna geçildi' : 'Destek moduna geçildi');
+        } catch (\Throwable $e) {}
+        return redirect()->back();
+    }
+
     public function personelmi(Request $request, string $bypassYetki = null)
     {
 
@@ -37289,7 +37313,7 @@ DB::raw('
     {
         // 2026-11-21: yetki kaydi OLMAYAN Sekreter (rol 4) bu sayfayi goremez (menu ile
         // ayni kural; kayit varsa asagidaki anahtar kontrolleri karar verir).
-        if (Auth::guard('isletmeyonetim')->check() && !session()->has('sysadmin_impersonation_id')
+        if (Auth::guard('isletmeyonetim')->check() && !\App\Services\PersonelYetkiServisi::impersonationBypass()
             && \App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->id(), self::mevcutsube($request), [4])) {
             return view('isletmeadmin.yetkisizerisim');
         }

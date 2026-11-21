@@ -879,6 +879,8 @@ Route::prefix('isletmeyonetim')->group(function() {
    Route::get('/uygulama-afisi', 'StoreAdminController@uygulamaAfisi');
    Route::get('/uygulama-afisi-pdf', 'StoreAdminController@uygulamaAfisPdf');
    Route::get('/profil','StoreAdminController@profilbilgileri');
+   // Sistem yoneticisi taklit gorunum modu: Kullanici gibi gor / Destek modu
+   Route::post('/impersonation-gorunum','StoreAdminController@impersonationGorunum');
    Route::get('/hizmetpersoneldeneme','StoreAdminController@denemesql');
    Route::post('/yeniisletmeekle','StoreAdminController@yeniisletmeekle');
    Route::post('/randevuayarguncelle','StoreAdminController@randevuayarguncelle');

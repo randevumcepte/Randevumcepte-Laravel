@@ -1145,7 +1145,7 @@ class AdminController extends Controller
                 $imp->bitis_tarihi = date('Y-m-d H:i:s');
                 $imp->save();
             }
-            session()->forget(['sysadmin_impersonation_id', 'sysadmin_impersonation_uid']);
+            session()->forget(['sysadmin_impersonation_id', 'sysadmin_impersonation_uid', 'sysadmin_impersonation_kullanici_gibi']);
         }
         auth('sistemyonetim')->logout();
         return redirect('/sistemyonetim' );
