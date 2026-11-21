@@ -168,6 +168,14 @@ class WaAsistanPanelController extends StoreAdminController
             $g = json_decode($o->gecmis ?: '[]', true) ?: [];
             $sonMus = '';
             for ($i = count($g) - 1; $i >= 0; $i--) if (($g[$i]['role'] ?? '') === 'user') { $sonMus = (string) $g[$i]['content']; break; }
+            // mobil liste: son mesaj (kimden olursa) + sondaki cevapsiz musteri mesaji sayisi (reklam mesajlari sayilmaz)
+            $sonRol = ''; $sonMetin = ''; $yanitsiz = 0;
+            for ($i = count($g) - 1; $i >= 0; $i--) {
+                if (!empty($g[$i]['reklam']) || !is_string($g[$i]['content'] ?? null)) continue;
+                if ($sonRol === '') { $sonRol = !empty($g[$i]['personel']) ? 'personel' : (string) ($g[$i]['role'] ?? ''); $sonMetin = $g[$i]['content']; }
+                if (($g[$i]['role'] ?? '') !== 'user') break;
+                $yanitsiz++;
+            }
             $liste[] = [
                 'id' => (int) $o->id, 'ad' => $o->ad, 'telefon' => $o->musteri_tel ?: $o->telefon, 'son_mesaj' => mb_substr($sonMus, 0, 120),
                 'tarih' => $o->son_mesaj_at, 'mesaj' => (int) $o->mesaj_sayisi, 'cevap' => (int) $o->cevap_sayisi,
@@ -175,6 +183,8 @@ class WaAsistanPanelController extends StoreAdminController
                 'fiyat' => (int) $o->fiyat_verildi, 'gorsel' => (int) $o->gorsel_sayisi, 'memnuniyet' => $o->memnuniyet === null ? null : (int) $o->memnuniyet,
                 'geri_kazanim' => $o->geri_kazanim_id ? 1 : 0, 'devralindi' => self::devralindiMi($o),
                 'foto' => $fotolar[$t10] ?? null,
+                'son_rol' => $sonRol === 'user' ? 'musteri' : ($sonRol === 'personel' ? 'personel' : ($sonRol !== '' ? 'asistan' : '')),
+                'son_metin' => mb_substr($sonMetin, 0, 120), 'yanitsiz' => $yanitsiz,
                 // mobil "Bekleyen" sekmesi: isletmeye sorulan konu bekliyor ya da musteri mesaji cevapsiz
                 'bekleyen' => (($talepler[(int) $o->id]['durum'] ?? '') === 'bekliyor' || WaAsistan::yarimMi($g) === 'cevapsiz') ? 1 : 0,
                 'talep' => isset($talepler[(int) $o->id]) && $talepler[(int) $o->id]['durum'] === 'bekliyor' ? ($talepler[(int) $o->id]['ozet'] ?: $talepler[(int) $o->id]['konu_ad']) : null,
