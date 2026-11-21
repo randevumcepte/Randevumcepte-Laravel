@@ -2084,8 +2084,10 @@
                   @endif
 
                   {{-- 13.5) Isletme Raporlari (yeni — tabbed rapor dashboard) --}}
+                  {{-- 2026-11-21: Sekreter (4) yalniz YETKI KAYDI YOKSA gizli (kayitsizRoldeMi); kayit varsa anahtar karar verir.
+                       Ayni kural: Satis Raporlari, Kasa Raporu, Ayarlar. --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !in_array(4, $_layoutRoller) && !($isletme->studyo_modu ?? 0))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !\App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, [4]) && !($isletme->studyo_modu ?? 0))
                   <li>
                      @if(($pageindex ?? -1) == 600)
                      <a href="/isletmeyonetim/isletmeraporlari{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2100,7 +2102,7 @@
 
                   {{-- 14) Satış Raporları --}}
                   @if($_SERVER['HTTP_HOST']!="randevu.randevumcepte.com.tr")
-                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !in_array(4, $_layoutRoller) && !($isletme->studyo_modu ?? 0))
+                  @if(\App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'rapor.satis') && !\App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, [4]) && !($isletme->studyo_modu ?? 0))
                   <li>
                      @if($pageindex==400)
                      <a href="/isletmeyonetim/raporlar{{(isset($_GET['sube'])) ? '?sube='.$isletme->id : '' }}" class="dropdown-toggle no-arrow active">
@@ -2224,7 +2226,7 @@
                         \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.masraf_ekle') ||
                         \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'finans.alacak_yonet')
                      )
-                     && !in_array(4, $_layoutRoller)
+                     && !\App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, [4])
                      && !($isletme->studyo_modu ?? 0)
                   )
                   <li>
@@ -2352,7 +2354,7 @@
                         \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'hizmet.kategori_yonet') ||
                         \App\Services\PersonelYetkiServisi::menuYetki(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, 'satis.indirim_uygula')
                      )
-                     && !in_array(4, $_layoutRoller)
+                     && !\App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->user()->id, $isletme->id, [4])
                   )
                   <li>
                      @if($pageindex==9)

@@ -216,7 +216,7 @@ class LoginController extends Controller
         if ($personelId) {
             return '/isletmeyonetim/personeldetay/' . $personelId;
         }
-        return '/isletmeyonetim/profilbilgileri';
+        return '/isletmeyonetim/profil'; // (eskiden olmayan /profilbilgileri -> 404)
     }
 
     public function sifremiunuttum(Request $request)

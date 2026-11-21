@@ -239,14 +239,37 @@ class PersonelYetkiServisi
         try {
             if (session()->has('sysadmin_impersonation_id')) return false;
         } catch (\Throwable $e) {}
-        $hesapSahibi = DB::table('model_has_roles')
-            ->where('model_id', $yetkiliId)
-            ->where('salon_id', $salonId)
-            ->where('role_id', 1)
-            ->exists();
-        if ($hesapSahibi) return false;
+        // Hesap Sahibi istisnasi kisitlamayaTabiMi icinde.
         if (!self::kisitlamayaTabiMi($yetkiliId, $salonId)) return false;
         return self::menuYetki($yetkiliId, $salonId, 'personel.kapali_adisyon_gizle');
+    }
+
+    /** Yetkili (isletme_yetkilileri.id) bu salonda Hesap Sahibi (rol 1) mi? */
+    private static $_yetkiliSahipCache = [];
+    public static function yetkiliHesapSahibiMi($yetkiliId, $salonId): bool
+    {
+        if (!$yetkiliId || !$salonId) return false;
+        $k = $yetkiliId.'|'.$salonId;
+        if (!array_key_exists($k, self::$_yetkiliSahipCache)) {
+            self::$_yetkiliSahipCache[$k] = DB::table('model_has_roles')
+                ->where('model_id', $yetkiliId)
+                ->where('salon_id', $salonId)
+                ->where('role_id', 1)
+                ->exists();
+        }
+        return self::$_yetkiliSahipCache[$k];
+    }
+
+    /**
+     * "Sadece kendi kayitlari" kisiti (2026-11-21): kisi ROLDEN BAGIMSIZ kisitlamaya
+     * tabiyse (rol 5 ya da yetki kaydi olan herhangi bir rol; Hesap Sahibi haric)
+     * VE $tumYetki (or. randevu.tum_personel_gor, satis.tum_satis_gor) kapaliysa true.
+     * Impersonation'da yetkiliYetkiVar true doner -> kisit yok.
+     */
+    public static function kendiKayitlarinaKisitliMi($yetkiliId, $salonId, string $tumYetki): bool
+    {
+        if (!self::kisitlamayaTabiMi($yetkiliId, $salonId)) return false;
+        return !self::yetkiliYetkiVar($yetkiliId, $salonId, $tumYetki);
     }
 
     /**
@@ -258,6 +281,9 @@ class PersonelYetkiServisi
     public static function kisitlamayaTabiMi($yetkiliId, $salonId): bool
     {
         if (!$yetkiliId || !$salonId) return false;
+
+        // Hesap Sahibi (rol 1) ISTISNA: personel kaydina yetki satiri dusse bile kisitlanmaz.
+        if (self::yetkiliHesapSahibiMi($yetkiliId, $salonId)) return false;
 
         // Personel rolu (role_id=5) → her zaman kisitlamaya tabi
         $personelRolunde = DB::table('model_has_roles')

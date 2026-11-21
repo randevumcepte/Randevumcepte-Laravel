@@ -1971,6 +1971,20 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 $personelRolu = 0; // yetki var → kisitlama uygulanmasin
             }
         }
+        // 2026-11-21 (YALNIZ YENI BUILD): istek_yapan_id geldiyse "sadece kendi
+        // randevulari" kisiti ROLDEN BAGIMSIZ istek yapana gore uygulanir (yetki
+        // kaydi olan Sekreter/Yonetici dahil, Hesap Sahibi haric) ve filtre
+        // istemcinin yolladigi personel_id'ye degil istek yapanin KENDI personel
+        // id'sine dayanir. Eski build bu alani yollamaz -> yukaridaki eski mantik aynen.
+        if ($request->filled('istek_yapan_id')) {
+            $__istekYapan = $request->istek_yapan_id;
+            if (\App\Services\PersonelYetkiServisi::kendiKayitlarinaKisitliMi($__istekYapan, $isletmeId, 'randevu.tum_personel_gor')) {
+                $__kendiPid = Personeller::where('yetkili_id', $__istekYapan)->where('salon_id', $isletmeId)->value('id');
+                $request->merge(['personel_id' => $__kendiPid ?: -1]);
+                $personelRolu = 5; // asagidaki "sadece kendi" dallari devreye girsin
+            }
+            // Kisit yoksa DOKUNMA: eski mantik (secili personel filtresi vb.) aynen gecerli.
+        }
         $takvim_turu = isset($request->takvim_turu) && $request->takvim_turu != '' ? $request->takvim_turu : Salonlar::where('id',$isletmeId)->value('randevu_takvim_turu');
         // TAKVIM TEK RENK + RENK SIRASI (web randevuyukle ile ayni mantik):
         //  - Tek renk acik: tum kaynaklar ve normal randevular tek renge boyanir.
@@ -8442,6 +8456,17 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         }
         if ($request->uygulama) {
             $uygulama = true;
+        }
+
+        // 2026-11-21 (YALNIZ YENI BUILD): istek_yapan_id geldiyse ve kisi rolden
+        // bagimsiz "sadece kendi randevulari"na kisitliysa filtre istemcinin
+        // personel_id'si yerine KENDI personel id'si olur. Eski build yollamaz.
+        if ($request->filled('istek_yapan_id') && !$request->musteriMi) {
+            $__sid = $request->salonId;
+            if (\App\Services\PersonelYetkiServisi::kendiKayitlarinaKisitliMi($request->istek_yapan_id, $__sid, 'randevu.tum_personel_gor')) {
+                $__kendiPid = Personeller::where('yetkili_id', $request->istek_yapan_id)->where('salon_id', $__sid)->value('id');
+                $request->merge(['personel_id' => $__kendiPid ?: -1]);
+            }
         }
 
         return self::randevu_liste_getir(
@@ -23466,6 +23491,12 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             if (!$personelId || !$salonId) {
                 return response()->json(['basarili' => false, 'mesaj' => 'Eksik parametre.']);
+            }
+
+            // 2026-11-21: Hesap Sahibine yetki kaydi YAZILMAZ (sahip hicbir ayardan
+            // etkilenmez; kayit dusmesi mobilde sahibin menulerini kapatiyordu).
+            if (\App\Services\PersonelYetkiServisi::hesapSahibiMi($personelId, $salonId)) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Hesap Sahibinin yetkileri kısıtlanamaz; her şeyi görür.']);
             }
 
             \App\Services\PersonelYetkiServisi::ayarlariKaydet($personelId, $salonId, $sablon, $ayarlar);

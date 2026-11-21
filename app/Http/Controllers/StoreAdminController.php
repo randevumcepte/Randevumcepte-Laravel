@@ -1913,6 +1913,13 @@ public function carkverilerigetir(Request $request)
 
     public function isletmeRaporlari(Request $request)
     {
+        // 2026-11-21: yetki kaydi OLMAYAN Sekreter (rol 4) bu sayfayi goremez (menu ile
+        // ayni kural; kayit varsa asagidaki anahtar kontrolleri karar verir).
+        if (Auth::guard('isletmeyonetim')->check() && !session()->has('sysadmin_impersonation_id')
+            && \App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->id(), self::mevcutsube($request), [4])) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+
         $isletmeler = '';
         $isletme = '';
         if(Auth::guard('satisortakligi')->check())
@@ -3815,6 +3822,13 @@ public function carkverilerigetir(Request $request)
             'personel_drop'=>self::personeldropliste($request,array())]);*/
     }
     public function ayarlar(Request $request){
+        // 2026-11-21: yetki kaydi OLMAYAN Sekreter/Personel (rol 4-5) bu sayfayi goremez (menu ile
+        // ayni kural; kayit varsa asagidaki anahtar kontrolleri karar verir).
+        if (Auth::guard('isletmeyonetim')->check() && !session()->has('sysadmin_impersonation_id')
+            && \App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->id(), self::mevcutsube($request), [4, 5])) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+
        $isletmeler = '';
         $isletme='';
         if(Auth::guard('satisortakligi')->check())
@@ -5769,6 +5783,13 @@ public function carkverilerigetir(Request $request)
     }
 
     public function kasadefteri(Request $request){
+        // 2026-11-21: yetki kaydi OLMAYAN Sekreter (rol 4) bu sayfayi goremez (menu ile
+        // ayni kural; kayit varsa asagidaki anahtar kontrolleri karar verir).
+        if (Auth::guard('isletmeyonetim')->check() && !session()->has('sysadmin_impersonation_id')
+            && \App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->id(), self::mevcutsube($request), [4])) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+
        $isletmeler = '';
         $isletme='';
         if(Auth::guard('satisortakligi')->check())
@@ -7254,7 +7275,13 @@ private function ayAdiCevir($ingilizceAy)
         }
         // Yetki: bu sayfanin gerektirdigi yetki yoksa 403
         $_authUser = Auth::guard('isletmeyonetim')->user();
-        if ($_authUser && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'personel.prim_hakedis_gor')) {
+        // 2026-11-21: kisi KENDI detay/rapor sayfasini her zaman acabilir (menudeki
+        // personel "Raporlar" linki + giris yonlendirmesi buraya gelir; mobil
+        // "Hakedislerim" ile ayni). Baskasinin sayfasi icin prim_hakedis_gor sart.
+        $_kendiSayfasi = $_authUser && \App\Personeller::where('id', $id)
+            ->where('salon_id', self::mevcutsube($request))
+            ->where('yetkili_id', $_authUser->id)->exists();
+        if ($_authUser && !$_kendiSayfasi && !\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($_authUser->id, self::mevcutsube($request), 'personel.prim_hakedis_gor')) {
             return view('isletmeadmin.yetkisizerisim');
             exit(0);
         }
@@ -32810,6 +32837,12 @@ public function musteriportfoydropliste(Request $request)
                 return response()->json(['basarili' => false, 'mesaj' => 'Eksik parametre.']);
             }
 
+            // 2026-11-21: Hesap Sahibine yetki kaydi YAZILMAZ (sahip hicbir ayardan
+            // etkilenmez; kayit dusmesi mobilde sahibin menulerini kapatiyordu).
+            if (\App\Services\PersonelYetkiServisi::hesapSahibiMi($personelId, $salonId)) {
+                return response()->json(['basarili' => false, 'mesaj' => 'Hesap Sahibinin yetkileri kısıtlanamaz; her şeyi görür.']);
+            }
+
             \App\Services\PersonelYetkiServisi::ayarlariKaydet($personelId, $salonId, $sablon, $ayarlar);
 
             try {
@@ -32854,6 +32887,19 @@ public function musteriportfoydropliste(Request $request)
         $userSatis = Auth::guard('satisortakligi')->user();
         $userIsletme = Auth::guard('isletmeyonetim')->user();
         $salonId = self::mevcutsube($request);
+
+        // 2026-11-21: YETKI ANAHTARLI cagrilar (or. 'randevu.tum_personel_gor')
+        // rolden bagimsiz: yetki kaydi olan her rol (Sekreter/Yonetici dahil) +
+        // rol 5 kisitlanir, Hesap Sahibi asla. SADECE web oturumu (isletmeyonetim)
+        // varken; web oturumu olmayan istekler (mobil API'nin bu controller'a
+        // dusen uclari, satis ortakligi) asagidaki ESKI mantikla birebir calisir
+        // -> eski mobil build'ler etkilenmez. Anahtarsiz cagrilar ("Personel
+        // rolunde mi?" ekran sorusu) da eski mantikta kalir.
+        if ($bypassYetki && $userIsletme && !$userSatis && $salonId) {
+            return \App\Services\PersonelYetkiServisi::kendiKayitlarinaKisitliMi(
+                $userIsletme->id, $salonId, $bypassYetki
+            );
+        }
 
         $isPersonel = DB::table('model_has_roles')
         ->where('role_id', 5)
@@ -37241,6 +37287,13 @@ DB::raw('
 
     public function raporlar(Request $request)
     {
+        // 2026-11-21: yetki kaydi OLMAYAN Sekreter (rol 4) bu sayfayi goremez (menu ile
+        // ayni kural; kayit varsa asagidaki anahtar kontrolleri karar verir).
+        if (Auth::guard('isletmeyonetim')->check() && !session()->has('sysadmin_impersonation_id')
+            && \App\Services\PersonelYetkiServisi::kayitsizRoldeMi(Auth::guard('isletmeyonetim')->id(), self::mevcutsube($request), [4])) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+
         $isletmeler = '';
         $isletme='';
         if(Auth::guard('satisortakligi')->check())
