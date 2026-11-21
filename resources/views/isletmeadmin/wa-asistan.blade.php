@@ -574,11 +574,7 @@
          @if(session('sysadmin_impersonation_id') || !empty($waAyar['reklam']))
          <button class="wa-sekme" data-p="reklam"><i class="bi bi-megaphone-fill"></i>Reklamlarım</button>
          @endif
-         @if(session('sysadmin_impersonation_id'))
-         <button class="wa-sekme" data-p="gel"><i class="bi bi-mortarboard-fill"></i>Asistan Gelişimi</button>
-         @else
-         <button class="wa-sekme" data-p="gel"><i class="bi bi-question-circle-fill"></i>Asistan size soruyor</button>
-         @endif
+         {{-- Asistan Gelisimi / Asistan size soruyor (Gece Denetcisi) sekmesi kaldirildi: denetci gece calismasi kapali --}}
          <button class="wa-sekme" data-p="ogr"><i class="bi bi-lightbulb"></i>Öğrenilen Cevaplar</button>
          <button class="wa-sekme" data-p="ayar"><i class="bi bi-gear"></i>Ayarlar</button>
       </div>
@@ -691,7 +687,6 @@
          <div class="wa-anahtar"><div class="t"><b>Fotoğraftan fiyat versin</b><div>Müşterinin gönderdiği model fotoğrafına, "Fotoğraftan Fiyat" sekmesindeki eşleşmelerle fiyat verir.</div></div><input type="checkbox" data-ayar="gorsel_fiyat" aria-label="Fotoğraftan fiyat versin"></div>
          <div class="wa-anahtar"><div class="t"><b>Randevudan sonra memnuniyet sorsun</b><div>Randevu oluşturulunca tek satırlık 👍 / 👎 sorusu eklenir.</div></div><input type="checkbox" data-ayar="memnuniyet_sor" aria-label="Memnuniyet sorsun"></div>
          @if(session('sysadmin_impersonation_id'))
-         <div class="wa-anahtar"><div class="t"><b>Gece denetçisi bu salonun sohbetlerini incelesin <small class="wa-alt">(yalnız sistem yöneticisi görür)</small></b><div>Her gece biten sohbetleri inceler; davranış dersleri tüm salonların ortak beynine gider, salona özel bilgi soruları "Asistan size soruyor" sekmesine düşer.</div></div><input type="checkbox" data-ayar="denetci" aria-label="Gece denetçisi"></div>
          <div class="wa-anahtar"><div class="t"><b>Asistan salonun kampanyalarını göndersin (Reklamlarım) <small class="wa-alt">(yalnız sistem yöneticisi görür)</small></b><div>Açıkken "Reklamlarım" sekmesi salona görünür; asistan ilgili hizmet sorulunca salonun kampanyasını sohbette bir kez gönderir. Kapalıyken asistan hiç değişmez.</div></div><input type="checkbox" data-ayar="reklam" aria-label="Kampanya reklamları"></div>
          @endif
          <div class="wa-anahtar"><div class="t"><b>Kaçan müşteriye tekrar yazsın</b><div>Fiyat/bilgi alıp randevu oluşturmayan müşteriye belirlediğiniz süre sonunda, mesai saatinde bir kez yazar ve gerçek boş saatlerinizi önerir. Müşteri "dur" yazarsa bir daha yazılmaz.</div></div><input type="checkbox" data-ayar="geri_kazanim" aria-label="Kaçan müşteriye tekrar yazsın"></div>
