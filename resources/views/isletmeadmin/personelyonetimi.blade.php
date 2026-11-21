@@ -408,8 +408,12 @@
                <div class="mt-2">Yükleniyor...</div>
             </div>
             <div id="pyetki-icerik" style="display:none;">
-               <div class="alert alert-warning" id="pyetki-rol-uyari" style="display:none;">
-                  Bu personel <b>"Personel"</b> rolünde değil. Buradaki ayarlar sadece rol "Personel" yapıldığında uygulanır.
+               <div class="alert alert-warning" id="pyetki-sahip-uyari" style="display:none;">
+                  <b>Bu kişi Hesap Sahibi.</b> Buradaki ayarlar Hesap Sahibine uygulanmaz; kapalı adisyonlar dahil her şeyi her zaman görür.
+               </div>
+               <div class="alert alert-info" id="pyetki-rol-uyari" style="font-size:13px;">
+                  Kaydettiğiniz ayarlar kişinin rolünden bağımsız uygulanır (Yönetici, Sekreter, Personel…).
+                  <b>Hesap Sahibi</b> istisnadır: hiçbir ayardan etkilenmez, her şeyi görür.
                </div>
                <div class="form-group">
                   <label><b>Hazır Şablon</b></label>
@@ -765,7 +769,8 @@ $(document).ready(function(){
          if(ayar && ayar.basarili){
             pyetkiState.seciliSablon = ayar.sablon || 'personel_sade';
             pyetkiState.ayarlar = ayar.ayarlar || {};
-            $('#pyetki-rol-uyari').toggle(!ayar.personel_rolunde);
+            $('#pyetki-sahip-uyari').toggle(ayar.hesap_sahibi === true);
+            $('#pyetki-rol-uyari').toggle(ayar.hesap_sahibi !== true);
          } else {
             pyetkiState.seciliSablon = 'personel_sade';
             pyetkiState.ayarlar = {};

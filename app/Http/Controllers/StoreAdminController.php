@@ -15298,6 +15298,10 @@ public function adisyon_filtreli_getir(Request $request)
         }
     }
 
+    // Listeleme ucu (Satis Takibi, musteri detayi, personel detayi): kapali adisyon
+    // gizleme yetkisi uygulansin (bkz. adisyon_yukle). Raporlar/prim bu isareti koymaz.
+    $request->attributes->set('kapali_gizle_uygula', true);
+
     Log::info($tarih1.' - '.$tarih2.' satışları geliyor Müşteri : '. $musteriid.' Personel : '. $personelid.' Tür : '.$tur);
     return self::adisyon_yukle($request, $tur, null, $tarih1, $tarih2, $musteriid, $personelid);
 }   
@@ -15804,6 +15808,17 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
     $musteri_id = $request->input('musteri_id', '');
     // Sistem-wide faturasiz gizle flag
     $_faturasizGizle = (bool) Salonlar::where('id', $isletmeId)->value('faturasiz_gizle');
+    // personel.kapali_adisyon_gizle (YASAK anahtari): aciksa kapali adisyonlar
+    // listeden, sayilardan ve toplamlardan tamamen cikar. Hesap Sahibi istisna.
+    // Yalniz listeleme uclari ('kapali_gizle_uygula') icin.
+    $_kapaliAdisyonGizle = false;
+    if ($request->attributes->get('kapali_gizle_uygula') && Auth::guard('isletmeyonetim')->check()) {
+        try {
+            $_kapaliAdisyonGizle = \App\Services\PersonelYetkiServisi::kapaliAdisyonGizlensinMi(
+                Auth::guard('isletmeyonetim')->id(), $isletmeId
+            );
+        } catch (\Throwable $e) { $_kapaliAdisyonGizle = false; }
+    }
 
 
      Log::info("DEBUG: Müşteri ID değeri: '$musteri_id'");
@@ -15977,6 +15992,9 @@ public function adisyon_yukle(Request $request, $adisyonturu, $adisyondurumu, $t
         $kalanTutar = round($toplamTutar - $odenenTutar, 2); // kayan nokta artigi tam odenmisi acik gostermesin
         // Studyo modu: acik/kapali "Ödeme Alındı" bayragina (odendi) baglidir (fiyat gizli).
         $durum = ($_studyo ? ((int) ($adisyon->odendi ?? 0) === 1) : ($kalanTutar <= 0)) ? 'kapali' : 'acik';
+
+        // Kapali adisyon gizleme yetkisi: kapali adisyon hic sayilmaz/gosterilmez
+        if ($_kapaliAdisyonGizle && $durum === 'kapali') continue;
 
         // TÜM adisyonlar için sayıları hesapla (filtreden bağımsız)
         $tumDurum = $durum;
@@ -32761,6 +32779,7 @@ public function musteriportfoydropliste(Request $request)
         return response()->json([
             'basarili'         => true,
             'personel_rolunde' => $personelRolunde,
+            'hesap_sahibi'     => \App\Services\PersonelYetkiServisi::hesapSahibiMi($personelId, $salonId),
             'sablon'           => $ayarlar['sablon'],
             'ayarlar'          => $ayarlar['ayarlar'],
         ]);

@@ -99,7 +99,10 @@
             <select class="form-control" id="satis_durumu_filtre">
                <option value="" selected>Tüm Satışlar</option>
                <option value="acik">Açık Satışlar</option>
+               {{-- Kapali adisyon gizleme yetkisi aciksa secenek yok (Hesap Sahibi istisna) --}}
+               @if(!\App\Services\PersonelYetkiServisi::kapaliAdisyonGizlensinMi(Auth::guard('isletmeyonetim')->id(), $isletme->id))
                <option value="kapali">Kapalı Satışlar</option>
+               @endif
                @if(empty($isletme->studyo_modu))
                <option value="faturali">Faturalı İşlemler</option>
                <option value="faturasiz">Faturasız İşlemler</option>

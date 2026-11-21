@@ -1340,28 +1340,32 @@ class ApiController extends Controller
 
     $faturaFiltreSayim = $_faturasizGizleAktif ? " AND a.fatura_kesildi = 1" : "";
 
-    // Yetki: personel.kapali_adisyon_gizle acikken personel kapali (odenmis)
-    // adisyonlari goremez -> acikKapali'yi 1'e sabitle (sadece acik).
-    // NOT: Bu salonda Personeller kaydi olmayan (Hesap Sahibi vb.) her zaman
-    // her seyi gorur. Coklu salon hukmeden personel icin ilgili salonun
-    // yetki ayari kullanilir.
+    // Yetki: personel.kapali_adisyon_gizle (YASAK anahtari) acikken kapali
+    // (odenmis) adisyonlar gosterilmez -> acikKapali 1'e sabitlenir.
+    // Karar tek merkezde: PersonelYetkiServisi::kapaliAdisyonGizlensinMi
+    // (Hesap Sahibi istisna; yetki kaydi olan HER rol ve rol 5 kapsamda).
+    // YALNIZ listeleme uclari (satislar, dashboard) 'kapali_gizle_uygula'
+    // isaretini koyar; prim/hakedis hesaplari kapali adisyonlara ihtiyac
+    // duydugundan bu ucta gizleme UYGULANMAZ.
+    // Istek yapan: Bearer token > istek_yapan_id (yeni build) > user_id (eski build).
     $_kapaliAdisyonGizle = false;
-    try {
-        $_authUid = $request->user_id ?? null;
-        if ($_authUid && $isletmeId) {
-            $_personelId = \App\Personeller::where('salon_id', $isletmeId)
-                ->where('yetkili_id', $_authUid)
-                ->value('id');
-            if ($_personelId) {
-                $_kapaliAdisyonGizle = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar(
-                    $_authUid, $isletmeId, 'personel.kapali_adisyon_gizle'
-                );
-                if ($_kapaliAdisyonGizle) {
-                    $acikKapali = 1; // sadece acik adisyonlar
+    if ($request->attributes->get('kapali_gizle_uygula')) {
+        try {
+            $_istekYapan = optional(\Auth::guard('isletmeyonetim-api')->user())->id
+                ?: ($request->istek_yapan_id ?: ($request->user_id ?? null));
+            if ($_istekYapan && $isletmeId
+                && \App\Services\PersonelYetkiServisi::kapaliAdisyonGizlensinMi($_istekYapan, $isletmeId)) {
+                $_kapaliAdisyonGizle = true;
+                if ($acikKapali === 0) {
+                    // "Kapali" sekmesi/musteri gecmisi (kapali) istendi -> BOS don
+                    // (eskiden 1'e cevriliyor, kapali sekmesinde acik adisyonlar cikiyordu)
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $acikKapali = 1; // tumu istendiyse yalniz acik adisyonlar
                 }
             }
-        }
-    } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {}
+    }
 
     // STUDYO MODU: fiyat 0 tutulur -> kalan hep 0 olur. Bu yuzden acik/kapali
     // (odenmemis/odenmis) KALAN ile belirlenemez; adisyonlar.odendi bayragi
@@ -6405,6 +6409,8 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
     public function ozetsayfasi(Request $request)
     {
+        // Dashboard satis adetleri: kapali adisyon gizleme yetkisi uygulansin
+        $request->attributes->set('kapali_gizle_uygula', true);
         
         $personel = Personeller::where("yetkili_id", $request->user_id)
             ->where("salon_id", $request->sube)
@@ -16173,6 +16179,8 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
     public function satislar(Request $request)
 
     {
+        // Listeleme ucu: kapali adisyon gizleme yetkisi uygulansin (bkz. adisyon_yukle)
+        $request->attributes->set('kapali_gizle_uygula', true);
 
         $personel_id = "";
         if($request->user_id != '')
@@ -23338,6 +23346,9 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             'basarili' => true,
             'personel_rolunde' => $personelRolunde,
             'kayit_var' => $kayitVar,
+            // EK (2026-11-21): bu kisi Hesap Sahibi mi? Ise ekranda "ayarlar
+            // uygulanmaz, her seyi gorur" notu cikar. Eski build alani yok sayar.
+            'hesap_sahibi' => \App\Services\PersonelYetkiServisi::hesapSahibiMi($personelId, $salonId),
             'sablon' => $ayarlar['sablon'],
             'ayarlar' => $ayarlar['ayarlar'],
         ]);

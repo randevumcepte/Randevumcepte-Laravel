@@ -224,6 +224,32 @@ class PersonelYetkiServisi
     }
 
     /**
+     * 'personel.kapali_adisyon_gizle' YASAK anahtaridir (acik = kapali/odenmis
+     * adisyonlari GIZLE). Diger anahtarlar izin anlamli oldugundan "tam yetkili
+     * = her anahtar true" kurali burada TERS sonuc verirdi; bu yuzden tek merkezden
+     * degerlendirilir (2026-11-21):
+     *  - Hesap Sahibi (rol 1) ISTISNA: her zaman her seyi gorur.
+     *  - Sistem yoneticisi "Hesabina Gir" ile girdiyse gizleme yok.
+     *  - Kisitlamaya tabi olmayan (kayitsiz rol 2-3-4) gizlenmez.
+     *  - Kisitlamaya tabi (yetki kaydi olan HER ROL ya da rol 5): anahtarin degeri.
+     */
+    public static function kapaliAdisyonGizlensinMi($yetkiliId, $salonId): bool
+    {
+        if (!$yetkiliId || !$salonId) return false;
+        try {
+            if (session()->has('sysadmin_impersonation_id')) return false;
+        } catch (\Throwable $e) {}
+        $hesapSahibi = DB::table('model_has_roles')
+            ->where('model_id', $yetkiliId)
+            ->where('salon_id', $salonId)
+            ->where('role_id', 1)
+            ->exists();
+        if ($hesapSahibi) return false;
+        if (!self::kisitlamayaTabiMi($yetkiliId, $salonId)) return false;
+        return self::menuYetki($yetkiliId, $salonId, 'personel.kapali_adisyon_gizle');
+    }
+
+    /**
      * Kullanici bu salonda yetki KISITLAMASINA tabi mi?
      * Evet (true) ise: ya Personel rolunde (role_id=5) YA DA ozel yetki kaydi var
      * (Sekreter vb. ozel yetkilendirilmis roller). Hayir ise: salon sahibi/yonetici
