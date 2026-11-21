@@ -160,6 +160,16 @@ class WaAsistanPanelController extends StoreAdminController
         }
         $liste = [];
         $rows = $q->get();
+        // "Bekleyen" = Genel Bakis/Kazandirdiklari'daki "sizden donus bekliyor" ile AYNI kaynak (acik talepler, tarihten bagimsiz):
+        // tarih araligi disinda kalan acik talepli sohbetler de listeye eklenir ki iki ekran ayni sayiyi gostersin
+        $acikTalep = array_flip(array_map(function ($t) { return (int) $t['oturum_id']; }, WaTalep::bekleyenler($sid)));
+        if ($ara === '' && $acikTalep) {
+            $eksik = array_diff(array_keys($acikTalep), $rows->pluck('id')->map(function ($x) { return (int) $x; })->all());
+            if ($eksik) {
+                $rows = $rows->merge(DB::table('wa_asistan_oturumlari')->where('isletme_id', $sid)->whereIn('id', $eksik)->get())
+                    ->sortByDesc('son_mesaj_at')->values();
+            }
+        }
         // Profil fotografi: sistemde yuklu musteri fotografi; yoksa panel WhatsApp fotografini /avatar/{id}'den ister
         $fotolar = WaAvatar::sistemFotolari($sid, $rows->map(function ($o) { return $o->musteri_tel ?: $o->telefon; })->all());
         $talepler = WaTalep::oturumlarIcin($rows->pluck('id')->map(function ($x) { return (int) $x; })->all());
@@ -185,8 +195,8 @@ class WaAsistanPanelController extends StoreAdminController
                 'foto' => $fotolar[$t10] ?? null,
                 'son_rol' => $sonRol === 'user' ? 'musteri' : ($sonRol === 'personel' ? 'personel' : ($sonRol !== '' ? 'asistan' : '')),
                 'son_metin' => mb_substr($sonMetin, 0, 120), 'yanitsiz' => $yanitsiz,
-                // mobil "Bekleyen" sekmesi: isletmeye sorulan konu bekliyor ya da musteri mesaji cevapsiz
-                'bekleyen' => (($talepler[(int) $o->id]['durum'] ?? '') === 'bekliyor' || WaAsistan::yarimMi($g) === 'cevapsiz') ? 1 : 0,
+                // mobil "Bekleyen": isletmeden donus bekleyen (acik talep). Cevapsiz kalan mesaji asistan zaten birkac dakikada tamamlar.
+                'bekleyen' => isset($acikTalep[(int) $o->id]) ? 1 : 0,
                 'talep' => isset($talepler[(int) $o->id]) && $talepler[(int) $o->id]['durum'] === 'bekliyor' ? ($talepler[(int) $o->id]['ozet'] ?: $talepler[(int) $o->id]['konu_ad']) : null,
             ];
         }
