@@ -273,7 +273,9 @@ class PersonelYetkiSabitleri
                     'finans.kasa_giris_cikis' => false, 'finans.masraf_ekle' => false,
                     'finans.masraf_gor' => false, 'finans.alacak_yonet' => false,
                     'pazarlama.sms_gonder' => false, 'pazarlama.whatsapp_gonder' => false,
-                    'whatsapp.sohbet_gor' => false, 'whatsapp.sohbet_yaz' => false,
+                    // 2026-11-21: WhatsApp musteri sohbetleri tum rollerde varsayilan acik (uygulamada personel/sekreter yalniz Sohbetler'i gorur);
+                    // personelin kayitli yetki kaydinda anahtar VARSA o deger gecerli (kapaliysa menu ve bildirim yok)
+                    'whatsapp.sohbet_gor' => true, 'whatsapp.sohbet_yaz' => true,
                     'pazarlama.toplu_sms' => false, 'pazarlama.kampanya_yonet' => false,
                     'pazarlama.cark_yonet' => false, 'pazarlama.anket_yonet' => false,
                     'gorusme.liste_gor' => true, 'gorusme.ekle_duzenle' => true,
