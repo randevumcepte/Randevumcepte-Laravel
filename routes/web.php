@@ -1131,6 +1131,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/whatsapp-asistan/son-hata','WaAsistanPanelController@sonHata');
 	Route::get('/whatsapp-asistan/maliyet','WaAsistanPanelController@maliyetRaporu');
 	Route::get('/whatsapp-asistan/reklamlar','WaAsistanPanelController@reklamlar');
+	Route::get('/whatsapp-asistan/reklam-kazanc','WaAsistanPanelController@reklamKazanc');
 	Route::post('/whatsapp-asistan/reklam','WaAsistanPanelController@reklamKaydet');
 	Route::post('/whatsapp-asistan/reklam/{id}/sil','WaAsistanPanelController@reklamSil')->where('id','[0-9]+');
 	Route::get('/arsivyonetimi','StoreAdminController@arsivyonetimi')->name('isletmeadmin.arsivyonetimi');

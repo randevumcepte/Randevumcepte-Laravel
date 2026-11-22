@@ -689,6 +689,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::get ('/numara-kontrol',        'WaAsistanMobilController@numaraKontrol');
         // Reklamlarim (kampanyalar; web ile ayni metodlar, rol 1-2-3)
         Route::get ('/reklamlar',             'WaAsistanMobilController@reklamlar');
+        Route::get ('/reklam-kazanc',         'WaAsistanMobilController@reklamKazanc');
         Route::post('/reklam',                'WaAsistanMobilController@reklamKaydet');
         Route::post('/reklam/{id}/sil',       'WaAsistanMobilController@reklamSil')->where('id', '[0-9]+');
     });

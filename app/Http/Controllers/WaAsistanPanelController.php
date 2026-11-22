@@ -450,6 +450,20 @@ class WaAsistanPanelController extends StoreAdminController
     }
 
     // ------------------------------------------------------------------ SALON REKLAMLARI (WaReklam)
+    /**
+     * Reklamlarim: kampanyalarin kazanci + katilan musteriler (web + mobil). Yalniz okur; adisyon,
+     * tahsilat ve personel primine dokunmaz. ?gun=7|30|90|0(tumu) &reklam_id=
+     */
+    public function reklamKazanc(Request $request)
+    {
+        $sid = $this->salon($request);
+        if (!$sid) return $this->yok();
+        $gun = (int) $request->input('gun', 30);
+        if (!in_array($gun, [0, 1, 7, 30, 90, 365], true)) $gun = 30;
+        $rid = (int) $request->input('reklam_id', 0);
+        return response()->json(['ok' => 1, 'gun' => $gun] + \App\Services\WaReklamKazanc::hesapla((int) $sid, $rid ?: null, $gun));
+    }
+
     public function reklamlar(Request $request)
     {
         $sid = $this->salon($request);
