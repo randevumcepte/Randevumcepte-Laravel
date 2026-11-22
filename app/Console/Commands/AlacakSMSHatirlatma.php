@@ -80,13 +80,13 @@ class AlacakSMSHatirlatma extends Command
                 // Yetkililere SMS + push + bildirim
                 foreach ($yetkililer as $yetkili) {
                     $ymesaj = 'Sayın ' . $yetkili->personel_adi . '. ' . $musteri->name . ' isimli müşterinizin yarın ' . $tutarStr . ' TL alacağınız olduğunu hatırlatmak isteriz.';
-                    if (\App\Services\BildirimTercih::mesajAcikMi($salon_id, 'alacak_hatirlatma', 'personel')) {
-                        $this->waYaDaSms($controller, $salon, $salon_id, $yetkili->cep_telefon, $ymesaj, 'alacak_hatirlatma', 'personel', ['personel_id' => $yetkili->id, 'push_ayri' => true]);
+                    if (\App\Services\BildirimTercih::mesajAcikMi($salon_id, 'alacak_hatirlatma', 'yonetici')) {
+                        $this->waYaDaSms($controller, $salon, $salon_id, $yetkili->cep_telefon, $ymesaj, 'alacak_hatirlatma', 'yonetici', ['personel_id' => $yetkili->id, 'push_ayri' => true]);
                     }
                     self::bildirimekle($salon_id, $ymesaj, '#', $yetkili->id, $tahsilat->user_id, $musteri->profil_resim, null, null);
 
                     // Push: bildirim tercihi (alacak_hatirlatma / personel / push)
-                    if (\App\Services\BildirimTercih::izin($salon_id, 'alacak_hatirlatma', 'personel', 'push')) try {
+                    if (\App\Services\BildirimTercih::izin($salon_id, 'alacak_hatirlatma', 'yonetici', 'push')) try {
                         \App\Services\NotificationService::toStaff((int) $yetkili->id, (int) $salon_id)
                             ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
                             ->title('Alacak Hatırlatma')
@@ -104,13 +104,13 @@ class AlacakSMSHatirlatma extends Command
 
                 foreach ($yetkililer as $yetkili) {
                     $ymesaj = 'Sayın ' . $yetkili->personel_adi . ' ' . $musteri->name . ' isimli müşterinizin bugün ' . $tutarStr . ' TL alacağınız olduğunu hatırlatmak isteriz. Tahsilat için lütfen müşterinizi arayınız. 0' . $musteri->cep_telefon;
-                    if (\App\Services\BildirimTercih::mesajAcikMi($salon_id, 'alacak_hatirlatma', 'personel')) {
-                        $this->waYaDaSms($controller, $salon, $salon_id, $yetkili->cep_telefon, $ymesaj, 'alacak_hatirlatma', 'personel', ['personel_id' => $yetkili->id, 'push_ayri' => true]);
+                    if (\App\Services\BildirimTercih::mesajAcikMi($salon_id, 'alacak_hatirlatma', 'yonetici')) {
+                        $this->waYaDaSms($controller, $salon, $salon_id, $yetkili->cep_telefon, $ymesaj, 'alacak_hatirlatma', 'yonetici', ['personel_id' => $yetkili->id, 'push_ayri' => true]);
                     }
                     self::bildirimekle($salon_id, $ymesaj, '#', $yetkili->id, $tahsilat->user_id, $musteri->profil_resim, null, null);
 
                     // Push: bildirim tercihi (alacak_hatirlatma / personel / push)
-                    if (\App\Services\BildirimTercih::izin($salon_id, 'alacak_hatirlatma', 'personel', 'push')) try {
+                    if (\App\Services\BildirimTercih::izin($salon_id, 'alacak_hatirlatma', 'yonetici', 'push')) try {
                         \App\Services\NotificationService::toStaff((int) $yetkili->id, (int) $salon_id)
                             ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
                             ->title('Alacak Hatırlatma')

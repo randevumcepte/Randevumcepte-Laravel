@@ -32,7 +32,7 @@
    .bm-sayi span { font-size:12.5px; color:var(--bm-gri); }
 
    .bm-tablo { overflow:hidden; margin-bottom:18px; }
-   .bm-satir { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) minmax(0,1fr); align-items:center; gap:12px;
+   .bm-satir { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); align-items:center; gap:12px;
       padding:11px 18px; border-top:1px solid #f2eef7; }
    .bm-satir.bm-th { background:var(--bm-acik); border-top:0; font-weight:700; font-size:14px; color:var(--bm-yazi); padding:13px 18px; }
    .bm-satir.bm-th small { display:block; font-weight:500; color:var(--bm-gri); font-size:11.5px; }
@@ -85,6 +85,7 @@
       box-shadow:0 8px 24px rgba(0,0,0,.15); opacity:0; transform:translateY(10px); transition:all .2s; pointer-events:none; }
    .bm-toast.gor { opacity:1; transform:none; }
 
+   @media (min-width:992px) and (max-width:1560px) { .bm-cip-ad { display:none; } .bm-cip { padding:5px 9px; } .bm-cip i { font-size:14px; } }
    @media (max-width:1300px) { .bm-ust { grid-template-columns:repeat(3,minmax(0,1fr)); } .bm-sayilar { grid-column:1 / -1; } }
    @media (max-width:991px) {
       .bm-ust { grid-template-columns:1fr; }
@@ -212,14 +213,14 @@
          + '<label class="bm-sw" title="' + etiket + ': hepsini aç/kapat"><input type="checkbox" data-ana="1" data-kod="' + esc(b.kod) + '" data-alici="' + a + '"' + (acik ? ' checked' : '') + '><span></span></label>';
       KANALLAR.forEach(function (k) {
          h += '<span class="bm-cip' + (+r[k] ? ' acik' : '') + (+r[k] !== +o[k] ? ' degisti' : '') + '" data-kod="' + esc(b.kod) + '" data-alici="' + a + '" data-kanal="' + k
-            + '" title="' + KANAL_AD[k] + ' ' + (+r[k] ? 'açık — kapatmak için tıklayın' : 'kapalı — açmak için tıklayın') + '"><i class="fa ' + KANAL_IKON[k] + '"></i>' + KANAL_AD[k] + '</span>';
+            + '" title="' + KANAL_AD[k] + ' ' + (+r[k] ? 'açık — kapatmak için tıklayın' : 'kapalı — açmak için tıklayın') + '"><i class="fa ' + KANAL_IKON[k] + '"></i><span class="bm-cip-ad">' + KANAL_AD[k] + '</span></span>';
       });
       return h + '</div>';
    }
 
    function ciz() {
       var h = durumKartlari();
-      h += '<div class="bm-kart bm-tablo"><div class="bm-satir bm-th"><div>Bildirim Türü</div><div>Müşteri<small>Ana anahtar + gönderim kanalları</small></div><div>Personel / Yönetici<small>Ana anahtar + gönderim kanalları</small></div></div>';
+      h += '<div class="bm-kart bm-tablo"><div class="bm-satir bm-th"><div>Bildirim Türü</div><div>Müşteri<small>Ana anahtar + gönderim kanalları</small></div><div>Personel<small>Randevuyu alan / ilgili çalışan</small></div><div>Yönetici<small>İşletme sahibi ve yöneticiler</small></div></div>';
       VERI.gruplar.forEach(function (g) {
          h += '<div class="bm-grup">' + esc(g.ad) + (g.kod === 'guvenlik' ? ' · üç kanalda da kapalıysa kod hiç istenmez' : '') + '</div>';
          g.bildirimler.forEach(function (b) {
@@ -232,7 +233,7 @@
             }
             h += '<div class="bm-satir"><div class="bm-ad"><i class="fa ' + ik[0] + ' bm-ri" style="color:' + ik[1] + '"></i>'
                + '<div class="bm-ad-yazi"><b>' + esc(b.ad) + '</b><small title="' + esc(b.aciklama) + '">' + esc(b.aciklama) + '</small>' + saat + '</div></div>'
-               + aliciHucre(b, 'musteri', 'Müşteri') + aliciHucre(b, 'personel', 'Personel / Yönetici') + '</div>';
+               + aliciHucre(b, 'musteri', 'Müşteri') + aliciHucre(b, 'personel', 'Personel') + aliciHucre(b, 'yonetici', 'Yönetici') + '</div>';
          });
       });
       h += '</div>';

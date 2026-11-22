@@ -12644,16 +12644,22 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         $tarafından = IsletmeYetkilileri::where("id", $request->olusturan)->value("name");
                     $mesaj = $yenirandevu->users->name . " isimli müşterinin " . date("d.m.Y", strtotime($yenirandevu->tarih)) . " - " . date("H:i", strtotime($hizmet->saat)) . " " . $hizmet->hizmetler->hizmet_adi . " randevusu " . $tarafından . " tarafından " . $cumleyeek . ".";
 
-                    if (\App\Services\BildirimTercih::mesajAcikMi($yenirandevu->salon_id, $_bkKod, 'personel')) {
+                    // Atanan personel 'personel', 257'deki yoneticiler (role<5) 'yonetici' tercihine bakar
+                    $_pMsjAcik = \App\Services\BildirimTercih::mesajAcikMi($yenirandevu->salon_id, $_bkKod, 'personel');
+                    $_yMsjAcik = \App\Services\BildirimTercih::mesajAcikMi($yenirandevu->salon_id, $_bkKod, 'yonetici');
+                    if ($_pMsjAcik || $_yMsjAcik) {
 
                         $yetkiliidler = Personeller::where("id", $hizmet->personel_id)->orWhere(function($q) use($yenirandevu,$request){
                             if($yenirandevu->salon_id == 257)
                                 $q->where('salon_id',$yenirandevu->salon_id)->where('role_id','<',5);
 
                         })->pluck("yetkili_id")->toArray();
+                        $_atananYid = Personeller::where("id", $hizmet->personel_id)->value("yetkili_id");
                         foreach($yetkiliidler as $yetkiliid)
                         {
-                            array_push($mesajlar, ["to" => IsletmeYetkilileri::where("id", $yetkiliid)->value("gsm1"), "message" => $mesaj, "bk" => $_bkKod, "alici" => 'personel', "push_ayri" => true]);
+                            $_alici = ($_atananYid && $yetkiliid == $_atananYid) ? 'personel' : 'yonetici';
+                            if (!($_alici === 'personel' ? $_pMsjAcik : $_yMsjAcik)) continue;
+                            array_push($mesajlar, ["to" => IsletmeYetkilileri::where("id", $yetkiliid)->value("gsm1"), "message" => $mesaj, "bk" => $_bkKod, "alici" => $_alici, "push_ayri" => true]);
                         }
 
                     }
@@ -12712,6 +12718,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     $_pKod = $guncelleme ? 'randevu_guncellendi' : 'randevu_olusturuldu';
                     $_pushM = \App\Services\BildirimTercih::izin($salonId, $_pKod, 'musteri', 'push');
                     $_pushP = \App\Services\BildirimTercih::izin($salonId, $_pKod, 'personel', 'push');
+                    $_pushY = \App\Services\BildirimTercih::izin($salonId, $_pKod, 'yonetici', 'push');
 
                     if ($guncelleme) {
                         // Guncelleme: her durumda musteriye push (zaman degisti veya
@@ -12734,10 +12741,12 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         } catch (\Throwable $e) { \Log::warning('musteri guncelleme push fail: '.$e->getMessage()); }
 
                         // Personel + yoneticilere HER guncellemede push (eskiden yalniz zaman degisince, yoneticisiz).
-                        $_gPid = [];
-                        foreach ($finalRandevu->hizmetler as $h) { if ($h->personel_id) $_gPid[] = (int) $h->personel_id; }
-                        $_gPid = array_values(array_unique(array_merge($_gPid, $_yoneticiler)));
-                        if (!$_pushP) $_gPid = [];
+                        // Atanan personel 'personel', atanmayan yoneticiler 'yonetici' push tercihine bakar
+                        $_gAtanan = [];
+                        foreach ($finalRandevu->hizmetler as $h) { if ($h->personel_id) $_gAtanan[] = (int) $h->personel_id; }
+                        $_gAtanan = array_values(array_unique($_gAtanan));
+                        $_gPid = $_pushP ? $_gAtanan : [];
+                        if ($_pushY) foreach ($_yoneticiler as $_yid) { if (!in_array($_yid, $_gAtanan, true) && !in_array($_yid, $_gPid, true)) $_gPid[] = $_yid; }
                         foreach ($_gPid as $_pid) {
                             try {
                                 NotificationService::toStaff($_pid, (int)$salonId)
@@ -12768,12 +12777,15 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                             foreach ($finalRandevu->hizmetler as $h) {
                                 if ($h->personel_id) $bildirilecekPersonelIdler[] = (int)$h->personel_id;
                             }
+                            $bildirilecekPersonelIdler = array_values(array_unique($bildirilecekPersonelIdler));
+                            $_tAtanan = $bildirilecekPersonelIdler;
+                            if (!$_pushP) $bildirilecekPersonelIdler = [];
+                            // Atanmayan yoneticiler 'yonetici' push tercihine bakar
                             $yoneticiIdler = $_yoneticiler;
                             foreach ($yoneticiIdler as $yid) {
-                                $bildirilecekPersonelIdler[] = (int)$yid;
+                                if ($_pushY && !in_array((int)$yid, $_tAtanan, true) && !in_array((int)$yid, $bildirilecekPersonelIdler, true))
+                                    $bildirilecekPersonelIdler[] = (int)$yid;
                             }
-                            $bildirilecekPersonelIdler = array_values(array_unique($bildirilecekPersonelIdler));
-                            if (!$_pushP) $bildirilecekPersonelIdler = [];
 
                             $musteriAdi = $finalRandevu->users->name ?? 'Müşteri';
                             foreach ($bildirilecekPersonelIdler as $pid) {
@@ -16715,6 +16727,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         // Bildirim tercihi: talep reddi ayri, aktif randevu iptali ayri (push'lari bu fonksiyon atar)
         $_bk = $red ? 'randevu_reddedildi' : 'randevu_iptal';
         $_pushP = \App\Services\BildirimTercih::izin($randevu->salon_id, $_bk, 'personel', 'push');
+        $_pushY = \App\Services\BildirimTercih::izin($randevu->salon_id, $_bk, 'yonetici', 'push');
 
         if ($red) {
             $mesaj = $isletme->salon_adi ." için oluşturduğunuz " . date("d.m.Y", strtotime($randevu->tarih)) ." " . date("H:i", strtotime($randevu->saat)) ." randevu talebiniz reddedilmiştir. Detaylı bilgi için bize ulaşın. 0" .$isletme->telefon_1;
@@ -16863,7 +16876,7 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                     : ((string) $request->input('easistan') === '1' ? 'Randevu İptal Edildi (sesli asistan)' : 'Randevu İptal Edildi'));
             foreach (Personeller::where('salon_id', $randevu->salon_id)->where('role_id', '<', 5)->pluck('id') as $_yid) {
                 if (in_array((int) $_yid, $_atanan, true)) continue;
-                if (!$_pushP) break; // personel push kapali (bildirim tercihi)
+                if (!$_pushY) break; // yonetici push kapali (bildirim tercihi)
                 try {
                     NotificationService::toStaff((int) $_yid, (int) $randevu->salon_id)
                         ->type(NotificationTypes::APPOINTMENT_CANCELLED)

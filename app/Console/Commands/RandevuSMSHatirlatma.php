@@ -498,7 +498,11 @@ class RandevuSMSHatirlatma extends Command
         $personelPush = \App\Services\BildirimTercih::izin($salonId, $bkKod, 'personel', 'push');
         // 1 gun once personel SMS/WA bugun yok; isletme secerse ayni metin dagit ile gider (tohumda kapali)
         $personelMesaj = $etiket === '1gun' && \App\Services\BildirimTercih::mesajAcikMi($salonId, $bkKod, 'personel');
+        // Yoneticiler (role<5, atanmis degil) 'yonetici' tercihine bakar
+        $yoneticiPush = \App\Services\BildirimTercih::izin($salonId, $bkKod, 'yonetici', 'push');
+        $yoneticiMesaj = $etiket === '1gun' && \App\Services\BildirimTercih::mesajAcikMi($salonId, $bkKod, 'yonetici');
         $personelSatirlari = [];
+        $yoneticiSatirlari = [];
 
         // 1) Musteri push
         if ($musteriPush && !empty($value->user_id)) {
@@ -547,8 +551,8 @@ class RandevuSMSHatirlatma extends Command
                 ->pluck('salon_personelleri.id')->toArray();
             $yoneticiIdleri = array_values(array_unique($yoneticiIdleri));
             foreach ($yoneticiIdleri as $yid) {
-                if ($personelMesaj) $personelSatirlari[] = (int) $yid;
-                if (!$personelPush) continue;
+                if ($yoneticiMesaj) $yoneticiSatirlari[] = (int) $yid;
+                if (!$yoneticiPush) continue;
                 try {
                     \App\Services\NotificationService::toStaff((int) $yid, $salonId)
                         ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
@@ -566,14 +570,14 @@ class RandevuSMSHatirlatma extends Command
         }
 
         // 1 gun once personel SMS/WA (yalniz isletme sectiyse): push yukarida atildi -> push_ayri
-        if ($personelSatirlari) {
+        if ($personelSatirlari || $yoneticiSatirlari) {
             try {
-                $telefonlar = Personeller::whereIn('id', array_values(array_unique($personelSatirlari)))
+                $telefonlar = Personeller::whereIn('id', array_values(array_unique(array_merge($personelSatirlari, $yoneticiSatirlari))))
                     ->whereNotNull('cep_telefon')->where('cep_telefon', '!=', '')->pluck('cep_telefon', 'id');
                 $satirlar = [];
                 foreach ($telefonlar as $pid => $tel) {
                     $satirlar[] = ['to' => $tel, 'message' => $personelBody, 'randevu_id' => $randevuId, 'personel_id' => (int) $pid,
-                        'bk' => $bkKod, 'alici' => 'personel', 'push_ayri' => true, 'gonderim_tipi' => 'personel_hatirlatma'];
+                        'bk' => $bkKod, 'alici' => in_array((int) $pid, $yoneticiSatirlari, true) ? 'yonetici' : 'personel', 'push_ayri' => true, 'gonderim_tipi' => 'personel_hatirlatma'];
                 }
                 $salonObj = $value->salonlar;
                 $smsSatirlari = $satirlar ? \App\Services\BildirimTercih::dagit($salonObj, $satirlar, 'personel_hatirlatma') : [];

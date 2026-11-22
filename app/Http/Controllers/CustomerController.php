@@ -347,13 +347,19 @@ class CustomerController extends Controller
             // 3) Push — BildirimKimlikleri.isletme_yetkili_id = Personeller.id, sadece aktif satirlar
             // Brand izolasyonu: sadece randevunun ait oldugu salon'un app_bundle'ini
             // yuklu cihazlara gonder (public randevu formu farkli brand'lere sizmasin).
-            $bildirimkimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$isletmeyetkilileri->pluck('id')->toArray())
+            // Atanan personel 'personel', atanmayan yoneticiler 'yonetici' push tercihine bakar
+            $_bkYonetici = \App\Services\BildirimTercih::kanallar($isletme->id, 'online_randevu_talebi', 'yonetici');
+            $_kAtanan = array_map('intval', $personeller);
+            $_pushIdler = $isletmeyetkilileri->filter(function ($y) use ($_kAtanan, $_bkPersonel, $_bkYonetici) {
+                return in_array((int) $y->id, $_kAtanan, true) ? $_bkPersonel['push'] : $_bkYonetici['push'];
+            })->pluck('id')->toArray();
+            $bildirimkimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id',$_pushIdler)
                 ->forBrand($request->salonno)
                 ->whereNotNull('bildirim_id')
                 ->when(\Schema::hasColumn('bildirim_kimlikleri', 'aktif'), function($q){ $q->where('aktif', 1); })
                 ->pluck('bildirim_id')->toArray();
 
-            if ($_bkPersonel['push']) {
+            if ($_bkPersonel['push'] || $_bkYonetici['push']) {
                 self::bildirimgonder($bildirimkimlikleri,$mesaj_isletme,"Yeni Randevu",$request->salonno);
             }
             

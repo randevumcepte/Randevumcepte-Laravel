@@ -373,7 +373,7 @@ class AiAsistanController extends Controller
     private static function salonaBildir($salonId, $randevuId, $user, $mesaj)
     {
         // Bildirim tercihleri: telefon_asistani / personel / push kapaliysa gonderilmez
-        if (!\App\Services\BildirimTercih::izin($salonId, 'telefon_asistani', 'personel', 'push')) return;
+        if (!\App\Services\BildirimTercih::izin($salonId, 'telefon_asistani', 'yonetici', 'push')) return;
         $yoneticiIdleri = Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
             ->where('salon_personelleri.salon_id', $salonId)
             ->where('model_has_roles.role_id', '<', 5)

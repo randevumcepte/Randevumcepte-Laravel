@@ -32,7 +32,7 @@ class BildirimTercih
     const SEMA = 'bildirim_tercih_sema_v1';
     const TABLO = 'salon_bildirim_tercihleri';
     const KANALLAR = ['sms', 'whatsapp', 'push'];
-    const ALICILAR = ['musteri', 'personel'];
+    const ALICILAR = ['musteri', 'personel', 'yonetici'];
 
     const GRUPLAR = [
         'randevu'    => 'Randevu',
@@ -56,23 +56,23 @@ class BildirimTercih
         // ── Randevu ──
         'randevu_olusturuldu' => ['grup' => 'randevu', 'ad' => 'Randevu oluşturulduğunda',
             'aciklama' => 'Randevu eklendiğinde müşteriye ve randevudaki personele bilgi gider.', 'push_tip' => 'appointment_created',
-            'alicilar' => ['musteri' => ['eski' => [12, 'musteri'], 'push' => 1], 'personel' => ['eski' => [12, 'personel'], 'push' => 1]]],
+            'alicilar' => ['musteri' => ['eski' => [12, 'musteri'], 'push' => 1], 'personel' => ['eski' => [12, 'personel'], 'push' => 1], 'yonetici' => ['eski' => [12, 'personel'], 'push' => 1, 'kopya' => 'personel']]],
         'randevu_guncellendi' => ['grup' => 'randevu', 'ad' => 'Randevu güncellendiğinde',
             'aciklama' => 'Tarih, saat, personel veya hizmet değişince (sürükle-bırak dahil).', 'push_tip' => 'appointment_time_changed',
-            'alicilar' => ['musteri' => ['eski' => [14, 'musteri'], 'push' => 1], 'personel' => ['eski' => [14, 'personel'], 'push' => 1]]],
+            'alicilar' => ['musteri' => ['eski' => [14, 'musteri'], 'push' => 1], 'personel' => ['eski' => [14, 'personel'], 'push' => 1], 'yonetici' => ['eski' => [14, 'personel'], 'push' => 1, 'kopya' => 'personel']]],
         'randevu_onaylandi' => ['grup' => 'randevu', 'ad' => 'Randevu talebi onaylandığında',
             'aciklama' => 'Online gelen randevu talebini onayladığınızda.', 'push_tip' => 'appointment_approved',
             // personel push bugun 2.personel bayragina bagli (randevuonayla) -> 'ayar'
-            'alicilar' => ['musteri' => ['eski' => [2, 'musteri'], 'push' => 1], 'personel' => ['eski' => [2, 'personel'], 'push' => 'ayar']]],
+            'alicilar' => ['musteri' => ['eski' => [2, 'musteri'], 'push' => 1], 'personel' => ['eski' => [2, 'personel'], 'push' => 'ayar'], 'yonetici' => ['eski' => [2, 'personel'], 'push' => 'ayar', 'kopya' => 'personel']]],
         'randevu_reddedildi' => ['grup' => 'randevu', 'ad' => 'Randevu talebi reddedildiğinde',
             'aciklama' => 'Online gelen randevu talebini reddettiğinizde.', 'push_tip' => 'appointment_cancelled',
-            'alicilar' => ['musteri' => ['eski' => [3, 'musteri'], 'push' => 1], 'personel' => ['eski' => [3, 'personel'], 'push' => 1]]],
+            'alicilar' => ['musteri' => ['eski' => [3, 'musteri'], 'push' => 1], 'personel' => ['eski' => [3, 'personel'], 'push' => 1], 'yonetici' => ['eski' => [3, 'personel'], 'push' => 1, 'kopya' => 'personel']]],
         'randevu_iptal' => ['grup' => 'randevu', 'ad' => 'Randevu iptal edildiğinde',
             'aciklama' => 'Aktif bir randevu iptal edildiğinde.', 'push_tip' => 'appointment_cancelled',
-            'alicilar' => ['musteri' => ['eski' => [3, 'musteri'], 'push' => 1], 'personel' => ['eski' => [3, 'personel'], 'push' => 1]]],
+            'alicilar' => ['musteri' => ['eski' => [3, 'musteri'], 'push' => 1], 'personel' => ['eski' => [3, 'personel'], 'push' => 1], 'yonetici' => ['eski' => [3, 'personel'], 'push' => 1, 'kopya' => 'personel']]],
         'online_randevu_talebi' => ['grup' => 'randevu', 'ad' => 'Online randevu talebi alındığında',
             'aciklama' => 'Müşteri web sitesinden, uygulamadan veya telefon asistanından randevu talebi bıraktığında.', 'push_tip' => 'appointment_created',
-            'alicilar' => ['musteri' => ['eski' => [11, 'musteri'], 'push' => 0], 'personel' => ['eski' => [11, 'personel'], 'push' => 1]]],
+            'alicilar' => ['musteri' => ['eski' => [11, 'musteri'], 'push' => 0], 'personel' => ['eski' => [11, 'personel'], 'push' => 1], 'yonetici' => ['eski' => [11, 'personel'], 'push' => 1, 'kopya' => 'personel']]],
         'musteri_geldi' => ['grup' => 'randevu', 'ad' => 'Müşteri geldi',
             'aciklama' => 'Randevu "geldi" işaretlenince ilgili personele haber verilir.', 'push_tip' => 'appointment_created',
             'alicilar' => ['personel' => ['eski' => [21, 'personel'], 'push' => 1]]],
@@ -80,10 +80,10 @@ class BildirimTercih
         // ── Hatirlatmalar ──
         'hatirlatma_yaklasan' => ['grup' => 'hatirlatma', 'ad' => 'Yaklaşan randevu hatırlatma',
             'aciklama' => 'Randevudan birkaç saat önce (süreyi Randevu Ayarları\'ndan seçersiniz).', 'push_tip' => 'appointment_reminder_hour',
-            'alicilar' => ['musteri' => ['eski' => [1, 'musteri'], 'push' => 1], 'personel' => ['eski' => [1, 'personel'], 'push' => 1]]],
+            'alicilar' => ['musteri' => ['eski' => [1, 'musteri'], 'push' => 1], 'personel' => ['eski' => [1, 'personel'], 'push' => 1], 'yonetici' => ['eski' => [1, 'personel'], 'push' => 1, 'kopya' => 'personel']]],
         'hatirlatma_bir_gun_once' => ['grup' => 'hatirlatma', 'ad' => 'Bir gün önce randevu hatırlatma',
             'aciklama' => 'Yarınki randevular için bugün öğleden sonra.', 'push_tip' => 'appointment_reminder',
-            'alicilar' => ['musteri' => ['eski' => [6, 'musteri'], 'push' => 1], 'personel' => ['eski' => null, 'mesaj' => 0, 'push' => 1]]],
+            'alicilar' => ['musteri' => ['eski' => [6, 'musteri'], 'push' => 1], 'personel' => ['eski' => null, 'mesaj' => 0, 'push' => 1], 'yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel']]],
         'seans_hatirlatma' => ['grup' => 'hatirlatma', 'ad' => 'Kalan seans hatırlatma',
             'aciklama' => 'Paketinde kullanılmamış seansı olan müşteriye randevu almayı hatırlatır.', 'push_tip' => 'session_reminder',
             'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 0, 'push' => 1]]],
@@ -92,7 +92,7 @@ class BildirimTercih
             'alicilar' => ['musteri' => ['eski' => [1, 'musteri'], 'push' => 'ayar']]],
         'alacak_hatirlatma' => ['grup' => 'hatirlatma', 'ad' => 'Ödeme (alacak) hatırlatma',
             'aciklama' => 'Taksit/borç günü gelen müşteriye; yöneticilere de alacak özeti.', 'push_tip' => 'system_announcement',
-            'alicilar' => ['musteri' => ['eski' => [1, 'musteri'], 'push' => 0], 'personel' => ['eski' => [1, 'personel'], 'push' => 1]]],
+            'alicilar' => ['musteri' => ['eski' => [1, 'musteri'], 'push' => 0], 'yonetici' => ['eski' => [1, 'personel'], 'push' => 1, 'kopya' => 'personel']]],
         'senet_vade' => ['grup' => 'hatirlatma', 'ad' => 'Senet vadesi geçti',
             'aciklama' => 'Vadesi geçmiş senedi olan müşteriye her gün saat 10:00\'da.', 'push_tip' => 'system_announcement',
             'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 1, 'sadeceSms' => true, 'push' => 0]]],
@@ -119,7 +119,7 @@ class BildirimTercih
             'alicilar' => ['musteri' => ['eski' => [13, 'musteri'], 'push' => 0, 'kanalSutunu' => 'anket_gonderim_kanali']]],
         'kotu_degerlendirme' => ['grup' => 'musteri', 'ad' => 'Düşük puanlı değerlendirme uyarısı',
             'aciklama' => 'Müşteri ankette düşük puan verince yöneticilere haber verilir.', 'push_tip' => 'survey',
-            'alicilar' => ['personel' => ['eski' => null, 'mesaj' => 0, 'push' => 1]]],
+            'alicilar' => ['yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel']]],
         'musteri_foto' => ['grup' => 'musteri', 'ad' => 'Fotoğraf paylaşıldığında',
             'aciklama' => 'Müşteri uygulamadan fotoğraf yüklediğinde personele, işletme yüklediğinde müşteriye.', 'push_tip' => 'musteri_resim_yuklendi',
             'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 0, 'push' => 1], 'personel' => ['eski' => null, 'mesaj' => 0, 'push' => 1]]],
@@ -133,10 +133,10 @@ class BildirimTercih
         // ── Asistanlar ──
         'wa_asistan_talep' => ['grup' => 'asistan', 'ad' => 'WhatsApp asistanı size soruyor',
             'aciklama' => 'Asistan cevaplayamadığı bir konuda işletmeden yardım istediğinde.', 'push_tip' => 'wa_asistan_talep',
-            'alicilar' => ['personel' => ['eski' => null, 'mesaj' => 0, 'push' => 1]]],
+            'alicilar' => ['yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel']]],
         'telefon_asistani' => ['grup' => 'asistan', 'ad' => 'Telefon asistanı işlem yaptığında',
             'aciklama' => 'Yapay zeka telefon asistanı randevu aldığında veya iptal ettiğinde personele.', 'push_tip' => 'appointment_created',
-            'alicilar' => ['personel' => ['eski' => null, 'mesaj' => 0, 'push' => 1]]],
+            'alicilar' => ['yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel']]],
 
         // ── Seans & paket ──
         // Bugun: once push (+WA), ikisi de ulasmazsa SMS -> tohumda SMS kapali, yedek SMS bunu karsilar
@@ -148,7 +148,7 @@ class BildirimTercih
         // ── Para & kasa ──
         'para_islemleri' => ['grup' => 'para', 'ad' => 'Kasa para giriş/çıkışı',
             'aciklama' => 'Kasadan para alındığında veya kasaya para eklendiğinde yöneticilere.', 'push_tip' => 'system_announcement',
-            'alicilar' => ['personel' => ['eski' => [19, 'personel'], 'push' => 0]]],
+            'alicilar' => ['yonetici' => ['eski' => [19, 'personel'], 'push' => 0, 'kopya' => 'personel']]],
 
         // ── Onay ve dogrulama kodlari ──
         'dogrulama_kodu' => ['grup' => 'guvenlik', 'ad' => 'Seans/ödeme doğrulama kodu',
@@ -159,7 +159,7 @@ class BildirimTercih
             'alicilar' => ['musteri' => ['eski' => [22, 'musteri'], 'push' => 0]]],
         'silme_onay_kodu' => ['grup' => 'guvenlik', 'ad' => 'Satış/tahsilat silme onay kodu',
             'aciklama' => 'Satış veya tahsilat silinirken işletme sahibine onay kodu gider. Kapalıysa kod istenmez.', 'push_tip' => 'system_announcement',
-            'alicilar' => ['personel' => ['eski' => [23, 'personel'], 'push' => 0]]],
+            'alicilar' => ['yonetici' => ['eski' => [23, 'personel'], 'push' => 0, 'kopya' => 'personel']]],
 
         // ── Kampanya ──
         'kampanya_link' => ['grup' => 'kampanya', 'ad' => 'Etkinlik & kampanya katılım linki',
@@ -299,7 +299,7 @@ class BildirimTercih
     // ─────────────────────────────────────────────────────────── yazma
 
     const KANAL_AD = ['sms' => 'SMS', 'whatsapp' => 'WhatsApp', 'push' => 'Uygulama bildirimi'];
-    const ALICI_AD = ['musteri' => 'Müşteriye', 'personel' => 'Personele'];
+    const ALICI_AD = ['musteri' => 'Müşteriye', 'personel' => 'Personele', 'yonetici' => 'Yöneticiye'];
 
     /**
      * Tek bir anahtari kaydeder. Deger degistiyse Log Hareketleri'ne (salon_aktivite_log) yazar.
@@ -524,7 +524,7 @@ class BildirimTercih
         return $l;
     }
 
-    private static function tohumDegerleri($salonId, array $liste)
+    private static function tohumDegerleri($salonId, array $liste, array $mevcut = [])
     {
         $eski = [];
         try {
@@ -537,6 +537,8 @@ class BildirimTercih
         $v = [];
         foreach ($liste as $x) {
             list($kod, $alici, $spec) = $x;
+            // Yonetici ilk kez gelir: ayni bildirimin KAYITLI personel ayari aynen kopyalanir (bugun tek ayar ikisini birlikte yonetiyordu)
+            if (!empty($spec['kopya']) && isset($mevcut[$kod][$spec['kopya']])) { $v[$kod][$alici] = $mevcut[$kod][$spec['kopya']]; continue; }
             if (!empty($spec['eski'])) {
                 list($ayarId, $alan) = $spec['eski'];
                 // Eski satir yoksa bugun o bildirim hic gitmiyor (value()==1 / if(!$ayar) return) -> kapali
@@ -570,7 +572,7 @@ class BildirimTercih
 
     private static function tohumla($salonId, array $eksik, array $v)
     {
-        $yeni = self::tohumDegerleri($salonId, $eksik);
+        $yeni = self::tohumDegerleri($salonId, $eksik, $v);
         $simdi = date('Y-m-d H:i:s');
         foreach ($yeni as $kod => $alicilar) {
             foreach ($alicilar as $alici => $d) {

@@ -3411,7 +3411,7 @@ $salon = Salonlar::where('domain', $domain)->first();
                 // ── 1) UYGULAMA PUSH (birincil) — salon sahibi/yoneticilerine (role_id < 5; normal personel haric)
                 //     Push telefon numarasina bagli DEGILDIR: uyari telefonu bos olsa bile sahibe gider.
                 //     Bildirim tercihleri: kotu_degerlendirme / personel / push kapaliysa atilmaz.
-                if (\App\Services\BildirimTercih::izin($salon->id, 'kotu_degerlendirme', 'personel', 'push')) try {
+                if (\App\Services\BildirimTercih::izin($salon->id, 'kotu_degerlendirme', 'yonetici', 'push')) try {
                     $yoneticiIdleri = \App\Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
                         ->where('salon_personelleri.salon_id', $salon->id)
                         ->where('model_has_roles.role_id', '<', 5)

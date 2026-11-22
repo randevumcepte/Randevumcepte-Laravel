@@ -753,7 +753,7 @@ class WaAsistan
             $yoneticiler = [];
             // Bildirim tercihleri: yalniz talep bildiriminde ($tercihKod) personel push kapaliysa push atilmaz; Gece Denetcisi
             // ozeti / test bildirimi bu tercihe bagli degil. Zil satiri yukarida yazildi.
-            if ($tercihKod && !BildirimTercih::izin($salonId, $tercihKod, 'personel', 'push')) return $adlar;
+            if ($tercihKod && !BildirimTercih::izin($salonId, $tercihKod, 'yonetici', 'push')) return $adlar;
             foreach (\App\Personeller::where('salon_id', $salonId)->whereNotNull('yetkili_id')->get(['id', 'personel_adi', 'yetkili_id']) as $p) {
                 try {
                     $izin = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar((int) $p->yetkili_id, $salonId, 'whatsapp.sohbet_gor');

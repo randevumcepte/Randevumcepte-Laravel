@@ -12547,7 +12547,7 @@ private function ayAdiCevir($ingilizceAy)
     {
         if($r = self::satisYetkiYoksa403($request, 'satis.adisyon_olustur')) return $r;
 
-        $smsDogrulamaVar = \App\Services\BildirimTercih::acikMi($request->sube, 'silme_onay_kodu', 'personel');
+        $smsDogrulamaVar = \App\Services\BildirimTercih::acikMi($request->sube, 'silme_onay_kodu', 'yonetici');
         $adisyonurun = AdisyonUrunler::where('id',$request->adisyonurunid)->first();
 
         $dogrulamaKodu = $adisyonurun->dogrulama_kodu;
@@ -12567,7 +12567,7 @@ private function ayAdiCevir($ingilizceAy)
 
                      
                 $mesajlar = array(
-                        array("to"=>$hesapSahibiTel,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'personel',"yetkili_id"=>$hesapSahibi),
+                        array("to"=>$hesapSahibiTel,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'yonetici',"yetkili_id"=>$hesapSahibi),
                 );
                 self::sms_gonder_bildirimli($request,$mesajlar,false,1,true);
                 
@@ -12643,7 +12643,7 @@ private function ayAdiCevir($ingilizceAy)
         if($r = self::satisYetkiYoksa403($request, 'satis.adisyon_olustur')) return $r;
 
 
-        $smsDogrulamaVar = \App\Services\BildirimTercih::acikMi($request->sube, 'silme_onay_kodu', 'personel');
+        $smsDogrulamaVar = \App\Services\BildirimTercih::acikMi($request->sube, 'silme_onay_kodu', 'yonetici');
         $adisyonpaket = AdisyonPaketler::where('id',$request->adisyonpaketid)->first();
         Log::info('silincek adisyon paket id '.$request->adisyonpaketid);
         $dogrulamaKodu = $adisyonpaket->dogrulama_kodu;
@@ -12663,7 +12663,7 @@ private function ayAdiCevir($ingilizceAy)
 
                      
                 $mesajlar = array(
-                        array("to"=>$hesapSahibiTel,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'personel',"yetkili_id"=>$hesapSahibi),
+                        array("to"=>$hesapSahibiTel,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'yonetici',"yetkili_id"=>$hesapSahibi),
                 );
                 self::sms_gonder_bildirimli($request,$mesajlar,false,1,true);
                 
@@ -13281,7 +13281,7 @@ private function ayAdiCevir($ingilizceAy)
     {
         if($r = self::satisYetkiYoksa403($request, 'satis.adisyon_olustur')) return $r;
 
-        $smsDogrulamaVar = \App\Services\BildirimTercih::acikMi($request->sube, 'silme_onay_kodu', 'personel');
+        $smsDogrulamaVar = \App\Services\BildirimTercih::acikMi($request->sube, 'silme_onay_kodu', 'yonetici');
         $hizmet = AdisyonHizmetler::where('id',$request->hizmet_id)->first();
 
         $dogrulamaKodu = $hizmet->dogrulama_kodu;
@@ -13301,7 +13301,7 @@ private function ayAdiCevir($ingilizceAy)
 
                      
                 $mesajlar = array(
-                        array("to"=>$hesapSahibiTel,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'personel',"yetkili_id"=>$hesapSahibi),
+                        array("to"=>$hesapSahibiTel,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'yonetici',"yetkili_id"=>$hesapSahibi),
                 );
                 self::sms_gonder_bildirimli($request,$mesajlar,false,1,true);
                 
@@ -17477,7 +17477,7 @@ DB::raw('
         if($islemYapan->role_id > 1)
         {
             Log::info('işlem yapan hesap sahibi değil');
-            $smsAyari = \App\Services\BildirimTercih::acikMi($request->sube, 'silme_onay_kodu', 'personel');
+            $smsAyari = \App\Services\BildirimTercih::acikMi($request->sube, 'silme_onay_kodu', 'yonetici');
             
             // GUVENLIK FIX: eski kosul "($tahsilat->dogrulama_kodu == null || $request->dogrulama_kodu == '')"
             // idi. Personel BOS-OLMAYAN herhangi bir kod (yanlis bile olsa) girince disardaki kosul
@@ -17497,7 +17497,7 @@ DB::raw('
 
 
                     $mesajlar = array(
-                        array("to"=>$hesapSahibiYetkili->gsm1,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'personel',"yetkili_id"=>$hesapSahibiYetkili->id),
+                        array("to"=>$hesapSahibiYetkili->gsm1,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'yonetici',"yetkili_id"=>$hesapSahibiYetkili->id),
                     );
                     self::sms_gonder_bildirimli($request,$mesajlar,false,1,true);
                     return array(
@@ -32609,10 +32609,10 @@ public function musteriportfoydropliste(Request $request)
         $paraekle->save();
         
         $yetkililer=Personeller::join('model_has_roles','salon_personelleri.yetkili_id','=','model_has_roles.model_id')->where('salon_personelleri.salon_id',$paraekle->salon_id)->whereIn('salon_personelleri.role_id',[1,2,3])->get(['salon_personelleri.id','salon_personelleri.cep_telefon','salon_personelleri.personel_adi']);
-        if(\App\Services\BildirimTercih::acikMi($paraekle->salon_id, 'para_islemleri', 'personel')){
+        if(\App\Services\BildirimTercih::acikMi($paraekle->salon_id, 'para_islemleri', 'yonetici')){
             foreach ($yetkililer as $yetkili) {
                  $mesajlar = array(
-                array("to"=>$yetkili->cep_telefon,"message"=>"Kasanıza ".$paraekle->olusturan->personel_adi. " tarafından ".$paraekle->tutar.' TL eklenmiştir.',"bk"=>'para_islemleri',"alici"=>'personel',"personel_id"=>$yetkili->id,
+                array("to"=>$yetkili->cep_telefon,"message"=>"Kasanıza ".$paraekle->olusturan->personel_adi. " tarafından ".$paraekle->tutar.' TL eklenmiştir.',"bk"=>'para_islemleri',"alici"=>'yonetici',"personel_id"=>$yetkili->id,
             ));
             }
            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
@@ -32634,10 +32634,10 @@ public function musteriportfoydropliste(Request $request)
             $paraal->save();
             $returntext='İşlem Başarılı';
             $yetkililer=Personeller::join('model_has_roles','salon_personelleri.yetkili_id','=','model_has_roles.model_id')->where('salon_personelleri.salon_id',$paraal->salon_id)->whereIn('role_id',[1,2,3])->get(['salon_personelleri.id','salon_personelleri.cep_telefon','salon_personelleri.personel_adi']);
-            if(\App\Services\BildirimTercih::acikMi($paraal->salon_id, 'para_islemleri', 'personel')){
+            if(\App\Services\BildirimTercih::acikMi($paraal->salon_id, 'para_islemleri', 'yonetici')){
                 foreach ($yetkililer as $yetkili) {
                     $mesajlar = array(
-                        array("to"=>$yetkili->cep_telefon,"message"=>"Kasanızdan ".$paraal->harcayan->personel_adi. " tarafından ".$paraal->tutar.' TL alınmıştır.',"bk"=>'para_islemleri',"alici"=>'personel',"personel_id"=>$yetkili->id,
+                        array("to"=>$yetkili->cep_telefon,"message"=>"Kasanızdan ".$paraal->harcayan->personel_adi. " tarafından ".$paraal->tutar.' TL alınmıştır.',"bk"=>'para_islemleri',"alici"=>'yonetici',"personel_id"=>$yetkili->id,
                     ));
                 }
                 self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
