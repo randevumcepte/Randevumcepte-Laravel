@@ -682,9 +682,8 @@
          <button class="wa-sekme" data-p="sohbet"><i class="bi bi-whatsapp"></i>Sohbetler</button>
          <button class="wa-sekme" data-p="gk"><i class="bi bi-arrow-repeat"></i>Kaçan & Geri Kazanılan</button>
          <button class="wa-sekme" data-p="gorsel"><i class="bi bi-camera"></i>Fotoğraftan Fiyat</button>
-         @if(session('sysadmin_impersonation_id') || !empty($waAyar['reklam']))
+         {{-- Reklamlarim her isletmede gorunur (mobil ile ayni). Ozellik kapaliysa sekmede "kapali" uyarisi cikar; kampanya hazirlanir, asistan ozellik acilinca gonderir. --}}
          <button class="wa-sekme" data-p="reklam"><i class="bi bi-megaphone-fill"></i>Reklamlarım</button>
-         @endif
          {{-- Asistan Gelisimi / Asistan size soruyor (Gece Denetcisi) sekmesi kaldirildi: denetci gece calismasi kapali --}}
          <button class="wa-sekme" data-p="ogr"><i class="bi bi-lightbulb"></i>Öğrenilen Cevaplar</button>
          <button class="wa-sekme" data-p="ayar"><i class="bi bi-gear"></i>Ayarlar</button>
