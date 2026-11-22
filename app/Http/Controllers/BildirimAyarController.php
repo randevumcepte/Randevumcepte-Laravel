@@ -68,14 +68,14 @@ class BildirimAyarController extends StoreAdminController
                 if (BildirimTercih::kaydet($sid, (string) ($d['kod'] ?? ''), (string) ($d['alici'] ?? ''), $d['kanal'],
                     (int) ($d['deger'] ?? 0) === 1, $kaynak, $request)) $adet++;
             }
-            if ($request->has('wa_yedek_sms') && BildirimTercih::waYedekKaydet($sid, (int) $request->input('wa_yedek_sms') === 1, $kaynak, $request)) $adet++;
+            // wa_yedek_sms artik degistirilemez (sistemde kalici acik); gelirse yok sayilir
             if ($request->filled('hatirlatma_saat') && BildirimTercih::hatirlatmaSaatKaydet($sid, $request->input('hatirlatma_saat'), $kaynak, $request)) $adet++;
             return response()->json(['ok' => 1, 'degisen' => $adet] + BildirimTercih::ekranVerisi($sid));
         }
 
         if ($request->has('wa_yedek_sms')) {
-            BildirimTercih::waYedekKaydet($sid, (int) $request->input('wa_yedek_sms') === 1, $kaynak, $request);
-            return response()->json(['ok' => 1, 'wa_yedek_sms' => BildirimTercih::waYedekSms($sid)]);
+            // Kural sistemde kalici acik; eski uygulama surumleri gonderirse degisiklik yapilmaz
+            return response()->json(['ok' => 1, 'wa_yedek_sms' => true]);
         }
 
         $kanal = (string) $request->input('kanal');

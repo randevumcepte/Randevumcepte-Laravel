@@ -191,7 +191,6 @@
    }
    function digerFark() {
       var d = {};
-      if (!!VERI.wa_yedek_sms !== !!ORJ.wa_yedek_sms) d.wa_yedek_sms = VERI.wa_yedek_sms ? 1 : 0;
       if (+VERI.hatirlatma_saat !== +ORJ.hatirlatma_saat) d.hatirlatma_saat = +VERI.hatirlatma_saat;
       return d;
    }
@@ -267,8 +266,8 @@
          + '<p>Personel, kendisine gelen bildirimleri uygulamada sessize alabilecek. Bildirim yine gelir, yalnızca ses ve titreşim olmaz. Burada kapattığınız bildirimi personel açamaz.</p>'
          + '<div class="bm-kilit"><i class="fa fa-lock"></i> Hangi bildirimin gideceğine işletme sahibi karar verir</div></div>'
          + '<div class="bm-kart"><h4><i class="fa fa-magic"></i> Akıllı Bildirim Kuralları</h4><div class="bm-kurallar"><div>'
-         + '<div class="bm-kural"><label class="bm-sw yesil"><input type="checkbox" id="bmYedek"' + (VERI.wa_yedek_sms ? ' checked' : '') + '><span></span></label>'
-         + '<div><b>WhatsApp başarısız olursa SMS gönder</b><small>WhatsApp bağlı değilse veya mesaj iletilemezse aynı mesaj SMS ile gider. SMS paketiniz yoksa SMS de gitmez.</small></div></div>'
+         + '<div class="bm-kural"><i class="fa fa-check-circle" style="color:#16a34a;font-size:22px;margin:1px 11px 0"></i>'
+         + '<div><b>WhatsApp başarısız olursa SMS gönder <span style="font-size:11px;font-weight:700;color:#15803d;background:#dcf6e6;border-radius:20px;padding:2px 8px;margin-left:4px">Sistem kuralı · her zaman açık</span></b><small>WhatsApp bağlı değilse veya mesaj iletilemezse aynı mesaj SMS ile gider. SMS paketiniz yoksa SMS de gitmez.</small></div></div>'
          + '<div class="bm-kural"><i class="fa fa-clone" style="color:#5C008E;font-size:18px;margin:2px 13px 0"></i>'
          + '<div><b>Birden fazla kanal açıksa hepsinden gider</b><small>Örneğin SMS ve WhatsApp ikisi de açıksa müşteri iki mesaj alır.</small></div></div>'
          + '</div><div class="bm-bilgi"><i class="fa fa-info-circle"></i><div>Şifre, oturum ve yetki gibi zorunlu sistem bildirimleri bu listede yer almaz ve kapatılamaz.</div></div></div></div>'
@@ -307,7 +306,7 @@
             else if (VERI.durum && VERI.durum.wa_bagli) r.whatsapp = 1; else r.sms = 1;
          } else { r.sms = 0; r.whatsapp = 0; r.push = 0; }
          ciz();
-      } else if (t.id === 'bmYedek') { VERI.wa_yedek_sms = t.checked; sayacGuncelle(); }
+      }
       else if (t.id === 'bmSaat') { VERI.hatirlatma_saat = +t.value; sayacGuncelle(); }
    });
    document.getElementById('bmKaydet').addEventListener('click', function () {

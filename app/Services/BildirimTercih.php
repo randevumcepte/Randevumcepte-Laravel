@@ -281,6 +281,9 @@ class BildirimTercih
     /** WhatsApp gidemezse SMS'e dusulsun mu (salon geneli, varsayilan acik). */
     public static function waYedekSms($salonId)
     {
+        // 2026-11-22 isletme karari: kural SISTEMDE KALICI ACIK, isletme degistiremez (ekranda yalniz bilgi).
+        // Eski kolon (bildirim_wa_yedek_sms) okunmaz; WA ulasmazsa her zaman SMS'e dusulur (paket varsa).
+        return true;
         $salonId = (int) $salonId;
         $o = self::$yedekOnbellek[$salonId] ?? null;
         if ($o && (time() - $o['t']) < self::ONBELLEK_SN) return $o['v'];
