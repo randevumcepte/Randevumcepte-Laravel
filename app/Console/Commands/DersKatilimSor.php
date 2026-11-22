@@ -49,6 +49,7 @@ class DersKatilimSor extends Command
             if (!$salon) continue;
             $dersAdi = $o->ders_tipi ?: 'Grup Dersi';
             $saatStr = substr($o->saat, 0, 5);
+            $ekSorulan = []; // ek alicilar icin: bu turda sorulan katilimcilar
 
             foreach ($kats as $k) {
                 // Atomik claim: yalnizca bir kez sor
@@ -56,6 +57,7 @@ class DersKatilimSor extends Command
                     ->where(function ($q) { $q->whereNull('katilim_soruldu')->orWhere('katilim_soruldu', 0); })
                     ->update(['katilim_soruldu' => 1]);
                 if ($claimed !== 1) continue;
+                $ekSorulan[] = (int) $k->user_id;
 
                 $govde = 'Bugün ' . $saatStr . ' ' . $dersAdi . ' dersinize katıldıysanız lütfen onaylayın: Katıldım / Katılmadım.';
                 // Push: bildirim tercihi (ders_katilim_sor/musteri/push)
@@ -75,7 +77,24 @@ class DersKatilimSor extends Command
                     if ($u) DersHatirlatma::mesajGonder($salon, $u, $govde, 'ders_katilim_sor', 'ders_bildirim');
                 }
             }
-            Log::info('[DERS-KATILIM-SOR] soruldu', ['oturum' => $o->id, 'adet' => $kats->count()]);
+
+            // Ek alicilar (egitmen/yonetici bilgi kopyasi) — oturum basina tek mesaj
+            if ($ekSorulan) {
+                $ekAdlar = [];
+                try {
+                    foreach (DB::table('users')->whereIn('id', $ekSorulan)->get(['name', 'cep_telefon']) as $u) {
+                        $ekAdlar[] = trim($u->name . (!empty($u->cep_telefon) ? ' (' . $u->cep_telefon . ')' : ''));
+                    }
+                } catch (\Throwable $e) {}
+                $ekListe = array_slice($ekAdlar, 0, 10);
+                if (count($ekAdlar) > 10) $ekListe[] = '+' . (count($ekAdlar) - 10) . ' kişi daha';
+                \App\Services\BildirimTercih::ekGonder($salon, 'ders_katilim_sor', [
+                    'personel_ids' => !empty($o->personel_id) ? [(int) $o->personel_id] : [],
+                    'ozet' => date('d.m.Y', strtotime($o->tarih)) . ' ' . $saatStr . ' ' . $dersAdi . ' dersinde "Geldi" işaretlenmemiş '
+                        . count($ekSorulan) . ' katılımcıya katılım soruldu' . ($ekListe ? ': ' . implode(', ', $ekListe) : '') . '.',
+                ]);
+            }
+            Log::info('[DERS-KATILIM-SOR] soruldu',['oturum' => $o->id, 'adet' => $kats->count()]);
         }
     }
 }

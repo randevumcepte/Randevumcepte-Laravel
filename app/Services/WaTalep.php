@@ -109,7 +109,48 @@ class WaTalep
             'konu' => $konu, 'ozet' => mb_substr($ozet, 0, 1000), 'durum' => 'bekliyor', 'created_at' => now(), 'updated_at' => now()]);
         $kim = WaAsistan::bildir((int) $o->isletme_id, self::bildirimMetni($o, $konu, $ozet), self::url((int) $o->isletme_id, (int) $o->id), 'wa_asistan_talep');
         DB::table('wa_asistan_talepler')->where('id', $id)->update(['bildirilen' => json_encode($kim, JSON_UNESCAPED_UNICODE)]);
+        self::ekBildir($o, $konu, $ozet);
         return ['id' => $id, 'yeni' => true];
+    }
+
+    /**
+     * wa_asistan_talep 'ek' alicilari (musteri / personel) — yalniz YENI talepte (hatirlatmada degil).
+     * Musteri: sohbetteki kisi (telefon; portfoyde eslesirse user_id). Personel: ekGonder musterinin
+     * (ya da sohbetin randevusunun) personelini bulur. "Yanlis numara"da musteri/personel bilgisi verilmez.
+     */
+    protected static function ekBildir($o, string $konu, string $ozet): void
+    {
+        try {
+            $isletmeId = (int) $o->isletme_id;
+            $kisaOzet = mb_substr(trim($ozet), 0, 160);
+            if ($konu === 'yanlis_numara') {
+                BildirimTercih::ekGonder($isletmeId, 'wa_asistan_talep', ['ozet' => 'WhatsApp\'ta bir kişi "yanlış numara / mesaj atmayın" yazdı.']);
+                return;
+            }
+            $tel = (string) ($o->musteri_tel ?: $o->telefon ?: '');
+            $yerel = ltrim(preg_replace('/^90/', '', preg_replace('/\D/', '', $tel)), '0');
+            $uid = null;
+            $ad = ($o->ad && preg_match('/[\p{L}\p{N}]/u', (string) $o->ad)) ? (string) $o->ad : null;
+            if (strlen($yerel) === 10) {
+                $u = DB::table('users')->join('musteri_portfoy', 'musteri_portfoy.user_id', '=', 'users.id')
+                    ->where('musteri_portfoy.salon_id', $isletmeId)
+                    ->whereIn('users.cep_telefon', [$yerel, '0' . $yerel, '90' . $yerel, '+90' . $yerel])
+                    ->orderByDesc('users.id')->first(['users.id', 'users.name']);
+                if ($u) { $uid = (int) $u->id; $ad = $u->name ?: $ad; }
+            } else {
+                $yerel = '';
+            }
+            $b = [
+                'musteri_adi' => $ad, 'musteri_tel' => $yerel !== '' ? $yerel : null,
+                'ozet' => trim(($ad ?: 'Bir müşteri') . ($yerel !== '' ? ' (' . $yerel . ')' : '')) . ' için asistan işletmeden dönüş bekliyor. Konu: '
+                    . (self::KONU[$konu] ?? $konu) . ($kisaOzet !== '' ? '. "' . $kisaOzet . '"' : '') . '.',
+            ];
+            if ($uid) $b['user_id'] = $uid;
+            if (!empty($o->randevu_id)) $b['randevu_id'] = (int) $o->randevu_id;
+            BildirimTercih::ekGonder($isletmeId, 'wa_asistan_talep', $b);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[WaTalep] ek bildirim hata: ' . $e->getMessage());
+        }
     }
 
     public static function url(int $isletmeId, int $oturumId): string

@@ -12570,14 +12570,23 @@ private function ayAdiCevir($ingilizceAy)
                         array("to"=>$hesapSahibiTel,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'yonetici',"yetkili_id"=>$hesapSahibi),
                 );
                 self::sms_gonder_bildirimli($request,$mesajlar,false,1,true);
-                
+                try {
+                    $_ekKayit = date('d.m.Y',strtotime($adisyon->tarih)).' tarihli satıştan '.number_format($adisyonurun->fiyat,2,',','.').' ₺ tutarındaki '.optional($adisyonurun->urun)->urun_adi.' ürünü';
+                    \App\Services\BildirimTercih::ekGonder($request->sube, 'silme_onay_kodu', [
+                        'user_id' => $adisyon->user_id,
+                        'personel_ids' => $islemYapan ? [$islemYapan->id] : [],
+                        'ozet' => (optional($islemYapan)->personel_adi ?: 'Bir personel').' '.$_ekKayit.' için silme onayı istedi (onay kodu hesap sahibine gönderildi).',
+                        'musteri_ozet' => 'Silinmek istenen kayıt: '.$_ekKayit.'.',
+                    ]);
+                } catch (\Throwable $e) {}
+
             }
             return array(
-                    'dogrulamaGerekli'=>true,   
+                    'dogrulamaGerekli'=>true,
             );
-        } 
+        }
 
-        
+
         $tahsilatlar = Tahsilatlar::where('adisyon_id',$adisyonurun->adisyon_id)->get();
         $musteriid = Adisyonlar::where('id',$adisyonurun->adisyon_id)->value('user_id');
         $uruneaittahsilatvar = false;
@@ -12666,12 +12675,21 @@ private function ayAdiCevir($ingilizceAy)
                         array("to"=>$hesapSahibiTel,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'yonetici',"yetkili_id"=>$hesapSahibi),
                 );
                 self::sms_gonder_bildirimli($request,$mesajlar,false,1,true);
-                
+                try {
+                    $_ekKayit = date('d.m.Y',strtotime($adisyon->tarih)).' tarihli satıştan '.number_format($adisyonpaket->fiyat,2,',','.').' ₺ tutarındaki '.optional($adisyonpaket->paket)->paket_adi.' paketi';
+                    \App\Services\BildirimTercih::ekGonder($request->sube, 'silme_onay_kodu', [
+                        'user_id' => $adisyon->user_id,
+                        'personel_ids' => $islemYapan ? [$islemYapan->id] : [],
+                        'ozet' => (optional($islemYapan)->personel_adi ?: 'Bir personel').' '.$_ekKayit.' için silme onayı istedi (onay kodu hesap sahibine gönderildi).',
+                        'musteri_ozet' => 'Silinmek istenen kayıt: '.$_ekKayit.'.',
+                    ]);
+                } catch (\Throwable $e) {}
+
             }
             return array(
-                    'dogrulamaGerekli'=>true,   
+                    'dogrulamaGerekli'=>true,
             );
-        } 
+        }
 
 
         $adisyon_id = $adisyonpaket->adisyon_id;
@@ -12886,6 +12904,12 @@ private function ayAdiCevir($ingilizceAy)
         $mesaj = "Sn. $adSoyad, $kod numaralı onay kodunu ilgiliye söyleyerek, $kvkkLink KVKK linkinde yer alan metni onaylamış olacaksınız.";
 
         self::sms_gonder_bildirimli(null, [["to" => $telefon, "message" => $mesaj, "bk" => 'kvkk_onay', "alici" => 'musteri', "user_id" => $userId]], false, 1, false);
+        \App\Services\BildirimTercih::ekGonder($salonId, 'kvkk_onay', [
+            'user_id' => $userId,
+            'musteri_adi' => $adSoyad,
+            'musteri_tel' => $telefon,
+            'ozet' => $adSoyad.' ('.$telefon.') müşterisine kayıt için KVKK onay kodu gönderildi.',
+        ]);
     }
     private function kvkk_kodu_dogrula($salonId, $telefon, $onayKodu, $userId = null) {
         $query = KVKKOnay::where('salon_id', $salonId)->where('onay_kodu', $onayKodu);
@@ -13304,13 +13328,22 @@ private function ayAdiCevir($ingilizceAy)
                         array("to"=>$hesapSahibiTel,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'yonetici',"yetkili_id"=>$hesapSahibi),
                 );
                 self::sms_gonder_bildirimli($request,$mesajlar,false,1,true);
-                
+                try {
+                    $_ekKayit = date('d.m.Y',strtotime($adisyon->tarih)).' tarihli satıştan '.number_format($hizmet->fiyat,2,',','.').' ₺ tutarındaki '.optional($hizmet->hizmet)->hizmet_adi.' hizmeti';
+                    \App\Services\BildirimTercih::ekGonder($request->sube, 'silme_onay_kodu', [
+                        'user_id' => $adisyon->user_id,
+                        'personel_ids' => $islemYapan ? [$islemYapan->id] : [],
+                        'ozet' => (optional($islemYapan)->personel_adi ?: 'Bir personel').' '.$_ekKayit.' için silme onayı istedi (onay kodu hesap sahibine gönderildi).',
+                        'musteri_ozet' => 'Silinmek istenen kayıt: '.$_ekKayit.'.',
+                    ]);
+                } catch (\Throwable $e) {}
+
             }
             return array(
-                    'dogrulamaGerekli'=>true,   
+                    'dogrulamaGerekli'=>true,
             );
-        } 
-        
+        }
+
         $adisyon_id = $hizmet->adisyon_id;
         $musteriid = Adisyonlar::where('id',$adisyon_id)->value('user_id');
         $tahsilatlar = Tahsilatlar::where('adisyon_id',$adisyon_id)->get();
@@ -17500,6 +17533,15 @@ DB::raw('
                         array("to"=>$hesapSahibiYetkili->gsm1,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'yonetici',"yetkili_id"=>$hesapSahibiYetkili->id),
                     );
                     self::sms_gonder_bildirimli($request,$mesajlar,false,1,true);
+                    try {
+                        $_ekKayit = date('d.m.Y',strtotime($tahsilat->odeme_tarihi)).' tarihli '.number_format($tahsilat->tutar, 2, ',', '.').' ₺ tahsilat';
+                        \App\Services\BildirimTercih::ekGonder($request->sube, 'silme_onay_kodu', [
+                            'user_id' => $tahsilat->user_id,
+                            'personel_ids' => [$islemYapan->id],
+                            'ozet' => $islemYapan->personel_adi.' '.$_ekKayit.' kaydı için silme onayı istedi (onay kodu hesap sahibine gönderildi).',
+                            'musteri_ozet' => 'Silinmek istenen kayıt: '.$_ekKayit.'.',
+                        ]);
+                    } catch (\Throwable $e) {}
                     return array(
                         'dogrulamaGerekli'=>true,
 
@@ -21047,6 +21089,10 @@ DB::raw('
             }
        }
         $gonder=self::sms_gonder_bildirimli($request,$mesajlar,true,6,false);
+        if (count($mesajlar) > 0)
+            \App\Services\BildirimTercih::ekGonder($etkinlik->salon_id, 'kampanya_link', [
+                'ozet' => '‘'.$etkinlik->etkinlik_adi.'’ etkinliği '.count($mesajlar).' kişiye gönderildi.',
+            ]);
         return array(
           "mesaj" => "Etklinlik başarıyla kaydedildi",
            "gonder"=>$gonder,
@@ -21067,6 +21113,10 @@ DB::raw('
         }
       }
         $gonder=self::sms_gonder_bildirimli($request,$mesajlar,true,6,false);
+        if (count($mesajlar) > 0)
+            \App\Services\BildirimTercih::ekGonder($etkinlikbeklenen->salon_id, 'kampanya_link', [
+                'ozet' => '‘'.$etkinlikbeklenen->etkinlik_adi.'’ etkinliği (yanıt bekleyenler) '.count($mesajlar).' kişiye tekrar gönderildi.',
+            ]);
         return array(
           "mesaj" => "SMS başarıyla gönderildi",
           "gonder"=>$gonder,
@@ -22086,7 +22136,13 @@ DB::raw('
         {
             $randevu->dogrulama_sms_gonderildi = 1;
             $randevu->save();
-
+            try {
+                \App\Services\BildirimTercih::ekGonder($randevu->salon_id, 'dogrulama_kodu', [
+                    'user_id' => $randevu->user_id,
+                    'randevu_id' => $randevu->id,
+                    'ozet' => optional($randevu->users)->name.' ('.optional($randevu->users)->cep_telefon.') müşterisine '.date('d.m.Y', strtotime($randevu->tarih)).' tarihli randevusu için seans doğrulama kodu gönderildi.',
+                ]);
+            } catch (\Throwable $e) {}
         }
         elseif(!is_array($sms))
         {
@@ -22154,6 +22210,13 @@ DB::raw('
             self::dogrulamaKoduSatiri(array("to"=>$musteri->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod), Adisyonlar::where('id',$hizmet->adisyon_id)->value('salon_id'), $musteri->id),
         );
           self::sms_gonder_bildirimli($request,$mesaj,false,1,true);
+        try {
+            \App\Services\BildirimTercih::ekGonder(Adisyonlar::where('id',$hizmet->adisyon_id)->value('salon_id'), 'dogrulama_kodu', [
+                'user_id' => $musteri->id,
+                'personel_ids' => $hizmet->personel_id ? [(int) $hizmet->personel_id] : [],
+                'ozet' => $musteri->name.' ('.$musteri->cep_telefon.') müşterisine '.optional($hizmet->hizmet)->hizmet_adi.' hizmeti için doğrulama kodu gönderildi.',
+            ]);
+        } catch (\Throwable $e) {}
         return '';
     }
     public function seans_dogrulama_kodu_gonder(Request $request)
@@ -22174,6 +22237,15 @@ DB::raw('
             self::dogrulamaKoduSatiri(array("to"=>$adisyon_paket->adisyon->musteri->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod), $adisyon_paket->adisyon->salon_id, $adisyon_paket->adisyon->user_id),
         );
          self::sms_gonder_bildirimli($request,$mesaj,false,1,true);
+        try {
+            $_ekMus = $adisyon_paket->adisyon->musteri;
+            \App\Services\BildirimTercih::ekGonder($adisyon_paket->adisyon->salon_id, 'dogrulama_kodu', [
+                'user_id' => $adisyon_paket->adisyon->user_id,
+                'randevu_id' => isset($randevu) ? $randevu->id : null,
+                'personel_ids' => !empty($seans->personel_id) ? [(int) $seans->personel_id] : [],
+                'ozet' => optional($_ekMus)->name.' ('.optional($_ekMus)->cep_telefon.') müşterisine '.optional($adisyon_paket->paket)->paket_adi.' paketi seansı için doğrulama kodu gönderildi.',
+            ]);
+        } catch (\Throwable $e) {}
         return '';
     }
    public function randevugeldiisaretle(Request $request)
@@ -22331,7 +22403,12 @@ DB::raw('
                 "message" => $onayMesaji,
                 "bk" => 'kvkk_onay', "alici" => 'musteri', "user_id" => $randevu->user_id,
             )), false, 1, false);
-            
+            \App\Services\BildirimTercih::ekGonder($randevu->salon_id, 'kvkk_onay', [
+                'user_id' => $randevu->user_id,
+                'randevu_id' => $randevu->id,
+                'ozet' => optional($randevu->users)->name.' ('.optional($randevu->users)->cep_telefon.') müşterisine KVKK onay kodu gönderildi.',
+            ]);
+
             return array(
                 'detailtext' => '',
                 'title' => 'Uyarı',
@@ -22610,7 +22687,21 @@ DB::raw('
         Log::info('Geldi bildirimi personele gönder');
         self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false);
     }
-    
+    try {
+        $_ekHz = [];
+        $_ekPids = [];
+        foreach ($randevu->hizmetler as $_h) {
+            $_ekHz[] = date('H:i', strtotime($_h->saat)).' '.optional($_h->hizmetler)->hizmet_adi;
+            if ($_h->personel_id) $_ekPids[] = (int) $_h->personel_id;
+        }
+        \App\Services\BildirimTercih::ekGonder($randevu->salon_id, 'musteri_geldi', [
+            'user_id' => $randevu->user_id,
+            'randevu_id' => $randevu->id,
+            'personel_ids' => array_values(array_unique($_ekPids)),
+            'ozet' => optional($randevu->users)->name.' ('.optional($randevu->users)->cep_telefon.') '.date('d.m.Y', strtotime($randevu->tarih)).' '.implode(', ', $_ekHz).' randevusu için işletmeye geldi.',
+        ]);
+    } catch (\Throwable $e) {}
+
     return array('mesaj' => 'Başarılı', 'geldiIsaretlendi' => true);
 }
     /*
@@ -25780,6 +25871,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
               }
 
               $gonder=self::sms_gonder_bildirimli($request,$mesajlar,true,5,false);
+              if (count($mesajlar) > 0)
+                  \App\Services\BildirimTercih::ekGonder($kampanyabeklenen->salon_id, 'kampanya_link', [
+                      'ozet' => '‘'.$kampanyabeklenen->paket_isim.'’ kampanyası '.count($mesajlar).' kişiye tekrar gönderildi.',
+                  ]);
               return array(
                   "mesaj" => "SMS başarıyla gönderildi",
                   "gonder"=>$gonder,
@@ -26449,6 +26544,14 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             self::dogrulamaKoduSatiri(array("to"=>$senet->musteri->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod), $senet->salon_id, optional($senet->musteri)->id),
         );
         self::sms_gonder_bildirimli($request,$mesaj,false,1,true);
+        try {
+            $_ekPid = Personeller::where('yetkili_id', optional(Auth::guard('isletmeyonetim')->user())->id)->where('salon_id', $senet->salon_id)->value('id');
+            \App\Services\BildirimTercih::ekGonder($senet->salon_id, 'dogrulama_kodu', [
+                'user_id' => optional($senet->musteri)->id,
+                'personel_ids' => $_ekPid ? [(int) $_ekPid] : [],
+                'ozet' => optional($senet->musteri)->name.' ('.optional($senet->musteri)->cep_telefon.') müşterisine '.date('d.m.Y', strtotime($vade->vade_tarih)).' vadeli '.number_format($vade->tutar,2,',','.').' ₺ senet ödemesi için doğrulama kodu gönderildi.',
+            ]);
+        } catch (\Throwable $e) {}
         return '';
     }
     public function taksit_odeme_dogrulama_kodu_gonder(Request $request)
@@ -26463,6 +26566,14 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             self::dogrulamaKoduSatiri(array("to"=>$taksitlitahsilat->musteri->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod), $taksitlitahsilat->salon_id, optional($taksitlitahsilat->musteri)->id),
         );
         self::sms_gonder_bildirimli($request,$mesaj,false,1,true);
+        try {
+            $_ekPid = Personeller::where('yetkili_id', optional(Auth::guard('isletmeyonetim')->user())->id)->where('salon_id', $taksitlitahsilat->salon_id)->value('id');
+            \App\Services\BildirimTercih::ekGonder($taksitlitahsilat->salon_id, 'dogrulama_kodu', [
+                'user_id' => optional($taksitlitahsilat->musteri)->id,
+                'personel_ids' => $_ekPid ? [(int) $_ekPid] : [],
+                'ozet' => optional($taksitlitahsilat->musteri)->name.' ('.optional($taksitlitahsilat->musteri)->cep_telefon.') müşterisine '.number_format($vade->tutar,2,',','.').' ₺ taksit ödemesi için doğrulama kodu gönderildi.',
+            ]);
+        } catch (\Throwable $e) {}
         return '';
     }
     public function yetkili_telefonlari(Request $request)
@@ -32617,6 +32728,12 @@ public function musteriportfoydropliste(Request $request)
             }
            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
         }
+        try {
+            \App\Services\BildirimTercih::ekGonder($paraekle->salon_id, 'para_islemleri', [
+                'personel_ids' => $paraekle->olusturan_id ? [(int) $paraekle->olusturan_id] : [],
+                'ozet' => 'Kasaya '.number_format((float) $paraekle->tutar,2,',','.').' ₺ eklendi — '.(optional($paraekle->olusturan)->personel_adi ?: '-').($paraekle->notlar ? ' ('.$paraekle->notlar.')' : '').'.',
+            ]);
+        } catch (\Throwable $e) {}
         return self::kasa_raporu_getir($request,'');
     }
     public function kasadanparaal(Request $request){
@@ -32642,6 +32759,12 @@ public function musteriportfoydropliste(Request $request)
                 }
                 self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
             }
+            try {
+                \App\Services\BildirimTercih::ekGonder($paraal->salon_id, 'para_islemleri', [
+                    'personel_ids' => $paraal->harcayan_id ? [(int) $paraal->harcayan_id] : [],
+                    'ozet' => 'Kasadan '.number_format((float) $paraal->tutar,2,',','.').' ₺ alındı — '.(optional($paraal->harcayan)->personel_adi ?: '-').($paraal->notlar ? ' ('.$paraal->notlar.')' : '').'.',
+                ]);
+            } catch (\Throwable $e) {}
             return self::kasa_raporu_getir($request,'İşlem başarılı.');
             exit;
         }

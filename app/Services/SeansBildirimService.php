@@ -36,6 +36,9 @@ class SeansBildirimService
 {
     public function bilgilendir(Randevular $randevu): void
     {
+        // Ek alicilar (personel/yonetici bilgi kopyasi) — musteri kanalindan bagimsiz, olay basina bir kez.
+        $this->ekBilgiGonder($randevu);
+
         // KAPI: "Seans Bilgisi Bildirimi" ayari (SMS Yonetimi ekrani).
         // salon_sms_ayarlari.ayar_id=20 / musteri kolonu. Toggle KAPALI (0/null) ise
         // musteriye seans bildirimi HICBIR kanaldan (push/WhatsApp/SMS) gitmez.
@@ -160,6 +163,55 @@ class SeansBildirimService
             } catch (\Throwable $e) {
                 Log::warning('[SEANS-KULLANIM] sms fail', ['randevu_id' => $randevu->id, 'err' => $e->getMessage()]);
             }
+        }
+    }
+
+    /**
+     * seans_kullanim 'ek' alicilari (personel / yonetici): musteri, paket/hizmet, bu randevuda
+     * kullanilan ve kalan seans. Ayni randevu icin 5 dk icinde tek kez (iki cagri yeri: mobil + web).
+     */
+    private function ekBilgiGonder(Randevular $randevu): void
+    {
+        try {
+            if (!\Illuminate\Support\Facades\Cache::add('seans_kullanim_ek.' . (int) $randevu->id, 1, 5)) return;
+            $musteri = $randevu->users ?? User::find($randevu->user_id);
+            if (!$musteri || !$musteri->id) return;
+            $seanslar = AdisyonPaketSeanslar::where('randevu_id', $randevu->id)->get();
+            if ($seanslar->isEmpty()) return;
+
+            $bloklar = [];
+            foreach ($seanslar->pluck('adisyon_paket_id')->filter()->unique()->values() as $apId) {
+                $b = $this->paketBloku((int) $apId, (int) $randevu->id);
+                if ($b !== null) $bloklar[] = $b;
+            }
+            foreach ($seanslar->pluck('adisyon_hizmet_id')->filter()->unique()->values() as $ahId) {
+                $b = $this->hizmetBloku((int) $ahId, (int) $randevu->id);
+                if ($b !== null) $bloklar[] = $b;
+            }
+            if (empty($bloklar)) return;
+
+            $parcalar = [];
+            foreach ($bloklar as $blok) {
+                foreach ($blok['kullanilan'] as $k) {
+                    $ad = $blok['tur'] === 'paket' && $blok['ad'] !== $k['ad'] ? $blok['ad'] . ' / ' . $k['ad'] : $k['ad'];
+                    $parcalar[] = $ad . ' — ' . $k['bugun'] . ' seans kullanıldı, kalan ' . $k['kalan'] . '/' . $k['toplam'];
+                }
+            }
+            if (!$parcalar) return;
+
+            $ad = trim($musteri->name ?? '') ?: 'Müşteri';
+            $tel = trim((string) ($musteri->cep_telefon ?? ''));
+            $ekB = [
+                'user_id' => (int) $musteri->id, 'musteri_adi' => $ad, 'musteri_tel' => $tel,
+                'randevu_id' => (int) $randevu->id,
+                'ozet' => $ad . ($tel !== '' ? ' (' . $tel . ')' : '') . ': ' . implode('; ', $parcalar) . '.',
+            ];
+            // Seansi yapan personel (seans satirinda varsa); yoksa ekGonder randevunun personelini bulur.
+            $pids = $seanslar->pluck('personel_id')->filter()->map(function ($x) { return (int) $x; })->unique()->values()->all();
+            if ($pids) $ekB['personel_ids'] = $pids;
+            BildirimTercih::ekGonder($randevu->salon_id, 'seans_kullanim', $ekB);
+        } catch (\Throwable $e) {
+            Log::warning('[SEANS-KULLANIM] ek bildirim hata', ['randevu_id' => $randevu->id, 'err' => $e->getMessage()]);
         }
     }
 

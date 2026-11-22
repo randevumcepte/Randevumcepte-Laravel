@@ -76,11 +76,22 @@ class SMSGonder extends Command
         $senet_vadeleri = SenetVadeleri::where('odendi', 0)
             ->where('vade_tarih', '<', date('Y-m-d'))
             ->get();
+        $ekOzetler = []; // salon_id => ['salon' => , 'satirlar' => [], 'toplam' => ] (ek alicilar: salon basina tek ozet)
         foreach ($senet_vadeleri as $vade) {
             $senet = Senetler::where('id', $vade->senet_id)->first();
             if (!$senet || !$senet->musteri || !$senet->salon) {
                 continue;
             }
+
+            // Ek alicilar icin topla (musteri kanallarindan bagimsiz)
+            try {
+                $ekSid = (int) $senet->salon->id;
+                if (!isset($ekOzetler[$ekSid])) $ekOzetler[$ekSid] = ['salon' => $senet->salon, 'satirlar' => [], 'toplam' => 0.0];
+                $ekOzetler[$ekSid]['toplam'] += (float) $vade->tutar;
+                $ekOzetler[$ekSid]['satirlar'][] = '• ' . $senet->musteri->name . ' – ' . date('d.m.Y', strtotime($vade->vade_tarih))
+                    . ' – ' . number_format((float) $vade->tutar, 2, ',', '.') . ' ₺'
+                    . (!empty($senet->musteri->cep_telefon) ? ' – ' . $senet->musteri->cep_telefon : '');
+            } catch (\Throwable $e) {}
 
             $mesaj = 'Sayın ' . $senet->musteri->name . ' ' . date('d.m.Y', strtotime($vade->vade_tarih)) . ' vade tarihli ' . number_format((float) $vade->tutar, 2, ',', '.') . ' ₺ tutarındaki senedinizin ödenmemiş olduğunu hatırlatmak isteriz.';
 
@@ -122,6 +133,16 @@ class SMSGonder extends Command
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
             curl_exec($ch);
             curl_close($ch);
+        }
+
+        // Ek alicilar (personel/yonetici bilgi kopyasi): salon basina TEK ozet mesaj
+        foreach ($ekOzetler as $ekO) {
+            $adet = count($ekO['satirlar']);
+            $liste = array_slice($ekO['satirlar'], 0, 15);
+            if ($adet > 15) $liste[] = '+' . ($adet - 15) . ' senet daha';
+            \App\Services\BildirimTercih::ekGonder($ekO['salon'], 'senet_vade', [
+                'ozet' => 'Vadesi geçmiş ' . $adet . ' senet (toplam ' . number_format($ekO['toplam'], 2, ',', '.') . ' ₺):' . "\n" . implode("\n", $liste),
+            ]);
         }
         } // if date('H:i') === '10:00'
 

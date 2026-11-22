@@ -350,7 +350,9 @@ class AiAsistanController extends Controller
                 . $tarih . ' saat ' . substr($saat, 0, 5)
                 . ($hizmetAdi ? " ({$hizmetAdi})" : '')
                 . ' randevusu AI santral üzerinden oluşturuldu.';
-            self::salonaBildir($salonId, $randevu->id, $user, $mesaj);
+            $musteriOzet = 'Randevunuz ' . Carbon::parse($tarih)->format('d.m.Y') . ' saat ' . substr($saat, 0, 5)
+                . ($hizmetAdi ? " ({$hizmetAdi})" : '') . ' için oluşturuldu.';
+            self::salonaBildir($salonId, $randevu->id, $user, $mesaj, $musteriOzet);
         } catch (\Throwable $e) {
             Log::warning('[AI] salon bildirim hatasi: ' . $e->getMessage());
         }
@@ -370,8 +372,15 @@ class AiAsistanController extends Controller
      * NotificationService::send() hem FCM push atar hem bildirimler tablosuna
      * panel satirini yazar (popup).
      */
-    private static function salonaBildir($salonId, $randevuId, $user, $mesaj)
+    private static function salonaBildir($salonId, $randevuId, $user, $mesaj, $musteriOzet = null)
     {
+        // Ek alicilar (musteri / ilgili personel bilgi kopyasi) — yonetici push'unun acik/kapali olmasindan bagimsiz.
+        // Personel verilmez: ekGonder randevunun personelini bulur (AI randevusunda henuz atanmamis olabilir).
+        \App\Services\BildirimTercih::ekGonder($salonId, 'telefon_asistani', [
+            'user_id' => $user->id ?? null, 'musteri_adi' => $user->name ?? null, 'musteri_tel' => $user->cep_telefon ?? null,
+            'randevu_id' => $randevuId, 'ozet' => $mesaj,
+            'musteri_ozet' => $musteriOzet ?: 'Randevunuz oluşturuldu.',
+        ]);
         // Bildirim tercihleri: telefon_asistani / personel / push kapaliysa gonderilmez
         if (!\App\Services\BildirimTercih::izin($salonId, 'telefon_asistani', 'yonetici', 'push')) return;
         $yoneticiIdleri = Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')

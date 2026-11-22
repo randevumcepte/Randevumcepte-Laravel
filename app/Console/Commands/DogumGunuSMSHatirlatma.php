@@ -39,6 +39,18 @@ class DogumGunuSMSHatirlatma extends Command
         $controller = app()->make(Controller::class);
 
         foreach ($dogumGunleri as $dogumGunu) {
+            // Ek alicilar (personel/yonetici bilgi kopyasi) — musteri kanallarindan bagimsiz, kanal kontrolunden ONCE
+            $ekU = $dogumGunu->users;
+            if ($ekU) {
+                \App\Services\BildirimTercih::ekGonder($dogumGunu->salon_id, 'dogum_gunu', [
+                    'user_id' => (int) $dogumGunu->user_id,
+                    'musteri_adi' => $ekU->name,
+                    'musteri_tel' => $ekU->cep_telefon,
+                    'ozet' => 'Bugün ' . trim($ekU->name . (!empty($ekU->cep_telefon) ? ' (' . $ekU->cep_telefon . ')' : ''))
+                        . ' adlı müşterinizin doğum günü.',
+                ]);
+            }
+
             // Bildirim tercihi (dogum_gunu/musteri): hicbir kanal acik degilse atla
             $bk = \App\Services\BildirimTercih::kanallar($dogumGunu->salon_id, 'dogum_gunu', 'musteri');
             if (!$bk['sms'] && !$bk['whatsapp'] && !$bk['push']) {

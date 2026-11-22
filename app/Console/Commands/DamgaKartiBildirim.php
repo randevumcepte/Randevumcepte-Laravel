@@ -78,6 +78,15 @@ class DamgaKartiBildirim extends Command
                         $ad = trim(explode(' ', (string) DB::table('users')->where('id', $userId)->value('name'))[0] ?? '');
                         $govde = ($ad !== '' ? "Tebrikler {$ad}! " : 'Tebrikler! ')
                             . "{$hizmetAdi} hizmetinden ikram kazandınız. Dilediğiniz bir seansınızda kullanabilirsiniz 🎁";
+                        // Ek alicilar (personel/yonetici bilgi kopyasi) — musteri kanallarindan bagimsiz
+                        $ekU = DB::table('users')->where('id', $userId)->first(['name', 'cep_telefon']);
+                        \App\Services\BildirimTercih::ekGonder($salon ?: (int) $kural->salon_id, 'damga_karti', [
+                            'user_id' => $userId,
+                            'musteri_adi' => $ekU->name ?? null,
+                            'musteri_tel' => $ekU->cep_telefon ?? null,
+                            'ozet' => trim(($ekU->name ?? 'Müşteri') . (!empty($ekU->cep_telefon) ? ' (' . $ekU->cep_telefon . ')' : ''))
+                                . ' damga kartını doldurdu: ' . $hizmetAdi . ' hizmetinden ikram kazandı (bekleyen hak: ' . (int) $d['hak'] . ').',
+                        ]);
                         // SMS/WhatsApp: yalniz isletme sectiyse ayni metin (tohumda kapali)
                         if (\App\Services\BildirimTercih::mesajAcikMi($kural->salon_id, 'damga_karti', 'musteri')) {
                             try {

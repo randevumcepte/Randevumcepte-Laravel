@@ -82,6 +82,7 @@ class TekrarAramaHatirlat extends Command
             $ad   = $a->musteri_ad ?: 'Musteri';
             $mesaj = $saat . "'de " . $ad . " aranacak (5 dakika kaldi).";
             $this->uyar($a, '⏰ Yaklasan Arama', $mesaj, false);
+            $this->ekBildir($a);
         }
     }
 
@@ -95,7 +96,33 @@ class TekrarAramaHatirlat extends Command
             $ad = $a->musteri_ad ?: 'Musteri';
             $mesaj = $ad . " simdi aranacak. Arama zamani geldi.";
             $this->uyar($a, '📞 Simdi Ara', $mesaj, true);
+            // Ek alicilar: 5 dk once fazi hic calismadiysa (gec eklenen callback) burada bir kez
+            try {
+                $bes = DB::table('aranacak_musteriler')->where('id', $a->id)->value('ar_5dk_at');
+            } catch (\Throwable $e) { $bes = 'x'; }
+            if (empty($bes)) $this->ekBildir($a);
         }
+    }
+
+    /** Ek alicilar (musteri/yonetici bilgi kopyasi) — callback basina bir kez (5 dk once fazi). */
+    private function ekBildir($a)
+    {
+        $tel = null;
+        try {
+            if (!empty($a->user_id)) $tel = DB::table('users')->where('id', (int) $a->user_id)->value('cep_telefon');
+        } catch (\Throwable $e) {}
+        $ad = $a->musteri_ad ?: 'Müşteri';
+        $personelAdi = null;
+        try { $personelAdi = Personeller::where('id', $a->personel_id)->value('personel_adi'); } catch (\Throwable $e) {}
+        \App\Services\BildirimTercih::ekGonder($a->salon_id, 'tekrar_arama', [
+            'user_id' => !empty($a->user_id) ? (int) $a->user_id : null,
+            'musteri_adi' => $a->musteri_ad ?: null,
+            'musteri_tel' => $tel,
+            'personel_ids' => !empty($a->personel_id) ? [(int) $a->personel_id] : [],
+            'ozet' => trim($ad . ($tel ? ' (' . $tel . ')' : '')) . ' – ' . date('d.m.Y', strtotime($a->tarih)) . ' '
+                . date('H:i', strtotime($a->saat)) . ' tekrar arama zamanı'
+                . ($personelAdi ? ' (arayacak: ' . $personelAdi . ')' : '') . '.',
+        ]);
     }
 
     /** Zamani gecmis ama hala aranmamis callback'leri isaretle + personele tek uyari. */

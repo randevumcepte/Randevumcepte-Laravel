@@ -9538,6 +9538,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
         self::sms_gonder_2($request, $mesajlar, false, 6, false, $salonid,false);
 
+        if (count($mesajlar) > 0)
+            \App\Services\BildirimTercih::ekGonder($etkinlik->salon_id, 'kampanya_link', [
+                'ozet' => '‘' . $etkinlik->etkinlik_adi . '’ etkinliği ' . count($mesajlar) . ' kişiye gönderildi.',
+            ]);
+
         Audit::logApi($salonid, $request, isset($request->etkinlik_id) ? 'etkinlik_guncelle' : 'etkinlik_ekle', 'etkinlik', optional($etkinlik)->id, optional($etkinlik)->etkinlik_adi, 'Etkinlik kaydedildi.');
 
         return "başarılı";
@@ -10420,6 +10425,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             false,
 
         );
+
+        if (count($mesajlar) > 0)
+            \App\Services\BildirimTercih::ekGonder($kampanyabeklenen->salon_id, 'kampanya_link', [
+                'ozet' => '‘' . $kampanyabeklenen->paket_isim . '’ kampanyası ' . count($mesajlar) . ' kişiye tekrar gönderildi.',
+            ]);
 
         return [
 
@@ -11384,6 +11394,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 
             );
 
+            try {
+                \App\Services\BildirimTercih::ekGonder($senet->salon_id, 'dogrulama_kodu', [
+                    'user_id' => optional($senet->musteri)->id,
+                    'ozet' => optional($senet->musteri)->name . ' (' . optional($senet->musteri)->cep_telefon . ') müşterisine ' . $senet->id . ' nolu senedin ' . date("d.m.Y", strtotime($vade->vade_tarih)) . ' tarihli vadesinin ödemesi için doğrulama kodu gönderildi.',
+                ]);
+            } catch (\Throwable $e) {}
+
         }
 
     }
@@ -11553,6 +11570,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $taksitlitahsilat->salon_id,false
 
         );
+
+        try {
+            \App\Services\BildirimTercih::ekGonder($taksitlitahsilat->salon_id, 'dogrulama_kodu', [
+                'user_id' => optional($taksitlitahsilat->musteri)->id,
+                'ozet' => optional($taksitlitahsilat->musteri)->name . ' (' . optional($taksitlitahsilat->musteri)->cep_telefon . ') müşterisine ' . date("d.m.Y", strtotime($vade->vade_tarih)) . ' tarihli ' . number_format((float) $vade->tutar, 2, ',', '.') . ' ₺ taksit ödemesi için doğrulama kodu gönderildi.',
+            ]);
+        } catch (\Throwable $e) {}
 
     }
 
@@ -17073,6 +17097,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             "to" => $randevu->users->cep_telefon,
             "message" => $onayMesaji
         )), false, 1, true, $randevu->salon_id,false);
+        \App\Services\BildirimTercih::ekGonder($randevu->salon_id, 'kvkk_onay', [
+            'user_id' => $randevu->user_id,
+            'randevu_id' => $randevu->id,
+            'ozet' => optional($randevu->users)->name . ' (' . optional($randevu->users)->cep_telefon . ') müşterisine KVKK onay kodu gönderildi.',
+        ]);
     }
 
     public function dogrulama_kodu_gonder(Request $request)
@@ -17092,6 +17121,17 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
             "to" => $telefon,
             "message" => $mesajMetni,
         ]];
+
+        // Ek alicilar (personel/yonetici bilgi kopyasi) — kod DEGERI yazilmaz.
+        if ($telefon) {
+            try {
+                \App\Services\BildirimTercih::ekGonder($salonId, 'dogrulama_kodu', [
+                    'user_id' => $randevu->user_id,
+                    'randevu_id' => $randevu->id,
+                    'ozet' => optional($randevu->users)->name . ' (' . $telefon . ') müşterisine ' . date('d.m.Y', strtotime($randevu->tarih)) . ' tarihli randevusu için seans doğrulama kodu gönderildi.',
+                ]);
+            } catch (\Throwable $e) {}
+        }
 
         // Kanal sirasi:
         //  1) Isletme SMS kredisi varsa -> SMS gonder
@@ -19401,6 +19441,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         );
 
+        if (count($mesajlar) > 0)
+            \App\Services\BildirimTercih::ekGonder($etkinlikbeklenen->salon_id, 'kampanya_link', [
+                'ozet' => '‘' . $etkinlikbeklenen->etkinlik_adi . '’ etkinliği (yanıt bekleyenler) ' . count($mesajlar) . ' kişiye tekrar gönderildi.',
+            ]);
+
         return [
 
             "mesaj" => "SMS başarıyla gönderildi",
@@ -19821,6 +19866,16 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
                         );
                     } catch (\Throwable $e) {}
 
+                    try {
+                        $_ekPid = $portfoy->olusturan_personel_id;
+                        \App\Services\BildirimTercih::ekGonder($sube, 'musteri_eklendi', [
+                            'user_id' => $mevcut->id,
+                            'personel_ids' => $_ekPid ? [(int) $_ekPid] : [],
+                            'ozet' => $mevcut->name . ' (' . $mevcut->cep_telefon . ') müşteri olarak eklendi'
+                                . (($_ekPid && ($_ekAd = \App\Personeller::where('id', $_ekPid)->value('personel_adi'))) ? ' — ekleyen: ' . $_ekAd : '') . '.',
+                        ]);
+                    } catch (\Throwable $e) {}
+
                 }
 
                 return $returnvar;
@@ -19935,6 +19990,18 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
             }
 
+        }
+
+        if ($request->musteri_id == "") {
+            try {
+                $_ekPid = $portfoy->olusturan_personel_id;
+                \App\Services\BildirimTercih::ekGonder($sube, 'musteri_eklendi', [
+                    'user_id' => $musteri->id,
+                    'personel_ids' => $_ekPid ? [(int) $_ekPid] : [],
+                    'ozet' => $musteri->name . ' (' . $musteri->cep_telefon . ') yeni müşteri olarak eklendi'
+                        . (($_ekPid && ($_ekAd = Personeller::where('id', $_ekPid)->value('personel_adi'))) ? ' — ekleyen: ' . $_ekAd : '') . '.',
+                ]);
+            } catch (\Throwable $e) {}
         }
 
         $returnvar = $musteri;
@@ -25621,6 +25688,16 @@ if (is_array($request->cihaz_id)) {
             }
         } catch (\Throwable $e) {
             \Log::warning('musteriResimEkle bildirim hatasi: ' . $e->getMessage());
+        }
+
+        // Ek alici: yonetici bilgi kopyasi (her yuklemede bir kez).
+        if ((int) $request->salon_id > 0 && $request->filled('user_id')) {
+            $_ekU = \App\User::where('id', $request->user_id)->first(['name', 'cep_telefon']);
+            \App\Services\BildirimTercih::ekGonder((int) $request->salon_id, 'musteri_foto', [
+                'user_id' => (int) $request->user_id,
+                'ozet' => optional($_ekU)->name . ' (' . optional($_ekU)->cep_telefon . ') '
+                    . ($request->input('yukleyen') === 'musteri' ? 'galerisine bir fotoğraf yükledi.' : 'için işletme tarafından bir fotoğraf eklendi.'),
+            ]);
         }
 
         return response()->json([

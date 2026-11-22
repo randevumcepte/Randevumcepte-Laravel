@@ -452,6 +452,21 @@ class SantralKopruController extends Controller
         } catch (\Throwable $e) {
             \Log::warning('[SANTRAL-GERI-ARA] panel bildirimi yazilamadi: ' . $e->getMessage());
         }
+        // Ek alicilar (musteri / ilgili personel bilgi kopyasi) — yonetici push'unun acik/kapali olmasindan bagimsiz.
+        // Personel verilmez: musteri taninirsa ekGonder son randevusunun personelini bulur.
+        try {
+            $ekTel = substr(preg_replace('/\D/', '', (string) $o->telefon), -10);
+            $ekB = ['ozet' => preg_replace('/^\x{1F4DE}\s*/u', '', $mesaj), 'musteri_ozet' => 'Aradığınızı not aldık, sizi en kısa sürede geri arayacağız.'];
+            if (strlen($ekTel) === 10) {
+                $ekB['musteri_tel'] = $ekTel;
+                $ekU = DB::table('users')->join('musteri_portfoy', 'musteri_portfoy.user_id', '=', 'users.id')
+                    ->where('musteri_portfoy.salon_id', $salonId)->where('users.cep_telefon', $ekTel)->first(['users.id', 'users.name']);
+                if ($ekU) { $ekB['user_id'] = (int) $ekU->id; $ekB['musteri_adi'] = $ekU->name; }
+            }
+            \App\Services\BildirimTercih::ekGonder($salonId, 'telefon_asistani', $ekB);
+        } catch (\Throwable $e) {
+            \Log::warning('[SANTRAL-GERI-ARA] ek bildirim hata: ' . $e->getMessage());
+        }
         // Bildirim tercihleri: telefon_asistani / personel / push kapaliysa push atilmaz (zil satiri yukarida)
         if (!\App\Services\BildirimTercih::izin($salonId, 'telefon_asistani', 'yonetici', 'push')) return;
         try {

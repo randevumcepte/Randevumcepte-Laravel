@@ -70,7 +70,11 @@ class SeansHatirlatma extends Command
                     'salon_id' => (int) $adisyon->salon_id,
                     'musteri'  => $adisyon->musteri,
                     'seanslar' => [],
+                    'personel_ids' => [],
                 ];
+            }
+            if (!empty($seans->personel_id)) {
+                $gruplar[$anahtar]['personel_ids'][] = (int) $seans->personel_id;
             }
 
             $gruplar[$anahtar]['seanslar'][] = [
@@ -137,6 +141,19 @@ class SeansHatirlatma extends Command
                 . count($seansListesi) . " seansiniz var: "
                 . implode(', ', $satirlar) . '.';
         }
+
+        // Ek alicilar (personel/yonetici bilgi kopyasi) — musteri kanallarindan bagimsiz
+        $ekSeans = array_map(function ($s) {
+            return $s['saat'] ? "{$s['saat']} {$s['hizmet']}" : $s['hizmet'];
+        }, $seansListesi);
+        \App\Services\BildirimTercih::ekGonder($grup['salon_id'], 'seans_hatirlatma', [
+            'user_id' => $grup['user_id'],
+            'musteri_adi' => $isim,
+            'musteri_tel' => $musteri->cep_telefon ?? null,
+            'personel_ids' => array_values(array_unique($grup['personel_ids'] ?? [])),
+            'ozet' => trim($isim . (!empty($musteri->cep_telefon) ? ' (' . $musteri->cep_telefon . ')' : ''))
+                . " – yarın ({$tarihGosterim}) seansı hatırlatıldı: " . implode(', ', $ekSeans) . '.',
+        ]);
 
         // SMS/WhatsApp: yalniz isletme sectiyse ayni metin (tohumda kapali); push asagida ayrica
         if (\App\Services\BildirimTercih::mesajAcikMi($grup['salon_id'], 'seans_hatirlatma', 'musteri') && !empty($musteri->cep_telefon)) {

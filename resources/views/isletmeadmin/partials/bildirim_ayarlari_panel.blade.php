@@ -285,6 +285,7 @@
             // Acilinca: once kaydedilmis halinde acik kanal varsa onlari geri getir, yoksa WhatsApp (bagliysa) ya da SMS
             var o = bildirimBul(ORJ, b.kod).alicilar[a], geri = +o.sms || +o.whatsapp || +o.push;
             if (geri) { r.sms = +o.sms; r.whatsapp = +o.whatsapp; r.push = +o.push; }
+            else if (a !== 'musteri') r.push = 1; // personel/yonetici: ucretsiz uygulama bildirimi
             else if (VERI.durum && VERI.durum.wa_bagli) r.whatsapp = 1; else r.sms = 1;
          } else { r.sms = 0; r.whatsapp = 0; r.push = 0; }
          ciz();

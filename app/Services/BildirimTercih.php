@@ -75,7 +75,7 @@ class BildirimTercih
             'alicilar' => ['musteri' => ['eski' => [11, 'musteri'], 'push' => 0], 'personel' => ['eski' => [11, 'personel'], 'push' => 1], 'yonetici' => ['eski' => [11, 'personel'], 'push' => 1, 'kopya' => 'personel']]],
         'musteri_geldi' => ['grup' => 'randevu', 'ad' => 'Müşteri geldi',
             'aciklama' => 'Randevu "geldi" işaretlenince ilgili personele haber verilir.', 'push_tip' => 'appointment_created',
-            'alicilar' => ['personel' => ['eski' => [21, 'personel'], 'push' => 1]]],
+            'alicilar' => ['personel' => ['eski' => [21, 'personel'], 'push' => 1], 'musteri' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
 
         // ── Hatirlatmalar ──
         'hatirlatma_yaklasan' => ['grup' => 'hatirlatma', 'ad' => 'Yaklaşan randevu hatırlatma',
@@ -86,85 +86,85 @@ class BildirimTercih
             'alicilar' => ['musteri' => ['eski' => [6, 'musteri'], 'push' => 1], 'personel' => ['eski' => null, 'mesaj' => 0, 'push' => 1], 'yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel']]],
         'seans_hatirlatma' => ['grup' => 'hatirlatma', 'ad' => 'Kalan seans hatırlatma',
             'aciklama' => 'Paketinde kullanılmamış seansı olan müşteriye randevu almayı hatırlatır.', 'push_tip' => 'session_reminder',
-            'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 0, 'push' => 1]]],
+            'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 0, 'push' => 1], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'ders_hatirlatma' => ['grup' => 'hatirlatma', 'ad' => 'Grup dersi hatırlatma',
             'aciklama' => 'Grup dersine (pilates, kurs vb.) kayıtlı müşteriye ders öncesi.', 'push_tip' => 'class_reminder',
-            'alicilar' => ['musteri' => ['eski' => [1, 'musteri'], 'push' => 'ayar']]],
+            'alicilar' => ['musteri' => ['eski' => [1, 'musteri'], 'push' => 'ayar'], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'alacak_hatirlatma' => ['grup' => 'hatirlatma', 'ad' => 'Ödeme (alacak) hatırlatma',
             'aciklama' => 'Taksit/borç günü gelen müşteriye; yöneticilere de alacak özeti.', 'push_tip' => 'system_announcement',
-            'alicilar' => ['musteri' => ['eski' => [1, 'musteri'], 'push' => 0], 'yonetici' => ['eski' => [1, 'personel'], 'push' => 1, 'kopya' => 'personel']]],
+            'alicilar' => ['musteri' => ['eski' => [1, 'musteri'], 'push' => 0], 'yonetici' => ['eski' => [1, 'personel'], 'push' => 1, 'kopya' => 'personel'], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'senet_vade' => ['grup' => 'hatirlatma', 'ad' => 'Senet vadesi geçti',
             'aciklama' => 'Vadesi geçmiş senedi olan müşteriye her gün saat 10:00\'da.', 'push_tip' => 'system_announcement',
-            'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 1, 'sadeceSms' => true, 'push' => 0]]],
+            'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 1, 'sadeceSms' => true, 'push' => 0], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'tekrar_arama' => ['grup' => 'hatirlatma', 'ad' => 'Müşteriyi tekrar arama zamanı',
             'aciklama' => 'Çağrı merkezinde "sonra ara" denen müşterinin arama saati geldiğinde personele.', 'push_tip' => 'call_appointment_reminder',
-            'alicilar' => ['personel' => ['eski' => null, 'mesaj' => 0, 'push' => 1]]],
+            'alicilar' => ['personel' => ['eski' => null, 'mesaj' => 0, 'push' => 1], 'musteri' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'ders_katilim_sor' => ['grup' => 'hatirlatma', 'ad' => 'Grup dersi katılım sorusu',
             'aciklama' => 'Grup dersine kayıtlı müşteriye "derse geliyor musunuz?" sorusu.', 'push_tip' => 'class_reminder',
-            'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 0, 'push' => 1]]],
+            'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 0, 'push' => 1], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
 
         // ── Musteri ──
         'musteri_eklendi' => ['grup' => 'musteri', 'ad' => 'Müşteri eklendiğinde',
             'aciklama' => 'Yeni müşteri kaydı açılınca hoş geldin mesajı.', 'push_tip' => 'system_announcement',
-            'alicilar' => ['musteri' => ['eski' => [4, 'musteri'], 'push' => 0]]],
+            'alicilar' => ['musteri' => ['eski' => [4, 'musteri'], 'push' => 0], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'dogum_gunu' => ['grup' => 'musteri', 'ad' => 'Doğum günü kutlaması',
             'aciklama' => 'Doğum günü olan müşteriye kutlama mesajı.', 'push_tip' => 'birthday',
-            'alicilar' => ['musteri' => ['eski' => [8, 'musteri'], 'push' => 'ayar']]],
+            'alicilar' => ['musteri' => ['eski' => [8, 'musteri'], 'push' => 'ayar'], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'kara_liste' => ['grup' => 'musteri', 'ad' => 'Kara listeye alındığında',
             'aciklama' => 'Müşteri kara listeye alındığında bilgilendirme.', 'push_tip' => 'system_announcement',
-            'alicilar' => ['musteri' => ['eski' => [15, 'musteri'], 'push' => 'ayar']]],
+            'alicilar' => ['musteri' => ['eski' => [15, 'musteri'], 'push' => 'ayar'], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         // Bugun kanal sirasi salonlar.anket_gonderim_kanali'ndan: 'sms' ise tohumda SMS secilir
         'degerlendirme_anketi' => ['grup' => 'musteri', 'ad' => 'Randevu sonrası değerlendirme',
             'aciklama' => 'Randevudan sonra memnuniyet anketi bağlantısı.', 'push_tip' => 'survey',
-            'alicilar' => ['musteri' => ['eski' => [13, 'musteri'], 'push' => 0, 'kanalSutunu' => 'anket_gonderim_kanali']]],
+            'alicilar' => ['musteri' => ['eski' => [13, 'musteri'], 'push' => 0, 'kanalSutunu' => 'anket_gonderim_kanali'], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'kotu_degerlendirme' => ['grup' => 'musteri', 'ad' => 'Düşük puanlı değerlendirme uyarısı',
             'aciklama' => 'Müşteri ankette düşük puan verince yöneticilere haber verilir.', 'push_tip' => 'survey',
-            'alicilar' => ['yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel']]],
+            'alicilar' => ['yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel'], 'musteri' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'musteri_foto' => ['grup' => 'musteri', 'ad' => 'Fotoğraf paylaşıldığında',
             'aciklama' => 'Müşteri uygulamadan fotoğraf yüklediğinde personele, işletme yüklediğinde müşteriye.', 'push_tip' => 'musteri_resim_yuklendi',
-            'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 0, 'push' => 1], 'personel' => ['eski' => null, 'mesaj' => 0, 'push' => 1]]],
+            'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 0, 'push' => 1], 'personel' => ['eski' => null, 'mesaj' => 0, 'push' => 1], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'damga_karti' => ['grup' => 'musteri', 'ad' => 'Damga kartı ödülü kazanıldı',
             'aciklama' => 'Damga kartı dolan müşteriye ödül bildirimi.', 'push_tip' => 'stamp_reward',
-            'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 0, 'push' => 1]]],
+            'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 0, 'push' => 1], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'cark_hatirlatma' => ['grup' => 'musteri', 'ad' => 'Çarkıfelek çevirme hakkı',
             'aciklama' => 'Çarkıfelek hakkı olan müşteriye hatırlatma ve duyuru.', 'push_tip' => 'wheel_chance',
-            'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 0, 'push' => 1]]],
+            'alicilar' => ['musteri' => ['eski' => null, 'mesaj' => 0, 'push' => 1], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
 
         // ── Asistanlar ──
         'wa_asistan_talep' => ['grup' => 'asistan', 'ad' => 'WhatsApp asistanı size soruyor',
             'aciklama' => 'Asistan cevaplayamadığı bir konuda işletmeden yardım istediğinde.', 'push_tip' => 'wa_asistan_talep',
-            'alicilar' => ['yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel']]],
+            'alicilar' => ['yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel'], 'musteri' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'telefon_asistani' => ['grup' => 'asistan', 'ad' => 'Telefon asistanı işlem yaptığında',
             'aciklama' => 'Yapay zeka telefon asistanı randevu aldığında veya iptal ettiğinde personele.', 'push_tip' => 'appointment_created',
-            'alicilar' => ['yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel']]],
+            'alicilar' => ['yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel'], 'musteri' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
 
         // ── Seans & paket ──
         // Bugun: once push (+WA), ikisi de ulasmazsa SMS -> tohumda SMS kapali, yedek SMS bunu karsilar
         // ('yedek' => 'tum': secili kanallarin HICBIRI ulasmazsa SMS; digerlerinde yalniz WA ulasmazsa).
         'seans_kullanim' => ['grup' => 'seans', 'ad' => 'Seans kullanıldığında',
             'aciklama' => 'Paketten seans düşünce kalan seans bilgisi.', 'push_tip' => 'session_used', 'yedek' => 'tum',
-            'alicilar' => ['musteri' => ['eski' => [20, 'musteri'], 'push' => 'ayar', 'smsYedekle' => true]]],
+            'alicilar' => ['musteri' => ['eski' => [20, 'musteri'], 'push' => 'ayar', 'smsYedekle' => true], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
 
         // ── Para & kasa ──
         'para_islemleri' => ['grup' => 'para', 'ad' => 'Kasa para giriş/çıkışı',
             'aciklama' => 'Kasadan para alındığında veya kasaya para eklendiğinde yöneticilere.', 'push_tip' => 'system_announcement',
-            'alicilar' => ['yonetici' => ['eski' => [19, 'personel'], 'push' => 0, 'kopya' => 'personel']]],
+            'alicilar' => ['yonetici' => ['eski' => [19, 'personel'], 'push' => 0, 'kopya' => 'personel'], 'musteri' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
 
         // ── Onay ve dogrulama kodlari ──
         'dogrulama_kodu' => ['grup' => 'guvenlik', 'ad' => 'Seans/ödeme doğrulama kodu',
             'aciklama' => 'Paket seansı kullanılırken veya ödemede müşteriye onay kodu gider. Kapalıysa kod istenmez.', 'push_tip' => 'system_announcement',
-            'alicilar' => ['musteri' => ['eski' => [16, 'musteri'], 'push' => 0]]],
+            'alicilar' => ['musteri' => ['eski' => [16, 'musteri'], 'push' => 0], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'kvkk_onay' => ['grup' => 'guvenlik', 'ad' => 'KVKK onay kodu',
             'aciklama' => 'Yeni müşteriden KVKK onayı kodla alınır. Kapalıysa onay istenmez.', 'push_tip' => 'system_announcement',
-            'alicilar' => ['musteri' => ['eski' => [22, 'musteri'], 'push' => 0]]],
+            'alicilar' => ['musteri' => ['eski' => [22, 'musteri'], 'push' => 0], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
         'silme_onay_kodu' => ['grup' => 'guvenlik', 'ad' => 'Satış/tahsilat silme onay kodu',
             'aciklama' => 'Satış veya tahsilat silinirken işletme sahibine onay kodu gider. Kapalıysa kod istenmez.', 'push_tip' => 'system_announcement',
-            'alicilar' => ['yonetici' => ['eski' => [23, 'personel'], 'push' => 0, 'kopya' => 'personel']]],
+            'alicilar' => ['yonetici' => ['eski' => [23, 'personel'], 'push' => 0, 'kopya' => 'personel'], 'musteri' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
 
         // ── Kampanya ──
         'kampanya_link' => ['grup' => 'kampanya', 'ad' => 'Etkinlik & kampanya katılım linki',
             'aciklama' => 'Etkinlik/kampanya duyurusunda katılım bağlantısı.', 'push_tip' => 'campaign',
-            'alicilar' => ['musteri' => ['eski' => [10, 'musteri'], 'push' => 0]]],
+            'alicilar' => ['musteri' => ['eski' => [10, 'musteri'], 'push' => 0], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'yonetici' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
     ];
 
     /** salon_sms_ayarlari satiri yoksa kayit varsayilanlari (ApiController kayit blogu ile ayni). */
@@ -772,6 +772,126 @@ class BildirimTercih
         if (!self::waYedekSms($log->salon_id)) return [false, 'isletme WhatsApp->SMS yedegini kapatti'];
         if (!self::smsKullanilabilir($log->salon_id)) return [false, 'SMS paketi/bakiyesi yok'];
         return [true, null];
+    }
+
+    /**
+     * 'ek' alici (bildirimin dogal alicisi olmayan, isletmenin sonradan actigi) MUSTERIYE gidecek metin.
+     * {salon} {ad} {ozet} yer tutuculari. Listede olmayan kodda: "{salon}: {ozet}".
+     */
+    const MUSTERI_METIN = [
+        'musteri_geldi'      => '{salon}: Hoş geldiniz {ad}, iyi günler dileriz.',
+        'tekrar_arama'       => '{salon}: Sayın {ad}, sizi kısa süre içinde arayacağız.',
+        'kotu_degerlendirme' => '{salon}: Sayın {ad}, geri bildiriminiz için teşekkür ederiz. Yaşadığınız sorun için sizinle iletişime geçeceğiz.',
+        'wa_asistan_talep'   => '{salon}: Sayın {ad}, talebiniz işletmemize iletildi, en kısa sürede size dönüş yapılacak.',
+        'telefon_asistani'   => '{salon}: Sayın {ad}, telefon görüşmenizdeki işleminiz kaydedildi. {ozet}',
+        'silme_onay_kodu'    => '{salon}: Sayın {ad}, hesabınızdaki bir satış/tahsilat kaydı için işlem yapıldı. {ozet}',
+        'para_islemleri'     => '{salon}: {ozet}',
+    ];
+
+    /**
+     * Isletmenin sonradan actigi 'ek' alicilara (orn. dogum gunu -> yonetici, musteri geldi -> musteri)
+     * bilgi mesaji gonderir. Dogal alicilar (bildirimin bugun zaten gittigi kisiler) burada GONDERILMEZ;
+     * onlar kendi gonderim yerinden gider. Tum ek alicilar varsayilan KAPALI -> acilmadikca hicbir sey gitmez.
+     *
+     * $b: user_id, musteri_adi, musteri_tel, personel_ids (ilgili personel salon_personelleri.id listesi),
+     *     randevu_id, ozet (personel/yonetici icin kisa bilgi — KOD ICERMEMELI), musteri_ozet (musteriye ek bilgi)
+     * Personel bulunamazsa: senet/alacakta "Alacaklari yonet" yetkilileri, randevu varsa randevunun personeli,
+     * yoksa musterinin son randevusundaki personel. Yonetici: salonun role_id < 5 personelleri.
+     * Asla hata firlatmaz (gonderim akisini bozmaz).
+     */
+    public static function ekGonder($salon, $kod, array $b = [])
+    {
+        try {
+            $s = is_object($salon) ? $salon : \App\Salonlar::where('id', (int) $salon)->first();
+            if (!$s || !isset(self::KATALOG[$kod])) return 0;
+            $k = self::KATALOG[$kod];
+            $acik = [];
+            foreach ($k['alicilar'] as $alici => $spec) {
+                if (!empty($spec['ek']) && self::acikMi($s->id, $kod, $alici)) $acik[] = $alici;
+            }
+            if (!$acik) return 0;
+
+            $uid = !empty($b['user_id']) ? (int) $b['user_id'] : null;
+            $ad = $b['musteri_adi'] ?? null;
+            $tel = $b['musteri_tel'] ?? null;
+            if ($uid && (!$ad || !$tel)) {
+                $u = DB::table('users')->where('id', $uid)->first(['name', 'cep_telefon']);
+                if ($u) { $ad = $ad ?: $u->name; $tel = $tel ?: $u->cep_telefon; }
+            }
+            $ozet = trim((string) ($b['ozet'] ?? ''));
+            if ($ozet === '') $ozet = trim(($ad ?: '') . ($tel ? ' (' . $tel . ')' : ''));
+            $randevuId = !empty($b['randevu_id']) ? (int) $b['randevu_id'] : null;
+
+            $satirlar = [];
+            foreach ($acik as $alici) {
+                if ($alici === 'musteri') {
+                    if (!$uid && !$tel) continue;
+                    $metin = strtr(self::MUSTERI_METIN[$kod] ?? '{salon}: {ozet}', [
+                        '{salon}' => $s->salon_adi, '{ad}' => $ad ?: '', '{ozet}' => (string) ($b['musteri_ozet'] ?? $k['ad']),
+                    ]);
+                    $satirlar[] = ['to' => $tel, 'message' => trim($metin), 'user_id' => $uid, 'randevu_id' => $randevuId,
+                        'bk' => $kod, 'alici' => 'musteri', 'push_baslik' => $s->salon_adi];
+                    continue;
+                }
+                $pids = $alici === 'yonetici' ? self::yoneticiIdleri($s->id) : self::ilgiliPersonelIdleri($s->id, $kod, $b, $uid, $randevuId);
+                if (!$pids) continue;
+                $metin = $k['ad'] . ': ' . $ozet;
+                foreach (DB::table('salon_personelleri')->whereIn('id', $pids)->get(['id', 'cep_telefon']) as $p) {
+                    $satirlar[] = ['to' => $p->cep_telefon ?: null, 'message' => $metin, 'personel_id' => (int) $p->id, 'randevu_id' => $randevuId,
+                        'bk' => $kod, 'alici' => $alici, 'push_baslik' => $k['ad']];
+                }
+            }
+            if (!$satirlar) return 0;
+            $sms = self::dagit($s, $satirlar, 'bilgi_kopyasi');
+            if ($sms) {
+                $temiz = array_map(function ($r) { return ['to' => $r['to'], 'message' => $r['message']]; }, $sms);
+                app()->make(\App\Http\Controllers\Controller::class)->sms_gonder($s->id, $temiz);
+            }
+            return count($satirlar);
+        } catch (\Throwable $e) {
+            Log::warning('[BildirimTercih] ekGonder hatasi', ['kod' => $kod, 'err' => $e->getMessage()]);
+            return 0;
+        }
+    }
+
+    /** Salonun yoneticileri (isletme sahibi + yonetici/supervizor): aktif, role_id < 5 personel kayitlari. */
+    public static function yoneticiIdleri($salonId)
+    {
+        try {
+            return DB::table('salon_personelleri')->where('salon_id', (int) $salonId)->where('role_id', '<', 5)
+                ->where(function ($q) { $q->where('aktif', 1)->orWhereNull('aktif'); })
+                ->pluck('id')->map(function ($x) { return (int) $x; })->unique()->values()->all();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /** Bildirimle ilgili personel (bkz. ekGonder). */
+    private static function ilgiliPersonelIdleri($salonId, $kod, array $b, $uid, $randevuId)
+    {
+        $ids = array_values(array_filter(array_map('intval', (array) ($b['personel_ids'] ?? []))));
+        if ($ids) return array_values(array_unique($ids));
+        try {
+            if (in_array($kod, ['senet_vade', 'alacak_hatirlatma'], true)) {
+                $l = [];
+                foreach (DB::table('salon_personelleri')->where('salon_id', (int) $salonId)->whereNotNull('yetkili_id')
+                    ->where(function ($q) { $q->where('aktif', 1)->orWhereNull('aktif'); })->get(['id', 'yetkili_id']) as $p) {
+                    try {
+                        if (PersonelYetkiServisi::yetkiliYetkiVar((int) $p->yetkili_id, (int) $salonId, 'finans.alacak_yonet')) $l[] = (int) $p->id;
+                    } catch (\Throwable $e) {}
+                }
+                return $l;
+            }
+            if (!$randevuId && $uid) {
+                $randevuId = DB::table('randevular')->where('salon_id', (int) $salonId)->where('user_id', $uid)
+                    ->orderBy('tarih', 'desc')->orderBy('id', 'desc')->value('id');
+            }
+            if ($randevuId) {
+                return DB::table('randevu_hizmetler')->where('randevu_id', (int) $randevuId)->whereNotNull('personel_id')
+                    ->pluck('personel_id')->map(function ($x) { return (int) $x; })->unique()->values()->all();
+            }
+        } catch (\Throwable $e) {}
+        return [];
     }
 
     /** Katalog bildirimi icin uygulama bildirimi (kendi push'u olmayan cagri yerleri). */

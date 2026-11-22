@@ -142,12 +142,16 @@ class CarkHatirlatmaGonder extends Command
                 $carkGorsel = rtrim(config('app.url', ''), '/') . '/' . ltrim($carkGorsel, '/');
             }
 
+            $ekHatirlatilan = []; // ek alicilar icin: bu asamada hatirlatilan musteriler
+            $ekUidler = [];
             foreach ($hedefUserlar as $userId) {
                 // Aynı çalıştırmada bu müşteriye zaten push atıldıysa atla (grup mükerrer engeli).
                 if (in_array((int) $userId, $gonderilenlerBuRun, true)) continue;
                 $user = User::find($userId);
                 if (!$user) continue;
                 $gonderilenlerBuRun[] = (int) $userId;
+                $ekUidler[] = (int) $userId;
+                $ekHatirlatilan[] = trim($user->name . (!empty($user->cep_telefon) ? ' (' . $user->cep_telefon . ')' : ''));
 
                 // Mesaj kişiselleştirme
                 $body = strtr($mesaj, [
@@ -218,6 +222,30 @@ class CarkHatirlatmaGonder extends Command
                         'durum'           => 'hata',
                     ]);
                 }
+            }
+
+            // Ek alicilar (personel/yonetici bilgi kopyasi): musteri basina degil, salon+asama basina TEK ozet
+            // (her asamada yuzlerce musteri hatirlatilabilir; tek tek mesaj personeli/yoneticiyi bogar)
+            if ($ekHatirlatilan) {
+                $ekAdet = count($ekHatirlatilan);
+                $ekListe = array_slice($ekHatirlatilan, 0, 15);
+                if ($ekAdet > 15) $ekListe[] = '+' . ($ekAdet - 15) . ' müşteri daha';
+                // Personel: hatirlatilan musterilerin son randevusundaki personel(ler)
+                $ekPids = [];
+                try {
+                    $sonRandevular = \Illuminate\Support\Facades\DB::table('randevular')->whereIn('salon_id', $grup)
+                        ->whereIn('user_id', array_slice($ekUidler, 0, 1000))
+                        ->groupBy('user_id')->selectRaw('MAX(id) as id')->pluck('id')->all();
+                    if ($sonRandevular) {
+                        $ekPids = \Illuminate\Support\Facades\DB::table('randevu_hizmetler')->whereIn('randevu_id', $sonRandevular)
+                            ->whereNotNull('personel_id')->distinct()->pluck('personel_id')
+                            ->map(function ($x) { return (int) $x; })->all();
+                    }
+                } catch (\Throwable $e) { $ekPids = []; }
+                \App\Services\BildirimTercih::ekGonder($salon, 'cark_hatirlatma', [
+                    'personel_ids' => $ekPids,
+                    'ozet' => $asama . '. çarkıfelek hatırlatması ' . $ekAdet . ' müşteriye gönderildi:' . "\n" . implode("\n", $ekListe),
+                ]);
             }
         }
 

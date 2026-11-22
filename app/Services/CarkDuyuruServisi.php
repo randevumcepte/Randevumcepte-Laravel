@@ -70,6 +70,7 @@ class CarkDuyuruServisi
 
         $sent = 0;
         $failed = 0;
+        $ulasanMusteri = 0;
         foreach ($alicilar as $userId) {
             $user = User::find($userId);
             if (!$user) continue;
@@ -85,13 +86,40 @@ class CarkDuyuruServisi
                     ->send();
                 $sent   += (int) ($s['sent'] ?? 0);
                 $failed += (int) ($s['failed'] ?? 0);
+                if ((int) ($s['sent'] ?? 0) > 0) $ulasanMusteri++;
             } catch (\Throwable $e) {
                 Log::warning("Cark duyuru push hatasi user={$userId}: " . $e->getMessage());
                 $failed++;
             }
         }
 
+        // Ek alicilar (personel/yonetici bilgi kopyasi) — duyuru basina TEK kez (musteri basina degil).
+        if ($ulasanMusteri > 0) {
+            $ekB = ['ozet' => 'Çarkıfelek duyurusu ' . $ulasanMusteri . ' müşteriye gönderildi.'];
+            $gonderen = self::oturumPersonelId($salon->id);
+            if ($gonderen) $ekB['personel_ids'] = [$gonderen];
+            BildirimTercih::ekGonder($salon, 'cark_hatirlatma', $ekB);
+        }
+
         return self::sonuc(true, $sent, $failed, $alicilar->count(), null);
+    }
+
+    /** Duyuruyu gonderen oturumdaki isletme kullanicisinin bu salondaki personel kaydi (job'da null). */
+    private static function oturumPersonelId($salonId)
+    {
+        try {
+            $yetkili = null;
+            foreach (['isletmeyonetim', 'isletmeyonetim-api'] as $g) {
+                try { $yetkili = \Illuminate\Support\Facades\Auth::guard($g)->user(); } catch (\Throwable $e) { $yetkili = null; }
+                if ($yetkili) break;
+            }
+            if (!$yetkili) return null;
+            $id = \Illuminate\Support\Facades\DB::table('salon_personelleri')->where('salon_id', (int) $salonId)
+                ->where('yetkili_id', (int) $yetkili->id)->value('id');
+            return $id ? (int) $id : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     private static function sonuc($ok, $gonderildi, $hata, $hedef, $mesaj, $kod = 200)

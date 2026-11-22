@@ -3405,6 +3405,15 @@ $salon = Salonlar::where('domain', $domain)->first();
                 $skor       = $npsSkoru !== null ? ('NPS '.$npsSkoru.'/10') : ('Puan '.$csatSkoru.'/5');
                 $yorumOzet  = $genelYorum ? (' Yorum: ' . mb_substr($genelYorum, 0, 80)) : '';
 
+                // Ek alicilar (musteri / ilgili personel bilgi kopyasi) — dogal alicilarin (yonetici) acik/kapali olmasindan bagimsiz.
+                $ekKotu = [
+                    'user_id' => $gonderim->user_id ?: null, 'musteri_adi' => $gonderim->ad_soyad ?: null,
+                    'musteri_tel' => $gonderim->telefon ?: null, 'randevu_id' => $gonderim->randevu_id ?: null,
+                    'ozet' => trim($musteriAd . ($gonderim->telefon ? ' (' . $gonderim->telefon . ')' : '')) . ' düşük puan verdi (' . $skor . ').' . $yorumOzet,
+                ];
+                if (!empty($gonderim->personel_id)) $ekKotu['personel_ids'] = [(int) $gonderim->personel_id];
+                \App\Services\BildirimTercih::ekGonder($salon, 'kotu_degerlendirme', $ekKotu);
+
                 $pushOk = false;
                 $waOk   = false;
 

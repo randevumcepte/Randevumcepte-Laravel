@@ -66,7 +66,11 @@ class DersHatirlatma extends Command
             if (!array_key_exists($sid, $salonCache)) {
                 $salonCache[$sid] = Salonlar::find($sid);
                 // Bildirim tercihi (ders_hatirlatma/musteri): herhangi bir kanal aciksa gonderilir
-                $ayarCache[$sid]  = \App\Services\BildirimTercih::acikMi($sid, 'ders_hatirlatma', 'musteri');
+                // Ek alicilar (personel/yonetici bilgi kopyasi) aciksa da oturum islenir; musteri
+                // gonderimi mesajGonder/izin icinde kendi tercihine bakar (kapaliysa musteriye gitmez).
+                $ayarCache[$sid]  = \App\Services\BildirimTercih::acikMi($sid, 'ders_hatirlatma', 'musteri')
+                    || \App\Services\BildirimTercih::acikMi($sid, 'ders_hatirlatma', 'personel')
+                    || \App\Services\BildirimTercih::acikMi($sid, 'ders_hatirlatma', 'yonetici');
             }
             $salon = $salonCache[$sid];
             if (!$salon) { if ($test) $this->warn("Oturum {$o->id}: salon yok"); continue; }
@@ -218,6 +222,19 @@ class DersHatirlatma extends Command
             }
         }
         if ($dry) return;
+
+        // Ek alicilar (egitmen/yonetici bilgi kopyasi) — oturum basina tek mesaj
+        $ekAdlar = [];
+        foreach ($katilimcilar as $m) {
+            $ekAdlar[] = trim($m->name . (!empty($m->cep_telefon) ? ' (' . $m->cep_telefon . ')' : ''));
+        }
+        $ekListe = array_slice($ekAdlar, 0, 10);
+        if (count($ekAdlar) > 10) $ekListe[] = '+' . (count($ekAdlar) - 10) . ' kişi daha';
+        \App\Services\BildirimTercih::ekGonder($salon, 'ders_hatirlatma', [
+            'personel_ids' => !empty($o->personel_id) ? [(int) $o->personel_id] : [],
+            'ozet' => $dersAdi . ' dersi (' . $tarihStr . ' ' . $saatStr . (!empty($egitmen) ? ', ' . $egitmen : '') . ') için '
+                . count($ekAdlar) . ' katılımcıya hatırlatma gönderildi: ' . implode(', ', $ekListe) . '.',
+        ]);
 
         Log::info('[DERS-HAT] oturum hatirlatildi', [
             'oturum_id' => $o->id, 'salon_id' => $salon->id, 'katilimci' => $katilimcilar->count(),

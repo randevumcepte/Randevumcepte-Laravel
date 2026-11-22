@@ -190,6 +190,16 @@ class AnketOtomatikGonder extends Command
                     }
                     $toplam++;
 
+                    // Ek alicilar (personel/yonetici bilgi kopyasi) — randevunun personeli ekGonder'de bulunur
+                    \App\Services\BildirimTercih::ekGonder($sablon->salon_id, 'degerlendirme_anketi', [
+                        'user_id' => (int) $musteri->id,
+                        'musteri_adi' => $musteri->name,
+                        'musteri_tel' => $tel,
+                        'randevu_id' => $gonderim->randevu_id ?? $rnd->id,
+                        'ozet' => trim(($musteri->name ?? '') . ' (' . $tel . ')') . ' – '
+                            . date('d.m.Y', strtotime($rnd->tarih)) . ' tarihli randevusu için değerlendirme anketi gönderildi.',
+                    ]);
+
                     Log::info('[ANKET-OTO] gönderim', [
                         'randevu_id'  => $rnd->id,
                         'salon_id'    => $sablon->salon_id,

@@ -23,6 +23,15 @@ class MusteriBildirimServisi
      */
     public static function kayitBildirimi($salonId, User $musteri, $sifre = null, ?Request $request = null)
     {
+        // Ek alicilar (personel/yonetici bilgi kopyasi) — musteri kanalindan bagimsiz, olay basina bir kez.
+        $ekB = [
+            'user_id' => $musteri->id, 'musteri_adi' => $musteri->name, 'musteri_tel' => $musteri->cep_telefon,
+            'ozet' => trim($musteri->name . ($musteri->cep_telefon ? ' (' . $musteri->cep_telefon . ')' : '')) . ' müşteri olarak kaydedildi.',
+        ];
+        $olusturan = self::oturumPersonelId($salonId);
+        if ($olusturan) $ekB['personel_ids'] = [$olusturan];
+        BildirimTercih::ekGonder($salonId, 'musteri_eklendi', $ekB);
+
         // Bildirim tercihleri: musteri_eklendi (eski ayar 4)
         if (!BildirimTercih::acikMi($salonId, 'musteri_eklendi', 'musteri')) {
             return;
@@ -51,6 +60,22 @@ class MusteriBildirimServisi
      */
     public static function karaListeBildirimi($salonId, $userId, ?Request $request = null)
     {
+        // Ek alicilar (personel/yonetici bilgi kopyasi) — musteri kanalindan bagimsiz, olay basina bir kez.
+        try {
+            $ekU = \Illuminate\Support\Facades\DB::table('users')->where('id', (int) $userId)->first(['name', 'cep_telefon']);
+            if ($ekU) {
+                $ekB = [
+                    'user_id' => (int) $userId, 'musteri_adi' => $ekU->name, 'musteri_tel' => $ekU->cep_telefon,
+                    'ozet' => trim($ekU->name . ($ekU->cep_telefon ? ' (' . $ekU->cep_telefon . ')' : '')) . ' kara listeye alındı.',
+                ];
+                $islemYapan = self::oturumPersonelId($salonId);
+                if ($islemYapan) $ekB['personel_ids'] = [$islemYapan];
+                BildirimTercih::ekGonder($salonId, 'kara_liste', $ekB);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('karaliste ek bildirim hata: ' . $e->getMessage());
+        }
+
         // Bildirim tercihleri: kara_liste (eski ayar 15); mesaj ve push ayri ayri
         $mesajAcik = BildirimTercih::mesajAcikMi($salonId, 'kara_liste', 'musteri');
         $pushAcik = BildirimTercih::izin($salonId, 'kara_liste', 'musteri', 'push');
@@ -87,6 +112,24 @@ class MusteriBildirimServisi
                 ->send();
         } catch (\Throwable $e) {
             Log::warning('karaliste bildirim push hata: ' . $e->getMessage());
+        }
+    }
+
+    /** Islemi yapan oturumdaki panel kullanicisinin bu salondaki personel kaydi (yoksa null — orn. v2 outbox). */
+    private static function oturumPersonelId($salonId)
+    {
+        try {
+            $yetkili = null;
+            foreach (['isletmeyonetim', 'isletmeyonetim-api'] as $g) {
+                try { $yetkili = \Illuminate\Support\Facades\Auth::guard($g)->user(); } catch (\Throwable $e) { $yetkili = null; }
+                if ($yetkili) break;
+            }
+            if (!$yetkili) return null;
+            $id = \Illuminate\Support\Facades\DB::table('salon_personelleri')->where('salon_id', (int) $salonId)
+                ->where('yetkili_id', (int) $yetkili->id)->value('id');
+            return $id ? (int) $id : null;
+        } catch (\Throwable $e) {
+            return null;
         }
     }
 }

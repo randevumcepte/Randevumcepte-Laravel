@@ -70,6 +70,16 @@ class AlacakSMSHatirlatma extends Command
 
             $tutarStr = number_format($vade->tutar, 2, ',', '.');
 
+            // Ek alicilar (personel bilgi kopyasi: "Alacaklari yonet" yetkilileri — ekGonder kendisi bulur)
+            \App\Services\BildirimTercih::ekGonder($salon, 'alacak_hatirlatma', [
+                'user_id' => (int) $tahsilat->user_id,
+                'musteri_adi' => $musteri->name,
+                'musteri_tel' => $musteri->cep_telefon,
+                'ozet' => trim($musteri->name . (!empty($musteri->cep_telefon) ? ' (' . $musteri->cep_telefon . ')' : ''))
+                    . ' – ' . $tutarStr . ' ₺ taksit, vade ' . date('d.m.Y', strtotime($vade->vade_tarih))
+                    . ($vade->vade_tarih == $bugun ? ' (bugün)' : ' (yarın)') . '. Müşteriye ödeme hatırlatması yapıldı.',
+            ]);
+
             if ($vade->vade_tarih == $yarin) {
                 // Müşteriye SMS
                 $musteriMesaj = 'Sayın ' . $musteri->name . ' ' . $salon->salon_adi . ' için yarın ödemeniz gereken ' . $tutarStr . ' TL borcunuzun olduğunu hatırlatmak isteriz.';
