@@ -179,6 +179,7 @@ class PersonelProfil
             $s['calisma_sayisi'] = (int) DB::table('personel_calismalari')->where('personel_id', $pid)->count();
             $s['hizmet_sayisi'] = (int) DB::table('personel_sunulan_hizmetler')->where('personel_id', $pid)->count();
             $s['cihaz_sayisi'] = count(self::cihazlar($salonId, $pid));
+            $s['okunmamis_bildirim'] = (int) DB::table('bildirimler')->where('personel_id', $pid)->where(function ($q) { $q->where('okundu', 0)->orWhereNull('okundu'); })->count();
         } catch (\Throwable $e) {}
         return $s;
     }
