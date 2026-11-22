@@ -333,6 +333,7 @@ class BildirimTercih
         foreach (self::KATALOG as $kod => $k) {
             foreach ($k['alicilar'] as $a => $spec) {
                 if ($alici && $a !== $alici) continue;
+                if (!empty($spec['ek'])) continue; // bilgi kopyalari tek tek acilir, toplu islemde degismez
                 if (self::kaydet($salonId, $kod, $a, $kanal, $deger, $kaynak, $req, false)) {
                     $degisen[] = $k['ad'] . ' · ' . self::ALICI_AD[$a];
                 }
@@ -823,6 +824,7 @@ class BildirimTercih
             $randevuId = !empty($b['randevu_id']) ? (int) $b['randevu_id'] : null;
 
             $satirlar = [];
+            $gonderilenPid = [];
             foreach ($acik as $alici) {
                 if ($alici === 'musteri') {
                     if (!$uid && !$tel) continue;
@@ -834,7 +836,14 @@ class BildirimTercih
                     continue;
                 }
                 $pids = $alici === 'yonetici' ? self::yoneticiIdleri($s->id) : self::ilgiliPersonelIdleri($s->id, $kod, $b, $uid, $randevuId);
+                // Yoneticiler bu bildirimi dogal olarak zaten aliyorsa personel kopyasindan cikar (cift mesaj olmasin)
+                if ($alici === 'personel' && isset($k['alicilar']['yonetici']) && empty($k['alicilar']['yonetici']['ek'])) {
+                    $pids = array_values(array_diff($pids, self::yoneticiIdleri($s->id)));
+                }
+                // Ayni kisiye tek kopya (hem personel hem yonetici ise)
+                $pids = array_values(array_diff(array_unique(array_map('intval', $pids)), $gonderilenPid));
                 if (!$pids) continue;
+                $gonderilenPid = array_merge($gonderilenPid, $pids);
                 $metin = $k['ad'] . ': ' . $ozet;
                 foreach (DB::table('salon_personelleri')->whereIn('id', $pids)->get(['id', 'cep_telefon']) as $p) {
                     $satirlar[] = ['to' => $p->cep_telefon ?: null, 'message' => $metin, 'personel_id' => (int) $p->id, 'randevu_id' => $randevuId,

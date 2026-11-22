@@ -152,7 +152,7 @@ class SeansHatirlatma extends Command
             'musteri_tel' => $musteri->cep_telefon ?? null,
             'personel_ids' => array_values(array_unique($grup['personel_ids'] ?? [])),
             'ozet' => trim($isim . (!empty($musteri->cep_telefon) ? ' (' . $musteri->cep_telefon . ')' : ''))
-                . " – yarın ({$tarihGosterim}) seansı hatırlatıldı: " . implode(', ', $ekSeans) . '.',
+                . " – yarın ({$tarihGosterim}) seansı var: " . implode(', ', $ekSeans) . '.',
         ]);
 
         // SMS/WhatsApp: yalniz isletme sectiyse ayni metin (tohumda kapali); push asagida ayrica

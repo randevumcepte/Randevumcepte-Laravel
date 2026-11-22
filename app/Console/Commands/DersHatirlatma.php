@@ -233,7 +233,7 @@ class DersHatirlatma extends Command
         \App\Services\BildirimTercih::ekGonder($salon, 'ders_hatirlatma', [
             'personel_ids' => !empty($o->personel_id) ? [(int) $o->personel_id] : [],
             'ozet' => $dersAdi . ' dersi (' . $tarihStr . ' ' . $saatStr . (!empty($egitmen) ? ', ' . $egitmen : '') . ') için '
-                . count($ekAdlar) . ' katılımcıya hatırlatma gönderildi: ' . implode(', ', $ekListe) . '.',
+                . count($ekAdlar) . ' katılımcı: ' . implode(', ', $ekListe) . '.',
         ]);
 
         Log::info('[DERS-HAT] oturum hatirlatildi', [

@@ -77,7 +77,7 @@ class AlacakSMSHatirlatma extends Command
                 'musteri_tel' => $musteri->cep_telefon,
                 'ozet' => trim($musteri->name . (!empty($musteri->cep_telefon) ? ' (' . $musteri->cep_telefon . ')' : ''))
                     . ' – ' . $tutarStr . ' ₺ taksit, vade ' . date('d.m.Y', strtotime($vade->vade_tarih))
-                    . ($vade->vade_tarih == $bugun ? ' (bugün)' : ' (yarın)') . '. Müşteriye ödeme hatırlatması yapıldı.',
+                    . ($vade->vade_tarih == $bugun ? ' (bugün)' : ' (yarın)') . '. Ödeme hatırlatma günü.',
             ]);
 
             if ($vade->vade_tarih == $yarin) {
