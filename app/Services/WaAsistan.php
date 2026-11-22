@@ -591,7 +591,8 @@ class WaAsistan
             $upd['cache_okuma_token'] = DB::raw('cache_okuma_token + ' . (int) $k['cache_okuma']);
             $upd['cache_yazma_token'] = DB::raw('cache_yazma_token + ' . (int) $k['cache_yazma']);
             AiKullanimLog::yaz((int) $o->isletme_id, 'wa_asistan', (int) $k['girdi'], (int) $k['cikti'],
-                (string) (config('services.anthropic.santral_model') ?: 'claude-haiku-5-5'), false, true, $usd);
+                (string) (config('services.anthropic.santral_model') ?: 'claude-haiku-5-5'), false, true, $usd,
+                (int) ($k['cache_okuma'] ?? 0), (int) ($k['cache_yazma'] ?? 0));
         }
         if ($usd + $ekUsd > 0) $upd['maliyet_usd'] = DB::raw('maliyet_usd + ' . sprintf('%.6F', $usd + $ekUsd));
 
@@ -1016,7 +1017,8 @@ class WaAsistan
         if (($k['cagri'] ?? 0) > 0) {
             $usd = SantralPaket::claudeMaliyetUsd($k);
             AiKullanimLog::yaz((int) $o->isletme_id, 'wa_asistan', (int) $k['girdi'], (int) $k['cikti'],
-                (string) (config('services.anthropic.santral_model') ?: 'claude-haiku-5-5'), false, true, $usd);
+                (string) (config('services.anthropic.santral_model') ?: 'claude-haiku-5-5'), false, true, $usd,
+                (int) ($k['cache_okuma'] ?? 0), (int) ($k['cache_yazma'] ?? 0));
         }
         WaAsistanVeri::cevapKaydet(['salon_id' => (int) $o->salon_id, 'isletme_id' => (int) $o->isletme_id, 'oturum_id' => (int) $o->id,
             'kaynak' => ($k['cagri'] ?? 0) > 0 ? 'ai' : 'kod', 'ai' => ($k['cagri'] ?? 0) > 0, 'aksiyon' => $aksiyon,

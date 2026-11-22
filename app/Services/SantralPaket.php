@@ -171,9 +171,9 @@ class SantralPaket
                 'maliyet_usd'       => DB::raw('maliyet_usd + ' . sprintf('%.6F', $usd)),
             ]);
             if (($kullanim['cagri'] ?? 0) > 0) {
-                AiKullanimLog::yaz($salonId, 'santral',
-                    (int) $kullanim['girdi'] + (int) $kullanim['cache_okuma'] + (int) $kullanim['cache_yazma'],
-                    (int) $kullanim['cikti'], config('services.anthropic.santral_model'), false, true, $usd);
+                AiKullanimLog::yaz($salonId, 'santral', (int) $kullanim['girdi'], (int) $kullanim['cikti'],
+                    config('services.anthropic.santral_model'), false, true, $usd,
+                    (int) $kullanim['cache_okuma'], (int) $kullanim['cache_yazma']);
             }
         } catch (\Throwable $e) {
             Log::warning('[SANTRAL-PAKET] tur kaydi hatasi: ' . $e->getMessage());

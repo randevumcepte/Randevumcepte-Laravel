@@ -24,12 +24,40 @@ class AiKullanimLog
              + ((int) $cikti / 1000000) * self::CIKTI_USD_M;
     }
 
-    /** Bir AI cagrisini logla (hatalari yut; ana akisi asla bozma). */
-    public static function yaz($salonId, $tur, $girdi = 0, $cikti = 0, $model = null, $cache = false, $basarili = true, $maliyetUsd = null)
+    /**
+     * Prompt-cache token kolonlari (cache_okuma_token / cache_yazma_token). NULL = kolonlar eklenmeden onceki
+     * kayit (ayrinti yok); 0 = ayrintili kayit, cache yok. Panel ve log ayni guvenceyi kullanir.
+     */
+    public static function semaGaranti()
+    {
+        static $ok = null;
+        if ($ok !== null) return $ok;
+        try {
+            if (!\Schema::hasTable('ai_kullanim')) return $ok = false;
+            if (\Cache::get('ai_kullanim_sema_v2')) return $ok = true;
+            if (!\Schema::hasColumn('ai_kullanim', 'cache_okuma_token')) {
+                \Schema::table('ai_kullanim', function ($t) {
+                    $t->unsignedInteger('cache_okuma_token')->nullable();
+                    $t->unsignedInteger('cache_yazma_token')->nullable();
+                });
+            }
+            \Cache::forever('ai_kullanim_sema_v2', 1);
+            return $ok = true;
+        } catch (\Throwable $e) {
+            return $ok = false;
+        }
+    }
+
+    /**
+     * Bir AI cagrisini logla (hatalari yut; ana akisi asla bozma).
+     * $girdi = YALNIZ normal girdi; prompt-cache okuma/yazma ayri verilir (maliyet $maliyetUsd'de hepsi dahil).
+     */
+    public static function yaz($salonId, $tur, $girdi = 0, $cikti = 0, $model = null, $cache = false, $basarili = true, $maliyetUsd = null, $cacheOkuma = 0, $cacheYazma = 0)
     {
         try {
             if (!\Schema::hasTable('ai_kullanim')) return;
-            DB::table('ai_kullanim')->insert([
+            $ek = self::semaGaranti() ? ['cache_okuma_token' => (int) $cacheOkuma, 'cache_yazma_token' => (int) $cacheYazma] : [];
+            DB::table('ai_kullanim')->insert($ek + [
                 'salon_id'    => $salonId ? (int) $salonId : null,
                 'tur'         => (string) $tur,
                 'model'       => $model ? mb_substr((string) $model, 0, 40) : null,

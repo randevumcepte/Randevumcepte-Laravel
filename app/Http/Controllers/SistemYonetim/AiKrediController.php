@@ -41,6 +41,7 @@ class AiKrediController extends Controller
                 'ozet'      => ['cagri' => 0, 'gercek' => 0, 'cache' => 0, 'maliyet_usd' => 0, 'bugun_usd' => 0,
                                 'girdi' => 0, 'cikti' => 0, 'ort_usd' => 0, 'cache_tasarruf_usd' => 0],
                 'turler'    => collect(), 'salonlar' => collect(), 'gunluk' => collect(),
+                'salonTur'  => [], 'gunlukOrtUsd' => 0, 'kalanGun' => null,
                 'tumHarcamaUsd' => 0, 'kalanUsd' => (float) $ayar['yuklenen_usd'],
             ]));
         }
@@ -70,13 +71,38 @@ class AiKrediController extends Controller
         $ortUsd = $gercekCagri > 0 ? $maliyetUsd / $gercekCagri : 0;
         $cacheTasarruf = $ortUsd * $cacheCagri;
 
+        // Prompt-cache kolonlari yoksa 0 doner; eski (kolonlar oncesi) kayitlar NULL -> 'eski' sayilir.
+        $detay = AiKullanimLog::semaGaranti();
         $turler = $q()->select('tur',
                 DB::raw('COUNT(*) as cagri'),
                 DB::raw('SUM(maliyet_usd) as maliyet'),
                 DB::raw('SUM(girdi_token) as girdi'),
                 DB::raw('SUM(cikti_token) as cikti'),
-                DB::raw('SUM(cache) as cache'))
+                DB::raw('SUM(cache) as cache'),
+                DB::raw($detay ? 'SUM(COALESCE(cache_okuma_token,0)) as okuma' : '0 as okuma'),
+                DB::raw($detay ? 'SUM(COALESCE(cache_yazma_token,0)) as yazma' : '0 as yazma'),
+                DB::raw($detay ? 'SUM(CASE WHEN cache_okuma_token IS NULL THEN 1 ELSE 0 END) as eski' : 'COUNT(*) as eski'),
+                DB::raw('MAX(model) as model'))
             ->groupBy('tur')->orderByDesc('maliyet')->get();
+
+        // Salon x kanal: her salonun parasi hangi kanala gidiyor
+        $salonTur = [];
+        foreach ($q()->select('salon_id', 'tur', DB::raw('SUM(maliyet_usd) as maliyet'), DB::raw('COUNT(*) as cagri'))
+                     ->groupBy('salon_id', 'tur')->get() as $r) {
+            $salonTur[(int) $r->salon_id][] = $r;
+        }
+        foreach ($salonTur as &$liste) {
+            usort($liste, function ($a, $b) { return $b->maliyet <=> $a->maliyet; });
+        }
+        unset($liste);
+
+        // Bu hizla kredi kac gun yeter: son 7 gunun (veri daha yeniyse ilk kayittan beri) gunluk ortalamasi
+        $ilk = DB::table('ai_kullanim')->min('created_at');
+        $ortGunSayisi = $ilk ? min(7, max(1, (int) floor((strtotime(date('Y-m-d')) - strtotime(date('Y-m-d', strtotime($ilk)))) / 86400) + 1)) : 7;
+        $son7Usd = (float) DB::table('ai_kullanim')
+            ->where('created_at', '>=', date('Y-m-d 00:00:00', strtotime('-' . ($ortGunSayisi - 1) . ' days')))->sum('maliyet_usd');
+        $gunlukOrtUsd = $son7Usd / $ortGunSayisi;
+        $kalanGun = ((float) $ayar['yuklenen_usd'] > 0 && $gunlukOrtUsd > 0) ? (int) floor(max(0, $kalanUsd) / $gunlukOrtUsd) : null;
 
         $salonlar = $q()
             ->leftJoin('salonlar', 'salonlar.id', '=', 'ai_kullanim.salon_id')
@@ -112,7 +138,10 @@ class AiKrediController extends Controller
             ],
             'turler'   => $turler,
             'salonlar' => $salonlar,
+            'salonTur' => $salonTur,
             'gunluk'   => $gunluk,
+            'gunlukOrtUsd' => $gunlukOrtUsd,
+            'kalanGun' => $kalanGun,
             'tumHarcamaUsd' => $tumHarcamaUsd,
             'kalanUsd' => $kalanUsd,
         ]));
