@@ -495,6 +495,14 @@
                 <span class="ea-tab-badge" data-badge="yarin">0</span>
             </a>
         </li>
+        @if($isletme && $isletme->santral_aktif && !Auth::guard('satisortakligi')->check())
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#asistan-gorusmeleri" role="tab" aria-selected="false">
+                <i class="fa fa-phone"></i>
+                Asistan Görüşmeleri
+            </a>
+        </li>
+        @endif
         <li class="nav-item">
             <a class="nav-link" data-toggle="tab" href="#e_asistan_ayarlari" role="tab" aria-selected="false">
                 <i class="fa fa-cog"></i>
@@ -552,6 +560,11 @@
                 </div>
             </div>
         </div>
+
+        {{-- ======================= ASISTAN GÖRÜŞMELERİ (Santral ile ortak) ======================= --}}
+        @if($isletme && $isletme->santral_aktif && !Auth::guard('satisortakligi')->check())
+        @include('isletmeadmin.partials.asistan_gorusmeleri')
+        @endif
 
         {{-- ============================== AYARLAR ============================== --}}
         <div class="tab-pane fade" id="e_asistan_ayarlari" role="tabpanel">
