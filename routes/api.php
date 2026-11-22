@@ -392,6 +392,25 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     // Bildirimlerim (mobil): kisi kendi uygulama bildirimlerini tur bazinda sesli/sessiz yapar
     Route::get('/bildirimlerim/veri','PersonelBildirimController@veri')->middleware('auth:isletmeyonetim-api');
     Route::post('/bildirimlerim/kaydet','PersonelBildirimController@kaydet')->middleware('auth:isletmeyonetim-api');
+    // Profil sayfasi (mobil): ozet, durum, yorumlar, saatler, hizmetler, izin, hedef, calismalar, cihazlar
+    Route::group(['prefix' => 'profil', 'middleware' => 'auth:isletmeyonetim-api'], function () {
+        Route::get('/ozet','ProfilController@ozet');
+        Route::post('/durum','ProfilController@durum');
+        Route::get('/yorumlar','ProfilController@yorumlar');
+        Route::get('/calisma-saatleri','ProfilController@calismaSaatleri');
+        Route::get('/hizmetler','ProfilController@hizmetler');
+        Route::get('/izinler','ProfilController@izinler');
+        Route::post('/izin-talep','ProfilController@izinTalep');
+        Route::post('/izin-iptal','ProfilController@izinIptal');
+        Route::post('/izin-karar','ProfilController@izinKarar');
+        Route::get('/ekip','ProfilController@ekip');
+        Route::post('/hedef','ProfilController@hedef');
+        Route::get('/calismalar','ProfilController@calismalar');
+        Route::post('/calisma-ekle','ProfilController@calismaEkle');
+        Route::post('/calisma-sil','ProfilController@calismaSil');
+        Route::get('/cihazlar','ProfilController@cihazlar');
+        Route::post('/cihaz-kapat','ProfilController@cihazKapat');
+    });
     // Dogum gunu popup (mobil): web'deki isletmeyonetim uclarinin Bearer'li karsiligi.
     Route::get('/dogum-gunu/bugun','StoreAdminController@apiBugunDogumGunu')->middleware('auth:isletmeyonetim-api');
     Route::post('/dogum-gunu/gonder','StoreAdminController@apiDogumGunuGonder')->middleware('auth:isletmeyonetim-api');
