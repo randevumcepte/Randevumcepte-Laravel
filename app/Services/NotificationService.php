@@ -47,6 +47,7 @@ class NotificationService
     /** @var bool */ private $popup = false;
     /** @var bool */ private $karaListeMuaf = false;
     /** @var bool */ private $cevaptanSonra = false;
+    /** @var bool */ private $sessiz = false;      // personel bu turu Bildirimlerim'de sessize aldi
     /** @var string|null */ private $firebaseJsonFile = 'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json';
 
     /** @return static */
@@ -164,6 +165,11 @@ class NotificationService
             }
         }
 
+        // Bildirimlerim: personel bu turu sessize aldiysa bildirim yine gider, ses/titresim olmaz
+        if ($this->kullaniciTipi === 'personel' || $this->kullaniciTipi === 'yetkili') {
+            $this->sessiz = PersonelBildirimSessiz::sessizMi($this->kullaniciTipi === 'personel' ? $this->personelId : $this->yetkiliId, $this->type);
+        }
+
         $tokens = $this->findTokens();
         $sent = 0; $failed = 0; $hatalar = [];
 
@@ -188,6 +194,7 @@ class NotificationService
             'image'     => $this->imageUrl ?? '',
             'salon_id'  => (string)($this->salonId ?? ''),
             'randevu_id'=> (string)($this->randevuId ?? ''),
+            'sessiz'    => $this->sessiz ? '1' : '0',
         ], array_map(function ($v) {
             return is_scalar($v) ? (string)$v : json_encode($v, JSON_UNESCAPED_UNICODE);
         }, $this->extra));
@@ -454,7 +461,7 @@ class NotificationService
             'payload' => [
                 'aps' => array_filter([
                     // iOS: ios/Runner/ring.caf bundle'da. Uzantili yazilir.
-                    'sound'             => 'ring.caf',
+                    'sound'             => $this->sessiz ? null : 'ring.caf',
                     'mutable-content'   => $this->imageUrl ? 1 : null,
                     'content-available' => 1,
                 ], function ($v) { return $v !== null; }),
@@ -478,6 +485,7 @@ class NotificationService
                 'image' => $this->imageUrl,
                 // Aynı tag ile yenisi geldiginde eskisini yerine yazar (spam onleme)
                 'tag'   => $this->type,
+                'silent' => $this->sessiz ? true : null,
             ]),
         ];
         // Tiklayinca derin link
@@ -504,7 +512,7 @@ class NotificationService
                         'image'      => $this->imageUrl,
                         // Android: res/raw/ring.mp3 -> uzantisiz 'ring'.
                         // Android 8+ kanal sesini kullanir; bu alan eski surumler icin.
-                        'sound'      => 'ring',
+                        'sound'      => $this->sessiz ? null : 'ring',
                     ]),
                 ],
                 'apns' => $apns,
@@ -533,6 +541,8 @@ class NotificationService
         // _v2: ring.mp3 custom sesi eklendiginde kanal ID'leri bump'landi.
         // Android'de bir kanalin sesi sonradan degistirilemedigi icin
         // uygulama tarafinda da yeni ID'lerle (rmc_*_v2) kanal olusturuluyor.
+        // Bildirimlerim'de sessize alinan tur: sessiz kanal (uygulamanin yeni surumunde var)
+        if ($this->sessiz)                                   return 'rmc_sessiz_v1';
         if (NotificationTypes::isPopup($this->type))         return 'rmc_promo_v2';
         if (NotificationTypes::isHighPriority($this->type))  return 'rmc_important_v2';
         return 'rmc_default_v2';

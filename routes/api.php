@@ -389,6 +389,9 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     // Bildirim Ayarlari (mobil): web /isletmeyonetim/bildirim-ayarlari/* ile ayni uclar (sube parametresi zorunlu)
     Route::get('/bildirim-ayarlari/veri','BildirimAyarController@veri')->middleware('auth:isletmeyonetim-api');
     Route::post('/bildirim-ayarlari/kaydet','BildirimAyarController@kaydet')->middleware('auth:isletmeyonetim-api');
+    // Bildirimlerim (mobil): kisi kendi uygulama bildirimlerini tur bazinda sesli/sessiz yapar
+    Route::get('/bildirimlerim/veri','PersonelBildirimController@veri')->middleware('auth:isletmeyonetim-api');
+    Route::post('/bildirimlerim/kaydet','PersonelBildirimController@kaydet')->middleware('auth:isletmeyonetim-api');
     // Dogum gunu popup (mobil): web'deki isletmeyonetim uclarinin Bearer'li karsiligi.
     Route::get('/dogum-gunu/bugun','StoreAdminController@apiBugunDogumGunu')->middleware('auth:isletmeyonetim-api');
     Route::post('/dogum-gunu/gonder','StoreAdminController@apiDogumGunuGonder')->middleware('auth:isletmeyonetim-api');
