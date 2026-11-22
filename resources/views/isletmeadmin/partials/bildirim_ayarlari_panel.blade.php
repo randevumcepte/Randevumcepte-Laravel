@@ -41,9 +41,10 @@
    .bm-tik.iyi { background:var(--bm-wa); } .bm-tik.kotu { background:#f59e0b; }
    .bm-sayilar { display:flex; align-items:center; justify-content:space-around; padding:12px 8px; }
    .bm-sayi { text-align:center; flex:1; }
-   .bm-sayi + .bm-sayi { border-left:1px solid var(--bm-cizgi); }
-   .bm-sayi b { display:block; font-size:28px; font-weight:700; color:var(--bm-yazi); line-height:1.1; }
-   .bm-sayi span { font-size:12.5px; color:var(--bm-gri); }
+   .bm-sayilar { gap:10px; }
+   .bm-sayi { border-radius:12px; padding:10px 6px; }
+   .bm-sayi b { display:block; font-size:28px; font-weight:700; line-height:1.1; }
+   .bm-sayi span { font-size:12.5px; font-weight:600; opacity:.85; }
 
    .bm-tablo { overflow:hidden; margin-bottom:18px; }
    .bm-satir { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); align-items:center; gap:12px;
@@ -213,17 +214,19 @@
       var smsKalan = !d.sms_hesabi ? sayi(0) : (d.sms_bakiye == null ? '—' : sayi(d.sms_bakiye));
       function kart(ikon, renk, zemin, baslik, alt, iyi, kalan, birim) {
          // Hafif renkli zemin + sol renk seridi; sorunlu kart turuncu
-         var vurgu = iyi ? renk : '#f59e0b', acik = iyi ? zemin : '#fff7ed';
-         return '<div class="bm-kart bm-durum" style="background:linear-gradient(135deg,' + acik + ' 0%,#fff 78%);border-color:' + acik + ';border-left:4px solid ' + vurgu + '"><div class="bm-durum-ikon" style="background:#fff;box-shadow:0 2px 8px rgba(31,22,51,.06);color:' + renk + '"><i class="fa ' + ikon + '"></i></div>'
-            + '<div><b>' + baslik + '</b><small>' + esc(alt) + '</small>'
+         var vurgu = iyi ? renk : '#ea580c', acik = iyi ? zemin : '#ffedd5';
+         return '<div class="bm-kart bm-durum" style="background:linear-gradient(135deg,' + acik + ' 0%,' + acik + ' 45%,#fff 100%);border-color:' + acik + ';border-left:4px solid ' + vurgu + '"><div class="bm-durum-ikon" style="background:#fff;box-shadow:0 2px 8px rgba(31,22,51,.06);color:' + renk + '"><i class="fa ' + ikon + '"></i></div>'
+            + '<div><b style="color:' + vurgu + '">' + baslik + '</b><small>' + esc(alt) + '</small>'
             + (kalan != null ? '<div class="bm-kalan">Kalan <strong style="color:' + renk + '">' + esc(kalan) + '</strong> ' + birim + '</div>' : '') + '</div><span class="bm-tik ' + (iyi ? 'iyi' : 'kotu') + '"><i class="fa ' + (iyi ? 'fa-check' : 'fa-exclamation') + '"></i></span></div>';
       }
       return '<div class="bm-ust">'
-         + kart('fa-commenting', '#5C008E', '#f3ebfb', smsIyi ? 'SMS Aktif' : 'SMS Kullanılamıyor', smsAlt, smsIyi, smsKalan, 'SMS')
-         + kart('fa-whatsapp', '#16a34a', '#e9f9ef', d.wa_bagli ? 'WhatsApp Bağlı' : 'WhatsApp Bağlı Değil', d.wa_bagli ? 'WhatsApp bildirimleri gönderilir.' : 'Bağlayana kadar WhatsApp\'tan mesaj gitmez.', d.wa_bagli, sayi(d.wa_kontor), 'kontör')
-         + kart('fa-bell', '#6d28d9', '#efeafe', 'Uygulama Bildirimi Aktif', 'Uygulamayı kullanan müşteri: ' + (+d.uygulama_musteri || 0), true)
-         + '<div class="bm-kart bm-sayilar" style="background:linear-gradient(135deg,#f6f0fc 0%,#fff 80%);border-color:#ece0f8;border-left:4px solid #5C008E"><div class="bm-sayi"><b>' + toplam + '</b><span>Bildirim türü</span></div>'
-         + '<div class="bm-sayi"><b>3</b><span>Kanal</span></div><div class="bm-sayi"><b>' + (+d.personel_sayisi || 0) + '</b><span>Personel</span></div></div>'
+         + kart('fa-commenting', '#5C008E', '#efe1fb', smsIyi ? 'SMS Aktif' : 'SMS Kullanılamıyor', smsAlt, smsIyi, smsKalan, 'SMS')
+         + kart('fa-whatsapp', '#16a34a', '#dcf6e6', d.wa_bagli ? 'WhatsApp Bağlı' : 'WhatsApp Bağlı Değil', d.wa_bagli ? 'WhatsApp bildirimleri gönderilir.' : 'Bağlayana kadar WhatsApp\'tan mesaj gitmez.', d.wa_bagli, sayi(d.wa_kontor), 'kontör')
+         + kart('fa-bell', '#6d28d9', '#e7e0fd', 'Uygulama Bildirimi Aktif', 'Uygulamayı kullanan müşteri: ' + (+d.uygulama_musteri || 0), true)
+         + '<div class="bm-kart bm-sayilar">'
+         + '<div class="bm-sayi" style="background:#efe1fb;color:#5C008E"><b>' + toplam + '</b><span>Bildirim türü</span></div>'
+         + '<div class="bm-sayi" style="background:#dbeafe;color:#1d4ed8"><b>3</b><span>Kanal</span></div>'
+         + '<div class="bm-sayi" style="background:#ffedd5;color:#c2410c"><b>' + (+d.personel_sayisi || 0) + '</b><span>Personel</span></div></div>'
          + '</div>';
    }
 
