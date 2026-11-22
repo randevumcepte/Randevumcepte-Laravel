@@ -40,10 +40,9 @@ class SeansBildirimService
         // salon_sms_ayarlari.ayar_id=20 / musteri kolonu. Toggle KAPALI (0/null) ise
         // musteriye seans bildirimi HICBIR kanaldan (push/WhatsApp/SMS) gitmez.
         // Not: varsayilan 0'dir; her salon panelden acmalidir (DB'ye dokunulmadi).
-        $seansBildirimiAcik = \App\SalonSMSAyarlari::where('salon_id', $randevu->salon_id)
-            ->where('ayar_id', 20)
-            ->value('musteri');
-        if ((int) $seansBildirimiAcik !== 1) {
+        // Bildirim tercihleri (seans_kullanim): push / WhatsApp / SMS ayri ayri; hicbiri acik degilse gitmez.
+        $kanal = BildirimTercih::kanallar($randevu->salon_id, 'seans_kullanim', 'musteri');
+        if (!$kanal['push'] && !$kanal['whatsapp'] && !$kanal['sms']) {
             Log::info('[SEANS-KULLANIM] Seans Bilgisi Bildirimi kapali, atlandi', [
                 'randevu_id' => $randevu->id, 'salon_id' => $randevu->salon_id,
             ]);
@@ -112,7 +111,7 @@ class SeansBildirimService
 
         // 1) UYGULAMA BILDIRIMI (push) — DETAYLI
         $pushUlasti = false;
-        try {
+        if ($kanal['push']) try {
             $sonuc = NotificationService::toCustomer((int) $musteri->id, (int) $randevu->salon_id)
                 ->type(NotificationTypes::SESSION_USED)
                 ->title('Seans Bilgilendirmesi ✨')
@@ -131,7 +130,7 @@ class SeansBildirimService
         //    asagida biz yonetiriz -> cift/detayli SMS gitmez). WhatsApp kalin
         //    bicimi tek yildiz oldugu icin ** -> * cevrilir.
         $waUlasti = false;
-        if ($salon && $tel !== '') {
+        if ($kanal['whatsapp'] && $salon && $tel !== '') {
             try {
                 $waBody  = str_replace('**', '*', $body);
                 $wa      = app(\App\Services\WhatsAppService::class);
@@ -145,7 +144,10 @@ class SeansBildirimService
 
         // 3) SMS FALLBACK — SADECE push VE whatsapp ikisi de ulasmadiysa.
         //    DETAYSIZ, TEK kisa SMS.
-        if (!$pushUlasti && !$waUlasti && $salon && $tel !== '') {
+        // SMS: dogrudan seciliyse, ya da secili push/WA'nin hicbiri ulasmadiysa yedek (salon yedegi acik + SMS paketi var)
+        $smsGonder = $kanal['sms']
+            || (!$pushUlasti && !$waUlasti && $salon && BildirimTercih::waYedekSms($randevu->salon_id) && BildirimTercih::smsKullanilabilir($salon));
+        if ($smsGonder && $salon && $tel !== '') {
             try {
                 $kisa  = "Sayın {$musteriIsmi}, seans bilgileriniz güncellendi. Sağlıklı günler dileriz.";
                 $yerel = $this->telYerel($tel);

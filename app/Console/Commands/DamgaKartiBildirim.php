@@ -76,12 +76,29 @@ class DamgaKartiBildirim extends Command
                     if ($gonder) {
                         $salon = $salon ?: Salonlar::find($kural->salon_id);
                         $ad = trim(explode(' ', (string) DB::table('users')->where('id', $userId)->value('name'))[0] ?? '');
-                        try {
+                        $govde = ($ad !== '' ? "Tebrikler {$ad}! " : 'Tebrikler! ')
+                            . "{$hizmetAdi} hizmetinden ikram kazandınız. Dilediğiniz bir seansınızda kullanabilirsiniz 🎁";
+                        // SMS/WhatsApp: yalniz isletme sectiyse ayni metin (tohumda kapali)
+                        if (\App\Services\BildirimTercih::mesajAcikMi($kural->salon_id, 'damga_karti', 'musteri')) {
+                            try {
+                                $tel = DB::table('users')->where('id', $userId)->value('cep_telefon');
+                                $sms = ($tel && $salon) ? \App\Services\BildirimTercih::dagit($salon, [[
+                                    'to' => $tel, 'message' => $govde, 'user_id' => $userId,
+                                    'bk' => 'damga_karti', 'alici' => 'musteri', 'push_ayri' => true,
+                                ]]) : [];
+                                if ($sms) {
+                                    app(\App\Http\Controllers\Controller::class)->sms_gonder((int) $kural->salon_id, [['to' => $sms[0]['to'], 'message' => $sms[0]['message']]]);
+                                }
+                            } catch (\Throwable $e) {
+                                Log::warning('[damga:bildirim] mesaj hatasi', ['user_id' => $userId, 'err' => $e->getMessage()]);
+                            }
+                        }
+                        // Push: bildirim tercihi (damga_karti/musteri/push)
+                        if (\App\Services\BildirimTercih::izin($kural->salon_id, 'damga_karti', 'musteri', 'push')) try {
                             NotificationService::toCustomer($userId, (int) $kural->salon_id)
                                 ->type(NotificationTypes::DAMGA_KAZANILDI)
                                 ->title('🎁 ' . ($salon->salon_adi ?? 'İkram hizmet kazandınız'))
-                                ->body(($ad !== '' ? "Tebrikler {$ad}! " : 'Tebrikler! ')
-                                    . "{$hizmetAdi} hizmetinden ikram kazandınız. Dilediğiniz bir seansınızda kullanabilirsiniz 🎁")
+                                ->body($govde)
                                 ->deepLink('ikram_hizmet', ['salon_id' => $kural->salon_id])
                                 ->extra(['kural_id' => $kural->id])
                                 ->send();

@@ -2435,7 +2435,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         $returnText="";
 
         $baslik=FormTaslaklari::where('id',$form->form_id)->value('form_adi');
-        $dogrulama_kodu_ayari = SalonSMSAyarlari::where('salon_id',$form->salon_id)->where('ayar_id',16)->value('musteri');
+        $dogrulama_kodu_ayari = \App\Services\BildirimTercih::acikMi($form->salon_id, 'dogrulama_kodu', 'musteri'); // kullanilmiyor; eski ayar 16 yerine
         $taslak = FormTaslaklari::where('id',$form->form_id)->value('taslak');
         $isletme=Salonlar::where('id',$form->salon_id)->first();
         
@@ -2495,7 +2495,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         $returnText="";
 
         $baslik=FormTaslaklari::where('id',$form->form_id)->value('form_adi');
-        $dogrulama_kodu_ayari = SalonSMSAyarlari::where('salon_id',$form->salon_id)->where('ayar_id',16)->value('musteri');
+        $dogrulama_kodu_ayari = \App\Services\BildirimTercih::acikMi($form->salon_id, 'dogrulama_kodu', 'musteri'); // kullanilmiyor; eski ayar 16 yerine
         $taslak = FormTaslaklari::where('id',$form->form_id)->value('taslak');
         $isletme=Salonlar::where('id',$form->salon_id)->first();
         
@@ -2555,7 +2555,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         $returnText="";
 
         $baslik=FormTaslaklari::where('id',$form->form_id)->value('form_adi');
-        $dogrulama_kodu_ayari = SalonSMSAyarlari::where('salon_id',$form->salon_id)->where('ayar_id',16)->value('musteri');
+        $dogrulama_kodu_ayari = \App\Services\BildirimTercih::acikMi($form->salon_id, 'dogrulama_kodu', 'musteri'); // kullanilmiyor; eski ayar 16 yerine
         $taslak = FormTaslaklari::where('id',$form->form_id)->value('taslak');
         $isletme=Salonlar::where('id',$form->salon_id)->first();
         
@@ -3410,7 +3410,8 @@ $salon = Salonlar::where('domain', $domain)->first();
 
                 // ── 1) UYGULAMA PUSH (birincil) — salon sahibi/yoneticilerine (role_id < 5; normal personel haric)
                 //     Push telefon numarasina bagli DEGILDIR: uyari telefonu bos olsa bile sahibe gider.
-                try {
+                //     Bildirim tercihleri: kotu_degerlendirme / personel / push kapaliysa atilmaz.
+                if (\App\Services\BildirimTercih::izin($salon->id, 'kotu_degerlendirme', 'personel', 'push')) try {
                     $yoneticiIdleri = \App\Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
                         ->where('salon_personelleri.salon_id', $salon->id)
                         ->where('model_has_roles.role_id', '<', 5)

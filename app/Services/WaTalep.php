@@ -107,7 +107,7 @@ class WaTalep
         }
         $id = DB::table('wa_asistan_talepler')->insertGetId(['salon_id' => (int) $o->salon_id, 'isletme_id' => (int) $o->isletme_id, 'oturum_id' => (int) $o->id,
             'konu' => $konu, 'ozet' => mb_substr($ozet, 0, 1000), 'durum' => 'bekliyor', 'created_at' => now(), 'updated_at' => now()]);
-        $kim = WaAsistan::bildir((int) $o->isletme_id, self::bildirimMetni($o, $konu, $ozet), self::url((int) $o->isletme_id, (int) $o->id));
+        $kim = WaAsistan::bildir((int) $o->isletme_id, self::bildirimMetni($o, $konu, $ozet), self::url((int) $o->isletme_id, (int) $o->id), 'wa_asistan_talep');
         DB::table('wa_asistan_talepler')->where('id', $id)->update(['bildirilen' => json_encode($kim, JSON_UNESCAPED_UNICODE)]);
         return ['id' => $id, 'yeni' => true];
     }
@@ -154,7 +154,7 @@ class WaTalep
                 continue;
             }
             if (!$t->hatirlatma_at && $saat >= 8 && $saat < 22) {
-                WaAsistan::bildir((int) $t->isletme_id, self::bildirimMetni($o, $t->konu, (string) $t->ozet, true), self::url((int) $t->isletme_id, (int) $t->oturum_id));
+                WaAsistan::bildir((int) $t->isletme_id, self::bildirimMetni($o, $t->konu, (string) $t->ozet, true), self::url((int) $t->isletme_id, (int) $t->oturum_id), 'wa_asistan_talep');
                 DB::table('wa_asistan_talepler')->where('id', $t->id)->update(['hatirlatma_at' => now(), 'updated_at' => now()]);
                 $r['hatirlatma']++;
             }

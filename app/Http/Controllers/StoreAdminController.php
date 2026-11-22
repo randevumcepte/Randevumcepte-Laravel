@@ -3869,6 +3869,8 @@ public function carkverilerigetir(Request $request)
                     'odalar'               => ['ayar.cihaz_oda_yonet'],
                     'randevuayarlari'      => ['randevu.online_ayar'],
                     'musteri_indirimleri'  => ['satis.indirim_uygula'],
+                    // Bildirim Ayarlari: sekme yalniz Hesap Sahibi'ne gorunur, uclar ayrica rol 1 ister
+                    'bildirimayarlari'     => ['ayar.salon_bilgi'],
                 ];
                 $has = function($keys) use ($authUser, $salonId) {
                     foreach ((array)$keys as $k) {
@@ -8067,9 +8069,9 @@ private function ayAdiCevir($ingilizceAy)
                     if ($tarihSaatDegisti) {
                         // Müşteriye gönder (WhatsApp-first + SMS fallback)
                         $musteriMesaji = $randevu->salonlar->salon_adi . " tarafından " . $eskitarihsaat . " " . ($seansVar ? $hizmetAdi : "") . " randevunuz " . date('d.m.Y', strtotime($randevu->tarih)) . '-' . $randevu->saat . ' olarak güncellenmiştir. Detaylı bilgi için bize ulaşın. 0' . $randevu->salonlar->telefon_1;
-                        $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 14, 'musteri', $randevu->id, $randevu->user_id, $mesajlar, 'guncelleme_bildirim');
+                        $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 'randevu_guncellendi', 'musteri', $randevu->id, $randevu->user_id, $mesajlar, 'guncelleme_bildirim');
                         // Musteri push (SMS metniyle birebir)
-                        if($randevu->user_id){
+                        if($randevu->user_id && \App\Services\BildirimTercih::izin($randevu->salon_id, 'randevu_guncellendi', 'musteri', 'push')){
                             try {
                                 NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
                                     ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
@@ -8086,7 +8088,7 @@ private function ayAdiCevir($ingilizceAy)
                             $yetkiliid = Personeller::where('id', $hizmet->personel_id)->value('yetkili_id');
                             $personelTel = IsletmeYetkilileri::where('id', $yetkiliid)->value('gsm1');
                             $personelMesaji = $randevu->users->name . " isimli müşterinin " . $hizmet->hizmetler->hizmet_adi . " randevusu " . date('d.m.Y', strtotime($randevu->tarih)) . " - " . date('H:i', strtotime($hizmet->saat)) . " olarak " . Auth::guard('isletmeyonetim')->user()->name . " tarafından güncellenmiştir.";
-                            $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $personelMesaji, 14, 'personel', $randevu->id, null, $mesajlar, 'guncelleme_bildirim');
+                            $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $personelMesaji, 'randevu_guncellendi', 'personel', $randevu->id, null, $mesajlar, 'guncelleme_bildirim');
                         }
                     }
                     
@@ -8095,7 +8097,7 @@ private function ayAdiCevir($ingilizceAy)
                         $mesaj = $randevu->users->name . " isimli müşterinin " . $hizmet->hizmetler->hizmet_adi . " randevusu " . date('d.m.Y', strtotime($randevu->tarih)) . " - " . date('H:i', strtotime($hizmet->saat)) . " olarak " . Auth::guard('isletmeyonetim')->user()->name . " tarafından güncellenmiştir.";
                         
                         self::bildirimekle($request, $randevu->salon_id, $mesaj, "#", $hizmet->personel_id, null, Auth::guard('isletmeyonetim')->user()->profil_resim, $randevu->id);
-                        if($hizmet->personel_id){
+                        if($hizmet->personel_id && \App\Services\BildirimTercih::izin($randevu->salon_id, 'randevu_guncellendi', 'personel', 'push')){
                             try {
                                 NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
                                     ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
@@ -8268,7 +8270,7 @@ private function ayAdiCevir($ingilizceAy)
             $this->smsVeyaWhatsappGonder(
                 $randevu->salonlar,
                 optional($randevu->users)->cep_telefon,
-                $musteriSmsMesaj, 14, 'musteri',
+                $musteriSmsMesaj, 'randevu_guncellendi', 'musteri',
                 $randevu->id, $randevu->user_id, $mesajlar, 'guncelleme_bildirim'
             );
 
@@ -8282,7 +8284,7 @@ private function ayAdiCevir($ingilizceAy)
                     . " olarak " . Auth::guard('isletmeyonetim')->user()->name . " tarafından güncellenmiştir.";
                 $this->smsVeyaWhatsappGonder(
                     $randevu->salonlar, $personelTel,
-                    $personelSmsMesaj, 14, 'personel',
+                    $personelSmsMesaj, 'randevu_guncellendi', 'personel',
                     $randevu->id, null, $mesajlar, 'guncelleme_bildirim'
                 );
             }
@@ -8306,7 +8308,7 @@ private function ayAdiCevir($ingilizceAy)
         }
 
         // Personel push
-        if ($hizmet->personel_id) {
+        if ($hizmet->personel_id && \App\Services\BildirimTercih::izin($randevu->salon_id, 'randevu_guncellendi', 'personel', 'push')) {
             try {
                 NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
                     ->type(NotificationTypes::APPOINTMENT_TIME_CHANGED)
@@ -8321,7 +8323,7 @@ private function ayAdiCevir($ingilizceAy)
         }
 
         // Musteri push
-        if ($randevu->user_id) {
+        if ($randevu->user_id && \App\Services\BildirimTercih::izin($randevu->salon_id, 'randevu_guncellendi', 'musteri', 'push')) {
             $musteriMesaji = $randevu->salonlar->salon_adi . " için oluşturulan "
                 . date('d.m.Y H:i', strtotime($eskitarih.' '.$eskisaat)) . " tarihli randevunuz "
                 . date('d.m.Y', strtotime($randevu->tarih)) . ' - ' . date('H:i', strtotime($hizmet->saat))
@@ -8384,8 +8386,8 @@ private function ayAdiCevir($ingilizceAy)
         if($red)
         {
             $musteriMesaji = $isletme->salon_adi." için oluşturduğunuz ".date('d.m.Y',strtotime($randevu->tarih)) ." ". date('H:i',strtotime($randevu->saat)) ." tarihli randevu talebiniz reddedilmiştir. Detaylı bilgi için bize ulaşın. 0".$isletme->telefon_1;
-            $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 3, 'musteri', $randevu->id, $randevu->user_id, $mesajlar, 'iptal_bildirim');
-            if($randevu->user_id){
+            $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 'randevu_reddedildi', 'musteri', $randevu->id, $randevu->user_id, $mesajlar, 'iptal_bildirim');
+            if($randevu->user_id && \App\Services\BildirimTercih::izin($randevu->salon_id, 'randevu_reddedildi', 'musteri', 'push')){
                 try {
                     NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
                         ->type(NotificationTypes::APPOINTMENT_CANCELLED)
@@ -8404,10 +8406,10 @@ private function ayAdiCevir($ingilizceAy)
                 $mesaj = $randevu->users->name .' isimli müşterinin yarın '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmetAdi.' randevusu '.Auth::guard('isletmeyonetim')->user()->name.' tarafından reddedilmiştir.';
                 $yetkiliid = Personeller::where('id',$hizmet->personel_id)->value('yetkili_id');
                 $personelTel = IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1');
-                $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $mesaj, 3, 'personel', $randevu->id, null, $mesajlar, 'iptal_bildirim');
+                $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $mesaj, 'randevu_reddedildi', 'personel', $randevu->id, null, $mesajlar, 'iptal_bildirim');
 
                 self::bildirimekle($request,$randevu->salon_id,$mesaj,"#",$hizmet->personel_id,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$randevu->id);
-                if($hizmet->personel_id){
+                if($hizmet->personel_id && \App\Services\BildirimTercih::izin($randevu->salon_id, 'randevu_reddedildi', 'personel', 'push')){
                     try {
                         NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
                             ->type(NotificationTypes::APPOINTMENT_CANCELLED)
@@ -8424,8 +8426,8 @@ private function ayAdiCevir($ingilizceAy)
         else
         {
             $musteriMesaji = $isletme->salon_adi." için oluşturulan ".date('d.m.Y',strtotime($randevu->tarih)) ." ". date('H:i',strtotime($randevu->saat)) ." tarihli randevunuz iptal edilmiştir. Detaylı bilgi için bize ulaşın. 0".$isletme->telefon_1;
-            $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 3, 'musteri', $randevu->id, $randevu->user_id, $mesajlar, 'iptal_bildirim');
-            if($randevu->user_id){
+            $this->smsVeyaWhatsappGonder($randevu->salonlar, $randevu->users->cep_telefon, $musteriMesaji, 'randevu_iptal', 'musteri', $randevu->id, $randevu->user_id, $mesajlar, 'iptal_bildirim');
+            if($randevu->user_id && \App\Services\BildirimTercih::izin($randevu->salon_id, 'randevu_iptal', 'musteri', 'push')){
                 try {
                     NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
                         ->type(NotificationTypes::APPOINTMENT_CANCELLED)
@@ -8444,10 +8446,10 @@ private function ayAdiCevir($ingilizceAy)
                 $personelTel = IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1');
                 $hizmetAdi = ($hizmet->hizmetler && isset($hizmet->hizmetler->hizmet_adi)) ? $hizmet->hizmetler->hizmet_adi : '';
                 $mesaj = $randevu->users->name .' isimli müşterinin yarın '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmetAdi.' randevusu '.Auth::guard('isletmeyonetim')->user()->name.' tarafından iptal edilmiştir.';
-                $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $mesaj, 3, 'personel', $randevu->id, null, $mesajlar, 'iptal_bildirim');
+                $this->smsVeyaWhatsappGonder($randevu->salonlar, $personelTel, $mesaj, 'randevu_iptal', 'personel', $randevu->id, null, $mesajlar, 'iptal_bildirim');
 
                 self::bildirimekle($request,$randevu->salon_id,$mesaj,"#",$hizmet->personel_id,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$randevu->id);
-                if($hizmet->personel_id){
+                if($hizmet->personel_id && \App\Services\BildirimTercih::izin($randevu->salon_id, 'randevu_iptal', 'personel', 'push')){
                     try {
                         NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
                             ->type(NotificationTypes::APPOINTMENT_CANCELLED)
@@ -8571,17 +8573,18 @@ private function ayAdiCevir($ingilizceAy)
             // Uygulamasi olmayana WA'da indirme daveti ekle
             $musteriOnayMesajiWA = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($musteriOnayMesajiWA, $randevu->salonlar, $randevu->user_id);
 
-            if (SalonSMSAyarlari::where('ayar_id',2)->where('salon_id',$randevu->salon_id)->value('musteri') == 1) {
+            if (\App\Services\BildirimTercih::mesajAcikMi($randevu->salon_id, 'randevu_onaylandi', 'musteri')) {
                 $mesajlar[] = [
                     'to' => $randevu->users->cep_telefon,
                     'message' => $musteriOnayMesaji,          // SMS icin sade
                     'wa_message' => $musteriOnayMesajiWA,     // WA icin zengin
                     'randevu_id' => $randevu->id,
                     'user_id' => $randevu->user_id,
+                    'bk' => 'randevu_onaylandi', 'alici' => 'musteri', 'push_ayri' => true,
                 ];
             }
-            // Musteri push (SMS metniyle birebir, SMS ayarindan bagimsiz)
-            if($randevu->user_id){
+            // Musteri push (SMS metniyle birebir) — Bildirim Ayarlari push secimi
+            if($randevu->user_id && \App\Services\BildirimTercih::izin($randevu->salon_id, 'randevu_onaylandi', 'musteri', 'push')){
                 try {
                     NotificationService::toCustomer((int)$randevu->user_id, (int)$randevu->salon_id)
                         ->type(NotificationTypes::APPOINTMENT_APPROVED)
@@ -8592,7 +8595,9 @@ private function ayAdiCevir($ingilizceAy)
                         ->send();
                 } catch (\Throwable $e) { \Log::warning('musteri randevu onay push: '.$e->getMessage()); }
             }
-            if (SalonSMSAyarlari::where('ayar_id',2)->where('salon_id',$randevu->salon_id)->value('personel') == 1) {
+            $_pMesajAcik = \App\Services\BildirimTercih::mesajAcikMi($randevu->salon_id, 'randevu_onaylandi', 'personel');
+            $_pPushAcik = \App\Services\BildirimTercih::izin($randevu->salon_id, 'randevu_onaylandi', 'personel', 'push');
+            if ($_pMesajAcik || $_pPushAcik) {
                 // Randevu tarihine gore dogru gun ifadesi (bugun / yarin / dd.mm.YYYY)
                 $_bugun = date('Y-m-d');
                 $_yarin = date('Y-m-d', strtotime('+1 day'));
@@ -8604,12 +8609,15 @@ private function ayAdiCevir($ingilizceAy)
                 foreach ($randevu->hizmetler as $hizmet) {
                     $yetkiliid = Personeller::where('id',$hizmet->personel_id)->value('yetkili_id');
                     $mesaj = $randevu->users->name.' isimli müşterinin '.$_gunIfade.' '.date('H:i',strtotime($hizmet->saat)).' saatli '.$hizmet->hizmetler->hizmet_adi.' randevusu '.$kullaniciAdi.' tarafından onaylanmıştır.';
-                    $mesajlar[] = [
-                        'to' => IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1'),
-                        'message' => $mesaj,
-                    ];
+                    if ($_pMesajAcik) {
+                        $mesajlar[] = [
+                            'to' => IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1'),
+                            'message' => $mesaj,
+                            'bk' => 'randevu_onaylandi', 'alici' => 'personel', 'push_ayri' => true,
+                        ];
+                    }
                     self::bildirimekle($request, $randevu->salon_id, $mesaj, "#", $hizmet->personel_id, null, $kullaniciResim, $randevu->id);
-                    if($hizmet->personel_id){
+                    if($hizmet->personel_id && $_pPushAcik){
                         try {
                             NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
                                 ->type(NotificationTypes::APPOINTMENT_APPROVED)
@@ -9474,7 +9482,7 @@ private function ayAdiCevir($ingilizceAy)
             // Uygulaması olmayana WA'da indirme daveti + link ekle
             $musteriYeniRandevuMesajiWA = \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($musteriYeniRandevuMesajiWA, $isletme, $musteribilgi->id ?? null);
 
-            $musteriToggle = SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$yenirandevu->salon_id)->value('musteri') == 1;
+            $musteriToggle = \App\Services\BildirimTercih::mesajAcikMi($yenirandevu->salon_id, 'randevu_olusturuldu', 'musteri');
 
             // Kritik bypass: ERTESI GUN icin + saat 19:00 sonra olusturulan + <24h kala
             // randevularda toggle KAPALI bile olsa musteriye gitsin (1-gun-once cron'un
@@ -9489,13 +9497,17 @@ private function ayAdiCevir($ingilizceAy)
             $_kritikBypass = ($_randevuTarihi === $_yarinTarih)
                           && ($_hour >= 18) // 1-gun-once penceresi 15:00-18:00; 18 sonrasi olusanlar bypass
                           && ($_kalanSaat > 0)
-                          && ($_kalanSaat < 24);
+                          && ($_kalanSaat < 24)
+                          // bypass, 1-gun-once hatirlatmanin yerini tutar: o bildirim kapaliysa gitmez
+                          && \App\Services\BildirimTercih::mesajAcikMi($yenirandevu->salon_id, 'hatirlatma_bir_gun_once', 'musteri');
 
             if ($musteriToggle || $_kritikBypass) {
                 array_push($mesajlar, array(
                     "to" => $gsm,
                     "message" => $musteriYeniRandevuMesaji,       // SMS'e giden kisa metin
                     "wa_message" => $musteriYeniRandevuMesajiWA,  // WA'ya giden zengin metin
+                    "bk" => $musteriToggle ? 'randevu_olusturuldu' : 'hatirlatma_bir_gun_once',
+                    "alici" => 'musteri', "push_ayri" => true,
                 ));
                 if (!$musteriToggle && $_kritikBypass) {
                     \Log::info('[RND-CREATE] kritik bypass (toggle kapali, 19 sonra ertesi gun <24h kala)', [
@@ -9507,7 +9519,7 @@ private function ayAdiCevir($ingilizceAy)
                 }
             }
             // Musteri push (SMS metniyle birebir)
-            if($musteriid){
+            if($musteriid && \App\Services\BildirimTercih::izin($yenirandevu->salon_id, 'randevu_olusturuldu', 'musteri', 'push')){
                 try {
                     NotificationService::toCustomer((int)$musteriid, (int)$yenirandevu->salon_id)
                         ->type(NotificationTypes::APPOINTMENT_CREATED)
@@ -9518,19 +9530,22 @@ private function ayAdiCevir($ingilizceAy)
                         ->cevaptanSonra()->send();
                 } catch (\Throwable $e) { \Log::warning('musteri yeni randevu push: '.$e->getMessage()); }
             }
-            
+
+            $_pMesajAcik = \App\Services\BildirimTercih::mesajAcikMi($yenirandevu->salon_id, 'randevu_olusturuldu', 'personel');
+            $_pPushAcik = \App\Services\BildirimTercih::izin($yenirandevu->salon_id, 'randevu_olusturuldu', 'personel', 'push');
             foreach($yenirandevu->hizmetler as $hizmet) {
-                $mesaj = "";
-                if(SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$yenirandevu->salon_id)->value('personel')==1 && $hizmet->personel_id) {
-                    $mesaj = $yenirandevu->users->name." isimli müşterinin ". date('d.m.Y',strtotime($yenirandevu->tarih)) ." - ". date('H:i',strtotime($hizmet->saat)) ." ".$hizmet->hizmetler->hizmet_adi." randevusu ".Auth::guard('isletmeyonetim')->user()->name." tarafından oluşturulmuştur.";
+                // Metin her durumda hazirlanir (eskiden personel SMS'i kapaliyken push/zil BOS metinle gidiyordu)
+                $mesaj = $yenirandevu->users->name." isimli müşterinin ". date('d.m.Y',strtotime($yenirandevu->tarih)) ." - ". date('H:i',strtotime($hizmet->saat)) ." ".optional($hizmet->hizmetler)->hizmet_adi." randevusu ".Auth::guard('isletmeyonetim')->user()->name." tarafından oluşturulmuştur.";
+                if($_pMesajAcik && $hizmet->personel_id) {
                     $yetkiliid = Personeller::where('id',$hizmet->personel_id)->value('yetkili_id');
-                    array_push($mesajlar, array("to"=>IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1'),"message"=>$mesaj));
+                    array_push($mesajlar, array("to"=>IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1'),"message"=>$mesaj,
+                        "bk"=>'randevu_olusturuldu',"alici"=>'personel',"push_ayri"=>true));
                 }
-                
+
                 // Personel ID null olabileceği için kontrol ekledim
                 if($hizmet->personel_id) {
                     self::bildirimekle($request,$yenirandevu->salon_id,$mesaj,"#",$hizmet->personel_id,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$yenirandevu->id);
-                    try {
+                    if ($_pPushAcik) try {
                         NotificationService::toStaff((int)$hizmet->personel_id, (int)$yenirandevu->salon_id)
                             ->type(NotificationTypes::APPOINTMENT_CREATED)
                             ->title('Yeni Randevu')
@@ -12532,7 +12547,7 @@ private function ayAdiCevir($ingilizceAy)
     {
         if($r = self::satisYetkiYoksa403($request, 'satis.adisyon_olustur')) return $r;
 
-        $smsDogrulamaVar = SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',23)->value('personel');
+        $smsDogrulamaVar = \App\Services\BildirimTercih::acikMi($request->sube, 'silme_onay_kodu', 'personel');
         $adisyonurun = AdisyonUrunler::where('id',$request->adisyonurunid)->first();
 
         $dogrulamaKodu = $adisyonurun->dogrulama_kodu;
@@ -12552,7 +12567,7 @@ private function ayAdiCevir($ingilizceAy)
 
                      
                 $mesajlar = array(
-                        array("to"=>$hesapSahibiTel,"message"=>$mesaj),
+                        array("to"=>$hesapSahibiTel,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'personel',"yetkili_id"=>$hesapSahibi),
                 );
                 self::sms_gonder_bildirimli($request,$mesajlar,false,1,true);
                 
@@ -12628,7 +12643,7 @@ private function ayAdiCevir($ingilizceAy)
         if($r = self::satisYetkiYoksa403($request, 'satis.adisyon_olustur')) return $r;
 
 
-        $smsDogrulamaVar = SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',23)->value('personel');
+        $smsDogrulamaVar = \App\Services\BildirimTercih::acikMi($request->sube, 'silme_onay_kodu', 'personel');
         $adisyonpaket = AdisyonPaketler::where('id',$request->adisyonpaketid)->first();
         Log::info('silincek adisyon paket id '.$request->adisyonpaketid);
         $dogrulamaKodu = $adisyonpaket->dogrulama_kodu;
@@ -12648,7 +12663,7 @@ private function ayAdiCevir($ingilizceAy)
 
                      
                 $mesajlar = array(
-                        array("to"=>$hesapSahibiTel,"message"=>$mesaj),
+                        array("to"=>$hesapSahibiTel,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'personel',"yetkili_id"=>$hesapSahibi),
                 );
                 self::sms_gonder_bildirimli($request,$mesajlar,false,1,true);
                 
@@ -12857,7 +12872,7 @@ private function ayAdiCevir($ingilizceAy)
     }*/
 
     private function kvkk_onayi_gerekli($salonId) {
-        return SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 22)->value('musteri') == 1;
+        return \App\Services\BildirimTercih::acikMi($salonId, 'kvkk_onay', 'musteri');
     }
     private function kvkk_onay_kodu_olustur_ve_gonder($salonId, $telefon, $adSoyad, $userId = null) {
         $kod = rand(1000, 9999); // Basit rastgele kod
@@ -12870,7 +12885,7 @@ private function ayAdiCevir($ingilizceAy)
         $kvkkLink = Salonlar::where('id', $salonId)->value('kvkk_link');
         $mesaj = "Sn. $adSoyad, $kod numaralı onay kodunu ilgiliye söyleyerek, $kvkkLink KVKK linkinde yer alan metni onaylamış olacaksınız.";
 
-        self::sms_gonder_bildirimli(null, [["to" => $telefon, "message" => $mesaj]], false, 1, false);
+        self::sms_gonder_bildirimli(null, [["to" => $telefon, "message" => $mesaj, "bk" => 'kvkk_onay', "alici" => 'musteri', "user_id" => $userId]], false, 1, false);
     }
     private function kvkk_kodu_dogrula($salonId, $telefon, $onayKodu, $userId = null) {
         $query = KVKKOnay::where('salon_id', $salonId)->where('onay_kodu', $onayKodu);
@@ -12996,7 +13011,7 @@ private function ayAdiCevir($ingilizceAy)
             $olusturulansifre = '';
             $portfoy = '';
             $smsMesaj = '';
-            $kvkkOnayiAktif = SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',22)->value('musteri');
+            $kvkkOnayiAktif = \App\Services\BildirimTercih::acikMi($request->sube, 'kvkk_onay', 'musteri');
 
             if($request->musteri_id != ""){
                 $musteri = User::where('id',$request->musteri_id)->first();
@@ -13266,7 +13281,7 @@ private function ayAdiCevir($ingilizceAy)
     {
         if($r = self::satisYetkiYoksa403($request, 'satis.adisyon_olustur')) return $r;
 
-        $smsDogrulamaVar = SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',23)->value('personel');
+        $smsDogrulamaVar = \App\Services\BildirimTercih::acikMi($request->sube, 'silme_onay_kodu', 'personel');
         $hizmet = AdisyonHizmetler::where('id',$request->hizmet_id)->first();
 
         $dogrulamaKodu = $hizmet->dogrulama_kodu;
@@ -13286,7 +13301,7 @@ private function ayAdiCevir($ingilizceAy)
 
                      
                 $mesajlar = array(
-                        array("to"=>$hesapSahibiTel,"message"=>$mesaj),
+                        array("to"=>$hesapSahibiTel,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'personel',"yetkili_id"=>$hesapSahibi),
                 );
                 self::sms_gonder_bildirimli($request,$mesajlar,false,1,true);
                 
@@ -13409,10 +13424,10 @@ private function ayAdiCevir($ingilizceAy)
                     {
                         if(!$randevuSMSigitti)
                         {
-                            if(SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$seans_randevu->salon_id)->value('musteri')==1)
+                            if(\App\Services\BildirimTercih::mesajAcikMi($seans_randevu->salon_id, 'randevu_olusturuldu', 'musteri'))
                             {
                                     $mesajlar = [];
-                                    array_push($mesajlar, array("to"=>$seans_randevu->users->cep_telefon,"message"=>$seans_randevu->salonlar->salon_adi . " tarafından ".date('d.m.Y',strtotime($seans_randevu->tarih)) .'-'.date('H:i', strtotime($seans_randevu->saat)) .' olarak randevunuz oluşturulmuştur. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0'.$seans_randevu->salonlar->telefon_1));
+                                    array_push($mesajlar, array("to"=>$seans_randevu->users->cep_telefon,"message"=>$seans_randevu->salonlar->salon_adi . " tarafından ".date('d.m.Y',strtotime($seans_randevu->tarih)) .'-'.date('H:i', strtotime($seans_randevu->saat)) .' olarak randevunuz oluşturulmuştur. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0'.$seans_randevu->salonlar->telefon_1,"bk"=>'randevu_olusturuldu',"alici"=>'musteri',"push_ayri"=>true,"user_id"=>$seans_randevu->user_id,"randevu_id"=>$seans_randevu->id));
                                         self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
                                     $randevuSMSigitti = true;
 
@@ -17462,7 +17477,7 @@ DB::raw('
         if($islemYapan->role_id > 1)
         {
             Log::info('işlem yapan hesap sahibi değil');
-            $smsAyari = SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',23)->where('personel',1)->first();
+            $smsAyari = \App\Services\BildirimTercih::acikMi($request->sube, 'silme_onay_kodu', 'personel');
             
             // GUVENLIK FIX: eski kosul "($tahsilat->dogrulama_kodu == null || $request->dogrulama_kodu == '')"
             // idi. Personel BOS-OLMAYAN herhangi bir kod (yanlis bile olsa) girince disardaki kosul
@@ -17482,7 +17497,7 @@ DB::raw('
 
 
                     $mesajlar = array(
-                        array("to"=>$hesapSahibiYetkili->gsm1,"message"=>$mesaj),
+                        array("to"=>$hesapSahibiYetkili->gsm1,"message"=>$mesaj,"bk"=>'silme_onay_kodu',"alici"=>'personel',"yetkili_id"=>$hesapSahibiYetkili->id),
                     );
                     self::sms_gonder_bildirimli($request,$mesajlar,false,1,true);
                     return array(
@@ -17752,14 +17767,17 @@ DB::raw('
         }
         $ongorusmehizmeti->save();
         $gsm = $user->cep_telefon;
-                if(SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$ongorusme->salon_id)->value('musteri')==1)
+                if(\App\Services\BildirimTercih::mesajAcikMi($ongorusme->salon_id, 'randevu_olusturuldu', 'musteri'))
                 {
                     $mesajlar = array(
-                    array("to"=>$gsm,"message"=>$ongorusme->salon->salon_adi . " tarafından ".date('d.m.Y',strtotime($request->ongorusme_tarihi)) .'-'.date('H:i', strtotime($request->ongorusme_saati)) .' olarak ön görüşme randevunuz düzenlenmiştir. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0'.$ongorusme->salon->telefon_1),
+                    array("to"=>$gsm,"message"=>$ongorusme->salon->salon_adi . " tarafından ".date('d.m.Y',strtotime($request->ongorusme_tarihi)) .'-'.date('H:i', strtotime($request->ongorusme_saati)) .' olarak ön görüşme randevunuz düzenlenmiştir. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0'.$ongorusme->salon->telefon_1,
+                        "bk"=>'randevu_olusturuldu',"alici"=>'musteri',"push_ayri"=>true,"user_id"=>$randevu->user_id,"randevu_id"=>$randevu->id),
                     );
                     self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
                 }
-                if(SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$ongorusme->salon_id)->value('personel')==1)
+                $_pMesajAcik = \App\Services\BildirimTercih::mesajAcikMi($ongorusme->salon_id, 'randevu_olusturuldu', 'personel');
+                $_pPushAcik = \App\Services\BildirimTercih::izin($ongorusme->salon_id, 'randevu_olusturuldu', 'personel', 'push');
+                if($_pMesajAcik)
                 {
                     foreach($randevu->hizmetler as $hizmet)
                     {
@@ -17771,12 +17789,15 @@ DB::raw('
                         if($ongorusme->urun_id !== null)
                             $mesaj = $ongorusme->musteri->name." isimli müşterinin ". date('d.m.Y',strtotime($request->ongorusme_tarihi)) ." - ". date('H:i',strtotime($request->ongorusme_saati)) ." ".$ongorusme->urun->urun_adi." için ön görüşme randevusu randevusu ".Auth::guard('isletmeyonetim')->user()->name." tarafından düzenlenmiştir.";
                         $yetkiliid=Personeller::where('id',$request->gorusmeyi_yapan)->value('yetkili_id');
-                        $mesajlar = array(
-                        array("to"=>IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1'),"message"=>$mesaj),
-                        );
-                        self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
+                        if ($_pMesajAcik) {
+                            $mesajlar = array(
+                            array("to"=>IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1'),"message"=>$mesaj,
+                                "bk"=>'randevu_olusturuldu',"alici"=>'personel',"push_ayri"=>true),
+                            );
+                            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
+                        }
                         self::bildirimekle($request,$ongorusme->salon_id,$mesaj,"#",$request->gorusmeyi_yapan,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$randevu->id);
-                        if($request->gorusmeyi_yapan){
+                        if($request->gorusmeyi_yapan && $_pPushAcik){
                             try {
                                 NotificationService::toStaff((int)$request->gorusmeyi_yapan, (int)$ongorusme->salon_id)
                                     ->type(NotificationTypes::APPOINTMENT_CREATED)
@@ -17857,70 +17878,23 @@ DB::raw('
         }
 
         $isletme = Salonlar::where('id', $aktifSalonId)->first();
-
-        // WhatsApp pre-filter: salon WA aktif+connected ise her mesaj once WhatsApp'a
-        // kuyruga girer. Hemen basarisiz olanlar (4xx/5xx/timeout) SMS yoluyla devam eder;
-        // 202 (queued) donen mesajlar listeden cikarilir, webhook fail bildirirse Laravel
-        // o noktada SMS fallback'i tetikler (WhatsAppWebhookController::onMessageFailed).
-        // Paylasilan oturum: 416 icin 246'nin whatsapp durumuna bakilir.
-        $waIsletme = $isletme ? \App\Services\WhatsAppService::resolveWaSalon($isletme) : null;
-        $waKanaliAcik = $waIsletme && !empty($waIsletme->whatsapp_aktif) && ($waIsletme->whatsapp_durum ?? null) === 'connected';
-        $mesajVarMi = is_array($mesajlar) && count($mesajlar) > 0;
-        Log::info('[Transactional WA] pre-filter durumu', [
-            'salon_id' => $isletme->id ?? null,
-            'wa_session_salon_id' => $waIsletme->id ?? null,
-            'salon_var_mi' => (bool) $isletme,
-            'wa_aktif' => $waIsletme ? (int) ($waIsletme->whatsapp_aktif ?? 0) : null,
-            'wa_durum' => $waIsletme->whatsapp_durum ?? null,
-            'wa_kanali_acik' => $waKanaliAcik,
-            'mesaj_sayisi' => is_array($mesajlar) ? count($mesajlar) : -1,
-            'mesaj_var_mi' => $mesajVarMi,
-            'tur' => $tur,
+        // Kanal dagitimi (BildirimTercih, 2026-11-22): 'bk' etiketli satirlarda isletmenin secimi
+        // (SMS / WhatsApp / uygulama bildirimi, ayri ayri) uygulanir. Etiketsiz satirlarda eski
+        // davranis: WA bagliysa once WhatsApp, gidemezse yedek SMS; bagli degilse SMS.
+        // Donen liste = SMS ile gidecek satirlar. Kuyruga girip sonradan dusen WA mesajlarinin
+        // SMS yedegi WhatsAppWebhookController::onMessageFailed'de (yedek ayarina gore) yapilir.
+        $girisSayisi = is_array($mesajlar) ? count($mesajlar) : 0;
+        $mesajlar = $isletme ? \App\Services\BildirimTercih::dagit($isletme, (array) $mesajlar, $gonderimTipi, $tur) : [];
+        Log::info('[sms_gonder_bildirimli] kanal dagitimi', [
+            'salon_id' => $isletme->id ?? null, 'giris' => $girisSayisi, 'sms' => count($mesajlar), 'tur' => $tur,
             'caller' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3)[1]['function'] ?? null,
-            'caller2' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3)[2]['function'] ?? null,
         ]);
-        if ($waKanaliAcik && $mesajVarMi) {
-            try {
-                $wa = app(\App\Services\WhatsAppService::class);
-                $kalan = [];
-                foreach ($mesajlar as $mesaj) {
-                    $to = $mesaj['to'] ?? null;
-                    $msg = $mesaj['message'] ?? null;
-                    if (!$to || !$msg) { $kalan[] = $mesaj; continue; }
-                    // OTP/dogrulama gibi anlik gitmesi gereken mesajlar urgent=true ile
-                    // antiban pre-delay/typing/batch/saat kisitini atlar (mesaj basina
-                    // 'urgent' bayragi). Aksi halde kod 12-30sn+ kuyrukta bekler.
-                    $waUrgent = !empty($mesaj['urgent']);
-                    // WA icin cagri yeri farkli metin verebilir (zenginlestirilmis
-                    // format). Yoksa SMS metni ile ayni gonderilir (eski davranis).
-                    $waMsg = $mesaj['wa_message'] ?? $msg;
-                    // Cagri yeri per-mesaj tip verirse onceligi o alir, yoksa toplu $gonderimTipi
-                    $_tipi = $mesaj['gonderim_tipi'] ?? $gonderimTipi;
-                    $sonuc = $wa->sendReminder($isletme, $to, $waMsg, $mesaj['randevu_id'] ?? null, $mesaj['user_id'] ?? null, null, $waUrgent, $_tipi);
-                    if ($sonuc['ok'] ?? false) {
-                        Log::info('[Transactional WA] kuyruğa eklendi', [
-                            'salon_id' => $isletme->id, 'to' => $to, 'logId' => $sonuc['logId'] ?? null, 'tur' => $tur,
-                        ]);
-                        continue; // WA kuyruğuna girdi → bu mesajı SMS'e atma
-                    }
-                    Log::warning('[Transactional WA] başarısız → SMS\'e düşüyor', [
-                        'salon_id' => $isletme->id, 'to' => $to, 'err' => $sonuc['error'] ?? 'unknown',
-                    ]);
-                    $kalan[] = $mesaj;
-                }
-                $mesajlar = $kalan;
-                if (count($mesajlar) === 0) {
-                    return $geribildirimgonder ? [
-                        'title' => 'Başarılı',
-                        'status' => 'success',
-                        'text' => 'Mesajınız alıcılarınıza başarıyla iletildi.',
-                    ] : null;
-                }
-            } catch (\Throwable $e) {
-                Log::warning('[Transactional WA] istisna, SMS\'e düşülüyor', [
-                    'err' => $e->getMessage(), 'salon_id' => $isletme->id ?? null,
-                ]);
-            }
+        if (count($mesajlar) === 0) {
+            return $geribildirimgonder ? [
+                'title' => 'Başarılı',
+                'status' => 'success',
+                'text' => 'Mesajınız alıcılarınıza başarıyla iletildi.',
+            ] : null;
         }
 
         if($isletme->yeni_sms == 1)
@@ -18433,9 +18407,7 @@ DB::raw('
 
                         if (!$randevuSMSigitti) {
                             if (
-                                SalonSMSAyarlari::where('ayar_id', 12)
-                                    ->where('salon_id', $seans_randevu->salon_id)
-                                    ->value('musteri') == 1
+                                \App\Services\BildirimTercih::mesajAcikMi($seans_randevu->salon_id, 'randevu_olusturuldu', 'musteri')
                             ) {
                                 $mesajlar = [];
 
@@ -18445,7 +18417,9 @@ DB::raw('
                                         date('d.m.Y', strtotime($seans_randevu->tarih)) . '-' .
                                         date('H:i', strtotime($seans_randevu->saat)) .
                                         " olarak randevunuz oluşturulmuştur. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0" .
-                                        $seans_randevu->salonlar->telefon_1
+                                        $seans_randevu->salonlar->telefon_1,
+                                    "bk" => 'randevu_olusturuldu', "alici" => 'musteri', "push_ayri" => true,
+                                    "user_id" => $seans_randevu->user_id, "randevu_id" => $seans_randevu->id,
                                 ]);
                                 self::sms_gonder_bildirimli($request, $mesajlar, false, 1, false);
                                 $randevuSMSigitti = true;
@@ -21048,7 +21022,7 @@ DB::raw('
                 $yenikatilimci->save();
                 $toplumusteri = User::where('id',$katilimci)->first();
                 $katilim_link = '';
-                if(SalonSMSAyarlari::where('ayar_id',10)->where('salon_id',$etkinlik->salon_id)->value('musteri')==1 )
+                if(\App\Services\BildirimTercih::mesajAcikMi($etkinlik->salon_id, 'kampanya_link', 'musteri'))
                     $katilim_link = ' Katılım için : https://'.$_SERVER['HTTP_HOST'].'/etkinlikkatilim/'.$etkinlik->id.'/'.$toplumusteri->id;
                 if(MusteriPortfoy::where('user_id',$toplumusteri->id)->where('salon_id',$etkinlik->salon_id)->value('kara_liste')!=1)
                     array_push($mesajlar, array("to"=>$toplumusteri->cep_telefon,"message"=> $request->etkinlik_sms.$katilim_link));
@@ -21065,7 +21039,7 @@ DB::raw('
                     $yenikatilimci->save();
                     $toplumusteri = User::where('id',$grup->user_id)->first();
                     $katilim_link = '';
-                    if (SalonSMSAyarlari::where('ayar_id',10)->where('salon_id',$etkinlik->salon_id)->value('musteri')==1)
+                    if (\App\Services\BildirimTercih::mesajAcikMi($etkinlik->salon_id, 'kampanya_link', 'musteri'))
                         $katilim_link = ' Katılım için : https://'.$_SERVER['HTTP_HOST'].'/etkinlikkatilim/'.$etkinlik->id.'/'.$toplumusteri->id;
                     if(MusteriPortfoy::where('user_id',$toplumusteri->id)->where('salon_id',$etkinlik->salon_id)->value('kara_liste')!=1)
                         array_push($mesajlar, array("to"=>$toplumusteri->cep_telefon,"message"=> $request->etkinlik_sms.$katilim_link));
@@ -21086,7 +21060,7 @@ DB::raw('
         if($katilimci->durum===null)
         {
             $katilim_link = '';
-            if(SalonSMSAyarlari::where('ayar_id',10)->where('salon_id',$etkinlikbeklenen->salon_id)->value('musteri')==1)
+            if(\App\Services\BildirimTercih::mesajAcikMi($etkinlikbeklenen->salon_id, 'kampanya_link', 'musteri'))
                 $katilim_link = ' Katılım için : https://'.$_SERVER['HTTP_HOST'].'/etkinlikkatilim/'.$etkinlikbeklenen->id.'/'.$katilimci->user_id;
             if(MusteriPortfoy::where('user_id',$katilimci->user_id)->where('salon_id',$etkinlikbeklenen->salon_id)->value('kara_liste')!=1)
                 array_push($mesajlar, array("to"=>$katilimci->musteri->cep_telefon,"message"=> $etkinlikbeklenen->mesaj.$katilim_link));
@@ -22105,7 +22079,7 @@ DB::raw('
         $randevu->save();
         $mesaj = array(
             // urgent=true: dogrulama kodu antiban kuyrugunda beklemeden anlik gider.
-            array("to"=>$randevu->users->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod,"urgent"=>true),
+            self::dogrulamaKoduSatiri(array("to"=>$randevu->users->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod,"urgent"=>true), $randevu->salon_id, $randevu->user_id),
         );
         $sms = self::sms_gonder_bildirimli($request,$mesaj,true,1,true);
         if(is_array($sms) && ($sms['status'] ?? null) == 'success')
@@ -22129,7 +22103,7 @@ DB::raw('
     public function adisyonhizmetguncelle(Request $request)
     {
         $hizmet = AdisyonHizmetler::where('id',$request->hizmet_id)->first();
-        $dogrulama_kodu_ayari = SalonSMSAyarlari::where('salon_id',Adisyonlar::where('id',$hizmet->adisyon_id)->value('salon_id'))->where('ayar_id',16)->value('musteri');
+        $dogrulama_kodu_ayari = \App\Services\BildirimTercih::acikMi(Adisyonlar::where('id',$hizmet->adisyon_id)->value('salon_id'), 'dogrulama_kodu', 'musteri');
         if(($dogrulama_kodu_ayari && $hizmet->dogrulama_kodu == $request->dogrulama_kodu) || (!$dogrulama_kodu_ayari || $request->geldimi!==1))
         {
             $hizmet->geldi = $request->geldimi;
@@ -22177,7 +22151,7 @@ DB::raw('
         $hizmet->save();
         $musteri = User::where('id',Adisyonlar::where('id',$hizmet->adisyon_id)->value('user_id'))->first();
         $mesaj = array(
-            array("to"=>$musteri->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod),
+            self::dogrulamaKoduSatiri(array("to"=>$musteri->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod), Adisyonlar::where('id',$hizmet->adisyon_id)->value('salon_id'), $musteri->id),
         );
           self::sms_gonder_bildirimli($request,$mesaj,false,1,true);
         return '';
@@ -22197,7 +22171,7 @@ DB::raw('
             $randevu->save();
         }
         $mesaj = array(
-            array("to"=>$adisyon_paket->adisyon->musteri->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod),
+            self::dogrulamaKoduSatiri(array("to"=>$adisyon_paket->adisyon->musteri->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod), $adisyon_paket->adisyon->salon_id, $adisyon_paket->adisyon->user_id),
         );
          self::sms_gonder_bildirimli($request,$mesaj,false,1,true);
         return '';
@@ -22238,9 +22212,7 @@ DB::raw('
  Log::info('Seans var mı? ' . $seansVar);
     if($seansVar>0)
     {
-        $dogrulama_kodu_ayari = SalonSMSAyarlari::where('salon_id', $randevu->salon_id)
-            ->where('ayar_id', 16)
-            ->value('musteri');
+        $dogrulama_kodu_ayari = \App\Services\BildirimTercih::acikMi($randevu->salon_id, 'dogrulama_kodu', 'musteri');
         Log::info('doğrulama ayarı (bool): ' . ($dogrulama_kodu_ayari ? 'true' : 'false'));
         // Doğrulama gerekiyor mu? - DÜZELTİLDİ
 
@@ -22296,9 +22268,7 @@ DB::raw('
             }
         }
     }
-    $kvkkOnayiAktif = SalonSMSAyarlari::where('salon_id', $request->sube)
-        ->where('ayar_id', 22)
-        ->value('musteri');
+    $kvkkOnayiAktif = \App\Services\BildirimTercih::acikMi($request->sube, 'kvkk_onay', 'musteri');
     
     $portfoy = MusteriPortfoy::where('user_id', $randevu->user_id)
         ->where('salon_id', $randevu->salon_id)
@@ -22340,9 +22310,7 @@ DB::raw('
         // Eğer doğrulama kodu henüz girilmemişse
         if (!$request->isKvkkProcess && $request->dogrulama_kodu == '' && $request->kvkkOnayKodu == '') {
             // Önce doğrulama kodunu iste
-            $dogrulama_kodu_ayari = SalonSMSAyarlari::where('salon_id', $randevu->salon_id)
-                ->where('ayar_id', 16)
-                ->value('musteri');
+            $dogrulama_kodu_ayari = \App\Services\BildirimTercih::acikMi($randevu->salon_id, 'dogrulama_kodu', 'musteri');
             
             if ($dogrulama_kodu_ayari) {
                 return array(
@@ -22360,7 +22328,8 @@ DB::raw('
             Log::info('KVKK SMS gönderilecek');
             self::sms_gonder_bildirimli($request, array(array(
                 "to" => $randevu->users->cep_telefon,
-                "message" => $onayMesaji
+                "message" => $onayMesaji,
+                "bk" => 'kvkk_onay', "alici" => 'musteri', "user_id" => $randevu->user_id,
             )), false, 1, false);
             
             return array(
@@ -22605,25 +22574,26 @@ DB::raw('
  
     
     $mesajlar = array();
+    $_pMesajAcik = \App\Services\BildirimTercih::mesajAcikMi($randevu->salon_id, 'musteri_geldi', 'personel');
+    $_pPushAcik = \App\Services\BildirimTercih::izin($randevu->salon_id, 'musteri_geldi', 'personel', 'push');
     foreach ($randevu->hizmetler as $hizmet) {
         $mesaj = $randevu->users->name . " isimli müşteriniz " . date('H:i', strtotime($hizmet->saat)) . " " . $hizmet->hizmetler->hizmet_adi . " randevusu için işletmenize gelmiştir.";
-        if (SalonSMSAyarlari::where('salon_id', $randevu->salon_id)
-            ->where('ayar_id', 21)
-            ->value('personel') == 1) {
-            
+        if ($_pMesajAcik) {
+
             Log::info('Geldi bildirimi personele gidecek');
-            
-            
+
+
             $yetkiliid = Personeller::where('id', $hizmet->personel_id)->value('yetkili_id');
             array_push($mesajlar, array(
                 "to" => IsletmeYetkilileri::where('id', $yetkiliid)->value('gsm1'),
-                "message" => $mesaj
+                "message" => $mesaj,
+                "bk" => 'musteri_geldi', "alici" => 'personel', "push_ayri" => true,
             ));
         }
 
         self::bildirimekle($request, $randevu->salon_id, $mesaj, "#", $hizmet->personel_id, null, Auth::guard('isletmeyonetim')->user()->profil_resim, $randevu->id);
 
-        if($hizmet->personel_id){
+        if($hizmet->personel_id && $_pPushAcik){
             try {
                 NotificationService::toStaff((int)$hizmet->personel_id, (int)$randevu->salon_id)
                     ->type(NotificationTypes::APPOINTMENT_CREATED)
@@ -23096,7 +23066,7 @@ DB::raw('
             }
         }
         if(isset($request->geldi)){
-            $dogrulama_kodu_ayari = SalonSMSAyarlari::where('salon_id',$salon_id)->where('ayar_id',16)->value('musteri');
+            $dogrulama_kodu_ayari = \App\Services\BildirimTercih::acikMi($salon_id, 'dogrulama_kodu', 'musteri');
             if(($dogrulama_kodu_ayari &&$request->geldi==1 && $request->dogrulama_kodu == $seans->dogrulama_kodu)||(!$dogrulama_kodu_ayari || $request->geldi!==1)){
                 if($request->geldi == 2)
                     $seans->geldi = null;
@@ -24479,27 +24449,31 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $seans->randevu_olusturuldu = true;
         $seans->randevu_id = $randevu->id;
         $seans->save();
-        if(SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$randevu->salon_id)->value('musteri')){
+        if(\App\Services\BildirimTercih::mesajAcikMi($randevu->salon_id, 'randevu_olusturuldu', 'musteri')){
             $mesajlar = array(
                 array("to"=>$randevu->users->cep_telefon,"message"=>$randevu->salonlar->salon_adi . " tarafından ".date('d.m.Y',strtotime($randevu->tarih)) .'-'.date('H:i',
-                    strtotime($randevu->saat)).' olarak randevunuz oluşturulmuştur. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0'.$randevu->salonlar->telefon_1 ),
+                    strtotime($randevu->saat)).' olarak randevunuz oluşturulmuştur. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0'.$randevu->salonlar->telefon_1,
+                    "bk"=>'randevu_olusturuldu',"alici"=>'musteri',"push_ayri"=>true,"user_id"=>$randevu->user_id,"randevu_id"=>$randevu->id),
             );
             self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
         }
-        if(SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$randevu->salon_id)->value('personel')){
+        $_pMesajAcik = \App\Services\BildirimTercih::mesajAcikMi($randevu->salon_id, 'randevu_olusturuldu', 'personel');
+        $_pPushAcik = \App\Services\BildirimTercih::izin($randevu->salon_id, 'randevu_olusturuldu', 'personel', 'push');
+        if($_pMesajAcik){
             if(is_numeric($request->personelid)){
                 $yetkiliid=Personeller::where('id',$request->personel_id)->value('yetkili_id');
                 $gsm = IsletmeYetkilileri::where('id',$yetkiliid)->value('gsm1');
                 $mesajlar = array(
                     array("to"=>$gsm,"message"=> $randevu->users->name .' isimli müşterinin '. $hizmet . " için ".date('d.m.Y',strtotime($randevu->tarih)) .'-'.date('H:i',
-                        strtotime($randevu->saat)) .' tarihli randevusu oluşturulmuştur.'),
+                        strtotime($randevu->saat)) .' tarihli randevusu oluşturulmuştur.',
+                        "bk"=>'randevu_olusturuldu',"alici"=>'personel',"push_ayri"=>true),
                 );
             }
-            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
+            if ($_pMesajAcik) self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
             $mesaj = $randevu->users->name .' isimli müşterinin '. $hizmet . " için ".date('d.m.Y',strtotime($randevu->tarih)) .'-'.date('H:i',
                         strtotime($randevu->saat)) .' tarihli randevusu oluşturulmuştur.';
             self::bildirimekle($request,$randevu->salon_id,$mesaj,"#",$request->personel_id,null, Auth::guard('isletmeyonetim')->user()->profil_resim,$randevu->id);
-            if($request->personel_id){
+            if($request->personel_id && $_pPushAcik){
                 try {
                     NotificationService::toStaff((int)$request->personel_id, (int)$randevu->salon_id)
                         ->type(NotificationTypes::APPOINTMENT_CREATED)
@@ -25066,6 +25040,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     }
     public function sms_ayar_kaydet(Request $request)
     {
+        // Bildirim Ayarlari ile esitleme: once yeni sistem eski degerlerden tohumlanir ve eski
+        // durumun fotografi alinir; kayittan sonra yalnizca DEGISEN anahtarlar yeni sisteme
+        // islenir (ve Log Hareketleri'ne yazilir). Degismeyenlere dokunulmaz.
+        \App\Services\BildirimTercih::hepsi($request->sube);
+        $bildirimOnce = \App\Services\BildirimTercih::eskiGoruntu($request->sube);
+
         // ayar_id=1 (yaklaşan randevu hatırlatma) — müşteri SMS'i seçili ise WhatsApp da aynı durumda kaydedilir
         if(isset($request->randevuayar_1_musteri))
             SalonSMSAyarlari::where('salon_id',$request->sube)->where('ayar_id',1)
@@ -25225,6 +25205,12 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'SMS / WhatsApp ayarları',
             'SMS ve WhatsApp bildirim ayarları güncellendi',
             ['hatirlatma_saat'=>$request->randevu_hatirlatama_saat_once]);
+        try {
+            \App\Services\BildirimTercih::eskiDegisiklikleriUygula($request->sube, $bildirimOnce,
+                \App\Services\BildirimTercih::eskiGoruntu($request->sube), 'eski_sms_ekrani', $request);
+        } catch (\Throwable $e) {
+            Log::warning('[sms_ayar_kaydet] bildirim tercihi esitlenemedi', ['salon_id' => $request->sube, 'err' => $e->getMessage()]);
+        }
         return 'SMS ayarları başarıyla kaydedildi';
         return $request->randevuayar_1_musteri;
     }
@@ -25786,7 +25772,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                 {
                     $sayac++;
                     $katilim_link = '';
-                    if(SalonSMSAyarlari::where('ayar_id',10)->where('salon_id',$kampanyabeklenen->salon_id)->value('musteri')==1)
+                    if(\App\Services\BildirimTercih::mesajAcikMi($kampanyabeklenen->salon_id, 'kampanya_link', 'musteri'))
                         $katilim_link = ' Katılım için : https://'.$_SERVER['HTTP_HOST'].'/kampanyakatilim/'.$kampanyabeklenen->id.'/'.$katilimci->user_id;
                     if(MusteriPortfoy::where('user_id',$katilimci->user_id)->where('salon_id',$kampanyabeklenen->salon_id)->value('kara_liste')!=1)
                         array_push($mesajlar, array("to"=>$katilimci->musteri->cep_telefon,"message"=> $kampanyabeklenen->mesaj.$katilim_link));
@@ -26282,7 +26268,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
     {
         $vade = SenetVadeleri::where('id',$request->vade_id)->first();
         $senet = Senetler::where('id',$vade->senet_id)->first();
-        $dogrulama_kodu_ayari = SalonSMSAyarlari::where('salon_id',$senet->salon_id)->where('ayar_id',16)->value('musteri');
+        $dogrulama_kodu_ayari = \App\Services\BildirimTercih::acikMi($senet->salon_id, 'dogrulama_kodu', 'musteri');
         if(($dogrulama_kodu_ayari && $vade->dogrulama_kodu == $request->dogrulama_kodu) || !$dogrulama_kodu_ayari)
         {
             $vade->odendi = true;
@@ -26351,7 +26337,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $vadeler = TaksitVadeleri::whereIn('id',$request->vade_id)->get();
         $vade = TaksitVadeleri::whereIn('id',$request->vade_id)->first();
         $taksitlitahsilat = TaksitliTahsilatlar::where('id',$vade->taksitli_tahsilat_id)->first();
-        $dogrulama_kodu_ayari = SalonSMSAyarlari::where('salon_id',$taksitlitahsilat->salon_id)->where('ayar_id',16)->value('musteri');
+        $dogrulama_kodu_ayari = \App\Services\BildirimTercih::acikMi($taksitlitahsilat->salon_id, 'dogrulama_kodu', 'musteri');
         if(($dogrulama_kodu_ayari && $vade->dogrulama_kodu == $request->dogrulama_kodu) || !$dogrulama_kodu_ayari)
         {
             foreach($vadeler as $vade)
@@ -26460,7 +26446,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $vade->dogrulama_kodu = $kod;
         $vade->save();
         $mesaj = array(
-            array("to"=>$senet->musteri->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod),
+            self::dogrulamaKoduSatiri(array("to"=>$senet->musteri->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod), $senet->salon_id, optional($senet->musteri)->id),
         );
         self::sms_gonder_bildirimli($request,$mesaj,false,1,true);
         return '';
@@ -26474,7 +26460,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $vade->dogrulama_kodu = $kod;
         $vade->save();
         $mesaj = array(
-            array("to"=>$taksitlitahsilat->musteri->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod),
+            self::dogrulamaKoduSatiri(array("to"=>$taksitlitahsilat->musteri->cep_telefon,"message"=>"Doğrulama kodunuz : ".$kod), $taksitlitahsilat->salon_id, optional($taksitlitahsilat->musteri)->id),
         );
         self::sms_gonder_bildirimli($request,$mesaj,false,1,true);
         return '';
@@ -28995,10 +28981,10 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
                             $yenisaatbaslangic = date("H:i", strtotime('+'.$hizmet_sure.' minutes', strtotime($request->paket_satis_seans_saati[$key])));
                         if(!$randevuSMSigitti)
                         {
-                            if(SalonSMSAyarlari::where('ayar_id',12)->where('salon_id',$seans_randevu->salon_id)->value('musteri')==1)
+                            if(\App\Services\BildirimTercih::mesajAcikMi($seans_randevu->salon_id, 'randevu_olusturuldu', 'musteri'))
                             {
                                 $mesajlar = [];
-                                array_push($mesajlar, array("to"=>$seans_randevu->users->cep_telefon,"message"=>$seans_randevu->salonlar->salon_adi . " tarafından ".date('d.m.Y',strtotime($seans_randevu->tarih)) .'-'.date('H:i', strtotime($seans_randevu->saat) ).' olarak randevunuz oluşturulmuştur. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0'.$seans_randevu->salonlar->telefon_1));
+                                array_push($mesajlar, array("to"=>$seans_randevu->users->cep_telefon,"message"=>$seans_randevu->salonlar->salon_adi . " tarafından ".date('d.m.Y',strtotime($seans_randevu->tarih)) .'-'.date('H:i', strtotime($seans_randevu->saat) ).' olarak randevunuz oluşturulmuştur. Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0'.$seans_randevu->salonlar->telefon_1,"bk"=>'randevu_olusturuldu',"alici"=>'musteri',"push_ayri"=>true,"user_id"=>$seans_randevu->user_id,"randevu_id"=>$seans_randevu->id));
                                     self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
                                 $randevuSMSigitti = true;
                             }
@@ -29979,21 +29965,34 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
 
     /**
      * Randevu hareketlerinde (iptal, güncelleme, onay vs.) mesaj kuyruğuna ekleme helper'i.
-     * Toggle (musteri/personel) açıksa $mesajlar'a yazar. WhatsApp yonlendirmesi
-     * sms_gonder_bildirimli icinde otomatik yapilir (salon WA aktif+connected ise).
+     * BildirimTercih ($kod/$alici) SMS veya WhatsApp acik ise $mesajlar'a yazar; kanal
+     * dagitimi sms_gonder_bildirimli -> BildirimTercih::dagit icinde yapilir.
+     * Cagiranlarin hepsi kendi push'unu atiyor (izin(...,'push') ile) -> push_ayri.
      */
-    protected function smsVeyaWhatsappGonder($salon, $to, $message, $ayarId, $alanAdi, $randevuId, $userId, array &$mesajlar, $gonderimTipi = null)
+    protected function smsVeyaWhatsappGonder($salon, $to, $message, $kod, $alici, $randevuId, $userId, array &$mesajlar, $gonderimTipi = null)
     {
         if (!$to || !$salon) return;
 
-        $ayar = SalonSMSAyarlari::where('salon_id', $salon->id)->where('ayar_id', $ayarId)->first();
-        if (!$ayar) return;
-
-        if ((int) ($ayar->{$alanAdi} ?? 0) === 1) {
-            $satir = ['to' => $to, 'message' => $message, 'randevu_id' => $randevuId, 'user_id' => $userId];
+        if (\App\Services\BildirimTercih::mesajAcikMi($salon->id, $kod, $alici)) {
+            $satir = ['to' => $to, 'message' => $message, 'randevu_id' => $randevuId, 'user_id' => $userId,
+                'bk' => $kod, 'alici' => $alici, 'push_ayri' => true];
             if ($gonderimTipi) $satir['gonderim_tipi'] = $gonderimTipi;
             $mesajlar[] = $satir;
         }
+    }
+
+    /**
+     * Dogrulama kodu satiri: ozellik acikken isletmenin kanal secimi (dogrulama_kodu) uygulanir.
+     * Kapaliyken personel "kod gonderilsin mi?" sorusuna evet dediyse kod yine gitmeli -> etiketsiz (eski yol).
+     */
+    private static function dogrulamaKoduSatiri(array $satir, $salonId, $userId = null)
+    {
+        if ($salonId && \App\Services\BildirimTercih::acikMi($salonId, 'dogrulama_kodu', 'musteri')) {
+            $satir['bk'] = 'dogrulama_kodu';
+            $satir['alici'] = 'musteri';
+            if ($userId) $satir['user_id'] = $userId;
+        }
+        return $satir;
     }
 
     public function whatsappKanalDurum(Request $request)
@@ -30001,16 +30000,17 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salonId = $this->whatsappYetkiliSalon($request);
         if (!$salonId) return response()->json(['error' => 'yetkisiz'], 403);
 
-        $ayar1 = \App\SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 1)->first();
-        $ayar6 = \App\SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 6)->first();
+        // Durum yeni sistemden: hatirlatmalarin musteri WhatsApp kanali acik mi
+        $k1 = \App\Services\BildirimTercih::kanallar($salonId, 'hatirlatma_yaklasan', 'musteri');
+        $k6 = \App\Services\BildirimTercih::kanallar($salonId, 'hatirlatma_bir_gun_once', 'musteri');
 
-        $aktif = ($ayar1 && (int) $ayar1->whatsapp_musteri === 1)
-              || ($ayar6 && (int) $ayar6->whatsapp_musteri === 1);
+        $aktif = $k1['whatsapp'] || $k6['whatsapp'];
 
         return response()->json([
             'aktif' => $aktif,
-            'sms_aktif_aynigun' => $ayar1 ? (int) $ayar1->musteri === 1 : false,
-            'sms_aktif_24sa' => $ayar6 ? (int) $ayar6->musteri === 1 : false,
+            // eski anlam: hatirlatma mesaji acik mi (eski 1/6 musteri bayragi = SMS veya WhatsApp)
+            'sms_aktif_aynigun' => $k1['sms'] || $k1['whatsapp'],
+            'sms_aktif_24sa' => $k6['sms'] || $k6['whatsapp'],
         ]);
     }
 
@@ -30032,6 +30032,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             }
             $ayar->whatsapp_musteri = $yeniDeger;
             $ayar->save();
+        }
+        // Gercek kanal karari yeni sistemde: iki hatirlatmanin musteri WhatsApp'i
+        $kaynak = Auth::guard('isletmeyonetim')->check() ? 'panel' : 'mobil';
+        foreach (['hatirlatma_yaklasan', 'hatirlatma_bir_gun_once'] as $kod) {
+            \App\Services\BildirimTercih::kaydet($salonId, $kod, 'musteri', 'whatsapp', $yeniDeger, $kaynak, $request);
         }
 
         return response()->json([
@@ -32604,10 +32609,10 @@ public function musteriportfoydropliste(Request $request)
         $paraekle->save();
         
         $yetkililer=Personeller::join('model_has_roles','salon_personelleri.yetkili_id','=','model_has_roles.model_id')->where('salon_personelleri.salon_id',$paraekle->salon_id)->whereIn('salon_personelleri.role_id',[1,2,3])->get(['salon_personelleri.id','salon_personelleri.cep_telefon','salon_personelleri.personel_adi']);
-        if(SalonSMSAyarlari::where('ayar_id',20)->where('salon_id',$paraekle->salon_id)->value('personel')){
+        if(\App\Services\BildirimTercih::acikMi($paraekle->salon_id, 'para_islemleri', 'personel')){
             foreach ($yetkililer as $yetkili) {
                  $mesajlar = array(
-                array("to"=>$yetkili->cep_telefon,"message"=>"Kasanıza ".$paraekle->olusturan->personel_adi. " tarafından ".$paraekle->tutar.' TL eklenmiştir.',
+                array("to"=>$yetkili->cep_telefon,"message"=>"Kasanıza ".$paraekle->olusturan->personel_adi. " tarafından ".$paraekle->tutar.' TL eklenmiştir.',"bk"=>'para_islemleri',"alici"=>'personel',"personel_id"=>$yetkili->id,
             ));
             }
            self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);
@@ -32629,10 +32634,10 @@ public function musteriportfoydropliste(Request $request)
             $paraal->save();
             $returntext='İşlem Başarılı';
             $yetkililer=Personeller::join('model_has_roles','salon_personelleri.yetkili_id','=','model_has_roles.model_id')->where('salon_personelleri.salon_id',$paraal->salon_id)->whereIn('role_id',[1,2,3])->get(['salon_personelleri.id','salon_personelleri.cep_telefon','salon_personelleri.personel_adi']);
-            if(SalonSMSAyarlari::where('ayar_id',19)->where('salon_id',$paraal->salon_id)->value('personel')){
+            if(\App\Services\BildirimTercih::acikMi($paraal->salon_id, 'para_islemleri', 'personel')){
                 foreach ($yetkililer as $yetkili) {
                     $mesajlar = array(
-                        array("to"=>$yetkili->cep_telefon,"message"=>"Kasanızdan ".$paraal->harcayan->personel_adi. " tarafından ".$paraal->tutar.' TL alınmıştır.',
+                        array("to"=>$yetkili->cep_telefon,"message"=>"Kasanızdan ".$paraal->harcayan->personel_adi. " tarafından ".$paraal->tutar.' TL alınmıştır.',"bk"=>'para_islemleri',"alici"=>'personel',"personel_id"=>$yetkili->id,
                     ));
                 }
                 self::sms_gonder_bildirimli($request,$mesajlar,false,1,false);

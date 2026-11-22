@@ -412,6 +412,10 @@
                      <h2 class="text-blue">SMS Ayarları</h2>
                    </div>
                   </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;margin-bottom:14px;border-radius:12px;background:#f5f3ff;border:1px solid #ddd6fe;color:#4c1d95;font-size:13px;">
+                     <div><b>Yeni: Bildirim Ayarları</b><br>SMS, WhatsApp ve uygulama bildirimini artık her bildirim için ayrı ayrı seçebilirsiniz. Buradaki değişiklikler oraya da yansır.</div>
+                     <a href="/isletmeyonetim/ayarlar?p=bildirimayarlari&sube={{$isletme->id}}" class="btn btn-sm" style="background:#5C008E;color:#fff;border-radius:8px;font-weight:600;">Bildirim Ayarları'na git</a>
+                  </div>
                   <form id="otomatik_sms_ayarlari" method="POST">
                     {{csrf_field()}}
                     <input  type="hidden" name="sube" value="{{$isletme->id}}">

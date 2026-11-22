@@ -138,6 +138,23 @@ class SeansHatirlatma extends Command
                 . implode(', ', $satirlar) . '.';
         }
 
+        // SMS/WhatsApp: yalniz isletme sectiyse ayni metin (tohumda kapali); push asagida ayrica
+        if (\App\Services\BildirimTercih::mesajAcikMi($grup['salon_id'], 'seans_hatirlatma', 'musteri') && !empty($musteri->cep_telefon)) {
+            try {
+                $sms = \App\Services\BildirimTercih::dagit($grup['salon_id'], [[
+                    'to' => $musteri->cep_telefon, 'message' => $body, 'user_id' => $grup['user_id'],
+                    'bk' => 'seans_hatirlatma', 'alici' => 'musteri', 'push_ayri' => true,
+                ]]);
+                if ($sms) {
+                    app(\App\Http\Controllers\Controller::class)->sms_gonder($grup['salon_id'], [['to' => $sms[0]['to'], 'message' => $sms[0]['message']]]);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('[SEANS-HAT] mesaj fail', ['user_id' => $grup['user_id'], 'err' => $e->getMessage()]);
+            }
+        }
+
+        // Push: bildirim tercihi (seans_hatirlatma/musteri/push)
+        if (!\App\Services\BildirimTercih::izin($grup['salon_id'], 'seans_hatirlatma', 'musteri', 'push')) return;
         try {
             $sonuc = NotificationService::toCustomer($grup['user_id'], $grup['salon_id'])
                 ->type(NotificationTypes::SESSION_REMINDER)

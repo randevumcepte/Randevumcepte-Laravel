@@ -732,7 +732,7 @@ class WaAsistan
 
     /** Salon yoneticilerine panel bildirimi + push (Gece Denetcisi haftalik ozeti de kullanir). */
     /** @return array[] [[ad, ulasti]] bildirim gonderilen yoneticiler; ulasti = telefon/tarayicisina push gercekten gitti (panelde "kime bildirildi") */
-    public static function bildir(int $salonId, string $mesaj, ?string $url = null): array
+    public static function bildir(int $salonId, string $mesaj, ?string $url = null, ?string $tercihKod = null): array
     {
         try {
             $b = new \App\Bildirimler();
@@ -751,6 +751,9 @@ class WaAsistan
             // Alicilar: "WhatsApp sohbetlerini gorsun" yetkisi olanlar (sahip her zaman; yonetici/sekreter varsayilan acik,
             // personel rolunde salon sahibi acarsa). Yetki okunamazsa eski kural: rol < 5.
             $yoneticiler = [];
+            // Bildirim tercihleri: yalniz talep bildiriminde ($tercihKod) personel push kapaliysa push atilmaz; Gece Denetcisi
+            // ozeti / test bildirimi bu tercihe bagli degil. Zil satiri yukarida yazildi.
+            if ($tercihKod && !BildirimTercih::izin($salonId, $tercihKod, 'personel', 'push')) return $adlar;
             foreach (\App\Personeller::where('salon_id', $salonId)->whereNotNull('yetkili_id')->get(['id', 'personel_adi', 'yetkili_id']) as $p) {
                 try {
                     $izin = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar((int) $p->yetkili_id, $salonId, 'whatsapp.sohbet_gor');

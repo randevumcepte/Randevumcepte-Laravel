@@ -83,6 +83,24 @@ class SMSGonder extends Command
             }
 
             $mesaj = 'Sayın ' . $senet->musteri->name . ' ' . date('d.m.Y', strtotime($vade->vade_tarih)) . ' vade tarihli ' . number_format((float) $vade->tutar, 2, ',', '.') . ' ₺ tutarındaki senedinizin ödenmemiş olduğunu hatırlatmak isteriz.';
+
+            // Bildirim tercihi (senet_vade/musteri): kanal + kara liste karari dagit'te; WA/push orada
+            // gider, SMS ile gitmesi gerekenler doner (asagidaki ham efetech istegiyle gonderilir).
+            if (!\App\Services\BildirimTercih::acikMi($senet->salon->id, 'senet_vade', 'musteri')) {
+                continue;
+            }
+            try {
+                $smsSatirlari = \App\Services\BildirimTercih::dagit($senet->salon, [[
+                    'to' => $senet->musteri->cep_telefon, 'message' => $mesaj, 'user_id' => $senet->musteri->id,
+                    'bk' => 'senet_vade', 'alici' => 'musteri', 'push_baslik' => 'Senet Hatırlatma',
+                ]], 'alacak_hatirlatma');
+            } catch (\Throwable $e) {
+                Log::warning('[SENET-VADE] dagit hatasi: ' . $e->getMessage(), ['vade_id' => $vade->id]);
+                continue;
+            }
+            if (empty($smsSatirlari)) {
+                continue;
+            }
             $headers = [
                 'Authorization: Key ' . $senet->salon->sms_apikey,
                 'Content-Type: application/json',
@@ -90,8 +108,8 @@ class SMSGonder extends Command
             ];
             $postData = json_encode([
                 'originator' => $senet->salon->sms_baslik,
-                'message' => $mesaj,
-                'to' => $senet->musteri->cep_telefon,
+                'message' => $smsSatirlari[0]['message'],
+                'to' => $smsSatirlari[0]['to'],
                 'encoding' => 'auto',
             ]);
 

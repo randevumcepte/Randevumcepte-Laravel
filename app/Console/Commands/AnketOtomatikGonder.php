@@ -57,10 +57,9 @@ class AnketOtomatikGonder extends Command
         foreach ($aktifSablonlar as $sablon) {
             // SMS Ayarları → "Randevu Sonrası Değerlendirme" (ayar_id=13, musteri=1) açık değilse atla.
             $salonId = $sablon->salon_id;
+            // Bildirim tercihi (degerlendirme_anketi/musteri): hicbir kanal acik degilse atla.
             if (!array_key_exists($salonId, $salonAyarCache)) {
-                $salonAyarCache[$salonId] = (bool) SalonSMSAyarlari::where('salon_id', $salonId)
-                    ->where('ayar_id', 13)
-                    ->value('musteri');
+                $salonAyarCache[$salonId] = \App\Services\BildirimTercih::acikMi($salonId, 'degerlendirme_anketi', 'musteri');
             }
             if (!$salonAyarCache[$salonId]) continue;
 
@@ -176,7 +175,7 @@ class AnketOtomatikGonder extends Command
                         ]
                     );
 
-                    $gitti = StoreAdminController::anketSmsGonder(null, $gonderim, $sablon, $musteri);
+                    $gitti = $this->tercihliGonder($gonderim, $sablon, $musteri);
                     $salonGonderimSayac[$salonId] = ($salonGonderimSayac[$salonId] ?? 0) + 1;
                     if (!$gitti) {
                         // Hicbir kanal kabul etmedi: kaydi sil ki randevu tekrar aday olsun (cevapsiz, yeni olusturuldu)
@@ -213,5 +212,109 @@ class AnketOtomatikGonder extends Command
 
         $this->info('Toplam ' . $toplam . ' anket gönderimi yapıldı.');
         return 0;
+    }
+
+    /**
+     * Anket davetini bildirim tercihine (degerlendirme_anketi/musteri) gore gonderir.
+     * Metinler StoreAdminController::anketSmsGonder ile AYNI. Kanal yalniz seciliyse kullanilir:
+     *  - anket_gonderim_kanali yalniz SIRAYI belirler (SMS+WA ikisi seciliyse once hangisi, digeri yedek).
+     *  - WA-first: WA ulasmazsa SMS -> SMS seciliyse ya da (yedek SMS acik + paket var).
+     *  - SMS-first: SMS gidemezse WA -> yalniz whatsapp seciliyse.
+     *  - Push seciliyse ayrica uygulama bildirimi.
+     * Donus: herhangi bir kanal kabul ettiyse true (false -> cron tekrar dener).
+     */
+    protected function tercihliGonder($gonderim, $sablon, $musteri)
+    {
+        $salon = \App\Salonlar::where('id', $gonderim->salon_id)->first();
+        if (!$salon) return false;
+        $k = \App\Services\BildirimTercih::kanallar($salon->id, 'degerlendirme_anketi', 'musteri');
+
+        // ── Metinler (StoreAdminController::anketSmsGonder ile birebir) ──
+        $host = ($_SERVER['HTTP_HOST'] ?? null) ?: ($salon->domain ?? 'app.randevumcepte.com.tr');
+        $link = 'https://' . $host . '/anket/' . $gonderim->token;
+        $adSoyad = $musteri->name ?? '';
+        $ilkAd = $adSoyad ? trim(explode(' ', $adSoyad)[0]) : '';
+        $salonAd = $salon->salon_adi ?? '';
+        $odulIfade = null;
+        if ($sablon) {
+            if (($sablon->odul_tipi ?? 'yok') === 'kupon' && (float) $sablon->odul_kupon_deger > 0) {
+                $d = (float) $sablon->odul_kupon_deger;
+                $odulIfade = ($sablon->odul_kupon_indirim_tipi === 'tutar')
+                    ? (rtrim(rtrim(number_format($d, 2, ',', '.'), '0'), ',') . ' ₺ indirim kuponu')
+                    : (intval($d) . '% indirim kuponu');
+            } elseif (($sablon->odul_tipi ?? 'yok') === 'puan' && (float) $sablon->odul_puan > 0) {
+                $p = (float) $sablon->odul_puan;
+                $odulIfade = rtrim(rtrim(number_format($p, 2, ',', '.'), '0'), ',') . ' puan';
+            }
+        }
+        if ($odulIfade) {
+            $mesaj = "Merhaba Sn. " . $ilkAd . " 🎁" . "\n\n"
+                . $salonAd . " deneyiminizi değerlendirin, size özel " . $odulIfade . " hediyemiz olsun!" . "\n\n"
+                . "Anketi doldurmak (30 sn):" . "\n" . $link . "\n\n"
+                . "Görüşleriniz bizim için çok değerli, teşekkür ederiz.";
+        } else {
+            $mesaj = "Merhaba Sn. " . $ilkAd . "," . "\n\n"
+                . $salonAd . "'da yaşadığınız deneyim bizim için çok değerli. Hizmet kalitemizi geliştirebilmemiz adına görüşlerinizi birkaç dakikanızı ayırarak bizimle paylaşabilir misiniz?" . "\n\n"
+                . "Anketi doldurmak için:" . "\n" . $link . "\n\n"
+                . "Değerli geri bildiriminiz için şimdiden teşekkür eder, sizi yeniden ağırlamaktan mutluluk duyarız.";
+        }
+        $smsMesaj = StoreAdminController::anketSmsKisaMetin($ilkAd, $salonAd, $link, $odulIfade);
+
+        $smsOnce = ($salon->anket_gonderim_kanali ?? 'whatsapp') === 'sms';
+        $waBagli = \App\Services\BildirimTercih::waBagli($salon);
+
+        $waDene = function () use ($salon, $gonderim, $musteri, $mesaj) {
+            try {
+                $sonuc = app(\App\Services\WhatsAppService::class)->sendReminder(
+                    $salon, $gonderim->telefon, $mesaj, $gonderim->randevu_id ?? null, $musteri->id ?? null, null, false, 'anket'
+                );
+                if (!empty($sonuc['ok'])) {
+                    try { $gonderim->gonderim_kanali = 'whatsapp'; $gonderim->save(); } catch (\Throwable $e) { /* yoksay */ }
+                    Log::info('[ANKET-WA] gonderildi', ['salon_id' => $salon->id, 'gonderim_id' => $gonderim->id,
+                        'to' => $gonderim->telefon, 'provider' => $sonuc['provider'] ?? null, 'logId' => $sonuc['logId'] ?? null]);
+                    return true;
+                }
+                Log::warning('[ANKET-WA] basarisiz', ['salon_id' => $salon->id, 'gonderim_id' => $gonderim->id, 'err' => $sonuc['error'] ?? 'unknown']);
+            } catch (\Throwable $e) {
+                Log::warning('[ANKET-WA] istisna: ' . $e->getMessage(), ['salon_id' => $salon->id, 'gonderim_id' => $gonderim->id ?? null]);
+            }
+            return false;
+        };
+        $smsGonder = function () use ($gonderim, $smsMesaj) {
+            try {
+                app()->make(\App\Http\Controllers\Controller::class)->sms_gonder($gonderim->salon_id, [['to' => $gonderim->telefon, 'message' => $smsMesaj]]);
+                $ok = \App\Http\Controllers\Controller::$sonSmsBasarili === true;
+                Log::info('[ANKET-SMS] ' . ($ok ? 'saglayici kabul etti' : 'GONDERILEMEDI'), [
+                    'salon_id' => $gonderim->salon_id, 'gonderim_id' => $gonderim->id, 'to' => $gonderim->telefon,
+                ]);
+                return $ok;
+            } catch (\Throwable $e) {
+                Log::error('anketSmsGonder hata: ' . $e->getMessage());
+                return false;
+            }
+        };
+        $yedekSmsUygun = function () use ($salon) {
+            return \App\Services\BildirimTercih::waYedekSms($salon->id) && \App\Services\BildirimTercih::smsKullanilabilir($salon);
+        };
+
+        $gitti = false;
+        if ($smsOnce && $k['sms']) {
+            // SMS-first; SMS gidemezse (bakiye/saglayici) WA bagliysa WA ile dene — bugunku ters yedek davranisi
+            $gitti = $smsGonder();
+            if (!$gitti && $waBagli) $gitti = $waDene();
+        } elseif ($k['whatsapp'] || $k['sms']) {
+            // WA-first; WA kapali/basarisizsa SMS: secili ise ya da yedek SMS uygunsa
+            if ($k['whatsapp'] && $waBagli) $gitti = $waDene();
+            if (!$gitti && ($k['sms'] || ($k['whatsapp'] && $yedekSmsUygun()))) $gitti = $smsGonder();
+        }
+
+        if ($k['push'] && !empty($musteri->id)) {
+            \App\Services\BildirimTercih::genelPush($salon, 'degerlendirme_anketi', [
+                'user_id' => (int) $musteri->id, 'alici' => 'musteri', 'randevu_id' => $gonderim->randevu_id ?? null,
+                'push_baslik' => 'Değerlendirme Anketi', 'push_mesaj' => $mesaj,
+            ]);
+            $gitti = true; // push gitti: tekrar deneyip musteriye ikinci push atma
+        }
+        return $gitti;
     }
 }

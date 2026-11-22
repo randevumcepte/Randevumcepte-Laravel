@@ -239,6 +239,8 @@ class WaAsistanVeri
         } catch (\Throwable $e) {
             Log::warning('[WA-ASISTAN] panel bildirimi yazilamadi: ' . $e->getMessage());
         }
+        // Bildirim tercihleri: wa_asistan_talep / personel / push kapaliysa push atilmaz
+        if (!BildirimTercih::izin($salonId, 'wa_asistan_talep', 'personel', 'push')) return;
         try {
             $yoneticiler = \App\Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
                 ->where('salon_personelleri.salon_id', $salonId)->where('model_has_roles.role_id', '<', 5)

@@ -3032,7 +3032,7 @@ FIYAT
             Log::warning('RandevuAsistan iptal bildirimi: ' . $e->getMessage()); // iptal yapildi; bildirim hatasi akisi bozmasin
         }
         // Panel > SMS ayarlari > "Aktif Randevu İptalinde" (ayar 3) musteri acik mi? Kapaliysa musteriye WA/SMS GITMEZ.
-        $ayarAcik = (int) \App\SalonSMSAyarlari::where('ayar_id', 3)->where('salon_id', $this->salonId)->value('musteri') === 1;
+        $ayarAcik = \App\Services\BildirimTercih::mesajAcikMi($this->salonId, 'randevu_iptal', 'musteri'); // Bildirim Ayarlari
         Log::info('[SANTRAL-IPTAL]', ['salon' => $this->salonId, 'randevu' => $r->id, 'musteri_tel' => optional($r->users)->cep_telefon, 'iptal_sms_ayari_acik' => $ayarAcik]);
         return ['ok' => true, 'mesaj' => 'Randevu iptal edildi', 'randevu_id' => (int) $r->id, 'bilgilendirme_gonderildi' => $ayarAcik];
     }
@@ -3123,7 +3123,7 @@ FIYAT
     /** Panel > SMS ayarlari > "Randevu Oluşturulduğunda" (ayar 12) musteri acik mi? Aciksa randevuekleguncelle WA-first/SMS gonderir. */
     protected function bilgilendirmeAcik(): bool
     {
-        return (int) \App\SalonSMSAyarlari::where('ayar_id', 12)->where('salon_id', $this->salonId)->value('musteri') === 1;
+        return \App\Services\BildirimTercih::mesajAcikMi($this->salonId, 'randevu_olusturuldu', 'musteri'); // Bildirim Ayarlari
     }
 
     protected function randevuGuncellePersonelli(array $in): array

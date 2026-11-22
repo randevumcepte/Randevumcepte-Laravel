@@ -73,19 +73,20 @@ class AlacakSMSHatirlatma extends Command
             if ($vade->vade_tarih == $yarin) {
                 // Müşteriye SMS
                 $musteriMesaj = 'Sayın ' . $musteri->name . ' ' . $salon->salon_adi . ' için yarın ödemeniz gereken ' . $tutarStr . ' TL borcunuzun olduğunu hatırlatmak isteriz.';
-                if (SalonSMSAyarlari::where('salon_id', $salon_id)->where('ayar_id', 1)->value('musteri')) {
-                    $this->waYaDaSms($controller, $salon, $salon_id, $musteri->cep_telefon, $musteriMesaj, 'alacak_hatirlatma');
+                if (\App\Services\BildirimTercih::acikMi($salon_id, 'alacak_hatirlatma', 'musteri')) {
+                    $this->waYaDaSms($controller, $salon, $salon_id, $musteri->cep_telefon, $musteriMesaj, 'alacak_hatirlatma', 'musteri', ['user_id' => $tahsilat->user_id]);
                 }
 
                 // Yetkililere SMS + push + bildirim
                 foreach ($yetkililer as $yetkili) {
                     $ymesaj = 'Sayın ' . $yetkili->personel_adi . '. ' . $musteri->name . ' isimli müşterinizin yarın ' . $tutarStr . ' TL alacağınız olduğunu hatırlatmak isteriz.';
-                    if (SalonSMSAyarlari::where('salon_id', $salon_id)->where('ayar_id', 1)->value('personel')) {
-                        $this->waYaDaSms($controller, $salon, $salon_id, $yetkili->cep_telefon, $ymesaj, 'alacak_hatirlatma');
+                    if (\App\Services\BildirimTercih::mesajAcikMi($salon_id, 'alacak_hatirlatma', 'personel')) {
+                        $this->waYaDaSms($controller, $salon, $salon_id, $yetkili->cep_telefon, $ymesaj, 'alacak_hatirlatma', 'personel', ['personel_id' => $yetkili->id, 'push_ayri' => true]);
                     }
                     self::bildirimekle($salon_id, $ymesaj, '#', $yetkili->id, $tahsilat->user_id, $musteri->profil_resim, null, null);
 
-                    try {
+                    // Push: bildirim tercihi (alacak_hatirlatma / personel / push)
+                    if (\App\Services\BildirimTercih::izin($salon_id, 'alacak_hatirlatma', 'personel', 'push')) try {
                         \App\Services\NotificationService::toStaff((int) $yetkili->id, (int) $salon_id)
                             ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
                             ->title('Alacak Hatırlatma')
@@ -97,18 +98,19 @@ class AlacakSMSHatirlatma extends Command
                 }
             } elseif ($vade->vade_tarih == $bugun) {
                 $musteriMesaj = 'Sayın ' . $musteri->name . ' ' . $salon->salon_adi . ' için ' . $tutarStr . ' TL borcunuzun olduğunu hatırlatmak isteriz. Tahsilat için lütfen iletişime geçin. 0' . $salon->telefon_1;
-                if (SalonSMSAyarlari::where('salon_id', $salon_id)->where('ayar_id', 1)->value('musteri')) {
-                    $this->waYaDaSms($controller, $salon, $salon_id, $musteri->cep_telefon, $musteriMesaj, 'alacak_hatirlatma');
+                if (\App\Services\BildirimTercih::acikMi($salon_id, 'alacak_hatirlatma', 'musteri')) {
+                    $this->waYaDaSms($controller, $salon, $salon_id, $musteri->cep_telefon, $musteriMesaj, 'alacak_hatirlatma', 'musteri', ['user_id' => $tahsilat->user_id]);
                 }
 
                 foreach ($yetkililer as $yetkili) {
                     $ymesaj = 'Sayın ' . $yetkili->personel_adi . ' ' . $musteri->name . ' isimli müşterinizin bugün ' . $tutarStr . ' TL alacağınız olduğunu hatırlatmak isteriz. Tahsilat için lütfen müşterinizi arayınız. 0' . $musteri->cep_telefon;
-                    if (SalonSMSAyarlari::where('salon_id', $salon_id)->where('ayar_id', 1)->value('personel')) {
-                        $this->waYaDaSms($controller, $salon, $salon_id, $yetkili->cep_telefon, $ymesaj, 'alacak_hatirlatma');
+                    if (\App\Services\BildirimTercih::mesajAcikMi($salon_id, 'alacak_hatirlatma', 'personel')) {
+                        $this->waYaDaSms($controller, $salon, $salon_id, $yetkili->cep_telefon, $ymesaj, 'alacak_hatirlatma', 'personel', ['personel_id' => $yetkili->id, 'push_ayri' => true]);
                     }
                     self::bildirimekle($salon_id, $ymesaj, '#', $yetkili->id, $tahsilat->user_id, $musteri->profil_resim, null, null);
 
-                    try {
+                    // Push: bildirim tercihi (alacak_hatirlatma / personel / push)
+                    if (\App\Services\BildirimTercih::izin($salon_id, 'alacak_hatirlatma', 'personel', 'push')) try {
                         \App\Services\NotificationService::toStaff((int) $yetkili->id, (int) $salon_id)
                             ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
                             ->title('Alacak Hatırlatma')
@@ -123,24 +125,22 @@ class AlacakSMSHatirlatma extends Command
     }
 
     /**
-     * WA-first gonderim: salon WA aktif+connected ise (paylasilan oturum destegi) once WA dene,
-     * fail ise SMS'e dus. Alacak_hatirlatma tipi kontor duser (randevu bildirim/hatirlatma DEGIL).
+     * Bildirim tercihine gore gonderim (alacak_hatirlatma): WA/SMS/push kararini BildirimTercih::dagit
+     * verir (WA ulasmazsa yedek SMS). Alacak_hatirlatma tipi kontor duser (randevu bildirim/hatirlatma DEGIL).
      */
-    protected function waYaDaSms($controller, $salon, $salonId, $telefon, $mesaj, $gonderimTipi)
+    protected function waYaDaSms($controller, $salon, $salonId, $telefon, $mesaj, $gonderimTipi, $alici = 'musteri', array $ek = [])
     {
-        if (empty($telefon)) return;
+        if (empty($telefon) && empty($ek['user_id'])) return;
         try {
-            $waSalon = \App\Services\WhatsAppService::resolveWaSalon($salon);
-            if (!empty($waSalon->whatsapp_aktif) && ($waSalon->whatsapp_durum ?? null) === 'connected') {
-                $r = app(\App\Services\WhatsAppService::class)
-                    ->sendReminder($salon, $telefon, $mesaj, null, null, null, false, $gonderimTipi);
-                if (!empty($r['ok'])) return; // WA'ya girdi
-                Log::info('[ALACAK-SMS] WA fail, SMS fallback', ['salon_id' => $salonId, 'err' => $r['error'] ?? '?']);
+            $satir = array_merge(['to' => $telefon, 'message' => $mesaj, 'gonderim_tipi' => $gonderimTipi,
+                'bk' => 'alacak_hatirlatma', 'alici' => $alici, 'push_baslik' => 'Alacak Hatırlatma'], $ek);
+            $sms = \App\Services\BildirimTercih::dagit($salon, [$satir], $gonderimTipi);
+            if ($sms) {
+                $controller->sms_gonder($salonId, [['to' => $sms[0]['to'], 'message' => $sms[0]['message']]]);
             }
         } catch (\Throwable $e) {
-            Log::warning('[ALACAK-SMS] WA exception, SMS fallback: '.$e->getMessage());
+            Log::warning('[ALACAK-SMS] gonderim hatasi: ' . $e->getMessage(), ['salon_id' => $salonId]);
         }
-        $controller->sms_gonder($salonId, [[ 'to' => $telefon, 'message' => $mesaj ]]);
     }
 
     protected function bildirimekle($salonid, $mesaj, $url, $personelid, $musteriid, $imgurl, $randevuid, $satisortagiid)

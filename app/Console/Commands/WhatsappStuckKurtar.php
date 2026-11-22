@@ -78,6 +78,20 @@ class WhatsappStuckKurtar extends Command
                     continue;
                 }
 
+                // Isletmenin bildirim tercihi: SMS ayrica gittiyse / yedek kapaliysa / SMS paketi yoksa SMS'e dusme
+                list($yedekVar, $yedekYokSebep) = \App\Services\BildirimTercih::waLogSmsYedegi($log);
+                if (!$yedekVar) {
+                    DB::table('whatsapp_gonderim_loglari')
+                        ->where('id', $log->id)
+                        ->update([
+                            'durum' => 2,
+                            'hata' => mb_substr('stuck-kurtar: ' . $dakika . 'dk kuyrukta kaldı, SMS yok: ' . $yedekYokSebep, 0, 150),
+                            'updated_at' => now(),
+                        ]);
+                    $atlandi++;
+                    continue;
+                }
+
                 // SMS olarak gönder
                 $controller->sms_gonder($log->salon_id, [[
                     'to' => $log->telefon,

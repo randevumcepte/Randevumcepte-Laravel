@@ -979,6 +979,9 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/adisyon-filtreli-getir','StoreAdminController@adisyon_filtreli_getir');
 	Route::get('/adisyon-filtreli-getir-perosnel','StoreAdminController@adisyon_filtreli_getir_personel');
 	Route::post('/sms-ayar-kaydet','StoreAdminController@sms_ayar_kaydet');
+	// Ayarlar > Bildirim Ayarlari: SMS / WhatsApp / uygulama bildirimi ayri ayri (her degisiklik loglanir)
+	Route::get('/bildirim-ayarlari/veri','BildirimAyarController@veri');
+	Route::post('/bildirim-ayarlari/kaydet','BildirimAyarController@kaydet');
 	Route::post('/santral-ayar-kaydet','StoreAdminController@santral_ayar_kaydet');
 	Route::post('/santral-ozel-menu-kaydet','StoreAdminController@santral_ozel_menu_kaydet');
 	Route::post('/santral-sss-kaydet','StoreAdminController@santral_sss_kaydet');

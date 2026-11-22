@@ -175,6 +175,13 @@ class WhatsAppWebhookController extends Controller
         // SMS'e düşür — aynı randevu için
         if (!config('whatsapp.fallback_to_sms', true)) return;
 
+        // Isletmenin bildirim tercihi: SMS ayrica gittiyse / yedek kapaliysa / SMS paketi yoksa SMS'e dusme
+        list($yedekVar, $yedekYokSebep) = \App\Services\BildirimTercih::waLogSmsYedegi($log);
+        if (!$yedekVar) {
+            Log::info('WhatsApp failed → SMS yedegi yok', ['log_id' => $logId, 'sebep' => $yedekYokSebep]);
+            return;
+        }
+
         try {
             $controller = app()->make(Controller::class);
             $controller->sms_gonder($log->salon_id, [[
@@ -201,6 +208,9 @@ class WhatsAppWebhookController extends Controller
             $salon->whatsapp_baglanti_tarihi = now();
             $salon->whatsapp_warmup_baslangic = now();
         }
+        // Salonun ILK WhatsApp baglantisi: SMS'te kalan bildirimleri WhatsApp'a tasi (bugunku "WA baglaninca
+        // WA'dan gider" davranisi). Salon basina tek sefer; sonraki baglantilarda hicbir sey yapmaz.
+        try { \App\Services\BildirimTercih::waIlkBaglanti($salon->id); } catch (\Throwable $e) { Log::warning('[BildirimTercih] waIlkBaglanti: ' . $e->getMessage()); }
         // NOT: Salon-basi 60 gun ucretsiz deneme KALDIRILDI (2026-09-01). Artik tum
         // salonlar 1 Eylul'den itibaren kontorlu; yeni baglanana ayri deneme verilmez.
         // (KontorServisi::kontorlusDonemMi artik whatsapp_deneme_bitis'i dikkate almiyor.)

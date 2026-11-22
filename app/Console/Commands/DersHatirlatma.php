@@ -65,14 +65,14 @@ class DersHatirlatma extends Command
             $sid = (int) $o->salon_id;
             if (!array_key_exists($sid, $salonCache)) {
                 $salonCache[$sid] = Salonlar::find($sid);
-                $ayarCache[$sid]  = SalonSMSAyarlari::where('salon_id', $sid)->where('ayar_id', 1)->first();
+                // Bildirim tercihi (ders_hatirlatma/musteri): herhangi bir kanal aciksa gonderilir
+                $ayarCache[$sid]  = \App\Services\BildirimTercih::acikMi($sid, 'ders_hatirlatma', 'musteri');
             }
             $salon = $salonCache[$sid];
             if (!$salon) { if ($test) $this->warn("Oturum {$o->id}: salon yok"); continue; }
 
-            // Randevu hatirlatma toggle'i kapaliysa ders hatirlatmasi da gitmesin
-            $ayar = $ayarCache[$sid];
-            $toggleAcik = !($ayar && !$ayar->musteri);
+            // Ders hatirlatma bildirimi tum kanallarda kapaliysa gitmesin
+            $toggleAcik = (bool) $ayarCache[$sid];
             $x = (int) ($salon->randevu_sms_hatirlatma ?? 0);
             $dersZamani = strtotime($o->tarih . ' ' . $o->saat);
             $tetik = date('Y-m-d H:i', $dersZamani - $x * 3600);
@@ -201,11 +201,10 @@ class DersHatirlatma extends Command
             if ($odemeBekliyor) {
                 $mesaj .= "\n\n" . '💳 Ayrıca tamamlanmamış bir ödemeniz görünmektedir. Ödemenizi tamamlamak için bizimle iletişime geçebilirsiniz.';
             }
-            DersBildirimServisi::musteriyeGonder($salon, $m, $mesaj, 'ders_hatirlatma');
+            self::mesajGonder($salon, $m, $mesaj, 'ders_hatirlatma', 'ders_hatirlatma');
 
-            // PUSH — WhatsApp/SMS kanalindan BAGIMSIZ: salon WA bagli olsun olmasin,
-            // her durumda uygulama bildirimi de gonderilir (kullanici talebi).
-            try {
+            // PUSH — WhatsApp/SMS kanalindan BAGIMSIZ, bildirim tercihine bagli (ders_hatirlatma/push).
+            if (\App\Services\BildirimTercih::izin($salon->id, 'ders_hatirlatma', 'musteri', 'push')) try {
                 $pushBody = $dersAdi . ' dersiniz ' . $tarihStr . ' ' . $saatStr . '. Görüşmek üzere!'
                     . ($odemeBekliyor ? ' (Bekleyen ödemeniz bulunmaktadır.)' : '');
                 \App\Services\NotificationService::toCustomer($m->id, $salon->id)
@@ -223,6 +222,38 @@ class DersHatirlatma extends Command
         Log::info('[DERS-HAT] oturum hatirlatildi', [
             'oturum_id' => $o->id, 'salon_id' => $salon->id, 'katilimci' => $katilimcilar->count(),
         ]);
+    }
+
+    /**
+     * Bildirim tercihine gore WA/SMS. Yalniz WhatsApp secili + yedek SMS acik = bugunku yol
+     * (DersBildirimServisi: WA dene, gitmezse SMS). Diger secimler BildirimTercih::dagit ile.
+     * Push burada atilmaz (cagiran kendi atiyor).
+     */
+    public static function mesajGonder(Salonlar $salon, $m, string $mesaj, string $kod, string $gonderimTipi)
+    {
+        $k = \App\Services\BildirimTercih::kanallar($salon->id, $kod, 'musteri');
+        if (!$k['sms'] && !$k['whatsapp']) return;
+        if (empty($m->cep_telefon)) return;
+        if ($k['whatsapp'] && !$k['sms'] && \App\Services\BildirimTercih::waYedekSms($salon->id)) {
+            DersBildirimServisi::musteriyeGonder($salon, $m, $mesaj, $gonderimTipi);
+            return;
+        }
+        try {
+            $satir = [
+                'to' => $m->cep_telefon,
+                // SMS'te gonderici gorunmez: salon adi basa (DersBildirimServisi ile ayni)
+                'message' => !empty($salon->salon_adi) ? $salon->salon_adi . ' - ' . $mesaj : $mesaj,
+                'wa_message' => \App\Services\WhatsAppMesajFormat::uygulamaDavetiEk($mesaj, $salon, $m->id ?? null),
+                'user_id' => $m->id ?? null, 'gonderim_tipi' => $gonderimTipi,
+                'bk' => $kod, 'alici' => 'musteri', 'push_ayri' => true,
+            ];
+            $sms = \App\Services\BildirimTercih::dagit($salon, [$satir], $gonderimTipi);
+            if ($sms) {
+                app(\App\Http\Controllers\Controller::class)->sms_gonder($salon->id, [['to' => $sms[0]['to'], 'message' => $sms[0]['message']]]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[DERS-BILD] tercihli gonderim hatasi', ['salon_id' => $salon->id, 'kod' => $kod, 'err' => $e->getMessage()]);
+        }
     }
 
     /**

@@ -125,6 +125,11 @@ class CarkHatirlatmaGonder extends Command
             $salon = Salonlar::find($ayar->salon_id);
             if (!$salon) continue;
 
+            // Bildirim tercihi (cark_hatirlatma/musteri): push ve SMS/WhatsApp ayri ayri
+            $pushIzin = \App\Services\BildirimTercih::izin($salon->id, 'cark_hatirlatma', 'musteri', 'push');
+            $mesajIzin = \App\Services\BildirimTercih::mesajAcikMi($salon->id, 'cark_hatirlatma', 'musteri');
+            if (!$pushIzin && !$mesajIzin) continue;
+
             // Çarkıfelek görseli (mevcut alanlardan dene)
             $carkGorsel = null;
             foreach (['gorsel', 'kapak_gorsel', 'banner_url', 'image_url'] as $kol) {
@@ -150,6 +155,36 @@ class CarkHatirlatmaGonder extends Command
                     '{salon_adi}' => $salon->salon_adi,
                 ]);
                 $title = '🎡 ' . $salon->salon_adi;
+
+                // SMS/WhatsApp: yalniz isletme sectiyse ayni metin (tohumda kapali)
+                $mesajGitti = false;
+                if ($mesajIzin && !empty($user->cep_telefon)) {
+                    try {
+                        $sms = \App\Services\BildirimTercih::dagit($salon, [[
+                            'to' => $user->cep_telefon, 'message' => $body, 'user_id' => (int) $userId,
+                            'bk' => 'cark_hatirlatma', 'alici' => 'musteri', 'push_ayri' => true,
+                        ]]);
+                        if ($sms) {
+                            app(\App\Http\Controllers\Controller::class)->sms_gonder($salon->id, [['to' => $sms[0]['to'], 'message' => $sms[0]['message']]]);
+                        }
+                        $mesajGitti = true;
+                    } catch (\Throwable $e) {
+                        Log::warning("Cark mesaj gönderim hatası user={$userId}: " . $e->getMessage());
+                    }
+                }
+                if (!$pushIzin) {
+                    // Push kapali: gunluk asama tekrarini engellemek icin log yine yazilir
+                    CarkHatirlatmaLoglari::create([
+                        'salon_id'        => $salon->id,
+                        'user_id'         => $userId,
+                        'asama'           => $asama,
+                        'tarih'           => $bugun,
+                        'gonderim_tarihi' => $now,
+                        'durum'           => $mesajGitti ? 'gonderildi' : 'hata',
+                    ]);
+                    if ($mesajGitti) $toplamGonderim++;
+                    continue;
+                }
 
                 try {
                     $sonuc = NotificationService::toCustomer((int)$userId, (int)$salon->id)

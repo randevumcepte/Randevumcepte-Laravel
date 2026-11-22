@@ -248,10 +248,14 @@ class CustomerController extends Controller
             $mesaj_isletme_bildirim = Auth::user()->name .' '.date('d.m.Y',strtotime($randevu->tarih)) ." - ". date('H:i',strtotime($randevu->saat)) ." için randevu oluşturmuştur";
             // WA-first: salon WA aktif+connected ise (paylasilan oturum destegi) once WA dene;
             // fail ise SMS'e dus. 'yeni_randevu_bildirim' tipi ucretsiz listede — kontor dusmez.
+            // Bildirim tercihleri (online_randevu_talebi): musteri/personel icin SMS / WhatsApp / push ayri ayri
+            $_bkMusteri = \App\Services\BildirimTercih::kanallar($isletme->id, 'online_randevu_talebi', 'musteri');
+            $_bkPersonel = \App\Services\BildirimTercih::kanallar($isletme->id, 'online_randevu_talebi', 'personel');
+            $_waYedek = \App\Services\BildirimTercih::waYedekSms($isletme->id);
             $_musteriWaGitti = false;
             try {
                 $_waIsletme = \App\Services\WhatsAppService::resolveWaSalon($isletme);
-                if (!empty($_waIsletme->whatsapp_aktif) && ($_waIsletme->whatsapp_durum ?? null) === 'connected') {
+                if ($_bkMusteri['whatsapp'] && !empty($_waIsletme->whatsapp_aktif) && ($_waIsletme->whatsapp_durum ?? null) === 'connected') {
                     $_r = app(\App\Services\WhatsAppService::class)
                         ->sendReminder($isletme, Auth::user()->cep_telefon, $mesaj, $randevu->id, Auth::user()->id, null, false, 'yeni_randevu_bildirim');
                     $_musteriWaGitti = !empty($_r['ok']);
@@ -260,7 +264,13 @@ class CustomerController extends Controller
                 \Log::warning('musteri randevu talep WA hata: '.$e->getMessage());
             }
 
-            if (!$_musteriWaGitti) {
+            // SMS: dogrudan seciliyse ya da WhatsApp secili olup gidemediyse (salon yedegi + SMS paketi)
+            $_musteriSms = $_bkMusteri['sms']
+                || ($_bkMusteri['whatsapp'] && !$_musteriWaGitti && $_waYedek && \App\Services\BildirimTercih::smsKullanilabilir($isletme));
+            if ($_bkMusteri['push']) {
+                \App\Services\BildirimTercih::genelPush($isletme, 'online_randevu_talebi', ['user_id' => Auth::user()->id, 'alici' => 'musteri', 'message' => $mesaj, 'randevu_id' => $randevu->id]);
+            }
+            if ($_musteriSms) {
                 if($isletme->yeni_sms)
                 {
                     $smsController = app()->make(SMSController::class);
@@ -314,7 +324,7 @@ class CustomerController extends Controller
                     $waOk = false;
                     // Paylasilan oturum destegi: durum kontrolu ust salonda
                     $_waIsletmeChk = \App\Services\WhatsAppService::resolveWaSalon($isletme);
-                    if (!empty($_waIsletmeChk->whatsapp_aktif) && ($_waIsletmeChk->whatsapp_durum ?? null) === 'connected') {
+                    if ($_bkPersonel['whatsapp'] && !empty($_waIsletmeChk->whatsapp_aktif) && ($_waIsletmeChk->whatsapp_durum ?? null) === 'connected') {
                         try {
                             $wa = app(\App\Services\WhatsAppService::class)
                                 ->sendUrgent($isletme, $telefon, $mesaj_isletme_bildirim, null, 'yeni_randevu_bildirim');
@@ -323,7 +333,7 @@ class CustomerController extends Controller
                             \Log::warning('WA personel bildirim hata: '.$e->getMessage());
                         }
                     }
-                    if (!$waOk) {
+                    if ($_bkPersonel['sms'] || ($_bkPersonel['whatsapp'] && !$waOk && $_waYedek && \App\Services\BildirimTercih::smsKullanilabilir($isletme))) {
                         try {
                             $smsController = app()->make(SMSController::class);
                             $smsController->tekilSMSGonderVoiceTelekom($telefon, $mesaj_isletme_bildirim, $isletme->id, 'Yeni randevu talebi');
@@ -343,7 +353,9 @@ class CustomerController extends Controller
                 ->when(\Schema::hasColumn('bildirim_kimlikleri', 'aktif'), function($q){ $q->where('aktif', 1); })
                 ->pluck('bildirim_id')->toArray();
 
-            self::bildirimgonder($bildirimkimlikleri,$mesaj_isletme,"Yeni Randevu",$request->salonno);
+            if ($_bkPersonel['push']) {
+                self::bildirimgonder($bildirimkimlikleri,$mesaj_isletme,"Yeni Randevu",$request->salonno);
+            }
             
 
 

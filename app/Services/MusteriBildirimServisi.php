@@ -23,7 +23,8 @@ class MusteriBildirimServisi
      */
     public static function kayitBildirimi($salonId, User $musteri, $sifre = null, ?Request $request = null)
     {
-        if (!SalonSMSAyarlari::where('salon_id', $salonId)->where('ayar_id', 4)->value('musteri')) {
+        // Bildirim tercihleri: musteri_eklendi (eski ayar 4)
+        if (!BildirimTercih::acikMi($salonId, 'musteri_eklendi', 'musteri')) {
             return;
         }
         $salon = Salonlar::where('id', $salonId)->first(['salon_adi', 'uygulamalar_kisa_link']);
@@ -40,7 +41,7 @@ class MusteriBildirimServisi
         }
 
         app(StoreAdminController::class)->sms_gonder_bildirimli($request ?: new Request(),
-            [['to' => $musteri->cep_telefon, 'message' => $mesaj]], false, 1, false, $salonId);
+            [['to' => $musteri->cep_telefon, 'message' => $mesaj, 'bk' => 'musteri_eklendi', 'alici' => 'musteri', 'user_id' => $musteri->id]], false, 1, false, $salonId);
     }
 
     /**
@@ -50,7 +51,10 @@ class MusteriBildirimServisi
      */
     public static function karaListeBildirimi($salonId, $userId, ?Request $request = null)
     {
-        if (SalonSMSAyarlari::where('ayar_id', 15)->where('salon_id', $salonId)->value('musteri') != 1) {
+        // Bildirim tercihleri: kara_liste (eski ayar 15); mesaj ve push ayri ayri
+        $mesajAcik = BildirimTercih::mesajAcikMi($salonId, 'kara_liste', 'musteri');
+        $pushAcik = BildirimTercih::izin($salonId, 'kara_liste', 'musteri', 'push');
+        if (!$mesajAcik && !$pushAcik) {
             return;
         }
         $portfoy = MusteriPortfoy::where('user_id', $userId)->where('salon_id', $salonId)->first();
@@ -62,14 +66,19 @@ class MusteriBildirimServisi
         $metin = 'Sayın ' . $portfoy->users->name . ', isteğiniz doğrultusunda telefon numaranız kara listeye alınmıştır. '
             . 'Kampanya ve reklam mesajları gönderilmeyecektir. Detaylı bilgi için bize ulaşınız. 0' . $salonTel;
 
-        app(StoreAdminController::class)->sms_gonder_bildirimli($request ?: new Request(), [[
-            'to' => $portfoy->users->cep_telefon,
-            'message' => $metin,
-            'user_id' => $portfoy->user_id,
-            'gonderim_tipi' => 'kara_liste_bildirim',
-        ]], false, 1, false, $salonId, 'kara_liste_bildirim');
+        if ($mesajAcik) {
+            app(StoreAdminController::class)->sms_gonder_bildirimli($request ?: new Request(), [[
+                'to' => $portfoy->users->cep_telefon,
+                'message' => $metin,
+                'user_id' => $portfoy->user_id,
+                'gonderim_tipi' => 'kara_liste_bildirim',
+                'bk' => 'kara_liste',
+                'alici' => 'musteri',
+                'push_ayri' => true,
+            ]], false, 1, false, $salonId, 'kara_liste_bildirim');
+        }
 
-        try {
+        if ($pushAcik) try {
             NotificationService::toCustomer((int) $portfoy->user_id, (int) $salonId)
                 ->type(NotificationTypes::SYSTEM_ANNOUNCEMENT)
                 ->title('Kara Listeye Alındınız')

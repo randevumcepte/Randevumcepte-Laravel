@@ -304,14 +304,14 @@ class WhatsappMobileController extends Controller
     public function kanalDurum(Request $request, $salonId)
     {
         try {
-            if (!Schema::hasTable('salon_sms_ayarlari') || !Schema::hasColumn('salon_sms_ayarlari', 'whatsapp_musteri')) {
-                return response()->json(['aktif' => false, 'sms_aktif_aynigun' => false, 'sms_aktif_24sa' => false]);
+            // Bildirim tercihleri: hatirlatmalarin musteri WhatsApp kanali acik mi (eski whatsapp_musteri hicbir seyi kontrol etmiyordu)
+            $aktif = \App\Services\BildirimTercih::izin($salonId, 'hatirlatma_yaklasan', 'musteri', 'whatsapp')
+                  || \App\Services\BildirimTercih::izin($salonId, 'hatirlatma_bir_gun_once', 'musteri', 'whatsapp');
+            if (!Schema::hasTable('salon_sms_ayarlari')) {
+                return response()->json(['aktif' => $aktif, 'sms_aktif_aynigun' => false, 'sms_aktif_24sa' => false]);
             }
             $ayar1 = DB::table('salon_sms_ayarlari')->where('salon_id', $salonId)->where('ayar_id', 1)->first();
             $ayar6 = DB::table('salon_sms_ayarlari')->where('salon_id', $salonId)->where('ayar_id', 6)->first();
-
-            $aktif = ($ayar1 && (int) ($ayar1->whatsapp_musteri ?? 0) === 1)
-                  || ($ayar6 && (int) ($ayar6->whatsapp_musteri ?? 0) === 1);
 
             return response()->json([
                 'aktif' => $aktif,
@@ -326,24 +326,27 @@ class WhatsappMobileController extends Controller
     public function kanalToggle(Request $request, $salonId)
     {
         try {
-            if (!Schema::hasTable('salon_sms_ayarlari') || !Schema::hasColumn('salon_sms_ayarlari', 'whatsapp_musteri')) {
-                return response()->json(['ok' => false, 'mesaj' => 'salon_sms_ayarlari.whatsapp_musteri yok'], 200);
-            }
             $yeniDeger = (int) $request->input('aktif', 0) === 1 ? 1 : 0;
-            foreach ([1, 6] as $ayarId) {
-                $row = DB::table('salon_sms_ayarlari')->where('salon_id', $salonId)->where('ayar_id', $ayarId)->first();
-                if (!$row) {
-                    DB::table('salon_sms_ayarlari')->insert([
-                        'salon_id' => $salonId,
-                        'ayar_id' => $ayarId,
-                        'musteri' => 0,
-                        'personel' => 0,
-                        'whatsapp_musteri' => $yeniDeger,
-                    ]);
-                } else {
-                    DB::table('salon_sms_ayarlari')->where('salon_id', $salonId)->where('ayar_id', $ayarId)
-                        ->update(['whatsapp_musteri' => $yeniDeger]);
+            // Bildirim tercihleri: hatirlatmalarin musteri WhatsApp kanalini yaz (Log Hareketleri'ne de duser)
+            // Bu uc kimliksiz (route'ta auth yok): gercek ayari YALNIZ bu salonun dogrulanmis yetkilisi
+            // degistirebilir; aksi halde eskisi gibi yalniz geri-uyum kolonu yazilir (hicbir seyi kontrol etmez).
+            $kaynak = \Illuminate\Support\Facades\Auth::guard('isletmeyonetim')->check() ? 'panel' : 'mobil';
+            $yetkili = null;
+            try {
+                $yetkili = \Illuminate\Support\Facades\Auth::guard('isletmeyonetim')->user()
+                    ?: ($request->bearerToken() ? \Illuminate\Support\Facades\Auth::guard('isletmeyonetim-api')->user() : null);
+            } catch (\Throwable $e) {}
+            $salonUyesi = $yetkili && in_array((int) $salonId,
+                array_map('intval', $yetkili->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray()), true);
+            if ($salonUyesi) {
+                foreach (['hatirlatma_yaklasan', 'hatirlatma_bir_gun_once'] as $kod) {
+                    \App\Services\BildirimTercih::kaydet($salonId, $kod, 'musteri', 'whatsapp', $yeniDeger, $kaynak, $request);
                 }
+            }
+            // Eski kolon (geri uyum): yalniz mevcut satirlar guncellenir; yeni satir acmak eski musteri bayragini 0'a cekerdi
+            if (Schema::hasTable('salon_sms_ayarlari') && Schema::hasColumn('salon_sms_ayarlari', 'whatsapp_musteri')) {
+                DB::table('salon_sms_ayarlari')->where('salon_id', $salonId)->whereIn('ayar_id', [1, 6])
+                    ->update(['whatsapp_musteri' => $yeniDeger]);
             }
             return response()->json(['ok' => true, 'aktif' => $yeniDeger === 1]);
         } catch (\Throwable $e) {

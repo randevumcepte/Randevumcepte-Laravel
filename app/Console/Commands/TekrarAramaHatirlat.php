@@ -133,7 +133,25 @@ class TekrarAramaHatirlat extends Command
     /** Arayacak personele push + panel ici bildirim gonderir. Musteriye GITMEZ. */
     private function uyar($a, $baslik, $mesaj, $yuksekOncelik)
     {
-        $yetkiliIdleri = Personeller::where('id', $a->personel_id)->pluck('yetkili_id')->toArray();
+        // SMS/WhatsApp: yalniz isletme sectiyse ayni metin personele (tohumda kapali)
+        if (\App\Services\BildirimTercih::mesajAcikMi($a->salon_id, 'tekrar_arama', 'personel')) {
+            try {
+                $tel = Personeller::where('id', $a->personel_id)->value('cep_telefon');
+                $sms = $tel ? \App\Services\BildirimTercih::dagit($a->salon_id, [[
+                    'to' => $tel, 'message' => $mesaj, 'personel_id' => (int) $a->personel_id,
+                    'bk' => 'tekrar_arama', 'alici' => 'personel', 'push_ayri' => true,
+                ]]) : [];
+                if ($sms) {
+                    app(\App\Http\Controllers\Controller::class)->sms_gonder($a->salon_id, [['to' => $sms[0]['to'], 'message' => $sms[0]['message']]]);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('[ARAMA-RANDEVU] mesaj fail', ['id' => $a->id, 'err' => $e->getMessage()]);
+            }
+        }
+
+        // Push: bildirim tercihi (tekrar_arama/personel/push)
+        $pushIzin = \App\Services\BildirimTercih::izin($a->salon_id, 'tekrar_arama', 'personel', 'push');
+        $yetkiliIdleri = $pushIzin ? Personeller::where('id', $a->personel_id)->pluck('yetkili_id')->toArray() : [];
         foreach ($yetkiliIdleri as $yid) {
             if (!$yid) continue;
             try {

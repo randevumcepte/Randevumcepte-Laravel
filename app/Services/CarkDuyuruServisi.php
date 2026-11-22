@@ -36,6 +36,10 @@ class CarkDuyuruServisi
         if (!$cark || !$cark->aktifmi) {
             return self::sonuc(false, 0, 0, 0, 'Cark sistemi aktif degil', 422);
         }
+        // Bildirim tercihleri: cark_hatirlatma / musteri / push kapaliysa duyuru gitmez
+        if (!BildirimTercih::izin($salon->id, 'cark_hatirlatma', 'musteri', 'push')) {
+            return self::sonuc(true, 0, 0, 0, 'Bildirim Ayarlarinda carkifelek uygulama bildirimi kapali');
+        }
 
         $baslik = trim((string) $baslik);
         $mesaj  = trim((string) $mesaj);

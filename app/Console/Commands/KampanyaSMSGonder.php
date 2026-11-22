@@ -69,7 +69,7 @@ class KampanyaSMSGonder extends Command
 
 			            if ($karaListedeMi != 1) {
 			            	$katilim_link = '';
-			                if(SalonSMSAyarlari::where('ayar_id',10)->where('salon_id',$kampanya->salon_id)->value('musteri')==1)
+			                if(\App\Services\BildirimTercih::mesajAcikMi($kampanya->salon_id, 'kampanya_link', 'musteri'))
 			                    $katilim_link = ' Katılım için : https://'.$kampanya->salon->domain.'/kampanyakatilim/'.$kampanya->id.'/'.$katilimci->user_id;
 			            	$parametre = [
 			            		'to'=>$katilimci->musteri->cep_telefon,

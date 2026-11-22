@@ -452,6 +452,8 @@ class SantralKopruController extends Controller
         } catch (\Throwable $e) {
             \Log::warning('[SANTRAL-GERI-ARA] panel bildirimi yazilamadi: ' . $e->getMessage());
         }
+        // Bildirim tercihleri: telefon_asistani / personel / push kapaliysa push atilmaz (zil satiri yukarida)
+        if (!\App\Services\BildirimTercih::izin($salonId, 'telefon_asistani', 'personel', 'push')) return;
         try {
             $yoneticiler = \App\Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
                 ->where('salon_personelleri.salon_id', $salonId)->where('model_has_roles.role_id', '<', 5)

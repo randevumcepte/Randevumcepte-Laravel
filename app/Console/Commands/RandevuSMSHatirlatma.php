@@ -121,6 +121,7 @@ class RandevuSMSHatirlatma extends Command
             // her randevu icin 3 saat once musteri + personel + yonetici push atilir.
             $tetik3SaatPush = date('d.m.Y H:i', strtotime('-3 hours', strtotime($randevutarihsaat)));
             if ($simdi == $tetik3SaatPush) {
+                // Push kanal kararlari pushHatirlatmaGonder icinde (hatirlatma_yaklasan)
                 $this->pushHatirlatmaGonder($value, '3saat');
             }
 
@@ -171,12 +172,11 @@ class RandevuSMSHatirlatma extends Command
                 $musteriGonder = ($simdi == $tetikSalonSaat);
             }
             if ($musteriGonder) {
-                $ayar = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 1)->first();
+                // Kanal secimi bildirim tercihlerinden (eski ayar_id=1 musteri yerine)
+                $ayar = 'hatirlatma_yaklasan';
                 Log::info('[RND-SMS] müşteri salon-saati tetiklendi', [
                     'randevu_id' => $value->id,
-                    'ayar_var' => (bool) $ayar,
-                    'ayar_musteri' => $ayar ? (int) $ayar->musteri : null,
-                    'ayar_wa_musteri' => $ayar ? (int) ($ayar->whatsapp_musteri ?? 0) : null,
+                    'kanallar' => \App\Services\BildirimTercih::kanallar($value->salon_id, $ayar, 'musteri'),
                 ]);
                 $saat = date('H:i', strtotime($value->saat));
                 $tarihStr = date('d.m.Y', strtotime($value->tarih));
@@ -225,7 +225,8 @@ class RandevuSMSHatirlatma extends Command
                 }
             }
 
-            $personelAyari = SalonSMSAyarlari::where('salon_id', $value->salon_id)->where('ayar_id', 1)->first();
+            // Personel SMS/WA: bildirim tercihi (eski ayar_id=1 personel yerine)
+            $personelMesajAcik = \App\Services\BildirimTercih::mesajAcikMi($value->salon_id, 'hatirlatma_yaklasan', 'personel');
 
             // Personel bazinda hizmetleri grupla -> tek SMS, tek push
             $personelHizmetMap = []; // personel_id => [satir, ...]
@@ -242,9 +243,9 @@ class RandevuSMSHatirlatma extends Command
             foreach ($personelHizmetMap as $pid => $satirlar) {
                 $mesaj = $value->users->name . ' isimli müşterinin bugün ' . implode(', ', $satirlar) . ' randevu' . (count($satirlar) > 1 ? 'larını' : 'sunu') . ' hatırlatmak isteriz.';
 
-                if ($personelAyari && $personelAyari->personel) {
+                if ($personelMesajAcik) {
                     $personelTelefon = Personeller::where('id', $pid)->value('cep_telefon');
-                    $this->personeleGonder($wa, $controller, $value->salonlar, $personelTelefon, $mesaj, $personelAyari, $value->id);
+                    $this->personeleGonder($wa, $controller, $value->salonlar, $personelTelefon, $mesaj, 'hatirlatma_yaklasan', $value->id);
                 }
 
                 self::bildirimekle($value->salon_id, $mesaj, '#', $pid, $value->user_id, $value->users->profil_resim, $value->id, null);
@@ -271,16 +272,19 @@ class RandevuSMSHatirlatma extends Command
         }
     }
 
-    protected function personeleGonder(WhatsAppService $wa, Controller $controller, $salon, $telefon, $mesajBase, $ayar, $randevuId)
+    protected function personeleGonder(WhatsAppService $wa, Controller $controller, $salon, $telefon, $mesajBase, $kod, $randevuId)
     {
         if (!$telefon) {
             Log::info('[RND-SMS] personel telefon yok — atlandi', ['salon_id' => $salon->id, 'randevu_id' => $randevuId]);
             return;
         }
 
+        // Kanal secimi bildirim tercihlerinden: WA dene <=> whatsapp secili; SMS <=> sms secili veya WA yedegi
+        $kanal = \App\Services\BildirimTercih::kanallar($salon->id, $kod, 'personel');
+
         // Paylasilan oturum: 416 icin 246'nin durumu kontrol edilir.
         $waSalon = \App\Services\WhatsAppService::resolveWaSalon($salon);
-        $whatsappKanaliAcik = !empty($waSalon->whatsapp_aktif)
+        $whatsappKanaliAcik = $kanal['whatsapp'] && !empty($waSalon->whatsapp_aktif)
             && $waSalon->whatsapp_durum === 'connected';
 
         Log::info('[RND-SMS] personel kanal karar', [
@@ -301,6 +305,7 @@ class RandevuSMSHatirlatma extends Command
             ]);
             if ($sonuc['ok'] ?? false) {
                 $whatsappBasarili = true;
+                $this->waYedeksizIsaretle($salon->id, $sonuc, $kanal['sms']);
             } else {
                 Log::warning('[RND-SMS] personel WA başarısız → SMS fallback', [
                     'salon_id' => $salon->id, 'randevu_id' => $randevuId,
@@ -309,7 +314,7 @@ class RandevuSMSHatirlatma extends Command
             }
         }
 
-        if (!$whatsappBasarili) {
+        if ($this->smsGitsinMi($salon, $kanal, $whatsappBasarili)) {
             Log::info('[RND-SMS] personel SMS gönderiliyor', [
                 'salon_id' => $salon->id, 'randevu_id' => $randevuId, 'telefon' => $telefon,
             ]);
@@ -320,7 +325,7 @@ class RandevuSMSHatirlatma extends Command
         }
     }
 
-    protected function musteriyeGonder(WhatsAppService $wa, Controller $controller, $randevu, $ayar, $mesajBase, $templateCtx = null, $mesajSMS = null)
+    protected function musteriyeGonder(WhatsAppService $wa, Controller $controller, $randevu, $kod, $mesajBase, $templateCtx = null, $mesajSMS = null)
     {
         $salon = $randevu->salonlar;
         $musteri = $randevu->users;
@@ -365,13 +370,12 @@ class RandevuSMSHatirlatma extends Command
             'musteri_onayli' => $musteriOnayli,
         ]);
 
-        // SMS/WA gate: $ayar->musteri = 0 ise SMS ve WA gonderme; push asagida
-        // her zaman calisir. Onceden bu gate cagirandaki if bloguydu; push da
-        // atlaniyordu. Push'un SMS/WA'dan bagimsiz kalmasi icin gate'i buraya
-        // tasidik. Personel/yonetici tarafiyla ayni pattern.
-        $smsWaAcik = $ayar && $ayar->musteri;
+        // SMS/WA gate: bildirim tercihleri ($kod / musteri). WA yalniz whatsapp seciliyse denenir;
+        // SMS sms seciliyse ya da WA secili ama ulasmadiysa (yedek SMS acik + paket var) gider.
+        $kanal = \App\Services\BildirimTercih::kanallar($salon->id, $kod, 'musteri');
+        $smsWaAcik = $kanal['sms'] || $kanal['whatsapp'];
 
-        if ($smsWaAcik && $whatsappKanaliAcik && $musteriOnayli) {
+        if ($kanal['whatsapp'] && $whatsappKanaliAcik && $musteriOnayli) {
             $whatsappDenendi = true;
             // WA metni SMS ile birebir aynı olsun (Cloud API kendi template'ini kullanır).
             $personalized = $mesajBase;
@@ -393,6 +397,7 @@ class RandevuSMSHatirlatma extends Command
             ]);
             if ($sonuc['ok'] ?? false) {
                 $whatsappBasarili = true;
+                $this->waYedeksizIsaretle($salon->id, $sonuc, $kanal['sms']);
             } else {
                 Log::warning('[RND-SMS] müşteri WA başarısız → SMS fallback', [
                     'salon_id' => $salon->id,
@@ -402,7 +407,7 @@ class RandevuSMSHatirlatma extends Command
             }
         }
 
-        if ($smsWaAcik && !$whatsappBasarili) {
+        if ($smsWaAcik && $this->smsGitsinMi($salon, $kanal, $whatsappBasarili)) {
             // SMS'te gönderici kimliği görünmediği için işletme adını başa ekle.
             // (WhatsApp'ta mesaj salonun kendi numarasından gittiği için eklenmez.)
             // WA icin zenginlestirilmis format kullanildiginda $mesajSMS verilir;
@@ -429,6 +434,28 @@ class RandevuSMSHatirlatma extends Command
         // NOT: Push burada YOK. Push tetigi (3 saat once sabit + 1 gun once) ayri
         // yerlerde: ana loop'ta pushHatirlatmaGonder() ve birGunOnceGrupluGonder().
         // Amac: push'u SMS/WA zamanlamasindan tamamen ayirmak, salon ayarindan bagimsiz.
+    }
+
+    /**
+     * SMS gitsin mi: SMS secili VEYA (WhatsApp secili ama ulasmadi/denenemedi VE salonun
+     * WA->SMS yedegi acik VE SMS paketi var). WA+SMS ikisi seciliyse ikisi de gider.
+     */
+    protected function smsGitsinMi($salon, array $kanal, $whatsappBasarili)
+    {
+        if ($kanal['sms']) return true;
+        if (!$kanal['whatsapp'] || $whatsappBasarili) return false;
+        if (!\App\Services\BildirimTercih::waYedekSms($salon->id)) return false;
+        return \App\Services\BildirimTercih::smsKullanilabilir($salon);
+    }
+
+    /** WA kuyruga girdi: SMS ayrica gittiyse veya yedek kapaliysa WA sonradan duserse SMS'e dusmesin. */
+    protected function waYedeksizIsaretle($salonId, $sonuc, $smsDeGidiyor)
+    {
+        if (empty($sonuc['logId'])) return;
+        if (!$smsDeGidiyor && \App\Services\BildirimTercih::waYedekSms($salonId)) return;
+        try {
+            \Illuminate\Support\Facades\DB::table('whatsapp_gonderim_loglari')->where('id', $sonuc['logId'])->update(['sms_yedeksiz' => 1]);
+        } catch (\Throwable $e) {}
     }
 
     /**
@@ -465,8 +492,16 @@ class RandevuSMSHatirlatma extends Command
         $personelBody = $musteriAdi . ' isimli müşterinin ' . $tarihStr . ' '
             . ($hizmetListesi ?: $saatStr) . ' randevusuna ' . $on . ' kaldı.';
 
+        // Push kararlari bildirim tercihlerinden: 3 saat -> hatirlatma_yaklasan, 1 gun -> hatirlatma_bir_gun_once
+        $bkKod = $etiket === '1gun' ? 'hatirlatma_bir_gun_once' : 'hatirlatma_yaklasan';
+        $musteriPush = \App\Services\BildirimTercih::izin($salonId, $bkKod, 'musteri', 'push');
+        $personelPush = \App\Services\BildirimTercih::izin($salonId, $bkKod, 'personel', 'push');
+        // 1 gun once personel SMS/WA bugun yok; isletme secerse ayni metin dagit ile gider (tohumda kapali)
+        $personelMesaj = $etiket === '1gun' && \App\Services\BildirimTercih::mesajAcikMi($salonId, $bkKod, 'personel');
+        $personelSatirlari = [];
+
         // 1) Musteri push
-        if (!empty($value->user_id)) {
+        if ($musteriPush && !empty($value->user_id)) {
             try {
                 \App\Services\NotificationService::toCustomer((int) $value->user_id, $salonId)
                     ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
@@ -487,6 +522,8 @@ class RandevuSMSHatirlatma extends Command
         }
         $atanmisPersonelIdleri = array_values(array_unique($atanmisPersonelIdleri));
         foreach ($atanmisPersonelIdleri as $pid) {
+            if ($personelMesaj) $personelSatirlari[] = $pid;
+            if (!$personelPush) continue;
             try {
                 \App\Services\NotificationService::toStaff($pid, $salonId)
                     ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
@@ -510,6 +547,8 @@ class RandevuSMSHatirlatma extends Command
                 ->pluck('salon_personelleri.id')->toArray();
             $yoneticiIdleri = array_values(array_unique($yoneticiIdleri));
             foreach ($yoneticiIdleri as $yid) {
+                if ($personelMesaj) $personelSatirlari[] = (int) $yid;
+                if (!$personelPush) continue;
                 try {
                     \App\Services\NotificationService::toStaff((int) $yid, $salonId)
                         ->type(\App\Services\NotificationTypes::APPOINTMENT_REMINDER)
@@ -524,6 +563,27 @@ class RandevuSMSHatirlatma extends Command
             }
         } catch (\Throwable $e) {
             Log::warning('[RND-PUSH] yonetici listesi fail', ['etiket' => $etiket, 'randevu_id' => $randevuId, 'err' => $e->getMessage()]);
+        }
+
+        // 1 gun once personel SMS/WA (yalniz isletme sectiyse): push yukarida atildi -> push_ayri
+        if ($personelSatirlari) {
+            try {
+                $telefonlar = Personeller::whereIn('id', array_values(array_unique($personelSatirlari)))
+                    ->whereNotNull('cep_telefon')->where('cep_telefon', '!=', '')->pluck('cep_telefon', 'id');
+                $satirlar = [];
+                foreach ($telefonlar as $pid => $tel) {
+                    $satirlar[] = ['to' => $tel, 'message' => $personelBody, 'randevu_id' => $randevuId, 'personel_id' => (int) $pid,
+                        'bk' => $bkKod, 'alici' => 'personel', 'push_ayri' => true, 'gonderim_tipi' => 'personel_hatirlatma'];
+                }
+                $salonObj = $value->salonlar;
+                $smsSatirlari = $satirlar ? \App\Services\BildirimTercih::dagit($salonObj, $satirlar, 'personel_hatirlatma') : [];
+                if ($smsSatirlari) {
+                    $smsSatirlari = array_map(function ($m) { return ['to' => $m['to'], 'message' => $m['message']]; }, $smsSatirlari);
+                    app()->make(Controller::class)->sms_gonder($salonId, $smsSatirlari);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('[RND-SMS] 1gun personel mesaj fail', ['randevu_id' => $randevuId, 'err' => $e->getMessage()]);
+            }
         }
 
         Log::info('[RND-PUSH] hatirlatma push atildi', [
@@ -598,7 +658,8 @@ class RandevuSMSHatirlatma extends Command
             // NOT: Ayar kapali olsa dahi PUSH atilir (musteriyeGonder icinde SMS/WA
             // toggle'a bagli, push bagimsiz). Flag'i her durumda claim edelim ki
             // musteriye ayni push tekrar tekrar yagmasın.
-            $ayar = SalonSMSAyarlari::where('salon_id', $salon->id)->where('ayar_id', 6)->first();
+            // Kanal secimi bildirim tercihlerinden (eski ayar_id=6 musteri yerine)
+            $ayar = 'hatirlatma_bir_gun_once';
 
             // Atomik grup claim: bu (salon, musteri) icin flag null olan
             // tum randevulari bir kerede claim et. Sayi = bu cron'un kazandigi.
@@ -620,7 +681,7 @@ class RandevuSMSHatirlatma extends Command
                 Log::error('[RND-ARAMA] ilk arama hatasi: ' . $e->getMessage(), ['randevu_idler' => $randevuIdler]);
             }
 
-            if (!$ayar || !$ayar->musteri) {
+            if (!\App\Services\BildirimTercih::mesajAcikMi($salon->id, $ayar, 'musteri')) {
                 Log::info('[RND-SMS] 1 gun once GRUP: SMS/WA toggle kapali — sadece push', [
                     'salon_id' => $salon->id, 'user_id' => $musteri->id,
                     'randevu_idler' => $randevuIdler,

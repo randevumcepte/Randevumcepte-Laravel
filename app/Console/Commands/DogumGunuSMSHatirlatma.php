@@ -39,7 +39,9 @@ class DogumGunuSMSHatirlatma extends Command
         $controller = app()->make(Controller::class);
 
         foreach ($dogumGunleri as $dogumGunu) {
-            if (!SalonSMSAyarlari::where('salon_id', $dogumGunu->salon_id)->where('ayar_id', 8)->value('musteri')) {
+            // Bildirim tercihi (dogum_gunu/musteri): hicbir kanal acik degilse atla
+            $bk = \App\Services\BildirimTercih::kanallar($dogumGunu->salon_id, 'dogum_gunu', 'musteri');
+            if (!$bk['sms'] && !$bk['whatsapp'] && !$bk['push']) {
                 continue;
             }
             // (saat guard'i handle() basina alindi — 15:17 kontrolu burada tekrarlanmiyor)
@@ -62,23 +64,34 @@ class DogumGunuSMSHatirlatma extends Command
             // WA-first: paylasilan oturum destegi ile ust salonun durumuna bakilir.
             // 'dogum_gunu' tipi kontor duser (randevu bildirim/hatirlatma DEGIL).
             $telefon = $dogumGunu->users->cep_telefon;
+            // Kanal: WA yalniz whatsapp seciliyse; SMS sms seciliyse veya WA gidemediyse (yedek SMS acik + paket var)
             $waGitti = false;
-            $kanal = 'sms-otomatik';
+            $kanal = $bk['sms'] || $bk['whatsapp'] ? 'sms-otomatik' : 'push-otomatik';
             try {
                 $waSalon = \App\Services\WhatsAppService::resolveWaSalon($dogumGunu->salonlar);
-                if ($telefon && !empty($waSalon->whatsapp_aktif) && ($waSalon->whatsapp_durum ?? null) === 'connected') {
+                if ($bk['whatsapp'] && $telefon && !empty($waSalon->whatsapp_aktif) && ($waSalon->whatsapp_durum ?? null) === 'connected') {
                     $r = app(\App\Services\WhatsAppService::class)
                         ->sendReminder($dogumGunu->salonlar, $telefon, $kutlamaMesaji, null, $dogumGunu->user_id, null, false, 'dogum_gunu');
-                    if (!empty($r['ok'])) { $waGitti = true; $kanal = 'wa-otomatik'; }
+                    if (!empty($r['ok'])) {
+                        $waGitti = true; $kanal = 'wa-otomatik';
+                        // SMS de ayrica gidiyorsa / yedek kapaliysa WA sonradan duserse SMS'e dusmesin
+                        if (!empty($r['logId']) && ($bk['sms'] || !\App\Services\BildirimTercih::waYedekSms($dogumGunu->salon_id))) {
+                            try { DB::table('whatsapp_gonderim_loglari')->where('id', $r['logId'])->update(['sms_yedeksiz' => 1]); } catch (\Throwable $e) {}
+                        }
+                    }
                     else Log::info('[DOGUM-GUNU] WA fail, SMS fallback', ['salon_id' => $dogumGunu->salon_id, 'err' => $r['error'] ?? '?']);
                 }
             } catch (\Throwable $e) {
                 Log::warning('[DOGUM-GUNU] WA exception: '.$e->getMessage());
             }
 
-            if (!$waGitti) {
+            $smsGitsin = $bk['sms'] || ($bk['whatsapp'] && !$waGitti
+                && \App\Services\BildirimTercih::waYedekSms($dogumGunu->salon_id)
+                && \App\Services\BildirimTercih::smsKullanilabilir($dogumGunu->salonlar));
+            if ($smsGitsin && $telefon) {
                 Log::info('doğum günü SMS salon_id ' . $dogumGunu->salon_id);
                 $controller->sms_gonder($dogumGunu->salon_id, [[ 'to' => $telefon, 'message' => $kutlamaMesaji ]]);
+                if (!$waGitti) $kanal = 'sms-otomatik';
             }
 
             // Otomatik gonderildigine dair log dus (gun icinde duplicate engellemesi icin)
@@ -97,7 +110,7 @@ class DogumGunuSMSHatirlatma extends Command
                 Log::warning('[DOGUM-GUNU-AUTO] log yazilamadi', ['err' => $e->getMessage()]);
             }
 
-            try {
+            if ($bk['push']) try {
                 \App\Services\NotificationService::toCustomer((int) $dogumGunu->user_id, (int) $dogumGunu->salon_id)
                     ->type(\App\Services\NotificationTypes::BIRTHDAY)
                     ->title('🎂 Doğum gününüz kutlu olsun!')

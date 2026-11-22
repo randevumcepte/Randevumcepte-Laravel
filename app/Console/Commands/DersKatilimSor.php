@@ -57,15 +57,22 @@ class DersKatilimSor extends Command
                     ->update(['katilim_soruldu' => 1]);
                 if ($claimed !== 1) continue;
 
-                try {
+                $govde = 'Bugün ' . $saatStr . ' ' . $dersAdi . ' dersinize katıldıysanız lütfen onaylayın: Katıldım / Katılmadım.';
+                // Push: bildirim tercihi (ders_katilim_sor/musteri/push)
+                if (\App\Services\BildirimTercih::izin($o->salon_id, 'ders_katilim_sor', 'musteri', 'push')) try {
                     \App\Services\NotificationService::toCustomer((int) $k->user_id, (int) $o->salon_id)
                         ->type(\App\Services\NotificationTypes::SESSION_REMINDER)
                         ->title('Derse katıldınız mı?')
-                        ->body('Bugün ' . $saatStr . ' ' . $dersAdi . ' dersinize katıldıysanız lütfen onaylayın: Katıldım / Katılmadım.')
+                        ->body($govde)
                         ->deepLink('group_classes', ['salon_id' => (int) $o->salon_id])
                         ->send();
                 } catch (\Throwable $e) {
                     Log::warning('[DERS-KATILIM-SOR] push fail', ['katilimci' => $k->id, 'err' => $e->getMessage()]);
+                }
+                // SMS/WhatsApp: yalniz isletme sectiyse ayni metin (tohumda kapali)
+                if (\App\Services\BildirimTercih::mesajAcikMi($o->salon_id, 'ders_katilim_sor', 'musteri')) {
+                    $u = DB::table('users')->where('id', (int) $k->user_id)->first(['id', 'name', 'cep_telefon']);
+                    if ($u) DersHatirlatma::mesajGonder($salon, $u, $govde, 'ders_katilim_sor', 'ders_bildirim');
                 }
             }
             Log::info('[DERS-KATILIM-SOR] soruldu', ['oturum' => $o->id, 'adet' => $kats->count()]);

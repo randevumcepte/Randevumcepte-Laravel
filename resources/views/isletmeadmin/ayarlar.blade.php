@@ -156,6 +156,22 @@
                            role="tab"
                            >Entegrasyonlar</a>
                      </li>
+                     @php
+                        // Bildirim Ayarlari yalniz Hesap Sahibi'ne (rol 1 ya da rol atamasi olmayan yetkili)
+                        $_baSahip = Auth::guard('isletmeyonetim')->check()
+                           && in_array(DB::table('model_has_roles')->where('model_id', Auth::guard('isletmeyonetim')->user()->id)
+                                 ->where('salon_id', $isletme->id)->value('role_id'), [1, null]);
+                     @endphp
+                     @if($_baSahip)
+                     <li class="nav-item">
+                        <a
+                           class="nav-link {{(isset($_GET['p']) && $_GET['p']=='bildirimayarlari') ? 'active' : ''}}"
+                           data-toggle="tab"
+                           href="#bildirim-ayarlari"
+                           role="tab"
+                           >Bildirim Ayarları</a>
+                     </li>
+                     @endif
                   </ul>
                </div>
                <div class="col-md-12 col-sm-12" style="margin-top:32px">
@@ -1739,6 +1755,14 @@
                   })();
                </script>
             </div>
+
+            {{-- ===================== BILDIRIM AYARLARI ===================== --}}
+            @if($_baSahip)
+            <div class="tab-pane fade {{(isset($_GET['p']) && $_GET['p']=='bildirimayarlari') ? 'active show' : ''}}"
+                 id="bildirim-ayarlari" role="tabpanel">
+               @include('isletmeadmin.partials.bildirim_ayarlari_panel')
+            </div>
+            @endif
 
                 <div style="display:none;"
                class="tab-pane fade"

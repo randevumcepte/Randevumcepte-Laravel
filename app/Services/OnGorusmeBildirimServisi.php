@@ -24,24 +24,23 @@ class OnGorusmeBildirimServisi
 {
     public static function kayitBildirimi(OnGorusmeler $og, Randevular $randevu, $yetkiliId)
     {
-        $ayar = SalonSMSAyarlari::where('ayar_id', 12)->where('salon_id', $og->salon_id)->first(['musteri', 'personel']);
-        if (!$ayar) {
-            return;
-        }
         $salon = $og->salon;
         $zaman = date('d.m.Y', strtotime($randevu->tarih)) . ' - ' . date('H:i', strtotime($randevu->saat));
         $istek = new Request();
 
+        // Bildirim tercihleri: randevu_olusturuldu (eski ayar 12). Musteriye bugun push yok -> push_ayri (genel push atilmaz)
         $tel = $og->cep_telefon ?: optional($og->musteri)->cep_telefon;
-        if ($ayar->musteri == 1 && $tel && $salon) {
+        if (BildirimTercih::mesajAcikMi($og->salon_id, 'randevu_olusturuldu', 'musteri') && $tel && $salon) {
             app(StoreAdminController::class)->sms_gonder_bildirimli($istek, [[
                 'to' => $tel,
                 'message' => $salon->salon_adi . ' tarafından ' . $zaman . ' olarak ön görüşme randevunuz düzenlenmiştir. '
                     . 'Randevunuza 15 dk önce gelmenizi rica ederiz. Detaylı bilgi için bize ulaşın. 0' . $salon->telefon_1,
+                'bk' => 'randevu_olusturuldu', 'alici' => 'musteri', 'push_ayri' => true,
             ]], false, 1, false, $og->salon_id);
         }
 
-        if ($ayar->personel != 1 || !$og->personel_id) {
+        // Personel tarafi bugun 12.personel bayragina bagli (SMS + zil + push): mesaj kanali kapaliysa hicbiri gitmez
+        if (!BildirimTercih::mesajAcikMi($og->salon_id, 'randevu_olusturuldu', 'personel') || !$og->personel_id) {
             return;
         }
         $yetkili = $yetkiliId ? IsletmeYetkilileri::find($yetkiliId) : null;
@@ -50,11 +49,12 @@ class OnGorusmeBildirimServisi
 
         $personelGsm = IsletmeYetkilileri::where('id', Personeller::where('id', $og->personel_id)->value('yetkili_id'))->value('gsm1');
         if ($personelGsm) {
-            app(StoreAdminController::class)->sms_gonder_bildirimli($istek, [['to' => $personelGsm, 'message' => $mesaj]], false, 1, false, $og->salon_id);
+            app(StoreAdminController::class)->sms_gonder_bildirimli($istek, [['to' => $personelGsm, 'message' => $mesaj,
+                'bk' => 'randevu_olusturuldu', 'alici' => 'personel', 'push_ayri' => true]], false, 1, false, $og->salon_id);
         }
         app(ApiController::class)->bildirimekle($istek, $og->salon_id, $mesaj, '#', $og->personel_id, null, optional($yetkili)->profil_resim, $randevu->id);
 
-        try {
+        if (BildirimTercih::izin($og->salon_id, 'randevu_olusturuldu', 'personel', 'push')) try {
             NotificationService::toStaff((int) $og->personel_id, (int) $og->salon_id)
                 ->type(NotificationTypes::APPOINTMENT_CREATED)
                 ->title('Yeni Ön Görüşme Randevusu')
