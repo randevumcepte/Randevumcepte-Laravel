@@ -44,6 +44,16 @@ class PersonelBildirimController extends StoreAdminController
     {
         $k = $this->kisi($request);
         if (!$k) return response()->json(['ok' => 0, 'hata' => 'Oturum bulunamadı.'], 403);
+        // Tum bildirimler tek seferde (isletmenin kapattigi kilitli turler haric); her degisen tur ayri log
+        if ((string) $request->input('kategori') === 'tumu') {
+            $sessiz = (int) $request->input('sessiz') === 1;
+            $adet = 0;
+            foreach (PersonelBildirimSessiz::ekranVerisi($k[0], (int) $k[1]->id, $k[2])['kategoriler'] as $kat) {
+                if ($kat['kilitli']) continue;
+                if (PersonelBildirimSessiz::kaydet($k[0], (int) $k[1]->id, $kat['kod'], $sessiz, $request, $k[1]->personel_adi)) $adet++;
+            }
+            return response()->json(['ok' => 1, 'degisen' => $adet] + PersonelBildirimSessiz::ekranVerisi($k[0], (int) $k[1]->id, $k[2]));
+        }
         $sonuc = PersonelBildirimSessiz::kaydet($k[0], (int) $k[1]->id, (string) $request->input('kategori'),
             (int) $request->input('sessiz') === 1, $request, $k[1]->personel_adi);
         if ($sonuc === null) return response()->json(['ok' => 0, 'hata' => 'Geçersiz bildirim türü.'], 422);
