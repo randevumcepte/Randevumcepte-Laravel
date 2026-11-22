@@ -538,20 +538,117 @@
 
    @media (max-width: 1280px) { .wk-uc { grid-template-columns:repeat(2,minmax(0,1fr)); } }
    /* ===== REKLAMLARIM ===== */
-   .rk-duzen { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:18px; align-items:start; }
-   .rk-satir { display:flex; gap:14px; align-items:flex-start; padding:14px 0; border-top:1px solid #f0eaf7; }
-   .rk-satir:first-child { border-top:none; }
-   .rk-afis { width:84px; height:84px; flex:0 0 84px; border-radius:14px; background:#f3e8ff center/cover no-repeat; display:flex; align-items:center; justify-content:center; color:#a78bfa; font-size:26px; }
-   .rk-ic { flex:1; min-width:0; }
-   .rk-ic b { font-size:15px; } .rk-ic .wa-alt { margin-top:3px; }
-   .rk-say { display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; font-size:12.5px; color:#475569; }
-   .rk-say span b { color:#1f1530; font-size:14px; }
-   .rk-btnlar { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-   .rk-btnlar .wa-btn { padding:6px 12px; font-size:12.5px; }
-   .rk-hizmetler { max-height:200px; overflow:auto; border:1px solid #ddd3ea; border-radius:11px; padding:6px 10px; }
-   .rk-hizmetler label { display:flex; gap:8px; align-items:center; padding:4px 0; font-size:13.5px; cursor:pointer; }
-   .rk-on { margin-top:6px; border-radius:12px; max-width:100%; max-height:220px; display:block; }
-   @media (max-width: 1100px) { .rk-duzen { grid-template-columns:minmax(0,1fr); } }
+   /* ---- Reklamlarim ---- */
+   .rk-hero { display:flex; align-items:center; gap:20px; padding:22px 26px; border-radius:22px; color:#fff; margin-bottom:14px;
+      background:radial-gradient(circle at 92% 10%,rgba(255,255,255,.18),transparent 40%),linear-gradient(120deg,#be185d,#7c3aed 55%,#4c1d95); box-shadow:0 14px 30px rgba(124,58,237,.25); }
+   .rk-hero-ic { flex:1; min-width:0; }
+   .rk-hero h3 { margin:0 0 12px; font-size:19px; font-weight:700; color:#fff; display:flex; align-items:center; gap:10px; }
+   .rk-adimlar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13.5px; }
+   .rk-adimlar span { background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); padding:6px 12px 6px 6px; border-radius:999px; display:inline-flex; align-items:center; gap:8px; }
+   .rk-adimlar span b { width:22px; height:22px; border-radius:50%; background:#fff; color:#7c3aed; font-size:12px; display:inline-flex; align-items:center; justify-content:center; }
+   .rk-adimlar > i { opacity:.6; font-size:12px; }
+   .rk-hero-not { margin-top:12px; font-size:12.5px; opacity:.85; }
+   .rk-hero-btn { flex:0 0 auto; border:none; background:#fff; color:#6d28d9; font-weight:700; font-size:15px; padding:13px 22px; border-radius:14px; cursor:pointer;
+      display:inline-flex; align-items:center; gap:8px; box-shadow:0 8px 18px rgba(0,0,0,.15); transition:transform .15s; }
+   .rk-hero-btn:hover { transform:translateY(-1px); }
+   .rk-uyari { display:flex; gap:12px; align-items:center; background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:16px; padding:12px 16px; margin-bottom:14px; font-size:13.5px; }
+   .rk-uyari > i { font-size:22px; color:#f59e0b; }
+   .rk-ozet { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+   .rk-ozet:empty { display:none; }
+   .rk-kpi { background:#fff; border-radius:18px; padding:14px 16px; box-shadow:var(--golge); display:flex; align-items:center; gap:12px; }
+   .rk-kpi > i { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:19px; flex:0 0 auto; }
+   .rk-kpi b { display:block; font-size:21px; color:#1f1530; line-height:1.1; }
+   .rk-kpi small { font-size:12.5px; color:#64748b; }
+   .rk-duzen { display:grid; grid-template-columns:minmax(0,1fr); gap:18px; align-items:start; }
+   .rk-duzen.form-acik { grid-template-columns:minmax(0,1fr) minmax(0,520px); }
+   .rk-filtre { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+   .rk-filtre:empty { display:none; }
+   .rk-filtre button { border:1px solid #e4dcf0; background:#fff; color:#475569; border-radius:999px; padding:6px 14px; font-size:13px; font-weight:600; cursor:pointer; }
+   .rk-filtre button.secili { background:#6d28d9; border-color:#6d28d9; color:#fff; }
+   .rk-filtre button span { opacity:.7; margin-left:4px; }
+   .rk-izgara { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:14px; }
+   .rk-kart { background:#fff; border-radius:20px; box-shadow:var(--golge); overflow:hidden; display:flex; flex-direction:column; border:2px solid transparent; transition:border-color .15s, transform .15s; }
+   .rk-kart:hover { transform:translateY(-2px); }
+   .rk-kart.duzenleniyor { border-color:#a78bfa; }
+   .rk-kart.pasif .rk-afis { filter:grayscale(.85); opacity:.75; }
+   .rk-afis { position:relative; height:150px; background:linear-gradient(135deg,#fce7f3,#ede9fe) center/cover no-repeat; display:flex; align-items:center; justify-content:center; color:#a78bfa; font-size:34px; }
+   .rk-afis .wa-hap { position:absolute; top:10px; left:10px; box-shadow:0 2px 8px rgba(0,0,0,.12); }
+   .rk-afis .rk-kalan { position:absolute; top:10px; right:10px; background:rgba(17,24,39,.72); color:#fff; font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:999px; }
+   .rk-govde { padding:14px 16px 12px; flex:1; display:flex; flex-direction:column; }
+   .rk-govde h5 { margin:0; font-size:15.5px; font-weight:700; color:#1f1530; line-height:1.3; }
+   .rk-govde p { margin:6px 0 0; font-size:13px; color:#64748b; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+   .rk-etiketler { display:flex; gap:5px; flex-wrap:wrap; margin-top:10px; }
+   .rk-etiketler span { background:#f5f0fd; color:#6d28d9; font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:999px; }
+   .rk-huni { margin-top:12px; display:grid; grid-template-columns:repeat(3,1fr); gap:6px; text-align:center; }
+   .rk-huni div { background:#f8fafc; border-radius:12px; padding:8px 4px; }
+   .rk-huni b { display:block; font-size:17px; color:#1f1530; }
+   .rk-huni small { font-size:11.5px; color:#64748b; }
+   .rk-huni div.r { background:#ecfdf5; } .rk-huni div.r b { color:#047857; }
+   .rk-huni-alt { font-size:11.5px; color:#94a3b8; margin-top:6px; text-align:center; }
+   .rk-btnlar { display:flex; gap:6px; padding:10px 16px 14px; border-top:1px solid #f3eef9; }
+   .rk-btnlar button, .rk-btnlar a { flex:1; border:1px solid #e9e1f5; background:#fff; color:#5b1fa8; border-radius:10px; padding:7px 6px; font-size:12.5px; font-weight:600; cursor:pointer;
+      display:inline-flex; align-items:center; justify-content:center; gap:5px; text-decoration:none; white-space:nowrap; }
+   .rk-btnlar button:hover, .rk-btnlar a:hover { background:#f8f4ff; }
+   .rk-btnlar .sil { flex:0 0 38px; color:#b91c1c; border-color:#fde2e2; }
+   .rk-bos { background:#fff; border-radius:22px; box-shadow:var(--golge); padding:30px 24px; text-align:center; }
+   .rk-bos > i { font-size:44px; color:#c4b5fd; }
+   .rk-bos h4 { margin:8px 0 4px; font-size:17px; }
+   .rk-bos > p { color:#64748b; font-size:13.5px; margin:0 0 18px; }
+   .rk-sablonlar { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; text-align:left; max-width:880px; margin:0 auto; }
+   .rk-sablon { border:1px dashed #d8c8f5; border-radius:16px; padding:12px 14px; cursor:pointer; background:#fdfbff; transition:all .15s; }
+   .rk-sablon:hover { border-style:solid; border-color:#a78bfa; background:#f8f4ff; }
+   .rk-sablon b { display:block; font-size:13.5px; color:#1f1530; } .rk-sablon small { font-size:12px; color:#64748b; }
+   .rk-sablon .e { font-size:22px; }
+   /* form */
+   .rk-sag { background:#fff; border-radius:22px; box-shadow:var(--golge); position:sticky; top:12px; overflow:hidden; }
+   .rk-form-bas { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #f3eef9; }
+   .rk-form-bas h4 { margin:0; font-size:16px; display:flex; gap:8px; align-items:center; }
+   .rk-kapat { border:none; background:#f4f1f9; width:32px; height:32px; border-radius:10px; cursor:pointer; color:#475569; }
+   .rk-sekme { display:flex; gap:4px; background:#f4f1f9; border-radius:12px; padding:4px; margin:14px 20px 0; }
+   .rk-sekme button { flex:1; border:none; background:none; padding:8px; border-radius:9px; font-size:13px; font-weight:600; color:#64748b; cursor:pointer; }
+   .rk-sekme button.secili { background:#fff; color:#6d28d9; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+   .rk-form-ic { padding:14px 20px 4px; max-height:calc(100vh - 230px); overflow:auto; }
+   .rk-alan { margin-bottom:16px; }
+   .rk-alan textarea { font-family:inherit; resize:vertical; }
+   .rk-alan > label, .rk-etiket { display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:600; color:#3a3154; margin-bottom:6px; }
+   .rk-alan > label small, .rk-etiket small { font-weight:500; color:#94a3b8; }
+   .rk-secili { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+   .rk-secili:empty { display:none; }
+   .rk-secili span { background:#6d28d9; color:#fff; font-size:12.5px; font-weight:600; padding:5px 6px 5px 11px; border-radius:999px; display:inline-flex; align-items:center; gap:4px; }
+   .rk-secili span button { border:none; background:rgba(255,255,255,.2); color:#fff; width:18px; height:18px; border-radius:50%; font-size:10px; cursor:pointer; padding:0; line-height:1; }
+   .rk-hizmetler { max-height:170px; overflow:auto; display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+   .rk-hizmetler label { border:1px solid #e4dcf0; border-radius:999px; padding:5px 11px; font-size:12.5px; cursor:pointer; background:#fff; user-select:none; }
+   .rk-hizmetler label:hover { border-color:#a78bfa; }
+   .rk-hizmetler label input { display:none; }
+   .rk-hizmetler label.secili { display:none; }
+   .rk-hizli { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+   .rk-hizli button { border:1px solid #e4dcf0; background:#fff; border-radius:999px; padding:4px 11px; font-size:12px; color:#5b1fa8; cursor:pointer; }
+   .rk-hizli button:hover { background:#f8f4ff; }
+   .rk-yukle { display:block; border:2px dashed #d8c8f5; border-radius:16px; padding:18px; text-align:center; cursor:pointer; background:#fdfbff; color:#6b5b8a; font-size:13px; position:relative; transition:all .15s; }
+   .rk-yukle.surukle, .rk-yukle:hover { border-color:#7c3aed; background:#f8f4ff; }
+   .rk-yukle > i { font-size:28px; color:#a78bfa; display:block; margin-bottom:4px; }
+   .rk-yukle input { display:none; }
+   .rk-yukle img { max-width:100%; max-height:200px; border-radius:12px; display:block; margin:0 auto 8px; }
+   .rk-anahtar { display:flex; align-items:center; justify-content:space-between; gap:12px; background:#f8f6fc; border-radius:14px; padding:12px 14px; }
+   .rk-anahtar b { font-size:13.5px; } .rk-anahtar small { display:block; font-size:12px; color:#64748b; }
+   .rk-sw { position:relative; width:44px; height:24px; flex:0 0 auto; }
+   .rk-sw input { opacity:0; width:0; height:0; }
+   .rk-sw span { position:absolute; inset:0; background:#cbd5e1; border-radius:999px; cursor:pointer; transition:.2s; }
+   .rk-sw span:before { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+   .rk-sw input:checked + span { background:#16a34a; } .rk-sw input:checked + span:before { transform:translateX(20px); }
+   .rk-form-alt { display:flex; gap:8px; padding:14px 20px; border-top:1px solid #f3eef9; background:#fff; }
+   .rk-form-alt .wa-btn { flex:1; justify-content:center; }
+   /* WhatsApp onizleme */
+   .rk-wa { background:#efeae2 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='2' cy='2' r='1.2' fill='%23d9d2c5'/%3E%3C/svg%3E"); border-radius:16px; padding:16px 12px; }
+   .rk-wa-ust { text-align:center; font-size:11.5px; color:#54656f; background:#fff8; border-radius:8px; padding:3px 10px; margin:0 auto 10px; width:max-content; }
+   .rk-balon { background:#fff; border-radius:10px 10px 10px 2px; padding:6px 6px 4px; max-width:88%; box-shadow:0 1px 1px rgba(0,0,0,.1); font-size:13.5px; color:#111b21; }
+   .rk-balon img { width:100%; border-radius:8px; display:block; margin-bottom:6px; max-height:220px; object-fit:cover; }
+   .rk-balon .m { padding:0 6px; white-space:pre-wrap; word-break:break-word; line-height:1.45; }
+   .rk-balon .m a { color:#027eb5; }
+   .rk-balon .s { text-align:right; font-size:11px; color:#667781; padding:2px 6px 0; }
+   .rk-wa-not { font-size:12px; color:#64748b; margin-top:10px; text-align:center; }
+   @media (max-width: 1250px) { .rk-duzen.form-acik { grid-template-columns:minmax(0,1fr); } .rk-sag { position:static; } .rk-form-ic { max-height:none; } }
+   @media (max-width: 900px) { .rk-ozet { grid-template-columns:repeat(2,minmax(0,1fr)); } .rk-hero { flex-direction:column; align-items:stretch; } .rk-adimlar > i { display:none; } }
    @media (max-width: 1100px) { .wk-hero, .wk-iki { grid-template-columns:minmax(0,1fr); } }
    @media (max-width: 760px) {
       .wk-uc { grid-template-columns:minmax(0,1fr); }
@@ -667,13 +764,26 @@
 
    {{-- ================= REKLAMLARIM (WaReklam) ================= --}}
    <div class="wa-panel" id="p-reklam">
-      <div class="wa-bilgi">Kampanyanızı bir kez girin; asistan, müşteri <b>ilgili hizmeti sorduğunda</b> ya da "kampanya var mı" dediğinde kampanyanızı afişiyle birlikte <b>aynı sohbette</b> gönderir. Sohbet başına en fazla bir kez gider, ilgisiz hizmette gönderilmez, "kampanya istemiyorum" diyen müşteriye bir daha gitmez.</div>
-      <div id="rkKapali" class="wa-bilgi" style="display:none;background:#fef3c7;color:#92400e"><b>Reklam özelliği bu işletmede kapalı.</b> Reklamlarınızı şimdiden hazırlayabilirsiniz; özellik açılınca asistan göndermeye başlar.</div>
-      <div class="rk-duzen">
-         <div class="wa-kart"><div class="wa-kart-bas"><h4><i class="bi bi-megaphone-fill" style="color:#db2777"></i>Kampanyalarım</h4>
-            <button class="wa-btn ikincil" id="rkYeni"><i class="bi bi-plus-lg"></i> Yeni kampanya</button></div>
-            <div id="rkListe"><div class="wa-bos">Yükleniyor…</div></div></div>
-         <div class="wa-kart" id="rkForm" style="display:none"></div>
+      <div class="rk-hero">
+         <div class="rk-hero-ic">
+            <h3><i class="bi bi-megaphone-fill"></i> Kampanyalarınızı asistan anlatsın</h3>
+            <div class="rk-adimlar">
+               <span><b>1</b> Kampanyayı bir kez girin</span><i class="bi bi-chevron-right"></i>
+               <span><b>2</b> Müşteri ilgili hizmeti sorar</span><i class="bi bi-chevron-right"></i>
+               <span><b>3</b> Asistan afişle birlikte gönderir</span>
+            </div>
+            <div class="rk-hero-not"><i class="bi bi-shield-check"></i> Sohbet başına en fazla bir kez gider · ilgisiz hizmette gönderilmez · "kampanya istemiyorum" diyene bir daha gitmez</div>
+         </div>
+         <button class="rk-hero-btn" id="rkYeni"><i class="bi bi-plus-lg"></i> Yeni kampanya</button>
+      </div>
+      <div id="rkKapali" class="rk-uyari" style="display:none"><i class="bi bi-pause-circle-fill"></i><div><b>Reklam özelliği bu işletmede kapalı.</b> Kampanyalarınızı şimdiden hazırlayabilirsiniz; özellik açılınca asistan göndermeye başlar.</div></div>
+      <div class="rk-ozet" id="rkOzet"></div>
+      <div class="rk-duzen" id="rkDuzen">
+         <div class="rk-sol">
+            <div class="rk-filtre" id="rkFiltre"></div>
+            <div id="rkListe"><div class="wa-bos">Yükleniyor…</div></div>
+         </div>
+         <div class="rk-sag" id="rkForm" style="display:none"></div>
       </div>
    </div>
 
@@ -1551,100 +1661,225 @@
    });
 
    // ---------- REKLAMLARIM (salonun kendi kampanyalari; asistan ilgili hizmette sohbette bir kez gonderir)
-   var REKLAMLAR = [];
+   var REKLAMLAR = [], RK_FILTRE = 'tumu', RK_DUZEN_ID = null;
+   var RK_SABLONLAR = [
+      { e: '🎉', b: 'İlk ziyarete %20 indirim', m: 'İlk randevunuzda tüm hizmetlerde %20 indirim.\nYalnızca yeni müşterilerimize özel.', k: 'Yeni müşteri kazanın' },
+      { e: '📅', b: 'Hafta içi indirimi', m: 'Pazartesi–Perşembe randevularında %15 indirim.\nBoş saatlerinizi doldurmanın en kolay yolu.', k: 'Sakin günleri doldurun' },
+      { e: '🎁', b: 'İki hizmet bir arada', m: 'İki hizmeti birlikte alana özel paket fiyat.\nAyrı ayrı almaktan çok daha avantajlı.', k: 'Sepeti büyütün' },
+      { e: '👭', b: 'Arkadaşını getir', m: 'Arkadaşınızla birlikte gelin, ikinize de %10 indirim.', k: 'Tavsiye ile büyüyün' }
+   ];
    function rkTarih(s) { if (!s) return ''; var p = String(s).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '.' + p[1] + '.' + p[0] : esc(s); }
+   function rkGun(d) { d = d || new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+   function rkFark(s) { var a = new Date(rkGun() + 'T00:00:00'), b = new Date(String(s).slice(0, 10) + 'T00:00:00'); return Math.round((b - a) / 864e5); }
+   function rkDurum(x) {
+      var bugun = rkGun();
+      if (!x.aktif) return 'kapali';
+      if (x.bitis && String(x.bitis).slice(0, 10) < bugun) return 'bitti';
+      if (x.baslangic && String(x.baslangic).slice(0, 10) > bugun) return 'bekliyor';
+      return 'yayinda';
+   }
+   var RK_HAP = { yayinda: '<span class="wa-hap y">● Yayında</span>', bekliyor: '<span class="wa-hap s">Başlamadı</span>', kapali: '<span class="wa-hap g">Durduruldu</span>', bitti: '<span class="wa-hap k">Süresi bitti</span>' };
    function reklamYukle() {
       al('/reklamlar').then(function (r) {
          if (!r.ok) { el('rkListe').innerHTML = '<div class="wa-bos">' + esc(r.hata || 'Yüklenemedi.') + '</div>'; return; }
-         el('rkKapali').style.display = r.acik ? 'none' : 'block';
+         el('rkKapali').style.display = r.acik ? 'none' : 'flex';
          REKLAMLAR = r.liste || []; reklamCiz();
       }).catch(hata);
    }
+   function rkSablonlar() {
+      return '<div class="rk-sablonlar">' + RK_SABLONLAR.map(function (s, i) {
+         return '<div class="rk-sablon" data-rk-sablon="' + i + '"><span class="e">' + s.e + '</span><b>' + esc(s.b) + '</b><small>' + esc(s.k) + '</small></div>';
+      }).join('') + '</div>';
+   }
    function reklamCiz() {
-      if (!REKLAMLAR.length) { el('rkListe').innerHTML = '<div class="wa-bos">Henüz kampanya yok. "Yeni kampanya" ile ilkini ekleyin.</div>'; return; }
+      // ozet (son 30 gun toplam)
+      var top = { y: 0, g: 0, t: 0, r: 0 };
+      REKLAMLAR.forEach(function (x) { if (rkDurum(x) === 'yayinda') top.y++; top.g += Number(x.gosterim || 0); top.t += Number(x.tiklama || 0); top.r += Number(x.randevu || 0); });
+      var kpi = function (ikon, renk, zemin, deger, ad) { return '<div class="rk-kpi"><i class="bi ' + ikon + '" style="color:' + renk + ';background:' + zemin + '"></i><div><b>' + deger + '</b><small>' + ad + '</small></div></div>'; };
+      el('rkOzet').innerHTML = REKLAMLAR.length ? kpi('bi-broadcast', '#16a34a', '#dcfce7', sayi(top.y) + ' <small>/ ' + sayi(REKLAMLAR.length) + '</small>', 'Yayındaki kampanya')
+         + kpi('bi-send-fill', '#7c3aed', '#ede9fe', sayi(top.g), 'Kişiye gönderildi · 30 gün')
+         + kpi('bi-eye-fill', '#0284c7', '#e0f2fe', sayi(top.t) + (top.g ? ' <small>%' + Math.round(top.t * 100 / top.g) + '</small>' : ''), 'Afişi açtı')
+         + kpi('bi-calendar2-check-fill', '#db2777', '#fce7f3', sayi(top.r), 'Randevuya dönüştü') : '';
+      if (!REKLAMLAR.length) {
+         el('rkFiltre').innerHTML = '';
+         el('rkListe').innerHTML = '<div class="rk-bos"><i class="bi bi-megaphone"></i><h4>Henüz kampanyanız yok</h4>'
+            + '<p>Hazır bir şablonla başlayın ya da sağ üstteki "Yeni kampanya" ile kendinizinkini yazın.</p>' + rkSablonlar() + '</div>';
+         return;
+      }
+      var say = { tumu: REKLAMLAR.length, yayinda: 0, bekliyor: 0, kapali: 0, bitti: 0 };
+      REKLAMLAR.forEach(function (x) { say[rkDurum(x)]++; });
+      if (RK_FILTRE !== 'tumu' && !say[RK_FILTRE]) RK_FILTRE = 'tumu';
+      el('rkFiltre').innerHTML = [['tumu', 'Tümü'], ['yayinda', 'Yayında'], ['bekliyor', 'Başlamadı'], ['kapali', 'Durduruldu'], ['bitti', 'Süresi bitti']]
+         .filter(function (f) { return f[0] === 'tumu' || say[f[0]]; })
+         .map(function (f) { return '<button data-rk-filtre="' + f[0] + '"' + (RK_FILTRE === f[0] ? ' class="secili"' : '') + '>' + f[1] + '<span>' + say[f[0]] + '</span></button>'; }).join('');
       var adlar = {}; HIZMETLER.forEach(function (h) { adlar[h.id] = h.ad; });
-      el('rkListe').innerHTML = REKLAMLAR.map(function (x) {
-         var bugun = new Date().toISOString().slice(0, 10), bitti = x.bitis && String(x.bitis).slice(0, 10) < bugun;
-         var durum = !x.aktif ? '<span class="wa-hap g">Kapalı</span>' : (bitti ? '<span class="wa-hap k">Süresi bitti</span>' : '<span class="wa-hap y">Yayında</span>');
-         return '<div class="rk-satir"><div class="rk-afis"' + (x.gorsel ? ' style="background-image:url(\'' + esc(x.gorsel) + '\')"' : '') + '>' + (x.gorsel ? '' : '<i class="bi bi-image"></i>') + '</div>'
-            + '<div class="rk-ic"><b>' + esc(x.baslik) + '</b> ' + durum
-            + '<div class="wa-alt">' + (x.hizmetler || []).map(function (i) { return esc(adlar[i] || ('#' + i)); }).join(', ')
-            + (x.bitis ? ' · son gün ' + rkTarih(x.bitis) : '') + '</div>'
-            + '<div class="rk-say"><span><b>' + sayi(x.gosterim) + '</b> kişiye gönderildi</span><span><b>' + sayi(x.tiklama) + '</b> açtı</span><span><b>' + sayi(x.randevu) + '</b> randevu</span><span class="wa-alt">(son 30 gün)</span></div>'
-            + '<div class="rk-btnlar"><button class="wa-btn ikincil" data-rk-duzenle="' + x.id + '"><i class="bi bi-pencil"></i> Düzenle</button>'
-            + '<button class="wa-btn ikincil" data-rk-ac="' + x.id + '">' + (x.aktif ? '<i class="bi bi-pause"></i> Durdur' : '<i class="bi bi-play"></i> Yayına al') + '</button>'
-            + '<a class="wa-btn ikincil" href="' + esc(x.link) + '" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> Sayfayı gör</a>'
-            + '<button class="wa-btn ikincil" data-rk-sil="' + x.id + '" style="color:#b91c1c"><i class="bi bi-trash"></i></button></div></div></div>';
-      }).join('');
+      el('rkListe').innerHTML = '<div class="rk-izgara">' + REKLAMLAR.filter(function (x) { return RK_FILTRE === 'tumu' || rkDurum(x) === RK_FILTRE; }).map(function (x) {
+         var d = rkDurum(x), hz = x.hizmetler || [], kalan = '';
+         if (d === 'yayinda' && x.bitis) { var f = rkFark(x.bitis); kalan = f === 0 ? 'Son gün bugün' : f + ' gün kaldı'; }
+         if (d === 'bekliyor') kalan = rkTarih(x.baslangic) + ' başlar';
+         var acma = x.gosterim ? Math.round(x.tiklama * 100 / x.gosterim) : 0;
+         return '<div class="rk-kart' + (d === 'yayinda' || d === 'bekliyor' ? '' : ' pasif') + (String(RK_DUZEN_ID) === String(x.id) ? ' duzenleniyor' : '') + '">'
+            + '<div class="rk-afis"' + (x.gorsel ? ' style="background-image:url(\'' + esc(x.gorsel) + '\')"' : '') + '>' + (x.gorsel ? '' : '<i class="bi bi-image"></i>')
+            + RK_HAP[d] + (kalan ? '<span class="rk-kalan">' + kalan + '</span>' : '') + '</div>'
+            + '<div class="rk-govde"><h5>' + esc(x.baslik) + '</h5>' + (x.metin ? '<p>' + esc(x.metin) + '</p>' : '')
+            + '<div class="rk-etiketler">' + hz.slice(0, 3).map(function (i) { return '<span>' + esc(adlar[i] || ('#' + i)) + '</span>'; }).join('')
+            + (hz.length > 3 ? '<span>+' + (hz.length - 3) + '</span>' : '') + (hz.length ? '' : '<span style="background:#fef3c7;color:#92400e">Hizmet seçilmedi</span>') + '</div>'
+            + '<div class="rk-huni"><div><b>' + sayi(x.gosterim) + '</b><small>gönderildi</small></div><div><b>' + sayi(x.tiklama) + '</b><small>açtı' + (x.gosterim ? ' · %' + acma : '') + '</small></div>'
+            + '<div class="r"><b>' + sayi(x.randevu) + '</b><small>randevu</small></div></div><div class="rk-huni-alt">son 30 gün' + (x.bitis && d !== 'bekliyor' && !kalan ? ' · son gün ' + rkTarih(x.bitis) : '') + '</div></div>'
+            + '<div class="rk-btnlar"><button data-rk-duzenle="' + x.id + '"><i class="bi bi-pencil"></i> Düzenle</button>'
+            + '<button data-rk-ac="' + x.id + '">' + (x.aktif ? '<i class="bi bi-pause-fill"></i> Durdur' : '<i class="bi bi-play-fill"></i> Yayına al') + '</button>'
+            + '<a href="' + esc(x.link) + '" target="_blank" rel="noopener" title="Müşterinin gördüğü sayfa"><i class="bi bi-box-arrow-up-right"></i> Sayfa</a>'
+            + '<button class="sil" data-rk-sil="' + x.id + '" title="Sil"><i class="bi bi-trash"></i></button></div></div>';
+      }).join('') + '</div>';
+   }
+   function rkFormKapat() { el('rkForm').style.display = 'none'; el('rkDuzen').classList.remove('form-acik'); RK_DUZEN_ID = null; reklamCiz(); }
+   // Musteriye giden mesajin onizlemesi (WaReklam::mesaj ile ayni sablon)
+   function rkMesaj(baslik, metin, hizAd, bitis) {
+      var ay = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+      var m = '🎁 *' + (baslik.trim() || 'Kampanya başlığı') + '*\n', ek = [];
+      metin.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (s) { ek.push('✨ ' + s); });
+      if (hizAd.length) ek.push('💆 ' + hizAd.slice(0, 4).join(', '));
+      if (bitis) { var p = bitis.split('-'); ek.push('📅 Son gün: *' + Number(p[2]) + ' ' + ay[Number(p[1])] + '*'); }
+      if (ek.length) m += '\n' + ek.join('\n') + '\n';
+      m += '\n👉 Detaylar ve afiş:\n{LINK}\n\nKampanyadan yararlanmak için *"evet"* yazmanız yeterli, randevunuzu hemen oluşturalım 🙂\n\n_Kampanya mesajı istemezseniz "kampanya istemiyorum" yazın._';
+      return esc(m).replace(/\*([^*\n]+)\*/g, '<b>$1</b>').replace(/_([^_\n]+)_/g, '<i>$1</i>').replace('{LINK}', '<a>app.randevumcepte.com.tr/k/…</a>');
    }
    function reklamForm(x) {
       x = x || { aktif: 1, hizmetler: [] };
-      var f = el('rkForm'); f.style.display = 'block';
-      f.innerHTML = '<div class="wa-kart-bas"><h4><i class="bi bi-pencil-square" style="color:#7c3aed"></i>' + (x.id ? 'Kampanyayı düzenle' : 'Yeni kampanya') + '</h4></div>'
-         + '<label class="wa-alt">Başlık</label><input class="wa-girdi" id="rkBaslik" maxlength="120" placeholder="Örn. Kasım\'a özel protez tırnak + manikür 950 TL" value="' + esc(x.baslik || '') + '">'
-         + '<label class="wa-alt" style="display:block;margin-top:10px">Açıklama (müşteriye giden metin)</label><textarea class="wa-girdi" id="rkMetin" rows="3" maxlength="700" placeholder="Örn. 1.200 TL yerine 950 TL. Ay sonuna kadar geçerli.">' + esc(x.metin || '') + '</textarea>'
-         + '<label class="wa-alt" style="display:block;margin-top:10px">Hangi hizmetler sorulunca gönderilsin? <b id="rkSecSay"></b></label>'
-         + '<input class="wa-girdi" id="rkHizAra" placeholder="🔍 Hizmet ara (ör. manikür, protez)" autocomplete="off" style="margin-bottom:6px">'
+      RK_DUZEN_ID = x.id || null;
+      var f = el('rkForm'), dosya = null, secili = (x.hizmetler || []).map(Number);
+      f.style.display = 'block'; el('rkDuzen').classList.add('form-acik');
+      f.innerHTML = '<div class="rk-form-bas"><h4><i class="bi ' + (x.id ? 'bi-pencil-square' : 'bi-stars') + '" style="color:#7c3aed"></i>' + (x.id ? 'Kampanyayı düzenle' : 'Yeni kampanya') + '</h4>'
+         + '<button class="rk-kapat" id="rkKapat" title="Kapat"><i class="bi bi-x-lg"></i></button></div>'
+         + '<div class="rk-sekme"><button class="secili" data-rk-sekme="bilgi"><i class="bi bi-ui-checks"></i> Bilgiler</button><button data-rk-sekme="onizle"><i class="bi bi-whatsapp"></i> Müşteri ne görecek?</button></div>'
+         + '<div class="rk-form-ic"><div id="rkBilgi">'
+         + (x.id ? '' : '<div class="rk-alan"><div class="rk-etiket">Hazır şablon <small>tıklayınca doldurur, sonra düzenlersiniz</small></div><div class="rk-hizli">'
+            + RK_SABLONLAR.map(function (s, i) { return '<button type="button" data-rk-sablon="' + i + '">' + s.e + ' ' + esc(s.b) + '</button>'; }).join('') + '</div></div>')
+         + '<div class="rk-alan"><label for="rkBaslik">Başlık <small id="rkBasSay"></small></label><input class="wa-girdi" id="rkBaslik" maxlength="120" placeholder="Örn. Kasım\'a özel protez tırnak + manikür 950 TL" value="' + esc(x.baslik || '') + '"></div>'
+         + '<div class="rk-alan"><label for="rkMetin">Açıklama <small id="rkMetSay"></small></label><textarea class="wa-girdi" id="rkMetin" rows="3" maxlength="700" placeholder="Örn. 1.200 TL yerine 950 TL. Ay sonuna kadar geçerli.&#10;Her satır mesajda ayrı madde olur.">' + esc(x.metin || '') + '</textarea></div>'
+         + '<div class="rk-alan"><div class="rk-etiket">Hangi hizmet sorulunca gönderilsin? <small id="rkSecSay"></small></div>'
+         + '<div class="rk-secili" id="rkSecili"></div>'
+         + '<input class="wa-girdi" id="rkHizAra" placeholder="🔍 Hizmet ara ve tıkla (ör. manikür, protez)" autocomplete="off">'
          + '<div class="rk-hizmetler" id="rkHizListe">'
-         // secili hizmetler en ustte; arama ad uzerinden (Turkce buyuk/kucuk harf duyarsiz)
-         + HIZMETLER.slice().sort(function (a, b) { var sa = (x.hizmetler || []).indexOf(Number(a.id)) >= 0, sb = (x.hizmetler || []).indexOf(Number(b.id)) >= 0; return sa === sb ? 0 : (sa ? -1 : 1); })
-            .map(function (h) { return '<label data-ad="' + esc(String(h.ad).toLocaleLowerCase('tr-TR')) + '"><input type="checkbox" value="' + h.id + '"' + ((x.hizmetler || []).indexOf(Number(h.id)) >= 0 ? ' checked' : '') + '> ' + esc(h.ad) + '</label>'; }).join('')
-         + '<div class="wa-alt" id="rkHizYok" style="display:none;padding:6px 0">Bu adla hizmet bulunamadı.</div></div>'
-         + '<div class="wa-satir" style="margin-top:10px;gap:10px"><div><label class="wa-alt">Başlangıç</label><input type="date" class="wa-girdi" id="rkBas" value="' + esc(String(x.baslangic || '').slice(0, 10)) + '"></div>'
-         + '<div><label class="wa-alt">Bitiş</label><input type="date" class="wa-girdi" id="rkBit" value="' + esc(String(x.bitis || '').slice(0, 10)) + '"></div></div>'
-         + '<label class="wa-alt" style="display:block;margin-top:10px">Afiş görseli (JPG/PNG, en fazla 4 MB)</label><input type="file" id="rkGorsel" accept="image/jpeg,image/png,image/webp">'
-         + (x.gorsel ? '<img class="rk-on" id="rkOn" src="' + esc(x.gorsel) + '" alt="">' : '<img class="rk-on" id="rkOn" alt="" style="display:none">')
-         + '<label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:14px"><input type="checkbox" id="rkAktif"' + (x.aktif ? ' checked' : '') + '> Yayında</label>'
-         + '<div style="display:flex;gap:8px;margin-top:14px"><button class="wa-btn" id="rkKaydet"><i class="bi bi-check2"></i> Kaydet</button><button class="wa-btn ikincil" id="rkVazgec">Vazgeç</button></div>';
-      var secSay = function () { var n = f.querySelectorAll('#rkHizListe input:checked').length; el('rkSecSay').textContent = n ? '(' + n + ' seçili)' : ''; };
-      secSay();
-      el('rkHizListe').addEventListener('change', secSay);
+         + HIZMETLER.map(function (h) { var s = secili.indexOf(Number(h.id)) >= 0; return '<label data-ad="' + esc(String(h.ad).toLocaleLowerCase('tr-TR')) + '"' + (s ? ' class="secili"' : '') + '><input type="checkbox" value="' + h.id + '"' + (s ? ' checked' : '') + '>' + esc(h.ad) + '</label>'; }).join('')
+         + '</div><div class="wa-alt" id="rkHizYok" style="display:none;padding:6px 0">Bu adla hizmet bulunamadı.</div></div>'
+         + '<div class="rk-alan"><div class="rk-etiket">Yayın tarihleri <small>boş bırakılırsa süresiz</small></div><div class="wa-satir" style="gap:10px">'
+         + '<div style="flex:1"><input type="date" class="wa-girdi" id="rkBas" aria-label="Başlangıç" value="' + esc(String(x.baslangic || '').slice(0, 10)) + '"></div>'
+         + '<div style="flex:1"><input type="date" class="wa-girdi" id="rkBit" aria-label="Bitiş" value="' + esc(String(x.bitis || '').slice(0, 10)) + '"></div></div>'
+         + '<div class="rk-hizli"><button type="button" data-rk-sure="7">1 hafta</button><button type="button" data-rk-sure="ay">Ay sonuna kadar</button><button type="button" data-rk-sure="30">30 gün</button><button type="button" data-rk-sure="0">Süresiz</button></div></div>'
+         + '<div class="rk-alan"><div class="rk-etiket">Afiş görseli <small>JPG/PNG, en fazla 4 MB</small></div>'
+         + '<label class="rk-yukle" id="rkYukle"><input type="file" id="rkGorsel" accept="image/jpeg,image/png,image/webp">'
+         + '<img id="rkOn" alt=""' + (x.gorsel ? ' src="' + esc(x.gorsel) + '"' : ' style="display:none"') + '>'
+         + '<i class="bi bi-cloud-arrow-up" id="rkYukleIkon"' + (x.gorsel ? ' style="display:none"' : '') + '></i><span id="rkYukleYazi">' + (x.gorsel ? 'Değiştirmek için tıklayın ya da yeni görseli sürükleyin' : 'Görseli buraya sürükleyin ya da <b>seçmek için tıklayın</b>') + '</span></label></div>'
+         + '<div class="rk-alan"><div class="rk-anahtar"><div><b>Yayında</b><small>Kapalıyken asistan bu kampanyayı göndermez.</small></div>'
+         + '<label class="rk-sw"><input type="checkbox" id="rkAktif"' + (x.aktif ? ' checked' : '') + '><span></span></label></div></div>'
+         + '</div><div id="rkOnizle" style="display:none"><div class="rk-wa"><div class="rk-wa-ust">Asistan, ilgili hizmet sorulunca gönderir</div>'
+         + '<div class="rk-balon"><img id="rkWaImg" alt="" style="display:none"><div class="m" id="rkWaMetin"></div><div class="s">' + new Date().toTimeString().slice(0, 5) + '</div></div></div>'
+         + '<div class="rk-wa-not">Bağlantı her müşteri için ayrı oluşur; kimin açtığı ve randevuya dönüştüğü sayılır.</div></div></div>'
+         + '<div class="rk-form-alt"><button class="wa-btn ikincil" id="rkVazgec">Vazgeç</button><button class="wa-btn" id="rkKaydet"><i class="bi bi-check2"></i> ' + (x.id ? 'Değişiklikleri kaydet' : 'Kampanyayı kaydet') + '</button></div>';
+
+      var hizAdlar = function () { return Array.prototype.map.call(f.querySelectorAll('#rkHizListe input:checked'), function (c) { return c.parentNode.textContent; }); };
+      var onizle = function () {
+         el('rkWaMetin').innerHTML = rkMesaj(el('rkBaslik').value, el('rkMetin').value, hizAdlar(), el('rkBit').value);
+         var o = el('rkOn'), w = el('rkWaImg'); if (o.getAttribute('src')) { w.src = o.src; w.style.display = 'block'; } else w.style.display = 'none';
+         el('rkBasSay').textContent = el('rkBaslik').value.length + '/120'; el('rkMetSay').textContent = el('rkMetin').value.length + '/700';
+      };
+      var hizCiz = function () {
+         var cs = f.querySelectorAll('#rkHizListe input:checked');
+         el('rkSecili').innerHTML = Array.prototype.map.call(cs, function (c) { return '<span>' + esc(c.parentNode.textContent) + '<button type="button" data-rk-cikar="' + c.value + '" title="Çıkar">✕</button></span>'; }).join('');
+         el('rkSecSay').textContent = cs.length ? cs.length + ' seçili' : 'en az bir hizmet seçin';
+         f.querySelectorAll('#rkHizListe label').forEach(function (l) { l.classList.toggle('secili', l.querySelector('input').checked); });
+         onizle();
+      };
+      hizCiz();
+      el('rkHizListe').addEventListener('change', hizCiz);
+      el('rkSecili').addEventListener('click', function (e) {
+         var b = e.target.closest('[data-rk-cikar]'); if (!b) return;
+         var c = f.querySelector('#rkHizListe input[value="' + b.dataset.rkCikar + '"]'); if (c) { c.checked = false; hizCiz(); }
+      });
       el('rkHizAra').addEventListener('input', function () {
          var q = this.value.trim().toLocaleLowerCase('tr-TR'), gorunen = 0;
          f.querySelectorAll('#rkHizListe label').forEach(function (l) {
-            var uy = !q || l.dataset.ad.indexOf(q) >= 0 || l.querySelector('input').checked;
-            l.style.display = uy ? '' : 'none'; if (uy) gorunen++;
+            var uy = !q || l.dataset.ad.indexOf(q) >= 0;
+            l.style.display = uy ? '' : 'none'; if (uy && !l.querySelector('input').checked) gorunen++;
          });
-         el('rkHizYok').style.display = gorunen ? 'none' : 'block';
+         el('rkHizYok').style.display = gorunen || !q ? 'none' : 'block';
       });
       el('rkHizAra').addEventListener('keydown', function (e) {
-         // Enter: aramada tek hizmet kaldiysa onu isaretle
+         // Enter: aramada tek hizmet kaldiysa onu sec
          if (e.key !== 'Enter') return; e.preventDefault();
          var acik = Array.prototype.filter.call(f.querySelectorAll('#rkHizListe label'), function (l) { return l.style.display !== 'none' && !l.querySelector('input').checked; });
-         if (acik.length === 1) { acik[0].querySelector('input').checked = true; secSay(); this.value = ''; this.dispatchEvent(new Event('input')); }
+         if (acik.length === 1) { acik[0].querySelector('input').checked = true; this.value = ''; this.dispatchEvent(new Event('input')); hizCiz(); }
       });
-      el('rkGorsel').addEventListener('change', function () { var d = this.files && this.files[0]; if (d) { var o = el('rkOn'); o.src = URL.createObjectURL(d); o.style.display = 'block'; } });
-      el('rkVazgec').addEventListener('click', function () { f.style.display = 'none'; });
+      ['rkBaslik', 'rkMetin', 'rkBit'].forEach(function (i) { el(i).addEventListener('input', onizle); });
+      f.addEventListener('click', function (e) {
+         var s = e.target.closest('[data-rk-sablon]'), su = e.target.closest('[data-rk-sure]'), sk = e.target.closest('[data-rk-sekme]');
+         if (s) { var t = RK_SABLONLAR[s.dataset.rkSablon]; el('rkBaslik').value = t.b; el('rkMetin').value = t.m; onizle(); el('rkBaslik').focus(); }
+         if (su) {
+            var v = su.dataset.rkSure, d = new Date();
+            if (!el('rkBas').value && v !== '0') el('rkBas').value = rkGun();
+            if (v === '0') el('rkBit').value = '';
+            else if (v === 'ay') el('rkBit').value = rkGun(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+            else { d.setDate(d.getDate() + Number(v)); el('rkBit').value = rkGun(d); }
+            onizle();
+         }
+         if (sk) {
+            f.querySelectorAll('[data-rk-sekme]').forEach(function (b) { b.classList.toggle('secili', b === sk); });
+            el('rkBilgi').style.display = sk.dataset.rkSekme === 'bilgi' ? '' : 'none';
+            el('rkOnizle').style.display = sk.dataset.rkSekme === 'onizle' ? '' : 'none';
+         }
+      });
+      var dosyaSec = function (d) {
+         if (!d) return;
+         if (!/^image\/(jpeg|png|webp)$/.test(d.type)) { toast('Yalnız JPG, PNG ya da WEBP görsel yükleyebilirsiniz.'); return; }
+         if (d.size > 4 * 1024 * 1024) { toast('Görsel 4 MB\'tan büyük olamaz.'); return; }
+         dosya = d; var o = el('rkOn'); o.src = URL.createObjectURL(d); o.style.display = 'block';
+         el('rkYukleIkon').style.display = 'none'; el('rkYukleYazi').textContent = d.name + ' · değiştirmek için tıklayın'; onizle();
+      };
+      el('rkGorsel').addEventListener('change', function () { dosyaSec(this.files && this.files[0]); });
+      var yz = el('rkYukle');
+      ['dragenter', 'dragover'].forEach(function (t) { yz.addEventListener(t, function (e) { e.preventDefault(); yz.classList.add('surukle'); }); });
+      ['dragleave', 'drop'].forEach(function (t) { yz.addEventListener(t, function (e) { e.preventDefault(); yz.classList.remove('surukle'); }); });
+      yz.addEventListener('drop', function (e) { dosyaSec(e.dataTransfer.files && e.dataTransfer.files[0]); });
+      el('rkKapat').addEventListener('click', rkFormKapat);
+      el('rkVazgec').addEventListener('click', rkFormKapat);
       el('rkKaydet').addEventListener('click', function () {
+         if (!el('rkBaslik').value.trim()) { toast('Kampanyaya bir başlık yazın.'); el('rkBaslik').focus(); return; }
+         if (el('rkBas').value && el('rkBit').value && el('rkBit').value < el('rkBas').value) { toast('Bitiş tarihi başlangıçtan önce olamaz.'); return; }
          var b = this, fd = new FormData();
          if (x.id) fd.append('id', x.id);
          fd.append('baslik', el('rkBaslik').value); fd.append('metin', el('rkMetin').value);
          fd.append('baslangic', el('rkBas').value); fd.append('bitis', el('rkBit').value); fd.append('aktif', el('rkAktif').checked ? 1 : 0);
-         f.querySelectorAll('.rk-hizmetler input:checked').forEach(function (c) { fd.append('hizmetler[]', c.value); });
-         var g = el('rkGorsel').files[0]; if (g) fd.append('gorsel', g);
+         f.querySelectorAll('#rkHizListe input:checked').forEach(function (c) { fd.append('hizmetler[]', c.value); });
+         if (dosya) fd.append('gorsel', dosya);
          b.disabled = true;
          fetch(url('/reklam'), { method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: fd }).then(yanit).then(function (r) {
             b.disabled = false;
             if (!r.ok) { toast(r.hata || 'Kaydedilemedi.'); return; }
-            REKLAMLAR = r.liste || []; reklamCiz(); f.style.display = 'none'; toast('Kampanya kaydedildi.');
+            REKLAMLAR = r.liste || []; rkFormKapat(); toast('Kampanya kaydedildi.');
          }).catch(function () { b.disabled = false; hata(); });
       });
-      f.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      reklamCiz();
+      f.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      if (!x.id) el('rkBaslik').focus();
    }
    el('rkYeni').addEventListener('click', function () { reklamForm(null); });
+   el('rkFiltre').addEventListener('click', function (e) { var b = e.target.closest('[data-rk-filtre]'); if (b) { RK_FILTRE = b.dataset.rkFiltre; reklamCiz(); } });
    el('rkListe').addEventListener('click', function (e) {
-      var d = e.target.closest('[data-rk-duzenle]'), a = e.target.closest('[data-rk-ac]'), s = e.target.closest('[data-rk-sil]');
+      var d = e.target.closest('[data-rk-duzenle]'), a = e.target.closest('[data-rk-ac]'), s = e.target.closest('[data-rk-sil]'), sb = e.target.closest('[data-rk-sablon]');
       var bul = function (id) { return REKLAMLAR.filter(function (x) { return String(x.id) === String(id); })[0]; };
+      if (sb) { var t = RK_SABLONLAR[sb.dataset.rkSablon]; reklamForm({ aktif: 1, hizmetler: [], baslik: t.b, metin: t.m }); }
       if (d) reklamForm(bul(d.dataset.rkDuzenle));
       if (a) {
          var x = bul(a.dataset.rkAc), fd = new FormData();
          fd.append('id', x.id); fd.append('baslik', x.baslik); fd.append('metin', x.metin || ''); fd.append('baslangic', String(x.baslangic || '').slice(0, 10));
          fd.append('bitis', String(x.bitis || '').slice(0, 10)); fd.append('aktif', x.aktif ? 0 : 1); (x.hizmetler || []).forEach(function (h) { fd.append('hizmetler[]', h); });
+         a.disabled = true;
          fetch(url('/reklam'), { method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: fd }).then(yanit)
-            .then(function (r) { if (r.ok) { REKLAMLAR = r.liste || []; reklamCiz(); } else toast(r.hata || 'Kaydedilemedi.'); }).catch(hata);
+            .then(function (r) { if (r.ok) { REKLAMLAR = r.liste || []; reklamCiz(); toast(x.aktif ? 'Kampanya durduruldu.' : 'Kampanya yayında.'); } else { a.disabled = false; toast(r.hata || 'Kaydedilemedi.'); } }).catch(hata);
       }
       if (s && confirm('Bu kampanya silinsin mi?')) {
-         gonder('/reklam/' + s.dataset.rkSil + '/sil').then(function (r) { if (r.ok) { REKLAMLAR = r.liste || []; reklamCiz(); toast('Silindi.'); } }).catch(hata);
+         gonder('/reklam/' + s.dataset.rkSil + '/sil').then(function (r) { if (r.ok) { REKLAMLAR = r.liste || []; if (String(RK_DUZEN_ID) === String(s.dataset.rkSil)) rkFormKapat(); else reklamCiz(); toast('Silindi.'); } }).catch(hata);
       }
    });
 
