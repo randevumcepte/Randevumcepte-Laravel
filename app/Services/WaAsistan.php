@@ -907,6 +907,21 @@ class WaAsistan
         return self::tamamla($o, $g, $durum) ? ['ok' => 1] : ['ok' => 0, 'hata' => 'Mesaj gönderilemedi (WhatsApp bağlantısını kontrol edin).'];
     }
 
+    /** Hatirlatmadaki saatler (HH:MM) son 2 asistan mesajinda geciyor mu? Saat yoksa gecerli (saf). */
+    public static function hatirlatmaSaatleriGecerli(string $cevap, array $g): bool
+    {
+        if (!preg_match_all('/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/u', $cevap, $m, PREG_SET_ORDER)) return true;
+        $once = ''; $n = 0;
+        for ($i = count($g) - 1; $i >= 0 && $n < 2; $i--) {
+            if (($g[$i]['role'] ?? '') === 'assistant') { $once .= ' ' . (string) ($g[$i]['content'] ?? ''); $n++; }
+        }
+        preg_match_all('/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/u', $once, $m2, PREG_SET_ORDER);
+        $var = [];
+        foreach ($m2 as $x) $var[sprintf('%02d:%02d', $x[1], $x[2])] = 1;
+        foreach ($m as $x) if (!isset($var[sprintf('%02d:%02d', $x[1], $x[2])])) return false;
+        return true;
+    }
+
     /** Kisa onay / tesekkur / veda / emoji: cevap beklemeyen mesaj (saf). */
     public static function kapanisMi(string $m): bool
     {
@@ -938,7 +953,9 @@ class WaAsistan
                 . '"ayırayım mı" deme, "randevunuzu oluşturayım mı" de. '
                 . 'saatler doluyor diye uydurma baskı yapma. Onay bekliyorsan tek kelimeyle onaylayabileceğini söyle. '
                 . 'Araç çağırma, yeni işlem yapma, önceki mesajı kelimesi kelimesine tekrarlama. '
-                . 'Yazışmada randevu zaten oluşturulduysa / işlem tamamlandıysa onu yeniden oluşturmayı SORMA, "bekliyor" DEME.';
+                . 'Yazışmada randevu zaten oluşturulduysa / işlem tamamlandıysa onu yeniden oluşturmayı SORMA, "bekliyor" DEME. '
+                . 'Son mesajında somut bir saat seçeneği YOKSA (ör. hizmet ya da saat tercihi sordun) saat UYDURMA, randevu oluşturmayı teklif ETME: '
+                . 'yalnız açık sorunu kısa ve sıcak bir dille hatırlat (ör. "Hangi hizmetle ilgilendiğinizi yazarsanız uygun saatleri hemen bakayım 🙂").';
             $once = $g;
         } elseif ($mod === 'tekrar' || $mod === 'sikayet') {
             // Yazisma takildi (ayni cevap tekrarlandi / musteri "boş mesaj, gelmedi" dedi): bastan oku, asil istegi coz
@@ -963,6 +980,12 @@ class WaAsistan
         $cevap = self::telefonIfadeleri($cevap);
         // Hatirlatma uretilemediyse yazilmaz (musteri zaten soruyu gordu; isletmeye talep acmaya gerek yok)
         if ($mod === 'hatirlat' && $aksiyon !== 'aktar' && ($cevap === '' || RandevuAsistan::sozVeripBirakti($cevap))) return false;
+        // Hatirlatma onceki mesajlarda OLMAYAN bir saat uyduramaz (canli 2026-11-22 salon: hizmet bile secilmeden "yarın 10:00 oluşturayım mı?"
+        // dedi, musteri "evet" deyince randevu kurulamadi). Yeni saat varsa hatirlatma gonderilmez.
+        if ($mod === 'hatirlat' && $aksiyon !== 'aktar' && !self::hatirlatmaSaatleriGecerli($cevap, $g)) {
+            Log::warning('[WA-HATIRLAT-UYDURMA] hatirlatma onceki mesajda olmayan saat onerdi, gonderilmedi', ['oturum' => $o->id, 'cevap' => $cevap]);
+            return false;
+        }
         if ($cevap === '' || RandevuAsistan::sozVeripBirakti($cevap)) {
             // Ikinci kez de sonuc yok: musteri bekletilmez, isletmeye sorulur
             $t = WaTalep::ac($o, 'diger', 'Asistan müşterinin isteğini sonuçlandıramadı: "' . mb_substr($metin, 0, 160) . '"');

@@ -876,10 +876,26 @@ class RandevuAsistan
         foreach (($resp['content'] ?? []) as $b) if (($b['type'] ?? '') === 'tool_use') { $tu = $b; break; }
         if (!$tu) return null;
         $in = is_array($tu['input'] ?? null) ? $tu['input'] : [];
+        // Hizmet yazismada (musait_saatler / hizmet_eslestir sonucu) gecmediyse model tahmin etmistir: yanlis hizmete randevu acilmaz
+        $hid = (int) ($in['hizmet_id'] ?? 0);
+        if ($hid && !preg_match('/hizmet_id\W{0,3}' . $hid . '\b|"id"\W{0,3}' . $hid . '\b/u', json_encode($messages, JSON_UNESCAPED_UNICODE))) {
+            Log::warning('[SANTRAL-ZORLA-RANDEVU] hizmet yazismada yok, tahmin edildi', ['salon' => $this->salonId, 'girdi' => $in]);
+            $in['hizmet_id'] = null;
+            return ['Randevunuzu hemen oluşturayım 🙂 Hangi hizmet için randevu almak istersiniz?', null, null, ''];
+        }
         [$d] = $this->toolCalistir('randevu_olustur', $in);
         Log::warning('[SANTRAL-ZORLA-RANDEVU]', ['salon' => $this->salonId, 'girdi' => $in, 'sonuc' => mb_substr(json_encode($d, JSON_UNESCAPED_UNICODE), 0, 600)]);
         if (empty($d['ok'])) {
-            return ['Üzgünüm, randevu talebinizi şu an kaydedemedim. ' . (preg_match('/çakış|dolu/iu', (string) ($d['hata'] ?? '')) ? 'O saat az önce doldu. Başka bir saat önermemi ister misiniz?' : 'Başka bir saat deneyelim mi, yoksa sizi bir yetkiliye aktarayım mı?'), null, null, ''];
+            $h = (string) ($d['hata'] ?? '');
+            // Eksik bilgi (hizmet / kayit) bir hata degil: musteriden eksigi iste, "kaydedemedim" deme
+            // (canli 2026-11-22: hizmet secilmeden onay soruldu, "evet" -> "kaydedemedim, yetkiliye aktarayım mı?")
+            if (preg_match('/hizmet_id|hizmet_eslestir/u', $h) || empty($in['hizmet_id'])) {
+                return ['Randevunuzu hemen oluşturayım 🙂 Hangi hizmet için randevu almak istersiniz?', null, null, ''];
+            }
+            if (preg_match('/Müşteri kayıtlı değil/u', $h)) {
+                return ['Randevunuzu oluşturabilmem için adınızı ve soyadınızı yazar mısınız? 🙂', null, null, ''];
+            }
+            return ['Üzgünüm, randevu talebinizi şu an kaydedemedim. ' . (preg_match('/çakış|dolu/iu', $h) ? 'O saat az önce doldu. Başka bir saat önermemi ister misiniz?' : 'Başka bir saat deneyelim mi, yoksa sizi bir yetkiliye aktarayım mı?'), null, null, ''];
         }
         $c = $this->randevuOnayCumlesi($d);
         return [$c, 'randevu', (int) ($d['randevu_id'] ?? 0) ?: null, $this->baglamNotu('randevu_olustur', $in, $d)];

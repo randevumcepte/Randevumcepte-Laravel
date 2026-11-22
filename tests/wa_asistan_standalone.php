@@ -672,6 +672,15 @@ namespace {
     esit('batch isteği: denetçi modeli + şema', ['claude-sonnet-5-5', 'json_schema'], [$pr['model'], $pr['output_config']['format']['type']]);
     icerir('batch isteği: işletme bağlamı + yazışma', 'Salon: Ola Nail', $pr['messages'][0]['content']);
 
+    baslik('Hatırlatma saat uyduramaz (2026-11-22 canlı)');
+    $W = App\Services\WaAsistan::class;
+    $gS = [['role' => 'user', 'content' => 'Yarın Damla hanım işe dönüyor mu'], ['role' => 'assistant', 'content' => 'Hangi hizmetle ilgileniyorsunuz ve saat tercihiniz var mı?']];
+    esit('önceki mesajda saat yok → uydurulan 10:00 reddedilir', false, $W::hatirlatmaSaatleriGecerli("Yarın *10:00*'da randevunuzu oluşturayım mı?", $gS));
+    esit('saatsiz hatırlatma geçerli', true, $W::hatirlatmaSaatleriGecerli('Hangi hizmetle ilgilendiğinizi yazarsanız hemen bakayım 🙂', $gS));
+    $gS2 = [['role' => 'assistant', 'content' => 'Yarın 10:00 ya da 11:30 uygun, hangisini istersiniz?']];
+    esit('önerilen saatlerden biri → geçerli', true, $W::hatirlatmaSaatleriGecerli("Yarın *10:00* için randevunuzu oluşturayım mı?\n🔄 11:30'u tercih ederseniz yazın", $gS2));
+    esit('önerilmeyen saat → geçersiz', false, $W::hatirlatmaSaatleriGecerli('Yarın 14:00 oluşturayım mı?', $gS2));
+
     @array_map('unlink', glob(storage_path('app/wa_gorsel/*/*')) ?: []);
 
     echo "\n\033[1mSONUÇ: $gecti geçti, $kaldi kaldı\033[0m\n";

@@ -498,7 +498,7 @@ namespace {
     foreach (['salonId' => 20, 'musteriId' => 123244, 'musteriAd' => 'Anıl Orbey', '_personeller' => [21 => 'Gülşah'], 'salon' => ['hizmetler' => []]] as $k => $v) { $p = new ReflectionProperty(App\Services\RandevuAsistan::class, $k); $p->setAccessible(true); $p->setValue($zr, $v); }
     $zr->sahteYanit = ['content' => [['type' => 'tool_use', 'id' => 'x', 'name' => 'randevu_olustur', 'input' => ['tarih_saat' => '2026-11-19T11:00', 'hizmet_id' => 5, 'personel_id' => 21]]]];
     $zr->sahteSonuc = ['ok' => true, 'randevu_id' => 555, 'tarih' => '2026-11-19', 'saat' => '11:00', 'personel' => 'Gülşah', 'bilgilendirme_gonderildi' => true];
-    $z = cagir($zr, 'zorlaRandevu', [['role' => 'user', 'content' => 'Evet']], 'k');
+    $z = cagir($zr, 'zorlaRandevu', [['role' => 'assistant', 'content' => "Perşembe 11:00 Gülşah ile Saç Kesimi oluşturayım mı?\n[SİSTEM — bu turdaki araç sonuçları, müşteri duymadı: musait_saatler hizmet_id=5 seçenekler: 2026-11-19T11:00 personel_id=21 (Gülşah)]"], ['role' => 'user', 'content' => 'Evet']], 'k');
     esit('tool_choice ile randevu_olustur zorlanır', ['type' => 'tool', 'name' => 'randevu_olustur'], $zr->sonEk['tool_choice'] ?? null);
     esit('modelin verdiği id\'ler kullanılır', 21, $zr->sonGirdi['personel_id'] ?? null);
     esit('aksiyon randevu', 'randevu', $z[1]);
@@ -506,10 +506,19 @@ namespace {
     icerir('kısa talep cümlesi (gün/saat/uzman tekrar edilmez, kayıt 172)', 'Tamamdır, randevu talebinizi oluşturdum', $z[0]);
     icerir('bilgilendirme ayarı açık', '; bilgilendirme mesajını ve yol tarifini telefonunuza gönderdim. Onaylandığında size haber vereceğiz.', $z[0]);
     $zr->sahteSonuc = ['ok' => false, 'hata' => 'Bu saat çakışıyor.'];
-    $z = cagir($zr, 'zorlaRandevu', [['role' => 'user', 'content' => 'Evet']], 'k');
+    $z = cagir($zr, 'zorlaRandevu', [['role' => 'assistant', 'content' => "Perşembe 11:00 Gülşah ile Saç Kesimi oluşturayım mı?\n[SİSTEM — bu turdaki araç sonuçları, müşteri duymadı: musait_saatler hizmet_id=5 seçenekler: 2026-11-19T11:00 personel_id=21 (Gülşah)]"], ['role' => 'user', 'content' => 'Evet']], 'k');
     esit('kayıt başarısız → aksiyon yok', null, $z[1]);
     icerir('kayıt başarısız → dürüst cümle', 'kaydedemedim', $z[0]);
     icerir('çakışma → yeni saat önerir', 'az önce doldu', $z[0]);
+    // 2026-11-22 canli: hatirlatma hizmet secilmeden "10:00 oluşturayım mı" dedi -> model hizmeti tahmin etti
+    $zr->sonGirdi = null;
+    $z = cagir($zr, 'zorlaRandevu', [['role' => 'assistant', 'content' => "Yarın 10:00'da randevunuzu oluşturayım mı?"], ['role' => 'user', 'content' => 'Evet']], 'k');
+    esit('yazışmada geçmeyen hizmet → randevu açılmaz', null, $zr->sonGirdi);
+    icerir('yazışmada geçmeyen hizmet → hizmet sorulur', 'Hangi hizmet', $z[0]);
+    $zr->sahteYanit = ['content' => [['type' => 'tool_use', 'id' => 'x', 'name' => 'randevu_olustur', 'input' => ['tarih_saat' => '2026-11-19T11:00', 'personel_id' => 21]]]];
+    $zr->sahteSonuc = ['ok' => false, 'hata' => 'tarih_saat, hizmet_id ve personel_id gerekli (musait_saatler seçeneğinden al).'];
+    $z = cagir($zr, 'zorlaRandevu', [['role' => 'user', 'content' => 'Evet']], 'k');
+    icerir('hizmet eksik → "kaydedemedim" değil hizmet sorulur', 'Hangi hizmet', $z[0]);
     esit('son mesaj user değilse zorlamaz', null, cagir($zr, 'zorlaRandevu', [['role' => 'assistant', 'content' => 'x']], 'k'));
 
     bolum('Randevu onay cümlesi koddan (model atlasa da)');
