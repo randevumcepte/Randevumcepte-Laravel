@@ -46,7 +46,7 @@ class ProfilController extends StoreAdminController
     {
         if (!$k = $this->kisi($request)) return $this->yok();
         return response()->json(['ok' => 1, 'yonetici' => $k[2], 'personel_id' => (int) $k[1]->id,
-            'durumlar' => PersonelProfil::DURUMLAR] + PersonelProfil::ozet($k[0], $k[1], $k[2]));
+            'durumlar' => PersonelProfil::DURUMLAR] + PersonelProfil::ozet($k[0], $k[1], $k[2], !$request->input('hizli')));
     }
 
     public function durum(Request $request)

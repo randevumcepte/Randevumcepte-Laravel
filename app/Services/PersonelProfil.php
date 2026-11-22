@@ -96,7 +96,7 @@ class PersonelProfil
     }
 
     /** Ana ozet (profil sayfasi tek cagri). */
-    public static function ozet($salonId, $p, $yonetici)
+    public static function ozet($salonId, $p, $yonetici, $kazanc = true)
     {
         self::semaGaranti();
         $pid = (int) $p->id;
@@ -158,9 +158,11 @@ class PersonelProfil
         }
 
         // Bu ay kazanc / ciro + hedef
-        $h = self::hakedis($salonId);
+        // Hakedis hesabi agir (tum personel); hizli cagri atlar, ekran ikinci cagriyla tamamlar
+        $h = $kazanc ? self::hakedis($salonId) : [];
         $satir = $h[$pid] ?? null;
         $ciro = $satir ? $satir['ciro'] : 0.0;
+        $s['kazanc_hazir'] = (bool) $kazanc;
         $s['bu_ay'] = [
             'kazanc' => $satir ? $satir['net'] : null,
             'ciro' => $yonetici ? round(array_sum(array_column($h, 'ciro')), 2) : $ciro,
