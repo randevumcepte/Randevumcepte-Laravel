@@ -603,6 +603,8 @@ class WaAsistanPanelController extends StoreAdminController
     {
         $sid = $this->salon($request);
         if (!$sid) return $this->yok();
+        // 2026-11-23 Gece Denetcisi sistemden kaldirildi: elle inceleme de kapali (eski uygulama surumleri cagirsa bile kredi harcanmaz)
+        return response()->json(['ok' => 0, 'hata' => 'Gece denetçisi kaldırıldı.'], 410);
         if (!self::sistemYoneticisiMi()) return response()->json(['ok' => 0, 'hata' => 'Bu işlem yalnız sistem yöneticisine açık.'], 403);
         if (!\Illuminate\Support\Facades\Cache::add("wa_denetim_elle_{$sid}", 1, 360)) {
             return response()->json(['ok' => 0, 'hata' => 'İnceleme kısa süre önce başlatıldı. Sonuçlar genellikle 1 saat içinde gelir.']);

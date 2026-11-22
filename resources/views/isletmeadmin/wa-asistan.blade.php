@@ -1597,10 +1597,10 @@
          + '<div><b>' + (r.randevu_mesaj != null ? String(r.randevu_mesaj).replace('.', ',') : '–') + fark(r.randevu_mesaj, r.randevu_mesaj_once, true) + '</b><span>mesajda randevu (ortalama)</span></div>'
          + '<div><b>' + aktif.length + '</b><span>ders uygulanıyor</span></div>'
          + '<div><b>' + sayi(r.sorunlu) + '</b><span>sorunlu sohbet (puan &lt; 70)</span></div></div></div>'
-         + '<div><button class="wa-btn" id="glBaslat"><i class="bi bi-play-circle-fill"></i> Şimdi incele</button><span class="gl-not">' + (r.bekleyen_is ? sayi(r.bekleyen_is) + ' sohbet incelemede; sonuç genellikle 1 saat içinde gelir.' : 'Otomatik inceleme her gece 03:00\'te.') + '</span></div></div>';
+         + '<div><span class="gl-not">' + (r.bekleyen_is ? sayi(r.bekleyen_is) + ' sohbet incelemede; sonuç genellikle 1 saat içinde gelir.' : 'Otomatik inceleme her gece 03:00\'te.') + '</span></div></div>';
       if (!r.acik) h += '<div class="wa-bilgi">Gece denetçisi kapalı. Açmak için <a href="#" data-git="ayar">Ayarlar</a> sekmesinden "Gece denetçisi sohbetleri incelesin" seçeneğini açın.</div>';
       if (!r.incelenen && !dersler.length) {
-         h += '<div class="wa-kart"><div class="wk-bos"><b>Henüz incelenen sohbet yok.</b> Denetçi her gece 03:00\'te, son 3 günde biten sohbetleri inceler. Hemen başlatmak için yukarıdaki <b>Şimdi incele</b> düğmesine basın; sonuçlar genellikle 1 saat içinde burada görünür. (En az bir müşteri mesajı ve bir cevap olan sohbetler incelenir.)</div></div>';
+         h += '<div class="wa-kart"><div class="wk-bos"><b>Henüz incelenen sohbet yok.</b> Denetçi her gece 03:00\'te, son 3 günde biten sohbetleri inceler.</div></div>';
          return h;
       }
       if (r.ifade) {
