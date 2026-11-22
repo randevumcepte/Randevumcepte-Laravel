@@ -72,6 +72,7 @@ class WaAsistanPanelController extends StoreAdminController
             'waSektorler' => WaGorselDanisman::sektorler(),
             'waKurallar' => WaGorselDanisman::kurallar($isletme->id, (string) $ayar['gorsel_sektor']),
             'waHizmetler' => $hizmetler,
+            'waPopulerHizmet' => self::populerHizmetler((int) $isletme->id),
             // Kural girilmemis ana islemler hizmet listesinden otomatik eslesir (asistan da ayni eslesmeyi kullanir)
             'waOtoKurallar' => array_map(function ($s) use ($hizmetler) {
                 return WaGorselDanisman::otomatikKurallar($hizmetler->map(function ($h) { return (array) $h; })->all(), $s);
@@ -83,6 +84,19 @@ class WaAsistanPanelController extends StoreAdminController
     {
         return DB::table('salon_sunulan_hizmetler as sh')->join('hizmetler as h', 'h.id', '=', 'sh.hizmet_id')
             ->where('sh.salon_id', $sid)->where('sh.aktif', 1)->orderBy('h.hizmet_adi')->get(['sh.hizmet_id as id', 'h.hizmet_adi as ad', \Illuminate\Support\Facades\DB::raw('NULLIF(sh.baslangic_fiyat, 0) as fiyat')]);
+    }
+
+    /** Reklam formu: son 6 ayda en cok randevu alan hizmet id'leri (cok satandan aza). */
+    protected static function populerHizmetler(int $sid, int $adet = 12): array
+    {
+        try {
+            return DB::table('randevu_hizmetler as rh')->join('randevular as r', 'r.id', '=', 'rh.randevu_id')
+                ->where('r.salon_id', $sid)->where('r.tarih', '>=', date('Y-m-d', strtotime('-180 days')))
+                ->groupBy('rh.hizmet_id')->orderByRaw('COUNT(*) DESC')->limit($adet)->pluck('rh.hizmet_id')
+                ->map(function ($x) { return (int) $x; })->all();
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
     /** Genel bakis: secilen donem raporu + onceki doneme gore trend + gunluk seriler (mini grafikler) + paket + asistan durumu. */

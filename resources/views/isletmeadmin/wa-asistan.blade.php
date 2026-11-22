@@ -621,6 +621,8 @@
    .rk-hizmetler label:hover { border-color:#a78bfa; }
    .rk-hizmetler label input { display:none; }
    .rk-hizmetler label.secili { display:none; }
+   .rk-hiz-bas { font-size:12px; font-weight:600; color:#9a3412; margin-top:10px; } .rk-hiz-bas:empty { display:none; }
+   .rk-hiz-bas i { color:#f97316; } .rk-hiz-bas small { color:#94a3b8; font-weight:500; }
    .rk-hizli { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
    .rk-hizli button { border:1px solid #e4dcf0; background:#fff; border-radius:999px; padding:4px 11px; font-size:12px; color:#5b1fa8; cursor:pointer; }
    .rk-hizli button:hover { background:#f8f4ff; }
@@ -825,6 +827,7 @@
    var SEKTORLER = {!! $J($waSektorler) !!};
    var KURALLAR = {!! $J($waKurallar) !!};
    var HIZMETLER = {!! $J($waHizmetler) !!};
+   var POPULER_HIZMET = {!! $J($waPopulerHizmet ?? []) !!};
    var OTO_KURALLAR = {!! $J($waOtoKurallar ?? []) !!} || {}; // kural yoksa hizmet listesinden otomatik eslesme (sektor => {ana:x => {hizmet_id}})
    var KOK = '/isletmeyonetim/whatsapp-asistan';
 
@@ -1748,6 +1751,7 @@
       x = x || { aktif: 1, hizmetler: [] };
       RK_DUZEN_ID = x.id || null;
       var f = el('rkForm'), dosya = null, secili = (x.hizmetler || []).map(Number);
+      var pop = (POPULER_HIZMET && POPULER_HIZMET.length ? POPULER_HIZMET : HIZMETLER.slice(0, 12).map(function (h) { return h.id; })).map(Number);
       f.style.display = 'block'; el('rkDuzen').classList.add('form-acik');
       f.innerHTML = '<div class="rk-form-bas"><h4><i class="bi ' + (x.id ? 'bi-pencil-square' : 'bi-stars') + '" style="color:#7c3aed"></i>' + (x.id ? 'Kampanyayı düzenle' : 'Yeni kampanya') + '</h4>'
          + '<button class="rk-kapat" id="rkKapat" title="Kapat"><i class="bi bi-x-lg"></i></button></div>'
@@ -1760,8 +1764,12 @@
          + '<div class="rk-alan"><div class="rk-etiket">Hangi hizmet sorulunca gönderilsin? <small id="rkSecSay"></small></div>'
          + '<div class="rk-secili" id="rkSecili"></div>'
          + '<input class="wa-girdi" id="rkHizAra" placeholder="🔍 Hizmet ara ve tıkla (ör. manikür, protez)" autocomplete="off">'
+         + '<div class="rk-hiz-bas" id="rkHizBas"></div>'
          + '<div class="rk-hizmetler" id="rkHizListe">'
-         + HIZMETLER.map(function (h) { var s = secili.indexOf(Number(h.id)) >= 0; return '<label data-ad="' + esc(String(h.ad).toLocaleLowerCase('tr-TR')) + '"' + (s ? ' class="secili"' : '') + '><input type="checkbox" value="' + h.id + '"' + (s ? ' checked' : '') + '>' + esc(h.ad) + '</label>'; }).join('')
+         // aramasizken yalniz cok satanlar (son 6 ay randevu sayisi); aramada tum hizmetler
+         + HIZMETLER.map(function (h) { var p = pop.indexOf(Number(h.id)); return { h: h, p: p < 0 ? 999 : p }; }).sort(function (a, b) { return a.p - b.p; }).map(function (o) {
+            var h = o.h, s = secili.indexOf(Number(h.id)) >= 0;
+            return '<label data-ad="' + esc(String(h.ad).toLocaleLowerCase('tr-TR')) + '"' + (o.p < 999 ? ' data-pop="1"' : '') + (s ? ' class="secili"' : '') + '><input type="checkbox" value="' + h.id + '"' + (s ? ' checked' : '') + '>' + esc(h.ad) + '</label>'; }).join('')
          + '</div><div class="wa-alt" id="rkHizYok" style="display:none;padding:6px 0">Bu adla hizmet bulunamadı.</div></div>'
          + '<div class="rk-alan"><div class="rk-etiket">Yayın tarihleri <small>boş bırakılırsa süresiz</small></div><div class="wa-satir" style="gap:10px">'
          + '<div style="flex:1"><input type="date" class="wa-girdi" id="rkBas" aria-label="Başlangıç" value="' + esc(String(x.baslangic || '').slice(0, 10)) + '"></div>'
@@ -1800,11 +1808,14 @@
       el('rkHizAra').addEventListener('input', function () {
          var q = this.value.trim().toLocaleLowerCase('tr-TR'), gorunen = 0;
          f.querySelectorAll('#rkHizListe label').forEach(function (l) {
-            var uy = !q || l.dataset.ad.indexOf(q) >= 0;
+            var uy = q ? l.dataset.ad.indexOf(q) >= 0 : !!l.dataset.pop;
             l.style.display = uy ? '' : 'none'; if (uy && !l.querySelector('input').checked) gorunen++;
          });
          el('rkHizYok').style.display = gorunen || !q ? 'none' : 'block';
+         el('rkHizBas').innerHTML = q ? (gorunen ? 'Arama sonucu · ' + gorunen + ' hizmet' : '')
+            : (gorunen ? '<i class="bi bi-fire"></i> En çok satanlar <small>· diğerleri için yukarıda arayın</small>' : '<small>Tüm hizmetler için yukarıda arayın</small>');
       });
+      el('rkHizAra').dispatchEvent(new Event('input'));
       el('rkHizAra').addEventListener('keydown', function (e) {
          // Enter: aramada tek hizmet kaldiysa onu sec
          if (e.key !== 'Enter') return; e.preventDefault();
