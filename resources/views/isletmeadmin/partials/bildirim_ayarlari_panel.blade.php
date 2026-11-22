@@ -14,7 +14,9 @@
    .bm-gecmis { font-size:13px; font-weight:600; color:var(--bm-mor); }
    .bm-kaydet { border:0; border-radius:10px; padding:11px 18px; font-weight:700; font-size:14px; color:#fff; cursor:pointer;
       background:linear-gradient(135deg,var(--bm-mor),var(--bm-mor2)); box-shadow:0 6px 16px rgba(92,0,142,.25); display:flex; align-items:center; gap:8px; }
-   .bm-kaydet[disabled] { opacity:.45; cursor:default; box-shadow:none; }
+   /* Degisiklik yokken: yesil 'Kaydedildi' (tiklanmaz); degisiklik varken mor + sayac; kaydederken bekleme */
+   .bm-kaydet.kayitli { background:#e9f9ef; color:#15803d; box-shadow:none; cursor:default; border:1px solid #bdeccd; }
+   .bm-kaydet.bekle { opacity:.7; cursor:wait; }
    .bm-kaydet .bm-rozet { background:#fff; color:var(--bm-mor); border-radius:20px; font-size:11.5px; padding:1px 7px; }
 
    .bm-ust { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.25fr); gap:14px; margin-bottom:18px; }
@@ -109,7 +111,7 @@
       </div>
       <div class="bm-bas-sag">
          <a class="bm-gecmis" href="/isletmeyonetim/log-hareketleri?sube={{ $isletme->id }}&action=bildirim_ayar_degisti"><i class="fa fa-history"></i> Değişiklik geçmişi</a>
-         <button type="button" class="bm-kaydet" id="bmKaydet" disabled><i class="fa fa-floppy-o"></i> Değişiklikleri Kaydet <span class="bm-rozet" id="bmSayac" style="display:none"></span></button>
+         <button type="button" class="bm-kaydet kayitli" id="bmKaydet"><i class="fa fa-check-circle" id="bmKaydetIkon"></i> <span id="bmKaydetYazi">Kaydedildi</span> <span class="bm-rozet" id="bmSayac" style="display:none"></span></button>
       </div>
    </div>
    <div id="bmIcerik"><div class="bm-yuk"><i class="fa fa-spinner fa-spin"></i> Yükleniyor…</div></div>
@@ -139,7 +141,7 @@
       silme_onay_kodu: ['fa-lock', '#dc2626'], kampanya_link: ['fa-bullhorn', '#f59e0b'], wa_asistan_talep: ['fa-whatsapp', '#16a34a'],
       telefon_asistani: ['fa-headphones', '#2563eb']
    };
-   var VERI = null, ORJ = null, yuklendi = false;
+   var VERI = null, ORJ = null, yuklendi = false, sonKayit = '';
 
    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
    function kopya(o) { return JSON.parse(JSON.stringify(o)); }
@@ -186,7 +188,10 @@
    function sayacGuncelle() {
       var n = farklar().length + Object.keys(digerFark()).length;
       var btn = document.getElementById('bmKaydet'), s = document.getElementById('bmSayac');
-      btn.disabled = n === 0; s.style.display = n ? '' : 'none'; s.textContent = n;
+      s.style.display = n ? '' : 'none'; s.textContent = n;
+      btn.classList.toggle('kayitli', n === 0);
+      document.getElementById('bmKaydetIkon').className = 'fa ' + (n ? 'fa-floppy-o' : 'fa-check-circle');
+      document.getElementById('bmKaydetYazi').textContent = n ? 'Değişiklikleri Kaydet' : (sonKayit ? 'Kaydedildi · ' + sonKayit : 'Kaydedildi');
    }
 
    function durumKartlari() {
@@ -298,13 +303,16 @@
       if (!VERI) return;
       var l = farklar(), d = digerFark(), btn = this;
       if (!l.length && !Object.keys(d).length) return;
-      btn.disabled = true;
+      if (btn.classList.contains('bekle')) return;
+      btn.classList.add('bekle'); document.getElementById('bmKaydetYazi').textContent = 'Kaydediliyor…';
       var govde = { degisiklikler: JSON.stringify(l) };
       Object.keys(d).forEach(function (k) { govde[k] = d[k]; });
       istek('POST', 'kaydet', govde).then(function (j) {
+         var t = new Date(); sonKayit = ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2);
+         btn.classList.remove('bekle');
          VERI = j; ORJ = kopya(j); ciz();
          toast((l.length + Object.keys(d).length) + ' değişiklik kaydedildi');
-      }).catch(function (e) { btn.disabled = false; toast(e.message, true); });
+      }).catch(function (e) { btn.classList.remove('bekle'); sayacGuncelle(); toast(e.message, true); });
    });
    window.addEventListener('beforeunload', function (e) {
       if (VERI && (farklar().length || Object.keys(digerFark()).length)) { e.preventDefault(); e.returnValue = ''; }
