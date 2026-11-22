@@ -2227,7 +2227,8 @@ FIYAT
         $s = "# KAMPANYALAR (salonun kendi reklamları)\n";
         foreach ($this->waReklamlar as $r) {
             $s .= "- reklam_id {$r['id']} | {$r['baslik']}" . ($r['hizmet_adlari'] ? ' | ilgili hizmetler: ' . implode(', ', $r['hizmet_adlari']) : '')
-                . (trim($r['metin']) !== '' ? ' | ' . mb_substr(preg_replace('/\s+/u', ' ', $r['metin']), 0, 200) : '') . "\n";
+                . (trim($r['metin']) !== '' ? ' | ' . mb_substr(preg_replace('/\s+/u', ' ', $r['metin']), 0, 200) : '')
+                . (($ie = \App\Services\WaReklam::indirimEtiket($r)) !== '' ? " | İNDİRİM: {$ie} (ilgili hizmetlerde randevu fiyatına otomatik uygulanır)" : '') . "\n";
         }
         // Kampanyayi isteyen musteri = satis: aktarma yok, dogrudan randevu (canli 2026-11-20: "bana da uygular misiniz" -> "bilemiyorum, bağlayayım mı" dedi)
         $s .= "- KAMPANYAYI İSTEYEN MÜŞTERİ (bu kural FİYAT ve AKTARMA kurallarının önündedir): müşteri kampanyadan yararlanmak isterse (\"bana da uygular mısınız\", \"evet\", \"kampanyadan randevu\", \"indirimli olsun\") SEVE SEVE kabul et ve randevuya götür; "

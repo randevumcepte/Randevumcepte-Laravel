@@ -472,6 +472,15 @@ class WaAsistanPanelController extends StoreAdminController
         $veri = ['baslik' => $baslik, 'metin' => mb_substr(trim((string) $request->input('metin')), 0, 700) ?: null,
             'hizmetler' => json_encode($hiz), 'baslangic' => $tarih($request->input('baslangic')), 'bitis' => $tarih($request->input('bitis')),
             'aktif' => $request->input('aktif', 1) ? 1 : 0, 'updated_at' => now()];
+        // Indirim (asistanin olusturdugu randevuya otomatik islenir -> tahsilat indirimli acilir). Alan gelmezse eski deger korunur.
+        if ($request->has('indirim_tur')) {
+            $tur = (string) $request->input('indirim_tur');
+            $deger = round((float) str_replace(',', '.', (string) $request->input('indirim_deger')), 2);
+            if (!in_array($tur, ['yuzde', 'tutar'], true)) { $tur = null; $deger = null; }
+            elseif ($deger <= 0) return response()->json(['ok' => 0, 'hata' => 'İndirim miktarını yazın ya da "İndirim yok" seçin.'], 422);
+            elseif ($tur === 'yuzde' && $deger > 100) return response()->json(['ok' => 0, 'hata' => 'Yüzde indirim 100\'den büyük olamaz.'], 422);
+            $veri['indirim_tur'] = $tur; $veri['indirim_deger'] = $deger;
+        }
         $id = (int) $request->input('id');
         $eski = $id ? DB::table('wa_reklamlar')->where('id', $id)->where('salon_id', $sid)->first() : null;
         if ($id && !$eski) return response()->json(['ok' => 0, 'hata' => 'Reklam bulunamadı.'], 404);

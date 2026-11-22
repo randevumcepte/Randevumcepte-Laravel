@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Schema;
  */
 class WaReklam
 {
-    const SEMA = 'wa_reklam_sema_v1';
+    const SEMA = 'wa_reklam_sema_v2';
 
     public static function semaGaranti(): bool
     {
@@ -69,6 +69,13 @@ class WaReklam
             if (!Schema::hasColumn('wa_asistan_ayarlar', 'reklam')) {
                 Schema::table('wa_asistan_ayarlar', function ($t) { $t->tinyInteger('reklam')->default(0); });
             }
+            // v2: kampanya indirimi (yuzde | tutar) -> asistanin olusturdugu randevunun fiyatina islenir
+            if (!Schema::hasColumn('wa_reklamlar', 'indirim_tur')) {
+                Schema::table('wa_reklamlar', function ($t) { $t->string('indirim_tur', 10)->nullable(); $t->decimal('indirim_deger', 10, 2)->nullable(); });
+            }
+            if (!Schema::hasColumn('wa_reklam_gosterim', 'indirim_tutari')) {
+                Schema::table('wa_reklam_gosterim', function ($t) { $t->decimal('indirim_tutari', 10, 2)->nullable(); });
+            }
             Cache::forever(self::SEMA, 1);
             return true;
         } catch (\Throwable $e) {
@@ -102,7 +109,7 @@ class WaReklam
                     $ids = self::idler($r->hizmetler);
                     $out[] = ['id' => (int) $r->id, 'baslik' => (string) $r->baslik, 'metin' => (string) ($r->metin ?? ''), 'hizmetler' => $ids,
                         'hizmet_adlari' => array_values(array_filter(array_map(function ($i) use ($adlar) { return $adlar[$i] ?? null; }, $ids))),
-                        'token' => (string) $r->token, 'bitis' => $r->bitis];
+                        'token' => (string) $r->token, 'bitis' => $r->bitis, 'indirim_tur' => $r->indirim_tur ?? null, 'indirim_deger' => $r->indirim_deger ?? null];
                 }
                 return $out;
             });
@@ -196,6 +203,7 @@ class WaReklam
         $satirlar = array_values(array_filter(array_map('trim', preg_split('/\R/u', trim((string) ($r['metin'] ?? '')))), 'strlen'));
         $ek = [];
         foreach ($satirlar as $s) $ek[] = '✨ ' . $s;
+        if ($ie = self::indirimEtiket($r)) $ek[] = '🏷️ Kampanya indirimi: *' . $ie . '*';
         if (!empty($r['hizmet_adlari'])) $ek[] = '💆 ' . implode(', ', array_slice($r['hizmet_adlari'], 0, 4));
         if (!empty($r['bitis']) && ($ts = strtotime((string) $r['bitis']))) {
             $ay = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
@@ -250,10 +258,15 @@ class WaReklam
                 ->where('created_at', '>=', now()->subDays(7))->orderByDesc('id')->first(['id', 'reklam_id']);
             if (!$g) return;
             DB::table('wa_reklam_gosterim')->where('id', $g->id)->update(['randevu_id' => $randevuId]);
-            // Indirim fiyata kendiliginden yansimaz: randevuya not dus, tahsilati alan personel gorsun (hesap karismasin)
-            $baslik = (string) DB::table('wa_reklamlar')->where('id', $g->reklam_id)->value('baslik');
+            $rek = DB::table('wa_reklamlar')->where('id', $g->reklam_id)->where('salon_id', $isletmeId)->first();
+            $baslik = (string) ($rek->baslik ?? '');
             if ($baslik !== '') {
-                $not = '🎁 WhatsApp kampanyası: ' . $baslik . ' (indirimi tahsilatta uygulayın)';
+                $ind = self::indirimUygula($isletmeId, $rek, $randevuId);
+                if ($ind > 0) DB::table('wa_reklam_gosterim')->where('id', $g->id)->update(['indirim_tutari' => $ind]);
+                // Tahsilati alan personel gorsun: indirim islendiyse ne kadar, islenmediyse elle uygulasin
+                $not = '🎁 WhatsApp kampanyası: ' . $baslik . ($ind > 0
+                    ? ' (' . self::indirimEtiket($rek) . ' indirim randevu fiyatına işlendi, toplam -' . self::tl($ind) . ')'
+                    : (self::indirimEtiket($rek) !== '' ? ' (kampanya hizmeti yok / fiyat 0: indirim işlenmedi)' : ' (indirimi tahsilatta uygulayın)'));
                 $eski = (string) DB::table('randevular')->where('id', $randevuId)->where('salon_id', $isletmeId)->value('personel_notu');
                 if (mb_strpos($eski, $not) === false) {
                     DB::table('randevular')->where('id', $randevuId)->where('salon_id', $isletmeId)
@@ -261,6 +274,51 @@ class WaReklam
                 }
             }
         } catch (\Throwable $e) {}
+    }
+
+    /**
+     * Kampanya indirimini randevunun kampanya hizmetlerine isler (randevu_hizmetler.fiyat). Tahsilat (web + mobil)
+     * adisyonu bu fiyattan actigi icin indirim tahsilata da yansir. Yalniz: kampanya bugun yayinda, indirim tanimli,
+     * satir kampanya hizmeti, paket seansi degil, henuz adisyona gecmemis. Yuzde: her satira; tutar: toplamda bir kez.
+     * @return float uygulanan toplam indirim (TL)
+     */
+    public static function indirimUygula(int $isletmeId, $rek, int $randevuId): float
+    {
+        $tur = (string) ($rek->indirim_tur ?? ''); $deger = (float) ($rek->indirim_deger ?? 0);
+        if (!in_array($tur, ['yuzde', 'tutar'], true) || $deger <= 0 || !(int) $rek->aktif) return 0.0;
+        $bugun = date('Y-m-d');
+        if (($rek->baslangic && $rek->baslangic > $bugun) || ($rek->bitis && $rek->bitis < $bugun)) return 0.0;
+        if (!DB::table('randevular')->where('id', $randevuId)->where('salon_id', $isletmeId)->exists()) return 0.0;
+        $hiz = self::idler($rek->hizmetler);
+        $paketli = DB::table('adisyon_paket_seanslar')->where('randevu_id', $randevuId)->pluck('hizmet_id')->map(function ($x) { return (int) $x; })->all();
+        $adisyonda = DB::table('adisyon_hizmetler')->where('randevu_id', $randevuId)->pluck('hizmet_id')->map(function ($x) { return (int) $x; })->all();
+        $kalan = $tur === 'tutar' ? $deger : 0; $toplam = 0.0;
+        foreach (DB::table('randevu_hizmetler')->where('randevu_id', $randevuId)->orderBy('id')->get(['id', 'hizmet_id', 'fiyat', 'yardimci_personel']) as $s) {
+            $h = (int) $s->hizmet_id; $f = (float) $s->fiyat;
+            if ($f <= 0 || !empty($s->yardimci_personel) || ($hiz && !in_array($h, $hiz, true)) || in_array($h, $paketli, true) || in_array($h, $adisyonda, true)) continue;
+            if ($tur === 'yuzde') $d = round($f * min($deger, 100) / 100, 2);
+            else { if ($kalan <= 0) break; $d = min($kalan, $f); $kalan -= $d; }
+            if ($d <= 0) continue;
+            DB::table('randevu_hizmetler')->where('id', $s->id)->update(['fiyat' => round($f - $d, 2)]);
+            $toplam += $d;
+        }
+        if ($toplam > 0) Log::info('[WA-REKLAM] indirim islendi', ['salon' => $isletmeId, 'randevu' => $randevuId, 'reklam' => $rek->id, 'tutar' => $toplam]);
+        return round($toplam, 2);
+    }
+
+    /** "%15" | "250 TL" | "" */
+    public static function indirimEtiket($r): string
+    {
+        $r = (array) $r; $d = (float) ($r['indirim_deger'] ?? 0);
+        if ($d <= 0) return '';
+        if (($r['indirim_tur'] ?? '') === 'yuzde') return '%' . rtrim(rtrim(number_format($d, 2, ',', ''), '0'), ',');
+        if (($r['indirim_tur'] ?? '') === 'tutar') return self::tl($d);
+        return '';
+    }
+
+    public static function tl(float $x): string
+    {
+        return number_format($x, fmod($x, 1) ? 2 : 0, ',', '.') . ' TL';
     }
 
     /** Panel: salonun reklamlari + son 30 gun sonuclari. */
@@ -275,6 +333,7 @@ class WaReklam
             $s = $say[$r->id] ?? null;
             $out[] = ['id' => (int) $r->id, 'baslik' => $r->baslik, 'metin' => $r->metin, 'hizmetler' => self::idler($r->hizmetler),
                 'baslangic' => $r->baslangic, 'bitis' => $r->bitis, 'aktif' => (int) $r->aktif, 'token' => $r->token,
+                'indirim_tur' => $r->indirim_tur ?? null, 'indirim_deger' => isset($r->indirim_deger) ? (float) $r->indirim_deger : null,
                 'link' => '/k/' . $r->token, 'gorsel' => $r->gorsel ? self::afisYolu($r->token, $r->updated_at) : null,
                 'gosterim' => (int) ($s->gosterim ?? 0), 'tiklama' => (int) ($s->tiklama ?? 0), 'randevu' => (int) ($s->randevu ?? 0)];
         }
