@@ -15,27 +15,15 @@ class WhatsAppService
 
     /**
      * Kontör DÜŞMEYEN (ücretsiz) gönderim tipleri.
-     * Randevu bilgilendirme + hatırlatma + onay bildirimleri ücretsiz; diğer TÜM
-     * mesajlar (anket, kampanya, dogum gunu, cark, OTP, manuel toplu, seans, ...)
-     * kontör düşer. Ücretsiz tipler bakiye engelinden ve düşmeden muaftır.
+     * 2026-11-22 (isletme karari): YALNIZ 1 gun onceki randevu hatirlatmasi ucretsiz; diger TUM
+     * sistem mesajlari (randevu olustur/guncelle/iptal/onay, yaklasan hatirlatma, personel
+     * bilgilendirme, ders, sifre, anket, kampanya, ...) kontor duser. Ucretsiz tipler bakiye
+     * engelinden ve dusmeden muaftir.
+     * WhatsApp asistani (AI) cevaplari bu kontorle iliskili degildir: AI paketi ayri,
+     * sendAsistanCevap kontor dusmez (asagidaki 'wa_asistan' yalniz guvence).
      */
     const KONTOR_UCRETSIZ_TIPLER = [
-        'randevu_hatirlatma_1gun',   // 1 gun onceki hatirlatma
-        'randevu_hatirlatma',        // yaklasan/bugun hatirlatma
-        'yeni_randevu_bildirim',     // musteriye/personele randevu olusturuldu
-        'guncelleme_bildirim',       // randevu guncellendi
-        'iptal_bildirim',            // randevu iptal edildi
-        'personel_hatirlatma',       // personele randevu bilgilendirmesi
-        'randevu_onay_bildirim',     // randevu onaylandi (musteri+personel)
-        'randevu_bilgi',             // Sesli asistan: "randevum ne zaman" -> randevu bilgilendirme mesaji
-        'sifre_sifirlama',           // Sifremi unuttum: her zaman ucretsiz
-        // Grup dersi (Pilates/kurs) bildirimleri — randevu bildirimleriyle ayni
-        // muafiyet: WhatsApp kontorundan DUSMEZ.
-        'ders_hatirlatma',           // ders hatirlatmasi
-        'ders_iptal',                // ders iptal bildirimi
-        'ders_bekleme_terfi',        // bekleme listesinden yer acildi bildirimi
-        'ders_bildirim',             // ders genel bildirim (varsayilan tip)
-        'ders_kalan_uyari',          // "N dersiniz kaldi" paket bitis/yeniden satis uyarisi
+        'randevu_hatirlatma_1gun',   // 1 gun onceki hatirlatma (tek ucretsiz sistem mesaji)
         'wa_asistan',                // WhatsApp asistani (AI chatbot) cevaplari: WhatsApp kredisi kapsami disi
     ];
 

@@ -554,9 +554,8 @@ class ApiController extends Controller
                 // Sifre mesajinin altina isletmenin telefonu + yol tarifi (diger musteri mesajlari gibi)
                 $iletisim = \App\Services\WhatsAppMesajFormat::iletisimBlogu($salon);
                 if ($iletisim !== '') $msg = rtrim($msg) . "\n\n" . $iletisim;
-                // Sifremi unuttum kontorden bagimsiz ve ucretsiz: 'sifre_sifirlama' tipi
-                // KONTOR_UCRETSIZ_TIPLER'de oldugundan kontor kapisi/bakiye engeli calismaz,
-                // bakiye 0 veya deneme bitmis olsa bile WA'dan gonderilir, kontor dusmez.
+                // Sifremi unuttum: 2026-11-22'den beri kontor DUSER (yalniz 1 gun onceki hatirlatma ucretsiz).
+                // Kontor yetersizse WA gonderilmez, asagidaki SMS yedegine duser.
                 $sonuc = $wa->sendUrgent($salon, $to, $msg, $userId, 'sifre_sifirlama');
                 if (!($sonuc['ok'] ?? false)) {
                     $hepsiBasarili = false;
@@ -28532,7 +28531,7 @@ public function easistandatadashboard(Request $request, $bugunYarin, $salon_id)
 
             $mesajlar = array(array('to' => $telefon, 'message' => $mesajMetni, 'wa_message' => $waMesaj));
 
-            // WhatsApp-first: randevu bilgilendirmesi -> 'randevu_bilgi' KONTORSUZ (KONTOR_UCRETSIZ_TIPLER).
+            // WhatsApp-first: randevu bilgilendirmesi ('randevu_bilgi'); 2026-11-22'den beri kontor duser.
             try {
                 $waAcik = $isletme && !empty($isletme->whatsapp_aktif) && ($isletme->whatsapp_durum ?? '') === 'connected';
                 $smsKalan = $mesajlar;
