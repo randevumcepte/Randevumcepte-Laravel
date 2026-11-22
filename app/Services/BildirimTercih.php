@@ -835,6 +835,8 @@ class BildirimTercih
                 'wa_bagli' => self::waBagli($s),
                 'uygulama_musteri' => $uygulamaMusteri,
                 'personel_sayisi' => $personelSayisi,
+                // WhatsApp kontor bakiyesi (salonlar.whatsapp_kontor; paylasilan oturumda ust salon)
+                'wa_kontor' => $s ? KontorServisi::bakiye(WhatsAppService::resolveWaSalon($s)) : 0,
             ],
         ];
     }

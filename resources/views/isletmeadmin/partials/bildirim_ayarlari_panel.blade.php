@@ -23,6 +23,8 @@
    .bm-durum-ikon { width:52px; height:52px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:24px; flex:0 0 52px; }
    .bm-durum b { display:block; font-size:15.5px; font-weight:700; }
    .bm-durum small { display:block; color:var(--bm-gri); font-size:12.5px; margin-top:2px; line-height:1.35; }
+   .bm-kalan { margin-top:6px; font-size:13px; color:var(--bm-gri); }
+   .bm-kalan strong { font-size:18px; font-weight:700; margin:0 2px; }
    .bm-durum .bm-tik { position:absolute; top:14px; right:14px; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; }
    .bm-tik.iyi { background:var(--bm-wa); } .bm-tik.kotu { background:#f59e0b; }
    .bm-sayilar { display:flex; align-items:center; justify-content:space-around; padding:12px 8px; }
@@ -191,14 +193,18 @@
       var d = VERI.durum || {}, smsIyi = d.sms_hesabi && d.sms_bakiye !== 0, toplam = 0;
       VERI.gruplar.forEach(function (g) { toplam += g.bildirimler.length; });
       var smsAlt = !d.sms_hesabi ? 'SMS hesabı tanımlı değil; SMS gönderilemez.'
-         : (d.sms_bakiye === 0 ? 'SMS bakiyeniz bitti.' : (d.sms_bakiye != null ? 'Kalan: ' + Number(d.sms_bakiye).toLocaleString('tr-TR') + ' SMS' : 'SMS bildirimleri gönderilebilir.'));
-      function kart(ikon, renk, zemin, baslik, alt, iyi) {
+         : (d.sms_bakiye === 0 ? 'SMS paketiniz bitti; SMS gönderilemez.' : 'SMS bildirimleri gönderilir.');
+      function sayi(n) { return Number(n || 0).toLocaleString('tr-TR'); }
+      // Kalan: SMS hesabi yoksa 0; bakiye sorgulanamadiysa '—'
+      var smsKalan = !d.sms_hesabi ? sayi(0) : (d.sms_bakiye == null ? '—' : sayi(d.sms_bakiye));
+      function kart(ikon, renk, zemin, baslik, alt, iyi, kalan, birim) {
          return '<div class="bm-kart bm-durum"><div class="bm-durum-ikon" style="background:' + zemin + ';color:' + renk + '"><i class="fa ' + ikon + '"></i></div>'
-            + '<div><b>' + baslik + '</b><small>' + esc(alt) + '</small></div><span class="bm-tik ' + (iyi ? 'iyi' : 'kotu') + '"><i class="fa ' + (iyi ? 'fa-check' : 'fa-exclamation') + '"></i></span></div>';
+            + '<div><b>' + baslik + '</b><small>' + esc(alt) + '</small>'
+            + (kalan != null ? '<div class="bm-kalan">Kalan <strong style="color:' + renk + '">' + esc(kalan) + '</strong> ' + birim + '</div>' : '') + '</div><span class="bm-tik ' + (iyi ? 'iyi' : 'kotu') + '"><i class="fa ' + (iyi ? 'fa-check' : 'fa-exclamation') + '"></i></span></div>';
       }
       return '<div class="bm-ust">'
-         + kart('fa-commenting', '#5C008E', '#f3ebfb', smsIyi ? 'SMS Aktif' : 'SMS Kullanılamıyor', smsAlt, smsIyi)
-         + kart('fa-whatsapp', '#16a34a', '#e9f9ef', d.wa_bagli ? 'WhatsApp Bağlı' : 'WhatsApp Bağlı Değil', d.wa_bagli ? 'WhatsApp bildirimleri gönderilir.' : 'Bağlayana kadar WhatsApp\'tan mesaj gitmez.', d.wa_bagli)
+         + kart('fa-commenting', '#5C008E', '#f3ebfb', smsIyi ? 'SMS Aktif' : 'SMS Kullanılamıyor', smsAlt, smsIyi, smsKalan, 'SMS')
+         + kart('fa-whatsapp', '#16a34a', '#e9f9ef', d.wa_bagli ? 'WhatsApp Bağlı' : 'WhatsApp Bağlı Değil', d.wa_bagli ? 'WhatsApp bildirimleri gönderilir.' : 'Bağlayana kadar WhatsApp\'tan mesaj gitmez.', d.wa_bagli, sayi(d.wa_kontor), 'kontör')
          + kart('fa-bell', '#6d28d9', '#efeafe', 'Push Bildirim Aktif', 'Uygulamayı kullanan müşteri: ' + (+d.uygulama_musteri || 0), true)
          + '<div class="bm-kart bm-sayilar"><div class="bm-sayi"><b>' + toplam + '</b><span>Bildirim türü</span></div>'
          + '<div class="bm-sayi"><b>3</b><span>Kanal</span></div><div class="bm-sayi"><b>' + (+d.personel_sayisi || 0) + '</b><span>Personel</span></div></div>'
