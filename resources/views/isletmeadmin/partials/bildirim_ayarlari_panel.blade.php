@@ -123,7 +123,7 @@
    var SUBE = kok.getAttribute('data-sube');
    var CSRF = '{{ csrf_token() }}';
    var KANALLAR = ['sms', 'whatsapp', 'push'];
-   var KANAL_AD = { sms: 'SMS', whatsapp: 'WhatsApp', push: 'Push' };
+   var KANAL_AD = { sms: 'SMS', whatsapp: 'WhatsApp', push: 'Uygulama' };
    var KANAL_IKON = { sms: 'fa-commenting', whatsapp: 'fa-whatsapp', push: 'fa-bell' };
    var IKON = {
       randevu_olusturuldu: ['fa-calendar-plus-o', '#7c3aed'], randevu_guncellendi: ['fa-exchange', '#2563eb'],
@@ -205,7 +205,7 @@
       return '<div class="bm-ust">'
          + kart('fa-commenting', '#5C008E', '#f3ebfb', smsIyi ? 'SMS Aktif' : 'SMS Kullanılamıyor', smsAlt, smsIyi, smsKalan, 'SMS')
          + kart('fa-whatsapp', '#16a34a', '#e9f9ef', d.wa_bagli ? 'WhatsApp Bağlı' : 'WhatsApp Bağlı Değil', d.wa_bagli ? 'WhatsApp bildirimleri gönderilir.' : 'Bağlayana kadar WhatsApp\'tan mesaj gitmez.', d.wa_bagli, sayi(d.wa_kontor), 'kontör')
-         + kart('fa-bell', '#6d28d9', '#efeafe', 'Push Bildirim Aktif', 'Uygulamayı kullanan müşteri: ' + (+d.uygulama_musteri || 0), true)
+         + kart('fa-bell', '#6d28d9', '#efeafe', 'Uygulama Bildirimi Aktif', 'Uygulamayı kullanan müşteri: ' + (+d.uygulama_musteri || 0), true)
          + '<div class="bm-kart bm-sayilar"><div class="bm-sayi"><b>' + toplam + '</b><span>Bildirim türü</span></div>'
          + '<div class="bm-sayi"><b>3</b><span>Kanal</span></div><div class="bm-sayi"><b>' + (+d.personel_sayisi || 0) + '</b><span>Personel</span></div></div>'
          + '</div>';
