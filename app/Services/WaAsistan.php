@@ -751,10 +751,13 @@ class WaAsistan
             // Alicilar: "WhatsApp sohbetlerini gorsun" yetkisi olanlar (sahip her zaman; yonetici/sekreter varsayilan acik,
             // personel rolunde salon sahibi acarsa). Yetki okunamazsa eski kural: rol < 5.
             $yoneticiler = [];
-            // Bildirim tercihleri: yalniz talep bildiriminde ($tercihKod) personel push kapaliysa push atilmaz; Gece Denetcisi
-            // ozeti / test bildirimi bu tercihe bagli degil. Zil satiri yukarida yazildi.
-            if ($tercihKod && !BildirimTercih::izin($salonId, $tercihKod, 'yonetici', 'push')) return $adlar;
-            foreach (\App\Personeller::where('salon_id', $salonId)->whereNotNull('yetkili_id')->get(['id', 'personel_adi', 'yetkili_id']) as $p) {
+            // Bildirim tercihleri (yalniz talep bildiriminde, $tercihKod): yonetici (rol < 5) Yonetici sutununa, sohbet yetkili
+            // personel (rol 5) Personel sutununa bakar. Test bildirimi bu tercihe bagli degil. Zil satiri yukarida yazildi.
+            foreach (\App\Personeller::where('salon_id', $salonId)->whereNotNull('yetkili_id')->get(['id', 'personel_adi', 'yetkili_id', 'role_id']) as $p) {
+                if ($tercihKod) {
+                    $rol = (int) $p->role_id ?: (int) DB::table('model_has_roles')->where('model_id', $p->yetkili_id)->where('salon_id', $salonId)->min('role_id');
+                    if (!BildirimTercih::izin($salonId, $tercihKod, ($rol >= 1 && $rol < 5) ? 'yonetici' : 'personel', 'push')) continue;
+                }
                 try {
                     $izin = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar((int) $p->yetkili_id, $salonId, 'whatsapp.sohbet_gor');
                 } catch (\Throwable $e) {

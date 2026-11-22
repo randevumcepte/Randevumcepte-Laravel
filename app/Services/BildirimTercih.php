@@ -133,7 +133,7 @@ class BildirimTercih
         // ── Asistanlar ──
         'wa_asistan_talep' => ['grup' => 'asistan', 'ad' => 'WhatsApp asistanı size soruyor',
             'aciklama' => 'Asistan cevaplayamadığı bir konuda işletmeden yardım istediğinde.', 'push_tip' => 'wa_asistan_talep',
-            'alicilar' => ['yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel'], 'musteri' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
+            'alicilar' => ['yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel'], 'musteri' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'personel' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'yonetici']]], // personel = sohbet yetkili personel (rol 5)
         'telefon_asistani' => ['grup' => 'asistan', 'ad' => 'Telefon asistanı işlem yaptığında',
             'aciklama' => 'Yapay zeka telefon asistanı randevu aldığında veya iptal ettiğinde personele.', 'push_tip' => 'appointment_created',
             'alicilar' => ['yonetici' => ['eski' => null, 'mesaj' => 0, 'push' => 1, 'kopya' => 'personel'], 'musteri' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0], 'personel' => ['ek' => true, 'eski' => null, 'mesaj' => 0, 'push' => 0]]],
