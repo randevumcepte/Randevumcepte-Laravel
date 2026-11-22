@@ -247,8 +247,19 @@ class WaReklam
         if ($randevuId <= 0 || $anahtar === '' || !self::semaGaranti()) return;
         try {
             $g = DB::table('wa_reklam_gosterim')->where('salon_id', $isletmeId)->where('anahtar', $anahtar)->whereNull('randevu_id')
-                ->where('created_at', '>=', now()->subDays(7))->orderByDesc('id')->first(['id']);
-            if ($g) DB::table('wa_reklam_gosterim')->where('id', $g->id)->update(['randevu_id' => $randevuId]);
+                ->where('created_at', '>=', now()->subDays(7))->orderByDesc('id')->first(['id', 'reklam_id']);
+            if (!$g) return;
+            DB::table('wa_reklam_gosterim')->where('id', $g->id)->update(['randevu_id' => $randevuId]);
+            // Indirim fiyata kendiliginden yansimaz: randevuya not dus, tahsilati alan personel gorsun (hesap karismasin)
+            $baslik = (string) DB::table('wa_reklamlar')->where('id', $g->reklam_id)->value('baslik');
+            if ($baslik !== '') {
+                $not = '🎁 WhatsApp kampanyası: ' . $baslik . ' (indirimi tahsilatta uygulayın)';
+                $eski = (string) DB::table('randevular')->where('id', $randevuId)->where('salon_id', $isletmeId)->value('personel_notu');
+                if (mb_strpos($eski, $not) === false) {
+                    DB::table('randevular')->where('id', $randevuId)->where('salon_id', $isletmeId)
+                        ->update(['personel_notu' => trim($not . "\n" . $eski)]); // kampanya notu basta: kolon kisaysa bile gorunur
+                }
+            }
         } catch (\Throwable $e) {}
     }
 

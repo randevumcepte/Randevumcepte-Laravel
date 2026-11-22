@@ -553,6 +553,7 @@
    .rk-hero-btn:hover { transform:translateY(-1px); }
    .rk-uyari { display:flex; gap:12px; align-items:center; background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:16px; padding:12px 16px; margin-bottom:14px; font-size:13.5px; }
    .rk-uyari > i { font-size:22px; color:#f59e0b; }
+   .rk-indirim { background:#fff1f2; border-color:#fecdd3; color:#9f1239; } .rk-indirim > i { color:#e11d48; }
    .rk-ozet { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
    .rk-ozet:empty { display:none; }
    .rk-kpi { background:#fff; border-radius:18px; padding:14px 16px; box-shadow:var(--golge); display:flex; align-items:center; gap:12px; }
@@ -778,6 +779,7 @@
          </div>
          <button class="rk-hero-btn" id="rkYeni"><i class="bi bi-plus-lg"></i> Yeni kampanya</button>
       </div>
+      <div class="rk-uyari rk-indirim"><i class="bi bi-cash-coin"></i><div><b>Kampanya indirimi fiyatlara kendiliğinden yansımaz.</b> Kampanyayla gelen müşterinin indirimini randevu fiyatında ve tahsilatta mutlaka uygulayın; aksi halde kasa ve raporlarınız tutmaz. Asistanın kampanya sonrası oluşturduğu randevulara "🎁 WhatsApp kampanyası" notu otomatik eklenir.</div></div>
       <div id="rkKapali" class="rk-uyari" style="display:none"><i class="bi bi-pause-circle-fill"></i><div><b>Reklam özelliği bu işletmede kapalı.</b> Kampanyalarınızı şimdiden hazırlayabilirsiniz; özellik açılınca asistan göndermeye başlar.</div></div>
       <div class="rk-ozet" id="rkOzet"></div>
       <div class="rk-duzen" id="rkDuzen">
@@ -1779,6 +1781,7 @@
          + '<label class="rk-yukle" id="rkYukle"><input type="file" id="rkGorsel" accept="image/jpeg,image/png,image/webp">'
          + '<img id="rkOn" alt=""' + (x.gorsel ? ' src="' + esc(x.gorsel) + '"' : ' style="display:none"') + '>'
          + '<i class="bi bi-cloud-arrow-up" id="rkYukleIkon"' + (x.gorsel ? ' style="display:none"' : '') + '></i><span id="rkYukleYazi">' + (x.gorsel ? 'Değiştirmek için tıklayın ya da yeni görseli sürükleyin' : 'Görseli buraya sürükleyin ya da <b>seçmek için tıklayın</b>') + '</span></label></div>'
+         + '<div class="rk-uyari rk-indirim" style="margin-bottom:14px;font-size:12.5px"><i class="bi bi-cash-coin"></i><div>İndirim randevu ve tahsilat tutarına <b>otomatik düşmez</b>. Bu kampanyayla gelen müşteride indirimi randevuda ve tahsilatta siz uygulayın.</div></div>'
          + '<div class="rk-alan"><div class="rk-anahtar"><div><b>Yayında</b><small>Kapalıyken asistan bu kampanyayı göndermez.</small></div>'
          + '<label class="rk-sw"><input type="checkbox" id="rkAktif"' + (x.aktif ? ' checked' : '') + '><span></span></label></div></div>'
          + '</div><div id="rkOnizle" style="display:none"><div class="rk-wa"><div class="rk-wa-ust">Asistan, ilgili hizmet sorulunca gönderir</div>'
