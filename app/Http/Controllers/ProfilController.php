@@ -134,6 +134,13 @@ class ProfilController extends StoreAdminController
         return $this->sonuc(PersonelProfil::calismaSil($k[0], $k[1], (int) $request->input('id'), $request));
     }
 
+    public function yetkiler(Request $request)
+    {
+        if (!$k = $this->kisi($request)) return $this->yok();
+        $y = $this->asistanGorusmeYetkili();
+        return $this->sonuc(true, ['gruplar' => PersonelProfil::yetkiler($k[0], $y->id), 'yonetici' => $k[2]]);
+    }
+
     public function cihazlar(Request $request)
     {
         if (!$k = $this->kisi($request)) return $this->yok();

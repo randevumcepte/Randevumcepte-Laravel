@@ -506,6 +506,23 @@ class PersonelProfil
         return true;
     }
 
+    // ─────────────────────────────────────────────── yetkilerim
+
+    /** Kisinin yetkileri, kategori gruplu ve okunur etiketli (PersonelYetkiServisi ile ayni karar). */
+    public static function yetkiler($salonId, $yetkiliId)
+    {
+        $etiketler = \App\PersonelYetkiSabitleri::kategoriEtiketleri();
+        $gruplar = [];
+        foreach (\App\PersonelYetkiSabitleri::tanimlar() as $t) {
+            $k = $t["kategori"] ?? "diger";
+            if (!isset($gruplar[$k])) $gruplar[$k] = ["kod" => $k, "ad" => $etiketler[$k]["ad"] ?? ucfirst($k), "ikon" => $etiketler[$k]["ikon"] ?? "", "yetkiler" => []];
+            $acik = false;
+            try { $acik = PersonelYetkiServisi::yetkiliYetkiVar((int) $yetkiliId, $salonId, $t["key"]); } catch (\Throwable $e) {}
+            $gruplar[$k]["yetkiler"][] = ["ad" => (string) $t["label"], "aciklama" => (string) ($t["aciklama"] ?? ""), "acik" => $acik];
+        }
+        return array_values($gruplar);
+    }
+
     // ─────────────────────────────────────────────── yardimci
 
     public static function tarihMetni($bas, $bit)
