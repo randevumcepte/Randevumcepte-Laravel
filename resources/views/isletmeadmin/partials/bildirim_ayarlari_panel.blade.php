@@ -15,7 +15,17 @@
    .bm-kaydet { border:0; border-radius:10px; padding:11px 18px; font-weight:700; font-size:14px; color:#fff; cursor:pointer;
       background:linear-gradient(135deg,var(--bm-mor),var(--bm-mor2)); box-shadow:0 6px 16px rgba(92,0,142,.25); display:flex; align-items:center; gap:8px; }
    /* Degisiklik yokken: yesil 'Kaydedildi' (tiklanmaz); degisiklik varken mor + sayac; kaydederken bekleme */
-   .bm-kaydet.kayitli { background:#e9f9ef; color:#15803d; box-shadow:none; cursor:default; border:1px solid #bdeccd; }
+   /* Sag altta sabit: sayfa kaydirilsa da hep gorunur (sekme gizliyken o da gizli) */
+   .bm-kaydet.bm-yuzen { position:fixed; right:28px; bottom:26px; z-index:1040; padding:14px 22px; font-size:15px; border-radius:14px;
+      box-shadow:0 12px 28px rgba(92,0,142,.35); }
+   .bm-kaydet.bm-yuzen.bekliyor { animation:bmNabiz 1.6s ease-in-out infinite; }
+   @keyframes bmNabiz { 0%,100% { box-shadow:0 12px 28px rgba(92,0,142,.35); } 50% { box-shadow:0 12px 34px rgba(245,158,11,.55); } }
+   .bm-modal-arka { position:fixed; inset:0; z-index:100000; background:rgba(15,23,42,.45); display:flex; align-items:center; justify-content:center; padding:16px; }
+   .bm-modal { background:#fff; border-radius:16px; padding:28px 28px 22px; width:100%; max-width:380px; text-align:center; box-shadow:0 24px 60px rgba(15,23,42,.25); }
+   .bm-modal .bm-modal-ikon { width:64px; height:64px; border-radius:50%; margin:0 auto 14px; background:#e9f9ef; color:#16a34a; display:flex; align-items:center; justify-content:center; font-size:32px; }
+   .bm-modal h3 { margin:0 0 6px; font-size:19px; font-weight:700; color:#1f1633; }
+   .bm-modal p { margin:0 0 18px; color:#6b7280; font-size:14px; line-height:1.45; }
+   .bm-modal button { border:0; border-radius:10px; padding:11px 30px; font-weight:700; font-size:14px; color:#fff; cursor:pointer; background:linear-gradient(135deg,#5C008E,#7B2FB8); }
    .bm-kaydet.bekle { opacity:.7; cursor:wait; }
    .bm-kaydet .bm-rozet { background:#fff; color:var(--bm-mor); border-radius:20px; font-size:11.5px; padding:1px 7px; }
 
@@ -111,10 +121,10 @@
       </div>
       <div class="bm-bas-sag">
          <a class="bm-gecmis" href="/isletmeyonetim/log-hareketleri?sube={{ $isletme->id }}&action=bildirim_ayar_degisti"><i class="fa fa-history"></i> Değişiklik geçmişi</a>
-         <button type="button" class="bm-kaydet kayitli" id="bmKaydet"><i class="fa fa-check-circle" id="bmKaydetIkon"></i> <span id="bmKaydetYazi">Kaydedildi</span> <span class="bm-rozet" id="bmSayac" style="display:none"></span></button>
       </div>
    </div>
    <div id="bmIcerik"><div class="bm-yuk"><i class="fa fa-spinner fa-spin"></i> Yükleniyor…</div></div>
+   <button type="button" class="bm-kaydet bm-yuzen" id="bmKaydet"><i class="fa fa-floppy-o"></i> <span id="bmKaydetYazi">Değişiklikleri Kaydet</span> <span class="bm-rozet" id="bmSayac" style="display:none"></span></button>
 </div>
 <div class="bm-toast" id="bmToast"></div>
 
@@ -189,9 +199,8 @@
       var n = farklar().length + Object.keys(digerFark()).length;
       var btn = document.getElementById('bmKaydet'), s = document.getElementById('bmSayac');
       s.style.display = n ? '' : 'none'; s.textContent = n;
-      btn.classList.toggle('kayitli', n === 0);
-      document.getElementById('bmKaydetIkon').className = 'fa ' + (n ? 'fa-floppy-o' : 'fa-check-circle');
-      document.getElementById('bmKaydetYazi').textContent = n ? 'Değişiklikleri Kaydet' : (sonKayit ? 'Kaydedildi · ' + sonKayit : 'Kaydedildi');
+      btn.classList.toggle('bekliyor', n > 0);
+      if (!btn.classList.contains('bekle')) document.getElementById('bmKaydetYazi').textContent = 'Değişiklikleri Kaydet';
    }
 
    function durumKartlari() {
@@ -302,7 +311,7 @@
    document.getElementById('bmKaydet').addEventListener('click', function () {
       if (!VERI) return;
       var l = farklar(), d = digerFark(), btn = this;
-      if (!l.length && !Object.keys(d).length) return;
+      if (!l.length && !Object.keys(d).length) { basariPenceresi('Ayarlarınız kayıtlı ve güncel.'); return; }
       if (btn.classList.contains('bekle')) return;
       btn.classList.add('bekle'); document.getElementById('bmKaydetYazi').textContent = 'Kaydediliyor…';
       var govde = { degisiklikler: JSON.stringify(l) };
@@ -311,9 +320,22 @@
          var t = new Date(); sonKayit = ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2);
          btn.classList.remove('bekle');
          VERI = j; ORJ = kopya(j); ciz();
-         toast((l.length + Object.keys(d).length) + ' değişiklik kaydedildi');
+         basariPenceresi((l.length + Object.keys(d).length) + ' değişiklik ' + sonKayit + ' itibarıyla geçerli. Değişiklikler Log Hareketleri\'ne yazıldı.');
       }).catch(function (e) { btn.classList.remove('bekle'); sayacGuncelle(); toast(e.message, true); });
    });
+   // Ekranin ortasinda basari penceresi (body'ye eklenir; Tamam / arka plan / Esc ile kapanir)
+   function basariPenceresi(alt) {
+      var eski = document.getElementById('bmModal'); if (eski) eski.remove();
+      var m = document.createElement('div'); m.className = 'bm-modal-arka'; m.id = 'bmModal';
+      m.innerHTML = '<div class="bm-modal" role="dialog" aria-modal="true"><div class="bm-modal-ikon"><i class="fa fa-check"></i></div>'
+         + '<h3>Değişiklikleriniz başarıyla kaydedilmiştir</h3><p>' + esc(alt) + '</p><button type="button">Tamam</button></div>';
+      function kapat() { m.remove(); document.removeEventListener('keydown', tus); }
+      function tus(e) { if (e.key === 'Escape' || e.key === 'Enter') kapat(); }
+      m.addEventListener('click', function (e) { if (e.target === m || e.target.tagName === 'BUTTON') kapat(); });
+      document.addEventListener('keydown', tus);
+      document.body.appendChild(m);
+      m.querySelector('button').focus();
+   }
    window.addEventListener('beforeunload', function (e) {
       if (VERI && (farklar().length || Object.keys(digerFark()).length)) { e.preventDefault(); e.returnValue = ''; }
    });
