@@ -337,6 +337,28 @@
       document.body.appendChild(m);
       m.querySelector('button').focus();
    }
+   // Mobil uygulama ile anlik esitleme: sekme gorunurken 15 sn'de bir ve sekmeye donulunce sunucudan
+   // tazelenir. Yalniz kaydedilmemis degisiklik yokken (kullanicinin yarim isi ezilmesin); veri
+   // degismediyse ekran yeniden cizilmez.
+   var esitleniyor = false;
+   function sessizEsitle() {
+      if (!VERI || esitleniyor || document.hidden) return;
+      var pane = document.getElementById('bildirim-ayarlari');
+      if (pane && !pane.classList.contains('active')) return;
+      if (farklar().length || Object.keys(digerFark()).length) return;
+      if (document.getElementById('bmKaydet').classList.contains('bekle')) return;
+      esitleniyor = true;
+      istek('GET', 'veri').then(function (j) {
+         if (farklar().length || Object.keys(digerFark()).length) return;
+         if (JSON.stringify(j.gruplar) === JSON.stringify(ORJ.gruplar) && +j.hatirlatma_saat === +ORJ.hatirlatma_saat
+            && JSON.stringify(j.durum) === JSON.stringify(ORJ.durum)) return;
+         VERI = j; ORJ = kopya(j); ciz();
+      }).catch(function () {}).then(function () { esitleniyor = false; });
+   }
+   setInterval(sessizEsitle, 15000);
+   document.addEventListener('visibilitychange', function () { if (!document.hidden) sessizEsitle(); });
+   window.addEventListener('focus', sessizEsitle);
+
    window.addEventListener('beforeunload', function (e) {
       if (VERI && (farklar().length || Object.keys(digerFark()).length)) { e.preventDefault(); e.returnValue = ''; }
    });
