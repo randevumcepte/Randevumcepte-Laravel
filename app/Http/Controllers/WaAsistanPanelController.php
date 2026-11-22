@@ -459,7 +459,7 @@ class WaAsistanPanelController extends StoreAdminController
         $sid = $this->salon($request);
         if (!$sid) return $this->yok();
         $gun = (int) $request->input('gun', 30);
-        if (!in_array($gun, [0, 1, 7, 30, 90, 365], true)) $gun = 30;
+        if ($gun < 0 || $gun > 400) $gun = 30; // 0 = tumu; 'Bu ay' gibi serbest gun sayilari da gecerli
         $rid = (int) $request->input('reklam_id', 0);
         return response()->json(['ok' => 1, 'gun' => $gun] + \App\Services\WaReklamKazanc::hesapla((int) $sid, $rid ?: null, $gun));
     }
