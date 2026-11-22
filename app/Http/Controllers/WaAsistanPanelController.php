@@ -484,6 +484,11 @@ class WaAsistanPanelController extends StoreAdminController
         $id = (int) $request->input('id');
         $eski = $id ? DB::table('wa_reklamlar')->where('id', $id)->where('salon_id', $sid)->first() : null;
         if ($id && !$eski) return response()->json(['ok' => 0, 'hata' => 'Reklam bulunamadı.'], 404);
+        // Indirim zorunlu (hesap karismasin): indirimsiz kampanya yayina alinamaz; durdurmak serbest (eski kayitlar)
+        $sonTur = array_key_exists('indirim_tur', $veri) ? $veri['indirim_tur'] : ($eski->indirim_tur ?? null);
+        if ($veri['aktif'] && !$sonTur) {
+            return response()->json(['ok' => 0, 'hata' => 'Kampanya indirimini girin (% ya da TL). İndirimsiz kampanya yayına alınamaz; asistan randevuyu bu indirimle açar.'], 422);
+        }
         $token = $eski->token ?? substr(bin2hex(random_bytes(8)), 0, 12);
         $f = $request->file('gorsel');
         if ($f) {

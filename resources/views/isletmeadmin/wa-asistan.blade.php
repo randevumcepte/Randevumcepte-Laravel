@@ -1679,10 +1679,10 @@
    // ---------- REKLAMLARIM (salonun kendi kampanyalari; asistan ilgili hizmette sohbette bir kez gonderir)
    var REKLAMLAR = [], RK_FILTRE = 'tumu', RK_DUZEN_ID = null;
    var RK_SABLONLAR = [
-      { e: '🎉', b: 'İlk ziyarete %20 indirim', m: 'İlk randevunuzda tüm hizmetlerde %20 indirim.\nYalnızca yeni müşterilerimize özel.', k: 'Yeni müşteri kazanın' },
-      { e: '📅', b: 'Hafta içi indirimi', m: 'Pazartesi–Perşembe randevularında %15 indirim.\nBoş saatlerinizi doldurmanın en kolay yolu.', k: 'Sakin günleri doldurun' },
-      { e: '🎁', b: 'İki hizmet bir arada', m: 'İki hizmeti birlikte alana özel paket fiyat.\nAyrı ayrı almaktan çok daha avantajlı.', k: 'Sepeti büyütün' },
-      { e: '👭', b: 'Arkadaşını getir', m: 'Arkadaşınızla birlikte gelin, ikinize de %10 indirim.', k: 'Tavsiye ile büyüyün' }
+      { e: '🎉', i: 20, b: 'İlk ziyarete %20 indirim', m: 'İlk randevunuzda tüm hizmetlerde %20 indirim.\nYalnızca yeni müşterilerimize özel.', k: 'Yeni müşteri kazanın' },
+      { e: '📅', i: 15, b: 'Hafta içi indirimi', m: 'Pazartesi–Perşembe randevularında %15 indirim.\nBoş saatlerinizi doldurmanın en kolay yolu.', k: 'Sakin günleri doldurun' },
+      { e: '🎁', i: 10, b: 'İki hizmet bir arada', m: 'İki hizmeti birlikte alana özel paket fiyat.\nAyrı ayrı almaktan çok daha avantajlı.', k: 'Sepeti büyütün' },
+      { e: '👭', i: 10, b: 'Arkadaşını getir', m: 'Arkadaşınızla birlikte gelin, ikinize de %10 indirim.', k: 'Tavsiye ile büyüyün' }
    ];
    function rkTarih(s) { if (!s) return ''; var p = String(s).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '.' + p[1] + '.' + p[0] : esc(s); }
    function rkGun(d) { d = d || new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
@@ -1736,7 +1736,7 @@
          var acma = x.gosterim ? Math.round(x.tiklama * 100 / x.gosterim) : 0;
          return '<div class="rk-kart' + (d === 'yayinda' || d === 'bekliyor' ? '' : ' pasif') + (String(RK_DUZEN_ID) === String(x.id) ? ' duzenleniyor' : '') + '">'
             + '<div class="rk-afis"' + (x.gorsel ? ' style="background-image:url(\'' + esc(x.gorsel) + '\')"' : '') + '>' + (x.gorsel ? '' : '<i class="bi bi-image"></i>')
-            + RK_HAP[d] + (rkIndirim(x.indirim_tur, x.indirim_deger) ? '<span class="rk-ind-rozet"><i class="bi bi-tag-fill"></i> ' + rkIndirim(x.indirim_tur, x.indirim_deger) + ' indirim</span>' : '') + (kalan ? '<span class="rk-kalan">' + kalan + '</span>' : '') + '</div>'
+            + RK_HAP[d] + (rkIndirim(x.indirim_tur, x.indirim_deger) ? '<span class="rk-ind-rozet"><i class="bi bi-tag-fill"></i> ' + rkIndirim(x.indirim_tur, x.indirim_deger) + ' indirim</span>' : '<span class="rk-ind-rozet" style="background:#f59e0b"><i class="bi bi-exclamation-triangle-fill"></i> İndirim girilmedi</span>') + (kalan ? '<span class="rk-kalan">' + kalan + '</span>' : '') + '</div>'
             + '<div class="rk-govde"><h5>' + esc(x.baslik) + '</h5>' + (x.metin ? '<p>' + esc(x.metin) + '</p>' : '')
             + '<div class="rk-etiketler">' + hz.slice(0, 3).map(function (i) { return '<span>' + esc(adlar[i] || ('#' + i)) + '</span>'; }).join('')
             + (hz.length > 3 ? '<span>+' + (hz.length - 3) + '</span>' : '') + (hz.length ? '' : '<span style="background:#fef3c7;color:#92400e">Hizmet seçilmedi</span>') + '</div>'
@@ -1788,9 +1788,9 @@
             var h = o.h, s = secili.indexOf(Number(h.id)) >= 0;
             return '<label data-ad="' + esc(String(h.ad).toLocaleLowerCase('tr-TR')) + '"' + (o.p < 999 ? ' data-pop="1"' : '') + (s ? ' class="secili"' : '') + '><input type="checkbox" value="' + h.id + '"' + (s ? ' checked' : '') + '>' + esc(h.ad) + '</label>'; }).join('')
          + '</div><div class="wa-alt" id="rkHizYok" style="display:none;padding:6px 0">Bu adla hizmet bulunamadı.</div></div>'
-         + '<div class="rk-alan rk-ind-alan"><div class="rk-etiket">Kampanya indirimi <small>asistanın açtığı randevuya otomatik işlenir</small></div>'
-         + '<div class="rk-ind-sec" id="rkIndTur">' + [['', 'İndirim yok'], ['yuzde', '% Yüzde'], ['tutar', '₺ Tutar']].map(function (t) {
-            return '<button type="button" data-tur="' + t[0] + '"' + ((x.indirim_tur || '') === t[0] ? ' class="secili"' : '') + '>' + t[1] + '</button>'; }).join('') + '</div>'
+         + '<div class="rk-alan rk-ind-alan"><div class="rk-etiket">Kampanya indirimi <span style="color:#e11d48">*</span> <small>zorunlu · asistanın açtığı randevuya otomatik işlenir</small></div>'
+         + '<div class="rk-ind-sec" id="rkIndTur">' + [['yuzde', '% Yüzde'], ['tutar', '₺ Tutar']].map(function (t) {
+            return '<button type="button" data-tur="' + t[0] + '"' + ((x.indirim_tur || 'yuzde') === t[0] ? ' class="secili"' : '') + '>' + t[1] + '</button>'; }).join('') + '</div>'
          + '<div class="rk-ind-deger" id="rkIndDegerSar"><input type="number" class="wa-girdi" id="rkIndDeger" min="0" step="0.01" inputmode="decimal" value="' + esc(x.indirim_deger ? Number(x.indirim_deger) : '') + '"><span id="rkIndBirim"></span></div>'
          + '<div class="rk-ind-ornek" id="rkIndOrnek"></div></div>'
          + '<div class="rk-alan"><div class="rk-etiket">Yayın tarihleri <small>boş bırakılırsa süresiz</small></div><div class="wa-satir" style="gap:10px">'
@@ -1868,7 +1868,7 @@
          var s = e.target.closest('[data-rk-sablon]'), su = e.target.closest('[data-rk-sure]'), sk = e.target.closest('[data-rk-sekme]');
          var it = e.target.closest('#rkIndTur [data-tur]');
          if (it) { f.querySelectorAll('#rkIndTur button').forEach(function (b) { b.classList.toggle('secili', b === it); }); onizle(); if (it.dataset.tur) el('rkIndDeger').focus(); }
-         if (s) { var t = RK_SABLONLAR[s.dataset.rkSablon]; el('rkBaslik').value = t.b; el('rkMetin').value = t.m; onizle(); el('rkBaslik').focus(); }
+         if (s) { var t = RK_SABLONLAR[s.dataset.rkSablon]; el('rkBaslik').value = t.b; el('rkMetin').value = t.m; f.querySelectorAll('#rkIndTur button').forEach(function (b) { b.classList.toggle('secili', b.dataset.tur === 'yuzde'); }); el('rkIndDeger').value = t.i; onizle(); el('rkBaslik').focus(); }
          if (su) {
             var v = su.dataset.rkSure, d = new Date();
             if (!el('rkBas').value && v !== '0') el('rkBas').value = rkGun();
@@ -1899,7 +1899,7 @@
       el('rkVazgec').addEventListener('click', rkFormKapat);
       el('rkKaydet').addEventListener('click', function () {
          var it0 = indTur(), id0 = Number(el('rkIndDeger').value || 0);
-         if (it0 && (id0 <= 0 || (it0 === 'yuzde' && id0 > 100))) { toast(id0 <= 0 ? 'İndirim miktarını yazın ya da "İndirim yok" seçin.' : 'Yüzde indirim en fazla 100 olabilir.'); el('rkIndDeger').focus(); return; }
+         if (!it0 || id0 <= 0 || (it0 === 'yuzde' && id0 > 100)) { toast(!it0 || id0 <= 0 ? 'Kampanya indirimini yazın (zorunlu).' : 'Yüzde indirim en fazla 100 olabilir.'); el('rkIndDeger').focus(); return; }
          if (!el('rkBaslik').value.trim()) { toast('Kampanyaya bir başlık yazın.'); el('rkBaslik').focus(); return; }
          if (el('rkBas').value && el('rkBit').value && el('rkBit').value < el('rkBas').value) { toast('Bitiş tarihi başlangıçtan önce olamaz.'); return; }
          var b = this, fd = new FormData();
@@ -1925,10 +1925,11 @@
    el('rkListe').addEventListener('click', function (e) {
       var d = e.target.closest('[data-rk-duzenle]'), a = e.target.closest('[data-rk-ac]'), s = e.target.closest('[data-rk-sil]'), sb = e.target.closest('[data-rk-sablon]');
       var bul = function (id) { return REKLAMLAR.filter(function (x) { return String(x.id) === String(id); })[0]; };
-      if (sb) { var t = RK_SABLONLAR[sb.dataset.rkSablon]; reklamForm({ aktif: 1, hizmetler: [], baslik: t.b, metin: t.m }); }
+      if (sb) { var t = RK_SABLONLAR[sb.dataset.rkSablon]; reklamForm({ aktif: 1, hizmetler: [], baslik: t.b, metin: t.m, indirim_tur: 'yuzde', indirim_deger: t.i || '' }); }
       if (d) reklamForm(bul(d.dataset.rkDuzenle));
       if (a) {
          var x = bul(a.dataset.rkAc), fd = new FormData();
+         if (!x.aktif && !x.indirim_tur) { toast('Yayına almadan önce kampanya indirimini girin.'); reklamForm(x); return; }
          fd.append('id', x.id); fd.append('baslik', x.baslik); fd.append('metin', x.metin || ''); fd.append('baslangic', String(x.baslangic || '').slice(0, 10));
          fd.append('bitis', String(x.bitis || '').slice(0, 10)); fd.append('aktif', x.aktif ? 0 : 1); fd.append('indirim_tur', x.indirim_tur || ''); fd.append('indirim_deger', x.indirim_deger || ''); (x.hizmetler || []).forEach(function (h) { fd.append('hizmetler[]', h); });
          a.disabled = true;
