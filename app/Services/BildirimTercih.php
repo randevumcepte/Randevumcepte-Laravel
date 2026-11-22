@@ -820,15 +820,33 @@ class BildirimTercih
                     $q->select('user_id')->from('musteri_portfoy')->where('salon_id', (int) $salonId);
                 })->distinct()->count('user_id');
         } catch (\Throwable $e) {}
+        $personelSayisi = 0;
+        try { $personelSayisi = (int) \App\Personeller::where('salon_id', (int) $salonId)->where('aktif', 1)->count(); } catch (\Throwable $e) {}
         return [
             'gruplar' => array_values(array_filter($gruplar, function ($g) { return count($g['bildirimler']) > 0; })),
             'wa_yedek_sms' => self::waYedekSms($salonId),
+            // "Yaklasan randevu hatirlatma" kac saat once (salonlar.randevu_sms_hatirlatma; eski SMS ekraniyla ayni alan)
+            'hatirlatma_saat' => $s ? (int) ($s->randevu_sms_hatirlatma ?: 0) : 0,
             'durum' => [
                 'sms_hesabi' => self::smsHesabiVar($s),
                 'sms_bakiye' => self::smsBakiye($s),
                 'wa_bagli' => self::waBagli($s),
                 'uygulama_musteri' => $uygulamaMusteri,
+                'personel_sayisi' => $personelSayisi,
             ],
         ];
+    }
+
+    /** Hatirlatma suresini (saat) kaydeder; degistiyse loglar. Gecerli: 1-23. */
+    public static function hatirlatmaSaatKaydet($salonId, $saat, $kaynak = 'panel', $req = null)
+    {
+        $saat = (int) $saat;
+        if ($saat < 1 || $saat > 23) return null;
+        $eski = (int) DB::table('salonlar')->where('id', (int) $salonId)->value('randevu_sms_hatirlatma');
+        if ($eski === $saat) return false;
+        DB::table('salonlar')->where('id', (int) $salonId)->update(['randevu_sms_hatirlatma' => $saat]);
+        self::logYaz($salonId, $req, 'Yaklaşan randevu hatırlatma süresi', $eski . ' saat önce → ' . $saat . ' saat önce' . self::kaynakEk($kaynak),
+            ['ayar' => 'randevu_sms_hatirlatma', 'eski' => $eski, 'yeni' => $saat, 'kaynak' => $kaynak]);
+        return true;
     }
 }

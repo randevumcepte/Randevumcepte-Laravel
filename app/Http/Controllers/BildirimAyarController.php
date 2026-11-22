@@ -56,6 +56,23 @@ class BildirimAyarController extends StoreAdminController
         if (!$sid) return response()->json(['ok' => 0, 'hata' => 'Bildirim ayarlarını yalnızca işletme sahibi değiştirebilir.'], 403);
         $kaynak = $this->kaynak();
 
+        // Toplu kayit (web "Degisiklikleri Kaydet"): degisiklikler=[{kod,alici,kanal,deger}], opsiyonel
+        // wa_yedek_sms ve hatirlatma_saat ayni istekte. Her degisen anahtar ayri log satiri yazar.
+        if ($request->has('degisiklikler')) {
+            $liste = $request->input('degisiklikler');
+            if (is_string($liste)) $liste = json_decode($liste, true);
+            if (!is_array($liste)) return response()->json(['ok' => 0, 'hata' => 'Geçersiz istek.'], 422);
+            $adet = 0;
+            foreach (array_slice($liste, 0, 500) as $d) {
+                if (!is_array($d) || !in_array($d['kanal'] ?? null, BildirimTercih::KANALLAR, true)) continue;
+                if (BildirimTercih::kaydet($sid, (string) ($d['kod'] ?? ''), (string) ($d['alici'] ?? ''), $d['kanal'],
+                    (int) ($d['deger'] ?? 0) === 1, $kaynak, $request)) $adet++;
+            }
+            if ($request->has('wa_yedek_sms') && BildirimTercih::waYedekKaydet($sid, (int) $request->input('wa_yedek_sms') === 1, $kaynak, $request)) $adet++;
+            if ($request->filled('hatirlatma_saat') && BildirimTercih::hatirlatmaSaatKaydet($sid, $request->input('hatirlatma_saat'), $kaynak, $request)) $adet++;
+            return response()->json(['ok' => 1, 'degisen' => $adet] + BildirimTercih::ekranVerisi($sid));
+        }
+
         if ($request->has('wa_yedek_sms')) {
             BildirimTercih::waYedekKaydet($sid, (int) $request->input('wa_yedek_sms') === 1, $kaynak, $request);
             return response()->json(['ok' => 1, 'wa_yedek_sms' => BildirimTercih::waYedekSms($sid)]);
