@@ -218,8 +218,15 @@
       }).catch(function (e) { el.checked = !yeni; el.disabled = false; toast(e.message, true); });
    });
 
-   // Sekme acildiginda (veya dogrudan ?p=bildirimayarlari ile gelindiginde) yukle
-   if (window.jQuery) jQuery(document).on('shown.bs.tab', 'a[href="#bildirim-ayarlari"]', yukle);
-   if (location.search.indexOf('p=bildirimayarlari') !== -1) setTimeout(yukle, 50);
+   // Sekme acildiginda (veya dogrudan ?p=bildirimayarlari ile gelindiginde) yukle.
+   // jQuery bu panelden SONRA yuklenebilir: tiklamayi duz JS ile yakala, jQuery olayina sayfa yuklenince baglan.
+   document.addEventListener('click', function (ev) {
+      if (ev.target.closest && ev.target.closest('a[href="#bildirim-ayarlari"]')) setTimeout(yukle, 60);
+   });
+   window.addEventListener('load', function () {
+      if (window.jQuery) jQuery(document).on('shown.bs.tab', 'a[href="#bildirim-ayarlari"]', yukle);
+      var pane = document.getElementById('bildirim-ayarlari');
+      if (location.search.indexOf('p=bildirimayarlari') !== -1 || (pane && pane.classList.contains('active'))) yukle();
+   });
 })();
 </script>
