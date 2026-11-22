@@ -662,7 +662,51 @@
    .rk-balon .s { text-align:right; font-size:11px; color:#667781; padding:2px 6px 0; }
    .rk-wa-not { font-size:12px; color:#64748b; margin-top:10px; text-align:center; }
    @media (max-width: 1250px) { .rk-duzen.form-acik { grid-template-columns:minmax(0,1fr); } .rk-sag { position:static; } .rk-form-ic { max-height:none; } }
-   @media (max-width: 900px) { .rk-ozet { grid-template-columns:repeat(2,minmax(0,1fr)); } .rk-hero { flex-direction:column; align-items:stretch; } .rk-adimlar > i { display:none; } }
+   /* ---- Reklamlarim: kazandirilan + katilan musteriler ---- */
+   .rk-ozet.bes { grid-template-columns:repeat(5,minmax(0,1fr)); }
+   .rk-kpi.kazanc { background:linear-gradient(135deg,#ecfdf5,#d1fae5); border:1px solid #a7f3d0; }
+   .rk-kpi.kazanc b { color:#047857; }
+   .rk-kpi em { display:block; font-style:normal; font-size:12px; color:#047857; opacity:.85; margin-top:2px; }
+   .rk-kazanc-hap { margin-left:auto; align-self:center; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; border-radius:999px; padding:6px 14px; font-size:13px; font-weight:700; white-space:nowrap; display:inline-flex; align-items:center; gap:6px; }
+   .rk-kazanc-satir { margin-top:8px; font-size:12.5px; font-weight:700; color:#047857; background:#ecfdf5; border-radius:10px; padding:6px 10px; text-align:center; }
+   .rk-kazanc-satir span { font-weight:600; color:#64748b; }
+   .rk-huni.dort { grid-template-columns:repeat(4,1fr); }
+   .rk-huni.dort small { font-size:11px; }
+   .rk-huni div.gl { background:#f0fdfa; } .rk-huni div.gl b { color:#0f766e; }
+   .rk-kat-link { border:none; background:none; color:#6d28d9; font-size:12px; font-weight:600; cursor:pointer; padding:4px 0 0; align-self:center; text-decoration:underline; text-underline-offset:2px; }
+   .rk-kat { background:#fff; border-radius:20px; box-shadow:var(--golge); margin-top:18px; padding:16px 18px; }
+   .rk-kat-bas { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+   .rk-kat-bas h4 { margin:0; font-size:16px; font-weight:700; color:#1f1530; display:flex; align-items:center; gap:8px; }
+   .rk-kat-bas h4 i { color:#7c3aed; }
+   .rk-kat-bas .say { font-size:12.5px; color:#64748b; }
+   .rk-kat-chip { display:inline-flex; align-items:center; gap:6px; background:#6d28d9; color:#fff; font-size:12.5px; font-weight:600; padding:4px 6px 4px 12px; border-radius:999px; }
+   .rk-kat-chip button { border:none; background:rgba(255,255,255,.22); color:#fff; width:20px; height:20px; border-radius:50%; font-size:11px; cursor:pointer; padding:0; line-height:1; }
+   .rk-kat-tablo { display:flex; flex-direction:column; }
+   .rk-kat-sat { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1.4fr) minmax(0,1fr) 110px minmax(0,1fr) 90px 80px; gap:10px; align-items:center; padding:9px 4px; border-top:1px solid #f3eef9; font-size:13px; color:#1f1530; }
+   .rk-kat-sat.bas { border-top:none; font-size:11.5px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.03em; }
+   .rk-kat-sat > div { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+   .rk-kat-sat .ad b { display:block; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+   .rk-kat-sat .ad small { color:#94a3b8; font-size:11.5px; }
+   .rk-kat-sat .para { text-align:right; font-weight:600; }
+   .rk-kat-sat .para.o { color:#047857; } .rk-kat-sat .para.i { color:#b91c1c; }
+   .rk-kat-sat .bos-d { color:#cbd5e1; }
+   .rk-dz { display:inline-block; font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:999px; white-space:nowrap; }
+   .rk-dz.gonderildi { background:#f1f5f9; color:#64748b; } .rk-dz.acti { background:#e0f2fe; color:#0369a1; }
+   .rk-dz.randevu { background:#f1e8ff; color:#7c3aed; } .rk-dz.geldi { background:#ccfbf1; color:#0f766e; } .rk-dz.odedi { background:#dcfce7; color:#15803d; }
+   .rk-kat-bos { color:#94a3b8; font-size:13.5px; text-align:center; padding:20px 10px; }
+   .rk-kat-tum { display:block; margin:10px auto 0; border:1px solid #e4dcf0; background:#fff; color:#5b1fa8; border-radius:999px; padding:7px 18px; font-size:13px; font-weight:600; cursor:pointer; }
+   .rk-kat-tum:hover { background:#f8f4ff; }
+   @media (max-width: 1400px) { .rk-ozet.bes { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+   @media (max-width: 760px) {
+      .rk-kat { padding:14px 12px; }
+      .rk-kat-sat.bas { display:none; }
+      .rk-kat-sat { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:6px 10px; border:1px solid #f3eef9; border-radius:14px; padding:10px 12px; margin-bottom:8px; }
+      .rk-kat-sat .ad { grid-column:1 / -1; }
+      .rk-kat-sat > div[data-l]::before { content:attr(data-l); display:block; font-size:11px; font-weight:600; color:#94a3b8; }
+      .rk-kat-sat .para { text-align:left; }
+      .rk-kazanc-hap { margin-left:0; }
+   }
+   @media (max-width: 900px) { .rk-ozet, .rk-ozet.bes { grid-template-columns:repeat(2,minmax(0,1fr)); } .rk-hero { flex-direction:column; align-items:stretch; } .rk-adimlar > i { display:none; } }
    @media (max-width: 1100px) { .wk-hero, .wk-iki { grid-template-columns:minmax(0,1fr); } }
    @media (max-width: 760px) {
       .wk-uc { grid-template-columns:minmax(0,1fr); }
@@ -796,6 +840,7 @@
          <div class="rk-sol">
             <div class="rk-filtre" id="rkFiltre"></div>
             <div id="rkListe"><div class="wa-bos">Yükleniyor…</div></div>
+            <div id="rkKatilim"></div>
          </div>
          <div class="rk-sag" id="rkForm" style="display:none"></div>
       </div>
@@ -1699,7 +1744,56 @@
          if (!r.ok) { el('rkListe').innerHTML = '<div class="wa-bos">' + esc(r.hata || 'Yüklenemedi.') + '</div>'; return; }
          el('rkKapali').style.display = r.acik ? 'none' : 'flex';
          REKLAMLAR = r.liste || []; reklamCiz();
+         rkKazancYukle();
       }).catch(hata);
+   }
+   // Kazandirilan tutar + katilan musteriler (hata olursa sekme bozulmaz; yalniz bu kisimlar gorunmez)
+   var RK_KAZANC = null, RK_KAT_ID = null, RK_KAT_TUM = false;
+   function rkKazancYukle() {
+      al('/reklam-kazanc', { gun: 30 }).then(function (r) {
+         RK_KAZANC = r && r.ok ? r : null;
+      }).catch(function () { RK_KAZANC = null; }).then(function () {
+         try { reklamCiz(); } catch (e) { /* sekme bozulmasin */ }
+      });
+   }
+   function rkPara(x) { return '₺' + Number(x || 0).toLocaleString('tr-TR', { maximumFractionDigits: 0 }); }
+   function rkZaman(s) { if (!s) return ''; s = String(s); return s.length > 10 && s.slice(11, 16) !== '00:00' ? tarih(s) : rkTarih(s); }
+   var RK_DZ = { gonderildi: 'Gönderildi', acti: 'Açtı', randevu: 'Randevu aldı', geldi: 'Geldi', odedi: 'Ödedi' };
+   function rkKatilimCiz() {
+      var k = el('rkKatilim');
+      if (!REKLAMLAR.length && !(RK_KAZANC && (RK_KAZANC.katilimcilar || []).length)) { k.innerHTML = ''; return; }
+      if (!RK_KAZANC) { k.innerHTML = ''; return; }
+      var tum = RK_KAZANC.katilimcilar || [];
+      if (RK_KAT_ID != null && !REKLAMLAR.some(function (x) { return String(x.id) === String(RK_KAT_ID); }) && !tum.some(function (s) { return String(s.reklam_id) === String(RK_KAT_ID); })) RK_KAT_ID = null;
+      var liste = RK_KAT_ID == null ? tum : tum.filter(function (s) { return String(s.reklam_id) === String(RK_KAT_ID); });
+      var chip = '';
+      if (RK_KAT_ID != null) {
+         var rk = REKLAMLAR.filter(function (x) { return String(x.id) === String(RK_KAT_ID); })[0];
+         var rkAd = rk ? rk.baslik : ((liste[0] && liste[0].reklam) || ('#' + RK_KAT_ID));
+         chip = '<span class="rk-kat-chip">' + esc(rkAd) + '<button type="button" data-rk-kat-temizle title="Filtreyi kaldır">✕</button></span>';
+      }
+      var goster = RK_KAT_TUM ? liste : liste.slice(0, 25);
+      var h = '<div class="rk-kat"><div class="rk-kat-bas"><h4><i class="bi bi-people-fill"></i> Kampanyaya katılan müşteriler</h4>' + chip
+         + '<span class="say">' + (liste.length ? sayi(liste.length) + ' kişi · son ' + sayi(RK_KAZANC.gun || 30) + ' gün' : '') + '</span></div>';
+      if (!liste.length) {
+         h += '<div class="rk-kat-bos">Henüz kampanyaya katılan müşteri yok.</div></div>';
+         k.innerHTML = h; return;
+      }
+      h += '<div class="rk-kat-tablo"><div class="rk-kat-sat bas"><div>Müşteri</div><div>Kampanya</div><div>Gönderim</div><div>Durum</div><div>Randevu</div><div style="text-align:right">Ödenen</div><div style="text-align:right">İndirim</div></div>';
+      h += goster.map(function (s) {
+         var dz = RK_DZ[s.durum] ? s.durum : 'gonderildi';
+         var ad = s.ad ? '<b>' + esc(s.ad) + '</b>' + (s.telefon ? '<small>' + esc(s.telefon) + '</small>' : '') : '<b>' + esc(s.telefon || 'Müşteri') + '</b>';
+         var od = Number(s.odenen || 0), ind = Number(s.indirim || 0);
+         return '<div class="rk-kat-sat"><div class="ad">' + ad + '</div>'
+            + '<div data-l="Kampanya">' + esc(s.reklam || '') + '</div>'
+            + '<div data-l="Gönderim">' + (s.gonderim ? rkZaman(s.gonderim) : '<span class="bos-d">—</span>') + '</div>'
+            + '<div data-l="Durum"><span class="rk-dz ' + dz + '">' + esc(s.durum_ad || RK_DZ[dz]) + '</span></div>'
+            + '<div data-l="Randevu">' + (s.randevu_tarih ? rkZaman(s.randevu_tarih) : '<span class="bos-d">—</span>') + '</div>'
+            + '<div data-l="Ödenen" class="para' + (od ? ' o' : '') + '">' + (od ? rkPara(od) : '<span class="bos-d">—</span>') + '</div>'
+            + '<div data-l="İndirim" class="para' + (ind ? ' i' : '') + '">' + (ind ? rkPara(ind) : '<span class="bos-d">—</span>') + '</div></div>';
+      }).join('') + '</div>';
+      if (!RK_KAT_TUM && liste.length > 25) h += '<button type="button" class="rk-kat-tum" data-rk-kat-tum>Tümünü göster (' + sayi(liste.length) + ')</button>';
+      k.innerHTML = h + '</div>';
    }
    function rkSablonlar() {
       return '<div class="rk-sablonlar">' + RK_SABLONLAR.map(function (s, i) {
@@ -1711,11 +1805,18 @@
       var top = { y: 0, g: 0, t: 0, r: 0 };
       REKLAMLAR.forEach(function (x) { if (rkDurum(x) === 'yayinda') top.y++; top.g += Number(x.gosterim || 0); top.t += Number(x.tiklama || 0); top.r += Number(x.randevu || 0); });
       var kpi = function (ikon, renk, zemin, deger, ad) { return '<div class="rk-kpi"><i class="bi ' + ikon + '" style="color:' + renk + ';background:' + zemin + '"></i><div><b>' + deger + '</b><small>' + ad + '</small></div></div>'; };
+      var oz = RK_KAZANC && RK_KAZANC.ozet ? RK_KAZANC.ozet : null, kz = RK_KAZANC && RK_KAZANC.reklamlar ? RK_KAZANC.reklamlar : {};
+      var ul = oz ? Number(oz.ulasilan || 0) : top.g, ac = oz ? Number(oz.acan || 0) : top.t, rd = oz ? Number(oz.randevu || 0) : top.r;
+      el('rkOzet').className = 'rk-ozet' + (REKLAMLAR.length && oz ? ' bes' : '');
       el('rkOzet').innerHTML = REKLAMLAR.length ? kpi('bi-broadcast', '#16a34a', '#dcfce7', sayi(top.y) + ' <small>/ ' + sayi(REKLAMLAR.length) + '</small>', 'Yayındaki kampanya')
-         + kpi('bi-send-fill', '#7c3aed', '#ede9fe', sayi(top.g), 'Kişiye gönderildi · 30 gün')
-         + kpi('bi-eye-fill', '#0284c7', '#e0f2fe', sayi(top.t) + (top.g ? ' <small>%' + Math.round(top.t * 100 / top.g) + '</small>' : ''), 'Afişi açtı')
-         + kpi('bi-calendar2-check-fill', '#db2777', '#fce7f3', sayi(top.r), 'Randevuya dönüştü') : '';
+         + kpi('bi-send-fill', '#7c3aed', '#ede9fe', sayi(ul) + (ul ? ' <small>%' + Math.round(ac * 100 / ul) + ' açtı</small>' : ''), 'Ulaşılan müşteri · 30 gün')
+         + kpi('bi-calendar2-check-fill', '#db2777', '#fce7f3', sayi(rd), 'Randevuya dönüştü')
+         + (oz ? kpi('bi-person-check-fill', '#0f766e', '#ccfbf1', sayi(oz.gelen), 'Salona geldi')
+            + '<div class="rk-kpi kazanc"><i class="bi bi-cash-stack" style="color:#fff;background:#10b981"></i><div><b>' + rkPara(oz.kazanc) + '</b><small>Kazandırılan · 30 gün</small>'
+            + (Number(oz.indirim || 0) ? '<em>İndirim ' + rkPara(oz.indirim) + '</em>' : '') + '</div></div>'
+            : kpi('bi-eye-fill', '#0284c7', '#e0f2fe', sayi(top.t), 'Afişi açtı')) : '';
       if (!REKLAMLAR.length) {
+         rkKatilimCiz();
          el('rkFiltre').innerHTML = '';
          el('rkListe').innerHTML = '<div class="rk-bos"><i class="bi bi-megaphone"></i><h4>Henüz kampanyanız yok</h4>'
             + '<p>Hazır bir şablonla başlayın ya da sağ üstteki "Yeni kampanya" ile kendinizinkini yazın.</p>' + rkSablonlar() + '</div>';
@@ -1726,26 +1827,31 @@
       if (RK_FILTRE !== 'tumu' && !say[RK_FILTRE]) RK_FILTRE = 'tumu';
       el('rkFiltre').innerHTML = [['tumu', 'Tümü'], ['yayinda', 'Yayında'], ['bekliyor', 'Başlamadı'], ['kapali', 'Durduruldu'], ['bitti', 'Süresi bitti']]
          .filter(function (f) { return f[0] === 'tumu' || say[f[0]]; })
-         .map(function (f) { return '<button data-rk-filtre="' + f[0] + '"' + (RK_FILTRE === f[0] ? ' class="secili"' : '') + '>' + f[1] + '<span>' + say[f[0]] + '</span></button>'; }).join('');
+         .map(function (f) { return '<button data-rk-filtre="' + f[0] + '"' + (RK_FILTRE === f[0] ? ' class="secili"' : '') + '>' + f[1] + '<span>' + say[f[0]] + '</span></button>'; }).join('')
+         + (oz ? '<span class="rk-kazanc-hap" title="Son 30 günde kampanya müşterilerinden tahsil edilen tutar"><i class="bi bi-cash-coin"></i> Kazandırılan ' + rkPara(oz.kazanc) + '</span>' : '');
       var adlar = {}; HIZMETLER.forEach(function (h) { adlar[h.id] = h.ad; });
       el('rkListe').innerHTML = '<div class="rk-izgara">' + REKLAMLAR.filter(function (x) { return RK_FILTRE === 'tumu' || rkDurum(x) === RK_FILTRE; }).map(function (x) {
          var d = rkDurum(x), hz = x.hizmetler || [], kalan = '';
          if (d === 'yayinda' && x.bitis) { var f = rkFark(x.bitis); kalan = f === 0 ? 'Son gün bugün' : f + ' gün kaldı'; }
          if (d === 'bekliyor') kalan = rkTarih(x.baslangic) + ' başlar';
-         var acma = x.gosterim ? Math.round(x.tiklama * 100 / x.gosterim) : 0;
+         var acma = x.gosterim ? Math.round(x.tiklama * 100 / x.gosterim) : 0, kk = kz[String(x.id)] || {};
          return '<div class="rk-kart' + (d === 'yayinda' || d === 'bekliyor' ? '' : ' pasif') + (String(RK_DUZEN_ID) === String(x.id) ? ' duzenleniyor' : '') + '">'
             + '<div class="rk-afis"' + (x.gorsel ? ' style="background-image:url(\'' + esc(x.gorsel) + '\')"' : '') + '>' + (x.gorsel ? '' : '<i class="bi bi-image"></i>')
             + RK_HAP[d] + (rkIndirim(x.indirim_tur, x.indirim_deger) ? '<span class="rk-ind-rozet"><i class="bi bi-tag-fill"></i> ' + rkIndirim(x.indirim_tur, x.indirim_deger) + ' indirim</span>' : '<span class="rk-ind-rozet" style="background:#f59e0b"><i class="bi bi-exclamation-triangle-fill"></i> İndirim girilmedi</span>') + (kalan ? '<span class="rk-kalan">' + kalan + '</span>' : '') + '</div>'
             + '<div class="rk-govde"><h5>' + esc(x.baslik) + '</h5>' + (x.metin ? '<p>' + esc(x.metin) + '</p>' : '')
             + '<div class="rk-etiketler">' + hz.slice(0, 3).map(function (i) { return '<span>' + esc(adlar[i] || ('#' + i)) + '</span>'; }).join('')
             + (hz.length > 3 ? '<span>+' + (hz.length - 3) + '</span>' : '') + (hz.length ? '' : '<span style="background:#fef3c7;color:#92400e">Hizmet seçilmedi</span>') + '</div>'
-            + '<div class="rk-huni"><div><b>' + sayi(x.gosterim) + '</b><small>gönderildi</small></div><div><b>' + sayi(x.tiklama) + '</b><small>açtı' + (x.gosterim ? ' · %' + acma : '') + '</small></div>'
-            + '<div class="r"><b>' + sayi(x.randevu) + '</b><small>randevu</small></div></div><div class="rk-huni-alt">son 30 gün' + (x.bitis && d !== 'bekliyor' && !kalan ? ' · son gün ' + rkTarih(x.bitis) : '') + '</div></div>'
+            + '<div class="rk-huni' + (oz ? ' dort' : '') + '"><div><b>' + sayi(x.gosterim) + '</b><small>gönderildi</small></div><div><b>' + sayi(x.tiklama) + '</b><small>açtı' + (x.gosterim ? ' · %' + acma : '') + '</small></div>'
+            + '<div class="r"><b>' + sayi(x.randevu) + '</b><small>randevu</small></div>' + (oz ? '<div class="gl"><b>' + sayi(kk.gelen) + '</b><small>geldi</small></div>' : '') + '</div>'
+            + (Number(kk.kazanc || 0) || Number(kk.indirim || 0) ? '<div class="rk-kazanc-satir"><i class="bi bi-cash-stack"></i> ' + rkPara(kk.kazanc) + ' kazandırdı' + (Number(kk.indirim || 0) ? ' <span>· ' + rkPara(kk.indirim) + ' indirim</span>' : '') + '</div>' : '')
+            + '<div class="rk-huni-alt">son 30 gün' + (x.bitis && d !== 'bekliyor' && !kalan ? ' · son gün ' + rkTarih(x.bitis) : '') + '</div>'
+            + (oz ? '<button type="button" class="rk-kat-link" data-rk-katilan="' + esc(x.id) + '"><i class="bi bi-people"></i> Katılanlar' + (Number(kk.ulasilan || 0) ? ' (' + sayi(kk.ulasilan) + ')' : '') + '</button>' : '') + '</div>'
             + '<div class="rk-btnlar"><button data-rk-duzenle="' + x.id + '"><i class="bi bi-pencil"></i> Düzenle</button>'
             + '<button data-rk-ac="' + x.id + '">' + (x.aktif ? '<i class="bi bi-pause-fill"></i> Durdur' : '<i class="bi bi-play-fill"></i> Yayına al') + '</button>'
             + '<a href="' + esc(x.link) + '" target="_blank" rel="noopener" title="Müşterinin gördüğü sayfa"><i class="bi bi-box-arrow-up-right"></i> Sayfa</a>'
             + '<button class="sil" data-rk-sil="' + x.id + '" title="Sil"><i class="bi bi-trash"></i></button></div></div>';
       }).join('') + '</div>';
+      rkKatilimCiz();
    }
    function rkFormKapat() { el('rkForm').style.display = 'none'; el('rkDuzen').classList.remove('form-acik'); RK_DUZEN_ID = null; reklamCiz(); }
    // Musteriye giden mesajin onizlemesi (WaReklam::mesaj ile ayni sablon)
@@ -1912,7 +2018,7 @@
          fetch(url('/reklam'), { method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: fd }).then(yanit).then(function (r) {
             b.disabled = false;
             if (!r.ok) { toast(r.hata || 'Kaydedilemedi.'); return; }
-            REKLAMLAR = r.liste || []; rkFormKapat(); toast('Kampanya kaydedildi.');
+            REKLAMLAR = r.liste || []; rkFormKapat(); toast('Kampanya kaydedildi.'); rkKazancYukle();
          }).catch(function () { b.disabled = false; hata(); });
       });
       reklamCiz();
@@ -1924,6 +2030,8 @@
    el('rkListe').addEventListener('click', function (e) {
       var d = e.target.closest('[data-rk-duzenle]'), a = e.target.closest('[data-rk-ac]'), s = e.target.closest('[data-rk-sil]'), sb = e.target.closest('[data-rk-sablon]');
       var bul = function (id) { return REKLAMLAR.filter(function (x) { return String(x.id) === String(id); })[0]; };
+      var kl = e.target.closest('[data-rk-katilan]');
+      if (kl) { RK_KAT_ID = kl.dataset.rkKatilan; RK_KAT_TUM = false; rkKatilimCiz(); var ks = el('rkKatilim'); if (ks.firstChild) ks.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
       if (sb) { var t = RK_SABLONLAR[sb.dataset.rkSablon]; reklamForm({ aktif: 1, hizmetler: [], baslik: t.b, metin: t.m, indirim_tur: 'yuzde', indirim_deger: t.i || '' }); }
       if (d) reklamForm(bul(d.dataset.rkDuzenle));
       if (a) {
@@ -1933,11 +2041,16 @@
          fd.append('bitis', String(x.bitis || '').slice(0, 10)); fd.append('aktif', x.aktif ? 0 : 1); fd.append('indirim_tur', x.indirim_tur || ''); fd.append('indirim_deger', x.indirim_deger || ''); (x.hizmetler || []).forEach(function (h) { fd.append('hizmetler[]', h); });
          a.disabled = true;
          fetch(url('/reklam'), { method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF }, body: fd }).then(yanit)
-            .then(function (r) { if (r.ok) { REKLAMLAR = r.liste || []; reklamCiz(); toast(x.aktif ? 'Kampanya durduruldu.' : 'Kampanya yayında.'); } else { a.disabled = false; toast(r.hata || 'Kaydedilemedi.'); } }).catch(hata);
+            .then(function (r) { if (r.ok) { REKLAMLAR = r.liste || []; reklamCiz(); toast(x.aktif ? 'Kampanya durduruldu.' : 'Kampanya yayında.'); rkKazancYukle(); } else { a.disabled = false; toast(r.hata || 'Kaydedilemedi.'); } }).catch(hata);
       }
       if (s && confirm('Bu kampanya silinsin mi?')) {
-         gonder('/reklam/' + s.dataset.rkSil + '/sil').then(function (r) { if (r.ok) { REKLAMLAR = r.liste || []; if (String(RK_DUZEN_ID) === String(s.dataset.rkSil)) rkFormKapat(); else reklamCiz(); toast('Silindi.'); } }).catch(hata);
+         gonder('/reklam/' + s.dataset.rkSil + '/sil').then(function (r) { if (r.ok) { REKLAMLAR = r.liste || []; if (String(RK_DUZEN_ID) === String(s.dataset.rkSil)) rkFormKapat(); else reklamCiz(); toast('Silindi.'); rkKazancYukle(); } }).catch(hata);
       }
+   });
+
+   el('rkKatilim').addEventListener('click', function (e) {
+      if (e.target.closest('[data-rk-kat-temizle]')) { RK_KAT_ID = null; RK_KAT_TUM = false; rkKatilimCiz(); }
+      else if (e.target.closest('[data-rk-kat-tum]')) { RK_KAT_TUM = true; rkKatilimCiz(); }
    });
 
    // ---------- AYARLAR
