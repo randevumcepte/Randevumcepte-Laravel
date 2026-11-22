@@ -198,7 +198,9 @@
       // Kalan: SMS hesabi yoksa 0; bakiye sorgulanamadiysa '—'
       var smsKalan = !d.sms_hesabi ? sayi(0) : (d.sms_bakiye == null ? '—' : sayi(d.sms_bakiye));
       function kart(ikon, renk, zemin, baslik, alt, iyi, kalan, birim) {
-         return '<div class="bm-kart bm-durum"><div class="bm-durum-ikon" style="background:' + zemin + ';color:' + renk + '"><i class="fa ' + ikon + '"></i></div>'
+         // Hafif renkli zemin + sol renk seridi; sorunlu kart turuncu
+         var vurgu = iyi ? renk : '#f59e0b', acik = iyi ? zemin : '#fff7ed';
+         return '<div class="bm-kart bm-durum" style="background:linear-gradient(135deg,' + acik + ' 0%,#fff 78%);border-color:' + acik + ';border-left:4px solid ' + vurgu + '"><div class="bm-durum-ikon" style="background:#fff;box-shadow:0 2px 8px rgba(31,22,51,.06);color:' + renk + '"><i class="fa ' + ikon + '"></i></div>'
             + '<div><b>' + baslik + '</b><small>' + esc(alt) + '</small>'
             + (kalan != null ? '<div class="bm-kalan">Kalan <strong style="color:' + renk + '">' + esc(kalan) + '</strong> ' + birim + '</div>' : '') + '</div><span class="bm-tik ' + (iyi ? 'iyi' : 'kotu') + '"><i class="fa ' + (iyi ? 'fa-check' : 'fa-exclamation') + '"></i></span></div>';
       }
@@ -206,7 +208,7 @@
          + kart('fa-commenting', '#5C008E', '#f3ebfb', smsIyi ? 'SMS Aktif' : 'SMS Kullanılamıyor', smsAlt, smsIyi, smsKalan, 'SMS')
          + kart('fa-whatsapp', '#16a34a', '#e9f9ef', d.wa_bagli ? 'WhatsApp Bağlı' : 'WhatsApp Bağlı Değil', d.wa_bagli ? 'WhatsApp bildirimleri gönderilir.' : 'Bağlayana kadar WhatsApp\'tan mesaj gitmez.', d.wa_bagli, sayi(d.wa_kontor), 'kontör')
          + kart('fa-bell', '#6d28d9', '#efeafe', 'Uygulama Bildirimi Aktif', 'Uygulamayı kullanan müşteri: ' + (+d.uygulama_musteri || 0), true)
-         + '<div class="bm-kart bm-sayilar"><div class="bm-sayi"><b>' + toplam + '</b><span>Bildirim türü</span></div>'
+         + '<div class="bm-kart bm-sayilar" style="background:linear-gradient(135deg,#f6f0fc 0%,#fff 80%);border-color:#ece0f8;border-left:4px solid #5C008E"><div class="bm-sayi"><b>' + toplam + '</b><span>Bildirim türü</span></div>'
          + '<div class="bm-sayi"><b>3</b><span>Kanal</span></div><div class="bm-sayi"><b>' + (+d.personel_sayisi || 0) + '</b><span>Personel</span></div></div>'
          + '</div>';
    }
