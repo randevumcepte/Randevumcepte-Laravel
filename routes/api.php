@@ -409,6 +409,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::post('/calisma-ekle','ProfilController@calismaEkle');
         Route::post('/calisma-sil','ProfilController@calismaSil');
         Route::get('/yetkiler','ProfilController@yetkiler');
+        Route::get('/hakkinda','ProfilController@hakkinda');
         Route::get('/cihazlar','ProfilController@cihazlar');
         Route::post('/cihaz-kapat','ProfilController@cihazKapat');
     });

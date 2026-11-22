@@ -141,6 +141,13 @@ class ProfilController extends StoreAdminController
         return $this->sonuc(true, ['gruplar' => PersonelProfil::yetkiler($k[0], $y->id), 'yonetici' => $k[2]]);
     }
 
+    /** Uygulama Hakkinda: isletme bilgisi + uygulama ici yasal metinler (her isletmeye otomatik). */
+    public function hakkinda(Request $request)
+    {
+        if (!$k = $this->kisi($request)) return $this->yok();
+        return $this->sonuc(true, ['isletme' => \App\Services\IsletmeYasalMetin::isletme($k[0]), 'metinler' => \App\Services\IsletmeYasalMetin::metinler($k[0])]);
+    }
+
     public function cihazlar(Request $request)
     {
         if (!$k = $this->kisi($request)) return $this->yok();
