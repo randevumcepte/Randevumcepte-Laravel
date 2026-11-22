@@ -74,16 +74,19 @@
     .ai-panel h2 { font-size:16px; color:#2a2340; font-weight:700; margin:0 0 4px; }
     .ai-panel .acik { font-size:13px; color:#8b7ba8; margin:0 0 14px; line-height:1.5; }
 
-    .ai-kanal { display:grid; grid-template-columns:44px 1fr auto; gap:14px; align-items:center; padding:14px 0; border-bottom:1px solid #f4f1fa; }
-    .ai-kanal:last-child { border-bottom:none; }
-    .ai-ikon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; color:#fff; }
+    .ai-kanallar { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; }
+    .ai-kanal { border:1px solid #ece7f6; border-top:4px solid var(--renk); border-radius:14px; padding:16px; background:#fdfcff;
+        display:flex; flex-direction:column; gap:10px; }
+    .ai-kanal .ust { display:flex; align-items:center; gap:12px; }
+    .ai-ikon { width:42px; height:42px; flex:0 0 42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:21px; color:#fff; }
     .ai-kanal .ad { font-size:15px; font-weight:700; color:#2a2340; }
-    .ai-kanal .ne { font-size:12.5px; color:#8b7ba8; margin-top:2px; }
-    .ai-kanal .bilgi { font-size:13px; color:#4b3d6b; margin-top:7px; display:flex; gap:6px 16px; flex-wrap:wrap; }
-    .ai-kanal .bilgi b { color:#2a2340; }
-    .ai-kanal .tutar { text-align:right; white-space:nowrap; }
-    .ai-kanal .tutar .tl { font-size:19px; font-weight:700; color:#2a2340; }
-    .ai-kanal .tutar .us { font-size:12px; color:#94a3b8; }
+    .ai-kanal .ne { font-size:12px; color:#8b7ba8; margin-top:2px; line-height:1.4; }
+    .ai-kanal .tutar .tl { font-size:26px; font-weight:700; color:#2a2340; line-height:1.1; }
+    .ai-kanal .tutar .us { font-size:12px; color:#94a3b8; margin-left:6px; }
+    .ai-kanal .bilgi { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .ai-kanal .bilgi div { background:#f5f2fb; border-radius:9px; padding:7px 10px; font-size:11.5px; color:#8b7ba8; }
+    .ai-kanal .bilgi div b { display:block; font-size:14px; color:#2a2340; margin-top:1px; }
+    .ai-kanal .model { font-size:12px; color:#6b5b8a; }
     .ai-pay { display:flex; align-items:center; gap:8px; margin-top:8px; }
     .ai-pay .bg { flex:1; background:#f0ebf8; border-radius:6px; height:8px; overflow:hidden; max-width:420px; }
     .ai-pay .bar { height:8px; border-radius:6px; }
@@ -116,11 +119,8 @@
     .ai-sozluk div { background:#f9f7fd; border-radius:10px; padding:10px 12px; font-size:12.5px; color:#4b3d6b; line-height:1.5; }
     .ai-sozluk b { color:#2a2340; display:block; margin-bottom:2px; }
 
-    @media (max-width:600px) {
-        .ai-kanal { grid-template-columns:36px 1fr; }
-        .ai-ikon { width:36px; height:36px; font-size:18px; }
-        .ai-kanal .tutar { grid-column:2; text-align:left; }
-    }
+    @media (max-width:1100px) { .ai-kanallar { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+    @media (max-width:640px)  { .ai-kanallar { grid-template-columns:1fr; } }
 </style>
 
 <div class="ai-baslik">
@@ -195,32 +195,33 @@
 <div class="ai-panel">
     <h2>Para nereye gidiyor?</h2>
     <p class="acik">Her satır AI'nin yaptığı bir iş. Çubuk, toplam harcamadaki payı gösterir. "1 işlem" o işin tek seferlik maliyetidir.</p>
+    <div class="ai-kanallar">
     @forelse($turler as $t)
         @php $k = $kanal($t->tur); $pay = $donemUsd > 0 ? (float)$t->maliyet / $donemUsd * 100 : 0; $aiAdet = (int)$t->cagri - (int)$t->cache; @endphp
-        <div class="ai-kanal">
-            <div class="ai-ikon" style="background:{{ $k['renk'] }}"><span class="mdi {{ $k['ikon'] }}"></span></div>
-            <div>
-                <div class="ad">{{ $k['ad'] }}</div>
-                <div class="ne">{{ $k['ne'] }}</div>
-                <div class="bilgi">
-                    <span><b>{{ $sayi($t->cagri) }}</b> {{ $k['birim'] }}</span>
-                    <span>1 işlem ≈ <b>{{ $birim($aiAdet > 0 ? (float)$t->maliyet / $aiAdet : 0) }}</b></span>
-                    @if($t->model)<span>{{ $modelAd($t->model) }}</span>@endif
-                </div>
-                @if((int)$t->cache > 0)<span class="ai-cip yesil">{{ $sayi($t->cache) }} hazır cevap · bedava</span>@endif
-                <div class="ai-pay">
-                    <div class="bg"><div class="bar" style="width:{{ round($pay) }}%;background:{{ $k['renk'] }}"></div></div>
-                    <span class="yuzde">%{{ $pay < 1 && $pay > 0 ? '<1' : round($pay) }}</span>
+        <div class="ai-kanal" style="--renk:{{ $k['renk'] }}">
+            <div class="ust">
+                <div class="ai-ikon" style="background:{{ $k['renk'] }}"><span class="mdi {{ $k['ikon'] }}"></span></div>
+                <div>
+                    <div class="ad">{{ $k['ad'] }}</div>
+                    <div class="ne">{{ $k['ne'] }}</div>
                 </div>
             </div>
-            <div class="tutar">
-                <div class="tl">{{ $tl($t->maliyet) }}</div>
-                <div class="us">{{ $usd($t->maliyet) }}</div>
+            <div class="tutar"><span class="tl">{{ $tl($t->maliyet) }}</span><span class="us">{{ $usd($t->maliyet) }}</span></div>
+            <div class="bilgi">
+                <div>Adet<b>{{ $sayi($t->cagri) }} {{ $k['birim'] }}</b></div>
+                <div>1 işlem ≈<b>{{ $birim($aiAdet > 0 ? (float)$t->maliyet / $aiAdet : 0) }}</b></div>
+            </div>
+            @if($t->model)<div class="model">{{ $modelAd($t->model) }}</div>@endif
+            @if((int)$t->cache > 0)<span class="ai-cip yesil" style="align-self:flex-start">{{ $sayi($t->cache) }} hazır cevap · bedava</span>@endif
+            <div class="ai-pay" style="margin-top:auto">
+                <div class="bg"><div class="bar" style="width:{{ round($pay) }}%;background:{{ $k['renk'] }}"></div></div>
+                <span class="yuzde">%{{ $pay < 1 && $pay > 0 ? '<1' : round($pay) }}</span>
             </div>
         </div>
     @empty
-        <p class="acik" style="text-align:center;padding:10px 0">Bu dönemde AI kullanımı yok.</p>
+        <p class="acik" style="text-align:center;padding:10px 0;grid-column:1/-1">Bu dönemde AI kullanımı yok.</p>
     @endforelse
+    </div>
 </div>
 
 {{-- Salon bazinda --}}
