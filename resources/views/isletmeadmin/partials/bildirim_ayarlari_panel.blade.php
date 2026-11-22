@@ -31,9 +31,9 @@
 
    .bm-ust { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.25fr); gap:14px; margin-bottom:18px; }
    .bm-kart { background:#fff; border:1px solid var(--bm-cizgi); border-radius:14px; box-shadow:0 2px 8px rgba(31,22,51,.04); }
-   .bm-durum { display:flex; align-items:center; gap:14px; padding:16px; position:relative; }
+   .bm-durum { display:flex; align-items:flex-start; gap:14px; padding:18px 16px; position:relative; }
    .bm-durum-ikon { width:52px; height:52px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:24px; flex:0 0 52px; }
-   .bm-durum b { display:block; font-size:15.5px; font-weight:700; }
+   .bm-durum b { display:block; font-size:18px; font-weight:800; letter-spacing:-.2px; padding-right:30px; line-height:1.25; }
    .bm-durum small { display:block; color:var(--bm-gri); font-size:12.5px; margin-top:2px; line-height:1.35; }
    .bm-kalan { margin-top:6px; font-size:13px; color:var(--bm-gri); }
    .bm-kalan strong { font-size:18px; font-weight:700; margin:0 2px; }
@@ -212,17 +212,17 @@
       function sayi(n) { return Number(n || 0).toLocaleString('tr-TR'); }
       // Kalan: SMS hesabi yoksa 0; bakiye sorgulanamadiysa '—'
       var smsKalan = !d.sms_hesabi ? sayi(0) : (d.sms_bakiye == null ? '—' : sayi(d.sms_bakiye));
-      function kart(ikon, renk, zemin, baslik, alt, iyi, kalan, birim) {
+      function kart(ikon, renk, zemin, baslik, alt, iyi, kalan, birim, onEk) {
          // Hafif renkli zemin + sol renk seridi; sorunlu kart turuncu
          var vurgu = iyi ? renk : '#ea580c', acik = iyi ? zemin : '#ffedd5';
          return '<div class="bm-kart bm-durum" style="background:linear-gradient(135deg,' + acik + ' 0%,' + acik + ' 45%,#fff 100%);border-color:' + acik + ';border-left:4px solid ' + vurgu + '"><div class="bm-durum-ikon" style="background:#fff;box-shadow:0 2px 8px rgba(31,22,51,.06);color:' + renk + '"><i class="fa ' + ikon + '"></i></div>'
             + '<div><b style="color:' + vurgu + '">' + baslik + '</b><small>' + esc(alt) + '</small>'
-            + (kalan != null ? '<div class="bm-kalan">Kalan <strong style="color:' + renk + '">' + esc(kalan) + '</strong> ' + birim + '</div>' : '') + '</div><span class="bm-tik ' + (iyi ? 'iyi' : 'kotu') + '"><i class="fa ' + (iyi ? 'fa-check' : 'fa-exclamation') + '"></i></span></div>';
+            + (kalan != null ? '<div class="bm-kalan">' + (onEk || 'Kalan') + ' <strong style="color:' + renk + '">' + esc(kalan) + '</strong> ' + birim + '</div>' : '') + '</div><span class="bm-tik ' + (iyi ? 'iyi' : 'kotu') + '"><i class="fa ' + (iyi ? 'fa-check' : 'fa-exclamation') + '"></i></span></div>';
       }
       return '<div class="bm-ust">'
          + kart('fa-commenting', '#5C008E', '#efe1fb', smsIyi ? 'SMS Aktif' : 'SMS Kullanılamıyor', smsAlt, smsIyi, smsKalan, 'SMS')
          + kart('fa-whatsapp', '#16a34a', '#dcf6e6', d.wa_bagli ? 'WhatsApp Bağlı' : 'WhatsApp Bağlı Değil', d.wa_bagli ? 'WhatsApp bildirimleri gönderilir.' : 'Bağlayana kadar WhatsApp\'tan mesaj gitmez.', d.wa_bagli, sayi(d.wa_kontor), 'kontör')
-         + kart('fa-bell', '#6d28d9', '#e7e0fd', 'Uygulama Bildirimi Aktif', 'Uygulamayı kullanan müşteri: ' + (+d.uygulama_musteri || 0), true)
+         + kart('fa-bell', '#6d28d9', '#e7e0fd', 'Uygulama Bildirimi Aktif', 'Uygulama bildirimleri ücretsiz gönderilir.', true, sayi(d.uygulama_musteri), 'müşteri', 'Kullanan')
          + '<div class="bm-kart bm-sayilar">'
          + '<div class="bm-sayi" style="background:#efe1fb;color:#5C008E"><b>' + toplam + '</b><span>Bildirim türü</span></div>'
          + '<div class="bm-sayi" style="background:#dbeafe;color:#1d4ed8"><b>3</b><span>Kanal</span></div>'
