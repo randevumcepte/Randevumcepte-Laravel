@@ -121,7 +121,6 @@
          </div>
       </div>
       <div class="bm-bas-sag">
-         <a class="bm-gecmis" href="/isletmeyonetim/log-hareketleri?sube={{ $isletme->id }}&action=bildirim_ayar_degisti"><i class="fa fa-history"></i> Değişiklik geçmişi</a>
       </div>
    </div>
    <div id="bmIcerik"><div class="bm-yuk"><i class="fa fa-spinner fa-spin"></i> Yükleniyor…</div></div>
