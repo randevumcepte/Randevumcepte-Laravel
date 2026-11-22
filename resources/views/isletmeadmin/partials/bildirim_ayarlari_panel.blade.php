@@ -262,8 +262,8 @@
       h += '</div>';
 
       h += '<div class="bm-alt">'
-         + '<div class="bm-kart"><h4><i class="fa fa-user-circle-o"></i> Personel Bildirim Tercihleri <span class="bm-yakinda">Yakında</span></h4>'
-         + '<p>Personel, kendisine gelen bildirimleri uygulamada sessize alabilecek. Bildirim yine gelir, yalnızca ses ve titreşim olmaz. Burada kapattığınız bildirimi personel açamaz.</p>'
+         + '<div class="bm-kart"><h4><i class="fa fa-user-circle-o"></i> Personel Bildirim Tercihleri</h4>'
+         + '<p>Personel, kendisine gelen bildirimleri uygulamada <b>Menü &rsaquo; Bildirimlerim</b> ekranından tür bazında sessize alabilir. Bildirim yine gelir, yalnızca ses ve titreşim olmaz. Burada kapattığınız bildirimi personel açamaz.</p>'
          + '<div class="bm-kilit"><i class="fa fa-lock"></i> Hangi bildirimin gideceğine işletme sahibi karar verir</div></div>'
          + '<div class="bm-kart"><h4><i class="fa fa-magic"></i> Akıllı Bildirim Kuralları</h4><div class="bm-kurallar"><div>'
          + '<div class="bm-kural"><i class="fa fa-check-circle" style="color:#16a34a;font-size:22px;margin:1px 11px 0"></i>'
