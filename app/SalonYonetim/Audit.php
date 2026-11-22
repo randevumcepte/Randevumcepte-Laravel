@@ -55,6 +55,20 @@ class Audit
                 $userRol = isset($rolMap[$roleId]) ? $rolMap[$roleId] : ($roleId ? 'Rol#'.$roleId : 'Yetkili');
 
                 if ($roleId == 5) $userType = 'personel';
+
+                // Sistem yoneticisi destek modunda (impersonation) islem yapiyorsa: kayit isletme
+                // sahibinin adina DEGIL, yapan sistem yoneticisinin adina dussun ("ben yapmadim" itirazi).
+                try {
+                    $impId = session('sysadmin_impersonation_id');
+                    if ($impId) {
+                        $imp = \App\SistemYonetim\ImpersonationLog::find($impId);
+                        $impAd = $imp && $imp->user_name ? $imp->user_name : 'Sistem yöneticisi';
+                        $userName = mb_substr($impAd . ' (sistem yöneticisi · ' . $userName . ' hesabında)', 0, 150);
+                        $userRol = 'Sistem Yöneticisi (destek)';
+                        $userType = 'sistem_yonetici';
+                        $meta['impersonation_id'] = (int) $impId;
+                    }
+                } catch (\Throwable $e) {}
             } elseif (Auth::guard('satisortakligi')->check()) {
                 $u = Auth::guard('satisortakligi')->user();
                 $userId = $u->id;
