@@ -30347,7 +30347,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         try { return Auth::guard('isletmeyonetim-api')->user(); } catch (\Throwable $e) { return null; }
     }
 
-    protected static function asistanSonucEtiketi($sonuc, $durum)
+    public static function asistanSonucEtiketi($sonuc, $durum)
     {
         $etiketler = [
             'randevu' => 'Randevu talebi', 'iptal' => 'Randevu iptal', 'guncelle' => 'Randevu güncellendi',

@@ -14044,6 +14044,18 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
 // Değişen yerler: freepbxapi.php artık sayfalı yanıt dönüyor,
 // biz de has_more / data ayrımını yapıyoruz.
  
+/** Santral Raporlari'ndaki asistan ses kaydi (imzali, suresi sinirli link; mevcut uygulama oynatici auth header gondermez). */
+public function santralAsistanSesImzali($id, $bitis, $imza)
+{
+    $id = (int) $id; $bitis = (int) $bitis;
+    if ($bitis < time() || !hash_equals(\App\Services\SantralAsistanCdr::imza($id, $bitis), (string) $imza)) abort(403);
+    $k = \DB::table('santral_ses_kayit')->where('id', $id)->first();
+    if (!$k) abort(404);
+    $path = storage_path('app/santral_ses/' . basename((string) $k->dosya));
+    if (!is_file($path)) abort(404);
+    return response()->file($path, ['Content-Type' => 'audio/wav', 'Cache-Control' => 'private, max-age=3600']);
+}
+
 public function cdrRaporLatest(Request $request)
 {
     // -------------------------------------------------------
@@ -14060,6 +14072,7 @@ public function cdrRaporLatest(Request $request)
         $callerYetkiliId = $__u ? $__u->id : null;
     }
     $kendiDahili = '';
+    $callerPersonel = null;
     if ($callerYetkiliId) {
         $callerPersonel = Personeller::where('yetkili_id', $callerYetkiliId)
             ->where('salon_id', $request->salonId)->first();
@@ -14199,6 +14212,7 @@ public function cdrRaporLatest(Request $request)
     // Kayıtları işle
     // -------------------------------------------------------
     $rapor        = [];
+    $asistanMeta  = []; // rapor satiri basina telefon/saat (asistan eslesmesi)
     $defaultAvatar = '/public/isletmeyonetim_assets/img/avatar.png';
 
     // Personel "musteri.telefon_gor" yetkisi yoksa telefonlar maskelenir
@@ -14296,6 +14310,7 @@ public function cdrRaporLatest(Request $request)
         }
 
         if ($raporaEkle) {
+            $asistanMeta[] = ['son10' => $son10 ?? '', 'ts' => $calldate ? strtotime($calldate) : null, 'giden' => $dcontext == 'from-internal'];
             $rapor[] = [
                 'tarih'           => date('d.m.Y', strtotime($calldate)),
                 'saat'            => date('H:i',   strtotime($calldate)),
@@ -14308,6 +14323,11 @@ public function cdrRaporLatest(Request $request)
                 'kayitli'         => $kayitli,
             ];
         }
+    }
+
+    // AI asistan gorusmeleri: "🤖 Asistan · sonuc" + asistan ses kaydi (uygulama guncellemesiz; yalniz rol < 5)
+    if ($kendiDahili === '' && (!$callerPersonel || (int) $callerPersonel->role_id < 5)) {
+        \App\Services\SantralAsistanCdr::zenginlestir($rapor, $asistanMeta, (int) $request->salonId);
     }
 
     // -------------------------------------------------------

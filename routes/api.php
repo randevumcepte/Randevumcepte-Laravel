@@ -261,6 +261,7 @@ Route::post('/arsiviptal','ApiController@arsiviptal');
 Route::post('/cdrrapor','ApiController@cdrrapor');
 Route::get('/cdrrapor','ApiController@cdrrapor');
 Route::get('/cdrraporson','ApiController@cdrRaporLatest');
+Route::get('/santral-asistan-ses/{id}/{bitis}/{imza}.wav','ApiController@santralAsistanSesImzali')->where(['id' => '[0-9]+', 'bitis' => '[0-9]+', 'imza' => '[0-9a-f]{32}']);
 Route::get('/sehirler','ApiController@sehirler');
 Route::get('/ongorusmenedeni/{salonid}','ApiController@ongorusmenedeni');
 Route::post('/ongorusmeekleguncelle','ApiController@ongorusmeekleguncelle');
