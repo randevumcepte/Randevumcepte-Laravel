@@ -455,7 +455,9 @@ class WaAsistanPanelController extends StoreAdminController
         $sid = $this->salon($request);
         if (!$sid) return $this->yok();
         if (!\App\Services\WaReklam::semaGaranti()) return response()->json(['ok' => 0, 'hata' => 'Reklam tabloları hazırlanamadı.']);
-        return response()->json(['ok' => 1, 'acik' => \App\Services\WaReklam::acikMi($sid), 'liste' => \App\Services\WaReklam::liste($sid)]);
+        // populer: formda "en cok satanlar" (mobil; web sayfasi bunu sunucuda basiyor)
+        return response()->json(['ok' => 1, 'acik' => \App\Services\WaReklam::acikMi($sid), 'liste' => \App\Services\WaReklam::liste($sid),
+            'populer' => self::populerHizmetler($sid)]);
     }
 
     public function reklamKaydet(Request $request)

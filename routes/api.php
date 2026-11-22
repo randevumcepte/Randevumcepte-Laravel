@@ -684,6 +684,10 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::post('/denetim-baslat',        'WaAsistanMobilController@denetimBaslat');
         Route::post('/test-bildirim',         'WaAsistanMobilController@testBildirim');
         Route::get ('/numara-kontrol',        'WaAsistanMobilController@numaraKontrol');
+        // Reklamlarim (kampanyalar; web ile ayni metodlar, rol 1-2-3)
+        Route::get ('/reklamlar',             'WaAsistanMobilController@reklamlar');
+        Route::post('/reklam',                'WaAsistanMobilController@reklamKaydet');
+        Route::post('/reklam/{id}/sil',       'WaAsistanMobilController@reklamSil')->where('id', '[0-9]+');
     });
 
     Route::prefix('cagri-merkezi')->middleware('auth:isletmeyonetim-api')->group(function () {
