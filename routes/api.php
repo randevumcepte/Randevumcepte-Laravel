@@ -136,11 +136,11 @@ Route::post('/carkAdmin/puan-odul/{salonId}',    'ApiController@carkAdminPuanOdu
 Route::post('/carkAdmin/puan-odul-sil/{salonId}','ApiController@carkAdminPuanOdulSilApi');
 Route::get ('/carkAdmin/puan-kazanim/{salonId}',  'ApiController@carkAdminPuanKazanimApi');
 Route::post('/carkAdmin/puan-kazanim/{salonId}',  'ApiController@carkAdminPuanKazanimKaydetApi');
-Route::get ('/carkAdmin/damga-karti/{salonId}',     'ApiController@carkAdminDamgaKartiApi')->middleware('salon.sahiplik');
-Route::post('/carkAdmin/damga-karti/{salonId}',     'ApiController@carkAdminDamgaKartiKaydetApi')->middleware('salon.sahiplik');
-Route::post('/carkAdmin/damga-karti-sil/{salonId}', 'ApiController@carkAdminDamgaKartiSilApi')->middleware('salon.sahiplik');
-Route::post('/carkAdmin/damga-karti-adisyon/{salonId}', 'ApiController@carkAdminDamgaKartiAdisyonApi')->middleware('salon.sahiplik');
-Route::post('/carkAdmin/damga-karti-uygula/{salonId}',  'ApiController@carkAdminDamgaKartiUygulaApi')->middleware('salon.sahiplik');
+Route::get ('/carkAdmin/damga-karti/{salonId}',     'ApiController@carkAdminDamgaKartiApi')->middleware('salon.sahiplik:deny');
+Route::post('/carkAdmin/damga-karti/{salonId}',     'ApiController@carkAdminDamgaKartiKaydetApi')->middleware('salon.sahiplik:deny');
+Route::post('/carkAdmin/damga-karti-sil/{salonId}', 'ApiController@carkAdminDamgaKartiSilApi')->middleware('salon.sahiplik:deny');
+Route::post('/carkAdmin/damga-karti-adisyon/{salonId}', 'ApiController@carkAdminDamgaKartiAdisyonApi')->middleware('salon.sahiplik:deny');
+Route::post('/carkAdmin/damga-karti-uygula/{salonId}',  'ApiController@carkAdminDamgaKartiUygulaApi')->middleware('salon.sahiplik:deny');
 Route::post('/carkAdmin/damga-karti-gorsel/{salonId}',  'ApiController@carkAdminDamgaKartiGorselApi')->middleware('salon.sahiplik:deny');
 Route::get ('/carkAdmin/damga-karti-detay/{salonId}',  'ApiController@carkAdminDamgaKartiDetayApi')->middleware('salon.sahiplik:deny');
 Route::get ('/musteri/ikram-hizmetleri',                'ApiController@musteriIkramHizmetleri')->middleware('salon.sahiplik:deny');

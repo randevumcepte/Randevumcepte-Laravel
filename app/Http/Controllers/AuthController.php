@@ -54,7 +54,7 @@ public $successStatus = 200;
         $input = $request->all();
         $input['password'] = bcrypt($input['password']);
         $user = User::create($input);
-        $success['token'] = $user->createToken('appToken')->accessToken;
+        $success['token'] = $user->createToken(\App\Services\TokenTipi::ad($user))->accessToken;
         return response()->json([
           'success' => true,
           'token' => $success,
@@ -229,7 +229,7 @@ public $successStatus = 200;
                 
 
                     
-                $message['token'] = $user->createToken('appToken')->accessToken;
+                $message['token'] = $user->createToken(\App\Services\TokenTipi::ad($user))->accessToken;
                 $message['token_type'] = 'Bearer';
                 $message['experies_at'] = Carbon::parse(Carbon::now()->addYears(1))->toDateTimeString();
                 $message['success'] = true;
