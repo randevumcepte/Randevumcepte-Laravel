@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Adil randevu dagitimi (2026-11-23). Musteri uzman belirtmediginde ayni saatte bos olan personeller arasindan
- * TAKVIM SIRASINA DEGIL yuke gore secilir:
- *   1) o gun en az dakika dolu olan  2) bu hafta en az dakika  3) en uzun suredir randevu almamis  4) rastgele
+ * TAKVIM SIRASINA DEGIL yuke gore secilir (2026-11-23: gunluk yuk = dolu dk / o gun calisacagi dk):
+ *   1) o gun calisma suresine oranla en az dolu olan  2) bu hafta en az dakika  3) en uzun suredir randevu almamis  4) rastgele
  * Kullanim: WhatsApp + santral asistani (RandevuAsistan), online randevuda "fark etmez" (CustomerController).
  * Musteri bir uzman sectiyse dokunulmaz. "Otomatik atamaya dahil etme" isaretli personel aday olmaz.
  */
@@ -98,9 +98,13 @@ class AdilAtama
                 ->groupBy('rh.personel_id')->selectRaw("rh.personel_id p, SUM($dk) d")->pluck('d', 'p');
             $son = self::randevuSorgu($salonId, $pids)->groupBy('rh.personel_id')
                 ->selectRaw('rh.personel_id p, MAX(r.created_at) s')->pluck('s', 'p');
+            // Gunluk yuk = dolu dakika / o gun CALISACAGI dakika (yarim gun calisan tam gunle ayni sirada is almasin)
+            $calisma = self::gunlukCalismaDakika($salonId, $pids, date('Y-m-d', $t));
             $anahtar = [];
             foreach ($pids as $p) {
-                $anahtar[$p] = [(float) ($gun[$p] ?? 0), (float) ($hafta[$p] ?? 0), (string) ($son[$p] ?? ''), mt_rand()];
+                $dolu = (float) ($gun[$p] ?? 0);
+                $oran = ($calisma[$p] ?? 0) > 0 ? $dolu / $calisma[$p] : ($dolu > 0 ? 1.0 : 0.0);
+                $anahtar[$p] = [round($oran, 4), (float) ($hafta[$p] ?? 0), (string) ($son[$p] ?? ''), mt_rand()];
             }
             usort($pids, function ($a, $b) use ($anahtar) { return $anahtar[$a] <=> $anahtar[$b]; });
             return $pids;
@@ -109,6 +113,40 @@ class AdilAtama
             shuffle($pids);
             return $pids;
         }
+    }
+
+    /**
+     * Personelin o gun calisacagi dakika: kendi calisma saati (gun acik ama saat girilmemisse / satir yoksa salonun
+     * saati) eksi o gunku saat kapama / mola / izin bloklari. pid => dakika (calismiyorsa 0).
+     */
+    public static function gunlukCalismaDakika($salonId, array $pids, $tarih)
+    {
+        $gunNo = (int) date('N', strtotime($tarih));
+        $dk = function ($s) {
+            if (!$s || !preg_match('/^(\d{1,2}):(\d{2})/', (string) $s, $m)) return null;
+            return (int) $m[1] * 60 + (int) $m[2];
+        };
+        $salon = DB::table('salon_calisma_saatleri')->where('salon_id', $salonId)->where('haftanin_gunu', $gunNo)->first();
+        $salonDk = ($salon && (int) $salon->calisiyor === 1 && $dk($salon->bitis_saati) > $dk($salon->baslangic_saati))
+            ? $dk($salon->bitis_saati) - $dk($salon->baslangic_saati) : 0;
+        $kendi = DB::table('personel_calisma_saatleri')->whereIn('personel_id', $pids)->where('haftanin_gunu', $gunNo)->get()->keyBy('personel_id');
+        $kapama = DB::table('randevular as r')->join('randevu_hizmetler as rh', 'rh.randevu_id', '=', 'r.id')
+            ->where('r.salon_id', $salonId)->where('r.tarih', $tarih)->whereIn('rh.personel_id', $pids)
+            ->where('r.user_id', PersonelProfil::KAPAMA_USER)
+            ->where(function ($w) { $w->whereNull('r.durum')->orWhere('r.durum', '<', 2); })
+            ->groupBy('rh.personel_id')->selectRaw('rh.personel_id p, SUM((TIME_TO_SEC(rh.saat_bitis) - TIME_TO_SEC(rh.saat)) / 60) d')->pluck('d', 'p');
+        $sonuc = [];
+        foreach ($pids as $p) {
+            $r = $kendi->get($p);
+            if ($r) {
+                $bas = $dk($r->baslangic_saati); $bit = $dk($r->bitis_saati);
+                $top = (int) $r->calisiyor !== 1 ? 0 : (($bas !== null && $bit !== null && $bit > $bas) ? $bit - $bas : $salonDk);
+            } else {
+                $top = $salonDk;
+            }
+            $sonuc[$p] = max(0, $top - (int) round((float) ($kapama[$p] ?? 0)));
+        }
+        return $sonuc;
     }
 
     /** Verilen aralikta personelin baska randevusu (kapama dahil) var mi. */
