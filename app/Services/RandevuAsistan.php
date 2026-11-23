@@ -2936,7 +2936,7 @@ FIYAT
                 . " uzmanımız {$diger['personel']} ile oluşturabilirim. Hangisini tercih edersiniz?";
         } else {
             $cumle = $giris . " Dilerseniz randevunuzu yine {$ad} ile oluşturabilirim; " . $suSec['gun'] . ' saat ' . $suSec['saat']
-                . " kendisi için uygun. {$ad} ile mi oluşturalım, yoksa uygun olan başka bir uzmanımızla mı?";
+                . ' kendisi için uygun.';
         }
         \Illuminate\Support\Facades\Cache::put($anahtar, 1, 60);
         $secenekler = [$suSec];
