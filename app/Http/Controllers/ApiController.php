@@ -7578,16 +7578,29 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $damga = [];
             foreach (\App\Services\DamgaKartiServisi::kurallar($salonId, true) as $dk) {
                 $hizmet = $dk->hizmet_adi ?: 'Hizmet';
+                // Bitmis kampanya listelenmez; baslamamis olan baslangic tarihiyle gorunur
+                $dkBitis = !empty($dk->bitis_tarihi) ? \Carbon\Carbon::parse($dk->bitis_tarihi)->startOfDay() : null;
+                if ($dkBitis && $dkBitis->lt(\Carbon\Carbon::today())) continue;
+                $indirimli = \App\Services\DamgaKartiServisi::tur($dk) === 'indirim';
+                $oran = (int) ($dk->indirim_orani ?? 0);
+                $hediye = $indirimli
+                    ? ((int) $dk->ucretsiz_adet > 1 ? "{$dk->ucretsiz_adet} seansta " : '') . "%{$oran} indirim"
+                    : "{$dk->ucretsiz_adet} seans ikram";
+                $basGun = $dk->baslangic ? \Carbon\Carbon::parse($dk->baslangic)->startOfDay() : null;
                 $damga[] = [
                     'id'          => (int) $dk->id,
-                    'baslik'      => "🎁 İkram Hizmet: {$dk->gereken_adet} {$hizmet} alana {$dk->ucretsiz_adet} ikram",
-                    'aciklama'    => "{$hizmet} hizmetini {$dk->gereken_adet} kez alana {$dk->ucretsiz_adet} seans ikram! Kazandığınız ikramları uygulamanızdan takip edip dilediğiniz zaman kullanabilirsiniz.",
-                    'indirim'     => 0,
+                    'baslik'      => $indirimli
+                        ? "🎁 {$dk->gereken_adet} {$hizmet} alana %{$oran} indirim"
+                        : "🎁 İkram Hizmet: {$dk->gereken_adet} {$hizmet} alana {$dk->ucretsiz_adet} ikram",
+                    'aciklama'    => "{$hizmet} hizmetini {$dk->gereken_adet} kez alana {$hediye}!"
+                        . ($basGun && $basGun->gt(\Carbon\Carbon::today()) ? ' Kampanya ' . $basGun->format('d.m.Y') . ' tarihinde başlıyor.' : '')
+                        . ' Kazandıklarınızı uygulamanızdan takip edip dilediğiniz zaman kullanabilirsiniz.',
+                    'indirim'     => $indirimli ? $oran : 0,
                     'tip'         => 'damga',
                     'fiyat'       => null,
                     'normalFiyat' => null,
-                    'bitisTarihi' => null,
-                    'kalanGun'    => null,
+                    'bitisTarihi' => $dkBitis ? $dkBitis->format('d.m.Y') : null,
+                    'kalanGun'    => $dkBitis ? \Carbon\Carbon::today()->diffInDays($dkBitis) : null,
                     'gereken'     => (int) $dk->gereken_adet,
                     'ucretsiz'    => (int) $dk->ucretsiz_adet,
                 ];
@@ -32531,6 +32544,12 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
                 'baslangic'     => $k->baslangic,
                 'gecerlilik_deger' => isset($k->gecerlilik_deger) ? (int) $k->gecerlilik_deger : null,
                 'gecerlilik_birim' => $k->gecerlilik_birim ?? 'ay',
+                // Kampanya turu ('ikram'|'indirim') + oran + tarih araligi (baslangic yukarida)
+                'tur'           => \App\Services\DamgaKartiServisi::tur($k),
+                'indirim_orani' => isset($k->indirim_orani) ? (int) $k->indirim_orani : null,
+                'bitis_tarihi'  => !empty($k->bitis_tarihi) ? date('Y-m-d', strtotime($k->bitis_tarihi)) : null,
+                'kural_yazi'    => \App\Services\DamgaKartiServisi::kuralYazi($k),
+                'tarih_araligi' => \App\Services\DamgaKartiServisi::tarihAraligiYazi($k),
             ];
         })->values();
         $hizmetler = \App\Services\DamgaKartiServisi::hizmetSecenekleri($salonId)->map(function ($h) {
@@ -32555,7 +32574,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         if ($r = $this->ikramYonetimKapisi()) return $r;
         try {
             $kural = \App\Services\DamgaKartiServisi::kuralKaydet($salonId,
-                $request->only(['id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif', 'gecerlilik_deger', 'gecerlilik_birim', 'onay']));
+                $request->only(['id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif', 'gecerlilik_deger', 'gecerlilik_birim', 'onay', 'tur', 'indirim_orani', 'baslangic_tarihi', 'bitis_tarihi']));
         } catch (\DomainException $e) {
             return response()->json(['basarili' => false, 'onay_gerekli' => true, 'mesaj' => $e->getMessage()]);
         } catch (\RuntimeException $e) {
@@ -32563,7 +32582,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         }
         $hizmet = \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi');
         Audit::logApi($salonId, $request, 'damga_karti_kural', 'damga_karti_kural', $kural->id,
-            $hizmet . ': ' . $kural->gereken_adet . ' alana ' . $kural->ucretsiz_adet . ' ikram (' . ($kural->aktif ? 'Açık' : 'Kapalı') . ')',
+            $hizmet . ': ' . \App\Services\DamgaKartiServisi::kuralYazi($kural) . ' (' . ($kural->aktif ? 'Açık' : 'Kapalı') . ')',
             'İkram hizmet kuralı kaydedildi (mobil)');
         return response()->json(['basarili' => true, 'id' => (int) $kural->id]);
     }

@@ -66,7 +66,7 @@
         <div class="ih-kart">
             <div class="ih-bas">
                 <b>{{ $k['hizmet_adi'] }}</b>
-                <span>{{ $k['gereken_adet'] }} alana {{ $k['ucretsiz_adet'] }} ikram @if(!empty($k['gecerlilik']))· {{ $k['gecerlilik'] }} geçerli @endif</span>
+                <span>{{ $k['kural_yazi'] ?? ($k['gereken_adet'].' alana '.$k['ucretsiz_adet'].' ikram') }} @if(!empty($k['kampanya_bitis']))· kampanya {{ date('d.m.Y', strtotime($k['kampanya_bitis'])) }} tarihine kadar @endif @if(!empty($k['gecerlilik']))· {{ $k['gecerlilik'] }} geçerli @endif</span>
             </div>
             <div class="ih-istat">
                 <div><b>{{ $k['ucretli'] }}</b><small>Ücretli alım</small></div>

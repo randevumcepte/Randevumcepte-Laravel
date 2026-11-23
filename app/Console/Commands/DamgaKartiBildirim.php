@@ -77,7 +77,9 @@ class DamgaKartiBildirim extends Command
                         $salon = $salon ?: Salonlar::find($kural->salon_id);
                         $ad = trim(explode(' ', (string) DB::table('users')->where('id', $userId)->value('name'))[0] ?? '');
                         $govde = ($ad !== '' ? "Tebrikler {$ad}! " : 'Tebrikler! ')
-                            . "{$hizmetAdi} hizmetinden ikram kazandınız. Dilediğiniz bir seansınızda kullanabilirsiniz 🎁";
+                            . (DamgaKartiServisi::tur($kural) === 'indirim'
+                                ? "{$hizmetAdi} hizmetinde %" . (int) $kural->indirim_orani . " indirim kazandınız. Dilediğiniz bir seansınızda kullanabilirsiniz 🎁"
+                                : "{$hizmetAdi} hizmetinden ikram kazandınız. Dilediğiniz bir seansınızda kullanabilirsiniz 🎁");
                         // Ek alicilar (personel/yonetici bilgi kopyasi) — musteri kanallarindan bagimsiz
                         $ekU = DB::table('users')->where('id', $userId)->first(['name', 'cep_telefon']);
                         \App\Services\BildirimTercih::ekGonder($salon ?: (int) $kural->salon_id, 'damga_karti', [

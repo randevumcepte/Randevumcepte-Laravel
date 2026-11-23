@@ -79,7 +79,7 @@
             <span style="font-size:20px;">🎟️</span>
             <div style="flex:1;min-width:220px;color:#374151;">
                <strong>{{ $_d['hizmet_adi'] }}</strong> ikram hizmet
-               ({{ $_d['gereken'] }} alana {{ $_d['ucretsiz'] }} ikram)
+               ({{ $_d['kural_yazi'] ?? ($_d['gereken'].' alana '.$_d['ucretsiz'].' ikram') }})
                @if($_d['kullanim_id'])
                   — <span style="color:#065f46;font-weight:700;">bu seans ikram olarak işlendi ({{ number_format($_d['kullanim_indirim'],2,',','.') }} ₺ indirim)</span>
                @elseif($_d['durum']['hak'] > 0)
@@ -87,7 +87,7 @@
                   <small style="color:#6b7280;">(müşteri isterse bu seansta kullanır; istemezse hakkı saklanır @if(!empty($_d['durum']['gecerli_ikramlar']))· en yakın son kullanma {{ date('d.m.Y', strtotime($_d['durum']['gecerli_ikramlar'][0])) }}@endif)</small>
                @else
                   — ikram ilerlemesi: <strong>{{ $_d['ilerleme'] }}/{{ $_d['gereken'] }}</strong>
-                  <small style="color:#6b7280;">(bu ziyaret dahil; {{ $_d['gereken'] }} ücretli alımda {{ $_d['ucretsiz'] }} ikram kazanılır)</small>
+                  <small style="color:#6b7280;">(bu ziyaret dahil; {{ $_d['gereken'] }} ücretli alımda {{ ($_d['tur'] ?? 'ikram') === 'indirim' ? '%'.$_d['indirim_orani'].' indirim' : $_d['ucretsiz'].' ikram' }} kazanılır)</small>
                @endif
                @if(!empty($_d['dokum']))
                <details style="margin-top:4px;">
@@ -113,7 +113,7 @@
             @if($_d['kullanim_id'])
                <button type="button" class="btn btn-sm btn-outline-secondary damga-karti-islem" data-aksiyon="geri_al" data-kullanim="{{ $_d['kullanim_id'] }}">Geri Al</button>
             @elseif($_d['uygulanabilir'])
-               <button type="button" class="btn btn-sm btn-success damga-karti-islem" data-aksiyon="uygula" data-kalem="{{ $_d['adisyon_hizmet_id'] }}" data-tutar="{{ number_format($_d['kalan'],2,',','.') }}" data-hizmet="{{ $_d['hizmet_adi'] }}">🎁 Müşteri İkramını Kullansın</button>
+               <button type="button" class="btn btn-sm btn-success damga-karti-islem" data-aksiyon="uygula" data-kalem="{{ $_d['adisyon_hizmet_id'] }}" data-tutar="{{ number_format($_d['uygulanacak'] ?? $_d['kalan'],2,',','.') }}" data-indirimli="{{ ($_d['tur'] ?? 'ikram') === 'indirim' ? '%'.$_d['indirim_orani'] : '' }}" data-hizmet="{{ $_d['hizmet_adi'] }}">🎁 Müşteri İkramını Kullansın</button>
             @endif
          </div>
          @endforeach
@@ -143,15 +143,16 @@
          var geriAl = btn.getAttribute('data-aksiyon') === 'geri_al';
          var esc = function (s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
          var hizmet = esc(btn.getAttribute('data-hizmet')), tutar = esc(btn.getAttribute('data-tutar'));
+         var indirimli = esc(btn.getAttribute('data-indirimli') || '');
          var secenek = geriAl ? {
             title: 'İkram geri alınsın mı?',
             html: '<div style="color:#4b5563;font-size:15px;line-height:1.6;">İndirim kaldırılır, 0 TL tahsilat kaydı silinir.<br>Müşterinin ikram hakkı geri gelir.</div>',
             type: 'warning', confirmButtonText: 'Evet, geri al', confirmButtonColor: '#5C008E'
          } : {
-            title: '🎁 İkram kullanılsın mı?',
-            html: '<div style="color:#4b5563;font-size:15px;line-height:1.6;">Müşteri <b style="color:#111827;">' + hizmet + '</b> ikram hakkını bu seansta kullanmak istiyor mu?'
+            title: indirimli ? '🎁 İndirim kullanılsın mı?' : '🎁 İkram kullanılsın mı?',
+            html: '<div style="color:#4b5563;font-size:15px;line-height:1.6;">Müşteri <b style="color:#111827;">' + hizmet + '</b> ' + (indirimli ? indirimli + ' indirim' : 'ikram') + ' hakkını bu seansta kullanmak istiyor mu?'
                + '<div style="display:flex;justify-content:space-between;background:#f5f3ff;border-radius:10px;padding:10px 14px;margin-top:12px;text-align:left;">'
-               + '<span>Uygulanacak indirim</span><b style="color:#5C008E;">' + tutar + ' ₺</b></div>'
+               + '<span>Uygulanacak indirim' + (indirimli ? ' (' + indirimli + ')' : '') + '</span><b style="color:#5C008E;">' + tutar + ' ₺</b></div>'
                + '<div style="font-size:13px;color:#6b7280;margin-top:8px;">Satışa 0 TL tahsilat olarak kaydedilir.</div></div>',
             type: 'question', confirmButtonText: 'Evet, müşteri kullanmak istiyor', confirmButtonColor: '#16a34a'
          };

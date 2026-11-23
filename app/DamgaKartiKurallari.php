@@ -9,5 +9,5 @@ class DamgaKartiKurallari extends Model
 {
     protected $table = 'damga_karti_kurallari';
 
-    protected $fillable = ['salon_id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif', 'baslangic', 'gecerlilik_deger', 'gecerlilik_birim'];
+    protected $fillable = ['salon_id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif', 'baslangic', 'gecerlilik_deger', 'gecerlilik_birim', 'tur', 'indirim_orani', 'bitis_tarihi'];
 }

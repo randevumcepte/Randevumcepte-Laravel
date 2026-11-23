@@ -80,11 +80,15 @@ class DamgaKartiServisi
     }
 
     /**
-     * Kurali ekler/gunceller. Kural ILK kez acildiginda baslangic = simdi: oncesindeki
-     * ziyaretler damga sayilmaz. Kapatip yeniden acmak baslangici DEGISTIRMEZ (musterilerin
-     * ilerlemesi ve kazanilmis ikramlari silinmesin).
-     * Sayilmis ziyareti olan kuralda alim/ikram adedi degisirse $g['onay'] istenir
-     * (hesap geriye donuk yeni kurala gore yapilir); onay yoksa \DomainException.
+     * Kurali ekler/gunceller.
+     *   tur: 'ikram' (X al M hediye) | 'indirim' (X al, sonraki M alimda %indirim_orani).
+     *   baslangic_tarihi / bitis_tarihi (Y-m-d): kampanya tarih araligi; yalniz bu aralikta
+     *   gelinen ziyaretler sayilir. Baslangic gecmise alinamaz (gecmis randevulara ikram
+     *   dagitilmaz). Verilmezse eski davranis: kural ILK acildiginda baslangic = simdi.
+     *   Gonderilmeyen alanlar (tur/oran/tarihler) mevcut degerini korur (eski app/web).
+     * Kapatip yeniden acmak baslangici DEGISTIRMEZ (ilerleme/kazanilmis ikram silinmesin).
+     * Sayilmis ziyareti olan kuralda adet/hizmet/tarih degisirse $g['onay'] istenir
+     * (hesap geriye donuk yeniden yapilir); onay yoksa \DomainException.
      * @throws \RuntimeException|\DomainException
      */
     public static function kuralKaydet($salonId, array $g)
@@ -115,19 +119,60 @@ class DamgaKartiServisi
             ->where('id', '!=', $id)->exists();
         if ($cakisan) throw new \RuntimeException('Bu hizmet için zaten bir kural var; onu düzenleyin.');
 
-        if ($kural->exists && $kural->baslangic && empty($g['onay'])
-            && ((int) $kural->gereken_adet !== $gereken || (int) $kural->ucretsiz_adet !== $ucretsiz
-                || (int) $kural->hizmet_id !== $hizmetId)) {
-            $etkilenen = self::etkilenenMusteriSayisi($kural);
+        // Kampanya turu + indirim orani (gonderilmezse mevcut deger)
+        $turVar = self::kolonVar('damga_karti_kurallari', 'tur');
+        $tur = array_key_exists('tur', $g) ? ($g['tur'] === 'indirim' ? 'indirim' : 'ikram') : self::tur($kural);
+        $oran = null;
+        if ($tur === 'indirim') {
+            $oran = array_key_exists('indirim_orani', $g) ? (int) $g['indirim_orani'] : (int) ($kural->indirim_orani ?? 0);
+            if ($oran < 1 || $oran > 100) throw new \RuntimeException('İndirim oranı %1 ile %100 arasında olmalı.');
+            if (!$turVar) throw new \RuntimeException('İndirim kampanyası için sistem güncellemesi bekleniyor; birkaç dakika sonra tekrar deneyin.');
+        }
+
+        // Kampanya tarih araligi
+        $bugun = date('Y-m-d');
+        $eskiBas = $kural->baslangic ? date('Y-m-d', strtotime($kural->baslangic)) : null;
+        $yeniBas = $eskiBas;
+        if (!empty($g['baslangic_tarihi'])) {
+            $t = strtotime((string) $g['baslangic_tarihi']);
+            if (!$t) throw new \RuntimeException('Başlangıç tarihi geçersiz.');
+            $yeniBas = date('Y-m-d', $t);
+            if ($yeniBas < $bugun && ($eskiBas === null || $yeniBas < $eskiBas)) {
+                throw new \RuntimeException('Başlangıç tarihi geçmiş bir gün olamaz; geçmiş randevulara ikram dağıtılmaz.');
+            }
+        }
+        $bitisVar = self::kolonVar('damga_karti_kurallari', 'bitis_tarihi');
+        $eskiBitis = $bitisVar && $kural->bitis_tarihi ? date('Y-m-d', strtotime($kural->bitis_tarihi)) : null;
+        $yeniBitis = $eskiBitis;
+        if (array_key_exists('bitis_tarihi', $g)) {
+            $yeniBitis = null;
+            if (!empty($g['bitis_tarihi'])) {
+                $t = strtotime((string) $g['bitis_tarihi']);
+                if (!$t) throw new \RuntimeException('Bitiş tarihi geçersiz.');
+                $yeniBitis = date('Y-m-d', $t);
+            }
+        }
+        if ($yeniBitis && $yeniBas && $yeniBitis < $yeniBas) {
+            throw new \RuntimeException('Bitiş tarihi başlangıçtan önce olamaz.');
+        }
+
+        if ($kural->exists && $kural->baslangic && empty($g['onay'])) {
+            $neDegisti = null;
+            if ((int) $kural->hizmet_id !== $hizmetId) $neDegisti = 'hizmet';
+            elseif ((int) $kural->gereken_adet !== $gereken || (int) $kural->ucretsiz_adet !== $ucretsiz) $neDegisti = 'adet';
+            elseif ($yeniBas !== $eskiBas || $yeniBitis !== $eskiBitis) $neDegisti = 'tarih';
+            $etkilenen = $neDegisti ? self::etkilenenMusteriSayisi($kural) : 0;
             if ($etkilenen > 0) {
-                throw new \DomainException((int) $kural->hizmet_id !== $hizmetId
-                    ? 'Bu kuralda ' . $etkilenen . ' müşterinin sayılmış ziyareti var. Hizmeti değiştirirseniz '
-                        . 'bu müşterilerin ilerlemesi ve kazanılmış ikramları yeni hizmete göre yeniden hesaplanır '
-                        . '(çoğu sıfırlanır). Eski kuralı kapatıp yeni hizmet için ayrı kural eklemeniz önerilir.'
-                    : 'Bu kuralda ' . $etkilenen . ' müşterinin sayılmış ziyareti var. '
-                        . 'Kuralı ' . (int) $kural->gereken_adet . ' alana ' . (int) $kural->ucretsiz_adet . ' ikram → '
-                        . $gereken . ' alana ' . $ucretsiz . ' ikram yaparsanız tüm ilerlemeler ve kazanılmış ikramlar '
-                        . 'yeni kurala göre yeniden hesaplanır; alım adedini artırırsanız bazı müşterilerin kazandığı ikram düşebilir.');
+                $on = 'Bu kuralda ' . $etkilenen . ' müşterinin sayılmış ziyareti var. ';
+                throw new \DomainException($neDegisti === 'hizmet'
+                    ? $on . 'Hizmeti değiştirirseniz bu müşterilerin ilerlemesi ve kazanılmış ikramları yeni hizmete göre '
+                        . 'yeniden hesaplanır (çoğu sıfırlanır). Eski kuralı kapatıp yeni hizmet için ayrı kural eklemeniz önerilir.'
+                    : ($neDegisti === 'adet'
+                        ? $on . 'Kuralı ' . (int) $kural->gereken_adet . ' alana ' . (int) $kural->ucretsiz_adet . ' → '
+                            . $gereken . ' alana ' . $ucretsiz . ' yaparsanız tüm ilerlemeler ve kazanılmış ikramlar '
+                            . 'yeni kurala göre yeniden hesaplanır; alım adedini artırırsanız bazı müşterilerin kazandığı ikram düşebilir.'
+                        : $on . 'Kampanya tarihlerini değiştirirseniz ilerlemeler ve kazanılmış ikramlar yeni tarih aralığına '
+                            . 'göre yeniden hesaplanır; aralığı daraltırsanız bazı müşterilerin kazandığı ikram düşebilir.'));
             }
         }
 
@@ -140,12 +185,58 @@ class DamgaKartiServisi
             $kural->gecerlilik_deger = $gDeger > 0 ? $gDeger : null;
             $kural->gecerlilik_birim = $gBirim;
         }
-        if ($aktif && !$kural->baslangic) {
+        if ($turVar) {
+            $kural->tur           = $tur;
+            $kural->indirim_orani = $tur === 'indirim' ? $oran : null;
+        }
+        if ($bitisVar) $kural->bitis_tarihi = $yeniBitis;
+        if ($yeniBas !== $eskiBas) {
+            // Bugun secildiyse "simdi" (eski davranisla ayni), ileri tarihse o gunun basi
+            $kural->baslangic = $yeniBas === $bugun ? date('Y-m-d H:i:s') : $yeniBas . ' 00:00:00';
+        } elseif ($aktif && !$kural->baslangic) {
             $kural->baslangic = date('Y-m-d H:i:s');
         }
         $kural->save();
 
         return $kural;
+    }
+
+    /** 'ikram' | 'indirim' */
+    public static function tur($kural)
+    {
+        return (($kural->tur ?? 'ikram') === 'indirim') ? 'indirim' : 'ikram';
+    }
+
+    /** Kuralin kisa metni: "4 alana 1 ikram" / "4 alana %20 indirim" / "4 alana 2 seansta %20 indirim". */
+    public static function kuralYazi($kural)
+    {
+        $g = (int) $kural->gereken_adet;
+        $u = (int) $kural->ucretsiz_adet;
+        if (self::tur($kural) === 'indirim') {
+            return $g . ' alana ' . ($u > 1 ? $u . ' seansta ' : '') . '%' . (int) $kural->indirim_orani . ' indirim';
+        }
+        return $g . ' alana ' . $u . ' ikram';
+    }
+
+    /** Kampanya tarih araligi metni: "01.12.2026 – 31.12.2026" / "01.12.2026 itibarıyla" / null */
+    public static function tarihAraligiYazi($kural)
+    {
+        $bas = $kural->baslangic ? date('d.m.Y', strtotime($kural->baslangic)) : null;
+        $bit = !empty($kural->bitis_tarihi) ? date('d.m.Y', strtotime($kural->bitis_tarihi)) : null;
+        if ($bas && $bit) return $bas . ' – ' . $bit;
+        if ($bas) return $bas . ' itibarıyla';
+        if ($bit) return $bit . ' tarihine kadar';
+        return null;
+    }
+
+    /** Uygulanacak indirim tutari: ikramda kalan borcun tamami, indirimde orani. */
+    public static function uygulanacakTutar($kural, $kalan)
+    {
+        if ($kalan <= 0) return 0.0;
+        if (self::tur($kural) === 'indirim') {
+            return round($kalan * min(100, max(1, (int) $kural->indirim_orani)) / 100, 2);
+        }
+        return round($kalan, 2);
     }
 
     /** Kural acildiktan sonra bu hizmette "Geldi" ziyareti ya da ikram kullanimi olan musteri sayisi. */
@@ -211,6 +302,9 @@ class DamgaKartiServisi
             });
         if (!self::ILERI_TARIH_SAYILIR) {
             $q->where('r.tarih', '<=', date('Y-m-d'));
+        }
+        if (!empty($kural->bitis_tarihi)) {
+            $q->where('r.tarih', '<=', date('Y-m-d', strtotime($kural->bitis_tarihi)));
         }
         if (self::kolonVar('randevu_hizmetler', 'yardimci_personel')) {
             $q->whereRaw('COALESCE(rh.yardimci_personel, 0) != 1');
@@ -381,6 +475,7 @@ class DamgaKartiServisi
         }
         $kullanilan = self::gecerliKullanimlar($kural->id, $userId)->pluck('randevu_id')->map(function ($v) { return (int) $v; })->all();
         $baslangicGun = $kural->baslangic ? date('Y-m-d', strtotime($kural->baslangic)) : null;
+        $bitisGun = !empty($kural->bitis_tarihi) ? date('Y-m-d', strtotime($kural->bitis_tarihi)) : null;
         $bugun = date('Y-m-d');
 
         $sonuc = [];
@@ -389,7 +484,8 @@ class DamgaKartiServisi
             if ((int) $s->durum !== Randevular::ONAYLANDI)          $neden = 'Onaylı değil';
             elseif ((int) $s->randevuya_geldi !== 1)                 $neden = '"Geldi" işaretli değil';
             elseif (!self::ILERI_TARIH_SAYILIR && $s->tarih > $bugun)                              $neden = 'İleri tarihli (günü gelince sayılır)';
-            elseif (!$baslangicGun || $s->tarih < $baslangicGun)     $neden = 'Kural açılmadan önce';
+            elseif (!$baslangicGun || $s->tarih < $baslangicGun)     $neden = 'Kampanya başlamadan önce';
+            elseif ($bitisGun && $s->tarih > $bitisGun)              $neden = 'Kampanya bittikten sonra';
             elseif (in_array((int) $s->id, $paket, true))            $neden = 'Paket / seanslı satış seansı';
             elseif (!empty($s->sadece_telafi))                       $neden = 'Telafi seansı';
             elseif (!empty($s->sadece_yardimci))                     $neden = 'Yardımcı personel kaydı';
@@ -458,8 +554,9 @@ class DamgaKartiServisi
                     'ad'         => $kisi->name ?? ('Müşteri #' . $uid),
                     'telefon'    => $kisi->cep_telefon ?? '',
                     'hizmet_adi' => $hizmet,
-                    'kural'      => (int) $k->gereken_adet . ' al, ' . (int) $k->ucretsiz_adet . ' ikram'
+                    'kural'      => self::kuralYazi($k)
                         . (($gy = self::gecerlilikYazi($k)) ? ' · ' . $gy . ' geçerli' : ''),
+                    'tur'        => self::tur($k),
                     'ucretli'    => $d['ucretli'],
                     'kazanilan'  => $d['kazanilan'],
                     'kullanilan' => $d['kullanilan'],
@@ -510,6 +607,11 @@ class DamgaKartiServisi
                 'hizmet_adi'    => (string) ($hizmetAdlari[$k->hizmet_id] ?? 'Hizmet'),
                 'gereken_adet'  => (int) $k->gereken_adet,
                 'ucretsiz_adet' => (int) $k->ucretsiz_adet,
+                // Kampanya turu: 'ikram' (hediye) | 'indirim' (%indirim_orani); kural_yazi hazir metin
+                'tur'           => self::tur($k),
+                'indirim_orani' => self::tur($k) === 'indirim' ? (int) $k->indirim_orani : null,
+                'kural_yazi'    => self::kuralYazi($k),
+                'kampanya_bitis' => !empty($k->bitis_tarihi) ? date('Y-m-d', strtotime($k->bitis_tarihi)) : null,
                 'aktif'         => (int) $k->aktif,
                 'ilerleme'      => $d['ilerleme'],
                 'ucretli'       => $d['ucretli'],
@@ -582,8 +684,12 @@ class DamgaKartiServisi
                 'hizmet_adi'        => (string) ($hizmetAdlari[$ah->hizmet_id] ?? 'Hizmet'),
                 'gereken'           => (int) $kural->gereken_adet,
                 'ucretsiz'          => (int) $kural->ucretsiz_adet,
+                'tur'               => self::tur($kural),
+                'indirim_orani'     => self::tur($kural) === 'indirim' ? (int) $kural->indirim_orani : 100,
+                'kural_yazi'        => self::kuralYazi($kural),
                 'durum'             => $durum,
                 'kalan'             => $kalan,
+                'uygulanacak'       => self::uygulanacakTutar($kural, $kalan),
                 'kullanim_id'       => $kullanim ? (int) $kullanim->id : null,
                 'kullanim_indirim'  => $kullanim ? (float) $kullanim->indirim_tutari : 0,
                 'uygulanabilir'     => !$kullanim && $durum['hak'] > 0 && $kalan > 0
@@ -625,6 +731,9 @@ class DamgaKartiServisi
 
             $kalan = self::kalanBorc($ah);
             if ($kalan <= 0) throw new \RuntimeException('Bu kalemin ödenecek tutarı kalmamış.');
+            // Ikram: kalan borcun tamami; indirim kampanyasi: orani kadar (kalani normal tahsil edilir)
+            $kalan = self::uygulanacakTutar($kural, $kalan);
+            if ($kalan <= 0) throw new \RuntimeException('Uygulanacak indirim tutarı sıfır.');
 
             $ah->indirim_tutari = round((float) $ah->indirim_tutari + $kalan, 2);
             $ah->save();
@@ -639,8 +748,8 @@ class DamgaKartiServisi
             $tahsilat->odeme_tarihi     = date('Y-m-d');
             $tahsilat->olusturan_id     = $olusturanId;
             $tahsilat->odeme_yontemi_id = \App\OdemeYontemleri::where('odeme_yontemi', 'like', '%Nakit%')->value('id');
-            $tahsilat->notlar           = 'İkram hizmet: ' . $kural->gereken_adet . ' ' . $hizmetAdi . ' alımına '
-                . $kural->ucretsiz_adet . ' ikram (' . number_format($kalan, 2, ',', '.') . ' ₺ indirim)';
+            $tahsilat->notlar           = 'İkram hizmet: ' . $hizmetAdi . ' ' . self::kuralYazi($kural)
+                . ' (' . number_format($kalan, 2, ',', '.') . ' ₺ indirim)';
             $tahsilat->save();
 
             TahsilatHizmetler::create([

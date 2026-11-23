@@ -1073,7 +1073,7 @@ public function carkverilerigetir(Request $request)
         }
         try {
             $kural = \App\Services\DamgaKartiServisi::kuralKaydet($salon_id,
-                $request->only(['id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif', 'gecerlilik_deger', 'gecerlilik_birim', 'onay']));
+                $request->only(['id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif', 'gecerlilik_deger', 'gecerlilik_birim', 'onay', 'tur', 'indirim_orani', 'baslangic_tarihi', 'bitis_tarihi']));
         } catch (\DomainException $e) {
             return response()->json(['success' => false, 'onay_gerekli' => true, 'message' => $e->getMessage()]);
         } catch (\RuntimeException $e) {
@@ -1081,7 +1081,7 @@ public function carkverilerigetir(Request $request)
         }
         $_hizmet = \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi');
         SalonAudit::log($salon_id, 'damga_karti_kural', 'damga_karti_kural', $kural->id,
-            $_hizmet . ': ' . $kural->gereken_adet . ' alana ' . $kural->ucretsiz_adet . ' ikram (' . ($kural->aktif ? 'Açık' : 'Kapalı') . ')',
+            $_hizmet . ': ' . \App\Services\DamgaKartiServisi::kuralYazi($kural) . ' (' . ($kural->aktif ? 'Açık' : 'Kapalı') . ')',
             'İkram hizmet kuralı kaydedildi');
         return response()->json(['success' => true]);
     }
