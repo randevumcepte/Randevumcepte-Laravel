@@ -196,6 +196,7 @@ async function ariSaglikKontrol() {
     // App kayitli degilse applications.get 404 atar -> asagida yeniden baglanilir.
     await client.applications.get({ applicationName: cfg.ari.app });
     await sahipsizSesKanallariniKapat(false);
+    await yetimKayitlariTemizle();
   } catch (e) {
     if (_ariYenileniyor) return;
     _ariYenileniyor = true;
@@ -210,6 +211,23 @@ async function ariSaglikKontrol() {
       log.error('ARI yeniden baglanamadi:', e2 && e2.message);
     }
     _ariYenileniyor = false;
+  }
+}
+
+// Kapanis olayi (StasisEnd/ChannelDestroyed) kacirildiysa (ARI WS kopup yeniden baglandi vb.) arayan kanal
+// Asterisk'te artik yoktur ama kaydi `aktif`te kalir: oturum kapanmaz (panelde "Yarıda kaldı"), ses kaydi
+// yuklenmez (canli 2026-11-18 22:59 ve 2026-11-23 03:43). Her saglik kontrolunde arayan kanal hala var mi
+// bakilir; yoksa temizle calisir (kayit yuklenir, oturum kapanir).
+async function yetimKayitlariTemizle() {
+  for (const kid of Array.from(aktif.keys())) {
+    try {
+      await client.channels.get({ channelId: kid });
+    } catch (e) {
+      if (!/not found|404/i.test((e && e.message) || '')) continue; // ag hatasi vb. -> karar verme
+      if (!aktif.has(kid)) continue;                                // bu arada normal yoldan temizlendi
+      log.warn(`kapanis olayi kacirilmis: arayan kanal ${kid} Asterisk'te yok -> temizleniyor (kayit yuklenir)`);
+      try { await temizle(kid, 'kapandi'); } catch (e2) { log.error('yetim temizleme hatasi:', e2.message); }
+    }
   }
 }
 
