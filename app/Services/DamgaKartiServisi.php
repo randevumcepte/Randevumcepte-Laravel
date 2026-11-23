@@ -81,7 +81,7 @@ class DamgaKartiServisi
 
     /**
      * Kurali ekler/gunceller.
-     *   tur: 'ikram' (X al M hediye) | 'indirim' (X al, sonraki M alimda %indirim_orani).
+     *   tur: her zaman 'ikram' (X al M hediye); yuzde indirim "Kampanyalar" bolumunde.
      *   baslangic_tarihi / bitis_tarihi (Y-m-d): kampanya tarih araligi; yalniz bu aralikta
      *   gelinen ziyaretler sayilir. Baslangic gecmise alinamaz (gecmis randevulara ikram
      *   dagitilmaz). Verilmezse eski davranis: kural ILK acildiginda baslangic = simdi.
@@ -119,15 +119,11 @@ class DamgaKartiServisi
             ->where('id', '!=', $id)->exists();
         if ($cakisan) throw new \RuntimeException('Bu hizmet için zaten bir kural var; onu düzenleyin.');
 
-        // Kampanya turu + indirim orani (gonderilmezse mevcut deger)
+        // Ikram Hizmet yalniz X+1 (hediye). Yuzde indirim kampanyalari ayri "Kampanyalar"
+        // bolumunde; tur/oran kolonlari geri uyum icin durur, her kayitta 'ikram' yazilir.
         $turVar = self::kolonVar('damga_karti_kurallari', 'tur');
-        $tur = array_key_exists('tur', $g) ? ($g['tur'] === 'indirim' ? 'indirim' : 'ikram') : self::tur($kural);
+        $tur = 'ikram';
         $oran = null;
-        if ($tur === 'indirim') {
-            $oran = array_key_exists('indirim_orani', $g) ? (int) $g['indirim_orani'] : (int) ($kural->indirim_orani ?? 0);
-            if ($oran < 1 || $oran > 100) throw new \RuntimeException('İndirim oranı %1 ile %100 arasında olmalı.');
-            if (!$turVar) throw new \RuntimeException('İndirim kampanyası için sistem güncellemesi bekleniyor; birkaç dakika sonra tekrar deneyin.');
-        }
 
         // Kampanya tarih araligi
         $bugun = date('Y-m-d');

@@ -66,7 +66,7 @@
             @foreach($ikramKurallari as $k)
                 <tr class="{{ $k->aktif ? '' : 'ik-pasif' }}">
                     <td><b>{{ $k->hizmet_adi ?? ('Hizmet #'.$k->hizmet_id) }}</b></td>
-                    <td>{{ \App\Services\DamgaKartiServisi::tur($k) === 'indirim' ? '🏷️' : '🎁' }} {{ \App\Services\DamgaKartiServisi::kuralYazi($k) }}</td>
+                    <td>🎁 {{ \App\Services\DamgaKartiServisi::kuralYazi($k) }}</td>
                     <td>{{ \App\Services\DamgaKartiServisi::gecerlilikYazi($k) ?: 'Süresiz' }}</td>
                     <td>{!! $k->aktif ? '<span class="ik-acik">Açık</span>' : '<span class="ik-kapali">Kapalı</span>' !!}</td>
                     <td class="ik-gizle"><small>{{ \App\Services\DamgaKartiServisi::tarihAraligiYazi($k) ?: '—' }}</small></td>
@@ -82,11 +82,6 @@
 
         <input type="hidden" id="ik-id" value="">
         <div class="ik-satir">
-            <b>Kampanya türü:</b>
-            <label style="display:flex;align-items:center;gap:5px;margin:0;font-weight:600;"><input type="radio" name="ik-tur" value="ikram" checked onchange="ikTurDegisti()"> 🎁 X + 1 (hediye hizmet)</label>
-            <label style="display:flex;align-items:center;gap:5px;margin:0 0 0 10px;font-weight:600;"><input type="radio" name="ik-tur" value="indirim" onchange="ikTurDegisti()"> 🏷️ İndirim</label>
-        </div>
-        <div class="ik-satir">
             <span class="ik-select-kap"><select id="ik-hizmet" class="ik-select">
                 <option value="">Hizmet seçin…</option>
                 @foreach($ikramHizmetleri as $h)
@@ -94,7 +89,7 @@
                 @endforeach
             </select></span>
             hizmetini <input type="number" id="ik-gereken" min="1" max="100" step="1" value="4"> kez alana
-            <input type="number" id="ik-ucretsiz" min="1" max="10" step="1" value="1"> <span id="ik-ucretsiz-yazi">ikram</span><span id="ik-oran-kap" style="display:none;"> seansta %<input type="number" id="ik-oran" min="1" max="100" step="1" value="20" style="width:70px;"> indirim</span>,
+            <input type="number" id="ik-ucretsiz" min="1" max="10" step="1" value="1"> ikram,
             kazanıldığı günden itibaren <input type="number" id="ik-gecerlilik" min="0" step="1" value="" placeholder="süresiz">
             <select id="ik-birim" class="ik-select" style="min-width:0;width:auto;"><option value="ay">ay</option><option value="gun">gün</option></select> geçerli
             <label style="display:flex;align-items:center;gap:6px;font-weight:700;margin:0 0 0 6px;"><input type="checkbox" id="ik-aktif" checked> Açık</label>
@@ -187,20 +182,8 @@ async function ikIstek(url, veri) {
     return resp.json();
 }
 
-function ikTurSec(tur) {
-    document.querySelectorAll('input[name="ik-tur"]').forEach(function (r) { r.checked = r.value === tur; });
-    ikTurDegisti();
-}
-function ikTurDegisti() {
-    const ind = (document.querySelector('input[name="ik-tur"]:checked') || {}).value === 'indirim';
-    document.getElementById('ik-oran-kap').style.display = ind ? '' : 'none';
-    document.getElementById('ik-ucretsiz-yazi').style.display = ind ? 'none' : '';
-}
-
 function ikDuzenle(k) {
     document.getElementById('ik-id').value = k.id;
-    ikTurSec(k.tur === 'indirim' ? 'indirim' : 'ikram');
-    document.getElementById('ik-oran').value = k.indirim_orani > 0 ? k.indirim_orani : 20;
     document.getElementById('ik-bas').value = k.baslangic_tarihi || '';
     document.getElementById('ik-bas').min = k.baslangic_tarihi && k.baslangic_tarihi < '{{ date('Y-m-d') }}' ? k.baslangic_tarihi : '{{ date('Y-m-d') }}';
     document.getElementById('ik-bit').value = k.bitis_tarihi || '';
@@ -217,8 +200,6 @@ function ikDuzenle(k) {
 
 function ikTemizle() {
     document.getElementById('ik-id').value = '';
-    ikTurSec('ikram');
-    document.getElementById('ik-oran').value = 20;
     document.getElementById('ik-bas').value = '';
     document.getElementById('ik-bas').min = '{{ date('Y-m-d') }}';
     document.getElementById('ik-bit').value = '';
@@ -241,12 +222,9 @@ async function ikKaydet() {
         aktif:         document.getElementById('ik-aktif').checked ? 1 : 0,
         gecerlilik_deger: parseInt(document.getElementById('ik-gecerlilik').value) || 0,
         gecerlilik_birim: document.getElementById('ik-birim').value,
-        tur:              (document.querySelector('input[name="ik-tur"]:checked') || {}).value || 'ikram',
-        indirim_orani:    parseInt(document.getElementById('ik-oran').value) || 0,
         baslangic_tarihi: document.getElementById('ik-bas').value || '',
         bitis_tarihi:     document.getElementById('ik-bit').value || '',
     };
-    if (veri.tur === 'indirim' && (veri.indirim_orani < 1 || veri.indirim_orani > 100)) { showToast('İndirim oranı %1-100 olmalı', true); return; }
     if (veri.bitis_tarihi && veri.baslangic_tarihi && veri.bitis_tarihi < veri.baslangic_tarihi) { showToast('Bitiş başlangıçtan önce olamaz', true); return; }
     if (!veri.hizmet_id) { showToast('Hizmet seçin', true); return; }
     if (veri.gereken_adet < 1) { showToast('Alım adedi en az 1 olmalı', true); return; }
