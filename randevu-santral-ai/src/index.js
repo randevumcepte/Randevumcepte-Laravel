@@ -76,6 +76,19 @@ async function sesKayitBitir(kayit) {
 // callerKanalId -> {oturum,bridge,extChan,port,telefon,subeId,aktarmaModu,hedefAdaylar:Set,hedefBagli,hedefChanId,aktarSira}
 const aktif = new Map();
 const extMediaKanallari = new Set();
+// HIZLI ACILIS: salonun sabit karsilama girisi ("Merhaba, Ola Nail'e hoş geldiniz.") Laravel baslat'tan ogrenilip
+// dosyada saklanir; sonraki aramalarda telefon acilir acilmaz Laravel'i beklemeden calar (ses diskte onbellekte).
+// Telefon acildiktan sonra ~5 sn sessizlik vardi (2026-11-23).
+const GIRIS_DOSYA = require('path').join(__dirname, '..', '.karsilama-giris.json');
+let girisler = {};
+try { girisler = JSON.parse(require('fs').readFileSync(GIRIS_DOSYA, 'utf8')) || {}; } catch (_) { girisler = {}; }
+function girisKaydet(subeId, giris, ses) {
+  const k = String(subeId);
+  if (!giris || (girisler[k] && girisler[k].giris === giris && girisler[k].ses === (ses || null))) return;
+  girisler[k] = { giris, ses: ses || null };
+  try { require('fs').writeFileSync(GIRIS_DOSYA, JSON.stringify(girisler)); log.info(`karsilama girisi saklandi (sube ${k}): ${giris}`); }
+  catch (e) { log.warn('karsilama girisi yazilamadi: ' + e.message); }
+}
 const yerelYari = new Map();        // aktarma kuyruk bacaginin (Local ;2) id'si -> {callerId, hedefId}
 const ARA_ANONS = 'Yetkili arkadaşımıza ulaşmaya çalışıyorum, lütfen hatta kalın.';
 const geriBasarili = new Set();     // callee acip oturum baslayan geri-arama id'leri (cevapsiz yanlis raporlanmasin)
@@ -304,6 +317,7 @@ async function cagriBasla(channel, event, opts = {}) {
     const t0 = Date.now();
     const baslatP = brain.baslat(subeId, telefon, 'santral', opts.geriAramaOturum || 0, opts.hatirlatma || '').then((d) => {
       log.info(`  (baslat ${Date.now() - t0} ms)`);
+      if (d && d.karsilama_giris) girisKaydet(subeId, d.karsilama_giris, d.tts_ses);
       const onKaynak = {};
       if (d && d.karsilama) {
         // karsilama parcalarini simdiden seslendir (oturum ayni parcalari istediginde hazir/uretilmekte olur)
@@ -348,6 +362,8 @@ async function cagriBasla(channel, event, opts = {}) {
       geriAramaOturum: opts.geriAramaOturum || 0, // >0: yarida kalan oturumla devam
       hatirlatma: opts.hatirlatma || '',          // giden hatirlatma aramasi hedefi (randevu:ID | alacak:ID-ID)
       baslatP,                                     // hat kurulurken baslamis Laravel baslat (+ karsilama TTS)
+      // Gelen normal aramada salonun saklanmis girisi: Laravel beklenmeden hemen calar
+      hazirGiris: (!opts.hatirlatma && !opts.geriAramaOturum && girisler[String(subeId)]) || null,
       onAktar: (kid) => insanaAktar(kid, subeId),
       // Veda sonrasi kapatma. Hata ESKIDEN sessizce yutuluyordu: hat acik kaliyor, temizle hic calismadigi
       // icin ses kaydi da yuklenmiyordu (canli 2026-11-18 22:59). Simdi loglanir, 1 sn sonra tekrar denenir

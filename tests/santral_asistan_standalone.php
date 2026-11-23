@@ -245,8 +245,9 @@ namespace {
 
     bolum('Karşılama "Ben Ayşe" + doğal kapanış sorusu (kayıt 172)');
     $ay = asistan(['musteriAd' => 'Anıl Orbey', 'musteriCinsiyet' => 1, '_asistanAdi' => 'Ayşe', 'salon' => ['ad' => 'Randevumcepte', 'karsilama' => "Randevumcepte'ye", 'hizmetler' => []], '_kampanyalar' => []]);
-    icerir('kayıtlı → Ben Ayşe', "Merhaba Anıl Bey, Randevumcepte'ye hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?", $ay->karsilama());
-    icerir('kayıtsız → ben Ayşe', ', ben Ayşe. Size yardımcı olabilmem için adınızı', asistan(['musteriAd' => null, 'musteriId' => null, '_asistanAdi' => 'Ayşe', '_kampanyalar' => []])->karsilama());
+    icerir('kayıtlı → Ben Ayşe', "Merhaba, Randevumcepte'ye hoş geldiniz. Anıl Bey, ben Ayşe, size nasıl yardımcı olabilirim?", $ay->karsilama());
+    esit('karşılama sabit girişle başlar (köprü önceden çalar)', 0, strpos($ay->karsilama(), $ay->karsilamaGiris()));
+    icerir('kayıtsız → ben Ayşe', 'hoş geldiniz. Ben Ayşe. Size yardımcı olabilmem için adınızı', asistan(['musteriAd' => null, 'musteriId' => null, '_asistanAdi' => 'Ayşe', '_kampanyalar' => []])->karsilama());
     icerir('ad tanımsız (erkek ses) → eski kalıp', 'Ben yapay zeka asistanınızım.', asistan(['_asistanAdi' => '', '_kampanyalar' => []])->karsilama());
     icerir('prompt: adın Ayşe', 'Adın Ayşe', cagir($ay, 'sistemPromptu'));
     $kal = 'Randevunuz iptal edildi. Başka yardımcı olabileceğim bir konu var mı?';
@@ -370,8 +371,8 @@ namespace {
     // =====================================================================================
     bolum('Karşılama varyantları');
     // 2026-11-17: "Sayın Anıl Orbey" yerine "Merhaba Anıl Bey" (cinsiyet biliniyorsa); belirsizse "Sayın Ad Soyad"
-    icerir('kayıtlı → Merhaba Anıl Bey', 'Merhaba Anıl Bey,', asistan(['musteriCinsiyet' => 1])->karsilama());
-    icerir('kayıtlı kadın → Hanım', 'Merhaba Gülşah Hanım,', asistan(['musteriAd' => 'Gülşah Yılmaz', 'musteriCinsiyet' => 0])->karsilama());
+    icerir('kayıtlı → Anıl Bey', 'Anıl Bey, ben', asistan(['musteriCinsiyet' => 1])->karsilama());
+    icerir('kayıtlı kadın → Hanım', 'Gülşah Hanım, ben', asistan(['musteriAd' => 'Gülşah Yılmaz', 'musteriCinsiyet' => 0])->karsilama());
     icerir('cinsiyet belirsiz → Sayın Ad Soyad', 'Sayın Deniz Kaya,', asistan(['musteriAd' => 'Deniz Kaya', 'musteriCinsiyet' => null])->karsilama());
     icermez('kayıtlı → soyadı söylenmez', 'Orbey', asistan(['musteriCinsiyet' => 1])->karsilama());
     icerir('kayıtlı → yardım sorusu', 'Size nasıl yardımcı olabilirim?', $a->karsilama());

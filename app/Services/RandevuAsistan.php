@@ -88,21 +88,41 @@ class RandevuAsistan
     public function karsilama(): string
     {
         // Restoran santrali ile ayni kalip: "<isletme> hoş geldiniz, ben yapay zeka asistanınızım. ..."
-        $hosgeldin = $this->hosgeldinMetni();
+        // ILK CUMLE SABIT (karsilamaGiris): kopru onu onceden seslendirip telefon acilir acilmaz calar; kisiye ozel
+        // devami (hitap + "ben Ayşe") Laravel'den gelir (2026-11-23: acilista ~5 sn sessizlik vardi).
+        $giris = $this->karsilamaGiris();
         if ($this->musteriAd) {
+            $kim = preg_replace('/^Merhaba\s*/u', '', $this->acilisHitap($this->musteriAd)); // "Ferdi Bey" | "Sayın Ad Soyad"
+            $kim = $kim !== '' ? "{$kim}, " : '';
             // Paket karsilamada SOYLENMEZ (uzun + dogal degil): musteri ne istedigini soyler ("lazer paketim vardı",
             // "lazer randevusu alacaktım"), asistan paketi o an bulup getirir (PAKET AKIŞI). Kampanya daveti kalir.
             $kampanyaCumle = $this->kampanyaTeklifCumlesi();
             if ($kampanyaCumle !== '') {
-                return "{$this->acilisHitap($this->musteriAd)}, {$hosgeldin}. {$this->benKimim()}. {$kampanyaCumle} Ya da size nasıl yardımcı olabilirim?";
+                return $this->buyukBasla("{$giris} {$kim}{$this->benKimim(false)}.") . " {$kampanyaCumle} Ya da size nasıl yardımcı olabilirim?";
             }
-            return "{$this->acilisHitap($this->musteriAd)}, {$hosgeldin}. " . ($this->asistanAdi() ? "Ben {$this->asistanAdi()}, size nasıl yardımcı olabilirim?" : 'Ben yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?');
+            return $giris . ' ' . $this->buyukBasla($kim . ($this->asistanAdi() ? "ben {$this->asistanAdi()}, size nasıl yardımcı olabilirim?" : 'ben yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?'));
         }
-        $ilk = mb_strtoupper(mb_substr($hosgeldin, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($hosgeldin, 1, null, 'UTF-8');
         if ($this->telNorm($this->telefon)) {
-            return "{$ilk}, " . $this->benKimim(false) . ". Size yardımcı olabilmem için adınızı ve soyadınızı öğrenebilir miyim?";
+            return "{$giris} " . $this->benKimim() . ". Size yardımcı olabilmem için adınızı ve soyadınızı öğrenebilir miyim?";
         }
-        return "{$ilk}, " . $this->benKimim(false) . ". Size yardımcı olabilmem için adınızı, soyadınızı ve telefon numaranızı öğrenebilir miyim?";
+        return "{$giris} " . $this->benKimim() . ". Size yardımcı olabilmem için adınızı, soyadınızı ve telefon numaranızı öğrenebilir miyim?";
+    }
+
+    /** Karsilamanin sabit ilk cumlesi (salona ozel, her aramada ayni): "Merhaba, Ola Nail'e hoş geldiniz." */
+    public function karsilamaGiris(): string
+    {
+        $h = $this->hosgeldinMetni();
+        if (preg_match('/^merhaba\b/iu', $h)) return $this->buyukBasla($h) . '.';
+        return 'Merhaba, ' . $h . '.';
+    }
+
+    /** Cumlenin ilk harfini Turkce buyut (i -> İ). */
+    protected function buyukBasla(string $s): string
+    {
+        $s = trim($s);
+        if ($s === '') return $s;
+        $ilk = mb_substr($s, 0, 1, 'UTF-8');
+        return ($ilk === 'i' ? 'İ' : mb_strtoupper($ilk, 'UTF-8')) . mb_substr($s, 1, null, 'UTF-8');
     }
 
     /** Salonun karsilama telaffuzu (eski santralla ayni: "<telaffuz> hoşgeldiniz"), yoksa salon adi. */

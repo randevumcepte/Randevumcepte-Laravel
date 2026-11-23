@@ -124,6 +124,8 @@ class SantralKopruController extends Controller
             'ok' => 1,
             'oturum_id' => $oid,
             'karsilama' => $karsilama,
+            // Sabit ilk cumle (salona ozel): kopru saklar, sonraki aramalarda telefon acilir acilmaz Laravel'i beklemeden calar
+            'karsilama_giris' => $hedef === '' ? $as->karsilamaGiris() : '',
             'sube_id' => $salonId,
             'menu_adet' => $as->hizmetSayisi(),   // randevuda: aktif hizmet sayisi
             'geri_arama' => 0,

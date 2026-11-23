@@ -83,7 +83,7 @@ echo "Hedef: $URL  salon=$SALON  mod=" . ($TEL ? "TAM (tel $TEL)" : 'GÜVENLİ (
 senaryo('G1 Kayıtsız/gizli numara karşılaması', function () {
     $o = new Oturum('');
     kontrol('oturum açıldı', (bool) $o->id, $o->karsilama);
-    kontrol('yapay zeka asistanı tanıtımı', (var_mi($o->karsilama, 'yapay zeka asistanınızım') || var_mi($o->karsilama, 'Ben Ayşe')));
+    kontrol('yapay zeka asistanı tanıtımı', (var_mi($o->karsilama, 'yapay zeka asistanınızım') || var_mi($o->karsilama, 'en Ayşe')));
     kontrol('ad, soyad ve telefon ister', var_mi($o->karsilama, 'telefon numaranızı'));
     $o->bitir();
 });

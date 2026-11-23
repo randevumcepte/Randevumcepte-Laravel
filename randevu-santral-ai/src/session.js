@@ -76,7 +76,8 @@ function sadeMetin(s) {
 }
 
 class CagriOturumu {
-  constructor({ kanalId, telefon, subeId, rtpPort, onAktar, onBitir, geriAramaOturum, hatirlatma, baslatP }) {
+  constructor({ kanalId, telefon, subeId, rtpPort, onAktar, onBitir, geriAramaOturum, hatirlatma, baslatP, hazirGiris }) {
+    this.hazirGiris = hazirGiris || null; // {giris, ses}: salonun sabit ilk cumlesi (index.js saklar)
     this.baslatP = baslatP || null; // index.js hat kurulurken baslatti (karsilama TTS'i de uretiliyor)
     this._onKaynak = null;           // on-seslendirilen karsilama parcalari: metin -> Promise<kaynak> (maliyet dogru sayilsin)
     this.kanalId = kanalId;
@@ -142,6 +143,15 @@ class CagriOturumu {
   }
 
   async basla() {
+    // HIZLI ACILIS: salonun sabit girisi biliniyorsa Laravel'i BEKLEMEDEN hemen calar; kisiye ozel devami
+    // ("Ferdi Bey, ben Ayşe...") Laravel'den gelince arkasindan okunur.
+    let girisP = null;
+    const giris = this.hazirGiris && this.baslatP ? String(this.hazirGiris.giris || '') : '';
+    if (giris) {
+      if (this.hazirGiris.ses) this.ttsSes = String(this.hazirGiris.ses);
+      log.info(`hizli acilis (Laravel beklenmeden): ${giris}`);
+      girisP = this._seslendir(giris).catch(() => {});
+    }
     try {
       let d;
       if (this.baslatP) {
@@ -159,7 +169,13 @@ class CagriOturumu {
       log.info(`Oturum #${this.oturumId} basladi (kanal ${this.kanalId}, tel ${this.telefon || '-'}, sube ${d.sube_id ?? this.subeId}, menu ${d.menu_adet ?? '?'} urun, musteri ${d.musteri || 'YENI'})`);
       if (d.menu_adet === 0) log.warn('DIKKAT: bu subede aktif urun YOK -> AI menuyu tanitamaz (DEFAULT_SUBE_ID dogru mu? urunler.aktif=1 mi?)');
       if (d.musteri) log.info(`musteri taninID: ${d.musteri}${d.son_siparis ? ' | gecen siparis: ' + d.son_siparis : ' | gecen siparis YOK'}`);
-      await this._seslendir(d.karsilama || 'Merhaba, size nasıl yardımcı olabilirim?');
+      let karsilama = d.karsilama || 'Merhaba, size nasıl yardımcı olabilirim?';
+      if (girisP) {
+        await girisP;
+        if (karsilama.startsWith(giris)) karsilama = karsilama.slice(giris.length).trim();
+        else log.warn('hizli acilis: salonun girisi degismis, karsilama tam okunuyor');
+      }
+      if (karsilama) await this._seslendir(karsilama);
       // Bekleme cumlelerini onceden seslendir (onbellege al) -> gerektiginde aninda calsin
       if (cfg.dolguMs > 0) for (const c of DOLGU) this._tts(c).then((r) => this._ttsKaydet(c, r.kaynak, false)).catch(() => {});
       if (cfg.tepkiMs > 0) for (const c of TEPKI_SORGU.concat(TEPKI_KISA, TEPKI_GENEL, [TEPKI_BURADA])) this._tts(c).then((r) => this._ttsKaydet(c, r.kaynak, false)).catch(() => {});
