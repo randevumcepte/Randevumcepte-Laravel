@@ -2925,6 +2925,21 @@ FIYAT
      * "Efendim, en son geldiğinizde uzmanımız X ile hizmet almışsınız. Dilerseniz yine X ile..." + adil secilen diger uzman.
      * Sohbet basina bir kez; uzman aktif/hizmeti veriyor/otomatik atamaya acik degilse ya da cumle kurulamiyorsa null.
      */
+    /** Musteri bu hizmeti daha once bu uzmanla almis mi (iptal/gelmedi haric)? */
+    protected function sonUzmanAyniHizmet(int $personelId, int $hizmetId): bool
+    {
+        try {
+            return \DB::table('randevular as r')->join('randevu_hizmetler as rh', 'rh.randevu_id', '=', 'r.id')
+                ->where('r.salon_id', $this->salonId)->where('r.user_id', $this->musteriId)
+                ->where('rh.hizmet_id', $hizmetId)->where('rh.personel_id', $personelId)
+                ->where(function ($w) { $w->whereNull('r.durum')->orWhereNotIn('r.durum', [2, 3]); })
+                ->where(function ($w) { $w->whereNull('r.randevuya_geldi')->orWhere('r.randevuya_geldi', '!=', 0); })
+                ->exists();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     protected function sonUzmanTeklifi(int $hizmetId, string $tarih, ?string $saat, ?string $vakit, array $sec, array $secenek, callable $bul, array $plist): ?array
     {
         if (!$this->musteriId) return null;
@@ -2955,7 +2970,10 @@ FIYAT
                 'personel' => $diger['personel'], 'gun' => $this->tarihSoz($diger['tarih']), '_tam' => !empty($diger['_tam'])];
         }
 
-        $giris = "Efendim, en son geldiğinizde uzmanımız {$ad} ile hizmet almışsınız.";
+        // Isletme metni: "Efendim, daha önce bu hizmet için X personelimizden hizmet almışsınız; dilerseniz yine X ile..."
+        $giris = $this->sonUzmanAyniHizmet($su, $hizmetId)
+            ? "Efendim, daha önce bu hizmeti uzmanımız {$ad} ile almışsınız."
+            : "Efendim, en son geldiğinizde uzmanımız {$ad} ile hizmet almışsınız.";
         if ($saat && !$suTam) {
             // Son uzman istenen saatte dolu: ancak istenen saatte bos baska uzman varsa iki secenek sun, yoksa normal akis
             if (!$diger || empty($diger['_tam'])) return null;
