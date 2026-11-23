@@ -22,9 +22,9 @@
 
     // Kanal = ai_kullanim.tur; ekranda teknik kod degil ne is yaptigi gorunur
     $kanallar = [
-        'wa_asistan' => ['ad' => 'WhatsApp Asistanı',       'ikon' => 'mdi-whatsapp',     'renk' => '#22c55e', 'birim' => 'cevap',          'ne' => 'Müşterilerin WhatsApp mesajlarına AI\'nin yazdığı cevaplar'],
-        'santral'    => ['ad' => 'Telefon Asistanı',        'ikon' => 'mdi-phone',        'renk' => '#3b82f6', 'birim' => 'konuşma sırası', 'ne' => 'Santralde telefonu AI açar; müşterinin her konuşma sırası 1 işlem'],
-        'wa_gorsel'  => ['ad' => 'Fotoğraftan Fiyat',       'ikon' => 'mdi-camera',       'renk' => '#f59e0b', 'birim' => 'fotoğraf',       'ne' => 'Müşterinin WhatsApp\'tan attığı fotoğrafı inceleyip fiyat çıkarma'],
+        'wa_asistan' => ['ad' => 'WhatsApp Asistanı',       'ikon' => 'mdi-whatsapp',     'renk' => '#22c55e', 'koyu' => '#15803d', 'birim' => 'cevap',          'ne' => 'Müşterilerin WhatsApp mesajlarına AI\'nin yazdığı cevaplar'],
+        'santral'    => ['ad' => 'Telefon Asistanı',        'ikon' => 'mdi-phone',        'renk' => '#3b82f6', 'koyu' => '#1d4ed8', 'birim' => 'konuşma sırası', 'ne' => 'Santralde telefonu AI açar; müşterinin her konuşma sırası 1 işlem'],
+        'wa_gorsel'  => ['ad' => 'Fotoğraftan Fiyat',       'ikon' => 'mdi-camera',       'renk' => '#f59e0b', 'koyu' => '#b45309', 'birim' => 'fotoğraf',       'ne' => 'Müşterinin WhatsApp\'tan attığı fotoğrafı inceleyip fiyat çıkarma'],
         'niyet'      => ['ad' => 'Patron AI · Rapor sorusu', 'ikon' => 'mdi-chart-bar',    'renk' => '#38bdf8', 'birim' => 'soru',           'ne' => 'İşletme sahibinin "bu ay ciro ne?" gibi soruları'],
         'sohbet'     => ['ad' => 'Patron AI · Sohbet',      'ikon' => 'mdi-robot',        'renk' => '#a78bfa', 'birim' => 'mesaj',          'ne' => 'İşletme sahibinin asistanla serbest sohbeti'],
         'karne'      => ['ad' => 'Personel Karnesi',        'ikon' => 'mdi-card-account-details', 'renk' => '#f472b6', 'birim' => 'karne', 'ne' => 'Personel performans karnesi yorumu'],
@@ -34,6 +34,10 @@
     ];
     $kanal = function ($tur) use ($kanallar) {
         return $kanallar[$tur] ?? ['ad' => ucfirst(str_replace('_', ' ', $tur)), 'ikon' => 'mdi-auto-fix', 'renk' => '#94a3b8', 'birim' => 'işlem', 'ne' => 'Diğer AI işlemi'];
+    };
+    $rgba = function ($hex, $a) {
+        $h = ltrim($hex, '#');
+        return 'rgba(' . hexdec(substr($h, 0, 2)) . ',' . hexdec(substr($h, 2, 2)) . ',' . hexdec(substr($h, 4, 2)) . ',' . $a . ')';
     };
     $modelAd = function ($m) {
         $m = strtolower((string)$m);
@@ -64,29 +68,37 @@
     .ai-ozet .k { font-size:12px; opacity:.8; margin-top:6px; }
 
     .ai-kartlar { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:18px; }
-    .ai-kart { background:#fff; border:1px solid #ece7f6; border-radius:14px; padding:16px; box-shadow:0 2px 8px rgba(92,0,142,.05); }
-    .ai-kart .e { font-size:12px; color:#8b7ba8; font-weight:600; }
-    .ai-kart .d { font-size:24px; font-weight:700; margin-top:5px; color:#2a2340; }
-    .ai-kart .alt { font-size:12.5px; color:#8b7ba8; margin-top:4px; line-height:1.45; }
-    .ai-kart.iyi .d { color:#16a34a; } .ai-kart.kotu .d { color:#dc2626; }
+    .ai-kart { position:relative; overflow:hidden; border-radius:16px; padding:16px 18px; color:#fff; box-shadow:0 6px 18px rgba(30,10,60,.12); }
+    .ai-kart::after { content:""; position:absolute; right:-28px; top:-28px; width:110px; height:110px; border-radius:50%; background:rgba(255,255,255,.14); }
+    .ai-kart .mdi.buyuk { position:absolute; right:14px; bottom:10px; font-size:38px; opacity:.25; }
+    .ai-kart .e { font-size:12.5px; font-weight:600; opacity:.9; }
+    .ai-kart .d { font-size:26px; font-weight:700; margin-top:5px; }
+    .ai-kart .alt { font-size:12.5px; margin-top:4px; line-height:1.45; opacity:.92; position:relative; z-index:1; }
+    .ai-kart.iyi     { background:linear-gradient(135deg,#15803d,#22c55e); }
+    .ai-kart.kotu    { background:linear-gradient(135deg,#b91c1c,#f87171); }
+    .ai-kart.bos     { background:linear-gradient(135deg,#b45309,#f59e0b); }
+    .ai-kart.mor     { background:linear-gradient(135deg,#5C008E,#9D5DC9); }
+    .ai-kart.mavi    { background:linear-gradient(135deg,#1d4ed8,#38bdf8); }
+    .ai-kart.turuncu { background:linear-gradient(135deg,#c2410c,#fb923c); }
 
-    .ai-panel { background:#fff; border:1px solid #ece7f6; border-radius:14px; padding:18px; margin-bottom:18px; box-shadow:0 2px 8px rgba(92,0,142,.05); }
-    .ai-panel h2 { font-size:16px; color:#2a2340; font-weight:700; margin:0 0 4px; }
+    .ai-panel { background:linear-gradient(180deg,#faf7ff,#fff 120px); border:1px solid #e9e0f8; border-radius:16px; padding:18px; margin-bottom:18px; box-shadow:0 4px 14px rgba(92,0,142,.07); }
+    .ai-panel h2 { font-size:16px; color:#2a2340; font-weight:700; margin:0 0 4px; display:flex; align-items:center; gap:10px; }
+    .rozet { width:30px; height:30px; flex:0 0 30px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:17px; }
     .ai-panel .acik { font-size:13px; color:#8b7ba8; margin:0 0 14px; line-height:1.5; }
 
     .ai-kanallar { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; }
-    .ai-kanal { border:1px solid #ece7f6; border-top:4px solid var(--renk); border-radius:14px; padding:16px; background:#fdfcff;
+    .ai-kanal { border:1px solid var(--cizgi); border-top:4px solid var(--renk); border-radius:14px; padding:16px; background:linear-gradient(160deg,var(--zemin),#fff 75%); box-shadow:0 4px 14px var(--golge);
         display:flex; flex-direction:column; gap:10px; }
     .ai-kanal .ust { display:flex; align-items:center; gap:12px; }
     .ai-ikon { width:42px; height:42px; flex:0 0 42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:21px; color:#fff; }
     .ai-kanal .ad { font-size:15px; font-weight:700; color:#2a2340; }
     .ai-kanal .ne { font-size:12px; color:#8b7ba8; margin-top:2px; line-height:1.4; }
-    .ai-kanal .tutar .tl { font-size:26px; font-weight:700; color:#2a2340; line-height:1.1; }
+    .ai-kanal .tutar .tl { font-size:26px; font-weight:700; color:var(--koyu); line-height:1.1; }
     .ai-kanal .tutar .us { font-size:12px; color:#94a3b8; margin-left:6px; }
     .ai-kanal .bilgi { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    .ai-kanal .bilgi div { background:#f5f2fb; border-radius:9px; padding:7px 10px; font-size:11.5px; color:#8b7ba8; }
+    .ai-kanal .bilgi div { background:rgba(255,255,255,.85); border:1px solid var(--cizgi); border-radius:9px; padding:7px 10px; font-size:11.5px; color:#6b5b8a; }
     .ai-kanal .bilgi div b { display:block; font-size:14px; color:#2a2340; margin-top:1px; }
-    .ai-kanal .model { font-size:12px; color:#6b5b8a; }
+    .ai-kanal .model { font-size:11.5px; font-weight:600; color:#fff; background:var(--renk); border-radius:20px; padding:3px 10px; align-self:flex-start; }
     .ai-pay { display:flex; align-items:center; gap:8px; margin-top:8px; }
     .ai-pay .bg { flex:1; background:#f0ebf8; border-radius:6px; height:8px; overflow:hidden; max-width:420px; }
     .ai-pay .bar { height:8px; border-radius:6px; }
@@ -95,7 +107,9 @@
     .ai-cip.yesil { background:#e8f8ef; color:#15803d; }
 
     .ai-tablo { width:100%; border-collapse:collapse; font-size:13px; }
-    .ai-tablo th { text-align:left; font-size:11px; color:#8b7ba8; font-weight:600; padding:9px 10px; border-bottom:2px solid #f0ebf8; }
+    .ai-tablo th { text-align:left; font-size:11px; color:#5C008E; font-weight:600; padding:10px; background:#f3ecfc; }
+    .ai-tablo th:first-child { border-radius:9px 0 0 9px; } .ai-tablo th:last-child { border-radius:0 9px 9px 0; }
+    .ai-tablo tbody tr:hover td { background:#faf6ff; }
     .ai-tablo td { padding:11px 10px; border-bottom:1px solid #f4f1fa; color:#3a2a5c; font-size:13.5px; vertical-align:top; }
     .ai-tablo td.sag, .ai-tablo th.sag { text-align:right; }
     .ai-tablo td.sag { font-weight:700; color:#2a2340; white-space:nowrap; }
@@ -160,45 +174,45 @@
 {{-- Ozet kartlari --}}
 <div class="ai-kartlar">
     @if((float)$ayar['yuklenen_usd'] <= 0)
-    <div class="ai-kart">
+    <div class="ai-kart bos"><span class="mdi mdi-wallet buyuk"></span>
         <div class="e">Kalan kredi</div>
-        <div class="d" style="font-size:16px;color:#b45309">Kredi girilmedi</div>
+        <div class="d" style="font-size:18px">Kredi girilmedi</div>
         <div class="alt">En alttan yüklediğin krediyi gir ↓</div>
     </div>
     @else
-    <div class="ai-kart {{ $kalanUsd < ((float)$ayar['yuklenen_usd']*0.15) ? 'kotu' : 'iyi' }}">
+    <div class="ai-kart {{ $kalanUsd < ((float)$ayar['yuklenen_usd']*0.15) ? 'kotu' : 'iyi' }}"><span class="mdi mdi-wallet buyuk"></span>
         <div class="e">Kalan kredi</div>
         <div class="d">{{ $tl($kalanUsd) }}</div>
         <div class="alt">{{ $usd($kalanUsd) }} · toplam yüklenen {{ $usd($ayar['yuklenen_usd']) }}
             @if($kalanGun !== null)<br>Bu hızla ~<b>{{ $sayi($kalanGun) }} gün</b> yeter @endif</div>
     </div>
     @endif
-    <div class="ai-kart">
+    <div class="ai-kart mor"><span class="mdi mdi-cash-multiple buyuk"></span>
         <div class="e">Harcama ({{ $gunAd }})</div>
         <div class="d">{{ $tl($donemUsd) }}</div>
         <div class="alt">{{ $usd($donemUsd) }}</div>
     </div>
-    <div class="ai-kart">
+    <div class="ai-kart mavi"><span class="mdi mdi-calendar-today buyuk"></span>
         <div class="e">Bugün harcanan</div>
         <div class="d">{{ $tl($ozet['bugun_usd']) }}</div>
         <div class="alt">Günlük ortalama ~{{ $tl($gunlukOrtUsd) }}</div>
     </div>
-    <div class="ai-kart">
+    <div class="ai-kart turuncu"><span class="mdi mdi-lightning-bolt buyuk"></span>
         <div class="e">AI işlemi ({{ $gunAd }})</div>
         <div class="d">{{ $sayi($ozet['cagri']) }}</div>
         <div class="alt">İşlem başına ortalama {{ $birim($ozet['gercek'] > 0 ? $donemUsd / $ozet['gercek'] : 0) }}
-            @if($ozet['cache'] > 0)<br><span style="color:#15803d">{{ $sayi($ozet['cache']) }} hazır cevap bedava geldi ({{ $tl($ozet['cache_tasarruf_usd']) }} tasarruf)</span>@endif</div>
+            @if($ozet['cache'] > 0)<br><span style="font-weight:700">{{ $sayi($ozet['cache']) }} hazır cevap bedava geldi ({{ $tl($ozet['cache_tasarruf_usd']) }} tasarruf)</span>@endif</div>
     </div>
 </div>
 
 {{-- Para nereye gidiyor --}}
 <div class="ai-panel">
-    <h2>Para nereye gidiyor?</h2>
+    <h2><span class="rozet" style="background:linear-gradient(135deg,#5C008E,#9D5DC9)"><span class="mdi mdi-chart-donut"></span></span>Para nereye gidiyor?</h2>
     <p class="acik">Her satır AI'nin yaptığı bir iş. Çubuk, toplam harcamadaki payı gösterir. "1 işlem" o işin tek seferlik maliyetidir.</p>
     <div class="ai-kanallar">
     @forelse($turler as $t)
         @php $k = $kanal($t->tur); $pay = $donemUsd > 0 ? (float)$t->maliyet / $donemUsd * 100 : 0; $aiAdet = (int)$t->cagri - (int)$t->cache; @endphp
-        <div class="ai-kanal" style="--renk:{{ $k['renk'] }}">
+        <div class="ai-kanal" style="--renk:{{ $k['renk'] }};--koyu:{{ $k['koyu'] ?? $k['renk'] }};--zemin:{{ $rgba($k['renk'], .16) }};--cizgi:{{ $rgba($k['renk'], .28) }};--golge:{{ $rgba($k['renk'], .14) }}">
             <div class="ust">
                 <div class="ai-ikon" style="background:{{ $k['renk'] }}"><span class="mdi {{ $k['ikon'] }}"></span></div>
                 <div>
@@ -226,7 +240,7 @@
 
 {{-- Salon bazinda --}}
 <div class="ai-panel">
-    <h2>Hangi işletme ne kadar harcıyor?</h2>
+    <h2><span class="rozet" style="background:linear-gradient(135deg,#db2777,#f472b6)"><span class="mdi mdi-store"></span></span>Hangi işletme ne kadar harcıyor?</h2>
     <p class="acik">Her işletmenin harcaması ve bu paranın hangi işe gittiği.</p>
     <div class="ai-tablo-sar">
     <table class="ai-tablo">
@@ -239,13 +253,13 @@
                     @if($s->salon_id)<a href="/sistemyonetim/v2/salon/{{ $s->salon_id }}" style="color:#7B2FB8;text-decoration:none;font-weight:700">{{ $s->salon_adi }}</a>
                     @else <b>{{ $s->salon_adi }}</b> @endif
                     <div class="ai-pay" style="margin-top:6px">
-                        <div class="bg"><div class="bar" style="width:{{ round($pay) }}%;background:#7B2FB8"></div></div>
+                        <div class="bg"><div class="bar" style="width:{{ round($pay) }}%;background:linear-gradient(90deg,#db2777,#7B2FB8)"></div></div>
                         <span class="yuzde">%{{ $pay < 1 && $pay > 0 ? '<1' : round($pay) }}</span>
                     </div>
                 </td>
                 <td>
                     @foreach(($salonTur[(int)$s->salon_id] ?? []) as $st)
-                        <span class="ai-cip"><span class="mdi {{ $kanal($st->tur)['ikon'] }}" style="color:{{ $kanal($st->tur)['renk'] }}"></span> {{ $kanal($st->tur)['ad'] }} · <b>{{ $tl($st->maliyet) }}</b></span>
+                        <span class="ai-cip" style="background:{{ $rgba($kanal($st->tur)['renk'], .13) }};border:1px solid {{ $rgba($kanal($st->tur)['renk'], .3) }}"><span class="mdi {{ $kanal($st->tur)['ikon'] }}" style="color:{{ $kanal($st->tur)['renk'] }}"></span> {{ $kanal($st->tur)['ad'] }} · <b>{{ $tl($st->maliyet) }}</b></span>
                     @endforeach
                 </td>
                 <td class="sag">{{ $sayi($s->cagri) }}</td>
@@ -262,7 +276,7 @@
 
 {{-- Gunluk akis --}}
 <div class="ai-panel">
-    <h2>Gün gün harcama</h2>
+    <h2><span class="rozet" style="background:linear-gradient(135deg,#1d4ed8,#38bdf8)"><span class="mdi mdi-calendar-month"></span></span>Gün gün harcama</h2>
     <p class="acik">Son 30 günde her gün ne kadar harcandı.</p>
     <div class="ai-tablo-sar">
     <table class="ai-tablo">
@@ -286,7 +300,7 @@
 {{-- Teknik detay: token. Varsayilan kapali --}}
 <div class="ai-panel">
     <details class="ai-detay">
-        <summary><span class="mdi mdi-chevron-right ok"></span> Teknik ayrıntı (token) <span class="not">— merak edersen aç</span></summary>
+        <summary><span class="mdi mdi-chevron-right ok"></span><span class="rozet" style="background:linear-gradient(135deg,#475569,#94a3b8)"><span class="mdi mdi-cog"></span></span> Teknik ayrıntı (token) <span class="not">— merak edersen aç</span></summary>
         <div class="ai-sozluk">
             <div><b>Token nedir?</b>AI'nin okuduğu ve yazdığı metnin ölçü birimi. Kabaca 1 kelime ≈ 2 token. Fatura token üzerinden kesilir.</div>
             <div><b>Normal okuma</b>AI'nin o anda ilk kez okuduğu metin (müşteri mesajı, randevu bilgisi). Tam fiyat.</div>
@@ -324,7 +338,7 @@
 
 {{-- Kredi yukle --}}
 <div class="ai-panel">
-    <h2>Kredi ayarları &amp; alarm</h2>
+    <h2><span class="rozet" style="background:linear-gradient(135deg,#15803d,#22c55e)"><span class="mdi mdi-wallet-plus"></span></span>Kredi ayarları &amp; alarm</h2>
     <p class="acik">
         Anthropic bakiyeyi sisteme bildirmiyor. Bu yüzden buraya <b>yüklediğin toplam krediyi</b> (USD) gir. Kalan = yüklenen − tüm zamanlardaki harcama.
         Kalan, <b>eşiğin</b> altına inince <b>otomatik WhatsApp + SMS alarmı</b> gider (günde 1 kez). Son güncelleme: {{ $ayar['guncelleme'] ?? '—' }}
