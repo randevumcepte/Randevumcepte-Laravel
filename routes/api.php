@@ -397,6 +397,8 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::get('/ozet','ProfilController@ozet');
         Route::post('/durum','ProfilController@durum');
         Route::post('/mola-karar','ProfilController@molaKarar');
+        Route::get('/atama-raporu','ProfilController@atamaRaporu');
+        Route::post('/oto-atama','ProfilController@otoAtama');
         Route::get('/yorumlar','ProfilController@yorumlar');
         Route::get('/calisma-saatleri','ProfilController@calismaSaatleri');
         Route::get('/hizmetler','ProfilController@hizmetler');

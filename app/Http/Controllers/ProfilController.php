@@ -81,6 +81,27 @@ class ProfilController extends StoreAdminController
             'talep' => !$yonetici && $durum === 'molada']);
     }
 
+    /** Yonetici: randevu dagilim raporu (asistanin actiklari + tumu, personel basina). ?donem=bugun|hafta|ay */
+    public function atamaRaporu(Request $request)
+    {
+        if (!$k = $this->kisi($request)) return $this->yok();
+        if (!$k[2]) return response()->json(['ok' => 0, 'hata' => 'Bu rapor yalnızca yöneticiye açık.'], 403);
+        $donem = (string) $request->input('donem', 'ay');
+        if ($donem === 'bugun') { $bas = $bit = date('Y-m-d'); }
+        elseif ($donem === 'hafta') { $bas = date('Y-m-d', strtotime('monday this week')); $bit = date('Y-m-d', strtotime('sunday this week')); }
+        else { $donem = 'ay'; $bas = date('Y-m-01'); $bit = date('Y-m-t'); }
+        return $this->sonuc(true, ['donem' => $donem, 'baslangic' => $bas, 'bitis' => $bit,
+            'personeller' => \App\Services\AdilAtama::rapor($k[0], $bas, $bit)]);
+    }
+
+    /** Yonetici: personeli otomatik randevu atamasina dahil et / haric tut. Govde: {personel_id, haric: 0/1} */
+    public function otoAtama(Request $request)
+    {
+        if (!$k = $this->kisi($request)) return $this->yok();
+        if (!$k[2]) return response()->json(['ok' => 0, 'hata' => 'Bu ayarı yalnızca yönetici değiştirebilir.'], 403);
+        return $this->sonuc(\App\Services\AdilAtama::haricKaydet($k[0], $k[1], (int) $request->input('personel_id'), (int) $request->input('haric') === 1, $request));
+    }
+
     /** Yonetici: mola talebine karar (ilk karar veren gecerli). */
     public function molaKarar(Request $request)
     {

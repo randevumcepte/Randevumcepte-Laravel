@@ -187,6 +187,12 @@ class CustomerController extends Controller
                 // Personel "Farketmez" (0 / bos) ise hizmeti yapan ilk uygun personeli otomatik ata
                 $secilenPersonelId = $request->personeller[$key] ?? null;
                 if (empty($secilenPersonelId) || $secilenPersonelId == 0) {
+                    // Adil dagitim (2026-11-23): o saatte BOS olanlar arasindan o gun/bu hafta en az dakika calisan;
+                    // kimse bos degilse asagidaki eski davranis (ilk uygun personel)
+                    $secilenPersonelId = \App\Services\AdilAtama::bosPersonelSec($randevu->salon_id, $value, $randevu->tarih,
+                        $randevuhizmetler->saat, $randevuhizmetler->saat_bitis);
+                }
+                if (empty($secilenPersonelId) || $secilenPersonelId == 0) {
                     $personelHizmetIds = \App\PersonelHizmetler::where('hizmet_id', $value)->pluck('personel_id')->toArray();
                     $otoPersonel = \App\Personeller::where('salon_id', $randevu->salon_id)
                         ->where('aktif', 1)
