@@ -2959,7 +2959,7 @@ FIYAT
         $tarih = (string) ($in['tarih'] ?? '');
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $tarih)) return ['ok' => false, 'hata' => 'tarih YYYY-MM-DD olmalı (TARİH HARİTASI).'];
         $saat = preg_match('/^(\d{1,2}):(\d{2})/', (string) ($in['saat'] ?? ''), $sm) ? sprintf('%02d:%02d', $sm[1], $sm[2]) : null;
-        $vakitMap = ['sabah' => 'sabah', 'ogle' => 'ogleden_sonra', 'ogleden_sonra' => 'ogleden_sonra', 'aksam' => 'aksam'];
+        $vakitMap = ['sabah' => 'sabah', 'ogle' => 'ogle', 'ogleden_sonra' => 'ogleden_sonra', 'aksam' => 'aksam'];
         $vakit = $saat ? null : ($vakitMap[$in['zaman_dilimi'] ?? ''] ?? null);
 
         $plist = $this->personelListesi();

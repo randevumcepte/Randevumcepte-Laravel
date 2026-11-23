@@ -642,7 +642,9 @@ class SesliRandevuCozService
 
     protected function vakitBaslangicDk($vakit, $basDk)
     {
-        if ($vakit === 'ogleden_sonra') return 12 * 60;
+        // "Öğleden sonra" 13:00'te baslar; 12:00 "öğlen" (kayit 240: "yarın öğleden sonra" -> saat 12 onerildi)
+        if ($vakit === 'ogleden_sonra') return 13 * 60;
+        if ($vakit === 'ogle')          return 12 * 60;
         if ($vakit === 'aksam')        return 17 * 60;
         return $basDk; // sabah = acilis
     }
