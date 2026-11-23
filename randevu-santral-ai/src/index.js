@@ -321,7 +321,10 @@ async function cagriBasla(channel, event, opts = {}) {
       const onKaynak = {};
       if (d && d.karsilama) {
         // karsilama parcalarini simdiden seslendir (oturum ayni parcalari istediginde hazir/uretilmekte olur)
-        for (const c of CagriOturumu.prototype._cumlelereBol(d.karsilama)) {
+        // Sabit giris TEK PARCA seslendirilir (oturum da tek parca calar: tek tonlama, cumleler arasi bosluk yok)
+        const g = d.karsilama_giris && d.karsilama.startsWith(d.karsilama_giris) ? d.karsilama_giris : '';
+        const parcalar = (g ? [g] : []).concat(CagriOturumu.prototype._cumlelereBol(g ? d.karsilama.slice(g.length).trim() : d.karsilama));
+        for (const c of parcalar) {
           const opt = { ses: d.tts_ses };
           onKaynak[c] = tts.seslendir(c, opt).then(() => opt.kaynak, () => null);
         }

@@ -1777,7 +1777,9 @@ class RandevuAsistan
         $parcalar = preg_split('/(?<=[.!?…])\s+/u', trim($c)) ?: [];
         $kalan = [];
         foreach ($parcalar as $p) {
-            if (mb_strlen($p) <= 70 && preg_match($re, $p)) continue; // kisa bekletme cumlesi
+            // bekletme cumlesi (kayit 243: 78 harflik "...uzmanlarımızın takvimine bakıyorum." 70 sinirini astigi icin
+            // kaldi; model araci cagirmadan turu bitirdi, 15 sn sessizlik + "Orada mısınız?")
+            if (mb_strlen($p) <= 120 && preg_match($re, $p)) continue;
             $kalan[] = $p;
         }
         return trim(implode(' ', $kalan));
@@ -2255,7 +2257,7 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın.{$kimlik} Telefonda, kısa 
 3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise TEYİT SORMADAN ("bunu onaylıyor musunuz" DEME) doğrudan sonraki adıma geç; eşleştirmenin iç işleyişinden (kayıt, seçenek sayısı, "eşleştirebildim") müşteriye ASLA bahsetme; coklu ise seçenekleri kısaca oku ve seçtir; sonuçta "soru" alanı varsa müşteriye YALNIZ o soruyu AYNEN sor (seçenek sayma), müşteri "evet" derse hizmet_eslestir'i "ortak" metniyle yeniden çağır; yok ise "o hizmetimiz yok" de ve dönen önerileri sun. Müşterinin ne dediğini ANLAYAMADIYSAN (anlamsız/yarım cümle, öneri de yoksa) yalnız "Kusura bakmayın, tam duyamadım. Hangi hizmet için arıyorsunuz?" de — örnek hizmet SAYMA, uzun açıklama yapma.
 4. TARİH/SAAT: Müşteri mesajının sonunda "[SİSTEM zaman çözümü ...]" notu varsa tarih ve saati AYNEN oradan al (kendin hesaplama; "çarşamba 14", "önümüzdeki hafta perşembe 10", "10 aralık", "5 şubat" hepsi orada çözülmüş gelir). Not yoksa TARİH HARİTASI'nı kullan. Müşteri gün ve saati söylediyse saati TEKRAR SORMA, sabah/öğleden sonra diye SORMA. Tarih/saat ÖNCEKİ bir mesajda söylendiyse (ör. hizmeti teyit ettirdikten sonra) o mesajdaki zaman çözümü geçerlidir: yeniden sorma, kendin hesaplama.
 UZMAN ADLARI: Uzmanı her zaman araç sonucundaki / PERSONELLER'deki gibi "Hanım"/"Bey" ile söyle (ör. "uzmanımız Gülşah Hanım", "Ferdi Bey ve Gülşah Hanım uygun"); çıplak ad ("Gülşah ile") KULLANMA.
-5. PERSONEL (işletme isteği 2026-11-19: randevuyu bekletme, kaçırma): uzman tercihi SORMA ("tercih ettiğiniz bir uzmanımız var mı" DEME), uzman adlarını SAYMA. Hizmet ve gün belli olunca 6. adımda musait_saatler'i personel_id VERMEDEN çağır; istenen saatte kim boşsa o uzmanla en yakın seçeneği sun, uzmanın adını yalnız seçenekte/onayda söyle. Müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") personel_id'yi hizmet_eslestir sonucundaki "personeller" listesinden (ad + personel_id), yoksa PERSONELLER listesinden AYNEN al (id uydurma); listede yoksa "o isimde personelimiz yok" de ve hizmeti verenleri say. Müşteri "kimler var"/"hangi uzmanlarınız var" derse hizmet_eslestir sonucundaki "personeller" adlarını say (en fazla 4; "personel_sayisi" varsa sonuna "ve diğer uzmanlarımız" ekle) — hizmet listesi OKUMA. Gün ya da saat eksikse yalnız onu sor ("Hangi gün ve saat sizin için uygun?"). Müşteri tarih/saati zaten söylediyse TARİHİ YENİDEN SORMA, doğrudan 6. adıma geç. İSTİSNA (eski müşteri, 2026-11-23): musait_saatler sonucunda "son_uzman" varsa onerilen_cumle'yi AYNEN söyle (müşterinin son geldiği uzmanı teklif eder); müşteri o uzmanı seçerse ya da "fark etmez/başkası" derse sonuçtaki "talimat"a uy, teklifi tekrar sorma.
+5. PERSONEL (işletme isteği 2026-11-19: randevuyu bekletme, kaçırma): uzman tercihi SORMA ("tercih ettiğiniz bir uzmanımız var mı" DEME), uzman adlarını SAYMA. Hizmet ve gün belli olunca 6. adımda musait_saatler'i personel_id VERMEDEN çağır; istenen saatte kim boşsa o uzmanla en yakın seçeneği sun, uzmanın adını yalnız seçenekte/onayda söyle. Müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") personel_id'yi hizmet_eslestir sonucundaki "personeller" listesinden (ad + personel_id), yoksa PERSONELLER listesinden AYNEN al (id uydurma); listede yoksa "o isimde personelimiz yok" de ve hizmeti verenleri say. Müşteri "kimler var"/"hangi uzmanlarınız var" derse hizmet_eslestir sonucundaki "personeller" adlarını say (en fazla 4; "personel_sayisi" varsa sonuna "ve diğer uzmanlarımız" ekle) — hizmet listesi OKUMA. Gün ya da saat eksikse yalnız onu sor ("Hangi gün ve saat sizin için uygun?"). Müşteri "herhangi bir gün / fark etmez / en yakın / bu hafta olur / ne zaman boşsa" derse gün SORMA: musait_saatler'i tarih=BUGÜN ile hemen çağır ve en yakın iki seçeneği sun (kayıt 243: iki kez "hangi gün?" soruldu). Müşteri "hangisi müsaitse / kim boşsa ona verin" derse musait_saatler'i uzman_farketmez=true ile çağır ve dönen seçenekleri sun. Müşteri tarih/saati zaten söylediyse TARİHİ YENİDEN SORMA, doğrudan 6. adıma geç. İSTİSNA (eski müşteri, 2026-11-23): musait_saatler sonucunda "son_uzman" varsa onerilen_cumle'yi AYNEN söyle (müşterinin son geldiği uzmanı teklif eder); müşteri o uzmanı seçerse ya da "fark etmez/başkası" derse sonuçtaki "talimat"a uy, teklifi tekrar sorma.
 6. MÜSAİT SAAT: "musait_saatler" aracını hizmet_id + tarih ile çağır (müşteri saat söylediyse saat'i MUTLAKA ver; gün dilimi söylendiyse zaman_dilimi; personel söylendiyse personel_id).
    - tam_eslesme=true dönerse: istenen saat uygun → ALTERNATİF SUNMA, seçenek okuma; doğrudan 8. adımdaki onay cümlesine geç (gün için seçeneğin "gun" alanını kullan).
    - Aksi halde: müşteri saat söylediyse önce "O saat dolu" de, sonra dönen seçenekleri (en fazla 2) "gun" alanı ve personel adıyla öner. istenen_gun_dolu=true ise o günün dolu olduğunu söyle. Seçenek yoksa başka gün/dilim öner.
@@ -3111,6 +3113,22 @@ FIYAT
             }
             $sec[] = $secilen;
             if (count($sec) === 2) break;
+        }
+        // ADIL PENCERE (kayit 243): her uzmanin yalniz ILK bos saati var; en erken iki saat secilince takvimi erken bos
+        // olan uzman (Damira Hanım) hep one cikiyordu, adalet yalniz AYNI saatte isliyordu. Musteri saat vermediyse
+        // en erken bos saatten itibaren 3 saat icindeki secenekler adil siraya (o gun / bu hafta en az yuk) dizilir.
+        if (!$saat && count($secenek) > 2 && $secenek[0]['tarih'] === ($secenek[1]['tarih'] ?? null)) {
+            $dk = function ($s) { [$h, $m] = array_map('intval', explode(':', $s)); return $h * 60 + $m; };
+            $bas = $dk($secenek[0]['saat']);
+            $pencere = array_values(array_filter($secenek, function ($s) use ($secenek, $dk, $bas) {
+                return $s['tarih'] === $secenek[0]['tarih'] && $dk($s['saat']) - $bas <= 180;
+            }));
+            if (count($pencere) > 2) {
+                $sira = array_flip(AdilAtama::sirala($this->salonId, array_column($pencere, 'personel_id'), $secenek[0]['tarih']));
+                usort($pencere, function ($a, $b) use ($sira) { return ($sira[(int) $a['personel_id']] ?? 99) <=> ($sira[(int) $b['personel_id']] ?? 99); });
+                $sec = array_slice($pencere, 0, 2);
+                usort($sec, function ($a, $b) { return $a['saat'] <=> $b['saat']; });
+            }
         }
         // Eski musteri, uzman belirtmediyse: son geldigi uzmani teklif et (kullanici istegi 2026-11-23)
         if (!$personelId && empty($in['uzman_farketmez']) && $sec && ($teklif = $this->sonUzmanTeklifi($hizmetId, $tarih, $saat, $vakit, $sec, $secenek, $bul, $plist)) !== null) {

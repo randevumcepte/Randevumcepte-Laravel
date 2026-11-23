@@ -150,7 +150,7 @@ class CagriOturumu {
     if (giris) {
       if (this.hazirGiris.ses) this.ttsSes = String(this.hazirGiris.ses);
       log.info(`hizli acilis (Laravel beklenmeden): ${giris}`);
-      girisP = this._seslendir(giris).catch(() => {});
+      girisP = this._seslendir(giris, true).catch(() => {});
     }
     try {
       let d;
@@ -174,6 +174,12 @@ class CagriOturumu {
         await girisP;
         if (karsilama.startsWith(giris)) karsilama = karsilama.slice(giris.length).trim();
         else log.warn('hizli acilis: salonun girisi degismis, karsilama tam okunuyor');
+      }
+      // Ilk aramada (giris henuz saklanmamis) de karsilamanin sabit kismi TEK PARCA calar (index.js tek parca on-seslendirdi)
+      const kGiris = String(d.karsilama_giris || '');
+      if (!girisP && kGiris && karsilama.startsWith(kGiris)) {
+        await this._seslendir(kGiris, true);
+        karsilama = karsilama.slice(kGiris.length).trim();
       }
       if (karsilama) await this._seslendir(karsilama);
       // Bekleme cumlelerini onceden seslendir (onbellege al) -> gerektiginde aninda calsin
@@ -544,12 +550,13 @@ class CagriOturumu {
     }
   }
 
-  async _seslendir(metin) {
+  // tekParca: metni cumlelere BOLMEDEN tek seslendirme (karsilama: tek tonlama, cumleler arasi bosluk yok; kayit 243)
+  async _seslendir(metin, tekParca) {
     // Cumle-cumle seslendir: ilk cumle hemen calar, sonrakiler o calariken uretilir (algilanan gecikme duser).
     // BARGE-IN: musteri araya girince (_kesmeNo artar) kalan cumleler URETILMEZ/CALINMAZ.
     // (Eskiden sustur() yalniz kuyrugu bosaltiyordu; dongu sonraki cumleyi yine calip AI'yi "devam ettiriyordu".)
     const kesme = this._kesmeNo || 0;
-    const cumleler = this._cumlelereBol(metin);
+    const cumleler = tekParca ? [String(metin || '').trim()].filter(Boolean) : this._cumlelereBol(metin);
     this._seslendiriyor = true;
     try {
       for (const c of cumleler) {
