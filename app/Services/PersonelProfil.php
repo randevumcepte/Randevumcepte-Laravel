@@ -88,11 +88,8 @@ class PersonelProfil
 
     public static function durum($personelId)
     {
-        try {
-            return DB::table('personel_durum')->where('personel_id', $personelId)->value('durum') ?: 'musait';
-        } catch (\Throwable $e) {
-            return 'musait';
-        }
+        // Durum onayli mola / izin kayitlarindan hesaplanir (PersonelMola); personel_durum artik kullanilmaz
+        return PersonelMola::durumDetay($personelId)['durum'];
     }
 
     /** Ana ozet (profil sayfasi tek cagri). */
@@ -103,7 +100,8 @@ class PersonelProfil
         $bugun = date('Y-m-d');
         $simdi = date('H:i:s');
         $donem = date('Y-m');
-        $s = ['durum' => self::durum($pid)];
+        $det = PersonelMola::durumDetay($pid);
+        $s = ['durum' => $det['durum'], 'durum_detay' => $det];
 
         // Istatistikler
         try {
@@ -412,15 +410,14 @@ class PersonelProfil
         $donem = date('Y-m');
         $h = self::hakedis($salonId);
         $hedefler = DB::table('personel_hedefleri')->where('salon_id', $salonId)->where('donem', $donem)->pluck('tutar', 'personel_id');
-        $durumlar = DB::table('personel_durum')->pluck('durum', 'personel_id');
         return \App\Personeller::where('salon_id', $salonId)->where('aktif', true)
             ->where(function ($q) { $q->where('arsivli', false)->orWhereNull('arsivli'); })
             ->orderBy('takvim_sirasi')->orderBy('id')->get(['id', 'personel_adi', 'unvan', 'profil_resmi'])
-            ->map(function ($p) use ($h, $hedefler, $durumlar) {
+            ->map(function ($p) use ($h, $hedefler) {
                 $ciro = $h[$p->id]['ciro'] ?? 0.0;
                 $hedef = isset($hedefler[$p->id]) ? (float) $hedefler[$p->id] : 0.0;
                 return ['id' => (int) $p->id, 'ad' => (string) $p->personel_adi, 'unvan' => (string) ($p->unvan ?? ''),
-                    'resim' => (string) ($p->profil_resmi ?? ''), 'durum' => $durumlar[$p->id] ?? 'musait',
+                    'resim' => (string) ($p->profil_resmi ?? ''), 'durum' => ($dd = PersonelMola::durumDetay($p->id))['durum'], 'durum_metni' => $dd['metin'],
                     'ciro' => $ciro, 'hedef' => $hedef, 'yuzde' => $hedef > 0 ? (int) round($ciro / $hedef * 100) : null];
             })->all();
     }

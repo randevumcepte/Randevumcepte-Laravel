@@ -49,11 +49,44 @@ class ProfilController extends StoreAdminController
             'durumlar' => PersonelProfil::DURUMLAR] + PersonelProfil::ozet($k[0], $k[1], $k[2], !$request->input('hizli')));
     }
 
+    /**
+     * Durum degisikligi. Govde: {durum: musait|molada|izinli, dakika?, bitis_saat?, bitis_tarih?, personel_id?}
+     * Personel: Molada = talep (yonetici onayi), Musait = onaysiz donus, Izinli secilemez (Izinlerim).
+     * Yonetici (rol < 5): kendisi ve baska personel icin onaysiz uygular.
+     */
     public function durum(Request $request)
     {
         if (!$k = $this->kisi($request)) return $this->yok();
-        if (!PersonelProfil::durumKaydet($k[0], $k[1], (string) $request->input('durum'), $request)) return $this->sonuc('Geçersiz durum.');
-        return $this->sonuc(true, ['durum' => PersonelProfil::durum($k[1]->id)]);
+        list($sid, $ben, $yonetici) = $k;
+        $durum = (string) $request->input('durum');
+        $hedefId = (int) $request->input('personel_id');
+        $hedef = $ben;
+        if ($hedefId && $hedefId !== (int) $ben->id) {
+            if (!$yonetici) return response()->json(['ok' => 0, 'hata' => 'Başkasının durumunu yalnızca yönetici değiştirebilir.'], 403);
+            $hedef = \App\Personeller::where('id', $hedefId)->where('salon_id', $sid)->first(['id', 'personel_adi']);
+            if (!$hedef) return $this->sonuc('Personel bulunamadı.');
+        }
+        $v = $request->only(['dakika', 'bitis_saat', 'bitis_tarih']);
+        if ($yonetici) {
+            $r = \App\Services\PersonelMola::dogrudan($sid, $ben, $hedef, $durum, $v, $request);
+        } elseif ($durum === 'molada') {
+            $r = \App\Services\PersonelMola::talep($sid, $ben, $v['dakika'] ?? 0, $v['bitis_saat'] ?? '', $request);
+        } elseif ($durum === 'musait') {
+            $r = \App\Services\PersonelMola::musaitYap($sid, $ben, $ben, false, $request);
+        } else {
+            $r = 'İzin için Profil > İzinlerim\'den talep gönderin.';
+        }
+        if (is_string($r)) return $this->sonuc($r);
+        return $this->sonuc(true, ['durum_detay' => \App\Services\PersonelMola::durumDetay($hedef->id),
+            'talep' => !$yonetici && $durum === 'molada']);
+    }
+
+    /** Yonetici: mola talebine karar (ilk karar veren gecerli). */
+    public function molaKarar(Request $request)
+    {
+        if (!$k = $this->kisi($request)) return $this->yok();
+        if (!$k[2]) return response()->json(['ok' => 0, 'hata' => 'Mola kararını yalnızca yönetici verebilir.'], 403);
+        return $this->sonuc(\App\Services\PersonelMola::karar($k[0], $k[1], (int) $request->input('id'), (int) $request->input('onay') === 1, $request));
     }
 
     public function yorumlar(Request $request)
@@ -78,7 +111,14 @@ class ProfilController extends StoreAdminController
     {
         if (!$k = $this->kisi($request)) return $this->yok();
         $tum = $k[2] && $request->input('tum') == 1;
-        return $this->sonuc(true, ['izinler' => PersonelProfil::izinler($k[0], (int) $k[1]->id, $tum), 'yonetici' => $k[2]]);
+        $liste = PersonelProfil::izinler($k[0], (int) $k[1]->id, $tum);
+        if ($tum) {
+            // Onay ekraninda uyari: bekleyen izin suresinde zaten alinmis randevular
+            foreach ($liste as $z) {
+                if ($z->durum === 'bekliyor') $z->cakisan = \App\Services\PersonelMola::cakisanlar($k[0], $z->personel_id, $z->baslangic, $z->bitis);
+            }
+        }
+        return $this->sonuc(true, ['izinler' => $liste, 'yonetici' => $k[2]]);
     }
 
     public function izinTalep(Request $request)
@@ -105,7 +145,8 @@ class ProfilController extends StoreAdminController
     {
         if (!$k = $this->kisi($request)) return $this->yok();
         if (!$k[2]) return response()->json(['ok' => 0, 'hata' => 'Bu ekran yalnızca yöneticiye açık.'], 403);
-        return $this->sonuc(true, ['ekip' => PersonelProfil::ekip($k[0]), 'donem' => date('Y-m'), 'durumlar' => PersonelProfil::DURUMLAR]);
+        return $this->sonuc(true, ['ekip' => PersonelProfil::ekip($k[0]), 'donem' => date('Y-m'), 'durumlar' => PersonelProfil::DURUMLAR,
+            'mola_bekleyen' => \App\Services\PersonelMola::bekleyenler($k[0])]);
     }
 
     public function hedef(Request $request)
