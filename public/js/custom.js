@@ -4205,6 +4205,12 @@ $(document).on('submit','#randevuduzenleform',function(e){
         },
        success: function(result)  {
          $('#preloader').hide();
+            // Onayli mola / izin: atlanamaz engel
+            if(result.eklenemez)
+            {
+                swal({type: 'error', title: 'Randevu güncellenemedi', html: result.eklenemez});
+                return;
+            }
             if(result.cakismavar)
             {
                 swal(
@@ -11636,6 +11642,14 @@ function randevudropresizeguncelle(randevuid,hizmetid,personelid,startt,endd,tak
                         $("#preloader").show();
                     },
                    success: function(result)  {
+                        // Onayli mola / izin engeli: mesaj goster, takvim eski haline doner
+                        try {
+                            var _r = JSON.parse(result);
+                            if (_r && _r.eklenemez) {
+                                $("#preloader").hide();
+                                swal({type: 'error', title: 'Randevu taşınamadı', html: _r.eklenemez});
+                            }
+                        } catch (e) {}
                         takvimyukle(true,false);
                     },
                     error: function (request, status, error) {

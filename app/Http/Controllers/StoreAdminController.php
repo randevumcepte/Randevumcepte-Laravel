@@ -7569,6 +7569,11 @@ private function ayAdiCevir($ingilizceAy)
         if($r = self::yetkiYoksa403($request, 'randevu.duzenle_iptal')) return $r;
         $randevu_tarihleri = array();
         array_push($randevu_tarihleri, $request->tarih);
+        // Onayli mola / izin: atlanamaz engel (2026-11-23)
+        $_molaEngeli = \App\Services\PersonelMola::randevuEngeli($request->sube ?: self::mevcutsube($request), $request->randevupersonelleriyeni ?? [], $randevu_tarihleri, $request->saat);
+        if ($_molaEngeli !== '') {
+            return array('eklenemez' => '<p>Bu saate taşınamaz:</p><p>' . nl2br(e($_molaEngeli)) . '</p>');
+        }
         $cakisma_varmi = '';
         
         if (!isset($request->cakisanrandevuekle)) {
@@ -8162,6 +8167,14 @@ private function ayAdiCevir($ingilizceAy)
         $randevu = '';
 
         $hizmetEski = RandevuHizmetler::where('id',$request->id)->first();
+        // Onayli mola / izin: atlanamaz engel (kapama kaydinin kendisi tasinabilir) (2026-11-23)
+        if ($randevu_eski && (int) $randevu_eski->user_id !== 2012) {
+            $_molaEngeli = \App\Services\PersonelMola::randevuEngeli($randevu_eski->salon_id,
+                [$request->personel_id != '' ? $request->personel_id : ($hizmetEski->personel_id ?? null)], [$baslangic[0]], $baslangic[1] ?? '');
+            if ($_molaEngeli !== '') {
+                return response()->json(['eklenemez' => '<p>Bu saate taşınamaz:</p><p>' . nl2br(e($_molaEngeli)) . '</p>']);
+            }
+        }
         $seans = null;
         if($hizmetEski){
             $seans = AdisyonPaketSeanslar::where('randevu_id',$randevu_eski->id)
@@ -9130,6 +9143,12 @@ private function ayAdiCevir($ingilizceAy)
         }
     }
     
+    // Onayli mola / izin: atlanamaz engel (Profil > durum; 2026-11-23)
+    $_molaEngeli = \App\Services\PersonelMola::randevuEngeli($request->sube, $request->randevupersonelleriyeni ?? [], $randevu_tarihleri, $request->saat);
+    if ($_molaEngeli !== '') {
+        return array('eklenemez' => '<p>Bu saatte randevu eklenemez:</p><p>' . nl2br(e($_molaEngeli)) . '</p>');
+    }
+
     // --- KAYNAK CAKISMA UYARISI (moda gore: personel/cihaz/oda) ---
     // Salon ayari acik VE kullanici "yine de olustur" onayi vermemisse kontrol et.
     // Onay verildiyse (kaynak_cakisma_onay=1) kontrol atlanir ve randevu olusturulur.

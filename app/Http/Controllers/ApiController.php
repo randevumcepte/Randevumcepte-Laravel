@@ -12942,6 +12942,16 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // uyarisi/engeli gostermez (kullanici talebi). Ayar ACIK ise hepsi calisir.
         $cakismaAyariAcik = !empty(Salonlar::where('id', $salonId)->value('cakisma_uyarisi_aktif'));
 
+        // Onayli mola / izin: atlanamaz engel ("yine de olustur" de gecmez; uygulama ikinci denemede hata gosterir) (2026-11-23)
+        if ((!$guncelleme) || $zamanDegisti) {
+            $_molaEngeli = \App\Services\PersonelMola::randevuEngeli($salonId,
+                is_array($request->hizmetler) ? array_column($request->hizmetler, 'personel_id') : [],
+                $randevu_tarihleri, $request->randevu_saati);
+            if ($_molaEngeli !== '') {
+                return ["cakismavar" => "1", "cakisanunsurlar" => $_molaEngeli . "\n\nBu saatte randevu verilemez."];
+            }
+        }
+
         // --- Çakışma kontrolü: sadece yeni randevu veya zamanı değiştiyse çalışsın
         // EĞER cakisanrandevuekle = "1" ise (yani kullanıcı "Yine de oluştur" dediyse) çakışma kontrolü YAPMA!
         $cakisma_varmi = "";

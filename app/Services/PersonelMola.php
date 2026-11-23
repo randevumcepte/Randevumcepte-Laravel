@@ -306,6 +306,45 @@ class PersonelMola
         }
     }
 
+    /**
+     * Elle randevu ekleme/guncellemede KESIN engel (onayli mola / izin): personel o tarihte izinliyse ya da
+     * randevu baslangici onayli molanin icine dusuyorsa mesaj doner, yoksa ''. Atlanabilir uyari degildir.
+     * $personeller: id dizisi (ic ice dizi de olabilir), $tarihler: Y-m-d dizisi, $saat: H:i ya da H:i:s.
+     */
+    public static function randevuEngeli($salonId, $personeller, array $tarihler, $saat)
+    {
+        try {
+            if (!Schema::hasTable('personel_molalari')) return '';
+            $idler = [];
+            array_walk_recursive($personeller, function ($v) use (&$idler) {
+                if (is_numeric($v) && (int) $v > 0) $idler[(int) $v] = true;
+            });
+            if (!$idler || !$tarihler) return '';
+            $idler = array_keys($idler);
+            $saat = substr(trim((string) $saat), 0, 5);
+            $adlar = DB::table('salon_personelleri')->whereIn('id', $idler)->where('salon_id', $salonId)->pluck('personel_adi', 'id');
+            $mesaj = [];
+            foreach ($tarihler as $t) {
+                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $t)) continue;
+                foreach (DB::table('personel_izinleri')->whereIn('personel_id', $idler)->where('durum', 'onaylandi')
+                             ->where('baslangic', '<=', $t)->where('bitis', '>=', $t)->get(['personel_id', 'bitis']) as $iz) {
+                    $mesaj[] = ($adlar[$iz->personel_id] ?? 'Personel') . ' ' . self::tarihTr($t) . ' tarihinde izinli (' . self::tarihTr($iz->bitis) . '\'e kadar)';
+                }
+                if ($saat !== '') {
+                    $an = $t . ' ' . $saat . ':00';
+                    foreach (DB::table('personel_molalari')->whereIn('personel_id', $idler)->where('durum', 'onaylandi')
+                                 ->where('baslangic', '<=', $an)->where('bitis', '>', $an)->get(['personel_id', 'baslangic', 'bitis']) as $m) {
+                        $mesaj[] = ($adlar[$m->personel_id] ?? 'Personel') . ' molada (' . substr($m->baslangic, 11, 5) . ' – ' . substr($m->bitis, 11, 5) . ')';
+                    }
+                }
+            }
+            return implode("\n", array_values(array_unique($mesaj)));
+        } catch (\Throwable $e) {
+            Log::warning('[PersonelMola] randevu engeli', ['err' => $e->getMessage()]);
+            return '';
+        }
+    }
+
     /** Takvime saat kapama kaydi (saatkapamaekle ile ayni sema). */
     public static function kapamaEkle($salonId, $p, $tarih, $bas, $bit, $etiket, $olusturanId)
     {
