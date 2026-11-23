@@ -36336,7 +36336,7 @@ DB::raw('
     public function musteri_arama_gecmisi(Request $request)
     {
         $salonId = self::mevcutsube($request);
-        $bos = ['randevular' => [], 'gecmis' => [], 'ozet' => ['gorusme' => 0, 'kayitli' => 0, 'bekleyen' => 0, 'gelen' => 0, 'giden' => 0]];
+        $bos = ['randevular' => [], 'gecmis' => [], 'ozet' => ['cagri' => 0, 'gorusme' => 0, 'kayitli' => 0, 'bekleyen' => 0, 'gelen' => 0, 'giden' => 0]];
         if ((int) optional(Salonlar::where('id', $salonId)->first())->uyelik_turu !== 3) {
             return response()->json($bos);
         }
@@ -36390,9 +36390,15 @@ DB::raw('
         $gecmis = [];
         $notSesleri = [];
         if (Schema::hasTable('gorusme_notlari')) {
-            $nq = \App\GorusmeNotlari::where('salon_id', $salonId)->where('user_id', $userId);
+            // salon_id'si bos kalmis eski notlar da gelsin: bu salonun listelerine bagli olanlar.
+            $salonListeIds = AramaListesi::where('salon_id', $salonId)->pluck('id')->all();
+            $nq = \App\GorusmeNotlari::where('user_id', $userId)
+                ->where(function ($q) use ($salonId, $salonListeIds) {
+                    $q->where('salon_id', $salonId);
+                    if ($salonListeIds) $q->orWhere(function ($q2) use ($salonListeIds) { $q2->whereNull('salon_id')->whereIn('arama_id', $salonListeIds); });
+                });
             if ($personelMi) $nq->where('personel_id', $myPid);
-            $notlar = $nq->orderBy('id', 'desc')->limit(200)->get();
+            $notlar = $nq->orderBy('id', 'desc')->limit(300)->get();
 
             $katAd = [];
             if (Schema::hasTable('cagri_kategorileri')) {
@@ -36439,63 +36445,111 @@ DB::raw('
             $pq = Personeller::where('salon_id', $salonId);
             if ($personelMi) $pq->where('id', $myPid);
             $dset = [];
-            foreach ($pq->get(['dahili_no', 'dahili_no_webrtc']) as $p) {
-                if (!empty($p->dahili_no)) $dset[] = $p->dahili_no;
-                if (!empty($p->dahili_no_webrtc)) $dset[] = $p->dahili_no_webrtc;
+            $dahiliPer = []; // dahili -> personel adi (cagriyi kimin yaptigi/karsiladigi)
+            foreach ($pq->get(['id', 'personel_adi', 'dahili_no', 'dahili_no_webrtc']) as $p) {
+                foreach ([$p->dahili_no, $p->dahili_no_webrtc] as $dh) {
+                    if (empty($dh)) continue;
+                    $dset[] = (string) $dh;
+                    $dahiliPer[(string) $dh] = (string) $p->personel_adi;
+                }
             }
-            $dset = array_values(array_unique(array_filter(array_map('strval', $dset), 'strlen')));
+            $dset = array_values(array_unique(array_filter($dset, 'strlen')));
             if ($dset) {
+                // TUM gecmis: salonun son 1 yillik cagrilari SAYFALANARAK taranir (eskiden tek sayfa = son
+                // 500 cagri -> yogun salonda musterinin eski gorusmeleri hic gelmiyordu). API 'numara'
+                // filtresini destekliyorsa (numara_filtre=true) sorgu zaten bu musteriye daralir.
                 $trunk = \App\SabitNumaralar::where('salon_id', $salonId)->value('numara');
-                $qs = '?offset=0&limit=500';
-                foreach ($dset as $d) $qs .= '&dahililer[]=' . urlencode($d);
-                $qs .= '&tarih1=' . date('Y-m-d', strtotime('-120 days'));
-                $qs .= '&tarih2=' . date('Y-m-d', strtotime('+1 day'));
-                if ($trunk) $qs .= '&did=' . urlencode($trunk);
+                $taban = '?limit=500&numara=' . urlencode($son10);
+                foreach ($dset as $d) $taban .= '&dahililer[]=' . urlencode($d);
+                $taban .= '&tarih1=' . date('Y-m-d', strtotime('-365 days'));
+                $taban .= '&tarih2=' . date('Y-m-d', strtotime('+1 day'));
+                if ($trunk) $taban .= '&did=' . urlencode($trunk);
+
+                $cagrilar = [];
+                $gorulen = [];
+                $basla = microtime(true);
                 try {
-                    $ch = curl_init();
-                    curl_setopt($ch, CURLOPT_URL, 'https://santral.randevumcepte.com.tr/monitor/api/freepbxapi.php' . $qs);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-                    $raw = curl_exec($ch);
-                    curl_close($ch);
-                    $res = json_decode($raw, true);
-                    $rows = (isset($res['data']) && is_array($res['data'])) ? $res['data'] : (is_array($res) ? $res : []);
-                    $gorulen = [];
-                    foreach ($rows as $r) {
-                        if (!is_array($r)) continue;
-                        // musteri_ses_kayitlari ile AYNI lenient esleme: numara herhangi bir kanalda
-                        $saman = preg_replace('/\D/', '', ($r['channel'] ?? '') . '|' . ($r['dstchannel'] ?? '') . '|' . ($r['src'] ?? '') . '|' . ($r['dst'] ?? ''));
-                        if (strpos($saman, $son10) === false) continue;
-                        $ts = !empty($r['calldate']) ? strtotime($r['calldate']) : 0;
-                        if (isset($gorulen[$ts])) continue; // ayni cagri birden fazla CDR satiri
-                        $gorulen[$ts] = true;
-                        $url = trim((string) ($r['recording_path'] ?? ''));
-                        if ($url !== '' && isset($notSesleri[basename($url)])) continue; // zaten bir notta
-                        if ($url !== '' && stripos($url, 'http') !== 0) {
-                            $url = 'https://voicerecords.randevumcepte.com.tr' . (substr($url, 0, 1) === '/' ? '' : '/') . $url;
+                    for ($sayfa = 0; $sayfa < 12; $sayfa++) {
+                        $ch = curl_init();
+                        curl_setopt($ch, CURLOPT_URL, 'https://santral.randevumcepte.com.tr/monitor/api/freepbxapi.php' . $taban . '&offset=' . ($sayfa * 500));
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+                        $raw = curl_exec($ch);
+                        curl_close($ch);
+                        $res = json_decode($raw, true);
+                        $rows = (isset($res['data']) && is_array($res['data'])) ? $res['data'] : [];
+                        foreach ($rows as $r) {
+                            if (!is_array($r)) continue;
+                            // musteri_ses_kayitlari ile AYNI lenient esleme: numara herhangi bir kanalda
+                            $saman = preg_replace('/\D/', '', ($r['channel'] ?? '') . '|' . ($r['dstchannel'] ?? '') . '|' . ($r['src'] ?? '') . '|' . ($r['dst'] ?? '') . '|' . ($r['lastdata'] ?? ''));
+                            if (strpos($saman, $son10) === false) continue;
+                            $ts = !empty($r['calldate']) ? strtotime($r['calldate']) : 0;
+                            $anahtar = !empty($r['linkedid']) ? $r['linkedid'] : $ts;
+                            if (isset($gorulen[$anahtar])) continue;
+                            $gorulen[$anahtar] = true;
+                            $cagrilar[] = $r;
                         }
-                        $yon = (($r['dcontext'] ?? '') === 'from-internal') ? 'giden' : 'gelen';
-                        $gecmis[] = [
-                            '_ts'       => $ts,
-                            'tip'       => 'cagri',
-                            'tarih'     => $ts ? date('d.m.Y H:i', $ts) : '',
-                            'sonuc_kod' => null,
-                            'sonuc'     => ((int) ($r['billsec'] ?? 0) > 0) ? 'Görüşüldü' : 'Cevapsız',
-                            'personel'  => '',
-                            'kategori'  => '',
-                            'not'       => '',
-                            'sure_sn'   => (int) ($r['billsec'] ?? $r['duration'] ?? 0),
-                            'ses'       => $url,
-                            'yon'       => $yon,
-                            'randevu'   => '',
-                            'satis'     => null,
-                        ];
-                        if ($url !== '') $ozet['kayitli']++;
-                        if ($yon === 'gelen') $ozet['gelen']++; else $ozet['giden']++;
+                        if (empty($res['has_more']) || !empty($res['numara_filtre']) && count($rows) < 500) break;
+                        if (microtime(true) - $basla > 25) break; // istek zaman butcesi
                     }
                 } catch (\Throwable $e) {
                     \Log::warning('[MUSTERI-ARAMA-GECMISI] freepbxapi hata: ' . $e->getMessage());
                 }
+
+                // Not girilmis gorusmeler (ses kaydi olmayan) — ayni gorusmenin santral kaydi ayri satir
+                // olmasin: notun hemen ONCESINDEKI (0-20 dk) cagri o nota baglanir (ses/sure/yon eklenir).
+                $notIdx = [];
+                foreach ($gecmis as $gi => $g) {
+                    if ($g['tip'] === 'not' && $g['ses'] === '') $notIdx[] = $gi;
+                }
+
+                foreach ($cagrilar as $r) {
+                    $ts = !empty($r['calldate']) ? strtotime($r['calldate']) : 0;
+                    $url = trim((string) ($r['recording_path'] ?? ''));
+                    if ($url !== '' && isset($notSesleri[basename($url)])) continue; // zaten bir notta
+                    if ($url !== '' && stripos($url, 'http') !== 0) {
+                        $url = 'https://voicerecords.randevumcepte.com.tr' . (substr($url, 0, 1) === '/' ? '' : '/') . $url;
+                    }
+                    $yon = (($r['dcontext'] ?? '') === 'from-internal') ? 'giden' : 'gelen';
+                    $dahili = preg_replace('/\D/', '', (string) ($yon === 'giden' ? ($r['src'] ?? '') : ($r['dst'] ?? '')));
+                    $perAdi = isset($dahiliPer[$dahili]) ? $dahiliPer[$dahili] : '';
+                    $cevap = strtoupper((string) ($r['disposition'] ?? '')) === 'ANSWERED' && (int) ($r['billsec'] ?? 0) > 0;
+                    $sureSn = (int) ($r['billsec'] ?? 0);
+
+                    // Nota baglanabilir mi?
+                    $bagli = false;
+                    foreach ($notIdx as $k => $gi) {
+                        $fark = $gecmis[$gi]['_ts'] - $ts;
+                        if ($ts && $fark >= 0 && $fark <= 1200) {
+                            $gecmis[$gi]['ses'] = $url;
+                            $gecmis[$gi]['yon'] = $yon;
+                            if (empty($gecmis[$gi]['sure_sn'])) $gecmis[$gi]['sure_sn'] = $sureSn;
+                            unset($notIdx[$k]);
+                            $bagli = true;
+                            break;
+                        }
+                    }
+                    if ($url !== '') $ozet['kayitli']++;
+                    if ($yon === 'gelen') $ozet['gelen']++; else $ozet['giden']++;
+                    if ($bagli) continue;
+
+                    $gecmis[] = [
+                        '_ts'       => $ts,
+                        'tip'       => 'cagri',
+                        'tarih'     => $ts ? date('d.m.Y H:i', $ts) : '',
+                        'sonuc_kod' => null,
+                        'sonuc'     => $cevap ? 'Görüşüldü' : ($yon === 'gelen' ? 'Cevapsız (kaçan)' : 'Ulaşılamadı'),
+                        'personel'  => $perAdi,
+                        'kategori'  => '',
+                        'not'       => '',
+                        'sure_sn'   => $sureSn,
+                        'ses'       => $url,
+                        'yon'       => $yon,
+                        'randevu'   => '',
+                        'satis'     => null,
+                    ];
+                }
+                $ozet['cagri'] = count($cagrilar);
             }
         }
 

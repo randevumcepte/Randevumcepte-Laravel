@@ -637,7 +637,7 @@
                @include('isletmeadmin.partials.cagri_kayit_stil')
                <div class="ck-wrap" style="padding-top:6px;">
                   <div class="ck-ozet c5">
-                     <div class="ck-oz t-gri"><div class="n" id="ma_gorusme">0</div><div class="t"><span class="dot"></span> Görüşme Notu</div></div>
+                     <div class="ck-oz t-gri"><div class="n" id="ma_gorusme">0</div><div class="t"><span class="dot"></span> Toplam Görüşme</div></div>
                      <div class="ck-oz t-mor"><div class="n" id="ma_kayitli">0</div><div class="t"><span class="dot"></span> Ses Kayıtlı</div></div>
                      <div class="ck-oz t-mor" style="--acc:#e07a1a;"><div class="n" id="ma_bekleyen">0</div><div class="t"><span class="dot"></span> Bekleyen Arama Randevusu</div></div>
                      <div class="ck-oz t-yesil"><div class="n" id="ma_gelen">0</div><div class="t"><span class="dot"></span> Gelen</div></div>
@@ -672,7 +672,7 @@
                      if(c===0||c===2||c===5||c===9) return {bl:'bl-kirmizi',b:'b-kirmizi',et:k.sonuc};
                      return {bl:'',b:'b-gri',et:k.sonuc||'—'};
                   }
-                  function baslik(k){ return k.tip==='cagri' ? 'Santral çağrısı' : (k.personel||'Görüşme'); }
+                  function baslik(k){ return k.personel || (k.tip==='cagri' ? 'Santral çağrısı' : 'Görüşme'); }
                   function randevuCiz(r){
                      if(!r.length){ $('#ma_randevular').html(''); return; }
                      var et={bekliyor:['b-turuncu','Bekliyor'],gecikti:['b-kirmizi','Gecikti'],tamamlandi:['b-yesil','Arandı']};
@@ -707,9 +707,9 @@
                   function detayCiz(k){
                      var r=renk(k), bas=baslik(k);
                      var html='<div class="ck-d-bas"><div class="ck-d-av">'+(k.tip==='cagri'?'<i class="fa fa-phone"></i>':esc(bas.trim().charAt(0).toLocaleUpperCase('tr')))+'</div>'
-                        +'<div><div class="ck-d-ad">'+esc(bas)+'</div><div class="ck-d-tel">'+(k.tip==='cagri'?'Not girilmemiş çağrı':'Görüşmeyi yapan personel')+'</div></div></div>'
+                        +'<div><div class="ck-d-ad">'+esc(bas)+'</div><div class="ck-d-tel">'+(k.tip==='cagri'?'Santral çağrısı (not girilmemiş)':'Görüşme notu')+'</div></div></div>'
                         +'<div class="ck-d-satir"><div class="ck-d-chip"><span class="ck-badge '+r.b+'">'+esc(r.et)+'</span></div>'
-                        +(k.tip==='cagri'?'<div class="ck-d-chip">'+esc(k.sonuc)+'</div>':'')
+                        +(k.tip==='cagri'?'<div class="ck-d-chip">'+esc(k.sonuc)+'</div>':(k.yon?'<div class="ck-d-chip">'+(k.yon==='gelen'?'↙ Gelen':'↗ Giden')+'</div>':''))
                         +'<div class="ck-d-chip">🕒 <b>'+esc(k.tarih)+'</b></div>'
                         +(sure(k.sure_sn)?'<div class="ck-d-chip">⏱️ Süre: <b>'+sure(k.sure_sn)+'</b></div>':'')
                         +(k.randevu?'<div class="ck-d-chip">📅 Arama randevusu: <b>'+esc(k.randevu)+'</b></div>':'')
@@ -732,7 +732,7 @@
                      $.get('/isletmeyonetim/musteri-arama-gecmisi',{user_id:maUser,sube:$('input[name="sube"]').val()},function(res){
                         maVeri=(res&&res.gecmis)?res.gecmis:[];
                         var o=(res&&res.ozet)?res.ozet:{};
-                        $('#ma_gorusme').text(o.gorusme||0); $('#ma_kayitli').text(o.kayitli||0); $('#ma_bekleyen').text(o.bekleyen||0);
+                        $('#ma_gorusme').text(maVeri.length); $('#ma_kayitli').text(o.kayitli||0); $('#ma_bekleyen').text(o.bekleyen||0);
                         $('#ma_gelen').text(o.gelen||0); $('#ma_giden').text(o.giden||0);
                         randevuCiz((res&&res.randevular)?res.randevular:[]);
                         listeCiz();
