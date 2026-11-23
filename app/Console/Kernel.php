@@ -27,6 +27,7 @@ class Kernel extends ConsoleKernel
         Commands\AramaRandevuAktar::class,
         Commands\SadakatPuanIsle::class,
         Commands\DamgaKartiBildirim::class,
+        Commands\IkramOdemeEtki::class,
 
         Commands\SMSGonder::class,
         Commands\RandevuSMSHatirlatma::class,
