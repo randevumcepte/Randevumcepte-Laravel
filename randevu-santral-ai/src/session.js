@@ -304,6 +304,23 @@ class CagriOturumu {
     // asistan ayni soruya iki cevap ust uste okuyordu (2026-11-16 kayit #51).
     const simdi = Date.now();
     const onceki = this._sonIslenen;
+    // CUMLE DEVAMI CALARKEN (kayit 2026-11-23 12.52): musteri "Bugün" deyip duraksadi, cevap ("saat 12 ... hangisi?")
+    // calmaya basladiginda "saat 3" geldi -> eski cevap sonuna kadar okunup ardindan ikinci cevap geliyordu.
+    // Musteri bu cumleye cevabi DUYMADAN basladiysa (ilk ara-metin ses baslamadan once / ilk 0,8 sn icinde) devamidir:
+    // cevabi kes, tur gecmisten dusulsun, iki parca birlestirilip tek turda sorulsun. Is yapan cevap (randevu/aktar) kesilmez.
+    const c = this._caliyor;
+    if (this.mesgul && c && !this._bekleyen && !BOS_TEKRAR.test(n)
+        && !(onceki && (onceki.n === n || onceki.n.startsWith(n)))
+        && (this._ifadeBasT || 0) > c.t0 && (this._ifadeBasT || 0) < c.sesBasT + 800) {
+      log.info(`> musteri (cumle devami, cevap kesildi): ${metin}`);
+      this._sonIslenen = { n, t: simdi };
+      this._caliyor = null;
+      this._kesmeNo = (this._kesmeNo || 0) + 1;
+      this.rtp.sustur();
+      brain.turIptal(this.oturumId, c.tur);
+      this._bekleyen = n.startsWith(sadeMetin(c.metin)) ? metin : c.metin + ' ' + metin;
+      return;
+    }
     if (onceki && (simdi - onceki.t) < 5000) {
       if (onceki.n === n || onceki.n.startsWith(n)) { log.debug('yinelenen final atlandi'); return; }
       if (n.startsWith(onceki.n) && this.mesgul && !this._bekleyen && BOS_TEKRAR.test(n.slice(onceki.n.length).trim())) {
@@ -330,6 +347,10 @@ class CagriOturumu {
       if (BURADA_MI.test(n)) this._tepkiCal(TEPKI_BURADA);
       return;
     }
+    // CUMLE DEVAMI CALARKEN (kayit 2026-11-23 12.52): musteri "Bugün" deyip duraksadi, cevap ("saat 12 ... hangisi?")
+    // calmaya basladiginda "saat 3" geldi -> eski cevap sonuna kadar okunup ardindan ikinci cevap geliyordu.
+    // Musteri bu cumleye cevabi DUYMADAN basladiysa (ilk ara-metin ses baslamadan once / ilk 0,8 sn icinde) devamidir:
+    // cevabi kes, tur gecmisten dusulsun, iki parca birlestirilip tek turda sorulsun. Is yapan cevap (randevu/aktar) kesilmez.
     if (this.mesgul) {
       this._eskidi = true;
       if (!this._bekleyen && this._aktifTur && this._paralelBaslat(this._aktifTur.metin + ' ' + metin)) return;
@@ -437,10 +458,12 @@ class CagriOturumu {
       this._beyinBekliyor = false;
       clearTimeout(dolguZ);
       let d;
+      let cal = { tur, metin, t0 }; // calinacak cevabin turu (paralel tur kazanirsa o)
       if (s.kim === 'spek') {
         const spek = this._spek;
         this._spek = null;
         d = s.r.d;
+        cal = { tur: spek.tur, metin: spek.metin, t0: spek.t0 };
         log.info(`  (paralel tur ONCE bitti: ${Date.now() - spek.t0} ms, ilk turdan beri ${Date.now() - t0} ms; eski tur beklenmedi)`);
         eskiP.then((r) => {
           // Eski tur is yaptiysa gecmisi silinmez (onay sorularinda Laravel zaten sirali calistirir; burasi nadir)
@@ -466,6 +489,7 @@ class CagriOturumu {
             return;
           }
           d = r.d;
+          cal = { tur: spek.tur, metin: spek.metin, t0: spek.t0 };
         } else {
           // Eski tur is yapti (randevu/aktar/veda): o calinir; paralel tur bunu bilmeden kuruldu -> iptal,
           // musterinin cumlesi bu isin ardindan sirayla sorulur (eski davranis).
@@ -505,7 +529,9 @@ class CagriOturumu {
         const yeni = d.cevap.replace(TEPKI_BAS, '');
         d.cevap = yeni.charAt(0).toLocaleUpperCase('tr') + yeni.slice(1);
       }
+      if (!d.aksiyon && !kapanis) this._caliyor = Object.assign(cal, { sesBasT: Date.now() });
       if (d.cevap) await this._seslendir(d.cevap);
+      this._caliyor = null;
       this._olcum = null;
 
       if (d.aksiyon === 'aktar') { this._bekleyen = null; this.onAktar(this.kanalId); return; }

@@ -631,7 +631,7 @@ class RandevuAsistan
                 && $this->sahteBasariMetni($cevap);
             // BEKLETME CUMLESI: "bir moment / bekleteceğim / kontrol ediyorum" -> cumleyi at; geriye bir sey
             // kalmadiysa (model araci cagirmadan bekletip turu bitirdi) duzeltme turu: araci simdi cagirsin.
-            $cevap = $this->dogalBaslangic($this->uydurmaHizmetKes($this->uzmanListesiKes($this->bekletmeTemizle($this->icSesTemizle($cevap)), $metin)));
+            $cevap = $this->tekrarOnayKes($this->dogalBaslangic($this->uydurmaHizmetKes($this->uzmanListesiKes($this->bekletmeTemizle($this->icSesTemizle($cevap)), $metin))), $gecmis);
             $bekletti = ($cevap === '' && !$bitir && !in_array($aksiyon, ['aktar', 'veda'], true));
             if ($bekletti && $deneme === 0) {
                 Log::warning('[SANTRAL-BEKLETME] model bekletme cumlesiyle turu bitirdi', ['salon' => $this->salonId, 'metin' => $metin]);
@@ -1838,6 +1838,30 @@ class RandevuAsistan
         if ($c === $once) return $c;
         $ilk = mb_substr($c, 0, 1, 'UTF-8');
         return ($ilk === 'i' ? 'İ' : mb_strtoupper($ilk, 'UTF-8')) . mb_substr($c, 1, null, 'UTF-8');
+    }
+
+    /**
+     * Basa eklenen onay kalibi ("Tabii, anladım.") her cevapta tekrarlanmasin (kayit 2026-11-23 12.52: 6 cevabin 5'i
+     * "Tabii, anladım." ile basliyordu, "Tabii, anladım. Rica ederiz" bile oldu). Son iki asistan cevabinda ayni kalip
+     * varsa ya da ardindan nezaket/kapanis geliyorsa kalip atilir; geriye bir sey kalmazsa dokunulmaz.
+     */
+    protected function tekrarOnayKes(string $c, array $gecmis): string
+    {
+        $kalip = '/^(tabii(\s+ki)?\s*,?\s*anladım|anladım|tabii|çok güzel|harika|olur)\s*[.,!]\s*/iu';
+        if (!preg_match($kalip, $c, $m)) return $c;
+        $kalan = trim(mb_substr($c, mb_strlen($m[0], 'UTF-8'), null, 'UTF-8'));
+        if ($kalan === '') return $c;
+        $kes = (bool) preg_match('/^(rica|teşekkür|iyi günler|iyi akşamlar|görüşmek üzere)/iu', $kalan);
+        $bas = mb_strtolower(trim($m[1]), 'UTF-8');
+        for ($i = count($gecmis) - 1, $n = 0; !$kes && $i >= 0 && $n < 2; $i--) {
+            if (($gecmis[$i]['role'] ?? '') !== 'assistant') continue;
+            $n++;
+            $o = mb_strtolower(trim((string) ($gecmis[$i]['content'] ?? '')), 'UTF-8');
+            if ($o !== '' && mb_strpos($o, $bas) === 0) $kes = true;
+        }
+        if (!$kes) return $c;
+        $ilk = mb_substr($kalan, 0, 1, 'UTF-8');
+        return ($ilk === 'i' ? 'İ' : mb_strtoupper($ilk, 'UTF-8')) . mb_substr($kalan, 1, null, 'UTF-8');
     }
 
     /** Fiyat/ucret sorusu mu? ("saç kesimi ne kadar", "fiyatı nedir", "kaç lira") -> isletmeye aktarilir. */
@@ -3126,7 +3150,13 @@ FIYAT
             if (count($pencere) > 2) {
                 $sira = array_flip(AdilAtama::sirala($this->salonId, array_column($pencere, 'personel_id'), $secenek[0]['tarih']));
                 usort($pencere, function ($a, $b) use ($sira) { return ($sira[(int) $a['personel_id']] ?? 99) <=> ($sira[(int) $b['personel_id']] ?? 99); });
-                $sec = array_slice($pencere, 0, 2);
+                // Iki oneri FARKLI saatte olmali ("saat 12 Zehra ya da saat 12 Semih" anlamsiz; kayit 2026-11-23 12.52)
+                $sec = [];
+                foreach ($pencere as $p) {
+                    if ($sec && $sec[0]['saat'] === $p['saat']) continue;
+                    $sec[] = $p;
+                    if (count($sec) === 2) break;
+                }
                 usort($sec, function ($a, $b) { return $a['saat'] <=> $b['saat']; });
             }
         }

@@ -896,6 +896,14 @@ namespace {
     icerir('WA telefon ifadesi: aradığınız → yazdığınız', 'bize yazdığınız için teşekkür', $wc('telefonIfadeleri', 'Rica ederiz, bizi aradığınız için teşekkür ederiz.'));
     esit('WA döngü sadeleştirme', 'merhaba nasılsınız', $wc('sade', '  Merhaba,   nasılsınız?? '));
 
+    // Kayit 2026-11-23 12.52: "Tabii, anladım." her cevapta tekrarlanmaz, nezaketten once atilir
+    $gT = [['role' => 'assistant', 'content' => 'Tabii, anladım. Pedikür için hangi gün uygun?'], ['role' => 'user', 'content' => 'yarın']];
+    esit('Tekrar onay: son cevapta da vardı → atılır', 'Yarın 14:00 uygun mu?', cagir($ab, 'tekrarOnayKes', 'Tabii, anladım. Yarın 14:00 uygun mu?', $gT));
+    esit('Tekrar onay: rica öncesi → atılır', 'Rica ederiz Miray Hanım.', cagir($ab, 'tekrarOnayKes', 'Tabii, anladım. Rica ederiz Miray Hanım.', []));
+    esit('Tekrar onay: ilk kez → kalır', 'Tabii, anladım. Hangi gün?', cagir($ab, 'tekrarOnayKes', 'Tabii, anladım. Hangi gün?', [['role' => 'assistant', 'content' => 'Merhaba.']]));
+    esit('Tekrar onay: farklı kalıp → kalır', 'Harika. Hangi gün?', cagir($ab, 'tekrarOnayKes', 'Harika. Hangi gün?', $gT));
+    esit('Tekrar onay: yalnız onay → dokunulmaz', 'Tabii, anladım.', cagir($ab, 'tekrarOnayKes', 'Tabii, anladım.', $gT));
+
     echo "\n\033[1mSONUÇ: $gecen geçti, $kalan kaldı\033[0m\n";
     if ($kalan) { echo "Kalanlar:\n - " . implode("\n - ", $hatalar) . "\n"; exit(1); }
 }
