@@ -36,7 +36,7 @@ class DamgaKartiServisi
      * Test anahtari: true iken ileri tarihli ama "Geldi" isaretli randevular da damga sayilir.
      * Normal kural false: randevu gunu gelince sayilir (11 Kas 2026 test bitti, kapatildi).
      */
-    const ILERI_TARIH_SAYILIR = false;
+    const ILERI_TARIH_SAYILIR = true; // GECICI TEST (23 Kas 2026, kullanici onayi: ozellik canlida henuz kullanilmiyor): test bitince false
 
     private static $kolonOnbellek = [];
 
