@@ -16,7 +16,7 @@
 .ih-bas { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; }
 .ih-bas b { font-size:16px; color:#111827; }
 .ih-bas span { font-size:13px; font-weight:700; color:#7c3aed; }
-.ih-istat { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:12px 0; }
+.ih-istat { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; }
 .ih-istat div { background:#f9fafb; border-radius:12px; padding:10px; text-align:center; }
 .ih-istat b { display:block; font-size:20px; color:#111827; }
 .ih-istat small { font-size:11px; color:#6b7280; }
@@ -38,7 +38,6 @@
 .ih-suresi_doldu { background:#fef2f2; color:#dc2626; }
 .ih-son { background:#fffbeb; color:#92400e; border-radius:10px; padding:8px 12px; font-size:13px; margin:0 0 8px; }
 .ih-bos { text-align:center; color:#9ca3af; padding:40px 10px; }
-@media (max-width:560px) { .ih-istat { grid-template-columns:repeat(2,1fr); } }
 </style>
 
 @php
@@ -69,7 +68,6 @@
                 <span>{{ $k['kural_yazi'] ?? ($k['gereken_adet'].' alana '.$k['ucretsiz_adet'].' ikram') }} @if(!empty($k['kampanya_bitis']))· kampanya {{ date('d.m.Y', strtotime($k['kampanya_bitis'])) }} tarihine kadar @endif @if(!empty($k['gecerlilik']))· {{ $k['gecerlilik'] }} geçerli @endif</span>
             </div>
             <div class="ih-istat">
-                <div><b>{{ $k['ucretli'] }}</b><small>Ücretli alım</small></div>
                 <div><b>{{ $k['kazanilan'] }}</b><small>Kazanılan ikram</small></div>
                 <div><b>{{ $k['kullanilan'] }}</b><small>Kullanılan</small></div>
                 <div class="kalan"><b>{{ $k['hak'] }}</b><small>Kalan ikram</small></div>
