@@ -69,6 +69,7 @@ namespace {
     require __DIR__ . '/../app/Services/TurkceIsimCinsiyet.php';
     require __DIR__ . '/../app/Services/SesliRandevuCozService.php';
     require __DIR__ . '/../app/Services/RandevuAsistan.php';
+    require_once __DIR__ . '/../app/Services/WaBedavaKatman.php';
 
     $servis = (new ReflectionClass(App\Services\SesliRandevuCozService::class))->newInstanceWithoutConstructor();
     $GLOBALS['_app'][App\Services\SesliRandevuCozService::class] = $servis;
@@ -151,8 +152,8 @@ namespace {
     // =====================================================================================
     bolum('konus(): LLM\'den ÖNCE kodla cevaplananlar');
     $d = $a->konus('Saç kesimi ne kadar?', []);
-    esit('fiyat → aksiyon aktar', 'aktar', $d['aksiyon']);
-    icerir('fiyat → cümle', 'Fiyat bilgisi için', $d['cevap']);
+    esit('fiyat → telefonda aktarılmaz (kayıt 239)', null, $d['aksiyon']);
+    icerir('fiyat → işletme iletecek + randevuya devam', 'Fiyat bilgisini işletmemiz size ayrıca iletecek', $d['cevap']);
     $d = $a->konus('Beni işletmeye bağlar mısın', []);
     esit('bağlanma → aksiyon aktar', 'aktar', $d['aksiyon']);
     icerir('bağlanma → cümle', 'yetkili bir arkadaşımıza', $d['cevap']);
@@ -196,7 +197,7 @@ namespace {
     icerir('ikinci SSS', 'Tüm kartlar', $d['cevap']);
     esit('alakasız cümle SSS\'ye düşmez', null, cagir($as, 'sssCevap', 'Yarın saç kesimi istiyorum'));
     $d = $as->konus('Otopark ücreti ne kadar', []);
-    esit('SSS kelimesi geçse de fiyat sorusu → aktar', 'aktar', $d['aksiyon']);
+    esit('SSS kelimesi geçse de fiyat sorusu → fiyat yolu', 'fiyat', $as->teshis);
 
     // =====================================================================================
     bolum('Hizmet süresi sorusu (kodla, gerçek süre)');
@@ -211,7 +212,7 @@ namespace {
     icerir('süre girilmemiş → uydurmaz', 'kesin süre bilgisi bende kayıtlı değil', cagir($ah, 'sureCevabi', 'Lazer epilasyon ne kadar sürer'));
     esit('hizmet adı yoksa modele bırakır', null, cagir($ah, 'sureCevabi', 'Ne kadar sürer'));
     esit('süre sorusu değilse null', null, cagir($ah, 'sureCevabi', 'Saç kesimi randevusu istiyorum'));
-    esit('fiyat sorusu yine aktar', 'aktar', $ah->konus('Saç kesimi ne kadar', [])['aksiyon']);
+    $ah->konus('Saç kesimi ne kadar', []); esit('fiyat sorusu süreye düşmez → fiyat yolu', 'fiyat', $ah->teshis);
 
     bolum('Bekletme cümlesi temizliği');
     foreach ([
@@ -324,6 +325,27 @@ namespace {
     esit('"Örneğin ..." listesinde de uydurma çıkar', false, mb_stripos($u2, 'cist') !== false);
     $dogru = 'Tırnak için jel tırnak, fullset ya da kalıcı oje gibi bir hizmet mi istersiniz?';
     esit('listede olan hizmetler dokunulmaz', $dogru, $ola->uydurmaHizmetKes($dogru));
+    bolum('Kayıt 239: randevu onayı ortasında fiyat sorusu aktarılmaz, soru tekrar sorulur');
+    $f239 = asistan(['salon' => ['ad' => 'Ola Nail', 'hizmetler' => [
+        ['id' => 1, 'ad' => 'Kalıcı Oje', 'fiyat' => 400, 'kategori' => 'Tırnak'], ['id' => 2, 'ad' => 'Jel Tırnak', 'fiyat' => 0, 'kategori' => 'Tırnak']]]]);
+    $onay = 'Salı 24 Kasım saat 17\'de uzmanımız Sümeyra Hanım ile kalıcı oje için randevu talebi oluşturayım mı?';
+    $g239 = [['role' => 'user', 'content' => 'Salı saat 5'], ['role' => 'assistant', 'content' => $onay]];
+    $f239->santralFiyatSoyle = true;
+    $d = $f239->konus('Fiyat ne kadar?', $g239);
+    esit('aktarma yok', null, $d['aksiyon']);
+    icerir('kayıtlı fiyat söylenir', 'Kalıcı Oje fiyatımız 400 lira.', $d['cevap']);
+    icerir('onay sorusu aynen tekrar', $onay, $d['cevap']);
+    $f239->santralFiyatSoyle = false;
+    $d = $f239->konus('Fiyat ne kadar?', $g239);
+    esit('ayar kapalı: yine aktarma yok', null, $d['aksiyon']);
+    icerir('ayar kapalı: işletme iletecek', 'Fiyat bilgisini işletmemiz size ayrıca iletecek', $d['cevap']);
+    esit('ayar kapalı: işletmeye fiyat notu', 'Fiyat sordu: Kalıcı Oje', $d['fiyat_notu'] ?? null);
+    $f239->santralFiyatSoyle = true;
+    $d = $f239->konus('Jel tırnak kaç lira', [['role' => 'assistant', 'content' => 'Size nasıl yardımcı olabilirim?']]);
+    esit('fiyatı tanımsız hizmet: not', 'Fiyat sordu: Jel Tırnak', $d['fiyat_notu'] ?? null);
+    icerir('randevu teklifiyle devam', 'randevunuzu hemen oluşturayım', $d['cevap']);
+    esit('açık aktarma isteği hâlâ aktarılır', 'aktar', $f239->konus('Beni yetkiliye bağlar mısınız', $g239)['aksiyon']);
+
     esit('anladıysa aktarılmaz', false, $pz->ikinciAnlamama('Hangi gün sizin için uygun?', [['role' => 'assistant', 'content' => $anla], ['role' => 'user', 'content' => 'manikür']]));
 
     bolum('"Başka yardımcı olabileceğim..." garantisi');

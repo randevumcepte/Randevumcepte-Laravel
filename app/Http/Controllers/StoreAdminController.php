@@ -30661,7 +30661,7 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'renk' => self::asistanSonucRengi(self::asistanSonucKodu($o)),
             'sonuc' => self::asistanSonucEtiketi(self::asistanSonucKodu($o), $o->durum),
             'geri_ara' => (int) ($o->geri_ara ?? 0),
-            'geri_ara_neden' => ['cevapsiz' => 'Yetkiliye ulaşılamadı', 'hedef_yok' => 'Aktarma hattı tanımlı değil', 'mesai_disi' => 'Mesai dışı'][$o->geri_ara_neden ?? ''] ?? '',
+            'geri_ara_neden' => ['cevapsiz' => 'Yetkiliye ulaşılamadı', 'hedef_yok' => 'Aktarma hattı tanımlı değil', 'mesai_disi' => 'Mesai dışı', 'fiyat' => 'Fiyat bilgisi istedi'][$o->geri_ara_neden ?? ''] ?? '',
             'geri_ara_not' => (string) ($o->geri_ara_not ?? ''),
             'geri_arandi' => !empty($o->geri_arandi_at) ? date('d.m.Y H:i', strtotime($o->geri_arandi_at)) . ($o->geri_arayan ? ' · ' . $o->geri_arayan : '') : '',
             'randevu_id' => $o->randevu_id ? (int) $o->randevu_id : null,

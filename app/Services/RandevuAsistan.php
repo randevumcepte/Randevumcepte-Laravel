@@ -53,6 +53,8 @@ class RandevuAsistan
     protected string $kanal = 'santral';
     /** Yalniz WhatsApp: isletme ayari "fiyat söylensin" acik -> fiyat sorusu aktarilmaz, liste fiyati soylenir (WaAsistan atar). */
     public bool $waFiyatSoyle = false;
+    /** Santral: isletme "fiyat söylensin" dedi mi (WhatsApp asistan ayari, iki kanal ortak; kopru controller atar). */
+    public bool $santralFiyatSoyle = false;
     /** Yalniz WhatsApp: profil adi gercek bir "Ad Soyad" ise (waProfilAdiAyarla) kayitsiz musteriye ad SORULMAZ, kayit bununla yapilir. */
     protected ?string $waProfilAdi = null;
     /** @var string[] Yalniz WhatsApp: gecmis sohbetlerden ogrenilen, test edilmis dersler (waPromptBolumu sonuna eklenir). */
@@ -434,6 +436,11 @@ class RandevuAsistan
         // KESIN AKTARMA: "beni işletmeye/yetkiliye bağlar mısın", "operatör", "biriyle görüşmek istiyorum" ->
         // LLM'e sormadan aktar (STT "işletmeye"yi "genişletme" duysa bile "bağlar mısın" yakalanir).
         $fiyatSorusu = !$this->waFiyatAcik() && !$this->aktarmaIstegiMi($metin) && $this->fiyatSorusuMu($metin);
+        // SANTRAL: fiyat sorusu AKTARILMAZ (kayit 239) -> fiyat soylenir / not alinir, yarim kalan soru tekrar sorulur
+        if ($fiyatSorusu && $this->kanal !== 'whatsapp') {
+            $this->teshis = 'fiyat';
+            return $this->santralFiyatCevabi($metin, $gecmis);
+        }
         if ($fiyatSorusu || $this->aktarmaIstegiMi($metin)) {
             Log::info('[SANTRAL-TUR] kesin aktarma', ['salon' => $this->salonId, 'metin' => $metin, 'fiyat' => $fiyatSorusu]);
             $this->teshis = 'aktar';
@@ -999,6 +1006,54 @@ class RandevuAsistan
             $c = rtrim($c, " ,") . ($c !== '' && !preg_match('/[.!?)]$/u', $c) ? '.' : '') . ($wa ? "\n\n" : ' ') . 'Başka yardımcı olabileceğim bir konu var mı?';
         }
         return trim($c);
+    }
+
+    /**
+     * SANTRAL FIYAT SORUSU (kayit 239): eskiden her fiyat sorusu isletmeye AKTARILIYORDU; randevu onayinin tam ortasinda
+     * "fiyat ne kadar?" -> aktarma -> kimse acmadi -> "not aldım" -> randevu kayboldu. Simdi aktarma YOK: isletme
+     * "fiyat söylensin" dediyse kayitli fiyat soylenir; demediyse / fiyat tanimsizsa "fiyat bilgisini işletmemiz iletecek"
+     * (kopru controller geri arama notu yazar). Ardindan musterinin duydugu yarim kalan soru AYNEN tekrar sorulur.
+     */
+    public function santralFiyatCevabi(string $metin, array $gecmis): array
+    {
+        $hizmetler = $this->hizmetler();
+        $bulunan = WaBedavaKatman::hizmetBul($metin, $hizmetler);
+        for ($i = count($gecmis) - 1; $i >= 0 && !$bulunan; $i--) { // konusmadaki son hizmet
+            $b = WaBedavaKatman::hizmetBul((string) ($gecmis[$i]['content'] ?? ''), $hizmetler);
+            if ($b) $bulunan = array_slice($b, 0, 1);
+        }
+        $fiyatli = $this->santralFiyatSoyle
+            ? array_values(array_filter($bulunan, function ($h) { return (float) ($h['fiyat'] ?? 0) > 0; }))
+            : [];
+        $not = null;
+        if ($fiyatli) {
+            $lira = function ($f) { $f = (float) $f; return number_format($f, abs($f - round($f)) < 0.005 ? 0 : 2, ',', '.') . ' lira'; };
+            $cevap = implode(', ', array_map(function ($h) use ($lira) { return trim($h['ad']) . ' fiyatımız ' . $lira($h['fiyat']); }, array_slice($fiyatli, 0, 3))) . '.';
+        } elseif (!$bulunan && $this->santralFiyatSoyle) {
+            return ['cevap' => 'Hangi hizmetimizin fiyatını öğrenmek istersiniz?', 'aksiyon' => null, 'veri' => [], 'bitir' => false];
+        } else {
+            $ad = $bulunan ? trim($bulunan[0]['ad']) : '';
+            $cevap = 'Fiyat bilgisini işletmemiz size ayrıca iletecek, notunu aldım.';
+            $not = 'Fiyat sordu' . ($ad !== '' ? ': ' . $ad : '');
+        }
+        $cevap .= ' ' . $this->devamSorusu($gecmis);
+        Log::info('[SANTRAL-TUR] fiyat sorusu (aktarilmadi)', ['salon' => $this->salonId, 'metin' => $metin, 'cevap' => $cevap]);
+        return ['cevap' => $cevap, 'aksiyon' => null, 'veri' => [], 'bitir' => false] + ($not ? ['fiyat_notu' => $not] : []);
+    }
+
+    /** Ara bir sorudan sonra randevu akisina donus: musterinin duydugu son asistan sorusu (yoksa randevu teklifi). */
+    protected function devamSorusu(array $gecmis): string
+    {
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') !== 'assistant') continue;
+            $c = trim((string) ($gecmis[$i]['content'] ?? ''));
+            if (preg_match('/talebinizi oluşturdum|randevunuzu güncelledim|iptal edildi/u', $c)) return 'Başka yardımcı olabileceğim bir konu var mı?';
+            $soru = null;
+            foreach (preg_split('/(?<=[.!?])\s+/u', $c) as $s) if (substr(rtrim($s), -1) === '?') $soru = trim($s);
+            if ($soru && !preg_match('/adınız|soyad|nasıl yardımcı/u', $soru)) return $soru;
+            break;
+        }
+        return 'İsterseniz randevunuzu hemen oluşturayım; hangi gün size uygun?';
     }
 
     /** Asistan musteriyi anlamadigini mi soyluyor ("tam duyamadım", "tekrar söyler misiniz", "... mı demek istediniz?")? */
@@ -2039,6 +2094,10 @@ class RandevuAsistan
         $ad = $this->salonAdi();
         $bugun = now('Europe/Istanbul')->format('Y-m-d');
         $harita = $this->gunHaritasi();
+        // Telefonda fiyat sorusu AKTARILMAZ (kayit 239: aktarma randevuyu kaybettiriyordu; fiyat sorusunu kod cevaplar)
+        $fiyatKurali = $this->kanal === 'whatsapp'
+            ? 'FİYAT/ÜCRET/İNDİRİM/KAMPANYA soruları ("ne kadar", "fiyatı nedir", "kaç lira") → fiyat SÖYLEME, "Fiyat bilgisi için sizi işletmemize bağlıyorum" deyip "aktar" çağır.'
+            : 'FİYAT/ÜCRET/İNDİRİM soruları için "aktar" ÇAĞIRMA ve fiyat UYDURMA: "Fiyat bilgisini işletmemiz size iletecek" de ve randevu akışına (yarım kalan soruya) dön. Önceliğin HER ZAMAN randevuyu tamamlamak.';
 
         $hizmetSatir = '';
         foreach (array_slice($this->salon['hizmetler'] ?? [], 0, 40) as $h) {
@@ -2170,7 +2229,7 @@ Saat kestirimi: "on dörtte"=14:00, "on dört buçukta"=14:30, "ikide/saat ikide
 {$harita}
 
 # AKTARMA (sadece bunlarda "aktar")
-FİYAT/ÜCRET/İNDİRİM/KAMPANYA soruları ("ne kadar", "fiyatı nedir", "kaç lira") → fiyat SÖYLEME, "Fiyat bilgisi için sizi işletmemize bağlıyorum" deyip "aktar" çağır. Müşteri açıkça operatör/insan/yetkili/işletmeye bağlanmak isterse ("beni bağlar mısınız", "işletmeye bağlayın", "biriyle görüşmek istiyorum") HİÇ SORU SORMADAN hemen "aktar" çağır — bunu hizmet sanma, hizmet_eslestir ÇAĞIRMA. YA DA randevu/iptal/güncelleme dışı konu (şikayet, fatura, ödeme) olursa. Hizmet bulunamadı diye AKTARMA — sormaya devam et.
+{$fiyatKurali} Müşteri açıkça operatör/insan/yetkili/işletmeye bağlanmak isterse ("beni bağlar mısınız", "işletmeye bağlayın", "biriyle görüşmek istiyorum") HİÇ SORU SORMADAN hemen "aktar" çağır — bunu hizmet sanma, hizmet_eslestir ÇAĞIRMA. YA DA randevu/iptal/güncelleme dışı konu (şikayet, fatura, ödeme) olursa. Hizmet bulunamadı diye AKTARMA — sormaya devam et.
 
 # KIRMIZI ÇİZGİLER
 Burası restoran DEĞİL, randevu hattı: kişi sayısı, masa, rezervasyon, sipariş SORMA. Her randevu arayan kişi içindir. Anlamsız/alakasız bir ifade duyarsan (ses tanıma hatası olabilir) tahmin yürütme, ne istediğini kısaca tekrar sor.

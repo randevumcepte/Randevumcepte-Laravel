@@ -180,6 +180,8 @@ class SantralKopruController extends Controller
 
         $sHazir = microtime(true);
         $as = new RandevuAsistan((int) $o->sube_id, $o->telefon);
+        // "Fiyat söylensin" ayari WhatsApp asistaniyla ORTAK (Panel > WhatsApp Asistanı ayarlari)
+        try { $as->santralFiyatSoyle = !empty(\App\Services\WaAsistanVeri::ayarlar((int) $o->sube_id)['fiyat_soyle']); } catch (\Throwable $e) {}
         $sKur = microtime(true);
         // Yetkiliye ulasilamadi / mesai disi -> asistan "konuyu söyleyin, notuma ekleyeyim" dediyse bu cumle NOTTUR
         $d = $this->geriAraNotTuru($oid, $metin, $gecmis) ?? $as->konus($metin, $gecmis);
@@ -189,6 +191,11 @@ class SantralKopruController extends Controller
             $as->teshis = 'anlasilamadi_aktar';
             $d = ['cevap' => 'Kusura bakmayın, size daha iyi yardımcı olabilmesi için sizi hemen yetkili arkadaşıma bağlıyorum, lütfen hatta kalın.',
                   'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
+        }
+        // Fiyat soylenemedi (ayar kapali / fiyat tanimsiz): isletmeye "fiyat sordu" notu, asistan randevuya devam eder
+        if (!empty($d['fiyat_notu'])) {
+            $this->geriAraKaydet($o, 'fiyat', (string) $d['fiyat_notu']);
+            unset($d['fiyat_notu']);
         }
         // Aktarma yerine not: mesai disi ya da bu aramada yetkiliye zaten ulasilamadi (tekrar caldirmak bosuna)
         if (($d['aksiyon'] ?? null) === 'aktar' && ($gNeden = $this->aktarmaYerineNot($o))) {
@@ -397,7 +404,7 @@ class SantralKopruController extends Controller
     /** Aktarma yerine not alinacak mi: 'mesai_disi' | 'cevapsiz' (bu aramada zaten ulasilamadi) | null */
     protected function aktarmaYerineNot($o): ?string
     {
-        if ((int) ($o->geri_ara ?? 0) === 1) return 'cevapsiz';
+        if ((int) ($o->geri_ara ?? 0) === 1 && in_array($o->geri_ara_neden ?? '', ['cevapsiz', 'hedef_yok'], true)) return 'cevapsiz';
         return $this->mesaiDisi((int) $o->sube_id) ? 'mesai_disi' : null;
     }
 
@@ -424,22 +431,32 @@ class SantralKopruController extends Controller
         $bas = $neden === 'mesai_disi'
             ? 'Şu an mesai saatlerimiz dışındayız, yetkili arkadaşlarımıza ulaşamıyorum. Aradığınızı not aldım, mesai başladığında sizi '
             : 'Efendim, yetkili arkadaşlarımız şu an diğer misafirlerimizle ilgileniyor. Aradığınızı not aldım, en kısa sürede sizi ';
+        // Randevu hala alinabilir: asistan randevuyu teklif eder (kayit 239: "not aldım" deyip randevuyu birakiyordu)
         return trim((string) $telefon) !== ''
-            ? $bas . 'bu numaradan geri arayacaklar. İsterseniz konuyu kısaca söyleyin, notuma ekleyeyim.'
+            ? $bas . 'bu numaradan geri arayacaklar. Bu arada randevunuzu ben hemen oluşturabilirim; başka bir konuysa kısaca söyleyin, notuma ekleyeyim.'
             : $bas . 'geri arayacaklar. Telefon numaranızı ve konuyu kısaca söyler misiniz?';
     }
 
-    /** Oturumu "geri aranacak" isaretle; ilk kez isaretleniyorsa isletmeye panel bildirimi + push. */
-    protected function geriAraKaydet($o, string $neden): void
+    /** Oturumu "geri aranacak" isaretle (+ not); ilk kez isaretleniyorsa isletmeye panel bildirimi + push. */
+    protected function geriAraKaydet($o, string $neden, ?string $not = null): void
     {
         if (!$this->geriAraSemasi()) return;
         $ilk = (int) ($o->geri_ara ?? 0) !== 1;
-        DB::table('santral_oturumlari')->where('id', $o->id)->update(['sonuc' => 'geri_ara', 'geri_ara' => 1, 'geri_ara_neden' => $neden, 'updated_at' => now()]);
+        $upd = ['geri_ara' => 1, 'updated_at' => now()];
+        // Ilk neden korunur (cevapsiz aktarmadan sonra gelen fiyat notu nedeni ezmesin); fiyat notu randevu/aktar sonucunu ezmez
+        if ($ilk) $upd['geri_ara_neden'] = $neden;
+        if ($neden !== 'fiyat' || empty($o->sonuc)) $upd['sonuc'] = 'geri_ara';
+        if ($not !== null && $not !== '') {
+            $eski = (string) DB::table('santral_oturumlari')->where('id', $o->id)->value('geri_ara_not');
+            if (mb_strpos($eski, $not) === false) $upd['geri_ara_not'] = mb_substr(trim($eski . ' ' . $not . '.'), 0, 2000);
+        }
+        DB::table('santral_oturumlari')->where('id', $o->id)->update($upd);
         $o->geri_ara = 1;
+        if ($ilk) $o->geri_ara_neden = $neden;
         if (!$ilk) return;
         $salonId = (int) $o->sube_id;
         $kim = $this->musteriAdi($salonId, $o->telefon) ?: ($o->telefon ? '0' . substr(preg_replace('/\D/', '', $o->telefon), -10) : 'Gizli numaralı bir müşteri');
-        $mesaj = "📞 Geri aranacak: {$kim} aradı, " . ($neden === 'mesai_disi' ? 'mesai dışıydı' : 'yetkiliye ulaşılamadı')
+        $mesaj = "📞 Geri aranacak: {$kim} aradı, " . (['mesai_disi' => 'mesai dışıydı', 'fiyat' => 'fiyat bilgisi istedi'][$neden] ?? 'yetkiliye ulaşılamadı')
             . '. Asistan not aldı; Asistan Görüşmeleri\'nden bakabilirsiniz.';
         try {
             $b = new \App\Bildirimler();
@@ -509,14 +526,15 @@ class SantralKopruController extends Controller
         if (!$son || empty($son['geri_ara_soru'])) return null;
         $m = trim($metin);
         $kucuk = mb_strtolower($m, 'UTF-8');
-        if ($m === '' || preg_match('/randevu|iptal|değiştir|ertele|kampanya/u', $kucuk)) return null;
+        // Soru / istek NOT DEGIL, normal akista cevaplanir (kayit 239: "Peki şu an açık mı hala orası?" not sanilip
+        // "Notunuzu ilettim, iyi günler" denmisti; randevu hic alinmadi)
+        if ($m === '' || preg_match('/randevu|iptal|değiştir|ertele|kampanya|fiyat|ne kadar|açık m|kapalı m|kaça kadar|kaçta|saat|bugün|yarın|müsait|boş (yer|saat|var)|adres|nerede|konum|yol tarif|alabilir m|olur mu|\?/u', $kucuk)) return null;
         $kelimeler = preg_split('/[^\p{L}]+/u', $kucuk, -1, PREG_SPLIT_NO_EMPTY);
         $ret = ['hayır', 'yok', 'gerek', 'istemiyorum', 'teşekkürler', 'teşekkür', 'ederim', 'sağ', 'sağol', 'olun', 'tamam', 'tamamdır',
             'peki', 'iyi', 'günler', 'akşamlar', 'görüşürüz', 'anladım', 'kolay', 'gelsin', 'hoşça', 'kalın'];
         $evet = ['evet', 'tabii', 'tabi', 'olur', 'söyleyeyim', 'şöyle', 'şey'];
-        if ($kelimeler && !array_diff($kelimeler, $evet)) {
-            return ['cevap' => 'Buyurun, sizi dinliyorum.', 'aksiyon' => null, 'veri' => [], 'bitir' => false, 'geri_ara_soru' => 1];
-        }
+        // "Evet/olur": asistan randevu teklif etti -> normal akis randevuya devam eder (not degil)
+        if ($kelimeler && !array_diff($kelimeler, $evet)) return null;
         $not = ($kelimeler && !array_diff($kelimeler, $ret)) ? '' : $m;
         if ($not !== '' && $this->geriAraSemasi()) {
             $eski = (string) DB::table('santral_oturumlari')->where('id', $oid)->value('geri_ara_not');
