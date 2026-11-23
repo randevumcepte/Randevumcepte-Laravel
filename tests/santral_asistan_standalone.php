@@ -327,6 +327,43 @@ namespace {
              ['role' => 'assistant', 'content' => 'Kusura bakmayın, tam duyamadım.'], ['role' => 'user', 'content' => 'hmm']];
     icerir('2. anlamama: gün sorusunda örnekli tekrar', 'yarın saat üç', $pz->anlamamaKurtarmaCumlesi($anlZ));
     esit('teyit + anlamama → aktarılmaz', false, $pz->ikinciAnlamama('Kusura bakmayın, tam duyamadım. Hangi hizmet için arıyorsunuz?', [['role' => 'assistant', 'content' => 'Pedikür mü demek istediniz efendim?'], ['role' => 'user', 'content' => 'hmm']]));
+
+    bolum('Anlaşılamama merdiveni: 1 tekrar → 2 kapalı soru → 3 evet/hayır → 4 salona aktar (WhatsApp yok)');
+    $anlamaC = 'Kusura bakmayın, tam duyamadım. Tekrar söyler misiniz?';
+    $sv = function (array $seviyeler) {
+        $g = [];
+        foreach ($seviyeler as $s) { $g[] = ['role' => 'assistant', 'content' => 'x', 'seviye' => $s]; $g[] = ['role' => 'user', 'content' => 'hmm']; }
+        return $g;
+    };
+    esit('ilk anlamama → 1', 1, $pz->cevapSeviyesi($anlamaC, $sv([0])));
+    esit('ikinci → 2', 2, $pz->cevapSeviyesi($anlamaC, $sv([0, 1])));
+    esit('üçüncü → 3', 3, $pz->cevapSeviyesi($anlamaC, $sv([1, 2])));
+    esit('teklif sonrası anlamama → 4', 4, $pz->cevapSeviyesi($anlamaC, $sv([2, 3])));
+    esit('zorlukta evet/hayır teklifi → 3', 3, $pz->cevapSeviyesi('Pedikür için yarın 14:00 uygun mu? Evet ya da hayır demeniz yeterli.', $sv([1, 2])));
+    esit('"hayır" sonrası yeni teklif 3\'te kalır', 3, $pz->cevapSeviyesi('Peki, yarın 15:00 uygun mu? Evet ya da hayır demeniz yeterli.', $sv([2, 3])));
+    esit('anlaşılan cevap sıfırlar', 0, $pz->cevapSeviyesi('Hangi gün sizin için uygun?', $sv([1, 2])));
+    esit('teyit anlamama sayılmaz', 0, $pz->cevapSeviyesi('Kadıköy mü demek istediniz efendim? Tam anlayamadım.', $sv([1])));
+    esit('eski kayıt (seviye yok): anlamama = 1', 2, $pz->cevapSeviyesi($anlamaC, [['role' => 'assistant', 'content' => $anlamaC], ['role' => 'user', 'content' => 'x']]));
+    esit('zorluk notu: seviye 1\'de yok', '', $pz->zorlukNotu($sv([1])));
+    icerir('zorluk notu: seviye 2\'de evet/hayır ister', 'Evet ya da hayır demeniz yeterli', $pz->zorlukNotu($sv([1, 2])));
+    $tk = $pz->anlamamaTeklifCumlesi($sv([1, 2]));
+    icerir('kod teklifi: evet/hayır', 'Evet ya da hayır demeniz yeterli.', $tk);
+    esit('kod teklifi anlamama sayılmaz', false, $pz->anlamadiCevabi($tk));
+    icerir('hizmet belliyse en yakın saat teklifi', 'en yakın boş saati ayarlayayım mı',
+        $pz->anlamamaTeklifCumlesi([['role' => 'assistant', 'content' => 'x', 'baglam' => 'musait_saatler hizmet_id=4 seçenekler: ...', 'seviye' => 2]]));
+    bolum('İşin içinden çıkamama: sinir / döngü');
+    foreach (['Anlamıyorsun beni' => true, 'Robot musunuz siz?' => true, 'Of yeter ya' => true, 'Makineyle konuşmak istemiyorum' => true,
+              'Sizi anlamadım, tekrar söyler misiniz?' => false, 'Pedikür istiyorum' => false] as $m => $b) {
+        esit("sinirli? \"$m\"", $b, $pz->sinirliMi($m));
+    }
+    esit('sinirli müşteri → aktar', 'aktar', $pz->konus('Anlamıyorsun beni ya', [['role' => 'assistant', 'content' => 'Hangi hizmet için arıyorsunuz?']])['aksiyon']);
+    $soru = 'Protez tırnak için hangi gün gelmek istersiniz?';
+    $dg = [['role' => 'assistant', 'content' => $soru], ['role' => 'user', 'content' => 'a'], ['role' => 'assistant', 'content' => 'Protez tırnak için hangi gün gelmek istersiniz efendim?'], ['role' => 'user', 'content' => 'b']];
+    esit('aynı soru 3. kez → döngü', true, $pz->donguMu($soru, $dg));
+    esit('aynı soru 2. kez → döngü değil', false, $pz->donguMu($soru, array_slice($dg, 0, 2)));
+    esit('farklı soru → döngü değil', false, $pz->donguMu('Saat kaçta uygun olursunuz?', $dg));
+    $st = 'Yarın 14:00 Zehra Hanım ya da 15:00 Ayşe Hanım uygun, hangisini istersiniz?';
+    esit('saat teklifleri döngü sayılmaz', false, $pz->donguMu($st, [['role' => 'assistant', 'content' => str_replace('14', '16', $st)], ['role' => 'user', 'content' => 'a'], ['role' => 'assistant', 'content' => str_replace('14', '17', $st)], ['role' => 'user', 'content' => 'b']]));
     $ola = asistan(['salon' => ['ad' => 'Ola Nail', 'hizmetler' => [
         ['id' => 1, 'ad' => 'Kalıcı Oje', 'kategori' => 'Tırnak'], ['id' => 2, 'ad' => 'Jel Tırnak', 'kategori' => 'Tırnak'],
         ['id' => 3, 'ad' => 'İpek Kirpik', 'kategori' => 'Kirpik'], ['id' => 4, 'ad' => 'El Protez Tırnak', 'kategori' => 'Tırnak'],

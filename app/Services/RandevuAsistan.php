@@ -461,6 +461,12 @@ class RandevuAsistan
                 : 'Sizi hemen yetkili bir arkadaşımıza bağlıyorum, lütfen hatta kalın.';
             return ['cevap' => $cevap, 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
         }
+        // SINIRLENEN MUSTERI (santral): "anlamıyorsun / robot musun / of yeter" -> uzatmadan ozur + salona aktar
+        if ($this->kanal !== 'whatsapp' && $this->sinirliMi($metin)) {
+            Log::info('[SANTRAL-TUR] musteri sinirli -> aktar', ['salon' => $this->salonId, 'metin' => $metin]);
+            $this->teshis = 'sinirli';
+            return ['cevap' => 'Kusura bakmayın, sizi yorduk. Hemen yetkili arkadaşıma bağlıyorum, lütfen hatta kalın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
+        }
         // HIZLI VEDA: "Başka yardımcı olabileceğim bir konu var mı?" -> "yok, teşekkürler" ise KODLA kapat.
         // LLM'li veda (arac + kapanis cumlesi = 2 cagri) 5,5 sn suruyordu (2026-11-17 kayit).
         if ($this->baskaYardimSoruldu($gecmis) && $this->vedaMi($metin)) {
@@ -528,7 +534,8 @@ class RandevuAsistan
             . ($onNot !== '' ? $onNot : $this->hizmetDuzeltmeNotu($metin))
             . ($onPaketli ? '' : $this->paketNotu($metin, $gecmis))
             . $this->paketKarariNotu($gecmis, $metin)
-            . $this->sttGuvenNotu()];
+            . $this->sttGuvenNotu()
+            . $this->zorlukNotu($gecmis)];
 
         $aksiyon = null; $bitir = false; $randevuId = null; $cevap = '';
         $isTamamlandi = false; // randevu/iptal/guncelleme/yol tarifi tamamlandi -> "Başka yardımcı olabileceğim..." sorulmali
@@ -744,6 +751,8 @@ class RandevuAsistan
             'aksiyon' => $aksiyon,
             'veri' => ['randevu_id' => $randevuId],
             'bitir' => (bool) $bitir,
+            // randevu_olustur/guncelle bu turda hata verdi (kopru: ust uste ikinci hatada salona aktarir)
+            'randevu_hata' => $randevuHatasi !== null && $aksiyon !== 'randevu' && $aksiyon !== 'guncelle',
             // Gecmise GIZLI not (musteri duymaz): sonraki turda model hizmet/personel/saat id'lerini bilsin
             'baglam' => $baglam ? mb_substr(implode(' | ', $baglam), 0, 1200) : null,
         ];
@@ -1162,6 +1171,113 @@ class RandevuAsistan
             return "{$bas} Gün ve saati tek tek söyler misiniz, örneğin \"yarın saat üç\" gibi?";
         }
         return "{$bas} Biraz daha yavaş tekrar söyler misiniz?";
+    }
+
+    /**
+     * Anlasilamama merdiveni (santral, 2026-11-23 isletme istegi: WhatsApp'a YONLENDIRME YOK, once randevuyu ver):
+     * 1 kisa tekrar -> 2 kapali soru (hizmetleri say / ornekle sor) -> 3 evet/hayir somut teklif -> 4 salona aktar.
+     * Kopru her asistan mesajina 'seviye' yazar; bu, musterinin duydugu son asistan mesajinin seviyesi.
+     * Eski kayitlarda (seviye yok) anlamama cevabi 1 sayilir.
+     */
+    public function anlamamaSeviyesi(array $gecmis): int
+    {
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') !== 'assistant') continue;
+            if (isset($gecmis[$i]['seviye'])) return (int) $gecmis[$i]['seviye'];
+            return $this->anlamadiCevabi((string) ($gecmis[$i]['content'] ?? '')) ? 1 : 0;
+        }
+        return 0;
+    }
+
+    /** Cevap "evet ya da hayır" somut teklifi mi (3. basamak)? */
+    public function evetHayirTeklifi(string $c): bool
+    {
+        return (bool) preg_match('/evet (ya da|veya) hayır (demeniz|deyin|demeniz yeterli)/iu', $c);
+    }
+
+    /**
+     * Bu cevabin merdivendeki seviyesi: anlamama -> onceki+1; zorluk modunda yapilan evet/hayir teklifi -> en az 3
+     * (musteri "hayır" deyip sonraki saat sunulsa da 3'te kalir; bir anlamama daha = aktarma); diger -> 0 (sifirlanir).
+     */
+    public function cevapSeviyesi(string $cevap, array $gecmis): int
+    {
+        $onceki = $this->anlamamaSeviyesi($gecmis);
+        if ($this->anlamadiCevabi($cevap)) return $onceki + 1;
+        if ($onceki >= 2 && $this->evetHayirTeklifi($cevap)) return max(3, $onceki);
+        return 0;
+    }
+
+    /** Ust uste iki kez anlasilamadi: model bu turda "anlamadım" demesin, somut evet/hayir teklifi yapsin. */
+    public function zorlukNotu(array $gecmis): string
+    {
+        if ($this->kanal === 'whatsapp' || $this->anlamamaSeviyesi($gecmis) < 2) return '';
+        $pop = $this->populerHizmetler(1);
+        return "\n[SİSTEM — müşteri bunu duymadı: müşteriyi üst üste anlayamadın (hat kötü olabilir). Bu cümle de net değilse \"anlamadım / tekrar söyler misiniz\" DEME;"
+            . ' anladığın kadarıyla SOMUT bir evet/hayır teklifi yap. Hizmet belliyse musait_saatler aracını çağır ve en yakın boş saati uzmanıyla TEK seçenek olarak sun;'
+            . ' hizmet belli değilse en olası hizmeti sor' . ($pop ? " (ör. \"{$pop[0]} için mi arıyorsunuz?\")" : '') . '.'
+            . ' Cümleyi "Evet ya da hayır demeniz yeterli." ile bitir. Müşteri "hayır" derse sıradaki boş saati aynı şekilde sun. Cümle anlaşılıyorsa normal devam et.]';
+    }
+
+    /** 3. basamak, model yine "anlamadım" dediyse kodun evet/hayir teklifi. */
+    public function anlamamaTeklifCumlesi(array $gecmis): string
+    {
+        $bas = 'Kusura bakmayın, hattan sesiniz net gelmiyor, size kolaylık olsun.';
+        $hizmetBelli = false;
+        foreach ($gecmis as $g) {
+            if (($g['role'] ?? '') === 'assistant' && preg_match('/hizmet_id=\d+/', (string) ($g['baglam'] ?? ''))) { $hizmetBelli = true; break; }
+        }
+        if ($hizmetBelli) return "{$bas} Size en yakın boş saati ayarlayayım mı? Evet ya da hayır demeniz yeterli.";
+        $pop = $this->populerHizmetler(1);
+        if ($pop) return "{$bas} {$pop[0]} için mi arıyorsunuz? Evet ya da hayır demeniz yeterli.";
+        return "{$bas} Randevu almak için mi arıyorsunuz? Evet ya da hayır demeniz yeterli.";
+    }
+
+    /** En cok alinan $n hizmet adi (randevu verisi yetmezse salon listesiyle tamamlanir). */
+    protected function populerHizmetler(int $n): array
+    {
+        $pop = $this->hizmetPopulerlik();
+        arsort($pop);
+        $adlar = array_slice(array_keys($pop), 0, $n);
+        foreach ($this->hizmetler() as $h) {
+            if (count($adlar) >= $n) break;
+            $ad = trim((string) $h['ad']);
+            if ($ad !== '' && !in_array($ad, $adlar, true)) $adlar[] = $ad;
+        }
+        return $adlar;
+    }
+
+    /**
+     * Musteri sinirlendi / makineyle konusmak istemiyor ("anlamıyorsun", "robot musun", "of yeter"): uzatmak randevuyu
+     * kacirir -> ozur + salona aktarma. Musterinin kendi "anlamadım"i (asistani duyamadi) sinir SAYILMAZ.
+     */
+    public function sinirliMi(string $m): bool
+    {
+        $f = ' ' . $this->sade($m) . ' ';
+        return (bool) preg_match('/ (anlamiyorsun|anlamiyor musun|anlamadin mi|beni anlamiyor|robot mu|robotla|makineyle|makine ile|bilgisayarla|yapay zeka ile|of yeter|yeter artik|yeter ya|sacmalama|sacma sapan|ne sacma|kafayi yedirt|deli edecek)/u', $f);
+    }
+
+    /**
+     * Konusma ayni yerde donuyor: bu soru (ya da cok benzeri) son turlarda en az iki kez daha soruldu (kayit 242 protez
+     * tirnak dongusu) -> salona aktarma. Kapanis/anlamama/evet-hayir teklifleri dongu sayilmaz (kendi merdivenleri var).
+     */
+    public function donguMu(string $cevap, array $gecmis): bool
+    {
+        // Saat/tarih iceren teklifler (musteri baska saat istedikce yalniz saat degisir) dongu sayilmaz
+        if (mb_strpos($cevap, '?') === false || preg_match('/\d/', $cevap) || $this->anlamadiCevabi($cevap) || $this->evetHayirTeklifi($cevap)
+            || preg_match('/başka\s+(bir\s+)?(konu|yardımcı|isteğiniz|arzunuz|bir şey|merak)[^.?!]*var mı/iu', $cevap)) return false;
+        $kel = function ($s) { return array_unique(array_filter(explode(' ', $this->sade($s)), function ($w) { return mb_strlen($w) >= 3; })); };
+        $a = $kel($cevap);
+        if (count($a) < 3) return false;
+        $n = 0; $bak = 0;
+        for ($i = count($gecmis) - 1; $i >= 0 && $bak < 6; $i--) {
+            if (($gecmis[$i]['role'] ?? '') !== 'assistant') continue;
+            $bak++;
+            $b = $kel((string) ($gecmis[$i]['content'] ?? ''));
+            if (!$b) continue;
+            $ortak = count(array_intersect($a, $b));
+            if ($ortak / count(array_unique(array_merge($a, $b))) >= 0.7) $n++;
+        }
+        return $n >= 2;
     }
 
     /**
