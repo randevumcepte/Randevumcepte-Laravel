@@ -853,6 +853,9 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::post('/tahsilatkaldir','StoreAdminController@tahsilatkaldir');
 	Route::post('/alacakekleduzenle','StoreAdminController@alacakekleduzenle');
 	Route::get('/ongorusmeler','StoreAdminController@ongorusmeler');
+	// On Gorusme Takvimi: menude YOK, adresle acilir
+	Route::get('/ongorusme-takvim','StoreAdminController@ongorusme_takvim');
+	Route::get('/ongorusme-takvim-verileri','StoreAdminController@ongorusme_takvim_verileri');
 	Route::post('/ongorusmeekleduzenle','StoreAdminController@ongorusmeekleduzenle');
 	Route::get('/ongorusmedetay','StoreAdminController@ongorusmedetay');
 	Route::get('/hatirlatmasmsgonder','StoreAdminController@hatirlatmasmsgonder');

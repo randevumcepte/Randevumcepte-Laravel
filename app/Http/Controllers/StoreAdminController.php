@@ -18241,6 +18241,166 @@ DB::raw('
         ->where(function ($q) use ($gunluk){if($gunluk) $q->where('on_gorusmeler.created_at','like','%'.date('Y-m-d').'%');})
         ->get();
     }
+    /**
+     * On Gorusme TAKVIMI (ay / hafta / gun-personel). Menude YOK; adresle acilir:
+     * /isletmeyonetim/ongorusme-takvim. Kayit/duzenle/satis akisi liste sayfasiyla AYNI
+     * (ongorusme-modal + custom.js), burada ayrica yazma yolu yok.
+     */
+    public function ongorusme_takvim(Request $request)
+    {
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if (!$authUser) {
+            return redirect('/isletmeyonetim/girisyap');
+        }
+        $salonId = self::mevcutsube($request);
+        $isletmeler = $authUser->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+        $isletme = Salonlar::where('id',$salonId)->first();
+
+        if (!$isletme || !in_array($salonId,$isletmeler)) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        $lisansSure = self::lisans_sure_kontrol($request);
+        if (str_contains($lisansSure,'-')) {
+            return view('isletmeadmin.lisanssurebitti',['isletme'=>$isletme]);
+        }
+        if (!\App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, 'gorusme.liste_gor')) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if (count($isletmeler)>1 && !isset($_GET['sube'])) {
+            return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
+        }
+
+        $kisitli = self::personelmi($request,'gorusme.liste_gor');
+        $personeller = Personeller::where('salon_id',$salonId)->where('aktif',true)
+            ->where(function ($q) use ($kisitli,$authUser) {
+                if ($kisitli) $q->where('yetkili_id',$authUser->id);
+            })
+            ->orderBy('personel_adi','asc')->get(['id','personel_adi']);
+
+        return view('isletmeadmin.ongorusme_takvim',[
+            'personeller'             => $personeller,
+            'ekleDuzenleYetki'        => \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, 'gorusme.ekle_duzenle'),
+            'bildirimler'             => self::bildirimgetir($request),
+            'sayfa_baslik'            => 'Ön Görüşme Takvimi',
+            'pageindex'               => 125,
+            'isletme'                 => $isletme,
+            'kalan_uyelik_suresi'     => $lisansSure,
+            'yetkiliolunanisletmeler' => $isletmeler,
+        ]);
+    }
+
+    /** On Gorusme Takvimi JSON: [start, end] (iki uc dahil, Y-m-d) araligindaki on gorusmeler. */
+    public function ongorusme_takvim_verileri(Request $request)
+    {
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if (!$authUser) abort(401);
+        $salonId = self::mevcutsube($request);
+        $isletmeler = $authUser->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+        if (!in_array($salonId,$isletmeler)) abort(403);
+        if ($r = self::yetkiYoksa403($request,'gorusme.liste_gor')) return $r;
+
+        $basTs = strtotime((string) $request->start);
+        $bitTs = strtotime((string) $request->end);
+        if (!$basTs || !$bitTs || $bitTs < $basTs) abort(422);
+        $bitTs = min($bitTs, strtotime('+62 days',$basTs)); // tek istekte en fazla ~2 ay
+        $bas = date('Y-m-d',$basTs);
+        $bit = date('Y-m-d',$bitTs);
+
+        // 1) Takvimdeki yeri randevu belirler (randevu takviminden tasinmis olabilir).
+        $randevular = DB::table('randevular')
+            ->where('salon_id',$salonId)
+            ->whereBetween('tarih',[$bas,$bit])
+            ->where('on_gorusme_id','>',0)
+            ->orderBy('id','asc')
+            ->get(['id','on_gorusme_id','tarih','saat','durum'])
+            ->keyBy('on_gorusme_id'); // ayni gorusmeye birden cok randevu varsa SONUNCUSU
+
+        // 2) Randevusu hic olmayan (eski) kayitlar: hatirlatma tarihinde, saatsiz.
+        $randevusuzIds = DB::table('on_gorusmeler')->where('salon_id',$salonId)
+            ->whereBetween('hatirlatma_tarihi',[$bas,$bit.' 23:59:59'])
+            ->pluck('id')->diff($randevular->keys())->values()->all();
+        if (count($randevusuzIds)) {
+            $randevuluIds = DB::table('randevular')->where('salon_id',$salonId)
+                ->whereIn('on_gorusme_id',$randevusuzIds)->pluck('on_gorusme_id')->all();
+            $randevusuzIds = array_values(array_diff($randevusuzIds,$randevuluIds));
+        }
+
+        $idler = array_merge($randevular->keys()->all(),$randevusuzIds);
+        if (!count($idler)) return response()->json([]);
+
+        $kisitliPersonelId = null;
+        if (self::personelmi($request,'gorusme.liste_gor')) {
+            $kisitliPersonelId = (int) Personeller::where('salon_id',$salonId)->where('yetkili_id',$authUser->id)->value('id');
+        }
+
+        $q = DB::table('on_gorusmeler')
+            ->leftJoin('users','on_gorusmeler.user_id','=','users.id')
+            ->leftJoin('salon_personelleri','on_gorusmeler.personel_id','=','salon_personelleri.id')
+            ->leftJoin('paketler','on_gorusmeler.paket_id','=','paketler.id')
+            ->leftJoin('urunler','on_gorusmeler.urun_id','=','urunler.id')
+            ->leftJoin('hizmetler','on_gorusmeler.hizmet_id','=','hizmetler.id')
+            ->where('on_gorusmeler.salon_id',$salonId)
+            ->whereIn('on_gorusmeler.id',$idler);
+        if ($kisitliPersonelId !== null) $q->where('on_gorusmeler.personel_id',$kisitliPersonelId);
+        $kayitlar = $q->get([
+            'on_gorusmeler.id','on_gorusmeler.user_id','on_gorusmeler.ad_soyad','on_gorusmeler.cep_telefon',
+            'on_gorusmeler.musteri_tipi','on_gorusmeler.aciklama','on_gorusmeler.durum','on_gorusmeler.satisyapilmadi_not',
+            'on_gorusmeler.hatirlatma_tarihi','on_gorusmeler.personel_id','on_gorusmeler.paket_id','on_gorusmeler.urun_id',
+            'on_gorusmeler.hizmet_id','on_gorusmeler.created_at','users.name as kullanici_ad',
+            'salon_personelleri.personel_adi','paketler.paket_adi','urunler.urun_adi','hizmetler.hizmet_adi',
+        ]);
+
+        $rhler = collect();
+        if ($randevular->count()) {
+            $rhler = DB::table('randevu_hizmetler')
+                ->leftJoin('odalar','randevu_hizmetler.oda_id','=','odalar.id')
+                ->whereIn('randevu_hizmetler.randevu_id',$randevular->pluck('id')->all())
+                ->get(['randevu_hizmetler.randevu_id','randevu_hizmetler.saat_bitis','odalar.oda_adi'])
+                ->keyBy('randevu_id');
+        }
+
+        $telGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, 'musteri.telefon_gor');
+        $tipler = [1=>'İnternet',2=>'Reklam',3=>'Instagram',4=>'Facebook',5=>'Tanıdık'];
+
+        $sonuc = [];
+        foreach ($kayitlar as $k) {
+            $rnd = $randevular->get($k->id);
+            $rh = $rnd ? $rhler->get($rnd->id) : null;
+
+            if ($k->paket_id !== null)       { $tur = 1; $neden = 'Paket : '.$k->paket_adi; }
+            elseif ($k->urun_id !== null)    { $tur = 2; $neden = 'Ürün : '.$k->urun_adi; }
+            elseif ($k->hizmet_id !== null)  { $tur = 3; $neden = 'Hizmet : '.$k->hizmet_adi; }
+            else                             { $tur = 0; $neden = 'Belirtilmemiş'; }
+
+            if ($k->durum !== null)                  $durum = (int) $k->durum === 1 ? 'satildi' : 'satilmadi';
+            elseif ($rnd && (int) $rnd->durum >= 2)  $durum = 'iptal'; // randevusu iptal edilmis, sonuc girilmemis
+            else                                     $durum = 'bekliyor';
+
+            $sonuc[] = [
+                'id'          => (int) $k->id,
+                'user_id'     => (int) $k->user_id,
+                'musteri'     => $k->ad_soyad ?: ($k->kullanici_ad ?: 'Müşteri'),
+                'telefon'     => $telGor ? (string) $k->cep_telefon : \App\PersonelYetkiSabitleri::telefonMaskele($k->cep_telefon),
+                'tarih'       => $rnd ? date('Y-m-d',strtotime($rnd->tarih)) : date('Y-m-d',strtotime($k->hatirlatma_tarihi)),
+                'saat'        => ($rnd && $rnd->saat) ? substr($rnd->saat,0,5) : null,
+                'bitis'       => ($rh && $rh->saat_bitis) ? substr($rh->saat_bitis,0,5) : null,
+                'randevulu'   => (bool) $rnd,
+                'oda'         => $rh ? (string) $rh->oda_adi : '',
+                'personel_id' => (int) $k->personel_id,
+                'personel'    => $k->personel_adi ?: 'Personel belirtilmemiş',
+                'neden'       => $neden,
+                'tur'         => $tur,
+                'referans'    => $tipler[(int) $k->musteri_tipi] ?? '',
+                'aciklama'    => (string) $k->aciklama,
+                'durum'       => $durum,
+                'sonucsuz'    => $k->durum === null,
+                'neden_yok'   => (string) $k->satisyapilmadi_not,
+                'olusturma'   => $k->created_at ? date('d.m.Y',strtotime($k->created_at)) : '',
+            ];
+        }
+
+        return response()->json($sonuc);
+    }
     public function paketsatislari(Request $request)
     {
         $isletmeler = '';
