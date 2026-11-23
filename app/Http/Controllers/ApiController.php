@@ -32505,10 +32505,21 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         return response()->json(['basarili' => true]);
     }
 
+    // Ikram (damga karti) yonetim uclari: musteri token'i ile cagrilamaz. Token'siz eski app
+    // surumleri salon.sahiplik (enforce) gibi simdilik gecer; isletme token'i varsa salon dogrulanmistir.
+    private function ikramYonetimKapisi()
+    {
+        if (!\Auth::guard('isletmeyonetim-api')->user() && \Auth::guard('api')->user()) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Yetkiniz yok.'], 403);
+        }
+        return null;
+    }
+
     // Damga karti ("X hizmetini N kez alana M seans ucretsiz") — mobil yonetim.
     // Mantik web ile ortak: App\Services\DamgaKartiServisi.
     public function carkAdminDamgaKartiApi(Request $request, $salonId)
     {
+        if ($r = $this->ikramYonetimKapisi()) return $r;
         $kurallar = \App\Services\DamgaKartiServisi::kurallar($salonId)->map(function ($k) {
             return [
                 'id'            => (int) $k->id,
@@ -32531,7 +32542,8 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             'hizmetler' => $hizmetler,
         ];
         // Ikram Hizmet sayfasi: ikram kazanmis musteriler (istenirse; Carkifelek sekmesi istemez)
-        if (filter_var($request->input('musteriler'), FILTER_VALIDATE_BOOLEAN)) {
+        // Ad+telefon iceren liste: yalniz giris yapmis isletme kullanicisina (token zorunlu)
+        if (filter_var($request->input('musteriler'), FILTER_VALIDATE_BOOLEAN) && \Auth::guard('isletmeyonetim-api')->user()) {
             try { $cevap['musteriler'] = \App\Services\DamgaKartiServisi::yonetimOzet($salonId); }
             catch (\Throwable $e) { $cevap['musteriler'] = []; }
         }
@@ -32540,9 +32552,12 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
 
     public function carkAdminDamgaKartiKaydetApi(Request $request, $salonId)
     {
+        if ($r = $this->ikramYonetimKapisi()) return $r;
         try {
             $kural = \App\Services\DamgaKartiServisi::kuralKaydet($salonId,
-                $request->only(['id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif', 'gecerlilik_deger', 'gecerlilik_birim']));
+                $request->only(['id', 'hizmet_id', 'gereken_adet', 'ucretsiz_adet', 'aktif', 'gecerlilik_deger', 'gecerlilik_birim', 'onay']));
+        } catch (\DomainException $e) {
+            return response()->json(['basarili' => false, 'onay_gerekli' => true, 'mesaj' => $e->getMessage()]);
         } catch (\RuntimeException $e) {
             return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
         }
@@ -32555,6 +32570,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
 
     public function carkAdminDamgaKartiSilApi(Request $request, $salonId)
     {
+        if ($r = $this->ikramYonetimKapisi()) return $r;
         $kural = \App\DamgaKartiKurallari::where('id', (int) $request->input('id'))->where('salon_id', $salonId)->first();
         if (!$kural) return response()->json(['basarili' => false, 'mesaj' => 'Kural bulunamadı.']);
         // Kullanim gecmisi olan kural silinmez (web ile ayni kural); kapatilir.
@@ -32577,6 +32593,10 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         if ($userId <= 0 || $salonId <= 0) {
             return response()->json(['basarili' => false, 'toplam_hak' => 0, 'kartlar' => []]);
         }
+        $_musteri = \Auth::guard('isletmeyonetim-api')->user() ? null : \Auth::guard('api')->user();
+        if ($_musteri && (int) $_musteri->id !== $userId) {
+            return response()->json(['basarili' => false, 'toplam_hak' => 0, 'kartlar' => []], 403);
+        }
         try {
             $kartlar = \App\Services\DamgaKartiServisi::musteriKartlari($salonId, $userId);
         } catch (\Throwable $e) {
@@ -32595,6 +32615,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     // Mobil tahsilat: adisyondaki kurala tabi kalemlerin damga durumu (web tahsilat kutusu ile ayni veri).
     public function carkAdminDamgaKartiAdisyonApi(Request $request, $salonId)
     {
+        if ($r = $this->ikramYonetimKapisi()) return $r;
         // adisyon_ids: takvimden acilan tahsilat tek adisyona bagli degil (musterinin tum acik
         // kalemleri); app, ekrandaki kalemlerin adisyonlarini gonderir. Yoksa tek adisyon_id.
         $idler = $request->input('adisyon_ids');
@@ -32611,6 +32632,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     // olusturan_id = giris yapan yetkili (Kullanici.id) -> bu subedeki personel.
     public function carkAdminDamgaKartiUygulaApi(Request $request, $salonId)
     {
+        if ($r = $this->ikramYonetimKapisi()) return $r;
         $yetkiliId = (int) $request->input('olusturan_id');
         $olusturan = $yetkiliId > 0
             ? \App\Personeller::where('salon_id', $salonId)->where('yetkili_id', $yetkiliId)->value('id')

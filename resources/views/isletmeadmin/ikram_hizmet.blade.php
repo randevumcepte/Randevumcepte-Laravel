@@ -57,7 +57,7 @@
 
     <div class="ik-kart" id="ik-kart">
         <h3>İkram Kuralları</h3>
-        <p class="ik-ack">Her hizmet için bir kural tanımlayabilirsiniz. Kuralı açtığınız andan sonraki ziyaretler sayılır; geçmiş randevulara ikram dağıtılmaz. Geçerlilik süresi boş bırakılırsa ikram süresizdir; süre girilirse ikram, kazanıldığı günden itibaren o süre içinde kullanılmazsa düşer.</p>
+        <p class="ik-ack">Her hizmet için bir kural tanımlayabilirsiniz. Kuralı ilk açtığınız andan sonraki ziyaretler sayılır; geçmiş randevulara ikram dağıtılmaz. Kuralı kapatıp yeniden açmak müşterilerin ilerlemesini ve kazandığı ikramları silmez (kapalıyken ikram kullandırılamaz). Geçerlilik süresi boş bırakılırsa ikram süresizdir; süre girilirse ikram, kazanıldığı günden itibaren o süre içinde kullanılmazsa düşer.</p>
 
         @if($ikramKurallari->count())
         <table class="ik-tablo">
@@ -217,7 +217,18 @@ async function ikKaydet() {
     const btn = document.getElementById('ik-kaydet');
     btn.disabled = true;
     try {
-        const data = await ikIstek(IK_KAYDET_URL, veri);
+        let data = await ikIstek(IK_KAYDET_URL, veri);
+        if (!data.success && data.onay_gerekli) {
+            // Sayilmis ziyareti olan kuralda adet/hizmet degisiyor: etkisini gosterip onay al
+            const evet = !window.swal ? confirm(data.message + '\n\nYine de kaydedilsin mi?') : await swal({
+                title: 'Müşteriler etkilenecek', text: data.message, type: 'warning',
+                showCancelButton: true, reverseButtons: true, focusCancel: true,
+                confirmButtonText: 'Evet, kaydet', confirmButtonColor: '#5C008E',
+                cancelButtonText: 'Vazgeç', cancelButtonColor: '#9ca3af',
+            }).then(function (r) { return !!(r && r.value); }, function () { return false; });
+            if (!evet) { btn.disabled = false; return; }
+            data = await ikIstek(IK_KAYDET_URL, Object.assign({}, veri, { onay: 1 }));
+        }
         if (!data.success) { showToast(data.message || 'Hata', true); btn.disabled = false; return; }
         showToast('✓ İkram kuralı kaydedildi');
         setTimeout(() => location.reload(), 600);

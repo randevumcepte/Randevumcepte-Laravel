@@ -36,7 +36,7 @@ class DamgaKartiServisi
      * Test anahtari: true iken ileri tarihli ama "Geldi" isaretli randevular da damga sayilir.
      * Normal kural false: randevu gunu gelince sayilir (11 Kas 2026 test bitti, kapatildi).
      */
-    const ILERI_TARIH_SAYILIR = true; // GECICI TEST (16 Kas 2026): test bitince false
+    const ILERI_TARIH_SAYILIR = false;
 
     private static $kolonOnbellek = [];
 
@@ -80,9 +80,12 @@ class DamgaKartiServisi
     }
 
     /**
-     * Kurali ekler/gunceller. Kapali->acik (veya yeni acik) geciste baslangic = simdi:
-     * oncesindeki ziyaretler damga sayilmaz.
-     * @throws \RuntimeException
+     * Kurali ekler/gunceller. Kural ILK kez acildiginda baslangic = simdi: oncesindeki
+     * ziyaretler damga sayilmaz. Kapatip yeniden acmak baslangici DEGISTIRMEZ (musterilerin
+     * ilerlemesi ve kazanilmis ikramlari silinmesin).
+     * Sayilmis ziyareti olan kuralda alim/ikram adedi degisirse $g['onay'] istenir
+     * (hesap geriye donuk yeni kurala gore yapilir); onay yoksa \DomainException.
+     * @throws \RuntimeException|\DomainException
      */
     public static function kuralKaydet($salonId, array $g)
     {
@@ -112,7 +115,22 @@ class DamgaKartiServisi
             ->where('id', '!=', $id)->exists();
         if ($cakisan) throw new \RuntimeException('Bu hizmet için zaten bir kural var; onu düzenleyin.');
 
-        $oncekiAktif = $kural->exists ? (int) $kural->aktif : 0;
+        if ($kural->exists && $kural->baslangic && empty($g['onay'])
+            && ((int) $kural->gereken_adet !== $gereken || (int) $kural->ucretsiz_adet !== $ucretsiz
+                || (int) $kural->hizmet_id !== $hizmetId)) {
+            $etkilenen = self::etkilenenMusteriSayisi($kural);
+            if ($etkilenen > 0) {
+                throw new \DomainException((int) $kural->hizmet_id !== $hizmetId
+                    ? 'Bu kuralda ' . $etkilenen . ' müşterinin sayılmış ziyareti var. Hizmeti değiştirirseniz '
+                        . 'bu müşterilerin ilerlemesi ve kazanılmış ikramları yeni hizmete göre yeniden hesaplanır '
+                        . '(çoğu sıfırlanır). Eski kuralı kapatıp yeni hizmet için ayrı kural eklemeniz önerilir.'
+                    : 'Bu kuralda ' . $etkilenen . ' müşterinin sayılmış ziyareti var. '
+                        . 'Kuralı ' . (int) $kural->gereken_adet . ' alana ' . (int) $kural->ucretsiz_adet . ' ikram → '
+                        . $gereken . ' alana ' . $ucretsiz . ' ikram yaparsanız tüm ilerlemeler ve kazanılmış ikramlar '
+                        . 'yeni kurala göre yeniden hesaplanır; alım adedini artırırsanız bazı müşterilerin kazandığı ikram düşebilir.');
+            }
+        }
+
         $kural->salon_id      = $salonId;
         $kural->hizmet_id     = $hizmetId;
         $kural->gereken_adet  = $gereken;
@@ -122,12 +140,29 @@ class DamgaKartiServisi
             $kural->gecerlilik_deger = $gDeger > 0 ? $gDeger : null;
             $kural->gecerlilik_birim = $gBirim;
         }
-        if ($aktif && (!$oncekiAktif || !$kural->baslangic)) {
+        if ($aktif && !$kural->baslangic) {
             $kural->baslangic = date('Y-m-d H:i:s');
         }
         $kural->save();
 
         return $kural;
+    }
+
+    /** Kural acildiktan sonra bu hizmette "Geldi" ziyareti ya da ikram kullanimi olan musteri sayisi. */
+    public static function etkilenenMusteriSayisi($kural)
+    {
+        if (!$kural->baslangic) return 0;
+        $ziyaret = DB::table('randevular as r')
+            ->join('randevu_hizmetler as rh', 'rh.randevu_id', '=', 'r.id')
+            ->where('r.salon_id', (int) $kural->salon_id)
+            ->where('rh.hizmet_id', (int) $kural->hizmet_id)
+            ->where('r.durum', Randevular::ONAYLANDI)
+            ->where('r.randevuya_geldi', 1)
+            ->whereNotNull('r.user_id')
+            ->where('r.tarih', '>=', date('Y-m-d', strtotime($kural->baslangic)))
+            ->distinct()->pluck('r.user_id');
+        $kullanan = DB::table('damga_karti_kullanimlari')->where('kural_id', $kural->id)->distinct()->pluck('user_id');
+        return $ziyaret->merge($kullanan)->map(function ($v) { return (int) $v; })->unique()->count();
     }
 
     /** Kalemi/adisyonu hala duran kullanimlar (silinen kalemin hakki geri gelir). */
