@@ -180,8 +180,8 @@ class SantralKopruController extends Controller
 
         $sHazir = microtime(true);
         $as = new RandevuAsistan((int) $o->sube_id, $o->telefon);
-        // "Fiyat söylensin" ayari WhatsApp asistaniyla ORTAK (Panel > WhatsApp Asistanı ayarlari)
-        try { $as->santralFiyatSoyle = !empty(\App\Services\WaAsistanVeri::ayarlar((int) $o->sube_id)['fiyat_soyle']); } catch (\Throwable $e) {}
+        // Telefonda fiyat soylensin mi: salon bazli, varsayilan KAPALI (Santral > Ayarlar; WhatsApp ayarindan ayri)
+        try { $as->santralFiyatSoyle = \App\Services\WaAsistanVeri::santralFiyatSoyle((int) $o->sube_id); } catch (\Throwable $e) {}
         $sKur = microtime(true);
         // Yetkiliye ulasilamadi / mesai disi -> asistan "konuyu söyleyin, notuma ekleyeyim" dediyse bu cumle NOTTUR
         $d = $this->geriAraNotTuru($oid, $metin, $gecmis) ?? $as->konus($metin, $gecmis);

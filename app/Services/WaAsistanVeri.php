@@ -128,6 +128,56 @@ class WaAsistanVeri
         return $v;
     }
 
+    // ------------------------------------------------------------------ santral (telefon) fiyat ayari
+    // WhatsApp'in fiyat_soyle ayarindan AYRI, varsayilan KAPALI: salon istemedikce fiyatlar telefonda soylenmez
+    // (Santral > Ayarlar'dan acilir). Ola Nail (236) isletme istegiyle acik baslar (2026-11-23).
+    const SANTRAL_FIYAT_SEMA = 'wa_ayar_santral_fiyat_v1';
+
+    protected static function santralFiyatSema(): bool
+    {
+        if (Cache::get(self::SANTRAL_FIYAT_SEMA)) return true;
+        if (!self::semaGaranti()) return false;
+        try {
+            if (!Schema::hasColumn('wa_asistan_ayarlar', 'santral_fiyat_soyle')) {
+                Schema::table('wa_asistan_ayarlar', function ($t) { $t->tinyInteger('santral_fiyat_soyle')->default(0); });
+                foreach ([236] as $sid) { // ilk kurulum: fiyatlari telefonda da soyleyecek salonlar
+                    if (DB::table('wa_asistan_ayarlar')->where('salon_id', $sid)->exists()) {
+                        DB::table('wa_asistan_ayarlar')->where('salon_id', $sid)->update(['santral_fiyat_soyle' => 1, 'fiyat_soyle' => 1]);
+                    } else {
+                        DB::table('wa_asistan_ayarlar')->insert(['salon_id' => $sid, 'santral_fiyat_soyle' => 1, 'fiyat_soyle' => 1, 'created_at' => now(), 'updated_at' => now()]);
+                    }
+                    Cache::forget("wa_asistan_ayar_{$sid}");
+                }
+            }
+            Cache::forever(self::SANTRAL_FIYAT_SEMA, 1);
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('[WA-ASISTAN] santral fiyat kolonu eklenemedi: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /** Telefon asistani fiyat soylesin mi (varsayilan hayir). */
+    public static function santralFiyatSoyle(int $salonId): bool
+    {
+        if ($salonId <= 0 || !self::santralFiyatSema()) return false;
+        try {
+            return (int) DB::table('wa_asistan_ayarlar')->where('salon_id', $salonId)->value('santral_fiyat_soyle') === 1;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    public static function santralFiyatKaydet(int $salonId, bool $acik): void
+    {
+        if ($salonId <= 0 || !self::santralFiyatSema()) return;
+        if (DB::table('wa_asistan_ayarlar')->where('salon_id', $salonId)->exists()) {
+            DB::table('wa_asistan_ayarlar')->where('salon_id', $salonId)->update(['santral_fiyat_soyle' => $acik ? 1 : 0, 'updated_at' => now()]);
+        } else {
+            DB::table('wa_asistan_ayarlar')->insert(['salon_id' => $salonId, 'santral_fiyat_soyle' => $acik ? 1 : 0, 'created_at' => now(), 'updated_at' => now()]);
+        }
+    }
+
     public static function ayarKaydet(int $salonId, array $veri, ?string $guncelleyen = null): void
     {
         self::semaGaranti();

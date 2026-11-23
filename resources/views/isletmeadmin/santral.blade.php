@@ -409,6 +409,21 @@
                                              <button type="submit" class="btn btn-success btn-block">Ayarları Güncelle</button>
                                           </div>
                                        </div>
+                                       {{-- AI telefon asistani: fiyat sorusunda hizmet listesindeki fiyati soylesin mi (varsayilan kapali) --}}
+                                       <div class=" col-md-4 col-sm-12 mb-30">
+                                          <div class="pd-20 card-box  mb-10">
+                                             <h6>AI Asistan Fiyat Bilgisi</h6>
+                                             <p style="font-weight: 5px;">Telefonda müşteri "Kalıcı oje ne kadar?" diye sorarsa yapay zeka asistanı hizmet listenizdeki fiyatı söylesin mi? Kapalıysa fiyatı söylemez, "Fiyat bilgisini işletmemiz iletecek" der, size not bırakır ve randevuya devam eder.</p>
+                                             <input type="hidden" name="santral_fiyat_alan" value="1">
+                                             <div class="row">
+                                                <div class="col-md-12 custom-control custom-checkbox mb-5">
+                                                   <input type="checkbox" class="custom-control-input" {{ \App\Services\WaAsistanVeri::santralFiyatSoyle((int) $isletme->id) ? 'checked' : '' }} name="santral_fiyat_soyle" id="santralFiyatSoyle">
+                                                   <label class="custom-control-label" for="santralFiyatSoyle">Fiyatları söylesin</label>
+                                                </div>
+                                             </div>
+                                             <p style="font-size:12px;color:#64748b;margin-top:8px">WhatsApp asistanının fiyat ayarı ayrıdır (WhatsApp Asistanı &gt; Ayarlar).</p>
+                                          </div>
+                                       </div>
                                     </div>
                                  </form>
 

@@ -53,7 +53,7 @@ class RandevuAsistan
     protected string $kanal = 'santral';
     /** Yalniz WhatsApp: isletme ayari "fiyat söylensin" acik -> fiyat sorusu aktarilmaz, liste fiyati soylenir (WaAsistan atar). */
     public bool $waFiyatSoyle = false;
-    /** Santral: isletme "fiyat söylensin" dedi mi (WhatsApp asistan ayari, iki kanal ortak; kopru controller atar). */
+    /** Santral: isletme telefonda "fiyat söylensin" dedi mi (Santral > Ayarlar, varsayilan kapali; kopru controller atar). */
     public bool $santralFiyatSoyle = false;
     /** Yalniz WhatsApp: profil adi gercek bir "Ad Soyad" ise (waProfilAdiAyarla) kayitsiz musteriye ad SORULMAZ, kayit bununla yapilir. */
     protected ?string $waProfilAdi = null;

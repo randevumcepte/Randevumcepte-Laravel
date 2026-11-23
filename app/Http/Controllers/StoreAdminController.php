@@ -25081,11 +25081,14 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
         $salon = Salonlar::where('id',$request->sube)->first();
         $salon->randevu_cagri_hatirlatma = $request->randevu_hatirlatama_saat_once;
         $salon->save();
+        // AI telefon asistani fiyat soylesin mi (form alani yoksa -eski sayfa- dokunulmaz)
+        if ($request->has('santral_fiyat_alan')) \App\Services\WaAsistanVeri::santralFiyatKaydet((int) $request->sube, isset($request->santral_fiyat_soyle));
         // Audit
         SalonAudit::log($request->sube, 'santral_ayar_kaydet', 'santral_ayar', null,
             'Santral ayarları',
             'Sesli arama / santral ayarları güncellendi',
             ['hatirlatma_saat'=>$request->randevu_hatirlatama_saat_once,
+             'ai_fiyat_soyle'=>isset($request->santral_fiyat_soyle)?1:0,
              'musteri'=>isset($request->santralayar_1_musteri)?1:0,
              'personel'=>isset($request->santralayar_1_personel)?1:0]);
         return 'Santral ayarları başarıyla kaydedildi';
