@@ -55,6 +55,8 @@ class RandevuAsistan
     public bool $waFiyatSoyle = false;
     /** Santral: isletme telefonda "fiyat söylensin" dedi mi (Santral > Ayarlar, varsayilan kapali; kopru controller atar). */
     public bool $santralFiyatSoyle = false;
+    /** Santral: Google ses tanimanin bu cumleden eminligi (0-1; null = bilinmiyor). Dusukse kullanici mesajina teyit notu eklenir. */
+    public ?float $sttGuven = null;
     /** Yalniz WhatsApp: profil adi gercek bir "Ad Soyad" ise (waProfilAdiAyarla) kayitsiz musteriye ad SORULMAZ, kayit bununla yapilir. */
     protected ?string $waProfilAdi = null;
     /** @var string[] Yalniz WhatsApp: gecmis sohbetlerden ogrenilen, test edilmis dersler (waPromptBolumu sonuna eklenir). */
@@ -525,7 +527,8 @@ class RandevuAsistan
         $messages[] = ['role' => 'user', 'content' => $metin . $this->zamanNotu($metin) . $this->oncekiZamanNotu($metin, $gecmis)
             . ($onNot !== '' ? $onNot : $this->hizmetDuzeltmeNotu($metin))
             . ($onPaketli ? '' : $this->paketNotu($metin, $gecmis))
-            . $this->paketKarariNotu($gecmis, $metin)];
+            . $this->paketKarariNotu($gecmis, $metin)
+            . $this->sttGuvenNotu()];
 
         $aksiyon = null; $bitir = false; $randevuId = null; $cevap = '';
         $isTamamlandi = false; // randevu/iptal/guncelleme/yol tarifi tamamlandi -> "Başka yardımcı olabileceğim..." sorulmali
@@ -1072,6 +1075,17 @@ class RandevuAsistan
             break;
         }
         return 'İsterseniz randevunuzu hemen oluşturayım; hangi gün size uygun?';
+    }
+
+    /**
+     * Santral: ses tanima bu cumleden emin degilse (Google confidence < 0,6) modele teyit notu. Kayit 2026-11-23 12.52:
+     * "pedikür" -> "Kadıköy" duyuldu, asistan teyit etmeden "Kadıköy şubemiz yok" deyip adres okudu.
+     */
+    protected function sttGuvenNotu(): string
+    {
+        if ($this->kanal === 'whatsapp' || $this->sttGuven === null || $this->sttGuven >= 0.6) return '';
+        return "\n[SİSTEM — müşteri bunu duymadı: ses tanıma bu cümleden EMİN DEĞİL (güven %" . (int) round($this->sttGuven * 100)
+            . "). Cümlede konuşmaya uymayan/beklenmedik bir kelime varsa ona göre işlem yapma, bilgi verme; önce \"… mı demek istediniz efendim? Tam anlayamadım.\" diye teyit et.]";
     }
 
     /** Asistan musteriyi anlamadigini mi soyluyor ("tam duyamadım", "tekrar söyler misiniz", "... mı demek istediniz?")? */
@@ -2190,6 +2204,10 @@ class RandevuAsistan
         $bugun = now('Europe/Istanbul')->format('Y-m-d');
         $harita = $this->gunHaritasi();
         // Telefonda fiyat sorusu AKTARILMAZ (kayit 239: aktarma randevuyu kaybettiriyordu; fiyat sorusunu kod cevaplar)
+        // Yanlis duyma (kayit 2026-11-23 12.52: "pedikür" -> "Kadıköy", asistan teyitsiz "Kadıköy şubemiz yok" deyip adres okudu)
+        $yanlisDuymaKurali = $this->kanal === 'whatsapp'
+            ? 'Anlamsız/alakasız bir ifade görürsen tahmin yürütme, ne istediğini kısaca tekrar sor.'
+            : 'YANLIŞ DUYMA: Telefonda ses tanıma kelimeleri yanlış duyabilir. Müşterinin söylediği, sorduğun soruya ya da konuşmanın akışına UYMUYORSA (ör. hizmet sorulmuşken ya da randevu konuşulurken bir semt/şehir/yer adı, alakasız bir isim ya da kelime) onu doğru kabul edip İŞLEM YAPMA, adres/şube/bilgi VERME, araç çağırma. Önce teyit et: "Kadıköy mü demek istediniz efendim? Tam anlayamadım." Duyduğun kelimeye ses olarak benzeyen bir hizmetimiz varsa onu sor: "Pedikür mü demek istediniz efendim?" Müşteri doğrularsa devam et.';
         $fiyatKurali = $this->kanal === 'whatsapp'
             ? 'FİYAT/ÜCRET/İNDİRİM/KAMPANYA soruları ("ne kadar", "fiyatı nedir", "kaç lira") → fiyat SÖYLEME, "Fiyat bilgisi için sizi işletmemize bağlıyorum" deyip "aktar" çağır.'
             : ($this->telFiyatAcik()
@@ -2332,7 +2350,7 @@ Saat kestirimi: "on dörtte"=14:00, "on dört buçukta"=14:30, "ikide/saat ikide
 {$fiyatKurali} Müşteri açıkça operatör/insan/yetkili/işletmeye bağlanmak isterse ("beni bağlar mısınız", "işletmeye bağlayın", "biriyle görüşmek istiyorum") HİÇ SORU SORMADAN hemen "aktar" çağır — bunu hizmet sanma, hizmet_eslestir ÇAĞIRMA. YA DA randevu/iptal/güncelleme dışı konu (şikayet, fatura, ödeme) olursa. Hizmet bulunamadı diye AKTARMA — sormaya devam et.
 
 # KIRMIZI ÇİZGİLER
-Burası restoran DEĞİL, randevu hattı: kişi sayısı, masa, rezervasyon, sipariş SORMA. Her randevu arayan kişi içindir. Anlamsız/alakasız bir ifade duyarsan (ses tanıma hatası olabilir) tahmin yürütme, ne istediğini kısaca tekrar sor.
+Burası restoran DEĞİL, randevu hattı: kişi sayısı, masa, rezervasyon, sipariş SORMA. Her randevu arayan kişi içindir. {$yanlisDuymaKurali}
 randevu_olustur ok=true DÖNMEDEN asla "randevunuz oluşturuldu" deme; ok=false ise hatayı müşteriye dürüstçe söyle. Hizmeti kendin tahmin etme (daima hizmet_eslestir). coklu'da kendin seçme. 8. adım onayı almadan randevu_olustur çağırma. Saat ve personeli kendin uydurma (yalnız musait_saatler sonucundan). Tüm saatleri sıralama (2 tane öner). Bilgi uydurma.
 
 # BAĞLAM

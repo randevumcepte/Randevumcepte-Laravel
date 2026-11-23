@@ -131,7 +131,8 @@ class SttOturumu {
         if (!r || !r.alternatives || !r.alternatives[0]) return;
         const metin = (r.alternatives[0].transcript || '').trim();
         if (!metin) return;
-        if (r.isFinal) this.onFinal(metin);
+        // confidence: Google'in bu cumleden ne kadar emin oldugu (0-1; yoksa undefined) -> dusukse asistan teyit eder
+        if (r.isFinal) this.onFinal(metin, r.alternatives[0].confidence);
         else this.onInterim(metin);
       });
 

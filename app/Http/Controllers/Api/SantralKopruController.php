@@ -184,6 +184,8 @@ class SantralKopruController extends Controller
         $as = new RandevuAsistan((int) $o->sube_id, $o->telefon);
         // Telefonda fiyat soylensin mi: salon bazli, varsayilan KAPALI (Santral > Ayarlar; WhatsApp ayarindan ayri)
         try { $as->santralFiyatSoyle = \App\Services\WaAsistanVeri::santralFiyatSoyle((int) $o->sube_id); } catch (\Throwable $e) {}
+        // Google ses tanimanin bu cumleden eminligi (0-1, kopru gonderirse): dusukse asistan islem yapmadan teyit eder
+        if (is_numeric($r->input('stt_guven'))) $as->sttGuven = (float) $r->input('stt_guven');
         $sKur = microtime(true);
         // Yetkiliye ulasilamadi / mesai disi -> asistan "konuyu söyleyin, notuma ekleyeyim" dediyse bu cumle NOTTUR
         $d = $this->geriAraNotTuru($oid, $metin, $gecmis) ?? $as->konus($metin, $gecmis);

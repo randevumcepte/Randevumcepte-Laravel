@@ -153,7 +153,7 @@ class CagriOturumu {
       this.stt.yaz(payload);
     });
     this.stt = new SttOturumu(
-      (final) => this._finalMetin(final),
+      (final, guven) => this._finalMetin(final, guven),
       (interim) => this._interim(interim),
     );
   }
@@ -309,8 +309,9 @@ class CagriOturumu {
     if (m.length >= 2) { log.debug(`endpointing: interim->final: ${m}`); this._finalMetin(m); }
   }
 
-  async _finalMetin(metin) {
+  async _finalMetin(metin, guven) {
     this._sttSon = Date.now();
+    this._sttGuven = typeof guven === 'number' && guven > 0 ? guven : null; // 0 = Google vermedi
     if (this.kapali || this._kapaniyor || this._aktarmada) return; // kapanis/aktarma beklemesinde yeni tur baslatma
     clearTimeout(this._interimZ); this._sonInterim = '';
     const n = sadeMetin(metin);
@@ -458,7 +459,8 @@ class CagriOturumu {
     this.mesgul = true;
     this._eskidi = false;
     const tur = (this._turNo = (this._turNo || 0) + 1);
-    const ek = Object.assign({ tur }, this._oncekiDuyulmadi ? { onceki_duyulmadi: 1 } : {});
+    const ek = Object.assign({ tur }, this._oncekiDuyulmadi ? { onceki_duyulmadi: 1 } : {},
+      this._sttGuven ? { stt_guven: this._sttGuven.toFixed(2) } : {});
     this._oncekiDuyulmadi = false;
     this._aktifTur = { tur, metin };
     this._tepkiCaldi = false;

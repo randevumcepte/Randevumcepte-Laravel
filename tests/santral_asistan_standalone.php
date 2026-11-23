@@ -904,6 +904,12 @@ namespace {
     esit('Tekrar onay: farklı kalıp → kalır', 'Harika. Hangi gün?', cagir($ab, 'tekrarOnayKes', 'Harika. Hangi gün?', $gT));
     esit('Tekrar onay: yalnız onay → dokunulmaz', 'Tabii, anladım.', cagir($ab, 'tekrarOnayKes', 'Tabii, anladım.', $gT));
 
+    // Kayit 2026-11-23 12.52: "pedikür" -> "Kadıköy" duyuldu -> teyit ("... mı demek istediniz efendim?")
+    icerir('prompt: yanlış duyma teyidi', 'Kadıköy mü demek istediniz efendim? Tam anlayamadım.', cagir($pz, 'sistemPromptu'));
+    $ab->sttGuven = 0.42; icerir('düşük STT güveni → teyit notu', 'EMİN DEĞİL (güven %42)', cagir($ab, 'sttGuvenNotu'));
+    $ab->sttGuven = 0.91; esit('yüksek STT güveni → not yok', '', cagir($ab, 'sttGuvenNotu'));
+    $ab->sttGuven = null; esit('STT güveni yok → not yok', '', cagir($ab, 'sttGuvenNotu'));
+
     echo "\n\033[1mSONUÇ: $gecen geçti, $kalan kaldı\033[0m\n";
     if ($kalan) { echo "Kalanlar:\n - " . implode("\n - ", $hatalar) . "\n"; exit(1); }
 }
