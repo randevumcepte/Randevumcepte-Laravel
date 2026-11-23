@@ -315,6 +315,17 @@ namespace {
     esit('ikinci anlamama aktarılır', true, $pz->ikinciAnlamama($anla, [['role' => 'assistant', 'content' => $anla], ['role' => 'user', 'content' => 'hmm']]));
     // canli 2026-11-23: teyit sorusu anlamama SAYILMAZ (musteri teyide cevap veremeden aktariliyordu)
     esit('anlamama + teyit → aktarılmaz', false, $pz->ikinciAnlamama('Kadıköy mü demek istediniz efendim? Tam anlayamadım.', [['role' => 'assistant', 'content' => 'Sizi tam anlayamadım. Tekrar söyler misiniz?'], ['role' => 'user', 'content' => 'kadıköy']]));
+    // canli 2026-11-23: anlasilamayan musteri AKTARILMAZ; 2. kez kapali soru, 3. kez WhatsApp/geri arama (controller)
+    $anlG = [['role' => 'assistant', 'content' => 'Merhaba, Ola Nail\'e hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?'], ['role' => 'user', 'content' => 'şey'],
+             ['role' => 'assistant', 'content' => 'Kusura bakmayın, tam duyamadım. Hangi hizmet için arıyorsunuz?'], ['role' => 'user', 'content' => 'hmm']];
+    esit('anlama serisi: anlamama değil → 0', 0, $pz->anlamamaSerisi('Hangi gün uygun?', $anlG));
+    esit('anlama serisi: ikinci', 2, $pz->anlamamaSerisi('Tam anlayamadım, tekrar söyler misiniz?', $anlG));
+    $k2 = $pz->anlamamaKurtarmaCumlesi($anlG);
+    icerir('2. anlamama: hizmetler sayılır', 'Size birkaç hizmetimizi sayayım:', $k2);
+    esit('2. anlamama cümlesi de anlamama sayılır (3. seri)', 3, $pz->anlamamaSerisi('Kusura bakmayın, tam duyamadım.', array_merge($anlG, [['role' => 'assistant', 'content' => $k2], ['role' => 'user', 'content' => 'x']])));
+    $anlZ = [['role' => 'assistant', 'content' => 'Pedikür hizmetimiz için hangi gün ve saat uygun?'], ['role' => 'user', 'content' => 'şey'],
+             ['role' => 'assistant', 'content' => 'Kusura bakmayın, tam duyamadım.'], ['role' => 'user', 'content' => 'hmm']];
+    icerir('2. anlamama: gün sorusunda örnekli tekrar', 'yarın saat üç', $pz->anlamamaKurtarmaCumlesi($anlZ));
     esit('teyit + anlamama → aktarılmaz', false, $pz->ikinciAnlamama('Kusura bakmayın, tam duyamadım. Hangi hizmet için arıyorsunuz?', [['role' => 'assistant', 'content' => 'Pedikür mü demek istediniz efendim?'], ['role' => 'user', 'content' => 'hmm']]));
     $ola = asistan(['salon' => ['ad' => 'Ola Nail', 'hizmetler' => [
         ['id' => 1, 'ad' => 'Kalıcı Oje', 'kategori' => 'Tırnak'], ['id' => 2, 'ad' => 'Jel Tırnak', 'kategori' => 'Tırnak'],

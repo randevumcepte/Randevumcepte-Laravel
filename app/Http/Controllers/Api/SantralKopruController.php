@@ -189,12 +189,29 @@ class SantralKopruController extends Controller
         $sKur = microtime(true);
         // Yetkiliye ulasilamadi / mesai disi -> asistan "konuyu söyleyin, notuma ekleyeyim" dediyse bu cumle NOTTUR
         $d = $this->geriAraNotTuru($oid, $metin, $gecmis) ?? $as->konus($metin, $gecmis);
-        // Ust uste IKINCI kez anlasilamadi: musteriyi uzatma, isletmeye aktar (2026-11-19 isletme istegi, kayit 178)
-        if (empty($d['aksiyon']) && empty($d['bitir']) && $as->ikinciAnlamama((string) ($d['cevap'] ?? ''), $gecmis)) {
-            \Log::info('[SANTRAL-TUR] iki kez anlasilamadi -> aktar', ['oturum' => $oid, 'metin' => $metin, 'cevap' => $d['cevap'] ?? '']);
-            $as->teshis = 'anlasilamadi_aktar';
-            $d = ['cevap' => 'Kusura bakmayın, size daha iyi yardımcı olabilmesi için sizi hemen yetkili arkadaşıma bağlıyorum, lütfen hatta kalın.',
-                  'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
+        // Ust uste anlasilamadi: isletmeye AKTARILMAZ (isletmeler telefona bakamadigi icin sistemi aliyor; canli 2026-11-23).
+        // 2. kez: kapali soru (hizmetleri say / gunu-saati ornekle sor). 3. kez: WhatsApp'tan yazilir (oradaki asistan
+        // randevuyu yazili tamamlar) + isletmeye geri arama notu, gorusme nazikce kapanir. Musteri acikca baglanmak
+        // isterse aktarma eskisi gibi calisir (bu blok yalniz "anlamadım" cevaplarinda devreye girer).
+        $anlamama = (empty($d['aksiyon']) && empty($d['bitir'])) ? $as->anlamamaSerisi((string) ($d['cevap'] ?? ''), $gecmis) : 0;
+        if ($anlamama === 2) {
+            \Log::info('[SANTRAL-TUR] ikinci anlamama -> kapali soru', ['oturum' => $oid, 'metin' => $metin]);
+            $d['cevap'] = $as->anlamamaKurtarmaCumlesi($gecmis);
+        } elseif ($anlamama >= 3) {
+            $wa = $this->anlasilamadiWhatsapp($o);
+            \Log::info('[SANTRAL-TUR] ucuncu anlamama -> ' . ($wa ? 'whatsapp' : 'geri arama'), ['oturum' => $oid, 'metin' => $metin]);
+            $as->teshis = 'anlasilamadi';
+            if ($wa || $this->telGecerli($o->telefon)) {
+                $this->geriAraKaydet($o, 'anlasilamadi', $wa ? "Hattan anlaşılamadı; müşteriye WhatsApp'tan yazıldı" : 'Hattan anlaşılamadı');
+                $d = ['cevap' => $wa
+                        ? "Kusura bakmayın, hattan sesiniz net gelmiyor. Size şimdi WhatsApp'tan mesaj gönderdim; oradan yazarak randevunuzu hemen oluşturabiliriz. İyi günler dilerim."
+                        : 'Kusura bakmayın, hattan sesiniz net gelmiyor. Notunuzu aldım, işletmemiz sizi bu numaradan en kısa sürede geri arayacak. İyi günler dilerim.',
+                      'aksiyon' => 'veda', 'veri' => [], 'bitir' => true];
+            } else {
+                // Gizli numara: yazilamaz da geri aranamaz da -> son care aktarma
+                $d = ['cevap' => 'Kusura bakmayın, hattan sesiniz net gelmiyor; sizi yetkili arkadaşıma bağlıyorum, lütfen hatta kalın.',
+                      'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
+            }
         }
         // Fiyat soylenemedi (ayar kapali / fiyat tanimsiz): isletmeye "fiyat sordu" notu, asistan randevuya devam eder
         if (!empty($d['fiyat_notu'])) {
@@ -447,6 +464,51 @@ class SantralKopruController extends Controller
     }
 
     /** Oturumu "geri aranacak" isaretle (+ not); ilk kez isaretleniyorsa isletmeye panel bildirimi + push. */
+    /** Arayan numara geri aranabilir/yazilabilir bir cep mi (gizli/anonim degil)? */
+    protected function telGecerli(?string $t): bool
+    {
+        return (bool) preg_match('/^5\d{9}$/', substr(preg_replace('/\D/', '', (string) $t), -10));
+    }
+
+    /**
+     * Telefonda ust uste anlasilamayan musteriye salonun WhatsApp hattindan yazilir; cevabi WhatsApp asistani karsilar
+     * (sohbet bu mesajla acilir, asistan baglami bilir). Salonda WhatsApp asistani kapali / hat bagli degilse false.
+     */
+    protected function anlasilamadiWhatsapp($o): bool
+    {
+        try {
+            if (!$this->telGecerli($o->telefon)) return false;
+            $salon = \App\Salonlar::find((int) $o->sube_id);
+            if (!$salon) return false;
+            $wa = app(\App\Services\WhatsAppService::class);
+            $hat = \App\Services\WhatsAppService::resolveWaSalon($salon);
+            if (!\App\Services\WaAsistan::acikMi((int) $hat->id)) return false;
+            $tel = $wa->normalizePhone($o->telefon);
+            if (!$tel) return false;
+            $ad = trim((string) ($salon->salon_adi ?? ''));
+            $mesaj = 'Merhaba' . ($ad !== '' ? ', ' . $ad . ' olarak yazıyoruz' : '') . '. Az önce bizi aradınız; hattan sesiniz net gelmediği için size buradan ulaşıyoruz 😊'
+                . "\nRandevunuzu buradan yazarak kolayca oluşturabiliriz. Hangi hizmet için randevu almak istersiniz?";
+            $r = $wa->sendAsistanCevap($salon, $tel, $mesaj, $tel);
+            if (empty($r['ok'])) {
+                \Log::warning('[SANTRAL-WA-DEVIR] gonderilemedi', ['oturum' => $o->id, 'hata' => $r['error'] ?? null]);
+                return false;
+            }
+            // Musteri cevap verince WhatsApp asistani bu sohbette devam etsin (gecmiste bu mesaj var -> "hangi hizmet" sorusunu bilir)
+            DB::table('wa_asistan_oturumlari')->where('salon_id', $hat->id)->where('anahtar', $tel)->where('durum', 'acik')
+                ->update(['durum' => 'kapandi', 'updated_at' => now()]);
+            DB::table('wa_asistan_oturumlari')->insert([
+                'salon_id' => $hat->id, 'isletme_id' => (int) $o->sube_id, 'anahtar' => $tel, 'jid' => null,
+                'telefon' => $tel, 'musteri_tel' => $tel, 'ad' => null,
+                'gecmis' => json_encode([['role' => 'assistant', 'content' => $mesaj, 'at' => date('Y-m-d H:i:s')]], JSON_UNESCAPED_UNICODE),
+                'durum' => 'acik', 'son_mesaj_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            return true;
+        } catch (\Throwable $e) {
+            \Log::warning('[SANTRAL-WA-DEVIR] hata: ' . $e->getMessage(), ['oturum' => $o->id ?? null]);
+            return false;
+        }
+    }
+
     protected function geriAraKaydet($o, string $neden, ?string $not = null): void
     {
         if (!$this->geriAraSemasi()) return;

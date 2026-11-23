@@ -1112,6 +1112,58 @@ class RandevuAsistan
         return false;
     }
 
+    /** Bu cevap dahil ust uste kac "anlamadım" cevabi (bu cevap anlamama degilse 0). */
+    public function anlamamaSerisi(string $cevap, array $gecmis): int
+    {
+        if (!$this->anlamadiCevabi($cevap)) return 0;
+        $n = 1;
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') !== 'assistant') continue;
+            if (!$this->anlamadiCevabi((string) ($gecmis[$i]['content'] ?? ''))) break;
+            $n++;
+        }
+        return $n;
+    }
+
+    /**
+     * Ikinci anlamama: aktarma YOK (isletme zaten telefona bakamiyor; canli 2026-11-23 isletme istegi). Acik soru yerine
+     * KAPALI soru: hizmet henuz belli degilse en cok alinan hizmetler sayilir, belliyse son soru ornekle tekrarlanir.
+     * Cumle anlamama kalibini tasir (ucuncu anlamamada seri devam etsin).
+     */
+    public function anlamamaKurtarmaCumlesi(array $gecmis): string
+    {
+        $bas = 'Kusura bakmayın, hattan sesiniz net gelmiyor, tam anlayamadım.';
+        $son = '';
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') !== 'assistant') continue;
+            $c = (string) ($gecmis[$i]['content'] ?? '');
+            if (!$this->anlamadiCevabi($c)) { $son = $c; break; }
+        }
+        $zamanSorusu = (bool) preg_match('/\b(gün|saat|tarih)\w*/iu', $son);
+        $hizmetSorusu = $son === '' || (!$zamanSorusu && preg_match('/hizmet|nasıl yardımcı|hoş geldiniz/iu', $son));
+        if ($hizmetSorusu) {
+            $pop = $this->hizmetPopulerlik();
+            arsort($pop);
+            $adlar = array_slice(array_keys($pop), 0, 4);
+            if (count($adlar) < 4) {
+                foreach ($this->hizmetler() as $h) {
+                    $ad = trim((string) $h['ad']);
+                    if (!in_array($ad, $adlar, true)) $adlar[] = $ad;
+                    if (count($adlar) === 4) break;
+                }
+            }
+            if (count($adlar) >= 2) {
+                $son1 = array_pop($adlar);
+                return "{$bas} Size birkaç hizmetimizi sayayım: " . implode(', ', $adlar) . " ya da {$son1}. Hangisi için arıyorsunuz?";
+            }
+            return "{$bas} Hangi hizmet için aradığınızı tek kelimeyle söyler misiniz?";
+        }
+        if ($zamanSorusu) {
+            return "{$bas} Gün ve saati tek tek söyler misiniz, örneğin \"yarın saat üç\" gibi?";
+        }
+        return "{$bas} Biraz daha yavaş tekrar söyler misiniz?";
+    }
+
     /**
      * Kalip kapanis sorusu ("Başka yardımcı olabileceğim bir konu var mı?") robotik (kayit 172): musteriye giden
      * cumlede sirayla dogal bir soruyla degistirilir (ayni gorusmede ust uste ayni soru gelmez). Kod ve prompt
