@@ -936,6 +936,14 @@ class RandevuAsistan
     protected function aracSonrasiKodCevabi(array $araclar): ?string
     {
         if (!$araclar || !config('services.santral_ai.kod_cevap', true)) return null;
+        // Eski musteriye son uzman teklifi: ayni turda baska arac (hizmet_eslestir vb.) cagrilsa da cumle KOD'dan gider
+        // (model cumleyi atlayip dogrudan baska uzmanla saat sunuyordu). Ayni turda randevu olustu/guncellendiyse degil.
+        $olustuMu = false; $teklif = null;
+        foreach ($araclar as [$ad, $sonuc]) {
+            if (in_array($ad, ['randevu_olustur', 'randevu_guncelle', 'randevu_iptal'], true)) $olustuMu = true;
+            if ($ad === 'musait_saatler' && is_array($sonuc) && !empty($sonuc['son_uzman']) && !empty($sonuc['onerilen_cumle'])) $teklif = (string) $sonuc['onerilen_cumle'];
+        }
+        if ($teklif !== null && !$olustuMu) return $teklif;
         $izinli = ['musait_saatler', 'randevu_olustur', 'randevu_guncelle', 'randevu_iptal'];
         foreach ($araclar as [$ad, $sonuc]) {
             if (!in_array($ad, $izinli, true) || !is_array($sonuc) || empty($sonuc['ok'])) return null;

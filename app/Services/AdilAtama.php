@@ -185,23 +185,35 @@ class AdilAtama
     }
 
     /**
-     * Musterinin son geldigi uzman: once ayni hizmette "geldi" isaretli son randevu, yoksa herhangi "geldi" son randevu.
+     * Musterinin son gittigi uzman. Sira: ayni hizmette "geldi" isaretli son randevu > herhangi "geldi" son randevu >
+     * (isletme "geldi" isaretlemiyorsa) iptal/red olmayan son GECMIS randevu (ayni hizmet, sonra herhangi).
      * Personel aktif ve haric degilse id, yoksa null.
      */
     public static function sonUzman($salonId, $userId, $hizmetId)
     {
         if (!$userId) return null;
         try {
-            $taban = function () use ($salonId, $userId) {
-                return DB::table('randevular as r')->join('randevu_hizmetler as rh', 'rh.randevu_id', '=', 'r.id')
+            $taban = function ($geldi) use ($salonId, $userId) {
+                $q = DB::table('randevular as r')->join('randevu_hizmetler as rh', 'rh.randevu_id', '=', 'r.id')
                     ->join('salon_personelleri as sp', 'sp.id', '=', 'rh.personel_id')
-                    ->where('r.salon_id', $salonId)->where('r.user_id', $userId)->where('r.randevuya_geldi', 1)
+                    ->where('r.salon_id', $salonId)->where('r.user_id', $userId)
                     ->where('rh.hizmet_id', '!=', PersonelProfil::KAPAMA_HIZMET)
                     ->where('sp.aktif', 1)->where(function ($w) { $w->whereNull('sp.arsivli')->orWhere('sp.arsivli', '!=', 1); })
                     ->orderByDesc('r.tarih')->orderByDesc('rh.saat');
+                if ($geldi) {
+                    $q->where('r.randevuya_geldi', 1);
+                } else {
+                    $q->where('r.tarih', '<', date('Y-m-d'))->where(function ($w) { $w->whereNull('r.durum')->orWhereNotIn('r.durum', [2, 3]); })
+                        ->where(function ($w) { $w->whereNull('r.randevuya_geldi')->orWhere('r.randevuya_geldi', '!=', 0); });
+                }
+                return $q;
             };
-            $pid = $hizmetId ? $taban()->where('rh.hizmet_id', $hizmetId)->value('rh.personel_id') : null;
-            if (!$pid) $pid = $taban()->value('rh.personel_id');
+            $pid = null;
+            foreach ([true, false] as $geldi) {
+                if (!$pid && $hizmetId) $pid = $taban($geldi)->where('rh.hizmet_id', $hizmetId)->value('rh.personel_id');
+                if (!$pid) $pid = $taban($geldi)->value('rh.personel_id');
+                if ($pid) break;
+            }
             $pid = (int) $pid;
             if (!$pid || in_array($pid, self::haricler($salonId), true)) return null;
             return $pid;
