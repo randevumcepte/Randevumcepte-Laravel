@@ -43,7 +43,7 @@ class DamgaKartiServisi
      * kalemi sayilmaz; veresiye/taksit odeme bitince sayilir). Acmadan once etkisi:
      * php artisan ikram:odeme-etki (salt okuma).
      */
-    const ODEME_SARTI = false;
+    const ODEME_SARTI = true;
 
     /** Yalniz ikram:odeme-etki komutu icin: null = ODEME_SARTI gecerli. */
     private static $odemeSartiOlcum = null;

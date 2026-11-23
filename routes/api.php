@@ -143,7 +143,7 @@ Route::post('/carkAdmin/damga-karti-adisyon/{salonId}', 'ApiController@carkAdmin
 Route::post('/carkAdmin/damga-karti-uygula/{salonId}',  'ApiController@carkAdminDamgaKartiUygulaApi')->middleware('salon.sahiplik');
 Route::post('/carkAdmin/damga-karti-gorsel/{salonId}',  'ApiController@carkAdminDamgaKartiGorselApi')->middleware('salon.sahiplik:deny');
 Route::get ('/carkAdmin/damga-karti-detay/{salonId}',  'ApiController@carkAdminDamgaKartiDetayApi')->middleware('salon.sahiplik:deny');
-Route::get ('/musteri/ikram-hizmetleri',                'ApiController@musteriIkramHizmetleri')->middleware('salon.sahiplik');
+Route::get ('/musteri/ikram-hizmetleri',                'ApiController@musteriIkramHizmetleri')->middleware('salon.sahiplik:deny');
 
 // WhatsApp Mobil (ayri controller, defensive, izole)
 Route::post('/whatsapp/baslat/{salonId}','WhatsappMobileController@baslat');
