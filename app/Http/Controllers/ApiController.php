@@ -32566,6 +32566,15 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
             try { $cevap['musteriler'] = \App\Services\DamgaKartiServisi::yonetimOzet($salonId); }
             catch (\Throwable $e) { $cevap['musteriler'] = []; }
         }
+        // Kazanc ozeti (Ikram Hizmet ust karti + kampanya kartlarindaki kazanc); donem = gun sayisi
+        if (filter_var($request->input('ozet'), FILTER_VALIDATE_BOOLEAN)) {
+            try {
+                $cevap['ozet'] = \App\Services\DamgaKartiServisi::kazancOzeti($salonId,
+                    (int) $request->input('donem', 30), $cevap['musteriler'] ?? null);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[ikram ozet] ' . $e->getMessage());
+            }
+        }
         return response()->json($cevap);
     }
 
