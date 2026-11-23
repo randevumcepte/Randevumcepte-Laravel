@@ -2098,14 +2098,18 @@ class RandevuAsistan
         // Telefonda fiyat sorusu AKTARILMAZ (kayit 239: aktarma randevuyu kaybettiriyordu; fiyat sorusunu kod cevaplar)
         $fiyatKurali = $this->kanal === 'whatsapp'
             ? 'FİYAT/ÜCRET/İNDİRİM/KAMPANYA soruları ("ne kadar", "fiyatı nedir", "kaç lira") → fiyat SÖYLEME, "Fiyat bilgisi için sizi işletmemize bağlıyorum" deyip "aktar" çağır.'
-            : 'FİYAT/ÜCRET/İNDİRİM soruları için "aktar" ÇAĞIRMA ve fiyat UYDURMA: "Fiyat bilgisini işletmemiz size iletecek" de ve randevu akışına (yarım kalan soruya) dön. Önceliğin HER ZAMAN randevuyu tamamlamak.';
+            : ($this->telFiyatAcik()
+                // Isletme telefonda fiyat soylensin dedi: fiyatlar listede; gecmisteki fiyat cumleleri KOD tarafindan
+                // listeden okundu (2026-11-23 03:45: model "fiyatı ben uydurmuş olabilirim" diye kendini duzeltti)
+                ? 'FİYAT soruları için "aktar" ÇAĞIRMA: fiyatı yukarıdaki hizmet listesinden AYNEN söyle ("Kalıcı Oje 790 lira"). Konuşmada daha önce söylenen fiyatlar bu listeden okundu ve DOĞRUDUR: "uydurmuş olabilirim", "kesin fiyatı işletme iletecek" gibi düzeltme YAPMA. Listede fiyatı olmayan hizmet ya da indirim sorulursa "Fiyat bilgisini işletmemiz size iletecek" de. Fiyattan sonra randevu akışına (yarım kalan soruya) dön.'
+                : 'FİYAT/ÜCRET/İNDİRİM soruları için "aktar" ÇAĞIRMA ve fiyat UYDURMA: "Fiyat bilgisini işletmemiz size iletecek" de ve randevu akışına (yarım kalan soruya) dön. Önceliğin HER ZAMAN randevuyu tamamlamak.');
 
         $hizmetSatir = '';
         foreach (array_slice($this->salon['hizmetler'] ?? [], 0, 40) as $h) {
             // Fiyat BILEREK verilmez: fiyat sorulari isletmeye aktarilir (isletme talebi). Sure verilir.
             // Istisna: WhatsApp + isletme "fiyat söylensin" dedi -> liste fiyati da yazilir (waPromptBolumu kurali).
             $sure = (int) ($h['sure_dk'] ?? 0);
-            $fiyat = $this->waFiyatAcik() ? (float) ($h['fiyat'] ?? 0) : 0;
+            $fiyat = ($this->waFiyatAcik() || $this->telFiyatAcik()) ? (float) ($h['fiyat'] ?? 0) : 0;
             $hizmetSatir .= '- ' . ($h['ad'] ?? '') . ($sure > 0 ? " (yaklaşık {$sure} dk)" : '')
                 . ($fiyat > 0 ? ' – ' . number_format($fiyat, 0, ',', '.') . ' TL' : '') . "\n";
         }
@@ -2318,6 +2322,12 @@ FIYAT
     }
 
     /** WhatsApp kanalinda ve isletme fiyat soylenmesine izin verdiyse true (santralde her zaman false). */
+    /** Telefon (santral) + isletme telefonda fiyat soylensin dedi (Santral > Ayarlar). */
+    protected function telFiyatAcik(): bool
+    {
+        return $this->kanal !== 'whatsapp' && $this->santralFiyatSoyle;
+    }
+
     protected function waFiyatAcik(): bool
     {
         return $this->kanal === 'whatsapp' && $this->waFiyatSoyle;

@@ -697,6 +697,7 @@ class CagriOturumu {
         tts_soylenen_karakter: this.olcum.soylenen,
         tts_detay: this.ttsDetay,
         tts_ses: this.ttsSes || cfg.tts.voice,
+        kayit_durum: this.kayitDurum || undefined, // ses kaydinin akibeti (index.js)
       });
     }
     log.info(`Oturum #${this.oturumId || '-'} kapandi (kanal ${this.kanalId})`);

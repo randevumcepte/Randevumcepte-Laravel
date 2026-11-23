@@ -62,17 +62,21 @@ async function turIptal(oturumId, tur) {
 async function sesYukle(oturumId, subeId, tur, filePath) {
   try {
     const fs = require('fs');
-    if (!fs.existsSync(filePath)) { log.warn('ses dosyasi yok: ' + filePath); return; }
+    if (!fs.existsSync(filePath)) { log.warn('ses dosyasi yok: ' + filePath); return 'dosya yok: ' + filePath; }
     const buf = fs.readFileSync(filePath);
-    if (!buf || buf.length < 200) { log.warn('ses dosyasi cok kucuk/bos: ' + filePath); return; }
-    await http.post('/api/v1/santral/kayit-yukle', buf, {
+    if (!buf || buf.length < 200) { log.warn('ses dosyasi cok kucuk/bos: ' + filePath); return 'dosya bos (' + (buf ? buf.length : 0) + ' bayt)'; }
+    const { data } = await http.post('/api/v1/santral/kayit-yukle', buf, {
       params: { oturum_id: oturumId || '', sube_id: subeId || '', tur: tur || 'ai', secret: cfg.laravel.secret || '' },
       headers: { 'Content-Type': 'audio/wav' },
       maxBodyLength: Infinity, maxContentLength: Infinity, timeout: 30000,
     });
+    // Laravel cevabina bak: eskiden cevap okunmadan "yuklendi" yaziliyordu
+    if (!data || !data.ok) { log.warn('ses yukleme reddedildi: ' + JSON.stringify(data)); return 'laravel reddetti: ' + ((data && data.hata) || 'cevap yok'); }
     log.info(`ses kaydi yuklendi (${tur}, ${Math.round(buf.length / 1024)}KB)`);
+    return `yuklendi (${tur}, ${Math.round(buf.length / 1024)}KB)`;
   } catch (e) {
     log.warn('ses yukleme hata: ' + e.message);
+    return 'yukleme hatasi: ' + e.message;
   }
 }
 

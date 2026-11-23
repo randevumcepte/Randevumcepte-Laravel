@@ -345,6 +345,8 @@ namespace {
     esit('fiyatı tanımsız hizmet: not', 'Fiyat sordu: Jel Tırnak', $d['fiyat_notu'] ?? null);
     icerir('randevu teklifiyle devam', 'randevunuzu hemen oluşturayım', $d['cevap']);
     esit('açık aktarma isteği hâlâ aktarılır', 'aktar', $f239->konus('Beni yetkiliye bağlar mısınız', $g239)['aksiyon']);
+    $p = cagir($f239, 'sistemPromptu'); icerir('fiyat açık: söylenen fiyat doğru, düzeltme yok', 'DOĞRUDUR', $p); icerir('fiyat açık: liste fiyatı promptta', '400 TL', $p);
+    $f239->santralFiyatSoyle = false; $p = cagir($f239, 'sistemPromptu'); esit('fiyat kapalı: promptta fiyat yok', false, strpos($p, '400 TL') !== false);
 
     esit('anladıysa aktarılmaz', false, $pz->ikinciAnlamama('Hangi gün sizin için uygun?', [['role' => 'assistant', 'content' => $anla], ['role' => 'user', 'content' => 'manikür']]));
 

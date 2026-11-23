@@ -340,6 +340,10 @@ class SantralKopruController extends Controller
                 $upd['kur'] = \App\Services\DovizKuru::usdHizli();
                 app()->terminating(function () { try { \App\Services\DovizKuru::usd(); } catch (\Throwable $e) {} });
             }
+            // Ses kaydinin akibeti (kopru): "yuklendi ..." degilse panelde sebep gosterilir + log
+            $kd = mb_substr(trim((string) $r->input('kayit_durum')), 0, 190);
+            if ($kd !== '' && $this->geriAraSemasi()) $upd['kayit_durum'] = $kd;
+            if ($kd !== '' && strpos($kd, 'yuklendi') !== 0) \Log::warning('[SANTRAL-SES-KAYIT] kayit yok', ['oturum' => $oid, 'durum' => $kd]);
             DB::table('santral_oturumlari')->where('id', $oid)->update($upd);
         }
         return $this->j(['ok' => 1]);
@@ -352,11 +356,11 @@ class SantralKopruController extends Controller
     /** santral_oturumlari geri arama kolonlari (runtime; sunucuda migrate gerekmez). */
     protected function geriAraSemasi(): bool
     {
-        if (Cache::get('santral_geri_ara_v1')) return true;
+        if (Cache::get('santral_geri_ara_v2')) return true;
         try {
             if (!Schema::hasTable('santral_oturumlari')) return false;
             $eksik = [];
-            foreach (['geri_ara', 'geri_ara_neden', 'geri_ara_not', 'geri_arandi_at', 'geri_arayan'] as $k) {
+            foreach (['geri_ara', 'geri_ara_neden', 'geri_ara_not', 'geri_arandi_at', 'geri_arayan', 'kayit_durum'] as $k) {
                 if (!Schema::hasColumn('santral_oturumlari', $k)) $eksik[] = $k;
             }
             if ($eksik) {
@@ -366,9 +370,10 @@ class SantralKopruController extends Controller
                     if (in_array('geri_ara_not', $eksik, true)) $t->text('geri_ara_not')->nullable();
                     if (in_array('geri_arandi_at', $eksik, true)) $t->timestamp('geri_arandi_at')->nullable();
                     if (in_array('geri_arayan', $eksik, true)) $t->string('geri_arayan', 100)->nullable();
+                    if (in_array('kayit_durum', $eksik, true)) $t->string('kayit_durum', 190)->nullable(); // kopru: ses kaydinin akibeti
                 });
             }
-            Cache::forever('santral_geri_ara_v1', 1);
+            Cache::forever('santral_geri_ara_v2', 1);
             return true;
         } catch (\Throwable $e) {
             \Log::warning('[SANTRAL-GERI-ARA] sema hatasi: ' . $e->getMessage());
@@ -583,7 +588,10 @@ class SantralKopruController extends Controller
         $dir = storage_path('app/santral_ses');
         if (!is_dir($dir)) @mkdir($dir, 0775, true);
         $ad = 'santral_' . ($oturum ?: 'x') . '_' . $tur . '_' . date('YmdHis') . '_' . substr(md5((string) mt_rand()), 0, 6) . '.wav';
-        @file_put_contents($dir . '/' . $ad, $raw);
+        if (@file_put_contents($dir . '/' . $ad, $raw) === false) { // disk dolu / izin: kayit satiri yazilmaz, kopru sebebi bilir
+            \Log::error('[SANTRAL-SES-KAYIT] dosya yazilamadi', ['dizin' => $dir, 'boyut' => strlen($raw)]);
+            return $this->j(['ok' => 0, 'hata' => 'dosya yazilamadi (disk dolu ya da izin)']);
+        }
 
         $sube = (int) $r->input('sube_id') ?: (DB::table('santral_oturumlari')->where('id', $oturum)->value('sube_id') ?: null);
         DB::table('santral_ses_kayit')->insert([

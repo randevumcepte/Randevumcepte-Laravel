@@ -150,7 +150,7 @@
                                                   '<div class="ln2">' + (k.musteri ? '<span>📱 ' + esc(k.telefon) + '</span>' : '') + chips + '</div>';
                                           if (k.sesler && k.sesler.length) {
                                              k.sesler.forEach(function (a) { m += '<div class="ag-ses"><div class="et">' + (a.aktarma ? '↪️ ' : '🤖 ') + esc(a.tur) + '</div><audio controls preload="none" src="' + esc(a.url) + '"></audio></div>'; });
-                                          } else m += '<div style="margin-top:10px;font-size:12px;color:#94a3b8">🎙️ Ses kaydı yok</div>';
+                                          } else m += '<div style="margin-top:10px;font-size:12px;color:#94a3b8">🎙️ Ses kaydı yok' + (k.kayit_durum ? ' — sebep: ' + esc(k.kayit_durum) : '') + '</div>';
                                           m += '</div>';
                                           if (k.geri_ara) {
                                              m += '<div class="ag-gerikutu' + (k.geri_ara === 2 ? ' ok' : '') + '">' +

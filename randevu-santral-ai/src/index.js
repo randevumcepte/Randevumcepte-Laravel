@@ -37,20 +37,25 @@ function portAl() {
 function portBirak(p) { if (p) kullanilan.delete(p); }
 
 // --- SES KAYDI (ARI bridge recording) — hata olsa cagri bozulmaz ---
+// Kaydin akibeti oturuma yazilir (bitir ile Laravel'e gider, panelde "ses kaydi yok" SEBEBIYLE gorunur):
+// eskiden her adim hatayi yutuyordu, kayit olusmayinca nedeni hic bilinmiyordu (2026-11-23 03:43/03:45).
+function kayitDurum(kayit, d) { if (kayit && kayit.oturum) kayit.oturum.kayitDurum = d; if (!/^yuklendi/.test(d)) log.warn('SES KAYDI: ' + d); }
+
 async function sesKayitBasla(kayit, channelId, tur) {
-  if (!cfg.recording.aktif || !kayit || !kayit.bridge) return;
+  if (!kayit || !kayit.bridge) return;
+  if (!cfg.recording.aktif) { kayitDurum(kayit, 'kayit kapali (RECORDING .env)'); return; }
   try {
     const safe = String(channelId).replace(/[^a-zA-Z0-9]/g, '_');
     const ad = `santral_${safe}_${tur}`;
     await kayit.bridge.record({ name: ad, format: 'wav', ifExists: 'overwrite', beep: false, terminateOn: 'none', maxDurationSeconds: 3600, maxSilenceSeconds: 0 });
     kayit.rec = { ad, tur };
     log.info(`ses kaydi basladi (${tur}): ${ad}`);
-  } catch (e) { log.warn('ses kaydi baslamadi:', e.message); }
+  } catch (e) { log.warn('ses kaydi baslamadi:', e.message); kayitDurum(kayit, 'baslamadi: ' + e.message); }
 }
 
 async function sesKayitBitir(kayit) {
   if (!cfg.recording.aktif) return;
-  if (!kayit || !kayit.rec) { log.debug('sesKayitBitir: aktif kayit yok'); return; }
+  if (!kayit || !kayit.rec) { log.debug('sesKayitBitir: aktif kayit yok'); if (kayit && kayit.oturum && !kayit.oturum.kayitDurum) kayitDurum(kayit, 'kayit hic baslamadi'); return; }
   const { ad, tur } = kayit.rec;
   kayit.rec = null;
   log.info(`ses kaydi bitiriliyor (${tur}): ${ad}`);
@@ -65,7 +70,7 @@ async function sesKayitBitir(kayit) {
   await new Promise((r) => setTimeout(r, 1000)); // dosya finalize olsun
   const filePath = `${cfg.recording.dir}/${ad}.wav`;
   const oturumId = kayit.oturum ? kayit.oturum.oturumId : null;
-  await brain.sesYukle(oturumId, kayit.subeId, tur, filePath);
+  kayitDurum(kayit, await brain.sesYukle(oturumId, kayit.subeId, tur, filePath));
 }
 
 // callerKanalId -> {oturum,bridge,extChan,port,telefon,subeId,aktarmaModu,hedefAdaylar:Set,hedefBagli,hedefChanId,aktarSira}
