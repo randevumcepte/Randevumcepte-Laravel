@@ -1088,10 +1088,15 @@ class RandevuAsistan
             . "). Cümlede konuşmaya uymayan/beklenmedik bir kelime varsa ona göre işlem yapma, bilgi verme; önce \"… mı demek istediniz efendim? Tam anlayamadım.\" diye teyit et.]";
     }
 
-    /** Asistan musteriyi anlamadigini mi soyluyor ("tam duyamadım", "tekrar söyler misiniz", "... mı demek istediniz?")? */
+    /**
+     * Asistan musteriyi anlamadigini mi soyluyor ("tam duyamadım", "tekrar söyler misiniz")?
+     * "Kadıköy mü demek istediniz efendim? Tam anlayamadım." TEYIT sorusu anlamama SAYILMAZ: asistan bir sey anladi ve
+     * musteriye dogrulatiyor (canli 2026-11-23: "tam duyamadım" + teyit = iki anlamama -> musteri cevap veremeden aktarildi).
+     */
     public function anlamadiCevabi(string $c): bool
     {
-        return (bool) preg_match('/duyamadım|anlayamadım|anlamadım|tekrar (söyler|eder|tekrarlar) mis[iı]n[iı]z|demek istediniz|ne demek istediğinizi/iu', $c);
+        if (preg_match('/\b(mı|mi|mu|mü)\s+demek istediniz/iu', $c)) return false;
+        return (bool) preg_match('/duyamadım|anlayamadım|anlamadım|tekrar (söyler|eder|tekrarlar) mis[iı]n[iı]z|ne demek istediğinizi/iu', $c);
     }
 
     /**

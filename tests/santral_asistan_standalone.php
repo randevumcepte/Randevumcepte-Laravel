@@ -313,7 +313,9 @@ namespace {
     $anla = 'Kusura bakmayın, tam duyamadım. Hangi hizmet için arıyorsunuz?';
     esit('ilk anlamama aktarılmaz', false, $pz->ikinciAnlamama($anla, [['role' => 'assistant', 'content' => 'Merhaba, size nasıl yardımcı olabilirim?'], ['role' => 'user', 'content' => 'şey']]));
     esit('ikinci anlamama aktarılır', true, $pz->ikinciAnlamama($anla, [['role' => 'assistant', 'content' => $anla], ['role' => 'user', 'content' => 'hmm']]));
-    esit('"mı demek istediniz" de anlamama sayılır', true, $pz->ikinciAnlamama('Protez tırnak mı demek istediniz?', [['role' => 'assistant', 'content' => 'Sizi tam anlayamadım. Tekrar söyler misiniz?'], ['role' => 'user', 'content' => 'protest']]));
+    // canli 2026-11-23: teyit sorusu anlamama SAYILMAZ (musteri teyide cevap veremeden aktariliyordu)
+    esit('anlamama + teyit → aktarılmaz', false, $pz->ikinciAnlamama('Kadıköy mü demek istediniz efendim? Tam anlayamadım.', [['role' => 'assistant', 'content' => 'Sizi tam anlayamadım. Tekrar söyler misiniz?'], ['role' => 'user', 'content' => 'kadıköy']]));
+    esit('teyit + anlamama → aktarılmaz', false, $pz->ikinciAnlamama('Kusura bakmayın, tam duyamadım. Hangi hizmet için arıyorsunuz?', [['role' => 'assistant', 'content' => 'Pedikür mü demek istediniz efendim?'], ['role' => 'user', 'content' => 'hmm']]));
     $ola = asistan(['salon' => ['ad' => 'Ola Nail', 'hizmetler' => [
         ['id' => 1, 'ad' => 'Kalıcı Oje', 'kategori' => 'Tırnak'], ['id' => 2, 'ad' => 'Jel Tırnak', 'kategori' => 'Tırnak'],
         ['id' => 3, 'ad' => 'İpek Kirpik', 'kategori' => 'Kirpik'], ['id' => 4, 'ad' => 'El Protez Tırnak', 'kategori' => 'Tırnak'],
