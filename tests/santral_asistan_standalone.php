@@ -245,9 +245,9 @@ namespace {
 
     bolum('Karşılama "Ben Ayşe" + doğal kapanış sorusu (kayıt 172)');
     $ay = asistan(['musteriAd' => 'Anıl Orbey', 'musteriCinsiyet' => 1, '_asistanAdi' => 'Ayşe', 'salon' => ['ad' => 'Randevumcepte', 'karsilama' => "Randevumcepte'ye", 'hizmetler' => []], '_kampanyalar' => []]);
-    icerir('kayıtlı → Ben Ayşe', "Merhaba, Randevumcepte'ye hoş geldiniz. Anıl Bey, ben Ayşe, size nasıl yardımcı olabilirim?", $ay->karsilama());
+    esit('karşılama tamamen sabit (kayıt 242)', "Merhaba, Randevumcepte'ye hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?", $ay->karsilama());
     esit('karşılama sabit girişle başlar (köprü önceden çalar)', 0, strpos($ay->karsilama(), $ay->karsilamaGiris()));
-    icerir('kayıtsız → ben Ayşe', 'hoş geldiniz. Ben Ayşe. Size yardımcı olabilmem için adınızı', asistan(['musteriAd' => null, 'musteriId' => null, '_asistanAdi' => 'Ayşe', '_kampanyalar' => []])->karsilama());
+    icerir('kayıtsız → aynı sabit karşılama', 'hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?', asistan(['musteriAd' => null, 'musteriId' => null, '_asistanAdi' => 'Ayşe', '_kampanyalar' => []])->karsilama());
     icerir('ad tanımsız (erkek ses) → eski kalıp', 'Ben yapay zeka asistanınızım.', asistan(['_asistanAdi' => '', '_kampanyalar' => []])->karsilama());
     icerir('prompt: adın Ayşe', 'Adın Ayşe', cagir($ay, 'sistemPromptu'));
     $kal = 'Randevunuz iptal edildi. Başka yardımcı olabileceğim bir konu var mı?';
@@ -326,6 +326,14 @@ namespace {
     esit('"Örneğin ..." listesinde de uydurma çıkar', false, mb_stripos($u2, 'cist') !== false);
     $dogru = 'Tırnak için jel tırnak, fullset ya da kalıcı oje gibi bir hizmet mi istersiniz?';
     esit('listede olan hizmetler dokunulmaz', $dogru, $ola->uydurmaHizmetKes($dogru));
+    bolum('Kayıt 242: "protest tırnak" sessizce "protez tırnak" olur (teyit döngüsü yok)');
+    $p242 = asistan(['salon' => ['ad' => 'Ola Nail', 'hizmetler' => [['id' => 1, 'ad' => 'Protez Tırnak'], ['id' => 2, 'ad' => 'Ayak Protez Tırnak'], ['id' => 3, 'ad' => 'Kalıcı Oje']]]]);
+    esit('"Protest tırnak." → "Protez tırnak."', 'Protez tırnak.', $p242->sttDuzelt('Protest tırnak.'));
+    esit('"protestırnak" bitişik dokunulmaz (bağlam yok)', 'protestırnak', $p242->sttDuzelt('protestırnak'));
+    esit('bağlam yoksa düzeltilmez', 'Dün protestoya gittim', $p242->sttDuzelt('Dün protestoya gittim'));
+    esit('doğru kelime aynen kalır', 'protez tırnak istiyorum', $p242->sttDuzelt('protez tırnak istiyorum'));
+    esit('"ayak protest tırnak" → "ayak protez tırnak"', 'ayak protez tırnak', $p242->sttDuzelt('ayak protest tırnak'));
+
     bolum('Kayıt 239: randevu onayı ortasında fiyat sorusu aktarılmaz, soru tekrar sorulur');
     $f239 = asistan(['salon' => ['ad' => 'Ola Nail', 'hizmetler' => [
         ['id' => 1, 'ad' => 'Kalıcı Oje', 'fiyat' => 400, 'kategori' => 'Tırnak'], ['id' => 2, 'ad' => 'Jel Tırnak', 'fiyat' => 0, 'kategori' => 'Tırnak']]]]);
@@ -371,9 +379,9 @@ namespace {
     // =====================================================================================
     bolum('Karşılama varyantları');
     // 2026-11-17: "Sayın Anıl Orbey" yerine "Merhaba Anıl Bey" (cinsiyet biliniyorsa); belirsizse "Sayın Ad Soyad"
-    icerir('kayıtlı → Anıl Bey', 'Anıl Bey, ben', asistan(['musteriCinsiyet' => 1])->karsilama());
-    icerir('kayıtlı kadın → Hanım', 'Gülşah Hanım, ben', asistan(['musteriAd' => 'Gülşah Yılmaz', 'musteriCinsiyet' => 0])->karsilama());
-    icerir('cinsiyet belirsiz → Sayın Ad Soyad', 'Sayın Deniz Kaya,', asistan(['musteriAd' => 'Deniz Kaya', 'musteriCinsiyet' => null])->karsilama());
+    icermez('kayıtlı → karşılamada hitap yok (sabit)', 'Anıl Bey', asistan(['musteriCinsiyet' => 1])->karsilama());
+    
+    
     icermez('kayıtlı → soyadı söylenmez', 'Orbey', asistan(['musteriCinsiyet' => 1])->karsilama());
     icerir('kayıtlı → yardım sorusu', 'Size nasıl yardımcı olabilirim?', $a->karsilama());
     $kp = asistan(['_paketler' => [['adisyon_paket_id' => 1, 'paket_adi' => 'Lazer', 'hizmetler' => [['hizmet_id' => 9, 'ad' => 'Lazer Epilasyon', 'kalan_seans' => 4, 'personeller' => []]]]]]);
@@ -388,9 +396,10 @@ namespace {
     icerir('paket + kampanya → yalnız kampanya daveti', 'davetlisiniz', $kpk->karsilama());
     icermez('paket + kampanya → paket söylenmez', 'paketiniz', $kpk->karsilama());
     $ky = asistan(['musteriAd' => null, 'musteriId' => null]);
-    icerir('kayıtsız → ad soyad ister', 'adınızı ve soyadınızı', $ky->karsilama());
+    icermez('kayıtsız → karşılamada ad sorulmaz (istekten sonra)', 'adınızı', $ky->karsilama());
+    icerir('kayıtsız → prompt ad soyadı istekten sonra ister', 'Karşılamada ad SORULMADI', cagir($ky, 'sistemPromptu'));
     $kg = asistan(['musteriAd' => null, 'musteriId' => null, 'telefon' => null]);
-    icerir('gizli numara → telefon da ister', 'telefon numaranızı', $kg->karsilama());
+    icerir('gizli numara → prompt telefonu da ister', 've cep telefonunu iste', cagir($kg, 'sistemPromptu'));
 
     bolum('Kampanya katılımı (DB\'siz korumalar)');
     $kx = asistan(['_kampanyalar' => [['kampanya_id' => 5, 'ad' => 'Yaz Bakım', 'bitis' => null, 'durum' => 'katildi', 'katilimci_id' => 77, 'randevu_gerekli' => false]]]);

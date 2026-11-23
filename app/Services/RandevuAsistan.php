@@ -88,32 +88,22 @@ class RandevuAsistan
     public function karsilama(): string
     {
         // Restoran santrali ile ayni kalip: "<isletme> hoş geldiniz, ben yapay zeka asistanınızım. ..."
-        // ILK CUMLE SABIT (karsilamaGiris): kopru onu onceden seslendirip telefon acilir acilmaz calar; kisiye ozel
-        // devami (hitap + "ben Ayşe") Laravel'den gelir (2026-11-23: acilista ~5 sn sessizlik vardi).
+        // KARSILAMA TAMAMEN SABIT (karsilamaGiris, her musteride ayni): kopru onceden seslendirip telefon acilir
+        // acilmaz TEK PARCA calar. Kisiye ozel parca (hitap) Laravel'i beklediginden araya 1,7 sn sessizlik giriyor,
+        // karsilama kopuk duyuluyordu (kayit 242). Kayitsiz musteriden ad soyad, isteginden sonra istenir.
         $giris = $this->karsilamaGiris();
-        if ($this->musteriAd) {
-            $kim = preg_replace('/^Merhaba\s*/u', '', $this->acilisHitap($this->musteriAd)); // "Ferdi Bey" | "Sayın Ad Soyad"
-            $kim = $kim !== '' ? "{$kim}, " : '';
-            // Paket karsilamada SOYLENMEZ (uzun + dogal degil): musteri ne istedigini soyler ("lazer paketim vardı",
-            // "lazer randevusu alacaktım"), asistan paketi o an bulup getirir (PAKET AKIŞI). Kampanya daveti kalir.
-            $kampanyaCumle = $this->kampanyaTeklifCumlesi();
-            if ($kampanyaCumle !== '') {
-                return $this->buyukBasla("{$giris} {$kim}{$this->benKimim(false)}.") . " {$kampanyaCumle} Ya da size nasıl yardımcı olabilirim?";
-            }
-            return $giris . ' ' . $this->buyukBasla($kim . ($this->asistanAdi() ? "ben {$this->asistanAdi()}, size nasıl yardımcı olabilirim?" : 'ben yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?'));
-        }
-        if ($this->telNorm($this->telefon)) {
-            return "{$giris} " . $this->benKimim() . ". Size yardımcı olabilmem için adınızı ve soyadınızı öğrenebilir miyim?";
-        }
-        return "{$giris} " . $this->benKimim() . ". Size yardımcı olabilmem için adınızı, soyadınızı ve telefon numaranızı öğrenebilir miyim?";
+        // Paket karsilamada SOYLENMEZ (uzun + dogal degil): musteri ne istedigini soyler, asistan paketi o an bulur.
+        // Davetli oldugu kampanya varsa sabit karsilamanin ARDINDAN eklenir.
+        $kampanyaCumle = $this->musteriAd ? $this->kampanyaTeklifCumlesi() : '';
+        return $kampanyaCumle !== '' ? "{$giris} {$kampanyaCumle}" : $giris;
     }
 
-    /** Karsilamanin sabit ilk cumlesi (salona ozel, her aramada ayni): "Merhaba, Ola Nail'e hoş geldiniz." */
+    /** Sabit karsilama (salona ozel, her aramada ayni): "Merhaba, Ola Nail'e hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?" */
     public function karsilamaGiris(): string
     {
         $h = $this->hosgeldinMetni();
-        if (preg_match('/^merhaba\b/iu', $h)) return $this->buyukBasla($h) . '.';
-        return 'Merhaba, ' . $h . '.';
+        $bas = preg_match('/^merhaba\b/iu', $h) ? $this->buyukBasla($h) . '.' : 'Merhaba, ' . $h . '.';
+        return $bas . ' ' . ($this->asistanAdi() ? "Ben {$this->asistanAdi()}, size nasıl yardımcı olabilirim?" : 'Ben yapay zeka asistanınızım. Size nasıl yardımcı olabilirim?');
     }
 
     /** Cumlenin ilk harfini Turkce buyut (i -> İ). */
@@ -1351,7 +1341,57 @@ class RandevuAsistan
         static $harita = [
             '/\b(e[tp]{1,2} ?p?la[ksyz]{1,3}[iıo]?on|epi ?la[sz]yon|ebi ?lasyon|e ?pilasyon)(\p{L}*)/iu' => 'epilasyon$2',
         ];
-        return preg_replace(array_keys($harita), array_values($harita), $m) ?? $m;
+        return $this->salonKelimeDuzelt(preg_replace(array_keys($harita), array_values($harita), $m) ?? $m);
+    }
+
+    /**
+     * SESSIZ hizmet kelimesi duzeltmesi (kayit 242): STT "protez tırnak"i her seferinde "protest tırnak" duyuyordu;
+     * asistan "Protest tırnak için mi?" teyidi + secim sorusuyla dongude kaldi, musteri kapatti. Musterinin kelimesi
+     * salonun bir hizmet kelimesine cok benziyor (ilk 3 harf ayni, oran >= 0.8) VE yanindaki kelime de o hizmet adinda
+     * aynen geciyorsa ("protest TIRNAK" ~ "protez TIRNAK") kelime soru sorulmadan dogrusuyla degistirilir.
+     */
+    protected function salonKelimeDuzelt(string $m): string
+    {
+        $hizmetler = $this->salon['hizmetler'] ?? [];
+        if (!$hizmetler || trim($m) === '') return $m;
+        $adlar = [];
+        $salonKelime = [];
+        foreach ($hizmetler as $h) {
+            $orj = preg_split('/\s+/u', trim((string) ($h['ad'] ?? '')));
+            $sd = array_map([$this, 'sade'], $orj);
+            $adlar[] = [$orj, $sd];
+            foreach ($sd as $w) $salonKelime[$w] = true;
+        }
+        $tok = preg_split('/(\s+)/u', $m, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $kel = []; // kelime token indeksleri
+        foreach ($tok as $i => $t) if (trim($t) !== '') $kel[] = $i;
+        $degisti = false;
+        foreach ($kel as $ki => $ti) {
+            $w = $this->sade($tok[$ti]);
+            if (strlen($w) < 5 || isset($salonKelime[$w])) continue;
+            $onceki = $ki > 0 ? $this->sade($tok[$kel[$ki - 1]]) : '';
+            $sonraki = $ki + 1 < count($kel) ? $this->sade($tok[$kel[$ki + 1]]) : '';
+            $enIyi = null;
+            foreach ($adlar as [$orj, $sd]) {
+                foreach ($sd as $j => $hw) {
+                    if (strlen($hw) < 5 || substr($w, 0, 3) !== substr($hw, 0, 3)) continue;
+                    $komsu = ($sonraki !== '' && ($sd[$j + 1] ?? null) === $sonraki) || ($onceki !== '' && ($sd[$j - 1] ?? null) === $onceki);
+                    if (!$komsu) continue;
+                    $mes = levenshtein($w, $hw);
+                    if (strlen($w) > strlen($hw)) $mes = min($mes, levenshtein(substr($w, 0, strlen($hw)), $hw));
+                    $oran = 1 - $mes / strlen($hw);
+                    if ($oran >= 0.8 && (!$enIyi || $oran > $enIyi[0])) $enIyi = [$oran, $orj[$j]];
+                }
+            }
+            if ($enIyi) {
+                $yeni = mb_strtolower(strtr($enIyi[1], ['İ' => 'i', 'I' => 'ı']), 'UTF-8');
+                if (preg_match('/^\p{Lu}/u', $tok[$ti])) $yeni = mb_strtoupper(mb_substr($yeni, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($yeni, 1, null, 'UTF-8');
+                $sonEk = preg_match('/[^\p{L}\p{N}]+$/u', $tok[$ti], $e) ? $e[0] : '';
+                $tok[$ti] = $yeni . $sonEk;
+                $degisti = true;
+            }
+        }
+        return $degisti ? implode('', $tok) : $m;
     }
 
     /** Turkce harfleri sadelestirip kucult; noktalama at (STT varyasyonlarina toleransli eslesme). */
@@ -2160,11 +2200,12 @@ class RandevuAsistan
                     : "- Müşterinin numarası görünmüyor: onay mesajında cep telefonunu da iste ve musteri_kaydet'e telefon olarak ver.\n")
                 . "- Cinsiyet bilinmiyor: \"Bey\"/\"Hanım\" KULLANMA, isimden cinsiyet TAHMİN ETME; adıyla ya da hitapsız yaz.";
         } else {
-            $musteriSatir = "Arayan bu işletmede KAYITLI DEĞİL. Karşılamada adı ve soyadı "
-                . ($telBilinen ? '' : 've telefon numarası ')
-                . "soruldu. KAYIT ADIMI (randevudan ÖNCE, atlanamaz):\n"
+            // Karsilama sabit (kayit 242): ad soyad karsilamada SORULMAZ; musteri istegini soyleyince istenir
+            $musteriSatir = "Arayan bu işletmede KAYITLI DEĞİL. Karşılamada ad SORULMADI. KAYIT ADIMI (randevudan ÖNCE, atlanamaz):\n"
+                . "- Müşteri isteğini söyleyince (ör. randevu) kibarca adını ve soyadını "
+                . ($telBilinen ? '' : 've cep telefonunu ') . "iste (\"Tabii, önce adınızı ve soyadınızı alabilir miyim?\"); bilgi sorusuysa önce cevapla.\n"
                 . "- Müşteri ad ve soyadını söyleyince HEMEN musteri_kaydet çağır.\n"
-                . "- Sadece ad söylerse soyadını da iste; ad soyad yerine doğrudan isteğini söylerse kibarca önce adını ve soyadını iste.\n"
+                . "- Sadece ad söylerse soyadını da iste.\n"
                 . ($telBilinen
                     ? "- Arayan numarası biliniyor, telefon SORMA.\n"
                     : "- Arayan numarası GİZLİ: cep telefonunu da iste, musteri_kaydet'e telefon olarak ver. Numarayı rakam rakam teyit et.\n")
