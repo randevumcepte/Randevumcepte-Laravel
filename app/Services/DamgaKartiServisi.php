@@ -277,7 +277,10 @@ class DamgaKartiServisi
             ->map(function ($r) { return date('Y-m-d', strtotime($r->tarih)); })->values()->all();
     }
 
-    /** Sayim kosullari TEK yerde (sayi ve tarih listesi ayni kurali kullanir). */
+    /**
+     * Sayim kosullari TEK yerde (sayi ve tarih listesi ayni kurali kullanir).
+     * $userId null = tum musteriler (kampanya detayi: katilan musteri listesi).
+     */
     private static function ucretliZiyaretSorgu($kural, $userId, array $haricRandevuIdler)
     {
         if (!$kural->baslangic) return null;
@@ -285,9 +288,10 @@ class DamgaKartiServisi
 
         $q = DB::table('randevular as r')
             ->join('randevu_hizmetler as rh', 'rh.randevu_id', '=', 'r.id')
-            ->where('r.salon_id', (int) $kural->salon_id)
-            ->where('r.user_id', (int) $userId)
-            ->where('r.durum', Randevular::ONAYLANDI)
+            ->where('r.salon_id', (int) $kural->salon_id);
+        if ($userId !== null) $q->where('r.user_id', (int) $userId);
+        else $q->whereNotNull('r.user_id');
+        $q->where('r.durum', Randevular::ONAYLANDI)
             ->where('r.randevuya_geldi', 1)
             ->where('r.tarih', '>=', date('Y-m-d', strtotime($kural->baslangic)))
             ->where('rh.hizmet_id', $hizmetId)
@@ -511,6 +515,149 @@ class DamgaKartiServisi
     {
         $odenen = (float) TahsilatHizmetler::where('adisyon_hizmet_id', $ah->id)->sum('tutar');
         return round((float) $ah->fiyat - (float) $ah->indirim_tutari - $odenen, 2);
+    }
+
+    /**
+     * Kampanya Detayi ekrani (tek kural):
+     *   performans: katilan musteri (toplam + donemde), kazanc (kampanya boyunca + donemde),
+     *               kullanim orani (kullanilan / kazanilan ikram)
+     *   musteriler: kampanyaya sayilan ziyareti olan musteriler (son ziyaret yeniden eskiye):
+     *               ilerleme, kazanilan, kullanilan, hak, durum (katildi | hak_var | kullandi)
+     *   kazanc_detay: aylik satis (son 12 ay, kampanya icinde) + ikram kullanimlari (verilen ikram tutari)
+     * Sayim kurallari tahsilat ekraniyla ayni (ucretliZiyaretSorgu); sureli kuralda hak durum() ile kesinlesir.
+     * @return array|null kural bulunamazsa null
+     */
+    public static function kampanyaDetay($salonId, $kuralId, $gun = 30, $limit = 500)
+    {
+        $salonId = (int) $salonId;
+        $k = DamgaKartiKurallari::where('id', (int) $kuralId)->where('salon_id', $salonId)->first();
+        if (!$k) return null;
+        $gun      = max(1, min(366, (int) $gun));
+        $bugun    = date('Y-m-d');
+        $donemBas = date('Y-m-d', strtotime('-' . ($gun - 1) . ' days'));
+        $gereken  = max(1, (int) $k->gereken_adet);
+        $ucretsiz = max(1, (int) $k->ucretsiz_adet);
+
+        // Ikram kullanimlari (kalemi duranlar)
+        $kullanimlar = DB::table('damga_karti_kullanimlari as ku')
+            ->join('adisyon_hizmetler as ah', 'ah.id', '=', 'ku.adisyon_hizmet_id')
+            ->leftJoin('users as u', 'u.id', '=', 'ku.user_id')
+            ->where('ku.kural_id', $k->id)
+            ->orderByDesc('ku.created_at')
+            ->get(['ku.user_id', 'ku.randevu_id', 'ku.indirim_tutari', 'ku.created_at', 'u.name']);
+        $kullananSayi = [];
+        foreach ($kullanimlar as $u) $kullananSayi[(int) $u->user_id] = ($kullananSayi[(int) $u->user_id] ?? 0) + 1;
+
+        // Katilan musteriler: kurala sayilan ziyaretleri (ikram kullanilan ziyaretler haric)
+        $musteriler = [];
+        $donemKatilan = 0;
+        $q = self::ucretliZiyaretSorgu($k, null, $kullanimlar->pluck('randevu_id')->filter()->all());
+        if ($q) {
+            $donemKatilan = (int) (clone $q)->where('r.tarih', '>=', $donemBas)->distinct()->count('r.user_id');
+            $gruplar = $q->groupBy('r.user_id')
+                ->select('r.user_id', DB::raw('COUNT(DISTINCT r.id) as adet'), DB::raw('MIN(r.tarih) as ilk'),
+                    DB::raw("MAX(CONCAT(r.tarih, ' ', COALESCE(r.saat, '00:00:00'))) as son"))
+                ->orderByDesc('son')->limit((int) $limit)->get();
+            $kisiler = DB::table('users')->whereIn('id', $gruplar->pluck('user_id')->all())
+                ->get(['id', 'name', 'cep_telefon', 'profil_resim'])->keyBy('id');
+            $sureli = self::gecerlilik($k) !== null;
+            foreach ($gruplar as $g) {
+                $uid = (int) $g->user_id;
+                $adet = (int) $g->adet;
+                $kazanilan = intdiv($adet, $gereken) * $ucretsiz;
+                $kullanilan = (int) ($kullananSayi[$uid] ?? 0);
+                $hak = max(0, $kazanilan - $kullanilan);
+                $dolan = 0;
+                $sonKullanma = null;
+                if ($sureli && $kazanilan > 0) {
+                    $d = self::durum($k, $uid);
+                    $hak = $d['hak']; $dolan = $d['suresi_dolan']; $sonKullanma = $d['gecerli_ikramlar'][0] ?? null;
+                }
+                $kisi = $kisiler->get($uid);
+                $resim = $kisi->profil_resim ?? null;
+                if ($resim && stripos($resim, 'avatar.png') !== false) $resim = null;
+                $musteriler[] = [
+                    'user_id'      => $uid,
+                    'ad'           => $kisi->name ?? ('Müşteri #' . $uid),
+                    'telefon'      => $kisi->cep_telefon ?? '',
+                    'resim'        => $resim,
+                    'ilk_ziyaret'  => $g->ilk ? date('Y-m-d', strtotime($g->ilk)) : null,
+                    'son_ziyaret'  => $g->son ? date('Y-m-d H:i', strtotime($g->son)) : null,
+                    'ucretli'      => $adet,
+                    'ilerleme'     => $adet % $gereken,
+                    'kazanilan'    => $kazanilan,
+                    'kullanilan'   => $kullanilan,
+                    'hak'          => $hak,
+                    'suresi_dolan' => $dolan,
+                    'son_kullanma' => $sonKullanma,
+                    'durum'        => $hak > 0 ? 'hak_var' : ($kullanilan > 0 ? 'kullandi' : 'katildi'),
+                ];
+            }
+        }
+        $topKazanilan = array_sum(array_column($musteriler, 'kazanilan'));
+        $topKullanilan = array_sum(array_column($musteriler, 'kullanilan'));
+
+        // Kazanc: kampanya hizmetinin satislari (kampanya tarih araliginda)
+        $kBas = $k->baslangic ? date('Y-m-d', strtotime($k->baslangic)) : $bugun;
+        $kBit = !empty($k->bitis_tarihi) ? date('Y-m-d', strtotime($k->bitis_tarihi)) : $bugun;
+        $satirlar = DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', $salonId)
+            ->where('ah.hizmet_id', (int) $k->hizmet_id)
+            ->whereRaw('COALESCE(ah.hediye, 0) = 0')
+            ->whereDate('ah.islem_tarihi', '>=', $kBas)
+            ->whereDate('ah.islem_tarihi', '<=', $kBit)
+            ->get(['ah.islem_tarihi', 'ah.fiyat', 'ah.indirim_tutari']);
+        $toplam = $donemTutar = 0.0;
+        $aylik = [];
+        foreach ($satirlar as $s) {
+            $t = max(0.0, (float) $s->fiyat - (float) $s->indirim_tutari);
+            $gunu = date('Y-m-d', strtotime($s->islem_tarihi));
+            $toplam += $t;
+            if ($gunu >= $donemBas) $donemTutar += $t;
+            $ay = substr($gunu, 0, 7);
+            if (!isset($aylik[$ay])) $aylik[$ay] = ['ay' => $ay, 'tutar' => 0.0, 'adet' => 0];
+            $aylik[$ay]['tutar'] += $t;
+            $aylik[$ay]['adet']++;
+        }
+        ksort($aylik);
+        $aylik = array_map(function ($a) { $a['tutar'] = round($a['tutar'], 2); return $a; }, array_slice(array_values($aylik), -12));
+        $ikramTutar = (float) $kullanimlar->sum('indirim_tutari');
+
+        return [
+            'kural' => [
+                'id' => (int) $k->id, 'hizmet_id' => (int) $k->hizmet_id,
+                'hizmet_adi' => (string) (DB::table('hizmetler')->where('id', $k->hizmet_id)->value('hizmet_adi') ?: 'Hizmet'),
+                'gereken_adet' => $gereken, 'ucretsiz_adet' => $ucretsiz, 'aktif' => (int) $k->aktif,
+                'baslangic' => $k->baslangic, 'bitis_tarihi' => $k->bitis_tarihi ? date('Y-m-d', strtotime($k->bitis_tarihi)) : null,
+                'gecerlilik_deger' => isset($k->gecerlilik_deger) ? (int) $k->gecerlilik_deger : null,
+                'gecerlilik_birim' => $k->gecerlilik_birim ?? 'ay',
+                'gecerlilik' => self::gecerlilikYazi($k),
+                'gorsel' => $k->gorsel ?? null,
+            ],
+            'performans' => [
+                'donem_gun'      => $gun,
+                'katilan'        => count($musteriler),
+                'donem_katilan'  => $donemKatilan,
+                'kazanc'         => round($toplam, 2),
+                'donem_kazanc'   => round($donemTutar, 2),
+                'kazanilan'      => $topKazanilan,
+                'kullanilan'     => $topKullanilan,
+                'kullanim_orani' => $topKazanilan > 0 ? (int) round($topKullanilan / $topKazanilan * 100) : null,
+                'hak_bekleyen'   => count(array_filter($musteriler, function ($m) { return $m['hak'] > 0; })),
+            ],
+            'musteriler' => $musteriler,
+            'kazanc_detay' => [
+                'aylik'        => $aylik,
+                'satis_adedi'  => count($satirlar),
+                'ikram_tutari' => round($ikramTutar, 2),
+                'net'          => round($toplam - $ikramTutar, 2),
+                'kullanimlar'  => $kullanimlar->take(100)->map(function ($u) {
+                    return ['tarih' => date('Y-m-d H:i', strtotime($u->created_at)), 'ad' => $u->name ?: ('Müşteri #' . $u->user_id),
+                            'tutar' => round((float) $u->indirim_tutari, 2)];
+                })->values()->all(),
+            ],
+        ];
     }
 
     /**

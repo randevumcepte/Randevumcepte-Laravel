@@ -32640,6 +32640,22 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         return response()->json(['basarili' => true, 'gorsel' => $kural->gorsel, 'gorsel_url' => $kural->gorsel ? url($kural->gorsel) : null]);
     }
 
+    // Kampanya Detayi ekrani: performans + katilan musteriler + kazanc detayi (musteri bilgisi: isletme token zorunlu)
+    public function carkAdminDamgaKartiDetayApi(Request $request, $salonId)
+    {
+        if (!\Auth::guard('isletmeyonetim-api')->user()) {
+            return response()->json(['basarili' => false, 'mesaj' => 'Oturum gerekli.'], 401);
+        }
+        try {
+            $d = \App\Services\DamgaKartiServisi::kampanyaDetay($salonId, (int) $request->input('id'), (int) $request->input('donem', 30));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[ikram detay] ' . $e->getMessage());
+            return response()->json(['basarili' => false, 'mesaj' => 'Kampanya detayı alınamadı.']);
+        }
+        if (!$d) return response()->json(['basarili' => false, 'mesaj' => 'Kampanya bulunamadı.']);
+        return response()->json(['basarili' => true] + $d);
+    }
+
     public function carkAdminDamgaKartiSilApi(Request $request, $salonId)
     {
         if ($r = $this->ikramYonetimKapisi()) return $r;
