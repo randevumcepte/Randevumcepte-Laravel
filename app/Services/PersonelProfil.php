@@ -171,6 +171,8 @@ class PersonelProfil
         $s['hedef'] = $hedef !== null && (float) $hedef > 0
             ? ['tutar' => (float) $hedef, 'gerceklesen' => $ciro, 'yuzde' => (int) min(999, round($ciro / (float) $hedef * 100))]
             : null;
+        // Hizli cagrida kazanc/ciro hesaplanmadi: 0 gostermesin (ekran tam cagriyla doldurur)
+        if (!$kazanc) { $s['bu_ay'] = null; $s['hedef'] = null; }
 
         // Sayaclar (satir rozetleri)
         try {
