@@ -842,6 +842,9 @@ class DamgaKartiServisi
                 'indirim_orani' => self::tur($k) === 'indirim' ? (int) $k->indirim_orani : null,
                 'kural_yazi'    => self::kuralYazi($k),
                 'kampanya_bitis' => !empty($k->bitis_tarihi) ? date('Y-m-d', strtotime($k->bitis_tarihi)) : null,
+                'kampanya_baslangic' => !empty($k->baslangic) ? date('Y-m-d', strtotime($k->baslangic)) : null,
+                // Isletmenin yukledigi kampanya gorseli (yoksa uygulama hizmete uygun hazir gorseli kullanir)
+                'gorsel'        => (string) ($k->gorsel ?? ''),
                 'aktif'         => (int) $k->aktif,
                 'ilerleme'      => $d['ilerleme'],
                 'ucretli'       => $d['ucretli'],
