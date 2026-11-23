@@ -311,22 +311,22 @@
    <div class="pyo-stat pyo-stat--takvim">
       <div class="pyo-stat__icon"><i class="fa fa-calendar"></i></div>
       <div class="pyo-stat__lbl">Takvimde</div>
-      <div class="pyo-stat__val">{{$takvimdePers}}</div>
+      <div class="pyo-stat__val" data-pyo-say="takvim">{{$takvimdePers}}</div>
    </div>
    <div class="pyo-stat pyo-stat--aktif">
       <div class="pyo-stat__icon"><i class="fa fa-check"></i></div>
       <div class="pyo-stat__lbl">Aktif</div>
-      <div class="pyo-stat__val">{{$aktifPers}}</div>
+      <div class="pyo-stat__val" data-pyo-say="aktif">{{$aktifPers}}</div>
    </div>
    <div class="pyo-stat pyo-stat--pasif">
       <div class="pyo-stat__icon"><i class="fa fa-pause"></i></div>
       <div class="pyo-stat__lbl">Pasif</div>
-      <div class="pyo-stat__val">{{$pasifPers}}</div>
+      <div class="pyo-stat__val" data-pyo-say="pasif">{{$pasifPers}}</div>
    </div>
    <div class="pyo-stat pyo-stat--toplam">
       <div class="pyo-stat__icon"><i class="fa fa-users"></i></div>
       <div class="pyo-stat__lbl">Toplam Personel</div>
-      <div class="pyo-stat__val">{{$totalPers}}</div>
+      <div class="pyo-stat__val" data-pyo-say="toplam">{{$totalPers}}</div>
    </div>
 </div>
 <ul class="pyo-tabs nav nav-tabs" role="tablist" id="personelYonetimiTabs">
@@ -352,7 +352,7 @@
          <div class="pyo-table-toolbar">
             <h3>
                <i class="fa fa-list-ul"></i> Personel Listesi
-               <span class="pyo-count">{{$totalPers}}</span>
+               <span class="pyo-count" data-pyo-say="toplam">{{$totalPers}}</span>
             </h3>
             @yetki('personel.ekle_duzenle')
             <button type="button" onclick="modalbaslikata('Yeni Personel','yenipersonelbilgiekle')" class="pyo-btn-yeni" data-toggle="modal" data-target="#personel-modal">
@@ -499,8 +499,16 @@ $(document).ready(function(){
       });
       // custom.js (kayit / pasif-aktif) tabloyu 6 kolonla yeniden kurardi; bu sayfada satirlari tazeler
       window.pyoTabloYaz = function(liste){
+         if(!$.isArray(liste)) return;
          var dt = $('#personel_tablo').DataTable();
          dt.clear(); dt.rows.add(liste); dt.draw(false);
+         // Ustteki sayac kartlari
+         var say = { toplam: liste.length, aktif: 0, pasif: 0, takvim: 0 };
+         liste.forEach(function(p){
+            if(String(p.durum || '').indexOf('Aktif') !== -1) say.aktif++; else say.pasif++;
+            if(Number(p.takvimde_gorunsun) === 1) say.takvim++;
+         });
+         $('[data-pyo-say]').each(function(){ $(this).text(say[$(this).attr('data-pyo-say')]); });
       };
    }
 
@@ -528,10 +536,7 @@ $(document).ready(function(){
          success: function(result){
             $('#preloader').hide();
             try {
-               var dt = $('#personel_tablo').DataTable();
-               dt.clear();
-               dt.rows.add(result);
-               dt.draw(false);
+               window.pyoTabloYaz(result);
             } catch(e){
                console.error('DataTable update failed', e);
                location.reload();
@@ -595,8 +600,7 @@ $(document).ready(function(){
             // Silinen personeli tablodan tazeleyen ortak fn
             var _tabloTazele = function(result){
                try{
-                  var dt = $('#personel_tablo').DataTable();
-                  dt.clear(); dt.rows.add(result); dt.draw(false);
+                  window.pyoTabloYaz(result);
                }catch(e){ location.reload(); }
             };
             // Arsivle POST (transferler opsiyonel)
@@ -728,25 +732,27 @@ $(document).ready(function(){
       }, true); // <-- capture phase: bubble'dan once firing
    }
 
-   // ====== Personel kayit/duzenleme sonrasi tablo + hak edis tutarlarini tazelemek icin
-   //         tab korunarak sayfa reload ======
-   $(document).ajaxComplete(function(e, xhr, settings){
-      if(!settings || !settings.url) return;
-      // Personel save endpoint'i mi?
-      if(settings.url.indexOf('/personelekleduzenle') === -1) return;
-      if(xhr.status !== 200) return;
-      try {
-         // Aktif tab'i koru
-         var $active = $('.pyo-tabs .nav-link.active');
-         var href = $active.attr('href') || '#personeller';
-         var tabParam = (href === '#primHakedis') ? 'prim' : 'personeller';
-         var url = new URL(window.location.href);
-         url.searchParams.set('_tab', tabParam);
-         // swal'in 3sn timer'i bitmesin diye 1.5sn yeterli (modal kapanmis olur)
-         setTimeout(function(){ window.location.href = url.toString(); }, 1500);
-      } catch(err){
-         setTimeout(function(){ window.location.reload(); }, 1500);
-      }
+   // ====== Personel kayit / aktif-pasif sonrasi: tabloyu HEMEN yaz; kayitta ayrica hak edis
+   //         tutarlari icin sekmeyi koruyarak sayfayi yenile.
+   // Prefilter: custom.js'in kendi success'inden ONCE baglanir; tarayici/Cloudflare eski custom.js
+   // tutuyorsa oradaki hata tabloyu ve yenilemeyi engelleyemez (ajaxComplete engelleniyordu).
+   $.ajaxPrefilter(function(ayar, o, xhr){
+      var adres = ayar.url || '';
+      var kayit = adres.indexOf('/personelekleduzenle') !== -1;
+      if(!kayit && adres.indexOf('/personelaktifpasifyap') === -1) return;
+      xhr.done(function(result){
+         try { if(result) window.pyoTabloYaz(result.personeller); } catch(err){ console.error('Personel tablosu', err); }
+         if(!kayit) return;
+         setTimeout(function(){
+            try {
+               var href = $('.pyo-tabs .nav-link.active').attr('href') || '#personeller';
+               var url = new URL(window.location.href);
+               url.searchParams.set('_tab', (href === '#primHakedis') ? 'prim' : 'personeller');
+               url.hash = ''; // '#' kalirsa ayni adrese gidis sayfayi yenilemez
+               window.location.replace(url.toString());
+            } catch(err){ window.location.reload(); }
+         }, 1500); // kayit bildirimi gorunsun
+      });
    });
 });
 
