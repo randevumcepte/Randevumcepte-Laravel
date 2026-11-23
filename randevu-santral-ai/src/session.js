@@ -75,6 +75,21 @@ function sadeMetin(s) {
   return String(s || '').toLocaleLowerCase('tr').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
+// HAT YANKISI (kayit 2026-11-23 12.52): asistan "...başka bir şey var mı?" dedi, ~0,8 sn sonra kendi sesi hattan
+// donup STT'ye "Başka bir şeyiniz var mı?" diye dustu, asistan buna calisma saatleriyle cevap verdi.
+// Yanki = asistanin az once soyledigi cumlenin buyuk kismini (kelime koklerine gore) aynen tekrar eden musteri metni.
+// "Yarın saat 14 uygun" gibi kisa teyitler (asistan cumlesinin yarisindan azi) yanki SAYILMAZ.
+function yankiBenzer(musteri, asistan) {
+  // "şey" ~ "şeyiniz": kisa olan uzunun basiysa (en az 3 harf) ayni kelime; kisa kelimeler ("mı", "bir") birebir
+  const ayni = (x, y) => x === y || (Math.min(x.length, y.length) >= 3 && (x.startsWith(y) || y.startsWith(x)));
+  const m = sadeMetin(musteri).split(' ').filter(Boolean);
+  const a = sadeMetin(asistan).split(' ').filter(Boolean);
+  if (m.length < 3 || !a.length) return false;
+  const ortak = m.filter((w) => a.some((x) => ayni(w, x))).length;
+  const kapsanan = a.filter((x) => m.some((w) => ayni(w, x))).length;
+  return ortak / m.length >= 0.8 && kapsanan / a.length >= 0.5;
+}
+
 class CagriOturumu {
   constructor({ kanalId, telefon, subeId, rtpPort, onAktar, onBitir, geriAramaOturum, hatirlatma, baslatP, hazirGiris }) {
     this.hazirGiris = hazirGiris || null; // {giris, ses}: salonun sabit ilk cumlesi (index.js saklar)
@@ -124,6 +139,7 @@ class CagriOturumu {
       // Musteri araya girerse (VAD) akis aninda yeniden acilir ve son ~0,8 sn ses de verilir -> barge-in korunur.
       const aiKon = this.rtp && (this.rtp.sesVarMi || this._seslendiriyor);
       if (!aiKon) this._bargeAcik = false;
+      else this._aiSesSon = Date.now(); // yanki filtresi: asistanin sesi en son ne zaman hattaydi
       if (cfg.sttDuraklat && cfg.mediaFormat !== 'slin16' && aiKon && !this._bargeAcik) {
         if (!this._sttDurdu) { this._sttDurdu = true; this.stt.durdur(); log.debug('STT duraklatildi (AI konusuyor)'); }
         return;
@@ -299,6 +315,7 @@ class CagriOturumu {
     clearTimeout(this._interimZ); this._sonInterim = '';
     const n = sadeMetin(metin);
     if (n.length < 1) return;
+    if (this._yankiMi(metin)) { log.info(`  (hat yankisi, yok sayildi): ${metin}`); return; }
     // Yineleme onle: zorla-final (interim) ile islenen cumle, Google'in gercek final'iyle ("Tay makajı." gibi
     // noktalamali / biraz uzamis haliyle) ikinci kez TUR olmasin. Eskiden noktalama farki ayri tur yapiyordu ->
     // asistan ayni soruya iki cevap ust uste okuyordu (2026-11-16 kayit #51).
@@ -597,17 +614,30 @@ class CagriOturumu {
             if (!ilkSes) { ilkSes = true; this._gecikmeOlcumu(c); }
           }, aOpt);
           this._ttsKaydet(c, aOpt.kaynak || 'yeni', ilkSes);
+          if (ilkSes) this._soyledi(c);
           if (this.kapali || (this._kesmeNo || 0) !== kesme) break;
           continue;
         }
         const { ses, kaynak } = await this._tts(c);
         if (this.kapali || (this._kesmeNo || 0) !== kesme) { this._ttsKaydet(c, kaynak, false); break; } // TTS beklerken kesildiyse calma
-        if (ses && ses.length) { this.rtp.oynat(ses); this._ttsKaydet(c, kaynak, true); }
+        if (ses && ses.length) { this.rtp.oynat(ses); this._ttsKaydet(c, kaynak, true); this._soyledi(c); }
         this._gecikmeOlcumu(c);
       }
     } finally {
       this._seslendiriyor = false;
     }
+  }
+
+  // Calinan son cumleler (yanki filtresi icin)
+  _soyledi(c) {
+    this._soylenen = (this._soylenen || []).concat({ c, t: Date.now() }).slice(-4);
+  }
+
+  // Musteri metni, asistanin sesi biter bitmez (ya da calarken) baslamis ve az once soylenen cumleyi tekrar ediyorsa yanki
+  _yankiMi(metin) {
+    const bas = (this._ifadeBasT || 0) > ((this._sonIslenen && this._sonIslenen.t) || 0) ? this._ifadeBasT : Date.now();
+    if (!this._aiSesSon || bas > this._aiSesSon + 2000) return false;
+    return (this._soylenen || []).some((s) => Date.now() - s.t < 20000 && yankiBenzer(metin, s.c));
   }
 
   // GECIKME DOKUMU: musterinin sesi kesildi -> asistanin ilk sesi (bitis bekleme + beyin + seslendirme)
