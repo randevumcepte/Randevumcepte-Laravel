@@ -4762,6 +4762,8 @@ hasphonenumber = true;
                     timer:3000,
                 }
             );
+            // Personel Yonetimi sayfasi kendi kolonlariyla tazeler (6 kolonluk kurulum orada kolonlari kaydirir)
+            if(typeof window.pyoTabloYaz === 'function'){ window.pyoTabloYaz(result.personeller); return; }
             $('#personel_tablo').DataTable().destroy();
             $('#personel_tablo').DataTable({
                 ordering: false,
@@ -10727,6 +10729,11 @@ $('#personel_tablo').on('click','a[name="personel_detayi"]',function(){
                         // Takvimde gorunsun
                         var _tg = !!Number(result.personelbilgi.takvimde_gorunsun);
                         $('#takvimde_gorunsun').prop('checked', _tg).trigger('change');
+                        // On gorusme / arama randevusu gorunurlugu (pilot salonlarda formda var)
+                        if(result.gorunurluk){
+                            $('#ongorusme_gorunsun').prop('checked', !!Number(result.gorunurluk.ongorusme)).trigger('change');
+                            $('#arama_gorunsun').prop('checked', !!Number(result.gorunurluk.arama)).trigger('change');
+                        }
                         // Hesap turu her halukarda duzenlenebilir (Hesap Sahibi dahil).
                         $('#sistem_yetki').prop('disabled',false);
                         // Olasi eski/derlenmis blade'de kalan 'Hesap Sahibi' disabled option'ini da ac.
@@ -17237,6 +17244,8 @@ $('#personel_tablo').on('click','a[name="personel_pasif_aktif_yap"]',function ()
                             showCancelButton: false,
                             showConfirmButton:false,
                     });
+                    // Personel Yonetimi sayfasi kendi kolonlariyla tazeler (6 kolonluk kurulum orada kolonlari kaydirir)
+                    if(typeof window.pyoTabloYaz === 'function'){ window.pyoTabloYaz(result.personeller); return; }
                     $('#personel_tablo').DataTable().destroy();
                     $('#personel_tablo').DataTable({
                         ordering: false,
@@ -22940,6 +22949,7 @@ $(document).on('click', '#sablonkapatmodal', function () {
                     query: params.term || '', // Eğer giriş yoksa boş string gönder
                     sube:$('input[name="sube"]').val(),
                     odaId: oda_id,
+                    ongorusme: $('#ongorusme-modal').hasClass('show') ? 1 : 0,
                     aramaMi:false,
                 }; // Arama terimi
             },

@@ -1232,6 +1232,7 @@ Route::prefix('isletmeyonetim')->group(function() {
 	Route::get('/personelSiralamaArtir','StoreAdminController@personelSiralamaArtir');
 	Route::get('/personelSiralamaAzalt','StoreAdminController@personelSiralamaAzalt');
 	Route::get('/personelTakvimdeGorunsunToggle','StoreAdminController@personelTakvimdeGorunsunToggle');
+	Route::post('/personelGorunurlukToggle','StoreAdminController@personelGorunurlukToggle');
 	Route::post('/personelArsivle','StoreAdminController@personelArsivle');
 	Route::get('/odaSiralamaArtir','StoreAdminController@odaSiralamaArtir');
 	Route::get('/odaSiralamaAzalt','StoreAdminController@odaSiralamaAzalt');

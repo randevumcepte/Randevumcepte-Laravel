@@ -788,7 +788,7 @@ $(document).ready(function(){
    // ===== Manuel Arama Randevusu Ekle =====
    var arePersonelYuklendi = false;
    function arePersonelleriYukle(){
-      $.get('/isletmeyonetim/arama-personelleri', { sube: sube }, function(res){
+      $.get('/isletmeyonetim/arama-personelleri', { sube: sube, randevu: 1 }, function(res){
          var ps = res || [];
          var o = '<option value="">Personel seçin...</option>';
          ps.forEach(function(p){ o += '<option value="'+p.id+'">'+esc(p.personel_adi)+'</option>'; });

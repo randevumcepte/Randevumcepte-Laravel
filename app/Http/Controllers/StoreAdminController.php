@@ -2857,7 +2857,9 @@ public function carkverilerigetir(Request $request)
     {
         $search = $request->input('query');
         $salonid = $request->input('sube');
-        $query = DB::table('salon_personelleri')->select('id as id','personel_adi as ad_soyad')->where('personel_adi', 'LIKE', "%{$search}%")->where('salon_id', $salonid)->where('aktif',true)->limit(50)->get();
+        // On gorusme formu: on gorusmede GIZLI personel secenekte cikmaz (diger formlar etkilenmez)
+        $gizliIdler = $request->input('ongorusme') ? \App\Services\PersonelGorunurluk::gizliIdler($salonid, 'ongorusme') : [];
+        $query = DB::table('salon_personelleri')->select('id as id','personel_adi as ad_soyad')->where('personel_adi', 'LIKE', "%{$search}%")->where('salon_id', $salonid)->where('aktif',true)->whereNotIn('id', $gizliIdler)->limit(50)->get();
         return response()->json($query);
     }
     public function hizmet_secimi(Request $request)
@@ -6939,6 +6941,13 @@ private function ayAdiCevir($ingilizceAy)
             // Takvimde gorunsun (checkbox isaretli degilse $_POST'a gelmez)
             $personel->takvimde_gorunsun = $request->has('takvimde_gorunsun') ? 1 : 0;
             $personel->save();
+            // On gorusme / arama randevusu gorunurlugu (pilot salonlar; alanlar formda yoksa dokunulmaz)
+            if ($request->has('gorunurluk_alanlari')) {
+                \App\Services\PersonelGorunurluk::kaydet($personel, [
+                    'ongorusme' => $request->has('ongorusme_gorunsun'),
+                    'arama'     => $request->has('arama_gorunsun'),
+                ]);
+            }
 
             // Detayli (kalem bazli) prim oranlarini kaydet — sadece deger girilen kalemler tutulur
             if(\Schema::hasTable('personel_prim_oranlari')){
@@ -7120,7 +7129,10 @@ private function ayAdiCevir($ingilizceAy)
             foreach($roller_rows as $r){ $roller_map[$r->model_id] = $r->name; }
         }
 
-        $formatted = $personeller->map(function($personel, $index) use($request,$personeller,$isletmeId,$yetkililer_map,$roller_map,$aktif_count){
+        $gorunurlukAktif = \App\Services\PersonelGorunurluk::aktif($isletmeId);
+        $gorunurlukMap = \App\Services\PersonelGorunurluk::salonHaritasi($isletmeId);
+
+        $formatted = $personeller->map(function($personel, $index) use($request,$personeller,$isletmeId,$yetkililer_map,$roller_map,$aktif_count,$gorunurlukAktif,$gorunurlukMap){
             $isActive = (bool)$personel->aktif;
             // Siralama butonlari yalniz aktif personeller arasinda anlam tasir
             $isFirst  = $isActive && ($index === 0);
@@ -7175,7 +7187,7 @@ private function ayAdiCevir($ingilizceAy)
                              <button title="" class="btn btn-info" name="personel_siralamayi_bir_asagi_tasi" data-value="'.$personel->id.'"><i class="fa fa-chevron-down"></i></button>';
             if($isLast)
                 $siralama .='<button title="" class="btn btn-info" name="personel_siralamayi_bir_yukari_tasi" data-value="'.$personel->id.'"><i class="fa fa-chevron-up"></i></button>';
-            return [
+            $satir = [
                 'ad_soyad'=>$personel_adi,
                 'telefon'=>$telefon,
                 'hesap_turu'=>$hesapturu,
@@ -7185,6 +7197,16 @@ private function ayAdiCevir($ingilizceAy)
                 'takvimde_gorunsun'=>$takvimdeGor ? 1 : 0,
                 'islemler'=>$islemler
             ];
+            if ($gorunurlukAktif) {
+                foreach (\App\Services\PersonelGorunurluk::TURLER as $tur => $turAdi) {
+                    $gor = isset($gorunurlukMap[$personel->id]) ? (bool) $gorunurlukMap[$personel->id]->{$tur} : true;
+                    $satir['gorunurluk_'.$tur] = '<button type="button" class="pyo-takvim-toggle '.($gor?'is-on':'is-off').'" name="personel_gorunurluk_toggle" data-tur="'.$tur.'" data-state="'.($gor?1:0).'" data-value="'.$personel->id.'" title="'.$turAdi.': '.($gor?'gizle':'göster').'">'
+                        .'<i class="fa '.($gor?'fa-eye':'fa-eye-slash').'"></i> '
+                        .'<span>'.($gor?'Görünür':'Gizli').'</span>'
+                        .'</button>';
+                }
+            }
+            return $satir;
 
         });
         return $formatted;
@@ -18275,6 +18297,8 @@ DB::raw('
             ->where(function ($q) use ($kisitli,$authUser) {
                 if ($kisitli) $q->where('yetkili_id',$authUser->id);
             })
+            // On gorusmede GIZLI personel; kisitli kullanici kendi sutununu her zaman gorur
+            ->whereNotIn('id', $kisitli ? [] : \App\Services\PersonelGorunurluk::gizliIdler($salonId,'ongorusme'))
             ->orderBy('personel_adi','asc')->get(['id','personel_adi']);
 
         return view('isletmeadmin.ongorusme_takvim',[
@@ -18342,6 +18366,11 @@ DB::raw('
             ->where('on_gorusmeler.salon_id',$salonId)
             ->whereIn('on_gorusmeler.id',$idler);
         if ($kisitliPersonelId !== null) $q->where('on_gorusmeler.personel_id',$kisitliPersonelId);
+        elseif ($gizliPersonel = \App\Services\PersonelGorunurluk::gizliIdler($salonId,'ongorusme')) {
+            $q->where(function ($w) use ($gizliPersonel) {
+                $w->whereNull('on_gorusmeler.personel_id')->orWhereNotIn('on_gorusmeler.personel_id',$gizliPersonel);
+            });
+        }
         $kayitlar = $q->get([
             'on_gorusmeler.id','on_gorusmeler.user_id','on_gorusmeler.ad_soyad','on_gorusmeler.cep_telefon',
             'on_gorusmeler.musteri_tipi','on_gorusmeler.aciklama','on_gorusmeler.durum','on_gorusmeler.satisyapilmadi_not',
@@ -27733,6 +27762,11 @@ $odeme->tutar = round((str_replace(['.',','],['','.'],$request->urun_fiyat_senet
             'hizmet_prim_detayli' => (int)($personel->hizmet_prim_detayli ?? 0),
             'urun_prim_detayli'   => (int)($personel->urun_prim_detayli ?? 0),
             'paket_prim_detayli'  => (int)($personel->paket_prim_detayli ?? 0),
+            'gorunurluk' => $personel ? (function () use ($personel) {
+                $gizliOg = \App\Services\PersonelGorunurluk::gizliIdler($personel->salon_id, 'ongorusme');
+                $gizliAr = \App\Services\PersonelGorunurluk::gizliIdler($personel->salon_id, 'arama');
+                return ['ongorusme' => in_array((int) $personel->id, $gizliOg) ? 0 : 1, 'arama' => in_array((int) $personel->id, $gizliAr) ? 0 : 1];
+            })() : null,
             'personelbilgi'=>json_decode($personel),
             'calismasaatleri'=>json_decode(PersonelCalismaSaatleri::where('personel_id',$request->personelid)->orderBy('haftanin_gunu','asc')->get()),
             'molasaatleri'=>json_decode(PersonelMolaSaatleri::where('personel_id',$request->personelid)->orderBy('haftanin_gunu','asc')->get()),
@@ -34121,6 +34155,30 @@ DB::raw('
         } catch(\Exception $e){ \Log::warning('personelTakvimdeGorunsunToggle: '.$e->getMessage()); }
         return self::personel_liste_getir($request);
     }
+    /** On gorusme / arama randevusu gorunurlugunu degistirir (pilot salonlar — PersonelGorunurluk::SALONLAR). */
+    public function personelGorunurlukToggle(Request $request)
+    {
+        if($r = self::yetkiYoksa403($request, 'personel.ekle_duzenle')) return $r;
+        $salonId = self::mevcutsube($request);
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if(!$authUser) abort(401);
+        $subeler = $authUser->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
+        $tur = (string) $request->tur;
+        if(!in_array($salonId,$subeler) || !\App\Services\PersonelGorunurluk::aktif($salonId) || !isset(\App\Services\PersonelGorunurluk::TURLER[$tur])){
+            return response()->json(['mesaj' => 'Bu işlem için yetkiniz yok.'], 403);
+        }
+        $personel = Personeller::where('id',$request->personelid)->where('salon_id',$salonId)->first();
+        if(!$personel) return response()->json(['mesaj' => 'Personel bulunamadı.'], 404);
+
+        // Istemci hedef durumu gonderir: cift tiklama / bayat tablo ters cevirmesin.
+        $yeni = (int) $request->durum === 1;
+        if(!\App\Services\PersonelGorunurluk::kaydet($personel, [$tur => $yeni])){
+            return response()->json(['mesaj' => 'Görünürlük kaydedilemedi.'], 500);
+        }
+        SalonAudit::log($salonId, 'personel_gorunurluk', 'personel', $personel->id, $personel->personel_adi,
+            \App\Services\PersonelGorunurluk::TURLER[$tur].' görünürlüğü: '.($yeni ? 'Görünür' : 'Gizli'));
+        return self::personel_liste_getir($request);
+    }
     private function _personelSiraSwap($a, $b)
     {
         // Olasi UNIQUE constraint icin 3 adimli swap (negatif temp deger araci)
@@ -34442,6 +34500,8 @@ DB::raw('
         $personeller = Personeller::where('salon_id', $salonId)
             ->where('aktif', true)
             ->whereNotNull('yetkili_id')
+            // Arama RANDEVUSU secimi: gizli personel cikmaz (arama listesi atamasi bu parametreyi gondermez)
+            ->whereNotIn('id', $request->input('randevu') ? \App\Services\PersonelGorunurluk::gizliIdler($salonId, 'arama') : [])
             ->orderBy('personel_adi')
             ->get(['id', 'personel_adi']);
         return response()->json($personeller);
@@ -34888,6 +34948,14 @@ DB::raw('
         // Personel (rol 5) SADECE kendine atanan listelerin randevularini gorur.
         if ((int) $rol === 5) {
             $q->where('al.personel_id', $this->aktifPersonelId($salonId));
+        } else {
+            // Arama randevusunda GIZLI personelin sutunu patron takviminde cikmaz (personel kendi takvimini gorur).
+            $gizliPersonel = \App\Services\PersonelGorunurluk::gizliIdler($salonId, 'arama');
+            if ($gizliPersonel) {
+                $q->where(function ($w) use ($gizliPersonel) {
+                    $w->whereNull('al.personel_id')->orWhereNotIn('al.personel_id', $gizliPersonel);
+                });
+            }
         }
         if ($arVar) {
             $q->where(function ($w) {

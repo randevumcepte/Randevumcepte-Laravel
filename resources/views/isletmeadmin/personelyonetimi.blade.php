@@ -370,6 +370,11 @@
                      <th>Telefon</th>
                      <th>Durum</th>
                      <th class="datatable-nosort">Takvim</th>
+                     @if(\App\Services\PersonelGorunurluk::aktif($isletme->id))
+                     @foreach(\App\Services\PersonelGorunurluk::TURLER as $_turAdi)
+                     <th class="datatable-nosort">{{ $_turAdi }}</th>
+                     @endforeach
+                     @endif
                      <th class="datatable-nosort" style="width:90px">İşlemler</th>
                   </tr>
                </thead>
@@ -483,10 +488,20 @@ $(document).ready(function(){
             { data : 'telefon' },
             { data : 'durum' },
             { data : 'takvim', className: "text-center" },
+            @if(\App\Services\PersonelGorunurluk::aktif($isletme->id))
+            @foreach(array_keys(\App\Services\PersonelGorunurluk::TURLER) as $_tur)
+            { data : 'gorunurluk_{{ $_tur }}', className: "text-center" },
+            @endforeach
+            @endif
             { data : 'islemler' },
          ],
          data: <?php echo $personeller; ?>,
       });
+      // custom.js (kayit / pasif-aktif) tabloyu 6 kolonla yeniden kurardi; bu sayfada satirlari tazeler
+      window.pyoTabloYaz = function(liste){
+         var dt = $('#personel_tablo').DataTable();
+         dt.clear(); dt.rows.add(liste); dt.draw(false);
+      };
    }
 
    // Tab degisince DataTable column genisliklerini tekrar hesapla
@@ -497,15 +512,17 @@ $(document).ready(function(){
    });
 
    // ====== Siralama: capture-phase handler (custom.js'i tamamen baypas) ======
-   function _pyoSiralamaUpdate(url, btn){
+   // ekVeri verilirse POST (gorunurluk degisikligi), yoksa eski GET akisi
+   function _pyoSiralamaUpdate(url, btn, ekVeri){
       $.ajax({
-         type: 'GET',
+         type: ekVeri ? 'POST' : 'GET',
          url: url,
-         data: {
+         headers: ekVeri ? { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } : {},
+         data: $.extend({
             personelid: btn.getAttribute('data-value'),
             sube: '{{$isletme->id}}',
             siraNo: btn.getAttribute('data-index-number')
-         },
+         }, ekVeri || {}),
          dataType: 'json',
          beforeSend: function(){ $('#preloader').show(); },
          success: function(result){
@@ -523,7 +540,8 @@ $(document).ready(function(){
          error: function(xhr, status, err){
             $('#preloader').hide();
             console.error('Siralama hatasi:', xhr.status, xhr.statusText, xhr.responseText);
-            swal({title:'Hata', text:'Sıralama güncellenemedi (HTTP '+xhr.status+')', type:'error'});
+            var _mesaj = (xhr.responseJSON && xhr.responseJSON.mesaj) || ((ekVeri ? 'Görünürlük' : 'Sıralama')+' güncellenemedi (HTTP '+xhr.status+')');
+            swal({title:'Hata', text:_mesaj, type:'error'});
          }
       });
    }
@@ -534,6 +552,7 @@ $(document).ready(function(){
          var asagi = e.target.closest && e.target.closest('#personel_tablo button[name="personel_siralamayi_bir_asagi_tasi"]');
          var yukari = e.target.closest && e.target.closest('#personel_tablo button[name="personel_siralamayi_bir_yukari_tasi"]');
          var takvim = e.target.closest && e.target.closest('#personel_tablo button[name="personel_takvim_toggle"]');
+         var gorunurluk = e.target.closest && e.target.closest('#personel_tablo button[name="personel_gorunurluk_toggle"]');
          var silBtn = e.target.closest && e.target.closest('#personel_tablo a[name="personel_sil"]');
          if(asagi){
             e.preventDefault();
@@ -554,6 +573,16 @@ $(document).ready(function(){
             e.stopImmediatePropagation();
             e.stopPropagation();
             _pyoSiralamaUpdate('/isletmeyonetim/personelTakvimdeGorunsunToggle', takvim);
+            return;
+         }
+         if(gorunurluk){
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+            _pyoSiralamaUpdate('/isletmeyonetim/personelGorunurlukToggle', gorunurluk, {
+               tur: gorunurluk.getAttribute('data-tur'),
+               durum: gorunurluk.getAttribute('data-state') === '1' ? 0 : 1
+            });
             return;
          }
          if(silBtn){

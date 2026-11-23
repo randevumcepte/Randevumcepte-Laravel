@@ -294,6 +294,37 @@
                            </div>
                         </div>
                      </div>
+                     @if(\App\Services\PersonelGorunurluk::aktif($isletme->id))
+                     <input type="hidden" name="gorunurluk_alanlari" value="1">
+                     <div class="col-md-6" style="margin-top:10px">
+                        <div class="pm-field" style="margin-bottom:0">
+                           <div class="pm-toggle-row pm-gorunurluk-row">
+                              <div class="pm-toggle-row__info">
+                                 <div class="pm-toggle-row__title"><i class="fa fa-comments"></i> Ön Görüşmede Görünsün</div>
+                                 <div class="pm-toggle-row__hint">Kapatılırsa ön görüşme takviminde ve seçiminde gösterilmez</div>
+                              </div>
+                              <div class="pm-switch">
+                                 <input type="checkbox" id="ongorusme_gorunsun" name="ongorusme_gorunsun" value="1" checked>
+                                 <label for="ongorusme_gorunsun"></label>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="col-md-6" style="margin-top:10px">
+                        <div class="pm-field" style="margin-bottom:0">
+                           <div class="pm-toggle-row pm-gorunurluk-row">
+                              <div class="pm-toggle-row__info">
+                                 <div class="pm-toggle-row__title"><i class="fa fa-phone"></i> Arama Randevusunda Görünsün</div>
+                                 <div class="pm-toggle-row__hint">Kapatılırsa arama randevu takviminde ve seçiminde gösterilmez</div>
+                              </div>
+                              <div class="pm-switch">
+                                 <input type="checkbox" id="arama_gorunsun" name="arama_gorunsun" value="1" checked>
+                                 <label for="arama_gorunsun"></label>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     @endif
                   </div>
                </div>
 
@@ -482,6 +513,10 @@ $(document).ready(function(){
          $(this).closest('.pm-saat-row').toggleClass('is-checked', this.checked);
       });
       $('#takvimde_gorunsun_row').toggleClass('is-on', $('#takvimde_gorunsun').is(':checked'));
+      $('.pm-gorunurluk-row input').trigger('change');
+   });
+   $('#personel-modal').on('change', '.pm-gorunurluk-row input', function(){
+      $(this).closest('.pm-gorunurluk-row').toggleClass('is-on', this.checked);
    });
 });
 
