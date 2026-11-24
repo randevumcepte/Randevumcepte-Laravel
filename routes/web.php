@@ -1483,6 +1483,7 @@ Route::post('/seansGuncelle','StoreAdminController@seansGuncelle');
 	Route::post('/seansCihazVeriKaydet','StoreAdminController@seansCihazVeriKaydet');
 	Route::get('/seansDokumuPdf','StoreAdminController@seansDokumuPdf');
 	Route::post('/randevuGeldiGelmediIsaretiKaldir','StoreAdminController@randevuGeldiGelmediIsaretiKaldir');
+	Route::post('/randevuOnDurumIsaretle','StoreAdminController@randevuOnDurumIsaretle');
 });
 Route::get('/run-schedule', function () {
     \Illuminate\Support\Facades\Artisan::call('schedule:run');

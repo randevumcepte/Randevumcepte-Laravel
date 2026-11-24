@@ -3114,7 +3114,7 @@ function randevuyaGelmedi(hizmetid,id,seansDusumuYap)
                         }
 
                         if($('#randevu_liste').length){
-                             randevufiltre();
+                             randevufiltre(true);
                         }
                         if($('#calendar').length){
                             // PERF: tam refetch yerine o randevuyu KIRMIZIya boya (geldi ile ayni
@@ -9750,8 +9750,14 @@ $(document).on('click','a[name="bildirim"]', function(e){
     $('#preloader').show();
     window.location.href = '/isletmeyonetim/bildirimgit/' + bildirim_id + subeQS;
 });
-function randevufiltre()
+// konumKoru=true: satir islemi (geldi/gelmedi...) sonrasi yenilemede sayfa, arama ve siralama korunur.
+function randevufiltre(konumKoru)
 {
+    var _rlKonum = {};
+    if(konumKoru === true && $.fn.DataTable.isDataTable('#randevu_liste')){
+        var _rlDt = $('#randevu_liste').DataTable();
+        _rlKonum = { pageLength: _rlDt.page.len(), displayStart: _rlDt.page.info().start, order: _rlDt.order(), search: { search: _rlDt.search() } };
+    }
     $.ajax({
                 type: "GET",
                 url: '/isletmeyonetim/randevulistefiltre',
@@ -9789,7 +9795,7 @@ function randevufiltre()
                            { data: 'olusturan' },
                            { data: 'islemler' }
                         ];
-                    $('#randevu_liste').DataTable({
+                    $('#randevu_liste').DataTable($.extend({
                         autoWidth: false,
                         responsive: true,
                         "order": [[ _musteriDetay ? 0 : 4, "desc" ]],
@@ -9803,7 +9809,7 @@ function randevufiltre()
                                 previous: '<i class="ion-chevron-left"></i>'
                         }
                      },
-               });
+               }, _rlKonum));
                 },
                 error: function (request, status, error) {
                      $('#preloader').hide();
@@ -12607,7 +12613,7 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
                     $('#modal-view-event').modal('hide');
                 }
                 if ($('#randevu_liste').length) {
-                    randevufiltre();
+                    randevufiltre(true);
                 }
                 if ($('#calendar').length) {
                     // PERF: TAM refetch yerine o randevunun event(ler)ini client'ta YESILE boya.
@@ -12824,7 +12830,7 @@ $(document).on('click','a[name="geldi_isaretle"]',function(e){
                 type: "POST",
                 url: '/isletmeyonetim/randevuGeldiGelmediIsaretiKaldir',
                 dataType: "json",
-                data: {randevuid:randevu_id,hizmetid:hizmetid,takvim_turu:$('#randevu_ayarina_gore').val()},
+                data: {randevuid:randevu_id,hizmetid:hizmetid,takvim_turu:$('#randevu_ayarina_gore').val(),sube:$('input[name="sube"]').val()},
                  
                 
 
@@ -12842,6 +12848,7 @@ $(document).on('click','a[name="geldi_isaretle"]',function(e){
                         $('#modal-view-event').modal('hide');
                     }
                     rcBeklemeRecolor(result);
+                    if($('#randevu_liste').length){ randevufiltre(true); }
                 },
                 error: function(request, status, error) {
                     $("#preloader").hide();
@@ -12877,7 +12884,7 @@ $(document).on('click','a[name="gelmedi_isareti_kaldir"]',function(e){
                 type: "POST",
                 url: '/isletmeyonetim/randevuGeldiGelmediIsaretiKaldir',
                 dataType: "json",
-                data: {randevuid:randevu_id,hizmetid:hizmetid,takvim_turu:$('#randevu_ayarina_gore').val()},
+                data: {randevuid:randevu_id,hizmetid:hizmetid,takvim_turu:$('#randevu_ayarina_gore').val(),sube:$('input[name="sube"]').val()},
                
                 
 
@@ -12895,6 +12902,7 @@ $(document).on('click','a[name="gelmedi_isareti_kaldir"]',function(e){
                         $('#modal-view-event').modal('hide');
                     }
                     rcBeklemeRecolor(result);
+                    if($('#randevu_liste').length){ randevufiltre(true); }
                 },
                 error: function(request, status, error) {
                     $("#preloader").hide();
@@ -12908,6 +12916,35 @@ $(document).on('click','a[name="gelmedi_isareti_kaldir"]',function(e){
             
         }
     });
+});
+
+// Randevu listesi + musteri detay randevulari: "Gelecek" / "Islemde" isaretle-kaldir.
+$(document).on('click','a.randevu-on-durum',function(e){
+    e.preventDefault();
+    var $a = $(this);
+    $.ajax({
+        type: "POST",
+        url: '/isletmeyonetim/randevuOnDurumIsaretle',
+        dataType: "json",
+        data: {randevuid:$a.attr('data-value'),alan:$a.attr('data-alan'),deger:$a.attr('data-deger'),sube:$('input[name="sube"]').val()},
+        headers: { 'X-CSRF-TOKEN': $('input[name="_token"]').val() },
+        beforeSend: function(){ $("#preloader").show(); },
+        success: function(res){
+            $("#preloader").hide();
+            swal({type:'success', title:'Başarılı', text:res.mesaj, timer:1500, showConfirmButton:false});
+            randevufiltre(true);
+        },
+        error: function(request){
+            $("#preloader").hide();
+            swal('Uyarı', (request.responseJSON && request.responseJSON.mesaj) || 'İşlem yapılamadı, lütfen tekrar deneyin.', 'warning');
+            if(request.status == 404 || request.status == 409) randevufiltre(true);
+        }
+    });
+});
+// Islem menusu tablo kutusunun (overflow) altinda kesilmesin: acikken tasmaya izin ver.
+$(document).on('show.bs.dropdown hide.bs.dropdown','#randevu_liste .dropdown',function(e){
+    $(this).closest('.rc-rl-card').css('overflow', e.type === 'show' ? 'visible' : '');
+    $(this).closest('.rc-rl-tablo-wrap').css('overflow', e.type === 'show' ? 'visible' : '');
 });
 
 function dogrulama_islemleri(randevu_id,hizmetid,dogrulamaKodu,dogrulamaSoruldu,dogrulamaSorulduGonderilecek)

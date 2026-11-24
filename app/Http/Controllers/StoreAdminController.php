@@ -14601,6 +14601,19 @@ private function ayAdiCevir($ingilizceAy)
     }
 
     /**
+     * Randevu listelerindeki Geldi/Gelmedi/Gelecek/Islemde islemleri gorunsun/calissin mi?
+     * Mobil Randevular listesiyle ayni: randevu.duzenle_iptal VEYA satis.tahsilat_al.
+     */
+    private function randevuKatilimYetkiVar(Request $request)
+    {
+        $authUser = Auth::guard('isletmeyonetim')->user();
+        if (!$authUser) return true;
+        $sube = self::mevcutsube($request);
+        return \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $sube, 'randevu.duzenle_iptal')
+            || \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $sube, 'satis.tahsilat_al');
+    }
+
+    /**
      * Satis/tahsilat endpoint yetki kontrolu (geriye uyumluluk icin; yetkiYoksa403'e delege).
      */
     private function satisYetkiYoksa403(Request $request, $yetkiAnahtari)
@@ -19687,11 +19700,18 @@ DB::raw('
     // Telafi bayraklari da rozet olarak eklensin:
     //  - telafi_kaynak_rh_id dolu  -> bu bir TELAFI RANDEVUSU (turuncu)
     //  - telafi_devir_yapildi=1    -> bu randevuya TELAFI VERILMIS (orijinal; soluk turuncu)
+    // Gelecek (#EF7400) = takvimdeki "randevuya gelecek" rengi. Sira: Geldi/Gelmedi > Islemde > Gelecek > Onayli.
+    $islemdeKolonu = \App\Services\RandevuSemasi::islemdeVar();
+    $islemdeDurumSatiri = $islemdeKolonu
+        ? "WHEN randevular.durum=1 AND randevular.randevuya_geldi IS NULL AND randevular.randevuya_islemde=1 THEN '<button class=\"btn btn-primary btn-block\" style=\"line-height:5px;background:#0891b2 !important;border-color:#0891b2 !important\">İşlemde</button>'"
+        : '';
     $statusHtml = <<<SQL
     CONCAT(
        CASE
           WHEN randevular.durum=1 AND randevular.randevuya_geldi=true THEN '<button class="btn btn-success btn-block" style="line-height:5px">Geldi</button>'
           WHEN randevular.durum=1 AND randevular.randevuya_geldi=0    THEN '<button class="btn btn-danger btn-block" style="line-height:5px">Gelmedi</button>'
+          {$islemdeDurumSatiri}
+          WHEN randevular.durum=1 AND randevular.randevuya_geldi IS NULL AND randevular.randevuya_gelecek=1 THEN '<button class="btn btn-primary btn-block" style="line-height:5px;background:#EF7400 !important;border-color:#EF7400 !important">Gelecek</button>'
           WHEN randevular.durum=1 AND randevular.randevuya_geldi IS NULL THEN '<button class="btn btn-primary btn-block" style="line-height:5px">Onaylı</button>'
           WHEN randevular.durum=2 THEN '<button class="btn btn-dark btn-block" style="line-height:5px">İptal</button>'
           WHEN randevular.durum=3 THEN '<button class="btn btn-dark btn-block">Müşteri Tarafından İptal</button>'
@@ -19714,6 +19734,34 @@ DB::raw('
         ? '<a class="dropdown-item randevuonayla" data-value="\',randevular.id,\'" href="#"> <i class="fa fa-check"></i> Onayla</a>'
         : '';
 
+    // Geldi / Gelmedi / Gelecek / Islemde (ve kaldirma) — mobil Randevular listesiyle ayni yetki kurali.
+    // data-index-number BILEREK yok: liste randevu genelidir (kaldirma tum hizmet satirlarini temizler).
+    // Geldi/Gelmedi/kaldirma takvimin AYNI handler'larini (name=...) kullanir.
+    $katilimMenusu = "''";
+    if (self::randevuKatilimYetkiVar($request)) {
+        $_oge = function ($nitelik, $ikon, $etiket) {
+            return "CONCAT('<a class=\"dropdown-item".(strpos($nitelik, 'data-alan') !== false ? " randevu-on-durum" : "")."\" {$nitelik} data-value=\"',randevular.id,'\" href=\"javascript:void(0)\"> <i class=\"fa {$ikon}\"></i> {$etiket}</a>')";
+        };
+        $_geldi        = $_oge('name="geldi_isaretle"', 'fa-check', 'Geldi');
+        $_gelmedi      = $_oge('name="gelmedi_isaretle"', 'fa-ban', 'Gelmedi');
+        $_geldiKaldir  = $_oge('name="geldi_isareti_kaldir"', 'fa-undo', 'Geldi İşaretini Kaldır');
+        $_gelmediKaldir = $_oge('name="gelmedi_isareti_kaldir"', 'fa-undo', 'Gelmedi İşaretini Kaldır');
+        $_gelecek = 'IF(COALESCE(randevular.randevuya_gelecek,0)=1,'
+            .$_oge('data-alan="gelecek" data-deger="0"', 'fa-undo', 'Gelecek İşaretini Kaldır').','
+            .$_oge('data-alan="gelecek" data-deger="1"', 'fa-calendar-check-o', 'Gelecek').')';
+        $_islemde = $islemdeKolonu
+            ? 'IF(COALESCE(randevular.randevuya_islemde,0)=1,'
+                .$_oge('data-alan="islemde" data-deger="0"', 'fa-undo', 'İşlemde İşaretini Kaldır').','
+                .$_oge('data-alan="islemde" data-deger="1"', 'fa-hourglass-half', 'İşlemde').')'
+            : "''";
+        $katilimMenusu = "CASE
+            WHEN randevular.user_id = 2012 THEN ''
+            WHEN randevular.randevuya_geldi = 1 THEN CONCAT({$_gelmedi},{$_geldiKaldir})
+            WHEN randevular.randevuya_geldi = 0 THEN CONCAT({$_geldi},{$_gelmediKaldir})
+            ELSE CONCAT({$_geldi},{$_gelmedi},{$_gelecek},{$_islemde})
+        END";
+    }
+
     $actionsHtml = <<<SQL
     CASE
         WHEN randevular.durum = 0 THEN CONCAT('<div class="dropdown">
@@ -19730,6 +19778,7 @@ DB::raw('
             </a>
             <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                 <a class="dropdown-item" data-value="',randevular.id,'" name="randevu_duzenle" data-index-number="',COALESCE(randevu_hizmetler.hizmet_id, 0),'" href="#"> <i class="fa fa-edit"></i> Düzenle</a>',
+                {$katilimMenusu},
                 IF(COALESCE(randevu_hizmetler.telafi_devir_yapildi,0)=0 AND randevu_hizmetler.telafi_kaynak_rh_id IS NULL,
                    CONCAT('<a class="dropdown-item telafi-randevu-liste-ac" data-value="',randevular.id,'" href="#"> <i class="fa fa-undo"></i> Telafi Randevusu</a>'), ''),
                 '<a class="dropdown-item randevuiptalet" data-value="',randevular.id,'" href="#"> <i class="fa fa-times"></i> İptal Et</a>
@@ -19740,6 +19789,7 @@ DB::raw('
             </a>
             <div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
                 <a class="dropdown-item" data-value="',randevular.id,'" name="randevu_sonrasi_islem_notu" href="#"> <i class="fa fa-plus"></i> İşlem Not Ekle</a>',
+                {$katilimMenusu},
                 IF(COALESCE(randevu_hizmetler.telafi_devir_yapildi,0)=0 AND randevu_hizmetler.telafi_kaynak_rh_id IS NULL,
                    CONCAT('<a class="dropdown-item telafi-randevu-liste-ac" data-value="',randevular.id,'" href="#"> <i class="fa fa-undo"></i> Telafi Randevusu</a>'), ''),
                 '</div></div>')
@@ -39964,6 +40014,52 @@ DB::raw('
         return 'data:image/png;base64,' . base64_encode($bin);
     }
 
+    /**
+     * Randevu listesi islemleri: "Gelecek" (randevuya_gelecek — asistan teyidi ile ayni alan) ve
+     * "Islemde" (randevuya_islemde) isaretini koyar/kaldirir. Yalniz onayli ve henuz
+     * geldi/gelmedi isaretlenmemis randevuda gecerli.
+     */
+    public function randevuOnDurumIsaretle(Request $request)
+    {
+        if (!self::randevuKatilimYetkiVar($request)) {
+            return response()->json(['ok' => false, 'mesaj' => 'Bu işlem için yetkiniz yok.'], 403);
+        }
+        $etiketler = ['gelecek' => 'Gelecek', 'islemde' => 'İşlemde'];
+        $alan = (string) $request->input('alan');
+        if (!isset($etiketler[$alan]) || ($alan === 'islemde' && !\App\Services\RandevuSemasi::islemdeVar())) {
+            return response()->json(['ok' => false, 'mesaj' => 'Geçersiz işlem.'], 422);
+        }
+        $salonId = self::mevcutsube($request);
+        $randevu = Randevular::where('id', $request->randevuid)->where('salon_id', $salonId)->first();
+        if (!$randevu) {
+            return response()->json(['ok' => false, 'mesaj' => 'Randevu bulunamadı.'], 404);
+        }
+        // Yalniz kendi randevularini gorebilen kullanici baskasinin randevusunu isaretleyemez.
+        if (self::personelmi($request, 'randevu.tum_personel_gor')) {
+            $personelId = Personeller::where('salon_id', $salonId)
+                ->where('yetkili_id', Auth::guard('isletmeyonetim')->user()->id)->value('id');
+            if (!$personelId || !RandevuHizmetler::where('randevu_id', $randevu->id)->where('personel_id', $personelId)->exists()) {
+                return response()->json(['ok' => false, 'mesaj' => 'Bu işlem için yetkiniz yok.'], 403);
+            }
+        }
+        if ((int) $randevu->durum !== 1 || $randevu->randevuya_geldi !== null) {
+            return response()->json(['ok' => false, 'mesaj' => 'Randevunun durumu değişmiş, liste yenilendi.'], 409);
+        }
+
+        $deger = (int) $request->input('deger') === 1 ? 1 : 0;
+        $randevu->{'randevuya_'.$alan} = $deger;
+        $randevu->save();
+
+        $mesaj = $deger
+            ? 'Randevu "'.$etiketler[$alan].'" olarak işaretlendi'
+            : '"'.$etiketler[$alan].'" işareti kaldırıldı';
+        $musteriAdi = optional($randevu->users)->name ?? 'Müşteri #'.$randevu->user_id;
+        SalonAudit::log($randevu->salon_id, 'randevu_'.$alan, 'randevu', $randevu->id,
+            $musteriAdi.' — '.date('d.m.Y', strtotime($randevu->tarih)).' '.date('H:i', strtotime($randevu->saat)), $mesaj);
+
+        return response()->json(['ok' => true, 'mesaj' => $mesaj]);
+    }
+
     public function randevuGeldiGelmediIsaretiKaldir(Request $request)
     {
         $randevu = Randevular::where('id',$request->randevuid)->first();
@@ -39974,7 +40070,8 @@ DB::raw('
         $randevu->save();
         foreach($randevu->hizmetler as $hizmet)
         {
-            if($hizmet->hizmet_id == $request->hizmetid){
+            // hizmetid gonderilmezse (randevu listeleri) randevu geneli: TUM hizmet satirlari temizlenir.
+            if(!$request->filled('hizmetid') || $hizmet->hizmet_id == $request->hizmetid){
                 $hizmet->seansa_geldi = null;
                 $hizmet->save();
             }

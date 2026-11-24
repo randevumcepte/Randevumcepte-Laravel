@@ -69,6 +69,7 @@ class Kernel extends ConsoleKernel
         Commands\EasistanIndexEnsure::class,
         Commands\WhatsappPromoKontrol::class,
         Commands\CagriMerkeziSchemaEnsure::class,
+        Commands\RandevuSemaEnsure::class,
         Commands\AiCagriLoglari::class,
         Commands\MusteriKlonla::class,
         Commands\YetkiliGirisTeshis::class,
@@ -174,6 +175,9 @@ class Kernel extends ConsoleKernel
         // `git pull` yaptigi icin cagri merkezi migration'i prod'da otomatik calismiyor;
         // bu komut eksik kolon/tablolari kendiliginden olusturur. Her sey varken ucuz no-op.
         $schedule->command('cagrimerkezi:schema-ensure --quiet-noop')->withoutOverlapping()->hourly();
+
+        // randevular.randevuya_islemde ("Islemde" durumu) — canlida migrate otomatik calismaz; alan varken no-op.
+        $schedule->command('randevu:sema-ensure')->withoutOverlapping()->everyFiveMinutes();
 
         // WhatsApp 2 ay ücretsiz promo — günde bir: promosu başlat + süresi dolanı kapat
         $schedule->command('whatsapp:promo-kontrol')->withoutOverlapping()->dailyAt('00:30');
