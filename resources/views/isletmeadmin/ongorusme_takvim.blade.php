@@ -2,8 +2,9 @@
 @section('content')
 
 @php
-   $_ogtPersoneller = $personeller->map(function ($p) {
-      return ['id' => (int) $p->id, 'ad' => $p->personel_adi];
+   $_ogtPersoneller = $personeller->map(function ($p) use ($baslikRenkleri) {
+      $r = $baslikRenkleri[$p->id] ?? null;
+      return ['id' => (int) $p->id, 'ad' => $p->personel_adi, 'bg' => $r['bg'] ?? '', 'yazi' => $r['yazi'] ?? ''];
    })->values()->all();
 @endphp
 
@@ -74,6 +75,8 @@
 .ogt-izgara{ display:grid; min-width:100%; position:relative; }
 .ogt-kb{ position:sticky; top:0; z-index:6; background:var(--mor-acik); color:var(--mor); text-align:center; padding:9px 6px; font-size:12.5px; font-weight:700; border-left:1px solid var(--cizgi); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ogt-kb small{ display:block; font-size:11px; font-weight:600; color:#7c6c8a; }
+.ogt-kb.renkli{ background:var(--bz); color:var(--by); border-left-color:rgba(255,255,255,.45); }
+.ogt-kb.renkli small{ color:inherit; opacity:.85; }
 .ogt-kb.kose{ left:0; z-index:8; border-left:0; }
 .ogt-saatler{ position:sticky; left:0; z-index:5; background:#fff; }
 .ogt-saatler div{ height:calc(var(--saat-h) / 4); border-top:1px solid #f3f1f7; font-size:10.5px; color:#a39db3; text-align:right; padding:4px 7px 0 0; line-height:1.2; }
@@ -312,12 +315,12 @@ $(document).ready(function(){
    function sutunlar(liste){
       var s = [];
       var secPid = $('#ogt_personel').val(), gorulen = {};
-      function ekle(id, ad){
+      function ekle(id, ad, bg, yazi){
          if (gorulen[id]) return; gorulen[id] = 1;
          var l = liste.filter(function(o){ return o.personel_id === id; });
-         s.push({ gun:secili, pid:id || '', ust:esc(ad)+'<small>'+l.filter(function(o){ return o.kat !== 'ertelendi'; }).length+' görüşme</small>', l:l });
+         s.push({ gun:secili, pid:id || '', renk:bg ? '--bz:'+bg+';--by:'+yazi : '', ust:esc(ad)+'<small>'+l.filter(function(o){ return o.kat !== 'ertelendi'; }).length+' görüşme</small>', l:l });
       }
-      PERSONELLER.forEach(function(p){ if (!secPid || String(p.id) === String(secPid)) ekle(p.id, p.ad); });
+      PERSONELLER.forEach(function(p){ if (!secPid || String(p.id) === String(secPid)) ekle(p.id, p.ad, p.bg, p.yazi); });
       if (!s.length) s.push({ gun:secili, pid:'', ust:'Ön Görüşmeler', l:liste });
       return s;
    }
@@ -366,7 +369,7 @@ $(document).ready(function(){
       var saatsizVar = liste.some(function(o){ return !o.saat; });
       var h = '<div class="ogt-kaydir" data-bas="'+sa[0]+'"><div class="ogt-izgara" style="grid-template-columns:54px repeat('+s.length+',minmax(170px,1fr))">';
       h += '<div class="ogt-kb kose"></div>';
-      s.forEach(function(k){ h += '<div class="ogt-kb">'+k.ust+'</div>'; });
+      s.forEach(function(k){ h += '<div class="ogt-kb'+(k.renk ? ' renkli" style="'+esc(k.renk) : '')+'">'+k.ust+'</div>'; });
       if (saatsizVar) {
          h += '<div class="ogt-saatsiz kose">Saatsiz</div>';
          s.forEach(function(k){

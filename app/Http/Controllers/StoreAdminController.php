@@ -18375,6 +18375,7 @@ DB::raw('
             'aramaAktif'              => $aramaAktif,
             'aramaYalnizPersonel'     => $aramaYalnizPersonel,
             'personeller'             => $personeller,
+            'baslikRenkleri'          => \App\Services\OnGorusmeTakvimRenk::basliklar($salonId,$personeller->pluck('id')->all()),
             'ekleDuzenleYetki'        => \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, 'gorusme.ekle_duzenle'),
             'bildirimler'             => self::bildirimgetir($request),
             'sayfa_baslik'            => 'Ön Görüşme Takvimi',

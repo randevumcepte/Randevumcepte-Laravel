@@ -48,6 +48,31 @@ class OnGorusmeTakvimRenk
         };
     }
 
+    /**
+     * Personel sutun basliklari = randevu takvimi kolon basligi: tek renk > renk sirasi > personel rengi;
+     * yazi: cift rengi > takvim yazi rengi > beyaz.
+     * @return array [personel_id => ['bg'=>, 'yazi'=>]]
+     */
+    public static function basliklar($salonId, array $idler): array
+    {
+        $turu = (int) (Salonlar::where('id', $salonId)->value('randevu_takvim_turu') ?? 1);
+        list($tekRenk, $sira, $yazi) = self::ayarlar($salonId);
+        $siraMap = $sira && $turu === 1 ? self::siraHaritasi($salonId, $turu, $sira, $yazi) : [];
+        $kendi = DB::table('salon_personelleri')->join('renk_duzenleri', 'salon_personelleri.renk', '=', 'renk_duzenleri.id')
+            ->whereIn('salon_personelleri.id', $idler)->pluck('renk_duzenleri.renk', 'salon_personelleri.id')->all();
+
+        $sonuc = [];
+        foreach (array_values($idler) as $i => $id) {
+            $cift = ['bg' => ($kendi[$id] ?? null) ?: self::VARSAYILAN, 'text' => null];
+            if ($tekRenk !== null) $cift['bg'] = $tekRenk;
+            elseif (isset($siraMap[(string) $id])) $cift = $siraMap[(string) $id];
+            elseif ($sira && $turu !== 1) $cift = $sira[$i % count($sira)]; // takvim kolonu personel degil: gorunum sirasi
+            elseif ($sira) $cift['text'] = '#ffffff'; // takvimde kolonu olmayan personel: kendi rengi, beyaz yazi
+            $sonuc[$id] = ['bg' => $cift['bg'], 'yazi' => $cift['text'] ?? ($yazi ?? '#ffffff')];
+        }
+        return $sonuc;
+    }
+
     private static function kategori($rh): string
     {
         $r = $rh->randevu;
