@@ -22,6 +22,7 @@ class RandevuSemaEnsure extends Command
             $this->info('randevuya_islemde eklendi');
         }
         \App\Services\OnGorusmeErteleme::semaGaranti();
+        \App\Services\RandevuDurumRenk::semaGaranti();
         return 0;
     }
 }

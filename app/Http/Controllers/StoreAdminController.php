@@ -4058,21 +4058,9 @@ public function carkverilerigetir(Request $request)
         $r = $rh->randevu;
         if ($r && $r->user_id == 2012) return '#000000'; // Kapali Saat
 
-        if (($r && $r->randevuya_geldi !== null && $r->randevuya_geldi === 1) || ($rh->seansa_geldi !== null && $rh->seansa_geldi === 1)) {
-            return '#008000';
-        }
-        if (($r && $r->randevuya_geldi !== null && $r->randevuya_geldi === 0) || ($rh->seansa_geldi !== null && $rh->seansa_geldi === 0)) {
-            return '#ff0000';
-        }
-        if ($r && $r->durum === 0) {
-            return '#ffc107';
-        }
-        if ($r && $r->randevuya_gelecek !== null && $r->randevuya_gelecek === 1 && $r->randevuya_geldi === null) {
-            return '#EF7400';
-        }
-        if ($rh->iptal) {
-            return '#000000';
-        }
+        $zeminler = \App\Services\RandevuDurumRenk::zeminler($r ? $r->salon_id : 0);
+        $durumAd = \App\Services\RandevuDurumRenk::durum($rh, $zeminler);
+        if ($durumAd !== null) return $zeminler[$durumAd];
         // Normal randevu — resource (kategori/personel/cihaz/oda) rengi
         $color = '';
         if ($takvim_turu == 0) {
@@ -4169,6 +4157,10 @@ public function carkverilerigetir(Request $request)
             if($rk->renkduzeni) $odaRenkMap[$rk->oda_id] = $rk->renkduzeni->renk;
         }
     }
+
+    // Durum renkleri: isletme ayari, yoksa sabit renkler (RandevuDurumRenk)
+    $durumZemin = \App\Services\RandevuDurumRenk::zeminler($isletmeId);
+    $durumYazi  = \App\Services\RandevuDurumRenk::yazilar($isletmeId);
 
     // TAKVIM TEK RENK + RENK SIRASI.
     //  - Tek renk acik: tum kaynaklar ve NORMAL randevular tek renge boyanir
@@ -4341,7 +4333,7 @@ public function carkverilerigetir(Request $request)
     }
 
     $randevu_hizmetler = $randevu_hizmetler_raw
-    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$_anketYetki,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$tekRenk,$yaziRengi,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet,$paketDurumuByRandevu,$paketHizmetIdsByRandevu) {
+    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$_anketYetki,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$tekRenk,$yaziRengi,$durumZemin,$durumYazi,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet,$paketDurumuByRandevu,$paketHizmetIdsByRandevu) {
 
         $start = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat)->toIso8601String();
 
@@ -4352,6 +4344,7 @@ public function carkverilerigetir(Request $request)
         $resourceId = "";
         $duzenleButon= "";
         $gelecek = false;
+        $ozelYazi = null; // isletmenin bu durum icin sectigi yazi rengi
         $paketAdi = '';
         // Kapali Saat dahil tum kollarda ihtiyac duyulan bilgi (paket kaynagi hesabi):
         $seansVar = $seanslarByRandevu->get($rh->randevu_id, collect());
@@ -4364,22 +4357,11 @@ public function carkverilerigetir(Request $request)
         }
         else
         {
-            if(($rh->randevu->randevuya_geldi !== null && $rh->randevu->randevuya_geldi === 1 ) || ($rh->seansa_geldi !== null && $rh->seansa_geldi === 1 )){
-
-                $color =  "#008000";
-            }
-            elseif(($rh->randevu->randevuya_geldi !== null && $rh->randevu->randevuya_geldi === 0)|| ($rh->seansa_geldi !== null && $rh->seansa_geldi === 0 ))
-                $color = "#ff0000";
-            elseif($rh->randevu->durum === 0)
-                $color = '#ffc107';
-            elseif($rh->randevu->randevuya_gelecek !== null && $rh->randevu->randevuya_gelecek === 1 && $rh->randevu->randevuya_geldi === null)
-            {
-                $gelecek = true;
-                $color = "#EF7400";
-            }
-            elseif($rh->iptal)
-            {
-                $color = "#000000";
+            $durumAd = \App\Services\RandevuDurumRenk::durum($rh, $durumZemin);
+            if($durumAd !== null){
+                $color = $durumZemin[$durumAd];
+                $ozelYazi = $durumYazi[$durumAd] ?? null;
+                $gelecek = $durumAd === 'gelecek' || ($durumAd === 'islemde' && $rh->randevu->randevuya_gelecek === 1);
             }
             else{
 
@@ -4570,11 +4552,11 @@ public function carkverilerigetir(Request $request)
             'resourceTitle'=> "",
             // Yazi rengi SADECE normal randevulara uygulanir; durum renkli
             // (geldi/gelmedi/bekliyor/gelecek/iptal/kapali) randevularda yazi beyaz kalir.
-            "textColor"=> ($yaziRengi !== null ? ($normalRenk ? $yaziRengi : '#ffffff') : ""),
+            "textColor"=> $ozelYazi ?? ($yaziRengi !== null ? ($normalRenk ? $yaziRengi : '#ffffff') : ""),
             'modal_title' => $modalTitle,
             'duzenle_buton'=>$duzenleButon,
             '_paketSource' => $_paketSource, // merge icin
-        ];
+        ] + ($ozelYazi !== null ? ['_ozelYazi' => $ozelYazi] : []);
     });
 
     // ============================================================
@@ -4886,8 +4868,8 @@ public function carkverilerigetir(Request $request)
                 $e['color'] = $__bgByResource[$rid];
                 $e['textColor'] = $__txtByResource[$rid]; // per-renk yazi
             } else {
-                // durum renkli (geldi/gelmedi/...) event: yazi beyaz kalsin
-                $e['textColor'] = '#ffffff';
+                // durum renkli (geldi/gelmedi/...) event: yazi beyaz kalsin (isletme durum yazisi sectiyse o)
+                $e['textColor'] = $e['_ozelYazi'] ?? '#ffffff';
             }
             return $e;
         });
@@ -18375,6 +18357,7 @@ DB::raw('
             'aramaAktif'              => $aramaAktif,
             'aramaYalnizPersonel'     => $aramaYalnizPersonel,
             'personeller'             => $personeller,
+            'durumRenkleri'           => array_map(function ($r) { return $r['bg']; }, \App\Services\RandevuDurumRenk::harita($salonId)),
             'baslikRenkleri'          => \App\Services\OnGorusmeTakvimRenk::basliklar($salonId,$personeller->pluck('id')->all()),
             'ekleDuzenleYetki'        => \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, 'gorusme.ekle_duzenle'),
             'bildirimler'             => self::bildirimgetir($request),
@@ -18469,6 +18452,7 @@ DB::raw('
 
         // Renk + katilim (geldi/gelmedi/gelecek): randevu takvimiyle ayni kural
         $renkCoz = \App\Services\OnGorusmeTakvimRenk::cozucu($salonId);
+        $durumRenkleri = \App\Services\RandevuDurumRenk::harita($salonId);
         $kalemler = RandevuHizmetler::with(['randevu','personeller.trenk','hizmetler'])
             ->whereIn('id',$rhler->pluck('id')->all())->get()->keyBy('id');
 
@@ -18529,7 +18513,9 @@ DB::raw('
 
             $kalem = $rh ? $kalemler->get($rh->id) : null;
             $renk = $kalem ? $renkCoz($kalem) : ['kat'=>'bekliyor','renk'=>\App\Services\OnGorusmeTakvimRenk::VARSAYILAN,'yazi'=>'#ffffff'];
-            if ($rnd && (int) $rnd->durum >= 2) $renk = ['kat'=>'iptal','renk'=>'#6b7280','yazi'=>'#ffffff'];
+            if ($rnd && (int) $rnd->durum >= 2) {
+                $renk = ['kat'=>'iptal','renk'=>$durumRenkleri['iptal']['bg'] ?? '#6b7280','yazi'=>$durumRenkleri['iptal']['text'] ?? '#ffffff'];
+            }
 
             $sonuc[] = $ortak + [
                 'id'          => (string) $k->id,
@@ -21315,6 +21301,16 @@ DB::raw('
             $isletme->takvim_renk_sirasi = count($_sira) > 0 ? json_encode(array_values($_sira)) : null;
         }
         $isletme->save();
+        // Randevu durum renkleri: alan formda yoksa dokunulmaz; yalniz yetkili olunan isletme
+        if ($request->has('randevu_durum_renkleri')) {
+            $_yetkili = Auth::guard('isletmeyonetim')->user();
+            $_yetkiliSalonlar = $_yetkili ? $_yetkili->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray() : [];
+            if (in_array($isletme->id, $_yetkiliSalonlar)) {
+                if (!\App\Services\RandevuDurumRenk::kaydet($isletme->id, json_decode((string) $request->randevu_durum_renkleri, true))) {
+                    return response('Durum renkleri kaydedilemedi, diğer randevu ayarları kaydedildi.', 500);
+                }
+            }
+        }
         // Ayar degistiginde host bazli cache'i dusur (ayni istek icinde tekrar okunursa taze olsun)
         self::$_gecmisGizleCache = [];
         try {
@@ -21924,6 +21920,7 @@ DB::raw('
         if ($_gecmisGizle) {
             $v .= '|t'.floor(time() / 300);
         }
+        $v .= \App\Services\RandevuDurumRenk::imza($salonId);
 
         return response()->json(['v' => $v]);
     }

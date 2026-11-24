@@ -24,13 +24,16 @@ class OnGorusmeTakvimRenk
         list($tekRenk, $sira, $yazi) = self::ayarlar($salonId);
         $siraMap = $sira ? self::siraHaritasi($salonId, $turu, $sira, $yazi) : [];
 
-        return function ($rh) use ($turu, $kat, $cihaz, $oda, $tekRenk, $sira, $yazi, $siraMap) {
-            $r = $rh->randevu;
+        $durumZemin = RandevuDurumRenk::zeminler($salonId);
+        $durumYazi = RandevuDurumRenk::yazilar($salonId);
+
+        return function ($rh) use ($turu, $kat, $cihaz, $oda, $tekRenk, $sira, $yazi, $siraMap, $durumZemin, $durumYazi) {
             $durum = self::kategori($rh);
+            $durumAd = RandevuDurumRenk::durum($rh, $durumZemin);
             $renk = StoreAdminController::takvimRandevuRengi($rh, $turu, $kat, $cihaz, $oda);
-            if ($durum !== 'bekliyor' || ($r && (int) $r->durum === 0) || $rh->iptal) {
-                // Durum renkli: yazi beyaz (takvimde varsayilan da beyaz)
-                return ['kat' => $durum, 'renk' => $renk ?: self::VARSAYILAN, 'yazi' => '#ffffff'];
+            if ($durumAd !== null) {
+                // Durum renkli: yazi beyaz (takvimde varsayilan da beyaz), isletme yazi sectiyse o
+                return ['kat' => $durum, 'renk' => $renk ?: self::VARSAYILAN, 'yazi' => $durumYazi[$durumAd] ?? '#ffffff'];
             }
             if ($tekRenk !== null) $renk = $tekRenk;
             $yaziRenk = $yazi !== null ? $yazi : '#ffffff';

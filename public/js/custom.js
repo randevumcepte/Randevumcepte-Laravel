@@ -3123,7 +3123,7 @@ function randevuyaGelmedi(hizmetid,id,seansDusumuYap)
                             try {
                                 var _rcEvs2 = $('#calendar').fullCalendar('clientEvents', function(e){ return String(e.randevuId) === String(id); });
                                 if (_rcEvs2 && _rcEvs2.length) {
-                                    _rcEvs2.forEach(function(ev){ ev.color = '#ff0000'; $('#calendar').fullCalendar('updateEvent', ev); });
+                                    _rcEvs2.forEach(function(ev){ rcDurumBoya(ev, 'gelmedi', '#ff0000'); $('#calendar').fullCalendar('updateEvent', ev); });
                                     window._rcDetayCache = {}; // detay taze gelsin (gelmedi durumu degisti)
                                 } else {
                                     takvimyukle(false,false);
@@ -12624,7 +12624,7 @@ $(document).on('click','a[name="tahsil_et"]',function(e){
                     try {
                         var _rcEvs = $('#calendar').fullCalendar('clientEvents', function(e){ return String(e.randevuId) === String(randevu_id); });
                         if (_rcEvs && _rcEvs.length) {
-                            _rcEvs.forEach(function(ev){ ev.color = '#008000'; $('#calendar').fullCalendar('updateEvent', ev); });
+                            _rcEvs.forEach(function(ev){ rcDurumBoya(ev, 'geldi', '#008000'); $('#calendar').fullCalendar('updateEvent', ev); });
                             window._rcDetayCache = {}; // detay taze gelsin (geldi durumu degisti)
                         } else {
                             takvimyukle(false, false);
@@ -12788,8 +12788,15 @@ $(document).on('click','a[name="geldi_isaretle"]',function(e){
  // Beklemede (geldi/gelmedi isareti kaldir) sonrasi: tum takvimi refetch etmek yerine
  // server'in dondurdugu YENI renkleri ilgili event(ler)e uygula (tek-event guncelleme).
  // renk gelmezse/eslesmezse eski davranisa (full refetch) duser. Detay cache temizlenir.
+ // Isaretleme sonrasi aninda boyama. window.RC_DURUM_RENK yalniz isletme durum rengi ayarladiysa vardir.
+ function rcDurumBoya(ev, durum, varsayilan){
+     var ayar = window.RC_DURUM_RENK;
+     ev.color = (ayar && ayar[durum]) ? ayar[durum].bg : varsayilan;
+     if(ayar) ev.textColor = ayar[durum] ? ayar[durum].text : '#ffffff';
+ }
  function rcBeklemeRecolor(result){
      if(!$('#calendar').length) return;
+     if(window.RC_DURUM_RENK){ window._rcDetayCache = {}; takvimyukle(false,false); return; } // yazi rengi de degisir: tazele
      try {
          if(result && result.renkler && result.renkler.length){
              var guncellendi = false;

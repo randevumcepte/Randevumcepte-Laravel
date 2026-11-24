@@ -2029,6 +2029,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 }
             }
         }
+        // Durum renkleri (web ile ayni kaynak): isletme ayari, yoksa sabit renkler. #RRGGBB -> 0xFFRRGGBB
+        $_mobilRenk = function($h){ return '0xFF'.substr($h,1); };
+        $durumZemin = array_map($_mobilRenk, \App\Services\RandevuDurumRenk::zeminler($isletmeId));
+        $durumYazi  = array_map($_mobilRenk, \App\Services\RandevuDurumRenk::yazilar($isletmeId));
         $randevuHizmetler = RandevuHizmetler::with([
             'hizmetler',
             'personeller.trenk',
@@ -2146,7 +2150,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $request,
             $takvim_turu,$isletmeId,$personelRolu,
             $adisyonHizmetlerByRandevu,$tahsilatToplamlari,$seansSayilariByRandevu,$paketRandevuIds,$paketDurumuByRandevu,$paketHizmetIdsByRandevu,
-            $kategoriRenkleri,$cihazRenkleri,$odaRenkleri,$seanslarByRandevuMobil,$tekRenk,$yaziRengi
+            $kategoriRenkleri,$cihazRenkleri,$odaRenkleri,$seanslarByRandevuMobil,$tekRenk,$yaziRengi,$durumZemin,$durumYazi
         ) {
             $satisOlustu = 0;
             $odemeYapildi = 0;
@@ -2173,6 +2177,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             $duzenleButon= "";
             $detaylar = "";
             $gelecek = false;
+            $ozelYazi = null; // isletmenin bu durum icin sectigi yazi rengi
             $olusturanText = '';
             if($rh->randevu->user_id == 2012)
             {
@@ -2194,22 +2199,11 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             else
             {
 
-                if(($rh->randevu->randevuya_geldi !== null && $rh->randevu->randevuya_geldi === 1 ) || ($rh->seansa_geldi !== null && $rh->seansa_geldi === 1 )){
-
-                    $color =  "0xFF008000";
-                }
-                elseif(($rh->randevu->randevuya_geldi !== null && $rh->randevu->randevuya_geldi === 0)|| ($rh->seansa_geldi !== null && $rh->seansa_geldi === 0 ))
-                    $color = "0xFFff0000";
-                elseif($rh->randevu->durum === 0)
-                    $color = '0xFFffc107';
-                elseif($rh->randevu->randevuya_gelecek !== null && $rh->randevu->randevuya_gelecek === 1 && $rh->randevu->randevuya_geldi === null)
-                {
-                    $gelecek = true;
-                    $color = "0xFFEF7400";
-                }
-                elseif($rh->iptal)
-                {
-                    $color = "0xFF000000";
+                $durumAd = \App\Services\RandevuDurumRenk::durum($rh, $durumZemin);
+                if($durumAd !== null){
+                    $color = $durumZemin[$durumAd];
+                    $ozelYazi = $durumYazi[$durumAd] ?? null;
+                    $gelecek = $durumAd === 'gelecek' || ($durumAd === 'islemde' && $rh->randevu->randevuya_gelecek === 1);
                 }
                 else{
 
@@ -2459,12 +2453,12 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                 'odaAdi'=>$rh->oda ? $rh->oda->oda_adi : '',
                 'resourceTitle'=> "",
                 // Yazi rengi sadece normal randevularda; durum renklerinde beyaz.
-                "textColor"=> ($yaziRengi !== null ? ($normalRenk ? $yaziRengi : '0xFFFFFFFF') : ""),
+                "textColor"=> $ozelYazi ?? ($yaziRengi !== null ? ($normalRenk ? $yaziRengi : '0xFFFFFFFF') : ""),
                 'modal_title' => $modalTitle,
                 'duzenle_buton'=>$duzenleButon,
                 'satis_olustu'=>$satisOlustu,
                 'durum'=>($rh->randevu->durum !==null ? $rh->randevu->durum : "na") ."-".($rh->randevu->randevuya_geldi !== null ? $rh->randevu->randevuya_geldi : "na").'-'.$satisOlustu.'-'.$odemeYapildi.'-'.$rh->id.'-'.$_telafiVar.'-'.$_telafiKaynak.'-'.$_telafiVerildi,
-            ];
+            ] + ($ozelYazi !== null ? ['_ozelYazi' => $ozelYazi] : []);
         });
 
         // ============================================================
@@ -2624,7 +2618,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                     $e['bgcolor'] = $renkSiraMap[$rid];
                     if(!empty($__txtByRes[$rid])) $e['textColor'] = $__txtByRes[$rid]; // per-renk yazi
                 } else {
-                    $e['textColor'] = '0xFFFFFFFF'; // durum renkli: beyaz yazi
+                    $e['textColor'] = $e['_ozelYazi'] ?? '0xFFFFFFFF'; // durum renkli: beyaz yazi (ya da isletmenin sectigi)
                 }
                 return $e;
             });

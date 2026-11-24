@@ -185,11 +185,11 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
       <div class="ogt-filtre" id="ogt_filtre">
          <button type="button" data-d="" class="aktif"><i style="background:#9a93ad"></i> Tümü <b>0</b></button>
          <button type="button" data-d="bekliyor"><i style="background:#fff;border:2px solid #9a93ad"></i> İşaretlenmedi <b>0</b></button>
-         <button type="button" data-d="gelecek"><i style="background:#EF7400"></i> Gelecek <b>0</b></button>
-         <button type="button" data-d="geldi"><i style="background:#008000"></i> Geldi <b>0</b></button>
-         <button type="button" data-d="gelmedi"><i style="background:#ff0000"></i> Gelmedi <b>0</b></button>
+         <button type="button" data-d="gelecek"><i style="background:{{ $durumRenkleri['gelecek'] ?? '#EF7400' }}"></i> Gelecek <b>0</b></button>
+         <button type="button" data-d="geldi"><i style="background:{{ $durumRenkleri['geldi'] ?? '#008000' }}"></i> Geldi <b>0</b></button>
+         <button type="button" data-d="gelmedi"><i style="background:{{ $durumRenkleri['gelmedi'] ?? '#ff0000' }}"></i> Gelmedi <b>0</b></button>
          <button type="button" data-d="ertelendi"><i style="background:#f4f2f8;border:2px dashed #b3aac6"></i> Ertelendi <b>0</b></button>
-         <button type="button" data-d="iptal"><i style="background:#6b7280"></i> Randevu İptal <b>0</b></button>
+         <button type="button" data-d="iptal"><i style="background:{{ $durumRenkleri['iptal'] ?? '#6b7280' }}"></i> Randevu İptal <b>0</b></button>
          <button type="button" data-d="satildi"><span class="fa fa-check" aria-hidden="true"></span> Satış Yapıldı <b>0</b></button>
          <button type="button" data-d="satilmadi"><span class="fa fa-times" aria-hidden="true"></span> Satış Yapılmadı <b>0</b></button>
       </div>
@@ -232,6 +232,7 @@ $(document).ready(function(){
    var BUGUN = '{{ date('Y-m-d') }}';
    var AYLAR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
    var GUNLER = ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'];
+   var DURUM_RENK = {!! json_encode((object) $durumRenkleri) !!}; // yalniz isletmenin ayarladigi durumlar
    var DURUM_AD = {bekliyor:'İşaretlenmedi', gelecek:'Gelecek', geldi:'Geldi', gelmedi:'Gelmedi', iptal:'Randevu İptal', ertelendi:'Ertelendi'};
    var SATIS_AD = {satildi:'Satış Yapıldı', satilmadi:'Satış Yapılmadı'};
    var SAAT_H = 96, ADIM = 15, GUN_SONU = 1440, SON_BITIS = 1425; // bitis en gec 23:45 (00:00 ertesi gune kayar)
@@ -483,7 +484,7 @@ $(document).ready(function(){
       if (!KATILIM || !o.randevu_id || o.kat === 'iptal' || o.kat === 'ertelendi') return '';
       function dugme(k, renk){ return '<button type="button" data-kat="'+k+'" class="'+(o.kat === k ? 'secili' : '')+'" aria-pressed="'+(o.kat === k)+'" style="--b:'+renk+'">'+(o.kat === k ? '✓ ' : '')+DURUM_AD[k]+'</button>'; }
       var isaretli = o.kat === 'geldi' || o.kat === 'gelmedi';
-      return (!isaretli && o.onayli ? dugme('gelecek','#EF7400') : '')+dugme('geldi','#008000')+dugme('gelmedi','#e00000')+
+      return (!isaretli && o.onayli ? dugme('gelecek',DURUM_RENK.gelecek || '#EF7400') : '')+dugme('geldi',DURUM_RENK.geldi || '#008000')+dugme('gelmedi',DURUM_RENK.gelmedi || '#e00000')+
          (o.kat !== 'bekliyor' ? '<button type="button" class="kaldir" data-kat="'+o.kat+'"><i class="fa fa-undo"></i> '+DURUM_AD[o.kat]+' İşaretini Kaldır</button>' : '');
    }
    $('#ogt_d_katilim').on('click', 'button', function(){

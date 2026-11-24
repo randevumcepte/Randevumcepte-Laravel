@@ -1312,6 +1312,9 @@
                            }
                         })();
                         </script>
+                        @if(\App\Services\RandevuDurumRenk::acik($isletme->id))
+                        @include('isletmeadmin.partials.randevu_durum_renkleri')
+                        @endif
                         <div class="col-md-12">
                            <button type="submit" class="btn btn-success btn-lg btn-block"><i class="fa fa-save"></i> Kaydet</button>
                         </div>

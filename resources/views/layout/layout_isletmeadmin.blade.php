@@ -5874,7 +5874,11 @@ document.addEventListener('DOMContentLoaded', function() {
       <script src="{{secure_asset('public/js/seansTakibi.js?v=14.2')}}"></script>
       <script src="{{secure_asset('public/js/telefon-ulke.js?v=2.0')}}"></script>
       <link rel="stylesheet" href="{{secure_asset('public/css/paket-form.css?v=3')}}">
-      <script src="{{secure_asset('public/js/custom.js?v=303.8')}}"></script>
+      @php $_rcDurumRenk = \App\Services\RandevuDurumRenk::harita($isletme->id); @endphp
+      @if(count($_rcDurumRenk))
+      <script>window.RC_DURUM_RENK = {!! json_encode($_rcDurumRenk) !!};</script>
+      @endif
+      <script src="{{secure_asset('public/js/custom.js?v=303.9')}}"></script>
       @if($pageindex==22)
       <script src="{{secure_asset('public/js/reklamYonetimi2.js?v=9.9')}}"></script>
       <script src="{{secure_asset('public/js/musteriListeSecimi.js?v=12.0')}}"></script>
