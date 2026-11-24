@@ -8209,6 +8209,8 @@ private function ayAdiCevir($ingilizceAy)
         $randevu = new Randevular();
         $randevu->user_id = $randevu_eski->user_id;
         $randevu->salon_id = $randevu_eski->salon_id;
+        // On gorusme bagi kopmasin (kopunca on gorusme saatsiz kaliyor, duzenlemede ikinci randevu olusuyordu)
+        $randevu->on_gorusme_id = $randevu_eski->on_gorusme_id;
         $randevu->tarih = $baslangic[0];
         $randevu->saat = $baslangic[1];
         $randevu->durum = $randevu_eski->durum;
@@ -8244,6 +8246,15 @@ private function ayAdiCevir($ingilizceAy)
         if($yeniSureDk > 0)
             $hizmet->sure_dk = $yeniSureDk;
         $hizmet->save();
+
+        // On gorusme kaydi randevuyla ayni gun / personelde kalsin
+        if ($randevu->on_gorusme_id) {
+            $ogGuncel = ['hatirlatma_tarihi' => $randevu->tarih];
+            if ($hizmet->personel_id && $hizmetEski && (int) $hizmet->personel_id !== (int) $hizmetEski->personel_id) {
+                $ogGuncel['personel_id'] = $hizmet->personel_id;
+            }
+            DB::table('on_gorusmeler')->where('id', $randevu->on_gorusme_id)->where('salon_id', $randevu->salon_id)->update($ogGuncel);
+        }
 
         // PAKET RANDEVUSU: paket randevularinda ayni randevu_id altinda birden cok
         // randevu_hizmetler satiri olur (ilkinde sure_dk>0, digerlerinde 0). Takvim
@@ -17833,7 +17844,11 @@ DB::raw('
         $ongorusme->personel_id = $request->gorusmeyi_yapan;
         $ongorusme->save();
         $eskirandevu = Randevular::where('on_gorusme_id',$ongorusme->id)->first();
+        $ongorusmeSure = 60; // takvimde degistirilmis sure duzenlemede kaybolmasin
         if($eskirandevu){
+            foreach($eskirandevu->hizmetler as $hizmet){
+                if((int)$hizmet->sure_dk > 0) { $ongorusmeSure = (int)$hizmet->sure_dk; break; }
+            }
             foreach($eskirandevu->hizmetler as $hizmet){
                 $hizmet->delete();
                 RandevuHizmetYardimciPersonel::where('randevu_hizmet_id',$hizmet->id)->delete();
@@ -17855,8 +17870,8 @@ DB::raw('
         $ongorusmehizmeti->hizmet_id = 0;
         $ongorusmehizmeti->personel_id =  $request->gorusmeyi_yapan;
         $ongorusmehizmeti->saat = $request->ongorusme_saati;
-        $ongorusmehizmeti->saat_bitis = date('H:i:s',strtotime('+1 hours',strtotime($request->ongorusme_saati)));
-        $ongorusmehizmeti->sure_dk = 60; // Calendar query "sure_dk > 0" filtresi icin
+        $ongorusmehizmeti->saat_bitis = date('H:i:s',strtotime('+'.$ongorusmeSure.' minutes',strtotime($request->ongorusme_saati)));
+        $ongorusmehizmeti->sure_dk = $ongorusmeSure; // Calendar query "sure_dk > 0" filtresi icin
         $ongorusmehizmeti->randevu_id = $randevu->id;
         // Takvim odaya gore ise (randevu_takvim_turu == 3) secilen oda randevuya islensin
         $_takvimTuru = Salonlar::where('id',$request->sube)->value('randevu_takvim_turu');
@@ -18333,6 +18348,15 @@ DB::raw('
         if ($aramaYalniz && !$aramaYalnizPersonel) $aramaAktif = false;
 
         return view('isletmeadmin.ongorusme_takvim',[
+            // Randevu takvimiyle ayni: izgara baslangici/kapali saatler salon calisma saatinden (1=Pzt .. 7=Paz)
+            'calismaSaatleri'         => SalonCalismaSaatleri::where('salon_id',$salonId)->get()->mapWithKeys(function ($c) {
+                return [(int) $c->haftanin_gunu => [
+                    'acik' => (bool) $c->calisiyor,
+                    'b'    => substr((string) $c->baslangic_saati,0,5),
+                    'e'    => substr((string) $c->bitis_saati,0,5),
+                ]];
+            })->all(),
+            'tasimaYetki'             => \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, 'randevu.duzenle_iptal'),
             'aramaAktif'              => $aramaAktif,
             'aramaYalnizPersonel'     => $aramaYalnizPersonel,
             'personeller'             => $personeller,
@@ -18418,7 +18442,8 @@ DB::raw('
             $rhler = DB::table('randevu_hizmetler')
                 ->leftJoin('odalar','randevu_hizmetler.oda_id','=','odalar.id')
                 ->whereIn('randevu_hizmetler.randevu_id',$randevular->pluck('id')->all())
-                ->get(['randevu_hizmetler.randevu_id','randevu_hizmetler.saat_bitis','odalar.oda_adi'])
+                ->orderBy('randevu_hizmetler.sure_dk','asc') // birden cok kalemde sureli olan kazanir (takvim gibi)
+                ->get(['randevu_hizmetler.id','randevu_hizmetler.randevu_id','randevu_hizmetler.saat','randevu_hizmetler.saat_bitis','odalar.oda_adi'])
                 ->keyBy('randevu_id');
         }
 
@@ -18445,7 +18470,10 @@ DB::raw('
                 'musteri'     => $k->ad_soyad ?: ($k->kullanici_ad ?: 'Müşteri'),
                 'telefon'     => $telGor ? (string) $k->cep_telefon : \App\PersonelYetkiSabitleri::telefonMaskele($k->cep_telefon),
                 'tarih'       => $rnd ? date('Y-m-d',strtotime($rnd->tarih)) : date('Y-m-d',strtotime($k->hatirlatma_tarihi)),
-                'saat'        => ($rnd && $rnd->saat) ? substr($rnd->saat,0,5) : null,
+                'randevu_id'  => $rnd ? (int) $rnd->id : 0,
+                'kalem_id'    => $rh ? (int) $rh->id : 0,
+                // Baslangic/bitis randevu takviminin kaynagi: randevu kalemi
+                'saat'        => ($rh && $rh->saat) ? substr($rh->saat,0,5) : (($rnd && $rnd->saat) ? substr($rnd->saat,0,5) : null),
                 'bitis'       => ($rh && $rh->saat_bitis) ? substr($rh->saat_bitis,0,5) : null,
                 'randevulu'   => (bool) $rnd,
                 'oda'         => $rh ? (string) $rh->oda_adi : '',
