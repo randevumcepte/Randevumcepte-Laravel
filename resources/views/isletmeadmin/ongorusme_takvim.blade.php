@@ -51,7 +51,9 @@
 .ogt-filtre button.aktif b{ background:#6d28d9; color:#fff; }
 
 .ogt-alan{ position:relative; min-height:220px; }
-.ogt-alan.yukleniyor{ opacity:.45; pointer-events:none; }
+.ogt-alan.yukleniyor{ pointer-events:none; }
+.ogt-alan.yukleniyor.gun-degisti{ opacity:.45; } /* isaretleme/kayit sonrasi tazelemede soluklasma YOK */
+#preloader{ background:transparent !important; } /* bu sayfada islem sirasinda ekran grilesmesin; tiklama kilidi kalir */
 .ogt-hata{ padding:40px 16px; text-align:center; color:#b91c1c; font-size:14px; }
 .ogt-bos{ padding:10px 14px; margin-bottom:10px; background:#faf7ff; border-radius:10px; color:#6b5b7b; font-size:13px; }
 
@@ -117,7 +119,7 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 .ogt-kat{ display:flex; gap:8px; padding:0 18px 14px; flex-wrap:wrap; }
 .ogt-kat button{ flex:1 1 0; min-width:96px; height:42px; border-radius:10px; border:2px solid var(--b); background:#fff; color:var(--b); font-size:14px; font-weight:700; cursor:pointer; }
 .ogt-kat button.secili, .ogt-kat button:hover{ background:var(--b); color:#fff; }
-.ogt-kat small{ width:100%; font-size:12px; color:#6b7280; }
+.ogt-kat button.kaldir{ --b:#5b5470; flex:1 0 100%; border-width:1px; }
 .ogt-d-alt{ display:flex; gap:8px; flex-wrap:wrap; padding:12px 18px 16px; border-top:1px solid #ece6f3; background:#fbfafd; }
 .ogt-d-alt .ogt-btn{ flex:1 1 auto; justify-content:center; border-radius:10px; }
 .ogt-btn-kirmizi{ background:#b91c1c; border-color:#b91c1c; color:#fff !important; }
@@ -259,7 +261,7 @@ $(document).ready(function(){
    function yukle(){
       var no = ++istekNo;
       baslikYaz();
-      $('#ogt_alan').addClass('yukleniyor');
+      $('#ogt_alan').addClass('yukleniyor').toggleClass('gun-degisti', cizilenGun !== secili);
       $.ajax({ url:'/isletmeyonetim/ongorusme-takvim-verileri', dataType:'json', cache:false, data:{ sube:SUBE, start:secili, end:secili } })
          .done(function(r){
             if (no !== istekNo) return;
@@ -272,7 +274,7 @@ $(document).ready(function(){
             olaylar = []; cizilenGun = '';
             $('#ogt_alan').html('<div class="ogt-hata">Ön görüşmeler yüklenemedi. Sayfayı yenileyip tekrar deneyin.</div>');
          })
-         .always(function(){ if (no === istekNo) $('#ogt_alan').removeClass('yukleniyor'); });
+         .always(function(){ if (no === istekNo) $('#ogt_alan').removeClass('yukleniyor gun-degisti'); });
    }
    function personelListesi(){
       var pid = $('#ogt_personel').val();
@@ -476,13 +478,13 @@ $(document).ready(function(){
       $('#ogt_d_alt').html(b).toggle(!!b);
       $('#ogt_detay').modal('show');
    }
-   /* Katılım: Gelecek / Geldi / Gelmedi. Seçili olana tekrar basınca işaret kalkar. */
+   /* Katılım: Gelecek / Geldi / Gelmedi. İşaretliyse "… İşaretini Kaldır" (seçili olana tekrar basmak da kaldırır). */
    function katilimHtml(o){
       if (!KATILIM || !o.randevu_id || o.kat === 'iptal' || o.kat === 'ertelendi') return '';
       function dugme(k, renk){ return '<button type="button" data-kat="'+k+'" class="'+(o.kat === k ? 'secili' : '')+'" aria-pressed="'+(o.kat === k)+'" style="--b:'+renk+'">'+(o.kat === k ? '✓ ' : '')+DURUM_AD[k]+'</button>'; }
       var isaretli = o.kat === 'geldi' || o.kat === 'gelmedi';
       return (!isaretli && o.onayli ? dugme('gelecek','#EF7400') : '')+dugme('geldi','#008000')+dugme('gelmedi','#e00000')+
-         (o.kat !== 'bekliyor' ? '<small>İşareti kaldırmak için seçili düğmeye tekrar basın.</small>' : '');
+         (o.kat !== 'bekliyor' ? '<button type="button" class="kaldir" data-kat="'+o.kat+'"><i class="fa fa-undo"></i> '+DURUM_AD[o.kat]+' İşaretini Kaldır</button>' : '');
    }
    $('#ogt_d_katilim').on('click', 'button', function(){
       var k = $(this).attr('data-kat'), o = detayOlay, kaldir = o && o.kat === k;
