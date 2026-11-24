@@ -21,6 +21,7 @@ class RandevuSemaEnsure extends Command
             Log::info('randevu:sema-ensure — randevular.randevuya_islemde eklendi');
             $this->info('randevuya_islemde eklendi');
         }
+        \App\Services\OnGorusmeErteleme::semaGaranti();
         return 0;
     }
 }

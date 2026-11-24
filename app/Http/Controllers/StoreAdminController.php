@@ -8211,6 +8211,10 @@ private function ayAdiCevir($ingilizceAy)
         $randevu->salon_id = $randevu_eski->salon_id;
         // On gorusme bagi kopmasin (kopunca on gorusme saatsiz kaliyor, duzenlemede ikinci randevu olusuyordu)
         $randevu->on_gorusme_id = $randevu_eski->on_gorusme_id;
+        if ($randevu->on_gorusme_id && $randevu_eski->tarih == $baslangic[0]) { // ayni gun: katilim isareti korunur
+            $randevu->randevuya_geldi = $randevu_eski->randevuya_geldi;
+            $randevu->randevuya_gelecek = $randevu_eski->randevuya_gelecek;
+        }
         $randevu->tarih = $baslangic[0];
         $randevu->saat = $baslangic[1];
         $randevu->durum = $randevu_eski->durum;
@@ -17864,6 +17868,10 @@ DB::raw('
         $randevu->salon = true;
         $randevu->sms_hatirlatma = true;
         $randevu->durum = 1;
+        if ($eskirandevu && (int) $eskirandevu->durum === 1 && $eskirandevu->tarih == $request->ongorusme_tarihi) { // ayni gun: katilim isareti korunur
+            $randevu->randevuya_geldi = $eskirandevu->randevuya_geldi;
+            $randevu->randevuya_gelecek = $eskirandevu->randevuya_gelecek;
+        }
         $randevu->olusturan_personel_id = Auth::guard('isletmeyonetim')->user()->id;
         $randevu->save();
         $ongorusmehizmeti = new RandevuHizmetler();
@@ -18331,6 +18339,7 @@ DB::raw('
             return view('isletmeadmin.isletmesec',['isletmeler'=>$isletmeler,'isletme'=>$isletme]);
         }
 
+        \App\Services\OnGorusmeErteleme::semaGaranti();
         $kisitli = self::personelmi($request,'gorusme.liste_gor');
         $personeller = Personeller::where('salon_id',$salonId)->where('aktif',true)
             ->where(function ($q) use ($kisitli,$authUser) {
@@ -18356,6 +18365,7 @@ DB::raw('
                     'e'    => substr((string) $c->bitis_saati,0,5),
                 ]];
             })->all(),
+            'katilimYetki'            => self::randevuKatilimYetkiVar($request),
             'tasimaYetki'             => \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, 'randevu.duzenle_iptal'),
             'aramaAktif'              => $aramaAktif,
             'aramaYalnizPersonel'     => $aramaYalnizPersonel,
@@ -18407,8 +18417,17 @@ DB::raw('
             $randevusuzIds = array_values(array_diff($randevusuzIds,$randevuluIds));
         }
 
-        $idler = array_merge($randevular->keys()->all(),$randevusuzIds);
+        // 3) Bu gunlerden BASKA bir tarihe ertelenen gorusmeler: eski gunde "Ertelendi" olarak kalir.
+        $ertelemeler = \App\Services\OnGorusmeErteleme::aralik($salonId,$bas,$bit)
+            ->reject(function ($e) use ($randevular) { // sonradan ayni gune geri alinmis
+                $r = $randevular->get($e->on_gorusme_id);
+                return $r && date('Y-m-d',strtotime($r->tarih)) === $e->eski_tarih;
+            });
+
+        $gunIdler = array_merge($randevular->keys()->all(),$randevusuzIds);
+        $idler = array_unique(array_merge($gunIdler,$ertelemeler->pluck('on_gorusme_id')->all()));
         if (!count($idler)) return response()->json([]);
+        $gunIdler = array_flip($gunIdler);
 
         $kisitliPersonelId = null;
         if (self::personelmi($request,'gorusme.liste_gor')) {
@@ -18423,8 +18442,10 @@ DB::raw('
             ->leftJoin('hizmetler','on_gorusmeler.hizmet_id','=','hizmetler.id')
             ->where('on_gorusmeler.salon_id',$salonId)
             ->whereIn('on_gorusmeler.id',$idler);
+        $gizliPersonel = \App\Services\PersonelGorunurluk::gizliIdler($salonId,'ongorusme');
+        $ertelemePersonel = Personeller::whereIn('id',$ertelemeler->pluck('personel_id')->filter()->unique()->all())->pluck('personel_adi','id')->all();
         if ($kisitliPersonelId !== null) $q->where('on_gorusmeler.personel_id',$kisitliPersonelId);
-        elseif ($gizliPersonel = \App\Services\PersonelGorunurluk::gizliIdler($salonId,'ongorusme')) {
+        elseif ($gizliPersonel) {
             $q->where(function ($w) use ($gizliPersonel) {
                 $w->whereNull('on_gorusmeler.personel_id')->orWhereNotIn('on_gorusmeler.personel_id',$gizliPersonel);
             });
@@ -18447,6 +18468,11 @@ DB::raw('
                 ->keyBy('randevu_id');
         }
 
+        // Renk + katilim (geldi/gelmedi/gelecek): randevu takvimiyle ayni kural
+        $renkCoz = \App\Services\OnGorusmeTakvimRenk::cozucu($salonId);
+        $kalemler = RandevuHizmetler::with(['randevu','personeller.trenk','hizmetler'])
+            ->whereIn('id',$rhler->pluck('id')->all())->get()->keyBy('id');
+
         $telGor = \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, 'musteri.telefon_gor');
         $tipler = [1=>'İnternet',2=>'Reklam',3=>'Instagram',4=>'Facebook',5=>'Tanıdık'];
 
@@ -18460,15 +18486,49 @@ DB::raw('
             elseif ($k->hizmet_id !== null)  { $tur = 3; $neden = 'Hizmet : '.$k->hizmet_adi; }
             else                             { $tur = 0; $neden = 'Belirtilmemiş'; }
 
-            if ($k->durum !== null)                  $durum = (int) $k->durum === 1 ? 'satildi' : 'satilmadi';
-            elseif ($rnd && (int) $rnd->durum >= 2)  $durum = 'iptal'; // randevusu iptal edilmis, sonuc girilmemis
-            else                                     $durum = 'bekliyor';
-
-            $sonuc[] = [
-                'id'          => (int) $k->id,
+            $ortak = [
+                'gorusme_id'  => (int) $k->id,
                 'user_id'     => (int) $k->user_id,
                 'musteri'     => $k->ad_soyad ?: ($k->kullanici_ad ?: 'Müşteri'),
                 'telefon'     => $telGor ? (string) $k->cep_telefon : \App\PersonelYetkiSabitleri::telefonMaskele($k->cep_telefon),
+                'neden'       => $neden,
+                'tur'         => $tur,
+                'aciklama'    => (string) $k->aciklama,
+            ];
+            foreach ($ertelemeler->where('on_gorusme_id',$k->id) as $e) {
+                $pid = (int) ($e->personel_id ?: $k->personel_id);
+                if ($kisitliPersonelId === null && in_array($pid, $gizliPersonel, true)) continue;
+                $b = $e->eski_saat ? strtotime($e->eski_saat) : null;
+                $sonuc[] = $ortak + [
+                    'id'          => 'e'.$e->id,
+                    'tarih'       => $e->eski_tarih,
+                    'saat'        => $b ? date('H:i',$b) : null,
+                    'bitis'       => $b ? date('H:i',$b + ((int) $e->sure_dk ?: 60) * 60) : null,
+                    'randevu_id'  => 0,
+                    'kalem_id'    => 0,
+                    'randevulu'   => false,
+                    'onayli'      => false,
+                    'oda'         => '',
+                    'personel_id' => $pid,
+                    'personel'    => $ertelemePersonel[$pid] ?? ($k->personel_adi ?: 'Personel belirtilmemiş'),
+                    'kat'         => 'ertelendi',
+                    'renk'        => '',
+                    'yazi'        => '',
+                    'satis'       => '',
+                    'sonucsuz'    => false,
+                    'yeni_tarih'  => $e->yeni_tarih,
+                    'yeni_saat'   => $e->yeni_saat ? substr($e->yeni_saat,0,5) : '',
+                    'olusturma'   => $e->created_at ? date('d.m.Y H:i',strtotime($e->created_at)) : '',
+                ];
+            }
+            if (!isset($gunIdler[$k->id])) continue; // bugun yalniz ertelenmis hali var
+
+            $kalem = $rh ? $kalemler->get($rh->id) : null;
+            $renk = $kalem ? $renkCoz($kalem) : ['kat'=>'bekliyor','renk'=>\App\Services\OnGorusmeTakvimRenk::VARSAYILAN,'yazi'=>'#ffffff'];
+            if ($rnd && (int) $rnd->durum >= 2) $renk = ['kat'=>'iptal','renk'=>'#6b7280','yazi'=>'#ffffff'];
+
+            $sonuc[] = $ortak + [
+                'id'          => (string) $k->id,
                 'tarih'       => $rnd ? date('Y-m-d',strtotime($rnd->tarih)) : date('Y-m-d',strtotime($k->hatirlatma_tarihi)),
                 'randevu_id'  => $rnd ? (int) $rnd->id : 0,
                 'kalem_id'    => $rh ? (int) $rh->id : 0,
@@ -18477,13 +18537,14 @@ DB::raw('
                 'bitis'       => ($rh && $rh->saat_bitis) ? substr($rh->saat_bitis,0,5) : null,
                 'randevulu'   => (bool) $rnd,
                 'oda'         => $rh ? (string) $rh->oda_adi : '',
+                'onayli'      => $rnd && (int) $rnd->durum === 1,
                 'personel_id' => (int) $k->personel_id,
                 'personel'    => $k->personel_adi ?: 'Personel belirtilmemiş',
-                'neden'       => $neden,
-                'tur'         => $tur,
                 'referans'    => $tipler[(int) $k->musteri_tipi] ?? '',
-                'aciklama'    => (string) $k->aciklama,
-                'durum'       => $durum,
+                'kat'         => $renk['kat'],
+                'renk'        => $renk['renk'],
+                'yazi'        => $renk['yazi'],
+                'satis'       => $k->durum === null ? '' : ((int) $k->durum === 1 ? 'satildi' : 'satilmadi'),
                 'sonucsuz'    => $k->durum === null,
                 'neden_yok'   => (string) $k->satisyapilmadi_not,
                 'olusturma'   => $k->created_at ? date('d.m.Y',strtotime($k->created_at)) : '',

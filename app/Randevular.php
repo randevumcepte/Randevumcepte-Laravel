@@ -19,6 +19,15 @@ class Randevular extends Model
         'user_id', 'salon_id' ,'tarih' ,'saat','personel_notu' , 'salon' ,'web','uygulama', 'olusturan_personel_id', 'durum'
     ];
    
+    // On gorusmenin tarihi degisirse eski gun kaydedilir (On Gorusme Takvimi "Ertelendi" rozeti)
+    protected static function boot()
+    {
+        parent::boot();
+        static::deleting(function ($r) { \App\Services\OnGorusmeErteleme::randevuSiliniyor($r); });
+        static::created(function ($r) { \App\Services\OnGorusmeErteleme::randevuOlustu($r); });
+        static::updating(function ($r) { \App\Services\OnGorusmeErteleme::randevuGuncelleniyor($r); });
+    }
+
       public function salonlar()
     {
         return $this->belongsTo(Salonlar::class,'salon_id');

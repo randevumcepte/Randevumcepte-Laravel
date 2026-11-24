@@ -26,8 +26,6 @@
 .ogt-btn:hover{ background:#f5eefe; }
 .ogt-btn-yesil{ background:#15803d; border-color:#15803d; color:#fff !important; }
 .ogt-btn-yesil:hover{ background:#166534; }
-.ogt-btn-mavi{ background:#1d4ed8; border-color:#1d4ed8; color:#fff !important; }
-.ogt-btn-mavi:hover{ background:#1e40af; }
 
 .ogt-panel{ padding:16px 18px 18px; margin-bottom:30px; }
 .ogt-arac{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
@@ -56,22 +54,14 @@
 .ogt-hata{ padding:40px 16px; text-align:center; color:#b91c1c; font-size:14px; }
 .ogt-bos{ padding:10px 14px; margin-bottom:10px; background:#faf7ff; border-radius:10px; color:#6b5b7b; font-size:13px; }
 
-/* --- Durum renkleri --- */
-.ogt-e{ --r:#b45309; --z:#fef3c7; --k:#f59e0b; }
-.ogt-e.satildi{ --r:#166534; --z:#dcfce7; --k:#16a34a; }
-.ogt-e.satilmadi{ --r:#991b1b; --z:#fee2e2; --k:#dc2626; }
-.ogt-e.iptal{ --r:#4b5563; --z:#f1f2f5; --k:#9ca3af; }
-.ogt-e{ background:var(--z); color:var(--r); border-left:4px solid var(--k); border-radius:7px; cursor:pointer; overflow:hidden; }
-.ogt-e.iptal .ad{ text-decoration:line-through; }
-.ogt-e:hover{ filter:brightness(.97); box-shadow:0 4px 12px -5px rgba(30,30,60,.35); }
+/* --- Kayıt: renk/yazı randevu takviminden gelir (inline --z / --y) --- */
+.ogt-e{ --z:#3a87ad; --y:#fff; background-color:var(--z); color:var(--y); border-left:4px solid rgba(0,0,0,.28); border-radius:7px; cursor:pointer; overflow:hidden; }
+.ogt-e.iptal .ad, .ogt-e.ertelendi .ad{ text-decoration:line-through; }
+.ogt-e.ertelendi{ --z:#f4f2f8; --y:#5b5470; border:1px dashed #b3aac6; border-left:4px solid #b3aac6; background-image:repeating-linear-gradient(135deg,transparent 0 7px,rgba(91,84,112,.07) 7px 14px); }
+.ogt-e:hover{ filter:brightness(.95); box-shadow:0 4px 12px -5px rgba(30,30,60,.35); }
 .ogt-e:focus{ outline:2px solid #5C008E; outline-offset:1px; }
-
-/* --- Bos saate tiklayinca: ne eklensin? --- */
-#ogt_sec{ position:fixed; z-index:1040; width:228px; background:#fff; border:1px solid #e3d5f5; border-radius:12px; box-shadow:0 14px 36px -10px rgba(43,27,69,.4); padding:8px; display:none; }
-#ogt_sec p{ margin:0; padding:4px 8px 8px; font-size:12.5px; font-weight:700; color:#4a4461; }
-#ogt_sec button{ display:flex; align-items:center; gap:10px; width:100%; border:0; background:transparent; border-radius:8px; padding:10px; font-size:13.5px; font-weight:600; color:#1f2937; text-align:left; cursor:pointer; }
-#ogt_sec button:hover, #ogt_sec button:focus{ background:#f5eefe; outline:0; }
-#ogt_sec button i{ width:16px; text-align:center; }
+.ogt-mini{ display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; margin-top:2px; padding:1px 7px; border-radius:20px; font-size:11px; font-weight:700; background:rgba(255,255,255,.92); color:#1f2937; }
+.ogt-mini.ert{ background:#5C008E; color:#fff; }
 
 /* --- Saat ızgarası (sütun = personel) --- */
 .ogt-kaydir{ border:1px solid var(--cizgi); border-radius:12px; overflow:auto; max-height:72vh; -webkit-overflow-scrolling:touch; }
@@ -85,13 +75,13 @@
 .ogt-sutun{ position:relative; border-left:1px solid var(--cizgi); background-image:linear-gradient(to bottom,var(--cizgi) 1px,transparent 1px),linear-gradient(to bottom,#f6f4fa 1px,transparent 1px); background-size:100% var(--saat-h),100% calc(var(--saat-h) / 4); min-width:0; }
 .ogt-kapali{ position:absolute; left:0; right:0; background:rgba(108,99,128,.09); pointer-events:none; }
 .ogt-sutun.ekle{ cursor:copy; }
-.ogt-sutun .ogt-e{ position:absolute; padding:4px 6px; font-size:12px; line-height:1.3; border-top:1px solid #fff; border-right:1px solid #fff; z-index:2; }
+.ogt-sutun .ogt-e{ position:absolute; padding:4px 6px; font-size:12px; line-height:1.3; box-shadow:0 0 0 1px #fff; z-index:2; }
 .ogt-sutun .ogt-e .s{ font-weight:800; }
 .ogt-sutun .ogt-e .ad{ font-weight:700; }
 .ogt-sutun .ogt-e div{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ogt-e.tasinir{ cursor:grab; }
 .ogt-tut{ position:absolute; left:0; right:0; bottom:0; height:8px; cursor:ns-resize; }
-.ogt-e:hover .ogt-tut:after{ content:""; position:absolute; left:50%; bottom:2px; width:22px; height:3px; margin-left:-11px; border-radius:3px; background:var(--k); }
+.ogt-e:hover .ogt-tut:after{ content:""; position:absolute; left:50%; bottom:2px; width:22px; height:3px; margin-left:-11px; border-radius:3px; background:var(--y); opacity:.8; }
 .ogt-sutun .ogt-e.golge{ z-index:4; opacity:.94; box-shadow:0 10px 24px -8px rgba(43,27,69,.5); pointer-events:none; }
 .ogt-e.kaynak{ opacity:.35; }
 body.ogt-surukle, body.ogt-surukle *{ cursor:grabbing !important; user-select:none !important; }
@@ -109,12 +99,16 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 #ogt_detay .ogt-d-bas h2{ margin:0; font-size:17px; font-weight:700; color:#5C008E; }
 #ogt_detay .ogt-d-bas .kapat{ position:absolute; right:10px; top:10px; width:30px; height:30px; border:0; background:transparent; border-radius:7px; font-size:22px; line-height:1; color:#6b7280; cursor:pointer; }
 #ogt_detay .ogt-d-bas .kapat:hover{ background:#f3eefa; }
-.ogt-rozet{ display:inline-block; margin-top:7px; font-size:11.5px; font-weight:700; padding:3px 11px; border-radius:20px; background:var(--z); color:var(--r); border:0; cursor:default; }
+.ogt-rozet{ display:inline-block; margin-top:7px; font-size:11.5px; font-weight:700; padding:3px 11px; border-radius:20px; border:0 !important; cursor:default; }
 .ogt-e.ogt-rozet:hover{ filter:none; box-shadow:none; }
 #ogt_detay .modal-body{ padding:14px 18px; }
 .ogt-d-tablo{ display:grid; grid-template-columns:128px 1fr; gap:9px 12px; font-size:13.5px; margin:0; }
 .ogt-d-tablo dt{ color:#6b7280; font-weight:500; }
 .ogt-d-tablo dd{ margin:0; color:#1f2937; font-weight:600; overflow-wrap:anywhere; white-space:pre-line; }
+.ogt-kat{ display:flex; gap:8px; padding:0 18px 14px; flex-wrap:wrap; }
+.ogt-kat button{ flex:1 1 0; min-width:96px; height:42px; border-radius:10px; border:2px solid var(--b); background:#fff; color:var(--b); font-size:14px; font-weight:700; cursor:pointer; }
+.ogt-kat button.secili, .ogt-kat button:hover{ background:var(--b); color:#fff; }
+.ogt-kat small{ width:100%; font-size:12px; color:#6b7280; }
 .ogt-d-alt{ display:flex; gap:8px; flex-wrap:wrap; padding:12px 18px 16px; border-top:1px solid #ece6f3; background:#fbfafd; }
 .ogt-d-alt .ogt-btn{ flex:1 1 auto; justify-content:center; border-radius:10px; }
 .ogt-btn-kirmizi{ background:#b91c1c; border-color:#b91c1c; color:#fff !important; }
@@ -150,9 +144,6 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
       </div>
       <div class="ogt-ust-sag">
          <a class="ogt-btn" href="/isletmeyonetim/ongorusmeler{{ isset($_GET['sube']) ? '?sube='.$isletme->id : '' }}"><i class="fa fa-list"></i> Liste</a>
-         @if($aramaAktif)
-         <button type="button" class="ogt-btn ogt-btn-mavi" id="ogt_yeni_arama"><i class="fa fa-phone"></i> Yeni Arama Randevusu</button>
-         @endif
          @if($ekleDuzenleYetki)
          <button type="button" class="ogt-btn ogt-btn-yesil" id="ogt_yeni"><i class="fa fa-plus"></i> Yeni Ön Görüşme</button>
          @endif
@@ -182,10 +173,14 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 
       <div class="ogt-filtre" id="ogt_filtre">
          <button type="button" data-d="" class="aktif"><i style="background:#9a93ad"></i> Tümü <b>0</b></button>
-         <button type="button" data-d="bekliyor"><i style="background:#f59e0b"></i> Beklemede <b>0</b></button>
-         <button type="button" data-d="satildi"><i style="background:#16a34a"></i> Satış Yapıldı <b>0</b></button>
-         <button type="button" data-d="satilmadi"><i style="background:#dc2626"></i> Satış Yapılmadı <b>0</b></button>
-         <button type="button" data-d="iptal"><i style="background:#9ca3af"></i> Randevu İptal <b>0</b></button>
+         <button type="button" data-d="bekliyor"><i style="background:#fff;border:2px solid #9a93ad"></i> İşaretlenmedi <b>0</b></button>
+         <button type="button" data-d="gelecek"><i style="background:#EF7400"></i> Gelecek <b>0</b></button>
+         <button type="button" data-d="geldi"><i style="background:#008000"></i> Geldi <b>0</b></button>
+         <button type="button" data-d="gelmedi"><i style="background:#ff0000"></i> Gelmedi <b>0</b></button>
+         <button type="button" data-d="ertelendi"><i style="background:#f4f2f8;border:2px dashed #b3aac6"></i> Ertelendi <b>0</b></button>
+         <button type="button" data-d="iptal"><i style="background:#6b7280"></i> Randevu İptal <b>0</b></button>
+         <button type="button" data-d="satildi"><span class="fa fa-check" aria-hidden="true"></span> Satış Yapıldı <b>0</b></button>
+         <button type="button" data-d="satilmadi"><span class="fa fa-times" aria-hidden="true"></span> Satış Yapılmadı <b>0</b></button>
       </div>
 
       <div class="ogt-alan" id="ogt_alan"></div>
@@ -201,6 +196,7 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
             <button type="button" class="kapat" data-dismiss="modal" aria-label="Kapat">&times;</button>
          </div>
          <div class="modal-body"><dl class="ogt-d-tablo" id="ogt_d_bilgi"></dl></div>
+         <div class="ogt-kat" id="ogt_d_katilim"></div>
          <div class="ogt-d-alt" id="ogt_d_alt"></div>
       </div>
    </div>
@@ -210,11 +206,7 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 <a href="#" name="ongorusme_duzenle" id="ogt_duzenle_tetik" data-value="" style="display:none" aria-hidden="true" tabindex="-1"></a>
 
 @if($aramaAktif)
-<div id="ogt_sec" role="menu">
-   <p id="ogt_sec_zaman"></p>
-   <button type="button" role="menuitem" data-tur="ongorusme"><i class="fa fa-handshake-o" style="color:#15803d"></i> Ön Görüşme</button>
-   <button type="button" role="menuitem" data-tur="arama"><i class="fa fa-phone" style="color:#1d4ed8"></i> Arama Randevusu</button>
-</div>
+{{-- Arama randevusu yalniz KAYDIN detayindan olusturulur; takvimde sadece on gorusmeler gosterilir. --}}
 @include('isletmeadmin.partials.arama_randevu_ekle')
 @endif
 
@@ -222,18 +214,18 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 $(document).ready(function(){
    var SUBE = {{ (int) $isletme->id }};
    var YETKI = {{ $ekleDuzenleYetki ? 'true' : 'false' }};
-   // Arama randevusu buradan yalniz OLUSTURULUR; takvimde sadece on gorusmeler gosterilir.
-   var ARAMA = {{ $aramaAktif ? 'true' : 'false' }}, EKLE = YETKI || ARAMA;
+   var ARAMA = {{ $aramaAktif ? 'true' : 'false' }}, KATILIM = {{ $katilimYetki ? 'true' : 'false' }};
    var PERSONELLER = {!! json_encode($_ogtPersoneller, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
    var CALISMA = {!! json_encode((object) $calismaSaatleri, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}; // 1=Pzt .. 7=Paz
    var TASI = YETKI && {{ $tasimaYetki ? 'true' : 'false' }}, TOKEN = '{{ csrf_token() }}';
    var BUGUN = '{{ date('Y-m-d') }}';
    var AYLAR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
    var GUNLER = ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'];
-   var DURUM_AD = {bekliyor:'Beklemede', satildi:'Satış Yapıldı', satilmadi:'Satış Yapılmadı', iptal:'Randevu İptal'};
+   var DURUM_AD = {bekliyor:'İşaretlenmedi', gelecek:'Gelecek', geldi:'Geldi', gelmedi:'Gelmedi', iptal:'Randevu İptal', ertelendi:'Ertelendi'};
+   var SATIS_AD = {satildi:'Satış Yapıldı', satilmadi:'Satış Yapılmadı'};
    var SAAT_H = 96, ADIM = 15, GUN_SONU = 1440, SON_BITIS = 1425; // bitis en gec 23:45 (00:00 ertesi gune kayar)
 
-   var secili = BUGUN, durumF = '', olaylar = [], istekNo = 0, detayOlay = null, dp = null, dpProg = false;
+   var secili = BUGUN, durumF = '', olaylar = [], istekNo = 0, cizilenGun = '', detayOlay = null, dp = null, dpProg = false;
 
    /* ---------- yardımcılar ---------- */
    function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
@@ -243,6 +235,7 @@ $(document).ready(function(){
    function gunEkle(s,n){ var d = tarih(s); d.setDate(d.getDate()+n); return ymd(d); }
    function haftaGunu(s){ return (tarih(s).getDay()+6)%7; } // 0=Pazartesi
    function dk(s){ var p = s.split(':'); return (+p[0])*60 + (+p[1]); }
+   function kisa(s){ var p = s.split('-'); return p[2]+'.'+p[1]+'.'+p[0]; }
    function uzun(s){ var d = tarih(s); return d.getDate()+' '+AYLAR[d.getMonth()]+' '+d.getFullYear()+', '+GUNLER[haftaGunu(s)]; }
 
    function baslikYaz(){
@@ -257,17 +250,17 @@ $(document).ready(function(){
    function yukle(){
       var no = ++istekNo;
       baslikYaz();
-      secKapat();
       $('#ogt_alan').addClass('yukleniyor');
       $.ajax({ url:'/isletmeyonetim/ongorusme-takvim-verileri', dataType:'json', cache:false, data:{ sube:SUBE, start:secili, end:secili } })
          .done(function(r){
             if (no !== istekNo) return;
             olaylar = r || [];
-            ciz(true);
+            ciz(cizilenGun !== secili); // ayni gunde (isaret/kayit sonrasi) kaydirma korunur
+            cizilenGun = secili;
          })
          .fail(function(){
             if (no !== istekNo) return;
-            olaylar = [];
+            olaylar = []; cizilenGun = '';
             $('#ogt_alan').html('<div class="ogt-hata">Ön görüşmeler yüklenemedi. Sayfayı yenileyip tekrar deneyin.</div>');
          })
          .always(function(){ if (no === istekNo) $('#ogt_alan').removeClass('yukleniyor'); });
@@ -278,25 +271,33 @@ $(document).ready(function(){
    }
    function sirala(l){ return l.slice().sort(function(a,b){ return (a.tarih+(a.saat||'')).localeCompare(b.tarih+(b.saat||'')); }); }
 
+   function uyar(o, d){ return d in SATIS_AD ? (o.kat !== 'ertelendi' && o.satis === d) : o.kat === d; }
    function ciz(ilk){
       var liste = personelListesi();
       $('#ogt_filtre button').each(function(){
          var d = $(this).attr('data-d');
-         $(this).find('b').text(d ? liste.filter(function(o){ return o.durum === d; }).length : liste.length);
+         $(this).find('b').text(d ? liste.filter(function(o){ return uyar(o, d); }).length : liste.length);
       });
-      if (durumF) liste = liste.filter(function(o){ return o.durum === durumF; });
+      if (durumF) liste = liste.filter(function(o){ return uyar(o, durumF); });
       liste = sirala(liste);
 
       var html = '';
       if (!liste.length) html += '<div class="ogt-bos">'+(olaylar.length ? 'Bu filtreye uyan ön görüşme yok.' : 'Bu günde ön görüşme yok.')+'</div>';
       html += izgaraHtml(liste);
-      var st = $('#ogt_alan .ogt-kaydir').scrollTop();
+      var $eski = $('#ogt_alan .ogt-kaydir'), st = $eski.scrollTop(), sl = $eski.scrollLeft();
       $('#ogt_alan').html(html);
       var $k = $('#ogt_alan .ogt-kaydir');
+      $k.scrollLeft(sl || 0);
       if (ilk) kaydir($k, liste); else $k.scrollTop(st || 0);
    }
 
-   function ipucu(o){ return (o.saat ? o.saat+(o.bitis ? ' - '+o.bitis : '')+' · ' : '')+o.musteri+' · '+o.neden+' · '+o.personel+' · '+DURUM_AD[o.durum]; }
+   function ipucu(o){ return (o.saat ? o.saat+(o.bitis ? ' - '+o.bitis : '')+' · ' : '')+o.musteri+' · '+o.neden+' · '+o.personel+' · '+DURUM_AD[o.kat]+(o.kat === 'ertelendi' ? ': '+yeniZaman(o) : '')+(o.satis ? ' · '+SATIS_AD[o.satis] : ''); }
+   function yeniZaman(o){ return kisa(o.yeni_tarih)+(o.yeni_saat ? ' '+o.yeni_saat : ''); }
+   function stil(o){ return o.renk ? '--z:'+esc(o.renk)+';--y:'+esc(o.yazi)+';' : ''; }
+   function rozet(o){
+      if (o.kat === 'ertelendi') return '<span class="ogt-mini ert">Ertelendi: '+kisa(o.yeni_tarih)+'</span>';
+      return o.satis ? '<span class="ogt-mini">'+(o.satis === 'satildi' ? '✓ ' : '✕ ')+SATIS_AD[o.satis]+'</span>' : '';
+   }
 
    /* ---------- IZGARA ---------- */
    function sutunlar(liste){
@@ -305,7 +306,7 @@ $(document).ready(function(){
       function ekle(id, ad){
          if (gorulen[id]) return; gorulen[id] = 1;
          var l = liste.filter(function(o){ return o.personel_id === id; });
-         s.push({ gun:secili, pid:id || '', ust:esc(ad)+'<small>'+l.length+' görüşme</small>', l:l });
+         s.push({ gun:secili, pid:id || '', ust:esc(ad)+'<small>'+l.filter(function(o){ return o.kat !== 'ertelendi'; }).length+' görüşme</small>', l:l });
       }
       PERSONELLER.forEach(function(p){ if (!secPid || String(p.id) === String(secPid)) ekle(p.id, p.ad); });
       liste.forEach(function(o){ ekle(o.personel_id, o.personel); }); // pasif/silinmis personelin kayitlari
@@ -362,7 +363,7 @@ $(document).ready(function(){
          h += '<div class="ogt-saatsiz kose">Saatsiz</div>';
          s.forEach(function(k){
             h += '<div class="ogt-saatsiz">';
-            k.l.forEach(function(o){ if (!o.saat) h += '<div class="ogt-e '+o.durum+'" tabindex="0" role="button" data-id="'+o.id+'" title="'+esc(ipucu(o))+'"><span class="ad">'+esc(o.musteri)+'</span></div>'; });
+            k.l.forEach(function(o){ if (!o.saat) h += '<div class="ogt-e '+o.kat+'" tabindex="0" role="button" data-id="'+o.id+'" style="'+stil(o)+'" title="'+esc(ipucu(o))+'"><span class="ad">'+esc(o.musteri)+'</span> '+rozet(o)+'</div>'; });
             h += '</div>';
          });
       }
@@ -373,16 +374,17 @@ $(document).ready(function(){
       s.forEach(function(k){
          var c = calisma(k.gun);
          function kapali(b, e){ b = Math.max(b, sa[0]); e = Math.min(e, sa[1]); return e > b ? '<div class="ogt-kapali" style="top:'+py(b-sa[0])+'px;height:'+py(e-b)+'px"></div>' : ''; }
-         h += '<div class="ogt-sutun'+(EKLE ? ' ekle' : '')+'" data-gun="'+k.gun+'" data-pid="'+k.pid+'" style="height:'+py(sa[1]-sa[0])+'px;background-position-y:'+(-py(sa[0]%60))+'px">';
+         h += '<div class="ogt-sutun'+(YETKI ? ' ekle' : '')+'" data-gun="'+k.gun+'" data-pid="'+k.pid+'" style="height:'+py(sa[1]-sa[0])+'px;background-position-y:'+(-py(sa[0]%60))+'px">';
          h += c.acik ? kapali(sa[0], c.b)+kapali(c.e, sa[1]) : kapali(sa[0], sa[1]);
          if (k.gun === BUGUN && sdk >= sa[0] && sdk < sa[1]) h += '<div class="ogt-simdi" style="top:'+py(sdk-sa[0])+'px"></div>';
          yerlestir(k.l).forEach(function(y){
             var o = y.o, boy = Math.min(y.e, sa[1])-y.b, w = 100/y.n, z = zaman(o), t = tasinir(o);
-            h += '<div class="ogt-e '+o.durum+(t ? ' tasinir' : '')+'" tabindex="0" role="button" data-id="'+o.id+'" title="'+esc(ipucu(o))+'" style="top:'+py(y.b-sa[0])+'px;height:'+(py(boy)-1)+'px;left:'+(y.s*w)+'%;width:calc('+w+'% - 2px)">'+
-               (boy < 30 ? '<div><span class="s">'+o.saat+'</span> <span class="ad">'+esc(o.musteri)+'</span></div>'
+            h += '<div class="ogt-e '+o.kat+(t ? ' tasinir' : '')+'" tabindex="0" role="button" data-id="'+o.id+'" title="'+esc(ipucu(o))+'" style="'+stil(o)+'top:'+py(y.b-sa[0])+'px;height:'+(py(boy)-1)+'px;left:'+(y.s*w)+'%;width:calc('+w+'% - 2px)">'+
+               (boy < 30 ? '<div><span class="s">'+o.saat+'</span> <span class="ad">'+esc(o.musteri)+'</span> '+rozet(o)+'</div>'
                   : '<div class="s">'+o.saat+' - '+hhmm(z.e%GUN_SONU)+'</div><div class="ad">'+esc(o.musteri)+'</div>')+
+               (boy >= 30 && rozet(o) ? '<div>'+rozet(o)+'</div>' : '')+
                (boy >= 40 ? '<div>'+esc(o.neden)+'</div>' : '')+
-               (boy >= 50 && o.oda ? '<div>'+esc(o.oda)+'</div>' : '')+
+               (boy >= 50 && o.oda && !rozet(o) ? '<div>'+esc(o.oda)+'</div>' : '')+
                (t ? '<div class="ogt-tut"></div>' : '')+'</div>';
          });
          h += '</div>';
@@ -418,40 +420,24 @@ $(document).ready(function(){
       $g.trigger('change.select2');
       $('#ongorusme-modal').modal('show');
    }
-   function aramaAc(gun, saat, pid){ if (ARAMA) window.aramaRandevuEkleAc({ tarih:gun, saat:saat, personelId:pid }); }
-
-   // Bos yere tiklama: iki tur de acilabiliyorsa kucuk secim menusu, degilse dogrudan ilgili pencere
-   var secVeri = null;
-   function secKapat(){ secVeri = null; $('#ogt_sec').hide(); }
-   function secAc(e, gun, saat, pid){
-      if (!ARAMA) return yeniAc(gun, saat, pid);
-      if (!YETKI) return aramaAc(gun, saat, pid);
-      secVeri = [gun, saat, pid];
-      var d = tarih(gun), $s = $('#ogt_sec');
-      $('#ogt_sec_zaman').text(d.getDate()+' '+AYLAR[d.getMonth()]+(saat ? ', '+saat : ''));
-      $s.css({ left:Math.max(8, Math.min(e.clientX, window.innerWidth-$s.outerWidth()-8)), top:Math.max(8, Math.min(e.clientY, window.innerHeight-$s.outerHeight()-8)) }).show();
-      $s.find('button').first().focus();
-   }
-   $('#ogt_sec').on('click', 'button', function(){
-      var v = secVeri, tur = $(this).attr('data-tur');
-      secKapat();
-      if (v) (tur === 'arama' ? aramaAc : yeniAc)(v[0], v[1], v[2]);
-   });
-   $(document).on('mousedown', function(e){ if (secVeri && !$(e.target).closest('#ogt_sec').length) secKapat(); });
-   $(document).on('keydown', function(e){ if (secVeri && e.which === 27) secKapat(); });
-   window.addEventListener('scroll', function(){ if (secVeri) secKapat(); }, true);
-
    // Ajax'li select2'lerde secenek yoksa adi bos gorunur; once secenegi ekle
    function secenekEkle($s, id, ad){
       if (id && !$s.find('option[value="'+id+'"]').length) $s.append(new Option(ad, id, false, false));
    }
    function detayAc(id){
-      var o = olaylar.filter(function(x){ return x.id === id; })[0];
+      var o = olaylar.filter(function(x){ return String(x.id) === id; })[0];
       if (!o) return;
       detayOlay = o;
       $('#ogt_d_ad').text(o.musteri);
-      $('#ogt_d_durum').attr('class','ogt-e ogt-rozet '+o.durum).text(DURUM_AD[o.durum]);
-      var satir = [
+      $('#ogt_d_durum').attr('class','ogt-e ogt-rozet '+o.kat).attr('style', stil(o)).text(DURUM_AD[o.kat]+(o.satis ? ' · '+SATIS_AD[o.satis] : ''));
+      var satir = o.kat === 'ertelendi' ? [
+         ['Eski tarih', uzun(o.tarih)+(o.saat ? ', '+o.saat : '')],
+         ['Yeni tarih', uzun(o.yeni_tarih)+(o.yeni_saat ? ', '+o.yeni_saat : '')],
+         ['Görüşmeyi yapan', o.personel],
+         ['Sebep', o.neden],
+         ['Telefon', o.telefon],
+         ['Erteleme işlemi', o.olusturma]
+      ] : [
          ['Tarih', uzun(o.tarih)],
          ['Saat', o.saat ? o.saat+(o.bitis ? ' – '+o.bitis : '') : 'Belirtilmemiş'],
          ['Görüşmeyi yapan', o.personel],
@@ -460,13 +446,14 @@ $(document).ready(function(){
          ['Telefon', o.telefon],
          ['Referans', o.referans],
          ['Açıklama', o.aciklama],
-         ['Satış olmama nedeni', o.durum === 'satilmadi' ? (o.neden_yok || 'Belirtilmemiş') : ''],
+         ['Satış olmama nedeni', o.satis === 'satilmadi' ? (o.neden_yok || 'Belirtilmemiş') : ''],
          ['Oluşturma', o.olusturma]
       ];
       $('#ogt_d_bilgi').html(satir.filter(function(s){ return s[1]; }).map(function(s){ return '<dt>'+s[0]+'</dt><dd>'+esc(s[1])+'</dd>'; }).join(''));
       var b = '';
       if (o.user_id) b += '<a class="ogt-btn" target="_blank" rel="noopener" href="/isletmeyonetim/musteridetay/'+o.user_id+'?sube='+SUBE+'"><i class="fa fa-user"></i> Müşteri</a>';
-      if (ARAMA && o.user_id) {
+      if (o.kat === 'ertelendi') b += '<button type="button" class="ogt-btn" data-is="yeni_tarih"><i class="fa fa-calendar"></i> Yeni Tarihe Git</button>';
+      else if (ARAMA && o.user_id) {
          b += '<button type="button" class="ogt-btn" data-is="arama_ekle"><i class="fa fa-phone"></i> Arama Randevusu</button>';
       }
       if (o.sonucsuz) {
@@ -474,8 +461,33 @@ $(document).ready(function(){
          if (o.tur) b += '<button type="button" class="ogt-btn ogt-btn-yesil" data-is="satildi"><i class="fa fa-check"></i> Satış Yapıldı</button>';
          b += '<button type="button" class="ogt-btn ogt-btn-kirmizi" data-is="satilmadi"><i class="fa fa-times"></i> Satış Yapılmadı</button>';
       }
+      $('#ogt_d_katilim').html(katilimHtml(o)).toggle(!!katilimHtml(o));
       $('#ogt_d_alt').html(b).toggle(!!b);
       $('#ogt_detay').modal('show');
+   }
+   /* Katılım: Gelecek / Geldi / Gelmedi. Seçili olana tekrar basınca işaret kalkar. */
+   function katilimHtml(o){
+      if (!KATILIM || !o.randevu_id || o.kat === 'iptal' || o.kat === 'ertelendi') return '';
+      function dugme(k, renk){ return '<button type="button" data-kat="'+k+'" class="'+(o.kat === k ? 'secili' : '')+'" aria-pressed="'+(o.kat === k)+'" style="--b:'+renk+'">'+(o.kat === k ? '✓ ' : '')+DURUM_AD[k]+'</button>'; }
+      var isaretli = o.kat === 'geldi' || o.kat === 'gelmedi';
+      return (!isaretli && o.onayli ? dugme('gelecek','#EF7400') : '')+dugme('geldi','#008000')+dugme('gelmedi','#e00000')+
+         (o.kat !== 'bekliyor' ? '<small>İşareti kaldırmak için seçili düğmeye tekrar basın.</small>' : '');
+   }
+   $('#ogt_d_katilim').on('click', 'button', function(){
+      var k = $(this).attr('data-kat'), o = detayOlay, kaldir = o && o.kat === k;
+      if (!o) return;
+      detayKapat(function(){
+         if (k === 'gelecek') return gelecekIsaretle(o, !kaldir);
+         // Randevu takvimiyle AYNI akis (onay, KVKK, dogrulama kodu): custom.js'teki delege baglantiyi tetikle
+         $('<a href="#" style="display:none" data-index-number=""></a>').attr({ name:k+(kaldir ? '_isareti_kaldir' : '_isaretle'), 'data-value':o.randevu_id }).appendTo('body').trigger('click').remove();
+      });
+   });
+   function gelecekIsaretle(o, isaretle){
+      $.ajax({ type:'POST', url:'/isletmeyonetim/randevuOnDurumIsaretle', dataType:'json', headers:{ 'X-CSRF-TOKEN':TOKEN },
+         data:{ sube:SUBE, randevuid:o.randevu_id, alan:'gelecek', deger:isaretle ? 1 : 0 } })
+         .done(function(r){ if (typeof swal === 'function') swal({ type:'success', title:'Başarılı', text:r.mesaj, timer:1500, showConfirmButton:false }); })
+         .fail(function(x){ if (typeof swal === 'function') swal('Uyarı', (x.responseJSON && x.responseJSON.mesaj) || 'İşlem yapılamadı, lütfen tekrar deneyin.', 'warning'); })
+         .always(function(){ yukle(); });
    }
    // Detay penceresi TAM kapandiktan sonra devam et (ust uste modal/backdrop karismasin)
    function detayKapat(sonra){
@@ -485,27 +497,29 @@ $(document).ready(function(){
       var is = $(this).attr('data-is'), o = detayOlay;
       if (!o) return;
       detayKapat(function(){
-         if (is === 'arama_ekle') {
+         if (is === 'yeni_tarih') {
+            git(o.yeni_tarih);
+         } else if (is === 'arama_ekle') {
             window.aramaRandevuEkleAc({ musteriId:o.user_id, musteriAd:o.musteri, personelId:o.personel_id });
          } else if (is === 'duzenle') {
             if (typeof modalbaslikata === 'function') modalbaslikata('Ön Görüşme Düzenleme','');
             $('#ongorusmeformu')[0].reset();
             secenekEkle($('#gorusmeyi_yapan'), o.personel_id, o.personel);
             secenekEkle($('#musteri_select_list'), o.user_id, o.musteri);
-            $('#ogt_duzenle_tetik').attr('data-value', o.id).trigger('click');
+            $('#ogt_duzenle_tetik').attr('data-value', o.gorusme_id).trigger('click');
             $('#ongorusme-modal').modal('show');
          } else if (typeof ongorusmeseansgirdikontrol === 'function') {
-            ongorusmeseansgirdikontrol(o.id, is === 'satildi', is === 'satildi' ? o.tur : 1);
+            ongorusmeseansgirdikontrol(o.gorusme_id, is === 'satildi', is === 'satildi' ? o.tur : 1);
          }
       });
    });
 
    /* ---------- sürükle / uzat (randevu takvimiyle aynı uç: randevuguncelledragdropresize) ---------- */
-   function tasinir(o){ return TASI && o.saat && o.sonucsuz && o.durum !== 'iptal' && o.randevu_id && o.kalem_id; }
+   function tasinir(o){ return TASI && o.saat && o.sonucsuz && o.kat !== 'iptal' && o.randevu_id && o.kalem_id; }
    var sur = null;
    $('#ogt_alan').on('mousedown', '.ogt-sutun .ogt-e.tasinir', function(e){
       if (e.which !== 1) return;
-      var id = +$(this).attr('data-id'), o = olaylar.filter(function(x){ return x.id === id; })[0], z = zaman(o);
+      var id = $(this).attr('data-id'), o = olaylar.filter(function(x){ return String(x.id) === id; })[0], z = zaman(o);
       var $s = $(this).closest('.ogt-sutun');
       sur = { o:o, $e:$(this), boy:$(e.target).hasClass('ogt-tut'), b:z.b, e:z.e, sure:z.e-z.b, $s:$s, $ilk:$s,
          x:e.clientX, y:e.clientY, dy:e.clientY - this.getBoundingClientRect().top, bas:parseInt($s.closest('.ogt-kaydir').attr('data-bas'),10), basladi:false };
@@ -590,26 +604,25 @@ $(document).ready(function(){
    $('#ogt_ileri').on('click', function(){ adim(1); });
    $('#ogt_bugun').on('click', function(){ git(BUGUN); });
    $('#ogt_yeni').on('click', function(){ yeniAc(secili, '', $('#ogt_personel').val()); });
-   $('#ogt_yeni_arama').on('click', function(){ aramaAc(secili, '', $('#ogt_personel').val()); });
    $('#ogt_personel').on('change', function(){ ciz(false); });
    $('#ogt_filtre').on('click', 'button', function(){
       durumF = $(this).attr('data-d');
       $('#ogt_filtre button').removeClass('aktif'); $(this).addClass('aktif');
       ciz(false);
    });
-   $('#ogt_alan').on('click', '.ogt-e', function(e){ e.stopPropagation(); detayAc(+$(this).attr('data-id')); });
-   $('#ogt_alan').on('keydown', '.ogt-e', function(e){ if (e.which === 13 || e.which === 32) { e.preventDefault(); detayAc(+$(this).attr('data-id')); } });
+   $('#ogt_alan').on('click', '.ogt-e', function(e){ e.stopPropagation(); detayAc($(this).attr('data-id')); });
+   $('#ogt_alan').on('keydown', '.ogt-e', function(e){ if (e.which === 13 || e.which === 32) { e.preventDefault(); detayAc($(this).attr('data-id')); } });
    $('#ogt_alan').on('click', '.ogt-sutun.ekle', function(e){
       var bas = parseInt($(this).closest('.ogt-kaydir').attr('data-bas'),10);
       var m = bas + Math.floor((e.clientY - this.getBoundingClientRect().top)*60/SAAT_H/ADIM)*ADIM;
       m = Math.max(0, Math.min(1425, m));
-      secAc(e, $(this).attr('data-gun'), hhmm(m), $(this).attr('data-pid'));
+      yeniAc($(this).attr('data-gun'), hhmm(m), $(this).attr('data-pid'));
    });
 
    // Kayit / duzenleme / satis sonucu basarili olunca takvimi tazele. Prefilter: custom.js'in kendi
    // success'inden ONCE baglanir; oradaki bir hata tazelemeyi engelleyemez.
    $.ajaxPrefilter(function(s, o, xhr){
-      if (/\/isletmeyonetim\/(ongorusmeekleduzenle|ongorusmesatisyapildi|ongorusmesatisyapilmadi)\b/.test(s.url || '')) xhr.done(function(){ yukle(); });
+      if (/\/isletmeyonetim\/(ongorusmeekleduzenle|ongorusmesatisyapildi|ongorusmesatisyapilmadi|randevugeldiisaretle|randevuyagelmedi|randevuGeldiGelmediIsaretiKaldir)\b/.test(s.url || '')) xhr.done(function(){ yukle(); });
    });
 
    if ($.fn.select2 && $('#ogt_personel').length) {
