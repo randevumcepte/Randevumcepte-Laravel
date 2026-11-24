@@ -18276,6 +18276,14 @@ DB::raw('
         ->where(function ($q) use ($gunluk){if($gunluk) $q->where('on_gorusmeler.created_at','like','%'.date('Y-m-d').'%');})
         ->get();
     }
+    /** On Gorusme Takvimi simdilik: yalniz bu salonlar VE yalniz sistem yoneticisi girisiyle (impersonation). */
+    const ONGORUSME_TAKVIM_SALONLAR = [195];
+    private static function ongorusmeTakvimAcik($salonId): bool
+    {
+        return in_array((int) $salonId, self::ONGORUSME_TAKVIM_SALONLAR, true)
+            && session()->has('sysadmin_impersonation_id');
+    }
+
     /**
      * On Gorusme TAKVIMI (ay / hafta / gun-personel). Menude YOK; adresle acilir:
      * /isletmeyonetim/ongorusme-takvim. Kayit/duzenle/satis akisi liste sayfasiyla AYNI
@@ -18292,6 +18300,9 @@ DB::raw('
         $isletme = Salonlar::where('id',$salonId)->first();
 
         if (!$isletme || !in_array($salonId,$isletmeler)) {
+            return view('isletmeadmin.yetkisizerisim');
+        }
+        if (!self::ongorusmeTakvimAcik($salonId)) {
             return view('isletmeadmin.yetkisizerisim');
         }
         $lisansSure = self::lisans_sure_kontrol($request);
@@ -18343,6 +18354,7 @@ DB::raw('
         $salonId = self::mevcutsube($request);
         $isletmeler = $authUser->yetkili_olunan_isletmeler->where('aktif',1)->pluck('salon_id')->toArray();
         if (!in_array($salonId,$isletmeler)) abort(403);
+        if (!self::ongorusmeTakvimAcik($salonId)) abort(403);
         if ($r = self::yetkiYoksa403($request,'gorusme.liste_gor')) return $r;
 
         $basTs = strtotime((string) $request->start);
