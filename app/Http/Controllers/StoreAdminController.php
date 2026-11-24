@@ -18306,6 +18306,17 @@ DB::raw('
         return in_array((int) $salonId, self::ONGORUSME_TAKVIM_SALONLAR, true)
             && session()->has('sysadmin_impersonation_id');
     }
+    /** Takvimde yer alan personel: aktif VE on gorusmede gizli olmayan; kisitli kullanici yalniz kendisi. */
+    private function ongorusmeTakvimPersonelleri(Request $request, $salonId, $authUser)
+    {
+        $kisitli = self::personelmi($request,'gorusme.liste_gor');
+        return Personeller::where('salon_id',$salonId)->where('aktif',true)
+            ->where(function ($q) use ($kisitli,$authUser) {
+                if ($kisitli) $q->where('yetkili_id',$authUser->id);
+            })
+            ->whereNotIn('id', \App\Services\PersonelGorunurluk::gizliIdler($salonId,'ongorusme'))
+            ->orderBy('personel_adi','asc')->get(['id','personel_adi']);
+    }
 
     /**
      * On Gorusme TAKVIMI (gunluk, sutun = personel). Menude YOK; adresle acilir:
@@ -18341,13 +18352,7 @@ DB::raw('
 
         \App\Services\OnGorusmeErteleme::semaGaranti();
         $kisitli = self::personelmi($request,'gorusme.liste_gor');
-        $personeller = Personeller::where('salon_id',$salonId)->where('aktif',true)
-            ->where(function ($q) use ($kisitli,$authUser) {
-                if ($kisitli) $q->where('yetkili_id',$authUser->id);
-            })
-            // On gorusmede GIZLI personel; kisitli kullanici kendi sutununu her zaman gorur
-            ->whereNotIn('id', $kisitli ? [] : \App\Services\PersonelGorunurluk::gizliIdler($salonId,'ongorusme'))
-            ->orderBy('personel_adi','asc')->get(['id','personel_adi']);
+        $personeller = self::ongorusmeTakvimPersonelleri($request,$salonId,$authUser);
 
         // Arama randevusu (cagri merkezi): paket 3. Rol 5 / kisitli kullanici yalniz KENDI uzerine ekler.
         $aramaAktif = (int) $isletme->uyelik_turu === 3;
@@ -18429,34 +18434,27 @@ DB::raw('
         if (!count($idler)) return response()->json([]);
         $gunIdler = array_flip($gunIdler);
 
-        $kisitliPersonelId = null;
-        if (self::personelmi($request,'gorusme.liste_gor')) {
-            $kisitliPersonelId = (int) Personeller::where('salon_id',$salonId)->where('yetkili_id',$authUser->id)->value('id');
-        }
+        // Yalniz takvimde yer alan personelin kayitlari (gizli, pasif, silinmis, belirtilmemis personel gelmez)
+        $takvimPersonel = self::ongorusmeTakvimPersonelleri($request,$salonId,$authUser)->pluck('id')
+            ->map(function ($id) { return (int) $id; })->all();
 
-        $q = DB::table('on_gorusmeler')
+        $kayitlar = DB::table('on_gorusmeler')
             ->leftJoin('users','on_gorusmeler.user_id','=','users.id')
             ->leftJoin('salon_personelleri','on_gorusmeler.personel_id','=','salon_personelleri.id')
             ->leftJoin('paketler','on_gorusmeler.paket_id','=','paketler.id')
             ->leftJoin('urunler','on_gorusmeler.urun_id','=','urunler.id')
             ->leftJoin('hizmetler','on_gorusmeler.hizmet_id','=','hizmetler.id')
             ->where('on_gorusmeler.salon_id',$salonId)
-            ->whereIn('on_gorusmeler.id',$idler);
-        $gizliPersonel = \App\Services\PersonelGorunurluk::gizliIdler($salonId,'ongorusme');
-        $ertelemePersonel = Personeller::whereIn('id',$ertelemeler->pluck('personel_id')->filter()->unique()->all())->pluck('personel_adi','id')->all();
-        if ($kisitliPersonelId !== null) $q->where('on_gorusmeler.personel_id',$kisitliPersonelId);
-        elseif ($gizliPersonel) {
-            $q->where(function ($w) use ($gizliPersonel) {
-                $w->whereNull('on_gorusmeler.personel_id')->orWhereNotIn('on_gorusmeler.personel_id',$gizliPersonel);
-            });
-        }
-        $kayitlar = $q->get([
+            ->whereIn('on_gorusmeler.id',$idler)
+            ->whereIn('on_gorusmeler.personel_id',$takvimPersonel)
+            ->get([
             'on_gorusmeler.id','on_gorusmeler.user_id','on_gorusmeler.ad_soyad','on_gorusmeler.cep_telefon',
             'on_gorusmeler.musteri_tipi','on_gorusmeler.aciklama','on_gorusmeler.durum','on_gorusmeler.satisyapilmadi_not',
             'on_gorusmeler.hatirlatma_tarihi','on_gorusmeler.personel_id','on_gorusmeler.paket_id','on_gorusmeler.urun_id',
-            'on_gorusmeler.hizmet_id','on_gorusmeler.created_at','users.name as kullanici_ad',
+            'on_gorusmeler.hizmet_id','on_gorusmeler.created_at','users.name as kullanici_ad','users.cep_telefon as kullanici_tel',
             'salon_personelleri.personel_adi','paketler.paket_adi','urunler.urun_adi','hizmetler.hizmet_adi',
         ]);
+        $ertelemePersonel = Personeller::whereIn('id',$ertelemeler->pluck('personel_id')->filter()->unique()->all())->pluck('personel_adi','id')->all();
 
         $rhler = collect();
         if ($randevular->count()) {
@@ -18486,18 +18484,23 @@ DB::raw('
             elseif ($k->hizmet_id !== null)  { $tur = 3; $neden = 'Hizmet : '.$k->hizmet_adi; }
             else                             { $tur = 0; $neden = 'Belirtilmemiş'; }
 
+            $tel = (string) ($k->kullanici_tel ?: $k->cep_telefon); // musterinin guncel numarasi
+            $telRakam = preg_replace('/\D/','',$tel);
             $ortak = [
                 'gorusme_id'  => (int) $k->id,
                 'user_id'     => (int) $k->user_id,
                 'musteri'     => $k->ad_soyad ?: ($k->kullanici_ad ?: 'Müşteri'),
-                'telefon'     => $telGor ? (string) $k->cep_telefon : \App\PersonelYetkiSabitleri::telefonMaskele($k->cep_telefon),
+                'telefon'     => $telGor ? $tel : \App\PersonelYetkiSabitleri::telefonMaskele($tel),
+                // Ara butonu: numarayi goremeyen kullaniciya numara GITMEZ, sunucu user_id ile bulur
+                'aranir'      => strlen($telRakam) >= 7 && ($telGor || (int) $k->user_id > 0),
+                'ara_no'      => $telGor ? $telRakam : '',
                 'neden'       => $neden,
                 'tur'         => $tur,
                 'aciklama'    => (string) $k->aciklama,
             ];
             foreach ($ertelemeler->where('on_gorusme_id',$k->id) as $e) {
                 $pid = (int) ($e->personel_id ?: $k->personel_id);
-                if ($kisitliPersonelId === null && in_array($pid, $gizliPersonel, true)) continue;
+                if (!in_array($pid, $takvimPersonel, true)) continue;
                 $b = $e->eski_saat ? strtotime($e->eski_saat) : null;
                 $sonuc[] = $ortak + [
                     'id'          => 'e'.$e->id,

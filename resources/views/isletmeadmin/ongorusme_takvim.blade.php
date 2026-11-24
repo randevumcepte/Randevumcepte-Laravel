@@ -63,6 +63,12 @@
 .ogt-mini{ display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; margin-top:2px; padding:1px 7px; border-radius:20px; font-size:11px; font-weight:700; background:rgba(255,255,255,.92); color:#1f2937; }
 .ogt-mini.ert{ background:#5C008E; color:#fff; }
 
+.ogt-ara{ position:absolute; right:3px; top:2px; width:24px; height:20px; padding:0; border:0; border-radius:6px; background:#16a34a; color:#fff; font-size:12px; line-height:20px; text-align:center; cursor:pointer; box-shadow:0 0 0 1px rgba(255,255,255,.85); z-index:1; }
+.ogt-ara:hover, .ogt-ara:focus{ background:#12813b; }
+.ogt-ara:disabled{ opacity:.6; }
+.ogt-e.arali > .ust, .ogt-saatsiz .ogt-e.arali{ padding-right:27px; }
+.ogt-saatsiz .ogt-e{ position:relative; min-height:24px; overflow:hidden; flex-shrink:0; }
+
 /* --- Saat ızgarası (sütun = personel) --- */
 .ogt-kaydir{ border:1px solid var(--cizgi); border-radius:12px; overflow:auto; max-height:72vh; -webkit-overflow-scrolling:touch; }
 .ogt-izgara{ display:grid; min-width:100%; position:relative; }
@@ -294,6 +300,9 @@ $(document).ready(function(){
    function ipucu(o){ return (o.saat ? o.saat+(o.bitis ? ' - '+o.bitis : '')+' · ' : '')+o.musteri+' · '+o.neden+' · '+o.personel+' · '+DURUM_AD[o.kat]+(o.kat === 'ertelendi' ? ': '+yeniZaman(o) : '')+(o.satis ? ' · '+SATIS_AD[o.satis] : ''); }
    function yeniZaman(o){ return kisa(o.yeni_tarih)+(o.yeni_saat ? ' '+o.yeni_saat : ''); }
    function stil(o){ return o.renk ? '--z:'+esc(o.renk)+';--y:'+esc(o.yazi)+';' : ''; }
+   // Telefonla ara: panelin ortak akışı (custom.js .cm-ara-islem: softphone, yoksa dahili üzerinden)
+   function araOzellik(o){ return 'data-user="'+(o.ara_no ? '' : o.user_id)+'" data-numara="'+esc(o.ara_no)+'"'; }
+   function araIkon(o){ return o.aranir ? '<button type="button" class="ogt-ara cm-ara-islem" '+araOzellik(o)+' title="Telefonla ara" aria-label="'+esc(o.musteri)+' kişisini ara"><i class="fa fa-phone"></i></button>' : ''; }
    function rozet(o){
       if (o.kat === 'ertelendi') return '<span class="ogt-mini ert">Ertelendi: '+kisa(o.yeni_tarih)+'</span>';
       return o.satis ? '<span class="ogt-mini">'+(o.satis === 'satildi' ? '✓ ' : '✕ ')+SATIS_AD[o.satis]+'</span>' : '';
@@ -309,7 +318,6 @@ $(document).ready(function(){
          s.push({ gun:secili, pid:id || '', ust:esc(ad)+'<small>'+l.filter(function(o){ return o.kat !== 'ertelendi'; }).length+' görüşme</small>', l:l });
       }
       PERSONELLER.forEach(function(p){ if (!secPid || String(p.id) === String(secPid)) ekle(p.id, p.ad); });
-      liste.forEach(function(o){ ekle(o.personel_id, o.personel); }); // pasif/silinmis personelin kayitlari
       if (!s.length) s.push({ gun:secili, pid:'', ust:'Ön Görüşmeler', l:liste });
       return s;
    }
@@ -363,7 +371,7 @@ $(document).ready(function(){
          h += '<div class="ogt-saatsiz kose">Saatsiz</div>';
          s.forEach(function(k){
             h += '<div class="ogt-saatsiz">';
-            k.l.forEach(function(o){ if (!o.saat) h += '<div class="ogt-e '+o.kat+'" tabindex="0" role="button" data-id="'+o.id+'" style="'+stil(o)+'" title="'+esc(ipucu(o))+'"><span class="ad">'+esc(o.musteri)+'</span> '+rozet(o)+'</div>'; });
+            k.l.forEach(function(o){ if (!o.saat) h += '<div class="ogt-e '+o.kat+(o.aranir ? ' arali' : '')+'" tabindex="0" role="button" data-id="'+o.id+'" style="'+stil(o)+'" title="'+esc(ipucu(o))+'">'+araIkon(o)+'<span class="ad">'+esc(o.musteri)+'</span> '+rozet(o)+'</div>'; });
             h += '</div>';
          });
       }
@@ -379,9 +387,9 @@ $(document).ready(function(){
          if (k.gun === BUGUN && sdk >= sa[0] && sdk < sa[1]) h += '<div class="ogt-simdi" style="top:'+py(sdk-sa[0])+'px"></div>';
          yerlestir(k.l).forEach(function(y){
             var o = y.o, boy = Math.min(y.e, sa[1])-y.b, w = 100/y.n, z = zaman(o), t = tasinir(o);
-            h += '<div class="ogt-e '+o.kat+(t ? ' tasinir' : '')+'" tabindex="0" role="button" data-id="'+o.id+'" title="'+esc(ipucu(o))+'" style="'+stil(o)+'top:'+py(y.b-sa[0])+'px;height:'+(py(boy)-1)+'px;left:'+(y.s*w)+'%;width:calc('+w+'% - 2px)">'+
-               (boy < 30 ? '<div><span class="s">'+o.saat+'</span> <span class="ad">'+esc(o.musteri)+'</span> '+rozet(o)+'</div>'
-                  : '<div class="s">'+o.saat+' - '+hhmm(z.e%GUN_SONU)+'</div><div class="ad">'+esc(o.musteri)+'</div>')+
+            h += '<div class="ogt-e '+o.kat+(t ? ' tasinir' : '')+(o.aranir ? ' arali' : '')+'" tabindex="0" role="button" data-id="'+o.id+'" title="'+esc(ipucu(o))+'" style="'+stil(o)+'top:'+py(y.b-sa[0])+'px;height:'+(py(boy)-1)+'px;left:'+(y.s*w)+'%;width:calc('+w+'% - 2px)">'+
+               araIkon(o)+(boy < 30 ? '<div class="ust"><span class="s">'+o.saat+'</span> <span class="ad">'+esc(o.musteri)+'</span> '+rozet(o)+'</div>'
+                  : '<div class="s ust">'+o.saat+' - '+hhmm(z.e%GUN_SONU)+'</div><div class="ad">'+esc(o.musteri)+'</div>')+
                (boy >= 30 && rozet(o) ? '<div>'+rozet(o)+'</div>' : '')+
                (boy >= 40 ? '<div>'+esc(o.neden)+'</div>' : '')+
                (boy >= 50 && o.oda && !rozet(o) ? '<div>'+esc(o.oda)+'</div>' : '')+
@@ -450,11 +458,11 @@ $(document).ready(function(){
          ['Oluşturma', o.olusturma]
       ];
       $('#ogt_d_bilgi').html(satir.filter(function(s){ return s[1]; }).map(function(s){ return '<dt>'+s[0]+'</dt><dd>'+esc(s[1])+'</dd>'; }).join(''));
-      var b = '';
+      var b = o.aranir ? '<button type="button" class="ogt-btn ogt-btn-yesil cm-ara-islem" '+araOzellik(o)+'><i class="fa fa-phone"></i> Ara</button>' : '';
       if (o.user_id) b += '<a class="ogt-btn" target="_blank" rel="noopener" href="/isletmeyonetim/musteridetay/'+o.user_id+'?sube='+SUBE+'"><i class="fa fa-user"></i> Müşteri</a>';
       if (o.kat === 'ertelendi') b += '<button type="button" class="ogt-btn" data-is="yeni_tarih"><i class="fa fa-calendar"></i> Yeni Tarihe Git</button>';
       else if (ARAMA && o.user_id) {
-         b += '<button type="button" class="ogt-btn" data-is="arama_ekle"><i class="fa fa-phone"></i> Arama Randevusu</button>';
+         b += '<button type="button" class="ogt-btn" data-is="arama_ekle"><i class="fa fa-calendar"></i> Arama Randevusu</button>';
       }
       if (o.sonucsuz) {
          if (YETKI && o.randevulu) b += '<button type="button" class="ogt-btn" data-is="duzenle"><i class="fa fa-edit"></i> Düzenle</button>';
@@ -518,7 +526,7 @@ $(document).ready(function(){
    function tasinir(o){ return TASI && o.saat && o.sonucsuz && o.kat !== 'iptal' && o.randevu_id && o.kalem_id; }
    var sur = null;
    $('#ogt_alan').on('mousedown', '.ogt-sutun .ogt-e.tasinir', function(e){
-      if (e.which !== 1) return;
+      if (e.which !== 1 || araMi(e)) return;
       var id = $(this).attr('data-id'), o = olaylar.filter(function(x){ return String(x.id) === id; })[0], z = zaman(o);
       var $s = $(this).closest('.ogt-sutun');
       sur = { o:o, $e:$(this), boy:$(e.target).hasClass('ogt-tut'), b:z.b, e:z.e, sure:z.e-z.b, $s:$s, $ilk:$s,
@@ -610,9 +618,11 @@ $(document).ready(function(){
       $('#ogt_filtre button').removeClass('aktif'); $(this).addClass('aktif');
       ciz(false);
    });
-   $('#ogt_alan').on('click', '.ogt-e', function(e){ e.stopPropagation(); detayAc($(this).attr('data-id')); });
-   $('#ogt_alan').on('keydown', '.ogt-e', function(e){ if (e.which === 13 || e.which === 32) { e.preventDefault(); detayAc($(this).attr('data-id')); } });
+   function araMi(e){ return $(e.target).closest('.cm-ara-islem').length > 0; } // arama butonu: kayıt/boş saat tıklaması sayılmaz
+   $('#ogt_alan').on('click', '.ogt-e', function(e){ if (araMi(e)) return; e.stopPropagation(); detayAc($(this).attr('data-id')); });
+   $('#ogt_alan').on('keydown', '.ogt-e', function(e){ if (araMi(e)) return; if (e.which === 13 || e.which === 32) { e.preventDefault(); detayAc($(this).attr('data-id')); } });
    $('#ogt_alan').on('click', '.ogt-sutun.ekle', function(e){
+      if (araMi(e)) return;
       var bas = parseInt($(this).closest('.ogt-kaydir').attr('data-bas'),10);
       var m = bas + Math.floor((e.clientY - this.getBoundingClientRect().top)*60/SAAT_H/ADIM)*ADIM;
       m = Math.max(0, Math.min(1425, m));
