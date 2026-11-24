@@ -455,9 +455,44 @@ $(document).ready(function(){
       }
    } catch(e){}
 
+   // ====== Konum koruma: yenilemede (F5 veya kayit sonrasi) sayfa ayni yerde, ayni sekme ve aramayla acilir ======
+   // Tablo dil dosyasi geldikten SONRA dolar; tarayicinin kendi konum geri yuklemesi o yuzden uste atiyordu.
+   var KONUM_KEY = 'pyo_konum_{{ $isletme->id }}', konum = null, kayitYenileme = false;
+   try {
+      konum = JSON.parse(sessionStorage.getItem(KONUM_KEY) || 'null');
+      sessionStorage.removeItem(KONUM_KEY);
+      var _nav = performance.getEntriesByType ? performance.getEntriesByType('navigation')[0] : null;
+      var _yenileme = _nav ? _nav.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
+      if(konum && !konum.kayit && !_yenileme) konum = null; // baska sayfadan gelis: en ustten baslar
+   } catch(e){ konum = null; }
+   window.addEventListener('pagehide', function(){
+      try {
+         sessionStorage.setItem(KONUM_KEY, JSON.stringify({
+            y: window.pageYOffset, kayit: kayitYenileme ? 1 : 0,
+            prim: $('#tabBtn-primHakedis').hasClass('active') ? 1 : 0,
+            ara: $.fn.dataTable.isDataTable('#personel_tablo') ? $('#personel_tablo').DataTable().search() : ''
+         }));
+      } catch(e){}
+   });
+   if(konum){
+      try { if('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch(e){}
+      if(konum.prim) { try { $('#tabBtn-primHakedis').tab('show'); } catch(e){} }
+      // Icerik yuklendikce dene; hedefe varinca, 4 sn sonra veya kullanici kaydirinca birak
+      var _bitis = Date.now() + 4000, _birak = false;
+      ['wheel','touchstart','mousedown','keydown'].forEach(function(o){ window.addEventListener(o, function(){ _birak = true; }, { once:true, passive:true }); });
+      (function dene(){
+         if(_birak) return;
+         window.scrollTo(0, konum.y);
+         if(Date.now() < _bitis && (document.readyState !== 'complete' || Math.abs(window.pageYOffset - konum.y) > 2)) setTimeout(dene, 80);
+      })();
+   }
+   // Islem menusundeki '#' baglantilari sayfayi uste atmasin
+   $('#personel_tablo').on('click', 'a[href="#"]', function(e){ e.preventDefault(); });
+
    if($('#personel_tablo').length){
       try { $('#personel_tablo').DataTable().destroy(); } catch(e){}
       $('#personel_tablo').DataTable({
+         search: { search: (konum && konum.ara) || '' },
          ordering: false,
          autoWidth: false,
          responsive: true,
@@ -501,7 +536,12 @@ $(document).ready(function(){
       window.pyoTabloYaz = function(liste){
          if(!$.isArray(liste)) return;
          var dt = $('#personel_tablo').DataTable();
+         // Cizim sirasinda tablo bir an bosalir; sayfa kisalip uste ziplamasin
+         var $t = $('#personel_tablo'), $kutu = $t.parent(), y = window.pageYOffset;
+         $kutu.css('min-height', $kutu.outerHeight() + 'px');
          dt.clear(); dt.rows.add(liste); dt.draw(false);
+         $kutu.css('min-height', '');
+         window.scrollTo(0, y);
          // Ustteki sayac kartlari
          var say = { toplam: liste.length, aktif: 0, pasif: 0, takvim: 0 };
          liste.forEach(function(p){
@@ -748,6 +788,7 @@ $(document).ready(function(){
                var href = $('.pyo-tabs .nav-link.active').attr('href') || '#personeller';
                var url = new URL(window.location.href);
                url.searchParams.set('_tab', (href === '#primHakedis') ? 'prim' : 'personeller');
+               kayitYenileme = true; // konum korunsun
                url.hash = ''; // '#' kalirsa ayni adrese gidis sayfayi yenilemez
                window.location.replace(url.toString());
             } catch(err){ window.location.reload(); }
