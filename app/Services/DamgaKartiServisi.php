@@ -36,7 +36,17 @@ class DamgaKartiServisi
      * Test anahtari: true iken ileri tarihli ama "Geldi" isaretli randevular da damga sayilir.
      * Normal kural false: randevu gunu gelince sayilir (11 Kas 2026 test bitti, kapatildi).
      */
-    const ILERI_TARIH_SAYILIR = true; // GECICI TEST (23 Kas 2026, kullanici onayi: ozellik canlida henuz kullanilmiyor): test bitince false
+    const ILERI_TARIH_SAYILIR = false;
+
+    /**
+     * Odeme sarti: true iken yalniz odemesi tamamlanmis kalemi olan ziyaret sayilir (hediye/ikram
+     * kalemi sayilmaz; veresiye/taksit odeme bitince sayilir). Acmadan once etkisi:
+     * php artisan ikram:odeme-etki (salt okuma).
+     */
+    const ODEME_SARTI = true;
+
+    /** Yalniz ikram:odeme-etki komutu icin: null = ODEME_SARTI gecerli. */
+    private static $odemeSartiOlcum = null;
 
     private static $kolonOnbellek = [];
 
@@ -277,6 +287,40 @@ class DamgaKartiServisi
             ->map(function ($r) { return date('Y-m-d', strtotime($r->tarih)); })->values()->all();
     }
 
+    private static function odemeSartiAcik()
+    {
+        return self::$odemeSartiOlcum !== null ? (bool) self::$odemeSartiOlcum : self::ODEME_SARTI;
+    }
+
+    /**
+     * r (randevular) + rh (randevu_hizmetler) sorgusuna: ziyaretin odemesi tamamlanmis kalemi olsun.
+     * Kalem randevuya bagli degilse ayni musteri + hizmet + gun ile eslesir. Net tutari 0 olan
+     * (hediye, ikram, tam indirim) kalem odenmis sayilmaz. Borc hesabi kalanBorc() ile ayni.
+     */
+    private static function odenmisSarti($q)
+    {
+        $randevuKolon = self::kolonVar('adisyon_hizmetler', 'randevu_id');
+        return $q->whereExists(function ($s) use ($randevuKolon) {
+            $s->select(DB::raw(1))->from('adisyon_hizmetler as oh')
+                ->join('adisyonlar as oa', 'oa.id', '=', 'oh.adisyon_id')
+                ->whereColumn('oa.salon_id', 'r.salon_id')
+                ->whereColumn('oa.user_id', 'r.user_id')
+                ->whereColumn('oh.hizmet_id', 'rh.hizmet_id')
+                ->whereRaw('COALESCE(oh.hediye, 0) = 0')
+                ->whereRaw('oh.fiyat - COALESCE(oh.indirim_tutari, 0) > 0')
+                ->whereRaw('(SELECT COALESCE(SUM(oth.tutar), 0) FROM tahsilat_hizmetler oth WHERE oth.adisyon_hizmet_id = oh.id)'
+                    . ' >= oh.fiyat - COALESCE(oh.indirim_tutari, 0) - 0.05')
+                ->where(function ($w) use ($randevuKolon) {
+                    if ($randevuKolon) {
+                        $w->whereColumn('oh.randevu_id', 'r.id')
+                            ->orWhereRaw('(oh.randevu_id IS NULL AND DATE(oh.islem_tarihi) = DATE(r.tarih))');
+                    } else {
+                        $w->whereRaw('DATE(oh.islem_tarihi) = DATE(r.tarih)');
+                    }
+                });
+        });
+    }
+
     /**
      * Sayim kosullari TEK yerde (sayi ve tarih listesi ayni kurali kullanir).
      * $userId null = tum musteriler (kampanya detayi: katilan musteri listesi).
@@ -306,6 +350,7 @@ class DamgaKartiServisi
         if (!empty($kural->bitis_tarihi)) {
             $q->where('r.tarih', '<=', date('Y-m-d', strtotime($kural->bitis_tarihi)));
         }
+        if (self::odemeSartiAcik()) self::odenmisSarti($q);
         if (self::kolonVar('randevu_hizmetler', 'yardimci_personel')) {
             $q->whereRaw('COALESCE(rh.yardimci_personel, 0) != 1');
         }
@@ -474,6 +519,13 @@ class DamgaKartiServisi
                 ->pluck('randevu_id')->map(function ($v) { return (int) $v; })->all());
         }
         $kullanilan = self::gecerliKullanimlar($kural->id, $userId)->pluck('randevu_id')->map(function ($v) { return (int) $v; })->all();
+        $odenmis = null;
+        if (self::odemeSartiAcik()) {
+            $odenmis = self::odenmisSarti(DB::table('randevular as r')
+                ->join('randevu_hizmetler as rh', 'rh.randevu_id', '=', 'r.id')
+                ->whereIn('r.id', $idler)->where('rh.hizmet_id', $hizmetId))
+                ->pluck('r.id')->map(function ($v) { return (int) $v; })->all();
+        }
         $baslangicGun = $kural->baslangic ? date('Y-m-d', strtotime($kural->baslangic)) : null;
         $bitisGun = !empty($kural->bitis_tarihi) ? date('Y-m-d', strtotime($kural->bitis_tarihi)) : null;
         $bugun = date('Y-m-d');
@@ -490,6 +542,7 @@ class DamgaKartiServisi
             elseif (!empty($s->sadece_telafi))                       $neden = 'Telafi seansı';
             elseif (!empty($s->sadece_yardimci))                     $neden = 'Yardımcı personel kaydı';
             elseif (in_array((int) $s->id, $kullanilan, true))       $neden = 'İkram olarak kullanıldı';
+            elseif ($odenmis !== null && !in_array((int) $s->id, $odenmis, true)) $neden = 'Ödemesi tamamlanmadı';
             $sonuc[] = [
                 'randevu_id' => (int) $s->id,
                 'tarih'      => date('d.m.Y', strtotime($s->tarih)),
@@ -745,6 +798,49 @@ class DamgaKartiServisi
             'bu_ay'          => round($buAy, 2),
             'kampanyalar'    => (object) $kampanyalar,
         ];
+    }
+
+    /**
+     * Salt okuma (ikram:odeme-etki): odeme sarti acilirsa kural basina kac musterinin sayimi/hakki duser.
+     * @return array [[kural_id, salon_id, aktif, musteri, damga, odenmis_damga, etkilenen, hakki_dusen]]
+     */
+    public static function odemeEtkisi($salonId = null)
+    {
+        if (!self::tabloHazir()) return [];
+        $kurallar = DamgaKartiKurallari::whereNotNull('baslangic')
+            ->when($salonId, function ($q) use ($salonId) { $q->where('salon_id', (int) $salonId); })->get();
+        $sonuc = [];
+        try {
+            foreach ($kurallar as $k) {
+                // Ikram olarak kullanilan ziyaretler durum()'daki gibi haric
+                $haric = DB::table('damga_karti_kullanimlari as ku')
+                    ->join('adisyon_hizmetler as ah', 'ah.id', '=', 'ku.adisyon_hizmet_id')
+                    ->where('ku.kural_id', $k->id)->pluck('ku.randevu_id')->filter()->all();
+                $say = function ($odeme) use ($k, $haric) {
+                    self::$odemeSartiOlcum = $odeme;
+                    return self::ucretliZiyaretSorgu($k, null, $haric)->groupBy('r.user_id')
+                        ->select('r.user_id', DB::raw('COUNT(DISTINCT r.id) as adet'))->get()
+                        ->pluck('adet', 'user_id')->all();
+                };
+                $once = $say(false);
+                $sonra = $say(true);
+                $g = max(1, (int) $k->gereken_adet);
+                $etkilenen = $hakDusen = 0;
+                foreach ($once as $uid => $adet) {
+                    $yeni = (int) ($sonra[$uid] ?? 0);
+                    if ($yeni < (int) $adet) $etkilenen++;
+                    if (intdiv($yeni, $g) < intdiv((int) $adet, $g)) $hakDusen++;
+                }
+                $sonuc[] = [
+                    'kural_id' => (int) $k->id, 'salon_id' => (int) $k->salon_id, 'aktif' => (int) $k->aktif,
+                    'musteri' => count($once), 'damga' => array_sum($once), 'odenmis_damga' => array_sum($sonra),
+                    'etkilenen' => $etkilenen, 'hakki_dusen' => $hakDusen,
+                ];
+            }
+        } finally {
+            self::$odemeSartiOlcum = null;
+        }
+        return $sonuc;
     }
 
     /**

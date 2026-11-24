@@ -81,11 +81,16 @@
             @if($k['aktif'])
                 <div class="ih-cizgi">
                     @for($i = 0; $i < $k['gereken_adet']; $i++)
-                        @if($i < $k['ilerleme'])<div class="ih-n dolu">✓</div>@else<div class="ih-n">{{ $i + 1 }}</div>@endif
+                        @if($k['hak'] > 0 || $i < $k['ilerleme'])<div class="ih-n dolu">✓</div>@else<div class="ih-n">{{ $i + 1 }}</div>@endif
                     @endfor
                     <div class="ih-hediye">🎁 İkram</div>
                 </div>
-                <div class="ih-not">Sonraki ikrama {{ $k['gereken_adet'] - $k['ilerleme'] }} ücretli alım kaldı.</div>
+                @if($k['hak'] > 0)
+                    <div class="ih-not"><b>Kartınız doldu: {{ $k['hak'] }} ücretsiz hakkınız var.</b>@if($k['ilerleme'] > 0) Yeni kartınız: {{ $k['ilerleme'] }}/{{ $k['gereken_adet'] }}@endif</div>
+                @else
+                    <div class="ih-not">Ücretsiz hakkınıza {{ $k['gereken_adet'] - $k['ilerleme'] }} ücretli alım kaldı.</div>
+                @endif
+                <div class="ih-not">Paket seanslarınız bu kampanyaya sayılmaz.</div>
             @else
                 <div class="ih-not" style="color:#9ca3af;">Bu ikram kampanyası sona erdi; kalan ikramınızı kullanabilirsiniz.</div>
             @endif

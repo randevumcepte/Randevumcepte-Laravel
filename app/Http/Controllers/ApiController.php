@@ -32681,8 +32681,14 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         if ($userId <= 0 || $salonId <= 0) {
             return response()->json(['basarili' => false, 'toplam_hak' => 0, 'kartlar' => []]);
         }
-        $_musteri = \Auth::guard('isletmeyonetim-api')->user() ? null : \Auth::guard('api')->user();
-        if ($_musteri && (int) $_musteri->id !== $userId) {
+        // Giris zorunlu: musteri yalniz kendisini, isletme yalniz kendi salonunu gorur. Salon burada
+        // tekrar dogrulanir (gate salonid/salonId'ye de bakar; okunan salon_id ile farkli olabilir).
+        $_yetkili = \Auth::guard('isletmeyonetim-api')->user();
+        $_musteri = $_yetkili ? null : \Auth::guard('api')->user();
+        $_izin = $_yetkili
+            ? \App\Personeller::where('yetkili_id', $_yetkili->id)->where('salon_id', $salonId)->where('aktif', 1)->exists()
+            : ($_musteri && (int) $_musteri->id === $userId);
+        if (!$_izin) {
             return response()->json(['basarili' => false, 'toplam_hak' => 0, 'kartlar' => []], 403);
         }
         try {
