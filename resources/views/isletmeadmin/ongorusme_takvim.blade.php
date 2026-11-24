@@ -9,7 +9,7 @@
 
 <style>
 /* =================================================================
-   ÖN GÖRÜŞME TAKVİMİ (ay / hafta / gün)
+   ÖN GÖRÜŞME TAKVİMİ (günlük)
    ================================================================= */
 .ogt { --mor:#5C008E; --mor2:#9D5DC8; --mor-acik:#f5eefe; --yazi:#1f2937; --soluk:#6b7280; --cizgi:#eceaf2; --saat-h:96px; }
 .ogt *{ box-sizing:border-box; }
@@ -43,9 +43,6 @@
 .ogt-psec .select2-container .select2-selection--single{ height:38px !important; border:1px solid #d9c9f0 !important; border-radius:10px !important; background:#fff; }
 .ogt-psec .select2-container .select2-selection__rendered{ line-height:36px !important; padding-left:12px; padding-right:26px; font-size:13.5px; color:#1f2937 !important; }
 .ogt-psec .select2-container .select2-selection__arrow{ height:36px !important; right:6px; }
-.ogt-gorunum{ display:inline-flex; background:#f3eefa; border-radius:11px; padding:3px; }
-.ogt-gorunum button{ border:0; background:transparent; height:32px; padding:0 15px; border-radius:9px; font-size:13px; font-weight:700; color:#6b5b7b; cursor:pointer; }
-.ogt-gorunum button.aktif{ background:#5C008E; color:#fff; }
 
 .ogt-filtre{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
 .ogt-filtre button{ display:inline-flex; align-items:center; gap:7px; border:1px solid #ece7f6; background:#fff; color:#5a5570; border-radius:20px; padding:6px 12px; font-size:12.5px; cursor:pointer; }
@@ -76,33 +73,11 @@
 #ogt_sec button:hover, #ogt_sec button:focus{ background:#f5eefe; outline:0; }
 #ogt_sec button i{ width:16px; text-align:center; }
 
-/* --- AY --- */
-.ogt-ay{ border:1px solid var(--cizgi); border-radius:12px; overflow:hidden; }
-.ogt-ay-bas, .ogt-ay-satir{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
-.ogt-ay-bas div{ background:var(--mor-acik); color:var(--mor); font-size:11.5px; font-weight:700; padding:10px 8px; text-align:center; }
-.ogt-gun{ min-height:118px; border-top:1px solid var(--cizgi); border-left:1px solid var(--cizgi); padding:5px; display:flex; flex-direction:column; gap:3px; min-width:0; background:#fff; }
-.ogt-gun:first-child{ border-left:0; }
-.ogt-gun.disi{ background:#fafafc; }
-.ogt-gun.disi .ogt-gno{ color:#b6b3c2; }
-.ogt-gun.ekle{ cursor:pointer; }
-.ogt-gun.ekle:hover{ background:#fcfaff; }
-.ogt-gno{ align-self:flex-end; border:0; background:transparent; width:27px; height:27px; border-radius:50%; font-size:13px; font-weight:700; color:#4a4461; cursor:pointer; padding:0; }
-.ogt-gno:hover{ background:#ead4ff; }
-.ogt-gun.bugun .ogt-gno{ background:#5C008E; color:#fff; }
-.ogt-gun .ogt-e{ font-size:12px; padding:3px 6px; white-space:nowrap; text-overflow:ellipsis; line-height:1.35; }
-.ogt-gun .ogt-e b{ font-weight:800; }
-.ogt-dahasi{ border:0; background:transparent; color:#6d28d9; font-size:11.5px; font-weight:700; text-align:left; padding:1px 6px; cursor:pointer; }
-.ogt-dahasi:hover{ text-decoration:underline; }
-
-/* --- HAFTA / GÜN saat ızgarası --- */
+/* --- Saat ızgarası (sütun = personel) --- */
 .ogt-kaydir{ border:1px solid var(--cizgi); border-radius:12px; overflow:auto; max-height:72vh; -webkit-overflow-scrolling:touch; }
 .ogt-izgara{ display:grid; min-width:100%; position:relative; }
 .ogt-kb{ position:sticky; top:0; z-index:6; background:var(--mor-acik); color:var(--mor); text-align:center; padding:9px 6px; font-size:12.5px; font-weight:700; border-left:1px solid var(--cizgi); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ogt-kb small{ display:block; font-size:11px; font-weight:600; color:#7c6c8a; }
-.ogt-kb button{ border:0; background:transparent; color:inherit; font:inherit; cursor:pointer; padding:0; }
-.ogt-kb button:hover{ text-decoration:underline; }
-.ogt-kb.bugun{ background:#5C008E; color:#fff; }
-.ogt-kb.bugun small{ color:#e9d5ff; }
 .ogt-kb.kose{ left:0; z-index:8; border-left:0; }
 .ogt-saatler{ position:sticky; left:0; z-index:5; background:#fff; }
 .ogt-saatler div{ height:calc(var(--saat-h) / 4); border-top:1px solid #f3f1f7; font-size:10.5px; color:#a39db3; text-align:right; padding:4px 7px 0 0; line-height:1.2; }
@@ -154,16 +129,10 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
    .ogt-aralik{ width:100%; order:-1; text-align:center; }
    .ogt-gez{ width:100%; justify-content:center; }
    .ogt-sag{ margin-left:0; width:100%; justify-content:space-between; }
-   .ogt-gorunum button{ padding:0 11px; }
    .ogt-psec{ flex:1 1 150px; width:auto; min-width:0; }
    #ogt_personel{ width:100%; }
-   .ogt-gun{ min-height:62px; padding:2px; align-items:center; cursor:pointer; }
-   .ogt-gun .ogt-e, .ogt-dahasi{ display:none; }
-   .ogt-gno{ align-self:center; }
-   .ogt-nokta{ display:inline-block !important; }
    .ogt-d-tablo{ grid-template-columns:104px 1fr; }
 }
-.ogt-nokta{ display:none; min-width:22px; text-align:center; background:#5C008E; color:#fff; font-size:11px; font-weight:700; border-radius:20px; padding:1px 6px; }
 </style>
 
 <div class="ogt" id="ogt">
@@ -208,11 +177,6 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
                @endforeach
             </select></div>
             @endif
-            <div class="ogt-gorunum" id="ogt_gorunum">
-               <button type="button" data-g="ay">Ay</button>
-               <button type="button" data-g="hafta">Hafta</button>
-               <button type="button" data-g="gun">Gün</button>
-            </div>
          </div>
       </div>
 
@@ -266,47 +230,23 @@ $(document).ready(function(){
    var BUGUN = '{{ date('Y-m-d') }}';
    var AYLAR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
    var GUNLER = ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'];
-   var GUN_KISA = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'];
    var DURUM_AD = {bekliyor:'Beklemede', satildi:'Satış Yapıldı', satilmadi:'Satış Yapılmadı', iptal:'Randevu İptal'};
    var SAAT_H = 96, ADIM = 15, GUN_SONU = 1440, SON_BITIS = 1425; // bitis en gec 23:45 (00:00 ertesi gune kayar)
 
-   var gorunum = oku('gorunum') || (window.innerWidth < 768 ? 'gun' : 'ay');
-   if (['ay','hafta','gun'].indexOf(gorunum) === -1) gorunum = 'ay';
    var secili = BUGUN, durumF = '', olaylar = [], istekNo = 0, detayOlay = null, dp = null, dpProg = false;
 
    /* ---------- yardımcılar ---------- */
-   function oku(k){ try { return localStorage.getItem('ogt_'+k); } catch(e){ return null; } }
-   function yaz(k,v){ try { localStorage.setItem('ogt_'+k, v); } catch(e){} }
    function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
    function iki(n){ return ('0'+n).slice(-2); }
    function tarih(s){ var p = s.split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
    function ymd(d){ return d.getFullYear()+'-'+iki(d.getMonth()+1)+'-'+iki(d.getDate()); }
    function gunEkle(s,n){ var d = tarih(s); d.setDate(d.getDate()+n); return ymd(d); }
    function haftaGunu(s){ return (tarih(s).getDay()+6)%7; } // 0=Pazartesi
-   function haftaBasi(s){ return gunEkle(s, -haftaGunu(s)); }
-   function ayEkle(s,n){ var d = tarih(s), g = d.getDate(); d.setDate(1); d.setMonth(d.getMonth()+n); var son = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); d.setDate(Math.min(g,son)); return ymd(d); }
    function dk(s){ var p = s.split(':'); return (+p[0])*60 + (+p[1]); }
    function uzun(s){ var d = tarih(s); return d.getDate()+' '+AYLAR[d.getMonth()]+' '+d.getFullYear()+', '+GUNLER[haftaGunu(s)]; }
 
-   function aralik(){
-      if (gorunum === 'gun') return [secili, secili];
-      if (gorunum === 'hafta'){ var h = haftaBasi(secili); return [h, gunEkle(h,6)]; }
-      var d = tarih(secili);
-      var bas = haftaBasi(ymd(new Date(d.getFullYear(), d.getMonth(), 1)));
-      var son = ymd(new Date(d.getFullYear(), d.getMonth()+1, 0));
-      return [bas, gunEkle(haftaBasi(son), 6)];
-   }
    function baslikYaz(){
-      var d = tarih(secili), t;
-      if (gorunum === 'ay') t = AYLAR[d.getMonth()]+' '+d.getFullYear();
-      else if (gorunum === 'gun') t = uzun(secili);
-      else {
-         var a = aralik(), b = tarih(a[0]), s = tarih(a[1]);
-         t = b.getDate() + (b.getMonth() !== s.getMonth() ? ' '+AYLAR[b.getMonth()] : '') + (b.getFullYear() !== s.getFullYear() ? ' '+b.getFullYear() : '') +
-             ' – ' + s.getDate()+' '+AYLAR[s.getMonth()]+' '+s.getFullYear();
-      }
-      $('#ogt_aralik').text(t);
-      $('#ogt_gorunum button').removeClass('aktif').filter('[data-g="'+gorunum+'"]').addClass('aktif');
+      $('#ogt_aralik').text(uzun(secili));
       dpProg = true;
       if (dp) { try { dp.selectDate(tarih(secili)); } catch(e){} }
       dpProg = false;
@@ -315,11 +255,11 @@ $(document).ready(function(){
 
    /* ---------- veri ---------- */
    function yukle(){
-      var a = aralik(), no = ++istekNo;
+      var no = ++istekNo;
       baslikYaz();
       secKapat();
       $('#ogt_alan').addClass('yukleniyor');
-      $.ajax({ url:'/isletmeyonetim/ongorusme-takvim-verileri', dataType:'json', cache:false, data:{ sube:SUBE, start:a[0], end:a[1] } })
+      $.ajax({ url:'/isletmeyonetim/ongorusme-takvim-verileri', dataType:'json', cache:false, data:{ sube:SUBE, start:secili, end:secili } })
          .done(function(r){
             if (no !== istekNo) return;
             olaylar = r || [];
@@ -340,76 +280,36 @@ $(document).ready(function(){
 
    function ciz(ilk){
       var liste = personelListesi();
-      // Ay gorunumunde komsu ayin gunleri de yuklenir; sayaclar yalniz secili ayi sayar.
-      var sayilan = gorunum === 'ay' ? liste.filter(function(o){ return o.tarih.substr(0,7) === secili.substr(0,7); }) : liste;
       $('#ogt_filtre button').each(function(){
          var d = $(this).attr('data-d');
-         $(this).find('b').text(d ? sayilan.filter(function(o){ return o.durum === d; }).length : sayilan.length);
+         $(this).find('b').text(d ? liste.filter(function(o){ return o.durum === d; }).length : liste.length);
       });
       if (durumF) liste = liste.filter(function(o){ return o.durum === durumF; });
       liste = sirala(liste);
 
       var html = '';
-      if (!liste.length) html += '<div class="ogt-bos">'+(olaylar.length ? 'Bu filtreye uyan ön görüşme yok.' : 'Bu tarihlerde ön görüşme yok.')+'</div>';
-      html += gorunum === 'ay' ? ayHtml(liste) : izgaraHtml(liste);
+      if (!liste.length) html += '<div class="ogt-bos">'+(olaylar.length ? 'Bu filtreye uyan ön görüşme yok.' : 'Bu günde ön görüşme yok.')+'</div>';
+      html += izgaraHtml(liste);
       var st = $('#ogt_alan .ogt-kaydir').scrollTop();
       $('#ogt_alan').html(html);
-      if (gorunum !== 'ay') {
-         var $k = $('#ogt_alan .ogt-kaydir');
-         if (ilk) kaydir($k, liste); else $k.scrollTop(st || 0);
-      }
+      var $k = $('#ogt_alan .ogt-kaydir');
+      if (ilk) kaydir($k, liste); else $k.scrollTop(st || 0);
    }
 
    function ipucu(o){ return (o.saat ? o.saat+(o.bitis ? ' - '+o.bitis : '')+' · ' : '')+o.musteri+' · '+o.neden+' · '+o.personel+' · '+DURUM_AD[o.durum]; }
 
-   /* ---------- AY ---------- */
-   function ayHtml(liste){
-      var a = aralik(), ay = tarih(secili).getMonth(), gunler = {};
-      liste.forEach(function(o){ (gunler[o.tarih] = gunler[o.tarih] || []).push(o); });
-      var h = '<div class="ogt-ay"><div class="ogt-ay-bas">';
-      GUN_KISA.forEach(function(g){ h += '<div>'+g+'</div>'; });
-      h += '</div>';
-      for (var g = a[0]; g <= a[1]; ) {
-         h += '<div class="ogt-ay-satir">';
-         for (var i = 0; i < 7; i++) {
-            var l = gunler[g] || [], goster = l.length > 4 ? 3 : l.length;
-            h += '<div class="ogt-gun'+(tarih(g).getMonth() !== ay ? ' disi' : '')+(g === BUGUN ? ' bugun' : '')+(EKLE ? ' ekle' : '')+'" data-gun="'+g+'">';
-            h += '<button type="button" class="ogt-gno" data-gun="'+g+'" title="Günü aç">'+tarih(g).getDate()+'</button>';
-            for (var j = 0; j < goster; j++) {
-               var o = l[j];
-               h += '<div class="ogt-e '+o.durum+'" tabindex="0" role="button" data-id="'+o.id+'" title="'+esc(ipucu(o))+'">'+(o.saat ? '<b>'+o.saat+'</b> ' : '')+'<span class="ad">'+esc(o.musteri)+'</span></div>';
-            }
-            if (l.length > goster) h += '<button type="button" class="ogt-dahasi" data-gun="'+g+'">+'+(l.length-goster)+' görüşme daha</button>';
-            if (l.length) h += '<span class="ogt-nokta">'+l.length+'</span>';
-            h += '</div>';
-            g = gunEkle(g,1);
-         }
-         h += '</div>';
-      }
-      return h + '</div>';
-   }
-
-   /* ---------- HAFTA / GÜN ---------- */
+   /* ---------- IZGARA ---------- */
    function sutunlar(liste){
       var s = [];
-      if (gorunum === 'hafta') {
-         var b = haftaBasi(secili);
-         for (var i = 0; i < 7; i++) (function(g){
-            s.push({ gun:g, pid:$('#ogt_personel').val() || '', bugun:g === BUGUN,
-               ust:'<button type="button" class="ogt-gunac" data-gun="'+g+'" title="Günü aç">'+GUN_KISA[haftaGunu(g)]+'<small>'+tarih(g).getDate()+' '+AYLAR[tarih(g).getMonth()]+'</small></button>',
-               l: liste.filter(function(o){ return o.tarih === g; }) });
-         })(gunEkle(b,i));
-         return s;
-      }
       var secPid = $('#ogt_personel').val(), gorulen = {};
       function ekle(id, ad){
          if (gorulen[id]) return; gorulen[id] = 1;
          var l = liste.filter(function(o){ return o.personel_id === id; });
-         s.push({ gun:secili, pid:id || '', bugun:false, ust:esc(ad)+'<small>'+l.length+' görüşme</small>', l:l });
+         s.push({ gun:secili, pid:id || '', ust:esc(ad)+'<small>'+l.length+' görüşme</small>', l:l });
       }
       PERSONELLER.forEach(function(p){ if (!secPid || String(p.id) === String(secPid)) ekle(p.id, p.ad); });
       liste.forEach(function(o){ ekle(o.personel_id, o.personel); }); // pasif/silinmis personelin kayitlari
-      if (!s.length) s.push({ gun:secili, pid:'', bugun:false, ust:'Ön Görüşmeler', l:liste });
+      if (!s.length) s.push({ gun:secili, pid:'', ust:'Ön Görüşmeler', l:liste });
       return s;
    }
    function hhmm(m){ return iki(Math.floor(m/60))+':'+iki(m%60); }
@@ -421,9 +321,8 @@ $(document).ready(function(){
       return { acik:c.acik, b:c.b === '00:00' ? 360 : dk(c.b), e:c.e === '00:00' ? 1200 : dk(c.e) };
    }
    // Izgara: calisma saati baslangici (daha erken kayit varsa o) -> gun sonu. Dakika doner.
-   function saatAraligi(liste, gunler){
-      var b = GUN_SONU;
-      gunler.forEach(function(g){ b = Math.min(b, calisma(g).b); });
+   function saatAraligi(liste){
+      var b = calisma(secili).b;
       liste.forEach(function(o){ if (o.saat) b = Math.min(b, zaman(o).b); });
       return [Math.floor(b/ADIM)*ADIM, GUN_SONU];
    }
@@ -454,12 +353,11 @@ $(document).ready(function(){
       return ol;
    }
    function izgaraHtml(liste){
-      var s = sutunlar(liste), min = gorunum === 'hafta' ? 118 : 170;
-      var sa = saatAraligi(liste, s.map(function(k){ return k.gun; }));
+      var s = sutunlar(liste), sa = saatAraligi(liste);
       var saatsizVar = liste.some(function(o){ return !o.saat; });
-      var h = '<div class="ogt-kaydir" data-bas="'+sa[0]+'"><div class="ogt-izgara" style="grid-template-columns:54px repeat('+s.length+',minmax('+min+'px,1fr))">';
+      var h = '<div class="ogt-kaydir" data-bas="'+sa[0]+'"><div class="ogt-izgara" style="grid-template-columns:54px repeat('+s.length+',minmax(170px,1fr))">';
       h += '<div class="ogt-kb kose"></div>';
-      s.forEach(function(k){ h += '<div class="ogt-kb'+(k.bugun ? ' bugun' : '')+'">'+k.ust+'</div>'; });
+      s.forEach(function(k){ h += '<div class="ogt-kb">'+k.ust+'</div>'; });
       if (saatsizVar) {
          h += '<div class="ogt-saatsiz kose">Saatsiz</div>';
          s.forEach(function(k){
@@ -484,8 +382,7 @@ $(document).ready(function(){
                (boy < 30 ? '<div><span class="s">'+o.saat+'</span> <span class="ad">'+esc(o.musteri)+'</span></div>'
                   : '<div class="s">'+o.saat+' - '+hhmm(z.e%GUN_SONU)+'</div><div class="ad">'+esc(o.musteri)+'</div>')+
                (boy >= 40 ? '<div>'+esc(o.neden)+'</div>' : '')+
-               (boy >= 50 && gorunum === 'hafta' ? '<div>'+esc(o.personel)+'</div>' : '')+
-               (boy >= 50 && gorunum === 'gun' && o.oda ? '<div>'+esc(o.oda)+'</div>' : '')+
+               (boy >= 50 && o.oda ? '<div>'+esc(o.oda)+'</div>' : '')+
                (t ? '<div class="ogt-tut"></div>' : '')+'</div>';
          });
          h += '</div>';
@@ -494,9 +391,9 @@ $(document).ready(function(){
    }
    // Ilk acilista en erken gorusme gorunsun; hic yoksa ve bugun ekrandaysa simdiki saat
    function kaydir($k, liste){
-      var bas = parseInt($k.attr('data-bas'),10), hedef = null, a = aralik();
+      var bas = parseInt($k.attr('data-bas'),10), hedef = null;
       liste.forEach(function(o){ if (o.saat && (hedef === null || dk(o.saat)-30 < hedef)) hedef = dk(o.saat)-30; });
-      if (hedef === null && BUGUN >= a[0] && BUGUN <= a[1]) { var s = new Date(); hedef = s.getHours()*60+s.getMinutes()-60; }
+      if (hedef === null && secili === BUGUN) { var s = new Date(); hedef = s.getHours()*60+s.getMinutes()-60; }
       if (hedef !== null) $k.scrollTop(Math.max(0,py(hedef-bas)));
    }
 
@@ -642,8 +539,8 @@ $(document).ready(function(){
          $('#ogt_alan .ogt-sutun').each(function(){
             var r = this.getBoundingClientRect(), pid = $(this).attr('data-pid');
             if (e.clientX < r.left || e.clientX >= r.right) return;
-            // Gun gorunumunde yalniz kendi sutununa ya da aktif bir personele birakilabilir
-            if (gorunum === 'gun' && this !== sur.$ilk[0] && !PERSONELLER.some(function(p){ return String(p.id) === pid; })) { sur.$s = sur.$ilk; return; }
+            // Yalniz kendi sutununa ya da aktif bir personele birakilabilir
+            if (this !== sur.$ilk[0] && !PERSONELLER.some(function(p){ return String(p.id) === pid; })) { sur.$s = sur.$ilk; return; }
             sur.$s = $(this);
          });
       }
@@ -662,7 +559,7 @@ $(document).ready(function(){
       document.addEventListener('click', yut, true);
       setTimeout(function(){ document.removeEventListener('click', yut, true); }, 0);
       var z = zaman(v.o), gun = v.$s.attr('data-gun'), pid = '';
-      if (gorunum === 'gun' && v.$s[0] !== v.$ilk[0]) pid = v.$s.attr('data-pid');
+      if (v.$s[0] !== v.$ilk[0]) pid = v.$s.attr('data-pid');
       if (v.b === z.b && v.e === z.e && gun === v.o.tarih && !pid) return ciz(false);
       tasiOnay(v.o, gun, hhmm(v.b), hhmm(v.e), pid);
    });
@@ -687,14 +584,13 @@ $(document).ready(function(){
    }
 
    /* ---------- olaylar ---------- */
-   function git(g, v){ secili = g; if (v) { gorunum = v; yaz('gorunum', v); } yukle(); }
-   function adim(n){ git(gorunum === 'ay' ? ayEkle(secili,n) : gunEkle(secili, gorunum === 'hafta' ? 7*n : n)); }
+   function git(g){ secili = g; yukle(); }
+   function adim(n){ git(gunEkle(secili, n)); }
    $('#ogt_geri').on('click', function(){ adim(-1); });
    $('#ogt_ileri').on('click', function(){ adim(1); });
    $('#ogt_bugun').on('click', function(){ git(BUGUN); });
-   $('#ogt_yeni').on('click', function(){ yeniAc(gorunum === 'ay' ? '' : secili, '', $('#ogt_personel').val()); });
-   $('#ogt_yeni_arama').on('click', function(){ aramaAc(gorunum === 'ay' ? '' : secili, '', $('#ogt_personel').val()); });
-   $('#ogt_gorunum').on('click', 'button', function(){ git(secili, $(this).attr('data-g')); });
+   $('#ogt_yeni').on('click', function(){ yeniAc(secili, '', $('#ogt_personel').val()); });
+   $('#ogt_yeni_arama').on('click', function(){ aramaAc(secili, '', $('#ogt_personel').val()); });
    $('#ogt_personel').on('change', function(){ ciz(false); });
    $('#ogt_filtre').on('click', 'button', function(){
       durumF = $(this).attr('data-d');
@@ -703,11 +599,6 @@ $(document).ready(function(){
    });
    $('#ogt_alan').on('click', '.ogt-e', function(e){ e.stopPropagation(); detayAc(+$(this).attr('data-id')); });
    $('#ogt_alan').on('keydown', '.ogt-e', function(e){ if (e.which === 13 || e.which === 32) { e.preventDefault(); detayAc(+$(this).attr('data-id')); } });
-   $('#ogt_alan').on('click', '.ogt-gno, .ogt-dahasi, .ogt-gunac', function(e){ e.stopPropagation(); git($(this).attr('data-gun'), 'gun'); });
-   $('#ogt_alan').on('click', '.ogt-gun', function(e){
-      var g = $(this).attr('data-gun');
-      if (window.innerWidth < 768) git(g, 'gun'); else secAc(e, g, '', $('#ogt_personel').val());
-   });
    $('#ogt_alan').on('click', '.ogt-sutun.ekle', function(e){
       var bas = parseInt($(this).closest('.ogt-kaydir').attr('data-bas'),10);
       var m = bas + Math.floor((e.clientY - this.getBoundingClientRect().top)*60/SAAT_H/ADIM)*ADIM;

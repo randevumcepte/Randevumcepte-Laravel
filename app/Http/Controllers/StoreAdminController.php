@@ -18300,7 +18300,7 @@ DB::raw('
     }
 
     /**
-     * On Gorusme TAKVIMI (ay / hafta / gun-personel). Menude YOK; adresle acilir:
+     * On Gorusme TAKVIMI (gunluk, sutun = personel). Menude YOK; adresle acilir:
      * /isletmeyonetim/ongorusme-takvim. Kayit/duzenle/satis akisi liste sayfasiyla AYNI
      * (ongorusme-modal + custom.js), burada ayrica yazma yolu yok.
      */
