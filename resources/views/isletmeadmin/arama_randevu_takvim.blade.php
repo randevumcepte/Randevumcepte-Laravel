@@ -233,41 +233,8 @@ textarea.artm-alan{ min-height:70px; resize:vertical; }
    </div>
 </div>
 
-{{-- Manuel Arama Randevusu Ekle modali --}}
-<div class="modal fade" id="art_ekle_modal" tabindex="-1" role="dialog" aria-hidden="true">
-   <div class="modal-dialog" role="document">
-      <div class="modal-content" style="border-radius:16px;">
-         <div class="modal-header" style="background:linear-gradient(120deg,#5C008E,#7B2FB8);color:#fff;border-top-left-radius:16px;border-top-right-radius:16px;border-bottom:none;">
-            <h5 style="margin:0;font-weight:800;color:#fff;"><i class="fa fa-calendar-plus-o"></i> Arama Randevusu Ekle</h5>
-            <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.9;"><span>&times;</span></button>
-         </div>
-         <div class="modal-body" style="padding:18px 20px;">
-            <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Müşteri</label>
-            <select id="are_musteri" class="form-control" style="width:100%;margin-bottom:12px;"></select>
-
-            <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Arayacak personel</label>
-            <select id="are_personel" class="form-control" style="width:100%;margin-bottom:12px;"><option value="">Personel seçin...</option></select>
-
-            <div class="row">
-               <div class="col-7">
-                  <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Tarih</label>
-                  <input type="text" id="are_tarih" class="form-control" autocomplete="off" readonly placeholder="Tarih seçin">
-               </div>
-               <div class="col-5">
-                  <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin-bottom:4px;">Saat</label>
-                  <select id="are_saat" class="form-control"></select>
-               </div>
-            </div>
-
-            <label style="font-size:12.5px;font-weight:700;color:#4b5163;display:block;margin:12px 0 4px;">Not (opsiyonel)</label>
-            <textarea id="are_not" class="form-control" rows="2" placeholder="Görüşme notu / hatırlatma..."></textarea>
-         </div>
-         <div class="modal-footer" style="border:none;padding:0 20px 18px;">
-            <button type="button" id="are_kaydet" style="width:100%;background:linear-gradient(120deg,#6d28d9,#7c3aed);border:none;color:#fff;font-weight:800;border-radius:10px;padding:12px;cursor:pointer;font-size:14px;"><i class="fa fa-check"></i> Arama Randevusu Ekle</button>
-         </div>
-      </div>
-   </div>
-</div>
+{{-- Manuel Arama Randevusu Ekle modali (On Gorusme Takvimi ile ORTAK) --}}
+@include('isletmeadmin.partials.arama_randevu_ekle')
 
 <script>
 $(document).ready(function(){
@@ -785,97 +752,19 @@ $(document).ready(function(){
    // air-datepicker yoksa (fallback) manuel degisimde yukle
    if (!artDp) $('#art_tarih').on('change', yukle);
 
-   // ===== Manuel Arama Randevusu Ekle =====
-   var arePersonelYuklendi = false;
-   function arePersonelleriYukle(){
-      $.get('/isletmeyonetim/arama-personelleri', { sube: sube, randevu: 1 }, function(res){
-         var ps = res || [];
-         var o = '<option value="">Personel seçin...</option>';
-         ps.forEach(function(p){ o += '<option value="'+p.id+'">'+esc(p.personel_adi)+'</option>'; });
-         $('#are_personel').html(o);
-         // Tekrar-arama "Arayacak personel" select'i de ayni listeyle dolsun (varsa).
-         if ($('#artm_sonra_personel').length){
-            var o2 = '<option value="">👤 Arayacak personel (varsayılan: liste personeli)</option>';
-            ps.forEach(function(p){ o2 += '<option value="'+p.id+'">'+esc(p.personel_adi)+'</option>'; });
-            $('#artm_sonra_personel').html(o2);
-         }
-         arePersonelYuklendi = true;
-      });
-   }
-   arePersonelleriYukle();
-
-   // Saat slotlari (15 dk, 08:00-22:00) — randevu formundaki gibi secimli
-   function areSaatSlotlari(){
-      var o = '<option value="">Saat seçin...</option>';
-      for (var h=8; h<=22; h++){
-         for (var m=0; m<60; m+=15){
-            if (h===22 && m>0) break;
-            var hh=('0'+h).slice(-2), mm=('0'+m).slice(-2);
-            o += '<option value="'+hh+':'+mm+'">'+hh+':'+mm+'</option>';
-         }
+   // ===== Manuel Arama Randevusu Ekle (modal + kayit: partials/arama_randevu_ekle) =====
+   $(document).on('arama:personeller', function(e, ps){
+      // Tekrar-arama "Arayacak personel" select'i de ayni listeyle dolsun (varsa).
+      if ($('#artm_sonra_personel').length){
+         var o2 = '<option value="">👤 Arayacak personel (varsayılan: liste personeli)</option>';
+         ps.forEach(function(p){ o2 += '<option value="'+p.id+'">'+esc(p.personel_adi)+'</option>'; });
+         $('#artm_sonra_personel').html(o2);
       }
-      $('#are_saat').html(o);
-   }
-
-   $('#art_randevu_ekle').on('click', function(){
-      // reset
-      $('#are_not').val('');
-      areSaatSlotlari();
-      $('#are_tarih').val($('#art_tarih').val() || '{{ date('Y-m-d') }}');
-      if (!arePersonelYuklendi) arePersonelleriYukle();
-      $('#are_personel').val('');
-      // musteri select2'yi temizle
-      if ($.fn.select2 && $('#are_musteri').hasClass('select2-hidden-accessible')){ $('#are_musteri').val(null).trigger('change'); }
-      $('#art_ekle_modal').modal('show');
    });
-
-   $(document).on('shown.bs.modal', '#art_ekle_modal', function(){
-      var mp = $('#art_ekle_modal');
-      if ($.fn.select2){
-         // Musteri: ajax select2
-         if ($('#are_musteri').hasClass('select2-hidden-accessible')){ try{$('#are_musteri').select2('destroy');}catch(e){} }
-         $('#are_musteri').select2({
-            width:'100%', dropdownParent: mp, placeholder:'Müşteri ara (ad / telefon)...', minimumInputLength:2,
-            ajax: {
-               url:'/isletmeyonetim/cagri-musteri-select', dataType:'json', delay:250,
-               data: function(params){ return { q: params.term, sube: sube }; },
-               processResults: function(data){ return { results: (data && data.results) ? data.results : [] }; }
-            }
-         });
-         if ($('#are_personel').hasClass('select2-hidden-accessible')){ try{$('#are_personel').select2('destroy');}catch(e){} }
-         $('#are_personel').select2({ width:'100%', dropdownParent: mp, placeholder:'Personel seçin...' });
-         if ($('#are_saat').hasClass('select2-hidden-accessible')){ try{$('#are_saat').select2('destroy');}catch(e){} }
-         $('#are_saat').select2({ width:'100%', dropdownParent: mp, placeholder:'Saat seçin...' });
-      }
-      // tarih datepicker (ileri+geri serbest; arama randevusu gecmise de planlanabilir degil ama esnek)
-      try { if ($.fn.datepicker){ $('#are_tarih').datepicker({ language:'tr', autoClose:true, dateFormat:'yyyy-mm-dd' }); } } catch(e){}
-   });
-   $(document).on('hidden.bs.modal', '#art_ekle_modal', function(){
-      if ($.fn.select2){ ['#are_musteri','#are_personel','#are_saat'].forEach(function(s){ if($(s).hasClass('select2-hidden-accessible')){ try{$(s).select2('destroy');}catch(e){} } }); }
-   });
-
-   $(document).on('click', '#are_kaydet', function(){
-      var musteriId = $('#are_musteri').val();
-      var personelId = $('#are_personel').val();
-      var tarih = $('#are_tarih').val();
-      var saat = $('#are_saat').val();
-      if (!musteriId){ if(typeof swal==='function') swal({type:'warning',title:'Müşteri seçin',text:'Arama randevusu için müşteri seçin.'}); return; }
-      if (!personelId){ if(typeof swal==='function') swal({type:'warning',title:'Personel seçin',text:'Arayacak personeli seçin.'}); return; }
-      if (!tarih || !saat){ if(typeof swal==='function') swal({type:'warning',title:'Tarih/saat',text:'Tarih ve saat seçin.'}); return; }
-      var $btn = $(this); $btn.prop('disabled', true);
-      $.post('/isletmeyonetim/cagri-arama-randevu-ekle',
-         { musteri_id:musteriId, personel_id:personelId, tarih:tarih, saat:saat, not:($('#are_not').val()||''), sube:sube, _token:token },
-         function(res){
-            $btn.prop('disabled', false);
-            if (res && res.success){
-               $('#art_ekle_modal').modal('hide');
-               if (typeof swal==='function') swal({type:'success',title:'Eklendi',text:res.message||'Arama randevusu eklendi.',timer:2600,showConfirmButton:false});
-               // Eklenen tarihe git + tazele
-               $('#art_tarih').val(tarih); yukle();
-            } else if (typeof swal==='function'){ swal({type:'error',title:'Hata',text:(res&&res.message)||'Eklenemedi.'}); }
-         }
-      ).fail(function(){ $btn.prop('disabled', false); if(typeof swal==='function') swal({type:'error',title:'Hata',text:'İşlem başarısız.'}); });
-   });
+   window.aramaPersonelleriYukle();
+   $('#art_randevu_ekle').on('click', function(){ window.aramaRandevuEkleAc({ tarih: $('#art_tarih').val() }); });
+   // Eklenen tarihe git + tazele
+   $(document).on('arama:randevu-eklendi', function(e, r){ $('#art_tarih').val(r.tarih); yukle(); });
 
    // URL'de ?tarih=YYYY-MM-DD varsa o gune git (bildirim kartlarindan gelince dogru gun acilsin)
    try {

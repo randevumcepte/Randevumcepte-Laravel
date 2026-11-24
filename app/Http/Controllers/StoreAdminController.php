@@ -18301,7 +18301,16 @@ DB::raw('
             ->whereNotIn('id', $kisitli ? [] : \App\Services\PersonelGorunurluk::gizliIdler($salonId,'ongorusme'))
             ->orderBy('personel_adi','asc')->get(['id','personel_adi']);
 
+        // Arama randevusu (cagri merkezi): paket 3. Rol 5 / kisitli kullanici yalniz KENDI uzerine ekler.
+        $aramaAktif = (int) $isletme->uyelik_turu === 3;
+        $aramaYalniz = $aramaAktif && ($kisitli || (int) self::kullaniciRolu($salonId,$authUser->id) === 5);
+        $aramaYalnizPersonel = $aramaYalniz
+            ? Personeller::where('salon_id',$salonId)->where('yetkili_id',$authUser->id)->first(['id','personel_adi']) : null;
+        if ($aramaYalniz && !$aramaYalnizPersonel) $aramaAktif = false;
+
         return view('isletmeadmin.ongorusme_takvim',[
+            'aramaAktif'              => $aramaAktif,
+            'aramaYalnizPersonel'     => $aramaYalnizPersonel,
             'personeller'             => $personeller,
             'ekleDuzenleYetki'        => \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, 'gorusme.ekle_duzenle'),
             'bildirimler'             => self::bildirimgetir($request),
