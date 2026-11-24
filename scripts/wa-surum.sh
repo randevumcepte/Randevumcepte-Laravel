@@ -92,6 +92,7 @@ echo "2) yedek: $Y"
 cp whatsmeow-bridge "$B/whatsmeow-bridge.yeni" && chmod 755 "$B/whatsmeow-bridge.yeni" \
     && cp main.go go.mod go.sum "$B"/ && mv -f "$B/whatsmeow-bridge.yeni" "$B/whatsmeow-bridge" \
     || { echo "HATA: dosyalar yerlestirilemedi; yedek: $Y"; exit 1; }
+son_log 20000 > "$Y/eski.log"   # teshis icin sakla; asagidaki sayim yalniz yeni acilisi gorsun
 pm2 flush "$P" >/dev/null 2>&1
 pm2 restart "$P" && sleep 45
 echo "3) sonuc:"
