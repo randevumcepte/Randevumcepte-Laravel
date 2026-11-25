@@ -133,6 +133,19 @@ class SoftphoneApiController extends Controller
         return response()->json(['ok' => true, 'durum' => $deger ? explode('|', $deger)[0] : null]);
     }
 
+    /**
+     * Uygulama: numara dahilinin salon(lar)inda kayitli musteriyse adi, degilse ''.
+     * Tus takimi ve adi bilinmeyen aramalar icin.
+     */
+    public function numaraAd(Request $request)
+    {
+        if (!$this->dahiliDogrula($request)) {
+            return response()->json(['ok' => false], 401);
+        }
+        $ad = $this->musteriAdi((string) $request->input('numara'), $this->spDahili);
+        return response()->json(['ok' => true, 'ad' => $ad], 200, [], JSON_UNESCAPED_UNICODE);
+    }
+
     // ------------------------------------------------------------------
     // Santral uclari (paylasilan anahtar)
     // ------------------------------------------------------------------
@@ -297,15 +310,16 @@ class SoftphoneApiController extends Controller
         }
         $son10 = substr($hane, -10);
         try {
-            return (string) Cache::remember('sp_musteri_adi_' . $dahili . '_' . $son10, 5, function () use ($dahili, $son10) {
+            return (string) Cache::remember('sp_musteri_adi2_' . $dahili . '_' . $son10, 5, function () use ($dahili, $son10) {
                 $salonlar = DB::table('softphone_voip_tokenlar')->where('dahili', $dahili)
                     ->whereNotNull('salon_id')->distinct()->pluck('salon_id')->all();
-                if (!$salonlar) {
-                    $salonlar = Personeller::where(function ($q) use ($dahili) {
+                // Token satiri yalniz giris yapilan subeyi tutar; ayni dahili birden cok
+                // subede tanimliysa hepsinin musterileri taninir.
+                $salonlar = array_values(array_unique(array_filter(array_merge($salonlar,
+                    Personeller::where(function ($q) use ($dahili) {
                         $q->where('dahili_no_webrtc', $dahili);
                         if (StoreAdminController::mobilDahiliKolonVar()) $q->orWhere('dahili_no_webrtc_mobil', $dahili);
-                    })->pluck('salon_id')->all();
-                }
+                    })->pluck('salon_id')->all()))));
                 if (!$salonlar) {
                     return '';
                 }

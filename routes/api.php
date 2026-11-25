@@ -695,6 +695,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::post('/santral/android-push', 'SoftphoneApiController@santralAndroidPush');
         Route::post('/santral/bitti',     'SoftphoneApiController@santralBitti');
         Route::post('/durum',             'SoftphoneApiController@durum');
+        Route::post('/numara-ad',         'SoftphoneApiController@numaraAd');
     });
 
     // AI santral asistan gorusmeleri (mobil: Asistanim > Asistan Gorusmeleri; web paneliyle ayni mantik, sube parametresi zorunlu)
