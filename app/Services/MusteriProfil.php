@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\CarkifelekOdulleri;
 use App\MusteriPortfoy;
 use App\SalonYonetim\Audit;
 use App\Salonlar;
@@ -29,7 +28,7 @@ class MusteriProfil
 
     public static function ozet($userId, array $salonlar, $salonId)
     {
-        $s = ['ziyaret' => null, 'yaklasan' => null, 'kupon' => 0, 'cihaz' => 0, 'siradaki' => null];
+        $s = ['ziyaret' => null, 'yaklasan' => null, 'cihaz' => 0, 'siradaki' => null];
         $bugun = date('Y-m-d');
         $simdi = date('H:i:s');
         $gelecek = function ($q) use ($bugun, $simdi) {
@@ -60,12 +59,6 @@ class MusteriProfil
             }
         } catch (\Throwable $e) {
             Log::warning('[MusteriProfil] randevu', ['err' => $e->getMessage()]);
-        }
-        try {
-            $s['kupon'] = CarkifelekOdulleri::where('user_id', $userId)->whereIn('salon_id', $salonlar)->where('kullanildi', 0)
-                ->where(function ($q) use ($bugun) { $q->whereNull('gecerlilik_tarihi')->orWhere('gecerlilik_tarihi', '>=', $bugun); })->count();
-        } catch (\Throwable $e) {
-            Log::warning('[MusteriProfil] kupon', ['err' => $e->getMessage()]);
         }
         try {
             $s['cihaz'] = count(self::cihazlar($userId, $salonId));
