@@ -15,7 +15,10 @@ return [
         ['kod' => 'de', 'ad' => 'Deutsch', 'bayrak' => '🇩🇪'],
     ],
 
-    // Latin disi alfabe: eski SMS saglayicisi (VoiceTelekom, encoding 0) tasiyamaz -> SMS bu dilde gider
+    // SMS daima Turkce gider (isletme istegi 2026-11-25); WhatsApp ve uygulama bildirimi musterinin dilinde
+    'sms_cevir' => false,
+
+    // (sms_cevir aciksa) Latin disi alfabe: eski SMS saglayicisi (VoiceTelekom, encoding 0) tasiyamaz -> SMS bu dilde gider
     'sms_latin_yedek' => ['ru' => 'en'],
 
     // Sozlukte olmayan serbest metin (kampanya vb.) yapay zeka ile bir kez cevrilir ve saklanir

@@ -9,6 +9,6 @@
       <option value="{{$d['kod']}}" @if($mdKayit && $mdKayit->dil === $d['kod']) selected @endif>{{$d['bayrak']}} {{$d['ad']}}</option>
       @endforeach
    </select>
-   <small style="color:#64748b">SMS, WhatsApp ve bildirimler bu dilde gider.</small>
+   <small style="color:#64748b">WhatsApp ve uygulama bildirimleri bu dilde gider; SMS Türkçe gider.</small>
 </div>
 @endif

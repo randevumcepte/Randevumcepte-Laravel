@@ -147,6 +147,7 @@ class MusteriDili
     {
         try {
             if (!self::acikMi($salonId) || (string) $metin === '') return $metin;
+            if ($kanal === 'sms' && !config('diller.sms_cevir')) return $metin;
             if (isset(self::$uretilen[md5($metin)])) return $metin; // ayni istekte zaten cevrildi (kanal dagitimi -> SMS cikisi)
             $dil = self::aliciDili($userId, $telefon);
             if (!$dil || $dil === 'tr') return $metin;
@@ -163,7 +164,7 @@ class MusteriDili
     /** SMS satirlari [['to','message','user_id'?], ...] alicinin diline cevrilir. */
     public static function smsSatirlari($salonId, $mesajlar)
     {
-        if (!self::acikMi($salonId) || !is_array($mesajlar)) return $mesajlar;
+        if (!config('diller.sms_cevir') || !self::acikMi($salonId) || !is_array($mesajlar)) return $mesajlar;
         foreach ($mesajlar as $i => $m) {
             if (!is_array($m) || empty($m['message'])) continue;
             // Personel/yonetici mesajlari da bu cikistan gecer: yalniz sozluk (AI yok)
