@@ -323,7 +323,7 @@ class NotificationApiController extends Controller
         $q = Bildirimler::query()->orderBy('tarih_saat', 'desc');
 
         if ($tip === 'musteri') {
-            $q->where('user_id', $request->input('user_id'));
+            $q->musteriKutusu($request->input('user_id'));
         } elseif ($tip === 'personel') {
             $q->where('personel_id', $request->input('personel_id'));
         } elseif ($tip === 'yetkili') {
@@ -384,7 +384,7 @@ class NotificationApiController extends Controller
         $q = Bildirimler::query()->where('okundu', false);
 
         if ($tip === 'musteri') {
-            $q->where('user_id', $request->input('user_id'));
+            $q->musteriKutusu($request->input('user_id'));
         } elseif ($tip === 'personel') {
             $q->where('personel_id', $request->input('personel_id'));
         } elseif ($tip === 'yetkili') {

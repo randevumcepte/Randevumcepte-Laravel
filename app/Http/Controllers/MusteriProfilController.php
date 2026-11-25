@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\BildirimKutusu;
 use App\Services\IsletmeYasalMetin;
 use App\Services\MusteriProfil;
 use Illuminate\Http\Request;
@@ -54,5 +55,17 @@ class MusteriProfilController extends Controller
         if (!$k = $this->kisi($request)) return $this->yok();
         $r = MusteriProfil::cihazKapat($k[0], $k[1], (int) $request->input('id'));
         return $r === true ? response()->json(['ok' => 1]) : response()->json(['ok' => 0, 'hata' => $r], 422);
+    }
+
+    /** Govde: {kapsam: secili|okunmus|tumu, idler: [], son_id} */
+    public function bildirimSil(Request $request)
+    {
+        if (!$k = $this->kisi($request)) return $this->yok();
+        $kapsam = (string) $request->input('kapsam');
+        $adet = BildirimKutusu::sil(BildirimKutusu::musteri($k[0]->id, $k[1]), $kapsam, (array) $request->input('idler'), (int) $request->input('son_id'));
+        if ($adet === null) return response()->json(['ok' => 0, 'hata' => 'Silinecek bildirim seçilmedi.'], 422);
+        // Istek verilmez: musteri numarasi, ayni numarali isletme yetkilisi gibi loglanmasin
+        BildirimKutusu::logla($k[1], null, 'musteri', $k[0]->id, $k[0]->name, $kapsam, $adet);
+        return response()->json(['ok' => 1, 'silinen' => $adet]);
     }
 }

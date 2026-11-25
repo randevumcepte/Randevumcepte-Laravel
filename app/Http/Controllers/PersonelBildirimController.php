@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\BildirimKutusu;
 use App\Services\PersonelBildirimSessiz;
 use Illuminate\Http\Request;
 
@@ -58,5 +59,18 @@ class PersonelBildirimController extends StoreAdminController
             (int) $request->input('sessiz') === 1, $request, $k[1]->personel_adi);
         if ($sonuc === null) return response()->json(['ok' => 0, 'hata' => 'Geçersiz bildirim türü.'], 422);
         return response()->json(['ok' => 1, 'degisti' => $sonuc] + PersonelBildirimSessiz::ekranVerisi($k[0], (int) $k[1]->id, $k[2]));
+    }
+
+    /** Mobil Bildirimler ekrani. Govde: {kapsam: secili|okunmus|tumu, idler: [], son_id} */
+    public function sil(Request $request)
+    {
+        $k = $this->kisi($request);
+        if (!$k) return response()->json(['ok' => 0, 'hata' => 'Oturum bulunamadı.'], 403);
+        $kapsam = (string) $request->input('kapsam');
+        $adet = BildirimKutusu::sil(BildirimKutusu::personel($this->asistanGorusmeYetkili()->id, $k[0]), $kapsam,
+            (array) $request->input('idler'), (int) $request->input('son_id'));
+        if ($adet === null) return response()->json(['ok' => 0, 'hata' => 'Silinecek bildirim seçilmedi.'], 422);
+        BildirimKutusu::logla($k[0], $request, 'personel', $k[1]->id, $k[1]->personel_adi, $kapsam, $adet);
+        return response()->json(['ok' => 1, 'silinen' => $adet]);
     }
 }

@@ -394,6 +394,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     // Bildirimlerim (mobil): kisi kendi uygulama bildirimlerini tur bazinda sesli/sessiz yapar
     Route::get('/bildirimlerim/veri','PersonelBildirimController@veri')->middleware('auth:isletmeyonetim-api');
     Route::post('/bildirimlerim/kaydet','PersonelBildirimController@kaydet')->middleware('auth:isletmeyonetim-api');
+    Route::post('/bildirimlerim/sil','PersonelBildirimController@sil')->middleware('auth:isletmeyonetim-api');
     // Profil sayfasi (mobil): ozet, durum, yorumlar, saatler, hizmetler, izin, hedef, calismalar, cihazlar
     Route::group(['prefix' => 'profil', 'middleware' => 'auth:isletmeyonetim-api'], function () {
         Route::get('/ozet','ProfilController@ozet');
@@ -424,6 +425,7 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::get('/hakkinda','MusteriProfilController@hakkinda');
         Route::get('/cihazlar','MusteriProfilController@cihazlar');
         Route::post('/cihaz-kapat','MusteriProfilController@cihazKapat');
+        Route::post('/bildirim-sil','MusteriProfilController@bildirimSil');
     });
     // Dogum gunu popup (mobil): web'deki isletmeyonetim uclarinin Bearer'li karsiligi.
     Route::get('/dogum-gunu/bugun','StoreAdminController@apiBugunDogumGunu')->middleware('auth:isletmeyonetim-api');

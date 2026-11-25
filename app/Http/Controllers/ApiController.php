@@ -25986,9 +25986,9 @@ if (is_array($request->cihaz_id)) {
     {
         $salonlar = Salonlar::where('app_bundle',$request->appBundle)->pluck('id')->toArray();
 
-        $musteriokunmamis = Bildirimler::whereIn("salon_id", $salonlar)
+        $musteriokunmamis = Bildirimler::musteriKutusu($request->user_id)
 
-            ->where("user_id", $request->user_id)
+            ->whereIn("salon_id", $salonlar)
 
             ->where("okundu", "0")
 
@@ -26000,7 +26000,7 @@ if (is_array($request->cihaz_id)) {
 
             ->where("salon_id", $salonlar)
 
-            ->where("user_id", $request->user_id)->orderBy('tarih_saat','desc')
+            ->where("user_id", $request->user_id)->whereNull('personel_id')->orderBy('tarih_saat','desc')
 
             ->get();
 
@@ -26165,7 +26165,7 @@ if (is_array($request->cihaz_id)) {
         // tek "Bildirimler" ekraninda brand'in tum subelerinin bildirimleri
         // gorulur. Master build (com.randevumcepte.randevumcepte) icin brand
         // filtre atlanir; sube gonderilirse eski davranis surer (geriye uyum).
-        $q = Bildirimler::where('user_id', $request->user_id)
+        $q = Bildirimler::musteriKutusu($request->user_id)
             ->orderBy('tarih_saat', 'desc');
 
         $appBundle = $request->input('appBundle');
@@ -26189,7 +26189,7 @@ if (is_array($request->cihaz_id)) {
         // isaretliyordu; brand altindaki diger sube bildirimleri okunmamis kaliyordu.
         // Route hala {isletme_id} aliyor -> geriye uyum icin appBundle yoksa eski
         // davranis calisir; appBundle varsa brand'in tum subeleri kapsanir.
-        $q = Bildirimler::where('user_id', $user_id)->where('okundu', 0);
+        $q = Bildirimler::musteriKutusu($user_id)->where('okundu', 0);
 
         $appBundle = $request->input('appBundle');
         if (!empty($appBundle) && $appBundle !== 'com.randevumcepte.randevumcepte') {

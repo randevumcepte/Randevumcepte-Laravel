@@ -8,6 +8,16 @@ class Bildirimler extends Model
 {
     protected $table = 'bildirimler';
     protected $with =  ['user','personel','randevu','arsiv','satis_ortagi'];
+    /**
+     * Musterinin kendi bildirimleri. Personele yazilan hatirlatma/alacak kayitlarinda user_id ilgili
+     * musteriyi gosterir (personel_id dolu) ve isletmeye yonelik kayitlar panel adresi tasir; bunlar musterinin degildir.
+     */
+    public function scopeMusteriKutusu($q, $userId)
+    {
+        return $q->where('user_id', $userId)
+            ->where(function ($w) { $w->whereNull('personel_id')->orWhere('personel_id', 0); })
+            ->where(function ($w) { $w->whereNull('url')->orWhere('url', 'not like', '/isletmeyonetim/%'); });
+    }
     public function user()
     {
         return $this->belongsTo(User::class,'user_id');
