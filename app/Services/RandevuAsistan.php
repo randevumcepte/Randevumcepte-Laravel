@@ -467,6 +467,12 @@ class RandevuAsistan
             $this->teshis = 'sinirli';
             return ['cevap' => 'Kusura bakmayın, sizi yorduk. Hemen yetkili arkadaşıma bağlıyorum, lütfen hatta kalın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
         }
+        // YALNIZ SELAM (kayit 277): karsilama az once okundu, musteri "Merhaba" dedi -> karsilama TEKRARLANMAZ (modelsiz)
+        if ($this->kanal !== 'whatsapp' && $this->yalnizSelamMi($metin, $gecmis)) {
+            Log::info('[SANTRAL-TUR] yalniz selam', ['salon' => $this->salonId, 'metin' => $metin]);
+            $this->teshis = 'selam';
+            return ['cevap' => 'Buyurun, sizi dinliyorum.', 'aksiyon' => null, 'veri' => [], 'bitir' => false];
+        }
         // HIZLI VEDA: "Başka yardımcı olabileceğim bir konu var mı?" -> "yok, teşekkürler" ise KODLA kapat.
         // LLM'li veda (arac + kapanis cumlesi = 2 cagri) 5,5 sn suruyordu (2026-11-17 kayit).
         if ($this->baskaYardimSoruldu($gecmis) && $this->vedaMi($metin)) {
@@ -641,7 +647,7 @@ class RandevuAsistan
                 && $this->sahteBasariMetni($cevap);
             // BEKLETME CUMLESI: "bir moment / bekleteceğim / kontrol ediyorum" -> cumleyi at; geriye bir sey
             // kalmadiysa (model araci cagirmadan bekletip turu bitirdi) duzeltme turu: araci simdi cagirsin.
-            $cevap = $this->tekrarOnayKes($this->dogalBaslangic($this->uydurmaHizmetKes($this->uzmanListesiKes($this->bekletmeTemizle($this->icSesTemizle($cevap)), $metin))), $gecmis);
+            $cevap = $this->tekrarOnayKes($this->dogalBaslangic($this->tekrarSelamKes($this->uydurmaHizmetKes($this->uzmanListesiKes($this->bekletmeTemizle($this->icSesTemizle($cevap)), $metin)), $gecmis)), $gecmis);
             $bekletti = ($cevap === '' && !$bitir && !in_array($aksiyon, ['aktar', 'veda'], true));
             if ($bekletti && $deneme === 0) {
                 Log::warning('[SANTRAL-BEKLETME] model bekletme cumlesiyle turu bitirdi', ['salon' => $this->salonId, 'metin' => $metin]);
@@ -1149,7 +1155,7 @@ class RandevuAsistan
             if (!$this->anlamadiCevabi($c)) { $son = $c; break; }
         }
         $zamanSorusu = (bool) preg_match('/\b(gün|saat|tarih)\w*/iu', $son);
-        $hizmetSorusu = $son === '' || (!$zamanSorusu && preg_match('/hizmet|nasıl yardımcı|hoş geldiniz/iu', $son));
+        $hizmetSorusu = $son === '' || (!$zamanSorusu && preg_match('/hizmet|nasıl yardımcı|hoş geldiniz|sizi dinliyorum/iu', $son));
         if ($hizmetSorusu) {
             $pop = $this->hizmetPopulerlik();
             arsort($pop);
@@ -1527,6 +1533,8 @@ class RandevuAsistan
     {
         static $harita = [
             '/\b(e[tp]{1,2} ?p?la[ksyz]{1,3}[iıo]?on|epi ?la[sz]yon|ebi ?lasyon|e ?pilasyon)(\p{L}*)/iu' => 'epilasyon$2',
+            // "(Merhaba,) bir randevu için arıyorum" -> "İbrahim de bu için arıyorum" (kayit 277): isim sanilip hitap edildi
+            '/(?<!\p{L})[İiIı]brahim\s+de\s+bu(?=\s+(için|almak|alacak|alabilir|istiyor))/u' => 'bir randevu',
         ];
         return $this->salonKelimeDuzelt(preg_replace(array_keys($harita), array_values($harita), $m) ?? $m);
     }
@@ -2013,6 +2021,38 @@ class RandevuAsistan
         return $kalan ? implode(' ', $kalan) : $c;
     }
 
+    /** Musteri karsilamaya yalniz selamla mi karsilik verdi ("Merhaba", "Alo iyi günler")? Sadece gorusmenin ilk cumlesinde. */
+    protected function yalnizSelamMi(string $m, array $gecmis): bool
+    {
+        if (!$gecmis) return false;
+        foreach ($gecmis as $g) {
+            if (($g['role'] ?? '') === 'user' || !empty($g['hatirlatma'])) return false;
+        }
+        $s = '((merhaba|selam)(lar)?|selamun aleykum|alo|efendim|iyi (gunler|aksamlar|sabahlar)|gunaydin|kolay gelsin|hayirli (gunler|isler))';
+        return (bool) preg_match("/^{$s}( ({$s}|hanimefendi|beyefendi))*$/", $this->sade($m));
+    }
+
+    /**
+     * Karsilama telefonda zaten okundu: cevabin basindaki ikinci selam ("Merhaba İbrahim Bey, hoş geldiniz.") atilir
+     * (kayit 277: prompt yasagina ragmen uc kez "hoş geldiniz"). Geriye bir sey kalmazsa / yalniz ayni "nasıl yardımcı
+     * olabilirim" sorusu kalirsa kisa "Buyurun, sizi dinliyorum." denir.
+     */
+    protected function tekrarSelamKes(string $c, array $gecmis): string
+    {
+        if ($this->kanal === 'whatsapp') return $c;
+        $selamlandi = false;
+        foreach ($gecmis as $g) if (($g['role'] ?? '') === 'assistant') { $selamlandi = true; break; }
+        if (!$selamlandi) return $c;
+        $kisi = '(\s+(sayın\s+)?\p{L}+(\s+\p{L}+)?\s+(bey|hanım))?';
+        $hos = '(tekrar\s+)?hoş\s*geldiniz' . $kisi . '\s*[,.!]\s*';
+        $kalan = preg_replace('/^\s*((merhaba|selam)(lar)?' . $kisi . '\s*[,.!]\s*(' . $hos . ')?|' . $hos . ')/iu', '', $c);
+        if ($kalan === null || $kalan === $c) return $c;
+        $kalan = trim($kalan);
+        if ($kalan === '' || preg_match('/^(size|sizin için)?\s*nasıl yardımcı olabilirim\s*\??$/iu', $kalan)) return 'Buyurun, sizi dinliyorum.';
+        $ilk = mb_substr($kalan, 0, 1, 'UTF-8');
+        return ($ilk === 'i' ? 'İ' : mb_strtoupper($ilk, 'UTF-8')) . mb_substr($kalan, 1, null, 'UTF-8');
+    }
+
     protected function dogalBaslangic(string $c): string
     {
         $c = trim($c);
@@ -2423,6 +2463,7 @@ class RandevuAsistan
                 . ($telBilinen ? '' : 've cep telefonunu ') . "iste (\"Tabii, önce adınızı ve soyadınızı alabilir miyim?\"); bilgi sorusuysa önce cevapla.\n"
                 . "- Müşteri ad ve soyadını söyleyince HEMEN musteri_kaydet çağır.\n"
                 . "- Sadece ad söylerse soyadını da iste.\n"
+                . "- Müşteri adını AÇIKÇA söylemedikçe (\"ben …\", \"adım …\" ya da ad sorusuna cevap) cümlede geçen isim benzeri kelimeyi müşterinin adı SAYMA, o isimle hitap etme: ses tanıma yanlış duymuş olabilir.\n"
                 . ($telBilinen
                     ? "- Arayan numarası biliniyor, telefon SORMA.\n"
                     : "- Arayan numarası GİZLİ: cep telefonunu da iste, musteri_kaydet'e telefon olarak ver. Numarayı rakam rakam teyit et.\n")

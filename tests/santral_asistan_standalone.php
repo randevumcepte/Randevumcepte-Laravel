@@ -954,6 +954,26 @@ namespace {
     esit('Tekrar onay: farklı kalıp → kalır', 'Harika. Hangi gün?', cagir($ab, 'tekrarOnayKes', 'Harika. Hangi gün?', $gT));
     esit('Tekrar onay: yalnız onay → dokunulmaz', 'Tabii, anladım.', cagir($ab, 'tekrarOnayKes', 'Tabii, anladım.', $gT));
 
+    bolum('Kayıt 277: karşılama tekrarlanmaz');
+    $g277 = [['role' => 'assistant', 'content' => "Merhaba, Ola Nail'e hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?"]];
+    foreach (['Merhaba' => true, 'Alo, iyi günler.' => true, 'Merhabalar kolay gelsin' => true, 'Merhaba randevu almak istiyorum' => false, 'Evet' => false] as $m => $b) {
+        esit("yalnız selam? \"$m\"", $b, cagir($pz, 'yalnizSelamMi', $m, $g277));
+    }
+    esit('ortada "alo" selam sayılmaz', false, cagir($pz, 'yalnizSelamMi', 'Alo', array_merge($g277, [['role' => 'user', 'content' => 'x'], ['role' => 'assistant', 'content' => 'y']])));
+    esit('hatırlatma aramasında selam kısayolu yok', false, cagir($pz, 'yalnizSelamMi', 'Alo', [['role' => 'assistant', 'content' => 'y', 'hatirlatma' => ['tur' => 'randevu']]]));
+    esit('"Merhaba" → kısa cevap', 'Buyurun, sizi dinliyorum.', $pz->konus('Merhaba', $g277)['cevap']);
+    foreach ([
+        'Merhaba İbrahim Bey, hoş geldiniz. Randevu için aradığınızı anladım; önce adınızı ve soyadınızı alabilir miyim?' => 'Randevu için aradığınızı anladım; önce adınızı ve soyadınızı alabilir miyim?',
+        'Merhaba, hoş geldiniz. Size nasıl yardımcı olabilirim?' => 'Buyurun, sizi dinliyorum.',
+        'Hoş geldiniz. Hangi gün uygun?' => 'Hangi gün uygun?',
+        'Merhaba, ipek kirpik için hangi gün uygun?' => 'İpek kirpik için hangi gün uygun?',
+        'Hangi hizmet için arıyorsunuz?' => 'Hangi hizmet için arıyorsunuz?',
+    ] as $m => $b) esit("selam kes: $m", $b, cagir($pz, 'tekrarSelamKes', $m, $g277));
+    esit('karşılama yapılmadıysa selam kalır', 'Merhaba, hoş geldiniz.', cagir($pz, 'tekrarSelamKes', 'Merhaba, hoş geldiniz.', []));
+    esit('"İbrahim de bu için" → "bir randevu için"', 'Merhaba bir randevu için arıyorum.', $pz->sttDuzelt('Merhaba İbrahim de bu için arıyorum.'));
+    esit('gerçek İbrahim dokunulmaz', 'Adım İbrahim Demir', $pz->sttDuzelt('Adım İbrahim Demir'));
+    esit('"İbrahim de bu saatte" dokunulmaz', 'İbrahim de bu saatte gelsin', $pz->sttDuzelt('İbrahim de bu saatte gelsin'));
+
     // Kayit 2026-11-23 12.52: "pedikür" -> "Kadıköy" duyuldu -> teyit ("... mı demek istediniz efendim?")
     icerir('prompt: yanlış duyma teyidi', 'Kadıköy mü demek istediniz efendim? Tam anlayamadım.', cagir($pz, 'sistemPromptu'));
     $ab->sttGuven = 0.42; icerir('düşük STT güveni → teyit notu', 'EMİN DEĞİL (güven %42)', cagir($ab, 'sttGuvenNotu'));
