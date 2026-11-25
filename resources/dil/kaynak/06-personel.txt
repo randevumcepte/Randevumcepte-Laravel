@@ -1,0 +1,854 @@
+## Personel uygulaması 1. bölüm: profil ve durum
+Uygulamanın ve size gelen bildirimlerin dili¦Language of the app and your notifications¦Язык приложения и ваших уведомлений¦Sprache der App und Ihrer Benachrichtigungen
+Mola talebiniz yöneticinize gönderildi. Onaylanınca durumunuz değişecek.¦Your break request was sent to your manager. Your status changes once approved.¦Запрос на перерыв отправлен руководителю. Статус изменится после одобрения.¦Ihre Pausenanfrage wurde gesendet. Ihr Status ändert sich nach der Genehmigung.
+Durum: Müsait¦Status: Available¦Статус: свободен¦Status: Verfügbar
+Durum güncellendi, takvim kapatıldı.¦Status updated, calendar blocked.¦Статус обновлён, календарь закрыт.¦Status aktualisiert, Kalender gesperrt.
+Mola bitiş saati¦Break end time¦Время окончания перерыва¦Ende der Pause
+Hangi tarihe kadar izinli?¦On leave until which date?¦Отпуск до какой даты?¦Urlaub bis wann?
+Saate kadar¦Until a time¦До времени¦Bis Uhrzeit
+{} · durum¦{} · status¦{} · статус¦{} · Status
+Durumum¦My status¦Мой статус¦Mein Status
+Seçtiğiniz durum hemen uygulanır; mola ve izin süresince takvim randevuya kapanır.¦Your status applies immediately; the calendar is blocked during breaks and leave.¦Статус применяется сразу; на время перерыва и отпуска запись закрыта.¦Der Status gilt sofort; während Pause und Urlaub ist der Kalender gesperrt.
+Mola için yöneticinizin onayı gerekir. Onaylanınca takvim o süre randevuya kapanır.¦Breaks need your manager's approval. Once approved, the calendar is blocked for that time.¦Перерыв одобряет руководитель. После одобрения запись на это время закрывается.¦Pausen müssen genehmigt werden. Danach wird der Kalender für diese Zeit gesperrt.
+Şu an: {}¦Now: {}¦Сейчас: {}¦Jetzt: {}
+Mola talebi ({}) onay bekliyor¦Break request ({}) awaiting approval¦Запрос на перерыв ({}) ожидает одобрения¦Pausenanfrage ({}) wartet auf Genehmigung
+Mola talebi onay bekliyor¦Break request awaiting approval¦Запрос на перерыв ожидает одобрения¦Pausenanfrage wartet auf Genehmigung
+Geri çek¦Withdraw¦Отозвать¦Zurückziehen
+İzin süresi bitince kendiliğinden Müsait olursunuz. Erken dönmek için yöneticinize başvurun.¦You become Available automatically when your leave ends. To return early, contact your manager.¦После отпуска статус сам станет «Свободен». Чтобы вернуться раньше, обратитесь к руководителю.¦Nach dem Urlaub sind Sie automatisch verfügbar. Für eine frühere Rückkehr fragen Sie Ihre Leitung.
+Moladan dön (onay gerekmez)¦Return from break (no approval needed)¦Вернуться с перерыва (без одобрения)¦Pause beenden (ohne Genehmigung)
+İzni bugünden bitir¦End leave today¦Завершить отпуск сегодня¦Urlaub heute beenden
+Müsait¦Available¦Свободно¦Frei
+Molada¦On break¦На перерыве¦In der Pause
+İzinli¦On leave¦В отпуске¦Im Urlaub
+Süre seçin¦Choose duration¦Выберите длительность¦Dauer wählen
+Süre seçin, yöneticinize talep gider¦Choose duration; a request goes to your manager¦Выберите длительность; запрос уйдёт руководителю¦Dauer wählen; die Anfrage geht an Ihre Leitung
+Bitiş tarihini seçin; o güne kadar takvim kapanır¦Choose the end date; the calendar is blocked until then¦Выберите дату окончания; до неё запись закрыта¦Enddatum wählen; bis dahin ist der Kalender gesperrt
+Müşteri Yorumlarım¦My customer reviews¦Мои отзывы клиентов¦Meine Kundenbewertungen
+Henüz değerlendirme yok.\nRandevudan sonra gönderilen memnuniyet anketleri cevaplandıkça burada görünür.¦No reviews yet.\nThey appear here as customers answer satisfaction surveys.¦Оценок пока нет.\nОни появятся, когда клиенты ответят на опросы.¦Noch keine Bewertungen.\nSie erscheinen, sobald Kunden Umfragen beantworten.
+Son {#} değerlendirme¦Last {} reviews¦Последние оценки: {}¦Letzte {} Bewertungen
+Çalışma Saatlerim¦My working hours¦Мой график¦Meine Arbeitszeiten
+Çalışma saatleriniz henüz girilmemiş. Yöneticiniz Personeller ekranından ekleyebilir.¦Your working hours are not set yet. Your manager can add them under Staff.¦График ещё не задан. Руководитель может добавить его в разделе «Персонал».¦Ihre Arbeitszeiten sind noch nicht hinterlegt. Ihre Leitung kann sie unter „Personal“ eintragen.
+İzinli gün¦Day off¦Выходной¦Freier Tag
+Yaklaşan izinlerim¦My upcoming leave¦Мои ближайшие отпуска¦Mein kommender Urlaub
+Yıllık izin¦Annual leave¦Ежегодный отпуск¦Jahresurlaub
+Mazeret izni¦Personal leave¦Отгул по уважительной причине¦Sonderurlaub
+Sağlık raporu¦Sick leave¦Больничный¦Krankmeldung
+Ücretsiz izin¦Unpaid leave¦Отпуск без оплаты¦Unbezahlter Urlaub
+İzin talebiniz yöneticinize gönderildi.¦Your leave request was sent to your manager.¦Заявка на отпуск отправлена руководителю.¦Ihr Urlaubsantrag wurde gesendet.
+İzni iptal et¦Cancel leave¦Отменить отпуск¦Urlaub stornieren
+{} izni iptal edilsin mi?¦Cancel the leave on {}?¦Отменить отпуск {}?¦Urlaub {} stornieren?
+Takvimde kapatılan saatler yeniden açılır.¦The blocked hours in the calendar will be reopened.¦Закрытые часы в календаре снова откроются.¦Die gesperrten Zeiten werden wieder geöffnet.
+İzin iptal edildi.¦Leave cancelled.¦Отпуск отменён.¦Urlaub storniert.
+İptal edilemedi.¦Could not be cancelled.¦Не удалось отменить.¦Konnte nicht storniert werden.
+İzinlerim¦My leave¦Мои отпуска¦Mein Urlaub
+İzin İste¦Request leave¦Запросить отпуск¦Urlaub beantragen
+Henüz izin talebiniz yok.\nAşağıdaki “İzin İste” ile gün seçip yöneticinize gönderebilirsiniz.¦You have no leave requests yet.\nUse “Request leave” below to choose days and send them to your manager.¦Заявок пока нет.\nНажмите «Запросить отпуск», выберите дни и отправьте руководителю.¦Noch keine Urlaubsanträge.\nÜber „Urlaub beantragen“ wählen Sie Tage und senden sie ab.
+{} · {#} gün¦{} · {} days¦{} · дней: {}¦{} · {} Tage
+{} · {#} gün · {}¦{} · {} days · {}¦{} · дней: {} · {}¦{} · {} Tage · {}
+Yönetici notu: {}¦Manager's note: {}¦Комментарий руководителя: {}¦Notiz der Leitung: {}
+İzin günlerini seçin¦Choose leave days¦Выберите дни отпуска¦Urlaubstage wählen
+Önce izin günlerini seçin.¦Choose leave days first.¦Сначала выберите дни.¦Wählen Sie zuerst die Tage.
+Gönderilemedi.¦Could not be sent.¦Не удалось отправить.¦Konnte nicht gesendet werden.
+Gönderilemedi¦Could not be sent¦Не удалось отправить¦Konnte nicht gesendet werden
+Gün seçin¦Choose days¦Выберите дни¦Tage wählen
+{} – {}  ({#} gün)¦{} – {}  ({} days)¦{} – {}  (дней: {})¦{} – {}  ({} Tage)
+Açıklama (isteğe bağlı)¦Description (optional)¦Описание (необязательно)¦Beschreibung (optional)
+Yöneticime Gönder¦Send to my manager¦Отправить руководителю¦An die Leitung senden
+Performansım¦My performance¦Мои показатели¦Meine Leistung
+{} kazancım¦My earnings: {}¦Мой доход: {}¦Mein Verdienst: {}
+Maaş + prim + bonus − kesinti (bugüne kadar)¦Salary + commission + bonus − deductions (to date)¦Оклад + процент + бонус − удержания (на сегодня)¦Gehalt + Provision + Bonus − Abzüge (bis heute)
+{} salon cirosu¦Salon revenue: {}¦Выручка салона: {}¦Salonumsatz: {}
+{} satışlarım¦My sales: {}¦Мои продажи: {}¦Meine Verkäufe: {}
+Hizmet + ürün + paket satışları¦Service + product + package sales¦Продажи услуг, товаров и пакетов¦Leistungs-, Produkt- und Paketverkäufe
+Aylık hedefim¦My monthly target¦Моя цель на месяц¦Mein Monatsziel
+Hedefleri Profil > Ekibim ekranından belirleyebilirsiniz.¦Set targets under Profile > My team.¦Цели задаются в Профиль > Моя команда.¦Ziele legen Sie unter Profil > Mein Team fest.
+Bu ay için yöneticiniz henüz hedef belirlemedi.¦Your manager has not set a target for this month.¦Руководитель ещё не задал цель на этот месяц.¦Für diesen Monat wurde noch kein Ziel festgelegt.
+Bugünkü randevu¦Today's appointments¦Записи на сегодня¦Heutige Termine
+Bugünkü\nRandevu¦Today's\nvisits¦Записи\nсегодня¦Termine\nheute
+Toplam\nMüşteri¦Total\nclients¦Всего\nклиентов¦Kunden\ngesamt
+Ortalama\nPuan¦Average\nrating¦Средняя\nоценка¦Ø\nBewertung
+Müşterim¦My clients¦Мои клиенты¦Meine Kunden
+Ortalama puan¦Average rating¦Средняя оценка¦Ø Bewertung
+Hakedişlerim¦My earnings¦Мои начисления¦Meine Abrechnung
+Maaş, prim ve ödeme geçmişinin ayrıntısı¦Details of salary, commission and payments¦Оклад, процент и история выплат¦Details zu Gehalt, Provision und Zahlungen
+Hizmetlerim¦My services¦Мои услуги¦Meine Leistungen
+Size atanmış hizmet yok.\nYöneticiniz Personeller ekranından hizmet atayabilir.¦No services assigned to you.\nYour manager can assign them under Staff.¦Вам не назначены услуги.\nРуководитель может назначить их в разделе «Персонал».¦Ihnen sind keine Leistungen zugeordnet.\nIhre Leitung kann sie unter „Personal“ zuweisen.
+Çalışmalarım¦My work¦Мои работы¦Meine Arbeiten
+Yaptığınız işlerin fotoğraflarını burada biriktirin.\nMüşterilere örnek göstermek için kullanabilirsiniz.¦Collect photos of your work here.\nShow them to clients as examples.¦Собирайте здесь фото своих работ,\nчтобы показывать клиентам примеры.¦Sammeln Sie hier Fotos Ihrer Arbeiten,\num sie Kunden zu zeigen.
+İzni onayla¦Approve leave¦Одобрить отпуск¦Urlaub genehmigen
+İzni reddet¦Decline leave¦Отклонить отпуск¦Urlaub ablehnen
+Onaylanınca bu günler takvimde kapatılır.¦Once approved, these days are blocked in the calendar.¦После одобрения эти дни закрываются в календаре.¦Nach der Genehmigung werden diese Tage gesperrt.
+Not (isteğe bağlı)¦Note (optional)¦Заметка (необязательно)¦Notiz (optional)
+Reddet¦Decline¦Отклонить¦Ablehnen
+İzin onaylandı, takvim kapatıldı.¦Leave approved, calendar blocked.¦Отпуск одобрен, календарь закрыт.¦Urlaub genehmigt, Kalender gesperrt.
+İzin reddedildi.¦Leave declined.¦Отпуск отклонён.¦Urlaub abgelehnt.
+Bu sürede {#} randevusu var:¦Has {} appointments in this period:¦Записей на это время: {}¦Hat in dieser Zeit {} Termine:
+… ve {#} randevu daha¦… and {} more appointments¦… и ещё записей: {}¦… und {} weitere Termine
+Randevular kendiliğinden iptal edilmez; başka personele aktarın ya da müşteriyi arayın.¦Appointments are not cancelled automatically; transfer them or call the client.¦Записи не отменяются сами; передайте их другому мастеру или позвоните клиенту.¦Termine werden nicht automatisch storniert; übertragen Sie sie oder rufen Sie die Kunden an.
+Molayı onayla¦Approve break¦Одобрить перерыв¦Pause genehmigen
+Molayı reddet¦Decline break¦Отклонить перерыв¦Pause ablehnen
+Onaylanınca şu andan itibaren takvim bu süre için kapatılır.¦Once approved, the calendar is blocked from now for this time.¦После одобрения календарь закроется с этого момента на указанное время.¦Nach der Genehmigung wird der Kalender ab jetzt für diese Zeit gesperrt.
+Mola onaylandı, takvim kapatıldı.¦Break approved, calendar blocked.¦Перерыв одобрен, календарь закрыт.¦Pause genehmigt, Kalender gesperrt.
+Mola reddedildi.¦Break declined.¦Перерыв отклонён.¦Pause abgelehnt.
+Durumunu değiştir¦Change status¦Изменить статус¦Status ändern
+Aylık hedef¦Monthly target¦Цель на месяц¦Monatsziel
+Hedef yok¦No target¦Нет цели¦Kein Ziel
+{} · aylık hedef¦{} · monthly target¦{} · цель на месяц¦{} · Monatsziel
+Örn. 50000¦E.g. 50000¦Напр. 50000¦z. B. 50000
+Bu ayki satış hedefi (0 = hedef yok)¦Sales target this month (0 = none)¦Цель продаж на месяц (0 = нет)¦Verkaufsziel diesen Monat (0 = keins)
+Hedef kaydedildi.¦Target saved.¦Цель сохранена.¦Ziel gespeichert.
+Ekibim¦My team¦Моя команда¦Mein Team
+Randevu Dağılımı¦Appointment distribution¦Распределение записей¦Terminverteilung
+Kim ne kadar randevu aldı · otomatik atama ayarı¦Who got how many appointments · auto-assignment¦Кто сколько записей получил · автоназначение¦Wer wie viele Termine hat · Auto-Zuweisung
+Onay bekleyen molalar¦Breaks awaiting approval¦Перерывы на одобрении¦Offene Pausen
+Onay bekleyen izinler¦Leave awaiting approval¦Отпуска на одобрении¦Offene Urlaubsanträge
+⚠ Bu sürede {#} randevusu var¦⚠ {} appointments in this period¦⚠ Записей на это время: {}¦⚠ {} Termine in dieser Zeit
+Ekip · bu ay¦Team · this month¦Команда · этот месяц¦Team · diesen Monat
+{} · Satış {}¦{} · Sales {}¦{} · продажи {}¦{} · Verkauf {}
+İzin geçmişi¦Leave history¦История отпусков¦Urlaubsverlauf
+Yetkilerim¦My permissions¦Мои права¦Meine Berechtigungen
+Yetkilerinizi işletme yöneticiniz belirler. Değişiklik için yöneticinize başvurun.¦Your manager sets your permissions. Contact them for changes.¦Права задаёт руководитель. Для изменений обратитесь к нему.¦Ihre Leitung legt die Berechtigungen fest. Für Änderungen wenden Sie sich an sie.
+{#} / {#} açık¦{} / {} on¦включено {} / {}¦{} / {} aktiv
+otomatik randevu atamasına dahil edildi¦included in auto-assignment¦включён в автоназначение¦in Auto-Zuweisung aufgenommen
+otomatik atamadan çıkarıldı¦removed from auto-assignment¦исключён из автоназначения¦aus Auto-Zuweisung entfernt
+Bu hafta¦This week¦Эта неделя¦Diese Woche
+Geçen Hafta¦Last week¦Прошлая неделя¦Letzte Woche
+Geçen Yıl¦Last year¦Прошлый год¦Letztes Jahr
+Atama kapalı¦Assignment off¦Назначение выкл.¦Zuweisung aus
+Otomatik atama¦Auto-assignment¦Автоназначение¦Auto-Zuweisung
+Önümüzdeki 7 günde bekleyen randevu yok.¦No appointments in the next 7 days.¦На ближайшие 7 дней записей нет.¦Keine Termine in den nächsten 7 Tagen.
+Sıradaki¦Next¦Следующая¦Nächster
+Ad, unvan, telefon ve e-posta bilgileriniz¦Your name, title, phone and email¦Имя, должность, телефон и эл. почта¦Name, Titel, Telefon und E-Mail
+Bildirim Ayarları¦Notification settings¦Настройки уведомлений¦Benachrichtigungseinstellungen
+SMS, WhatsApp ve uygulama bildirim tercihlerini yönetin¦Manage SMS, WhatsApp and app notifications¦Настройте SMS, WhatsApp и уведомления¦SMS, WhatsApp und App-Benachrichtigungen verwalten
+Bildirimlerim¦My notifications¦Мои уведомления¦Meine Benachrichtigungen
+Hangi bildirimlerin sesli geleceğini seçin¦Choose which notifications make a sound¦Выберите уведомления со звуком¦Wählen, welche Benachrichtigungen tönen
+Haftalık mesai planınız ve yaklaşan izinleriniz¦Your weekly schedule and upcoming leave¦Недельный график и ближайшие отпуска¦Wochenplan und kommender Urlaub
+İzin isteyin, taleplerinizin durumunu görün¦Request leave and track your requests¦Запросить отпуск и посмотреть статус¦Urlaub beantragen und Status sehen
+{#} bekliyor¦{} pending¦ожидает: {}¦{} offen
+Bu ayki kazancınız, satışlarınız ve hedefiniz¦Your earnings, sales and target this month¦Доход, продажи и цель за месяц¦Verdienst, Verkäufe und Ziel diesen Monat
+Bu ayki satışlar ve hedef¦Sales and target this month¦Продажи и цель за месяц¦Verkäufe und Ziel diesen Monat
+Size yapılan değerlendirmeler¦Reviews you received¦Оценки о вас¦Bewertungen über Sie
+Verdiğiniz hizmetler ve fiyatları¦Your services and prices¦Ваши услуги и цены¦Ihre Leistungen und Preise
+Yaptığınız işlerin fotoğrafları¦Photos of your work¦Фото ваших работ¦Fotos Ihrer Arbeiten
+Durumlar, aylık hedefler ve izin onayları¦Statuses, monthly targets and leave approvals¦Статусы, цели и одобрение отпусков¦Status, Monatsziele und Urlaubsfreigaben
+{#} onay¦{} approvals¦одобрений: {}¦{} Freigaben
+Erişim yetkileriniz ve modüller¦Your access rights and modules¦Ваши права и модули¦Ihre Zugriffsrechte und Module
+## Randevu ekleme / düzenleme / takvim
+Her Gün¦Every day¦Каждый день¦Täglich
+Haftada Bir¦Once a week¦Раз в неделю¦Wöchentlich
+{#} Haftada Bir¦Every {} weeks¦Раз в {} нед.¦Alle {} Wochen
+Her Ay¦Every month¦Каждый месяц¦Monatlich
+{#} Günde Bir¦Every {} days¦Раз в {} дн.¦Alle {} Tage
+{#} Ayda Bir¦Every {} months¦Раз в {} мес.¦Alle {} Monate
+Her gun¦Every day¦Каждый день¦Täglich
+{#} gunde bir¦Every {} days¦Раз в {} дн.¦Alle {} Tage
+Seçili işletme bulunamadı. Lütfen tekrar giriş yapın.¦Selected business not found. Please log in again.¦Салон не найден. Войдите снова.¦Unternehmen nicht gefunden. Bitte erneut anmelden.
+Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.¦Server not reachable. Check your internet connection and try again.¦Сервер недоступен. Проверьте интернет и попробуйте снова.¦Server nicht erreichbar. Prüfen Sie die Internetverbindung.
+Veriler yüklenemedi: {}¦Data could not be loaded: {}¦Не удалось загрузить данные: {}¦Daten konnten nicht geladen werden: {}
+Üsttekiyle aynı saatte (paralel)¦Same time as above (parallel)¦Одновременно с предыдущей¦Gleichzeitig mit oben (parallel)
+Üstteki hizmetle aynı saatte (paralel)¦Same time as the service above (parallel)¦Одновременно с услугой выше¦Gleichzeitig mit der Leistung oben
+{#} paket hizmeti randevuya eklendi.¦{} package service(s) added.¦Добавлено услуг из пакета: {}.¦{} Paketleistung(en) hinzugefügt.
+Randevu ekranı yüklenemedi¦The appointment screen could not be loaded¦Не удалось загрузить экран записи¦Terminansicht konnte nicht geladen werden
+PAKET: {}¦PACKAGE: {}¦ПАКЕТ: {}¦PAKET: {}
+Cihaz Seçin¦Choose device¦Выберите аппарат¦Gerät wählen
+Cihaz Seç¦Choose device¦Выберите аппарат¦Gerät wählen
+Cihaz Ara..¦Search device..¦Поиск аппарата..¦Gerät suchen..
+Sitemde cihaz bulunmamaktadır¦No devices in the system¦Аппаратов нет¦Keine Geräte vorhanden
+Sistemde cihaz bulunmamaktadır¦No devices in the system¦Аппаратов нет¦Keine Geräte vorhanden
+Oda Seçin¦Choose room¦Выберите кабинет¦Raum wählen
+Oda Seç¦Choose room¦Выберите кабинет¦Raum wählen
+Oda Ara..¦Search room..¦Поиск кабинета..¦Raum suchen..
+Sistemde oda bulunmamaktadır¦No rooms in the system¦Кабинетов нет¦Keine Räume vorhanden
+Süre (dk)¦Duration (min)¦Длительность (мин)¦Dauer (Min.)
+Fiyat (₺)¦Price (₺)¦Цена (₺)¦Preis (₺)
+Bu Personele Hizmet Ekle¦Add a service for this specialist¦Добавить услугу этому мастеру¦Leistung für diesen Mitarbeiter hinzufügen
+Grubu Sil¦Delete group¦Удалить группу¦Gruppe löschen
+Tekrarlayan Randevu¦Recurring appointment¦Повторяющаяся запись¦Wiederkehrender Termin
+Tekrarlayan¦Recurring¦Повторять¦Wiederkehrend
+Tekrar Sıklığı¦Repeat frequency¦Частота повтора¦Wiederholung
+Tekrar sikligi¦Repeat frequency¦Частота повтора¦Wiederholung
+Sıklık Seç¦Choose frequency¦Выберите частоту¦Häufigkeit wählen
+Tekrar Sayısı¦Number of repeats¦Число повторов¦Anzahl Wiederholungen
+Tekrar sayisi¦Number of repeats¦Число повторов¦Anzahl Wiederholungen
+Notlar¦Notes¦Заметки¦Notizen
+Randevu notunuzu yazın...¦Write a note for the appointment...¦Напишите заметку к записи...¦Notiz zum Termin...
+Randevuyu oluşturmadan önce gerekli alanları eksiksiz doldurunuz.¦Please fill in all required fields before booking.¦Заполните все обязательные поля.¦Bitte füllen Sie alle Pflichtfelder aus.
+Randevuyu güncellemeden önce gerekli alanları eksiksiz doldurunuz.¦Please fill in all required fields before updating.¦Заполните все обязательные поля.¦Bitte füllen Sie alle Pflichtfelder aus.
+Lütfen müşteri seçiniz.¦Please choose a client.¦Выберите клиента.¦Bitte Kunden wählen.
+Lütfen randevu tarihini seçiniz.¦Please choose the date.¦Выберите дату.¦Bitte Datum wählen.
+Lütfen randevu saatini seçiniz.¦Please choose the time.¦Выберите время.¦Bitte Uhrzeit wählen.
+Lütfen randevu tekrar sıklığını seçiniz.¦Please choose the repeat frequency.¦Выберите частоту повтора.¦Bitte Wiederholung wählen.
+Lütfen randevu tekrar sayısını giriniz.¦Please enter the number of repeats.¦Введите число повторов.¦Bitte Anzahl der Wiederholungen eingeben.
+Lütfen cihaz seçiniz.¦Please choose a device.¦Выберите аппарат.¦Bitte Gerät wählen.
+Lütfen oda seçiniz.¦Please choose a room.¦Выберите кабинет.¦Bitte Raum wählen.
+Lütfen hizmet seçiniz.¦Please choose a service.¦Выберите услугу.¦Bitte Leistung wählen.
+Toplam Süre¦Total duration¦Общая длительность¦Gesamtdauer
+Toplam Tutar¦Total amount¦Общая сумма¦Gesamtbetrag
+Seçin¦Choose¦Выберите¦Wählen
+Seç¦Choose¦Выбрать¦Wählen
+Seçiniz..¦Choose..¦Выберите..¦Wählen..
+Müşteri Seç¦Choose client¦Выберите клиента¦Kunde wählen
+Müşteri Seçimi¦Choose client¦Выбор клиента¦Kundenauswahl
+Ön Görüşme¦Consultation¦Консультация¦Beratung
+Ön Görüşmeler¦Consultations¦Консультации¦Beratungen
+RANDEVUYU GÜNCELLE¦UPDATE APPOINTMENT¦ОБНОВИТЬ ЗАПИСЬ¦TERMIN AKTUALISIEREN
+Randevu Düzenle¦Edit appointment¦Изменить запись¦Termin bearbeiten
+Hizmet Düzenle¦Edit service¦Изменить услугу¦Leistung bearbeiten
+Yardımcı Personel(-ler) (Opsiyonel)¦Assistant(s) (optional)¦Помощники (необязательно)¦Assistenz (optional)
+Yardımcı Personel(-ler)i Seç¦Choose assistant(s)¦Выберите помощников¦Assistenz wählen
+Oda (Opsiyonel)¦Room (optional)¦Кабинет (необязательно)¦Raum (optional)
+Cihaz (Opsiyonel)¦Device (optional)¦Аппарат (необязательно)¦Gerät (optional)
+Bir üstteki hizmet ile aynı anda başlaması için işaretleyiniz¦Tick to start at the same time as the service above¦Отметьте, чтобы начать одновременно с услугой выше¦Ankreuzen, um gleichzeitig mit der Leistung oben zu beginnen
+{#} tane hizmet seçildi¦{} services selected¦Выбрано услуг: {}¦{} Leistungen gewählt
+Hizmet Seçilmedi¦No service selected¦Услуга не выбрана¦Keine Leistung gewählt
+Hızlı Paket Randevu¦Quick package booking¦Быстрая запись по пакету¦Schnelle Paketbuchung
+{} — {} {} • {#} hizmet¦{} — {} {} • {} services¦{} — {} {} • услуг: {}¦{} — {} {} • {} Leistungen
+Hizmet başına özelleştirme¦Customise per service¦Настроить по услугам¦Je Leistung anpassen
+Adet¦Quantity¦Количество¦Anzahl
+Toplam: {#} hizmet¦Total: {} services¦Всего услуг: {}¦Gesamt: {} Leistungen
+Toplam: {}¦Total: {}¦Всего: {}¦Gesamt: {}
+Personel seçin.¦Choose a specialist.¦Выберите мастера.¦Mitarbeiter wählen.
+Cihaz seçin.¦Choose a device.¦Выберите аппарат.¦Gerät wählen.
+Oda seçin.¦Choose a room.¦Выберите кабинет.¦Raum wählen.
+{#} hizmet için personel seçin.¦Choose a specialist for service {}¦Выберите мастера для услуги {}¦Mitarbeiter für Leistung {} wählen
+{#} hizmet için cihaz seçin.¦Choose a device for service {}¦Выберите аппарат для услуги {}¦Gerät für Leistung {} wählen
+{#} hizmet için oda seçin.¦Choose a room for service {}¦Выберите кабинет для услуги {}¦Raum für Leistung {} wählen
+Tüm hizmetlere uygula¦Apply to all services¦Применить ко всем услугам¦Auf alle Leistungen anwenden
+— buradan seçtikleriniz tüm hizmet satırlarına uygulanır; tek bir hizmeti ayrı ayarlamak için Özelleştir'e tıklayın.¦— your choices apply to all services; tap Customise to change a single one.¦— выбор применится ко всем услугам; для отдельной нажмите «Настроить».¦— gilt für alle Leistungen; für einzelne tippen Sie auf „Anpassen“.
+Paket Süresi (dk)¦Package duration (min)¦Длительность пакета (мин)¦Paketdauer (Min.)
+{#} hizmet pakete eklendi — hepsi yukarıdaki personel/oda/cihaz ile uygulanır.¦{} services added — all with the specialist/room/device above.¦Добавлено услуг: {} — все с указанным мастером/кабинетом/аппаратом.¦{} Leistungen hinzugefügt — alle mit obigem Mitarbeiter/Raum/Gerät.
+Hizmetleri özelleştir¦Customise services¦Настроить услуги¦Leistungen anpassen
+{} seçin¦Choose {}¦Выберите: {}¦{} wählen
+{} secin¦Choose {}¦Выберите: {}¦{} wählen
+Saat Kapama¦Block time¦Закрыть время¦Zeit sperren
+Saat Kapama Kaydet¦Save blocked time¦Сохранить¦Sperrzeit speichern
+Lutfen {} secin.¦Please choose {}.¦Выберите: {}.¦Bitte {} wählen.
+Baslangic ve bitis saatini secin (veya Tum gun isaretleyin).¦Choose start and end time (or tick All day).¦Выберите время начала и конца (или «Весь день»).¦Start und Ende wählen (oder „Ganzer Tag“).
+Bitis saati baslangictan sonra olmali.¦The end time must be after the start.¦Конец должен быть позже начала.¦Das Ende muss nach dem Beginn liegen.
+Saat kapama eklendi¦Time blocked¦Время закрыто¦Zeit gesperrt
+Saat kapama kaldırıldı¦Blocked time removed¦Время снова открыто¦Sperrzeit entfernt
+Saat kapama eklenemedi: {}¦Time could not be blocked: {}¦Не удалось закрыть время: {}¦Zeit konnte nicht gesperrt werden: {}
+Hata olustu¦An error occurred¦Произошла ошибка¦Ein Fehler ist aufgetreten
+Baslangic¦Start¦Начало¦Beginn
+Bitis¦End¦Конец¦Ende
+Tum gun¦All day¦Весь день¦Ganzer Tag
+Tüm gün¦All day¦Весь день¦Ganzer Tag
+Iptal¦Cancel¦Отмена¦Abbrechen
+Personele¦By specialist¦По мастерам¦Nach Mitarbeiter
+Hizmete¦By service¦По услугам¦Nach Leistung
+Cihaza¦By device¦По аппаратам¦Nach Gerät
+Odaya¦By room¦По кабинетам¦Nach Raum
+Saatler¦Hours¦Часы¦Zeiten
+Bu saat aralığındaki müşteriler tahsilat sırasında otomatik %{#} indirim almaya hak kazanır.¦Clients in this time range automatically get {}% off at checkout.¦Клиенты в этом интервале автоматически получают скидку {}% при оплате.¦Kunden in diesem Zeitraum erhalten beim Bezahlen automatisch {} % Rabatt.
+Takvim¦Calendar¦Календарь¦Kalender
+Yenile¦Refresh¦Обновить¦Aktualisieren
+Gösterilecek veri bulunmamaktadır.¦No data to show.¦Нет данных.¦Keine Daten vorhanden.
+Takvim Türü..¦Calendar type..¦Вид календаря..¦Kalenderart..
+Geçersiz personel!¦Invalid specialist!¦Неверный мастер!¦Ungültiger Mitarbeiter!
+Bilinmiyor¦Unknown¦Неизвестно¦Unbekannt
+Randevu Taşıma Onayı¦Move appointment¦Перенос записи¦Termin verschieben
+Randevuyu aşağıdaki bilgilerle güncellemek istediğinize emin misiniz?¦Update the appointment with the details below?¦Обновить запись с этими данными?¦Termin mit diesen Angaben aktualisieren?
+👤 Müşteri: {}¦👤 Client: {}¦👤 Клиент: {}¦👤 Kunde: {}
+✂️ Hizmet: {}¦✂️ Service: {}¦✂️ Услуга: {}¦✂️ Leistung: {}
+👨‍💼 Eski Personel: {}¦👨‍💼 Previous specialist: {}¦👨‍💼 Прежний мастер: {}¦👨‍💼 Bisheriger Mitarbeiter: {}
+👨‍💼 Yeni Personel: {}¦👨‍💼 New specialist: {}¦👨‍💼 Новый мастер: {}¦👨‍💼 Neuer Mitarbeiter: {}
+Randevu güncellenirken bir hata oluştu. Hata kodu : {}¦Error updating the appointment. Code: {}¦Ошибка при обновлении записи. Код: {}¦Fehler beim Aktualisieren des Termins. Code: {}
+Güncelleme hatası: {}¦Update error: {}¦Ошибка обновления: {}¦Aktualisierungsfehler: {}
+Randevu Süresi Değişikliği¦Change duration¦Изменение длительности¦Dauer ändern
+Randevu süresini güncellemek istediğinize emin misiniz?¦Update the appointment duration?¦Изменить длительность записи?¦Termindauer aktualisieren?
+⏱  Eski Süre: {#} dk ({#} - {#})¦⏱  Previous: {} min ({} - {})¦⏱  Было: {} мин ({} - {})¦⏱  Bisher: {} Min. ({} - {})
+⏱  Yeni Süre: {#} dk ({#} - {#})¦⏱  New: {} min ({} - {})¦⏱  Станет: {} мин ({} - {})¦⏱  Neu: {} Min. ({} - {})
+Kapalı Saat¦Blocked time¦Закрытое время¦Gesperrte Zeit
+Kapali Saat¦Blocked time¦Закрытое время¦Gesperrte Zeit
+Bu kapalı saat kaydını silmek istediğinize emin misiniz?¦Delete this blocked time?¦Удалить это закрытое время?¦Diese Sperrzeit löschen?
+Silme başarısız¦Delete failed¦Не удалось удалить¦Löschen fehlgeschlagen
+Silme başarısız: {}¦Delete failed: {}¦Не удалось удалить: {}¦Löschen fehlgeschlagen: {}
+Bu randevunuzun tahsilatını daha önce gerçekleştirdiniz.¦This appointment has already been paid.¦Оплата этой записи уже принята.¦Dieser Termin wurde bereits bezahlt.
+Satış Yapıldı¦Sold¦Продано¦Verkauft
+Satış Yapılmadı¦Not sold¦Не продано¦Nicht verkauft
+Satış Yapılmama Sebebi¦Reason for no sale¦Причина отказа¦Grund für keinen Verkauf
+Gelmedi İşaretini Kaldır¦Undo "missed"¦Снять отметку «не пришёл»¦„Nicht erschienen“ aufheben
+Geldi İşaretini Kaldır¦Undo "attended"¦Снять отметку «пришёл»¦„Erschienen“ aufheben
+Tahsilat¦Payment¦Оплата¦Zahlung
+Ön görüşme randevusu iptal edilecek ve otomatik olarak satış yapılmadı (Randevu iptali) işaretlenecektir.¦The consultation will be cancelled and marked as not sold (cancelled).¦Консультация будет отменена и отмечена как «не продано».¦Die Beratung wird storniert und als „nicht verkauft“ markiert.
+Randevu iptali¦Appointment cancellation¦Отмена записи¦Terminabsage
+Anket Gönder¦Send survey¦Отправить опрос¦Umfrage senden
+Form Gönder¦Send form¦Отправить форму¦Formular senden
+WhatsApp acilirken hata: {}¦Error opening WhatsApp: {}¦Ошибка открытия WhatsApp: {}¦Fehler beim Öffnen von WhatsApp: {}
+{} adlı müşteriye memnuniyet anketi WhatsApp veya SMS ile gönderilsin mi?¦Send a satisfaction survey to {} by WhatsApp or SMS?¦Отправить опрос клиенту {} по WhatsApp или SMS?¦Zufriedenheitsumfrage an {} per WhatsApp oder SMS senden?
+{} adli musteriye memnuniyet anketi WhatsApp veya SMS ile gonderilsin mi?¦Send a satisfaction survey to {} by WhatsApp or SMS?¦Отправить опрос клиенту {} по WhatsApp или SMS?¦Zufriedenheitsumfrage an {} per WhatsApp oder SMS senden?
+Evet, Gönder¦Yes, send¦Да, отправить¦Ja, senden
+Anket gönderiliyor…¦Sending survey…¦Отправка опроса…¦Umfrage wird gesendet…
+İstek başarısız (HTTP {})¦Request failed (HTTP {})¦Запрос не удался (HTTP {})¦Anfrage fehlgeschlagen (HTTP {})
+Ağ hatası: {}¦Network error: {}¦Ошибка сети: {}¦Netzwerkfehler: {}
+Anket {} ile gönderildi¦Survey sent by {}¦Опрос отправлен через {}¦Umfrage per {} gesendet
+Anket {} ile gonderildi.¦Survey sent by {}.¦Опрос отправлен через {}.¦Umfrage per {} gesendet.
+Satıcı seçin¦Choose seller¦Выберите продавца¦Verkäufer wählen
+Satıcı¦Seller¦Продавец¦Verkäufer
+Paket Satışı¦Package sale¦Продажа пакета¦Paketverkauf
+Ürün Satışı¦Product sale¦Продажа товара¦Produktverkauf
+Hizmet Satışı¦Service sale¦Продажа услуги¦Leistungsverkauf
+Satış Tarihi¦Sale date¦Дата продажи¦Verkaufsdatum
+İşlem Tarihi¦Transaction date¦Дата операции¦Datum
+Oluşturan¦Created by¦Создал¦Erstellt von
+Oluşturan:¦Created by:¦Создал:¦Erstellt von:
+Oluşturan: {}¦Created by: {}¦Создал: {}¦Erstellt von: {}
+{} • {#} dk¦{} • {} min¦{} • {} мин¦{} • {} Min.
+Boş slot¦Free slot¦Свободно¦Frei
+Randevu Ekle¦Add appointment¦Добавить запись¦Termin hinzufügen
+## Grup dersi
+Programı Yayınla¦Publish schedule¦Опубликовать расписание¦Plan veröffentlichen
+{} - {} tarihleri arasında ders oturumları takvime oluşturulacak.¦Class sessions from {} to {} will be created in the calendar.¦Занятия с {} по {} будут созданы в календаре.¦Kurstermine vom {} bis {} werden im Kalender erstellt.
+{} tarihinden itibaren {#} hafta boyunca ders oturumları takvime oluşturulacak.¦Class sessions for {2} weeks from {1} will be created.¦Занятия на {2} нед. с {1} будут созданы в календаре.¦Kurstermine für {2} Wochen ab {1} werden erstellt.
+Yayınla¦Publish¦Опубликовать¦Veröffentlichen
+{#} yeni ders oluşturuldu ({#} zaten vardı).¦{} new classes created ({} already existed).¦Создано занятий: {} (уже было: {}).¦{} neue Kurse erstellt ({} bereits vorhanden).
+Silinsin mi?¦Delete?¦Удалить?¦Löschen?
+Bu program satırı silinecek; katılımcısı olmayan gelecek dersler de kaldırılacak.¦This line will be deleted; future classes without participants are removed too.¦Строка будет удалена; будущие занятия без участников тоже.¦Diese Zeile wird gelöscht; künftige Kurse ohne Teilnehmer ebenfalls.
+Ders Programı¦Class schedule¦Расписание занятий¦Kursplan
+Rapor¦Report¦Отчёт¦Bericht
+Haftalık programı bir kez tanımlayın, "Programı Yayınla" ileriye dönük dersleri takvime oluşturur.¦Define the weekly schedule once; "Publish schedule" creates future classes.¦Задайте недельное расписание один раз; «Опубликовать» создаст будущие занятия.¦Wochenplan einmal festlegen; „Veröffentlichen“ erstellt künftige Kurse.
+BAŞLANGIÇ¦START¦НАЧАЛО¦BEGINN
+KAÇ HAFTA¦WEEKS¦СКОЛЬКО НЕДЕЛЬ¦WOCHEN
+{#} hafta¦{} weeks¦{} нед.¦{} Wochen
+VEYA BİTİŞ TARİHİNE KADAR (opsiyonel)¦OR UNTIL END DATE (optional)¦ИЛИ ДО ДАТЫ (необязательно)¦ODER BIS DATUM (optional)
+Seçilmedi (hafta kullanılır)¦Not set (weeks are used)¦Не выбрано (по неделям)¦Nicht gewählt (Wochen gelten)
+ders yok¦no classes¦нет занятий¦keine Kurse
+{#} ders¦{} classes¦Занятий: {}¦{} Kurse
+Ders¦Class¦Занятие¦Kurs
+Ders Ekle¦Add class¦Добавить занятие¦Kurs hinzufügen
+{#} kişi¦{} people¦{} чел.¦{} Personen
+paket bağlı değil¦no package linked¦пакет не привязан¦kein Paket verknüpft
+paket düşer¦uses package¦списывает пакет¦bucht Paket ab
+Ders tipi girin¦Enter class type¦Введите тип занятия¦Kursart eingeben
+Ders tipi girin (örn. Reformer)¦Enter class type (e.g. Reformer)¦Введите тип занятия (напр. Reformer)¦Kursart eingeben (z. B. Reformer)
+Ders Düzenle¦Edit class¦Изменить занятие¦Kurs bearbeiten
+Gün¦Day¦День¦Tag
+Ders Adı¦Class name¦Название занятия¦Kursname
+Eğitmen¦Trainer¦Тренер¦Trainer
+— Seçiniz —¦— Choose —¦— Выберите —¦— Wählen —
+Hizmet (paket düşümü için)¦Service (for package use)¦Услуга (для списания пакета)¦Leistung (für Paketabbuchung)
+— Hizmet bağlama (paket düşmez) —¦— No service (package not used) —¦— Без услуги (пакет не списывается) —¦— Keine Leistung (Paket wird nicht abgebucht) —
+Kapasite¦Capacity¦Вместимость¦Kapazität
+Kapasite (kişi)¦Capacity (people)¦Вместимость (чел.)¦Kapazität (Personen)
+Grup Dersi¦Group class¦Групповое занятие¦Gruppenkurs
+Grup Dersi Ekle¦Add group class¦Добавить групповое занятие¦Gruppenkurs hinzufügen
+Grup Dersi Düzenle¦Edit group class¦Изменить групповое занятие¦Gruppenkurs bearbeiten
+Kapasiteli grup dersi. Hizmet seçerseniz "Geldi"de paketten seans düşer ve ders online rezervasyona açılır.¦Group class with capacity. If you choose a service, "attended" uses a session and the class opens for online booking.¦Групповое занятие. Если выбрать услугу, при отметке «пришёл» списывается сеанс и открывается онлайн-запись.¦Gruppenkurs mit Kapazität. Mit Leistung wird bei „erschienen“ eine Sitzung abgebucht und online buchbar.
+{} işaretlendi, paketten 1 seans düşüldü.¦{} marked, 1 session used.¦{} отмечено, списан 1 сеанс.¦{} markiert, 1 Sitzung abgebucht.
+{} işaretlendi (paket/seans hakkı bulunamadı).¦{} marked (no package/session found).¦{} отмечено (пакет/сеанс не найден).¦{} markiert (kein Paket/keine Sitzung gefunden).
+Seans iade edildi.¦Session returned.¦Сеанс возвращён.¦Sitzung zurückgebucht.
+Dersi İptal Et¦Cancel class¦Отменить занятие¦Kurs absagen
+Bu ders takvimden kaldırılacak ve katılımcılara bildirilecek. Emin misiniz?¦The class will be removed and participants informed. Are you sure?¦Занятие будет удалено, участники получат уведомление. Вы уверены?¦Der Kurs wird entfernt und die Teilnehmer informiert. Sicher?
+Kapasite dolu — bekleme listesine eklendi.¦Full — added to the waiting list.¦Мест нет — добавлен в лист ожидания.¦Voll — auf die Warteliste gesetzt.
+Telafi seansı bu derse bağlandı — yeni seans düşülmedi.¦Make-up session linked — no new session used.¦Отработка привязана — новый сеанс не списан.¦Ersatztermin verknüpft — keine neue Sitzung abgebucht.
+Ders Katılımcıları¦Class participants¦Участники занятия¦Kursteilnehmer
+Dersi Düzenle¦Edit class¦Изменить занятие¦Kurs bearbeiten
+Katılımcı¦Participant¦Участник¦Teilnehmer
+Katılımcı Ekle¦Add participant¦Добавить участника¦Teilnehmer hinzufügen
+Henüz katılımcı yok.¦No participants yet.¦Участников пока нет.¦Noch keine Teilnehmer.
+Hizmet bağlı değil — paket düşmez / online kapalı¦No service linked — package not used / online closed¦Услуга не привязана — пакет не списывается / онлайн закрыт¦Keine Leistung verknüpft — kein Paketabzug / online geschlossen
+Çıkar¦Remove¦Убрать¦Entfernen
+Arama başarısız: {}¦Search failed: {}¦Поиск не удался: {}¦Suche fehlgeschlagen: {}
+İsim veya telefon (en az 2 harf)¦Name or phone (min. 2 characters)¦Имя или телефон (мин. 2 символа)¦Name oder Telefon (mind. 2 Zeichen)
+Aramak için isim/telefon yazın¦Type a name/phone to search¦Введите имя или телефон¦Name/Telefon eingeben
+Grup Dersi Raporu¦Group class report¦Отчёт по занятиям¦Kursbericht
+Eğitmen Bazlı¦By trainer¦По тренерам¦Nach Trainer
+Ders Bazlı¦By class¦По занятиям¦Nach Kurs
+Ortalama Doluluk¦Average occupancy¦Средняя заполняемость¦Ø Auslastung
+Toplam Ders¦Total classes¦Всего занятий¦Kurse gesamt
+Toplam Katılım¦Total attendance¦Всего посещений¦Teilnahmen gesamt
+Gelen¦Attended¦Пришли¦Erschienen
+Gelmedi (%{#})¦Missed ({}%)¦Не пришли ({}%)¦Nicht erschienen ({} %)
+Bekleme¦Waiting¦Ожидание¦Warteliste
+Bu aralıkta ders yok.¦No classes in this period.¦За этот период занятий нет.¦Keine Kurse in diesem Zeitraum.
+{#} ders · {#} katılım · {#} geldi · {#} gelmedi¦{} classes · {} bookings · {} attended · {} missed¦занятий: {} · записей: {} · пришли: {} · нет: {}¦{} Kurse · {} Anmeldungen · {} da · {} nicht
+{#} oturum · {#} katılım · {#} geldi¦{} sessions · {} bookings · {} attended¦занятий: {} · записей: {} · пришли: {}¦{} Termine · {} Anmeldungen · {} da
+Grup dersleri yüklenemedi.¦Group classes could not be loaded.¦Не удалось загрузить занятия.¦Gruppenkurse konnten nicht geladen werden.
+Katıldı olarak işaretlendi.¦Marked as attended.¦Отмечено: был(а).¦Als teilgenommen markiert.
+Telafi olarak işaretlendi.¦Marked as make-up.¦Отмечено: отработка.¦Als Ersatztermin markiert.
+Katılmadı olarak işaretlendi.¦Marked as not attended.¦Отмечено: не был(а).¦Als nicht teilgenommen markiert.
+Kaydı Sil¦Delete record¦Удалить запись¦Eintrag löschen
+Bu dersten kaydı silinsin mi? (Düşülen seans varsa iade edilir.)¦Delete from this class? (A used session is returned.)¦Удалить из занятия? (Списанный сеанс вернётся.)¦Aus diesem Kurs löschen? (Abgebuchte Sitzung wird zurückgebucht.)
+Kayıt silindi.¦Record deleted.¦Запись удалена.¦Eintrag gelöscht.
+Tekrar¦Repeat¦Повтор¦Wiederholen
+Bu müşteri henüz bir grup dersine kayıtlı değil.¦This client is not registered for any group class.¦Клиент не записан на групповые занятия.¦Dieser Kunde ist für keinen Gruppenkurs angemeldet.
+Otomatik Ders Planı¦Automatic class plan¦Автоплан занятий¦Automatischer Kursplan
+Plan Oluştur¦Create plan¦Создать план¦Plan erstellen
+Paket seanslarını seçtiğiniz gün/saat/eğitmene göre takvime otomatik dağıtın.¦Distribute package sessions automatically by day/time/trainer.¦Автоматически распределите сеансы пакета по дням/времени/тренеру.¦Paketsitzungen automatisch nach Tag/Uhrzeit/Trainer verteilen.
+Planı Sil¦Delete plan¦Удалить план¦Plan löschen
+Katıldı¦Attended¦Был(а)¦Teilgenommen
+Katılmadı¦Not attended¦Не был(а)¦Nicht teilgenommen
+Bilgiler yüklenemedi.¦Information could not be loaded.¦Не удалось загрузить данные.¦Daten konnten nicht geladen werden.
+En az bir ders slotu seçin.¦Choose at least one class slot.¦Выберите хотя бы один слот.¦Mindestens einen Kursslot wählen.
+Seans sayısı geçersiz.¦Invalid number of sessions.¦Неверное число сеансов.¦Ungültige Anzahl Sitzungen.
+Kaydedilemedi: {}¦Could not be saved: {}¦Не удалось сохранить: {}¦Konnte nicht gespeichert werden: {}
+Ders Slotları¦Class slots¦Слоты занятий¦Kursslots
+Gün + saat + eğitmen slotu seçin¦Choose day + time + trainer¦Выберите день + время + тренера¦Tag + Uhrzeit + Trainer wählen
+{#} slot seçildi¦{} slots selected¦Выбрано слотов: {}¦{} Slots gewählt
+Dağıtılıyor…¦Distributing…¦Распределение…¦Wird verteilt…
+Planla ve Dağıt¦Plan and distribute¦Запланировать¦Planen und verteilen
+## Bildirimler (personel)
+Personel ID bulunamadı¦Staff ID not found¦ID сотрудника не найден¦Mitarbeiter-ID nicht gefunden
+WhatsApp Asistanı¦WhatsApp assistant¦Ассистент WhatsApp¦WhatsApp-Assistent
+WhatsApp Sohbetleri¦WhatsApp chats¦Чаты WhatsApp¦WhatsApp-Chats
+Asistan Görüşmeleri¦Assistant calls¦Звонки ассистента¦Assistentengespräche
+Müşteri Detayı¦Client details¦Карточка клиента¦Kundendetails
+PDF'i indir¦Download PDF¦Скачать PDF¦PDF herunterladen
+{} ekranına git¦Go to {}¦Перейти: {}¦Zu {}
+Dosya başarıyla indirildi.¦File downloaded.¦Файл скачан.¦Datei heruntergeladen.
+İndiriliyor: %{#}¦Downloading: {}%¦Загрузка: {}%¦Wird heruntergeladen: {} %
+Tüm bildirimler sesli yapıldı¦All notifications have sound¦Звук включён для всех уведомлений¦Alle Benachrichtigungen mit Ton
+Tüm bildirimler sessize alındı¦All notifications muted¦Все уведомления без звука¦Alle Benachrichtigungen stumm
+{} sesli yapıldı¦{}: sound on¦{}: звук включён¦{}: Ton an
+{} sessize alındı¦{}: muted¦{}: без звука¦{}: stumm
+BİLDİRİM TERCİHLERİ¦NOTIFICATION PREFERENCES¦НАСТРОЙКИ УВЕДОМЛЕНИЙ¦BENACHRICHTIGUNGEN
+Size gelen bildirimleri dilediğiniz gibi yönetin.¦Manage the notifications you receive.¦Управляйте своими уведомлениями.¦Verwalten Sie Ihre Benachrichtigungen.
+Tüm Bildirimler Sesli¦Sound for all notifications¦Звук для всех уведомлений¦Ton für alle Benachrichtigungen
+Kapatırsanız tüm bildirimler sessiz gelir.¦If off, all notifications are silent.¦Если выключить, все уведомления будут без звука.¦Wenn aus, sind alle stumm.
+İşletme bu bildirimleri kapattı.¦The business has turned these off.¦Салон отключил эти уведомления.¦Das Unternehmen hat diese deaktiviert.
+Sessiz · {}¦Muted · {}¦Без звука · {}¦Stumm · {}
+Sessize aldığınız bildirimler yine gelir ve zil listesinde görünür; yalnızca ses ve titreşim yapmaz. Hangi bildirimin size gönderileceğine işletme karar verir.¦Muted notifications still arrive and appear in the list; they just make no sound. The business decides which ones you get.¦Уведомления без звука всё равно приходят и видны в списке. Какие получать, решает салон.¦Stumme Benachrichtigungen kommen weiter an, nur ohne Ton. Welche Sie erhalten, entscheidet das Unternehmen.
+Genel Bildirimler¦General notifications¦Общие уведомления¦Allgemeine Benachrichtigungen
+Önemli Bildirimler¦Important notifications¦Важные уведомления¦Wichtige Benachrichtigungen
+## Müşteriler
+Aktif müşteri yok¦No active clients¦Нет активных клиентов¦Keine aktiven Kunden
+Yakın zamanda randevu almış müşterilerin burada görünür.¦Clients with recent appointments appear here.¦Здесь клиенты с недавними записями.¦Kunden mit aktuellen Terminen erscheinen hier.
+Sunucu yaniti okunamadi.¦The server response could not be read.¦Не удалось прочитать ответ сервера.¦Serverantwort nicht lesbar.
+Baglanti hatasi: {}¦Connection error: {}¦Ошибка соединения: {}¦Verbindungsfehler: {}
+Web Sitesi¦Website¦Сайт¦Website
+Baglantilari Duzenle¦Edit links¦Изменить ссылки¦Links bearbeiten
+Konum linki¦Location link¦Ссылка на адрес¦Standort-Link
+Instagram baslik¦Instagram title¦Заголовок Instagram¦Instagram-Titel
+Instagram linki¦Instagram link¦Ссылка Instagram¦Instagram-Link
+Web baslik¦Website title¦Заголовок сайта¦Website-Titel
+Web linki¦Website link¦Ссылка на сайт¦Website-Link
+Not: Bos birakilan link kaldirilir. Degisiklikler web ile senkron calisir.¦Note: empty links are removed. Changes sync with the web.¦Пустые ссылки удаляются. Изменения синхронизируются с сайтом.¦Leere Links werden entfernt. Änderungen werden synchronisiert.
+Vazgec¦Cancel¦Отмена¦Abbrechen
+Musteri telefon numarasi kayitli degil.¦No phone number on file.¦Телефон клиента не указан.¦Keine Telefonnummer hinterlegt.
+Konumumuz¦Our location¦Наш адрес¦Unser Standort
+WhatsApp Bagli Degil¦WhatsApp not connected¦WhatsApp не подключён¦WhatsApp nicht verbunden
+WhatsApp Bağlı¦WhatsApp connected¦WhatsApp подключён¦WhatsApp verbunden
+WhatsApp Bağlı Değil¦WhatsApp not connected¦WhatsApp не подключён¦WhatsApp nicht verbunden
+Musterilerinize sistemden WhatsApp mesaji gonderebilmek icin salon WhatsApp hesabini baglamaniz gerekiyor. Simdilik telefonunuzdaki WhatsApp uygulamasi acilsin mi?¦Connect the salon's WhatsApp to send messages from the system. Open WhatsApp on your phone for now?¦Чтобы писать из системы, подключите WhatsApp салона. Открыть WhatsApp на телефоне?¦Verbinden Sie das Salon-WhatsApp, um aus dem System zu senden. Vorerst WhatsApp auf dem Telefon öffnen?
+WhatsApp'ta Ac¦Open in WhatsApp¦Открыть в WhatsApp¦In WhatsApp öffnen
+WhatsApp Mesaji¦WhatsApp message¦Сообщение WhatsApp¦WhatsApp-Nachricht
+WhatsApp Mesaj¦WhatsApp message¦Сообщение WhatsApp¦WhatsApp-Nachricht
+Musterinin WhatsApp bildirim onayi yok. Yine de gonderilebilir; kanuni sorumluluk salon isletmecisine aittir.¦The client has not agreed to WhatsApp messages. You can still send; the salon is legally responsible.¦Клиент не дал согласия на WhatsApp. Отправить можно, ответственность несёт салон.¦Der Kunde hat WhatsApp nicht zugestimmt. Senden ist möglich; der Salon haftet.
+Mesajinizi yazin...¦Write your message...¦Напишите сообщение...¦Nachricht schreiben...
+Hazir Baglantilar:¦Quick links:¦Готовые ссылки:¦Schnelllinks:
+Duzenle¦Edit¦Изменить¦Bearbeiten
+{} Ekle¦Add {}¦Добавить: {}¦{} hinzufügen
+Gonder¦Send¦Отправить¦Senden
+Mesaj gonderildi.¦Message sent.¦Сообщение отправлено.¦Nachricht gesendet.
+Mesaj gonderilemedi.¦Message could not be sent.¦Не удалось отправить сообщение.¦Nachricht konnte nicht gesendet werden.
+Sunucuya baglanilamadi: {}¦Could not connect to the server: {}¦Нет соединения с сервером: {}¦Keine Verbindung zum Server: {}
+Musteri bulunamadi.¦Client not found.¦Клиент не найден.¦Kunde nicht gefunden.
+Memnuniyet Anketi Gonder¦Send satisfaction survey¦Отправить опрос¦Zufriedenheitsumfrage senden
+Seans Takibi¦Session tracking¦Учёт сеансов¦Sitzungsübersicht
+Müşteri veya Paket Adı...¦Client or package name...¦Клиент или пакет...¦Kunde oder Paket...
+Müşteri / Paket adı ara...¦Search client / package...¦Поиск клиента / пакета...¦Kunde / Paket suchen...
+Müşteri/Paket¦Client/package¦Клиент/пакет¦Kunde/Paket
+Hizmet Satışları¦Service sales¦Продажи услуг¦Leistungsverkäufe
+Paket Satışları¦Package sales¦Продажи пакетов¦Paketverkäufe
+Ürün Satışları¦Product sales¦Продажи товаров¦Produktverkäufe
+Satışlar¦Sales¦Продажи¦Verkäufe
+Müşteri/Tarih¦Client/date¦Клиент/дата¦Kunde/Datum
+Ödenen ₺¦Paid ₺¦Оплачено ₺¦Bezahlt ₺
+Ödenen¦Paid¦Оплачено¦Bezahlt
+Toplam Ücret(₺)¦Total price (₺)¦Общая стоимость (₺)¦Gesamtpreis (₺)
+Ödenen(₺)¦Paid (₺)¦Оплачено (₺)¦Bezahlt (₺)
+Kalan(₺)¦Remaining (₺)¦Остаток (₺)¦Rest (₺)
+Adisyonlar¦Sales slips¦Чеки¦Belege
+Zaman¦Time¦Время¦Zeit
+{} Sözleşme/Belgeleri¦{} — contracts/documents¦{} — договоры и документы¦{} — Verträge/Dokumente
+Müşteri Adı veya Form Adı...¦Client or form name...¦Клиент или форма...¦Kunde oder Formular...
+Tabloda herhangi bir veri mevcut değil¦No data in the table¦Нет данных¦Keine Daten vorhanden
+Form Adı¦Form name¦Название формы¦Formularname
+Reddedilen¦Declined¦Отклонённые¦Abgelehnt
+Reddedilen/İptal¦Declined/cancelled¦Отклонено/отменено¦Abgelehnt/storniert
+Telefon No¦Phone no.¦Телефон¦Telefonnr.
+Randevu Oluşturma Yeri¦Booked via¦Где создана запись¦Gebucht über
+Oluşturma Yeri¦Booked via¦Где создано¦Erstellt über
+Randevu Durumu¦Appointment status¦Статус записи¦Terminstatus
+Sağlık Bilgileri¦Health information¦Данные о здоровье¦Gesundheitsangaben
+Yakın bir zamanda ameliyat geçirdi mi?¦Any recent surgery?¦Были ли недавно операции?¦Kürzlich operiert?
+Herhangi bir alerjisi var?¦Any allergies?¦Есть ли аллергия?¦Allergien?
+Sürekli kullanıdığı ilaç var mı?¦Takes medication regularly?¦Принимает лекарства постоянно?¦Nimmt dauerhaft Medikamente?
+Daha önce uygulama yaptırdı mı?¦Had this treatment before?¦Делал(а) процедуру раньше?¦Behandlung schon einmal erhalten?
+Ek sağlık sorunları var mı?¦Other health issues?¦Другие проблемы со здоровьем?¦Weitere Gesundheitsprobleme?
+Formu Kaydet¦Save form¦Сохранить форму¦Formular speichern
+İsmi boş bırakmayınız¦Name is required¦Введите имя¦Name erforderlich
+2 karakterden fazla olmalıdır¦Must be longer than 2 characters¦Должно быть больше 2 символов¦Muss länger als 2 Zeichen sein
+Güncelleme Başarılı¦Updated¦Обновлено¦Aktualisiert
+Bilgiler değiştirilirken bir hata oluştu! Hata kodu : {}¦Error while saving! Code: {}¦Ошибка при сохранении! Код: {}¦Fehler beim Speichern! Code: {}
+{} — Vücut Ölçümleri¦{} — body measurements¦{} — измерения тела¦{} — Körpermaße
+Henüz ölçüm girilmemiş.\nSağ alttaki butondan ekleyebilirsiniz.¦No measurements yet.\nAdd one with the button below.¦Измерений пока нет.\nДобавьте кнопкой ниже.¦Noch keine Messungen.\nMit dem Button unten hinzufügen.
+{} tarihli ölçüm kaydı silinecek.¦The measurement of {} will be deleted.¦Измерение от {} будет удалено.¦Die Messung vom {} wird gelöscht.
+En az boy veya kilo girin.¦Enter at least height or weight.¦Введите хотя бы рост или вес.¦Mindestens Größe oder Gewicht eingeben.
+örn. 32¦e.g. 32¦напр. 32¦z. B. 32
+Doğum tarihinden¦From date of birth¦По дате рождения¦Aus Geburtsdatum
+VKİ (otomatik):¦BMI (automatic):¦ИМТ (авто):¦BMI (automatisch):
+İşletme bilgisi bulunamadı¦Business information not found¦Информация о салоне не найдена¦Unternehmensdaten nicht gefunden
+Kara listeye ekle¦Add to blacklist¦Добавить в чёрный список¦Auf schwarze Liste setzen
+Kara listeden çıkar¦Remove from blacklist¦Убрать из чёрного списка¦Von schwarzer Liste entfernen
+{} kara listeye eklenecek. Bu müşteriye kampanya/reklam SMS'leri gönderilmez. Devam edilsin mi?¦{} will be blacklisted and receive no promotional SMS. Continue?¦{} попадёт в чёрный список и не будет получать рекламу. Продолжить?¦{} kommt auf die schwarze Liste und erhält keine Werbung. Fortfahren?
+{} kara listeden çıkarılacak. Devam edilsin mi?¦{} will be removed from the blacklist. Continue?¦Убрать {} из чёрного списка?¦{} von der schwarzen Liste entfernen?
+Listeden Çıkar¦Remove from list¦Убрать из списка¦Von Liste entfernen
+Kara listeye eklendi¦Added to blacklist¦Добавлено в чёрный список¦Auf schwarze Liste gesetzt
+Kara listeden çıkarıldı¦Removed from blacklist¦Убрано из чёрного списка¦Von schwarzer Liste entfernt
+İşlem başarısız ({})¦Action failed ({})¦Не удалось ({})¦Fehlgeschlagen ({})
+İşlem sırasında bir hata oluştu¦An error occurred¦Произошла ошибка¦Ein Fehler ist aufgetreten
+İnternet¦Internet¦Интернет¦Internet
+Reklam¦Advertising¦Реклама¦Werbung
+Tanıdık¦Acquaintance¦Знакомые¦Bekannte
+Yok¦None¦Нет¦Keine
+Pasif¦Inactive¦Неактивный¦Inaktiv
+Sadık¦Loyal¦Постоянный¦Stammkunde
+Arama başlatılıyor...¦Starting call...¦Начинаем звонок...¦Anruf wird gestartet...
+Arama başlatıldı¦Call started¦Звонок начат¦Anruf gestartet
+Arama hatası: {}¦Call error: {}¦Ошибка звонка: {}¦Anruffehler: {}
+Genel¦General¦Общее¦Allgemein
+Mesaj¦Message¦Сообщение¦Nachricht
+Toplam Randevu¦Total appointments¦Всего записей¦Termine gesamt
+Son Ziyaret¦Last visit¦Последний визит¦Letzter Besuch
+Üyelik¦Membership¦Статус¦Mitgliedschaft
+TC Kimlik No¦ID number¦Номер удостоверения¦Ausweisnummer
+Referans¦Source¦Источник¦Quelle
+Referans Seç¦Choose source¦Выберите источник¦Quelle wählen
+Seanslar¦Sessions¦Сеансы¦Sitzungen
+Sözleşmeler¦Contracts¦Договоры¦Verträge
+Harici Tahsilat¦External payment¦Внешняя оплата¦Externe Zahlung
+Müşteri Resimleri¦Client photos¦Фото клиента¦Kundenfotos
+Müşteri Hareketleri¦Client activity¦История клиента¦Kundenaktivität
+İşlem Notları¦Treatment notes¦Заметки о процедурах¦Behandlungsnotizen
+Bu müşteriye ait randevu veya işlem bulunamadı.¦No appointments or treatments for this client.¦Записей или процедур не найдено.¦Keine Termine oder Behandlungen gefunden.
+Not eklemek için dokunun¦Tap to add a note¦Нажмите, чтобы добавить заметку¦Tippen, um Notiz hinzuzufügen
+Not eklenmemiş.¦No note added.¦Заметки нет.¦Keine Notiz.
+İşlem Notu¦Treatment note¦Заметка о процедуре¦Behandlungsnotiz
+İşlem sonrası notu yazın…¦Write a post-treatment note…¦Заметка после процедуры…¦Notiz nach der Behandlung…
+İşlem notu kaydedildi¦Treatment note saved¦Заметка сохранена¦Behandlungsnotiz gespeichert
+Müşteri Adı...¦Client name...¦Имя клиента...¦Kundenname...
+Müşteri Düzenle¦Edit client¦Изменить клиента¦Kunde bearbeiten
+Müşteriyle ilgili özel notlar...¦Notes about the client...¦Заметки о клиенте...¦Notizen zum Kunden...
+Değişiklikleri Kaydet¦Save changes¦Сохранить изменения¦Änderungen speichern
+Müşteri güncellenirken bir hata oluştu! Hata kodu : {}¦Error updating client! Code: {}¦Ошибка при обновлении клиента! Код: {}¦Fehler beim Aktualisieren! Code: {}
+Müşteri güncellenemedi: {}¦Client could not be updated: {}¦Не удалось обновить клиента: {}¦Kunde konnte nicht aktualisiert werden: {}
+Rehber erişim izni gereklidir!¦Contacts permission is required!¦Нужен доступ к контактам!¦Kontaktberechtigung erforderlich!
+İzin Gerekli¦Permission required¦Нужно разрешение¦Berechtigung erforderlich
+Rehber erişimi için izin gereklidir. Lütfen ayarlardan izin verin.¦Contacts access is required. Allow it in settings.¦Нужен доступ к контактам. Разрешите в настройках.¦Kontaktzugriff nötig. Bitte in den Einstellungen erlauben.
+Sayılar yüklenemedi¦Counts could not be loaded¦Не удалось загрузить количество¦Zahlen konnten nicht geladen werden
+Müşteriler¦Clients¦Клиенты¦Kunden
+Rehberden toplu ekle¦Add from contacts¦Добавить из контактов¦Aus Kontakten hinzufügen
+Rehberden Ekle¦Add from contacts¦Из контактов¦Aus Kontakten
+Tüm Müşteriler¦All clients¦Все клиенты¦Alle Kunden
+Sadık Müşteriler¦Loyal clients¦Постоянные клиенты¦Stammkunden
+Aktif Müşteriler¦Active clients¦Активные клиенты¦Aktive Kunden
+Pasif Müşteriler¦Inactive clients¦Неактивные клиенты¦Inaktive Kunden
+Müşteri bulunamadı¦No client found¦Клиент не найден¦Kein Kunde gefunden
+Henüz kayıt yok ya da aramaya uyan sonuç yok¦No records yet or no match¦Записей нет или ничего не найдено¦Keine Einträge oder keine Treffer
+Ad veya telefon ile ara¦Search by name or phone¦Поиск по имени или телефону¦Nach Name oder Telefon suchen
+İsim veya telefon ile ara¦Search by name or phone¦Поиск по имени или телефону¦Nach Name oder Telefon suchen
+Telefon yok¦No phone¦Нет телефона¦Kein Telefon
+Pasif müşteri yok¦No inactive clients¦Нет неактивных клиентов¦Keine inaktiven Kunden
+Uzun süredir randevu almamış müşteriler burada listelenir. Onlara mesaj atmak için iyi bir liste.¦Clients without recent appointments are listed here. A good list for messaging.¦Здесь клиенты, давно не записывавшиеся. Хороший список для рассылки.¦Kunden ohne aktuelle Termine. Gut geeignet für Nachrichten.
+Rehber erişim izni reddedildi!¦Contacts permission denied!¦Доступ к контактам отклонён!¦Kontaktzugriff verweigert!
+Önce eklenecek kişileri seçin¦Choose people first¦Сначала выберите людей¦Zuerst Personen wählen
+İşletme bilgisi yüklenemedi¦Business data could not be loaded¦Не удалось загрузить данные салона¦Unternehmensdaten nicht geladen
+Numaralar kontrol ediliyor...¦Checking numbers...¦Проверка номеров...¦Nummern werden geprüft...
+Tüm kişiler zaten kayıtlı¦All people are already registered¦Все уже зарегистрированы¦Alle bereits registriert
+Seçtiğin {#} kişinin hepsi sistemde mevcut. Yeni ekleme yapılmadı.¦All {} selected people already exist.¦Все выбранные ({}) уже есть в системе.¦Alle {} gewählten Personen sind bereits vorhanden.
+Ekleme tamamlandı¦Done¦Готово¦Fertig
+Sonuç¦Result¦Результат¦Ergebnis
+{#} yeni müşteri eklendi¦{} new clients added¦Добавлено клиентов: {}¦{} neue Kunden hinzugefügt
+{#} kişi zaten kayıtlı (atlandı)¦{} already registered (skipped)¦Уже есть (пропущено): {}¦{} bereits registriert (übersprungen)
+{#} ekleme başarısız¦{} failed¦Ошибок: {}¦{} fehlgeschlagen
+Tümünü kaldır¦Deselect all¦Снять все¦Alle abwählen
+Kişi bulunamadı¦No contacts found¦Контакты не найдены¦Keine Kontakte gefunden
+Rehberinde telefon numarası olan kişi yok.¦No contacts with phone numbers.¦Нет контактов с номерами.¦Keine Kontakte mit Telefonnummer.
+Aramaya uyan sonuç yok.¦No matching results.¦Ничего не найдено.¦Keine Treffer.
+Kişi seçin¦Choose people¦Выберите людей¦Personen wählen
+Müşteriler ekleniyor¦Adding clients¦Добавление клиентов¦Kunden werden hinzugefügt
+Sadık müşteri görünmüyor¦No loyal clients¦Постоянных клиентов нет¦Keine Stammkunden
+Düzenli randevu alan müşterilerin burada listelenir. Birkaç ziyaret sonrası listelenmeye başlar.¦Regular clients are listed here after a few visits.¦Здесь постоянные клиенты после нескольких визитов.¦Regelmäßige Kunden erscheinen hier nach einigen Besuchen.
+Henüz müşteri yok¦No clients yet¦Клиентов пока нет¦Noch keine Kunden
+Sağ üstteki + butonu ile müşteri ekleyebilir ya da rehberden hızlıca aktarabilirsin.¦Add clients with + at the top right or import from contacts.¦Добавьте клиента кнопкой + вверху или из контактов.¦Mit + oben rechts hinzufügen oder aus Kontakten importieren.
+Yeni Müşteri Ekle¦Add client¦Добавить клиента¦Kunde hinzufügen
+Müşteriyi Kaydet¦Save client¦Сохранить клиента¦Kunde speichern
+Ad Soyad alanı zorunludur¦Name is required¦Введите имя¦Name erforderlich
+Telefon numarası zorunludur¦Phone number is required¦Введите телефон¦Telefonnummer erforderlich
+Müşteri eklenirken bir hata oluştu! Hata kodu : {}¦Error adding client! Code: {}¦Ошибка при добавлении клиента! Код: {}¦Fehler beim Hinzufügen! Code: {}
+Sunucudan boş yanıt geldi. Müşteri eklenemedi.¦Empty server response. Client not added.¦Пустой ответ сервера. Клиент не добавлен.¦Leere Serverantwort. Kunde nicht hinzugefügt.
+Bu numara zaten kayıtlı¦This number is already registered¦Номер уже зарегистрирован¦Nummer bereits registriert
+Müşteri Zaten Kayıtlı¦Client already registered¦Клиент уже зарегистрирован¦Kunde bereits registriert
+zaten kayıtlı¦already registered¦уже зарегистрирован¦bereits registriert
+Müşteri eklenemedi: {}¦Client could not be added: {}¦Не удалось добавить клиента: {}¦Kunde konnte nicht hinzugefügt werden: {}
+Sistemde girdiğiniz telefon numarasına ait {} isimli kayıt portföyünüzde mevcuttur¦This phone number already belongs to {} in your list¦Этот номер уже принадлежит клиенту {}¦Diese Nummer gehört bereits {}
+İletişim Dili¦Contact language¦Язык общения¦Kontaktsprache
+## Randevular listesi
+{} Randevuları¦{} appointments¦Записи: {}¦Termine: {}
+Sayfa {#} / {#}  •  Bu sayfada {#} kayıt¦Page {} / {}  •  {} records¦Страница {} / {}  •  записей: {}¦Seite {} / {}  •  {} Einträge
+Henüz kayıt yok¦No records yet¦Записей пока нет¦Noch keine Einträge
+Müşteri adıyla ara…¦Search by client name…¦Поиск по имени…¦Nach Kundenname suchen…
+Müşteri adıyla ara¦Search by client name¦Поиск по имени¦Nach Kundenname suchen
+Filtreleri değiştirip tekrar dene.¦Change the filters and try again.¦Измените фильтры и попробуйте снова.¦Filter ändern und erneut versuchen.
+İşlemler¦Actions¦Действия¦Aktionen
+İşlem Notu Ekle¦Add treatment note¦Добавить заметку¦Behandlungsnotiz hinzufügen
+İşlem Notunu Düzenle¦Edit treatment note¦Изменить заметку¦Behandlungsnotiz bearbeiten
+Geldi mi?¦Attended?¦Пришёл?¦Erschienen?
+Müşteri Notu¦Client note¦Заметка клиента¦Kundennotiz
+Personel Notu¦Staff note¦Заметка сотрудника¦Personalnotiz
+Randevuyu iptal et?¦Cancel the appointment?¦Отменить запись?¦Termin stornieren?
+Bu işlem geri alınamaz.¦This cannot be undone.¦Отменить нельзя.¦Dies kann nicht rückgängig gemacht werden.
+Sonuçları daralt¦Narrow results¦Уточнить результаты¦Ergebnisse eingrenzen
+Lütfen başlangıç ve bitiş tarihini seçin¦Choose start and end date¦Выберите даты начала и конца¦Start- und Enddatum wählen
+Uygula¦Apply¦Применить¦Anwenden
+## Hesabım
+Hesap bilgileri alınamadı ({})¦Account data could not be loaded ({})¦Не удалось загрузить данные аккаунта ({})¦Kontodaten nicht geladen ({})
+Hesabım¦My account¦Мой аккаунт¦Mein Konto
+Fatura Bilgileri¦Billing details¦Платёжные данные¦Rechnungsdaten
+Faturalarım¦My invoices¦Мои счета¦Meine Rechnungen
+Aktif Üyelik¦Active membership¦Активная подписка¦Aktives Abo
+Ödeme Periyodu¦Payment period¦Период оплаты¦Zahlungszeitraum
+Bitiş Tarihi¦End date¦Дата окончания¦Enddatum
+Kalan Gün¦Days left¦Осталось дней¦Verbleibende Tage
+Kayıt Tarihi¦Registration date¦Дата регистрации¦Registrierungsdatum
+Hizmet bulunamadı¦No service found¦Услуга не найдена¦Keine Leistung gefunden
+Bitiş: {}¦End: {}¦Окончание: {}¦Ende: {}
+Deneme¦Trial¦Пробный¦Testphase
+Henüz fatura kaydı yok¦No invoices yet¦Счетов пока нет¦Noch keine Rechnungen
+Duyuru (SMS) Siparişleri¦SMS orders¦Заказы SMS¦SMS-Bestellungen
+Yüklendi¦Loaded¦Загружено¦Geladen
+Üyelik Ödemeleri¦Membership payments¦Оплата подписки¦Abo-Zahlungen
+Ödeme¦Payment¦Оплата¦Zahlung
+Fatura bilgileri güncellendi¦Billing details updated¦Платёжные данные обновлены¦Rechnungsdaten aktualisiert
+Vergi / Ünvan Adı¦Tax / company name¦Название компании¦Firmenname
+KDV Oranı (%)¦VAT rate (%)¦Ставка НДС (%)¦MwSt.-Satz (%)
+Vergi Adresi¦Tax address¦Юридический адрес¦Rechnungsadresse
+Kaydediliyor...¦Saving...¦Сохранение...¦Wird gespeichert...
+## Form, cihaz, seans, doğum günü
+İşlem başarısız oldu, lütfen tekrar deneyin.¦The action failed, please try again.¦Не удалось, попробуйте снова.¦Fehlgeschlagen, bitte erneut versuchen.
+Formu Gör¦View form¦Посмотреть форму¦Formular ansehen
+Form onaylandı.¦Form approved.¦Форма одобрена.¦Formular genehmigt.
+Tekrar Gönder¦Resend¦Отправить снова¦Erneut senden
+Form tekrar gönderildi.¦Form resent.¦Форма отправлена снова.¦Formular erneut gesendet.
+Dosya indirilemedi.¦The file could not be downloaded.¦Не удалось скачать файл.¦Datei konnte nicht geladen werden.
+Form iptal edildi.¦Form cancelled.¦Форма отменена.¦Formular storniert.
+{#}. Seans¦Session {}¦Сеанс {}¦Sitzung {}
+{#} Seans{}¦Session {}{}¦Сеанс {}{}¦Sitzung {}{}
+Cihaz Bilgileri¦Device data¦Параметры аппарата¦Gerätedaten
+Cihaz bilgileri kaydedildi¦Device data saved¦Параметры сохранены¦Gerätedaten gespeichert
+Cihaz bilgileri kaydedilemedi.¦Device data could not be saved.¦Не удалось сохранить параметры.¦Gerätedaten nicht gespeichert.
+Seans Seç¦Choose session¦Выберите сеанс¦Sitzung wählen
+UYGULAMA BÖLGESİ¦TREATMENT AREA¦ЗОНА ПРОЦЕДУРЫ¦BEHANDLUNGSBEREICH
+Enerji (Jül)¦Energy (J)¦Энергия (Дж)¦Energie (J)
+Hız¦Speed¦Скорость¦Geschwindigkeit
+Atış Sayısı¦Number of shots¦Число вспышек¦Anzahl Schüsse
+Uygulamayı Yapan¦Performed by¦Выполнил¦Durchgeführt von
+Müşterinize doğum günü mesajı göndermek ister misiniz?¦Send your client a birthday message?¦Отправить клиенту поздравление?¦Geburtstagsnachricht an den Kunden senden?
+Önce WhatsApp denenecek, başarısız olursa SMS gönderilecek.¦WhatsApp first; SMS if it fails.¦Сначала WhatsApp, при неудаче — SMS.¦Zuerst WhatsApp, sonst SMS.
+✉️  Evet, Gönder¦✉️  Yes, send¦✉️  Да, отправить¦✉️  Ja, senden
+Seans Düşümü¦Use sessions¦Списание сеансов¦Sitzungen abbuchen
+Hiçbirini düşme¦Use none¦Не списывать¦Keine abbuchen
+Düşülecek Adet¦Number to use¦Сколько списать¦Anzahl
+Bu randevuya bağlı paket seansı yok.¦No package session linked to this appointment.¦К записи не привязаны сеансы пакета.¦Keine Paketsitzung mit diesem Termin verknüpft.
+Geldi (düşüm yok)¦Attended (no session used)¦Пришёл (без списания)¦Erschienen (ohne Abbuchung)
+Geldi ve Düş ({#})¦Attended and use ({})¦Пришёл и списать ({})¦Erschienen und abbuchen ({})
+Veriler yüklenirken bir sorun oluştu.¦There was a problem loading data.¦Ошибка при загрузке данных.¦Problem beim Laden der Daten.
+Bu pakette hizmet detayı bulunmamaktadır.¦No service details in this package.¦В пакете нет деталей услуг.¦Keine Leistungsdetails im Paket.
+Bu kayıt için paket/hizmet bilgisi bulunamadı.¦No package/service found for this record.¦Пакет/услуга не найдены.¦Kein Paket/keine Leistung gefunden.
+Bu bölgede henüz oluşmuş seans yok. Randevu "geldi" işaretlenince veya daireye tıklayıp "Kullanıldı" deyince seans oluşur.¦No sessions here yet. They are created when an appointment is marked attended or by tapping the circle.¦Сеансов пока нет. Они появятся при отметке «пришёл» или нажатии на круг.¦Noch keine Sitzungen. Sie entstehen bei „erschienen“ oder durch Tippen auf den Kreis.
+Seans kaydı bulunamadı.¦Session not found.¦Сеанс не найден.¦Sitzung nicht gefunden.
+Seans güncellenirken hata oluştu.¦Error updating the session.¦Ошибка при обновлении сеанса.¦Fehler beim Aktualisieren der Sitzung.
+Bu seans için bağlı paket/hizmet bulunamadı.¦No package/service linked to this session.¦К сеансу не привязан пакет/услуга.¦Kein Paket/keine Leistung verknüpft.
+Seans eklenemedi.¦The session could not be added.¦Не удалось добавить сеанс.¦Sitzung konnte nicht hinzugefügt werden.
+Seans eklenirken hata oluştu.¦Error adding the session.¦Ошибка при добавлении сеанса.¦Fehler beim Hinzufügen der Sitzung.
+Yeni Seans Kullanımı¦New session use¦Новый сеанс¦Neue Sitzung
+Seans Tarihi: {}¦Session date: {}¦Дата сеанса: {}¦Sitzungsdatum: {}
+Seans Düzenle¦Edit session¦Изменить сеанс¦Sitzung bearbeiten
+Telafi Kullanılsın mı?¦Use make-up session?¦Использовать отработку?¦Ersatztermin nutzen?
+Müşteri telafi dersine katıldı mı? "Evet" derseniz seans Geldi (yeşil) olarak işaretlenir.¦Did the client attend the make-up? "Yes" marks it as attended (green).¦Клиент был на отработке? «Да» отметит сеанс как посещённый.¦War der Kunde beim Ersatztermin? „Ja“ markiert als erschienen.
+PDF içeriği boş döndü.¦The PDF is empty.¦PDF пустой.¦Das PDF ist leer.
+PDF alınırken bir hata oluştu.¦Error getting the PDF.¦Ошибка при получении PDF.¦Fehler beim Abrufen des PDF.
+## Alt menü, ana ekran, diğer menüsü
+Özet¦Summary¦Сводка¦Übersicht
+Satış Takibi¦Sales¦Продажи¦Verkauf
+Yetkileriniz Güncellendi¦Your permissions were updated¦Ваши права обновлены¦Ihre Berechtigungen wurden geändert
+Yöneticiniz yetkilerinizi güncelledi. Değişikliklerin etkili olması için tekrar giriş yapmanız gerekmektedir.¦Your manager updated your permissions. Please log in again.¦Руководитель обновил ваши права. Войдите снова.¦Ihre Leitung hat Ihre Berechtigungen geändert. Bitte erneut anmelden.
+Bu işlemler için yetkiniz yok.¦You do not have permission.¦У вас нет прав.¦Keine Berechtigung.
+Yeni Satış¦New sale¦Новая продажа¦Neuer Verkauf
+Yeni Masraf¦New expense¦Новый расход¦Neue Ausgabe
+Veriler yüklenemedi. Yenilemek için aşağı çekin.¦Data could not be loaded. Pull down to refresh.¦Не удалось загрузить. Потяните вниз для обновления.¦Daten nicht geladen. Zum Aktualisieren ziehen.
+Panel verileri yüklenemedi.\nİnternet bağlantınızı kontrol edip yenilemek için aşağı çekin.¦Data could not be loaded.\nCheck your connection and pull down to refresh.¦Не удалось загрузить данные.\nПроверьте интернет и потяните вниз.¦Daten nicht geladen.\nVerbindung prüfen und zum Aktualisieren ziehen.
+Yeniden Dene¦Try again¦Повторить¦Erneut versuchen
+Asistan¦Assistant¦Ассистент¦Assistent
+Asistanım¦My assistant¦Мой ассистент¦Mein Assistent
+Bugünün Özeti¦Today's summary¦Сводка за сегодня¦Heutige Übersicht
+Santral Aktivitesi¦Call activity¦Активность звонков¦Anrufaktivität
+Bugünün Dersleri¦Today's classes¦Занятия сегодня¦Heutige Kurse
+Bugünün Randevuları¦Today's appointments¦Записи на сегодня¦Heutige Termine
+Alacaklar¦Receivables¦Задолженности¦Forderungen
+Alacak¦Receivable¦Долг¦Forderung
+Vadesi Gelen / Geçmiş Alacak¦Due / overdue receivables¦Просроченная задолженность¦Fällige / überfällige Forderungen
+Tahsil edilecek alacak yok¦Nothing to collect¦Нет задолженностей¦Keine offenen Forderungen
+Vadesi gelen ve geçmiş tahsil edilmemiş alacaklar burada listelenir.¦Due and overdue receivables are listed here.¦Здесь просроченные и текущие долги.¦Fällige und überfällige Forderungen erscheinen hier.
+Vade: {}¦Due: {}¦Срок: {}¦Fällig: {}
+Vadesi geçti¦Overdue¦Просрочено¦Überfällig
+Tahsilat bilgisi alınamadı. Uygulama güncellemesi gerekebilir.¦Payment data could not be loaded. An app update may be needed.¦Не удалось получить данные об оплате. Возможно, нужно обновление.¦Zahlungsdaten nicht geladen. Evtl. App aktualisieren.
+Hoşgeldiniz 👋¦Welcome 👋¦Добро пожаловать 👋¦Willkommen 👋
+Hoşgeldiniz¦Welcome¦Добро пожаловать¦Willkommen
+Bugünkü Kasa¦Today's cash¦Касса сегодня¦Kasse heute
+Takvimi görüntüleme yetkiniz bulunmuyor.¦You are not allowed to view the calendar.¦Нет прав на просмотр календаря.¦Keine Berechtigung für den Kalender.
+Günlük¦Daily¦День¦Täglich
+Haftalık¦Weekly¦Неделя¦Wöchentlich
+Aylık¦Monthly¦Месяц¦Monatlich
+Yıllık¦Yearly¦Год¦Jährlich
+Kasa¦Cash¦Касса¦Kasse
+Müşterilere SMS gönder¦Send SMS to clients¦Отправить SMS клиентам¦SMS an Kunden senden
+Müşterilere SMS Gönder¦Send SMS to clients¦Отправить SMS клиентам¦SMS an Kunden senden
+{} kampanyanız için salonunuza kayıtlı tüm aktif müşterilere tek seferde SMS gönderilecek. SMS ücretleri salon SMS bakiyenizden düşülecek. Devam edilsin mi?¦An SMS for {} will be sent to all active clients and charged to your SMS balance. Continue?¦SMS о кампании {} получат все активные клиенты; стоимость спишется с баланса. Продолжить?¦Eine SMS zu {} geht an alle aktiven Kunden und wird vom SMS-Guthaben abgebucht. Fortfahren?
+{#} müşteriye SMS gönderildi¦SMS sent to {} clients¦SMS отправлено клиентам: {}¦SMS an {} Kunden gesendet
+SMS gönderilemedi, lütfen tekrar deneyin¦SMS could not be sent, please try again¦Не удалось отправить SMS¦SMS nicht gesendet, bitte erneut versuchen
+Geçen Aynı Gün¦Same day last week¦Тот же день ранее¦Gleicher Tag zuvor
+Karşılaştırma¦Comparison¦Сравнение¦Vergleich
+Bu {} için işlem yok¦No transactions for this {}¦Нет операций за период: {}¦Keine Vorgänge: {}
+Şu An¦Now¦Сейчас¦Jetzt
+Önceki¦Previous¦Ранее¦Vorher
+En İyi Personel¦Top specialist¦Лучший мастер¦Beste/r Mitarbeiter/in
+En Çok Satan Hizmet¦Best-selling service¦Самая продаваемая услуга¦Meistverkaufte Leistung
+En Çok Satan Ürün¦Best-selling product¦Самый продаваемый товар¦Meistverkauftes Produkt
+Veri yok¦No data¦Нет данных¦Keine Daten
+{#} satış¦{} sales¦Продаж: {}¦{} Verkäufe
+{#} adet¦{} pcs¦{} шт.¦{} Stk.
+Zirvedekiler¦Top performers¦Лидеры¦Spitzenreiter
+Saat Bazlı Yoğunluk¦Busy hours¦Загрузка по часам¦Auslastung nach Uhrzeit
+Pik: {}¦Peak: {}¦Пик: {}¦Spitze: {}
+{#} – {#} çalışma saatleri¦Working hours {} – {}¦Часы работы {} – {}¦Arbeitszeit {} – {}
+Bu dönemde randevu yok¦No appointments in this period¦За этот период записей нет¦Keine Termine in diesem Zeitraum
+Yoğun¦Busy¦Высокая¦Hoch
+Orta¦Medium¦Средняя¦Mittel
+Düşük¦Low¦Низкая¦Niedrig
+Boşluk Doldurma Önerisi¦Fill empty hours¦Заполнить свободные часы¦Leere Zeiten füllen
+Boş saat analizi¦Empty hours analysis¦Анализ свободных часов¦Analyse leerer Zeiten
+Boş saatleri indirim kampanyasıyla doldurun¦Fill empty hours with a discount campaign¦Заполните свободные часы акцией¦Leere Zeiten mit Rabattaktion füllen
+Boşluk analizi hazırlanıyor¦Analysis in progress¦Анализ готовится¦Analyse läuft
+Birkaç dakika içinde saat analizi tamamlanacak. Dashboard'ı yenilemeyi deneyin.¦The analysis will be ready in a few minutes. Try refreshing.¦Анализ будет готов через несколько минут. Обновите экран.¦Die Analyse ist in wenigen Minuten fertig. Bitte aktualisieren.
+Saatleriniz oldukça dolu¦Your hours are quite full¦Ваши часы почти заняты¦Ihre Zeiten sind gut gefüllt
+Şu an için indirim kampanyası önerisi yok. Salonunuzda belirgin bir boşluk saati tespit edilmedi.¦No campaign suggestion now. No clear gaps found.¦Предложений акций нет. Свободных часов не обнаружено.¦Derzeit kein Vorschlag. Keine deutlichen Lücken.
+Doluluk: %{#}  •  Kampanya aktif¦Occupancy: {}%  •  campaign active¦Загрузка: {}%  •  акция активна¦Auslastung: {} %  •  Aktion aktiv
+Ortalama doluluk: %{#}  •  {}¦Average occupancy: {}%  •  {}¦Средняя загрузка: {}%  •  {}¦Ø Auslastung: {} %  •  {}
+%{#} Aktif¦{}% active¦{}% активна¦{} % aktiv
+Detay¦Details¦Подробнее¦Details
+Kampanya Hazırla¦Create campaign¦Создать акцию¦Aktion erstellen
+{} Kampanyası Aktif¦{} campaign active¦Акция {} активна¦Aktion {} aktiv
+{} Boşluk Önerisi¦{} gap suggestion¦{}: свободные часы¦{}: freie Zeiten
+Kampanya¦Campaign¦Акция¦Aktion
+Saat aralığı¦Time range¦Интервал¦Zeitraum
+Ortalama doluluk¦Average occupancy¦Средняя загрузка¦Ø Auslastung
+Önerilen indirim¦Suggested discount¦Рекомендуемая скидка¦Empfohlener Rabatt
+Geçerlilik¦Validity¦Срок действия¦Gültigkeit
+Kampanyayı iptal et¦Cancel campaign¦Отменить акцию¦Aktion stornieren
+{} saatleri için aktif kampanyayı durdurmak istediğinize emin misiniz? Bu işlem geri alınamaz.¦Stop the campaign for {}? This cannot be undone.¦Остановить акцию на {}? Отменить нельзя.¦Aktion für {} stoppen? Nicht rückgängig zu machen.
+{} kampanyası iptal edildi¦Campaign {} cancelled¦Акция {} отменена¦Aktion {} storniert
+Kampanya iptal edilemedi¦The campaign could not be cancelled¦Не удалось отменить акцию¦Aktion konnte nicht storniert werden
+Salon seçili değil¦No salon selected¦Салон не выбран¦Kein Salon gewählt
+{} için %{#} indirimli kampanya oluşturuldu¦{2}% campaign created for {1}¦Создана акция {2}% на {1}¦Aktion mit {2} % für {1} erstellt
+{} için aktif kampanya zaten var¦There is already a campaign for {}¦На {} уже есть акция¦Für {} gibt es bereits eine Aktion
+Kampanya oluşturulamadı, lütfen tekrar deneyin¦The campaign could not be created, try again¦Не удалось создать акцию¦Aktion nicht erstellt, erneut versuchen
+Şubeler¦Branches¦Филиалы¦Filialen
+Kâr - Maliyet¦Profit - cost¦Прибыль - затраты¦Gewinn - Kosten
+%{#} marj¦{}% margin¦маржа {}%¦{} % Marge
+Ciro¦Revenue¦Выручка¦Umsatz
+Maliyet¦Cost¦Затраты¦Kosten
+Giden¦Outgoing¦Исходящие¦Ausgehend
+Cevapsız¦Missed¦Пропущенные¦Verpasst
+Bugün için randevu bulunmuyor¦No appointments today¦На сегодня записей нет¦Heute keine Termine
+Bugün için ders bulunmuyor¦No classes today¦На сегодня занятий нет¦Heute keine Kurse
+Veri alınırken hata oluştu¦Error loading data¦Ошибка загрузки данных¦Fehler beim Laden
+Bugün için tablo boş¦Nothing for today¦На сегодня пусто¦Heute leer
+Bilgilendirme¦Information¦Информация¦Information
+Anladim, devam et¦Got it, continue¦Понятно, продолжить¦Verstanden, weiter
+Görev:¦Task:¦Задача:¦Aufgabe:
+Arama Saati:¦Call time:¦Время звонка:¦Anrufzeit:
+Sonuç:¦Result:¦Результат:¦Ergebnis:
+Müşteri Adı Yok¦No client name¦Нет имени клиента¦Kein Kundenname
+Hizmet Adı Yok¦No service name¦Нет названия услуги¦Kein Leistungsname
+Not bulunmuyor¦No note¦Нет заметки¦Keine Notiz
+Randevu Zamanı¦Appointment time¦Время записи¦Terminzeit
+Belirsiz¦Unclear¦Неясно¦Unklar
+Profil resmi başarıyla güncellendi!¦Profile photo updated!¦Фото профиля обновлено!¦Profilfoto aktualisiert!
+Profil resmi güncellenirken hata oluştu!¦Error updating the profile photo!¦Ошибка при обновлении фото!¦Fehler beim Aktualisieren des Fotos!
+Profil resmi güncellenirken bir istisna oluştu!¦Error updating the profile photo!¦Ошибка при обновлении фото!¦Fehler beim Aktualisieren des Fotos!
+Profil Bilgileri¦Profile¦Профиль¦Profil
+Güvenlik¦Security¦Безопасность¦Sicherheit
+Unvan¦Title¦Должность¦Titel
+Örn. Yönetici¦E.g. manager¦Напр.: менеджер¦z. B. Manager
+Profil bilgileriniz başarıyla güncellendi!¦Your profile was updated!¦Профиль обновлён!¦Ihr Profil wurde aktualisiert!
+Profil bilgileriniz kaydedilirken hata oluştu! Hata kodu : {}¦Error saving your profile! Code: {}¦Ошибка при сохранении профиля! Код: {}¦Fehler beim Speichern! Code: {}
+Kullanıcı¦User¦Пользователь¦Benutzer
+İŞLEMLER¦OPERATIONS¦ОПЕРАЦИИ¦VORGÄNGE
+Bildirim Reklamları¦Push campaigns¦Push-реклама¦Push-Werbung
+Takvim Renk Ayarı¦Calendar colours¦Цвета календаря¦Kalenderfarben
+Reklam Yönetimi¦Campaign management¦Управление рекламой¦Werbeverwaltung
+Anket Yönetimi¦Surveys¦Опросы¦Umfragen
+İkram Hizmet¦Reward services¦Подарочные услуги¦Gratis-Leistungen
+YÖNETİM¦MANAGEMENT¦УПРАВЛЕНИЕ¦VERWALTUNG
+Form Yönetimi¦Forms¦Формы¦Formulare
+Satış Raporları¦Sales reports¦Отчёты о продажах¦Verkaufsberichte
+Paket Yönetimi¦Packages¦Пакеты¦Pakete
+Stok Yönetimi¦Stock¦Склад¦Lager
+Kasa Raporu¦Cash report¦Отчёт по кассе¦Kassenbericht
+Masraflar¦Expenses¦Расходы¦Ausgaben
+SMS Yönetimi¦SMS¦SMS¦SMS
+Çağrı Merkezi¦Call centre¦Колл-центр¦Callcenter
+Sistem Ayarları¦System settings¦Настройки системы¦Systemeinstellungen
+Ayarlar¦Settings¦Настройки¦Einstellungen
+Görünüm¦Appearance¦Оформление¦Darstellung
+Senetler¦Promissory notes¦Векселя¦Wechsel
+Ajanda¦Agenda¦Ежедневник¦Agenda
+Etkinlikler¦Events¦Мероприятия¦Veranstaltungen
+Santral Raporları¦Call reports¦Отчёты о звонках¦Anrufberichte
+## Hakediş
+Kısmi¦Partial¦Частично¦Teilweise
+Ödendi¦Paid¦Выплачено¦Bezahlt
+Personel/salon bilgisi alınamadı.¦Staff/salon data could not be loaded.¦Не удалось получить данные.¦Daten nicht geladen.
+Veri alınırken hata: {}¦Error loading data: {}¦Ошибка загрузки: {}¦Fehler beim Laden: {}
+Net Hakediş¦Net earnings¦Итого начислено¦Netto-Abrechnung
+Hakediş Kırılımı¦Earnings breakdown¦Детализация¦Aufschlüsselung
+Maaş¦Salary¦Оклад¦Gehalt
+Hizmet Primi¦Service commission¦Процент с услуг¦Provision Leistungen
+Ürün Primi¦Product commission¦Процент с товаров¦Provision Produkte
+Paket Primi¦Package commission¦Процент с пакетов¦Provision Pakete
+Bonus¦Bonus¦Бонус¦Bonus
+Kesinti¦Deduction¦Удержание¦Abzug
+Ödeme Durumu¦Payment status¦Статус выплаты¦Zahlungsstatus
+Ödenen Maaş¦Paid salary¦Выплаченный оклад¦Gezahltes Gehalt
+Ödenen Prim¦Paid commission¦Выплаченный процент¦Gezahlte Provision
+Diğer / Avans¦Other / advance¦Другое / аванс¦Sonstiges / Vorschuss
+Toplam Ödenen¦Total paid¦Всего выплачено¦Gesamt bezahlt
+Geçmiş Ödemeler¦Past payments¦Прошлые выплаты¦Frühere Zahlungen
+Bu dönemde ödeme kaydı yok.¦No payments in this period.¦Выплат за период нет.¦Keine Zahlungen in diesem Zeitraum.
+Prim¦Commission¦Процент¦Provision
+İşletme Seçiniz¦Choose business¦Выберите салон¦Unternehmen wählen
+İşletmeyi aç¦Open business¦Открыть салон¦Unternehmen öffnen
+## Kapsam testinde bulunanlar
+tane hizmet seçildi¦services selected¦услуг выбрано¦Leistungen gewählt
+TELAFİ¦MAKE-UP¦ОТРАБОТКА¦ERSATZ
+EMİN MİSİNİZ?¦ARE YOU SURE?¦ВЫ УВЕРЕНЫ?¦SIND SIE SICHER?
+Gonderilemedi.¦Could not be sent.¦Не удалось отправить.¦Konnte nicht gesendet werden.
+Geldi & Tahsilat¦Attended & payment¦Пришёл и оплата¦Erschienen & Zahlung
+NİS¦APR¦АПР¦APR
+EKİ¦OCT¦ОКТ¦OKT
+{} mola · {#}'de istedi¦{} break · requested at {}¦перерыв {} · запрошен в {}¦{} Pause · angefragt um {}
+{#} randevu · {} · asistan: {#}¦{} appointments · {} · assistant: {}¦записей: {} · {} · ассистент: {}¦{} Termine · {} · Assistent: {}
+Müşteri uzman seçmediğinde WhatsApp ve telefon asistanı ile online "fark etmez" randevusu, o saatte boş olanlar arasından o gün çalışma süresine oranla en az dolu olan uzmana verilir (4 saat çalışan biri 2 saat doluysa %50 sayılır).¦When a client has no preference, assistant and online bookings go to the free specialist with the lowest occupancy for that day (2 of 4 working hours booked = 50%).¦Если клиент не выбрал мастера, запись через ассистента или онлайн получает свободный мастер с наименьшей загрузкой в этот день (2 из 4 часов = 50%).¦Ohne Wunsch gehen Termine (Assistent/online) an den freien Mitarbeiter mit der geringsten Auslastung des Tages (2 von 4 Stunden = 50 %).
+Bu dönemde asistan {#} randevu verdi.¦The assistant booked {} appointments in this period.¦За период ассистент создал записей: {}.¦Der Assistent hat in diesem Zeitraum {} Termine vergeben.
+Planı sil (gelecek dersler temizlenir)¦Delete plan (future classes are removed)¦Удалить план (будущие занятия удалятся)¦Plan löschen (künftige Kurse werden entfernt)
+{} otomatik ders planı silinsin mi?¦Delete the automatic plan {}?¦Удалить автоплан {}?¦Automatischen Plan {} löschen?
+Gelecekteki otomatik kayıtlar temizlenir; geçmiş dersler korunur.¦Future automatic bookings are removed; past classes are kept.¦Будущие автозаписи удалятся; прошедшие сохранятся.¦Künftige automatische Buchungen werden entfernt; vergangene bleiben.
+Plan silindi. {#} gelecek ders temizlendi.¦Plan deleted. {} future classes removed.¦План удалён. Удалено будущих занятий: {}.¦Plan gelöscht. {} künftige Kurse entfernt.
+{} • {#}/{#} seans yerleşti¦{} • {}/{} sessions placed¦{} • размещено сеансов {}/{}¦{} • {}/{} Sitzungen verteilt
+{#} ders planlandı¦{} classes planned¦Запланировано занятий: {}¦{} Kurse geplant
+Bu müşterinin uygun (kalan seanslı) paket/hizmet satışı yok.¦This client has no package/service with remaining sessions.¦У клиента нет пакета с оставшимися сеансами.¦Dieser Kunde hat kein Paket mit restlichen Sitzungen.
+Seçtiğiniz ders slotlarına (gün + saat + eğitmen) paket seanslarını haftalık olarak otomatik dağıtır. Her slot kendi saatini taşır — farklı günlere farklı saat verebilirsiniz.¦Distributes package sessions weekly to the chosen slots (day + time + trainer). Each slot has its own time.¦Еженедельно распределяет сеансы по выбранным слотам (день + время + тренер). У каждого слота своё время.¦Verteilt Paketsitzungen wöchentlich auf die gewählten Slots (Tag + Uhrzeit + Trainer). Jeder Slot hat eine eigene Zeit.
+Bu hizmet için haftalık programda ders yok. Önce Ders Programı ekranından ekleyin.¦No classes for this service in the weekly schedule. Add them first.¦В расписании нет занятий для этой услуги. Сначала добавьте их.¦Keine Kurse für diese Leistung im Wochenplan. Bitte zuerst hinzufügen.

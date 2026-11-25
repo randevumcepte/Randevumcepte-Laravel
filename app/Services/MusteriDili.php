@@ -50,7 +50,7 @@ class MusteriDili
         static $ok = null;
         if ($ok !== null) return $ok;
         try {
-            if (Cache::get('musteri_dil_sema_v1')) return $ok = true;
+            if (Cache::get('musteri_dil_sema_v2')) return $ok = true;
             DB::statement('CREATE TABLE IF NOT EXISTS ' . self::TABLO . ' (
                 user_id INT UNSIGNED NOT NULL PRIMARY KEY,
                 dil VARCHAR(5) NOT NULL,
@@ -69,7 +69,13 @@ class MusteriDili
                 created_at TIMESTAMP NULL DEFAULT NULL,
                 UNIQUE KEY dc_salon_dil_ozet (salon_id, dil, ozet)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
-            Cache::forever('musteri_dil_sema_v1', 1);
+            DB::statement('CREATE TABLE IF NOT EXISTS personel_dil (
+                yetkili_id INT UNSIGNED NOT NULL PRIMARY KEY,
+                dil VARCHAR(5) NOT NULL,
+                created_at TIMESTAMP NULL DEFAULT NULL,
+                updated_at TIMESTAMP NULL DEFAULT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+            Cache::forever('musteri_dil_sema_v2', 1);
             return $ok = true;
         } catch (\Throwable $e) {
             Log::warning('[DIL] sema', ['err' => $e->getMessage()]);
@@ -113,6 +119,46 @@ class MusteriDili
             return DB::table(self::TABLO)->where('user_id', (int) $userId)->first();
         } catch (\Throwable $e) {
             return null;
+        }
+    }
+
+    // ------------------------------------------------------------------ personel (kendi uygulamasi + bildirimi)
+    public static function yetkiliDil($yetkiliId)
+    {
+        if (!$yetkiliId || !self::semaGaranti()) return null;
+        try {
+            $d = DB::table('personel_dil')->where('yetkili_id', (int) $yetkiliId)->value('dil');
+            return $d && self::gecerli($d) ? $d : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    public static function yetkiliKaydet($yetkiliId, $dil)
+    {
+        if (!$yetkiliId || !self::gecerli($dil) || !self::semaGaranti()) return false;
+        try {
+            DB::table('personel_dil')->updateOrInsert(['yetkili_id' => (int) $yetkiliId], ['dil' => $dil, 'updated_at' => date('Y-m-d H:i:s')]);
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('[DIL] personel kaydet', ['err' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    /** Personele giden uygulama bildirimi ($personelId: salon_personelleri.id) kendi dilinde; yalniz sozluk (AI yok). */
+    public static function personelMetni($salonId, $personelId, $metin)
+    {
+        try {
+            if (!self::acikMi($salonId) || (string) $metin === '') return $metin;
+            static $an = [];
+            if (!array_key_exists($personelId, $an)) {
+                $an[$personelId] = self::yetkiliDil(DB::table('salon_personelleri')->where('id', (int) $personelId)->value('yetkili_id'));
+            }
+            $dil = $an[$personelId];
+            return !$dil || $dil === 'tr' ? $metin : self::cevir($salonId, $metin, $dil, false);
+        } catch (\Throwable $e) {
+            return $metin;
         }
     }
 

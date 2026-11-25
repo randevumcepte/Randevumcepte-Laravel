@@ -1,0 +1,215 @@
+## Personele giden bildirimler
+Yeni Randevu¦New appointment¦Новая запись¦Neuer Termin
+Yeni Randevu (AI Santral)¦New appointment (AI call)¦Новая запись (AI-звонок)¦Neuer Termin (KI-Anruf)
+Yeni randevu talebi¦New appointment request¦Новая заявка на запись¦Neue Terminanfrage
+Yeni randevu talebi (sesli asistan)¦New appointment request (voice assistant)¦Новая заявка (голосовой ассистент)¦Neue Terminanfrage (Sprachassistent)
+Randevu Oluşturuldu¦Appointment created¦Запись создана¦Termin erstellt
+Randevu Güncellendi¦Appointment changed¦Запись изменена¦Termin geändert
+Randevu güncellendi (sesli asistan)¦Appointment changed (voice assistant)¦Запись изменена (голосовой ассистент)¦Termin geändert (Sprachassistent)
+Randevu zamanı değişti¦Appointment time changed¦Время записи изменено¦Terminzeit geändert
+Randevu zamanı değişti (sesli asistan)¦Appointment time changed (voice assistant)¦Время записи изменено (голосовой ассистент)¦Terminzeit geändert (Sprachassistent)
+Randevu süresi güncellendi¦Appointment duration changed¦Длительность записи изменена¦Termindauer geändert
+Randevu İptal Edildi¦Appointment cancelled¦Запись отменена¦Termin storniert
+Randevu İptal Edildi (sesli asistan)¦Appointment cancelled (voice assistant)¦Запись отменена (голосовой ассистент)¦Termin storniert (Sprachassistent)
+Müşteri Randevuyu İptal Etti¦Client cancelled the appointment¦Клиент отменил запись¦Kunde hat den Termin storniert
+Randevu Reddedildi¦Appointment declined¦Запись отклонена¦Termin abgelehnt
+Randevu Onaylandı¦Appointment confirmed¦Запись подтверждена¦Termin bestätigt
+Randevu sizden alındı¦Appointment reassigned from you¦Запись передана другому¦Termin wurde Ihnen entzogen
+Size yeni randevu atandı¦New appointment assigned to you¦Вам назначена новая запись¦Ihnen wurde ein Termin zugewiesen
+Yeni Ön Görüşme Randevusu¦New consultation¦Новая консультация¦Neue Beratung
+Yeni müşteri fotoğrafı¦New client photo¦Новое фото клиента¦Neues Kundenfoto
+{} bir fotoğraf ekledi¦{} added a photo¦{}: добавлено фото¦{} hat ein Foto hinzugefügt
+Alacak Hatırlatma¦Receivable reminder¦Напоминание о долге¦Forderungserinnerung
+Geri aranacak müşteri¦Client to call back¦Перезвонить клиенту¦Rückruf an Kunden
+WhatsApp Uyarısı¦WhatsApp warning¦Предупреждение WhatsApp¦WhatsApp-Warnung
+⚠️ Düşük Puan Uyarısı¦⚠️ Low rating alert¦⚠️ Низкая оценка¦⚠️ Niedrige Bewertung
+Yöneticiniz yetkilerinizi güncelledi. Devam etmek için tekrar giriş yapmanız gerekiyor.¦Your manager updated your permissions. Please log in again to continue.¦Руководитель обновил ваши права. Войдите снова.¦Ihre Leitung hat Ihre Berechtigungen geändert. Bitte erneut anmelden.
+{} • Yeni: {}¦{} • New: {}¦{} • Новое время: {}¦{} • Neu: {}
+Mola talebi¦Break request¦Запрос на перерыв¦Pausenanfrage
+Mola onaylandı¦Break approved¦Перерыв одобрен¦Pause genehmigt
+Mola reddedildi¦Break declined¦Перерыв отклонён¦Pause abgelehnt
+Mola¦Break¦Перерыв¦Pause
+Molanız onaylandı ({} – {}).¦Your break was approved ({} – {}).¦Ваш перерыв одобрен ({} – {}).¦Ihre Pause wurde genehmigt ({} – {}).
+Mola talebiniz reddedildi.¦Your break request was declined.¦Ваш запрос на перерыв отклонён.¦Ihre Pausenanfrage wurde abgelehnt.
+Yöneticiniz size {#}'e kadar mola verdi.¦Your manager gave you a break until {}.¦Руководитель дал вам перерыв до {}.¦Ihre Leitung hat Ihnen Pause bis {} gegeben.
+Onayınızı bekliyor (Profil > Ekibim).¦Awaiting your approval (Profile > My team).¦Ожидает вашего одобрения (Профиль > Моя команда).¦Wartet auf Ihre Genehmigung (Profil > Mein Team).
+Şu an izinlisiniz.¦You are on leave now.¦Вы сейчас в отпуске.¦Sie sind derzeit im Urlaub.
+Zaten moladasınız.¦You are already on a break.¦Вы уже на перерыве.¦Sie sind bereits in der Pause.
+Onay bekleyen bir mola talebiniz var.¦You have a pending break request.¦У вас уже есть запрос на перерыв.¦Sie haben bereits eine offene Pausenanfrage.
+İzin talebi¦Leave request¦Заявка на отпуск¦Urlaubsantrag
+İzniniz onaylandı¦Your leave was approved¦Ваш отпуск одобрен¦Ihr Urlaub wurde genehmigt
+İzniniz reddedildi¦Your leave was declined¦Ваш отпуск отклонён¦Ihr Urlaub wurde abgelehnt
+{} için izin istedi. Onay bekliyor.¦{} requested leave. Awaiting approval.¦{}: запрошен отпуск. Ожидает одобрения.¦{} hat Urlaub beantragt. Wartet auf Genehmigung.
+Bu tarihlerde zaten bir izin talebiniz var.¦You already have a leave request for these dates.¦На эти даты уже есть заявка.¦Für diese Tage gibt es bereits einen Antrag.
+{} isimli müşteri {#} - {#} için randevu oluşturmuş olup onayınızı bekliyor.¦{} requested an appointment for {} - {} and awaits your confirmation.¦Клиент {} записался на {} - {}, ожидает подтверждения.¦{} hat einen Termin für {} - {} angefragt; wartet auf Bestätigung.
+{} isimli müşteri {} randevusunu {#} {#} olarak asistan aracılığı ile güncellemiştir.¦{1} changed the {2} appointment to {3} {4} via the assistant.¦Клиент {1} перенёс запись ({2}) на {3} {4} через ассистента.¦{1} hat den Termin ({2}) über den Assistenten auf {3} {4} geändert.
+{} isimli müşteri {#} {#} {} randevusunu sesli asistan üzerinden iptal etti.¦{1} cancelled {4} ({2} {3}) via the voice assistant.¦Клиент {1} отменил запись {2} {3} ({4}) через голосового ассистента.¦{1} hat {4} ({2} {3}) über den Sprachassistenten storniert.
+{} isimli müşterinin yarın {#} saatli {} randevusu {} tarafından iptal edilmiştir.¦{1}: tomorrow's {3} at {2} was cancelled by {4}.¦{1}: завтрашняя запись {2} ({3}) отменена: {4}.¦{1}: morgiger Termin {2} ({3}) wurde storniert von {4}.
+{} isimli müşterinin yarın {#} saatli {} randevusu {} tarafından onaylanmıştır.¦{1}: tomorrow's {3} at {2} was confirmed by {4}.¦{1}: завтрашняя запись {2} ({3}) подтверждена: {4}.¦{1}: morgiger Termin {2} ({3}) wurde bestätigt von {4}.
+{} isimli müşterinin yarın {#} saatli {} randevusu {} tarafından reddedilmiştir.¦{1}: tomorrow's {3} at {2} was declined by {4}.¦{1}: завтрашняя запись {2} ({3}) отклонена: {4}.¦{1}: morgiger Termin {2} ({3}) wurde abgelehnt von {4}.
+{} isimli müşterinin {} {#} saatli {} randevusu {} tarafından onaylanmıştır.¦{1}: {4} on {2} at {3} was confirmed by {5}.¦{1}: запись {2} {3} ({4}) подтверждена: {5}.¦{1}: Termin {2} {3} ({4}) wurde bestätigt von {5}.
+{} isimli müşterinin {#} - {#} {} randevusu {} tarafından oluşturulmuştur.¦{1}: {4} on {2} - {3}, booked by {5}.¦{1}: запись {2} - {3} ({4}), создал {5}.¦{1}: {4} am {2} - {3}, erstellt von {5}.
+{} isimli müşterinin {#} - {#} {} randevusu {} tarafından oluşturuldu.¦{1}: {4} on {2} - {3}, booked by {5}.¦{1}: запись {2} - {3} ({4}), создал {5}.¦{1}: {4} am {2} - {3}, erstellt von {5}.
+{} isimli müşterinin {#} - {#} {} randevusu {} tarafından güncellenmiştir.¦{1}: {4} changed to {2} - {3} by {5}.¦{1}: запись изменена на {2} - {3} ({4}): {5}.¦{1}: {4} geändert auf {2} - {3} von {5}.
+{} isimli müşterinin {#} - {#} {} randevusu {} tarafından {}.¦{1}: appointment {2} - {3} ({4}) — {5}: {6}¦{1}: запись {2} - {3} ({4}) — {5}: {6}¦{1}: Termin {2} - {3} ({4}) — {5}: {6}
+{} isimli müşterinin {#} - {#} {} randevuları {} tarafından {}.¦{1}: appointments {2} - {3} ({4}) — {5}: {6}¦{1}: записи {2} - {3} ({4}) — {5}: {6}¦{1}: Termine {2} - {3} ({4}) — {5}: {6}
+oluşturulmuştur¦booked¦создано¦erstellt
+güncellenmiştir¦changed¦изменено¦geändert
+{} isimli müşterinin {} için {}-{#} tarihli randevusu oluşturulmuştur.¦{1}: {2} booked for {3}-{4}.¦{1}: создана запись на {3}-{4} ({2}).¦{1}: {2} am {3}-{4} gebucht.
+{} isimli müşterinin {} randevusu {#} - {#} olarak {} tarafından güncellenmiştir.¦{1}: {2} changed to {3} - {4} by {5}.¦{1}: запись ({2}) перенесена на {3} - {4}: {5}.¦{1}: {2} geändert auf {3} - {4} von {5}.
+{} isimli müşterinin {} randevusu {} olarak güncellendi.¦{1}: {2} changed to {3}.¦{1}: запись ({2}) изменена на {3}.¦{1}: {2} geändert auf {3}.
+{} isimli müşterinin {#} saat {#} için {} randevusu talebi oluşturdu.¦{1} requested {4} for {2} at {3}.¦{1}: заявка на {2} в {3} ({4}).¦{1} hat {4} für {2}, {3} Uhr angefragt.
+{} isimli müşterinin {#} - {#} {} için ön görüşme randevusu {} tarafından düzenlenmiştir.¦{1}: consultation {2} - {3} ({4}), arranged by {5}.¦{1}: консультация {2} - {3} ({4}), назначил {5}.¦{1}: Beratung {2} - {3} ({4}), erstellt von {5}.
+{} isimli müşterinin {#} {} için ön görüşme randevusu {} tarafından düzenlenmiştir.¦{1}: consultation {2} ({3}), arranged by {4}.¦{1}: консультация {2} ({3}), назначил {4}.¦{1}: Beratung {2} ({3}), erstellt von {4}.
+{} isimli müşterinin {} {} randevusuna 3 saat kaldı.¦{1}: 3 hours until the appointment, {2} {3}.¦{1}: до записи 3 часа, {2} {3}.¦{1}: noch 3 Stunden bis zum Termin, {2} {3}.
+{} isimli müşterinin {} {} randevusuna 1 gün kaldı.¦{1}: 1 day until the appointment, {2} {3}.¦{1}: до записи 1 день, {2} {3}.¦{1}: noch 1 Tag bis zum Termin, {2} {3}.
+{} isimli müşterinin {#} {#} {} randevusu kendisi tarafından iptal edilmiştir.¦{1} cancelled {4} on {2} {3}.¦{1}: клиент сам отменил запись {2} {3} ({4}).¦{1} hat {4} am {2} {3} selbst storniert.
+{} isimli müşterinin {#} {#} {} randevusu {} tarafından iptal edilmiştir.¦{1}: {4} on {2} {3} cancelled by {5}.¦{1}: запись {2} {3} ({4}) отменена: {5}.¦{1}: {4} am {2} {3} storniert von {5}.
+{} isimli müşterinin bugün {} randevusunu hatırlatmak isteriz.¦Reminder: {1} today {2}.¦Напоминание: {1}, сегодня {2}.¦Erinnerung: {1}, heute {2}.
+{} isimli müşterinin bugün {} randevularını hatırlatmak isteriz.¦Reminder: {1} today {2}.¦Напоминание: {1}, сегодня {2}.¦Erinnerung: {1}, heute {2}.
+{} isimli müşteriniz {#} {} randevusu için işletmenize gelmiştir.¦{1} has arrived for {3} at {2}.¦{1}: клиент пришёл на {2} ({3}).¦{1} ist für {3} um {2} Uhr angekommen.
+Sayın {}. {} isimli müşterinizin yarın {} TL alacağınız olduğunu hatırlatmak isteriz.¦{1}, reminder: {2} owes {3} TL, due tomorrow.¦{1}, напоминаем: {2} должен {3} TL завтра.¦{1}, zur Erinnerung: {2} schuldet {3} TL, fällig morgen.
+{} adlı müşterinizin doğum günü.¦{} has a birthday today.¦Сегодня день рождения клиента {}.¦{} hat heute Geburtstag.
+Bugün {} adlı müşterinizin doğum günü.¦Today is {}'s birthday.¦Сегодня день рождения клиента {}.¦Heute hat {} Geburtstag.
+{} – yarın ({}) seansı var: {}.¦{1}: session tomorrow ({2}): {3}.¦{1}: завтра ({2}) сеанс: {3}.¦{1}: morgen ({2}) Sitzung: {3}.
+## Bildirimlerim grupları
+Yeni randevular¦New appointments¦Новые записи¦Neue Termine
+Size atanan randevu, online talep, müşteri geldi.¦Assigned appointments, online requests, client arrived.¦Назначенные записи, онлайн-заявки, приход клиента.¦Zugewiesene Termine, Online-Anfragen, Kunde da.
+Randevu değişiklikleri¦Appointment changes¦Изменения записей¦Terminänderungen
+Saat, tarih, personel değişikliği ve onaylar.¦Time, date, specialist changes and confirmations.¦Изменения времени, даты, мастера и подтверждения.¦Änderungen von Zeit, Datum, Mitarbeiter und Bestätigungen.
+İptal ve reddedilenler¦Cancelled and declined¦Отмены и отказы¦Stornos und Ablehnungen
+İptal edilen ya da reddedilen randevular.¦Cancelled or declined appointments.¦Отменённые или отклонённые записи.¦Stornierte oder abgelehnte Termine.
+Hatırlatmalar¦Reminders¦Напоминания¦Erinnerungen
+Yaklaşan randevu, seans, ders ve ödeme.¦Upcoming appointments, sessions, classes and payments.¦Ближайшие записи, сеансы, занятия и оплаты.¦Anstehende Termine, Sitzungen, Kurse und Zahlungen.
+Müşteri hareketleri¦Client activity¦Действия клиентов¦Kundenaktivität
+Fotoğraf, değerlendirme, seans ve ödeme.¦Photos, reviews, sessions and payments.¦Фото, оценки, сеансы и оплаты.¦Fotos, Bewertungen, Sitzungen und Zahlungen.
+Asistan bir müşteri için size danıştığında.¦When the assistant asks you about a client.¦Когда ассистент спрашивает вас о клиенте.¦Wenn der Assistent Sie zu einem Kunden fragt.
+Genel duyurular¦General announcements¦Общие объявления¦Allgemeine Mitteilungen
+Sistem duyuruları ve diğer bildirimler.¦System announcements and others.¦Системные и другие уведомления.¦Systemmitteilungen und anderes.
+## Yetkilerim
+Randevu & Takvim¦Appointments & calendar¦Записи и календарь¦Termine & Kalender
+Satış & Tahsilat¦Sales & payments¦Продажи и оплата¦Verkauf & Zahlung
+Personel & Maaş¦Staff & salary¦Персонал и зарплата¦Personal & Gehalt
+Finans / Kasa¦Finance / cash¦Финансы / касса¦Finanzen / Kasse
+Ön Görüşme & Form¦Consultations & forms¦Консультации и формы¦Beratung & Formulare
+Ürün / Paket / Hizmet¦Products / packages / services¦Товары / пакеты / услуги¦Produkte / Pakete / Leistungen
+Pazarlama¦Marketing¦Маркетинг¦Marketing
+Raporlar¦Reports¦Отчёты¦Berichte
+Yönetici¦Manager¦Руководитель¦Leitung
+Sekreter / Resepsiyon¦Reception¦Администратор¦Empfang
+Adisyon oluştur¦Create sales slip¦Создать чек¦Beleg erstellen
+Adisyon sil¦Delete sales slip¦Удалить чек¦Beleg löschen
+Alacak / senet yönet¦Manage receivables¦Управление долгами¦Forderungen verwalten
+Anket / değerlendirme¦Surveys / reviews¦Опросы и оценки¦Umfragen / Bewertungen
+Cihaz / oda yönetimi¦Devices / rooms¦Аппараты и кабинеты¦Geräte / Räume
+Form / sözleşme gönder¦Send forms / contracts¦Отправка форм и договоров¦Formulare / Verträge senden
+Form / sözleşme oluştur¦Create forms / contracts¦Создание форм и договоров¦Formulare / Verträge erstellen
+Hediye işle¦Record gifts¦Оформить подарок¦Geschenke erfassen
+Hizmet kategorileri yönet¦Manage service categories¦Категории услуг¦Leistungskategorien verwalten
+Hizmet tanımı oluştur¦Create services¦Создание услуг¦Leistungen erstellen
+Kampanya yönet¦Manage campaigns¦Управление акциями¦Aktionen verwalten
+Kapalı adisyonları gizle¦Hide closed slips¦Скрывать закрытые чеки¦Geschlossene Belege ausblenden
+Kapanış / blok ekle¦Block time¦Закрывать время¦Zeiten sperren
+Kasa giriş / çıkış¦Cash in / out¦Приход / расход кассы¦Kasse Ein-/Ausgang
+Kasa raporu / günlük kapanış¦Cash report / daily close¦Отчёт кассы / закрытие дня¦Kassenbericht / Tagesabschluss
+Maaş / prim tutarını gör¦See salary / commission¦Видеть оклад и процент¦Gehalt / Provision sehen
+Masraf ekle¦Add expense¦Добавить расход¦Ausgabe hinzufügen
+Masraf listesi görüntüle¦View expenses¦Просмотр расходов¦Ausgaben ansehen
+Müşteri detay sayfası¦Client details page¦Карточка клиента¦Kundendetails
+Müşteri ekle / düzenle¦Add / edit clients¦Добавлять и изменять клиентов¦Kunden hinzufügen / bearbeiten
+Müşteri geçmiş satışı gör¦See client's past sales¦История покупок клиента¦Frühere Käufe sehen
+Müşteri listesi görüntüle¦View client list¦Список клиентов¦Kundenliste ansehen
+Müşteri notu yaz / oku¦Client notes¦Заметки о клиентах¦Kundennotizen
+Müşteri raporları¦Client reports¦Отчёты по клиентам¦Kundenberichte
+Müşteri sil¦Delete clients¦Удалять клиентов¦Kunden löschen
+Müşteri telefon numarası göster¦Show client phone numbers¦Видеть телефоны клиентов¦Kundentelefon anzeigen
+Online randevu ayarları¦Online booking settings¦Настройки онлайн-записи¦Online-Buchung einstellen
+Paket sat¦Sell packages¦Продавать пакеты¦Pakete verkaufen
+Paket tanımı oluştur¦Create packages¦Создавать пакеты¦Pakete erstellen
+Personel ekle / düzenle¦Add / edit staff¦Добавлять и изменять персонал¦Personal hinzufügen / bearbeiten
+Personel kendi cirosunu gör¦See own revenue¦Видеть свою выручку¦Eigenen Umsatz sehen
+Personel listesi görüntüle¦View staff list¦Список персонала¦Personalliste ansehen
+Personel performans raporu¦Staff performance report¦Отчёт по персоналу¦Personalbericht
+Personel sil / arşivle¦Delete / archive staff¦Удалять / архивировать персонал¦Personal löschen / archivieren
+Prim & Hak Ediş ekranı gör¦View commission screen¦Экран начислений¦Provisionsansicht
+Randevu düzenle / iptal et¦Edit / cancel appointments¦Изменять и отменять записи¦Termine bearbeiten / stornieren
+Randevu talebini onayla¦Confirm requests¦Подтверждать заявки¦Anfragen bestätigen
+SMS gönder¦Send SMS¦Отправлять SMS¦SMS senden
+Salon bilgilerini düzenle¦Edit salon details¦Изменять данные салона¦Salondaten bearbeiten
+Salon cirosu / kâr-zarar göster¦Show revenue / profit¦Видеть выручку и прибыль¦Umsatz / Gewinn anzeigen
+Sayım yap¦Stocktaking¦Инвентаризация¦Inventur
+Senet / taksitli satış¦Instalment sales¦Продажа в рассрочку¦Ratenverkauf
+Stok girişi yap¦Stock entry¦Приход товара¦Wareneingang
+Tahsilat al¦Take payments¦Принимать оплату¦Zahlungen annehmen
+Tahsilat raporu¦Payment report¦Отчёт по оплатам¦Zahlungsbericht
+Tahsilat sil / iade¦Delete / refund payments¦Удалять / возвращать оплату¦Zahlungen löschen / erstatten
+Takvimi görüntüle¦View calendar¦Просмотр календаря¦Kalender ansehen
+Tedarikçi yönet¦Manage suppliers¦Управление поставщиками¦Lieferanten verwalten
+Alınan tahsilatı silebilir¦Can delete payments¦Может удалять оплаты¦Darf Zahlungen löschen
+Alış girişi / transfer / manuel hareket¦Purchases / transfers / manual entries¦Закупка / перемещение / ручные операции¦Einkauf / Transfer / manuelle Buchung
+Anket şablonları ve sonuçları¦Survey templates and results¦Шаблоны и результаты опросов¦Umfragevorlagen und Ergebnisse
+Asistanın müşteri sohbetlerini okur, "asistan yardım istiyor" bildirimini alır¦Reads assistant chats and gets help requests¦Читает чаты ассистента и получает запросы о помощи¦Liest Assistenten-Chats und erhält Hilferufe
+Açık adisyonu silebilir¦Can delete open slips¦Может удалять открытые чеки¦Darf offene Belege löschen
+Bekleyen (online) randevu taleplerini onaylayabilir. Kapalıysa onayla butonları gizlenir¦Can confirm online requests. If off, confirm buttons are hidden¦Может подтверждать онлайн-заявки. Если выключено, кнопки скрыты¦Darf Online-Anfragen bestätigen. Wenn aus, ausgeblendet
+Cihaz ve oda tanımlarını yönet¦Manage devices and rooms¦Управлять аппаратами и кабинетами¦Geräte und Räume verwalten
+Depo sayımı yapabilir¦Can do stocktaking¦Может проводить инвентаризацию¦Darf Inventur machen
+Diğer personellerin yetkilerini ayarlayabilir¦Can set other staff permissions¦Может настраивать права других¦Darf Rechte anderer festlegen
+Görüşme kaydı oluşturup düzenleyebilir¦Can create and edit consultations¦Может создавать и менять консультации¦Darf Beratungen erstellen und bearbeiten
+Günlük kasa özetine erişebilir¦Can see daily cash summary¦Видит дневную сводку кассы¦Darf Tageskasse sehen
+Hediye/promosyon olarak işleyebilir¦Can record as gift/promotion¦Может оформить как подарок¦Darf als Geschenk erfassen
+Hizmet/ürün/paket satış raporları¦Service/product/package sales reports¦Отчёты о продажах¦Verkaufsberichte
+Kampanya oluştur/düzenle/iptal¦Create/edit/cancel campaigns¦Создание/изменение/отмена акций¦Aktionen erstellen/bearbeiten/stornieren
+Kapalıysa ciro/kar tutarları **** ile maskelenir¦If off, revenue/profit is masked ****¦Если выключено, суммы скрыты ****¦Wenn aus, Beträge mit **** maskiert
+Kapalıysa tutarlar **** ile maskelenir¦If off, amounts are masked ****¦Если выключено, суммы скрыты ****¦Wenn aus, Beträge mit **** maskiert
+Kapalıysa numara maskelenir (0XXX XXX XX 47)¦If off, numbers are masked¦Если выключено, номера скрыты¦Wenn aus, Nummern maskiert
+Kapalıysa sadece kendi portföyünü görür¦If off, sees only own clients¦Если выключено, видит только своих клиентов¦Wenn aus, nur eigene Kunden
+Kapalıysa sadece kendi randevularını görür¦If off, sees only own appointments¦Если выключено, видит только свои записи¦Wenn aus, nur eigene Termine
+Kapalıysa sadece kendi satışlarını görür¦If off, sees only own sales¦Если выключено, видит только свои продажи¦Wenn aus, nur eigene Verkäufe
+Kasa hareketleri kaydedebilir¦Can record cash movements¦Может вносить операции кассы¦Darf Kassenbewegungen erfassen
+Kategori ekle/düzenle/sil¦Add/edit/delete categories¦Добавлять/менять/удалять категории¦Kategorien verwalten
+Listeye toplu mesaj atabilir¦Can send bulk messages¦Может делать рассылку¦Darf Massennachrichten senden
+Logo, ad, adres, iletişim¦Logo, name, address, contact¦Логотип, название, адрес, контакты¦Logo, Name, Adresse, Kontakt
+Maaş/prim ödemesi ve hareket girebilir¦Can enter salary/commission payments¦Может вносить выплаты¦Darf Gehalts-/Provisionszahlungen erfassen
+Masraflar sayfasına erişebilir¦Can open expenses¦Доступ к расходам¦Zugriff auf Ausgaben
+Mevcut randevuda değişiklik yapabilir¦Can change appointments¦Может менять записи¦Darf Termine ändern
+Müşteri detay sayfasını açabilir¦Can open client details¦Может открывать карточку клиента¦Darf Kundendetails öffnen
+Müşteri istatistikleri ve dökümleri¦Client statistics¦Статистика по клиентам¦Kundenstatistik
+Müşteri kaydını silebilir¦Can delete clients¦Может удалять клиентов¦Darf Kunden löschen
+Müşteri listesi sayfasına erişebilir¦Can open the client list¦Доступ к списку клиентов¦Zugriff auf Kundenliste
+Müşteri notlarına erişebilir¦Can access client notes¦Доступ к заметкам¦Zugriff auf Kundennotizen
+Müşterinin tüm geçmiş randevu/satışlarını görür¦Sees all past appointments/sales¦Видит всю историю клиента¦Sieht alle früheren Termine/Käufe
+Müşteriye SMS yollayabilir¦Can send SMS¦Может отправлять SMS¦Darf SMS senden
+Müşteriye form gönderebilir¦Can send forms¦Может отправлять формы¦Darf Formulare senden
+Online randevu ayarlarını değiştirebilir¦Can change online booking settings¦Может менять настройки онлайн-записи¦Darf Online-Buchung ändern
+Paket seanslarını takip edebilir¦Can track package sessions¦Может вести сеансы¦Darf Sitzungen verfolgen
+Pakete satış kaydedebilir¦Can record package sales¦Может продавать пакеты¦Darf Paketverkäufe erfassen
+Personel bazlı performans raporları¦Performance reports per staff¦Отчёты по сотрудникам¦Leistungsberichte je Mitarbeiter
+Personel kaydını arşivleyebilir¦Can archive staff¦Может архивировать сотрудников¦Darf Personal archivieren
+Personeller sayfasına erişebilir¦Can open staff¦Доступ к персоналу¦Zugriff auf Personal
+Prim hakediş paneline erişebilir¦Can open commission panel¦Доступ к начислениям¦Zugriff auf Provisionen
+Randevu takvim sayfasını açabilir¦Can open the calendar¦Может открывать календарь¦Darf den Kalender öffnen
+Satış adisyonu açabilir¦Can open sales slips¦Может открывать чеки¦Darf Belege öffnen
+Satışa indirim uygulayabilir¦Can apply discounts¦Может делать скидки¦Darf Rabatte geben
+Senet/alacak yönetimi¦Receivables management¦Управление долгами¦Forderungsverwaltung
+Tahsilat dökümlerini görür¦Sees payment lists¦Видит список оплат¦Sieht Zahlungslisten
+Taksitli ödeme planı oluşturabilir¦Can create instalment plans¦Может создавать рассрочку¦Darf Ratenpläne erstellen
+Takvime saat bloku ekleyebilir¦Can block time¦Может закрывать время¦Darf Zeiten sperren
+Tedarikçi ekle/düzenle/sil¦Add/edit/delete suppliers¦Добавлять/менять/удалять поставщиков¦Lieferanten verwalten
+Uygulamadan müşteriye yazar; yazınca asistan 5 dk susar, cevap vermezse asistan devam eder¦Writes to clients from the app; the assistant pauses 5 min¦Пишет клиенту из приложения; ассистент молчит 5 мин¦Schreibt Kunden aus der App; der Assistent pausiert 5 Min.
+WhatsApp ile iletişim¦Contact via WhatsApp¦Связь через WhatsApp¦Kontakt per WhatsApp
+Yeni form/sözleşme şablonu¦New form/contract template¦Новый шаблон формы/договора¦Neue Formular-/Vertragsvorlage
+Yeni hizmet ekleyebilir¦Can add services¦Может добавлять услуги¦Darf Leistungen hinzufügen
+Yeni masraf kaydı oluşturabilir¦Can add expenses¦Может добавлять расходы¦Darf Ausgaben erfassen
+Yeni müşteri ekleyip mevcut bilgileri değiştirebilir¦Can add and edit clients¦Может добавлять и менять клиентов¦Darf Kunden hinzufügen und ändern
+Yeni paket tanımı eklenebilir¦Can add packages¦Может добавлять пакеты¦Darf Pakete hinzufügen
+Yeni personel ekleyip mevcudu değiştirebilir¦Can add and edit staff¦Может добавлять и менять персонал¦Darf Personal hinzufügen und ändern
+Yeni randevu ekleyebilir¦Can add appointments¦Может создавать записи¦Darf Termine hinzufügen
+Yeni ürün/marka ekleyebilir¦Can add products/brands¦Может добавлять товары/бренды¦Darf Produkte/Marken hinzufügen
+Yönetici tarafından verildi¦Granted by manager¦Выдано руководителем¦Von der Leitung erteilt
+Çark ayarları ve kuponlar¦Wheel settings and coupons¦Настройки колеса и купоны¦Glücksrad und Gutscheine
+Ödeme alabilir¦Can take payments¦Может принимать оплату¦Darf Zahlungen annehmen
+Ön görüşmeler sayfasına erişebilir¦Can open consultations¦Доступ к консультациям¦Zugriff auf Beratungen
+Ürün satışı yapabilir¦Can sell products¦Может продавать товары¦Darf Produkte verkaufen
+Şube ekle/düzenle¦Add/edit branches¦Добавлять/менять филиалы¦Filialen verwalten
+Kapalıysa personel dashboardunda günlük/haftalık/aylık/yıllık ciro (karşılaştırma) bölümü gizlenir¦If off, revenue comparison is hidden¦Если выключено, сравнение выручки скрыто¦Wenn aus, Umsatzvergleich ausgeblendet
+Açıksa kapalı (ödenmiş) adisyonları hiçbir listede göremez (müşteri geçmişi dahil). Hesap Sahibi etkilenmez.¦If on, closed (paid) slips are hidden everywhere. The owner is not affected.¦Если включено, закрытые чеки скрыты везде. На владельца не влияет.¦Wenn an, sind bezahlte Belege überall verborgen. Inhaber nicht betroffen.

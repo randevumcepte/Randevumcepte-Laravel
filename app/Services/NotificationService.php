@@ -228,6 +228,10 @@ class NotificationService
                         if (!empty($row->user_id) && $this->kullaniciTipi !== 'personel' && $this->kullaniciTipi !== 'yetkili' && MusteriDili::acikMi($this->salonId)) {
                             $this->title = (string) MusteriDili::mesaj($this->salonId, $row->user_id, null, $asil[0], 'push');
                             $this->body = (string) MusteriDili::mesaj($this->salonId, $row->user_id, null, $asil[1], 'push');
+                        } elseif (!empty($row->isletme_yetkili_id) && MusteriDili::acikMi($this->salonId)) {
+                            // Personel kendi dilini sectiyse
+                            $this->title = (string) MusteriDili::personelMetni($this->salonId, $row->isletme_yetkili_id, $asil[0]);
+                            $this->body = (string) MusteriDili::personelMetni($this->salonId, $row->isletme_yetkili_id, $asil[1]);
                         }
                         return $this->sendOneAsync($row->bildirim_id, $payloadExtra, $row->platform);
                     } catch (\Throwable $e) {

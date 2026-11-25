@@ -130,7 +130,7 @@ class DilSozluk
             return preg_replace_callback('/\{(\d?)#?\}/', function ($x) use ($m, &$sira, $derin) {
                 $no = $x[1] === '' ? ++$sira : (int) $x[1];
                 $parca = $m[$no] ?? '';
-                if (!self::harf($parca)) return $parca;
+                if (!self::harf($parca) || in_array(trim($parca), self::AY, true)) return $parca; // "Sayın Eylül" kisi adi
                 $eksik = $this->eksik;
                 $c = $this->bul(trim($parca), $derin + 1);
                 $this->eksik = $eksik; // ad / link / adres gibi parcalar cevrilmeyebilir

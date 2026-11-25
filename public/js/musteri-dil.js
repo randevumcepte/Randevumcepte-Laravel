@@ -99,7 +99,7 @@
       var sira = 0;
       return k[1].replace(/\{(\d?)#?\}/g, function (_, n) {
         var parca = m[n === '' ? ++sira : +n] || '';
-        if (!reH.test(parca)) return parca;
+        if (!reH.test(parca) || AY.indexOf(parca.trim()) >= 0) return parca; // "Sayın Eylül" kişi adı
         var c = bul(parca.trim(), derin + 1);
         return c === null ? parca : c;
       });

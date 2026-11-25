@@ -31,6 +31,20 @@ class ProfilController extends StoreAdminController
         return [$salonId, $p, $rol === null || (int) $rol < 5];
     }
 
+    /** Personelin uygulama dili (sube gerekmez; kisi yalniz kendi dilini gorur/degistirir) */
+    public function dilim(Request $request)
+    {
+        if (!$y = $this->asistanGorusmeYetkili()) return $this->yok();
+        return response()->json(['ok' => 1, 'dil' => \App\Services\MusteriDili::yetkiliDil($y->id)]);
+    }
+
+    public function dilKaydet(Request $request)
+    {
+        if (!$y = $this->asistanGorusmeYetkili()) return $this->yok();
+        $ok = \App\Services\MusteriDili::yetkiliKaydet($y->id, (string) $request->input('dil'));
+        return response()->json(['ok' => $ok ? 1 : 0, 'dil' => \App\Services\MusteriDili::yetkiliDil($y->id)]);
+    }
+
     private function yok()
     {
         return response()->json(['ok' => 0, 'hata' => 'Oturum bulunamadı.'], 403);

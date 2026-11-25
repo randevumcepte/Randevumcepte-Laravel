@@ -398,6 +398,8 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
     // Profil sayfasi (mobil): ozet, durum, yorumlar, saatler, hizmetler, izin, hedef, calismalar, cihazlar
     Route::group(['prefix' => 'profil', 'middleware' => 'auth:isletmeyonetim-api'], function () {
         Route::get('/ozet','ProfilController@ozet');
+        Route::get('/dil','ProfilController@dilim');
+        Route::post('/dil','ProfilController@dilKaydet');
         Route::post('/durum','ProfilController@durum');
         Route::post('/mola-karar','ProfilController@molaKarar');
         Route::get('/atama-raporu','ProfilController@atamaRaporu');
