@@ -224,7 +224,7 @@ Yeni Müşteri Geldi! 🎊¦New clients! 🎊¦Новые клиенты! 🎊¦
 Son 24 saatte {#} yeni müşteri portföyünüze eklendi.¦{} new clients in the last 24 hours.¦За 24 часа новых клиентов: {}.¦{} neue Kunden in den letzten 24 Stunden.
 Tıkla → "Yeni Eklenen Müşteriler" listesini aç (en yeniler üstte), hoş geldin SMS'i at.¦Tap to open new clients and send a welcome SMS.¦Нажмите, чтобы открыть новых клиентов и отправить приветствие.¦Tippen, um neue Kunden zu öffnen und zu begrüßen.
 {} Maaş Ödemeleri¦Salary payments: {}¦Выплаты зарплаты: {}¦Gehaltszahlungen: {}
-{#} personelin {} ayı maaş ödemesi hâlâ kayıtlı değil.¦Salary payment for {2} is missing for {1} staff.¦Не внесена зарплата за {2}: сотрудников {1}.¦Gehaltszahlung für {2} fehlt bei {1} Mitarbeitern.
+{#} personelin {} ayı maaş ödemesi hâlâ kayıtlı değil.¦Last month's salary is missing for {1} staff.¦Не внесена зарплата за прошлый месяц: сотрудников {1}.¦Das Gehalt des letzten Monats fehlt bei {1} Mitarbeitern.
 Kayıtlı değil: {}¦Missing: {}¦Не внесено: {}¦Fehlt: {}
 Onay Bekleyen Randevu¦Appointments awaiting confirmation¦Записи ждут подтверждения¦Termine warten auf Bestätigung
 Bugün {#} randevu hâlâ onayınızı bekliyor.¦{} appointments today await your confirmation.¦Сегодня ждут подтверждения записей: {}.¦Heute warten {} Termine auf Bestätigung.

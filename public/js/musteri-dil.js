@@ -62,6 +62,7 @@
     if (Object.prototype.hasOwnProperty.call(S, s)) return S[s];
     var b = bosluk(s);
     if (Object.prototype.hasOwnProperty.call(S, b)) return S[b];
+    if (b.length < 3) return null; // "AD" baş harfleri "Ad" sanılmasın
     var k = kucult(b);
     if (!Object.prototype.hasOwnProperty.call(K, k)) return null;
     return s.length > 2 && s === s.toUpperCase() && s !== s.toLowerCase() ? K[k].toUpperCase() : K[k];

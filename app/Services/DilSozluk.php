@@ -111,6 +111,7 @@ class DilSozluk
         if (isset($this->s[$s])) return $this->s[$s];
         $b = self::bosluk($s);
         if (isset($this->s[$b])) return $this->s[$b];
+        if (mb_strlen($b) < 3) return null; // "AD" bas harfleri "Ad" sanilmasin
         $k = self::kucult($b);
         if (!isset($this->kucuk[$k])) return null;
         $buyuk = mb_strlen($s) > 2 && $s === mb_strtoupper($s, 'UTF-8') && $s !== mb_strtolower($s, 'UTF-8');

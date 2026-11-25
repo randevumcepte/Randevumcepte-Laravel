@@ -512,7 +512,7 @@ Genel¦General¦Общее¦Allgemein
 Mesaj¦Message¦Сообщение¦Nachricht
 Toplam Randevu¦Total appointments¦Всего записей¦Termine gesamt
 Son Ziyaret¦Last visit¦Последний визит¦Letzter Besuch
-Üyelik¦Membership¦Статус¦Mitgliedschaft
+Üyelik¦Member since¦Регистрация¦Mitglied seit
 TC Kimlik No¦ID number¦Номер удостоверения¦Ausweisnummer
 Referans¦Source¦Источник¦Quelle
 Referans Seç¦Choose source¦Выберите источник¦Quelle wählen
