@@ -213,3 +213,32 @@ Yönetici tarafından verildi¦Granted by manager¦Выдано руководи
 Şube ekle/düzenle¦Add/edit branches¦Добавлять/менять филиалы¦Filialen verwalten
 Kapalıysa personel dashboardunda günlük/haftalık/aylık/yıllık ciro (karşılaştırma) bölümü gizlenir¦If off, revenue comparison is hidden¦Если выключено, сравнение выручки скрыто¦Wenn aus, Umsatzvergleich ausgeblendet
 Açıksa kapalı (ödenmiş) adisyonları hiçbir listede göremez (müşteri geçmişi dahil). Hesap Sahibi etkilenmez.¦If on, closed (paid) slips are hidden everywhere. The owner is not affected.¦Если включено, закрытые чеки скрыты везде. На владельца не влияет.¦Wenn an, sind bezahlte Belege überall verborgen. Inhaber nicht betroffen.
+## Ana ekran hatırlatma kartları
+Arama Randevusu¦Scheduled call¦Запланированный звонок¦Geplanter Anruf
+{} isimli müşteriniz aramanızı bekliyor.¦{} is waiting for your call.¦Клиент {} ждёт вашего звонка.¦{} wartet auf Ihren Anruf.
+{#} için planlandı.¦Planned for {}.¦Запланировано на {}.¦Geplant für {}.
+Saati Geçen Randevular¦Overdue appointments¦Прошедшие записи¦Überfällige Termine
+{#} randevunun saati geçti, durumu hâlâ işaretlenmemiş.¦{} appointments have passed without a status.¦Прошло записей без отметки: {}.¦{} Termine sind vorbei, ohne Status.
+Geldiyse işlem yapın, gelmediyse veya iptalse lütfen iptal edin — gün sonu raporunuz doğru çıksın.¦Mark attended, missed or cancelled so your daily report is correct.¦Отметьте приход, неявку или отмену, чтобы отчёт за день был верным.¦Bitte erschienen, nicht erschienen oder storniert markieren, damit der Tagesbericht stimmt.
+Yeni Müşteri Geldi! 🎊¦New clients! 🎊¦Новые клиенты! 🎊¦Neue Kunden! 🎊
+Son 24 saatte {#} yeni müşteri portföyünüze eklendi.¦{} new clients in the last 24 hours.¦За 24 часа новых клиентов: {}.¦{} neue Kunden in den letzten 24 Stunden.
+Tıkla → "Yeni Eklenen Müşteriler" listesini aç (en yeniler üstte), hoş geldin SMS'i at.¦Tap to open new clients and send a welcome SMS.¦Нажмите, чтобы открыть новых клиентов и отправить приветствие.¦Tippen, um neue Kunden zu öffnen und zu begrüßen.
+{} Maaş Ödemeleri¦Salary payments: {}¦Выплаты зарплаты: {}¦Gehaltszahlungen: {}
+{#} personelin {} ayı maaş ödemesi hâlâ kayıtlı değil.¦Salary payment for {2} is missing for {1} staff.¦Не внесена зарплата за {2}: сотрудников {1}.¦Gehaltszahlung für {2} fehlt bei {1} Mitarbeitern.
+Kayıtlı değil: {}¦Missing: {}¦Не внесено: {}¦Fehlt: {}
+Onay Bekleyen Randevu¦Appointments awaiting confirmation¦Записи ждут подтверждения¦Termine warten auf Bestätigung
+Bugün {#} randevu hâlâ onayınızı bekliyor.¦{} appointments today await your confirmation.¦Сегодня ждут подтверждения записей: {}.¦Heute warten {} Termine auf Bestätigung.
+Cevapsız bırakırsan müşteri başka kapı çalar, hadi onayla!¦Confirm now before the client goes elsewhere!¦Подтвердите, пока клиент не ушёл к другим!¦Jetzt bestätigen, bevor der Kunde woanders hingeht!
+Bugün Doğum Günü Var!¦Birthday today!¦Сегодня день рождения!¦Heute Geburtstag!
+Küçük bir mesaj, büyük bir sadakat oluşturur. 💝¦A small message builds great loyalty. 💝¦Небольшое поздравление — большая лояльность. 💝¦Eine kleine Nachricht schafft große Treue. 💝
+Açık Adisyon Birikti!¦Open sales slips!¦Незакрытые чеки!¦Offene Belege!
+{#} adisyon dünden kalmış, hâlâ tahsilat bekliyor.¦{} slips from yesterday still unpaid.¦Неоплаченных чеков со вчера: {}.¦{} Belege von gestern sind noch offen.
+Açık adisyon = sahipsiz para. Tahsilatı kapatmayı unutma!¦Don't forget to collect the payments!¦Не забудьте принять оплату!¦Bitte Zahlungen abschließen!
+Geciken Alacaklar¦Overdue receivables¦Просроченные долги¦Überfällige Forderungen
+{#} alacağın planlanan ödeme tarihi geçti.¦{} receivables are past due.¦Просроченных долгов: {}.¦{} Forderungen sind überfällig.
+Müşteriyi nazikçe ara, takip etmeyen unutulur!¦Call the client politely to follow up!¦Вежливо позвоните клиенту!¦Rufen Sie den Kunden freundlich an!
+bugün¦today¦сегодня¦heute
+Bu Ay¦This month¦Этот месяц¦Dieser Monat
+Kişisel Bilgiler¦Personal details¦Личные данные¦Persönliche Daten
+Kullanım Koşulları¦Terms of use¦Условия использования¦Nutzungsbedingungen
+Gizlilik Politikası¦Privacy policy¦Политика конфиденциальности¦Datenschutzerklärung
