@@ -1,0 +1,764 @@
+## Ana sayfa
+Ana Sayfa¦Home¦Главная¦Startseite
+Randevu Al¦Book now¦Записаться¦Termin buchen
+Randevu Al 📅¦Book now 📅¦Записаться 📅¦Termin buchen 📅
+RANDEVU AL¦BOOK NOW¦ЗАПИСАТЬСЯ¦TERMIN BUCHEN
+Randevu¦Appointment¦Запись¦Termin
+Randevular¦Appointments¦Записи¦Termine
+Randevularım¦My appointments¦Мои записи¦Meine Termine
+Kuponu Kap 🎟️¦Get the coupon 🎟️¦Получить купон 🎟️¦Gutschein sichern 🎟️
+Grup Dersi Rezervasyonu¦Group class booking¦Запись на групповое занятие¦Gruppenkurs buchen
+Uygun günü seç, yerini ayır¦Choose a day and reserve your place¦Выберите день и забронируйте место¦Tag wählen und Platz reservieren
+Dokun: indirimli randevu 📅🎟️¦Tap: discounted appointment 📅🎟️¦Нажмите: запись со скидкой 📅🎟️¦Tippen: Termin mit Rabatt 📅🎟️
+Dokun, randevu al 📅¦Tap to book 📅¦Нажмите, чтобы записаться 📅¦Tippen und Termin buchen 📅
+Dokun, kuponu kap 🎟️¦Tap to get the coupon 🎟️¦Нажмите, чтобы получить купон 🎟️¦Tippen und Gutschein sichern 🎟️
+Kuponun cebinde 👍 Kampanya saatinden randevunu al.¦Your coupon is ready 👍 Book within the campaign hours.¦Купон у вас 👍 Запишитесь в часы акции.¦Ihr Gutschein ist da 👍 Buchen Sie innerhalb der Aktionszeiten.
+🎉 İndirim kuponun tanımlandı! Kampanya saatinden randevunu al.¦🎉 Your discount coupon is ready! Book within the campaign hours.¦🎉 Купон на скидку активирован! Запишитесь в часы акции.¦🎉 Ihr Rabattgutschein ist aktiv! Buchen Sie innerhalb der Aktionszeiten.
+🎉 Kuponun tanımlandı!¦🎉 Your coupon is ready!¦🎉 Купон активирован!¦🎉 Ihr Gutschein ist aktiv!
+Kampanya ve Duyurular¦Offers & news¦Акции и новости¦Aktionen & Neuigkeiten
+Kampanya ve\nDuyurular¦Offers\n& news¦Акции\nи новости¦Aktionen\n& News
+%{#} indirim¦{}% off¦Скидка {}%¦{} % Rabatt
+%{#} İndirim¦{}% off¦Скидка {}%¦{} % Rabatt
+{#} TL İndirim¦{} TL off¦Скидка {} TL¦{} TL Rabatt
+{#} ₺ İndirim¦{} ₺ off¦Скидка {} ₺¦{} ₺ Rabatt
+Bugün son gün¦Last day today¦Сегодня последний день¦Heute letzter Tag
+İkramlarımı gör¦See my rewards¦Мои подарки¦Meine Prämien ansehen
+Yeni Duyurular¦New announcements¦Новые объявления¦Neue Mitteilungen
+Kampanyalar, etkinlikler ve özel teklifler burada görünür.¦Campaigns, events and special offers appear here.¦Здесь появятся акции, события и спецпредложения.¦Aktionen, Veranstaltungen und Sonderangebote erscheinen hier.
+Salonun arama numarası tanımlı değil.¦The salon has no phone number defined.¦Номер телефона салона не указан.¦Für den Salon ist keine Telefonnummer hinterlegt.
+Arama başlatılamadı.¦The call could not be started.¦Не удалось начать звонок.¦Der Anruf konnte nicht gestartet werden.
+Salonun WhatsApp numarası tanımlı değil.¦The salon has no WhatsApp number defined.¦Номер WhatsApp салона не указан.¦Für den Salon ist keine WhatsApp-Nummer hinterlegt.
+Merhaba, bilgi / randevu almak istiyorum.¦Hello, I would like information / an appointment.¦Здравствуйте, я хочу получить информацию / записаться.¦Hallo, ich möchte Informationen / einen Termin.
+WhatsApp açılamadı.¦WhatsApp could not be opened.¦Не удалось открыть WhatsApp.¦WhatsApp konnte nicht geöffnet werden.
+WhatsApp açılamadı. Lütfen WhatsApp yüklü olduğundan emin olun.¦WhatsApp could not be opened. Please make sure it is installed.¦Не удалось открыть WhatsApp. Убедитесь, что он установлен.¦WhatsApp konnte nicht geöffnet werden. Bitte stellen Sie sicher, dass es installiert ist.
+Telefon tanımsız¦No phone number¦Телефон не указан¦Keine Telefonnummer
+WhatsApp tanımsız¦No WhatsApp number¦WhatsApp не указан¦Keine WhatsApp-Nummer
+Zaten Senin¦Already yours¦Уже ваш¦Bereits Ihrer
+Tebrikler!¦Congratulations!¦Поздравляем!¦Herzlichen Glückwunsch!
+Harika!¦Great!¦Отлично!¦Super!
+Kuponların "Ödüllerim" sayfasında¦Your coupons are on the "My rewards" page¦Ваши купоны на странице «Мои награды»¦Ihre Gutscheine finden Sie unter „Meine Prämien“
+Sana Özel¦Just for you¦Для вас¦Für Sie
+Size Özel¦Just for you¦Для вас¦Für Sie
+Profilim¦My profile¦Мой профиль¦Mein Profil
+Merhaba 👋¦Hello 👋¦Здравствуйте 👋¦Hallo 👋
+Merhaba¦Hello¦Здравствуйте¦Hallo
+Merhaba,¦Hello,¦Здравствуйте,¦Hallo,
+Güzelliğin için\nher zaman yanındayız ✨¦Always here\nfor your beauty ✨¦Всегда рядом\nради вашей красоты ✨¦Immer für Ihre\nSchönheit da ✨
+Güzelliğin için her zaman yanındayız ✨¦Always here for your beauty ✨¦Всегда рядом ради вашей красоты ✨¦Immer für Ihre Schönheit da ✨
+İkram Bakiyen¦Your rewards¦Ваши подарки¦Ihre Prämien
+Sadakat Puanın¦Loyalty points¦Баллы лояльности¦Treuepunkte
+Hediye Hizmet¦Free service¦Услуга в подарок¦Gratis-Leistung
+Puan¦Points¦Баллы¦Punkte
+Kampanya Oranın¦Your discount¦Ваша скидка¦Ihr Rabatt
+Üyeliğin¦Your membership¦Ваш статус¦Ihre Mitgliedschaft
+Üyeliğim¦My membership¦Мой статус¦Meine Mitgliedschaft
+Kampanyalarım¦My offers¦Мои акции¦Meine Aktionen
+Kampanyalar¦Offers¦Акции¦Aktionen
+Seanslarım¦My sessions¦Мои сеансы¦Meine Sitzungen
+Destek Al¦Get help¦Поддержка¦Hilfe
+Çarkıfelek, Çevir ve Kazan¦Wheel of fortune, spin and win¦Колесо удачи, крути и выигрывай¦Glücksrad, drehen und gewinnen
+Çarkıfelek¦Wheel of fortune¦Колесо удачи¦Glücksrad
+🎡 Çarkıfelek¦🎡 Wheel of fortune¦🎡 Колесо удачи¦🎡 Glücksrad
+Şansını dene,\nhediye kazan!¦Try your luck,\nwin a gift!¦Испытай удачу,\nвыиграй подарок!¦Glück versuchen,\nGeschenk gewinnen!
+Çevir & Kazan¦Spin & win¦Крути и выигрывай¦Drehen & gewinnen
+Derslerim¦My classes¦Мои занятия¦Meine Kurse
+Grup Derslerim¦My group classes¦Мои групповые занятия¦Meine Gruppenkurse
+Grup Dersleri¦Group classes¦Групповые занятия¦Gruppenkurse
+Grup derslerini görüntüle¦View group classes¦Посмотреть групповые занятия¦Gruppenkurse ansehen
+Yaklaşan ve geçmiş randevuların¦Your upcoming and past appointments¦Предстоящие и прошлые записи¦Ihre kommenden und vergangenen Termine
+Salonu Ara¦Call the salon¦Позвонить в салон¦Salon anrufen
+Telefonla görüşün¦Talk by phone¦Связаться по телефону¦Telefonisch sprechen
+WhatsApp¦WhatsApp¦WhatsApp¦WhatsApp
+Mesaj gönderin¦Send a message¦Написать сообщение¦Nachricht senden
+Yaklaşan Randevunuz¦Your next appointment¦Ваша ближайшая запись¦Ihr nächster Termin
+Yaklaşan randevunuz yok¦You have no upcoming appointments¦У вас нет предстоящих записей¦Sie haben keine anstehenden Termine
+Yaklaşan randevunuz yok.¦You have no upcoming appointments.¦У вас нет предстоящих записей.¦Sie haben keine anstehenden Termine.
+Size uygun saati hemen seçin¦Choose a time that suits you¦Выберите удобное время¦Wählen Sie gleich eine passende Uhrzeit
+Onay bekliyor¦Awaiting confirmation¦Ожидает подтверждения¦Wartet auf Bestätigung
+Onay Bekliyor¦Awaiting confirmation¦Ожидает подтверждения¦Wartet auf Bestätigung
+Onay Bekleniyor¦Awaiting confirmation¦Ожидает подтверждения¦Wartet auf Bestätigung
+Onay bekleyen¦Awaiting confirmation¦Ожидают подтверждения¦Wartet auf Bestätigung
+Randevumu\nGörüntüle¦View my\nappointment¦Моя\nзапись¦Termin\nansehen
+Aktif Kampanyalarım¦My active offers¦Мои активные акции¦Meine aktiven Aktionen
+Süre doldu¦Expired¦Срок истёк¦Abgelaufen
+Son gün¦Last day¦Последний день¦Letzter Tag
+{} Kampanyası¦{} offer¦Акция «{}»¦Aktion „{}“
+{}\nKampanyası¦{}\noffer¦Акция\n«{}»¦Aktion\n„{}“
+{#} ücretsiz hakkınız var 🎁¦You have {} free 🎁¦Бесплатных услуг: {} 🎁¦{} gratis für Sie 🎁
+{#} ücretsiz hakkınız var¦You have {} free¦Бесплатных услуг: {}¦{} gratis für Sie
+{#} hizmet al, {#} hizmet hediye!¦Buy {}, get {} free!¦Купите {} — получите {} в подарок!¦{} nehmen, {} gratis!
+{#} hizmet al, {#} hizmet kazan!¦Buy {}, get {} free!¦Купите {} — получите {} в подарок!¦{} nehmen, {} gratis!
+{} hizmet al, {} hizmet hediye!¦Buy {}, get {} free!¦Купите {} — получите {} в подарок!¦{} nehmen, {} gratis!
+Puan Ödülleri¦Point rewards¦Награды за баллы¦Punkteprämien
+Puan\nÖdülleri¦Point\nrewards¦Награды\nза баллы¦Punkte-\nprämien
+Puan Ödüllerim¦My point rewards¦Мои награды за баллы¦Meine Punkteprämien
+Kuponlarım¦My coupons¦Мои купоны¦Meine Gutscheine
+Müşteri Yorumları¦Customer reviews¦Отзывы клиентов¦Kundenbewertungen
+Müşteri\nYorumları¦Customer\nreviews¦Отзывы\nклиентов¦Kunden-\nbewertungen
+Paketlerim¦My packages¦Мои пакеты¦Meine Pakete
+Ürünlerim¦My products¦Мои товары¦Meine Produkte
+Diğer Özellikler¦More features¦Другие возможности¦Weitere Funktionen
+{#} puan¦{} points¦{} баллов¦{} Punkte
+{}\n{#} puan¦{}\n{} points¦{}\n{} баллов¦{}\n{} Punkte
+## Çarkıfelek
+Çark yüklenemedi. Lütfen tekrar deneyin.¦The wheel could not be loaded. Please try again.¦Не удалось загрузить колесо. Попробуйте ещё раз.¦Das Glücksrad konnte nicht geladen werden. Bitte erneut versuchen.
+Çevirme başarısız¦Spin failed¦Не удалось прокрутить¦Drehen fehlgeschlagen
+Kampanya Kuralları¦Campaign rules¦Правила акции¦Aktionsregeln
+Çarkı Çevir Kampanyası — Resmi Kurallar\n¦Spin the Wheel Campaign — Official Rules\n¦Акция «Колесо удачи» — официальные правила\n¦Glücksrad-Aktion — Offizielle Regeln\n
+1) Kampanya, uygulamayı işletmenize ait mobil uygulama üzerinden kullanan müşterilerimize açıktır.\n\n2) Her müşteri, hesabındaki uygun (onaylı) randevu başına 1 hak kazanır. Aynı gün içinde tek çevirme hakkı vardır.\n\n3) Çarkta kazanılan ödül, ilgili işletmede kullanılabilecek indirim kuponu veya sadakat puanıdır. Nakit ödül, kripto para veya para değerli hiçbir şey verilmez.\n\n4) Kupon kodları, işletmenin belirlediği geçerlilik süresi içinde ibraz edilerek kullanılmalıdır. İşletme süre sınırı koymamışsa kupon süresizdir. Kupon detayında yer alan bilgi geçerlidir.\n\n5) Ödül kazanan kişi kupon kodunu üçüncü şahıslara devredemez. Kupon sadece hesabın sahibine aittir.\n\n6) İşletme, kampanyanın kurallarını, ödüllerini veya çarktaki dilim oranlarını önceden haber vermeksizin değiştirme hakkını saklı tutar.\n\n7) Katılım için satın alma zorunluluğu yoktur. Uygulama üzerinden kayıt ücretsizdir.\n\n8) Bu kampanya bir çekiliş veya kumar oyunu değildir; sadakat programı kapsamında bir promosyondur.\n\n¦1) The campaign is open to customers who use the business's own mobile app.\n\n2) Each customer earns 1 spin per eligible (confirmed) appointment. Only one spin per day is allowed.\n\n3) The prize is a discount coupon or loyalty points that can be used at the business. No cash, cryptocurrency or anything of monetary value is given.\n\n4) Coupon codes must be presented within the validity period set by the business. If no limit is set, the coupon does not expire. The information in the coupon details applies.\n\n5) The winner may not transfer the coupon code to third parties. The coupon belongs only to the account holder.\n\n6) The business reserves the right to change the rules, prizes or wheel odds without prior notice.\n\n7) No purchase is necessary to participate. Registration in the app is free.\n\n8) This campaign is not a lottery or gambling; it is a promotion within a loyalty programme.\n\n¦1) Акция доступна клиентам, которые пользуются мобильным приложением салона.\n\n2) За каждую подтверждённую запись клиент получает 1 попытку. В день разрешена одна попытка.\n\n3) Приз — купон на скидку или баллы лояльности, которые можно использовать в салоне. Деньги, криптовалюта и иные денежные ценности не выдаются.\n\n4) Купон нужно предъявить в течение срока, установленного салоном. Если срок не указан, купон бессрочный. Действует информация, указанная в купоне.\n\n5) Победитель не может передавать код купона третьим лицам. Купон принадлежит только владельцу аккаунта.\n\n6) Салон вправе изменять правила, призы и вероятности без предварительного уведомления.\n\n7) Для участия покупка не требуется. Регистрация в приложении бесплатна.\n\n8) Эта акция не является лотереей или азартной игрой; это промоакция программы лояльности.\n\n¦1) Die Aktion steht Kunden offen, die die mobile App des Unternehmens nutzen.\n\n2) Pro bestätigtem Termin erhält jeder Kunde 1 Drehung. Pro Tag ist nur eine Drehung möglich.\n\n3) Der Gewinn ist ein Rabattgutschein oder Treuepunkte, einlösbar beim Unternehmen. Es werden kein Bargeld, keine Kryptowährung und keine geldwerten Leistungen vergeben.\n\n4) Gutscheincodes müssen innerhalb der vom Unternehmen festgelegten Frist vorgelegt werden. Ohne Frist ist der Gutschein unbefristet gültig. Es gelten die Angaben auf dem Gutschein.\n\n5) Der Gutscheincode darf nicht an Dritte weitergegeben werden. Er gehört nur dem Kontoinhaber.\n\n6) Das Unternehmen behält sich vor, Regeln, Gewinne oder Gewinnchancen ohne Vorankündigung zu ändern.\n\n7) Für die Teilnahme ist kein Kauf erforderlich. Die Registrierung in der App ist kostenlos.\n\n8) Diese Aktion ist keine Verlosung und kein Glücksspiel, sondern eine Promotion im Rahmen eines Treueprogramms.\n\n
+Apple Muafiyet Bildirimi (Apple Disclaimer)¦Apple Disclaimer¦Отказ от ответственности Apple¦Apple-Haftungsausschluss
+Bu kampanya tamamen ilgili işletme tarafından düzenlenmektedir. Apple Inc. bu kampanyanın sponsoru değildir, kampanyaya katılmamaktadır ve kampanya ile hiçbir şekilde ilişkili değildir.\n\nThis promotion is run solely by the business owner. Apple Inc. is not a sponsor of, nor involved in any way with this contest.¦This promotion is run solely by the business owner. Apple Inc. is not a sponsor of, nor involved in any way with this contest.¦Акция проводится исключительно салоном. Apple Inc. не является спонсором и никак не связана с этой акцией.¦Diese Aktion wird ausschließlich vom Unternehmen durchgeführt. Apple Inc. ist weder Sponsor noch in irgendeiner Weise beteiligt.
+Ödül¦Prize¦Приз¦Gewinn
+Çarkıfelek şu an kapalı¦The wheel is currently closed¦Колесо удачи сейчас закрыто¦Das Glücksrad ist derzeit geschlossen
+Salonunuz¦Your salon¦Ваш салон¦Ihr Salon
+{} çarkı açtığında buradan çevirip hediye kazanabilirsiniz.¦When {} opens the wheel, you can spin it here and win gifts.¦Когда {} откроет колесо, вы сможете крутить его здесь и выигрывать подарки.¦Sobald {} das Glücksrad öffnet, können Sie hier drehen und gewinnen.
+Size özel ödüller bekliyor!¦Prizes are waiting for you!¦Вас ждут призы!¦Preise warten auf Sie!
+Çevirme hakkınız:¦Your spins:¦Ваши попытки:¦Ihre Drehungen:
+Çevriliyor...¦Spinning...¦Крутится...¦Dreht sich...
+🎲 Çarkı Çevir¦🎲 Spin the wheel¦🎲 Крутить колесо¦🎲 Rad drehen
+Çarkı Çevir¦Spin the wheel¦Крутить колесо¦Rad drehen
+yarın¦tomorrow¦завтра¦morgen
+Bugün çarkıfeleği çevirdiniz.\nBir sonraki çevirme: {}.¦You have already spun today.\nNext spin: {}.¦Сегодня вы уже крутили колесо.\nСледующая попытка: {}.¦Sie haben heute bereits gedreht.\nNächste Drehung: {}.
+Günde 1 kez çarkı çevirebilirsiniz. Hemen deneyin!¦You can spin once a day. Try it now!¦Крутить колесо можно 1 раз в день. Попробуйте сейчас!¦Sie können einmal täglich drehen. Jetzt versuchen!
+Kampanya Kuralları ve Bilgilendirme¦Campaign rules and information¦Правила акции и информация¦Aktionsregeln und Hinweise
+Hizmet İnd.¦Service disc.¦Скидка: услуга¦Leistung-Rab.
+Ürün İnd.¦Product disc.¦Скидка: товар¦Produkt-Rab.
+Paket İnd.¦Package disc.¦Скидка: пакет¦Paket-Rab.
+Boş¦Empty¦Пусто¦Leer
+Bedava¦Free¦Бесплатно¦Gratis
+Bu sefer olmadı¦Not this time¦В этот раз не повезло¦Diesmal leider nicht
+Puan kazandınız:¦You won points:¦Вы выиграли баллы:¦Sie haben Punkte gewonnen:
+Kazandığınız ödül:¦Your prize:¦Ваш приз:¦Ihr Gewinn:
+Kupon Kodunuz¦Your coupon code¦Ваш код купона¦Ihr Gutscheincode
+Bu kodu 30 gün içinde salonda kullanabilirsiniz.¦You can use this code at the salon within 30 days.¦Код можно использовать в салоне в течение 30 дней.¦Sie können diesen Code innerhalb von 30 Tagen im Salon einlösen.
+Bu kodu 60 gün içinde salonda ibraz edin.¦Present this code at the salon within 60 days.¦Предъявите код в салоне в течение 60 дней.¦Legen Sie diesen Code innerhalb von 60 Tagen im Salon vor.
+Puanlarınız ile özel ödüller seçebilirsiniz.¦You can choose special rewards with your points.¦За баллы можно выбрать особые награды.¦Mit Ihren Punkten können Sie besondere Prämien wählen.
+Tüm şubelerde geçerli¦Valid in all branches¦Действует во всех филиалах¦In allen Filialen gültig
+Seçili şubelerde geçerli¦Valid in selected branches¦Действует в выбранных филиалах¦In ausgewählten Filialen gültig
+Geçerli şubeler: {}¦Valid branches: {}¦Действует в филиалах: {}¦Gültige Filialen: {}
+Çarkıfelek şu an aktif değil.¦The wheel of fortune is not active right now.¦Колесо удачи сейчас не активно.¦Das Glücksrad ist derzeit nicht aktiv.
+Bu salonda çarkıfelek aktif değil.¦The wheel of fortune is not active in this salon.¦В этом салоне колесо удачи не активно.¦In diesem Salon ist das Glücksrad nicht aktiv.
+Çark henüz hazırlanmamış.¦The wheel is not ready yet.¦Колесо ещё не готово.¦Das Glücksrad ist noch nicht bereit.
+Bugün çarkı çevirdiniz. Yarın tekrar deneyebilirsiniz.¦You have spun today. You can try again tomorrow.¦Сегодня вы уже крутили колесо. Попробуйте завтра.¦Sie haben heute gedreht. Versuchen Sie es morgen wieder.
+✓ Bugün çarkı çevirdiniz. Yarın tekrar deneyebilirsiniz.¦✓ You have spun today. You can try again tomorrow.¦✓ Сегодня вы уже крутили колесо. Попробуйте завтра.¦✓ Sie haben heute gedreht. Versuchen Sie es morgen wieder.
+Çarkı çevirdiniz. Bir sonraki çevirme: {}.¦You have spun the wheel. Next spin: {}.¦Вы уже крутили колесо. Следующая попытка: {}.¦Sie haben gedreht. Nächste Drehung: {}.
+Bugün çarkı çevirdiniz. Bir sonraki çevirme: {}.¦You have spun today. Next spin: {}.¦Сегодня вы уже крутили колесо. Следующая попытка: {}.¦Sie haben heute gedreht. Nächste Drehung: {}.
+Dilim seçilemedi.¦The wheel could not choose a prize.¦Не удалось выбрать сектор.¦Es konnte kein Feld gewählt werden.
+Salon bulunamadı.¦Salon not found.¦Салон не найден.¦Salon nicht gefunden.
+Ödül bulunamadı veya pasif.¦The reward was not found or is not active.¦Награда не найдена или не активна.¦Prämie nicht gefunden oder nicht aktiv.
+Yetersiz puan. Gerekli: {#}, mevcut: {#}¦Not enough points. Required: {}, available: {}¦Недостаточно баллов. Нужно: {}, есть: {}¦Nicht genügend Punkte. Benötigt: {}, vorhanden: {}
+Önce çarkı çevirmelisiniz.¦Spin the wheel first.¦Сначала прокрутите колесо.¦Drehen Sie zuerst das Rad.
+Çok sık deniyorsunuz. Lütfen 1 dakika bekleyin.¦Too many attempts. Please wait 1 minute.¦Слишком много попыток. Подождите 1 минуту.¦Zu viele Versuche. Bitte warten Sie 1 Minute.
+Telefonunuza 4 haneli kod gönderildi. Lütfen kodu girin.¦A 4-digit code was sent to your phone. Please enter it.¦На телефон отправлен 4-значный код. Введите его.¦Ein 4-stelliger Code wurde an Ihr Telefon gesendet. Bitte eingeben.
+Kod hatalı veya süresi dolmuş.¦The code is incorrect or expired.¦Код неверный или устарел.¦Der Code ist falsch oder abgelaufen.
+Oturum süresi doldu. Baştan başlayın.¦The session has expired. Please start again.¦Время сеанса истекло. Начните заново.¦Die Sitzung ist abgelaufen. Bitte neu beginnen.
+Geçerli bir cep telefon numarası girin (5XX...).¦Enter a valid mobile number.¦Введите действующий номер мобильного.¦Geben Sie eine gültige Handynummer ein.
+Ad ve soyad zorunlu.¦First and last name are required.¦Имя и фамилия обязательны.¦Vor- und Nachname sind erforderlich.
+## Hesap silme
+Hesap Silme Talebi¦Account deletion request¦Запрос на удаление аккаунта¦Antrag auf Kontolöschung
+Hesabınızı silmek istediğinizde tüm kişisel bilgileriniz, randevu geçmişiniz ve kayıtlı verileriniz 30 iş günü içerisinde işletme veritabanından kalıcı olarak silinecektir. Bu işlem geri alınamaz.¦If you delete your account, all your personal data, appointment history and records will be permanently deleted from the business database within 30 working days. This cannot be undone.¦При удалении аккаунта все личные данные, история записей и сохранённые данные будут безвозвратно удалены из базы салона в течение 30 рабочих дней. Это действие нельзя отменить.¦Wenn Sie Ihr Konto löschen, werden alle persönlichen Daten, Ihr Terminverlauf und gespeicherte Daten innerhalb von 30 Werktagen endgültig gelöscht. Dies kann nicht rückgängig gemacht werden.
+Hesabımı silmek istediğimi ve tüm verilerimin kalıcı olarak silineceğini kabul ediyorum.¦I want to delete my account and accept that all my data will be permanently deleted.¦Я хочу удалить аккаунт и согласен(на) с безвозвратным удалением всех моих данных.¦Ich möchte mein Konto löschen und akzeptiere, dass alle meine Daten endgültig gelöscht werden.
+Lütfen devam etmeden önce şartları kabul ediniz.¦Please accept the terms before continuing.¦Примите условия, чтобы продолжить.¦Bitte akzeptieren Sie zuerst die Bedingungen.
+Hesap silme talebiniz işletmemize başarı ile iletilmiş olup süreç ile ilgili işletmemiz tarafından bilgilendirileceksiniz. Dilerseniz 30 iş günü içerisinde hesap silme talebinizi iptal edebilirsiniz.¦Your account deletion request has been sent to the salon and you will be informed about the process. You may cancel the request within 30 working days.¦Ваш запрос на удаление аккаунта передан салону, вас проинформируют о ходе процесса. Запрос можно отменить в течение 30 рабочих дней.¦Ihr Antrag auf Kontolöschung wurde an den Salon übermittelt; Sie werden über den Ablauf informiert. Sie können den Antrag innerhalb von 30 Werktagen zurückziehen.
+Hesap silme talebiniz işletmemize iletilirken bir hata oluştu. Lütfen daha sonra tekrar  deneyiniz.¦An error occurred while sending your request. Please try again later.¦Ошибка при отправке запроса. Попробуйте позже.¦Beim Übermitteln Ihres Antrags ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.
+Hesabımı Sil¦Delete my account¦Удалить аккаунт¦Konto löschen
+## İkram
+Bu salonda şu an ikram kampanyası yok.¦There is currently no reward campaign in this salon.¦Сейчас в салоне нет подарочных акций.¦In diesem Salon gibt es derzeit keine Prämienaktion.
+Aktif Kampanya¦Active offer¦Активная акция¦Aktive Aktion
+Kampanya Sona Erdi¦Offer ended¦Акция завершена¦Aktion beendet
+{} tarihine kadar¦until {}¦до {}¦bis {}
+Son Gün¦Last day¦Последний день¦Letzter Tag
+{#} Gün¦{} days¦{} дн.¦{} Tage
+Kampanya Geçerlilik Tarihi¦Offer valid until¦Срок действия акции¦Aktion gültig bis
+Kalan Süre¦Time left¦Осталось¦Verbleibende Zeit
+Kampanya İlerlemeniz¦Your progress¦Ваш прогресс¦Ihr Fortschritt
+Bu kampanya sona erdi¦This offer has ended¦Акция завершена¦Diese Aktion ist beendet
+Yeni kartınız: {#}/{#}¦Your new card: {}/{}¦Новая карта: {}/{}¦Ihre neue Karte: {}/{}
+Kampanya Detayları¦Offer details¦Подробности акции¦Aktionsdetails
+Kazanılan İkram¦Earned rewards¦Заработано подарков¦Verdiente Prämien
+Kullanılan İkram¦Used rewards¦Использовано подарков¦Eingelöste Prämien
+Kalan İkram¦Remaining rewards¦Осталось подарков¦Verbleibende Prämien
+Kartınız doldu: {#} ücretsiz hakkınızı kullanabilirsiniz.¦Your card is full: you can use {} free service(s).¦Карта заполнена: доступно бесплатных услуг: {}.¦Ihre Karte ist voll: Sie können {} Gratis-Leistung(en) nutzen.
+Kartınız doldu: {#} ücretsiz hakkınız var.¦Your card is full: you have {} free service(s).¦Карта заполнена: бесплатных услуг: {}.¦Ihre Karte ist voll: {} Gratis-Leistung(en).
+Ücretsiz hakkınıza {#} ücretli alım kaldı.¦{} paid visit(s) left until your free service.¦До бесплатной услуги осталось платных визитов: {}.¦Noch {} bezahlte Leistung(en) bis zur Gratis-Leistung.
+1 ikram · {} tarihine kadar kullanılabilir¦1 reward · can be used until {}¦1 подарок · действует до {}¦1 Prämie · gültig bis {}
+Kazandığınız ikram {} geçerlidir.¦Your reward is valid for {}.¦Ваш подарок действует: {}.¦Ihre Prämie ist gültig: {}.
+{#} ikramın kullanım süresi doldu.¦{} reward(s) have expired.¦Истёк срок подарков: {}.¦{} Prämie(n) sind abgelaufen.
+Paket seanslarınız bu kampanyaya sayılmaz.¦Package sessions do not count towards this offer.¦Сеансы по пакетам в акции не учитываются.¦Paketsitzungen zählen nicht zu dieser Aktion.
+Kullanıldı¦Used¦Использовано¦Eingelöst
+Kullanılmadı¦Not used¦Не использовано¦Nicht genutzt
+Kullanılabilir¦Available¦Доступно¦Verfügbar
+Kullanılan¦Used¦Использованные¦Eingelöst
+Son: {}¦Until: {}¦До: {}¦Bis: {}
+Süresi Doldu¦Expired¦Срок истёк¦Abgelaufen
+Süresi dolmuş¦Expired¦Срок истёк¦Abgelaufen
+Süresi doldu ({})¦Expired ({})¦Срок истёк ({})¦Abgelaufen ({})
+Süresi Dolan¦Expired¦Истёкшие¦Abgelaufen
+İkram Geçmişim¦My reward history¦История подарков¦Mein Prämienverlauf
+İkram geçmişi¦Reward history¦История подарков¦Prämienverlauf
+Henüz ikram kazanmadınız. İlk ikramınıza {#} ücretli alım kaldı.¦No rewards yet. {} paid visit(s) left until your first reward.¦Подарков пока нет. До первого подарка осталось платных визитов: {}.¦Noch keine Prämien. Noch {} bezahlte Leistung(en) bis zur ersten.
+Bu kampanyadan ikram kazanmadınız.¦You did not earn a reward from this offer.¦По этой акции подарков не было.¦Bei dieser Aktion haben Sie keine Prämie verdient.
+{} · İkram Geçmişim¦{} · My reward history¦{} · История подарков¦{} · Mein Prämienverlauf
+{} ₺ kazanç¦{} ₺ saved¦экономия {} ₺¦{} ₺ gespart
+{} tarihinde kullanıldı · {} ₺ kazanç¦used on {} · {} ₺ saved¦использовано {} · экономия {} ₺¦eingelöst am {} · {} ₺ gespart
+{} tarihinde kullanıldı¦used on {}¦использовано {}¦eingelöst am {}
+{}'de kullanıldı¦used on {}¦использовано {}¦eingelöst am {}
+{} tarihine kadar kullanılabilir¦can be used until {}¦можно использовать до {}¦gültig bis {}
+tarihine kadar kullanılabilir¦is the last day of use¦— последний день использования¦ist der letzte Einlösetag
+Süresiz, dilediğiniz zaman kullanılabilir¦No expiry, use it any time¦Бессрочно, используйте когда угодно¦Unbefristet, jederzeit einlösbar
+{} tarihinde süresi doldu¦expired on {}¦срок истёк {}¦abgelaufen am {}
+{} tarihinde kazanıldı¦earned on {}¦получено {}¦verdient am {}
+İkram kampanyası nasıl işler?¦How does the reward campaign work?¦Как работает подарочная акция?¦Wie funktioniert die Prämienaktion?
+Yalnızca kampanyadaki hizmeti ücretli aldığınızda sayılır; paket seansları ve diğer hizmetler sayılmaz.¦Only paid visits for the campaign service count; package sessions and other services do not.¦Учитываются только оплаченные услуги из акции; сеансы по пакетам и другие услуги не учитываются.¦Es zählen nur bezahlte Leistungen dieser Aktion; Paketsitzungen und andere Leistungen zählen nicht.
+Kazandığınız ikramı dilediğiniz bir seansınızda kullanırsınız; ödeme sırasında salona söylemeniz yeterli.¦Use your reward at any visit; just tell the salon when paying.¦Используйте подарок в любой визит — просто скажите об этом при оплате.¦Lösen Sie Ihre Prämie bei einem beliebigen Besuch ein; sagen Sie es einfach beim Bezahlen.
+İstemezseniz ikramınız saklı kalır; kullanım süresi varsa o tarihe kadar dilediğiniz seansta kullanabilirsiniz.¦If you do not want to use it now, it stays saved; if it has an expiry date, use it any time before then.¦Если сейчас не нужно, подарок сохранится; при наличии срока его можно использовать до этой даты.¦Wenn Sie sie jetzt nicht nutzen möchten, bleibt sie gespeichert; bei einer Frist können Sie sie bis dahin einlösen.
+İkram Hizmetlerim¦My reward services¦Мои подарочные услуги¦Meine Gratis-Leistungen
+ikram hizmetiniz var¦free service(s) available¦подарочных услуг доступно¦Gratis-Leistung(en) verfügbar
+ikram hizmetiniz var\nHangi hizmetten kazandığınızı görün¦free service(s) available\nSee which service you earned them from¦подарочных услуг доступно\nПосмотрите, за что вы их получили¦Gratis-Leistung(en) verfügbar\nSehen Sie, wofür Sie sie erhalten haben
+Hangi hizmetten kazandığınızı görün →¦See which service you earned them from →¦Посмотрите, за что вы их получили →¦Sehen Sie, wofür Sie sie erhalten haben →
+## Bildirimler
+Bildirimler¦Notifications¦Уведомления¦Benachrichtigungen
+Bildirim¦Notification¦Уведомление¦Benachrichtigung
+Bildirimler yüklenemedi¦Notifications could not be loaded¦Не удалось загрузить уведомления¦Benachrichtigungen konnten nicht geladen werden
+Bildirimler yüklenemedi. Tekrar deneyin.¦Notifications could not be loaded. Try again.¦Не удалось загрузить уведомления. Попробуйте ещё раз.¦Benachrichtigungen konnten nicht geladen werden. Bitte erneut versuchen.
+Bildirim güncellenemedi¦The notification could not be updated¦Не удалось обновить уведомление¦Benachrichtigung konnte nicht aktualisiert werden
+Tüm bildirimler okundu olarak işaretlendi¦All notifications marked as read¦Все уведомления отмечены как прочитанные¦Alle Benachrichtigungen als gelesen markiert
+{#} yeni¦{} new¦{} новых¦{} neu
+Hepsi okundu¦All read¦Все прочитано¦Alle gelesen
+Tümünü Oku¦Mark all as read¦Прочитать все¦Alle als gelesen markieren
+Okunmamış¦Unread¦Непрочитанные¦Ungelesen
+Okunmamış bildirim yok¦No unread notifications¦Нет непрочитанных уведомлений¦Keine ungelesenen Benachrichtigungen
+Bildiriminiz bulunmuyor¦You have no notifications¦У вас нет уведомлений¦Sie haben keine Benachrichtigungen
+Tüm bildirimleriniz okundu olarak işaretli.¦All your notifications are read.¦Все уведомления прочитаны.¦Alle Benachrichtigungen sind gelesen.
+Yeni bildirimler burada görünecek.¦New notifications will appear here.¦Новые уведомления появятся здесь.¦Neue Benachrichtigungen erscheinen hier.
+Dosya indirme izni reddedildi.¦Permission to download files was denied.¦Нет разрешения на загрузку файлов.¦Die Berechtigung zum Herunterladen wurde verweigert.
+PDF İndirme¦PDF download¦Загрузка PDF¦PDF-Download
+Dosyanız başarıyla indirildi: {}¦Your file was downloaded: {}¦Файл загружен: {}¦Ihre Datei wurde heruntergeladen: {}
+Dosya indirilirken hata oluştu: {}¦Error while downloading the file: {}¦Ошибка при загрузке файла: {}¦Fehler beim Herunterladen der Datei: {}
+İndiriliyor: {#}%¦Downloading: {}%¦Загрузка: {}%¦Wird heruntergeladen: {} %
+Bildirim silinemedi.¦The notification could not be deleted.¦Не удалось удалить уведомление.¦Die Benachrichtigung konnte nicht gelöscht werden.
+Bildirim silinsin mi?¦Delete this notification?¦Удалить уведомление?¦Benachrichtigung löschen?
+Bu bildirim listenizden kaldırılacak.¦This notification will be removed from your list.¦Уведомление будет удалено из списка.¦Diese Benachrichtigung wird aus Ihrer Liste entfernt.
+Bildirimleri Sil¦Delete notifications¦Удалить уведомления¦Benachrichtigungen löschen
+Okunmuşları sil¦Delete read ones¦Удалить прочитанные¦Gelesene löschen
+Okunmuş bildiriminiz yok¦You have no read notifications¦Нет прочитанных уведомлений¦Keine gelesenen Benachrichtigungen
+{#} bildirim silinir, yeniler kalır¦{} will be deleted, new ones stay¦Будет удалено: {}, новые останутся¦{} werden gelöscht, neue bleiben
+Tümünü sil¦Delete all¦Удалить все¦Alle löschen
+{#} bildirim silinir, {#} tanesi okunmamış¦{} will be deleted, {} of them unread¦Будет удалено: {}, из них непрочитанных: {}¦{} werden gelöscht, davon {} ungelesen
+{#} bildirim silinir¦{} will be deleted¦Будет удалено: {}¦{} werden gelöscht
+Tüm bildirimler silinsin mi?¦Delete all notifications?¦Удалить все уведомления?¦Alle Benachrichtigungen löschen?
+{#} bildirim silinecek. Bu işlem geri alınamaz.¦{} notification(s) will be deleted. This cannot be undone.¦Будет удалено уведомлений: {}. Отменить нельзя.¦{} Benachrichtigung(en) werden gelöscht. Dies kann nicht rückgängig gemacht werden.
+Silinecek bildirim seçilmedi.¦No notification selected.¦Уведомление не выбрано.¦Keine Benachrichtigung ausgewählt.
+Sürpriz fırsat!¦Surprise offer!¦Специальное предложение!¦Überraschungsangebot!
+ÇARKI ÇEVİR¦SPIN THE WHEEL¦КРУТИТЬ КОЛЕСО¦RAD DREHEN
+İNDİRİMİ KULLAN¦USE THE DISCOUNT¦ИСПОЛЬЗОВАТЬ СКИДКУ¦RABATT NUTZEN
+HEDİYENİ AL¦GET YOUR GIFT¦ПОЛУЧИТЬ ПОДАРОК¦GESCHENK HOLEN
+KAMPANYAYI GÖR¦SEE THE OFFER¦СМОТРЕТЬ АКЦИЮ¦AKTION ANSEHEN
+Daha sonra¦Later¦Позже¦Später
+Bildirim izni kapalı. Randevu ve hatırlatmalar için izin verin.¦Notifications are off. Allow them for appointments and reminders.¦Уведомления выключены. Разрешите их для записей и напоминаний.¦Benachrichtigungen sind aus. Erlauben Sie sie für Termine und Erinnerungen.
+Bildirimler şu an çalışmıyor. Tekrar deneniyor…¦Notifications are not working right now. Retrying…¦Уведомления сейчас не работают. Повторная попытка…¦Benachrichtigungen funktionieren derzeit nicht. Neuer Versuch…
+AYARLAR¦SETTINGS¦НАСТРОЙКИ¦EINSTELLUNGEN
+## Profil
+Yeni şifre en az 6 karakter olmalı.¦The new password must have at least 6 characters.¦Новый пароль должен содержать не менее 6 символов.¦Das neue Passwort muss mindestens 6 Zeichen haben.
+Şifreniz güncellendi.¦Your password has been updated.¦Пароль обновлён.¦Ihr Passwort wurde aktualisiert.
+Bilgileriniz güncellendi.¦Your details have been updated.¦Данные обновлены.¦Ihre Daten wurden aktualisiert.
+Güncellenemedi (hata kodu: {}).¦Could not be updated (error code: {}).¦Не удалось обновить (код ошибки: {}).¦Konnte nicht aktualisiert werden (Fehlercode: {}).
+Şifre Değiştir¦Change password¦Изменить пароль¦Passwort ändern
+Bilgilerimi Düzenle¦Edit my details¦Изменить мои данные¦Meine Daten bearbeiten
+E-Posta¦Email¦Эл. почта¦E-Mail
+E-posta¦Email¦Эл. почта¦E-Mail
+E-posta adresi¦Email address¦Адрес эл. почты¦E-Mail-Adresse
+Meslek¦Occupation¦Профессия¦Beruf
+Örn. Mühendis¦E.g. engineer¦Напр.: инженер¦z. B. Ingenieur
+ornek@email.com¦name@email.com¦name@email.com¦name@email.com
+ornek@eposta.com¦name@email.com¦name@email.com¦name@email.com
+Cinsiyet¦Gender¦Пол¦Geschlecht
+Yeni Şifre¦New password¦Новый пароль¦Neues Passwort
+Yeni Şifre (Tekrar)¦New password (repeat)¦Новый пароль (ещё раз)¦Neues Passwort (wiederholen)
+Değiştirmek için yeni şifre girin¦Enter a new password to change it¦Введите новый пароль¦Neues Passwort zum Ändern eingeben
+Kadın¦Female¦Женский¦Weiblich
+Erkek¦Male¦Мужской¦Männlich
+Şifreyi Güncelle¦Update password¦Обновить пароль¦Passwort aktualisieren
+Bilgileri Güncelle¦Update details¦Обновить данные¦Daten aktualisieren
+Bu cihazdan çıkış yap¦Log out from this device¦Выйти на этом устройстве¦Auf diesem Gerät abmelden
+Bu cihazdaki oturum kapatılır ve cihaz bildirim almayı bırakır.¦The session on this device will be closed and it will stop receiving notifications.¦Сеанс на устройстве будет завершён, уведомления перестанут приходить.¦Die Sitzung auf diesem Gerät wird beendet und es erhält keine Benachrichtigungen mehr.
+Cihazdaki oturum kapatıldı.¦The session on the device was closed.¦Сеанс на устройстве завершён.¦Die Sitzung auf dem Gerät wurde beendet.
+Web tarayıcı¦Web browser¦Веб-браузер¦Webbrowser
+Android telefon¦Android phone¦Телефон Android¦Android-Telefon
+Cihazlarım¦My devices¦Мои устройства¦Meine Geräte
+Hesabınızın açık olduğu ve bildirim alan cihazlar. Tanımadığınız bir cihaz varsa çıkış yaptırın ve şifrenizi değiştirin.¦Devices where you are logged in and that receive notifications. If you do not recognise one, log it out and change your password.¦Устройства, на которых выполнен вход и приходят уведомления. Если устройство вам незнакомо, завершите сеанс и смените пароль.¦Geräte, auf denen Sie angemeldet sind und die Benachrichtigungen erhalten. Melden Sie unbekannte Geräte ab und ändern Sie Ihr Passwort.
+Kayıtlı cihaz bulunamadı.¦No registered devices found.¦Устройства не найдены.¦Keine registrierten Geräte gefunden.
+Bu cihaz¦This device¦Это устройство¦Dieses Gerät
+Uygulama Hakkında¦About the app¦О приложении¦Über die App
+Sürüm {}¦Version {}¦Версия {}¦Version {}
+Son güncelleme: {}¦Last update: {}¦Последнее обновление: {}¦Letzte Aktualisierung: {}
+Profil fotoğrafınız güncellendi.¦Your profile photo has been updated.¦Фото профиля обновлено.¦Ihr Profilfoto wurde aktualisiert.
+Fotoğraf yüklenemedi.¦The photo could not be uploaded.¦Не удалось загрузить фото.¦Das Foto konnte nicht hochgeladen werden.
+Fotoğrafı değiştir¦Change photo¦Изменить фото¦Foto ändern
+Yaklaşan\nRandevu¦Upcoming\nvisits¦Будущие\nзаписи¦Anstehende\nTermine
+Toplam\nZiyaret¦Total\nvisits¦Всего\nвизитов¦Besuche\ngesamt
+Yeni\nBildirim¦New\nalerts¦Новые\nуведомл.¦Neue\nMeldungen
+Sadakat\nPuanı¦Loyalty\npoints¦Баллы\nлояльности¦Treue-\npunkte
+Onaylandı¦Confirmed¦Подтверждено¦Bestätigt
+Onaylı¦Confirmed¦Подтверждено¦Bestätigt
+Randevunuz¦Your appointment¦Ваша запись¦Ihr Termin
+Ad, telefon, e-posta ve meslek bilgileriniz¦Your name, phone, email and occupation¦Имя, телефон, эл. почта и профессия¦Name, Telefon, E-Mail und Beruf
+Hesap güvenliğiniz için şifrenizi güncelleyin¦Update your password to keep your account safe¦Обновите пароль для безопасности аккаунта¦Aktualisieren Sie Ihr Passwort zur Sicherheit
+Hesabınızın açık olduğu cihazlar¦Devices where you are logged in¦Устройства, где выполнен вход¦Geräte, auf denen Sie angemeldet sind
+Kullanım koşulları ve KVKK¦Terms of use and privacy¦Условия использования и конфиденциальность¦Nutzungsbedingungen und Datenschutz
+Hesabınızı kalıcı olarak kaldırın¦Remove your account permanently¦Удалить аккаунт навсегда¦Konto endgültig entfernen
+Güvenli Çıkış¦Log out¦Выйти¦Sicher abmelden
+Oturumunuzu kapatır¦Ends your session¦Завершает сеанс¦Beendet Ihre Sitzung
+Resmi Kırp¦Crop image¦Обрезать фото¦Bild zuschneiden
+## Ödüller / kuponlar / indirimler
+🎁 Kuponlarım¦🎁 My coupons¦🎁 Мои купоны¦🎁 Meine Gutscheine
+🎁 Kazandığım Ödüller¦🎁 My rewards¦🎁 Мои награды¦🎁 Meine Prämien
+Çarkıfelekten ve puan ödüllerinden kazandığınız kuponlar burada listelenir. Salonda randevu aldığınızda kupon kodunuzu personele söyleyin.¦Coupons from the wheel and point rewards are listed here. Tell the staff your coupon code when you visit.¦Здесь купоны, полученные за колесо удачи и баллы. Назовите код купона сотруднику при визите.¦Hier sehen Sie Gutscheine aus dem Glücksrad und den Punkteprämien. Nennen Sie den Code bei Ihrem Besuch.
+Çarkıfelekten kazandığınız kuponları burada görebilirsiniz. Salonda randevu aldığınızda kupon kodunu ilgili personele söyleyin.¦Here you can see the coupons you won. Tell the staff your coupon code when you visit.¦Здесь вы видите выигранные купоны. Назовите код купона сотруднику при визите.¦Hier sehen Sie Ihre gewonnenen Gutscheine. Nennen Sie den Code bei Ihrem Besuch.
+Henüz kazanılmış bir ödülünüz yok.\nOnaylanmış randevularınız üzerinden çarkı çevirebilirsiniz.¦You have no rewards yet.\nYou can spin the wheel with your confirmed appointments.¦У вас пока нет наград.\nКрутите колесо за подтверждённые записи.¦Sie haben noch keine Prämien.\nMit bestätigten Terminen können Sie das Rad drehen.
+Henüz kazanılmış bir ödülünüz yok.¦You have no rewards yet.¦У вас пока нет наград.¦Sie haben noch keine Prämien.
+Geçerli¦Valid¦Действует¦Gültig
+Son kullanım: {}¦Valid until: {}¦Действует до: {}¦Gültig bis: {}
+Son Kullanım¦Valid until¦Действует до¦Gültig bis
+Ödülü Talep Et¦Claim the reward¦Получить награду¦Prämie einlösen
+🎁 Ödülü Talep Et¦🎁 Claim the reward¦🎁 Получить награду¦🎁 Prämie einlösen
+Bu ödülü talep etmek istediğinize emin misiniz?\n{#} puan düşecek ve kupon kodunuz oluşacak.¦Do you want to claim this reward?\n{} points will be deducted and your coupon code will be created.¦Получить эту награду?\nБудет списано баллов: {}, и создан код купона.¦Möchten Sie diese Prämie einlösen?\n{} Punkte werden abgezogen und Ihr Gutscheincode wird erstellt.
+Bu ödülü talep etmek istediğinize emin misiniz? {#} puan düşecek ve kupon kodunuz oluşacak.¦Do you want to claim this reward? {} points will be deducted and your coupon code will be created.¦Получить эту награду? Будет списано баллов: {}, и создан код купона.¦Möchten Sie diese Prämie einlösen? {} Punkte werden abgezogen und Ihr Gutscheincode wird erstellt.
+Bu ödülü talep etmek istediğinize emin misiniz? {#} puan düşülecek ve kupon kodunuz oluşacak.¦Do you want to claim this reward? {} points will be deducted and your coupon code will be created.¦Получить эту награду? Будет списано баллов: {}, и создан код купона.¦Möchten Sie diese Prämie einlösen? {} Punkte werden abgezogen und Ihr Gutscheincode wird erstellt.
+Talep Et¦Claim¦Получить¦Einlösen
+⭐ Puan Ödüllerim¦⭐ My point rewards¦⭐ Мои награды за баллы¦⭐ Meine Punkteprämien
+Henüz puanınız bulunmuyor.\nÖdemeler, gelinen randevular, çarkıfelek, anket ve\nGoogle yorumlarıyla puan biriktirebilir,\nbiriktirdiğiniz puanlarla özel ödüller alabilirsiniz.¦You have no points yet.\nCollect points with payments, visits, the wheel,\nsurveys and Google reviews\nand exchange them for special rewards.¦У вас пока нет баллов.\nКопите баллы за оплату, визиты, колесо удачи,\nопросы и отзывы в Google\nи обменивайте их на награды.¦Sie haben noch keine Punkte.\nSammeln Sie Punkte mit Zahlungen, Besuchen,\nGlücksrad, Umfragen und Google-Bewertungen\nund tauschen Sie sie gegen Prämien ein.
+Toplam Puan¦Total points¦Всего баллов¦Punkte gesamt
+Puanlarım nereden geldi?¦Where do my points come from?¦Откуда мои баллы?¦Woher kommen meine Punkte?
+Puan hareketleri¦Points history¦История баллов¦Punkteverlauf
+Bu salonda henüz tanımlı puan ödülü yok.\nSalon yakında ödülleri tanıtacak.¦No point rewards in this salon yet.\nThey will be introduced soon.¦В салоне пока нет наград за баллы.\nСкоро они появятся.¦In diesem Salon gibt es noch keine Punkteprämien.\nSie folgen in Kürze.
+Bu salonda henüz tanımlı puan ödülü yok.¦No point rewards in this salon yet.¦В салоне пока нет наград за баллы.¦In diesem Salon gibt es noch keine Punkteprämien.
+Salon yakında ödülleri tanıtacak.¦They will be introduced soon.¦Скоро они появятся.¦Sie folgen in Kürze.
+Hizmet İndirimi¦Service discount¦Скидка на услугу¦Rabatt auf Leistung
+Ürün İndirimi¦Product discount¦Скидка на товар¦Rabatt auf Produkt
+Paket İndirimi¦Package discount¦Скидка на пакет¦Rabatt auf Paket
+Hediye¦Gift¦Подарок¦Geschenk
+PUAN¦POINTS¦БАЛЛОВ¦PUNKTE
+🔒 {#} puan daha gerekiyor¦🔒 {} more points needed¦🔒 Нужно ещё баллов: {}¦🔒 Noch {} Punkte nötig
+Ödülünüz Hazır!¦Your reward is ready!¦Ваша награда готова!¦Ihre Prämie ist bereit!
+Gelinen randevular¦Visits¦Визиты¦Besuche
+Ödemeler¦Payments¦Оплаты¦Zahlungen
+Anketler¦Surveys¦Опросы¦Umfragen
+Google yorumu¦Google review¦Отзыв в Google¦Google-Bewertung
+Çark çevirme ödülü¦Wheel prize¦Приз колеса удачи¦Glücksrad-Gewinn
+{} tarihli randevu¦Appointment on {}¦Запись от {}¦Termin am {}
+Anketi yanıtladınız¦You answered the survey¦Вы прошли опрос¦Umfrage beantwortet
+Google’da yorum yaptınız¦You reviewed us on Google¦Вы оставили отзыв в Google¦Bei Google bewertet
+Yüzde İndirimi¦Percentage discount¦Скидка в процентах¦Prozentrabatt
+Sabit İndirim¦Fixed discount¦Фиксированная скидка¦Fester Rabatt
+Ücretsiz Hizmet¦Free service¦Бесплатная услуга¦Gratis-Leistung
+İndirim¦Discount¦Скидка¦Rabatt
+İndirim Kodu¦Discount code¦Промокод¦Rabattcode
+Kod kopyalandı: {}¦Code copied: {}¦Код скопирован: {}¦Code kopiert: {}
+✓ Kod kopyalandı: {}¦✓ Code copied: {}¦✓ Код скопирован: {}¦✓ Code kopiert: {}
+Minimum sepet tutarı: {} TL¦Minimum amount: {} TL¦Минимальная сумма: {} TL¦Mindestbetrag: {} TL
+Kazanma¦Won on¦Получено¦Gewonnen am
+Henüz indirim bulunmuyor¦No discounts yet¦Скидок пока нет¦Noch keine Rabatte
+Çarkıfelek'i çevirerek harika indirimler kazanabilirsin!¦Spin the wheel and win great discounts!¦Крутите колесо и выигрывайте скидки!¦Drehen Sie das Rad und gewinnen Sie tolle Rabatte!
+Çarkıfelek'e Git¦Go to the wheel¦К колесу удачи¦Zum Glücksrad
+İndirimlerim¦My discounts¦Мои скидки¦Meine Rabatte
+İndirimler Hakkında¦About discounts¦О скидках¦Über Rabatte
+Çarkıfelek'ten kazandığınız tüm indirimler burada listelenir.¦All discounts you won on the wheel are listed here.¦Здесь все скидки, выигранные на колесе удачи.¦Hier finden Sie alle Rabatte aus dem Glücksrad.
+Aktif indirimlerinizi sepet sayfasında kullanabilirsiniz.¦You can use active discounts on the cart page.¦Активные скидки можно применить в корзине.¦Aktive Rabatte können Sie im Warenkorb nutzen.
+İndirim kodunu kopyalayıp sipariş sırasında kullanabilirsiniz.¦Copy the discount code and use it when ordering.¦Скопируйте код и используйте при заказе.¦Kopieren Sie den Code und nutzen Sie ihn bei der Bestellung.
+## Paketler, ürünler, seanslar
+Aldığım Paketler¦My purchased packages¦Мои купленные пакеты¦Meine gekauften Pakete
+{#} paket¦{} packages¦Пакетов: {}¦{} Pakete
+Son alım: {}¦Last purchase: {}¦Последняя покупка: {}¦Letzter Kauf: {}
+Bu aralıkta paket yok¦No packages in this period¦За этот период пакетов нет¦Keine Pakete in diesem Zeitraum
+Henüz paketin yok¦You have no packages yet¦У вас пока нет пакетов¦Sie haben noch keine Pakete
+Seçtiğin tarih aralığında aldığın paket bulunmuyor.¦You have no packages in the selected period.¦За выбранный период пакетов нет.¦Im gewählten Zeitraum haben Sie keine Pakete gekauft.
+Satın aldığın paketler burada listelenecek.¦Your purchased packages will be listed here.¦Здесь появятся купленные пакеты.¦Ihre gekauften Pakete erscheinen hier.
+Paket¦Package¦Пакет¦Paket
++{#} kalem daha¦+{} more items¦+ ещё {}¦+{} weitere
+Paket #{#}¦Package #{}¦Пакет №{}¦Paket Nr. {}
+PAKET İÇERİĞİ¦PACKAGE CONTENTS¦СОСТАВ ПАКЕТА¦PAKETINHALT
+Kalan seans haklarını görmek için "Seanslarım" sayfasını kullan.¦See your remaining sessions on the "My sessions" page.¦Оставшиеся сеансы смотрите на странице «Мои сеансы».¦Ihre verbleibenden Sitzungen finden Sie unter „Meine Sitzungen“.
+Aldığım Ürünler¦My purchased products¦Мои купленные товары¦Meine gekauften Produkte
+{#} alışveriş¦{} purchases¦Покупок: {}¦{} Einkäufe
+alışveriş¦purchases¦покупок¦Einkäufe
+Son alışveriş: {}¦Last purchase: {}¦Последняя покупка: {}¦Letzter Einkauf: {}
+Bu aralıkta ürün yok¦No products in this period¦За этот период товаров нет¦Keine Produkte in diesem Zeitraum
+Henüz ürün almamışsın¦You have not bought any products yet¦Вы ещё не покупали товары¦Sie haben noch keine Produkte gekauft
+Seçtiğin tarih aralığında satın aldığın ürün bulunmuyor.¦You bought no products in the selected period.¦За выбранный период покупок нет.¦Im gewählten Zeitraum haben Sie keine Produkte gekauft.
+Satın aldığın ürünler burada listelenecek.¦Your purchased products will be listed here.¦Здесь появятся купленные товары.¦Ihre gekauften Produkte erscheinen hier.
+{#} ürün¦{} products¦Товаров: {}¦{} Produkte
+Ürün¦Product¦Товар¦Produkt
+Ürünler¦Products¦Товары¦Produkte
+Ürün bilgisi yok¦No product information¦Нет информации о товаре¦Keine Produktinformationen
++{#} ürün daha¦+{} more products¦+ ещё товаров: {}¦+{} weitere Produkte
+Alışveriş #{#}¦Purchase #{}¦Покупка №{}¦Einkauf Nr. {}
+ÜRÜNLER¦PRODUCTS¦ТОВАРЫ¦PRODUKTE
+Bugün için oluşturulmuş randevunuz bulunmamaktadır¦You have no appointments today¦На сегодня у вас нет записей¦Sie haben heute keine Termine
+Aktif paketin yok¦You have no active package¦Нет активного пакета¦Kein aktives Paket
+{#} paket • {#} seans¦{} packages • {} sessions¦Пакетов: {} • сеансов: {}¦{} Pakete • {} Sitzungen
+Paket veya hizmet ara...¦Search package or service...¦Поиск пакета или услуги...¦Paket oder Leistung suchen...
+Bekleyen¦Pending¦Ожидают¦Ausstehend
+Bekliyor¦Pending¦Ожидает¦Ausstehend
+Beklemede¦Pending¦Ожидает¦Ausstehend
+Gelinen¦Attended¦Посещено¦Besucht
+Gelmeyen¦Missed¦Пропущено¦Verpasst
+Henüz seansın yok¦You have no sessions yet¦У вас пока нет сеансов¦Sie haben noch keine Sitzungen
+Aramana uyan paket bulunamadı. Farklı kelime dene.¦No matching package found. Try another word.¦Подходящих пакетов нет. Попробуйте другое слово.¦Kein passendes Paket gefunden. Versuchen Sie ein anderes Wort.
+Salondan paket aldığında, kalan seans haklarını burada görebilirsin.¦When you buy a package, your remaining sessions appear here.¦Когда вы купите пакет, оставшиеся сеансы появятся здесь.¦Wenn Sie ein Paket kaufen, sehen Sie hier Ihre verbleibenden Sitzungen.
+{#} hizmet¦{} services¦Услуг: {}¦{} Leistungen
+{#} Hizmet¦{} services¦Услуг: {}¦{} Leistungen
+Tamamlandı¦Completed¦Завершено¦Abgeschlossen
+Seans Detayları¦Session details¦Подробности сеансов¦Sitzungsdetails
+{} Seans Detayları¦{} session details¦{} — подробности сеансов¦{} Sitzungsdetails
+Genel İlerleme¦Overall progress¦Общий прогресс¦Gesamtfortschritt
+Bu paket için henüz oluşturulmuş randevu bulunmamaktadır.¦No appointments have been made for this package yet.¦По этому пакету ещё нет записей.¦Für dieses Paket gibt es noch keine Termine.
+{#} seans¦{} sessions¦Сеансов: {}¦{} Sitzungen
+{#} Seans¦{} sessions¦Сеансов: {}¦{} Sitzungen
+Seans¦Session¦Сеанс¦Sitzung
+Seansları¦Sessions¦Сеансы¦Sitzungen
+Seans #{#}¦Session #{}¦Сеанс №{}¦Sitzung Nr. {}
+Telafi¦Make-up session¦Отработка¦Ersatztermin
+Geldi¦Attended¦Посещено¦Besucht
+Gelmedi¦Missed¦Не пришёл¦Nicht erschienen
+Başlangıç¦Start¦Начало¦Beginn
+Bitiş¦End¦Окончание¦Ende
+Seans Dökümü¦Session list¦Список сеансов¦Sitzungsübersicht
+Yeni Kullanım¦New use¦Новое использование¦Neue Nutzung
+Henüz seans yok.¦No sessions yet.¦Сеансов пока нет.¦Noch keine Sitzungen.
+İlk gelişte başlar¦Starts on the first visit¦Начнётся с первого визита¦Beginnt beim ersten Besuch
+Paket Adı¦Package name¦Название пакета¦Paketname
+Paket Adı...¦Package name...¦Название пакета...¦Paketname...
+Müşteri ve Paket¦Customer and package¦Клиент и пакет¦Kunde und Paket
+Tarih & Saat¦Date & time¦Дата и время¦Datum & Uhrzeit
+Tarih ve Saat¦Date and time¦Дата и время¦Datum und Uhrzeit
+Seans Başlangıcı¦Session start¦Начало сеансов¦Sitzungsbeginn
+Müşteri Paket/Hizmetleri¦Your packages/services¦Ваши пакеты и услуги¦Ihre Pakete/Leistungen
+{} için bekleyen paket/hizmetlerden seçim yap:¦Choose from pending packages/services for {}:¦Выберите из доступных пакетов и услуг для {}:¦Wählen Sie aus offenen Paketen/Leistungen für {}:
+Seçilenleri Ekle¦Add selected¦Добавить выбранное¦Auswahl hinzufügen
+Seçilenleri Ekle ({#})¦Add selected ({})¦Добавить выбранное ({})¦Auswahl hinzufügen ({})
+Toplu Seç¦Select all¦Выбрать всё¦Alle wählen
+Özelleştir¦Customise¦Настроить¦Anpassen
+Tek Hizmet¦Single service¦Отдельная услуга¦Einzelleistung
+• {} ({#} seans)¦• {} ({} sessions)¦• {} (сеансов: {})¦• {} ({} Sitzungen)
+{}  ·  {#} seans¦{}  ·  {} sessions¦{}  ·  сеансов: {}¦{}  ·  {} Sitzungen
+{#} kayıt¦{} records¦Записей: {}¦{} Einträge
+{} satışı yok¦No {} purchases¦{}: покупок нет¦Keine Käufe: {}
+Henüz kaydın yok¦You have no records yet¦Записей пока нет¦Noch keine Einträge
+Bu kategoride henüz alışveriş yok.¦No purchases in this category yet.¦В этой категории пока нет покупок.¦In dieser Kategorie gibt es noch keine Einkäufe.
+Satın aldıkların burada listelenecek.¦Your purchases will be listed here.¦Здесь появятся ваши покупки.¦Ihre Einkäufe erscheinen hier.
+Satış¦Purchase¦Покупка¦Kauf
+İÇERİK¦CONTENTS¦СОСТАВ¦INHALT
+## Yorumlar
+Yorumlar yüklenemedi¦Reviews could not be loaded¦Не удалось загрузить отзывы¦Bewertungen konnten nicht geladen werden
+Lütfen puan verin.¦Please give a rating.¦Поставьте оценку.¦Bitte geben Sie eine Bewertung ab.
+Değerlendirmeniz için teşekkürler!¦Thank you for your review!¦Спасибо за ваш отзыв!¦Vielen Dank für Ihre Bewertung!
+Yorum gönderilemedi. Tekrar deneyin.¦The review could not be sent. Try again.¦Не удалось отправить отзыв. Попробуйте ещё раз.¦Die Bewertung konnte nicht gesendet werden. Bitte erneut versuchen.
+Deneyimini değerlendir¦Rate your experience¦Оцените визит¦Bewerten Sie Ihren Besuch
+Puanın ve yorumun diğer müşterilere yardımcı olur.¦Your rating and review help other customers.¦Ваша оценка и отзыв помогут другим клиентам.¦Ihre Bewertung hilft anderen Kunden.
+Yorumunuz (isteğe bağlı)¦Your review (optional)¦Ваш отзыв (необязательно)¦Ihre Bewertung (optional)
+{#} puan · {#} yorum¦{} rating · {} reviews¦Оценка {} · отзывов: {}¦{} Punkte · {} Bewertungen
+Henüz yorum yok¦No reviews yet¦Отзывов пока нет¦Noch keine Bewertungen
+Bu filtreyle eşleşen yorum yok¦No reviews match this filter¦Нет отзывов по этому фильтру¦Keine Bewertungen zu diesem Filter
+Kötüye Kullanım Bildir¦Report abuse¦Пожаловаться¦Missbrauch melden
+Spam veya reklam¦Spam or advertising¦Спам или реклама¦Spam oder Werbung
+Hakaret veya küfür¦Insult or profanity¦Оскорбление или брань¦Beleidigung oder Schimpfwörter
+Kişisel bilgi ifşası¦Disclosure of personal data¦Раскрытие личных данных¦Preisgabe persönlicher Daten
+Yanıltıcı / sahte yorum¦Misleading / fake review¦Ложный отзыв¦Irreführende / falsche Bewertung
+Uygunsuz İçerik Bildir¦Report inappropriate content¦Сообщить о недопустимом содержании¦Unangemessenen Inhalt melden
+Bu yorumu neden bildirmek istiyorsunuz? Bildiriminiz işletme sahibine iletilecek ve 24 saat içinde değerlendirilecektir.¦Why are you reporting this review? Your report will be sent to the business owner and reviewed within 24 hours.¦Почему вы жалуетесь на этот отзыв? Жалоба будет передана владельцу и рассмотрена в течение 24 часов.¦Warum möchten Sie diese Bewertung melden? Ihre Meldung wird an den Inhaber weitergeleitet und innerhalb von 24 Stunden geprüft.
+Bildir¦Report¦Пожаловаться¦Melden
+Bildiriminiz alındı, teşekkürler.¦Your report was received, thank you.¦Жалоба принята, спасибо.¦Ihre Meldung ist eingegangen, danke.
+Bildirim gönderilemedi. Lütfen tekrar deneyin.¦The report could not be sent. Please try again.¦Не удалось отправить. Попробуйте ещё раз.¦Die Meldung konnte nicht gesendet werden. Bitte erneut versuchen.
+Yorumlar yuklenemedi: {}¦Reviews could not be loaded: {}¦Не удалось загрузить отзывы: {}¦Bewertungen konnten nicht geladen werden: {}
+Yorum gonderilemedi: {}¦The review could not be sent: {}¦Не удалось отправить отзыв: {}¦Die Bewertung konnte nicht gesendet werden: {}
+Puanla ve Yorumla¦Rate and review¦Оценить и написать отзыв¦Bewerten und kommentieren
+Puanla & Yorumla¦Rate & review¦Оценить и написать отзыв¦Bewerten & kommentieren
+Puanlama¦Rating¦Оценка¦Bewertung
+Yorum¦Review¦Отзыв¦Kommentar
+Yorumunuzu Yazın¦Write your review¦Напишите отзыв¦Schreiben Sie Ihre Bewertung
+{#} yorum¦{} reviews¦Отзывов: {}¦{} Bewertungen
+## Menü, fotoğraf, belge, sağlık
+Menü¦Menu¦Меню¦Menü
+İŞLEMLERİM¦MY ACTIVITY¦МОИ ДЕЙСТВИЯ¦MEINE AKTIVITÄTEN
+Satın Aldıklarım¦My purchases¦Мои покупки¦Meine Käufe
+BELGELERİM¦MY DOCUMENTS¦МОИ ДОКУМЕНТЫ¦MEINE DOKUMENTE
+Sözleşme / Belgelerim¦My contracts / documents¦Мои договоры и документы¦Meine Verträge / Dokumente
+Sağlık Bilgilerim¦My health information¦Данные о здоровье¦Meine Gesundheitsangaben
+Gelişimim (Vücut Ölçümü)¦My progress (body measurements)¦Мой прогресс (измерения тела)¦Mein Fortschritt (Körpermaße)
+Resimlerim¦My photos¦Мои фотографии¦Meine Bilder
+HESABIM¦MY ACCOUNT¦МОЙ АККАУНТ¦MEIN KONTO
+Fotoğraf Ekle¦Add photo¦Добавить фото¦Foto hinzufügen
+Kaynağı seç¦Choose source¦Выберите источник¦Quelle wählen
+Kamera¦Camera¦Камера¦Kamera
+Galeri¦Gallery¦Галерея¦Galerie
+Kamera izni gerekli¦Camera permission is required¦Нужен доступ к камере¦Kameraberechtigung erforderlich
+Not ekle¦Add note¦Добавить заметку¦Notiz hinzufügen
+İstersen bu fotoğraf için kısa bir not yaz (opsiyonel).¦Write a short note for this photo (optional).¦Добавьте короткую заметку к фото (необязательно).¦Schreiben Sie eine kurze Notiz zu diesem Foto (optional).
+Fotoğraf eklendi¦Photo added¦Фото добавлено¦Foto hinzugefügt
+Yükleme başarısız¦Upload failed¦Не удалось загрузить¦Upload fehlgeschlagen
+Yükleme sırasında bir hata oluştu¦An error occurred during upload¦Ошибка при загрузке¦Beim Hochladen ist ein Fehler aufgetreten
+Fotoğrafı sil?¦Delete photo?¦Удалить фото?¦Foto löschen?
+Bu fotoğraf hem senin panelinden hem de\nsalonun panelinden kaldırılır.¦This photo will be removed from your app\nand from the salon panel.¦Фото будет удалено у вас\nи в панели салона.¦Dieses Foto wird aus Ihrer App\nund beim Salon entfernt.
+Fotoğraf silindi¦Photo deleted¦Фото удалено¦Foto gelöscht
+Silme sırasında bir hata oluştu¦An error occurred while deleting¦Ошибка при удалении¦Beim Löschen ist ein Fehler aufgetreten
+Not silindi¦Note deleted¦Заметка удалена¦Notiz gelöscht
+Not kaydedildi¦Note saved¦Заметка сохранена¦Notiz gespeichert
+Not kaydedilemedi¦The note could not be saved¦Не удалось сохранить заметку¦Notiz konnte nicht gespeichert werden
+Not kaydedilirken bir hata oluştu¦An error occurred while saving the note¦Ошибка при сохранении заметки¦Beim Speichern der Notiz ist ein Fehler aufgetreten
+Notu düzenle¦Edit note¦Изменить заметку¦Notiz bearbeiten
+Bu fotoğrafa ait notu güncelle veya temizle.¦Update or clear the note for this photo.¦Измените или удалите заметку к фото.¦Notiz zu diesem Foto ändern oder löschen.
+Foto Ekle¦Add photo¦Добавить фото¦Foto hinzufügen
+{#} Fotoğraf¦{} photos¦Фото: {}¦{} Fotos
+{#} farklı tarihte¦on {} different dates¦разных дат: {}¦an {} verschiedenen Tagen
+Henüz fotoğrafın yok¦You have no photos yet¦У вас пока нет фото¦Sie haben noch keine Fotos
+Kameranla çek ya da galeriden seç —\neklediğin fotoğraflar salonun panelinde de görünür.¦Take a photo or choose one from the gallery —\nthe salon will see your photos too.¦Сделайте фото или выберите из галереи —\nсалон тоже увидит ваши фото.¦Aufnehmen oder aus der Galerie wählen —\nder Salon sieht Ihre Fotos ebenfalls.
+İşletmeniz galerinize bir fotoğraf ekledi¦The salon added a photo to your gallery¦Салон добавил фото в вашу галерею¦Der Salon hat ein Foto zu Ihrer Galerie hinzugefügt
+Sözleşmelerim¦My contracts¦Мои договоры¦Meine Verträge
+Tüm sözleşme ve belgelerini görüntüle¦View all your contracts and documents¦Все ваши договоры и документы¦Alle Verträge und Dokumente ansehen
+Form veya belge adı ara...¦Search form or document...¦Поиск формы или документа...¦Formular oder Dokument suchen...
+Belgeler yükleniyor...¦Loading documents...¦Загрузка документов...¦Dokumente werden geladen...
+Henüz belge yok¦No documents yet¦Документов пока нет¦Noch keine Dokumente
+Lütfen bekleyin, sözleşme ve belgelerin getiriliyor.¦Please wait, your documents are loading.¦Подождите, документы загружаются.¦Bitte warten, Ihre Dokumente werden geladen.
+Salon tarafından sana gönderilen sözleşme ve belgeler burada görünür.¦Contracts and documents sent by the salon appear here.¦Здесь появятся договоры и документы от салона.¦Vom Salon gesendete Verträge und Dokumente erscheinen hier.
+Harici Belge¦External document¦Внешний документ¦Externes Dokument
+Belge¦Document¦Документ¦Dokument
+Doğrulama Kodu¦Verification code¦Код подтверждения¦Bestätigungscode
+Kopyalandı¦Copied¦Скопировано¦Kopiert
+Belgeyi İndir¦Download document¦Скачать документ¦Dokument herunterladen
+İndir¦Download¦Скачать¦Herunterladen
+Bu kayıt için dosya yok¦No file for this record¦Для этой записи нет файла¦Keine Datei zu diesem Eintrag
+İndirme başlatıldı...¦Download started...¦Загрузка началась...¦Download gestartet...
+İndirildi: {}¦Downloaded: {}¦Скачано: {}¦Heruntergeladen: {}
+İndirme başarısız oldu.¦Download failed.¦Не удалось скачать.¦Download fehlgeschlagen.
+Başlık¦Title¦Название¦Titel
+İşlem Yapan Personel¦Handled by¦Сотрудник¦Bearbeitet von
+Form Bekleniyor¦Form pending¦Ожидается форма¦Formular ausstehend
+İptal Edildi¦Cancelled¦Отменено¦Storniert
+Katılıyor¦Attending¦Участвует¦Nimmt teil
+Katılmıyor¦Not attending¦Не участвует¦Nimmt nicht teil
+Müşteri İptal¦Cancelled by customer¦Отменено клиентом¦Vom Kunden storniert
+Cilt Tipi¦Skin type¦Тип кожи¦Hauttyp
+Karma¦Combination¦Комбинированная¦Mischhaut
+Yağlı¦Oily¦Жирная¦Fettig
+Hassas¦Sensitive¦Чувствительная¦Empfindlich
+Kuru¦Dry¦Сухая¦Trocken
+Nemli¦Moist¦Увлажнённая¦Feucht
+Sağlık bilgileriniz kaydedildi.¦Your health information has been saved.¦Данные о здоровье сохранены.¦Ihre Gesundheitsangaben wurden gespeichert.
+Bilgiler kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.¦An error occurred while saving. Please try again.¦Ошибка при сохранении. Попробуйте ещё раз.¦Beim Speichern ist ein Fehler aufgetreten. Bitte erneut versuchen.
+Genel Sağlık Durumu¦General health¦Общее состояние здоровья¦Allgemeine Gesundheit
+Hemofili hastalığı var mı?¦Do you have haemophilia?¦Есть ли гемофилия?¦Haben Sie Hämophilie?
+Şeker hastalığı var mı?¦Do you have diabetes?¦Есть ли диабет?¦Haben Sie Diabetes?
+Deri veya yumuşak doku hastalığı var mı?¦Any skin or soft tissue disease?¦Есть ли заболевания кожи или мягких тканей?¦Haben Sie eine Haut- oder Weichteilerkrankung?
+Sürekli kullandığı ilaç var mı?¦Do you take medication regularly?¦Принимаете ли вы лекарства постоянно?¦Nehmen Sie dauerhaft Medikamente?
+Kemoterapi görüyor mu?¦Are you undergoing chemotherapy?¦Проходите ли вы химиотерапию?¦Erhalten Sie eine Chemotherapie?
+Kadın Sağlığı¦Women's health¦Женское здоровье¦Frauengesundheit
+Hamile mi?¦Are you pregnant?¦Есть ли беременность?¦Sind Sie schwanger?
+Regl döneminde mi?¦Are you on your period?¦Сейчас менструация?¦Haben Sie gerade Ihre Periode?
+Son 48 Saat¦Last 48 hours¦Последние 48 часов¦Letzte 48 Stunden
+Yakın zamanda ameliyat geçirildi mi?¦Any recent surgery?¦Были ли недавно операции?¦Wurden Sie kürzlich operiert?
+48 saat içinde alkol alımı var mı?¦Alcohol in the last 48 hours?¦Употребляли ли алкоголь за последние 48 часов?¦Alkohol in den letzten 48 Stunden?
+Alerji & Estetik Geçmişi¦Allergies & aesthetic history¦Аллергии и эстетические процедуры¦Allergien & ästhetische Vorgeschichte
+Herhangi bir alerjisi var mı?¦Do you have any allergies?¦Есть ли аллергия?¦Haben Sie Allergien?
+Daha önce uygulama yaptırıldı mı?¦Have you had this treatment before?¦Делали ли вы процедуру раньше?¦Hatten Sie diese Behandlung schon einmal?
+Sağlık bilgileriniz salonunuzla güvenli bir şekilde paylaşılır ve uygulamanızın güvenliği için kullanılır.¦Your health information is shared securely with your salon and used for your safety.¦Данные о здоровье безопасно передаются салону и используются для вашей безопасности.¦Ihre Gesundheitsangaben werden sicher mit dem Salon geteilt und dienen Ihrer Sicherheit.
+Ek Sağlık Notları¦Additional health notes¦Дополнительно о здоровье¦Weitere Gesundheitshinweise
+Belirtmek istediğiniz başka bir sağlık durumu...¦Any other health condition you want to mention...¦Другие сведения о здоровье...¦Weitere gesundheitliche Hinweise...
+Bilgileri Kaydet¦Save information¦Сохранить данные¦Angaben speichern
+## Vücut ölçümü
+Zayıf¦Underweight¦Недостаточный вес¦Untergewicht
+Fazla¦High¦Избыточный¦Erhöht
+Fazla Kilolu¦Overweight¦Избыточный вес¦Übergewicht
+Obez¦Obese¦Ожирение¦Adipös
+Kilo¦Weight¦Вес¦Gewicht
+VKİ¦BMI¦ИМТ¦BMI
+Yağ¦Fat¦Жир¦Fett
+Kas¦Muscle¦Мышцы¦Muskeln
+Kas Puanı¦Muscle score¦Оценка мышц¦Muskelwert
+İç Yağ.¦Visceral fat¦Висц. жир¦Viszeralfett
+İç Yağlanma¦Visceral fat¦Висцеральный жир¦Viszeralfett
+Ödem¦Oedema¦Отёк¦Ödem
+Vücut Ölçümü¦Body measurement¦Измерения тела¦Körpermaße
+Gelişimim¦My progress¦Мой прогресс¦Mein Fortschritt
+Yeni Ölçüm¦New measurement¦Новое измерение¦Neue Messung
+Ölçüm Geçmişi¦Measurement history¦История измерений¦Messverlauf
+Henüz ölçümünüz bulunmuyor.\nStüdyonuz ölçüm girdikçe burada göreceksiniz.¦You have no measurements yet.\nThey will appear here once added.¦Измерений пока нет.\nОни появятся здесь.¦Noch keine Messungen.\nSie erscheinen hier, sobald sie erfasst werden.
+Gelişim Grafiği¦Progress chart¦График прогресса¦Verlaufsdiagramm
+(önceki ölçüme göre)¦(vs. previous measurement)¦(к предыдущему измерению)¦(ggü. letzter Messung)
+● Kilo sabit¦● Weight stable¦● Вес стабилен¦● Gewicht stabil
+Son ölçüm: {}¦Last measurement: {}¦Последнее измерение: {}¦Letzte Messung: {}
+GÜNCEL VKİ¦CURRENT BMI¦ТЕКУЩИЙ ИМТ¦AKTUELLER BMI
+Boy {#} cm¦Height {} cm¦Рост {} см¦Größe {} cm
+Yaş {#}¦Age {}¦Возраст {}¦Alter {}
+Kilo {#} kg¦Weight {} kg¦Вес {} кг¦Gewicht {} kg
+VKİ {#}  {}¦BMI {}  {}¦ИМТ {}  {}¦BMI {}  {}
+Ölçüm Tarihi¦Measurement date¦Дата измерения¦Messdatum
+Yaş¦Age¦Возраст¦Alter
+Ölçümler yüklenemedi¦Measurements could not be loaded¦Не удалось загрузить измерения¦Messungen konnten nicht geladen werden
+## Hızlı işlem
+Hızlı İşlemler¦Quick actions¦Быстрые действия¦Schnellaktionen
+Hizmet ve saatini hemen seç¦Choose your service and time¦Выберите услугу и время¦Leistung und Uhrzeit wählen
+Yol Tarifi¦Directions¦Как добраться¦Route
+Değerlendir¦Review¦Оценить¦Bewerten
+Salon bilgisi bulunamadı.¦Salon information not found.¦Информация о салоне не найдена.¦Saloninformationen nicht gefunden.
+Şube seçin¦Choose a branch¦Выберите филиал¦Filiale wählen
+Salonun adresi tanımlı değil.¦The salon has no address defined.¦Адрес салона не указан.¦Für den Salon ist keine Adresse hinterlegt.
+Harita açılamadı.¦The map could not be opened.¦Не удалось открыть карту.¦Die Karte konnte nicht geöffnet werden.
+## Grup dersi
+Dersler yüklenemedi.¦Classes could not be loaded.¦Не удалось загрузить занятия.¦Kurse konnten nicht geladen werden.
+Rezervasyon¦Booking¦Бронирование¦Reservierung
+Evet, rezervasyon yap¦Yes, book¦Да, забронировать¦Ja, reservieren
+Rezervasyonunuz alındı.¦Your booking was received.¦Бронирование принято.¦Ihre Reservierung ist eingegangen.
+Rezervasyonunuz alındı. Görüşmek üzere ✨¦Your booking was received. See you soon ✨¦Бронирование принято. До встречи ✨¦Ihre Reservierung ist eingegangen. Bis bald ✨
+Rezervasyon yapılamadı.¦The booking failed.¦Не удалось забронировать.¦Die Reservierung ist fehlgeschlagen.
+Ders Rezervasyonu¦Class booking¦Запись на занятие¦Kursreservierung
+Bu gün için rezervasyona uygun ders yok.¦No classes available for booking on this day.¦На этот день нет доступных занятий.¦An diesem Tag sind keine Kurse buchbar.
+{#}/{#} dolu¦{}/{} taken¦занято {}/{}¦{}/{} belegt
+Dolu¦Full¦Мест нет¦Voll
+{#} yer kaldı¦{} places left¦Осталось мест: {}¦Noch {} Plätze
+Bu derse rezervasyon yapmak istiyor musunuz?¦Would you like to book this class?¦Записаться на это занятие?¦Möchten Sie diesen Kurs reservieren?
+Katıldım¦I attended¦Я был(а)¦Ich war dabei
+Katılmadım¦I did not attend¦Я не был(а)¦Ich war nicht dabei
+Evet, katıldım¦Yes, I attended¦Да, я был(а)¦Ja, ich war dabei
+Evet, katılmadım¦Yes, I did not attend¦Да, меня не было¦Ja, ich war nicht dabei
+Bu derse katıldığınızı bildiriyorsunuz. Onaylıyor musunuz?¦You are reporting that you attended this class. Confirm?¦Вы подтверждаете, что посетили занятие?¦Sie melden Ihre Teilnahme an diesem Kurs. Bestätigen?
+Bu derse katılmadığınızı bildiriyorsunuz. Onaylıyor musunuz?¦You are reporting that you did not attend this class. Confirm?¦Вы подтверждаете, что не посетили занятие?¦Sie melden, dass Sie nicht teilgenommen haben. Bestätigen?
+Katılımınız kaydedildi ✨¦Your attendance was saved ✨¦Посещение отмечено ✨¦Ihre Teilnahme wurde gespeichert ✨
+Bilginiz için teşekkürler.¦Thank you for letting us know.¦Спасибо за информацию.¦Danke für Ihre Rückmeldung.
+Katıldınız¦Attended¦Вы были¦Teilgenommen
+Gelmediniz¦Missed¦Вы не были¦Nicht erschienen
+Bekleme listesi¦Waiting list¦Лист ожидания¦Warteliste
+Rezerve¦Reserved¦Забронировано¦Reserviert
+Rezervasyon Yap¦Book¦Забронировать¦Reservieren
+Kayıtlı olduğunuz grup dersi bulunmuyor.¦You are not registered for any group class.¦Вы не записаны на групповые занятия.¦Sie sind für keinen Gruppenkurs angemeldet.
+Bu derse katıldınız mı?¦Did you attend this class?¦Вы были на этом занятии?¦Haben Sie an diesem Kurs teilgenommen?
+Katılım işaretlenmedi¦Attendance not marked¦Посещение не отмечено¦Teilnahme nicht markiert
+Geçmiş bir derse rezervasyon yapılamaz.¦You cannot book a past class.¦Нельзя записаться на прошедшее занятие.¦Vergangene Kurse können nicht reserviert werden.
+Bu derse zaten kayıtlısınız.¦You are already registered for this class.¦Вы уже записаны на это занятие.¦Sie sind für diesen Kurs bereits angemeldet.
+Bu ders online rezervasyona kapalı.¦Online booking is closed for this class.¦Онлайн-запись на это занятие закрыта.¦Dieser Kurs ist online nicht buchbar.
+Bu ders için kullanılabilir paket/seans hakkınız bulunmuyor. Lütfen salonla iletişime geçin.¦You have no available package/session for this class. Please contact the salon.¦У вас нет пакета или сеансов для этого занятия. Свяжитесь с салоном.¦Sie haben kein Paket bzw. keine Sitzung für diesen Kurs. Bitte kontaktieren Sie den Salon.
+Kapasite dolu olduğu için BEKLEME listesine eklendiniz. Yer açılırsa bilgilendirileceksiniz.¦The class is full, so you were added to the WAITING list. We will inform you if a place opens.¦Мест нет, вы добавлены в ЛИСТ ОЖИДАНИЯ. Мы сообщим, если место освободится.¦Der Kurs ist voll; Sie stehen auf der WARTELISTE. Wir informieren Sie, sobald ein Platz frei wird.
+## Randevular
+Reddedilen/İptal Edilen¦Declined/cancelled¦Отклонённые/отменённые¦Abgelehnt/storniert
+Müşteri tarafından iptal edilen¦Cancelled by customer¦Отменено клиентом¦Vom Kunden storniert
+Randevuyu İptal Et¦Cancel appointment¦Отменить запись¦Termin stornieren
+Bu randevuyu iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.¦Are you sure you want to cancel this appointment? This cannot be undone.¦Отменить эту запись? Действие нельзя отменить.¦Möchten Sie diesen Termin wirklich stornieren? Dies kann nicht rückgängig gemacht werden.
+Randevu iptal etme işlemi geri alınamaz?¦Cancelling the appointment cannot be undone.¦Отмену записи нельзя вернуть.¦Die Stornierung kann nicht rückgängig gemacht werden.
+Randevuyu iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz!¦Are you sure you want to cancel the appointment? This cannot be undone!¦Отменить запись? Действие нельзя отменить!¦Möchten Sie den Termin wirklich stornieren? Dies kann nicht rückgängig gemacht werden!
+Randevunuz iptal edildi.¦Your appointment was cancelled.¦Запись отменена.¦Ihr Termin wurde storniert.
+İptal edildi/reddedildi¦Cancelled/declined¦Отменено/отклонено¦Storniert/abgelehnt
+Müşteri iptal etti¦Cancelled by customer¦Отменено клиентом¦Vom Kunden storniert
+İptal Ettiniz¦Cancelled by you¦Вы отменили¦Von Ihnen storniert
+Henüz randevun yok¦You have no appointments yet¦У вас пока нет записей¦Sie haben noch keine Termine
+{#} randevu¦{} appointments¦Записей: {}¦{} Termine
+Henüz randevu yok¦No appointments yet¦Записей пока нет¦Noch keine Termine
+Seçili filtrelere uyan randevu bulunamadı. Filtreleri sıfırlamayı dene.¦No appointments match the filters. Try resetting them.¦Нет записей по этим фильтрам. Сбросьте фильтры.¦Keine Termine zu diesen Filtern. Setzen Sie die Filter zurück.
+İlk randevunu oluşturmak için aşağıdaki butona dokun.¦Tap the button below to make your first appointment.¦Нажмите кнопку ниже, чтобы записаться впервые.¦Tippen Sie unten, um Ihren ersten Termin zu buchen.
+Henüz randevun bulunmuyor.¦You have no appointments yet.¦У вас пока нет записей.¦Sie haben noch keine Termine.
+Randevu Oluştur¦Book an appointment¦Записаться¦Termin buchen
+Hizmet bilgisi yok¦No service information¦Нет информации об услуге¦Keine Angaben zur Leistung
+Oluşturulduğu Yer¦Created via¦Где создана¦Erstellt über
+Oluşturulma¦Created¦Создано¦Erstellt
+Oluşturulma: {}¦Created: {}¦Создано: {}¦Erstellt: {}
+Reddedildi¦Declined¦Отклонено¦Abgelehnt
+Hizmet seç...¦Choose service...¦Выберите услугу...¦Leistung wählen...
+Hizmet Seç¦Choose service¦Выберите услугу¦Leistung wählen
+Hizmet ara...¦Search service...¦Поиск услуги...¦Leistung suchen...
+Önce şube seçmeniz gerekir!¦Choose a branch first!¦Сначала выберите филиал!¦Wählen Sie zuerst eine Filiale!
+Önce şube seçmeniz gerekir¦Choose a branch first¦Сначала выберите филиал¦Wählen Sie zuerst eine Filiale
+Önce hizmet seçmeniz gerekir!¦Choose a service first!¦Сначала выберите услугу!¦Wählen Sie zuerst eine Leistung!
+Personel seç...¦Choose specialist...¦Выберите мастера...¦Mitarbeiter wählen...
+Personel Seç¦Choose specialist¦Выберите мастера¦Mitarbeiter wählen
+Personel ara...¦Search specialist...¦Поиск мастера...¦Mitarbeiter suchen...
+Fark etmez¦No preference¦Без разницы¦Egal
+Farketmez¦No preference¦Без разницы¦Egal
+{#} paket hizmeti randevuya eklendi. Personel ve saat seçin.¦{} package service(s) added. Choose specialist and time.¦Добавлено услуг из пакета: {}. Выберите мастера и время.¦{} Paketleistung(en) hinzugefügt. Wählen Sie Mitarbeiter und Uhrzeit.
+Şube Seçimi¦Branch¦Филиал¦Filiale
+Hizmet & Personel¦Service & specialist¦Услуга и мастер¦Leistung & Mitarbeiter
+Hizmet Ekle¦Add service¦Добавить услугу¦Leistung hinzufügen
+Tarih Seçimi¦Choose date¦Выбор даты¦Datum wählen
+Uygun Saatler¦Available times¦Доступное время¦Verfügbare Zeiten
+Yeni Randevu¦New appointment¦Новая запись¦Neuer Termin
+Adımları takip et, dakikalar içinde tamamla¦Follow the steps, done in minutes¦Следуйте шагам — займёт пару минут¦Folgen Sie den Schritten, in wenigen Minuten fertig
+Şube Seç¦Choose branch¦Выберите филиал¦Filiale wählen
+Şube ara...¦Search branch...¦Поиск филиала...¦Filiale suchen...
+Ana Hizmet¦Main service¦Основная услуга¦Hauptleistung
+Ek Hizmet {#}¦Extra service {}¦Доп. услуга {}¦Zusatzleistung {}
+Önce hizmet ve personel seç¦Choose service and specialist first¦Сначала выберите услугу и мастера¦Zuerst Leistung und Mitarbeiter wählen
+Uygun saatler hizmet/personel seçtikten sonra burada listelenir.¦Available times appear here after you choose service/specialist.¦Время появится после выбора услуги и мастера.¦Verfügbare Zeiten erscheinen nach Auswahl von Leistung/Mitarbeiter.
+Uygun saat bulunamadı¦No available times¦Нет свободного времени¦Keine freien Zeiten
+Başka bir tarih dene.¦Try another date.¦Попробуйте другую дату.¦Versuchen Sie ein anderes Datum.
+Kampanya saatleri: {#} – {#}. Bu aralıktan randevu al, indirim kuponun geçerli olsun.¦Campaign hours: {} – {}. Book in this range to use your discount coupon.¦Часы акции: {} – {}. Запишитесь в это время, чтобы купон действовал.¦Aktionszeiten: {} – {}. Buchen Sie in diesem Zeitraum, damit Ihr Gutschein gilt.
+Müsait¦Available¦Свободно¦Frei
+Seçili¦Selected¦Выбрано¦Ausgewählt
+Randevu Özeti¦Appointment summary¦Детали записи¦Terminübersicht
+Bilgileri kontrol et ve randevuyu oluştur¦Check the details and book¦Проверьте данные и запишитесь¦Angaben prüfen und Termin buchen
+Sayın {}¦Dear {}¦Уважаемый(-ая) {}¦Liebe/r {}
+İşletmemize iletmek istedikleriniz...¦Anything you would like to tell us...¦Что вы хотите нам сообщить...¦Was möchten Sie uns mitteilen...
+Kullanım koşullarını¦the terms of use¦Условия использования¦Nutzungsbedingungen
+Gizlilik & KVKK politikasını¦the privacy policy¦Политику конфиденциальности¦Datenschutzerklärung
+okudum, kabul ediyorum.¦I have read and accept.¦прочитал(а) и принимаю.¦gelesen und akzeptiert.
+Randevu Talep Et¦Request appointment¦Отправить заявку¦Termin anfragen
+Devam etmek için KVKK onayı vermelisiniz.¦You must accept the privacy policy to continue.¦Чтобы продолжить, примите политику конфиденциальности.¦Um fortzufahren, müssen Sie dem Datenschutz zustimmen.
+Sunucu 60 saniyede yanıt vermedi. Lütfen biraz sonra tekrar deneyin. Sorun devam ederse internet bağlantınızı veya VPN ayarlarınızı kontrol edin.¦The server did not respond within 60 seconds. Please try again shortly. If it continues, check your internet connection or VPN.¦Сервер не ответил за 60 секунд. Попробуйте чуть позже. Если проблема повторяется, проверьте интернет или VPN.¦Der Server hat nicht innerhalb von 60 Sekunden geantwortet. Bitte versuchen Sie es gleich noch einmal. Prüfen Sie ggf. Internet oder VPN.
+Randevu kaydedilemedi.\n\nHata türü: {}\nDetay: {}¦The appointment could not be saved.\n\nError type: {}\nDetails: {}¦Не удалось сохранить запись.\n\nТип ошибки: {}\nПодробности: {}¦Der Termin konnte nicht gespeichert werden.\n\nFehlertyp: {}\nDetails: {}
+Randevu oluşturulamadı. Lütfen farklı bir tarih/saat deneyin.¦The appointment could not be made. Please try another date/time.¦Не удалось записаться. Попробуйте другую дату или время.¦Der Termin konnte nicht erstellt werden. Bitte versuchen Sie ein anderes Datum/eine andere Uhrzeit.
+Oluşturduğunuz randevu aşağıdakilerle çakışmaktadır!\n\n{}¦Your appointment overlaps with the following!\n\n{}¦Ваша запись пересекается со следующим!\n\n{}¦Ihr Termin überschneidet sich mit Folgendem!\n\n{}
+YİNE DE RANDEVUYU OLUŞTUR¦BOOK ANYWAY¦ВСЁ РАВНО ЗАПИСАТЬСЯ¦TROTZDEM BUCHEN
+Randevu talebiniz alınmıştır. Talebiniz kısa sürede sonuçlanacaktır. İlginiz için teşekkür ederiz!¦Your appointment request was received and will be answered shortly. Thank you for your interest!¦Ваша заявка принята и скоро будет рассмотрена. Спасибо за интерес!¦Ihre Terminanfrage ist eingegangen und wird in Kürze bearbeitet. Vielen Dank!
+Randevu başarıyla oluşturuldu¦The appointment was created¦Запись создана¦Der Termin wurde erstellt
+Randevu başarıyla güncellendi.¦The appointment was updated.¦Запись обновлена.¦Der Termin wurde aktualisiert.
+Randevu kaydedilemedi. Sunucu hata kodu: {}¦The appointment could not be saved. Server error code: {}¦Не удалось сохранить запись. Код ошибки: {}¦Der Termin konnte nicht gespeichert werden. Fehlercode: {}
+Durum : {}¦Status: {}¦Статус: {}¦Status: {}
+Randevu Detayları¦Appointment details¦Детали записи¦Termindetails
+{} Randevu Detayları¦{} appointment details¦{} — детали записи¦{} Termindetails
+Kadın Bölümü¦Women¦Женский зал¦Damen
+Erkek Bölümü¦Men¦Мужской зал¦Herren
+Çocuk Bölümü¦Children¦Детский зал¦Kinder
+Unisex¦Unisex¦Унисекс¦Unisex
+Bilgi Alınız¦Ask for details¦Уточняйте¦Bitte anfragen
+Yeni Müşteri¦New customer¦Новый клиент¦Neukunde
+Pasif Müşteri¦Inactive customer¦Неактивный клиент¦Inaktiver Kunde
+Aktif Müşteri¦Active customer¦Активный клиент¦Aktiver Kunde
+Sadık Müşteri¦Loyal customer¦Постоянный клиент¦Stammkunde
+Bronz¦Bronze¦Бронза¦Bronze
+Gümüş¦Silver¦Серебро¦Silber
+Altın¦Gold¦Золото¦Gold
+Platin¦Platinum¦Платина¦Platin
+Elmas¦Diamond¦Бриллиант¦Diamant
+## Kapsam testinde bulunanlar
+Merhaba {} 👋¦Hello {} 👋¦Здравствуйте, {} 👋¦Hallo {} 👋
+🎁 İkram Hizmet: {#} {} alana {#} ikram¦🎁 Free service: buy {1} × {2}, get {3} free¦🎁 Подарок: за {1} × «{2}» — {3} бесплатно¦🎁 Gratis: {1} × {2} nehmen, {3} gratis
+Kampanya {#} tarihinde başlıyor.¦The offer starts on {}.¦Акция начинается {}.¦Die Aktion beginnt am {}.
+Kazandıklarınızı uygulamanızdan takip edip dilediğiniz zaman kullanabilirsiniz.¦Track your rewards in the app and use them any time.¦Следите за подарками в приложении и используйте их в любое время.¦Verfolgen Sie Ihre Prämien in der App und lösen Sie sie jederzeit ein.
+Bu işlem için yetkiniz yok.¦You are not allowed to do this.¦У вас нет прав на это действие.¦Sie sind dazu nicht berechtigt.
+Kullanıcı bulunamadı.¦User not found.¦Пользователь не найден.¦Benutzer nicht gefunden.
+Resim bulunamadı¦Photo not found¦Фото не найдено¦Bild nicht gefunden
+Yüklenen dosya geçersiz¦The uploaded file is invalid¦Загруженный файл недействителен¦Die hochgeladene Datei ist ungültig
+İşletme seçtiğiniz tarihte kapalıdır! Lütfen başka bir tarih seçiniz.¦The salon is closed on this date! Please choose another date.¦В этот день салон закрыт! Выберите другую дату.¦Der Salon ist an diesem Datum geschlossen! Bitte anderes Datum wählen.
+Seçtiniğinz tarihte uygun randevu saati bulunamdı¦No free time on the selected date¦На выбранную дату нет свободного времени¦Am gewählten Datum ist keine Zeit frei
+Kalan {#}/{#}¦Remaining {}/{}¦Осталось {}/{}¦Übrig {}/{}
+{#} / {#} seçili¦{} / {} selected¦выбрано {} / {}¦{} / {} gewählt
+Açıklama¦Description¦Описание¦Beschreibung
+Randevuya Ekle¦Add to appointment¦Добавить к записи¦Zum Termin hinzufügen
+Boy (cm)¦Height (cm)¦Рост (см)¦Größe (cm)
+Kilo (kg)¦Weight (kg)¦Вес (кг)¦Gewicht (kg)
+Yağ Oranı (%)¦Body fat (%)¦Жир (%)¦Körperfett (%)
+Kas (kg)¦Muscle (kg)¦Мышцы (кг)¦Muskeln (kg)
+Not (opsiyonel)¦Note (optional)¦Заметка (необязательно)¦Notiz (optional)
+(Ürün)¦(Product)¦(товар)¦(Produkt)
+(Paket)¦(Package)¦(пакет)¦(Paket)
+(Hizmet)¦(Service)¦(услуга)¦(Leistung)
+Oca¦Jan¦янв¦Jan
+Şub¦Feb¦фев¦Feb
+Nis¦Apr¦апр¦Apr
+Haz¦Jun¦июн¦Jun
+Tem¦Jul¦июл¦Jul
+Ağu¦Aug¦авг¦Aug
+Eyl¦Sep¦сен¦Sep
+Eki¦Oct¦окт¦Okt
+1 gün¦1 day¦1 день¦1 Tag
+{#} gün {#} saat¦{} d {} h¦{} дн. {} ч¦{} T. {} Std.
+Yakında¦Soon¦Скоро¦Demnächst
+Randevu Detayı¦Appointment details¦Детали записи¦Termindetails
+Puan Kazan¦Earn points¦Заработать баллы¦Punkte sammeln

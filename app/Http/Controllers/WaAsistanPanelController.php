@@ -240,7 +240,8 @@ class WaAsistanPanelController extends StoreAdminController
         $saatler = self::mesajSaatleri($o, $gecmis);
         foreach ($gecmis as $i => $m) {
             $rol = ($m['role'] ?? '') === 'user' ? 'musteri' : (!empty($m['personel']) ? 'personel' : 'asistan');
-            $satirlar[] = ['rol' => $rol, 'metin' => (string) ($m['content'] ?? ''), 'geri_kazanim' => !empty($m['geri_kazanim']),
+            // Yabanci dilde yazan musteri: Turkcesi + altinda kendi yazdigi
+            $satirlar[] = ['rol' => $rol, 'metin' => (string) ($m['content'] ?? '') . (!empty($m['asil']) ? "\n\n🌐 " . $m['asil'] : ''), 'geri_kazanim' => !empty($m['geri_kazanim']),
                 'hatirlatma' => !empty($m['hatirlatma']), 'at' => $saatler[$i] ?? null, 'yazan' => $rol === 'personel' ? WaAsistan::yazanKisa($m['yazan'] ?? null) : null];
         }
         $gorseller = [];

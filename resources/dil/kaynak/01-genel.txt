@@ -1,0 +1,275 @@
+# Türkçe ¦ İngilizce ¦ Rusça ¦ Almanca   ({#}=sayı/saat, {}=herhangi; çeviride sıra değişirse {1} {2}; \n = satır)
+## Genel düğmeler ve kelimeler
+Evet¦Yes¦Да¦Ja
+Hayır¦No¦Нет¦Nein
+Tamam¦OK¦ОК¦OK
+Kapat¦Close¦Закрыть¦Schließen
+Vazgeç¦Cancel¦Отмена¦Abbrechen
+İptal¦Cancel¦Отмена¦Abbrechen
+İptal Et¦Cancel¦Отменить¦Stornieren
+Onayla¦Confirm¦Подтвердить¦Bestätigen
+Onay¦Confirmation¦Подтверждение¦Bestätigung
+Kaydet¦Save¦Сохранить¦Speichern
+Sil¦Delete¦Удалить¦Löschen
+Ekle¦Add¦Добавить¦Hinzufügen
+Düzenle¦Edit¦Изменить¦Bearbeiten
+Geri¦Back¦Назад¦Zurück
+Geri Dön¦Back¦Назад¦Zurück
+İleri¦Next¦Далее¦Weiter
+Devam¦Continue¦Продолжить¦Weiter
+Devam Et¦Continue¦Продолжить¦Weiter
+Gönder¦Send¦Отправить¦Senden
+Gönderiliyor...¦Sending...¦Отправка...¦Wird gesendet...
+Gönderiliyor…¦Sending…¦Отправка…¦Wird gesendet…
+Gönderildi.¦Sent.¦Отправлено.¦Gesendet.
+Yükleniyor...¦Loading...¦Загрузка...¦Wird geladen...
+Yükleniyor…¦Loading…¦Загрузка…¦Wird geladen…
+İşleniyor...¦Processing...¦Обработка...¦Wird verarbeitet...
+Lütfen bekleyin...¦Please wait...¦Пожалуйста, подождите...¦Bitte warten...
+Bir hata oluştu¦Something went wrong¦Произошла ошибка¦Ein Fehler ist aufgetreten
+Bir hata oluştu.¦Something went wrong.¦Произошла ошибка.¦Ein Fehler ist aufgetreten.
+Bir hata oluştu: {}¦Something went wrong: {}¦Произошла ошибка: {}¦Ein Fehler ist aufgetreten: {}
+Bir hata oluştu. Tekrar deneyiniz.¦Something went wrong. Please try again.¦Произошла ошибка. Попробуйте ещё раз.¦Ein Fehler ist aufgetreten. Bitte erneut versuchen.
+Hata oluştu.¦An error occurred.¦Произошла ошибка.¦Ein Fehler ist aufgetreten.
+Hata oluştu: {}¦An error occurred: {}¦Произошла ошибка: {}¦Ein Fehler ist aufgetreten: {}
+Hata: {}¦Error: {}¦Ошибка: {}¦Fehler: {}
+Hata¦Error¦Ошибка¦Fehler
+Uyarı¦Warning¦Внимание¦Achtung
+Başarılı¦Success¦Успешно¦Erfolgreich
+Emin misiniz?¦Are you sure?¦Вы уверены?¦Sind Sie sicher?
+Silme işlemi geri alınamaz!¦This cannot be undone!¦Это действие нельзя отменить!¦Das Löschen kann nicht rückgängig gemacht werden!
+İşlem başarısız¦The action failed¦Не удалось выполнить действие¦Vorgang fehlgeschlagen
+İşlem başarısız.¦The action failed.¦Не удалось выполнить действие.¦Vorgang fehlgeschlagen.
+İşlem başarısız oldu¦The action failed¦Не удалось выполнить действие¦Vorgang fehlgeschlagen
+Yapılamadı.¦Could not be completed.¦Не удалось выполнить.¦Konnte nicht ausgeführt werden.
+Yüklenemedi.¦Could not be loaded.¦Не удалось загрузить.¦Konnte nicht geladen werden.
+Yüklenemedi: {}¦Could not be loaded: {}¦Не удалось загрузить: {}¦Konnte nicht geladen werden: {}
+Yüklenemedi:\n{}¦Could not be loaded:\n{}¦Не удалось загрузить:\n{}¦Konnte nicht geladen werden:\n{}
+Veri alınamadı.¦Data could not be loaded.¦Не удалось получить данные.¦Daten konnten nicht geladen werden.
+Veriler alınamadı: {}¦Data could not be loaded: {}¦Не удалось получить данные: {}¦Daten konnten nicht geladen werden: {}
+Kaydedilemedi¦Could not be saved¦Не удалось сохранить¦Konnte nicht gespeichert werden
+Silinemedi¦Could not be deleted¦Не удалось удалить¦Konnte nicht gelöscht werden
+Eklenemedi¦Could not be added¦Не удалось добавить¦Konnte nicht hinzugefügt werden
+Guncellenemedi¦Could not be updated¦Не удалось обновить¦Konnte nicht aktualisiert werden
+Güncellenemedi¦Could not be updated¦Не удалось обновить¦Konnte nicht aktualisiert werden
+Yuklenemedi¦Could not be loaded¦Не удалось загрузить¦Konnte nicht geladen werden
+Oturum yuklenemedi¦The session could not be loaded¦Не удалось загрузить сеанс¦Sitzung konnte nicht geladen werden
+Bağlantı hatası¦Connection error¦Ошибка соединения¦Verbindungsfehler
+Bağlantı hatası: {}¦Connection error: {}¦Ошибка соединения: {}¦Verbindungsfehler: {}
+Bağlantı hatası, tekrar deneyin¦Connection error, please try again¦Ошибка соединения, попробуйте ещё раз¦Verbindungsfehler, bitte erneut versuchen
+Bağlantı hatası, tekrar deneyin.¦Connection error, please try again.¦Ошибка соединения, попробуйте ещё раз.¦Verbindungsfehler, bitte erneut versuchen.
+Bağlantı hatası. Tekrar deneyiniz.¦Connection error. Please try again.¦Ошибка соединения. Попробуйте ещё раз.¦Verbindungsfehler. Bitte erneut versuchen.
+Bağlantı sorunu¦Connection problem¦Проблема с соединением¦Verbindungsproblem
+Sunucu hatası¦Server error¦Ошибка сервера¦Serverfehler
+Sunucu hatası. Lütfen tekrar deneyin.¦Server error. Please try again.¦Ошибка сервера. Попробуйте ещё раз.¦Serverfehler. Bitte erneut versuchen.
+Sunucu hatası oluştu. Lütfen tekrar deneyin.¦A server error occurred. Please try again.¦Произошла ошибка сервера. Попробуйте ещё раз.¦Ein Serverfehler ist aufgetreten. Bitte erneut versuchen.
+Sunucu yanıt vermiyor. Lütfen daha sonra tekrar deneyin.¦The server is not responding. Please try again later.¦Сервер не отвечает. Попробуйте позже.¦Der Server antwortet nicht. Bitte später erneut versuchen.
+Sunucuya bağlanılamadı.¦Could not connect to the server.¦Не удалось подключиться к серверу.¦Keine Verbindung zum Server.
+Sunucudan geçersiz yanıt ({}).¦Invalid response from the server ({}).¦Неверный ответ сервера ({}).¦Ungültige Antwort vom Server ({}).
+Oturum bulunamadı.¦Session not found.¦Сеанс не найден.¦Sitzung nicht gefunden.
+Oturum bilgisi bulunamadı, lütfen tekrar giriş yapın.¦Session not found, please log in again.¦Сеанс не найден, войдите снова.¦Sitzung nicht gefunden, bitte erneut anmelden.
+Tekrar Dene¦Try again¦Повторить¦Erneut versuchen
+Tekrar deneyin¦Try again¦Попробуйте ещё раз¦Erneut versuchen
+Tümü¦All¦Все¦Alle
+Tümünü Gör¦See all¦Показать все¦Alle ansehen
+Tümünü göster ({#})¦Show all ({})¦Показать все ({})¦Alle anzeigen ({})
+Tümünü seç¦Select all¦Выбрать все¦Alle auswählen
+Daha az göster¦Show less¦Свернуть¦Weniger anzeigen
+Detaylar¦Details¦Подробнее¦Details
+Detaylı Bilgi¦More information¦Подробнее¦Mehr Informationen
+Detayları gör¦See details¦Подробнее¦Details ansehen
+İncele¦View¦Посмотреть¦Ansehen
+Diğer¦Other¦Другое¦Andere
+Ara...¦Search...¦Поиск...¦Suchen...
+Filtrele¦Filter¦Фильтр¦Filtern
+Sıfırla¦Reset¦Сбросить¦Zurücksetzen
+Filtreyi Sıfırla¦Reset filter¦Сбросить фильтр¦Filter zurücksetzen
+Filtreleri Sıfırla¦Reset filters¦Сбросить фильтры¦Filter zurücksetzen
+Sonuçları Göster¦Show results¦Показать результаты¦Ergebnisse anzeigen
+Sonuç bulunamadı¦No results found¦Ничего не найдено¦Keine Ergebnisse
+Sonuçlar¦Results¦Результаты¦Ergebnisse
+Kayıt bulunamadı¦No records found¦Записей не найдено¦Keine Einträge gefunden
+Bilgi yok¦No information¦Нет информации¦Keine Angaben
+Belirtilmemiş¦Not specified¦Не указано¦Nicht angegeben
+Belirtilmedi¦Not specified¦Не указано¦Nicht angegeben
+Durum¦Status¦Статус¦Status
+Tarih¦Date¦Дата¦Datum
+Saat¦Time¦Время¦Uhrzeit
+Süre¦Duration¦Длительность¦Dauer
+Tür¦Type¦Тип¦Art
+Toplam¦Total¦Всего¦Gesamt
+Kalan¦Remaining¦Осталось¦Übrig
+Fiyat¦Price¦Цена¦Preis
+Adres¦Address¦Адрес¦Adresse
+Telefon¦Phone¦Телефон¦Telefon
+Telefon:¦Phone:¦Телефон:¦Telefon:
+İletişim¦Contact¦Контакты¦Kontakt
+Hizmet¦Service¦Услуга¦Leistung
+Hizmetler¦Services¦Услуги¦Leistungen
+Hizmetler:¦Services:¦Услуги:¦Leistungen:
+Hizmet(ler)¦Service(s)¦Услуги¦Leistung(en)
+Hizmet(-ler)¦Service(s)¦Услуги¦Leistung(en)
+Personel¦Specialist¦Мастер¦Mitarbeiter
+Personeller¦Specialists¦Мастера¦Mitarbeiter
+Personel:¦Specialist:¦Мастер:¦Mitarbeiter:
+Oda¦Room¦Кабинет¦Raum
+Cihaz¦Device¦Аппарат¦Gerät
+Salon¦Salon¦Салон¦Salon
+İşletme¦Business¦Салон¦Unternehmen
+Şube¦Branch¦Филиал¦Filiale
+Şube / Salon¦Branch / Salon¦Филиал / салон¦Filiale / Salon
+Müşteri¦Customer¦Клиент¦Kunde
+Müşterimiz¦Our customer¦Наш клиент¦Unser Kunde
+Misafir¦Guest¦Гость¦Gast
+Uygulama¦App¦Приложение¦App
+Web¦Web¦Сайт¦Web
+Not¦Note¦Заметка¦Notiz
+Not...¦Note...¦Заметка...¦Notiz...
+Notum¦My note¦Моя заметка¦Meine Notiz
+Notunuz¦Your note¦Ваш комментарий¦Ihre Notiz
+Salon Notu¦Salon note¦Заметка салона¦Notiz des Salons
+Normal¦Normal¦Нормальный¦Normal
+Yeni¦New¦Новый¦Neu
+Bugün¦Today¦Сегодня¦Heute
+Yarın¦Tomorrow¦Завтра¦Morgen
+yarın {}¦tomorrow {}¦завтра {}¦morgen {}
+Dün¦Yesterday¦Вчера¦Gestern
+Şimdi¦Now¦Сейчас¦Jetzt
+Bugün {#}¦Today {}¦Сегодня {}¦Heute {}
+Yarın {#}¦Tomorrow {}¦Завтра {}¦Morgen {}
+Dün {#}¦Yesterday {}¦Вчера {}¦Gestern {}
+Bu ay¦This month¦Этот месяц¦Dieser Monat
+Geçen ay¦Last month¦Прошлый месяц¦Letzter Monat
+Önümüzdeki ay¦Next month¦Следующий месяц¦Nächster Monat
+Bu yıl¦This year¦Этот год¦Dieses Jahr
+Önümüzdeki yıl¦Next year¦Следующий год¦Nächstes Jahr
+Son 1 yıl¦Last 12 months¦Последний год¦Letzte 12 Monate
+Özel tarih¦Custom date¦Выбрать даты¦Eigener Zeitraum
+Özel¦Custom¦Другое¦Benutzerdefiniert
+{#} dk önce¦{} min ago¦{} мин назад¦vor {} Min.
+{#} sa önce¦{} h ago¦{} ч назад¦vor {} Std.
+{#} gün önce¦{} d ago¦{} дн. назад¦vor {} Tagen
+{#} dk sonra¦in {} min¦через {} мин¦in {} Min.
+{#} saat sonra¦in {} h¦через {} ч¦in {} Std.
+{#} gün sonra¦in {} days¦через {} дн.¦in {} Tagen
+{#} sa {#} dk sonra¦in {} h {} min¦через {} ч {} мин¦in {} Std. {} Min.
+{#} saat {#} dk sonra¦in {} h {} min¦через {} ч {} мин¦in {} Std. {} Min.
+{#} gün kaldı¦{} days left¦Осталось дней: {}¦Noch {} Tage
+{#} gün¦{} days¦{} дн.¦{} Tage
+{#} dk¦{} min¦{} мин¦{} Min.
+{#} dakika¦{} minutes¦{} мин¦{} Minuten
+{#} saat¦{} h¦{} ч¦{} Std.
+{#} sa¦{} h¦{} ч¦{} Std.
+{#} yıl¦{} years¦{} г.¦{} Jahre
+{#} TL¦{} TL¦{} TL¦{} TL
+Süresiz¦No expiry¦Бессрочно¦Unbefristet
+Sınırsız¦Unlimited¦Без ограничений¦Unbegrenzt
+Sınırsız · {}¦Unlimited · {}¦Без ограничений · {}¦Unbegrenzt · {}
+Bitti¦Ended¦Завершено¦Beendet
+Aktif¦Active¦Активно¦Aktiv
+Sayfa {#} / {#}¦Page {} / {}¦Страница {} / {}¦Seite {} / {}
+İngilizce¦English¦Английский¦Englisch
+Dil¦Language¦Язык¦Sprache
+Uygulama dili¦App language¦Язык приложения¦App-Sprache
+Uygulama ve mesajlarınızın dili¦Language of the app and your messages¦Язык приложения и сообщений¦Sprache der App und Ihrer Nachrichten
+Dil seçin¦Choose language¦Выберите язык¦Sprache wählen
+Diliniz değiştirildi.¦Your language has been changed.¦Язык изменён.¦Die Sprache wurde geändert.
+## Ay ve gün adları
+Ocak¦January¦Январь¦Januar
+Şubat¦February¦Февраль¦Februar
+Mart¦March¦Март¦März
+Nisan¦April¦Апрель¦April
+Mayıs¦May¦Май¦Mai
+Haziran¦June¦Июнь¦Juni
+Temmuz¦July¦Июль¦Juli
+Ağustos¦August¦Август¦August
+Eylül¦September¦Сентябрь¦September
+Ekim¦October¦Октябрь¦Oktober
+Kasım¦November¦Ноябрь¦November
+Aralık¦December¦Декабрь¦Dezember
+Pazartesi¦Monday¦Понедельник¦Montag
+Salı¦Tuesday¦Вторник¦Dienstag
+Çarşamba¦Wednesday¦Среда¦Mittwoch
+Perşembe¦Thursday¦Четверг¦Donnerstag
+Cuma¦Friday¦Пятница¦Freitag
+Cumartesi¦Saturday¦Суббота¦Samstag
+Pazar¦Sunday¦Воскресенье¦Sonntag
+Pzt¦Mon¦Пн¦Mo
+Sal¦Tue¦Вт¦Di
+Çar¦Wed¦Ср¦Mi
+Per¦Thu¦Чт¦Do
+Cum¦Fri¦Пт¦Fr
+Cmt¦Sat¦Сб¦Sa
+Cts¦Sat¦Сб¦Sa
+Paz¦Sun¦Вс¦So
+## Açılış, giriş, kayıt, şifre
+Kullanıcı Girişi¦Log in¦Войти¦Anmelden
+Randevularınızı kolayca oluşturun ve takip edin.\nSize özel kampanyalardan haberdar olun, tüm güzellik işlemlerinizi tek uygulamadan yönetin.¦Book and track your appointments with ease.\nStay informed about offers made for you and manage all your beauty treatments in one app.¦Легко записывайтесь и следите за своими визитами.\nУзнавайте о персональных акциях и управляйте всеми процедурами в одном приложении.¦Buchen und verwalten Sie Ihre Termine ganz einfach.\nErfahren Sie von Angeboten für Sie und verwalten Sie alle Beauty-Behandlungen in einer App.
+Uygulamadan çık¦Exit the app¦Выйти из приложения¦App beenden
+Uygulamadan çıkış¦Exit the app¦Выход из приложения¦App beenden
+Çıkmak istediğinize emin misiniz?¦Are you sure you want to exit?¦Вы уверены, что хотите выйти?¦Möchten Sie wirklich beenden?
+Uygulamadan çıkmak istediğinize emin misiniz?¦Are you sure you want to exit the app?¦Вы уверены, что хотите выйти из приложения?¦Möchten Sie die App wirklich beenden?
+Çıkış¦Exit¦Выход¦Beenden
+Çıkış Yap¦Log out¦Выйти¦Abmelden
+Çıkış yapmak istediğinize emin misiniz?¦Are you sure you want to log out?¦Вы уверены, что хотите выйти?¦Möchten Sie sich wirklich abmelden?
+Zaman Şimdi Kontrolünüzde¦Your time, under your control¦Ваше время под контролем¦Ihre Zeit im Griff
+Tekrar Hoşgeldiniz 👋¦Welcome back 👋¦С возвращением 👋¦Willkommen zurück 👋
+Giriş Yap¦Log in¦Войти¦Anmelden
+Üye Ol¦Sign up¦Регистрация¦Registrieren
+Şifre¦Password¦Пароль¦Passwort
+Şifreniz¦Your password¦Ваш пароль¦Ihr Passwort
+Şifre gereklidir¦Password is required¦Введите пароль¦Passwort erforderlich
+Şifremi Unuttum¦Forgot password¦Забыли пароль?¦Passwort vergessen
+VEYA¦OR¦ИЛИ¦ODER
+Müşteri Ol¦Sign up¦Зарегистрироваться¦Kunde werden
+Aramıza katılın 👋¦Join us 👋¦Присоединяйтесь 👋¦Werden Sie Teil von uns 👋
+Adınız Soyadınız¦Your full name¦Имя и фамилия¦Vor- und Nachname
+Ad Soyad¦Full name¦Имя и фамилия¦Vor- und Nachname
+Ad Soyad:¦Full name:¦Имя и фамилия:¦Vor- und Nachname:
+Ad ve soyad¦First and last name¦Имя и фамилия¦Vor- und Nachname
+Ad¦First name¦Имя¦Vorname
+Soyad¦Last name¦Фамилия¦Nachname
+Kaydol¦Sign up¦Зарегистрироваться¦Registrieren
+Lütfen formu eksiksiz doldurunuz¦Please fill in the whole form¦Пожалуйста, заполните форму полностью¦Bitte füllen Sie das Formular vollständig aus
+Zaten hesabım var¦I already have an account¦У меня уже есть аккаунт¦Ich habe bereits ein Konto
+Sistemde {} telefon numarasına ait kayıt bulunmaktadır. Eğer şifrenizi unuttuysanız lütfen şifremi unuttum bölümünden yeni şifrenizi alınız¦The phone number {} is already registered. If you forgot your password, please get a new one under "Forgot password".¦Номер {} уже зарегистрирован. Если вы забыли пароль, получите новый в разделе «Забыли пароль?».¦Die Telefonnummer {} ist bereits registriert. Falls Sie Ihr Passwort vergessen haben, fordern Sie unter „Passwort vergessen“ ein neues an.
+Kayıt oluşturulurken bir hata oluştu. Lütfen internet bağlantınızı kontrol edip tekrar deneyin. ({})¦An error occurred while signing up. Please check your internet connection and try again. ({})¦Ошибка при регистрации. Проверьте подключение к интернету и попробуйте ещё раз. ({})¦Bei der Registrierung ist ein Fehler aufgetreten. Bitte prüfen Sie Ihre Internetverbindung. ({})
+Şifrenizi mi unuttunuz?¦Forgot your password?¦Забыли пароль?¦Passwort vergessen?
+Şifre sıfırlama, sisteme kayıtlı telefon numaranıza SMS olarak gönderilir. SMS ulaşmazsa lütfen işletmenize ulaşınız.¦Your new password will be sent by SMS to your registered phone number. If it does not arrive, please contact the salon.¦Новый пароль придёт по SMS на ваш зарегистрированный номер. Если SMS не придёт, свяжитесь с салоном.¦Ihr neues Passwort wird per SMS an Ihre registrierte Nummer gesendet. Falls keine SMS ankommt, wenden Sie sich bitte an den Salon.
+Şifremi Gönder¦Send my password¦Отправить пароль¦Passwort senden
+Lütfen sisteme kayıtlı olan telefon numaranızı giriniz¦Please enter your registered phone number¦Введите зарегистрированный номер телефона¦Bitte geben Sie Ihre registrierte Telefonnummer ein
+Giriş ekranına dön¦Back to login¦Вернуться ко входу¦Zurück zur Anmeldung
+Sistemde kayıtlı telefon numarası bulunamadı!¦This phone number is not registered!¦Этот номер телефона не зарегистрирован!¦Diese Telefonnummer ist nicht registriert!
+Şifreniz Gönderildi¦Password sent¦Пароль отправлен¦Passwort gesendet
+Yeni şifreniz {} numaralı telefonunuza SMS olarak gönderildi. SMS birkaç dakika içinde ulaşmazsa lütfen işletmenize ulaşınız.¦Your new password has been sent by SMS to {}. If it does not arrive within a few minutes, please contact the salon.¦Новый пароль отправлен по SMS на номер {}. Если SMS не придёт через несколько минут, свяжитесь с салоном.¦Ihr neues Passwort wurde per SMS an {} gesendet. Falls die SMS nicht in wenigen Minuten ankommt, wenden Sie sich bitte an den Salon.
+Şifreniz gönderilirken bir hata oluştu : {}¦An error occurred while sending your password: {}¦Ошибка при отправке пароля: {}¦Beim Senden des Passworts ist ein Fehler aufgetreten: {}
+İşleminiz alındı. Telefonunuza SMS gönderildi.¦Your request was received. An SMS has been sent to your phone.¦Запрос принят. SMS отправлено на ваш телефон.¦Ihre Anfrage ist eingegangen. Eine SMS wurde an Ihr Telefon gesendet.
+Eğer bu telefon numarası sistemimizde kayıtlıysa, şifreniz SMS olarak gönderilecektir.¦If this phone number is registered with us, your password will be sent by SMS.¦Если этот номер зарегистрирован, пароль будет отправлен по SMS.¦Falls diese Nummer bei uns registriert ist, wird Ihr Passwort per SMS gesendet.
+Geçersiz veri formatı¦Invalid data format¦Неверный формат данных¦Ungültiges Datenformat
+Kullanıcı adı veya şifre hatalı¦Incorrect phone number or password¦Неверный номер телефона или пароль¦Telefonnummer oder Passwort falsch
+Telefon numarası veya şifre hatalı¦Incorrect phone number or password¦Неверный номер телефона или пароль¦Telefonnummer oder Passwort falsch
+Telefon numarası veya şifre hatalı.¦Incorrect phone number or password.¦Неверный номер телефона или пароль.¦Telefonnummer oder Passwort falsch.
+Giriş yapmalısınız.¦You need to log in.¦Необходимо войти.¦Sie müssen sich anmelden.
+Giris yapmalisiniz¦You need to log in¦Необходимо войти¦Sie müssen sich anmelden
+Oturum Sonlandırıldı¦Session ended¦Сеанс завершён¦Sitzung beendet
+Oturumunuz sonlandırıldı. Lütfen tekrar giriş yapınız.¦Your session has ended. Please log in again.¦Ваш сеанс завершён. Войдите снова.¦Ihre Sitzung wurde beendet. Bitte melden Sie sich erneut an.
+Bu cihazdaki oturumunuz başka bir cihazdan kapatıldı.¦Your session on this device was closed from another device.¦Ваш сеанс на этом устройстве завершён с другого устройства.¦Ihre Sitzung auf diesem Gerät wurde von einem anderen Gerät beendet.
+Güncelleme Gerekli¦Update required¦Требуется обновление¦Update erforderlich
+Uygulamamızın güncellenmiş sürümü mevcut. Devam edebilmeniz için lütfen güncelleyiniz.¦A newer version of the app is available. Please update to continue.¦Доступна новая версия приложения. Обновите его, чтобы продолжить.¦Eine neue Version der App ist verfügbar. Bitte aktualisieren Sie, um fortzufahren.
+GÜNCELLE¦UPDATE¦ОБНОВИТЬ¦AKTUALISIEREN
+İnternet bağlantınız yok¦No internet connection¦Нет подключения к интернету¦Keine Internetverbindung
+Lütfen Wi-Fi veya mobil veri bağlantınızı kontrol edip tekrar deneyin.¦Please check your Wi-Fi or mobile data and try again.¦Проверьте Wi-Fi или мобильный интернет и попробуйте снова.¦Bitte prüfen Sie WLAN oder mobile Daten und versuchen Sie es erneut.
+Wi-Fi açık mı kontrol edin¦Check that Wi-Fi is on¦Проверьте, включён ли Wi-Fi¦Prüfen Sie, ob WLAN aktiviert ist
+Mobil verinizin aktif olduğundan emin olun¦Make sure mobile data is on¦Убедитесь, что мобильный интернет включён¦Stellen Sie sicher, dass mobile Daten aktiv sind
+Uçak modu kapalı olmalı¦Airplane mode must be off¦Режим полёта должен быть выключен¦Der Flugmodus muss ausgeschaltet sein
+Ülke veya kod ara...¦Search country or code...¦Страна или код...¦Land oder Vorwahl suchen...
+Sık kullanılan¦Frequently used¦Часто используемые¦Häufig verwendet
+Tüm ülkeler¦All countries¦Все страны¦Alle Länder
+Numara¦Number¦Номер¦Nummer
+Telefon Numarası¦Phone number¦Номер телефона¦Telefonnummer
+Telefon numaranız¦Your phone number¦Ваш номер телефона¦Ihre Telefonnummer
+Telefon alanı gereklidir¦Phone number is required¦Введите номер телефона¦Telefonnummer erforderlich
+Hizmet Geçici Olarak Kullanılamıyor¦Service temporarily unavailable¦Сервис временно недоступен¦Dienst vorübergehend nicht verfügbar
+{} şu anda uygulama üzerinden hizmet veremiyor. Randevu ve bilgi için işletme ile doğrudan iletişime geçebilirsiniz.¦{} is currently not available through the app. For appointments and information please contact the business directly.¦{} сейчас не обслуживает через приложение. Для записи и информации свяжитесь с салоном напрямую.¦{} ist derzeit nicht über die App erreichbar. Für Termine und Informationen wenden Sie sich bitte direkt an das Unternehmen.
+İşletmeyi Ara¦Call the salon¦Позвонить в салон¦Salon anrufen
+ÇIKIŞ YAPIN¦LOG OUT¦ВЫЙТИ¦ABMELDEN

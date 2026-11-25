@@ -280,7 +280,7 @@ class CustomerController extends Controller
                 if($isletme->yeni_sms)
                 {
                     $smsController = app()->make(SMSController::class);
-                    $smsController->tekilSMSGonderVoiceTelekom(Auth::user()->cep_telefon,$mesaj,$randevu->salon_id,'Randevu talebi bilgilendirme');
+                    $smsController->tekilSMSGonderVoiceTelekom(Auth::user()->cep_telefon,\App\Services\MusteriDili::mesaj($randevu->salon_id, Auth::user()->id, null, $mesaj, 'sms'),$randevu->salon_id,'Randevu talebi bilgilendirme');
                 }
                 else
                 {
@@ -291,7 +291,7 @@ class CustomerController extends Controller
                          'Content-Type: application/json',
                          'Accept: application/json'
                     );
-                     $postData = json_encode( array( "originator"=> $isletme->sms_baslik, "message"=>$mesaj, "to"=>[Auth::user()->cep_telefon],"encoding"=>"auto") );
+                     $postData = json_encode( array( "originator"=> $isletme->sms_baslik, "message"=>\App\Services\MusteriDili::mesaj($randevu->salon_id, Auth::user()->id, null, $mesaj, 'sms'), "to"=>[Auth::user()->cep_telefon],"encoding"=>"auto") );
                      $postData2 = json_encode( array( "originator"=> $isletme->sms_baslik, "message"=>$mesaj_isletme, "to"=>['05316237563'],"encoding"=>"auto") );
 
 

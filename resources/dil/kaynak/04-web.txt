@@ -1,0 +1,437 @@
+## Online randevu sitesi
+Anasayfa¦Home¦Главная¦Startseite
+Ana sayfa¦Home¦Главная¦Startseite
+Anasayfaya Dön¦Back to home¦На главную¦Zur Startseite
+İşletme Giriş¦Business login¦Вход для салонов¦Login für Unternehmen
+Hemen Ara¦Call now¦Позвонить¦Jetzt anrufen
+Hemen Randevu Al¦Book now¦Записаться сейчас¦Jetzt Termin buchen
+Bizi Arayın¦Call us¦Позвоните нам¦Rufen Sie uns an
+Instagram'da takip et¦Follow on Instagram¦Подписаться в Instagram¦Auf Instagram folgen
+Telefon ile ara¦Call by phone¦Позвонить¦Anrufen
+WhatsApp ile yazışın¦Chat on WhatsApp¦Написать в WhatsApp¦Per WhatsApp schreiben
+WhatsApp Sohbet¦WhatsApp chat¦Чат WhatsApp¦WhatsApp-Chat
+WhatsApp'ta Yazın¦Write on WhatsApp¦Написать в WhatsApp¦Auf WhatsApp schreiben
+Çevrimiçi¦Online¦Онлайн¦Online
+Genellikle dakikalar içinde yanıtlar¦Usually replies within minutes¦Обычно отвечаем за несколько минут¦Antwortet meist in wenigen Minuten
+'a hoş geldiniz!¦— welcome!¦— добро пожаловать!¦— willkommen!
+Hizmetler, fiyatlar veya randevu hakkında sorularınızı cevaplayalım.¦Ask us about services, prices or appointments.¦Ответим на вопросы об услугах, ценах и записи.¦Wir beantworten Fragen zu Leistungen, Preisen oder Terminen.
+hakkında bilgi almak istiyorum.¦— I would like some information.¦— хочу получить информацию.¦— ich hätte gern Informationen.
+Salon Görseli¦Salon photo¦Фото салона¦Salonbild
+{} Randevu Sistemi¦{} booking¦{} — онлайн-запись¦{} Terminbuchung
+HARİTAYI GİZLE¦HIDE MAP¦СКРЫТЬ КАРТУ¦KARTE AUSBLENDEN
+Tarih & Saat¦Date & time¦Дата и время¦Datum & Uhrzeit
+Tarih-Saat¦Date & time¦Дата и время¦Datum & Uhrzeit
+Randevu Onayı¦Confirmation¦Подтверждение¦Bestätigung
+{#} / 5 ({#} yorum)¦{} / 5 ({} reviews)¦{} / 5 (отзывов: {})¦{} / 5 ({} Bewertungen)
+{#}/5 · {#} Yorum¦{}/5 · {} reviews¦{}/5 · отзывов: {}¦{}/5 · {} Bewertungen
+Türkiye¦Türkiye¦Турция¦Türkei
+Şu an Açık · {}¦Open now · {}¦Сейчас открыто · {}¦Jetzt geöffnet · {}
+Açık · {}¦Open · {}¦Открыто · {}¦Geöffnet · {}
+Bugün Kapalı¦Closed today¦Сегодня закрыто¦Heute geschlossen
+Kapalı¦Closed¦Закрыто¦Geschlossen
+Açık¦Open¦Открыто¦Geöffnet
+· Bugün¦· Today¦· Сегодня¦· Heute
+Pazartesi · Bugün¦Monday · Today¦Понедельник · Сегодня¦Montag · Heute
+Salı · Bugün¦Tuesday · Today¦Вторник · Сегодня¦Dienstag · Heute
+Çarşamba · Bugün¦Wednesday · Today¦Среда · Сегодня¦Mittwoch · Heute
+Perşembe · Bugün¦Thursday · Today¦Четверг · Сегодня¦Donnerstag · Heute
+Cuma · Bugün¦Friday · Today¦Пятница · Сегодня¦Freitag · Heute
+Cumartesi · Bugün¦Saturday · Today¦Суббота · Сегодня¦Samstag · Heute
+Pazar · Bugün¦Sunday · Today¦Воскресенье · Сегодня¦Sonntag · Heute
+{#} profesyonel personel¦{} professionals¦Профессионалов: {}¦{} Profis
+{#} Personel¦{} specialists¦Мастеров: {}¦{} Mitarbeiter
+Online Randevu¦Online booking¦Онлайн-запись¦Online-Termin
+Saniyeler içinde¦In seconds¦За секунды¦In Sekunden
+Saniyeler içinde randevunuzu oluşturun. Dilediğiniz hizmeti, personeli ve saati seçin — gerisini biz hallederiz.¦Book in seconds. Choose your service, specialist and time — we take care of the rest.¦Запишитесь за секунды. Выберите услугу, мастера и время — остальное сделаем мы.¦Buchen Sie in Sekunden. Wählen Sie Leistung, Mitarbeiter und Uhrzeit — wir erledigen den Rest.
+Güvenli & Anında Onay¦Safe & instant confirmation¦Безопасно, мгновенное подтверждение¦Sicher & sofort bestätigt
+Saat Seçimi¦Choose time¦Выбор времени¦Uhrzeit wählen
+Son Adım — İletişim Bilgileri¦Last step — contact details¦Последний шаг — контактные данные¦Letzter Schritt — Kontaktdaten
+Adınız ve telefonunuzla randevunuzu hemen oluşturun. Şifre veya SMS gerekmez.¦Book with your name and phone number. No password or SMS needed.¦Запишитесь, указав имя и телефон. Пароль и SMS не нужны.¦Buchen Sie mit Name und Telefonnummer. Kein Passwort, keine SMS nötig.
+Örn. Ayşe Yılmaz¦E.g. Anna Smith¦Напр.: Анна Иванова¦z. B. Anna Schmidt
+Mevcut şifreniz¦Your current password¦Ваш текущий пароль¦Ihr aktuelles Passwort
+Mevcut Şifreniz¦Current password¦Текущий пароль¦Aktuelles Passwort
+Randevu için notunuz...¦Your note for the appointment...¦Комментарий к записи...¦Ihre Notiz zum Termin...
+Cep Telefonu¦Mobile phone¦Мобильный телефон¦Handynummer
+Ev Telefonu¦Home phone¦Домашний телефон¦Festnetz
+Doğum Tarihi¦Date of birth¦Дата рождения¦Geburtsdatum
+Telefonunuz randevu bildirimleri için kullanılır. Sizinle paylaşılmaz.¦Your phone is only used for appointment notifications.¦Телефон используется только для уведомлений о записи.¦Ihre Nummer wird nur für Terminbenachrichtigungen genutzt.
+Randevumcepte Şifreniz¦Your Randevumcepte password¦Ваш пароль Randevumcepte¦Ihr Randevumcepte-Passwort
+Şifremi unuttum¦Forgot password¦Забыли пароль?¦Passwort vergessen
+Bu numara sistemde kayıtlı. Mevcut şifrenizi girin ya da "Şifremi unuttum" ile SMS yoluyla yeni şifre isteyin.¦This number is registered. Enter your password or get a new one by SMS via "Forgot password".¦Этот номер уже зарегистрирован. Введите пароль или получите новый по SMS («Забыли пароль?»).¦Diese Nummer ist registriert. Geben Sie Ihr Passwort ein oder fordern Sie per SMS ein neues an.
+Kullanım ve gizlilik koşulları¦Terms of use and privacy¦Условия использования и конфиденциальности¦Nutzungs- und Datenschutzbedingungen
+nı okudum, kabul ediyorum.¦— I have read and accept.¦— прочитал(а) и принимаю.¦— gelesen und akzeptiert.
+sayfasını okudum ve kabul ediyorum¦— I have read and accept¦— прочитал(а) и принимаю¦— gelesen und akzeptiert
+RANDEVUYU OLUŞTUR¦BOOK APPOINTMENT¦ЗАПИСАТЬСЯ¦TERMIN BUCHEN
+Salon adı¦Salon¦Салон¦Salon
+Seçilen hizmetler¦Selected services¦Выбранные услуги¦Gewählte Leistungen
+Seçilen personeller¦Selected specialists¦Выбранные мастера¦Gewählte Mitarbeiter
+Yukarıda detayları listelenen randevunuzu onaylamak istiyor musunuz?¦Do you want to confirm the appointment above?¦Подтвердить запись, указанную выше?¦Möchten Sie den oben stehenden Termin bestätigen?
+Henüz hizmet seçmediniz...¦No service selected yet...¦Услуга не выбрана...¦Noch keine Leistung gewählt...
+Henüz personel seçmediniz...¦No specialist selected yet...¦Мастер не выбран...¦Noch kein Mitarbeiter gewählt...
+Henüz tarih saat seçmediniz...¦No date and time selected yet...¦Дата и время не выбраны...¦Noch kein Datum/keine Uhrzeit gewählt...
+Henüz seçilmedi¦Not selected yet¦Не выбрано¦Noch nicht gewählt
+✓ {} seçildi. Şimdi yapılacak hizmeti seç ve "DEVAM ET" butonuna bas. Personel otomatik atanacak.¦✓ {} selected. Now choose the service and press "CONTINUE". The specialist is assigned automatically.¦✓ Выбран мастер: {}. Теперь выберите услугу и нажмите «ПРОДОЛЖИТЬ».¦✓ {} gewählt. Wählen Sie nun die Leistung und drücken Sie „WEITER“.
+✓ {} seçildi¦✓ {} selected¦✓ Выбрано: {}¦✓ {} gewählt
+{} seçildi¦{} selected¦Выбрано: {}¦{} gewählt
+Şimdi yapılacak hizmeti seç ve "DEVAM ET" butonuna bas — personel otomatik atanacak.¦Now choose the service and press "CONTINUE" — the specialist is assigned automatically.¦Выберите услугу и нажмите «ПРОДОЛЖИТЬ» — мастер назначится автоматически.¦Wählen Sie nun die Leistung und drücken Sie „WEITER“ — der Mitarbeiter wird automatisch zugewiesen.
+Hizmeti Seç¦Choose the service¦Выберите услугу¦Leistung wählen
+Personel Seçildi¦Specialist selected¦Мастер выбран¦Mitarbeiter gewählt
+seçildi. Şimdi hizmeti seç ve devam et.¦selected. Now choose the service and continue.¦выбран. Теперь выберите услугу.¦gewählt. Wählen Sie nun die Leistung.
+seçildi¦selected¦выбрано¦gewählt
+İstediğin hizmet(leri) seç ve¦Choose the service(s) you want and¦Выберите нужные услуги и¦Wählen Sie die gewünschte(n) Leistung(en) und
+otomatik seçildi — şimdi tarih ve saat seç¦selected automatically — now choose date and time¦выбран автоматически — теперь выберите дату и время¦automatisch gewählt — wählen Sie nun Datum und Uhrzeit
+Personel otomatik atandı — tarih ve saati seç.¦Specialist assigned automatically — choose date and time.¦Мастер назначен автоматически — выберите дату и время.¦Mitarbeiter automatisch zugewiesen — Datum und Uhrzeit wählen.
+Telefon numaranız 5XXXXXXXXX formatında olmalı.¦Please enter a valid phone number.¦Введите номер телефона правильно.¦Bitte geben Sie eine gültige Telefonnummer ein.
+Telefon numarasını 5XXXXXXXXX formatında yazınız.¦Please enter a valid phone number.¦Введите номер телефона правильно.¦Bitte geben Sie eine gültige Telefonnummer ein.
+Geçerli bir telefon numarası girin.¦Enter a valid phone number.¦Введите действующий номер телефона.¦Geben Sie eine gültige Telefonnummer ein.
+Geçerli bir cep telefonu girin (05XXXXXXXXX).¦Enter a valid mobile number.¦Введите действующий номер мобильного.¦Geben Sie eine gültige Handynummer ein.
+Geçerli cep telefon (5XX...)¦Valid mobile number¦Номер мобильного¦Gültige Handynummer
+Geçerli cep telefon girin (5XX...)¦Enter a valid mobile number¦Введите номер мобильного¦Gültige Handynummer eingeben
+Şifreniz SMS olarak gönderiliyor, lütfen bekleyin...¦Sending your password by SMS, please wait...¦Отправляем пароль по SMS, подождите...¦Ihr Passwort wird per SMS gesendet, bitte warten...
+Telefonunuza SMS olarak yeni şifre gönderildi. Lütfen gelen şifreyi yukarıya girin.¦A new password was sent by SMS. Please enter it above.¦Новый пароль отправлен по SMS. Введите его выше.¦Ein neues Passwort wurde per SMS gesendet. Bitte oben eingeben.
+Şifre gönderilemedi. Lütfen biraz sonra tekrar deneyin.¦The password could not be sent. Please try again later.¦Не удалось отправить пароль. Попробуйте позже.¦Das Passwort konnte nicht gesendet werden. Bitte später erneut versuchen.
+Devam etmek için kullanım ve gizlilik koşullarını onaylayın.¦Accept the terms of use and privacy to continue.¦Примите условия использования и конфиденциальности, чтобы продолжить.¦Bitte akzeptieren Sie die Nutzungs- und Datenschutzbedingungen.
+Kullanım ve gizlilik koşullarını onaylamanız gerekir.¦You must accept the terms of use and privacy.¦Необходимо принять условия использования и конфиденциальности.¦Sie müssen die Nutzungs- und Datenschutzbedingungen akzeptieren.
+Geçersiz istek.¦Invalid request.¦Неверный запрос.¦Ungültige Anfrage.
+Lütfen biraz daha yavaş ilerleyin.¦Please slow down a little.¦Пожалуйста, чуть медленнее.¦Bitte etwas langsamer.
+Çok fazla deneme. Lütfen 1 saat sonra tekrar deneyin.¦Too many attempts. Please try again in 1 hour.¦Слишком много попыток. Попробуйте через 1 час.¦Zu viele Versuche. Bitte in 1 Stunde erneut versuchen.
+Adınız ve soyadınız 2-100 karakter olmalı.¦Your name must be 2-100 characters.¦Имя должно содержать 2–100 символов.¦Ihr Name muss 2–100 Zeichen lang sein.
+Lütfen geçerli bir tarih ve saat seçiniz.¦Please choose a valid date and time.¦Выберите корректные дату и время.¦Bitte wählen Sie ein gültiges Datum und eine Uhrzeit.
+Bu numara için bugün çok fazla işlem yapıldı. Yarın tekrar deneyin.¦Too many requests for this number today. Try again tomorrow.¦Слишком много запросов с этого номера сегодня. Попробуйте завтра.¦Zu viele Anfragen für diese Nummer heute. Versuchen Sie es morgen.
+Bu numaraya yakın zamanda şifre gönderildi. Lütfen birkaç dakika sonra tekrar deneyin.¦A password was sent to this number recently. Please try again in a few minutes.¦Пароль недавно отправлен на этот номер. Попробуйте через несколько минут.¦An diese Nummer wurde kürzlich ein Passwort gesendet. Bitte in einigen Minuten erneut versuchen.
+Seçtiğiniz tarih için uygun randevu bulunamadı.¦No free appointments on the selected date.¦На выбранную дату нет свободного времени.¦Am gewählten Datum gibt es keine freien Termine.
+Salon seçtiğiniz tarihte kapalı.¦The salon is closed on the selected date.¦В выбранный день салон закрыт.¦Der Salon ist am gewählten Datum geschlossen.
+Uygun randevu bulunamadı. Lütfen başka bir tarih seçiniz.¦No free appointment found. Please choose another date.¦Свободного времени нет. Выберите другую дату.¦Kein freier Termin gefunden. Bitte anderes Datum wählen.
+Bu saatte hizmet verebilecek uygun personel bulunmamaktadır¦No specialist is available at this time¦В это время нет свободного мастера¦Zu dieser Zeit ist kein Mitarbeiter verfügbar
+Lütfen cep telefon numaranızı giriniz¦Please enter your mobile number¦Введите номер мобильного¦Bitte geben Sie Ihre Handynummer ein
+Lütfen geçerli bir cep telefon numarası giriniz!¦Please enter a valid mobile number!¦Введите действующий номер мобильного!¦Bitte geben Sie eine gültige Handynummer ein!
+Lütfen tüm bilgileri giriniz¦Please fill in all fields¦Заполните все поля¦Bitte füllen Sie alle Felder aus
+Lütfen telefon numarası giriniz¦Please enter a phone number¦Введите номер телефона¦Bitte geben Sie eine Telefonnummer ein
+Lütfen cep telefonunuza gönderilen şifreyi giriniz¦Please enter the password sent to your phone¦Введите пароль, отправленный на телефон¦Bitte geben Sie das an Ihr Handy gesendete Passwort ein
+Gönderilen şifreyi giriniz¦Enter the password you received¦Введите полученный пароль¦Erhaltenes Passwort eingeben
+buraya tıklayınız¦click here¦нажмите здесь¦hier klicken
+Devam etmek için en az bir tane hizmet seçiniz!¦Choose at least one service to continue!¦Выберите хотя бы одну услугу!¦Wählen Sie mindestens eine Leistung!
+Devam etmek için lütfen randevu saatinizi seçiniz¦Please choose a time to continue¦Выберите время, чтобы продолжить¦Bitte wählen Sie eine Uhrzeit
+{} randevunuz için puan ve yorum yapın¦Rate and review your appointment at {}¦Оцените ваш визит: {}¦Bewerten Sie Ihren Termin: {}
+{}'a tekrar hoşgeldiniz! Randevunuzu onaylamak için lütfen mevcut sistem şifrenizi aşağıdaki alana giriniz. Eğer şifrenizi unuttuysanız tekrar gönderilmesi için lütfen¦Welcome back to {}! Enter your password below to confirm. If you forgot it, to get a new one please¦С возвращением в {}! Введите пароль ниже для подтверждения. Если забыли его, для повторной отправки¦Willkommen zurück bei {}! Geben Sie unten Ihr Passwort ein. Falls vergessen, bitte zum erneuten Senden
+{}'a tekrar hoşgeldiniz! Randevunuzu onaylamak için lütfen {} telefon numaranıza gönderdiğimiz şifrenizi aşağıdaki alana giriniz. Şifreniz birkaç dakika içerisinde ulaşmazsa tekrar gönderilmesi için lütfen¦Welcome back to {}! Enter the password we sent to {} below. If it does not arrive in a few minutes, please¦С возвращением в {}! Введите ниже пароль, отправленный на {}. Если он не придёт через несколько минут,¦Willkommen zurück bei {}! Geben Sie das an {} gesendete Passwort ein. Falls es nicht ankommt, bitte
+{}'a hoşgeldiniz! Görünüşe göre randevu sistemimizi ilk defa kullanıyorsunuz. Sisteme kayıt olmak ve randevu almak için lütfen adınızı soyadınızı ve cep telefon numaranızı giriniz.¦Welcome to {}! It looks like this is your first time. Please enter your name and mobile number to book.¦Добро пожаловать в {}! Похоже, вы у нас впервые. Введите имя и номер мобильного, чтобы записаться.¦Willkommen bei {}! Sie sind wohl zum ersten Mal hier. Bitte geben Sie Name und Handynummer ein.
+Randevunuzu onaylamak için lütfen {} telefon numaranıza gönderdiğimiz şifrenizi aşağıdaki alana giriniz. Şifreniz birkaç dakika içerisinde ulaşmazsa tekrar gönderilmesi için lütfen¦Enter the password we sent to {} below to confirm. If it does not arrive in a few minutes, please¦Введите ниже пароль, отправленный на {}. Если он не придёт через несколько минут,¦Geben Sie das an {} gesendete Passwort ein. Falls es nicht ankommt, bitte
+SMS gönderilemedi: {}¦SMS could not be sent: {}¦Не удалось отправить SMS: {}¦SMS konnte nicht gesendet werden: {}
+->> Gönder¦Send¦Отправить¦Senden
+Bu görseli galeriden silmek istediğinize emin misiniz? Geri alınamaz.¦Delete this photo from the gallery? This cannot be undone.¦Удалить фото из галереи? Отменить нельзя.¦Dieses Bild aus der Galerie löschen? Dies kann nicht rückgängig gemacht werden.
+Silme başarısız oldu. Tekrar deneyiniz.¦Delete failed. Please try again.¦Не удалось удалить. Попробуйте ещё раз.¦Löschen fehlgeschlagen. Bitte erneut versuchen.
+Hakkımızda¦About us¦О нас¦Über uns
+Hakkında¦About¦О мастере¦Über
+Sadece bir salon değil, bir deneyim.¦Not just a salon, an experience.¦Не просто салон, а впечатление.¦Nicht nur ein Salon, ein Erlebnis.
+Profesyonel ekibimiz, modern anlayışımız ve kişisel dokunuşlarımızla sizi ağırlıyoruz.¦We welcome you with a professional team, a modern approach and a personal touch.¦Профессиональная команда, современный подход и забота о каждом.¦Wir empfangen Sie mit professionellem Team, modernem Konzept und persönlicher Note.
+Profesyonel ekibimiz ve modern hizmet anlayışımızla sizi en iyi şekilde ağırlamak için buradayız.¦We are here to welcome you with our professional team and modern service.¦Наша команда готова принять вас на высшем уровне.¦Unser Team empfängt Sie mit modernem Service.
+Profesyonel Hizmetlerimiz¦Our professional services¦Наши профессиональные услуги¦Unsere professionellen Leistungen
+Sizi en iyi şekilde ağırlamak için geniş hizmet yelpazemiz.¦A wide range of services for you.¦Широкий выбор услуг для вас.¦Unser breites Angebot für Sie.
+{#} hizmet seçeneği¦{} services¦Услуг: {}¦{} Leistungen
+Neden Biz?¦Why us?¦Почему мы?¦Warum wir?
+Farkımız Detaylarda¦The difference is in the details¦Разница — в деталях¦Der Unterschied liegt im Detail
+{}'i tercih etmeniz için pek çok sebep var.¦There are many reasons to choose {}.¦Есть много причин выбрать {}.¦Es gibt viele Gründe für {}.
+Uzman Ekip¦Expert team¦Команда экспертов¦Expertenteam
+Alanında deneyimli profesyonel personelimiz en yeni teknikleri kullanarak hizmet veriyor.¦Our experienced professionals use the latest techniques.¦Наши опытные специалисты используют новейшие техники.¦Unsere erfahrenen Profis nutzen neueste Techniken.
+Hijyenik Ortam¦Hygienic environment¦Гигиена и чистота¦Hygienische Umgebung
+Tüm ekipman ve alanlarımız her kullanım öncesi özenle dezenfekte edilir.¦All equipment and areas are disinfected before every use.¦Всё оборудование и зоны дезинфицируются перед каждым визитом.¦Alle Geräte und Bereiche werden vor jeder Nutzung desinfiziert.
+7/24 dilediğiniz saatte birkaç tıkla randevunuzu anında onaylayın.¦Book 24/7 in a few clicks with instant confirmation.¦Записывайтесь 24/7 в несколько кликов.¦Buchen Sie rund um die Uhr mit wenigen Klicks.
+Kaliteli Ürünler¦Quality products¦Качественные материалы¦Hochwertige Produkte
+Sadece güvenilir markaların profesyonel serilerini kullanıyoruz.¦We only use professional lines of trusted brands.¦Используем только профессиональные линии проверенных брендов.¦Wir verwenden nur Profi-Serien vertrauenswürdiger Marken.
+Dakiklik¦Punctuality¦Пунктуальность¦Pünktlichkeit
+Randevu saatinize tam zamanında başlıyor, vaktinize değer veriyoruz.¦We start on time and value your time.¦Начинаем вовремя и ценим ваше время.¦Wir beginnen pünktlich und schätzen Ihre Zeit.
+Müşteri Memnuniyeti¦Customer satisfaction¦Довольные клиенты¦Kundenzufriedenheit
+{#}+ mutlu müşterimizin deneyimini siz de yaşayın.¦Join {}+ happy customers.¦Присоединяйтесь: {}+ довольных клиентов.¦Werden Sie Teil von {}+ zufriedenen Kunden.
+Sadakat Hediyeleri¦Loyalty gifts¦Подарки за лояльность¦Treuegeschenke
+Her ziyaretinizde puan biriktirin, çarkı çevirin ve özel indirim fırsatları elde edin.¦Collect points on every visit, spin the wheel and get special discounts.¦Копите баллы за каждый визит, крутите колесо и получайте скидки.¦Sammeln Sie Punkte, drehen Sie das Rad und erhalten Sie Rabatte.
+Konforlu Ortam¦Comfortable atmosphere¦Комфортная атмосфера¦Angenehme Atmosphäre
+Keyifle vakit geçirebileceğiniz ferah, şık ve modern bir atmosfer sizi bekliyor.¦A spacious, stylish and modern atmosphere awaits you.¦Вас ждёт просторный, стильный и современный интерьер.¦Eine helle, stilvolle und moderne Atmosphäre erwartet Sie.
+Ekibimiz¦Our team¦Наша команда¦Unser Team
+Profesyonel Ekibimizle Tanışın¦Meet our professional team¦Познакомьтесь с нашей командой¦Lernen Sie unser Team kennen
+Her biri alanında uzman, gülümseyen yüzler sizi bekliyor.¦Smiling experts are waiting for you.¦Вас ждут улыбчивые эксперты своего дела.¦Freundliche Experten erwarten Sie.
+{#}+ yıl tecrübe¦{}+ years of experience¦Опыт {}+ лет¦{}+ Jahre Erfahrung
+Yıl Tecrübe¦years of experience¦лет опыта¦Jahre Erfahrung
+Bu Personelden Randevu Al¦Book with this specialist¦Записаться к этому мастеру¦Bei diesem Mitarbeiter buchen
+Salonumuzdan Kareler¦Photos of our salon¦Фото нашего салона¦Bilder aus unserem Salon
+Görsellerimizle atmosferimizi yakından tanıyın.¦Get to know our atmosphere.¦Почувствуйте нашу атмосферу.¦Lernen Sie unsere Atmosphäre kennen.
+Ziyaret¦Visit¦Визит¦Besuch
+Çalışma Saatleri & Konum¦Opening hours & location¦Часы работы и адрес¦Öffnungszeiten & Standort
+Açık olduğumuz saatleri ve adresimizi buradan görüntüleyebilirsiniz.¦See our opening hours and address here.¦Здесь указаны часы работы и адрес.¦Hier finden Sie Öffnungszeiten und Adresse.
+Çalışma Saatleri¦Opening hours¦Часы работы¦Öffnungszeiten
+Konum henüz eklenmedi¦Location not added yet¦Адрес ещё не указан¦Standort noch nicht hinterlegt
+Bizi tercih eden değerli müşterilerimizin deneyimleri.¦Experiences of our valued customers.¦Впечатления наших клиентов.¦Erfahrungen unserer Kunden.
+Müşteri Deneyimleri¦Customer experiences¦Впечатления клиентов¦Kundenerfahrungen
+Doğrulanmış¦Verified¦Проверено¦Verifiziert
+Deneyiminizi Paylaşın¦Share your experience¦Поделитесь впечатлениями¦Teilen Sie Ihre Erfahrung
+Deneyiminizi yazın...¦Write about your experience...¦Опишите впечатления...¦Beschreiben Sie Ihre Erfahrung...
+Yorumu Gönder¦Submit review¦Отправить отзыв¦Bewertung senden
+Henüz yorum yapılmamış — ilk yorumu yapan siz olun!¦No reviews yet — be the first!¦Отзывов пока нет — станьте первым!¦Noch keine Bewertungen — seien Sie die/der Erste!
+Size Özel Deneyime Hazır mısınız?¦Ready for your experience?¦Готовы к новым впечатлениям?¦Bereit für Ihr Erlebnis?
+Saniyeler içinde randevunuzu oluşturun, uzman ekibimizle tanışmaya gelin.¦Book in seconds and meet our expert team.¦Запишитесь за секунды и познакомьтесь с нашей командой.¦Buchen Sie in Sekunden und lernen Sie unser Team kennen.
+Hizmet Alanlarımız¦Our service areas¦Наши направления¦Unsere Leistungsbereiche
+{} ile Aradığınız Her Şey¦Everything you need at {}¦Всё, что вам нужно, в {}¦Alles, was Sie suchen, bei {}
+Bölgemizde sunduğumuz öne çıkan hizmetler.¦Our featured services in the area.¦Наши популярные услуги.¦Unsere beliebtesten Leistungen.
+Bize Ulaşın¦Contact us¦Свяжитесь с нами¦Kontakt
+Sosyal Medya¦Social media¦Социальные сети¦Soziale Medien
+Her Hakkı Saklıdır. {} © Tasarlayan¦All rights reserved. {} © Designed by¦Все права защищены. {} © Дизайн¦Alle Rechte vorbehalten. {} © Design
+Favorilerime Ekle¦Add to favourites¦Добавить в избранное¦Zu Favoriten
+Favorilere Ekle¦Add to favourites¦Добавить в избранное¦Zu Favoriten
+Favorilerim¦My favourites¦Избранное¦Meine Favoriten
+Puanlarım¦My points¦Мои баллы¦Meine Punkte
+Fırsatlarım¦My offers¦Мои предложения¦Meine Angebote
+Ayarlarım¦My settings¦Мои настройки¦Meine Einstellungen
+Güzellik & Bakım¦Beauty & care¦Красота и уход¦Schönheit & Pflege
+## Çark (web)
+🎁 Hediyeniz Hazır!¦🎁 Your gift is ready!¦🎁 Ваш подарок готов!¦🎁 Ihr Geschenk ist bereit!
+Hediyeniz Hazır!¦Your gift is ready!¦Ваш подарок готов!¦Ihr Geschenk ist bereit!
+Kodunu almak için 10 saniyelik kayıt — telefonuna kod gönderilecek.¦10-second sign-up to get your code — we will send it to your phone.¦Регистрация за 10 секунд — код придёт на телефон.¦10-Sekunden-Anmeldung — der Code kommt auf Ihr Handy.
+📨 Kod Gönder¦📨 Send code¦📨 Отправить код¦📨 Code senden
+{} numarasına gelen 4 haneli kodu girin.¦Enter the 4-digit code sent to {}.¦Введите 4-значный код, отправленный на {}.¦Geben Sie den 4-stelligen Code ein, der an {} gesendet wurde.
+numarasına gelen 4 haneli kodu girin.¦— enter the 4-digit code sent to this number.¦— введите 4-значный код, отправленный на номер.¦— geben Sie den 4-stelligen Code ein.
+✓ Doğrula ve Kodu Al¦✓ Verify and get the code¦✓ Подтвердить и получить код¦✓ Bestätigen und Code erhalten
+🎉 Hesabın Hazır¦🎉 Your account is ready¦🎉 Аккаунт готов¦🎉 Ihr Konto ist bereit
+Puanın eklendi!¦Points added!¦Баллы начислены!¦Punkte gutgeschrieben!
+Profilinizden puan hediyelerinize göz atabilirsiniz.¦See point rewards in your profile.¦Награды за баллы — в вашем профиле.¦Punkteprämien finden Sie in Ihrem Profil.
+⏳ Gönderiliyor...¦⏳ Sending...¦⏳ Отправка...¦⏳ Wird gesendet...
+⏳ Doğrulanıyor...¦⏳ Verifying...¦⏳ Проверка...¦⏳ Wird geprüft...
+Hatalı kod¦Wrong code¦Неверный код¦Falscher Code
+⏳ Çevriliyor...¦⏳ Spinning...¦⏳ Крутится...¦⏳ Dreht sich...
+⏳ İşleniyor...¦⏳ Processing...¦⏳ Обработка...¦⏳ Wird verarbeitet...
+ŞİMDİ ÇEVİR¦SPIN NOW¦КРУТИТЬ¦JETZT DREHEN
+Hediye çarkını çevir, hediyeni al¦Spin the wheel and get your gift¦Крутите колесо и получите подарок¦Rad drehen, Geschenk holen
+Sana Özel · Hediye Çarkı¦For you · Gift wheel¦Для вас · Колесо подарков¦Für Sie · Geschenkrad
+Çarkı Çevir,¦Spin the wheel,¦Крутите колесо,¦Rad drehen,
+Hediyeni¦get your¦получите¦Geschenk
+Kap!¦gift!¦подарок!¦sichern!
+Onaylanan her randevuyla çevirme hakkı elde edersin. Puan, indirim ve sürpriz hediyeler seni bekliyor.¦Get a spin with every confirmed appointment. Points, discounts and gifts await.¦За каждую подтверждённую запись — попытка. Вас ждут баллы, скидки и подарки.¦Für jeden bestätigten Termin eine Drehung. Punkte, Rabatte und Geschenke warten.
+Şimdi Tam Zamanı, Çevir!¦Now is the time, spin!¦Самое время крутить!¦Jetzt drehen!
+🎁 Sana Özel Hediye¦🎁 A gift for you¦🎁 Подарок для вас¦🎁 Ein Geschenk für Sie
+Hediyeni Al!¦Get your gift!¦Получите подарок!¦Geschenk holen!
+{}'a özel hediye çarkı seni bekliyor. Ücretsiz çevirme hakkın şimdi açık!¦The {} gift wheel is waiting. Your free spin is open now!¦Колесо подарков {} ждёт вас. Бесплатная попытка доступна!¦Das Geschenkrad von {} wartet. Ihre Gratis-Drehung ist offen!
+⭐ Sadakat Programım — Puan & Kuponlarım¦⭐ My loyalty — points & coupons¦⭐ Моя программа — баллы и купоны¦⭐ Treueprogramm — Punkte & Gutscheine
+⭐ Sadakat Programım — Puanlarım & Kuponlarım¦⭐ My loyalty — points & coupons¦⭐ Моя программа — баллы и купоны¦⭐ Treueprogramm — Punkte & Gutscheine
+Belki daha sonra¦Maybe later¦Может быть позже¦Vielleicht später
+Kod gönderildi!¦Code sent!¦Код отправлен!¦Code gesendet!
+✓ Kod Gönderildi¦✓ Code sent¦✓ Код отправлен¦✓ Code gesendet
+🎁 Hesabınız oluşturuldu, hediyeniz hazır!¦🎁 Account created, your gift is ready!¦🎁 Аккаунт создан, подарок готов!¦🎁 Konto erstellt, Ihr Geschenk ist bereit!
+🎁 Hesabınız oluşturuldu, puanınız eklendi!¦🎁 Account created, points added!¦🎁 Аккаунт создан, баллы начислены!¦🎁 Konto erstellt, Punkte gutgeschrieben!
+✓ Bugün Çevirdiniz¦✓ Spun today¦✓ Сегодня уже крутили¦✓ Heute gedreht
+🎁 Hediye Çarkı¦🎁 Gift wheel¦🎁 Колесо подарков¦🎁 Geschenkrad
+{} size özel hediyeler hazırladı!¦{} has prepared gifts for you!¦{} приготовил для вас подарки!¦{} hat Geschenke für Sie!
+Bugün çarkıfeleği çevirdiniz.¦You have spun today.¦Сегодня вы уже крутили.¦Sie haben heute gedreht.
+Bir sonraki çevirme:¦Next spin:¦Следующая попытка:¦Nächste Drehung:
+📋 Çarkıfelek Kullanım Kuralları¦📋 Wheel rules¦📋 Правила колеса¦📋 Glücksrad-Regeln
+Size özel hediyeniz:¦Your gift:¦Ваш подарок:¦Ihr Geschenk:
+Hediye Kodunuz¦Your gift code¦Код подарка¦Ihr Geschenkcode
+🔒 Hediyenizi almak için hızlı kayıt¦🔒 Quick sign-up to get your gift¦🔒 Быстрая регистрация для получения подарка¦🔒 Schnell anmelden und Geschenk erhalten
+Telefonunuza 4 haneli kod gönderilecek.¦A 4-digit code will be sent to your phone.¦На телефон придёт 4-значный код.¦Ein 4-stelliger Code wird an Ihr Handy gesendet.
+← Telefonu değiştir¦← Change phone¦← Изменить номер¦← Nummer ändern
+Çarkıfelek Şu An Aktif Değil¦The wheel is not active right now¦Колесо сейчас не активно¦Das Glücksrad ist derzeit nicht aktiv
+{} çarkıfelek kampanyasını henüz başlatmamış veya geçici olarak kapatmış.¦{} has not started the wheel campaign or has paused it.¦{} ещё не запустил акцию или временно приостановил её.¦{} hat die Aktion noch nicht gestartet oder pausiert.
+Kampanya başladığında onaylanmış randevularınız üzerinden çevirme hakkı kazanacaksınız.¦When it starts, your confirmed appointments will earn spins.¦Когда акция начнётся, подтверждённые записи дадут попытки.¦Sobald sie startet, erhalten Sie Drehungen für bestätigte Termine.
+⭐ Puanlarınızla Özel Ödüller Alın¦⭐ Get rewards with your points¦⭐ Обменяйте баллы на награды¦⭐ Punkte gegen Prämien tauschen
+Biriktirdiğiniz puanları indirimlere ve hediyelere dönüştürün.¦Turn your points into discounts and gifts.¦Обменивайте баллы на скидки и подарки.¦Tauschen Sie Punkte gegen Rabatte und Geschenke.
+Puan Ödüllerim →¦My point rewards →¦Мои награды →¦Meine Prämien →
+Günde 1 kez çarkı çevirerek ödül kazanabilirsiniz.¦Spin once a day to win rewards.¦Крутите колесо раз в день и выигрывайте.¦Drehen Sie einmal täglich und gewinnen Sie.
+Henüz Puanınız Yok¦No points yet¦Баллов пока нет¦Noch keine Punkte
+Henüz puanınız yok¦No points yet¦Баллов пока нет¦Noch keine Punkte
+Salonlarda çarkıfelek çevirerek puan kazanabilir,¦Win points by spinning the wheel¦Крутите колесо и получайте баллы,¦Sammeln Sie Punkte am Glücksrad
+biriktirdiğiniz puanlarla özel ödülleri talep edebilirsiniz.¦and exchange them for rewards.¦обменивайте их на награды.¦und tauschen Sie sie gegen Prämien.
+Salonları Keşfet¦Discover salons¦Найти салоны¦Salons entdecken
+🎁 Şimdi Talep Et¦🎁 Claim now¦🎁 Получить¦🎁 Jetzt einlösen
+Değerli Müşteri¦Dear customer¦Уважаемый клиент¦Liebe/r Kunde/Kundin
+Tıklayarak kopyala¦Click to copy¦Нажмите, чтобы скопировать¦Klicken zum Kopieren
+{} Üye¦{} member¦Статус: {}¦{}-Mitglied
+{} bakiyeniz¦Your {} balance¦Ваш баланс {}¦Ihr {}-Guthaben
+Tüm salonlar¦All salons¦Все салоны¦Alle Salons
+{} üyeliğe¦to {} level¦до уровня {}¦bis zur Stufe {}
+puan kaldı¦points left¦баллов осталось¦Punkte fehlen
+🌟 En yüksek seviye!¦🌟 Highest level!¦🌟 Высший уровень!¦🌟 Höchste Stufe!
+🎖️ Ödül Merdiveni¦🎖️ Reward ladder¦🎖️ Лестница наград¦🎖️ Prämienleiter
+{#} / {#} puan¦{} / {} points¦{} / {} баллов¦{} / {} Punkte
+Henüz kazanılmış kuponunuz yok.¦You have no coupons yet.¦Купонов пока нет.¦Noch keine Gutscheine.
+Çarkı çevirip ya da puan ödülü talep ederek kupon kazanabilirsiniz.¦Win coupons by spinning the wheel or claiming point rewards.¦Купоны можно получить за колесо или баллы.¦Gutscheine erhalten Sie am Rad oder für Punkte.
+GEÇERLİ¦VALID¦ДЕЙСТВУЕТ¦GÜLTIG
+Süresiz geçerli¦No expiry¦Бессрочно¦Unbefristet gültig
+Kazanılan ikram¦Earned¦Заработано¦Verdient
+Kalan ikram¦Remaining¦Осталось¦Übrig
+Hizmetleri ücretli aldıkça ikram kazanırsınız. Kazandığınız ikramı¦You earn rewards with paid services. You can use your reward¦За оплаченные услуги вы получаете подарки. Подарок можно использовать¦Für bezahlte Leistungen erhalten Sie Prämien. Ihre Prämie können Sie
+dilediğiniz bir seansınızda¦at any visit¦в любой визит¦bei jedem Besuch
+kullanabilirsiniz; kullanmak istediğinizi ödeme sırasında salona söylemeniz yeterli. İstemezseniz hakkınız geçerlilik süresi boyunca saklı kalır.¦; just tell the salon when paying. Otherwise it stays saved until it expires.¦; просто скажите об этом при оплате. Иначе он сохранится до конца срока.¦einlösen; sagen Sie es einfach beim Bezahlen. Sonst bleibt sie bis zum Ablauf gespeichert.
+· kampanya {} tarihine kadar¦· offer until {}¦· акция до {}¦· Aktion bis {}
+· {} geçerli¦· valid {}¦· действует {}¦· gültig {}
+⏳ {} son kullanma tarihi:¦⏳ {} expiry date:¦⏳ {} срок действия:¦⏳ {} gültig bis:
+{#} ikramın süresi doldu.¦{} reward(s) expired.¦Истёк срок подарков: {}.¦{} Prämie(n) abgelaufen.
+🎁 İkram¦🎁 Reward¦🎁 Подарок¦🎁 Prämie
+İkram¦Reward¦Подарок¦Prämie
+Bu ikram kampanyası sona erdi; kalan ikramınızı kullanabilirsiniz.¦This campaign has ended; you can still use your remaining reward.¦Акция завершена; оставшийся подарок можно использовать.¦Die Aktion ist beendet; Ihre restliche Prämie können Sie noch einlösen.
+Bu salonda şu an ikram hizmet kampanyası yok.¦There is currently no reward campaign in this salon.¦Сейчас в салоне нет подарочных акций.¦Derzeit gibt es in diesem Salon keine Prämienaktion.
+## Randevu sayfası (üye), profil
+Yeni Randevu Oluştur¦New appointment¦Новая запись¦Neuer Termin
+{} için birkaç adımda randevunuzu tamamlayın.¦Complete your appointment at {} in a few steps.¦Запишитесь в {} за несколько шагов.¦Buchen Sie in wenigen Schritten bei {}.
+Adım {#}¦Step {}¦Шаг {}¦Schritt {}
+Hizmet Seçimi¦Choose service¦Выбор услуги¦Leistung wählen
+Randevunuzda almak istediğiniz hizmetleri ekleyin.¦Add the services you want.¦Добавьте нужные услуги.¦Fügen Sie die gewünschten Leistungen hinzu.
+Hizmet Ekle / Çıkar¦Add / remove services¦Добавить / убрать услуги¦Leistungen hinzufügen / entfernen
+Her hizmet için tercih ettiğiniz personeli seçin.¦Choose a specialist for each service.¦Выберите мастера для каждой услуги.¦Wählen Sie je Leistung einen Mitarbeiter.
+Personel Değiştir¦Change specialist¦Сменить мастера¦Mitarbeiter ändern
+Tarih ve Saat Seç¦Choose date and time¦Выберите дату и время¦Datum und Uhrzeit wählen
+Tarih Seç¦Choose date¦Выберите дату¦Datum wählen
+Randevu almak istediğiniz günü seçin.¦Choose the day of your appointment.¦Выберите день записи.¦Wählen Sie den Tag.
+Tarih Değiştir¦Change date¦Изменить дату¦Datum ändern
+Saat Seç¦Choose time¦Выберите время¦Uhrzeit wählen
+Müsait saat dilimlerinden birini seçin.¦Choose one of the available times.¦Выберите свободное время.¦Wählen Sie eine freie Uhrzeit.
+Saat Değiştir¦Change time¦Изменить время¦Uhrzeit ändern
+Kişisel Bilgiler¦Personal details¦Личные данные¦Persönliche Daten
+Randevunuzu tamamlamak için e-posta adresinizi giriniz.¦Enter your email to complete the booking.¦Введите эл. почту для завершения записи.¦Geben Sie Ihre E-Mail-Adresse ein.
+Bilgileriniz yalnızca randevu oluşturmak için kullanılır ve üçüncü taraflarla paylaşılmaz.¦Your data is only used for the appointment and not shared with third parties.¦Данные используются только для записи и не передаются третьим лицам.¦Ihre Daten werden nur für den Termin genutzt und nicht weitergegeben.
+Randevuyu Onaylayın¦Confirm the appointment¦Подтвердите запись¦Termin bestätigen
+Özet bilgileri kontrol ederek randevunuzu tamamlayın.¦Check the summary and complete your booking.¦Проверьте данные и завершите запись.¦Prüfen Sie die Übersicht und schließen Sie ab.
+Randevuyu Gönder¦Send appointment¦Отправить запись¦Termin senden
+Seçimleriniz burada görünür¦Your selections appear here¦Здесь появится ваш выбор¦Ihre Auswahl erscheint hier
+Güvenli online randevu sistemi¦Secure online booking¦Безопасная онлайн-запись¦Sichere Online-Buchung
+{} İçin Randevu Al¦Book at {}¦Записаться в {}¦Termin bei {}
+Bir sorunuz mu var?¦Any questions?¦Есть вопросы?¦Haben Sie Fragen?
+Gizlilik¦Privacy¦Конфиденциальность¦Datenschutz
+Kullanıcı Sözleşmesi¦User agreement¦Пользовательское соглашение¦Nutzungsvertrag
+En az 6 karakter¦At least 6 characters¦Не менее 6 символов¦Mindestens 6 Zeichen
+Yeni şifreyi tekrar girin¦Repeat the new password¦Повторите новый пароль¦Neues Passwort wiederholen
+Hesabınızın güvenliği için lütfen güçlü bir şifre seçin. Mevcut şifrenizi girip yeni şifrenizi belirleyebilirsiniz.¦Choose a strong password. Enter the current one and set a new one.¦Выберите надёжный пароль. Введите текущий и задайте новый.¦Wählen Sie ein sicheres Passwort. Geben Sie das aktuelle und ein neues ein.
+Şifreyi Değiştir¦Change password¦Изменить пароль¦Passwort ändern
+Eski şifrenizi yanlış girdiniz!¦The old password is incorrect!¦Старый пароль неверный!¦Das alte Passwort ist falsch!
+Girdiğiniz şifreler uyuşmamaktadır!¦The passwords do not match!¦Пароли не совпадают!¦Die Passwörter stimmen nicht überein!
+Şifreniz başarıyla değiştirildi.¦Your password was changed.¦Пароль изменён.¦Ihr Passwort wurde geändert.
+Geri bildiriminiz güncellenmiştir. Teşekkürler¦Your feedback was updated. Thank you¦Ваш отзыв обновлён. Спасибо¦Ihr Feedback wurde aktualisiert. Danke
+Geri bildiriminiz alınmıştır. Teşekkürler¦Your feedback was received. Thank you¦Ваш отзыв получен. Спасибо¦Ihr Feedback ist eingegangen. Danke
+YAKINDA¦COMING SOON¦СКОРО¦DEMNÄCHST
+Profil Bilgilerim¦My profile details¦Данные профиля¦Meine Profildaten
+Adınız ve Soyadınız¦Your full name¦Имя и фамилия¦Vor- und Nachname
+Resim Yükle¦Upload photo¦Загрузить фото¦Bild hochladen
+Resmi Sil¦Delete photo¦Удалить фото¦Bild löschen
+Yeni Randevu Al¦New appointment¦Новая запись¦Neuer Termin
+Henüz randevunuz yok¦You have no appointments yet¦У вас пока нет записей¦Sie haben noch keine Termine
+Yeni bir randevu oluşturmak için yukarıdaki butonu kullanabilirsiniz.¦Use the button above to book.¦Нажмите кнопку выше, чтобы записаться.¦Nutzen Sie den Button oben.
+## Grup dersi, personel, indir
+{} — Grup Dersleri¦{} — Group classes¦{} — групповые занятия¦{} — Gruppenkurse
+Grup Derslerine Online Rezervasyon¦Book group classes online¦Онлайн-запись на групповые занятия¦Gruppenkurse online buchen
+Şu an rezervasyona açık grup dersi bulunmuyor.¦No group classes open for booking.¦Нет занятий, открытых для записи.¦Derzeit keine buchbaren Gruppenkurse.
+{#} yer boş¦{} places free¦Свободно мест: {}¦{} Plätze frei
+Dolu — bekleme listesi¦Full — waiting list¦Мест нет — лист ожидания¦Voll — Warteliste
+Kayıtlı müşteri telefonunuz ve şifrenizle giriş yapın. Bu ders için paket/seans hakkınız kontrol edilir.¦Log in with your phone and password. Your package/session is checked.¦Войдите по телефону и паролю. Мы проверим ваш пакет или сеансы.¦Melden Sie sich mit Telefon und Passwort an. Ihr Paket wird geprüft.
+Rezervasyonu Tamamla¦Complete booking¦Завершить бронирование¦Reservierung abschließen
+Eksik bilgi.¦Missing information.¦Не все данные указаны.¦Angaben fehlen.
+Online rezervasyon bu işletmede kapalı.¦Online booking is closed here.¦Онлайн-бронирование здесь закрыто.¦Online-Reservierung ist hier geschlossen.
+Telefon veya şifre hatalı. Kayıtlı müşteri değilseniz lütfen salonu arayın.¦Incorrect phone or password. If you are not registered, please call the salon.¦Неверный телефон или пароль. Если вы не зарегистрированы, позвоните в салон.¦Telefon oder Passwort falsch. Falls nicht registriert, rufen Sie bitte den Salon an.
+Bu personel için henüz detaylı açıklama eklenmemiş.¦No description added yet.¦Описание пока не добавлено.¦Noch keine Beschreibung.
+{} ile Randevu Al¦Book with {}¦Записаться: {}¦Termin bei {}
+Sunduğu Hizmetler¦Services offered¦Услуги мастера¦Angebotene Leistungen
+Ekibimizden Diğer Kişiler¦Other team members¦Другие мастера¦Weitere Teammitglieder
+Uygulamamız¦Our app¦Наше приложение¦Unsere App
+{} — Uygulamayı İndir¦{} — Download the app¦{} — скачать приложение¦{} — App laden
+Uygulamamızı indirmek için cihazınıza uygun mağazayı seçin.¦Choose the store for your device.¦Выберите магазин для вашего устройства.¦Wählen Sie den Store für Ihr Gerät.
+İNDİR¦DOWNLOAD¦СКАЧАТЬ¦LADEN
+Uygulama mağaza bağlantıları henüz hazır değil. Lütfen daha sonra tekrar deneyin.¦Store links are not ready yet. Please try later.¦Ссылки ещё не готовы. Попробуйте позже.¦Die Store-Links sind noch nicht bereit. Bitte später versuchen.
+Güzelliğin dijital adresi¦The digital address of beauty¦Красота в цифре¦Die digitale Adresse der Schönheit
+Web sitemiz hizmet dışıdır¦Our website is out of service¦Сайт временно не работает¦Unsere Website ist außer Betrieb
+Web sitemize ve online randevu hizmetimize şu anda ulaşılamıyor. Anlayışınız için teşekkür ederiz.¦Our website and online booking are currently unavailable. Thank you for understanding.¦Сайт и онлайн-запись временно недоступны. Спасибо за понимание.¦Website und Online-Buchung sind derzeit nicht erreichbar. Danke für Ihr Verständnis.
+## Anket
+Cevabınızı yazın...¦Write your answer...¦Напишите ответ...¦Ihre Antwort...
+Görüşlerinizi paylaşın...¦Share your opinion...¦Поделитесь мнением...¦Ihre Meinung...
+Anket Zaten Dolduruldu¦Survey already completed¦Опрос уже пройден¦Umfrage bereits ausgefüllt
+Geri bildiriminiz için teşekkür ederiz. Görüşleriniz hizmet kalitemizi geliştirmemize yardımcı oluyor.¦Thank you for your feedback. It helps us improve.¦Спасибо за отзыв. Он помогает нам становиться лучше.¦Danke für Ihr Feedback. Es hilft uns, besser zu werden.
+Anket Süresi Doldu¦Survey expired¦Срок опроса истёк¦Umfrage abgelaufen
+Bu anket linkinin geçerlilik süresi sona ermiş. Görüşleriniz için işletmeyle iletişime geçebilirsiniz.¦This survey link has expired. Please contact the business.¦Срок ссылки истёк. Свяжитесь с салоном.¦Dieser Link ist abgelaufen. Bitte kontaktieren Sie das Unternehmen.
+Sn.¦Dear¦Уважаемый(-ая)¦Liebe/r
+, geri bildiriminiz bizim için çok değerli.¦, your feedback is very valuable to us.¦, ваш отзыв очень важен для нас.¦, Ihr Feedback ist uns sehr wichtig.
+Hiç olası değil¦Not at all likely¦Точно нет¦Sehr unwahrscheinlich
+Kesinlikle tavsiye ederim¦Definitely recommend¦Обязательно порекомендую¦Auf jeden Fall
+Bu soruyu cevaplamak zorunludur.¦This question is required.¦Ответьте на этот вопрос.¦Diese Frage ist Pflicht.
+Lütfen yıldız vererek değerlendirin.¦Please rate with stars.¦Поставьте оценку звёздами.¦Bitte mit Sternen bewerten.
+Lütfen bir seçenek işaretleyin.¦Please choose an option.¦Выберите вариант.¦Bitte eine Option wählen.
+Lütfen en az bir seçenek işaretleyin.¦Please choose at least one option.¦Выберите хотя бы один вариант.¦Bitte mindestens eine Option wählen.
+Bu alan zorunludur.¦This field is required.¦Обязательное поле.¦Pflichtfeld.
+Teşekkürler!¦Thank you!¦Спасибо!¦Danke!
+Görüşlerin bizim için çok değerli.¦Your opinion is valuable to us.¦Ваше мнение очень важно для нас.¦Ihre Meinung ist uns wichtig.
+Mahallendeki diğer kişilere de bu deneyimini anlatır mısın?¦Would you share your experience with others?¦Расскажете о своём опыте другим?¦Teilen Sie Ihre Erfahrung mit anderen?
+Tek tıkla Google'da yorum bırakabilirsin.¦Leave a Google review in one click.¦Оставьте отзыв в Google в один клик.¦Mit einem Klick bei Google bewerten.
+Google'da olumlu yorum yap, {} kazan!¦Review us on Google and get {}!¦Оставьте отзыв в Google и получите {}!¦Bei Google bewerten und {} erhalten!
+Butona bastığında kuponun tanımlanır; yorumunu tamamlamayı unutma.¦Your coupon is added when you press the button; do not forget to finish the review.¦Купон начислится после нажатия; не забудьте завершить отзыв.¦Der Gutschein wird beim Klick gutgeschrieben; bitte Bewertung abschließen.
+Google'da Yorum Yaz¦Write a Google review¦Написать отзыв в Google¦Google-Bewertung schreiben
+⏱️ Yaklaşık 30 saniye sürer · Yardımcı olacak¦⏱️ Takes about 30 seconds · It helps¦⏱️ Займёт около 30 секунд · Нам это поможет¦⏱️ Dauert ca. 30 Sekunden · Es hilft uns
+Geri bildiriminiz başarıyla iletildi.¦Your feedback was sent.¦Ваш отзыв отправлен.¦Ihr Feedback wurde gesendet.
+Görüşleriniz hizmet kalitemizi geliştirmemize yardımcı olacak.¦Your opinion will help us improve.¦Ваше мнение поможет нам стать лучше.¦Ihre Meinung hilft uns, besser zu werden.
+İndirim kuponu¦Discount coupon¦Купон на скидку¦Rabattgutschein
+kazandınız!¦won!¦— ваш выигрыш!¦gewonnen!
+Kupon kodunuz:¦Your coupon code:¦Ваш код купона:¦Ihr Gutscheincode:
+Bir sonraki ziyaretinizde kullanabilirsiniz.¦Use it at your next visit.¦Используйте в следующий визит.¦Beim nächsten Besuch einlösbar.
+🎉 {#} puan kazandınız!¦🎉 You earned {} points!¦🎉 Вы получили баллов: {}!¦🎉 {} Punkte verdient!
+Puanlarınız hesabınıza tanımlandı. Ödüllerim bölümünden değerlendirebilirsiniz.¦Points added to your account. Use them under My rewards.¦Баллы начислены. Используйте их в разделе наград.¦Punkte gutgeschrieben. Nutzen Sie sie unter „Meine Prämien“.
+Anketi Gönder¦Submit survey¦Отправить опрос¦Umfrage senden
+Google'da olumlu yorumunuzu tamamlamayı unutmayın 🙏¦Please finish your Google review 🙏¦Не забудьте завершить отзыв в Google 🙏¦Bitte schließen Sie Ihre Google-Bewertung ab 🙏
+Anket bulunamadı.¦Survey not found.¦Опрос не найден.¦Umfrage nicht gefunden.
+Bu anket zaten dolduruldu.¦This survey is already completed.¦Опрос уже пройден.¦Diese Umfrage wurde bereits ausgefüllt.
+Anket linkinin süresi dolmuş.¦The survey link has expired.¦Срок ссылки истёк.¦Der Link ist abgelaufen.
+Lütfen tüm zorunlu soruları cevaplayın.¦Please answer all required questions.¦Ответьте на все обязательные вопросы.¦Bitte beantworten Sie alle Pflichtfragen.
+## Form ve sözleşme çerçevesi (hukuki metnin kendisi Türkçe kalır)
+(isteğe bağlı)¦(optional)¦(необязательно)¦(optional)
+Form Zaten Dolduruldu¦Form already completed¦Форма уже заполнена¦Formular bereits ausgefüllt
+Bu formu daha önce doldurdunuz. Herhangi bir sorunuz olursa işletmeyle iletişime geçin.¦You have already completed this form. Contact the business with any questions.¦Вы уже заполнили форму. По вопросам обращайтесь в салон.¦Sie haben dieses Formular bereits ausgefüllt. Bei Fragen kontaktieren Sie das Unternehmen.
+Tarih:¦Date:¦Дата:¦Datum:
+Hizmet:¦Service:¦Услуга:¦Leistung:
+Paket:¦Package:¦Пакет:¦Paket:
+İşletme:¦Business:¦Салон:¦Unternehmen:
+Adres:¦Address:¦Адрес:¦Adresse:
+Hizmet/paket henüz seçilmemiş.¦No service/package selected.¦Услуга или пакет не выбраны.¦Keine Leistung/kein Paket gewählt.
+Toplam Ücret:¦Total price:¦Общая стоимость:¦Gesamtpreis:
+Toplam Ücret¦Total price¦Общая стоимость¦Gesamtpreis
+Kapora / Ön Ödeme:¦Deposit:¦Предоплата:¦Anzahlung:
+Kapora / Ön Ödeme¦Deposit¦Предоплата¦Anzahlung
+Kalan Bakiye:¦Remaining balance:¦Остаток:¦Restbetrag:
+Kalan Bakiye¦Remaining balance¦Остаток¦Restbetrag
+Seans Sayısı:¦Number of sessions:¦Число сеансов:¦Anzahl Sitzungen:
+Seans Sayısı¦Number of sessions¦Число сеансов¦Anzahl Sitzungen
+Müşteri Ad Soyad¦Customer name¦Имя клиента¦Name des Kunden
+Ödeme Şekli¦Payment method¦Способ оплаты¦Zahlungsart
+Geçerlilik Tarihi¦Valid until¦Действует до¦Gültig bis
+Vade Tarihi¦Due date¦Срок оплаты¦Fälligkeit
+Tutar¦Amount¦Сумма¦Betrag
+Peşin¦Cash¦Сразу¦Sofort
+Nakit¦Cash¦Наличные¦Bar
+Kredi Kartı¦Credit card¦Кредитная карта¦Kreditkarte
+Ödeme Planı ({#} Taksit)¦Payment plan ({} instalments)¦План оплаты (платежей: {})¦Zahlungsplan ({} Raten)
+Dijital İmza¦Digital signature¦Электронная подпись¦Digitale Unterschrift
+Aşağıdaki alana parmağınızla veya farenizle imzanızı atın.¦Sign below with your finger or mouse.¦Распишитесь ниже пальцем или мышью.¦Unterschreiben Sie unten mit Finger oder Maus.
+Temizle¦Clear¦Очистить¦Löschen
+İmza zorunludur.¦Signature is required.¦Подпись обязательна.¦Unterschrift erforderlich.
+İmza zorunludur. Lütfen imza alanına net bir imza atın.¦Signature is required. Please sign clearly.¦Подпись обязательна. Распишитесь чётко.¦Unterschrift erforderlich. Bitte deutlich unterschreiben.
+İmza okunamadı veya boş. Lütfen imza alanına net bir imza atıp tekrar deneyin.¦The signature is empty or unreadable. Please sign clearly and try again.¦Подпись пуста или неразборчива. Распишитесь чётко и попробуйте снова.¦Die Unterschrift ist leer oder unlesbar. Bitte erneut unterschreiben.
+SMS Doğrulama Kodu¦SMS verification code¦Код из SMS¦SMS-Bestätigungscode
+Telefonunuza gönderilen 4 haneli onay kodunu girin.¦Enter the 4-digit code sent to your phone.¦Введите 4-значный код из SMS.¦Geben Sie den 4-stelligen Code ein.
+Cep telefonunuza gelen 4 haneli onay kodunu girin.¦Enter the 4-digit code sent to your phone.¦Введите 4-значный код из SMS.¦Geben Sie den 4-stelligen Code ein.
+Geçerli bir onay kodu girin.¦Enter a valid code.¦Введите верный код.¦Geben Sie einen gültigen Code ein.
+Onay kodu zorunludur.¦The code is required.¦Код обязателен.¦Der Code ist erforderlich.
+Onay kodu hatalı. Lütfen SMS ile gelen 4 haneli kodu girin.¦Wrong code. Enter the 4-digit code from the SMS.¦Неверный код. Введите 4-значный код из SMS.¦Falscher Code. Geben Sie den 4-stelligen Code aus der SMS ein.
+KVKK aydınlatma metni onayı zorunludur.¦You must accept the privacy notice.¦Необходимо принять уведомление о конфиденциальности.¦Die Zustimmung zum Datenschutzhinweis ist erforderlich.
+KVKK onayı zorunludur.¦Privacy consent is required.¦Согласие обязательно.¦Datenschutz-Zustimmung erforderlich.
+KVKK Aydınlatma Metni¦Privacy notice (KVKK)¦Уведомление о конфиденциальности (KVKK)¦Datenschutzhinweis (KVKK)
+KVKK metnini oku¦Read the privacy notice¦Прочитать уведомление¦Datenschutzhinweis lesen
+Form Başarıyla Gönderildi!¦Form submitted!¦Форма отправлена!¦Formular gesendet!
+Onam formunuz {} tarafından incelenecek ve onaylanacaktır.¦Your consent form will be reviewed by {}.¦Ваша форма будет рассмотрена салоном {}.¦Ihr Formular wird von {} geprüft.
+Bu pencereyi kapatabilirsiniz.¦You can close this window.¦Это окно можно закрыть.¦Sie können dieses Fenster schließen.
+Formu Gönder¦Submit form¦Отправить форму¦Formular senden
+Form bulunamadı.¦Form not found.¦Форма не найдена.¦Formular nicht gefunden.
+Bu form zaten doldurulmuş.¦This form is already completed.¦Форма уже заполнена.¦Dieses Formular wurde bereits ausgefüllt.
+Hizmet Sözleşmesi¦Service agreement¦Договор на услуги¦Dienstleistungsvertrag
+Hizmet Sözleşmesi — {}¦Service agreement — {}¦Договор на услуги — {}¦Dienstleistungsvertrag — {}
+Sözleşme Zaten İmzalandı¦Agreement already signed¦Договор уже подписан¦Vertrag bereits unterschrieben
+Bu sözleşmeyi daha önce imzaladınız.¦You have already signed this agreement.¦Вы уже подписали этот договор.¦Sie haben diesen Vertrag bereits unterschrieben.
+Sözleşmeyi İmzala ve Gönder¦Sign and send¦Подписать и отправить¦Unterschreiben und senden
+Sözleşme Başarıyla İmzalandı¦Agreement signed¦Договор подписан¦Vertrag unterschrieben
+Sözleşmeniz işletmeye iletildi. Teşekkürler!¦Your agreement was sent to the business. Thank you!¦Договор передан салону. Спасибо!¦Ihr Vertrag wurde übermittelt. Danke!
+Sözleşme bulunamadı.¦Agreement not found.¦Договор не найден.¦Vertrag nicht gefunden.
+Bu sözleşme zaten imzalanmış.¦This agreement is already signed.¦Договор уже подписан.¦Dieser Vertrag ist bereits unterschrieben.
+Salon Yetkilisi İmzaladı¦Signed by the salon¦Подписано салоном¦Vom Salon unterschrieben
+Ek Not:¦Additional note:¦Примечание:¦Zusätzliche Notiz:
+Cevaplarınız tarafımıza ulaşmıştır. Teşekkür ederiz.¦We received your answers. Thank you.¦Мы получили ваши ответы. Спасибо.¦Wir haben Ihre Antworten erhalten. Danke.
+Doğrulama kodu yanlış lütfen tekrar deneyiniz.¦Wrong code, please try again.¦Неверный код, попробуйте снова.¦Falscher Code, bitte erneut versuchen.

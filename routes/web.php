@@ -82,6 +82,10 @@ Route::get('/firebase-messaging-sw.js', function () {
 })->name('firebase.sw');
 
 
+// Musteri dili (salon sitesi)
+Route::post('/musteri-dil','MusteriDilController@webKaydet');
+Route::get('/musteri-dil/sozluk/{dil}','MusteriDilController@webSozluk');
+
 Route::group(['middleware' => ['auth']],function(){
 	Route::post('/randevuekle','CustomerController@randevuekle');
 	Route::get('/randevularim','CustomerController@randevularim');

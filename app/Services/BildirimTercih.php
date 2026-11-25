@@ -758,6 +758,7 @@ class BildirimTercih
                     Log::info('[BildirimTercih] SMS hesabi/paketi yok, SMS gonderilmedi', ['salon_id' => $s->id, 'to' => $to, 'bk' => $bk, 'yedek' => $yedekSms]);
                     continue;
                 }
+                if ($alici === 'musteri') $m['message'] = MusteriDili::mesaj($s->id, $m['user_id'] ?? null, $to, $metin, 'sms', !empty($m['user_id']));
                 unset($m['bk'], $m['alici'], $m['push_ayri'], $m['push_baslik'], $m['push_mesaj'], $m['personel_id'], $m['yetkili_id']);
                 $smsListesi[] = $m;
             }

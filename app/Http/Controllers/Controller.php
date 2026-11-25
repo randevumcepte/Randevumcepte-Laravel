@@ -795,6 +795,27 @@ class Controller extends BaseController
             return;
         }
 
+        // Musteri dili (pilot): farkli metinler olusursa metin basina ayri gonderim (VoiceTelekom tek icerik alir)
+        if (\App\Services\MusteriDili::acikMi($salonid)) {
+            $cevrilen = \App\Services\MusteriDili::smsSatirlari($salonid, array_values((array) $mesajlar));
+            if ($cevrilen != array_values((array) $mesajlar)) {
+                $gruplar = [];
+                foreach ($cevrilen as $m) $gruplar[$m['message']][] = $m;
+                $mesajlar = $cevrilen;
+                if (count($gruplar) > 1) {
+                    $sonuc = null;
+                    $basarili = false;
+                    foreach ($gruplar as $g) {
+                        $args[1] = $g;
+                        $sonuc = $this->sms_gonder(...$args);
+                        $basarili = $basarili || self::$sonSmsBasarili;
+                    }
+                    self::$sonSmsBasarili = $basarili;
+                    return $sonuc;
+                }
+            }
+        }
+
         $alicilar = array_column((array) $mesajlar, 'to');
         $ilkMesaj = isset($mesajlar[0]['message']) ? $mesajlar[0]['message'] : '';
         Log::info('[SMS-API] sms_gonder cagrildi', [

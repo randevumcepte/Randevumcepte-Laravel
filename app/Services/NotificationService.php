@@ -222,10 +222,18 @@ class NotificationService
                                 ? $bundleMap[$tokenBundle]
                                 : $mobileFile;
                     }
+                    // Musteri dili: bu cihazin musterisi yabanci dil sectiyse baslik/metin o dilde
+                    $asil = [$this->title, $this->body];
                     try {
+                        if (!empty($row->user_id) && $this->kullaniciTipi !== 'personel' && $this->kullaniciTipi !== 'yetkili' && MusteriDili::acikMi($this->salonId)) {
+                            $this->title = (string) MusteriDili::mesaj($this->salonId, $row->user_id, null, $asil[0], 'push');
+                            $this->body = (string) MusteriDili::mesaj($this->salonId, $row->user_id, null, $asil[1], 'push');
+                        }
                         return $this->sendOneAsync($row->bildirim_id, $payloadExtra, $row->platform);
                     } catch (\Throwable $e) {
                         return \GuzzleHttp\Promise\rejection_for($e);
+                    } finally {
+                        [$this->title, $this->body] = $asil;
                     }
                 };
             }

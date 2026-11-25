@@ -426,7 +426,12 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::get('/cihazlar','MusteriProfilController@cihazlar');
         Route::post('/cihaz-kapat','MusteriProfilController@cihazKapat');
         Route::post('/bildirim-sil','MusteriProfilController@bildirimSil');
+        Route::get('/dil','MusteriDilController@dilim');
+        Route::post('/dil','MusteriDilController@dilKaydet');
     });
+    // Musteri dili: markada acik diller + sozluk (giris oncesi ekranlar da kullanir)
+    Route::get('/dil/ayar','MusteriDilController@ayar');
+    Route::get('/dil/sozluk/{dil}','MusteriDilController@sozluk');
     // Dogum gunu popup (mobil): web'deki isletmeyonetim uclarinin Bearer'li karsiligi.
     Route::get('/dogum-gunu/bugun','StoreAdminController@apiBugunDogumGunu')->middleware('auth:isletmeyonetim-api');
     Route::post('/dogum-gunu/gonder','StoreAdminController@apiDogumGunuGonder')->middleware('auth:isletmeyonetim-api');

@@ -1,0 +1,103 @@
+## Hizmet kategorileri ve hizmetler (Ola Nail + ortak güzellik katalogu)
+{} Hizmetleri¦{}¦{}¦{}
+Saç¦Hair¦Волосы¦Haare
+Saç Hizmetleri¦Hair services¦Услуги для волос¦Haarleistungen
+Makyaj¦Make-up¦Макияж¦Make-up
+Makyaj Hizmetleri¦Make-up services¦Услуги макияжа¦Make-up-Leistungen
+Diğer Hizmetleri¦Other services¦Другие услуги¦Weitere Leistungen
+Diğer Hizmetler¦Other services¦Другие услуги¦Weitere Leistungen
+Kirpik & Kaş Uygulamaları¦Lashes & brows¦Ресницы и брови¦Wimpern & Brauen
+Kirpik & Kaş Uygulamaları Hizmetleri¦Lashes & brows¦Ресницы и брови¦Wimpern & Brauen
+Erkek Tırnak¦Men's nails¦Мужские ногти¦Nägel für Herren
+Erkek Tırnak Hizmetleri¦Men's nail services¦Ногтевой сервис для мужчин¦Nagelleistungen für Herren
+Kadın Tırnak¦Women's nails¦Женские ногти¦Nägel für Damen
+Kadın Tırnak Hizmetleri¦Women's nail services¦Ногтевой сервис для женщин¦Nagelleistungen für Damen
+Tırnak¦Nails¦Ногти¦Nägel
+Cilt Bakımı¦Facial care¦Уход за кожей¦Gesichtspflege
+Lazer Epilasyon¦Laser hair removal¦Лазерная эпиляция¦Laser-Haarentfernung
+İğneli Epilasyon¦Electrolysis¦Электроэпиляция¦Nadelepilation
+Ağda¦Waxing¦Восковая эпиляция¦Waxing
+Masaj¦Massage¦Массаж¦Massage
+Zayıflama¦Slimming¦Коррекция фигуры¦Figurbehandlung
+Fön¦Blow-dry¦Укладка феном¦Föhnen
+Saç Kesimi¦Haircut¦Стрижка¦Haarschnitt
+Saç Boyama¦Hair colouring¦Окрашивание волос¦Haare färben
+Saç Bakımı¦Hair care¦Уход за волосами¦Haarpflege
+Keratin Bakım¦Keratin treatment¦Кератиновый уход¦Keratinbehandlung
+Microblading¦Microblading¦Микроблейдинг¦Microblading
+Dipliner¦Eyeliner tattoo¦Перманент межресничный¦Lidstrich-Pigmentierung
+Babyliner (kalıcı Makyaj)¦Babyliner (permanent make-up)¦Babyliner (перманентный макияж)¦Babyliner (Permanent Make-up)
+Kalıcı Makyaj¦Permanent make-up¦Перманентный макияж¦Permanent Make-up
+Dudak Renklendirme¦Lip blush¦Перманент губ¦Lippenpigmentierung
+EĞİTMEN¦TRAINING¦ОБУЧЕНИЕ¦SCHULUNG
+Altın Oran Kaş Dizaynı¦Golden ratio brow design¦Дизайн бровей по золотому сечению¦Brauendesign nach Goldenem Schnitt
+İpek Kirpik¦Silk lash extensions¦Наращивание ресниц¦Seidenwimpern
+İpek Kirpik Çıkarma¦Lash extension removal¦Снятие наращённых ресниц¦Wimpern entfernen
+Kaş - Bıyık Alımı¦Brow & upper lip shaping¦Коррекция бровей и усиков¦Brauen & Oberlippe
+Kaş Alımı¦Brow shaping¦Коррекция бровей¦Brauen zupfen
+Kaş Laminasyon¦Brow lamination¦Ламинирование бровей¦Brauenlaminierung
+Kaş Laminasyonu¦Brow lamination¦Ламинирование бровей¦Brauenlaminierung
+Kirpik Laminasyon¦Lash lamination¦Ламинирование ресниц¦Wimpernlaminierung
+Kirpik Lifting¦Lash lift¦Лифтинг ресниц¦Wimpernlifting
+Erkek Batık Tedavisi¦Men's ingrown nail treatment¦Лечение вросшего ногтя (мужчины)¦Eingewachsene Nägel (Herren)
+Erkek Mantar Tedavisi¦Men's nail fungus treatment¦Лечение грибка ногтей (мужчины)¦Nagelpilzbehandlung (Herren)
+Erkek Nasır Tedavisi¦Men's callus treatment¦Удаление мозолей (мужчины)¦Hornhautbehandlung (Herren)
+Erkek Pedikür¦Men's pedicure¦Мужской педикюр¦Pediküre für Herren
+Erkek Manikür¦Men's manicure¦Мужской маникюр¦Maniküre für Herren
+Batık Tedavisi¦Ingrown nail treatment¦Лечение вросшего ногтя¦Eingewachsene Nägel
+Jel Güçlendirme¦Gel strengthening¦Укрепление гелем¦Gel-Verstärkung
+Mantar Tedavisi¦Nail fungus treatment¦Лечение грибка ногтей¦Nagelpilzbehandlung
+Nasır Tedavisi¦Callus treatment¦Удаление мозолей¦Hornhautbehandlung
+Protez Tırnak Çıkarma¦Nail extension removal¦Снятие наращённых ногтей¦Kunstnägel entfernen
+Protez Çıkarma¦Nail extension removal¦Снятие наращённых ногтей¦Kunstnägel entfernen
+Kalıcı Oje Ayak + Pedikür¦Gel polish (feet) + pedicure¦Гель-лак на ногах + педикюр¦Shellac Füße + Pediküre
+Protez Çıkarma+Manikür¦Extension removal + manicure¦Снятие наращивания + маникюр¦Kunstnägel entfernen + Maniküre
+Manikür¦Manicure¦Маникюр¦Maniküre
+Pedikür¦Pedicure¦Педикюр¦Pediküre
+Kalıcı Oje¦Gel polish¦Гель-лак¦Shellac (Gel-Lack)
+Ayak protez tırnak¦Toe nail extensions¦Наращивание ногтей на ногах¦Kunstnägel (Füße)
+Şablon Tırnak¦Sculpted nails (forms)¦Наращивание на формах¦Schablonen-Nägel
+Protez Tırnak¦Nail extensions¦Наращивание ногтей¦Nagelverlängerung
+Çatlak Topuk Tedavisi¦Cracked heel treatment¦Лечение трещин на пятках¦Behandlung rissiger Fersen
+FRENCH/french Sürümü¦French / French application¦Френч / нанесение френча¦French / French-Lackierung
+Kalıcı Oje Sürümü¦Gel polish application¦Покрытие гель-лаком¦Shellac-Lackierung
+Oje Sürümü¦Nail polish application¦Покрытие лаком¦Lackierung
+Kalıcı Oje Çıkarma¦Gel polish removal¦Снятие гель-лака¦Shellac entfernen
+Nail Art¦Nail art¦Дизайн ногтей¦Nail Art
+Medikal Pedikür¦Medical pedicure¦Медицинский педикюр¦Medizinische Fußpflege
+Kedi Gözü¦Cat eye¦Кошачий глаз¦Cat-Eye
+İnci Tozu¦Pearl powder¦Жемчужная втирка¦Perlglanzpuder
+Manikür Pedikür¦Manicure & pedicure¦Маникюр и педикюр¦Maniküre & Pediküre
+Protez Tırnak Bakımı¦Nail extension refill¦Коррекция наращённых ногтей¦Nagel-Refill
+Dolgu¦Refill¦Коррекция¦Refill
+Patalog Pedikür¦Podology pedicure¦Подологический педикюр¦Podologische Fußpflege
+Manikür,Protez tırnak ve Nail Art¦Manicure, nail extensions and nail art¦Маникюр, наращивание и дизайн ногтей¦Maniküre, Nagelverlängerung und Nail Art
+Manikür,Pedikür Protez tırnak ve Nail Art¦Manicure, pedicure, nail extensions and nail art¦Маникюр, педикюр, наращивание и дизайн¦Maniküre, Pediküre, Nagelverlängerung und Nail Art
+Manikür,Protez tırnak ve Nail Art Kaş laminasyon Liftthing¦Manicure, nail extensions, nail art, brow lamination, lash lift¦Маникюр, наращивание, дизайн, ламинирование бровей, лифтинг¦Maniküre, Nagelverlängerung, Nail Art, Brauenlaminierung, Lifting
+Microblading Kaş Pudralama Kaş Laminasyonu¦Microblading, powder brows, brow lamination¦Микроблейдинг, пудровые брови, ламинирование¦Microblading, Powder Brows, Brauenlaminierung
+protez uzman¦nail extension specialist¦мастер наращивания¦Spezialist/in für Nagelverlängerung
+uzman¦specialist¦мастер¦Spezialist/in
+## Ola Nail tanıtım metinleri
+Gaziantep Protez Tırnak¦Nail extensions in Gaziantep¦Наращивание ногтей в Газиантепе¦Nagelverlängerung in Gaziantep
+Tırnak Center¦Nail center¦Ногтевой центр¦Nagelcenter
+Ola Nail’den online randevunuzu kolayca oluşturun. Gaziantep’in en büyük tırnak merkezinde protez tırnak, manikür, pedikür, nail art ve güzellik hizmetleri için...¦Book online at Ola Nail. Nail extensions, manicure, pedicure, nail art and beauty services in the largest nail centre in Gaziantep...¦Запишитесь онлайн в Ola Nail. Наращивание, маникюр, педикюр, дизайн ногтей и услуги красоты в крупнейшем ногтевом центре Газиантепа...¦Buchen Sie online bei Ola Nail. Nagelverlängerung, Maniküre, Pediküre, Nail Art und Beauty im größten Nagelzentrum von Gaziantep...
+Güzelliğin, bakımın ve profesyonelliğin buluşma noktası.¦Where beauty, care and professionalism meet.¦Место встречи красоты, ухода и профессионализма.¦Wo Schönheit, Pflege und Professionalität zusammenkommen.
+2023 yılında Gaziantep’te hizmet vermeye başlayan Ola Nail, kısa sürede büyüyerek Gaziantep’in en büyük ve en kapsamlı tırnak merkezlerinden biri haline gelmiştir.¦Opened in Gaziantep in 2023, Ola Nail quickly became one of the largest and most comprehensive nail centres in the city.¦Ola Nail открылся в Газиантепе в 2023 году и быстро стал одним из крупнейших ногтевых центров города.¦Ola Nail eröffnete 2023 in Gaziantep und wurde schnell zu einem der größten Nagelzentren der Stadt.
+Protez tırnak, manikür, pedikür, nail art ve güzellik uygulamalarında profesyonel hizmet anlayışı, deneyimli uzman kadrosu ve modern salon konseptiyle misafirlerine kaliteli bir deneyim sunmaktadır.¦With professional service, experienced specialists and a modern salon it offers a quality experience in nail extensions, manicure, pedicure, nail art and beauty.¦Профессиональный сервис, опытные мастера и современный салон: наращивание, маникюр, педикюр, дизайн ногтей и услуги красоты.¦Mit professionellem Service, erfahrenen Fachkräften und modernem Konzept bietet es Qualität bei Nagelverlängerung, Maniküre, Pediküre, Nail Art und Beauty.
+Bugün birden fazla şubesiyle hizmet veren Ola Nail, sadece bir tırnak merkezi olmanın ötesinde; güzellik sektöründe büyüyen, gelişen ve kendi uzmanlarını yetiştiren güçlü bir marka olma yolunda ilerlemektedir.¦Today, with several branches, Ola Nail is more than a nail centre: a growing brand that trains its own specialists.¦Сегодня Ola Nail — это несколько филиалов и растущий бренд, который обучает собственных мастеров.¦Heute ist Ola Nail mit mehreren Filialen mehr als ein Nagelzentrum: eine wachsende Marke, die ihre eigenen Fachkräfte ausbildet.
+Neden Ola Nail?¦Why Ola Nail?¦Почему Ola Nail?¦Warum Ola Nail?
+Profesyonel ve deneyimli uzman kadro¦Professional and experienced specialists¦Профессиональные и опытные мастера¦Professionelle, erfahrene Fachkräfte
+Modern ve konforlu salonlar¦Modern and comfortable salons¦Современные и комфортные салоны¦Moderne, komfortable Salons
+Hijyen ve müşteri memnuniyeti odaklı hizmet¦Service focused on hygiene and satisfaction¦Гигиена и довольные клиенты¦Fokus auf Hygiene und Kundenzufriedenheit
+Protez tırnak ve nail art alanında uzmanlaşmış ekip¦Team specialised in nail extensions and nail art¦Команда экспертов по наращиванию и дизайну¦Auf Nagelverlängerung und Nail Art spezialisiertes Team
+Geniş hizmet seçenekleri¦Wide range of services¦Широкий выбор услуг¦Breites Leistungsangebot
+Birden fazla şubede standart hizmet kalitesi¦Same quality in all branches¦Единое качество во всех филиалах¦Gleiche Qualität in allen Filialen
+Sürekli gelişen ve yenilenen uygulamalar¦Constantly improving treatments¦Постоянное развитие и новинки¦Ständig weiterentwickelte Behandlungen
+Uzman yetiştiren Ola Nail Academy¦Ola Nail Academy trains specialists¦Академия Ola Nail обучает мастеров¦Ola Nail Academy bildet Fachkräfte aus
+Ola Nail olarak hedefimiz; Gaziantep’ten başlayan başarımızı Türkiye’nin dört bir yanına ve dünyanın farklı noktalarına taşıyarak güzellik sektöründe güçlü ve güvenilir bir marka olmaktır.¦Our goal is to carry our success from Gaziantep across Türkiye and the world as a strong and trusted beauty brand.¦Наша цель — вынести успех из Газиантепа по всей Турции и миру и стать сильным, надёжным брендом красоты.¦Unser Ziel: unseren Erfolg aus Gaziantep in die ganze Türkei und die Welt zu tragen — als starke, verlässliche Beauty-Marke.
+Ola Nail — Güzelliğinize profesyonel dokunuş.¦Ola Nail — a professional touch to your beauty.¦Ola Nail — профессиональный штрих вашей красоты.¦Ola Nail — professionelle Note für Ihre Schönheit.
+Gaziantep Pedikür¦Pedicure in Gaziantep¦Педикюр в Газиантепе¦Pediküre in Gaziantep
+Gaziantep Nail Art¦Nail art in Gaziantep¦Дизайн ногтей в Газиантепе¦Nail Art in Gaziantep
+Gaziantep Kirpik¦Lashes in Gaziantep¦Ресницы в Газиантепе¦Wimpern in Gaziantep
+Gaziantep En Iyi Protez Uzmanı¦Best nail extension expert in Gaziantep¦Лучший мастер наращивания в Газиантепе¦Beste Nagelexpertin in Gaziantep
+Gaziantep En Büyük Protez Rırnak Salonu¦Largest nail salon in Gaziantep¦Крупнейший салон наращивания в Газиантепе¦Größtes Nagelstudio in Gaziantep

@@ -1086,6 +1086,7 @@ $salon = Salonlar::where('domain', $domain)->first();
         if (empty($mesajlar)) {
             return ['success'=>false, 'error'=>'kara-liste'];
         }
+        $mesajlar = \App\Services\MusteriDili::smsSatirlari($salon->id, $mesajlar);
         $aciklama = '';
         foreach($mesajlar as $m) $aciklama .= $m['message']."\n";
 
@@ -1531,6 +1532,10 @@ $salon = Salonlar::where('domain', $domain)->first();
              $kullanici->save();
              // Sadece YENI kayit icin otomatik login (hesap zaten yoktu, impersonation riski yok)
              \Auth::login($kullanici);
+         }
+         // Musteri dili: sitede sectigi dil (tarayici cerezi)
+         if (!empty($_COOKIE['musteri_dil']) && \App\Services\MusteriDili::acikMi($request->input('isletmeno') ?? $request->input('salonno'))) {
+             \App\Services\MusteriDili::kaydet($kullanici->id, (string) $_COOKIE['musteri_dil'], 'musteri');
          }
 
          // MusteriPortfoy: salon icin portfoy yoksa ekle. Boylece kullanici "Evet"i

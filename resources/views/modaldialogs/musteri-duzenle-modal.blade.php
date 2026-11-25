@@ -35,6 +35,7 @@
                               <input type="hidden" name="telefon" class="tel-val">
                            </div>
                         </div>
+                        @include('partials.musteri_iletisim_dili', ['mdUserId' => $pageindex == 41 ? $musteri_bilgi->id : null])
                         <div class="col-md-6">
                            <label>E-posta </label>
                            @if($pageindex==41)

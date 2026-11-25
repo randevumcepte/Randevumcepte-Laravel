@@ -351,6 +351,11 @@ class WaAsistan
         $gecmis = json_decode($o->gecmis ?: '[]', true) ?: [];
         $tel = $o->telefon ?: $son->telefon;
         $hedef = $son->jid ?: ($o->jid ?: $tel);
+        // Musteri dili (pilot): yabanci dilde yazan musterinin mesaji Turkceye cevrilip islenir (kurallar + panel Turkce);
+        // cevap sendAsistanCevap'ta musterinin diline cevrilir. Asil metin 'asil' olarak saklanir.
+        $metinAsil = $metin;
+        $metin = trim(MusteriDili::waGelen((int) $o->isletme_id, $hedef, $tel, $metin)[0]);
+        $asilEk = $metinAsil !== $metin ? ['asil' => $metinAsil] : [];
         $upd = ['son_mesaj_at' => now(), 'updated_at' => now(), 'mesaj_sayisi' => DB::raw('mesaj_sayisi + ' . count($satirlar))];
         if ($son->jid) $upd['jid'] = $son->jid;
         if ($son->ad && !$o->ad) $upd['ad'] = $son->ad;
@@ -362,8 +367,8 @@ class WaAsistan
             DB::table('wa_asistan_oturumlari')->where('id', $o->id)->update($upd);
         };
         // Cevap verilmeyecekse mesaj yine gecmise yazilir (panel + AI geri dondugunde baglam)
-        $sus = function (string $neden) use (&$gecmis, $metin, $kaydet, $o, $musteriAn) {
-            $gecmis[] = ['role' => 'user', 'content' => $metin, 'at' => $musteriAn];
+        $sus = function (string $neden) use (&$gecmis, $metin, $kaydet, $o, $musteriAn, $asilEk) {
+            $gecmis[] = ['role' => 'user', 'content' => $metin, 'at' => $musteriAn] + $asilEk;
             $kaydet($gecmis);
             Log::info('[WA-ASISTAN] cevap verilmedi: ' . $neden, ['oturum' => $o->id, 'salon' => $o->salon_id]);
         };
@@ -596,7 +601,7 @@ class WaAsistan
         }
         if ($usd + $ekUsd > 0) $upd['maliyet_usd'] = DB::raw('maliyet_usd + ' . sprintf('%.6F', $usd + $ekUsd));
 
-        $gecmis[] = ['role' => 'user', 'content' => $metin, 'at' => $musteriAn];
+        $gecmis[] = ['role' => 'user', 'content' => $metin, 'at' => $musteriAn] + $asilEk;
         $gonderildi = false;
         if ($cevap !== '' && $hedef) {
             $r = app(WhatsAppService::class)->sendAsistanCevap($salon, $hedef, $cevap, $tel);

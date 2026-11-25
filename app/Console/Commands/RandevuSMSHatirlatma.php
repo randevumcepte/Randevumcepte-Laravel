@@ -782,6 +782,8 @@ class RandevuSMSHatirlatma extends Command
         if (!$r->salon_id || !$this->aramaAcik($r->salon_id)) return 'e-asistan randevu aramasi kapali';
         if (empty(optional($r->users)->cep_telefon)) return 'musteri telefonu yok';
         if (!empty($r->hatirlatma_gorevi_iptal)) return 'gorev iptal edilmis';
+        // Musteri dili (pilot): yabanci dil secen musteri Turkce aranmaz; yazili hatirlatma kendi dilinde gider
+        if (\App\Services\MusteriDili::acikMi($r->salon_id) && !in_array(\App\Services\MusteriDili::dil($r->user_id), [null, 'tr'], true)) return 'musteri dili yabanci';
         $karaListe = MusteriPortfoy::where('user_id', $r->user_id)
             ->where('salon_id', $r->salon_id)
             ->value('kara_liste');

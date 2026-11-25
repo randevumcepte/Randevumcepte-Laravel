@@ -86,6 +86,9 @@ class WhatsAppService
         return (int) config('whatsapp.default_daily_limit', 200);
     }
 
+    /** Musterinin dilindeki metin (sendReminder hazirlar, sendViaBaileys kullanir) */
+    protected $gidecekMetin = null;
+
     public function __construct()
     {
         $this->baseUrl = rtrim(config('whatsapp.service_url'), '/');
@@ -210,6 +213,9 @@ class WhatsAppService
 
         $saglayici = $salon->whatsapp_saglayici ?? 'baileys';
 
+        // Musteri dili: gidecek metin musterinin dilinde; log Turkce kalir (salon okur, SMS yedegi kendi cevirir)
+        $this->gidecekMetin = MusteriDili::mesaj($kaynakSalonId, $userId, $normalized, $message, 'wa', !empty($userId));
+
         if ($saglayici === 'cloud_api') {
             return $this->sendViaCloudApi($salon, $normalized, $message, $randevuId, $userId, $templateCtx, $gonderimTipi, $kaynakSalonId);
         }
@@ -251,9 +257,11 @@ class WhatsAppService
         // WhatsApp kredisi (kontor) kapsami DISI: asistan cevaplari kontor istemez/dusmez
         // (asistanin kendi paketi WaPaket ile sayilir).
         $logId = $this->logPending($kaynakSalonId, null, null, $tel ?: mb_substr($hedef, 0, 30), $mesaj, 'baileys', self::ASISTAN_TIPI);
+        // Musteri dili: cevap musterinin dilinde gider, log/panel Turkce kalir
+        $gidecek = MusteriDili::waGiden($kaynakSalonId, $hedef, $tel, $mesaj);
         $response = $this->request('POST', "/session/{$salon->id}/send", [
             'to' => $hedef,
-            'message' => $mesaj,
+            'message' => $gidecek,
             'warmupStart' => null,
             'dailyLimit' => 9999,
             'logId' => $logId,
@@ -281,10 +289,12 @@ class WhatsAppService
     protected function sendViaBaileys(Salonlar $salon, $to, $message, $randevuId, $userId, $urgent = false, $gonderimTipi = null, $kaynakSalonId = null)
     {
         $logId = $this->logPending($kaynakSalonId ?: $salon->id, $userId, $randevuId, $to, $message, 'baileys', $gonderimTipi);
+        $gidecek = $this->gidecekMetin !== null ? $this->gidecekMetin : $message;
+        $this->gidecekMetin = null;
 
         $response = $this->request('POST', "/session/{$salon->id}/send", [
             'to' => $to,
-            'message' => $message,
+            'message' => $gidecek,
             'warmupStart' => optional($salon->whatsapp_warmup_baslangic)->toIso8601String()
                 ?: optional($salon->whatsapp_baglanti_tarihi)->toIso8601String(),
             'dailyLimit' => self::gunlukLimit($salon),

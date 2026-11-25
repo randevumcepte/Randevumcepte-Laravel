@@ -27,6 +27,7 @@ class Kernel extends ConsoleKernel
         Commands\AramaRandevuAktar::class,
         Commands\SadakatPuanIsle::class,
         Commands\DamgaKartiBildirim::class,
+        Commands\DilSalonCevir::class,
         Commands\IkramOdemeEtki::class,
 
         Commands\SMSGonder::class,
@@ -181,6 +182,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('randevu:sema-ensure')->withoutOverlapping()->everyFiveMinutes();
 
         // WhatsApp 2 ay ücretsiz promo — günde bir: promosu başlat + süresi dolanı kapat
+        $schedule->command('dil:salon-cevir')->withoutOverlapping()->dailyAt('04:20'); // musteri dili: yeni salon icerigi
         $schedule->command('whatsapp:promo-kontrol')->withoutOverlapping()->dailyAt('00:30');
 
         // Asistan Egitimi kalip kutuphaneleri (sohbet + hizmet bilgilendirme) — surum

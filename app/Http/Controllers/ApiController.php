@@ -387,6 +387,10 @@ class ApiController extends Controller
 
 
             $kullanici->save();
+            // Musteri dili: uygulamada sectigi dille kayit (sifre mesaji da o dilde)
+            if ($request->filled('dil') && \App\Services\MusteriDili::acikMi($salonidler[0] ?? 0)) {
+                \App\Services\MusteriDili::kaydet($kullanici->id, (string) $request->dil, 'musteri');
+            }
 
             $salonbaslik = "";
 
@@ -10077,6 +10081,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             
         else
             $isletme = Salonlar::where("id", $salonid)->first();
+        if ($isletme) $mesajlar = \App\Services\MusteriDili::smsSatirlari($isletme->id, $mesajlar);
         if(($isletme &&$isletme->yeni_sms == 1)|| !$isletme)
         {
             foreach($mesajlar as $mesaj)
@@ -19941,6 +19946,11 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
         }
 
         $musteri->save();
+
+        // Iletisim dili (pilot): musteri kendi secmediyse personelin secimi gecerli
+        if ($request->filled('iletisim_dili') && \App\Services\MusteriDili::acikMi($sube)) {
+            \App\Services\MusteriDili::kaydet($musteri->id, (string) $request->iletisim_dili, 'personel');
+        }
 
         if ($request->musteri_id == "") {
 

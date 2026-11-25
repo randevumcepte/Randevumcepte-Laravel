@@ -1,0 +1,209 @@
+## SMS / bildirim cümleleri (cümle cümle eşleşir)
+{} tarafından {} olarak randevunuz oluşturulmuştur.¦{1}: your appointment on {2} has been booked.¦{1}: вы записаны на {2}.¦{1}: Ihr Termin am {2} wurde gebucht.
+{} tarafından {} olarak randevunuz güncellenmiştir.¦{1}: your appointment has been changed to {2}.¦{1}: ваша запись перенесена на {2}.¦{1}: Ihr Termin wurde auf {2} geändert.
+{} tarafından {} olarak randevunuz güncellenmiştir¦{1}: your appointment has been changed to {2}¦{1}: ваша запись перенесена на {2}¦{1}: Ihr Termin wurde auf {2} geändert
+{} tarafından {} olarak ön görüşme randevunuz düzenlenmiştir.¦{1}: your consultation is scheduled for {2}.¦{1}: ваша консультация назначена на {2}.¦{1}: Ihr Beratungstermin ist am {2}.
+{} için oluşturduğunuz {} tarihli randevu talebiniz alınmıştır.¦{1}: we received your appointment request for {2}.¦{1}: ваша заявка на {2} принята.¦{1}: Ihre Terminanfrage für den {2} ist eingegangen.
+{} için {} tarihli randevu talebiniz alınmıştır.¦{1}: we received your appointment request for {2}.¦{1}: ваша заявка на {2} принята.¦{1}: Ihre Terminanfrage für den {2} ist eingegangen.
+{} için {} saat {} randevu talebiniz alınmıştır.¦{1}: we received your appointment request for {2}, {3}.¦{1}: ваша заявка на {2}, {3} принята.¦{1}: Ihre Terminanfrage für den {2}, {3} Uhr ist eingegangen.
+Talebiniz kısa sürede sonuçlanacaktır.¦It will be answered shortly.¦Мы скоро ответим.¦Sie wird in Kürze bearbeitet.
+İlginiz için teşekkür ederiz.¦Thank you for your interest.¦Спасибо за интерес.¦Vielen Dank für Ihr Interesse.
+İlginiz için teşekkür ederiz!¦Thank you for your interest!¦Спасибо за интерес!¦Vielen Dank für Ihr Interesse!
+Talebiniz salon tarafından onaylandığında ayrıca bilgilendirileceksiniz.¦We will inform you when the salon confirms it.¦Мы сообщим, когда салон подтвердит запись.¦Wir informieren Sie, sobald der Salon bestätigt.
+Talebiniz klinik tarafından onaylandığında ayrıca bilgilendirileceksiniz.¦We will inform you when the clinic confirms it.¦Мы сообщим, когда клиника подтвердит запись.¦Wir informieren Sie, sobald die Klinik bestätigt.
+Randevunuza 15 dk önce gelmenizi rica ederiz.¦Please arrive 15 minutes early.¦Просим прийти за 15 минут до начала.¦Bitte kommen Sie 15 Minuten früher.
+Detaylı bilgi için bize ulaşın.¦Contact us for details.¦Подробности по телефону.¦Für Details kontaktieren Sie uns.
+Detaylı bilgi için bize ulaşınız.¦Contact us for details.¦Подробности по телефону.¦Für Details kontaktieren Sie uns.
+Yol tarifi: {}¦Directions: {}¦Как добраться: {}¦Route: {}
+İletişim: {}¦Contact: {}¦Контакты: {}¦Kontakt: {}
+{} için oluşturduğunuz {} tarihli randevu talebiniz reddedilmiştir.¦{1}: your appointment request for {2} was declined.¦{1}: ваша заявка на {2} отклонена.¦{1}: Ihre Terminanfrage für den {2} wurde abgelehnt.
+{} için oluşturduğunuz {} randevu talebiniz reddedilmiştir.¦{1}: your appointment request for {2} was declined.¦{1}: ваша заявка на {2} отклонена.¦{1}: Ihre Terminanfrage für den {2} wurde abgelehnt.
+{} için oluşturulan {} tarihli randevunuz iptal edilmiştir.¦{1}: your appointment on {2} was cancelled.¦{1}: ваша запись на {2} отменена.¦{1}: Ihr Termin am {2} wurde storniert.
+{} için oluşturulan {} randevunuz iptal edilmiştir.¦{1}: your appointment on {2} was cancelled.¦{1}: ваша запись на {2} отменена.¦{1}: Ihr Termin am {2} wurde storniert.
+{} için randevunuz iptal edilmiştir¦Your appointment for {} was cancelled¦Ваша запись на {} отменена¦Ihr Termin für {} wurde storniert
+{} için oluşturduğunuz {} tarihli randevu talebiniz onaylanmıştır.¦{1}: your appointment on {2} is confirmed.¦{1}: ваша запись на {2} подтверждена.¦{1}: Ihr Termin am {2} ist bestätigt.
+Sayın {}; {} tarihinde saat {#} randevunuzu hatırlatmak isteriz görüşmek üzere ✨¦Dear {1}, a reminder of your appointment on {2} at {3}. See you soon ✨¦{1}, напоминаем о записи {2} в {3}. До встречи ✨¦Liebe/r {1}, wir erinnern an Ihren Termin am {2} um {3} Uhr. Bis bald ✨
+Sayın {}; {} tarihinde saat {#} {} randevunuzu hatırlatmak isteriz görüşmek üzere ✨¦Dear {1}, a reminder of your appointment on {2} at {3} ({4}). See you soon ✨¦{1}, напоминаем о записи {2} в {3} ({4}). До встречи ✨¦Liebe/r {1}, wir erinnern an Ihren Termin am {2} um {3} Uhr ({4}). Bis bald ✨
+Sayın {}; {} tarihinde {} randevunuzu hatırlatmak isteriz görüşmek üzere ✨¦Dear {1}, a reminder of your appointment on {2} ({3}). See you soon ✨¦{1}, напоминаем о записи {2} ({3}). До встречи ✨¦Liebe/r {1}, wir erinnern an Ihren Termin am {2} ({3}). Bis bald ✨
+Sayın {}; {} tarihinde {} randevularınızı hatırlatmak isteriz görüşmek üzere ✨¦Dear {1}, a reminder of your appointments on {2} ({3}). See you soon ✨¦{1}, напоминаем о записях {2} ({3}). До встречи ✨¦Liebe/r {1}, wir erinnern an Ihre Termine am {2} ({3}). Bis bald ✨
+Sayın {}; {} saat {#} {} randevunuza 1 gün kaldı, hatırlatmak isteriz ✨¦Dear {1}, your appointment is tomorrow: {2}, {3} ({4}) ✨¦{1}, до вашей записи 1 день: {2}, {3} ({4}) ✨¦Liebe/r {1}, noch 1 Tag bis zu Ihrem Termin: {2}, {3} Uhr ({4}) ✨
+Sayın {}; {} saat {#} {} randevunuza 3 saat kaldı, hatırlatmak isteriz ✨¦Dear {1}, your appointment is in 3 hours: {2}, {3} ({4}) ✨¦{1}, до вашей записи 3 часа: {2}, {3} ({4}) ✨¦Liebe/r {1}, noch 3 Stunden bis zu Ihrem Termin: {2}, {3} Uhr ({4}) ✨
+Sayın {}; {} saat {#} randevunuza 1 gün kaldı, hatırlatmak isteriz ✨¦Dear {1}, your appointment is tomorrow: {2}, {3} ✨¦{1}, до вашей записи 1 день: {2}, {3} ✨¦Liebe/r {1}, noch 1 Tag bis zu Ihrem Termin: {2}, {3} Uhr ✨
+Sayın {}; {} saat {#} randevunuza 3 saat kaldı, hatırlatmak isteriz ✨¦Dear {1}, your appointment is in 3 hours: {2}, {3} ✨¦{1}, до вашей записи 3 часа: {2}, {3} ✨¦Liebe/r {1}, noch 3 Stunden bis zu Ihrem Termin: {2}, {3} Uhr ✨
+## Bildirim başlıkları
+Randevu Hatırlatma¦Appointment reminder¦Напоминание о записи¦Terminerinnerung
+Randevu Talebiniz Alındı¦Appointment request received¦Заявка принята¦Terminanfrage erhalten
+Randevu talebiniz alındı¦Appointment request received¦Заявка принята¦Terminanfrage erhalten
+Randevu Talebiniz Reddedildi¦Appointment request declined¦Заявка отклонена¦Terminanfrage abgelehnt
+Randevunuz İptal Edildi¦Appointment cancelled¦Запись отменена¦Termin storniert
+Randevunuz Onaylandı¦Appointment confirmed¦Запись подтверждена¦Termin bestätigt
+Randevunuz Güncellendi¦Appointment changed¦Запись изменена¦Termin geändert
+Randevunuz güncellendi¦Appointment changed¦Запись изменена¦Termin geändert
+Randevunuz ertelendi¦Appointment rescheduled¦Запись перенесена¦Termin verschoben
+Randevunuz Ertelendi¦Appointment rescheduled¦Запись перенесена¦Termin verschoben
+Yeni Randevunuz Oluşturuldu¦Your new appointment is booked¦Вы записаны¦Neuer Termin gebucht
+Randevunuz Oluşturuldu¦Your appointment is booked¦Вы записаны¦Termin gebucht
+Randevunuz oluşturuldu¦Your appointment is booked¦Вы записаны¦Termin gebucht
+Sizin için randevu oluşturuldu¦An appointment was booked for you¦Для вас создана запись¦Für Sie wurde ein Termin gebucht
+{} • {} • Onay bekleniyor¦{} • {} • Awaiting confirmation¦{} • {} • Ожидает подтверждения¦{} • {} • Wartet auf Bestätigung
+{} • {} • Yeni: {}¦{} • {} • New: {}¦{} • {} • Новое время: {}¦{} • {} • Neu: {}
+Yeni fotoğrafınız var¦You have a new photo¦У вас новое фото¦Sie haben ein neues Foto
+Ders Hatırlatması¦Class reminder¦Напоминание о занятии¦Kurserinnerung
+Derse katıldınız mı?¦Did you attend the class?¦Вы были на занятии?¦Haben Sie am Kurs teilgenommen?
+Seans Hatirlatmasi¦Session reminder¦Напоминание о сеансе¦Sitzungserinnerung
+Seans Bilgilendirmesi ✨¦Session update ✨¦Информация о сеансах ✨¦Sitzungsinfo ✨
+🎂 Doğum gününüz kutlu olsun!¦🎂 Happy birthday!¦🎂 С днём рождения!¦🎂 Alles Gute zum Geburtstag!
+Kara Listeye Alındınız¦You have been unsubscribed¦Вы отписаны от рассылки¦Sie wurden abgemeldet
+Şifreniz değiştirildi¦Your password was changed¦Пароль изменён¦Ihr Passwort wurde geändert
+Hesabınızın şifresi değiştirildi. Lütfen tekrar giriş yapınız.¦Your account password was changed. Please log in again.¦Пароль аккаунта изменён. Войдите снова.¦Ihr Kontopasswort wurde geändert. Bitte melden Sie sich erneut an.
+Doğrulama Kodu¦Verification code¦Код подтверждения¦Bestätigungscode
+## Şifre ve kodlar
+Doğrulama kodunuz : {}¦Your verification code: {}¦Ваш код подтверждения: {}¦Ihr Bestätigungscode: {}
+Doğrulama kodunuz: {}¦Your verification code: {}¦Ваш код подтверждения: {}¦Ihr Bestätigungscode: {}
+{} çarkıfelek doğrulama kodunuz: {}¦{} wheel of fortune code: {}¦{} — код для колеса удачи: {}¦{} Glücksrad-Code: {}
+{} uygulama şifreniz : {}¦{} app password: {}¦{} — пароль приложения: {}¦{} App-Passwort: {}
+{} uygulama şifreniz: {}¦{} app password: {}¦{} — пароль приложения: {}¦{} App-Passwort: {}
+Sistem kullanıcı adınız:{} Şifreniz:{}¦Username: {} Password: {}¦Логин: {} Пароль: {}¦Benutzername: {} Passwort: {}
+Sayın {}. {} tarafından müşteri kaydınız oluşturulmuştur. Sistem kullanıcı adınız:{} Şifreniz:{}¦Dear {1}, {2} has created your customer account. Username: {3} Password: {4}¦{1}, салон {2} создал вашу карту клиента. Логин: {3} Пароль: {4}¦Liebe/r {1}, {2} hat Ihr Kundenkonto erstellt. Benutzername: {3} Passwort: {4}
+Sayın {}. {} tarafından müşteri kaydınız oluşturulmuştur.¦Dear {1}, {2} has created your customer account.¦{1}, салон {2} создал вашу карту клиента.¦Liebe/r {1}, {2} hat Ihr Kundenkonto erstellt.
+{} nolu senedinizin {} tarihli vadesinin ödemesi için doğrulama kodunuz : {}¦Verification code for the {2} instalment of note no. {1}: {3}¦Код подтверждения для оплаты по векселю №{1} от {2}: {3}¦Bestätigungscode für die Rate vom {2} (Schein Nr. {1}): {3}
+{} nolu taksitli ödemenizin {} tarihli vadesinin ödemesi için doğrulama kodunuz : {}¦Verification code for the {2} instalment of payment plan no. {1}: {3}¦Код подтверждения для платежа от {2} по рассрочке №{1}: {3}¦Bestätigungscode für die Rate vom {2} (Ratenzahlung Nr. {1}): {3}
+{}'a hoşgeldiniz. Randevunuzu oluşturmak için sistem giriş şifreniz : {}. Lütfen giriş yaptıktan sonra şifrenizi hatırlayabileceğiniz güvenli bir şifre ile değiştirmeyi unutmayınız.¦Welcome to {1}. Your password to book your appointment: {2}. Please change it to a secure password after logging in.¦Добро пожаловать в {1}. Ваш пароль для записи: {2}. После входа смените его на надёжный.¦Willkommen bei {1}. Ihr Passwort für die Terminbuchung: {2}. Bitte ändern Sie es nach der Anmeldung.
+{} Hizmet Sözleşmenizi imzalamak için: {} | Onay Kodu: {}¦{} — sign your service agreement: {} | Code: {}¦{} — подписать договор: {} | Код: {}¦{} — Vertrag unterschreiben: {} | Code: {}
+{} isimli formu doldurmak için: {} | Onay Kodu: {}¦Fill in the form {}: {} | Code: {}¦Заполните форму {}: {} | Код: {}¦Formular {} ausfüllen: {} | Code: {}
+## Ödeme / alacak / doğum günü / ders
+Sayın {} {} için yarın ödemeniz gereken {} TL borcunuzun olduğunu hatırlatmak isteriz.¦Reminder: {2}: payment of {3} TL is due tomorrow, {1}.¦{1}, напоминаем: завтра нужно оплатить {3} TL ({2}).¦{1}, zur Erinnerung: Morgen sind {3} TL fällig ({2}).
+Sayın {} {} için {} TL borcunuzun olduğunu hatırlatmak isteriz.¦{1}, a reminder of your outstanding balance: {3} TL ({2}).¦{1}, напоминаем о задолженности {3} TL ({2}).¦{1}, wir erinnern an den offenen Betrag von {3} TL ({2}).
+Tahsilat için lütfen iletişime geçin.¦Please contact us to pay.¦Свяжитесь с нами для оплаты.¦Bitte kontaktieren Sie uns zur Zahlung.
+Sayın {} {} vade tarihli {} ₺ tutarındaki senedinizin ödenmemiş olduğunu hatırlatmak isteriz.¦{1}, your payment of {3} ₺ due on {2} is still open.¦{1}, платёж {3} ₺ со сроком {2} ещё не оплачен.¦{1}, Ihre Zahlung über {3} ₺ (fällig {2}) ist noch offen.
+Sayın {} {} olarak doğum gününüzü kutlar, sağlıklı, mutlu ve başarılı dolu seneler dileriz.¦{2} wishes {1} a happy birthday, with health, happiness and success!¦{1}, салон {2} поздравляет вас с днём рождения! Здоровья, счастья и успехов!¦{2} wünscht {1} alles Gute zum Geburtstag, Gesundheit, Glück und Erfolg!
+Sayın {}, {} olarak doğum gününüzü kutlar; sağlıklı, mutlu ve başarı dolu bir yıl dileriz. 🎂¦{2} wishes {1} a happy birthday and a year of health, happiness and success. 🎂¦{1}, салон {2} поздравляет вас с днём рождения! Здоровья, счастья и успехов! 🎂¦{2} wünscht {1} alles Gute zum Geburtstag und ein gesundes, glückliches Jahr. 🎂
+Sayın {}; {} saat {#} {} dersiniz iptal edilmiştir.¦Dear {1}, your class {4} on {2} at {3} was cancelled.¦{1}, занятие «{4}» {2} в {3} отменено.¦Liebe/r {1}, Ihr Kurs {4} am {2} um {3} Uhr wurde abgesagt.
+Bilginize.¦For your information.¦Просим учесть.¦Zur Kenntnis.
+Sayın {}; aşağıdaki dersinizi hatırlatmak isteriz, görüşmek üzere ✨¦Dear {}, a reminder of your class below. See you soon ✨¦{}, напоминаем о вашем занятии. До встречи ✨¦Liebe/r {}, wir erinnern an Ihren Kurs. Bis bald ✨
+📅 Tarih: {}¦📅 Date: {}¦📅 Дата: {}¦📅 Datum: {}
+🕒 Saat: {}¦🕒 Time: {}¦🕒 Время: {}¦🕒 Uhrzeit: {}
+🧘 Ders: {}¦🧘 Class: {}¦🧘 Занятие: {}¦🧘 Kurs: {}
+👤 Eğitmen: {}¦👤 Trainer: {}¦👤 Тренер: {}¦👤 Trainer: {}
+💳 Ayrıca tamamlanmamış bir ödemeniz görünmektedir. Ödemenizi tamamlamak için bizimle iletişime geçebilirsiniz.¦💳 You also have an outstanding payment. Please contact us to complete it.¦💳 У вас также есть незавершённый платёж. Свяжитесь с нами для оплаты.¦💳 Außerdem ist eine Zahlung offen. Bitte kontaktieren Sie uns.
+{} dersiniz {} {#}. Görüşmek üzere!¦Your class {} is on {} at {}. See you soon!¦Ваше занятие «{}»: {}, {}. До встречи!¦Ihr Kurs {} ist am {} um {} Uhr. Bis bald!
+Görüşmek üzere!¦See you soon!¦До встречи!¦Bis bald!
+Bugün {#} {} dersinize katıldıysanız lütfen onaylayın: Katıldım / Katılmadım.¦If you attended your class {2} today at {1}, please confirm: Attended / Not attended.¦Если вы были сегодня в {1} на занятии «{2}», подтвердите: был(а) / не был(а).¦Falls Sie heute um {1} Uhr am Kurs {2} teilgenommen haben, bestätigen Sie bitte.
+Sayin {}, yarin {} seansiniz var.¦Dear {1}, you have a session tomorrow: {2}.¦{1}, завтра у вас сеанс: {2}.¦Liebe/r {1}, Sie haben morgen eine Sitzung: {2}.
+Sayin {}, yarin ({}) {} seansiniz var: {}.¦Dear {1}, you have {3} session(s) tomorrow ({2}): {4}.¦{1}, завтра ({2}) у вас сеансов: {3} — {4}.¦Liebe/r {1}, morgen ({2}) haben Sie {3} Sitzung(en): {4}.
+Sayın {}, isteğiniz doğrultusunda telefon numaranız kara listeye alınmıştır.¦Dear {}, as requested, your phone number was removed from our mailing list.¦{}, по вашей просьбе ваш номер исключён из рассылки.¦Liebe/r {}, Ihre Nummer wurde auf Ihren Wunsch von unserem Verteiler entfernt.
+Kampanya ve reklam mesajları gönderilmeyecektir.¦You will not receive promotional messages.¦Рекламные сообщения приходить не будут.¦Sie erhalten keine Werbenachrichten mehr.
+Sayın {}, seans bilgileriniz güncellendi. Sağlıklı günler dileriz.¦Dear {}, your session information was updated. We wish you well.¦{}, информация о ваших сеансах обновлена. Всего доброго.¦Liebe/r {}, Ihre Sitzungsdaten wurden aktualisiert. Alles Gute.
+{} hizmetinden ikram kazandınız. Dilediğiniz bir seansınızda kullanabilirsiniz 🎁¦You earned a free service: {}. Use it at any visit 🎁¦Вы получили услугу в подарок: {}. Используйте в любой визит 🎁¦Sie haben eine Gratis-Leistung verdient: {}. Einlösbar bei jedem Besuch 🎁
+{} hizmetinde %{} indirim kazandınız. Dilediğiniz bir seansınızda kullanabilirsiniz 🎁¦You earned {2}% off {1}. Use it at any visit 🎁¦Вы получили скидку {2}% на услугу «{1}». Используйте в любой визит 🎁¦Sie haben {2} % Rabatt auf {1} verdient. Einlösbar bei jedem Besuch 🎁
+İkram hizmet kazandınız¦You earned a free service¦Вы получили услугу в подарок¦Sie haben eine Gratis-Leistung verdient
+Çark-ı Felek'i çevir, sürpriz ödülü kap! Bugün şansını dene 🎁¦Spin the wheel and win a surprise! Try your luck today 🎁¦Крутите колесо и выиграйте сюрприз! Испытайте удачу сегодня 🎁¦Drehen Sie das Rad und gewinnen Sie eine Überraschung! 🎁
+🎡 Bugün çark hakkınız var, hediyeler sizi bekliyor!¦🎡 You have a spin today, gifts are waiting!¦🎡 Сегодня у вас есть попытка — подарки ждут!¦🎡 Sie haben heute eine Drehung, Geschenke warten!
+⏰ Çark hakkınız hâlâ duruyor — son birkaç saat!¦⏰ Your spin is still available — only a few hours left!¦⏰ Ваша попытка ещё доступна — осталось несколько часов!¦⏰ Ihre Drehung wartet noch — nur noch wenige Stunden!
+🚨 Son 4 saat! Çarkı çevirmeyi unutmayın¦🚨 Last 4 hours! Don't forget to spin¦🚨 Осталось 4 часа! Не забудьте прокрутить колесо¦🚨 Letzte 4 Stunden! Drehen nicht vergessen
+🎯 Son 90 dakika! Çevirmek için tek tık¦🎯 Last 90 minutes! One tap to spin¦🎯 Последние 90 минут! Крутите в один клик¦🎯 Letzte 90 Minuten! Ein Tipp zum Drehen
+{}: Hoş geldiniz {}, iyi günler dileriz.¦{}: Welcome {}, have a nice day.¦{}: добро пожаловать, {}! Хорошего дня.¦{}: Willkommen {}, einen schönen Tag.
+{}: Sayın {}, sizi kısa süre içinde arayacağız.¦{}: Dear {}, we will call you shortly.¦{}: {}, мы скоро вам перезвоним.¦{}: Liebe/r {}, wir rufen Sie in Kürze an.
+{}: Sayın {}, geri bildiriminiz için teşekkür ederiz.¦{}: Dear {}, thank you for your feedback.¦{}: {}, спасибо за ваш отзыв.¦{}: Liebe/r {}, danke für Ihr Feedback.
+Yaşadığınız sorun için sizinle iletişime geçeceğiz.¦We will contact you about the issue.¦Мы свяжемся с вами по поводу проблемы.¦Wir melden uns wegen des Problems bei Ihnen.
+{}: Sayın {}, talebiniz işletmemize iletildi, en kısa sürede size dönüş yapılacak.¦{}: Dear {}, your request was forwarded; we will get back to you soon.¦{}: {}, ваш запрос передан, мы скоро ответим.¦{}: Liebe/r {}, Ihre Anfrage wurde weitergeleitet, wir melden uns bald.
+{}: Sayın {}, telefon görüşmenizdeki işleminiz kaydedildi.¦{}: Dear {}, the request from your call was saved.¦{}: {}, запрос из вашего звонка сохранён.¦{}: Liebe/r {}, Ihr Anliegen aus dem Telefonat wurde gespeichert.
+Size özel indirim kodunuz: {}¦Your personal discount code: {}¦Ваш персональный промокод: {}¦Ihr persönlicher Rabattcode: {}
+Sağlıklı ve mutlu günler geçirmenizi dileriz.¦We wish you health and happiness.¦Желаем вам здоровья и счастья.¦Wir wünschen Ihnen Gesundheit und Freude.
+{} randevu bilgileriniz: {}, saat {#}.¦{} — your appointment: {}, {}.¦{} — ваша запись: {}, {}.¦{} — Ihr Termin: {}, {} Uhr.
+Merhaba Sn. {} 🎁¦Hello {} 🎁¦Здравствуйте, {} 🎁¦Hallo {} 🎁
+{} deneyiminizi değerlendirin, size özel {} hediyemiz olsun!¦Rate your visit to {1} and receive {2} as a gift!¦Оцените визит в {1} и получите подарок: {2}!¦Bewerten Sie Ihren Besuch bei {1} und erhalten Sie {2} geschenkt!
+Anketi doldurmak (30 sn):¦Survey (30 sec):¦Опрос (30 сек):¦Umfrage (30 Sek.):
+Görüşleriniz bizim için çok değerli, teşekkür ederiz.¦Your opinion matters to us, thank you.¦Ваше мнение очень важно для нас, спасибо.¦Ihre Meinung ist uns wichtig, vielen Dank.
+Merhaba Sn. {},¦Hello {},¦Здравствуйте, {}!¦Hallo {},
+{}'da yaşadığınız deneyim bizim için çok değerli. Hizmet kalitemizi geliştirebilmemiz adına görüşlerinizi birkaç dakikanızı ayırarak bizimle paylaşabilir misiniz?¦Your experience at {} is very valuable to us. Could you spare a few minutes to share your opinion?¦Ваши впечатления о {} очень важны для нас. Уделите, пожалуйста, пару минут и поделитесь мнением.¦Ihre Erfahrung bei {} ist uns sehr wichtig. Nehmen Sie sich ein paar Minuten für Ihre Meinung?
+Anketi doldurmak için:¦Survey:¦Пройти опрос:¦Zur Umfrage:
+Değerli geri bildiriminiz için şimdiden teşekkür eder, sizi yeniden ağırlamaktan mutluluk duyarız.¦Thank you in advance for your feedback. We look forward to seeing you again.¦Заранее благодарим за отзыв и будем рады видеть вас снова.¦Vielen Dank im Voraus; wir freuen uns auf Ihren nächsten Besuch.
+{} ₺ indirim kuponu¦{} ₺ discount coupon¦купон на скидку {} ₺¦{} ₺ Rabattgutschein
+%{} indirim kuponu¦{}% discount coupon¦купон на скидку {}%¦{} % Rabattgutschein
+Katılım için : {}¦To take part: {}¦Для участия: {}¦Zur Teilnahme: {}
+## WhatsApp satırları
+🌸 Merhaba, *{}*,¦🌸 Hello, *{}*,¦🌸 Здравствуйте, *{}*!¦🌸 Hallo *{}*,
+{} için randevunuz başarıyla oluşturulmuştur. ✨¦Your appointment at {} has been booked. ✨¦Вы записаны в {}. ✨¦Ihr Termin bei {} wurde gebucht. ✨
+📅 *Tarih:* {}¦📅 *Date:* {}¦📅 *Дата:* {}¦📅 *Datum:* {}
+🕒 *Saat:* {}¦🕒 *Time:* {}¦🕒 *Время:* {}¦🕒 *Uhrzeit:* {}
+✂️ *Hizmetler:* {}¦✂️ *Services:* {}¦✂️ *Услуги:* {}¦✂️ *Leistungen:* {}
+💉 *Hizmetler:* {}¦💉 *Services:* {}¦💉 *Услуги:* {}¦💉 *Leistungen:* {}
+Randevunuzun sorunsuz geçmesi için lütfen belirtilen saatten birkaç dakika önce hazır olunuz. 💐¦Please arrive a few minutes before your appointment. 💐¦Пожалуйста, приходите за несколько минут до назначенного времени. 💐¦Bitte kommen Sie einige Minuten vor der vereinbarten Zeit. 💐
+📍 *Konum:* {}¦📍 *Location:* {}¦📍 *Адрес:* {}¦📍 *Standort:* {}
+📞 *İletişim:* {}¦📞 *Contact:* {}¦📞 *Телефон:* {}¦📞 *Kontakt:* {}
+📞 *Salon Telefonu:* {}¦📞 *Salon phone:* {}¦📞 *Телефон салона:* {}¦📞 *Telefon des Salons:* {}
+📞 *Klinik Telefonu:* {}¦📞 *Clinic phone:* {}¦📞 *Телефон клиники:* {}¦📞 *Telefon der Klinik:* {}
+📍 *Yol tarifi:* {}¦📍 *Directions:* {}¦📍 *Как добраться:* {}¦📍 *Route:* {}
+Randevunuzu değiştirmek ya da iptal etmek isterseniz bu WhatsApp hattından ya da telefon numaramızdan bize ulaşabilirsiniz.¦To change or cancel your appointment, contact us here on WhatsApp or by phone.¦Чтобы изменить или отменить запись, напишите нам сюда в WhatsApp или позвоните.¦Zum Ändern oder Absagen erreichen Sie uns hier per WhatsApp oder telefonisch.
+Sizi ağırlamayı sabırsızlıkla bekliyoruz. 💖¦We look forward to seeing you. 💖¦Ждём вас с нетерпением. 💖¦Wir freuen uns auf Sie. 💖
+Sağlıklı günler dileriz. 💖¦We wish you all the best. 💖¦Всего вам доброго. 💖¦Alles Gute für Sie. 💖
+{} için *randevu talebiniz alınmıştır*. ⏳¦*Your appointment request* for {} *was received*. ⏳¦*Ваша заявка* в {} *принята*. ⏳¦*Ihre Terminanfrage* bei {} *ist eingegangen*. ⏳
+İlginiz için teşekkür ederiz. 💐¦Thank you for your interest. 💐¦Спасибо за интерес. 💐¦Vielen Dank für Ihr Interesse. 💐
+{} için randevu talebiniz *onaylanmıştır*. ✅¦Your appointment at {} is *confirmed*. ✅¦Ваша запись в {} *подтверждена*. ✅¦Ihr Termin bei {} ist *bestätigt*. ✅
+{} yaklaşan randevunuzun bilgileri aşağıdadır. 📋¦{}: details of your upcoming appointment. 📋¦{}: информация о вашей ближайшей записи. 📋¦{}: Angaben zu Ihrem nächsten Termin. 📋
+{} için size yaklaşan randevunuzu hatırlatmak isteriz. 💖¦A reminder of your upcoming appointment at {}. 💖¦Напоминаем о вашей записи в {}. 💖¦Wir erinnern an Ihren Termin bei {}. 💖
+{} için size yaklaşan randevularınızı hatırlatmak isteriz. 💖¦A reminder of your upcoming appointments at {}. 💖¦Напоминаем о ваших записях в {}. 💖¦Wir erinnern an Ihre Termine bei {}. 💖
+Sizi zamanında ve en iyi şekilde ağırlayabilmemiz için randevu saatinizden birkaç dakika önce salonda olmanızı rica ederiz.¦Please be at the salon a few minutes early so we can welcome you on time.¦Просим прийти в салон за несколько минут до записи, чтобы мы приняли вас вовремя.¦Bitte seien Sie einige Minuten früher im Salon, damit wir pünktlich beginnen können.
+Sizi zamanında ve en iyi şekilde ağırlayabilmemiz için randevu saatinizden birkaç dakika önce klinikte olmanızı rica ederiz.¦Please be at the clinic a few minutes early so we can welcome you on time.¦Просим прийти в клинику за несколько минут до записи, чтобы мы приняли вас вовремя.¦Bitte seien Sie einige Minuten früher in der Klinik, damit wir pünktlich beginnen können.
+Herhangi bir değişiklik yapmak veya bizimle iletişime geçmek isterseniz bu WhatsApp hattından ya da telefon numaramızdan bize ulaşabilirsiniz.¦To make a change or get in touch, contact us here on WhatsApp or by phone.¦Чтобы внести изменения или связаться с нами, напишите сюда в WhatsApp или позвоните.¦Für Änderungen oder Fragen erreichen Sie uns hier per WhatsApp oder telefonisch.
+Bizi tercih ettiğiniz için teşekkür eder, sizi ağırlamayı sabırsızlıkla bekleriz. 💐¦Thank you for choosing us. We look forward to seeing you. 💐¦Спасибо, что выбрали нас. Ждём вас! 💐¦Danke, dass Sie uns gewählt haben. Wir freuen uns auf Sie. 💐
+📲 *Uygulamamızı İndirin!*¦📲 *Download our app!*¦📲 *Скачайте наше приложение!*¦📲 *Laden Sie unsere App!*
+Randevularınızı takip edin, otomatik hatırlatma alın ve size özel fırsatlardan ilk siz haberdar olun 👉 {}¦Track your appointments, get reminders and be the first to hear about special offers 👉 {}¦Следите за записями, получайте напоминания и первыми узнавайте об акциях 👉 {}¦Termine verfolgen, Erinnerungen erhalten und als Erste/r von Angeboten erfahren 👉 {}
+Merhaba {},¦Hello {},¦Здравствуйте, {}!¦Hallo {},
+{} için uygulamamıza hoş geldiniz. 🌸¦Welcome to the {} app. 🌸¦Добро пожаловать в приложение {}. 🌸¦Willkommen in der App von {}. 🌸
+Giriş yaparken şu şifreyi kullanabilirsiniz: {}¦Use this password to log in: {}¦Пароль для входа: {}¦Ihr Passwort für die Anmeldung: {}
+Güvenliğiniz için ilk girişten sonra şifrenizi değiştirmenizi öneririz. İyi günler dileriz. 💐¦For your security, change it after your first login. Have a nice day. 💐¦В целях безопасности смените пароль после первого входа. Хорошего дня. 💐¦Bitte ändern Sie es nach der ersten Anmeldung. Einen schönen Tag. 💐
+{} hesabınız oluşturuldu. Uygulamaya girerken şu geçici şifreyi kullanabilirsiniz: {}¦Your {} account was created. Temporary password for the app: {}¦Ваш аккаунт {} создан. Временный пароль для приложения: {}¦Ihr Konto bei {} wurde erstellt. Vorläufiges App-Passwort: {}
+Dilerseniz uygulama içinden yeni bir şifre belirleyebilirsiniz. ✨¦You can set a new password in the app. ✨¦Новый пароль можно задать в приложении. ✨¦Ein neues Passwort können Sie in der App festlegen. ✨
+{} uygulamasına giriş için oluşturulan şifreniz: {}¦Your password for the {} app: {}¦Ваш пароль для приложения {}: {}¦Ihr Passwort für die App von {}: {}
+Hesabınızı kişiselleştirmek için uygulamayı ziyaret edebilirsiniz. Görüşmek üzere. 🌷¦Visit the app to personalise your account. See you soon. 🌷¦Настройте аккаунт в приложении. До встречи. 🌷¦Personalisieren Sie Ihr Konto in der App. Bis bald. 🌷
+{} ailesine hoş geldiniz. 🌟¦Welcome to the {} family. 🌟¦Добро пожаловать в {}. 🌟¦Willkommen bei {}. 🌟
+Uygulamamıza giriş yaparken şu şifreyi kullanabilirsiniz: {}¦Use this password to log in to our app: {}¦Пароль для входа в приложение: {}¦Ihr Passwort für unsere App: {}
+Sorularınız için bize her zaman ulaşabilirsiniz.¦Contact us any time with questions.¦Обращайтесь к нам с любыми вопросами.¦Bei Fragen sind wir jederzeit für Sie da.
+✨ **SEANS TAKİP BİLGİLENDİRMESİ** ✨¦✨ **SESSION UPDATE** ✨¦✨ **ИНФОРМАЦИЯ О СЕАНСАХ** ✨¦✨ **SITZUNGSÜBERSICHT** ✨
+✨ *SEANS TAKİP BİLGİLENDİRMESİ* ✨¦✨ *SESSION UPDATE* ✨¦✨ *ИНФОРМАЦИЯ О СЕАНСАХ* ✨¦✨ *SITZUNGSÜBERSICHT* ✨
+Merhaba **Sayın {}**, 🌸¦Hello **{}**, 🌸¦Здравствуйте, **{}**! 🌸¦Hallo **{}**, 🌸
+Merhaba *Sayın {}*, 🌸¦Hello *{}*, 🌸¦Здравствуйте, *{}*! 🌸¦Hallo *{}*, 🌸
+Bugünkü randevunuz başarıyla tamamlanmıştır. Aşağıda paketinizin güncel seans durumunu inceleyebilirsiniz.¦Today's appointment is completed. Here is the current status of your package.¦Сегодняшний визит завершён. Ниже — текущее состояние вашего пакета.¦Ihr heutiger Termin ist abgeschlossen. Hier der aktuelle Stand Ihres Pakets.
+📦 **Paketiniz:** {}¦📦 **Your package:** {}¦📦 **Ваш пакет:** {}¦📦 **Ihr Paket:** {}
+📦 *Paketiniz:* {}¦📦 *Your package:* {}¦📦 *Ваш пакет:* {}¦📦 *Ihr Paket:* {}
+📦 **Hizmetiniz:** {}¦📦 **Your service:** {}¦📦 **Ваша услуга:** {}¦📦 **Ihre Leistung:** {}
+📦 *Hizmetiniz:* {}¦📦 *Your service:* {}¦📦 *Ваша услуга:* {}¦📦 *Ihre Leistung:* {}
+✅ **Bugün Kullanılan İşlemler**¦✅ **Used today**¦✅ **Использовано сегодня**¦✅ **Heute genutzt**
+✅ *Bugün Kullanılan İşlemler*¦✅ *Used today*¦✅ *Использовано сегодня*¦✅ *Heute genutzt*
+✅ **Bugün Kullanılan İşlem**¦✅ **Used today**¦✅ **Использовано сегодня**¦✅ **Heute genutzt**
+✅ *Bugün Kullanılan İşlem*¦✅ *Used today*¦✅ *Использовано сегодня*¦✅ *Heute genutzt*
+⏳ **Bugün Kullanılmayan İşlemler**¦⏳ **Not used today**¦⏳ **Не использовано сегодня**¦⏳ **Heute nicht genutzt**
+⏳ *Bugün Kullanılmayan İşlemler*¦⏳ *Not used today*¦⏳ *Не использовано сегодня*¦⏳ *Heute nicht genutzt*
+• Bu randevuda kullanılan: **{#} Seans**¦• Used in this visit: **{}**¦• Использовано за визит: **{}**¦• Bei diesem Termin genutzt: **{}**
+• Bu randevuda kullanılan: *{#} Seans*¦• Used in this visit: *{}*¦• Использовано за визит: *{}*¦• Bei diesem Termin genutzt: *{}*
+• Tamamlanan: **{#} / {#} Seans**¦• Completed: **{} / {}**¦• Завершено: **{} / {}**¦• Abgeschlossen: **{} / {}**
+• Tamamlanan: *{#} / {#} Seans*¦• Completed: *{} / {}*¦• Завершено: *{} / {}*¦• Abgeschlossen: *{} / {}*
+• Kalan: **{#} Seans**¦• Remaining: **{}**¦• Осталось: **{}**¦• Übrig: **{}**
+• Kalan: *{#} Seans*¦• Remaining: *{}*¦• Осталось: *{}*¦• Übrig: *{}*
+• **{}:** Kalan **{#} Seans**¦• **{}:** remaining **{}**¦• **{}:** осталось **{}**¦• **{}:** übrig **{}**
+• *{}:* Kalan *{#} Seans*¦• *{}:* remaining *{}*¦• *{}:* осталось *{}*¦• *{}:* übrig *{}*
+📌 Seans bilgileriniz sistemimizde güncellenmiştir. Bir sonraki randevunuzda kalan haklarınızı dilediğiniz gibi kullanabilirsiniz.¦📌 Your session information was updated. You can use your remaining sessions at your next visits.¦📌 Информация о сеансах обновлена. Оставшиеся сеансы можно использовать в следующие визиты.¦📌 Ihre Sitzungsdaten wurden aktualisiert. Die restlichen Sitzungen können Sie bei den nächsten Terminen nutzen.
+💚 Bizi tercih ettiğiniz için teşekkür eder, sağlıklı ve güzel günlerde yeniden görüşmeyi dileriz.¦💚 Thank you for choosing us. We hope to see you again soon.¦💚 Спасибо, что выбрали нас. Будем рады видеть вас снова.¦💚 Danke, dass Sie uns gewählt haben. Wir freuen uns auf ein Wiedersehen.
+Kampanyadan yararlanmak için *"evet"* yazmanız yeterli, randevunuzu hemen oluşturalım 🙂¦To use the offer just write *"evet"* and we will book your appointment 🙂¦Чтобы воспользоваться акцией, напишите *"evet"* — и мы вас запишем 🙂¦Schreiben Sie einfach *„evet“*, um die Aktion zu nutzen — wir buchen Ihren Termin 🙂
+🏷️ Kampanya indirimi: *{}*¦🏷️ Discount: *{}*¦🏷️ Скидка по акции: *{}*¦🏷️ Aktionsrabatt: *{}*
+_Kampanya mesajı istemezseniz "kampanya istemiyorum" yazın._¦_To stop promotional messages write "kampanya istemiyorum"._¦_Чтобы не получать рекламу, напишите "kampanya istemiyorum"._¦_Um keine Werbung zu erhalten, schreiben Sie „kampanya istemiyorum“._
+Talebinizi işletmemize iletmiştim; en kısa sürede buradan dönüş yapacaklar. Bu arada yardımcı olabileceğim başka bir konu varsa buradayım 😊¦I have forwarded your request; they will reply here soon. If there is anything else, I'm here 😊¦Я уже передал(а) ваш запрос; вам скоро ответят здесь. Если нужно что-то ещё — я на связи 😊¦Ich habe Ihre Anfrage weitergeleitet; man antwortet Ihnen hier in Kürze. Bei weiteren Fragen bin ich da 😊
+Fiyat bilgisi için talebinizi işletmemize ilettim; en kısa sürede buradan size dönüş yapacaklar. 🙏¦I have forwarded your price request; they will reply here soon. 🙏¦Я передал(а) ваш запрос о цене; вам скоро ответят здесь. 🙏¦Ich habe Ihre Preisanfrage weitergeleitet; man antwortet Ihnen hier in Kürze. 🙏
+Yaşadığınız durumu işletmemize ilettim; en kısa sürede buradan size dönüş yapacaklar. 🙏¦I have informed the salon about this; they will reply here soon. 🙏¦Я сообщил(а) салону о ситуации; вам скоро ответят здесь. 🙏¦Ich habe den Salon informiert; man antwortet Ihnen hier in Kürze. 🙏
+Talebinizi işletmemize ilettim; en kısa sürede buradan size dönüş yapacaklar. 🙏¦I have forwarded your request; they will reply here soon. 🙏¦Я передал(а) ваш запрос; вам скоро ответят здесь. 🙏¦Ich habe Ihre Anfrage weitergeleitet; man antwortet Ihnen hier in Kürze. 🙏
+Bu arada randevu ya da başka bir konuda yardımcı olabilirim.¦Meanwhile I can help with an appointment or anything else.¦Пока могу помочь с записью или другим вопросом.¦Inzwischen helfe ich gern bei einem Termin oder anderen Fragen.
+Kusura bakmayın, fiyat bilgisi için işletmemizden henüz dönüş alamadım; netleşir netleşmez buradan yazacağız. 🙏¦Sorry, I have not received the price yet; we will write here as soon as it is clear. 🙏¦Извините, информации о цене пока нет; напишем сюда, как только она появится. 🙏¦Entschuldigung, ich habe noch keine Preisauskunft; wir schreiben hier, sobald sie vorliegt. 🙏
+Randevunuz kayıtlı, sizi bekliyoruz 😊¦Your appointment is booked, see you soon 😊¦Вы записаны, ждём вас 😊¦Ihr Termin ist gebucht, wir freuen uns auf Sie 😊
+Dilerseniz bu arada randevunuzu oluşturabilirim; hangi gün ve saat size uygun?¦Meanwhile I can book your appointment; which day and time suit you?¦Могу пока записать вас; какой день и время удобны?¦Ich kann inzwischen Ihren Termin buchen; welcher Tag und welche Uhrzeit passen?
+Kusura bakmayın, yetkili arkadaşımız henüz dönüş yapamadı; talebiniz öncelikli olarak iletildi, en kısa sürede buradan yazacaklar. 🙏¦Sorry, our colleague could not reply yet; your request is marked as a priority and they will write here soon. 🙏¦Извините, сотрудник пока не ответил; запрос передан как приоритетный, вам скоро напишут здесь. 🙏¦Entschuldigung, unser Kollege konnte noch nicht antworten; Ihre Anfrage wurde priorisiert, man schreibt Ihnen hier bald. 🙏
+Anlaşıldı, bu konuda size tekrar yazmayacağız. İhtiyacınız olduğunda buradan yazabilirsiniz, iyi günler dileriz 😊¦Understood, we will not write about this again. Write here any time, have a nice day 😊¦Поняли, больше не будем писать об этом. Пишите сюда, если понадобимся. Хорошего дня 😊¦Verstanden, wir schreiben Ihnen dazu nicht mehr. Sie erreichen uns hier jederzeit, einen schönen Tag 😊
+Bu konuda tekrar mesaj almak istemezseniz "dur" yazmanız yeterli.¦To stop these messages, write "dur".¦Чтобы не получать такие сообщения, напишите "dur".¦Um solche Nachrichten abzustellen, schreiben Sie „dur“.
+Yakın zamanda şu saatlerde yerimiz var:¦We have these times available soon:¦Ближайшее свободное время:¦Demnächst haben wir diese Zeiten frei:
+Size uygunsa hemen ayırabilirim; başka bir gün de söyleyebilirsiniz.¦I can reserve one for you now, or tell me another day.¦Могу забронировать сейчас или предложите другой день.¦Ich kann sie gleich reservieren, oder nennen Sie einen anderen Tag.
+Size uygun bir gün ve saat yazarsanız randevunuzu hemen oluşturabilirim.¦Write a day and time that suit you and I will book it right away.¦Напишите удобный день и время — и я сразу вас запишу.¦Schreiben Sie Tag und Uhrzeit, dann buche ich sofort.
+{#} Yol tarifi: {}¦{} Directions: {}¦{} Как добраться: {}¦{} Route: {}
+Oluşturduğunuz randevu aşağıdakilerle çakışmaktadır!¦Your appointment overlaps with the following!¦Ваша запись пересекается со следующим!¦Ihr Termin überschneidet sich mit Folgendem!
+Bu işletme için kaydınız bulunmamaktadır. Lütfen müşteri/danışan ol bölümünden kayıt olunuz.¦You are not registered with this salon. Please sign up first.¦Вы не зарегистрированы в этом салоне. Пожалуйста, зарегистрируйтесь.¦Sie sind bei diesem Salon nicht registriert. Bitte registrieren Sie sich.
+Yanlış kullanıcı adı veya şifre! Lütfen yeniden deneyiniz.¦Incorrect phone number or password! Please try again.¦Неверный номер телефона или пароль! Попробуйте ещё раз.¦Telefonnummer oder Passwort falsch! Bitte erneut versuchen.

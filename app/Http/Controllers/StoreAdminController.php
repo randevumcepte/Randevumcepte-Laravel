@@ -13204,6 +13204,11 @@ private function ayAdiCevir($ingilizceAy)
                 }
             }
             $musteri->save();
+            // Iletisim dili (pilot): musteri kendi secmediyse personelin secimi gecerli; kayit mesajindan ONCE
+            if ($request->filled('iletisim_dili') && \App\Services\MusteriDili::acikMi($request->sube)
+                && \App\Services\MusteriDili::kaydet($musteri->id, (string) $request->iletisim_dili, 'personel')) {
+                SalonAudit::log($request->sube, 'musteri_dil', 'musteri', $musteri->id, $musteri->name, 'İletişim dili: ' . \App\Services\MusteriDili::ad($request->iletisim_dili));
+            }
             // Audit
             $_audit_action = ($request->musteri_id == "") ? 'musteri_ekle' : 'musteri_guncelle';
             $_audit_aciklama = ($request->musteri_id == "") ? 'Yeni müşteri eklendi' : 'Müşteri bilgileri güncellendi';

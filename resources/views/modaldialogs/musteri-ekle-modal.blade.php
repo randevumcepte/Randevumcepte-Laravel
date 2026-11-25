@@ -103,6 +103,7 @@
                            <input type="email" name="email" class="form-control" value="">
                           
                         </div>
+                        @include('partials.musteri_iletisim_dili')
                         <div class="col-md-3 col-xs-6 col-sm-6 col-6">
                            <label>Cinsiyet</label>
                            <select class="form-control" name="cinsiyet">
