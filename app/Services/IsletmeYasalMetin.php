@@ -29,8 +29,8 @@ class IsletmeYasalMetin
         ];
     }
 
-    /** [{kod, baslik, guncelleme, bolumler:[{baslik, metin}]}] */
-    public static function metinler($salonId)
+    /** $musteri: musteri uygulamasinda personele ozel satirlar yer almaz. [{kod, baslik, guncelleme, bolumler:[{baslik, metin}]}] */
+    public static function metinler($salonId, $musteri = false)
     {
         $i = self::isletme($salonId);
         if (!$i) return [];
@@ -44,11 +44,15 @@ class IsletmeYasalMetin
             ['Kullanım kuralları', "Uygulama yalnızca hukuka uygun amaçlarla kullanılabilir. Başkası adına randevu almak için o kişinin onayı gerekir. Sisteme zarar verecek, başkalarının verilerine yetkisiz erişmeye çalışacak ya da hizmeti kötüye kullanacak davranışlar yasaktır; bu durumda hesap askıya alınabilir."],
             ['Randevular', "Randevu saatleri, hizmetler ve fiyatlar {$ad} tarafından belirlenir ve önceden haber verilerek değiştirilebilir. Randevu iptal ve değişiklik kuralları için doğrudan {$ad} ile iletişime geçebilirsiniz."],
             ['Personel kullanımı', "İşletme çalışanları uygulamayı yalnızca kendilerine tanınan yetkiler ölçüsünde ve işle ilgili amaçlarla kullanabilir. Müşteri bilgileri işletme dışına aktarılamaz, kişisel amaçla kullanılamaz. Yapılan işlemler kayıt altına alınır."],
-            ['Bildirimler', "Uygulama; randevu, hatırlatma ve işletme duyuruları için bildirim gönderebilir. Bildirim izinlerini cihaz ayarlarından, sesli/sessiz tercihlerinizi Profil > Bildirimlerim ekranından değiştirebilirsiniz."],
+            ['Bildirimler', "Uygulama; randevu, hatırlatma ve işletme duyuruları için bildirim gönderebilir. Bildirim izinlerini cihaz ayarlarından" . ($musteri ? "" : ", sesli/sessiz tercihlerinizi Profil > Bildirimlerim ekranından") . " değiştirebilirsiniz."],
             ['Sorumluluğun sınırı', "Uygulama \"olduğu gibi\" sunulur. Bakım, güncelleme veya internet bağlantısı kaynaklı kısa süreli kesintiler yaşanabilir. Kullanıcı hatasından ya da cihaz güvenliğinin sağlanmamasından doğan zararlardan {$ad} ve teknik hizmet sağlayıcı sorumlu tutulamaz."],
             ['Değişiklikler', "Bu koşullar gerektiğinde güncellenebilir. Güncel metin her zaman uygulama içinde Profil > Uygulama Hakkında bölümünde yer alır."],
             ['İletişim', $iletisim],
         ];
+
+        if ($musteri) {
+            $kullanim = array_values(array_filter($kullanim, function ($b) { return $b[0] !== 'Personel kullanımı'; }));
+        }
 
         $gizlilik = [
             ['Amaç', "{$ad}, uygulamayı kullananların gizliliğine önem verir. Bu politika hangi bilgilerin toplandığını, nasıl kullanıldığını ve nasıl korunduğunu açıklar."],

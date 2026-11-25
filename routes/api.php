@@ -418,6 +418,13 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::get('/cihazlar','ProfilController@cihazlar');
         Route::post('/cihaz-kapat','ProfilController@cihazKapat');
     });
+    // Musteri profil sayfasi (mobil): giris yapan musteri yalniz kendi verisini gorur
+    Route::group(['prefix' => 'musteri-profil', 'middleware' => 'auth:api'], function () {
+        Route::get('/ozet','MusteriProfilController@ozet');
+        Route::get('/hakkinda','MusteriProfilController@hakkinda');
+        Route::get('/cihazlar','MusteriProfilController@cihazlar');
+        Route::post('/cihaz-kapat','MusteriProfilController@cihazKapat');
+    });
     // Dogum gunu popup (mobil): web'deki isletmeyonetim uclarinin Bearer'li karsiligi.
     Route::get('/dogum-gunu/bugun','StoreAdminController@apiBugunDogumGunu')->middleware('auth:isletmeyonetim-api');
     Route::post('/dogum-gunu/gonder','StoreAdminController@apiDogumGunuGonder')->middleware('auth:isletmeyonetim-api');
