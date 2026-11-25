@@ -182,7 +182,7 @@ Kartınız doldu: {#} ücretsiz hakkınızı kullanabilirsiniz.¦Your card is fu
 Kartınız doldu: {#} ücretsiz hakkınız var.¦Your card is full: you have {} free service(s).¦Карта заполнена: бесплатных услуг: {}.¦Ihre Karte ist voll: {} Gratis-Leistung(en).
 Ücretsiz hakkınıza {#} ücretli alım kaldı.¦{} paid visit(s) left until your free service.¦До бесплатной услуги осталось платных визитов: {}.¦Noch {} bezahlte Leistung(en) bis zur Gratis-Leistung.
 1 ikram · {} tarihine kadar kullanılabilir¦1 reward · can be used until {}¦1 подарок · действует до {}¦1 Prämie · gültig bis {}
-Kazandığınız ikram {} geçerlidir.¦Your reward is valid for {}.¦Ваш подарок действует: {}.¦Ihre Prämie ist gültig: {}.
+Kazandığınız ikram {} geçerlidir.¦Your reward is valid for {}.¦Срок действия подарка: {}¦Ihre Prämie ist gültig: {}
 {#} ikramın kullanım süresi doldu.¦{} reward(s) have expired.¦Истёк срок подарков: {}.¦{} Prämie(n) sind abgelaufen.
 Paket seanslarınız bu kampanyaya sayılmaz.¦Package sessions do not count towards this offer.¦Сеансы по пакетам в акции не учитываются.¦Paketsitzungen zählen nicht zu dieser Aktion.
 Kullanıldı¦Used¦Использовано¦Eingelöst
@@ -573,7 +573,7 @@ Obez¦Obese¦Ожирение¦Adipös
 Kilo¦Weight¦Вес¦Gewicht
 VKİ¦BMI¦ИМТ¦BMI
 Yağ¦Fat¦Жир¦Fett
-Kas¦Muscle¦Мышцы¦Muskeln
+Kas¦Nov¦ноя¦Nov
 Kas Puanı¦Muscle score¦Оценка мышц¦Muskelwert
 İç Yağ.¦Visceral fat¦Висц. жир¦Viszeralfett
 İç Yağlanma¦Visceral fat¦Висцеральный жир¦Viszeralfett
@@ -614,7 +614,7 @@ Rezervasyon yapılamadı.¦The booking failed.¦Не удалось заброн
 Ders Rezervasyonu¦Class booking¦Запись на занятие¦Kursreservierung
 Bu gün için rezervasyona uygun ders yok.¦No classes available for booking on this day.¦На этот день нет доступных занятий.¦An diesem Tag sind keine Kurse buchbar.
 {#}/{#} dolu¦{}/{} taken¦занято {}/{}¦{}/{} belegt
-Dolu¦Full¦Мест нет¦Voll
+Dolu¦Booked¦Занято¦Belegt
 {#} yer kaldı¦{} places left¦Осталось мест: {}¦Noch {} Plätze
 Bu derse rezervasyon yapmak istiyor musunuz?¦Would you like to book this class?¦Записаться на это занятие?¦Möchten Sie diesen Kurs reservieren?
 Katıldım¦I attended¦Я был(а)¦Ich war dabei
@@ -757,8 +757,12 @@ Tem¦Jul¦июл¦Jul
 Ağu¦Aug¦авг¦Aug
 Eyl¦Sep¦сен¦Sep
 Eki¦Oct¦окт¦Okt
+Mar¦Mar¦мар¦Mär
+May¦May¦мая¦Mai
+Ara¦Dec¦дек¦Dez
 1 gün¦1 day¦1 день¦1 Tag
 {#} gün {#} saat¦{} d {} h¦{} дн. {} ч¦{} T. {} Std.
 Yakında¦Soon¦Скоро¦Demnächst
 Randevu Detayı¦Appointment details¦Детали записи¦Termindetails
 Puan Kazan¦Earn points¦Заработать баллы¦Punkte sammeln
+Kampanya'dan yararlanarak hem güzelliğinize hem bakımınıza değer katın!¦Make the most of the offer for your beauty and care!¦Воспользуйтесь акцией ради красоты и ухода!¦Nutzen Sie die Aktion für Ihre Schönheit und Pflege!
