@@ -779,7 +779,7 @@ function rmcDashInit(){
       // hero: bugun randevu (period=daily ise)
       if(period === 'daily'){
         var heroBugun = document.getElementById('rmc-hero-bugun');
-        if(heroBugun) animateCount(heroBugun, d.olusturulan);
+        if(heroBugun) animateCount(heroBugun, d.aktif !== undefined ? d.aktif : d.olusturulan);
       }
       var ring = document.getElementById('rmc-doluluk-ring');
       var pctVal = Number(d.doluluk)||0;

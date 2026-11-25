@@ -1770,11 +1770,26 @@ public function carkverilerigetir(Request $request)
         return \Cache::remember($this->dashCacheKey($salonId, 'randevuozet:'.$period), now()->addSeconds(60), function() use ($salonId, $t1, $t2) {
             $olusturulan = DB::table('randevular')
                 ->where('salon_id', $salonId)
+                ->where('user_id', '!=', 2012) // kapali saat randevu degildir
                 ->whereBetween('tarih', [$t1, $t2])
+                ->count();
+            // Aktif = iptal/red ve kapali saat haric, takvimde gorunen randevu. Takvimdeki
+            // "Gunluk Randevu" (randevuyukle) ile AYNI kural; biri degisirse digeri de degismeli.
+            $aktif = DB::table('randevular')
+                ->where('salon_id', $salonId)
+                ->where('user_id', '!=', 2012)
+                ->where('durum', '<', 2)
+                ->whereBetween('tarih', [$t1, $t2])
+                ->whereExists(function($q){
+                    $q->select(DB::raw(1))->from('randevu_hizmetler')
+                      ->whereRaw('randevu_hizmetler.randevu_id = randevular.id')
+                      ->where('randevu_hizmetler.sure_dk', '>', 0);
+                })
                 ->count();
             // Sonuclanan = musteri geldi (durum=1 AND randevuya_geldi=true)
             $sonuclanan = DB::table('randevular')
                 ->where('salon_id', $salonId)
+                ->where('user_id', '!=', 2012) // kapali saat randevu degildir
                 ->whereBetween('tarih', [$t1, $t2])
                 ->where('durum', 1)
                 ->where('randevuya_geldi', true)
@@ -1782,6 +1797,7 @@ public function carkverilerigetir(Request $request)
             // Sonuclanmayan = iptal (2,3) veya gelmedi (durum=1 AND randevuya_geldi=false)
             $sonuclanmayan = DB::table('randevular')
                 ->where('salon_id', $salonId)
+                ->where('user_id', '!=', 2012) // kapali saat randevu degildir
                 ->whereBetween('tarih', [$t1, $t2])
                 ->where(function($q){
                     $q->whereIn('durum', [2,3])
@@ -1798,15 +1814,17 @@ public function carkverilerigetir(Request $request)
             $gunler = max(1, (strtotime($t2) - strtotime($t1)) / 86400 + 1);
             $calismaSaat = 10;
             $kapasite = $personelSay * $calismaSaat * (60 / $randevuSuresi) * $gunler;
-            $doluluk = $kapasite > 0 ? min(100, round(($olusturulan / $kapasite) * 100)) : 0;
+            $doluluk = $kapasite > 0 ? min(100, round(($aktif / $kapasite) * 100)) : 0;
 
             $kaynak = DB::table('randevular')
                 ->where('salon_id', $salonId)
+                ->where('user_id', '!=', 2012) // kapali saat randevu degildir
                 ->whereBetween('tarih', [$t1, $t2])
                 ->selectRaw('SUM(CASE WHEN salon=1 THEN 1 ELSE 0 END) as isletme_say, SUM(CASE WHEN web=1 THEN 1 ELSE 0 END) as web_say, SUM(CASE WHEN uygulama=1 THEN 1 ELSE 0 END) as uygulama_say')
                 ->first();
 
             return response()->json([
+                'aktif' => $aktif,
                 'olusturulan' => $olusturulan,
                 'sonuclanan' => $sonuclanan,
                 'sonuclanmayan' => $sonuclanmayan,
@@ -2574,6 +2592,8 @@ public function carkverilerigetir(Request $request)
                         ->leftJoin('salon_personelleri','randevu_hizmetler.personel_id','=','salon_personelleri.id')
                         ->where('randevular.salon_id', $salonId)
                         ->where('randevular.tarih', date('Y-m-d'))
+                        ->where('randevular.durum', '<', 2) // iptal/red haric
+                        ->where('randevular.user_id', '!=', 2012) // kapali saat haric
                         ->select('randevular.id','randevular.saat','randevular.durum','users.name as musteri','users.cep_telefon as telefon','hizmetler.hizmet_adi as hizmet','salon_personelleri.personel_adi as personel')
                         ->orderBy('randevular.saat')
                         ->limit(50)
@@ -2600,6 +2620,8 @@ public function carkverilerigetir(Request $request)
                 ->leftJoin('users','randevular.user_id','=','users.id')
                 ->where('randevular.salon_id', $salonId)
                 ->where('randevular.tarih', $bugun)
+                ->where('randevular.durum', '<', 2) // iptal/red haric
+                ->where('randevular.user_id', '!=', 2012) // kapali saat haric
                 ->select('randevular.id','randevular.saat','randevular.durum','users.name as musteri')
                 ->orderBy('randevular.saat')
                 ->get()
@@ -2652,6 +2674,8 @@ public function carkverilerigetir(Request $request)
                     ->join('randevular','randevu_hizmetler.randevu_id','=','randevular.id')
                     ->where('randevular.salon_id', $salonId)
                     ->where('randevular.tarih', $bugun)
+                    ->where('randevular.durum', '<', 2) // iptal/red haric
+                    ->where('randevular.user_id', '!=', 2012) // kapali saat haric
                     ->where('randevu_hizmetler.personel_id', $p->id)
                     // yardimci_personel NULL tuzagi: asil kalemlerde bu kolon set edilmez,
                     // "!= true" NULL satirlari da eleyip doluluk'u dusuk/0 gosteriyordu.
@@ -4745,7 +4769,7 @@ public function carkverilerigetir(Request $request)
     if($takvim_turu == 1 || self::personelmi($request, 'randevu.tum_personel_gor')) {
         $personelBaslik = $sadeceEvent
             ? 'salon_personelleri.personel_adi as title'
-            : 'CONCAT(salon_personelleri.personel_adi, " (", (SELECT COUNT(*) FROM randevu_hizmetler inner join randevular on randevu_hizmetler.randevu_id = randevular.id where randevu_hizmetler.personel_id = salon_personelleri.id and randevular.tarih <= "'.$tarih2.'" and randevular.tarih>= "'.$tarih1.'"AND randevular.durum <= 1 ) ,")") as title';
+            : 'CONCAT(salon_personelleri.personel_adi, " (", (SELECT COUNT(*) FROM randevu_hizmetler inner join randevular on randevu_hizmetler.randevu_id = randevular.id where randevu_hizmetler.personel_id = salon_personelleri.id and randevular.tarih <= "'.$tarih2.'" and randevular.tarih>= "'.$tarih1.'" AND randevular.durum <= 1 AND randevular.user_id != 2012) ,")") as title';
         $resources = Personeller::join('renk_duzenleri','salon_personelleri.renk','=','renk_duzenleri.id')
                     ->where(function($q) use($request,$personel_idler, $isletmeId){
                         if(self::personelmi($request, 'randevu.tum_personel_gor')) {
@@ -4785,7 +4809,7 @@ public function carkverilerigetir(Request $request)
                     AND randevular.salon_id = salon_sunulan_hizmetler.salon_id
                     AND randevular.tarih <= "'.$tarih2.'"
                     AND randevular.tarih >= "'.$tarih1.'"
-                    AND randevular.durum <= 1
+                    AND randevular.durum <= 1 AND randevular.user_id != 2012
                 ), ")") AS title')
             ])
             ->where('salon_sunulan_hizmetler.aktif', true)
@@ -4813,7 +4837,7 @@ public function carkverilerigetir(Request $request)
                     WHERE randevu_hizmetler.cihaz_id = cihazlar.id
                     AND randevular.tarih <= "'.$tarih2.'"
                     AND randevular.tarih >= "'.$tarih1.'"
-                    AND randevular.durum <= 1
+                    AND randevular.durum <= 1 AND randevular.user_id != 2012
                 ), ")") AS title'),
                 'renk_duzenleri.renk as bgcolor'
             ])->where('cihazlar.salon_id',$isletmeId)->where('cihazlar.aktifmi',true)->orderBy('takvim_sirasi','asc')->get();
@@ -4833,7 +4857,7 @@ public function carkverilerigetir(Request $request)
                     WHERE randevu_hizmetler.oda_id = odalar.id
                     AND randevular.tarih <= "'.$tarih2.'"
                     AND randevular.tarih >= "'.$tarih1.'"
-                    AND randevular.durum <= 1
+                    AND randevular.durum <= 1 AND randevular.user_id != 2012
                 ), ")") AS title'),
                 'renk_duzenleri.renk as bgcolor'
             ])->where('odalar.salon_id',$isletmeId)->where('odalar.aktifmi',true)->orderBy('takvim_sirasi','asc')->get();
@@ -5048,7 +5072,11 @@ public function carkverilerigetir(Request $request)
     // kayboluyordu. Gun sonuna sabitleyerek tum yollarda gorunur kalir.
     $takvim_bitis_saat = '24:00:00';
 
-    $randevu_sayisi = $randevu_hizmetler->count();
+    // Sayac: RANDEVU adedi (hizmet satiri/bar degil), kapali saat haric.
+    // Dashboard "Bugun Randevu" (dashboardRandevuOzet 'aktif') ile AYNI kural.
+    $randevu_sayisi = $randevu_hizmetler_raw
+        ->filter(function ($rh) { return (int) $rh->randevu->user_id !== 2012; })
+        ->pluck('randevu_id')->unique()->count();
     Log::info('randevu yükleme bitti');
 
     return array(
