@@ -540,6 +540,7 @@ class RandevuAsistan
             . ($onNot !== '' ? $onNot : $this->hizmetDuzeltmeNotu($metin))
             . ($onPaketli ? '' : $this->paketNotu($metin, $gecmis))
             . $this->paketKarariNotu($gecmis, $metin)
+            . $this->personelNotu($metin, $gecmis)
             . $this->sttGuvenNotu()
             . $this->zorlukNotu($gecmis)];
 
@@ -1736,6 +1737,8 @@ class RandevuAsistan
         // KISI sorusu hizmet listesi DEGIL: "hangi uzmanlarınız var" son kaliba ("hangi X-lar var") uyup hizmet
         // listesi okutuyordu (2026-11-17 kayit: "protez tırnakta hangi uzmanlarınız var" -> "cilt bakımı, makyaj...").
         if (preg_match('/ (uzman|personel|calisan|eleman|usta|kuafor|estetisyen|doktor|hoca|kimler )/u', $m)) return null;
+        // "Leyla Hanım hangi hizmeti veriyor" salonun listesi degil, o uzmanin hizmetleri sorulur (kayit 258)
+        if (preg_match('/ (hanim|bey)/u', $m) || $this->anilanPersoneller($metin)) return null;
         // Belirli bir hizmet adi geciyorsa ("kalıcı oje hizmetiniz var mı") liste degil -> normal akis
         foreach ($hizmetler as $h) {
             $sa = $this->sade((string) $h['ad']);
@@ -1829,7 +1832,16 @@ class RandevuAsistan
             }
             if (count($out) >= 400) break;
         }
-        return array_slice(array_merge(array_keys($out), array_keys($kelimeler)), 0, 500);
+        // Uzman adlari da ipucu (kayit 258: "Leyla" -> "ilahi" duyuldu, "o adda uzmanımız yok" dendi)
+        $uzman = [];
+        foreach ($this->personelListesi() as $pid => $ad) {
+            $ilk = explode(' ', $ad)[0];
+            if (mb_strlen($ilk) < 3 || !preg_match('/[aeıioöuüAEIİOÖUÜ]/u', $ilk)) continue;
+            $uzman[$ilk] = true;
+            $uzman[$this->personelHitap((int) $pid)] = true;
+            if (count($uzman) >= 80) break;
+        }
+        return array_slice(array_merge(array_keys($out), array_keys($uzman), array_keys($kelimeler)), 0, 500);
     }
 
     /**
@@ -2173,7 +2185,12 @@ class RandevuAsistan
                     // Okunamayan (sesli harfsiz/tek harf) adlar sayilmaz; musteri listede olmayan birini sorarsa PERSONELLER'den eslesir.
                     $okunur = array_values(array_filter($adlar, function ($a) { return mb_strlen($a['ad']) >= 2 && preg_match('/[aeıioöuüAEIİOÖUÜ]/u', $a['ad']); }));
                     $d['personeller'] = array_slice($okunur, 0, 4);
-                    if (count($okunur) > 4) $d['personel_sayisi'] = count($okunur);
+                    if (count($okunur) > 4) {
+                        $d['personel_sayisi'] = count($okunur);
+                        // Liste kisaltildi: model bunu TAM liste sanip "Leyla Hanım listede yok" diyordu (kayit 258)
+                        $d['diger_personeller'] = array_slice($okunur, 4);
+                        $d['personel_not'] = 'diger_personeller de bu hizmeti verir; müşteriye SAYMA ama müşteri bu adlardan birini isterse personel_id\'sini buradan al, "yok" DEME.';
+                    }
                     // Bu hizmet musterinin paket(ler)inde -> asistan paketleri + kalan seanslari sayip SORAR (PAKET AKIŞI)
                     if ($pl = $this->paketlerHizmet((int) $d['hizmet']['id'])) {
                         $d['paketler'] = $pl;
@@ -2513,7 +2530,7 @@ Sen {$ad} işletmesinin SESLİ RANDEVU asistanısın.{$kimlik} Telefonda, kısa 
 3. HİZMET: müşteri hizmet söyleyince hemen "hizmet_eslestir" aracını çağır (dediğini AYNEN ver). Hizmeti KENDİN tahmin etme. eslesme=tek ise TEYİT SORMADAN ("bunu onaylıyor musunuz" DEME) doğrudan sonraki adıma geç; eşleştirmenin iç işleyişinden (kayıt, seçenek sayısı, "eşleştirebildim") müşteriye ASLA bahsetme; coklu ise seçenekleri kısaca oku ve seçtir; sonuçta "soru" alanı varsa müşteriye YALNIZ o soruyu AYNEN sor (seçenek sayma), müşteri "evet" derse hizmet_eslestir'i "ortak" metniyle yeniden çağır; yok ise "o hizmetimiz yok" de ve dönen önerileri sun. Müşterinin ne dediğini ANLAYAMADIYSAN (anlamsız/yarım cümle, öneri de yoksa) yalnız "Kusura bakmayın, tam duyamadım. Hangi hizmet için arıyorsunuz?" de — örnek hizmet SAYMA, uzun açıklama yapma.
 4. TARİH/SAAT: Müşteri mesajının sonunda "[SİSTEM zaman çözümü ...]" notu varsa tarih ve saati AYNEN oradan al (kendin hesaplama; "çarşamba 14", "önümüzdeki hafta perşembe 10", "10 aralık", "5 şubat" hepsi orada çözülmüş gelir). Not yoksa TARİH HARİTASI'nı kullan. Müşteri gün ve saati söylediyse saati TEKRAR SORMA, sabah/öğleden sonra diye SORMA. Tarih/saat ÖNCEKİ bir mesajda söylendiyse (ör. hizmeti teyit ettirdikten sonra) o mesajdaki zaman çözümü geçerlidir: yeniden sorma, kendin hesaplama.
 UZMAN ADLARI: Uzmanı her zaman araç sonucundaki / PERSONELLER'deki gibi "Hanım"/"Bey" ile söyle (ör. "uzmanımız Gülşah Hanım", "Ferdi Bey ve Gülşah Hanım uygun"); çıplak ad ("Gülşah ile") KULLANMA.
-5. PERSONEL (işletme isteği 2026-11-19: randevuyu bekletme, kaçırma): uzman tercihi SORMA ("tercih ettiğiniz bir uzmanımız var mı" DEME), uzman adlarını SAYMA. Hizmet ve gün belli olunca 6. adımda musait_saatler'i personel_id VERMEDEN çağır; istenen saatte kim boşsa o uzmanla en yakın seçeneği sun, uzmanın adını yalnız seçenekte/onayda söyle. Müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") personel_id'yi hizmet_eslestir sonucundaki "personeller" listesinden (ad + personel_id), yoksa PERSONELLER listesinden AYNEN al (id uydurma); listede yoksa "o isimde personelimiz yok" de ve hizmeti verenleri say. Müşteri "kimler var"/"hangi uzmanlarınız var" derse hizmet_eslestir sonucundaki "personeller" adlarını say (en fazla 4; "personel_sayisi" varsa sonuna "ve diğer uzmanlarımız" ekle) — hizmet listesi OKUMA. Gün ya da saat eksikse yalnız onu sor ("Hangi gün ve saat sizin için uygun?"). Müşteri "herhangi bir gün / fark etmez / en yakın / bu hafta olur / ne zaman boşsa" derse gün SORMA: musait_saatler'i tarih=BUGÜN ile hemen çağır ve en yakın iki seçeneği sun (kayıt 243: iki kez "hangi gün?" soruldu). Müşteri "hangisi müsaitse / kim boşsa ona verin" derse musait_saatler'i uzman_farketmez=true ile çağır ve dönen seçenekleri sun. Müşteri tarih/saati zaten söylediyse TARİHİ YENİDEN SORMA, doğrudan 6. adıma geç. İSTİSNA (eski müşteri, 2026-11-23): musait_saatler sonucunda "son_uzman" varsa onerilen_cumle'yi AYNEN söyle (müşterinin son geldiği uzmanı teklif eder); müşteri o uzmanı seçerse ya da "fark etmez/başkası" derse sonuçtaki "talimat"a uy, teklifi tekrar sorma.
+5. PERSONEL (işletme isteği 2026-11-19: randevuyu bekletme, kaçırma): uzman tercihi SORMA ("tercih ettiğiniz bir uzmanımız var mı" DEME), uzman adlarını SAYMA. Hizmet ve gün belli olunca 6. adımda musait_saatler'i personel_id VERMEDEN çağır; istenen saatte kim boşsa o uzmanla en yakın seçeneği sun, uzmanın adını yalnız seçenekte/onayda söyle. Müşteri bir personel adı söylediyse (ör. "Ayşe Hanım'a", "Mehmet Bey olsun") personel_id'yi [SİSTEM uzman çözümü] notundan, yoksa hizmet_eslestir sonucundaki "personeller"/"diger_personeller" listesinden (ad + personel_id), yoksa PERSONELLER listesinden AYNEN al (id uydurma); "personeller" KISALTILMIŞ listedir, yalnız ona bakıp "yok" DEME; PERSONELLER'de de yoksa "o isimde personelimiz yok" de ve hizmeti verenleri say. Müşteri "kimler var"/"hangi uzmanlarınız var" derse hizmet_eslestir sonucundaki "personeller" adlarını say (en fazla 4; "personel_sayisi" varsa sonuna "ve diğer uzmanlarımız" ekle) — hizmet listesi OKUMA. Gün ya da saat eksikse yalnız onu sor ("Hangi gün ve saat sizin için uygun?"). Müşteri "herhangi bir gün / fark etmez / en yakın / bu hafta olur / ne zaman boşsa" derse gün SORMA: musait_saatler'i tarih=BUGÜN ile hemen çağır ve en yakın iki seçeneği sun (kayıt 243: iki kez "hangi gün?" soruldu). Müşteri "hangisi müsaitse / kim boşsa ona verin" derse musait_saatler'i uzman_farketmez=true ile çağır ve dönen seçenekleri sun. Müşteri tarih/saati zaten söylediyse TARİHİ YENİDEN SORMA, doğrudan 6. adıma geç. İSTİSNA (eski müşteri, 2026-11-23): musait_saatler sonucunda "son_uzman" varsa onerilen_cumle'yi AYNEN söyle (müşterinin son geldiği uzmanı teklif eder); müşteri o uzmanı seçerse ya da "fark etmez/başkası" derse sonuçtaki "talimat"a uy, teklifi tekrar sorma.
 6. MÜSAİT SAAT: "musait_saatler" aracını hizmet_id + tarih ile çağır (müşteri saat söylediyse saat'i MUTLAKA ver; gün dilimi söylendiyse zaman_dilimi; personel söylendiyse personel_id).
    - tam_eslesme=true dönerse: istenen saat uygun → ALTERNATİF SUNMA, seçenek okuma; doğrudan 8. adımdaki onay cümlesine geç (gün için seçeneğin "gun" alanını kullan).
    - Aksi halde: müşteri saat söylediyse önce "O saat dolu" de, sonra dönen seçenekleri (en fazla 2) "gun" alanı ve personel adıyla öner. istenen_gun_dolu=true ise o günün dolu olduğunu söyle. Seçenek yoksa başka gün/dilim öner.
@@ -3196,6 +3213,115 @@ FIYAT
         return $ilk . ((int) $c === 1 ? ' Bey' : ' Hanım');
     }
 
+    /**
+     * Musteri cumlesinde ADI gecen uzmanlar: [personel_id => hitap]. "Leyla Hanım'a", "Leyla'yı", "leylaya" tanınır.
+     * Gunluk kelime / salon hizmeti de olan adlar ("İpek", "Gül") yalniz "Hanım/Bey" ile sayilir ("ipek kirpik" uzman degil).
+     */
+    protected function anilanPersoneller(string $metin): array
+    {
+        $k = array_values(array_filter(explode(' ', $this->sade($metin)), 'strlen'));
+        if (!$k) return [];
+        $salonKelime = [];
+        foreach (($this->salon['hizmetler'] ?? []) as $h) foreach (explode(' ', $this->sade((string) ($h['ad'] ?? ''))) as $w) $salonKelime[$w] = true;
+        $gunluk = array_flip(['ipek', 'can', 'gul', 'nur', 'su', 'ay', 'bahar', 'deniz', 'gunes', 'umut', 'sevgi', 'ada', 'yaz', 'eylul', 'cansu', 'ozel', 'yeni', 'bugun', 'yarin', 'pinar', 'yagmur', 'inci']);
+        $out = [];
+        $soyadli = [];
+        foreach ($this->personelListesi() as $pid => $ad) {
+            $p = array_values(array_filter(explode(' ', $this->sade($ad)), 'strlen'));
+            $ilk = $p[0] ?? '';
+            if (strlen($ilk) < 3) continue;
+            foreach ($k as $i => $w) {
+                $tam = $w === $ilk;
+                $ekli = !$tam && strlen($ilk) >= 4 && strpos($w, $ilk) === 0
+                    && preg_match('/^(y?[aeiu]|n[iu]n|[iu]n|[dt][ae]n?|y?l[ae]|ni|nu)$/', substr($w, strlen($ilk)));
+                if (!$tam && !$ekli) continue;
+                $hitapli = (bool) preg_match('/^(hanim|bey)/', $k[$i + 1] ?? '');
+                if (!$hitapli && (isset($salonKelime[$ilk]) || isset($gunluk[$ilk]))) continue;
+                $out[(int) $pid] = $this->personelHitap((int) $pid);
+                if (count($p) > 1 && ($k[$i + 1] ?? '') === end($p)) $soyadli[(int) $pid] = true;
+                break;
+            }
+        }
+        return $soyadli ? array_intersect_key($out, $soyadli) : $out;
+    }
+
+    /** Konusulan hizmetin id'si: son arac notundan, yoksa gecmiste gecen hizmet adindan (en uzun ad). */
+    protected function konusulanHizmetId(string $metin, array $gecmis): ?int
+    {
+        $dizi = array_values($gecmis);
+        $dizi[] = ['role' => 'user', 'content' => $metin];
+        for ($i = count($dizi) - 1; $i >= 0; $i--) {
+            $b = (string) ($dizi[$i]['baglam'] ?? '');
+            if (preg_match_all('/hizmet_id["\s=:]+(\d+)|"hizmet":\{"id":"?(\d+)/', $b, $x, PREG_SET_ORDER)) {
+                $s = end($x);
+                return (int) (($s[2] ?? '') !== '' ? $s[2] : $s[1]);
+            }
+            $c = ' ' . $this->sade((string) ($dizi[$i]['content'] ?? '')) . ' ';
+            $en = null;
+            foreach (($this->salon['hizmetler'] ?? []) as $h) {
+                $ad = $this->sade((string) ($h['ad'] ?? ''));
+                if (strlen($ad) >= 4 && !empty($h['id']) && strpos($c, ' ' . $ad) !== false && (!$en || strlen($ad) > $en[0])) $en = [strlen($ad), (int) $h['id']];
+            }
+            if ($en) return $en[1];
+        }
+        return null;
+    }
+
+    /**
+     * Musteri uzman adi soyledi (kayit 258: "Leyla Hanım'a randevu" -> model kisaltilmis 4 kisilik listeye bakip "listede yok"
+     * dedi, musaitlige hic bakmadi). Uzmani KOD bulur; model id'yi ve hizmeti verip vermedigini kesin bilgi olarak alir.
+     */
+    protected function personelNotu(string $metin, array $gecmis): string
+    {
+        try {
+            for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+                if (($gecmis[$i]['role'] ?? '') !== 'assistant') continue;
+                if (preg_match('/adınız|soyad|isminiz/iu', (string) ($gecmis[$i]['content'] ?? ''))) return ''; // musteri KENDI adini soyluyor
+                break;
+            }
+            $f = ' ' . $this->sade($metin) . ' ';
+            if (preg_match('/ (adim|ismim) | ben \w+( \w+)? $/', $f)) return '';
+            $an = $this->anilanPersoneller($metin);
+            if (!$an) {
+                if ($this->kanal === 'whatsapp' || !preg_match('/ (\w{3,}) (?:hanim|bey)(?:[iae]|[iea]n|d[ae]n|l[ae]|in|nin)? /', $f, $x)) return '';
+                $benzer = null;
+                foreach ($this->personelListesi() as $pid => $ad) {
+                    $ilk = explode(' ', $this->sade($ad))[0];
+                    if (strlen($ilk) < 3) continue;
+                    $oran = 1 - levenshtein($x[1], $ilk) / max(strlen($x[1]), strlen($ilk));
+                    if ($oran >= 0.6 && (!$benzer || $oran > $benzer[0])) $benzer = [$oran, $this->personelHitap((int) $pid)];
+                }
+                return $benzer
+                    ? "\n[SİSTEM — müşteri bunu duymadı: bu adda uzman yok ama ses tanıma yanlış duymuş olabilir; en yakın uzman {$benzer[1]}. Müşteri uzman istiyorsa \"yok\" deme, \"{$benzer[1]} mı demek istediniz efendim?\" diye sor.]"
+                    : '';
+            }
+            $hid = $this->konusulanHizmetId($metin, $gecmis);
+            $out = [];
+            foreach (array_slice($an, 0, 3, true) as $pid => $ad) {
+                $s = "{$ad} = personel_id {$pid}";
+                if ($hid) {
+                    $s .= $this->personelHizmetVerirMi((int) $pid, $hid)
+                        ? " (konuşulan hizmeti, hizmet_id {$hid}, VERİYOR)"
+                        : " (işletme kaydında konuşulan hizmeti, hizmet_id {$hid}, VERMİYOR görünüyor)";
+                }
+                if (preg_match('/hizmet|islem|ne yap|neler/', $f)) {
+                    $ids = array_map('intval', (array) PersonelHizmetler::where('personel_id', (int) $pid)->pluck('hizmet_id')->all());
+                    $adlar = [];
+                    foreach (($this->salon['hizmetler'] ?? []) as $h) if (in_array((int) ($h['id'] ?? 0), $ids, true)) $adlar[] = trim((string) $h['ad']);
+                    if ($adlar) $s .= ' verdiği hizmetler: ' . implode(', ', array_slice($adlar, 0, 6)) . (count($adlar) > 6 ? ' ve diğerleri' : '');
+                }
+                $out[] = $s;
+            }
+            return "\n[SİSTEM uzman çözümü — müşteri bunu duymadı: müşteri cümlesinde geçen uzman: " . implode('; ', $out)
+                . '. Bu uzman işletmede VAR, "listede yok / böyle bir uzmanımız yok" DEME. Müşteri bu uzmanla randevu istiyorsa ve gün belliyse musait_saatler\'i bu personel_id ile ŞİMDİ çağır.'
+                . ' Araç bu uzmanın hizmeti vermediğini söylerse bunu tek cümleyle belirt ve aynı gün/saatte hizmeti veren boş uzmanı öner.'
+                . ' Müşteri uzmanın hizmetlerini soruyorsa yalnız yukarıdaki "verdiği hizmetler"i say.]';
+        } catch (\Throwable $e) {
+            Log::warning('RandevuAsistan personelNotu: ' . $e->getMessage());
+            return '';
+        }
+    }
+
     /** Hizmeti veren (personel_sunulan_hizmetler) ve takvimi acik personeller; yoksa takvimi acik HERKES (online randevu mantigi). */
     protected function hizmetPersonelleri(int $hizmetId, ?int $limit = 8): array
     {
@@ -3313,7 +3439,7 @@ FIYAT
             if (!isset($plist[$personelId])) {
                 // Cogu zaman model yanlis id verir (musteri listedeki birini secmisken): dogru id'leri ver, kendisi duzeltsin
                 $dogru = [];
-                try { $veren = $this->hizmetPersonelleri($hizmetId); } catch (\Throwable $e) { $veren = array_keys($plist); }
+                try { $veren = $this->hizmetPersonelleri($hizmetId, null); } catch (\Throwable $e) { $veren = array_keys($plist); }
                 foreach ($veren as $pid) if (isset($plist[$pid])) $dogru[] =$this->personelHitap((int) $pid) . " = personel_id {$pid}";
                 return ['ok' => false, 'hata' => "personel_id {$personelId} geçersiz. Bu hizmetin personelleri: " . implode(', ', $dogru)
                     . '. Müşterinin seçtiği kişinin personel_id\'si ile musait_saatler\'i HEMEN yeniden çağır; müşteriye "uygun değil" DEME. Seçtiği kişi listede yoksa o isimde personel olmadığını söyle.'];

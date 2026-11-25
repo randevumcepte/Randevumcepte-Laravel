@@ -954,6 +954,30 @@ namespace {
     esit('Tekrar onay: farklı kalıp → kalır', 'Harika. Hangi gün?', cagir($ab, 'tekrarOnayKes', 'Harika. Hangi gün?', $gT));
     esit('Tekrar onay: yalnız onay → dokunulmaz', 'Tabii, anladım.', cagir($ab, 'tekrarOnayKes', 'Tabii, anladım.', $gT));
 
+    bolum('Kayıt 258: müşteri uzman adı söylüyor (Leyla Hanım)');
+    $l258 = asistan(['_personeller' => [1 => 'Sümeyra', 2 => 'Melis', 3 => 'Berfin', 4 => 'Feyza', 5 => 'Leyla Kaya', 6 => 'İpek'],
+        'salon' => ['ad' => 'Ola Nail', 'hizmetler' => [['id' => 7, 'ad' => 'Jel Güçlendirme'], ['id' => 8, 'ad' => 'İpek Kirpik']]]]);
+    foreach (["Cumartesi saat 3'te Leyla Hanım'a randevu oluşturmak istiyorum" => [5], "Leyla'yı istiyorum" => [5], 'Leyla dedim' => [5], 'leylaya olsun' => [5],
+              'İpek kirpik istiyorum' => [], 'İpek Hanım olsun' => [6], 'Cumartesi saat 3' => [], "Melis Hanım'dan alayım" => [2]] as $m => $b) {
+        esit("anılan uzman: $m", $b, array_keys(cagir($l258, 'anilanPersoneller', $m)));
+    }
+    $g258 = [['role' => 'user', 'content' => 'Evet'], ['role' => 'assistant', 'content' => 'Jel güçlendirme için hangi gün ve saat sizin için uygun?']];
+    esit('konuşulan hizmet geçmişten', 7, cagir($l258, 'konusulanHizmetId', "Cumartesi 3'te Leyla Hanım'a", $g258));
+    esit('konuşulan hizmet araç notundan', 8, cagir($l258, 'konusulanHizmetId', 'Leyla', [['role' => 'assistant', 'content' => 'x', 'baglam' => 'hizmet_eslestir("ipek") → {"ok":true,"hizmet":{"id":8,"ad":"İpek Kirpik"}}']]));
+    $n258 = cagir($l258, 'personelNotu', "Cumartesi saat 3'te Leyla Hanım'a randevu oluşturmak istiyorum", $g258);
+    icerir('not: personel_id', 'Leyla Hanım = personel_id 5', $n258);
+    icerir('not: hizmeti veriyor', 'hizmet_id 7, VERİYOR', $n258);
+    icerir('not: yok deme', 'DEME', $n258);
+    esit('uzman adı yoksa not yok', '', cagir($l258, 'personelNotu', 'Cumartesi saat 3 olsun', $g258));
+    esit('müşteri kendi adını söylüyorsa not yok', '', cagir($l258, 'personelNotu', 'Leyla Yılmaz', [['role' => 'assistant', 'content' => 'Önce adınızı ve soyadınızı alabilir miyim?']]));
+    esit('"Benim adım Leyla" → not yok', '', cagir($l258, 'personelNotu', 'Benim adım Leyla', $g258));
+    icerir('yanlış duyulan ad → teyit', 'Leyla Hanım mı demek istediniz', cagir($l258, 'personelNotu', "Leyda Hanım'a randevu", $g258));
+    esit('alakasız ad → not yok', '', cagir($l258, 'personelNotu', 'Gülbahar Hanım var mı', $g258));
+    esit('"Leyla Hanım hangi hizmeti veriyor" → salon listesi okunmaz', null, $l258->hizmetListesiCevabi('Leyla Hanım hangi hizmeti veriyor'));
+    $ip258 = $l258->sttIpuclari();
+    esit('STT ipucu: uzman adı', true, in_array('Leyla', $ip258, true) && in_array('Leyla Hanım', $ip258, true));
+    icerir('prompt: kısaltılmış listeye bakıp yok deme', 'KISALTILMIŞ', cagir($pz, 'sistemPromptu'));
+
     bolum('Kayıt 277: karşılama tekrarlanmaz');
     $g277 = [['role' => 'assistant', 'content' => "Merhaba, Ola Nail'e hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?"]];
     foreach (['Merhaba' => true, 'Alo, iyi günler.' => true, 'Merhabalar kolay gelsin' => true, 'Merhaba randevu almak istiyorum' => false, 'Evet' => false] as $m => $b) {
