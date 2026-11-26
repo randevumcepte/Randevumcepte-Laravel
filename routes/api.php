@@ -326,6 +326,7 @@ Route::post('/bildirimkimligiekleguncelle','ApiController@bildirimkimligieklegun
 /* ───────── Yeni nesil bildirim API'si (NotificationApiController) ───────── */
 Route::post('/bildirim/cihaz-kaydet',     'NotificationApiController@cihazKaydet');
 Route::post('/bildirim/cihaz-sil',        'NotificationApiController@cihazSil');
+Route::post('/bildirim/durum',            'NotificationApiController@durumBildir');
 Route::post('/bildirim/test',             'NotificationApiController@test');
 Route::post('/bildirim/test-cihaz',        'NotificationApiController@testCihaz');
 Route::get ('/bildirim/liste',            'NotificationApiController@liste');

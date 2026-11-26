@@ -23,6 +23,7 @@ class RandevuSemaEnsure extends Command
         }
         \App\Services\OnGorusmeErteleme::semaGaranti();
         \App\Services\RandevuDurumRenk::semaGaranti();
+        \App\Services\BildirimDurumSemasi::ensure();
         return 0;
     }
 }

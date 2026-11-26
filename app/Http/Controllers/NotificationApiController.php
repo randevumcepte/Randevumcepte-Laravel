@@ -130,6 +130,78 @@ class NotificationApiController extends Controller
     }
 
     /**
+     * POST /api/v1/bildirim/durum
+     *
+     * Uygulama, cihazda bildirimlerin calisip calismadigini yazar (kullaniciya artik ekranda uyari
+     * gosterilmez; Sistem Yonetimi > Bildirim Sorunlari'ndan takip edilir). Token alinamadiginda da
+     * cagrildigi icin token ISTEMEZ; kimlik cihaz-kaydet ile ayni alanlardan cozulur.
+     *
+     * Body: durum (ok|izin_kapali|token_yok), kullanici_tipi, user_id|personel_id|yetkili_id,
+     *       salon_id (ops.), app_bundle (ops.), hata (ops.), cihaz_bilgi (ops.)
+     *
+     * Yazilan satirlar:
+     *  - musteri : musteri_portfoy (user_id + markanin subeleri; bundle cozulmezse salon_id)
+     *  - yetkili : salon_personelleri (yetkili_id + markanin subeleri; yoksa salon_id)
+     *  - personel: salon_personelleri.id
+     */
+    public function durumBildir(Request $request)
+    {
+        $request->validate([
+            'durum'          => 'required|in:' . implode(',', \App\Services\BildirimDurumSemasi::DURUMLAR),
+            'kullanici_tipi' => 'required|in:musteri,personel,yetkili',
+        ]);
+
+        try {
+            \App\Services\BildirimDurumSemasi::ensure();
+        } catch (\Throwable $e) {
+            Log::warning('bildirim durum sema hatasi: ' . $e->getMessage());
+            return response()->json(['success' => false], 200);
+        }
+
+        $tip    = $request->input('kullanici_tipi');
+        $durum  = $request->input('durum');
+        $salonId = (int) $request->input('salon_id') ?: null;
+        $bundle = trim((string) $request->input('app_bundle', ''));
+
+        $markaSalonlari = $bundle !== ''
+            ? \App\Salonlar::where('app_bundle', $bundle)->pluck('id')->map(function ($v) { return (int) $v; })->all()
+            : [];
+        $salonlar = $markaSalonlari ?: ($salonId ? [$salonId] : []);
+
+        if ($tip === 'musteri') {
+            $userId = (int) $request->input('user_id');
+            if (!$userId || !$salonlar) return response()->json(['success' => false, 'guncellenen' => 0]);
+            $sorgu = DB::table('musteri_portfoy')->where('user_id', $userId)->whereIn('salon_id', $salonlar);
+        } elseif ($tip === 'yetkili') {
+            $yetkiliId = (int) $request->input('yetkili_id');
+            if (!$yetkiliId || !$salonlar) return response()->json(['success' => false, 'guncellenen' => 0]);
+            $sorgu = DB::table('salon_personelleri')->where('yetkili_id', $yetkiliId)->whereIn('salon_id', $salonlar);
+        } else {
+            $personelId = (int) $request->input('personel_id');
+            if (!$personelId) return response()->json(['success' => false, 'guncellenen' => 0]);
+            $sorgu = DB::table('salon_personelleri')->where('id', $personelId);
+            if ($salonlar) $sorgu->whereIn('salon_id', $salonlar);
+        }
+
+        $simdi = date('Y-m-d H:i:s');
+        $hata = mb_substr((string) $request->input('hata', ''), 0, 255);
+        $cihazBilgi = mb_substr((string) $request->input('cihaz_bilgi', ''), 0, 120);
+        $alanlar = [
+            'bildirim_durum'        => $durum,
+            'bildirim_durum_tarihi' => $simdi,
+            'bildirim_hata'         => ($durum === 'ok' || $hata === '') ? null : $hata,
+            'bildirim_cihaz'        => $cihazBilgi === '' ? null : $cihazBilgi,
+        ];
+        // Sorun baslangici: ok gelince temizlenir; sorun devam ederken ilk gorulme tarihi korunur.
+        $alanlar['bildirim_sorun_baslangic'] = $durum === 'ok'
+            ? null
+            : DB::raw("COALESCE(bildirim_sorun_baslangic, '" . $simdi . "')");
+
+        $n = $sorgu->update($alanlar);
+        return response()->json(['success' => true, 'guncellenen' => $n]);
+    }
+
+    /**
      * POST /api/v1/bildirim/test
      *
      * Yetkili panelinden tek bir kişiye/kendisine test bildirimi göndermek için.

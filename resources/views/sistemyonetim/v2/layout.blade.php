@@ -73,6 +73,10 @@
                 <span class="icon mdi mdi-account-voice"></span>
                 İsim Sözlüğü
             </a>
+            <a href="/sistemyonetim/v2/bildirim-sorunlari" class="sy-nav-item {{ $aktifMenu === 'bildirimsorun' ? 'active' : '' }}">
+                <span class="icon mdi mdi-bell-alert"></span>
+                Bildirim Sorunları
+            </a>
             <a href="/sistemyonetim/v2/ai-kredi" class="sy-nav-item {{ $aktifMenu === 'aikredi' ? 'active' : '' }}">
                 <span class="icon mdi mdi-robot-happy"></span>
                 AI Kredi &amp; Kullanım

@@ -444,6 +444,9 @@ Route::prefix('sistemyonetim/v2')->namespace('SistemYonetim')->group(function() 
     Route::get('/isim-sozluk', 'IsimSozlukController@index')->name('sistemyonetim.v2.isim-sozluk');
     Route::post('/isim-sozluk', 'IsimSozlukController@kaydet');
 
+    // Bildirim Sorunlari (mobilde bildirimi calismayan musteri/personel — uygulama /api/v1/bildirim/durum ile yazar)
+    Route::get('/bildirim-sorunlari', 'BildirimSorunController@index')->name('sistemyonetim.v2.bildirim-sorunlari');
+
     // AI Kredi & Kullanim paneli (Patron Asistani Haiku harcamasi)
     Route::get('/ai-kredi', 'AiKrediController@index')->name('sistemyonetim.v2.aikredi');
     Route::get('/ai-kredi/isletme/{id}', 'AiKrediController@isletme')->where('id', '[0-9]+');
