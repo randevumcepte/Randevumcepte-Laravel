@@ -474,6 +474,9 @@ class RandevuAsistan
             $this->teshis = 'selam';
             return ['cevap' => 'Buyurun, sizi dinliyorum.', 'aksiyon' => null, 'veri' => [], 'bitir' => false];
         }
+        // Hizmetsiz randevu az once acildi; musteri ayni saati tekrarliyor ("18 dedim ya", "oluştur") -> model "özür dilerim,
+        // karışıklık oldu, şimdi oluşturuyorum" deyip ikinci randevu aciyordu (kayit 321)
+        if (($tk = $this->hizmetsizTekrarCevabi($metin, $gecmis)) !== null) return $tk;
         // HIZMET ANLASILMADI MODU (2026-11-26): onceki turda hizmet bulunamadi, gun-saat soruldu -> KOD randevuyu acar (modelsiz, hizli)
         $hzOnce = $this->hizmetsizBekleyen($gecmis);
         if ($hzOnce !== null && ($hc = $this->hizmetsizTur($metin, $hzOnce)) !== null) {
@@ -3952,6 +3955,10 @@ FIYAT
     {
         if (!($a = $this->hizmetsizArama($ifade))) return ['ok' => false, 'alternatif' => []];
         [$hizmetId, $ozel, $adaylar, $bul] = $a;
+        // Ayni musteri, ayni gun-saat: ikinci randevu ACILMAZ (kayit 321: "18 dedim ya" -> model ikinci kez olusturdu)
+        $var = Randevular::where('user_id', $this->musteriId)->where('salon_id', $this->salonId)->where('tarih', $tarih)
+            ->where('saat', 'like', $saat . '%')->whereIn('durum', [Randevular::BEKLENIYOR, Randevular::ONAYLANDI])->value('id');
+        if ($var) return ['ok' => true, 'randevu_id' => (int) $var, 'tarih' => $tarih, 'saat' => $saat, 'hizmet' => null, 'hizmet_anlasilmadi' => true, 'zaten' => true];
         $tam = []; $slot = [];
         foreach ($adaylar as $pid) {
             $m = $bul($pid, $tarih, $saat, 1);
@@ -3960,18 +3967,21 @@ FIYAT
             else $slot[$m['tarih'] . ' ' . $m['saat']] = [$m['tarih'], $m['saat']];
         }
         if ($tam) {
-            $pid = (int) (count($tam) > 1 ? (AdilAtama::sirala($this->salonId, $tam, $tarih)[0] ?? $tam[0]) : $tam[0]);
+            // Adil sirayla bos personellerin HEPSI denenir (kayit 321: ilk secilene yazilamayinca "18:00 dolu" denmisti)
+            $sira = count($tam) > 1 ? array_values(array_unique(array_merge(array_map('intval', AdilAtama::sirala($this->salonId, $tam, $tarih)), $tam))) : $tam;
             $uyari = '⚠️ HİZMET ANLAŞILMADI – MÜŞTERİYİ ARAYIP HİZMETİ NETLEŞTİRİN.' . ($ifade !== '' ? ' Müşterinin söylediği: "' . mb_substr($ifade, 0, 120) . '".' : '');
-            $d = $this->randevuOlusturPersonelli(['tarih_saat' => $tarih . 'T' . $saat . ':00', 'hizmet_id' => $hizmetId, 'personel_id' => $pid,
-                'paketsiz' => true, '_uyari' => $uyari, '_hizmetsiz' => (bool) $ozel]);
-            if (!empty($d['ok'])) {
-                $d['hizmet'] = null;
-                $d['hizmet_anlasilmadi'] = true;
-                Log::info('[ASISTAN] hizmet anlasilmadi -> randevu', ['salon' => $this->salonId, 'kanal' => $this->kanal, 'randevu' => $d['randevu_id'], 'ifade' => $ifade, 'ozel_hizmet' => (bool) $ozel]);
-                $this->hizmetAnlasilmadiBildir((int) $d['randevu_id'], $tarih, $saat, $ifade);
-                return $d;
+            foreach ($sira as $pid) {
+                $d = $this->randevuOlusturPersonelli(['tarih_saat' => $tarih . 'T' . $saat . ':00', 'hizmet_id' => $hizmetId, 'personel_id' => (int) $pid,
+                    'paketsiz' => true, '_uyari' => $uyari, '_hizmetsiz' => (bool) $ozel]);
+                if (!empty($d['ok'])) {
+                    $d['hizmet'] = null;
+                    $d['hizmet_anlasilmadi'] = true;
+                    Log::info('[ASISTAN] hizmet anlasilmadi -> randevu', ['salon' => $this->salonId, 'kanal' => $this->kanal, 'randevu' => $d['randevu_id'], 'ifade' => $ifade, 'ozel_hizmet' => (bool) $ozel]);
+                    $this->hizmetAnlasilmadiBildir((int) $d['randevu_id'], $tarih, $saat, $ifade);
+                    return $d;
+                }
+                Log::warning('[ASISTAN] hizmet anlasilmadi randevu acilamadi', ['salon' => $this->salonId, 'personel' => $pid, 'sonuc' => $d]);
             }
-            Log::warning('[ASISTAN] hizmet anlasilmadi randevu acilamadi', ['salon' => $this->salonId, 'sonuc' => $d]);
         }
         // Dolu: ayni gunun istenen saatten ONCEKI bos saatleri de aday (en yakin iki saat)
         foreach ($adaylar as $pid) {
@@ -4014,6 +4024,23 @@ FIYAT
         $h = $this->hitap();
         if ($this->kanal === 'whatsapp') return "✅ Randevunuz oluşturuldu: {$ne}.\n\nSalonumuz sizi arayıp detayları netleştirecek. Başka bir isteğiniz var mı?";
         return ($h ? "{$h}, " : 'Tamamdır, ') . "{$ne} randevunuzu oluşturdum. Salonumuz sizi arayıp detayları netleştirecek. Başka bir isteğiniz var mı?";
+    }
+
+    protected function hizmetsizTekrarCevabi(string $metin, array $gecmis): ?array
+    {
+        $son = null;
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) if (($gecmis[$i]['role'] ?? '') === 'assistant') { $son = (string) ($gecmis[$i]['content'] ?? ''); break; }
+        if ($son === null || mb_strpos($son, 'randevunuzu oluşturdum. Salonumuz sizi arayıp') === false) return null;
+        if (!preg_match('/saat (\d{1,2}):(\d{2})/u', $son, $m)) return null;
+        $s = $this->sade($metin);
+        try { $z = app(SesliRandevuCozService::class)->zamanCoz($metin); } catch (\Throwable $e) { $z = []; }
+        $ayniSaat = !empty($z['saat']) && (int) substr($z['saat'], 0, 2) === (int) $m[1] && (int) substr($z['saat'], 3, 2) === (int) $m[2];
+        $sayi = preg_match('/\b(\d{1,2})\b/u', $s, $n) && ((int) $n[1] === (int) $m[1] || (int) $n[1] + 12 === (int) $m[1]);
+        if (empty($z['tarih']) && ($ayniSaat || $sayi || preg_match('/\bdedim\b|\bolustur|\bayarla|\btamam\b/u', $s))) {
+            $this->teshis = 'bos_onay';
+            return ['cevap' => 'Evet, randevunuz saat ' . $m[1] . ':' . $m[2] . ' için oluşturuldu, merak etmeyin. Başka bir isteğiniz var mı?', 'aksiyon' => null, 'veri' => [], 'bitir' => false];
+        }
+        return null;
     }
 
     /** Model musteriyi hizmet konusunda sorguluyor mu ("ne kastettiğinizi anlayamadım", "biraz açar mısınız")? */
@@ -4104,6 +4131,16 @@ FIYAT
         if ($tarih && ($vakit || !empty($hz['q']))) {
             // "Yarın öğleden sonra" ya da saat ikinci kez sorulacakti: ayni soru tekrarlanmaz, iki bos saat onerilir
             $alt = $this->hizmetsizGunSecenekleri($tarih, $vakit, (string) ($hz['i'] ?? ''));
+            if ($alt && $vakit) {
+                // "Yarın akşamüstü" -> uzatmadan o vaktin ilk bos saatine HEMEN randevu (kullanici karari 2026-11-27)
+                foreach ($alt as $a) {
+                    $r = $this->hizmetsizRandevuAc($a[0], $a[1], (string) ($hz['i'] ?? ''));
+                    if (!empty($r['ok'])) {
+                        $this->teshis = 'hizmetsiz_randevu';
+                        return ['cevap' => $this->hizmetsizOnayCumlesi($r), 'aksiyon' => 'randevu', 'veri' => ['randevu_id' => $r['randevu_id']], 'bitir' => false];
+                    }
+                }
+            }
             if ($alt) {
                 $hz['t'] = $tarih; $hz['s'] = null; $hz['a'] = $alt;
                 $vSoz = ['sabah' => ' sabah', 'ogle' => ' öğlen', 'ogleden_sonra' => ' öğleden sonra', 'aksam' => ' akşam'][$vakit] ?? '';

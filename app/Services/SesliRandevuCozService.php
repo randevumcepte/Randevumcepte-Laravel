@@ -431,7 +431,7 @@ class SesliRandevuCozService
     protected function saatCoz($fold)
     {
         $fold = $this->saatSozcukRakam($fold);
-        $ogledenSonra = (bool) preg_match('/\bogleden sonra\b|\baksam\b|\bgece\b/u', $fold);
+        $ogledenSonra = (bool) preg_match('/\bogleden sonra\b|\baksam(\s?(ustu|uzeri))?\b|\bikindi\b|\bgece\b/u', $fold);
         $sabah        = (bool) preg_match('/\bsabah\b|\bogleden once\b/u', $fold);
 
         // 1) 14:30 / 9.45
@@ -511,7 +511,8 @@ class SesliRandevuCozService
     /** Cumleden vakit ifadesi: sabah | ogleden_sonra | aksam | null */
     protected function vakitBul($fold)
     {
-        if (preg_match('/\baksam\b|\bgece\b/u', $fold)) {
+        // "akşamüstü / akşam üzeri / ikindi" da akşam (kayit 321: anlasilmadi, "saat kaçta?" soruldu)
+        if (preg_match('/\baksam(\s?(ustu|uzeri))?\b|\bikindi\b|\bgece\b/u', $fold)) {
             return 'aksam';
         }
         if (preg_match('/\bogleden sonra\b/u', $fold)) {
@@ -519,6 +520,9 @@ class SesliRandevuCozService
         }
         if (preg_match('/\bsabah\b|\bogleden once\b/u', $fold)) {
             return 'sabah';
+        }
+        if (preg_match('/\bogle(n|ye|de|nde)?\b|\boglene\b/u', $fold)) {
+            return 'ogle';
         }
         return null;
     }

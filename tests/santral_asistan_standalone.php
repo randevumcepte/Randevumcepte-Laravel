@@ -1054,10 +1054,14 @@ namespace {
     esit('hizmet yok → model tek kez çağrıldı', 1, $hy->cagri);
     icerir('hizmet yok → mod etiketi', '[[HZ:', (string) ($r['baglam'] ?? ''));
 
-    bolum('Kayıt 315: "öğleden sonra" → iki boş saat, "saat kaçta?" tekrarlanmaz');
+    bolum('Kayıt 315/321: "öğleden sonra" → hemen randevu (açılamazsa iki saat), "saat kaçta?" tekrarlanmaz');
     $hv = new class extends App\Services\RandevuAsistan {
         public $vakitler = [];
+        public $acilamaz = true;
         public function __construct() {}
+        protected function hizmetsizRandevuAc(string $tarih, string $saat, string $ifade): array {
+            return $this->acilamaz ? ['ok' => false, 'alternatif' => []] : ['ok' => true, 'randevu_id' => 5, 'tarih' => $tarih, 'saat' => $saat];
+        }
         protected function waOtomatikKayit(): void {}
         protected function hizmetsizGunSecenekleri(string $tarih, ?string $vakit, string $ifade): array {
             $this->vakitler[] = $vakit;
@@ -1066,6 +1070,12 @@ namespace {
     };
     foreach (['salonId' => 20, 'musteriId' => 77, 'kanal' => 'santral', 'salon' => ['ad' => 'X', 'hizmetler' => [['id' => 1, 'ad' => 'Kalıcı Oje']]]] as $k => $v) { $p = new ReflectionProperty(App\Services\RandevuAsistan::class, $k); $p->setAccessible(true); $p->setValue($hv, $v); }
     $yarin = date('Y-m-d', strtotime('+1 day'));
+    $hv->acilamaz = false;
+    $v0 = cagir($hv, 'hizmetsizTur', 'Yarın akşamüstü', ['i' => 'kaynak', 't' => null, 's' => null, 'a' => []]);
+    esit('kayıt 321: "yarın akşamüstü" → sormadan randevu', 'randevu', $v0['aksiyon']);
+    icerir('ilk boş akşam saatine', "saat 10:00'da randevunuzu oluşturdum", $v0['cevap']); // sahte secenekler: akşam -> 10/11 (vakit != ogleden_sonra)
+    esit('vakit akşam olarak arandı', 'aksam', end($hv->vakitler));
+    $hv->acilamaz = true;
     $v1 = cagir($hv, 'hizmetsizTur', 'Yarın hangi saat mi sayısı bana öğleden sonra randevu verebilirsiniz.', ['i' => 'kaynak', 't' => null, 's' => null, 'a' => []]);
     icerir('yarın öğleden sonra → iki saat önerilir', 'öğleden sonra saat 13:00 ya da saat 14:00 uygun, hangisini istersiniz?', $v1['cevap']);
     esit('öneriler etikete yazıldı', ['13:00', '14:00'], array_column(cagir($hv, 'hizmetsizBekleyen', [['role' => 'assistant', 'content' => 'x', 'baglam' => $v1['baglam']]])['a'], 1));
@@ -1107,6 +1117,21 @@ namespace {
     icerir('kapanış isimle başlar', 'Ferdi Bey, ', $on);
     icerir('kapanış "başka isteğiniz" ile biter', 'Salonumuz sizi arayıp detayları netleştirecek. Başka bir isteğiniz var mı?', $on);
     esit('ardından "yok teşekkürler" → hızlı veda', 'veda', $hq->konus('Yok teşekkürler', [['role' => 'assistant', 'content' => $on]])['aksiyon']);
+
+    bolum('Kayıt 321: akşamüstü, tekrar eden saat');
+    $zc = app(App\Services\SesliRandevuCozService::class);
+    esit('"yarın akşamüstü" → akşam', 'aksam', $zc->zamanCoz('Yarın akşamüstü')['vakit']);
+    esit('"akşam üzeri" → akşam', 'aksam', $zc->zamanCoz('yarın akşam üzeri olsun')['vakit']);
+    esit('"öğlen" → öğle', 'ogle', $zc->zamanCoz('yarın öğlen')['vakit']);
+    esit('"öğleden sonra" bozulmadı', 'ogleden_sonra', $zc->zamanCoz('yarın öğleden sonra')['vakit']);
+    esit('"akşamüstü 6" → 18:00', '18:00', $zc->zamanCoz('akşamüstü 6 gibi')['saat']);
+    $onc = 'Ferdi Bey, Cumartesi, 28 Kasım saat 18:00\'de randevunuzu oluşturdum. Salonumuz sizi arayıp detayları netleştirecek. Başka bir isteğiniz var mı?';
+    $t1 = cagir($hv, 'hizmetsizTekrarCevabi', '18 dedim ya.', [['role' => 'assistant', 'content' => $onc]]);
+    esit('"18 dedim ya" → yeni randevu yok, teyit', 'Evet, randevunuz saat 18:00 için oluşturuldu, merak etmeyin. Başka bir isteğiniz var mı?', $t1['cevap'] ?? null);
+    esit('teyitte aksiyon yok', true, array_key_exists('aksiyon', $t1) && $t1['aksiyon'] === null);
+    esit('"Oluştur" → teyit', 'bos_onay', cagir($hv, 'hizmetsizTekrarCevabi', 'Oluştur.', [['role' => 'assistant', 'content' => $onc]]) ? 'bos_onay' : null);
+    esit('"yok teşekkürler" → teyit değil (veda)', null, cagir($hv, 'hizmetsizTekrarCevabi', 'Yok teşekkürler', [['role' => 'assistant', 'content' => $onc]]));
+    esit('"19 olsun" → teyit değil', null, cagir($hv, 'hizmetsizTekrarCevabi', '19 olsun', [['role' => 'assistant', 'content' => $onc]]));
 
     bolum('Kayıt 277: karşılama tekrarlanmaz');
     $g277 = [['role' => 'assistant', 'content' => "Merhaba, Ola Nail'e hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?"]];
