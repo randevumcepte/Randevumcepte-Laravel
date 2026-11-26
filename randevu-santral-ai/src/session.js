@@ -555,6 +555,19 @@ class CagriOturumu {
           }
         }
       }
+      // YALNIZ SELAM (kayit 320): "Merhaba," (virgul duraklamasi = ayri final) -> "Buyurun, sizi dinliyorum" musteri
+      // "...randevu alacaktım" derken okunuyordu, ardindan asil cevap geldi. Selam cevabi kisa bekletilir; musteri
+      // konusmaya devam ettiyse hic okunmaz, tur gecmisten dusulur, devam cumlesi normal sorulur.
+      if (d && d.teshis === 'selam' && !d.aksiyon && !d.bitir) {
+        const devamEtti = () => !!(this._bekleyen || this._sonInterim || this._eskidi || this._spek);
+        const bas = Date.now();
+        while (!this.kapali && !devamEtti() && Date.now() - bas < cfg.selamBekleMs) await new Promise((r) => setTimeout(r, 100));
+        if (devamEtti()) {
+          log.info(`< asistan (CALINMADI, selamdan sonra musteri devam etti): ${d.cevap}`);
+          brain.turIptal(this.oturumId, cal.tur);
+          return;
+        }
+      }
       // Musteri bu arada yeni bir sey soyledi ve bu cevap bir is yapmadiysa (randevu/iptal/aktarma/kapanis yok):
       // CALMA -> bekleyen cumleyle yeni tur sorulur; Laravel bu calinmayan cevabi gecmisten duser.
       if (this._eskidi && this._bekleyen && d && d.ok !== false && !d.aksiyon && !d.bitir) {
