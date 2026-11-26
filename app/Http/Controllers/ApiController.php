@@ -19773,33 +19773,30 @@ public function cakisan_randevu_kontrol(Request $request, $randevu_tarihleri)
 
         } else {
 
-            $musteri_var = User::where(
-
-                "cep_telefon",
-
-                self::telefon_no_format_duzenle($request->telefon)
-
-            )->count();
+            // Web ile ayni: telefonu kanonikle + eski format varyantlariyla (0/90/+90) eslestir.
+            // Birebir eslesme 0'li/+90'li saklanmis kayitlari kaciriyor, uyari cikmadan
+            // ayni kisiye ikinci kayit aciliyordu.
+            $_telKanonik = \App\Http\Controllers\StoreAdminController::telefonKanonik($request->telefon);
+            $_telVaryant = \App\Http\Controllers\StoreAdminController::telefonAramaVaryantlari($_telKanonik);
+            $_eslesenIdler = !empty($_telVaryant)
+                ? User::whereIn("cep_telefon", $_telVaryant)->pluck("id")->toArray()
+                : [];
+            $musteri_var = count($_eslesenIdler);
 
             if ($musteri_var > 0) {
 
-                $mevcut = User::where(
-
-                    "cep_telefon",
-
-                    self::telefon_no_format_duzenle($request->telefon)
-
-                )->first();
-
-                $portfoyvar = MusteriPortfoy::where("user_id", $mevcut->id)
-
+                // Ayni numarali birden fazla user olabilir: portfoyde aktif olani tercih et
+                $_portfoydeki = MusteriPortfoy::whereIn("user_id", $_eslesenIdler)
                     ->where("salon_id", $sube)
-
                     ->where("aktif", true)
+                    ->orderBy("id")
+                    ->first();
 
-                    ->count();
+                $mevcut = User::where("id", $_portfoydeki ? $_portfoydeki->user_id : $_eslesenIdler[0])->first();
 
-                if ($portfoyvar == 1) {
+                $portfoyvar = $_portfoydeki ? 1 : 0;
+
+                if ($portfoyvar >= 1) {
 
                     $returnvar = [
 
