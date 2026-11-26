@@ -13,7 +13,8 @@
   function cerezYaz(ad, v) { document.cookie = ad + '=' + encodeURIComponent(v) + ';path=/;max-age=31536000;samesite=lax'; }
   function listede(k) { return A.diller.some(function (d) { return d.kod === k; }); }
 
-  var dil = cerez('musteri_dil');
+  // İşletme paneli: dil personelin kaydından gelir (uygulamadaki seçimle aynı), A.panel = {dil, sozluk, kaydet}
+  var dil = A.panel ? A.panel.dil : cerez('musteri_dil');
   if (!listede(dil)) dil = 'tr';
 
   // ------------------------------------------------------------------ çeviri motoru
@@ -190,16 +191,29 @@
     k.appendChild(b);
     k.appendChild(l);
     document.body.appendChild(k);
+    // Panelde seçim profil menüsünde ("Çıkış Yap" üstü); menü yoksa yüzen düğme kalır
+    var cikis = A.panel && document.querySelector('a[href*="/isletmeyonetim/cikisyap"]');
+    if (cikis) {
+      k.classList.add('md-panel');
+      st.textContent += '.md-panel{top:64px;right:16px}.md-panel .md-dug{display:none}.md-panel .md-liste{top:0}';
+      var a = document.createElement('a');
+      a.className = cikis.className;
+      a.href = '#';
+      a.setAttribute('data-dil-yok', '');
+      a.textContent = '🌐 Dil / Language (' + dil.toUpperCase() + ')';
+      a.onclick = function (e) { e.preventDefault(); e.stopPropagation(); k.classList.add('ac'); };
+      cikis.parentNode.insertBefore(a, cikis);
+    }
   }
 
   function sec(yeni) {
-    cerezYaz('musteri_dil', yeni);
+    if (!A.panel) cerezYaz('musteri_dil', yeni);
     var bitti = function () { location.reload(); };
     var t = document.querySelector('meta[name="csrf-token"],meta[name="_token"]');
     var inp = document.querySelector('input[name="_token"]');
     var kod = t ? t.getAttribute('content') : (inp ? inp.value : '');
     if (!kod || !window.fetch) return bitti();
-    fetch('/musteri-dil', {
+    fetch(A.panel ? A.panel.kaydet : '/musteri-dil', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-TOKEN': kod, 'X-Requested-With': 'XMLHttpRequest' },
       body: '_token=' + encodeURIComponent(kod) + '&dil=' + encodeURIComponent(yeni)
@@ -232,7 +246,7 @@
 
   function hazir(f) { document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', f) : f(); }
 
-  if (dil === 'tr') { hazir(function () { dugme(); oner(); }); return; }
+  if (dil === 'tr') { hazir(function () { dugme(); if (!A.panel) oner(); }); return; }
 
   // Türkçe metin görünüp değişmesin: çeviri hazır olana (en çok 2,5 sn) kadar gövde gizli
   var gizle = document.createElement('style');
@@ -246,7 +260,7 @@
   window.alert = function (m) { uyari.call(window, cevir(String(m))); };
   window.confirm = function (m) { return onay.call(window, cevir(String(m))); };
 
-  fetch('/musteri-dil/sozluk/' + dil + '?v=' + encodeURIComponent((A.surum || {})[dil] || ''), { credentials: 'same-origin' })
+  fetch((A.panel ? A.panel.sozluk : '/musteri-dil/sozluk/' + dil) + (A.panel ? '&' : '?') + 'v=' + encodeURIComponent((A.surum || {})[dil] || ''), { credentials: 'same-origin' })
     .then(function (r) { return r.json(); })
     .then(function (j) {
       yukle(j.sozluk || {});

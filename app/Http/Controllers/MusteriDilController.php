@@ -77,6 +77,25 @@ class MusteriDilController extends Controller
     }
 
     /** Web (online randevu sitesi): giris yapmis musteri dil dugmesinden sectiginde. Cerez zaten tarayicida. */
+    /** Isletme paneli sozlugu: yalniz o salonda calisan giris yapmis personel */
+    public function panelSozluk(Request $request, $dil)
+    {
+        $y = Auth::guard('isletmeyonetim')->user();
+        $salonId = $y ? \App\Http\Middleware\MusteriDilPanel::salon($y->id, $request->input('s')) : 0;
+        if (!$salonId) return response()->json(['hata' => 'Dil bulunamadı.'], 404);
+        $request->attributes->set('md_salon', $salonId);
+        return $this->sozluk($request, $dil)->header('Cache-Control', 'private, max-age=300');
+    }
+
+    /** Personelin dili (panel); uygulamadaki secimle ayni kayit */
+    public function panelKaydet(Request $request)
+    {
+        $y = Auth::guard('isletmeyonetim')->user();
+        if (!$y) return response()->json(['ok' => 0], 403);
+        $ok = MusteriDili::yetkiliKaydet($y->id, (string) $request->input('dil'));
+        return response()->json(['ok' => $ok ? 1 : 0]);
+    }
+
     public function webKaydet(Request $request)
     {
         $u = Auth::guard('web')->user();

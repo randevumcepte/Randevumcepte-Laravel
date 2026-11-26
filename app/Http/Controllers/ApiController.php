@@ -2838,6 +2838,13 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
             return response()->json(['basarili' => false, 'cevap' => 'Bir şey sormadınız. Örn: "bugün kasa ne durumda?"'], 422, [], JSON_UNESCAPED_UNICODE);
         }
 
+        // Personel kendi dilini sectiyse (pilot salon): soru Turkceye cevrilip anlasilir, cevap onun dilinde doner
+        $pDil = \App\Services\MusteriDili::acikMi($salonId) ? (\App\Services\MusteriDili::yetkiliDil($u->id) ?: 'tr') : 'tr';
+        if ($pDil !== 'tr' && \App\Services\MusteriDili::mesajDili($metin) !== 'tr') {
+            $c = \App\Services\MusteriDili::aiCevir($salonId, [$metin], 'tr', 15);
+            if ($c && trim((string) $c[0]) !== '') $metin = trim((string) $c[0]);
+        }
+
         $asistan = new \App\Services\PatronAsistanServisi();
         $asistan->aktifSalonId = (int) $salonId; // AI kullanim logu bu salona yazilsin
         $veriSrv = new \App\Services\PatronAsistanRaporServisi();
@@ -2846,13 +2853,14 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
         // hem yaniti dondururuz hem gecmise yazariz (tek noktadan).
         $uid = (int) $u->id;
         $gecmis = $asistan->gecmisGetir($uid);
-        $cevapla = function ($veri) use ($asistan, $uid, $metin) {
+        $cevapla = function ($veri) use ($asistan, $uid, $metin, $pDil, $salonId) {
             if (is_array($veri) && !empty($veri['cevap'])) {
                 // "buyurun"u kaynagi ne olursa olsun (AI/cache/kural) suz.
                 $veri['cevap'] = $asistan->buyurunTemizle($veri['cevap']);
                 // Emojileri suz (TTS "gulen yuz / aglayan yuz" diye okumasin).
                 $veri['cevap'] = $asistan->emojiTemizle($veri['cevap']);
-                $asistan->gecmisEkle($uid, $metin, (string) $veri['cevap']);
+                $asistan->gecmisEkle($uid, $metin, (string) $veri['cevap']); // gecmis Turkce kalir (niyet cozumu)
+                if ($pDil !== 'tr') $veri['cevap'] = \App\Services\MusteriDili::personelCevap($salonId, (string) $veri['cevap'], $pDil);
             }
             return response()->json($veri, 200, [], JSON_UNESCAPED_UNICODE);
         };
@@ -12626,7 +12634,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         $_hizmetAdlari = collect();
                         foreach ($yenirandevu->hizmetler as $_h) {
                             $_hAd = optional($_h->hizmetler)->hizmet_adi;
-                            if ($_hAd) $_hizmetAdlari->push($_hAd);
+                            if ($_hAd && mb_strpos($_hAd, '⚠') !== 0) $_hizmetAdlari->push($_hAd); // "⚠ HİZMET ANLAŞILMADI" (asistan) musteriye yazilmaz
                         }
                         $_hizmetlerStr = $_hizmetAdlari->unique()->values()->implode(', ');
                         if ($_musteriKaynakli) {

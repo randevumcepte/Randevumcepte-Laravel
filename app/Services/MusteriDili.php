@@ -174,6 +174,9 @@ class MusteriDili
             if (strlen($n) === 10) array_push($adaylar, '0' . $n, '90' . $n);
             $d = DB::table(self::TABLO . ' as d')->join('users as u', 'u.id', '=', 'd.user_id')
                 ->whereIn('u.cep_telefon', $adaylar)->orderByDesc('d.updated_at')->value('d.dil');
+            // Musteri kaydi yoksa numara personelin olabilir: personele giden WhatsApp kendi dilinde (yalniz sozluk)
+            if (!$d) $d = DB::table('personel_dil as d')->join('isletmeyetkilileri as y', 'y.id', '=', 'd.yetkili_id')
+                ->whereIn('y.gsm1', $adaylar)->orderByDesc('d.updated_at')->value('d.dil');
             return $d && self::gecerli($d) ? $d : null;
         } catch (\Throwable $e) {
             return null;
@@ -337,6 +340,22 @@ class MusteriDili
             return $ai && self::guvenli($metin, $ai[0]) ? $ai[0] : $c;
         } catch (\Throwable $e) {
             Log::warning('[DIL] waGiden', ['err' => $e->getMessage()]);
+            return $metin;
+        }
+    }
+
+    /** Patron AI cevabi personelin dilinde: once sozluk, eksik kalirsa yapay zeka (gunluk tavan gecerli). */
+    public static function personelCevap($salonId, $metin, $dil)
+    {
+        try {
+            if (!self::acikMi($salonId) || !$dil || $dil === 'tr' || !self::gecerli($dil) || trim((string) $metin) === '') return $metin;
+            $s = DilSozluk::al($dil, self::salonSozluk($salonId, $dil));
+            $c = $s->cevir($metin);
+            if (!$s->eksikMi()) return $c;
+            $ai = self::aiCevir($salonId, [$metin], $dil, 15);
+            return $ai && self::guvenli($metin, $ai[0]) ? $ai[0] : $c;
+        } catch (\Throwable $e) {
+            Log::warning('[DIL] personelCevap', ['err' => $e->getMessage()]);
             return $metin;
         }
     }
