@@ -1024,6 +1024,8 @@ namespace {
     $t2 = cagir($kk, 'hizmetsizTur', 'saat 3 olur', ['i' => 'kaynak', 't' => null, 's' => null, 'a' => []]);
     icerir('yalnız saat → gün sorulur', 'hangi gün uygun?', $t2['cevap']);
     esit('zaman yok → model', null, cagir($kk, 'hizmetsizTur', 'aslında emin değilim', ['i' => 'kaynak', 't' => null, 's' => null, 'a' => []]));
+    esit('müşteri mesajında ⚠ hizmet adı yazılmaz', '', App\Services\RandevuAsistan::musteriHizmetAdi('⚠ HİZMET ANLAŞILMADI'));
+    esit('müşteri mesajında normal hizmet adı aynen', 'Kalıcı Oje', App\Services\RandevuAsistan::musteriHizmetAdi('Kalıcı Oje'));
     esit('fiyat konusu: "eğitim ücreti"', 'egitim', $pz->fiyatKonusu('Ben eğitim almak istiyordum da, ücretini öğrenmek istiyordum.'));
     esit('fiyat konusu: yalnız "fiyatı almak istiyorum"', '', $pz->fiyatKonusu('Fiyatı almak istiyorum.'));
     $fz = asistan(['salon' => ['ad' => 'X', 'hizmetler' => [['id' => 1, 'ad' => 'Protez Tırnak', 'fiyat' => 1200]]]]); $fz->santralFiyatSoyle = true;

@@ -3746,7 +3746,7 @@ FIYAT
             'tarih' => substr((string) $r->tarih, 0, 10),
             'gun' => $this->tarihSoz(substr((string) $r->tarih, 0, 10)),
             'saat' => substr((string) $r->saat, 0, 5),
-            'hizmet' => $rh->map(function ($x) { return optional($x->hizmetler)->hizmet_adi; })->filter()->implode(', '),
+            'hizmet' => $rh->map(function ($x) { return self::musteriHizmetAdi(optional($x->hizmetler)->hizmet_adi); })->filter()->implode(', '), // "⚠" musteriye okunmaz
             // "Ferdi Bey" / "Gülşah Hanım" (kayit #120: liste "Ferdi ile", "Anıl ORBEY ile" okuyordu)
             'personel' => $ilk && $ilk->personel_id ? ($this->personelHitap((int) $ilk->personel_id) ?: optional($ilk->personeller)->personel_adi) : null,
             'hizmet_id' => $ilk ? (int) $ilk->hizmet_id : null,
@@ -3847,6 +3847,13 @@ FIYAT
     }
 
     const HIZMETSIZ_AD = '⚠ HİZMET ANLAŞILMADI';
+
+    /** Musteriye giden mesajlarda hizmet adi: gizli "⚠ HİZMET ANLAŞILMADI" yazilmaz (bos doner), digerleri aynen. */
+    public static function musteriHizmetAdi($ad): string
+    {
+        $ad = trim((string) $ad);
+        return ($ad === '' || mb_strpos($ad, '⚠') === 0) ? '' : $ad;
+    }
 
     /** Salona ozel gizli "⚠ HİZMET ANLAŞILMADI" hizmeti (yoksa olusturur; salon_sunulan_hizmetler aktif=0 -> listelerde gorunmez). */
     protected function hizmetsizHizmetId(): ?int

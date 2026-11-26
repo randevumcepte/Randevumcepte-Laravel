@@ -482,11 +482,16 @@ class RandevuSMSHatirlatma extends Command
             $hizmetSatirlari[] = date('H:i', strtotime($h->saat)) . ' ' . $hAdi;
         }
         $hizmetListesi = implode(', ', $hizmetSatirlari);
+        // Musteri metni: "⚠ HİZMET ANLAŞILMADI" (asistan) yazilmaz
+        $musteriHizmetListesi = implode(', ', array_filter(array_map(function ($h) {
+            $ad = \App\Services\RandevuAsistan::musteriHizmetAdi(optional($h->hizmetler)->hizmet_adi);
+            return $ad !== '' ? date('H:i', strtotime($h->saat)) . ' ' . $ad : '';
+        }, $value->hizmetler ? $value->hizmetler->all() : [])));
 
         $on = $etiket === '1gun' ? '1 gün' : '3 saat';
 
         $musteriBody = 'Sayın ' . $musteriAdi . '; ' . $tarihStr . ' saat ' . $saatStr
-            . ' ' . ($hizmetListesi ? $hizmetListesi . ' ' : '')
+            . ' ' . ($musteriHizmetListesi ? $musteriHizmetListesi . ' ' : '')
             . 'randevunuza ' . $on . ' kaldı, hatırlatmak isteriz ✨';
 
         $personelBody = $musteriAdi . ' isimli müşterinin ' . $tarihStr . ' '
@@ -699,7 +704,8 @@ class RandevuSMSHatirlatma extends Command
                 foreach ($r->hizmetler as $h) {
                     $hAd = optional($h->hizmetler)->hizmet_adi;
                     if (!$hAd) continue;
-                    $satirlar[] = date('H:i', strtotime($h->saat)) . ' ' . $hAd;
+                    $hAd = \App\Services\RandevuAsistan::musteriHizmetAdi($hAd); // gizli "⚠" hizmette yalniz saat
+                    $satirlar[] = date('H:i', strtotime($h->saat)) . ($hAd !== '' ? ' ' . $hAd : '');
                 }
             }
             $satirlar = array_values(array_unique($satirlar));
@@ -731,8 +737,8 @@ class RandevuSMSHatirlatma extends Command
             $hizmetAdlari = collect();
             foreach ($sortedGrup as $r) {
                 foreach ($r->hizmetler as $h) {
-                    $hAd = optional($h->hizmetler)->hizmet_adi;
-                    if ($hAd) $hizmetAdlari->push($hAd);
+                    $hAd = \App\Services\RandevuAsistan::musteriHizmetAdi(optional($h->hizmetler)->hizmet_adi);
+                    if ($hAd !== '') $hizmetAdlari->push($hAd);
                 }
             }
             $hizmetlerRich = $hizmetAdlari->unique()->values()->implode(', ');
@@ -941,7 +947,7 @@ class RandevuSMSHatirlatma extends Command
     protected function hizmetMetniOlustur($randevu)
     {
         $adlar = $randevu->hizmetler
-            ->map(function ($h) { return optional($h->hizmetler)->hizmet_adi; })
+            ->map(function ($h) { return \App\Services\RandevuAsistan::musteriHizmetAdi(optional($h->hizmetler)->hizmet_adi); }) // "⚠" musteriye yazilmaz
             ->filter()
             ->unique()
             ->values()

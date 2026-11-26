@@ -12634,7 +12634,7 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
                         $_hizmetAdlari = collect();
                         foreach ($yenirandevu->hizmetler as $_h) {
                             $_hAd = optional($_h->hizmetler)->hizmet_adi;
-                            if ($_hAd && mb_strpos($_hAd, '⚠') !== 0) $_hizmetAdlari->push($_hAd); // "⚠ HİZMET ANLAŞILMADI" (asistan) musteriye yazilmaz
+                            if ($_hAd = \App\Services\RandevuAsistan::musteriHizmetAdi($_hAd)) $_hizmetAdlari->push($_hAd); // "⚠ HİZMET ANLAŞILMADI" (asistan) musteriye yazilmaz
                         }
                         $_hizmetlerStr = $_hizmetAdlari->unique()->values()->implode(', ');
                         if ($_musteriKaynakli) {
