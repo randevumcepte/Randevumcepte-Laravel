@@ -189,6 +189,14 @@ class SantralKopruController extends Controller
         $sKur = microtime(true);
         // Yetkiliye ulasilamadi / mesai disi -> asistan "konuyu söyleyin, notuma ekleyeyim" dediyse bu cumle NOTTUR
         $d = $this->geriAraNotTuru($oid, $metin, $gecmis) ?? $as->konus($metin, $gecmis);
+        // Sessiz tur (kayit 322): cumle bir oncekinin devami, yeni is yok -> hicbir sey okunmaz; gecmise yeni tur eklenmez,
+        // son musteri cumlesi tam haliyle guncellenir ("Başka bir isteğiniz var mı?" son soru olarak kalir)
+        if (!empty($d['sessiz'])) {
+            $g = json_decode(DB::table('santral_oturumlari')->where('id', $oid)->value('gecmis') ?: '[]', true) ?: [];
+            for ($i = count($g) - 1; $i >= 0; $i--) if (($g[$i]['role'] ?? '') === 'user') { $g[$i]['content'] = $metin; break; }
+            DB::table('santral_oturumlari')->where('id', $oid)->update(['gecmis' => json_encode($g, JSON_UNESCAPED_UNICODE), 'updated_at' => now()]);
+            return $this->j(['ok' => 1, 'cevap' => '', 'aksiyon' => null, 'bitir' => false, 'teshis' => $as->teshis, 'randevu_id' => null]);
+        }
         // ANLASILAMAMA MERDIVENI (2026-11-23 isletme istegi: WhatsApp'a yonlendirme YOK, once randevuyu vermeye calis;
         // isin icinden cikamazsan salona bagla): 1 kisa tekrar (model) -> 2 kapali soru (hizmetleri say / ornekle sor)
         // -> 3 evet/hayir somut teklif (model zorlukNotu ile yapar; yine "anlamadım" derse kod) -> 4 salona aktar.

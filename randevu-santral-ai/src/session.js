@@ -418,6 +418,8 @@ class CagriOturumu {
   _tepkiSec(metin) {
     const m = (metin || '').trim();
     if (!m || DOLGUSUZ.test(m)) return null;
+    // Onceki tur is yapti (randevu acildi): bu cumle cogu zaman onun devami/teyidi; Laravel sessiz kalabilir -> tepki de yok (kayit 322)
+    if (this._sonIsMetni) return null;
     // Selamlasmaya "Anladım." denmez (kayit 176: "Merhabalar" -> "Anladım. Merhaba...")
     if (/^(merhaba|merhabalar|selam|selamlar|iyi günler|günaydın|iyi akşamlar|alo)[\s.,!?]*$/i.test(m)) return null;
     if (SORGULU.test(m)) { this._tepkiNo = ((this._tepkiNo || 0) + 1) % TEPKI_SORGU.length; return TEPKI_SORGU[this._tepkiNo]; }

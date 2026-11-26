@@ -476,7 +476,17 @@ class RandevuAsistan
         }
         // Hizmetsiz randevu az once acildi; musteri ayni saati tekrarliyor ("18 dedim ya", "oluştur") -> model "özür dilerim,
         // karışıklık oldu, şimdi oluşturuyorum" deyip ikinci randevu aciyordu (kayit 321)
-        if (($ok = $this->hizmetsizAcilan($gecmis)) !== null && ($tk = $this->hizmetsizSonrasi($metin, $ok)) !== null) return $tk;
+        if (($ok = $this->hizmetsizAcilan($gecmis)) !== null) {
+            $tk = $this->hizmetsizSonrasi($metin, $ok) ?? $this->hizmetsizTekrarCevabi($metin, $gecmis);
+            // Kayit 322: "Saat 19 gibi bir" (erken final) -> randevu acildi; ayni cumlenin tami "Saat 19 gibi bir müsaitlik
+            // var mı?" gelince "Evet, oluşturuldu, merak etmeyin" deniyordu. Onceki cumlenin DEVAMI ve yeni is yoksa SESSIZ.
+            if (($tk === null || ($tk['aksiyon'] ?? null) === null && $this->teshis === 'bos_onay') && $this->oncekiCumleDevami($metin, $gecmis)) {
+                Log::info('[SANTRAL-TUR] randevu sonrasi ayni cumlenin devami -> sessiz', ['salon' => $this->salonId, 'metin' => $metin]);
+                $this->teshis = 'devam_sessiz';
+                return ['cevap' => '', 'aksiyon' => null, 'veri' => [], 'bitir' => false, 'sessiz' => true];
+            }
+            if ($tk !== null) return $tk;
+        }
         if (($tk = $this->hizmetsizTekrarCevabi($metin, $gecmis)) !== null) return $tk;
         // HIZMET ANLASILMADI MODU (2026-11-26): onceki turda hizmet bulunamadi, gun-saat soruldu -> KOD randevuyu acar (modelsiz, hizli)
         $hzOnce = $this->hizmetsizBekleyen($gecmis);
@@ -4083,6 +4093,18 @@ FIYAT
             return null;
         }
         return null;
+    }
+
+    /** Bu cumle son musteri cumlesinin uzamis hali mi ("Saat 19 gibi bir" -> "Saat 19 gibi bir müsaitlik var mı?")? */
+    protected function oncekiCumleDevami(string $metin, array $gecmis): bool
+    {
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') !== 'user') continue;
+            $onceki = trim($this->sade((string) ($gecmis[$i]['content'] ?? '')));
+            $simdi = trim($this->sade($metin));
+            return $onceki !== '' && mb_strlen($simdi) > mb_strlen($onceki) && mb_strpos($simdi, $onceki) === 0;
+        }
+        return false;
     }
 
     /** Tasima: eski hizmetsiz randevu musteriye iptal mesaji GITMEDEN iptal (yeni saatin "talep alındı" mesaji gider). */

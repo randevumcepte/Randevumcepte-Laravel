@@ -1200,6 +1200,15 @@ namespace {
     esit('yalın saat "18-19 saatlerinde"', '18:00', cagir($hv, 'yalinSaat', '18-19 saatlerinde var'));
     esit('yalın saat "27 Kasım" saat sayılmaz', null, cagir($hv, 'yalinSaat', '27 kasım'));
 
+    bolum('Kayıt 322b: randevudan sonra aynı cümlenin devamı sessiz');
+    $okG2 = [['role' => 'user', 'content' => 'Saat 19 gibi bir'], ['role' => 'assistant', 'content' => "Ferdi Bey, Cumartesi saat 19:00'da randevunuzu oluşturdum. Salonumuz sizi arayıp detayları netleştirecek. Başka bir isteğiniz var mı?",
+        'baglam' => cagir($hv, 'hizmetsizAcilanEtiket', ['randevu_id' => 4, 'tarih' => $yr, 'saat' => '19:00:00', 'ifade' => 'kaynak'])]];
+    $s1 = $hv->konus('Saat 19 gibi bir müsaitlik var mı?', $okG2);
+    esit('devam cümlesi → sessiz (konuşma yok)', true, !empty($s1['sessiz']) && $s1['cevap'] === '');
+    $s2 = $hv->konus('Saat 20 gibi bir olsun', $okG2);
+    icerir('devam ama yeni saat → taşınır', 'saat 20:00 olarak güncelledim', $s2['cevap'] ?? '');
+    esit('devam değil "Saat 19 müsait mi?" → teyit konuşulur', true, empty(cagir($hv, 'oncekiCumleDevami', 'Saat 19 müsait mi', $okG2)));
+
     bolum('Kayıt 277: karşılama tekrarlanmaz');
     $g277 = [['role' => 'assistant', 'content' => "Merhaba, Ola Nail'e hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?"]];
     foreach (['Merhaba' => true, 'Alo, iyi günler.' => true, 'Merhabalar kolay gelsin' => true, 'Merhaba randevu almak istiyorum' => false, 'Evet' => false] as $m => $b) {
