@@ -747,6 +747,12 @@ class RandevuAsistan
             $cevap = $doluSonuc['onerilen_cumle'];
         }
         if ($cevap === '') $cevap = $this->garantiCevap($aksiyon);
+        // HIZMET SORGULAMA YASAK (kayit 317): "Kaynak ile ne kastettiğinizi tam anlayamadım, hangi hizmet?" -> musteri sorgulanmaz,
+        // randevuya odaklanilir: gun-saat istenir, randevu "⚠ HİZMET ANLAŞILMADI" ile acilir
+        if ($aksiyon === null && !$bitir && $hzOnce === null && $this->hizmetSorgulamaMi($cevap) && $this->hizmetSoruldu($gecmis, $metin)) {
+            Log::info('[SANTRAL-TUR] model hizmeti sorguladi -> hizmetsiz randevu', ['salon' => $this->salonId, 'metin' => $metin, 'model' => $cevap]);
+            return $this->hizmetsizBaslat($metin, mb_substr(trim($metin), 0, 120));
+        }
         Log::info('[SANTRAL-TUR]', ['salon' => $this->salonId, 'musteri' => $this->musteriId, 'metin' => $metin, 'cevap' => $cevap, 'aksiyon' => $aksiyon, 'teshis' => $this->teshis]);
         // Gecikme teshisi: tur toplami + her LLM cagrisi (ms). Arac (DB) suresi = toplam - LLM toplami.
         Log::info('[SANTRAL-SURE]', ['salon' => $this->salonId, 'toplam_ms' => (int) round((microtime(true) - $turBas) * 1000),
@@ -766,8 +772,7 @@ class RandevuAsistan
         }
         if ($aksiyon === 'guncelle' && $guncelleSonuc) $cevap = $this->guncelleOnayCumlesi($guncelleSonuc);
         if ($aksiyon === 'randevu' && !empty($randevuSonuc['hizmet_anlasilmadi'])) {
-            $cevap = $this->hizmetsizOnayCumlesi($randevuSonuc);
-            $bitir = $this->kanal !== 'whatsapp';
+            $cevap = $this->hizmetsizOnayCumlesi($randevuSonuc); // "Başka bir isteğiniz var mı?" ile biter, telefon kapanmaz
         }
         if ($hzOnce !== null && !$aksiyon && !$bitir) array_unshift($baglam, $this->hizmetsizEtiket($hzOnce)); // basta: 1200 karakter kesiminde kaybolmasin
         if ($isTamamlandi && !$bitir && $aksiyon !== 'aktar') $cevap = $this->baskaYardimEkle($cevap);
@@ -3999,12 +4004,33 @@ FIYAT
         return $bas . '; ' . $soz($alt[0]) . ' ya da ' . $soz($alt[1]) . ' uygun, hangisini istersiniz?';
     }
 
-    /** Randevu acildi: kisa onay + salon arayacak (santralda ardindan telefon kapanir). */
+    /**
+     * Randevu acildi: isimle hitap + salon arayacak + "Başka bir isteğiniz var mı?" (kayit 317: "İyi günler" + kapatma sert geliyordu).
+     * Musteri "yok, teşekkürler" derse HIZLI VEDA isimle kapatir.
+     */
     protected function hizmetsizOnayCumlesi(array $d): string
     {
         $ne = $this->tarihSoz((string) $d['tarih']) . ' saat ' . $this->saatEkli(substr((string) $d['saat'], 0, 5));
-        if ($this->kanal === 'whatsapp') return "✅ Randevunuz oluşturuldu: {$ne}.\n\nSalonumuz sizi arayıp detayları netleştirecek.";
-        return "Tamamdır, {$ne} randevunuzu oluşturdum. Salonumuz sizi arayıp detayları netleştirecek. İyi günler.";
+        $h = $this->hitap();
+        if ($this->kanal === 'whatsapp') return "✅ Randevunuz oluşturuldu: {$ne}.\n\nSalonumuz sizi arayıp detayları netleştirecek. Başka bir isteğiniz var mı?";
+        return ($h ? "{$h}, " : 'Tamamdır, ') . "{$ne} randevunuzu oluşturdum. Salonumuz sizi arayıp detayları netleştirecek. Başka bir isteğiniz var mı?";
+    }
+
+    /** Model musteriyi hizmet konusunda sorguluyor mu ("ne kastettiğinizi anlayamadım", "biraz açar mısınız")? */
+    protected function hizmetSorgulamaMi(string $c): bool
+    {
+        return (bool) preg_match('/kastett|kastediyor|anlayamad|ne demek istediğiniz|biraz (daha )?açar|detay(lı)? (bilgi )?verebilir|tam olarak (hangi|ne)|ne tür bir (hizmet|işlem)|hangi hizmeti/iu', $c);
+    }
+
+    /** Randevu icin hizmet konusuluyor mu: son asistan "hangi hizmet" sordu ya da musteri "yaptırmak / randevu" diyor. */
+    protected function hizmetSoruldu(array $gecmis, string $metin): bool
+    {
+        if (mb_strlen($this->sade($metin)) < 3) return false;
+        if (preg_match('/randevu|yaptir|yaptira|yapacak|yapilacak|yapmak|ist(iyor|edi)/u', $this->sade($metin))) return true;
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') === 'assistant') return (bool) preg_match('/hangi hizmet/iu', (string) ($gecmis[$i]['content'] ?? ''));
+        }
+        return false;
     }
 
     /** Gecmise tasinan durum: [[HZ:{"i":ifade,"t":tarih,"s":saat,"a":[[t,s],..]}]] (son asistan mesajinin gizli notunda). */
@@ -4062,12 +4088,11 @@ FIYAT
         $tarih = $tarih ?: ($hz['t'] ?? null);
         $saat = $saat ?: ($hz['s'] ?? null);
         if (!$tarih && !$saat) return null;
-        $bitir = $this->kanal !== 'whatsapp';
         if ($tarih && $saat) {
             $r = $this->hizmetsizRandevuAc($tarih, $saat, (string) ($hz['i'] ?? ''));
             if (!empty($r['ok'])) {
                 $this->teshis = 'hizmetsiz_randevu';
-                return ['cevap' => $this->hizmetsizOnayCumlesi($r), 'aksiyon' => 'randevu', 'veri' => ['randevu_id' => $r['randevu_id']], 'bitir' => $bitir];
+                return ['cevap' => $this->hizmetsizOnayCumlesi($r), 'aksiyon' => 'randevu', 'veri' => ['randevu_id' => $r['randevu_id']], 'bitir' => false];
             }
             if (!$r['alternatif']) {
                 return ['cevap' => 'Kusura bakmayın, yakın günlerde boş saat bulamadım; sizi salonumuza bağlıyorum, lütfen kapatmayın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
@@ -4096,7 +4121,7 @@ FIYAT
             }
             if (!empty($r['ok'])) {
                 $this->teshis = 'hizmetsiz_randevu';
-                return ['cevap' => $this->hizmetsizOnayCumlesi($r), 'aksiyon' => 'randevu', 'veri' => ['randevu_id' => $r['randevu_id']], 'bitir' => $bitir];
+                return ['cevap' => $this->hizmetsizOnayCumlesi($r), 'aksiyon' => 'randevu', 'veri' => ['randevu_id' => $r['randevu_id']], 'bitir' => false];
             }
             return ['cevap' => 'Kusura bakmayın, yakın günlerde boş saat bulamadım; sizi salonumuza bağlıyorum, lütfen kapatmayın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
         }

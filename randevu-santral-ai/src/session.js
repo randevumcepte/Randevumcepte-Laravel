@@ -364,6 +364,19 @@ class CagriOturumu {
         this._sonIslenen = { n, t: simdi };
         return;
       }
+      if (c && n.startsWith(onceki.n) && n.startsWith(sadeMetin(c.metin)) && !this._bekleyen) {
+        // Kayit 317: "Yarın" (erken final) -> kod cevabi hemen calmaya basladi ("Cuma saat kaçta uygun?"), musteri
+        // "...öğleden sonra olsun" diye devam etti -> iki cevap ust uste okunuyordu. Calan cevap yarim cumleye aitti:
+        // kes, tur gecmisten dusulsun, tam cumle tek turda sorulsun (is yapan cevap zaten _caliyor'a girmez).
+        log.info(`> musteri (devami, calan cevap kesildi): ${metin}`);
+        this._sonIslenen = { n, t: simdi };
+        this._caliyor = null;
+        this._kesmeNo = (this._kesmeNo || 0) + 1;
+        this.rtp.sustur();
+        brain.turIptal(this.oturumId, c.tur);
+        this._bekleyen = metin;
+        return;
+      }
       if (n.startsWith(onceki.n) && this.mesgul && !this._bekleyen) {
         // Final, islenmekte olan interim'in DEVAMI: onceki cevabi calma, tam cumleyle yeniden sor
         log.info(`> musteri (devami): ${metin}`);

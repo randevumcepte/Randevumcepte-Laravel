@@ -1085,6 +1085,29 @@ namespace {
     $v4 = cagir($hv, 'hizmetsizTur', 'bilmiyorum ki yarın işte', cagir($hv, 'hizmetsizBekleyen', [['role' => 'assistant', 'content' => 'x', 'baglam' => $v3['baglam']]]));
     icerir('saat ikinci kez SORULMAZ → iki saat önerilir', 'saat 10:00 ya da saat 11:00 uygun, hangisini istersiniz?', $v4['cevap']);
 
+    bolum('Kayıt 317: hizmet sorgulanmaz, kapanış isimle ve yumuşak');
+    // Model "Kaynak ile ne kastettiğinizi anlayamadım" dedi -> soru yerine gun-saat
+    $hq = new class extends App\Services\RandevuAsistan {
+        public function __construct() {}
+        protected function waOtomatikKayit(): void {}
+        protected function cagir(array $m, string $k, int $t = 0, array $e = []): ?array {
+            return ['content' => [['type' => 'text', 'text' => 'Kusura bakmayın. Kaynak ile ne kastettiğinizi tam anlayamadım. Hangi hizmet için arıyorsunuz?']]];
+        }
+    };
+    foreach (['salonId' => 20, 'musteriId' => 77, 'kanal' => 'santral', 'salon' => ['ad' => 'X', 'hizmetler' => [['id' => 1, 'ad' => 'Kalıcı Oje']]]] as $k => $v) { $p = new ReflectionProperty(App\Services\RandevuAsistan::class, $k); $p->setAccessible(true); $p->setValue($hq, $v); }
+    putenv('ANTHROPIC_API_KEY=test');
+    $q1 = $hq->konus('Ben kaynak yapacaktım ama', [['role' => 'assistant', 'content' => 'Tabii. Hangi hizmet için randevu almak istiyorsunuz?']]);
+    esit('"ne kastettiniz" sorulmaz → gün-saat', 'Hangi gün ve saat size uygun?', $q1['cevap']);
+    icerir('hizmet sorgulanınca → hizmetsiz mod', '[[HZ:', (string) ($q1['baglam'] ?? ''));
+    esit('sorgulama tespiti', true, cagir($hq, 'hizmetSorgulamaMi', 'Kaynak ile ne kastettiğinizi tam anlayamadım.'));
+    esit('normal soru sorgulama sayılmaz', false, cagir($hq, 'hizmetSorgulamaMi', 'Hangi gün ve saat size uygun?'));
+    $p = new ReflectionProperty(App\Services\RandevuAsistan::class, 'musteriAd'); $p->setAccessible(true); $p->setValue($hq, 'Ferdi Yılmaz');
+    $p = new ReflectionProperty(App\Services\RandevuAsistan::class, 'musteriCinsiyet'); $p->setAccessible(true); $p->setValue($hq, 1);
+    $on = cagir($hq, 'hizmetsizOnayCumlesi', ['tarih' => '2026-11-27', 'saat' => '14:00:00']);
+    icerir('kapanış isimle başlar', 'Ferdi Bey, ', $on);
+    icerir('kapanış "başka isteğiniz" ile biter', 'Salonumuz sizi arayıp detayları netleştirecek. Başka bir isteğiniz var mı?', $on);
+    esit('ardından "yok teşekkürler" → hızlı veda', 'veda', $hq->konus('Yok teşekkürler', [['role' => 'assistant', 'content' => $on]])['aksiyon']);
+
     bolum('Kayıt 277: karşılama tekrarlanmaz');
     $g277 = [['role' => 'assistant', 'content' => "Merhaba, Ola Nail'e hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?"]];
     foreach (['Merhaba' => true, 'Alo, iyi günler.' => true, 'Merhabalar kolay gelsin' => true, 'Merhaba randevu almak istiyorum' => false, 'Evet' => false] as $m => $b) {
