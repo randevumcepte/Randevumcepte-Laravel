@@ -1054,6 +1054,28 @@ namespace {
     esit('hizmet yok → model tek kez çağrıldı', 1, $hy->cagri);
     icerir('hizmet yok → mod etiketi', '[[HZ:', (string) ($r['baglam'] ?? ''));
 
+    bolum('Kayıt 315: "öğleden sonra" → iki boş saat, "saat kaçta?" tekrarlanmaz');
+    $hv = new class extends App\Services\RandevuAsistan {
+        public $vakitler = [];
+        public function __construct() {}
+        protected function waOtomatikKayit(): void {}
+        protected function hizmetsizGunSecenekleri(string $tarih, ?string $vakit, string $ifade): array {
+            $this->vakitler[] = $vakit;
+            return $vakit === 'ogleden_sonra' ? [[$tarih, '13:00'], [$tarih, '14:00']] : [[$tarih, '10:00'], [$tarih, '11:00']];
+        }
+    };
+    foreach (['salonId' => 20, 'musteriId' => 77, 'kanal' => 'santral', 'salon' => ['ad' => 'X', 'hizmetler' => [['id' => 1, 'ad' => 'Kalıcı Oje']]]] as $k => $v) { $p = new ReflectionProperty(App\Services\RandevuAsistan::class, $k); $p->setAccessible(true); $p->setValue($hv, $v); }
+    $yarin = date('Y-m-d', strtotime('+1 day'));
+    $v1 = cagir($hv, 'hizmetsizTur', 'Yarın hangi saat mi sayısı bana öğleden sonra randevu verebilirsiniz.', ['i' => 'kaynak', 't' => null, 's' => null, 'a' => []]);
+    icerir('yarın öğleden sonra → iki saat önerilir', 'öğleden sonra saat 13:00 ya da saat 14:00 uygun, hangisini istersiniz?', $v1['cevap']);
+    esit('öneriler etikete yazıldı', ['13:00', '14:00'], array_column(cagir($hv, 'hizmetsizBekleyen', [['role' => 'assistant', 'content' => 'x', 'baglam' => $v1['baglam']]])['a'], 1));
+    $v2 = cagir($hv, 'hizmetsizTur', 'Öğleden sonra.', ['i' => 'kaynak', 't' => $yarin, 's' => null, 'a' => [], 'q' => 1]);
+    icerir('"saat kaçta?" sonrası "Öğleden sonra" → iki saat', 'saat 13:00 ya da saat 14:00', $v2['cevap']);
+    $v3 = cagir($hv, 'hizmetsizTur', 'yarın olsun', ['i' => 'kaynak', 't' => null, 's' => null, 'a' => []]);
+    icerir('yalnız gün → ilk kez saat sorulur', 'saat kaçta uygun?', $v3['cevap']);
+    $v4 = cagir($hv, 'hizmetsizTur', 'bilmiyorum ki yarın işte', cagir($hv, 'hizmetsizBekleyen', [['role' => 'assistant', 'content' => 'x', 'baglam' => $v3['baglam']]]));
+    icerir('saat ikinci kez SORULMAZ → iki saat önerilir', 'saat 10:00 ya da saat 11:00 uygun, hangisini istersiniz?', $v4['cevap']);
+
     bolum('Kayıt 277: karşılama tekrarlanmaz');
     $g277 = [['role' => 'assistant', 'content' => "Merhaba, Ola Nail'e hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?"]];
     foreach (['Merhaba' => true, 'Alo, iyi günler.' => true, 'Merhabalar kolay gelsin' => true, 'Merhaba randevu almak istiyorum' => false, 'Evet' => false] as $m => $b) {

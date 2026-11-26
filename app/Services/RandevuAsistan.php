@@ -3896,20 +3896,55 @@ FIYAT
      * Istenen gun-saatte BOS herhangi bir personel (hizmet sarti yok). Bossa adil siradaki ile randevu acar:
      * ['ok'=>true, ...randevu sonucu]. Doluysa ['ok'=>false, 'alternatif'=>[[tarih,saat],[tarih,saat]]] (istenen saate en yakin 2 farkli saat).
      */
-    protected function hizmetsizRandevuAc(string $tarih, string $saat, string $ifade): array
+    /** Hizmetsiz randevu aramasi: [hizmet_id, ozel mi, aday personeller, bul(pid, tarih, saat, ufuk, vakit)] ya da null. */
+    protected function hizmetsizArama(string $ifade): ?array
     {
         $ozel = $this->hizmetsizHizmetId();
         $hizmetId = $ozel ?: $this->tahminiHizmetId($ifade);
-        if (!$hizmetId) return ['ok' => false, 'alternatif' => []];
+        if (!$hizmetId) return null;
         $adaylar = array_map('intval', array_keys($this->personelListesi()));
         $haric = AdilAtama::haricler($this->salonId);
         if ($haric && array_diff($adaylar, $haric)) $adaylar = array_values(array_diff($adaylar, $haric));
         if (!$ozel) $adaylar = array_values(array_intersect($adaylar, array_map('intval', $this->hizmetPersonelleri($hizmetId, null))));
         $servis = app(SesliRandevuCozService::class);
-        $bul = function ($pid, $t, $s, $ufuk) use ($servis, $hizmetId) {
-            try { $m = $servis->musaitlikBul($this->salonId, $pid, $hizmetId, $t, $s, null, $ufuk); } catch (\Throwable $e) { return null; }
+        $bul = function ($pid, $t, $s, $ufuk, $vakit = null) use ($servis, $hizmetId) {
+            try { $m = $servis->musaitlikBul($this->salonId, $pid, $hizmetId, $t, $s, $vakit, $ufuk); } catch (\Throwable $e) { return null; }
             return !empty($m['bulundu']) ? $m : null;
         };
+        return [$hizmetId, (bool) $ozel, $adaylar, $bul];
+    }
+
+    /**
+     * Gun belli, saat yok ("yarın öğleden sonra" / iki kez "saat kaçta?" soruldu): o gunun (vaktin) en erken iki bos saati.
+     * Kayit 315: "öğleden sonra" saat sayilmiyordu, "saat kaçta uygun?" uc kez tekrarlandi.
+     */
+    protected function hizmetsizGunSecenekleri(string $tarih, ?string $vakit, string $ifade): array
+    {
+        if (!($a = $this->hizmetsizArama($ifade))) return [];
+        [, , $adaylar, $bul] = $a;
+        $dk = function ($s) { [$h, $m] = array_map('intval', explode(':', $s)); return $h * 60 + $m; };
+        $slot = [];
+        foreach ($adaylar as $pid) {
+            $m = $bul($pid, $tarih, null, 1, $vakit);
+            if ($m && $m['tarih'] === $tarih) $slot[$m['saat']] = $m['saat'];
+        }
+        if (count($slot) === 1) { // tek personel / ayni saat: ikinci secenek ilk saatten sonra
+            $ilk = reset($slot);
+            $sonra = sprintf('%02d:%02d', intdiv($dk($ilk) + 60, 60), ($dk($ilk) + 60) % 60);
+            foreach ($adaylar as $pid) {
+                $m = $bul($pid, $tarih, $sonra, 1);
+                if ($m && $m['tarih'] === $tarih && $dk($m['saat']) > $dk($ilk)) { $slot[$m['saat']] = $m['saat']; break; }
+            }
+        }
+        $slot = array_values($slot);
+        usort($slot, function ($x, $y) use ($dk) { return $dk($x) <=> $dk($y); });
+        return array_map(function ($s) use ($tarih) { return [$tarih, $s]; }, array_slice($slot, 0, 2));
+    }
+
+    protected function hizmetsizRandevuAc(string $tarih, string $saat, string $ifade): array
+    {
+        if (!($a = $this->hizmetsizArama($ifade))) return ['ok' => false, 'alternatif' => []];
+        [$hizmetId, $ozel, $adaylar, $bul] = $a;
         $tam = []; $slot = [];
         foreach ($adaylar as $pid) {
             $m = $bul($pid, $tarih, $saat, 1);
@@ -4011,6 +4046,8 @@ FIYAT
                 foreach ($alt as $a) if ($a[1] === $saat && (!$tarih || $tarih === $a[0])) { $sec = $a; break; }
             } elseif (count($alt) === 1 && preg_match('/\b(evet|olur|tamam|uygun|olsun)\b/u', $s)) {
                 $sec = $alt[0];
+            } elseif (preg_match('/\bfark ?etmez\b|\bhangisi olursa\b|\bherhangi\b|\bsize kalmis\b/u', $s)) {
+                $sec = $alt[0];
             }
             if ($sec) { $tarih = $sec[0]; $saat = $sec[1]; }
         }
@@ -4030,7 +4067,32 @@ FIYAT
             $hz['t'] = $tarih; $hz['s'] = null; $hz['a'] = $r['alternatif'];
             return ['cevap' => $this->hizmetsizDoluCumlesi($tarih, $saat, $r['alternatif']), 'aksiyon' => null, 'veri' => [], 'bitir' => false, 'baglam' => $this->hizmetsizEtiket($hz)];
         }
-        $hz['t'] = $tarih; $hz['s'] = $saat; $hz['a'] = [];
+        $vakit = $z['vakit'] ?? null;
+        if ($tarih && ($vakit || !empty($hz['q']))) {
+            // "Yarın öğleden sonra" ya da saat ikinci kez sorulacakti: ayni soru tekrarlanmaz, iki bos saat onerilir
+            $alt = $this->hizmetsizGunSecenekleri($tarih, $vakit, (string) ($hz['i'] ?? ''));
+            if ($alt) {
+                $hz['t'] = $tarih; $hz['s'] = null; $hz['a'] = $alt;
+                $vSoz = ['sabah' => ' sabah', 'ogle' => ' öğlen', 'ogleden_sonra' => ' öğleden sonra', 'aksam' => ' akşam'][$vakit] ?? '';
+                $bas = $this->tarihSoz($tarih) . $vSoz . ' saat ' . $alt[0][1];
+                $cevap = count($alt) === 1 ? $bas . ' uygun, olur mu?' : $bas . ' ya da saat ' . $alt[1][1] . ' uygun, hangisini istersiniz?';
+                return ['cevap' => $cevap, 'aksiyon' => null, 'veri' => [], 'bitir' => false, 'baglam' => $this->hizmetsizEtiket($hz)];
+            }
+            $r = $this->hizmetsizRandevuAc($tarih, $vakit === 'aksam' ? '17:00' : ($vakit === 'sabah' ? '10:00' : '14:00'), (string) ($hz['i'] ?? ''));
+            if (!empty($r['alternatif'])) { // o gun bos yok: en yakin gunler
+                $hz['t'] = $tarih; $hz['s'] = null; $hz['a'] = $r['alternatif'];
+                $soz = function ($x) { return $this->tarihSoz($x[0]) . ' saat ' . $x[1]; };
+                $cevap = $this->tarihSoz($tarih) . ' dolu; ' . $soz($r['alternatif'][0])
+                    . (isset($r['alternatif'][1]) ? ' ya da ' . $soz($r['alternatif'][1]) . ' uygun, hangisini istersiniz?' : ' uygun, olur mu?');
+                return ['cevap' => $cevap, 'aksiyon' => null, 'veri' => [], 'bitir' => false, 'baglam' => $this->hizmetsizEtiket($hz)];
+            }
+            if (!empty($r['ok'])) {
+                $this->teshis = 'hizmetsiz_randevu';
+                return ['cevap' => $this->hizmetsizOnayCumlesi($r), 'aksiyon' => 'randevu', 'veri' => ['randevu_id' => $r['randevu_id']], 'bitir' => $bitir];
+            }
+            return ['cevap' => 'Kusura bakmayın, yakın günlerde boş saat bulamadım; sizi salonumuza bağlıyorum, lütfen kapatmayın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
+        }
+        $hz['t'] = $tarih; $hz['s'] = $saat; $hz['a'] = []; $hz['q'] = 1; // saat bir kez soruldu; tekrar sorulmaz
         $soru = $tarih ? $this->tarihSoz($tarih) . ' saat kaçta uygun?' : 'Saat ' . $saat . ' için hangi gün uygun?';
         return ['cevap' => $soru, 'aksiyon' => null, 'veri' => [], 'bitir' => false, 'baglam' => $this->hizmetsizEtiket($hz)];
     }
