@@ -4224,12 +4224,20 @@ FIYAT
             elseif (preg_match('/\b(ikinci|ikincisi|son|sonuncusu|sonraki|gec|geç)\b/u', $s) && isset($alt[1])) $sec = $alt[1];
             elseif ($saat) {
                 foreach ($alt as $a) if ($a[1] === $saat && (!$tarih || $tarih === $a[0])) { $sec = $a; break; }
-            } elseif (count($alt) === 1 && preg_match('/\b(evet|olur|tamam|uygun|olsun)\b/u', $s)) {
+            } elseif (count($alt) === 1 && !preg_match('/hayir|olmaz|olmasin|istemiyorum|baska/u', $s)
+                && (($ys = $this->yalinSaat($metin)) === null || $ys === $alt[0][1]) // "18 olsun" onay degil, yeni saat
+                && preg_match('/\b(evet|olur|tamam|tamamdir|uygun|olsun|olustur\w*|aynen|tabi|tabii|peki)\b/u', $s)) {
                 $sec = $alt[0];
             } elseif (preg_match('/\bfark ?etmez\b|\bhangisi olursa\b|\bherhangi\b|\bsize kalmis\b/u', $s)) {
                 $sec = $alt[0];
             }
             if (!$sec) $sec = $this->hizmetsizSaatSec($s, $alt);
+            if (!$sec && !$saat) $saat = $this->yalinSaat($metin); // oneri disi "18 olsun" -> o saat
+            if (!$sec && !$saat && preg_match('/hayir|olmaz|olmasin|istemiyorum|baska/u', $s)) {
+                // Oneri reddedildi, yeni saat yok -> "Hangi saat olsun?" (ayni oneri tekrarlanmaz)
+                $hz['a'] = []; $hz['s'] = null; $hz['q'] = 1; $hz['t'] = $tarih ?: ($hz['t'] ?? null) ?: $alt[0][0];
+                return ['cevap' => 'Tabii, hangi saat olsun?', 'aksiyon' => null, 'veri' => [], 'bitir' => false, 'baglam' => $this->hizmetsizEtiket($hz)];
+            }
             if ($sec) { $tarih = $sec[0]; $saat = $sec[1]; }
             elseif (!$saat && !($z['vakit'] ?? null) && (!$tarih || $tarih === $alt[0][0])) {
                 // Secim anlasilmadi: baska saat ONERILMEZ, ayni iki secenek kisaca tekrar sorulur (kayit 316: "14 olsun" -> 10/11 onerildi)
@@ -4258,14 +4266,12 @@ FIYAT
             // "Yarın öğleden sonra" ya da saat ikinci kez sorulacakti: ayni soru tekrarlanmaz, iki bos saat onerilir
             $alt = $this->hizmetsizGunSecenekleri($tarih, $vakit, (string) ($hz['i'] ?? ''));
             if ($alt && $vakit) {
-                // "Yarın akşamüstü" -> uzatmadan o vaktin ilk bos saatine HEMEN randevu (kullanici karari 2026-11-27)
-                foreach ($alt as $a) {
-                    $r = $this->hizmetsizRandevuAc($a[0], $a[1], (string) ($hz['i'] ?? ''));
-                    if (!empty($r['ok'])) {
-                        $this->teshis = 'hizmetsiz_randevu';
-                        return $this->hizmetsizBasari($r, $hz);
-                    }
-                }
+                // "Yarın akşam" -> saati ASISTAN secti: once ONERILIR, "evet" gelince acilir (kullanici karari 2026-11-27 aksam:
+                // "direkt oluşturdum demesin, önersin, onay alınca oluştursun"). Kesin saat soylenirse yine hemen acilir.
+                $hz['t'] = $tarih; $hz['s'] = null; $hz['a'] = [$alt[0]];
+                $vSoz = ['sabah' => ' sabah', 'ogle' => ' öğlen', 'ogleden_sonra' => ' öğleden sonra', 'aksam' => ' akşam'][$vakit] ?? '';
+                return ['cevap' => $this->tarihSoz($tarih) . $vSoz . ' saat ' . $alt[0][1] . ' uygun, randevunuzu oluşturayım mı?',
+                    'aksiyon' => null, 'veri' => [], 'bitir' => false, 'baglam' => $this->hizmetsizEtiket($hz)];
             }
             if ($alt) {
                 $hz['t'] = $tarih; $hz['s'] = null; $hz['a'] = $alt;

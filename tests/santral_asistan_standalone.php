@@ -1072,15 +1072,23 @@ namespace {
     $yarin = date('Y-m-d', strtotime('+1 day'));
     $hv->acilamaz = false;
     $v0 = cagir($hv, 'hizmetsizTur', 'Yarın akşamüstü', ['i' => 'kaynak', 't' => null, 's' => null, 'a' => []]);
-    esit('kayıt 321: "yarın akşamüstü" → sormadan randevu', 'randevu', $v0['aksiyon']);
-    icerir('ilk boş akşam saatine', "saat 10:00'da randevunuzu oluşturdum", $v0['cevap']); // sahte secenekler: akşam -> 10/11 (vakit != ogleden_sonra)
+    esit('"yarın akşamüstü" → randevu HEMEN açılmaz', null, $v0['aksiyon']);
+    icerir('önce önerilir, onay istenir', "akşam saat 10:00 uygun, randevunuzu oluşturayım mı?", $v0['cevap']); // sahte secenekler: akşam -> 10/11
     esit('vakit akşam olarak arandı', 'aksam', end($hv->vakitler));
+    $hzO = cagir($hv, 'hizmetsizBekleyen', [['role' => 'assistant', 'content' => 'x', 'baglam' => $v0['baglam']]]);
+    $v0b = cagir($hv, 'hizmetsizTur', 'Evet, oluşturun.', $hzO);
+    esit('öneriye "evet" → randevu açılır', 'randevu', $v0b['aksiyon']);
+    icerir('önerilen saate', "saat 10:00'da randevunuzu oluşturdum", $v0b['cevap']);
+    $v0c = cagir($hv, 'hizmetsizTur', 'Hayır, olmasın.', $hzO);
+    esit('öneriye "hayır" → hangi saat', 'Tabii, hangi saat olsun?', $v0c['cevap']);
+    $v0d = cagir($hv, 'hizmetsizTur', '18 olsun', $hzO);
+    icerir('öneri yerine "18 olsun" → 18:00 açılır', "saat 18:00'de randevunuzu oluşturdum", $v0d['cevap'] ?? '');
     $hv->acilamaz = true;
     $v1 = cagir($hv, 'hizmetsizTur', 'Yarın hangi saat mi sayısı bana öğleden sonra randevu verebilirsiniz.', ['i' => 'kaynak', 't' => null, 's' => null, 'a' => []]);
-    icerir('yarın öğleden sonra → iki saat önerilir', 'öğleden sonra saat 13:00 ya da saat 14:00 uygun, hangisini istersiniz?', $v1['cevap']);
-    esit('öneriler etikete yazıldı', ['13:00', '14:00'], array_column(cagir($hv, 'hizmetsizBekleyen', [['role' => 'assistant', 'content' => 'x', 'baglam' => $v1['baglam']]])['a'], 1));
+    icerir('yarın öğleden sonra → önce ilk boş saat önerilir', 'öğleden sonra saat 13:00 uygun, randevunuzu oluşturayım mı?', $v1['cevap']);
+    esit('öneriler etikete yazıldı', ['13:00'], array_column(cagir($hv, 'hizmetsizBekleyen', [['role' => 'assistant', 'content' => 'x', 'baglam' => $v1['baglam']]])['a'], 1));
     $v2 = cagir($hv, 'hizmetsizTur', 'Öğleden sonra.', ['i' => 'kaynak', 't' => $yarin, 's' => null, 'a' => [], 'q' => 1]);
-    icerir('"saat kaçta?" sonrası "Öğleden sonra" → iki saat', 'saat 13:00 ya da saat 14:00', $v2['cevap']);
+    icerir('"saat kaçta?" sonrası "Öğleden sonra" → ilk boş saat önerilir', 'saat 13:00 uygun, randevunuzu oluşturayım mı?', $v2['cevap']);
     $hzA = ['i' => 'kaynak', 't' => $yarin, 's' => null, 'a' => [[$yarin, '13:00'], [$yarin, '14:00']]];
     esit('kayıt 316: "14 olsun" → 14:00 seçilir', [$yarin, '14:00'], cagir($hv, 'hizmetsizSaatSec', '14 olsun', $hzA['a']));
     esit('"iki olsun" → 14:00', [$yarin, '14:00'], cagir($hv, 'hizmetsizSaatSec', 'iki olsun', $hzA['a']));
