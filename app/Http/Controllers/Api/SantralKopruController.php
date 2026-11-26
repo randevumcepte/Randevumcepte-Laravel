@@ -231,8 +231,14 @@ class SantralKopruController extends Controller
         }
         // Aktarma yerine not: mesai disi ya da bu aramada yetkiliye zaten ulasilamadi (tekrar caldirmak bosuna)
         if (($d['aksiyon'] ?? null) === 'aktar' && ($gNeden = $this->aktarmaYerineNot($o))) {
-            $this->geriAraKaydet($o, $gNeden);
-            $d = ['cevap' => $this->geriAraCumlesi($gNeden, $o->telefon), 'aksiyon' => null, 'veri' => [], 'bitir' => false, 'geri_ara_soru' => 1];
+            if (!empty($d['fiyat_aktar'])) {
+                // Bilinmeyen hizmetin fiyati, salona ulasilamiyor: fiyat notu + konusma devam
+                $this->geriAraKaydet($o, $gNeden, (string) $d['fiyat_aktar']);
+                $d = ['cevap' => 'Fiyatı salonumuz size iletecek, notunu aldım. Başka yardımcı olabileceğim bir konu var mı?', 'aksiyon' => null, 'veri' => [], 'bitir' => false];
+            } else {
+                $this->geriAraKaydet($o, $gNeden);
+                $d = ['cevap' => $this->geriAraCumlesi($gNeden, $o->telefon), 'aksiyon' => null, 'veri' => [], 'bitir' => false, 'geri_ara_soru' => 1];
+            }
         }
         $sKonus = microtime(true);
 
@@ -255,6 +261,7 @@ class SantralKopruController extends Controller
         if (!empty($d['geri_ara_soru'])) $asistanMsj['geri_ara_soru'] = 1; // sonraki musteri cumlesi = geri arama notu
         $asistanMsj['seviye'] = $seviye;                                     // anlasilamama merdiveni basamagi
         if (!empty($d['randevu_hata'])) $asistanMsj['randevu_hata'] = 1;
+        if (!empty($d['fiyat_aktar'])) $asistanMsj['fiyat_aktar'] = (string) $d['fiyat_aktar']; // aktarma acilmazsa fiyat notu
         $gecmis[] = $asistanMsj;
         $gecmis = array_slice($gecmis, -40);
         if ($tur > 0) $gecmis = $this->iptalTurlariDus($oid, $gecmis);
@@ -428,17 +435,21 @@ class SantralKopruController extends Controller
         $o = DB::table('santral_oturumlari')->where('id', $oid)->first();
         if (!$o) return $this->j(['ok' => 0, 'hata' => 'oturum_yok'], 404);
         $neden = in_array($r->input('neden'), ['cevapsiz', 'hedef_yok'], true) ? $r->input('neden') : 'cevapsiz';
-        $this->geriAraKaydet($o, $neden);
-        $cevap = $this->geriAraCumlesi($neden, $o->telefon);
-
-        // Gecmis: "sizi bağlıyorum" cumlesinin ardina eklenir (art arda iki asistan mesaji olmasin)
         $g = json_decode($o->gecmis ?: '[]', true) ?: [];
         $n = count($g);
+        // Fiyat icin aktarilmisti (bilinmeyen hizmet): "Fiyatı salonumuz size iletecek" + geri arama notu, konusma devam
+        $fiyatNot = ($n && ($g[$n - 1]['role'] ?? '') === 'assistant') ? (string) ($g[$n - 1]['fiyat_aktar'] ?? '') : '';
+        $this->geriAraKaydet($o, $neden, $fiyatNot !== '' ? $fiyatNot : null);
+        $cevap = $fiyatNot !== ''
+            ? 'Kusura bakmayın, şu an yetkilimize ulaşamadım. Fiyatı salonumuz size iletecek, notunu aldım. Başka yardımcı olabileceğim bir konu var mı?'
+            : $this->geriAraCumlesi($neden, $o->telefon);
+
+        // Gecmis: "sizi bağlıyorum" cumlesinin ardina eklenir (art arda iki asistan mesaji olmasin)
         if ($n && ($g[$n - 1]['role'] ?? '') === 'assistant') {
             $g[$n - 1]['content'] = trim(($g[$n - 1]['content'] ?? '') . ' ' . $cevap);
-            $g[$n - 1]['geri_ara_soru'] = 1;
+            if ($fiyatNot === '') $g[$n - 1]['geri_ara_soru'] = 1;
         } else {
-            $g[] = ['role' => 'assistant', 'content' => $cevap, 'geri_ara_soru' => 1];
+            $g[] = ['role' => 'assistant', 'content' => $cevap] + ($fiyatNot === '' ? ['geri_ara_soru' => 1] : []);
         }
         DB::table('santral_oturumlari')->where('id', $oid)->update(['gecmis' => json_encode($g, JSON_UNESCAPED_UNICODE), 'updated_at' => now()]);
         \Log::info('[SANTRAL-GERI-ARA] yetkiliye ulasilamadi, asistan geri dondu', ['oturum' => $oid, 'salon' => $o->sube_id, 'neden' => $neden]);

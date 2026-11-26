@@ -1007,6 +1007,51 @@ namespace {
     $hz0 = asistan(['musteriId' => null, 'salon' => ['ad' => 'X', 'hizmetler' => [['id' => 1, 'ad' => 'Kalıcı Oje']]]]);
     esit('kayıtsız müşteri → önce kayıt', false, cagir($hz0, 'randevuHizmetsiz', ['tarih_saat' => '2026-12-01T15:00:00', 'musteri_ifadesi' => 'kaynak'])['ok']);
 
+    bolum('Hizmet anlaşılmadı: açıklama yok, gün-saat → randevu; fiyat → salona bağla');
+    $hzE = ['i' => 'kaynak', 't' => '2026-12-05', 's' => null, 'a' => [['2026-12-05', '14:30'], ['2026-12-05', '15:30']]];
+    esit('etiket → geçmişten geri okunur', $hzE, cagir($pz, 'hizmetsizBekleyen', [['role' => 'user', 'content' => 'x'], ['role' => 'assistant', 'content' => 'y', 'baglam' => cagir($pz, 'hizmetsizEtiket', $hzE)]]));
+    esit('etiket yalnız SON asistan mesajında geçerli', null, cagir($pz, 'hizmetsizBekleyen', [['role' => 'assistant', 'content' => 'y', 'baglam' => cagir($pz, 'hizmetsizEtiket', $hzE)], ['role' => 'user', 'content' => 'x'], ['role' => 'assistant', 'content' => 'z']]));
+    icerir('dolu cümlesi iki saat', '14:30 ya da saat 15:30 uygun, hangisini istersiniz?', cagir($pz, 'hizmetsizDoluCumlesi', '2026-12-05', '15:00', $hzE['a']));
+    $kz = asistan(['musteriId' => null, 'salon' => ['ad' => 'X', 'hizmetler' => [['id' => 1, 'ad' => 'Kalıcı Oje']]]]);
+    $b = cagir($kz, 'hizmetsizBaslat', 'Kaynak yaptırmak istiyorum', 'kaynak');
+    esit('kayıtsız: ad + gün-saat tek soruda', 'Randevunuzu oluşturmam için adınızı, soyadınızı ve size uygun gün ile saati alabilir miyim?', $b['cevap']);
+    icerir('başlangıç: mod etiketi geçmişe', '[[HZ:', $b['baglam']);
+    esit('başlangıç: "hizmetimiz yok" denmez', false, mb_stripos($b['cevap'], 'bulunmuyor') !== false || mb_stripos($b['cevap'], 'yok') !== false);
+    esit('kayıtsız müşteride kod yolu yok (model ad alır)', null, cagir($kz, 'hizmetsizTur', 'yarın saat 3', $hzE));
+    $kk = asistan(['musteriId' => 77, 'salon' => ['ad' => 'X', 'hizmetler' => [['id' => 1, 'ad' => 'Kalıcı Oje']]]]);
+    $t1 = cagir($kk, 'hizmetsizTur', 'yarın olsun', ['i' => 'kaynak', 't' => null, 's' => null, 'a' => []]);
+    icerir('yalnız gün → saat sorulur', 'saat kaçta uygun?', $t1['cevap']);
+    $t2 = cagir($kk, 'hizmetsizTur', 'saat 3 olur', ['i' => 'kaynak', 't' => null, 's' => null, 'a' => []]);
+    icerir('yalnız saat → gün sorulur', 'hangi gün uygun?', $t2['cevap']);
+    esit('zaman yok → model', null, cagir($kk, 'hizmetsizTur', 'aslında emin değilim', ['i' => 'kaynak', 't' => null, 's' => null, 'a' => []]));
+    esit('fiyat konusu: "eğitim ücreti"', 'egitim', $pz->fiyatKonusu('Ben eğitim almak istiyordum da, ücretini öğrenmek istiyordum.'));
+    esit('fiyat konusu: yalnız "fiyatı almak istiyorum"', '', $pz->fiyatKonusu('Fiyatı almak istiyorum.'));
+    $fz = asistan(['salon' => ['ad' => 'X', 'hizmetler' => [['id' => 1, 'ad' => 'Protez Tırnak', 'fiyat' => 1200]]]]); $fz->santralFiyatSoyle = true;
+    $fa = $fz->santralFiyatCevabi('Ben eğitim almak istiyordum, ücretini öğrenmek istiyordum', []);
+    esit('bilinmeyen hizmet fiyatı → salona bağla', 'aktar', $fa['aksiyon']);
+    icerir('bilinmeyen hizmet fiyatı → not', 'Fiyat sordu: egitim', $fa['fiyat_aktar'] ?? '');
+    esit('konusuz fiyat → hizmet sorulur', 'Hangi hizmetimizin fiyatını öğrenmek istersiniz?', $fz->santralFiyatCevabi('Fiyatı almak istiyorum', [])['cevap']);
+    $gF = [['role' => 'assistant', 'content' => 'Hangi hizmetimizin fiyatını öğrenmek istersiniz?']];
+    esit('fiyat sorusuna "Eğitim" → salona bağla', 'aktar', $fz->konus('Eğitim', $gF)['aksiyon']);
+    icerir('fiyat sorusuna bilinen hizmet → gerçek fiyat', 'bin iki yüz', $fz->sesliOkunus($fz->konus('Protez tırnak', $gF)['cevap']));
+
+    // Model hizmet_eslestir cagirdi, sonuc "yok" -> aciklama yapilmadan gun-saat sorulur (model ikinci kez cagrilmaz)
+    $hy = new class extends App\Services\RandevuAsistan {
+        public $cagri = 0;
+        public function __construct() {}
+        protected function cagir(array $m, string $k, int $t = 0, array $e = []): ?array {
+            $this->cagri++;
+            return ['content' => [['type' => 'tool_use', 'id' => 'h1', 'name' => 'hizmet_eslestir', 'input' => ['metin' => 'kaynak']]]];
+        }
+        protected function ctrlCagir(string $m, array $p): array { return ['ok' => true, 'eslesme' => 'yok', 'oneriler' => []]; }
+    };
+    foreach (['salonId' => 20, 'musteriId' => 77, 'telefon' => '5321112233', 'kanal' => 'santral', 'salon' => ['ad' => 'X', 'hizmetler' => [['id' => 1, 'ad' => 'Kalıcı Oje']]]] as $k => $v) { $p = new ReflectionProperty(App\Services\RandevuAsistan::class, $k); $p->setAccessible(true); $p->setValue($hy, $v); }
+    $GLOBALS['_config']['services.anthropic.key'] = 'test';
+    $r = $hy->konus('Kaynak yaptırmak istiyorum', [['role' => 'assistant', 'content' => 'Merhaba, size nasıl yardımcı olabilirim?']]);
+    esit('hizmet yok → yalnız gün-saat sorulur', 'Hangi gün ve saat size uygun?', $r['cevap']);
+    esit('hizmet yok → model tek kez çağrıldı', 1, $hy->cagri);
+    icerir('hizmet yok → mod etiketi', '[[HZ:', (string) ($r['baglam'] ?? ''));
+
     bolum('Kayıt 277: karşılama tekrarlanmaz');
     $g277 = [['role' => 'assistant', 'content' => "Merhaba, Ola Nail'e hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?"]];
     foreach (['Merhaba' => true, 'Alo, iyi günler.' => true, 'Merhabalar kolay gelsin' => true, 'Merhaba randevu almak istiyorum' => false, 'Evet' => false] as $m => $b) {
