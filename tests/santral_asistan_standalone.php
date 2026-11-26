@@ -1071,6 +1071,15 @@ namespace {
     esit('öneriler etikete yazıldı', ['13:00', '14:00'], array_column(cagir($hv, 'hizmetsizBekleyen', [['role' => 'assistant', 'content' => 'x', 'baglam' => $v1['baglam']]])['a'], 1));
     $v2 = cagir($hv, 'hizmetsizTur', 'Öğleden sonra.', ['i' => 'kaynak', 't' => $yarin, 's' => null, 'a' => [], 'q' => 1]);
     icerir('"saat kaçta?" sonrası "Öğleden sonra" → iki saat', 'saat 13:00 ya da saat 14:00', $v2['cevap']);
+    $hzA = ['i' => 'kaynak', 't' => $yarin, 's' => null, 'a' => [[$yarin, '13:00'], [$yarin, '14:00']]];
+    esit('kayıt 316: "14 olsun" → 14:00 seçilir', [$yarin, '14:00'], cagir($hv, 'hizmetsizSaatSec', '14 olsun', $hzA['a']));
+    esit('"iki olsun" → 14:00', [$yarin, '14:00'], cagir($hv, 'hizmetsizSaatSec', 'iki olsun', $hzA['a']));
+    esit('"saat 1" → 13:00', [$yarin, '13:00'], cagir($hv, 'hizmetsizSaatSec', 'saat 1', $hzA['a']));
+    esit('"bir buçuk" → eşleşme yok', null, cagir($hv, 'hizmetsizSaatSec', 'bir bucuk', $hzA['a']));
+    $v5 = cagir($hv, 'hizmetsizTur', 'Asıl o diyoruz.', $hzA);
+    esit('seçim anlaşılmadı → aynı iki saat kısaca', 'Saat 13:00 mi, saat 14:00 mi?', $v5['cevap']);
+    esit('seçim anlaşılmadı → başka saat önerilmedi', ['13:00', '14:00'], array_column(cagir($hv, 'hizmetsizBekleyen', [['role' => 'assistant', 'content' => 'x', 'baglam' => $v5['baglam']]])['a'], 1));
+    esit('STT "randevu aldattım" → alacaktım', 'Merhaba, randevu alacaktım ben ama.', $hv->sttDuzelt('Merhaba, randevu aldattım ben ama.'));
     $v3 = cagir($hv, 'hizmetsizTur', 'yarın olsun', ['i' => 'kaynak', 't' => null, 's' => null, 'a' => []]);
     icerir('yalnız gün → ilk kez saat sorulur', 'saat kaçta uygun?', $v3['cevap']);
     $v4 = cagir($hv, 'hizmetsizTur', 'bilmiyorum ki yarın işte', cagir($hv, 'hizmetsizBekleyen', [['role' => 'assistant', 'content' => 'x', 'baglam' => $v3['baglam']]]));

@@ -1646,6 +1646,8 @@ class RandevuAsistan
             '/\b(e[tp]{1,2} ?p?la[ksyz]{1,3}[iıo]?on|epi ?la[sz]yon|ebi ?lasyon|e ?pilasyon)(\p{L}*)/iu' => 'epilasyon$2',
             // "(Merhaba,) bir randevu için arıyorum" -> "İbrahim de bu için arıyorum" (kayit 277): isim sanilip hitap edildi
             '/(?<!\p{L})[İiIı]brahim\s+de\s+bu(?=\s+(için|almak|alacak|alabilir|istiyor))/u' => 'bir randevu',
+            // "randevu aldattım / aldatım / alacatım" -> "alacaktım" (kayit 316)
+            '/(randevu\S*\s+)(?:aldat+[iı]m|alaca?t+[iı]m)(?!\p{L})/iu' => '$1alacaktım',
         ];
         return $this->salonKelimeDuzelt(preg_replace(array_keys($harita), array_values($harita), $m) ?? $m);
     }
@@ -4049,7 +4051,13 @@ FIYAT
             } elseif (preg_match('/\bfark ?etmez\b|\bhangisi olursa\b|\bherhangi\b|\bsize kalmis\b/u', $s)) {
                 $sec = $alt[0];
             }
+            if (!$sec) $sec = $this->hizmetsizSaatSec($s, $alt);
             if ($sec) { $tarih = $sec[0]; $saat = $sec[1]; }
+            elseif (!$saat && !($z['vakit'] ?? null) && (!$tarih || $tarih === $alt[0][0])) {
+                // Secim anlasilmadi: baska saat ONERILMEZ, ayni iki secenek kisaca tekrar sorulur (kayit 316: "14 olsun" -> 10/11 onerildi)
+                $c = count($alt) === 1 ? 'Saat ' . $alt[0][1] . ' sizin için uygun mu?' : 'Saat ' . $alt[0][1] . ' mi, saat ' . $alt[1][1] . ' mi?';
+                return ['cevap' => $c, 'aksiyon' => null, 'veri' => [], 'bitir' => false, 'baglam' => $this->hizmetsizEtiket($hz)];
+            }
         }
         $tarih = $tarih ?: ($hz['t'] ?? null);
         $saat = $saat ?: ($hz['s'] ?? null);
@@ -4095,6 +4103,29 @@ FIYAT
         $hz['t'] = $tarih; $hz['s'] = $saat; $hz['a'] = []; $hz['q'] = 1; // saat bir kez soruldu; tekrar sorulmaz
         $soru = $tarih ? $this->tarihSoz($tarih) . ' saat kaçta uygun?' : 'Saat ' . $saat . ' için hangi gün uygun?';
         return ['cevap' => $soru, 'aksiyon' => null, 'veri' => [], 'bitir' => false, 'baglam' => $this->hizmetsizEtiket($hz)];
+    }
+
+    /** Onerilen saatlerden sayiyla secim: "14 olsun" / "iki" / "2'de" / "bir buçuk" / "13.30" -> [tarih, saat] ya da null. */
+    protected function hizmetsizSaatSec(string $s, array $alt): ?array
+    {
+        $kelime = ['bir' => 1, 'iki' => 2, 'uc' => 3, 'dort' => 4, 'bes' => 5, 'alti' => 6, 'yedi' => 7, 'sekiz' => 8, 'dokuz' => 9, 'on' => 10,
+            'onbir' => 11, 'on bir' => 11, 'oniki' => 12, 'on iki' => 12];
+        $aday = [];
+        if (preg_match_all('/\b(\d{1,2})(?:[.:\s](\d{2}))?\b/u', $s, $m, PREG_SET_ORDER)) {
+            foreach ($m as $x) $aday[] = [(int) $x[1], isset($x[2]) && $x[2] !== '' ? (int) $x[2] : null];
+        }
+        if (!$aday && preg_match('/\b(on iki|on bir|oniki|onbir|bir|iki|uc|dort|bes|alti|yedi|sekiz|dokuz|on)(?:de|da|te|ta)?\b(\s+bucuk)?(?=\s+(?:olsun|gibi|uygun|olur|lutfen)\b|\s*$)/u', $s, $m)) { // "bir dakika" secim sayilmaz
+            $aday[] = [$kelime[$m[1]], !empty($m[2]) ? 30 : null];
+        } elseif ($aday && preg_match('/\bbucuk\b/u', $s)) {
+            $aday[0][1] = 30;
+        }
+        foreach ($aday as [$h, $dk]) {
+            foreach ($alt as $a) {
+                [$ah, $am] = array_map('intval', explode(':', $a[1]));
+                if (($ah === $h || ($h < 12 && $ah === $h + 12)) && ($dk === null || $dk === $am)) return $a;
+            }
+        }
+        return null;
     }
 
     /** hizmet_eslestir "yok" dondu: aciklama yapmadan gun-saat iste (cumlede zaten varsa hemen randevu). */
