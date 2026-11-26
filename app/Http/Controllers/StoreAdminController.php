@@ -1773,8 +1773,8 @@ public function carkverilerigetir(Request $request)
                 ->where('user_id', '!=', 2012) // kapali saat randevu degildir
                 ->whereBetween('tarih', [$t1, $t2])
                 ->count();
-            // Aktif = iptal/red ve kapali saat haric, takvimde gorunen randevu. Takvimdeki
-            // "Gunluk Randevu" (randevuyukle) ile AYNI kural; biri degisirse digeri de degismeli.
+            // Aktif = toplam (tekil) randevu; iptal/red ve kapali saat haric (mobil ozetsayfasi ile
+            // ayni kural). Takvimdeki "Gunluk Randevu" ise bilerek EVENT sayar.
             $aktif = DB::table('randevular')
                 ->where('salon_id', $salonId)
                 ->where('user_id', '!=', 2012)
@@ -1782,8 +1782,7 @@ public function carkverilerigetir(Request $request)
                 ->whereBetween('tarih', [$t1, $t2])
                 ->whereExists(function($q){
                     $q->select(DB::raw(1))->from('randevu_hizmetler')
-                      ->whereRaw('randevu_hizmetler.randevu_id = randevular.id')
-                      ->where('randevu_hizmetler.sure_dk', '>', 0);
+                      ->whereRaw('randevu_hizmetler.randevu_id = randevular.id');
                 })
                 ->count();
             // Sonuclanan = musteri geldi (durum=1 AND randevuya_geldi=true)
@@ -5072,11 +5071,14 @@ public function carkverilerigetir(Request $request)
     // kayboluyordu. Gun sonuna sabitleyerek tum yollarda gorunur kalir.
     $takvim_bitis_saat = '24:00:00';
 
-    // Sayac: RANDEVU adedi (hizmet satiri/bar degil), kapali saat haric.
-    // Dashboard "Bugun Randevu" (dashboardRandevuOzet 'aktif') ile AYNI kural.
-    $randevu_sayisi = $randevu_hizmetler_raw
-        ->filter(function ($rh) { return (int) $rh->randevu->user_id !== 2012; })
-        ->pluck('randevu_id')->unique()->count();
+    // Sayac: takvimdeki EVENT (bar) adedi; iptal/red zaten sorguda yok, kapali saat haric.
+    // Dashboard "Bugun Randevu" bilerek farklidir: orada tekil randevu sayilir.
+    $kapaliRhIds = $randevu_hizmetler_raw
+        ->filter(function ($rh) { return (int) $rh->randevu->user_id === 2012; })
+        ->pluck('id')->flip();
+    $randevu_sayisi = $randevu_hizmetler
+        ->filter(function ($e) use ($kapaliRhIds) { return !isset($kapaliRhIds[$e['id']]); })
+        ->count();
     Log::info('randevu yükleme bitti');
 
     return array(
