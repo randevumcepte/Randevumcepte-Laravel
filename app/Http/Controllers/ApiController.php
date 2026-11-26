@@ -297,9 +297,26 @@ class ApiController extends Controller
         );
     }
 
+    /**
+     * Beyaz etiket: uygulama salon id'si yollamazsa (salonidler bos) salonu
+     * appBundle'dan coz. Boylece marka id'si uygulama koduna sabit yazilmaz;
+     * kaynak salonlar.app_bundle. Cok subeli markada en kucuk id (ana sube)
+     * SMS/WA gonderen salon olur; kayit yine tum bundle subelerine yayilir.
+     * Eski build'ler salonidler yollamaya devam eder -> davranis degismez.
+     */
+    private function salonidlerBundledanTamamla(Request $request)
+    {
+        if (trim((string) $request->salonidler) !== '') return;
+        $bundle = (string) $request->appBundle;
+        if ($bundle === '' || $bundle === 'com.randevumcepte.randevumcepte') return;
+        $ilk = Salonlar::where('app_bundle', $bundle)->orderBy('id')->value('id');
+        if ($ilk) $request->merge(['salonidler' => (string) $ilk]);
+    }
+
     public function yenimusteridanisankaydi(Request $request)
 
     {
+        $this->salonidlerBundledanTamamla($request);
 
         $salonidler = [];
 
@@ -581,6 +598,7 @@ class ApiController extends Controller
 
     public function sifregonder(Request $request)
     {
+        $this->salonidlerBundledanTamamla($request);
         $kullanicivar = false;
         $phone = self::telefon_no_format_duzenle($request->cep_telefon);
 
