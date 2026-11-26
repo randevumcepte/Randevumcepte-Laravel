@@ -1168,6 +1168,30 @@ namespace {
     }
     if (getenv('NIYET_RAPOR')) { echo "  kod kaçırdı (model yakalar):\n    " . implode("\n    ", $nyRapor['kacan']) . "\n  yanlış tetik:\n    " . implode("\n    ", $nyRapor['yanlis']) . "\n"; }
 
+    bolum('Kayıt 322: hizmetsiz randevudan sonra saat değişikliği');
+    $hv->acilamaz = false;
+    $yr = '2026-11-16'; // test bugunu 2026-11-15 -> yarin
+    $okE = ['r' => 4, 't' => $yr, 's' => '17:00', 'i' => 'kaynak'];
+    $okG = [['role' => 'assistant', 'content' => 'x', 'baglam' => cagir($hv, 'hizmetsizAcilanEtiket', ['randevu_id' => 4, 'tarih' => $yr, 'saat' => '17:00:00', 'ifade' => 'kaynak'])]];
+    esit('açılan randevu etiketi geçmişten okunur', $okE, cagir($hv, 'hizmetsizAcilan', $okG));
+    $d1 = cagir($hv, 'hizmetsizSonrasi', '17 olmasın.', $okE);
+    esit('"17 olmasın" → teyit değil, yeni saat sorulur', 'Tabii, hangi saat olsun?', $d1['cevap'] ?? null);
+    $hz1 = cagir($hv, 'hizmetsizBekleyen', [['role' => 'assistant', 'content' => 'x', 'baglam' => $d1['baglam']]]);
+    esit('eski randevu taşınacak (r)', 4, $hz1['r'] ?? null);
+    $d2 = cagir($hv, 'hizmetsizTur', '18-19 saatlerinde var.', $hz1);
+    esit('"18-19 saatlerinde" → randevu taşındı', 'randevu', $d2['aksiyon'] ?? null);
+    icerir('taşıma cümlesi', 'randevunuzu', $d2['cevap'] ?? '');
+    icerir('taşıma → 18:00 güncellendi', 'saat 18:00 olarak güncelledim', $d2['cevap'] ?? '');
+    $d3 = cagir($hv, 'hizmetsizSonrasi', '18 olsun', $okE);
+    icerir('randevudan sonra "18 olsun" → doğrudan taşınır', 'saat 18:00 olarak güncelledim', $d3['cevap'] ?? '');
+    $d4 = cagir($hv, 'hizmetsizSonrasi', 'Yarın akşam üstü olsun.', $okE);
+    icerir('17:00 akşamüstü zaten → teyit (yeni randevu yok)', 'Evet, randevunuz', $d4['cevap'] ?? '');
+    esit('teyitte aksiyon yok', true, is_array($d4) && $d4['aksiyon'] === null);
+    esit('"Yok teşekkürler" → değişiklik değil (veda yoluna)', null, cagir($hv, 'hizmetsizSonrasi', 'Yok teşekkürler', $okE));
+    esit('"17 olmasın" eski teyit kontrolüne de takılmaz', null, cagir($hv, 'hizmetsizTekrarCevabi', '17 olmasın', [['role' => 'assistant', 'content' => "Ferdi Bey, Cumartesi saat 17:00'de randevunuzu oluşturdum. Salonumuz sizi arayıp detayları netleştirecek. Başka bir isteğiniz var mı?"]]));
+    esit('yalın saat "18-19 saatlerinde"', '18:00', cagir($hv, 'yalinSaat', '18-19 saatlerinde var'));
+    esit('yalın saat "27 Kasım" saat sayılmaz', null, cagir($hv, 'yalinSaat', '27 kasım'));
+
     bolum('Kayıt 277: karşılama tekrarlanmaz');
     $g277 = [['role' => 'assistant', 'content' => "Merhaba, Ola Nail'e hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?"]];
     foreach (['Merhaba' => true, 'Alo, iyi günler.' => true, 'Merhabalar kolay gelsin' => true, 'Merhaba randevu almak istiyorum' => false, 'Evet' => false] as $m => $b) {
