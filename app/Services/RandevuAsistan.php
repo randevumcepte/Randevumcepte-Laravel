@@ -2279,10 +2279,12 @@ class RandevuAsistan
                 return [$this->musteriKaydet((string) ($in['ad_soyad'] ?? ''), (string) ($in['telefon'] ?? '')), null, null, false];
 
             case 'randevu_olustur':
-                $d = $this->randevuOlusturPersonelli($in);
+                $hizsiz = !empty($in['hizmet_anlasilmadi']);
+                $d = $hizsiz ? $this->randevuHizmetsiz($in) : $this->randevuOlusturPersonelli($in);
                 $this->_randevularim = null;
                 $ok = !empty($d['ok']);
-                if ($ok) \App\Services\IfadeOgrenme::randevuOlustu($this->salonId, $this->telefon ?? null, $this->intId($in['hizmet_id'] ?? null));
+                // tahmini hizmet ifade kutuphanesine OGRETILMEZ (yanlis eslesme kalici olmasin)
+                if ($ok && !$hizsiz) \App\Services\IfadeOgrenme::randevuOlustu($this->salonId, $this->telefon ?? null, $this->intId($in['hizmet_id'] ?? null));
                 return [$d, $ok ? 'randevu' : null, $ok ? ($d['randevu_id'] ?? null) : null, false];
 
             case 'randevu_iptal':
@@ -2372,7 +2374,9 @@ class RandevuAsistan
                     'adisyon_paket_id' => ['type' => 'integer', 'description' => 'Müşteri randevunun bir PAKETİNDEN olmasını kabul ettiyse o paketin adisyon_paket_id’si (PAKETLER / hizmet_eslestir.paketler).'],
                     'paketsiz' => ['type' => 'boolean', 'description' => 'Müşteri paketinden KULLANMAK İSTEMEDİYSE true (seans paketten düşmez).'],
                     'notlar' => ['type' => 'string'],
-                ], 'required' => ['tarih_saat', 'hizmet_id', 'personel_id']],
+                    'hizmet_anlasilmadi' => ['type' => 'boolean', 'description' => 'Hizmet iki denemede anlaşılamadıysa ya da müşteri listede OLMAYAN bir hizmet istiyorsa true. hizmet_id/personel_id VERME (sistem boş uzmanı bulur). Ayrı onay sorma: gün ve saat alınınca hemen çağır. Randevu salona "hizmet anlaşılmadı" diye düşer, salon müşteriyi arar.'],
+                    'musteri_ifadesi' => ['type' => 'string', 'description' => 'hizmet_anlasilmadi=true ise müşterinin hizmet için söylediği (aynen).'],
+                ], 'required' => ['tarih_saat']],
             ],
             [
                 'name' => 'randevu_iptal',
@@ -2641,7 +2645,7 @@ Saat kestirimi: "on dörtte"=14:00, "on dört buçukta"=14:30, "ikide/saat ikide
 {$harita}
 
 # AKTARMA (sadece bunlarda "aktar")
-{$fiyatKurali} Müşteri açıkça operatör/insan/yetkili/işletmeye bağlanmak isterse ("beni bağlar mısınız", "işletmeye bağlayın", "biriyle görüşmek istiyorum") HİÇ SORU SORMADAN hemen "aktar" çağır — bunu hizmet sanma, hizmet_eslestir ÇAĞIRMA. YA DA randevu/iptal/güncelleme dışı konu (şikayet, fatura, ödeme) olursa. Hizmet bulunamadı diye AKTARMA — sormaya devam et.
+{$fiyatKurali} Müşteri açıkça operatör/insan/yetkili/işletmeye bağlanmak isterse ("beni bağlar mısınız", "işletmeye bağlayın", "biriyle görüşmek istiyorum") HİÇ SORU SORMADAN hemen "aktar" çağır — bunu hizmet sanma, hizmet_eslestir ÇAĞIRMA. YA DA randevu/iptal/güncelleme dışı konu (şikayet, fatura, ödeme) olursa. Hizmet bulunamadı diye AKTARMA. Müşteri hizmeti İKİ kez söyleyip yine anlaşılamadıysa ya da listede OLMAYAN bir hizmet istiyorsa SORMAYI BIRAK: "Randevunuzu oluşturayım, hangi gün ve saat size uygun?" de, gün ve saati alınca ayrı onay sormadan randevu_olustur(hizmet_anlasilmadi=true, musteri_ifadesi=müşterinin söylediği) çağır; uzman sorma, hizmet adı söyleme (salon müşteriyi arayıp hizmeti netleştirecek).
 
 # KIRMIZI ÇİZGİLER
 Burası restoran DEĞİL, randevu hattı: kişi sayısı, masa, rezervasyon, sipariş SORMA. Her randevu arayan kişi içindir. {$yanlisDuymaKurali}
@@ -3773,6 +3777,93 @@ FIYAT
         return is_array($r) ? $r : [];
     }
 
+    /**
+     * HIZMET ANLASILMADI (kullanici karari 2026-11-26): hizmet anlasilamadi / listede yok -> musteri sikilmasin, istedigi
+     * gun-saatte NORMAL randevu acilir. Hizmet tahmin edilir (benzeyen, yoksa en populer), o saatte bos uzman adil
+     * dagitimla secilir, paketten seans DUSMEZ. Not "HİZMET ANLAŞILMADI" ile baslar + yoneticilere bildirim: salon
+     * musteriyi arayip dogru hizmeti/uzmani duzenler.
+     */
+    protected function randevuHizmetsiz(array $in): array
+    {
+        $this->waOtomatikKayit();
+        if (!$this->musteriId) return ['ok' => false, 'hata' => 'Müşteri kayıtlı değil. Önce adını ve soyadını alıp musteri_kaydet aracını çağır, sonra randevuyu oluştur.'];
+        $ts = $this->tarihSaatAyir((string) ($in['tarih_saat'] ?? ''));
+        if (!$ts) return ['ok' => false, 'hata' => 'Müşteriden randevu için gün ve saati al, tarih_saat ile yeniden çağır.'];
+        [$tarih, $saat] = $ts;
+        $ifade = trim((string) ($in['musteri_ifadesi'] ?? ''));
+        $hizmetId = $this->tahminiHizmetId($ifade);
+        if (!$hizmetId) return ['ok' => false, 'hata' => 'Salonda tanımlı hizmet yok. Müşteriye işletmenin dönüş yapacağını söyle ve aktar.'];
+        $m = $this->musaitSaatlerPersonelli(['hizmet_id' => $hizmetId, 'tarih' => $tarih, 'saat' => $saat, 'uzman_farketmez' => true]);
+        if (empty($m['tam_eslesme'])) {
+            $sec = array_map(function ($s) { return ['tarih' => $s['tarih'], 'gun' => $s['gun'] ?? $this->tarihSoz($s['tarih']), 'saat' => $s['saat']]; }, (array) ($m['secenekler'] ?? []));
+            return ['ok' => false, 'secenekler' => $sec,
+                'hata' => ($sec ? 'İstenen saat dolu. Müşteriye uygun olmadığını söyle ve bu saatlerden birini öner (uzman adı SÖYLEME).' : 'Yakın günlerde boş saat yok. Başka gün iste.')
+                    . ' Müşteri saat seçince randevu_olustur\'u YİNE hizmet_anlasilmadi=true ve seçilen tarih_saat ile çağır.'];
+        }
+        $pid = (int) $m['secenekler'][0]['personel_id'];
+        $uyari = '⚠️ HİZMET ANLAŞILMADI – MÜŞTERİYİ ARAYIP HİZMETİ NETLEŞTİRİN.' . ($ifade !== '' ? ' Müşterinin söylediği: "' . mb_substr($ifade, 0, 120) . '".' : '');
+        $d = $this->randevuOlusturPersonelli(['tarih_saat' => $tarih . 'T' . $saat . ':00', 'hizmet_id' => $hizmetId, 'personel_id' => $pid,
+            'paketsiz' => true, '_uyari' => $uyari, 'notlar' => (string) ($in['notlar'] ?? '')]);
+        if (!empty($d['ok'])) {
+            $d['hizmet'] = null;   // tahmini hizmet musteriye soylenmez / WA kartina yazilmaz
+            $d['hizmet_anlasilmadi'] = true;
+            Log::info('[ASISTAN] hizmet anlasilmadi -> randevu', ['salon' => $this->salonId, 'kanal' => $this->kanal, 'randevu' => $d['randevu_id'], 'ifade' => $ifade]);
+            $this->hizmetAnlasilmadiBildir((int) $d['randevu_id'], $tarih, $saat, $ifade);
+        }
+        return $d;
+    }
+
+    /** Anlasilmayan ifadeye en yakin hizmet; yoksa salonun en populer hizmeti. */
+    protected function tahminiHizmetId(string $ifade): ?int
+    {
+        $hizmetler = $this->hizmetler();
+        if ($ifade !== '') {
+            $b = WaBedavaKatman::hizmetBul($ifade, $hizmetler);
+            if ($b && !empty($b[0]['id'])) return (int) $b[0]['id'];
+            $a = $this->hizmetAdaylari($ifade);
+            if ($a && !empty($a[0]['id'])) return (int) $a[0]['id'];
+        }
+        $pop = $this->populerHizmetler(1);
+        foreach ($hizmetler as $h) if ($pop && trim((string) $h['ad']) === $pop[0]) return (int) $h['id'];
+        return $hizmetler ? (int) $hizmetler[0]['id'] : null;
+    }
+
+    /** Panel zili + yoneticilere push: "Hizmet anlaşılmadı, müşteriyi arayın" (randevu detayina gider). */
+    protected function hizmetAnlasilmadiBildir(int $randevuId, string $tarih, string $saat, string $ifade): void
+    {
+        $kim = 'Bir müşteri';
+        try {
+            $u = $this->musteriId ? \DB::table('users')->where('id', $this->musteriId)->first(['name', 'cep_telefon']) : null;
+            if ($u) $kim = trim(($u->name ?: 'Bir müşteri') . ($u->cep_telefon ? ' (' . $u->cep_telefon . ')' : ''));
+        } catch (\Throwable $e) {}
+        $mesaj = '⚠️ Hizmet anlaşılmadı: ' . $kim . ' için ' . $this->tarihSoz($tarih) . ' ' . $saat . ' randevusu açıldı'
+            . ($ifade !== '' ? '; müşterinin söylediği: "' . mb_substr($ifade, 0, 80) . '"' : '') . '. Müşteriyi arayıp hizmeti netleştirin.';
+        try {
+            $b = new \App\Bildirimler();
+            $b->aciklama = $mesaj;
+            $b->salon_id = $this->salonId;
+            $b->url = '/isletmeyonetim/randevular?sube=' . $this->salonId;
+            $b->tarih_saat = date('Y-m-d H:i:s');
+            $b->okundu = false;
+            $b->save();
+        } catch (\Throwable $e) {
+            Log::warning('[ASISTAN] hizmet anlasilmadi panel bildirimi: ' . $e->getMessage());
+        }
+        try {
+            if (!\App\Services\BildirimTercih::izin($this->salonId, 'telefon_asistani', 'yonetici', 'push')) return;
+            $yoneticiler = \App\Personeller::join('model_has_roles', 'salon_personelleri.yetkili_id', '=', 'model_has_roles.model_id')
+                ->where('salon_personelleri.salon_id', $this->salonId)->where('model_has_roles.role_id', '<', 5)
+                ->pluck('salon_personelleri.id')->toArray();
+            foreach (array_unique($yoneticiler) as $pid) {
+                \App\Services\NotificationService::toStaff((int) $pid, $this->salonId)->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                    ->title('Hizmet anlaşılmadı – müşteriyi arayın')->body($mesaj)
+                    ->deepLink('appointment_detail', ['randevu_id' => $randevuId])->send();
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[ASISTAN] hizmet anlasilmadi push: ' . $e->getMessage());
+        }
+    }
+
     protected function randevuOlusturPersonelli(array $in): array
     {
         // Kayitsiz musteriye randevu YOK: once normal musteri kaydi (ad soyad + telefon).
@@ -3800,7 +3891,7 @@ FIYAT
                 'randevu_tarihi' => $tarih, 'randevu_saati' => $saat,
                 'hizmetler' => [['hizmet_id' => $hizmetId, 'personel_id' => $personelId, 'oda_id' => '', 'cihaz_id' => '', 'yardimci_personel' => '', 'sure_dk' => $sure, 'fiyat' => $fiyat, 'birlestir' => '']],
                 'yardimcipersoneller' => [],
-                'notlar' => trim('Sesli asistan (telefon) ' . (string) ($in['notlar'] ?? '')),
+                'notlar' => trim((string) ($in['_uyari'] ?? '') . ' Sesli asistan (telefon) ' . (string) ($in['notlar'] ?? '')),
                 'cakisma_varmi' => '', 'cakisanrandevuekle' => '', 'olusturan' => null, 'olusturanMusteri' => null,
                 // TALEP olarak (BEKLENIYOR): isletme panelden onaylar. Bildirim de "randevu talebiniz alınmıştır" tonunda gider.
                 'randevuKaynak' => 'salon', 'easistan' => '1', 'durum' => (string) Randevular::BEKLENIYOR,

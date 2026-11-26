@@ -997,6 +997,16 @@ namespace {
     esit('aynı uzun cevap tekrarı → yalnız soru', 'Hangisiyle ilgilenirsiniz?', $pz->tekrarCevapKisalt($g283[0]['content'], $g283));
     esit('farklı cevap dokunulmaz', 'Tırnak için hangi gün uygun?', $pz->tekrarCevapKisalt('Tırnak için hangi gün uygun?', $g283));
 
+    bolum('Hizmet anlaşılmadı → yine randevu (2026-11-26)');
+    esit('tahmini hizmet: benzeyen ifade', 1, cagir($pz, 'tahminiHizmetId', 'el protez yaptırmak istiyorum'));
+    esit('tahmini hizmet: anlamsız ifade → yine bir hizmet', true, is_int(cagir($pz, 'tahminiHizmetId', 'kaynak yaptırmak istiyorum')));
+    $ro = null; foreach (cagir($pz, 'toolTanimlari') as $a) if ($a['name'] === 'randevu_olustur') $ro = $a;
+    esit('randevu_olustur: hizmet_anlasilmadi parametresi', true, isset($ro['input_schema']['properties']['hizmet_anlasilmadi']));
+    esit('randevu_olustur: zorunlu yalnız tarih_saat', ['tarih_saat'], $ro['input_schema']['required']);
+    icerir('prompt: iki denemede anlaşılmazsa randevu aç', 'hizmet_anlasilmadi=true', cagir($pz, 'sistemPromptu'));
+    $hz0 = asistan(['musteriId' => null, 'salon' => ['ad' => 'X', 'hizmetler' => [['id' => 1, 'ad' => 'Kalıcı Oje']]]]);
+    esit('kayıtsız müşteri → önce kayıt', false, cagir($hz0, 'randevuHizmetsiz', ['tarih_saat' => '2026-12-01T15:00:00', 'musteri_ifadesi' => 'kaynak'])['ok']);
+
     bolum('Kayıt 277: karşılama tekrarlanmaz');
     $g277 = [['role' => 'assistant', 'content' => "Merhaba, Ola Nail'e hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?"]];
     foreach (['Merhaba' => true, 'Alo, iyi günler.' => true, 'Merhabalar kolay gelsin' => true, 'Merhaba randevu almak istiyorum' => false, 'Evet' => false] as $m => $b) {
