@@ -90,6 +90,22 @@ function yankiBenzer(musteri, asistan) {
   return ortak / m.length >= 0.8 && kapsanan / a.length >= 0.5;
 }
 
+// AYNI CUMLENIN IKINCI FINALI (kayit 280/281): "Fiyatı almak istiyorum" islendi, Google birkac yuz ms sonra hafif
+// farkli final verdi ("Fiyatını almak istiyorum") -> ayri tur sayilip ayni soru iki kez okunuyordu. Kelimelerin
+// (kok eslesmesiyle) en az %75'i iki yonde ortaksa ayni cumledir.
+function ayniCumle(a, b) {
+  const ayni = (x, y) => x === y || (Math.min(x.length, y.length) >= 3 && (x.startsWith(y) || y.startsWith(x)));
+  const x = String(a || '').split(' ').filter(Boolean);
+  const y = String(b || '').split(' ').filter(Boolean);
+  if (x.length < 2 || y.length < 2) return false;
+  if (b.startsWith(a) || a.startsWith(b)) return false;   // uzatma ("saat 3" -> "saat 3 buçuk") yeni bilgidir
+  const sayi = (z) => z.filter((w) => /d/.test(w)).join(' ');
+  if (sayi(x) !== sayi(y)) return false;                 // rakam farki = farkli cumle
+  const xy = x.filter((w) => y.some((v) => ayni(w, v))).length / x.length;
+  const yx = y.filter((v) => x.some((w) => ayni(w, v))).length / y.length;
+  return xy >= 0.75 && yx >= 0.75;
+}
+
 class CagriOturumu {
   constructor({ kanalId, telefon, subeId, rtpPort, onAktar, onBitir, geriAramaOturum, hatirlatma, baslatP, hazirGiris }) {
     this.hazirGiris = hazirGiris || null; // {giris, ses}: salonun sabit ilk cumlesi (index.js saklar)
@@ -210,7 +226,7 @@ class CagriOturumu {
         return;
       }
       log.error('Beyin baslat hatasi:', e.message);
-      await this._seslendir('Sizi yetkiliye bağlıyorum, lütfen hatta kalın.');
+      await this._seslendir('Sizi yetkiliye bağlıyorum, lütfen kapatmayın.');
       this.onAktar(this.kanalId);
     }
     this._sessizlikSifirla();
@@ -341,6 +357,7 @@ class CagriOturumu {
     }
     if (onceki && (simdi - onceki.t) < 5000) {
       if (onceki.n === n || onceki.n.startsWith(n)) { log.debug('yinelenen final atlandi'); return; }
+      if (ayniCumle(onceki.n, n)) { log.info(`  (ayni cumlenin ikinci finali, yok sayildi): ${metin}`); return; }
       if (n.startsWith(onceki.n) && this.mesgul && !this._bekleyen && BOS_TEKRAR.test(n.slice(onceki.n.length).trim())) {
         // "Evet" -> "Evet evet": devami ama yeni bilgi yok -> mevcut tur surer (yeniden sorulmaz)
         log.info(`> musteri (devami, bos tekrar -> yok sayildi): ${metin}`);
@@ -655,7 +672,8 @@ class CagriOturumu {
     const t = (metin || '').trim();
     if (!t) return [];
     // Cumle sonlarindan bol (. ! ?), noktalamayi koru; cok kisa parcalari birlestir.
-    const parcalar = t.match(/[^.!?]+[.!?]*/g) || [t];
+    // Rakam arasindaki nokta (1.200, 15.30) cumle sonu DEGIL: "1." ayri okununca "birinci" deniyordu (kayit 281)
+    const parcalar = t.match(/(?:[^.!?]|\.(?=\d))+[.!?]*/g) || [t];
     const out = [];
     let tampon = '';
     for (const p of parcalar) {

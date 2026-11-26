@@ -399,7 +399,7 @@ class RandevuAsistan
                 return ['cevap' => 'Teşekkür ederiz, ödemenizi yapacağınızı işletmemize ilettim. Başka yardımcı olabileceğim bir konu var mı?', 'aksiyon' => 'odeme'];
             }
             if ($olumsuz) {
-                return ['cevap' => 'Ödemenizle ilgili görüşmek için sizi hemen işletmemize bağlıyorum, lütfen hatta kalın.', 'aksiyon' => 'aktar'];
+                return ['cevap' => 'Ödemenizle ilgili görüşmek için sizi hemen işletmemize bağlıyorum, lütfen kapatmayın.', 'aksiyon' => 'aktar'];
             }
             return null; // anlasilmadi -> LLM (gizli not: vade/tutar konusu -> aktar)
         }
@@ -457,15 +457,15 @@ class RandevuAsistan
             Log::info('[SANTRAL-TUR] kesin aktarma', ['salon' => $this->salonId, 'metin' => $metin, 'fiyat' => $fiyatSorusu]);
             $this->teshis = 'aktar';
             $cevap = $fiyatSorusu
-                ? 'Fiyat bilgisi için sizi hemen işletmemize bağlıyorum, lütfen hatta kalın.'
-                : 'Sizi hemen yetkili bir arkadaşımıza bağlıyorum, lütfen hatta kalın.';
+                ? 'Fiyat bilgisi için sizi hemen işletmemize bağlıyorum, lütfen kapatmayın.'
+                : 'Sizi hemen yetkili bir arkadaşımıza bağlıyorum, lütfen kapatmayın.';
             return ['cevap' => $cevap, 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
         }
         // SINIRLENEN MUSTERI (santral): "anlamıyorsun / robot musun / of yeter" -> uzatmadan ozur + salona aktar
         if ($this->kanal !== 'whatsapp' && $this->sinirliMi($metin)) {
             Log::info('[SANTRAL-TUR] musteri sinirli -> aktar', ['salon' => $this->salonId, 'metin' => $metin]);
             $this->teshis = 'sinirli';
-            return ['cevap' => 'Kusura bakmayın, sizi yorduk. Hemen yetkili arkadaşıma bağlıyorum, lütfen hatta kalın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
+            return ['cevap' => 'Kusura bakmayın, sizi yorduk. Hemen yetkili arkadaşıma bağlıyorum, lütfen kapatmayın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
         }
         // YALNIZ SELAM (kayit 277): karsilama az once okundu, musteri "Merhaba" dedi -> karsilama TEKRARLANMAZ (modelsiz)
         if ($this->kanal !== 'whatsapp' && $this->yalnizSelamMi($metin, $gecmis)) {
@@ -530,7 +530,7 @@ class RandevuAsistan
         $key = config('services.anthropic.key') ?: env('ANTHROPIC_API_KEY');
         if (!$key) {
             $this->teshis = 'anahtar_yok';
-            return ['cevap' => 'Sizi bir yetkiliye aktarıyorum, lütfen hatta kalın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
+            return ['cevap' => 'Sizi bir yetkiliye aktarıyorum, lütfen kapatmayın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
         }
 
         $messages = $this->gecmisMesajlari($gecmis);
@@ -566,7 +566,7 @@ class RandevuAsistan
             }
 
             if (($resp['stop_reason'] ?? '') === 'refusal') {
-                return ['cevap' => 'Bu konuda size en doğru bilgiyi işletmemiz verecektir, sizi hemen bağlıyorum, lütfen hatta kalın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
+                return ['cevap' => 'Bu konuda size en doğru bilgiyi işletmemiz verecektir, sizi hemen bağlıyorum, lütfen kapatmayın.', 'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
             }
             $content = $resp['content'] ?? [];
             $metinler = []; $toolUse = [];
@@ -1285,6 +1285,69 @@ class RandevuAsistan
             if ($ortak / count(array_unique(array_merge($a, $b))) >= 0.7) $n++;
         }
         return $n >= 2;
+    }
+
+    /**
+     * Telefonda okunacak metin (kayit 281): "1.200 TL'dir" -> "1200 liradır". Binlik noktasi cumle sonu sanilip
+     * "1." ayri okunuyordu ("birinci"), "TL" de harf harf ("te le dir") seslendiriliyordu.
+     */
+    public function sesliOkunus(string $c): string
+    {
+        // binlik ayirici: 1.200 / 12.500 / 1.250.000 -> rakamlar birlesir (15.30 saat, 25.11.2026 tarih dokunulmaz)
+        $c = preg_replace_callback('/(?<![\d.,])\d{1,3}(?:\.\d{3})+(?![\d.])/u', function ($m) { return str_replace('.', '', $m[0]); }, $c);
+        $c = preg_replace('/(\d)\s*₺/u', '$1 TL', $c);
+        $c = preg_replace('/₺\s*(\d[\d,]*)/u', '$1 TL', $c);
+        $ekler = ["dir" => "dır", "dır" => "dır", "dur" => "dır", "ye" => "ya", "ya" => "ya", "yi" => "yı", "yı" => "yı",
+            "den" => "dan", "dan" => "dan", "lik" => "lık", "lık" => "lık", "nin" => "nın", "nın" => "nın", "de" => "da", "da" => "da"];
+        // "TL" her yerde; kucuk "tl" yalniz rakamdan sonra ("500 tl")
+        $c = preg_replace_callback("/(?:(?<!\p{L})(?:TL|TRY)|(?<=\d\s)tl|(?<=\d)tl)(?:(['’])?(\p{L}+))?(?!\p{L})/u", function ($m) use ($ekler) {
+            $ek = isset($m[2]) ? mb_strtolower($m[2], 'UTF-8') : '';
+            if ($ek !== '' && empty($m[1]) && !isset($ekler[$ek])) return $m[0]; // "TLC" gibi baska kelime
+            return 'lira' . ($ek === '' ? '' : ($ekler[$ek] ?? $ek));
+        }, $c);
+        // tutar yaziyla ("1200 lira" -> "bin iki yüz lira"): ses motoru rakami/ondaligi karistirmasin
+        $c = preg_replace_callback('/(?<![\d.,])(\d{1,9})(?:,(\d{1,2}))?(\s+lira)/u', function ($m) {
+            $kurus = isset($m[2]) && $m[2] !== '' ? (int) str_pad($m[2], 2, '0') : 0;
+            return self::sayiYazi((int) $m[1]) . $m[3] . ($kurus ? ' ' . self::sayiYazi($kurus) . ' kuruş' : '');
+        }, $c);
+        // "hatta kalın" bazi seslerde "hataaa" gibi garip okunuyor -> "kapatmayın"
+        $c = preg_replace('/hatta\s+kal(ın|ınız)\b/u', 'kapatmayın', $c);
+        return $c;
+    }
+
+    /**
+     * Cevap bir onceki asistan cevabiyla AYNI ise (kayit 283: musteri "Tırnak" dedi, ayni uzun cevap ikinci kez
+     * okundu) yalniz son soru cumlesi kalir; soru yoksa / cevap kisaysa dokunulmaz.
+     */
+    public function tekrarCevapKisalt(string $c, array $gecmis): string
+    {
+        $onceki = null;
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') === 'assistant') { $onceki = (string) ($gecmis[$i]['content'] ?? ''); break; }
+        }
+        if ($onceki === null || mb_strlen($c, 'UTF-8') < 40 || $this->sade($c) !== $this->sade($onceki)) return $c;
+        $cumleler = preg_split('/(?<=[.!?])\s+/u', trim($c));
+        $son = trim((string) end($cumleler));
+        return (count($cumleler) > 1 && substr($son, -1) === '?') ? $son : $c;
+    }
+
+    /** 1200 -> "bin iki yüz" (0..999.999.999) */
+    public static function sayiYazi(int $n): string
+    {
+        if ($n === 0) return 'sıfır';
+        $bir = ['', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'];
+        $on = ['', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan'];
+        $uc = function ($x) use ($bir, $on) {
+            $y = intdiv($x, 100); $o = intdiv($x % 100, 10); $b = $x % 10;
+            return trim(($y ? ($y > 1 ? $bir[$y] . ' ' : '') . 'yüz ' : '') . ($o ? $on[$o] . ' ' : '') . $bir[$b]);
+        };
+        $parca = [];
+        foreach ([[1000000, 'milyon'], [1000, 'bin']] as [$b, $ad]) {
+            $k = intdiv($n, $b); $n %= $b;
+            if ($k) $parca[] = ($k === 1 && $ad === 'bin') ? 'bin' : $uc($k) . ' ' . $ad;
+        }
+        if ($n) $parca[] = $uc($n);
+        return implode(' ', $parca);
     }
 
     /**
@@ -3900,7 +3963,7 @@ FIYAT
             case 'randevu': return 'Randevu talebinizi oluşturdum. Randevunuz onaylandığında size bilgi verilecektir.';
             case 'iptal': return 'Randevunuz iptal edildi. Başka bir arzunuz var mı?';
             case 'guncelle': return 'Randevunuz güncellendi. Başka bir arzunuz var mı?';
-            case 'aktar': return 'Sizi bir yetkiliye aktarıyorum, lütfen hatta kalın.';
+            case 'aktar': return 'Sizi bir yetkiliye aktarıyorum, lütfen kapatmayın.';
             case 'veda': return 'Teşekkür ederiz, iyi günler dileriz.';
             default: return 'Tabii, size nasıl yardımcı olabilirim?';
         }

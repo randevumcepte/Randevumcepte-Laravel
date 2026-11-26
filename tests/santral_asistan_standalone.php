@@ -978,6 +978,25 @@ namespace {
     esit('STT ipucu: uzman adı', true, in_array('Leyla', $ip258, true) && in_array('Leyla Hanım', $ip258, true));
     icerir('prompt: kısaltılmış listeye bakıp yok deme', 'KISALTILMIŞ', cagir($pz, 'sistemPromptu'));
 
+    bolum('Kayıt 281: fiyat sesli okunuş');
+    foreach ([
+        "Protez tırnak hizmetimizin fiyatı 1.200 TL'dir." => 'Protez tırnak hizmetimizin fiyatı bin iki yüz liradır.',
+        'Kalıcı Oje fiyatımız 790 lira.' => 'Kalıcı Oje fiyatımız yedi yüz doksan lira.',
+        '1.250,50 TL' => 'bin iki yüz elli lira elli kuruş',
+        '12.500 TL\'ye kadar' => 'on iki bin beş yüz liraya kadar',
+        '₺450' => 'dört yüz elli lira',
+        '300 tl olur' => 'üç yüz lira olur',
+        'Saat 15.30 uygun mu?' => 'Saat 15.30 uygun mu?',
+        '25.11.2026 tarihinde' => '25.11.2026 tarihinde',
+        'Sizi bağlıyorum, lütfen hatta kalın.' => 'Sizi bağlıyorum, lütfen kapatmayın.',
+        'HTML ve TLC' => 'HTML ve TLC',
+    ] as $m => $b) esit("sesli: $m", $b, $pz->sesliOkunus($m));
+    foreach ([1 => 'bir', 10 => 'on', 100 => 'yüz', 101 => 'yüz bir', 1000 => 'bin', 1200 => 'bin iki yüz', 2350 => 'iki bin üç yüz elli', 100000 => 'yüz bin', 1500000 => 'bir milyon beş yüz bin'] as $n => $b)
+        esit("sayı $n", $b, $pz->sayiYazi($n));
+    $g283 = [['role' => 'assistant', 'content' => 'Üzgünüm, kaynak adında bir hizmetimiz bulunmuyor. Bunun yerine tırnak, kaş, kirpik veya pedikür gibi hizmetlerimiz var. Hangisiyle ilgilenirsiniz?'], ['role' => 'user', 'content' => 'Tırnak']];
+    esit('aynı uzun cevap tekrarı → yalnız soru', 'Hangisiyle ilgilenirsiniz?', $pz->tekrarCevapKisalt($g283[0]['content'], $g283));
+    esit('farklı cevap dokunulmaz', 'Tırnak için hangi gün uygun?', $pz->tekrarCevapKisalt('Tırnak için hangi gün uygun?', $g283));
+
     bolum('Kayıt 277: karşılama tekrarlanmaz');
     $g277 = [['role' => 'assistant', 'content' => "Merhaba, Ola Nail'e hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?"]];
     foreach (['Merhaba' => true, 'Alo, iyi günler.' => true, 'Merhabalar kolay gelsin' => true, 'Merhaba randevu almak istiyorum' => false, 'Evet' => false] as $m => $b) {

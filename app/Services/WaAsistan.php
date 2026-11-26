@@ -725,7 +725,7 @@ class WaAsistan
     protected static function telefonIfadeleri(string $c): string
     {
         $c = str_replace(['bizi aradığınız için', 'Bizi aradığınız için'], ['bize yazdığınız için', 'Bize yazdığınız için'], $c);
-        $c = preg_replace('/,?\s*lütfen hatta kalın\.?/u', '.', $c);
+        $c = preg_replace('/,?\s*lütfen (hatta kalın|kapatmayın)\.?/u', '.', $c);
         $c = preg_replace('/\.{2,}/u', '.', $c);
         return trim($c);
     }

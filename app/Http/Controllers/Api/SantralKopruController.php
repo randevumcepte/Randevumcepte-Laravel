@@ -206,21 +206,21 @@ class SantralKopruController extends Controller
             } elseif ($anlamadi && $seviye >= 4) {
                 \Log::info('[SANTRAL-TUR] anlamama 4 -> salona aktar', ['oturum' => $oid, 'metin' => $metin]);
                 $as->teshis = 'anlasilamadi';
-                $d = ['cevap' => 'Kusura bakmayın, hattan sesiniz net gelmiyor; size daha iyi yardımcı olabilmesi için sizi yetkili arkadaşıma bağlıyorum, lütfen hatta kalın.',
+                $d = ['cevap' => 'Kusura bakmayın, hattan sesiniz net gelmiyor; size daha iyi yardımcı olabilmesi için sizi yetkili arkadaşıma bağlıyorum, lütfen kapatmayın.',
                       'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
                 $seviye = 0;
             } elseif ($as->donguMu((string) ($d['cevap'] ?? ''), $gecmis)) {
                 // Ayni soru ucuncu kez soruluyor: konusma ilerlemiyor
                 \Log::info('[SANTRAL-TUR] dongu -> salona aktar', ['oturum' => $oid, 'metin' => $metin, 'cevap' => $d['cevap']]);
                 $as->teshis = 'dongu';
-                $d = ['cevap' => 'Kusura bakmayın, sizi daha fazla bekletmeyeyim; yetkili arkadaşıma bağlıyorum, lütfen hatta kalın.',
+                $d = ['cevap' => 'Kusura bakmayın, sizi daha fazla bekletmeyeyim; yetkili arkadaşıma bağlıyorum, lütfen kapatmayın.',
                       'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
                 $seviye = 0;
             } elseif (!empty($d['randevu_hata']) && $this->oncekiRandevuHatasi($gecmis)) {
                 // Randevu kaydi ust uste ikinci kez hata verdi
                 \Log::warning('[SANTRAL-TUR] randevu 2. kez kaydedilemedi -> salona aktar', ['oturum' => $oid]);
                 $as->teshis = 'randevu_hata';
-                $d = ['cevap' => 'Kusura bakmayın, randevunuzu sistemde kaydedemedim; sizi hemen yetkili arkadaşıma bağlıyorum, lütfen hatta kalın.',
+                $d = ['cevap' => 'Kusura bakmayın, randevunuzu sistemde kaydedemedim; sizi hemen yetkili arkadaşıma bağlıyorum, lütfen kapatmayın.',
                       'aksiyon' => 'aktar', 'veri' => [], 'bitir' => false];
             }
         }
@@ -240,7 +240,12 @@ class SantralKopruController extends Controller
         // (eski kopyanin ustune yazilirsa o tur silinirdi). Kopru bu turu iptal ettiyse gecmise yazilmaz.
         if ($tur > 0) $gecmis = $gecmisHazirla(DB::table('santral_oturumlari')->where('id', $oid)->value('gecmis'));
         // Kalip "Başka yardımcı olabileceğim bir konu var mı?" -> sirayla dogal soru (kayit 172)
-        if (!empty($d['cevap'])) $d['cevap'] = $as->kapanisDogallastir((string) $d['cevap'], $gecmis);
+        if (!empty($d['cevap'])) $d['cevap'] = $as->sesliOkunus($as->kapanisDogallastir((string) $d['cevap'], $gecmis));
+        // Ayni uzun cevap ust uste okunmasin (kayit 283: "kaynak adında bir hizmetimiz bulunmuyor..." iki kez): musteri
+        // onceki cevabi duyduysa yalniz son sorusu sorulur
+        if (!empty($d['cevap']) && empty($d['aksiyon']) && !$r->input('onceki_duyulmadi')) {
+            $d['cevap'] = $as->tekrarCevapKisalt((string) $d['cevap'], $gecmis);
+        }
 
         // gecmisi guncelle (son 40)
         $isaret = $tur > 0 ? ['tur' => $tur] : [];

@@ -90,7 +90,7 @@ function girisKaydet(subeId, giris, ses) {
   catch (e) { log.warn('karsilama girisi yazilamadi: ' + e.message); }
 }
 const yerelYari = new Map();        // aktarma kuyruk bacaginin (Local ;2) id'si -> {callerId, hedefId}
-const ARA_ANONS = 'Yetkili arkadaşımıza ulaşmaya çalışıyorum, lütfen hatta kalın.';
+const ARA_ANONS = 'Yetkili arkadaşımıza ulaşmaya çalışıyorum, lütfen kapatmayın.';
 const geriBasarili = new Set();     // callee acip oturum baslayan geri-arama id'leri (cevapsiz yanlis raporlanmasin)
 let _geriDongudeMi = false;
 
@@ -117,7 +117,7 @@ async function main() {
   // (cumle bolme ile birebir ayni metin olmali). Maliyet: acilis basina ~300 karakter.
   (async () => {
     for (const c of ['Başka yardımcı olabileceğim bir konu var mı?', 'Hangisini tercih edersiniz?', 'Hemen bakıyorum.',
-      'Tamam, kontrol ediyorum.', 'Randevunuz onaylandığında size bilgi verilecektir.', 'Lütfen hatta kalın.', ARA_ANONS]) {
+      'Tamam, kontrol ediyorum.', 'Randevunuz onaylandığında size bilgi verilecektir.', 'Lütfen kapatmayın.', ARA_ANONS]) {
       // Isletmelerin secebildigi her ses icin (disk onbellegi kalici -> ses basina tek seferlik ~300 karakter)
       for (const ses of cfg.tts.sesler) { try { await tts.seslendir(c, { ses }); } catch (_) {} }
     }
