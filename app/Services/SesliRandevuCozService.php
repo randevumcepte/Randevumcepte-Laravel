@@ -318,9 +318,12 @@ class SesliRandevuCozService
         }
 
         // 2) Goreli: bugun / yarin / obur gun / ertesi gun / yarindan sonra
-        if (preg_match('/\bbugun\b/u', $fold))                  return $bugun->toDateString();
-        if (preg_match('/\byarin\b/u', $fold) && !preg_match('/\byarindan sonra\b/u', $fold)) return $bugun->copy()->addDay()->toDateString();
-        if (preg_match('/\bobur gun\b|\bobursu gun\b|\bertesi gun\b|\byarindan sonra\b/u', $fold)) return $bugun->copy()->addDays(2)->toDateString();
+        // Ekli halleri de (veri seti 2026-11-27): "bugüne", "yarına", "yarınki", "öbür güne", STT "öbürgün"
+        if (preg_match('/\bbugun(e|ku|un)?\b/u', $fold))      return $bugun->toDateString();
+        if (preg_match('/\byarin(a|ki|in)?\b/u', $fold) && !preg_match('/\byarindan sonra\b/u', $fold)) return $bugun->copy()->addDay()->toDateString();
+        if (preg_match('/\bobur ?gun\w*|\bobursu gun\b|\bertesi gun\b|\byarindan sonra\b/u', $fold)) return $bugun->copy()->addDays(2)->toDateString();
+        // "ayın son günü" -> bu ayin son gunu
+        if (preg_match('/\bayin son gunu\b/u', $fold)) return $bugun->copy()->modify('last day of this month')->toDateString();
 
         // 2b) "uc gun sonra" / "3 gun icinde" / "iki hafta sonra"  (sozcuk ya da rakam)
         $sayiRe = '(?:\d{1,2}|' . implode('|', array_keys($this->sayiKelimeleri)) . ')';
@@ -364,7 +367,8 @@ class SesliRandevuCozService
 
         // 4) Gun adi: "cumartesi", "haftaya sali", "bu cuma"
         foreach ($this->gunler as $ad => $dow) {
-            if (preg_match('/\b' . $ad . '\b/u', $fold)) {
+            // Ekli gun adi da: "cumartesiye", "salıya", "cuma gününe", "pazartesiden" (veri seti 2026-11-27)
+            if (preg_match('/\b' . $ad . '(?:ye|ya|e|a|den|dan|ki)?\b/u', $fold)) {
                 $hedef = $bugun->copy()->next($dow);            // her zaman ILERI tarih
                 // "haftaya / gelecek hafta / onumuzdeki hafta carsamba" -> GELECEK TAKVIM HAFTASI (Pzt-Paz)
                 // icindeki o gun. (Pazar gunu "onumuzdeki hafta carsamba" = 3 gun sonra, 10 gun sonra degil.)
@@ -393,7 +397,15 @@ class SesliRandevuCozService
     public function zamanCoz($metin)
     {
         $fold = $this->fold($metin);
-        return ['tarih' => $this->tarihCoz($fold), 'saat' => $this->saatCoz($fold), 'vakit' => $this->vakitBul($fold)];
+        $z = ['tarih' => $this->tarihCoz($fold), 'saat' => $this->saatCoz($fold), 'vakit' => $this->vakitBul($fold)];
+        // Duzeltme: "yarın değil (de) öbür gün", "akşam değil sabah" -> "değil"den SONRASI gecerli (veri seti 2026-11-27)
+        if (preg_match('/\bdegil\b(?:\s+de\b)?[\s,]+(.+)$/u', $fold, $m)) {
+            $kuyruk = $m[1];
+            foreach (['tarih' => $this->tarihCoz($kuyruk), 'saat' => $this->saatCoz($kuyruk), 'vakit' => $this->vakitBul($kuyruk)] as $k => $v) {
+                if ($v !== null) $z[$k] = $v;
+            }
+        }
+        return $z;
     }
 
     /* ------------------------------------------------------------------ */
@@ -409,21 +421,25 @@ class SesliRandevuCozService
     protected function saatSozcukRakam($fold)
     {
         $birler = ['bir' => 1, 'iki' => 2, 'uc' => 3, 'dort' => 4, 'bes' => 5, 'alti' => 6, 'yedi' => 7, 'sekiz' => 8, 'dokuz' => 9, 'dord' => 4];
-        $once = '(?:saat|sabah|aksam|sonra|once|pazartesi|sali|carsamba|persembe|cuma|cumartesi|pazar|yarin|bugun)';
-        $re = '/(?<onc>\b' . $once . '\s+)?\b(?<on>on|yirmi)?(?:\s*(?<bir>bir|iki|uc|dord|dort|bes|alti|yedi|sekiz|dokuz))?(?<ek>de|da|te|ta|ye|ya|e|a)?\b'
-            . '(?<son>\s+(?:bucuk\w*|gibi|civar\w*|sular\w*|ceyrek\w*|dolay\w*))?(?!\s+(?:gun|hafta|ay|kisi|seans|tane|dakika|saat)\b)/u';
+        $once = '(?:saat|sabah|aksam|sonra|once|pazartesi|sali|carsamba|persembe|cuma|cumartesi|pazar|yarin|bugun|oglen|ogle)';
+        $re = '/(?<onc>\b' . $once . '\s+)?\b(?<on>on|yirmi)?(?:\s*(?<bir>bir|iki|uc|dord|dort|bes|alti|yedi|sekiz|dokuz))?(?<ek>(?:den|dan|ten|tan)(?=\s+sonra\b)|de|da|te|ta|yi|yu|ye|ya|e|a|i|u)?\b'
+            . '(?<son>\s+(?:bucu[kg]\w*|gibi|civar\w*|sular\w*|ceyrek\w*|dolay\w*|dogru))?(?!\s+(?:gun|hafta|ay|kisi|seans|tane|dakika|saat)\b)/u';
         return preg_replace_callback($re, function ($m) use ($birler) {
             $on = $m['on'] ?? ''; $bir = $m['bir'] ?? '';
             if ($on === '' && $bir === '') return $m[0];
             $deger = ($on === 'on' ? 10 : ($on === 'yirmi' ? 20 : 0)) + ($bir !== '' ? $birler[$bir] : 0);
             $ek = $m['ek'] ?? '';
+            $son = trim($m['son'] ?? '');
+            // Belirtme eki ("biri", "ikiyi", "onu") yalniz "çeyrek geçe"de saat; ayrilma ("beşten") desende yalniz "sonra" oncesi
+            if (in_array($ek, ['yi', 'yu', 'i', 'u'], true) && strpos($son, 'ceyrek') !== 0) return $m[0];
+            if ($son === 'dogru' && !in_array($ek, ['ye', 'ya', 'e', 'a'], true)) return $m[0];
             // Baglam yoksa dokunma ("bir randevu", "on gun", "iki kisi")
             if (($m['onc'] ?? '') === '' && $ek === '' && ($m['son'] ?? '') === '') return $m[0];
             // Yalin "onda" / "ona" (zamir: "onda var mı") baglam kelimesi olmadan saat sayilmaz
             if ($on === 'on' && $bir === '' && ($m['onc'] ?? '') === '' && ($m['son'] ?? '') === '') return $m[0];
             if ($deger < 1 || $deger > 24) return $m[0];
             // Ek: bulunma (de/da/te/ta) -> "2'de"; yonelme (e/a/ye/ya) -> "2'e" (desen 3'teki "'a/'e dogru")
-            $ekYaz = $ek === '' ? '' : (in_array($ek, ['de', 'da', 'te', 'ta'], true) ? "'" . $ek : "'" . substr($ek, -1));
+            $ekYaz = $ek === '' ? '' : (in_array($ek, ['de', 'da', 'te', 'ta', 'den', 'dan', 'ten', 'tan'], true) ? "'" . $ek : "'" . substr($ek, -1));
             return ($m['onc'] ?? '') . $deger . $ekYaz . ($m['son'] ?? '');
         }, $fold);
     }
@@ -431,7 +447,8 @@ class SesliRandevuCozService
     protected function saatCoz($fold)
     {
         $fold = $this->saatSozcukRakam($fold);
-        $ogledenSonra = (bool) preg_match('/\bogleden sonra\b|\baksam(\s?(ustu|uzeri))?\b|\bikindi\b|\bgece\b/u', $fold);
+        // "çeyrek geçe" fold'da "ceyrek gece": GECE sayilmaz (yoksa "on biri çeyrek geçe" 23:15 oluyordu)
+        $ogledenSonra = (bool) preg_match('/\bogleden sonra\b|\baksam(\s?(ustu|uzeri))?\b|\bikindi\b|(?<!ceyrek )\bgece\b/u', $fold);
         $sabah        = (bool) preg_match('/\bsabah\b|\bogleden once\b/u', $fold);
 
         // 1) 14:30 / 9.45
@@ -448,8 +465,14 @@ class SesliRandevuCozService
             return $this->saatFormat((int) $m[1], 15, $ogledenSonra, $sabah, false);
         }
 
-        // 2) "2 bucuk" / "3 bucukta" (ekli hali de) -> :30
-        if (preg_match('/\b(\d{1,2})\s*bucuk/u', $fold, $m)) {
+        // 1c) "beşe beş var" -> 16:55, "altıya on var" -> 17:50
+        if (preg_match('/\b(\d{1,2})[\'’]?[ae]\s+(yirmi bes|yirmi|on|bes|\d{1,2})\s+var\b/u', $fold, $m)) {
+            $dk = ['yirmi bes' => 25, 'yirmi' => 20, 'on' => 10, 'bes' => 5][$m[2]] ?? (int) $m[2];
+            if ($dk > 0 && $dk < 60) return $this->saatFormat((int) $m[1] - 1, 60 - $dk, $ogledenSonra, $sabah, false);
+        }
+
+        // 2) "2 bucuk" / "3 bucukta" / "1 buçuğa doğru" (ekli hali de) -> :30
+        if (preg_match('/\b(\d{1,2})\s*bucu[kg]/u', $fold, $m)) {
             return $this->saatFormat((int) $m[1], 30, $ogledenSonra, $sabah, false);
         }
 
@@ -463,7 +486,8 @@ class SesliRandevuCozService
             || preg_match('/\b(\d{1,2})[\'’]?(?:de|da|te|ta)\b/u', $fold, $m)
             || preg_match('/\b(?:ogleden sonra|aksam|sabah)\s+(\d{1,2})\b/u', $fold, $m)
             || preg_match('/\b(\d{1,2})\s*(?:gibi|sularinda|civari|civarinda|dolaylarinda)\b/u', $fold, $m)
-            || preg_match('/\b(\d{1,2})[\'’]?\s*[ae]\s+dogru\b/u', $fold, $m)) {
+            || preg_match('/\b(\d{1,2})[\'’]?\s*[ae]\s+dogru\b/u', $fold, $m)
+            || preg_match('/\b(\d{1,2})[\'’]?(?:den|dan|ten|tan)\s+sonra\b/u', $fold, $m)) { // "beşten sonra" -> 17:00
             return $this->saatFormat((int) $m[1], 0, $ogledenSonra, $sabah, false);
         }
 
@@ -512,14 +536,19 @@ class SesliRandevuCozService
     protected function vakitBul($fold)
     {
         // "akşamüstü / akşam üzeri / ikindi" da akşam (kayit 321: anlasilmadi, "saat kaçta?" soruldu)
-        if (preg_match('/\baksam(\s?(ustu|uzeri))?\b|\bikindi\b|\bgece\b/u', $fold)) {
-            return 'aksam';
-        }
-        if (preg_match('/\bogleden sonra\b/u', $fold)) {
+        // Ekli haller de (veri seti 2026-11-27): "akşamına", "akşamleyin", "sabahtan", "sabahleyin", "öğleden sonraya"
+        if (preg_match('/\bogle(n)?den sonra\w*/u', $fold)) {
             return 'ogleden_sonra';
         }
-        if (preg_match('/\bsabah\b|\bogleden once\b/u', $fold)) {
+        if (preg_match('/\baksam\w*|\bikindi\b|(?<!ceyrek )\bgece\b|\bgunun son\w*|\bson randevu/u', $fold)) {
+            return 'aksam';
+        }
+        if (preg_match('/\bsabah\w*|\bogleden once\b|\bogle(ye|n)? (kalmadan|olmadan)\b|\bgunun ilk\b|\bilk randevu/u', $fold)) {
             return 'sabah';
+        }
+        // "saat birden / ikiden sonra" -> ogleden sonra
+        if (preg_match('/\b(bir|iki|uc|1|2|3)[\'’]?(den|ten) sonra\b/u', $fold)) {
+            return 'ogleden_sonra';
         }
         if (preg_match('/\bogle(n|ye|de|nde)?\b|\boglene\b/u', $fold)) {
             return 'ogle';

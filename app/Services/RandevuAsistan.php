@@ -863,7 +863,10 @@ class RandevuAsistan
     {
         $f = ' ' . $this->sade($m) . ' ';
         if (preg_match('/ (ama|fakat|bir de|var mi) | (randevu|iptal|degis|ertele|saat|soru|ogren|istiyor|bir sey daha)/u', $f)) return false;
-        return (bool) preg_match('/ (yok|hayir|tesekkur|sag ?ol|eyvallah|iyi gunler|iyi aksamlar|bu kadar|o kadar|gerek yok)/u', $f);
+        // Gun/vakit/personel/hizmet konusan "hayır" veda degil (veri seti 2026-11-27: "Hayır, o gün işim var", "Hayır, ben akşam istemiştim")
+        $icerik = preg_replace('/ iyi (gunler|aksamlar|geceler|calismalar)\w*/u', ' ', $f); // selamlasma kalibi icerik sayilmaz
+        if (preg_match('/ (sabah|aksam|ogle|gun|tarih|pazartesi|sali|carsamba|persembe|cuma|cumartesi|pazar|personel|hizmet|uymuyor|uymaz|olmayacak|yaptirmayacag|istemistim|sehir)/u', $icerik)) return false;
+        return (bool) preg_match('/ (yok|hayir|tesekkur|sag ?ol|eyvallah|iyi gunler|iyi aksamlar|iyi geceler|bu kadar|o kadar|gerek yok|hosca kal|iyi calismalar|kendinize iyi bak|kapatiyorum|gorusmek uzere|gorusuruz|kolay gelsin)/u', $f);
     }
 
     /** Musteri cevabi onay mi? (ret/kosul icermeyen evet turevleri) */
@@ -1656,6 +1659,20 @@ class RandevuAsistan
             '/(?<!\p{L})[İiIı]brahim\s+de\s+bu(?=\s+(için|almak|alacak|alabilir|istiyor))/u' => 'bir randevu',
             // "randevu aldattım / aldatım / alacatım" -> "alacaktım" (kayit 316)
             '/(randevu\S*\s+)(?:aldat+[iı]m|alaca?t+[iı]m)(?!\p{L})/iu' => '$1alacaktım',
+            // Telefon STT zaman yanlis duymalari (veri seti 2026-11-27, tests/veri)
+            '/(?<!\p{L})(?:ölden|öğlenden|öğleden)\s+so(?:nra|nda|ra)(?!\p{L})/iu' => 'öğleden sonra',
+            '/(?<!\p{L})(akşama|öğlene|beşe|ikiye|üçe|dörde|altıya|yediye)\s+doru(?!\p{L})/iu' => '$1 doğru',
+            '/(?<!\p{L})akşam\s*üst(?!\p{L})/iu' => 'akşamüstü',
+            '/(?<!\p{L})akşama\s+üstü(?!\p{L})/iu' => 'akşamüstü',
+            '/(?<!\p{L})akşam\s+üzre(?!\p{L})/iu' => 'akşam üzeri',
+            '/(?<!\p{L})öğür\s+gün/iu' => 'öbür gün',
+            '/(?<!\p{L})(yarın)n+a(?!\p{L})/iu' => '$1a',
+            '/(?<!\p{L})haftayağ(?!\p{L})/iu' => 'haftaya',
+            '/(?<!\p{L})(cumartesi|pazartesi)i+(?!\p{L})/iu' => '$1',
+            '/(?<!\p{L})(\S+)\s+buçu(?!\p{L})/iu' => '$1 buçuk',
+            '/(?<!\p{L})yeddi(?!\p{L})/iu' => 'yedi',
+            '/(?<!\p{L})sekis(?!\p{L})/iu' => 'sekiz',
+            '/(?<!\p{L})doküs(?!\p{L})/iu' => 'dokuz',
         ];
         return $this->salonKelimeDuzelt(preg_replace(array_keys($harita), array_values($harita), $m) ?? $m);
     }
@@ -2235,7 +2252,9 @@ class RandevuAsistan
     /** Musteri acikca bir insana/isletmeye baglanmak istiyor mu? */
     protected function aktarmaIstegiMi(string $m): bool
     {
-        return (bool) preg_match('/(bağla(r|rmısın|yın|yınız|yabilir|yar mısın|sana)|bağlanmak|bağlanabilir|aktar(ır|ırmısın|ın|ınız|abilir)\s*(mı|mi|mısın|mısınız)?\s*$|operatör|yetkili(ye|yle|lerle)?\s+(bağla|görüş|konuş|ver)|canlı destek|müşteri temsilci|biriyle\s+(görüş|konuş)|insanla\s+(görüş|konuş)|gerçek\s+(biri|bir kişi|insan))/iu', $m);
+        // Yonetici / mudur / isletme sahibi / sorumlu kisi / resepsiyon istegi de (veri seti 2026-11-27)
+        if (preg_match('/(yönetici(yle|ye|nizle|niz)|müdür(e|le|ünüzle|ünüz|le)\b|işletme (sahibi|yetkilisi)\w*|sorumlu (kişi|hanım|bey|biri)\w*|sorumluya|resepsiyon(a|la)\b|telefonu\s+(\S+\s+){0,2}(verir|aktar)|insan(la| biri)\w*\s*(görüş|konuş|aktar)?|canlı olarak|yetkili\w*\s+(\S+\s+){0,2}(aktar|anlat|danış|çöz|ulaş))/iu', $m)) return true;
+        return (bool) preg_match('/(bağla(r|rmısın|yın|yınız|yabilir|yar mısın|sana)|bağlanmak|bağlanabilir|aktar(ır|ırmısın|ın|ınız|abilir)\s*(mı|mi|mısın|mısınız)?[\s.!?]*$|operatör|yetkili(ye|yle|lerle)?\s+(bağla|görüş|konuş|ver)|canlı destek|müşteri temsilci|biriyle\s+(görüş|konuş)|insanla\s+(görüş|konuş)|gerçek\s+(biri|bir kişi|insan))/iu', $m);
     }
 
     // ---------------------------------------------------------------- tools

@@ -1,0 +1,94 @@
+cumle	yanlis_yorum	dogru_yorum
+Bir dakika bekler misiniz?	Saat 01:00 veya randevu saati talebi	Bekleme isteği
+Bir dakika, düşünüyorum.	Saat tercihi	Düşünmek için süre istiyor
+Akşam yemeği var.	Akşam randevusu istiyor	Akşam yemeğinden bahsediyor
+Akşam yemeğinden sonra ararım.	Akşam vakti randevu tercihi	Daha sonra arayacağını söylüyor
+Tamam ama saat olmaz.	Onay	Randevu saatini kabul etmiyor
+Yok yok olur.	Ret	Olumlu onay
+Hayır, akşam değil sabah.	Akşam tercihi	Sabah tercihi
+Beş dakikaya geliyorum.	Saat 17:00 talebi	Beş dakika içinde varacağını söylüyor
+On dakikaya oradayım.	Saat 10:00 talebi	On dakika sonra varacağını söylüyor
+Bir saate gelirim.	Saat 13:00 talebi	Bir saat sonra varacağını söylüyor
+On numara.	Saat 10:00 talebi	Beğeni ifadesi
+İki kişiyiz.	Saat 02:00 talebi	İki kişi olduklarını belirtiyor
+İki tane yaptıracağım.	Saat 02:00 talebi	İşlem adedi belirtiyor
+İki gün sonra arayın.	Randevu oluşturma talebi	Aranma talebi
+Saat kaçta kapanıyorsunuz?	Saat tercihi	Çalışma saati sorusu
+Saat beşte işim var.	17:00 randevu talebi	17:00'de müsait olmadığını belirtiyor
+Beş dakika bekleyin.	17:00 randevu talebi	Bekleme talebi
+Bir saniye.	Saat 01:00 talebi	Kısa süre beklemesini istiyor
+Akşam anneme gideceğim.	Akşam randevusu talebi	Kişisel programını anlatıyor
+Sabah kahvaltı yapacağım.	Sabah randevusu talebi	Kahvaltı planından bahsediyor
+Yarın hava güzel olacak.	Yarın randevusu talebi	Hava durumundan bahsediyor
+Cumartesi çalışıyorum.	Cumartesi randevusu talebi	Cumartesi müsait değil
+Pazar günü evdeyim.	Pazar randevusu talebi	Kişisel programını anlatıyor
+Öğlen yemek yiyeceğim.	Öğle randevusu talebi	Yemek planı
+Saat üçte okuldan alacağım.	15:00 randevusu talebi	Okuldan alma saati
+Saat beş gibi işten çıkıyorum.	17:00 randevu talebi	İş çıkış saati; randevu tercihi net değil
+Akşamüstü hava serinliyor.	Akşamüstü randevusu talebi	Hava durumu hakkında konuşuyor
+Yarın değil, bugün gelemem.	Yarın randevusu talebi	Bugün gelemeyeceğini söylüyor
+Öbür gün değil, yarın olsun.	Öbür gün tercihi	Yarın tarihini tercih ediyor
+Bir saat ileri gitmiş saatim.	Randevuyu bir saat ileri alma	İşaret edilen saatin yanlış olduğunu söylüyor
+Saatleri bir saat geri aldılar.	Randevu değişikliği	Saat dilimi uygulamasından bahsediyor
+Birazdan sizi ararım.	Randevu oluşturma	Sonra arayacağını söylüyor
+Beş gibi bir şey oldu.	17:00 randevu talebi	Olayın zamanını anlatıyor
+Üç numaralı personel kim?	15:00 randevu talebi	Personel numarasını soruyor
+İki numarayı aradım.	14:00 randevu talebi	Telefon numarasından bahsediyor
+Birinci katta mısınız?	Saat 01:00 talebi	Kat bilgisi soruyor
+Saat beş değil, beşe beş var.	17:00 kesin talebi	16:55 anlamına gelir
+Saat altıya beş var.	18:00 kesin talebi	17:55 anlamına gelir
+Beşten beş dakika sonra.	17:00 kesin talebi	17:05 anlamına gelir
+İki buçuk kilo verdim.	14:30 randevu talebi	Kilo bilgisinden bahsediyor
+Dört tane seansım kaldı.	16:00 randevu talebi	Seans adedini belirtiyor
+Üç gün izinliyim.	15:00 randevu talebi	İzin süresinden bahsediyor
+Biraz erken çıkabilir miyim?	Randevu saatini erkene alma	İşten veya bulunduğu yerden erken ayrılma
+Akşamları çalışıyorum.	Akşam randevusu talebi	Akşam müsait olmadığını belirtiyor
+Sabahları uyuyorum.	Sabah randevusu talebi	Sabah müsait olmadığını belirtiyor
+Öğlen hiç vaktim yok.	Öğle tercihi	Öğle saatlerinde müsait değil
+İş çıkışı trafik oluyor.	İş çıkışı randevusu talebi	Trafikten bahsediyor
+Tamam, ama yarın gelemem.	Onay	Yarın için ret
+Yok, yok, sabah olur.	Ret	Sabah tercihi olumlu
+Hayır, o değil, diğer personel.	Genel ret	Personel tercihini değiştiriyor
+Evet demedim, belki dedim.	Onay	Kararsızlık
+Olur mu öyle şey?	Onay veya kabul	Şaşkınlık veya itiraz
+Olur da geç kalırsam?	Kesin onay	Koşullu kabul ve soru
+Bir bakalım.	Randevu onayı	Kararsızlık
+Bana bir bakar mısınız?	Randevu talebi	İlgi isteme
+Yarın bir ara görüşelim.	Kesin randevu saati	Yaklaşık zaman; saat belirsiz
+Saat kaç olmuş?	Saat tercihi	Mevcut saati soruyor
+Saat tam on iki.	12:00 randevu talebi	Saat bilgisi veriyor
+On ikiye kadar çalışıyorum.	12:00 randevu talebi	Çalışma bitiş saati
+Beşe kadar buradayım.	17:00 randevu talebi	Müsaitlik bitiş sınırı
+Beşten sonra gelemem.	17:00 randevu tercihi	17:00 sonrasında müsait değil
+Bir saatim var.	Bir saat ileri randevu talebi	Boş zamanı olduğunu söylüyor
+Yarım saat bekledim.	30 dakika randevu talebi	Bekleme süresini anlatıyor
+İki saat sürdü.	14:00 randevu talebi	İşlem süresini anlatıyor
+Sabah akşam çalışıyorum.	Sabah ve akşam randevusu tercihi	Çalışma düzenini anlatıyor
+Akşamına bakarız.	Kesin akşam randevusu	Belirsiz, geleceğe yönelik ifade
+İş çıkışı mı, iş başı mı?	İş çıkışı randevu talebi	İki seçenek arasında soru
+Bir gün önce arayın.	Bir gün sonraya randevu talebi	Önceden aranma isteği
+Bir gün sonra tekrar arayın.	Randevu oluşturma	Ertesi gün aranma talebi
+İki günüm kaldı.	İki gün sonraya randevu talebi	Süre veya kalan zaman bilgisi
+Ayın üçü gibi doğum günüm var.	3 Aralık randevu talebi	Doğum günü bilgisini veriyor
+Üçüncü seansım olacak.	03:00 randevu talebi	Seans sırasını belirtiyor
+Saat üç değil, üç seans.	15:00 randevu talebi	Seans adedini düzeltiyor
+Dört buçuk numaralı oda.	16:30 randevu talebi	Oda numarası
+Beş gibi bir fiyat söylediler.	17:00 randevu talebi	Fiyat bilgisini anlatıyor
+İki yüz lira mı?	14:00 randevu talebi	Fiyatı doğruluyor
+Bir dakika, anneme sorayım.	Randevu saat 01:00	Başkasına danışmak için bekleme istiyor
+Yok, akşam değil, akşamüstü.	Akşam vakti	Akşamüstü tercihi
+Sabah değil, öğleden sonra.	Sabah tercihi	Öğleden sonra tercihi
+Öğlen değil, öğleden sonra.	Öğle tercihi	Öğleden sonra tercihi
+Saat beş civarında kapatıyoruz.	17:00 randevu talebi	İşletmenin kapanış saatinden bahsediyor
+Yarın sabah erkenden kalkacağım.	Yarın sabah randevusu	Kişisel planını anlatıyor
+Haftaya görüşürüz.	Haftaya kesin randevu talebi	Genel vedalaşma
+Şimdi değil, sonra.	Şimdi randevu talebi	Daha sonraki zamanı istiyor
+Tamam ama bir düşüneyim.	Kesin onay	Kararsızlık
+Olmaz demiyorum, ama emin değilim.	Ret	Kararsızlık
+Yok canım, olur tabii.	Ret	Olumlu onay
+Ben beş yaşındayım demiyorum.	17:00 randevu talebi	Yaş hakkında düzeltme
+Saat bir, numara iki.	13:00 randevu talebi	İki farklı bilgi veriyor
+Üçten önce değil, üçten sonra.	15:00 kesin randevu talebi	15:00 sonrası tercih; kesin saat yok
+Akşam yemeğine beşte gidiyorum.	17:00 randevu talebi	Kişisel program
+İşten önce uğrayacağım.	İş çıkışı tercihi değil	İş öncesi tercih; saat belirsiz
+Biraz sonra müsait olurum.	Kesin saat talebi	Yaklaşık zaman; netleştirme gerekir

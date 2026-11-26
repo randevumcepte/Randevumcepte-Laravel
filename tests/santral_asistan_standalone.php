@@ -1133,6 +1133,41 @@ namespace {
     esit('"yok teşekkürler" → teyit değil (veda)', null, cagir($hv, 'hizmetsizTekrarCevabi', 'Yok teşekkürler', [['role' => 'assistant', 'content' => $onc]]));
     esit('"19 olsun" → teyit değil', null, cagir($hv, 'hizmetsizTekrarCevabi', '19 olsun', [['role' => 'assistant', 'content' => $onc]]));
 
+    bolum('Veri seti: telefon STT zaman yanlış duymaları (tests/veri)');
+    $st = asistan();
+    foreach ([
+        ['ölden sonra', 'öğleden sonra'], ['öğleden sonda', 'öğleden sonra'], ['öğleden sora', 'öğleden sonra'], ['öğlenden sonra', 'öğleden sonra'],
+        ['akşama doru', 'akşama doğru'], ['öğlene doru', 'öğlene doğru'], ['akşamüst', 'akşamüstü'], ['akşama üstü', 'akşamüstü'],
+        ['akşam üzre', 'akşam üzeri'], ['öğür gün', 'öbür gün'], ['yarınna', 'yarına'], ['haftayağ', 'haftaya'], ['cumartesii', 'cumartesi'],
+        ['pazartesii', 'pazartesi'], ['beş buçu', 'beş buçuk'], ['yeddi', 'yedi'], ['sekis', 'sekiz'], ['doküs', 'dokuz'],
+        ['akşamüstü', 'akşamüstü'], ['öğleden sonra', 'öğleden sonra'], ['randevu aldattım', 'randevu alacaktım'],
+    ] as [$duy, $dogru]) esit("STT \"$duy\" → \"$dogru\"", $dogru, $st->sttDuzelt($duy));
+    esit('"yarınna öğleden sora" → tarih + vakit', 'ogleden_sonra', $zc->zamanCoz($st->sttDuzelt('yarınna öğleden sora'))['vakit']);
+    esit('"beşi çeyrek geçe" akşam/gece sayılmaz → 17:15', '17:15', $zc->zamanCoz('beşi çeyrek geçe')['saat']);
+    esit('"on biri çeyrek geçe" → 11:15 (23:15 değil)', '11:15', $zc->zamanCoz('on biri çeyrek geçe')['saat']);
+    esit('"yarın değil öbür gün" → öbür gün', '2026-11-17', $zc->zamanCoz('yarın değil öbür gün')['tarih']);
+    esit('"akşam değil sabah" → sabah', 'sabah', $zc->zamanCoz('Hayır, akşam değil sabah')['vakit']);
+    esit('"beşe beş var" → 16:55', '16:55', $zc->zamanCoz('beşe beş var')['saat']);
+
+    // Niyet veri seti (tests/veri/niyet_cumleleri.tsv): modelsiz KOD kisayollari (aktar / fiyat / veda) icin rapor.
+    // Kacirma zararsiz (model yakalar); YANLIS tetikleme zararli -> yalniz yanlis pozitifler raporlanir. NIYET_RAPOR=1 ile ayrinti.
+    $nv = asistan();
+    $nyRapor = ['kacan' => [], 'yanlis' => []];
+    foreach (array_slice(file(__DIR__ . '/veri/niyet_cumleleri.tsv', FILE_IGNORE_NEW_LINES), 1) as $sat) {
+        [$cm, $ny] = array_pad(explode("\t", $sat), 2, '');
+        if ($cm === '') continue;
+        $kod = [
+            'yetkiliye_baglan' => cagir($nv, 'aktarmaIstegiMi', $cm),
+            'fiyat_sor' => cagir($nv, 'fiyatSorusuMu', $cm),
+            'veda' => cagir($nv, 'vedaMi', $cm),
+        ];
+        foreach ($kod as $k => $v) {
+            if ($v && $ny !== $k) $nyRapor['yanlis'][] = "$k ← \"$cm\" ($ny)";
+            if (!$v && $ny === $k) $nyRapor['kacan'][] = "$k: \"$cm\"";
+        }
+    }
+    if (getenv('NIYET_RAPOR')) { echo "  kod kaçırdı (model yakalar):\n    " . implode("\n    ", $nyRapor['kacan']) . "\n  yanlış tetik:\n    " . implode("\n    ", $nyRapor['yanlis']) . "\n"; }
+
     bolum('Kayıt 277: karşılama tekrarlanmaz');
     $g277 = [['role' => 'assistant', 'content' => "Merhaba, Ola Nail'e hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?"]];
     foreach (['Merhaba' => true, 'Alo, iyi günler.' => true, 'Merhabalar kolay gelsin' => true, 'Merhaba randevu almak istiyorum' => false, 'Evet' => false] as $m => $b) {

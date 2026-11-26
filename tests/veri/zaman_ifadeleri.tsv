@@ -1,0 +1,335 @@
+ifade	kategori	vakit	saat	tarih	belirsiz_mi	not
+Sabah olsun	vakit	sabah			hayır	Sabah tercihi
+Sabah geleyim	vakit	sabah			hayır	Sabah tercihi
+Sabah saatlerinde	vakit	sabah			hayır	Sabah aralığı
+Sabah erken olsun	vakit	sabah			hayır	Erken sabah
+Sabah erkenden gelebilirim	vakit	sabah			hayır	Erken sabah
+Sabahın köründe	vakit	sabah			hayır	Erken sabah
+Günün ilk saatlerinde	vakit	sabah			hayır	Sabah tercihi
+Sabahtan yazın	vakit	sabah			hayır	Sabah tercihi
+Sabahtan geleyim	vakit	sabah			hayır	Sabah tercihi
+Sabahına randevu verin	vakit	sabah			hayır	Sabah tercihi
+Sabahleyin gelebilirim	vakit	sabah			hayır	Sabah tercihi
+Sabahın erkeninde	vakit	sabah			hayır	Erken sabah
+Kahvaltıdan sonra	vakit	sabah			evet	Kahvaltı saati kişiye göre değişir
+Kahvaltı etmeden geleyim	vakit	sabah			evet	Saat belirsiz
+Öğleden önce	vakit	sabah			hayır	Öğleden önce tercihi
+Öğleye kalmadan	vakit	sabah			hayır	Öğle öncesi
+Öğlen olmadan	vakit	sabah			hayır	Öğle öncesi
+Sabah dokuzdan sonra	vakit	sabah			hayır	Sabah aralığı
+Sabah on gibi	vakit	sabah	10:00		hayır	Saat açıkça belirtilmiş
+Dokuz civarı	saat		09:00		hayır	Sabah saat aralığı
+Dokuz buçukta	saat		09:30		hayır	Saat açıkça belirtilmiş
+Ona doğru	saat		10:00		hayır	Saat açıkça belirtilmiş
+On gibi	saat		10:00		hayır	Saat açıkça belirtilmiş
+On sularında	saat		10:00		hayır	Saat yaklaşık
+On buçukta	saat		10:30		hayır	Saat açıkça belirtilmiş
+On biri çeyrek geçe	saat		11:15		hayır	Saat açıkça belirtilmiş
+On bire çeyrek kala	saat		10:45		hayır	Saat açıkça belirtilmiş
+On bir gibi	saat		11:00		hayır	Saat yaklaşık
+On bir civarında	saat		11:00		hayır	Saat yaklaşık
+Öğlen olsun	vakit	ogle			hayır	Öğle tercihi
+Öğlen geleyim	vakit	ogle			hayır	Öğle tercihi
+Öğle saatlerinde	vakit	ogle			hayır	Öğle tercihi
+Öğlen arası	vakit	ogle			evet	İşletme ve kişinin öğle arası değişebilir
+Öğle arasında geleyim	vakit	ogle			evet	Öğle arası kişiye göre değişir
+Öğle molasında geleyim	vakit	ogle			evet	Mola saati belirsiz
+Öğle molasına yazın	vakit	ogle			evet	Mola saati belirsiz
+Öğlene doğru	vakit	ogle			hayır	Öğleye yakın
+Öğlene yakın	vakit	ogle			hayır	Öğleye yakın
+Öğlen gibi	vakit	ogle			evet	Yaklaşık öğle saati
+Tam öğlen	saat		12:00		hayır	Saat 12
+Saat on iki	saat		12:00		hayır	Saat açıkça belirtilmiş
+On iki gibi	saat		12:00		hayır	Saat yaklaşık
+On iki civarı	saat		12:00		hayır	Saat yaklaşık
+On iki buçuk	saat		12:30		hayır	Saat açıkça belirtilmiş
+On ikiyi çeyrek geçe	saat		12:15		hayır	Saat açıkça belirtilmiş
+On ikiye çeyrek kala	saat		11:45		hayır	Saat açıkça belirtilmiş
+Öğlen on iki gibi	saat		12:00		hayır	Saat açıkça belirtilmiş
+Öğlen bir gibi	saat		13:00		hayır	Saat açıkça belirtilmiş
+Öğlen birde	saat		13:00		hayır	Saat açıkça belirtilmiş
+Öğleden sonra	vakit	ogleden_sonra			hayır	Öğleden sonra tercihi
+Öğleden sonra olsun	vakit	ogleden_sonra			hayır	Öğleden sonra tercihi
+Öğleden sonra geleyim	vakit	ogleden_sonra			hayır	Öğleden sonra tercihi
+Öğleden sonraya yazın	vakit	ogleden_sonra			hayır	Öğleden sonra tercihi
+Öğleden sonraları müsaitim	vakit	ogleden_sonra			hayır	Öğleden sonra tercihi
+Öğleden sonraya randevu istiyorum	vakit	ogleden_sonra			hayır	Öğleden sonra tercihi
+Saat birden sonra	vakit	ogleden_sonra			hayır	Öğleden sonra
+Saat ikiden sonra	vakit	ogleden_sonra			hayır	Öğleden sonra
+Bir gibi	saat		13:00		hayır	Salon saatinde 13:00
+Bir civarında	saat		13:00		hayır	Salon saatinde 13:00
+Bir buçukta	saat		13:30		hayır	Saat açıkça belirtilmiş
+İkiye doğru	saat		14:00		hayır	Saat açıkça belirtilmiş
+İki gibi	saat		14:00		hayır	Salon saatinde 14:00
+İki civarı	saat		14:00		hayır	Saat yaklaşık
+İki sularında	saat		14:00		hayır	Saat yaklaşık
+İki buçukta	saat		14:30		hayır	Saat açıkça belirtilmiş
+İkiyi çeyrek geçe	saat		14:15		hayır	Saat açıkça belirtilmiş
+İkiye çeyrek kala	saat		13:45		hayır	Saat açıkça belirtilmiş
+Üç gibi	saat		15:00		hayır	Salon saatinde 15:00
+Üçe doğru	saat		15:00		hayır	Saat açıkça belirtilmiş
+Üç civarında	saat		15:00		hayır	Saat yaklaşık
+Üç sularında	saat		15:00		hayır	Saat yaklaşık
+Üç buçukta	saat		15:30		hayır	Saat açıkça belirtilmiş
+Üçü çeyrek geçe	saat		15:15		hayır	Saat açıkça belirtilmiş
+Üçe çeyrek kala	saat		14:45		hayır	Saat açıkça belirtilmiş
+Dört gibi	saat		16:00		hayır	Salon saatinde 16:00
+Dörde doğru	saat		16:00		hayır	Saat açıkça belirtilmiş
+Dört civarı	saat		16:00		hayır	Saat yaklaşık
+Dört sularında	saat		16:00		hayır	Saat yaklaşık
+Dört buçukta	saat		16:30		hayır	Saat açıkça belirtilmiş
+Dördü çeyrek geçe	saat		16:15		hayır	Saat açıkça belirtilmiş
+Dörde çeyrek kala	saat		15:45		hayır	Saat açıkça belirtilmiş
+Beş gibi	saat		17:00		hayır	Salon saatinde 17:00
+Beş civarı	saat		17:00		hayır	Saat yaklaşık
+Beş civarında	saat		17:00		hayır	Saat yaklaşık
+Beşe doğru	saat		17:00		hayır	Saat açıkça belirtilmiş
+Beş sularında	saat		17:00		hayır	Saat yaklaşık
+Beş buçukta	saat		17:30		hayır	Saat açıkça belirtilmiş
+Beşi çeyrek geçe	saat		17:15		hayır	Saat açıkça belirtilmiş
+Beşe çeyrek kala	saat		16:45		hayır	Saat açıkça belirtilmiş
+Beşten sonra	saat		17:00		hayır	17:00 sonrasını tercih ediyor
+Beşten biraz sonra	saat		17:00		evet	Saat aralığı kesin değil
+Saat beş olsun	saat		17:00		hayır	Saat açıkça belirtilmiş
+Saat beşte geleyim	saat		17:00		hayır	Saat açıkça belirtilmiş
+Beş gibi bi randevu	saat		17:00		hayır	Günlük konuşma
+Altı gibi	saat		18:00		hayır	Salon saatinde 18:00
+Altıya doğru	saat		18:00		hayır	Saat açıkça belirtilmiş
+Altı civarında	saat		18:00		hayır	Saat yaklaşık
+Altı sularında	saat		18:00		hayır	Saat yaklaşık
+Altı buçukta	saat		18:30		hayır	Saat açıkça belirtilmiş
+Altıyı çeyrek geçe	saat		18:15		hayır	Saat açıkça belirtilmiş
+Altıya çeyrek kala	saat		17:45		hayır	Saat açıkça belirtilmiş
+Yedi gibi	saat		19:00		hayır	Salon saatinde 19:00
+Yediye doğru	saat		19:00		hayır	Saat açıkça belirtilmiş
+Yedi civarı	saat		19:00		hayır	Saat yaklaşık
+Yedi sularında	saat		19:00		hayır	Saat yaklaşık
+Yedi buçukta	saat		19:30		hayır	Saat açıkça belirtilmiş
+Sekize doğru	saat		20:00		evet	Salon kapanış saati
+Sekiz gibi	saat		20:00		evet	Salon kapanış saati
+Akşamüstü	vakit	ogleden_sonra			evet	Genel olarak 16:00-18:00
+Akşamüstü olsun	vakit	ogleden_sonra			evet	Genel olarak 16:00-18:00
+Akşamüstüne	vakit	ogleden_sonra			evet	Akşamüstü tercihi
+Akşam üzeri	vakit	ogleden_sonra			evet	Genel olarak 16:00-18:00
+Akşama doğru	vakit	aksam			evet	Akşam başlangıcı kişiye göre değişir
+Akşama yakın	vakit	aksam			evet	Akşam başlangıcı belirsiz
+Akşam olsun	vakit	aksam			evet	Akşam aralığı
+Akşam geleyim	vakit	aksam			evet	Akşam aralığı
+Akşam saatlerinde	vakit	aksam			evet	Akşam aralığı
+Akşamına randevu verin	vakit	aksam			evet	Akşam tercihi
+Akşamleyin	vakit	aksam			evet	Akşam tercihi
+Akşamdan sonra	vakit	aksam			evet	Salon kapanışını aşabilir
+Akşam geç vakit	vakit	aksam			evet	Saat belirsiz
+Gün batımına doğru	vakit	aksam			evet	Mevsime göre değişir
+İş çıkışı	vakit	aksam			evet	Kişinin mesaisi bilinmiyor
+İşten çıkınca	vakit	aksam			evet	Kişinin mesaisi bilinmiyor
+İşten sonra geleyim	vakit	aksam			evet	Kişinin mesaisi bilinmiyor
+Mesai bitiminde	vakit	aksam			evet	Mesai saati bilinmiyor
+Mesai sonrası	vakit	aksam			evet	Mesai saati bilinmiyor
+Mesaim bitince	vakit	aksam			evet	Mesai saati bilinmiyor
+Vardiyadan çıkınca	vakit	aksam			evet	Vardiya saati bilinmiyor
+Eve gitmeden önce	vakit	aksam			evet	Kişiye göre değişir
+Çocukları okuldan alınca	vakit	ogleden_sonra			evet	Okul çıkış saati bilinmiyor
+Çocukları bıraktıktan sonra	vakit	sabah			evet	Kişinin programı bilinmiyor
+İş arası	vakit	ogle			evet	İş arası saati bilinmiyor
+Müsait olduğumda	vakit				evet	Belirsiz zaman
+Boş olduğumda	vakit				evet	Belirsiz zaman
+En erken ne zaman varsa	vakit				hayır	İlk müsaitlik aranır
+En geç ne zaman varsa	vakit				evet	Son uygun saat sorulmalı
+Mümkünse erken	vakit	sabah			evet	Erken tercihi
+Çok erken olmasın	vakit				evet	Üst sınır belirsiz
+Çok geç olmasın	vakit				evet	Alt sınır belirsiz
+Öğleden önce erken	vakit	sabah			evet	Saat aralığı belirsiz
+Günün ilk randevusu	vakit	sabah			hayır	İlk müsaitlik aranır
+Günün son randevusu	vakit	aksam			hayır	Son müsaitlik aranır
+Yarın	tarih			2026-11-28	hayır	Referans günün ertesi
+Yarına	tarih			2026-11-28	hayır	Referans günün ertesi
+Yarın geleyim	tarih			2026-11-28	hayır	Referans günün ertesi
+Yarın için	tarih			2026-11-28	hayır	Referans günün ertesi
+Yarın sabah	tarih+vakit	sabah		2026-11-28	hayır	Yarın sabah
+Yarın öğlen	tarih+vakit	ogle		2026-11-28	hayır	Yarın öğle
+Yarın öğleden sonra	tarih+vakit	ogleden_sonra		2026-11-28	hayır	Yarın öğleden sonra
+Yarın akşam	tarih+vakit	aksam		2026-11-28	hayır	Yarın akşam
+Yarın saat üç	tarih+saat		15:00	2026-11-28	hayır	Yarın saat 15
+Yarın beş gibi	tarih+saat		17:00	2026-11-28	hayır	Yarın saat 17
+Yarın üç buçukta	tarih+saat		15:30	2026-11-28	hayır	Yarın saat 15:30
+Yarına yazın	tarih			2026-11-28	hayır	Yarın
+Yarına alalım	tarih			2026-11-28	hayır	Yarın
+Yarın değil öbür gün	tarih			2026-11-29	hayır	İki gün sonrası
+Yarın değil de öbür gün	tarih			2026-11-29	hayır	İki gün sonrası
+Öbür gün	tarih			2026-11-29	hayır	İki gün sonrası
+Öbür güne	tarih			2026-11-29	hayır	İki gün sonrası
+Ertesi gün	tarih			2026-11-28	evet	Önceki tarihe göre hesaplanmalı
+Bir sonraki gün	tarih			2026-11-28	evet	Önceki tarihe göre hesaplanmalı
+İki gün sonra	tarih			2026-11-29	hayır	İki gün sonrası
+Üç gün sonra	tarih			2026-11-30	hayır	Üç gün sonrası
+Dört gün sonra	tarih			2026-12-01	hayır	Dört gün sonrası
+Beş gün sonra	tarih			2026-12-02	hayır	Beş gün sonrası
+Haftaya	tarih				evet	Haftanın hangi günü belirsiz
+Önümüzdeki hafta	tarih				evet	Gün belirtilmemiş
+Haftaya pazartesi	tarih			2026-11-30	hayır	Gelecek pazartesi
+Haftaya salı	tarih			2026-12-01	hayır	Gelecek salı
+Haftaya çarşamba	tarih			2026-12-02	hayır	Gelecek çarşamba
+Haftaya perşembe	tarih			2026-12-03	hayır	Gelecek perşembe
+Haftaya cuma	tarih			2026-12-04	hayır	Gelecek cuma
+Haftaya cumartesi	tarih			2026-12-05	hayır	Gelecek cumartesi
+Haftaya pazar	tarih			2026-12-06	hayır	Pazar kapalı
+Önümüzdeki pazartesi	tarih			2026-11-30	hayır	Gelecek pazartesi
+Önümüzdeki salı	tarih			2026-12-01	hayır	Gelecek salı
+Önümüzdeki çarşamba	tarih			2026-12-02	hayır	Gelecek çarşamba
+Önümüzdeki perşembe	tarih			2026-12-03	hayır	Gelecek perşembe
+Önümüzdeki cuma	tarih			2026-12-04	hayır	Gelecek cuma
+Önümüzdeki cumartesi	tarih			2026-12-05	hayır	Gelecek cumartesi
+Bu cumartesi	tarih			2026-11-28	hayır	En yakın cumartesi
+Cumartesi günü	tarih			2026-11-28	hayır	En yakın cumartesi
+Cumartesiye	tarih			2026-11-28	hayır	En yakın cumartesi
+Pazar günü	tarih			2026-11-29	hayır	Salon kapalı
+Bu pazar	tarih			2026-11-29	hayır	Salon kapalı
+Hafta sonu	tarih				evet	Cumartesi veya pazar
+Bu hafta sonu	tarih				evet	28 veya 29 Kasım
+Önümüzdeki hafta sonu	tarih				evet	5 veya 6 Aralık
+Hafta içi bir gün	tarih				evet	Gün belirsiz
+Hafta içi	tarih				evet	Gün belirsiz
+Hafta ortası	tarih				evet	Gün belirsiz
+Hafta başı	tarih				evet	Gün belirsiz
+Hafta sonuna doğru	tarih				evet	Gün belirsiz
+Ayın üçü	tarih			2026-12-03	evet	Aralık ayının 3'ü varsayımı
+Ayın 3'ünde	tarih			2026-12-03	evet	Aralık ayının 3'ü varsayımı
+Ayın beşinde	tarih			2026-12-05	evet	Aralık ayının 5'i varsayımı
+Ayın onu	tarih			2026-12-10	evet	Aralık ayının 10'u varsayımı
+Ayın on beşi	tarih			2026-12-15	evet	Aralık ayının 15'i varsayımı
+Ayın yirmisinde	tarih			2026-12-20	evet	Aralık ayının 20'si varsayımı
+Ayın son günü	tarih			2026-11-30	hayır	Kasımın son günü
+Ay sonuna doğru	tarih				evet	Ay sonu aralığı
+Ayın başında	tarih				evet	Ayın başı aralığı
+Ay başına	tarih				evet	Ayın başı aralığı
+Ay ortasında	tarih				evet	Ayın ortası aralığı
+Ayın ortalarına doğru	tarih				evet	Ayın ortası aralığı
+Yeni ayda	tarih				evet	Ay belirtilmemiş
+Aralık ayında	tarih				evet	Gün belirtilmemiş
+Aralığın başında	tarih				evet	Gün belirtilmemiş
+Aralık ortasında	tarih				evet	Gün belirtilmemiş
+Aralık sonunda	tarih				evet	Gün belirtilmemiş
+Yılbaşından önce	tarih				evet	Tarih aralığı belirsiz
+Yılbaşından sonra	tarih				evet	Tarih aralığı belirsiz
+Tatilden sonra	tarih				evet	Tatil tarihi bilinmiyor
+Pazartesiden sonra	tarih			2026-12-01	evet	Pazartesi sonrası gün belirtilmemiş
+Salıdan sonra	tarih			2026-12-02	evet	Salı sonrası gün belirtilmemiş
+Cuma gününe	tarih			2026-12-04	hayır	Gelecek cuma
+Önümüzdeki cuma sabah	tarih+vakit	sabah		2026-12-04	hayır	Tarih ve vakit
+Yarın akşamüstü	tarih+vakit	ogleden_sonra		2026-11-28	evet	Tarih ve yaklaşık vakit
+Öbür gün sabah	tarih+vakit	sabah		2026-11-29	hayır	Tarih ve vakit
+Haftaya salı öğleden sonra	tarih+vakit	ogleden_sonra		2026-12-01	hayır	Tarih ve vakit
+Pazartesi saat on bir	tarih+saat		11:00	2026-11-30	hayır	Tarih ve saat
+Salı iki gibi	tarih+saat		14:00	2026-12-01	hayır	Tarih ve saat
+Cuma beş buçukta	tarih+saat		17:30	2026-12-04	hayır	Tarih ve saat
+Cumartesi üçte	tarih+saat		15:00	2026-11-28	hayır	Tarih ve saat
+Yarın saat dörtte	tarih+saat		16:00	2026-11-28	hayır	Tarih ve saat
+Yarın saat altıda	tarih+saat		18:00	2026-11-28	hayır	Tarih ve saat
+Öbür gün saat onda	tarih+saat		10:00	2026-11-29	hayır	Pazar kapalı
+Yarın beşten sonra	tarih+saat		17:00	2026-11-28	hayır	17 sonrası tercih
+Yarın öğleden sonra olsun	tarih+vakit	ogleden_sonra		2026-11-28	hayır	Tarih ve vakit
+Cumartesi akşam	tarih+vakit	aksam		2026-11-28	hayır	Tarih ve vakit
+Cumartesi akşamüstü	tarih+vakit	ogleden_sonra		2026-11-28	evet	Tarih ve yaklaşık vakit
+Pazartesi sabah erkenden	tarih+vakit	sabah		2026-11-30	hayır	Tarih ve vakit
+Bir saat ileri	goreli_kaydirma				evet	Mevcut randevu saatine göre
+Bir saat geri	goreli_kaydirma				evet	Mevcut randevu saatine göre
+Bir saat öne al	goreli_kaydirma				evet	Mevcut randevu saatine göre
+Bir saat ileri alalım	goreli_kaydirma				evet	Mevcut saate göre
+Bir saat geri alalım	goreli_kaydirma				evet	Mevcut saate göre
+Yarım saat ileri	goreli_kaydirma				evet	Mevcut saate göre
+Yarım saat geri	goreli_kaydirma				evet	Mevcut saate göre
+Yarım saat erkene	goreli_kaydirma				evet	Mevcut saate göre
+Yarım saat geçe	goreli_kaydirma				evet	Mevcut saate göre
+Biraz erkene alalım	goreli_kaydirma				evet	Ne kadar erken olduğu belirsiz
+Biraz ileri alalım	goreli_kaydirma				evet	Ne kadar ileri olduğu belirsiz
+Biraz geç olsun	goreli_kaydirma				evet	Ne kadar geç olduğu belirsiz
+Biraz erkene çekelim	goreli_kaydirma				evet	Ne kadar erken olduğu belirsiz
+Daha erken bir saate	goreli_kaydirma				evet	Yeni saat belirsiz
+Daha geç bir saate	goreli_kaydirma				evet	Yeni saat belirsiz
+İki saat ileri	goreli_kaydirma				evet	Mevcut saate göre
+İki saat geri	goreli_kaydirma				evet	Mevcut saate göre
+On beş dakika ileri	goreli_kaydirma				evet	Mevcut saate göre
+On beş dakika geri	goreli_kaydirma				evet	Mevcut saate göre
+Randevuyu bir gün ileri al	goreli_kaydirma				evet	Mevcut tarihe göre
+Bir gün geri alalım	goreli_kaydirma				evet	Mevcut tarihe göre
+Bugünkünü yarına alalım	goreli_kaydirma				evet	Mevcut randevu tarihini yarına taşı
+Yarınkini öbür güne alalım	goreli_kaydirma				evet	Mevcut tarihi iki gün sonrasına taşı
+Haftaya erteleyelim	goreli_kaydirma				evet	Gün ve saat belirsiz
+Bir sonraki haftaya al	goreli_kaydirma				evet	Gün ve saat belirsiz
+Öne çekebilir miyiz	goreli_kaydirma				evet	Yeni zaman belirsiz
+İleri tarihe atalım	goreli_kaydirma				evet	Yeni tarih belirsiz
+Geri tarihe alalım	goreli_kaydirma				evet	Yeni tarih belirsiz
+Şimdiden biraz sonraya	goreli_kaydirma				evet	Süre belirsiz
+Biraz daha erkene	goreli_kaydirma				evet	Süre belirsiz
+Biraz daha ileriye	goreli_kaydirma				evet	Süre belirsiz
+Bugün	tarih			2026-11-27	hayır	Referans günü
+Bugüne	tarih			2026-11-27	hayır	Referans günü
+Bugün öğleden sonra	tarih+vakit	ogleden_sonra		2026-11-27	hayır	Referans gün ve vakit
+Bugün akşam	tarih+vakit	aksam		2026-11-27	hayır	Referans gün ve vakit
+Bugün saat dörtte	tarih+saat		16:00	2026-11-27	hayır	Referans gün ve saat
+Bugün beş gibi	tarih+saat		17:00	2026-11-27	hayır	Referans gün ve saat
+Şu an	tarih+saat		14:00	2026-11-27	hayır	Referans anı
+Şimdi geleyim	saat		14:00		evet	Varış süresi bilinmiyor
+Birazdan geleyim	saat				evet	Varış süresi belirsiz
+Az sonra geleyim	saat				evet	Varış süresi belirsiz
+Beş dakikaya geliyorum	saat				hayır	Varış süresi, randevu saati değil
+On dakikaya oradayım	saat				hayır	Varış süresi, randevu saati değil
+Yarım saate gelirim	saat				hayır	Varış süresi, randevu saati değil
+Bir saate gelirim	saat				hayır	Varış süresi, randevu saati değil
+Şimdi çıkıyorum	saat				evet	Varış saati bilinmiyor
+Yoldayım	saat				evet	Varış saati bilinmiyor
+Yarın sabahtan	tarih+vakit	sabah		2026-11-28	hayır	Yarın sabah
+Yarına sabah	tarih+vakit	sabah		2026-11-28	hayır	Yarın sabah
+Yarına öğlene doğru	tarih+vakit	ogle		2026-11-28	hayır	Yarın öğle
+Yarın akşamına	tarih+vakit	aksam		2026-11-28	hayır	Yarın akşam
+Öbür güne sabah	tarih+vakit	sabah		2026-11-29	hayır	Öbür gün sabah
+Haftaya bir ara	tarih				evet	Gün belirsiz
+Haftaya müsait bir gün	tarih				evet	Gün belirsiz
+Ayın sonuna doğru	tarih				evet	Ay sonu aralığı
+Ayın ilk haftası	tarih				evet	Gün belirsiz
+Ayın ikinci haftası	tarih				evet	Gün belirsiz
+Ayın üçüncü haftası	tarih				evet	Gün belirsiz
+Ayın dördüncü haftası	tarih				evet	Gün belirsiz
+Hafta başına doğru	tarih				evet	Gün belirsiz
+Hafta sonuna doğru	tarih				evet	Gün belirsiz
+Sabah dokuzda	saat		09:00		hayır	Açılış saati
+Dokuz buçuk gibi	saat		09:30		hayır	Saat yaklaşık
+On buçuk gibi	saat		10:30		hayır	Saat yaklaşık
+On bire doğru	saat		11:00		hayır	Saat yaklaşık
+On iki buçuk gibi	saat		12:30		hayır	Saat yaklaşık
+Bir buçuk gibi	saat		13:30		hayır	Saat yaklaşık
+İki buçuk gibi	saat		14:30		hayır	Saat yaklaşık
+Üç buçuk gibi	saat		15:30		hayır	Saat yaklaşık
+Dört buçuk gibi	saat		16:30		hayır	Saat yaklaşık
+Beş buçuk gibi	saat		17:30		hayır	Saat yaklaşık
+Altı buçuk gibi	saat		18:30		hayır	Saat yaklaşık
+Yedi buçuk gibi	saat		19:30		hayır	Saat yaklaşık
+Dokuza çeyrek kala	saat		08:45		evet	Salon açılmadan önce
+Dokuza doğru	saat		09:00		hayır	Saat yaklaşık
+Ona çeyrek kala	saat		09:45		hayır	Saat açıkça belirtilmiş
+Onu çeyrek geçe	saat		10:15		hayır	Saat açıkça belirtilmiş
+On buçuğa doğru	saat		10:30		hayır	Saat yaklaşık
+On bire çeyrek kala	saat		10:45		hayır	Saat açıkça belirtilmiş
+On biri çeyrek geçe	saat		11:15		hayır	Saat açıkça belirtilmiş
+On ikiye çeyrek kala	saat		11:45		hayır	Saat açıkça belirtilmiş
+On ikiyi çeyrek geçe	saat		12:15		hayır	Saat açıkça belirtilmiş
+Bir buçuğa doğru	saat		13:30		hayır	Saat yaklaşık
+İkiye çeyrek kala	saat		13:45		hayır	Saat açıkça belirtilmiş
+İkiyi çeyrek geçe	saat		14:15		hayır	Saat açıkça belirtilmiş
+Üçe çeyrek kala	saat		14:45		hayır	Saat açıkça belirtilmiş
+Üçü çeyrek geçe	saat		15:15		hayır	Saat açıkça belirtilmiş
+Dörde çeyrek kala	saat		15:45		hayır	Saat açıkça belirtilmiş
+Dördü çeyrek geçe	saat		16:15		hayır	Saat açıkça belirtilmiş
+Beşe çeyrek kala	saat		16:45		hayır	Saat açıkça belirtilmiş
+Beşi çeyrek geçe	saat		17:15		hayır	Saat açıkça belirtilmiş
+Altıya çeyrek kala	saat		17:45		hayır	Saat açıkça belirtilmiş
+Altıyı çeyrek geçe	saat		18:15		hayır	Saat açıkça belirtilmiş
+Yediye çeyrek kala	saat		18:45		hayır	Saat açıkça belirtilmiş
+Yediyi çeyrek geçe	saat		19:15		hayır	Saat açıkça belirtilmiş
+Akşam beş gibi	tarih+saat		17:00		hayır	Saat açıkça belirtilmiş
+Akşam altı civarı	saat		18:00		hayır	Saat yaklaşık
+Öğleden sonra üç gibi	saat		15:00		hayır	Saat açıkça belirtilmiş
+Sabah on gibi	saat		10:00		hayır	Saat açıkça belirtilmiş
+Öğlen bir buçuk	saat		13:30		hayır	Saat açıkça belirtilmiş
+Akşam yediye doğru	saat		19:00		hayır	Saat açıkça belirtilmiş

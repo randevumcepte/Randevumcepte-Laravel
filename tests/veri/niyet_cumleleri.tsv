@@ -1,0 +1,361 @@
+cumle	niyet
+Merhaba, kendime bir randevu almak istiyorum.	randevu_al
+Bana yarın için bir yer ayırabilir misiniz?	randevu_al
+Bugün boşluğunuz var mı, gelebilir miyim?	randevu_al
+Şöyle bir bakım yaptıracağım, randevu istiyorum.	randevu_al
+Beni uygun olduğunuz bir saate yazın.	randevu_al
+Bir randevu oluşturacaktım da.	randevu_al
+Acaba bugün gelebileceğim bir saat var mı?	randevu_al
+Yarın sabah için beni yazabilir misiniz?	randevu_al
+Öğleden sonraya bir randevu alalım.	randevu_al
+Müsait bir personelinize randevu istiyorum.	randevu_al
+Benim için bir saat ayarlayabilir misiniz?	randevu_al
+İlk boşluğunuza gelebilirim.	randevu_al
+Haftaya bir gün için randevu alacaktım.	randevu_al
+Cumartesiye beni yazın mümkünse.	randevu_al
+Akşamüstü geleyim, uygun bir saat var mı?	randevu_al
+Bir bakım için geleceğim, randevu oluşturabilir miyiz?	randevu_al
+Şey, yarına bir randevu bakabilir miyiz?	randevu_al
+Ben de gelmek istiyorum, nasıl randevu alıyoruz?	randevu_al
+Bana en yakın boş saati söyleyebilir misiniz?	randevu_al
+Saat beş civarına bir randevu rica edeceğim.	randevu_al
+İlk müsait olduğunuz güne beni ekleyin.	randevu_al
+Bugün olmazsa yarın geleyim, randevu istiyorum.	randevu_al
+Yeni müşteri olarak randevu almak istiyorum.	randevu_al
+Bir işlem yaptıracağım, beni sıraya alabilir misiniz?	randevu_al
+Benim için de bir saat ayarlayın lütfen.	randevu_al
+Mümkünse sabah erken bir saate randevu istiyorum.	randevu_al
+Yarın beş gibi gelebilir miyim?	randevu_al
+Bir güzellik bakımı için yeriniz var mı?	randevu_al
+Şu hafta içinde bir randevu ayarlayalım.	randevu_al
+Beni yarın akşama doğru yazabilir misiniz?	randevu_al
+Mevcut randevumu başka saate alabilir miyiz?	randevu_degistir
+Yarınki randevumu cumartesiye taşıyalım.	randevu_degistir
+Saatimi biraz erkene çekmek istiyorum.	randevu_degistir
+Randevumu bir saat ileri alabilir misiniz?	randevu_degistir
+Bugünkü randevumu yarına alalım.	randevu_degistir
+Saat beşteki randevumu altıya alabilir miyiz?	randevu_degistir
+Acaba randevumu daha geç bir saate alabilir miyiz?	randevu_degistir
+Geleceğim ama saatini değiştirmem gerekiyor.	randevu_degistir
+Randevumu haftaya erteleyebilir miyiz?	randevu_degistir
+Benim saatim değişti, randevuyu da değiştirelim.	randevu_degistir
+Sabahki randevumu öğleden sonraya alabilir miyiz?	randevu_degistir
+Biraz daha erken gelmem mümkün olur mu?	randevu_degistir
+Randevu tarihini yanlış seçmişim, değiştirecektim.	randevu_degistir
+Cumartesi yerine pazartesiye alalım.	randevu_degistir
+Şu saati bir yarım saat ileri kaydırsak?	randevu_degistir
+Randevumu başka bir güne aktarmanızı rica edeceğim.	randevu_degistir
+Yarın gelemiyorum, öbür güne alalım.	randevu_degistir
+Saatimi beşten altıya çekebilir misiniz?	randevu_degistir
+Randevuyu biraz öne almanın imkânı var mı?	randevu_degistir
+Yanlışlıkla sabaha almışım, akşama değiştirelim.	randevu_degistir
+Bir sonraki haftaya kaydırabilir miyiz?	randevu_degistir
+Randevumun gününü değiştirmek istiyorum.	randevu_degistir
+Şey, saat konusunda bir değişiklik yapacaktım.	randevu_degistir
+Randevumu bugün yerine yarın yapabilir miyiz?	randevu_degistir
+Bir saat geç gelsem olur mu?	randevu_degistir
+Öğleden sonraki randevumu sabaha alalım.	randevu_degistir
+Müsait başka bir güne taşıyabilir misiniz?	randevu_degistir
+Saatini değiştirecektim, yardımcı olur musunuz?	randevu_degistir
+Biraz geç kalacağım, randevuyu ileri alabilir miyiz?	randevu_degistir
+Tarihi aynı kalsın ama saati değişsin.	randevu_degistir
+Randevumu iptal etmek istiyorum.	randevu_iptal
+Yarın gelemeyeceğim, randevuyu silin lütfen.	randevu_iptal
+Bugünkü randevumu iptal edebilir misiniz?	randevu_iptal
+Artık gelemeyeceğim, kaydımı iptal edin.	randevu_iptal
+Bir işim çıktı, randevudan vazgeçiyorum.	randevu_iptal
+Şu randevuyu tamamen iptal edelim.	randevu_iptal
+Randevuya gelemeyeceğim, iptal etmek istiyorum.	randevu_iptal
+Benim için ayırdığınız saati iptal edin.	randevu_iptal
+Cumartesiye olan randevumu iptal edecektim.	randevu_iptal
+Şimdilik gelmekten vazgeçtim, iptal edin.	randevu_iptal
+Randevumu artık istemiyorum.	randevu_iptal
+Kaydımı kaldırabilir misiniz?	randevu_iptal
+Yarınki işlemimi iptal etmem gerekiyor.	randevu_iptal
+Bir değişiklik oldu, gelemeyeceğim. İptal edin.	randevu_iptal
+Randevumu siler misiniz lütfen?	randevu_iptal
+O gün müsait değilim, randevuyu iptal edelim.	randevu_iptal
+Benim randevuyu iptal edecektim de.	randevu_iptal
+Gelemeyeceğim için randevumu kaldırın.	randevu_iptal
+Artık o işlemi yaptırmayacağım, iptal edin.	randevu_iptal
+Randevu kaydımı tamamen silmek istiyorum.	randevu_iptal
+Beni o gün için yazmayın, gelemeyeceğim.	randevu_iptal
+Şu an randevuya ihtiyacım kalmadı, iptal edelim.	randevu_iptal
+Yarın için ayırdığınız yeri iptal edin.	randevu_iptal
+Randevuyu iptal etmek için aramıştım.	randevu_iptal
+İşim çıktı, gelemeyeceğim maalesef.	randevu_iptal
+Ben o randevuyu istemiyorum artık.	randevu_iptal
+Kusura bakmayın, gelemeyeceğim, iptal edelim.	randevu_iptal
+Randevumu iptal edebilir miyiz acaba?	randevu_iptal
+Oluşturduğumuz randevuyu iptal etmek istiyorum.	randevu_iptal
+Şimdilik randevuyu kapatalım, gelmeyeceğim.	randevu_iptal
+Evet, o saat bana uyuyor.	onay
+Tamamdır, o saatte gelirim.	onay
+Olur, beni o saate yazın.	onay
+Aynen, benim için uygun.	onay
+Evet evet, tamamdır.	onay
+Süper, o zaman anlaştık.	onay
+Tabii, o saatte gelebilirim.	onay
+Olabilir, benim için sorun yok.	onay
+Uyar, o saati kabul ediyorum.	onay
+Tamam, randevuyu oluşturabilirsiniz.	onay
+Evet, yarın saat beşte uygunum.	onay
+Olur hanımefendi, yazın beni.	onay
+Hı hı, o saat olur.	onay
+Aynen öyle, devam edelim.	onay
+Peki, kabul ediyorum.	onay
+Benim için gayet uygun, tamam.	onay
+O zaman o saatte görüşürüz.	onay
+Tamam, onaylıyorum.	onay
+Evet, başka bir şey istemiyorum.	onay
+Olur, ayarlayabilirsiniz.	onay
+Hallederiz, o saat uygun.	onay
+Evet, kesinlikle gelebilirim.	onay
+Tamam ya, o saati yapalım.	onay
+Peki, beni o saate kaydedin.	onay
+Uygun, o saati ayırın.	onay
+Evet, bana uyar.	onay
+Tamamdır, bekliyorum.	onay
+Olur, hiç problem değil.	onay
+Evet, doğru, o randevu olsun.	onay
+Tamam, kesinleştirelim.	onay
+Hayır, o saat bana uygun değil.	ret
+Yok, o saatte gelemem.	ret
+Hayır teşekkür ederim, istemiyorum.	ret
+O gün mümkün değil.	ret
+Olmaz, başka bir saat lazım.	ret
+Yok yok, o saati istemiyorum.	ret
+Hayır, sabah olsun istemiyorum.	ret
+O tarih bana uymuyor.	ret
+Maalesef o gün müsait değilim.	ret
+Hayır, bu randevuyu kabul etmiyorum.	ret
+Yok, ben başka bir gün istiyorum.	ret
+O saatte çalışıyorum, gelemem.	ret
+Hayır, bu şekilde olmayacak.	ret
+Olmaz hanımefendi, başka saat söyleyin.	ret
+Yok, o personeli istemiyorum.	ret
+Hayır, o hizmeti yaptırmayacağım.	ret
+Şimdilik istemiyorum, teşekkürler.	ret
+Hayır, vazgeçtim.	ret
+O saati beğenmedim, başka bakalım.	ret
+Bana uygun değil, başka seçenek verin.	ret
+Yok canım, o saat olmaz.	ret
+Hayır, o gün işim var.	ret
+O zaman gelemem maalesef.	ret
+Yok, cumartesi bana uymuyor.	ret
+Hayır, ben akşam istemiştim.	ret
+O randevu bana göre değil.	ret
+Hayır, o tarihte şehir dışında olacağım.	ret
+Yok, bu saat çok erken.	ret
+Hayır, bu saat çok geç.	ret
+İstemiyorum, iptal edin.	ret
+Fark etmez, hangi saat boşsa olur.	kararsiz_fark_etmez
+Siz nasıl uygun görürseniz.	kararsiz_fark_etmez
+Benim için çok önemli değil.	kararsiz_fark_etmez
+Hangi gün boşluğunuz varsa yazın.	kararsiz_fark_etmez
+Saatin pek önemi yok.	kararsiz_fark_etmez
+Bana uyan bir zaman bulursunuz.	kararsiz_fark_etmez
+İlk boşluğa koyun, olur.	kararsiz_fark_etmez
+Siz ayarlayın, ben uyarım.	kararsiz_fark_etmez
+Ne zaman müsaitseniz o zaman geleyim.	kararsiz_fark_etmez
+Herhangi bir saat olabilir.	kararsiz_fark_etmez
+Şey, saat konusunda fark etmez aslında.	kararsiz_fark_etmez
+Bana kalırsa siz seçin.	kararsiz_fark_etmez
+Kimde boşluk varsa ona göre yapalım.	kararsiz_fark_etmez
+Günün hangi saati olduğu önemli değil.	kararsiz_fark_etmez
+Sizin uygun gördüğünüz bir zamana yazın.	kararsiz_fark_etmez
+Ben müsaitim, siz karar verin.	kararsiz_fark_etmez
+Ne zaman olursa gelebilirim.	kararsiz_fark_etmez
+Uygun bir yer bulursanız tamamdır.	kararsiz_fark_etmez
+Bana fark etmez ya, ayarlayın.	kararsiz_fark_etmez
+Hangi gün boşsa onu seçelim.	kararsiz_fark_etmez
+Siz bilirsiniz, ben uyarım.	kararsiz_fark_etmez
+Çok da önemli değil, uygun olanı yapın.	kararsiz_fark_etmez
+Saat seçemiyorum, siz önerin.	kararsiz_fark_etmez
+En yakın ne varsa onu alalım.	kararsiz_fark_etmez
+Müsait olduğum her gün gelebilirim.	kararsiz_fark_etmez
+Sabah da olur akşam da, fark etmez.	kararsiz_fark_etmez
+Hangi personel boşsa ona gideyim.	kararsiz_fark_etmez
+Bir şekilde ayarlarız, siz seçin.	kararsiz_fark_etmez
+Benim için uygun olanı siz bulun.	kararsiz_fark_etmez
+Ne zaman derseniz gelirim.	kararsiz_fark_etmez
+Geçen seferki hanıma yazın beni.	personel_ayni_kisi
+Hep aynı personele gidiyorum, ona istiyorum.	personel_ayni_kisi
+Geçen işlemimi yapan kişiye randevu alalım.	personel_ayni_kisi
+Benim alıştığım hanım kimse ona yazın.	personel_ayni_kisi
+Daha önceki ustamla devam etmek istiyorum.	personel_ayni_kisi
+Geçen gittiğim kişiyi istiyorum.	personel_ayni_kisi
+Aynı kişi yapsın mümkünse.	personel_ayni_kisi
+Beni yine eski personelime yazın.	personel_ayni_kisi
+Daha önce işlem yaptırdığım hanıma gideceğim.	personel_ayni_kisi
+Benim personelimi değiştirmeyin, aynı kişi olsun.	personel_ayni_kisi
+Geçen sefer kim yaptıysa yine o yapsın.	personel_ayni_kisi
+Her zamanki kişiye randevu istiyorum.	personel_ayni_kisi
+Benim sürekli gittiğim hanım var, ona yazın.	personel_ayni_kisi
+Aynı ustayla devam edeceğim.	personel_ayni_kisi
+Beni yine Filiz Hanım'a alabilir misiniz?	personel_ayni_kisi
+Önceki randevumdaki personel olsun.	personel_ayni_kisi
+Geçen ay gittiğim kişi kimse ona yazın.	personel_ayni_kisi
+Ben başka birine gitmek istemiyorum.	personel_ayni_kisi
+Daha önce saçımı yapan hanım olsun.	personel_ayni_kisi
+Her zamanki uzmanıma randevu alacağım.	personel_ayni_kisi
+Aynı kişiden devam edelim lütfen.	personel_ayni_kisi
+Geçen yaptırdığım işlemi yapan kişiye istiyorum.	personel_ayni_kisi
+Benim tanıdığım personel var, ona yazın.	personel_ayni_kisi
+Önceden görüştüğüm hanıma bağlar mısınız?	personel_ayni_kisi
+Yine aynı kişiyle işlem yaptırmak istiyorum.	personel_ayni_kisi
+Benim ustam belli, değişmesin.	personel_ayni_kisi
+Daha önceki randevuda kim vardıysa onu seçelim.	personel_ayni_kisi
+Benim alıştığım kişiye yazarsanız sevinirim.	personel_ayni_kisi
+Aynı hanımla görüşmek istiyorum.	personel_ayni_kisi
+Beni eski personelime yönlendirin.	personel_ayni_kisi
+Kim boşsa ona yazabilirsiniz.	personel_fark_etmez
+Personel konusunda fark etmez.	personel_fark_etmez
+Hangi uzman müsaitse o olsun.	personel_fark_etmez
+Bana herhangi biri yardımcı olabilir.	personel_fark_etmez
+Sizin uygun gördüğünüz kişiye yazın.	personel_fark_etmez
+Kim yaparsa yapsın, yeter ki boş olsun.	personel_fark_etmez
+Personel seçmiyorum, müsait olana gelirim.	personel_fark_etmez
+Herhangi bir uzman olabilir.	personel_fark_etmez
+Kimde yer varsa ona randevu alalım.	personel_fark_etmez
+Benim için personelin önemi yok.	personel_fark_etmez
+İlk boş olan kişiye yazın.	personel_fark_etmez
+Kimin boşluğu varsa ona geleyim.	personel_fark_etmez
+Siz seçin, benim için fark etmez.	personel_fark_etmez
+Uygun olan çalışanınıza randevu istiyorum.	personel_fark_etmez
+Personel fark etmez, saat uygun olsun yeter.	personel_fark_etmez
+Kim müsaitse onunla yapalım.	personel_fark_etmez
+Herhangi bir çalışanınız olabilir.	personel_fark_etmez
+Kime denk gelirsem artık.	personel_fark_etmez
+Birini ayarlayın, benim için sorun değil.	personel_fark_etmez
+Uzmanlardan kim boşsa ona geleyim.	personel_fark_etmez
+Bana personel seçeneği sunmanıza gerek yok.	personel_fark_etmez
+Kimde randevu boşluğu varsa onu alalım.	personel_fark_etmez
+Personel seçimini size bırakıyorum.	personel_fark_etmez
+Müsait olan kimse o yapsın.	personel_fark_etmez
+Benim için hepsi olur.	personel_fark_etmez
+Hangi çalışanınız uygunsa tamamdır.	personel_fark_etmez
+Kim olursa olsun, yeter ki randevu olsun.	personel_fark_etmez
+Bana uygun olan bir personel ayarlayın.	personel_fark_etmez
+Personel konusunda seçici değilim.	personel_fark_etmez
+Boşta olan arkadaşınıza yazın.	personel_fark_etmez
+Kadın personel istiyorum.	personel_cinsiyet
+Mümkünse bayan bir uzman olsun.	personel_cinsiyet
+Erkek personel tercih ediyorum.	personel_cinsiyet
+Bayan çalışanınız var mı?	personel_cinsiyet
+İşlemi kadın personel yapsın.	personel_cinsiyet
+Erkek kuaförünüz varsa ona yazın.	personel_cinsiyet
+Kadın uzmanla görüşmek istiyorum.	personel_cinsiyet
+Ben erkek personel istiyorum.	personel_cinsiyet
+Mümkünse hanımefendi olsun.	personel_cinsiyet
+Beyefendi bir çalışanınız var mı?	personel_cinsiyet
+Bayan personele randevu alabilir miyim?	personel_cinsiyet
+Erkek uzman tercih ediyorum.	personel_cinsiyet
+Kadın çalışanınızla işlem yaptıracağım.	personel_cinsiyet
+Bayanlardan biri müsait mi?	personel_cinsiyet
+Erkek çalışanınızın boşluğu var mı?	personel_cinsiyet
+Benim için kadın personel daha uygun.	personel_cinsiyet
+İşlemi bir beyefendi yapsın istiyorum.	personel_cinsiyet
+Mümkünse erkek uzmanınıza yazın.	personel_cinsiyet
+Kadın kuaförünüzle görüşebilir miyim?	personel_cinsiyet
+Erkek masözünüz var mı?	personel_cinsiyet
+Kadın masöz tercih ediyorum.	personel_cinsiyet
+Bayan estetisyene randevu istiyorum.	personel_cinsiyet
+Erkek estetisyeniniz varsa ona yazın.	personel_cinsiyet
+Hanım personel olsun, rica ediyorum.	personel_cinsiyet
+Bey personel tercih ediyorum.	personel_cinsiyet
+Kadın çalışanınızın uygun saati var mı?	personel_cinsiyet
+Erkek personelle devam etmek istiyorum.	personel_cinsiyet
+Bana kadın uzman ayarlayabilir misiniz?	personel_cinsiyet
+Erkek çalışanla işlem yaptırmak istiyorum.	personel_cinsiyet
+Mümkünse bayan birine randevu verin.	personel_cinsiyet
+Bu işlemin fiyatı ne kadar?	fiyat_sor
+Protez tırnak kaç para acaba?	fiyat_sor
+Cilt bakımı ücretiniz nedir?	fiyat_sor
+Bir seans ne kadar tutuyor?	fiyat_sor
+Lazer epilasyonun fiyatını öğrenebilir miyim?	fiyat_sor
+Fiyat listesini alabilir miyim?	fiyat_sor
+Manikür ne kadar?	fiyat_sor
+Saç kesimi kaç lira?	fiyat_sor
+Bu işlemi yaptırırsam ne kadar öderim?	fiyat_sor
+Paket fiyatlarınız var mı?	fiyat_sor
+Ücret konusunda bilgi verebilir misiniz?	fiyat_sor
+Masaj seansının fiyatı nedir?	fiyat_sor
+Biraz bilgi alacaktım, fiyatlar nasıl?	fiyat_sor
+Kaş alımı ne kadar tutuyor?	fiyat_sor
+İncelme paketiniz kaç para?	fiyat_sor
+Seans başına mı ücret alıyorsunuz?	fiyat_sor
+Fiyatlarınız çok mu yüksek?	fiyat_sor
+Öğrenci indiriminiz var mı, ücret nedir?	fiyat_sor
+Toplamda ne kadar ödeyeceğim?	fiyat_sor
+Kampanyalı fiyatınız ne kadar?	fiyat_sor
+Bana yaklaşık bir fiyat söyleyebilir misiniz?	fiyat_sor
+İlk seansın ücreti nedir?	fiyat_sor
+Cilt analizinden sonra fiyat belli oluyor mu?	fiyat_sor
+Tüm vücut lazer ne kadar?	fiyat_sor
+Boya ve kesim birlikte kaç para?	fiyat_sor
+Fiyat alacaktım, yardımcı olur musunuz?	fiyat_sor
+Bu hizmetin güncel fiyatını öğrenmek istiyorum.	fiyat_sor
+Üç seanslık paket ne kadar?	fiyat_sor
+Fiyat konusunda yetkili biriyle görüşebilir miyim?	fiyat_sor
+Ödeme seçenekleriniz ve fiyatlarınız nedir?	fiyat_sor
+Yetkili biriyle görüşmek istiyorum.	yetkiliye_baglan
+Beni müdüre bağlayabilir misiniz?	yetkiliye_baglan
+İşletme sahibiyle konuşmam lazım.	yetkiliye_baglan
+Bir sorunum var, yetkiliye aktarın.	yetkiliye_baglan
+Danışmanla değil, sorumlu kişiyle görüşeceğim.	yetkiliye_baglan
+Beni insan bir görevliye bağlayın.	yetkiliye_baglan
+Yöneticiyle görüşmek istiyorum.	yetkiliye_baglan
+Şikâyetimi yetkiliye anlatacağım.	yetkiliye_baglan
+Müdürünüzle konuşabilir miyim?	yetkiliye_baglan
+Bir çalışanla değil, sorumlu kişiyle görüşeceğim.	yetkiliye_baglan
+Beni resepsiyona aktarır mısınız?	yetkiliye_baglan
+İşletme yetkilisine ulaşmak istiyorum.	yetkiliye_baglan
+Biriyle canlı olarak görüşebilir miyim?	yetkiliye_baglan
+Yapay zekâyla konuşmak istemiyorum, görevliye bağlayın.	yetkiliye_baglan
+İnsan birine aktarabilir misiniz?	yetkiliye_baglan
+Sorumlu hanımla görüşecektim.	yetkiliye_baglan
+Yetkiliye bir şey danışacağım.	yetkiliye_baglan
+Telefonu işletme sahibine verir misiniz?	yetkiliye_baglan
+Beni danışmaya bağlayın lütfen.	yetkiliye_baglan
+Bir yetkiliyle konuşmam gerekiyor.	yetkiliye_baglan
+Müşteri temsilcisine bağlar mısınız?	yetkiliye_baglan
+Bu konuyu yetkiliyle çözmek istiyorum.	yetkiliye_baglan
+Şikâyet için bir sorumluya ulaşacağım.	yetkiliye_baglan
+Bana bir çalışan yardımcı olsun.	yetkiliye_baglan
+İnsanla konuşmak istiyorum, aktarın.	yetkiliye_baglan
+Sizin müdürünüz kimse onunla görüşeceğim.	yetkiliye_baglan
+Telefonu yetkili kişiye aktarır mısınız?	yetkiliye_baglan
+Sorumlu kişiyle konuşabilir miyim acaba?	yetkiliye_baglan
+Beni bir üst yetkiliye bağlayın.	yetkiliye_baglan
+Bu konuyu sizinle değil, yöneticiyle konuşacağım.	yetkiliye_baglan
+Teşekkür ederim, iyi günler.	veda
+Tamamdır, hoşça kalın.	veda
+İyi çalışmalar, görüşürüz.	veda
+Sağ olun, kapatıyorum.	veda
+Teşekkürler, kendinize iyi bakın.	veda
+Peki, iyi günler dilerim.	veda
+Çok sağ olun, hoşça kalın.	veda
+Görüşmek üzere, iyi akşamlar.	veda
+Tamam, teşekkür ederim, bay bay.	veda
+İyi akşamlar, kolay gelsin.	veda
+Sağ olun, başka bir şey yok.	veda
+Tamamdır, iyi çalışmalar.	veda
+Teşekkür ederim, görüşürüz o zaman.	veda
+İyi günler, aradığınız için sağ olun.	veda
+Peki, kendinize iyi bakın.	veda
+Hadi iyi günler.	veda
+Çok teşekkürler, kapatabiliriz.	veda
+Sağ olun, görüşmek üzere.	veda
+Tamam, hoşça kalın.	veda
+İyi geceler, teşekkür ederim.	veda
+Peki, bu kadar yeterli.	veda
+Anladım, teşekkürler.	veda
+İyi çalışmalar diliyorum.	veda
+Hadi görüşürüz, sağ olun.	veda
+Tamamdır, ben kapatıyorum.	veda
+Teşekkürler, sonra görüşürüz.	veda
+İyi günler, kolay gelsin.	veda
+Sağ olun, yardımcı oldunuz.	veda
+Peki, iyi akşamlar.	veda
+Görüşmek üzere, hoşça kalın.	veda
