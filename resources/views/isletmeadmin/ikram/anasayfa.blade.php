@@ -280,7 +280,7 @@
             '• Toplam Hediye Hakkı: kazanılmış, henüz kullanılmamış ikramlar.<br>' +
             '• En Çok Tercih Edilen: katılımcısı en çok olan kampanya ve katılımcıların yüzde kaçının onda olduğu.');
     });
-    $('ikp-hero-detay').addEventListener('click', function () { var k = heroKamp(); if (k) detayaGit(k.id); });
+    $('ikp-hero-detay').addEventListener('click', function () { var k = heroKamp(); if (k && !k.tanitim) detayaGit(k.id); });
     $('ikp-tumu').addEventListener('click', function () { filtre = 'tumu'; listeCiz(); $('ikp-liste').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
     function detayaGit(id) { location.href = IK.u('ikramhizmet/kampanya/' + id, { donem: DONEM }); }
 
@@ -308,23 +308,31 @@
         return { yuzde: Math.max(0, Math.min(100, (simdi - bas) / Math.max(1, bit - bas) * 100)), kalan: kalan };
     }
 
-    /** Ust bantta donen kampanyalar: aktif + baslayacak; hic yoksa hepsi */
+    /** Ust bantta donen kampanyalar: aktif + baslayacak (hic yoksa hepsi) + sonda "yeni kampanya" tanitimi */
+    var TANITIM = { tanitim: true, id: null };
     var heroIdx = 0, heroZaman = null, heroDur = false;
     function heroListe() {
         var l = kurallar.filter(function (k) { var d = IK.durum(k); return d === 'aktif' || d === 'baslayacak'; });
-        return l.length ? l : kurallar;
+        l = l.length ? l : kurallar;
+        return l.length ? l.concat([TANITIM]) : l;
     }
     function heroKamp() { var l = heroListe(); return l.length ? l[heroIdx % l.length] : null; }
     function heroCiz() {
         var k = heroKamp(), l = heroListe();
         $('ikp-hero-baslik').className = '';
-        $('ikp-hero-detay').style.display = k ? '' : 'none';
+        $('ikp-hero-detay').style.display = k && !k.tanitim ? '' : 'none';
         $('ikp-noktalar').innerHTML = l.length > 1 ? l.map(function (x, i) {
-            return '<a data-hero="' + i + '" class="' + (i === heroIdx % l.length ? 'sec' : '') + '" title="' + esc(kampAdi(x)) + '"></a>';
+            return '<a data-hero="' + i + '" class="' + (i === heroIdx % l.length ? 'sec' : '') + '" title="' + esc(x.tanitim ? 'Yeni kampanya' : kampAdi(x)) + '"></a>';
         }).join('') : '';
         if (!k) {
             $('ikp-hero-baslik').textContent = yuklendi ? 'İlk kampanyanızı oluşturun' : 'İkram Hizmet';
             $('ikp-hero-alt').textContent = yuklendi ? 'Bir hizmeti belirlediğiniz sayıda alan\nmüşterinize hediye hizmet verin.' : 'Kampanyalarınız yükleniyor…';
+            return;
+        }
+        if (k.tanitim) {
+            $('ikp-hero-baslik').textContent = 'Yeni bir ikram kampanyası açın';
+            $('ikp-hero-baslik').title = '';
+            $('ikp-hero-alt').textContent = 'Başka bir hizmet için de "X alana 1 hediye" verin,\nmüşterileriniz daha sık gelsin.';
             return;
         }
         var hb = $('ikp-hero-baslik'), uz = kampAdi(k).length;
