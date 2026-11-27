@@ -18400,6 +18400,14 @@ DB::raw('
             'tasimaYetki'             => \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, 'randevu.duzenle_iptal'),
             'aramaAktif'              => $aramaAktif,
             'aramaGecmisiVar'         => (int) $isletme->uyelik_turu === 3,
+            // WhatsApp mesaj butonu: randevu takvimiyle ayni baglanti kurali
+            'waBagli'                 => (function () use ($isletme) {
+                $w = \App\Services\WhatsAppService::resolveWaSalon($isletme);
+                if (!$w) return false;
+                return ($w->whatsapp_saglayici ?? 'baileys') === 'cloud_api'
+                    ? (!empty($w->cloud_api_token) && !empty($w->cloud_api_phone_number_id))
+                    : (($w->whatsapp_aktif ?? 0) && ($w->whatsapp_durum ?? '') === 'connected');
+            })(),
             'aramaYalnizPersonel'     => $aramaYalnizPersonel,
             'personeller'             => $personeller,
             'durumRenkleri'           => array_map(function ($r) { return $r['bg']; }, \App\Services\RandevuDurumRenk::harita($salonId)),
@@ -18480,7 +18488,7 @@ DB::raw('
             'on_gorusmeler.id','on_gorusmeler.user_id','on_gorusmeler.ad_soyad','on_gorusmeler.cep_telefon',
             'on_gorusmeler.musteri_tipi','on_gorusmeler.aciklama','on_gorusmeler.durum','on_gorusmeler.satisyapilmadi_not',
             'on_gorusmeler.hatirlatma_tarihi','on_gorusmeler.personel_id','on_gorusmeler.paket_id','on_gorusmeler.urun_id',
-            'on_gorusmeler.hizmet_id','on_gorusmeler.created_at','users.name as kullanici_ad','users.cep_telefon as kullanici_tel',
+            'on_gorusmeler.hizmet_id','on_gorusmeler.created_at','users.name as kullanici_ad','users.cep_telefon as kullanici_tel','users.whatsapp_onay as wa_onay',
             'salon_personelleri.personel_adi','paketler.paket_adi','urunler.urun_adi','hizmetler.hizmet_adi',
         ]);
         $ertelemePersonel = Personeller::whereIn('id',$ertelemeler->pluck('personel_id')->filter()->unique()->all())->pluck('personel_adi','id')->all();
@@ -18524,6 +18532,7 @@ DB::raw('
                 // Ara butonu: numarayi goremeyen kullaniciya numara GITMEZ, sunucu user_id ile bulur
                 'aranir'      => strlen($telRakam) >= 7 && ($telGor || (int) $k->user_id > 0),
                 'ara_no'      => $telGor ? $telRakam : '',
+                'wa_onay'     => (int) $k->wa_onay === 1,
                 'neden'       => $neden,
                 'tur'         => $tur,
                 'aciklama'    => (string) $k->aciklama,

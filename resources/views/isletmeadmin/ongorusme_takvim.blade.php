@@ -104,29 +104,51 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 .ogt-saatsiz .ogt-e{ font-size:12px; padding:3px 6px; white-space:nowrap; text-overflow:ellipsis; }
 
 /* --- Detay penceresi --- */
-#ogt_detay .modal-dialog{ max-width:500px; }
-#ogt_detay .modal-content{ border:0; border-radius:14px; overflow:hidden; }
-#ogt_detay .ogt-d-bas{ background:#fff; border-bottom:1px solid #ece6f3; padding:15px 46px 13px 18px; position:relative; display:flex; align-items:flex-start; gap:10px; }
-#ogt_detay .ogt-d-bas .ad{ flex:1; min-width:0; }
-.ogt-d-ust{ display:flex; gap:6px; flex-shrink:0; }
-.ogt-d-ust a{ width:32px; height:30px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; color:#fff !important; font-size:14px; }
-.ogt-d-ust a:hover{ filter:brightness(.92); }
-#ogt_detay .ogt-d-bas h2{ margin:0; font-size:17px; font-weight:700; color:#5C008E; }
-#ogt_detay .ogt-d-bas .kapat{ position:absolute; right:10px; top:10px; width:30px; height:30px; border:0; background:transparent; border-radius:7px; font-size:22px; line-height:1; color:#6b7280; cursor:pointer; }
-#ogt_detay .ogt-d-bas .kapat:hover{ background:#f3eefa; }
-.ogt-rozet{ display:inline-block; margin-top:7px; font-size:11.5px; font-weight:700; padding:3px 11px; border-radius:20px; border:0 !important; cursor:default; }
-.ogt-e.ogt-rozet:hover{ filter:none; box-shadow:none; }
-#ogt_detay .modal-body{ padding:14px 18px; }
-.ogt-d-tablo{ display:grid; grid-template-columns:128px 1fr; gap:9px 12px; font-size:13.5px; margin:0; }
-.ogt-d-tablo dt{ color:#6b7280; font-weight:500; }
-.ogt-d-tablo dd{ margin:0; color:#1f2937; font-weight:600; overflow-wrap:anywhere; white-space:pre-line; }
-.ogt-kat{ display:flex; gap:8px; padding:0 18px 14px; flex-wrap:wrap; }
-.ogt-kat button{ flex:1 1 0; min-width:96px; height:42px; border-radius:10px; border:2px solid var(--b); background:#fff; color:var(--b); font-size:14px; font-weight:700; cursor:pointer; }
-.ogt-kat button.secili, .ogt-kat button:hover{ background:var(--b); color:#fff; }
-.ogt-kat button.kaldir{ --b:#5b5470; flex:1 0 100%; border-width:1px; }
-.ogt-d-alt{ display:flex; flex-direction:column; gap:8px; padding:12px 18px 16px; border-top:1px solid #ece6f3; background:#fbfafd; }
-.ogt-d-alt .satir{ display:flex; gap:8px; flex-wrap:wrap; }
-.ogt-d-alt .ogt-btn{ flex:1 1 0; min-width:120px; justify-content:center; border-radius:10px; }
+#ogt_detay .modal-dialog{ max-width:620px; }
+#ogt_detay .modal-content{ border:0; border-radius:20px; overflow:hidden; box-shadow:0 30px 70px -24px rgba(60,20,110,.45); }
+.ogt-d-bas{ position:relative; overflow:hidden; display:flex; align-items:center; gap:16px; padding:26px 62px 24px 28px; background:linear-gradient(135deg,#f6f0ff 0%,#ece2fc 100%); }
+.ogt-d-bas:after{ content:""; position:absolute; right:-40px; bottom:-70px; width:190px; height:160px; border-radius:50%; background:rgba(255,255,255,.55); pointer-events:none; }
+.ogt-d-av{ width:58px; height:58px; border-radius:50%; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#6d28d9,#a35ee0); color:#fff; font-size:24px; box-shadow:0 8px 18px -8px rgba(109,40,217,.7); position:relative; z-index:1; }
+.ogt-d-kim{ flex:1; min-width:0; position:relative; z-index:1; }
+.ogt-d-kim h2{ margin:0 0 6px; font-size:20px; font-weight:700; color:#1f1633; overflow-wrap:anywhere; }
+.ogt-d-hap{ display:flex; gap:6px; flex-wrap:wrap; }
+.ogt-hap{ display:inline-flex; align-items:center; gap:5px; padding:3px 11px; border-radius:999px; font-size:12px; font-weight:700; background:var(--z,#6b7280); color:var(--y,#fff); }
+.ogt-hap.acik{ background:#fff; color:#4c1d95; box-shadow:0 0 0 1px #e3d5f5 inset; }
+.ogt-d-ust{ display:flex; align-items:center; gap:10px; flex-shrink:0; position:relative; z-index:1; padding-right:14px; border-right:1px solid #d9c9f0; }
+.ogt-d-ust a{ width:42px; height:42px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:#fff; color:#6d28d9 !important; font-size:17px; box-shadow:0 4px 12px -4px rgba(76,29,149,.28); text-decoration:none !important; transition:transform .12s, box-shadow .12s; }
+.ogt-d-ust a:hover, .ogt-d-ust a:focus{ transform:translateY(-1px); box-shadow:0 8px 16px -6px rgba(76,29,149,.4); outline:none; }
+.ogt-d-bas .kapat{ position:absolute; right:16px; top:16px; z-index:2; width:34px; height:34px; border:0; background:transparent; border-radius:50%; font-size:26px; line-height:1; color:#4b4560; cursor:pointer; }
+.ogt-d-bas .kapat:hover{ background:rgba(255,255,255,.7); }
+#ogt_detay .modal-body{ padding:22px 24px 6px; }
+.ogt-d-izgara{ display:grid; grid-template-columns:1fr 1fr; }
+.ogt-d-izgara .sutun{ display:flex; flex-direction:column; gap:16px; min-width:0; }
+.ogt-d-izgara .sutun + .sutun{ border-left:1px solid #ece6f3; padding-left:22px; }
+.ogt-d-izgara .sutun:first-child{ padding-right:22px; }
+.ogt-d-bilgi{ display:flex; gap:12px; align-items:flex-start; min-width:0; }
+.ogt-d-bilgi > i{ width:34px; height:34px; border-radius:10px; background:#f7f4fc; color:#6b6480; display:inline-flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+.ogt-d-bilgi div{ min-width:0; }
+.ogt-d-bilgi small{ display:block; font-size:12px; color:#8a8398; margin-bottom:1px; }
+.ogt-d-bilgi b{ display:block; font-size:14.5px; font-weight:700; color:#1f1633; overflow-wrap:anywhere; white-space:pre-line; }
+.ogt-d-bilgi b.uzun{ font-size:13px; font-weight:600; }
+.ogt-d-not{ display:flex; align-items:center; gap:10px; margin:20px 0 4px; padding:11px 14px; border-radius:12px; background:#f3eefc; color:#3b2f57; font-size:13px; }
+.ogt-d-not i{ width:24px; height:24px; border-radius:50%; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; background:#8b5cf6; color:#fff; font-size:12px; }
+.ogt-kat, .ogt-d-alt .satir{ display:flex; gap:12px; flex-wrap:wrap; }
+.ogt-kat{ padding:14px 24px 0; }
+.ogt-kat button{ flex:1 1 0; min-width:120px; height:48px; border-radius:12px; border:1px solid var(--b); background:#fff; background:color-mix(in srgb, var(--b) 9%, #fff); color:var(--b); font-size:15px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+.ogt-kat button.secili{ background:var(--b); color:#fff; border-color:var(--b); box-shadow:0 8px 16px -10px var(--b); }
+.ogt-kat button:not(.secili):hover{ background:color-mix(in srgb, var(--b) 16%, #fff); }
+.ogt-kat button.kaldir{ --b:#6d28d9; background:#fff; border-color:#d9c9f0; color:#4c1d95; font-size:13px; }
+.ogt-d-alt{ display:flex; flex-direction:column; gap:12px; padding:12px 24px 24px; }
+.ogt-d-alt .ogt-btn{ flex:1 1 0; min-width:120px; height:44px; justify-content:center; border-radius:12px; font-size:14.5px; border-color:#e6ddf4; color:#2d2541 !important; }
+.ogt-d-alt .ogt-btn i{ color:#6d28d9; }
+.ogt-d-alt .ogt-btn.ogt-btn-lila{ background:#f1eafd; border-color:#e2d4fa; }
+.ogt-d-alt .ogt-btn.ogt-btn-lila:hover{ background:#e8ddfb; }
+.ogt-d-alt .satir.sonuc .ogt-btn{ height:48px; font-size:15px; border:0; color:#fff !important; }
+.ogt-d-alt .satir.sonuc .ogt-btn i{ color:#fff; }
+.ogt-d-alt .ogt-btn.ogt-btn-sat{ background:#2f8f4e; }
+.ogt-d-alt .ogt-btn.ogt-btn-sat:hover{ background:#277a42; }
+.ogt-d-alt .ogt-btn.ogt-btn-satma{ background:#e5484d; }
+.ogt-d-alt .ogt-btn.ogt-btn-satma:hover{ background:#d13a40; }
 .ogt-btn-kirmizi{ background:#b91c1c; border-color:#b91c1c; color:#fff !important; }
 .ogt-btn-kirmizi:hover{ background:#991b1b; }
 .ogt-not{ width:100%; font-size:12px; color:#6b7280; }
@@ -141,7 +163,19 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
    .ogt-sag{ margin-left:0; width:100%; justify-content:space-between; }
    .ogt-psec{ flex:1 1 150px; width:auto; min-width:0; }
    #ogt_personel{ width:100%; }
-   .ogt-d-tablo{ grid-template-columns:104px 1fr; }
+   .ogt-d-bas{ flex-wrap:wrap; padding:22px 54px 18px 20px; gap:12px; }
+   .ogt-d-av{ width:48px; height:48px; font-size:20px; }
+   .ogt-d-ust{ order:3; width:100%; border-right:0; padding-right:0; }
+   #ogt_detay .modal-body{ padding:18px 18px 4px; }
+   .ogt-d-izgara{ grid-template-columns:1fr; gap:16px; }
+   .ogt-d-izgara .sutun + .sutun{ border-left:0; padding-left:0; }
+   .ogt-d-izgara .sutun:first-child{ padding-right:0; }
+   .ogt-kat{ padding:14px 18px 0; gap:8px; }
+   .ogt-d-alt{ padding:10px 18px 18px; gap:8px; }
+   .ogt-d-alt .satir{ gap:8px; }
+   .ogt-kat button, .ogt-d-alt .ogt-btn{ min-width:0; padding:0 8px; font-size:13.5px; }
+   .ogt-kat button.kaldir{ flex-basis:100%; height:42px; }
+   .ogt-d-alt .satir:not(.sonuc) .ogt-btn{ flex:1 1 40%; }
 }
 </style>
 
@@ -207,13 +241,13 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
    <div class="modal-dialog modal-dialog-centered" role="document">
       <div class="modal-content">
          <div class="ogt-d-bas">
-            <div class="ad"><h2 id="ogt_d_ad"></h2>
-            <span id="ogt_d_durum"></span></div>
-            {{-- Randevu takvimindeki detay ile ayni: Randevu Gecmisi (custom.js .rd-gecmis-btn) + Arama Gecmisi --}}
+            <span class="ogt-d-av" aria-hidden="true"><i class="fa fa-user"></i></span>
+            <div class="ogt-d-kim"><h2 id="ogt_d_ad"></h2><div class="ogt-d-hap" id="ogt_d_durum"></div></div>
+            {{-- Randevu/Arama Gecmisi (popup), WhatsApp mesaji, Musteri (yeni sekme) --}}
             <div class="ogt-d-ust" id="ogt_d_ust"></div>
             <button type="button" class="kapat" data-dismiss="modal" aria-label="Kapat">&times;</button>
          </div>
-         <div class="modal-body"><dl class="ogt-d-tablo" id="ogt_d_bilgi"></dl></div>
+         <div class="modal-body"><div class="ogt-d-izgara" id="ogt_d_bilgi"></div><div class="ogt-d-not" id="ogt_d_not"></div></div>
          <div class="ogt-kat" id="ogt_d_katilim"></div>
          <div class="ogt-d-alt" id="ogt_d_alt"></div>
       </div>
@@ -226,6 +260,7 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 @if($aramaGecmisiVar)
 @include('isletmeadmin.partials.arama_gecmisi')
 @endif
+@include('isletmeadmin.partials.whatsapp_mesaj_modal')
 
 @if($aramaAktif)
 {{-- Arama randevusu yalniz KAYDIN detayindan olusturulur; takvimde sadece on gorusmeler gosterilir. --}}
@@ -236,7 +271,7 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 $(document).ready(function(){
    var SUBE = {{ (int) $isletme->id }};
    var YETKI = {{ $ekleDuzenleYetki ? 'true' : 'false' }};
-   var ARAMA_GECMISI = {{ $aramaGecmisiVar ? 'true' : 'false' }};
+   var ARAMA_GECMISI = {{ $aramaGecmisiVar ? 'true' : 'false' }}, WA_BAGLI = {{ $waBagli ? 'true' : 'false' }};
    var ARAMA = {{ $aramaAktif ? 'true' : 'false' }}, KATILIM = {{ $katilimYetki ? 'true' : 'false' }};
    var PERSONELLER = {!! json_encode($_ogtPersoneller, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
    var CALISMA = {!! json_encode((object) $calismaSaatleri, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}; // 1=Pzt .. 7=Paz
@@ -455,41 +490,52 @@ $(document).ready(function(){
       if (!o) return;
       detayOlay = o;
       $('#ogt_d_ad').text(o.musteri);
+      function ikon(sinif, ozellik, baslik, ic){ return '<a href="#" class="'+sinif+'" title="'+baslik+'" aria-label="'+baslik+'" '+ozellik+'><i class="fa '+ic+'"></i></a>'; }
+      var kim = 'data-userid="'+esc(o.user_id)+'" data-ad="'+esc(o.musteri)+'"';
       $('#ogt_d_ust').html(o.user_id ?
-         '<a href="#" class="rd-gecmis-btn" title="Randevu Geçmişi" aria-label="Randevu Geçmişi" style="background:#6d28d9" data-userid="'+esc(o.user_id)+'" data-ad="'+esc(o.musteri)+'"><i class="fa fa-history"></i></a>'+
-         (ARAMA_GECMISI ? '<a href="#" class="rd-arama-gecmisi-btn" title="Arama Geçmişi" aria-label="Arama Geçmişi" style="background:#0e7490" data-userid="'+esc(o.user_id)+'" data-ad="'+esc(o.musteri)+'"><i class="fa fa-phone-square"></i></a>' : '')+
-         '<a target="_blank" rel="noopener" title="Müşteri (yeni sekmede)" aria-label="Müşteri detayı, yeni sekmede açılır" style="background:#5C008E" href="/isletmeyonetim/musteridetay/'+esc(o.user_id)+'?sube='+SUBE+'"><i class="fa fa-user"></i></a>' : '');
-      $('#ogt_d_durum').attr('class','ogt-e ogt-rozet '+o.kat).attr('style', stil(o)).text(DURUM_AD[o.kat]+(o.satis ? ' · '+SATIS_AD[o.satis] : ''));
-      var satir = o.kat === 'ertelendi' ? [
-         ['Eski tarih', uzun(o.tarih)+(o.saat ? ', '+o.saat : '')],
-         ['Yeni tarih', uzun(o.yeni_tarih)+(o.yeni_saat ? ', '+o.yeni_saat : '')],
-         ['Görüşmeyi yapan', o.personel],
-         ['Sebep', o.neden],
-         ['Telefon', o.telefon],
-         ['Erteleme işlemi', o.olusturma]
+         ikon('rd-gecmis-btn', kim, 'Randevu Geçmişi', 'fa-history')+
+         (ARAMA_GECMISI ? ikon('rd-arama-gecmisi-btn', kim, 'Arama Geçmişi', 'fa-phone') : '')+
+         (o.telefon ? ikon('whatsapp-mesaj-ac', kim+' data-telefon="'+esc(o.telefon)+'" data-onay="'+(o.wa_onay ? 1 : 0)+'" data-bagli="'+(WA_BAGLI ? 1 : 0)+'"', 'WhatsApp Mesajı', 'fa-whatsapp') : '')+
+         '<a target="_blank" rel="noopener" title="Müşteri (yeni sekmede)" aria-label="Müşteri detayı, yeni sekmede açılır" href="/isletmeyonetim/musteridetay/'+esc(o.user_id)+'?sube='+SUBE+'"><i class="fa fa-user"></i></a>' : '').toggle(!!o.user_id);
+      $('#ogt_d_durum').html('<span class="ogt-hap" style="'+stil(o)+'">'+(o.kat === 'geldi' ? '<i class="fa fa-check"></i> ' : o.kat === 'gelmedi' ? '<i class="fa fa-times"></i> ' : '')+DURUM_AD[o.kat]+'</span>'+
+         (o.satis ? '<span class="ogt-hap acik">'+(o.satis === 'satildi' ? '✓ ' : '✕ ')+SATIS_AD[o.satis]+'</span>' : ''));
+      // Iki sutun: sol gorusme, sag musteri bilgisi (bos alan cizilmez)
+      var sol = o.kat === 'ertelendi' ? [
+         ['fa-calendar','Eski tarih', uzun(o.tarih)+(o.saat ? ', '+o.saat : '')],
+         ['fa-calendar-check-o','Yeni tarih', uzun(o.yeni_tarih)+(o.yeni_saat ? ', '+o.yeni_saat : '')],
+         ['fa-users','Görüşmeyi yapan', o.personel],
+         ['fa-tag','Sebep', o.neden]
       ] : [
-         ['Tarih', uzun(o.tarih)],
-         ['Saat', o.saat ? o.saat+(o.bitis ? ' – '+o.bitis : '') : 'Belirtilmemiş'],
-         ['Görüşmeyi yapan', o.personel],
-         ['Oda', o.oda],
-         ['Sebep', o.neden],
-         ['Telefon', o.telefon],
-         ['Referans', o.referans],
-         ['Açıklama', o.aciklama],
-         ['Satış olmama nedeni', o.satis === 'satilmadi' ? (o.neden_yok || 'Belirtilmemiş') : ''],
-         ['Oluşturma', o.olusturma]
+         ['fa-calendar','Tarih', uzun(o.tarih)],
+         ['fa-clock-o','Saat', o.saat ? o.saat+(o.bitis ? ' – '+o.bitis : '') : 'Belirtilmemiş'],
+         ['fa-users','Görüşmeyi yapan', o.personel],
+         ['fa-tag','Sebep', o.neden],
+         ['fa-building-o','Oda', o.oda]
       ];
-      $('#ogt_d_bilgi').html(satir.filter(function(s){ return s[1]; }).map(function(s){ return '<dt>'+s[0]+'</dt><dd>'+esc(s[1])+'</dd>'; }).join(''));
+      var sag = [
+         ['fa-phone','Telefon', o.telefon],
+         ['fa-bullhorn','Referans', o.referans],
+         ['fa-file-text-o','Açıklama', o.aciklama, 'uzun'],
+         ['fa-clock-o', o.kat === 'ertelendi' ? 'Erteleme işlemi' : 'Oluşturma', o.olusturma]
+      ];
+      function sutun(l){ return '<div class="sutun">'+l.filter(function(x){ return x[2]; }).map(function(x){ return '<div class="ogt-d-bilgi"><i class="fa '+x[0]+'" aria-hidden="true"></i><div><small>'+x[1]+'</small><b'+(x[3] ? ' class="'+x[3]+'"' : '')+'>'+esc(x[2])+'</b></div></div>'; }).join('')+'</div>'; }
+      $('#ogt_d_bilgi').html(sutun(sol)+sutun(sag));
+      var bilgi = o.kat === 'ertelendi' ? 'Bu ön görüşme '+yeniZaman(o)+' tarihine ertelendi.'
+         : o.satis === 'satilmadi' ? 'Satış yapılmadı. Neden: '+(o.neden_yok || 'belirtilmemiş')
+         : o.satis === 'satildi' ? 'Bu ön görüşmede satış yapıldı.'
+         : o.randevulu ? 'Bu ön görüşme kaydı, randevu planlaması için oluşturulmuştur.'
+         : 'Bu ön görüşmenin takvimde randevusu yok; saat belirtilmemiş.';
+      $('#ogt_d_not').html('<i class="fa fa-info" aria-hidden="true"></i><span>'+esc(bilgi)+'</span>');
       // 1. satir: Ara, Arama Randevusu (ertelenende Yeni Tarihe Git), Duzenle — 2. satir: satis sonucu
-      var b1 = o.aranir ? '<button type="button" class="ogt-btn ogt-btn-yesil cm-ara-islem" '+araOzellik(o)+'><i class="fa fa-phone"></i> Ara</button>' : '', b2 = '';
+      var b1 = o.aranir ? '<button type="button" class="ogt-btn cm-ara-islem" '+araOzellik(o)+'><i class="fa fa-phone"></i> Ara</button>' : '', b2 = '';
       if (o.kat === 'ertelendi') b1 += '<button type="button" class="ogt-btn" data-is="yeni_tarih"><i class="fa fa-calendar"></i> Yeni Tarihe Git</button>';
       else if (ARAMA && o.user_id) b1 += '<button type="button" class="ogt-btn" data-is="arama_ekle"><i class="fa fa-calendar"></i> Arama Randevusu</button>';
       if (o.sonucsuz) {
-         if (YETKI && o.randevulu) b1 += '<button type="button" class="ogt-btn" data-is="duzenle"><i class="fa fa-edit"></i> Düzenle</button>';
-         if (o.tur) b2 += '<button type="button" class="ogt-btn ogt-btn-yesil" data-is="satildi"><i class="fa fa-check"></i> Satış Yapıldı</button>';
-         b2 += '<button type="button" class="ogt-btn ogt-btn-kirmizi" data-is="satilmadi"><i class="fa fa-times"></i> Satış Yapılmadı</button>';
+         if (YETKI && o.randevulu) b1 += '<button type="button" class="ogt-btn ogt-btn-lila" data-is="duzenle"><i class="fa fa-pencil-square-o"></i> Düzenle</button>';
+         b2 += '<button type="button" class="ogt-btn ogt-btn-satma" data-is="satilmadi"><i class="fa fa-trash-o"></i> Satış Yapılmadı</button>';
+         if (o.tur) b2 += '<button type="button" class="ogt-btn ogt-btn-sat" data-is="satildi"><i class="fa fa-check"></i> Satış Yapıldı</button>';
       }
-      var b = (b1 ? '<div class="satir">'+b1+'</div>' : '')+(b2 ? '<div class="satir">'+b2+'</div>' : '');
+      var b = (b1 ? '<div class="satir">'+b1+'</div>' : '')+(b2 ? '<div class="satir sonuc">'+b2+'</div>' : '');
       $('#ogt_d_katilim').html(katilimHtml(o)).toggle(!!katilimHtml(o));
       $('#ogt_d_alt').html(b).toggle(!!b);
       $('#ogt_detay').modal('show');
@@ -497,11 +543,14 @@ $(document).ready(function(){
    /* Katılım: Gelecek / Geldi / Gelmedi. İşaretliyse "… İşaretini Kaldır" (seçili olana tekrar basmak da kaldırır). */
    function katilimHtml(o){
       if (!KATILIM || !o.randevu_id || o.kat === 'iptal' || o.kat === 'ertelendi') return '';
-      function dugme(k, renk){ return '<button type="button" data-kat="'+k+'" class="'+(o.kat === k ? 'secili' : '')+'" aria-pressed="'+(o.kat === k)+'" style="--b:'+renk+'">'+(o.kat === k ? '✓ ' : '')+DURUM_AD[k]+'</button>'; }
+      var IKON = {gelecek:'fa-clock-o', geldi:'fa-check', gelmedi:'fa-times'};
+      function dugme(k, renk){ return '<button type="button" data-kat="'+k+'" class="'+(o.kat === k ? 'secili' : '')+'" aria-pressed="'+(o.kat === k)+'" style="--b:'+renk+'"><i class="fa '+IKON[k]+'" aria-hidden="true"></i> '+DURUM_AD[k]+'</button>'; }
       var isaretli = o.kat === 'geldi' || o.kat === 'gelmedi';
-      return (!isaretli && o.onayli ? dugme('gelecek',DURUM_RENK.gelecek || '#EF7400') : '')+dugme('geldi',DURUM_RENK.geldi || '#008000')+dugme('gelmedi',DURUM_RENK.gelmedi || '#e00000')+
-         (o.kat !== 'bekliyor' ? '<button type="button" class="kaldir" data-kat="'+o.kat+'"><i class="fa fa-undo"></i> '+DURUM_AD[o.kat]+' İşaretini Kaldır</button>' : '');
+      return (!isaretli && o.onayli ? dugme('gelecek',DURUM_RENK.gelecek || '#EF7400') : '')+dugme('geldi',DURUM_RENK.geldi || '#2f8f4e')+dugme('gelmedi',DURUM_RENK.gelmedi || '#e5484d')+
+         (o.kat !== 'bekliyor' ? '<button type="button" class="kaldir" data-kat="'+o.kat+'"><i class="fa fa-calendar-times-o" aria-hidden="true"></i> '+DURUM_AD[o.kat]+' İşaretini Kaldır</button>' : '');
    }
+   // WhatsApp mesaj penceresi acilmadan detay kapansin (ust uste pencere olmasin)
+   $('#ogt_d_ust').on('click', '.whatsapp-mesaj-ac', function(){ $('#ogt_detay').modal('hide'); });
    $('#ogt_d_katilim').on('click', 'button', function(){
       var k = $(this).attr('data-kat'), o = detayOlay, kaldir = o && o.kat === k;
       if (!o) return;
