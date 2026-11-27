@@ -281,13 +281,13 @@ namespace {
     esit('neden: fiyat', 'fiyat', GK::neden($ot(), []));
     foreach (['dur', 'DUR', 'istemiyorum', 'hayır teşekkürler', 'lütfen yazmayın'] as $x) esit("ret: $x", true, GK::retMi($x));
     foreach (['yarın gelebilirim', 'olur perşembe uygun', 'durumu nedir'] as $x) esit("ret değil: $x", false, GK::retMi($x));
-    $sec = [['tarih' => '2026-11-20', 'gun' => 'Perşembe, 20 Kasım', 'saat' => '14:00', 'personel_id' => 3, 'personel' => 'Ayşe Hanım'],
-            ['tarih' => '2026-11-21', 'gun' => 'Cuma, 21 Kasım', 'saat' => '11:30', 'personel_id' => 3, 'personel' => 'Ayşe Hanım']];
+    $sec = [['tarih' => '2026-11-20', 'gun' => '20 Kasım Perşembe', 'saat' => '14:00', 'personel_id' => 3, 'personel' => 'Ayşe Hanım'],
+            ['tarih' => '2026-11-21', 'gun' => '21 Kasım Cuma', 'saat' => '11:30', 'personel_id' => 3, 'personel' => 'Ayşe Hanım']];
     $m = GK::mesajMetni('Merhaba Ayşe Hanım.', 'Protez Tırnak', 'fiyat', $sec, null, 26);
     icerir('mesaj: hitap', 'Merhaba Ayşe Hanım 😊', $m);
     icerir('mesaj: dün + hizmet', 'Dün Protez Tırnak için fiyat bilgisi almıştınız.', $m);
-    icerir('mesaj: gerçek saat 1', '• Perşembe, 20 Kasım 14:00 (Ayşe Hanım)', $m);
-    icerir('mesaj: gerçek saat 2', '• Cuma, 21 Kasım 11:30', $m);
+    icerir('mesaj: gerçek saat 1', '• 20 Kasım Perşembe 14:00 (Ayşe Hanım)', $m);
+    icerir('mesaj: gerçek saat 2', '• 21 Kasım Cuma 11:30', $m);
     icerir('mesaj: çıkış seçeneği', '"dur" yazmanız yeterli', $m);
     $m = GK::mesajMetni('Merhaba.', null, 'pahali', [], 'Bu haftaya özel %10 indirimimiz var.', 40);
     icerir('mesaj: kampanya yalnız işletmenin cümlesi', 'Bu haftaya özel %10 indirimimiz var.', $m);

@@ -32,8 +32,8 @@ class SantralSesController extends Controller
     const ORNEK_METINLER = [
         "Merhaba Anıl Bey, Randevumcepte'ye hoş geldiniz. Ben Ayşe, size nasıl yardımcı olabilirim?",
         "Tamamdır Anıl Bey, perşembe saat üçe Gülşah Hanım'la lazer epilasyon randevunuzu oluşturdum, size de mesaj gönderdim. Başka yardımcı olabileceğim bir konu var mı?",
-        "Cuma, 20 Kasım için uzmanımız Anıl Bey ile saat 10:00 ya da 11:40 uygun. Hangisini tercih edersiniz?",
-        "Maalesef perşembe saat 14:00 dolu. Size aynı gün saat 15:00 ya da 16:00 önerebilirim, hangisi uygun olur?",
+        "20 Kasım Cuma için uzmanımız Anıl Bey ile, saat 10:00 ya da 11:40 uygun. Hangisini tercih edersiniz?",
+        "Maalesef perşembe saat 14:00 dolu. Size iki seçenek önerebilirim. Aynı gün saat 15:00'te. Ya da saat 16:00'da. Hangisi uygun olur?",
         "Lazer epilasyon hizmetinizde iki paketiniz var. Birincisinde beş seans, ikincisinde üç seans kalmış. Hangi paketinizden randevu oluşturalım?",
     ];
 

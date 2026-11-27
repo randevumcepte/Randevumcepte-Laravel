@@ -96,8 +96,8 @@ namespace {
         return $a;
     }
     function cagir($nesne, $metot, ...$arg) { $m = new ReflectionMethod($nesne, $metot); $m->setAccessible(true); return $m->invoke($nesne, ...$arg); }
-    $rv1 = ['id' => 901, 'durum' => 'talep (onay bekliyor) — iptal/güncelleme yapılabilir', 'tarih' => '2026-11-17', 'gun' => 'Salı, 17 Kasım', 'saat' => '14:00', 'hizmet' => 'Saç Kesimi', 'personel' => 'Gülşah', 'hizmet_id' => 5, 'personel_id' => 21];
-    $rv2 = ['id' => 902, 'durum' => 'onaylı', 'tarih' => '2026-11-20', 'gun' => 'Cuma, 20 Kasım', 'saat' => '10:00', 'hizmet' => 'Lazer Epilasyon', 'personel' => 'berkcan', 'hizmet_id' => 9, 'personel_id' => 34];
+    $rv1 = ['id' => 901, 'durum' => 'talep (onay bekliyor) — iptal/güncelleme yapılabilir', 'tarih' => '2026-11-17', 'gun' => '17 Kasım Salı', 'saat' => '14:00', 'hizmet' => 'Saç Kesimi', 'personel' => 'Gülşah', 'hizmet_id' => 5, 'personel_id' => 21];
+    $rv2 = ['id' => 902, 'durum' => 'onaylı', 'tarih' => '2026-11-20', 'gun' => '20 Kasım Cuma', 'saat' => '10:00', 'hizmet' => 'Lazer Epilasyon', 'personel' => 'berkcan', 'hizmet_id' => 9, 'personel_id' => 34];
 
     // =====================================================================================
     bolum('Zaman çözümü (bugün 15 Kasım 2026 Pazar)');
@@ -163,16 +163,16 @@ namespace {
     $a1 = asistan(['_randevularim' => ['ok' => true, 'randevular' => [$rv1]]]);
     $d = $a1->konus('İptal etmek istiyorum', []);
     esit('iptal (tek randevu) → aksiyon yok (onay bekler)', null, $d['aksiyon']);
-    icerir('iptal (tek randevu) → randevuyu okur', 'Salı, 17 Kasım saat 14:00', $d['cevap']);
+    icerir('iptal (tek randevu) → randevuyu okur', '17 Kasım Salı saat 14:00', $d['cevap']);
     icerir('iptal (tek randevu) → personel+hizmet', 'Gülşah ile Saç Kesimi', $d['cevap']);
     icerir('iptal (tek randevu) → onay sorar', 'iptal etmemi onaylıyor musunuz', $d['cevap']);
     icermez('iptal → bekletme yok', 'moment', $d['cevap']);
     $a2 = asistan(['_randevularim' => ['ok' => true, 'randevular' => [$rv1, $rv2]]]);
     $d = $a2->konus('Randevumu iptal etmek istiyorum', []);
     icerir('iptal (iki randevu) → sayı', '2 randevunuz var', $d['cevap']);
-    icerir('iptal (iki randevu) → ikincisi', 'Cuma, 20 Kasım', $d['cevap']);
-    icerir('iptal (iki randevu) → "Birinci randevunuz"', 'Birinci randevunuz Salı', $d['cevap']);
-    icerir('iptal (iki randevu) → "İkinci randevunuz"', 'İkinci randevunuz Cuma', $d['cevap']);
+    icerir('iptal (iki randevu) → ikincisi', '20 Kasım Cuma', $d['cevap']);
+    icerir('iptal (iki randevu) → "Birinci randevunuz"', 'Birinci randevunuz 17 Kasım Salı', $d['cevap']);
+    icerir('iptal (iki randevu) → "İkinci randevunuz"', 'İkinci randevunuz 20 Kasım Cuma', $d['cevap']);
     icermez('iptal → "1." numara okunmaz', '1. ', $d['cevap']);
     icerir('iptal (iki randevu) → seçtirir', 'Hangisini iptal edelim', $d['cevap']);
     $d = $a2->konus('Randevumu ertelemek istiyorum', []);
@@ -183,7 +183,7 @@ namespace {
     $d = $a0->konus('Randevumu iptal etmek istiyorum', []);
     icerir('iptal (randevu yok)', 'randevu görünmüyor', $d['cevap']);
     icerir('iptal (randevu yok) → kapanış sorusu', 'Başka yardımcı olabileceğim', $d['cevap']);
-    $gecmis = [['role' => 'assistant', 'content' => 'Salı, 17 Kasım saat 14:00\'te Gülşah ile Saç Kesimi randevunuz var. Bu randevuyu iptal etmemi onaylıyor musunuz?']];
+    $gecmis = [['role' => 'assistant', 'content' => '17 Kasım Salı saat 14:00\'te Gülşah ile Saç Kesimi randevunuz var. Bu randevuyu iptal etmemi onaylıyor musunuz?']];
     esit('liste zaten okunduysa tekrar etmez (modele bırakır)', null, cagir($a1, 'iptalGuncelleGiris', 'iptal etmek istiyorum', $gecmis));
     esit('tarih verilmiş iptal → modele bırakır', null, cagir($a1, 'iptalGuncelleGiris', 'çarşamba 14teki randevumu iptal et', []));
     esit('kayıtsız arayan → modele bırakır', null, cagir(asistan(['musteriId' => null, 'musteriAd' => null]), 'iptalGuncelleGiris', 'randevumu iptal et', []));
@@ -224,8 +224,8 @@ namespace {
 
     bolum('Modelin iç sesi okunmaz (canlı 2026-11-17)');
     foreach ([
-        'Müşteri 13.40 dedi; seçeneklerde 13:40 var, tarih ise önceki konuşmadaki Çarşamba, 25 Kasım olarak kalmalı. Onay soruyorum. Çarşamba, 25 Kasım saat 13:40\'ta Gülşah Hanım ile randevu talebi oluşturayım mı?'
-            => 'Çarşamba, 25 Kasım saat 13:40\'ta Gülşah Hanım ile randevu talebi oluşturayım mı?',
+        'Müşteri 13.40 dedi; seçeneklerde 13:40 var, tarih ise önceki konuşmadaki 25 Kasım Çarşamba olarak kalmalı. Onay soruyorum. 25 Kasım Çarşamba saat 13:40\'ta Gülşah Hanım ile randevu talebi oluşturayım mı?'
+            => '25 Kasım Çarşamba saat 13:40\'ta Gülşah Hanım ile randevu talebi oluşturayım mı?',
         'Müşterinin iki paketi olduğunu söylemiştim. Hangi paketinizden randevu oluşturalım?' => 'Hangi paketinizden randevu oluşturalım?',
         'musait_saatler sonucuna göre 14:00 uygun. Saat 14:00 olur mu?' => 'Saat 14:00 olur mu?',
         'Müşterimiz olduğunuz için teşekkürler. Hangi gün uygun?' => 'Müşterimiz olduğunuz için teşekkürler. Hangi gün uygun?',
@@ -472,12 +472,12 @@ namespace {
     $r = cagir($am, 'musaitSaatlerPersonelli', ['hizmet_id' => 5, 'tarih' => '2026-11-18', 'saat' => '14:00', 'personel_id' => 21]);
     esit('boş saat → tam_eslesme', true, $r['tam_eslesme'] ?? false);
     esit('boş saat → tek seçenek', 1, count($r['secenekler']));
-    esit('boş saat → gün metni', 'Çarşamba, 18 Kasım', $r['secenekler'][0]['gun']);
+    esit('boş saat → gün metni', '18 Kasım Çarşamba', $r['secenekler'][0]['gun']);
     $sahteServis->bos = false;
     $r = cagir($am, 'musaitSaatlerPersonelli', ['hizmet_id' => 5, 'tarih' => '2026-11-18', 'saat' => '14:00', 'personel_id' => 21]);
     esit('dolu saat → tam_eslesme yok', false, $r['tam_eslesme'] ?? false);
     esit('dolu saat → istenen_saat_dolu', true, $r['istenen_saat_dolu'] ?? null);
-    esit('dolu saat → seçenekte gün metni', 'Çarşamba, 18 Kasım', $r['secenekler'][0]['gun'] ?? null);
+    esit('dolu saat → seçenekte gün metni', '18 Kasım Çarşamba', $r['secenekler'][0]['gun'] ?? null);
     $r = cagir($am, 'musaitSaatlerPersonelli', ['hizmet_id' => 5, 'tarih' => '2026-11-18', 'personel_id' => 99]);
     esit('takvimde görünmeyen personel → hata', false, $r['ok']);
     $r = cagir($am, 'musaitSaatlerPersonelli', ['hizmet_id' => 5, 'tarih' => '18 Kasım']);
@@ -485,8 +485,8 @@ namespace {
     $GLOBALS['_app'][App\Services\SesliRandevuCozService::class] = $servis;
 
     bolum('Zaman notu (modele giden [SİSTEM zaman çözümü])');
-    icerir('"çarşamba 14"', 'tarih=2026-11-18 (Çarşamba, 18 Kasım), saat=14:00', cagir($a, 'zamanNotu', 'çarşamba 14'));
-    icerir('"5 şubat" (yıl eklenir)', 'Cuma, 5 Şubat 2027', cagir($a, 'zamanNotu', '5 şubat'));
+    icerir('"çarşamba 14"', 'tarih=2026-11-18 (18 Kasım Çarşamba), saat=14:00', cagir($a, 'zamanNotu', 'çarşamba 14'));
+    icerir('"5 şubat" (yıl eklenir)', '5 Şubat 2027 Cuma', cagir($a, 'zamanNotu', '5 şubat'));
     esit('zaman yoksa not yok', '', cagir($a, 'zamanNotu', 'randevumu iptal etmek istiyorum'));
 
     bolum('Çalışma saatleri metni');
@@ -506,7 +506,7 @@ namespace {
         ['kampanya_id' => 6, 'ad' => 'Kış Lazer', 'bitis' => null, 'durum' => 'listede_degil', 'katilimci_id' => null, 'randevu_gerekli' => false],
         ['kampanya_id' => 7, 'ad' => 'Bayram', 'bitis' => null, 'durum' => 'katilmadi', 'katilimci_id' => 78, 'randevu_gerekli' => false]]]);
     $km = cagir($kb, 'kampanyaMetni');
-    icerir('davetli etiketi', 'kampanya_id 5 | Yaz Bakım | son gün Salı, 1 Aralık | müşteri DAVETLİ', $km);
+    icerir('davetli etiketi', 'kampanya_id 5 | Yaz Bakım | son gün 1 Aralık Salı | müşteri DAVETLİ', $km);
     icerir('listede değil etiketi', 'kampanya_id 6 | Kış Lazer | müşteri listede değil', $km);
     icerir('katılmadı etiketi', 'katılmayacağını söyledi', $km);
     icermez('kampanya bağlamında fiyat/oran yok', '%', $km);
@@ -565,7 +565,7 @@ namespace {
     esit('"talebiniz" zaten varsa dokunmaz', 'Randevu talebiniz oluşturuldu.', cagir($a, 'talepIfadesi', 'Randevu talebiniz oluşturuldu.'));
 
     bolum('Onay turu: zorla randevu güvenlik ağı');
-    $onaySoru = [['role' => 'assistant', 'content' => "Perşembe, 19 Kasım saat 11:00'te Gülşah ile Saç Kesimi için randevu talebi oluşturayım mı?"]];
+    $onaySoru = [['role' => 'assistant', 'content' => "19 Kasım Perşembe saat 11:00'te Gülşah ile Saç Kesimi için randevu talebi oluşturayım mı?"]];
     esit('onay sorusu algılanır', true, cagir($a, 'onayBekleniyorMu', $onaySoru));
     esit('başka soru onay değil', false, cagir($a, 'onayBekleniyorMu', [['role' => 'assistant', 'content' => 'Hangi saat uygun olur?']]));
     esit('ekli varyant ("randevusu talebi oluşturayım mı") algılanır', true, cagir($a, 'onayBekleniyorMu', [['role' => 'assistant', 'content' => "Perşembe 11:00'te Gülşah ile Saç Kesimi randevusu talebi oluşturayım mı?"]]));
@@ -637,7 +637,7 @@ namespace {
     $GLOBALS['_config']['services.santral_ai.hatirlatma_salonlar'] = '';
     esit('boş → kapalı', false, App\Services\RandevuAsistan::aiHatirlatmaAcik(20));
 
-    $hm = ['tur' => 'randevu', 'randevu_id' => 901, 'soz' => "yarın, Pazartesi, 16 Kasım saat 14:00'te Gülşah ile Saç Kesimi"];
+    $hm = ['tur' => 'randevu', 'randevu_id' => 901, 'soz' => "yarın, 16 Kasım Pazartesi saat 14:00'te Gülşah ile Saç Kesimi"];
     $hk = ['role' => 'assistant', 'content' => "Sayın Anıl Orbey, ben Randevumcepte yapay zeka asistanıyım. {$hm['soz']} randevunuzu hatırlatmak için arıyorum. Randevunuza gelebilecek misiniz?", 'hatirlatma' => $hm];
     $h = asistan();
     esit('ilk soru → cevap bekleniyor', 'soru', cagir($h, 'hatirlatmaBekleyen', [$hk])['adim'] ?? null);
@@ -677,7 +677,7 @@ namespace {
     $k = $h->konus('Beni işletmeye bağlar mısın', [$hk]);
     esit('konus: aktarma isteği hatırlatmada da çalışır', 'aktar', $k['aksiyon']);
 
-    $am = ['adim' => 'soru', 'tur' => 'alacak', 'alacak_idler' => [7, 8], 'tutar' => '1.250 lira', 'tarih' => 'Salı, 17 Kasım'];
+    $am = ['adim' => 'soru', 'tur' => 'alacak', 'alacak_idler' => [7, 8], 'tutar' => '1.250 lira', 'tarih' => '17 Kasım Salı'];
     App\Alacaklar::$guncelleme = null;
     $c = cagir($h, 'hatirlatmaCevap', 'Evet öderim', $am);
     esit('alacak "Evet öderim" → odeme', 'odeme', $c['aksiyon'] ?? null);
@@ -718,15 +718,15 @@ namespace {
     esit('uzman: cinsiyet bilinmiyor → yalnız ad', 'Zxq', cagir($hp, 'personelHitap', 24));
     // GECIKME: arac sonrasi cumle koddan (son Claude cagrisi atlanir)
     $iki = ['ok' => true, 'istenen_tarih' => '2026-11-20', 'istenen_gun_dolu' => false, 'secenekler' => [
-        ['tarih' => '2026-11-20', 'saat' => '10:00', 'personel_id' => 32, 'personel' => 'Anıl Bey', 'gun' => 'Cuma, 20 Kasım'],
-        ['tarih' => '2026-11-20', 'saat' => '11:40', 'personel_id' => 32, 'personel' => 'Anıl Bey', 'gun' => 'Cuma, 20 Kasım']]];
-    esit('kod cevap: iki seçenek aynı gün/uzman', 'Cuma, 20 Kasım için uzmanımız Anıl Bey ile saat 10:00 ya da 11:40 uygun. Hangisini tercih edersiniz?',
+        ['tarih' => '2026-11-20', 'saat' => '10:00', 'personel_id' => 32, 'personel' => 'Anıl Bey', 'gun' => '20 Kasım Cuma'],
+        ['tarih' => '2026-11-20', 'saat' => '11:40', 'personel_id' => 32, 'personel' => 'Anıl Bey', 'gun' => '20 Kasım Cuma']]];
+    esit('kod cevap: iki seçenek aynı gün/uzman', '20 Kasım Cuma için uzmanımız Anıl Bey ile, saat 10:00 ya da 11:40 uygun. Hangisini tercih edersiniz?',
         cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', $iki]]));
-    $farkli = $iki; $farkli['secenekler'][1] = ['tarih' => '2026-11-21', 'saat' => '12:00', 'personel_id' => 21, 'personel' => 'Gülşah Hanım', 'gun' => 'Cumartesi, 21 Kasım'];
-    esit('kod cevap: farklı gün/uzman', 'Size Cuma, 20 Kasım saat 10:00 uzmanımız Anıl Bey ile ya da Cumartesi, 21 Kasım saat 12:00 uzmanımız Gülşah Hanım ile önerebilirim. Hangisini tercih edersiniz?',
+    $farkli = $iki; $farkli['secenekler'][1] = ['tarih' => '2026-11-21', 'saat' => '12:00', 'personel_id' => 21, 'personel' => 'Gülşah Hanım', 'gun' => '21 Kasım Cumartesi'];
+    esit('kod cevap: farklı gün/uzman', 'Size iki seçenek önerebilirim. 20 Kasım Cuma, saat 10:00\'da uzmanımız Anıl Bey ile. Ya da 21 Kasım Cumartesi, saat 12:00\'de uzmanımız Gülşah Hanım ile. Hangisini tercih edersiniz?',
         cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', $farkli]]));
     $gunDolu = $iki; $gunDolu['istenen_tarih'] = '2026-11-19'; $gunDolu['istenen_gun_dolu'] = true;
-    icerir('kod cevap: istenen gün dolu', 'Perşembe, 19 Kasım için uygun saat kalmadı.', cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', $gunDolu]]));
+    icerir('kod cevap: istenen gün dolu', '19 Kasım Perşembe için uygun saat kalmadı.', cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', $gunDolu]]));
     esit('kod cevap: dolu + öneri cümlesi aynen', 'X', cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', ['ok' => true, 'onerilen_cumle' => 'X', 'secenekler' => []]]]));
     esit('kod cevap YOK: tam eşleşme (bağlama göre model)', null, cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', ['ok' => true, 'tam_eslesme' => true, 'secenekler' => [$iki['secenekler'][0]]]]]));
     esit('kod cevap YOK: boş sonuç', null, cagir($hp, 'aracSonrasiKodCevabi', [['musait_saatler', ['ok' => true, 'secenekler' => [], 'mesaj' => 'yok']]]));
@@ -751,7 +751,7 @@ namespace {
     // WhatsApp sablonu: randevu onayi kart + "Başka..." alt satirda (satir sonlari ezilmez); santral eskisi gibi tek cumle
     $waOnay = cagir($rkA, 'baskaYardimEkle', cagir($rkA, 'randevuOnayCumlesi', ['tarih' => '2026-11-21', 'saat' => '10:00:00', 'hizmet' => 'Jel Güçlendirme', 'personel' => 'Berfin Hanım', 'bilgilendirme_gonderildi' => true]));
     icerir('WA randevu onayı: kart başlığı', '✅ *Randevu talebiniz oluşturuldu*', $waOnay);
-    icerir('WA randevu onayı: satır satır', "💅 Jel Güçlendirme\n📅 Cumartesi, 21 Kasım\n🕒 10:00\n👤 Berfin Hanım", $waOnay);
+    icerir('WA randevu onayı: satır satır', "💅 Jel Güçlendirme\n📅 21 Kasım Cumartesi\n🕒 10:00\n👤 Berfin Hanım", $waOnay);
     icerir('WA randevu onayı: soru ayrı satırda', "haber vereceğiz.\n\nBaşka yardımcı olabileceğim bir konu var mı?", $waOnay);
     $snOnay = cagir(asistan(), 'baskaYardimEkle', cagir(asistan(), 'randevuOnayCumlesi', ['tarih' => '2026-11-21', 'saat' => '10:00', 'bilgilendirme_gonderildi' => true]));
     esit('santral onayı değişmedi (tek cümle)', 'Tamamdır, randevu talebinizi oluşturdum; bilgilendirme mesajını ve yol tarifini telefonunuza gönderdim. Onaylandığında size haber vereceğiz. Başka yardımcı olabileceğim bir konu var mı?', $snOnay);
@@ -766,9 +766,9 @@ namespace {
     icerir('kod cevap: randevu oluştu', 'randevu talebinizi oluşturdum', cagir($hp, 'aracSonrasiKodCevabi', [['randevu_olustur', ['ok' => true, 'tarih' => '2026-11-20', 'saat' => '10:00', 'personel' => 'Anıl Bey']]]));
 
     // kayit #120: guncellemede uzman degisebilir; onay cumlesi koddan (yeni uzman adiyla)
-    esit('güncelleme onayı (yeni uzman)', "Perşembe, 19 Kasım saat 14:00'te uzmanımız Gülşen Hanım ile randevunuzu güncelledim ve size bilgilendirme mesajı gönderdim.",
+    esit('güncelleme onayı (yeni uzman)', "19 Kasım Perşembe saat 14:00'te uzmanımız Gülşen Hanım ile randevunuzu güncelledim ve size bilgilendirme mesajı gönderdim.",
         cagir($hp, 'guncelleOnayCumlesi', ['tarih' => '2026-11-19', 'saat' => '14:00', 'personel' => 'Gülşen Hanım', 'bilgilendirme_gonderildi' => true]));
-    esit('güncelleme onayı (mesaj yok)', "Perşembe, 19 Kasım saat 14:00'te uzmanımız Ferdi Bey ile randevunuzu güncelledim.",
+    esit('güncelleme onayı (mesaj yok)', "19 Kasım Perşembe saat 14:00'te uzmanımız Ferdi Bey ile randevunuzu güncelledim.",
         cagir($hp, 'guncelleOnayCumlesi', ['tarih' => '2026-11-19', 'saat' => '14:00', 'personel' => 'Ferdi Bey', 'bilgilendirme_gonderildi' => false]));
     icerir('onay cümlesi: paketinizden', 'Tamamdır, paketinizden randevu talebinizi oluşturdum', cagir($hp, 'randevuOnayCumlesi', ['tarih' => '2026-11-20', 'saat' => '10:00', 'personel' => 'Gülşah Hanım', 'paket_seansi' => true]));
     $hk = asistan(['_paketler' => [['adisyon_paket_id' => 77, 'paket_adi' => '5 Seans Lazer', 'hizmetler' => [['hizmet_id' => 5, 'ad' => 'Lazer Epilasyon', 'kalan_seans' => 3, 'personeller' => []]]]]]);
@@ -787,10 +787,10 @@ namespace {
     esit('saat eki 14:40', "14:40'ta", cagir($a, 'saatEkli', '14:40'));
     $sec2 = [['tarih' => '2026-11-20', 'saat' => '13:00', 'personel' => 'Gülşah Hanım'], ['tarih' => '2026-11-20', 'saat' => '14:30', 'personel' => 'Ferdi Bey']];
     $dc = cagir($a, 'doluOneriCumlesi', '2026-11-20', '12:00', $sec2);
-    icerir('dolu: önce uygun değil', "Cuma, 20 Kasım saat 12:00 uygun değil.", $dc);
-    icerir('dolu: iki öneri', "aynı gün saat 13:00'te uzmanımız Gülşah Hanım ile ya da saat 14:30'da uzmanımız Ferdi Bey ile önerebilirim, hangisi uygun olur?", $dc);
+    icerir('dolu: önce uygun değil', "20 Kasım Cuma, saat 12:00 uygun değil.", $dc);
+    icerir('dolu: iki öneri', "Size iki seçenek önerebilirim. Aynı gün saat 13:00'te uzmanımız Gülşah Hanım ile. Ya da saat 14:30'da uzmanımız Ferdi Bey ile. Hangisi uygun olur?", $dc);
     $dc2 = cagir($a, 'doluOneriCumlesi', '2026-11-20', '12:00', [['tarih' => '2026-11-20', 'saat' => '10:00', 'personel' => 'Gülşah Hanım'], ['tarih' => '2026-11-21', 'saat' => '12:00', 'personel' => 'Gülşah Hanım']]);
-    icerir('dolu: ertesi gün önerisi gün adıyla', "Cumartesi, 21 Kasım saat 12:00'de", $dc2);
+    icerir('dolu: ertesi gün önerisi gün adıyla', "21 Kasım Cumartesi, saat 12:00'de", $dc2);
     $ds = ['secenekler' => $sec2];
     esit('model "dolu" demeden saat önerdi → eksik', false, cagir($a, 'doluCevabiTamMi', "Cuma saat 13:00'te Gülşah Hanım ile oluşturayım mı?", $ds));
     esit('model tek öneri söyledi → eksik', false, cagir($a, 'doluCevabiTamMi', "12 dolu, 13:00 uygun mu?", $ds));
@@ -923,7 +923,7 @@ namespace {
     esit('soru soruyor → bırakmadı', false, $RA::sozVeripBirakti('Kontrol ettim: 17:30 Fatma Hanım uygun. Oluşturayım mı?'));
     esit('net bilgi → bırakmadı', false, $RA::sozVeripBirakti('Randevunuz Perşembe 17:30 Fatma Hanım ile oluşturuldu.'));
     icerir('WA prompt: söz verip bırakma kuralı', 'SÖZ VERİP BIRAKMA', cagir($waD, 'sistemPromptu'));
-    esit('uzman sorusu: "tercih ettiğiniz bir uzmanımız var mı"', true, $RA::uzmanSorusuMu('Merhaba. Kalıcı Oje için Pazar, 22 Kasım uygun saatlerimizi kontrol edebilmem için tercih ettiğiniz bir uzmanımız var mı, yoksa fark etmez mi?'));
+    esit('uzman sorusu: "tercih ettiğiniz bir uzmanımız var mı"', true, $RA::uzmanSorusuMu('Merhaba. Kalıcı Oje için 22 Kasım Pazar uygun saatlerimizi kontrol edebilmem için tercih ettiğiniz bir uzmanımız var mı, yoksa fark etmez mi?'));
     esit('uzman sorusu: "hangi uzmanımızı tercih edersiniz" (saat olsa da)', true, $RA::uzmanSorusuMu('Tabii, 17:30 için bakabiliriz. Hangi uzmanımızı tercih edersiniz: Melis Hanım ya da Fatma Hanım?'));
     esit('uzman sorusu değil: saat sunuyor', false, $RA::uzmanSorusuMu('Pazar 22 Kasım 11:00 Kübra Hanım ile uygun. Oluşturayım mı?'));
     icerir('WA prompt: personel sorma kuralı', 'PERSONEL SORMA', cagir($waD, 'sistemPromptu'));
@@ -1144,7 +1144,7 @@ namespace {
     esit('"öğlen" → öğle', 'ogle', $zc->zamanCoz('yarın öğlen')['vakit']);
     esit('"öğleden sonra" bozulmadı', 'ogleden_sonra', $zc->zamanCoz('yarın öğleden sonra')['vakit']);
     esit('"akşamüstü 6" → 18:00', '18:00', $zc->zamanCoz('akşamüstü 6 gibi')['saat']);
-    $onc = 'Ferdi Bey, Cumartesi, 28 Kasım saat 18:00\'de randevunuzu oluşturdum. Salonumuz sizi arayıp detayları netleştirecek. Başka bir isteğiniz var mı?';
+    $onc = 'Ferdi Bey, 28 Kasım Cumartesi saat 18:00\'de randevunuzu oluşturdum. Salonumuz sizi arayıp detayları netleştirecek. Başka bir isteğiniz var mı?';
     $t1 = cagir($hv, 'hizmetsizTekrarCevabi', '18 dedim ya.', [['role' => 'assistant', 'content' => $onc]]);
     esit('"18 dedim ya" → yeni randevu yok, teyit', 'Evet, randevunuz saat 18:00 için oluşturuldu, merak etmeyin. Başka bir isteğiniz var mı?', $t1['cevap'] ?? null);
     esit('teyitte aksiyon yok', true, array_key_exists('aksiyon', $t1) && $t1['aksiyon'] === null);

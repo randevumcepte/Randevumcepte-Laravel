@@ -1017,7 +1017,7 @@ class RandevuAsistan
         return $this->secenekCumlesi($m);
     }
 
-    /** musait_saatler 1-2 secenek -> "Cuma, 20 Kasım için uzmanımız Anıl Bey ile saat 10:00 ya da 11:40 uygun. Hangisini tercih edersiniz?" */
+    /** musait_saatler 1-2 secenek -> "20 Kasım Cuma için uzmanımız Anıl Bey ile saat 10:00 ya da 11:40 uygun. Hangisini tercih edersiniz?" */
     protected function secenekCumlesi(array $m): string
     {
         $sec = array_values(array_slice($m['secenekler'], 0, 2));
@@ -1027,22 +1027,25 @@ class RandevuAsistan
         if (!empty($m['istenen_gun_dolu']) && !empty($m['istenen_tarih']) && ($sec[0]['tarih'] ?? '') !== $m['istenen_tarih']) {
             $on = $this->tarihSoz((string) $m['istenen_tarih']) . ' için uygun saat kalmadı. ';
         }
+        // TELEFON NEFESI (kullanici 2026-11-27: "hiç nefes almadan konuşuyor"): tek uzun cumle yerine kisa cumleler +
+        // virgul; TTS nokta/virgulde durur. Gun "27 Kasım Cuma" bicimiyle.
         if (count($sec) === 1) {
-            return $on . $gun($sec[0]) . ' saat ' . $sec[0]['saat'] . $ile($sec[0]) . ' uygun. Bu saat olur mu?';
+            return $on . $gun($sec[0]) . ', saat ' . $sec[0]['saat'] . $ile($sec[0]) . ' uygun. Bu saat olur mu?';
         }
         $ayniGun = $sec[0]['tarih'] === $sec[1]['tarih'];
         $ayniKisi = ($sec[0]['personel_id'] ?? null) === ($sec[1]['personel_id'] ?? null);
         if ($ayniGun && $ayniKisi) {
-            return $on . $gun($sec[0]) . ' için' . $ile($sec[0]) . ' saat ' . $sec[0]['saat'] . ' ya da ' . $sec[1]['saat'] . ' uygun. Hangisini tercih edersiniz?';
+            return $on . $gun($sec[0]) . ' için' . $ile($sec[0]) . ', saat ' . $sec[0]['saat'] . ' ya da ' . $sec[1]['saat'] . ' uygun. Hangisini tercih edersiniz?';
         }
         $p = [];
         foreach ($sec as $i => $s) {
-            $p[] = (($i === 0 || !$ayniGun) ? $gun($s) . ' ' : '') . 'saat ' . $s['saat'] . $ile($s);
+            $p[] = (($i === 0 || !$ayniGun) ? $gun($s) . ', ' : '') . 'saat ' . $this->saatEkli((string) $s['saat']) . $ile($s);
         }
-        return $on . 'Size ' . implode(' ya da ', $p) . ' önerebilirim. Hangisini tercih edersiniz?';
+        // "Size iki seçenek önerebilirim. 27 Kasım Cuma, saat 11:30'da uzmanımız Zehra Hanım ile. Ya da saat 13:00'te uzmanımız Samet Bey ile. Hangisini tercih edersiniz?"
+        return $on . 'Size iki seçenek önerebilirim. ' . $this->buyukBas($p[0]) . '. Ya da ' . $p[1] . '. Hangisini tercih edersiniz?';
     }
 
-    /** randevu_guncelle ok=true sonucundan onay cumlesi: "Perşembe, 19 Kasım saat 14:00'te uzmanımız Gülşen Hanım ile randevunuzu güncelledim..." */
+    /** randevu_guncelle ok=true sonucundan onay cumlesi: "19 Kasım Perşembe saat 14:00'te uzmanımız Gülşen Hanım ile randevunuzu güncelledim..." */
     protected function guncelleOnayCumlesi(array $d): string
     {
         $gun = $this->tarihSoz((string) ($d['tarih'] ?? ''));
@@ -1488,7 +1491,7 @@ class RandevuAsistan
         return '';
     }
 
-    /** 2026-11-18 -> "Çarşamba, 18 Kasım" (yil farkliysa yil da eklenir). */
+    /** 2026-11-18 -> "18 Kasım Çarşamba" (yil farkliysa yil da eklenir). */
     protected function tarihSoz(string $iso): string
     {
         $ts = strtotime($iso);
@@ -1496,7 +1499,8 @@ class RandevuAsistan
         $gunAd = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
         $ayAd = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
         $yil = date('Y', $ts) !== now('Europe/Istanbul')->format('Y') ? ' ' . date('Y', $ts) : '';
-        return $gunAd[(int) date('w', $ts)] . ', ' . (int) date('j', $ts) . ' ' . $ayAd[(int) date('n', $ts)] . $yil;
+        // Telefonda dogal okunus (kullanici 2026-11-27): "27 Kasım Cuma" ("27 Kasım Cuma" degil)
+        return (int) date('j', $ts) . ' ' . $ayAd[(int) date('n', $ts)] . $yil . ' ' . $gunAd[(int) date('w', $ts)];
     }
 
     // ------------------------------------------------ isletme bilgisi (calisma saati / kampanya / SSS)
@@ -2064,7 +2068,7 @@ class RandevuAsistan
         return null;
     }
 
-    /** Randevunun konusmada okunacak hali: "Pazartesi, 16 Kasım saat 14:00'te Gülşah ile Saç Kesimi" */
+    /** Randevunun konusmada okunacak hali: "16 Kasım Pazartesi saat 14:00'te Gülşah ile Saç Kesimi" */
     protected function randevuSoz(array $r): string
     {
         $s = "{$r['gun']} saat " . $this->saatEkli((string) $r['saat']);
@@ -2694,7 +2698,7 @@ UZMAN ADLARI: Uzmanı her zaman araç sonucundaki / PERSONELLER'deki gibi "Hanı
    - tam_eslesme=true dönerse: istenen saat uygun → ALTERNATİF SUNMA, seçenek okuma; doğrudan 8. adımdaki onay cümlesine geç (gün için seçeneğin "gun" alanını kullan).
    - Aksi halde: müşteri saat söylediyse önce "O saat dolu" de, sonra dönen seçenekleri (en fazla 2) "gun" alanı ve personel adıyla öner. istenen_gun_dolu=true ise o günün dolu olduğunu söyle. Seçenek yoksa başka gün/dilim öner.
 7. SAAT SEÇİMİ (yalnız seçenek sunulduysa).
-8. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te uzmanımız [personel] ile [hizmet] için randevu talebi oluşturayım mı?" ([gün] = seçeneğin "gun" alanı, ör. "Çarşamba, 18 Kasım"; [hizmet] = hizmet_eslestir'den dönen hizmet ADI — müşterinin söylediği/yanlış duyulan kelime DEĞİL: "protest tırnak" duyulduysa "Protez Tırnak" de)
+8. ONAY (yalnız burada, tek sefer): "[gün] [saat]'te uzmanımız [personel] ile [hizmet] için randevu talebi oluşturayım mı?" ([gün] = seçeneğin "gun" alanı, ör. "18 Kasım Çarşamba"; [hizmet] = hizmet_eslestir'den dönen hizmet ADI — müşterinin söylediği/yanlış duyulan kelime DEĞİL: "protest tırnak" duyulduysa "Protez Tırnak" de)
 9. Onay gelince "randevu_olustur" (seçilen seçeneğin tarih_saat ve personel_id'si + hizmet_id). ok=false ve saat dolu derse yeniden musait_saatler çağır ve yeni saat öner.
 10. SONUÇ: Randevu TALEP olarak oluşturulur (işletme onaylar). Gün/saat/uzmanı TEKRAR SAYMA (onay sorusunda söylendi): "Tamamdır, randevu talebinizi oluşturdum; bilgilendirme mesajını ve yol tarifini telefonunuza gönderdim. Onaylandığında size haber vereceğiz." (bilgilendirme_gonderildi=false ise "; bilgilendirme mesajını ve yol tarifini telefonunuza gönderdim" kısmını SÖYLEME.) En sonda MUTLAKA "Başka yardımcı olabileceğim bir konu var mı?" diye sor. Güncelleme ve iptal sonrasında da aynı şekilde bu soruyu sor; iptalde "Randevunuz iptal edildi." de, randevu_iptal sonucunda bilgilendirme_gonderildi=true ise "Size bilgilendirme mesajı ilettim." ekle (güncellemede de aynı alan).
 11. KAPANIŞ: Müşteri "yok, teşekkürler" derse "veda" çağır; yeni bir isteği varsa 2. adımdan devam et.
@@ -2730,7 +2734,7 @@ evet, tabii, olur, olsun, tamam, ok, okey, kabul, onaylıyorum, uygundur, peki, 
 hayır, yok, istemiyorum, olmaz, vazgeçtim, başka = RET.
 
 # ZAMAN
-Bugün: {$bugun}. Tarihleri müşteriye Türkçe söyle (ör. "Perşembe, 7 Mayıs") ama araçlara ISO 8601 ver.
+Bugün: {$bugun}. Tarihleri müşteriye Türkçe söyle (ör. "7 Mayıs Perşembe") ama araçlara ISO 8601 ver.
 Saat kestirimi: "on dörtte"=14:00, "on dört buçukta"=14:30, "ikide/saat ikide"=14:00 (öğleden sonra varsayılan), "iki buçukta"=14:30, "sabah dokuz"=09:00, "akşam yedide"=19:00, "öğleden sonra üçte"=15:00. Belirsizse "sabah mı öğleden sonra mı?" diye sor.
 
 # TARİH HARİTASI (HESAP YAPMA, TABLOYU KULLAN)
@@ -2773,7 +2777,7 @@ Bu bir telefon görüşmesi DEĞİL; müşteri WhatsApp'tan yazıyor ve cevabın
   · bloklar arasında boş satır bırak; soruyu en sona, ayrı satıra yaz;
   · mesaj başına en fazla 3-4 uygun emoji (📅 🕒 💅 💆 ✨ ✅ 🎁), süs için emoji yağdırma.
   Örnek (paket): "💆 *Lazer Epilasyon* için hesabınızda 2 paket var:\\n\\n1️⃣ *Deneme 2'li paket* — 4 seans kaldı\\n2️⃣ *Deneme 2'li paket* — 3 seans kaldı\\n\\nRandevuyu hangi paketinizden oluşturalım? Paketsiz (ücretli) de alabilirsiniz."
-  Örnek (saat): "📅 *Cumartesi, 21 Kasım* için boş saatler:\\n\\n1️⃣ *10:00* — Berfin Hanım\\n2️⃣ *11:30* — Sümeyra Hanım\\n\\nHangisi size uygun?"
+  Örnek (saat): "📅 *21 Kasım Cumartesi* için boş saatler:\\n\\n1️⃣ *10:00* — Berfin Hanım\\n2️⃣ *11:30* — Sümeyra Hanım\\n\\nHangisi size uygun?"
   Örnek (fiyat): "💆 *Lazer Epilasyon* — *1.200 TL*\\n\\nRandevu oluşturmamı ister misiniz? Gün ve saat yazmanız yeterli 🙂"
 - FİYAT VEREMEDİĞİNDE (fiyat söyleme kapalı ya da listede fiyat yok): "bildiremiyorum", "bilemiyorum", "bağlayabilirim", "bağlayayım mı" YAZMA ve müşteriye bunun için SORU SORMA. Müşterinin bu hizmette PAKETİ varsa önce paketini olumlu söyle (paketten randevu ek ücretsizdir) ve randevuya götür; fiyat için "aktar" çağırma, paketsiz fiyatı isterse o zaman çağır. Paketi yoksa "aktar"ı HEMEN çağır ve olumlu yaz: "Fiyat bilgisini işletmemize ilettim, kısa sürede size yazacaklar 🙏" — ardından randevuya devam et ("Bu arada randevunuzu oluşturalım mı? Gün ve saat yazmanız yeterli.").
   Örnek (paketli müşteri fiyat sordu): "💆 *Lazer Epilasyon* için paketinizde seanslarınız var 🎉\\n\\n1️⃣ *Deneme 2'li paket* — 4 seans kaldı\\n2️⃣ *Deneme 2'li paket* — 3 seans kaldı\\n\\nRandevunuzu paketinizden ek ücret olmadan oluşturabiliriz. Hangi gün ve saat uygun?"
@@ -2881,7 +2885,7 @@ FIYAT
             $hafta = intdiv($buPzt->diffInDays($g), 7);
             $hEt = $hafta === 0 ? 'bu hafta' : ($hafta === 1 ? 'önümüzdeki hafta' : "{$hafta} hafta sonra");
             $etiket = ' (' . ($i === 0 ? 'BUGÜN, ' : ($i === 1 ? 'YARIN, ' : '')) . $hEt . ')';
-            $out .= $gunAd[(int) $g->format('w')] . ' ' . (int) $g->format('d') . ' ' . $ayAd[(int) $g->format('n')]
+            $out .= (int) $g->format('d') . ' ' . $ayAd[(int) $g->format('n')] . ' ' . $gunAd[(int) $g->format('w')]
                 . ' = ' . $g->format('Y-m-d') . $etiket . "\n";
         }
         return $out;
@@ -3739,17 +3743,29 @@ FIYAT
         return $m[1] . ':' . $m[2] . "'" . $ek;
     }
 
-    /** "Cuma, 20 Kasım saat 12:00 uygun değil. Aynı gün saat 13:00'te uzmanımız Gülşah Hanım ile ya da ... önerebilirim, hangisi uygun olur?" */
+    /** Cumle basi buyuk harf (Turkce i -> İ). */
+    protected function buyukBas(string $c): string
+    {
+        $c = ltrim($c);
+        if ($c === '') return $c;
+        $ilk = mb_substr($c, 0, 1);
+        return ($ilk === 'i' ? 'İ' : mb_strtoupper($ilk)) . mb_substr($c, 1);
+    }
+
+    /** "20 Kasım Cuma saat 12:00 uygun değil. Aynı gün saat 13:00'te uzmanımız Gülşah Hanım ile ya da ... önerebilirim, hangisi uygun olur?" */
     protected function doluOneriCumlesi(string $tarih, string $saat, array $sec): string
     {
-        $c = $this->tarihSoz($tarih) . ' saat ' . $saat . ' uygun değil.';
+        $c = $this->tarihSoz($tarih) . ', saat ' . $saat . ' uygun değil.';
         if (!$sec) return $c . ' Başka bir gün ya da saat söyler misiniz?';
         $parca = [];
         foreach (array_slice($sec, 0, 2) as $i => $s) {
-            $gun = $s['tarih'] === $tarih ? ($i === 0 || $sec[0]['tarih'] !== $tarih ? 'aynı gün' : '') : $this->tarihSoz($s['tarih']);
+            $gun = $s['tarih'] === $tarih ? ($i === 0 || $sec[0]['tarih'] !== $tarih ? 'aynı gün' : '') : $this->tarihSoz($s['tarih']) . ',';
             $parca[] = trim($gun . ' saat ' . $this->saatEkli($s['saat']) . (!empty($s['personel']) ? ' uzmanımız ' . $s['personel'] . ' ile' : ''));
         }
-        $c .= ' Size ' . implode(' ya da ', $parca) . (count($parca) > 1 ? ' önerebilirim, hangisi uygun olur?' : ' önerebilirim, uygun olur mu?');
+        // Kisa cumleler (telefonda nefes): "Size iki seçenek önerebilirim. Aynı gün saat 13:00'te ... ile. Ya da saat 14:30'da ... ile. Hangisi uygun olur?"
+        $c .= count($parca) > 1
+            ? ' Size iki seçenek önerebilirim. ' . $this->buyukBas($parca[0]) . '. Ya da ' . $parca[1] . '. Hangisi uygun olur?'
+            : ' Size ' . $parca[0] . ' önerebilirim. Uygun olur mu?';
         return $c;
     }
 
