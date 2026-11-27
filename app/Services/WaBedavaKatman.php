@@ -49,6 +49,13 @@ class WaBedavaKatman
 
         // 3) fiyat
         if (!empty($ayar['fiyat_soyle']) && self::fiyatSorusuMu($metin)) {
+            // Fotograftan fiyat verildiyse "toplam ne kadar?" O MODELI soruyor (canli 2026-11-27 Ola Nail: 1.640 TL'lik
+            // fotograf teklifinden sonra "Hangi hizmetimizin fiyatını..." dendi, musteri koptu)
+            if (($gt = self::gorselTeklif($gecmis)) !== null) {
+                $gc = self::gorselFiyatCevabi($metin, $gt, $hizmetler);
+                if ($gc === null) return null; // ek islem (cikarma vb.) / teklifte olmayan hizmet: AI teklifle birlikte hesaplar
+                return $gc;
+            }
             $sonHizmet = ($oturum && !empty($oturum->son_hizmet_id)) ? (int) $oturum->son_hizmet_id : null;
             $f = self::fiyatCevabi($metin, $hizmetler, $sonHizmet);
             if ($f !== null) return $f;
@@ -234,6 +241,39 @@ class WaBedavaKatman
             $cevap = "Fiyatlarımız:\n" . implode("\n", $satir) . "\n\nHangisiyle ilgileniyorsunuz? Dilerseniz hemen randevu da oluşturabilirim 😊";
         }
         return ['cevap' => $cevap, 'kaynak' => 'fiyat', 'hizmet' => ['id' => (int) ($ilk['id'] ?? 0), 'ad' => (string) $ilk['ad']], 'isaret' => ['fiyat' => 1]];
+    }
+
+    /**
+     * Yakin gecmiste fotograftan verilen fiyat teklifi (WaGorselDanisman): ['fiyat' => "1.640 TL", 'kalemler' => "(...)" | '',
+     * 'metin' => tum teklif mesaji]. Teklif son 12 mesajda yoksa null.
+     */
+    public static function gorselTeklif(array $gecmis): ?array
+    {
+        for ($i = count($gecmis) - 1, $n = 0; $i >= 0 && $n < 12; $i--, $n++) {
+            $m = $gecmis[$i];
+            if (($m['role'] ?? '') !== 'assistant' || mb_strpos((string) ($m['baglam'] ?? ''), 'görsel analiz:') === false) continue;
+            $c = (string) ($m['content'] ?? '');
+            if (!preg_match('/Bu model için fiyatımız: ([^\n]+)(?:\n(\([^\n]+\)))?/u', $c, $x)) return null; // son fotografin fiyati yok
+            return ['fiyat' => trim($x[1]), 'kalemler' => trim($x[2] ?? ''), 'metin' => $c];
+        }
+        return null;
+    }
+
+    /**
+     * Fotograf teklifinden sonra fiyat sorusu (saf): teklifte olmayan hizmet / ek islem (cikarma, sokum) sorulduysa null (AI
+     * teklifi de gorerek hesaplar); yoksa teklifin toplami tekrar soylenir.
+     */
+    public static function gorselFiyatCevabi(string $metin, array $teklif, array $hizmetler): ?array
+    {
+        if (preg_match('/\b(cikar\w*|sok\w*|temizle\w*)\b/u', self::sade($metin))) return null;
+        $teklifS = self::sade($teklif['fiyat'] . ' ' . $teklif['kalemler']); // isletme notu ("Protez çıkarma 300 tl") teklif sayilmaz
+        foreach (self::hizmetBul($metin, $hizmetler) as $h) {
+            if (strpos($teklifS, self::sade((string) $h['ad'])) === false) return null;
+        }
+        $cevap = 'Fotoğrafını gönderdiğiniz model için toplam fiyatımız ' . $teklif['fiyat'] . ' 😊'
+            . ($teklif['kalemler'] !== '' ? "\n" . $teklif['kalemler'] : '')
+            . "\n\nSize uygun bir gün için randevu oluşturalım mı?";
+        return ['cevap' => $cevap, 'kaynak' => 'fiyat', 'isaret' => ['fiyat' => 1]];
     }
 
     // ================================================================== saf: kalip kutuphanesi

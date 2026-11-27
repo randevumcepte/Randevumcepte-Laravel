@@ -237,6 +237,22 @@ namespace {
     $r = K::onCevap(236, $as, 'kalıcı oje kaç gün dayanır', $g, null, $ay);
     esit('bilgi sorusu → kalıp', 'kalip', $r['kaynak'] ?? null);
     icerir('kalıp cevabına randevu teklifi eklenir', 'randevu da oluşturabilirim', $r['cevap'] ?? '');
+    // Canli 2026-11-27 Ola Nail: fotograf teklifinden sonra "Toplam fiyatı ne kadar" -> "Hangi hizmetimizin fiyatını..." deniyordu
+    $gT = [['role' => 'user', 'content' => '[fotoğraf] Bu model için fiyat alabilir miyim'],
+        ['role' => 'assistant', 'content' => "Modelinizi inceledim 😊\nKısa kare tırnakta bambi nail art.\n\nBu model için fiyatımız: 1.640 TL\n(Kalıcı Oje 990 TL + Ombre 400 TL + Nail art × 5 250 TL)\nProtez tırnak çıkarma 300 tl\n\nSize uygun bir gün için randevu oluşturalım mı?",
+            'baglam' => 'görsel analiz: bambi; söylenen fiyat 1.640 TL']];
+    esit('teklif okunur', '1.640 TL', K::gorselTeklif($gT)['fiyat'] ?? null);
+    $r = K::onCevap(236, $as, 'Toplam fiyatı ne kadar', $gT, null, $ay);
+    icerir('fotoğraf sonrası "toplam ne kadar" → model toplamı', 'model için toplam fiyatımız 1.640 TL', $r['cevap'] ?? '');
+    icerir('kalemler de yazılır', '(Kalıcı Oje 990 TL + Ombre 400 TL', $r['cevap'] ?? '');
+    icerir('attığım modelin toplam fiyatı → toplam', '1.640 TL', K::onCevap(236, $as, 'Size attığım modelin toplam fiyatını öğrenmek istiyorum', $gT, null, $ay)['cevap'] ?? '');
+    icerir('teklifteki hizmet adı geçse de → toplam', '1.640 TL', K::onCevap(236, $as, 'kalıcı oje ile toplam ne kadar', $gT, null, $ay)['cevap'] ?? '');
+    esit('ek işlem (çıkarma) → AI teklifle hesaplar', null, K::onCevap(236, $as, 'Jel çıkartma olacak üstüne bambi deseni toplam ücret ne kadar', $gT, null, $ay));
+    esit('teklifte olmayan hizmet → AI', null, K::onCevap(236, $as, 'protez tırnak ile ne kadar olur', $gT, null, $ay));
+    esit('fotoğraf yoksa eski akış', 'Hangi hizmetimizin', mb_substr(K::onCevap(236, $as, 'Toplam fiyatı ne kadar', $g, null, $ay)['cevap'] ?? '', 0, 18));
+    $gT2 = $gT; $gT2[1]['content'] = 'Modelinizi inceledim: x' . "\n\nHangi uygulamayı düşündüğünüzü yazar mısınız?";
+    esit('fiyatsız fotoğraf cevabı → teklif yok', null, K::gorselTeklif($gT2));
+
     $o = (object) ['memnuniyet_soruldu' => 1, 'memnuniyet' => null, 'son_hizmet_id' => null];
     esit('memnuniyet cevabı yakalanır', 1, K::onCevap(236, $as, '👍', $g, $o, $ay)['memnuniyet'] ?? null);
     esit('tanınmayan soru → AI', null, K::onCevap(236, $as, 'Ayşe Hanım bugün çalışıyor mu', $g, null, $ay));
