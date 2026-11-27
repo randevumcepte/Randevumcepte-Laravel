@@ -287,6 +287,7 @@
    function gelmemeKarti(g) {
       if (!g) return '';
       function yuzde(v) { return v === null || v === undefined ? '—' : '%' + String(v).replace('.', ','); }
+      function ayAdi(ay) { var p = String(ay).split('-'), m = +p[1]; return m >= 1 && m <= 12 ? ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'][m - 1] + ' ' + p[0] : String(ay); }
       function kutu(sayi, etiket, zemin, renk) {
          return '<div style="flex:1;background:' + zemin + ';border-radius:12px;padding:10px 8px;text-align:center"><b style="display:block;font-size:20px;color:' + renk + '">' + esc(String(sayi)) + '</b><small style="color:#4b4b63">' + etiket + '</small></div>';
       }
@@ -299,7 +300,7 @@
       if (+g.yanitli > 0) h += '<div style="margin-top:6px;font-weight:600;color:#3b2a5c">Hatırlatmaya "Geliyorum" diyen ' + (+g.yanitli) + ' müşteride gelmeme oranı: ' + yuzde(g.yanitli_oran) + '</div>';
       if (g.aylik && g.aylik.length > 1) {
          h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">';
-         g.aylik.forEach(function (a) { h += '<span style="background:#f4f1fa;border-radius:10px;padding:3px 9px;font-size:12px;font-weight:600">' + esc(a.ay) + ': ' + yuzde(a.oran) + '</span>'; });
+         g.aylik.forEach(function (a) { h += '<span style="background:#f4f1fa;border-radius:10px;padding:3px 9px;font-size:12px;font-weight:600">' + esc(ayAdi(a.ay)) + ': ' + yuzde(a.oran) + '</span>'; });
          h += '</div>';
       }
       return h + '</div>';
