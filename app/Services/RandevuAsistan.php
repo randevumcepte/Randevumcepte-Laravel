@@ -4664,6 +4664,8 @@ FIYAT
             $d = preg_replace('/\D/', '', $x[0]);
             return strlen($d) < 10 ? $x[0] : implode(' ', str_split($d));
         }, $m);
+        // "Pazartesi 30 Kasım" / "Pazartesi, 30 Kasım" (model kendi kurarsa) -> "30 Kasım Pazartesi" (kullanici 2026-11-27)
+        $m = preg_replace('/\b(Pazartesi|Salı|Çarşamba|Perşembe|Cumartesi|Cuma|Pazar),? (\d{1,2}) (Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık)( \d{4})?/u', '$2 $3$4 $1', $m);
         $m = preg_replace('/\s+/u', ' ', $m);
         return trim($m);
     }

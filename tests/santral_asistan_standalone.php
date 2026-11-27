@@ -1118,6 +1118,9 @@ namespace {
     esit('"ne kastettiniz" sorulmaz → gün-saat', 'Hangi gün ve saat size uygun?', $q1['cevap']);
     icerir('hizmet sorgulanınca → hizmetsiz mod', '[[HZ:', (string) ($q1['baglam'] ?? ''));
     esit('sorgulama tespiti', true, cagir($hq, 'hizmetSorgulamaMi', 'Kaynak ile ne kastettiğinizi tam anlayamadım.'));
+    esit('TTS: model "Pazartesi 30 Kasım" → "30 Kasım Pazartesi"', "30 Kasım Pazartesi saat 15:00'te uzmanımız Naz Hanım ile Manikür için randevu talebi oluşturayım mı?", cagir($hq, 'ttsTemizle', "Pazartesi 30 Kasım saat 15:00'te uzmanımız Naz Hanım ile Manikür için randevu talebi oluşturayım mı?"));
+    esit('TTS: virgüllü + yıl', 'yarın, 5 Şubat 2027 Cuma saat 10:00', cagir($hq, 'ttsTemizle', 'yarın, Cuma, 5 Şubat 2027 saat 10:00'));
+    esit('TTS: zaten doğru sıra değişmez', '30 Kasım Pazartesi, saat 13:00', cagir($hq, 'ttsTemizle', '30 Kasım Pazartesi, saat 13:00'));
     esit('normal soru sorgulama sayılmaz', false, cagir($hq, 'hizmetSorgulamaMi', 'Hangi gün ve saat size uygun?'));
     // Canli 2026-11-27 (salon 236): ikinci hizmet sorusu ve red/aciklama da hizmetsiz akisa gider
     $hs = [['role' => 'assistant', 'content' => 'Tabii, memnuniyetle yardımcı olurum. Hangi hizmet için randevu almak istiyorsunuz?']];
