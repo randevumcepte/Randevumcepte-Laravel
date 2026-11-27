@@ -48,37 +48,6 @@ class LoginController extends Controller
     {
         $this->middleware('guest:isletmeyonetim')->except(['logout']);
     }
-    public function satisortagiornekhesapgirisi(Request $request)
-{
-    $user = IsletmeYetkilileri::find(1); // ID'si 1 olan kullanıcı
-
-    if (!$user) {
-        return redirect('/')->with('error', 'Kullanıcı bulunamadı!');
-    }
-
-    try {
-        // Kullanıcıyı özel guard ile giriş yaptır
-        Auth::guard('satisortakligi')->logout();
-        Auth::guard('isletmeyonetim')->login($user);
-        
-        // Oturum açıldıktan sonra, oturum bilgisini manuel olarak kontrol edebiliriz
-        if (Auth::guard('isletmeyonetim')->check()) {
-            // Oturum başarılı bir şekilde açıldıysa, session'ı manuel olarak kontrol et ve güncelle
-            Session::put('isletmeyonetim_user', $user); // Kullanıcıyı manuel olarak session'a ekle
-            return redirect($this->_yetkiliIlkSayfa());
-        } else {
-            // Oturum açma işlemi başarısız olursa hata mesajı göster
-            echo 'Oturum açılırken bir hata oluştu!';
-            exit();
-        }
-        
-    } catch (\Exception $e) {
-        // Hata mesajı
-         echo 'Oturum açılırken bir hata oluştu!';
-            exit();
-        
-    }
-}
     public function showStoreAdminLoginForm(){
         if(!Auth::user()){
 

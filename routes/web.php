@@ -626,7 +626,6 @@ Route::prefix('isletmeyonetim')->group(function() {
 	
 	Route::get('/girisyap', 'AuthStoreAdmin\LoginController@showStoreAdminLoginForm')->name('isletmeadmin.login');
 	Route::post('/girisyap','AuthStoreAdmin\LoginController@login')->name('isletmeyonetim.login.submit')->middleware('throttle:5,1');
-	Route::post('/satisortagiornekhesapgirisi','AuthStoreAdmin\LoginController@satisortagiornekhesapgirisi');
 	Route::get('/sifremiunuttum','AuthStoreAdmin\LoginController@sifremiunuttum')->name('isletmeadmin.sifremiunuttum');
 	Route::post('/sifregonder','AuthStoreAdmin\LoginController@sifregonder');
 	Route::post('/sifredegistir','AuthStoreAdmin\LoginController@sifredegistir');
