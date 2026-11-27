@@ -12,7 +12,7 @@
 @include('isletmeadmin.ikram._kampanya_modal')
 <style>
 .ik-sayfa { padding-bottom:36px; background:linear-gradient(180deg,#F3ECFC 0%,#F7F2FD 60%,#F2EAFB 100%); }
-.ik-sayfa .ik-ic { max-width:1320px; }
+.ik-sayfa .ik-ic { max-width:1900px; }
 .ik-sayfa a { cursor:pointer; text-decoration:none !important; }
 .ikp-kart { background:#fff; border-radius:20px; box-shadow:0 8px 26px rgba(91,33,182,.07); border:1px solid #F0E8FB; }
 .ikp-bas { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
@@ -21,20 +21,20 @@
 .ik-sayfa a.ikp-link:hover { color:#4C1D95 !important; }
 
 /* 1) Ust bant */
-.ikp-hero { position:relative; height:232px; border-radius:22px; overflow:hidden; margin-bottom:16px; color:#fff;
+.ikp-hero { position:relative; height:clamp(200px,15vw,330px); border-radius:22px; overflow:hidden; margin-bottom:16px; color:#fff;
     background:linear-gradient(100deg,#8A2A99 0%,#6A22A6 30%,#561C9F 55%,#4A1C8C 100%); box-shadow:0 14px 34px rgba(76,29,149,.20); }
 .ikp-hero-gorsel { position:absolute; top:0; right:0; bottom:0; width:60%;
     background:url('{{ secure_asset('public/img/ikram/ikram_panel_hero.jpg') }}') right center/cover no-repeat;
     -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 16%); mask-image:linear-gradient(90deg,transparent 0,#000 16%); }
-.ikp-hero-yazi { position:relative; z-index:1; padding:22px 38px; max-width:58%; }
+.ikp-hero-yazi { position:relative; z-index:1; padding:clamp(18px,1.6vw,30px) clamp(20px,2.6vw,48px); max-width:58%; }
 .ikp-rozet { display:inline-flex; align-items:center; gap:8px; padding:4px 12px 4px 4px; border-radius:16px; background:rgba(255,255,255,.18);
     font-size:12.5px; font-weight:600; }
 .ikp-rozet i { width:24px; height:24px; border-radius:50%; background:linear-gradient(135deg,#FCD34D,#F59E0B); display:inline-flex;
     align-items:center; justify-content:center; font-size:12px; color:#fff; }
-.ikp-hero h2 { margin:12px 0 8px; font-size:40px; font-weight:700; line-height:1.08; color:#fff; letter-spacing:-.5px;
+.ikp-hero h2 { margin:12px 0 8px; font-size:clamp(28px,2.4vw,46px); font-weight:700; line-height:1.08; color:#fff; letter-spacing:-.5px;
     overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
-.ikp-hero h2.uzun { font-size:30px; } .ikp-hero h2.cok-uzun { font-size:25px; }
-.ikp-hero p { margin:0; font-size:18px; font-weight:500; line-height:1.3; color:#fff; white-space:pre-line; }
+.ikp-hero h2.uzun { font-size:clamp(24px,1.9vw,38px); } .ikp-hero h2.cok-uzun { font-size:clamp(21px,1.6vw,32px); }
+.ikp-hero p { margin:0; font-size:clamp(15px,1.1vw,20px); font-weight:500; line-height:1.3; color:#fff; white-space:pre-line; }
 .ikp-hero-btn { display:flex; gap:10px; margin-top:16px; }
 .ik-sayfa a.ikp-beyaz { display:inline-flex; align-items:center; gap:10px; height:40px; padding:0 22px; border-radius:22px; background:#fff;
     color:#2E1065 !important; font-weight:700; font-size:14px; }
@@ -52,7 +52,7 @@
 .ikp-kpi-govde { flex:1; min-width:0; }
 .ikp-kpi-govde small { display:block; font-size:13.5px; font-weight:600; color:#2E1065; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .ikp-kpi-satir { display:flex; align-items:center; gap:10px; margin:4px 0 2px; }
-.ikp-kpi-satir b { font-size:26px; font-weight:700; color:#1E1037; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.ikp-kpi-satir b { font-size:clamp(22px,1.6vw,30px); font-weight:700; color:#1E1037; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 .ikp-kpi-satir b.ad { font-size:18px; line-height:1.2; white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .ikp-kpi-alt { font-size:12.5px; color:#6B5A8E; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .ikp-art { margin-left:auto; font-size:13px; font-weight:700; white-space:nowrap; }
@@ -154,16 +154,25 @@
 .ikp-iskelet { background:linear-gradient(90deg,#F3ECFC 25%,#FAF6FF 50%,#F3ECFC 75%); background-size:200% 100%; animation:ikpKay 1.2s infinite; border-radius:14px; }
 @keyframes ikpKay { to { background-position:-200% 0; } }
 
+@media (max-width:1399px) { .ikp-ozet { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:1199px) {
-    .ikp-ozet { grid-template-columns:repeat(2,minmax(0,1fr)); }
-    .ikp-orta { grid-template-columns:1fr; }
+    .ikp-orta { grid-template-columns:minmax(0,1fr); }
     .ikp-alt { grid-template-columns:repeat(2,minmax(0,1fr)); } .ikp-alt > :first-child { grid-column:1 / -1; }
-    .ikp-hero-yazi { max-width:66%; } .ikp-hero h2 { font-size:34px; }
+    .ikp-hero-yazi { max-width:66%; }
 }
+@media (max-width:900px) { .ikp-hero-gorsel { width:72%; opacity:.55; } .ikp-hero-yazi { max-width:80%; } }
 @media (max-width:700px) {
-    .ikp-hero { height:auto; } .ikp-hero-gorsel { width:100%; opacity:.28; }
+    .ikp-hero { height:auto; } .ikp-hero-gorsel { width:100%; opacity:.18; }
+    .ikp-hero-btn { flex-wrap:wrap; }
+    .ikp-alt > :first-child { grid-column:auto; }
+    .ikp-sekme { width:100%; } .ik-sayfa .ikp-sekme a { flex:1; text-align:center; padding:6px 6px; font-size:12px; }
+    .ikp-satir { gap:10px; padding:8px 6px; } .ikp-satir-foto { width:58px; height:56px; }
+    .ikp-satir-govde h4 { flex-wrap:wrap; gap:4px 8px; font-size:14px; }
+    .ikp-halka { width:116px; height:116px; }
+    .ikp-liste { max-height:none; }
+    .ikp-grafik { gap:6px; } .ikp-aylar { gap:6px; } .ikp-grafik-sutun small { font-size:10.5px; }
     .ikp-hero-yazi { max-width:none; padding:20px; } .ikp-hero h2 { font-size:26px; white-space:normal; } .ikp-hero p { font-size:15px; }
-    .ikp-ozet, .ikp-alt { grid-template-columns:1fr; }
+    .ikp-ozet, .ikp-alt { grid-template-columns:minmax(0,1fr); }
     .ikp-one { flex-direction:column; align-items:stretch; } .ikp-karo { width:100%; }
     .ikp-one-ust { flex-wrap:wrap; }
     .ikp-orta > .ikp-kart .ikp-bas { flex-wrap:wrap; }
@@ -397,7 +406,7 @@
     function grafikCiz() {
         var aylik = ((ozet && ozet.aylik) || []).slice(-ayAdet);
         $('ikp-ay-yazi').textContent = 'Son ' + ayAdet + ' Ay';
-        if (!aylik.length) { $('ikp-grafik').innerHTML = '<div class="ikp-bos">Henüz kampanya satışı yok.</div>'; return; }
+        if (!aylik.some(function (a) { return a.tutar > 0; })) { $('ikp-grafik').innerHTML = '<div class="ikp-bos" style="padding:60px 10px"><i class="fa fa-bar-chart" style="font-size:28px;color:#C4A5F5;display:block;margin-bottom:8px"></i>Son ' + ayAdet + ' ayda kampanyalı hizmet satışı yok.<br>Satış oldukça aylık grafik burada oluşur.</div>'; return; }
         var maks = Math.max.apply(null, aylik.map(function (a) { return a.tutar; }).concat([1]));
         var kisa = ayAdet > 6;
         $('ikp-grafik').innerHTML = '<div class="ikp-grafik">' + aylik.map(function (a, i) {
