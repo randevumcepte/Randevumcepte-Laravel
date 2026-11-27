@@ -801,7 +801,8 @@ class DamgaKartiServisi
         $ayBas     = date('Y-m-01');
 
         $bos = ['donem_gun' => $gun, 'toplam' => 0.0, 'onceki' => 0.0, 'artis_yuzde' => null, 'kullanim' => 0,
-                'ek_kazanc' => 0.0, 'kullanim_orani' => null, 'bu_ay' => 0.0, 'kampanyalar' => (object) []];
+                'ek_kazanc' => 0.0, 'kullanim_orani' => null, 'bu_ay' => 0.0, 'kampanyalar' => (object) [],
+                'katilimci' => 0, 'onceki_katilimci' => 0, 'aylik' => []];
         if (!self::tabloHazir()) return $bos;
         $kurallar = DamgaKartiKurallari::where('salon_id', $salonId)->whereNotNull('baslangic')->get();
         if ($kurallar->isEmpty()) return $bos;
@@ -812,6 +813,10 @@ class DamgaKartiServisi
             return $t;
         };
         $toplam = $onceki = $ek = $buAy = 0.0;
+        // Katilimci: donemde kampanyali hizmeti satin alan musteri; aylik: son 12 ayin kampanya satisi
+        $katilan = $oncekiKatilan = [];
+        $aylik = [];
+        for ($i = 11; $i >= 0; $i--) $aylik[date('Y-m', strtotime(date('Y-m-01') . ' -' . $i . ' months'))] = 0.0;
         $kampanyalar = [];
         foreach ($kurallar as $k) {
             $kBas = date('Y-m-d', strtotime($k->baslangic));
@@ -830,9 +835,17 @@ class DamgaKartiServisi
                 $tutar = max(0.0, (float) $r->fiyat - (float) $r->indirim_tutari);
                 $uid = (int) $r->user_id;
                 $sayac[$uid] = ($sayac[$uid] ?? 0) + 1;
-                $satirlar[] = ['tarih' => date('Y-m-d', strtotime($r->islem_tarihi)), 'tutar' => $tutar, 'tekrar' => $uid > 0 && $sayac[$uid] > 1];
+                $satirlar[] = ['tarih' => date('Y-m-d', strtotime($r->islem_tarihi)), 'tutar' => $tutar, 'tekrar' => $uid > 0 && $sayac[$uid] > 1, 'uid' => $uid];
             }
             $kDonem = $aralikTopla($satirlar, $donemBas, $bugun);
+            $kKatilan = [];
+            foreach ($satirlar as $s2) {
+                $ay = substr($s2['tarih'], 0, 7);
+                if (isset($aylik[$ay])) $aylik[$ay] += $s2['tutar'];
+                if ($s2['uid'] <= 0) continue;
+                if ($s2['tarih'] >= $donemBas) { $katilan[$s2['uid']] = 1; $kKatilan[$s2['uid']] = 1; }
+                elseif ($s2['tarih'] >= $oncekiBas && $s2['tarih'] <= $oncekiBit) $oncekiKatilan[$s2['uid']] = 1;
+            }
             $toplam += $kDonem;
             $onceki += $aralikTopla($satirlar, $oncekiBas, $oncekiBit);
             $buAy   += $aralikTopla($satirlar, $ayBas, $bugun);
@@ -840,6 +853,7 @@ class DamgaKartiServisi
             $kampanyalar[(int) $k->id] = [
                 'kazanc'       => round($aralikTopla($satirlar, $kBas, $kBit), 2), // kampanya boyunca
                 'donem_kazanc' => round($kDonem, 2),
+                'katilimci'    => count($kKatilan),
             ];
         }
 
@@ -864,6 +878,9 @@ class DamgaKartiServisi
             'kullanilan_ikram' => $kullanilan,
             'bu_ay'          => round($buAy, 2),
             'kampanyalar'    => (object) $kampanyalar,
+            'katilimci'      => count($katilan),
+            'onceki_katilimci' => count($oncekiKatilan),
+            'aylik'          => array_map(function ($ay, $t) { return ['ay' => $ay, 'tutar' => round($t, 2)]; }, array_keys($aylik), array_values($aylik)),
         ];
     }
 
