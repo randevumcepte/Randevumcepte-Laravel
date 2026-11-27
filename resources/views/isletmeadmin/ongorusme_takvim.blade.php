@@ -115,7 +115,7 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 .ogt-hap{ display:inline-flex; align-items:center; gap:5px; padding:3px 11px; border-radius:999px; font-size:12px; font-weight:700; background:var(--z,#6b7280); color:var(--y,#fff); }
 .ogt-hap.acik{ background:#fff; color:#4c1d95; box-shadow:0 0 0 1px #e3d5f5 inset; }
 .ogt-d-ust{ display:flex; align-items:center; gap:10px; flex-shrink:0; position:relative; z-index:1; padding-right:14px; border-right:1px solid #d9c9f0; }
-.ogt-d-ust a{ width:42px; height:42px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:#fff; color:#6d28d9 !important; font-size:17px; box-shadow:0 4px 12px -4px rgba(76,29,149,.28); text-decoration:none !important; transition:transform .12s, box-shadow .12s; }
+.ogt-d-ust a{ width:36px; height:36px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:#fff; color:#6d28d9 !important; font-size:15px; box-shadow:0 4px 12px -4px rgba(76,29,149,.28); text-decoration:none !important; transition:transform .12s, box-shadow .12s; }
 .ogt-d-ust a:hover, .ogt-d-ust a:focus{ transform:translateY(-1px); box-shadow:0 8px 16px -6px rgba(76,29,149,.4); outline:none; }
 .ogt-d-bas .kapat{ position:absolute; right:16px; top:16px; z-index:2; width:34px; height:34px; border:0; background:transparent; border-radius:50%; font-size:26px; line-height:1; color:#4b4560; cursor:pointer; }
 .ogt-d-bas .kapat:hover{ background:rgba(255,255,255,.7); }
@@ -132,18 +132,18 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 .ogt-d-bilgi b.uzun{ font-size:13px; font-weight:600; }
 .ogt-d-not{ display:flex; align-items:center; gap:10px; margin:20px 0 4px; padding:11px 14px; border-radius:12px; background:#f3eefc; color:#3b2f57; font-size:13px; }
 .ogt-d-not i{ width:24px; height:24px; border-radius:50%; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; background:#8b5cf6; color:#fff; font-size:12px; }
-.ogt-kat, .ogt-d-alt .satir{ display:flex; gap:12px; flex-wrap:wrap; }
-.ogt-kat{ padding:14px 24px 0; }
-.ogt-kat button{ flex:1 1 0; min-width:120px; height:48px; border-radius:12px; border:1px solid var(--b); background:#fff; background:color-mix(in srgb, var(--b) 9%, #fff); color:var(--b); font-size:15px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+.ogt-kat, .ogt-d-alt .satir{ display:flex; gap:8px; flex-wrap:wrap; }
+.ogt-kat{ padding:12px 24px 0; }
+.ogt-kat button{ flex:1 1 0; min-width:110px; height:38px; border-radius:10px; border:1px solid var(--b); background:#fff; background:color-mix(in srgb, var(--b) 9%, #fff); color:var(--b); font-size:13.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
 .ogt-kat button.secili{ background:var(--b); color:#fff; border-color:var(--b); box-shadow:0 8px 16px -10px var(--b); }
 .ogt-kat button:not(.secili):hover{ background:color-mix(in srgb, var(--b) 16%, #fff); }
-.ogt-kat button.kaldir{ --b:#6d28d9; background:#fff; border-color:#d9c9f0; color:#4c1d95; font-size:13px; }
-.ogt-d-alt{ display:flex; flex-direction:column; gap:12px; padding:12px 24px 24px; }
-.ogt-d-alt .ogt-btn{ flex:1 1 0; min-width:120px; height:44px; justify-content:center; border-radius:12px; font-size:14.5px; border-color:#e6ddf4; color:#2d2541 !important; }
+.ogt-kat button.kaldir{ --b:#6d28d9; background:#fff; border-color:#d9c9f0; color:#4c1d95; font-size:12.5px; }
+.ogt-d-alt{ display:flex; flex-direction:column; gap:8px; padding:8px 24px 20px; }
+.ogt-d-alt .ogt-btn{ flex:1 1 0; min-width:110px; height:36px; padding:0 12px; justify-content:center; border-radius:10px; font-size:13px; border-color:#e6ddf4; color:#2d2541 !important; }
 .ogt-d-alt .ogt-btn i{ color:#6d28d9; }
 .ogt-d-alt .ogt-btn.ogt-btn-lila{ background:#f1eafd; border-color:#e2d4fa; }
 .ogt-d-alt .ogt-btn.ogt-btn-lila:hover{ background:#e8ddfb; }
-.ogt-d-alt .satir.sonuc .ogt-btn{ height:48px; font-size:15px; border:0; color:#fff !important; }
+.ogt-d-alt .satir.sonuc .ogt-btn{ height:40px; font-size:13.5px; border:0; color:#fff !important; }
 .ogt-d-alt .satir.sonuc .ogt-btn i{ color:#fff; }
 .ogt-d-alt .ogt-btn.ogt-btn-sat{ background:#2f8f4e; }
 .ogt-d-alt .ogt-btn.ogt-btn-sat:hover{ background:#277a42; }
@@ -174,7 +174,7 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
    .ogt-d-alt{ padding:10px 18px 18px; gap:8px; }
    .ogt-d-alt .satir{ gap:8px; }
    .ogt-kat button, .ogt-d-alt .ogt-btn{ min-width:0; padding:0 8px; font-size:13.5px; }
-   .ogt-kat button.kaldir{ flex-basis:100%; height:42px; }
+   .ogt-kat button.kaldir{ flex-basis:100%; height:36px; }
    .ogt-d-alt .satir:not(.sonuc) .ogt-btn{ flex:1 1 40%; }
 }
 </style>
