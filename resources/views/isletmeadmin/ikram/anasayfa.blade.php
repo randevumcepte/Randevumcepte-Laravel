@@ -147,8 +147,6 @@
 </style>
 
 <div class="ik-sayfa">
-    <img class="ik-yaprak sol" src="{{ secure_asset('public/img/ikram/kampanya_yaprak_sol.png') }}" alt="">
-    <img class="ik-yaprak sag" src="{{ secure_asset('public/img/ikram/kampanya_yaprak_sag.png') }}" alt="">
     <div class="ik-ic">
         <div class="iks-bas">
             <div class="iks-bas-yazi">

@@ -80,8 +80,6 @@
 </style>
 
 <div class="ik-sayfa">
-    <img class="ik-yaprak sol" src="{{ secure_asset('public/img/ikram/kampanya_yaprak_sol.png') }}" alt="">
-    <img class="ik-yaprak sag" src="{{ secure_asset('public/img/ikram/kampanya_yaprak_sag.png') }}" alt="">
     <div class="ik-ic ikd-ic" style="max-width:940px">
         <div class="ik-ust">
             <a class="ik-yuv" id="ik-geri" title="Geri"><i class="fa fa-arrow-left"></i></a>
