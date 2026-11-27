@@ -71,6 +71,32 @@ function onayUzantisi(eski, yeni) {
   return ek.length > 0 && ek.every((w) => ONAY_KELIME.has(w) || ONAY_KOK.test(w));
 }
 
+// KAYIP ON EK (canli 2026-11-27 oturum #457): ara-sonuc "protest tırnak randev" -> Google son sonucta basi atip
+// yalniz "Randevu almak istiyordum." verdi; hizmet adi kayboldu. Ayni ifadenin en uzun ara-sonucunda final'in
+// ilk kelimesinden ONCE gelen kelimeler final'de yoksa basa geri eklenir (en fazla 4 kelime).
+function onEkKurtar(ara, final) {
+  const f = String(final || '').trim();
+  const a = String(ara || '').trim();
+  if (!a || !f) return f;
+  const aw = a.split(/\s+/), fw = f.split(/\s+/);
+  const sade = (w) => sadeMetin(w).replace(/\s+/g, '');
+  const f0 = sade(fw[0]);
+  if (f0.length < 2 || aw.length < 2) return f;
+  const fSade = ' ' + sadeMetin(f) + ' ';
+  for (let i = 1; i < aw.length && i <= 4; i++) {
+    const w = sade(aw[i]);
+    if (w.length < 2) continue;
+    const n = Math.min(4, w.length, f0.length);
+    if (w.slice(0, n) !== f0.slice(0, n)) continue;
+    const onEk = aw.slice(0, i);
+    // On ek zaten final'de geciyorsa (Google yalniz noktalama/sira degistirdi) dokunma
+    if (onEk.some((x) => sade(x).length >= 2 && fSade.includes(' ' + sade(x) + ' '))) return f;
+    if (!onEk.some((x) => /[a-zçğıöşü]{2,}/i.test(x))) return f;
+    return onEk.join(' ') + ' ' + fw[0].charAt(0).toLocaleLowerCase('tr-TR') + f.slice(1);
+  }
+  return f;
+}
+
 function sadeMetin(s) {
   return String(s || '').toLocaleLowerCase('tr').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
@@ -311,6 +337,8 @@ class CagriOturumu {
     // Her yeni interim timer'i sifirlar; yani sure, musteri SUSTUKTAN sonra sayilir.
     if (!this._sonInterim) this._ifadeBasT = Date.now(); // bu cumlenin ilk ara-metni
     this._sonInterim = (metin || '').trim();
+    // Bu ifadenin ara-sonuclari (final basi atarsa kurtarmak icin; final gelince sifirlanir)
+    if (this._sonInterim) { this._aralar = (this._aralar || []).concat(this._sonInterim).slice(-40); }
     this._interimT = Date.now();
     const kelimeSayisi = this._sonInterim ? this._sonInterim.split(/\s+/).length : 0;
     const bekle = kelimeSayisi <= 3 ? cfg.endpointKisaMs : cfg.endpointUzunMs;
@@ -330,6 +358,14 @@ class CagriOturumu {
     this._sttGuven = typeof guven === 'number' && guven > 0 ? guven : null; // 0 = Google vermedi
     if (this.kapali || this._kapaniyor || this._aktarmada) return; // kapanis/aktarma beklemesinde yeni tur baslatma
     clearTimeout(this._interimZ); this._sonInterim = '';
+    const aralar = this._aralar || []; this._aralar = [];
+    let kurtarilan = String(metin || '').trim();
+    // En uzundan kisaya: basi dusen kelimeleri tasiyan ilk ara-sonuc
+    for (const ara of aralar.slice().sort((x, y) => y.length - x.length)) {
+      const k = onEkKurtar(ara, metin);
+      if (k !== kurtarilan) { kurtarilan = k; break; }
+    }
+    if (kurtarilan !== String(metin || '').trim()) { log.info(`  (final basi dusmustu, ara-sonuctan eklendi): "${metin}" -> "${kurtarilan}"`); metin = kurtarilan; }
     const n = sadeMetin(metin);
     if (n.length < 1) return;
     if (this._yankiMi(metin)) { log.info(`  (hat yankisi, yok sayildi): ${metin}`); return; }
@@ -831,4 +867,4 @@ class CagriOturumu {
   }
 }
 
-module.exports = { CagriOturumu };
+module.exports = { CagriOturumu, onEkKurtar };
