@@ -55,6 +55,7 @@ class NotificationTypes
     public const IZIN_KARARI               = 'leave_decision';  // personele: izin onay / red
     public const MOLA_BILGI                = 'break_info';      // personele: mola onay / red / verildi
     public const REKLAM_KAMPANYA           = 'ad_campaign';     // reklam kampanyasi olusturuldu / aramalar kuyrukta
+    public const APPOINTMENT_REPLY         = 'appointment_reply'; // personele: musteri 'Geliyorum' / 'Gecikecegim' dedi
 
     // Sistem
     public const MEMBERSHIP_EXPIRING       = 'membership_expiring';

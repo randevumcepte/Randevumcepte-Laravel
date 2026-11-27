@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\AkilliBildirim;
 use App\Services\BildirimKutusu;
 use App\Services\IsletmeYasalMetin;
 use App\Services\MusteriProfil;
@@ -67,5 +68,50 @@ class MusteriProfilController extends Controller
         // Istek verilmez: musteri numarasi, ayni numarali isletme yetkilisi gibi loglanmasin
         BildirimKutusu::logla($k[1], null, 'musteri', $k[0]->id, $k[0]->name, $kapsam, $adet);
         return response()->json(['ok' => 1, 'silinen' => $adet]);
+    }
+
+    /** Hatirlatmaya cevap. Govde: {randevu_id, yanit: geliyorum|gecikecegim, dakika?, kaynak?} */
+    public function randevuYanit(Request $request)
+    {
+        if (!$k = $this->kisi($request)) return $this->yok();
+        $r = AkilliBildirim::randevuYanit((int) $k[0]->id, (int) $request->input('randevu_id'), (string) $request->input('yanit'),
+            $request->filled('dakika') ? (int) $request->input('dakika') : null, (string) $request->input('kaynak', 'uygulama'));
+        return response()->json($r, empty($r['ok']) ? 422 : 200);
+    }
+
+    /** Randevunun son musteri cevabi (detay ekraninda gosterilir) */
+    public function randevuYanitGetir(Request $request)
+    {
+        if (!$k = $this->kisi($request)) return $this->yok();
+        $id = (int) $request->input('randevu_id');
+        if (!\App\Randevular::where('id', $id)->where('user_id', $k[0]->id)->exists()) return response()->json(['ok' => 0], 404);
+        return response()->json(['ok' => 1, 'yanit' => AkilliBildirim::sonYanit($id)]);
+    }
+
+    /** Musteri bildirime dokundu. Govde: {randevu_id?, tip?} */
+    public function bildirimAcildi(Request $request)
+    {
+        if (!$k = $this->kisi($request)) return $this->yok();
+        $rid = (int) $request->input('randevu_id');
+        if ($rid && !\App\Randevular::where('id', $rid)->where('user_id', $k[0]->id)->exists()) $rid = 0;
+        AkilliBildirim::acildi((int) $k[0]->id, $rid ?: null, (int) $k[1], (string) $request->input('tip'));
+        return response()->json(['ok' => 1]);
+    }
+
+    /** Kampanya / firsat bildirimleri izni. GET: okur, POST {kampanya: 0|1}: kaydeder */
+    public function kampanyaIzni(Request $request)
+    {
+        if (!$k = $this->kisi($request)) return $this->yok();
+        if ($request->isMethod('post')) {
+            $deger = (int) $request->input('kampanya') === 1;
+            AkilliBildirim::kampanyaIzniKaydet((int) $k[0]->id, $deger);
+            try {
+                \App\SalonYonetim\Audit::logApi($k[1], null, 'kampanya_izni', 'musteri', $k[0]->id, $k[0]->name,
+                    $k[0]->name . ' kampanya bildirimlerini ' . ($deger ? 'açtı' : 'kapattı'));
+            } catch (\Throwable $e) {
+            }
+        }
+        return response()->json(['ok' => 1, 'kampanya' => AkilliBildirim::kampanyaIzni((int) $k[0]->id) ? 1 : 0,
+            'sessiz_saat' => sprintf('%02d:00-%02d:00', AkilliBildirim::SESSIZ_BAS, AkilliBildirim::SESSIZ_BIT)]);
     }
 }

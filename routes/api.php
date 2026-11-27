@@ -429,6 +429,10 @@ Route::get ('/bildirim/okunmamis-sayi',   'NotificationApiController@okunmamisSa
         Route::get('/cihazlar','MusteriProfilController@cihazlar');
         Route::post('/cihaz-kapat','MusteriProfilController@cihazKapat');
         Route::post('/bildirim-sil','MusteriProfilController@bildirimSil');
+        Route::post('/randevu-yanit','MusteriProfilController@randevuYanit');
+        Route::get('/randevu-yanit','MusteriProfilController@randevuYanitGetir');
+        Route::post('/bildirim-acildi','MusteriProfilController@bildirimAcildi');
+        Route::match(['get', 'post'], '/kampanya-izni','MusteriProfilController@kampanyaIzni');
         Route::get('/dil','MusteriDilController@dilim');
         Route::post('/dil','MusteriDilController@dilKaydet');
     });

@@ -165,6 +165,22 @@ class NotificationService
             }
         }
 
+        // Kampanya / firsat bildirimleri: musteri kapattiysa gitmez; 21:00-09:00 arasi ertelenir (09:00'da gider).
+        // Randevu, odeme, seans gibi bilgilendirmeler etkilenmez.
+        if (AkilliBildirim::kampanyaTuruMu($this->type) && in_array($this->kullaniciTipi, ['musteri', 'raw'], true)) {
+            if ($this->kullaniciTipi === 'musteri' && $this->userId && !AkilliBildirim::kampanyaIzni((int) $this->userId)) {
+                return ['sent' => 0, 'failed' => 0, 'total' => 0, 'kampanya_izni_yok' => true];
+            }
+            if ($sonra = AkilliBildirim::sessizSaatBitisi()) {
+                try {
+                    AkilliBildirim::ertele($this->salonId, $this->durum(), $sonra);
+                    return ['sent' => 0, 'failed' => 0, 'total' => 0, 'ertelendi' => true];
+                } catch (\Throwable $e) {
+                    Log::warning('[PUSH] sessiz saat ertelemesi yapilamadi, hemen gonderiliyor: ' . $e->getMessage());
+                }
+            }
+        }
+
         // Bildirimlerim: personel bu turu sessize aldiysa bildirim yine gider, ses/titresim olmaz
         if ($this->kullaniciTipi === 'personel' || $this->kullaniciTipi === 'yetkili') {
             $this->sessiz = PersonelBildirimSessiz::sessizMi($this->kullaniciTipi === 'personel' ? $this->personelId : $this->yetkiliId, $this->type);
@@ -195,6 +211,7 @@ class NotificationService
             'salon_id'  => (string)($this->salonId ?? ''),
             'randevu_id'=> (string)($this->randevuId ?? ''),
             'sessiz'    => $this->sessiz ? '1' : '0',
+            'aksiyonlar'=> $this->randevuYanitliMi() ? 'randevu_yanit' : '',
         ], array_map(function ($v) {
             return is_scalar($v) ? (string)$v : json_encode($v, JSON_UNESCAPED_UNICODE);
         }, $this->extra));
@@ -233,7 +250,11 @@ class NotificationService
                             $this->title = (string) MusteriDili::personelMetni($this->salonId, $row->isletme_yetkili_id, $asil[0]);
                             $this->body = (string) MusteriDili::personelMetni($this->salonId, $row->isletme_yetkili_id, $asil[1]);
                         }
-                        return $this->sendOneAsync($row->bildirim_id, $payloadExtra, $row->platform);
+                        // Yeni Android uygulamasi (aksiyon_v1) hatirlatmayi kendisi cizer: bildirimde
+                        // "Geliyorum / Gecikecegim" dugmeleri. Eski surumler ve iPhone normal bildirim alir.
+                        $dugmeli = $this->randevuYanitliMi() && ($row->platform ?? '') === 'android'
+                            && stripos((string) ($row->yetenek ?? ''), 'aksiyon_v1') !== false;
+                        return $this->sendOneAsync($row->bildirim_id, $payloadExtra, $row->platform, $dugmeli);
                     } catch (\Throwable $e) {
                         return \GuzzleHttp\Promise\rejection_for($e);
                     } finally {
@@ -482,7 +503,7 @@ class NotificationService
     }
 
     /** @return \GuzzleHttp\Promise\PromiseInterface */
-    private function sendOneAsync(string $deviceToken, array $data, ?string $platform = null)
+    private function sendOneAsync(string $deviceToken, array $data, ?string $platform = null, bool $uygulamaCizer = false)
     {
         $accessToken = $this->getFcmAccessToken();
         static $projeler = [];
@@ -565,6 +586,14 @@ class NotificationService
             ],
         ];
 
+        if ($uygulamaCizer) {
+            // Yalniz veri: uygulamanin arka plan isleyicisi dugmeli bildirimi kendisi gosterir
+            unset($message['message']['notification'], $message['message']['webpush']);
+            $message['message']['android'] = ['priority' => 'HIGH'];
+            $message['message']['data'] = array_merge($data, ['title' => (string) $this->title, 'body' => (string) $this->body, 'goster' => '1',
+                'kanal' => $this->androidChannel()]);
+        }
+
         return self::httpClient()->postAsync($url, [
             'headers' => [
                 'Authorization' => 'Bearer ' . $accessToken,
@@ -579,6 +608,34 @@ class NotificationService
 
             return $response;
         });
+    }
+
+    /** Musteriye giden randevu hatirlatmasi: "Geliyorum / Gecikecegim" cevabi alinabilir */
+    private function randevuYanitliMi(): bool
+    {
+        return $this->kullaniciTipi === 'musteri' && $this->randevuId
+            && in_array($this->type, [NotificationTypes::APPOINTMENT_REMINDER, NotificationTypes::APPOINTMENT_REMINDER_HOUR], true);
+    }
+
+    /** Ertelenecek bildirimin tum alanlari (bekleyen_bildirimler.veri) */
+    public function durum(): array
+    {
+        return ['kullaniciTipi' => $this->kullaniciTipi, 'userId' => $this->userId, 'personelId' => $this->personelId,
+            'yetkiliId' => $this->yetkiliId, 'salonId' => $this->salonId, 'randevuId' => $this->randevuId, 'rawTokens' => $this->rawTokens,
+            'type' => $this->type, 'title' => $this->title, 'body' => $this->body, 'imageUrl' => $this->imageUrl,
+            'deepLinkRoute' => $this->deepLinkRoute, 'deepLinkParams' => $this->deepLinkParams, 'extra' => $this->extra,
+            'popup' => $this->popup, 'karaListeMuaf' => $this->karaListeMuaf];
+    }
+
+    /** durum()'dan geri kurar (ertelenen kampanya sabah gonderilirken) */
+    public static function durumdan(array $d): self
+    {
+        $i = new self();
+        foreach (['kullaniciTipi', 'userId', 'personelId', 'yetkiliId', 'salonId', 'randevuId', 'rawTokens', 'type', 'title', 'body',
+                  'imageUrl', 'deepLinkRoute', 'deepLinkParams', 'extra', 'popup', 'karaListeMuaf'] as $k) {
+            if (array_key_exists($k, $d) && $d[$k] !== null) $i->$k = $d[$k];
+        }
+        return $i;
     }
 
     private function androidChannel(): string

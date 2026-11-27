@@ -86,6 +86,9 @@ class NotificationApiController extends Controller
         if (Schema::hasColumn('bildirim_kimlikleri', 'salon_id'))       $row->salon_id = $request->input('salon_id');
         if (Schema::hasColumn('bildirim_kimlikleri', 'aktif'))          $row->aktif = true;
         if (Schema::hasColumn('bildirim_kimlikleri', 'gonderim_hatalari')) $row->gonderim_hatalari = 0;
+        // Yeni uygulama ozellikleri (aksiyon_v1: bildirimde dugme, acildi_v1: acilma bildirir). Eski surum gondermez.
+        \App\Services\AkilliBildirim::semaGaranti();
+        if (Schema::hasColumn('bildirim_kimlikleri', 'yetenek')) $row->yetenek = mb_substr((string) $request->input('yetenek', ''), 0, 100) ?: null;
 
         // Eski şema alanları (geri uyum). Her iki alani da önce null'la, sonra
         // tip'e göre set et. Aksi halde ayni cihaz farklı rolle login olunca

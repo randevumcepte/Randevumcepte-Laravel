@@ -54,6 +54,7 @@ class Kernel extends ConsoleKernel
         Commands\WhatsappTestGonder::class,
         Commands\PushTeshis::class,
         Commands\PushDene::class,
+        Commands\AkilliBildirimIsle::class,
         Commands\WhatsappSalonTeshis::class,
         Commands\WhatsappKopruDurum::class,
         Commands\WhatsAppSmsRapor::class,
@@ -116,6 +117,8 @@ class Kernel extends ConsoleKernel
         // SMS komutları
         $schedule->command('sms:gonder')->withoutOverlapping()->everyMinute();
         $schedule->command('randevusms:hatirlat')->withoutOverlapping()->everyMinute();
+        // Once-bildirim yedek SMS'leri + sessiz saatte ertelenen kampanya bildirimleri
+        $schedule->command('bildirim:akilli')->withoutOverlapping()->everyMinute();
         $schedule->command('dogumgunusms:hatirlat')->withoutOverlapping()->everyMinute();
         $schedule->command('alacaksms:hatirlat')->withoutOverlapping()->everyMinute();
 

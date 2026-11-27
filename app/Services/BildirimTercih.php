@@ -960,6 +960,9 @@ class BildirimTercih
         return [
             'gruplar' => array_values(array_filter($gruplar, function ($g) { return count($g['bildirimler']) > 0; })),
             'wa_yedek_sms' => self::waYedekSms($salonId),
+            // Once bildirim, acilmazsa SMS (salon secer) + gelmeme olcumu (son 90 gun)
+            'push_once_sms' => AkilliBildirim::pushOnceAcikMi((int) $salonId) ? 1 : 0,
+            'gelmeme' => AkilliBildirim::gelmemeOlcumu((int) $salonId),
             // "Yaklasan randevu hatirlatma" kac saat once (salonlar.randevu_sms_hatirlatma; eski SMS ekraniyla ayni alan)
             'hatirlatma_saat' => $s ? (int) ($s->randevu_sms_hatirlatma ?: 0) : 0,
             'durum' => [

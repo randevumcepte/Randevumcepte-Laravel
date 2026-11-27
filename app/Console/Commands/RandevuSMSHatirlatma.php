@@ -422,6 +422,11 @@ class RandevuSMSHatirlatma extends Command
                 'telefon' => $musteri->cep_telefon,
                 'wa_denendi' => $whatsappDenendi,
             ]);
+            // Once bildirim (salon actiysa): yeni uygulamasi olan musterinin SMS'i bekletilir; hatirlatmayi
+            // acmaz / Geliyorum demezse bekleme sonunda gider (php artisan bildirim:sms-yedek).
+            if (\App\Services\AkilliBildirim::smsBeklet($salon, $randevu, (string) $musteri->cep_telefon, $smsMesaj, (string) $kod)) {
+                return;
+            }
             $controller->sms_gonder($salon->id, [[
                 'to' => $musteri->cep_telefon,
                 'message' => $smsMesaj,
