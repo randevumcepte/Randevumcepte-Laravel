@@ -7,8 +7,9 @@
 @section('content')
 {{-- Kampanya Detayi — mobil kampanya_detay.dart ile ayni bolumler. Veri /isletmeyonetim/ikramhizmet/detay-veri. --}}
 @include('isletmeadmin.ikram._ortak')
+@include('isletmeadmin.ikram._kampanya_modal')
 <style>
-.ikd-hero { position:relative; width:100%; aspect-ratio:941/404; border-radius:24px; overflow:hidden; margin-bottom:16px; background:#EDE3FD; }
+.ikd-hero { position:relative; width:100%; aspect-ratio:941/404; border-radius:24px; overflow:hidden; margin-bottom:16px; background:#EDE3FD; container-type:inline-size; }
 .ikd-hero .ikd-foto { position:absolute; left:37.2%; top:0; right:0; bottom:0; }
 .ikd-hero .ikd-foto img { width:100%; height:100%; object-fit:cover;
     -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 32%), linear-gradient(180deg,#000 86%,transparent 100%);
@@ -17,10 +18,10 @@
     background:linear-gradient(90deg,#4C1D95 0%,rgba(91,33,182,.98) 52%,rgba(124,58,237,.62) 70%,rgba(167,139,250,.22) 86%,rgba(196,181,253,0) 100%); }
 .ikd-panel:after { content:''; position:absolute; right:12%; top:0; width:40%; height:45%; background:radial-gradient(circle at 70% 20%,rgba(255,255,255,.25),transparent 60%); pointer-events:none; }
 .ikd-durum { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:14px; background:rgba(255,255,255,.18);
-    font-size:clamp(10px,1.3vw,13px); font-weight:800; }
-.ikd-buyuk { font-size:clamp(30px,6.4vw,64px); font-weight:900; line-height:1; margin:4% 0 2%; }
-.ikd-ad { font-size:clamp(14px,2.3vw,23px); font-weight:800; line-height:1.2; white-space:pre-line; }
-.ikd-alt { font-size:clamp(11px,1.5vw,15px); opacity:.95; margin-top:2%; white-space:pre-line; }
+    font-size:max(10px,1.4cqw); font-weight:800; }
+.ikd-buyuk { font-size:6.8cqw; font-weight:900; line-height:1; margin:4% 0 2%; }
+.ikd-ad { font-size:2.5cqw; font-weight:800; line-height:1.2; white-space:pre-line; }
+.ikd-alt { font-size:max(11px,1.6cqw); opacity:.95; margin-top:2%; white-space:pre-line; }
 .ikd-uc { display:grid; grid-template-columns:repeat(3,1fr); background:rgba(255,255,255,.75); border:1px solid #E6DAF8; border-radius:18px; }
 .ikd-uc > div { padding:14px 10px; text-align:center; border-left:1px solid #E4D7F7; }
 .ikd-uc > div:first-child { border-left:0; }
@@ -61,12 +62,27 @@
 .ikd-mini div { background:#F6F0FF; border-radius:12px; padding:8px; text-align:center; } .ikd-mini b { display:block; font-size:17px; color:#2E1065; }
 .ikd-mini small { font-size:11px; color:#6B5A8E; }
 @media (max-width:600px) { .ikd-kutular { grid-template-columns:1fr; } .ikd-uc b { font-size:15px; } }
+.ikd-ust-izgara > * { margin-bottom:16px; }
+.ikd-yan > .ik-cam { margin-bottom:16px; }
+/* Masaustu: kampanya gorseli solda, Bilgiler + Performans sagda */
+@media (min-width:992px) {
+    .ik-sayfa .ik-ic.ikd-ic { max-width:1320px; }
+    .ik-ust h1 { text-align:left; font-size:24px; }
+    .ikd-ust-izgara { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(360px,1fr); gap:20px; align-items:stretch; margin-bottom:20px; }
+    .ikd-ust-izgara > * { margin-bottom:0; }
+    .ikd-hero { margin-bottom:0; align-self:start; }
+    .ikd-yan { display:flex; flex-direction:column; gap:20px; }
+    .ikd-yan > .ik-cam { margin:0; flex:1; }
+    .ikd-alt-izgara { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:20px; align-items:start; }
+    .ikd-alt-izgara > .ikd-sag { position:sticky; top:100px; }
+    .ikd-sag .ik-cam { flex-direction:column; text-align:center; }
+}
 </style>
 
 <div class="ik-sayfa">
     <img class="ik-yaprak sol" src="{{ secure_asset('public/img/ikram/kampanya_yaprak_sol.png') }}" alt="">
     <img class="ik-yaprak sag" src="{{ secure_asset('public/img/ikram/kampanya_yaprak_sag.png') }}" alt="">
-    <div class="ik-ic" style="max-width:940px">
+    <div class="ik-ic ikd-ic" style="max-width:940px">
         <div class="ik-ust">
             <a class="ik-yuv" id="ik-geri" title="Geri"><i class="fa fa-arrow-left"></i></a>
             <h1>Kampanya Detayı</h1>
@@ -79,6 +95,7 @@
             </div>
         </div>
 
+        <div class="ikd-ust-izgara">
         <div class="ikd-hero">
             <div class="ikd-foto" id="ikd-foto"></div>
             <div class="ikd-panel">
@@ -89,6 +106,7 @@
             </div>
         </div>
 
+        <div class="ikd-yan">
         <div class="ik-cam">
             <div class="ik-baslik"><div class="ik-ikon"><i class="fa fa-gift"></i></div><div><h3>Kampanya Bilgileri</h3></div></div>
             <div class="ikd-uc">
@@ -112,6 +130,10 @@
             </div>
         </div>
 
+        </div>
+        </div>
+
+        <div class="ikd-alt-izgara">
         <div class="ik-cam">
             <div class="ikd-sekmeler">
                 <div class="ikd-sekme sec" data-sekme="0"><i class="fa fa-users"></i> <span id="ikd-sekme0">Katılan Müşteriler</span></div>
@@ -120,6 +142,7 @@
             <div id="ikd-icerik"><div class="ik-yukleniyor"><i class="fa fa-spinner fa-spin fa-2x"></i></div></div>
         </div>
 
+        <div class="ikd-sag">
         <div class="ik-cam" style="display:flex;align-items:center;gap:14px">
             <i class="fa fa-bullhorn" style="font-size:24px;color:#7C3AED"></i>
             <div style="flex:1;color:#5B21B6;font-size:14px" id="ikd-ozet"></div>
@@ -127,6 +150,8 @@
         </div>
 
         <a class="ik-btn-ana" id="ikd-rapor" style="height:58px;background:linear-gradient(90deg,#7C3AED,#5B21B6,#4C1D95)"><i class="fa fa-bar-chart"></i> Raporu Görüntüle <i class="fa fa-chevron-right"></i></a>
+        </div>
+        </div>
     </div>
 </div>
 
@@ -285,7 +310,7 @@
         var is = e.target.closest('[data-islem]');
         if (!is || !veri) return;
         var k = veri.kural, tur = is.getAttribute('data-islem');
-        if (tur === 'duzenle') { location.href = IK.u('ikramhizmet/kampanya-ayarlari', { id: k.id, don: 'detay' }); return; }
+        if (tur === 'duzenle') { IKForm.ac(k, yukle); return; }
         if (tur === 'ackapat') {
             IK.acKapat(k).then(function (r) {
                 if (r && r.success) { IK.toast(Number(k.aktif) === 1 ? 'Kampanya kapatıldı' : 'Kampanya açıldı'); yukle(); }

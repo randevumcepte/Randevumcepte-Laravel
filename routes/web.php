@@ -1345,7 +1345,6 @@ Route::post('/puanodulsil',      [StoreAdminController::class, 'puanOdulSil'])->
 Route::post('/puanorneklerekle-admin', [StoreAdminController::class, 'puanOrneklerEkle'])->name('isletmeadmin.puanodul.ornekekle');
 Route::post('/puankazanimkaydet', [StoreAdminController::class, 'puanKazanimKaydet'])->name('isletmeadmin.puankazanim.kaydet');
 Route::get('/ikramhizmet',       [StoreAdminController::class, 'ikramHizmet'])->name('isletmeadmin.ikramhizmet');
-Route::get('/ikramhizmet/kampanya-ayarlari', [StoreAdminController::class, 'ikramKampanyaAyarlari'])->name('isletmeadmin.ikram.ayarlar');
 Route::get('/ikramhizmet/kampanya/{id}',     [StoreAdminController::class, 'ikramKampanyaDetay'])->name('isletmeadmin.ikram.detay');
 Route::get('/ikramhizmet/rapor',             [StoreAdminController::class, 'ikramRapor'])->name('isletmeadmin.ikram.rapor');
 Route::get('/ikramhizmet/veri',              [StoreAdminController::class, 'ikramVeri'])->name('isletmeadmin.ikram.veri');

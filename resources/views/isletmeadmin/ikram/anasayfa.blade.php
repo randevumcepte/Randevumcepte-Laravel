@@ -8,21 +8,22 @@
 {{-- Ikram Hizmet ana sayfa — mobil ikram_hizmet.dart ile ayni akis. Veri sayfa acildiktan sonra
      /isletmeyonetim/ikramhizmet/veri'den gelir (agir hesap sayfanin acilmasini bekletmez). --}}
 @include('isletmeadmin.ikram._ortak')
+@include('isletmeadmin.ikram._kampanya_modal')
 <style>
-.ik-hero { position:relative; width:100%; aspect-ratio:941/382; border-radius:24px; margin-bottom:16px;
+.ik-hero { position:relative; width:100%; aspect-ratio:941/382; border-radius:24px; container-type:inline-size;
     background:url('{{ secure_asset('public/img/ikram/ikram_hero_tam.png') }}') center/100% 100% no-repeat; color:#fff; }
 .ik-hero .ik-p { position:absolute; }
 .ik-hero .ik-donem { left:43%; top:2.6%; height:11.3%; display:flex; align-items:center; gap:6px; font-weight:700;
-    font-size:clamp(11px,1.6vw,15px); cursor:pointer; color:#fff; }
+    font-size:max(11px,1.7cqw); cursor:pointer; color:#fff; }
 .ik-hero .ik-donem .ik-menu-liste { left:0; right:auto; }
-.ik-hero .ik-toplam { left:9.1%; top:23%; font-weight:900; font-size:clamp(26px,5.6vw,58px); line-height:1; white-space:nowrap; }
+.ik-hero .ik-toplam { left:9.1%; top:23%; font-weight:900; font-size:6.2cqw; line-height:1; white-space:nowrap; }
 .ik-hero .ik-toplam small { font-size:.42em; font-weight:800; margin-left:6px; }
-.ik-hero .ik-artis { left:9.1%; top:49.5%; font-size:clamp(10px,1.4vw,13px); font-weight:800; }
+.ik-hero .ik-artis { left:9.1%; top:49.5%; font-size:max(10px,1.45cqw); font-weight:800; }
 .ik-hero .ik-artis span { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:14px; }
 .ik-hero .ik-sutun { top:66%; height:32%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
-.ik-hero .ik-sutun i { font-size:clamp(14px,2vw,20px); opacity:.95; }
-.ik-hero .ik-sutun b { font-size:clamp(14px,2.3vw,22px); font-weight:900; line-height:1.15; margin-top:2px; }
-.ik-hero .ik-sutun small { font-size:clamp(9px,1.15vw,12px); opacity:.9; line-height:1.2; white-space:pre-line; }
+.ik-hero .ik-sutun i { font-size:2.1cqw; opacity:.95; }
+.ik-hero .ik-sutun b { font-size:2.4cqw; font-weight:900; line-height:1.15; margin-top:2px; }
+.ik-hero .ik-sutun small { font-size:max(9px,1.3cqw); opacity:.9; line-height:1.2; white-space:pre-line; }
 .ik-liste-bas { display:flex; align-items:center; gap:10px; margin:6px 2px 12px; }
 .ik-liste-bas h3 { flex:1; margin:0; font-size:16px; font-weight:800; color:#2E1065; }
 .ik-kartlar { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px; }
@@ -41,7 +42,7 @@
 .ik-kk .ik-menu { position:absolute; top:8px; right:8px; }
 .ik-kk .ik-menu-ac { width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:50%; color:#6B5A8E; }
 .ik-kk .ik-menu-ac:hover { background:#F1E9FD; }
-.ik-alt-cubuk { position:sticky; bottom:12px; z-index:5; display:flex; align-items:center; gap:12px; margin-top:18px; }
+.ik-alt-cubuk { position:fixed; left:12px; right:12px; bottom:12px; z-index:50; display:flex; align-items:center; gap:12px; margin:0; }
 .ik-alt-cubuk .ik-ikon { width:46px; height:46px; border-radius:50%; background:linear-gradient(135deg,#F3E8FF,#DDD0FB); display:flex;
     align-items:center; justify-content:center; color:#5B21B6; font-size:20px; flex-shrink:0; }
 .ik-alt-cubuk .ik-buay { flex:1; } .ik-alt-cubuk .ik-buay small { color:#6B5A8E; font-weight:700; }
@@ -49,6 +50,24 @@
 .ik-rapor-btn { padding:12px 18px; border-radius:22px; background:linear-gradient(90deg,#6D28D9,#4C1D95); color:#fff; font-weight:800; text-decoration:none; white-space:nowrap; }
 .ik-rapor-btn:hover { color:#fff; text-decoration:none; }
 @media (max-width:600px) { .ik-kartlar { grid-template-columns:1fr; } }
+.ik-ust-izgara { display:flex; flex-direction:column; gap:16px; margin-bottom:16px; }
+.ik-ust-izgara > .ik-cam { margin:0; }
+.ik-yan { display:contents; }
+.ik-ust-butonlar { display:none; }
+/* Masaustu: kazanc karti solda, Kampanya Olustur + Bu Ay sagda; kampanyalar genis izgarada */
+@media (min-width:992px) {
+    .ik-sayfa .ik-ic { max-width:1320px; }
+    .ik-ust { margin-bottom:20px; }
+    .ik-ust h1 { text-align:left; font-size:24px; }
+    .ik-ust > span:first-child { display:none; }
+    .ik-ust-izgara { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(320px,1fr); align-items:stretch; gap:20px; margin-bottom:24px; }
+    .ik-yan { display:flex; flex-direction:column; gap:20px; }
+    .ik-yan > .ik-cam { margin:0; flex:1; display:flex; flex-direction:column; justify-content:center; }
+    .ik-yan > .ik-alt-cubuk { position:static; flex-direction:row; justify-content:flex-start; flex:0 0 auto; padding:20px; }
+    .ik-alt-cubuk .ik-buay b { font-size:26px; }
+    .ik-kartlar { grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:18px; }
+    .ik-sayfa { padding-bottom:40px; }
+}
 </style>
 
 <div class="ik-sayfa">
@@ -61,6 +80,7 @@
             <a class="ik-yuv" id="ik-bilgi" title="Nasıl çalışır?"><i class="fa fa-info"></i></a>
         </div>
 
+        <div class="ik-ust-izgara">
         <div class="ik-hero">
             <div class="ik-p ik-donem ik-menu">
                 <span class="ik-menu-ac" id="ik-donem-yazi">Son 30 Gün</span> <i class="fa fa-chevron-down ik-menu-ac" style="font-size:11px"></i>
@@ -76,12 +96,20 @@ Kazanç</small></div>
 Oranı</small></div>
         </div>
 
+        <div class="ik-yan">
         <div class="ik-cam">
             <div class="ik-baslik">
                 <div class="ik-ikon"><i class="fa fa-gift"></i></div>
                 <div><h3>Kampanya Oluştur</h3><p>Hizmeti belirlediğiniz adette alan müşteriye hediye hizmet verin.</p></div>
             </div>
             <a class="ik-btn-ana" id="ik-yeni"><span class="ik-arti"><i class="fa fa-plus"></i></span> Yeni Kampanya</a>
+        </div>
+        <div class="ik-cam ik-alt-cubuk">
+            <div class="ik-ikon"><i class="fa fa-line-chart"></i></div>
+            <div class="ik-buay"><small>Bu Ay Toplam Kazanç</small><b class="ik-sayi"><span id="ik-buay">…</span> TL</b></div>
+            <a class="ik-rapor-btn" id="ik-rapor">Detaylı Rapor ›</a>
+        </div>
+        </div>
         </div>
 
         <div class="ik-liste-bas">
@@ -94,11 +122,6 @@ Oranı</small></div>
         </div>
         <div id="ik-kartlar"><div class="ik-yukleniyor"><i class="fa fa-spinner fa-spin fa-2x"></i></div></div>
 
-        <div class="ik-cam ik-alt-cubuk">
-            <div class="ik-ikon"><i class="fa fa-line-chart"></i></div>
-            <div class="ik-buay"><small>Bu Ay Toplam Kazanç</small><b class="ik-sayi"><span id="ik-buay">…</span> TL</b></div>
-            <a class="ik-rapor-btn" id="ik-rapor">Detaylı Rapor ›</a>
-        </div>
     </div>
 </div>
 
@@ -108,7 +131,7 @@ Oranı</small></div>
     var FILTRELER = [['tumu', 'Tümü'], ['aktif', 'Aktif'], ['pasif', 'Pasif']];
     var $ = function (id) { return document.getElementById(id); };
 
-    $('ik-yeni').href = IK.u('ikramhizmet/kampanya-ayarlari');
+    $('ik-yeni').addEventListener('click', function () { IKForm.ac(null, yukle); });
     $('ik-rapor').addEventListener('click', function () { location.href = IK.u('ikramhizmet/rapor', { donem: donem }); });
     $('ik-bilgi').addEventListener('click', function () {
         IK.bilgi('İkram Hizmet nasıl çalışır?',
@@ -198,7 +221,7 @@ Oranı</small></div>
             var k = kurallar.filter(function (x) { return String(x.id) === islem.getAttribute('data-id'); })[0];
             if (!k) return;
             var tur = islem.getAttribute('data-islem');
-            if (tur === 'duzenle') { location.href = IK.u('ikramhizmet/kampanya-ayarlari', { id: k.id }); return; }
+            if (tur === 'duzenle') { IKForm.ac(k, yukle); return; }
             if (tur === 'ackapat') {
                 IK.acKapat(k).then(function (r) {
                     if (r && r.success) { IK.toast(Number(k.aktif) === 1 ? 'Kampanya kapatıldı' : 'Kampanya açıldı'); yukle(); }

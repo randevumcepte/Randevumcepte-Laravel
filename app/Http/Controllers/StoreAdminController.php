@@ -1015,9 +1015,9 @@ public function carkverilerigetir(Request $request)
     }
 
     /**
-     * Ikram Hizmet (Carkifelek'ten bagimsiz) — mobil uygulamanin akisiyla birebir 4 ekran:
-     * ana sayfa (kazanc ozeti + kampanya kartlari), Kampanya Ayarlari (form), Kampanya Detayi,
-     * Detayli Rapor. Sayfalar hafif acilir; agir hesap (musteri bazinda durum) JSON uclarindan
+     * Ikram Hizmet (Carkifelek'ten bagimsiz) — mobil uygulamanin akisi: ana sayfa (kazanc ozeti +
+     * kampanya kartlari), Kampanya Detayi, Detayli Rapor; yeni/duzenle PENCEREDE (ayri sayfa yok,
+     * panel standardi). Sayfalar hafif acilir; agir hesap (musteri bazinda durum) JSON uclarindan
      * sonradan yuklenir. Mantik DamgaKartiServisi'nde (ic adi damga), mobil API ile ortak.
      */
     private function ikramSalon(Request $request)
@@ -1046,34 +1046,26 @@ public function carkverilerigetir(Request $request)
         ], $ek));
     }
 
-    public function ikramHizmet(Request $request)
-    {
-        return $this->ikramSayfa($request, 'isletmeadmin.ikram.anasayfa', 'İkram Hizmet');
-    }
-
-    public function ikramKampanyaAyarlari(Request $request)
+    /** Kampanya penceresi (yeni/duzenle) icin salonun aktif hizmetleri. */
+    private function ikramHizmetListesi(Request $request)
     {
         $salon_id = $this->ikramSalon($request);
-        if (!$salon_id) return view('isletmeadmin.yetkisizerisim');
-        $kural = null;
-        if ((int) $request->input('id') > 0) {
-            $k = \App\Services\DamgaKartiServisi::kurallar($salon_id)->firstWhere('id', (int) $request->input('id'));
-            if ($k) $kural = \App\Services\DamgaKartiServisi::kuralDizi($k);
-        }
-        $hizmetler = \App\Services\DamgaKartiServisi::hizmetSecenekleri($salon_id)->map(function ($h) {
+        if (!$salon_id) return [];
+        return \App\Services\DamgaKartiServisi::hizmetSecenekleri($salon_id)->map(function ($h) {
             return ['id' => (int) $h->id, 'hizmet_adi' => $h->hizmet_adi];
         })->values()->all();
-        // Pasif hizmetteki mevcut kural da secili gorunsun
-        if ($kural && !collect($hizmetler)->contains('id', $kural['hizmet_id'])) {
-            array_unshift($hizmetler, ['id' => $kural['hizmet_id'], 'hizmet_adi' => $kural['hizmet_adi'] ?: ('Hizmet #' . $kural['hizmet_id'])]);
-        }
-        return $this->ikramSayfa($request, 'isletmeadmin.ikram.kampanya_ayarlari', 'Kampanya Ayarları',
-            ['ikramKural' => $kural, 'ikramHizmetleri' => $hizmetler]);
+    }
+
+    public function ikramHizmet(Request $request)
+    {
+        return $this->ikramSayfa($request, 'isletmeadmin.ikram.anasayfa', 'İkram Hizmet',
+            ['ikramHizmetleri' => $this->ikramHizmetListesi($request)]);
     }
 
     public function ikramKampanyaDetay(Request $request, $id)
     {
-        return $this->ikramSayfa($request, 'isletmeadmin.ikram.kampanya_detay', 'Kampanya Detayı', ['ikramKuralId' => (int) $id]);
+        return $this->ikramSayfa($request, 'isletmeadmin.ikram.kampanya_detay', 'Kampanya Detayı',
+            ['ikramKuralId' => (int) $id, 'ikramHizmetleri' => $this->ikramHizmetListesi($request)]);
     }
 
     public function ikramRapor(Request $request)
