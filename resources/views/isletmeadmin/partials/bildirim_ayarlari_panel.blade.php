@@ -192,6 +192,7 @@
    function digerFark() {
       var d = {};
       if (+VERI.hatirlatma_saat !== +ORJ.hatirlatma_saat) d.hatirlatma_saat = +VERI.hatirlatma_saat;
+      if (+VERI.push_once_sms !== +ORJ.push_once_sms) d.push_once_sms = +VERI.push_once_sms;
       return d;
    }
    function sayacGuncelle() {
@@ -268,13 +269,40 @@
          + '<div class="bm-kart"><h4><i class="fa fa-magic"></i> Akıllı Bildirim Kuralları</h4><div class="bm-kurallar"><div>'
          + '<div class="bm-kural"><i class="fa fa-check-circle" style="color:#16a34a;font-size:22px;margin:1px 11px 0"></i>'
          + '<div><b>WhatsApp başarısız olursa SMS gönder <span style="font-size:11px;font-weight:700;color:#15803d;background:#dcf6e6;border-radius:20px;padding:2px 8px;margin-left:4px">Sistem kuralı · her zaman açık</span></b><small>WhatsApp bağlı değilse veya mesaj iletilemezse aynı mesaj SMS ile gider. SMS paketiniz yoksa SMS de gitmez.</small></div></div>'
+         + '<div class="bm-kural"><i class="fa fa-mobile" style="color:#5C008E;font-size:24px;margin:0 14px 0 15px"></i>'
+         + '<div><b>Önce uygulama bildirimi, açılmazsa SMS '
+         + '<label style="display:inline-flex;align-items:center;gap:6px;margin-left:6px;font-weight:600;cursor:pointer"><input type="checkbox" id="bmPushOnce"' + (+VERI.push_once_sms ? ' checked' : '') + '> ' + (+VERI.push_once_sms ? 'Açık' : 'Kapalı') + '</label></b>'
+         + '<small>Randevu hatırlatmasında: müşterinin telefonunda uygulamanın yeni sürümü varsa önce bildirim gider. Müşteri 30 dakika içinde bildirimi açmaz ya da "Geliyorum" demezse SMS gönderilir. Açarsa SMS gitmez, kontörünüz harcanmaz.</small></div></div>'
          + '<div class="bm-kural"><i class="fa fa-clone" style="color:#5C008E;font-size:18px;margin:2px 13px 0"></i>'
          + '<div><b>Birden fazla kanal açıksa hepsinden gider</b><small>Örneğin SMS ve WhatsApp ikisi de açıksa müşteri iki mesaj alır.</small></div></div>'
          + '</div><div class="bm-bilgi"><i class="fa fa-info-circle"></i><div>Şifre, oturum ve yetki gibi zorunlu sistem bildirimleri bu listede yer almaz ve kapatılamaz.</div></div></div></div>'
          + '</div>';
+      h += gelmemeKarti(VERI.gelmeme);
       h += '<div class="bm-not"><i class="fa fa-lock"></i> Bu ayarları yalnızca işletme sahibi değiştirebilir. Kaydedilen her değişiklik, kimin yaptığıyla birlikte Log Hareketleri\'ne yazılır.</div>';
       document.getElementById('bmIcerik').innerHTML = h;
       sayacGuncelle();
+   }
+
+   // Son 90 gun: randevuya gelmeme orani (Geldi / Gelmedi isaretli onayli randevular) + Geliyorum diyenlerde oran
+   function gelmemeKarti(g) {
+      if (!g) return '';
+      function yuzde(v) { return v === null || v === undefined ? '—' : '%' + String(v).replace('.', ','); }
+      function kutu(sayi, etiket, zemin, renk) {
+         return '<div style="flex:1;background:' + zemin + ';border-radius:12px;padding:10px 8px;text-align:center"><b style="display:block;font-size:20px;color:' + renk + '">' + esc(String(sayi)) + '</b><small style="color:#4b4b63">' + etiket + '</small></div>';
+      }
+      var isaretli = (+g.geldi || 0) + (+g.gelmedi || 0);
+      var h = '<div class="bm-kart" style="margin-top:14px"><h4><i class="fa fa-line-chart"></i> Randevuya Gelmeme (son 90 gün)</h4>'
+         + '<div style="display:flex;gap:8px;margin:8px 0">' + kutu(yuzde(g.oran), 'Gelmeme oranı', '#fdecec', '#b91c1c')
+         + kutu(+g.gelmedi || 0, 'Gelmedi', '#f4f1fa', '#3b2a5c') + kutu(+g.geldi || 0, 'Geldi', '#dcf6e6', '#15803d') + '</div>'
+         + '<small style="color:#6b7280">' + (isaretli ? 'Oran, "Geldi" ya da "Gelmedi" işaretlenmiş onaylı randevulardan hesaplanır. ' + (+g.isaretsiz || 0) + ' randevu işaretlenmemiş.'
+            : 'Henüz "Geldi / Gelmedi" işaretlenmiş randevu yok. Oran, randevular işaretlendikçe oluşur.') + '</small>';
+      if (+g.yanitli > 0) h += '<div style="margin-top:6px;font-weight:600;color:#3b2a5c">Hatırlatmaya "Geliyorum" diyen ' + (+g.yanitli) + ' müşteride gelmeme oranı: ' + yuzde(g.yanitli_oran) + '</div>';
+      if (g.aylik && g.aylik.length > 1) {
+         h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">';
+         g.aylik.forEach(function (a) { h += '<span style="background:#f4f1fa;border-radius:10px;padding:3px 9px;font-size:12px;font-weight:600">' + esc(a.ay) + ': ' + yuzde(a.oran) + '</span>'; });
+         h += '</div>';
+      }
+      return h + '</div>';
    }
 
    function yukle() {
@@ -308,6 +336,7 @@
          ciz();
       }
       else if (t.id === 'bmSaat') { VERI.hatirlatma_saat = +t.value; sayacGuncelle(); }
+      else if (t.id === 'bmPushOnce') { VERI.push_once_sms = t.checked ? 1 : 0; ciz(); }
    });
    document.getElementById('bmKaydet').addEventListener('click', function () {
       if (!VERI) return;
@@ -351,6 +380,7 @@
       istek('GET', 'veri').then(function (j) {
          if (farklar().length || Object.keys(digerFark()).length) return;
          if (JSON.stringify(j.gruplar) === JSON.stringify(ORJ.gruplar) && +j.hatirlatma_saat === +ORJ.hatirlatma_saat
+            && +j.push_once_sms === +ORJ.push_once_sms
             && JSON.stringify(j.durum) === JSON.stringify(ORJ.durum)) return;
          VERI = j; ORJ = kopya(j); ciz();
       }).catch(function () {}).then(function () { esitleniyor = false; });

@@ -252,7 +252,8 @@ class NotificationService
                         }
                         // Yeni Android uygulamasi (aksiyon_v1) hatirlatmayi kendisi cizer: bildirimde
                         // "Geliyorum / Gecikecegim" dugmeleri. Eski surumler ve iPhone normal bildirim alir.
-                        $dugmeli = $this->randevuYanitliMi() && ($row->platform ?? '') === 'android'
+                        // Acil durum vanasi: .env PUSH_DUGMELI=0 -> herkes normal bildirim alir (uygulama guncellemesiz)
+                        $dugmeli = (string) env('PUSH_DUGMELI', '1') !== '0' && $this->randevuYanitliMi() && ($row->platform ?? '') === 'android'
                             && stripos((string) ($row->yetenek ?? ''), 'aksiyon_v1') !== false;
                         return $this->sendOneAsync($row->bildirim_id, $payloadExtra, $row->platform, $dugmeli);
                     } catch (\Throwable $e) {

@@ -356,6 +356,18 @@ class AkilliBildirim
      */
     public static function gelmemeOlcumu(int $salonId, int $gun = 90): array
     {
+        // Bildirim Ayarlari ekrani 15 sn'de bir tazelenir: 90 gunluk tarama 10 dk onbellekte
+        try {
+            return Cache::remember('gelmeme_olcumu:' . $salonId . ':' . $gun, 10, function () use ($salonId, $gun) {
+                return self::gelmemeHesapla($salonId, $gun);
+            });
+        } catch (\Throwable $e) {
+            return self::gelmemeHesapla($salonId, $gun);
+        }
+    }
+
+    private static function gelmemeHesapla(int $salonId, int $gun): array
+    {
         $bos = ['gun' => $gun, 'toplam' => 0, 'geldi' => 0, 'gelmedi' => 0, 'isaretsiz' => 0, 'oran' => null,
                 'yanitli' => 0, 'yanitli_gelmedi' => 0, 'yanitli_oran' => null, 'aylik' => []];
         try {
