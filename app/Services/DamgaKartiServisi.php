@@ -943,6 +943,7 @@ class DamgaKartiServisi
                 if ($d['kazanilan'] < 1 && $d['kullanilan'] < 1) continue;
                 $kisi = $kisiler->get($uid);
                 $sonuc[] = [
+                    'kural_id'   => (int) $k->id,
                     'user_id'    => $uid,
                     'ad'         => $kisi->name ?? ('Müşteri #' . $uid),
                     'telefon'    => $kisi->cep_telefon ?? '',

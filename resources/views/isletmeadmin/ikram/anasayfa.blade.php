@@ -5,88 +5,144 @@
 @endif
 @extends($_layout)
 @section('content')
-{{-- Ikram Hizmet ana sayfa — mobil ikram_hizmet.dart ile ayni akis. Veri sayfa acildiktan sonra
-     /isletmeyonetim/ikramhizmet/veri'den gelir (agir hesap sayfanin acilmasini bekletmez). --}}
+{{-- Ikram Hizmet ana sayfa. Veri sayfa acildiktan sonra /isletmeyonetim/ikramhizmet/veri'den gelir
+     (agir hesap sayfanin acilmasini bekletmez). Ust: donem + ozet rakamlar; sol: kampanyalar; sag: ikrami hazir musteriler. --}}
 @include('isletmeadmin.ikram._ortak')
 @include('isletmeadmin.ikram._kampanya_modal')
 <style>
-/* Kazanc karti: gercek kutular (eski tek parca resim + yuzdeyle yerlesen yazilar masaustunde kayiyordu) */
-.ik-hero { position:relative; display:flex; min-height:250px; border-radius:24px; color:#fff;
-    background:linear-gradient(135deg,#7C3AED 0%,#5B21B6 55%,#4C1D95 100%); box-shadow:0 14px 34px rgba(76,29,149,.22); }
-.ik-hero-sol { position:relative; z-index:1; flex:1; min-width:0; display:flex; flex-direction:column; padding:22px 26px; }
-.ik-hero-bas { display:flex; align-items:center; gap:10px; }
-.ik-hero-bas .ik-hero-ikon { width:38px; height:38px; border-radius:12px; background:rgba(255,255,255,.16); display:flex;
-    align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
-.ik-hero-bas h2 { flex:1; margin:0; font-size:17px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.ik-hero .ik-donem { display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border-radius:18px; background:rgba(255,255,255,.16);
-    border:1px solid rgba(255,255,255,.28); font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
-.ik-hero .ik-donem:hover { background:rgba(255,255,255,.24); }
-.ik-hero .ik-donem .ik-menu-liste { left:auto; right:0; min-width:160px; }
-.ik-hero .ik-toplam { margin-top:16px; font-weight:900; font-size:46px; line-height:1; white-space:nowrap; letter-spacing:-1px; }
-.ik-hero .ik-toplam small { font-size:20px; font-weight:800; margin-left:6px; letter-spacing:0; }
-.ik-hero .ik-artis { margin-top:10px; min-height:24px; font-size:13px; font-weight:700; }
-.ik-hero .ik-artis span { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:14px; }
-.ik-hero-sutunlar { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:auto; padding-top:16px; }
-.ik-hero .ik-sutun { display:flex; flex-direction:column; align-items:center; text-align:center; gap:3px; padding:12px 6px;
-    background:rgba(255,255,255,.10); }
-.ik-hero .ik-sutun:first-child { border-radius:16px 0 0 16px; } .ik-hero .ik-sutun:last-child { border-radius:0 16px 16px 0; }
-.ik-hero .ik-sutun + .ik-sutun { border-left:1px solid rgba(255,255,255,.18); }
-.ik-hero .ik-sutun i { font-size:15px; opacity:.85; }
-.ik-hero .ik-sutun b { font-size:20px; font-weight:900; line-height:1.15; white-space:nowrap; }
-.ik-hero .ik-sutun small { font-size:12px; opacity:.85; line-height:1.2; }
-.ik-hero-gorsel { width:38%; flex-shrink:0; border-radius:0 24px 24px 0; background-size:cover; background-position:center;
-    -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 32%); mask-image:linear-gradient(90deg,transparent 0,#000 32%); }
+.ik-sayfa { padding-bottom:40px; }
+.ik-sayfa .ik-ic { max-width:1320px; }
+.ik-sayfa a.ik-btn-ana, .ik-sayfa a.ik-btn-ana:hover { color:#fff !important; cursor:pointer; }
+
+/* Baslik satiri */
+.iks-bas { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:22px; }
+.iks-bas-yazi { flex:1; min-width:240px; }
+.iks-bas-yazi h1 { margin:0; font-size:24px; font-weight:800; color:var(--ik-koyu); }
+.iks-bas-yazi p { margin:4px 0 0; font-size:13.5px; color:var(--ik-soluk); }
+.iks-bas .ik-btn-ana { width:auto; height:44px; padding:0 20px; font-size:14px; }
+.ik-sayfa a.iks-btn-acik { display:inline-flex; align-items:center; gap:8px; height:44px; padding:0 16px; border-radius:22px; background:#fff;
+    border:1px solid #E4D7F7; color:var(--ik-koyu) !important; font-weight:700; font-size:13.5px; text-decoration:none; cursor:pointer; }
+.ik-sayfa a.iks-btn-acik:hover { border-color:var(--ik-mor); color:var(--ik-mor) !important; }
+
+/* Donem secimi */
+.iks-donem { display:inline-flex; background:#fff; border:1px solid #E4D7F7; border-radius:22px; padding:4px; gap:2px; }
+.ik-sayfa .iks-donem a { padding:7px 14px; border-radius:18px; font-size:13px; font-weight:700; color:var(--ik-soluk) !important;
+    cursor:pointer; text-decoration:none; white-space:nowrap; }
+.ik-sayfa .iks-donem a:hover { color:var(--ik-koyu) !important; }
+.ik-sayfa .iks-donem a.sec { background:var(--ik-mor); color:#fff !important; }
+
+/* Ozet rakamlar */
+.iks-ozet { display:grid; grid-template-columns:1.35fr repeat(3,1fr); gap:14px; margin-bottom:26px; }
+.iks-kpi { position:relative; background:#fff; border-radius:20px; padding:18px; box-shadow:0 6px 20px rgba(124,58,237,.07); min-width:0; min-height:132px; }
+.iks-kpi .iks-kpi-ust { display:flex; align-items:center; gap:10px; font-size:13px; font-weight:700; color:var(--ik-soluk); }
+.iks-kpi .iks-kpi-ikon { width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center;
+    font-size:15px; flex-shrink:0; background:#F3E8FF; color:var(--ik-mor2); }
+.iks-kpi b { display:block; margin-top:12px; font-size:26px; font-weight:900; color:var(--ik-koyu); line-height:1.1; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
+.iks-kpi b small { font-size:14px; font-weight:800; margin-left:3px; }
+.iks-kpi .iks-kpi-alt { margin-top:6px; font-size:12px; color:var(--ik-soluk); line-height:1.4; }
+.iks-kpi.ana { background:linear-gradient(135deg,#7C3AED,#5B21B6); overflow:hidden; }
+.iks-kpi.ana .iks-kpi-ust, .iks-kpi.ana .iks-kpi-alt { position:relative; z-index:1; color:rgba(255,255,255,.88); }
+.iks-kpi.ana .iks-kpi-ikon { background:rgba(255,255,255,.18); color:#fff; }
+.iks-kpi.ana b { position:relative; z-index:1; color:#fff; font-size:34px; }
+.iks-kpi.ana:after { content:''; position:absolute; right:-8px; bottom:-12px; width:130px; height:130px; opacity:.4;
+    background:url('{{ secure_asset('public/img/ikram/ikram_m_hediye.png') }}') center/contain no-repeat; }
+.iks-trend { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:12px; font-size:12px; font-weight:800; }
+.iks-trend.art { background:#D1FAE5; color:#065F46; } .iks-trend.az { background:#FEE2E2; color:#991B1B; }
+.iks-bar { height:7px; border-radius:4px; background:#EDE4FB; margin-top:10px; overflow:hidden; }
+.iks-bar i { display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,#A855F7,#7C3AED); }
+
+/* Govde: kampanyalar + yan sutun */
+.iks-govde { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:22px; align-items:start; }
+.iks-bolum-bas { display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+.iks-bolum-bas h3 { flex:1; margin:0; font-size:17px; font-weight:800; color:var(--ik-koyu); }
+.iks-sekme { display:inline-flex; gap:6px; }
+.ik-sayfa .iks-sekme a { padding:6px 12px; border-radius:16px; font-size:12.5px; font-weight:700; color:var(--ik-soluk) !important;
+    background:rgba(255,255,255,.7); cursor:pointer; text-decoration:none; }
+.ik-sayfa .iks-sekme a.sec { background:var(--ik-koyu); color:#fff !important; }
+.iks-sekme a span { opacity:.7; margin-left:4px; }
+
+/* Kampanya karti */
+.iks-kartlar { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:14px; }
+.iks-kart { display:flex; flex-direction:column; background:#fff; border-radius:20px; box-shadow:0 6px 20px rgba(124,58,237,.07);
+    transition:transform .15s, box-shadow .15s; }
+.iks-kart:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(124,58,237,.13); }
+.iks-kart.soluk .iks-kart-ust, .iks-kart.soluk .iks-kart-rakam { opacity:.6; }
+.iks-kart-ust { display:flex; gap:14px; padding:16px 16px 12px; cursor:pointer; }
+.iks-kart-foto { position:relative; width:76px; height:76px; border-radius:16px; overflow:hidden; flex-shrink:0; }
+.iks-kart-foto img { width:100%; height:100%; object-fit:cover; }
+.iks-kart-ust h4 { margin:0 0 3px; font-size:15px; font-weight:800; color:var(--ik-koyu); line-height:1.3; }
+.iks-kart-ust .iks-kural { font-size:12.5px; font-weight:700; color:var(--ik-mor2); }
+.iks-kart-ust .iks-tarih { margin-top:6px; font-size:12px; color:var(--ik-soluk); }
+.iks-sure { height:5px; border-radius:3px; background:#EDE4FB; margin-top:7px; overflow:hidden; }
+.iks-sure i { display:block; height:100%; background:#A78BFA; }
+.iks-kart-rakam { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin:0 16px; border-radius:14px; background:#FAF6FF; }
+.iks-kart-rakam div { padding:10px 6px; text-align:center; min-width:0; }
+.iks-kart-rakam div + div { border-left:1px solid #EDE4FB; }
+.iks-kart-rakam b { display:block; font-size:15px; font-weight:900; color:var(--ik-koyu); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.iks-kart-rakam small { font-size:11px; color:var(--ik-soluk); }
+.iks-kart-alt { display:flex; align-items:center; gap:8px; padding:12px 16px; margin-top:auto; }
+.iks-kart-alt .ik-cip { margin-right:auto; }
+.ik-sayfa a.iks-ikon-btn { width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+    color:var(--ik-soluk) !important; background:#F5EFFD; text-decoration:none; }
+.ik-sayfa a.iks-ikon-btn:hover { color:var(--ik-mor) !important; background:#EDE4FB; }
+.ik-sayfa a.iks-ikon-btn.kirmizi:hover { color:#dc2626 !important; background:#FEE2E2; }
+/* Ac/kapat anahtari */
+.iks-anahtar { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:var(--ik-soluk); cursor:pointer; user-select:none; }
+.iks-anahtar i { position:relative; width:36px; height:20px; border-radius:10px; background:#D6CCE6; transition:.15s; }
+.iks-anahtar i:after { content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition:.15s;
+    box-shadow:0 1px 3px rgba(0,0,0,.2); }
+.iks-anahtar.acik i { background:#22C55E; } .iks-anahtar.acik i:after { left:18px; }
+.iks-anahtar.bekle { opacity:.5; pointer-events:none; }
+.ik-sayfa a.iks-yeni-kart { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; min-height:210px; border-radius:20px;
+    border:2px dashed #D8C8F3; color:var(--ik-mor) !important; font-weight:800; cursor:pointer; text-decoration:none; background:rgba(255,255,255,.45); }
+.ik-sayfa a.iks-yeni-kart:hover { border-color:var(--ik-mor); background:rgba(255,255,255,.8); }
+.iks-yeni-kart span { width:44px; height:44px; border-radius:50%; background:#F3E8FF; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.iks-yeni-kart small { font-weight:600; color:var(--ik-soluk); }
+
+/* Yan sutun */
+.iks-yan { display:flex; flex-direction:column; gap:16px; }
+.iks-panel { background:#fff; border-radius:20px; padding:18px; box-shadow:0 6px 20px rgba(124,58,237,.07); }
+.iks-panel h3 { display:flex; align-items:center; gap:8px; margin:0 0 4px; font-size:15.5px; font-weight:800; color:var(--ik-koyu); }
+.iks-panel h3 .iks-say { margin-left:auto; min-width:24px; height:24px; padding:0 8px; border-radius:12px; background:var(--ik-mor); color:#fff;
+    font-size:12px; display:inline-flex; align-items:center; justify-content:center; }
+.iks-panel > p { margin:0 0 12px; font-size:12.5px; color:var(--ik-soluk); line-height:1.45; }
+.iks-musteri { display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid #F1EAFB; }
+.iks-musteri .iks-avatar { width:38px; height:38px; border-radius:50%; background:#F3E8FF; color:var(--ik-mor2); font-weight:800; font-size:13px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.iks-musteri .iks-m-ad { flex:1; min-width:0; }
+.ik-sayfa .iks-musteri .iks-m-ad a { display:block; font-size:13.5px; font-weight:700; color:var(--ik-koyu) !important; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; text-decoration:none; }
+.ik-sayfa .iks-musteri .iks-m-ad a:hover { color:var(--ik-mor) !important; }
+.iks-musteri .iks-m-ad small { display:block; font-size:11.5px; color:var(--ik-soluk); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.iks-musteri .iks-hak { padding:5px 10px; border-radius:14px; background:#EDE9FE; color:#5B21B6; font-size:12px; font-weight:800; white-space:nowrap; }
+.ik-sayfa a.iks-panel-alt { display:block; margin-top:6px; padding-top:12px; border-top:1px solid #F1EAFB; text-align:center; font-size:13px; font-weight:800;
+    color:var(--ik-mor) !important; cursor:pointer; text-decoration:none; }
+.iks-bos-kucuk { padding:12px 0 4px; text-align:center; font-size:12.5px; color:var(--ik-soluk); line-height:1.5; }
+.iks-adim { display:flex; gap:12px; padding:8px 0; }
+.iks-adim b { width:26px; height:26px; border-radius:50%; background:#F3E8FF; color:var(--ik-mor2); font-size:12.5px; font-weight:900;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.iks-adim div { font-size:12.5px; color:var(--ik-soluk); line-height:1.45; } .iks-adim div strong { display:block; color:var(--ik-koyu); font-size:13px; }
+
+/* Hic kampanya yokken */
+.iks-ilk { display:flex; align-items:center; gap:24px; background:#fff; border-radius:24px; padding:28px; box-shadow:0 6px 20px rgba(124,58,237,.07); }
+.iks-ilk img { width:170px; flex-shrink:0; border-radius:20px; }
+.iks-ilk h3 { margin:0 0 6px; font-size:19px; font-weight:800; color:var(--ik-koyu); }
+.iks-ilk p { margin:0 0 16px; font-size:13.5px; color:var(--ik-soluk); line-height:1.55; }
+.iks-ilk .ik-btn-ana { width:auto; display:inline-flex; padding:0 22px; height:46px; }
+
+.iks-iskelet { background:linear-gradient(90deg,#F3ECFC 25%,#FAF6FF 50%,#F3ECFC 75%); background-size:200% 100%; animation:iksKay 1.2s infinite;
+    border-radius:20px; box-shadow:none; }
+@keyframes iksKay { to { background-position:-200% 0; } }
+
+@media (max-width:1199px) { .iks-ozet { grid-template-columns:repeat(2,minmax(0,1fr)); } .iks-govde { grid-template-columns:1fr; } }
 @media (max-width:600px) {
-    .ik-hero-sol { padding:18px 16px; }
-    .ik-hero .ik-toplam { font-size:38px; }
-    .ik-hero-gorsel { position:absolute; right:0; top:0; height:62%; width:46%; opacity:.55; border-radius:0 24px 0 0;
-        -webkit-mask-image:linear-gradient(225deg,#000 20%,transparent 75%); mask-image:linear-gradient(225deg,#000 20%,transparent 75%); }
-    .ik-hero .ik-sutun b { font-size:16px; } .ik-hero .ik-sutun small { font-size:11px; }
-}
-.ik-liste-bas { display:flex; align-items:center; gap:10px; margin:6px 2px 12px; }
-.ik-liste-bas h3 { flex:1; margin:0; font-size:16px; font-weight:800; color:#2E1065; }
-.ik-kartlar { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px; }
-.ik-kk { position:relative; display:flex; gap:14px; background:#FDFBFF; border-radius:22px; border-left:4px solid #7C3AED; padding:14px;
-    box-shadow:0 6px 18px rgba(124,58,237,.08); cursor:pointer; transition:.15s; }
-.ik-kk:hover { transform:translateY(-2px); box-shadow:0 10px 26px rgba(124,58,237,.14); }
-.ik-kk.soluk { opacity:.6; }
-.ik-kk .ik-foto { position:relative; width:84px; height:84px; border-radius:16px; overflow:hidden; flex-shrink:0; }
-.ik-kk .ik-foto img { width:100%; height:100%; object-fit:cover; }
-.ik-kk .ik-govde { flex:1; min-width:0; }
-.ik-kk h4 { margin:0 26px 4px 0; font-size:14.5px; font-weight:800; color:#2E1065; line-height:1.3; }
-.ik-kk .ik-alt { font-size:12.5px; color:#6B5A8E; white-space:pre-line; line-height:1.35; }
-.ik-kk .ik-tarih { font-size:12px; color:#6B5A8E; margin-top:6px; }
-.ik-kk .ik-kaz { position:absolute; right:12px; bottom:12px; background:#F1E9FD; border-radius:14px; padding:6px 10px; text-align:right; }
-.ik-kk .ik-kaz b { display:block; font-size:13px; color:#2E1065; } .ik-kk .ik-kaz small { font-size:10px; color:#6B5A8E; }
-.ik-kk .ik-menu { position:absolute; top:8px; right:8px; }
-.ik-kk .ik-menu-ac { width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:50%; color:#6B5A8E; }
-.ik-kk .ik-menu-ac:hover { background:#F1E9FD; }
-.ik-alt-cubuk { position:fixed; left:12px; right:12px; bottom:12px; z-index:50; display:flex; align-items:center; gap:12px; margin:0; }
-.ik-alt-cubuk .ik-ikon { width:46px; height:46px; border-radius:50%; background:linear-gradient(135deg,#F3E8FF,#DDD0FB); display:flex;
-    align-items:center; justify-content:center; color:#5B21B6; font-size:20px; flex-shrink:0; }
-.ik-alt-cubuk .ik-buay { flex:1; } .ik-alt-cubuk .ik-buay small { color:#6B5A8E; font-weight:700; }
-.ik-alt-cubuk .ik-buay b { display:block; font-size:22px; font-weight:900; color:#2E1065; }
-.ik-rapor-btn { padding:12px 18px; border-radius:22px; background:linear-gradient(90deg,#6D28D9,#4C1D95); color:#fff; font-weight:800; text-decoration:none; white-space:nowrap; }
-/* href yok: tema a:not([href]) rengi yazıyı koyulaştırıyordu */
-.ik-sayfa a.ik-rapor-btn, .ik-sayfa a.ik-rapor-btn:hover { color:#fff !important; text-decoration:none; cursor:pointer; }
-@media (max-width:600px) { .ik-kartlar { grid-template-columns:1fr; } }
-.ik-ust-izgara { display:flex; flex-direction:column; gap:16px; margin-bottom:16px; }
-.ik-ust-izgara > .ik-cam { margin:0; }
-.ik-yan { display:contents; }
-.ik-ust-butonlar { display:none; }
-/* Masaustu: kazanc karti solda, Kampanya Olustur + Bu Ay sagda; kampanyalar genis izgarada */
-@media (min-width:992px) {
-    .ik-sayfa .ik-ic { max-width:1320px; }
-    .ik-ust { margin-bottom:20px; }
-    .ik-ust h1 { text-align:left; font-size:24px; }
-    .ik-ust > span:first-child { display:none; }
-    .ik-ust-izgara { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(320px,1fr); align-items:stretch; gap:20px; margin-bottom:24px; }
-    .ik-yan { display:flex; flex-direction:column; gap:20px; }
-    .ik-yan > .ik-cam { margin:0; flex:1; display:flex; flex-direction:column; justify-content:center; }
-    .ik-yan > .ik-alt-cubuk { position:static; flex-direction:row; justify-content:flex-start; flex:0 0 auto; padding:20px; }
-    .ik-alt-cubuk .ik-buay b { font-size:26px; }
-    .ik-kartlar { grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:18px; }
-    .ik-sayfa { padding-bottom:40px; }
+    .iks-ozet { gap:10px; } .iks-kpi.ana { grid-column:1 / -1; }
+    .iks-kpi { padding:14px; } .iks-kpi b { font-size:21px; } .iks-kpi.ana b { font-size:30px; }
+    .iks-kartlar { grid-template-columns:1fr; }
+    .iks-bas .ik-btn-ana, .ik-sayfa .iks-bas a.iks-btn-acik { flex:1; justify-content:center; }
+    .iks-donem { width:100%; } .ik-sayfa .iks-donem a { flex:1; text-align:center; padding:7px 4px; }
+    .iks-ilk { flex-direction:column; text-align:center; padding:22px; } .iks-ilk img { width:130px; }
 }
 </style>
 
@@ -94,68 +150,56 @@
     <img class="ik-yaprak sol" src="{{ secure_asset('public/img/ikram/kampanya_yaprak_sol.png') }}" alt="">
     <img class="ik-yaprak sag" src="{{ secure_asset('public/img/ikram/kampanya_yaprak_sag.png') }}" alt="">
     <div class="ik-ic">
-        <div class="ik-ust">
-            <span style="width:44px"></span>
-            <h1>İkram Hizmet</h1>
-            <a class="ik-yuv" id="ik-bilgi" title="Nasıl çalışır?"><i class="fa fa-info"></i></a>
-        </div>
-
-        <div class="ik-ust-izgara">
-        <div class="ik-hero">
-            <div class="ik-hero-sol">
-                <div class="ik-hero-bas">
-                    <span class="ik-hero-ikon"><i class="fa fa-bar-chart"></i></span>
-                    <h2>Toplam Kazancınız</h2>
-                    <div class="ik-menu">
-                        <span class="ik-donem ik-menu-ac"><span id="ik-donem-yazi">Son 30 Gün</span> <i class="fa fa-chevron-down" style="font-size:10px"></i></span>
-                        <div class="ik-menu-liste" id="ik-donem-liste"></div>
-                    </div>
-                </div>
-                <div class="ik-toplam"><span class="ik-sayi" id="ik-toplam">…</span><small>TL</small></div>
-                <div class="ik-artis" id="ik-artis"></div>
-                <div class="ik-hero-sutunlar">
-                    <div class="ik-sutun"><i class="fa fa-users"></i><b class="ik-sayi" id="ik-kullanim">…</b><small>Kampanya Kullanımı</small></div>
-                    <div class="ik-sutun"><i class="fa fa-money"></i><b class="ik-sayi" id="ik-ek">…</b><small>Ek Kazanç</small></div>
-                    <div class="ik-sutun"><i class="fa fa-star"></i><b class="ik-sayi" id="ik-oran">…</b><small>Kullanım Oranı</small></div>
-                </div>
+        <div class="iks-bas">
+            <div class="iks-bas-yazi">
+                <h1>İkram Hizmet</h1>
+                <p>Bir hizmeti belirlediğiniz sayıda alan müşteriye hediye verin (ör. 5 alana 1 hediye). Müşteri geri gelir, siz kazanırsınız.</p>
             </div>
-            <div class="ik-hero-gorsel" style="background-image:url('{{ secure_asset('public/img/ikram/ikram_hediye_kutu.png') }}')"></div>
-        </div>
-
-        <div class="ik-yan">
-        <div class="ik-cam">
-            <div class="ik-baslik">
-                <div class="ik-ikon"><i class="fa fa-gift"></i></div>
-                <div><h3>Kampanya Oluştur</h3><p>Hizmeti belirlediğiniz adette alan müşteriye hediye hizmet verin.</p></div>
-            </div>
+            <a class="iks-btn-acik" id="ik-bilgi"><i class="fa fa-question-circle"></i> Nasıl çalışır?</a>
+            <a class="iks-btn-acik" id="ik-rapor"><i class="fa fa-bar-chart"></i> Detaylı Rapor</a>
             <a class="ik-btn-ana" id="ik-yeni"><span class="ik-arti"><i class="fa fa-plus"></i></span> Yeni Kampanya</a>
         </div>
-        <div class="ik-cam ik-alt-cubuk">
-            <div class="ik-ikon"><i class="fa fa-line-chart"></i></div>
-            <div class="ik-buay"><small>Bu Ay Toplam Kazanç</small><b class="ik-sayi"><span id="ik-buay">…</span> TL</b></div>
-            <a class="ik-rapor-btn" id="ik-rapor">Detaylı Rapor ›</a>
+
+        <div class="iks-bolum-bas">
+            <h3>Özet</h3>
+            <div class="iks-donem" id="ik-donem"></div>
         </div>
-        </div>
+        <div class="iks-ozet" id="ik-ozet">
+            <div class="iks-kpi iks-iskelet"></div><div class="iks-kpi iks-iskelet"></div>
+            <div class="iks-kpi iks-iskelet"></div><div class="iks-kpi iks-iskelet"></div>
         </div>
 
-        <div class="ik-liste-bas">
-            <i class="fa fa-list-ul" style="color:#7C3AED"></i>
-            <h3>Aktif Kampanyalarım</h3>
-            <div class="ik-menu">
-                <span class="ik-hap ik-menu-ac"><span id="ik-filtre-yazi">Tümü</span> <i class="fa fa-chevron-down" style="font-size:10px"></i></span>
-                <div class="ik-menu-liste" id="ik-filtre-liste"></div>
+        <div class="iks-govde">
+            <div>
+                <div class="iks-bolum-bas">
+                    <h3>Kampanyalarım</h3>
+                    <div class="iks-sekme" id="ik-sekme"></div>
+                </div>
+                <div id="ik-kartlar"><div class="iks-kartlar"><div class="iks-iskelet" style="height:230px"></div><div class="iks-iskelet" style="height:230px"></div></div></div>
+            </div>
+            <div class="iks-yan">
+                <div class="iks-panel">
+                    <h3><i class="fa fa-gift" style="color:var(--ik-mor)"></i> İkramı hazır müşteriler <span class="iks-say" id="ik-hazir-say" style="display:none"></span></h3>
+                    <p>Hediyesini kazanmış, henüz kullanmamış müşteriler. Geldiklerinde tahsilat ekranında ikram olarak işleyin.</p>
+                    <div id="ik-hazir"><div class="iks-iskelet" style="height:120px"></div></div>
+                </div>
+                <div class="iks-panel">
+                    <h3><i class="fa fa-lightbulb-o" style="color:var(--ik-mor)"></i> 3 adımda ikram</h3>
+                    <div class="iks-adim"><b>1</b><div><strong>Kampanya oluşturun</strong>Hizmeti ve kaç alana kaç hediye verileceğini seçin.</div></div>
+                    <div class="iks-adim"><b>2</b><div><strong>Müşteri hizmeti alır</strong>"Geldi" işaretli randevular otomatik sayılır, müşteri ilerlemesini uygulamada görür.</div></div>
+                    <div class="iks-adim"><b>3</b><div><strong>Hediyeyi işleyin</strong>Müşteri ikramını kullanmak istediğinde tahsilat ekranından ikram olarak düşün.</div></div>
+                </div>
             </div>
         </div>
-        <div id="ik-kartlar"><div class="ik-yukleniyor"><i class="fa fa-spinner fa-spin fa-2x"></i></div></div>
-
     </div>
 </div>
 
 <script>
 (function () {
-    var donem = 30, filtre = 'tumu', kurallar = [], ozet = null;
+    var donem = 30, filtre = 'tumu', kurallar = [], ozet = null, musteriler = [], yuklendi = false;
     var FILTRELER = [['tumu', 'Tümü'], ['aktif', 'Aktif'], ['pasif', 'Pasif']];
     var $ = function (id) { return document.getElementById(id); };
+    var esc = IK.esc;
 
     $('ik-yeni').addEventListener('click', function () { IKForm.ac(null, yukle); });
     $('ik-rapor').addEventListener('click', function () { location.href = IK.u('ikramhizmet/rapor', { donem: donem }); });
@@ -167,92 +211,145 @@
             '<b>Rakamlar:</b><br>' +
             '• Toplam Kazanç: seçilen dönemde kampanyadaki hizmetlerin satış tutarı (kampanya tarihleri içinde).<br>' +
             '• Ek Kazanç: aynı müşterinin kampanya içindeki 2. ve sonraki alımları — kampanyanın geri getirdiği satış.<br>' +
-            '• Kampanya Kullanımı: dönemde kullanılan ikram sayısı.<br>' +
-            '• Kullanım Oranı: kazanılan ikramların ne kadarının kullanıldığı.');
+            '• İkram Kullanımı: kazanılan ikramların kaçının kullanıldığı.');
     });
 
-    function menuDoldur() {
-        $('ik-donem-liste').innerHTML = IK.DONEMLER.map(function (d) {
+    function filtreUyar(k, f) {
+        var d = IK.durum(k);
+        if (f === 'aktif') return d === 'aktif' || d === 'baslayacak';
+        if (f === 'pasif') return d === 'pasif' || d === 'bitti';
+        return true;
+    }
+    function ustCiz() {
+        $('ik-donem').innerHTML = IK.DONEMLER.map(function (d) {
             return '<a data-donem="' + d[0] + '" class="' + (d[0] === donem ? 'sec' : '') + '">' + d[1] + '</a>';
         }).join('');
-        $('ik-filtre-liste').innerHTML = FILTRELER.map(function (f) {
-            return '<a data-filtre="' + f[0] + '" class="' + (f[0] === filtre ? 'sec' : '') + '">' + f[1] + '</a>';
+        $('ik-sekme').innerHTML = !kurallar.length ? '' : FILTRELER.map(function (f) {
+            var n = kurallar.filter(function (k) { return filtreUyar(k, f[0]); }).length;
+            return '<a data-filtre="' + f[0] + '" class="' + (f[0] === filtre ? 'sec' : '') + '">' + f[1] + '<span>' + n + '</span></a>';
         }).join('');
-        $('ik-donem-yazi').textContent = IK.donemYazi(donem);
-        $('ik-filtre-yazi').textContent = FILTRELER.filter(function (f) { return f[0] === filtre; })[0][1];
     }
     document.addEventListener('click', function (e) {
         var d = e.target.closest('[data-donem]'), f = e.target.closest('[data-filtre]');
-        if (d) { donem = Number(d.getAttribute('data-donem')); menuDoldur(); yukle(); }
-        if (f) { filtre = f.getAttribute('data-filtre'); menuDoldur(); kartlariCiz(); }
+        if (d) { donem = Number(d.getAttribute('data-donem')); ustCiz(); yukle(); }
+        if (f) { filtre = f.getAttribute('data-filtre'); ustCiz(); kartlariCiz(); }
     });
 
+    function kpi(sinif, ikon, baslik, deger, alt) {
+        return '<div class="iks-kpi ' + sinif + '"><div class="iks-kpi-ust"><span class="iks-kpi-ikon"><i class="fa fa-' + ikon + '"></i></span>' + baslik + '</div>' +
+            '<b class="ik-sayi">' + deger + '</b><div class="iks-kpi-alt">' + alt + '</div></div>';
+    }
     function ozetCiz() {
         var o = ozet || {};
-        $('ik-toplam').textContent = IK.tl(o.toplam);
-        var a = $('ik-artis');
-        if (o.artis_yuzde === null || o.artis_yuzde === undefined) {
-            a.innerHTML = '<span style="padding:0;color:rgba(255,255,255,.75)">Önceki dönemle kıyas yok</span>';
-        } else {
-            var art = Number(o.artis_yuzde) >= 0;
-            a.innerHTML = '<span style="background:' + (art ? '#6EE7B7' : '#FCA5A5') + ';color:' + (art ? '#064E3B' : '#7F1D1D') + '">' +
-                '<i class="fa fa-arrow-' + (art ? 'up' : 'down') + '"></i> ' + IK.artisYazi(o.artis_yuzde) + '</span>';
-        }
-        $('ik-kullanim').textContent = parseInt(o.kullanim || 0, 10);
-        $('ik-ek').textContent = IK.tl(o.ek_kazanc) + ' TL';
-        $('ik-oran').textContent = o.kullanim_orani === null || o.kullanim_orani === undefined ? '—' : '%' + parseInt(o.kullanim_orani, 10);
-        $('ik-buay').textContent = IK.tl(o.bu_ay);
+        var trend = (o.artis_yuzde === null || o.artis_yuzde === undefined)
+            ? IK.donemYazi(donem) + ' · önceki dönemle kıyas için veri yok'
+            : '<span class="iks-trend ' + (Number(o.artis_yuzde) >= 0 ? 'art' : 'az') + '"><i class="fa fa-arrow-' + (Number(o.artis_yuzde) >= 0 ? 'up' : 'down') + '"></i> ' +
+              IK.artisYazi(o.artis_yuzde) + '</span> önceki döneme göre';
+        var kaz = Number(o.kazanilan_ikram || 0), kul = Number(o.kullanilan_ikram || 0);
+        var oran = o.kullanim_orani === null || o.kullanim_orani === undefined ? 0 : parseInt(o.kullanim_orani, 10);
+        $('ik-ozet').innerHTML =
+            kpi('ana', 'line-chart', 'Toplam Kazanç', IK.tl(o.toplam) + '<small>TL</small>', trend) +
+            kpi('', 'calendar-check-o', 'Bu Ay', IK.tl(o.bu_ay) + '<small>TL</small>', 'Kampanyalı hizmetlerden bu ayki satış') +
+            kpi('', 'refresh', 'Ek Kazanç', IK.tl(o.ek_kazanc) + '<small>TL</small>', 'Tekrar gelen müşterilerin alımları') +
+            kpi('', 'gift', 'İkram Kullanımı', kaz ? kul + ' / ' + kaz : '0',
+                (kaz ? 'Kazanılan ikramların %' + oran + '\'i kullanıldı' : 'Henüz kazanılan ikram yok') +
+                '<div class="iks-bar"><i style="width:' + Math.min(100, oran) + '%"></i></div>');
+    }
+
+    /** Kampanyanin tarih yazisi + aktifse gecen sure yuzdesi */
+    function sureBilgi(k, d) {
+        if (!k.baslangic) return { yazi: 'Açılınca başlar', yuzde: null };
+        var tarih = IK.tarih(k.baslangic) + ' – ' + (k.bitis_tarihi ? IK.tarih(k.bitis_tarihi) : 'Süresiz');
+        if (!k.bitis_tarihi) return { yazi: tarih, yuzde: null };
+        var bas = new Date(String(k.baslangic).slice(0, 10) + 'T00:00:00'), bit = new Date(k.bitis_tarihi + 'T23:59:59'), simdi = new Date();
+        var kalan = Math.floor((bit - simdi) / 86400000);
+        if (d !== 'aktif' || kalan < 0) return { yazi: tarih, yuzde: null };
+        return {
+            yazi: tarih + ' · <b style="color:var(--ik-mor)">' + (kalan < 1 ? 'son gün' : kalan + ' gün kaldı') + '</b>',
+            yuzde: Math.max(0, Math.min(100, (simdi - bas) / Math.max(1, bit - bas) * 100)),
+        };
     }
 
     function kartlariCiz() {
         var kap = $('ik-kartlar');
         if (!kurallar.length) {
-            kap.innerHTML = '<div class="ik-cam ik-bos">Henüz kampanya yok.\n"Yeni Kampanya" ile ilk kampanyanızı oluşturun.</div>';
+            kap.innerHTML = '<div class="iks-ilk"><img src="' + IK.GORSEL + 'ikram_hediye_kutu.png" alt="">' +
+                '<div><h3>İlk ikram kampanyanızı oluşturun</h3>' +
+                '<p>Örneğin "5 manikür alana 1 manikür hediye". Müşteriniz ilerlemesini uygulamasında görür, hediyesine yaklaştıkça daha sık gelir.</p>' +
+                '<a class="ik-btn-ana" data-yeni="1"><span class="ik-arti"><i class="fa fa-plus"></i></span> Kampanya Oluştur</a></div></div>';
             return;
         }
-        var liste = kurallar.filter(function (k) {
-            var d = IK.durum(k);
-            if (filtre === 'aktif') return d === 'aktif' || d === 'baslayacak';
-            if (filtre === 'pasif') return d === 'pasif' || d === 'bitti';
-            return true;
-        });
-        if (!liste.length) { kap.innerHTML = '<div class="ik-cam ik-bos">Bu filtrede kampanya yok.</div>'; return; }
+        var liste = kurallar.filter(function (k) { return filtreUyar(k, filtre); });
         var kamp = (ozet && ozet.kampanyalar) || {};
-        kap.innerHTML = '<div class="ik-kartlar">' + liste.map(function (k) {
+        var kartlar = liste.map(function (k) {
             var d = IK.durum(k), adet = k.gereken_adet || 0, hediye = k.ucretsiz_adet || 1, hz = k.hizmet_adi || 'Hizmet';
-            var tarih = !k.baslangic ? 'Açılınca başlar' : IK.tarih(k.baslangic) + ' – ' + (k.bitis_tarihi ? IK.tarih(k.bitis_tarihi) : 'Süresiz');
+            var s = sureBilgi(k, d), acik = Number(k.aktif) === 1;
             var kaz = (kamp[k.id] || kamp[String(k.id)] || {}).kazanc || 0;
-            return '<div class="ik-kk' + (d === 'pasif' || d === 'bitti' ? ' soluk' : '') + '" data-kart="' + k.id + '">' +
-                '<div class="ik-foto">' + IK.gorselImg(k) + '<span class="ik-rozet">' + adet + '+' + hediye + '</span></div>' +
-                '<div class="ik-govde">' +
-                    '<h4>' + IK.esc(adet + '+' + hediye + ' ' + hz + ' Kampanyası') + '</h4>' +
-                    '<div class="ik-alt">' + IK.esc(adet + ' ' + hz + ' alanlara\n' + hediye + ' ' + hz + ' hediye!') + '</div>' +
-                    '<div class="ik-tarih"><i class="fa fa-calendar"></i> ' + IK.esc(tarih) + '</div>' +
-                    '<div style="margin-top:8px"><span class="ik-cip ' + d + '">' + IK.DURUM_YAZI[d] + '</span></div>' +
+            var mus = musteriler.filter(function (m) { return Number(m.kural_id) === Number(k.id); });
+            var hazir = mus.filter(function (m) { return m.hak > 0; }).length;
+            return '<div class="iks-kart' + (d === 'pasif' || d === 'bitti' ? ' soluk' : '') + '">' +
+                '<div class="iks-kart-ust" data-kart="' + k.id + '" title="Kampanya detayı">' +
+                    '<div class="iks-kart-foto">' + IK.gorselImg(k) + '<span class="ik-rozet">' + adet + '+' + hediye + '</span></div>' +
+                    '<div style="flex:1;min-width:0">' +
+                        '<h4>' + esc(hz) + '</h4>' +
+                        '<div class="iks-kural"><i class="fa fa-gift"></i> ' + esc(adet + ' alana ' + hediye + ' hediye') + '</div>' +
+                        '<div class="iks-tarih"><i class="fa fa-calendar"></i> ' + s.yazi + '</div>' +
+                        (s.yuzde !== null ? '<div class="iks-sure"><i style="width:' + s.yuzde.toFixed(1) + '%"></i></div>' : '') +
+                    '</div>' +
                 '</div>' +
-                '<div class="ik-kaz"><b><i class="fa fa-bar-chart" style="color:#7C3AED"></i> ' + IK.tl(kaz) + ' TL</b><small>Kazanç</small></div>' +
-                '<div class="ik-menu"><span class="ik-menu-ac"><i class="fa fa-ellipsis-v"></i></span><div class="ik-menu-liste">' +
-                    '<a data-islem="duzenle" data-id="' + k.id + '"><i class="fa fa-pencil"></i> Düzenle</a>' +
-                    '<a data-islem="ackapat" data-id="' + k.id + '"><i class="fa fa-' + (Number(k.aktif) === 1 ? 'pause' : 'play') + '"></i> ' + (Number(k.aktif) === 1 ? 'Kapat' : 'Aç') + '</a>' +
-                    '<a data-islem="sil" data-id="' + k.id + '" class="kirmizi"><i class="fa fa-trash-o"></i> Sil</a>' +
-                '</div></div>' +
+                '<div class="iks-kart-rakam">' +
+                    '<div><b class="ik-sayi">' + IK.tl(kaz) + ' TL</b><small>Kazanç</small></div>' +
+                    '<div><b class="ik-sayi">' + mus.length + '</b><small>İkram kazanan</small></div>' +
+                    '<div><b class="ik-sayi"' + (hazir ? ' style="color:var(--ik-mor)"' : '') + '>' + hazir + '</b><small>Hediyesi hazır</small></div>' +
+                '</div>' +
+                '<div class="iks-kart-alt">' +
+                    '<span class="ik-cip ' + d + '">' + IK.DURUM_YAZI[d] + '</span>' +
+                    (d === 'bitti' ? '' : '<span class="iks-anahtar' + (acik ? ' acik' : '') + '" data-islem="ackapat" data-id="' + k.id + '" title="' +
+                        (acik ? 'Kampanyayı kapat' : 'Kampanyayı aç') + '"><i></i>' + (acik ? 'Açık' : 'Kapalı') + '</span>') +
+                    '<a class="iks-ikon-btn" data-islem="duzenle" data-id="' + k.id + '" title="Düzenle"><i class="fa fa-pencil"></i></a>' +
+                    '<a class="iks-ikon-btn kirmizi" data-islem="sil" data-id="' + k.id + '" title="Sil"><i class="fa fa-trash-o"></i></a>' +
+                '</div>' +
             '</div>';
-        }).join('') + '</div>';
+        });
+        if (filtre !== 'pasif') kartlar.push('<a class="iks-yeni-kart" data-yeni="1"><span><i class="fa fa-plus"></i></span>Yeni Kampanya<small>Başka bir hizmet için ikram ekleyin</small></a>');
+        kap.innerHTML = kartlar.length ? '<div class="iks-kartlar">' + kartlar.join('') + '</div>'
+            : '<div class="ik-cam ik-bos">Bu filtrede kampanya yok.</div>';
+    }
+
+    function hazirCiz() {
+        var hazir = musteriler.filter(function (m) { return m.hak > 0; });
+        var say = $('ik-hazir-say');
+        say.style.display = hazir.length ? '' : 'none';
+        say.textContent = hazir.length;
+        var tumu = musteriler.length ? '<a class="iks-panel-alt" data-rapor="1">İkram kazanan tüm müşteriler (' + musteriler.length + ') ›</a>' : '';
+        if (!hazir.length) {
+            $('ik-hazir').innerHTML = '<div class="iks-bos-kucuk">Şu an hediyesi bekleyen müşteri yok.<br>Müşteriler kampanya adedine ulaştıkça burada görünür.</div>' + tumu;
+            return;
+        }
+        $('ik-hazir').innerHTML = hazir.slice(0, 6).map(function (m) {
+            var bas = String(m.ad || '?').trim().split(/\s+/).map(function (p) { return p.charAt(0); }).slice(0, 2).join('').toLocaleUpperCase('tr');
+            var son = m.son_kullanma ? ' · son gün ' + IK.tarih(m.son_kullanma) : '';
+            return '<div class="iks-musteri"><span class="iks-avatar">' + esc(bas) + '</span>' +
+                '<div class="iks-m-ad"><a href="' + IK.u('musteridetay/' + m.user_id) + '" target="_blank" rel="noopener" title="Müşteri detayı (yeni sekme)">' + esc(m.ad) + '</a>' +
+                '<small>' + esc(m.hizmet_adi) + son + '</small></div>' +
+                '<span class="iks-hak" title="Kullanılabilir ikram"><i class="fa fa-gift"></i> ' + m.hak + '</span></div>';
+        }).join('') + tumu;
     }
 
     $('ik-kartlar').addEventListener('click', function (e) {
+        if (e.target.closest('[data-yeni]')) { IKForm.ac(null, yukle); return; }
         var islem = e.target.closest('[data-islem]');
         if (islem) {
-            e.stopPropagation();
             var k = kurallar.filter(function (x) { return String(x.id) === islem.getAttribute('data-id'); })[0];
             if (!k) return;
             var tur = islem.getAttribute('data-islem');
             if (tur === 'duzenle') { IKForm.ac(k, yukle); return; }
             if (tur === 'ackapat') {
+                islem.classList.add('bekle');
                 IK.acKapat(k).then(function (r) {
                     if (r && r.success) { IK.toast(Number(k.aktif) === 1 ? 'Kampanya kapatıldı' : 'Kampanya açıldı'); yukle(); }
-                    else IK.toast((r && r.message) || 'Değiştirilemedi', true);
-                }).catch(function () { IK.toast('Değiştirilemedi', true); });
+                    else { islem.classList.remove('bekle'); IK.toast((r && r.message) || 'Değiştirilemedi', true); }
+                }).catch(function () { islem.classList.remove('bekle'); IK.toast('Değiştirilemedi', true); });
                 return;
             }
             if (tur === 'sil') {
@@ -264,26 +361,32 @@
             }
             return;
         }
-        if (e.target.closest('.ik-menu')) return;
         var kart = e.target.closest('[data-kart]');
         if (kart) location.href = IK.u('ikramhizmet/kampanya/' + kart.getAttribute('data-kart'), { donem: donem });
     });
+    $('ik-hazir').addEventListener('click', function (e) {
+        if (e.target.closest('[data-rapor]')) location.href = IK.u('ikramhizmet/rapor', { donem: donem });
+    });
 
+    var istek = 0;
     function yukle() {
-        IK.getJson(IK.u('ikramhizmet/veri', { donem: donem })).then(function (r) {
-            if (!r) return;
+        var no = ++istek;
+        IK.getJson(IK.u('ikramhizmet/veri', { donem: donem, musteriler: 1 })).then(function (r) {
+            if (!r || no !== istek) return;
             kurallar = r.kurallar || [];
             ozet = r.ozet || null;
-            ozetCiz();
-            kartlariCiz();
+            musteriler = r.musteriler || [];
+            yuklendi = true;
+            ustCiz(); ozetCiz(); kartlariCiz(); hazirCiz();
         }).catch(function () {
-            kartlariCiz();
+            if (no !== istek) return;
+            if (!yuklendi) { ozetCiz(); kartlariCiz(); hazirCiz(); }
             IK.toast('Veriler yüklenemedi', true);
         });
     }
 
     try { if (sessionStorage.getItem('ik_mesaj')) { IK.toast(sessionStorage.getItem('ik_mesaj')); sessionStorage.removeItem('ik_mesaj'); } } catch (e) {}
-    menuDoldur();
+    ustCiz();
     yukle();
 })();
 </script>
