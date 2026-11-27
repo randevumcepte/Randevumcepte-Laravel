@@ -124,8 +124,9 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 .ogt-kat button{ flex:1 1 0; min-width:96px; height:42px; border-radius:10px; border:2px solid var(--b); background:#fff; color:var(--b); font-size:14px; font-weight:700; cursor:pointer; }
 .ogt-kat button.secili, .ogt-kat button:hover{ background:var(--b); color:#fff; }
 .ogt-kat button.kaldir{ --b:#5b5470; flex:1 0 100%; border-width:1px; }
-.ogt-d-alt{ display:flex; gap:8px; flex-wrap:wrap; padding:12px 18px 16px; border-top:1px solid #ece6f3; background:#fbfafd; }
-.ogt-d-alt .ogt-btn{ flex:1 1 auto; justify-content:center; border-radius:10px; }
+.ogt-d-alt{ display:flex; flex-direction:column; gap:8px; padding:12px 18px 16px; border-top:1px solid #ece6f3; background:#fbfafd; }
+.ogt-d-alt .satir{ display:flex; gap:8px; flex-wrap:wrap; }
+.ogt-d-alt .ogt-btn{ flex:1 1 0; min-width:120px; justify-content:center; border-radius:10px; }
 .ogt-btn-kirmizi{ background:#b91c1c; border-color:#b91c1c; color:#fff !important; }
 .ogt-btn-kirmizi:hover{ background:#991b1b; }
 .ogt-not{ width:100%; font-size:12px; color:#6b7280; }
@@ -456,7 +457,8 @@ $(document).ready(function(){
       $('#ogt_d_ad').text(o.musteri);
       $('#ogt_d_ust').html(o.user_id ?
          '<a href="#" class="rd-gecmis-btn" title="Randevu Geçmişi" aria-label="Randevu Geçmişi" style="background:#6d28d9" data-userid="'+esc(o.user_id)+'" data-ad="'+esc(o.musteri)+'"><i class="fa fa-history"></i></a>'+
-         (ARAMA_GECMISI ? '<a href="#" class="rd-arama-gecmisi-btn" title="Arama Geçmişi" aria-label="Arama Geçmişi" style="background:#0e7490" data-userid="'+esc(o.user_id)+'" data-ad="'+esc(o.musteri)+'"><i class="fa fa-phone-square"></i></a>' : '') : '');
+         (ARAMA_GECMISI ? '<a href="#" class="rd-arama-gecmisi-btn" title="Arama Geçmişi" aria-label="Arama Geçmişi" style="background:#0e7490" data-userid="'+esc(o.user_id)+'" data-ad="'+esc(o.musteri)+'"><i class="fa fa-phone-square"></i></a>' : '')+
+         '<a target="_blank" rel="noopener" title="Müşteri (yeni sekmede)" aria-label="Müşteri detayı, yeni sekmede açılır" style="background:#5C008E" href="/isletmeyonetim/musteridetay/'+esc(o.user_id)+'?sube='+SUBE+'"><i class="fa fa-user"></i></a>' : '');
       $('#ogt_d_durum').attr('class','ogt-e ogt-rozet '+o.kat).attr('style', stil(o)).text(DURUM_AD[o.kat]+(o.satis ? ' · '+SATIS_AD[o.satis] : ''));
       var satir = o.kat === 'ertelendi' ? [
          ['Eski tarih', uzun(o.tarih)+(o.saat ? ', '+o.saat : '')],
@@ -478,17 +480,16 @@ $(document).ready(function(){
          ['Oluşturma', o.olusturma]
       ];
       $('#ogt_d_bilgi').html(satir.filter(function(s){ return s[1]; }).map(function(s){ return '<dt>'+s[0]+'</dt><dd>'+esc(s[1])+'</dd>'; }).join(''));
-      var b = o.aranir ? '<button type="button" class="ogt-btn ogt-btn-yesil cm-ara-islem" '+araOzellik(o)+'><i class="fa fa-phone"></i> Ara</button>' : '';
-      if (o.user_id) b += '<a class="ogt-btn" target="_blank" rel="noopener" href="/isletmeyonetim/musteridetay/'+o.user_id+'?sube='+SUBE+'"><i class="fa fa-user"></i> Müşteri</a>';
-      if (o.kat === 'ertelendi') b += '<button type="button" class="ogt-btn" data-is="yeni_tarih"><i class="fa fa-calendar"></i> Yeni Tarihe Git</button>';
-      else if (ARAMA && o.user_id) {
-         b += '<button type="button" class="ogt-btn" data-is="arama_ekle"><i class="fa fa-calendar"></i> Arama Randevusu</button>';
-      }
+      // 1. satir: Ara, Arama Randevusu (ertelenende Yeni Tarihe Git), Duzenle — 2. satir: satis sonucu
+      var b1 = o.aranir ? '<button type="button" class="ogt-btn ogt-btn-yesil cm-ara-islem" '+araOzellik(o)+'><i class="fa fa-phone"></i> Ara</button>' : '', b2 = '';
+      if (o.kat === 'ertelendi') b1 += '<button type="button" class="ogt-btn" data-is="yeni_tarih"><i class="fa fa-calendar"></i> Yeni Tarihe Git</button>';
+      else if (ARAMA && o.user_id) b1 += '<button type="button" class="ogt-btn" data-is="arama_ekle"><i class="fa fa-calendar"></i> Arama Randevusu</button>';
       if (o.sonucsuz) {
-         if (YETKI && o.randevulu) b += '<button type="button" class="ogt-btn" data-is="duzenle"><i class="fa fa-edit"></i> Düzenle</button>';
-         if (o.tur) b += '<button type="button" class="ogt-btn ogt-btn-yesil" data-is="satildi"><i class="fa fa-check"></i> Satış Yapıldı</button>';
-         b += '<button type="button" class="ogt-btn ogt-btn-kirmizi" data-is="satilmadi"><i class="fa fa-times"></i> Satış Yapılmadı</button>';
+         if (YETKI && o.randevulu) b1 += '<button type="button" class="ogt-btn" data-is="duzenle"><i class="fa fa-edit"></i> Düzenle</button>';
+         if (o.tur) b2 += '<button type="button" class="ogt-btn ogt-btn-yesil" data-is="satildi"><i class="fa fa-check"></i> Satış Yapıldı</button>';
+         b2 += '<button type="button" class="ogt-btn ogt-btn-kirmizi" data-is="satilmadi"><i class="fa fa-times"></i> Satış Yapılmadı</button>';
       }
+      var b = (b1 ? '<div class="satir">'+b1+'</div>' : '')+(b2 ? '<div class="satir">'+b2+'</div>' : '');
       $('#ogt_d_katilim').html(katilimHtml(o)).toggle(!!katilimHtml(o));
       $('#ogt_d_alt').html(b).toggle(!!b);
       $('#ogt_detay').modal('show');
