@@ -1039,6 +1039,10 @@ public function carkverilerigetir(Request $request)
             'isletme'             => Salonlar::where('id', $salon_id)->first(),
             'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
             'urun_drop'           => self::urundropliste($request),
+            // Layout sube secicisi bu degiskeni ister (yoksa "Undefined variable" ile sayfa acilmaz)
+            'yetkiliolunanisletmeler' => Auth::guard('isletmeyonetim')->check()
+                ? Auth::guard('isletmeyonetim')->user()->yetkili_olunan_isletmeler->where('aktif', 1)->pluck('salon_id')->toArray()
+                : [],
         ], $ek));
     }
 
