@@ -763,7 +763,11 @@ class RandevuAsistan
         if ($cevap === '') $cevap = $this->garantiCevap($aksiyon);
         // HIZMET SORGULAMA YASAK (kayit 317): "Kaynak ile ne kastettiğinizi tam anlayamadım, hangi hizmet?" -> musteri sorgulanmaz,
         // randevuya odaklanilir: gun-saat istenir, randevu "⚠ HİZMET ANLAŞILMADI" ile acilir
-        if ($aksiyon === null && !$bitir && $hzOnce === null && $this->hizmetSorgulamaMi($cevap) && $this->hizmetSoruldu($gecmis, $metin)) {
+        // Ayrica (canli 2026-11-27, salon 236): "Uzay yolculuğu" -> "tam duyamadım, hangi hizmet?" (ikinci kez hizmet sorusu) ve
+        // "Araba tamiri için randevu" -> "yardımcı olamam, biz nail salonuyuz, hizmetlerimiz..." (red/aciklama) da ayni akisa gider
+        if ($aksiyon === null && !$bitir && $hzOnce === null
+            && (($this->hizmetSorgulamaMi($cevap) || $this->hizmetReddiMi($cevap)) && $this->hizmetSoruldu($gecmis, $metin)
+                || $this->hizmetTekrarSoruldu($cevap, $gecmis, $metin))) {
             Log::info('[SANTRAL-TUR] model hizmeti sorguladi -> hizmetsiz randevu', ['salon' => $this->salonId, 'metin' => $metin, 'model' => $cevap]);
             return $this->hizmetsizBaslat($metin, mb_substr(trim($metin), 0, 120));
         }
@@ -4194,6 +4198,28 @@ FIYAT
     protected function hizmetSorgulamaMi(string $c): bool
     {
         return (bool) preg_match('/kastett|kastediyor|anlayamad|ne demek istediğiniz|biraz (daha )?açar|detay(lı)? (bilgi )?verebilir|tam olarak (hangi|ne)|ne tür bir (hizmet|işlem)|hangi hizmeti/iu', $c);
+    }
+
+    /** Model hizmeti reddedip aciklama yapiyor mu ("yardımcı olamayacağım", "böyle bir hizmetimiz yok", "hizmetlerimiz şunlar")? */
+    protected function hizmetReddiMi(string $c): bool
+    {
+        return (bool) preg_match('/yardımcı olamay|yardımcı olamam|hizmet(imiz|i) (yok|bulunm|mevcut değil|sunm|verm)|sunmuyoruz|yapmıyoruz|hizmet vermiyoruz|bulunmamaktadır|hizmetlerimiz (var|şunlar|arasında|şöyle)|hizmetlerimiz:|biz bir .{0,40}(salon|merkez|stüdyo|klinik)/iu', $c);
+    }
+
+    /**
+     * Hizmet IKINCI kez soruluyor: son asistan mesaji hizmet sordu, musteri bir sey soyledi (soru sormadi), model yine
+     * hizmet soruyor ("Kusura bakmayın, tam duyamadım. Hangi hizmet için arıyorsunuz?") -> musteri hizmet olarak bunu soyledi,
+     * anlasilmadi sayilir. Ilk hizmet sorusu ("randevu almak istiyorum" -> "hangi hizmet?") bu sayilmaz.
+     */
+    protected function hizmetTekrarSoruldu(string $cevap, array $gecmis, string $metin): bool
+    {
+        if (!preg_match('/hangi hizmet|ne tür (bir )?(hizmet|işlem)|hangi işlem/iu', $cevap)) return false;
+        $s = $this->sade($metin);
+        if (mb_strlen($s) < 3 || preg_match('/\?|\b(ne kadar|kac|fiyat|ucret|nerede|adres|nasil|neler)\b/u', $metin . ' ' . $s)) return false;
+        for ($i = count($gecmis) - 1; $i >= 0; $i--) {
+            if (($gecmis[$i]['role'] ?? '') === 'assistant') return (bool) preg_match('/hangi hizmet|ne tür (bir )?(hizmet|işlem)|hangi işlem|hizmetimizi sayayım/iu', (string) ($gecmis[$i]['content'] ?? ''));
+        }
+        return false;
     }
 
     /** Randevu icin hizmet konusuluyor mu: son asistan "hangi hizmet" sordu ya da musteri "yaptırmak / randevu" diyor. */

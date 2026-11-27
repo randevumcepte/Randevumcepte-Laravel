@@ -1119,6 +1119,17 @@ namespace {
     icerir('hizmet sorgulanınca → hizmetsiz mod', '[[HZ:', (string) ($q1['baglam'] ?? ''));
     esit('sorgulama tespiti', true, cagir($hq, 'hizmetSorgulamaMi', 'Kaynak ile ne kastettiğinizi tam anlayamadım.'));
     esit('normal soru sorgulama sayılmaz', false, cagir($hq, 'hizmetSorgulamaMi', 'Hangi gün ve saat size uygun?'));
+    // Canli 2026-11-27 (salon 236): ikinci hizmet sorusu ve red/aciklama da hizmetsiz akisa gider
+    $hs = [['role' => 'assistant', 'content' => 'Tabii, memnuniyetle yardımcı olurum. Hangi hizmet için randevu almak istiyorsunuz?']];
+    esit('ikinci hizmet sorusu ("tam duyamadım, hangi hizmet") → tekrar', true, cagir($hq, 'hizmetTekrarSoruldu', 'Kusura bakmayın, tam duyamadım. Hangi hizmet için arıyorsunuz?', $hs, 'Uzay yolculuğu.'));
+    esit('ilk hizmet sorusu tekrar sayılmaz', false, cagir($hq, 'hizmetTekrarSoruldu', 'Hangi hizmet için randevu almak istiyorsunuz?', [['role' => 'assistant', 'content' => 'Size nasıl yardımcı olabilirim?']], 'Randevu almak istiyorum'));
+    esit('müşteri soru sorduysa tekrar sayılmaz', false, cagir($hq, 'hizmetTekrarSoruldu', 'Fiyatlar hizmete göre değişir. Hangi hizmet için soruyorsunuz?', $hs, 'Fiyatlarınız ne kadar?'));
+    esit('gün-saat sorusu tekrar sayılmaz', false, cagir($hq, 'hizmetTekrarSoruldu', 'Hangi gün ve saat size uygun?', $hs, 'Uzay yolculuğu.'));
+    esit('red/açıklama tespiti', true, cagir($hq, 'hizmetReddiMi', 'Anlaşılan size bu konuda yardımcı olamayacağım, çünkü biz bir nail ve güzellik salonuyuz. Manikür, Jel Güçlendirme gibi hizmetlerimiz var.'));
+    esit('"böyle bir hizmetimiz yok" tespiti', true, cagir($hq, 'hizmetReddiMi', 'Maalesef böyle bir hizmetimiz bulunmuyor.'));
+    esit('normal cevap red sayılmaz', false, cagir($hq, 'hizmetReddiMi', 'Manikür için yarın 14:00 uygun, oluşturayım mı?'));
+    $q2 = $hq->konus('Uzay yolculuğu.', $hs);
+    esit('"Uzay yolculuğu" → gün-saat (hizmet tekrar sorulmaz)', 'Hangi gün ve saat size uygun?', $q2['cevap']);
     $p = new ReflectionProperty(App\Services\RandevuAsistan::class, 'musteriAd'); $p->setAccessible(true); $p->setValue($hq, 'Ferdi Yılmaz');
     $p = new ReflectionProperty(App\Services\RandevuAsistan::class, 'musteriCinsiyet'); $p->setAccessible(true); $p->setValue($hq, 1);
     $on = cagir($hq, 'hizmetsizOnayCumlesi', ['tarih' => '2026-11-27', 'saat' => '14:00:00']);
