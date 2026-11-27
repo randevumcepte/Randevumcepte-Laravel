@@ -21,7 +21,7 @@
 .ik-sayfa a.ikp-link:hover { color:#4C1D95 !important; }
 
 /* 1) Ust bant */
-.ikp-hero { position:relative; height:clamp(200px,15vw,330px); border-radius:22px; overflow:hidden; margin-bottom:16px; color:#fff;
+.ikp-hero { position:relative; min-height:clamp(200px,15vw,330px); border-radius:22px; overflow:hidden; margin-bottom:16px; color:#fff;
     background:linear-gradient(100deg,#8A2A99 0%,#6A22A6 30%,#561C9F 55%,#4A1C8C 100%); box-shadow:0 14px 34px rgba(76,29,149,.20); }
 .ikp-hero-gorsel { position:absolute; top:0; right:0; bottom:0; width:60%;
     background:url('{{ secure_asset('public/img/ikram/ikram_panel_hero.jpg') }}') right center/cover no-repeat;
@@ -38,10 +38,11 @@
 .ikp-hero-btn { display:flex; gap:10px; margin-top:16px; }
 /* Kampanyalar ust bantta sirayla gecer; noktalar ile secilir */
 .ikp-hero-yazi { transition:opacity .25s, transform .25s; } .ikp-hero-yazi.gecis { opacity:0; transform:translateY(8px); }
-.ikp-noktalar { position:absolute; left:0; right:0; bottom:12px; z-index:2; display:flex; justify-content:center; gap:8px; }
-.ik-sayfa .ikp-noktalar a { width:9px; height:9px; border-radius:5px; background:rgba(255,255,255,.45); transition:width .25s, background .25s; }
+.ikp-noktalar { display:flex; align-items:center; gap:8px; margin-top:16px; }
+.ikp-noktalar:empty { display:none; }
+.ik-sayfa .ikp-noktalar a { display:block; flex-shrink:0; width:10px; height:10px; border-radius:5px; background:rgba(255,255,255,.45); transition:width .25s, background .25s; }
 .ik-sayfa .ikp-noktalar a:hover { background:rgba(255,255,255,.75); }
-.ik-sayfa .ikp-noktalar a.sec { width:26px; background:#fff; }
+.ik-sayfa .ikp-noktalar a.sec { width:28px; background:#fff; }
 .ik-sayfa a.ikp-beyaz { display:inline-flex; align-items:center; gap:10px; height:40px; padding:0 22px; border-radius:22px; background:#fff;
     color:#2E1065 !important; font-weight:700; font-size:14px; }
 .ik-sayfa a.ikp-beyaz:hover { background:#F5EDFF; }
@@ -170,7 +171,6 @@
 @media (max-width:700px) {
     .ikp-hero { height:auto; } .ikp-hero-gorsel { width:100%; opacity:.18; }
     .ikp-hero-btn { flex-wrap:wrap; }
-    .ikp-hero-yazi { padding-bottom:34px !important; }
     .ikp-alt > :first-child { grid-column:auto; }
     .ikp-sekme { width:100%; } .ik-sayfa .ikp-sekme a { flex:1; text-align:center; padding:6px 6px; font-size:12px; }
     .ikp-satir { gap:10px; padding:8px 6px; } .ikp-satir-foto { width:58px; height:56px; }
@@ -191,7 +191,6 @@
         {{-- 1) Ust bant: secili kampanya --}}
         <div class="ikp-hero">
             <div class="ikp-hero-gorsel"></div>
-            <div class="ikp-noktalar" id="ikp-noktalar"></div>
             <div class="ikp-hero-yazi" id="ikp-hero-yazi">
                 <span class="ikp-rozet"><i class="fa fa-star"></i> Sadakat Kampanyası</span>
                 <h2 id="ikp-hero-baslik">İkram Hizmet</h2>
@@ -200,6 +199,7 @@
                     <a class="ikp-beyaz" id="ikp-hero-detay" style="display:none">Detayları Gör <i class="fa fa-arrow-right"></i></a>
                     <a class="ikp-cizgi" id="ik-yeni"><i class="fa fa-plus"></i> Yeni Kampanya</a>
                 </div>
+                <div class="ikp-noktalar" id="ikp-noktalar"></div>
             </div>
         </div>
 
