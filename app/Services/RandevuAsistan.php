@@ -264,7 +264,7 @@ class RandevuAsistan
         $r = Randevular::with('users')->where('id', $randevuId)->where('salon_id', $this->salonId)->first();
         if (!$r || !in_array((int) $r->durum, [Randevular::BEKLENIYOR, Randevular::ONAYLANDI], true)) return null;
         $satir = $this->randevuSatiri($r);
-        $gun = $satir['tarih'] === now('Europe/Istanbul')->addDay()->toDateString() ? 'yarın, ' . $satir['gun'] : $satir['gun'];
+        $gun = $satir['tarih'] === now('Europe/Istanbul')->addDay()->toDateString() && mb_strpos($satir['gun'], 'yarın') !== 0 ? 'yarın, ' . $satir['gun'] : $satir['gun'];
         return ['tur' => 'randevu', 'randevu_id' => (int) $r->id, 'soz' => $this->randevuSoz(['gun' => $gun] + $satir), 'wa' => 1];
     }
 
@@ -313,7 +313,7 @@ class RandevuAsistan
             try { $r->hatirlatma_ulasilamadi = false; $r->tekrar_aranacak = 0; $r->tekrar_arandi = 0; $r->save(); } catch (\Throwable $e) {}
             $ad = $ad ?: optional($r->users)->name;
             $satir = $this->randevuSatiri($r);
-            $gun = $satir['tarih'] === now('Europe/Istanbul')->addDay()->toDateString() ? 'yarın, ' . $satir['gun'] : $satir['gun'];
+            $gun = $satir['tarih'] === now('Europe/Istanbul')->addDay()->toDateString() && mb_strpos($satir['gun'], 'yarın') !== 0 ? 'yarın, ' . $satir['gun'] : $satir['gun'];
             $soz = $this->randevuSoz(['gun' => $gun] + $satir);
             $k = $this->acilisHitap($ad) . ", ben " . ($this->asistanAdi() ? "{$isletme} asistanı {$this->asistanAdi()}" : "{$isletme} yapay zeka asistanıyım") . ". "
                 . "{$soz} randevunuzu hatırlatmak için arıyorum. Randevunuza gelebilecek misiniz?";
@@ -1022,7 +1022,7 @@ class RandevuAsistan
     {
         $sec = array_values(array_slice($m['secenekler'], 0, 2));
         $gun = function ($s) { return $s['gun'] ?? $this->tarihSoz((string) $s['tarih']); };
-        $ile = function ($s) { return !empty($s['personel']) ? " uzmanımız {$s['personel']} ile" : ''; };
+        $ile = function ($s) { return !empty($s['personel']) ? ", uzmanımız {$s['personel']} ile" : ''; };
         $on = '';
         if (!empty($m['istenen_gun_dolu']) && !empty($m['istenen_tarih']) && ($sec[0]['tarih'] ?? '') !== $m['istenen_tarih']) {
             $on = $this->tarihSoz((string) $m['istenen_tarih']) . ' için uygun saat kalmadı. ';
@@ -1030,12 +1030,12 @@ class RandevuAsistan
         // TELEFON NEFESI (kullanici 2026-11-27: "hiç nefes almadan konuşuyor"): tek uzun cumle yerine kisa cumleler +
         // virgul; TTS nokta/virgulde durur. Gun "27 Kasım Cuma" bicimiyle.
         if (count($sec) === 1) {
-            return $on . $gun($sec[0]) . ', saat ' . $sec[0]['saat'] . $ile($sec[0]) . ' uygun. Bu saat olur mu?';
+            return $on . $this->buyukBas($gun($sec[0]) . ', saat ' . $sec[0]['saat'] . $ile($sec[0]) . ' uygun. Bu saat olur mu?');
         }
         $ayniGun = $sec[0]['tarih'] === $sec[1]['tarih'];
         $ayniKisi = ($sec[0]['personel_id'] ?? null) === ($sec[1]['personel_id'] ?? null);
         if ($ayniGun && $ayniKisi) {
-            return $on . $gun($sec[0]) . ' için' . $ile($sec[0]) . ', saat ' . $sec[0]['saat'] . ' ya da ' . $sec[1]['saat'] . ' uygun. Hangisini tercih edersiniz?';
+            return $on . $this->buyukBas($gun($sec[0]) . ', saat ' . $sec[0]['saat'] . ' ya da ' . $sec[1]['saat'] . $ile($sec[0]) . ' uygun. Hangisini tercih edersiniz?');
         }
         $p = [];
         foreach ($sec as $i => $s) {
@@ -1050,7 +1050,7 @@ class RandevuAsistan
     {
         $gun = $this->tarihSoz((string) ($d['tarih'] ?? ''));
         $saat = substr((string) ($d['saat'] ?? ''), 0, 5);
-        return trim("{$gun} saat " . $this->saatEkli($saat) . (!empty($d['personel']) ? " uzmanımız {$d['personel']} ile" : ''))
+        return trim("{$gun}, saat " . $this->saatEkli($saat) . (!empty($d['personel']) ? ", uzmanımız {$d['personel']} ile" : ''))
             . ' randevunuzu güncelledim' . (!empty($d['bilgilendirme_gonderildi']) ? ' ve size bilgilendirme mesajı gönderdim.' : '.');
     }
 
@@ -1498,6 +1498,12 @@ class RandevuAsistan
         if (!$ts) return $iso;
         $gunAd = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
         $ayAd = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+        // Telefonda (kullanici 2026-11-27): bugun -> "bugün", yarin -> "yarın", sonraki gunler tarih. WhatsApp kartinda acik tarih.
+        if ($this->kanal !== 'whatsapp') {
+            $iso = date('Y-m-d', $ts);
+            if ($iso === now('Europe/Istanbul')->toDateString()) return 'bugün';
+            if ($iso === now('Europe/Istanbul')->addDay()->toDateString()) return 'yarın';
+        }
         $yil = date('Y', $ts) !== now('Europe/Istanbul')->format('Y') ? ' ' . date('Y', $ts) : '';
         // Telefonda dogal okunus (kullanici 2026-11-27): "27 Kasım Cuma" ("27 Kasım Cuma" degil)
         return (int) date('j', $ts) . ' ' . $ayAd[(int) date('n', $ts)] . $yil . ' ' . $gunAd[(int) date('w', $ts)];
@@ -2071,8 +2077,9 @@ class RandevuAsistan
     /** Randevunun konusmada okunacak hali: "16 Kasım Pazartesi saat 14:00'te Gülşah ile Saç Kesimi" */
     protected function randevuSoz(array $r): string
     {
-        $s = "{$r['gun']} saat " . $this->saatEkli((string) $r['saat']);
-        if (!empty($r['personel'])) $s .= " {$r['personel']} ile";
+        // Saatten sonra virgul (telefonda "on beş otuz uzmanımız" arka arkaya okunmasin)
+        $s = "{$r['gun']}, saat " . $this->saatEkli((string) $r['saat']);
+        if (!empty($r['personel'])) $s .= ", {$r['personel']} ile";
         if (!empty($r['hizmet'])) $s .= " {$r['hizmet']}";
         return $s;
     }
@@ -3755,12 +3762,12 @@ FIYAT
     /** "20 Kasım Cuma saat 12:00 uygun değil. Aynı gün saat 13:00'te uzmanımız Gülşah Hanım ile ya da ... önerebilirim, hangisi uygun olur?" */
     protected function doluOneriCumlesi(string $tarih, string $saat, array $sec): string
     {
-        $c = $this->tarihSoz($tarih) . ', saat ' . $saat . ' uygun değil.';
+        $c = $this->buyukBas($this->tarihSoz($tarih) . ', saat ' . $saat . ' uygun değil.');
         if (!$sec) return $c . ' Başka bir gün ya da saat söyler misiniz?';
         $parca = [];
         foreach (array_slice($sec, 0, 2) as $i => $s) {
             $gun = $s['tarih'] === $tarih ? ($i === 0 || $sec[0]['tarih'] !== $tarih ? 'aynı gün' : '') : $this->tarihSoz($s['tarih']) . ',';
-            $parca[] = trim($gun . ' saat ' . $this->saatEkli($s['saat']) . (!empty($s['personel']) ? ' uzmanımız ' . $s['personel'] . ' ile' : ''));
+            $parca[] = trim($gun . ' saat ' . $this->saatEkli($s['saat']) . (!empty($s['personel']) ? ', uzmanımız ' . $s['personel'] . ' ile' : ''));
         }
         // Kisa cumleler (telefonda nefes): "Size iki seçenek önerebilirim. Aynı gün saat 13:00'te ... ile. Ya da saat 14:30'da ... ile. Hangisi uygun olur?"
         $c .= count($parca) > 1
@@ -4072,7 +4079,7 @@ FIYAT
      */
     protected function hizmetsizOnayCumlesi(array $d): string
     {
-        $ne = $this->tarihSoz((string) $d['tarih']) . ' saat ' . $this->saatEkli(substr((string) $d['saat'], 0, 5));
+        $ne = $this->tarihSoz((string) $d['tarih']) . ', saat ' . $this->saatEkli(substr((string) $d['saat'], 0, 5)) . ',';
         $h = $this->hitap();
         if ($this->kanal === 'whatsapp') return "✅ Randevunuz oluşturuldu: {$ne}.\n\nSalonumuz sizi arayıp detayları netleştirecek. Başka bir isteğiniz var mı?";
         return ($h ? "{$h}, " : 'Tamamdır, ') . "{$ne} randevunuzu oluşturdum. Salonumuz sizi arayıp detayları netleştirecek. Başka bir isteğiniz var mı?";
@@ -4666,7 +4673,17 @@ FIYAT
         }, $m);
         // "Pazartesi 30 Kasım" / "Pazartesi, 30 Kasım" (model kendi kurarsa) -> "30 Kasım Pazartesi" (kullanici 2026-11-27)
         $m = preg_replace('/\b(Pazartesi|Salı|Çarşamba|Perşembe|Cumartesi|Cuma|Pazar),? (\d{1,2}) (Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık)( \d{4})?/u', '$2 $3$4 $1', $m);
+        // Model bugunun/yarinin tarihini acik soylerse "bugün"/"yarın" (kullanici 2026-11-27)
+        $ayAd = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+        foreach (['bugün' => now('Europe/Istanbul'), 'yarın' => now('Europe/Istanbul')->addDay()] as $soz => $g) {
+            $m = preg_replace('/\b' . (int) $g->format('j') . ' ' . $ayAd[(int) $g->format('n')] . '( (Pazartesi|Salı|Çarşamba|Perşembe|Cumartesi|Cuma|Pazar))?\b(?![\'’])/u', $soz, $m);
+        }
+        $m = preg_replace('/\b(bugün|yarın),? (bugün|yarın)\b/iu', '$1', $m);
+        // Saatten sonra uzman/isim geliyorsa virgul: "saat 15:30, uzmanımız Sümeyra Hanım ile" (arka arkaya okunmasin)
+        $m = preg_replace('/(\bsaat \d{1,2}[:.]\d{2}(?:[\'’][a-zçğıöşü]+)?)(?=\s+(?:uzman|[A-ZÇĞİÖŞÜ]))/u', '$1,', $m);
         $m = preg_replace('/\s+/u', ' ', $m);
+        // Cumle basi buyuk harf ("bugün, saat ..." kod cumlesi basa gelirse)
+        $m = preg_replace_callback('/(^|[.!?]\s+)([a-zçğıöşü])/u', function ($x) { return $x[1] . ($x[2] === 'i' ? 'İ' : mb_strtoupper($x[2])); }, $m);
         return trim($m);
     }
 
