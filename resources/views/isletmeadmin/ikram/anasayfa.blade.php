@@ -67,7 +67,8 @@
 .ik-alt-cubuk .ik-buay { flex:1; } .ik-alt-cubuk .ik-buay small { color:#6B5A8E; font-weight:700; }
 .ik-alt-cubuk .ik-buay b { display:block; font-size:22px; font-weight:900; color:#2E1065; }
 .ik-rapor-btn { padding:12px 18px; border-radius:22px; background:linear-gradient(90deg,#6D28D9,#4C1D95); color:#fff; font-weight:800; text-decoration:none; white-space:nowrap; }
-.ik-rapor-btn:hover { color:#fff; text-decoration:none; }
+/* href yok: tema a:not([href]) rengi yazıyı koyulaştırıyordu */
+.ik-sayfa a.ik-rapor-btn, .ik-sayfa a.ik-rapor-btn:hover { color:#fff !important; text-decoration:none; cursor:pointer; }
 @media (max-width:600px) { .ik-kartlar { grid-template-columns:1fr; } }
 .ik-ust-izgara { display:flex; flex-direction:column; gap:16px; margin-bottom:16px; }
 .ik-ust-izgara > .ik-cam { margin:0; }
