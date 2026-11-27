@@ -326,7 +326,8 @@ class DamgaKartiServisi
             ->where('r.tarih', '>=', date('Y-m-d', strtotime($kural->baslangic)))
             ->distinct()->pluck('r.user_id');
         $kullanan = DB::table('damga_karti_kullanimlari')->where('kural_id', $kural->id)->distinct()->pluck('user_id');
-        return $ziyaret->merge($kullanan)->map(function ($v) { return (int) $v; })->unique()->count();
+        $satis = collect(array_keys(self::randevusuzOzet($kural)));
+        return $ziyaret->merge($kullanan)->merge($satis)->map(function ($v) { return (int) $v; })->unique()->count();
     }
 
     /** Kalemi/adisyonu hala duran kullanimlar (silinen kalemin hakki geri gelir). */
@@ -341,8 +342,7 @@ class DamgaKartiServisi
 
     private static function ucretliZiyaretSayisi($kural, $userId, array $haricRandevuIdler)
     {
-        $q = self::ucretliZiyaretSorgu($kural, $userId, $haricRandevuIdler);
-        return $q ? (int) $q->distinct()->count('r.id') : 0;
+        return count(self::ucretliZiyaretTarihleri($kural, $userId, $haricRandevuIdler));
     }
 
     /** Sayilan ucretli ziyaretlerin tarihleri (eskiden yeniye) — ikram kazanma tarihi icin. */
@@ -350,8 +350,12 @@ class DamgaKartiServisi
     {
         $q = self::ucretliZiyaretSorgu($kural, $userId, $haricRandevuIdler);
         if (!$q) return [];
-        return $q->select('r.id', 'r.tarih')->distinct()->orderBy('r.tarih')->orderBy('r.id')->get()
+        $tarihler = $q->select('r.id', 'r.tarih')->distinct()->orderBy('r.tarih')->orderBy('r.id')->get()
             ->map(function ($r) { return date('Y-m-d', strtotime($r->tarih)); })->values()->all();
+        // Randevusuz odenmis satislar (kapidan gelen musteri): gun basina 1 ziyaret
+        $tarihler = array_merge($tarihler, self::randevusuzGunler($kural, $userId));
+        sort($tarihler);
+        return $tarihler;
     }
 
     private static function odemeSartiAcik()
@@ -439,6 +443,85 @@ class DamgaKartiServisi
     }
 
     /**
+     * Randevusuz (ya da randevusu sayilmayan) ODENMIS satis kalemleri: kapidan gelen musteri, Yeni Satis,
+     * Harici Tahsilat. Tahsilatla tam odenmis, kampanya tarihleri icinde, kampanya hizmetinde kalem.
+     * Ayni ziyaret iki kez sayilmaz: kalem "Geldi" isaretli bir randevuya bagliysa ya da o gun ayni hizmette
+     * "Geldi" randevu varsa ziyaret randevu yolundan sayilir. Haric: ikram uygulanan kalem, hediye, seansli satis.
+     * Gun basina 1 ziyaret (ayni gun ayni hizmetten iki kalem tek sayilir).
+     */
+    private static function randevusuzSatisSorgu($kural, $userId)
+    {
+        if (!$kural->baslangic) return null;
+        $randevuKolon = self::kolonVar('adisyon_hizmetler', 'randevu_id');
+        $q = DB::table('adisyon_hizmetler as ah')
+            ->join('adisyonlar as a', 'a.id', '=', 'ah.adisyon_id')
+            ->where('a.salon_id', (int) $kural->salon_id)
+            ->where('ah.hizmet_id', (int) $kural->hizmet_id);
+        if ($userId !== null) $q->where('a.user_id', (int) $userId);
+        else $q->where('a.user_id', '>', 0);
+        $q->whereRaw('COALESCE(ah.hediye, 0) = 0')
+            ->whereRaw('ah.fiyat - COALESCE(ah.indirim_tutari, 0) > 0')
+            ->whereRaw('(SELECT COALESCE(SUM(sth.tutar), 0) FROM tahsilat_hizmetler sth WHERE sth.adisyon_hizmet_id = ah.id)'
+                . ' >= ah.fiyat - COALESCE(ah.indirim_tutari, 0) - 0.05')
+            ->whereDate('ah.islem_tarihi', '>=', date('Y-m-d', strtotime($kural->baslangic)))
+            ->whereDate('ah.islem_tarihi', '<=', date('Y-m-d'))
+            ->whereNotExists(function ($s) {
+                $s->select(DB::raw(1))->from('damga_karti_kullanimlari as sku')->whereColumn('sku.adisyon_hizmet_id', 'ah.id');
+            })
+            ->whereNotExists(function ($s) use ($randevuKolon) {
+                $s->select(DB::raw(1))->from('randevular as sr')
+                    ->join('randevu_hizmetler as srh', 'srh.randevu_id', '=', 'sr.id')
+                    ->whereColumn('srh.hizmet_id', 'ah.hizmet_id')
+                    ->where('sr.durum', Randevular::ONAYLANDI)
+                    ->where('sr.randevuya_geldi', 1)
+                    ->where(function ($w) use ($randevuKolon) {
+                        $w->where(function ($g) {
+                            $g->whereColumn('sr.salon_id', 'a.salon_id')->whereColumn('sr.user_id', 'a.user_id')
+                                ->whereRaw('DATE(sr.tarih) = DATE(ah.islem_tarihi)');
+                        });
+                        if ($randevuKolon) $w->orWhereColumn('sr.id', 'ah.randevu_id');
+                    });
+            });
+        if (!empty($kural->bitis_tarihi)) {
+            $q->whereDate('ah.islem_tarihi', '<=', date('Y-m-d', strtotime($kural->bitis_tarihi)));
+        }
+        if (self::kolonVar('adisyon_hizmetler', 'seans_sayisi')) $q->whereRaw('COALESCE(ah.seans_sayisi, 1) <= 1');
+        return $q;
+    }
+
+    /** Musterinin randevusuz satis gunleri (Y-m-d, eskiden yeniye). */
+    private static function randevusuzGunler($kural, $userId)
+    {
+        try {
+            $q = self::randevusuzSatisSorgu($kural, $userId);
+            if (!$q) return [];
+            return $q->selectRaw('DATE(ah.islem_tarihi) as gun')->distinct()->orderBy('gun')->get()->pluck('gun')
+                ->map(function ($g) { return date('Y-m-d', strtotime($g)); })->values()->all();
+        } catch (\Throwable $e) {
+            \Log::warning('[ikram randevusuz gunler] ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /** Tum musteriler: user_id => [adet (gun), ilk, son] */
+    private static function randevusuzOzet($kural, $limit = 2000)
+    {
+        $sonuc = [];
+        try {
+        $q = self::randevusuzSatisSorgu($kural, null);
+        if (!$q) return [];
+        foreach ($q->groupBy('a.user_id')->select('a.user_id', DB::raw('COUNT(DISTINCT DATE(ah.islem_tarihi)) as adet'),
+            DB::raw('MIN(DATE(ah.islem_tarihi)) as ilk'), DB::raw('MAX(ah.islem_tarihi) as son'))->limit((int) $limit)->get() as $r) {
+            $sonuc[(int) $r->user_id] = ['adet' => (int) $r->adet, 'ilk' => $r->ilk, 'son' => $r->son];
+        }
+        } catch (\Throwable $e) {
+            \Log::warning('[ikram randevusuz ozet] ' . $e->getMessage());
+            return [];
+        }
+        return $sonuc;
+    }
+
+    /**
      * Musterinin bu kuraldaki durumu.
      * @param int|null $buRandevuId O an tahsil edilen randevu (sayima katilmaz).
      */
@@ -460,9 +543,12 @@ class DamgaKartiServisi
         $tarihler = self::ucretliZiyaretTarihleri($kural, $userId, $haric);
         $ucretli  = count($tarihler);
         $birimler = [];
+        // Gecmis tarihli acilan kampanyada ikram, kampanya acilmadan once kazanilmis sayilabilir; suresi
+        // kampanyanin acildigi gunden baslar (yoksa musteri hediyesini goremeden suresi dolmus olurdu).
+        $acilis = !empty($kural->created_at) ? date('Y-m-d', strtotime($kural->created_at)) : null;
         for ($b = 1; $b * $gereken <= $ucretli; $b++) {
             $kazanma = $tarihler[$b * $gereken - 1];
-            $bitis   = $gecerlilik ? self::bitisTarihi($kazanma, $gecerlilik) : $sonsuz;
+            $bitis   = $gecerlilik ? self::bitisTarihi($acilis && $acilis > $kazanma ? $acilis : $kazanma, $gecerlilik) : $sonsuz;
             for ($u = 0; $u < (int) $kural->ucretsiz_adet; $u++) {
                 $birimler[] = ['kazanma' => $kazanma, 'bitis' => $bitis, 'kullanim' => null];
             }
@@ -575,7 +661,8 @@ class DamgaKartiServisi
             $q->addSelect(DB::raw('MIN(CASE WHEN rh.telafi_kaynak_rh_id IS NULL THEN 0 ELSE 1 END) as sadece_telafi'));
         }
         $satirlar = $q->get();
-        if ($satirlar->isEmpty()) return [];
+        $satisGunleri = array_reverse(self::randevusuzGunler($kural, $userId));
+        if ($satirlar->isEmpty() && !$satisGunleri) return [];
 
         $idler = $satirlar->pluck('id')->all();
         $paket = DB::table('adisyon_paket_seanslar')->whereIn('randevu_id', $idler)
@@ -618,7 +705,15 @@ class DamgaKartiServisi
                 'neden'      => $neden,
             ];
         }
-        return $sonuc;
+        // Randevusuz odenmis satislar (kapidan gelen musteri) sayildi olarak listelenir
+        foreach ($satisGunleri as $g) {
+            $sonuc[] = ['randevu_id' => 'Randevusuz satış', 'tarih' => date('d.m.Y', strtotime($g)), 'bu_ziyaret' => false,
+                'sayildi' => true, 'neden' => null, 'tur' => 'satis'];
+        }
+        usort($sonuc, function ($a, $b) {
+            return strcmp(implode('', array_reverse(explode('.', $b['tarih']))), implode('', array_reverse(explode('.', $a['tarih']))));
+        });
+        return array_slice($sonuc, 0, (int) $limit);
     }
 
     /**
@@ -673,11 +768,26 @@ class DamgaKartiServisi
         $donemKatilan = 0;
         $q = self::ucretliZiyaretSorgu($k, null, $kullanimlar->pluck('randevu_id')->filter()->all());
         if ($q) {
-            $donemKatilan = (int) (clone $q)->where('r.tarih', '>=', $donemBas)->distinct()->count('r.user_id');
-            $gruplar = $q->groupBy('r.user_id')
+            $donemIdler = (clone $q)->where('r.tarih', '>=', $donemBas)->distinct()->pluck('r.user_id')->map(function ($v) { return (int) $v; })->all();
+            $birlesik = [];
+            foreach ($q->groupBy('r.user_id')
                 ->select('r.user_id', DB::raw('COUNT(DISTINCT r.id) as adet'), DB::raw('MIN(r.tarih) as ilk'),
-                    DB::raw("MAX(CONCAT(r.tarih, ' ', COALESCE(r.saat, '00:00:00'))) as son"))
-                ->orderByDesc('son')->limit((int) $limit)->get();
+                    DB::raw("MAX(CONCAT(r.tarih, ' ', COALESCE(r.saat, '00:00:00'))) as son"))->get() as $g) {
+                $birlesik[(int) $g->user_id] = ['adet' => (int) $g->adet, 'ilk' => $g->ilk, 'son' => $g->son];
+            }
+            // Randevusuz odenmis satislar (kapidan gelen musteri) ayni musteriye eklenir
+            foreach (self::randevusuzOzet($k) as $uid => $r) {
+                if ($r['son'] && date('Y-m-d', strtotime($r['son'])) >= $donemBas) $donemIdler[] = $uid;
+                if (!isset($birlesik[$uid])) { $birlesik[$uid] = $r; continue; }
+                $birlesik[$uid]['adet'] += $r['adet'];
+                if ($r['ilk'] < $birlesik[$uid]['ilk']) $birlesik[$uid]['ilk'] = $r['ilk'];
+                if ($r['son'] > $birlesik[$uid]['son']) $birlesik[$uid]['son'] = $r['son'];
+            }
+            $donemKatilan = count(array_unique($donemIdler));
+            uasort($birlesik, function ($a, $b) { return strcmp((string) $b['son'], (string) $a['son']); });
+            $gruplar = collect(array_slice($birlesik, 0, (int) $limit, true))->map(function ($v, $uid) {
+                return (object) ['user_id' => $uid, 'adet' => $v['adet'], 'ilk' => $v['ilk'], 'son' => $v['son']];
+            })->values();
             $kisiler = DB::table('users')->whereIn('id', $gruplar->pluck('user_id')->all())
                 ->get(['id', 'name', 'cep_telefon', 'profil_resim'])->keyBy('id');
             $sureli = self::gecerlilik($k) !== null;
@@ -946,9 +1056,12 @@ class DamgaKartiServisi
                 ->whereNotNull('r.user_id')
                 ->where('r.tarih', '>=', date('Y-m-d', strtotime($k->baslangic)))
                 ->groupBy('r.user_id')
-                ->havingRaw('COUNT(DISTINCT r.id) >= ?', [max(1, (int) $k->gereken_adet)])
-                ->limit($limit)
-                ->pluck('r.user_id');
+                ->select('r.user_id', DB::raw('COUNT(DISTINCT r.id) as adet'))
+                ->get()->pluck('adet', 'user_id')->all();
+            // Randevusuz odenmis satislar da sayilir (kapidan gelen musteri)
+            foreach (self::randevusuzOzet($k) as $uid => $r) $adaylar[$uid] = ($adaylar[$uid] ?? 0) + $r['adet'];
+            $adaylar = collect(array_keys(array_filter($adaylar, function ($n) use ($k) { return $n >= max(1, (int) $k->gereken_adet); })))
+                ->take($limit);
             $kullananlar = DB::table('damga_karti_kullanimlari')->where('kural_id', $k->id)->distinct()->pluck('user_id');
             $idler = $adaylar->merge($kullananlar)->map(function ($v) { return (int) $v; })->unique()->values();
             if ($idler->isEmpty()) continue;
@@ -1089,6 +1202,8 @@ class DamgaKartiServisi
             // hak hesabi ise bu ziyareti haric tutar (durum()).
             $buSayilir = false;
             foreach ($dokum as $z) { if ($z['bu_ziyaret'] && $z['sayildi']) $buSayilir = true; }
+            // Randevusuz satis (kapidan gelen musteri): odemesi alininca bu kalem de sayilacak
+            if (!$buSayilir && !$kullanim && !$ah->hediye && self::kalanBorc($ah) > 0) $buSayilir = self::kalemSayilacak($kural, $adisyon, $ah);
             $toplam = $durum['ucretli'] + ($buSayilir ? 1 : 0);
             $sonuc[] = [
                 'dokum'             => $dokum,
@@ -1111,6 +1226,28 @@ class DamgaKartiServisi
             ];
         }
         return $sonuc;
+    }
+
+    /** Henuz odenmemis kalem, odendiginde randevusuz satis olarak sayilir mi (tarih araligi + ayni gun Geldi randevu yok). */
+    private static function kalemSayilacak($kural, $adisyon, $ah)
+    {
+        if (!$kural->baslangic) return false;
+        try {
+        $gun = date('Y-m-d', strtotime($ah->islem_tarihi ?: 'now'));
+        if ($gun < date('Y-m-d', strtotime($kural->baslangic)) || $gun > date('Y-m-d')) return false;
+        if (!empty($kural->bitis_tarihi) && $gun > date('Y-m-d', strtotime($kural->bitis_tarihi))) return false;
+        return !DB::table('randevular as r')->join('randevu_hizmetler as rh', 'rh.randevu_id', '=', 'r.id')
+            ->where('rh.hizmet_id', (int) $ah->hizmet_id)->where('r.durum', Randevular::ONAYLANDI)->where('r.randevuya_geldi', 1)
+            ->where(function ($w) use ($adisyon, $ah, $gun) {
+                $w->where(function ($g) use ($adisyon, $gun) {
+                    $g->where('r.salon_id', (int) $adisyon->salon_id)->where('r.user_id', (int) $adisyon->user_id)->whereDate('r.tarih', $gun);
+                });
+                if (!empty($ah->randevu_id)) $w->orWhere('r.id', (int) $ah->randevu_id);
+            })->exists();
+        } catch (\Throwable $e) {
+            \Log::warning('[ikram kalem sayilacak] ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**

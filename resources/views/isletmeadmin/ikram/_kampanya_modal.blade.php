@@ -124,9 +124,9 @@
                             <div class="ikf-ki"><i class="fa fa-calendar-check-o"></i></div>
                             <div class="ikf-st"><b>Kampanya tarihleri</b><small>Yalnız bu aralıkta gelinen ziyaretler sayılır. Başlangıç geçmiş bir tarih olabilir; o tarihten beri gelinen ziyaretler de sayılır. Kazanılan hak kampanya bitince de kullanılabilir.</small></div>
                             <div class="ikf-tarihler">
-                                <input type="text" class="form-control geriye-yonelik ikf-girdi" id="ikf-bas" placeholder="Bugün" autocomplete="off">
+                                <input type="text" class="form-control geriye-yonelik ikf-girdi" id="ikf-bas" placeholder="Bugün · gg.aa.yyyy" title="Takvimden seçin ya da gg.aa.yyyy yazın; geçmiş tarih olabilir" autocomplete="off">
                                 –
-                                <input type="text" class="form-control geriye-yonelik ikf-girdi" id="ikf-bit" placeholder="Süresiz" autocomplete="off">
+                                <input type="text" class="form-control geriye-yonelik ikf-girdi" id="ikf-bit" placeholder="Süresiz · gg.aa.yyyy" autocomplete="off">
                                 <a href="javascript:void(0)" id="ikf-suresiz" style="font-size:12px;color:#7C3AED;font-weight:700">Bitiş olmasın</a>
                             </div>
                         </div>
@@ -263,7 +263,17 @@ var IKForm = (function () {
         var hizmetId = parseInt($('ikf-hizmet').value, 10) || 0;
         if (!hizmetId) { IK.toast('Lütfen kampanyanın hizmetini seçin', true); return; }
         var sure = $('ikf-sure').value.split('|');
-        var bas = $('ikf-bas').value.trim(), bit = $('ikf-bit').value.trim();
+        // Elle yazilan tarih: gg.aa.yyyy, gg/aa/yyyy ya da yyyy-aa-gg (takvim yyyy-aa-gg yazar)
+        var tarihGirdi = function (v) {
+            v = String(v || '').trim();
+            if (!v) return '';
+            var m = v.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/);
+            if (m) v = m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || isNaN(new Date(v + 'T00:00:00'))) return null;
+            return v;
+        };
+        var bas = tarihGirdi($('ikf-bas').value), bit = tarihGirdi($('ikf-bit').value);
+        if (bas === null || bit === null) { IK.toast('Tarihi gg.aa.yyyy biçiminde yazın (ör. 01.10.2026)', true); return; }
         if (bas && bit && bit < bas) { IK.toast('Bitiş tarihi başlangıçtan önce olamaz', true); return; }
         var veri = {
             hizmet_id: hizmetId, tur: 'ikram', gereken_adet: adet(), ucretsiz_adet: hediye(),

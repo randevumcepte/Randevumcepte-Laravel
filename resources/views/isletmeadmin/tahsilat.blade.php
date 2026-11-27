@@ -96,7 +96,7 @@
                      @foreach($_d['dokum'] as $_z)
                      <tr>
                         <td style="padding:2px 10px 2px 0;">{{ $_z['tarih'] }}</td>
-                        <td style="padding:2px 10px 2px 0;">#{{ $_z['randevu_id'] }}{{ $_z['bu_ziyaret'] ? ' (bu ziyaret)' : '' }}</td>
+                        <td style="padding:2px 10px 2px 0;">{{ is_numeric($_z['randevu_id']) ? '#' : '' }}{{ $_z['randevu_id'] }}{{ $_z['bu_ziyaret'] ? ' (bu ziyaret)' : '' }}</td>
                         <td style="padding:2px 0;">
                            @if($_z['sayildi'])
                               <span style="color:#065f46;font-weight:700;">✓ Sayıldı</span>
