@@ -76,7 +76,7 @@
 .ikp-karo { position:relative; width:252px; height:180px; flex-shrink:0; border-radius:18px; overflow:hidden; color:#fff; cursor:pointer;
     background:linear-gradient(135deg,#A230ED 0%,#6D1FD0 45%,#400C9D 100%); box-shadow:0 12px 26px rgba(91,33,182,.28); }
 .ikp-karo:before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 80% 20%,rgba(255,255,255,.22),transparent 55%); }
-.ikp-karo-yazi { position:relative; z-index:1; padding:24px 0 0 20px; font-weight:700; line-height:1.15; font-size:25px; max-width:56%; }
+.ikp-karo-yazi { position:relative; z-index:1; padding:24px 0 0 20px; font-weight:700; line-height:1.15; font-size:22px; max-width:56%; }
 .ikp-karo-yazi span { display:block; font-size:40px; letter-spacing:-.5px; margin-bottom:4px; }
 .ikp-karo-yazi em { font-style:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; }
 .ikp-karo-yazi.uzun { font-size:18px; } .ikp-karo-yazi.uzun span { font-size:34px; }
@@ -281,7 +281,10 @@
             '• En Çok Tercih Edilen: katılımcısı en çok olan kampanya ve katılımcıların yüzde kaçının onda olduğu.');
     });
     $('ikp-hero-detay').addEventListener('click', function () { var k = heroKamp(); if (k && !k.tanitim) detayaGit(k.id); });
-    $('ikp-tumu').addEventListener('click', function () { filtre = 'tumu'; listeCiz(); $('ikp-liste').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+    // Tumunu Gor: kartta tum aktif kampanyalar alt alta acilir / kapanir
+    var tumuAcik = false;
+    $('ikp-tumu').addEventListener('click', function () { tumuAcik = !tumuAcik; oneCiz(); });
+    function aktifler() { return kurallar.filter(function (k) { var d = IK.durum(k); return d === 'aktif' || d === 'baslayacak'; }); }
     function detayaGit(id) { location.href = IK.u('ikramhizmet/kampanya/' + id, { donem: DONEM }); }
 
     function filtreUyar(k, f) {
@@ -384,16 +387,25 @@
     }
 
     function oneCiz() {
-        var k = secili(), kap = $('ikp-one');
+        var k = secili(), kap = $('ikp-one'), akt = aktifler();
+        $('ikp-tumu').style.display = akt.length > 1 ? '' : 'none';
+        $('ikp-tumu').innerHTML = tumuAcik && akt.length > 1 ? 'Daha az göster <i class="fa fa-chevron-up"></i>' : 'Tümünü Gör (' + akt.length + ') <i class="fa fa-arrow-right"></i>';
+        if (tumuAcik && akt.length > 1) {
+            kap.innerHTML = akt.map(oneBlok).join('<div style="height:1px;background:#F1EAFB;margin:16px 0"></div>');
+            return;
+        }
         if (!k) {
             kap.innerHTML = '<div class="ikp-bos">' + (kurallar.length ? 'Aktif kampanya yok. Listeden bir kampanya seçin ya da yenisini açın.'
                 : 'Henüz kampanya yok.<br>Üstteki "Yeni Kampanya" ile ilkini oluşturun.') + '</div>';
             return;
         }
+        kap.innerHTML = oneBlok(k);
+    }
+    function oneBlok(k) {
         var d = IK.durum(k), kul = 0, kaz = 0, hazir = 0;
         kampMusteri(k).forEach(function (m) { kul += Number(m.kullanilan) || 0; kaz += Number(m.kazanilan) || 0; if (m.hak > 0) hazir++; });
         var oran = kaz ? kul / kaz : 0, cevre = 2 * Math.PI * 56;
-        kap.innerHTML = '<div class="ikp-one">' +
+        return '<div class="ikp-one">' +
             '<div class="ikp-karo" data-detay="' + k.id + '" title="Kampanya detayı">' +
                 '<span class="ik-cip ' + d + '">' + IK.DURUM_YAZI[d] + '</span>' +
                 '<div class="ikp-karo-yazi' + (hz(k).length > 10 ? ' uzun' : '') + '"><span>' + (k.gereken_adet || 0) + ' + ' + (k.ucretsiz_adet || 1) + '</span><em>' + esc(hz(k)) + '</em>Kampanyası</div>' +
