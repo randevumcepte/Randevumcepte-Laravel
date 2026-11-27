@@ -32561,25 +32561,7 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
     {
         if ($r = $this->ikramYonetimKapisi()) return $r;
         $kurallar = \App\Services\DamgaKartiServisi::kurallar($salonId)->map(function ($k) {
-            return [
-                'id'            => (int) $k->id,
-                'hizmet_id'     => (int) $k->hizmet_id,
-                'hizmet_adi'    => $k->hizmet_adi,
-                'gereken_adet'  => (int) $k->gereken_adet,
-                'ucretsiz_adet' => (int) $k->ucretsiz_adet,
-                'aktif'         => (int) $k->aktif,
-                'baslangic'     => $k->baslangic,
-                'gecerlilik_deger' => isset($k->gecerlilik_deger) ? (int) $k->gecerlilik_deger : null,
-                'gecerlilik_birim' => $k->gecerlilik_birim ?? 'ay',
-                // Kampanya turu ('ikram'|'indirim') + oran + tarih araligi (baslangic yukarida)
-                'tur'           => \App\Services\DamgaKartiServisi::tur($k),
-                'indirim_orani' => isset($k->indirim_orani) ? (int) $k->indirim_orani : null,
-                'bitis_tarihi'  => !empty($k->bitis_tarihi) ? date('Y-m-d', strtotime($k->bitis_tarihi)) : null,
-                'kural_yazi'    => \App\Services\DamgaKartiServisi::kuralYazi($k),
-                'tarih_araligi' => \App\Services\DamgaKartiServisi::tarihAraligiYazi($k),
-                'gorsel'        => $k->gorsel ?? null, // /public/kampanya_gorselleri/... (yoksa app hazir gorsel secer)
-                'gorsel_url'    => !empty($k->gorsel) ? url($k->gorsel) : null,
-            ];
+            return \App\Services\DamgaKartiServisi::kuralDizi($k);
         })->values();
         $hizmetler = \App\Services\DamgaKartiServisi::hizmetSecenekleri($salonId)->map(function ($h) {
             return ['id' => (int) $h->id, 'hizmet_adi' => $h->hizmet_adi];
@@ -32631,37 +32613,13 @@ function mb_str_pad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_
         if (!\Auth::guard('isletmeyonetim-api')->user()) {
             return response()->json(['basarili' => false, 'mesaj' => 'Oturum gerekli.'], 401);
         }
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('damga_karti_kurallari', 'gorsel')) {
-            return response()->json(['basarili' => false, 'mesaj' => 'Sistem güncellemesi bekleniyor; birkaç dakika sonra tekrar deneyin.']);
+        try {
+            list($kural, $mesaj) = \App\Services\DamgaKartiServisi::gorselKaydet($salonId, (int) $request->input('id'),
+                $request->file('dosya'), filter_var($request->input('sil'), FILTER_VALIDATE_BOOLEAN));
+        } catch (\RuntimeException $e) {
+            return response()->json(['basarili' => false, 'mesaj' => $e->getMessage()]);
         }
-        $kural = \App\DamgaKartiKurallari::where('id', (int) $request->input('id'))->where('salon_id', (int) $salonId)->first();
-        if (!$kural) return response()->json(['basarili' => false, 'mesaj' => 'Kampanya bulunamadı.']);
-
-        $eski = $kural->gorsel;
-        if (filter_var($request->input('sil'), FILTER_VALIDATE_BOOLEAN)) {
-            $kural->gorsel = null;
-            $mesaj = 'İkram kampanya görseli kaldırıldı (mobil)';
-        } else {
-            $dosya = $request->file('dosya');
-            if (!$dosya || !$dosya->isValid()) return response()->json(['basarili' => false, 'mesaj' => 'Fotoğraf seçin.']);
-            $uzanti = strtolower($dosya->getClientOriginalExtension() ?: 'jpg');
-            if (!in_array($uzanti, ['jpg', 'jpeg', 'png', 'webp', 'heic'], true)) {
-                return response()->json(['basarili' => false, 'mesaj' => 'Yalnızca fotoğraf yüklenebilir.']);
-            }
-            if ($dosya->getSize() > 12 * 1024 * 1024) return response()->json(['basarili' => false, 'mesaj' => 'Fotoğraf en fazla 12 MB olabilir.']);
-            $klasor = public_path('kampanya_gorselleri');
-            if (!is_dir($klasor)) @mkdir($klasor, 0755, true);
-            $ad = (int) $salonId . '_' . (int) $kural->id . '_' . uniqid() . '.' . $uzanti;
-            $dosya->move($klasor, $ad);
-            $kural->gorsel = '/public/kampanya_gorselleri/' . $ad;
-            $mesaj = 'İkram kampanya görseli yüklendi (mobil)';
-        }
-        $kural->save();
-        // Eski dosya silinir (yalniz kendi klasorumuzdekiler)
-        if ($eski && $eski !== $kural->gorsel) {
-            $yol = public_path(preg_replace('#^/public/#', '', $eski));
-            if (strpos(realpath(dirname($yol)) ?: '', 'kampanya_gorselleri') !== false) @unlink($yol);
-        }
+        $mesaj .= ' (mobil)';
         Audit::logApi($salonId, $request, 'damga_karti_gorsel', 'damga_karti_kural', $kural->id,
             \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi'), $mesaj);
         return response()->json(['basarili' => true, 'gorsel' => $kural->gorsel, 'gorsel_url' => $kural->gorsel ? url($kural->gorsel) : null]);

@@ -1015,31 +1015,120 @@ public function carkverilerigetir(Request $request)
     }
 
     /**
-     * Admin: Ikram Hizmet sayfasi ("N kez alana M ikram"; Carkifelek'ten bagimsiz).
-     * Kurallar + ikram kazanmis musteriler. Mantik DamgaKartiServisi'nde (ic adi damga).
+     * Ikram Hizmet (Carkifelek'ten bagimsiz) — mobil uygulamanin akisiyla birebir 4 ekran:
+     * ana sayfa (kazanc ozeti + kampanya kartlari), Kampanya Ayarlari (form), Kampanya Detayi,
+     * Detayli Rapor. Sayfalar hafif acilir; agir hesap (musteri bazinda durum) JSON uclarindan
+     * sonradan yuklenir. Mantik DamgaKartiServisi'nde (ic adi damga), mobil API ile ortak.
      */
-    public function ikramHizmet(Request $request)
+    private function ikramSalon(Request $request)
     {
         $salon_id = self::mevcutsube($request);
-        $isletme  = Salonlar::where('id', $salon_id)->first();
-        if (!in_array($salon_id, $this->yetkiliSubeIdler()) && !Auth::guard('satisortakligi')->check()) {
-            return view('isletmeadmin.yetkisizerisim');
-        }
-        try { $musteriler = \App\Services\DamgaKartiServisi::yonetimOzet($salon_id); }
-        catch (\Throwable $e) { \Log::warning('[ikram yonetim] ' . $e->getMessage()); $musteriler = []; }
+        if (!in_array($salon_id, $this->yetkiliSubeIdler()) && !Auth::guard('satisortakligi')->check()) return null;
+        return $salon_id;
+    }
 
-        return view('isletmeadmin.ikram_hizmet', [
-            'bildirimler'           => self::bildirimgetir($request),
-            'paketler'              => self::paket_liste_getir('', true, $request),
-            'sayfa_baslik'          => 'İkram Hizmet',
-            'pageindex'             => 520,
-            'isletme'               => $isletme,
-            'kalan_uyelik_suresi'   => self::lisans_sure_kontrol($request),
-            'urun_drop'             => self::urundropliste($request),
-            'ikramKurallari'        => \App\Services\DamgaKartiServisi::kurallar($salon_id),
-            'ikramHizmetleri'       => \App\Services\DamgaKartiServisi::hizmetSecenekleri($salon_id),
-            'ikramMusterileri'      => $musteriler,
-        ]);
+    private function ikramSayfa(Request $request, $view, $baslik, array $ek = [])
+    {
+        $salon_id = $this->ikramSalon($request);
+        if (!$salon_id) return view('isletmeadmin.yetkisizerisim');
+        return view($view, array_merge([
+            'bildirimler'         => self::bildirimgetir($request),
+            'paketler'            => self::paket_liste_getir('', true, $request),
+            'sayfa_baslik'        => $baslik,
+            'pageindex'           => 520,
+            'isletme'             => Salonlar::where('id', $salon_id)->first(),
+            'kalan_uyelik_suresi' => self::lisans_sure_kontrol($request),
+            'urun_drop'           => self::urundropliste($request),
+        ], $ek));
+    }
+
+    public function ikramHizmet(Request $request)
+    {
+        return $this->ikramSayfa($request, 'isletmeadmin.ikram.anasayfa', 'İkram Hizmet');
+    }
+
+    public function ikramKampanyaAyarlari(Request $request)
+    {
+        $salon_id = $this->ikramSalon($request);
+        if (!$salon_id) return view('isletmeadmin.yetkisizerisim');
+        $kural = null;
+        if ((int) $request->input('id') > 0) {
+            $k = \App\Services\DamgaKartiServisi::kurallar($salon_id)->firstWhere('id', (int) $request->input('id'));
+            if ($k) $kural = \App\Services\DamgaKartiServisi::kuralDizi($k);
+        }
+        $hizmetler = \App\Services\DamgaKartiServisi::hizmetSecenekleri($salon_id)->map(function ($h) {
+            return ['id' => (int) $h->id, 'hizmet_adi' => $h->hizmet_adi];
+        })->values()->all();
+        // Pasif hizmetteki mevcut kural da secili gorunsun
+        if ($kural && !collect($hizmetler)->contains('id', $kural['hizmet_id'])) {
+            array_unshift($hizmetler, ['id' => $kural['hizmet_id'], 'hizmet_adi' => $kural['hizmet_adi'] ?: ('Hizmet #' . $kural['hizmet_id'])]);
+        }
+        return $this->ikramSayfa($request, 'isletmeadmin.ikram.kampanya_ayarlari', 'Kampanya Ayarları',
+            ['ikramKural' => $kural, 'ikramHizmetleri' => $hizmetler]);
+    }
+
+    public function ikramKampanyaDetay(Request $request, $id)
+    {
+        return $this->ikramSayfa($request, 'isletmeadmin.ikram.kampanya_detay', 'Kampanya Detayı', ['ikramKuralId' => (int) $id]);
+    }
+
+    public function ikramRapor(Request $request)
+    {
+        return $this->ikramSayfa($request, 'isletmeadmin.ikram.rapor', 'Detaylı Rapor');
+    }
+
+    /** JSON: kurallar + kazanc ozeti (donem gun) + istenirse ikram kazanan musteriler. */
+    public function ikramVeri(Request $request)
+    {
+        $salon_id = $this->ikramSalon($request);
+        if (!$salon_id) return response()->json(['basarili' => false, 'mesaj' => 'Yetkisiz.'], 403);
+        $S = \App\Services\DamgaKartiServisi::class;
+        $musteriler = [];
+        try { $musteriler = $S::yonetimOzet($salon_id); }
+        catch (\Throwable $e) { \Log::warning('[ikram web musteriler] ' . $e->getMessage()); }
+        $ozet = null;
+        try { $ozet = $S::kazancOzeti($salon_id, (int) $request->input('donem', 30), $musteriler); }
+        catch (\Throwable $e) { \Log::warning('[ikram web ozet] ' . $e->getMessage()); }
+        $cevap = [
+            'basarili' => $S::tabloHazir(),
+            'kurallar' => $S::kurallar($salon_id)->map(function ($k) use ($S) { return $S::kuralDizi($k); })->values(),
+            'ozet'     => $ozet,
+        ];
+        if (filter_var($request->input('musteriler'), FILTER_VALIDATE_BOOLEAN)) $cevap['musteriler'] = $musteriler;
+        return response()->json($cevap);
+    }
+
+    /** JSON: tek kampanyanin performansi, katilan musteriler, kazanc detayi. */
+    public function ikramDetayVeri(Request $request)
+    {
+        $salon_id = $this->ikramSalon($request);
+        if (!$salon_id) return response()->json(['basarili' => false, 'mesaj' => 'Yetkisiz.'], 403);
+        try {
+            $d = \App\Services\DamgaKartiServisi::kampanyaDetay($salon_id, (int) $request->input('id'), (int) $request->input('donem', 30));
+        } catch (\Throwable $e) {
+            \Log::warning('[ikram web detay] ' . $e->getMessage());
+            return response()->json(['basarili' => false, 'mesaj' => 'Kampanya detayı alınamadı.']);
+        }
+        if (!$d) return response()->json(['basarili' => false, 'mesaj' => 'Kampanya bulunamadı.']);
+        $k = \App\Services\DamgaKartiServisi::kurallar($salon_id)->firstWhere('id', (int) $request->input('id'));
+        if ($k) $d['kural'] = array_merge(\App\Services\DamgaKartiServisi::kuralDizi($k), $d['kural']);
+        return response()->json(['basarili' => true] + $d);
+    }
+
+    /** Kampanya gorseli yukle (dosya) / kaldir (sil=1). */
+    public function ikramGorsel(Request $request)
+    {
+        $salon_id = $this->ikramSalon($request);
+        if (!$salon_id) return response()->json(['success' => false, 'message' => 'Yetkisiz.']);
+        try {
+            list($kural, $mesaj) = \App\Services\DamgaKartiServisi::gorselKaydet($salon_id, (int) $request->input('id'),
+                $request->file('dosya'), filter_var($request->input('sil'), FILTER_VALIDATE_BOOLEAN));
+        } catch (\RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+        SalonAudit::log($salon_id, 'damga_karti_gorsel', 'damga_karti_kural', $kural->id,
+            \App\Hizmetler::where('id', $kural->hizmet_id)->value('hizmet_adi'), $mesaj);
+        return response()->json(['success' => true, 'gorsel' => $kural->gorsel]);
     }
 
     /**
@@ -1083,7 +1172,7 @@ public function carkverilerigetir(Request $request)
         SalonAudit::log($salon_id, 'damga_karti_kural', 'damga_karti_kural', $kural->id,
             $_hizmet . ': ' . \App\Services\DamgaKartiServisi::kuralYazi($kural) . ' (' . ($kural->aktif ? 'Açık' : 'Kapalı') . ')',
             'İkram hizmet kuralı kaydedildi');
-        return response()->json(['success' => true]);
+        return response()->json(['success' => true, 'id' => (int) $kural->id]);
     }
 
     public function damgaKartiSil(Request $request)

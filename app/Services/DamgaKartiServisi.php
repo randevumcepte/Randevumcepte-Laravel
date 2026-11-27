@@ -77,6 +77,71 @@ class DamgaKartiServisi
         return $q->get();
     }
 
+    /** Yonetim ekranlari (mobil API + web) icin kural satiri: tek bicim. */
+    public static function kuralDizi($k)
+    {
+        return [
+            'id'               => (int) $k->id,
+            'hizmet_id'        => (int) $k->hizmet_id,
+            'hizmet_adi'       => $k->hizmet_adi ?? null,
+            'gereken_adet'     => (int) $k->gereken_adet,
+            'ucretsiz_adet'    => (int) $k->ucretsiz_adet,
+            'aktif'            => (int) $k->aktif,
+            'baslangic'        => $k->baslangic,
+            'gecerlilik_deger' => isset($k->gecerlilik_deger) ? (int) $k->gecerlilik_deger : null,
+            'gecerlilik_birim' => $k->gecerlilik_birim ?? 'ay',
+            'gecerlilik'       => self::gecerlilikYazi($k),
+            // Kampanya turu ('ikram'|'indirim') + oran + tarih araligi (baslangic yukarida)
+            'tur'              => self::tur($k),
+            'indirim_orani'    => isset($k->indirim_orani) ? (int) $k->indirim_orani : null,
+            'bitis_tarihi'     => !empty($k->bitis_tarihi) ? date('Y-m-d', strtotime($k->bitis_tarihi)) : null,
+            'kural_yazi'       => self::kuralYazi($k),
+            'tarih_araligi'    => self::tarihAraligiYazi($k),
+            'gorsel'           => $k->gorsel ?? null, // /public/kampanya_gorselleri/... (yoksa ekran hazir gorsel secer)
+            'gorsel_url'       => !empty($k->gorsel) ? url($k->gorsel) : null,
+        ];
+    }
+
+    /**
+     * Kampanya gorseli yukle ($dosya UploadedFile) ya da kaldir ($sil). Mobil API + web ortak.
+     * @return array [kural, mesaj]
+     * @throws \RuntimeException
+     */
+    public static function gorselKaydet($salonId, $kuralId, $dosya = null, $sil = false)
+    {
+        if (!Schema::hasColumn('damga_karti_kurallari', 'gorsel')) {
+            throw new \RuntimeException('Sistem güncellemesi bekleniyor; birkaç dakika sonra tekrar deneyin.');
+        }
+        $kural = DamgaKartiKurallari::where('id', (int) $kuralId)->where('salon_id', (int) $salonId)->first();
+        if (!$kural) throw new \RuntimeException('Kampanya bulunamadı.');
+
+        $eski = $kural->gorsel;
+        if ($sil) {
+            $kural->gorsel = null;
+            $mesaj = 'İkram kampanya görseli kaldırıldı';
+        } else {
+            if (!$dosya || !$dosya->isValid()) throw new \RuntimeException('Fotoğraf seçin.');
+            $uzanti = strtolower($dosya->getClientOriginalExtension() ?: 'jpg');
+            if (!in_array($uzanti, ['jpg', 'jpeg', 'png', 'webp', 'heic'], true)) {
+                throw new \RuntimeException('Yalnızca fotoğraf yüklenebilir.');
+            }
+            if ($dosya->getSize() > 12 * 1024 * 1024) throw new \RuntimeException('Fotoğraf en fazla 12 MB olabilir.');
+            $klasor = public_path('kampanya_gorselleri');
+            if (!is_dir($klasor)) @mkdir($klasor, 0755, true);
+            $ad = (int) $salonId . '_' . (int) $kural->id . '_' . uniqid() . '.' . $uzanti;
+            $dosya->move($klasor, $ad);
+            $kural->gorsel = '/public/kampanya_gorselleri/' . $ad;
+            $mesaj = 'İkram kampanya görseli yüklendi';
+        }
+        $kural->save();
+        // Eski dosya silinir (yalniz kendi klasorumuzdekiler)
+        if ($eski && $eski !== $kural->gorsel) {
+            $yol = public_path(preg_replace('#^/public/#', '', $eski));
+            if (strpos(realpath(dirname($yol)) ?: '', 'kampanya_gorselleri') !== false) @unlink($yol);
+        }
+        return [$kural, $mesaj];
+    }
+
     /** Kural formu icin salonun aktif hizmetleri. */
     public static function hizmetSecenekleri($salonId)
     {
@@ -143,8 +208,10 @@ class DamgaKartiServisi
             $t = strtotime((string) $g['baslangic_tarihi']);
             if (!$t) throw new \RuntimeException('Başlangıç tarihi geçersiz.');
             $yeniBas = date('Y-m-d', $t);
-            if ($yeniBas < $bugun && ($eskiBas === null || $yeniBas < $eskiBas)) {
-                throw new \RuntimeException('Başlangıç tarihi geçmiş bir gün olamaz; geçmiş randevulara ikram dağıtılmaz.');
+            // Gecmis baslangic SERBEST (27 Kas 2026 kullanici karari): sistemi yayindan once kullanan
+            // isletmeler kampanyayi geriye donuk acabilir; o tarihten beri "Geldi" ziyaretler sayilir.
+            if ($yeniBas > date('Y-m-d', strtotime('+5 years'))) {
+                throw new \RuntimeException('Başlangıç tarihi en fazla 5 yıl sonrası olabilir.');
             }
         }
         $bitisVar = self::kolonVar('damga_karti_kurallari', 'bitis_tarihi');
