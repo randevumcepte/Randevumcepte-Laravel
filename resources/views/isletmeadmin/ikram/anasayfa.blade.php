@@ -10,20 +10,39 @@
 @include('isletmeadmin.ikram._ortak')
 @include('isletmeadmin.ikram._kampanya_modal')
 <style>
-.ik-hero { position:relative; width:100%; aspect-ratio:941/382; border-radius:24px; container-type:inline-size;
-    background:url('{{ secure_asset('public/img/ikram/ikram_hero_tam.png') }}') center/100% 100% no-repeat; color:#fff; }
-.ik-hero .ik-p { position:absolute; }
-.ik-hero .ik-donem { left:43%; top:2.6%; height:11.3%; display:flex; align-items:center; gap:6px; font-weight:700;
-    font-size:max(11px,1.7cqw); cursor:pointer; color:#fff; }
-.ik-hero .ik-donem .ik-menu-liste { left:0; right:auto; }
-.ik-hero .ik-toplam { left:9.1%; top:23%; font-weight:900; font-size:6.2cqw; line-height:1; white-space:nowrap; }
-.ik-hero .ik-toplam small { font-size:.42em; font-weight:800; margin-left:6px; }
-.ik-hero .ik-artis { left:9.1%; top:49.5%; font-size:max(10px,1.45cqw); font-weight:800; }
+/* Kazanc karti: gercek kutular (eski tek parca resim + yuzdeyle yerlesen yazilar masaustunde kayiyordu) */
+.ik-hero { position:relative; display:flex; min-height:250px; border-radius:24px; color:#fff;
+    background:linear-gradient(135deg,#7C3AED 0%,#5B21B6 55%,#4C1D95 100%); box-shadow:0 14px 34px rgba(76,29,149,.22); }
+.ik-hero-sol { position:relative; z-index:1; flex:1; min-width:0; display:flex; flex-direction:column; padding:22px 26px; }
+.ik-hero-bas { display:flex; align-items:center; gap:10px; }
+.ik-hero-bas .ik-hero-ikon { width:38px; height:38px; border-radius:12px; background:rgba(255,255,255,.16); display:flex;
+    align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+.ik-hero-bas h2 { flex:1; margin:0; font-size:17px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ik-hero .ik-donem { display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border-radius:18px; background:rgba(255,255,255,.16);
+    border:1px solid rgba(255,255,255,.28); font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.ik-hero .ik-donem:hover { background:rgba(255,255,255,.24); }
+.ik-hero .ik-donem .ik-menu-liste { left:auto; right:0; min-width:160px; }
+.ik-hero .ik-toplam { margin-top:16px; font-weight:900; font-size:46px; line-height:1; white-space:nowrap; letter-spacing:-1px; }
+.ik-hero .ik-toplam small { font-size:20px; font-weight:800; margin-left:6px; letter-spacing:0; }
+.ik-hero .ik-artis { margin-top:10px; min-height:24px; font-size:13px; font-weight:700; }
 .ik-hero .ik-artis span { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:14px; }
-.ik-hero .ik-sutun { top:66%; height:32%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
-.ik-hero .ik-sutun i { font-size:2.1cqw; opacity:.95; }
-.ik-hero .ik-sutun b { font-size:2.4cqw; font-weight:900; line-height:1.15; margin-top:2px; }
-.ik-hero .ik-sutun small { font-size:max(9px,1.3cqw); opacity:.9; line-height:1.2; white-space:pre-line; }
+.ik-hero-sutunlar { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:auto; padding-top:16px; }
+.ik-hero .ik-sutun { display:flex; flex-direction:column; align-items:center; text-align:center; gap:3px; padding:12px 6px;
+    background:rgba(255,255,255,.10); }
+.ik-hero .ik-sutun:first-child { border-radius:16px 0 0 16px; } .ik-hero .ik-sutun:last-child { border-radius:0 16px 16px 0; }
+.ik-hero .ik-sutun + .ik-sutun { border-left:1px solid rgba(255,255,255,.18); }
+.ik-hero .ik-sutun i { font-size:15px; opacity:.85; }
+.ik-hero .ik-sutun b { font-size:20px; font-weight:900; line-height:1.15; white-space:nowrap; }
+.ik-hero .ik-sutun small { font-size:12px; opacity:.85; line-height:1.2; }
+.ik-hero-gorsel { width:38%; flex-shrink:0; border-radius:0 24px 24px 0; background-size:cover; background-position:center;
+    -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 32%); mask-image:linear-gradient(90deg,transparent 0,#000 32%); }
+@media (max-width:600px) {
+    .ik-hero-sol { padding:18px 16px; }
+    .ik-hero .ik-toplam { font-size:38px; }
+    .ik-hero-gorsel { position:absolute; right:0; top:0; height:62%; width:46%; opacity:.55; border-radius:0 24px 0 0;
+        -webkit-mask-image:linear-gradient(225deg,#000 20%,transparent 75%); mask-image:linear-gradient(225deg,#000 20%,transparent 75%); }
+    .ik-hero .ik-sutun b { font-size:16px; } .ik-hero .ik-sutun small { font-size:11px; }
+}
 .ik-liste-bas { display:flex; align-items:center; gap:10px; margin:6px 2px 12px; }
 .ik-liste-bas h3 { flex:1; margin:0; font-size:16px; font-weight:800; color:#2E1065; }
 .ik-kartlar { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px; }
@@ -82,18 +101,24 @@
 
         <div class="ik-ust-izgara">
         <div class="ik-hero">
-            <div class="ik-p ik-donem ik-menu">
-                <span class="ik-menu-ac" id="ik-donem-yazi">Son 30 Gün</span> <i class="fa fa-chevron-down ik-menu-ac" style="font-size:11px"></i>
-                <div class="ik-menu-liste" id="ik-donem-liste"></div>
+            <div class="ik-hero-sol">
+                <div class="ik-hero-bas">
+                    <span class="ik-hero-ikon"><i class="fa fa-bar-chart"></i></span>
+                    <h2>Toplam Kazancınız</h2>
+                    <div class="ik-menu">
+                        <span class="ik-donem ik-menu-ac"><span id="ik-donem-yazi">Son 30 Gün</span> <i class="fa fa-chevron-down" style="font-size:10px"></i></span>
+                        <div class="ik-menu-liste" id="ik-donem-liste"></div>
+                    </div>
+                </div>
+                <div class="ik-toplam"><span class="ik-sayi" id="ik-toplam">…</span><small>TL</small></div>
+                <div class="ik-artis" id="ik-artis"></div>
+                <div class="ik-hero-sutunlar">
+                    <div class="ik-sutun"><i class="fa fa-users"></i><b class="ik-sayi" id="ik-kullanim">…</b><small>Kampanya Kullanımı</small></div>
+                    <div class="ik-sutun"><i class="fa fa-money"></i><b class="ik-sayi" id="ik-ek">…</b><small>Ek Kazanç</small></div>
+                    <div class="ik-sutun"><i class="fa fa-star"></i><b class="ik-sayi" id="ik-oran">…</b><small>Kullanım Oranı</small></div>
+                </div>
             </div>
-            <div class="ik-p ik-toplam"><span class="ik-sayi" id="ik-toplam">…</span><small>TL</small></div>
-            <div class="ik-p ik-artis" id="ik-artis"></div>
-            <div class="ik-p ik-sutun" style="left:11%;width:17.6%"><i class="fa fa-users"></i><b class="ik-sayi" id="ik-kullanim">…</b><small>Kampanya
-Kullanımı</small></div>
-            <div class="ik-p ik-sutun" style="left:31%;width:16.4%"><i class="fa fa-money"></i><b class="ik-sayi" id="ik-ek">…</b><small>Ek
-Kazanç</small></div>
-            <div class="ik-p ik-sutun" style="left:49.5%;width:14.9%"><i class="fa fa-star"></i><b class="ik-sayi" id="ik-oran">…</b><small>Kullanım
-Oranı</small></div>
+            <div class="ik-hero-gorsel" style="background-image:url('{{ secure_asset('public/img/ikram/ikram_hediye_kutu.png') }}')"></div>
         </div>
 
         <div class="ik-yan">
