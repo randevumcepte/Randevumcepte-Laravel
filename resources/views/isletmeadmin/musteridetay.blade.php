@@ -634,110 +634,15 @@
             </div>
             @if((int)($isletme->uyelik_turu ?? 0) === 3)
             <div class="tab-pane fade" id="arama_gecmisi" role="tabpanel">
-               @include('isletmeadmin.partials.cagri_kayit_stil')
-               <div class="ck-wrap" style="padding-top:6px;">
-                  <div class="ck-ozet c5">
-                     <div class="ck-oz t-gri"><div class="n" id="ma_gorusme">0</div><div class="t"><span class="dot"></span> Toplam Görüşme</div></div>
-                     <div class="ck-oz t-mor"><div class="n" id="ma_kayitli">0</div><div class="t"><span class="dot"></span> Ses Kayıtlı</div></div>
-                     <div class="ck-oz t-mor" style="--acc:#e07a1a;"><div class="n" id="ma_bekleyen">0</div><div class="t"><span class="dot"></span> Bekleyen Arama Randevusu</div></div>
-                     <div class="ck-oz t-yesil"><div class="n" id="ma_gelen">0</div><div class="t"><span class="dot"></span> Gelen</div></div>
-                     <div class="ck-oz t-mavi"><div class="n" id="ma_giden">0</div><div class="t"><span class="dot"></span> Giden</div></div>
-                  </div>
-                  <div id="ma_randevular"></div>
-                  <div class="ck-grid">
-                     <div class="ck-panel">
-                        <div class="ck-ara"><i class="fa fa-search"></i><input type="text" id="ma_ara" placeholder="Not, sonuç veya personel ara..."></div>
-                        <div class="ck-liste" id="ma_liste"><div class="ck-bos" style="padding:40px;"><i class="fa fa-spinner fa-spin"></i></div></div>
-                     </div>
-                     <div class="ck-panel">
-                        <div class="ck-detay" id="ma_detay">
-                           <div class="ck-bos"><i class="fa fa-headphones"></i><div>Soldan bir görüşme seçin.</div></div>
-                        </div>
-                     </div>
-                  </div>
-               </div>
+               @include('isletmeadmin.partials.arama_gecmisi')
+               <div class="agp-kok" id="ma_kok"></div>
                <script>
                (function(){
-                  var maUser = {{ (int) $musteri_bilgi->id }};
-                  var maVeri = [], maSecili = null, maYuklendi = false;
-                  function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-                  function sure(sn){ sn=parseInt(sn)||0; if(sn<=0) return ''; if(sn<60) return sn+' sn'; var d=Math.floor(sn/60), s=sn%60; return d+' dk'+(s?(' '+s+' sn'):''); }
-                  // Sonuc kodu -> renk (aranacakDurumMetin ile ayni kodlar)
-                  function renk(k){
-                     if(k.tip==='cagri') return k.yon==='gelen' ? {bl:'bl-yesil',b:'b-yesil',et:'↙ Gelen'} : {bl:'bl-mavi',b:'b-mavi',et:'↗ Giden'};
-                     var c=k.sonuc_kod;
-                     if(c===4||c===1||c===8) return {bl:'bl-yesil',b:'b-yesil',et:k.sonuc};
-                     if(c===7) return {bl:'bl-altin',b:'b-altin',et:k.sonuc};
-                     if(c===3||c===6) return {bl:'bl-turuncu',b:'b-turuncu',et:k.sonuc};
-                     if(c===0||c===2||c===5||c===9) return {bl:'bl-kirmizi',b:'b-kirmizi',et:k.sonuc};
-                     return {bl:'',b:'b-gri',et:k.sonuc||'—'};
-                  }
-                  function baslik(k){ return k.personel || (k.tip==='cagri' ? 'Santral çağrısı' : 'Görüşme'); }
-                  function randevuCiz(r){
-                     if(!r.length){ $('#ma_randevular').html(''); return; }
-                     var et={bekliyor:['b-turuncu','Bekliyor'],gecikti:['b-kirmizi','Gecikti'],tamamlandi:['b-yesil','Arandı']};
-                     var h='<div class="ck-ar-bas"><i class="fa fa-calendar-check-o"></i> Arama Randevuları ('+r.length+')</div><div class="ck-ar-liste">';
-                     r.forEach(function(x){
-                        var e=et[x.durum]||['b-gri',x.durum];
-                        h+='<div class="ck-ar-kart d-'+esc(x.durum)+'"><div style="display:flex;align-items:center;gap:8px;">'
-                          +'<div class="zm">'+esc(x.tarih)+' '+esc(x.saat)+'</div><span class="ck-badge '+e[0]+'" style="margin-left:auto;">'+e[1]+'</span></div>'
-                          +(x.personel?'<div class="al"><i class="fa fa-user"></i> '+esc(x.personel)+'</div>':'')
-                          +(x.liste?'<div class="al"><i class="fa fa-list"></i> '+esc(x.liste)+'</div>':'')
-                          +(x.aranan?'<div class="al"><i class="fa fa-check"></i> Arandı: '+esc(x.aranan)+'</div>':'')
-                          +'</div>';
-                     });
-                     $('#ma_randevular').html(h+'</div>');
-                  }
-                  function listeCiz(){
-                     var ara=($('#ma_ara').val()||'').toLocaleLowerCase('tr');
-                     var v=maVeri.filter(function(k){ return !ara || (k.not+' '+k.sonuc+' '+k.personel+' '+k.kategori+' '+k.tarih).toLocaleLowerCase('tr').indexOf(ara)>=0; });
-                     if(!v.length){ $('#ma_liste').html('<div class="ck-bos" style="padding:40px;"><i class="fa fa-inbox"></i><div>Görüşme kaydı yok.</div></div>'); return; }
-                     var h='';
-                     v.forEach(function(k){
-                        var r=renk(k), bas=baslik(k);
-                        h+='<div class="ck-item'+(maSecili===k.id?' aktif':'')+'" data-id="'+k.id+'">'
-                          +'<div class="ck-av">'+(k.tip==='cagri'?'<i class="fa fa-phone"></i>':esc(bas.trim().charAt(0).toLocaleUpperCase('tr')))+'</div>'
-                          +'<div class="bil"><div class="ad">'+esc(bas)+'</div><div class="alt">'+esc(k.not||k.kategori||(sure(k.sure_sn)||'—'))+'</div></div>'
-                          +'<div class="sag"><div class="zmn">'+esc(k.tarih)+'</div><span class="ck-badge '+r.b+'">'+esc(r.et)+'</span>'
-                          +(k.ses?' <i class="fa fa-microphone" style="color:#7c3aed;margin-left:3px;" title="Ses kaydı var"></i>':'')
-                          +'</div></div>';
-                     });
-                     $('#ma_liste').html(h);
-                  }
-                  function detayCiz(k){
-                     var r=renk(k), bas=baslik(k);
-                     var html='<div class="ck-d-bas"><div class="ck-d-av">'+(k.tip==='cagri'?'<i class="fa fa-phone"></i>':esc(bas.trim().charAt(0).toLocaleUpperCase('tr')))+'</div>'
-                        +'<div><div class="ck-d-ad">'+esc(bas)+'</div><div class="ck-d-tel">'+(k.tip==='cagri'?'Santral çağrısı (not girilmemiş)':'Görüşme notu')+'</div></div></div>'
-                        +'<div class="ck-d-satir"><div class="ck-d-chip"><span class="ck-badge '+r.b+'">'+esc(r.et)+'</span></div>'
-                        +(k.tip==='cagri'?'<div class="ck-d-chip">'+esc(k.sonuc)+'</div>':(k.yon?'<div class="ck-d-chip">'+(k.yon==='gelen'?'↙ Gelen':'↗ Giden')+'</div>':''))
-                        +'<div class="ck-d-chip">🕒 <b>'+esc(k.tarih)+'</b></div>'
-                        +(sure(k.sure_sn)?'<div class="ck-d-chip">⏱️ Süre: <b>'+sure(k.sure_sn)+'</b></div>':'')
-                        +(k.randevu?'<div class="ck-d-chip">📅 Arama randevusu: <b>'+esc(k.randevu)+'</b></div>':'')
-                        +(k.satis!==null&&k.satis!==undefined?'<div class="ck-d-chip">💰 Satış: <b>'+Number(k.satis).toLocaleString('tr-TR',{minimumFractionDigits:2})+' ₺</b></div>':'')
-                        +(k.kategori?'<div class="ck-d-chip">🏷️ <b>'+esc(k.kategori)+'</b></div>':'')
-                        +'</div>'
-                        +(k.ses?'<div class="ck-d-audio"><audio controls preload="none" src="'+esc(k.ses)+'"></audio></div>':'<div class="ck-d-audio"><span class="yok">🎙️ Bu görüşme için ses kaydı yok.</span></div>')
-                        +(k.not?'<div class="ck-d-not"><span class="lbl">GÖRÜŞME NOTU</span>'+esc(k.not)+'</div>':'');
-                     $('#ma_detay').html(html);
-                  }
-                  $(document).on('click','#ma_liste .ck-item',function(){
-                     var id=$(this).data('id'); maSecili=id;
-                     $('#ma_liste .ck-item').removeClass('aktif'); $(this).addClass('aktif');
-                     var k=maVeri.find(function(x){ return String(x.id)===String(id); }); if(k) detayCiz(k);
-                  });
-                  $(document).on('input','#ma_ara',listeCiz);
+                  var maUser = {{ (int) $musteri_bilgi->id }}, maYuklendi = false;
                   $(document).on('shown.bs.tab','a[href="#arama_gecmisi"]',function(){ window.maYukle(); });
                   window.maYukle=function(zorla){
                      if(maYuklendi && !zorla) return; maYuklendi=true;
-                     $.get('/isletmeyonetim/musteri-arama-gecmisi',{user_id:maUser,sube:$('input[name="sube"]').val()},function(res){
-                        maVeri=(res&&res.gecmis)?res.gecmis:[];
-                        var o=(res&&res.ozet)?res.ozet:{};
-                        $('#ma_gorusme').text(maVeri.length); $('#ma_kayitli').text(o.kayitli||0); $('#ma_bekleyen').text(o.bekleyen||0);
-                        $('#ma_gelen').text(o.gelen||0); $('#ma_giden').text(o.giden||0);
-                        randevuCiz((res&&res.randevular)?res.randevular:[]);
-                        listeCiz();
-                        if(maVeri.length){ $('#ma_liste .ck-item').first().trigger('click'); }
-                     }).fail(function(){ maYuklendi=false; $('#ma_liste').html('<div class="ck-bos" style="padding:40px;"><i class="fa fa-exclamation-triangle"></i><div>Yüklenemedi.</div></div>'); });
+                     window.AramaGecmisi.yukle($('#ma_kok'), maUser).fail(function(){ maYuklendi=false; });
                   };
                })();
                </script>

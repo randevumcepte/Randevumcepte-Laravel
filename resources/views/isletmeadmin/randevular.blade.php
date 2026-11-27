@@ -851,4 +851,7 @@
 })();
 </script>
 
+@if((int) ($isletme->uyelik_turu ?? 0) === 3)
+@include('isletmeadmin.partials.arama_gecmisi')
+@endif
 @endsection

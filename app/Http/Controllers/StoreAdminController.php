@@ -4181,6 +4181,9 @@ public function carkverilerigetir(Request $request)
         }
     }
 
+    // Arama Gecmisi butonu: yalniz cagri merkezi paketi (uyelik_turu 3) — veri o pakette var
+    $_aramaGecmisiVar = (int) optional($_waSalonRaw)->uyelik_turu === 3;
+
     // Durum renkleri: isletme ayari, yoksa sabit renkler (RandevuDurumRenk)
     $durumZemin = \App\Services\RandevuDurumRenk::zeminler($isletmeId);
     $durumYazi  = \App\Services\RandevuDurumRenk::yazilar($isletmeId);
@@ -4356,7 +4359,7 @@ public function carkverilerigetir(Request $request)
     }
 
     $randevu_hizmetler = $randevu_hizmetler_raw
-    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$_anketYetki,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$tekRenk,$yaziRengi,$durumZemin,$durumYazi,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet,$paketDurumuByRandevu,$paketHizmetIdsByRandevu) {
+    ->map(function ($rh) use($takvim_turu,$isletmeId,$rol,$_waBagli,$_anketYetki,$kategoriRenkMap,$cihazRenkMap,$odaRenkMap,$tekRenk,$yaziRengi,$durumZemin,$durumYazi,$_aramaGecmisiVar,$seanslarByRandevu,$adisyonPaketMap,$adisyonHizmetMap,$randevuIdsHasSeans,$randevuIdsHasAdisyonHizmet,$paketDurumuByRandevu,$paketHizmetIdsByRandevu) {
 
         $start = Carbon::parse($rh->randevu->tarih . ' ' . $rh->saat)->toIso8601String();
 
@@ -4497,6 +4500,12 @@ public function carkverilerigetir(Request $request)
                 $duzenleButon .= '<a href="#" class="btn btn-sm rd-gecmis-btn" title="Randevu Geçmişi" style="background:#6d28d9;color:#fff;"'
                     .' data-userid="'.($rh->randevu->user_id ?? '').'"'
                     .' data-ad="'.htmlspecialchars($rh->randevu->users->name ?? 'Müşteri', ENT_QUOTES).'"><i class="fa fa-history"></i></a>';
+                // ARAMA GECMISI butonu — arama randevulari + cagri kayitlari popup'i (partials/arama_gecmisi)
+                if($_aramaGecmisiVar){
+                    $duzenleButon .= '<a href="#" class="btn btn-sm rd-arama-gecmisi-btn" title="Arama Geçmişi" style="background:#0e7490;color:#fff;"'
+                        .' data-userid="'.($rh->randevu->user_id ?? '').'"'
+                        .' data-ad="'.htmlspecialchars($rh->randevu->users->name ?? 'Müşteri', ENT_QUOTES).'"><i class="fa fa-phone-square"></i></a>';
+                }
             }
 
             if($seansVar->count() > 0){
@@ -18390,6 +18399,7 @@ DB::raw('
             'katilimYetki'            => self::randevuKatilimYetkiVar($request),
             'tasimaYetki'             => \App\Services\PersonelYetkiServisi::yetkiliYetkiVar($authUser->id, $salonId, 'randevu.duzenle_iptal'),
             'aramaAktif'              => $aramaAktif,
+            'aramaGecmisiVar'         => (int) $isletme->uyelik_turu === 3,
             'aramaYalnizPersonel'     => $aramaYalnizPersonel,
             'personeller'             => $personeller,
             'durumRenkleri'           => array_map(function ($r) { return $r['bg']; }, \App\Services\RandevuDurumRenk::harita($salonId)),

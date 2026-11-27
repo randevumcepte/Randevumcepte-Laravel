@@ -106,7 +106,11 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 /* --- Detay penceresi --- */
 #ogt_detay .modal-dialog{ max-width:500px; }
 #ogt_detay .modal-content{ border:0; border-radius:14px; overflow:hidden; }
-#ogt_detay .ogt-d-bas{ background:#fff; border-bottom:1px solid #ece6f3; padding:15px 46px 13px 18px; position:relative; }
+#ogt_detay .ogt-d-bas{ background:#fff; border-bottom:1px solid #ece6f3; padding:15px 46px 13px 18px; position:relative; display:flex; align-items:flex-start; gap:10px; }
+#ogt_detay .ogt-d-bas .ad{ flex:1; min-width:0; }
+.ogt-d-ust{ display:flex; gap:6px; flex-shrink:0; }
+.ogt-d-ust a{ width:32px; height:30px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; color:#fff !important; font-size:14px; }
+.ogt-d-ust a:hover{ filter:brightness(.92); }
 #ogt_detay .ogt-d-bas h2{ margin:0; font-size:17px; font-weight:700; color:#5C008E; }
 #ogt_detay .ogt-d-bas .kapat{ position:absolute; right:10px; top:10px; width:30px; height:30px; border:0; background:transparent; border-radius:7px; font-size:22px; line-height:1; color:#6b7280; cursor:pointer; }
 #ogt_detay .ogt-d-bas .kapat:hover{ background:#f3eefa; }
@@ -202,8 +206,10 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
    <div class="modal-dialog modal-dialog-centered" role="document">
       <div class="modal-content">
          <div class="ogt-d-bas">
-            <h2 id="ogt_d_ad"></h2>
-            <span id="ogt_d_durum"></span>
+            <div class="ad"><h2 id="ogt_d_ad"></h2>
+            <span id="ogt_d_durum"></span></div>
+            {{-- Randevu takvimindeki detay ile ayni: Randevu Gecmisi (custom.js .rd-gecmis-btn) + Arama Gecmisi --}}
+            <div class="ogt-d-ust" id="ogt_d_ust"></div>
             <button type="button" class="kapat" data-dismiss="modal" aria-label="Kapat">&times;</button>
          </div>
          <div class="modal-body"><dl class="ogt-d-tablo" id="ogt_d_bilgi"></dl></div>
@@ -216,6 +222,10 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 {{-- custom.js'teki delege handler'i (a[name="ongorusme_duzenle"]) tetiklemek icin gizli baglanti --}}
 <a href="#" name="ongorusme_duzenle" id="ogt_duzenle_tetik" data-value="" style="display:none" aria-hidden="true" tabindex="-1"></a>
 
+@if($aramaGecmisiVar)
+@include('isletmeadmin.partials.arama_gecmisi')
+@endif
+
 @if($aramaAktif)
 {{-- Arama randevusu yalniz KAYDIN detayindan olusturulur; takvimde sadece on gorusmeler gosterilir. --}}
 @include('isletmeadmin.partials.arama_randevu_ekle')
@@ -225,6 +235,7 @@ body.ogt-boy, body.ogt-boy *{ cursor:ns-resize !important; user-select:none !imp
 $(document).ready(function(){
    var SUBE = {{ (int) $isletme->id }};
    var YETKI = {{ $ekleDuzenleYetki ? 'true' : 'false' }};
+   var ARAMA_GECMISI = {{ $aramaGecmisiVar ? 'true' : 'false' }};
    var ARAMA = {{ $aramaAktif ? 'true' : 'false' }}, KATILIM = {{ $katilimYetki ? 'true' : 'false' }};
    var PERSONELLER = {!! json_encode($_ogtPersoneller, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!};
    var CALISMA = {!! json_encode((object) $calismaSaatleri, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}; // 1=Pzt .. 7=Paz
@@ -443,6 +454,9 @@ $(document).ready(function(){
       if (!o) return;
       detayOlay = o;
       $('#ogt_d_ad').text(o.musteri);
+      $('#ogt_d_ust').html(o.user_id ?
+         '<a href="#" class="rd-gecmis-btn" title="Randevu Geçmişi" aria-label="Randevu Geçmişi" style="background:#6d28d9" data-userid="'+esc(o.user_id)+'" data-ad="'+esc(o.musteri)+'"><i class="fa fa-history"></i></a>'+
+         (ARAMA_GECMISI ? '<a href="#" class="rd-arama-gecmisi-btn" title="Arama Geçmişi" aria-label="Arama Geçmişi" style="background:#0e7490" data-userid="'+esc(o.user_id)+'" data-ad="'+esc(o.musteri)+'"><i class="fa fa-phone-square"></i></a>' : '') : '');
       $('#ogt_d_durum').attr('class','ogt-e ogt-rozet '+o.kat).attr('style', stil(o)).text(DURUM_AD[o.kat]+(o.satis ? ' · '+SATIS_AD[o.satis] : ''));
       var satir = o.kat === 'ertelendi' ? [
          ['Eski tarih', uzun(o.tarih)+(o.saat ? ', '+o.saat : '')],
