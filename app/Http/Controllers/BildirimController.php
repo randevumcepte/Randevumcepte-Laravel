@@ -164,31 +164,29 @@ class BildirimController extends Controller
                 // farkli Firebase projesine ait bir token olabilir. HEMEN sil ki bir dahaki
                 // Job/cron tetiklenmesinde ayni 404 tekrarlanmasin, log yigilmasin.
                 // NotificationService::send()'deki ayni pattern seti.
+                // NotificationService ile ayni kural: yalniz Google "kayit gecersiz" derse sil.
+                // Yanlis proje (SENDER_ID_MISMATCH) / APNs / yetki hatasinda cihaz kaydi KORUNUR.
                 $msg = $e->getMessage();
-                $invalidPatterns = [
-                    'UNREGISTERED',
-                    'NOT_FOUND',
-                    'INVALID_ARGUMENT',
-                    'registration-token-not-registered',
-                    'invalid-registration-token',
-                    'not a valid FCM registration token',
-                    'not a valid registration token',
-                    'SENDER_ID_MISMATCH',
-                ];
-                foreach ($invalidPatterns as $p) {
-                    if (stripos($msg, $p) !== false) {
-                        try {
-                            $silinen = BildirimKimlikleri::where('bildirim_id', $deviceToken)->delete();
-                            Log::info('bildirimGonder gecersiz token silindi', [
-                                'pattern' => $p,
-                                'token_prefix' => substr((string)$deviceToken, 0, 20),
-                                'silinen' => $silinen,
-                            ]);
-                        } catch (\Throwable $delErr) {
-                            Log::warning('bildirimGonder token silme hatasi: ' . $delErr->getMessage());
-                        }
-                        return null; // Job zincirini kirmadan sessizce cik
+                $govde = ($e instanceof \GuzzleHttp\Exception\RequestException && $e->getResponse())
+                    ? (string) $e->getResponse()->getBody() : '';
+                $tur = \App\Services\NotificationService::hataTuru($msg . ' ' . $govde);
+                if ($tur === 'token') {
+                    try {
+                        $silinen = BildirimKimlikleri::where('bildirim_id', $deviceToken)->delete();
+                        Log::info('bildirimGonder gecersiz token silindi', [
+                            'token_prefix' => substr((string)$deviceToken, 0, 20),
+                            'silinen' => $silinen,
+                        ]);
+                    } catch (\Throwable $delErr) {
+                        Log::warning('bildirimGonder token silme hatasi: ' . $delErr->getMessage());
                     }
+                    return null; // Job zincirini kirmadan sessizce cik
+                }
+                if ($tur === 'ayar') {
+                    Log::error('[PUSH] bildirimGonder FIREBASE AYAR HATASI (cihaz kaydi korundu)', [
+                        'proje_dosyasi' => $firebaseJsonFile, 'salon_id' => $salonId, 'hata' => mb_substr($govde !== '' ? $govde : $msg, 0, 300),
+                    ]);
+                    return null;
                 }
                 throw $e;
             }

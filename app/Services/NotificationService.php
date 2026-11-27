@@ -268,42 +268,26 @@ class NotificationService
                     'token_id' => $row->id,
                     'err'      => $msg,
                 ]);
-                // FCM "token gecersiz" hatalari: kademeli yerine HEMEN sil
-                // FCM v1 HTTP API 400 Bad Request govdesinde "not a valid FCM
-                // registration token" mesajini donuyor (INVALID_ARGUMENT olmadan).
-                // Bu mesaji da patterns'a ekledik yoksa satir silinmez, her push
-                // ayni 400'i tekrarlar (2026-07-29 salooncadde salon 246 sorunu).
-                $invalidPatterns = [
-                    'UNREGISTERED',
-                    'NOT_FOUND',
-                    'INVALID_ARGUMENT',
-                    'registration-token-not-registered',
-                    'invalid-registration-token',
-                    'not a valid FCM registration token',
-                    'not a valid registration token',
-                    'SENDER_ID_MISMATCH',
-                ];
-                $invalid = false;
-                foreach ($invalidPatterns as $p) {
-                    if (stripos($msg, $p) !== false) { $invalid = true; break; }
-                }
-                // Firebase PROJE ayar hatalari (APNs anahtari yok/gecersiz, yetki): token saglam,
-                // sorun Console'da. Bunlari token hatasi sayip pasiflestirirsek anahtar yuklendikten
-                // sonra da o iPhone'lara hic denenmez (2026-11-19 Ola Nail).
-                $ayarHatasi = false;
-                foreach (['THIRD_PARTY_AUTH_ERROR', 'InvalidApnsCredential', 'Invalid APNs credential', 'APNS_AUTH_ERROR'] as $p) {
-                    if (stripos($msg . ' ' . $govde, $p) !== false) { $ayarHatasi = true; break; }
-                }
-                if ($ayarHatasi) {
-                    // sayaci artirma, aktif kalsin
-                } elseif ($invalid) {
-                    BildirimKimlikleri::where('id', $row->id)->delete();
-                } else {
-                    $errCount = ($row->gonderim_hatalari ?? 0) + 1;
-                    BildirimKimlikleri::where('id', $row->id)->update([
-                        'gonderim_hatalari' => $errCount,
-                        'aktif'             => $errCount < 5,
-                    ]);
+                switch (self::hataTuru($msg . ' ' . $govde)) {
+                    case 'token':
+                        // Google "bu cihaz kaydi artik gecersiz" dedi (uygulama silindi / token yenilendi)
+                        BildirimKimlikleri::where('id', $row->id)->delete();
+                        break;
+                    case 'ayar':
+                        // Yanlis proje / APNs anahtari / yetki: token SAGLAM, sorun bizde. Asla silme;
+                        // teshis icin kaydet (php artisan push:teshis gosterir).
+                        self::ayarHatasiKaydet($this->salonId, $this->firebaseJsonFile, $govde !== '' ? $govde : $msg, $row);
+                        break;
+                    case 'gecici':
+                    case 'icerik':
+                        // Google gecici hata / bildirim icerigi hatasi: cihazla ilgisi yok, dokunma
+                        break;
+                    default:
+                        $errCount = ($row->gonderim_hatalari ?? 0) + 1;
+                        BildirimKimlikleri::where('id', $row->id)->update([
+                            'gonderim_hatalari' => $errCount,
+                            'aktif'             => $errCount < 5,
+                        ]);
                 }
             }
         }
@@ -311,6 +295,50 @@ class NotificationService
         $this->logToDb($deepLink);
 
         return ['sent' => $sent, 'failed' => $failed, 'total' => count($tokens), 'hatalar' => $hatalar];
+    }
+
+    /**
+     * FCM hata cevabini siniflandirir (Firebase'in onerisi):
+     *   token  : UNREGISTERED / gecersiz kayit metni -> cihaz kaydi silinir
+     *   ayar   : SENDER_ID_MISMATCH (yanlis proje), APNs anahtari, yetki -> token SILINMEZ
+     *   gecici : 429 / 5xx / zaman asimi -> dokunulmaz
+     *   icerik : INVALID_ARGUMENT ama token'dan bahsetmiyor (bildirim govdesi hatali) -> dokunulmaz
+     *   diger  : hata sayaci artar (5 ardisik hatada pasif)
+     * Eskiden SENDER_ID_MISMATCH ve tum INVALID_ARGUMENT'ler cihazi siliyordu: yanlis projeyle
+     * gonderen tek bir is, o markanin personelinin cihaz kayitlarini sessizce siliyordu.
+     */
+    public static function hataTuru(string $metin): string
+    {
+        foreach (['SENDER_ID_MISMATCH', 'THIRD_PARTY_AUTH_ERROR', 'THIRD_PARTY_PERMISSION_DENIED', 'InvalidApnsCredential',
+                  'Invalid APNs credential', 'APNS_AUTH_ERROR', 'PERMISSION_DENIED', 'UNAUTHENTICATED'] as $p) {
+            if (stripos($metin, $p) !== false) return 'ayar';
+        }
+        foreach (['UNREGISTERED', 'registration-token-not-registered', 'invalid-registration-token',
+                  'not a valid FCM registration token', 'not a valid registration token'] as $p) {
+            if (stripos($metin, $p) !== false) return 'token';
+        }
+        foreach (['QUOTA_EXCEEDED', 'UNAVAILABLE', 'INTERNAL', 'RESOURCE_EXHAUSTED', 'cURL error', 'timed out',
+                  'Connection refused', 'Could not resolve', 'FCM HTTP 5', ' 500 ', ' 502 ', ' 503 ', ' 504 ', ' 429 '] as $p) {
+            if (stripos($metin, $p) !== false) return 'gecici';
+        }
+        if (stripos($metin, 'INVALID_ARGUMENT') !== false) return 'icerik';
+        return 'diger';
+    }
+
+    /** Ayar hatasini loglar ve teshis icin saklar (salon basina son hata, 7 gun). */
+    private static function ayarHatasiKaydet($salonId, $dosya, string $metin, $row): void
+    {
+        Log::error('[PUSH] FIREBASE AYAR HATASI (cihaz kaydi korundu)', [
+            'salon_id' => $salonId, 'proje_dosyasi' => $dosya, 'token_id' => $row->id ?? null,
+            'app_bundle' => $row->app_bundle ?? null, 'platform' => $row->platform ?? null, 'hata' => mb_substr($metin, 0, 300),
+        ]);
+        try {
+            \Illuminate\Support\Facades\Cache::put('push_ayar_hatasi:' . ((int) $salonId), [
+                'zaman' => date('Y-m-d H:i:s'), 'proje_dosyasi' => $dosya, 'app_bundle' => $row->app_bundle ?? null,
+                'platform' => $row->platform ?? null, 'hata' => mb_substr($metin, 0, 300),
+            ], 60 * 24 * 7); // L5.6: dakika
+        } catch (\Throwable $e) {
+        }
     }
 
     /**
@@ -482,6 +510,10 @@ class NotificationService
         if ($this->imageUrl) {
             $apns['fcm_options'] = ['image' => $this->imageUrl];
         }
+        // Ayni randevunun bildirimleri telefonda birikmesin: yenisi eskisinin yerine gecer
+        // (olusturuldu -> saati degisti -> hatirlatma). Android 'tag', iOS 'apns-collapse-id'.
+        $birlestir = $this->randevuId ? 'randevu_' . (int) $this->randevuId : null;
+        if ($birlestir) $apns['headers']['apns-collapse-id'] = $birlestir;
 
         // Web Push (FCM Web SDK) bloku.
         // Tarayici tokenlari icin webpush.notification kullanilir; aksi halde
@@ -521,6 +553,7 @@ class NotificationService
                     'priority' => $highPriority ? 'HIGH' : 'NORMAL',
                     'notification' => array_filter([
                         'channel_id' => $this->androidChannel(),
+                        'tag'        => $birlestir,
                         'image'      => $this->imageUrl,
                         // Android: res/raw/ring.mp3 -> uzantisiz 'ring'.
                         // Android 8+ kanal sesini kullanir; bu alan eski surumler icin.

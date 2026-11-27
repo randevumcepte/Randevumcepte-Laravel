@@ -366,7 +366,7 @@ class CustomerController extends Controller
                 ->pluck('bildirim_id')->toArray();
 
             if ($_bkPersonel['push'] || $_bkYonetici['push']) {
-                self::bildirimgonder($bildirimkimlikleri,$mesaj_isletme,"Yeni Randevu",$request->salonno);
+                self::bildirimgonder($bildirimkimlikleri,$mesaj_isletme,"Yeni Randevu",$request->salonno,$randevu->id);
             }
             
 
@@ -403,14 +403,17 @@ class CustomerController extends Controller
         $bildirim->randevu_id = $randevuid;
         $bildirim->save();
     }
-    public function bildirimgonder($bildirimkimlikleri, $mesaj, $baslik, $salonId = null)
+    public function bildirimgonder($bildirimkimlikleri, $mesaj, $baslik, $salonId = null, $randevuId = null)
     {
         if (empty($bildirimkimlikleri)) return null;
         try {
             // $salonId gecince NotificationService findTokens raw mod'unda
             // app_bundle filtresi devreye girer -> brand izolasyonu tam saglanir.
-            return \App\Services\NotificationService::forTokens((array) $bildirimkimlikleri, $salonId !== null ? (int) $salonId : null)
-                ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+            $ns = \App\Services\NotificationService::forTokens((array) $bildirimkimlikleri, $salonId !== null ? (int) $salonId : null);
+            // Randevu numarasi verildiyse: tiklaninca o randevu acilir
+            if ($randevuId) $ns->randevu((int) $randevuId)->deepLink('appointment_detail', ['randevu_id' => (int) $randevuId]);
+            return $ns
+                ->type($randevuId ? \App\Services\NotificationTypes::APPOINTMENT_CREATED : \App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
                 ->title((string) $baslik)
                 ->body((string) $mesaj)
                 ->send();

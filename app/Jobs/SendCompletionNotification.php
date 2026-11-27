@@ -9,8 +9,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use App\Personeller;
-use App\BildirimKimlikleri;
-use App\Http\Controllers\BildirimController;
 
 /**
  * Reklam (kampanya) aramalari kuyruga eklendikten sonra salon yoneticilerine
@@ -45,50 +43,28 @@ class SendCompletionNotification implements ShouldQueue
             return;
         }
 
+        // NotificationService: salonun KENDI Firebase projesiyle (firebase_profile) ve gorunur bildirim
+        // olarak gider. Eskiden sabit 'uygulamalar' projesiyle yalniz-veri gonderiliyordu: baska projedeki
+        // markalarda FCM SENDER_ID_MISMATCH donup personelin cihaz kaydi siliniyordu, arka planda da
+        // bildirim ekranda hic gorunmuyordu.
         $personelIdler = Personeller::where('salon_id', $this->salonId)->pluck('id')->toArray();
-        // Brand izolasyonu: aynı personel farklı brand build'inde de kayıtlıysa
-        // sadece $this->salonId'in app_bundle'ini yuklu cihazlarina gonder.
-        $tokenlar = BildirimKimlikleri::whereIn('isletme_yetkili_id', $personelIdler)
-            ->forBrand($this->salonId)
-            ->whereNotNull('bildirim_id')
-            ->get();
-
-        $bildirim = app(BildirimController::class);
-
-        foreach ($tokenlar as $token) {
-            $data = [
-                'category' => 'reklam',
-                'buttons' => json_encode([]),
-                'userInfo' => '',
-                'salonId' => $this->salonId,
-                'bildirimlereGitYonetici' => '1',
-                'kullaniciRolu' => Personeller::where('id', $token->isletme_yetkili_id)->value('role_id'),
-            ];
-
+        $gonderilen = 0;
+        foreach ($personelIdler as $pid) {
             try {
-                $bildirim->bildirimGonder(
-                    'app/firebase/randevumcepte-uygulamalar-0d38a7fc2d78.json',
-                    $token->bildirim_id,
-                    'Reklam Kampanyasi Aramalari Tamamlandi',
-                    $this->toplamArama . ' kisiye kampanya aramasi kuyruga eklendi.',
-                    $data,
-                    $this->salonId,
-                    null,
-                    '/public/yeni_panel/vendors/images/icon.png',
-                    'kampanya',
-                    null,
-                    null,
-                    null,
-                    null
-                );
+                $r = \App\Services\NotificationService::toStaff((int) $pid, (int) $this->salonId)
+                    ->type(\App\Services\NotificationTypes::REKLAM_KAMPANYA)
+                    ->title('Reklam Kampanyası Aramaları Tamamlandı')
+                    ->body($this->toplamArama . ' kişiye kampanya araması kuyruğa eklendi.')
+                    ->extra(['kampanya_id' => (string) ($this->kampanyaId ?? '')])
+                    ->send();
+                $gonderilen += (int) ($r['sent'] ?? 0);
             } catch (\Throwable $e) {
                 Log::warning('[REKLAM-BILDIRIM] tamamlandi push fail: ' . $e->getMessage());
             }
         }
-
         Log::info('[REKLAM-BILDIRIM] tamamlandi bildirimi gonderildi', [
             'salon_id' => $this->salonId,
-            'token' => count($tokenlar),
+            'gonderilen_cihaz' => $gonderilen,
         ]);
     }
 }

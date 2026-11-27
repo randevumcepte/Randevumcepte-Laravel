@@ -112,6 +112,8 @@ class NotificationApiController extends Controller
         }
 
         $row->save();
+        // Son gorulme: her uygulama acilisinda kayit yenilenir; degisiklik yoksa save() updated_at'i guncellemez
+        if ($row->timestamps) { try { $row->touch(); } catch (\Throwable $e) {} }
 
         return response()->json(['success' => true, 'id' => $row->id]);
     }
@@ -201,6 +203,12 @@ class NotificationApiController extends Controller
         return response()->json(['success' => true, 'guncellenen' => $n]);
     }
 
+    private static function testAnahtariGecerli(Request $request): bool
+    {
+        $anahtar = (string) env('PUSH_TEST_ANAHTARI', '');
+        return $anahtar !== '' && hash_equals($anahtar, (string) $request->header('X-Push-Test', ''));
+    }
+
     /**
      * POST /api/v1/bildirim/test
      *
@@ -210,6 +218,11 @@ class NotificationApiController extends Controller
      */
     public function test(Request $request)
     {
+        // GUVENLIK: girissiz uc; herkes herkese istedigi metinle push atabiliyordu. Uygulama ve panel
+        // kullanmiyor. Yalniz sunucuda .env PUSH_TEST_ANAHTARI tanimliysa ve istek ayni anahtari
+        // X-Push-Test basligiyla gonderirse calisir; tanimli degilse kapali. Deneme icin: php artisan push:dene
+        if (!self::testAnahtariGecerli($request)) return response()->json(['success' => false, 'message' => 'Kapalı'], 403);
+
         $request->validate([
             'kullanici_tipi' => 'required|in:musteri,personel,yetkili',
             'baslik'         => 'required|string',
@@ -274,6 +287,11 @@ class NotificationApiController extends Controller
      */
     public function testCihaz(Request $request)
     {
+        // GUVENLIK: girissiz uc; herkes herkese istedigi metinle push atabiliyordu. Uygulama ve panel
+        // kullanmiyor. Yalniz sunucuda .env PUSH_TEST_ANAHTARI tanimliysa ve istek ayni anahtari
+        // X-Push-Test basligiyla gonderirse calisir; tanimli degilse kapali. Deneme icin: php artisan push:dene
+        if (!self::testAnahtariGecerli($request)) return response()->json(['success' => false, 'message' => 'Kapalı'], 403);
+
         $request->validate([
             'user_id'    => 'required|integer',
             'app_bundle' => 'required|string',

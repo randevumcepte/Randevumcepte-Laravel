@@ -118,7 +118,7 @@ class PersonelMola
         foreach (BildirimTercih::yoneticiIdleri($salonId) as $yid) {
             if ((int) $yid === (int) $p->id) continue;
             try {
-                NotificationService::toStaff((int) $yid, $salonId)->type(NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                NotificationService::toStaff((int) $yid, $salonId)->type(NotificationTypes::EKIP_TALEBI)->deepLink('ekibim', ['salon_id' => (int) $salonId])
                     ->title('Mola talebi')->body($metin . '. Onayınızı bekliyor (Profil > Ekibim).')->cevaptanSonra()->send();
             } catch (\Throwable $e) {}
         }
@@ -154,7 +154,7 @@ class PersonelMola
         self::log($salonId, $req, $onay ? 'mola_onay' : 'mola_red', $p,
             $yonetici->personel_adi . ', ' . $p->personel_adi . ' için mola talebini ' . ($onay ? 'onayladı (' . substr($bas, 11, 5) . ' – ' . substr($bit, 11, 5) . ')' : 'reddetti'));
         try {
-            NotificationService::toStaff((int) $p->id, $salonId)->type(NotificationTypes::SYSTEM_ANNOUNCEMENT)
+            NotificationService::toStaff((int) $p->id, $salonId)->type(NotificationTypes::MOLA_BILGI)
                 ->title($onay ? 'Mola onaylandı' : 'Mola reddedildi')->body($metin)->cevaptanSonra()->send();
         } catch (\Throwable $e) {}
         return true;
@@ -236,7 +236,7 @@ class PersonelMola
                 . ' (' . substr($bas, 11, 5) . ' – ' . substr($bit, 11, 5) . ')');
             if ((int) $yonetici->id !== (int) $p->id) {
                 try {
-                    NotificationService::toStaff((int) $p->id, $salonId)->type(NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                    NotificationService::toStaff((int) $p->id, $salonId)->type(NotificationTypes::MOLA_BILGI)
                         ->title('Mola')->body('Yöneticiniz size ' . substr($bit, 11, 5) . '\'e kadar mola verdi.')->cevaptanSonra()->send();
                 } catch (\Throwable $e) {}
             }

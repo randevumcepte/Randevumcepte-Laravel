@@ -98,9 +98,10 @@ class AlacakSMSHatirlatma extends Command
                     // Push: bildirim tercihi (alacak_hatirlatma / personel / push)
                     if (\App\Services\BildirimTercih::izin($salon_id, 'alacak_hatirlatma', 'yonetici', 'push')) try {
                         \App\Services\NotificationService::toStaff((int) $yetkili->id, (int) $salon_id)
-                            ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                            ->type(\App\Services\NotificationTypes::ALACAK_HATIRLATMA)
                             ->title('Alacak Hatırlatma')
                             ->body($ymesaj)
+                            ->deepLink('customer_detail', ['user_id' => (int) $tahsilat->user_id])
                             ->send();
                     } catch (\Throwable $e) {
                         Log::warning('[ALACAK-SMS] push fail', ['yetkili_id' => $yetkili->id, 'err' => $e->getMessage()]);
@@ -122,9 +123,10 @@ class AlacakSMSHatirlatma extends Command
                     // Push: bildirim tercihi (alacak_hatirlatma / personel / push)
                     if (\App\Services\BildirimTercih::izin($salon_id, 'alacak_hatirlatma', 'yonetici', 'push')) try {
                         \App\Services\NotificationService::toStaff((int) $yetkili->id, (int) $salon_id)
-                            ->type(\App\Services\NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                            ->type(\App\Services\NotificationTypes::ALACAK_HATIRLATMA)
                             ->title('Alacak Hatırlatma')
                             ->body($ymesaj)
+                            ->deepLink('customer_detail', ['user_id' => (int) $tahsilat->user_id])
                             ->send();
                     } catch (\Throwable $e) {
                         Log::warning('[ALACAK-SMS] push fail', ['yetkili_id' => $yetkili->id, 'err' => $e->getMessage()]);

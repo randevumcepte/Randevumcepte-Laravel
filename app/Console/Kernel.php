@@ -53,6 +53,7 @@ class Kernel extends ConsoleKernel
         Commands\WhatsappStuckKurtar::class,
         Commands\WhatsappTestGonder::class,
         Commands\PushTeshis::class,
+        Commands\PushDene::class,
         Commands\WhatsappSalonTeshis::class,
         Commands\WhatsappKopruDurum::class,
         Commands\WhatsAppSmsRapor::class,

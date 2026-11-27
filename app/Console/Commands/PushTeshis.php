@@ -69,21 +69,57 @@ class PushTeshis extends Command
         }
         $this->line('');
 
-        // 4) EŞLEŞME KONTROLÜ: token app_bundle'ı hiçbir salonun app_bundle'ına uymuyorsa
-        //    o cihazlara ASLA push gitmez (brand izolasyon filtresi eler).
+        // 4) EŞLEŞME KONTROLÜ. Uygulama adi (app_bundle) BOS salonlarda marka suzgeci yoktur: bu salonlarin
+        //    bildirimleri ortak uygulamadaki ve web paneldeki cihazlara da gider. Bu yuzden bir token'in
+        //    uygulama adi hicbir salonda yazmiyorsa sorun DEGILDIR (ortak uygulama / tarayici).
         $this->info('--- app_bundle EŞLEŞME KONTROLÜ ---');
-        $uyumsuz = 0;
+        $bosSalon = DB::table('salonlar')->where(function ($q) { $q->whereNull('app_bundle')->orWhere('app_bundle', ''); })->count();
         foreach ($tokBundles as $b) {
-            if (empty($b->app_bundle)) continue;
-            if (!isset($salSet[$b->app_bundle])) {
-                $this->error("  [UYUMSUZ] token app_bundle='{$b->app_bundle}' ({$b->adet} cihaz) hiçbir salonda yok -> bu cihazlara push GİTMEZ");
-                $uyumsuz += $b->adet;
-            }
+            if (empty($b->app_bundle) || isset($salSet[$b->app_bundle])) continue;
+            $this->line("  [BİLGİ] '{$b->app_bundle}' ({$b->adet} cihaz) kendi salonu yok: ortak uygulama / web paneli. "
+                . "Uygulama adı boş {$bosSalon} salonun bildirimleri bu cihazlara gider.");
         }
-        if ($uyumsuz === 0) {
-            $this->info('  [OK] Tüm token app_bundle değerleri en az bir salonla eşleşiyor.');
-        } else {
-            $this->warn("  Toplam {$uyumsuz} cihaz brand izolasyonu yüzünden eleniyor olabilir.");
+        $this->line('');
+
+        // 4b) Kendi uygulamasi tanimli ama HIC cihaz kaydi olmayan salonlar: bunlara bildirim gitmez.
+        //     Olasi nedenler: uygulama yayinda degil, kimse giris yapmadi ya da cihaz kayitlari silindi.
+        $this->info('--- Kendi uygulaması olup cihaz kaydı OLMAYAN salonlar ---');
+        $tokSet = [];
+        foreach ($tokBundles as $b) if (!empty($b->app_bundle)) $tokSet[$b->app_bundle] = (int) $b->adet;
+        $bos = 0;
+        foreach (DB::table('salonlar')->whereNotNull('app_bundle')->where('app_bundle', '!=', '')
+                     ->orderBy('id')->get(['id', 'salon_adi', 'app_bundle', 'firebase_profile']) as $sl) {
+            if (!empty($tokSet[$sl->app_bundle])) continue;
+            $bos++;
+            $silinmis = DB::table('bildirim_kimlikleri')->where('app_bundle', $sl->app_bundle)->count();
+            $this->warn(sprintf('  [CİHAZ YOK] salon %d %s (%s, profil: %s)%s', $sl->id, $sl->salon_adi, $sl->app_bundle,
+                $sl->firebase_profile ?: 'varsayılan', $silinmis ? " — {$silinmis} pasif/tokensız kayıt var" : ''));
+        }
+        if (!$bos) $this->info('  [OK] Kendi uygulaması olan her salonun en az bir cihazı kayıtlı.');
+        $this->line('');
+
+        // 4c) Son 7 gunde gorulen Firebase AYAR hatalari (yanlis proje / APNs / yetki). Bu hatalarda
+        //     cihaz kayitlari artik SILINMEZ; burada gorunur ve duzeltilmesi gerekir.
+        $this->info('--- Son Firebase ayar hataları (7 gün) ---');
+        $ayarHata = 0;
+        foreach (DB::table('salonlar')->pluck('id') as $sid) {
+            $h = \Illuminate\Support\Facades\Cache::get('push_ayar_hatasi:' . (int) $sid);
+            if (!$h) continue;
+            $ayarHata++;
+            $this->error(sprintf('  salon %d | %s | %s %s | %s', $sid, $h['zaman'] ?? '-', $h['platform'] ?? '-', $h['app_bundle'] ?? '-',
+                basename((string) ($h['proje_dosyasi'] ?? '-'))));
+            $this->line('      ' . mb_substr((string) ($h['hata'] ?? ''), 0, 200));
+        }
+        if (!$ayarHata) $this->info('  [OK] Ayar hatası görülmedi.');
+        $this->line('');
+
+        // 4d) Uzun suredir bildirim ulasmayan cihazlar (son basarili gonderim 60 gunden eski). Silinmez, bilgi.
+        try {
+            $eski = DB::table('bildirim_kimlikleri')->where('aktif', 1)->whereNotNull('bildirim_id')->where('bildirim_id', '!=', '')
+                ->where(function ($q) { $q->whereNull('son_kullanim_tarihi')->orWhere('son_kullanim_tarihi', '<', date('Y-m-d H:i:s', strtotime('-60 days'))); })
+                ->where('updated_at', '<', date('Y-m-d H:i:s', strtotime('-60 days')))->count();
+            $this->line("60 günden uzun süredir açılmamış ve bildirim almamış cihaz: {$eski}");
+        } catch (\Throwable $e) {
         }
         $this->line('');
 
@@ -196,7 +232,7 @@ class PushTeshis extends Command
             $this->line("  HTTP {$code}");
             $this->line("  Cevap: " . $body);
             if ($code === 200) {
-                $this->info('  [OK] FCM KABUL ETTI. Kimlik + gonderim yolu saglam. Sorun app_bundle eslesmesinde.');
+                $this->info('  [OK] FCM KABUL ETTI. Kimlik + gonderim yolu saglam. Bildirimin telefonda gorundugunu cihazdan kontrol edin.');
             } elseif ($code === 401) {
                 $this->error('  [401] Kimlik reddedildi — messages:send yetkisi/API sorunu.');
             } elseif ($code === 404 || stripos($body, 'UNREGISTERED') !== false) {

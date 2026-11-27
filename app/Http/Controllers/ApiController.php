@@ -8031,6 +8031,10 @@ private function formatAdisyonFast($adisyon, $isletmeId, &$odenenToplamTutar, &$
     ])
     // Saat kapama kayitlari (user_id=2012) randevu listelerinden haric tutulur
     ->where('user_id', '!=', 2012)
+    // Bildirime dokununca tek randevu (mobil): musteri/salon/personel kisitlari asagida aynen uygulanir
+    ->when($request->filled('randevu_id'), function($q) use($request) {
+        $q->where('id', (int) $request->randevu_id);
+    })
     ->when($musteridanisanadi, function($q) use($musteridanisanadi) {
         $q->whereHas('users', function($q) use($musteridanisanadi) {
             $q->where('name', 'like', '%'.$musteridanisanadi.'%');

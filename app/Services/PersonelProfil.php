@@ -324,7 +324,7 @@ class PersonelProfil
         foreach (BildirimTercih::yoneticiIdleri($salonId) as $yid) {
             if ((int) $yid === (int) $p->id) continue;
             try {
-                NotificationService::toStaff((int) $yid, $salonId)->type(NotificationTypes::SYSTEM_ANNOUNCEMENT)
+                NotificationService::toStaff((int) $yid, $salonId)->type(NotificationTypes::EKIP_TALEBI)->deepLink('ekibim', ['salon_id' => (int) $salonId])
                     ->title('İzin talebi')->body($metin . '. Onay bekliyor.')->cevaptanSonra()->send();
             } catch (\Throwable $e) {}
         }
@@ -384,7 +384,7 @@ class PersonelProfil
         self::log($salonId, $req, $onay ? 'izin_onay' : 'izin_red', $personel,
             $yonetici->personel_adi . ', ' . $personel->personel_adi . ' için ' . self::tarihMetni($i->baslangic, $i->bitis) . ' iznini ' . ($onay ? 'onayladı' : 'reddetti'));
         try {
-            NotificationService::toStaff((int) $personel->id, $salonId)->type(NotificationTypes::SYSTEM_ANNOUNCEMENT)
+            NotificationService::toStaff((int) $personel->id, $salonId)->type(NotificationTypes::IZIN_KARARI)->deepLink('izinlerim', ['salon_id' => (int) $salonId])
                 ->title($onay ? 'İzniniz onaylandı' : 'İzniniz reddedildi')->body($metin)->cevaptanSonra()->send();
         } catch (\Throwable $e) {}
         return true;

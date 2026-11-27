@@ -48,6 +48,14 @@ class NotificationTypes
     // Geri besleme
     public const SURVEY                    = 'survey';
 
+    // Isletme ic: alacak hatirlatma (personele; tiklaninca musteri detayi), izin/mola talebi ve karari,
+    // reklam kampanyasi bilgisi. Eski uygulama surumleri bilmedigi tipi Bildirimler ekraninda acar.
+    public const ALACAK_HATIRLATMA         = 'alacak_reminder';
+    public const EKIP_TALEBI               = 'team_request';    // yoneticiye: izin / mola talebi
+    public const IZIN_KARARI               = 'leave_decision';  // personele: izin onay / red
+    public const MOLA_BILGI                = 'break_info';      // personele: mola onay / red / verildi
+    public const REKLAM_KAMPANYA           = 'ad_campaign';     // reklam kampanyasi olusturuldu / aramalar kuyrukta
+
     // Sistem
     public const MEMBERSHIP_EXPIRING       = 'membership_expiring';
     public const SYSTEM_ANNOUNCEMENT       = 'system_announcement';

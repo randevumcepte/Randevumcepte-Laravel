@@ -85,38 +85,15 @@ class KampanyaYonetimi extends Model
     public static function olusturmaBildirimiGonder(self $kampanya)
     {
         try {
-            $controller = app(\App\Http\Controllers\BildirimController::class);
-            $personeller = Personeller::where('salon_id', $kampanya->salon_id)->pluck('id')->toArray();
-            $bildirimKimlikleri = BildirimKimlikleri::whereIn('isletme_yetkili_id', $personeller)->whereNotNull('bildirim_id')
-                ->where('salon_id', $kampanya->salon_id)->get();
-
-            foreach ($bildirimKimlikleri as $token) {
-                $data = [
-                    'category' => 'reklam',
-                    'buttons' => json_encode([]),
-                    'userInfo' => '',
-                    'salonId' => $kampanya->salon_id,
-                    'bildirimlereGitYonetici' => "1",
-                    'kullaniciRolu' => Personeller::where('id', $token->isletme_yetkili_id)->value('role_id'),
-                    'type' => '',
-                ];
-                $controller->bildirimGonder(
-                    'app/firebase/randevumcepte-uygulamala-5ff4d-8a85c43832c1.json',
-                    $token->bildirim_id,
-                    "Yeni Reklam Kampanyası Oluşturma",
-                    "Sisteme ".$kampanya->paket_isim." ile ilgili reklam kaydını başarıyla olşturdunuz.",
-                    $data,
-                    $kampanya->salon_id,
-                    null,
-                    '/public/yeni_panel/vendors/images/eczane24-icon.jpg',
-                    'kampanya',
-                    null,
-                    null,
-                    null,
-                    null,
-                    $token->isletme_yetkili_id,
-                    $kampanya->id
-                );
+            // NotificationService: salonun kendi Firebase projesi + gorunur bildirim (eski yol sabit
+            // projeyle yalniz-veri gonderiyordu; baska projedeki markada cihaz kaydi siliniyordu).
+            foreach (Personeller::where('salon_id', $kampanya->salon_id)->pluck('id')->toArray() as $pid) {
+                \App\Services\NotificationService::toStaff((int) $pid, (int) $kampanya->salon_id)
+                    ->type(\App\Services\NotificationTypes::REKLAM_KAMPANYA)
+                    ->title('Yeni Reklam Kampanyası Oluşturuldu')
+                    ->body('Sisteme ' . $kampanya->paket_isim . ' ile ilgili reklam kaydını başarıyla oluşturdunuz.')
+                    ->extra(['kampanya_id' => (string) $kampanya->id])
+                    ->send();
             }
         } catch (\Throwable $e) {
             \Log::error('[KAMPANYA-KAYDET-HATA] push bildirim basarisiz (kayit korundu)', [
